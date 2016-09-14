@@ -1415,7 +1415,12 @@ static int mtk_stop(struct net_device *dev)
 
 static int __init mtk_hw_init(struct mtk_eth *eth)
 {
-	int err, i;
+	int i;
+
+	clk_prepare_enable(eth->clks[MTK_CLK_ETHIF]);
+	clk_prepare_enable(eth->clks[MTK_CLK_ESW]);
+	clk_prepare_enable(eth->clks[MTK_CLK_GP1]);
+	clk_prepare_enable(eth->clks[MTK_CLK_GP2]);
 
 	/* reset the frame engine */
 	reset_control_assert(eth->rstc);
@@ -1440,19 +1445,6 @@ static int __init mtk_hw_init(struct mtk_eth *eth)
 
 	/* Enable RX VLan Offloading */
 	mtk_w32(eth, 1, MTK_CDMP_EG_CTRL);
-
-	err = devm_request_irq(eth->dev, eth->irq[1], mtk_handle_irq_tx, 0,
-			       dev_name(eth->dev), eth);
-	if (err)
-		return err;
-	err = devm_request_irq(eth->dev, eth->irq[2], mtk_handle_irq_rx, 0,
-			       dev_name(eth->dev), eth);
-	if (err)
-		return err;
-
-	err = mtk_mdio_init(eth);
-	if (err)
-		return err;
 
 	/* disable delay and normal interrupt */
 	mtk_w32(eth, 0, MTK_QDMA_DELAY_INT);
@@ -1786,16 +1778,7 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 	eth->netdev[id]->features |= MTK_HW_FEATURES;
 	eth->netdev[id]->ethtool_ops = &mtk_ethtool_ops;
 
-	err = register_netdev(eth->netdev[id]);
-	if (err) {
-		dev_err(eth->dev, "error bringing up device\n");
-		goto free_netdev;
-	}
 	eth->netdev[id]->irq = eth->irq[0];
-	netif_info(eth, probe, eth->netdev[id],
-		   "mediatek frame engine at 0x%08lx, irq %d\n",
-		   eth->netdev[id]->base_addr, eth->irq[0]);
-
 	return 0;
 
 free_netdev:
@@ -1865,11 +1848,6 @@ static int mtk_probe(struct platform_device *pdev)
 		}
 	}
 
-	clk_prepare_enable(eth->clks[MTK_CLK_ETHIF]);
-	clk_prepare_enable(eth->clks[MTK_CLK_ESW]);
-	clk_prepare_enable(eth->clks[MTK_CLK_GP1]);
-	clk_prepare_enable(eth->clks[MTK_CLK_GP2]);
-
 	eth->msg_enable = netif_msg_init(mtk_msg_level, MTK_DEFAULT_MSG_ENABLE);
 	INIT_WORK(&eth->pending_work, mtk_pending_work);
 
@@ -1888,6 +1866,34 @@ static int mtk_probe(struct platform_device *pdev)
 		err = mtk_add_mac(eth, mac_np);
 		if (err)
 			goto err_free_dev;
+	}
+
+	err = devm_request_irq(eth->dev, eth->irq[1], mtk_handle_irq_tx, 0,
+			       dev_name(eth->dev), eth);
+	if (err)
+		goto err_free_dev;
+
+	err = devm_request_irq(eth->dev, eth->irq[2], mtk_handle_irq_rx, 0,
+			       dev_name(eth->dev), eth);
+	if (err)
+		goto err_free_dev;
+
+	err = mtk_mdio_init(eth);
+	if (err)
+		goto err_free_dev;
+
+	for (i = 0; i < MTK_MAX_DEVS; i++) {
+		if (!eth->netdev[i])
+			continue;
+
+		err = register_netdev(eth->netdev[i]);
+		if (err) {
+			dev_err(eth->dev, "error bringing up device\n");
+			goto err_free_dev;
+		} else
+			netif_info(eth, probe, eth->netdev[i],
+				   "mediatek frame engine at 0x%08lx, irq %d\n",
+				   eth->netdev[i]->base_addr, eth->irq[0]);
 	}
 
 	/* we run 2 devices on the same DMA ring so we need a dummy device
