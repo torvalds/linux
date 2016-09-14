@@ -76,6 +76,7 @@ struct mcb_device {
 	int rev;
 	struct resource irq;
 	struct resource mem;
+	struct device *dma_dev;
 };
 
 static inline struct mcb_device *to_mcb_device(struct device *dev)

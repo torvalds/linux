@@ -233,6 +233,7 @@ int mcb_device_register(struct mcb_bus *bus, struct mcb_device *dev)
 	dev->dev.bus = &mcb_bus_type;
 	dev->dev.parent = bus->dev.parent;
 	dev->dev.release = mcb_release_dev;
+	dev->dma_dev = bus->carrier;
 
 	device_id = dev->id;
 	dev_set_name(&dev->dev, "mcb%d-16z%03d-%d:%d:%d",
