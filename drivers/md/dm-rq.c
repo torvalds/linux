@@ -336,17 +336,26 @@ static void dm_old_requeue_request(struct request *rq)
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
-static void dm_mq_delay_requeue_request(struct request *rq, unsigned long msecs)
+static void __dm_mq_kick_requeue_list(struct request_queue *q, unsigned long msecs)
 {
-	struct request_queue *q = rq->q;
 	unsigned long flags;
-
-	blk_mq_requeue_request(rq);
 
 	spin_lock_irqsave(q->queue_lock, flags);
 	if (!blk_queue_stopped(q))
 		blk_mq_delay_kick_requeue_list(q, msecs);
 	spin_unlock_irqrestore(q->queue_lock, flags);
+}
+
+void dm_mq_kick_requeue_list(struct mapped_device *md)
+{
+	__dm_mq_kick_requeue_list(dm_get_md_queue(md), 0);
+}
+EXPORT_SYMBOL(dm_mq_kick_requeue_list);
+
+static void dm_mq_delay_requeue_request(struct request *rq, unsigned long msecs)
+{
+	blk_mq_requeue_request(rq);
+	__dm_mq_kick_requeue_list(rq->q, msecs);
 }
 
 static void dm_requeue_original_request(struct dm_rq_target_io *tio, bool delay_requeue)
