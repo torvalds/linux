@@ -1063,8 +1063,12 @@ static int migration_cpu_stop(void *data)
 	 * holding rq->lock, if p->on_rq == 0 it cannot get enqueued because
 	 * we're holding p->pi_lock.
 	 */
-	if (task_rq(p) == rq && task_on_rq_queued(p))
-		rq = __migrate_task(rq, p, arg->dest_cpu);
+	if (task_rq(p) == rq) {
+		if (task_on_rq_queued(p))
+			rq = __migrate_task(rq, p, arg->dest_cpu);
+		else
+			p->wake_cpu = arg->dest_cpu;
+	}
 	raw_spin_unlock(&rq->lock);
 	raw_spin_unlock(&p->pi_lock);
 
