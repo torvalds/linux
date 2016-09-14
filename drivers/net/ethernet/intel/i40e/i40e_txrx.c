@@ -122,7 +122,6 @@ static int i40e_program_fdir_filter(struct i40e_fdir_filter *fdir_data,
 	struct device *dev;
 	dma_addr_t dma;
 	u32 td_cmd = 0;
-	u16 delay = 0;
 	u16 i;
 
 	/* find existing FDIR VSI */
@@ -137,15 +136,11 @@ static int i40e_program_fdir_filter(struct i40e_fdir_filter *fdir_data,
 	dev = tx_ring->dev;
 
 	/* we need two descriptors to add/del a filter and we can wait */
-	do {
-		if (I40E_DESC_UNUSED(tx_ring) > 1)
-			break;
+	for (i = I40E_FD_CLEAN_DELAY; I40E_DESC_UNUSED(tx_ring) < 2; i--) {
+		if (!i)
+			return -EAGAIN;
 		msleep_interruptible(1);
-		delay++;
-	} while (delay < I40E_FD_CLEAN_DELAY);
-
-	if (!(I40E_DESC_UNUSED(tx_ring) > 1))
-		return -EAGAIN;
+	}
 
 	dma = dma_map_single(dev, raw_packet,
 			     I40E_FDIR_MAX_RAW_PACKET_SIZE, DMA_TO_DEVICE);
