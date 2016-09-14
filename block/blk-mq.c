@@ -2157,8 +2157,6 @@ static void blk_mq_queue_reinit(struct request_queue *q,
 
 	blk_mq_sysfs_unregister(q);
 
-	blk_mq_update_queue_map(q->mq_map, q->nr_hw_queues, online_mask);
-
 	/*
 	 * redo blk_mq_init_cpu_queues and blk_mq_init_hw_queues. FIXME: maybe
 	 * we should change hctx numa_node according to new topology (this
