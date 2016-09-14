@@ -29,11 +29,16 @@ struct gpio_led_data {
 	gpio_blink_set_t platform_gpio_blink_set;
 };
 
+static inline struct gpio_led_data *
+			cdev_to_gpio_led_data(struct led_classdev *led_cdev)
+{
+	return container_of(led_cdev, struct gpio_led_data, cdev);
+}
+
 static void gpio_led_set(struct led_classdev *led_cdev,
 	enum led_brightness value)
 {
-	struct gpio_led_data *led_dat =
-		container_of(led_cdev, struct gpio_led_data, cdev);
+	struct gpio_led_data *led_dat = cdev_to_gpio_led_data(led_cdev);
 	int level;
 
 	if (value == LED_OFF)
@@ -63,8 +68,7 @@ static int gpio_led_set_blocking(struct led_classdev *led_cdev,
 static int gpio_blink_set(struct led_classdev *led_cdev,
 	unsigned long *delay_on, unsigned long *delay_off)
 {
-	struct gpio_led_data *led_dat =
-		container_of(led_cdev, struct gpio_led_data, cdev);
+	struct gpio_led_data *led_dat = cdev_to_gpio_led_data(led_cdev);
 
 	led_dat->blinking = 1;
 	return led_dat->platform_gpio_blink_set(led_dat->gpiod, GPIO_LED_BLINK,
