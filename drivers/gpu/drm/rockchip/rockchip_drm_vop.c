@@ -122,7 +122,6 @@ struct vop {
 	struct mutex vsync_mutex;
 	bool vsync_work_pending;
 	struct completion dsp_hold_completion;
-	struct completion wait_update_complete;
 
 	/* protected by dev->event_lock */
 	struct drm_pending_vblank_event *event;
@@ -933,18 +932,9 @@ static void vop_crtc_disable_vblank(struct drm_crtc *crtc)
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
 }
 
-static void vop_crtc_wait_for_update(struct drm_crtc *crtc)
-{
-	struct vop *vop = to_vop(crtc);
-
-	reinit_completion(&vop->wait_update_complete);
-	WARN_ON(!wait_for_completion_timeout(&vop->wait_update_complete, 100));
-}
-
 static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.enable_vblank = vop_crtc_enable_vblank,
 	.disable_vblank = vop_crtc_disable_vblank,
-	.wait_for_update = vop_crtc_wait_for_update,
 };
 
 static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
@@ -1251,9 +1241,6 @@ static void vop_handle_vblank(struct vop *vop)
 	}
 	spin_unlock_irqrestore(&drm->event_lock, flags);
 
-	if (!completion_done(&vop->wait_update_complete))
-		complete(&vop->wait_update_complete);
-
 	if (test_and_clear_bit(VOP_PENDING_FB_UNREF, &vop->pending))
 		drm_flip_work_commit(&vop->fb_unref_work, system_unbound_wq);
 }
@@ -1398,7 +1385,6 @@ static int vop_create_crtc(struct vop *vop)
 			   vop_fb_unref_worker);
 
 	init_completion(&vop->dsp_hold_completion);
-	init_completion(&vop->wait_update_complete);
 	init_completion(&vop->line_flag_completion);
 	crtc->port = port;
 	rockchip_register_crtc_funcs(crtc, &private_crtc_funcs);
