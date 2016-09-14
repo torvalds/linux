@@ -8,6 +8,7 @@
  * option) any later version.
  */
 
+#include <linux/cpuhotplug.h>
 #include <linux/init.h>
 #include <linux/percpu.h>
 #include <linux/slab.h>
@@ -70,8 +71,8 @@ static DEFINE_PER_CPU_ALIGNED(atomic_t, pm_barrier);
 DEFINE_PER_CPU_ALIGNED(struct mips_static_suspend_state, cps_cpu_state);
 
 /* A somewhat arbitrary number of labels & relocs for uasm */
-static struct uasm_label labels[32] __initdata;
-static struct uasm_reloc relocs[32] __initdata;
+static struct uasm_label labels[32];
+static struct uasm_reloc relocs[32];
 
 enum mips_reg {
 	zero, at, v0, v1, a0, a1, a2, a3,
@@ -193,10 +194,10 @@ int cps_pm_enter_state(enum cps_pm_state state)
 	return 0;
 }
 
-static void __init cps_gen_cache_routine(u32 **pp, struct uasm_label **pl,
-					 struct uasm_reloc **pr,
-					 const struct cache_desc *cache,
-					 unsigned op, int lbl)
+static void cps_gen_cache_routine(u32 **pp, struct uasm_label **pl,
+				  struct uasm_reloc **pr,
+				  const struct cache_desc *cache,
+				  unsigned op, int lbl)
 {
 	unsigned cache_size = cache->ways << cache->waybit;
 	unsigned i;
@@ -237,10 +238,10 @@ static void __init cps_gen_cache_routine(u32 **pp, struct uasm_label **pl,
 	uasm_i_nop(pp);
 }
 
-static int __init cps_gen_flush_fsb(u32 **pp, struct uasm_label **pl,
-				    struct uasm_reloc **pr,
-				    const struct cpuinfo_mips *cpu_info,
-				    int lbl)
+static int cps_gen_flush_fsb(u32 **pp, struct uasm_label **pl,
+			     struct uasm_reloc **pr,
+			     const struct cpuinfo_mips *cpu_info,
+			     int lbl)
 {
 	unsigned i, fsb_size = 8;
 	unsigned num_loads = (fsb_size * 3) / 2;
@@ -330,9 +331,9 @@ static int __init cps_gen_flush_fsb(u32 **pp, struct uasm_label **pl,
 	return 0;
 }
 
-static void __init cps_gen_set_top_bit(u32 **pp, struct uasm_label **pl,
-				       struct uasm_reloc **pr,
-				       unsigned r_addr, int lbl)
+static void cps_gen_set_top_bit(u32 **pp, struct uasm_label **pl,
+				struct uasm_reloc **pr,
+				unsigned r_addr, int lbl)
 {
 	uasm_i_lui(pp, t0, uasm_rel_hi(0x80000000));
 	uasm_build_label(pl, *pp, lbl);
@@ -343,7 +344,7 @@ static void __init cps_gen_set_top_bit(u32 **pp, struct uasm_label **pl,
 	uasm_i_nop(pp);
 }
 
-static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
+static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 {
 	struct uasm_label *l = labels;
 	struct uasm_reloc *r = relocs;
@@ -637,7 +638,7 @@ out_err:
 	return NULL;
 }
 
-static int __init cps_gen_core_entries(unsigned cpu)
+static int cps_pm_online_cpu(unsigned int cpu)
 {
 	enum cps_pm_state state;
 	unsigned core = cpu_data[cpu].core;
@@ -679,13 +680,10 @@ static int __init cps_gen_core_entries(unsigned cpu)
 
 static int __init cps_pm_init(void)
 {
-	unsigned cpu;
-	int err;
-
 	/* A CM is required for all non-coherent states */
 	if (!mips_cm_present()) {
 		pr_warn("pm-cps: no CM, non-coherent states unavailable\n");
-		goto out;
+		return 0;
 	}
 
 	/*
@@ -715,12 +713,7 @@ static int __init cps_pm_init(void)
 		pr_warn("pm-cps: no CPC, clock & power gating unavailable\n");
 	}
 
-	for_each_present_cpu(cpu) {
-		err = cps_gen_core_entries(cpu);
-		if (err)
-			return err;
-	}
-out:
-	return 0;
+	return cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "AP_PM_CPS_CPU_ONLINE",
+				 cps_pm_online_cpu, NULL);
 }
 arch_initcall(cps_pm_init);
