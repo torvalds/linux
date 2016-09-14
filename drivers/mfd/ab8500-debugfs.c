@@ -153,14 +153,14 @@ static struct hwreg_cfg hwreg_cfg = {
 
 #define AB8500_NAME_STRING "ab8500"
 #define AB8500_ADC_NAME_STRING "gpadc"
-#define AB8500_NUM_BANKS 24
+#define AB8500_NUM_BANKS AB8500_DEBUG_FIELD_LAST
 
 #define AB8500_REV_REG 0x80
 
 static struct ab8500_prcmu_ranges *debug_ranges;
 
 static struct ab8500_prcmu_ranges ab8500_debug_ranges[AB8500_NUM_BANKS] = {
-	[0x0] = {
+	[AB8500_M_FSM_RANK] = {
 		.num_ranges = 0,
 		.range = NULL,
 	},
@@ -315,7 +315,7 @@ static struct ab8500_prcmu_ranges ab8500_debug_ranges[AB8500_NUM_BANKS] = {
 			},
 		},
 	},
-	[0x9] = {
+	[AB8500_RESERVED] = {
 		.num_ranges = 0,
 		.range = NULL,
 	},
@@ -386,24 +386,6 @@ static struct ab8500_prcmu_ranges ab8500_debug_ranges[AB8500_NUM_BANKS] = {
 			},
 		},
 	},
-	[AB8500_DEVELOPMENT] = {
-		.num_ranges = 1,
-		.range = (struct ab8500_reg_range[]) {
-			{
-				.first = 0x00,
-				.last = 0x00,
-			},
-		},
-	},
-	[AB8500_DEBUG] = {
-		.num_ranges = 1,
-		.range = (struct ab8500_reg_range[]) {
-			{
-				.first = 0x05,
-				.last = 0x07,
-			},
-		},
-	},
 	[AB8500_AUDIO] = {
 		.num_ranges = 1,
 		.range = (struct ab8500_reg_range[]) {
@@ -463,19 +445,29 @@ static struct ab8500_prcmu_ranges ab8500_debug_ranges[AB8500_NUM_BANKS] = {
 			},
 		},
 	},
-	[0x11] = {
+	[AB8500_DEVELOPMENT] = {
+		.num_ranges = 1,
+		.range = (struct ab8500_reg_range[]) {
+			{
+				.first = 0x00,
+				.last = 0x00,
+			},
+		},
+	},
+	[AB8500_DEBUG] = {
+		.num_ranges = 1,
+		.range = (struct ab8500_reg_range[]) {
+			{
+				.first = 0x05,
+				.last = 0x07,
+			},
+		},
+	},
+	[AB8500_PROD_TEST] = {
 		.num_ranges = 0,
 		.range = NULL,
 	},
-	[0x12] = {
-		.num_ranges = 0,
-		.range = NULL,
-	},
-	[0x13] = {
-		.num_ranges = 0,
-		.range = NULL,
-	},
-	[0x14] = {
+	[AB8500_STE_TEST] = {
 		.num_ranges = 0,
 		.range = NULL,
 	},
