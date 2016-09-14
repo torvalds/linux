@@ -607,6 +607,8 @@ struct i40e_q_vector {
 	unsigned long hung_detected; /* Set/Reset for hung_detection logic */
 
 	cpumask_t affinity_mask;
+	struct irq_affinity_notify affinity_notify;
+
 	struct rcu_head rcu;	/* to avoid race with update stats on free */
 	char name[I40E_INT_NAME_STR_LEN];
 	bool arm_wb_state;

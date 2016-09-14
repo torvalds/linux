@@ -1999,12 +1999,25 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 
 	/* If work not completed, return budget and polling will return */
 	if (!clean_complete) {
+		const cpumask_t *aff_mask = &q_vector->affinity_mask;
+		int cpu_id = smp_processor_id();
+
+		/* It is possible that the interrupt affinity has changed but,
+		 * if the cpu is pegged at 100%, polling will never exit while
+		 * traffic continues and the interrupt will be stuck on this
+		 * cpu.  We check to make sure affinity is correct before we
+		 * continue to poll, otherwise we must stop polling so the
+		 * interrupt can move to the correct cpu.
+		 */
+		if (likely(cpumask_test_cpu(cpu_id, aff_mask) ||
+			   !(vsi->back->flags & I40E_FLAG_MSIX_ENABLED))) {
 tx_only:
-		if (arm_wb) {
-			q_vector->tx.ring[0].tx_stats.tx_force_wb++;
-			i40e_enable_wb_on_itr(vsi, q_vector);
+			if (arm_wb) {
+				q_vector->tx.ring[0].tx_stats.tx_force_wb++;
+				i40e_enable_wb_on_itr(vsi, q_vector);
+			}
+			return budget;
 		}
-		return budget;
 	}
 
 	if (vsi->back->flags & I40E_TXR_FLAGS_WB_ON_ITR)
@@ -2012,11 +2025,18 @@ tx_only:
 
 	/* Work is done so exit the polling mode and re-enable the interrupt */
 	napi_complete_done(napi, work_done);
-	if (vsi->back->flags & I40E_FLAG_MSIX_ENABLED) {
-		i40e_update_enable_itr(vsi, q_vector);
-	} else { /* Legacy mode */
+
+	/* If we're prematurely stopping polling to fix the interrupt
+	 * affinity we want to make sure polling starts back up so we
+	 * issue a call to i40e_force_wb which triggers a SW interrupt.
+	 */
+	if (!clean_complete)
+		i40e_force_wb(vsi, q_vector);
+	else if (!(vsi->back->flags & I40E_FLAG_MSIX_ENABLED))
 		i40e_irq_dynamic_enable_icr0(vsi->back, false);
-	}
+	else
+		i40e_update_enable_itr(vsi, q_vector);
+
 	return 0;
 }
 

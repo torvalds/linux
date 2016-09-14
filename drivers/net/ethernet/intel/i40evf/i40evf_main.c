@@ -496,6 +496,33 @@ static void i40evf_netpoll(struct net_device *netdev)
 
 #endif
 /**
+ * i40evf_irq_affinity_notify - Callback for affinity changes
+ * @notify: context as to what irq was changed
+ * @mask: the new affinity mask
+ *
+ * This is a callback function used by the irq_set_affinity_notifier function
+ * so that we may register to receive changes to the irq affinity masks.
+ **/
+static void i40evf_irq_affinity_notify(struct irq_affinity_notify *notify,
+				       const cpumask_t *mask)
+{
+	struct i40e_q_vector *q_vector =
+		container_of(notify, struct i40e_q_vector, affinity_notify);
+
+	q_vector->affinity_mask = *mask;
+}
+
+/**
+ * i40evf_irq_affinity_release - Callback for affinity notifier release
+ * @ref: internal core kernel usage
+ *
+ * This is a callback function used by the irq_set_affinity_notifier function
+ * to inform the current notification subscriber that they will no longer
+ * receive notifications.
+ **/
+static void i40evf_irq_affinity_release(struct kref *ref) {}
+
+/**
  * i40evf_request_traffic_irqs - Initialize MSI-X interrupts
  * @adapter: board private structure
  *
@@ -507,6 +534,7 @@ i40evf_request_traffic_irqs(struct i40evf_adapter *adapter, char *basename)
 {
 	int vector, err, q_vectors;
 	int rx_int_idx = 0, tx_int_idx = 0;
+	int irq_num;
 
 	i40evf_irq_disable(adapter);
 	/* Decrement for Other and TCP Timer vectors */
@@ -514,6 +542,7 @@ i40evf_request_traffic_irqs(struct i40evf_adapter *adapter, char *basename)
 
 	for (vector = 0; vector < q_vectors; vector++) {
 		struct i40e_q_vector *q_vector = &adapter->q_vectors[vector];
+		irq_num = adapter->msix_entries[vector + NONQ_VECS].vector;
 
 		if (q_vector->tx.ring && q_vector->rx.ring) {
 			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
@@ -532,21 +561,23 @@ i40evf_request_traffic_irqs(struct i40evf_adapter *adapter, char *basename)
 			/* skip this unused q_vector */
 			continue;
 		}
-		err = request_irq(
-			adapter->msix_entries[vector + NONQ_VECS].vector,
-			i40evf_msix_clean_rings,
-			0,
-			q_vector->name,
-			q_vector);
+		err = request_irq(irq_num,
+				  i40evf_msix_clean_rings,
+				  0,
+				  q_vector->name,
+				  q_vector);
 		if (err) {
 			dev_info(&adapter->pdev->dev,
 				 "Request_irq failed, error: %d\n", err);
 			goto free_queue_irqs;
 		}
+		/* register for affinity change notifications */
+		q_vector->affinity_notify.notify = i40evf_irq_affinity_notify;
+		q_vector->affinity_notify.release =
+						   i40evf_irq_affinity_release;
+		irq_set_affinity_notifier(irq_num, &q_vector->affinity_notify);
 		/* assign the mask for this irq */
-		irq_set_affinity_hint(
-			adapter->msix_entries[vector + NONQ_VECS].vector,
-			q_vector->affinity_mask);
+		irq_set_affinity_hint(irq_num, &q_vector->affinity_mask);
 	}
 
 	return 0;
@@ -554,11 +585,10 @@ i40evf_request_traffic_irqs(struct i40evf_adapter *adapter, char *basename)
 free_queue_irqs:
 	while (vector) {
 		vector--;
-		irq_set_affinity_hint(
-			adapter->msix_entries[vector + NONQ_VECS].vector,
-			NULL);
-		free_irq(adapter->msix_entries[vector + NONQ_VECS].vector,
-			 &adapter->q_vectors[vector]);
+		irq_num = adapter->msix_entries[vector + NONQ_VECS].vector;
+		irq_set_affinity_notifier(irq_num, NULL);
+		irq_set_affinity_hint(irq_num, NULL);
+		free_irq(irq_num, &adapter->q_vectors[vector]);
 	}
 	return err;
 }
@@ -599,16 +629,15 @@ static int i40evf_request_misc_irq(struct i40evf_adapter *adapter)
  **/
 static void i40evf_free_traffic_irqs(struct i40evf_adapter *adapter)
 {
-	int i;
-	int q_vectors;
+	int vector, irq_num, q_vectors;
 
 	q_vectors = adapter->num_msix_vectors - NONQ_VECS;
 
-	for (i = 0; i < q_vectors; i++) {
-		irq_set_affinity_hint(adapter->msix_entries[i+1].vector,
-				      NULL);
-		free_irq(adapter->msix_entries[i+1].vector,
-			 &adapter->q_vectors[i]);
+	for (vector = 0; vector < q_vectors; vector++) {
+		irq_num = adapter->msix_entries[vector + NONQ_VECS].vector;
+		irq_set_affinity_notifier(irq_num, NULL);
+		irq_set_affinity_hint(irq_num, NULL);
+		free_irq(irq_num, &adapter->q_vectors[vector]);
 	}
 }
 
