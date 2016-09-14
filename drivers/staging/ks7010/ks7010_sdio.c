@@ -492,7 +492,7 @@ static void ks7010_rw_function(struct work_struct *work)
 
 	/* wiat after DOZE */
 	if (time_after(priv->last_doze + ((30 * HZ) / 1000), jiffies)) {
-		DPRINTK(4, "wait after DOZE \n");
+		DPRINTK(4, "wait after DOZE\n");
 		queue_delayed_work(priv->ks_wlan_hw.ks7010sdio_wq,
 				   &priv->ks_wlan_hw.rw_wq, 1);
 		return;
@@ -500,7 +500,7 @@ static void ks7010_rw_function(struct work_struct *work)
 
 	/* wiat after WAKEUP */
 	while (time_after(priv->last_wakeup + ((30 * HZ) / 1000), jiffies)) {
-		DPRINTK(4, "wait after WAKEUP \n");
+		DPRINTK(4, "wait after WAKEUP\n");
 /*		queue_delayed_work(priv->ks_wlan_hw.ks7010sdio_wq,&priv->ks_wlan_hw.rw_wq,
 		(priv->last_wakeup + ((30*HZ)/1000) - jiffies));*/
 		printk("wake: %lu %lu\n", priv->last_wakeup + (30 * HZ) / 1000,
@@ -745,7 +745,7 @@ static int ks7010_sdio_data_compare(struct ks_wlan_private *priv, u32 address,
 	retval = memcmp(data, read_buf, size);
 
 	if (retval) {
-		DPRINTK(0, "data compare error (%d) \n", retval);
+		DPRINTK(0, "data compare error (%d)\n", retval);
 		rc = 3;
 		goto error_out;
 	}
