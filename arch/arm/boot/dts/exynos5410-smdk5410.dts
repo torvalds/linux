@@ -102,14 +102,14 @@
 	};
 };
 
-&uart0 {
+&serial_0 {
 	status = "okay";
 };
 
-&uart1 {
+&serial_1 {
 	status = "okay";
 };
 
-&uart2 {
+&serial_2 {
 	status = "okay";
 };

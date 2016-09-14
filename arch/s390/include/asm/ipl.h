@@ -141,11 +141,11 @@ extern void setup_ipl(void);
  * DIAG 308 support
  */
 enum diag308_subcode  {
-	DIAG308_REL_HSA	= 2,
-	DIAG308_IPL	= 3,
-	DIAG308_DUMP	= 4,
-	DIAG308_SET	= 5,
-	DIAG308_STORE	= 6,
+	DIAG308_REL_HSA = 2,
+	DIAG308_LOAD_CLEAR = 3,
+	DIAG308_LOAD_NORMAL_DUMP = 4,
+	DIAG308_SET = 5,
+	DIAG308_STORE = 6,
 };
 
 enum diag308_ipl_type {

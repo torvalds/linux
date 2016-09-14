@@ -4,8 +4,8 @@ UFSHC nodes are defined to describe on-chip UFS host controllers.
 Each UFS controller instance should have its own node.
 
 Required properties:
-- compatible		: must contain "jedec,ufs-1.1", may also list one or more
-					  of the following:
+- compatible		: must contain "jedec,ufs-1.1" or "jedec,ufs-2.0", may
+			  also list one or more of the following:
 					  "qcom,msm8994-ufshc"
 					  "qcom,msm8996-ufshc"
 					  "qcom,ufshc"

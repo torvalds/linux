@@ -811,6 +811,7 @@ int vidioc_g_edid(struct file *file, void *_fh,
 {
 	struct vivid_dev *dev = video_drvdata(file);
 	struct video_device *vdev = video_devdata(file);
+	struct cec_adapter *adap;
 
 	memset(edid->reserved, 0, sizeof(edid->reserved));
 	if (vdev->vfl_dir == VFL_DIR_RX) {
@@ -818,11 +819,16 @@ int vidioc_g_edid(struct file *file, void *_fh,
 			return -EINVAL;
 		if (dev->input_type[edid->pad] != HDMI)
 			return -EINVAL;
+		adap = dev->cec_rx_adap;
 	} else {
+		unsigned int bus_idx;
+
 		if (edid->pad >= dev->num_outputs)
 			return -EINVAL;
 		if (dev->output_type[edid->pad] != HDMI)
 			return -EINVAL;
+		bus_idx = dev->cec_output2bus_map[edid->pad];
+		adap = dev->cec_tx_adap[bus_idx];
 	}
 	if (edid->start_block == 0 && edid->blocks == 0) {
 		edid->blocks = dev->edid_blocks;
@@ -835,5 +841,6 @@ int vidioc_g_edid(struct file *file, void *_fh,
 	if (edid->start_block + edid->blocks > dev->edid_blocks)
 		edid->blocks = dev->edid_blocks - edid->start_block;
 	memcpy(edid->edid, dev->edid, edid->blocks * 128);
+	cec_set_edid_phys_addr(edid->edid, edid->blocks * 128, adap->phys_addr);
 	return 0;
 }

@@ -161,6 +161,10 @@ X!Edrivers/base/interface.c
 !Iinclude/linux/fence.h
 !Edrivers/dma-buf/seqno-fence.c
 !Iinclude/linux/seqno-fence.h
+!Edrivers/dma-buf/fence-array.c
+!Iinclude/linux/fence-array.h
+!Edrivers/dma-buf/reservation.c
+!Iinclude/linux/reservation.h
 !Edrivers/dma-buf/sync_file.c
 !Iinclude/linux/sync_file.h
        </sect2>
@@ -247,61 +251,6 @@ X!Isound/sound_firmware.c
 -->
   </chapter>
 
-  <chapter id="mediadev">
-     <title>Media Devices</title>
-
-     <sect1><title>Video2Linux devices</title>
-!Iinclude/media/tuner.h
-!Iinclude/media/tuner-types.h
-!Iinclude/media/tveeprom.h
-!Iinclude/media/v4l2-async.h
-!Iinclude/media/v4l2-ctrls.h
-!Iinclude/media/v4l2-dv-timings.h
-!Iinclude/media/v4l2-event.h
-!Iinclude/media/v4l2-flash-led-class.h
-!Iinclude/media/v4l2-mc.h
-!Iinclude/media/v4l2-mediabus.h
-!Iinclude/media/v4l2-mem2mem.h
-!Iinclude/media/v4l2-of.h
-!Iinclude/media/v4l2-rect.h
-!Iinclude/media/v4l2-subdev.h
-!Iinclude/media/videobuf2-core.h
-!Iinclude/media/videobuf2-v4l2.h
-!Iinclude/media/videobuf2-memops.h
-     </sect1>
-     <sect1><title>Digital TV (DVB) devices</title>
-	<sect1><title>Digital TV Common functions</title>
-!Idrivers/media/dvb-core/dvb_math.h
-!Idrivers/media/dvb-core/dvb_ringbuffer.h
-!Idrivers/media/dvb-core/dvbdev.h
-	</sect1>
-	<sect1><title>Digital TV Frontend kABI</title>
-!Pdrivers/media/dvb-core/dvb_frontend.h Digital TV Frontend
-!Idrivers/media/dvb-core/dvb_frontend.h
-	</sect1>
-	<sect1><title>Digital TV Demux kABI</title>
-!Pdrivers/media/dvb-core/demux.h Digital TV Demux
-	<sect1><title>Demux Callback API</title>
-!Pdrivers/media/dvb-core/demux.h Demux Callback
-	</sect1>
-!Idrivers/media/dvb-core/demux.h
-	</sect1>
-	<sect1><title>Digital TV Conditional Access kABI</title>
-!Idrivers/media/dvb-core/dvb_ca_en50221.h
-	</sect1>
-     </sect1>
-    <sect1><title>Remote Controller devices</title>
-!Iinclude/media/rc-core.h
-!Iinclude/media/lirc_dev.h
-    </sect1>
-    <sect1><title>Media Controller devices</title>
-!Pinclude/media/media-device.h Media Controller
-!Iinclude/media/media-device.h
-!Iinclude/media/media-devnode.h
-!Iinclude/media/media-entity.h
-    </sect1>
-
-  </chapter>
 
   <chapter id="uart16x50">
      <title>16x50 UART Driver</title>
@@ -539,7 +488,7 @@ X!Ilib/fonts/fonts.c
      </para>
 
 !Iinclude/linux/hsi/hsi.h
-!Edrivers/hsi/hsi.c
+!Edrivers/hsi/hsi_core.c
   </chapter>
 
   <chapter id="pwm">

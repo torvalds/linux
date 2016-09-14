@@ -46,7 +46,7 @@ struct vmw_fence_manager {
 	bool goal_irq_on; /* Protected by @goal_irq_mutex */
 	bool seqno_valid; /* Protected by @lock, and may not be set to true
 			     without the @goal_irq_mutex held. */
-	unsigned ctx;
+	u64 ctx;
 };
 
 struct vmw_user_fence {

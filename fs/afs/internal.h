@@ -609,16 +609,28 @@ extern void afs_proc_cell_remove(struct afs_cell *);
  */
 extern int afs_open_socket(void);
 extern void afs_close_socket(void);
+extern void afs_data_consumed(struct afs_call *, struct sk_buff *);
 extern int afs_make_call(struct in_addr *, struct afs_call *, gfp_t,
 			 const struct afs_wait_mode *);
 extern struct afs_call *afs_alloc_flat_call(const struct afs_call_type *,
 					    size_t, size_t);
 extern void afs_flat_call_destructor(struct afs_call *);
-extern void afs_transfer_reply(struct afs_call *, struct sk_buff *);
+extern int afs_transfer_reply(struct afs_call *, struct sk_buff *, bool);
 extern void afs_send_empty_reply(struct afs_call *);
 extern void afs_send_simple_reply(struct afs_call *, const void *, size_t);
 extern int afs_extract_data(struct afs_call *, struct sk_buff *, bool, void *,
 			    size_t);
+
+static inline int afs_data_complete(struct afs_call *call, struct sk_buff *skb,
+				    bool last)
+{
+	if (skb->len > 0)
+		return -EBADMSG;
+	afs_data_consumed(call, skb);
+	if (!last)
+		return -EAGAIN;
+	return 0;
+}
 
 /*
  * security.c

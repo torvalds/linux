@@ -414,7 +414,7 @@ void __init *early_get_page(void)
 
 #endif /* CONFIG_MMU */
 
-void * __init_refok alloc_maybe_bootmem(size_t size, gfp_t mask)
+void * __ref alloc_maybe_bootmem(size_t size, gfp_t mask)
 {
 	if (mem_init_done)
 		return kmalloc(size, mask);
@@ -422,7 +422,7 @@ void * __init_refok alloc_maybe_bootmem(size_t size, gfp_t mask)
 		return alloc_bootmem(size);
 }
 
-void * __init_refok zalloc_maybe_bootmem(size_t size, gfp_t mask)
+void * __ref zalloc_maybe_bootmem(size_t size, gfp_t mask)
 {
 	void *p;
 

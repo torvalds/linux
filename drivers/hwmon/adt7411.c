@@ -30,12 +30,17 @@
 
 #define ADT7411_REG_CFG1			0x18
 #define ADT7411_CFG1_START_MONITOR		(1 << 0)
+#define ADT7411_CFG1_RESERVED_BIT1		(1 << 1)
+#define ADT7411_CFG1_RESERVED_BIT3		(1 << 3)
 
 #define ADT7411_REG_CFG2			0x19
 #define ADT7411_CFG2_DISABLE_AVG		(1 << 5)
 
 #define ADT7411_REG_CFG3			0x1a
 #define ADT7411_CFG3_ADC_CLK_225		(1 << 0)
+#define ADT7411_CFG3_RESERVED_BIT1		(1 << 1)
+#define ADT7411_CFG3_RESERVED_BIT2		(1 << 2)
+#define ADT7411_CFG3_RESERVED_BIT3		(1 << 3)
 #define ADT7411_CFG3_REF_VDD			(1 << 4)
 
 #define ADT7411_REG_DEVICE_ID			0x4d
@@ -279,6 +284,45 @@ static int adt7411_detect(struct i2c_client *client,
 	return 0;
 }
 
+static int adt7411_init_device(struct adt7411_data *data)
+{
+	int ret;
+	u8 val;
+
+	ret = i2c_smbus_read_byte_data(data->client, ADT7411_REG_CFG3);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * We must only write zero to bit 1 and bit 2 and only one to bit 3
+	 * according to the datasheet.
+	 */
+	val = ret;
+	val &= ~(ADT7411_CFG3_RESERVED_BIT1 | ADT7411_CFG3_RESERVED_BIT2);
+	val |= ADT7411_CFG3_RESERVED_BIT3;
+
+	ret = i2c_smbus_write_byte_data(data->client, ADT7411_REG_CFG3, val);
+	if (ret < 0)
+		return ret;
+
+	ret = i2c_smbus_read_byte_data(data->client, ADT7411_REG_CFG1);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * We must only write zero to bit 1 and only one to bit 3 according to
+	 * the datasheet.
+	 */
+	val = ret;
+	val &= ~ADT7411_CFG1_RESERVED_BIT1;
+	val |= ADT7411_CFG1_RESERVED_BIT3;
+
+	/* enable monitoring */
+	val |= ADT7411_CFG1_START_MONITOR;
+
+	return i2c_smbus_write_byte_data(data->client, ADT7411_REG_CFG1, val);
+}
+
 static int adt7411_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
@@ -296,8 +340,7 @@ static int adt7411_probe(struct i2c_client *client,
 	mutex_init(&data->device_lock);
 	mutex_init(&data->update_lock);
 
-	ret = adt7411_modify_bit(client, ADT7411_REG_CFG1,
-				 ADT7411_CFG1_START_MONITOR, 1);
+	ret = adt7411_init_device(data);
 	if (ret < 0)
 		return ret;
 

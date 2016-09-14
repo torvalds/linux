@@ -64,6 +64,7 @@
 #include "debugfs.h"
 #include "verbs.h"
 #include "aspm.h"
+#include "affinity.h"
 
 #undef pr_fmt
 #define pr_fmt(fmt) DRIVER_NAME ": " fmt
@@ -93,7 +94,7 @@ module_param_array(krcvqs, uint, &krcvqsset, S_IRUGO);
 MODULE_PARM_DESC(krcvqs, "Array of the number of non-control kernel receive queues by VL");
 
 /* computed based on above array */
-unsigned n_krcvqs;
+unsigned long n_krcvqs;
 
 static unsigned hfi1_rcvarr_split = 25;
 module_param_named(rcvarr_split, hfi1_rcvarr_split, uint, S_IRUGO);
@@ -474,8 +475,9 @@ static enum hrtimer_restart cca_timer_fn(struct hrtimer *t)
 void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
 			 struct hfi1_devdata *dd, u8 hw_pidx, u8 port)
 {
-	int i, size;
+	int i;
 	uint default_pkey_idx;
+	struct cc_state *cc_state;
 
 	ppd->dd = dd;
 	ppd->hw_pidx = hw_pidx;
@@ -498,6 +500,7 @@ void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
 	INIT_WORK(&ppd->link_downgrade_work, handle_link_downgrade);
 	INIT_WORK(&ppd->sma_message_work, handle_sma_message);
 	INIT_WORK(&ppd->link_bounce_work, handle_link_bounce);
+	INIT_DELAYED_WORK(&ppd->start_link_work, handle_start_link);
 	INIT_WORK(&ppd->linkstate_active_work, receive_interrupt_work);
 	INIT_WORK(&ppd->qsfp_info.qsfp_work, qsfp_event);
 
@@ -526,9 +529,9 @@ void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
 
 	spin_lock_init(&ppd->cc_state_lock);
 	spin_lock_init(&ppd->cc_log_lock);
-	size = sizeof(struct cc_state);
-	RCU_INIT_POINTER(ppd->cc_state, kzalloc(size, GFP_KERNEL));
-	if (!rcu_dereference(ppd->cc_state))
+	cc_state = kzalloc(sizeof(*cc_state), GFP_KERNEL);
+	RCU_INIT_POINTER(ppd->cc_state, cc_state);
+	if (!cc_state)
 		goto bail;
 	return;
 
@@ -972,39 +975,49 @@ void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 
 /*
  * Release our hold on the shared asic data.  If we are the last one,
- * free the structure.  Must be holding hfi1_devs_lock.
+ * return the structure to be finalized outside the lock.  Must be
+ * holding hfi1_devs_lock.
  */
-static void release_asic_data(struct hfi1_devdata *dd)
+static struct hfi1_asic_data *release_asic_data(struct hfi1_devdata *dd)
 {
+	struct hfi1_asic_data *ad;
 	int other;
 
 	if (!dd->asic_data)
-		return;
+		return NULL;
 	dd->asic_data->dds[dd->hfi1_id] = NULL;
 	other = dd->hfi1_id ? 0 : 1;
-	if (!dd->asic_data->dds[other]) {
-		/* we are the last holder, free it */
-		kfree(dd->asic_data);
-	}
+	ad = dd->asic_data;
 	dd->asic_data = NULL;
+	/* return NULL if the other dd still has a link */
+	return ad->dds[other] ? NULL : ad;
+}
+
+static void finalize_asic_data(struct hfi1_devdata *dd,
+			       struct hfi1_asic_data *ad)
+{
+	clean_up_i2c(dd, ad);
+	kfree(ad);
 }
 
 static void __hfi1_free_devdata(struct kobject *kobj)
 {
 	struct hfi1_devdata *dd =
 		container_of(kobj, struct hfi1_devdata, kobj);
+	struct hfi1_asic_data *ad;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hfi1_devs_lock, flags);
 	idr_remove(&hfi1_unit_table, dd->unit);
 	list_del(&dd->list);
-	release_asic_data(dd);
+	ad = release_asic_data(dd);
 	spin_unlock_irqrestore(&hfi1_devs_lock, flags);
+	if (ad)
+		finalize_asic_data(dd, ad);
 	free_platform_config(dd);
 	rcu_barrier(); /* wait for rcu callbacks to complete */
 	free_percpu(dd->int_counter);
 	free_percpu(dd->rcv_limit);
-	hfi1_dev_affinity_free(dd);
 	free_percpu(dd->send_schedule);
 	rvt_dealloc_device(&dd->verbs_dev.rdi);
 }
@@ -1162,7 +1175,7 @@ static int init_one(struct pci_dev *, const struct pci_device_id *);
 #define DRIVER_LOAD_MSG "Intel " DRIVER_NAME " loaded: "
 #define PFX DRIVER_NAME ": "
 
-static const struct pci_device_id hfi1_pci_tbl[] = {
+const struct pci_device_id hfi1_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL0) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL1) },
 	{ 0, }
@@ -1195,6 +1208,10 @@ static int __init hfi1_mod_init(void)
 	int ret;
 
 	ret = dev_init();
+	if (ret)
+		goto bail;
+
+	ret = node_affinity_init();
 	if (ret)
 		goto bail;
 
@@ -1278,6 +1295,7 @@ module_init(hfi1_mod_init);
 static void __exit hfi1_mod_cleanup(void)
 {
 	pci_unregister_driver(&hfi1_pci_driver);
+	node_affinity_destroy();
 	hfi1_wss_exit();
 	hfi1_dbg_exit();
 	hfi1_cpulist_count = 0;
@@ -1311,12 +1329,12 @@ static void cleanup_device_data(struct hfi1_devdata *dd)
 			hrtimer_cancel(&ppd->cca_timer[i].hrtimer);
 
 		spin_lock(&ppd->cc_state_lock);
-		cc_state = get_cc_state(ppd);
+		cc_state = get_cc_state_protected(ppd);
 		RCU_INIT_POINTER(ppd->cc_state, NULL);
 		spin_unlock(&ppd->cc_state_lock);
 
 		if (cc_state)
-			call_rcu(&cc_state->rcu, cc_state_reclaim);
+			kfree_rcu(cc_state, rcu);
 	}
 
 	free_credit_return(dd);
@@ -1760,8 +1778,8 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 
 	hfi1_cdbg(PROC,
 		  "ctxt%u: Alloced %u rcv tid entries @ %uKB, total %zuKB\n",
-		  rcd->ctxt, rcd->egrbufs.alloced, rcd->egrbufs.rcvtid_size,
-		  rcd->egrbufs.size);
+		  rcd->ctxt, rcd->egrbufs.alloced,
+		  rcd->egrbufs.rcvtid_size / 1024, rcd->egrbufs.size / 1024);
 
 	/*
 	 * Set the contexts rcv array head update threshold to the closest

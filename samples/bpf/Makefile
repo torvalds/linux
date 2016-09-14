@@ -14,12 +14,16 @@ hostprogs-y += tracex3
 hostprogs-y += tracex4
 hostprogs-y += tracex5
 hostprogs-y += tracex6
+hostprogs-y += test_probe_write_user
 hostprogs-y += trace_output
 hostprogs-y += lathist
 hostprogs-y += offwaketime
 hostprogs-y += spintest
 hostprogs-y += map_perf_test
 hostprogs-y += test_overhead
+hostprogs-y += test_cgrp2_array_pin
+hostprogs-y += xdp1
+hostprogs-y += xdp2
 
 test_verifier-objs := test_verifier.o libbpf.o
 test_maps-objs := test_maps.o libbpf.o
@@ -34,12 +38,17 @@ tracex3-objs := bpf_load.o libbpf.o tracex3_user.o
 tracex4-objs := bpf_load.o libbpf.o tracex4_user.o
 tracex5-objs := bpf_load.o libbpf.o tracex5_user.o
 tracex6-objs := bpf_load.o libbpf.o tracex6_user.o
+test_probe_write_user-objs := bpf_load.o libbpf.o test_probe_write_user_user.o
 trace_output-objs := bpf_load.o libbpf.o trace_output_user.o
 lathist-objs := bpf_load.o libbpf.o lathist_user.o
 offwaketime-objs := bpf_load.o libbpf.o offwaketime_user.o
 spintest-objs := bpf_load.o libbpf.o spintest_user.o
 map_perf_test-objs := bpf_load.o libbpf.o map_perf_test_user.o
 test_overhead-objs := bpf_load.o libbpf.o test_overhead_user.o
+test_cgrp2_array_pin-objs := libbpf.o test_cgrp2_array_pin.o
+xdp1-objs := bpf_load.o libbpf.o xdp1_user.o
+# reuse xdp1 source intentionally
+xdp2-objs := bpf_load.o libbpf.o xdp1_user.o
 
 # Tell kbuild to always build the programs
 always := $(hostprogs-y)
@@ -52,6 +61,7 @@ always += tracex3_kern.o
 always += tracex4_kern.o
 always += tracex5_kern.o
 always += tracex6_kern.o
+always += test_probe_write_user_kern.o
 always += trace_output_kern.o
 always += tcbpf1_kern.o
 always += lathist_kern.o
@@ -61,6 +71,9 @@ always += map_perf_test_kern.o
 always += test_overhead_tp_kern.o
 always += test_overhead_kprobe_kern.o
 always += parse_varlen.o parse_simple.o parse_ldabs.o
+always += test_cgrp2_tc_kern.o
+always += xdp1_kern.o
+always += xdp2_kern.o
 
 HOSTCFLAGS += -I$(objtree)/usr/include
 
@@ -75,12 +88,15 @@ HOSTLOADLIBES_tracex3 += -lelf
 HOSTLOADLIBES_tracex4 += -lelf -lrt
 HOSTLOADLIBES_tracex5 += -lelf
 HOSTLOADLIBES_tracex6 += -lelf
+HOSTLOADLIBES_test_probe_write_user += -lelf
 HOSTLOADLIBES_trace_output += -lelf -lrt
 HOSTLOADLIBES_lathist += -lelf
 HOSTLOADLIBES_offwaketime += -lelf
 HOSTLOADLIBES_spintest += -lelf
 HOSTLOADLIBES_map_perf_test += -lelf -lrt
 HOSTLOADLIBES_test_overhead += -lelf -lrt
+HOSTLOADLIBES_xdp1 += -lelf
+HOSTLOADLIBES_xdp2 += -lelf
 
 # Allows pointing LLC/CLANG to a LLVM backend with bpf support, redefine on cmdline:
 #  make samples/bpf/ LLC=~/git/llvm/build/bin/llc CLANG=~/git/llvm/build/bin/clang

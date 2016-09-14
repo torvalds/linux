@@ -105,6 +105,8 @@
 			reg = <0x58c00000 0x400>;
 			#address-cells = <2>;
 			#size-cells = <1>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_system_bus>;
 		};
 
 		smpctrl@59800000 {
@@ -134,9 +136,13 @@
 			interrupt-controller;
 		};
 
-		pinctrl: pinctrl@5f801000 {
-			/* specify compatible in each SoC DTSI */
-			reg = <0x5f801000 0xe00>;
+		soc-glue@5f800000 {
+			compatible = "simple-mfd", "syscon";
+			reg = <0x5f800000 0x2000>;
+
+			pinctrl: pinctrl {
+				 /* specify compatible in each SoC DTSI */
+			};
 		};
 	};
 };

@@ -5,7 +5,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/acpi.h>
 #include <linux/cpu.h>

@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -54,61 +50,43 @@ struct mdc_getattr_args {
 	struct ldlm_enqueue_info    *ga_einfo;
 };
 
-int it_disposition(struct lookup_intent *it, int flag)
-{
-	return it->d.lustre.it_disposition & flag;
-}
-EXPORT_SYMBOL(it_disposition);
-
-void it_set_disposition(struct lookup_intent *it, int flag)
-{
-	it->d.lustre.it_disposition |= flag;
-}
-EXPORT_SYMBOL(it_set_disposition);
-
-void it_clear_disposition(struct lookup_intent *it, int flag)
-{
-	it->d.lustre.it_disposition &= ~flag;
-}
-EXPORT_SYMBOL(it_clear_disposition);
-
 int it_open_error(int phase, struct lookup_intent *it)
 {
 	if (it_disposition(it, DISP_OPEN_LEASE)) {
 		if (phase >= DISP_OPEN_LEASE)
-			return it->d.lustre.it_status;
+			return it->it_status;
 		else
 			return 0;
 	}
 	if (it_disposition(it, DISP_OPEN_OPEN)) {
 		if (phase >= DISP_OPEN_OPEN)
-			return it->d.lustre.it_status;
+			return it->it_status;
 		else
 			return 0;
 	}
 
 	if (it_disposition(it, DISP_OPEN_CREATE)) {
 		if (phase >= DISP_OPEN_CREATE)
-			return it->d.lustre.it_status;
+			return it->it_status;
 		else
 			return 0;
 	}
 
 	if (it_disposition(it, DISP_LOOKUP_EXECD)) {
 		if (phase >= DISP_LOOKUP_EXECD)
-			return it->d.lustre.it_status;
+			return it->it_status;
 		else
 			return 0;
 	}
 
 	if (it_disposition(it, DISP_IT_EXECD)) {
 		if (phase >= DISP_IT_EXECD)
-			return it->d.lustre.it_status;
+			return it->it_status;
 		else
 			return 0;
 	}
-	CERROR("it disp: %X, status: %d\n", it->d.lustre.it_disposition,
-	       it->d.lustre.it_status);
+	CERROR("it disp: %X, status: %d\n", it->it_disposition,
+	       it->it_status);
 	LBUG();
 	return 0;
 }
@@ -347,10 +325,6 @@ static struct ptlrpc_request *mdc_intent_open_pack(struct obd_export *exp,
 	mdc_open_pack(req, op_data, it->it_create_mode, 0, it->it_flags, lmm,
 		      lmmsize);
 
-	/* for remote client, fetch remote perm for current user */
-	if (client_is_remote(exp))
-		req_capsule_set_size(&req->rq_pill, &RMF_ACL, RCL_SERVER,
-				     sizeof(struct mdt_remote_perm));
 	ptlrpc_request_set_replen(req);
 	return req;
 }
@@ -444,9 +418,7 @@ static struct ptlrpc_request *mdc_intent_getattr_pack(struct obd_export *exp,
 	struct obd_device     *obddev = class_exp2obd(exp);
 	u64		       valid = OBD_MD_FLGETATTR | OBD_MD_FLEASIZE |
 				       OBD_MD_FLMODEASIZE | OBD_MD_FLDIREA |
-				       OBD_MD_MEA |
-				       (client_is_remote(exp) ?
-					       OBD_MD_FLRMTPERM : OBD_MD_FLACL);
+				       OBD_MD_MEA | OBD_MD_FLACL;
 	struct ldlm_intent    *lit;
 	int		    rc;
 	int		    easize;
@@ -478,9 +450,6 @@ static struct ptlrpc_request *mdc_intent_getattr_pack(struct obd_export *exp,
 	mdc_getattr_pack(req, valid, it->it_flags, op_data, easize);
 
 	req_capsule_set_size(&req->rq_pill, &RMF_MDT_MD, RCL_SERVER, easize);
-	if (client_is_remote(exp))
-		req_capsule_set_size(&req->rq_pill, &RMF_ACL, RCL_SERVER,
-				     sizeof(struct mdt_remote_perm));
 	ptlrpc_request_set_replen(req);
 	return req;
 }
@@ -555,7 +524,6 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 	struct req_capsule  *pill = &req->rq_pill;
 	struct ldlm_request *lockreq;
 	struct ldlm_reply   *lockrep;
-	struct lustre_intent_data *intent = &it->d.lustre;
 	struct ldlm_lock    *lock;
 	void		*lvb_data = NULL;
 	int		  lvb_len = 0;
@@ -589,17 +557,17 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 
 	lockrep = req_capsule_server_get(pill, &RMF_DLM_REP);
 
-	intent->it_disposition = (int)lockrep->lock_policy_res1;
-	intent->it_status = (int)lockrep->lock_policy_res2;
-	intent->it_lock_mode = einfo->ei_mode;
-	intent->it_lock_handle = lockh->cookie;
-	intent->it_data = req;
+	it->it_disposition = (int)lockrep->lock_policy_res1;
+	it->it_status = (int)lockrep->lock_policy_res2;
+	it->it_lock_mode = einfo->ei_mode;
+	it->it_lock_handle = lockh->cookie;
+	it->it_request = req;
 
 	/* Technically speaking rq_transno must already be zero if
 	 * it_status is in error, so the check is a bit redundant
 	 */
-	if ((!req->rq_transno || intent->it_status < 0) && req->rq_replay)
-		mdc_clear_replay_flag(req, intent->it_status);
+	if ((!req->rq_transno || it->it_status < 0) && req->rq_replay)
+		mdc_clear_replay_flag(req, it->it_status);
 
 	/* If we're doing an IT_OPEN which did not result in an actual
 	 * successful open, then we need to remove the bit which saves
@@ -610,11 +578,11 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 	 * (bug 3440)
 	 */
 	if (it->it_op & IT_OPEN && req->rq_replay &&
-	    (!it_disposition(it, DISP_OPEN_OPEN) || intent->it_status != 0))
-		mdc_clear_replay_flag(req, intent->it_status);
+	    (!it_disposition(it, DISP_OPEN_OPEN) || it->it_status != 0))
+		mdc_clear_replay_flag(req, it->it_status);
 
 	DEBUG_REQ(D_RPCTRACE, req, "op: %d disposition: %x, status: %d",
-		  it->it_op, intent->it_disposition, intent->it_status);
+		  it->it_op, it->it_disposition, it->it_status);
 
 	/* We know what to expect, so we do any byte flipping required here */
 	if (it->it_op & (IT_OPEN | IT_UNLINK | IT_LOOKUP | IT_GETATTR)) {
@@ -687,16 +655,6 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 					memcpy(lmm, eadata, body->eadatasize);
 			}
 		}
-
-		if (body->valid & OBD_MD_FLRMTPERM) {
-			struct mdt_remote_perm *perm;
-
-			LASSERT(client_is_remote(exp));
-			perm = req_capsule_server_swab_get(pill, &RMF_ACL,
-						lustre_swab_mdt_remote_perm);
-			if (!perm)
-				return -EPROTO;
-		}
 	} else if (it->it_op & IT_LAYOUT) {
 		/* maybe the lock was granted right away and layout
 		 * is packed into RMF_DLM_LVB of req
@@ -715,7 +673,7 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 	if (lock && ldlm_has_layout(lock) && lvb_data) {
 		void *lmm;
 
-		LDLM_DEBUG(lock, "layout lock returned by: %s, lvb_len: %d\n",
+		LDLM_DEBUG(lock, "layout lock returned by: %s, lvb_len: %d",
 			   ldlm_it2str(it->it_op), lvb_len);
 
 		lmm = libcfs_kvzalloc(lvb_len, GFP_NOFS);
@@ -923,9 +881,9 @@ resend:
 		}
 		ptlrpc_req_finished(req);
 
-		it->d.lustre.it_lock_handle = 0;
-		it->d.lustre.it_lock_mode = 0;
-		it->d.lustre.it_data = NULL;
+		it->it_lock_handle = 0;
+		it->it_lock_mode = 0;
+		it->it_request = NULL;
 	}
 
 	return rc;
@@ -949,8 +907,8 @@ static int mdc_finish_intent_lock(struct obd_export *exp,
 		/* The server failed before it even started executing the
 		 * intent, i.e. because it couldn't unpack the request.
 		 */
-		LASSERT(it->d.lustre.it_status != 0);
-		return it->d.lustre.it_status;
+		LASSERT(it->it_status != 0);
+		return it->it_status;
 	}
 	rc = it_open_error(DISP_IT_EXECD, it);
 	if (rc)
@@ -1033,15 +991,15 @@ static int mdc_finish_intent_lock(struct obd_export *exp,
 				    LDLM_IBITS, &policy, LCK_NL,
 				    &old_lock, 0)) {
 			ldlm_lock_decref_and_cancel(lockh,
-						    it->d.lustre.it_lock_mode);
+						    it->it_lock_mode);
 			memcpy(lockh, &old_lock, sizeof(old_lock));
-			it->d.lustre.it_lock_handle = lockh->cookie;
+			it->it_lock_handle = lockh->cookie;
 		}
 	}
 	CDEBUG(D_DENTRY,
 	       "D_IT dentry %.*s intent: %s status %d disp %x rc %d\n",
 	       op_data->op_namelen, op_data->op_name, ldlm_it2str(it->it_op),
-	       it->d.lustre.it_status, it->d.lustre.it_disposition, rc);
+	       it->it_status, it->it_disposition, rc);
 	return rc;
 }
 
@@ -1057,8 +1015,8 @@ int mdc_revalidate_lock(struct obd_export *exp, struct lookup_intent *it,
 	ldlm_policy_data_t policy;
 	enum ldlm_mode mode;
 
-	if (it->d.lustre.it_lock_handle) {
-		lockh.cookie = it->d.lustre.it_lock_handle;
+	if (it->it_lock_handle) {
+		lockh.cookie = it->it_lock_handle;
 		mode = ldlm_revalidate_lock_handle(&lockh, bits);
 	} else {
 		fid_build_reg_res_name(fid, &res_id);
@@ -1099,11 +1057,11 @@ int mdc_revalidate_lock(struct obd_export *exp, struct lookup_intent *it,
 	}
 
 	if (mode) {
-		it->d.lustre.it_lock_handle = lockh.cookie;
-		it->d.lustre.it_lock_mode = mode;
+		it->it_lock_handle = lockh.cookie;
+		it->it_lock_mode = mode;
 	} else {
-		it->d.lustre.it_lock_handle = 0;
-		it->d.lustre.it_lock_mode = 0;
+		it->it_lock_handle = 0;
+		it->it_lock_mode = 0;
 	}
 
 	return !!mode;
@@ -1125,15 +1083,15 @@ int mdc_revalidate_lock(struct obd_export *exp, struct lookup_intent *it,
  * ll_create/ll_open gets called.
  *
  * The server will return to us, in it_disposition, an indication of
- * exactly what d.lustre.it_status refers to.
+ * exactly what it_status refers to.
  *
- * If DISP_OPEN_OPEN is set, then d.lustre.it_status refers to the open() call,
+ * If DISP_OPEN_OPEN is set, then it_status refers to the open() call,
  * otherwise if DISP_OPEN_CREATE is set, then it status is the
  * creation failure mode.  In either case, one of DISP_LOOKUP_NEG or
  * DISP_LOOKUP_POS will be set, indicating whether the child lookup
  * was successful.
  *
- * Else, if DISP_LOOKUP_EXECD then d.lustre.it_status is the rc of the
+ * Else, if DISP_LOOKUP_EXECD then it_status is the rc of the
  * child lookup.
  */
 int mdc_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
@@ -1166,7 +1124,7 @@ int mdc_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
 		 * be called in revalidate_it if we already have a lock, let's
 		 * verify that.
 		 */
-		it->d.lustre.it_lock_handle = 0;
+		it->it_lock_handle = 0;
 		rc = mdc_revalidate_lock(exp, it, &op_data->op_fid2, NULL);
 		/* Only return failure if it was not GETATTR by cfid
 		 * (from inode_revalidate)
@@ -1188,7 +1146,7 @@ int mdc_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
 	if (rc < 0)
 		return rc;
 
-	*reqp = it->d.lustre.it_data;
+	*reqp = it->it_request;
 	rc = mdc_finish_intent_lock(exp, *reqp, op_data, it, &lockh);
 	return rc;
 }

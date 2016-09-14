@@ -224,7 +224,7 @@ generic_key_timeout(struct rpc_auth *auth, struct rpc_cred *cred)
 
 
 	/* Fast track for non crkey_timeout (no key) underlying credentials */
-	if (test_bit(RPC_CRED_NO_CRKEY_TIMEOUT, &acred->ac_flags))
+	if (auth->au_flags & RPCAUTH_AUTH_NO_CRKEY_TIMEOUT)
 		return 0;
 
 	/* Fast track for the normal case */
@@ -235,12 +235,6 @@ generic_key_timeout(struct rpc_auth *auth, struct rpc_cred *cred)
 	tcred = auth->au_ops->lookup_cred(auth, acred, 0);
 	if (IS_ERR(tcred))
 		return -EACCES;
-
-	if (!tcred->cr_ops->crkey_timeout) {
-		set_bit(RPC_CRED_NO_CRKEY_TIMEOUT, &acred->ac_flags);
-		ret = 0;
-		goto out_put;
-	}
 
 	/* Test for the almost error case */
 	ret = tcred->cr_ops->crkey_timeout(tcred);
@@ -257,7 +251,6 @@ generic_key_timeout(struct rpc_auth *auth, struct rpc_cred *cred)
 		set_bit(RPC_CRED_NOTIFY_TIMEOUT, &acred->ac_flags);
 	}
 
-out_put:
 	put_rpccred(tcred);
 	return ret;
 }

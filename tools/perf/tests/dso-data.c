@@ -251,6 +251,9 @@ int test__dso_data_cache(int subtest __maybe_unused)
 	long nr_end, nr = open_files_cnt();
 	int dso_cnt, limit, i, fd;
 
+	/* Rest the internal dso open counter limit. */
+	reset_fd_limit();
+
 	memset(&machine, 0, sizeof(machine));
 
 	/* set as system limit */
@@ -311,6 +314,9 @@ int test__dso_data_reopen(int subtest __maybe_unused)
 #define dso_0 (dsos[0])
 #define dso_1 (dsos[1])
 #define dso_2 (dsos[2])
+
+	/* Rest the internal dso open counter limit. */
+	reset_fd_limit();
 
 	memset(&machine, 0, sizeof(machine));
 

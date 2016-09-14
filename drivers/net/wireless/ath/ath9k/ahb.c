@@ -18,7 +18,6 @@
 
 #include <linux/nl80211.h>
 #include <linux/platform_device.h>
-#include <linux/ath9k_platform.h>
 #include <linux/module.h>
 #include "ath9k.h"
 
@@ -58,20 +57,9 @@ static void ath_ahb_read_cachesize(struct ath_common *common, int *csz)
 
 static bool ath_ahb_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 {
-	struct ath_softc *sc = (struct ath_softc *)common->priv;
-	struct platform_device *pdev = to_platform_device(sc->dev);
-	struct ath9k_platform_data *pdata;
-
-	pdata = dev_get_platdata(&pdev->dev);
-	if (off >= (ARRAY_SIZE(pdata->eeprom_data))) {
-		ath_err(common,
-			"%s: flash read failed, offset %08x is out of range\n",
-			__func__, off);
-		return false;
-	}
-
-	*data = pdata->eeprom_data[off];
-	return true;
+	ath_err(common, "%s: eeprom data has to be provided externally\n",
+		__func__);
+	return false;
 }
 
 static struct ath_bus_ops ath_ahb_bus_ops  = {

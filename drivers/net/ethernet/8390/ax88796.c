@@ -84,7 +84,6 @@ static u32 ax_msg_enable;
 struct ax_device {
 	struct mii_bus *mii_bus;
 	struct mdiobb_ctrl bb_ctrl;
-	struct phy_device *phy_dev;
 	void __iomem *addr_memr;
 	u8 reg_memr;
 	int link;
@@ -320,7 +319,7 @@ static void ax_block_output(struct net_device *dev, int count,
 static void ax_handle_link_change(struct net_device *dev)
 {
 	struct ax_device  *ax = to_ax_dev(dev);
-	struct phy_device *phy_dev = ax->phy_dev;
+	struct phy_device *phy_dev = dev->phydev;
 	int status_change = 0;
 
 	if (phy_dev->link && ((ax->speed != phy_dev->speed) ||
@@ -369,8 +368,6 @@ static int ax_mii_probe(struct net_device *dev)
 	phy_dev->supported &= PHY_BASIC_FEATURES;
 	phy_dev->advertising = phy_dev->supported;
 
-	ax->phy_dev = phy_dev;
-
 	netdev_info(dev, "PHY driver [%s] (mii_bus:phy_addr=%s, irq=%d)\n",
 		    phy_dev->drv->name, phydev_name(phy_dev), phy_dev->irq);
 
@@ -410,7 +407,7 @@ static int ax_open(struct net_device *dev)
 	ret = ax_mii_probe(dev);
 	if (ret)
 		goto failed_mii_probe;
-	phy_start(ax->phy_dev);
+	phy_start(dev->phydev);
 
 	ret = ax_ei_open(dev);
 	if (ret)
@@ -421,7 +418,7 @@ static int ax_open(struct net_device *dev)
 	return 0;
 
  failed_ax_ei_open:
-	phy_disconnect(ax->phy_dev);
+	phy_disconnect(dev->phydev);
  failed_mii_probe:
 	ax_phy_switch(dev, 0);
 	free_irq(dev->irq, dev);
@@ -442,7 +439,7 @@ static int ax_close(struct net_device *dev)
 
 	/* turn the phy off */
 	ax_phy_switch(dev, 0);
-	phy_disconnect(ax->phy_dev);
+	phy_disconnect(dev->phydev);
 
 	free_irq(dev->irq, dev);
 	return 0;
@@ -450,8 +447,7 @@ static int ax_close(struct net_device *dev)
 
 static int ax_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 {
-	struct ax_device *ax = to_ax_dev(dev);
-	struct phy_device *phy_dev = ax->phy_dev;
+	struct phy_device *phy_dev = dev->phydev;
 
 	if (!netif_running(dev))
 		return -EINVAL;
@@ -474,28 +470,6 @@ static void ax_get_drvinfo(struct net_device *dev,
 	strlcpy(info->bus_info, pdev->name, sizeof(info->bus_info));
 }
 
-static int ax_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct ax_device *ax = to_ax_dev(dev);
-	struct phy_device *phy_dev = ax->phy_dev;
-
-	if (!phy_dev)
-		return -ENODEV;
-
-	return phy_ethtool_gset(phy_dev, cmd);
-}
-
-static int ax_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct ax_device *ax = to_ax_dev(dev);
-	struct phy_device *phy_dev = ax->phy_dev;
-
-	if (!phy_dev)
-		return -ENODEV;
-
-	return phy_ethtool_sset(phy_dev, cmd);
-}
-
 static u32 ax_get_msglevel(struct net_device *dev)
 {
 	struct ei_device *ei_local = netdev_priv(dev);
@@ -512,12 +486,12 @@ static void ax_set_msglevel(struct net_device *dev, u32 v)
 
 static const struct ethtool_ops ax_ethtool_ops = {
 	.get_drvinfo		= ax_get_drvinfo,
-	.get_settings		= ax_get_settings,
-	.set_settings		= ax_set_settings,
 	.get_link		= ethtool_op_get_link,
 	.get_ts_info		= ethtool_op_get_ts_info,
 	.get_msglevel		= ax_get_msglevel,
 	.set_msglevel		= ax_set_msglevel,
+	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
+	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
 };
 
 #ifdef CONFIG_AX88796_93CX6
@@ -936,7 +910,8 @@ static int ax_probe(struct platform_device *pdev)
 	iounmap(ax->map2);
 
  exit_mem2:
-	release_mem_region(mem2->start, mem2_size);
+	if (mem2)
+		release_mem_region(mem2->start, mem2_size);
 
  exit_mem1:
 	iounmap(ei_local->mem);

@@ -54,6 +54,7 @@ int s5p_mfc_init_pm(struct s5p_mfc_dev *dev)
 		pm->clock = clk_get(&dev->plat_dev->dev, MFC_SCLK_NAME);
 		if (IS_ERR(pm->clock)) {
 			mfc_info("Failed to get MFC special clock control\n");
+			pm->clock = NULL;
 		} else {
 			clk_set_rate(pm->clock, MFC_SCLK_RATE);
 			ret = clk_prepare_enable(pm->clock);
@@ -76,8 +77,10 @@ int s5p_mfc_init_pm(struct s5p_mfc_dev *dev)
 
 err_s_clk:
 	clk_put(pm->clock);
+	pm->clock = NULL;
 err_p_ip_clk:
 	clk_put(pm->clock_gate);
+	pm->clock_gate = NULL;
 err_g_ip_clk:
 	return ret;
 }
@@ -88,9 +91,11 @@ void s5p_mfc_final_pm(struct s5p_mfc_dev *dev)
 	    pm->clock) {
 		clk_disable_unprepare(pm->clock);
 		clk_put(pm->clock);
+		pm->clock = NULL;
 	}
 	clk_unprepare(pm->clock_gate);
 	clk_put(pm->clock_gate);
+	pm->clock_gate = NULL;
 #ifdef CONFIG_PM
 	pm_runtime_disable(pm->device);
 #endif
@@ -98,12 +103,13 @@ void s5p_mfc_final_pm(struct s5p_mfc_dev *dev)
 
 int s5p_mfc_clock_on(void)
 {
-	int ret;
+	int ret = 0;
 #ifdef CLK_DEBUG
 	atomic_inc(&clk_ref);
 	mfc_debug(3, "+ %d\n", atomic_read(&clk_ref));
 #endif
-	ret = clk_enable(pm->clock_gate);
+	if (!IS_ERR_OR_NULL(pm->clock_gate))
+		ret = clk_enable(pm->clock_gate);
 	return ret;
 }
 
@@ -113,7 +119,8 @@ void s5p_mfc_clock_off(void)
 	atomic_dec(&clk_ref);
 	mfc_debug(3, "- %d\n", atomic_read(&clk_ref));
 #endif
-	clk_disable(pm->clock_gate);
+	if (!IS_ERR_OR_NULL(pm->clock_gate))
+		clk_disable(pm->clock_gate);
 }
 
 int s5p_mfc_power_on(void)

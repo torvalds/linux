@@ -89,8 +89,9 @@ void net_inc_egress_queue(void);
 void net_dec_egress_queue(void);
 #endif
 
-extern void rtnetlink_init(void);
-extern void __rtnl_unlock(void);
+void rtnetlink_init(void);
+void __rtnl_unlock(void);
+void rtnl_kfree_skbs(struct sk_buff *head, struct sk_buff *tail);
 
 #define ASSERT_RTNL() do { \
 	if (unlikely(!rtnl_is_locked())) { \

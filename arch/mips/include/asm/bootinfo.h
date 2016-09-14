@@ -127,6 +127,10 @@ extern char arcs_cmdline[COMMAND_LINE_SIZE];
  */
 extern unsigned long fw_arg0, fw_arg1, fw_arg2, fw_arg3;
 
+#ifdef CONFIG_USE_OF
+extern unsigned long fw_passed_dtb;
+#endif
+
 /*
  * Platform memory detection hook called by setup_arch
  */

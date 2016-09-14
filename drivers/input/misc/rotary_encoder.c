@@ -28,6 +28,11 @@
 
 #define DRV_NAME "rotary-encoder"
 
+enum rotary_encoder_encoding {
+	ROTENC_GRAY,
+	ROTENC_BINARY,
+};
+
 struct rotary_encoder {
 	struct input_dev *input;
 
@@ -37,6 +42,7 @@ struct rotary_encoder {
 	u32 axis;
 	bool relative_axis;
 	bool rollover;
+	enum rotary_encoder_encoding encoding;
 
 	unsigned int pos;
 
@@ -57,8 +63,9 @@ static unsigned int rotary_encoder_get_state(struct rotary_encoder *encoder)
 
 	for (i = 0; i < encoder->gpios->ndescs; ++i) {
 		int val = gpiod_get_value_cansleep(encoder->gpios->desc[i]);
+
 		/* convert from gray encoding to normal */
-		if (ret & 1)
+		if (encoder->encoding == ROTENC_GRAY && ret & 1)
 			val = !val;
 
 		ret = ret << 1 | val;
@@ -212,6 +219,20 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 
 	encoder->rollover =
 		device_property_read_bool(dev, "rotary-encoder,rollover");
+
+	if (!device_property_present(dev, "rotary-encoder,encoding") ||
+	    !device_property_match_string(dev, "rotary-encoder,encoding",
+					  "gray")) {
+		dev_info(dev, "gray");
+		encoder->encoding = ROTENC_GRAY;
+	} else if (!device_property_match_string(dev, "rotary-encoder,encoding",
+						 "binary")) {
+		dev_info(dev, "binary");
+		encoder->encoding = ROTENC_BINARY;
+	} else {
+		dev_err(dev, "unknown encoding setting\n");
+		return -EINVAL;
+	}
 
 	device_property_read_u32(dev, "linux,axis", &encoder->axis);
 	encoder->relative_axis =

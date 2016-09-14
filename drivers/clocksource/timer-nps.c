@@ -55,8 +55,8 @@ static cycle_t nps_clksrc_read(struct clocksource *clksrc)
 	return (cycle_t)ioread32be(nps_msu_reg_low_addr[cluster]);
 }
 
-static void __init nps_setup_clocksource(struct device_node *node,
-					 struct clk *clk)
+static int __init nps_setup_clocksource(struct device_node *node,
+					struct clk *clk)
 {
 	int ret, cluster;
 
@@ -68,7 +68,7 @@ static void __init nps_setup_clocksource(struct device_node *node,
 	ret = clk_prepare_enable(clk);
 	if (ret) {
 		pr_err("Couldn't enable parent clock\n");
-		return;
+		return ret;
 	}
 
 	nps_timer_rate = clk_get_rate(clk);
@@ -79,19 +79,21 @@ static void __init nps_setup_clocksource(struct device_node *node,
 		pr_err("Couldn't register clock source.\n");
 		clk_disable_unprepare(clk);
 	}
+
+	return ret;
 }
 
-static void __init nps_timer_init(struct device_node *node)
+static int __init nps_timer_init(struct device_node *node)
 {
 	struct clk *clk;
 
 	clk = of_clk_get(node, 0);
 	if (IS_ERR(clk)) {
 		pr_err("Can't get timer clock.\n");
-		return;
+		return PTR_ERR(clk);
 	}
 
-	nps_setup_clocksource(node, clk);
+	return nps_setup_clocksource(node, clk);
 }
 
 CLOCKSOURCE_OF_DECLARE(ezchip_nps400_clksrc, "ezchip,nps400-timer",

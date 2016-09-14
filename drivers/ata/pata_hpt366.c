@@ -368,7 +368,7 @@ static int hpt36x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 
 	/* PCI clocking determines the ATA timing values to use */
 	/* info_hpt366 is safe against re-entry so we can scribble on it */
-	switch ((reg1 & 0x700) >> 8) {
+	switch ((reg1 & 0xf00) >> 8) {
 	case 9:
 		hpriv = &hpt366_40;
 		break;

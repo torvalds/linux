@@ -199,13 +199,6 @@ err:
 }
 EXPORT_SYMBOL_GPL(nft_meta_get_eval);
 
-/* don't change or set _LOOPBACK, _USER, etc. */
-static bool pkt_type_ok(u32 p)
-{
-	return p == PACKET_HOST || p == PACKET_BROADCAST ||
-	       p == PACKET_MULTICAST || p == PACKET_OTHERHOST;
-}
-
 void nft_meta_set_eval(const struct nft_expr *expr,
 		       struct nft_regs *regs,
 		       const struct nft_pktinfo *pkt)
@@ -223,11 +216,11 @@ void nft_meta_set_eval(const struct nft_expr *expr,
 		break;
 	case NFT_META_PKTTYPE:
 		if (skb->pkt_type != value &&
-		    pkt_type_ok(value) && pkt_type_ok(skb->pkt_type))
+		    skb_pkt_type_ok(value) && skb_pkt_type_ok(skb->pkt_type))
 			skb->pkt_type = value;
 		break;
 	case NFT_META_NFTRACE:
-		skb->nf_trace = 1;
+		skb->nf_trace = !!value;
 		break;
 	default:
 		WARN_ON(1);

@@ -61,6 +61,8 @@
 #define TLP_LOOP			500
 #define RP_DEVFN			0
 
+#define LINK_UP_TIMEOUT			5000
+
 #define INTX_NUM			4
 
 #define DWORD_MASK			3
@@ -81,9 +83,30 @@ struct tlp_rp_regpair_t {
 	u32 reg1;
 };
 
+static inline void cra_writel(struct altera_pcie *pcie, const u32 value,
+			      const u32 reg)
+{
+	writel_relaxed(value, pcie->cra_base + reg);
+}
+
+static inline u32 cra_readl(struct altera_pcie *pcie, const u32 reg)
+{
+	return readl_relaxed(pcie->cra_base + reg);
+}
+
+static bool altera_pcie_link_is_up(struct altera_pcie *pcie)
+{
+	return !!((cra_readl(pcie, RP_LTSSM) & RP_LTSSM_MASK) == LTSSM_L0);
+}
+
 static void altera_pcie_retrain(struct pci_dev *dev)
 {
 	u16 linkcap, linkstat;
+	struct altera_pcie *pcie = dev->bus->sysdata;
+	int timeout =  0;
+
+	if (!altera_pcie_link_is_up(pcie))
+		return;
 
 	/*
 	 * Set the retrain bit if the PCIe rootport support > 2.5GB/s, but
@@ -95,9 +118,16 @@ static void altera_pcie_retrain(struct pci_dev *dev)
 		return;
 
 	pcie_capability_read_word(dev, PCI_EXP_LNKSTA, &linkstat);
-	if ((linkstat & PCI_EXP_LNKSTA_CLS) == PCI_EXP_LNKSTA_CLS_2_5GB)
+	if ((linkstat & PCI_EXP_LNKSTA_CLS) == PCI_EXP_LNKSTA_CLS_2_5GB) {
 		pcie_capability_set_word(dev, PCI_EXP_LNKCTL,
 					 PCI_EXP_LNKCTL_RL);
+		while (!altera_pcie_link_is_up(pcie)) {
+			timeout++;
+			if (timeout > LINK_UP_TIMEOUT)
+				break;
+			udelay(5);
+		}
+	}
 }
 DECLARE_PCI_FIXUP_EARLY(0x1172, PCI_ANY_ID, altera_pcie_retrain);
 
@@ -120,28 +150,12 @@ static bool altera_pcie_hide_rc_bar(struct pci_bus *bus, unsigned int  devfn,
 	return false;
 }
 
-static inline void cra_writel(struct altera_pcie *pcie, const u32 value,
-			      const u32 reg)
-{
-	writel_relaxed(value, pcie->cra_base + reg);
-}
-
-static inline u32 cra_readl(struct altera_pcie *pcie, const u32 reg)
-{
-	return readl_relaxed(pcie->cra_base + reg);
-}
-
 static void tlp_write_tx(struct altera_pcie *pcie,
 			 struct tlp_rp_regpair_t *tlp_rp_regdata)
 {
 	cra_writel(pcie, tlp_rp_regdata->reg0, RP_TX_REG0);
 	cra_writel(pcie, tlp_rp_regdata->reg1, RP_TX_REG1);
 	cra_writel(pcie, tlp_rp_regdata->ctrl, RP_TX_CNTRL);
-}
-
-static bool altera_pcie_link_is_up(struct altera_pcie *pcie)
-{
-	return !!((cra_readl(pcie, RP_LTSSM) & RP_LTSSM_MASK) == LTSSM_L0);
 }
 
 static bool altera_pcie_valid_config(struct altera_pcie *pcie,
@@ -415,11 +429,6 @@ static void altera_pcie_isr(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-static void altera_pcie_release_of_pci_ranges(struct altera_pcie *pcie)
-{
-	pci_free_resource_list(&pcie->resources);
-}
-
 static int altera_pcie_parse_request_of_pci_ranges(struct altera_pcie *pcie)
 {
 	int err, res_valid = 0;
@@ -432,33 +441,25 @@ static int altera_pcie_parse_request_of_pci_ranges(struct altera_pcie *pcie)
 	if (err)
 		return err;
 
-	resource_list_for_each_entry(win, &pcie->resources) {
-		struct resource *parent, *res = win->res;
-
-		switch (resource_type(res)) {
-		case IORESOURCE_MEM:
-			parent = &iomem_resource;
-			res_valid |= !(res->flags & IORESOURCE_PREFETCH);
-			break;
-		default:
-			continue;
-		}
-
-		err = devm_request_resource(dev, parent, res);
-		if (err)
-			goto out_release_res;
-	}
-
-	if (!res_valid) {
-		dev_err(dev, "non-prefetchable memory resource required\n");
-		err = -EINVAL;
+	err = devm_request_pci_bus_resources(dev, &pcie->resources);
+	if (err)
 		goto out_release_res;
+
+	resource_list_for_each_entry(win, &pcie->resources) {
+		struct resource *res = win->res;
+
+		if (resource_type(res) == IORESOURCE_MEM)
+			res_valid |= !(res->flags & IORESOURCE_PREFETCH);
 	}
 
-	return 0;
+	if (res_valid)
+		return 0;
+
+	dev_err(dev, "non-prefetchable memory resource required\n");
+	err = -EINVAL;
 
 out_release_res:
-	altera_pcie_release_of_pci_ranges(pcie);
+	pci_free_resource_list(&pcie->resources);
 	return err;
 }
 

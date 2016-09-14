@@ -1,0 +1,24 @@
+# Ignore header name
+ignore define _DVBCA_H_
+
+# struct ca_slot_info defines
+replace define CA_CI ca-slot-info
+replace define CA_CI_LINK ca-slot-info
+replace define CA_CI_PHYS ca-slot-info
+replace define CA_DESCR ca-slot-info
+replace define CA_SC ca-slot-info
+replace define CA_CI_MODULE_PRESENT ca-slot-info
+replace define CA_CI_MODULE_READY ca-slot-info
+
+# struct ca_descr_info defines
+replace define CA_ECD ca-descr-info
+replace define CA_NDS ca-descr-info
+replace define CA_DSS ca-descr-info
+
+# some typedefs should point to struct/enums
+replace typedef ca_pid_t ca-pid
+replace typedef ca_slot_info_t ca-slot-info
+replace typedef ca_descr_info_t ca-descr-info
+replace typedef ca_caps_t ca-caps
+replace typedef ca_msg_t ca-msg
+replace typedef ca_descr_t ca-descr

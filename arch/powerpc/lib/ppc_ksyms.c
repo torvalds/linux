@@ -9,11 +9,7 @@ EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(memcmp);
 EXPORT_SYMBOL(memchr);
 
-EXPORT_SYMBOL(strcpy);
 EXPORT_SYMBOL(strncpy);
-EXPORT_SYMBOL(strcat);
-EXPORT_SYMBOL(strlen);
-EXPORT_SYMBOL(strcmp);
 EXPORT_SYMBOL(strncmp);
 
 #ifndef CONFIG_GENERIC_CSUM

@@ -239,6 +239,12 @@ enum qe_clock qe_clock_source(const char *source)
 	if (strcasecmp(source, "none") == 0)
 		return QE_CLK_NONE;
 
+	if (strcmp(source, "tsync_pin") == 0)
+		return QE_TSYNC_PIN;
+
+	if (strcmp(source, "rsync_pin") == 0)
+		return QE_RSYNC_PIN;
+
 	if (strncasecmp(source, "brg", 3) == 0) {
 		i = simple_strtoul(source + 3, NULL, 10);
 		if ((i >= 1) && (i <= 16))

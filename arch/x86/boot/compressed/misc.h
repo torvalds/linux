@@ -67,28 +67,33 @@ int cmdline_find_option_bool(const char *option);
 
 #if CONFIG_RANDOMIZE_BASE
 /* kaslr.c */
-unsigned char *choose_random_location(unsigned long input_ptr,
-				      unsigned long input_size,
-				      unsigned long output_ptr,
-				      unsigned long output_size);
+void choose_random_location(unsigned long input,
+			    unsigned long input_size,
+			    unsigned long *output,
+			    unsigned long output_size,
+			    unsigned long *virt_addr);
 /* cpuflags.c */
 bool has_cpuflag(int flag);
 #else
-static inline
-unsigned char *choose_random_location(unsigned long input_ptr,
-				      unsigned long input_size,
-				      unsigned long output_ptr,
-				      unsigned long output_size)
+static inline void choose_random_location(unsigned long input,
+					  unsigned long input_size,
+					  unsigned long *output,
+					  unsigned long output_size,
+					  unsigned long *virt_addr)
 {
-	return (unsigned char *)output_ptr;
+	/* No change from existing output location. */
+	*virt_addr = *output;
 }
 #endif
 
 #ifdef CONFIG_X86_64
+void initialize_identity_maps(void);
 void add_identity_map(unsigned long start, unsigned long size);
 void finalize_identity_maps(void);
 extern unsigned char _pgtable[];
 #else
+static inline void initialize_identity_maps(void)
+{ }
 static inline void add_identity_map(unsigned long start, unsigned long size)
 { }
 static inline void finalize_identity_maps(void)

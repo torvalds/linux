@@ -35,5 +35,8 @@ int amdgpu_uvd_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 void amdgpu_uvd_free_handles(struct amdgpu_device *adev,
 			     struct drm_file *filp);
 int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx);
+void amdgpu_uvd_ring_begin_use(struct amdgpu_ring *ring);
+void amdgpu_uvd_ring_end_use(struct amdgpu_ring *ring);
+int amdgpu_uvd_ring_test_ib(struct amdgpu_ring *ring, long timeout);
 
 #endif

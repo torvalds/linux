@@ -36,7 +36,7 @@ gf119_disp_dmac_bind(struct nv50_disp_dmac *chan,
 				 chan->base.chid << 27 | 0x00000001);
 }
 
-static void
+void
 gf119_disp_dmac_fini(struct nv50_disp_dmac *chan)
 {
 	struct nv50_disp *disp = chan->base.root->disp;

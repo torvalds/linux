@@ -67,8 +67,6 @@ static int create_elf_fdpic_tables(struct linux_binprm *, struct mm_struct *,
 				   struct elf_fdpic_params *);
 
 #ifndef CONFIG_MMU
-static int elf_fdpic_transfer_args_to_stack(struct linux_binprm *,
-					    unsigned long *);
 static int elf_fdpic_map_file_constdisp_on_uclinux(struct elf_fdpic_params *,
 						   struct file *,
 						   struct mm_struct *);
@@ -515,8 +513,9 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 	sp = mm->start_stack;
 
 	/* stack the program arguments and environment */
-	if (elf_fdpic_transfer_args_to_stack(bprm, &sp) < 0)
+	if (transfer_args_to_stack(bprm, &sp) < 0)
 		return -EFAULT;
+	sp &= ~15;
 #endif
 
 	/*
@@ -708,39 +707,6 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 	mm->start_stack = (unsigned long) sp;
 	return 0;
 }
-
-/*****************************************************************************/
-/*
- * transfer the program arguments and environment from the holding pages onto
- * the stack
- */
-#ifndef CONFIG_MMU
-static int elf_fdpic_transfer_args_to_stack(struct linux_binprm *bprm,
-					    unsigned long *_sp)
-{
-	unsigned long index, stop, sp;
-	char *src;
-	int ret = 0;
-
-	stop = bprm->p >> PAGE_SHIFT;
-	sp = *_sp;
-
-	for (index = MAX_ARG_PAGES - 1; index >= stop; index--) {
-		src = kmap(bprm->page[index]);
-		sp -= PAGE_SIZE;
-		if (copy_to_user((void *) sp, src, PAGE_SIZE) != 0)
-			ret = -EFAULT;
-		kunmap(bprm->page[index]);
-		if (ret < 0)
-			goto out;
-	}
-
-	*_sp = (*_sp - (MAX_ARG_PAGES * PAGE_SIZE - bprm->p)) & ~15;
-
-out:
-	return ret;
-}
-#endif
 
 /*****************************************************************************/
 /*

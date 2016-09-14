@@ -804,7 +804,6 @@ static int probe_disk(struct vdc_port *port)
 	g->fops = &vdc_fops;
 	g->queue = q;
 	g->private_data = port;
-	g->driverfs_dev = &port->vio.vdev->dev;
 
 	set_capacity(g, port->vdisk_size);
 
@@ -835,7 +834,7 @@ static int probe_disk(struct vdc_port *port)
 	       port->vdisk_size, (port->vdisk_size >> (20 - 9)),
 	       port->vio.ver.major, port->vio.ver.minor);
 
-	add_disk(g);
+	device_add_disk(&port->vio.vdev->dev, g);
 
 	return 0;
 }

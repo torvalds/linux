@@ -30,6 +30,14 @@
 #ifndef _INTEL_BIOS_H_
 #define _INTEL_BIOS_H_
 
+enum intel_backlight_type {
+	INTEL_BACKLIGHT_PMIC,
+	INTEL_BACKLIGHT_LPSS,
+	INTEL_BACKLIGHT_DISPLAY_DDI,
+	INTEL_BACKLIGHT_DSI_DCS,
+	INTEL_BACKLIGHT_PANEL_DRIVER_INTERFACE,
+};
+
 struct edp_power_seq {
 	u16 t1_t3;
 	u16 t8;
@@ -113,7 +121,13 @@ struct mipi_config {
 	u16 dual_link:2;
 	u16 lane_cnt:2;
 	u16 pixel_overlap:3;
-	u16 rsvd3:9;
+	u16 rgb_flip:1;
+#define DL_DCS_PORT_A			0x00
+#define DL_DCS_PORT_C			0x01
+#define DL_DCS_PORT_A_AND_C		0x02
+	u16 dl_dcs_cabc_ports:2;
+	u16 dl_dcs_backlight_ports:2;
+	u16 rsvd3:4;
 
 	u16 rsvd4;
 

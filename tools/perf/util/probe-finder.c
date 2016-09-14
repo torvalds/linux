@@ -297,10 +297,13 @@ static int convert_variable_type(Dwarf_Die *vr_die,
 	char sbuf[STRERR_BUFSIZE];
 	int bsize, boffs, total;
 	int ret;
+	char sign;
 
 	/* TODO: check all types */
-	if (cast && strcmp(cast, "string") != 0) {
+	if (cast && strcmp(cast, "string") != 0 &&
+	    strcmp(cast, "s") != 0 && strcmp(cast, "u") != 0) {
 		/* Non string type is OK */
+		/* and respect signedness cast */
 		tvar->type = strdup(cast);
 		return (tvar->type == NULL) ? -ENOMEM : 0;
 	}
@@ -361,6 +364,13 @@ static int convert_variable_type(Dwarf_Die *vr_die,
 		return (tvar->type == NULL) ? -ENOMEM : 0;
 	}
 
+	if (cast && (strcmp(cast, "u") == 0))
+		sign = 'u';
+	else if (cast && (strcmp(cast, "s") == 0))
+		sign = 's';
+	else
+		sign = die_is_signed_type(&type) ? 's' : 'u';
+
 	ret = dwarf_bytesize(&type);
 	if (ret <= 0)
 		/* No size ... try to use default type */
@@ -373,15 +383,14 @@ static int convert_variable_type(Dwarf_Die *vr_die,
 			dwarf_diename(&type), MAX_BASIC_TYPE_BITS);
 		ret = MAX_BASIC_TYPE_BITS;
 	}
-	ret = snprintf(buf, 16, "%c%d",
-		       die_is_signed_type(&type) ? 's' : 'u', ret);
+	ret = snprintf(buf, 16, "%c%d", sign, ret);
 
 formatted:
 	if (ret < 0 || ret >= 16) {
 		if (ret >= 16)
 			ret = -E2BIG;
 		pr_warning("Failed to convert variable type: %s\n",
-			   strerror_r(-ret, sbuf, sizeof(sbuf)));
+			   str_error_r(-ret, sbuf, sizeof(sbuf)));
 		return ret;
 	}
 	tvar->type = strdup(buf);
@@ -809,7 +818,7 @@ static int find_lazy_match_lines(struct intlist *list,
 	fp = fopen(fname, "r");
 	if (!fp) {
 		pr_warning("Failed to open %s: %s\n", fname,
-			   strerror_r(errno, sbuf, sizeof(sbuf)));
+			   str_error_r(errno, sbuf, sizeof(sbuf)));
 		return -errno;
 	}
 

@@ -16,10 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see http://www.gnu.org/licenses
  *
- * Please contact Oracle Corporation, Inc., 500 Oracle Parkway, Redwood Shores,
- * CA 94065 USA or visit www.oracle.com if you need additional information or
- * have any questions.
- *
  * GPL HEADER END
  */
 /*

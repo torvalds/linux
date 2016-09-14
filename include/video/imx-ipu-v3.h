@@ -235,9 +235,6 @@ int ipu_di_init_sync_panel(struct ipu_di *, struct ipu_di_signal_cfg *sig);
 struct dmfc_channel;
 int ipu_dmfc_enable_channel(struct dmfc_channel *dmfc);
 void ipu_dmfc_disable_channel(struct dmfc_channel *dmfc);
-int ipu_dmfc_alloc_bandwidth(struct dmfc_channel *dmfc,
-		unsigned long bandwidth_mbs, int burstsize);
-void ipu_dmfc_free_bandwidth(struct dmfc_channel *dmfc);
 void ipu_dmfc_config_wait4eot(struct dmfc_channel *dmfc, int width);
 struct dmfc_channel *ipu_dmfc_get(struct ipu_soc *ipu, int ipuv3_channel);
 void ipu_dmfc_put(struct dmfc_channel *dmfc);

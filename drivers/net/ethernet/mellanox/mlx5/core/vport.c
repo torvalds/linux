@@ -135,6 +135,18 @@ static int mlx5_modify_nic_vport_context(struct mlx5_core_dev *mdev, void *in,
 	return mlx5_cmd_exec_check_status(mdev, in, inlen, out, sizeof(out));
 }
 
+void mlx5_query_nic_vport_min_inline(struct mlx5_core_dev *mdev,
+				     u8 *min_inline_mode)
+{
+	u32 out[MLX5_ST_SZ_DW(query_nic_vport_context_out)] = {0};
+
+	mlx5_query_nic_vport_context(mdev, 0, out, sizeof(out));
+
+	*min_inline_mode = MLX5_GET(query_nic_vport_context_out, out,
+				    nic_vport_context.min_wqe_inline_mode);
+}
+EXPORT_SYMBOL_GPL(mlx5_query_nic_vport_min_inline);
+
 int mlx5_query_nic_vport_mac_address(struct mlx5_core_dev *mdev,
 				     u16 vport, u8 *addr)
 {
@@ -513,7 +525,6 @@ int mlx5_modify_nic_vport_node_guid(struct mlx5_core_dev *mdev,
 {
 	int inlen = MLX5_ST_SZ_BYTES(modify_nic_vport_context_in);
 	void *nic_vport_context;
-	u8 *guid;
 	void *in;
 	int err;
 
@@ -535,8 +546,6 @@ int mlx5_modify_nic_vport_node_guid(struct mlx5_core_dev *mdev,
 
 	nic_vport_context = MLX5_ADDR_OF(modify_nic_vport_context_in,
 					 in, nic_vport_context);
-	guid = MLX5_ADDR_OF(nic_vport_context, nic_vport_context,
-			    node_guid);
 	MLX5_SET64(nic_vport_context, nic_vport_context, node_guid, node_guid);
 
 	err = mlx5_modify_nic_vport_context(mdev, in, inlen);

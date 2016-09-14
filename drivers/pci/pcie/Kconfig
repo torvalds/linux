@@ -83,7 +83,7 @@ config PCIE_PME
 	depends on PCIEPORTBUS && PM
 
 config PCIE_DPC
-	tristate "PCIe Downstream Port Containment support"
+	bool "PCIe Downstream Port Containment support"
 	depends on PCIEPORTBUS
 	default n
 	help
@@ -92,6 +92,3 @@ config PCIE_DPC
 	  will be handled by the DPC driver.  If your system doesn't
 	  have this capability or you do not want to use this feature,
 	  it is safe to answer N.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called pcie-dpc.

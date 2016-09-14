@@ -30,6 +30,7 @@
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/ptrace.h>
+#include <asm/fixmap.h>
 
 /* Macro to make the code more readable. */
 #ifdef CONFIG_8xx_CPU6
@@ -383,28 +384,57 @@ InstructionTLBMiss:
 	EXCEPTION_EPILOG_0
 	rfi
 
+/*
+ * Bottom part of DataStoreTLBMiss handler for IMMR area
+ * not enough space in the DataStoreTLBMiss area
+ */
+DTLBMissIMMR:
+	mtcr	r10
+	/* Set 512k byte guarded page and mark it valid */
+	li	r10, MD_PS512K | MD_GUARDED | MD_SVALID
+	MTSPR_CPU6(SPRN_MD_TWC, r10, r11)
+	mfspr	r10, SPRN_IMMR			/* Get current IMMR */
+	rlwinm	r10, r10, 0, 0xfff80000		/* Get 512 kbytes boundary */
+	ori	r10, r10, 0xf0 | MD_SPS16K | _PAGE_SHARED | _PAGE_DIRTY	| \
+			  _PAGE_PRESENT | _PAGE_NO_CACHE
+	MTSPR_CPU6(SPRN_MD_RPN, r10, r11)	/* Update TLB entry */
+
+	li	r11, RPN_PATTERN
+	mtspr	SPRN_DAR, r11	/* Tag DAR */
+	EXCEPTION_EPILOG_0
+	rfi
+
 	. = 0x1200
 DataStoreTLBMiss:
-	mtspr	SPRN_SPRG_SCRATCH2, r3
 	EXCEPTION_PROLOG_0
-	mfcr	r3
+	mfcr	r10
 
 	/* If we are faulting a kernel address, we have to use the
 	 * kernel page tables.
 	 */
-	mfspr	r10, SPRN_MD_EPN
-	IS_KERNEL(r11, r10)
+	mfspr	r11, SPRN_MD_EPN
+	rlwinm	r11, r11, 16, 0xfff8
+#ifndef CONFIG_PIN_TLB_IMMR
+	cmpli	cr0, r11, VIRT_IMMR_BASE@h
+#endif
+	cmpli	cr7, r11, PAGE_OFFSET@h
+#ifndef CONFIG_PIN_TLB_IMMR
+_ENTRY(DTLBMiss_jmp)
+	beq-	DTLBMissIMMR
+#endif
+	bge-	cr7, 4f
+
 	mfspr	r11, SPRN_M_TW	/* Get level 1 table */
-	BRANCH_UNLESS_KERNEL(3f)
-	lis	r11, (swapper_pg_dir-PAGE_OFFSET)@ha
 3:
+	mtcr	r10
+#ifdef CONFIG_8xx_CPU6
+	mtspr	SPRN_SPRG_SCRATCH2, r3
+#endif
+	mfspr	r10, SPRN_MD_EPN
 
 	/* Insert level 1 index */
 	rlwimi	r11, r10, 32 - ((PAGE_SHIFT - 2) << 1), (PAGE_SHIFT - 2) << 1, 29
 	lwz	r11, (swapper_pg_dir-PAGE_OFFSET)@l(r11)	/* Get the level 1 entry */
-	mtcr	r11
-	bt-	28,DTLBMiss8M		/* bit 28 = Large page (8M) */
-	mtcr	r3
 
 	/* We have a pte table, so load fetch the pte from the table.
 	 */
@@ -452,29 +482,30 @@ DataStoreTLBMiss:
 	MTSPR_CPU6(SPRN_MD_RPN, r10, r3)	/* Update TLB entry */
 
 	/* Restore registers */
+#ifdef CONFIG_8xx_CPU6
 	mfspr	r3, SPRN_SPRG_SCRATCH2
+#endif
 	mtspr	SPRN_DAR, r11	/* Tag DAR */
 	EXCEPTION_EPILOG_0
 	rfi
 
-DTLBMiss8M:
-	mtcr	r3
-	ori	r11, r11, MD_SVALID
-	MTSPR_CPU6(SPRN_MD_TWC, r11, r3)
-#ifdef CONFIG_PPC_16K_PAGES
-	/*
-	 * In 16k pages mode, each PGD entry defines a 64M block.
-	 * Here we select the 8M page within the block.
-	 */
-	rlwimi	r11, r10, 0, 0x03800000
-#endif
-	rlwinm	r10, r11, 0, 0xff800000
+4:
+_ENTRY(DTLBMiss_cmp)
+	cmpli	cr0, r11, (PAGE_OFFSET + 0x1800000)@h
+	lis	r11, (swapper_pg_dir-PAGE_OFFSET)@ha
+	bge-	3b
+
+	mtcr	r10
+	/* Set 8M byte page and mark it valid */
+	li	r10, MD_PS8MEG | MD_SVALID
+	MTSPR_CPU6(SPRN_MD_TWC, r10, r11)
+	mfspr	r10, SPRN_MD_EPN
+	rlwinm	r10, r10, 0, 0x0f800000		/* 8xx supports max 256Mb RAM */
 	ori	r10, r10, 0xf0 | MD_SPS16K | _PAGE_SHARED | _PAGE_DIRTY	| \
 			  _PAGE_PRESENT
-	MTSPR_CPU6(SPRN_MD_RPN, r10, r3)	/* Update TLB entry */
+	MTSPR_CPU6(SPRN_MD_RPN, r10, r11)	/* Update TLB entry */
 
 	li	r11, RPN_PATTERN
-	mfspr	r3, SPRN_SPRG_SCRATCH2
 	mtspr	SPRN_DAR, r11	/* Tag DAR */
 	EXCEPTION_EPILOG_0
 	rfi
@@ -553,12 +584,14 @@ FixupDAR:/* Entry point for dcbx workaround. */
 	IS_KERNEL(r11, r10)
 	mfspr	r11, SPRN_M_TW	/* Get level 1 table */
 	BRANCH_UNLESS_KERNEL(3f)
+	rlwinm	r11, r10, 16, 0xfff8
+_ENTRY(FixupDAR_cmp)
+	cmpli	cr7, r11, (PAGE_OFFSET + 0x1800000)@h
+	blt-	cr7, 200f
 	lis	r11, (swapper_pg_dir-PAGE_OFFSET)@ha
 	/* Insert level 1 index */
 3:	rlwimi	r11, r10, 32 - ((PAGE_SHIFT - 2) << 1), (PAGE_SHIFT - 2) << 1, 29
 	lwz	r11, (swapper_pg_dir-PAGE_OFFSET)@l(r11)	/* Get the level 1 entry */
-	mtcr	r11
-	bt	28,200f		/* bit 28 = Large page (8M) */
 	rlwinm	r11, r11,0,0,19	/* Extract page descriptor page address */
 	/* Insert level 2 index */
 	rlwimi	r11, r10, 32 - (PAGE_SHIFT - 2), 32 - PAGE_SHIFT, 29
@@ -584,8 +617,8 @@ FixupDAR:/* Entry point for dcbx workaround. */
 141:	mfspr	r10,SPRN_SPRG_SCRATCH2
 	b	DARFixed	/* Nope, go back to normal TLB processing */
 
-	/* concat physical page address(r11) and page offset(r10) */
-200:	rlwimi	r11, r10, 0, 32 - (PAGE_SHIFT << 1), 31
+	/* create physical page address from effective address */
+200:	tophys(r11, r10)
 	b	201b
 
 144:	mfspr	r10, SPRN_DSISR
@@ -763,10 +796,18 @@ start_here:
  * virtual to physical.  Also, set the cache mode since that is defined
  * by TLB entries and perform any additional mapping (like of the IMMR).
  * If configured to pin some TLBs, we pin the first 8 Mbytes of kernel,
- * 24 Mbytes of data, and the 8M IMMR space.  Anything not covered by
+ * 24 Mbytes of data, and the 512k IMMR space.  Anything not covered by
  * these mappings is mapped by page tables.
  */
 initial_mmu:
+	li	r8, 0
+	mtspr	SPRN_MI_CTR, r8		/* remove PINNED ITLB entries */
+	lis	r10, MD_RESETVAL@h
+#ifndef CONFIG_8xx_COPYBACK
+	oris	r10, r10, MD_WTDEF@h
+#endif
+	mtspr	SPRN_MD_CTR, r10	/* remove PINNED DTLB entries */
+
 	tlbia			/* Invalidate all TLB entries */
 /* Always pin the first 8 MB ITLB to prevent ITLB
    misses while mucking around with SRR0/SRR1 in asm
@@ -777,34 +818,20 @@ initial_mmu:
 	mtspr	SPRN_MI_CTR, r8	/* Set instruction MMU control */
 
 #ifdef CONFIG_PIN_TLB
-	lis	r10, (MD_RSV4I | MD_RESETVAL)@h
-	ori	r10, r10, 0x1c00
-	mr	r8, r10
-#else
-	lis	r10, MD_RESETVAL@h
-#endif
-#ifndef CONFIG_8xx_COPYBACK
-	oris	r10, r10, MD_WTDEF@h
-#endif
+	oris	r10, r10, MD_RSV4I@h
 	mtspr	SPRN_MD_CTR, r10	/* Set data TLB control */
+#endif
 
-	/* Now map the lower 8 Meg into the TLBs.  For this quick hack,
-	 * we can load the instruction and data TLB registers with the
-	 * same values.
-	 */
+	/* Now map the lower 8 Meg into the ITLB. */
 	lis	r8, KERNELBASE@h	/* Create vaddr for TLB */
 	ori	r8, r8, MI_EVALID	/* Mark it valid */
 	mtspr	SPRN_MI_EPN, r8
-	mtspr	SPRN_MD_EPN, r8
 	li	r8, MI_PS8MEG | (2 << 5)	/* Set 8M byte page, APG 2 */
 	ori	r8, r8, MI_SVALID	/* Make it valid */
 	mtspr	SPRN_MI_TWC, r8
-	li	r8, MI_PS8MEG		/* Set 8M byte page, APG 0 */
-	ori	r8, r8, MI_SVALID	/* Make it valid */
-	mtspr	SPRN_MD_TWC, r8
 	li	r8, MI_BOOTINIT		/* Create RPN for address 0 */
 	mtspr	SPRN_MI_RPN, r8		/* Store TLB entry */
-	mtspr	SPRN_MD_RPN, r8
+
 	lis	r8, MI_APG_INIT@h	/* Set protection modes */
 	ori	r8, r8, MI_APG_INIT@l
 	mtspr	SPRN_MI_AP, r8
@@ -812,51 +839,25 @@ initial_mmu:
 	ori	r8, r8, MD_APG_INIT@l
 	mtspr	SPRN_MD_AP, r8
 
-	/* Map another 8 MByte at the IMMR to get the processor
+	/* Map a 512k page for the IMMR to get the processor
 	 * internal registers (among other things).
 	 */
-#ifdef CONFIG_PIN_TLB
-	addi	r10, r10, 0x0100
+#ifdef CONFIG_PIN_TLB_IMMR
+	ori	r10, r10, 0x1c00
 	mtspr	SPRN_MD_CTR, r10
-#endif
-	mfspr	r9, 638			/* Get current IMMR */
-	andis.	r9, r9, 0xff80		/* Get 8Mbyte boundary */
 
-	mr	r8, r9			/* Create vaddr for TLB */
+	mfspr	r9, 638			/* Get current IMMR */
+	andis.	r9, r9, 0xfff8		/* Get 512 kbytes boundary */
+
+	lis	r8, VIRT_IMMR_BASE@h	/* Create vaddr for TLB */
 	ori	r8, r8, MD_EVALID	/* Mark it valid */
 	mtspr	SPRN_MD_EPN, r8
-	li	r8, MD_PS8MEG		/* Set 8M byte page */
+	li	r8, MD_PS512K | MD_GUARDED	/* Set 512k byte page */
 	ori	r8, r8, MD_SVALID	/* Make it valid */
 	mtspr	SPRN_MD_TWC, r8
 	mr	r8, r9			/* Create paddr for TLB */
 	ori	r8, r8, MI_BOOTINIT|0x2 /* Inhibit cache -- Cort */
 	mtspr	SPRN_MD_RPN, r8
-
-#ifdef CONFIG_PIN_TLB
-	/* Map two more 8M kernel data pages.
-	*/
-	addi	r10, r10, 0x0100
-	mtspr	SPRN_MD_CTR, r10
-
-	lis	r8, KERNELBASE@h	/* Create vaddr for TLB */
-	addis	r8, r8, 0x0080		/* Add 8M */
-	ori	r8, r8, MI_EVALID	/* Mark it valid */
-	mtspr	SPRN_MD_EPN, r8
-	li	r9, MI_PS8MEG		/* Set 8M byte page */
-	ori	r9, r9, MI_SVALID	/* Make it valid */
-	mtspr	SPRN_MD_TWC, r9
-	li	r11, MI_BOOTINIT	/* Create RPN for address 0 */
-	addis	r11, r11, 0x0080	/* Add 8M */
-	mtspr	SPRN_MD_RPN, r11
-
-	addi	r10, r10, 0x0100
-	mtspr	SPRN_MD_CTR, r10
-
-	addis	r8, r8, 0x0080		/* Add 8M */
-	mtspr	SPRN_MD_EPN, r8
-	mtspr	SPRN_MD_TWC, r9
-	addis	r11, r11, 0x0080	/* Add 8M */
-	mtspr	SPRN_MD_RPN, r11
 #endif
 
 	/* Since the cache is enabled according to the information we

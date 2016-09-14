@@ -60,10 +60,10 @@ static inline struct vvp_req *cl2vvp_req(const struct cl_req_slice *slice)
  *    - o_ioepoch,
  *
  */
-void vvp_req_attr_set(const struct lu_env *env,
-		      const struct cl_req_slice *slice,
-		      const struct cl_object *obj,
-		      struct cl_req_attr *attr, u64 flags)
+static void vvp_req_attr_set(const struct lu_env *env,
+			     const struct cl_req_slice *slice,
+			     const struct cl_object *obj,
+			     struct cl_req_attr *attr, u64 flags)
 {
 	struct inode *inode;
 	struct obdo  *oa;
@@ -87,8 +87,8 @@ void vvp_req_attr_set(const struct lu_env *env,
 	       JOBSTATS_JOBID_SIZE);
 }
 
-void vvp_req_completion(const struct lu_env *env,
-			const struct cl_req_slice *slice, int ioret)
+static void vvp_req_completion(const struct lu_env *env,
+			       const struct cl_req_slice *slice, int ioret)
 {
 	struct vvp_req *vrq;
 

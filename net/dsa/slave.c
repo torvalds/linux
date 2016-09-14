@@ -49,8 +49,8 @@ void dsa_slave_mii_bus_init(struct dsa_switch *ds)
 	ds->slave_mii_bus->name = "dsa slave smi";
 	ds->slave_mii_bus->read = dsa_slave_phy_read;
 	ds->slave_mii_bus->write = dsa_slave_phy_write;
-	snprintf(ds->slave_mii_bus->id, MII_BUS_ID_SIZE, "dsa-%d:%.2x",
-			ds->index, ds->cd->sw_addr);
+	snprintf(ds->slave_mii_bus->id, MII_BUS_ID_SIZE, "dsa-%d.%d",
+		 ds->dst->tree, ds->index);
 	ds->slave_mii_bus->parent = ds->dev;
 	ds->slave_mii_bus->phy_mask = ~ds->phys_mii_mask;
 }
@@ -333,6 +333,44 @@ static int dsa_slave_vlan_filtering(struct net_device *dev,
 	return 0;
 }
 
+static int dsa_fastest_ageing_time(struct dsa_switch *ds,
+				   unsigned int ageing_time)
+{
+	int i;
+
+	for (i = 0; i < DSA_MAX_PORTS; ++i) {
+		struct dsa_port *dp = &ds->ports[i];
+
+		if (dp && dp->ageing_time && dp->ageing_time < ageing_time)
+			ageing_time = dp->ageing_time;
+	}
+
+	return ageing_time;
+}
+
+static int dsa_slave_ageing_time(struct net_device *dev,
+				 const struct switchdev_attr *attr,
+				 struct switchdev_trans *trans)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_switch *ds = p->parent;
+	unsigned long ageing_jiffies = clock_t_to_jiffies(attr->u.ageing_time);
+	unsigned int ageing_time = jiffies_to_msecs(ageing_jiffies);
+
+	/* bridge skips -EOPNOTSUPP, so skip the prepare phase */
+	if (switchdev_trans_ph_prepare(trans))
+		return 0;
+
+	/* Keep the fastest ageing time in case of multiple bridges */
+	ds->ports[p->port].ageing_time = ageing_time;
+	ageing_time = dsa_fastest_ageing_time(ds, ageing_time);
+
+	if (ds->drv->set_ageing_time)
+		return ds->drv->set_ageing_time(ds, ageing_time);
+
+	return 0;
+}
+
 static int dsa_slave_port_attr_set(struct net_device *dev,
 				   const struct switchdev_attr *attr,
 				   struct switchdev_trans *trans)
@@ -345,6 +383,9 @@ static int dsa_slave_port_attr_set(struct net_device *dev,
 		break;
 	case SWITCHDEV_ATTR_ID_BRIDGE_VLAN_FILTERING:
 		ret = dsa_slave_vlan_filtering(dev, attr, trans);
+		break;
+	case SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME:
+		ret = dsa_slave_ageing_time(dev, attr, trans);
 		break;
 	default:
 		ret = -EOPNOTSUPP;
@@ -522,14 +563,6 @@ static netdev_tx_t dsa_slave_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static struct sk_buff *dsa_slave_notag_xmit(struct sk_buff *skb,
-					    struct net_device *dev)
-{
-	/* Just return the original SKB */
-	return skb;
-}
-
-
 /* ethtool operations *******************************************************/
 static int
 dsa_slave_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -615,7 +648,7 @@ static int dsa_slave_get_eeprom_len(struct net_device *dev)
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
 
-	if (ds->cd->eeprom_len)
+	if (ds->cd && ds->cd->eeprom_len)
 		return ds->cd->eeprom_len;
 
 	if (ds->drv->get_eeprom_len)
@@ -873,6 +906,13 @@ static void dsa_slave_poll_controller(struct net_device *dev)
 }
 #endif
 
+void dsa_cpu_port_ethtool_init(struct ethtool_ops *ops)
+{
+	ops->get_sset_count = dsa_cpu_port_get_sset_count;
+	ops->get_ethtool_stats = dsa_cpu_port_get_ethtool_stats;
+	ops->get_strings = dsa_cpu_port_get_strings;
+}
+
 static const struct ethtool_ops dsa_slave_ethtool_ops = {
 	.get_settings		= dsa_slave_get_settings,
 	.set_settings		= dsa_slave_set_settings,
@@ -892,8 +932,6 @@ static const struct ethtool_ops dsa_slave_ethtool_ops = {
 	.set_eee		= dsa_slave_set_eee,
 	.get_eee		= dsa_slave_get_eee,
 };
-
-static struct ethtool_ops dsa_cpu_port_ethtool_ops;
 
 static const struct net_device_ops dsa_slave_netdev_ops = {
 	.ndo_open	 	= dsa_slave_open,
@@ -999,13 +1037,12 @@ static int dsa_slave_phy_setup(struct dsa_slave_priv *p,
 				struct net_device *slave_dev)
 {
 	struct dsa_switch *ds = p->parent;
-	struct dsa_chip_data *cd = ds->cd;
 	struct device_node *phy_dn, *port_dn;
 	bool phy_is_fixed = false;
 	u32 phy_flags = 0;
 	int mode, ret;
 
-	port_dn = cd->port_dn[p->port];
+	port_dn = ds->ports[p->port].dn;
 	mode = of_get_phy_mode(port_dn);
 	if (mode < 0)
 		mode = PHY_INTERFACE_MODE_NA;
@@ -1109,13 +1146,17 @@ int dsa_slave_resume(struct net_device *slave_dev)
 }
 
 int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
-		     int port, char *name)
+		     int port, const char *name)
 {
-	struct net_device *master = ds->dst->master_netdev;
 	struct dsa_switch_tree *dst = ds->dst;
+	struct net_device *master;
 	struct net_device *slave_dev;
 	struct dsa_slave_priv *p;
 	int ret;
+
+	master = ds->dst->master_netdev;
+	if (ds->master_netdev)
+		master = ds->master_netdev;
 
 	slave_dev = alloc_netdev(sizeof(struct dsa_slave_priv), name,
 				 NET_NAME_UNKNOWN, ether_setup);
@@ -1124,19 +1165,6 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 
 	slave_dev->features = master->vlan_features;
 	slave_dev->ethtool_ops = &dsa_slave_ethtool_ops;
-	if (master->ethtool_ops != &dsa_cpu_port_ethtool_ops) {
-		memcpy(&dst->master_ethtool_ops, master->ethtool_ops,
-		       sizeof(struct ethtool_ops));
-		memcpy(&dsa_cpu_port_ethtool_ops, &dst->master_ethtool_ops,
-		       sizeof(struct ethtool_ops));
-		dsa_cpu_port_ethtool_ops.get_sset_count =
-					dsa_cpu_port_get_sset_count;
-		dsa_cpu_port_ethtool_ops.get_ethtool_stats =
-					dsa_cpu_port_get_ethtool_stats;
-		dsa_cpu_port_ethtool_ops.get_strings =
-					dsa_cpu_port_get_strings;
-		master->ethtool_ops = &dsa_cpu_port_ethtool_ops;
-	}
 	eth_hw_addr_inherit(slave_dev, master);
 	slave_dev->priv_flags |= IFF_NO_QUEUE;
 	slave_dev->netdev_ops = &dsa_slave_netdev_ops;
@@ -1147,49 +1175,24 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 				 NULL);
 
 	SET_NETDEV_DEV(slave_dev, parent);
-	slave_dev->dev.of_node = ds->cd->port_dn[port];
+	slave_dev->dev.of_node = ds->ports[port].dn;
 	slave_dev->vlan_features = master->vlan_features;
 
 	p = netdev_priv(slave_dev);
 	p->parent = ds;
 	p->port = port;
-
-	switch (ds->dst->tag_protocol) {
-#ifdef CONFIG_NET_DSA_TAG_DSA
-	case DSA_TAG_PROTO_DSA:
-		p->xmit = dsa_netdev_ops.xmit;
-		break;
-#endif
-#ifdef CONFIG_NET_DSA_TAG_EDSA
-	case DSA_TAG_PROTO_EDSA:
-		p->xmit = edsa_netdev_ops.xmit;
-		break;
-#endif
-#ifdef CONFIG_NET_DSA_TAG_TRAILER
-	case DSA_TAG_PROTO_TRAILER:
-		p->xmit = trailer_netdev_ops.xmit;
-		break;
-#endif
-#ifdef CONFIG_NET_DSA_TAG_BRCM
-	case DSA_TAG_PROTO_BRCM:
-		p->xmit = brcm_netdev_ops.xmit;
-		break;
-#endif
-	default:
-		p->xmit	= dsa_slave_notag_xmit;
-		break;
-	}
+	p->xmit = dst->tag_ops->xmit;
 
 	p->old_pause = -1;
 	p->old_link = -1;
 	p->old_duplex = -1;
 
-	ds->ports[port] = slave_dev;
+	ds->ports[port].netdev = slave_dev;
 	ret = register_netdev(slave_dev);
 	if (ret) {
 		netdev_err(master, "error %d registering interface %s\n",
 			   ret, slave_dev->name);
-		ds->ports[port] = NULL;
+		ds->ports[port].netdev = NULL;
 		free_netdev(slave_dev);
 		return ret;
 	}

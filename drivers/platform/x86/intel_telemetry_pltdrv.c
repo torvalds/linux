@@ -28,6 +28,7 @@
 #include <linux/platform_device.h>
 
 #include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
 #include <asm/intel_pmc_ipc.h>
 #include <asm/intel_punit_ipc.h>
 #include <asm/intel_telemetry.h>
@@ -82,7 +83,7 @@
 #define TELEM_SET_VERBOSITY_BITS(x, y)	((x) |= ((y) << 27))
 
 #define TELEM_CPU(model, data) \
-	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_MWAIT, (unsigned long)&data }
+	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, (unsigned long)&data }
 
 enum telemetry_action {
 	TELEM_UPDATE = 0,
@@ -163,7 +164,7 @@ static struct telemetry_plt_config telem_apl_config = {
 };
 
 static const struct x86_cpu_id telemetry_cpu_ids[] = {
-	TELEM_CPU(0x5c, telem_apl_config),
+	TELEM_CPU(INTEL_FAM6_ATOM_GOLDMONT, telem_apl_config),
 	{}
 };
 

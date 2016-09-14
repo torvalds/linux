@@ -44,6 +44,16 @@ config ARMADA375_USBCLUSTER_PHY
 	depends on OF && HAS_IOMEM
 	select GENERIC_PHY
 
+config PHY_DA8XX_USB
+	tristate "TI DA8xx USB PHY Driver"
+	depends on ARCH_DAVINCI_DA8XX
+	select GENERIC_PHY
+	select MFD_SYSCON
+	help
+	  Enable this to support the USB PHY on DA8xx SoCs.
+
+	  This driver controls both the USB 1.1 PHY and the USB 2.0 PHY.
+
 config PHY_DM816X_USB
 	tristate "TI dm816x USB PHY driver"
 	depends on ARCH_OMAP2PLUS
@@ -176,6 +186,7 @@ config TWL4030_USB
 	tristate "TWL4030 USB Transceiver Driver"
 	depends on TWL4030_CORE && REGULATOR_TWL4030 && USB_MUSB_OMAP2PLUS
 	depends on USB_SUPPORT
+	depends on USB_GADGET || !USB_GADGET # if USB_GADGET=m, this can't 'y'
 	select GENERIC_PHY
 	select USB_PHY
 	help
@@ -434,4 +445,12 @@ config PHY_CYGNUS_PCIE
 
 source "drivers/phy/tegra/Kconfig"
 
+config PHY_NS2_PCIE
+	tristate "Broadcom Northstar2 PCIe PHY driver"
+	depends on OF && MDIO_BUS_MUX_BCM_IPROC
+	select GENERIC_PHY
+	default ARCH_BCM_IPROC
+	help
+	  Enable this to support the Broadcom Northstar2 PCIe PHY.
+	  If unsure, say N.
 endmenu

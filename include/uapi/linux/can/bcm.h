@@ -99,5 +99,6 @@ enum {
 #define RX_ANNOUNCE_RESUME  0x0100
 #define TX_RESET_MULTI_IDX  0x0200
 #define RX_RTR_FRAME        0x0400
+#define CAN_FD_FRAME        0x0800
 
 #endif /* !_UAPI_CAN_BCM_H */

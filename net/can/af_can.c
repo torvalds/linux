@@ -911,14 +911,14 @@ static __init int can_init(void)
 	if (!rcv_cache)
 		return -ENOMEM;
 
-	if (stats_timer) {
+	if (IS_ENABLED(CONFIG_PROC_FS)) {
+		if (stats_timer) {
 		/* the statistics are updated every second (timer triggered) */
-		setup_timer(&can_stattimer, can_stat_update, 0);
-		mod_timer(&can_stattimer, round_jiffies(jiffies + HZ));
-	} else
-		can_stattimer.function = NULL;
-
-	can_init_proc();
+			setup_timer(&can_stattimer, can_stat_update, 0);
+			mod_timer(&can_stattimer, round_jiffies(jiffies + HZ));
+		}
+		can_init_proc();
+	}
 
 	/* protocol register */
 	sock_register(&can_family_ops);
@@ -933,10 +933,12 @@ static __exit void can_exit(void)
 {
 	struct net_device *dev;
 
-	if (stats_timer)
-		del_timer_sync(&can_stattimer);
+	if (IS_ENABLED(CONFIG_PROC_FS)) {
+		if (stats_timer)
+			del_timer_sync(&can_stattimer);
 
-	can_remove_proc();
+		can_remove_proc();
+	}
 
 	/* protocol unregister */
 	dev_remove_pack(&canfd_packet);

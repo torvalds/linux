@@ -103,7 +103,7 @@ static void __init hisi_common_smp_prepare_cpus(unsigned int max_cpus)
 	hisi_enable_scu_a9();
 }
 
-void hix5hd2_set_scu_boot_addr(phys_addr_t start_addr, phys_addr_t jump_addr)
+static void hix5hd2_set_scu_boot_addr(phys_addr_t start_addr, phys_addr_t jump_addr)
 {
 	void __iomem *virt;
 
@@ -139,7 +139,7 @@ static const struct smp_operations hix5hd2_smp_ops __initconst = {
 #define HIP01_BOOT_ADDRESS     0x80000000
 #define REG_SC_CTRL            0x000
 
-void hip01_set_boot_addr(phys_addr_t start_addr, phys_addr_t jump_addr)
+static void hip01_set_boot_addr(phys_addr_t start_addr, phys_addr_t jump_addr)
 {
 	void __iomem *virt;
 

@@ -23,6 +23,8 @@ int trace_event__register_resolver(struct machine *machine,
 struct event_format*
 trace_event__tp_format(const char *sys, const char *name);
 
+struct event_format *trace_event__tp_format_id(int id);
+
 int bigendian(void);
 
 void event_format__fprintf(struct event_format *event,

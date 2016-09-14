@@ -61,6 +61,13 @@ OPTIONS
 
 --stdio:: Use the stdio interface.
 
+--stdio-color::
+	'always', 'never' or 'auto', allowing configuring color output
+	via the command line, in addition to via "color.ui" .perfconfig.
+	Use '--stdio-color always' to generate color even when redirecting
+	to a pipe or file. Using just '--stdio-color' is equivalent to
+	using 'always'.
+
 --tui:: Use the TUI interface. Use of --tui requires a tty, if one is not
 	present, as when piping to other commands, the stdio interface is
 	used. This interfaces starts by centering on the line with more

@@ -40,9 +40,11 @@ static inline void vsp1_uds_write(struct vsp1_uds *uds, struct vsp1_dl_list *dl,
  * Scaling Computation
  */
 
-void vsp1_uds_set_alpha(struct vsp1_uds *uds, struct vsp1_dl_list *dl,
+void vsp1_uds_set_alpha(struct vsp1_entity *entity, struct vsp1_dl_list *dl,
 			unsigned int alpha)
 {
+	struct vsp1_uds *uds = to_uds(&entity->subdev);
+
 	vsp1_uds_write(uds, dl, VI6_UDS_ALPVAL,
 		       alpha << VI6_UDS_ALPVAL_VAL0_SHIFT);
 }
@@ -226,7 +228,7 @@ static int uds_set_format(struct v4l2_subdev *subdev,
  * V4L2 Subdevice Operations
  */
 
-static struct v4l2_subdev_pad_ops uds_pad_ops = {
+static const struct v4l2_subdev_pad_ops uds_pad_ops = {
 	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = uds_enum_mbus_code,
 	.enum_frame_size = uds_enum_frame_size,
@@ -234,7 +236,7 @@ static struct v4l2_subdev_pad_ops uds_pad_ops = {
 	.set_fmt = uds_set_format,
 };
 
-static struct v4l2_subdev_ops uds_ops = {
+static const struct v4l2_subdev_ops uds_ops = {
 	.pad    = &uds_pad_ops,
 };
 
@@ -244,7 +246,7 @@ static struct v4l2_subdev_ops uds_ops = {
 
 static void uds_configure(struct vsp1_entity *entity,
 			  struct vsp1_pipeline *pipe,
-			  struct vsp1_dl_list *dl)
+			  struct vsp1_dl_list *dl, bool full)
 {
 	struct vsp1_uds *uds = to_uds(&entity->subdev);
 	const struct v4l2_mbus_framefmt *output;
@@ -252,6 +254,9 @@ static void uds_configure(struct vsp1_entity *entity,
 	unsigned int hscale;
 	unsigned int vscale;
 	bool multitap;
+
+	if (!full)
+		return;
 
 	input = vsp1_entity_get_pad_format(&uds->entity, uds->entity.config,
 					   UDS_PAD_SINK);
@@ -314,7 +319,8 @@ struct vsp1_uds *vsp1_uds_create(struct vsp1_device *vsp1, unsigned int index)
 	uds->entity.index = index;
 
 	sprintf(name, "uds.%u", index);
-	ret = vsp1_entity_init(vsp1, &uds->entity, name, 2, &uds_ops);
+	ret = vsp1_entity_init(vsp1, &uds->entity, name, 2, &uds_ops,
+			       MEDIA_ENT_F_PROC_VIDEO_SCALER);
 	if (ret < 0)
 		return ERR_PTR(ret);
 

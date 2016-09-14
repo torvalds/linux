@@ -281,7 +281,7 @@ on the wait queue and one attempt is made to recycle them. Obviously,
 if the client-core stays dead too long, the arbitrary userspace processes
 trying to use Orangefs will be negatively affected. Waiting ops
 that can't be serviced will be removed from the request list and
-have their states set to "given up". In-progress ops that can't 
+have their states set to "given up". In-progress ops that can't
 be serviced will be removed from the in_progress hash table and
 have their states set to "given up".
 
@@ -338,7 +338,7 @@ particular response.
   PVFS2_VFS_OP_STATFS
     fill a pvfs2_statfs_response_t with useless info <g>. It is hard for
     us to know, in a timely fashion, these statistics about our
-    distributed network filesystem. 
+    distributed network filesystem.
 
   PVFS2_VFS_OP_FS_MOUNT
     fill a pvfs2_fs_mount_response_t which is just like a PVFS_object_kref
@@ -386,7 +386,7 @@ responses:
 
   io_array[1].iov_base = address of global variable "pdev_magic" (int32_t)
   io_array[1].iov_len = sizeof(int32_t)
-  
+
   io_array[2].iov_base = address of parameter "tag" (PVFS_id_gen_t)
   io_array[2].iov_len = sizeof(int64_t)
 
@@ -402,5 +402,47 @@ Readdir responses initialize the fifth element io_array like this:
   io_array[4].iov_len = contents of member trailer_size (PVFS_size)
                         from out_downcall member of global variable
                         vfs_request
-  
+
+Orangefs exploits the dcache in order to avoid sending redundant
+requests to userspace. We keep object inode attributes up-to-date with
+orangefs_inode_getattr. Orangefs_inode_getattr uses two arguments to
+help it decide whether or not to update an inode: "new" and "bypass".
+Orangefs keeps private data in an object's inode that includes a short
+timeout value, getattr_time, which allows any iteration of
+orangefs_inode_getattr to know how long it has been since the inode was
+updated. When the object is not new (new == 0) and the bypass flag is not
+set (bypass == 0) orangefs_inode_getattr returns without updating the inode
+if getattr_time has not timed out. Getattr_time is updated each time the
+inode is updated.
+
+Creation of a new object (file, dir, sym-link) includes the evaluation of
+its pathname, resulting in a negative directory entry for the object.
+A new inode is allocated and associated with the dentry, turning it from
+a negative dentry into a "productive full member of society". Orangefs
+obtains the new inode from Linux with new_inode() and associates
+the inode with the dentry by sending the pair back to Linux with
+d_instantiate().
+
+The evaluation of a pathname for an object resolves to its corresponding
+dentry. If there is no corresponding dentry, one is created for it in
+the dcache. Whenever a dentry is modified or verified Orangefs stores a
+short timeout value in the dentry's d_time, and the dentry will be trusted
+for that amount of time. Orangefs is a network filesystem, and objects
+can potentially change out-of-band with any particular Orangefs kernel module
+instance, so trusting a dentry is risky. The alternative to trusting
+dentries is to always obtain the needed information from userspace - at
+least a trip to the client-core, maybe to the servers. Obtaining information
+from a dentry is cheap, obtaining it from userspace is relatively expensive,
+hence the motivation to use the dentry when possible.
+
+The timeout values d_time and getattr_time are jiffy based, and the
+code is designed to avoid the jiffy-wrap problem:
+
+"In general, if the clock may have wrapped around more than once, there
+is no way to tell how much time has elapsed. However, if the times t1
+and t2 are known to be fairly close, we can reliably compute the
+difference in a way that takes into account the possibility that the
+clock may have wrapped between times."
+
+                      from course notes by instructor Andy Wang
 

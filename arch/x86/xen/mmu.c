@@ -43,7 +43,8 @@
 #include <linux/debugfs.h>
 #include <linux/bug.h>
 #include <linux/vmalloc.h>
-#include <linux/module.h>
+#include <linux/export.h>
+#include <linux/init.h>
 #include <linux/gfp.h>
 #include <linux/memblock.h>
 #include <linux/seq_file.h>

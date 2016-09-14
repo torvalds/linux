@@ -28,7 +28,15 @@
 #include <linux/console.h>
 #include <linux/module.h>
 #include <linux/pstore.h>
+#ifdef CONFIG_PSTORE_ZLIB_COMPRESS
 #include <linux/zlib.h>
+#endif
+#ifdef CONFIG_PSTORE_LZO_COMPRESS
+#include <linux/lzo.h>
+#endif
+#ifdef CONFIG_PSTORE_LZ4_COMPRESS
+#include <linux/lz4.h>
+#endif
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/slab.h>
@@ -69,10 +77,23 @@ struct pstore_info *psinfo;
 static char *backend;
 
 /* Compression parameters */
+#ifdef CONFIG_PSTORE_ZLIB_COMPRESS
 #define COMPR_LEVEL 6
 #define WINDOW_BITS 12
 #define MEM_LEVEL 4
 static struct z_stream_s stream;
+#else
+static unsigned char *workspace;
+#endif
+
+struct pstore_zbackend {
+	int (*compress)(const void *in, void *out, size_t inlen, size_t outlen);
+	int (*decompress)(void *in, void *out, size_t inlen, size_t outlen);
+	void (*allocate)(void);
+	void (*free)(void);
+
+	const char *name;
+};
 
 static char *big_oops_buf;
 static size_t big_oops_buf_sz;
@@ -129,9 +150,9 @@ bool pstore_cannot_block_path(enum kmsg_dump_reason reason)
 }
 EXPORT_SYMBOL_GPL(pstore_cannot_block_path);
 
+#ifdef CONFIG_PSTORE_ZLIB_COMPRESS
 /* Derived from logfs_compress() */
-static int pstore_compress(const void *in, void *out, size_t inlen,
-							size_t outlen)
+static int compress_zlib(const void *in, void *out, size_t inlen, size_t outlen)
 {
 	int err, ret;
 
@@ -165,7 +186,7 @@ error:
 }
 
 /* Derived from logfs_uncompress */
-static int pstore_decompress(void *in, void *out, size_t inlen, size_t outlen)
+static int decompress_zlib(void *in, void *out, size_t inlen, size_t outlen)
 {
 	int err, ret;
 
@@ -194,7 +215,7 @@ error:
 	return ret;
 }
 
-static void allocate_buf_for_compression(void)
+static void allocate_zlib(void)
 {
 	size_t size;
 	size_t cmpr;
@@ -237,12 +258,190 @@ static void allocate_buf_for_compression(void)
 
 }
 
-static void free_buf_for_compression(void)
+static void free_zlib(void)
 {
 	kfree(stream.workspace);
 	stream.workspace = NULL;
 	kfree(big_oops_buf);
 	big_oops_buf = NULL;
+	big_oops_buf_sz = 0;
+}
+
+static struct pstore_zbackend backend_zlib = {
+	.compress	= compress_zlib,
+	.decompress	= decompress_zlib,
+	.allocate	= allocate_zlib,
+	.free		= free_zlib,
+	.name		= "zlib",
+};
+#endif
+
+#ifdef CONFIG_PSTORE_LZO_COMPRESS
+static int compress_lzo(const void *in, void *out, size_t inlen, size_t outlen)
+{
+	int ret;
+
+	ret = lzo1x_1_compress(in, inlen, out, &outlen, workspace);
+	if (ret != LZO_E_OK) {
+		pr_err("lzo_compress error, ret = %d!\n", ret);
+		return -EIO;
+	}
+
+	return outlen;
+}
+
+static int decompress_lzo(void *in, void *out, size_t inlen, size_t outlen)
+{
+	int ret;
+
+	ret = lzo1x_decompress_safe(in, inlen, out, &outlen);
+	if (ret != LZO_E_OK) {
+		pr_err("lzo_decompress error, ret = %d!\n", ret);
+		return -EIO;
+	}
+
+	return outlen;
+}
+
+static void allocate_lzo(void)
+{
+	big_oops_buf_sz = lzo1x_worst_compress(psinfo->bufsize);
+	big_oops_buf = kmalloc(big_oops_buf_sz, GFP_KERNEL);
+	if (big_oops_buf) {
+		workspace = kmalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL);
+		if (!workspace) {
+			pr_err("No memory for compression workspace; skipping compression\n");
+			kfree(big_oops_buf);
+			big_oops_buf = NULL;
+		}
+	} else {
+		pr_err("No memory for uncompressed data; skipping compression\n");
+		workspace = NULL;
+	}
+}
+
+static void free_lzo(void)
+{
+	kfree(workspace);
+	kfree(big_oops_buf);
+	big_oops_buf = NULL;
+	big_oops_buf_sz = 0;
+}
+
+static struct pstore_zbackend backend_lzo = {
+	.compress	= compress_lzo,
+	.decompress	= decompress_lzo,
+	.allocate	= allocate_lzo,
+	.free		= free_lzo,
+	.name		= "lzo",
+};
+#endif
+
+#ifdef CONFIG_PSTORE_LZ4_COMPRESS
+static int compress_lz4(const void *in, void *out, size_t inlen, size_t outlen)
+{
+	int ret;
+
+	ret = lz4_compress(in, inlen, out, &outlen, workspace);
+	if (ret) {
+		pr_err("lz4_compress error, ret = %d!\n", ret);
+		return -EIO;
+	}
+
+	return outlen;
+}
+
+static int decompress_lz4(void *in, void *out, size_t inlen, size_t outlen)
+{
+	int ret;
+
+	ret = lz4_decompress_unknownoutputsize(in, inlen, out, &outlen);
+	if (ret) {
+		pr_err("lz4_decompress error, ret = %d!\n", ret);
+		return -EIO;
+	}
+
+	return outlen;
+}
+
+static void allocate_lz4(void)
+{
+	big_oops_buf_sz = lz4_compressbound(psinfo->bufsize);
+	big_oops_buf = kmalloc(big_oops_buf_sz, GFP_KERNEL);
+	if (big_oops_buf) {
+		workspace = kmalloc(LZ4_MEM_COMPRESS, GFP_KERNEL);
+		if (!workspace) {
+			pr_err("No memory for compression workspace; skipping compression\n");
+			kfree(big_oops_buf);
+			big_oops_buf = NULL;
+		}
+	} else {
+		pr_err("No memory for uncompressed data; skipping compression\n");
+		workspace = NULL;
+	}
+}
+
+static void free_lz4(void)
+{
+	kfree(workspace);
+	kfree(big_oops_buf);
+	big_oops_buf = NULL;
+	big_oops_buf_sz = 0;
+}
+
+static struct pstore_zbackend backend_lz4 = {
+	.compress	= compress_lz4,
+	.decompress	= decompress_lz4,
+	.allocate	= allocate_lz4,
+	.free		= free_lz4,
+	.name		= "lz4",
+};
+#endif
+
+static struct pstore_zbackend *zbackend =
+#if defined(CONFIG_PSTORE_ZLIB_COMPRESS)
+	&backend_zlib;
+#elif defined(CONFIG_PSTORE_LZO_COMPRESS)
+	&backend_lzo;
+#elif defined(CONFIG_PSTORE_LZ4_COMPRESS)
+	&backend_lz4;
+#else
+	NULL;
+#endif
+
+static int pstore_compress(const void *in, void *out,
+			   size_t inlen, size_t outlen)
+{
+	if (zbackend)
+		return zbackend->compress(in, out, inlen, outlen);
+	else
+		return -EIO;
+}
+
+static int pstore_decompress(void *in, void *out, size_t inlen, size_t outlen)
+{
+	if (zbackend)
+		return zbackend->decompress(in, out, inlen, outlen);
+	else
+		return -EIO;
+}
+
+static void allocate_buf_for_compression(void)
+{
+	if (zbackend) {
+		pr_info("using %s compression\n", zbackend->name);
+		zbackend->allocate();
+	} else {
+		pr_err("allocate compression buffer error!\n");
+	}
+}
+
+static void free_buf_for_compression(void)
+{
+	if (zbackend)
+		zbackend->free();
+	else
+		pr_err("free compression buffer error!\n");
 }
 
 /*
@@ -284,7 +483,7 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 	u64		id;
 	unsigned int	part = 1;
 	unsigned long	flags = 0;
-	int		is_locked = 0;
+	int		is_locked;
 	int		ret;
 
 	why = get_reason_str(reason);
@@ -295,8 +494,10 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 			pr_err("pstore dump routine blocked in %s path, may corrupt error record\n"
 				       , in_nmi() ? "NMI" : why);
 		}
-	} else
+	} else {
 		spin_lock_irqsave(&psinfo->buf_lock, flags);
+		is_locked = 1;
+	}
 	oopscount++;
 	while (total < kmsg_bytes) {
 		char *dst;
@@ -304,19 +505,25 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 		int hsize;
 		int zipped_len = -1;
 		size_t len;
-		bool compressed;
+		bool compressed = false;
 		size_t total_len;
 
 		if (big_oops_buf && is_locked) {
 			dst = big_oops_buf;
-			hsize = sprintf(dst, "%s#%d Part%u\n", why,
-							oopscount, part);
-			size = big_oops_buf_sz - hsize;
+			size = big_oops_buf_sz;
+		} else {
+			dst = psinfo->buf;
+			size = psinfo->bufsize;
+		}
 
-			if (!kmsg_dump_get_buffer(dumper, true, dst + hsize,
-								size, &len))
-				break;
+		hsize = sprintf(dst, "%s#%d Part%u\n", why, oopscount, part);
+		size -= hsize;
 
+		if (!kmsg_dump_get_buffer(dumper, true, dst + hsize,
+					  size, &len))
+			break;
+
+		if (big_oops_buf && is_locked) {
 			zipped_len = pstore_compress(dst, psinfo->buf,
 						hsize + len, psinfo->bufsize);
 
@@ -324,21 +531,9 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 				compressed = true;
 				total_len = zipped_len;
 			} else {
-				compressed = false;
 				total_len = copy_kmsg_to_buffer(hsize, len);
 			}
 		} else {
-			dst = psinfo->buf;
-			hsize = sprintf(dst, "%s#%d Part%u\n", why, oopscount,
-									part);
-			size = psinfo->bufsize - hsize;
-			dst += hsize;
-
-			if (!kmsg_dump_get_buffer(dumper, true, dst,
-								size, &len))
-				break;
-
-			compressed = false;
 			total_len = hsize + len;
 		}
 
@@ -350,10 +545,7 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 		total += total_len;
 		part++;
 	}
-	if (pstore_cannot_block_path(reason)) {
-		if (is_locked)
-			spin_unlock_irqrestore(&psinfo->buf_lock, flags);
-	} else
+	if (is_locked)
 		spin_unlock_irqrestore(&psinfo->buf_lock, flags);
 }
 
@@ -497,9 +689,11 @@ EXPORT_SYMBOL_GPL(pstore_register);
 
 void pstore_unregister(struct pstore_info *psi)
 {
-	pstore_unregister_pmsg();
-	pstore_unregister_ftrace();
-	pstore_unregister_console();
+	if ((psi->flags & PSTORE_FLAGS_FRAGILE) == 0) {
+		pstore_unregister_pmsg();
+		pstore_unregister_ftrace();
+		pstore_unregister_console();
+	}
 	pstore_unregister_kmsg();
 
 	free_buf_for_compression();
@@ -527,6 +721,7 @@ void pstore_get_records(int quiet)
 	int			failed = 0, rc;
 	bool			compressed;
 	int			unzipped_len = -1;
+	ssize_t			ecc_notice_size = 0;
 
 	if (!psi)
 		return;
@@ -536,7 +731,7 @@ void pstore_get_records(int quiet)
 		goto out;
 
 	while ((size = psi->read(&id, &type, &count, &time, &buf, &compressed,
-				psi)) > 0) {
+				 &ecc_notice_size, psi)) > 0) {
 		if (compressed && (type == PSTORE_TYPE_DMESG)) {
 			if (big_oops_buf)
 				unzipped_len = pstore_decompress(buf,
@@ -544,6 +739,9 @@ void pstore_get_records(int quiet)
 							big_oops_buf_sz);
 
 			if (unzipped_len > 0) {
+				if (ecc_notice_size)
+					memcpy(big_oops_buf + unzipped_len,
+					       buf + size, ecc_notice_size);
 				kfree(buf);
 				buf = big_oops_buf;
 				size = unzipped_len;
@@ -555,7 +753,8 @@ void pstore_get_records(int quiet)
 			}
 		}
 		rc = pstore_mkfile(type, psi->name, id, count, buf,
-				  compressed, (size_t)size, time, psi);
+				   compressed, size + ecc_notice_size,
+				   time, psi);
 		if (unzipped_len < 0) {
 			/* Free buffer other than big oops */
 			kfree(buf);

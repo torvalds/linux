@@ -589,6 +589,7 @@ void amdgpu_bo_move_notify(struct ttm_buffer_object *bo,
 			   struct ttm_mem_reg *new_mem)
 {
 	struct amdgpu_bo *rbo;
+	struct ttm_mem_reg *old_mem = &bo->mem;
 
 	if (!amdgpu_ttm_bo_is_amdgpu_bo(bo))
 		return;
@@ -602,6 +603,8 @@ void amdgpu_bo_move_notify(struct ttm_buffer_object *bo,
 
 	/* move_notify is called before move happens */
 	amdgpu_update_memory_usage(rbo->adev, &bo->mem, new_mem);
+
+	trace_amdgpu_ttm_bo_move(rbo, new_mem->mem_type, old_mem->mem_type);
 }
 
 int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)

@@ -7,12 +7,12 @@
 void __init x86_early_init_platform_quirks(void)
 {
 	x86_platform.legacy.rtc = 1;
-	x86_platform.legacy.ebda_search = 0;
+	x86_platform.legacy.reserve_bios_regions = 0;
 	x86_platform.legacy.devices.pnpbios = 1;
 
 	switch (boot_params.hdr.hardware_subarch) {
 	case X86_SUBARCH_PC:
-		x86_platform.legacy.ebda_search = 1;
+		x86_platform.legacy.reserve_bios_regions = 1;
 		break;
 	case X86_SUBARCH_XEN:
 	case X86_SUBARCH_LGUEST:

@@ -34,24 +34,18 @@
 
 static void __iomem *wdog_base;
 static struct clk *wdog_clk;
+static int wcr_enable = (1 << 2);
 
 /*
  * Reset the system. It is called by machine_restart().
  */
 void mxc_restart(enum reboot_mode mode, const char *cmd)
 {
-	unsigned int wcr_enable;
-
 	if (!wdog_base)
 		goto reset_fallback;
 
 	if (!IS_ERR(wdog_clk))
 		clk_enable(wdog_clk);
-
-	if (cpu_is_mx1())
-		wcr_enable = (1 << 0);
-	else
-		wcr_enable = (1 << 2);
 
 	/* Assert SRS signal */
 	imx_writew(wcr_enable, wdog_base);
@@ -89,6 +83,14 @@ void __init mxc_arch_reset_init(void __iomem *base)
 		clk_prepare(wdog_clk);
 }
 
+#ifdef CONFIG_SOC_IMX1
+void __init imx1_reset_init(void __iomem *base)
+{
+	wcr_enable = (1 << 0);
+	mxc_arch_reset_init(base);
+}
+#endif
+
 #ifdef CONFIG_CACHE_L2X0
 void __init imx_init_l2cache(void)
 {
@@ -98,38 +100,28 @@ void __init imx_init_l2cache(void)
 
 	np = of_find_compatible_node(NULL, NULL, "arm,pl310-cache");
 	if (!np)
-		goto out;
+		return;
 
 	l2x0_base = of_iomap(np, 0);
-	if (!l2x0_base) {
-		of_node_put(np);
-		goto out;
+	if (!l2x0_base)
+		goto put_node;
+
+	if (!(readl_relaxed(l2x0_base + L2X0_CTRL) & L2X0_CTRL_EN)) {
+		/* Configure the L2 PREFETCH and POWER registers */
+		val = readl_relaxed(l2x0_base + L310_PREFETCH_CTRL);
+		val |= L310_PREFETCH_CTRL_DBL_LINEFILL |
+			L310_PREFETCH_CTRL_INSTR_PREFETCH |
+			L310_PREFETCH_CTRL_DATA_PREFETCH;
+
+		/* Set perfetch offset to improve performance */
+		val &= ~L310_PREFETCH_CTRL_OFFSET_MASK;
+		val |= 15;
+
+		writel_relaxed(val, l2x0_base + L310_PREFETCH_CTRL);
 	}
 
-	if (readl_relaxed(l2x0_base + L2X0_CTRL) & L2X0_CTRL_EN)
-		goto skip_if_enabled;
-
-	/* Configure the L2 PREFETCH and POWER registers */
-	val = readl_relaxed(l2x0_base + L310_PREFETCH_CTRL);
-	val |= 0x70800000;
-	/*
-	 * The L2 cache controller(PL310) version on the i.MX6D/Q is r3p1-50rel0
-	 * The L2 cache controller(PL310) version on the i.MX6DL/SOLO/SL is r3p2
-	 * But according to ARM PL310 errata: 752271
-	 * ID: 752271: Double linefill feature can cause data corruption
-	 * Fault Status: Present in: r3p0, r3p1, r3p1-50rel0. Fixed in r3p2
-	 * Workaround: The only workaround to this erratum is to disable the
-	 * double linefill feature. This is the default behavior.
-	 */
-	if (cpu_is_imx6q())
-		val &= ~(1 << 30 | 1 << 23);
-	writel_relaxed(val, l2x0_base + L310_PREFETCH_CTRL);
-
-skip_if_enabled:
 	iounmap(l2x0_base);
+put_node:
 	of_node_put(np);
-
-out:
-	l2x0_of_init(0, ~0);
 }
 #endif

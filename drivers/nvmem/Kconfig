@@ -15,7 +15,8 @@ if NVMEM
 
 config NVMEM_IMX_OCOTP
 	tristate "i.MX6 On-Chip OTP Controller support"
-	depends on SOC_IMX6
+	depends on SOC_IMX6 || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  This is a driver for the On-Chip OTP Controller (OCOTP) available on
 	  i.MX6 SoCs, providing access to 4 Kbits of one-time programmable
@@ -50,7 +51,6 @@ config MTK_EFUSE
 	tristate "Mediatek SoCs EFUSE support"
 	depends on ARCH_MEDIATEK || COMPILE_TEST
 	depends on HAS_IOMEM
-	select REGMAP_MMIO
 	help
 	  This is a driver to access hardware related data like sensor
 	  calibration, HDMI impedance etc.

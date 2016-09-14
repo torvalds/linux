@@ -282,7 +282,7 @@ extern void _memset_io(volatile void __iomem *, int, size_t);
  * These perform PCI memory accesses via an ioremap region.  They don't
  * take an address as such, but a cookie.
  *
- * Again, this are defined to perform little endian accesses.  See the
+ * Again, these are defined to perform little endian accesses.  See the
  * IO port primitives for more information.
  */
 #ifndef readl

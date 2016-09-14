@@ -1002,14 +1002,12 @@ static struct adv7842_output_format adv7842_opf[] = {
 	{
 		.op_ch_sel = ADV7842_OP_CH_SEL_BRG,
 		.op_format_sel = ADV7842_OP_FORMAT_SEL_SDR_ITU656_8,
-		.op_656_range = 1,
 		.blank_data = 1,
 		.insert_av_codes = 1,
 	},
 	{
 		.op_ch_sel = ADV7842_OP_CH_SEL_RGB,
 		.op_format_sel = ADV7842_OP_FORMAT_SEL_SDR_ITU656_16,
-		.op_656_range = 1,
 		.blank_data = 1,
 	},
 };

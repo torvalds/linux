@@ -1,0 +1,18 @@
+Amlogic Meson SoC Reset Controller
+=======================================
+
+Please also refer to reset.txt in this directory for common reset
+controller binding usage.
+
+Required properties:
+- compatible: Should be "amlogic,meson8b-reset" or "amlogic,meson-gxbb-reset"
+- reg: should contain the register address base
+- #reset-cells: 1, see below
+
+example:
+
+reset: reset-controller {
+	compatible = "amlogic,meson-gxbb-reset";
+	reg = <0x0 0x04404 0x0 0x20>;
+	#reset-cells = <1>;
+};

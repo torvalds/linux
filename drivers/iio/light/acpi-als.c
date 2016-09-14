@@ -118,7 +118,7 @@ static void acpi_als_notify(struct acpi_device *device, u32 event)
 	struct iio_dev *indio_dev = acpi_driver_data(device);
 	struct acpi_als *als = iio_priv(indio_dev);
 	s32 *buffer = als->evt_buffer;
-	s64 time_ns = iio_get_time_ns();
+	s64 time_ns = iio_get_time_ns(indio_dev);
 	s32 val;
 	int ret;
 

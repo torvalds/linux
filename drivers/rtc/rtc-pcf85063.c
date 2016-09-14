@@ -16,6 +16,16 @@
 #include <linux/rtc.h>
 #include <linux/module.h>
 
+/*
+ * Information for this driver was pulled from the following datasheets.
+ *
+ *  http://www.nxp.com/documents/data_sheet/PCF85063A.pdf
+ *  http://www.nxp.com/documents/data_sheet/PCF85063TP.pdf
+ *
+ *  PCF85063A -- Rev. 6 — 18 November 2015
+ *  PCF85063TP -- Rev. 4 — 6 May 2015
+*/
+
 #define PCF85063_REG_CTRL1		0x00 /* status */
 #define PCF85063_REG_CTRL1_STOP		BIT(5)
 #define PCF85063_REG_CTRL2		0x01
@@ -55,10 +65,22 @@ static int pcf85063_stop_clock(struct i2c_client *client, u8 *ctrl1)
 	return 0;
 }
 
-/*
- * In the routines that deal directly with the pcf85063 hardware, we use
- * rtc_time -- month 0-11, hour 0-23, yr = calendar year-epoch.
- */
+static int pcf85063_start_clock(struct i2c_client *client, u8 ctrl1)
+{
+	s32 ret;
+
+	/* start the clock */
+	ctrl1 &= PCF85063_REG_CTRL1_STOP;
+
+	ret = i2c_smbus_write_byte_data(client, PCF85063_REG_CTRL1, ctrl1);
+	if (ret < 0) {
+		dev_err(&client->dev, "Failing to start the clock\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static int pcf85063_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
 	int rc;
@@ -90,8 +112,7 @@ static int pcf85063_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	tm->tm_wday = regs[4] & 0x07;
 	tm->tm_mon = bcd2bin(regs[5] & 0x1F) - 1; /* rtc mn 1-12 */
 	tm->tm_year = bcd2bin(regs[6]);
-	if (tm->tm_year < 70)
-		tm->tm_year += 100;	/* assume we are in 1970...2069 */
+	tm->tm_year += 100;
 
 	return rtc_valid_tm(tm);
 }
@@ -99,13 +120,17 @@ static int pcf85063_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 static int pcf85063_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
 	int rc;
-	u8 regs[8];
+	u8 regs[7];
+	u8 ctrl1;
+
+	if ((tm->tm_year < 100) || (tm->tm_year > 199))
+		return -EINVAL;
 
 	/*
 	 * to accurately set the time, reset the divider chain and keep it in
 	 * reset state until all time/date registers are written
 	 */
-	rc = pcf85063_stop_clock(client, &regs[7]);
+	rc = pcf85063_stop_clock(client, &ctrl1);
 	if (rc != 0)
 		return rc;
 
@@ -125,14 +150,7 @@ static int pcf85063_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 	regs[5] = bin2bcd(tm->tm_mon + 1);
 
 	/* year and century */
-	regs[6] = bin2bcd(tm->tm_year % 100);
-
-	/*
-	 * after all time/date registers are written, let the 'address auto
-	 * increment' feature wrap around and write register CTRL1 to re-enable
-	 * the clock divider chain again
-	 */
-	regs[7] &= ~PCF85063_REG_CTRL1_STOP;
+	regs[6] = bin2bcd(tm->tm_year - 100);
 
 	/* write all registers at once */
 	rc = i2c_smbus_write_i2c_block_data(client, PCF85063_REG_SC,
@@ -141,6 +159,15 @@ static int pcf85063_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 		dev_err(&client->dev, "date/time register write error\n");
 		return rc;
 	}
+
+	/*
+	 * Write the control register as a separate action since the size of
+	 * the register space is different between the PCF85063TP and
+	 * PCF85063A devices.  The rollover point can not be used.
+	 */
+	rc = pcf85063_start_clock(client, ctrl1);
+	if (rc != 0)
+		return rc;
 
 	return 0;
 }

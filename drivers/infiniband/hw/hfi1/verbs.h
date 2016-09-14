@@ -178,16 +178,14 @@ struct hfi1_ib_header {
 	} u;
 } __packed;
 
-struct ahg_ib_header {
-	struct sdma_engine *sde;
+struct hfi1_ahg_info {
 	u32 ahgdesc[2];
 	u16 tx_flags;
 	u8 ahgcount;
 	u8 ahgidx;
-	struct hfi1_ib_header ibh;
 };
 
-struct hfi1_pio_header {
+struct hfi1_sdma_header {
 	__le64 pbc;
 	struct hfi1_ib_header hdr;
 } __packed;
@@ -197,7 +195,7 @@ struct hfi1_pio_header {
  * pair is made common
  */
 struct hfi1_qp_priv {
-	struct ahg_ib_header *s_hdr;              /* next header to send */
+	struct hfi1_ahg_info *s_ahg;              /* ahg info for next header */
 	struct sdma_engine *s_sde;                /* current sde */
 	struct send_context *s_sendcontext;       /* current sendcontext */
 	u8 s_sc;		                  /* SC[0..4] for next packet */

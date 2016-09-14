@@ -261,7 +261,7 @@ void __init plat_mem_setup(void)
 	fdt = malta_dt_shim(fdt);
 	__dt_setup_arch(fdt);
 
-	if (config_enabled(CONFIG_EVA))
+	if (IS_ENABLED(CONFIG_EVA))
 		/* EVA has already been configured in mach-malta/kernel-init.h */
 		pr_info("Enhanced Virtual Addressing (EVA) activated\n");
 

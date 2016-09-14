@@ -13,6 +13,11 @@ Required properties:
  - reg:			The i2c address. Value depends on the state of ADDR0
 			and ADDR1, as wired in hardware.
 
+Optional properties:
+ - clock-names:		If provided must be "mclk".
+ - clocks:		phandle + clock-specifiers for the clock that provides
+			the audio master clock for the device.
+
 Examples:
 #include <dt-bindings/sound/adau17x1.h>
 
@@ -20,5 +25,8 @@ Examples:
 		adau1361@38 {
 			compatible = "adi,adau1761";
 			reg = <0x38>;
+
+			clock-names = "mclk";
+			clocks = <&audio_clock>;
 		};
 	};

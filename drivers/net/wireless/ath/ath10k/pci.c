@@ -56,7 +56,10 @@ static const struct pci_device_id ath10k_pci_id_table[] = {
 	{ PCI_VDEVICE(ATHEROS, QCA6164_2_1_DEVICE_ID) }, /* PCI-E QCA6164 V2.1 */
 	{ PCI_VDEVICE(ATHEROS, QCA6174_2_1_DEVICE_ID) }, /* PCI-E QCA6174 V2.1 */
 	{ PCI_VDEVICE(ATHEROS, QCA99X0_2_0_DEVICE_ID) }, /* PCI-E QCA99X0 V2 */
+	{ PCI_VDEVICE(ATHEROS, QCA9888_2_0_DEVICE_ID) }, /* PCI-E QCA9888 V2 */
+	{ PCI_VDEVICE(ATHEROS, QCA9984_1_0_DEVICE_ID) }, /* PCI-E QCA9984 V1 */
 	{ PCI_VDEVICE(ATHEROS, QCA9377_1_0_DEVICE_ID) }, /* PCI-E QCA9377 V1 */
+	{ PCI_VDEVICE(ATHEROS, QCA9887_1_0_DEVICE_ID) }, /* PCI-E QCA9887 */
 	{0}
 };
 
@@ -81,8 +84,14 @@ static const struct ath10k_pci_supp_chip ath10k_pci_supp_chips[] = {
 
 	{ QCA99X0_2_0_DEVICE_ID, QCA99X0_HW_2_0_CHIP_ID_REV },
 
+	{ QCA9984_1_0_DEVICE_ID, QCA9984_HW_1_0_CHIP_ID_REV },
+
+	{ QCA9888_2_0_DEVICE_ID, QCA9888_HW_2_0_CHIP_ID_REV },
+
 	{ QCA9377_1_0_DEVICE_ID, QCA9377_HW_1_0_CHIP_ID_REV },
 	{ QCA9377_1_0_DEVICE_ID, QCA9377_HW_1_1_CHIP_ID_REV },
+
+	{ QCA9887_1_0_DEVICE_ID, QCA9887_HW_1_0_CHIP_ID_REV },
 };
 
 static void ath10k_pci_buffer_cleanup(struct ath10k *ar);
@@ -837,13 +846,16 @@ static u32 ath10k_pci_targ_cpu_to_ce_addr(struct ath10k *ar, u32 addr)
 
 	switch (ar->hw_rev) {
 	case ATH10K_HW_QCA988X:
+	case ATH10K_HW_QCA9887:
 	case ATH10K_HW_QCA6174:
 	case ATH10K_HW_QCA9377:
 		val = (ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
 					  CORE_CTRL_ADDRESS) &
 		       0x7ff) << 21;
 		break;
+	case ATH10K_HW_QCA9888:
 	case ATH10K_HW_QCA99X0:
+	case ATH10K_HW_QCA9984:
 	case ATH10K_HW_QCA4019:
 		val = ath10k_pci_read32(ar, PCIE_BAR_REG_ADDRESS);
 		break;
@@ -864,7 +876,7 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int ret = 0;
 	u32 *buf;
-	unsigned int completed_nbytes, orig_nbytes, remaining_bytes;
+	unsigned int completed_nbytes, alloc_nbytes, remaining_bytes;
 	struct ath10k_ce_pipe *ce_diag;
 	/* Host buffer address in CE space */
 	u32 ce_data;
@@ -882,9 +894,10 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 	 *   1) 4-byte alignment
 	 *   2) Buffer in DMA-able space
 	 */
-	orig_nbytes = nbytes;
+	alloc_nbytes = min_t(unsigned int, nbytes, DIAG_TRANSFER_LIMIT);
+
 	data_buf = (unsigned char *)dma_alloc_coherent(ar->dev,
-						       orig_nbytes,
+						       alloc_nbytes,
 						       &ce_data_base,
 						       GFP_ATOMIC);
 
@@ -892,9 +905,9 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 		ret = -ENOMEM;
 		goto done;
 	}
-	memset(data_buf, 0, orig_nbytes);
+	memset(data_buf, 0, alloc_nbytes);
 
-	remaining_bytes = orig_nbytes;
+	remaining_bytes = nbytes;
 	ce_data = ce_data_base;
 	while (remaining_bytes) {
 		nbytes = min_t(unsigned int, remaining_bytes,
@@ -954,19 +967,22 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 		}
 
 		remaining_bytes -= nbytes;
+
+		if (ret) {
+			ath10k_warn(ar, "failed to read diag value at 0x%x: %d\n",
+				    address, ret);
+			break;
+		}
+		memcpy(data, data_buf, nbytes);
+
 		address += nbytes;
-		ce_data += nbytes;
+		data += nbytes;
 	}
 
 done:
-	if (ret == 0)
-		memcpy(data, data_buf, orig_nbytes);
-	else
-		ath10k_warn(ar, "failed to read diag value at 0x%x: %d\n",
-			    address, ret);
 
 	if (data_buf)
-		dma_free_coherent(ar->dev, orig_nbytes, data_buf,
+		dma_free_coherent(ar->dev, alloc_nbytes, data_buf,
 				  ce_data_base);
 
 	spin_unlock_bh(&ar_pci->ce_lock);
@@ -1560,6 +1576,7 @@ static void ath10k_pci_irq_msi_fw_mask(struct ath10k *ar)
 
 	switch (ar->hw_rev) {
 	case ATH10K_HW_QCA988X:
+	case ATH10K_HW_QCA9887:
 	case ATH10K_HW_QCA6174:
 	case ATH10K_HW_QCA9377:
 		val = ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
@@ -1569,6 +1586,8 @@ static void ath10k_pci_irq_msi_fw_mask(struct ath10k *ar)
 				   CORE_CTRL_ADDRESS, val);
 		break;
 	case ATH10K_HW_QCA99X0:
+	case ATH10K_HW_QCA9984:
+	case ATH10K_HW_QCA9888:
 	case ATH10K_HW_QCA4019:
 		/* TODO: Find appropriate register configuration for QCA99X0
 		 *  to mask irq/MSI.
@@ -1583,6 +1602,7 @@ static void ath10k_pci_irq_msi_fw_unmask(struct ath10k *ar)
 
 	switch (ar->hw_rev) {
 	case ATH10K_HW_QCA988X:
+	case ATH10K_HW_QCA9887:
 	case ATH10K_HW_QCA6174:
 	case ATH10K_HW_QCA9377:
 		val = ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
@@ -1592,6 +1612,8 @@ static void ath10k_pci_irq_msi_fw_unmask(struct ath10k *ar)
 				   CORE_CTRL_ADDRESS, val);
 		break;
 	case ATH10K_HW_QCA99X0:
+	case ATH10K_HW_QCA9984:
+	case ATH10K_HW_QCA9888:
 	case ATH10K_HW_QCA4019:
 		/* TODO: Find appropriate register configuration for QCA99X0
 		 *  to unmask irq/MSI.
@@ -1932,6 +1954,9 @@ static int ath10k_pci_get_num_banks(struct ath10k *ar)
 	switch (ar_pci->pdev->device) {
 	case QCA988X_2_0_DEVICE_ID:
 	case QCA99X0_2_0_DEVICE_ID:
+	case QCA9888_2_0_DEVICE_ID:
+	case QCA9984_1_0_DEVICE_ID:
+	case QCA9887_1_0_DEVICE_ID:
 		return 1;
 	case QCA6164_2_1_DEVICE_ID:
 	case QCA6174_2_1_DEVICE_ID:
@@ -2198,6 +2223,14 @@ static void ath10k_pci_fw_crashed_clear(struct ath10k *ar)
 	ath10k_pci_write32(ar, FW_INDICATOR_ADDRESS, val);
 }
 
+static bool ath10k_pci_has_device_gone(struct ath10k *ar)
+{
+	u32 val;
+
+	val = ath10k_pci_read32(ar, FW_INDICATOR_ADDRESS);
+	return (val == 0xffffffff);
+}
+
 /* this function effectively clears target memory controller assert line */
 static void ath10k_pci_warm_reset_si0(struct ath10k *ar)
 {
@@ -2293,16 +2326,20 @@ static int ath10k_pci_warm_reset(struct ath10k *ar)
 	return 0;
 }
 
+static int ath10k_pci_qca99x0_soft_chip_reset(struct ath10k *ar)
+{
+	ath10k_pci_irq_disable(ar);
+	return ath10k_pci_qca99x0_chip_reset(ar);
+}
+
 static int ath10k_pci_safe_chip_reset(struct ath10k *ar)
 {
-	if (QCA_REV_988X(ar) || QCA_REV_6174(ar)) {
-		return ath10k_pci_warm_reset(ar);
-	} else if (QCA_REV_99X0(ar)) {
-		ath10k_pci_irq_disable(ar);
-		return ath10k_pci_qca99x0_chip_reset(ar);
-	} else {
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+
+	if (!ar_pci->pci_soft_reset)
 		return -ENOTSUPP;
-	}
+
+	return ar_pci->pci_soft_reset(ar);
 }
 
 static int ath10k_pci_qca988x_chip_reset(struct ath10k *ar)
@@ -2437,16 +2474,12 @@ static int ath10k_pci_qca99x0_chip_reset(struct ath10k *ar)
 
 static int ath10k_pci_chip_reset(struct ath10k *ar)
 {
-	if (QCA_REV_988X(ar))
-		return ath10k_pci_qca988x_chip_reset(ar);
-	else if (QCA_REV_6174(ar))
-		return ath10k_pci_qca6174_chip_reset(ar);
-	else if (QCA_REV_9377(ar))
-		return ath10k_pci_qca6174_chip_reset(ar);
-	else if (QCA_REV_99X0(ar))
-		return ath10k_pci_qca99x0_chip_reset(ar);
-	else
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+
+	if (WARN_ON(!ar_pci->pci_hard_reset))
 		return -ENOTSUPP;
+
+	return ar_pci->pci_hard_reset(ar);
 }
 
 static int ath10k_pci_hif_power_up(struct ath10k *ar)
@@ -2559,6 +2592,144 @@ static int ath10k_pci_hif_resume(struct ath10k *ar)
 }
 #endif
 
+static bool ath10k_pci_validate_cal(void *data, size_t size)
+{
+	__le16 *cal_words = data;
+	u16 checksum = 0;
+	size_t i;
+
+	if (size % 2 != 0)
+		return false;
+
+	for (i = 0; i < size / 2; i++)
+		checksum ^= le16_to_cpu(cal_words[i]);
+
+	return checksum == 0xffff;
+}
+
+static void ath10k_pci_enable_eeprom(struct ath10k *ar)
+{
+	/* Enable SI clock */
+	ath10k_pci_soc_write32(ar, CLOCK_CONTROL_OFFSET, 0x0);
+
+	/* Configure GPIOs for I2C operation */
+	ath10k_pci_write32(ar,
+			   GPIO_BASE_ADDRESS + GPIO_PIN0_OFFSET +
+			   4 * QCA9887_1_0_I2C_SDA_GPIO_PIN,
+			   SM(QCA9887_1_0_I2C_SDA_PIN_CONFIG,
+			      GPIO_PIN0_CONFIG) |
+			   SM(1, GPIO_PIN0_PAD_PULL));
+
+	ath10k_pci_write32(ar,
+			   GPIO_BASE_ADDRESS + GPIO_PIN0_OFFSET +
+			   4 * QCA9887_1_0_SI_CLK_GPIO_PIN,
+			   SM(QCA9887_1_0_SI_CLK_PIN_CONFIG, GPIO_PIN0_CONFIG) |
+			   SM(1, GPIO_PIN0_PAD_PULL));
+
+	ath10k_pci_write32(ar,
+			   GPIO_BASE_ADDRESS +
+			   QCA9887_1_0_GPIO_ENABLE_W1TS_LOW_ADDRESS,
+			   1u << QCA9887_1_0_SI_CLK_GPIO_PIN);
+
+	/* In Swift ASIC - EEPROM clock will be (110MHz/512) = 214KHz */
+	ath10k_pci_write32(ar,
+			   SI_BASE_ADDRESS + SI_CONFIG_OFFSET,
+			   SM(1, SI_CONFIG_ERR_INT) |
+			   SM(1, SI_CONFIG_BIDIR_OD_DATA) |
+			   SM(1, SI_CONFIG_I2C) |
+			   SM(1, SI_CONFIG_POS_SAMPLE) |
+			   SM(1, SI_CONFIG_INACTIVE_DATA) |
+			   SM(1, SI_CONFIG_INACTIVE_CLK) |
+			   SM(8, SI_CONFIG_DIVIDER));
+}
+
+static int ath10k_pci_read_eeprom(struct ath10k *ar, u16 addr, u8 *out)
+{
+	u32 reg;
+	int wait_limit;
+
+	/* set device select byte and for the read operation */
+	reg = QCA9887_EEPROM_SELECT_READ |
+	      SM(addr, QCA9887_EEPROM_ADDR_LO) |
+	      SM(addr >> 8, QCA9887_EEPROM_ADDR_HI);
+	ath10k_pci_write32(ar, SI_BASE_ADDRESS + SI_TX_DATA0_OFFSET, reg);
+
+	/* write transmit data, transfer length, and START bit */
+	ath10k_pci_write32(ar, SI_BASE_ADDRESS + SI_CS_OFFSET,
+			   SM(1, SI_CS_START) | SM(1, SI_CS_RX_CNT) |
+			   SM(4, SI_CS_TX_CNT));
+
+	/* wait max 1 sec */
+	wait_limit = 100000;
+
+	/* wait for SI_CS_DONE_INT */
+	do {
+		reg = ath10k_pci_read32(ar, SI_BASE_ADDRESS + SI_CS_OFFSET);
+		if (MS(reg, SI_CS_DONE_INT))
+			break;
+
+		wait_limit--;
+		udelay(10);
+	} while (wait_limit > 0);
+
+	if (!MS(reg, SI_CS_DONE_INT)) {
+		ath10k_err(ar, "timeout while reading device EEPROM at %04x\n",
+			   addr);
+		return -ETIMEDOUT;
+	}
+
+	/* clear SI_CS_DONE_INT */
+	ath10k_pci_write32(ar, SI_BASE_ADDRESS + SI_CS_OFFSET, reg);
+
+	if (MS(reg, SI_CS_DONE_ERR)) {
+		ath10k_err(ar, "failed to read device EEPROM at %04x\n", addr);
+		return -EIO;
+	}
+
+	/* extract receive data */
+	reg = ath10k_pci_read32(ar, SI_BASE_ADDRESS + SI_RX_DATA0_OFFSET);
+	*out = reg;
+
+	return 0;
+}
+
+static int ath10k_pci_hif_fetch_cal_eeprom(struct ath10k *ar, void **data,
+					   size_t *data_len)
+{
+	u8 *caldata = NULL;
+	size_t calsize, i;
+	int ret;
+
+	if (!QCA_REV_9887(ar))
+		return -EOPNOTSUPP;
+
+	calsize = ar->hw_params.cal_data_len;
+	caldata = kmalloc(calsize, GFP_KERNEL);
+	if (!caldata)
+		return -ENOMEM;
+
+	ath10k_pci_enable_eeprom(ar);
+
+	for (i = 0; i < calsize; i++) {
+		ret = ath10k_pci_read_eeprom(ar, i, &caldata[i]);
+		if (ret)
+			goto err_free;
+	}
+
+	if (!ath10k_pci_validate_cal(caldata, calsize))
+		goto err_free;
+
+	*data = caldata;
+	*data_len = calsize;
+
+	return 0;
+
+err_free:
+	kfree(data);
+
+	return -EINVAL;
+}
+
 static const struct ath10k_hif_ops ath10k_pci_hif_ops = {
 	.tx_sg			= ath10k_pci_hif_tx_sg,
 	.diag_read		= ath10k_pci_hif_diag_read,
@@ -2578,6 +2749,7 @@ static const struct ath10k_hif_ops ath10k_pci_hif_ops = {
 	.suspend		= ath10k_pci_hif_suspend,
 	.resume			= ath10k_pci_hif_resume,
 #endif
+	.fetch_cal_eeprom	= ath10k_pci_hif_fetch_cal_eeprom,
 };
 
 /*
@@ -2590,6 +2762,9 @@ static irqreturn_t ath10k_pci_interrupt_handler(int irq, void *arg)
 	struct ath10k *ar = arg;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int ret;
+
+	if (ath10k_pci_has_device_gone(ar))
+		return IRQ_NONE;
 
 	ret = ath10k_pci_force_wake(ar);
 	if (ret) {
@@ -2976,24 +3151,53 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	enum ath10k_hw_rev hw_rev;
 	u32 chip_id;
 	bool pci_ps;
+	int (*pci_soft_reset)(struct ath10k *ar);
+	int (*pci_hard_reset)(struct ath10k *ar);
 
 	switch (pci_dev->device) {
 	case QCA988X_2_0_DEVICE_ID:
 		hw_rev = ATH10K_HW_QCA988X;
 		pci_ps = false;
+		pci_soft_reset = ath10k_pci_warm_reset;
+		pci_hard_reset = ath10k_pci_qca988x_chip_reset;
+		break;
+	case QCA9887_1_0_DEVICE_ID:
+		dev_warn(&pdev->dev, "QCA9887 support is still experimental, there are likely bugs. You have been warned.\n");
+		hw_rev = ATH10K_HW_QCA9887;
+		pci_ps = false;
+		pci_soft_reset = ath10k_pci_warm_reset;
+		pci_hard_reset = ath10k_pci_qca988x_chip_reset;
 		break;
 	case QCA6164_2_1_DEVICE_ID:
 	case QCA6174_2_1_DEVICE_ID:
 		hw_rev = ATH10K_HW_QCA6174;
 		pci_ps = true;
+		pci_soft_reset = ath10k_pci_warm_reset;
+		pci_hard_reset = ath10k_pci_qca6174_chip_reset;
 		break;
 	case QCA99X0_2_0_DEVICE_ID:
 		hw_rev = ATH10K_HW_QCA99X0;
 		pci_ps = false;
+		pci_soft_reset = ath10k_pci_qca99x0_soft_chip_reset;
+		pci_hard_reset = ath10k_pci_qca99x0_chip_reset;
+		break;
+	case QCA9984_1_0_DEVICE_ID:
+		hw_rev = ATH10K_HW_QCA9984;
+		pci_ps = false;
+		pci_soft_reset = ath10k_pci_qca99x0_soft_chip_reset;
+		pci_hard_reset = ath10k_pci_qca99x0_chip_reset;
+		break;
+	case QCA9888_2_0_DEVICE_ID:
+		hw_rev = ATH10K_HW_QCA9888;
+		pci_ps = false;
+		pci_soft_reset = ath10k_pci_qca99x0_soft_chip_reset;
+		pci_hard_reset = ath10k_pci_qca99x0_chip_reset;
 		break;
 	case QCA9377_1_0_DEVICE_ID:
 		hw_rev = ATH10K_HW_QCA9377;
 		pci_ps = true;
+		pci_soft_reset = NULL;
+		pci_hard_reset = ath10k_pci_qca6174_chip_reset;
 		break;
 	default:
 		WARN_ON(1);
@@ -3018,6 +3222,8 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	ar->dev_id = pci_dev->device;
 	ar_pci->pci_ps = pci_ps;
 	ar_pci->bus_ops = &ath10k_pci_bus_ops;
+	ar_pci->pci_soft_reset = pci_soft_reset;
+	ar_pci->pci_hard_reset = pci_hard_reset;
 
 	ar->id.vendor = pdev->vendor;
 	ar->id.device = pdev->device;
@@ -3169,7 +3375,7 @@ static void __exit ath10k_pci_exit(void)
 module_exit(ath10k_pci_exit);
 
 MODULE_AUTHOR("Qualcomm Atheros");
-MODULE_DESCRIPTION("Driver support for Atheros QCA988X PCIe devices");
+MODULE_DESCRIPTION("Driver support for Qualcomm Atheros 802.11ac WLAN PCIe/AHB devices");
 MODULE_LICENSE("Dual BSD/GPL");
 
 /* QCA988x 2.0 firmware files */
@@ -3179,6 +3385,11 @@ MODULE_FIRMWARE(QCA988X_HW_2_0_FW_DIR "/" ATH10K_FW_API4_FILE);
 MODULE_FIRMWARE(QCA988X_HW_2_0_FW_DIR "/" ATH10K_FW_API5_FILE);
 MODULE_FIRMWARE(QCA988X_HW_2_0_FW_DIR "/" QCA988X_HW_2_0_BOARD_DATA_FILE);
 MODULE_FIRMWARE(QCA988X_HW_2_0_FW_DIR "/" ATH10K_BOARD_API2_FILE);
+
+/* QCA9887 1.0 firmware files */
+MODULE_FIRMWARE(QCA9887_HW_1_0_FW_DIR "/" ATH10K_FW_API5_FILE);
+MODULE_FIRMWARE(QCA9887_HW_1_0_FW_DIR "/" QCA9887_HW_1_0_BOARD_DATA_FILE);
+MODULE_FIRMWARE(QCA9887_HW_1_0_FW_DIR "/" ATH10K_BOARD_API2_FILE);
 
 /* QCA6174 2.1 firmware files */
 MODULE_FIRMWARE(QCA6174_HW_2_1_FW_DIR "/" ATH10K_FW_API4_FILE);

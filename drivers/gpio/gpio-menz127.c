@@ -187,7 +187,6 @@ MODULE_DEVICE_TABLE(mcb, men_z127_ids);
 static struct mcb_driver men_z127_driver = {
 	.driver = {
 		.name = "z127-gpio",
-		.owner = THIS_MODULE,
 	},
 	.probe = men_z127_probe,
 	.remove = men_z127_remove,

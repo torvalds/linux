@@ -170,6 +170,7 @@ static const struct i2c_device_id inv_mpu_id[] = {
 	{"mpu6050", INV_MPU6050},
 	{"mpu6500", INV_MPU6500},
 	{"mpu9150", INV_MPU9150},
+	{"icm20608", INV_ICM20608},
 	{}
 };
 

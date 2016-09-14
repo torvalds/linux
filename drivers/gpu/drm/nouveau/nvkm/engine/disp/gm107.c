@@ -27,6 +27,7 @@
 static const struct nv50_disp_func
 gm107_disp = {
 	.intr = gf119_disp_intr,
+	.intr_error = gf119_disp_intr_error,
 	.uevent = &gf119_disp_chan_uevent,
 	.super = gf119_disp_intr_supervisor,
 	.root = &gm107_disp_root_oclass,

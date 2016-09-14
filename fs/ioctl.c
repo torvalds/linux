@@ -590,6 +590,7 @@ static long ioctl_file_dedupe_range(struct file *file, void __user *arg)
 		goto out;
 	}
 
+	same->dest_count = count;
 	ret = vfs_dedupe_file_range(file, same);
 	if (ret)
 		goto out;

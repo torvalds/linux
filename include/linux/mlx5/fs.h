@@ -54,6 +54,8 @@ static inline void build_leftovers_ft_param(int *priority,
 
 enum mlx5_flow_namespace_type {
 	MLX5_FLOW_NAMESPACE_BYPASS,
+	MLX5_FLOW_NAMESPACE_OFFLOADS,
+	MLX5_FLOW_NAMESPACE_ETHTOOL,
 	MLX5_FLOW_NAMESPACE_KERNEL,
 	MLX5_FLOW_NAMESPACE_LEFTOVERS,
 	MLX5_FLOW_NAMESPACE_ANCHOR,
@@ -66,6 +68,12 @@ struct mlx5_flow_table;
 struct mlx5_flow_group;
 struct mlx5_flow_rule;
 struct mlx5_flow_namespace;
+
+struct mlx5_flow_spec {
+	u8   match_criteria_enable;
+	u32  match_criteria[MLX5_ST_SZ_DW(fte_match_param)];
+	u32  match_value[MLX5_ST_SZ_DW(fte_match_param)];
+};
 
 struct mlx5_flow_destination {
 	enum mlx5_flow_destination_type	type;
@@ -115,9 +123,7 @@ void mlx5_destroy_flow_group(struct mlx5_flow_group *fg);
  */
 struct mlx5_flow_rule *
 mlx5_add_flow_rule(struct mlx5_flow_table *ft,
-		   u8 match_criteria_enable,
-		   u32 *match_criteria,
-		   u32 *match_value,
+		   struct mlx5_flow_spec *spec,
 		   u32 action,
 		   u32 flow_tag,
 		   struct mlx5_flow_destination *dest);

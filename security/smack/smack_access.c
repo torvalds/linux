@@ -413,7 +413,7 @@ void smk_insert_entry(struct smack_known *skp)
 	unsigned int hash;
 	struct hlist_head *head;
 
-	hash = full_name_hash(skp->smk_known, strlen(skp->smk_known));
+	hash = full_name_hash(NULL, skp->smk_known, strlen(skp->smk_known));
 	head = &smack_known_hash[hash & (SMACK_HASH_SLOTS - 1)];
 
 	hlist_add_head_rcu(&skp->smk_hashed, head);
@@ -433,7 +433,7 @@ struct smack_known *smk_find_entry(const char *string)
 	struct hlist_head *head;
 	struct smack_known *skp;
 
-	hash = full_name_hash(string, strlen(string));
+	hash = full_name_hash(NULL, string, strlen(string));
 	head = &smack_known_hash[hash & (SMACK_HASH_SLOTS - 1)];
 
 	hlist_for_each_entry_rcu(skp, head, smk_hashed)

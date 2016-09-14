@@ -757,7 +757,6 @@ struct boot_params *make_boot_params(struct efi_config *c)
 	struct boot_params *boot_params;
 	struct apm_bios_info *bi;
 	struct setup_header *hdr;
-	struct efi_info *efi;
 	efi_loaded_image_t *image;
 	void *options, *handle;
 	efi_guid_t proto = LOADED_IMAGE_PROTOCOL_GUID;
@@ -800,7 +799,6 @@ struct boot_params *make_boot_params(struct efi_config *c)
 	memset(boot_params, 0x0, 0x4000);
 
 	hdr = &boot_params->hdr;
-	efi = &boot_params->efi_info;
 	bi = &boot_params->apm_bios_info;
 
 	/* Copy the second sector to boot_params */

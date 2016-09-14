@@ -54,6 +54,10 @@ typedef u32 sysmmu_pte_t;
 #define lv2ent_small(pent) ((*(pent) & 2) == 2)
 #define lv2ent_large(pent) ((*(pent) & 3) == 1)
 
+#ifdef CONFIG_BIG_ENDIAN
+#warning "revisit driver if we can enable big-endian ptes"
+#endif
+
 /*
  * v1.x - v3.x SYSMMU supports 32bit physical and 32bit virtual address spaces
  * v5.0 introduced support for 36bit physical address space by shifting
@@ -322,14 +326,27 @@ static void __sysmmu_set_ptbase(struct sysmmu_drvdata *data, phys_addr_t pgd)
 	__sysmmu_tlb_invalidate(data);
 }
 
+static void __sysmmu_enable_clocks(struct sysmmu_drvdata *data)
+{
+	BUG_ON(clk_prepare_enable(data->clk_master));
+	BUG_ON(clk_prepare_enable(data->clk));
+	BUG_ON(clk_prepare_enable(data->pclk));
+	BUG_ON(clk_prepare_enable(data->aclk));
+}
+
+static void __sysmmu_disable_clocks(struct sysmmu_drvdata *data)
+{
+	clk_disable_unprepare(data->aclk);
+	clk_disable_unprepare(data->pclk);
+	clk_disable_unprepare(data->clk);
+	clk_disable_unprepare(data->clk_master);
+}
+
 static void __sysmmu_get_version(struct sysmmu_drvdata *data)
 {
 	u32 ver;
 
-	clk_enable(data->clk_master);
-	clk_enable(data->clk);
-	clk_enable(data->pclk);
-	clk_enable(data->aclk);
+	__sysmmu_enable_clocks(data);
 
 	ver = readl(data->sfrbase + REG_MMU_VERSION);
 
@@ -342,10 +359,7 @@ static void __sysmmu_get_version(struct sysmmu_drvdata *data)
 	dev_dbg(data->sysmmu, "hardware version: %d.%d\n",
 		MMU_MAJ_VER(data->version), MMU_MIN_VER(data->version));
 
-	clk_disable(data->aclk);
-	clk_disable(data->pclk);
-	clk_disable(data->clk);
-	clk_disable(data->clk_master);
+	__sysmmu_disable_clocks(data);
 }
 
 static void show_fault_information(struct sysmmu_drvdata *data,
@@ -427,10 +441,7 @@ static void __sysmmu_disable_nocount(struct sysmmu_drvdata *data)
 	writel(CTRL_DISABLE, data->sfrbase + REG_MMU_CTRL);
 	writel(0, data->sfrbase + REG_MMU_CFG);
 
-	clk_disable(data->aclk);
-	clk_disable(data->pclk);
-	clk_disable(data->clk);
-	clk_disable(data->clk_master);
+	__sysmmu_disable_clocks(data);
 }
 
 static bool __sysmmu_disable(struct sysmmu_drvdata *data)
@@ -475,10 +486,7 @@ static void __sysmmu_init_config(struct sysmmu_drvdata *data)
 
 static void __sysmmu_enable_nocount(struct sysmmu_drvdata *data)
 {
-	clk_enable(data->clk_master);
-	clk_enable(data->clk);
-	clk_enable(data->pclk);
-	clk_enable(data->aclk);
+	__sysmmu_enable_clocks(data);
 
 	writel(CTRL_BLOCK, data->sfrbase + REG_MMU_CTRL);
 
@@ -488,6 +496,12 @@ static void __sysmmu_enable_nocount(struct sysmmu_drvdata *data)
 
 	writel(CTRL_ENABLE, data->sfrbase + REG_MMU_CTRL);
 
+	/*
+	 * SYSMMU driver keeps master's clock enabled only for the short
+	 * time, while accessing the registers. For performing address
+	 * translation during DMA transaction it relies on the client
+	 * driver to enable it.
+	 */
 	clk_disable(data->clk_master);
 }
 
@@ -524,16 +538,15 @@ static void sysmmu_tlb_invalidate_flpdcache(struct sysmmu_drvdata *data,
 {
 	unsigned long flags;
 
-	clk_enable(data->clk_master);
 
 	spin_lock_irqsave(&data->lock, flags);
-	if (is_sysmmu_active(data)) {
-		if (data->version >= MAKE_MMU_VER(3, 3))
-			__sysmmu_tlb_invalidate_entry(data, iova, 1);
+	if (is_sysmmu_active(data) && data->version >= MAKE_MMU_VER(3, 3)) {
+		clk_enable(data->clk_master);
+		__sysmmu_tlb_invalidate_entry(data, iova, 1);
+		clk_disable(data->clk_master);
 	}
 	spin_unlock_irqrestore(&data->lock, flags);
 
-	clk_disable(data->clk_master);
 }
 
 static void sysmmu_tlb_invalidate_entry(struct sysmmu_drvdata *data,
@@ -572,6 +585,8 @@ static void sysmmu_tlb_invalidate_entry(struct sysmmu_drvdata *data,
 	spin_unlock_irqrestore(&data->lock, flags);
 }
 
+static struct iommu_ops exynos_iommu_ops;
+
 static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 {
 	int irq, ret;
@@ -602,37 +617,22 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 	}
 
 	data->clk = devm_clk_get(dev, "sysmmu");
-	if (!IS_ERR(data->clk)) {
-		ret = clk_prepare(data->clk);
-		if (ret) {
-			dev_err(dev, "Failed to prepare clk\n");
-			return ret;
-		}
-	} else {
+	if (PTR_ERR(data->clk) == -ENOENT)
 		data->clk = NULL;
-	}
+	else if (IS_ERR(data->clk))
+		return PTR_ERR(data->clk);
 
 	data->aclk = devm_clk_get(dev, "aclk");
-	if (!IS_ERR(data->aclk)) {
-		ret = clk_prepare(data->aclk);
-		if (ret) {
-			dev_err(dev, "Failed to prepare aclk\n");
-			return ret;
-		}
-	} else {
+	if (PTR_ERR(data->aclk) == -ENOENT)
 		data->aclk = NULL;
-	}
+	else if (IS_ERR(data->aclk))
+		return PTR_ERR(data->aclk);
 
 	data->pclk = devm_clk_get(dev, "pclk");
-	if (!IS_ERR(data->pclk)) {
-		ret = clk_prepare(data->pclk);
-		if (ret) {
-			dev_err(dev, "Failed to prepare pclk\n");
-			return ret;
-		}
-	} else {
+	if (PTR_ERR(data->pclk) == -ENOENT)
 		data->pclk = NULL;
-	}
+	else if (IS_ERR(data->pclk))
+		return PTR_ERR(data->pclk);
 
 	if (!data->clk && (!data->aclk || !data->pclk)) {
 		dev_err(dev, "Failed to get device clock(s)!\n");
@@ -640,15 +640,10 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 	}
 
 	data->clk_master = devm_clk_get(dev, "master");
-	if (!IS_ERR(data->clk_master)) {
-		ret = clk_prepare(data->clk_master);
-		if (ret) {
-			dev_err(dev, "Failed to prepare master's clk\n");
-			return ret;
-		}
-	} else {
+	if (PTR_ERR(data->clk_master) == -ENOENT)
 		data->clk_master = NULL;
-	}
+	else if (IS_ERR(data->clk_master))
+		return PTR_ERR(data->clk_master);
 
 	data->sysmmu = dev;
 	spin_lock_init(&data->lock);
@@ -664,6 +659,8 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_enable(dev);
+
+	of_iommu_set_ops(dev->of_node, &exynos_iommu_ops);
 
 	return 0;
 }
@@ -709,6 +706,7 @@ static struct platform_driver exynos_sysmmu_driver __refdata = {
 		.name		= "exynos-sysmmu",
 		.of_match_table	= sysmmu_of_match,
 		.pm		= &sysmmu_pm_ops,
+		.suppress_bind_attrs = true,
 	}
 };
 
@@ -716,7 +714,7 @@ static inline void update_pte(sysmmu_pte_t *ent, sysmmu_pte_t val)
 {
 	dma_sync_single_for_cpu(dma_dev, virt_to_phys(ent), sizeof(*ent),
 				DMA_TO_DEVICE);
-	*ent = val;
+	*ent = cpu_to_le32(val);
 	dma_sync_single_for_device(dma_dev, virt_to_phys(ent), sizeof(*ent),
 				   DMA_TO_DEVICE);
 }
@@ -1357,7 +1355,6 @@ static int __init exynos_iommu_of_setup(struct device_node *np)
 	if (!dma_dev)
 		dma_dev = &pdev->dev;
 
-	of_iommu_set_ops(np, &exynos_iommu_ops);
 	return 0;
 }
 

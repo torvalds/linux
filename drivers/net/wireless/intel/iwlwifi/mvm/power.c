@@ -308,7 +308,7 @@ static bool iwl_mvm_power_allow_uapsd(struct iwl_mvm *mvm,
 		/* Allow U-APSD only if p2p is stand alone */
 		bool is_p2p_standalone = true;
 
-		if (!iwl_mvm_is_p2p_standalone_uapsd_supported(mvm))
+		if (!iwl_mvm_is_p2p_scm_uapsd_supported(mvm))
 			return false;
 
 		ieee80211_iterate_active_interfaces_atomic(mvm->hw,

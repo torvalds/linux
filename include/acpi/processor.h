@@ -39,6 +39,7 @@
 #define ACPI_CSTATE_SYSTEMIO	0
 #define ACPI_CSTATE_FFH		1
 #define ACPI_CSTATE_HALT	2
+#define ACPI_CSTATE_INTEGER	3
 
 #define ACPI_CX_DESC_LEN	32
 
@@ -67,9 +68,25 @@ struct acpi_processor_cx {
 	char desc[ACPI_CX_DESC_LEN];
 };
 
+struct acpi_lpi_state {
+	u32 min_residency;
+	u32 wake_latency; /* worst case */
+	u32 flags;
+	u32 arch_flags;
+	u32 res_cnt_freq;
+	u32 enable_parent_state;
+	u64 address;
+	u8 index;
+	u8 entry_method;
+	char desc[ACPI_CX_DESC_LEN];
+};
+
 struct acpi_processor_power {
 	int count;
-	struct acpi_processor_cx states[ACPI_PROCESSOR_MAX_POWER];
+	union {
+		struct acpi_processor_cx states[ACPI_PROCESSOR_MAX_POWER];
+		struct acpi_lpi_state lpi_states[ACPI_PROCESSOR_MAX_POWER];
+	};
 	int timer_broadcast_on_state;
 };
 
@@ -189,6 +206,7 @@ struct acpi_processor_flags {
 	u8 bm_control:1;
 	u8 bm_check:1;
 	u8 has_cst:1;
+	u8 has_lpi:1;
 	u8 power_setup_done:1;
 	u8 bm_rld_set:1;
 	u8 need_hotplug_init:1;
@@ -242,7 +260,7 @@ extern int acpi_processor_get_performance_info(struct acpi_processor *pr);
 DECLARE_PER_CPU(struct acpi_processor *, processors);
 extern struct acpi_processor_errata errata;
 
-#ifdef ARCH_HAS_POWER_INIT
+#if defined(ARCH_HAS_POWER_INIT) && defined(CONFIG_ACPI_PROCESSOR_CSTATE)
 void acpi_processor_power_init_bm_check(struct acpi_processor_flags *flags,
 					unsigned int cpu);
 int acpi_processor_ffh_cstate_probe(unsigned int cpu,
@@ -309,6 +327,7 @@ static inline int acpi_processor_get_bios_limit(int cpu, unsigned int *limit)
 
 /* in processor_core.c */
 phys_cpuid_t acpi_get_phys_id(acpi_handle, int type, u32 acpi_id);
+phys_cpuid_t acpi_map_madt_entry(u32 acpi_id);
 int acpi_map_cpuid(phys_cpuid_t phys_id, u32 acpi_id);
 int acpi_get_cpuid(acpi_handle, int type, u32 acpi_id);
 
@@ -371,7 +390,7 @@ extern struct cpuidle_driver acpi_idle_driver;
 #ifdef CONFIG_ACPI_PROCESSOR_IDLE
 int acpi_processor_power_init(struct acpi_processor *pr);
 int acpi_processor_power_exit(struct acpi_processor *pr);
-int acpi_processor_cst_has_changed(struct acpi_processor *pr);
+int acpi_processor_power_state_has_changed(struct acpi_processor *pr);
 int acpi_processor_hotplug(struct acpi_processor *pr);
 #else
 static inline int acpi_processor_power_init(struct acpi_processor *pr)
@@ -384,7 +403,7 @@ static inline int acpi_processor_power_exit(struct acpi_processor *pr)
 	return -ENODEV;
 }
 
-static inline int acpi_processor_cst_has_changed(struct acpi_processor *pr)
+static inline int acpi_processor_power_state_has_changed(struct acpi_processor *pr)
 {
 	return -ENODEV;
 }

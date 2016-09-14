@@ -1161,6 +1161,7 @@ static int load_c8sectpfe_fw(struct c8sectpfei *fei)
 	if (err) {
 		dev_err(fei->dev, "c8sectpfe_elf_sanity_check failed err=(%d)\n"
 			, err);
+		release_firmware(fw);
 		return err;
 	}
 

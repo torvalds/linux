@@ -4,8 +4,9 @@ config USB_CHIPIDEA
 	select EXTCON
 	help
 	  Say Y here if your system has a dual role high speed USB
-	  controller based on ChipIdea silicon IP. Currently, only the
-	  peripheral mode is supported.
+	  controller based on ChipIdea silicon IP. It supports:
+	  Dual-role switch (ID, OTG FSM, sysfs), Host-only, and
+	  Peripheral-only.
 
 	  When compiled dynamically, the module will be called ci-hdrc.ko.
 

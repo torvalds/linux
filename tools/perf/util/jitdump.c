@@ -1,3 +1,4 @@
+#include <sys/sysmacros.h>
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -108,7 +109,7 @@ jit_validate_events(struct perf_session *session)
 	/*
 	 * check that all events use CLOCK_MONOTONIC
 	 */
-	evlist__for_each(session->evlist, evsel) {
+	evlist__for_each_entry(session->evlist, evsel) {
 		if (evsel->attr.use_clockid == 0 || evsel->attr.clockid != CLOCK_MONOTONIC)
 			return -1;
 	}

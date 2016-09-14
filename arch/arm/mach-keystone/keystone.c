@@ -60,7 +60,6 @@ static void __init keystone_init(void)
 		bus_register_notifier(&platform_bus_type, &platform_nb);
 	}
 	keystone_pm_runtime_init();
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
 static long long __init keystone_pv_fixup(void)

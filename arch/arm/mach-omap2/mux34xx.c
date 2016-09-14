@@ -1266,7 +1266,7 @@ static struct omap_ball __initdata omap3_cus_ball[] = {
 #endif
 
 /*
- * Signals different on CBB package comapared to superset
+ * Signals different on CBB package compared to superset
  */
 #if defined(CONFIG_OMAP_MUX) && defined(CONFIG_OMAP_PACKAGE_CBB)
 static struct omap_mux __initdata omap3_cbb_subset[] = {
@@ -1597,7 +1597,7 @@ static struct omap_ball __initdata omap3_cbb_ball[] = {
 #endif
 
 /*
- * Signals different on 36XX CBP package comapared to 34XX CBC package
+ * Signals different on 36XX CBP package compared to 34XX CBC package
  */
 #if defined(CONFIG_OMAP_MUX) && defined(CONFIG_OMAP_PACKAGE_CBP)
 static struct omap_mux __initdata omap36xx_cbp_subset[] = {

@@ -348,7 +348,6 @@ struct emac_priv {
 	u32 rx_addr_type;
 	const char *phy_id;
 	struct device_node *phy_node;
-	struct phy_device *phydev;
 	spinlock_t lock;
 	/*platform specific members*/
 	void (*int_enable) (void);
@@ -380,97 +379,6 @@ static char *emac_rxhost_errcodes[16] = {
 #define emac_ctrl_write(reg, val) iowrite32(val, (priv->ctrl_base + (reg)))
 
 /**
- * emac_dump_regs - Dump important EMAC registers to debug terminal
- * @priv: The DaVinci EMAC private adapter structure
- *
- * Executes ethtool set cmd & sets phy mode
- *
- */
-static void emac_dump_regs(struct emac_priv *priv)
-{
-	struct device *emac_dev = &priv->ndev->dev;
-
-	/* Print important registers in EMAC */
-	dev_info(emac_dev, "EMAC Basic registers\n");
-	if (priv->version == EMAC_VERSION_1) {
-		dev_info(emac_dev, "EMAC: EWCTL: %08X, EWINTTCNT: %08X\n",
-			emac_ctrl_read(EMAC_CTRL_EWCTL),
-			emac_ctrl_read(EMAC_CTRL_EWINTTCNT));
-	}
-	dev_info(emac_dev, "EMAC: EmuControl:%08X, FifoControl: %08X\n",
-		emac_read(EMAC_EMCONTROL), emac_read(EMAC_FIFOCONTROL));
-	dev_info(emac_dev, "EMAC: MBPEnable:%08X, RXUnicastSet: %08X, "\
-		"RXMaxLen=%08X\n", emac_read(EMAC_RXMBPENABLE),
-		emac_read(EMAC_RXUNICASTSET), emac_read(EMAC_RXMAXLEN));
-	dev_info(emac_dev, "EMAC: MacControl:%08X, MacStatus: %08X, "\
-		"MacConfig=%08X\n", emac_read(EMAC_MACCONTROL),
-		emac_read(EMAC_MACSTATUS), emac_read(EMAC_MACCONFIG));
-	dev_info(emac_dev, "EMAC Statistics\n");
-	dev_info(emac_dev, "EMAC: rx_good_frames:%d\n",
-		emac_read(EMAC_RXGOODFRAMES));
-	dev_info(emac_dev, "EMAC: rx_broadcast_frames:%d\n",
-		emac_read(EMAC_RXBCASTFRAMES));
-	dev_info(emac_dev, "EMAC: rx_multicast_frames:%d\n",
-		emac_read(EMAC_RXMCASTFRAMES));
-	dev_info(emac_dev, "EMAC: rx_pause_frames:%d\n",
-		emac_read(EMAC_RXPAUSEFRAMES));
-	dev_info(emac_dev, "EMAC: rx_crcerrors:%d\n",
-		emac_read(EMAC_RXCRCERRORS));
-	dev_info(emac_dev, "EMAC: rx_align_code_errors:%d\n",
-		emac_read(EMAC_RXALIGNCODEERRORS));
-	dev_info(emac_dev, "EMAC: rx_oversized_frames:%d\n",
-		emac_read(EMAC_RXOVERSIZED));
-	dev_info(emac_dev, "EMAC: rx_jabber_frames:%d\n",
-		emac_read(EMAC_RXJABBER));
-	dev_info(emac_dev, "EMAC: rx_undersized_frames:%d\n",
-		emac_read(EMAC_RXUNDERSIZED));
-	dev_info(emac_dev, "EMAC: rx_fragments:%d\n",
-		emac_read(EMAC_RXFRAGMENTS));
-	dev_info(emac_dev, "EMAC: rx_filtered_frames:%d\n",
-		emac_read(EMAC_RXFILTERED));
-	dev_info(emac_dev, "EMAC: rx_qos_filtered_frames:%d\n",
-		emac_read(EMAC_RXQOSFILTERED));
-	dev_info(emac_dev, "EMAC: rx_octets:%d\n",
-		emac_read(EMAC_RXOCTETS));
-	dev_info(emac_dev, "EMAC: tx_goodframes:%d\n",
-		emac_read(EMAC_TXGOODFRAMES));
-	dev_info(emac_dev, "EMAC: tx_bcastframes:%d\n",
-		emac_read(EMAC_TXBCASTFRAMES));
-	dev_info(emac_dev, "EMAC: tx_mcastframes:%d\n",
-		emac_read(EMAC_TXMCASTFRAMES));
-	dev_info(emac_dev, "EMAC: tx_pause_frames:%d\n",
-		emac_read(EMAC_TXPAUSEFRAMES));
-	dev_info(emac_dev, "EMAC: tx_deferred_frames:%d\n",
-		emac_read(EMAC_TXDEFERRED));
-	dev_info(emac_dev, "EMAC: tx_collision_frames:%d\n",
-		emac_read(EMAC_TXCOLLISION));
-	dev_info(emac_dev, "EMAC: tx_single_coll_frames:%d\n",
-		emac_read(EMAC_TXSINGLECOLL));
-	dev_info(emac_dev, "EMAC: tx_mult_coll_frames:%d\n",
-		emac_read(EMAC_TXMULTICOLL));
-	dev_info(emac_dev, "EMAC: tx_excessive_collisions:%d\n",
-		emac_read(EMAC_TXEXCESSIVECOLL));
-	dev_info(emac_dev, "EMAC: tx_late_collisions:%d\n",
-		emac_read(EMAC_TXLATECOLL));
-	dev_info(emac_dev, "EMAC: tx_underrun:%d\n",
-		emac_read(EMAC_TXUNDERRUN));
-	dev_info(emac_dev, "EMAC: tx_carrier_sense_errors:%d\n",
-		emac_read(EMAC_TXCARRIERSENSE));
-	dev_info(emac_dev, "EMAC: tx_octets:%d\n",
-		emac_read(EMAC_TXOCTETS));
-	dev_info(emac_dev, "EMAC: net_octets:%d\n",
-		emac_read(EMAC_NETOCTETS));
-	dev_info(emac_dev, "EMAC: rx_sof_overruns:%d\n",
-		emac_read(EMAC_RXSOFOVERRUNS));
-	dev_info(emac_dev, "EMAC: rx_mof_overruns:%d\n",
-		emac_read(EMAC_RXMOFOVERRUNS));
-	dev_info(emac_dev, "EMAC: rx_dma_overruns:%d\n",
-		emac_read(EMAC_RXDMAOVERRUNS));
-
-	cpdma_ctlr_dump(priv->dma);
-}
-
-/**
  * emac_get_drvinfo - Get EMAC driver information
  * @ndev: The DaVinci EMAC network adapter
  * @info: ethtool info structure containing name and version
@@ -483,43 +391,6 @@ static void emac_get_drvinfo(struct net_device *ndev,
 {
 	strlcpy(info->driver, emac_version_string, sizeof(info->driver));
 	strlcpy(info->version, EMAC_MODULE_VERSION, sizeof(info->version));
-}
-
-/**
- * emac_get_settings - Get EMAC settings
- * @ndev: The DaVinci EMAC network adapter
- * @ecmd: ethtool command
- *
- * Executes ethool get command
- *
- */
-static int emac_get_settings(struct net_device *ndev,
-			     struct ethtool_cmd *ecmd)
-{
-	struct emac_priv *priv = netdev_priv(ndev);
-	if (priv->phydev)
-		return phy_ethtool_gset(priv->phydev, ecmd);
-	else
-		return -EOPNOTSUPP;
-
-}
-
-/**
- * emac_set_settings - Set EMAC settings
- * @ndev: The DaVinci EMAC network adapter
- * @ecmd: ethtool command
- *
- * Executes ethool set command
- *
- */
-static int emac_set_settings(struct net_device *ndev, struct ethtool_cmd *ecmd)
-{
-	struct emac_priv *priv = netdev_priv(ndev);
-	if (priv->phydev)
-		return phy_ethtool_sset(priv->phydev, ecmd);
-	else
-		return -EOPNOTSUPP;
-
 }
 
 /**
@@ -625,12 +496,12 @@ static int emac_set_coalesce(struct net_device *ndev,
  */
 static const struct ethtool_ops ethtool_ops = {
 	.get_drvinfo = emac_get_drvinfo,
-	.get_settings = emac_get_settings,
-	.set_settings = emac_set_settings,
 	.get_link = ethtool_op_get_link,
 	.get_coalesce = emac_get_coalesce,
 	.set_coalesce =  emac_set_coalesce,
 	.get_ts_info = ethtool_op_get_ts_info,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 /**
@@ -651,8 +522,8 @@ static void emac_update_phystatus(struct emac_priv *priv)
 	mac_control = emac_read(EMAC_MACCONTROL);
 	cur_duplex = (mac_control & EMAC_MACCONTROL_FULLDUPLEXEN) ?
 			DUPLEX_FULL : DUPLEX_HALF;
-	if (priv->phydev)
-		new_duplex = priv->phydev->duplex;
+	if (ndev->phydev)
+		new_duplex = ndev->phydev->duplex;
 	else
 		new_duplex = DUPLEX_FULL;
 
@@ -1134,8 +1005,6 @@ static void emac_dev_tx_timeout(struct net_device *ndev)
 	if (netif_msg_tx_err(priv))
 		dev_err(emac_dev, "DaVinci EMAC: xmit timeout, restarting TX");
 
-	emac_dump_regs(priv);
-
 	ndev->stats.tx_errors++;
 	emac_int_disable(priv);
 	cpdma_chan_stop(priv->txchan);
@@ -1454,7 +1323,7 @@ static void emac_poll_controller(struct net_device *ndev)
 static void emac_adjust_link(struct net_device *ndev)
 {
 	struct emac_priv *priv = netdev_priv(ndev);
-	struct phy_device *phydev = priv->phydev;
+	struct phy_device *phydev = ndev->phydev;
 	unsigned long flags;
 	int new_state = 0;
 
@@ -1483,7 +1352,7 @@ static void emac_adjust_link(struct net_device *ndev)
 	}
 	if (new_state) {
 		emac_update_phystatus(priv);
-		phy_print_status(priv->phydev);
+		phy_print_status(ndev->phydev);
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -1505,15 +1374,13 @@ static void emac_adjust_link(struct net_device *ndev)
  */
 static int emac_devioctl(struct net_device *ndev, struct ifreq *ifrq, int cmd)
 {
-	struct emac_priv *priv = netdev_priv(ndev);
-
 	if (!(netif_running(ndev)))
 		return -EINVAL;
 
 	/* TODO: Add phy read and write and private statistics get feature */
 
-	if (priv->phydev)
-		return phy_mii_ioctl(priv->phydev, ifrq, cmd);
+	if (ndev->phydev)
+		return phy_mii_ioctl(ndev->phydev, ifrq, cmd);
 	else
 		return -EOPNOTSUPP;
 }
@@ -1542,6 +1409,7 @@ static int emac_dev_open(struct net_device *ndev)
 	int res_num = 0, irq_num = 0;
 	int i = 0;
 	struct emac_priv *priv = netdev_priv(ndev);
+	struct phy_device *phydev = NULL;
 
 	ret = pm_runtime_get_sync(&priv->pdev->dev);
 	if (ret < 0) {
@@ -1607,12 +1475,10 @@ static int emac_dev_open(struct net_device *ndev)
 
 	cpdma_ctlr_start(priv->dma);
 
-	priv->phydev = NULL;
-
 	if (priv->phy_node) {
-		priv->phydev = of_phy_connect(ndev, priv->phy_node,
-					      &emac_adjust_link, 0, 0);
-		if (!priv->phydev) {
+		phydev = of_phy_connect(ndev, priv->phy_node,
+					&emac_adjust_link, 0, 0);
+		if (!phydev) {
 			dev_err(emac_dev, "could not connect to phy %s\n",
 				priv->phy_node->full_name);
 			ret = -ENODEV;
@@ -1621,7 +1487,7 @@ static int emac_dev_open(struct net_device *ndev)
 	}
 
 	/* use the first phy on the bus if pdata did not give us a phy id */
-	if (!priv->phydev && !priv->phy_id) {
+	if (!phydev && !priv->phy_id) {
 		struct device *phy;
 
 		phy = bus_find_device(&mdio_bus_type, NULL, NULL,
@@ -1630,16 +1496,15 @@ static int emac_dev_open(struct net_device *ndev)
 			priv->phy_id = dev_name(phy);
 	}
 
-	if (!priv->phydev && priv->phy_id && *priv->phy_id) {
-		priv->phydev = phy_connect(ndev, priv->phy_id,
-					   &emac_adjust_link,
-					   PHY_INTERFACE_MODE_MII);
+	if (!phydev && priv->phy_id && *priv->phy_id) {
+		phydev = phy_connect(ndev, priv->phy_id,
+				     &emac_adjust_link,
+				     PHY_INTERFACE_MODE_MII);
 
-		if (IS_ERR(priv->phydev)) {
+		if (IS_ERR(phydev)) {
 			dev_err(emac_dev, "could not connect to phy %s\n",
 				priv->phy_id);
-			ret = PTR_ERR(priv->phydev);
-			priv->phydev = NULL;
+			ret = PTR_ERR(phydev);
 			goto err;
 		}
 
@@ -1647,10 +1512,10 @@ static int emac_dev_open(struct net_device *ndev)
 		priv->speed = 0;
 		priv->duplex = ~0;
 
-		phy_attached_info(priv->phydev);
+		phy_attached_info(phydev);
 	}
 
-	if (!priv->phydev) {
+	if (!phydev) {
 		/* No PHY , fix the link, speed and duplex settings */
 		dev_notice(emac_dev, "no phy, defaulting to 100/full\n");
 		priv->link = 1;
@@ -1659,14 +1524,11 @@ static int emac_dev_open(struct net_device *ndev)
 		emac_update_phystatus(priv);
 	}
 
-	if (!netif_running(ndev)) /* debug only - to avoid compiler warning */
-		emac_dump_regs(priv);
-
 	if (netif_msg_drv(priv))
 		dev_notice(emac_dev, "DaVinci EMAC: Opened %s\n", ndev->name);
 
-	if (priv->phydev)
-		phy_start(priv->phydev);
+	if (phydev)
+		phy_start(phydev);
 
 	return 0;
 
@@ -1717,8 +1579,8 @@ static int emac_dev_stop(struct net_device *ndev)
 	cpdma_ctlr_stop(priv->dma);
 	emac_write(EMAC_SOFTRESET, 1);
 
-	if (priv->phydev)
-		phy_disconnect(priv->phydev);
+	if (ndev->phydev)
+		phy_disconnect(ndev->phydev);
 
 	/* Free IRQ */
 	while ((res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, i))) {
@@ -2102,6 +1964,7 @@ static int davinci_emac_remove(struct platform_device *pdev)
 	cpdma_ctlr_destroy(priv->dma);
 
 	unregister_netdev(ndev);
+	of_node_put(priv->phy_node);
 	pm_runtime_disable(&pdev->dev);
 	free_netdev(ndev);
 

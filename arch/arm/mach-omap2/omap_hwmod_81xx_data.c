@@ -243,7 +243,7 @@ static struct omap_hwmod_class ti81xx_rtc_hwmod_class = {
 	.sysc		= &ti81xx_rtc_sysc,
 };
 
-struct omap_hwmod ti81xx_rtc_hwmod = {
+static struct omap_hwmod ti81xx_rtc_hwmod = {
 	.name		= "rtc",
 	.class		= &ti81xx_rtc_hwmod_class,
 	.clkdm_name	= "alwon_l3s_clkdm",

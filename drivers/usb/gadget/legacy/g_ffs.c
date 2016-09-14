@@ -265,7 +265,7 @@ static void *functionfs_acquire_dev(struct ffs_dev *dev)
 {
 	if (!try_module_get(THIS_MODULE))
 		return ERR_PTR(-ENOENT);
-	
+
 	return NULL;
 }
 
@@ -275,7 +275,7 @@ static void functionfs_release_dev(struct ffs_dev *dev)
 }
 
 /*
- * The caller of this function takes ffs_lock 
+ * The caller of this function takes ffs_lock
  */
 static int functionfs_ready_callback(struct ffs_data *ffs)
 {
@@ -294,12 +294,12 @@ static int functionfs_ready_callback(struct ffs_data *ffs)
 		++missing_funcs;
 		gfs_registered = false;
 	}
-	
+
 	return ret;
 }
 
 /*
- * The caller of this function takes ffs_lock 
+ * The caller of this function takes ffs_lock
  */
 static void functionfs_closed_callback(struct ffs_data *ffs)
 {
@@ -347,17 +347,14 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 
 #ifdef CONFIG_USB_FUNCTIONFS_RNDIS
 	{
-		struct f_rndis_opts *rndis_opts;
-
 		fi_rndis = usb_get_function_instance("rndis");
 		if (IS_ERR(fi_rndis)) {
 			ret = PTR_ERR(fi_rndis);
 			goto error;
 		}
-		rndis_opts = container_of(fi_rndis, struct f_rndis_opts,
-					  func_inst);
 #ifndef CONFIG_USB_FUNCTIONFS_ETH
-		net = rndis_opts->net;
+		net = container_of(fi_rndis, struct f_rndis_opts,
+				   func_inst)->net;
 #endif
 	}
 #endif

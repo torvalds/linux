@@ -58,7 +58,7 @@ Required properties:
 			   * DMIC (stands for Digital Microphone Jack)
 
 			  Note: The "Mic Jack" and "AMIC" are redundant while
-			        coexsiting in order to support the old bindings
+			        coexisting in order to support the old bindings
 				of wm8962 and sgtl5000.
 
 Optional properties:

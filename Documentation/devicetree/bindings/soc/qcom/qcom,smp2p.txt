@@ -68,7 +68,7 @@ important.
 	Value type: <u32>
 	Definition: must be 2 - denoting the bit in the entry and IRQ flags
 
-- #qcom,state-cells:
+- #qcom,smem-state-cells:
 	Usage: required for outgoing entries
 	Value type: <u32>
 	Definition: must be 1 - denoting the bit in the entry
@@ -92,7 +92,7 @@ wcnss-smp2p {
 	wcnss_smp2p_out: master-kernel {
 		qcom,entry-name = "master-kernel";
 
-		#qcom,state-cells = <1>;
+		#qcom,smem-state-cells = <1>;
 	};
 
 	wcnss_smp2p_in: slave-kernel {

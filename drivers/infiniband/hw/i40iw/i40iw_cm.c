@@ -535,8 +535,8 @@ static struct i40iw_puda_buf *i40iw_form_cm_frame(struct i40iw_cm_node *cm_node,
 		buf += hdr_len;
 	}
 
-	if (pd_len)
-		memcpy(buf, pdata->addr, pd_len);
+	if (pdata && pdata->addr)
+		memcpy(buf, pdata->addr, pdata->size);
 
 	atomic_set(&sqbuf->refcount, 1);
 
@@ -1567,12 +1567,12 @@ static enum i40iw_status_code i40iw_del_multiple_qhash(
 		ret = i40iw_manage_qhash(iwdev, cm_info,
 					 I40IW_QHASH_TYPE_TCP_SYN,
 					 I40IW_QHASH_MANAGE_TYPE_DELETE, NULL, false);
-		kfree(child_listen_node);
-		cm_parent_listen_node->cm_core->stats_listen_nodes_destroyed++;
 		i40iw_debug(&iwdev->sc_dev,
 			    I40IW_DEBUG_CM,
 			    "freed pointer = %p\n",
 			    child_listen_node);
+		kfree(child_listen_node);
+		cm_parent_listen_node->cm_core->stats_listen_nodes_destroyed++;
 	}
 	spin_unlock_irqrestore(&iwdev->cm_core.listen_list_lock, flags);
 
@@ -3347,26 +3347,6 @@ int i40iw_cm_disconn(struct i40iw_qp *iwqp)
 }
 
 /**
- * i40iw_loopback_nop - Send a nop
- * @qp: associated hw qp
- */
-static void i40iw_loopback_nop(struct i40iw_sc_qp *qp)
-{
-	u64 *wqe;
-	u64 header;
-
-	wqe = qp->qp_uk.sq_base->elem;
-	set_64bit_val(wqe, 0, 0);
-	set_64bit_val(wqe, 8, 0);
-	set_64bit_val(wqe, 16, 0);
-
-	header = LS_64(I40IWQP_OP_NOP, I40IWQPSQ_OPCODE) |
-	    LS_64(0, I40IWQPSQ_SIGCOMPL) |
-	    LS_64(qp->qp_uk.swqe_polarity, I40IWQPSQ_VALID);
-	set_64bit_val(wqe, 24, header);
-}
-
-/**
  * i40iw_qp_disconnect - free qp and close cm
  * @iwqp: associate qp for the connection
  */
@@ -3638,7 +3618,7 @@ int i40iw_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	} else {
 		if (iwqp->page)
 			iwqp->sc_qp.qp_uk.sq_base = kmap(iwqp->page);
-		i40iw_loopback_nop(&iwqp->sc_qp);
+		dev->iw_priv_qp_ops->qp_send_lsmm(&iwqp->sc_qp, NULL, 0, 0);
 	}
 
 	if (iwqp->page)

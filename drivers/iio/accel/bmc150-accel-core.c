@@ -67,6 +67,9 @@
 #define BMC150_ACCEL_REG_PMU_BW		0x10
 #define BMC150_ACCEL_DEF_BW			125
 
+#define BMC150_ACCEL_REG_RESET			0x14
+#define BMC150_ACCEL_RESET_VAL			0xB6
+
 #define BMC150_ACCEL_REG_INT_MAP_0		0x19
 #define BMC150_ACCEL_INT_MAP_0_BIT_SLOPE	BIT(2)
 
@@ -901,7 +904,7 @@ static int __bmc150_accel_fifo_flush(struct iio_dev *indio_dev,
 	 */
 	if (!irq) {
 		data->old_timestamp = data->timestamp;
-		data->timestamp = iio_get_time_ns();
+		data->timestamp = iio_get_time_ns(indio_dev);
 	}
 
 	/*
@@ -1303,7 +1306,7 @@ static irqreturn_t bmc150_accel_irq_handler(int irq, void *private)
 	int i;
 
 	data->old_timestamp = data->timestamp;
-	data->timestamp = iio_get_time_ns();
+	data->timestamp = iio_get_time_ns(indio_dev);
 
 	for (i = 0; i < BMC150_ACCEL_TRIGGERS; i++) {
 		if (data->triggers[i].enabled) {
@@ -1496,6 +1499,14 @@ static int bmc150_accel_chip_init(struct bmc150_accel_data *data)
 	struct device *dev = regmap_get_device(data->regmap);
 	int ret, i;
 	unsigned int val;
+
+	/*
+	 * Reset chip to get it in a known good state. A delay of 1.8ms after
+	 * reset is required according to the data sheets of supported chips.
+	 */
+	regmap_write(data->regmap, BMC150_ACCEL_REG_RESET,
+		     BMC150_ACCEL_RESET_VAL);
+	usleep_range(1800, 2500);
 
 	ret = regmap_read(data->regmap, BMC150_ACCEL_REG_CHIP_ID, &val);
 	if (ret < 0) {

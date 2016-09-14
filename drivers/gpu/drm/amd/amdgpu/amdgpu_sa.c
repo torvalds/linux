@@ -428,7 +428,7 @@ void amdgpu_sa_bo_dump_debug_info(struct amdgpu_sa_manager *sa_manager,
 			   soffset, eoffset, eoffset - soffset);
 
 		if (i->fence)
-			seq_printf(m, " protected by 0x%08x on context %d",
+			seq_printf(m, " protected by 0x%08x on context %llu",
 				   i->fence->seqno, i->fence->context);
 
 		seq_printf(m, "\n");

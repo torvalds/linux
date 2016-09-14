@@ -226,26 +226,26 @@ TRACE_EVENT(mm_compaction_try_to_compact_pages,
 	TP_PROTO(
 		int order,
 		gfp_t gfp_mask,
-		enum migrate_mode mode),
+		int prio),
 
-	TP_ARGS(order, gfp_mask, mode),
+	TP_ARGS(order, gfp_mask, prio),
 
 	TP_STRUCT__entry(
 		__field(int, order)
 		__field(gfp_t, gfp_mask)
-		__field(enum migrate_mode, mode)
+		__field(int, prio)
 	),
 
 	TP_fast_assign(
 		__entry->order = order;
 		__entry->gfp_mask = gfp_mask;
-		__entry->mode = mode;
+		__entry->prio = prio;
 	),
 
-	TP_printk("order=%d gfp_mask=0x%x mode=%d",
+	TP_printk("order=%d gfp_mask=0x%x priority=%d",
 		__entry->order,
 		__entry->gfp_mask,
-		(int)__entry->mode)
+		__entry->prio)
 );
 
 DECLARE_EVENT_CLASS(mm_compaction_suitable_template,

@@ -378,6 +378,10 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 	/* social scan on P2P_DEVICE is handled as p2p search */
 	if (wdev->iftype == NL80211_IFTYPE_P2P_DEVICE &&
 	    wil_p2p_is_social_scan(request)) {
+		if (!wil->p2p.p2p_dev_started) {
+			wil_err(wil, "P2P search requested on stopped P2P device\n");
+			return -EIO;
+		}
 		wil->scan_request = request;
 		wil->radio_wdev = wdev;
 		rc = wil_p2p_search(wil, request);
@@ -1351,6 +1355,7 @@ static int wil_cfg80211_start_p2p_device(struct wiphy *wiphy,
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 
 	wil_dbg_misc(wil, "%s: entered\n", __func__);
+	wil->p2p.p2p_dev_started = 1;
 	return 0;
 }
 
@@ -1358,8 +1363,23 @@ static void wil_cfg80211_stop_p2p_device(struct wiphy *wiphy,
 					 struct wireless_dev *wdev)
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	u8 started;
 
 	wil_dbg_misc(wil, "%s: entered\n", __func__);
+	mutex_lock(&wil->mutex);
+	started = wil_p2p_stop_discovery(wil);
+	if (started && wil->scan_request) {
+		struct cfg80211_scan_info info = {
+			.aborted = true,
+		};
+
+		cfg80211_scan_done(wil->scan_request, &info);
+		wil->scan_request = NULL;
+		wil->radio_wdev = wil->wdev;
+	}
+	mutex_unlock(&wil->mutex);
+
+	wil->p2p.p2p_dev_started = 0;
 }
 
 static struct cfg80211_ops wil_cfg80211_ops = {

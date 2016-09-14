@@ -61,6 +61,10 @@
 
 #define SPRN_TBRL	268
 #define SPRN_TBRU	269
+#define SPRN_HSRR0	0x13A	/* Hypervisor Save/Restore 0 */
+#define SPRN_HSRR1	0x13B	/* Hypervisor Save/Restore 1 */
+
+#define MSR_LE		0x0000000000000001
 
 #define FIXUP_ENDIAN						   \
 	tdi   0, 0, 0x48; /* Reverse endian of b . + 8		*/ \

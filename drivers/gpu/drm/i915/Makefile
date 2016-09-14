@@ -10,9 +10,11 @@ subdir-ccflags-$(CONFIG_DRM_I915_WERROR) := -Werror
 i915-y := i915_drv.o \
 	  i915_irq.o \
 	  i915_params.o \
+	  i915_pci.o \
           i915_suspend.o \
 	  i915_sysfs.o \
 	  intel_csr.o \
+	  intel_device_info.o \
 	  intel_pm.o \
 	  intel_runtime_pm.o
 
@@ -37,6 +39,7 @@ i915-y += i915_cmd_parser.o \
 	  i915_gem_userptr.o \
 	  i915_gpu_error.o \
 	  i915_trace_points.o \
+	  intel_breadcrumbs.o \
 	  intel_lrc.o \
 	  intel_mocs.o \
 	  intel_ringbuffer.o \
@@ -59,6 +62,7 @@ i915-y += intel_audio.o \
 	  intel_bios.o \
 	  intel_color.o \
 	  intel_display.o \
+	  intel_dpio_phy.o \
 	  intel_dpll_mgr.o \
 	  intel_fbc.o \
 	  intel_fifo_underrun.o \
@@ -81,10 +85,12 @@ i915-y += dvo_ch7017.o \
 	  dvo_tfp410.o \
 	  intel_crt.o \
 	  intel_ddi.o \
+	  intel_dp_aux_backlight.o \
 	  intel_dp_link_training.o \
 	  intel_dp_mst.o \
 	  intel_dp.o \
 	  intel_dsi.o \
+	  intel_dsi_dcs_backlight.o \
 	  intel_dsi_panel_vbt.o \
 	  intel_dsi_pll.o \
 	  intel_dvo.o \
@@ -98,8 +104,10 @@ i915-y += dvo_ch7017.o \
 # virtual gpu code
 i915-y += i915_vgpu.o
 
-# legacy horrors
-i915-y += i915_dma.o
+ifeq ($(CONFIG_DRM_I915_GVT),y)
+i915-y += intel_gvt.o
+include $(src)/gvt/Makefile
+endif
 
 obj-$(CONFIG_DRM_I915)  += i915.o
 

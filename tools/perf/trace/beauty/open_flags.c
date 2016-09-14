@@ -1,3 +1,18 @@
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+#ifndef O_DIRECT
+#define O_DIRECT	00040000
+#endif
+
+#ifndef O_DIRECTORY
+#define O_DIRECTORY	00200000
+#endif
+
+#ifndef O_NOATIME
+#define O_NOATIME	01000000
+#endif
 
 static size_t syscall_arg__scnprintf_open_flags(char *bf, size_t size,
 					       struct syscall_arg *arg)

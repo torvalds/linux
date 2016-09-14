@@ -316,7 +316,7 @@ static int hdpvr_start_streaming(struct hdpvr_device *dev)
 	dev->status = STATUS_STREAMING;
 
 	INIT_WORK(&dev->worker, hdpvr_transmit_buffers);
-	queue_work(dev->workqueue, &dev->worker);
+	schedule_work(&dev->worker);
 
 	v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
 			"streaming started\n");
@@ -350,7 +350,7 @@ static int hdpvr_stop_streaming(struct hdpvr_device *dev)
 	wake_up_interruptible(&dev->wait_buffer);
 	msleep(50);
 
-	flush_workqueue(dev->workqueue);
+	flush_work(&dev->worker);
 
 	mutex_lock(&dev->io_mutex);
 	/* kill the still outstanding urbs */
@@ -1123,7 +1123,7 @@ static void hdpvr_device_release(struct video_device *vdev)
 
 	hdpvr_delete(dev);
 	mutex_lock(&dev->io_mutex);
-	destroy_workqueue(dev->workqueue);
+	flush_work(&dev->worker);
 	mutex_unlock(&dev->io_mutex);
 
 	v4l2_device_unregister(&dev->v4l2_dev);

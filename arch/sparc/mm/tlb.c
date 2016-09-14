@@ -175,9 +175,9 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 
 	if ((pmd_val(pmd) ^ pmd_val(orig)) & _PAGE_PMD_HUGE) {
 		if (pmd_val(pmd) & _PAGE_PMD_HUGE)
-			mm->context.huge_pte_count++;
+			mm->context.thp_pte_count++;
 		else
-			mm->context.huge_pte_count--;
+			mm->context.thp_pte_count--;
 
 		/* Do not try to allocate the TSB hash table if we
 		 * don't have one already.  We have various locks held

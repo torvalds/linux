@@ -51,6 +51,7 @@
 		serial2 = &serial2;
 		serial3 = &serial3;
 		pci0 = &pci0;
+		usb0 = &usb0;
 		dma0 = &dma0;
 		dma1 = &dma1;
 		sdhc = &sdhc;

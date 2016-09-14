@@ -1085,6 +1085,8 @@ static struct regulator_ops spmi_vs_ops = {
 	.set_pull_down		= spmi_regulator_common_set_pull_down,
 	.set_soft_start		= spmi_regulator_common_set_soft_start,
 	.set_over_current_protection = spmi_regulator_vs_ocp,
+	.set_mode		= spmi_regulator_common_set_mode,
+	.get_mode		= spmi_regulator_common_get_mode,
 };
 
 static struct regulator_ops spmi_boost_ops = {
@@ -1496,6 +1498,7 @@ static const struct spmi_regulator_data pm8941_regulators[] = {
 	{ "s1", 0x1400, "vdd_s1", },
 	{ "s2", 0x1700, "vdd_s2", },
 	{ "s3", 0x1a00, "vdd_s3", },
+	{ "s4", 0xa000, },
 	{ "l1", 0x4000, "vdd_l1_l3", },
 	{ "l2", 0x4100, "vdd_l2_lvs_1_2_3", },
 	{ "l3", 0x4200, "vdd_l1_l3", },
@@ -1523,8 +1526,8 @@ static const struct spmi_regulator_data pm8941_regulators[] = {
 	{ "lvs1", 0x8000, "vdd_l2_lvs_1_2_3", },
 	{ "lvs2", 0x8100, "vdd_l2_lvs_1_2_3", },
 	{ "lvs3", 0x8200, "vdd_l2_lvs_1_2_3", },
-	{ "mvs1", 0x8300, "vin_5vs", },
-	{ "mvs2", 0x8400, "vin_5vs", },
+	{ "5vs1", 0x8300, "vin_5vs", "ocp-5vs1", },
+	{ "5vs2", 0x8400, "vin_5vs", "ocp-5vs2", },
 	{ }
 };
 

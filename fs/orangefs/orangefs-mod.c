@@ -47,6 +47,8 @@ struct client_debug_mask client_debug_mask = { NULL, 0, 0 };
 unsigned int kernel_mask_set_mod_init; /* implicitly false */
 int op_timeout_secs = ORANGEFS_DEFAULT_OP_TIMEOUT_SECS;
 int slot_timeout_secs = ORANGEFS_DEFAULT_SLOT_TIMEOUT_SECS;
+int dcache_timeout_msecs = 50;
+int getattr_timeout_msecs = 50;
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("ORANGEFS Development Team");

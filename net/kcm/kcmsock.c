@@ -1765,15 +1765,9 @@ static int kcm_attach_ioctl(struct socket *sock, struct kcm_attach *info)
 	if (!csock)
 		return -ENOENT;
 
-	prog = bpf_prog_get(info->bpf_fd);
+	prog = bpf_prog_get_type(info->bpf_fd, BPF_PROG_TYPE_SOCKET_FILTER);
 	if (IS_ERR(prog)) {
 		err = PTR_ERR(prog);
-		goto out;
-	}
-
-	if (prog->type != BPF_PROG_TYPE_SOCKET_FILTER) {
-		bpf_prog_put(prog);
-		err = -EINVAL;
 		goto out;
 	}
 

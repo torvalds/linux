@@ -14,13 +14,16 @@
 #include <asm/mipsregs.h>
 #include <asm/regdef.h>
 
+/* preprocessor replaces the fp in ".set fp=64" with $30 otherwise */
+#undef fp
+
 	.set	noreorder
 	.set	noat
 
 LEAF(__kvm_save_fpu)
 	.set	push
-	.set	mips64r2
 	SET_HARDFLOAT
+	.set	fp=64
 	mfc0	t0, CP0_STATUS
 	sll     t0, t0, 5			# is Status.FR set?
 	bgez    t0, 1f				# no: skip odd doubles
@@ -63,8 +66,8 @@ LEAF(__kvm_save_fpu)
 
 LEAF(__kvm_restore_fpu)
 	.set	push
-	.set	mips64r2
 	SET_HARDFLOAT
+	.set	fp=64
 	mfc0	t0, CP0_STATUS
 	sll     t0, t0, 5			# is Status.FR set?
 	bgez    t0, 1f				# no: skip odd doubles

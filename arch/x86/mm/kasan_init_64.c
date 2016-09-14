@@ -54,8 +54,8 @@ static int kasan_die_handler(struct notifier_block *self,
 			     void *data)
 {
 	if (val == DIE_GPF) {
-		pr_emerg("CONFIG_KASAN_INLINE enabled");
-		pr_emerg("GPF could be caused by NULL-ptr deref or user memory access");
+		pr_emerg("CONFIG_KASAN_INLINE enabled\n");
+		pr_emerg("GPF could be caused by NULL-ptr deref or user memory access\n");
 	}
 	return NOTIFY_OK;
 }

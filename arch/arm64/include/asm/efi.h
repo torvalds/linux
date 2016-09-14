@@ -14,8 +14,7 @@ extern void efi_init(void);
 #endif
 
 int efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md);
-
-#define efi_set_mapping_permissions	efi_create_mapping
+int efi_set_mapping_permissions(struct mm_struct *mm, efi_memory_desc_t *md);
 
 #define arch_efi_call_virt_setup()					\
 ({									\
@@ -23,10 +22,10 @@ int efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md);
 	efi_virtmap_load();						\
 })
 
-#define arch_efi_call_virt(f, args...)					\
+#define arch_efi_call_virt(p, f, args...)				\
 ({									\
 	efi_##f##_t *__f;						\
-	__f = efi.systab->runtime->f;					\
+	__f = p->f;							\
 	__f(args);							\
 })
 

@@ -46,7 +46,6 @@
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/vmalloc.h>
-#include <linux/version.h>
 
 #include <linux/device.h>
 #include <linux/bitrev.h>
@@ -598,7 +597,6 @@ struct net_local {
 	struct work_struct txtimeout_reinit;
 
 	phy_interface_t phy_interface;
-	struct phy_device *phy_dev;
 	struct mii_bus *mii_bus;
 
 	unsigned int link;
@@ -816,7 +814,7 @@ static int dwceqos_mdio_write(struct mii_bus *bus, int mii_id, int phyreg,
 static int dwceqos_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 {
 	struct net_local *lp = netdev_priv(ndev);
-	struct phy_device *phydev = lp->phy_dev;
+	struct phy_device *phydev = ndev->phydev;
 
 	if (!netif_running(ndev))
 		return -EINVAL;
@@ -850,6 +848,7 @@ static void dwceqos_link_down(struct net_local *lp)
 
 static void dwceqos_link_up(struct net_local *lp)
 {
+	struct net_device *ndev = lp->ndev;
 	u32 regval;
 	unsigned long flags;
 
@@ -860,7 +859,7 @@ static void dwceqos_link_up(struct net_local *lp)
 	dwceqos_write(lp, REG_DWCEQOS_MAC_LPI_CTRL_STATUS, regval);
 	spin_unlock_irqrestore(&lp->hw_lock, flags);
 
-	lp->eee_active = !phy_init_eee(lp->phy_dev, 0);
+	lp->eee_active = !phy_init_eee(ndev->phydev, 0);
 
 	/* Check for changed EEE capability */
 	if (!lp->eee_active && lp->eee_enabled) {
@@ -876,7 +875,8 @@ static void dwceqos_link_up(struct net_local *lp)
 
 static void dwceqos_set_speed(struct net_local *lp)
 {
-	struct phy_device *phydev = lp->phy_dev;
+	struct net_device *ndev = lp->ndev;
+	struct phy_device *phydev = ndev->phydev;
 	u32 regval;
 
 	regval = dwceqos_read(lp, REG_DWCEQOS_MAC_CFG);
@@ -903,7 +903,7 @@ static void dwceqos_set_speed(struct net_local *lp)
 static void dwceqos_adjust_link(struct net_device *ndev)
 {
 	struct net_local *lp = netdev_priv(ndev);
-	struct phy_device *phydev = lp->phy_dev;
+	struct phy_device *phydev = ndev->phydev;
 	int status_change = 0;
 
 	if (lp->phy_defer)
@@ -987,7 +987,6 @@ static int dwceqos_mii_probe(struct net_device *ndev)
 	lp->link    = 0;
 	lp->speed   = 0;
 	lp->duplex  = DUPLEX_UNKNOWN;
-	lp->phy_dev = phydev;
 
 	return 0;
 }
@@ -1531,6 +1530,7 @@ static void dwceqos_configure_bus(struct net_local *lp)
 
 static void dwceqos_init_hw(struct net_local *lp)
 {
+	struct net_device *ndev = lp->ndev;
 	u32 regval;
 	u32 buswidth;
 	u32 dma_skip;
@@ -1622,13 +1622,7 @@ static void dwceqos_init_hw(struct net_local *lp)
 		DWCEQOS_MMC_CTRL_RSTONRD);
 	dwceqos_enable_mmc_interrupt(lp);
 
-	/* Enable Interrupts */
-	dwceqos_write(lp, REG_DWCEQOS_DMA_CH0_IE,
-		      DWCEQOS_DMA_CH0_IE_NIE |
-		      DWCEQOS_DMA_CH0_IE_RIE | DWCEQOS_DMA_CH0_IE_TIE |
-		      DWCEQOS_DMA_CH0_IE_AIE |
-		      DWCEQOS_DMA_CH0_IE_FBEE);
-
+	dwceqos_write(lp, REG_DWCEQOS_DMA_CH0_IE, 0);
 	dwceqos_write(lp, REG_DWCEQOS_MAC_IE, 0);
 
 	dwceqos_write(lp, REG_DWCEQOS_MAC_CFG, DWCEQOS_MAC_CFG_IPC |
@@ -1645,10 +1639,10 @@ static void dwceqos_init_hw(struct net_local *lp)
 		      regval | DWCEQOS_MAC_CFG_TE | DWCEQOS_MAC_CFG_RE);
 
 	lp->phy_defer = false;
-	mutex_lock(&lp->phy_dev->lock);
-	phy_read_status(lp->phy_dev);
+	mutex_lock(&ndev->phydev->lock);
+	phy_read_status(ndev->phydev);
 	dwceqos_adjust_link(lp->ndev);
-	mutex_unlock(&lp->phy_dev->lock);
+	mutex_unlock(&ndev->phydev->lock);
 }
 
 static void dwceqos_tx_reclaim(unsigned long data)
@@ -1898,12 +1892,21 @@ static int dwceqos_open(struct net_device *ndev)
 	 * hence the unusual init order with phy_start first.
 	 */
 	lp->phy_defer = true;
-	phy_start(lp->phy_dev);
+	phy_start(ndev->phydev);
 	dwceqos_init_hw(lp);
 	napi_enable(&lp->napi);
 
 	netif_start_queue(ndev);
 	tasklet_enable(&lp->tx_bdreclaim_tasklet);
+
+	/* Enable Interrupts -- do this only after we enable NAPI and the
+	 * tasklet.
+	 */
+	dwceqos_write(lp, REG_DWCEQOS_DMA_CH0_IE,
+		      DWCEQOS_DMA_CH0_IE_NIE |
+		      DWCEQOS_DMA_CH0_IE_RIE | DWCEQOS_DMA_CH0_IE_TIE |
+		      DWCEQOS_DMA_CH0_IE_AIE |
+		      DWCEQOS_DMA_CH0_IE_FBEE);
 
 	return 0;
 }
@@ -1943,7 +1946,7 @@ static int dwceqos_stop(struct net_device *ndev)
 
 	dwceqos_drain_dma(lp);
 	dwceqos_reset_hw(lp);
-	phy_stop(lp->phy_dev);
+	phy_stop(ndev->phydev);
 
 	dwceqos_descriptor_free(lp);
 
@@ -2523,30 +2526,6 @@ dwceqos_get_stats64(struct net_device *ndev, struct rtnl_link_stats64 *s)
 	return s;
 }
 
-static int
-dwceqos_get_settings(struct net_device *ndev, struct ethtool_cmd *ecmd)
-{
-	struct net_local *lp = netdev_priv(ndev);
-	struct phy_device *phydev = lp->phy_dev;
-
-	if (!phydev)
-		return -ENODEV;
-
-	return phy_ethtool_gset(phydev, ecmd);
-}
-
-static int
-dwceqos_set_settings(struct net_device *ndev, struct ethtool_cmd *ecmd)
-{
-	struct net_local *lp = netdev_priv(ndev);
-	struct phy_device *phydev = lp->phy_dev;
-
-	if (!phydev)
-		return -ENODEV;
-
-	return phy_ethtool_sset(phydev, ecmd);
-}
-
 static void
 dwceqos_get_drvinfo(struct net_device *ndev, struct ethtool_drvinfo *ed)
 {
@@ -2574,17 +2553,17 @@ static int dwceqos_set_pauseparam(struct net_device *ndev,
 
 	lp->flowcontrol.autoneg = pp->autoneg;
 	if (pp->autoneg) {
-		lp->phy_dev->advertising |= ADVERTISED_Pause;
-		lp->phy_dev->advertising |= ADVERTISED_Asym_Pause;
+		ndev->phydev->advertising |= ADVERTISED_Pause;
+		ndev->phydev->advertising |= ADVERTISED_Asym_Pause;
 	} else {
-		lp->phy_dev->advertising &= ~ADVERTISED_Pause;
-		lp->phy_dev->advertising &= ~ADVERTISED_Asym_Pause;
+		ndev->phydev->advertising &= ~ADVERTISED_Pause;
+		ndev->phydev->advertising &= ~ADVERTISED_Asym_Pause;
 		lp->flowcontrol.rx = pp->rx_pause;
 		lp->flowcontrol.tx = pp->tx_pause;
 	}
 
 	if (netif_running(ndev))
-		ret = phy_start_aneg(lp->phy_dev);
+		ret = phy_start_aneg(ndev->phydev);
 
 	return ret;
 }
@@ -2705,7 +2684,7 @@ static int dwceqos_get_eee(struct net_device *ndev, struct ethtool_eee *edata)
 			    dwceqos_get_tx_lpi_state(regval));
 	}
 
-	return phy_ethtool_get_eee(lp->phy_dev, edata);
+	return phy_ethtool_get_eee(ndev->phydev, edata);
 }
 
 static int dwceqos_set_eee(struct net_device *ndev, struct ethtool_eee *edata)
@@ -2747,7 +2726,7 @@ static int dwceqos_set_eee(struct net_device *ndev, struct ethtool_eee *edata)
 		spin_unlock_irqrestore(&lp->hw_lock, flags);
 	}
 
-	return phy_ethtool_set_eee(lp->phy_dev, edata);
+	return phy_ethtool_set_eee(ndev->phydev, edata);
 }
 
 static u32 dwceqos_get_msglevel(struct net_device *ndev)
@@ -2765,8 +2744,6 @@ static void dwceqos_set_msglevel(struct net_device *ndev, u32 msglevel)
 }
 
 static struct ethtool_ops dwceqos_ethtool_ops = {
-	.get_settings   = dwceqos_get_settings,
-	.set_settings   = dwceqos_set_settings,
 	.get_drvinfo    = dwceqos_get_drvinfo,
 	.get_link       = ethtool_op_get_link,
 	.get_pauseparam = dwceqos_get_pauseparam,
@@ -2780,6 +2757,8 @@ static struct ethtool_ops dwceqos_ethtool_ops = {
 	.set_eee        = dwceqos_set_eee,
 	.get_msglevel   = dwceqos_get_msglevel,
 	.set_msglevel   = dwceqos_set_msglevel,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 static struct net_device_ops netdev_ops = {
@@ -2901,7 +2880,7 @@ static int dwceqos_probe(struct platform_device *pdev)
 		ret = of_phy_register_fixed_link(lp->pdev->dev.of_node);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "invalid fixed-link");
-			goto err_out_unregister_netdev;
+			goto err_out_unregister_clk_notifier;
 		}
 
 		lp->phy_node = of_node_get(lp->pdev->dev.of_node);
@@ -2934,7 +2913,8 @@ static int dwceqos_probe(struct platform_device *pdev)
 		     (unsigned long)ndev);
 	tasklet_disable(&lp->tx_bdreclaim_tasklet);
 
-	lp->txtimeout_handler_wq = create_singlethread_workqueue(DRIVER_NAME);
+	lp->txtimeout_handler_wq = alloc_workqueue(DRIVER_NAME,
+						   WQ_MEM_RECLAIM, 0);
 	INIT_WORK(&lp->txtimeout_reinit, dwceqos_reinit_for_txtimeout);
 
 	platform_set_drvdata(pdev, ndev);
@@ -2981,8 +2961,8 @@ static int dwceqos_remove(struct platform_device *pdev)
 	if (ndev) {
 		lp = netdev_priv(ndev);
 
-		if (lp->phy_dev)
-			phy_disconnect(lp->phy_dev);
+		if (ndev->phydev)
+			phy_disconnect(ndev->phydev);
 		mdiobus_unregister(lp->mii_bus);
 		mdiobus_free(lp->mii_bus);
 

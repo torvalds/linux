@@ -147,7 +147,7 @@ TRACE_EVENT(mc_event,
 		  __entry->error_count,
 		  mc_event_error_type(__entry->error_type),
 		  __entry->error_count > 1 ? "s" : "",
-		  ((char *)__get_str(msg))[0] ? " " : "",
+		  __get_str(msg)[0] ? " " : "",
 		  __get_str(msg),
 		  __get_str(label),
 		  __entry->mc_index,
@@ -157,7 +157,7 @@ TRACE_EVENT(mc_event,
 		  __entry->address,
 		  1 << __entry->grain_bits,
 		  __entry->syndrome,
-		  ((char *)__get_str(driver_detail))[0] ? " " : "",
+		  __get_str(driver_detail)[0] ? " " : "",
 		  __get_str(driver_detail))
 );
 

@@ -332,14 +332,14 @@ static void radeon_crtc_dpms(struct drm_crtc *crtc, int mode)
 			WREG32_P(RADEON_CRTC_EXT_CNTL, crtc_ext_cntl, ~(mask | crtc_ext_cntl));
 		}
 		if (dev->num_crtcs > radeon_crtc->crtc_id)
-			drm_vblank_on(dev, radeon_crtc->crtc_id);
+			drm_crtc_vblank_on(crtc);
 		radeon_crtc_load_lut(crtc);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
 		if (dev->num_crtcs > radeon_crtc->crtc_id)
-			drm_vblank_off(dev, radeon_crtc->crtc_id);
+			drm_crtc_vblank_off(crtc);
 		if (radeon_crtc->crtc_id)
 			WREG32_P(RADEON_CRTC2_GEN_CNTL, mask, ~(RADEON_CRTC2_EN | mask));
 		else {

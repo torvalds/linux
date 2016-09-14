@@ -39,7 +39,7 @@ nv11_mc = {
 	.intr = nv11_mc_intr,
 	.intr_unarm = nv04_mc_intr_unarm,
 	.intr_rearm = nv04_mc_intr_rearm,
-	.intr_mask = nv04_mc_intr_mask,
+	.intr_stat = nv04_mc_intr_stat,
 	.reset = nv04_mc_reset,
 };
 

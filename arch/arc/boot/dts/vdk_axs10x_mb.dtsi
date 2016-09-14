@@ -23,6 +23,11 @@
 				#clock-cells = <0>;
 			};
 
+			pguclk: pguclk {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <25175000>;
+			};
 		};
 
 		ethernet@0x18000 {
@@ -75,11 +80,11 @@
 		};
 
 /* PGU output directly sent to virtual LCD screen; hdmi controller not modelled */
-		pgu@0x17000 {
-			compatible = "snps,arcpgufb";
+		pgu@17000 {
+			compatible = "snps,arcpgu";
 			reg = <0x17000 0x400>;
-			clock-frequency = <51000000>; /* PGU'clock is initated in init function */
-			/* interrupts = <5>;   PGU interrupts not used, this vector is used for ps2 below */
+			clocks = <&pguclk>;
+			clock-names = "pxlclk";
 		};
 
 /* VDK has additional ps2 keyboard/mouse interface integrated in LCD screen model */

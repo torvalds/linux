@@ -101,6 +101,7 @@ enum ec_command {
 #define ACPI_EC_UDELAY_POLL	550	/* Wait 1ms for EC transaction polling */
 #define ACPI_EC_CLEAR_MAX	100	/* Maximum number of events to query
 					 * when trying to clear the EC */
+#define ACPI_EC_MAX_QUERIES	16	/* Maximum number of parallel queries */
 
 enum {
 	EC_FLAGS_QUERY_PENDING,		/* Query is pending */
@@ -120,6 +121,10 @@ enum {
 static unsigned int ec_delay __read_mostly = ACPI_EC_DELAY;
 module_param(ec_delay, uint, 0644);
 MODULE_PARM_DESC(ec_delay, "Timeout(ms) waited until an EC command completes");
+
+static unsigned int ec_max_queries __read_mostly = ACPI_EC_MAX_QUERIES;
+module_param(ec_max_queries, uint, 0644);
+MODULE_PARM_DESC(ec_max_queries, "Maximum parallel _Qxx evaluations");
 
 static bool ec_busy_polling __read_mostly;
 module_param(ec_busy_polling, bool, 0644);
@@ -174,6 +179,7 @@ static void acpi_ec_event_processor(struct work_struct *work);
 
 struct acpi_ec *boot_ec, *first_ec;
 EXPORT_SYMBOL(first_ec);
+static struct workqueue_struct *ec_query_wq;
 
 static int EC_FLAGS_CLEAR_ON_RESUME; /* Needs acpi_ec_clear() on boot/resume */
 static int EC_FLAGS_QUERY_HANDSHAKE; /* Needs QR_EC issued when SCI_EVT set */
@@ -1098,7 +1104,7 @@ static int acpi_ec_query(struct acpi_ec *ec, u8 *data)
 	 * work queue execution.
 	 */
 	ec_dbg_evt("Query(0x%02x) scheduled", value);
-	if (!schedule_work(&q->work)) {
+	if (!queue_work(ec_query_wq, &q->work)) {
 		ec_dbg_evt("Query(0x%02x) overlapped", value);
 		result = -EBUSY;
 	}
@@ -1331,14 +1337,25 @@ static int ec_install_handlers(struct acpi_ec *ec)
 
 static void ec_remove_handlers(struct acpi_ec *ec)
 {
-	acpi_ec_stop(ec, false);
-
 	if (test_bit(EC_FLAGS_EC_HANDLER_INSTALLED, &ec->flags)) {
 		if (ACPI_FAILURE(acpi_remove_address_space_handler(ec->handle,
 					ACPI_ADR_SPACE_EC, &acpi_ec_space_handler)))
 			pr_err("failed to remove space handler\n");
 		clear_bit(EC_FLAGS_EC_HANDLER_INSTALLED, &ec->flags);
 	}
+
+	/*
+	 * Stops handling the EC transactions after removing the operation
+	 * region handler. This is required because _REG(DISCONNECT)
+	 * invoked during the removal can result in new EC transactions.
+	 *
+	 * Flushes the EC requests and thus disables the GPE before
+	 * removing the GPE handler. This is required by the current ACPICA
+	 * GPE core. ACPICA GPE core will automatically disable a GPE when
+	 * it is indicated but there is no way to handle it. So the drivers
+	 * must disable the GPEs prior to removing the GPE handlers.
+	 */
+	acpi_ec_stop(ec, false);
 
 	if (test_bit(EC_FLAGS_GPE_HANDLER_INSTALLED, &ec->flags)) {
 		if (ACPI_FAILURE(acpi_remove_gpe_handler(NULL, ec->gpe,
@@ -1348,13 +1365,9 @@ static void ec_remove_handlers(struct acpi_ec *ec)
 	}
 }
 
-static int acpi_ec_add(struct acpi_device *device)
+static struct acpi_ec *acpi_ec_alloc(void)
 {
-	struct acpi_ec *ec = NULL;
-	int ret;
-
-	strcpy(acpi_device_name(device), ACPI_EC_DEVICE_NAME);
-	strcpy(acpi_device_class(device), ACPI_EC_CLASS);
+	struct acpi_ec *ec;
 
 	/* Check for boot EC */
 	if (boot_ec) {
@@ -1365,9 +1378,21 @@ static int acpi_ec_add(struct acpi_device *device)
 			first_ec = NULL;
 	} else {
 		ec = make_acpi_ec();
-		if (!ec)
-			return -ENOMEM;
 	}
+	return ec;
+}
+
+static int acpi_ec_add(struct acpi_device *device)
+{
+	struct acpi_ec *ec = NULL;
+	int ret;
+
+	strcpy(acpi_device_name(device), ACPI_EC_DEVICE_NAME);
+	strcpy(acpi_device_class(device), ACPI_EC_CLASS);
+
+	ec = acpi_ec_alloc();
+	if (!ec)
+		return -ENOMEM;
 	if (ec_parse_device(device->handle, 0, ec, NULL) !=
 		AE_CTRL_TERMINATE) {
 			kfree(ec);
@@ -1454,27 +1479,31 @@ static const struct acpi_device_id ec_device_ids[] = {
 int __init acpi_ec_dsdt_probe(void)
 {
 	acpi_status status;
+	struct acpi_ec *ec;
+	int ret;
 
-	if (boot_ec)
-		return 0;
-
+	ec = acpi_ec_alloc();
+	if (!ec)
+		return -ENOMEM;
 	/*
 	 * Finding EC from DSDT if there is no ECDT EC available. When this
 	 * function is invoked, ACPI tables have been fully loaded, we can
 	 * walk namespace now.
 	 */
-	boot_ec = make_acpi_ec();
-	if (!boot_ec)
-		return -ENOMEM;
 	status = acpi_get_devices(ec_device_ids[0].id,
-				  ec_parse_device, boot_ec, NULL);
-	if (ACPI_FAILURE(status) || !boot_ec->handle)
-		return -ENODEV;
-	if (!ec_install_handlers(boot_ec)) {
-		first_ec = boot_ec;
-		return 0;
+				  ec_parse_device, ec, NULL);
+	if (ACPI_FAILURE(status) || !ec->handle) {
+		ret = -ENODEV;
+		goto error;
 	}
-	return -EFAULT;
+	ret = ec_install_handlers(ec);
+
+error:
+	if (ret)
+		kfree(ec);
+	else
+		first_ec = boot_ec = ec;
+	return ret;
 }
 
 #if 0
@@ -1518,6 +1547,11 @@ static int ec_clear_on_resume(const struct dmi_system_id *id)
 	return 0;
 }
 
+/*
+ * Some ECDTs contain wrong register addresses.
+ * MSI MS-171F
+ * https://bugzilla.kernel.org/show_bug.cgi?id=12461
+ */
 static int ec_correct_ecdt(const struct dmi_system_id *id)
 {
 	pr_debug("Detected system needing ECDT address correction.\n");
@@ -1526,16 +1560,6 @@ static int ec_correct_ecdt(const struct dmi_system_id *id)
 }
 
 static struct dmi_system_id ec_dmi_table[] __initdata = {
-	{
-	ec_correct_ecdt, "Asus L4R", {
-	DMI_MATCH(DMI_BIOS_VERSION, "1008.006"),
-	DMI_MATCH(DMI_PRODUCT_NAME, "L4R"),
-	DMI_MATCH(DMI_BOARD_NAME, "L4R") }, NULL},
-	{
-	ec_correct_ecdt, "Asus M6R", {
-	DMI_MATCH(DMI_BIOS_VERSION, "0207"),
-	DMI_MATCH(DMI_PRODUCT_NAME, "M6R"),
-	DMI_MATCH(DMI_BOARD_NAME, "M6R") }, NULL},
 	{
 	ec_correct_ecdt, "MSI MS-171F", {
 	DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star"),
@@ -1548,12 +1572,13 @@ static struct dmi_system_id ec_dmi_table[] __initdata = {
 
 int __init acpi_ec_ecdt_probe(void)
 {
-	int ret = 0;
+	int ret;
 	acpi_status status;
 	struct acpi_table_ecdt *ecdt_ptr;
+	struct acpi_ec *ec;
 
-	boot_ec = make_acpi_ec();
-	if (!boot_ec)
+	ec = acpi_ec_alloc();
+	if (!ec)
 		return -ENOMEM;
 	/*
 	 * Generate a boot ec context
@@ -1577,28 +1602,20 @@ int __init acpi_ec_ecdt_probe(void)
 
 	pr_info("EC description table is found, configuring boot EC\n");
 	if (EC_FLAGS_CORRECT_ECDT) {
-		/*
-		 * Asus L4R, Asus M6R
-		 * https://bugzilla.kernel.org/show_bug.cgi?id=9399
-		 * MSI MS-171F
-		 * https://bugzilla.kernel.org/show_bug.cgi?id=12461
-		 */
-		boot_ec->command_addr = ecdt_ptr->data.address;
-		boot_ec->data_addr = ecdt_ptr->control.address;
+		ec->command_addr = ecdt_ptr->data.address;
+		ec->data_addr = ecdt_ptr->control.address;
 	} else {
-		boot_ec->command_addr = ecdt_ptr->control.address;
-		boot_ec->data_addr = ecdt_ptr->data.address;
+		ec->command_addr = ecdt_ptr->control.address;
+		ec->data_addr = ecdt_ptr->data.address;
 	}
-	boot_ec->gpe = ecdt_ptr->gpe;
-	boot_ec->handle = ACPI_ROOT_OBJECT;
-	ret = ec_install_handlers(boot_ec);
-	if (!ret)
-		first_ec = boot_ec;
+	ec->gpe = ecdt_ptr->gpe;
+	ec->handle = ACPI_ROOT_OBJECT;
+	ret = ec_install_handlers(ec);
 error:
-	if (ret) {
-		kfree(boot_ec);
-		boot_ec = NULL;
-	}
+	if (ret)
+		kfree(ec);
+	else
+		first_ec = boot_ec = ec;
 	return ret;
 }
 
@@ -1649,15 +1666,41 @@ static struct acpi_driver acpi_ec_driver = {
 		},
 };
 
+static inline int acpi_ec_query_init(void)
+{
+	if (!ec_query_wq) {
+		ec_query_wq = alloc_workqueue("kec_query", 0,
+					      ec_max_queries);
+		if (!ec_query_wq)
+			return -ENODEV;
+	}
+	return 0;
+}
+
+static inline void acpi_ec_query_exit(void)
+{
+	if (ec_query_wq) {
+		destroy_workqueue(ec_query_wq);
+		ec_query_wq = NULL;
+	}
+}
+
 int __init acpi_ec_init(void)
 {
-	int result = 0;
+	int result;
 
+	/* register workqueue for _Qxx evaluations */
+	result = acpi_ec_query_init();
+	if (result)
+		goto err_exit;
 	/* Now register the driver for the EC */
 	result = acpi_bus_register_driver(&acpi_ec_driver);
-	if (result < 0)
-		return -ENODEV;
+	if (result)
+		goto err_exit;
 
+err_exit:
+	if (result)
+		acpi_ec_query_exit();
 	return result;
 }
 
@@ -1667,5 +1710,6 @@ static void __exit acpi_ec_exit(void)
 {
 
 	acpi_bus_unregister_driver(&acpi_ec_driver);
+	acpi_ec_query_exit();
 }
 #endif	/* 0 */

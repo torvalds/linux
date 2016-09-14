@@ -60,7 +60,6 @@ static bool dis_ucode_ldr;
 static DEFINE_MUTEX(microcode_mutex);
 
 struct ucode_cpu_info		ucode_cpu_info[NR_CPUS];
-EXPORT_SYMBOL_GPL(ucode_cpu_info);
 
 /*
  * Operations that are run on a target cpu:
@@ -175,24 +174,24 @@ void load_ucode_ap(void)
 	}
 }
 
-int __init save_microcode_in_initrd(void)
+static int __init save_microcode_in_initrd(void)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 
 	switch (c->x86_vendor) {
 	case X86_VENDOR_INTEL:
 		if (c->x86 >= 6)
-			save_microcode_in_initrd_intel();
+			return save_microcode_in_initrd_intel();
 		break;
 	case X86_VENDOR_AMD:
 		if (c->x86 >= 0x10)
-			save_microcode_in_initrd_amd();
+			return save_microcode_in_initrd_amd();
 		break;
 	default:
 		break;
 	}
 
-	return 0;
+	return -EINVAL;
 }
 
 void reload_early_microcode(void)
@@ -691,4 +690,5 @@ int __init microcode_init(void)
 	return error;
 
 }
+fs_initcall(save_microcode_in_initrd);
 late_initcall(microcode_init);

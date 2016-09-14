@@ -127,6 +127,8 @@ struct qed_tunn_update_params {
  */
 enum qed_pci_personality {
 	QED_PCI_ETH,
+	QED_PCI_ISCSI,
+	QED_PCI_ETH_ROCE,
 	QED_PCI_DEFAULT /* default in shmem */
 };
 
@@ -170,6 +172,8 @@ enum QED_PORT_MODE {
 
 enum qed_dev_cap {
 	QED_DEV_CAP_ETH,
+	QED_DEV_CAP_ISCSI,
+	QED_DEV_CAP_ROCE,
 };
 
 struct qed_hw_info {
@@ -183,6 +187,8 @@ struct qed_hw_info {
 
 #define RESC_START(_p_hwfn, resc) ((_p_hwfn)->hw_info.resc_start[resc])
 #define RESC_NUM(_p_hwfn, resc) ((_p_hwfn)->hw_info.resc_num[resc])
+#define RESC_END(_p_hwfn, resc) (RESC_START(_p_hwfn, resc) + \
+				 RESC_NUM(_p_hwfn, resc))
 #define FEAT_NUM(_p_hwfn, resc) ((_p_hwfn)->hw_info.feat_num[resc])
 
 	u8				num_tc;
@@ -255,6 +261,7 @@ struct qed_qm_info {
 	u8				pure_lb_pq;
 	u8				offload_pq;
 	u8				pure_ack_pq;
+	u8 ooo_pq;
 	u8				vf_queues_offset;
 	u16				num_pqs;
 	u16				num_vf_pqs;
@@ -267,6 +274,7 @@ struct qed_qm_info {
 	u8				pf_wfq;
 	u32				pf_rl;
 	struct qed_wfq_data		*wfq_data;
+	u8 num_pf_rls;
 };
 
 struct storm_stats {
@@ -312,6 +320,7 @@ struct qed_hwfn {
 	bool				hw_init_done;
 
 	u8				num_funcs_on_engine;
+	u8 enabled_func_idx;
 
 	/* BAR access */
 	void __iomem			*regview;
@@ -349,6 +358,9 @@ struct qed_hwfn {
 
 	/* Protocol related */
 	struct qed_pf_params		pf_params;
+
+	bool b_rdma_enabled_in_prs;
+	u32 rdma_prs_search_reg;
 
 	/* Array of sb_info of all status blocks */
 	struct qed_sb_info		*sbs_info[MAX_SB_PER_PF_MIMD];
@@ -477,8 +489,8 @@ struct qed_dev {
 
 	u32				int_mode;
 	enum qed_coalescing_mode	int_coalescing_mode;
-	u8				rx_coalesce_usecs;
-	u8				tx_coalesce_usecs;
+	u16				rx_coalesce_usecs;
+	u16				tx_coalesce_usecs;
 
 	/* Start Bar offset of first hwfn */
 	void __iomem			*regview;
@@ -549,12 +561,22 @@ struct qed_dev {
 static inline u8 qed_concrete_to_sw_fid(struct qed_dev *cdev,
 					u32 concrete_fid)
 {
+	u8 vfid = GET_FIELD(concrete_fid, PXP_CONCRETE_FID_VFID);
 	u8 pfid = GET_FIELD(concrete_fid, PXP_CONCRETE_FID_PFID);
+	u8 vf_valid = GET_FIELD(concrete_fid,
+				PXP_CONCRETE_FID_VFVALID);
+	u8 sw_fid;
 
-	return pfid;
+	if (vf_valid)
+		sw_fid = vfid + MAX_NUM_PFS;
+	else
+		sw_fid = pfid;
+
+	return sw_fid;
 }
 
 #define PURE_LB_TC 8
+#define OOO_LB_TC 9
 
 int qed_configure_vport_wfq(struct qed_dev *cdev, u16 vp_id, u32 rate);
 void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev, u32 min_pf_rate);

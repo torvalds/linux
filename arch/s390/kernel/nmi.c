@@ -16,7 +16,7 @@
 #include <linux/module.h>
 #include <asm/lowcore.h>
 #include <asm/smp.h>
-#include <asm/etr.h>
+#include <asm/stp.h>
 #include <asm/cputime.h>
 #include <asm/nmi.h>
 #include <asm/crw.h>
@@ -27,7 +27,6 @@ struct mcck_struct {
 	unsigned int kill_task : 1;
 	unsigned int channel_report : 1;
 	unsigned int warning : 1;
-	unsigned int etr_queue : 1;
 	unsigned int stp_queue : 1;
 	unsigned long mcck_code;
 };
@@ -82,8 +81,6 @@ void s390_handle_mcck(void)
 		if (xchg(&mchchk_wng_posted, 1) == 0)
 			kill_cad_pid(SIGPWR, 1);
 	}
-	if (mcck.etr_queue)
-		etr_queue_work();
 	if (mcck.stp_queue)
 		stp_queue_work();
 	if (mcck.kill_task) {
@@ -241,8 +238,6 @@ static int notrace s390_validate_registers(union mci mci)
 
 #define ED_STP_ISLAND	6	/* External damage STP island check */
 #define ED_STP_SYNC	7	/* External damage STP sync check */
-#define ED_ETR_SYNC	12	/* External damage ETR sync check */
-#define ED_ETR_SWITCH	13	/* External damage ETR switch to local */
 
 /*
  * machine check handler.
@@ -325,15 +320,11 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	}
 	if (mci.ed && mci.ec) {
 		/* External damage */
-		if (S390_lowcore.external_damage_code & (1U << ED_ETR_SYNC))
-			mcck->etr_queue |= etr_sync_check();
-		if (S390_lowcore.external_damage_code & (1U << ED_ETR_SWITCH))
-			mcck->etr_queue |= etr_switch_to_local();
 		if (S390_lowcore.external_damage_code & (1U << ED_STP_SYNC))
 			mcck->stp_queue |= stp_sync_check();
 		if (S390_lowcore.external_damage_code & (1U << ED_STP_ISLAND))
 			mcck->stp_queue |= stp_island_check();
-		if (mcck->etr_queue || mcck->stp_queue)
+		if (mcck->stp_queue)
 			set_cpu_flag(CIF_MCCK_PENDING);
 	}
 	if (mci.se)

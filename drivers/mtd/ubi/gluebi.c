@@ -99,9 +99,6 @@ static int gluebi_get_device(struct mtd_info *mtd)
 	struct gluebi_device *gluebi;
 	int ubi_mode = UBI_READONLY;
 
-	if (!try_module_get(THIS_MODULE))
-		return -ENODEV;
-
 	if (mtd->flags & MTD_WRITEABLE)
 		ubi_mode = UBI_READWRITE;
 
@@ -129,7 +126,6 @@ static int gluebi_get_device(struct mtd_info *mtd)
 				       ubi_mode);
 	if (IS_ERR(gluebi->desc)) {
 		mutex_unlock(&devices_mutex);
-		module_put(THIS_MODULE);
 		return PTR_ERR(gluebi->desc);
 	}
 	gluebi->refcnt += 1;
@@ -153,7 +149,6 @@ static void gluebi_put_device(struct mtd_info *mtd)
 	gluebi->refcnt -= 1;
 	if (gluebi->refcnt == 0)
 		ubi_close_volume(gluebi->desc);
-	module_put(THIS_MODULE);
 	mutex_unlock(&devices_mutex);
 }
 

@@ -470,6 +470,7 @@ static int acpi_irq_pci_sharing_penalty(int irq)
 {
 	struct acpi_pci_link *link;
 	int penalty = 0;
+	int i;
 
 	list_for_each_entry(link, &acpi_link_list, list) {
 		/*
@@ -478,18 +479,14 @@ static int acpi_irq_pci_sharing_penalty(int irq)
 		 */
 		if (link->irq.active && link->irq.active == irq)
 			penalty += PIRQ_PENALTY_PCI_USING;
-		else {
-			int i;
 
-			/*
-			 * If a link is inactive, penalize the IRQs it
-			 * might use, but not as severely.
-			 */
-			for (i = 0; i < link->irq.possible_count; i++)
-				if (link->irq.possible[i] == irq)
-					penalty += PIRQ_PENALTY_PCI_POSSIBLE /
-						link->irq.possible_count;
-		}
+		/*
+		 * penalize the IRQs PCI might use, but not as severely.
+		 */
+		for (i = 0; i < link->irq.possible_count; i++)
+			if (link->irq.possible[i] == irq)
+				penalty += PIRQ_PENALTY_PCI_POSSIBLE /
+					link->irq.possible_count;
 	}
 
 	return penalty;
@@ -498,9 +495,6 @@ static int acpi_irq_pci_sharing_penalty(int irq)
 static int acpi_irq_get_penalty(int irq)
 {
 	int penalty = 0;
-
-	if (irq < ACPI_MAX_ISA_IRQS)
-		penalty += acpi_isa_irq_penalty[irq];
 
 	/*
 	* Penalize IRQ used by ACPI SCI. If ACPI SCI pin attributes conflict
@@ -516,8 +510,47 @@ static int acpi_irq_get_penalty(int irq)
 			penalty += PIRQ_PENALTY_PCI_USING;
 	}
 
+	if (irq < ACPI_MAX_ISA_IRQS)
+		return penalty + acpi_isa_irq_penalty[irq];
+
 	penalty += acpi_irq_pci_sharing_penalty(irq);
 	return penalty;
+}
+
+int __init acpi_irq_penalty_init(void)
+{
+	struct acpi_pci_link *link;
+	int i;
+
+	/*
+	 * Update penalties to facilitate IRQ balancing.
+	 */
+	list_for_each_entry(link, &acpi_link_list, list) {
+
+		/*
+		 * reflect the possible and active irqs in the penalty table --
+		 * useful for breaking ties.
+		 */
+		if (link->irq.possible_count) {
+			int penalty =
+			    PIRQ_PENALTY_PCI_POSSIBLE /
+			    link->irq.possible_count;
+
+			for (i = 0; i < link->irq.possible_count; i++) {
+				if (link->irq.possible[i] < ACPI_MAX_ISA_IRQS)
+					acpi_isa_irq_penalty[link->irq.
+							 possible[i]] +=
+					    penalty;
+			}
+
+		} else if (link->irq.active &&
+				(link->irq.active < ACPI_MAX_ISA_IRQS)) {
+			acpi_isa_irq_penalty[link->irq.active] +=
+			    PIRQ_PENALTY_PCI_POSSIBLE;
+		}
+	}
+
+	return 0;
 }
 
 static int acpi_irq_balance = -1;	/* 0: static, 1: balance */

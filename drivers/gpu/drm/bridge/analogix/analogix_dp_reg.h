@@ -163,8 +163,9 @@
 #define HSYNC_POLARITY_CFG			(0x1 << 0)
 
 /* ANALOGIX_DP_PLL_REG_1 */
-#define REF_CLK_24M				(0x1 << 1)
-#define REF_CLK_27M				(0x0 << 1)
+#define REF_CLK_24M				(0x1 << 0)
+#define REF_CLK_27M				(0x0 << 0)
+#define REF_CLK_MASK				(0x1 << 0)
 
 /* ANALOGIX_DP_LANE_MAP */
 #define LANE3_MAP_LOGIC_LANE_0			(0x0 << 6)

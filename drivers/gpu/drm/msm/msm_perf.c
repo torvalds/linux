@@ -132,7 +132,7 @@ static ssize_t perf_read(struct file *file, char __user *buf,
 		size_t sz, loff_t *ppos)
 {
 	struct msm_perf_state *perf = file->private_data;
-	int n = 0, ret;
+	int n = 0, ret = 0;
 
 	mutex_lock(&perf->read_lock);
 
@@ -143,9 +143,10 @@ static ssize_t perf_read(struct file *file, char __user *buf,
 	}
 
 	n = min((int)sz, perf->buftot - perf->bufpos);
-	ret = copy_to_user(buf, &perf->buf[perf->bufpos], n);
-	if (ret)
+	if (copy_to_user(buf, &perf->buf[perf->bufpos], n)) {
+		ret = -EFAULT;
 		goto out;
+	}
 
 	perf->bufpos += n;
 	*ppos += n;

@@ -51,7 +51,6 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm/x86_init.h>
-#include <asm/rtc.h>
 #include <asm/uv/uv.h>
 
 static struct efi efi_phys __initdata;
@@ -96,21 +95,6 @@ static efi_status_t __init phys_efi_set_virtual_address_map(
 	efi_call_phys_epilog(save_pgd);
 
 	return status;
-}
-
-void efi_get_time(struct timespec *now)
-{
-	efi_status_t status;
-	efi_time_t eft;
-	efi_time_cap_t cap;
-
-	status = efi.get_time(&eft, &cap);
-	if (status != EFI_SUCCESS)
-		pr_err("Oops: efitime: can't read time!\n");
-
-	now->tv_sec = mktime(eft.year, eft.month, eft.day, eft.hour,
-			     eft.minute, eft.second);
-	now->tv_nsec = 0;
 }
 
 void __init efi_find_mirror(void)
@@ -978,8 +962,6 @@ static void __init __efi_enter_virtual_mode(void)
 	 * EFI mixed mode we need all of memory to be accessible when
 	 * we pass parameters to the EFI runtime services in the
 	 * thunking code.
-	 *
-	 * efi_cleanup_page_tables(__pa(new_memmap), 1 << pg_shift);
 	 */
 	free_pages((unsigned long)new_memmap, pg_shift);
 

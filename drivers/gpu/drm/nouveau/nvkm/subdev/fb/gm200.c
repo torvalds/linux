@@ -26,6 +26,24 @@
 
 #include <core/memory.h>
 
+void
+gm200_fb_init_page(struct nvkm_fb *fb)
+{
+	struct nvkm_device *device = fb->subdev.device;
+	switch (fb->page) {
+	case 16:
+		nvkm_mask(device, 0x100c80, 0x00000801, 0x00000001);
+		break;
+	case 17:
+		nvkm_mask(device, 0x100c80, 0x00000801, 0x00000000);
+		break;
+	default:
+		nvkm_mask(device, 0x100c80, 0x00000800, 0x00000800);
+		fb->page = 0;
+		break;
+	}
+}
+
 static void
 gm200_fb_init(struct nvkm_fb *base)
 {
@@ -48,6 +66,7 @@ gm200_fb = {
 	.dtor = gf100_fb_dtor,
 	.oneinit = gf100_fb_oneinit,
 	.init = gm200_fb_init,
+	.init_page = gm200_fb_init_page,
 	.intr = gf100_fb_intr,
 	.ram_new = gm107_ram_new,
 	.memtype_valid = gf100_fb_memtype_valid,

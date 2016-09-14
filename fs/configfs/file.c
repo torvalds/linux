@@ -80,11 +80,11 @@ static int fill_read_buffer(struct dentry * dentry, struct configfs_buffer * buf
 
 	count = attr->show(item, buffer->page);
 
-	buffer->needs_read_fill = 0;
 	BUG_ON(count > (ssize_t)SIMPLE_ATTR_SIZE);
-	if (count >= 0)
+	if (count >= 0) {
+		buffer->needs_read_fill = 0;
 		buffer->count = count;
-	else
+	} else
 		ret = count;
 	return ret;
 }
@@ -357,8 +357,6 @@ configfs_write_bin_file(struct file *file, const char __user *buf,
 
 	len = simple_write_to_buffer(buffer->bin_buffer,
 			buffer->bin_buffer_size, ppos, buf, count);
-	if (len > 0)
-		*ppos += len;
 out:
 	mutex_unlock(&buffer->mutex);
 	return len;

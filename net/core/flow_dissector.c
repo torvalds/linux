@@ -651,6 +651,23 @@ void make_flow_keys_digest(struct flow_keys_digest *digest,
 }
 EXPORT_SYMBOL(make_flow_keys_digest);
 
+static struct flow_dissector flow_keys_dissector_symmetric __read_mostly;
+
+u32 __skb_get_hash_symmetric(struct sk_buff *skb)
+{
+	struct flow_keys keys;
+
+	__flow_hash_secret_init();
+
+	memset(&keys, 0, sizeof(keys));
+	__skb_flow_dissect(skb, &flow_keys_dissector_symmetric, &keys,
+			   NULL, 0, 0, 0,
+			   FLOW_DISSECTOR_F_STOP_AT_FLOW_LABEL);
+
+	return __flow_hash_from_keys(&keys, hashrnd);
+}
+EXPORT_SYMBOL_GPL(__skb_get_hash_symmetric);
+
 /**
  * __skb_get_hash: calculate a flow hash
  * @skb: sk_buff to calculate flow hash from
@@ -868,6 +885,29 @@ static const struct flow_dissector_key flow_keys_dissector_keys[] = {
 	},
 };
 
+static const struct flow_dissector_key flow_keys_dissector_symmetric_keys[] = {
+	{
+		.key_id = FLOW_DISSECTOR_KEY_CONTROL,
+		.offset = offsetof(struct flow_keys, control),
+	},
+	{
+		.key_id = FLOW_DISSECTOR_KEY_BASIC,
+		.offset = offsetof(struct flow_keys, basic),
+	},
+	{
+		.key_id = FLOW_DISSECTOR_KEY_IPV4_ADDRS,
+		.offset = offsetof(struct flow_keys, addrs.v4addrs),
+	},
+	{
+		.key_id = FLOW_DISSECTOR_KEY_IPV6_ADDRS,
+		.offset = offsetof(struct flow_keys, addrs.v6addrs),
+	},
+	{
+		.key_id = FLOW_DISSECTOR_KEY_PORTS,
+		.offset = offsetof(struct flow_keys, ports),
+	},
+};
+
 static const struct flow_dissector_key flow_keys_buf_dissector_keys[] = {
 	{
 		.key_id = FLOW_DISSECTOR_KEY_CONTROL,
@@ -889,6 +929,9 @@ static int __init init_default_flow_dissectors(void)
 	skb_flow_dissector_init(&flow_keys_dissector,
 				flow_keys_dissector_keys,
 				ARRAY_SIZE(flow_keys_dissector_keys));
+	skb_flow_dissector_init(&flow_keys_dissector_symmetric,
+				flow_keys_dissector_symmetric_keys,
+				ARRAY_SIZE(flow_keys_dissector_symmetric_keys));
 	skb_flow_dissector_init(&flow_keys_buf_dissector,
 				flow_keys_buf_dissector_keys,
 				ARRAY_SIZE(flow_keys_buf_dissector_keys));

@@ -4,15 +4,21 @@ ARM Virtual Generic Interrupt Controller (VGIC)
 Device types supported:
   KVM_DEV_TYPE_ARM_VGIC_V2     ARM Generic Interrupt Controller v2.0
   KVM_DEV_TYPE_ARM_VGIC_V3     ARM Generic Interrupt Controller v3.0
+  KVM_DEV_TYPE_ARM_VGIC_ITS    ARM Interrupt Translation Service Controller
 
-Only one VGIC instance may be instantiated through either this API or the
-legacy KVM_CREATE_IRQCHIP api.  The created VGIC will act as the VM interrupt
-controller, requiring emulated user-space devices to inject interrupts to the
-VGIC instead of directly to CPUs.
+Only one VGIC instance of the V2/V3 types above may be instantiated through
+either this API or the legacy KVM_CREATE_IRQCHIP api.  The created VGIC will
+act as the VM interrupt controller, requiring emulated user-space devices to
+inject interrupts to the VGIC instead of directly to CPUs.
 
 Creating a guest GICv3 device requires a host GICv3 as well.
 GICv3 implementations with hardware compatibility support allow a guest GICv2
 as well.
+
+Creating a virtual ITS controller requires a host GICv3 (but does not depend
+on having physical ITS controllers).
+There can be multiple ITS controllers per guest, each of them has to have
+a separate, non-overlapping MMIO region.
 
 Groups:
   KVM_DEV_ARM_VGIC_GRP_ADDR
@@ -39,6 +45,13 @@ Groups:
       Only valid for KVM_DEV_TYPE_ARM_VGIC_V3.
       This address needs to be 64K aligned.
 
+    KVM_VGIC_V3_ADDR_TYPE_ITS (rw, 64-bit)
+      Base address in the guest physical address space of the GICv3 ITS
+      control register frame. The ITS allows MSI(-X) interrupts to be
+      injected into guests. This extension is optional. If the kernel
+      does not support the ITS, the call returns -ENODEV.
+      Only valid for KVM_DEV_TYPE_ARM_VGIC_ITS.
+      This address needs to be 64K aligned and the region covers 128K.
 
   KVM_DEV_ARM_VGIC_GRP_DIST_REGS
   Attributes:
@@ -109,8 +122,8 @@ Groups:
   KVM_DEV_ARM_VGIC_GRP_CTRL
   Attributes:
     KVM_DEV_ARM_VGIC_CTRL_INIT
-      request the initialization of the VGIC, no additional parameter in
-      kvm_device_attr.addr.
+      request the initialization of the VGIC or ITS, no additional parameter
+      in kvm_device_attr.addr.
   Errors:
     -ENXIO: VGIC not properly configured as required prior to calling
      this attribute

@@ -71,13 +71,13 @@ static inline int nft_hash_cmp(struct rhashtable_compare_arg *arg,
 	return 0;
 }
 
-static bool nft_hash_lookup(const struct nft_set *set, const u32 *key,
-			    const struct nft_set_ext **ext)
+static bool nft_hash_lookup(const struct net *net, const struct nft_set *set,
+			    const u32 *key, const struct nft_set_ext **ext)
 {
 	struct nft_hash *priv = nft_set_priv(set);
 	const struct nft_hash_elem *he;
 	struct nft_hash_cmp_arg arg = {
-		.genmask = nft_genmask_cur(read_pnet(&set->pnet)),
+		.genmask = nft_genmask_cur(net),
 		.set	 = set,
 		.key	 = key,
 	};
@@ -125,13 +125,13 @@ err1:
 	return false;
 }
 
-static int nft_hash_insert(const struct nft_set *set,
+static int nft_hash_insert(const struct net *net, const struct nft_set *set,
 			   const struct nft_set_elem *elem)
 {
 	struct nft_hash *priv = nft_set_priv(set);
 	struct nft_hash_elem *he = elem->priv;
 	struct nft_hash_cmp_arg arg = {
-		.genmask = nft_genmask_next(read_pnet(&set->pnet)),
+		.genmask = nft_genmask_next(net),
 		.set	 = set,
 		.key	 = elem->key.val.data,
 	};
@@ -140,22 +140,23 @@ static int nft_hash_insert(const struct nft_set *set,
 					    nft_hash_params);
 }
 
-static void nft_hash_activate(const struct nft_set *set,
+static void nft_hash_activate(const struct net *net, const struct nft_set *set,
 			      const struct nft_set_elem *elem)
 {
 	struct nft_hash_elem *he = elem->priv;
 
-	nft_set_elem_change_active(set, &he->ext);
+	nft_set_elem_change_active(net, set, &he->ext);
 	nft_set_elem_clear_busy(&he->ext);
 }
 
-static void *nft_hash_deactivate(const struct nft_set *set,
+static void *nft_hash_deactivate(const struct net *net,
+				 const struct nft_set *set,
 				 const struct nft_set_elem *elem)
 {
 	struct nft_hash *priv = nft_set_priv(set);
 	struct nft_hash_elem *he;
 	struct nft_hash_cmp_arg arg = {
-		.genmask = nft_genmask_next(read_pnet(&set->pnet)),
+		.genmask = nft_genmask_next(net),
 		.set	 = set,
 		.key	 = elem->key.val.data,
 	};
@@ -163,8 +164,9 @@ static void *nft_hash_deactivate(const struct nft_set *set,
 	rcu_read_lock();
 	he = rhashtable_lookup_fast(&priv->ht, &arg, nft_hash_params);
 	if (he != NULL) {
-		if (!nft_set_elem_mark_busy(&he->ext))
-			nft_set_elem_change_active(set, &he->ext);
+		if (!nft_set_elem_mark_busy(&he->ext) ||
+		    !nft_is_active(net, &he->ext))
+			nft_set_elem_change_active(net, set, &he->ext);
 		else
 			he = NULL;
 	}

@@ -11,7 +11,6 @@
 #include <linux/of_address.h>
 #include <linux/clk-provider.h>
 #include <linux/mfd/dbx500-prcmu.h>
-#include <linux/platform_data/clk-ux500.h>
 #include "clk.h"
 
 #define PRCC_NUM_PERIPH_CLUSTERS 6
@@ -48,11 +47,6 @@ static struct clk *ux500_twocell_get(struct of_phandle_args *clkspec,
 	return PRCC_SHOW(clk_data, base, bit);
 }
 
-static const struct of_device_id u8500_clk_of_match[] = {
-	{ .compatible = "stericsson,u8500-clks", },
-	{ },
-};
-
 /* CLKRST4 is missing making it hard to index things */
 enum clkrst_index {
 	CLKRST1_INDEX = 0,
@@ -63,22 +57,15 @@ enum clkrst_index {
 	CLKRST_MAX,
 };
 
-void u8500_clk_init(void)
+static void u8500_clk_init(struct device_node *np)
 {
 	struct prcmu_fw_version *fw_version;
-	struct device_node *np = NULL;
 	struct device_node *child = NULL;
 	const char *sgaclk_parent = NULL;
 	struct clk *clk, *rtc_clk, *twd_clk;
 	u32 bases[CLKRST_MAX];
 	int i;
 
-	if (of_have_populated_dt())
-		np = of_find_matching_node(NULL, u8500_clk_of_match);
-	if (!np) {
-		pr_err("Either DT or U8500 Clock node not found\n");
-		return;
-	}
 	for (i = 0; i < ARRAY_SIZE(bases); i++) {
 		struct resource r;
 
@@ -573,3 +560,4 @@ void u8500_clk_init(void)
 			of_clk_add_provider(child, of_clk_src_simple_get, twd_clk);
 	}
 }
+CLK_OF_DECLARE(u8500_clks, "stericsson,u8500-clks", u8500_clk_init);

@@ -1,0 +1,15 @@
+/*
+ * Broadcom Northstar NAND.
+ *
+ * Copyright (C) 2016 Rafał Miłecki <rafal.milecki@gmail.com>
+ *
+ * Licensed under the ISC license.
+ */
+
+#include "bcm5301x-nand-cs0.dtsi"
+
+&nandcs {
+	nand-ecc-algo = "bch";
+	nand-ecc-strength = <1>;
+	nand-ecc-step-size = <512>;
+};

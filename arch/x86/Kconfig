@@ -22,8 +22,8 @@ config X86
 	select ANON_INODES
 	select ARCH_CLOCKSOURCE_DATA
 	select ARCH_DISCARD_MEMBLOCK
+	select ARCH_HAS_ACPI_TABLE_UPGRADE if ACPI
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
-	select ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_FAST_MULTIPLIER
@@ -49,7 +49,6 @@ config X86
 	select ARCH_WANTS_DYNAMIC_TASK_STRUCT
 	select ARCH_WANT_FRAME_POINTERS
 	select ARCH_WANT_IPC_PARSE_VERSION	if X86_32
-	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select BUILDTIME_EXTABLE_SORT
 	select CLKEVT_I8253
 	select CLKSRC_I8253			if X86_32
@@ -80,6 +79,7 @@ config X86
 	select HAVE_ALIGNED_STRUCT_PAGE		if SLUB
 	select HAVE_AOUT			if X86_32
 	select HAVE_ARCH_AUDITSYSCALL
+	select HAVE_ARCH_HARDENED_USERCOPY
 	select HAVE_ARCH_HUGE_VMAP		if X86_64 || X86_PAE
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_KASAN			if X86_64 && SPARSEMEM_VMEMMAP
@@ -91,6 +91,7 @@ config X86
 	select HAVE_ARCH_SOFT_DIRTY		if X86_64
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	select HAVE_ARCH_WITHIN_STACK_FRAMES
 	select HAVE_EBPF_JIT			if X86_64
 	select HAVE_CC_STACKPROTECTOR
 	select HAVE_CMPXCHG_DOUBLE
@@ -111,6 +112,7 @@ config X86
 	select HAVE_FUNCTION_GRAPH_FP_TEST
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
+	select HAVE_GCC_PLUGINS
 	select HAVE_GENERIC_DMA_COHERENT	if X86_32
 	select HAVE_HW_BREAKPOINT
 	select HAVE_IDE
@@ -151,6 +153,7 @@ config X86
 	select OLD_SIGSUSPEND3			if X86_32 || IA32_EMULATION
 	select PERF_EVENTS
 	select RTC_LIB
+	select RTC_MC146818_LIB
 	select SPARSE_IRQ
 	select SRCU
 	select SYSCTL_EXCEPTION_TRACE
@@ -293,11 +296,6 @@ config X86_64_SMP
 config X86_32_LAZY_GS
 	def_bool y
 	depends on X86_32 && !CC_STACKPROTECTOR
-
-config ARCH_HWEIGHT_CFLAGS
-	string
-	default "-fcall-saved-ecx -fcall-saved-edx" if X86_32
-	default "-fcall-saved-rdi -fcall-saved-rsi -fcall-saved-rdx -fcall-saved-rcx -fcall-saved-r8 -fcall-saved-r9 -fcall-saved-r10 -fcall-saved-r11" if X86_64
 
 config ARCH_SUPPORTS_UPROBES
 	def_bool y
@@ -643,7 +641,7 @@ config STA2X11
 	select X86_DMA_REMAP
 	select SWIOTLB
 	select MFD_STA2X11
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	default n
 	---help---
 	  This adds support for boards based on the STA2X11 IO-Hub,
@@ -1934,21 +1932,26 @@ config RANDOMIZE_BASE
 	  attempts relying on knowledge of the location of kernel
 	  code internals.
 
-	  The kernel physical and virtual address can be randomized
-	  from 16MB up to 1GB on 64-bit and 512MB on 32-bit. (Note that
-	  using RANDOMIZE_BASE reduces the memory space available to
-	  kernel modules from 1.5GB to 1GB.)
+	  On 64-bit, the kernel physical and virtual addresses are
+	  randomized separately. The physical address will be anywhere
+	  between 16MB and the top of physical memory (up to 64TB). The
+	  virtual address will be randomized from 16MB up to 1GB (9 bits
+	  of entropy). Note that this also reduces the memory space
+	  available to kernel modules from 1.5GB to 1GB.
+
+	  On 32-bit, the kernel physical and virtual addresses are
+	  randomized together. They will be randomized from 16MB up to
+	  512MB (8 bits of entropy).
 
 	  Entropy is generated using the RDRAND instruction if it is
 	  supported. If RDTSC is supported, its value is mixed into
 	  the entropy pool as well. If neither RDRAND nor RDTSC are
-	  supported, then entropy is read from the i8254 timer.
-
-	  Since the kernel is built using 2GB addressing, and
-	  PHYSICAL_ALIGN must be at a minimum of 2MB, only 10 bits of
-	  entropy is theoretically possible. Currently, with the
-	  default value for PHYSICAL_ALIGN and due to page table
-	  layouts, 64-bit uses 9 bits of entropy and 32-bit uses 8 bits.
+	  supported, then entropy is read from the i8254 timer. The
+	  usable entropy is limited by the kernel being built using
+	  2GB addressing, and that PHYSICAL_ALIGN must be at a
+	  minimum of 2MB. As a result, only 10 bits of entropy are
+	  theoretically possible, but the implementations are further
+	  limited due to memory layouts.
 
 	  If CONFIG_HIBERNATE is also enabled, KASLR is disabled at boot
 	  time. To enable it, boot with "kaslr" on the kernel command
@@ -1987,6 +1990,38 @@ config PHYSICAL_ALIGN
 	  this value must be a multiple of 0x200000.
 
 	  Don't change this unless you know what you are doing.
+
+config RANDOMIZE_MEMORY
+	bool "Randomize the kernel memory sections"
+	depends on X86_64
+	depends on RANDOMIZE_BASE
+	default RANDOMIZE_BASE
+	---help---
+	   Randomizes the base virtual address of kernel memory sections
+	   (physical memory mapping, vmalloc & vmemmap). This security feature
+	   makes exploits relying on predictable memory locations less reliable.
+
+	   The order of allocations remains unchanged. Entropy is generated in
+	   the same way as RANDOMIZE_BASE. Current implementation in the optimal
+	   configuration have in average 30,000 different possible virtual
+	   addresses for each memory section.
+
+	   If unsure, say N.
+
+config RANDOMIZE_MEMORY_PHYSICAL_PADDING
+	hex "Physical memory mapping padding" if EXPERT
+	depends on RANDOMIZE_MEMORY
+	default "0xa" if MEMORY_HOTPLUG
+	default "0x0"
+	range 0x1 0x40 if MEMORY_HOTPLUG
+	range 0x0 0x40
+	---help---
+	   Define the padding in terabytes added to the existing physical
+	   memory size during kernel memory randomization. It is useful
+	   for memory hotplug support but reduces the entropy available for
+	   address randomization.
+
+	   If unsure, leave at the default value.
 
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"

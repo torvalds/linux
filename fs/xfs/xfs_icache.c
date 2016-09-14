@@ -765,7 +765,7 @@ restart:
  * Background scanning to trim post-EOF preallocated space. This is queued
  * based on the 'speculative_prealloc_lifetime' tunable (5m by default).
  */
-STATIC void
+void
 xfs_queue_eofblocks(
 	struct xfs_mount *mp)
 {

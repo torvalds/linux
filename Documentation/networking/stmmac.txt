@@ -285,6 +285,7 @@ Please see the following document:
  o mmc_core.c/mmc.h: Management MAC Counters;
  o stmmac_hwtstamp.c: HW timestamp support for PTP;
  o stmmac_ptp.c: PTP 1588 clock;
+ o stmmac_pcs.h: Physical Coding Sublayer common implementation;
  o dwmac-<XXX>.c: these are for the platform glue-logic file; e.g. dwmac-sti.c
    for STMicroelectronics SoCs.
 

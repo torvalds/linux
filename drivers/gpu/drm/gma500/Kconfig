@@ -1,11 +1,7 @@
 config DRM_GMA500
 	tristate "Intel GMA5/600 KMS Framebuffer"
 	depends on DRM && PCI && X86
-	select FB_CFB_COPYAREA
-	select FB_CFB_FILLRECT
-	select FB_CFB_IMAGEBLIT
 	select DRM_KMS_HELPER
-	select DRM_KMS_FB_HELPER
 	select DRM_TTM
 	# GMA500 depends on ACPI_VIDEO when ACPI is enabled, just like i915
 	select ACPI_VIDEO if ACPI

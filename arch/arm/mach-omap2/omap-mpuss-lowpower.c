@@ -62,7 +62,9 @@
 #include "prm44xx.h"
 #include "prm-regbits-44xx.h"
 
-#ifdef CONFIG_SMP
+static void __iomem *sar_base;
+
+#if defined(CONFIG_PM) && defined(CONFIG_SMP)
 
 struct omap4_cpu_pm_info {
 	struct powerdomain *pwrdm;
@@ -90,7 +92,6 @@ struct cpu_pm_ops {
 
 static DEFINE_PER_CPU(struct omap4_cpu_pm_info, omap4_pm_info);
 static struct powerdomain *mpuss_pd;
-static void __iomem *sar_base;
 static u32 cpu_context_offset;
 
 static int default_finish_suspend(unsigned long cpu_state)
@@ -366,9 +367,6 @@ int __init omap4_mpuss_init(void)
 		return -ENODEV;
 	}
 
-	if (cpu_is_omap44xx())
-		sar_base = omap4_get_sar_ram_base();
-
 	/* Initilaise per CPU PM information */
 	pm_info = &per_cpu(omap4_pm_info, 0x0);
 	if (sar_base) {
@@ -444,3 +442,26 @@ int __init omap4_mpuss_init(void)
 }
 
 #endif
+
+/*
+ * For kexec, we must set CPU1_WAKEUP_NS_PA_ADDR to point to
+ * current kernel's secondary_startup() early before
+ * clockdomains_init(). Otherwise clockdomain_init() can
+ * wake CPU1 and cause a hang.
+ */
+void __init omap4_mpuss_early_init(void)
+{
+	unsigned long startup_pa;
+
+	if (!cpu_is_omap44xx())
+		return;
+
+	sar_base = omap4_get_sar_ram_base();
+
+	if (cpu_is_omap443x())
+		startup_pa = virt_to_phys(omap4_secondary_startup);
+	else
+		startup_pa = virt_to_phys(omap4460_secondary_startup);
+
+	writel_relaxed(startup_pa, sar_base + CPU1_WAKEUP_NS_PA_ADDR_OFFSET);
+}

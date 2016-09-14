@@ -103,8 +103,8 @@ int __hash_page_thp(unsigned long ea, unsigned long access, unsigned long vsid,
 		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 		slot += hidx & _PTEIDX_GROUP_IX;
 
-		ret = ppc_md.hpte_updatepp(slot, rflags, vpn,
-					   psize, lpsize, ssize, flags);
+		ret = mmu_hash_ops.hpte_updatepp(slot, rflags, vpn,
+						 psize, lpsize, ssize, flags);
 		/*
 		 * We failed to update, try to insert a new entry.
 		 */
@@ -131,23 +131,24 @@ repeat:
 		hpte_group = ((hash & htab_hash_mask) * HPTES_PER_GROUP) & ~0x7UL;
 
 		/* Insert into the hash table, primary slot */
-		slot = ppc_md.hpte_insert(hpte_group, vpn, pa, rflags, 0,
-					  psize, lpsize, ssize);
+		slot = mmu_hash_ops.hpte_insert(hpte_group, vpn, pa, rflags, 0,
+						psize, lpsize, ssize);
 		/*
 		 * Primary is full, try the secondary
 		 */
 		if (unlikely(slot == -1)) {
 			hpte_group = ((~hash & htab_hash_mask) *
 				      HPTES_PER_GROUP) & ~0x7UL;
-			slot = ppc_md.hpte_insert(hpte_group, vpn, pa,
-						  rflags, HPTE_V_SECONDARY,
-						  psize, lpsize, ssize);
+			slot = mmu_hash_ops.hpte_insert(hpte_group, vpn, pa,
+							rflags,
+							HPTE_V_SECONDARY,
+							psize, lpsize, ssize);
 			if (slot == -1) {
 				if (mftb() & 0x1)
 					hpte_group = ((hash & htab_hash_mask) *
 						      HPTES_PER_GROUP) & ~0x7UL;
 
-				ppc_md.hpte_remove(hpte_group);
+				mmu_hash_ops.hpte_remove(hpte_group);
 				goto repeat;
 			}
 		}

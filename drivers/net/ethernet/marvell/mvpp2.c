@@ -699,7 +699,6 @@ struct mvpp2_port {
 	u16 rx_ring_size;
 	struct mvpp2_pcpu_stats __percpu *stats;
 
-	struct phy_device *phy_dev;
 	phy_interface_t phy_interface;
 	struct device_node *phy_node;
 	unsigned int link;
@@ -4850,7 +4849,7 @@ static irqreturn_t mvpp2_isr(int irq, void *dev_id)
 static void mvpp2_link_event(struct net_device *dev)
 {
 	struct mvpp2_port *port = netdev_priv(dev);
-	struct phy_device *phydev = port->phy_dev;
+	struct phy_device *phydev = dev->phydev;
 	int status_change = 0;
 	u32 val;
 
@@ -5416,6 +5415,8 @@ static int mvpp2_poll(struct napi_struct *napi, int budget)
 /* Set hw internals when starting port */
 static void mvpp2_start_dev(struct mvpp2_port *port)
 {
+	struct net_device *ndev = port->dev;
+
 	mvpp2_gmac_max_rx_size_set(port);
 	mvpp2_txp_max_tx_size_set(port);
 
@@ -5425,13 +5426,15 @@ static void mvpp2_start_dev(struct mvpp2_port *port)
 	mvpp2_interrupts_enable(port);
 
 	mvpp2_port_enable(port);
-	phy_start(port->phy_dev);
+	phy_start(ndev->phydev);
 	netif_tx_start_all_queues(port->dev);
 }
 
 /* Set hw internals when stopping port */
 static void mvpp2_stop_dev(struct mvpp2_port *port)
 {
+	struct net_device *ndev = port->dev;
+
 	/* Stop new packets from arriving to RXQs */
 	mvpp2_ingress_disable(port);
 
@@ -5447,7 +5450,7 @@ static void mvpp2_stop_dev(struct mvpp2_port *port)
 
 	mvpp2_egress_disable(port);
 	mvpp2_port_disable(port);
-	phy_stop(port->phy_dev);
+	phy_stop(ndev->phydev);
 }
 
 /* Return positive if MTU is valid */
@@ -5535,7 +5538,6 @@ static int mvpp2_phy_connect(struct mvpp2_port *port)
 	phy_dev->supported &= PHY_GBIT_FEATURES;
 	phy_dev->advertising = phy_dev->supported;
 
-	port->phy_dev = phy_dev;
 	port->link    = 0;
 	port->duplex  = 0;
 	port->speed   = 0;
@@ -5545,8 +5547,9 @@ static int mvpp2_phy_connect(struct mvpp2_port *port)
 
 static void mvpp2_phy_disconnect(struct mvpp2_port *port)
 {
-	phy_disconnect(port->phy_dev);
-	port->phy_dev = NULL;
+	struct net_device *ndev = port->dev;
+
+	phy_disconnect(ndev->phydev);
 }
 
 static int mvpp2_open(struct net_device *dev)
@@ -5796,13 +5799,12 @@ mvpp2_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 
 static int mvpp2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	struct mvpp2_port *port = netdev_priv(dev);
 	int ret;
 
-	if (!port->phy_dev)
+	if (!dev->phydev)
 		return -ENOTSUPP;
 
-	ret = phy_mii_ioctl(port->phy_dev, ifr, cmd);
+	ret = phy_mii_ioctl(dev->phydev, ifr, cmd);
 	if (!ret)
 		mvpp2_link_event(dev);
 
@@ -5810,28 +5812,6 @@ static int mvpp2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 }
 
 /* Ethtool methods */
-
-/* Get settings (phy address, speed) for ethtools */
-static int mvpp2_ethtool_get_settings(struct net_device *dev,
-				      struct ethtool_cmd *cmd)
-{
-	struct mvpp2_port *port = netdev_priv(dev);
-
-	if (!port->phy_dev)
-		return -ENODEV;
-	return phy_ethtool_gset(port->phy_dev, cmd);
-}
-
-/* Set settings (phy address, speed) for ethtools */
-static int mvpp2_ethtool_set_settings(struct net_device *dev,
-				      struct ethtool_cmd *cmd)
-{
-	struct mvpp2_port *port = netdev_priv(dev);
-
-	if (!port->phy_dev)
-		return -ENODEV;
-	return phy_ethtool_sset(port->phy_dev, cmd);
-}
 
 /* Set interrupt coalescing for ethtools */
 static int mvpp2_ethtool_set_coalesce(struct net_device *dev,
@@ -5967,13 +5947,13 @@ static const struct net_device_ops mvpp2_netdev_ops = {
 
 static const struct ethtool_ops mvpp2_eth_tool_ops = {
 	.get_link	= ethtool_op_get_link,
-	.get_settings	= mvpp2_ethtool_get_settings,
-	.set_settings	= mvpp2_ethtool_set_settings,
 	.set_coalesce	= mvpp2_ethtool_set_coalesce,
 	.get_coalesce	= mvpp2_ethtool_get_coalesce,
 	.get_drvinfo	= mvpp2_ethtool_get_drvinfo,
 	.get_ringparam	= mvpp2_ethtool_get_ringparam,
 	.set_ringparam	= mvpp2_ethtool_set_ringparam,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 /* Driver initialization */
@@ -6254,6 +6234,7 @@ err_free_stats:
 err_free_irq:
 	irq_dispose_mapping(port->irq);
 err_free_netdev:
+	of_node_put(phy_node);
 	free_netdev(dev);
 	return err;
 }
@@ -6264,6 +6245,7 @@ static void mvpp2_port_remove(struct mvpp2_port *port)
 	int i;
 
 	unregister_netdev(port->dev);
+	of_node_put(port->phy_node);
 	free_percpu(port->pcpu);
 	free_percpu(port->stats);
 	for (i = 0; i < txq_number; i++)

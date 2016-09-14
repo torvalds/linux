@@ -48,8 +48,7 @@ config TI_DAVINCI_CPDMA
 	  will be called davinci_cpdma.  This is recommended.
 
 config TI_CPSW_PHY_SEL
-	bool "TI CPSW Switch Phy sel Support"
-	depends on TI_CPSW
+	bool
 	---help---
 	  This driver supports configuring of the phy mode connected to
 	  the CPSW.

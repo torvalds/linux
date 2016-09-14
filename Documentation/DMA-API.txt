@@ -369,35 +369,32 @@ See also dma_map_single().
 dma_addr_t
 dma_map_single_attrs(struct device *dev, void *cpu_addr, size_t size,
 		     enum dma_data_direction dir,
-		     struct dma_attrs *attrs)
+		     unsigned long attrs)
 
 void
 dma_unmap_single_attrs(struct device *dev, dma_addr_t dma_addr,
 		       size_t size, enum dma_data_direction dir,
-		       struct dma_attrs *attrs)
+		       unsigned long attrs)
 
 int
 dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl,
 		 int nents, enum dma_data_direction dir,
-		 struct dma_attrs *attrs)
+		 unsigned long attrs)
 
 void
 dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sgl,
 		   int nents, enum dma_data_direction dir,
-		   struct dma_attrs *attrs)
+		   unsigned long attrs)
 
 The four functions above are just like the counterpart functions
 without the _attrs suffixes, except that they pass an optional
-struct dma_attrs*.
-
-struct dma_attrs encapsulates a set of "DMA attributes". For the
-definition of struct dma_attrs see linux/dma-attrs.h.
+dma_attrs.
 
 The interpretation of DMA attributes is architecture-specific, and
 each attribute should be documented in Documentation/DMA-attributes.txt.
 
-If struct dma_attrs* is NULL, the semantics of each of these
-functions is identical to those of the corresponding function
+If dma_attrs are 0, the semantics of each of these functions
+is identical to those of the corresponding function
 without the _attrs suffix. As a result dma_map_single_attrs()
 can generally replace dma_map_single(), etc.
 
@@ -405,15 +402,15 @@ As an example of the use of the *_attrs functions, here's how
 you could pass an attribute DMA_ATTR_FOO when mapping memory
 for DMA:
 
-#include <linux/dma-attrs.h>
-/* DMA_ATTR_FOO should be defined in linux/dma-attrs.h and
+#include <linux/dma-mapping.h>
+/* DMA_ATTR_FOO should be defined in linux/dma-mapping.h and
  * documented in Documentation/DMA-attributes.txt */
 ...
 
-	DEFINE_DMA_ATTRS(attrs);
-	dma_set_attr(DMA_ATTR_FOO, &attrs);
+	unsigned long attr;
+	attr |= DMA_ATTR_FOO;
 	....
-	n = dma_map_sg_attrs(dev, sg, nents, DMA_TO_DEVICE, &attr);
+	n = dma_map_sg_attrs(dev, sg, nents, DMA_TO_DEVICE, attr);
 	....
 
 Architectures that care about DMA_ATTR_FOO would check for its
@@ -422,12 +419,10 @@ routines, e.g.:
 
 void whizco_dma_map_sg_attrs(struct device *dev, dma_addr_t dma_addr,
 			     size_t size, enum dma_data_direction dir,
-			     struct dma_attrs *attrs)
+			     unsigned long attrs)
 {
 	....
-	int foo =  dma_get_attr(DMA_ATTR_FOO, attrs);
-	....
-	if (foo)
+	if (attrs & DMA_ATTR_FOO)
 		/* twizzle the frobnozzle */
 	....
 

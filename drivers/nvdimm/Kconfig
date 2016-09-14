@@ -1,6 +1,7 @@
 menuconfig LIBNVDIMM
 	tristate "NVDIMM (Non-Volatile Memory Device) Support"
 	depends on PHYS_ADDR_T_64BIT
+	depends on HAS_IOMEM
 	depends on BLK_DEV
 	help
 	  Generic support for non-volatile memory devices including
@@ -19,7 +20,6 @@ if LIBNVDIMM
 config BLK_DEV_PMEM
 	tristate "PMEM: Persistent memory block device support"
 	default LIBNVDIMM
-	depends on HAS_IOMEM
 	select ND_BTT if BTT
 	select ND_PFN if NVDIMM_PFN
 	help

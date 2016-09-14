@@ -3447,6 +3447,7 @@ struct wmi_pdev_param_map {
 	u32 wapi_mbssid_offset;
 	u32 arp_srcaddr;
 	u32 arp_dstaddr;
+	u32 enable_btcoex;
 };
 
 #define WMI_PDEV_PARAM_UNSUPPORTED 0
@@ -3760,6 +3761,9 @@ enum wmi_10_4_pdev_param {
 	WMI_10_4_PDEV_PARAM_ATF_OBSS_NOISE_SCH,
 	WMI_10_4_PDEV_PARAM_ATF_OBSS_NOISE_SCALING_FACTOR,
 	WMI_10_4_PDEV_PARAM_CUST_TXPOWER_SCALE,
+	WMI_10_4_PDEV_PARAM_ATF_DYNAMIC_ENABLE,
+	WMI_10_4_PDEV_PARAM_ATF_SSID_GROUP_POLICY,
+	WMI_10_4_PDEV_PARAM_ENABLE_BTCOEX,
 };
 
 struct wmi_pdev_set_param_cmd {
@@ -4336,12 +4340,24 @@ struct wmi_10_4_peer_stats {
 } __packed;
 
 struct wmi_10_4_peer_extd_stats {
-	struct wmi_10_4_peer_stats common;
 	struct wmi_mac_addr peer_macaddr;
 	__le32 inactive_time;
 	__le32 peer_chain_rssi;
 	__le32 rx_duration;
 	__le32 reserved[10];
+} __packed;
+
+struct wmi_10_4_bss_bcn_stats {
+	__le32 vdev_id;
+	__le32 bss_bcns_dropped;
+	__le32 bss_bcn_delivered;
+} __packed;
+
+struct wmi_10_4_bss_bcn_filter_stats {
+	__le32 bcns_dropped;
+	__le32 bcns_delivered;
+	__le32 active_filters;
+	struct wmi_10_4_bss_bcn_stats bss_stats;
 } __packed;
 
 struct wmi_10_2_pdev_ext_stats {

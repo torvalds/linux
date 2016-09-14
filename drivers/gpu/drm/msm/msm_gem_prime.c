@@ -33,12 +33,12 @@ struct sg_table *msm_gem_prime_get_sg_table(struct drm_gem_object *obj)
 
 void *msm_gem_prime_vmap(struct drm_gem_object *obj)
 {
-	return msm_gem_vaddr(obj);
+	return msm_gem_get_vaddr(obj);
 }
 
 void msm_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 {
-	/* TODO msm_gem_vunmap() */
+	msm_gem_put_vaddr(obj);
 }
 
 int msm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)

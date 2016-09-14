@@ -44,7 +44,7 @@ struct omap_mcbsp_platform_data {
 	/* McBSP platform and instance specific features */
 	bool has_wakeup; /* Wakeup capability */
 	bool has_ccr; /* Transceiver has configuration control registers */
-	int (*enable_st_clock)(unsigned int, bool);
+	int (*force_ick_on)(struct clk *clk, bool force_on);
 };
 
 /**
@@ -54,5 +54,7 @@ struct omap_mcbsp_platform_data {
 struct omap_mcbsp_dev_attr {
 	const char *sidetone;
 };
+
+void omap3_mcbsp_init_pdata_callback(struct omap_mcbsp_platform_data *pdata);
 
 #endif

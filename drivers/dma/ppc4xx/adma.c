@@ -4084,7 +4084,6 @@ static int ppc440spe_adma_probe(struct platform_device *ofdev)
 	/* create a device */
 	adev = kzalloc(sizeof(*adev), GFP_KERNEL);
 	if (!adev) {
-		dev_err(&ofdev->dev, "failed to allocate device\n");
 		initcode = PPC_ADMA_INIT_ALLOC;
 		ret = -ENOMEM;
 		goto err_adev_alloc;
@@ -4145,7 +4144,6 @@ static int ppc440spe_adma_probe(struct platform_device *ofdev)
 	/* create a channel */
 	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
 	if (!chan) {
-		dev_err(&ofdev->dev, "can't allocate channel structure\n");
 		initcode = PPC_ADMA_INIT_CHANNEL;
 		ret = -ENOMEM;
 		goto err_chan_alloc;

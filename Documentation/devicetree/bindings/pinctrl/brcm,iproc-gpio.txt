@@ -3,8 +3,22 @@ Broadcom iProc GPIO/PINCONF Controller
 Required properties:
 
 - compatible:
-    Must be "brcm,cygnus-ccm-gpio", "brcm,cygnus-asiu-gpio",
-    "brcm,cygnus-crmu-gpio" or "brcm,iproc-gpio"
+    "brcm,iproc-gpio" for the generic iProc based GPIO controller IP that
+    supports full-featured pinctrl and GPIO functions used in various iProc
+    based SoCs
+
+    May contain an SoC-specific compatibility string to accommodate any
+    SoC-specific features
+
+    "brcm,cygnus-ccm-gpio", "brcm,cygnus-asiu-gpio", or
+    "brcm,cygnus-crmu-gpio" for Cygnus SoCs
+
+    "brcm,iproc-nsp-gpio" for the iProc NSP SoC that has drive strength support
+    disabled
+
+    "brcm,iproc-stingray-gpio" for the iProc Stingray SoC that has the general
+    pinctrl support completely disabled in this IP block. In Stingray, a
+    different IP block is used to handle pinctrl related functions
 
 - reg:
     Define the base and range of the I/O address space that contains SoC

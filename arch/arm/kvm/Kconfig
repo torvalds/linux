@@ -32,6 +32,8 @@ config KVM
 	select KVM_VFIO
 	select HAVE_KVM_EVENTFD
 	select HAVE_KVM_IRQFD
+	select HAVE_KVM_IRQCHIP
+	select HAVE_KVM_IRQ_ROUTING
 	depends on ARM_VIRT_EXT && ARM_LPAE && ARM_ARCH_TIMER
 	---help---
 	  Support hosting virtualized guest machines.
@@ -45,13 +47,6 @@ config KVM_ARM_HOST
 	bool
 	---help---
 	  Provides host support for ARM processors.
-
-config KVM_NEW_VGIC
-	bool "New VGIC implementation"
-	depends on KVM
-	default y
-	---help---
-	  uses the new VGIC implementation
 
 source drivers/vhost/Kconfig
 

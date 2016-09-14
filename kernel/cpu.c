@@ -517,6 +517,13 @@ static int cpuhp_invoke_ap_callback(int cpu, enum cpuhp_state state,
 	if (!cpu_online(cpu))
 		return 0;
 
+	/*
+	 * If we are up and running, use the hotplug thread. For early calls
+	 * we invoke the thread function directly.
+	 */
+	if (!st->thread)
+		return cpuhp_invoke_callback(cpu, state, cb);
+
 	st->cb_state = state;
 	st->cb = cb;
 	/*
@@ -1173,6 +1180,31 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.teardown		= NULL,
 		.cant_stop		= true,
 	},
+	[CPUHP_PERF_PREPARE] = {
+		.name = "perf prepare",
+		.startup = perf_event_init_cpu,
+		.teardown = perf_event_exit_cpu,
+	},
+	[CPUHP_WORKQUEUE_PREP] = {
+		.name = "workqueue prepare",
+		.startup = workqueue_prepare_cpu,
+		.teardown = NULL,
+	},
+	[CPUHP_HRTIMERS_PREPARE] = {
+		.name = "hrtimers prepare",
+		.startup = hrtimers_prepare_cpu,
+		.teardown = hrtimers_dead_cpu,
+	},
+	[CPUHP_SMPCFD_PREPARE] = {
+		.name = "SMPCFD prepare",
+		.startup = smpcfd_prepare_cpu,
+		.teardown = smpcfd_dead_cpu,
+	},
+	[CPUHP_RCUTREE_PREP] = {
+		.name = "RCU-tree prepare",
+		.startup = rcutree_prepare_cpu,
+		.teardown = rcutree_dead_cpu,
+	},
 	/*
 	 * Preparatory and dead notifiers. Will be replaced once the notifiers
 	 * are converted to states.
@@ -1184,12 +1216,26 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.skip_onerr		= true,
 		.cant_stop		= true,
 	},
+	/*
+	 * On the tear-down path, timers_dead_cpu() must be invoked
+	 * before blk_mq_queue_reinit_notify() from notify_dead(),
+	 * otherwise a RCU stall occurs.
+	 */
+	[CPUHP_TIMERS_DEAD] = {
+		.name = "timers dead",
+		.startup = NULL,
+		.teardown = timers_dead_cpu,
+	},
 	/* Kicks the plugged cpu into life */
 	[CPUHP_BRINGUP_CPU] = {
 		.name			= "cpu:bringup",
 		.startup		= bringup_cpu,
 		.teardown		= NULL,
 		.cant_stop		= true,
+	},
+	[CPUHP_AP_SMPCFD_DYING] = {
+		.startup = NULL,
+		.teardown = smpcfd_dying_cpu,
 	},
 	/*
 	 * Handled on controll processor until the plugged processor manages
@@ -1201,6 +1247,8 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.teardown		= takedown_cpu,
 		.cant_stop		= true,
 	},
+#else
+	[CPUHP_BRINGUP_CPU] = { },
 #endif
 };
 
@@ -1225,6 +1273,10 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 		.startup		= sched_cpu_starting,
 		.teardown		= sched_cpu_dying,
 	},
+	[CPUHP_AP_RCUTREE_DYING] = {
+		.startup = NULL,
+		.teardown = rcutree_dying_cpu,
+	},
 	/*
 	 * Low level startup/teardown notifiers. Run with interrupts
 	 * disabled. Will be removed once the notifiers are converted to
@@ -1248,6 +1300,22 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 		.startup		= smpboot_unpark_threads,
 		.teardown		= NULL,
 	},
+	[CPUHP_AP_PERF_ONLINE] = {
+		.name = "perf online",
+		.startup = perf_event_init_cpu,
+		.teardown = perf_event_exit_cpu,
+	},
+	[CPUHP_AP_WORKQUEUE_ONLINE] = {
+		.name = "workqueue online",
+		.startup = workqueue_online_cpu,
+		.teardown = workqueue_offline_cpu,
+	},
+	[CPUHP_AP_RCUTREE_ONLINE] = {
+		.name = "RCU-tree online",
+		.startup = rcutree_online_cpu,
+		.teardown = rcutree_offline_cpu,
+	},
+
 	/*
 	 * Online/down_prepare notifiers. Will be removed once the notifiers
 	 * are converted to states.

@@ -66,7 +66,6 @@
  *****************************************************************************/
 #include <linux/firmware.h>
 #include <linux/rtnetlink.h>
-#include <linux/pci.h>
 #include <linux/acpi.h>
 #include "iwl-trans.h"
 #include "iwl-csr.h"
@@ -667,8 +666,7 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 		.mcc = cpu_to_le16(alpha2[0] << 8 | alpha2[1]),
 		.source_id = (u8)src_id,
 	};
-	struct iwl_mcc_update_resp *mcc_resp, *resp_cp = NULL;
-	struct iwl_mcc_update_resp_v1 *mcc_resp_v1 = NULL;
+	struct iwl_mcc_update_resp *resp_cp;
 	struct iwl_rx_packet *pkt;
 	struct iwl_host_cmd cmd = {
 		.id = MCC_UPDATE_CMD,
@@ -701,32 +699,34 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 
 	/* Extract MCC response */
 	if (resp_v2) {
-		mcc_resp = (void *)pkt->data;
+		struct iwl_mcc_update_resp *mcc_resp = (void *)pkt->data;
+
 		n_channels =  __le32_to_cpu(mcc_resp->n_channels);
+		resp_len = sizeof(struct iwl_mcc_update_resp) +
+			   n_channels * sizeof(__le32);
+		resp_cp = kmemdup(mcc_resp, resp_len, GFP_KERNEL);
 	} else {
-		mcc_resp_v1 = (void *)pkt->data;
+		struct iwl_mcc_update_resp_v1 *mcc_resp_v1 = (void *)pkt->data;
+
 		n_channels =  __le32_to_cpu(mcc_resp_v1->n_channels);
+		resp_len = sizeof(struct iwl_mcc_update_resp) +
+			   n_channels * sizeof(__le32);
+		resp_cp = kzalloc(resp_len, GFP_KERNEL);
+
+		if (resp_cp) {
+			resp_cp->status = mcc_resp_v1->status;
+			resp_cp->mcc = mcc_resp_v1->mcc;
+			resp_cp->cap = mcc_resp_v1->cap;
+			resp_cp->source_id = mcc_resp_v1->source_id;
+			resp_cp->n_channels = mcc_resp_v1->n_channels;
+			memcpy(resp_cp->channels, mcc_resp_v1->channels,
+			       n_channels * sizeof(__le32));
+		}
 	}
 
-	resp_len = sizeof(struct iwl_mcc_update_resp) + n_channels *
-		sizeof(__le32);
-
-	resp_cp = kzalloc(resp_len, GFP_KERNEL);
 	if (!resp_cp) {
 		ret = -ENOMEM;
 		goto exit;
-	}
-
-	if (resp_v2) {
-		memcpy(resp_cp, mcc_resp, resp_len);
-	} else {
-		resp_cp->status = mcc_resp_v1->status;
-		resp_cp->mcc = mcc_resp_v1->mcc;
-		resp_cp->cap = mcc_resp_v1->cap;
-		resp_cp->source_id = mcc_resp_v1->source_id;
-		resp_cp->n_channels = mcc_resp_v1->n_channels;
-		memcpy(resp_cp->channels, mcc_resp_v1->channels,
-		       n_channels * sizeof(__le32));
 	}
 
 	status = le32_to_cpu(resp_cp->status);
@@ -802,9 +802,8 @@ static int iwl_mvm_get_bios_mcc(struct iwl_mvm *mvm, char *mcc)
 	struct acpi_buffer wrdd = {ACPI_ALLOCATE_BUFFER, NULL};
 	acpi_status status;
 	u32 mcc_val;
-	struct pci_dev *pdev = to_pci_dev(mvm->dev);
 
-	root_handle = ACPI_HANDLE(&pdev->dev);
+	root_handle = ACPI_HANDLE(mvm->dev);
 	if (!root_handle) {
 		IWL_DEBUG_LAR(mvm,
 			      "Could not retrieve root port ACPI handle\n");

@@ -50,6 +50,10 @@
 	do { if (verbose) pr_alert("%s" TORTURE_FLAG "!!! %s\n", torture_type, s); } while (0)
 
 /* Definitions for online/offline exerciser. */
+bool torture_offline(int cpu, long *n_onl_attempts, long *n_onl_successes,
+		     unsigned long *sum_offl, int *min_onl, int *max_onl);
+bool torture_online(int cpu, long *n_onl_attempts, long *n_onl_successes,
+		    unsigned long *sum_onl, int *min_onl, int *max_onl);
 int torture_onoff_init(long ooholdoff, long oointerval);
 void torture_onoff_stats(void);
 bool torture_onoff_failures(void);

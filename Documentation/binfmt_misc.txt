@@ -66,6 +66,13 @@ Here is what the fields mean:
             This feature should be used with care as the interpreter
             will run with root permissions when a setuid binary owned by root
             is run with binfmt_misc.
+      'F' - fix binary.  The usual behaviour of binfmt_misc is to spawn the
+      	    binary lazily when the misc format file is invoked.  However,
+	    this doesn't work very well in the face of mount namespaces and
+	    changeroots, so the F mode opens the binary as soon as the
+	    emulation is installed and uses the opened image to spawn the
+	    emulator, meaning it is always available once installed,
+	    regardless of how the environment changes.
 
 
 There are some restrictions:

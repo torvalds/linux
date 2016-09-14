@@ -52,6 +52,7 @@ struct record_opts {
 	bool	     sample_weight;
 	bool	     sample_time;
 	bool	     sample_time_set;
+	bool	     sample_cpu;
 	bool	     period;
 	bool	     running_time;
 	bool	     full_auxtrace;
@@ -59,6 +60,8 @@ struct record_opts {
 	bool	     record_switch_events;
 	bool	     all_kernel;
 	bool	     all_user;
+	bool	     tail_synthesize;
+	bool	     overwrite;
 	unsigned int freq;
 	unsigned int mmap_pages;
 	unsigned int auxtrace_mmap_pages;

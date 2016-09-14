@@ -1347,7 +1347,7 @@ static ssize_t sel_write_avc_cache_threshold(struct file *file,
 {
 	char *page;
 	ssize_t ret;
-	int new_value;
+	unsigned int new_value;
 
 	ret = task_has_security(current, SECURITY__SETSECPARAM);
 	if (ret)

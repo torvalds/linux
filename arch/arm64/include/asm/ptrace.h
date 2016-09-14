@@ -46,7 +46,6 @@
 #define COMPAT_PSR_MODE_UND	0x0000001b
 #define COMPAT_PSR_MODE_SYS	0x0000001f
 #define COMPAT_PSR_T_BIT	0x00000020
-#define COMPAT_PSR_E_BIT	0x00000200
 #define COMPAT_PSR_F_BIT	0x00000040
 #define COMPAT_PSR_I_BIT	0x00000080
 #define COMPAT_PSR_A_BIT	0x00000100
@@ -74,6 +73,7 @@
 #define COMPAT_PT_DATA_ADDR		0x10004
 #define COMPAT_PT_TEXT_END_ADDR		0x10008
 #ifndef __ASSEMBLY__
+#include <linux/bug.h>
 
 /* sizeof(struct user) for AArch32 */
 #define COMPAT_USER_SZ	296
@@ -117,7 +117,11 @@ struct pt_regs {
 	};
 	u64 orig_x0;
 	u64 syscallno;
+	u64 orig_addr_limit;
+	u64 unused;	// maintain 16 byte alignment
 };
+
+#define MAX_REG_OFFSET offsetof(struct pt_regs, pstate)
 
 #define arch_has_single_step()	(1)
 
@@ -144,8 +148,57 @@ struct pt_regs {
 #define fast_interrupts_enabled(regs) \
 	(!((regs)->pstate & PSR_F_BIT))
 
-#define user_stack_pointer(regs) \
+#define GET_USP(regs) \
 	(!compat_user_mode(regs) ? (regs)->sp : (regs)->compat_sp)
+
+#define SET_USP(ptregs, value) \
+	(!compat_user_mode(regs) ? ((regs)->sp = value) : ((regs)->compat_sp = value))
+
+extern int regs_query_register_offset(const char *name);
+extern unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,
+					       unsigned int n);
+
+/**
+ * regs_get_register() - get register value from its offset
+ * @regs:	pt_regs from which register value is gotten
+ * @offset:	offset of the register.
+ *
+ * regs_get_register returns the value of a register whose offset from @regs.
+ * The @offset is the offset of the register in struct pt_regs.
+ * If @offset is bigger than MAX_REG_OFFSET, this returns 0.
+ */
+static inline u64 regs_get_register(struct pt_regs *regs, unsigned int offset)
+{
+	u64 val = 0;
+
+	WARN_ON(offset & 7);
+
+	offset >>= 3;
+	switch (offset) {
+	case 0 ... 30:
+		val = regs->regs[offset];
+		break;
+	case offsetof(struct pt_regs, sp) >> 3:
+		val = regs->sp;
+		break;
+	case offsetof(struct pt_regs, pc) >> 3:
+		val = regs->pc;
+		break;
+	case offsetof(struct pt_regs, pstate) >> 3:
+		val = regs->pstate;
+		break;
+	default:
+		val = 0;
+	}
+
+	return val;
+}
+
+/* Valid only for Kernel mode traps. */
+static inline unsigned long kernel_stack_pointer(struct pt_regs *regs)
+{
+	return regs->sp;
+}
 
 static inline unsigned long regs_return_value(struct pt_regs *regs)
 {
@@ -156,8 +209,15 @@ static inline unsigned long regs_return_value(struct pt_regs *regs)
 struct task_struct;
 int valid_user_regs(struct user_pt_regs *regs, struct task_struct *task);
 
-#define instruction_pointer(regs)	((unsigned long)(regs)->pc)
+#define GET_IP(regs)		((unsigned long)(regs)->pc)
+#define SET_IP(regs, value)	((regs)->pc = ((u64) (value)))
 
+#define GET_FP(ptregs)		((unsigned long)(ptregs)->regs[29])
+#define SET_FP(ptregs, value)	((ptregs)->regs[29] = ((u64) (value)))
+
+#include <asm-generic/ptrace.h>
+
+#undef profile_pc
 extern unsigned long profile_pc(struct pt_regs *regs);
 
 #endif /* __ASSEMBLY__ */

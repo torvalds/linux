@@ -422,7 +422,7 @@ err:
 	return ret;
 }
 
-static const struct of_device_id of_is31fl31xx_match[] = {
+static const struct of_device_id of_is31fl32xx_match[] = {
 	{ .compatible = "issi,is31fl3236", .data = &is31fl3236_cdef, },
 	{ .compatible = "issi,is31fl3235", .data = &is31fl3235_cdef, },
 	{ .compatible = "issi,is31fl3218", .data = &is31fl3218_cdef, },
@@ -432,7 +432,7 @@ static const struct of_device_id of_is31fl31xx_match[] = {
 	{},
 };
 
-MODULE_DEVICE_TABLE(of, of_is31fl31xx_match);
+MODULE_DEVICE_TABLE(of, of_is31fl32xx_match);
 
 static int is31fl32xx_probe(struct i2c_client *client,
 			    const struct i2c_device_id *id)
@@ -444,7 +444,7 @@ static int is31fl32xx_probe(struct i2c_client *client,
 	int count;
 	int ret = 0;
 
-	of_dev_id = of_match_device(of_is31fl31xx_match, dev);
+	of_dev_id = of_match_device(of_is31fl32xx_match, dev);
 	if (!of_dev_id)
 		return -EINVAL;
 
@@ -482,23 +482,29 @@ static int is31fl32xx_remove(struct i2c_client *client)
 }
 
 /*
- * i2c-core requires that id_table be non-NULL, even though
- * it is not used for DeviceTree based instantiation.
+ * i2c-core (and modalias) requires that id_table be properly filled,
+ * even though it is not used for DeviceTree based instantiation.
  */
-static const struct i2c_device_id is31fl31xx_id[] = {
+static const struct i2c_device_id is31fl32xx_id[] = {
+	{ "is31fl3236" },
+	{ "is31fl3235" },
+	{ "is31fl3218" },
+	{ "sn3218" },
+	{ "is31fl3216" },
+	{ "sn3216" },
 	{},
 };
 
-MODULE_DEVICE_TABLE(i2c, is31fl31xx_id);
+MODULE_DEVICE_TABLE(i2c, is31fl32xx_id);
 
 static struct i2c_driver is31fl32xx_driver = {
 	.driver = {
 		.name	= "is31fl32xx",
-		.of_match_table = of_is31fl31xx_match,
+		.of_match_table = of_is31fl32xx_match,
 	},
 	.probe		= is31fl32xx_probe,
 	.remove		= is31fl32xx_remove,
-	.id_table	= is31fl31xx_id,
+	.id_table	= is31fl32xx_id,
 };
 
 module_i2c_driver(is31fl32xx_driver);

@@ -73,8 +73,8 @@ extern bool movable_node_enabled;
 	if (memblock_debug) printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
 
 phys_addr_t memblock_find_in_range_node(phys_addr_t size, phys_addr_t align,
-					    phys_addr_t start, phys_addr_t end,
-					    int nid, ulong flags);
+					phys_addr_t start, phys_addr_t end,
+					int nid, ulong flags);
 phys_addr_t memblock_find_in_range(phys_addr_t start, phys_addr_t end,
 				   phys_addr_t size, phys_addr_t align);
 phys_addr_t get_allocated_memblock_reserved_regions_info(phys_addr_t *addr);
@@ -110,7 +110,7 @@ void __next_mem_range_rev(u64 *idx, int nid, ulong flags,
 			  phys_addr_t *out_end, int *out_nid);
 
 void __next_reserved_mem_region(u64 *idx, phys_addr_t *out_start,
-			       phys_addr_t *out_end);
+				phys_addr_t *out_end);
 
 /**
  * for_each_mem_range - iterate through memblock areas from type_a and not
@@ -148,7 +148,7 @@ void __next_reserved_mem_region(u64 *idx, phys_addr_t *out_start,
 			       p_start, p_end, p_nid)			\
 	for (i = (u64)ULLONG_MAX,					\
 		     __next_mem_range_rev(&i, nid, flags, type_a, type_b,\
-					 p_start, p_end, p_nid);	\
+					  p_start, p_end, p_nid);	\
 	     i != (u64)ULLONG_MAX;					\
 	     __next_mem_range_rev(&i, nid, flags, type_a, type_b,	\
 				  p_start, p_end, p_nid))
@@ -163,8 +163,7 @@ void __next_reserved_mem_region(u64 *idx, phys_addr_t *out_start,
  * is initialized.
  */
 #define for_each_reserved_mem_region(i, p_start, p_end)			\
-	for (i = 0UL,							\
-	     __next_reserved_mem_region(&i, p_start, p_end);		\
+	for (i = 0UL, __next_reserved_mem_region(&i, p_start, p_end);	\
 	     i != (u64)ULLONG_MAX;					\
 	     __next_reserved_mem_region(&i, p_start, p_end))
 
@@ -333,6 +332,7 @@ phys_addr_t memblock_mem_size(unsigned long limit_pfn);
 phys_addr_t memblock_start_of_DRAM(void);
 phys_addr_t memblock_end_of_DRAM(void);
 void memblock_enforce_memory_limit(phys_addr_t memory_limit);
+void memblock_mem_limit_remove_map(phys_addr_t limit);
 bool memblock_is_memory(phys_addr_t addr);
 int memblock_is_map_memory(phys_addr_t addr);
 int memblock_is_region_memory(phys_addr_t base, phys_addr_t size);
@@ -403,15 +403,14 @@ static inline unsigned long memblock_region_reserved_end_pfn(const struct memblo
 }
 
 #define for_each_memblock(memblock_type, region)					\
-	for (region = memblock.memblock_type.regions;				\
+	for (region = memblock.memblock_type.regions;					\
 	     region < (memblock.memblock_type.regions + memblock.memblock_type.cnt);	\
 	     region++)
 
 #define for_each_memblock_type(memblock_type, rgn)			\
-	idx = 0;							\
-	rgn = &memblock_type->regions[idx];				\
-	for (idx = 0; idx < memblock_type->cnt;				\
-	     idx++,rgn = &memblock_type->regions[idx])
+	for (idx = 0, rgn = &memblock_type->regions[0];			\
+	     idx < memblock_type->cnt;					\
+	     idx++, rgn = &memblock_type->regions[idx])
 
 #ifdef CONFIG_MEMTEST
 extern void early_memtest(phys_addr_t start, phys_addr_t end);

@@ -39,7 +39,7 @@
 #include <linux/mc146818rtc.h>
 #include <linux/compiler.h>
 #include <linux/acpi.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/syscore_ops.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
@@ -2568,29 +2568,25 @@ static struct resource * __init ioapic_setup_resources(void)
 	unsigned long n;
 	struct resource *res;
 	char *mem;
-	int i, num = 0;
+	int i;
 
-	for_each_ioapic(i)
-		num++;
-	if (num == 0)
+	if (nr_ioapics == 0)
 		return NULL;
 
 	n = IOAPIC_RESOURCE_NAME_SIZE + sizeof(struct resource);
-	n *= num;
+	n *= nr_ioapics;
 
 	mem = alloc_bootmem(n);
 	res = (void *)mem;
 
-	mem += sizeof(struct resource) * num;
+	mem += sizeof(struct resource) * nr_ioapics;
 
-	num = 0;
 	for_each_ioapic(i) {
-		res[num].name = mem;
-		res[num].flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+		res[i].name = mem;
+		res[i].flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 		snprintf(mem, IOAPIC_RESOURCE_NAME_SIZE, "IOAPIC %u", i);
 		mem += IOAPIC_RESOURCE_NAME_SIZE;
-		ioapics[i].iomem_res = &res[num];
-		num++;
+		ioapics[i].iomem_res = &res[i];
 	}
 
 	ioapic_resources = res;

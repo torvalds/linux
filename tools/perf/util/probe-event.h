@@ -12,6 +12,7 @@ struct probe_conf {
 	bool	show_location_range;
 	bool	force_add;
 	bool	no_inlines;
+	bool	cache;
 	int	max_probes;
 };
 extern struct probe_conf probe_conf;
@@ -84,6 +85,7 @@ struct perf_probe_event {
 	char			*group;	/* Group name */
 	struct perf_probe_point	point;	/* Probe point */
 	int			nargs;	/* Number of arguments */
+	bool			sdt;	/* SDT/cached event flag */
 	bool			uprobes;	/* Uprobe event flag */
 	char			*target;	/* Target binary */
 	struct perf_probe_arg	*args;	/* Arguments */
@@ -121,6 +123,10 @@ int parse_probe_trace_command(const char *cmd, struct probe_trace_event *tev);
 char *synthesize_perf_probe_command(struct perf_probe_event *pev);
 char *synthesize_probe_trace_command(struct probe_trace_event *tev);
 char *synthesize_perf_probe_arg(struct perf_probe_arg *pa);
+char *synthesize_perf_probe_point(struct perf_probe_point *pp);
+
+int perf_probe_event__copy(struct perf_probe_event *dst,
+			   struct perf_probe_event *src);
 
 /* Check the perf_probe_event needs debuginfo */
 bool perf_probe_event_need_dwarf(struct perf_probe_event *pev);
@@ -152,7 +158,6 @@ int show_line_range(struct line_range *lr, const char *module, bool user);
 int show_available_vars(struct perf_probe_event *pevs, int npevs,
 			struct strfilter *filter);
 int show_available_funcs(const char *module, struct strfilter *filter, bool user);
-bool arch__prefers_symtab(void);
 void arch__fix_tev_from_maps(struct perf_probe_event *pev,
 			     struct probe_trace_event *tev, struct map *map,
 			     struct symbol *sym);
@@ -166,5 +171,10 @@ int e_snprintf(char *str, size_t size, const char *format, ...)
 
 int copy_to_probe_trace_arg(struct probe_trace_arg *tvar,
 			    struct perf_probe_arg *pvar);
+
+struct map *get_target_map(const char *target, bool user);
+
+void arch__post_process_probe_trace_events(struct perf_probe_event *pev,
+					   int ntevs);
 
 #endif /*_PROBE_EVENT_H */

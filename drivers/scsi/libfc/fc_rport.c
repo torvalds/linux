@@ -95,17 +95,23 @@ static const char *fc_rport_state_names[] = {
  * @lport:   The local port to lookup the remote port on
  * @port_id: The remote port ID to look up
  *
- * The caller must hold either disc_mutex or rcu_read_lock().
+ * The reference count of the fc_rport_priv structure is
+ * increased by one.
  */
 static struct fc_rport_priv *fc_rport_lookup(const struct fc_lport *lport,
 					     u32 port_id)
 {
-	struct fc_rport_priv *rdata;
+	struct fc_rport_priv *rdata = NULL, *tmp_rdata;
 
-	list_for_each_entry_rcu(rdata, &lport->disc.rports, peers)
-		if (rdata->ids.port_id == port_id)
-			return rdata;
-	return NULL;
+	rcu_read_lock();
+	list_for_each_entry_rcu(tmp_rdata, &lport->disc.rports, peers)
+		if (tmp_rdata->ids.port_id == port_id &&
+		    kref_get_unless_zero(&tmp_rdata->kref)) {
+			rdata = tmp_rdata;
+			break;
+		}
+	rcu_read_unlock();
+	return rdata;
 }
 
 /**
@@ -340,7 +346,6 @@ static void fc_rport_work(struct work_struct *work)
 			fc_remote_port_delete(rport);
 		}
 
-		mutex_lock(&lport->disc.disc_mutex);
 		mutex_lock(&rdata->rp_mutex);
 		if (rdata->rp_state == RPORT_ST_DELETE) {
 			if (port_id == FC_FID_DIR_SERV) {
@@ -370,7 +375,6 @@ static void fc_rport_work(struct work_struct *work)
 				fc_rport_enter_ready(rdata);
 			mutex_unlock(&rdata->rp_mutex);
 		}
-		mutex_unlock(&lport->disc.disc_mutex);
 		break;
 
 	default:
@@ -702,7 +706,7 @@ out:
 err:
 	mutex_unlock(&rdata->rp_mutex);
 put:
-	kref_put(&rdata->kref, rdata->local_port->tt.rport_destroy);
+	kref_put(&rdata->kref, lport->tt.rport_destroy);
 	return;
 bad:
 	FC_RPORT_DBG(rdata, "Bad FLOGI response\n");
@@ -762,8 +766,6 @@ static void fc_rport_recv_flogi_req(struct fc_lport *lport,
 	FC_RPORT_ID_DBG(lport, sid, "Received FLOGI request\n");
 
 	disc = &lport->disc;
-	mutex_lock(&disc->disc_mutex);
-
 	if (!lport->point_to_multipoint) {
 		rjt_data.reason = ELS_RJT_UNSUP;
 		rjt_data.explan = ELS_EXPL_NONE;
@@ -808,7 +810,7 @@ static void fc_rport_recv_flogi_req(struct fc_lport *lport,
 		mutex_unlock(&rdata->rp_mutex);
 		rjt_data.reason = ELS_RJT_FIP;
 		rjt_data.explan = ELS_EXPL_NOT_NEIGHBOR;
-		goto reject;
+		goto reject_put;
 	case RPORT_ST_FLOGI:
 	case RPORT_ST_PLOGI_WAIT:
 	case RPORT_ST_PLOGI:
@@ -825,13 +827,13 @@ static void fc_rport_recv_flogi_req(struct fc_lport *lport,
 		mutex_unlock(&rdata->rp_mutex);
 		rjt_data.reason = ELS_RJT_BUSY;
 		rjt_data.explan = ELS_EXPL_NONE;
-		goto reject;
+		goto reject_put;
 	}
 	if (fc_rport_login_complete(rdata, fp)) {
 		mutex_unlock(&rdata->rp_mutex);
 		rjt_data.reason = ELS_RJT_LOGIC;
 		rjt_data.explan = ELS_EXPL_NONE;
-		goto reject;
+		goto reject_put;
 	}
 
 	fp = fc_frame_alloc(lport, sizeof(*flp));
@@ -851,12 +853,13 @@ static void fc_rport_recv_flogi_req(struct fc_lport *lport,
 		fc_rport_state_enter(rdata, RPORT_ST_PLOGI_WAIT);
 out:
 	mutex_unlock(&rdata->rp_mutex);
-	mutex_unlock(&disc->disc_mutex);
+	kref_put(&rdata->kref, lport->tt.rport_destroy);
 	fc_frame_free(rx_fp);
 	return;
 
+reject_put:
+	kref_put(&rdata->kref, lport->tt.rport_destroy);
 reject:
-	mutex_unlock(&disc->disc_mutex);
 	lport->tt.seq_els_rsp_send(rx_fp, ELS_LS_RJT, &rjt_data);
 	fc_frame_free(rx_fp);
 }
@@ -923,7 +926,7 @@ out:
 	fc_frame_free(fp);
 err:
 	mutex_unlock(&rdata->rp_mutex);
-	kref_put(&rdata->kref, rdata->local_port->tt.rport_destroy);
+	kref_put(&rdata->kref, lport->tt.rport_destroy);
 }
 
 static bool
@@ -1477,14 +1480,11 @@ static void fc_rport_recv_els_req(struct fc_lport *lport, struct fc_frame *fp)
 	struct fc_rport_priv *rdata;
 	struct fc_seq_els_data els_data;
 
-	mutex_lock(&lport->disc.disc_mutex);
 	rdata = lport->tt.rport_lookup(lport, fc_frame_sid(fp));
-	if (!rdata) {
-		mutex_unlock(&lport->disc.disc_mutex);
+	if (!rdata)
 		goto reject;
-	}
+
 	mutex_lock(&rdata->rp_mutex);
-	mutex_unlock(&lport->disc.disc_mutex);
 
 	switch (rdata->rp_state) {
 	case RPORT_ST_PRLI:
@@ -1494,6 +1494,7 @@ static void fc_rport_recv_els_req(struct fc_lport *lport, struct fc_frame *fp)
 		break;
 	default:
 		mutex_unlock(&rdata->rp_mutex);
+		kref_put(&rdata->kref, lport->tt.rport_destroy);
 		goto reject;
 	}
 
@@ -1524,6 +1525,7 @@ static void fc_rport_recv_els_req(struct fc_lport *lport, struct fc_frame *fp)
 	}
 
 	mutex_unlock(&rdata->rp_mutex);
+	kref_put(&rdata->kref, rdata->local_port->tt.rport_destroy);
 	return;
 
 reject:
@@ -1907,7 +1909,6 @@ static void fc_rport_recv_logo_req(struct fc_lport *lport, struct fc_frame *fp)
 
 	sid = fc_frame_sid(fp);
 
-	mutex_lock(&lport->disc.disc_mutex);
 	rdata = lport->tt.rport_lookup(lport, sid);
 	if (rdata) {
 		mutex_lock(&rdata->rp_mutex);
@@ -1916,10 +1917,10 @@ static void fc_rport_recv_logo_req(struct fc_lport *lport, struct fc_frame *fp)
 
 		fc_rport_enter_delete(rdata, RPORT_EV_LOGO);
 		mutex_unlock(&rdata->rp_mutex);
+		kref_put(&rdata->kref, rdata->local_port->tt.rport_destroy);
 	} else
 		FC_RPORT_ID_DBG(lport, sid,
 				"Received LOGO from non-logged-in port\n");
-	mutex_unlock(&lport->disc.disc_mutex);
 	fc_frame_free(fp);
 }
 

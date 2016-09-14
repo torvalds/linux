@@ -18,7 +18,6 @@
 #include <linux/io.h>
 #include <linux/irqchip.h>
 #include <linux/irqchip/arm-gic.h>
-#include <linux/of_platform.h>
 
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
@@ -77,8 +76,6 @@ static void __init r8a7740_init_irq_of(void)
 static void __init r8a7740_generic_init(void)
 {
 	r8a7740_meram_workaround();
-
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
 static const char *const r8a7740_boards_compat_dt[] __initconst = {

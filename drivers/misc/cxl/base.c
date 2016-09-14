@@ -54,6 +54,19 @@ static inline void cxl_calls_put(struct cxl_calls *calls) { }
 
 #endif /* CONFIG_CXL_MODULE */
 
+/* AFU refcount management */
+struct cxl_afu *cxl_afu_get(struct cxl_afu *afu)
+{
+	return (get_device(&afu->dev) == NULL) ? NULL : afu;
+}
+EXPORT_SYMBOL_GPL(cxl_afu_get);
+
+void cxl_afu_put(struct cxl_afu *afu)
+{
+	put_device(&afu->dev);
+}
+EXPORT_SYMBOL_GPL(cxl_afu_put);
+
 void cxl_slbia(struct mm_struct *mm)
 {
 	struct cxl_calls *calls;
@@ -93,9 +106,92 @@ int cxl_update_properties(struct device_node *dn,
 }
 EXPORT_SYMBOL_GPL(cxl_update_properties);
 
+/*
+ * API calls into the driver that may be called from the PHB code and must be
+ * built in.
+ */
+bool cxl_pci_associate_default_context(struct pci_dev *dev, struct cxl_afu *afu)
+{
+	bool ret;
+	struct cxl_calls *calls;
+
+	calls = cxl_calls_get();
+	if (!calls)
+		return false;
+
+	ret = calls->cxl_pci_associate_default_context(dev, afu);
+
+	cxl_calls_put(calls);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(cxl_pci_associate_default_context);
+
+void cxl_pci_disable_device(struct pci_dev *dev)
+{
+	struct cxl_calls *calls;
+
+	calls = cxl_calls_get();
+	if (!calls)
+		return;
+
+	calls->cxl_pci_disable_device(dev);
+
+	cxl_calls_put(calls);
+}
+EXPORT_SYMBOL_GPL(cxl_pci_disable_device);
+
+int cxl_next_msi_hwirq(struct pci_dev *pdev, struct cxl_context **ctx, int *afu_irq)
+{
+	int ret;
+	struct cxl_calls *calls;
+
+	calls = cxl_calls_get();
+	if (!calls)
+		return -EBUSY;
+
+	ret = calls->cxl_next_msi_hwirq(pdev, ctx, afu_irq);
+
+	cxl_calls_put(calls);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(cxl_next_msi_hwirq);
+
+int cxl_cx4_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
+{
+	int ret;
+	struct cxl_calls *calls;
+
+	calls = cxl_calls_get();
+	if (!calls)
+		return false;
+
+	ret = calls->cxl_cx4_setup_msi_irqs(pdev, nvec, type);
+
+	cxl_calls_put(calls);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(cxl_cx4_setup_msi_irqs);
+
+void cxl_cx4_teardown_msi_irqs(struct pci_dev *pdev)
+{
+	struct cxl_calls *calls;
+
+	calls = cxl_calls_get();
+	if (!calls)
+		return;
+
+	calls->cxl_cx4_teardown_msi_irqs(pdev);
+
+	cxl_calls_put(calls);
+}
+EXPORT_SYMBOL_GPL(cxl_cx4_teardown_msi_irqs);
+
 static int __init cxl_base_init(void)
 {
-	struct device_node *np = NULL;
+	struct device_node *np;
 	struct platform_device *dev;
 	int count = 0;
 
@@ -105,8 +201,7 @@ static int __init cxl_base_init(void)
 	if (cpu_has_feature(CPU_FTR_HVMODE))
 		return 0;
 
-	while ((np = of_find_compatible_node(np, NULL,
-				     "ibm,coherent-platform-facility"))) {
+	for_each_compatible_node(np, NULL, "ibm,coherent-platform-facility") {
 		dev = of_platform_device_create(np, NULL, NULL);
 		if (dev)
 			count++;
@@ -114,5 +209,4 @@ static int __init cxl_base_init(void)
 	pr_devel("Found %d cxl device(s)\n", count);
 	return 0;
 }
-
-module_init(cxl_base_init);
+device_initcall(cxl_base_init);

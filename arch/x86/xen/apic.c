@@ -177,7 +177,6 @@ static struct apic xen_pv_apic = {
 
 	.get_apic_id 			= xen_get_apic_id,
 	.set_apic_id 			= xen_set_apic_id, /* Can be NULL on 32-bit. */
-	.apic_id_mask			= 0xFF << 24, /* Used by verify_local_APIC. Match with what xen_get_apic_id does. */
 
 	.cpu_mask_to_apicid_and		= flat_cpu_mask_to_apicid_and,
 

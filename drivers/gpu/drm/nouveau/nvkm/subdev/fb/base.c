@@ -25,6 +25,7 @@
 #include "ram.h"
 
 #include <core/memory.h>
+#include <core/option.h>
 #include <subdev/bios.h>
 #include <subdev/bios/M0203.h>
 #include <engine/gr.h>
@@ -134,6 +135,10 @@ nvkm_fb_init(struct nvkm_subdev *subdev)
 
 	if (fb->func->init)
 		fb->func->init(fb);
+	if (fb->func->init_page)
+		fb->func->init_page(fb);
+	if (fb->func->init_unkn)
+		fb->func->init_unkn(fb);
 	return 0;
 }
 
@@ -171,6 +176,7 @@ nvkm_fb_ctor(const struct nvkm_fb_func *func, struct nvkm_device *device,
 	nvkm_subdev_ctor(&nvkm_fb, device, index, &fb->subdev);
 	fb->func = func;
 	fb->tile.regions = fb->func->tile.regions;
+	fb->page = nvkm_longopt(device->cfgopt, "NvFbBigPage", 0);
 }
 
 int

@@ -131,7 +131,7 @@
 	clocks {
 		clk16m: clk@1 {
 			compatible = "fixed-clock";
-			reg=<1>;
+			reg = <1>;
 			#clock-cells = <0>;
 			clock-frequency = <16000000>;
 			clock-output-names = "clk16m";

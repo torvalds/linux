@@ -271,22 +271,18 @@ static int max8973_set_ramp_delay(struct regulator_dev *rdev,
 	struct max8973_chip *max = rdev_get_drvdata(rdev);
 	unsigned int control;
 	int ret;
-	int ret_val;
 
 	/* Set ramp delay */
-	if (ramp_delay < 25000) {
+	if (ramp_delay <= 12000)
 		control = MAX8973_RAMP_12mV_PER_US;
-		ret_val = 12000;
-	} else if (ramp_delay < 50000) {
+	else if (ramp_delay <= 25000)
 		control = MAX8973_RAMP_25mV_PER_US;
-		ret_val = 25000;
-	} else if (ramp_delay < 200000) {
+	else if (ramp_delay <= 50000)
 		control = MAX8973_RAMP_50mV_PER_US;
-		ret_val = 50000;
-	} else {
+	else if (ramp_delay <= 200000)
 		control = MAX8973_RAMP_200mV_PER_US;
-		ret_val = 200000;
-	}
+	else
+		return -EINVAL;
 
 	ret = regmap_update_bits(max->regmap, MAX8973_CONTROL1,
 			MAX8973_RAMP_MASK, control);

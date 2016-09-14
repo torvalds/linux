@@ -88,11 +88,6 @@ MODULE_PARM_DESC(adjust_y_offset, "adjust Y offset display [core]");
 #define DBG_SCRATCH	(1 << 4)
 #define DBG_FUNC	(1 << 5)
 
-static const int max_imgwidth = MAX_FRAME_WIDTH;
-static const int max_imgheight = MAX_FRAME_HEIGHT;
-static const int min_imgwidth = MIN_FRAME_WIDTH;
-static const int min_imgheight = MIN_FRAME_HEIGHT;
-
 /* The value of 'scratch_buf_size' affects quality of the picture
  * in many ways. Shorter buffers may cause loss of data when client
  * is too slow. Larger buffers are memory-consuming and take longer
