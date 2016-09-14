@@ -330,22 +330,6 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
 	return err ? -EOPNOTSUPP : 0;
 }
 
-/**
- * i40e_add_del_fdir_sctpv4 - Add/Remove SCTPv4 Flow Director filters for
- * a specific flow spec
- * @vsi: pointer to the targeted VSI
- * @fd_data: the flow director data required for the FDir descriptor
- * @add: true adds a filter, false removes it
- *
- * Returns 0 if the filters were successfully added or removed
- **/
-static int i40e_add_del_fdir_sctpv4(struct i40e_vsi *vsi,
-				    struct i40e_fdir_filter *fd_data,
-				    bool add)
-{
-	return -EOPNOTSUPP;
-}
-
 #define I40E_IP_DUMMY_PACKET_LEN 34
 /**
  * i40e_add_del_fdir_ipv4 - Add/Remove IPv4 Flow Director filters for
@@ -428,12 +412,6 @@ int i40e_add_del_fdir(struct i40e_vsi *vsi,
 	case UDP_V4_FLOW:
 		ret = i40e_add_del_fdir_udpv4(vsi, input, add);
 		break;
-	case SCTP_V4_FLOW:
-		ret = i40e_add_del_fdir_sctpv4(vsi, input, add);
-		break;
-	case IPV4_FLOW:
-		ret = i40e_add_del_fdir_ipv4(vsi, input, add);
-		break;
 	case IP_USER_FLOW:
 		switch (input->ip4_proto) {
 		case IPPROTO_TCP:
@@ -442,15 +420,16 @@ int i40e_add_del_fdir(struct i40e_vsi *vsi,
 		case IPPROTO_UDP:
 			ret = i40e_add_del_fdir_udpv4(vsi, input, add);
 			break;
-		case IPPROTO_SCTP:
-			ret = i40e_add_del_fdir_sctpv4(vsi, input, add);
-			break;
-		default:
+		case IPPROTO_IP:
 			ret = i40e_add_del_fdir_ipv4(vsi, input, add);
 			break;
+		default:
+			/* We cannot support masking based on protocol */
+			goto unsupported_flow;
 		}
 		break;
 	default:
+unsupported_flow:
 		dev_info(&pf->pdev->dev, "Could not specify spec type %d\n",
 			 input->flow_type);
 		ret = -EINVAL;
