@@ -777,7 +777,6 @@ static int uclogic_tablet_enable(struct hid_device *hdev)
 	len = UCLOGIC_PRM_NUM * sizeof(*buf);
 	buf = kmalloc(len, GFP_KERNEL);
 	if (buf == NULL) {
-		hid_err(hdev, "failed to allocate parameter buffer\n");
 		rc = -ENOMEM;
 		goto cleanup;
 	}
@@ -821,7 +820,6 @@ static int uclogic_tablet_enable(struct hid_device *hdev)
 				sizeof(uclogic_tablet_rdesc_template),
 				GFP_KERNEL);
 	if (drvdata->rdesc == NULL) {
-		hid_err(hdev, "failed to allocate fixed rdesc\n");
 		rc = -ENOMEM;
 		goto cleanup;
 	}
