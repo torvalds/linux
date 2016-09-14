@@ -165,13 +165,10 @@ static int spitz_should_wakeup(unsigned int resume_on_alarm)
 	return is_resume;
 }
 
-static unsigned long spitz_charger_wakeup(void)
+static bool spitz_charger_wakeup(void)
 {
-	unsigned long ret;
-	ret = ((!gpio_get_value(SPITZ_GPIO_KEY_INT)
-		<< GPIO_bit(SPITZ_GPIO_KEY_INT))
-		| gpio_get_value(SPITZ_GPIO_SYNC));
-	return ret;
+	return !gpio_get_value(SPITZ_GPIO_KEY_INT) ||
+		gpio_get_value(SPITZ_GPIO_SYNC);
 }
 
 unsigned long spitzpm_read_devdata(int type)

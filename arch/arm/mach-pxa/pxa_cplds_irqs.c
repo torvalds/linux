@@ -41,30 +41,35 @@ static irqreturn_t cplds_irq_handler(int in_irq, void *d)
 	unsigned long pending;
 	unsigned int bit;
 
-	pending = readl(fpga->base + FPGA_IRQ_SET_CLR) & fpga->irq_mask;
-	for_each_set_bit(bit, &pending, CPLDS_NB_IRQ)
-		generic_handle_irq(irq_find_mapping(fpga->irqdomain, bit));
+	do {
+		pending = readl(fpga->base + FPGA_IRQ_SET_CLR) & fpga->irq_mask;
+		for_each_set_bit(bit, &pending, CPLDS_NB_IRQ) {
+			generic_handle_irq(irq_find_mapping(fpga->irqdomain,
+							    bit));
+		}
+	} while (pending);
 
 	return IRQ_HANDLED;
 }
 
-static void cplds_irq_mask_ack(struct irq_data *d)
+static void cplds_irq_mask(struct irq_data *d)
 {
 	struct cplds *fpga = irq_data_get_irq_chip_data(d);
 	unsigned int cplds_irq = irqd_to_hwirq(d);
-	unsigned int set, bit = BIT(cplds_irq);
+	unsigned int bit = BIT(cplds_irq);
 
 	fpga->irq_mask &= ~bit;
 	writel(fpga->irq_mask, fpga->base + FPGA_IRQ_MASK_EN);
-	set = readl(fpga->base + FPGA_IRQ_SET_CLR);
-	writel(set & ~bit, fpga->base + FPGA_IRQ_SET_CLR);
 }
 
 static void cplds_irq_unmask(struct irq_data *d)
 {
 	struct cplds *fpga = irq_data_get_irq_chip_data(d);
 	unsigned int cplds_irq = irqd_to_hwirq(d);
-	unsigned int bit = BIT(cplds_irq);
+	unsigned int set, bit = BIT(cplds_irq);
+
+	set = readl(fpga->base + FPGA_IRQ_SET_CLR);
+	writel(set & ~bit, fpga->base + FPGA_IRQ_SET_CLR);
 
 	fpga->irq_mask |= bit;
 	writel(fpga->irq_mask, fpga->base + FPGA_IRQ_MASK_EN);
@@ -72,7 +77,8 @@ static void cplds_irq_unmask(struct irq_data *d)
 
 static struct irq_chip cplds_irq_chip = {
 	.name		= "pxa_cplds",
-	.irq_mask_ack	= cplds_irq_mask_ack,
+	.irq_ack	= cplds_irq_mask,
+	.irq_mask	= cplds_irq_mask,
 	.irq_unmask	= cplds_irq_unmask,
 	.flags		= IRQCHIP_MASK_ON_SUSPEND | IRQCHIP_SKIP_SET_WAKE,
 };
