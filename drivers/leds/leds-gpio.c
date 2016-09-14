@@ -26,8 +26,7 @@ struct gpio_led_data {
 	struct gpio_desc *gpiod;
 	u8 can_sleep;
 	u8 blinking;
-	int (*platform_gpio_blink_set)(struct gpio_desc *desc, int state,
-			unsigned long *delay_on, unsigned long *delay_off);
+	gpio_blink_set_t platform_gpio_blink_set;
 };
 
 static void gpio_led_set(struct led_classdev *led_cdev,
@@ -74,8 +73,7 @@ static int gpio_blink_set(struct led_classdev *led_cdev,
 
 static int create_gpio_led(const struct gpio_led *template,
 	struct gpio_led_data *led_dat, struct device *parent,
-	int (*blink_set)(struct gpio_desc *, int, unsigned long *,
-			 unsigned long *))
+	gpio_blink_set_t blink_set)
 {
 	int ret, state;
 
