@@ -778,7 +778,14 @@ static int addrconf_fixup_forwarding(struct ctl_table *table, int *p, int newf)
 	}
 
 	if (p == &net->ipv6.devconf_all->forwarding) {
+		int old_dflt = net->ipv6.devconf_dflt->forwarding;
+
 		net->ipv6.devconf_dflt->forwarding = newf;
+		if ((!newf) ^ (!old_dflt))
+			inet6_netconf_notify_devconf(net, NETCONFA_FORWARDING,
+						     NETCONFA_IFINDEX_DEFAULT,
+						     net->ipv6.devconf_dflt);
+
 		addrconf_forward_change(net, newf);
 		if ((!newf) ^ (!old))
 			inet6_netconf_notify_devconf(net, NETCONFA_FORWARDING,
@@ -1872,7 +1879,6 @@ static int addrconf_dad_end(struct inet6_ifaddr *ifp)
 
 void addrconf_dad_failure(struct inet6_ifaddr *ifp)
 {
-	struct in6_addr addr;
 	struct inet6_dev *idev = ifp->idev;
 	struct net *net = dev_net(ifp->idev->dev);
 
@@ -1934,18 +1940,6 @@ void addrconf_dad_failure(struct inet6_ifaddr *ifp)
 		in6_ifa_put(ifp2);
 lock_errdad:
 		spin_lock_bh(&ifp->lock);
-	} else if (idev->cnf.accept_dad > 1 && !idev->cnf.disable_ipv6) {
-		addr.s6_addr32[0] = htonl(0xfe800000);
-		addr.s6_addr32[1] = 0;
-
-		if (!ipv6_generate_eui64(addr.s6_addr + 8, idev->dev) &&
-		    ipv6_addr_equal(&ifp->addr, &addr)) {
-			/* DAD failed for link-local based on MAC address */
-			idev->cnf.disable_ipv6 = 1;
-
-			pr_info("%s: IPv6 being disabled!\n",
-				ifp->idev->dev->name);
-		}
 	}
 
 errdad:
@@ -1954,6 +1948,7 @@ errdad:
 	spin_unlock_bh(&ifp->lock);
 
 	addrconf_mod_dad_work(ifp, 0);
+	in6_ifa_put(ifp);
 }
 
 /* Join to solicited addr multicast group.
@@ -3821,6 +3816,7 @@ static void addrconf_dad_work(struct work_struct *w)
 						dad_work);
 	struct inet6_dev *idev = ifp->idev;
 	struct in6_addr mcaddr;
+	bool disable_ipv6 = false;
 
 	enum {
 		DAD_PROCESS,
@@ -3837,6 +3833,24 @@ static void addrconf_dad_work(struct work_struct *w)
 	} else if (ifp->state == INET6_IFADDR_STATE_ERRDAD) {
 		action = DAD_ABORT;
 		ifp->state = INET6_IFADDR_STATE_POSTDAD;
+
+		if (idev->cnf.accept_dad > 1 && !idev->cnf.disable_ipv6 &&
+		    !(ifp->flags & IFA_F_STABLE_PRIVACY)) {
+			struct in6_addr addr;
+
+			addr.s6_addr32[0] = htonl(0xfe800000);
+			addr.s6_addr32[1] = 0;
+
+			if (!ipv6_generate_eui64(addr.s6_addr + 8, idev->dev) &&
+			    ipv6_addr_equal(&ifp->addr, &addr)) {
+				/* DAD failed for link-local based on MAC */
+				idev->cnf.disable_ipv6 = 1;
+
+				pr_info("%s: IPv6 being disabled!\n",
+					ifp->idev->dev->name);
+				disable_ipv6 = true;
+			}
+		}
 	}
 	spin_unlock_bh(&ifp->lock);
 
@@ -3844,7 +3858,10 @@ static void addrconf_dad_work(struct work_struct *w)
 		addrconf_dad_begin(ifp);
 		goto out;
 	} else if (action == DAD_ABORT) {
+		in6_ifa_hold(ifp);
 		addrconf_dad_stop(ifp, 1);
+		if (disable_ipv6)
+			addrconf_ifdown(idev->dev, 0);
 		goto out;
 	}
 
@@ -6017,7 +6034,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 static int __addrconf_sysctl_register(struct net *net, char *dev_name,
 		struct inet6_dev *idev, struct ipv6_devconf *p)
 {
-	int i;
+	int i, ifindex;
 	struct ctl_table *table;
 	char path[sizeof("net/ipv6/conf/") + IFNAMSIZ];
 
@@ -6037,6 +6054,13 @@ static int __addrconf_sysctl_register(struct net *net, char *dev_name,
 	if (!p->sysctl_header)
 		goto free;
 
+	if (!strcmp(dev_name, "all"))
+		ifindex = NETCONFA_IFINDEX_ALL;
+	else if (!strcmp(dev_name, "default"))
+		ifindex = NETCONFA_IFINDEX_DEFAULT;
+	else
+		ifindex = idev->dev->ifindex;
+	inet6_netconf_notify_devconf(net, NETCONFA_ALL, ifindex, p);
 	return 0;
 
 free:

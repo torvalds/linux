@@ -73,7 +73,6 @@ MODULE_DEVICE_TABLE(i2c, ams_id);
 static struct i2c_driver ams_i2c_driver = {
 	.driver = {
 		.name   = "ams",
-		.owner  = THIS_MODULE,
 	},
 	.probe          = ams_i2c_probe,
 	.remove         = ams_i2c_remove,

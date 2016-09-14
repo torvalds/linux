@@ -29,6 +29,8 @@
 
 #define COUNTER_SHIFT		16
 
+static HLIST_HEAD(uncore_unused_list);
+
 struct amd_uncore {
 	int id;
 	int refcnt;
@@ -39,7 +41,7 @@ struct amd_uncore {
 	cpumask_t *active_mask;
 	struct pmu *pmu;
 	struct perf_event *events[MAX_COUNTERS];
-	struct amd_uncore *free_when_cpu_online;
+	struct hlist_node node;
 };
 
 static struct amd_uncore * __percpu *amd_uncore_nb;
@@ -306,6 +308,7 @@ static int amd_uncore_cpu_up_prepare(unsigned int cpu)
 		uncore_nb->msr_base = MSR_F15H_NB_PERF_CTL;
 		uncore_nb->active_mask = &amd_nb_active_mask;
 		uncore_nb->pmu = &amd_nb_pmu;
+		uncore_nb->id = -1;
 		*per_cpu_ptr(amd_uncore_nb, cpu) = uncore_nb;
 	}
 
@@ -319,6 +322,7 @@ static int amd_uncore_cpu_up_prepare(unsigned int cpu)
 		uncore_l2->msr_base = MSR_F16H_L2I_PERF_CTL;
 		uncore_l2->active_mask = &amd_l2_active_mask;
 		uncore_l2->pmu = &amd_l2_pmu;
+		uncore_l2->id = -1;
 		*per_cpu_ptr(amd_uncore_l2, cpu) = uncore_l2;
 	}
 
@@ -348,7 +352,7 @@ amd_uncore_find_online_sibling(struct amd_uncore *this,
 			continue;
 
 		if (this->id == that->id) {
-			that->free_when_cpu_online = this;
+			hlist_add_head(&this->node, &uncore_unused_list);
 			this = that;
 			break;
 		}
@@ -388,13 +392,23 @@ static int amd_uncore_cpu_starting(unsigned int cpu)
 	return 0;
 }
 
+static void uncore_clean_online(void)
+{
+	struct amd_uncore *uncore;
+	struct hlist_node *n;
+
+	hlist_for_each_entry_safe(uncore, n, &uncore_unused_list, node) {
+		hlist_del(&uncore->node);
+		kfree(uncore);
+	}
+}
+
 static void uncore_online(unsigned int cpu,
 			  struct amd_uncore * __percpu *uncores)
 {
 	struct amd_uncore *uncore = *per_cpu_ptr(uncores, cpu);
 
-	kfree(uncore->free_when_cpu_online);
-	uncore->free_when_cpu_online = NULL;
+	uncore_clean_online();
 
 	if (cpu == uncore->cpu)
 		cpumask_set_cpu(cpu, uncore->active_mask);
