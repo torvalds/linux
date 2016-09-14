@@ -118,10 +118,13 @@ static int create_gpio_led(const struct gpio_led *template,
 		led_dat->platform_gpio_blink_set = blink_set;
 		led_dat->cdev.blink_set = gpio_blink_set;
 	}
-	if (template->default_state == LEDS_GPIO_DEFSTATE_KEEP)
-		state = !!gpiod_get_value_cansleep(led_dat->gpiod);
-	else
+	if (template->default_state == LEDS_GPIO_DEFSTATE_KEEP) {
+		state = gpiod_get_value_cansleep(led_dat->gpiod);
+		if (state < 0)
+			return state;
+	} else {
 		state = (template->default_state == LEDS_GPIO_DEFSTATE_ON);
+	}
 	led_dat->cdev.brightness = state ? LED_FULL : LED_OFF;
 	if (!template->retain_state_suspended)
 		led_dat->cdev.flags |= LED_CORE_SUSPENDRESUME;
