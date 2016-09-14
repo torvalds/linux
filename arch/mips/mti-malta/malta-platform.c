@@ -135,13 +135,7 @@ static struct platform_device *malta_devices[] __initdata = {
 
 static int __init malta_add_devices(void)
 {
-	int err;
-
-	err = platform_add_devices(malta_devices, ARRAY_SIZE(malta_devices));
-	if (err)
-		return err;
-
-	return 0;
+	return platform_add_devices(malta_devices, ARRAY_SIZE(malta_devices));
 }
 
 device_initcall(malta_add_devices);
