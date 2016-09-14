@@ -84,7 +84,7 @@ static int cppc_cpufreq_set_target(struct cpufreq_policy *policy,
 
 	cpu = all_cpu_data[policy->cpu];
 
-	cpu->perf_ctrls.desired_perf = target_freq * policy->max / cppc_dmi_max_khz;
+	cpu->perf_ctrls.desired_perf = (u64)target_freq * policy->max / cppc_dmi_max_khz;
 	freqs.old = policy->cur;
 	freqs.new = target_freq;
 
