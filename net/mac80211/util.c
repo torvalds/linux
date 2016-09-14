@@ -2555,7 +2555,6 @@ int ieee80211_add_srates_ie(struct ieee80211_sub_if_data *sdata,
 
 		if (need_basic && basic_rates & BIT(i))
 			basic = 0x80;
-		rate = sband->bitrates[i].bitrate;
 		rate = DIV_ROUND_UP(sband->bitrates[i].bitrate,
 				    5 * (1 << shift));
 		*pos++ = basic | (u8) rate;
