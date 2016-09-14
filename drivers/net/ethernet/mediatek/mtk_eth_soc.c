@@ -18,6 +18,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/clk.h>
+#include <linux/pm_runtime.h>
 #include <linux/if_vlan.h>
 #include <linux/reset.h>
 #include <linux/tcp.h>
@@ -1417,6 +1418,9 @@ static int __init mtk_hw_init(struct mtk_eth *eth)
 {
 	int i;
 
+	pm_runtime_enable(eth->dev);
+	pm_runtime_get_sync(eth->dev);
+
 	clk_prepare_enable(eth->clks[MTK_CLK_ETHIF]);
 	clk_prepare_enable(eth->clks[MTK_CLK_ESW]);
 	clk_prepare_enable(eth->clks[MTK_CLK_GP1]);
@@ -1483,6 +1487,9 @@ static int mtk_hw_deinit(struct mtk_eth *eth)
 	clk_disable_unprepare(eth->clks[MTK_CLK_GP1]);
 	clk_disable_unprepare(eth->clks[MTK_CLK_ESW]);
 	clk_disable_unprepare(eth->clks[MTK_CLK_ETHIF]);
+
+	pm_runtime_put_sync(eth->dev);
+	pm_runtime_disable(eth->dev);
 
 	return 0;
 }
