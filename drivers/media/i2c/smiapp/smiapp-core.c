@@ -1380,16 +1380,21 @@ static int smiapp_power_off(struct device *dev)
 
 static int smiapp_set_power(struct v4l2_subdev *subdev, int on)
 {
-	int rval = 0;
+	int rval;
 
-	if (on) {
-		rval = pm_runtime_get_sync(subdev->dev);
-		if (rval >= 0)
-			return 0;
+	if (!on) {
+		pm_runtime_mark_last_busy(subdev->dev);
+		pm_runtime_put_autosuspend(subdev->dev);
 
-		if (rval != -EBUSY && rval != -EAGAIN)
-			pm_runtime_set_active(subdev->dev);
+		return 0;
 	}
+
+	rval = pm_runtime_get_sync(subdev->dev);
+	if (rval >= 0)
+		return 0;
+
+	if (rval != -EBUSY && rval != -EAGAIN)
+		pm_runtime_set_active(subdev->dev);
 
 	pm_runtime_put(subdev->dev);
 
@@ -2340,7 +2345,8 @@ smiapp_sysfs_nvm_read(struct device *dev, struct device_attribute *attr,
 			return -ENODEV;
 		}
 
-		pm_runtime_put(&client->dev);
+		pm_runtime_mark_last_busy(&client->dev);
+		pm_runtime_put_autosuspend(&client->dev);
 	}
 	/*
 	 * NVM is still way below a PAGE_SIZE, so we can safely
@@ -2681,7 +2687,8 @@ static int smiapp_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 static int smiapp_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
-	pm_runtime_put(sd->dev);
+	pm_runtime_mark_last_busy(sd->dev);
+	pm_runtime_put_autosuspend(sd->dev);
 
 	return 0;
 }
@@ -3093,7 +3100,9 @@ static int smiapp_probe(struct i2c_client *client,
 	if (rval < 0)
 		goto out_media_entity_cleanup;
 
-	pm_runtime_put(&client->dev);
+	pm_runtime_set_autosuspend_delay(&client->dev, 1000);
+	pm_runtime_use_autosuspend(&client->dev);
+	pm_runtime_put_autosuspend(&client->dev);
 
 	return 0;
 
