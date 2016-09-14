@@ -101,6 +101,7 @@ static size_t syscall_arg__scnprintf_madvise_behavior(char *bf, size_t size,
 	P_MADV_BHV(SEQUENTIAL);
 	P_MADV_BHV(WILLNEED);
 	P_MADV_BHV(DONTNEED);
+	P_MADV_BHV(FREE);
 	P_MADV_BHV(REMOVE);
 	P_MADV_BHV(DONTFORK);
 	P_MADV_BHV(DOFORK);
