@@ -9453,8 +9453,10 @@ static int nl80211_send_wowlan_nd(struct sk_buff *msg,
 	if (!freqs)
 		return -ENOBUFS;
 
-	for (i = 0; i < req->n_channels; i++)
-		nla_put_u32(msg, i, req->channels[i]->center_freq);
+	for (i = 0; i < req->n_channels; i++) {
+		if (nla_put_u32(msg, i, req->channels[i]->center_freq))
+			return -ENOBUFS;
+	}
 
 	nla_nest_end(msg, freqs);
 
@@ -9468,9 +9470,10 @@ static int nl80211_send_wowlan_nd(struct sk_buff *msg,
 			if (!match)
 				return -ENOBUFS;
 
-			nla_put(msg, NL80211_SCHED_SCAN_MATCH_ATTR_SSID,
-				req->match_sets[i].ssid.ssid_len,
-				req->match_sets[i].ssid.ssid);
+			if (nla_put(msg, NL80211_SCHED_SCAN_MATCH_ATTR_SSID,
+				    req->match_sets[i].ssid.ssid_len,
+				    req->match_sets[i].ssid.ssid))
+				return -ENOBUFS;
 			nla_nest_end(msg, match);
 		}
 		nla_nest_end(msg, matches);
