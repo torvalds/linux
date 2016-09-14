@@ -52,11 +52,15 @@
  */
 #define _wait_for(COND, US, W) ({ \
 	unsigned long timeout__ = jiffies + usecs_to_jiffies(US) + 1;	\
-	int ret__ = 0;							\
-	while (!(COND)) {						\
-		if (time_after(jiffies, timeout__)) {			\
-			if (!(COND))					\
-				ret__ = -ETIMEDOUT;			\
+	int ret__;							\
+	for (;;) {							\
+		bool expired__ = time_after(jiffies, timeout__);	\
+		if (COND) {						\
+			ret__ = 0;					\
+			break;						\
+		}							\
+		if (expired__) {					\
+			ret__ = -ETIMEDOUT;				\
 			break;						\
 		}							\
 		if ((W) && drm_can_sleep()) {				\
