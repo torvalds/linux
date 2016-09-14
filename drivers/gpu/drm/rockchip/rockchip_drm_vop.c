@@ -331,11 +331,6 @@ static bool vop_is_allwin_disabled(struct vop *vop)
 	return true;
 }
 
-static bool vop_is_cfg_done_complete(struct vop *vop)
-{
-	return VOP_CTRL_GET(vop, cfg_done) ? false : true;
-}
-
 static bool vop_fs_irq_is_active(struct vop *vop)
 {
 	return VOP_INTR_GET_TYPE(vop, status, FS_INTR);
@@ -2281,6 +2276,16 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 	 */
 	vop_wait_for_irq_handler(vop);
 
+	spin_lock_irq(&crtc->dev->event_lock);
+	if (crtc->state->event) {
+		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
+		WARN_ON(vop->event);
+
+		vop->event = crtc->state->event;
+		crtc->state->event = NULL;
+	}
+	spin_unlock_irq(&crtc->dev->event_lock);
+
 	for_each_plane_in_state(old_state, plane, old_plane_state, i) {
 		if (!old_plane_state->fb)
 			continue;
@@ -2298,14 +2303,6 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 static void vop_crtc_atomic_begin(struct drm_crtc *crtc,
 				  struct drm_crtc_state *old_crtc_state)
 {
-	struct vop *vop = to_vop(crtc);
-
-	if (crtc->state->event) {
-		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
-
-		vop->event = crtc->state->event;
-		crtc->state->event = NULL;
-	}
 }
 
 static const struct drm_crtc_helper_funcs vop_crtc_helper_funcs = {
@@ -2575,9 +2572,6 @@ static void vop_handle_vblank(struct vop *vop)
 	struct drm_device *drm = vop->drm_dev;
 	struct drm_crtc *crtc = &vop->crtc;
 	unsigned long flags;
-
-	if (!vop_is_cfg_done_complete(vop))
-		return;
 
 	if (vop->event) {
 		spin_lock_irqsave(&drm->event_lock, flags);
