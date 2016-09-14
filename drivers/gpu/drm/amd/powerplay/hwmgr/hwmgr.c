@@ -388,12 +388,9 @@ int phm_reset_single_dpm_table(void *table,
 
 	struct vi_dpm_table *dpm_table = (struct vi_dpm_table *)table;
 
-	PP_ASSERT_WITH_CODE(count <= max,
-			"Fatal error, can not set up single DPM table entries to exceed max number!",
-			   );
+	dpm_table->count = count > max ? max : count;
 
-	dpm_table->count = count;
-	for (i = 0; i < max; i++)
+	for (i = 0; i < dpm_table->count; i++)
 		dpm_table->dpm_level[i].enabled = false;
 
 	return 0;
