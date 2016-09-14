@@ -22,6 +22,7 @@
 #define dsi_phy_write(offset, data) msm_writel((data), (offset))
 
 struct msm_dsi_phy_ops {
+	int (*init) (struct msm_dsi_phy *phy);
 	int (*enable)(struct msm_dsi_phy *phy, int src_pll_id,
 		const unsigned long bit_rate, const unsigned long esc_rate);
 	void (*disable)(struct msm_dsi_phy *phy);
@@ -87,6 +88,7 @@ int msm_dsi_dphy_timing_calc(struct msm_dsi_dphy_timing *timing,
 	const unsigned long bit_rate, const unsigned long esc_rate);
 void msm_dsi_phy_set_src_pll(struct msm_dsi_phy *phy, int pll_id, u32 reg,
 				u32 bit_mask);
+int msm_dsi_phy_init_common(struct msm_dsi_phy *phy);
 
 #endif /* __DSI_PHY_H__ */
 

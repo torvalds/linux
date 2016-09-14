@@ -295,6 +295,24 @@ static int dsi_phy_get_id(struct msm_dsi_phy *phy)
 	return -EINVAL;
 }
 
+int msm_dsi_phy_init_common(struct msm_dsi_phy *phy)
+{
+	struct platform_device *pdev = phy->pdev;
+	int ret = 0;
+
+	phy->reg_base = msm_ioremap(pdev, "dsi_phy_regulator",
+				"DSI_PHY_REG");
+	if (IS_ERR(phy->reg_base)) {
+		dev_err(&pdev->dev, "%s: failed to map phy regulator base\n",
+			__func__);
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+fail:
+	return ret;
+}
+
 static int dsi_phy_driver_probe(struct platform_device *pdev)
 {
 	struct msm_dsi_phy *phy;
@@ -331,15 +349,6 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	phy->reg_base = msm_ioremap(pdev, "dsi_phy_regulator",
-				"DSI_PHY_REG");
-	if (IS_ERR(phy->reg_base)) {
-		dev_err(dev, "%s: failed to map phy regulator base\n",
-			__func__);
-		ret = -ENOMEM;
-		goto fail;
-	}
-
 	ret = dsi_phy_regulator_init(phy);
 	if (ret) {
 		dev_err(dev, "%s: failed to init regulator\n", __func__);
@@ -351,6 +360,12 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 		dev_err(dev, "%s: Unable to get ahb clk\n", __func__);
 		ret = PTR_ERR(phy->ahb_clk);
 		goto fail;
+	}
+
+	if (phy->cfg->ops.init) {
+		ret = phy->cfg->ops.init(phy);
+		if (ret)
+			goto fail;
 	}
 
 	/* PLL init will call into clk_register which requires
