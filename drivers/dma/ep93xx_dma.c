@@ -1050,7 +1050,7 @@ ep93xx_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		size_t sg_len = sg_dma_len(sg);
 
 		if (sg_len > DMA_MAX_CHAN_BYTES) {
-			dev_warn(chan2dev(edmac), "too big transfer size %d\n",
+			dev_warn(chan2dev(edmac), "too big transfer size %zu\n",
 				 sg_len);
 			goto fail;
 		}
@@ -1125,7 +1125,7 @@ ep93xx_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t dma_addr,
 	}
 
 	if (period_len > DMA_MAX_CHAN_BYTES) {
-		dev_warn(chan2dev(edmac), "too big period length %d\n",
+		dev_warn(chan2dev(edmac), "too big period length %zu\n",
 			 period_len);
 		return NULL;
 	}
