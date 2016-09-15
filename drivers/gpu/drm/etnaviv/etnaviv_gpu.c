@@ -891,7 +891,7 @@ static void recover_worker(struct work_struct *work)
 	gpu->completed_fence = gpu->active_fence;
 
 	etnaviv_gpu_hw_init(gpu);
-	gpu->switch_context = true;
+	gpu->lastctx = NULL;
 	gpu->exec_state = -1;
 
 	mutex_unlock(&gpu->lock);
