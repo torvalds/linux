@@ -2524,7 +2524,7 @@ static int ahci_host_activate_multi_irqs(struct ata_host *host,
 
 		/* Do not receive interrupts sent by dummy ports */
 		if (!pp) {
-			disable_irq(irq + i);
+			disable_irq(irq);
 			continue;
 		}
 

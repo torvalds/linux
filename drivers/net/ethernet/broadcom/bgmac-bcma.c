@@ -159,7 +159,7 @@ static int bgmac_probe(struct bcma_device *core)
 
 	if (!bgmac_is_bcm4707_family(core)) {
 		mii_bus = bcma_mdio_mii_register(core, bgmac->phyaddr);
-		if (!IS_ERR(mii_bus)) {
+		if (IS_ERR(mii_bus)) {
 			err = PTR_ERR(mii_bus);
 			goto err;
 		}

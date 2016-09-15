@@ -157,6 +157,12 @@ struct msm_drm_private {
 	struct shrinker shrinker;
 
 	struct msm_vblank_ctrl vblank_ctrl;
+
+	/* task holding struct_mutex.. currently only used in submit path
+	 * to detect and reject faults from copy_from_user() for submit
+	 * ioctl.
+	 */
+	struct task_struct *struct_mutex_task;
 };
 
 struct msm_format {

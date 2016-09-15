@@ -12,6 +12,8 @@
 #include <linux/xattr.h>
 #include <linux/security.h>
 #include <linux/cred.h>
+#include <linux/posix_acl.h>
+#include <linux/posix_acl_xattr.h>
 #include "overlayfs.h"
 
 void ovl_cleanup(struct inode *wdir, struct dentry *wdentry)
@@ -186,6 +188,9 @@ static int ovl_create_upper(struct dentry *dentry, struct inode *inode,
 	struct dentry *newdentry;
 	int err;
 
+	if (!hardlink && !IS_POSIXACL(udir))
+		stat->mode &= ~current_umask();
+
 	inode_lock_nested(udir, I_MUTEX_PARENT);
 	newdentry = lookup_one_len(dentry->d_name.name, upperdir,
 				   dentry->d_name.len);
@@ -335,6 +340,32 @@ out_free:
 	return ret;
 }
 
+static int ovl_set_upper_acl(struct dentry *upperdentry, const char *name,
+			     const struct posix_acl *acl)
+{
+	void *buffer;
+	size_t size;
+	int err;
+
+	if (!IS_ENABLED(CONFIG_FS_POSIX_ACL) || !acl)
+		return 0;
+
+	size = posix_acl_to_xattr(NULL, acl, NULL, 0);
+	buffer = kmalloc(size, GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
+
+	size = posix_acl_to_xattr(&init_user_ns, acl, buffer, size);
+	err = size;
+	if (err < 0)
+		goto out_free;
+
+	err = vfs_setxattr(upperdentry, name, buffer, size, XATTR_CREATE);
+out_free:
+	kfree(buffer);
+	return err;
+}
+
 static int ovl_create_over_whiteout(struct dentry *dentry, struct inode *inode,
 				    struct kstat *stat, const char *link,
 				    struct dentry *hardlink)
@@ -346,9 +377,17 @@ static int ovl_create_over_whiteout(struct dentry *dentry, struct inode *inode,
 	struct dentry *upper;
 	struct dentry *newdentry;
 	int err;
+	struct posix_acl *acl, *default_acl;
 
 	if (WARN_ON(!workdir))
 		return -EROFS;
+
+	if (!hardlink) {
+		err = posix_acl_create(dentry->d_parent->d_inode,
+				       &stat->mode, &default_acl, &acl);
+		if (err)
+			return err;
+	}
 
 	err = ovl_lock_rename_workdir(workdir, upperdir);
 	if (err)
@@ -384,6 +423,17 @@ static int ovl_create_over_whiteout(struct dentry *dentry, struct inode *inode,
 		if (err)
 			goto out_cleanup;
 	}
+	if (!hardlink) {
+		err = ovl_set_upper_acl(newdentry, XATTR_NAME_POSIX_ACL_ACCESS,
+					acl);
+		if (err)
+			goto out_cleanup;
+
+		err = ovl_set_upper_acl(newdentry, XATTR_NAME_POSIX_ACL_DEFAULT,
+					default_acl);
+		if (err)
+			goto out_cleanup;
+	}
 
 	if (!hardlink && S_ISDIR(stat->mode)) {
 		err = ovl_set_opaque(newdentry);
@@ -410,6 +460,10 @@ out_dput:
 out_unlock:
 	unlock_rename(workdir, upperdir);
 out:
+	if (!hardlink) {
+		posix_acl_release(acl);
+		posix_acl_release(default_acl);
+	}
 	return err;
 
 out_cleanup:
@@ -950,9 +1004,9 @@ const struct inode_operations ovl_dir_inode_operations = {
 	.permission	= ovl_permission,
 	.getattr	= ovl_dir_getattr,
 	.setxattr	= generic_setxattr,
-	.getxattr	= ovl_getxattr,
+	.getxattr	= generic_getxattr,
 	.listxattr	= ovl_listxattr,
-	.removexattr	= ovl_removexattr,
+	.removexattr	= generic_removexattr,
 	.get_acl	= ovl_get_acl,
 	.update_time	= ovl_update_time,
 };

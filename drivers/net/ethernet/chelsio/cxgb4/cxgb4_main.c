@@ -4335,6 +4335,11 @@ static void cfg_queues(struct adapter *adap)
 #endif
 	int ciq_size;
 
+	/* Reduce memory usage in kdump environment, disable all offload.
+	 */
+	if (is_kdump_kernel())
+		adap->params.offload = 0;
+
 	for_each_port(adap, i)
 		n10g += is_x_10g_port(&adap2pinfo(adap, i)->link_cfg);
 #ifdef CONFIG_CHELSIO_T4_DCB
@@ -4364,11 +4369,6 @@ static void cfg_queues(struct adapter *adap)
 		q10g = (MAX_ETH_QSETS - (adap->params.nports - n10g)) / n10g;
 	if (q10g > netif_get_num_default_rss_queues())
 		q10g = netif_get_num_default_rss_queues();
-
-	/* Reduce memory usage in kdump environment, disable all offload.
-	 */
-	if (is_kdump_kernel())
-		adap->params.offload = 0;
 
 	for_each_port(adap, i) {
 		struct port_info *pi = adap2pinfo(adap, i);

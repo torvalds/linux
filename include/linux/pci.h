@@ -683,15 +683,6 @@ struct pci_driver {
 #define	to_pci_driver(drv) container_of(drv, struct pci_driver, driver)
 
 /**
- * DEFINE_PCI_DEVICE_TABLE - macro used to describe a pci device table
- * @_table: device table name
- *
- * This macro is deprecated and should not be used in new code.
- */
-#define DEFINE_PCI_DEVICE_TABLE(_table) \
-	const struct pci_device_id _table[]
-
-/**
  * PCI_DEVICE - macro used to describe a specific pci device
  * @vend: the 16 bit PCI Vendor ID
  * @dev: the 16 bit PCI Device ID
@@ -1309,6 +1300,7 @@ int pci_alloc_irq_vectors(struct pci_dev *dev, unsigned int min_vecs,
 		unsigned int max_vecs, unsigned int flags);
 void pci_free_irq_vectors(struct pci_dev *dev);
 int pci_irq_vector(struct pci_dev *dev, unsigned int nr);
+const struct cpumask *pci_irq_get_affinity(struct pci_dev *pdev, int vec);
 
 #else
 static inline int pci_msi_vec_count(struct pci_dev *dev) { return -ENOSYS; }
@@ -1350,6 +1342,11 @@ static inline int pci_irq_vector(struct pci_dev *dev, unsigned int nr)
 	if (WARN_ON_ONCE(nr > 0))
 		return -EINVAL;
 	return dev->irq;
+}
+static inline const struct cpumask *pci_irq_get_affinity(struct pci_dev *pdev,
+		int vec)
+{
+	return cpu_possible_mask;
 }
 #endif
 

@@ -236,25 +236,24 @@ static int alloc_descs(unsigned int start, unsigned int cnt, int node,
 	const struct cpumask *mask = NULL;
 	struct irq_desc *desc;
 	unsigned int flags;
-	int i, cpu = -1;
+	int i;
 
-	if (affinity && cpumask_empty(affinity))
-		return -EINVAL;
+	/* Validate affinity mask(s) */
+	if (affinity) {
+		for (i = 0, mask = affinity; i < cnt; i++, mask++) {
+			if (cpumask_empty(mask))
+				return -EINVAL;
+		}
+	}
 
 	flags = affinity ? IRQD_AFFINITY_MANAGED : 0;
+	mask = NULL;
 
 	for (i = 0; i < cnt; i++) {
 		if (affinity) {
-			cpu = cpumask_next(cpu, affinity);
-			if (cpu >= nr_cpu_ids)
-				cpu = cpumask_first(affinity);
-			node = cpu_to_node(cpu);
-
-			/*
-			 * For single allocations we use the caller provided
-			 * mask otherwise we use the mask of the target cpu
-			 */
-			mask = cnt == 1 ? affinity : cpumask_of(cpu);
+			node = cpu_to_node(cpumask_first(affinity));
+			mask = affinity;
+			affinity++;
 		}
 		desc = alloc_desc(start + i, node, flags, mask, owner);
 		if (!desc)
@@ -481,9 +480,9 @@ EXPORT_SYMBOL_GPL(irq_free_descs);
  * @cnt:	Number of consecutive irqs to allocate.
  * @node:	Preferred node on which the irq descriptor should be allocated
  * @owner:	Owning module (can be NULL)
- * @affinity:	Optional pointer to an affinity mask which hints where the
- *		irq descriptors should be allocated and which default
- *		affinities to use
+ * @affinity:	Optional pointer to an affinity mask array of size @cnt which
+ *		hints where the irq descriptors should be allocated and which
+ *		default affinities to use
  *
  * Returns the first irq number or error code
  */

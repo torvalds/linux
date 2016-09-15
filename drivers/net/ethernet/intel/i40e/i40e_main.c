@@ -5431,7 +5431,6 @@ int i40e_open(struct net_device *netdev)
 	wr32(&pf->hw, I40E_GLLAN_TSOMSK_L, be32_to_cpu(TCP_FLAG_CWR) >> 16);
 
 	udp_tunnel_get_rx_info(netdev);
-	i40e_notify_client_of_netdev_open(vsi);
 
 	return 0;
 }
