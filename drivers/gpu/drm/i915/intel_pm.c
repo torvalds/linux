@@ -3062,7 +3062,6 @@ skl_ddb_get_pipe_allocation_limits(struct drm_device *dev,
 	struct drm_crtc *for_crtc = cstate->base.crtc;
 	unsigned int pipe_size, ddb_size;
 	int nth_active_pipe;
-	int pipe = to_intel_crtc(for_crtc)->pipe;
 
 	if (WARN_ON(!state) || !cstate->base.active) {
 		alloc->start = 0;
@@ -3090,7 +3089,7 @@ skl_ddb_get_pipe_allocation_limits(struct drm_device *dev,
 	 * we currently hold.
 	 */
 	if (!intel_state->active_pipe_changes) {
-		*alloc = dev_priv->wm.skl_hw.ddb.pipe[pipe];
+		*alloc = to_intel_crtc(for_crtc)->hw_ddb;
 		return;
 	}
 
@@ -3358,7 +3357,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	struct drm_plane *plane;
 	struct drm_plane_state *pstate;
 	enum pipe pipe = intel_crtc->pipe;
-	struct skl_ddb_entry *alloc = &ddb->pipe[pipe];
+	struct skl_ddb_entry *alloc = &cstate->wm.skl.ddb;
 	uint16_t alloc_size, start, cursor_blocks;
 	uint16_t *minimum = cstate->wm.skl.minimum_blocks;
 	uint16_t *y_minimum = cstate->wm.skl.minimum_y_blocks;
@@ -3374,7 +3373,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 		return 0;
 
 	if (!cstate->base.active) {
-		ddb->pipe[pipe].start = ddb->pipe[pipe].end = 0;
+		alloc->start = alloc->end = 0;
 		return 0;
 	}
 
@@ -3901,14 +3900,6 @@ void skl_write_cursor_wm(struct intel_crtc *intel_crtc,
 			    &wm->ddb.plane[pipe][PLANE_CURSOR]);
 }
 
-bool skl_ddb_allocation_equals(const struct skl_ddb_allocation *old,
-			       const struct skl_ddb_allocation *new,
-			       enum pipe pipe)
-{
-	return new->pipe[pipe].start == old->pipe[pipe].start &&
-	       new->pipe[pipe].end == old->pipe[pipe].end;
-}
-
 static inline bool skl_ddb_entries_overlap(const struct skl_ddb_entry *a,
 					   const struct skl_ddb_entry *b)
 {
@@ -3916,22 +3907,22 @@ static inline bool skl_ddb_entries_overlap(const struct skl_ddb_entry *a,
 }
 
 bool skl_ddb_allocation_overlaps(struct drm_atomic_state *state,
-				 const struct skl_ddb_allocation *old,
-				 const struct skl_ddb_allocation *new,
-				 enum pipe pipe)
+				 struct intel_crtc *intel_crtc)
 {
-	struct drm_device *dev = state->dev;
-	struct intel_crtc *intel_crtc;
-	enum pipe otherp;
+	struct drm_crtc *other_crtc;
+	struct drm_crtc_state *other_cstate;
+	struct intel_crtc *other_intel_crtc;
+	const struct skl_ddb_entry *ddb =
+		&to_intel_crtc_state(intel_crtc->base.state)->wm.skl.ddb;
+	int i;
 
-	for_each_intel_crtc(dev, intel_crtc) {
-		otherp = intel_crtc->pipe;
+	for_each_crtc_in_state(state, other_crtc, other_cstate, i) {
+		other_intel_crtc = to_intel_crtc(other_crtc);
 
-		if (otherp == pipe)
+		if (other_intel_crtc == intel_crtc)
 			continue;
 
-		if (skl_ddb_entries_overlap(&new->pipe[pipe],
-					    &old->pipe[otherp]))
+		if (skl_ddb_entries_overlap(ddb, &other_intel_crtc->hw_ddb))
 			return true;
 	}
 
@@ -4096,7 +4087,6 @@ skl_copy_wm_for_pipe(struct skl_wm_values *dst,
 	memcpy(dst->plane_trans[pipe], src->plane_trans[pipe],
 	       sizeof(dst->plane_trans[pipe]));
 
-	dst->ddb.pipe[pipe] = src->ddb.pipe[pipe];
 	memcpy(dst->ddb.y_plane[pipe], src->ddb.y_plane[pipe],
 	       sizeof(dst->ddb.y_plane[pipe]));
 	memcpy(dst->ddb.plane[pipe], src->ddb.plane[pipe],
@@ -4203,6 +4193,8 @@ static void skl_update_wm(struct drm_crtc *crtc)
 	}
 
 	skl_copy_wm_for_pipe(hw_vals, results, pipe);
+
+	intel_crtc->hw_ddb = cstate->wm.skl.ddb;
 
 	mutex_unlock(&dev_priv->wm.wm_mutex);
 }

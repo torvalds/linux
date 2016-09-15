@@ -496,6 +496,7 @@ struct intel_crtc_wm_state {
 		struct {
 			/* gen9+ only needs 1-step wm programming */
 			struct skl_pipe_wm optimal;
+			struct skl_ddb_entry ddb;
 
 			/* cached plane data rate */
 			unsigned plane_data_rate[I915_MAX_PLANES];
@@ -732,6 +733,9 @@ struct intel_crtc {
 		/* allow CxSR on this pipe */
 		bool cxsr_allowed;
 	} wm;
+
+	/* gen9+: ddb allocation currently being used */
+	struct skl_ddb_entry hw_ddb;
 
 	int scanline_offset;
 
@@ -1755,9 +1759,7 @@ bool skl_ddb_allocation_equals(const struct skl_ddb_allocation *old,
 			       const struct skl_ddb_allocation *new,
 			       enum pipe pipe);
 bool skl_ddb_allocation_overlaps(struct drm_atomic_state *state,
-				 const struct skl_ddb_allocation *old,
-				 const struct skl_ddb_allocation *new,
-				 enum pipe pipe);
+				 struct intel_crtc *intel_crtc);
 void skl_write_cursor_wm(struct intel_crtc *intel_crtc,
 			 const struct skl_wm_values *wm);
 void skl_write_plane_wm(struct intel_crtc *intel_crtc,

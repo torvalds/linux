@@ -14246,12 +14246,11 @@ static void skl_update_crtcs(struct drm_atomic_state *state,
 			     unsigned int *crtc_vblank_mask)
 {
 	struct drm_device *dev = state->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct drm_crtc *crtc;
+	struct intel_crtc *intel_crtc;
 	struct drm_crtc_state *old_crtc_state;
-	struct skl_ddb_allocation *new_ddb = &intel_state->wm_results.ddb;
-	struct skl_ddb_allocation *cur_ddb = &dev_priv->wm.skl_hw.ddb;
+	struct intel_crtc_state *cstate;
 	unsigned int updated = 0;
 	bool progress;
 	enum pipe pipe;
@@ -14269,12 +14268,14 @@ static void skl_update_crtcs(struct drm_atomic_state *state,
 		for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
 			bool vbl_wait = false;
 			unsigned int cmask = drm_crtc_mask(crtc);
-			pipe = to_intel_crtc(crtc)->pipe;
+
+			intel_crtc = to_intel_crtc(crtc);
+			cstate = to_intel_crtc_state(crtc->state);
+			pipe = intel_crtc->pipe;
 
 			if (updated & cmask || !crtc->state->active)
 				continue;
-			if (skl_ddb_allocation_overlaps(state, cur_ddb, new_ddb,
-							pipe))
+			if (skl_ddb_allocation_overlaps(state, intel_crtc))
 				continue;
 
 			updated |= cmask;
@@ -14285,7 +14286,8 @@ static void skl_update_crtcs(struct drm_atomic_state *state,
 			 * then we need to wait for a vblank to pass for the
 			 * new ddb allocation to take effect.
 			 */
-			if (!skl_ddb_allocation_equals(cur_ddb, new_ddb, pipe) &&
+			if (!skl_ddb_entry_equal(&cstate->wm.skl.ddb,
+						 &intel_crtc->hw_ddb) &&
 			    !crtc->state->active_changed &&
 			    intel_state->wm_results.dirty_pipes != updated)
 				vbl_wait = true;
