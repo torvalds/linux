@@ -115,8 +115,8 @@ int msm_dsi_dphy_timing_calc(struct msm_dsi_dphy_timing *timing,
 	temp = ((timing->hs_exit >> 1) + 1) * 2 * ui;
 	temp = 60 * coeff + 52 * ui - 24 * ui - temp;
 	tmin = S_DIV_ROUND_UP(temp, 8 * ui) - 1;
-	timing->clk_post = linear_inter(tmax, tmin, pcnt2, 0, false);
-
+	timing->shared_timings.clk_post = linear_inter(tmax, tmin, pcnt2, 0,
+						       false);
 	tmax = 63;
 	temp = ((timing->clk_prepare >> 1) + 1) * 2 * ui;
 	temp += ((timing->clk_zero >> 1) + 1) * 2 * ui;
@@ -124,17 +124,21 @@ int msm_dsi_dphy_timing_calc(struct msm_dsi_dphy_timing *timing,
 	tmin = S_DIV_ROUND_UP(temp, 8 * ui) - 1;
 	if (tmin > tmax) {
 		temp = linear_inter(2 * tmax, tmin, pcnt2, 0, false);
-		timing->clk_pre = temp >> 1;
+		timing->shared_timings.clk_pre = temp >> 1;
+		timing->shared_timings.clk_pre_inc_by_2 = true;
 	} else {
-		timing->clk_pre = linear_inter(tmax, tmin, pcnt2, 0, false);
+		timing->shared_timings.clk_pre =
+				linear_inter(tmax, tmin, pcnt2, 0, false);
+		timing->shared_timings.clk_pre_inc_by_2 = false;
 	}
 
 	timing->ta_go = 3;
 	timing->ta_sure = 0;
 	timing->ta_get = 4;
 
-	DBG("PHY timings: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d",
-		timing->clk_pre, timing->clk_post, timing->clk_zero,
+	DBG("PHY timings: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d",
+		timing->shared_timings.clk_pre, timing->shared_timings.clk_post,
+		timing->shared_timings.clk_pre_inc_by_2, timing->clk_zero,
 		timing->clk_trail, timing->clk_prepare, timing->hs_exit,
 		timing->hs_zero, timing->hs_prepare, timing->hs_trail,
 		timing->hs_rqst);
@@ -460,16 +464,11 @@ void msm_dsi_phy_disable(struct msm_dsi_phy *phy)
 	dsi_phy_regulator_disable(phy);
 }
 
-void msm_dsi_phy_get_clk_pre_post(struct msm_dsi_phy *phy,
-					u32 *clk_pre, u32 *clk_post)
+void msm_dsi_phy_get_shared_timings(struct msm_dsi_phy *phy,
+			struct msm_dsi_phy_shared_timings *shared_timings)
 {
-	if (!phy)
-		return;
-
-	if (clk_pre)
-		*clk_pre = phy->timing.clk_pre;
-	if (clk_post)
-		*clk_post = phy->timing.clk_post;
+	memcpy(shared_timings, &phy->timing.shared_timings,
+	       sizeof(*shared_timings));
 }
 
 struct msm_dsi_pll *msm_dsi_phy_get_pll(struct msm_dsi_phy *phy)

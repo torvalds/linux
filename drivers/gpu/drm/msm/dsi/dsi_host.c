@@ -756,7 +756,7 @@ static inline enum dsi_cmd_dst_format dsi_get_cmd_fmt(
 }
 
 static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
-				u32 clk_pre, u32 clk_post)
+			struct msm_dsi_phy_shared_timings *phy_shared_timings)
 {
 	u32 flags = msm_host->mode_flags;
 	enum mipi_dsi_pixel_format mipi_fmt = msm_host->format;
@@ -819,9 +819,15 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 		data |= DSI_TRIG_CTRL_BLOCK_DMA_WITHIN_FRAME;
 	dsi_write(msm_host, REG_DSI_TRIG_CTRL, data);
 
-	data = DSI_CLKOUT_TIMING_CTRL_T_CLK_POST(clk_post) |
-		DSI_CLKOUT_TIMING_CTRL_T_CLK_PRE(clk_pre);
+	data = DSI_CLKOUT_TIMING_CTRL_T_CLK_POST(phy_shared_timings->clk_post) |
+		DSI_CLKOUT_TIMING_CTRL_T_CLK_PRE(phy_shared_timings->clk_pre);
 	dsi_write(msm_host, REG_DSI_CLKOUT_TIMING_CTRL, data);
+
+	if ((cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) &&
+	    (cfg_hnd->minor > MSM_DSI_6G_VER_MINOR_V1_0) &&
+	    phy_shared_timings->clk_pre_inc_by_2)
+		dsi_write(msm_host, REG_DSI_T_CLK_PRE_EXTEND,
+			  DSI_T_CLK_PRE_EXTEND_INC_BY_2_BYTECLK);
 
 	data = 0;
 	if (!(flags & MIPI_DSI_MODE_EOT_PACKET))
@@ -2170,7 +2176,7 @@ static void msm_dsi_sfpb_config(struct msm_dsi_host *msm_host, bool enable)
 int msm_dsi_host_power_on(struct mipi_dsi_host *host)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
-	u32 clk_pre = 0, clk_post = 0;
+	struct msm_dsi_phy_shared_timings phy_shared_timings;
 	int ret = 0;
 
 	mutex_lock(&msm_host->dev_mutex);
@@ -2204,7 +2210,7 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host)
 	ret = msm_dsi_manager_phy_enable(msm_host->id,
 					msm_host->byte_clk_rate * 8,
 					msm_host->esc_clk_rate,
-					&clk_pre, &clk_post);
+					&phy_shared_timings);
 	dsi_bus_clk_disable(msm_host);
 	if (ret) {
 		pr_err("%s: failed to enable phy, %d\n", __func__, ret);
@@ -2226,7 +2232,7 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host)
 
 	dsi_timing_setup(msm_host);
 	dsi_sw_reset(msm_host);
-	dsi_ctrl_config(msm_host, true, clk_pre, clk_post);
+	dsi_ctrl_config(msm_host, true, &phy_shared_timings);
 
 	if (msm_host->disp_en_gpio)
 		gpiod_set_value(msm_host->disp_en_gpio, 1);
@@ -2255,7 +2261,7 @@ int msm_dsi_host_power_off(struct mipi_dsi_host *host)
 		goto unlock_ret;
 	}
 
-	dsi_ctrl_config(msm_host, false, 0, 0);
+	dsi_ctrl_config(msm_host, false, NULL);
 
 	if (msm_host->disp_en_gpio)
 		gpiod_set_value(msm_host->disp_en_gpio, 0);

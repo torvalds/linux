@@ -660,7 +660,7 @@ void msm_dsi_manager_bridge_destroy(struct drm_bridge *bridge)
 
 int msm_dsi_manager_phy_enable(int id,
 		const unsigned long bit_rate, const unsigned long esc_rate,
-		u32 *clk_pre, u32 *clk_post)
+		struct msm_dsi_phy_shared_timings *shared_timings)
 {
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct msm_dsi_phy *phy = msm_dsi->phy;
@@ -688,7 +688,7 @@ int msm_dsi_manager_phy_enable(int id,
 	}
 
 	msm_dsi->phy_enabled = true;
-	msm_dsi_phy_get_clk_pre_post(phy, clk_pre, clk_post);
+	msm_dsi_phy_get_shared_timings(phy, shared_timings);
 
 	return 0;
 }

@@ -62,6 +62,8 @@ struct msm_dsi_dphy_timing {
 	u32 ta_go;
 	u32 ta_sure;
 	u32 ta_get;
+
+	struct msm_dsi_phy_shared_timings shared_timings;
 };
 
 struct msm_dsi_phy {

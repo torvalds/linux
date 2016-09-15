@@ -27,6 +27,8 @@
 #define DSI_1	1
 #define DSI_MAX	2
 
+struct msm_dsi_phy_shared_timings;
+
 enum msm_dsi_phy_type {
 	MSM_DSI_PHY_28NM_HPM,
 	MSM_DSI_PHY_28NM_LP,
@@ -86,7 +88,7 @@ struct drm_connector *msm_dsi_manager_connector_init(u8 id);
 struct drm_connector *msm_dsi_manager_ext_bridge_init(u8 id);
 int msm_dsi_manager_phy_enable(int id,
 		const unsigned long bit_rate, const unsigned long esc_rate,
-		u32 *clk_pre, u32 *clk_post);
+		struct msm_dsi_phy_shared_timings *shared_timing);
 void msm_dsi_manager_phy_disable(int id);
 int msm_dsi_manager_cmd_xfer(int id, const struct mipi_dsi_msg *msg);
 bool msm_dsi_manager_cmd_xfer_trigger(int id, u32 dma_base, u32 len);
@@ -165,13 +167,18 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi);
 
 /* dsi phy */
 struct msm_dsi_phy;
+struct msm_dsi_phy_shared_timings {
+	u32 clk_post;
+	u32 clk_pre;
+	bool clk_pre_inc_by_2;
+};
 void msm_dsi_phy_driver_register(void);
 void msm_dsi_phy_driver_unregister(void);
 int msm_dsi_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 	const unsigned long bit_rate, const unsigned long esc_rate);
 void msm_dsi_phy_disable(struct msm_dsi_phy *phy);
-void msm_dsi_phy_get_clk_pre_post(struct msm_dsi_phy *phy,
-					u32 *clk_pre, u32 *clk_post);
+void msm_dsi_phy_get_shared_timings(struct msm_dsi_phy *phy,
+			struct msm_dsi_phy_shared_timings *shared_timing);
 struct msm_dsi_pll *msm_dsi_phy_get_pll(struct msm_dsi_phy *phy);
 
 #endif /* __DSI_CONNECTOR_H__ */
