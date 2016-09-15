@@ -514,7 +514,6 @@ static int slic_card_download(struct adapter *adapter)
 			slic_write32(adapter, SLIC_REG_WCS, instruction);
 			instruction = *(u32 *)(fw->data + index);
 			index += 4;
-
 		}
 	}
 	release_firmware(fw);
@@ -2717,7 +2716,6 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 		/*  see if the EEPROM is valid by checking it's checksum */
 		if ((eecodesize <= MAX_EECODE_SIZE) &&
 		    (eecodesize >= MIN_EECODE_SIZE)) {
-
 			ee_chksum =
 			    *(u16 *)((char *)peeprom + (eecodesize - 2));
 			/*
@@ -2855,7 +2853,6 @@ static int slic_init_adapter(struct net_device *netdev,
 	 */
 	for (index = 1, pslic_handle = &adapter->slic_handles[1];
 	     index < SLIC_CMDQ_MAXCMDS; index++, pslic_handle++) {
-
 		pslic_handle->token.handle_index = index;
 		pslic_handle->type = SLIC_HANDLE_FREE;
 		pslic_handle->next = adapter->pfree_slic_handles;
