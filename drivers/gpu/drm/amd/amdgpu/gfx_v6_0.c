@@ -2686,6 +2686,13 @@ static void gfx_v6_0_ring_emit_gds_switch(struct amdgpu_ring *ring,
 {
 }
 
+static void gfx_v6_ring_emit_cntxcntl(struct amdgpu_ring *ring, uint32_t flags)
+{
+	amdgpu_ring_write(ring, PACKET3(PACKET3_CONTEXT_CONTROL, 1));
+	amdgpu_ring_write(ring, 0x80000000);
+	amdgpu_ring_write(ring, 0);
+}
+
 static const struct amdgpu_gfx_funcs gfx_v6_0_gfx_funcs = {
 	.get_gpu_clock_counter = &gfx_v6_0_get_gpu_clock_counter,
 	.select_se_sh = &gfx_v6_0_select_se_sh,
@@ -3114,6 +3121,7 @@ static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_gfx = {
 	.test_ring = gfx_v6_0_ring_test_ring,
 	.test_ib = gfx_v6_0_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
+	.emit_cntxcntl = gfx_v6_ring_emit_cntxcntl,
 };
 
 static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_compute = {
