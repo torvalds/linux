@@ -2761,7 +2761,7 @@ static const struct ethtool_ops dwceqos_ethtool_ops = {
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
-static struct net_device_ops netdev_ops = {
+static const struct net_device_ops netdev_ops = {
 	.ndo_open		= dwceqos_open,
 	.ndo_stop		= dwceqos_stop,
 	.ndo_start_xmit		= dwceqos_start_xmit,
