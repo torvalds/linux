@@ -25,7 +25,6 @@
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/mtd/cfi.h>
 #include <linux/mtd/spi-nor.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
