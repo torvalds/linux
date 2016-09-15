@@ -639,7 +639,7 @@ static struct stats dx_show_leaf(struct inode *dir,
 					res = fscrypt_fname_alloc_buffer(
 						dir, len,
 						&fname_crypto_str);
-					if (res < 0)
+					if (res)
 						printk(KERN_WARNING "Error "
 							"allocating crypto "
 							"buffer--skipping "
@@ -647,7 +647,7 @@ static struct stats dx_show_leaf(struct inode *dir,
 					res = fscrypt_fname_disk_to_usr(dir,
 						0, 0, &de_name,
 						&fname_crypto_str);
-					if (res < 0) {
+					if (res) {
 						printk(KERN_WARNING "Error "
 							"converting filename "
 							"from disk to usr"
@@ -1011,7 +1011,7 @@ static int htree_dirblock_to_tree(struct file *dir_file,
 			err = fscrypt_fname_disk_to_usr(dir, hinfo->hash,
 					hinfo->minor_hash, &de_name,
 					&fname_crypto_str);
-			if (err < 0) {
+			if (err) {
 				count = err;
 				goto errout;
 			}
@@ -3144,7 +3144,7 @@ static int ext4_symlink(struct inode *dir,
 		istr.name = (const unsigned char *) symname;
 		istr.len = len;
 		err = fscrypt_fname_usr_to_disk(inode, &istr, &ostr);
-		if (err < 0)
+		if (err)
 			goto err_drop_inode;
 		sd->len = cpu_to_le16(ostr.len);
 		disk_link.name = (char *) sd;
