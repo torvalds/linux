@@ -256,6 +256,16 @@ enum {
 #define MAY_LOCK	0x00002000	/* Locks should be writes, but ... */
 #define MAY_BRINGUP	0x00004000	/* Report use of this rule */
 
+/*
+ * The policy for delivering signals is configurable.
+ * It is usually "write", but can be "append".
+ */
+#ifdef CONFIG_SECURITY_SMACK_APPEND_SIGNALS
+#define MAY_DELIVER	MAY_APPEND	/* Signal delivery requires append */
+#else
+#define MAY_DELIVER	MAY_WRITE	/* Signal delivery requires write */
+#endif
+
 #define SMACK_BRINGUP_ALLOW		1	/* Allow bringup mode */
 #define SMACK_UNCONFINED_SUBJECT	2	/* Allow unconfined label */
 #define SMACK_UNCONFINED_OBJECT		3	/* Allow unconfined label */
