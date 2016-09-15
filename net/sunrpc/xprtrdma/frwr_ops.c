@@ -242,9 +242,8 @@ frwr_op_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
 					       depth;
 	}
 
-	rpcrdma_set_max_header_sizes(ia, cdata, max_t(unsigned int, 1,
-						      RPCRDMA_MAX_DATA_SEGS /
-						      ia->ri_max_frmr_depth));
+	ia->ri_max_segs = max_t(unsigned int, 1, RPCRDMA_MAX_DATA_SEGS /
+				ia->ri_max_frmr_depth);
 	return 0;
 }
 

@@ -204,6 +204,33 @@ out_fail:
 	goto out_schedule;
 }
 
+static void
+rpcrdma_update_connect_private(struct rpcrdma_xprt *r_xprt,
+			       struct rdma_conn_param *param)
+{
+	struct rpcrdma_create_data_internal *cdata = &r_xprt->rx_data;
+	const struct rpcrdma_connect_private *pmsg = param->private_data;
+	unsigned int rsize, wsize;
+
+	rsize = RPCRDMA_V1_DEF_INLINE_SIZE;
+	wsize = RPCRDMA_V1_DEF_INLINE_SIZE;
+
+	if (pmsg &&
+	    pmsg->cp_magic == rpcrdma_cmp_magic &&
+	    pmsg->cp_version == RPCRDMA_CMP_VERSION) {
+		rsize = rpcrdma_decode_buffer_size(pmsg->cp_send_size);
+		wsize = rpcrdma_decode_buffer_size(pmsg->cp_recv_size);
+	}
+
+	if (rsize < cdata->inline_rsize)
+		cdata->inline_rsize = rsize;
+	if (wsize < cdata->inline_wsize)
+		cdata->inline_wsize = wsize;
+	pr_info("rpcrdma: max send %u, max recv %u\n",
+		cdata->inline_wsize, cdata->inline_rsize);
+	rpcrdma_set_max_header_sizes(r_xprt);
+}
+
 static int
 rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 {
@@ -244,6 +271,7 @@ rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 			" (%d initiator)\n",
 			__func__, attr->max_dest_rd_atomic,
 			attr->max_rd_atomic);
+		rpcrdma_update_connect_private(xprt, &event->param.conn);
 		goto connected;
 	case RDMA_CM_EVENT_CONNECT_ERROR:
 		connstate = -ENOTCONN;
@@ -454,6 +482,7 @@ int
 rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 				struct rpcrdma_create_data_internal *cdata)
 {
+	struct rpcrdma_connect_private *pmsg = &ep->rep_cm_private;
 	struct ib_cq *sendcq, *recvcq;
 	unsigned int max_qp_wr;
 	int rc;
@@ -536,9 +565,14 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	/* Initialize cma parameters */
 	memset(&ep->rep_remote_cma, 0, sizeof(ep->rep_remote_cma));
 
-	/* RPC/RDMA does not use private data */
-	ep->rep_remote_cma.private_data = NULL;
-	ep->rep_remote_cma.private_data_len = 0;
+	/* Prepare RDMA-CM private message */
+	pmsg->cp_magic = rpcrdma_cmp_magic;
+	pmsg->cp_version = RPCRDMA_CMP_VERSION;
+	pmsg->cp_flags = 0;
+	pmsg->cp_send_size = rpcrdma_encode_buffer_size(cdata->inline_wsize);
+	pmsg->cp_recv_size = rpcrdma_encode_buffer_size(cdata->inline_rsize);
+	ep->rep_remote_cma.private_data = pmsg;
+	ep->rep_remote_cma.private_data_len = sizeof(*pmsg);
 
 	/* Client offers RDMA Read but does not initiate */
 	ep->rep_remote_cma.initiator_depth = 0;

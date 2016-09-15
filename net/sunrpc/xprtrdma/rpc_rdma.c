@@ -118,10 +118,12 @@ static unsigned int rpcrdma_max_reply_header_size(unsigned int maxsegs)
 	return size;
 }
 
-void rpcrdma_set_max_header_sizes(struct rpcrdma_ia *ia,
-				  struct rpcrdma_create_data_internal *cdata,
-				  unsigned int maxsegs)
+void rpcrdma_set_max_header_sizes(struct rpcrdma_xprt *r_xprt)
 {
+	struct rpcrdma_create_data_internal *cdata = &r_xprt->rx_data;
+	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
+	unsigned int maxsegs = ia->ri_max_segs;
+
 	ia->ri_max_inline_write = cdata->inline_wsize -
 				  rpcrdma_max_call_header_size(maxsegs);
 	ia->ri_max_inline_read = cdata->inline_rsize -

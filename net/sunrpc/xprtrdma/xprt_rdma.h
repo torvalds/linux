@@ -70,6 +70,7 @@ struct rpcrdma_ia {
 	struct ib_pd		*ri_pd;
 	struct completion	ri_done;
 	int			ri_async_rc;
+	unsigned int		ri_max_segs;
 	unsigned int		ri_max_frmr_depth;
 	unsigned int		ri_max_inline_write;
 	unsigned int		ri_max_inline_read;
@@ -87,6 +88,7 @@ struct rpcrdma_ep {
 	int			rep_connected;
 	struct ib_qp_init_attr	rep_attr;
 	wait_queue_head_t 	rep_connect_wait;
+	struct rpcrdma_connect_private	rep_cm_private;
 	struct rdma_conn_param	rep_remote_cma;
 	struct sockaddr_storage	rep_remote_addr;
 	struct delayed_work	rep_connect_worker;
@@ -523,9 +525,7 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *);
  * RPC/RDMA protocol calls - xprtrdma/rpc_rdma.c
  */
 int rpcrdma_marshal_req(struct rpc_rqst *);
-void rpcrdma_set_max_header_sizes(struct rpcrdma_ia *,
-				  struct rpcrdma_create_data_internal *,
-				  unsigned int);
+void rpcrdma_set_max_header_sizes(struct rpcrdma_xprt *);
 
 /* RPC/RDMA module init - xprtrdma/transport.c
  */
