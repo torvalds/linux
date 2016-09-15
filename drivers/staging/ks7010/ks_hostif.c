@@ -1174,9 +1174,8 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
 	}
 
 	DPRINTK(4, "skb_buff length=%d\n", packet_len);
-	pp = (struct hostif_data_request_t *)
-	    kmalloc(hif_align_size(sizeof(*pp) + 6 + packet_len + 8),
-		    KS_WLAN_MEM_FLAG);
+	pp = kmalloc(hif_align_size(sizeof(*pp) + 6 + packet_len + 8),
+		     KS_WLAN_MEM_FLAG);
 
 	if (!pp) {
 		DPRINTK(3, "allocate memory failed..\n");
@@ -1317,8 +1316,7 @@ void hostif_mib_get_request(struct ks_wlan_private *priv,
 	DPRINTK(3, "\n");
 
 	/* make primitive */
-	pp = (struct hostif_mib_get_request_t *)
-	    kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
+	pp = kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
 	if (!pp) {
 		DPRINTK(3, "allocate memory failed..\n");
 		return;
@@ -1348,8 +1346,7 @@ void hostif_mib_set_request(struct ks_wlan_private *priv,
 	}
 
 	/* make primitive */
-	pp = (struct hostif_mib_set_request_t *)
-	    kmalloc(hif_align_size(sizeof(*pp) + size), KS_WLAN_MEM_FLAG);
+	pp = kmalloc(hif_align_size(sizeof(*pp) + size), KS_WLAN_MEM_FLAG);
 	if (!pp) {
 		DPRINTK(3, "allocate memory failed..\n");
 		return;
@@ -1378,8 +1375,7 @@ void hostif_start_request(struct ks_wlan_private *priv, unsigned char mode)
 	DPRINTK(3, "\n");
 
 	/* make primitive */
-	pp = (struct hostif_start_request_t *)
-	    kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
+	pp = kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
 	if (!pp) {
 		DPRINTK(3, "allocate memory failed..\n");
 		return;
@@ -1406,8 +1402,7 @@ void hostif_ps_adhoc_set_request(struct ks_wlan_private *priv)
 	DPRINTK(3, "\n");
 
 	/* make primitive */
-	pp = (struct hostif_ps_adhoc_set_request_t *)
-	    kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
+	pp = kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
 	if (!pp) {
 		DPRINTK(3, "allocate memory failed..\n");
 		return;
@@ -1450,8 +1445,7 @@ void hostif_infrastructure_set_request(struct ks_wlan_private *priv)
 	DPRINTK(3, "ssid.size=%d\n", priv->reg.ssid.size);
 
 	/* make primitive */
-	pp = (struct hostif_infrastructure_set_request_t *)
-	    kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
+	pp = kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
 	if (!pp) {
 		DPRINTK(3, "allocate memory failed..\n");
 		return;
@@ -1517,8 +1511,7 @@ static void hostif_infrastructure_set2_request(struct ks_wlan_private *priv)
 	DPRINTK(2, "ssid.size=%d\n", priv->reg.ssid.size);
 
 	/* make primitive */
-	pp = (struct hostif_infrastructure_set2_request_t *)
-	    kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
+	pp = kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
 	if (!pp) {
 		DPRINTK(3, "allocate memory failed..\n");
 		return;
@@ -1587,8 +1580,7 @@ void hostif_adhoc_set_request(struct ks_wlan_private *priv)
 	DPRINTK(3, "\n");
 
 	/* make primitive */
-	pp = (struct hostif_adhoc_set_request_t *)
-	    kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
+	pp = kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
 	if (!pp) {
 		DPRINTK(3, "allocate memory failed..\n");
 		return;
@@ -1633,8 +1625,7 @@ void hostif_adhoc_set2_request(struct ks_wlan_private *priv)
 	DPRINTK(3, "\n");
 
 	/* make primitive */
-	pp = (struct hostif_adhoc_set2_request_t *)
-	    kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
+	pp = kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
 	if (!pp) {
 		DPRINTK(3, "allocate memory failed..\n");
 		return;
@@ -1681,8 +1672,7 @@ void hostif_stop_request(struct ks_wlan_private *priv)
 	DPRINTK(3, "\n");
 
 	/* make primitive */
-	pp = (struct hostif_stop_request_t *)
-	    kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
+	pp = kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
 	if (!pp) {
 		DPRINTK(3, "allocate memory failed..\n");
 		return;
@@ -1704,8 +1694,7 @@ void hostif_phy_information_request(struct ks_wlan_private *priv)
 	DPRINTK(3, "\n");
 
 	/* make primitive */
-	pp = (struct hostif_phy_information_request_t *)
-	    kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
+	pp = kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
 	if (!pp) {
 		DPRINTK(3, "allocate memory failed..\n");
 		return;
@@ -1736,8 +1725,7 @@ void hostif_power_mngmt_request(struct ks_wlan_private *priv,
 	DPRINTK(3, "mode=%lu wake_up=%lu receiveDTIMs=%lu\n", mode, wake_up,
 		receiveDTIMs);
 	/* make primitive */
-	pp = (struct hostif_power_mngmt_request_t *)
-	    kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
+	pp = kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
 	if (!pp) {
 		DPRINTK(3, "allocate memory failed..\n");
 		return;
@@ -1763,8 +1751,7 @@ void hostif_sleep_request(struct ks_wlan_private *priv, unsigned long mode)
 
 	if (mode == SLP_SLEEP) {
 		/* make primitive */
-		pp = (struct hostif_sleep_request_t *)
-		    kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
+		pp = kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
 		if (!pp) {
 			DPRINTK(3, "allocate memory failed..\n");
 			return;
@@ -1797,8 +1784,7 @@ void hostif_bss_scan_request(struct ks_wlan_private *priv,
 
 	DPRINTK(2, "\n");
 	/* make primitive */
-	pp = (struct hostif_bss_scan_request_t *)
-	    kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
+	pp = kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
 	if (!pp) {
 		DPRINTK(3, "allocate memory failed..\n");
 		return;
@@ -1854,8 +1840,7 @@ void hostif_mic_failure_request(struct ks_wlan_private *priv,
 
 	DPRINTK(3, "count=%d :: timer=%d\n", failure_count, timer);
 	/* make primitive */
-	pp = (struct hostif_mic_failure_request_t *)
-	    kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
+	pp = kmalloc(hif_align_size(sizeof(*pp)), KS_WLAN_MEM_FLAG);
 	if (!pp) {
 		DPRINTK(3, "allocate memory failed..\n");
 		return;
