@@ -1359,6 +1359,11 @@ static void smq_clear_dirty(struct dm_cache_policy *p, dm_oblock_t oblock)
 	spin_unlock_irqrestore(&mq->lock, flags);
 }
 
+static unsigned random_level(dm_cblock_t cblock)
+{
+	return hash_32_generic(from_cblock(cblock), 9) & (NR_CACHE_LEVELS - 1);
+}
+
 static int smq_load_mapping(struct dm_cache_policy *p,
 			    dm_oblock_t oblock, dm_cblock_t cblock,
 			    uint32_t hint, bool hint_valid)
@@ -1369,7 +1374,7 @@ static int smq_load_mapping(struct dm_cache_policy *p,
 	e = alloc_particular_entry(&mq->cache_alloc, from_cblock(cblock));
 	e->oblock = oblock;
 	e->dirty = false;	/* this gets corrected in a minute */
-	e->level = hint_valid ? min(hint, NR_CACHE_LEVELS - 1) : 1;
+	e->level = hint_valid ? min(hint, NR_CACHE_LEVELS - 1) : random_level(cblock);
 	push(mq, e);
 
 	return 0;
