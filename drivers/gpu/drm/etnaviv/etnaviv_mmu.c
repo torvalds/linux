@@ -342,7 +342,12 @@ u32 etnaviv_iommu_get_cmdbuf_va(struct etnaviv_gpu *gpu,
 			mutex_unlock(&mmu->lock);
 			return 0;
 		}
-		mmu->last_iova = buf->vram_node.start + buf->size;
+		/*
+		 * At least on GC3000 the FE MMU doesn't properly flush old TLB
+		 * entries. Make sure to space the command buffers out in a way
+		 * that the FE MMU prefetch won't load invalid entries.
+		 */
+		mmu->last_iova = buf->vram_node.start + buf->size + SZ_64K;
 		gpu->mmu->need_flush = true;
 		mutex_unlock(&mmu->lock);
 
