@@ -112,6 +112,25 @@ int dm_array_resize(struct dm_array_info *info, dm_block_t root,
 	__dm_written_to_disk(value);
 
 /*
+ * Creates a new array populated with values provided by a callback
+ * function.  This is more efficient than creating an empty array,
+ * resizing, and then setting values since that process incurs a lot of
+ * copying.
+ *
+ * Assumes 32bit values for now since it's only used by the cache hint
+ * array.
+ *
+ * info - describes the array
+ * root - the root block of the array on disk
+ * size - the number of entries in the array
+ * fn - the callback
+ * context - passed to the callback
+ */
+typedef int (*value_fn)(uint32_t index, void *value_le, void *context);
+int dm_array_new(struct dm_array_info *info, dm_block_t *root,
+		 uint32_t size, value_fn fn, void *context);
+
+/*
  * Frees a whole array.  The value_type's decrement operation will be called
  * for all values in the array
  */
