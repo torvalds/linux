@@ -25,8 +25,8 @@ static void register_onboard_backlight(struct fbtft_par *par);
 
 static int init_display(struct fbtft_par *par)
 {
-	if (par->pdata
-		&& par->pdata->display.backlight == FBTFT_ONBOARD_BACKLIGHT) {
+	if (par->pdata &&
+	    par->pdata->display.backlight == FBTFT_ONBOARD_BACKLIGHT) {
 		/* module uses onboard GPIO for panel power */
 		par->fbtftops.register_backlight = register_onboard_backlight;
 	}
@@ -189,8 +189,8 @@ static int update_onboard_backlight(struct backlight_device *bd)
 		"%s: power=%d, fb_blank=%d\n",
 		__func__, bd->props.power, bd->props.fb_blank);
 
-	on = (bd->props.power == FB_BLANK_UNBLANK)
-		&& (bd->props.fb_blank == FB_BLANK_UNBLANK);
+	on = (bd->props.power == FB_BLANK_UNBLANK) &&
+	     (bd->props.fb_blank == FB_BLANK_UNBLANK);
 	/* Onboard backlight connected to GPIO0 on SSD1351, GPIO1 unused */
 	write_reg(par, 0xB5, on ? 0x03 : 0x02);
 
