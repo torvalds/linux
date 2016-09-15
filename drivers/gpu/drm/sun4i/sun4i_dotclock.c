@@ -62,7 +62,7 @@ static unsigned long sun4i_dclk_recalc_rate(struct clk_hw *hw,
 	regmap_read(dclk->regmap, SUN4I_TCON0_DCLK_REG, &val);
 
 	val >>= SUN4I_TCON0_DCLK_DIV_SHIFT;
-	val &= SUN4I_TCON0_DCLK_DIV_WIDTH;
+	val &= (1 << SUN4I_TCON0_DCLK_DIV_WIDTH) - 1;
 
 	if (!val)
 		val = 1;
