@@ -1239,6 +1239,59 @@ static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
 	}
 }
 
+static int mxc_nand_onfi_set_features(struct mtd_info *mtd,
+				      struct nand_chip *chip, int addr,
+				      u8 *subfeature_param)
+{
+	struct nand_chip *nand_chip = mtd_to_nand(mtd);
+	struct mxc_nand_host *host = nand_get_controller_data(nand_chip);
+	int i;
+
+	if (!chip->onfi_version ||
+	    !(le16_to_cpu(chip->onfi_params.opt_cmd)
+	      & ONFI_OPT_CMD_SET_GET_FEATURES))
+		return -EINVAL;
+
+	host->buf_start = 0;
+
+	for (i = 0; i < ONFI_SUBFEATURE_PARAM_LEN; ++i)
+		chip->write_byte(mtd, subfeature_param[i]);
+
+	memcpy32_toio(host->main_area0, host->data_buf, mtd->writesize);
+	host->devtype_data->send_cmd(host, NAND_CMD_SET_FEATURES, false);
+	mxc_do_addr_cycle(mtd, addr, -1);
+	host->devtype_data->send_page(mtd, NFC_INPUT);
+
+	return 0;
+}
+
+static int mxc_nand_onfi_get_features(struct mtd_info *mtd,
+				      struct nand_chip *chip, int addr,
+				      u8 *subfeature_param)
+{
+	struct nand_chip *nand_chip = mtd_to_nand(mtd);
+	struct mxc_nand_host *host = nand_get_controller_data(nand_chip);
+	int i;
+
+	if (!chip->onfi_version ||
+	    !(le16_to_cpu(chip->onfi_params.opt_cmd)
+	      & ONFI_OPT_CMD_SET_GET_FEATURES))
+		return -EINVAL;
+
+	*(uint32_t *)host->main_area0 = 0xdeadbeef;
+
+	host->devtype_data->send_cmd(host, NAND_CMD_GET_FEATURES, false);
+	mxc_do_addr_cycle(mtd, addr, -1);
+	host->devtype_data->send_page(mtd, NFC_OUTPUT);
+	memcpy32_fromio(host->data_buf, host->main_area0, 512);
+	host->buf_start = 0;
+
+	for (i = 0; i < ONFI_SUBFEATURE_PARAM_LEN; ++i)
+		*subfeature_param++ = chip->read_byte(mtd);
+
+	return 0;
+}
+
 /*
  * The generic flash bbt decriptors overlap with our ecc
  * hardware, so define some i.MX specific ones.
@@ -1513,6 +1566,8 @@ static int mxcnd_probe(struct platform_device *pdev)
 	this->read_word = mxc_nand_read_word;
 	this->write_buf = mxc_nand_write_buf;
 	this->read_buf = mxc_nand_read_buf;
+	this->onfi_set_features = mxc_nand_onfi_set_features;
+	this->onfi_get_features = mxc_nand_onfi_get_features;
 
 	host->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk))
