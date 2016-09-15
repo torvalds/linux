@@ -2103,66 +2103,6 @@ static void init_master_vcore(struct kvmppc_vcore *vc)
 	vc->conferring_threads = 0;
 }
 
-/*
- * See if the existing subcores can be split into 3 (or fewer) subcores
- * of at most two threads each, so we can fit in another vcore.  This
- * assumes there are at most two subcores and at most 6 threads in total.
- */
-static bool can_split_piggybacked_subcores(struct core_info *cip)
-{
-	int sub, new_sub;
-	int large_sub = -1;
-	int thr;
-	int n_subcores = cip->n_subcores;
-	struct kvmppc_vcore *vc, *vcnext;
-	struct kvmppc_vcore *master_vc = NULL;
-
-	for (sub = 0; sub < cip->n_subcores; ++sub) {
-		if (cip->subcore_threads[sub] <= 2)
-			continue;
-		if (large_sub >= 0)
-			return false;
-		large_sub = sub;
-		vc = list_first_entry(&cip->vcs[sub], struct kvmppc_vcore,
-				      preempt_list);
-		if (vc->num_threads > 2)
-			return false;
-		n_subcores += (cip->subcore_threads[sub] - 1) >> 1;
-	}
-	if (large_sub < 0 || !subcore_config_ok(n_subcores + 1, 2))
-		return false;
-
-	/*
-	 * Seems feasible, so go through and move vcores to new subcores.
-	 * Note that when we have two or more vcores in one subcore,
-	 * all those vcores must have only one thread each.
-	 */
-	new_sub = cip->n_subcores;
-	thr = 0;
-	sub = large_sub;
-	list_for_each_entry_safe(vc, vcnext, &cip->vcs[sub], preempt_list) {
-		if (thr >= 2) {
-			list_del(&vc->preempt_list);
-			list_add_tail(&vc->preempt_list, &cip->vcs[new_sub]);
-			/* vc->num_threads must be 1 */
-			if (++cip->subcore_threads[new_sub] == 1) {
-				cip->subcore_vm[new_sub] = vc->kvm;
-				init_master_vcore(vc);
-				master_vc = vc;
-				++cip->n_subcores;
-			} else {
-				vc->master_vcore = master_vc;
-				++new_sub;
-			}
-		}
-		thr += vc->num_threads;
-	}
-	cip->subcore_threads[large_sub] = 2;
-	cip->max_subcore_threads = 2;
-
-	return true;
-}
-
 static bool can_dynamic_split(struct kvmppc_vcore *vc, struct core_info *cip)
 {
 	int n_threads = vc->num_threads;
@@ -2173,23 +2113,9 @@ static bool can_dynamic_split(struct kvmppc_vcore *vc, struct core_info *cip)
 
 	if (n_threads < cip->max_subcore_threads)
 		n_threads = cip->max_subcore_threads;
-	if (subcore_config_ok(cip->n_subcores + 1, n_threads)) {
-		cip->max_subcore_threads = n_threads;
-	} else if (cip->n_subcores <= 2 && cip->total_threads <= 6 &&
-		   vc->num_threads <= 2) {
-		/*
-		 * We may be able to fit another subcore in by
-		 * splitting an existing subcore with 3 or 4
-		 * threads into two 2-thread subcores, or one
-		 * with 5 or 6 threads into three subcores.
-		 * We can only do this if those subcores have
-		 * piggybacked virtual cores.
-		 */
-		if (!can_split_piggybacked_subcores(cip))
-			return false;
-	} else {
+	if (!subcore_config_ok(cip->n_subcores + 1, n_threads))
 		return false;
-	}
+	cip->max_subcore_threads = n_threads;
 
 	sub = cip->n_subcores;
 	++cip->n_subcores;
@@ -2203,45 +2129,6 @@ static bool can_dynamic_split(struct kvmppc_vcore *vc, struct core_info *cip)
 	return true;
 }
 
-static bool can_piggyback_subcore(struct kvmppc_vcore *pvc,
-				  struct core_info *cip, int sub)
-{
-	struct kvmppc_vcore *vc;
-	int n_thr;
-
-	vc = list_first_entry(&cip->vcs[sub], struct kvmppc_vcore,
-			      preempt_list);
-
-	/* require same VM and same per-core reg values */
-	if (pvc->kvm != vc->kvm ||
-	    pvc->tb_offset != vc->tb_offset ||
-	    pvc->pcr != vc->pcr ||
-	    pvc->lpcr != vc->lpcr)
-		return false;
-
-	/*
-	 * P8 guests can't do piggybacking, because then the
-	 * VTB would be shared between the vcpus.
-	 */
-	if (cpu_has_feature(CPU_FTR_ARCH_207S))
-		return false;
-
-	n_thr = cip->subcore_threads[sub] + pvc->num_threads;
-	if (n_thr > cip->max_subcore_threads) {
-		if (!subcore_config_ok(cip->n_subcores, n_thr))
-			return false;
-		cip->max_subcore_threads = n_thr;
-	}
-
-	cip->total_threads += pvc->num_threads;
-	cip->subcore_threads[sub] = n_thr;
-	pvc->master_vcore = vc;
-	list_del(&pvc->preempt_list);
-	list_add_tail(&pvc->preempt_list, &cip->vcs[sub]);
-
-	return true;
-}
-
 /*
  * Work out whether it is possible to piggyback the execution of
  * vcore *pvc onto the execution of the other vcores described in *cip.
@@ -2249,19 +2136,10 @@ static bool can_piggyback_subcore(struct kvmppc_vcore *pvc,
 static bool can_piggyback(struct kvmppc_vcore *pvc, struct core_info *cip,
 			  int target_threads)
 {
-	int sub;
-
 	if (cip->total_threads + pvc->num_threads > target_threads)
 		return false;
-	for (sub = 0; sub < cip->n_subcores; ++sub)
-		if (cip->subcore_threads[sub] &&
-		    can_piggyback_subcore(pvc, cip, sub))
-			return true;
 
-	if (can_dynamic_split(pvc, cip))
-		return true;
-
-	return false;
+	return can_dynamic_split(pvc, cip);
 }
 
 static void prepare_threads(struct kvmppc_vcore *vc)
