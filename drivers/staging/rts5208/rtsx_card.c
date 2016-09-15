@@ -631,21 +631,21 @@ void rtsx_init_cards(struct rtsx_chip *chip)
 int switch_ssc_clock(struct rtsx_chip *chip, int clk)
 {
 	int retval;
-	u8 N = (u8)(clk - 2), min_N, max_N;
+	u8 n = (u8)(clk - 2), min_n, max_n;
 	u8 mcu_cnt, div, max_div, ssc_depth, ssc_depth_mask;
 	int sd_vpclk_phase_reset = 0;
 
 	if (chip->cur_clk == clk)
 		return STATUS_SUCCESS;
 
-	min_N = 60;
-	max_N = 120;
+	min_n = 60;
+	max_n = 120;
 	max_div = CLK_DIV_4;
 
 	dev_dbg(rtsx_dev(chip), "Switch SSC clock to %dMHz (cur_clk = %d)\n",
 		clk, chip->cur_clk);
 
-	if ((clk <= 2) || (N > max_N)) {
+	if ((clk <= 2) || (n > max_n)) {
 		rtsx_trace(chip);
 		return STATUS_FAIL;
 	}
@@ -655,15 +655,15 @@ int switch_ssc_clock(struct rtsx_chip *chip, int clk)
 		mcu_cnt = 7;
 
 	div = CLK_DIV_1;
-	while ((N < min_N) && (div < max_div)) {
-		N = (N + 2) * 2 - 2;
+	while ((n < min_n) && (div < max_div)) {
+		n = (n + 2) * 2 - 2;
 		div++;
 	}
-	dev_dbg(rtsx_dev(chip), "N = %d, div = %d\n", N, div);
+	dev_dbg(rtsx_dev(chip), "n = %d, div = %d\n", n, div);
 
 	if (chip->ssc_en) {
 		ssc_depth = 0x01;
-		N -= 2;
+		n -= 2;
 	} else {
 		ssc_depth = 0;
 	}
@@ -677,7 +677,7 @@ int switch_ssc_clock(struct rtsx_chip *chip, int clk)
 	rtsx_add_cmd(chip, WRITE_REG_CMD, CLK_DIV, 0xFF, (div << 4) | mcu_cnt);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, SSC_CTL1, SSC_RSTB, 0);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, SSC_CTL2, ssc_depth_mask, ssc_depth);
-	rtsx_add_cmd(chip, WRITE_REG_CMD, SSC_DIV_N_0, 0xFF, N);
+	rtsx_add_cmd(chip, WRITE_REG_CMD, SSC_DIV_N_0, 0xFF, n);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, SSC_CTL1, SSC_RSTB, SSC_RSTB);
 	if (sd_vpclk_phase_reset) {
 		rtsx_add_cmd(chip, WRITE_REG_CMD, SD_VPCLK0_CTL,
