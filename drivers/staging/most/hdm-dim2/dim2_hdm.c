@@ -85,7 +85,6 @@ struct hdm_channel {
  * @most_iface: most interface structure
  * @capabilities: an array of channel capability data
  * @io_base: I/O register base address
- * @irq_ahb0: dim2 AHB0 irq number
  * @clk_speed: user selectable (through command line parameter) clock speed
  * @netinfo_task: thread to deliver network status
  * @netinfo_waitq: waitq for the thread to sleep
@@ -100,7 +99,6 @@ struct dim2_hdm {
 	struct most_interface most_iface;
 	char name[16 + sizeof "dim2-"];
 	void __iomem *io_base;
-	unsigned int irq_ahb0;
 	int clk_speed;
 	struct task_struct *netinfo_task;
 	wait_queue_head_t netinfo_waitq;
@@ -719,6 +717,7 @@ static int dim2_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret, i;
 	struct kobject *kobj;
+	int irq;
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
@@ -732,18 +731,17 @@ static int dim2_probe(struct platform_device *pdev)
 	if (IS_ERR(dev->io_base))
 		return PTR_ERR(dev->io_base);
 
-	ret = platform_get_irq(pdev, 0);
-	if (ret < 0) {
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
 		dev_err(&pdev->dev, "failed to get irq\n");
 		return -ENODEV;
 	}
-	dev->irq_ahb0 = ret;
 
-	ret = devm_request_irq(&pdev->dev, dev->irq_ahb0, dim2_ahb_isr, 0,
+	ret = devm_request_irq(&pdev->dev, irq, dim2_ahb_isr, 0,
 			       "mlb_ahb0", dev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request IRQ: %d, err: %d\n",
-			dev->irq_ahb0, ret);
+			irq, ret);
 		return ret;
 	}
 	init_waitqueue_head(&dev->netinfo_waitq);
