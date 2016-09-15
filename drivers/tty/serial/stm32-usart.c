@@ -321,6 +321,8 @@ static irqreturn_t stm32_interrupt(int irq, void *ptr)
 	struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
 	u32 sr;
 
+	spin_lock(&port->lock);
+
 	sr = readl_relaxed(port->membase + ofs->isr);
 
 	if ((sr & USART_SR_RXNE) && !(stm32_port->rx_ch))
@@ -328,6 +330,8 @@ static irqreturn_t stm32_interrupt(int irq, void *ptr)
 
 	if ((sr & USART_SR_TXE) && !(stm32_port->tx_ch))
 		stm32_transmit_chars(port);
+
+	spin_unlock(&port->lock);
 
 	if (stm32_port->rx_ch)
 		return IRQ_WAKE_THREAD;
