@@ -9,6 +9,7 @@ struct pmu_event {
 	const char *event;
 	const char *desc;
 	const char *topic;
+	const char *long_desc;
 };
 
 /*
