@@ -896,17 +896,15 @@ int rpc_malloc(struct rpc_task *task)
 EXPORT_SYMBOL_GPL(rpc_malloc);
 
 /**
- * rpc_free - free buffer allocated via rpc_malloc
- * @buffer: buffer to free
+ * rpc_free - free RPC buffer resources allocated via rpc_malloc
+ * @task: RPC task
  *
  */
-void rpc_free(void *buffer)
+void rpc_free(struct rpc_task *task)
 {
+	void *buffer = task->tk_rqstp->rq_buffer;
 	size_t size;
 	struct rpc_buffer *buf;
-
-	if (!buffer)
-		return;
 
 	buf = container_of(buffer, struct rpc_buffer, data);
 	size = buf->len;

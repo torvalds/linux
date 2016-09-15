@@ -523,7 +523,6 @@ xprt_rdma_allocate(struct rpc_task *task)
 out:
 	dprintk("RPC:       %s: size %zd, request 0x%p\n", __func__, size, req);
 	req->rl_connect_cookie = 0;	/* our reserved value */
-	req->rl_task = task;
 	rqst->rq_buffer = req->rl_sendbuf->rg_base;
 	return 0;
 
@@ -571,31 +570,26 @@ out_fail:
 	return -ENOMEM;
 }
 
-/*
- * This function returns all RDMA resources to the pool.
+/**
+ * xprt_rdma_free - release resources allocated by xprt_rdma_allocate
+ * @task: RPC task
+ *
+ * Caller guarantees rqst->rq_buffer is non-NULL.
  */
 static void
-xprt_rdma_free(void *buffer)
+xprt_rdma_free(struct rpc_task *task)
 {
-	struct rpcrdma_req *req;
-	struct rpcrdma_xprt *r_xprt;
-	struct rpcrdma_regbuf *rb;
+	struct rpc_rqst *rqst = task->tk_rqstp;
+	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(rqst->rq_xprt);
+	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
 
-	if (buffer == NULL)
-		return;
-
-	rb = container_of(buffer, struct rpcrdma_regbuf, rg_base[0]);
-	req = rb->rg_owner;
 	if (req->rl_backchannel)
 		return;
-
-	r_xprt = container_of(req->rl_buffer, struct rpcrdma_xprt, rx_buf);
 
 	dprintk("RPC:       %s: called on 0x%p\n", __func__, req->rl_reply);
 
 	r_xprt->rx_ia.ri_ops->ro_unmap_safe(r_xprt, req,
-					    !RPC_IS_ASYNC(req->rl_task));
-
+					    !RPC_IS_ASYNC(task));
 	rpcrdma_buffer_put(req);
 }
 

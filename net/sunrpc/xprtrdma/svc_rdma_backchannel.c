@@ -186,7 +186,7 @@ xprt_rdma_bc_allocate(struct rpc_task *task)
 }
 
 static void
-xprt_rdma_bc_free(void *buffer)
+xprt_rdma_bc_free(struct rpc_task *task)
 {
 	/* No-op: ctxt and page have already been freed. */
 }

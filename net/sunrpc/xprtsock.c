@@ -2560,12 +2560,10 @@ static int bc_malloc(struct rpc_task *task)
 /*
  * Free the space allocated in the bc_alloc routine
  */
-static void bc_free(void *buffer)
+static void bc_free(struct rpc_task *task)
 {
+	void *buffer = task->tk_rqstp->rq_buffer;
 	struct rpc_buffer *buf;
-
-	if (!buffer)
-		return;
 
 	buf = container_of(buffer, struct rpc_buffer, data);
 	free_page((unsigned long)buf);

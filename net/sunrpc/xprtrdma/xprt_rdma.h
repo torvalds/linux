@@ -283,7 +283,6 @@ struct rpcrdma_req {
 	struct list_head	rl_free;
 	unsigned int		rl_niovs;
 	unsigned int		rl_connect_cookie;
-	struct rpc_task		*rl_task;
 	struct rpcrdma_buffer	*rl_buffer;
 	struct rpcrdma_rep	*rl_reply;/* holder for reply buffer */
 	struct ib_sge		rl_send_iov[RPCRDMA_MAX_IOVS];
