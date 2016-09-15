@@ -3619,7 +3619,8 @@ static void qeth_qdio_cq_handler(struct qeth_card *card,
 		int e;
 
 		e = 0;
-		while (buffer->element[e].addr) {
+		while ((e < QDIO_MAX_ELEMENTS_PER_BUFFER) &&
+		       buffer->element[e].addr) {
 			unsigned long phys_aob_addr;
 
 			phys_aob_addr = (unsigned long) buffer->element[e].addr;
