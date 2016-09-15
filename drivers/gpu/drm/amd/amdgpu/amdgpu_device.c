@@ -2771,6 +2771,29 @@ static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
 	return result;
 }
 
+static ssize_t amdgpu_debugfs_sensor_read(struct file *f, char __user *buf,
+					size_t size, loff_t *pos)
+{
+	struct amdgpu_device *adev = f->f_inode->i_private;
+	int idx, r;
+	int32_t value;
+
+	if (size != 4 || *pos & 0x3)
+		return -EINVAL;
+
+	/* convert offset to sensor number */
+	idx = *pos >> 2;
+
+	if (adev->powerplay.pp_funcs && adev->powerplay.pp_funcs->read_sensor)
+		r = adev->powerplay.pp_funcs->read_sensor(adev->powerplay.pp_handle, idx, &value);
+	else
+		return -EINVAL;
+
+	if (!r)
+		r = put_user(value, (int32_t *)buf);
+
+	return !r ? 4 : r;
+}
 
 static const struct file_operations amdgpu_debugfs_regs_fops = {
 	.owner = THIS_MODULE,
@@ -2803,12 +2826,19 @@ static const struct file_operations amdgpu_debugfs_gca_config_fops = {
 	.llseek = default_llseek
 };
 
+static const struct file_operations amdgpu_debugfs_sensors_fops = {
+	.owner = THIS_MODULE,
+	.read = amdgpu_debugfs_sensor_read,
+	.llseek = default_llseek
+};
+
 static const struct file_operations *debugfs_regs[] = {
 	&amdgpu_debugfs_regs_fops,
 	&amdgpu_debugfs_regs_didt_fops,
 	&amdgpu_debugfs_regs_pcie_fops,
 	&amdgpu_debugfs_regs_smc_fops,
 	&amdgpu_debugfs_gca_config_fops,
+	&amdgpu_debugfs_sensors_fops,
 };
 
 static const char *debugfs_regs_names[] = {
@@ -2817,6 +2847,7 @@ static const char *debugfs_regs_names[] = {
 	"amdgpu_regs_pcie",
 	"amdgpu_regs_smc",
 	"amdgpu_gca_config",
+	"amdgpu_sensors",
 };
 
 static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)
