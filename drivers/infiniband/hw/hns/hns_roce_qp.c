@@ -617,21 +617,20 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 			return ERR_PTR(-ENOMEM);
 
 		hr_qp = &hr_sqp->hr_qp;
+		hr_qp->port = init_attr->port_num - 1;
+		hr_qp->phy_port = hr_dev->iboe.phy_port[hr_qp->port];
+		hr_qp->ibqp.qp_num = hr_dev->caps.sqp_start +
+				     HNS_ROCE_MAX_PORTS +
+				     hr_dev->iboe.phy_port[hr_qp->port];
 
 		ret = hns_roce_create_qp_common(hr_dev, pd, init_attr, udata,
-						hr_dev->caps.sqp_start +
-						hr_dev->caps.num_ports +
-						init_attr->port_num - 1, hr_qp);
+						hr_qp->ibqp.qp_num, hr_qp);
 		if (ret) {
 			dev_err(dev, "Create GSI QP failed!\n");
 			kfree(hr_sqp);
 			return ERR_PTR(ret);
 		}
 
-		hr_qp->port = (init_attr->port_num - 1);
-		hr_qp->ibqp.qp_num = hr_dev->caps.sqp_start +
-				     hr_dev->caps.num_ports +
-				     init_attr->port_num - 1;
 		break;
 	}
 	default:{

@@ -409,6 +409,7 @@ struct hns_roce_qp {
 	u32			buff_size;
 	struct mutex		mutex;
 	u8			port;
+	u8			phy_port;
 	u8			sl;
 	u8			resp_depth;
 	u8			state;
