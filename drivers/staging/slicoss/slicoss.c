@@ -1661,7 +1661,6 @@ static int slic_link_event_handler(struct adapter *adapter)
 	struct slic_shmemory *sm = &adapter->shmem;
 	dma_addr_t phaddr = sm->lnkstatus_phaddr;
 
-
 	if (adapter->state != ADAPT_UP) {
 		/* Adapter is not operational.  Ignore.  */
 		return -ENODEV;
