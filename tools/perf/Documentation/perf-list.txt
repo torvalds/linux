@@ -8,7 +8,7 @@ perf-list - List all symbolic event types
 SYNOPSIS
 --------
 [verse]
-'perf list' [--no-desc] [hw|sw|cache|tracepoint|pmu|event_glob]
+'perf list' [--no-desc] [--long-desc] [hw|sw|cache|tracepoint|pmu|event_glob]
 
 DESCRIPTION
 -----------
@@ -19,6 +19,10 @@ OPTIONS
 -------
 --no-desc::
 Don't print descriptions.
+
+-v::
+--long-desc::
+Print longer event descriptions.
 
 
 [[EVENT_MODIFIERS]]
