@@ -2012,10 +2012,10 @@ ff_layout_alloc_deviceid_node(struct nfs_server *server,
 }
 
 static void
-ff_layout_encode_layoutreturn(struct pnfs_layout_hdr *lo,
-			      struct xdr_stream *xdr,
+ff_layout_encode_layoutreturn(struct xdr_stream *xdr,
 			      const struct nfs4_layoutreturn_args *args)
 {
+	struct pnfs_layout_hdr *lo = args->layout;
 	struct nfs4_flexfile_layout *flo = FF_LAYOUT_FROM_HDR(lo);
 	__be32 *start;
 
