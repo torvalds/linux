@@ -534,7 +534,7 @@ int hw_sm750_pan_display(struct lynxfb_crtc *crtc,
 			 const struct fb_var_screeninfo *var,
 			 const struct fb_info *info)
 {
-	uint32_t total;
+	u32 total;
 	/* check params */
 	if ((var->xoffset + var->xres > var->xres_virtual) ||
 	    (var->yoffset + var->yres > var->yres_virtual)) {
