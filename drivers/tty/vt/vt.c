@@ -1312,7 +1312,7 @@ static int vc_t416_color(struct vc_data *vc, int i,
 	if (i > vc->vc_npar)
 		return i;
 
-	if (vc->vc_par[i] == 5 && i < vc->vc_npar) {
+	if (vc->vc_par[i] == 5 && i + 1 <= vc->vc_npar) {
 		/* 256 colours -- ubiquitous */
 		i++;
 		rgb_from_256(vc->vc_par[i], &c);
