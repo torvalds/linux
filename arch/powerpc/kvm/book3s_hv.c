@@ -1199,6 +1199,9 @@ static int kvmppc_get_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 	case KVM_REG_PPC_DPDES:
 		*val = get_reg_val(id, vcpu->arch.vcore->dpdes);
 		break;
+	case KVM_REG_PPC_VTB:
+		*val = get_reg_val(id, vcpu->arch.vcore->vtb);
+		break;
 	case KVM_REG_PPC_DAWR:
 		*val = get_reg_val(id, vcpu->arch.dawr);
 		break;
@@ -1390,6 +1393,9 @@ static int kvmppc_set_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 		break;
 	case KVM_REG_PPC_DPDES:
 		vcpu->arch.vcore->dpdes = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_VTB:
+		vcpu->arch.vcore->vtb = set_reg_val(id, *val);
 		break;
 	case KVM_REG_PPC_DAWR:
 		vcpu->arch.dawr = set_reg_val(id, *val);
@@ -2213,9 +2219,11 @@ static bool can_piggyback_subcore(struct kvmppc_vcore *pvc,
 	    pvc->lpcr != vc->lpcr)
 		return false;
 
-	/* P8 guest with > 1 thread per core would see wrong TIR value */
-	if (cpu_has_feature(CPU_FTR_ARCH_207S) &&
-	    (vc->num_threads > 1 || pvc->num_threads > 1))
+	/*
+	 * P8 guests can't do piggybacking, because then the
+	 * VTB would be shared between the vcpus.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_207S))
 		return false;
 
 	n_thr = cip->subcore_threads[sub] + pvc->num_threads;
