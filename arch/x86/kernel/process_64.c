@@ -525,6 +525,7 @@ void set_personality_ia32(bool x32)
 }
 EXPORT_SYMBOL_GPL(set_personality_ia32);
 
+#ifdef CONFIG_CHECKPOINT_RESTORE
 static long prctl_map_vdso(const struct vdso_image *image, unsigned long addr)
 {
 	int ret;
@@ -535,6 +536,7 @@ static long prctl_map_vdso(const struct vdso_image *image, unsigned long addr)
 
 	return (long)image->size;
 }
+#endif
 
 long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 {
@@ -590,14 +592,14 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 	}
 
 #ifdef CONFIG_CHECKPOINT_RESTORE
-#ifdef CONFIG_X86_X32
+# ifdef CONFIG_X86_X32
 	case ARCH_MAP_VDSO_X32:
 		return prctl_map_vdso(&vdso_image_x32, addr);
-#endif
-#if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
+# endif
+# if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
 	case ARCH_MAP_VDSO_32:
 		return prctl_map_vdso(&vdso_image_32, addr);
-#endif
+# endif
 	case ARCH_MAP_VDSO_64:
 		return prctl_map_vdso(&vdso_image_64, addr);
 #endif
