@@ -41,22 +41,19 @@ static inline void init_hashrandom(u32 *jhash_initval)
 		*jhash_initval = prandom_u32();
 }
 
-static inline u32 hash_v4(const struct sk_buff *skb, u32 jhash_initval)
+static inline u32 hash_v4(const struct iphdr *iph, u32 initval)
 {
-	const struct iphdr *iph = ip_hdr(skb);
-
 	/* packets in either direction go into same queue */
 	if ((__force u32)iph->saddr < (__force u32)iph->daddr)
 		return jhash_3words((__force u32)iph->saddr,
-			(__force u32)iph->daddr, iph->protocol, jhash_initval);
+			(__force u32)iph->daddr, iph->protocol, initval);
 
 	return jhash_3words((__force u32)iph->daddr,
-			(__force u32)iph->saddr, iph->protocol, jhash_initval);
+			(__force u32)iph->saddr, iph->protocol, initval);
 }
 
-static inline u32 hash_v6(const struct sk_buff *skb, u32 jhash_initval)
+static inline u32 hash_v6(const struct ipv6hdr *ip6h, u32 initval)
 {
-	const struct ipv6hdr *ip6h = ipv6_hdr(skb);
 	u32 a, b, c;
 
 	if ((__force u32)ip6h->saddr.s6_addr32[3] <
@@ -74,17 +71,50 @@ static inline u32 hash_v6(const struct sk_buff *skb, u32 jhash_initval)
 	else
 		c = (__force u32) ip6h->daddr.s6_addr32[1];
 
-	return jhash_3words(a, b, c, jhash_initval);
+	return jhash_3words(a, b, c, initval);
+}
+
+static inline u32 hash_bridge(const struct sk_buff *skb, u32 initval)
+{
+	struct ipv6hdr *ip6h, _ip6h;
+	struct iphdr *iph, _iph;
+
+	switch (eth_hdr(skb)->h_proto) {
+	case htons(ETH_P_IP):
+		iph = skb_header_pointer(skb, skb_network_offset(skb),
+					 sizeof(*iph), &_iph);
+		if (iph)
+			return hash_v4(iph, initval);
+		break;
+	case htons(ETH_P_IPV6):
+		ip6h = skb_header_pointer(skb, skb_network_offset(skb),
+					  sizeof(*ip6h), &_ip6h);
+		if (ip6h)
+			return hash_v6(ip6h, initval);
+		break;
+	}
+
+	return 0;
 }
 
 static inline u32
 nfqueue_hash(const struct sk_buff *skb, u16 queue, u16 queues_total, u8 family,
-	     u32 jhash_initval)
+	     u32 initval)
 {
-	if (family == NFPROTO_IPV4)
-		queue += ((u64) hash_v4(skb, jhash_initval) * queues_total) >> 32;
-	else if (family == NFPROTO_IPV6)
-		queue += ((u64) hash_v6(skb, jhash_initval) * queues_total) >> 32;
+	switch (family) {
+	case NFPROTO_IPV4:
+		queue += reciprocal_scale(hash_v4(ip_hdr(skb), initval),
+					  queues_total);
+		break;
+	case NFPROTO_IPV6:
+		queue += reciprocal_scale(hash_v6(ipv6_hdr(skb), initval),
+					  queues_total);
+		break;
+	case NFPROTO_BRIDGE:
+		queue += reciprocal_scale(hash_bridge(skb, initval),
+					  queues_total);
+		break;
+	}
 
 	return queue;
 }
