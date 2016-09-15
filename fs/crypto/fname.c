@@ -20,9 +20,11 @@ static u32 size_round_up(size_t size, size_t blksize)
 }
 
 /**
- * dir_crypt_complete() -
+ * fname_crypt_complete() - completion callback for filename crypto
+ * @req: The asynchronous cipher request context
+ * @res: The result of the cipher operation
  */
-static void dir_crypt_complete(struct crypto_async_request *req, int res)
+static void fname_crypt_complete(struct crypto_async_request *req, int res)
 {
 	struct fscrypt_completion_result *ecr = req->data;
 
@@ -82,7 +84,7 @@ static int fname_encrypt(struct inode *inode,
 	}
 	skcipher_request_set_callback(req,
 			CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
-			dir_crypt_complete, &ecr);
+			fname_crypt_complete, &ecr);
 
 	/* Copy the input */
 	memcpy(workbuf, iname->name, iname->len);
@@ -144,7 +146,7 @@ static int fname_decrypt(struct inode *inode,
 	}
 	skcipher_request_set_callback(req,
 		CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
-		dir_crypt_complete, &ecr);
+		fname_crypt_complete, &ecr);
 
 	/* Initialize IV */
 	memset(iv, 0, FS_CRYPTO_BLOCK_SIZE);
