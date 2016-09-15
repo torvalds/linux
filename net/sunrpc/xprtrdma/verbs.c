@@ -849,6 +849,10 @@ rpcrdma_create_req(struct rpcrdma_xprt *r_xprt)
 	req->rl_cqe.done = rpcrdma_wc_send;
 	req->rl_buffer = &r_xprt->rx_buf;
 	INIT_LIST_HEAD(&req->rl_registered);
+	req->rl_send_wr.next = NULL;
+	req->rl_send_wr.wr_cqe = &req->rl_cqe;
+	req->rl_send_wr.sg_list = req->rl_send_iov;
+	req->rl_send_wr.opcode = IB_WR_SEND;
 	return req;
 }
 
@@ -1128,7 +1132,7 @@ rpcrdma_buffer_put(struct rpcrdma_req *req)
 	struct rpcrdma_buffer *buffers = req->rl_buffer;
 	struct rpcrdma_rep *rep = req->rl_reply;
 
-	req->rl_niovs = 0;
+	req->rl_send_wr.num_sge = 0;
 	req->rl_reply = NULL;
 
 	spin_lock(&buffers->rb_lock);
@@ -1259,38 +1263,32 @@ rpcrdma_ep_post(struct rpcrdma_ia *ia,
 		struct rpcrdma_req *req)
 {
 	struct ib_device *device = ia->ri_device;
-	struct ib_send_wr send_wr, *send_wr_fail;
-	struct rpcrdma_rep *rep = req->rl_reply;
-	struct ib_sge *iov = req->rl_send_iov;
+	struct ib_send_wr *send_wr = &req->rl_send_wr;
+	struct ib_send_wr *send_wr_fail;
+	struct ib_sge *sge = req->rl_send_iov;
 	int i, rc;
 
-	if (rep) {
-		rc = rpcrdma_ep_post_recv(ia, rep);
+	if (req->rl_reply) {
+		rc = rpcrdma_ep_post_recv(ia, req->rl_reply);
 		if (rc)
 			return rc;
 		req->rl_reply = NULL;
 	}
 
-	send_wr.next = NULL;
-	send_wr.wr_cqe = &req->rl_cqe;
-	send_wr.sg_list = iov;
-	send_wr.num_sge = req->rl_niovs;
-	send_wr.opcode = IB_WR_SEND;
-
-	for (i = 0; i < send_wr.num_sge; i++)
-		ib_dma_sync_single_for_device(device, iov[i].addr,
-					      iov[i].length, DMA_TO_DEVICE);
+	for (i = 0; i < send_wr->num_sge; i++)
+		ib_dma_sync_single_for_device(device, sge[i].addr,
+					      sge[i].length, DMA_TO_DEVICE);
 	dprintk("RPC:       %s: posting %d s/g entries\n",
-		__func__, send_wr.num_sge);
+		__func__, send_wr->num_sge);
 
 	if (DECR_CQCOUNT(ep) > 0)
-		send_wr.send_flags = 0;
+		send_wr->send_flags = 0;
 	else { /* Provider must take a send completion every now and then */
 		INIT_CQCOUNT(ep);
-		send_wr.send_flags = IB_SEND_SIGNALED;
+		send_wr->send_flags = IB_SEND_SIGNALED;
 	}
 
-	rc = ib_post_send(ia->ri_id->qp, &send_wr, &send_wr_fail);
+	rc = ib_post_send(ia->ri_id->qp, send_wr, &send_wr_fail);
 	if (rc)
 		goto out_postsend_err;
 	return 0;

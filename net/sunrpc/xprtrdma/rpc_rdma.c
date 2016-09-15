@@ -687,7 +687,7 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	req->rl_send_iov[0].length = hdrlen;
 	req->rl_send_iov[0].lkey = rdmab_lkey(req->rl_rdmabuf);
 
-	req->rl_niovs = 1;
+	req->rl_send_wr.num_sge = 1;
 	if (rtype == rpcrdma_areadch)
 		return 0;
 
@@ -697,7 +697,8 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	req->rl_send_iov[1].length = rpclen;
 	req->rl_send_iov[1].lkey = rdmab_lkey(req->rl_sendbuf);
 
-	req->rl_niovs = 2;
+	req->rl_send_wr.num_sge = 2;
+
 	return 0;
 
 out_overflow:
