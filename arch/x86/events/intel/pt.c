@@ -1081,7 +1081,7 @@ static int pt_event_addr_filters_validate(struct list_head *filters)
 
 	list_for_each_entry(filter, filters, entry) {
 		/* PT doesn't support single address triggers */
-		if (!filter->range)
+		if (!filter->range || !filter->size)
 			return -EOPNOTSUPP;
 
 		if (!filter->inode && !kernel_ip(filter->offset))
@@ -1111,7 +1111,7 @@ static void pt_event_addr_filters_sync(struct perf_event *event)
 		} else {
 			/* apply the offset */
 			msr_a = filter->offset + offs[range];
-			msr_b = filter->size + msr_a;
+			msr_b = filter->size + msr_a - 1;
 		}
 
 		filters->filter[range].msr_a  = msr_a;
