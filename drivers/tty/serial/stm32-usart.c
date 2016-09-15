@@ -276,7 +276,7 @@ static void stm32_shutdown(struct uart_port *port)
 	u32 val;
 
 	val = USART_CR1_TXEIE | USART_CR1_RXNEIE | USART_CR1_TE | USART_CR1_RE;
-	stm32_set_bits(port, ofs->cr1, val);
+	stm32_clr_bits(port, ofs->cr1, val);
 
 	free_irq(port->irq, port);
 }
