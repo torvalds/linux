@@ -2447,6 +2447,8 @@ void amdgpu_gtt_location(struct amdgpu_device *adev, struct amdgpu_mc *mc);
 void amdgpu_ttm_set_active_vram_size(struct amdgpu_device *adev, u64 size);
 u64 amdgpu_ttm_get_gtt_mem_size(struct amdgpu_device *adev);
 int amdgpu_ttm_global_init(struct amdgpu_device *adev);
+int amdgpu_ttm_init(struct amdgpu_device *adev);
+void amdgpu_ttm_fini(struct amdgpu_device *adev);
 void amdgpu_program_register_sequence(struct amdgpu_device *adev,
 					     const u32 *registers,
 					     const u32 array_size);

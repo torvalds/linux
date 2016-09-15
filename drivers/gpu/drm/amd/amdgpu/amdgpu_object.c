@@ -38,8 +38,6 @@
 #include "amdgpu_trace.h"
 
 
-int amdgpu_ttm_init(struct amdgpu_device *adev);
-void amdgpu_ttm_fini(struct amdgpu_device *adev);
 
 static u64 amdgpu_get_vis_part_size(struct amdgpu_device *adev,
 						struct ttm_mem_reg *mem)
