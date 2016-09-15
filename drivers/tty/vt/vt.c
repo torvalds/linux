@@ -1316,7 +1316,7 @@ static int vc_t416_color(struct vc_data *vc, int i,
 		/* 256 colours -- ubiquitous */
 		i++;
 		rgb_from_256(vc->vc_par[i], &c);
-	} else if (vc->vc_par[i] == 2 && i <= vc->vc_npar + 3) {
+	} else if (vc->vc_par[i] == 2 && i + 3 <= vc->vc_npar) {
 		/* 24 bit -- extremely rare */
 		c.r = vc->vc_par[i + 1];
 		c.g = vc->vc_par[i + 2];
