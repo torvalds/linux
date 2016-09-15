@@ -37,9 +37,6 @@
 #include <net/l3mdev.h>
 #include <net/fib_rules.h>
 
-#define RT_FL_TOS(oldflp4) \
-	((oldflp4)->flowi4_tos & (IPTOS_RT_MASK | RTO_ONLINK))
-
 #define DRV_NAME	"vrf"
 #define DRV_VERSION	"1.0"
 
