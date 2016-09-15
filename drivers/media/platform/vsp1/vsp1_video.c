@@ -117,9 +117,9 @@ static int __vsp1_video_try_format(struct vsp1_video *video,
 	/* Retrieve format information and select the default format if the
 	 * requested format isn't supported.
 	 */
-	info = vsp1_get_format_info(pix->pixelformat);
+	info = vsp1_get_format_info(video->vsp1, pix->pixelformat);
 	if (info == NULL)
-		info = vsp1_get_format_info(VSP1_VIDEO_DEF_FORMAT);
+		info = vsp1_get_format_info(video->vsp1, VSP1_VIDEO_DEF_FORMAT);
 
 	pix->pixelformat = info->fourcc;
 	pix->colorspace = V4L2_COLORSPACE_SRGB;

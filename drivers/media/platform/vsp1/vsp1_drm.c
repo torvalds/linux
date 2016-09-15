@@ -286,7 +286,7 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int rpf_index,
 	/* Store the format, stride, memory buffer address, crop and compose
 	 * rectangles and Z-order position and for the input.
 	 */
-	fmtinfo = vsp1_get_format_info(cfg->pixelformat);
+	fmtinfo = vsp1_get_format_info(vsp1, cfg->pixelformat);
 	if (!fmtinfo) {
 		dev_dbg(vsp1->dev, "Unsupport pixel format %08x for RPF\n",
 			cfg->pixelformat);

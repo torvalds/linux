@@ -138,14 +138,20 @@ static const struct vsp1_format_info vsp1_video_formats[] = {
 
 /*
  * vsp1_get_format_info - Retrieve format information for a 4CC
+ * @vsp1: the VSP1 device
  * @fourcc: the format 4CC
  *
  * Return a pointer to the format information structure corresponding to the
  * given V4L2 format 4CC, or NULL if no corresponding format can be found.
  */
-const struct vsp1_format_info *vsp1_get_format_info(u32 fourcc)
+const struct vsp1_format_info *vsp1_get_format_info(struct vsp1_device *vsp1,
+						    u32 fourcc)
 {
 	unsigned int i;
+
+	/* Special case, the VYUY format is supported on Gen2 only. */
+	if (vsp1->info->gen != 2 && fourcc == V4L2_PIX_FMT_VYUY)
+		return NULL;
 
 	for (i = 0; i < ARRAY_SIZE(vsp1_video_formats); ++i) {
 		const struct vsp1_format_info *info = &vsp1_video_formats[i];
