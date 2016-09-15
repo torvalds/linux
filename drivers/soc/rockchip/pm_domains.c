@@ -672,7 +672,11 @@ static int rockchip_pm_domain_probe(struct platform_device *pdev)
 		goto err_out;
 	}
 
-	of_genpd_add_provider_onecell(np, &pmu->genpd_data);
+	error = of_genpd_add_provider_onecell(np, &pmu->genpd_data);
+	if (error) {
+		dev_err(dev, "failed to add provider: %d\n", error);
+		goto err_out;
+	}
 
 	return 0;
 
