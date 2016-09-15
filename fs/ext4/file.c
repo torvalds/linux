@@ -144,8 +144,7 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 			int err, len;
 
 			map.m_lblk = pos >> blkbits;
-			map.m_len = (EXT4_BLOCK_ALIGN(pos + length, blkbits) >> blkbits)
-				- map.m_lblk;
+			map.m_len = EXT4_MAX_BLOCKS(length, pos, blkbits);
 			len = map.m_len;
 
 			err = ext4_map_blocks(NULL, inode, &map, 0);

@@ -262,6 +262,9 @@ struct ext4_io_submit {
 				 (s)->s_first_ino)
 #endif
 #define EXT4_BLOCK_ALIGN(size, blkbits)		ALIGN((size), (1 << (blkbits)))
+#define EXT4_MAX_BLOCKS(size, offset, blkbits) \
+	((EXT4_BLOCK_ALIGN(size + offset, blkbits) >> blkbits) - (offset >> \
+								  blkbits))
 
 /* Translate a block number to a cluster number */
 #define EXT4_B2C(sbi, blk)	((blk) >> (sbi)->s_cluster_bits)

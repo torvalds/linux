@@ -4961,13 +4961,8 @@ long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 
 	trace_ext4_fallocate_enter(inode, offset, len, mode);
 	lblk = offset >> blkbits;
-	/*
-	 * We can't just convert len to max_blocks because
-	 * If blocksize = 4096 offset = 3072 and len = 2048
-	 */
-	max_blocks = (EXT4_BLOCK_ALIGN(len + offset, blkbits) >> blkbits)
-		- lblk;
 
+	max_blocks = EXT4_MAX_BLOCKS(len, offset, blkbits);
 	flags = EXT4_GET_BLOCKS_CREATE_UNWRIT_EXT;
 	if (mode & FALLOC_FL_KEEP_SIZE)
 		flags |= EXT4_GET_BLOCKS_KEEP_SIZE;
@@ -5030,12 +5025,8 @@ int ext4_convert_unwritten_extents(handle_t *handle, struct inode *inode,
 	unsigned int credits, blkbits = inode->i_blkbits;
 
 	map.m_lblk = offset >> blkbits;
-	/*
-	 * We can't just convert len to max_blocks because
-	 * If blocksize = 4096 offset = 3072 and len = 2048
-	 */
-	max_blocks = ((EXT4_BLOCK_ALIGN(len + offset, blkbits) >> blkbits) -
-		      map.m_lblk);
+	max_blocks = EXT4_MAX_BLOCKS(len, offset, blkbits);
+
 	/*
 	 * This is somewhat ugly but the idea is clear: When transaction is
 	 * reserved, everything goes into it. Otherwise we rather start several
