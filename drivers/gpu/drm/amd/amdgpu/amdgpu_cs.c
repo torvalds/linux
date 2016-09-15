@@ -355,6 +355,7 @@ static void amdgpu_cs_report_moved_bytes(struct amdgpu_device *adev,
 static int amdgpu_cs_bo_validate(struct amdgpu_cs_parser *p,
 				 struct amdgpu_bo *bo)
 {
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	u64 initial_bytes_moved;
 	uint32_t domain;
 	int r;
@@ -372,9 +373,9 @@ static int amdgpu_cs_bo_validate(struct amdgpu_cs_parser *p,
 
 retry:
 	amdgpu_ttm_placement_from_domain(bo, domain);
-	initial_bytes_moved = atomic64_read(&bo->adev->num_bytes_moved);
+	initial_bytes_moved = atomic64_read(&adev->num_bytes_moved);
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
-	p->bytes_moved += atomic64_read(&bo->adev->num_bytes_moved) -
+	p->bytes_moved += atomic64_read(&adev->num_bytes_moved) -
 		initial_bytes_moved;
 
 	if (unlikely(r == -ENOMEM) && domain != bo->allowed_domains) {
@@ -400,6 +401,7 @@ static bool amdgpu_cs_try_evict(struct amdgpu_cs_parser *p,
 
 		struct amdgpu_bo_list_entry *candidate = p->evictable;
 		struct amdgpu_bo *bo = candidate->robj;
+		struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 		u64 initial_bytes_moved;
 		uint32_t other;
 
@@ -420,9 +422,9 @@ static bool amdgpu_cs_try_evict(struct amdgpu_cs_parser *p,
 
 		/* Good we can try to move this BO somewhere else */
 		amdgpu_ttm_placement_from_domain(bo, other);
-		initial_bytes_moved = atomic64_read(&bo->adev->num_bytes_moved);
+		initial_bytes_moved = atomic64_read(&adev->num_bytes_moved);
 		r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
-		p->bytes_moved += atomic64_read(&bo->adev->num_bytes_moved) -
+		p->bytes_moved += atomic64_read(&adev->num_bytes_moved) -
 			initial_bytes_moved;
 
 		if (unlikely(r))

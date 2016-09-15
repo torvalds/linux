@@ -931,7 +931,7 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 	if (r)
 		return r;
 
-	if (!bo->adev->uvd.address_64_bit) {
+	if (!ring->adev->uvd.address_64_bit) {
 		amdgpu_ttm_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_VRAM);
 		amdgpu_uvd_force_into_uvd_segment(bo);
 	}
