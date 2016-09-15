@@ -40,7 +40,6 @@
  *          Brad Petrus <brad.petrus@netronome.com>
  */
 
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>

@@ -683,7 +683,7 @@ static int build_inv_stag(union t4_wr *wqe, struct ib_send_wr *wr,
 	return 0;
 }
 
-void _free_qp(struct kref *kref)
+static void _free_qp(struct kref *kref)
 {
 	struct c4iw_qp *qhp;
 

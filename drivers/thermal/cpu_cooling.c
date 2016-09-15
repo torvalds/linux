@@ -740,10 +740,20 @@ static int cpufreq_power2state(struct thermal_cooling_device *cdev,
 }
 
 /* Bind cpufreq callbacks to thermal cooling device ops */
+
 static struct thermal_cooling_device_ops cpufreq_cooling_ops = {
 	.get_max_state = cpufreq_get_max_state,
 	.get_cur_state = cpufreq_get_cur_state,
 	.set_cur_state = cpufreq_set_cur_state,
+};
+
+static struct thermal_cooling_device_ops cpufreq_power_cooling_ops = {
+	.get_max_state		= cpufreq_get_max_state,
+	.get_cur_state		= cpufreq_get_cur_state,
+	.set_cur_state		= cpufreq_set_cur_state,
+	.get_requested_power	= cpufreq_get_requested_power,
+	.state2power		= cpufreq_state2power,
+	.power2state		= cpufreq_power2state,
 };
 
 /* Notifier for cpufreq policy change */
@@ -795,6 +805,7 @@ __cpufreq_cooling_register(struct device_node *np,
 	struct cpumask temp_mask;
 	unsigned int freq, i, num_cpus;
 	int ret;
+	struct thermal_cooling_device_ops *cooling_ops;
 
 	cpumask_and(&temp_mask, clip_cpus, cpu_online_mask);
 	policy = cpufreq_cpu_get(cpumask_first(&temp_mask));
@@ -850,10 +861,6 @@ __cpufreq_cooling_register(struct device_node *np,
 	cpumask_copy(&cpufreq_dev->allowed_cpus, clip_cpus);
 
 	if (capacitance) {
-		cpufreq_cooling_ops.get_requested_power =
-			cpufreq_get_requested_power;
-		cpufreq_cooling_ops.state2power = cpufreq_state2power;
-		cpufreq_cooling_ops.power2state = cpufreq_power2state;
 		cpufreq_dev->plat_get_static_power = plat_static_func;
 
 		ret = build_dyn_power_table(cpufreq_dev, capacitance);
@@ -861,6 +868,10 @@ __cpufreq_cooling_register(struct device_node *np,
 			cool_dev = ERR_PTR(ret);
 			goto free_table;
 		}
+
+		cooling_ops = &cpufreq_power_cooling_ops;
+	} else {
+		cooling_ops = &cpufreq_cooling_ops;
 	}
 
 	ret = get_idr(&cpufreq_idr, &cpufreq_dev->id);
@@ -885,7 +896,7 @@ __cpufreq_cooling_register(struct device_node *np,
 		 cpufreq_dev->id);
 
 	cool_dev = thermal_of_cooling_device_register(np, dev_name, cpufreq_dev,
-						      &cpufreq_cooling_ops);
+						      cooling_ops);
 	if (IS_ERR(cool_dev))
 		goto remove_idr;
 

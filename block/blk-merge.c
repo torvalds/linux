@@ -94,8 +94,30 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 	bool do_split = true;
 	struct bio *new = NULL;
 	const unsigned max_sectors = get_max_io_size(q, bio);
+	unsigned bvecs = 0;
 
 	bio_for_each_segment(bv, bio, iter) {
+		/*
+		 * With arbitrary bio size, the incoming bio may be very
+		 * big. We have to split the bio into small bios so that
+		 * each holds at most BIO_MAX_PAGES bvecs because
+		 * bio_clone() can fail to allocate big bvecs.
+		 *
+		 * It should have been better to apply the limit per
+		 * request queue in which bio_clone() is involved,
+		 * instead of globally. The biggest blocker is the
+		 * bio_clone() in bio bounce.
+		 *
+		 * If bio is splitted by this reason, we should have
+		 * allowed to continue bios merging, but don't do
+		 * that now for making the change simple.
+		 *
+		 * TODO: deal with bio bounce's bio_clone() gracefully
+		 * and convert the global limit into per-queue limit.
+		 */
+		if (bvecs++ >= BIO_MAX_PAGES)
+			goto split;
+
 		/*
 		 * If the queue doesn't support SG gaps and adding this
 		 * offset would create a gap, disallow it.
@@ -172,12 +194,18 @@ void blk_queue_split(struct request_queue *q, struct bio **bio,
 	struct bio *split, *res;
 	unsigned nsegs;
 
-	if (bio_op(*bio) == REQ_OP_DISCARD)
+	switch (bio_op(*bio)) {
+	case REQ_OP_DISCARD:
+	case REQ_OP_SECURE_ERASE:
 		split = blk_bio_discard_split(q, *bio, bs, &nsegs);
-	else if (bio_op(*bio) == REQ_OP_WRITE_SAME)
+		break;
+	case REQ_OP_WRITE_SAME:
 		split = blk_bio_write_same_split(q, *bio, bs, &nsegs);
-	else
+		break;
+	default:
 		split = blk_bio_segment_split(q, *bio, q->bio_split, &nsegs);
+		break;
+	}
 
 	/* physical segments can be figured out during splitting */
 	res = split ? split : *bio;
@@ -213,7 +241,7 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 	 * This should probably be returning 0, but blk_add_request_payload()
 	 * (Christoph!!!!)
 	 */
-	if (bio_op(bio) == REQ_OP_DISCARD)
+	if (bio_op(bio) == REQ_OP_DISCARD || bio_op(bio) == REQ_OP_SECURE_ERASE)
 		return 1;
 
 	if (bio_op(bio) == REQ_OP_WRITE_SAME)
@@ -385,7 +413,9 @@ static int __blk_bios_map_sg(struct request_queue *q, struct bio *bio,
 	nsegs = 0;
 	cluster = blk_queue_cluster(q);
 
-	if (bio_op(bio) == REQ_OP_DISCARD) {
+	switch (bio_op(bio)) {
+	case REQ_OP_DISCARD:
+	case REQ_OP_SECURE_ERASE:
 		/*
 		 * This is a hack - drivers should be neither modifying the
 		 * biovec, nor relying on bi_vcnt - but because of
@@ -393,19 +423,16 @@ static int __blk_bios_map_sg(struct request_queue *q, struct bio *bio,
 		 * a payload we need to set up here (thank you Christoph) and
 		 * bi_vcnt is really the only way of telling if we need to.
 		 */
-
-		if (bio->bi_vcnt)
-			goto single_segment;
-
-		return 0;
-	}
-
-	if (bio_op(bio) == REQ_OP_WRITE_SAME) {
-single_segment:
+		if (!bio->bi_vcnt)
+			return 0;
+		/* Fall through */
+	case REQ_OP_WRITE_SAME:
 		*sg = sglist;
 		bvec = bio_iovec(bio);
 		sg_set_page(*sg, bvec.bv_page, bvec.bv_len, bvec.bv_offset);
 		return 1;
+	default:
+		break;
 	}
 
 	for_each_bio(bio)

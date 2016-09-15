@@ -194,7 +194,7 @@ xfs_defer_trans_abort(
 	/* Abort intent items. */
 	list_for_each_entry(dfp, &dop->dop_pending, dfp_list) {
 		trace_xfs_defer_pending_abort(tp->t_mountp, dfp);
-		if (dfp->dfp_committed)
+		if (!dfp->dfp_done)
 			dfp->dfp_type->abort_intent(dfp->dfp_intent);
 	}
 
@@ -290,7 +290,6 @@ xfs_defer_finish(
 	struct xfs_defer_pending	*dfp;
 	struct list_head		*li;
 	struct list_head		*n;
-	void				*done_item = NULL;
 	void				*state;
 	int				error = 0;
 	void				(*cleanup_fn)(struct xfs_trans *, void *, int);
@@ -309,19 +308,11 @@ xfs_defer_finish(
 		if (error)
 			goto out;
 
-		/* Mark all pending intents as committed. */
-		list_for_each_entry_reverse(dfp, &dop->dop_pending, dfp_list) {
-			if (dfp->dfp_committed)
-				break;
-			trace_xfs_defer_pending_commit((*tp)->t_mountp, dfp);
-			dfp->dfp_committed = true;
-		}
-
 		/* Log an intent-done item for the first pending item. */
 		dfp = list_first_entry(&dop->dop_pending,
 				struct xfs_defer_pending, dfp_list);
 		trace_xfs_defer_pending_finish((*tp)->t_mountp, dfp);
-		done_item = dfp->dfp_type->create_done(*tp, dfp->dfp_intent,
+		dfp->dfp_done = dfp->dfp_type->create_done(*tp, dfp->dfp_intent,
 				dfp->dfp_count);
 		cleanup_fn = dfp->dfp_type->finish_cleanup;
 
@@ -331,7 +322,7 @@ xfs_defer_finish(
 			list_del(li);
 			dfp->dfp_count--;
 			error = dfp->dfp_type->finish_item(*tp, dop, li,
-					done_item, &state);
+					dfp->dfp_done, &state);
 			if (error) {
 				/*
 				 * Clean up after ourselves and jump out.
@@ -428,8 +419,8 @@ xfs_defer_add(
 		dfp = kmem_alloc(sizeof(struct xfs_defer_pending),
 				KM_SLEEP | KM_NOFS);
 		dfp->dfp_type = defer_op_types[type];
-		dfp->dfp_committed = false;
 		dfp->dfp_intent = NULL;
+		dfp->dfp_done = NULL;
 		dfp->dfp_count = 0;
 		INIT_LIST_HEAD(&dfp->dfp_work);
 		list_add_tail(&dfp->dfp_list, &dop->dop_intake);
