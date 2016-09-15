@@ -722,7 +722,6 @@ static int emac_remove(struct platform_device *pdev)
 
 	mdiobus_unregister(adpt->mii_bus);
 	free_netdev(netdev);
-	dev_set_drvdata(&pdev->dev, NULL);
 
 	return 0;
 }
