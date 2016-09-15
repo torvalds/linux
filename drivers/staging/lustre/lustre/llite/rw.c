@@ -1022,7 +1022,7 @@ int ll_writepages(struct address_space *mapping, struct writeback_control *wbc)
 	if (result > 0) {
 		wbc->nr_to_write -= result;
 		result = 0;
-	 }
+	}
 
 	if (wbc->range_cyclic || (range_whole && wbc->nr_to_write > 0)) {
 		if (end == OBD_OBJECT_EOF)
