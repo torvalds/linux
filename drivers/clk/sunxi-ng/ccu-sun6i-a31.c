@@ -633,7 +633,7 @@ static SUNXI_CCU_M_WITH_MUX_GATE(mipi_dsi_dphy_clk, "mipi-dsi-dphy",
 				 lcd_ch1_parents, 0x168, 0, 3, 8, 2,
 				 BIT(15), CLK_SET_RATE_PARENT);
 static SUNXI_CCU_M_WITH_MUX_GATE(mipi_csi_dphy_clk, "mipi-csi-dphy",
-				 lcd_ch1_parents, 0x168, 0, 3, 8, 2,
+				 lcd_ch1_parents, 0x16c, 0, 3, 8, 2,
 				 BIT(15), 0);
 
 static SUNXI_CCU_M_WITH_MUX_GATE(iep_drc0_clk, "iep-drc0", de_parents,
