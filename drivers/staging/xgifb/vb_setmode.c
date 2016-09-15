@@ -1677,7 +1677,6 @@ static unsigned char XGI_GetVCLKPtr(unsigned short RefreshRateTableIndex,
 					if (!(modeflag & Charx8Dot))
 						tempal = TVCLKBASE_315 +
 								HiTVTextVCLK;
-
 				}
 				return tempal;
 			}
@@ -2244,7 +2243,6 @@ static void XGI_XG21BLSignalVDD(unsigned short tempbh, unsigned short tempbl,
 
 		/* CR B4[1] */
 		xgifb_reg_and_or(pVBInfo->P3d4, 0xB4, ~0x02, temp);
-
 	}
 
 	temp = xgifb_reg_get(pVBInfo->P3d4, 0x48);
@@ -2273,7 +2271,6 @@ static void XGI_XG27BLSignalVDD(unsigned short tempbh, unsigned short tempbl,
 
 		/* CR B4[1] */
 		xgifb_reg_and_or(pVBInfo->P3d4, 0xB4, ~0x02, temp);
-
 	}
 	xgifb_reg_and_or(pVBInfo->P3d4, 0xB4, ~tempbh0, tempbl0);
 
@@ -2308,7 +2305,6 @@ static void XGI_DisplayOn(struct xgifb_video_info *xgifb_info,
 			/* DVO/DVI signal on */
 			XGI_XG21BLSignalVDD(0x20, 0x20, pVBInfo);
 		}
-
 	}
 
 	if (pXGIHWDE->jChipType == XG27) {
@@ -2328,7 +2324,6 @@ static void XGI_DisplayOn(struct xgifb_video_info *xgifb_info,
 			/* DVO/DVI signal on */
 			XGI_XG27BLSignalVDD(0x20, 0x20, pVBInfo);
 		}
-
 	}
 }
 
@@ -4128,7 +4123,6 @@ static void XGI_SetGroup4(unsigned short ModeIdIndex,
 		if (pVBInfo->VBInfo & (SetCRT2ToTV | SetCRT2ToHiVision)) {
 			if (pVBInfo->VGAHDE > 800)
 				xgifb_reg_or(pVBInfo->Part4Port, 0x1E, 0x08);
-
 		}
 		temp = 0x0036;
 
@@ -4404,7 +4398,6 @@ static void xgifb_set_lvds(struct xgifb_video_info *xgifb_info,
 
 		inb(pVBInfo->P3da); /* reset 3da */
 	}
-
 }
 
 /* --------------------------------------------------------------------- */
