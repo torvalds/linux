@@ -113,7 +113,6 @@ struct rpcrdma_ep {
 
 struct rpcrdma_regbuf {
 	size_t			rg_size;
-	struct rpcrdma_req	*rg_owner;
 	struct ib_sge		rg_iov;
 	__be32			rg_base[0] __attribute__ ((aligned(256)));
 };
@@ -297,14 +296,16 @@ struct rpcrdma_req {
 	struct rpcrdma_mr_seg	rl_segments[RPCRDMA_MAX_SEGS];
 };
 
+static inline void
+rpcrdma_set_xprtdata(struct rpc_rqst *rqst, struct rpcrdma_req *req)
+{
+	rqst->rq_xprtdata = req;
+}
+
 static inline struct rpcrdma_req *
 rpcr_to_rdmar(struct rpc_rqst *rqst)
 {
-	void *buffer = rqst->rq_buffer;
-	struct rpcrdma_regbuf *rb;
-
-	rb = container_of(buffer, struct rpcrdma_regbuf, rg_base);
-	return rb->rg_owner;
+	return rqst->rq_xprtdata;
 }
 
 /*

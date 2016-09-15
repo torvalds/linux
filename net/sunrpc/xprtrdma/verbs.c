@@ -1210,7 +1210,6 @@ rpcrdma_alloc_regbuf(struct rpcrdma_ia *ia, size_t size, gfp_t flags)
 	iov->length = size;
 	iov->lkey = ia->ri_pd->local_dma_lkey;
 	rb->rg_size = size;
-	rb->rg_owner = NULL;
 	return rb;
 
 out_free:

@@ -523,6 +523,7 @@ xprt_rdma_allocate(struct rpc_task *task)
 out:
 	dprintk("RPC:       %s: size %zd, request 0x%p\n", __func__, size, req);
 	req->rl_connect_cookie = 0;	/* our reserved value */
+	rpcrdma_set_xprtdata(rqst, req);
 	rqst->rq_buffer = req->rl_sendbuf->rg_base;
 	rqst->rq_rbuffer = (char *)rqst->rq_buffer + rqst->rq_rcvsize;
 	return 0;
@@ -559,7 +560,6 @@ out_sendbuf:
 	rb = rpcrdma_alloc_regbuf(&r_xprt->rx_ia, size, flags);
 	if (IS_ERR(rb))
 		goto out_fail;
-	rb->rg_owner = req;
 
 	r_xprt->rx_stats.hardway_register_count += size;
 	rpcrdma_free_regbuf(&r_xprt->rx_ia, req->rl_sendbuf);

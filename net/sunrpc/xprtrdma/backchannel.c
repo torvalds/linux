@@ -55,11 +55,9 @@ static int rpcrdma_bc_setup_rqst(struct rpcrdma_xprt *r_xprt,
 	rb = rpcrdma_alloc_regbuf(ia, size, GFP_KERNEL);
 	if (IS_ERR(rb))
 		goto out_fail;
-	rb->rg_owner = req;
 	req->rl_sendbuf = rb;
-	/* so that rpcr_to_rdmar works when receiving a request */
-	rqst->rq_buffer = (void *)req->rl_sendbuf->rg_base;
-	xdr_buf_init(&rqst->rq_snd_buf, rqst->rq_buffer, size);
+	xdr_buf_init(&rqst->rq_snd_buf, rb->rg_base, size);
+	rpcrdma_set_xprtdata(rqst, req);
 	return 0;
 
 out_fail:
