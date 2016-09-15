@@ -83,7 +83,7 @@ struct rpc_rqst {
 	void (*rq_release_snd_buf)(struct rpc_rqst *); /* release rq_enc_pages */
 	struct list_head	rq_list;
 
-	__u32 *			rq_buffer;	/* XDR encode buffer */
+	void			*rq_buffer;	/* Call XDR encode buffer */
 	size_t			rq_callsize,
 				rq_rcvsize;
 	size_t			rq_xmit_bytes_sent;	/* total bytes sent */

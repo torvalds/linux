@@ -38,7 +38,6 @@ static int rpcrdma_bc_setup_rqst(struct rpcrdma_xprt *r_xprt,
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 	struct rpcrdma_regbuf *rb;
 	struct rpcrdma_req *req;
-	struct xdr_buf *buf;
 	size_t size;
 
 	req = rpcrdma_create_req(r_xprt);
@@ -60,16 +59,7 @@ static int rpcrdma_bc_setup_rqst(struct rpcrdma_xprt *r_xprt,
 	req->rl_sendbuf = rb;
 	/* so that rpcr_to_rdmar works when receiving a request */
 	rqst->rq_buffer = (void *)req->rl_sendbuf->rg_base;
-
-	buf = &rqst->rq_snd_buf;
-	buf->head[0].iov_base = rqst->rq_buffer;
-	buf->head[0].iov_len = 0;
-	buf->tail[0].iov_base = NULL;
-	buf->tail[0].iov_len = 0;
-	buf->page_len = 0;
-	buf->len = 0;
-	buf->buflen = size;
-
+	xdr_buf_init(&rqst->rq_snd_buf, rqst->rq_buffer, size);
 	return 0;
 
 out_fail:
