@@ -1831,6 +1831,7 @@ static int rt5663_i2s_use_asrc(struct snd_soc_dapm_widget *source,
 		break;
 	default:
 		dev_err(codec->dev, "Unknown CODEC_TYPE\n");
+		return 1;
 	}
 
 	if (da_asrc_en || ad_asrc_en)
@@ -2579,6 +2580,7 @@ static int rt5663_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 		break;
 	default:
 		dev_err(codec->dev, "Unknown CODEC_TYPE\n");
+		return -EINVAL;
 	}
 
 	switch (source) {
@@ -2674,6 +2676,7 @@ static int rt5663_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		break;
 	default:
 		dev_err(codec->dev, "Unknown CODEC_TYPE\n");
+		return -EINVAL;
 	}
 
 	snd_soc_update_bits(codec, reg, RT5668_TDM_MODE_MASK |
