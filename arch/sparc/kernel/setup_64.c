@@ -31,6 +31,7 @@
 #include <linux/initrd.h>
 #include <linux/module.h>
 #include <linux/start_kernel.h>
+#include <linux/bootmem.h>
 
 #include <asm/io.h>
 #include <asm/processor.h>
@@ -50,6 +51,8 @@
 #include <asm/elf.h>
 #include <asm/mdesc.h>
 #include <asm/cacheflush.h>
+#include <asm/dma.h>
+#include <asm/irq.h>
 
 #ifdef CONFIG_IP_PNP
 #include <net/ipconfig.h>
@@ -590,6 +593,22 @@ static void __init init_sparc64_elf_hwcap(void)
 		pause_patch();
 }
 
+void __init alloc_irqstack_bootmem(void)
+{
+	unsigned int i, node;
+
+	for_each_possible_cpu(i) {
+		node = cpu_to_node(i);
+
+		softirq_stack[i] = __alloc_bootmem_node(NODE_DATA(node),
+							THREAD_SIZE,
+							THREAD_SIZE, 0);
+		hardirq_stack[i] = __alloc_bootmem_node(NODE_DATA(node),
+							THREAD_SIZE,
+							THREAD_SIZE, 0);
+	}
+}
+
 void __init setup_arch(char **cmdline_p)
 {
 	/* Initialize PROM console and command line. */
@@ -651,6 +670,12 @@ void __init setup_arch(char **cmdline_p)
 	paging_init();
 	init_sparc64_elf_hwcap();
 	smp_fill_in_cpu_possible_map();
+	/*
+	 * Once the OF device tree and MDESC have been setup and nr_cpus has
+	 * been parsed, we know the list of possible cpus.  Therefore we can
+	 * allocate the IRQ stacks.
+	 */
+	alloc_irqstack_bootmem();
 }
 
 extern int stop_a_enabled;
