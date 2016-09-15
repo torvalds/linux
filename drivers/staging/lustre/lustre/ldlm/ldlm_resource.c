@@ -449,8 +449,8 @@ static unsigned ldlm_res_hop_hash(struct cfs_hash *hs,
 				  const void *key, unsigned mask)
 {
 	const struct ldlm_res_id     *id  = key;
-	unsigned		val = 0;
-	unsigned		i;
+	unsigned int		val = 0;
+	unsigned int		i;
 
 	for (i = 0; i < RES_NAME_SIZE; i++)
 		val += id->name[i];
@@ -561,9 +561,9 @@ static struct cfs_hash_ops ldlm_ns_fid_hash_ops = {
 struct ldlm_ns_hash_def {
 	enum ldlm_ns_type nsd_type;
 	/** hash bucket bits */
-	unsigned	nsd_bkt_bits;
+	unsigned int	nsd_bkt_bits;
 	/** hash bits */
-	unsigned	nsd_all_bits;
+	unsigned int	nsd_all_bits;
 	/** hash operations */
 	struct cfs_hash_ops *nsd_hops;
 };
