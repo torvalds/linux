@@ -55,17 +55,6 @@ static u8 fcnt = 4;  /* (1 << fcnt) frames per subbuffer */
 module_param(fcnt, byte, 0);
 MODULE_PARM_DESC(fcnt, "Num of frames per sub-buffer for sync channels as a power of 2");
 
-/*
- * #############################################################################
- *
- * The define below activates an utility function used by HAL-simu
- * for calling DIM interrupt handler.
- * It is used only for TEST PURPOSE and shall be commented before release.
- *
- * #############################################################################
- */
-/* #define ENABLE_HDM_TEST */
-
 static DEFINE_SPINLOCK(dim_lock);
 
 static void dim2_tasklet_fn(unsigned long data);
@@ -128,10 +117,6 @@ struct dim2_hdm {
 #define PACKET_IS_NET_INFO(p)  \
 	(((p)[1] == 0x18) && ((p)[2] == 0x05) && ((p)[3] == 0x0C) && \
 	 ((p)[13] == 0x3C) && ((p)[14] == 0x00) && ((p)[15] == 0x0A))
-
-#if defined(ENABLE_HDM_TEST)
-static struct dim2_hdm *test_dev;
-#endif
 
 bool dim2_sysfs_get_state_cb(void)
 {
@@ -467,26 +452,10 @@ static irqreturn_t dim2_ahb_isr(int irq, void *_dev)
 	dim_service_irq(get_active_channels(dev, buffer));
 	spin_unlock_irqrestore(&dim_lock, flags);
 
-#if !defined(ENABLE_HDM_TEST)
 	dim2_tasklet.data = (unsigned long)dev;
 	tasklet_schedule(&dim2_tasklet);
-#else
-	dim2_tasklet_fn((unsigned long)dev);
-#endif
 	return IRQ_HANDLED;
 }
-
-#if defined(ENABLE_HDM_TEST)
-
-/*
- * Utility function used by HAL-simu for calling DIM interrupt handler.
- * It is used only for TEST PURPOSE.
- */
-void raise_dim_interrupt(void)
-{
-	(void)dim2_ahb_isr(0, test_dev);
-}
-#endif
 
 /**
  * complete_all_mbos - complete MBO's in a list
@@ -757,9 +726,6 @@ static int dim2_probe(struct platform_device *pdev)
 	dev->atx_idx = -1;
 
 	platform_set_drvdata(pdev, dev);
-#if defined(ENABLE_HDM_TEST)
-	test_dev = dev;
-#else
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dev->io_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(dev->io_base))
@@ -779,7 +745,6 @@ static int dim2_probe(struct platform_device *pdev)
 			dev->irq_ahb0, ret);
 		return ret;
 	}
-#endif
 	init_waitqueue_head(&dev->netinfo_waitq);
 	dev->deliver_netinfo = 0;
 	dev->netinfo_task = kthread_run(&deliver_netinfo_thread, (void *)dev,
