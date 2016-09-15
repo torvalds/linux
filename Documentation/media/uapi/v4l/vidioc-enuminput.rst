@@ -272,9 +272,26 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
 
     -  .. row 11
 
-       -  :cspan:`2` Digital Video
+       -  ``V4L2_IN_ST_NO_V_LOCK``
+
+       -  0x00000400
+
+       -  No vertical sync lock.
 
     -  .. row 12
+
+       -  ``V4L2_IN_ST_NO_STD_LOCK``
+
+       -  0x00000800
+
+       -  No standard format lock in case of auto-detection format
+	  by the component.
+
+    -  .. row 13
+
+       -  :cspan:`2` Digital Video
+
+    -  .. row 14
 
        -  ``V4L2_IN_ST_NO_SYNC``
 
@@ -282,7 +299,7 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
 
        -  No synchronization lock.
 
-    -  .. row 13
+    -  .. row 15
 
        -  ``V4L2_IN_ST_NO_EQU``
 
@@ -290,7 +307,7 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
 
        -  No equalizer lock.
 
-    -  .. row 14
+    -  .. row 16
 
        -  ``V4L2_IN_ST_NO_CARRIER``
 
@@ -298,11 +315,11 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
 
        -  Carrier recovery failed.
 
-    -  .. row 15
+    -  .. row 17
 
        -  :cspan:`2` VCR and Set-Top Box
 
-    -  .. row 16
+    -  .. row 18
 
        -  ``V4L2_IN_ST_MACROVISION``
 
@@ -312,7 +329,7 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
 	  signal to confuse video recorders. When this flag is set
 	  Macrovision has been detected.
 
-    -  .. row 17
+    -  .. row 19
 
        -  ``V4L2_IN_ST_NO_ACCESS``
 
@@ -320,7 +337,7 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
 
        -  Conditional access denied.
 
-    -  .. row 18
+    -  .. row 20
 
        -  ``V4L2_IN_ST_VTR``
 
