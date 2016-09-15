@@ -1211,6 +1211,17 @@ config SCHED_AUTOGROUP
 	  desktop applications.  Task group autogeneration is currently based
 	  upon task session.
 
+config RT_SOFTINT_OPTIMIZATION
+       bool "Improve RT scheduling during long softint execution"
+       depends on ARM64
+       depends on SMP
+       default n
+       help
+         Enable an optimization which tries to avoid placing RT tasks on CPUs
+	 occupied by nonpreemptible tasks, such as a long softint, or CPUs
+	 which may soon block preemptions, such as a CPU running a ksoftirq
+	 thread which handles slow softints.
+
 config SYSFS_DEPRECATED
 	bool "Enable deprecated sysfs features to support old userspace tools"
 	depends on SYSFS
