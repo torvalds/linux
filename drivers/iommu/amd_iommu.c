@@ -1342,7 +1342,8 @@ static u64 *alloc_pte(struct protection_domain *domain,
 
 			__npte = PM_LEVEL_PDE(level, virt_to_phys(page));
 
-			if (cmpxchg64(pte, __pte, __npte)) {
+			/* pte could have been changed somewhere. */
+			if (cmpxchg64(pte, __pte, __npte) != __pte) {
 				free_page((unsigned long)page);
 				continue;
 			}
