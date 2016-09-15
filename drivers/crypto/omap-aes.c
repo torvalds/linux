@@ -1215,8 +1215,10 @@ static int omap_aes_probe(struct platform_device *pdev)
 
 	/* Initialize crypto engine */
 	dd->engine = crypto_engine_alloc_init(dev, 1);
-	if (!dd->engine)
+	if (!dd->engine) {
+		err = -ENOMEM;
 		goto err_engine;
+	}
 
 	dd->engine->prepare_cipher_request = omap_aes_prepare_req;
 	dd->engine->cipher_one_request = omap_aes_crypt_req;
