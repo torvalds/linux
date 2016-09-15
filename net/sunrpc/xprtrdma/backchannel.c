@@ -27,7 +27,7 @@ static void rpcrdma_bc_free_rqst(struct rpcrdma_xprt *r_xprt,
 	list_del(&req->rl_all);
 	spin_unlock(&buf->rb_reqslock);
 
-	rpcrdma_destroy_req(&r_xprt->rx_ia, req);
+	rpcrdma_destroy_req(req);
 
 	kfree(rqst);
 }
@@ -35,7 +35,6 @@ static void rpcrdma_bc_free_rqst(struct rpcrdma_xprt *r_xprt,
 static int rpcrdma_bc_setup_rqst(struct rpcrdma_xprt *r_xprt,
 				 struct rpc_rqst *rqst)
 {
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 	struct rpcrdma_regbuf *rb;
 	struct rpcrdma_req *req;
 	size_t size;
@@ -45,14 +44,14 @@ static int rpcrdma_bc_setup_rqst(struct rpcrdma_xprt *r_xprt,
 		return PTR_ERR(req);
 	req->rl_backchannel = true;
 
-	rb = rpcrdma_alloc_regbuf(ia, RPCRDMA_HDRBUF_SIZE,
+	rb = rpcrdma_alloc_regbuf(RPCRDMA_HDRBUF_SIZE,
 				  DMA_TO_DEVICE, GFP_KERNEL);
 	if (IS_ERR(rb))
 		goto out_fail;
 	req->rl_rdmabuf = rb;
 
 	size = r_xprt->rx_data.inline_rsize;
-	rb = rpcrdma_alloc_regbuf(ia, size, DMA_TO_DEVICE, GFP_KERNEL);
+	rb = rpcrdma_alloc_regbuf(size, DMA_TO_DEVICE, GFP_KERNEL);
 	if (IS_ERR(rb))
 		goto out_fail;
 	req->rl_sendbuf = rb;

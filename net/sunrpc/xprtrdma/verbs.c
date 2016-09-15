@@ -865,7 +865,7 @@ rpcrdma_create_rep(struct rpcrdma_xprt *r_xprt)
 	if (rep == NULL)
 		goto out;
 
-	rep->rr_rdmabuf = rpcrdma_alloc_regbuf(ia, cdata->inline_rsize,
+	rep->rr_rdmabuf = rpcrdma_alloc_regbuf(cdata->inline_rsize,
 					       DMA_FROM_DEVICE, GFP_KERNEL);
 	if (IS_ERR(rep->rr_rdmabuf)) {
 		rc = PTR_ERR(rep->rr_rdmabuf);
@@ -966,18 +966,18 @@ rpcrdma_buffer_get_rep_locked(struct rpcrdma_buffer *buf)
 }
 
 static void
-rpcrdma_destroy_rep(struct rpcrdma_ia *ia, struct rpcrdma_rep *rep)
+rpcrdma_destroy_rep(struct rpcrdma_rep *rep)
 {
-	rpcrdma_free_regbuf(ia, rep->rr_rdmabuf);
+	rpcrdma_free_regbuf(rep->rr_rdmabuf);
 	kfree(rep);
 }
 
 void
-rpcrdma_destroy_req(struct rpcrdma_ia *ia, struct rpcrdma_req *req)
+rpcrdma_destroy_req(struct rpcrdma_req *req)
 {
-	rpcrdma_free_regbuf(ia, req->rl_recvbuf);
-	rpcrdma_free_regbuf(ia, req->rl_sendbuf);
-	rpcrdma_free_regbuf(ia, req->rl_rdmabuf);
+	rpcrdma_free_regbuf(req->rl_recvbuf);
+	rpcrdma_free_regbuf(req->rl_sendbuf);
+	rpcrdma_free_regbuf(req->rl_rdmabuf);
 	kfree(req);
 }
 
@@ -1010,15 +1010,13 @@ rpcrdma_destroy_mrs(struct rpcrdma_buffer *buf)
 void
 rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 {
-	struct rpcrdma_ia *ia = rdmab_to_ia(buf);
-
 	cancel_delayed_work_sync(&buf->rb_recovery_worker);
 
 	while (!list_empty(&buf->rb_recv_bufs)) {
 		struct rpcrdma_rep *rep;
 
 		rep = rpcrdma_buffer_get_rep_locked(buf);
-		rpcrdma_destroy_rep(ia, rep);
+		rpcrdma_destroy_rep(rep);
 	}
 	buf->rb_send_count = 0;
 
@@ -1031,7 +1029,7 @@ rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 		list_del(&req->rl_all);
 
 		spin_unlock(&buf->rb_reqslock);
-		rpcrdma_destroy_req(ia, req);
+		rpcrdma_destroy_req(req);
 		spin_lock(&buf->rb_reqslock);
 	}
 	spin_unlock(&buf->rb_reqslock);
@@ -1174,7 +1172,6 @@ rpcrdma_recv_buffer_put(struct rpcrdma_rep *rep)
 
 /**
  * rpcrdma_alloc_regbuf - allocate and DMA-map memory for SEND/RECV buffers
- * @ia: controlling rpcrdma_ia
  * @size: size of buffer to be allocated, in bytes
  * @direction: direction of data movement
  * @flags: GFP flags
@@ -1187,8 +1184,8 @@ rpcrdma_recv_buffer_put(struct rpcrdma_rep *rep)
  * or Replies they may be registered externally via ro_map.
  */
 struct rpcrdma_regbuf *
-rpcrdma_alloc_regbuf(struct rpcrdma_ia *ia, size_t size,
-		     enum dma_data_direction direction, gfp_t flags)
+rpcrdma_alloc_regbuf(size_t size, enum dma_data_direction direction,
+		     gfp_t flags)
 {
 	struct rpcrdma_regbuf *rb;
 
@@ -1239,11 +1236,10 @@ rpcrdma_dma_unmap_regbuf(struct rpcrdma_regbuf *rb)
 
 /**
  * rpcrdma_free_regbuf - deregister and free registered buffer
- * @ia: controlling rpcrdma_ia
  * @rb: regbuf to be deregistered and freed
  */
 void
-rpcrdma_free_regbuf(struct rpcrdma_ia *ia, struct rpcrdma_regbuf *rb)
+rpcrdma_free_regbuf(struct rpcrdma_regbuf *rb)
 {
 	if (!rb)
 		return;

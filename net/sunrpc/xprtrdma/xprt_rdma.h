@@ -465,7 +465,7 @@ int rpcrdma_ep_post_recv(struct rpcrdma_ia *, struct rpcrdma_ep *,
  */
 struct rpcrdma_req *rpcrdma_create_req(struct rpcrdma_xprt *);
 struct rpcrdma_rep *rpcrdma_create_rep(struct rpcrdma_xprt *);
-void rpcrdma_destroy_req(struct rpcrdma_ia *, struct rpcrdma_req *);
+void rpcrdma_destroy_req(struct rpcrdma_req *);
 int rpcrdma_buffer_create(struct rpcrdma_xprt *);
 void rpcrdma_buffer_destroy(struct rpcrdma_buffer *);
 
@@ -478,12 +478,10 @@ void rpcrdma_recv_buffer_put(struct rpcrdma_rep *);
 
 void rpcrdma_defer_mr_recovery(struct rpcrdma_mw *);
 
-struct rpcrdma_regbuf *rpcrdma_alloc_regbuf(struct rpcrdma_ia *,
-					    size_t, enum dma_data_direction,
+struct rpcrdma_regbuf *rpcrdma_alloc_regbuf(size_t, enum dma_data_direction,
 					    gfp_t);
 bool __rpcrdma_dma_map_regbuf(struct rpcrdma_ia *, struct rpcrdma_regbuf *);
-void rpcrdma_free_regbuf(struct rpcrdma_ia *,
-			 struct rpcrdma_regbuf *);
+void rpcrdma_free_regbuf(struct rpcrdma_regbuf *);
 
 static inline bool
 rpcrdma_regbuf_is_mapped(struct rpcrdma_regbuf *rb)
