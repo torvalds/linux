@@ -46,13 +46,13 @@ static int rpcrdma_bc_setup_rqst(struct rpcrdma_xprt *r_xprt,
 		return PTR_ERR(req);
 	req->rl_backchannel = true;
 
-	size = RPCRDMA_INLINE_WRITE_THRESHOLD(rqst);
+	size = r_xprt->rx_data.inline_wsize;
 	rb = rpcrdma_alloc_regbuf(ia, size, GFP_KERNEL);
 	if (IS_ERR(rb))
 		goto out_fail;
 	req->rl_rdmabuf = rb;
 
-	size += RPCRDMA_INLINE_READ_THRESHOLD(rqst);
+	size += r_xprt->rx_data.inline_rsize;
 	rb = rpcrdma_alloc_regbuf(ia, size, GFP_KERNEL);
 	if (IS_ERR(rb))
 		goto out_fail;

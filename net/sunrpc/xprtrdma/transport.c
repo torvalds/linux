@@ -518,7 +518,7 @@ out:
 	return req->rl_sendbuf->rg_base;
 
 out_rdmabuf:
-	min_size = RPCRDMA_INLINE_WRITE_THRESHOLD(task->tk_rqstp);
+	min_size = r_xprt->rx_data.inline_wsize;
 	rb = rpcrdma_alloc_regbuf(&r_xprt->rx_ia, min_size, flags);
 	if (IS_ERR(rb))
 		goto out_fail;
@@ -541,8 +541,8 @@ out_sendbuf:
 	 * reply will be large, but slush is provided here to allow
 	 * flexibility when marshaling.
 	 */
-	min_size = RPCRDMA_INLINE_READ_THRESHOLD(task->tk_rqstp);
-	min_size += RPCRDMA_INLINE_WRITE_THRESHOLD(task->tk_rqstp);
+	min_size = r_xprt->rx_data.inline_rsize;
+	min_size += r_xprt->rx_data.inline_wsize;
 	if (size < min_size)
 		size = min_size;
 

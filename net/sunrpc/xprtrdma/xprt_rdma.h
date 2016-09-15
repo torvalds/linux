@@ -356,15 +356,6 @@ struct rpcrdma_create_data_internal {
 	unsigned int	padding;	/* non-rdma write header padding */
 };
 
-#define RPCRDMA_INLINE_READ_THRESHOLD(rq) \
-	(rpcx_to_rdmad(rq->rq_xprt).inline_rsize)
-
-#define RPCRDMA_INLINE_WRITE_THRESHOLD(rq)\
-	(rpcx_to_rdmad(rq->rq_xprt).inline_wsize)
-
-#define RPCRDMA_INLINE_PAD_VALUE(rq)\
-	rpcx_to_rdmad(rq->rq_xprt).padding
-
 /*
  * Statistics for RPCRDMA
  */
