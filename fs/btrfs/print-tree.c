@@ -356,6 +356,13 @@ void btrfs_print_tree(struct btrfs_root *root, struct extent_buffer *c)
 		struct extent_buffer *next = read_tree_block(root,
 					btrfs_node_blockptr(c, i),
 					btrfs_node_ptr_generation(c, i));
+		if (IS_ERR(next)) {
+			continue;
+		} else if (!extent_buffer_uptodate(next)) {
+			free_extent_buffer(next);
+			continue;
+		}
+
 		if (btrfs_is_leaf(next) &&
 		   level != 1)
 			BUG();
