@@ -127,6 +127,7 @@ static struct msrmap {
 	{ "0x3F6", "ldlat=" },
 	{ "0x1A6", "offcore_rsp=" },
 	{ "0x1A7", "offcore_rsp=" },
+	{ "0x3F7", "frontend=" },
 	{ NULL, NULL }
 };
 
