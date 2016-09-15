@@ -218,5 +218,6 @@ config MEDIA_ATTACH
 source "drivers/media/i2c/Kconfig"
 source "drivers/media/tuners/Kconfig"
 source "drivers/media/dvb-frontends/Kconfig"
+source "drivers/media/spi/Kconfig"
 
 endif # MEDIA_SUPPORT

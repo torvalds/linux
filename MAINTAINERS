@@ -5259,6 +5259,13 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/aeroflex/
 
+GS1662 VIDEO SERIALIZER
+M:	Charles-Antoine Couret <charles-antoine.couret@nexvision.fr>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/spi/gs1662.c
+
 GSPCA FINEPIX SUBDRIVER
 M:	Frank Zago <frank@zago.net>
 L:	linux-media@vger.kernel.org
