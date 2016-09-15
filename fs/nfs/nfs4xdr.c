@@ -4728,29 +4728,34 @@ static int decode_getfattr(struct xdr_stream *xdr, struct nfs_fattr *fattr,
  * Decode potentially multiple layout types.
  */
 static int decode_pnfs_layout_types(struct xdr_stream *xdr,
-					 uint32_t *layouttype)
+				    struct nfs_fsinfo *fsinfo)
 {
 	__be32 *p;
-	uint32_t num, i;
+	uint32_t i;
 
 	p = xdr_inline_decode(xdr, 4);
 	if (unlikely(!p))
 		goto out_overflow;
-	num = be32_to_cpup(p);
+	fsinfo->nlayouttypes = be32_to_cpup(p);
 
 	/* pNFS is not supported by the underlying file system */
-	if (num == 0) {
+	if (fsinfo->nlayouttypes == 0)
 		return 0;
-	}
-	if (num > NFS_MAX_LAYOUT_TYPES)
-		printk(KERN_INFO "NFS: %s: Warning: Too many (%d) pNFS layout types\n", __func__, num);
 
 	/* Decode and set first layout type, move xdr->p past unused types */
-	p = xdr_inline_decode(xdr, num * 4);
+	p = xdr_inline_decode(xdr, fsinfo->nlayouttypes * 4);
 	if (unlikely(!p))
 		goto out_overflow;
-	for(i = 0; i < num && i < NFS_MAX_LAYOUT_TYPES; i++)
-		layouttype[i] = be32_to_cpup(p++);
+
+	/* If we get too many, then just cap it at the max */
+	if (fsinfo->nlayouttypes > NFS_MAX_LAYOUT_TYPES) {
+		printk(KERN_INFO "NFS: %s: Warning: Too many (%u) pNFS layout types\n",
+			__func__, fsinfo->nlayouttypes);
+		fsinfo->nlayouttypes = NFS_MAX_LAYOUT_TYPES;
+	}
+
+	for(i = 0; i < fsinfo->nlayouttypes; ++i)
+		fsinfo->layouttype[i] = be32_to_cpup(p++);
 	return 0;
 out_overflow:
 	print_overflow_msg(__func__, xdr);
@@ -4762,7 +4767,7 @@ out_overflow:
  * Note we must ensure that layouttype is set in any non-error case.
  */
 static int decode_attr_pnfstype(struct xdr_stream *xdr, uint32_t *bitmap,
-				uint32_t *layouttype)
+				struct nfs_fsinfo *fsinfo)
 {
 	int status = 0;
 
@@ -4770,7 +4775,7 @@ static int decode_attr_pnfstype(struct xdr_stream *xdr, uint32_t *bitmap,
 	if (unlikely(bitmap[1] & (FATTR4_WORD1_FS_LAYOUT_TYPES - 1U)))
 		return -EIO;
 	if (bitmap[1] & FATTR4_WORD1_FS_LAYOUT_TYPES) {
-		status = decode_pnfs_layout_types(xdr, layouttype);
+		status = decode_pnfs_layout_types(xdr, fsinfo);
 		bitmap[1] &= ~FATTR4_WORD1_FS_LAYOUT_TYPES;
 	}
 	return status;
@@ -4853,7 +4858,7 @@ static int decode_fsinfo(struct xdr_stream *xdr, struct nfs_fsinfo *fsinfo)
 	status = decode_attr_time_delta(xdr, bitmap, &fsinfo->time_delta);
 	if (status != 0)
 		goto xdr_error;
-	status = decode_attr_pnfstype(xdr, bitmap, fsinfo->layouttype);
+	status = decode_attr_pnfstype(xdr, bitmap, fsinfo);
 	if (status != 0)
 		goto xdr_error;
 
