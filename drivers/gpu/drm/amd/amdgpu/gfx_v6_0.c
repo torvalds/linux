@@ -2678,14 +2678,6 @@ static uint64_t gfx_v6_0_get_gpu_clock_counter(struct amdgpu_device *adev)
 	return clock;
 }
 
-static void gfx_v6_0_ring_emit_gds_switch(struct amdgpu_ring *ring,
-					  uint32_t vmid,
-					  uint32_t gds_base, uint32_t gds_size,
-					  uint32_t gws_base, uint32_t gws_size,
-					  uint32_t oa_base, uint32_t oa_size)
-{
-}
-
 static void gfx_v6_ring_emit_cntxcntl(struct amdgpu_ring *ring, uint32_t flags)
 {
 	amdgpu_ring_write(ring, PACKET3(PACKET3_CONTEXT_CONTROL, 1));
@@ -3115,7 +3107,6 @@ static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_gfx = {
 	.emit_fence = gfx_v6_0_ring_emit_fence,
 	.emit_pipeline_sync = gfx_v6_0_ring_emit_pipeline_sync,
 	.emit_vm_flush = gfx_v6_0_ring_emit_vm_flush,
-	.emit_gds_switch = gfx_v6_0_ring_emit_gds_switch,
 	.emit_hdp_flush = gfx_v6_0_ring_emit_hdp_flush,
 	.emit_hdp_invalidate = gfx_v6_0_ring_emit_hdp_invalidate,
 	.test_ring = gfx_v6_0_ring_test_ring,
@@ -3133,7 +3124,6 @@ static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_compute = {
 	.emit_fence = gfx_v6_0_ring_emit_fence,
 	.emit_pipeline_sync = gfx_v6_0_ring_emit_pipeline_sync,
 	.emit_vm_flush = gfx_v6_0_ring_emit_vm_flush,
-	.emit_gds_switch = gfx_v6_0_ring_emit_gds_switch,
 	.emit_hdp_flush = gfx_v6_0_ring_emit_hdp_flush,
 	.emit_hdp_invalidate = gfx_v6_0_ring_emit_hdp_invalidate,
 	.test_ring = gfx_v6_0_ring_test_ring,
