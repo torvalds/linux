@@ -1914,7 +1914,7 @@ static void XGI_GetVBInfo(unsigned short ModeIdIndex,
 		}
 	}
 
-	if (pVBInfo->VBType & (VB_SIS301LV|VB_SIS302LV|VB_XGI301C)) {
+	if (pVBInfo->VBType & (VB_SIS301LV | VB_SIS302LV | VB_XGI301C)) {
 		if (temp & SetYPbPr) {
 			/* shampoo add for new scratch */
 			temp = xgifb_reg_get(pVBInfo->P3d4, 0x35);
