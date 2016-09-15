@@ -76,6 +76,7 @@
 #define PKEY_ID					0xffff
 #define GUID_LEN				8
 #define NODE_DESC_SIZE				64
+#define DB_REG_OFFSET				0x1000
 
 #define SERV_TYPE_RC				0
 #define SERV_TYPE_RD				1

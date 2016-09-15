@@ -38,7 +38,6 @@
 #include "hns_roce_hem.h"
 #include "hns_roce_user.h"
 
-#define DB_REG_OFFSET			0x1000
 #define SQP_NUM				12
 
 void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type)
