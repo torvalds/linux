@@ -90,7 +90,8 @@ static long sun4i_dclk_round_rate(struct clk_hw *hw, unsigned long rate,
 			goto out;
 		}
 
-		if ((rounded < ideal) && (rounded > best_parent)) {
+		if (abs(rate - rounded / i) <
+		    abs(rate - best_parent / best_div)) {
 			best_parent = rounded;
 			best_div = i;
 		}
