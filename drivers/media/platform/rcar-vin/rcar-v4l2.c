@@ -550,7 +550,7 @@ static int rvin_enum_dv_timings(struct file *file, void *priv_fh,
 	int pad, ret;
 
 	pad = timings->pad;
-	timings->pad = vin->src_pad_idx;
+	timings->pad = vin->sink_pad_idx;
 
 	ret = v4l2_subdev_call(sd, pad, enum_dv_timings, timings);
 
@@ -604,7 +604,7 @@ static int rvin_dv_timings_cap(struct file *file, void *priv_fh,
 	int pad, ret;
 
 	pad = cap->pad;
-	cap->pad = vin->src_pad_idx;
+	cap->pad = vin->sink_pad_idx;
 
 	ret = v4l2_subdev_call(sd, pad, dv_timings_cap, cap);
 
