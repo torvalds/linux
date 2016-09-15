@@ -2,7 +2,7 @@
  * dim2_hal.c - DIM2 HAL implementation
  * (MediaLB, Device Interface Macro IP, OS62420)
  *
- * Copyright (C) 2015, Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2015-2016, Microchip Technology Germany II GmbH & Co. KG
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -518,20 +518,17 @@ static inline bool service_channel(u8 ch_addr, u8 idx)
 {
 	u8 const shift = idx * 16;
 	u32 const adt1 = dim2_read_ctr(ADT + ch_addr, 1);
+	u32 mask[4] = { 0, 0, 0, 0 };
+	u32 adt_w[4] = { 0, 0, 0, 0 };
 
 	if (((adt1 >> (ADT1_DNE_BIT + shift)) & 1) == 0)
 		return false;
 
-	{
-		u32 mask[4] = { 0, 0, 0, 0 };
-		u32 adt_w[4] = { 0, 0, 0, 0 };
-
-		mask[1] =
-			bit_mask(ADT1_DNE_BIT + shift) |
-			bit_mask(ADT1_ERR_BIT + shift) |
-			bit_mask(ADT1_RDY_BIT + shift);
-		dim2_write_ctr_mask(ADT + ch_addr, mask, adt_w);
-	}
+	mask[1] =
+		bit_mask(ADT1_DNE_BIT + shift) |
+		bit_mask(ADT1_ERR_BIT + shift) |
+		bit_mask(ADT1_RDY_BIT + shift);
+	dim2_write_ctr_mask(ADT + ch_addr, mask, adt_w);
 
 	/* clear channel status bit */
 	dimcb_io_write(&g.dim2->ACSR0, bit_mask(ch_addr));
