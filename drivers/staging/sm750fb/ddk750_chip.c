@@ -71,9 +71,10 @@ static void setChipClock(unsigned int frequency)
 		pll.clockType = MXCLK_PLL;
 
 		/*
-		* Call calcPllValue() to fill up the other fields for PLL structure.
-		* Sometime, the chip cannot set up the exact clock required by User.
-		* Return value from calcPllValue() gives the actual possible clock.
+		* Call calcPllValue() to fill the other fields of PLL structure.
+		* Sometime, the chip cannot set up the exact clock
+		* required by the User.
+		* Return value of calcPllValue gives the actual possible clock.
 		*/
 		ulActualMxClk = calcPllValue(frequency, &pll);
 
@@ -94,8 +95,8 @@ static void setMemoryClock(unsigned int frequency)
 
 	if (frequency) {
 		/*
-		 * Set the frequency to the maximum frequency that the DDR Memory can take
-		 * which is 336MHz.
+		 * Set the frequency to the maximum frequency
+		 * that the DDR Memory can take which is 336MHz.
 		 */
 		if (frequency > MHz(336))
 			frequency = MHz(336);
@@ -305,7 +306,9 @@ int ddk750_initHw(initchip_param_t *pInitParam)
 */
 unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 {
-	/* as sm750 register definition, N located in 2,15 and M located in 1,255	*/
+	/* as sm750 register definition,
+	 * N located in 2,15 and M located in 1,255
+	 */
 	int N, M, X, d;
 	int mini_diff;
 	unsigned int RN, quo, rem, fl_quo;
@@ -325,12 +328,16 @@ unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 	request = request_orig / 1000;
 	input = pll->inputFreq / 1000;
 
-	/* for MXCLK register , no POD provided, so need be treated differently	*/
+	/* for MXCLK register,
+	 * no POD provided, so need be treated differently
+	 */
 	if (pll->clockType == MXCLK_PLL)
 		max_d = 3;
 
 	for (N = 15; N > 1; N--) {
-		/* RN will not exceed maximum long if @request <= 285 MHZ (for 32bit cpu) */
+		/* RN will not exceed maximum long
+		 * if @request <= 285 MHZ (for 32bit cpu)
+		 */
 		RN = N * request;
 		quo = RN / input;
 		rem = RN % input;/* rem always small than 14318181 */
