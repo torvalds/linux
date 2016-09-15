@@ -480,6 +480,30 @@ struct resource *pci_find_parent_resource(const struct pci_dev *dev,
 EXPORT_SYMBOL(pci_find_parent_resource);
 
 /**
+ * pci_find_resource - Return matching PCI device resource
+ * @dev: PCI device to query
+ * @res: Resource to look for
+ *
+ * Goes over standard PCI resources (BARs) and checks if the given resource
+ * is partially or fully contained in any of them. In that case the
+ * matching resource is returned, %NULL otherwise.
+ */
+struct resource *pci_find_resource(struct pci_dev *dev, struct resource *res)
+{
+	int i;
+
+	for (i = 0; i < PCI_ROM_RESOURCE; i++) {
+		struct resource *r = &dev->resource[i];
+
+		if (r->start && resource_contains(r, res))
+			return r;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(pci_find_resource);
+
+/**
  * pci_find_pcie_root_port - return PCIe Root Port
  * @dev: PCI device to query
  *
