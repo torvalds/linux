@@ -413,8 +413,8 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 		return -ENXIO;
 
 	gpio->base = devm_ioremap_resource(&pdev->dev, res);
-	if (!gpio->base)
-		return -ENOMEM;
+	if (IS_ERR(gpio->base))
+		return PTR_ERR(gpio->base);
 
 	spin_lock_init(&gpio->lock);
 
