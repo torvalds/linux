@@ -105,6 +105,7 @@ config ARM_RK3399_DMC_DEVFREQ
 	depends on ARCH_ROCKCHIP
 	select DEVFREQ_EVENT_ROCKCHIP_DFI
 	select DEVFREQ_GOV_SIMPLE_ONDEMAND
+	select PM_DEVFREQ_EVENT
 	select PM_OPP
 	help
           This adds the DEVFREQ driver for the RK3399 DMC(Dynamic Memory Controller).
