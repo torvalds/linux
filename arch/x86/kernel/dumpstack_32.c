@@ -89,16 +89,32 @@ int get_stack_info(unsigned long *stack, struct task_struct *task,
 	task = task ? : current;
 
 	if (in_task_stack(stack, task, info))
-		return 0;
+		goto recursion_check;
 
 	if (task != current)
 		goto unknown;
 
 	if (in_hardirq_stack(stack, info))
-		return 0;
+		goto recursion_check;
 
 	if (in_softirq_stack(stack, info))
-		return 0;
+		goto recursion_check;
+
+	goto unknown;
+
+recursion_check:
+	/*
+	 * Make sure we don't iterate through any given stack more than once.
+	 * If it comes up a second time then there's something wrong going on:
+	 * just break out and report an unknown stack type.
+	 */
+	if (visit_mask) {
+		if (*visit_mask & (1UL << info->type))
+			goto unknown;
+		*visit_mask |= 1UL << info->type;
+	}
+
+	return 0;
 
 unknown:
 	info->type = STACK_TYPE_UNKNOWN;

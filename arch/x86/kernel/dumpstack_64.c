@@ -47,8 +47,7 @@ void stack_type_str(enum stack_type type, const char **begin, const char **end)
 	}
 }
 
-static bool in_exception_stack(unsigned long *stack, struct stack_info *info,
-			       unsigned long *visit_mask)
+static bool in_exception_stack(unsigned long *stack, struct stack_info *info)
 {
 	unsigned long *begin, *end;
 	struct pt_regs *regs;
@@ -63,16 +62,6 @@ static bool in_exception_stack(unsigned long *stack, struct stack_info *info,
 
 		if (stack < begin || stack >= end)
 			continue;
-
-		/*
-		 * Make sure we don't iterate through an exception stack more
-		 * than once.  If it comes up a second time then there's
-		 * something wrong going on - just break out and report an
-		 * unknown stack type.
-		 */
-		if (*visit_mask & (1U << k))
-			break;
-		*visit_mask |= 1U << k;
 
 		info->type	= STACK_TYPE_EXCEPTION + k;
 		info->begin	= begin;
@@ -119,16 +108,30 @@ int get_stack_info(unsigned long *stack, struct task_struct *task,
 	task = task ? : current;
 
 	if (in_task_stack(stack, task, info))
-		return 0;
+		goto recursion_check;
 
 	if (task != current)
 		goto unknown;
 
-	if (in_exception_stack(stack, info, visit_mask))
-		return 0;
+	if (in_exception_stack(stack, info))
+		goto recursion_check;
 
 	if (in_irq_stack(stack, info))
-		return 0;
+		goto recursion_check;
+
+	goto unknown;
+
+recursion_check:
+	/*
+	 * Make sure we don't iterate through any given stack more than once.
+	 * If it comes up a second time then there's something wrong going on:
+	 * just break out and report an unknown stack type.
+	 */
+	if (visit_mask) {
+		if (*visit_mask & (1UL << info->type))
+			goto unknown;
+		*visit_mask |= 1UL << info->type;
+	}
 
 	return 0;
 
