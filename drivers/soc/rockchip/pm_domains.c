@@ -479,7 +479,16 @@ err_out:
 
 static void rockchip_pm_remove_one_domain(struct rockchip_pm_domain *pd)
 {
-	int i;
+	int i, ret;
+
+	/*
+	 * We're in the error cleanup already, so we only complain,
+	 * but won't emit another error on top of the original one.
+	 */
+	ret = pm_genpd_remove(&pd->genpd);
+	if (ret < 0)
+		dev_err(pd->pmu->dev, "failed to remove domain '%s' : %d - state may be inconsistent\n",
+			pd->genpd.name, ret);
 
 	for (i = 0; i < pd->num_clks; i++) {
 		clk_unprepare(pd->clks[i]);
