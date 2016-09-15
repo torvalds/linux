@@ -694,6 +694,10 @@ static void cdns_uart_set_termios(struct uart_port *port,
 	ctrl_reg |= CDNS_UART_CR_TXRST | CDNS_UART_CR_RXRST;
 	writel(ctrl_reg, port->membase + CDNS_UART_CR);
 
+	while (readl(port->membase + CDNS_UART_CR) &
+		(CDNS_UART_CR_TXRST | CDNS_UART_CR_RXRST))
+		cpu_relax();
+
 	/*
 	 * Clear the RX disable and TX disable bits and then set the TX enable
 	 * bit and RX enable bit to enable the transmitter and receiver.
@@ -796,6 +800,10 @@ static int cdns_uart_startup(struct uart_port *port)
 	 */
 	writel(CDNS_UART_CR_TXRST | CDNS_UART_CR_RXRST,
 			port->membase + CDNS_UART_CR);
+
+	while (readl(port->membase + CDNS_UART_CR) &
+		(CDNS_UART_CR_TXRST | CDNS_UART_CR_RXRST))
+		cpu_relax();
 
 	/*
 	 * Clear the RX disable bit and then set the RX enable bit to enable
