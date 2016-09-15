@@ -117,7 +117,9 @@ int hns_roce_uar_alloc(struct hns_roce_dev *hr_dev, struct hns_roce_uar *uar)
 	if (ret == -1)
 		return -ENOMEM;
 
-	uar->index = (uar->index - 1) % hr_dev->caps.phy_num_uars + 1;
+	if (uar->index > 0)
+		uar->index = (uar->index - 1) %
+			     (hr_dev->caps.phy_num_uars - 1) + 1;
 
 	res = platform_get_resource(hr_dev->pdev, IORESOURCE_MEM, 0);
 	uar->pfn = ((res->start) >> PAGE_SHIFT) + uar->index;
