@@ -105,8 +105,8 @@ struct regmap {
 
 	bool defer_caching;
 
-	u8 read_flag_mask;
-	u8 write_flag_mask;
+	unsigned long read_flag_mask;
+	unsigned long write_flag_mask;
 
 	/* number of bits to (left) shift the reg value when formatting*/
 	int reg_shift;
