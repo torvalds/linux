@@ -797,6 +797,15 @@ static int hns_roce_get_cfg(struct hns_roce_dev *hr_dev)
 	if (IS_ERR(hr_dev->reg_base))
 		return PTR_ERR(hr_dev->reg_base);
 
+	/* read the node_guid of IB device from the DT or ACPI */
+	ret = device_property_read_u8_array(dev, "node-guid",
+					    (u8 *)&hr_dev->ib_dev.node_guid,
+					    GUID_LEN);
+	if (ret) {
+		dev_err(dev, "couldn't get node_guid from DT or ACPI!\n");
+		return ret;
+	}
+
 	/* get the RoCE associated ethernet ports or netdevices */
 	for (i = 0; i < HNS_ROCE_MAX_PORTS; i++) {
 		if (dev_of_node(dev)) {

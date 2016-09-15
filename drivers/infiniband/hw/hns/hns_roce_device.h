@@ -74,6 +74,7 @@
 #define MR_TYPE_DMA				0x03
 
 #define PKEY_ID					0xffff
+#define GUID_LEN				8
 #define NODE_DESC_SIZE				64
 
 #define SERV_TYPE_RC				0
