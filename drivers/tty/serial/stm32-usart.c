@@ -487,8 +487,6 @@ static int stm32_init_port(struct stm32_port *stm32port,
 	if (!stm32port->port.uartclk)
 		ret = -EINVAL;
 
-	clk_disable_unprepare(stm32port->clk);
-
 	return ret;
 }
 
@@ -557,6 +555,9 @@ static int stm32_serial_probe(struct platform_device *pdev)
 static int stm32_serial_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
+	struct stm32_port *stm32_port = to_stm32_port(port);
+
+	clk_disable_unprepare(stm32_port->clk);
 
 	return uart_remove_one_port(&stm32_usart_driver, port);
 }
