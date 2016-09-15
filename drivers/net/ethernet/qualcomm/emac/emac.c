@@ -730,7 +730,6 @@ static struct platform_driver emac_platform_driver = {
 	.probe	= emac_probe,
 	.remove	= emac_remove,
 	.driver = {
-		.owner		= THIS_MODULE,
 		.name		= "qcom-emac",
 		.of_match_table = emac_dt_match,
 	},
