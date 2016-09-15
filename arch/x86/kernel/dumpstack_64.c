@@ -16,83 +16,46 @@
 
 #include <asm/stacktrace.h>
 
+static char *exception_stack_names[N_EXCEPTION_STACKS] = {
+		[ DOUBLEFAULT_STACK-1	]	= "#DF",
+		[ NMI_STACK-1		]	= "NMI",
+		[ DEBUG_STACK-1		]	= "#DB",
+		[ MCE_STACK-1		]	= "#MC",
+};
 
-#define N_EXCEPTION_STACKS_END \
-		(N_EXCEPTION_STACKS + DEBUG_STKSZ/EXCEPTION_STKSZ - 2)
-
-static char x86_stack_ids[][8] = {
-		[ DEBUG_STACK-1			]	= "#DB",
-		[ NMI_STACK-1			]	= "NMI",
-		[ DOUBLEFAULT_STACK-1		]	= "#DF",
-		[ MCE_STACK-1			]	= "#MC",
-#if DEBUG_STKSZ > EXCEPTION_STKSZ
-		[ N_EXCEPTION_STACKS ...
-		  N_EXCEPTION_STACKS_END	]	= "#DB[?]"
-#endif
+static unsigned long exception_stack_sizes[N_EXCEPTION_STACKS] = {
+	[0 ... N_EXCEPTION_STACKS - 1]		= EXCEPTION_STKSZ,
+	[DEBUG_STACK - 1]			= DEBUG_STKSZ
 };
 
 static unsigned long *in_exception_stack(unsigned long stack, unsigned *usedp,
 					 char **idp)
 {
+	unsigned long begin, end;
 	unsigned k;
 
-	/*
-	 * Iterate over all exception stacks, and figure out whether
-	 * 'stack' is in one of them:
-	 */
-	for (k = 0; k < N_EXCEPTION_STACKS; k++) {
-		unsigned long end = raw_cpu_ptr(&orig_ist)->ist[k];
-		/*
-		 * Is 'stack' above this exception frame's end?
-		 * If yes then skip to the next frame.
-		 */
-		if (stack >= end)
-			continue;
-		/*
-		 * Is 'stack' above this exception frame's start address?
-		 * If yes then we found the right frame.
-		 */
-		if (stack >= end - EXCEPTION_STKSZ) {
-			/*
-			 * Make sure we only iterate through an exception
-			 * stack once. If it comes up for the second time
-			 * then there's something wrong going on - just
-			 * break out and return NULL:
-			 */
-			if (*usedp & (1U << k))
-				break;
-			*usedp |= 1U << k;
-			*idp = x86_stack_ids[k];
-			return (unsigned long *)end;
-		}
-		/*
-		 * If this is a debug stack, and if it has a larger size than
-		 * the usual exception stacks, then 'stack' might still
-		 * be within the lower portion of the debug stack:
-		 */
-#if DEBUG_STKSZ > EXCEPTION_STKSZ
-		if (k == DEBUG_STACK - 1 && stack >= end - DEBUG_STKSZ) {
-			unsigned j = N_EXCEPTION_STACKS - 1;
+	BUILD_BUG_ON(N_EXCEPTION_STACKS != 4);
 
-			/*
-			 * Black magic. A large debug stack is composed of
-			 * multiple exception stack entries, which we
-			 * iterate through now. Dont look:
-			 */
-			do {
-				++j;
-				end -= EXCEPTION_STKSZ;
-				x86_stack_ids[j][4] = '1' +
-						(j - N_EXCEPTION_STACKS);
-			} while (stack < end - EXCEPTION_STKSZ);
-			if (*usedp & (1U << j))
-				break;
-			*usedp |= 1U << j;
-			*idp = x86_stack_ids[j];
-			return (unsigned long *)end;
-		}
-#endif
+	for (k = 0; k < N_EXCEPTION_STACKS; k++) {
+		end   = raw_cpu_ptr(&orig_ist)->ist[k];
+		begin = end - exception_stack_sizes[k];
+
+		if (stack < begin || stack >= end)
+			continue;
+
+		/*
+		 * Make sure we only iterate through an exception stack once.
+		 * If it comes up for the second time then there's something
+		 * wrong going on - just break and return NULL:
+		 */
+		if (*usedp & (1U << k))
+			break;
+		*usedp |= 1U << k;
+
+		*idp = exception_stack_names[k];
+		return (unsigned long *)end;
 	}
+
 	return NULL;
 }
 
