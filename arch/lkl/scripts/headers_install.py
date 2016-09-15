@@ -1,21 +1,29 @@
 #!/usr/bin/env python
 import re, os, sys, argparse, multiprocessing, fnmatch
 
+srctree = os.environ["srctree"]
+objtree = os.environ["objtree"]
 header_paths = [ "include/uapi/", "arch/lkl/include/uapi/",
                  "arch/lkl/include/generated/uapi/", "include/generated/" ]
 
 headers = set()
 includes = set()
 
+def relpath2abspath(relpath):
+    if "generated" in relpath:
+        return objtree + "/" + relpath
+    else:
+        return srctree + "/" + relpath
+
 def find_headers(path):
     headers.add(path)
-    f = open(path)
+    f = open(relpath2abspath(path))
     for l in f.readlines():
         m = re.search("#include <(.*)>", l)
         try:
             i = m.group(1)
             for p in header_paths:
-                if os.access(p + i, os.R_OK):
+                if os.access(relpath2abspath(p + i), os.R_OK):
                     if p + i not in headers:
                         includes.add(i)
                         headers.add(p + i)
@@ -125,13 +133,14 @@ new_headers = set()
 
 for h in headers:
     dir = os.path.dirname(h)
+    copyfromdir = os.path.dirname(relpath2abspath(h))
     out_dir = args.path + "/" + re.sub("(arch/lkl/include/uapi/|arch/lkl/include/generated/uapi/|include/uapi/|include/generated/uapi/|include/generated)(.*)", "lkl/\\2", dir)
     try:
         os.makedirs(out_dir)
     except:
         pass
     print("  INSTALL\t%s" % (out_dir + "/" + os.path.basename(h)))
-    os.system("scripts/headers_install.sh %s %s %s" % (out_dir, dir,
+    os.system(srctree+"/scripts/headers_install.sh %s %s %s" % (out_dir, copyfromdir,
                                                        os.path.basename(h)))
     new_headers.add(out_dir + "/" + os.path.basename(h))
 
