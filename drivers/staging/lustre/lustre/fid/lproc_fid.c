@@ -105,7 +105,7 @@ ldebugfs_fid_space_seq_write(struct file *file,
 	rc = ldebugfs_fid_write_common(buffer, count, &seq->lcs_space);
 
 	if (rc == 0) {
-		CDEBUG(D_INFO, "%s: Space: "DRANGE"\n",
+		CDEBUG(D_INFO, "%s: Space: " DRANGE "\n",
 		       seq->lcs_name, PRANGE(&seq->lcs_space));
 	}
 
