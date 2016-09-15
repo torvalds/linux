@@ -650,6 +650,7 @@ void __init setup_arch(char **cmdline_p)
 
 	paging_init();
 	init_sparc64_elf_hwcap();
+	smp_fill_in_cpu_possible_map();
 }
 
 extern int stop_a_enabled;
