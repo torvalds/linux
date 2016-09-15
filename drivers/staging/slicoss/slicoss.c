@@ -1630,11 +1630,10 @@ static u32 slic_rcvqueue_reinsert(struct adapter *adapter, struct sk_buff *skb)
 		dev_err(dev, "         rcvq->tail[%p]\n", rcvq->tail);
 		dev_err(dev, "         rcvq->count[%x]\n", rcvq->count);
 	}
-	if (paddrh == 0) {
+	if (paddrh == 0)
 		slic_write32(adapter, SLIC_REG_HBAR, (u32)paddrl);
-	} else {
+	else
 		slic_write64(adapter, SLIC_REG_HBAR64, paddrl, paddrh);
-	}
 	if (rcvq->head)
 		rcvq->tail->next = skb;
 	else
