@@ -117,6 +117,9 @@ enum {
 };
 
 enum {
+	CDT0_RPC_SHIFT = 16 + 11,
+	CDT0_RPC_MASK = DIM2_MASK(5),
+
 	CDT1_BS_ISOC_SHIFT = 0,
 	CDT1_BS_ISOC_MASK = DIM2_MASK(9),
 

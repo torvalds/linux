@@ -249,6 +249,11 @@ static int try_start_dim_transfer(struct hdm_channel *hdm_ch)
 	mbo = list_first_entry(head, struct mbo, list);
 	buf_size = mbo->buffer_length;
 
+	if (dim_dbr_space(&hdm_ch->ch) < buf_size) {
+		spin_unlock_irqrestore(&dim_lock, flags);
+		return -EAGAIN;
+	}
+
 	BUG_ON(mbo->bus_address == 0);
 	if (!dim_enqueue_buffer(&hdm_ch->ch, mbo->bus_address, buf_size)) {
 		list_del(head->next);
@@ -404,6 +409,22 @@ static struct dim_channel **get_active_channels(struct dim2_hdm *dev,
 	buffer[idx++] = NULL;
 
 	return buffer;
+}
+
+static irqreturn_t dim2_mlb_isr(int irq, void *_dev)
+{
+	struct dim2_hdm *dev = _dev;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dim_lock, flags);
+	dim_service_mlb_int_irq();
+	spin_unlock_irqrestore(&dim_lock, flags);
+
+	if (dev->atx_idx >= 0 && dev->hch[dev->atx_idx].is_initialized)
+		while (!try_start_dim_transfer(dev->hch + dev->atx_idx))
+			continue;
+
+	return IRQ_HANDLED;
 }
 
 /**
@@ -743,6 +764,20 @@ static int dim2_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to request ahb0_int irq %d\n", irq);
 		return ret;
 	}
+
+	irq = platform_get_irq(pdev, 1);
+	if (irq < 0) {
+		dev_err(&pdev->dev, "failed to get mlb_int irq\n");
+		return -ENODEV;
+	}
+
+	ret = devm_request_irq(&pdev->dev, irq, dim2_mlb_isr, 0,
+			       "dim2_mlb_int", dev);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to request mlb_int irq %d\n", irq);
+		return ret;
+	}
+
 	init_waitqueue_head(&dev->netinfo_waitq);
 	dev->deliver_netinfo = 0;
 	dev->netinfo_task = kthread_run(&deliver_netinfo_thread, (void *)dev,
