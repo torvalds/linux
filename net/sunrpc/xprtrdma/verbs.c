@@ -493,7 +493,7 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	unsigned int max_qp_wr;
 	int rc;
 
-	if (ia->ri_device->attrs.max_sge < RPCRDMA_MAX_IOVS) {
+	if (ia->ri_device->attrs.max_sge < RPCRDMA_MAX_SEND_SGES) {
 		dprintk("RPC:       %s: insufficient sge's available\n",
 			__func__);
 		return -ENOMEM;
@@ -522,7 +522,7 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	ep->rep_attr.cap.max_recv_wr = cdata->max_requests;
 	ep->rep_attr.cap.max_recv_wr += RPCRDMA_BACKWARD_WRS;
 	ep->rep_attr.cap.max_recv_wr += 1;	/* drain cqe */
-	ep->rep_attr.cap.max_send_sge = RPCRDMA_MAX_IOVS;
+	ep->rep_attr.cap.max_send_sge = RPCRDMA_MAX_SEND_SGES;
 	ep->rep_attr.cap.max_recv_sge = 1;
 	ep->rep_attr.cap.max_inline_data = 0;
 	ep->rep_attr.sq_sig_type = IB_SIGNAL_REQ_WR;
@@ -891,7 +891,7 @@ rpcrdma_create_req(struct rpcrdma_xprt *r_xprt)
 	INIT_LIST_HEAD(&req->rl_registered);
 	req->rl_send_wr.next = NULL;
 	req->rl_send_wr.wr_cqe = &req->rl_cqe;
-	req->rl_send_wr.sg_list = req->rl_send_iov;
+	req->rl_send_wr.sg_list = req->rl_send_sge;
 	req->rl_send_wr.opcode = IB_WR_SEND;
 	return req;
 }
@@ -1306,11 +1306,9 @@ rpcrdma_ep_post(struct rpcrdma_ia *ia,
 		struct rpcrdma_ep *ep,
 		struct rpcrdma_req *req)
 {
-	struct ib_device *device = ia->ri_device;
 	struct ib_send_wr *send_wr = &req->rl_send_wr;
 	struct ib_send_wr *send_wr_fail;
-	struct ib_sge *sge = req->rl_send_iov;
-	int i, rc;
+	int rc;
 
 	if (req->rl_reply) {
 		rc = rpcrdma_ep_post_recv(ia, req->rl_reply);
@@ -1319,9 +1317,6 @@ rpcrdma_ep_post(struct rpcrdma_ia *ia,
 		req->rl_reply = NULL;
 	}
 
-	for (i = 0; i < send_wr->num_sge; i++)
-		ib_dma_sync_single_for_device(device, sge[i].addr,
-					      sge[i].length, DMA_TO_DEVICE);
 	dprintk("RPC:       %s: posting %d s/g entries\n",
 		__func__, send_wr->num_sge);
 

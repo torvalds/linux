@@ -499,30 +499,21 @@ rpcrdma_get_rdmabuf(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 	return true;
 }
 
-/* RPC/RDMA marshaling may choose to send payload bearing ops inline,
- * if the resulting Call message is smaller than the inline threshold.
- * The value of the "rq_callsize" argument accounts for RPC header
- * requirements, but not for the data payload in these cases.
- *
- * See rpcrdma_inline_pullup.
- */
 static bool
 rpcrdma_get_sendbuf(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 		    size_t size, gfp_t flags)
 {
 	struct rpcrdma_regbuf *rb;
-	size_t min_size;
 
 	if (req->rl_sendbuf && rdmab_length(req->rl_sendbuf) >= size)
 		return true;
 
-	min_size = max_t(size_t, size, r_xprt->rx_data.inline_wsize);
-	rb = rpcrdma_alloc_regbuf(min_size, DMA_TO_DEVICE, flags);
+	rb = rpcrdma_alloc_regbuf(size, DMA_TO_DEVICE, flags);
 	if (IS_ERR(rb))
 		return false;
 
 	rpcrdma_free_regbuf(req->rl_sendbuf);
-	r_xprt->rx_stats.hardway_register_count += min_size;
+	r_xprt->rx_stats.hardway_register_count += size;
 	req->rl_sendbuf = rb;
 	return true;
 }
@@ -623,14 +614,15 @@ xprt_rdma_free(struct rpc_task *task)
 	struct rpc_rqst *rqst = task->tk_rqstp;
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(rqst->rq_xprt);
 	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
+	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 
 	if (req->rl_backchannel)
 		return;
 
 	dprintk("RPC:       %s: called on 0x%p\n", __func__, req->rl_reply);
 
-	r_xprt->rx_ia.ri_ops->ro_unmap_safe(r_xprt, req,
-					    !RPC_IS_ASYNC(task));
+	ia->ri_ops->ro_unmap_safe(r_xprt, req, !RPC_IS_ASYNC(task));
+	rpcrdma_unmap_sges(ia, req);
 	rpcrdma_buffer_put(req);
 }
 
