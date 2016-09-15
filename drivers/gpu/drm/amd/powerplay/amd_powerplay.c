@@ -894,6 +894,25 @@ static int pp_dpm_set_mclk_od(void *handle, uint32_t value)
 	return hwmgr->hwmgr_func->set_mclk_od(hwmgr, value);
 }
 
+static int pp_dpm_read_sensor(void *handle, int idx, int32_t *value)
+{
+	struct pp_hwmgr *hwmgr;
+
+	if (!handle)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	PP_CHECK_HW(hwmgr);
+
+	if (hwmgr->hwmgr_func->read_sensor == NULL) {
+		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		return 0;
+	}
+
+	return hwmgr->hwmgr_func->read_sensor(hwmgr, idx, value);
+}
+
 const struct amd_powerplay_funcs pp_dpm_funcs = {
 	.get_temperature = pp_dpm_get_temperature,
 	.load_firmware = pp_dpm_load_fw,
@@ -920,6 +939,7 @@ const struct amd_powerplay_funcs pp_dpm_funcs = {
 	.set_sclk_od = pp_dpm_set_sclk_od,
 	.get_mclk_od = pp_dpm_get_mclk_od,
 	.set_mclk_od = pp_dpm_set_mclk_od,
+	.read_sensor = pp_dpm_read_sensor,
 };
 
 static int amd_pp_instance_init(struct amd_pp_init *pp_init,

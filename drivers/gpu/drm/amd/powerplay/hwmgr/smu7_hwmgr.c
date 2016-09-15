@@ -3144,6 +3144,41 @@ smu7_print_current_perforce_level(struct pp_hwmgr *hwmgr, struct seq_file *m)
 	seq_printf(m, "vce    %sabled\n", data->vce_power_gated ? "dis" : "en");
 }
 
+static int smu7_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
+{
+	uint32_t sclk, mclk, activity_percent;
+	uint32_t offset;
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+
+	switch (idx) {
+	case AMDGPU_PP_SENSOR_GFX_SCLK:
+		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_API_GetSclkFrequency);
+		sclk = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
+		*value = sclk;
+		return 0;
+	case AMDGPU_PP_SENSOR_GFX_MCLK:
+		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_API_GetMclkFrequency);
+		mclk = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
+		*value = mclk;
+		return 0;
+	case AMDGPU_PP_SENSOR_GPU_LOAD:
+		offset = data->soft_regs_start + smum_get_offsetof(hwmgr->smumgr,
+								SMU_SoftRegisters,
+								AverageGraphicsActivity);
+
+		activity_percent = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset);
+		activity_percent += 0x80;
+		activity_percent >>= 8;
+		*value = activity_percent > 100 ? 100 : activity_percent;
+		return 0;
+	case AMDGPU_PP_SENSOR_GPU_TEMP:
+		*value = smu7_thermal_get_temperature(hwmgr);
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 static int smu7_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr, const void *input)
 {
 	const struct phm_set_power_state_input *states =
@@ -4315,6 +4350,7 @@ static struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.get_mclk_od = smu7_get_mclk_od,
 	.set_mclk_od = smu7_set_mclk_od,
 	.get_clock_by_type = smu7_get_clock_by_type,
+	.read_sensor = smu7_read_sensor,
 };
 
 uint8_t smu7_get_sleep_divider_id_from_clock(uint32_t clock,

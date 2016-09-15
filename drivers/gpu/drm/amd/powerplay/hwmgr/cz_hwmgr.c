@@ -1857,6 +1857,101 @@ static int cz_get_max_high_clocks(struct pp_hwmgr *hwmgr, struct amd_pp_simple_c
 	return 0;
 }
 
+static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
+{
+	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+
+	struct phm_clock_voltage_dependency_table *table =
+				hwmgr->dyn_state.vddc_dependency_on_sclk;
+
+	struct phm_vce_clock_voltage_dependency_table *vce_table =
+		hwmgr->dyn_state.vce_clock_voltage_dependency_table;
+
+	struct phm_uvd_clock_voltage_dependency_table *uvd_table =
+		hwmgr->dyn_state.uvd_clock_voltage_dependency_table;
+
+	uint32_t sclk_index = PHM_GET_FIELD(cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixTARGET_AND_CURRENT_PROFILE_INDEX),
+					TARGET_AND_CURRENT_PROFILE_INDEX, CURR_SCLK_INDEX);
+	uint32_t uvd_index = PHM_GET_FIELD(cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixTARGET_AND_CURRENT_PROFILE_INDEX_2),
+					TARGET_AND_CURRENT_PROFILE_INDEX_2, CURR_UVD_INDEX);
+	uint32_t vce_index = PHM_GET_FIELD(cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixTARGET_AND_CURRENT_PROFILE_INDEX_2),
+					TARGET_AND_CURRENT_PROFILE_INDEX_2, CURR_VCE_INDEX);
+
+	uint32_t sclk, vclk, dclk, ecclk, tmp, activity_percent;
+	uint16_t vddnb, vddgfx;
+	int result;
+
+	switch (idx) {
+	case AMDGPU_PP_SENSOR_GFX_SCLK:
+		if (sclk_index < NUM_SCLK_LEVELS) {
+			sclk = table->entries[sclk_index].clk;
+			*value = sclk;
+			return 0;
+		}
+		return -EINVAL;
+	case AMDGPU_PP_SENSOR_VDDNB:
+		tmp = (cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixSMUSVI_NB_CURRENTVID) &
+			CURRENT_NB_VID_MASK) >> CURRENT_NB_VID__SHIFT;
+		vddnb = cz_convert_8Bit_index_to_voltage(hwmgr, tmp);
+		*value = vddnb;
+		return 0;
+	case AMDGPU_PP_SENSOR_VDDGFX:
+		tmp = (cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixSMUSVI_GFX_CURRENTVID) &
+			CURRENT_GFX_VID_MASK) >> CURRENT_GFX_VID__SHIFT;
+		vddgfx = cz_convert_8Bit_index_to_voltage(hwmgr, (u16)tmp);
+		*value = vddgfx;
+		return 0;
+	case AMDGPU_PP_SENSOR_UVD_VCLK:
+		if (!cz_hwmgr->uvd_power_gated) {
+			if (uvd_index >= CZ_MAX_HARDWARE_POWERLEVELS) {
+				return -EINVAL;
+			} else {
+				vclk = uvd_table->entries[uvd_index].vclk;
+				*value = vclk;
+				return 0;
+			}
+		}
+		*value = 0;
+		return 0;
+	case AMDGPU_PP_SENSOR_UVD_DCLK:
+		if (!cz_hwmgr->uvd_power_gated) {
+			if (uvd_index >= CZ_MAX_HARDWARE_POWERLEVELS) {
+				return -EINVAL;
+			} else {
+				dclk = uvd_table->entries[uvd_index].dclk;
+				*value = dclk;
+				return 0;
+			}
+		}
+		*value = 0;
+		return 0;
+	case AMDGPU_PP_SENSOR_VCE_ECCLK:
+		if (!cz_hwmgr->vce_power_gated) {
+			if (vce_index >= CZ_MAX_HARDWARE_POWERLEVELS) {
+				return -EINVAL;
+			} else {
+				ecclk = vce_table->entries[vce_index].ecclk;
+				*value = ecclk;
+				return 0;
+			}
+		}
+		*value = 0;
+		return 0;
+	case AMDGPU_PP_SENSOR_GPU_LOAD:
+		result = smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_GetAverageGraphicsActivity);
+		if (0 == result) {
+			activity_percent = cgs_read_register(hwmgr->device, mmSMU_MP1_SRBM2P_ARG_0);
+			activity_percent = activity_percent > 100 ? 100 : activity_percent;
+		} else {
+			activity_percent = 50;
+		}
+		*value = activity_percent;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 static const struct pp_hwmgr_func cz_hwmgr_funcs = {
 	.backend_init = cz_hwmgr_backend_init,
 	.backend_fini = cz_hwmgr_backend_fini,
@@ -1882,6 +1977,7 @@ static const struct pp_hwmgr_func cz_hwmgr_funcs = {
 	.get_current_shallow_sleep_clocks = cz_get_current_shallow_sleep_clocks,
 	.get_clock_by_type = cz_get_clock_by_type,
 	.get_max_high_clocks = cz_get_max_high_clocks,
+	.read_sensor = cz_read_sensor,
 };
 
 int cz_hwmgr_init(struct pp_hwmgr *hwmgr)

@@ -29,6 +29,17 @@
 #include "amd_shared.h"
 #include "cgs_common.h"
 
+enum amd_pp_sensors {
+	AMDGPU_PP_SENSOR_GFX_SCLK = 0,
+	AMDGPU_PP_SENSOR_VDDNB,
+	AMDGPU_PP_SENSOR_VDDGFX,
+	AMDGPU_PP_SENSOR_UVD_VCLK,
+	AMDGPU_PP_SENSOR_UVD_DCLK,
+	AMDGPU_PP_SENSOR_VCE_ECCLK,
+	AMDGPU_PP_SENSOR_GPU_LOAD,
+	AMDGPU_PP_SENSOR_GFX_MCLK,
+	AMDGPU_PP_SENSOR_GPU_TEMP,
+};
 
 enum amd_pp_event {
 	AMD_PP_EVENT_INITIALIZE = 0,
@@ -347,6 +358,7 @@ struct amd_powerplay_funcs {
 	int (*set_sclk_od)(void *handle, uint32_t value);
 	int (*get_mclk_od)(void *handle);
 	int (*set_mclk_od)(void *handle, uint32_t value);
+	int (*read_sensor)(void *handle, int idx, int32_t *value);
 };
 
 struct amd_powerplay {
