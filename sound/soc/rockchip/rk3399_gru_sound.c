@@ -23,6 +23,7 @@
 #include <linux/of_gpio.h>
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
+#include <linux/input.h>
 #include <sound/core.h>
 #include <sound/jack.h>
 #include <sound/pcm.h>
@@ -208,6 +209,14 @@ static int rockchip_sound_da7219_init(struct snd_soc_pcm_runtime *rtd)
 		dev_err(rtd->card->dev, "New Headset Jack failed! (%d)\n", ret);
 		return ret;
 	}
+
+	snd_jack_set_key(rockchip_sound_jack.jack, SND_JACK_BTN_0, KEY_MEDIA);
+	snd_jack_set_key(
+		rockchip_sound_jack.jack, SND_JACK_BTN_1, KEY_VOLUMEUP);
+	snd_jack_set_key(
+		rockchip_sound_jack.jack, SND_JACK_BTN_2, KEY_VOLUMEDOWN);
+	snd_jack_set_key(
+		rockchip_sound_jack.jack, SND_JACK_BTN_3, KEY_VOICECOMMAND);
 
 	da7219_aad_jack_det(codec, &rockchip_sound_jack);
 
