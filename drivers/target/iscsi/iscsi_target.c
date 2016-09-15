@@ -1804,6 +1804,10 @@ int iscsit_process_nop_out(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 	 * Otherwise, initiator is not expecting a NOPIN is response.
 	 * Just ignore for now.
 	 */
+
+	if (cmd)
+		iscsit_free_cmd(cmd, false);
+
         return 0;
 }
 EXPORT_SYMBOL(iscsit_process_nop_out);
