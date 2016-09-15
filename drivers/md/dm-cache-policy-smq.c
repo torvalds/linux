@@ -1375,41 +1375,15 @@ static int smq_load_mapping(struct dm_cache_policy *p,
 	return 0;
 }
 
-static int smq_save_hints(struct smq_policy *mq, struct queue *q,
-			  policy_walk_fn fn, void *context)
-{
-	int r;
-	unsigned level;
-	struct entry *e;
-
-	for (level = 0; level < q->nr_levels; level++)
-		for (e = l_head(q->es, q->qs + level); e; e = l_next(q->es, e)) {
-			if (!e->sentinel) {
-				r = fn(context, infer_cblock(mq, e),
-				       e->oblock, e->level);
-				if (r)
-					return r;
-			}
-		}
-
-	return 0;
-}
-
-static int smq_walk_mappings(struct dm_cache_policy *p, policy_walk_fn fn,
-			     void *context)
+static uint32_t smq_get_hint(struct dm_cache_policy *p, dm_cblock_t cblock)
 {
 	struct smq_policy *mq = to_smq_policy(p);
-	int r = 0;
+	struct entry *e = get_entry(&mq->cache_alloc, from_cblock(cblock));
 
-	/*
-	 * We don't need to lock here since this method is only called once
-	 * the IO has stopped.
-	 */
-	r = smq_save_hints(mq, &mq->clean, fn, context);
-	if (!r)
-		r = smq_save_hints(mq, &mq->dirty, fn, context);
+	if (!e->allocated)
+		return 0;
 
-	return r;
+	return e->level;
 }
 
 static void __remove_mapping(struct smq_policy *mq, dm_oblock_t oblock)
@@ -1616,7 +1590,7 @@ static void init_policy_functions(struct smq_policy *mq, bool mimic_mq)
 	mq->policy.set_dirty = smq_set_dirty;
 	mq->policy.clear_dirty = smq_clear_dirty;
 	mq->policy.load_mapping = smq_load_mapping;
-	mq->policy.walk_mappings = smq_walk_mappings;
+	mq->policy.get_hint = smq_get_hint;
 	mq->policy.remove_mapping = smq_remove_mapping;
 	mq->policy.remove_cblock = smq_remove_cblock;
 	mq->policy.writeback_work = smq_writeback_work;
