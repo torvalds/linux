@@ -74,6 +74,7 @@ struct rpcrdma_ia {
 	unsigned int		ri_max_frmr_depth;
 	unsigned int		ri_max_inline_write;
 	unsigned int		ri_max_inline_read;
+	bool			ri_reminv_expected;
 	struct ib_qp_attr	ri_qp_attr;
 	struct ib_qp_init_attr	ri_qp_init_attr;
 };
@@ -187,6 +188,8 @@ enum {
 struct rpcrdma_rep {
 	struct ib_cqe		rr_cqe;
 	unsigned int		rr_len;
+	int			rr_wc_flags;
+	u32			rr_inv_rkey;
 	struct ib_device	*rr_device;
 	struct rpcrdma_xprt	*rr_rxprt;
 	struct work_struct	rr_work;
@@ -385,6 +388,7 @@ struct rpcrdma_stats {
 	unsigned long		mrs_recovered;
 	unsigned long		mrs_orphaned;
 	unsigned long		mrs_allocated;
+	unsigned long		local_inv_needed;
 };
 
 /*
@@ -408,6 +412,7 @@ struct rpcrdma_memreg_ops {
 				      struct rpcrdma_mw *);
 	void		(*ro_release_mr)(struct rpcrdma_mw *);
 	const char	*ro_displayname;
+	const int	ro_send_w_inv_ok;
 };
 
 extern const struct rpcrdma_memreg_ops rpcrdma_fmr_memreg_ops;

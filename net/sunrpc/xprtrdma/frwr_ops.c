@@ -67,6 +67,8 @@
  * pending send queue WRs before the transport is reconnected.
  */
 
+#include <linux/sunrpc/rpc_rdma.h>
+
 #include "xprt_rdma.h"
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
@@ -471,6 +473,7 @@ static void
 frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 {
 	struct ib_send_wr *invalidate_wrs, *pos, *prev, *bad_wr;
+	struct rpcrdma_rep *rep = req->rl_reply;
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 	struct rpcrdma_mw *mw, *tmp;
 	struct rpcrdma_frmr *f;
@@ -486,6 +489,12 @@ frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	f = NULL;
 	invalidate_wrs = pos = prev = NULL;
 	list_for_each_entry(mw, &req->rl_registered, mw_list) {
+		if ((rep->rr_wc_flags & IB_WC_WITH_INVALIDATE) &&
+		    (mw->mw_handle == rep->rr_inv_rkey)) {
+			mw->frmr.fr_state = FRMR_IS_INVALID;
+			continue;
+		}
+
 		pos = __frwr_prepare_linv_wr(mw);
 
 		if (!invalidate_wrs)
@@ -495,6 +504,8 @@ frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 		prev = pos;
 		f = &mw->frmr;
 	}
+	if (!f)
+		goto unmap;
 
 	/* Strong send queue ordering guarantees that when the
 	 * last WR in the chain completes, all WRs in the chain
@@ -509,6 +520,7 @@ frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	 * replaces the QP. The RPC reply handler won't call us
 	 * unless ri_id->qp is a valid pointer.
 	 */
+	r_xprt->rx_stats.local_inv_needed++;
 	rc = ib_post_send(ia->ri_id->qp, invalidate_wrs, &bad_wr);
 	if (rc)
 		goto reset_mrs;
@@ -575,4 +587,5 @@ const struct rpcrdma_memreg_ops rpcrdma_frwr_memreg_ops = {
 	.ro_init_mr			= frwr_op_init_mr,
 	.ro_release_mr			= frwr_op_release_mr,
 	.ro_displayname			= "frwr",
+	.ro_send_w_inv_ok		= RPCRDMA_CMP_F_SND_W_INV_OK,
 };

@@ -231,7 +231,8 @@ rpcrdma_convert_kvec(struct kvec *vec, struct rpcrdma_mr_seg *seg, int n)
 
 static int
 rpcrdma_convert_iovs(struct xdr_buf *xdrbuf, unsigned int pos,
-	enum rpcrdma_chunktype type, struct rpcrdma_mr_seg *seg)
+	enum rpcrdma_chunktype type, struct rpcrdma_mr_seg *seg,
+	bool reminv_expected)
 {
 	int len, n, p, page_base;
 	struct page **ppages;
@@ -271,6 +272,13 @@ rpcrdma_convert_iovs(struct xdr_buf *xdrbuf, unsigned int pos,
 
 	/* When encoding the read list, the tail is always sent inline */
 	if (type == rpcrdma_readch)
+		return n;
+
+	/* When encoding the Write list, some servers need to see an extra
+	 * segment for odd-length Write chunks. The upper layer provides
+	 * space in the tail iovec for this purpose.
+	 */
+	if (type == rpcrdma_writech && reminv_expected)
 		return n;
 
 	if (xdrbuf->tail[0].iov_len) {
@@ -329,7 +337,7 @@ rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt,
 	if (rtype == rpcrdma_areadch)
 		pos = 0;
 	seg = req->rl_segments;
-	nsegs = rpcrdma_convert_iovs(&rqst->rq_snd_buf, pos, rtype, seg);
+	nsegs = rpcrdma_convert_iovs(&rqst->rq_snd_buf, pos, rtype, seg, false);
 	if (nsegs < 0)
 		return ERR_PTR(nsegs);
 
@@ -393,7 +401,8 @@ rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 	seg = req->rl_segments;
 	nsegs = rpcrdma_convert_iovs(&rqst->rq_rcv_buf,
 				     rqst->rq_rcv_buf.head[0].iov_len,
-				     wtype, seg);
+				     wtype, seg,
+				     r_xprt->rx_ia.ri_reminv_expected);
 	if (nsegs < 0)
 		return ERR_PTR(nsegs);
 
@@ -458,7 +467,8 @@ rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt,
 	}
 
 	seg = req->rl_segments;
-	nsegs = rpcrdma_convert_iovs(&rqst->rq_rcv_buf, 0, wtype, seg);
+	nsegs = rpcrdma_convert_iovs(&rqst->rq_rcv_buf, 0, wtype, seg,
+				     r_xprt->rx_ia.ri_reminv_expected);
 	if (nsegs < 0)
 		return ERR_PTR(nsegs);
 

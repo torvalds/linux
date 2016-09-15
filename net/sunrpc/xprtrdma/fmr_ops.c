@@ -273,6 +273,7 @@ fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	 */
 	list_for_each_entry(mw, &req->rl_registered, mw_list)
 		list_add_tail(&mw->fmr.fm_mr->list, &unmap_list);
+	r_xprt->rx_stats.local_inv_needed++;
 	rc = ib_unmap_fmr(&unmap_list);
 	if (rc)
 		goto out_reset;
@@ -330,4 +331,5 @@ const struct rpcrdma_memreg_ops rpcrdma_fmr_memreg_ops = {
 	.ro_init_mr			= fmr_op_init_mr,
 	.ro_release_mr			= fmr_op_release_mr,
 	.ro_displayname			= "fmr",
+	.ro_send_w_inv_ok		= 0,
 };
