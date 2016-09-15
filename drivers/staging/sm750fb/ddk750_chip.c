@@ -145,8 +145,9 @@ static void setMasterClock(unsigned int frequency)
 		return;
 
 	if (frequency) {
-		/* Set the frequency to the maximum frequency that the SM750 engine can
-		run, which is about 190 MHz. */
+		/* Set the frequency to the maximum frequency
+		 * that the SM750 engine can run, which is about 190 MHz.
+		 */
 		if (frequency > MHz(190))
 			frequency = MHz(190);
 
@@ -243,9 +244,10 @@ int ddk750_initHw(initchip_param_t *pInitParam)
 	setMasterClock(MHz(pInitParam->masterClock));
 
 
-	/* Reset the memory controller. If the memory controller is not reset in SM750,
-	   the system might hang when sw accesses the memory.
-	   The memory should be resetted after changing the MXCLK.
+	/* Reset the memory controller.
+	 * If the memory controller is not reset in SM750,
+	 * the system might hang when sw accesses the memory.
+	 * The memory should be resetted after changing the MXCLK.
 	 */
 	if (pInitParam->resetMemory == 1) {
 		reg = PEEK32(MISC_CTRL);
@@ -289,21 +291,22 @@ int ddk750_initHw(initchip_param_t *pInitParam)
 }
 
 /*
-	monk liu @ 4/6/2011:
-		   re-write the calculatePLL function of ddk750.
-		   the original version function does not use some mathematics tricks and shortcut
-		   when it doing the calculation of the best N,M,D combination
-		   I think this version gives a little upgrade in speed
-
-	750 pll clock formular:
-	Request Clock = (Input Clock * M )/(N * X)
-
-	Input Clock = 14318181 hz
-	X = 2 power D
-	D ={0,1,2,3,4,5,6}
-	M = {1,...,255}
-	N = {2,...,15}
-*/
+ * monk liu @ 4/6/2011:
+ *	re-write the calculatePLL function of ddk750.
+ *	the original version function does not use
+ *	some mathematics tricks and shortcut
+ *	when it doing the calculation of the best N,M,D combination
+ *	I think this version gives a little upgrade in speed
+ *
+ * 750 pll clock formular:
+ * Request Clock = (Input Clock * M )/(N * X)
+ *
+ * Input Clock = 14318181 hz
+ * X = 2 power D
+ * D ={0,1,2,3,4,5,6}
+ * M = {1,...,255}
+ * N = {2,...,15}
+ */
 unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 {
 	/* as sm750 register definition,
@@ -318,8 +321,10 @@ unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 	int max_d = 6;
 
 	if (getChipType() == SM750LE) {
-		/* SM750LE don't have prgrammable PLL and M/N values to work on.
-		Just return the requested clock. */
+		/* SM750LE don't have
+		 * programmable PLL and M/N values to work on.
+		 * Just return the requested clock.
+		 */
 		return request_orig;
 	}
 
