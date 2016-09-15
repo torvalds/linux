@@ -446,8 +446,6 @@ struct amdgpu_bo_va {
 #define AMDGPU_GEM_DOMAIN_MAX		0x3
 
 struct amdgpu_bo {
-	/* Protected by gem.mutex */
-	struct list_head		list;
 	/* Protected by tbo.reserved */
 	u32				prefered_domains;
 	u32				allowed_domains;

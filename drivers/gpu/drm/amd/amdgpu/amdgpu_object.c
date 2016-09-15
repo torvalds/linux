@@ -352,7 +352,6 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 		return r;
 	}
 	bo->adev = adev;
-	INIT_LIST_HEAD(&bo->list);
 	INIT_LIST_HEAD(&bo->shadow_list);
 	INIT_LIST_HEAD(&bo->va);
 	bo->prefered_domains = domain & (AMDGPU_GEM_DOMAIN_VRAM |
