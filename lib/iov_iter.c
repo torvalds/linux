@@ -298,33 +298,13 @@ done:
 }
 
 /*
- * Fault in the first iovec of the given iov_iter, to a maximum length
- * of bytes. Returns 0 on success, or non-zero if the memory could not be
- * accessed (ie. because it is an invalid address).
- *
- * writev-intensive code may want this to prefault several iovecs -- that
- * would be possible (callers must not rely on the fact that _only_ the
- * first iovec will be faulted with the current implementation).
- */
-int iov_iter_fault_in_readable(struct iov_iter *i, size_t bytes)
-{
-	if (!(i->type & (ITER_BVEC|ITER_KVEC))) {
-		char __user *buf = i->iov->iov_base + i->iov_offset;
-		bytes = min(bytes, i->iov->iov_len - i->iov_offset);
-		return fault_in_pages_readable(buf, bytes);
-	}
-	return 0;
-}
-EXPORT_SYMBOL(iov_iter_fault_in_readable);
-
-/*
  * Fault in one or more iovecs of the given iov_iter, to a maximum length of
  * bytes.  For each iovec, fault in each page that constitutes the iovec.
  *
  * Return 0 on success, or non-zero if the memory could not be accessed (i.e.
  * because it is an invalid address).
  */
-int iov_iter_fault_in_multipages_readable(struct iov_iter *i, size_t bytes)
+int iov_iter_fault_in_readable(struct iov_iter *i, size_t bytes)
 {
 	size_t skip = i->iov_offset;
 	const struct iovec *iov;
@@ -341,7 +321,7 @@ int iov_iter_fault_in_multipages_readable(struct iov_iter *i, size_t bytes)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(iov_iter_fault_in_multipages_readable);
+EXPORT_SYMBOL(iov_iter_fault_in_readable);
 
 void iov_iter_init(struct iov_iter *i, int direction,
 			const struct iovec *iov, unsigned long nr_segs,
