@@ -823,20 +823,24 @@ nla_put_failure:
 static int fq_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 {
 	struct fq_sched_data *q = qdisc_priv(sch);
-	u64 now = ktime_get_ns();
-	struct tc_fq_qd_stats st = {
-		.gc_flows		= q->stat_gc_flows,
-		.highprio_packets	= q->stat_internal_packets,
-		.tcp_retrans		= q->stat_tcp_retrans,
-		.throttled		= q->stat_throttled,
-		.flows_plimit		= q->stat_flows_plimit,
-		.pkts_too_long		= q->stat_pkts_too_long,
-		.allocation_errors	= q->stat_allocation_errors,
-		.flows			= q->flows,
-		.inactive_flows		= q->inactive_flows,
-		.throttled_flows	= q->throttled_flows,
-		.time_next_delayed_flow	= q->time_next_delayed_flow - now,
-	};
+	struct tc_fq_qd_stats st;
+
+	sch_tree_lock(sch);
+
+	st.gc_flows		  = q->stat_gc_flows;
+	st.highprio_packets	  = q->stat_internal_packets;
+	st.tcp_retrans		  = q->stat_tcp_retrans;
+	st.throttled		  = q->stat_throttled;
+	st.flows_plimit		  = q->stat_flows_plimit;
+	st.pkts_too_long	  = q->stat_pkts_too_long;
+	st.allocation_errors	  = q->stat_allocation_errors;
+	st.time_next_delayed_flow = q->time_next_delayed_flow - ktime_get_ns();
+	st.flows		  = q->flows;
+	st.inactive_flows	  = q->inactive_flows;
+	st.throttled_flows	  = q->throttled_flows;
+	st.pad			  = 0;
+
+	sch_tree_unlock(sch);
 
 	return gnet_stats_copy_app(d, &st, sizeof(st));
 }
