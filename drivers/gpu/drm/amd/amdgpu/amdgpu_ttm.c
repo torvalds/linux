@@ -195,7 +195,7 @@ static int amdgpu_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 static void amdgpu_evict_flags(struct ttm_buffer_object *bo,
 				struct ttm_placement *placement)
 {
-	struct amdgpu_bo *rbo;
+	struct amdgpu_bo *abo;
 	static struct ttm_place placements = {
 		.fpfn = 0,
 		.lpfn = 0,
@@ -210,43 +210,43 @@ static void amdgpu_evict_flags(struct ttm_buffer_object *bo,
 		placement->num_busy_placement = 1;
 		return;
 	}
-	rbo = container_of(bo, struct amdgpu_bo, tbo);
+	abo = container_of(bo, struct amdgpu_bo, tbo);
 	switch (bo->mem.mem_type) {
 	case TTM_PL_VRAM:
-		if (rbo->adev->mman.buffer_funcs_ring->ready == false) {
-			amdgpu_ttm_placement_from_domain(rbo, AMDGPU_GEM_DOMAIN_CPU);
+		if (abo->adev->mman.buffer_funcs_ring->ready == false) {
+			amdgpu_ttm_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_CPU);
 		} else {
-			amdgpu_ttm_placement_from_domain(rbo, AMDGPU_GEM_DOMAIN_GTT);
-			for (i = 0; i < rbo->placement.num_placement; ++i) {
-				if (!(rbo->placements[i].flags &
+			amdgpu_ttm_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_GTT);
+			for (i = 0; i < abo->placement.num_placement; ++i) {
+				if (!(abo->placements[i].flags &
 				      TTM_PL_FLAG_TT))
 					continue;
 
-				if (rbo->placements[i].lpfn)
+				if (abo->placements[i].lpfn)
 					continue;
 
 				/* set an upper limit to force directly
 				 * allocating address space for the BO.
 				 */
-				rbo->placements[i].lpfn =
-					rbo->adev->mc.gtt_size >> PAGE_SHIFT;
+				abo->placements[i].lpfn =
+					abo->adev->mc.gtt_size >> PAGE_SHIFT;
 			}
 		}
 		break;
 	case TTM_PL_TT:
 	default:
-		amdgpu_ttm_placement_from_domain(rbo, AMDGPU_GEM_DOMAIN_CPU);
+		amdgpu_ttm_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_CPU);
 	}
-	*placement = rbo->placement;
+	*placement = abo->placement;
 }
 
 static int amdgpu_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 {
-	struct amdgpu_bo *rbo = container_of(bo, struct amdgpu_bo, tbo);
+	struct amdgpu_bo *abo = container_of(bo, struct amdgpu_bo, tbo);
 
 	if (amdgpu_ttm_tt_get_usermm(bo->ttm))
 		return -EPERM;
-	return drm_vma_node_verify_access(&rbo->gem_base.vma_node, filp);
+	return drm_vma_node_verify_access(&abo->gem_base.vma_node, filp);
 }
 
 static void amdgpu_move_null(struct ttm_buffer_object *bo,

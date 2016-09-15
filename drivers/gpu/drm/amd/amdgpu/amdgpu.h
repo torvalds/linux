@@ -703,7 +703,7 @@ struct amdgpu_flip_work {
 	u32				target_vblank;
 	uint64_t			base;
 	struct drm_pending_vblank_event *event;
-	struct amdgpu_bo		*old_rbo;
+	struct amdgpu_bo		*old_abo;
 	struct fence			*excl;
 	unsigned			shared_count;
 	struct fence			**shared;
@@ -2416,7 +2416,7 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data);
 int amdgpu_cs_get_ring(struct amdgpu_device *adev, u32 ip_type,
 		       u32 ip_instance, u32 ring,
 		       struct amdgpu_ring **out_ring);
-void amdgpu_ttm_placement_from_domain(struct amdgpu_bo *rbo, u32 domain);
+void amdgpu_ttm_placement_from_domain(struct amdgpu_bo *abo, u32 domain);
 bool amdgpu_ttm_bo_is_amdgpu_bo(struct ttm_buffer_object *bo);
 int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages);
 int amdgpu_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,

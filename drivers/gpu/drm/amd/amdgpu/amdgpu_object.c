@@ -203,10 +203,10 @@ static void amdgpu_ttm_placement_init(struct amdgpu_device *adev,
 	placement->busy_placement = places;
 }
 
-void amdgpu_ttm_placement_from_domain(struct amdgpu_bo *rbo, u32 domain)
+void amdgpu_ttm_placement_from_domain(struct amdgpu_bo *abo, u32 domain)
 {
-	amdgpu_ttm_placement_init(rbo->adev, &rbo->placement,
-				  rbo->placements, domain, rbo->flags);
+	amdgpu_ttm_placement_init(abo->adev, &abo->placement,
+				  abo->placements, domain, abo->flags);
 }
 
 static void amdgpu_fill_placement_to_bo(struct amdgpu_bo *bo,
@@ -849,23 +849,23 @@ int amdgpu_bo_get_metadata(struct amdgpu_bo *bo, void *buffer,
 void amdgpu_bo_move_notify(struct ttm_buffer_object *bo,
 			   struct ttm_mem_reg *new_mem)
 {
-	struct amdgpu_bo *rbo;
+	struct amdgpu_bo *abo;
 	struct ttm_mem_reg *old_mem = &bo->mem;
 
 	if (!amdgpu_ttm_bo_is_amdgpu_bo(bo))
 		return;
 
-	rbo = container_of(bo, struct amdgpu_bo, tbo);
-	amdgpu_vm_bo_invalidate(rbo->adev, rbo);
+	abo = container_of(bo, struct amdgpu_bo, tbo);
+	amdgpu_vm_bo_invalidate(abo->adev, abo);
 
 	/* update statistics */
 	if (!new_mem)
 		return;
 
 	/* move_notify is called before move happens */
-	amdgpu_update_memory_usage(rbo->adev, &bo->mem, new_mem);
+	amdgpu_update_memory_usage(abo->adev, &bo->mem, new_mem);
 
-	trace_amdgpu_ttm_bo_move(rbo, new_mem->mem_type, old_mem->mem_type);
+	trace_amdgpu_ttm_bo_move(abo, new_mem->mem_type, old_mem->mem_type);
 }
 
 int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)

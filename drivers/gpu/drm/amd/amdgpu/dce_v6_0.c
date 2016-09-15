@@ -1533,7 +1533,7 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 	struct amdgpu_framebuffer *amdgpu_fb;
 	struct drm_framebuffer *target_fb;
 	struct drm_gem_object *obj;
-	struct amdgpu_bo *rbo;
+	struct amdgpu_bo *abo;
 	uint64_t fb_location, tiling_flags;
 	uint32_t fb_format, fb_pitch_pixels, pipe_config;
 	u32 fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_NONE);
@@ -1560,23 +1560,23 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 	 * just update base pointers
 	 */
 	obj = amdgpu_fb->obj;
-	rbo = gem_to_amdgpu_bo(obj);
-	r = amdgpu_bo_reserve(rbo, false);
+	abo = gem_to_amdgpu_bo(obj);
+	r = amdgpu_bo_reserve(abo, false);
 	if (unlikely(r != 0))
 		return r;
 
 	if (atomic)
-		fb_location = amdgpu_bo_gpu_offset(rbo);
+		fb_location = amdgpu_bo_gpu_offset(abo);
 	else {
-		r = amdgpu_bo_pin(rbo, AMDGPU_GEM_DOMAIN_VRAM, &fb_location);
+		r = amdgpu_bo_pin(abo, AMDGPU_GEM_DOMAIN_VRAM, &fb_location);
 		if (unlikely(r != 0)) {
-			amdgpu_bo_unreserve(rbo);
+			amdgpu_bo_unreserve(abo);
 			return -EINVAL;
 		}
 	}
 
-	amdgpu_bo_get_tiling_flags(rbo, &tiling_flags);
-	amdgpu_bo_unreserve(rbo);
+	amdgpu_bo_get_tiling_flags(abo, &tiling_flags);
+	amdgpu_bo_unreserve(abo);
 
 	switch (target_fb->pixel_format) {
 	case DRM_FORMAT_C8:
@@ -1728,12 +1728,12 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 
 	if (!atomic && fb && fb != crtc->primary->fb) {
 		amdgpu_fb = to_amdgpu_framebuffer(fb);
-		rbo = gem_to_amdgpu_bo(amdgpu_fb->obj);
-		r = amdgpu_bo_reserve(rbo, false);
+		abo = gem_to_amdgpu_bo(amdgpu_fb->obj);
+		r = amdgpu_bo_reserve(abo, false);
 		if (unlikely(r != 0))
 			return r;
-		amdgpu_bo_unpin(rbo);
-		amdgpu_bo_unreserve(rbo);
+		amdgpu_bo_unpin(abo);
+		amdgpu_bo_unreserve(abo);
 	}
 
 	/* Bytes per pixel may have changed */
@@ -2181,16 +2181,16 @@ static void dce_v6_0_crtc_disable(struct drm_crtc *crtc)
 	if (crtc->primary->fb) {
 		int r;
 		struct amdgpu_framebuffer *amdgpu_fb;
-		struct amdgpu_bo *rbo;
+		struct amdgpu_bo *abo;
 
 		amdgpu_fb = to_amdgpu_framebuffer(crtc->primary->fb);
-		rbo = gem_to_amdgpu_bo(amdgpu_fb->obj);
-		r = amdgpu_bo_reserve(rbo, false);
+		abo = gem_to_amdgpu_bo(amdgpu_fb->obj);
+		r = amdgpu_bo_reserve(abo, false);
 		if (unlikely(r))
-			DRM_ERROR("failed to reserve rbo before unpin\n");
+			DRM_ERROR("failed to reserve abo before unpin\n");
 		else {
-			amdgpu_bo_unpin(rbo);
-			amdgpu_bo_unreserve(rbo);
+			amdgpu_bo_unpin(abo);
+			amdgpu_bo_unreserve(abo);
 		}
 	}
 	/* disable the GRPH */
