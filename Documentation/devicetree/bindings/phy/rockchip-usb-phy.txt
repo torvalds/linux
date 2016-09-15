@@ -27,6 +27,9 @@ Optional Properties:
 - clocks : phandle + clock specifier for the phy clocks
 - clock-names: string, clock name, must be "phyclk"
 - #clock-cells: for users of the phy-pll, should be 0
+- reset-names: Only allow the following entries:
+ - phy-reset
+- resets: Must contain an entry for each entry in reset-names.
 
 Example:
 

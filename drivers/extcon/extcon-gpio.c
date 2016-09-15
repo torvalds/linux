@@ -49,6 +49,7 @@ static void gpio_extcon_work(struct work_struct *work)
 	state = gpiod_get_value_cansleep(data->id_gpiod);
 	if (data->pdata->gpio_active_low)
 		state = !state;
+
 	extcon_set_state_sync(data->edev, data->pdata->extcon_id, state);
 }
 
