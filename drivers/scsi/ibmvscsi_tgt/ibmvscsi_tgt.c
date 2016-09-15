@@ -3449,6 +3449,7 @@ static int ibmvscsis_probe(struct vio_dev *vdev,
 	vscsi->map_ioba = dma_map_single(&vdev->dev, vscsi->map_buf, PAGE_SIZE,
 					 DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(&vdev->dev, vscsi->map_ioba)) {
+		rc = -ENOMEM;
 		dev_err(&vscsi->dev, "probe: error mapping command buffer\n");
 		goto free_buf;
 	}
