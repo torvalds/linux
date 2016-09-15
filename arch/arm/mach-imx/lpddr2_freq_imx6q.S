@@ -68,6 +68,7 @@ skip_periph_clk_switch_400m:
 	bic	r9, r9, r6
 	orr	r9, r9, #(0x1F << 16)
 	orr	r9, r9, #(0x1D << 8)
+	str	r9, [r2, #CCM_CBCDR]
 
 	wait_for_ccm_handshake
 
