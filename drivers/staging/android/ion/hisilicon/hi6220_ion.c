@@ -49,8 +49,8 @@ static int hi6220_ion_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ipdev);
 
 	ipdev->idev = ion_device_create(NULL);
-	if (!ipdev->idev)
-		return -ENOMEM;
+	if (IS_ERR(ipdev->idev))
+		return PTR_ERR(ipdev->idev);
 
 	ipdev->data = ion_parse_dt(pdev, hisi_heaps);
 	if (IS_ERR(ipdev->data))
