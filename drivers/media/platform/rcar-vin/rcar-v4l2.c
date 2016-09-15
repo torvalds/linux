@@ -613,6 +613,44 @@ static int rvin_dv_timings_cap(struct file *file, void *priv_fh,
 	return ret;
 }
 
+static int rvin_g_edid(struct file *file, void *fh, struct v4l2_edid *edid)
+{
+	struct rvin_dev *vin = video_drvdata(file);
+	struct v4l2_subdev *sd = vin_to_source(vin);
+	int input, ret;
+
+	if (edid->pad)
+		return -EINVAL;
+
+	input = edid->pad;
+	edid->pad = vin->sink_pad_idx;
+
+	ret = v4l2_subdev_call(sd, pad, get_edid, edid);
+
+	edid->pad = input;
+
+	return ret;
+}
+
+static int rvin_s_edid(struct file *file, void *fh, struct v4l2_edid *edid)
+{
+	struct rvin_dev *vin = video_drvdata(file);
+	struct v4l2_subdev *sd = vin_to_source(vin);
+	int input, ret;
+
+	if (edid->pad)
+		return -EINVAL;
+
+	input = edid->pad;
+	edid->pad = vin->sink_pad_idx;
+
+	ret = v4l2_subdev_call(sd, pad, set_edid, edid);
+
+	edid->pad = input;
+
+	return ret;
+}
+
 static const struct v4l2_ioctl_ops rvin_ioctl_ops = {
 	.vidioc_querycap		= rvin_querycap,
 	.vidioc_try_fmt_vid_cap		= rvin_try_fmt_vid_cap,
@@ -634,6 +672,9 @@ static const struct v4l2_ioctl_ops rvin_ioctl_ops = {
 	.vidioc_g_dv_timings		= rvin_g_dv_timings,
 	.vidioc_s_dv_timings		= rvin_s_dv_timings,
 	.vidioc_query_dv_timings	= rvin_query_dv_timings,
+
+	.vidioc_g_edid			= rvin_g_edid,
+	.vidioc_s_edid			= rvin_s_edid,
 
 	.vidioc_querystd		= rvin_querystd,
 	.vidioc_g_std			= rvin_g_std,
@@ -882,6 +923,13 @@ int rvin_v4l2_probe(struct rvin_dev *vin)
 		return -EINVAL;
 
 	vin->src_pad_idx = pad_idx;
+
+	vin->sink_pad_idx = 0;
+	for (pad_idx = 0; pad_idx < sd->entity.num_pads; pad_idx++)
+		if (sd->entity.pads[pad_idx].flags == MEDIA_PAD_FL_SINK) {
+			vin->sink_pad_idx = pad_idx;
+			break;
+		}
 
 	vin->format.pixelformat	= RVIN_DEFAULT_FORMAT;
 	rvin_reset_format(vin);
