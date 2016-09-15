@@ -2853,13 +2853,6 @@ bool ilk_disable_lp_wm(struct drm_device *dev)
 	return _ilk_disable_lp_wm(dev_priv, WM_DIRTY_LP_ALL);
 }
 
-/*
- * On gen9, we need to allocate Display Data Buffer (DDB) portions to the
- * different active planes.
- */
-
-#define SKL_DDB_SIZE		896	/* in blocks */
-#define BXT_DDB_SIZE		512
 #define SKL_SAGV_BLOCK_TIME	30 /* µs */
 
 /*
@@ -3057,10 +3050,8 @@ skl_ddb_get_pipe_allocation_limits(struct drm_device *dev,
 	else
 		*num_active = hweight32(dev_priv->active_crtcs);
 
-	if (IS_BROXTON(dev))
-		ddb_size = BXT_DDB_SIZE;
-	else
-		ddb_size = SKL_DDB_SIZE;
+	ddb_size = INTEL_INFO(dev_priv)->ddb_size;
+	WARN_ON(ddb_size == 0);
 
 	ddb_size -= 4; /* 4 blocks for bypass path allocation */
 
