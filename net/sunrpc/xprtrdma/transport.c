@@ -490,7 +490,7 @@ rpcrdma_get_rdmabuf(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 	if (req->rl_rdmabuf)
 		return true;
 
-	rb = rpcrdma_alloc_regbuf(&r_xprt->rx_ia, size, flags);
+	rb = rpcrdma_alloc_regbuf(&r_xprt->rx_ia, size, DMA_TO_DEVICE, flags);
 	if (IS_ERR(rb))
 		return false;
 
@@ -517,7 +517,8 @@ rpcrdma_get_sendbuf(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 		return true;
 
 	min_size = max_t(size_t, size, r_xprt->rx_data.inline_wsize);
-	rb = rpcrdma_alloc_regbuf(&r_xprt->rx_ia, min_size, flags);
+	rb = rpcrdma_alloc_regbuf(&r_xprt->rx_ia, min_size,
+				  DMA_TO_DEVICE, flags);
 	if (IS_ERR(rb))
 		return false;
 
@@ -547,7 +548,7 @@ rpcrdma_get_recvbuf(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 	if (req->rl_recvbuf && rdmab_length(req->rl_recvbuf) >= size)
 		return true;
 
-	rb = rpcrdma_alloc_regbuf(&r_xprt->rx_ia, size, flags);
+	rb = rpcrdma_alloc_regbuf(&r_xprt->rx_ia, size, DMA_NONE, flags);
 	if (IS_ERR(rb))
 		return false;
 

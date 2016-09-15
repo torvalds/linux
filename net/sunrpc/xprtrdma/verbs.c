@@ -866,7 +866,7 @@ rpcrdma_create_rep(struct rpcrdma_xprt *r_xprt)
 		goto out;
 
 	rep->rr_rdmabuf = rpcrdma_alloc_regbuf(ia, cdata->inline_rsize,
-					       GFP_KERNEL);
+					       DMA_FROM_DEVICE, GFP_KERNEL);
 	if (IS_ERR(rep->rr_rdmabuf)) {
 		rc = PTR_ERR(rep->rr_rdmabuf);
 		goto out_free;
@@ -1172,27 +1172,24 @@ rpcrdma_recv_buffer_put(struct rpcrdma_rep *rep)
 	spin_unlock(&buffers->rb_lock);
 }
 
-/*
- * Wrappers for internal-use kmalloc memory registration, used by buffer code.
- */
-
 /**
- * rpcrdma_alloc_regbuf - kmalloc and register memory for SEND/RECV buffers
+ * rpcrdma_alloc_regbuf - allocate and DMA-map memory for SEND/RECV buffers
  * @ia: controlling rpcrdma_ia
  * @size: size of buffer to be allocated, in bytes
+ * @direction: direction of data movement
  * @flags: GFP flags
  *
- * Returns pointer to private header of an area of internally
- * registered memory, or an ERR_PTR. The registered buffer follows
- * the end of the private header.
+ * Returns an ERR_PTR, or a pointer to a regbuf, which is a
+ * contiguous memory region that is DMA mapped persistently, and
+ * is registered for local I/O.
  *
  * xprtrdma uses a regbuf for posting an outgoing RDMA SEND, or for
- * receiving the payload of RDMA RECV operations. regbufs are not
- * used for RDMA READ/WRITE operations, thus are registered only for
- * LOCAL access.
+ * receiving the payload of RDMA RECV operations. During Long Calls
+ * or Replies they may be registered externally via ro_map.
  */
 struct rpcrdma_regbuf *
-rpcrdma_alloc_regbuf(struct rpcrdma_ia *ia, size_t size, gfp_t flags)
+rpcrdma_alloc_regbuf(struct rpcrdma_ia *ia, size_t size,
+		     enum dma_data_direction direction, gfp_t flags)
 {
 	struct rpcrdma_regbuf *rb;
 	struct ib_sge *iov;
@@ -1201,15 +1198,20 @@ rpcrdma_alloc_regbuf(struct rpcrdma_ia *ia, size_t size, gfp_t flags)
 	if (rb == NULL)
 		goto out;
 
+	rb->rg_direction = direction;
 	iov = &rb->rg_iov;
-	iov->addr = ib_dma_map_single(ia->ri_device,
-				      (void *)rb->rg_base, size,
-				      DMA_BIDIRECTIONAL);
-	if (ib_dma_mapping_error(ia->ri_device, iov->addr))
-		goto out_free;
-
 	iov->length = size;
 	iov->lkey = ia->ri_pd->local_dma_lkey;
+
+	if (direction != DMA_NONE) {
+		iov->addr = ib_dma_map_single(ia->ri_device,
+					      (void *)rb->rg_base,
+					      rdmab_length(rb),
+					      rb->rg_direction);
+		if (ib_dma_mapping_error(ia->ri_device, iov->addr))
+			goto out_free;
+	}
+
 	return rb;
 
 out_free:
@@ -1226,14 +1228,14 @@ out:
 void
 rpcrdma_free_regbuf(struct rpcrdma_ia *ia, struct rpcrdma_regbuf *rb)
 {
-	struct ib_sge *iov;
-
 	if (!rb)
 		return;
 
-	iov = &rb->rg_iov;
-	ib_dma_unmap_single(ia->ri_device,
-			    iov->addr, iov->length, DMA_BIDIRECTIONAL);
+	if (rb->rg_direction != DMA_NONE) {
+		ib_dma_unmap_single(ia->ri_device, rdmab_addr(rb),
+				    rdmab_length(rb), rb->rg_direction);
+	}
+
 	kfree(rb);
 }
 
@@ -1304,11 +1306,6 @@ rpcrdma_ep_post_recv(struct rpcrdma_ia *ia,
 	recv_wr.wr_cqe = &rep->rr_cqe;
 	recv_wr.sg_list = &rep->rr_rdmabuf->rg_iov;
 	recv_wr.num_sge = 1;
-
-	ib_dma_sync_single_for_cpu(ia->ri_device,
-				   rdmab_addr(rep->rr_rdmabuf),
-				   rdmab_length(rep->rr_rdmabuf),
-				   DMA_BIDIRECTIONAL);
 
 	rc = ib_post_recv(ia->ri_id->qp, &recv_wr, &recv_wr_fail);
 	if (rc)

@@ -113,6 +113,7 @@ struct rpcrdma_ep {
 
 struct rpcrdma_regbuf {
 	struct ib_sge		rg_iov;
+	enum dma_data_direction	rg_direction;
 	__be32			rg_base[0] __attribute__ ((aligned(256)));
 };
 
@@ -477,7 +478,8 @@ void rpcrdma_recv_buffer_put(struct rpcrdma_rep *);
 void rpcrdma_defer_mr_recovery(struct rpcrdma_mw *);
 
 struct rpcrdma_regbuf *rpcrdma_alloc_regbuf(struct rpcrdma_ia *,
-					    size_t, gfp_t);
+					    size_t, enum dma_data_direction,
+					    gfp_t);
 void rpcrdma_free_regbuf(struct rpcrdma_ia *,
 			 struct rpcrdma_regbuf *);
 
