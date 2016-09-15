@@ -551,7 +551,7 @@ static int __init top_clocks_init(struct device_node *np)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(zx296718_pll_clk); i++) {
-		zx296718_pll_clk[i].reg_base += (u64)reg_base;
+		zx296718_pll_clk[i].reg_base += (uintptr_t)reg_base;
 		ret = clk_hw_register(NULL, &zx296718_pll_clk[i].hw);
 		if (ret) {
 			pr_warn("top clk %s init error!\n",
@@ -576,7 +576,7 @@ static int __init top_clocks_init(struct device_node *np)
 			top_hw_onecell_data.hws[top_mux_clk[i].id] =
 					&top_mux_clk[i].mux.hw;
 
-		top_mux_clk[i].mux.reg += (u64)reg_base;
+		top_mux_clk[i].mux.reg += (uintptr_t)reg_base;
 		ret = clk_hw_register(NULL, &top_mux_clk[i].mux.hw);
 		if (ret) {
 			pr_warn("top clk %s init error!\n",
@@ -589,7 +589,7 @@ static int __init top_clocks_init(struct device_node *np)
 			top_hw_onecell_data.hws[top_gate_clk[i].id] =
 					&top_gate_clk[i].gate.hw;
 
-		top_gate_clk[i].gate.reg += (u64)reg_base;
+		top_gate_clk[i].gate.reg += (uintptr_t)reg_base;
 		ret = clk_hw_register(NULL, &top_gate_clk[i].gate.hw);
 		if (ret) {
 			pr_warn("top clk %s init error!\n",
@@ -602,7 +602,7 @@ static int __init top_clocks_init(struct device_node *np)
 			top_hw_onecell_data.hws[top_div_clk[i].id] =
 					&top_div_clk[i].div.hw;
 
-		top_div_clk[i].div.reg += (u64)reg_base;
+		top_div_clk[i].div.reg += (uintptr_t)reg_base;
 		ret = clk_hw_register(NULL, &top_div_clk[i].div.hw);
 		if (ret) {
 			pr_warn("top clk %s init error!\n",
@@ -742,7 +742,7 @@ static int __init lsp0_clocks_init(struct device_node *np)
 			lsp0_hw_onecell_data.hws[lsp0_mux_clk[i].id] =
 					&lsp0_mux_clk[i].mux.hw;
 
-		lsp0_mux_clk[i].mux.reg += (u64)reg_base;
+		lsp0_mux_clk[i].mux.reg += (uintptr_t)reg_base;
 		ret = clk_hw_register(NULL, &lsp0_mux_clk[i].mux.hw);
 		if (ret) {
 			pr_warn("lsp0 clk %s init error!\n",
@@ -755,7 +755,7 @@ static int __init lsp0_clocks_init(struct device_node *np)
 			lsp0_hw_onecell_data.hws[lsp0_gate_clk[i].id] =
 					&lsp0_gate_clk[i].gate.hw;
 
-		lsp0_gate_clk[i].gate.reg += (u64)reg_base;
+		lsp0_gate_clk[i].gate.reg += (uintptr_t)reg_base;
 		ret = clk_hw_register(NULL, &lsp0_gate_clk[i].gate.hw);
 		if (ret) {
 			pr_warn("lsp0 clk %s init error!\n",
@@ -768,7 +768,7 @@ static int __init lsp0_clocks_init(struct device_node *np)
 			lsp0_hw_onecell_data.hws[lsp0_div_clk[i].id] =
 					&lsp0_div_clk[i].div.hw;
 
-		lsp0_div_clk[i].div.reg += (u64)reg_base;
+		lsp0_div_clk[i].div.reg += (uintptr_t)reg_base;
 		ret = clk_hw_register(NULL, &lsp0_div_clk[i].div.hw);
 		if (ret) {
 			pr_warn("lsp0 clk %s init error!\n",
@@ -847,7 +847,7 @@ static int __init lsp1_clocks_init(struct device_node *np)
 			lsp1_hw_onecell_data.hws[lsp1_mux_clk[i].id] =
 					&lsp0_mux_clk[i].mux.hw;
 
-		lsp1_mux_clk[i].mux.reg += (u64)reg_base;
+		lsp1_mux_clk[i].mux.reg += (uintptr_t)reg_base;
 		ret = clk_hw_register(NULL, &lsp1_mux_clk[i].mux.hw);
 		if (ret) {
 			pr_warn("lsp1 clk %s init error!\n",
@@ -860,7 +860,7 @@ static int __init lsp1_clocks_init(struct device_node *np)
 			lsp1_hw_onecell_data.hws[lsp1_gate_clk[i].id] =
 					&lsp1_gate_clk[i].gate.hw;
 
-		lsp1_gate_clk[i].gate.reg += (u64)reg_base;
+		lsp1_gate_clk[i].gate.reg += (uintptr_t)reg_base;
 		ret = clk_hw_register(NULL, &lsp1_gate_clk[i].gate.hw);
 		if (ret) {
 			pr_warn("lsp1 clk %s init error!\n",
@@ -873,7 +873,7 @@ static int __init lsp1_clocks_init(struct device_node *np)
 			lsp1_hw_onecell_data.hws[lsp1_div_clk[i].id] =
 					&lsp1_div_clk[i].div.hw;
 
-		lsp1_div_clk[i].div.reg += (u64)reg_base;
+		lsp1_div_clk[i].div.reg += (uintptr_t)reg_base;
 		ret = clk_hw_register(NULL, &lsp1_div_clk[i].div.hw);
 		if (ret) {
 			pr_warn("lsp1 clk %s init error!\n",
