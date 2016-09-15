@@ -839,6 +839,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		dev->radio_tx_caps = V4L2_CAP_RDS_OUTPUT | V4L2_CAP_MODULATOR |
 				     V4L2_CAP_READWRITE;
 
+	ret = -ENOMEM;
 	/* initialize the test pattern generator */
 	tpg_init(&dev->tpg, 640, 360);
 	if (tpg_alloc(&dev->tpg, MAX_ZOOM * MAX_WIDTH))
@@ -1033,8 +1034,10 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	 */
 	dev->cec_workqueue =
 		alloc_ordered_workqueue("vivid-%03d-cec", WQ_MEM_RECLAIM, inst);
-	if (!dev->cec_workqueue)
+	if (!dev->cec_workqueue) {
+		ret = -ENOMEM;
 		goto unreg_dev;
+	}
 
 	/* start creating the vb2 queues */
 	if (dev->has_vid_cap) {
