@@ -20,6 +20,7 @@
 #include <linux/pci.h>
 #include <linux/acpi.h>
 #include <linux/list.h>
+#include <linux/bitmap.h>
 #include <linux/slab.h>
 #include <linux/syscore_ops.h>
 #include <linux/interrupt.h>
@@ -2285,7 +2286,7 @@ static int __init early_amd_iommu_init(void)
 	 * never allocate domain 0 because its used as the non-allocated and
 	 * error value placeholder
 	 */
-	amd_iommu_pd_alloc_bitmap[0] = 1;
+	__set_bit(0, amd_iommu_pd_alloc_bitmap);
 
 	spin_lock_init(&amd_iommu_pd_lock);
 
