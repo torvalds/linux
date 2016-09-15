@@ -99,6 +99,9 @@ struct stm32_usart_info stm32f7_info = {
 /* Dummy bits */
 #define USART_SR_DUMMY_RX	BIT(16)
 
+/* USART_ICR (F7) */
+#define USART_CR_TC		BIT(6)
+
 /* USART_DR */
 #define USART_DR_MASK		GENMASK(8, 0)
 
@@ -204,10 +207,21 @@ struct stm32_usart_info stm32f7_info = {
 #define STM32_SERIAL_NAME "ttyS"
 #define STM32_MAX_PORTS 6
 
+#define RX_BUF_L 200		 /* dma rx buffer length     */
+#define RX_BUF_P RX_BUF_L	 /* dma rx buffer period     */
+#define TX_BUF_L 200		 /* dma tx buffer length     */
+
 struct stm32_port {
 	struct uart_port port;
 	struct clk *clk;
 	struct stm32_usart_info *info;
+	struct dma_chan *rx_ch;  /* dma rx channel            */
+	dma_addr_t rx_dma_buf;   /* dma rx buffer bus address */
+	unsigned char *rx_buf;   /* dma rx buffer cpu address */
+	struct dma_chan *tx_ch;  /* dma tx channel            */
+	dma_addr_t tx_dma_buf;   /* dma tx buffer bus address */
+	unsigned char *tx_buf;   /* dma tx buffer cpu address */
+	bool tx_dma_busy;	 /* dma tx busy               */
 	bool hw_flow_control;
 };
 
