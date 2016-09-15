@@ -77,7 +77,7 @@ static long sun4i_dclk_round_rate(struct clk_hw *hw, unsigned long rate,
 	u8 best_div = 1;
 	int i;
 
-	for (i = 6; i < 127; i++) {
+	for (i = 6; i <= 127; i++) {
 		unsigned long ideal = rate * i;
 		unsigned long rounded;
 
