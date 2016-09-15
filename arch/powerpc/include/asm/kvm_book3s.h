@@ -101,6 +101,7 @@ struct kvmppc_vcore {
 	u32 arch_compat;
 	ulong pcr;
 	ulong dpdes;		/* doorbell state (POWER8) */
+	ulong vtb;		/* virtual timebase */
 	ulong conferring_threads;
 	unsigned int halt_poll_ns;
 };
@@ -119,6 +120,7 @@ struct kvmppc_vcpu_book3s {
 	u64 sdr1;
 	u64 hior;
 	u64 msr_mask;
+	u64 vtb;
 #ifdef CONFIG_PPC_BOOK3S_32
 	u32 vsid_pool[VSID_POOL_SIZE];
 	u32 vsid_next;

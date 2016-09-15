@@ -599,9 +599,6 @@ int kvmppc_get_one_reg(struct kvm_vcpu *vcpu, u64 id,
 		case KVM_REG_PPC_BESCR:
 			*val = get_reg_val(id, vcpu->arch.bescr);
 			break;
-		case KVM_REG_PPC_VTB:
-			*val = get_reg_val(id, vcpu->arch.vtb);
-			break;
 		case KVM_REG_PPC_IC:
 			*val = get_reg_val(id, vcpu->arch.ic);
 			break;
@@ -672,9 +669,6 @@ int kvmppc_set_one_reg(struct kvm_vcpu *vcpu, u64 id,
 			break;
 		case KVM_REG_PPC_BESCR:
 			vcpu->arch.bescr = set_reg_val(id, *val);
-			break;
-		case KVM_REG_PPC_VTB:
-			vcpu->arch.vtb = set_reg_val(id, *val);
 			break;
 		case KVM_REG_PPC_IC:
 			vcpu->arch.ic = set_reg_val(id, *val);
