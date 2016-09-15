@@ -112,7 +112,6 @@ struct rpcrdma_ep {
  */
 
 struct rpcrdma_regbuf {
-	size_t			rg_size;
 	struct ib_sge		rg_iov;
 	__be32			rg_base[0] __attribute__ ((aligned(256)));
 };
@@ -285,8 +284,9 @@ struct rpcrdma_req {
 	struct rpcrdma_buffer	*rl_buffer;
 	struct rpcrdma_rep	*rl_reply;/* holder for reply buffer */
 	struct ib_sge		rl_send_iov[RPCRDMA_MAX_IOVS];
-	struct rpcrdma_regbuf	*rl_rdmabuf;
-	struct rpcrdma_regbuf	*rl_sendbuf;
+	struct rpcrdma_regbuf	*rl_rdmabuf;	/* xprt header */
+	struct rpcrdma_regbuf	*rl_sendbuf;	/* rq_snd_buf */
+	struct rpcrdma_regbuf	*rl_recvbuf;	/* rq_rcv_buf */
 
 	struct ib_cqe		rl_cqe;
 	struct list_head	rl_all;

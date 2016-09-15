@@ -975,6 +975,7 @@ rpcrdma_destroy_rep(struct rpcrdma_ia *ia, struct rpcrdma_rep *rep)
 void
 rpcrdma_destroy_req(struct rpcrdma_ia *ia, struct rpcrdma_req *req)
 {
+	rpcrdma_free_regbuf(ia, req->rl_recvbuf);
 	rpcrdma_free_regbuf(ia, req->rl_sendbuf);
 	rpcrdma_free_regbuf(ia, req->rl_rdmabuf);
 	kfree(req);
@@ -1209,7 +1210,6 @@ rpcrdma_alloc_regbuf(struct rpcrdma_ia *ia, size_t size, gfp_t flags)
 
 	iov->length = size;
 	iov->lkey = ia->ri_pd->local_dma_lkey;
-	rb->rg_size = size;
 	return rb;
 
 out_free:
