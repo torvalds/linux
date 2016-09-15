@@ -2271,30 +2271,6 @@ static int blk_mq_alloc_rq_maps(struct blk_mq_tag_set *set)
 	return 0;
 }
 
-static int blk_mq_create_mq_map(struct blk_mq_tag_set *set,
-		const struct cpumask *affinity_mask)
-{
-	int queue = -1, cpu = 0;
-
-	set->mq_map = kzalloc_node(sizeof(*set->mq_map) * nr_cpu_ids,
-			GFP_KERNEL, set->numa_node);
-	if (!set->mq_map)
-		return -ENOMEM;
-
-	if (!affinity_mask)
-		return 0;	/* map all cpus to queue 0 */
-
-	/* If cpus are offline, map them to first hctx */
-	for_each_online_cpu(cpu) {
-		if (cpumask_test_cpu(cpu, affinity_mask))
-			queue++;
-		if (queue >= 0)
-			set->mq_map[cpu] = queue;
-	}
-
-	return 0;
-}
-
 /*
  * Alloc a tag set to be associated with one or more request queues.
  * May fail with EINVAL for various error conditions. May adjust the
