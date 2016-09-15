@@ -1074,6 +1074,11 @@ static void pt_addr_filters_fini(struct perf_event *event)
 	event->hw.addr_filters = NULL;
 }
 
+static inline bool valid_kernel_ip(unsigned long ip)
+{
+	return virt_addr_valid(ip) && kernel_ip(ip);
+}
+
 static int pt_event_addr_filters_validate(struct list_head *filters)
 {
 	struct perf_addr_filter *filter;
@@ -1084,7 +1089,7 @@ static int pt_event_addr_filters_validate(struct list_head *filters)
 		if (!filter->range || !filter->size)
 			return -EOPNOTSUPP;
 
-		if (!filter->inode && !kernel_ip(filter->offset))
+		if (!filter->inode && !valid_kernel_ip(filter->offset))
 			return -EINVAL;
 
 		if (++range > pt_cap_get(PT_CAP_num_address_ranges))
