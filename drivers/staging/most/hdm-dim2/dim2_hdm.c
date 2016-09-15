@@ -447,7 +447,7 @@ static irqreturn_t dim2_ahb_isr(int irq, void *_dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dim_lock, flags);
-	dim_service_irq(get_active_channels(dev, buffer));
+	dim_service_ahb_int_irq(get_active_channels(dev, buffer));
 	spin_unlock_irqrestore(&dim_lock, flags);
 
 	dim2_tasklet.data = (unsigned long)dev;

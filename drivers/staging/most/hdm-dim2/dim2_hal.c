@@ -826,7 +826,7 @@ u8 dim_destroy_channel(struct dim_channel *ch)
 	return DIM_NO_ERROR;
 }
 
-void dim_service_irq(struct dim_channel *const *channels)
+void dim_service_ahb_int_irq(struct dim_channel *const *channels)
 {
 	bool state_changed;
 
