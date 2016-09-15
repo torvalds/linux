@@ -145,7 +145,7 @@ static void SetPSModeWorkItemCallback(struct work_struct *work)
 		mutex_lock(&pwrpriv->mutex_lock);
 		if (pwrpriv->pwr_mode == PS_MODE_ACTIVE)
 			r8712_set_rpwm(padapter, PS_STATE_S4);
-		mutex_lock(&pwrpriv->mutex_lock);
+		mutex_unlock(&pwrpriv->mutex_lock);
 	}
 }
 
