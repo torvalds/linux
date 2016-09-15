@@ -269,3 +269,32 @@ const struct nand_sdr_timings *onfi_async_timing_mode_to_sdr_timings(int mode)
 	return &onfi_sdr_timings[mode].timings.sdr;
 }
 EXPORT_SYMBOL(onfi_async_timing_mode_to_sdr_timings);
+
+/**
+ * onfi_init_data_interface - [NAND Interface] Initialize a data interface from
+ * given ONFI mode
+ * @iface: The data interface to be initialized
+ * @mode: The ONFI timing mode
+ */
+int onfi_init_data_interface(struct nand_chip *chip,
+			     struct nand_data_interface *iface,
+			     enum nand_data_interface_type type,
+			     int timing_mode)
+{
+	if (type != NAND_SDR_IFACE)
+		return -EINVAL;
+
+	if (timing_mode < 0 || timing_mode >= ARRAY_SIZE(onfi_sdr_timings))
+		return -EINVAL;
+
+	*iface = onfi_sdr_timings[timing_mode];
+
+	/*
+	 * TODO: initialize timings that cannot be deduced from timing mode:
+	 * tR, tPROG, tCCS, ...
+	 * These information are part of the ONFI parameter page.
+	 */
+
+	return 0;
+}
+EXPORT_SYMBOL(onfi_init_data_interface);
