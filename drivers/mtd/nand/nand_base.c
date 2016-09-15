@@ -948,6 +948,148 @@ static int nand_wait(struct mtd_info *mtd, struct nand_chip *chip)
 }
 
 /**
+ * nand_reset_data_interface - Reset data interface and timings
+ * @chip: The NAND chip
+ *
+ * Reset the Data interface and timings to ONFI mode 0.
+ *
+ * Returns 0 for success or negative error code otherwise.
+ */
+static int nand_reset_data_interface(struct nand_chip *chip)
+{
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	const struct nand_data_interface *conf;
+	int ret;
+
+	if (!chip->setup_data_interface)
+		return 0;
+
+	/*
+	 * The ONFI specification says:
+	 * "
+	 * To transition from NV-DDR or NV-DDR2 to the SDR data
+	 * interface, the host shall use the Reset (FFh) command
+	 * using SDR timing mode 0. A device in any timing mode is
+	 * required to recognize Reset (FFh) command issued in SDR
+	 * timing mode 0.
+	 * "
+	 *
+	 * Configure the data interface in SDR mode and set the
+	 * timings to timing mode 0.
+	 */
+
+	conf = nand_get_default_data_interface();
+	ret = chip->setup_data_interface(mtd, conf, false);
+	if (ret)
+		pr_err("Failed to configure data interface to SDR timing mode 0\n");
+
+	return ret;
+}
+
+/**
+ * nand_setup_data_interface - Setup the best data interface and timings
+ * @chip: The NAND chip
+ *
+ * Find and configure the best data interface and NAND timings supported by
+ * the chip and the driver.
+ * First tries to retrieve supported timing modes from ONFI information,
+ * and if the NAND chip does not support ONFI, relies on the
+ * ->onfi_timing_mode_default specified in the nand_ids table.
+ *
+ * Returns 0 for success or negative error code otherwise.
+ */
+static int nand_setup_data_interface(struct nand_chip *chip)
+{
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	int ret;
+
+	if (!chip->setup_data_interface || !chip->data_interface)
+		return 0;
+
+	/*
+	 * Ensure the timing mode has been changed on the chip side
+	 * before changing timings on the controller side.
+	 */
+	if (chip->onfi_version) {
+		u8 tmode_param[ONFI_SUBFEATURE_PARAM_LEN] = {
+			chip->onfi_timing_mode_default,
+		};
+
+		ret = chip->onfi_set_features(mtd, chip,
+				ONFI_FEATURE_ADDR_TIMING_MODE,
+				tmode_param);
+		if (ret)
+			goto err;
+	}
+
+	ret = chip->setup_data_interface(mtd, chip->data_interface, false);
+err:
+	return ret;
+}
+
+/**
+ * nand_init_data_interface - find the best data interface and timings
+ * @chip: The NAND chip
+ *
+ * Find the best data interface and NAND timings supported by the chip
+ * and the driver.
+ * First tries to retrieve supported timing modes from ONFI information,
+ * and if the NAND chip does not support ONFI, relies on the
+ * ->onfi_timing_mode_default specified in the nand_ids table. After this
+ * function nand_chip->data_interface is initialized with the best timing mode
+ * available.
+ *
+ * Returns 0 for success or negative error code otherwise.
+ */
+static int nand_init_data_interface(struct nand_chip *chip)
+{
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	int modes, mode, ret;
+
+	if (!chip->setup_data_interface)
+		return 0;
+
+	/*
+	 * First try to identify the best timings from ONFI parameters and
+	 * if the NAND does not support ONFI, fallback to the default ONFI
+	 * timing mode.
+	 */
+	modes = onfi_get_async_timing_mode(chip);
+	if (modes == ONFI_TIMING_MODE_UNKNOWN) {
+		if (!chip->onfi_timing_mode_default)
+			return 0;
+
+		modes = GENMASK(chip->onfi_timing_mode_default, 0);
+	}
+
+	chip->data_interface = kzalloc(sizeof(*chip->data_interface),
+				       GFP_KERNEL);
+	if (!chip->data_interface)
+		return -ENOMEM;
+
+	for (mode = fls(modes) - 1; mode >= 0; mode--) {
+		ret = onfi_init_data_interface(chip, chip->data_interface,
+					       NAND_SDR_IFACE, mode);
+		if (ret)
+			continue;
+
+		ret = chip->setup_data_interface(mtd, chip->data_interface,
+						 true);
+		if (!ret) {
+			chip->onfi_timing_mode_default = mode;
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static void nand_release_data_interface(struct nand_chip *chip)
+{
+	kfree(chip->data_interface);
+}
+
+/**
  * nand_reset - Reset and initialize a NAND device
  * @chip: The NAND chip
  *
@@ -956,8 +1098,17 @@ static int nand_wait(struct mtd_info *mtd, struct nand_chip *chip)
 int nand_reset(struct nand_chip *chip)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
+	int ret;
+
+	ret = nand_reset_data_interface(chip);
+	if (ret)
+		return ret;
 
 	chip->cmdfunc(mtd, NAND_CMD_RESET, -1, -1);
+
+	ret = nand_setup_data_interface(chip);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -4172,6 +4323,10 @@ int nand_scan_ident(struct mtd_info *mtd, int maxchips,
 		return PTR_ERR(type);
 	}
 
+	ret = nand_init_data_interface(chip);
+	if (ret)
+		return ret;
+
 	chip->select_chip(mtd, -1);
 
 	/* Check for a chip array */
@@ -4630,6 +4785,8 @@ void nand_release(struct mtd_info *mtd)
 		nand_bch_free((struct nand_bch_control *)chip->ecc.priv);
 
 	mtd_device_unregister(mtd);
+
+	nand_release_data_interface(chip);
 
 	/* Free bad block table memory */
 	kfree(chip->bbt);

@@ -751,10 +751,9 @@ nand_get_sdr_timings(const struct nand_data_interface *conf)
  *                      also from the datasheet. It is the recommended ECC step
  *			size, if known; if unknown, set to zero.
  * @onfi_timing_mode_default: [INTERN] default ONFI timing mode. This field is
- *			      either deduced from the datasheet if the NAND
- *			      chip is not ONFI compliant or set to 0 if it is
- *			      (an ONFI chip is always configured in mode 0
- *			      after a NAND reset)
+ *			      set to the actually used ONFI mode if the chip is
+ *			      ONFI compliant or deduced from the datasheet if
+ *			      the NAND chip is not ONFI compliant.
  * @numchips:		[INTERN] number of physical chips
  * @chipsize:		[INTERN] the size of one chip for multichip arrays
  * @pagemask:		[INTERN] page number mask = number of (pages / chip) - 1
@@ -774,6 +773,7 @@ nand_get_sdr_timings(const struct nand_data_interface *conf)
  * @read_retries:	[INTERN] the number of read retry modes supported
  * @onfi_set_features:	[REPLACEABLE] set the features for ONFI nand
  * @onfi_get_features:	[REPLACEABLE] get the features for ONFI nand
+ * @setup_data_interface: [OPTIONAL] setup the data interface and timing
  * @bbt:		[INTERN] bad block table pointer
  * @bbt_td:		[REPLACEABLE] bad block table descriptor for flash
  *			lookup.
@@ -820,6 +820,10 @@ struct nand_chip {
 	int (*onfi_get_features)(struct mtd_info *mtd, struct nand_chip *chip,
 			int feature_addr, uint8_t *subfeature_para);
 	int (*setup_read_retry)(struct mtd_info *mtd, int retry_mode);
+	int (*setup_data_interface)(struct mtd_info *mtd,
+				    const struct nand_data_interface *conf,
+				    bool check_only);
+
 
 	int chip_delay;
 	unsigned int options;
@@ -848,6 +852,8 @@ struct nand_chip {
 		struct nand_onfi_params	onfi_params;
 		struct nand_jedec_params jedec_params;
 	};
+
+	struct nand_data_interface *data_interface;
 
 	int read_retries;
 
