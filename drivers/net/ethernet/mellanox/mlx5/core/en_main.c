@@ -141,6 +141,10 @@ static void mlx5e_update_sw_counters(struct mlx5e_priv *priv)
 		s->rx_buff_alloc_err += rq_stats->buff_alloc_err;
 		s->rx_cqe_compress_blks += rq_stats->cqe_compress_blks;
 		s->rx_cqe_compress_pkts += rq_stats->cqe_compress_pkts;
+		s->rx_cache_reuse += rq_stats->cache_reuse;
+		s->rx_cache_full  += rq_stats->cache_full;
+		s->rx_cache_empty += rq_stats->cache_empty;
+		s->rx_cache_busy  += rq_stats->cache_busy;
 
 		for (j = 0; j < priv->params.num_tc; j++) {
 			sq_stats = &priv->channel[i]->sq[j].stats;
@@ -475,6 +479,9 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
 	INIT_WORK(&rq->am.work, mlx5e_rx_am_work);
 	rq->am.mode = priv->params.rx_cq_period_mode;
 
+	rq->page_cache.head = 0;
+	rq->page_cache.tail = 0;
+
 	return 0;
 
 err_rq_wq_destroy:
@@ -485,6 +492,8 @@ err_rq_wq_destroy:
 
 static void mlx5e_destroy_rq(struct mlx5e_rq *rq)
 {
+	int i;
+
 	switch (rq->wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
 		mlx5e_rq_free_mpwqe_info(rq);
@@ -493,6 +502,12 @@ static void mlx5e_destroy_rq(struct mlx5e_rq *rq)
 		kfree(rq->skb);
 	}
 
+	for (i = rq->page_cache.head; i != rq->page_cache.tail;
+	     i = (i + 1) & (MLX5E_CACHE_SIZE - 1)) {
+		struct mlx5e_dma_info *dma_info = &rq->page_cache.page_cache[i];
+
+		mlx5e_page_release(rq, dma_info, false);
+	}
 	mlx5_wq_destroy(&rq->wq_ctrl);
 }
 

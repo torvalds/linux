@@ -305,11 +305,55 @@ static inline void mlx5e_post_umr_wqe(struct mlx5e_rq *rq, u16 ix)
 	mlx5e_tx_notify_hw(sq, &wqe->ctrl, 0);
 }
 
+static inline bool mlx5e_rx_cache_put(struct mlx5e_rq *rq,
+				      struct mlx5e_dma_info *dma_info)
+{
+	struct mlx5e_page_cache *cache = &rq->page_cache;
+	u32 tail_next = (cache->tail + 1) & (MLX5E_CACHE_SIZE - 1);
+
+	if (tail_next == cache->head) {
+		rq->stats.cache_full++;
+		return false;
+	}
+
+	cache->page_cache[cache->tail] = *dma_info;
+	cache->tail = tail_next;
+	return true;
+}
+
+static inline bool mlx5e_rx_cache_get(struct mlx5e_rq *rq,
+				      struct mlx5e_dma_info *dma_info)
+{
+	struct mlx5e_page_cache *cache = &rq->page_cache;
+
+	if (unlikely(cache->head == cache->tail)) {
+		rq->stats.cache_empty++;
+		return false;
+	}
+
+	if (page_ref_count(cache->page_cache[cache->head].page) != 1) {
+		rq->stats.cache_busy++;
+		return false;
+	}
+
+	*dma_info = cache->page_cache[cache->head];
+	cache->head = (cache->head + 1) & (MLX5E_CACHE_SIZE - 1);
+	rq->stats.cache_reuse++;
+
+	dma_sync_single_for_device(rq->pdev, dma_info->addr, PAGE_SIZE,
+				   DMA_FROM_DEVICE);
+	return true;
+}
+
 static inline int mlx5e_page_alloc_mapped(struct mlx5e_rq *rq,
 					  struct mlx5e_dma_info *dma_info)
 {
-	struct page *page = dev_alloc_page();
+	struct page *page;
 
+	if (mlx5e_rx_cache_get(rq, dma_info))
+		return 0;
+
+	page = dev_alloc_page();
 	if (unlikely(!page))
 		return -ENOMEM;
 
@@ -324,9 +368,12 @@ static inline int mlx5e_page_alloc_mapped(struct mlx5e_rq *rq,
 	return 0;
 }
 
-static inline void mlx5e_page_release(struct mlx5e_rq *rq,
-				      struct mlx5e_dma_info *dma_info)
+void mlx5e_page_release(struct mlx5e_rq *rq, struct mlx5e_dma_info *dma_info,
+			bool recycle)
 {
+	if (likely(recycle) && mlx5e_rx_cache_put(rq, dma_info))
+		return;
+
 	dma_unmap_page(rq->pdev, dma_info->addr, PAGE_SIZE, DMA_FROM_DEVICE);
 	put_page(dma_info->page);
 }
@@ -362,7 +409,7 @@ err_unmap:
 		struct mlx5e_dma_info *dma_info = &wi->umr.dma_info[i];
 
 		page_ref_sub(dma_info->page, pg_strides);
-		mlx5e_page_release(rq, dma_info);
+		mlx5e_page_release(rq, dma_info, true);
 	}
 
 	return err;
@@ -377,7 +424,7 @@ void mlx5e_free_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi)
 		struct mlx5e_dma_info *dma_info = &wi->umr.dma_info[i];
 
 		page_ref_sub(dma_info->page, pg_strides - wi->skbs_frags[i]);
-		mlx5e_page_release(rq, dma_info);
+		mlx5e_page_release(rq, dma_info, true);
 	}
 }
 
