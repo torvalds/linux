@@ -740,8 +740,7 @@ static int dim2_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, irq, dim2_ahb_isr, 0,
 			       "mlb_ahb0", dev);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to request IRQ: %d, err: %d\n",
-			irq, ret);
+		dev_err(&pdev->dev, "failed to request IRQ: %d\n", irq);
 		return ret;
 	}
 	init_waitqueue_head(&dev->netinfo_waitq);
