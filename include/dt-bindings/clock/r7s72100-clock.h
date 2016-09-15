@@ -28,6 +28,9 @@
 /* MSTP7 */
 #define R7S72100_CLK_ETHER	4
 
+/* MSTP8 */
+#define R7S72100_CLK_MMCIF	4
+
 /* MSTP9 */
 #define R7S72100_CLK_I2C0	7
 #define R7S72100_CLK_I2C1	6

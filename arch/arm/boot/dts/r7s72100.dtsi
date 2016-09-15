@@ -117,6 +117,15 @@
 			clock-output-names = "ether";
 		};
 
+		mstp8_clks: mstp8_clks@fcfe0434 {
+			#clock-cells = <1>;
+			compatible = "renesas,r7s72100-mstp-clocks", "renesas,cpg-mstp-clocks";
+			reg = <0xfcfe0434 4>;
+			clocks = <&p1_clk>;
+			clock-indices = <R7S72100_CLK_MMCIF>;
+			clock-output-names = "mmcif";
+		};
+
 		mstp9_clks: mstp9_clks@fcfe0438 {
 			#clock-cells = <1>;
 			compatible = "renesas,r7s72100-mstp-clocks", "renesas,cpg-mstp-clocks";
