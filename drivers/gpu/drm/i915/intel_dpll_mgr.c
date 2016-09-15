@@ -1709,12 +1709,12 @@ bxt_get_dpll(struct intel_crtc *crtc,
 	if (encoder->type == INTEL_OUTPUT_HDMI
 	    && !bxt_ddi_hdmi_pll_dividers(crtc, crtc_state,
 					  clock, &clk_div))
-		return false;
+		return NULL;
 
 	if ((encoder->type == INTEL_OUTPUT_DP ||
 	     encoder->type == INTEL_OUTPUT_EDP) &&
 	    !bxt_ddi_dp_set_dpll_hw_state(clock, &dpll_hw_state))
-		return false;
+		return NULL;
 
 	memset(&crtc_state->dpll_hw_state, 0,
 	       sizeof(crtc_state->dpll_hw_state));
