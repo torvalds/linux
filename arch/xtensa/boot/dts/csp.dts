@@ -7,7 +7,7 @@
 	interrupt-parent = <&pic>;
 
 	chosen {
-		bootargs = "earlycon=cdns,0xfd000000,115200 console=tty0 console=ttyPS0,115200 root=/dev/ram0 rw earlyprintk loglevel=8 nohz=off ignore_loglevel";
+		bootargs = "earlycon=cdns,0xfd000000,115200 console=tty0 console=ttyPS0,115200 root=/dev/ram0 rw earlyprintk xilinx_uartps.rx_trigger_level=32 loglevel=8 nohz=off ignore_loglevel";
 	};
 
 	memory@0 {
