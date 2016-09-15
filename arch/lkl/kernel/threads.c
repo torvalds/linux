@@ -5,6 +5,19 @@
 
 static volatile int threads_counter;
 
+static int init_ti(struct thread_info *ti)
+{
+	ti->sched_sem = lkl_ops->sem_alloc(0);
+	if (!ti->sched_sem)
+		return -ENOMEM;
+
+	ti->dead = false;
+	ti->prev_sched = NULL;
+	ti->tid = 0;
+
+	return 0;
+}
+
 unsigned long *alloc_thread_stack_node(struct task_struct *task, int node)
 {
 	struct thread_info *ti;
@@ -13,14 +26,12 @@ unsigned long *alloc_thread_stack_node(struct task_struct *task, int node)
 	if (!ti)
 		return NULL;
 
-	ti->exit_info = NULL;
-	ti->prev_sched = NULL;
-	ti->sched_sem = lkl_ops->sem_alloc(0);
-	ti->task = task;
-	if (!ti->sched_sem) {
+	if (init_ti(ti)) {
 		kfree(ti);
 		return NULL;
 	}
+	ti->task = task;
+
 
 	return (unsigned long *)ti;
 }
@@ -39,22 +50,21 @@ void setup_thread_stack(struct task_struct *p, struct task_struct *org)
 	ti->addr_limit = org_ti->addr_limit;
 }
 
-static void kill_thread(struct thread_exit_info *ei)
+static void kill_thread(struct thread_info *ti)
 {
-	if (WARN_ON(!ei))
-		return;
+	ti->dead = true;
+	lkl_ops->sem_up(ti->sched_sem);
+	lkl_ops->thread_join(ti->tid);
+	lkl_ops->sem_free(ti->sched_sem);
 
-	ei->dead = true;
-	lkl_ops->sem_up(ei->sched_sem);
 }
 
 void free_thread_stack(unsigned long *stack)
 {
 	struct thread_info *ti = (struct thread_info *)stack;
-	struct thread_exit_info *ei = ti->exit_info;
 
+	kill_thread(ti);
 	kfree(ti);
-	kill_thread(ei);
 }
 
 struct thread_info *_current_thread_info = &init_thread_union.thread_info;
@@ -76,33 +86,18 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	 * ksoftirqd0 -> swapper: returned prev is swapper
 	 */
 	static struct task_struct *abs_prev = &init_task;
-	/*
-	 * We need to free the thread_info structure in free_thread_info to
-	 * avoid races between the dying thread and other threads. We also need
-	 * to cleanup sched_sem and signal to the prev thread that it needs to
-	 * exit, and we use this stack varible to pass this info.
-	 */
-	struct thread_exit_info ei = {
-		.dead = false,
-		.sched_sem = _prev->sched_sem,
-	};
 
 	_current_thread_info = task_thread_info(next);
 	_next->prev_sched = prev;
 	abs_prev = prev;
-	_prev->exit_info = &ei;
 
 	lkl_ops->sem_up(_next->sched_sem);
-	/* _next may be already gone so use ei instead */
-	lkl_ops->sem_down(ei.sched_sem);
+	lkl_ops->sem_down(_prev->sched_sem);
 
-	if (ei.dead) {
-		lkl_ops->sem_free(ei.sched_sem);
+	if (_prev->dead) {
 		__sync_fetch_and_sub(&threads_counter, 1);
 		lkl_ops->thread_exit();
 	}
-
-	_prev->exit_info = NULL;
 
 	return abs_prev;
 }
@@ -120,11 +115,6 @@ static void thread_bootstrap(void *_tba)
 	int (*f)(void *) = tba->f;
 	void *arg = tba->arg;
 
-	/* Our lifecycle is managed by the LKL kernel, so we want to
-	 * detach here in order to free up host resources when we're
-	 * killed */
-	lkl_ops->thread_detach();
-
 	lkl_ops->sem_down(ti->sched_sem);
 	kfree(tba);
 	if (ti->prev_sched)
@@ -139,7 +129,6 @@ int copy_thread(unsigned long clone_flags, unsigned long esp,
 {
 	struct thread_info *ti = task_thread_info(p);
 	struct thread_bootstrap_arg *tba;
-	int ret;
 
 	tba = kmalloc(sizeof(*tba), GFP_KERNEL);
 	if (!tba)
@@ -149,8 +138,8 @@ int copy_thread(unsigned long clone_flags, unsigned long esp,
 	tba->arg = (void *)unused;
 	tba->ti = ti;
 
-	ret = lkl_ops->thread_create(thread_bootstrap, tba);
-	if (!ret) {
+	ti->tid = lkl_ops->thread_create(thread_bootstrap, tba);
+	if (!ti->tid) {
 		kfree(tba);
 		return -ENOMEM;
 	}
@@ -177,16 +166,11 @@ static inline void pr_early(const char *str)
 int threads_init(void)
 {
 	struct thread_info *ti = &init_thread_union.thread_info;
-	int ret = 0;
+	int ret;
 
-	ti->exit_info = NULL;
-	ti->prev_sched = NULL;
-
-	ti->sched_sem = lkl_ops->sem_alloc(0);
-	if (!ti->sched_sem) {
+	ret = init_ti(ti);
+	if (ret < 0)
 		pr_early("lkl: failed to allocate init schedule semaphore\n");
-		ret = -ENOMEM;
-	}
 
 	return ret;
 }
@@ -204,7 +188,7 @@ void threads_cleanup(void)
 		WARN(p->state == TASK_RUNNING,
 		     "thread %s still running while halting\n", p->comm);
 
-		kill_thread(ti->exit_info);
+		kill_thread(ti);
 	}
 
 	while (threads_counter)
