@@ -1647,7 +1647,6 @@ static void XGI_GetLCDVCLKPtr(unsigned char *di_0, unsigned char *di_1,
 static unsigned char XGI_GetVCLKPtr(unsigned short RefreshRateTableIndex,
 		unsigned short ModeIdIndex, struct vb_device_info *pVBInfo)
 {
-
 	unsigned short index, modeflag;
 	unsigned char tempal;
 
@@ -2291,7 +2290,6 @@ static void XGI_DisplayOn(struct xgifb_video_info *xgifb_info,
 		struct xgi_hw_device_info *pXGIHWDE,
 		struct vb_device_info *pVBInfo)
 {
-
 	xgifb_reg_and_or(pVBInfo->P3c4, 0x01, 0xDF, 0x00);
 	if (pXGIHWDE->jChipType == XG21) {
 		if (pVBInfo->IF_DEF_LVDS == 1) {
@@ -2338,7 +2336,6 @@ void XGI_DisplayOff(struct xgifb_video_info *xgifb_info,
 		struct xgi_hw_device_info *pXGIHWDE,
 		struct vb_device_info *pVBInfo)
 {
-
 	if (pXGIHWDE->jChipType == XG21) {
 		if (pVBInfo->IF_DEF_LVDS == 1) {
 			/* LVDS backlight off */
@@ -2455,7 +2452,6 @@ exit:
 
 static unsigned char XGI_IsLCDDualLink(struct vb_device_info *pVBInfo)
 {
-
 	if ((pVBInfo->VBInfo & (SetCRT2ToLCD | XGI_SetCRT2ToLCDA)) &&
 			(pVBInfo->LCDInfo & SetLCDDualLink)) /* shampoo0129 */
 		return 1;
@@ -4389,7 +4385,6 @@ static void xgifb_set_lvds(struct xgifb_video_info *xgifb_info,
 					(value << 2) & 0x7C);
 
 	for (temp = 0, value = 0; temp < 3; temp++) {
-
 		xgifb_reg_and_or(pVBInfo->P3c4, 0x31, ~0x30, value);
 		xgifb_reg_set(pVBInfo->P3c4,
 			      0x2B, xgifb_info->lvds_data.VCLKData1);
@@ -5416,7 +5411,6 @@ static void XGI_SetCRT1Group(struct xgifb_video_info *xgifb_info,
 	if (HwDeviceExtension->jChipType >= XG21) {
 		temp = xgifb_reg_get(pVBInfo->P3d4, 0x38);
 		if (temp & 0xA0) {
-
 			if (HwDeviceExtension->jChipType == XG27)
 				XGI_SetXG27CRTC(RefreshRateTableIndex, pVBInfo);
 			else
