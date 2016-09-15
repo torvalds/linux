@@ -1100,4 +1100,8 @@ int nand_read_oob_std(struct mtd_info *mtd, struct nand_chip *chip, int page);
 /* Default read_oob syndrome implementation */
 int nand_read_oob_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
 			   int page);
+
+/* Reset and initialize a NAND device */
+int nand_reset(struct nand_chip *chip);
+
 #endif /* __LINUX_MTD_NAND_H */
