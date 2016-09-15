@@ -8,12 +8,18 @@ perf-list - List all symbolic event types
 SYNOPSIS
 --------
 [verse]
-'perf list' [hw|sw|cache|tracepoint|pmu|event_glob]
+'perf list' [--no-desc] [hw|sw|cache|tracepoint|pmu|event_glob]
 
 DESCRIPTION
 -----------
 This command displays the symbolic event types which can be selected in the
 various perf commands with the -e option.
+
+OPTIONS
+-------
+--no-desc::
+Don't print descriptions.
+
 
 [[EVENT_MODIFIERS]]
 EVENT MODIFIERS
