@@ -2533,23 +2533,28 @@ static void xs_tcp_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
  * we allocate pages instead doing a kmalloc like rpc_malloc is because we want
  * to use the server side send routines.
  */
-static void *bc_malloc(struct rpc_task *task, size_t size)
+static int bc_malloc(struct rpc_task *task)
 {
+	struct rpc_rqst *rqst = task->tk_rqstp;
+	size_t size = rqst->rq_callsize;
 	struct page *page;
 	struct rpc_buffer *buf;
 
-	WARN_ON_ONCE(size > PAGE_SIZE - sizeof(struct rpc_buffer));
-	if (size > PAGE_SIZE - sizeof(struct rpc_buffer))
-		return NULL;
+	if (size > PAGE_SIZE - sizeof(struct rpc_buffer)) {
+		WARN_ONCE(1, "xprtsock: large bc buffer request (size %zu)\n",
+			  size);
+		return -EINVAL;
+	}
 
 	page = alloc_page(GFP_KERNEL);
 	if (!page)
-		return NULL;
+		return -ENOMEM;
 
 	buf = page_address(page);
 	buf->len = PAGE_SIZE;
 
-	return buf->data;
+	rqst->rq_buffer = buf->data;
+	return 0;
 }
 
 /*

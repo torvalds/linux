@@ -1691,6 +1691,7 @@ call_allocate(struct rpc_task *task)
 	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_xprt *xprt = req->rq_xprt;
 	struct rpc_procinfo *proc = task->tk_msg.rpc_proc;
+	int status;
 
 	dprint_status(task);
 
@@ -1716,11 +1717,14 @@ call_allocate(struct rpc_task *task)
 	req->rq_rcvsize = RPC_REPHDRSIZE + slack + proc->p_replen;
 	req->rq_rcvsize <<= 2;
 
-	req->rq_buffer = xprt->ops->buf_alloc(task,
-					req->rq_callsize + req->rq_rcvsize);
-	if (req->rq_buffer != NULL)
-		return;
+	status = xprt->ops->buf_alloc(task);
 	xprt_inject_disconnect(xprt);
+	if (status == 0)
+		return;
+	if (status != -ENOMEM) {
+		rpc_exit(task, status);
+		return;
+	}
 
 	dprintk("RPC: %5u rpc_buffer allocation failed\n", task->tk_pid);
 

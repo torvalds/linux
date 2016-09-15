@@ -477,7 +477,15 @@ xprt_rdma_connect(struct rpc_xprt *xprt, struct rpc_task *task)
 	}
 }
 
-/*
+/**
+ * xprt_rdma_allocate - allocate transport resources for an RPC
+ * @task: RPC task
+ *
+ * Return values:
+ *        0:	Success; rq_buffer points to RPC buffer to use
+ *   ENOMEM:	Out of memory, call again later
+ *      EIO:	A permanent error occurred, do not retry
+ *
  * The RDMA allocate/free functions need the task structure as a place
  * to hide the struct rpcrdma_req, which is necessary for the actual send/recv
  * sequence.
@@ -486,11 +494,12 @@ xprt_rdma_connect(struct rpc_xprt *xprt, struct rpc_task *task)
  * (rq_send_buf and rq_rcv_buf are both part of a single contiguous buffer).
  * We may register rq_rcv_buf when using reply chunks.
  */
-static void *
-xprt_rdma_allocate(struct rpc_task *task, size_t size)
+static int
+xprt_rdma_allocate(struct rpc_task *task)
 {
-	struct rpc_xprt *xprt = task->tk_rqstp->rq_xprt;
-	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
+	struct rpc_rqst *rqst = task->tk_rqstp;
+	size_t size = rqst->rq_callsize + rqst->rq_rcvsize;
+	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(rqst->rq_xprt);
 	struct rpcrdma_regbuf *rb;
 	struct rpcrdma_req *req;
 	size_t min_size;
@@ -498,7 +507,7 @@ xprt_rdma_allocate(struct rpc_task *task, size_t size)
 
 	req = rpcrdma_buffer_get(&r_xprt->rx_buf);
 	if (req == NULL)
-		return NULL;
+		return -ENOMEM;
 
 	flags = RPCRDMA_DEF_GFP;
 	if (RPC_IS_SWAPPER(task))
@@ -515,7 +524,8 @@ out:
 	dprintk("RPC:       %s: size %zd, request 0x%p\n", __func__, size, req);
 	req->rl_connect_cookie = 0;	/* our reserved value */
 	req->rl_task = task;
-	return req->rl_sendbuf->rg_base;
+	rqst->rq_buffer = req->rl_sendbuf->rg_base;
+	return 0;
 
 out_rdmabuf:
 	min_size = r_xprt->rx_data.inline_wsize;
@@ -558,7 +568,7 @@ out_sendbuf:
 
 out_fail:
 	rpcrdma_buffer_put(req);
-	return NULL;
+	return -ENOMEM;
 }
 
 /*
