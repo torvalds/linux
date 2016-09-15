@@ -288,10 +288,8 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(regs)) {
-		dev_err(dev, "Couldn't map the backend registers\n");
+	if (IS_ERR(regs))
 		return PTR_ERR(regs);
-	}
 
 	backend->regs = devm_regmap_init_mmio(dev, regs,
 					      &sun4i_backend_regmap_config);
