@@ -10,8 +10,6 @@
  * This has not yet undergone a rigorous security audit.
  */
 
-#include <keys/encrypted-type.h>
-#include <keys/user-type.h>
 #include <linux/scatterlist.h>
 #include <linux/ratelimit.h>
 #include <linux/fscrypto.h>

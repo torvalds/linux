@@ -8,11 +8,8 @@
  * Written by Michael Halcrow, Ildar Muslukhov, and Uday Savagaonkar, 2015.
  */
 
-#include <keys/encrypted-type.h>
 #include <keys/user-type.h>
-#include <linux/random.h>
 #include <linux/scatterlist.h>
-#include <uapi/linux/keyctl.h>
 #include <linux/fscrypto.h>
 
 static void derive_crypt_complete(struct crypto_async_request *req, int rc)

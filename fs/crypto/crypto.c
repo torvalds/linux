@@ -28,7 +28,6 @@
 #include <linux/dcache.h>
 #include <linux/namei.h>
 #include <linux/fscrypto.h>
-#include <linux/ecryptfs.h>
 
 static unsigned int num_prealloc_crypto_pages = 32;
 static unsigned int num_prealloc_crypto_ctxs = 128;
