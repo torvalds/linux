@@ -84,8 +84,9 @@ struct rpc_rqst {
 	struct list_head	rq_list;
 
 	void			*rq_buffer;	/* Call XDR encode buffer */
-	size_t			rq_callsize,
-				rq_rcvsize;
+	size_t			rq_callsize;
+	void			*rq_rbuffer;	/* Reply XDR decode buffer */
+	size_t			rq_rcvsize;
 	size_t			rq_xmit_bytes_sent;	/* total bytes sent */
 	size_t			rq_reply_bytes_recvd;	/* total reply bytes */
 							/* received */

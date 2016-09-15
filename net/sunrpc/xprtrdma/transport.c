@@ -524,6 +524,7 @@ out:
 	dprintk("RPC:       %s: size %zd, request 0x%p\n", __func__, size, req);
 	req->rl_connect_cookie = 0;	/* our reserved value */
 	rqst->rq_buffer = req->rl_sendbuf->rg_base;
+	rqst->rq_rbuffer = (char *)rqst->rq_buffer + rqst->rq_rcvsize;
 	return 0;
 
 out_rdmabuf:
