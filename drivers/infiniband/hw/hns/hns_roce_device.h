@@ -62,7 +62,7 @@
 #define HNS_ROCE_AEQE_OF_VEC_NUM		1
 
 /* 4G/4K = 1M */
-#define HNS_ROCE_SL_SHIFT			29
+#define HNS_ROCE_SL_SHIFT			28
 #define HNS_ROCE_TCLASS_SHIFT			20
 #define HNS_ROCE_FLOW_LABLE_MASK		0xfffff
 
