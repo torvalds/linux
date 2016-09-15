@@ -442,6 +442,10 @@ enum {
 	TCA_FLOWER_KEY_ENC_IPV6_DST,	/* struct in6_addr */
 	TCA_FLOWER_KEY_ENC_IPV6_DST_MASK,/* struct in6_addr */
 
+	TCA_FLOWER_KEY_TCP_SRC_MASK,	/* be16 */
+	TCA_FLOWER_KEY_TCP_DST_MASK,	/* be16 */
+	TCA_FLOWER_KEY_UDP_SRC_MASK,	/* be16 */
+	TCA_FLOWER_KEY_UDP_DST_MASK,	/* be16 */
 	__TCA_FLOWER_MAX,
 };
 
