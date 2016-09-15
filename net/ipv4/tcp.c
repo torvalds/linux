@@ -1020,17 +1020,31 @@ int tcp_sendpage(struct sock *sk, struct page *page, int offset,
 }
 EXPORT_SYMBOL(tcp_sendpage);
 
-static inline int select_size(const struct sock *sk, bool sg)
+/* Do not bother using a page frag for very small frames.
+ * But use this heuristic only for the first skb in write queue.
+ *
+ * Having no payload in skb->head allows better SACK shifting
+ * in tcp_shift_skb_data(), reducing sack/rack overhead, because
+ * write queue has less skbs.
+ * Each skb can hold up to MAX_SKB_FRAGS * 32Kbytes, or ~0.5 MB.
+ * This also speeds up tso_fragment(), since it wont fallback
+ * to tcp_fragment().
+ */
+static int linear_payload_sz(bool first_skb)
+{
+	if (first_skb)
+		return SKB_WITH_OVERHEAD(2048 - MAX_TCP_HEADER);
+	return 0;
+}
+
+static int select_size(const struct sock *sk, bool sg, bool first_skb)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 	int tmp = tp->mss_cache;
 
 	if (sg) {
 		if (sk_can_gso(sk)) {
-			/* Small frames wont use a full page:
-			 * Payload will immediately follow tcp header.
-			 */
-			tmp = SKB_WITH_OVERHEAD(2048 - MAX_TCP_HEADER);
+			tmp = linear_payload_sz(first_skb);
 		} else {
 			int pgbreak = SKB_MAX_HEAD(MAX_TCP_HEADER);
 
@@ -1161,6 +1175,8 @@ restart:
 		}
 
 		if (copy <= 0 || !tcp_skb_can_collapse_to(skb)) {
+			bool first_skb;
+
 new_segment:
 			/* Allocate new segment. If the interface is SG,
 			 * allocate skb fitting to single page.
@@ -1172,10 +1188,11 @@ new_segment:
 				process_backlog = false;
 				goto restart;
 			}
+			first_skb = skb_queue_empty(&sk->sk_write_queue);
 			skb = sk_stream_alloc_skb(sk,
-						  select_size(sk, sg),
+						  select_size(sk, sg, first_skb),
 						  sk->sk_allocation,
-						  skb_queue_empty(&sk->sk_write_queue));
+						  first_skb);
 			if (!skb)
 				goto wait_for_memory;
 
