@@ -774,7 +774,7 @@ static int ll_sbi_flags_seq_show(struct seq_file *m, void *v)
 		flags >>= 1;
 		++i;
 	}
-	seq_printf(m, "\b\n");
+	seq_puts(m, "\b\n");
 	return 0;
 }
 
