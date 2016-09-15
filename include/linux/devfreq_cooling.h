@@ -20,7 +20,6 @@
 #include <linux/devfreq.h>
 #include <linux/thermal.h>
 
-#ifdef CONFIG_DEVFREQ_THERMAL
 
 /**
  * struct devfreq_cooling_power - Devfreq cooling power ops
@@ -44,6 +43,8 @@ struct devfreq_cooling_power {
 					   unsigned long voltage);
 	unsigned long dyn_power_coeff;
 };
+
+#ifdef CONFIG_DEVFREQ_THERMAL
 
 struct thermal_cooling_device *
 of_devfreq_cooling_register_power(struct device_node *np, struct devfreq *df,
