@@ -1716,6 +1716,8 @@ void class_exit_uuidlist(void);
 extern char obd_jobid_node[];
 extern struct miscdevice obd_psdev;
 extern spinlock_t obd_types_lock;
+int class_procfs_init(void);
+int class_procfs_clean(void);
 
 /* prng.c */
 #define ll_generate_random_uuid(uuid_out) cfs_get_random_bytes(uuid_out, sizeof(class_uuid_t))
