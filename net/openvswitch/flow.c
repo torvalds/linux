@@ -142,7 +142,8 @@ void ovs_flow_stats_get(const struct sw_flow *flow,
 	*tcp_flags = 0;
 	memset(ovs_stats, 0, sizeof(*ovs_stats));
 
-	for_each_node(node) {
+	/* We open code this to make sure node 0 is always considered */
+	for (node = 0; node < MAX_NUMNODES; node = next_node(node, node_possible_map)) {
 		struct flow_stats *stats = rcu_dereference_ovsl(flow->stats[node]);
 
 		if (stats) {
@@ -165,7 +166,8 @@ void ovs_flow_stats_clear(struct sw_flow *flow)
 {
 	int node;
 
-	for_each_node(node) {
+	/* We open code this to make sure node 0 is always considered */
+	for (node = 0; node < MAX_NUMNODES; node = next_node(node, node_possible_map)) {
 		struct flow_stats *stats = ovsl_dereference(flow->stats[node]);
 
 		if (stats) {
