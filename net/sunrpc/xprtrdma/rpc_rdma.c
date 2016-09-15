@@ -1141,6 +1141,6 @@ out_duplicate:
 
 repost:
 	r_xprt->rx_stats.bad_reply_count++;
-	if (rpcrdma_ep_post_recv(&r_xprt->rx_ia, &r_xprt->rx_ep, rep))
+	if (rpcrdma_ep_post_recv(&r_xprt->rx_ia, rep))
 		rpcrdma_recv_buffer_put(rep);
 }
