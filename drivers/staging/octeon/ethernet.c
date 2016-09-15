@@ -694,7 +694,6 @@ static int cvm_oct_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-
 	cvm_oct_configure_common_hw();
 
 	cvmx_helper_initialize_packet_io_global();
@@ -936,7 +935,6 @@ static int cvm_oct_remove(struct platform_device *pdev)
 			cvm_oct_device[port] = NULL;
 		}
 	}
-
 
 	cvmx_pko_shutdown();
 
