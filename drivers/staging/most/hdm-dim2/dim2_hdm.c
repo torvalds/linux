@@ -733,14 +733,14 @@ static int dim2_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to get irq\n");
+		dev_err(&pdev->dev, "failed to get ahb0_int irq\n");
 		return -ENODEV;
 	}
 
 	ret = devm_request_irq(&pdev->dev, irq, dim2_ahb_isr, 0,
-			       "mlb_ahb0", dev);
+			       "dim2_ahb0_int", dev);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to request IRQ: %d\n", irq);
+		dev_err(&pdev->dev, "failed to request ahb0_int irq %d\n", irq);
 		return ret;
 	}
 	init_waitqueue_head(&dev->netinfo_waitq);
