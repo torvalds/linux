@@ -299,11 +299,9 @@ static struct ccp_dma_desc *ccp_alloc_dma_desc(struct ccp_dma_chan *chan,
 {
 	struct ccp_dma_desc *desc;
 
-	desc = kmem_cache_alloc(chan->ccp->dma_desc_cache, GFP_NOWAIT);
+	desc = kmem_cache_zalloc(chan->ccp->dma_desc_cache, GFP_NOWAIT);
 	if (!desc)
 		return NULL;
-
-	memset(desc, 0, sizeof(*desc));
 
 	dma_async_tx_descriptor_init(&desc->tx_desc, &chan->dma_chan);
 	desc->tx_desc.flags = flags;
