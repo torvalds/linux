@@ -205,8 +205,7 @@ int hns_roce_v1_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 				      (wr->send_flags & IB_SEND_FENCE ?
 				      (cpu_to_le32(HNS_ROCE_WQE_FENCE)) : 0);
 
-			wqe = (struct hns_roce_wqe_ctrl_seg *)wqe +
-			       sizeof(struct hns_roce_wqe_ctrl_seg);
+			wqe += sizeof(struct hns_roce_wqe_ctrl_seg);
 
 			switch (wr->opcode) {
 			case IB_WR_RDMA_READ:
@@ -235,8 +234,7 @@ int hns_roce_v1_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 				break;
 			}
 			ctrl->flag |= cpu_to_le32(ps_opcode);
-			wqe = (struct hns_roce_wqe_raddr_seg *)wqe +
-			       sizeof(struct hns_roce_wqe_raddr_seg);
+			wqe += sizeof(struct hns_roce_wqe_raddr_seg);
 
 			dseg = wqe;
 			if (wr->send_flags & IB_SEND_INLINE && wr->num_sge) {
@@ -253,8 +251,7 @@ int hns_roce_v1_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 					memcpy(wqe, ((void *) (uintptr_t)
 					       wr->sg_list[i].addr),
 					       wr->sg_list[i].length);
-					wqe = (struct hns_roce_wqe_raddr_seg *)
-					       wqe + wr->sg_list[i].length;
+					wqe += wr->sg_list[i].length;
 				}
 				ctrl->flag |= HNS_ROCE_WQE_INLINE;
 			} else {
@@ -1795,6 +1792,7 @@ static int hns_roce_v1_m_sqp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 		writel(context->qp1c_bytes_28, addr + 6);
 		writel(context->qp1c_bytes_32, addr + 7);
 		writel(context->cur_sq_wqe_ba_l, addr + 8);
+		writel(context->qp1c_bytes_40, addr + 9);
 	}
 
 	/* Modify QP1C status */
