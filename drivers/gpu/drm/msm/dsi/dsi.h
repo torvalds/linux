@@ -37,6 +37,12 @@ enum msm_dsi_phy_type {
 	MSM_DSI_PHY_MAX
 };
 
+enum msm_dsi_phy_usecase {
+	MSM_DSI_PHY_STANDALONE,
+	MSM_DSI_PHY_MASTER,
+	MSM_DSI_PHY_SLAVE,
+};
+
 #define DSI_DEV_REGULATOR_MAX	8
 #define DSI_BUS_CLK_MAX		4
 
@@ -180,6 +186,8 @@ void msm_dsi_phy_disable(struct msm_dsi_phy *phy);
 void msm_dsi_phy_get_shared_timings(struct msm_dsi_phy *phy,
 			struct msm_dsi_phy_shared_timings *shared_timing);
 struct msm_dsi_pll *msm_dsi_phy_get_pll(struct msm_dsi_phy *phy);
+void msm_dsi_phy_set_usecase(struct msm_dsi_phy *phy,
+			     enum msm_dsi_phy_usecase uc);
 
 #endif /* __DSI_CONNECTOR_H__ */
 

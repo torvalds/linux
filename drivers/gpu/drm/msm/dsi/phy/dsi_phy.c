@@ -451,13 +451,34 @@ int msm_dsi_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 		return ret;
 	}
 
-	return 0;
+	/*
+	 * Resetting DSI PHY silently changes its PLL registers to reset status,
+	 * which will confuse clock driver and result in wrong output rate of
+	 * link clocks. Restore PLL status if its PLL is being used as clock
+	 * source.
+	 */
+	if (phy->usecase != MSM_DSI_PHY_SLAVE) {
+		ret = msm_dsi_pll_restore_state(phy->pll);
+		if (ret) {
+			pr_err("%s: failed to restore pll state\n", __func__);
+			if (phy->cfg->ops.disable)
+				phy->cfg->ops.disable(phy);
+			dsi_phy_regulator_disable(phy);
+			return ret;
+		}
+	}
+
+	return ret;
 }
 
 void msm_dsi_phy_disable(struct msm_dsi_phy *phy)
 {
 	if (!phy || !phy->cfg->ops.disable)
 		return;
+
+	/* Save PLL status if it is a clock source */
+	if (phy->usecase != MSM_DSI_PHY_SLAVE)
+		msm_dsi_pll_save_state(phy->pll);
 
 	phy->cfg->ops.disable(phy);
 
@@ -479,3 +500,9 @@ struct msm_dsi_pll *msm_dsi_phy_get_pll(struct msm_dsi_phy *phy)
 	return phy->pll;
 }
 
+void msm_dsi_phy_set_usecase(struct msm_dsi_phy *phy,
+			     enum msm_dsi_phy_usecase uc)
+{
+	if (phy)
+		phy->usecase = uc;
+}

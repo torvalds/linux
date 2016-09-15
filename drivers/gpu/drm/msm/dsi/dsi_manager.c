@@ -72,11 +72,12 @@ static int dsi_mgr_parse_dual_dsi(struct device_node *np, int id)
 	return 0;
 }
 
-static int dsi_mgr_host_register(int id)
+static int dsi_mgr_setup_components(int id)
 {
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct msm_dsi *other_dsi = dsi_mgr_get_other_dsi(id);
 	struct msm_dsi *clk_master_dsi = dsi_mgr_get_dsi(DSI_CLOCK_MASTER);
+	struct msm_dsi *clk_slave_dsi = dsi_mgr_get_dsi(DSI_CLOCK_SLAVE);
 	struct msm_dsi_pll *src_pll;
 	int ret;
 
@@ -85,15 +86,16 @@ static int dsi_mgr_host_register(int id)
 		if (ret)
 			return ret;
 
+		msm_dsi_phy_set_usecase(msm_dsi->phy, MSM_DSI_PHY_STANDALONE);
 		src_pll = msm_dsi_phy_get_pll(msm_dsi->phy);
 		ret = msm_dsi_host_set_src_pll(msm_dsi->host, src_pll);
 	} else if (!other_dsi) {
 		ret = 0;
 	} else {
-		struct msm_dsi *mdsi = IS_MASTER_DSI_LINK(id) ?
-					msm_dsi : other_dsi;
-		struct msm_dsi *sdsi = IS_MASTER_DSI_LINK(id) ?
-					other_dsi : msm_dsi;
+		struct msm_dsi *master_link_dsi = IS_MASTER_DSI_LINK(id) ?
+							msm_dsi : other_dsi;
+		struct msm_dsi *slave_link_dsi = IS_MASTER_DSI_LINK(id) ?
+							other_dsi : msm_dsi;
 		/* Register slave host first, so that slave DSI device
 		 * has a chance to probe, and do not block the master
 		 * DSI device's probe.
@@ -101,14 +103,18 @@ static int dsi_mgr_host_register(int id)
 		 * because only master DSI device adds the panel to global
 		 * panel list. The panel's device is the master DSI device.
 		 */
-		ret = msm_dsi_host_register(sdsi->host, false);
+		ret = msm_dsi_host_register(slave_link_dsi->host, false);
 		if (ret)
 			return ret;
-		ret = msm_dsi_host_register(mdsi->host, true);
+		ret = msm_dsi_host_register(master_link_dsi->host, true);
 		if (ret)
 			return ret;
 
 		/* PLL0 is to drive both 2 DSI link clocks in Dual DSI mode. */
+		msm_dsi_phy_set_usecase(clk_master_dsi->phy,
+					MSM_DSI_PHY_MASTER);
+		msm_dsi_phy_set_usecase(clk_slave_dsi->phy,
+					MSM_DSI_PHY_SLAVE);
 		src_pll = msm_dsi_phy_get_pll(clk_master_dsi->phy);
 		ret = msm_dsi_host_set_src_pll(msm_dsi->host, src_pll);
 		if (ret)
@@ -665,27 +671,11 @@ int msm_dsi_manager_phy_enable(int id,
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct msm_dsi_phy *phy = msm_dsi->phy;
 	int src_pll_id = IS_DUAL_DSI() ? DSI_CLOCK_MASTER : id;
-	struct msm_dsi_pll *pll = msm_dsi_phy_get_pll(msm_dsi->phy);
 	int ret;
 
 	ret = msm_dsi_phy_enable(phy, src_pll_id, bit_rate, esc_rate);
 	if (ret)
 		return ret;
-
-	/*
-	 * Reset DSI PHY silently changes its PLL registers to reset status,
-	 * which will confuse clock driver and result in wrong output rate of
-	 * link clocks. Restore PLL status if its PLL is being used as clock
-	 * source.
-	 */
-	if (!IS_DUAL_DSI() || (id == DSI_CLOCK_MASTER)) {
-		ret = msm_dsi_pll_restore_state(pll);
-		if (ret) {
-			pr_err("%s: failed to restore pll state\n", __func__);
-			msm_dsi_phy_disable(phy);
-			return ret;
-		}
-	}
 
 	msm_dsi->phy_enabled = true;
 	msm_dsi_phy_get_shared_timings(phy, shared_timings);
@@ -699,11 +689,6 @@ void msm_dsi_manager_phy_disable(int id)
 	struct msm_dsi *mdsi = dsi_mgr_get_dsi(DSI_CLOCK_MASTER);
 	struct msm_dsi *sdsi = dsi_mgr_get_dsi(DSI_CLOCK_SLAVE);
 	struct msm_dsi_phy *phy = msm_dsi->phy;
-	struct msm_dsi_pll *pll = msm_dsi_phy_get_pll(msm_dsi->phy);
-
-	/* Save PLL status if it is a clock source */
-	if (!IS_DUAL_DSI() || (id == DSI_CLOCK_MASTER))
-		msm_dsi_pll_save_state(pll);
 
 	/* disable DSI phy
 	 * In dual-dsi configuration, the phy should be disabled for the
@@ -834,7 +819,7 @@ int msm_dsi_manager_register(struct msm_dsi *msm_dsi)
 		goto fail;
 	}
 
-	ret = dsi_mgr_host_register(id);
+	ret = dsi_mgr_setup_components(id);
 	if (ret) {
 		pr_err("%s: failed to register mipi dsi host for DSI %d\n",
 			__func__, id);
