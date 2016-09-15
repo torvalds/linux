@@ -453,7 +453,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	stw	r7,8(r3);	\
 	stw	r8,12(r3);	\
 	stwu	r9,16(r3)
-EXPORT_SYMBOL(clear_pages)
 
 _GLOBAL(copy_page)
 	addi	r3,r3,-4
