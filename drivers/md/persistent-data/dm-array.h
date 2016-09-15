@@ -182,4 +182,37 @@ int dm_array_walk(struct dm_array_info *info, dm_block_t root,
 
 /*----------------------------------------------------------------*/
 
+/*
+ * Cursor api.
+ *
+ * This lets you iterate through all the entries in an array efficiently
+ * (it will preload metadata).
+ *
+ * I'm using a cursor, rather than a walk function with a callback because
+ * the cache target needs to iterate both the mapping and hint arrays in
+ * unison.
+ */
+struct dm_array_cursor {
+	struct dm_array_info *info;
+	struct dm_btree_cursor cursor;
+
+	struct dm_block *block;
+	struct array_block *ab;
+	unsigned index;
+};
+
+int dm_array_cursor_begin(struct dm_array_info *info,
+			  dm_block_t root, struct dm_array_cursor *c);
+void dm_array_cursor_end(struct dm_array_cursor *c);
+
+uint32_t dm_array_cursor_index(struct dm_array_cursor *c);
+int dm_array_cursor_next(struct dm_array_cursor *c);
+
+/*
+ * value_le is only valid while the cursor points at the current value.
+ */
+void dm_array_cursor_get_value(struct dm_array_cursor *c, void **value_le);
+
+/*----------------------------------------------------------------*/
+
 #endif	/* _LINUX_DM_ARRAY_H */

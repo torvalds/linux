@@ -899,3 +899,89 @@ int dm_array_walk(struct dm_array_info *info, dm_block_t root,
 EXPORT_SYMBOL_GPL(dm_array_walk);
 
 /*----------------------------------------------------------------*/
+
+static int load_ablock(struct dm_array_cursor *c)
+{
+	int r;
+	__le64 value_le;
+	uint64_t key;
+
+	if (c->block)
+		unlock_ablock(c->info, c->block);
+
+	c->block = NULL;
+	c->ab = NULL;
+	c->index = 0;
+
+	r = dm_btree_cursor_get_value(&c->cursor, &key, &value_le);
+	if (r) {
+		DMERR("dm_btree_cursor_get_value failed");
+		dm_btree_cursor_end(&c->cursor);
+
+	} else {
+		r = get_ablock(c->info, le64_to_cpu(value_le), &c->block, &c->ab);
+		if (r) {
+			DMERR("get_ablock failed");
+			dm_btree_cursor_end(&c->cursor);
+		}
+	}
+
+	return r;
+}
+
+int dm_array_cursor_begin(struct dm_array_info *info, dm_block_t root,
+			  struct dm_array_cursor *c)
+{
+	int r;
+
+	memset(c, 0, sizeof(*c));
+	c->info = info;
+	r = dm_btree_cursor_begin(&info->btree_info, root, true, &c->cursor);
+	if (r) {
+		DMERR("couldn't create btree cursor");
+		return r;
+	}
+
+	return load_ablock(c);
+}
+EXPORT_SYMBOL_GPL(dm_array_cursor_begin);
+
+void dm_array_cursor_end(struct dm_array_cursor *c)
+{
+	if (c->block) {
+		unlock_ablock(c->info, c->block);
+		dm_btree_cursor_end(&c->cursor);
+	}
+}
+EXPORT_SYMBOL_GPL(dm_array_cursor_end);
+
+int dm_array_cursor_next(struct dm_array_cursor *c)
+{
+	int r;
+
+	if (!c->block)
+		return -ENODATA;
+
+	c->index++;
+
+	if (c->index >= le32_to_cpu(c->ab->nr_entries)) {
+		r = dm_btree_cursor_next(&c->cursor);
+		if (r)
+			return r;
+
+		r = load_ablock(c);
+		if (r)
+			return r;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dm_array_cursor_next);
+
+void dm_array_cursor_get_value(struct dm_array_cursor *c, void **value_le)
+{
+	*value_le = element_at(c->info, c->ab, c->index);
+}
+EXPORT_SYMBOL_GPL(dm_array_cursor_get_value);
+
+/*----------------------------------------------------------------*/
