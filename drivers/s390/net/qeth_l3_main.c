@@ -3269,6 +3269,7 @@ contin:
 		else
 			dev_open(card->dev);
 		qeth_l3_set_multicast_list(card->dev);
+		qeth_recover_features(card->dev);
 		rtnl_unlock();
 	}
 	qeth_trace_features(card);

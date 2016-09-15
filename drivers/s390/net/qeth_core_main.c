@@ -6131,6 +6131,35 @@ static int qeth_set_ipa_tso(struct qeth_card *card, int on)
 	return rc;
 }
 
+/* try to restore device features on a device after recovery */
+int qeth_recover_features(struct net_device *dev)
+{
+	struct qeth_card *card = dev->ml_priv;
+	netdev_features_t recover = dev->features;
+
+	if (recover & NETIF_F_IP_CSUM) {
+		if (qeth_set_ipa_csum(card, 1, IPA_OUTBOUND_CHECKSUM))
+			recover ^= NETIF_F_IP_CSUM;
+	}
+	if (recover & NETIF_F_RXCSUM) {
+		if (qeth_set_ipa_csum(card, 1, IPA_INBOUND_CHECKSUM))
+			recover ^= NETIF_F_RXCSUM;
+	}
+	if (recover & NETIF_F_TSO) {
+		if (qeth_set_ipa_tso(card, 1))
+			recover ^= NETIF_F_TSO;
+	}
+
+	if (recover == dev->features)
+		return 0;
+
+	dev_warn(&card->gdev->dev,
+		 "Device recovery failed to restore all offload features\n");
+	dev->features = recover;
+	return -EIO;
+}
+EXPORT_SYMBOL_GPL(qeth_recover_features);
+
 int qeth_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct qeth_card *card = dev->ml_priv;

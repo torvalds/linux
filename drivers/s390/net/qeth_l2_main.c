@@ -1246,6 +1246,9 @@ contin:
 		}
 		/* this also sets saved unicast addresses */
 		qeth_l2_set_rx_mode(card->dev);
+		rtnl_lock();
+		qeth_recover_features(card->dev);
+		rtnl_unlock();
 	}
 	/* let user_space know that device is online */
 	kobject_uevent(&gdev->dev.kobj, KOBJ_CHANGE);
