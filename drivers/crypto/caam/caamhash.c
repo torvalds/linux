@@ -533,7 +533,7 @@ static int ahash_setkey(struct crypto_ahash *ahash,
 		ret = hash_digest_key(ctx, key, &keylen, hashed_key,
 				      digestsize);
 		if (ret)
-			goto badkey;
+			goto bad_free_key;
 		key = hashed_key;
 	}
 
@@ -551,14 +551,14 @@ static int ahash_setkey(struct crypto_ahash *ahash,
 
 	ret = gen_split_hash_key(ctx, key, keylen);
 	if (ret)
-		goto badkey;
+		goto bad_free_key;
 
 	ctx->key_dma = dma_map_single(jrdev, ctx->key, ctx->split_key_pad_len,
 				      DMA_TO_DEVICE);
 	if (dma_mapping_error(jrdev, ctx->key_dma)) {
 		dev_err(jrdev, "unable to map key i/o memory\n");
 		ret = -ENOMEM;
-		goto map_err;
+		goto error_free_key;
 	}
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "ctx.key@"__stringify(__LINE__)": ",
@@ -571,11 +571,10 @@ static int ahash_setkey(struct crypto_ahash *ahash,
 		dma_unmap_single(jrdev, ctx->key_dma, ctx->split_key_pad_len,
 				 DMA_TO_DEVICE);
 	}
-
-map_err:
+ error_free_key:
 	kfree(hashed_key);
 	return ret;
-badkey:
+ bad_free_key:
 	kfree(hashed_key);
 	crypto_ahash_set_flags(ahash, CRYPTO_TFM_RES_BAD_KEY_LEN);
 	return -EINVAL;
