@@ -2225,7 +2225,8 @@ static struct devfreq_governor devfreq_dmc_ondemand = {
 	.event_handler = devfreq_dmc_ondemand_handler,
 };
 
-static unsigned long model_static_power(unsigned long voltage)
+static unsigned long model_static_power(struct devfreq *devfreq,
+					unsigned long voltage)
 {
 	struct rockchip_dmcfreq *dmcfreq = rk_dmcfreq;
 	struct device *dev = dmcfreq->dev;
@@ -2267,7 +2268,8 @@ static unsigned long model_static_power(unsigned long voltage)
 		* temp_scaling_factor) / 1000000;
 }
 
-static unsigned long model_dynamic_power(unsigned long freq,
+static unsigned long model_dynamic_power(struct devfreq *devfreq,
+					 unsigned long freq,
 					 unsigned long voltage)
 {
 	/*

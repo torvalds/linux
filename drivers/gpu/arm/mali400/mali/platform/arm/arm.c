@@ -183,7 +183,8 @@ static struct resource mali_gpu_resources_m400_mp2[] = {
 static struct thermal_zone_device *gpu_tz;
 
 /* Calculate gpu static power example for reference */
-static unsigned long arm_model_static_power(unsigned long voltage)
+static unsigned long arm_model_static_power(struct devfreq *devfreq,
+					    unsigned long voltage)
 {
 	int temperature, temp;
 	int temp_squared, temp_cubed, temp_scaling_factor;
@@ -223,7 +224,8 @@ static unsigned long arm_model_static_power(unsigned long voltage)
 }
 
 /* Calculate gpu dynamic power example for reference */
-static unsigned long arm_model_dynamic_power(unsigned long freq,
+static unsigned long arm_model_dynamic_power(struct devfreq *devfreq,
+		unsigned long freq,
 		unsigned long voltage)
 {
 	/* The inputs: freq (f) is in Hz, and voltage (v) in mV.

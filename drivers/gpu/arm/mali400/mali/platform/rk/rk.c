@@ -301,7 +301,8 @@ static int power_model_simple_init(struct platform_device *pdev)
 }
 
 /* Calculate gpu static power example for reference */
-static unsigned long rk_model_static_power(unsigned long voltage)
+static unsigned long rk_model_static_power(struct devfreq *devfreq,
+					   unsigned long voltage)
 {
 	int temperature, temp;
 	int temp_squared, temp_cubed, temp_scaling_factor;
@@ -340,7 +341,8 @@ static unsigned long rk_model_static_power(unsigned long voltage)
 }
 
 /* Calculate gpu dynamic power example for reference */
-static unsigned long rk_model_dynamic_power(unsigned long freq,
+static unsigned long rk_model_dynamic_power(struct devfreq *devfreq,
+					    unsigned long freq,
 					    unsigned long voltage)
 {
 	/* The inputs: freq (f) is in Hz, and voltage (v) in mV.
