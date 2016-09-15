@@ -2488,9 +2488,8 @@ static int mdc_set_info_async(const struct lu_env *env,
 		}
 		spin_unlock(&imp->imp_lock);
 
-		rc = do_set_info_async(imp, MDS_SET_INFO, LUSTRE_MDS_VERSION,
-				       keylen, key, vallen, val, set);
-		return rc;
+		return do_set_info_async(imp, MDS_SET_INFO, LUSTRE_MDS_VERSION,
+					 keylen, key, vallen, val, set);
 	}
 	if (KEY_IS(KEY_SPTLRPC_CONF)) {
 		sptlrpc_conf_client_adapt(exp->exp_obd);
