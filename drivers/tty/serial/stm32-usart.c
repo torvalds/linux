@@ -508,7 +508,7 @@ static struct stm32_port *stm32_of_get_stm32_port(struct platform_device *pdev)
 		return NULL;
 
 	stm32_ports[id].hw_flow_control = of_property_read_bool(np,
-							"auto-flow-control");
+							"st,hw-flow-ctrl");
 	stm32_ports[id].port.line = id;
 	return &stm32_ports[id];
 }
