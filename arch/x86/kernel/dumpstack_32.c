@@ -35,7 +35,11 @@ static bool in_hardirq_stack(unsigned long *stack, struct stack_info *info)
 	unsigned long *begin = (unsigned long *)this_cpu_read(hardirq_stack);
 	unsigned long *end   = begin + (THREAD_SIZE / sizeof(long));
 
-	if (stack < begin || stack >= end)
+	/*
+	 * This is a software stack, so 'end' can be a valid stack pointer.
+	 * It just means the stack is empty.
+	 */
+	if (stack < begin || stack > end)
 		return false;
 
 	info->type	= STACK_TYPE_IRQ;
@@ -56,7 +60,11 @@ static bool in_softirq_stack(unsigned long *stack, struct stack_info *info)
 	unsigned long *begin = (unsigned long *)this_cpu_read(softirq_stack);
 	unsigned long *end   = begin + (THREAD_SIZE / sizeof(long));
 
-	if (stack < begin || stack >= end)
+	/*
+	 * This is a software stack, so 'end' can be a valid stack pointer.
+	 * It just means the stack is empty.
+	 */
+	if (stack < begin || stack > end)
 		return false;
 
 	info->type	= STACK_TYPE_SOFTIRQ;

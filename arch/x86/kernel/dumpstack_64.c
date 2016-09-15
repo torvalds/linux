@@ -90,7 +90,11 @@ static bool in_irq_stack(unsigned long *stack, struct stack_info *info)
 	unsigned long *end   = (unsigned long *)this_cpu_read(irq_stack_ptr);
 	unsigned long *begin = end - (IRQ_STACK_SIZE / sizeof(long));
 
-	if (stack < begin || stack >= end)
+	/*
+	 * This is a software stack, so 'end' can be a valid stack pointer.
+	 * It just means the stack is empty.
+	 */
+	if (stack < begin || stack > end)
 		return false;
 
 	info->type	= STACK_TYPE_IRQ;
