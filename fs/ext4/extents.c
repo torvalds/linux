@@ -4679,6 +4679,7 @@ static int ext4_alloc_file_blocks(struct file *file, ext4_lblk_t offset,
 	unsigned int credits;
 	loff_t epos;
 
+	BUG_ON(!ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS));
 	map.m_lblk = offset;
 	map.m_len = len;
 	/*
@@ -4693,13 +4694,7 @@ static int ext4_alloc_file_blocks(struct file *file, ext4_lblk_t offset,
 	 * credits to insert 1 extent into extent tree
 	 */
 	credits = ext4_chunk_trans_blocks(inode, len);
-	/*
-	 * We can only call ext_depth() on extent based inodes
-	 */
-	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))
-		depth = ext_depth(inode);
-	else
-		depth = -1;
+	depth = ext_depth(inode);
 
 retry:
 	while (ret >= 0 && len) {
