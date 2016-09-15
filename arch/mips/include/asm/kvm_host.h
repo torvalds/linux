@@ -328,6 +328,9 @@ struct kvm_vcpu_arch {
 	u32 guest_kernel_asid[NR_CPUS];
 	struct mm_struct guest_kernel_mm, guest_user_mm;
 
+	/* Guest ASID of last user mode execution */
+	unsigned int last_user_gasid;
+
 	int last_sched_cpu;
 
 	/* WAIT executed */

@@ -1170,15 +1170,23 @@ enum emulation_result kvm_mips_emulate_CP0(union mips_instruction inst,
 							& KVM_ENTRYHI_ASID,
 						nasid);
 
+					/*
+					 * Regenerate/invalidate kernel MMU
+					 * context.
+					 * The user MMU context will be
+					 * regenerated lazily on re-entry to
+					 * guest user if the guest ASID actually
+					 * changes.
+					 */
 					preempt_disable();
-					/* Blow away the shadow host TLBs */
-					kvm_mips_flush_host_tlb(1);
 					cpu = smp_processor_id();
+					kvm_get_new_mmu_context(&vcpu->arch.guest_kernel_mm,
+								cpu, vcpu);
+					vcpu->arch.guest_kernel_asid[cpu] =
+						vcpu->arch.guest_kernel_mm.context.asid[cpu];
 					for_each_possible_cpu(i)
-						if (i != cpu) {
-							vcpu->arch.guest_user_asid[i] = 0;
+						if (i != cpu)
 							vcpu->arch.guest_kernel_asid[i] = 0;
-						}
 					preempt_enable();
 				}
 				kvm_write_c0_guest_entryhi(cop0,
