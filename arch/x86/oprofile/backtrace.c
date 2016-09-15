@@ -17,7 +17,7 @@
 #include <asm/ptrace.h>
 #include <asm/stacktrace.h>
 
-static int backtrace_stack(void *data, char *name)
+static int backtrace_stack(void *data, const char *name)
 {
 	/* Yes, we want all stacks */
 	return 0;

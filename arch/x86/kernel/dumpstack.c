@@ -25,6 +25,23 @@ unsigned int code_bytes = 64;
 int kstack_depth_to_print = 3 * STACKSLOTS_PER_LINE;
 static int die_counter;
 
+bool in_task_stack(unsigned long *stack, struct task_struct *task,
+		   struct stack_info *info)
+{
+	unsigned long *begin = task_stack_page(task);
+	unsigned long *end   = task_stack_page(task) + THREAD_SIZE;
+
+	if (stack < begin || stack >= end)
+		return false;
+
+	info->type	= STACK_TYPE_TASK;
+	info->begin	= begin;
+	info->end	= end;
+	info->next_sp	= NULL;
+
+	return true;
+}
+
 static void printk_stack_address(unsigned long address, int reliable,
 				 char *log_lvl)
 {
@@ -46,24 +63,11 @@ void printk_address(unsigned long address)
  * severe exception (double fault, nmi, stack fault, debug, mce) hardware stack
  */
 
-static inline int valid_stack_ptr(struct task_struct *task,
-			void *p, unsigned int size, void *end)
-{
-	void *t = task_stack_page(task);
-	if (end) {
-		if (p < end && p >= (end-THREAD_SIZE))
-			return 1;
-		else
-			return 0;
-	}
-	return p >= t && p < t + THREAD_SIZE - size;
-}
-
 unsigned long
 print_context_stack(struct task_struct *task,
 		unsigned long *stack, unsigned long bp,
 		const struct stacktrace_ops *ops, void *data,
-		unsigned long *end, int *graph)
+		struct stack_info *info, int *graph)
 {
 	struct stack_frame *frame = (struct stack_frame *)bp;
 
@@ -75,7 +79,7 @@ print_context_stack(struct task_struct *task,
 	    PAGE_SIZE)
 		stack = (unsigned long *)task_stack_page(task);
 
-	while (valid_stack_ptr(task, stack, sizeof(*stack), end)) {
+	while (on_stack(info, stack, sizeof(*stack))) {
 		unsigned long addr = *stack;
 
 		if (__kernel_text_address(addr)) {
@@ -114,12 +118,12 @@ unsigned long
 print_context_stack_bp(struct task_struct *task,
 		       unsigned long *stack, unsigned long bp,
 		       const struct stacktrace_ops *ops, void *data,
-		       unsigned long *end, int *graph)
+		       struct stack_info *info, int *graph)
 {
 	struct stack_frame *frame = (struct stack_frame *)bp;
 	unsigned long *retp = &frame->return_address;
 
-	while (valid_stack_ptr(task, retp, sizeof(*retp), end)) {
+	while (on_stack(info, stack, sizeof(*stack) * 2)) {
 		unsigned long addr = *retp;
 		unsigned long real_addr;
 
@@ -138,7 +142,7 @@ print_context_stack_bp(struct task_struct *task,
 }
 EXPORT_SYMBOL_GPL(print_context_stack_bp);
 
-static int print_trace_stack(void *data, char *name)
+static int print_trace_stack(void *data, const char *name)
 {
 	printk("%s <%s> ", (char *)data, name);
 	return 0;

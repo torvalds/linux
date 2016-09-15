@@ -9,7 +9,7 @@
 #include <linux/uaccess.h>
 #include <asm/stacktrace.h>
 
-static int save_stack_stack(void *data, char *name)
+static int save_stack_stack(void *data, const char *name)
 {
 	return 0;
 }

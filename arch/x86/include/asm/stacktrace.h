@@ -10,6 +10,39 @@
 #include <linux/ptrace.h>
 #include <asm/switch_to.h>
 
+enum stack_type {
+	STACK_TYPE_UNKNOWN,
+	STACK_TYPE_TASK,
+	STACK_TYPE_IRQ,
+	STACK_TYPE_SOFTIRQ,
+	STACK_TYPE_EXCEPTION,
+	STACK_TYPE_EXCEPTION_LAST = STACK_TYPE_EXCEPTION + N_EXCEPTION_STACKS-1,
+};
+
+struct stack_info {
+	enum stack_type type;
+	unsigned long *begin, *end, *next_sp;
+};
+
+bool in_task_stack(unsigned long *stack, struct task_struct *task,
+		   struct stack_info *info);
+
+int get_stack_info(unsigned long *stack, struct task_struct *task,
+		   struct stack_info *info, unsigned long *visit_mask);
+
+void stack_type_str(enum stack_type type, const char **begin,
+		    const char **end);
+
+static inline bool on_stack(struct stack_info *info, void *addr, size_t len)
+{
+	void *begin = info->begin;
+	void *end   = info->end;
+
+	return (info->type != STACK_TYPE_UNKNOWN &&
+		addr >= begin && addr < end &&
+		addr + len > begin && addr + len <= end);
+}
+
 extern int kstack_depth_to_print;
 
 struct thread_info;
@@ -20,27 +53,27 @@ typedef unsigned long (*walk_stack_t)(struct task_struct *task,
 				      unsigned long bp,
 				      const struct stacktrace_ops *ops,
 				      void *data,
-				      unsigned long *end,
+				      struct stack_info *info,
 				      int *graph);
 
 extern unsigned long
 print_context_stack(struct task_struct *task,
 		    unsigned long *stack, unsigned long bp,
 		    const struct stacktrace_ops *ops, void *data,
-		    unsigned long *end, int *graph);
+		    struct stack_info *info, int *graph);
 
 extern unsigned long
 print_context_stack_bp(struct task_struct *task,
 		       unsigned long *stack, unsigned long bp,
 		       const struct stacktrace_ops *ops, void *data,
-		       unsigned long *end, int *graph);
+		       struct stack_info *info, int *graph);
 
 /* Generic stack tracer with callbacks */
 
 struct stacktrace_ops {
 	int (*address)(void *data, unsigned long address, int reliable);
 	/* On negative return stop dumping */
-	int (*stack)(void *data, char *name);
+	int (*stack)(void *data, const char *name);
 	walk_stack_t	walk_stack;
 };
 
