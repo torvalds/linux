@@ -1274,6 +1274,7 @@ struct v4l2_bt_timings {
 #define V4L2_DV_BT_STD_DMT	(1 << 1)  /* VESA Discrete Monitor Timings */
 #define V4L2_DV_BT_STD_CVT	(1 << 2)  /* VESA Coordinated Video Timings */
 #define V4L2_DV_BT_STD_GTF	(1 << 3)  /* VESA Generalized Timings Formula */
+#define V4L2_DV_BT_STD_SDI	(1 << 4)  /* SDI Timings */
 
 /* Flags */
 
@@ -1305,6 +1306,11 @@ struct v4l2_bt_timings {
  * use the range 16-235) as opposed to 0-255. All formats defined in CEA-861
  * except for the 640x480 format are CE formats. */
 #define V4L2_DV_FL_IS_CE_VIDEO			(1 << 4)
+/* Some formats like SMPTE-125M have an interlaced signal with a odd
+ * total height. For these formats, if this flag is set, the first
+ * field has the extra line. If not, it is the second field.
+ */
+#define V4L2_DV_FL_FIRST_FIELD_EXTRA_LINE		(1 << 5)
 
 /* A few useful defines to calculate the total blanking and frame sizes */
 #define V4L2_DV_BT_BLANKING_WIDTH(bt) \
@@ -1429,6 +1435,8 @@ struct v4l2_input {
 /* field 'status' - analog */
 #define V4L2_IN_ST_NO_H_LOCK   0x00000100  /* No horizontal sync lock */
 #define V4L2_IN_ST_COLOR_KILL  0x00000200  /* Color killer is active */
+#define V4L2_IN_ST_NO_V_LOCK   0x00000400  /* No vertical sync lock */
+#define V4L2_IN_ST_NO_STD_LOCK 0x00000800  /* No standard format lock */
 
 /* field 'status' - digital */
 #define V4L2_IN_ST_NO_SYNC     0x00010000  /* No synchronization lock */
