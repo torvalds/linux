@@ -155,11 +155,6 @@ void radeon_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
 extern long radeon_kms_compat_ioctl(struct file *filp, unsigned int cmd,
 				    unsigned long arg);
 
-#if defined(CONFIG_DEBUG_FS)
-int radeon_debugfs_init(struct drm_minor *minor);
-void radeon_debugfs_cleanup(struct drm_minor *minor);
-#endif
-
 /* atpx handler */
 #if defined(CONFIG_VGA_SWITCHEROO)
 void radeon_register_atpx_handler(void);
@@ -550,10 +545,6 @@ static struct drm_driver kms_driver = {
 	.disable_vblank = radeon_disable_vblank_kms,
 	.get_vblank_timestamp = radeon_get_vblank_timestamp_kms,
 	.get_scanout_position = radeon_get_crtc_scanoutpos,
-#if defined(CONFIG_DEBUG_FS)
-	.debugfs_init = radeon_debugfs_init,
-	.debugfs_cleanup = radeon_debugfs_cleanup,
-#endif
 	.irq_preinstall = radeon_driver_irq_preinstall_kms,
 	.irq_postinstall = radeon_driver_irq_postinstall_kms,
 	.irq_uninstall = radeon_driver_irq_uninstall_kms,

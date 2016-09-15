@@ -1958,14 +1958,3 @@ static void radeon_debugfs_remove_files(struct radeon_device *rdev)
 	}
 #endif
 }
-
-#if defined(CONFIG_DEBUG_FS)
-int radeon_debugfs_init(struct drm_minor *minor)
-{
-	return 0;
-}
-
-void radeon_debugfs_cleanup(struct drm_minor *minor)
-{
-}
-#endif
