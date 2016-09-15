@@ -113,6 +113,7 @@ struct rpcrdma_ep {
 
 struct rpcrdma_regbuf {
 	struct ib_sge		rg_iov;
+	struct ib_device	*rg_device;
 	enum dma_data_direction	rg_direction;
 	__be32			rg_base[0] __attribute__ ((aligned(256)));
 };
@@ -480,8 +481,23 @@ void rpcrdma_defer_mr_recovery(struct rpcrdma_mw *);
 struct rpcrdma_regbuf *rpcrdma_alloc_regbuf(struct rpcrdma_ia *,
 					    size_t, enum dma_data_direction,
 					    gfp_t);
+bool __rpcrdma_dma_map_regbuf(struct rpcrdma_ia *, struct rpcrdma_regbuf *);
 void rpcrdma_free_regbuf(struct rpcrdma_ia *,
 			 struct rpcrdma_regbuf *);
+
+static inline bool
+rpcrdma_regbuf_is_mapped(struct rpcrdma_regbuf *rb)
+{
+	return rb->rg_device != NULL;
+}
+
+static inline bool
+rpcrdma_dma_map_regbuf(struct rpcrdma_ia *ia, struct rpcrdma_regbuf *rb)
+{
+	if (likely(rpcrdma_regbuf_is_mapped(rb)))
+		return true;
+	return __rpcrdma_dma_map_regbuf(ia, rb);
+}
 
 int rpcrdma_ep_post_extra_recv(struct rpcrdma_xprt *, unsigned int);
 

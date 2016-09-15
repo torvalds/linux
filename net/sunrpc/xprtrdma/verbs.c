@@ -1179,9 +1179,8 @@ rpcrdma_recv_buffer_put(struct rpcrdma_rep *rep)
  * @direction: direction of data movement
  * @flags: GFP flags
  *
- * Returns an ERR_PTR, or a pointer to a regbuf, which is a
- * contiguous memory region that is DMA mapped persistently, and
- * is registered for local I/O.
+ * Returns an ERR_PTR, or a pointer to a regbuf, a buffer that
+ * can be persistently DMA-mapped for I/O.
  *
  * xprtrdma uses a regbuf for posting an outgoing RDMA SEND, or for
  * receiving the payload of RDMA RECV operations. During Long Calls
@@ -1192,32 +1191,50 @@ rpcrdma_alloc_regbuf(struct rpcrdma_ia *ia, size_t size,
 		     enum dma_data_direction direction, gfp_t flags)
 {
 	struct rpcrdma_regbuf *rb;
-	struct ib_sge *iov;
 
 	rb = kmalloc(sizeof(*rb) + size, flags);
 	if (rb == NULL)
-		goto out;
+		return ERR_PTR(-ENOMEM);
 
+	rb->rg_device = NULL;
 	rb->rg_direction = direction;
-	iov = &rb->rg_iov;
-	iov->length = size;
-	iov->lkey = ia->ri_pd->local_dma_lkey;
-
-	if (direction != DMA_NONE) {
-		iov->addr = ib_dma_map_single(ia->ri_device,
-					      (void *)rb->rg_base,
-					      rdmab_length(rb),
-					      rb->rg_direction);
-		if (ib_dma_mapping_error(ia->ri_device, iov->addr))
-			goto out_free;
-	}
+	rb->rg_iov.length = size;
 
 	return rb;
+}
 
-out_free:
-	kfree(rb);
-out:
-	return ERR_PTR(-ENOMEM);
+/**
+ * __rpcrdma_map_regbuf - DMA-map a regbuf
+ * @ia: controlling rpcrdma_ia
+ * @rb: regbuf to be mapped
+ */
+bool
+__rpcrdma_dma_map_regbuf(struct rpcrdma_ia *ia, struct rpcrdma_regbuf *rb)
+{
+	if (rb->rg_direction == DMA_NONE)
+		return false;
+
+	rb->rg_iov.addr = ib_dma_map_single(ia->ri_device,
+					    (void *)rb->rg_base,
+					    rdmab_length(rb),
+					    rb->rg_direction);
+	if (ib_dma_mapping_error(ia->ri_device, rdmab_addr(rb)))
+		return false;
+
+	rb->rg_device = ia->ri_device;
+	rb->rg_iov.lkey = ia->ri_pd->local_dma_lkey;
+	return true;
+}
+
+static void
+rpcrdma_dma_unmap_regbuf(struct rpcrdma_regbuf *rb)
+{
+	if (!rpcrdma_regbuf_is_mapped(rb))
+		return;
+
+	ib_dma_unmap_single(rb->rg_device, rdmab_addr(rb),
+			    rdmab_length(rb), rb->rg_direction);
+	rb->rg_device = NULL;
 }
 
 /**
@@ -1231,11 +1248,7 @@ rpcrdma_free_regbuf(struct rpcrdma_ia *ia, struct rpcrdma_regbuf *rb)
 	if (!rb)
 		return;
 
-	if (rb->rg_direction != DMA_NONE) {
-		ib_dma_unmap_single(ia->ri_device, rdmab_addr(rb),
-				    rdmab_length(rb), rb->rg_direction);
-	}
-
+	rpcrdma_dma_unmap_regbuf(rb);
 	kfree(rb);
 }
 
@@ -1307,10 +1320,16 @@ rpcrdma_ep_post_recv(struct rpcrdma_ia *ia,
 	recv_wr.sg_list = &rep->rr_rdmabuf->rg_iov;
 	recv_wr.num_sge = 1;
 
+	if (!rpcrdma_dma_map_regbuf(ia, rep->rr_rdmabuf))
+		goto out_map;
 	rc = ib_post_recv(ia->ri_id->qp, &recv_wr, &recv_wr_fail);
 	if (rc)
 		goto out_postrecv;
 	return 0;
+
+out_map:
+	pr_err("rpcrdma: failed to DMA map the Receive buffer\n");
+	return -EIO;
 
 out_postrecv:
 	pr_err("rpcrdma: ib_post_recv returned %i\n", rc);

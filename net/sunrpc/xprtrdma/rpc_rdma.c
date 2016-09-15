@@ -681,6 +681,8 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 		transfertypes[rtype], transfertypes[wtype],
 		hdrlen, rpclen);
 
+	if (!rpcrdma_dma_map_regbuf(&r_xprt->rx_ia, req->rl_rdmabuf))
+		goto out_map;
 	req->rl_send_iov[0].addr = rdmab_addr(req->rl_rdmabuf);
 	req->rl_send_iov[0].length = hdrlen;
 	req->rl_send_iov[0].lkey = rdmab_lkey(req->rl_rdmabuf);
@@ -689,6 +691,8 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	if (rtype == rpcrdma_areadch)
 		return 0;
 
+	if (!rpcrdma_dma_map_regbuf(&r_xprt->rx_ia, req->rl_sendbuf))
+		goto out_map;
 	req->rl_send_iov[1].addr = rdmab_addr(req->rl_sendbuf);
 	req->rl_send_iov[1].length = rpclen;
 	req->rl_send_iov[1].lkey = rdmab_lkey(req->rl_sendbuf);
@@ -704,6 +708,11 @@ out_overflow:
 out_unmap:
 	r_xprt->rx_ia.ri_ops->ro_unmap_safe(r_xprt, req, false);
 	return PTR_ERR(iptr);
+
+out_map:
+	pr_err("rpcrdma: failed to DMA map a Send buffer\n");
+	iptr = ERR_PTR(-EIO);
+	goto out_unmap;
 }
 
 /*

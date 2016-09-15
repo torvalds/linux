@@ -230,16 +230,24 @@ int rpcrdma_bc_marshal_reply(struct rpc_rqst *rqst)
 		__func__, (int)rpclen, rqst->rq_svec[0].iov_base);
 #endif
 
+	if (!rpcrdma_dma_map_regbuf(&r_xprt->rx_ia, req->rl_rdmabuf))
+		goto out_map;
 	req->rl_send_iov[0].addr = rdmab_addr(req->rl_rdmabuf);
 	req->rl_send_iov[0].length = RPCRDMA_HDRLEN_MIN;
 	req->rl_send_iov[0].lkey = rdmab_lkey(req->rl_rdmabuf);
 
+	if (!rpcrdma_dma_map_regbuf(&r_xprt->rx_ia, req->rl_sendbuf))
+		goto out_map;
 	req->rl_send_iov[1].addr = rdmab_addr(req->rl_sendbuf);
 	req->rl_send_iov[1].length = rpclen;
 	req->rl_send_iov[1].lkey = rdmab_lkey(req->rl_sendbuf);
 
 	req->rl_niovs = 2;
 	return 0;
+
+out_map:
+	pr_err("rpcrdma: failed to DMA map a Send buffer\n");
+	return -EIO;
 }
 
 /**
