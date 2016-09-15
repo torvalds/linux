@@ -4,6 +4,7 @@
  * Copyright (C) 2010 Samsung Electronics Co.Ltd
  * Copyright (C) 2011-2014 Atmel Corporation
  * Copyright (C) 2012 Google, Inc.
+ * Copyright (C) 2016 Zodiac Inflight Innovations
  *
  * Author: Joonyoung Shim <jy0922.shim@samsung.com>
  *
