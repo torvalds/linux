@@ -9,15 +9,13 @@
 # local 172.16.1.200 remote 172.16.1.100
 # veth1 IP: 172.16.1.200, tunnel dev <type>11
 
-set -e
-
 function config_device {
 	ip netns add at_ns0
 	ip link add veth0 type veth peer name veth1
 	ip link set veth0 netns at_ns0
 	ip netns exec at_ns0 ip addr add 172.16.1.100/24 dev veth0
 	ip netns exec at_ns0 ip link set dev veth0 up
-	ip link set dev veth1 up
+	ip link set dev veth1 up mtu 1500
 	ip addr add dev veth1 172.16.1.200/24
 }
 
@@ -67,6 +65,19 @@ function add_geneve_tunnel {
 	ip addr add dev $DEV 10.1.1.200/24
 }
 
+function add_ipip_tunnel {
+	# in namespace
+	ip netns exec at_ns0 \
+		ip link add dev $DEV_NS type $TYPE local 172.16.1.100 remote 172.16.1.200
+	ip netns exec at_ns0 ip link set dev $DEV_NS up
+	ip netns exec at_ns0 ip addr add dev $DEV_NS 10.1.1.100/24
+
+	# out of namespace
+	ip link add dev $DEV type $TYPE external
+	ip link set dev $DEV up
+	ip addr add dev $DEV 10.1.1.200/24
+}
+
 function attach_bpf {
 	DEV=$1
 	SET_TUNNEL=$2
@@ -85,6 +96,7 @@ function test_gre {
 	attach_bpf $DEV gre_set_tunnel gre_get_tunnel
 	ping -c 1 10.1.1.100
 	ip netns exec at_ns0 ping -c 1 10.1.1.200
+	cleanup
 }
 
 function test_vxlan {
@@ -96,6 +108,7 @@ function test_vxlan {
 	attach_bpf $DEV vxlan_set_tunnel vxlan_get_tunnel
 	ping -c 1 10.1.1.100
 	ip netns exec at_ns0 ping -c 1 10.1.1.200
+	cleanup
 }
 
 function test_geneve {
@@ -107,21 +120,48 @@ function test_geneve {
 	attach_bpf $DEV geneve_set_tunnel geneve_get_tunnel
 	ping -c 1 10.1.1.100
 	ip netns exec at_ns0 ping -c 1 10.1.1.200
+	cleanup
+}
+
+function test_ipip {
+	TYPE=ipip
+	DEV_NS=ipip00
+	DEV=ipip11
+	config_device
+	tcpdump -nei veth1 &
+	cat /sys/kernel/debug/tracing/trace_pipe &
+	add_ipip_tunnel
+	ethtool -K veth1 gso off gro off rx off tx off
+	ip link set dev veth1 mtu 1500
+	attach_bpf $DEV ipip_set_tunnel ipip_get_tunnel
+	ping -c 1 10.1.1.100
+	ip netns exec at_ns0 ping -c 1 10.1.1.200
+	ip netns exec at_ns0 iperf -sD -p 5200 > /dev/null
+	sleep 0.2
+	iperf -c 10.1.1.100 -n 5k -p 5200
+	cleanup
 }
 
 function cleanup {
+	set +ex
+	pkill iperf
 	ip netns delete at_ns0
 	ip link del veth1
-	ip link del $DEV
+	ip link del ipip11
+	ip link del gretap11
+	ip link del geneve11
+	pkill tcpdump
+	pkill cat
+	set -ex
 }
 
+cleanup
 echo "Testing GRE tunnel..."
 test_gre
-cleanup
 echo "Testing VXLAN tunnel..."
 test_vxlan
-cleanup
 echo "Testing GENEVE tunnel..."
 test_geneve
-cleanup
-echo "Success"
+echo "Testing IPIP tunnel..."
+test_ipip
+echo "*** PASS ***"
