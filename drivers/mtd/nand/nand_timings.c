@@ -298,3 +298,14 @@ int onfi_init_data_interface(struct nand_chip *chip,
 	return 0;
 }
 EXPORT_SYMBOL(onfi_init_data_interface);
+
+/**
+ * nand_get_default_data_interface - [NAND Interface] Retrieve NAND
+ * data interface for mode 0. This is used as default timing after
+ * reset.
+ */
+const struct nand_data_interface *nand_get_default_data_interface(void)
+{
+	return &onfi_sdr_timings[0];
+}
+EXPORT_SYMBOL(nand_get_default_data_interface);
