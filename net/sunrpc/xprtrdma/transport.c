@@ -484,7 +484,7 @@ static bool
 rpcrdma_get_rdmabuf(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 		    gfp_t flags)
 {
-	size_t size = r_xprt->rx_data.inline_wsize;
+	size_t size = RPCRDMA_HDRBUF_SIZE;
 	struct rpcrdma_regbuf *rb;
 
 	if (req->rl_rdmabuf)

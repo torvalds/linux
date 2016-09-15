@@ -160,7 +160,10 @@ rdmab_to_msg(struct rpcrdma_regbuf *rb)
  * The smallest inline threshold is 1024 bytes, ensuring that
  * at least 750 bytes are available for RPC messages.
  */
-#define RPCRDMA_MAX_HDR_SEGS	(8)
+enum {
+	RPCRDMA_MAX_HDR_SEGS = 8,
+	RPCRDMA_HDRBUF_SIZE = 256,
+};
 
 /*
  * struct rpcrdma_rep -- this structure encapsulates state required to recv
