@@ -257,6 +257,11 @@ int qeth_l3_delete_ip(struct qeth_card *card, struct qeth_ipaddr *tmp_addr)
 	if (addr->in_progress)
 		return -EINPROGRESS;
 
+	if (!qeth_card_hw_is_reachable(card)) {
+		addr->disp_flag = QETH_DISP_ADDR_DELETE;
+		return 0;
+	}
+
 	rc = qeth_l3_deregister_addr_entry(card, addr);
 
 	hash_del(&addr->hnode);
@@ -295,6 +300,11 @@ int qeth_l3_add_ip(struct qeth_card *card, struct qeth_ipaddr *tmp_addr)
 		}
 		hash_add(card->ip_htable, &addr->hnode,
 				qeth_l3_ipaddr_hash(addr));
+
+		if (!qeth_card_hw_is_reachable(card)) {
+			addr->disp_flag = QETH_DISP_ADDR_ADD;
+			return 0;
+		}
 
 		/* qeth_l3_register_addr_entry can go to sleep
 		 * if we add a IPV4 addr. It is caused by the reason
@@ -390,12 +400,16 @@ static void qeth_l3_recover_ip(struct qeth_card *card)
 	int i;
 	int rc;
 
-	QETH_CARD_TEXT(card, 4, "recoverip");
+	QETH_CARD_TEXT(card, 4, "recovrip");
 
 	spin_lock_bh(&card->ip_lock);
 
 	hash_for_each_safe(card->ip_htable, i, tmp, addr, hnode) {
-		if (addr->disp_flag == QETH_DISP_ADDR_ADD) {
+		if (addr->disp_flag == QETH_DISP_ADDR_DELETE) {
+			qeth_l3_deregister_addr_entry(card, addr);
+			hash_del(&addr->hnode);
+			kfree(addr);
+		} else if (addr->disp_flag == QETH_DISP_ADDR_ADD) {
 			if (addr->proto == QETH_PROT_IPV4) {
 				addr->in_progress = 1;
 				spin_unlock_bh(&card->ip_lock);
@@ -407,10 +421,8 @@ static void qeth_l3_recover_ip(struct qeth_card *card)
 
 			if (!rc) {
 				addr->disp_flag = QETH_DISP_ADDR_DO_NOTHING;
-				if (addr->ref_counter < 1) {
+				if (addr->ref_counter < 1)
 					qeth_l3_delete_ip(card, addr);
-					kfree(addr);
-				}
 			} else {
 				hash_del(&addr->hnode);
 				kfree(addr);
