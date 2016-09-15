@@ -1231,9 +1231,7 @@ static int ahash_final_no_ctx(struct ahash_request *req)
 	state->buf_dma = dma_map_single(jrdev, buf, buflen, DMA_TO_DEVICE);
 	if (dma_mapping_error(jrdev, state->buf_dma)) {
 		dev_err(jrdev, "unable to map src\n");
-		ahash_unmap(jrdev, edesc, req, digestsize);
-		kfree(edesc);
-		return -ENOMEM;
+		goto unmap;
 	}
 
 	append_seq_in_ptr(desc, state->buf_dma, buflen, 0);
@@ -1242,9 +1240,7 @@ static int ahash_final_no_ctx(struct ahash_request *req)
 						digestsize);
 	if (dma_mapping_error(jrdev, edesc->dst_dma)) {
 		dev_err(jrdev, "unable to map dst\n");
-		ahash_unmap(jrdev, edesc, req, digestsize);
-		kfree(edesc);
-		return -ENOMEM;
+		goto unmap;
 	}
 	edesc->src_nents = 0;
 
@@ -1262,6 +1258,11 @@ static int ahash_final_no_ctx(struct ahash_request *req)
 	}
 
 	return ret;
+ unmap:
+	ahash_unmap(jrdev, edesc, req, digestsize);
+	kfree(edesc);
+	return -ENOMEM;
+
 }
 
 /* submit ahash update if it the first job descriptor after update */
@@ -1453,18 +1454,14 @@ static int ahash_finup_no_ctx(struct ahash_request *req)
 				  req->nbytes);
 	if (ret) {
 		dev_err(jrdev, "unable to map S/G table\n");
-		ahash_unmap(jrdev, edesc, req, digestsize);
-		kfree(edesc);
-		return -ENOMEM;
+		goto unmap;
 	}
 
 	edesc->dst_dma = map_seq_out_ptr_result(desc, jrdev, req->result,
 						digestsize);
 	if (dma_mapping_error(jrdev, edesc->dst_dma)) {
 		dev_err(jrdev, "unable to map dst\n");
-		ahash_unmap(jrdev, edesc, req, digestsize);
-		kfree(edesc);
-		return -ENOMEM;
+		goto unmap;
 	}
 
 #ifdef DEBUG
@@ -1481,6 +1478,11 @@ static int ahash_finup_no_ctx(struct ahash_request *req)
 	}
 
 	return ret;
+ unmap:
+	ahash_unmap(jrdev, edesc, req, digestsize);
+	kfree(edesc);
+	return -ENOMEM;
+
 }
 
 /* submit first update job descriptor after init */
