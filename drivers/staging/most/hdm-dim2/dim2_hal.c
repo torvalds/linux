@@ -858,10 +858,6 @@ void dim_service_ahb_int_irq(struct dim_channel *const *channels)
 			++ch;
 		}
 	} while (state_changed);
-
-	/* clear pending Interrupts */
-	dimcb_io_write(&g.dim2->MS0, 0);
-	dimcb_io_write(&g.dim2->MS1, 0);
 }
 
 u8 dim_service_channel(struct dim_channel *ch)
