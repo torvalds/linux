@@ -14844,6 +14844,8 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc_state *intel_cstate =
+		to_intel_crtc_state(crtc->state);
 	struct intel_crtc_state *old_intel_state =
 		to_intel_crtc_state(old_crtc_state);
 	bool modeset = needs_modeset(crtc->state);
@@ -14860,13 +14862,13 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc,
 		intel_color_load_luts(crtc->state);
 	}
 
-	if (to_intel_crtc_state(crtc->state)->update_pipe)
+	if (intel_cstate->update_pipe) {
 		intel_update_pipe_config(intel_crtc, old_intel_state);
-	else if (INTEL_GEN(dev_priv) >= 9) {
+	} else if (INTEL_GEN(dev_priv) >= 9) {
 		skl_detach_scalers(intel_crtc);
 
 		I915_WRITE(PIPE_WM_LINETIME(pipe),
-			   dev_priv->wm.skl_hw.wm_linetime[pipe]);
+			   intel_cstate->wm.skl.optimal.linetime);
 	}
 }
 
