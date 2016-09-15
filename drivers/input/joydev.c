@@ -950,6 +950,12 @@ static const struct input_device_id joydev_ids[] = {
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
 				INPUT_DEVICE_ID_MATCH_ABSBIT,
 		.evbit = { BIT_MASK(EV_ABS) },
+		.absbit = { BIT_MASK(ABS_Z) },
+	},
+	{
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
+				INPUT_DEVICE_ID_MATCH_ABSBIT,
+		.evbit = { BIT_MASK(EV_ABS) },
 		.absbit = { BIT_MASK(ABS_WHEEL) },
 	},
 	{
