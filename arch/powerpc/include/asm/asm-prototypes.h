@@ -54,8 +54,8 @@ void SMIException(struct pt_regs *regs);
 void handle_hmi_exception(struct pt_regs *regs);
 void instruction_breakpoint_exception(struct pt_regs *regs);
 void RunModeException(struct pt_regs *regs);
-void __kprobes single_step_exception(struct pt_regs *regs);
-void __kprobes program_check_exception(struct pt_regs *regs);
+void single_step_exception(struct pt_regs *regs);
+void program_check_exception(struct pt_regs *regs);
 void alignment_exception(struct pt_regs *regs);
 void StackOverflow(struct pt_regs *regs);
 void nonrecoverable_exception(struct pt_regs *regs);
@@ -72,7 +72,7 @@ void unrecoverable_exception(struct pt_regs *regs);
 void kernel_bad_stack(struct pt_regs *regs);
 void system_reset_exception(struct pt_regs *regs);
 void machine_check_exception(struct pt_regs *regs);
-void __kprobes emulation_assist_interrupt(struct pt_regs *regs);
+void emulation_assist_interrupt(struct pt_regs *regs);
 
 /* signals, syscalls and interrupts */
 #ifdef CONFIG_PPC64
