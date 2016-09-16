@@ -504,8 +504,8 @@ Communication Frames: Test/Get/Set Field Values for Transmit Frames
 /*-- Status Field --*/
 #define HFA384x_TXSTATUS_ISERROR(v)	\
 	(((u16)(v)) & \
-	(HFA384x_TXSTATUS_ACKERR|HFA384x_TXSTATUS_FORMERR|\
-	HFA384x_TXSTATUS_DISCON|HFA384x_TXSTATUS_AGEDERR|\
+	(HFA384x_TXSTATUS_ACKERR | HFA384x_TXSTATUS_FORMERR | \
+	HFA384x_TXSTATUS_DISCON | HFA384x_TXSTATUS_AGEDERR | \
 	HFA384x_TXSTATUS_RETRYERR))
 
 #define	HFA384x_TX_SET(v, m, s)		((((u16)(v))<<((u16)(s))) & ((u16)(m)))
