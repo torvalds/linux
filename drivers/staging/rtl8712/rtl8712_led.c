@@ -43,7 +43,7 @@
 #define LED_BLINK_LINK_INTERVAL_ALPHA		500
 #define LED_BLINK_SCAN_INTERVAL_ALPHA		180
 #define LED_BLINK_FASTER_INTERVAL_ALPHA		50
-#define LED_BLINK_WPS_SUCESS_INTERVAL_ALPHA	5000
+#define LED_BLINK_WPS_SUCCESS_INTERVAL_ALPHA	5000
 
 /*===========================================================================
  * LED object.
@@ -410,7 +410,7 @@ static void SwLedBlink1(struct LED_871x *pLed)
 		if (pLed->BlinkingLedState == LED_ON) {
 			pLed->BlinkingLedState = LED_OFF;
 			mod_timer(&pLed->BlinkTimer, jiffies +
-				  msecs_to_jiffies(LED_BLINK_WPS_SUCESS_INTERVAL_ALPHA));
+				  msecs_to_jiffies(LED_BLINK_WPS_SUCCESS_INTERVAL_ALPHA));
 			bStopBlinking = false;
 		} else {
 			bStopBlinking = true;
@@ -574,7 +574,7 @@ static void SwLedBlink3(struct LED_871x *pLed)
 		if (pLed->BlinkingLedState == LED_ON) {
 			pLed->BlinkingLedState = LED_OFF;
 			mod_timer(&pLed->BlinkTimer, jiffies +
-				  msecs_to_jiffies(LED_BLINK_WPS_SUCESS_INTERVAL_ALPHA));
+				  msecs_to_jiffies(LED_BLINK_WPS_SUCCESS_INTERVAL_ALPHA));
 			bStopBlinking = false;
 		} else {
 			bStopBlinking = true;
@@ -1052,7 +1052,7 @@ static void SwLedControlMode1(struct _adapter *padapter,
 		if (pLed->bLedOn) {
 			pLed->BlinkingLedState = LED_OFF;
 			mod_timer(&pLed->BlinkTimer, jiffies +
-				  msecs_to_jiffies(LED_BLINK_WPS_SUCESS_INTERVAL_ALPHA));
+				  msecs_to_jiffies(LED_BLINK_WPS_SUCCESS_INTERVAL_ALPHA));
 		} else {
 			pLed->BlinkingLedState = LED_ON;
 			mod_timer(&pLed->BlinkTimer,
@@ -1332,7 +1332,7 @@ static void SwLedControlMode3(struct _adapter *padapter,
 		if (pLed->bLedOn) {
 			pLed->BlinkingLedState = LED_OFF;
 			mod_timer(&pLed->BlinkTimer, jiffies +
-				  msecs_to_jiffies(LED_BLINK_WPS_SUCESS_INTERVAL_ALPHA));
+				  msecs_to_jiffies(LED_BLINK_WPS_SUCCESS_INTERVAL_ALPHA));
 		} else {
 			pLed->BlinkingLedState = LED_ON;
 			mod_timer(&pLed->BlinkTimer,
