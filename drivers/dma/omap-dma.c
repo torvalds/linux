@@ -904,13 +904,16 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 	d->es = es;
 
 	d->ccr = c->ccr | CCR_SYNC_FRAME;
-	if (dir == DMA_DEV_TO_MEM)
+	if (dir == DMA_DEV_TO_MEM) {
 		d->ccr |= CCR_DST_AMODE_POSTINC | CCR_SRC_AMODE_CONSTANT;
-	else
+		d->csdp = CSDP_DST_BURST_64 | CSDP_DST_PACKED;
+	} else {
 		d->ccr |= CCR_DST_AMODE_CONSTANT | CCR_SRC_AMODE_POSTINC;
+		d->csdp = CSDP_SRC_BURST_64 | CSDP_SRC_PACKED;
+	}
 
 	d->cicr = CICR_DROP_IE | CICR_BLOCK_IE;
-	d->csdp = es;
+	d->csdp |= es;
 
 	if (dma_omap1()) {
 		d->cicr |= CICR_TOUT_IE;
