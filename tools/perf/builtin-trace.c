@@ -2151,11 +2151,10 @@ static int trace__set_ev_qualifier_filter(struct trace *trace)
 	if (filter == NULL)
 		goto out_enomem;
 
-	if (!perf_evsel__append_filter(trace->syscalls.events.sys_enter,
-				       "(%s) && (%s)", filter)) {
+	if (!perf_evsel__append_tp_filter(trace->syscalls.events.sys_enter,
+					  filter)) {
 		sys_exit = trace->syscalls.events.sys_exit;
-		err = perf_evsel__append_filter(sys_exit,
-						"(%s) && (%s)", filter);
+		err = perf_evsel__append_tp_filter(sys_exit, filter);
 	}
 
 	free(filter);
