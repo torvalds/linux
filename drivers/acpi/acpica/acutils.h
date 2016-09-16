@@ -196,14 +196,15 @@ void acpi_ut_strlwr(char *src_string);
 
 int acpi_ut_stricmp(char *string1, char *string2);
 
-acpi_status
-acpi_ut_strtoul64(char *string,
-		  u32 base, u32 max_integer_byte_width, u64 *ret_integer);
+acpi_status acpi_ut_strtoul64(char *string, u32 flags, u64 *ret_integer);
 
-/* Values for max_integer_byte_width above */
-
-#define ACPI_MAX32_BYTE_WIDTH       4
-#define ACPI_MAX64_BYTE_WIDTH       8
+/*
+ * Values for Flags above
+ * Note: LIMIT values correspond to acpi_gbl_integer_byte_width values (4/8)
+ */
+#define ACPI_STRTOUL_32BIT          0x04	/* 4 bytes */
+#define ACPI_STRTOUL_64BIT          0x08	/* 8 bytes */
+#define ACPI_STRTOUL_BASE16         0x10	/* Default: Base10/16 */
 
 /*
  * utglobal - Global data structures and procedures
@@ -232,6 +233,8 @@ const char *acpi_ut_get_region_name(u8 space_id);
 const char *acpi_ut_get_event_name(u32 event_id);
 
 char acpi_ut_hex_to_ascii_char(u64 integer, u32 position);
+
+acpi_status acpi_ut_ascii_to_hex_byte(char *two_ascii_chars, u8 *return_byte);
 
 u8 acpi_ut_ascii_char_to_hex(int hex_char);
 

@@ -175,6 +175,7 @@ acpi-y +=		\
 	utresrc.o	\
 	utstate.o	\
 	utstring.o	\
+	utstrtoul64.o	\
 	utxface.o	\
 	utxfinit.o	\
 	utxferror.o	\
