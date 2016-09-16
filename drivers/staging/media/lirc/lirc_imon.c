@@ -334,7 +334,7 @@ static int send_packet(struct imon_context *context)
 
 	context->tx_urb->actual_length = 0;
 
-	init_completion(&context->tx.finished);
+	reinit_completion(&context->tx.finished);
 	atomic_set(&context->tx.busy, 1);
 
 	retval = usb_submit_urb(context->tx_urb, GFP_KERNEL);
@@ -496,6 +496,8 @@ static int ir_open(void *data)
 	context->rx.count = 0;
 	context->rx.initial_space = 1;
 	context->rx.prev_bit = 0;
+
+	init_completion(&context->tx.finished);
 
 	context->ir_isopen = 1;
 	dev_info(context->driver->dev, "IR port opened\n");
@@ -930,7 +932,7 @@ static void imon_disconnect(struct usb_interface *interface)
 	/* Abort ongoing write */
 	if (atomic_read(&context->tx.busy)) {
 		usb_kill_urb(context->tx_urb);
-		complete_all(&context->tx.finished);
+		complete(&context->tx.finished);
 	}
 
 	context->dev_present = 0;
