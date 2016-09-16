@@ -2970,6 +2970,15 @@ static void setup_pci_device(void)
 	}
 }
 
+static const struct x86_cpu_id amd64_cpuids[] = {
+	{ X86_VENDOR_AMD, 0xF,	X86_MODEL_ANY,	X86_FEATURE_ANY, 0 },
+	{ X86_VENDOR_AMD, 0x10, X86_MODEL_ANY,	X86_FEATURE_ANY, 0 },
+	{ X86_VENDOR_AMD, 0x15, X86_MODEL_ANY,	X86_FEATURE_ANY, 0 },
+	{ X86_VENDOR_AMD, 0x16, X86_MODEL_ANY,	X86_FEATURE_ANY, 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(x86cpu, amd64_cpuids);
+
 static int __init amd64_edac_init(void)
 {
 	int err = -ENODEV;
