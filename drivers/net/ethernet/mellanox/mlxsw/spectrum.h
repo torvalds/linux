@@ -361,6 +361,11 @@ struct mlxsw_sp_port {
 	struct list_head vports_list;
 	/* TC handles */
 	struct list_head mall_tc_list;
+	struct {
+		#define MLXSW_HW_STATS_UPDATE_TIME HZ
+		struct rtnl_link_stats64 *cache;
+		struct delayed_work update_dw;
+	} hw_stats;
 };
 
 struct mlxsw_sp_port *mlxsw_sp_port_lower_dev_hold(struct net_device *dev);
