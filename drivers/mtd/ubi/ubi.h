@@ -167,6 +167,17 @@ enum {
 };
 
 /**
+ * struct ubi_vid_io_buf - VID buffer used to read/write VID info to/from the
+ *			   flash.
+ * @hdr: a pointer to the VID header stored in buffer
+ * @buffer: underlying buffer
+ */
+struct ubi_vid_io_buf {
+	struct ubi_vid_hdr *hdr;
+	void *buffer;
+};
+
+/**
  * struct ubi_wl_entry - wear-leveling entry.
  * @u.rb: link in the corresponding (free/used) RB-tree
  * @u.list: link in the protection queue
@@ -740,7 +751,7 @@ struct ubi_ainf_volume {
  * @ec_count: a temporary variable used when calculating @mean_ec
  * @aeb_slab_cache: slab cache for &struct ubi_ainf_peb objects
  * @ech: temporary EC header. Only available during scan
- * @vidh: temporary VID header. Only available during scan
+ * @vidh: temporary VID buffer. Only available during scan
  *
  * This data structure contains the result of attaching an MTD device and may
  * be used by other UBI sub-systems to build final UBI data structures, further
@@ -770,7 +781,7 @@ struct ubi_attach_info {
 	int ec_count;
 	struct kmem_cache *aeb_slab_cache;
 	struct ubi_ec_hdr *ech;
-	struct ubi_vid_hdr *vidh;
+	struct ubi_vid_io_buf *vidb;
 };
 
 /**
@@ -887,7 +898,7 @@ int ubi_eba_write_leb_st(struct ubi_device *ubi, struct ubi_volume *vol,
 int ubi_eba_atomic_leb_change(struct ubi_device *ubi, struct ubi_volume *vol,
 			      int lnum, const void *buf, int len);
 int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
-		     struct ubi_vid_hdr *vid_hdr);
+		     struct ubi_vid_io_buf *vidb);
 int ubi_eba_init(struct ubi_device *ubi, struct ubi_attach_info *ai);
 unsigned long long ubi_next_sqnum(struct ubi_device *ubi);
 int self_check_eba(struct ubi_device *ubi, struct ubi_attach_info *ai_fastmap,
@@ -922,9 +933,9 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 int ubi_io_write_ec_hdr(struct ubi_device *ubi, int pnum,
 			struct ubi_ec_hdr *ec_hdr);
 int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
-			struct ubi_vid_hdr *vid_hdr, int verbose);
+			struct ubi_vid_io_buf *vidb, int verbose);
 int ubi_io_write_vid_hdr(struct ubi_device *ubi, int pnum,
-			 struct ubi_vid_hdr *vid_hdr);
+			 struct ubi_vid_io_buf *vidb);
 
 /* build.c */
 int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
@@ -1045,44 +1056,68 @@ static inline void ubi_move_aeb_to_list(struct ubi_ainf_volume *av,
 }
 
 /**
- * ubi_zalloc_vid_hdr - allocate a volume identifier header object.
- * @ubi: UBI device description object
- * @gfp_flags: GFP flags to allocate with
- *
- * This function returns a pointer to the newly allocated and zero-filled
- * volume identifier header object in case of success and %NULL in case of
- * failure.
+ * ubi_init_vid_buf - Initialize a VID buffer
+ * @ubi: the UBI device
+ * @vidb: the VID buffer to initialize
+ * @buf: the underlying buffer
  */
-static inline struct ubi_vid_hdr *
-ubi_zalloc_vid_hdr(const struct ubi_device *ubi, gfp_t gfp_flags)
+static inline void ubi_init_vid_buf(const struct ubi_device *ubi,
+				    struct ubi_vid_io_buf *vidb,
+				    void *buf)
 {
-	void *vid_hdr;
+	if (buf)
+		memset(buf, 0, ubi->vid_hdr_alsize);
 
-	vid_hdr = kzalloc(ubi->vid_hdr_alsize, gfp_flags);
-	if (!vid_hdr)
-		return NULL;
-
-	/*
-	 * VID headers may be stored at un-aligned flash offsets, so we shift
-	 * the pointer.
-	 */
-	return vid_hdr + ubi->vid_hdr_shift;
+	vidb->buffer = buf;
+	vidb->hdr = buf + ubi->vid_hdr_shift;
 }
 
 /**
- * ubi_free_vid_hdr - free a volume identifier header object.
- * @ubi: UBI device description object
- * @vid_hdr: the object to free
+ * ubi_init_vid_buf - Allocate a VID buffer
+ * @ubi: the UBI device
+ * @gfp_flags: GFP flags to use for the allocation
  */
-static inline void ubi_free_vid_hdr(const struct ubi_device *ubi,
-				    struct ubi_vid_hdr *vid_hdr)
+static inline struct ubi_vid_io_buf *
+ubi_alloc_vid_buf(const struct ubi_device *ubi, gfp_t gfp_flags)
 {
-	void *p = vid_hdr;
+	struct ubi_vid_io_buf *vidb;
+	void *buf;
 
-	if (!p)
+	vidb = kzalloc(sizeof(*vidb), gfp_flags);
+	if (!vidb)
+		return NULL;
+
+	buf = kmalloc(ubi->vid_hdr_alsize, gfp_flags);
+	if (!buf) {
+		kfree(vidb);
+		return NULL;
+	}
+
+	ubi_init_vid_buf(ubi, vidb, buf);
+
+	return vidb;
+}
+
+/**
+ * ubi_free_vid_buf - Free a VID buffer
+ * @vidb: the VID buffer to free
+ */
+static inline void ubi_free_vid_buf(struct ubi_vid_io_buf *vidb)
+{
+	if (!vidb)
 		return;
 
-	kfree(p - ubi->vid_hdr_shift);
+	kfree(vidb->buffer);
+	kfree(vidb);
+}
+
+/**
+ * ubi_get_vid_hdr - Get the VID header attached to a VID buffer
+ * @vidb: VID buffer
+ */
+static inline struct ubi_vid_hdr *ubi_get_vid_hdr(struct ubi_vid_io_buf *vidb)
+{
+	return vidb->hdr;
 }
 
 /*

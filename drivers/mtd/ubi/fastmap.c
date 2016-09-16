@@ -110,21 +110,23 @@ size_t ubi_calc_fm_size(struct ubi_device *ubi)
  * Returns a new struct ubi_vid_hdr on success.
  * NULL indicates out of memory.
  */
-static struct ubi_vid_hdr *new_fm_vhdr(struct ubi_device *ubi, int vol_id)
+static struct ubi_vid_io_buf *new_fm_vbuf(struct ubi_device *ubi, int vol_id)
 {
-	struct ubi_vid_hdr *new;
+	struct ubi_vid_io_buf *new;
+	struct ubi_vid_hdr *vh;
 
-	new = ubi_zalloc_vid_hdr(ubi, GFP_KERNEL);
+	new = ubi_alloc_vid_buf(ubi, GFP_KERNEL);
 	if (!new)
 		goto out;
 
-	new->vol_type = UBI_VID_DYNAMIC;
-	new->vol_id = cpu_to_be32(vol_id);
+	vh = ubi_get_vid_hdr(new);
+	vh->vol_type = UBI_VID_DYNAMIC;
+	vh->vol_id = cpu_to_be32(vol_id);
 
 	/* UBI implementations without fastmap support have to delete the
 	 * fastmap.
 	 */
-	new->compat = UBI_COMPAT_DELETE;
+	vh->compat = UBI_COMPAT_DELETE;
 
 out:
 	return new;
@@ -408,6 +410,7 @@ static int scan_pool(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		     __be32 *pebs, int pool_size, unsigned long long *max_sqnum,
 		     struct list_head *free)
 {
+	struct ubi_vid_io_buf *vb;
 	struct ubi_vid_hdr *vh;
 	struct ubi_ec_hdr *ech;
 	struct ubi_ainf_peb *new_aeb;
@@ -417,11 +420,13 @@ static int scan_pool(struct ubi_device *ubi, struct ubi_attach_info *ai,
 	if (!ech)
 		return -ENOMEM;
 
-	vh = ubi_zalloc_vid_hdr(ubi, GFP_KERNEL);
-	if (!vh) {
+	vb = ubi_alloc_vid_buf(ubi, GFP_KERNEL);
+	if (!vb) {
 		kfree(ech);
 		return -ENOMEM;
 	}
+
+	vh = ubi_get_vid_hdr(vb);
 
 	dbg_bld("scanning fastmap pool: size = %i", pool_size);
 
@@ -463,7 +468,7 @@ static int scan_pool(struct ubi_device *ubi, struct ubi_attach_info *ai,
 			goto out;
 		}
 
-		err = ubi_io_read_vid_hdr(ubi, pnum, vh, 0);
+		err = ubi_io_read_vid_hdr(ubi, pnum, vb, 0);
 		if (err == UBI_IO_FF || err == UBI_IO_FF_BITFLIPS) {
 			unsigned long long ec = be64_to_cpu(ech->ec);
 			unmap_peb(ai, pnum);
@@ -509,7 +514,7 @@ static int scan_pool(struct ubi_device *ubi, struct ubi_attach_info *ai,
 	}
 
 out:
-	ubi_free_vid_hdr(ubi, vh);
+	ubi_free_vid_buf(vb);
 	kfree(ech);
 	return ret;
 }
@@ -837,6 +842,7 @@ int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		     struct ubi_attach_info *scan_ai)
 {
 	struct ubi_fm_sb *fmsb, *fmsb2;
+	struct ubi_vid_io_buf *vb;
 	struct ubi_vid_hdr *vh;
 	struct ubi_ec_hdr *ech;
 	struct ubi_fastmap_layout *fm;
@@ -912,11 +918,13 @@ int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		goto free_fm_sb;
 	}
 
-	vh = ubi_zalloc_vid_hdr(ubi, GFP_KERNEL);
-	if (!vh) {
+	vb = ubi_alloc_vid_buf(ubi, GFP_KERNEL);
+	if (!vb) {
 		ret = -ENOMEM;
 		goto free_hdr;
 	}
+
+	vh = ubi_get_vid_hdr(vb);
 
 	for (i = 0; i < used_blocks; i++) {
 		int image_seq;
@@ -960,7 +968,7 @@ int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
 			goto free_hdr;
 		}
 
-		ret = ubi_io_read_vid_hdr(ubi, pnum, vh, 0);
+		ret = ubi_io_read_vid_hdr(ubi, pnum, vb, 0);
 		if (ret && ret != UBI_IO_BITFLIPS) {
 			ubi_err(ubi, "unable to read fastmap block# %i (PEB: %i)",
 				i, pnum);
@@ -1050,7 +1058,7 @@ int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
 	ubi->fm_disabled = 0;
 	ubi->fast_attach = 1;
 
-	ubi_free_vid_hdr(ubi, vh);
+	ubi_free_vid_buf(vb);
 	kfree(ech);
 out:
 	up_write(&ubi->fm_protect);
@@ -1059,7 +1067,7 @@ out:
 	return ret;
 
 free_hdr:
-	ubi_free_vid_hdr(ubi, vh);
+	ubi_free_vid_buf(vb);
 	kfree(ech);
 free_fm_sb:
 	kfree(fmsb);
@@ -1087,6 +1095,7 @@ static int ubi_write_fastmap(struct ubi_device *ubi,
 	struct ubi_fm_eba *feba;
 	struct ubi_wl_entry *wl_e;
 	struct ubi_volume *vol;
+	struct ubi_vid_io_buf *avbuf, *dvbuf;
 	struct ubi_vid_hdr *avhdr, *dvhdr;
 	struct ubi_work *ubi_wrk;
 	struct rb_node *tmp_rb;
@@ -1097,17 +1106,20 @@ static int ubi_write_fastmap(struct ubi_device *ubi,
 	fm_raw = ubi->fm_buf;
 	memset(ubi->fm_buf, 0, ubi->fm_size);
 
-	avhdr = new_fm_vhdr(ubi, UBI_FM_SB_VOLUME_ID);
-	if (!avhdr) {
+	avbuf = new_fm_vbuf(ubi, UBI_FM_SB_VOLUME_ID);
+	if (!avbuf) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	dvhdr = new_fm_vhdr(ubi, UBI_FM_DATA_VOLUME_ID);
-	if (!dvhdr) {
+	dvbuf = new_fm_vbuf(ubi, UBI_FM_DATA_VOLUME_ID);
+	if (!dvbuf) {
 		ret = -ENOMEM;
 		goto out_kfree;
 	}
+
+	avhdr = ubi_get_vid_hdr(avbuf);
+	dvhdr = ubi_get_vid_hdr(dvbuf);
 
 	seen_pebs = init_seen(ubi);
 	if (IS_ERR(seen_pebs)) {
@@ -1277,7 +1289,7 @@ static int ubi_write_fastmap(struct ubi_device *ubi,
 	spin_unlock(&ubi->volumes_lock);
 
 	dbg_bld("writing fastmap SB to PEB %i", new_fm->e[0]->pnum);
-	ret = ubi_io_write_vid_hdr(ubi, new_fm->e[0]->pnum, avhdr);
+	ret = ubi_io_write_vid_hdr(ubi, new_fm->e[0]->pnum, avbuf);
 	if (ret) {
 		ubi_err(ubi, "unable to write vid_hdr to fastmap SB!");
 		goto out_kfree;
@@ -1298,7 +1310,7 @@ static int ubi_write_fastmap(struct ubi_device *ubi,
 		dvhdr->lnum = cpu_to_be32(i);
 		dbg_bld("writing fastmap data to PEB %i sqnum %llu",
 			new_fm->e[i]->pnum, be64_to_cpu(dvhdr->sqnum));
-		ret = ubi_io_write_vid_hdr(ubi, new_fm->e[i]->pnum, dvhdr);
+		ret = ubi_io_write_vid_hdr(ubi, new_fm->e[i]->pnum, dvbuf);
 		if (ret) {
 			ubi_err(ubi, "unable to write vid_hdr to PEB %i!",
 				new_fm->e[i]->pnum);
@@ -1323,8 +1335,8 @@ static int ubi_write_fastmap(struct ubi_device *ubi,
 	dbg_bld("fastmap written!");
 
 out_kfree:
-	ubi_free_vid_hdr(ubi, avhdr);
-	ubi_free_vid_hdr(ubi, dvhdr);
+	ubi_free_vid_buf(avbuf);
+	ubi_free_vid_buf(dvbuf);
 	free_seen(seen_pebs);
 out:
 	return ret;
@@ -1394,7 +1406,8 @@ static int invalidate_fastmap(struct ubi_device *ubi)
 	int ret;
 	struct ubi_fastmap_layout *fm;
 	struct ubi_wl_entry *e;
-	struct ubi_vid_hdr *vh = NULL;
+	struct ubi_vid_io_buf *vb = NULL;
+	struct ubi_vid_hdr *vh;
 
 	if (!ubi->fm)
 		return 0;
@@ -1406,9 +1419,11 @@ static int invalidate_fastmap(struct ubi_device *ubi)
 	if (!fm)
 		goto out;
 
-	vh = new_fm_vhdr(ubi, UBI_FM_SB_VOLUME_ID);
-	if (!vh)
+	vb = new_fm_vbuf(ubi, UBI_FM_SB_VOLUME_ID);
+	if (!vb)
 		goto out_free_fm;
+
+	vh = ubi_get_vid_hdr(vb);
 
 	ret = -ENOSPC;
 	e = ubi_wl_get_fm_peb(ubi, 1);
@@ -1420,7 +1435,7 @@ static int invalidate_fastmap(struct ubi_device *ubi)
 	 * to scanning mode.
 	 */
 	vh->sqnum = cpu_to_be64(ubi_next_sqnum(ubi));
-	ret = ubi_io_write_vid_hdr(ubi, e->pnum, vh);
+	ret = ubi_io_write_vid_hdr(ubi, e->pnum, vb);
 	if (ret < 0) {
 		ubi_wl_put_fm_peb(ubi, e, 0, 0);
 		goto out_free_fm;
@@ -1432,7 +1447,7 @@ static int invalidate_fastmap(struct ubi_device *ubi)
 	ubi->fm = fm;
 
 out:
-	ubi_free_vid_hdr(ubi, vh);
+	ubi_free_vid_buf(vb);
 	return ret;
 
 out_free_fm:
