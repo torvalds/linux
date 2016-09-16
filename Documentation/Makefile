@@ -1,2 +1,2 @@
-subdir-y := accounting auxdisplay blackfin \
+subdir-y := accounting blackfin \
 	laptops pcmcia
