@@ -26,11 +26,14 @@
 #define RTIT_CTL_CYCLEACC		BIT(1)
 #define RTIT_CTL_OS			BIT(2)
 #define RTIT_CTL_USR			BIT(3)
+#define RTIT_CTL_PWR_EVT_EN		BIT(4)
+#define RTIT_CTL_FUP_ON_PTW		BIT(5)
 #define RTIT_CTL_CR3EN			BIT(7)
 #define RTIT_CTL_TOPA			BIT(8)
 #define RTIT_CTL_MTC_EN			BIT(9)
 #define RTIT_CTL_TSC_EN			BIT(10)
 #define RTIT_CTL_DISRETC		BIT(11)
+#define RTIT_CTL_PTW_EN			BIT(12)
 #define RTIT_CTL_BRANCH_EN		BIT(13)
 #define RTIT_CTL_MTC_RANGE_OFFSET	14
 #define RTIT_CTL_MTC_RANGE		(0x0full << RTIT_CTL_MTC_RANGE_OFFSET)
@@ -91,6 +94,8 @@ enum pt_capabilities {
 	PT_CAP_psb_cyc,
 	PT_CAP_ip_filtering,
 	PT_CAP_mtc,
+	PT_CAP_ptwrite,
+	PT_CAP_power_event_trace,
 	PT_CAP_topa_output,
 	PT_CAP_topa_multiple_entries,
 	PT_CAP_single_range_output,
