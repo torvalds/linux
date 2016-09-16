@@ -333,10 +333,11 @@ sys_create_syscall_thread(struct syscall_thread_data *data)
 
 int initial_syscall_thread(void *sem)
 {
+	void (*destr)(void *) = NULL;
 	int ret = 0;
 
 	if (lkl_ops->tls_alloc)
-		ret = lkl_ops->tls_alloc(&syscall_thread_data_key);
+		ret = lkl_ops->tls_alloc(&syscall_thread_data_key, destr);
 	if (ret)
 		return ret;
 

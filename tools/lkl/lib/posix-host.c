@@ -201,9 +201,9 @@ static int thread_join(lkl_thread_t tid)
 		return 0;
 }
 
-static int tls_alloc(unsigned int *key)
+static int tls_alloc(unsigned int *key, void (*destructor)(void *))
 {
-	return pthread_key_create((pthread_key_t*)key, NULL);
+	return pthread_key_create((pthread_key_t *)key, destructor);
 }
 
 static int tls_free(unsigned int key)
