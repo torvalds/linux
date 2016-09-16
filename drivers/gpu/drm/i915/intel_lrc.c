@@ -845,13 +845,12 @@ static inline int gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *engine,
 	uint32_t l3sqc4_flush = (0x40400000 | GEN8_LQSC_FLUSH_COHERENT_LINES);
 
 	/*
-	 * WaDisableLSQCROPERFforOCL:skl,kbl
+	 * WaDisableLSQCROPERFforOCL:kbl
 	 * This WA is implemented in skl_init_clock_gating() but since
 	 * this batch updates GEN8_L3SQCREG4 with default value we need to
 	 * set this bit here to retain the WA during flush.
 	 */
-	if (IS_SKL_REVID(dev_priv, 0, SKL_REVID_E0) ||
-	    IS_KBL_REVID(dev_priv, 0, KBL_REVID_E0))
+	if (IS_KBL_REVID(dev_priv, 0, KBL_REVID_E0))
 		l3sqc4_flush |= GEN8_LQSC_RO_PERF_DIS;
 
 	wa_ctx_emit(batch, index, (MI_STORE_REGISTER_MEM_GEN8 |

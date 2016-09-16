@@ -1003,20 +1003,6 @@ static int skl_init_workarounds(struct intel_engine_cs *engine)
 	I915_WRITE(GEN7_FF_SLICE_CS_CHICKEN1,
 		   _MASKED_BIT_ENABLE(GEN9_FFSC_PERCTX_PREEMPT_CTRL));
 
-	if (IS_SKL_REVID(dev_priv, 0, SKL_REVID_E0)) {
-		/* WaDisableChickenBitTSGBarrierAckForFFSliceCS:skl */
-		I915_WRITE(FF_SLICE_CS_CHICKEN2,
-			   _MASKED_BIT_ENABLE(GEN9_TSG_BARRIER_ACK_DISABLE));
-	}
-
-	/* GEN8_L3SQCREG4 has a dependency with WA batch so any new changes
-	 * involving this register should also be added to WA batch as required.
-	 */
-	if (IS_SKL_REVID(dev_priv, 0, SKL_REVID_E0))
-		/* WaDisableLSQCROPERFforOCL:skl */
-		I915_WRITE(GEN8_L3SQCREG4, I915_READ(GEN8_L3SQCREG4) |
-			   GEN8_LQSC_RO_PERF_DIS);
-
 	/* WaEnableGapsTsvCreditFix:skl */
 	I915_WRITE(GEN8_GARBCNTL, (I915_READ(GEN8_GARBCNTL) |
 				   GEN9_GAPS_TSV_CREDIT_DISABLE));
