@@ -581,6 +581,8 @@ static bool wake_up_full_nohz_cpu(int cpu)
 	 * If needed we can still optimize that later with an
 	 * empty IRQ.
 	 */
+	if (cpu_is_offline(cpu))
+		return true;  /* Don't try to wake offline CPUs. */
 	if (tick_nohz_full_cpu(cpu)) {
 		if (cpu != smp_processor_id() ||
 		    tick_nohz_tick_stopped())
@@ -591,6 +593,11 @@ static bool wake_up_full_nohz_cpu(int cpu)
 	return false;
 }
 
+/*
+ * Wake up the specified CPU.  If the CPU is going offline, it is the
+ * caller's responsibility to deal with the lost wakeup, for example,
+ * by hooking into the CPU_DEAD notifier like timers and hrtimers do.
+ */
 void wake_up_nohz_cpu(int cpu)
 {
 	if (!wake_up_full_nohz_cpu(cpu))

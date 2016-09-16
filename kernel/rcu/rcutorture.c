@@ -1238,6 +1238,7 @@ rcu_torture_stats_print(void)
 	long pipesummary[RCU_TORTURE_PIPE_LEN + 1] = { 0 };
 	long batchsummary[RCU_TORTURE_PIPE_LEN + 1] = { 0 };
 	static unsigned long rtcv_snap = ULONG_MAX;
+	struct task_struct *wtp;
 
 	for_each_possible_cpu(cpu) {
 		for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++) {
@@ -1258,8 +1259,9 @@ rcu_torture_stats_print(void)
 		atomic_read(&n_rcu_torture_alloc),
 		atomic_read(&n_rcu_torture_alloc_fail),
 		atomic_read(&n_rcu_torture_free));
-	pr_cont("rtmbe: %d rtbke: %ld rtbre: %ld ",
+	pr_cont("rtmbe: %d rtbe: %ld rtbke: %ld rtbre: %ld ",
 		atomic_read(&n_rcu_torture_mberror),
+		n_rcu_torture_barrier_error,
 		n_rcu_torture_boost_ktrerror,
 		n_rcu_torture_boost_rterror);
 	pr_cont("rtbf: %ld rtb: %ld nt: %ld ",
@@ -1312,10 +1314,12 @@ rcu_torture_stats_print(void)
 
 		rcutorture_get_gp_data(cur_ops->ttype,
 				       &flags, &gpnum, &completed);
-		pr_alert("??? Writer stall state %s(%d) g%lu c%lu f%#x\n",
+		wtp = READ_ONCE(writer_task);
+		pr_alert("??? Writer stall state %s(%d) g%lu c%lu f%#x ->state %#lx\n",
 			 rcu_torture_writer_state_getname(),
 			 rcu_torture_writer_state,
-			 gpnum, completed, flags);
+			 gpnum, completed, flags,
+			 wtp == NULL ? ~0UL : wtp->state);
 		show_rcu_gp_kthreads();
 		rcu_ftrace_dump(DUMP_ALL);
 	}
@@ -1362,12 +1366,12 @@ rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, const char *tag)
 		 onoff_interval, onoff_holdoff);
 }
 
-static void rcutorture_booster_cleanup(int cpu)
+static int rcutorture_booster_cleanup(unsigned int cpu)
 {
 	struct task_struct *t;
 
 	if (boost_tasks[cpu] == NULL)
-		return;
+		return 0;
 	mutex_lock(&boost_mutex);
 	t = boost_tasks[cpu];
 	boost_tasks[cpu] = NULL;
@@ -1375,9 +1379,10 @@ static void rcutorture_booster_cleanup(int cpu)
 
 	/* This must be outside of the mutex, otherwise deadlock! */
 	torture_stop_kthread(rcu_torture_boost, t);
+	return 0;
 }
 
-static int rcutorture_booster_init(int cpu)
+static int rcutorture_booster_init(unsigned int cpu)
 {
 	int retval;
 
@@ -1577,28 +1582,7 @@ static void rcu_torture_barrier_cleanup(void)
 	}
 }
 
-static int rcutorture_cpu_notify(struct notifier_block *self,
-				 unsigned long action, void *hcpu)
-{
-	long cpu = (long)hcpu;
-
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_ONLINE:
-	case CPU_DOWN_FAILED:
-		(void)rcutorture_booster_init(cpu);
-		break;
-	case CPU_DOWN_PREPARE:
-		rcutorture_booster_cleanup(cpu);
-		break;
-	default:
-		break;
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block rcutorture_cpu_nb = {
-	.notifier_call = rcutorture_cpu_notify,
-};
+static enum cpuhp_state rcutor_hp;
 
 static void
 rcu_torture_cleanup(void)
@@ -1638,11 +1622,8 @@ rcu_torture_cleanup(void)
 	for (i = 0; i < ncbflooders; i++)
 		torture_stop_kthread(rcu_torture_cbflood, cbflood_task[i]);
 	if ((test_boost == 1 && cur_ops->can_boost) ||
-	    test_boost == 2) {
-		unregister_cpu_notifier(&rcutorture_cpu_nb);
-		for_each_possible_cpu(i)
-			rcutorture_booster_cleanup(i);
-	}
+	    test_boost == 2)
+		cpuhp_remove_state(rcutor_hp);
 
 	/*
 	 * Wait for all RCU callbacks to fire, then do flavor-specific
@@ -1869,14 +1850,13 @@ rcu_torture_init(void)
 	    test_boost == 2) {
 
 		boost_starttime = jiffies + test_boost_interval * HZ;
-		register_cpu_notifier(&rcutorture_cpu_nb);
-		for_each_possible_cpu(i) {
-			if (cpu_is_offline(i))
-				continue;  /* Heuristic: CPU can go offline. */
-			firsterr = rcutorture_booster_init(i);
-			if (firsterr)
-				goto unwind;
-		}
+
+		firsterr = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "RCU_TORTURE",
+					     rcutorture_booster_init,
+					     rcutorture_booster_cleanup);
+		if (firsterr < 0)
+			goto unwind;
+		rcutor_hp = firsterr;
 	}
 	firsterr = torture_shutdown_init(shutdown_secs, rcu_torture_cleanup);
 	if (firsterr)
