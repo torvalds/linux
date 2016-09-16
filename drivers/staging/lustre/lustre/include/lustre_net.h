@@ -570,13 +570,13 @@ struct ptlrpc_nrs_pol_ops {
 	 *
 	 * \param[in,out] policy The policy being initialized
 	 */
-	int	(*op_policy_init) (struct ptlrpc_nrs_policy *policy);
+	int	(*op_policy_init)(struct ptlrpc_nrs_policy *policy);
 	/**
 	 * Called during policy unregistration; this operation is optional.
 	 *
 	 * \param[in,out] policy The policy being unregistered/finalized
 	 */
-	void	(*op_policy_fini) (struct ptlrpc_nrs_policy *policy);
+	void	(*op_policy_fini)(struct ptlrpc_nrs_policy *policy);
 	/**
 	 * Called when activating a policy via lprocfs; policies allocate and
 	 * initialize their resources here; this operation is optional.
@@ -585,7 +585,7 @@ struct ptlrpc_nrs_pol_ops {
 	 *
 	 * \see nrs_policy_start_locked()
 	 */
-	int	(*op_policy_start) (struct ptlrpc_nrs_policy *policy);
+	int	(*op_policy_start)(struct ptlrpc_nrs_policy *policy);
 	/**
 	 * Called when deactivating a policy via lprocfs; policies deallocate
 	 * their resources here; this operation is optional
@@ -594,7 +594,7 @@ struct ptlrpc_nrs_pol_ops {
 	 *
 	 * \see nrs_policy_stop0()
 	 */
-	void	(*op_policy_stop) (struct ptlrpc_nrs_policy *policy);
+	void	(*op_policy_stop)(struct ptlrpc_nrs_policy *policy);
 	/**
 	 * Used for policy-specific operations; i.e. not generic ones like
 	 * \e PTLRPC_NRS_CTL_START and \e PTLRPC_NRS_CTL_GET_INFO; analogous
@@ -610,8 +610,8 @@ struct ptlrpc_nrs_pol_ops {
 	 *
 	 * \see ptlrpc_nrs_policy_control()
 	 */
-	int	(*op_policy_ctl) (struct ptlrpc_nrs_policy *policy,
-				  enum ptlrpc_nrs_ctl opc, void *arg);
+	int	(*op_policy_ctl)(struct ptlrpc_nrs_policy *policy,
+				 enum ptlrpc_nrs_ctl opc, void *arg);
 
 	/**
 	 * Called when obtaining references to the resources of the resource
@@ -648,11 +648,11 @@ struct ptlrpc_nrs_pol_ops {
 	 * \see ptlrpc_nrs_req_initialize()
 	 * \see ptlrpc_nrs_hpreq_add_nolock()
 	 */
-	int	(*op_res_get) (struct ptlrpc_nrs_policy *policy,
-			       struct ptlrpc_nrs_request *nrq,
-			       const struct ptlrpc_nrs_resource *parent,
-			       struct ptlrpc_nrs_resource **resp,
-			       bool moving_req);
+	int	(*op_res_get)(struct ptlrpc_nrs_policy *policy,
+			      struct ptlrpc_nrs_request *nrq,
+			      const struct ptlrpc_nrs_resource *parent,
+			      struct ptlrpc_nrs_resource **resp,
+			      bool moving_req);
 	/**
 	 * Called when releasing references taken for resources in the resource
 	 * hierarchy for the request; this operation is optional.
@@ -663,8 +663,8 @@ struct ptlrpc_nrs_pol_ops {
 	 * \see ptlrpc_nrs_req_finalize()
 	 * \see ptlrpc_nrs_hpreq_add_nolock()
 	 */
-	void	(*op_res_put) (struct ptlrpc_nrs_policy *policy,
-			       const struct ptlrpc_nrs_resource *res);
+	void	(*op_res_put)(struct ptlrpc_nrs_policy *policy,
+			      const struct ptlrpc_nrs_resource *res);
 
 	/**
 	 * Obtains a request for handling from the policy, and optionally
@@ -683,8 +683,8 @@ struct ptlrpc_nrs_pol_ops {
 	 * \see ptlrpc_nrs_req_get_nolock()
 	 */
 	struct ptlrpc_nrs_request *
-		(*op_req_get) (struct ptlrpc_nrs_policy *policy, bool peek,
-			       bool force);
+		(*op_req_get)(struct ptlrpc_nrs_policy *policy, bool peek,
+			      bool force);
 	/**
 	 * Called when attempting to add a request to a policy for later
 	 * handling; this operation is mandatory.
@@ -697,8 +697,8 @@ struct ptlrpc_nrs_pol_ops {
 	 *
 	 * \see ptlrpc_nrs_req_add_nolock()
 	 */
-	int	(*op_req_enqueue) (struct ptlrpc_nrs_policy *policy,
-				   struct ptlrpc_nrs_request *nrq);
+	int	(*op_req_enqueue)(struct ptlrpc_nrs_policy *policy,
+				  struct ptlrpc_nrs_request *nrq);
 	/**
 	 * Removes a request from the policy's set of pending requests. Normally
 	 * called after a request has been polled successfully from the policy
@@ -707,8 +707,8 @@ struct ptlrpc_nrs_pol_ops {
 	 * \param[in,out] policy The policy the request \a nrq belongs to
 	 * \param[in,out] nrq    The request to dequeue
 	 */
-	void	(*op_req_dequeue) (struct ptlrpc_nrs_policy *policy,
-				   struct ptlrpc_nrs_request *nrq);
+	void	(*op_req_dequeue)(struct ptlrpc_nrs_policy *policy,
+				  struct ptlrpc_nrs_request *nrq);
 	/**
 	 * Called after the request being carried out. Could be used for
 	 * job/resource control; this operation is optional.
@@ -721,8 +721,8 @@ struct ptlrpc_nrs_pol_ops {
 	 *
 	 * \see ptlrpc_nrs_req_stop_nolock()
 	 */
-	void	(*op_req_stop) (struct ptlrpc_nrs_policy *policy,
-				struct ptlrpc_nrs_request *nrq);
+	void	(*op_req_stop)(struct ptlrpc_nrs_policy *policy,
+			       struct ptlrpc_nrs_request *nrq);
 	/**
 	 * Registers the policy's lprocfs interface with a PTLRPC service.
 	 *
@@ -731,7 +731,7 @@ struct ptlrpc_nrs_pol_ops {
 	 * \retval 0	success
 	 * \retval != 0	error
 	 */
-	int	(*op_lprocfs_init) (struct ptlrpc_service *svc);
+	int	(*op_lprocfs_init)(struct ptlrpc_service *svc);
 	/**
 	 * Unegisters the policy's lprocfs interface with a PTLRPC service.
 	 *
@@ -743,7 +743,7 @@ struct ptlrpc_nrs_pol_ops {
 	 *
 	 * \param[in] svc The service
 	 */
-	void	(*op_lprocfs_fini) (struct ptlrpc_service *svc);
+	void	(*op_lprocfs_fini)(struct ptlrpc_service *svc);
 };
 
 /**
