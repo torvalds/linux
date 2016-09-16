@@ -153,6 +153,8 @@ static void del_rule(struct fs_node *node);
 static void del_flow_table(struct fs_node *node);
 static void del_flow_group(struct fs_node *node);
 static void del_fte(struct fs_node *node);
+static bool mlx5_flow_dests_cmp(struct mlx5_flow_destination *d1,
+				struct mlx5_flow_destination *d2);
 
 static void tree_init_node(struct fs_node *node,
 			   unsigned int refcount,
@@ -1064,21 +1066,30 @@ out:
 	return fg;
 }
 
+static bool mlx5_flow_dests_cmp(struct mlx5_flow_destination *d1,
+				struct mlx5_flow_destination *d2)
+{
+	if (d1->type == d2->type) {
+		if ((d1->type == MLX5_FLOW_DESTINATION_TYPE_VPORT &&
+		     d1->vport_num == d2->vport_num) ||
+		    (d1->type == MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE &&
+		     d1->ft == d2->ft) ||
+		    (d1->type == MLX5_FLOW_DESTINATION_TYPE_TIR &&
+		     d1->tir_num == d2->tir_num))
+			return true;
+	}
+
+	return false;
+}
+
 static struct mlx5_flow_rule *find_flow_rule(struct fs_fte *fte,
 					     struct mlx5_flow_destination *dest)
 {
 	struct mlx5_flow_rule *rule;
 
 	list_for_each_entry(rule, &fte->node.children, node.list) {
-		if (rule->dest_attr.type == dest->type) {
-			if ((dest->type == MLX5_FLOW_DESTINATION_TYPE_VPORT &&
-			     dest->vport_num == rule->dest_attr.vport_num) ||
-			    (dest->type == MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE &&
-			     dest->ft == rule->dest_attr.ft) ||
-			    (dest->type == MLX5_FLOW_DESTINATION_TYPE_TIR &&
-			     dest->tir_num == rule->dest_attr.tir_num))
-				return rule;
-		}
+		if (mlx5_flow_dests_cmp(&rule->dest_attr, dest))
+			return rule;
 	}
 	return NULL;
 }
