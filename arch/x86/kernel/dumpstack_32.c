@@ -121,41 +121,6 @@ unknown:
 	return -EINVAL;
 }
 
-void dump_trace(struct task_struct *task, struct pt_regs *regs,
-		unsigned long *stack, unsigned long bp,
-		const struct stacktrace_ops *ops, void *data)
-{
-	unsigned long visit_mask = 0;
-	int graph = 0;
-
-	task = task ? : current;
-	stack = stack ? : get_stack_pointer(task, regs);
-	bp = bp ? : (unsigned long)get_frame_pointer(task, regs);
-
-	for (;;) {
-		const char *begin_str, *end_str;
-		struct stack_info info;
-
-		if (get_stack_info(stack, task, &info, &visit_mask))
-			break;
-
-		stack_type_str(info.type, &begin_str, &end_str);
-
-		if (begin_str && ops->stack(data, begin_str) < 0)
-			break;
-
-		bp = ops->walk_stack(task, stack, bp, ops, data, &info, &graph);
-
-		if (end_str && ops->stack(data, end_str) < 0)
-			break;
-
-		stack = info.next_sp;
-
-		touch_nmi_watchdog();
-	}
-}
-EXPORT_SYMBOL(dump_trace);
-
 void show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
 			unsigned long *sp, char *log_lvl)
 {
