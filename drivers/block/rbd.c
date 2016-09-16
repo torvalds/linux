@@ -2674,7 +2674,7 @@ rbd_img_obj_parent_read_full_callback(struct rbd_img_request *img_request)
 	rbd_assert(obj_request_type_valid(orig_request->type));
 	img_result = img_request->result;
 	parent_length = img_request->length;
-	rbd_assert(parent_length == img_request->xferred);
+	rbd_assert(img_result || parent_length == img_request->xferred);
 	rbd_img_request_put(img_request);
 
 	rbd_assert(orig_request->img_request);
@@ -2727,6 +2727,7 @@ rbd_img_obj_parent_read_full_callback(struct rbd_img_request *img_request)
 	return;
 
 out_err:
+	ceph_release_page_vector(pages, page_count);
 	orig_request->result = img_result;
 	orig_request->xferred = 0;
 	rbd_img_request_get(orig_request->img_request);
