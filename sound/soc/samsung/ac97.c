@@ -74,7 +74,7 @@ static void s3c_ac97_activate(struct snd_ac97 *ac97)
 	writel(ac_glbctrl, s3c_ac97.regs + S3C_AC97_GLBCTRL);
 
 	if (!wait_for_completion_timeout(&s3c_ac97.done, HZ))
-		pr_err("AC97: Unable to activate!");
+		pr_err("AC97: Unable to activate!\n");
 }
 
 static unsigned short s3c_ac97_read(struct snd_ac97 *ac97,
@@ -100,7 +100,7 @@ static unsigned short s3c_ac97_read(struct snd_ac97 *ac97,
 	writel(ac_glbctrl, s3c_ac97.regs + S3C_AC97_GLBCTRL);
 
 	if (!wait_for_completion_timeout(&s3c_ac97.done, HZ))
-		pr_err("AC97: Unable to read!");
+		pr_err("AC97: Unable to read!\n");
 
 	stat = readl(s3c_ac97.regs + S3C_AC97_STAT);
 	addr = (stat >> 16) & 0x7f;
@@ -137,7 +137,7 @@ static void s3c_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 	writel(ac_glbctrl, s3c_ac97.regs + S3C_AC97_GLBCTRL);
 
 	if (!wait_for_completion_timeout(&s3c_ac97.done, HZ))
-		pr_err("AC97: Unable to write!");
+		pr_err("AC97: Unable to write!\n");
 
 	ac_codec_cmd = readl(s3c_ac97.regs + S3C_AC97_CODEC_CMD);
 	ac_codec_cmd |= S3C_AC97_CODEC_CMD_READ;
