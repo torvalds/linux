@@ -1433,6 +1433,9 @@ unsigned int i2c_adapter_depth(struct i2c_adapter *adapter)
 	while ((adapter = i2c_parent_is_i2c_adapter(adapter)))
 		depth++;
 
+	WARN_ONCE(depth >= MAX_LOCKDEP_SUBCLASSES,
+		  "adapter depth exceeds lockdep subclass limit\n");
+
 	return depth;
 }
 EXPORT_SYMBOL_GPL(i2c_adapter_depth);
