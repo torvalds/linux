@@ -370,9 +370,7 @@ static int process_pool_aeb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 			    struct ubi_vid_hdr *new_vh,
 			    struct ubi_ainf_peb *new_aeb)
 {
-	struct ubi_ainf_volume *av, *tmp_av = NULL;
-	struct rb_node **p = &ai->volumes.rb_node, *parent = NULL;
-	int found = 0;
+	struct ubi_ainf_volume *av;
 
 	if (be32_to_cpu(new_vh->vol_id) == UBI_FM_SB_VOLUME_ID ||
 		be32_to_cpu(new_vh->vol_id) == UBI_FM_DATA_VOLUME_ID) {
@@ -382,23 +380,8 @@ static int process_pool_aeb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 	}
 
 	/* Find the volume this SEB belongs to */
-	while (*p) {
-		parent = *p;
-		tmp_av = rb_entry(parent, struct ubi_ainf_volume, rb);
-
-		if (be32_to_cpu(new_vh->vol_id) > tmp_av->vol_id)
-			p = &(*p)->rb_left;
-		else if (be32_to_cpu(new_vh->vol_id) < tmp_av->vol_id)
-			p = &(*p)->rb_right;
-		else {
-			found = 1;
-			break;
-		}
-	}
-
-	if (found)
-		av = tmp_av;
-	else {
+	av = ubi_find_av(ai, be32_to_cpu(new_vh->vol_id));
+	if (!av) {
 		ubi_err(ubi, "orphaned volume in fastmap pool!");
 		kmem_cache_free(ai->aeb_slab_cache, new_aeb);
 		return UBI_BAD_FASTMAP;
