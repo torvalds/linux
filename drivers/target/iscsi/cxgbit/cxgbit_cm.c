@@ -24,6 +24,7 @@
 #include <net/ip6_route.h>
 #include <net/addrconf.h>
 
+#include <libcxgb_cm.h>
 #include "cxgbit.h"
 #include "clip_tbl.h"
 
@@ -70,15 +71,6 @@ out:
 		pr_info("%s: FW reply %d tid %u\n",
 			pci_name(cdev->lldi.pdev), wr_waitp->ret, tid);
 	return wr_waitp->ret;
-}
-
-/* Returns whether a CPL status conveys negative advice.
- */
-static int cxgbit_is_neg_adv(unsigned int status)
-{
-	return status == CPL_ERR_RTX_NEG_ADVICE ||
-		status == CPL_ERR_PERSIST_NEG_ADVICE ||
-		status == CPL_ERR_KEEPALV_NEG_ADVICE;
 }
 
 static int cxgbit_np_hashfn(const struct cxgbit_np *cnp)
@@ -623,21 +615,14 @@ void cxgbit_free_np(struct iscsi_np *np)
 static void cxgbit_send_halfclose(struct cxgbit_sock *csk)
 {
 	struct sk_buff *skb;
-	struct cpl_close_con_req *req;
-	unsigned int len = roundup(sizeof(struct cpl_close_con_req), 16);
+	u32 len = roundup(sizeof(struct cpl_close_con_req), 16);
 
 	skb = alloc_skb(len, GFP_ATOMIC);
 	if (!skb)
 		return;
 
-	req = (struct cpl_close_con_req *)__skb_put(skb, len);
-	memset(req, 0, len);
-
-	set_wr_txq(skb, CPL_PRIORITY_DATA, csk->txq_idx);
-	INIT_TP_WR(req, csk->tid);
-	OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(CPL_CLOSE_CON_REQ,
-						    csk->tid));
-	req->rsvd = 0;
+	cxgb_mk_close_con_req(skb, len, csk->tid, csk->txq_idx,
+			      NULL, NULL);
 
 	cxgbit_skcb_flags(skb) |= SKCBF_TX_FLAG_COMPL;
 	__skb_queue_tail(&csk->txq, skb);
@@ -662,9 +647,8 @@ static void cxgbit_abort_arp_failure(void *handle, struct sk_buff *skb)
 
 static int cxgbit_send_abort_req(struct cxgbit_sock *csk)
 {
-	struct cpl_abort_req *req;
-	unsigned int len = roundup(sizeof(*req), 16);
 	struct sk_buff *skb;
+	u32 len = roundup(sizeof(struct cpl_abort_req), 16);
 
 	pr_debug("%s: csk %p tid %u; state %d\n",
 		 __func__, csk, csk->tid, csk->com.state);
@@ -675,15 +659,9 @@ static int cxgbit_send_abort_req(struct cxgbit_sock *csk)
 		cxgbit_send_tx_flowc_wr(csk);
 
 	skb = __skb_dequeue(&csk->skbq);
-	req = (struct cpl_abort_req *)__skb_put(skb, len);
-	memset(req, 0, len);
+	cxgb_mk_abort_req(skb, len, csk->tid, csk->txq_idx,
+			  csk->com.cdev, cxgbit_abort_arp_failure);
 
-	set_wr_txq(skb, CPL_PRIORITY_DATA, csk->txq_idx);
-	t4_set_arp_err_handler(skb, csk->com.cdev, cxgbit_abort_arp_failure);
-	INIT_TP_WR(req, csk->tid);
-	OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(CPL_ABORT_REQ,
-						    csk->tid));
-	req->cmd = CPL_ABORT_SEND_RST;
 	return cxgbit_l2t_send(csk->com.cdev, skb, csk->l2t);
 }
 
@@ -787,109 +765,6 @@ void _cxgbit_free_csk(struct kref *kref)
 	cxgbit_put_cdev(cdev);
 
 	kfree(csk);
-}
-
-static void
-cxgbit_get_tuple_info(struct cpl_pass_accept_req *req, int *iptype,
-		      __u8 *local_ip, __u8 *peer_ip, __be16 *local_port,
-		      __be16 *peer_port)
-{
-	u32 eth_len = ETH_HDR_LEN_G(be32_to_cpu(req->hdr_len));
-	u32 ip_len = IP_HDR_LEN_G(be32_to_cpu(req->hdr_len));
-	struct iphdr *ip = (struct iphdr *)((u8 *)(req + 1) + eth_len);
-	struct ipv6hdr *ip6 = (struct ipv6hdr *)((u8 *)(req + 1) + eth_len);
-	struct tcphdr *tcp = (struct tcphdr *)
-			      ((u8 *)(req + 1) + eth_len + ip_len);
-
-	if (ip->version == 4) {
-		pr_debug("%s saddr 0x%x daddr 0x%x sport %u dport %u\n",
-			 __func__,
-			 ntohl(ip->saddr), ntohl(ip->daddr),
-			 ntohs(tcp->source),
-			 ntohs(tcp->dest));
-		*iptype = 4;
-		memcpy(peer_ip, &ip->saddr, 4);
-		memcpy(local_ip, &ip->daddr, 4);
-	} else {
-		pr_debug("%s saddr %pI6 daddr %pI6 sport %u dport %u\n",
-			 __func__,
-			 ip6->saddr.s6_addr, ip6->daddr.s6_addr,
-			 ntohs(tcp->source),
-			 ntohs(tcp->dest));
-		*iptype = 6;
-		memcpy(peer_ip, ip6->saddr.s6_addr, 16);
-		memcpy(local_ip, ip6->daddr.s6_addr, 16);
-	}
-
-	*peer_port = tcp->source;
-	*local_port = tcp->dest;
-}
-
-static int
-cxgbit_our_interface(struct cxgbit_device *cdev, struct net_device *egress_dev)
-{
-	u8 i;
-
-	egress_dev = cxgbit_get_real_dev(egress_dev);
-	for (i = 0; i < cdev->lldi.nports; i++)
-		if (cdev->lldi.ports[i] == egress_dev)
-			return 1;
-	return 0;
-}
-
-static struct dst_entry *
-cxgbit_find_route6(struct cxgbit_device *cdev, __u8 *local_ip, __u8 *peer_ip,
-		   __be16 local_port, __be16 peer_port, u8 tos,
-		   __u32 sin6_scope_id)
-{
-	struct dst_entry *dst = NULL;
-
-	if (IS_ENABLED(CONFIG_IPV6)) {
-		struct flowi6 fl6;
-
-		memset(&fl6, 0, sizeof(fl6));
-		memcpy(&fl6.daddr, peer_ip, 16);
-		memcpy(&fl6.saddr, local_ip, 16);
-		if (ipv6_addr_type(&fl6.daddr) & IPV6_ADDR_LINKLOCAL)
-			fl6.flowi6_oif = sin6_scope_id;
-		dst = ip6_route_output(&init_net, NULL, &fl6);
-		if (!dst)
-			goto out;
-		if (!cxgbit_our_interface(cdev, ip6_dst_idev(dst)->dev) &&
-		    !(ip6_dst_idev(dst)->dev->flags & IFF_LOOPBACK)) {
-			dst_release(dst);
-			dst = NULL;
-		}
-	}
-out:
-	return dst;
-}
-
-static struct dst_entry *
-cxgbit_find_route(struct cxgbit_device *cdev, __be32 local_ip, __be32 peer_ip,
-		  __be16 local_port, __be16 peer_port, u8 tos)
-{
-	struct rtable *rt;
-	struct flowi4 fl4;
-	struct neighbour *n;
-
-	rt = ip_route_output_ports(&init_net, &fl4, NULL, peer_ip,
-				   local_ip,
-				   peer_port, local_port, IPPROTO_TCP,
-				   tos, 0);
-	if (IS_ERR(rt))
-		return NULL;
-	n = dst_neigh_lookup(&rt->dst, &peer_ip);
-	if (!n)
-		return NULL;
-	if (!cxgbit_our_interface(cdev, n->dev) &&
-	    !(n->dev->flags & IFF_LOOPBACK)) {
-		neigh_release(n);
-		dst_release(&rt->dst);
-		return NULL;
-	}
-	neigh_release(n);
-	return &rt->dst;
 }
 
 static void cxgbit_set_tcp_window(struct cxgbit_sock *csk, struct port_info *pi)
@@ -1072,21 +947,14 @@ int cxgbit_ofld_send(struct cxgbit_device *cdev, struct sk_buff *skb)
 
 static void cxgbit_release_tid(struct cxgbit_device *cdev, u32 tid)
 {
-	struct cpl_tid_release *req;
-	unsigned int len = roundup(sizeof(*req), 16);
+	u32 len = roundup(sizeof(struct cpl_tid_release), 16);
 	struct sk_buff *skb;
 
 	skb = alloc_skb(len, GFP_ATOMIC);
 	if (!skb)
 		return;
 
-	req = (struct cpl_tid_release *)__skb_put(skb, len);
-	memset(req, 0, len);
-
-	INIT_TP_WR(req, tid);
-	OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(
-		   CPL_TID_RELEASE, tid));
-	set_wr_txq(skb, CPL_PRIORITY_SETUP, 0);
+	cxgb_mk_tid_release(skb, len, tid, 0);
 	cxgbit_ofld_send(cdev, skb);
 }
 
@@ -1108,20 +976,6 @@ cxgbit_l2t_send(struct cxgbit_device *cdev, struct sk_buff *skb,
 	return ret < 0 ? ret : 0;
 }
 
-static void
-cxgbit_best_mtu(const unsigned short *mtus, unsigned short mtu,
-		unsigned int *idx, int use_ts, int ipv6)
-{
-	unsigned short hdr_size = (ipv6 ? sizeof(struct ipv6hdr) :
-				   sizeof(struct iphdr)) +
-				   sizeof(struct tcphdr) +
-				   (use_ts ? round_up(TCPOLEN_TIMESTAMP,
-				    4) : 0);
-	unsigned short data_size = mtu - hdr_size;
-
-	cxgb4_best_aligned_mtu(mtus, hdr_size, data_size, 8, idx);
-}
-
 static void cxgbit_send_rx_credits(struct cxgbit_sock *csk, struct sk_buff *skb)
 {
 	if (csk->com.state != CSK_STATE_ESTABLISHED) {
@@ -1140,22 +994,18 @@ static void cxgbit_send_rx_credits(struct cxgbit_sock *csk, struct sk_buff *skb)
 int cxgbit_rx_data_ack(struct cxgbit_sock *csk)
 {
 	struct sk_buff *skb;
-	struct cpl_rx_data_ack *req;
-	unsigned int len = roundup(sizeof(*req), 16);
+	u32 len = roundup(sizeof(struct cpl_rx_data_ack), 16);
+	u32 credit_dack;
 
 	skb = alloc_skb(len, GFP_KERNEL);
 	if (!skb)
 		return -1;
 
-	req = (struct cpl_rx_data_ack *)__skb_put(skb, len);
-	memset(req, 0, len);
+	credit_dack = RX_DACK_CHANGE_F | RX_DACK_MODE_V(1) |
+		      RX_CREDITS_V(csk->rx_credits);
 
-	set_wr_txq(skb, CPL_PRIORITY_ACK, csk->ctrlq_idx);
-	INIT_TP_WR(req, csk->tid);
-	OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(CPL_RX_DATA_ACK,
-						    csk->tid));
-	req->credit_dack = cpu_to_be32(RX_DACK_CHANGE_F | RX_DACK_MODE_V(1) |
-				       RX_CREDITS_V(csk->rx_credits));
+	cxgb_mk_rx_data_ack(skb, len, csk->tid, csk->ctrlq_idx,
+			    credit_dack);
 
 	csk->rx_credits = 0;
 
@@ -1210,15 +1060,6 @@ out:
 	return -ENOMEM;
 }
 
-static u32 cxgbit_compute_wscale(u32 win)
-{
-	u32 wscale = 0;
-
-	while (wscale < 14 && (65535 << wscale) < win)
-		wscale++;
-	return wscale;
-}
-
 static void
 cxgbit_pass_accept_rpl(struct cxgbit_sock *csk, struct cpl_pass_accept_req *req)
 {
@@ -1246,10 +1087,10 @@ cxgbit_pass_accept_rpl(struct cxgbit_sock *csk, struct cpl_pass_accept_req *req)
 	INIT_TP_WR(rpl5, csk->tid);
 	OPCODE_TID(rpl5) = cpu_to_be32(MK_OPCODE_TID(CPL_PASS_ACCEPT_RPL,
 						     csk->tid));
-	cxgbit_best_mtu(csk->com.cdev->lldi.mtus, csk->mtu, &mtu_idx,
-			req->tcpopt.tstamp,
-			(csk->com.remote_addr.ss_family == AF_INET) ? 0 : 1);
-	wscale = cxgbit_compute_wscale(csk->rcv_win);
+	cxgb_best_mtu(csk->com.cdev->lldi.mtus, csk->mtu, &mtu_idx,
+		      req->tcpopt.tstamp,
+		      (csk->com.remote_addr.ss_family == AF_INET) ? 0 : 1);
+	wscale = cxgb_compute_wscale(csk->rcv_win);
 	/*
 	 * Specify the largest window that will fit in opt0. The
 	 * remainder will be specified in the rx_data_ack.
@@ -1340,8 +1181,8 @@ cxgbit_pass_accept_req(struct cxgbit_device *cdev, struct sk_buff *skb)
 		goto rel_skb;
 	}
 
-	cxgbit_get_tuple_info(req, &iptype, local_ip, peer_ip,
-			      &local_port, &peer_port);
+	cxgb_get_4tuple(req, cdev->lldi.adapter_type, &iptype, local_ip,
+			peer_ip, &local_port, &peer_port);
 
 	/* Find output route */
 	if (iptype == 4)  {
@@ -1350,21 +1191,23 @@ cxgbit_pass_accept_req(struct cxgbit_device *cdev, struct sk_buff *skb)
 			 , __func__, cnp, tid,
 			 local_ip, peer_ip, ntohs(local_port),
 			 ntohs(peer_port), peer_mss);
-		dst = cxgbit_find_route(cdev, *(__be32 *)local_ip,
-					*(__be32 *)peer_ip,
-					local_port, peer_port,
-					PASS_OPEN_TOS_G(ntohl(req->tos_stid)));
+		dst = cxgb_find_route(&cdev->lldi, cxgbit_get_real_dev,
+				      *(__be32 *)local_ip,
+				      *(__be32 *)peer_ip,
+				      local_port, peer_port,
+				      PASS_OPEN_TOS_G(ntohl(req->tos_stid)));
 	} else {
 		pr_debug("%s parent sock %p tid %u laddr %pI6 raddr %pI6 "
 			 "lport %d rport %d peer_mss %d\n"
 			 , __func__, cnp, tid,
 			 local_ip, peer_ip, ntohs(local_port),
 			 ntohs(peer_port), peer_mss);
-		dst = cxgbit_find_route6(cdev, local_ip, peer_ip,
-					 local_port, peer_port,
-					 PASS_OPEN_TOS_G(ntohl(req->tos_stid)),
-					 ((struct sockaddr_in6 *)
-					 &cnp->com.local_addr)->sin6_scope_id);
+		dst = cxgb_find_route6(&cdev->lldi, cxgbit_get_real_dev,
+				       local_ip, peer_ip,
+				       local_port, peer_port,
+				       PASS_OPEN_TOS_G(ntohl(req->tos_stid)),
+				       ((struct sockaddr_in6 *)
+					&cnp->com.local_addr)->sin6_scope_id);
 	}
 	if (!dst) {
 		pr_err("%s - failed to find dst entry!\n",
@@ -1795,16 +1638,15 @@ static void cxgbit_abort_req_rss(struct cxgbit_sock *csk, struct sk_buff *skb)
 {
 	struct cpl_abort_req_rss *hdr = cplhdr(skb);
 	unsigned int tid = GET_TID(hdr);
-	struct cpl_abort_rpl *rpl;
 	struct sk_buff *rpl_skb;
 	bool release = false;
 	bool wakeup_thread = false;
-	unsigned int len = roundup(sizeof(*rpl), 16);
+	u32 len = roundup(sizeof(struct cpl_abort_rpl), 16);
 
 	pr_debug("%s: csk %p; tid %u; state %d\n",
 		 __func__, csk, tid, csk->com.state);
 
-	if (cxgbit_is_neg_adv(hdr->status)) {
+	if (cxgb_is_neg_adv(hdr->status)) {
 		pr_err("%s: got neg advise %d on tid %u\n",
 		       __func__, hdr->status, tid);
 		goto rel_skb;
@@ -1839,14 +1681,8 @@ static void cxgbit_abort_req_rss(struct cxgbit_sock *csk, struct sk_buff *skb)
 		cxgbit_send_tx_flowc_wr(csk);
 
 	rpl_skb = __skb_dequeue(&csk->skbq);
-	set_wr_txq(skb, CPL_PRIORITY_DATA, csk->txq_idx);
 
-	rpl = (struct cpl_abort_rpl *)__skb_put(rpl_skb, len);
-	memset(rpl, 0, len);
-
-	INIT_TP_WR(rpl, csk->tid);
-	OPCODE_TID(rpl) = cpu_to_be32(MK_OPCODE_TID(CPL_ABORT_RPL, tid));
-	rpl->cmd = CPL_ABORT_NO_RST;
+	cxgb_mk_abort_rpl(rpl_skb, len, csk->tid, csk->txq_idx);
 	cxgbit_ofld_send(csk->com.cdev, rpl_skb);
 
 	if (wakeup_thread) {
