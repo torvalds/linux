@@ -111,17 +111,17 @@ static void Update_ODM_ComInfo_88E(struct adapter *Adapter)
 
 	dm_odm->SupportAbility = pdmpriv->InitODMFlag;
 
-	ODM_CmnInfoHook(dm_odm, ODM_CMNINFO_TX_UNI, &(Adapter->xmitpriv.tx_bytes));
-	ODM_CmnInfoHook(dm_odm, ODM_CMNINFO_RX_UNI, &(Adapter->recvpriv.rx_bytes));
-	ODM_CmnInfoHook(dm_odm, ODM_CMNINFO_WM_MODE, &(pmlmeext->cur_wireless_mode));
-	ODM_CmnInfoHook(dm_odm, ODM_CMNINFO_SEC_CHNL_OFFSET, &(hal_data->nCur40MhzPrimeSC));
-	ODM_CmnInfoHook(dm_odm, ODM_CMNINFO_SEC_MODE, &(Adapter->securitypriv.dot11PrivacyAlgrthm));
-	ODM_CmnInfoHook(dm_odm, ODM_CMNINFO_BW, &(hal_data->CurrentChannelBW));
-	ODM_CmnInfoHook(dm_odm, ODM_CMNINFO_CHNL, &(hal_data->CurrentChannel));
-	ODM_CmnInfoHook(dm_odm, ODM_CMNINFO_NET_CLOSED, &(Adapter->net_closed));
-	ODM_CmnInfoHook(dm_odm, ODM_CMNINFO_MP_MODE, &(Adapter->registrypriv.mp_mode));
-	ODM_CmnInfoHook(dm_odm, ODM_CMNINFO_SCAN, &(pmlmepriv->bScanInProcess));
-	ODM_CmnInfoHook(dm_odm, ODM_CMNINFO_POWER_SAVING, &(pwrctrlpriv->bpower_saving));
+	dm_odm->pNumTxBytesUnicast = &Adapter->xmitpriv.tx_bytes;
+	dm_odm->pNumRxBytesUnicast = &Adapter->recvpriv.rx_bytes;
+	dm_odm->pWirelessMode = &pmlmeext->cur_wireless_mode;
+	dm_odm->pSecChOffset = &hal_data->nCur40MhzPrimeSC;
+	dm_odm->pSecurity = (u8 *)&Adapter->securitypriv.dot11PrivacyAlgrthm;
+	dm_odm->pBandWidth = (u8 *)&hal_data->CurrentChannelBW;
+	dm_odm->pChannel = &hal_data->CurrentChannel;
+	dm_odm->pbNet_closed = (bool *)&Adapter->net_closed;
+	dm_odm->mp_mode = &Adapter->registrypriv.mp_mode;
+	dm_odm->pbScanInProcess = (bool *)&pmlmepriv->bScanInProcess;
+	dm_odm->pbPowerSaving = (bool *)&pwrctrlpriv->bpower_saving;
 	ODM_CmnInfoInit(dm_odm, ODM_CMNINFO_RF_ANTENNA_TYPE, hal_data->TRxAntDivType);
 
 	for (i = 0; i < NUM_STA; i++)
