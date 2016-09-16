@@ -94,7 +94,7 @@ get_frame_pointer(struct task_struct *task, struct pt_regs *regs)
 	if (regs)
 		return (unsigned long *)regs->bp;
 
-	if (!task || task == current)
+	if (task == current)
 		return __builtin_frame_address(0);
 
 	return (unsigned long *)((struct inactive_task_frame *)task->thread.sp)->bp;
@@ -113,7 +113,7 @@ get_stack_pointer(struct task_struct *task, struct pt_regs *regs)
 	if (regs)
 		return (unsigned long *)kernel_stack_pointer(regs);
 
-	if (!task || task == current)
+	if (task == current)
 		return __builtin_frame_address(0);
 
 	return (unsigned long *)task->thread.sp;

@@ -205,7 +205,7 @@ void show_regs(struct pt_regs *regs)
 		u8 *ip;
 
 		pr_emerg("Stack:\n");
-		show_stack_log_lvl(NULL, regs, NULL, 0, KERN_EMERG);
+		show_stack_log_lvl(current, regs, NULL, 0, KERN_EMERG);
 
 		pr_emerg("Code:");
 

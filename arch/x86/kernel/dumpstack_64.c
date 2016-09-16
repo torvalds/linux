@@ -278,7 +278,7 @@ void show_regs(struct pt_regs *regs)
 		u8 *ip;
 
 		printk(KERN_DEFAULT "Stack:\n");
-		show_stack_log_lvl(NULL, regs, NULL, 0, KERN_DEFAULT);
+		show_stack_log_lvl(current, regs, NULL, 0, KERN_DEFAULT);
 
 		printk(KERN_DEFAULT "Code: ");
 
