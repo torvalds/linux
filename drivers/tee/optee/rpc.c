@@ -385,7 +385,7 @@ void optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param)
 	case OPTEE_SMC_RPC_FUNC_IRQ:
 		/*
 		 * An IRQ was raised while secure world was executing,
-		 * since all IRQs a handled in Linux a dummy RPC is
+		 * since all IRQs are handled in Linux a dummy RPC is
 		 * performed to let Linux take the IRQ through the normal
 		 * vector.
 		 */

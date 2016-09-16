@@ -56,7 +56,7 @@
 #define OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT		0xa
 #define OPTEE_MSG_ATTR_TYPE_TMEM_INOUT		0xb
 
-#define OPTEE_MSG_ATTR_TYPE_MASK		0xff
+#define OPTEE_MSG_ATTR_TYPE_MASK		GENMASK(7, 0)
 
 /*
  * Meta parameter to be absorbed by the Secure OS and not passed
@@ -81,7 +81,7 @@
  * bearer of this protocol OPTEE_SMC_SHM_* is used for values.
  */
 #define OPTEE_MSG_ATTR_CACHE_SHIFT		16
-#define OPTEE_MSG_ATTR_CACHE_MASK		0x7
+#define OPTEE_MSG_ATTR_CACHE_MASK		GENMASK(2, 0)
 #define OPTEE_MSG_ATTR_CACHE_PREDEFINED		0
 
 /*
@@ -95,7 +95,7 @@
 #define OPTEE_MSG_LOGIN_APPLICATION_GROUP	0x00000006
 
 /**
- * struct optee_msg_param_tmem - temporary memory reference
+ * struct optee_msg_param_tmem - temporary memory reference parameter
  * @buf_ptr:	Address of the buffer
  * @size:	Size of the buffer
  * @shm_ref:	Temporary shared memory reference, pointer to a struct tee_shm
@@ -114,7 +114,7 @@ struct optee_msg_param_tmem {
 };
 
 /**
- * struct optee_msg_param_rmem - registered memory reference
+ * struct optee_msg_param_rmem - registered memory reference parameter
  * @offs:	Offset into shared memory reference
  * @size:	Size of the buffer
  * @shm_ref:	Shared memory reference, pointer to a struct tee_shm
@@ -126,10 +126,9 @@ struct optee_msg_param_rmem {
 };
 
 /**
- * struct optee_msg_param_value - values
- * @a: first value
- * @b: second value
- * @c: third value
+ * struct optee_msg_param_value - opaque value parameter
+ *
+ * Value parameters are passed unchecked between normal and secure world.
  */
 struct optee_msg_param_value {
 	u64 a;
@@ -138,10 +137,11 @@ struct optee_msg_param_value {
 };
 
 /**
- * struct optee_msg_param - parameter
- * @attr: attributes
- * @memref: a memory reference
- * @value: a value
+ * struct optee_msg_param - parameter used together with struct optee_msg_arg
+ * @attr:	attributes
+ * @tmem:	parameter by temporary memory reference
+ * @rmem:	parameter by registered memory reference
+ * @value:	parameter by opaque value
  *
  * @attr & OPTEE_MSG_ATTR_TYPE_MASK indicates if tmem, rmem or value is used in
  * the union. OPTEE_MSG_ATTR_TYPE_VALUE_* indicates value,
@@ -236,7 +236,7 @@ struct optee_msg_arg {
 
 /*
  * Return the following UID if using API specified in this file without
- * further extentions:
+ * further extensions:
  * 384fb3e0-e7f8-11e3-af63-0002a5d5c51b.
  * Represented in 4 32-bit words in OPTEE_MSG_UID_0, OPTEE_MSG_UID_1,
  * OPTEE_MSG_UID_2, OPTEE_MSG_UID_3.
@@ -249,7 +249,7 @@ struct optee_msg_arg {
 
 /*
  * Returns 2.0 if using API specified in this file without further
- * extentions. Represented in 2 32-bit words in OPTEE_MSG_REVISION_MAJOR
+ * extensions. Represented in 2 32-bit words in OPTEE_MSG_REVISION_MAJOR
  * and OPTEE_MSG_REVISION_MINOR
  */
 #define OPTEE_MSG_REVISION_MAJOR	2

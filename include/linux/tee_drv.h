@@ -157,7 +157,7 @@ void tee_device_unregister(struct tee_device *teedev);
  */
 struct tee_shm_pool_mem_info {
 	unsigned long vaddr;
-	unsigned long paddr;
+	phys_addr_t paddr;
 	size_t size;
 };
 

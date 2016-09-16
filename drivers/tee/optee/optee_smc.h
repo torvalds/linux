@@ -84,6 +84,13 @@
 			   ARM_SMCCC_OWNER_TRUSTED_OS_END, \
 			   OPTEE_SMC_FUNCID_CALLS_REVISION)
 
+struct optee_smc_calls_revision_result {
+	unsigned long major;
+	unsigned long minor;
+	unsigned long reserved0;
+	unsigned long reserved1;
+};
+
 /*
  * Get UUID of Trusted OS.
  *
@@ -183,6 +190,13 @@
 #define OPTEE_SMC_GET_SHM_CONFIG \
 	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_GET_SHM_CONFIG)
 
+struct optee_smc_get_shm_config_result {
+	unsigned long status;
+	unsigned long start;
+	unsigned long size;
+	unsigned long settings;
+};
+
 /*
  * Exchanges capabilities between normal world and secure world
  *
@@ -211,6 +225,13 @@
 #define OPTEE_SMC_FUNCID_EXCHANGE_CAPABILITIES	9
 #define OPTEE_SMC_EXCHANGE_CAPABILITIES \
 	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_EXCHANGE_CAPABILITIES)
+
+struct optee_smc_exchange_capabilities_result {
+	unsigned long status;
+	unsigned long capabilities;
+	unsigned long reserved0;
+	unsigned long reserved1;
+};
 
 /*
  * Disable and empties cache of shared memory objects
@@ -243,6 +264,13 @@
 #define OPTEE_SMC_FUNCID_DISABLE_SHM_CACHE	10
 #define OPTEE_SMC_DISABLE_SHM_CACHE \
 	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_DISABLE_SHM_CACHE)
+
+struct optee_smc_disable_shm_cache_result {
+	unsigned long status;
+	unsigned long shm_upper32;
+	unsigned long shm_lower32;
+	unsigned long reserved0;
+};
 
 /*
  * Enable cache of shared memory objects

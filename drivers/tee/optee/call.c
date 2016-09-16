@@ -32,15 +32,17 @@ static void optee_cq_wait_init(struct optee_call_queue *cq,
 			       struct optee_call_waiter *w)
 {
 	mutex_lock(&cq->mutex);
+
 	/*
 	 * We add ourselves to the queue, but we don't wait. This
-	 * guarentees that we don't lose a completion if secure world
+	 * guarantees that we don't lose a completion if secure world
 	 * returns busy and another thread just exited and try to complete
 	 * someone.
 	 */
 	w->completed = false;
 	init_completion(&w->c);
 	list_add_tail(&w->list_node, &cq->waiters);
+
 	mutex_unlock(&cq->mutex);
 }
 
@@ -101,6 +103,7 @@ static struct optee_session *find_session(struct optee_context_data *ctxdata,
 	list_for_each_entry(sess, &ctxdata->sess_list, list_node)
 		if (sess->session_id == session_id)
 			return sess;
+
 	return NULL;
 }
 
@@ -149,11 +152,13 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 			break;
 		}
 	}
+
 	/*
 	 * We're done with our thread in secure world, if there's any
 	 * thread waiters wake up one.
 	 */
 	optee_cq_wait_final(&optee->call_queue, &w);
+
 	return ret;
 }
 
@@ -169,11 +174,13 @@ static struct tee_shm *get_msg_arg(struct tee_context *ctx, size_t num_params,
 			    TEE_SHM_MAPPED);
 	if (IS_ERR(shm))
 		return shm;
+
 	ma = tee_shm_get_va(shm, 0);
 	if (IS_ERR(ma)) {
 		rc = PTR_ERR(ma);
 		goto out;
 	}
+
 	rc = tee_shm_get_pa(shm, 0, msg_parg);
 	if (rc)
 		goto out;
@@ -186,6 +193,7 @@ out:
 		tee_shm_free(shm);
 		return ERR_PTR(rc);
 	}
+
 	return shm;
 }
 
@@ -243,7 +251,8 @@ int optee_open_session(struct tee_context *ctx,
 		mutex_lock(&ctxdata->mutex);
 		list_add(&sess->list_node, &ctxdata->sess_list);
 		mutex_unlock(&ctxdata->mutex);
-		sess = NULL;
+	} else {
+		kfree(sess);
 	}
 
 	if (optee_from_msg_param(param, arg->num_params, msg_param + 2)) {
@@ -257,8 +266,8 @@ int optee_open_session(struct tee_context *ctx,
 		arg->ret_origin = msg_arg->ret_origin;
 	}
 out:
-	kfree(sess);
 	tee_shm_free(shm);
+
 	return rc;
 }
 
@@ -403,16 +412,20 @@ void optee_disable_shm_cache(struct optee *optee)
 	/* We need to retry until secure world isn't busy. */
 	optee_cq_wait_init(&optee->call_queue, &w);
 	while (true) {
-		struct arm_smccc_res res;
+		union {
+			struct arm_smccc_res smccc;
+			struct optee_smc_disable_shm_cache_result result;
+		} res;
 
 		optee->invoke_fn(OPTEE_SMC_DISABLE_SHM_CACHE, 0, 0, 0, 0, 0, 0,
-				 0, &res);
-		if (res.a0 == OPTEE_SMC_RETURN_ENOTAVAIL)
+				 0, &res.smccc);
+		if (res.result.status == OPTEE_SMC_RETURN_ENOTAVAIL)
 			break; /* All shm's freed */
-		if (res.a0 == OPTEE_SMC_RETURN_OK) {
+		if (res.result.status == OPTEE_SMC_RETURN_OK) {
 			struct tee_shm *shm;
 
-			shm = reg_pair_to_ptr(res.a1, res.a2);
+			shm = reg_pair_to_ptr(res.result.shm_upper32,
+					      res.result.shm_lower32);
 			tee_shm_free(shm);
 		} else {
 			optee_cq_wait_for_completion(&optee->call_queue, &w);

@@ -80,7 +80,7 @@ int optee_from_msg_param(struct tee_param *params, size_t num_params,
 			rc = tee_shm_get_pa(shm, 0, &pa);
 			if (rc)
 				return rc;
-			p->u.memref.shm_offs = pa - mp->u.tmem.buf_ptr;
+			p->u.memref.shm_offs = mp->u.tmem.buf_ptr - pa;
 			p->u.memref.shm = shm;
 
 			/* Check that the memref is covered by the shm object */
@@ -210,6 +210,8 @@ static void optee_release(struct tee_context *ctx)
 	struct tee_shm *shm;
 	struct optee_msg_arg *arg = NULL;
 	phys_addr_t parg;
+	struct optee_session *sess;
+	struct optee_session *sess_tmp;
 
 	if (!ctxdata)
 		return;
@@ -220,21 +222,15 @@ static void optee_release(struct tee_context *ctx)
 		/*
 		 * If va2pa fails for some reason, we can't call
 		 * optee_close_session(), only free the memory. Secure OS
-		 * will leak sessions and finally refuse more session, but
+		 * will leak sessions and finally refuse more sessions, but
 		 * we will at least let normal world reclaim its memory.
 		 */
 		if (!IS_ERR(arg))
 			tee_shm_va2pa(shm, arg, &parg);
 	}
 
-	while (true) {
-		struct optee_session *sess;
-
-		sess = list_first_entry_or_null(&ctxdata->sess_list,
-						struct optee_session,
-						list_node);
-		if (!sess)
-			break;
+	list_for_each_entry_safe(sess, sess_tmp, &ctxdata->sess_list,
+				 list_node) {
 		list_del(&sess->list_node);
 		if (!IS_ERR_OR_NULL(arg)) {
 			memset(arg, 0, sizeof(*arg));
@@ -303,12 +299,15 @@ static bool optee_msg_api_uid_is_optee_api(optee_invoke_fn *invoke_fn)
 
 static bool optee_msg_api_revision_is_compatible(optee_invoke_fn *invoke_fn)
 {
-	struct arm_smccc_res res;
+	union {
+		struct arm_smccc_res smccc;
+		struct optee_smc_calls_revision_result result;
+	} res;
 
-	invoke_fn(OPTEE_SMC_CALLS_REVISION, 0, 0, 0, 0, 0, 0, 0, &res);
+	invoke_fn(OPTEE_SMC_CALLS_REVISION, 0, 0, 0, 0, 0, 0, 0, &res.smccc);
 
-	if (res.a0 == OPTEE_MSG_REVISION_MAJOR &&
-	    (int)res.a1 >= OPTEE_MSG_REVISION_MINOR)
+	if (res.result.major == OPTEE_MSG_REVISION_MAJOR &&
+	    (int)res.result.minor >= OPTEE_MSG_REVISION_MINOR)
 		return true;
 	return false;
 }
@@ -316,7 +315,10 @@ static bool optee_msg_api_revision_is_compatible(optee_invoke_fn *invoke_fn)
 static bool optee_msg_exchange_capabilities(optee_invoke_fn *invoke_fn,
 					    u32 *sec_caps)
 {
-	struct arm_smccc_res res;
+	union {
+		struct arm_smccc_res smccc;
+		struct optee_smc_exchange_capabilities_result result;
+	} res;
 	u32 a1 = 0;
 
 	/*
@@ -328,12 +330,13 @@ static bool optee_msg_exchange_capabilities(optee_invoke_fn *invoke_fn,
 	a1 |= OPTEE_SMC_NSEC_CAP_UNIPROCESSOR;
 #endif
 
-	invoke_fn(OPTEE_SMC_EXCHANGE_CAPABILITIES, a1, 0, 0, 0, 0, 0, 0, &res);
+	invoke_fn(OPTEE_SMC_EXCHANGE_CAPABILITIES, a1, 0, 0, 0, 0, 0, 0,
+		  &res.smccc);
 
-	if (res.a0 != OPTEE_SMC_RETURN_OK)
+	if (res.result.status != OPTEE_SMC_RETURN_OK)
 		return false;
 
-	*sec_caps = res.a1;
+	*sec_caps = res.result.capabilities;
 	return true;
 }
 
@@ -341,7 +344,10 @@ static struct tee_shm_pool *
 optee_config_shm_ioremap(struct device *dev, optee_invoke_fn *invoke_fn,
 			 void __iomem **ioremaped_shm)
 {
-	struct arm_smccc_res res;
+	union {
+		struct arm_smccc_res smccc;
+		struct optee_smc_get_shm_config_result result;
+	} res;
 	struct tee_shm_pool *pool;
 	unsigned long vaddr;
 	phys_addr_t paddr;
@@ -352,19 +358,19 @@ optee_config_shm_ioremap(struct device *dev, optee_invoke_fn *invoke_fn,
 	struct tee_shm_pool_mem_info priv_info;
 	struct tee_shm_pool_mem_info dmabuf_info;
 
-	invoke_fn(OPTEE_SMC_GET_SHM_CONFIG, 0, 0, 0, 0, 0, 0, 0, &res);
-	if (res.a0 != OPTEE_SMC_RETURN_OK) {
+	invoke_fn(OPTEE_SMC_GET_SHM_CONFIG, 0, 0, 0, 0, 0, 0, 0, &res.smccc);
+	if (res.result.status != OPTEE_SMC_RETURN_OK) {
 		dev_info(dev, "shm service not available\n");
 		return ERR_PTR(-ENOENT);
 	}
 
-	if (res.a3 != OPTEE_SMC_SHM_CACHED) {
+	if (res.result.settings != OPTEE_SMC_SHM_CACHED) {
 		dev_err(dev, "only normal cached shared memory supported\n");
 		return ERR_PTR(-EINVAL);
 	}
 
-	begin = roundup(res.a1, PAGE_SIZE);
-	end = rounddown(res.a1 + res.a2, PAGE_SIZE);
+	begin = roundup(res.result.start, PAGE_SIZE);
+	end = rounddown(res.result.start + res.result.size, PAGE_SIZE);
 	paddr = begin;
 	size = end - begin;
 
@@ -388,10 +394,13 @@ optee_config_shm_ioremap(struct device *dev, optee_invoke_fn *invoke_fn,
 	dmabuf_info.size = size - OPTEE_SHM_NUM_PRIV_PAGES * PAGE_SIZE;
 
 	pool = tee_shm_pool_alloc_res_mem(dev, &priv_info, &dmabuf_info);
-	if (IS_ERR(pool))
+	if (IS_ERR(pool)) {
 		iounmap(va);
-	else
-		*ioremaped_shm = va;
+		goto out;
+	}
+
+	*ioremaped_shm = va;
+out:
 	return pool;
 }
 
@@ -432,10 +441,20 @@ static int optee_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
-	if (!optee_msg_api_uid_is_optee_api(invoke_fn) ||
-	    !optee_msg_api_revision_is_compatible(invoke_fn) ||
-	    !optee_msg_exchange_capabilities(invoke_fn, &sec_caps))
+	if (!optee_msg_api_uid_is_optee_api(invoke_fn)) {
+		dev_warn(&pdev->dev, "api uid mismatch\n");
 		return -EINVAL;
+	}
+
+	if (!optee_msg_api_revision_is_compatible(invoke_fn)) {
+		dev_warn(&pdev->dev, "api revision mismatch\n");
+		return -EINVAL;
+	}
+
+	if (!optee_msg_exchange_capabilities(invoke_fn, &sec_caps)) {
+		dev_warn(&pdev->dev, "capabilities mismatch\n");
+		return -EINVAL;
+	}
 
 	/*
 	 * We have no other option for shared memory, if secure world
@@ -494,13 +513,18 @@ static int optee_probe(struct platform_device *pdev)
 	return 0;
 err:
 	if (optee) {
-		tee_device_unregister(optee->teedev);
+		/*
+		 * tee_device_unregister() is safe to call even if the
+		 * devices hasn't been registered with
+		 * tee_device_register() yet.
+		 */
 		tee_device_unregister(optee->supp_teedev);
+		tee_device_unregister(optee->teedev);
 	}
 	if (pool)
 		tee_shm_pool_free(pool);
 	if (ioremaped_shm)
-		iounmap(optee->ioremaped_shm);
+		iounmap(ioremaped_shm);
 	return rc;
 }
 
@@ -508,16 +532,27 @@ static int optee_remove(struct platform_device *pdev)
 {
 	struct optee *optee = platform_get_drvdata(pdev);
 
+	/*
+	 * Ask OP-TEE to free all cached shared memory objects to decrease
+	 * reference counters and also avoid wild pointers in secure world
+	 * into the old shared memory range.
+	 */
 	optee_disable_shm_cache(optee);
 
-	tee_device_unregister(optee->teedev);
+	/*
+	 * The two devices has to be unregistered before we can free the
+	 * other resources.
+	 */
 	tee_device_unregister(optee->supp_teedev);
+	tee_device_unregister(optee->teedev);
+
 	tee_shm_pool_free(optee->pool);
 	if (optee->ioremaped_shm)
 		iounmap(optee->ioremaped_shm);
 	optee_wait_queue_exit(&optee->wait_queue);
 	optee_supp_uninit(&optee->supp);
 	mutex_destroy(&optee->call_queue.mutex);
+
 	return 0;
 }
 

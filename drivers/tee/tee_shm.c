@@ -97,11 +97,9 @@ static struct dma_buf_ops tee_shm_dma_buf_ops = {
  *
  * Memory allocated as global shared memory is automatically freed when the
  * TEE file pointer is closed. The @flags field uses the bits defined by
- * TEE_SHM_* above. TEE_SHM_MAPPED must currently always be set. If
- * TEE_SHM_DMA_BUF global shared memory will be allocated and associated
- * with a dma-buf handle, else driver private memory.
- *
- * @returns a pointer to 'struct tee_shm'
+ * TEE_SHM_* in <linux/tee_drv.h>. TEE_SHM_MAPPED must currently always be
+ * set. If TEE_SHM_DMA_BUF global shared memory will be allocated and
+ * associated with a dma-buf handle, else driver private memory.
  */
 struct tee_shm *tee_shm_alloc(struct tee_context *ctx, size_t size, u32 flags)
 {

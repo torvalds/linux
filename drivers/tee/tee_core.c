@@ -29,8 +29,8 @@
 #define TEE_IOCTL_PARAM_SIZE(x) (sizeof(struct tee_param) * (x))
 
 /*
- * Unprivileged devices in the in the lower half range and privileged
- * devices in the upper half range.
+ * Unprivileged devices in the lower half range and privileged devices in
+ * the upper half range.
  */
 static DECLARE_BITMAP(dev_mask, TEE_NUM_DEVICES);
 static DEFINE_SPINLOCK(driver_lock);
@@ -876,7 +876,7 @@ static int __init tee_init(void)
 	}
 
 	rc = alloc_chrdev_region(&tee_devt, 0, TEE_NUM_DEVICES, "tee");
-	if (rc < 0) {
+	if (rc) {
 		pr_err("failed to allocate char dev region\n");
 		class_destroy(tee_class);
 		tee_class = NULL;
