@@ -147,7 +147,7 @@
 		};
 
 		fimc_is: fimc-is@12000000 {
-			compatible = "samsung,exynos4212-fimc-is", "simple-bus";
+			compatible = "samsung,exynos4212-fimc-is";
 			reg = <0x12000000 0x260000>;
 			interrupts = <0 90 0>, <0 95 0>;
 			power-domains = <&pd_isp>;
