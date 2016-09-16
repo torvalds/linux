@@ -54,6 +54,9 @@ const struct dsa_device_ops *dsa_device_ops[DSA_TAG_LAST] = {
 #ifdef CONFIG_NET_DSA_TAG_BRCM
 	[DSA_TAG_PROTO_BRCM] = &brcm_netdev_ops,
 #endif
+#ifdef CONFIG_NET_DSA_TAG_QCA
+	[DSA_TAG_PROTO_QCA] = &qca_netdev_ops,
+#endif
 	[DSA_TAG_PROTO_NONE] = &none_ops,
 };
 

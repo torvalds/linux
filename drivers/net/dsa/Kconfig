@@ -25,4 +25,13 @@ source "drivers/net/dsa/b53/Kconfig"
 
 source "drivers/net/dsa/mv88e6xxx/Kconfig"
 
+config NET_DSA_QCA8K
+	tristate "Qualcomm Atheros QCA8K Ethernet switch family support"
+	depends on NET_DSA
+	select NET_DSA_TAG_QCA
+	select REGMAP
+	---help---
+	  This enables support for the Qualcomm Atheros QCA8K Ethernet
+	  switch chips.
+
 endmenu
