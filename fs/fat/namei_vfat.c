@@ -21,6 +21,17 @@
 #include <linux/namei.h>
 #include "fat.h"
 
+static inline unsigned long vfat_d_version(struct dentry *dentry)
+{
+	return (unsigned long) dentry->d_fsdata;
+}
+
+static inline void vfat_d_version_set(struct dentry *dentry,
+				      unsigned long version)
+{
+	dentry->d_fsdata = (void *) version;
+}
+
 /*
  * If new entry was created in the parent, it could create the 8.3
  * alias (the shortname of logname).  So, the parent may have the
@@ -33,7 +44,7 @@ static int vfat_revalidate_shortname(struct dentry *dentry)
 {
 	int ret = 1;
 	spin_lock(&dentry->d_lock);
-	if (dentry->d_time != d_inode(dentry->d_parent)->i_version)
+	if (vfat_d_version(dentry) != d_inode(dentry->d_parent)->i_version)
 		ret = 0;
 	spin_unlock(&dentry->d_lock);
 	return ret;
@@ -759,7 +770,7 @@ static struct dentry *vfat_lookup(struct inode *dir, struct dentry *dentry,
 out:
 	mutex_unlock(&MSDOS_SB(sb)->s_lock);
 	if (!inode)
-		dentry->d_time = dir->i_version;
+		vfat_d_version_set(dentry, dir->i_version);
 	return d_splice_alias(inode, dentry);
 error:
 	mutex_unlock(&MSDOS_SB(sb)->s_lock);
@@ -823,7 +834,7 @@ static int vfat_rmdir(struct inode *dir, struct dentry *dentry)
 	clear_nlink(inode);
 	inode->i_mtime = inode->i_atime = CURRENT_TIME_SEC;
 	fat_detach(inode);
-	dentry->d_time = dir->i_version;
+	vfat_d_version_set(dentry, dir->i_version);
 out:
 	mutex_unlock(&MSDOS_SB(sb)->s_lock);
 
@@ -849,7 +860,7 @@ static int vfat_unlink(struct inode *dir, struct dentry *dentry)
 	clear_nlink(inode);
 	inode->i_mtime = inode->i_atime = CURRENT_TIME_SEC;
 	fat_detach(inode);
-	dentry->d_time = dir->i_version;
+	vfat_d_version_set(dentry, dir->i_version);
 out:
 	mutex_unlock(&MSDOS_SB(sb)->s_lock);
 
