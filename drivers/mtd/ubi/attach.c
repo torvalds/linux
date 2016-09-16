@@ -197,8 +197,8 @@ static int add_fastmap(struct ubi_attach_info *ai, int pnum,
 		return -ENOMEM;
 
 	aeb->pnum = pnum;
-	aeb->vol_id = be32_to_cpu(vidh->vol_id);
-	aeb->sqnum = be64_to_cpu(vidh->sqnum);
+	aeb->vol_id = be32_to_cpu(vid_hdr->vol_id);
+	aeb->sqnum = be64_to_cpu(vid_hdr->sqnum);
 	aeb->ec = ec;
 	list_add(&aeb->u.list, &ai->fastmap);
 
