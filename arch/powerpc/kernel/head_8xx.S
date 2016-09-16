@@ -380,26 +380,6 @@ InstructionTLBMiss:
 	EXCEPTION_EPILOG_0
 	rfi
 
-/*
- * Bottom part of DataStoreTLBMiss handler for IMMR area
- * not enough space in the DataStoreTLBMiss area
- */
-DTLBMissIMMR:
-	mtcr	r10
-	/* Set 512k byte guarded page and mark it valid */
-	li	r10, MD_PS512K | MD_GUARDED | MD_SVALID
-	MTSPR_CPU6(SPRN_MD_TWC, r10, r11)
-	mfspr	r10, SPRN_IMMR			/* Get current IMMR */
-	rlwinm	r10, r10, 0, 0xfff80000		/* Get 512 kbytes boundary */
-	ori	r10, r10, 0xf0 | MD_SPS16K | _PAGE_SHARED | _PAGE_DIRTY	| \
-			  _PAGE_PRESENT | _PAGE_NO_CACHE
-	MTSPR_CPU6(SPRN_MD_RPN, r10, r11)	/* Update TLB entry */
-
-	li	r11, RPN_PATTERN
-	mtspr	SPRN_DAR, r11	/* Tag DAR */
-	EXCEPTION_EPILOG_0
-	rfi
-
 	. = 0x1200
 DataStoreTLBMiss:
 	EXCEPTION_PROLOG_0
@@ -418,7 +398,7 @@ DataStoreTLBMiss:
 _ENTRY(DTLBMiss_jmp)
 	beq-	DTLBMissIMMR
 #endif
-	bge-	cr7, 4f
+	bge-	cr7, DTLBMissLinear
 
 	mfspr	r11, SPRN_M_TW	/* Get level 1 table */
 3:
@@ -485,27 +465,6 @@ _ENTRY(DTLBMiss_jmp)
 	EXCEPTION_EPILOG_0
 	rfi
 
-4:
-_ENTRY(DTLBMiss_cmp)
-	cmpli	cr0, r11, (PAGE_OFFSET + 0x1800000)@h
-	lis	r11, (swapper_pg_dir-PAGE_OFFSET)@ha
-	bge-	3b
-
-	mtcr	r10
-	/* Set 8M byte page and mark it valid */
-	li	r10, MD_PS8MEG | MD_SVALID
-	MTSPR_CPU6(SPRN_MD_TWC, r10, r11)
-	mfspr	r10, SPRN_MD_EPN
-	rlwinm	r10, r10, 0, 0x0f800000		/* 8xx supports max 256Mb RAM */
-	ori	r10, r10, 0xf0 | MD_SPS16K | _PAGE_SHARED | _PAGE_DIRTY	| \
-			  _PAGE_PRESENT
-	MTSPR_CPU6(SPRN_MD_RPN, r10, r11)	/* Update TLB entry */
-
-	li	r11, RPN_PATTERN
-	mtspr	SPRN_DAR, r11	/* Tag DAR */
-	EXCEPTION_EPILOG_0
-	rfi
-
 
 /* This is an instruction TLB error on the MPC8xx.  This could be due
  * to many reasons, such as executing guarded memory or illegal instruction
@@ -566,6 +525,47 @@ DARFixed:/* Return from dcbx instruction bug workaround */
 	EXCEPTION(0x1f00, Trap_1f, unknown_exception, EXC_XFER_EE)
 
 	. = 0x2000
+
+/*
+ * Bottom part of DataStoreTLBMiss handlers for IMMR area and linear RAM.
+ * not enough space in the DataStoreTLBMiss area.
+ */
+DTLBMissIMMR:
+	mtcr	r10
+	/* Set 512k byte guarded page and mark it valid */
+	li	r10, MD_PS512K | MD_GUARDED | MD_SVALID
+	MTSPR_CPU6(SPRN_MD_TWC, r10, r11)
+	mfspr	r10, SPRN_IMMR			/* Get current IMMR */
+	rlwinm	r10, r10, 0, 0xfff80000		/* Get 512 kbytes boundary */
+	ori	r10, r10, 0xf0 | MD_SPS16K | _PAGE_SHARED | _PAGE_DIRTY	| \
+			  _PAGE_PRESENT | _PAGE_NO_CACHE
+	MTSPR_CPU6(SPRN_MD_RPN, r10, r11)	/* Update TLB entry */
+
+	li	r11, RPN_PATTERN
+	mtspr	SPRN_DAR, r11	/* Tag DAR */
+	EXCEPTION_EPILOG_0
+	rfi
+
+DTLBMissLinear:
+_ENTRY(DTLBMiss_cmp)
+	cmpli	cr0, r11, (PAGE_OFFSET + 0x1800000)@h
+	lis	r11, (swapper_pg_dir-PAGE_OFFSET)@ha
+	bge-	3b
+
+	mtcr	r10
+	/* Set 8M byte page and mark it valid */
+	li	r10, MD_PS8MEG | MD_SVALID
+	MTSPR_CPU6(SPRN_MD_TWC, r10, r11)
+	mfspr	r10, SPRN_MD_EPN
+	rlwinm	r10, r10, 0, 0x0f800000		/* 8xx supports max 256Mb RAM */
+	ori	r10, r10, 0xf0 | MD_SPS16K | _PAGE_SHARED | _PAGE_DIRTY	| \
+			  _PAGE_PRESENT
+	MTSPR_CPU6(SPRN_MD_RPN, r10, r11)	/* Update TLB entry */
+
+	li	r11, RPN_PATTERN
+	mtspr	SPRN_DAR, r11	/* Tag DAR */
+	EXCEPTION_EPILOG_0
+	rfi
 
 /* This is the procedure to calculate the data EA for buggy dcbx,dcbi instructions
  * by decoding the registers used by the dcbx instruction and adding them.
