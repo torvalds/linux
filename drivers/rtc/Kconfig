@@ -1245,6 +1245,9 @@ config RTC_DRV_IMXDI
 config RTC_DRV_OMAP
 	tristate "TI OMAP Real Time Clock"
 	depends on ARCH_OMAP || ARCH_DAVINCI || COMPILE_TEST
+	depends on OF
+	depends on PINCTRL
+	select GENERIC_PINCONF
 	help
 	  Say "yes" here to support the on chip real time clock
 	  present on TI OMAP1, AM33xx, DA8xx/OMAP-L13x, AM43xx and DRA7xx.
