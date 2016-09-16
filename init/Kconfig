@@ -33,6 +33,9 @@ config THREAD_INFO_IN_TASK
 	  make this work, an arch will need to remove all thread_info fields
 	  except flags and fix any runtime bugs.
 
+	  One subtle change that will be needed is to use try_get_task_stack()
+	  and put_task_stack() in save_thread_stack_tsk() and get_wchan().
+
 menu "General setup"
 
 config BROKEN
