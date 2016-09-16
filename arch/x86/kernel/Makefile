@@ -125,6 +125,12 @@ obj-$(CONFIG_EFI)			+= sysfb_efi.o
 obj-$(CONFIG_PERF_EVENTS)		+= perf_regs.o
 obj-$(CONFIG_TRACING)			+= tracepoint.o
 
+ifdef CONFIG_FRAME_POINTER
+obj-y					+= unwind_frame.o
+else
+obj-y					+= unwind_guess.o
+endif
+
 ###
 # 64 bit specific files
 ifeq ($(CONFIG_X86_64),y)
