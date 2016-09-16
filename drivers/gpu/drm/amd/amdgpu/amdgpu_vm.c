@@ -612,16 +612,26 @@ static uint64_t amdgpu_vm_map_gart(const dma_addr_t *pages_addr, uint64_t addr)
 	return result;
 }
 
-static int amdgpu_vm_update_pd_or_shadow(struct amdgpu_device *adev,
-					 struct amdgpu_vm *vm,
-					 bool shadow)
+/*
+ * amdgpu_vm_update_pdes - make sure that page directory is valid
+ *
+ * @adev: amdgpu_device pointer
+ * @vm: requested vm
+ * @start: start of GPU address range
+ * @end: end of GPU address range
+ *
+ * Allocates new page tables if necessary
+ * and updates the page directory.
+ * Returns 0 for success, error for failure.
+ */
+int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
+				    struct amdgpu_vm *vm)
 {
+	struct amdgpu_bo *shadow;
 	struct amdgpu_ring *ring;
-	struct amdgpu_bo *pd = shadow ? vm->page_directory->shadow :
-		vm->page_directory;
-	uint64_t pd_addr;
+	uint64_t pd_addr, shadow_addr;
 	uint32_t incr = AMDGPU_VM_PTE_COUNT * 8;
-	uint64_t last_pde = ~0, last_pt = ~0;
+	uint64_t last_pde = ~0, last_pt = ~0, last_shadow = ~0;
 	unsigned count = 0, pt_idx, ndw;
 	struct amdgpu_job *job;
 	struct amdgpu_pte_update_params params;
@@ -629,21 +639,25 @@ static int amdgpu_vm_update_pd_or_shadow(struct amdgpu_device *adev,
 
 	int r;
 
-	if (!pd)
-		return 0;
-
-	r = amdgpu_ttm_bind(&pd->tbo, &pd->tbo.mem);
-	if (r)
-		return r;
-
-	pd_addr = amdgpu_bo_gpu_offset(pd);
 	ring = container_of(vm->entity.sched, struct amdgpu_ring, sched);
+	shadow = vm->page_directory->shadow;
 
 	/* padding, etc. */
 	ndw = 64;
 
 	/* assume the worst case */
 	ndw += vm->max_pde_used * 6;
+
+	pd_addr = amdgpu_bo_gpu_offset(vm->page_directory);
+	if (shadow) {
+		r = amdgpu_ttm_bind(&shadow->tbo, &shadow->tbo.mem);
+		if (r)
+			return r;
+		shadow_addr = amdgpu_bo_gpu_offset(shadow);
+		ndw *= 2;
+	} else {
+		shadow_addr = 0;
+	}
 
 	r = amdgpu_job_alloc_with_ib(adev, ndw * 4, &job);
 	if (r)
@@ -662,23 +676,19 @@ static int amdgpu_vm_update_pd_or_shadow(struct amdgpu_device *adev,
 			continue;
 
 		if (bo->shadow) {
-			struct amdgpu_bo *shadow = bo->shadow;
+			struct amdgpu_bo *pt_shadow = bo->shadow;
 
-			r = amdgpu_ttm_bind(&shadow->tbo, &shadow->tbo.mem);
+			r = amdgpu_ttm_bind(&pt_shadow->tbo,
+					    &pt_shadow->tbo.mem);
 			if (r)
 				return r;
 		}
 
 		pt = amdgpu_bo_gpu_offset(bo);
-		if (!shadow) {
-			if (vm->page_tables[pt_idx].addr == pt)
-				continue;
-			vm->page_tables[pt_idx].addr = pt;
-		} else {
-			if (vm->page_tables[pt_idx].shadow_addr == pt)
-				continue;
-			vm->page_tables[pt_idx].shadow_addr = pt;
-		}
+		if (vm->page_tables[pt_idx].addr == pt)
+			continue;
+
+		vm->page_tables[pt_idx].addr = pt;
 
 		pde = pd_addr + pt_idx * 8;
 		if (((last_pde + 8 * count) != pde) ||
@@ -686,6 +696,13 @@ static int amdgpu_vm_update_pd_or_shadow(struct amdgpu_device *adev,
 		    (count == AMDGPU_VM_MAX_UPDATE_SIZE)) {
 
 			if (count) {
+				if (shadow)
+					amdgpu_vm_do_set_ptes(&params,
+							      last_shadow,
+							      last_pt, count,
+							      incr,
+							      AMDGPU_PTE_VALID);
+
 				amdgpu_vm_do_set_ptes(&params, last_pde,
 						      last_pt, count, incr,
 						      AMDGPU_PTE_VALID);
@@ -693,63 +710,50 @@ static int amdgpu_vm_update_pd_or_shadow(struct amdgpu_device *adev,
 
 			count = 1;
 			last_pde = pde;
+			last_shadow = shadow_addr + pt_idx * 8;
 			last_pt = pt;
 		} else {
 			++count;
 		}
 	}
 
-	if (count)
+	if (count) {
+		if (vm->page_directory->shadow)
+			amdgpu_vm_do_set_ptes(&params, last_shadow, last_pt,
+					      count, incr, AMDGPU_PTE_VALID);
+
 		amdgpu_vm_do_set_ptes(&params, last_pde, last_pt,
 				      count, incr, AMDGPU_PTE_VALID);
-
-	if (params.ib->length_dw != 0) {
-		amdgpu_ring_pad_ib(ring, params.ib);
-		amdgpu_sync_resv(adev, &job->sync, pd->tbo.resv,
-				 AMDGPU_FENCE_OWNER_VM);
-		WARN_ON(params.ib->length_dw > ndw);
-		r = amdgpu_job_submit(job, ring, &vm->entity,
-				      AMDGPU_FENCE_OWNER_VM, &fence);
-		if (r)
-			goto error_free;
-
-		amdgpu_bo_fence(pd, fence, true);
-		fence_put(vm->page_directory_fence);
-		vm->page_directory_fence = fence_get(fence);
-		fence_put(fence);
-
-	} else {
-		amdgpu_job_free(job);
 	}
+
+	if (params.ib->length_dw == 0) {
+		amdgpu_job_free(job);
+		return 0;
+	}
+
+	amdgpu_ring_pad_ib(ring, params.ib);
+	amdgpu_sync_resv(adev, &job->sync, vm->page_directory->tbo.resv,
+			 AMDGPU_FENCE_OWNER_VM);
+	if (shadow)
+		amdgpu_sync_resv(adev, &job->sync, shadow->tbo.resv,
+				 AMDGPU_FENCE_OWNER_VM);
+
+	WARN_ON(params.ib->length_dw > ndw);
+	r = amdgpu_job_submit(job, ring, &vm->entity,
+			      AMDGPU_FENCE_OWNER_VM, &fence);
+	if (r)
+		goto error_free;
+
+	amdgpu_bo_fence(vm->page_directory, fence, true);
+	fence_put(vm->page_directory_fence);
+	vm->page_directory_fence = fence_get(fence);
+	fence_put(fence);
 
 	return 0;
 
 error_free:
 	amdgpu_job_free(job);
 	return r;
-}
-
-/*
- * amdgpu_vm_update_pdes - make sure that page directory is valid
- *
- * @adev: amdgpu_device pointer
- * @vm: requested vm
- * @start: start of GPU address range
- * @end: end of GPU address range
- *
- * Allocates new page tables if necessary
- * and updates the page directory.
- * Returns 0 for success, error for failure.
- */
-int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
-                                   struct amdgpu_vm *vm)
-{
-	int r;
-
-	r = amdgpu_vm_update_pd_or_shadow(adev, vm, true);
-	if (r)
-		return r;
-	return amdgpu_vm_update_pd_or_shadow(adev, vm, false);
 }
 
 /**
