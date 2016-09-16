@@ -516,6 +516,7 @@ EXPORT_SYMBOL(drm_dp_downstream_max_bpc);
 /**
  * drm_dp_downstream_id() - identify branch device
  * @aux: DisplayPort AUX channel
+ * @id: DisplayPort branch device id
  *
  * Returns branch device id on success or NULL on failure
  */
