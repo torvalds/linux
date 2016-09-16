@@ -1205,12 +1205,14 @@ int bcm_qspi_probe(struct platform_device *pdev,
 
 	if (!num_ints) {
 		dev_err(&pdev->dev, "no IRQs registered, cannot init driver\n");
+		ret = -EINVAL;
 		goto qspi_probe_err;
 	}
 
 	qspi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(qspi->clk)) {
 		dev_warn(dev, "unable to get clock\n");
+		ret = PTR_ERR(qspi->clk);
 		goto qspi_probe_err;
 	}
 
