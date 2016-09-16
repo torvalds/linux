@@ -208,12 +208,14 @@ static ssize_t blk_mq_hw_sysfs_dispatched_show(struct blk_mq_hw_ctx *hctx,
 
 	page += sprintf(page, "%8u\t%lu\n", 0U, hctx->dispatched[0]);
 
-	for (i = 1; i < BLK_MQ_MAX_DISPATCH_ORDER; i++) {
-		unsigned long d = 1U << (i - 1);
+	for (i = 1; i < BLK_MQ_MAX_DISPATCH_ORDER - 1; i++) {
+		unsigned int d = 1U << (i - 1);
 
-		page += sprintf(page, "%8lu\t%lu\n", d, hctx->dispatched[i]);
+		page += sprintf(page, "%8u\t%lu\n", d, hctx->dispatched[i]);
 	}
 
+	page += sprintf(page, "%8u+\t%lu\n", 1U << (i - 1),
+						hctx->dispatched[i]);
 	return page - start_page;
 }
 

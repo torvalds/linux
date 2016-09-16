@@ -789,6 +789,14 @@ static void flush_busy_ctxs(struct blk_mq_hw_ctx *hctx, struct list_head *list)
 	}
 }
 
+static inline unsigned int queued_to_index(unsigned int queued)
+{
+	if (!queued)
+		return 0;
+
+	return min(BLK_MQ_MAX_DISPATCH_ORDER - 1, ilog2(queued) + 1);
+}
+
 /*
  * Run this hardware queue, pulling any software queues mapped to it in.
  * Note that this function currently has various problems around ordering
@@ -877,10 +885,7 @@ static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 			dptr = &driver_list;
 	}
 
-	if (!queued)
-		hctx->dispatched[0]++;
-	else if (queued < (1 << (BLK_MQ_MAX_DISPATCH_ORDER - 1)))
-		hctx->dispatched[ilog2(queued) + 1]++;
+	hctx->dispatched[queued_to_index(queued)]++;
 
 	/*
 	 * Any items that need requeuing? Stuff them into hctx->dispatch,
