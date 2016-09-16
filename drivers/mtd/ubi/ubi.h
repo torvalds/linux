@@ -792,6 +792,9 @@ extern struct mutex ubi_devices_mutex;
 extern struct blocking_notifier_head ubi_notifiers;
 
 /* attach.c */
+struct ubi_ainf_peb *ubi_alloc_aeb(struct ubi_attach_info *ai, int pnum,
+				   int ec);
+void ubi_free_aeb(struct ubi_attach_info *ai, struct ubi_ainf_peb *aeb);
 int ubi_add_to_av(struct ubi_device *ubi, struct ubi_attach_info *ai, int pnum,
 		  int ec, const struct ubi_vid_hdr *vid_hdr, int bitflips);
 struct ubi_ainf_volume *ubi_add_av(struct ubi_attach_info *ai, int vol_id);

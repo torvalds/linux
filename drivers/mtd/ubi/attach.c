@@ -182,6 +182,47 @@ static struct ubi_ainf_volume *ubi_find_or_add_av(struct ubi_attach_info *ai,
 }
 
 /**
+ * ubi_alloc_aeb - allocate an aeb element
+ * @ai: attaching information
+ * @pnum: physical eraseblock number
+ * @ec: erase counter of the physical eraseblock
+ *
+ * Allocate an aeb object and initialize the pnum and ec information.
+ * vol_id and lnum are set to UBI_UNKNOWN, and the other fields are
+ * initialized to zero.
+ * Note that the element is not added in any list or RB tree.
+ */
+struct ubi_ainf_peb *ubi_alloc_aeb(struct ubi_attach_info *ai, int pnum,
+				   int ec)
+{
+	struct ubi_ainf_peb *aeb;
+
+	aeb = kmem_cache_zalloc(ai->aeb_slab_cache, GFP_KERNEL);
+	if (!aeb)
+		return NULL;
+
+	aeb->pnum = pnum;
+	aeb->ec = ec;
+	aeb->vol_id = UBI_UNKNOWN;
+	aeb->lnum = UBI_UNKNOWN;
+
+	return aeb;
+}
+
+/**
+ * ubi_free_aeb - free an aeb element
+ * @ai: attaching information
+ * @aeb: the element to free
+ *
+ * Free an aeb object. The caller must have removed the element from any list
+ * or RB tree.
+ */
+void ubi_free_aeb(struct ubi_attach_info *ai, struct ubi_ainf_peb *aeb)
+{
+	kmem_cache_free(ai->aeb_slab_cache, aeb);
+}
+
+/**
  * add_to_list - add physical eraseblock to a list.
  * @ai: attaching information
  * @pnum: physical eraseblock number to add
@@ -217,14 +258,12 @@ static int add_to_list(struct ubi_attach_info *ai, int pnum, int vol_id,
 	} else
 		BUG();
 
-	aeb = kmem_cache_alloc(ai->aeb_slab_cache, GFP_KERNEL);
+	aeb = ubi_alloc_aeb(ai, pnum, ec);
 	if (!aeb)
 		return -ENOMEM;
 
-	aeb->pnum = pnum;
 	aeb->vol_id = vol_id;
 	aeb->lnum = lnum;
-	aeb->ec = ec;
 	if (to_head)
 		list_add(&aeb->u.list, list);
 	else
@@ -249,13 +288,11 @@ static int add_corrupted(struct ubi_attach_info *ai, int pnum, int ec)
 
 	dbg_bld("add to corrupted: PEB %d, EC %d", pnum, ec);
 
-	aeb = kmem_cache_alloc(ai->aeb_slab_cache, GFP_KERNEL);
+	aeb = ubi_alloc_aeb(ai, pnum, ec);
 	if (!aeb)
 		return -ENOMEM;
 
 	ai->corr_peb_count += 1;
-	aeb->pnum = pnum;
-	aeb->ec = ec;
 	list_add(&aeb->u.list, &ai->corr);
 	return 0;
 }
@@ -278,14 +315,12 @@ static int add_fastmap(struct ubi_attach_info *ai, int pnum,
 {
 	struct ubi_ainf_peb *aeb;
 
-	aeb = kmem_cache_alloc(ai->aeb_slab_cache, GFP_KERNEL);
+	aeb = ubi_alloc_aeb(ai, pnum, ec);
 	if (!aeb)
 		return -ENOMEM;
 
-	aeb->pnum = pnum;
 	aeb->vol_id = be32_to_cpu(vid_hdr->vol_id);
 	aeb->sqnum = be64_to_cpu(vid_hdr->sqnum);
-	aeb->ec = ec;
 	list_add(&aeb->u.list, &ai->fastmap);
 
 	dbg_bld("add to fastmap list: PEB %d, vol_id %d, sqnum: %llu", pnum,
@@ -667,12 +702,10 @@ int ubi_add_to_av(struct ubi_device *ubi, struct ubi_attach_info *ai, int pnum,
 	if (err)
 		return err;
 
-	aeb = kmem_cache_alloc(ai->aeb_slab_cache, GFP_KERNEL);
+	aeb = ubi_alloc_aeb(ai, pnum, ec);
 	if (!aeb)
 		return -ENOMEM;
 
-	aeb->ec = ec;
-	aeb->pnum = pnum;
 	aeb->vol_id = vol_id;
 	aeb->lnum = lnum;
 	aeb->scrub = bitflips;
@@ -1278,7 +1311,7 @@ static void destroy_av(struct ubi_attach_info *ai, struct ubi_ainf_volume *av,
 			if (list)
 				list_add_tail(&aeb->u.list, list);
 			else
-				kmem_cache_free(ai->aeb_slab_cache, aeb);
+				ubi_free_aeb(ai, aeb);
 		}
 	}
 	kfree(av);
@@ -1296,23 +1329,23 @@ static void destroy_ai(struct ubi_attach_info *ai)
 
 	list_for_each_entry_safe(aeb, aeb_tmp, &ai->alien, u.list) {
 		list_del(&aeb->u.list);
-		kmem_cache_free(ai->aeb_slab_cache, aeb);
+		ubi_free_aeb(ai, aeb);
 	}
 	list_for_each_entry_safe(aeb, aeb_tmp, &ai->erase, u.list) {
 		list_del(&aeb->u.list);
-		kmem_cache_free(ai->aeb_slab_cache, aeb);
+		ubi_free_aeb(ai, aeb);
 	}
 	list_for_each_entry_safe(aeb, aeb_tmp, &ai->corr, u.list) {
 		list_del(&aeb->u.list);
-		kmem_cache_free(ai->aeb_slab_cache, aeb);
+		ubi_free_aeb(ai, aeb);
 	}
 	list_for_each_entry_safe(aeb, aeb_tmp, &ai->free, u.list) {
 		list_del(&aeb->u.list);
-		kmem_cache_free(ai->aeb_slab_cache, aeb);
+		ubi_free_aeb(ai, aeb);
 	}
 	list_for_each_entry_safe(aeb, aeb_tmp, &ai->fastmap, u.list) {
 		list_del(&aeb->u.list);
-		kmem_cache_free(ai->aeb_slab_cache, aeb);
+		ubi_free_aeb(ai, aeb);
 	}
 
 	/* Destroy the volume RB-tree */
