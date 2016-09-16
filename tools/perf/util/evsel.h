@@ -236,7 +236,7 @@ void perf_evsel__set_sample_id(struct perf_evsel *evsel,
 
 int perf_evsel__set_filter(struct perf_evsel *evsel, const char *filter);
 int perf_evsel__append_filter(struct perf_evsel *evsel,
-			      const char *op, const char *filter);
+			      const char *fmt, const char *filter);
 int perf_evsel__apply_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
 			     const char *filter);
 int perf_evsel__enable(struct perf_evsel *evsel);

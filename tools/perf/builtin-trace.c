@@ -2143,6 +2143,7 @@ out_delete_sys_enter:
 static int trace__set_ev_qualifier_filter(struct trace *trace)
 {
 	int err = -1;
+	struct perf_evsel *sys_exit;
 	char *filter = asprintf_expr_inout_ints("id", !trace->not_ev_qualifier,
 						trace->ev_qualifier_ids.nr,
 						trace->ev_qualifier_ids.entries);
@@ -2150,8 +2151,12 @@ static int trace__set_ev_qualifier_filter(struct trace *trace)
 	if (filter == NULL)
 		goto out_enomem;
 
-	if (!perf_evsel__append_filter(trace->syscalls.events.sys_enter, "&&", filter))
-		err = perf_evsel__append_filter(trace->syscalls.events.sys_exit, "&&", filter);
+	if (!perf_evsel__append_filter(trace->syscalls.events.sys_enter,
+				       "(%s) && (%s)", filter)) {
+		sys_exit = trace->syscalls.events.sys_exit;
+		err = perf_evsel__append_filter(sys_exit,
+						"(%s) && (%s)", filter);
+	}
 
 	free(filter);
 out:
