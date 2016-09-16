@@ -4190,6 +4190,41 @@ static void gfx_v7_0_ring_emit_gds_switch(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, (1 << (oa_size + oa_base)) - (1 << oa_base));
 }
 
+static unsigned gfx_v7_0_ring_get_emit_ib_size_gfx(struct amdgpu_ring *ring)
+{
+	return
+		4; /* gfx_v7_0_ring_emit_ib_gfx */
+}
+
+static unsigned gfx_v7_0_ring_get_dma_frame_size_gfx(struct amdgpu_ring *ring)
+{
+	return
+		20 + /* gfx_v7_0_ring_emit_gds_switch */
+		7 + /* gfx_v7_0_ring_emit_hdp_flush */
+		5 + /* gfx_v7_0_ring_emit_hdp_invalidate */
+		12 + 12 + 12 + /* gfx_v7_0_ring_emit_fence_gfx x3 for user fence, vm fence */
+		7 + 4 + /* gfx_v7_0_ring_emit_pipeline_sync */
+		17 + 6 + /* gfx_v7_0_ring_emit_vm_flush */
+		3; /* gfx_v7_ring_emit_cntxcntl */
+}
+
+static unsigned gfx_v7_0_ring_get_emit_ib_size_compute(struct amdgpu_ring *ring)
+{
+	return
+		4; /* gfx_v7_0_ring_emit_ib_compute */
+}
+
+static unsigned gfx_v7_0_ring_get_dma_frame_size_compute(struct amdgpu_ring *ring)
+{
+	return
+		20 + /* gfx_v7_0_ring_emit_gds_switch */
+		7 + /* gfx_v7_0_ring_emit_hdp_flush */
+		5 + /* gfx_v7_0_ring_emit_hdp_invalidate */
+		7 + /* gfx_v7_0_ring_emit_pipeline_sync */
+		17 + /* gfx_v7_0_ring_emit_vm_flush */
+		7 + 7 + 7; /* gfx_v7_0_ring_emit_fence_compute x3 for user fence, vm fence */
+}
+
 static const struct amdgpu_gfx_funcs gfx_v7_0_gfx_funcs = {
 	.get_gpu_clock_counter = &gfx_v7_0_get_gpu_clock_counter,
 	.select_se_sh = &gfx_v7_0_select_se_sh,
@@ -4958,6 +4993,8 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_gfx = {
 	.insert_nop = amdgpu_ring_insert_nop,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.emit_cntxcntl = gfx_v7_ring_emit_cntxcntl,
+	.get_emit_ib_size = gfx_v7_0_ring_get_emit_ib_size_gfx,
+	.get_dma_frame_size = gfx_v7_0_ring_get_dma_frame_size_gfx,
 };
 
 static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_compute = {
@@ -4976,6 +5013,8 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_compute = {
 	.test_ib = gfx_v7_0_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
+	.get_emit_ib_size = gfx_v7_0_ring_get_emit_ib_size_compute,
+	.get_dma_frame_size = gfx_v7_0_ring_get_dma_frame_size_compute,
 };
 
 static void gfx_v7_0_set_ring_funcs(struct amdgpu_device *adev)
