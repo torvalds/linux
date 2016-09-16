@@ -722,6 +722,9 @@ struct ubi_ainf_volume *ubi_find_av(const struct ubi_attach_info *ai,
 			      &created);
 }
 
+static void destroy_av(struct ubi_attach_info *ai, struct ubi_ainf_volume *av,
+		       struct list_head *list);
+
 /**
  * ubi_remove_av - delete attaching information about a volume.
  * @ai: attaching information
@@ -729,19 +732,10 @@ struct ubi_ainf_volume *ubi_find_av(const struct ubi_attach_info *ai,
  */
 void ubi_remove_av(struct ubi_attach_info *ai, struct ubi_ainf_volume *av)
 {
-	struct rb_node *rb;
-	struct ubi_ainf_peb *aeb;
-
 	dbg_bld("remove attaching information about volume %d", av->vol_id);
 
-	while ((rb = rb_first(&av->root))) {
-		aeb = rb_entry(rb, struct ubi_ainf_peb, u.rb);
-		rb_erase(&aeb->u.rb, &av->root);
-		list_add_tail(&aeb->u.list, &ai->erase);
-	}
-
 	rb_erase(&av->rb, &ai->volumes);
-	kfree(av);
+	destroy_av(ai, av, &ai->erase);
 	ai->vols_found -= 1;
 }
 
@@ -1256,10 +1250,12 @@ static int late_analysis(struct ubi_device *ubi, struct ubi_attach_info *ai)
  * destroy_av - free volume attaching information.
  * @av: volume attaching information
  * @ai: attaching information
+ * @list: put the aeb elements in there if !NULL, otherwise free them
  *
  * This function destroys the volume attaching information.
  */
-static void destroy_av(struct ubi_attach_info *ai, struct ubi_ainf_volume *av)
+static void destroy_av(struct ubi_attach_info *ai, struct ubi_ainf_volume *av,
+		       struct list_head *list)
 {
 	struct ubi_ainf_peb *aeb;
 	struct rb_node *this = av->root.rb_node;
@@ -1279,7 +1275,10 @@ static void destroy_av(struct ubi_attach_info *ai, struct ubi_ainf_volume *av)
 					this->rb_right = NULL;
 			}
 
-			kmem_cache_free(ai->aeb_slab_cache, aeb);
+			if (list)
+				list_add_tail(&aeb->u.list, list);
+			else
+				kmem_cache_free(ai->aeb_slab_cache, aeb);
 		}
 	}
 	kfree(av);
@@ -1334,7 +1333,7 @@ static void destroy_ai(struct ubi_attach_info *ai)
 					rb->rb_right = NULL;
 			}
 
-			destroy_av(ai, av);
+			destroy_av(ai, av, NULL);
 		}
 	}
 
