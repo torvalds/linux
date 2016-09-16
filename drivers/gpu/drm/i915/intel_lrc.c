@@ -994,9 +994,8 @@ static int gen9_init_indirectctx_bb(struct intel_engine_cs *engine,
 	struct drm_i915_private *dev_priv = engine->i915;
 	uint32_t index = wa_ctx_start(wa_ctx, *offset, CACHELINE_DWORDS);
 
-	/* WaDisableCtxRestoreArbitration:skl,bxt */
-	if (IS_SKL_REVID(dev_priv, 0, SKL_REVID_D0) ||
-	    IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1))
+	/* WaDisableCtxRestoreArbitration:bxt */
+	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1))
 		wa_ctx_emit(batch, index, MI_ARB_ON_OFF | MI_ARB_DISABLE);
 
 	/* WaFlushCoherentL3CacheLinesAtContextSwitch:skl,bxt */
@@ -1095,9 +1094,8 @@ static int gen9_init_perctx_bb(struct intel_engine_cs *engine,
 		wa_ctx_emit(batch, index, MI_NOOP);
 	}
 
-	/* WaDisableCtxRestoreArbitration:skl,bxt */
-	if (IS_SKL_REVID(engine->i915, 0, SKL_REVID_D0) ||
-	    IS_BXT_REVID(engine->i915, 0, BXT_REVID_A1))
+	/* WaDisableCtxRestoreArbitration:bxt */
+	if (IS_BXT_REVID(engine->i915, 0, BXT_REVID_A1))
 		wa_ctx_emit(batch, index, MI_ARB_ON_OFF | MI_ARB_ENABLE);
 
 	wa_ctx_emit(batch, index, MI_BATCH_BUFFER_END);

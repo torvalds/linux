@@ -1000,10 +1000,8 @@ static int skl_init_workarounds(struct intel_engine_cs *engine)
 	 * until D0 which is the default case so this is equivalent to
 	 * !WaDisablePerCtxtPreemptionGranularityControl:skl
 	 */
-	if (IS_SKL_REVID(dev_priv, SKL_REVID_E0, REVID_FOREVER)) {
-		I915_WRITE(GEN7_FF_SLICE_CS_CHICKEN1,
-			   _MASKED_BIT_ENABLE(GEN9_FFSC_PERCTX_PREEMPT_CTRL));
-	}
+	I915_WRITE(GEN7_FF_SLICE_CS_CHICKEN1,
+		   _MASKED_BIT_ENABLE(GEN9_FFSC_PERCTX_PREEMPT_CTRL));
 
 	if (IS_SKL_REVID(dev_priv, 0, SKL_REVID_E0)) {
 		/* WaDisableChickenBitTSGBarrierAckForFFSliceCS:skl */
@@ -1022,12 +1020,6 @@ static int skl_init_workarounds(struct intel_engine_cs *engine)
 	/* WaEnableGapsTsvCreditFix:skl */
 	I915_WRITE(GEN8_GARBCNTL, (I915_READ(GEN8_GARBCNTL) |
 				   GEN9_GAPS_TSV_CREDIT_DISABLE));
-
-	/* WaBarrierPerformanceFixDisable:skl */
-	if (IS_SKL_REVID(dev_priv, SKL_REVID_C0, SKL_REVID_D0))
-		WA_SET_BIT_MASKED(HDC_CHICKEN0,
-				  HDC_FENCE_DEST_SLM_DISABLE |
-				  HDC_BARRIER_PERFORMANCE_DISABLE);
 
 	/* WaDisableSbeCacheDispatchPortSharing:skl */
 	if (IS_SKL_REVID(dev_priv, 0, SKL_REVID_F0))
