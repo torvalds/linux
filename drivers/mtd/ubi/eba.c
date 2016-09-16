@@ -84,6 +84,23 @@ static int ubi_get_compat(const struct ubi_device *ubi, int vol_id)
 }
 
 /**
+ * ubi_eba_get_ldesc - get information about a LEB
+ * @vol: volume description object
+ * @lnum: logical eraseblock number
+ * @ldesc: the LEB descriptor to fill
+ *
+ * Used to query information about a specific LEB.
+ * It is currently only returning the physical position of the LEB, but will be
+ * extended to provide more information.
+ */
+void ubi_eba_get_ldesc(struct ubi_volume *vol, int lnum,
+		       struct ubi_eba_leb_desc *ldesc)
+{
+	ldesc->lnum = lnum;
+	ldesc->pnum = vol->eba_tbl[lnum];
+}
+
+/**
  * ltree_lookup - look up the lock tree.
  * @ubi: UBI device description object
  * @vol_id: volume ID

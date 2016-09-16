@@ -267,6 +267,21 @@ struct ubi_fm_pool {
 };
 
 /**
+ * struct ubi_eba_leb_desc - EBA logical eraseblock descriptor
+ * @lnum: the logical eraseblock number
+ * @pnum: the physical eraseblock where the LEB can be found
+ *
+ * This structure is here to hide EBA's internal from other part of the
+ * UBI implementation.
+ *
+ * One can query the position of a LEB by calling ubi_eba_get_ldesc().
+ */
+struct ubi_eba_leb_desc {
+	int lnum;
+	int pnum;
+};
+
+/**
  * struct ubi_volume - UBI volume description data structure.
  * @dev: device object to make use of the the Linux device model
  * @cdev: character device object to create character device
@@ -849,6 +864,8 @@ static inline bool ubi_leb_valid(struct ubi_volume *vol, int lnum)
 }
 
 /* eba.c */
+void ubi_eba_get_ldesc(struct ubi_volume *vol, int lnum,
+		       struct ubi_eba_leb_desc *ldesc);
 bool ubi_eba_is_mapped(struct ubi_volume *vol, int lnum);
 int ubi_eba_unmap_leb(struct ubi_device *ubi, struct ubi_volume *vol,
 		      int lnum);
