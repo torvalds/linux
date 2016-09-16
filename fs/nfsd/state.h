@@ -440,11 +440,11 @@ struct nfs4_openowner {
 /*
  * Represents a generic "lockowner". Similar to an openowner. References to it
  * are held by the lock stateids that are created on its behalf. This object is
- * a superset of the nfs4_stateowner struct (or would be if it needed any extra
- * fields).
+ * a superset of the nfs4_stateowner struct.
  */
 struct nfs4_lockowner {
-	struct nfs4_stateowner	lo_owner; /* must be first element */
+	struct nfs4_stateowner	lo_owner;	/* must be first element */
+	struct list_head	lo_blocked;	/* blocked file_locks */
 };
 
 static inline struct nfs4_openowner * openowner(struct nfs4_stateowner *so)
@@ -580,7 +580,13 @@ static inline bool nfsd4_stateid_generation_after(stateid_t *a, stateid_t *b)
 	return (s32)(a->si_generation - b->si_generation) > 0;
 }
 
+/*
+ * When a client tries to get a lock on a file, we set one of these objects
+ * on the blocking lock. When the lock becomes free, we can then issue a
+ * CB_NOTIFY_LOCK to the server.
+ */
 struct nfsd4_blocked_lock {
+	struct list_head	nbl_list;
 	struct file_lock	nbl_lock;
 	struct knfsd_fh		nbl_fh;
 	struct nfsd4_callback	nbl_cb;
