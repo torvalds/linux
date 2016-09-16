@@ -312,6 +312,18 @@ static void leb_write_unlock(struct ubi_device *ubi, int vol_id, int lnum)
 }
 
 /**
+ * ubi_eba_is_mapped - check if a LEB is mapped.
+ * @vol: volume description object
+ * @lnum: logical eraseblock number
+ *
+ * This function returns true if the LEB is mapped, false otherwise.
+ */
+bool ubi_eba_is_mapped(struct ubi_volume *vol, int lnum)
+{
+	return vol->eba_tbl[lnum] >= 0;
+}
+
+/**
  * ubi_eba_unmap_leb - un-map logical eraseblock.
  * @ubi: UBI device description object
  * @vol: volume description object

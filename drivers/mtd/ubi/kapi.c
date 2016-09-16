@@ -722,7 +722,7 @@ int ubi_leb_map(struct ubi_volume_desc *desc, int lnum)
 	if (vol->upd_marker)
 		return -EBADF;
 
-	if (vol->eba_tbl[lnum] >= 0)
+	if (ubi_eba_is_mapped(vol, lnum))
 		return -EBADMSG;
 
 	return ubi_eba_write_leb(ubi, vol, lnum, NULL, 0, 0);
@@ -757,7 +757,7 @@ int ubi_is_mapped(struct ubi_volume_desc *desc, int lnum)
 	if (vol->upd_marker)
 		return -EBADF;
 
-	return vol->eba_tbl[lnum] >= 0;
+	return ubi_eba_is_mapped(vol, lnum);
 }
 EXPORT_SYMBOL_GPL(ubi_is_mapped);
 
