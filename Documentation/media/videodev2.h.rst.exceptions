@@ -280,6 +280,9 @@ replace define V4L2_DV_FL_REDUCED_FPS dv-bt-standards
 replace define V4L2_DV_FL_HALF_LINE dv-bt-standards
 replace define V4L2_DV_FL_IS_CE_VIDEO dv-bt-standards
 replace define V4L2_DV_FL_FIRST_FIELD_EXTRA_LINE dv-bt-standards
+replace define V4L2_DV_FL_HAS_PICTURE_ASPECT dv-bt-standards
+replace define V4L2_DV_FL_HAS_CEA861_VIC dv-bt-standards
+replace define V4L2_DV_FL_HAS_HDMI_VIC dv-bt-standards
 
 replace define V4L2_DV_BT_656_1120 dv-timing-types
 
