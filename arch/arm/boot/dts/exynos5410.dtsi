@@ -85,7 +85,7 @@
 		tmu_cpu0: tmu@10060000 {
 			compatible = "samsung,exynos5420-tmu";
 			reg = <0x10060000 0x100>;
-			interrupts = <GIC_SPI 65 0>;
+			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock CLK_TMU>;
 			clock-names = "tmu_apbif";
 			#include "exynos4412-tmu-sensor-conf.dtsi"
@@ -94,7 +94,7 @@
 		tmu_cpu1: tmu@10064000 {
 			compatible = "samsung,exynos5420-tmu";
 			reg = <0x10064000 0x100>;
-			interrupts = <GIC_SPI 183 0>;
+			interrupts = <GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock CLK_TMU>;
 			clock-names = "tmu_apbif";
 			#include "exynos4412-tmu-sensor-conf.dtsi"
@@ -103,7 +103,7 @@
 		tmu_cpu2: tmu@10068000 {
 			compatible = "samsung,exynos5420-tmu";
 			reg = <0x10068000 0x100>;
-			interrupts = <GIC_SPI 184 0>;
+			interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock CLK_TMU>;
 			clock-names = "tmu_apbif";
 			#include "exynos4412-tmu-sensor-conf.dtsi"
@@ -112,7 +112,7 @@
 		tmu_cpu3: tmu@1006c000 {
 			compatible = "samsung,exynos5420-tmu";
 			reg = <0x1006c000 0x100>;
-			interrupts = <GIC_SPI 185 0>;
+			interrupts = <GIC_SPI 185 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock CLK_TMU>;
 			clock-names = "tmu_apbif";
 			#include "exynos4412-tmu-sensor-conf.dtsi"
@@ -121,7 +121,7 @@
 		mmc_0: mmc@12200000 {
 			compatible = "samsung,exynos5250-dw-mshc";
 			reg = <0x12200000 0x1000>;
-			interrupts = <0 75 0>;
+			interrupts = <0 75 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			clocks = <&clock CLK_MMC0>, <&clock CLK_SCLK_MMC0>;
@@ -133,7 +133,7 @@
 		mmc_1: mmc@12210000 {
 			compatible = "samsung,exynos5250-dw-mshc";
 			reg = <0x12210000 0x1000>;
-			interrupts = <0 76 0>;
+			interrupts = <0 76 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			clocks = <&clock CLK_MMC1>, <&clock CLK_SCLK_MMC1>;
@@ -145,7 +145,7 @@
 		mmc_2: mmc@12220000 {
 			compatible = "samsung,exynos5250-dw-mshc";
 			reg = <0x12220000 0x1000>;
-			interrupts = <0 77 0>;
+			interrupts = <0 77 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			clocks = <&clock CLK_MMC2>, <&clock CLK_SCLK_MMC2>;
@@ -157,31 +157,31 @@
 		pinctrl_0: pinctrl@13400000 {
 			compatible = "samsung,exynos5410-pinctrl";
 			reg = <0x13400000 0x1000>;
-			interrupts = <0 45 0>;
+			interrupts = <0 45 IRQ_TYPE_LEVEL_HIGH>;
 
 			wakeup-interrupt-controller {
 				compatible = "samsung,exynos4210-wakeup-eint";
 				interrupt-parent = <&gic>;
-				interrupts = <0 32 0>;
+				interrupts = <0 32 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
 
 		pinctrl_1: pinctrl@14000000 {
 			compatible = "samsung,exynos5410-pinctrl";
 			reg = <0x14000000 0x1000>;
-			interrupts = <0 46 0>;
+			interrupts = <0 46 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		pinctrl_2: pinctrl@10d10000 {
 			compatible = "samsung,exynos5410-pinctrl";
 			reg = <0x10d10000 0x1000>;
-			interrupts = <0 50 0>;
+			interrupts = <0 50 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		pinctrl_3: pinctrl@03860000 {
 			compatible = "samsung,exynos5410-pinctrl";
 			reg = <0x03860000 0x1000>;
-			interrupts = <0 47 0>;
+			interrupts = <0 47 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};
 
@@ -329,7 +329,7 @@
 };
 
 &usbdrd_dwc3_1 {
-	interrupts = <GIC_SPI 200 0>;
+	interrupts = <GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>;
 };
 
 &usbdrd_phy1 {
