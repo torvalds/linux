@@ -174,6 +174,8 @@ static struct device_type nvm_type = {
 
 int nvm_sysfs_register_dev(struct nvm_dev *dev)
 {
+	int ret;
+
 	if (!dev->parent_dev)
 		return 0;
 
@@ -181,11 +183,12 @@ int nvm_sysfs_register_dev(struct nvm_dev *dev)
 	dev_set_name(&dev->dev, "%s", dev->name);
 	dev->dev.type = &nvm_type;
 	device_initialize(&dev->dev);
-	device_add(&dev->dev);
+	ret = device_add(&dev->dev);
 
-	blk_mq_register_dev(&dev->dev, dev->q);
+	if (!ret)
+		blk_mq_register_dev(&dev->dev, dev->q);
 
-	return 0;
+	return ret;
 }
 
 void nvm_sysfs_unregister_dev(struct nvm_dev *dev)

@@ -24,7 +24,7 @@
 #include <linux/lightnvm.h>
 
 /* core -> sysfs.c */
-int nvm_sysfs_register_dev(struct nvm_dev *);
+int __must_check nvm_sysfs_register_dev(struct nvm_dev *);
 void nvm_sysfs_unregister_dev(struct nvm_dev *);
 int nvm_sysfs_register(void);
 void nvm_sysfs_unregister(void);
