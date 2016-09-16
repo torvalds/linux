@@ -91,10 +91,6 @@
 
 static int self_check_ai(struct ubi_device *ubi, struct ubi_attach_info *ai);
 
-/* Temporary variables used during scanning */
-static struct ubi_ec_hdr *ech;
-static struct ubi_vid_hdr *vidh;
-
 #define AV_FIND		BIT(0)
 #define AV_ADD		BIT(1)
 #define AV_FIND_OR_ADD	(AV_FIND | AV_ADD)
@@ -958,6 +954,8 @@ static bool vol_ignored(int vol_id)
 static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		    int pnum, bool fast)
 {
+	struct ubi_ec_hdr *ech = ai->ech;
+	struct ubi_vid_hdr *vidh = ai->vidh;
 	long long ec;
 	int err, bitflips = 0, vol_id = -1, ec_err = 0;
 
@@ -1394,12 +1392,12 @@ static int scan_all(struct ubi_device *ubi, struct ubi_attach_info *ai,
 
 	err = -ENOMEM;
 
-	ech = kzalloc(ubi->ec_hdr_alsize, GFP_KERNEL);
-	if (!ech)
+	ai->ech = kzalloc(ubi->ec_hdr_alsize, GFP_KERNEL);
+	if (!ai->ech)
 		return err;
 
-	vidh = ubi_zalloc_vid_hdr(ubi, GFP_KERNEL);
-	if (!vidh)
+	ai->vidh = ubi_zalloc_vid_hdr(ubi, GFP_KERNEL);
+	if (!ai->vidh)
 		goto out_ech;
 
 	for (pnum = start; pnum < ubi->peb_count; pnum++) {
@@ -1448,15 +1446,15 @@ static int scan_all(struct ubi_device *ubi, struct ubi_attach_info *ai,
 	if (err)
 		goto out_vidh;
 
-	ubi_free_vid_hdr(ubi, vidh);
-	kfree(ech);
+	ubi_free_vid_hdr(ubi, ai->vidh);
+	kfree(ai->ech);
 
 	return 0;
 
 out_vidh:
-	ubi_free_vid_hdr(ubi, vidh);
+	ubi_free_vid_hdr(ubi, ai->vidh);
 out_ech:
-	kfree(ech);
+	kfree(ai->ech);
 	return err;
 }
 
@@ -1508,12 +1506,12 @@ static int scan_fast(struct ubi_device *ubi, struct ubi_attach_info **ai)
 	if (!scan_ai)
 		goto out;
 
-	ech = kzalloc(ubi->ec_hdr_alsize, GFP_KERNEL);
-	if (!ech)
+	scan_ai->ech = kzalloc(ubi->ec_hdr_alsize, GFP_KERNEL);
+	if (!scan_ai->ech)
 		goto out_ai;
 
-	vidh = ubi_zalloc_vid_hdr(ubi, GFP_KERNEL);
-	if (!vidh)
+	scan_ai->vidh = ubi_zalloc_vid_hdr(ubi, GFP_KERNEL);
+	if (!scan_ai->vidh)
 		goto out_ech;
 
 	for (pnum = 0; pnum < UBI_FM_MAX_START; pnum++) {
@@ -1525,8 +1523,8 @@ static int scan_fast(struct ubi_device *ubi, struct ubi_attach_info **ai)
 			goto out_vidh;
 	}
 
-	ubi_free_vid_hdr(ubi, vidh);
-	kfree(ech);
+	ubi_free_vid_hdr(ubi, scan_ai->vidh);
+	kfree(scan_ai->ech);
 
 	if (scan_ai->force_full_scan)
 		err = UBI_NO_FASTMAP;
@@ -1546,9 +1544,9 @@ static int scan_fast(struct ubi_device *ubi, struct ubi_attach_info **ai)
 	return err;
 
 out_vidh:
-	ubi_free_vid_hdr(ubi, vidh);
+	ubi_free_vid_hdr(ubi, scan_ai->vidh);
 out_ech:
-	kfree(ech);
+	kfree(scan_ai->ech);
 out_ai:
 	destroy_ai(scan_ai);
 out:
@@ -1670,6 +1668,7 @@ out_ai:
  */
 static int self_check_ai(struct ubi_device *ubi, struct ubi_attach_info *ai)
 {
+	struct ubi_vid_hdr *vidh = ai->vidh;
 	int pnum, err, vols_found = 0;
 	struct rb_node *rb1, *rb2;
 	struct ubi_ainf_volume *av;
