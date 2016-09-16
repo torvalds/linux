@@ -1,2 +1,4 @@
 libperf-$(CONFIG_DWARF)     += dwarf-regs.o
 libperf-$(CONFIG_LOCAL_LIBUNWIND) += unwind-libunwind.o
+
+libperf-$(CONFIG_AUXTRACE) += ../../arm/util/pmu.o
