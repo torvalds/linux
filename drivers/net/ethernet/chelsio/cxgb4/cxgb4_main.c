@@ -2517,6 +2517,7 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 	lli.max_ird_adapter = adap->params.max_ird_adapter;
 	lli.ulptx_memwrite_dsgl = adap->params.ulptx_memwrite_dsgl;
 	lli.nodeid = dev_to_node(adap->pdev_dev);
+	lli.fr_nsmr_tpte_wr_support = adap->params.fr_nsmr_tpte_wr_support;
 
 	handle = ulds[uld].add(&lli);
 	if (IS_ERR(handle)) {
@@ -4060,6 +4061,12 @@ static int adap_init0(struct adapter *adap)
 				      1, params, val);
 		adap->params.ulptx_memwrite_dsgl = (ret == 0 && val[0] != 0);
 	}
+
+	/* See if FW supports FW_RI_FR_NSMR_TPTE_WR work request */
+	params[0] = FW_PARAM_DEV(RI_FR_NSMR_TPTE_WR);
+	ret = t4_query_params(adap, adap->mbox, adap->pf, 0,
+			      1, params, val);
+	adap->params.fr_nsmr_tpte_wr_support = (ret == 0 && val[0] != 0);
 
 	/*
 	 * Get device capabilities so we can determine what resources we need
