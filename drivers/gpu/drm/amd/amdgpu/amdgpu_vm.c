@@ -1435,6 +1435,15 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 			goto error_free;
 		}
 
+		if (pt->shadow) {
+			r = amdgpu_vm_clear_bo(adev, vm, pt->shadow);
+			if (r) {
+				amdgpu_bo_unref(&pt->shadow);
+				amdgpu_bo_unref(&pt);
+				goto error_free;
+			}
+		}
+
 		entry->robj = pt;
 		entry->priority = 0;
 		entry->tv.bo = &entry->robj->tbo;
@@ -1631,6 +1640,12 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	r = amdgpu_vm_clear_bo(adev, vm, vm->page_directory);
 	if (r)
 		goto error_unreserve;
+
+	if (vm->page_directory->shadow) {
+		r = amdgpu_vm_clear_bo(adev, vm, vm->page_directory->shadow);
+		if (r)
+			goto error_unreserve;
+	}
 
 	vm->last_eviction_counter = atomic64_read(&adev->num_evictions);
 	amdgpu_bo_unreserve(vm->page_directory);
