@@ -1629,12 +1629,16 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 		goto error_free_page_directory;
 
 	r = amdgpu_vm_clear_bo(adev, vm, vm->page_directory);
-	amdgpu_bo_unreserve(vm->page_directory);
 	if (r)
-		goto error_free_page_directory;
+		goto error_unreserve;
+
 	vm->last_eviction_counter = atomic64_read(&adev->num_evictions);
+	amdgpu_bo_unreserve(vm->page_directory);
 
 	return 0;
+
+error_unreserve:
+	amdgpu_bo_unreserve(vm->page_directory);
 
 error_free_page_directory:
 	amdgpu_bo_unref(&vm->page_directory->shadow);
