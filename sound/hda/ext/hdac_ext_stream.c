@@ -424,7 +424,7 @@ void snd_hdac_ext_stream_spbcap_enable(struct hdac_ext_bus *ebus,
 	struct hdac_bus *bus = &ebus->bus;
 
 	if (!bus->spbcap) {
-		dev_err(bus->dev, "Address of SPB capability is NULL");
+		dev_err(bus->dev, "Address of SPB capability is NULL\n");
 		return;
 	}
 
@@ -453,7 +453,7 @@ int snd_hdac_ext_stream_set_spib(struct hdac_ext_bus *ebus,
 	struct hdac_bus *bus = &ebus->bus;
 
 	if (!bus->spbcap) {
-		dev_err(bus->dev, "Address of SPB capability is NULL");
+		dev_err(bus->dev, "Address of SPB capability is NULL\n");
 		return -EINVAL;
 	}
 
@@ -476,7 +476,7 @@ int snd_hdac_ext_stream_get_spbmaxfifo(struct hdac_ext_bus *ebus,
 	struct hdac_bus *bus = &ebus->bus;
 
 	if (!bus->spbcap) {
-		dev_err(bus->dev, "Address of SPB capability is NULL");
+		dev_err(bus->dev, "Address of SPB capability is NULL\n");
 		return -EINVAL;
 	}
 
@@ -516,7 +516,7 @@ void snd_hdac_ext_stream_drsm_enable(struct hdac_ext_bus *ebus,
 	struct hdac_bus *bus = &ebus->bus;
 
 	if (!bus->drsmcap) {
-		dev_err(bus->dev, "Address of DRSM capability is NULL");
+		dev_err(bus->dev, "Address of DRSM capability is NULL\n");
 		return;
 	}
 
@@ -545,7 +545,7 @@ int snd_hdac_ext_stream_set_dpibr(struct hdac_ext_bus *ebus,
 	struct hdac_bus *bus = &ebus->bus;
 
 	if (!bus->drsmcap) {
-		dev_err(bus->dev, "Address of DRSM capability is NULL");
+		dev_err(bus->dev, "Address of DRSM capability is NULL\n");
 		return -EINVAL;
 	}
 
