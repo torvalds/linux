@@ -166,7 +166,7 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 	rsrc = platform_get_resource(pdev, IORESOURCE_MEM,
 					ctx->pdata->res_info->acpi_lpe_res_index);
 	if (!rsrc) {
-		dev_err(ctx->dev, "Invalid SHIM base from IFWI");
+		dev_err(ctx->dev, "Invalid SHIM base from IFWI\n");
 		return -EIO;
 	}
 	dev_info(ctx->dev, "LPE base: %#x size:%#x", (unsigned int) rsrc->start,
@@ -178,7 +178,7 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 	ctx->iram = devm_ioremap_nocache(ctx->dev, ctx->iram_base,
 					 ctx->pdata->res_info->iram_size);
 	if (!ctx->iram) {
-		dev_err(ctx->dev, "unable to map IRAM");
+		dev_err(ctx->dev, "unable to map IRAM\n");
 		return -EIO;
 	}
 
@@ -188,7 +188,7 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 	ctx->dram = devm_ioremap_nocache(ctx->dev, ctx->dram_base,
 					 ctx->pdata->res_info->dram_size);
 	if (!ctx->dram) {
-		dev_err(ctx->dev, "unable to map DRAM");
+		dev_err(ctx->dev, "unable to map DRAM\n");
 		return -EIO;
 	}
 
@@ -197,7 +197,7 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 	ctx->shim = devm_ioremap_nocache(ctx->dev, ctx->shim_phy_add,
 					ctx->pdata->res_info->shim_size);
 	if (!ctx->shim) {
-		dev_err(ctx->dev, "unable to map SHIM");
+		dev_err(ctx->dev, "unable to map SHIM\n");
 		return -EIO;
 	}
 
@@ -210,7 +210,7 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 	ctx->mailbox = devm_ioremap_nocache(ctx->dev, ctx->mailbox_add,
 					    ctx->pdata->res_info->mbox_size);
 	if (!ctx->mailbox) {
-		dev_err(ctx->dev, "unable to map mailbox");
+		dev_err(ctx->dev, "unable to map mailbox\n");
 		return -EIO;
 	}
 
@@ -220,7 +220,7 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 	rsrc = platform_get_resource(pdev, IORESOURCE_MEM,
 					ctx->pdata->res_info->acpi_ddr_index);
 	if (!rsrc) {
-		dev_err(ctx->dev, "Invalid DDR base from IFWI");
+		dev_err(ctx->dev, "Invalid DDR base from IFWI\n");
 		return -EIO;
 	}
 	ctx->ddr_base = rsrc->start;
@@ -229,7 +229,7 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 	ctx->ddr = devm_ioremap_nocache(ctx->dev, ctx->ddr_base,
 					resource_size(rsrc));
 	if (!ctx->ddr) {
-		dev_err(ctx->dev, "unable to map DDR");
+		dev_err(ctx->dev, "unable to map DDR\n");
 		return -EIO;
 	}
 
@@ -296,7 +296,7 @@ static int sst_acpi_probe(struct platform_device *pdev)
 	id = acpi_match_device(dev->driver->acpi_match_table, dev);
 	if (!id)
 		return -ENODEV;
-	dev_dbg(dev, "for %s", id->id);
+	dev_dbg(dev, "for %s\n", id->id);
 
 	mach = (struct sst_acpi_mach *)id->driver_data;
 	mach = sst_acpi_find_machine(mach);
