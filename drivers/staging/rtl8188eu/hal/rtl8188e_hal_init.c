@@ -165,10 +165,10 @@ void rtw_hal_set_odm_var(struct adapter *Adapter, enum hal_odm_variable eVariabl
 		}
 		break;
 	case HAL_ODM_P2P_STATE:
-			ODM_CmnInfoUpdate(podmpriv, ODM_CMNINFO_WIFI_DIRECT, bSet);
+		podmpriv->bWIFI_Direct = bSet;
 		break;
 	case HAL_ODM_WIFI_DISPLAY_STATE:
-			ODM_CmnInfoUpdate(podmpriv, ODM_CMNINFO_WIFI_DISPLAY, bSet);
+		podmpriv->bWIFI_Display = bSet;
 		break;
 	default:
 		break;
