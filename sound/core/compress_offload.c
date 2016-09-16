@@ -780,7 +780,7 @@ static int snd_compress_wait_for_drain(struct snd_compr_stream *stream)
 	ret = wait_event_interruptible(stream->runtime->sleep,
 			(stream->runtime->state != SNDRV_PCM_STATE_DRAINING));
 	if (ret == -ERESTARTSYS)
-		pr_debug("wait aborted by a signal");
+		pr_debug("wait aborted by a signal\n");
 	else if (ret)
 		pr_debug("wait for drain failed with %d\n", ret);
 
@@ -962,7 +962,7 @@ static int snd_compress_dev_register(struct snd_device *device)
 				  compr->card, compr->device,
 				  &snd_compr_file_ops, compr, &compr->dev);
 	if (ret < 0) {
-		pr_err("snd_register_device failed\n %d", ret);
+		pr_err("snd_register_device failed %d\n", ret);
 		return ret;
 	}
 	return ret;
