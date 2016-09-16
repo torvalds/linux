@@ -120,6 +120,15 @@ extern long prune_icache_sb(struct super_block *sb, struct shrink_control *sc);
 extern void inode_add_lru(struct inode *inode);
 extern int dentry_needs_remove_privs(struct dentry *dentry);
 
+extern bool __atime_needs_update(const struct path *, struct inode *, bool);
+static inline bool atime_needs_update_rcu(const struct path *path,
+					  struct inode *inode)
+{
+	return __atime_needs_update(path, inode, true);
+}
+
+extern bool atime_needs_update_rcu(const struct path *, struct inode *);
+
 /*
  * fs-writeback.c
  */
