@@ -106,19 +106,23 @@ static int rxrpc_validate_address(struct rxrpc_sock *rx,
 	case AF_INET:
 		if (srx->transport_len < sizeof(struct sockaddr_in))
 			return -EINVAL;
-		_debug("INET: %x @ %pI4",
-		       ntohs(srx->transport.sin.sin_port),
-		       &srx->transport.sin.sin_addr);
 		tail = offsetof(struct sockaddr_rxrpc, transport.sin.__pad);
 		break;
 
 	case AF_INET6:
+		if (srx->transport_len < sizeof(struct sockaddr_in6))
+			return -EINVAL;
+		tail = offsetof(struct sockaddr_rxrpc, transport) +
+			sizeof(struct sockaddr_in6);
+		break;
+
 	default:
 		return -EAFNOSUPPORT;
 	}
 
 	if (tail < len)
 		memset((void *)srx + tail, 0, len - tail);
+	_debug("INET: %pISp", &srx->transport);
 	return 0;
 }
 
@@ -401,6 +405,21 @@ static int rxrpc_sendmsg(struct socket *sock, struct msghdr *m, size_t len)
 
 	switch (rx->sk.sk_state) {
 	case RXRPC_UNBOUND:
+		rx->srx.srx_family = AF_RXRPC;
+		rx->srx.srx_service = 0;
+		rx->srx.transport_type = SOCK_DGRAM;
+		rx->srx.transport.family = rx->family;
+		switch (rx->family) {
+		case AF_INET:
+			rx->srx.transport_len = sizeof(struct sockaddr_in);
+			break;
+		case AF_INET6:
+			rx->srx.transport_len = sizeof(struct sockaddr_in6);
+			break;
+		default:
+			ret = -EAFNOSUPPORT;
+			goto error_unlock;
+		}
 		local = rxrpc_lookup_local(&rx->srx);
 		if (IS_ERR(local)) {
 			ret = PTR_ERR(local);
@@ -551,7 +570,7 @@ static int rxrpc_create(struct net *net, struct socket *sock, int protocol,
 		return -EAFNOSUPPORT;
 
 	/* we support transport protocol UDP/UDP6 only */
-	if (protocol != PF_INET)
+	if (protocol != PF_INET && protocol != PF_INET6)
 		return -EPROTONOSUPPORT;
 
 	if (sock->type != SOCK_DGRAM)
