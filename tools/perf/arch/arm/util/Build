@@ -3,4 +3,4 @@ libperf-$(CONFIG_DWARF) += dwarf-regs.o
 libperf-$(CONFIG_LOCAL_LIBUNWIND)    += unwind-libunwind.o
 libperf-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o
 
-libperf-$(CONFIG_AUXTRACE) += pmu.o
+libperf-$(CONFIG_AUXTRACE) += pmu.o auxtrace.o cs-etm.o
