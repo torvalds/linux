@@ -552,6 +552,10 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	if (r)
 		goto error;
 
+	r = amdgpu_ttm_bind(&bo->tbo, &bo->tbo.mem);
+	if (r)
+		goto error;
+
 	addr = amdgpu_bo_gpu_offset(bo);
 	entries = amdgpu_bo_size(bo) / 8;
 
@@ -625,6 +629,11 @@ static int amdgpu_vm_update_pd_or_shadow(struct amdgpu_device *adev,
 
 	if (!pd)
 		return 0;
+
+	r = amdgpu_ttm_bind(&pd->tbo, &pd->tbo.mem);
+	if (r)
+		return r;
+
 	pd_addr = amdgpu_bo_gpu_offset(pd);
 	ring = container_of(vm->entity.sched, struct amdgpu_ring, sched);
 
@@ -649,6 +658,14 @@ static int amdgpu_vm_update_pd_or_shadow(struct amdgpu_device *adev,
 
 		if (bo == NULL)
 			continue;
+
+		if (bo->shadow) {
+			struct amdgpu_bo *shadow = bo->shadow;
+
+			r = amdgpu_ttm_bind(&shadow->tbo, &shadow->tbo.mem);
+			if (r)
+				return r;
+		}
 
 		pt = amdgpu_bo_gpu_offset(bo);
 		if (!shadow) {
