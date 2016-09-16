@@ -16,6 +16,7 @@
 #include "exynos54xx.dtsi"
 #include "exynos-syscon-restart.dtsi"
 #include <dt-bindings/clock/exynos5410.h>
+#include <dt-bindings/clock/exynos-audss-clk.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 / {
@@ -80,6 +81,14 @@
 			compatible = "samsung,exynos5410-clock";
 			reg = <0x10010000 0x30000>;
 			#clock-cells = <1>;
+		};
+
+		clock_audss: audss-clock-controller@3810000 {
+			compatible = "samsung,exynos5410-audss-clock";
+			reg = <0x03810000 0x0C>;
+			#clock-cells = <1>;
+			clocks = <&fin_pll>, <&clock CLK_FOUT_EPLL>;
+			clock-names = "pll_ref", "pll_in";
 		};
 
 		tmu_cpu0: tmu@10060000 {
@@ -182,6 +191,56 @@
 			compatible = "samsung,exynos5410-pinctrl";
 			reg = <0x03860000 0x1000>;
 			interrupts = <0 47 0>;
+		};
+
+		amba {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "simple-bus";
+			interrupt-parent = <&gic>;
+			ranges;
+
+			pdma0: pdma@12680000 {
+				compatible = "arm,pl330", "arm,primecell";
+				reg = <0x121A0000 0x1000>;
+				interrupts = <GIC_SPI 34 IRQ_TYPE_NONE>;
+				clocks = <&clock CLK_PDMA0>;
+				clock-names = "apb_pclk";
+				#dma-cells = <1>;
+				#dma-channels = <8>;
+				#dma-requests = <32>;
+			};
+
+			pdma1: pdma@12690000 {
+				compatible = "arm,pl330", "arm,primecell";
+				reg = <0x121B0000 0x1000>;
+				interrupts = <GIC_SPI 35 IRQ_TYPE_NONE>;
+				clocks = <&clock CLK_PDMA1>;
+				clock-names = "apb_pclk";
+				#dma-cells = <1>;
+				#dma-channels = <8>;
+				#dma-requests = <32>;
+			};
+		};
+
+		audi2s0: i2s@03830000 {
+			compatible = "samsung,exynos5420-i2s";
+			reg = <0x03830000 0x100>;
+			dmas = <&pdma0 10
+				&pdma0 9
+				&pdma0 8>;
+			dma-names = "tx", "rx", "tx-sec";
+			clocks = <&clock_audss EXYNOS_I2S_BUS>,
+				<&clock_audss EXYNOS_I2S_BUS>,
+				<&clock_audss EXYNOS_SCLK_I2S>;
+			clock-names = "iis", "i2s_opclk0", "i2s_opclk1";
+			#clock-cells = <1>;
+			clock-output-names = "i2s_cdclk0";
+			#sound-dai-cells = <1>;
+			samsung,idma-addr = <0x03000000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&audi2s0_bus>;
+			status = "disabled";
 		};
 	};
 
