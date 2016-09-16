@@ -1174,8 +1174,8 @@ int bcm_qspi_probe(struct platform_device *pdev,
 
 	qspi->dev_ids = kcalloc(num_irqs, sizeof(struct bcm_qspi_dev_id),
 				GFP_KERNEL);
-	if (IS_ERR(qspi->dev_ids)) {
-		ret = PTR_ERR(qspi->dev_ids);
+	if (!qspi->dev_ids) {
+		ret = -ENOMEM;
 		goto qspi_probe_err;
 	}
 
