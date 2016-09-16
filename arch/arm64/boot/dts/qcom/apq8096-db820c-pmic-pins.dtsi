@@ -1,0 +1,15 @@
+
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
+&pm8994_gpios {
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&ls_exp_gpio_f>;
+
+	ls_exp_gpio_f: pm8916_mpp4 {
+		pinconf {
+			pins = "gpio5";
+			output-low;
+			power-source = <PM8994_GPIO_S4>; // 1.8V
+		};
+	};
+};
