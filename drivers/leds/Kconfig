@@ -659,6 +659,14 @@ config LEDS_MLXCPLD
 	  This option enabled support for the LEDs on the Mellanox
 	  boards. Say Y to enabled these.
 
+config LEDS_USER
+	tristate "Userspace LED support"
+	depends on LEDS_CLASS
+	help
+	  This option enables support for userspace LEDs. Say 'y' to enable this
+	  support in kernel. To compile this driver as a module, choose 'm' here:
+	  the module will be called uleds.
+
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
 

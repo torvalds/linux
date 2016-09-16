@@ -75,5 +75,8 @@ obj-$(CONFIG_LEDS_MLXCPLD)		+= leds-mlxcpld.o
 # LED SPI Drivers
 obj-$(CONFIG_LEDS_DAC124S085)		+= leds-dac124s085.o
 
+# LED Userspace Drivers
+obj-$(CONFIG_LEDS_USER)			+= uleds.o
+
 # LED Triggers
 obj-$(CONFIG_LEDS_TRIGGERS)		+= trigger/
