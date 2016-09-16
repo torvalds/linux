@@ -4695,15 +4695,6 @@ L:	iommu@lists.linux-foundation.org
 S:	Maintained
 F:	drivers/iommu/exynos-iommu.c
 
-EXYNOS MIPI DISPLAY DRIVERS
-M:	Inki Dae <inki.dae@samsung.com>
-M:	Donghwa Lee <dh09.lee@samsung.com>
-M:	Kyungmin Park <kyungmin.park@samsung.com>
-L:	linux-fbdev@vger.kernel.org
-S:	Maintained
-F:	drivers/video/fbdev/exynos/exynos_mipi*
-F:	include/video/exynos_mipi*
-
 EZchip NPS platform support
 M:	Noam Camus <noamc@ezchip.com>
 S:	Supported
