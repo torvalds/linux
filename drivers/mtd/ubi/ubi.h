@@ -843,6 +843,11 @@ void ubi_update_reserved(struct ubi_device *ubi);
 void ubi_calculate_reserved(struct ubi_device *ubi);
 int ubi_check_pattern(const void *buf, uint8_t patt, int size);
 
+static inline bool ubi_leb_valid(struct ubi_volume *vol, int lnum)
+{
+	return lnum >= 0 && lnum < vol->reserved_pebs;
+}
+
 /* eba.c */
 int ubi_eba_unmap_leb(struct ubi_device *ubi, struct ubi_volume *vol,
 		      int lnum);

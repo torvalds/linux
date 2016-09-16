@@ -454,7 +454,7 @@ static long vol_cdev_ioctl(struct file *file, unsigned int cmd,
 
 		/* Validate the request */
 		err = -EINVAL;
-		if (req.lnum < 0 || req.lnum >= vol->reserved_pebs ||
+		if (!ubi_leb_valid(vol, req.lnum) ||
 		    req.bytes < 0 || req.bytes > vol->usable_leb_size)
 			break;
 
@@ -485,7 +485,7 @@ static long vol_cdev_ioctl(struct file *file, unsigned int cmd,
 			break;
 		}
 
-		if (lnum < 0 || lnum >= vol->reserved_pebs) {
+		if (!ubi_leb_valid(vol, lnum)) {
 			err = -EINVAL;
 			break;
 		}
