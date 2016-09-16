@@ -604,10 +604,10 @@ err:
 static void wm8994_device_exit(struct wm8994 *wm8994)
 {
 	pm_runtime_disable(wm8994->dev);
-	mfd_remove_devices(wm8994->dev);
 	wm8994_irq_exit(wm8994);
 	regulator_bulk_disable(wm8994->num_supplies,
 			       wm8994->supplies);
+	mfd_remove_devices(wm8994->dev);
 }
 
 static const struct of_device_id wm8994_of_match[] = {
