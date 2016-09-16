@@ -177,7 +177,6 @@ struct adt7470_data {
 	u8			pwm_auto_temp[ADT7470_PWM_COUNT];
 
 	struct task_struct	*auto_update;
-	struct completion	auto_update_stop;
 	unsigned int		auto_update_interval;
 };
 
@@ -281,7 +280,6 @@ static int adt7470_update_thread(void *p)
 		schedule_timeout(msecs_to_jiffies(data->auto_update_interval));
 	}
 
-	complete_all(&data->auto_update_stop);
 	return 0;
 }
 
@@ -1356,7 +1354,6 @@ static int adt7470_probe(struct i2c_client *client,
 	if (IS_ERR(hwmon_dev))
 		return PTR_ERR(hwmon_dev);
 
-	init_completion(&data->auto_update_stop);
 	data->auto_update = kthread_run(adt7470_update_thread, client, "%s",
 					dev_name(hwmon_dev));
 	if (IS_ERR(data->auto_update)) {
@@ -1371,7 +1368,6 @@ static int adt7470_remove(struct i2c_client *client)
 	struct adt7470_data *data = i2c_get_clientdata(client);
 
 	kthread_stop(data->auto_update);
-	wait_for_completion(&data->auto_update_stop);
 	return 0;
 }
 
