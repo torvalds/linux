@@ -808,6 +808,27 @@ static void vce_v3_0_emit_pipeline_sync(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, seq);
 }
 
+static unsigned vce_v3_0_ring_get_emit_ib_size(struct amdgpu_ring *ring)
+{
+	return
+		5; /* vce_v3_0_ring_emit_ib */
+}
+
+static unsigned vce_v3_0_ring_get_dma_frame_size(struct amdgpu_ring *ring)
+{
+	return
+		4 + /* vce_v3_0_emit_pipeline_sync */
+		6; /* amdgpu_vce_ring_emit_fence x1 no user fence */
+}
+
+static unsigned vce_v3_0_ring_get_dma_frame_size_vm(struct amdgpu_ring *ring)
+{
+	return
+		6 + /* vce_v3_0_emit_vm_flush */
+		4 + /* vce_v3_0_emit_pipeline_sync */
+		6 + 6; /* amdgpu_vce_ring_emit_fence x2 vm fence */
+}
+
 const struct amd_ip_funcs vce_v3_0_ip_funcs = {
 	.name = "vce_v3_0",
 	.early_init = vce_v3_0_early_init,
@@ -841,6 +862,8 @@ static const struct amdgpu_ring_funcs vce_v3_0_ring_phys_funcs = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_vce_ring_begin_use,
 	.end_use = amdgpu_vce_ring_end_use,
+	.get_emit_ib_size = vce_v3_0_ring_get_emit_ib_size,
+	.get_dma_frame_size = vce_v3_0_ring_get_dma_frame_size,
 };
 
 static const struct amdgpu_ring_funcs vce_v3_0_ring_vm_funcs = {
@@ -858,6 +881,8 @@ static const struct amdgpu_ring_funcs vce_v3_0_ring_vm_funcs = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_vce_ring_begin_use,
 	.end_use = amdgpu_vce_ring_end_use,
+	.get_emit_ib_size = vce_v3_0_ring_get_emit_ib_size,
+	.get_dma_frame_size = vce_v3_0_ring_get_dma_frame_size_vm,
 };
 
 static void vce_v3_0_set_ring_funcs(struct amdgpu_device *adev)
