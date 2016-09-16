@@ -107,13 +107,13 @@ static int skl_load_base_firmware(struct sst_dsp *ctx)
 
 	ret = skl_dsp_boot(ctx);
 	if (ret < 0) {
-		dev_err(ctx->dev, "Boot dsp core failed ret: %d", ret);
+		dev_err(ctx->dev, "Boot dsp core failed ret: %d\n", ret);
 		goto skl_load_base_firmware_failed;
 	}
 
 	ret = skl_cldma_prepare(ctx);
 	if (ret < 0) {
-		dev_err(ctx->dev, "CL dma prepare failed : %d", ret);
+		dev_err(ctx->dev, "CL dma prepare failed : %d\n", ret);
 		goto skl_load_base_firmware_failed;
 	}
 
@@ -502,7 +502,7 @@ int skl_sst_init_fw(struct device *dev, struct skl_sst *ctx)
 
 	ret = sst->fw_ops.load_fw(sst);
 	if (ret < 0) {
-		dev_err(dev, "Load base fw failed : %d", ret);
+		dev_err(dev, "Load base fw failed : %d\n", ret);
 		return ret;
 	}
 

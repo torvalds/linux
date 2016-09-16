@@ -404,7 +404,7 @@ static int bxt_set_dsp_D3(struct sst_dsp *ctx, unsigned int core_id)
 
 	ret = skl_dsp_disable_core(ctx, core_mask);
 	if (ret < 0) {
-		dev_err(ctx->dev, "Failed to disable core %d", ret);
+		dev_err(ctx->dev, "Failed to disable core %d\n", ret);
 		return ret;
 	}
 	skl->cores.state[core_id] = SKL_DSP_RESET;
@@ -489,7 +489,7 @@ int bxt_sst_init_fw(struct device *dev, struct skl_sst *ctx)
 
 	ret = sst->fw_ops.load_fw(sst);
 	if (ret < 0) {
-		dev_err(dev, "Load base fw failed: %x", ret);
+		dev_err(dev, "Load base fw failed: %x\n", ret);
 		return ret;
 	}
 
@@ -498,7 +498,7 @@ int bxt_sst_init_fw(struct device *dev, struct skl_sst *ctx)
 	if (ctx->manifest.lib_count > 1) {
 		ret = sst->fw_ops.load_library(sst, &ctx->manifest);
 		if (ret < 0) {
-			dev_err(dev, "Load Library failed : %x", ret);
+			dev_err(dev, "Load Library failed : %x\n", ret);
 			return ret;
 		}
 	}

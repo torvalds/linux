@@ -344,7 +344,7 @@ static int skl_ipc_process_notification(struct sst_generic_ipc *ipc,
 			break;
 
 		default:
-			dev_err(ipc->dev, "ipc: Unhandled error msg=%x",
+			dev_err(ipc->dev, "ipc: Unhandled error msg=%x\n",
 						header.primary);
 			break;
 		}
@@ -385,13 +385,13 @@ static void skl_ipc_process_reply(struct sst_generic_ipc *ipc,
 		break;
 
 	default:
-		dev_err(ipc->dev, "Unknown ipc reply: 0x%x", reply);
+		dev_err(ipc->dev, "Unknown ipc reply: 0x%x\n", reply);
 		msg->errno = -EINVAL;
 		break;
 	}
 
 	if (reply != IPC_GLB_REPLY_SUCCESS) {
-		dev_err(ipc->dev, "ipc FW reply: reply=%d", reply);
+		dev_err(ipc->dev, "ipc FW reply: reply=%d\n", reply);
 		dev_err(ipc->dev, "FW Error Code: %u\n",
 			ipc->dsp->fw_ops.get_fw_errcode(ipc->dsp));
 	}
@@ -440,9 +440,9 @@ irqreturn_t skl_dsp_irq_thread_handler(int irq, void *context)
 		hipcte = sst_dsp_shim_read_unlocked(dsp, SKL_ADSP_REG_HIPCTE);
 		header.primary = hipct;
 		header.extension = hipcte;
-		dev_dbg(dsp->dev, "IPC irq: Firmware respond primary:%x",
+		dev_dbg(dsp->dev, "IPC irq: Firmware respond primary:%x\n",
 						header.primary);
-		dev_dbg(dsp->dev, "IPC irq: Firmware respond extension:%x",
+		dev_dbg(dsp->dev, "IPC irq: Firmware respond extension:%x\n",
 						header.extension);
 
 		if (IPC_GLB_NOTIFY_RSP_TYPE(header.primary)) {
@@ -749,7 +749,7 @@ int skl_ipc_bind_unbind(struct sst_generic_ipc *ipc,
 			 header.extension);
 	ret = sst_ipc_tx_message_wait(ipc, *ipc_header, NULL, 0, NULL, 0);
 	if (ret < 0) {
-		dev_err(ipc->dev, "ipc: bind/unbind faileden");
+		dev_err(ipc->dev, "ipc: bind/unbind failed\n");
 		return ret;
 	}
 
