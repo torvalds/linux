@@ -1954,7 +1954,8 @@ static int pqi_raid_bypass_submit_scsi_cmd(struct pqi_ctrl_info *ctrl_info,
 		is_write = true;
 		/* fall through */
 	case READ_6:
-		first_block = (u64)get_unaligned_be16(&scmd->cmnd[2]);
+		first_block = (u64)(((scmd->cmnd[1] & 0x1f) << 16) |
+			(scmd->cmnd[2] << 8) | scmd->cmnd[3]);
 		block_cnt = (u32)scmd->cmnd[4];
 		if (block_cnt == 0)
 			block_cnt = 256;
