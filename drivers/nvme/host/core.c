@@ -888,42 +888,33 @@ static void nvme_config_discard(struct nvme_ns *ns)
 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, ns->queue);
 }
 
-static int nvme_revalidate_disk(struct gendisk *disk)
+static int nvme_revalidate_ns(struct nvme_ns *ns, struct nvme_id_ns **id)
 {
-	struct nvme_ns *ns = disk->private_data;
-	struct nvme_id_ns *id;
-	u8 lbaf, pi_type;
-	u16 old_ms;
-	unsigned short bs;
-
-	if (test_bit(NVME_NS_DEAD, &ns->flags)) {
-		set_capacity(disk, 0);
-		return -ENODEV;
-	}
-	if (nvme_identify_ns(ns->ctrl, ns->ns_id, &id)) {
+	if (nvme_identify_ns(ns->ctrl, ns->ns_id, id)) {
 		dev_warn(disk_to_dev(ns->disk), "%s: Identify failure\n",
 				__func__);
 		return -ENODEV;
 	}
-	if (id->ncap == 0) {
-		kfree(id);
+
+	if ((*id)->ncap == 0) {
+		kfree(*id);
 		return -ENODEV;
 	}
 
-	if (nvme_nvm_ns_supported(ns, id) && ns->type != NVME_NS_LIGHTNVM) {
-		if (nvme_nvm_register(ns->queue, disk->disk_name)) {
-			dev_warn(disk_to_dev(ns->disk),
-				"%s: LightNVM init failure\n", __func__);
-			kfree(id);
-			return -ENODEV;
-		}
-		ns->type = NVME_NS_LIGHTNVM;
-	}
-
 	if (ns->ctrl->vs >= NVME_VS(1, 1))
-		memcpy(ns->eui, id->eui64, sizeof(ns->eui));
+		memcpy(ns->eui, (*id)->eui64, sizeof(ns->eui));
 	if (ns->ctrl->vs >= NVME_VS(1, 2))
-		memcpy(ns->uuid, id->nguid, sizeof(ns->uuid));
+		memcpy(ns->uuid, (*id)->nguid, sizeof(ns->uuid));
+
+	return 0;
+}
+
+static void __nvme_revalidate_disk(struct gendisk *disk, struct nvme_id_ns *id)
+{
+	struct nvme_ns *ns = disk->private_data;
+	u8 lbaf, pi_type;
+	u16 old_ms;
+	unsigned short bs;
 
 	old_ms = ns->ms;
 	lbaf = id->flbas & NVME_NS_FLBAS_LBA_MASK;
@@ -962,8 +953,26 @@ static int nvme_revalidate_disk(struct gendisk *disk)
 	if (ns->ctrl->oncs & NVME_CTRL_ONCS_DSM)
 		nvme_config_discard(ns);
 	blk_mq_unfreeze_queue(disk->queue);
+}
 
+static int nvme_revalidate_disk(struct gendisk *disk)
+{
+	struct nvme_ns *ns = disk->private_data;
+	struct nvme_id_ns *id = NULL;
+	int ret;
+
+	if (test_bit(NVME_NS_DEAD, &ns->flags)) {
+		set_capacity(disk, 0);
+		return -ENODEV;
+	}
+
+	ret = nvme_revalidate_ns(ns, &id);
+	if (ret)
+		return ret;
+
+	__nvme_revalidate_disk(disk, id);
 	kfree(id);
+
 	return 0;
 }
 
@@ -1642,6 +1651,8 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 {
 	struct nvme_ns *ns;
 	struct gendisk *disk;
+	struct nvme_id_ns *id;
+	char disk_name[DISK_NAME_LEN];
 	int node = dev_to_node(ctrl->dev);
 
 	ns = kzalloc_node(sizeof(*ns), GFP_KERNEL, node);
@@ -1659,33 +1670,54 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	ns->queue->queuedata = ns;
 	ns->ctrl = ctrl;
 
-	disk = alloc_disk_node(0, node);
-	if (!disk)
-		goto out_free_queue;
-
 	kref_init(&ns->kref);
 	ns->ns_id = nsid;
-	ns->disk = disk;
 	ns->lba_shift = 9; /* set to a default value for 512 until disk is validated */
-
 
 	blk_queue_logical_block_size(ns->queue, 1 << ns->lba_shift);
 	nvme_set_queue_limits(ctrl, ns->queue);
 
-	disk->fops = &nvme_fops;
-	disk->private_data = ns;
-	disk->queue = ns->queue;
-	disk->flags = GENHD_FL_EXT_DEVT;
-	sprintf(disk->disk_name, "nvme%dn%d", ctrl->instance, ns->instance);
+	sprintf(disk_name, "nvme%dn%d", ctrl->instance, ns->instance);
 
-	if (nvme_revalidate_disk(ns->disk))
-		goto out_free_disk;
+	if (nvme_revalidate_ns(ns, &id))
+		goto out_free_queue;
+
+	if (nvme_nvm_ns_supported(ns, id)) {
+		if (nvme_nvm_register(ns->queue, disk_name)) {
+			dev_warn(ctrl->dev,
+				"%s: LightNVM init failure\n", __func__);
+			goto out_free_id;
+		}
+
+		disk = alloc_disk_node(0, node);
+		if (!disk)
+			goto out_free_id;
+		memcpy(disk->disk_name, disk_name, DISK_NAME_LEN);
+		ns->disk = disk;
+		ns->type = NVME_NS_LIGHTNVM;
+	} else {
+		disk = alloc_disk_node(0, node);
+		if (!disk)
+			goto out_free_id;
+
+		disk->fops = &nvme_fops;
+		disk->private_data = ns;
+		disk->queue = ns->queue;
+		disk->flags = GENHD_FL_EXT_DEVT;
+		memcpy(disk->disk_name, disk_name, DISK_NAME_LEN);
+		ns->disk = disk;
+
+		__nvme_revalidate_disk(disk, id);
+	}
 
 	mutex_lock(&ctrl->namespaces_mutex);
 	list_add_tail(&ns->list, &ctrl->namespaces);
 	mutex_unlock(&ctrl->namespaces_mutex);
 
 	kref_get(&ctrl->kref);
+
+	kfree(id);
+
 	if (ns->type == NVME_NS_LIGHTNVM)
 		return;
 
@@ -1695,8 +1727,8 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 		pr_warn("%s: failed to create sysfs group for identification\n",
 			ns->disk->disk_name);
 	return;
- out_free_disk:
-	kfree(disk);
+ out_free_id:
+	kfree(id);
  out_free_queue:
 	blk_cleanup_queue(ns->queue);
  out_release_instance:

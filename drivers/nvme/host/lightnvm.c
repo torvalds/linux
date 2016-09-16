@@ -474,8 +474,9 @@ static inline void nvme_nvm_rqtocmd(struct request *rq, struct nvm_rq *rqd,
 	c->ph_rw.length = cpu_to_le16(rqd->nr_ppas - 1);
 
 	if (rqd->opcode == NVM_OP_HBWRITE || rqd->opcode == NVM_OP_HBREAD)
-		c->hb_rw.slba = cpu_to_le64(nvme_block_nr(ns,
-						rqd->bio->bi_iter.bi_sector));
+		/* momentarily hardcode the shift configuration. lba_shift from
+		 * nvm_dev will be available in a follow-up patch */
+		c->hb_rw.slba = cpu_to_le64(rqd->bio->bi_iter.bi_sector >> 3);
 }
 
 static void nvme_nvm_end_io(struct request *rq, int error)
