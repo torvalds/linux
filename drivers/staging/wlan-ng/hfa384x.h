@@ -116,14 +116,14 @@
 
 /* Make a 32-bit flat address from AUX format 16-bit page and offset */
 #define		HFA384x_ADDR_AUX_MKFLAT(p, o)	\
-		((((u32)(((u16)(p))&HFA384x_ADDR_AUX_PAGE_MASK)) << 7) | \
-		((u32)(((u16)(o))&HFA384x_ADDR_AUX_OFF_MASK)))
+		((((u32)(((u16)(p)) & HFA384x_ADDR_AUX_PAGE_MASK)) << 7) | \
+		((u32)(((u16)(o)) & HFA384x_ADDR_AUX_OFF_MASK)))
 
 /* Make CMD format offset and page from a 32-bit flat address */
 #define		HFA384x_ADDR_CMD_MKPAGE(f) \
-		((u16)((((u32)(f))&HFA384x_ADDR_FLAT_CMD_PAGE_MASK)>>16))
+		((u16)((((u32)(f)) & HFA384x_ADDR_FLAT_CMD_PAGE_MASK)>>16))
 #define		HFA384x_ADDR_CMD_MKOFF(f) \
-		((u16)(((u32)(f))&HFA384x_ADDR_FLAT_CMD_OFF_MASK))
+		((u16)(((u32)(f)) & HFA384x_ADDR_FLAT_CMD_OFF_MASK))
 
 /*--- Controller Memory addresses -------------------*/
 #define		HFA3842_PDA_BASE	(0x007f0000UL)
@@ -503,12 +503,12 @@ Communication Frames: Test/Get/Set Field Values for Transmit Frames
 --------------------------------------------------------------------*/
 /*-- Status Field --*/
 #define HFA384x_TXSTATUS_ISERROR(v)	\
-	(((u16)(v))&\
+	(((u16)(v)) & \
 	(HFA384x_TXSTATUS_ACKERR|HFA384x_TXSTATUS_FORMERR|\
 	HFA384x_TXSTATUS_DISCON|HFA384x_TXSTATUS_AGEDERR|\
 	HFA384x_TXSTATUS_RETRYERR))
 
-#define	HFA384x_TX_SET(v, m, s)		((((u16)(v))<<((u16)(s)))&((u16)(m)))
+#define	HFA384x_TX_SET(v, m, s)		((((u16)(v))<<((u16)(s))) & ((u16)(m)))
 
 #define	HFA384x_TX_MACPORT_SET(v)	HFA384x_TX_SET(v, HFA384x_TX_MACPORT, 8)
 #define	HFA384x_TX_STRUCTYPE_SET(v)	HFA384x_TX_SET(v, \
