@@ -121,7 +121,7 @@
 
 /* Make CMD format offset and page from a 32-bit flat address */
 #define		HFA384x_ADDR_CMD_MKPAGE(f) \
-		((u16)((((u32)(f)) & HFA384x_ADDR_FLAT_CMD_PAGE_MASK)>>16))
+		((u16)((((u32)(f)) & HFA384x_ADDR_FLAT_CMD_PAGE_MASK) >> 16))
 #define		HFA384x_ADDR_CMD_MKOFF(f) \
 		((u16)(((u32)(f)) & HFA384x_ADDR_FLAT_CMD_OFF_MASK))
 
