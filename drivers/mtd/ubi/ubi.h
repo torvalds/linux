@@ -359,7 +359,7 @@ struct ubi_volume {
 	long long upd_received;
 	void *upd_buf;
 
-	int *eba_tbl;
+	struct ubi_eba_table *eba_tbl;
 	unsigned int checked:1;
 	unsigned int corrupted:1;
 	unsigned int upd_marker:1;
@@ -864,6 +864,12 @@ static inline bool ubi_leb_valid(struct ubi_volume *vol, int lnum)
 }
 
 /* eba.c */
+struct ubi_eba_table *ubi_eba_create_table(struct ubi_volume *vol,
+					   int nentries);
+void ubi_eba_destroy_table(struct ubi_eba_table *tbl);
+void ubi_eba_copy_table(struct ubi_volume *vol, struct ubi_eba_table *dst,
+			int nentries);
+void ubi_eba_replace_table(struct ubi_volume *vol, struct ubi_eba_table *tbl);
 void ubi_eba_get_ldesc(struct ubi_volume *vol, int lnum,
 		       struct ubi_eba_leb_desc *ldesc);
 bool ubi_eba_is_mapped(struct ubi_volume *vol, int lnum);
