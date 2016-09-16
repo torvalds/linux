@@ -464,6 +464,7 @@ enum {
 enum ipvlan_mode {
 	IPVLAN_MODE_L2 = 0,
 	IPVLAN_MODE_L3,
+	IPVLAN_MODE_L3S,
 	IPVLAN_MODE_MAX
 };
 
