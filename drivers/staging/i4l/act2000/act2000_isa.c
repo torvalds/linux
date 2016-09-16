@@ -176,7 +176,7 @@ act2000_isa_config_port(act2000_card *card, unsigned short portbase)
 }
 
 /*
- * Release ressources, used by an adaptor.
+ * Release resources, used by an adaptor.
  */
 void
 act2000_isa_release(act2000_card *card)
