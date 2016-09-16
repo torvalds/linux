@@ -8049,7 +8049,8 @@ static int ipr_ioafp_identify_hrrq(struct ipr_cmnd *ipr_cmd)
 
 	ENTER;
 	ipr_cmd->job_step = ipr_ioafp_std_inquiry;
-	dev_info(&ioa_cfg->pdev->dev, "Starting IOA initialization sequence.\n");
+	if (ioa_cfg->identify_hrrq_index == 0)
+		dev_info(&ioa_cfg->pdev->dev, "Starting IOA initialization sequence.\n");
 
 	if (ioa_cfg->identify_hrrq_index < ioa_cfg->hrrq_num) {
 		hrrq = &ioa_cfg->hrrq[ioa_cfg->identify_hrrq_index];
