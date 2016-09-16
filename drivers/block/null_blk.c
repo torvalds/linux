@@ -34,6 +34,7 @@ struct nullb {
 	unsigned int index;
 	struct request_queue *q;
 	struct gendisk *disk;
+	struct nvm_dev *ndev;
 	struct blk_mq_tag_set tag_set;
 	struct hrtimer timer;
 	unsigned int queue_depth;
@@ -550,12 +551,29 @@ static struct nvm_dev_ops null_lnvm_dev_ops = {
 
 static int null_nvm_register(struct nullb *nullb)
 {
-	return nvm_register(nullb->q, nullb->disk_name, &null_lnvm_dev_ops);
+	struct nvm_dev *dev;
+	int rv;
+
+	dev = nvm_alloc_dev(0);
+	if (!dev)
+		return -ENOMEM;
+
+	dev->q = nullb->q;
+	memcpy(dev->name, nullb->disk_name, DISK_NAME_LEN);
+	dev->ops = &null_lnvm_dev_ops;
+
+	rv = nvm_register(dev);
+	if (rv) {
+		kfree(dev);
+		return rv;
+	}
+	nullb->ndev = dev;
+	return 0;
 }
 
 static void null_nvm_unregister(struct nullb *nullb)
 {
-	nvm_unregister(nullb->disk_name);
+	nvm_unregister(nullb->ndev);
 }
 #else
 static int null_nvm_register(struct nullb *nullb)

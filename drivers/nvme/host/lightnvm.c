@@ -474,9 +474,8 @@ static inline void nvme_nvm_rqtocmd(struct request *rq, struct nvm_rq *rqd,
 	c->ph_rw.length = cpu_to_le16(rqd->nr_ppas - 1);
 
 	if (rqd->opcode == NVM_OP_HBWRITE || rqd->opcode == NVM_OP_HBREAD)
-		/* momentarily hardcode the shift configuration. lba_shift from
-		 * nvm_dev will be available in a follow-up patch */
-		c->hb_rw.slba = cpu_to_le64(rqd->bio->bi_iter.bi_sector >> 3);
+		c->hb_rw.slba = cpu_to_le64(nvme_block_nr(ns,
+					rqd->bio->bi_iter.bi_sector));
 }
 
 static void nvme_nvm_end_io(struct request *rq, int error)
@@ -593,14 +592,32 @@ static struct nvm_dev_ops nvme_nvm_dev_ops = {
 	.max_phys_sect		= 64,
 };
 
-int nvme_nvm_register(struct request_queue *q, char *disk_name)
+int nvme_nvm_register(struct nvme_ns *ns, char *disk_name, int node)
 {
-	return nvm_register(q, disk_name, &nvme_nvm_dev_ops);
+	struct request_queue *q = ns->queue;
+	struct nvm_dev *dev;
+	int ret;
+
+	dev = nvm_alloc_dev(node);
+	if (!dev)
+		return -ENOMEM;
+
+	dev->q = q;
+	memcpy(dev->name, disk_name, DISK_NAME_LEN);
+	dev->ops = &nvme_nvm_dev_ops;
+	ns->ndev = dev;
+
+	ret = nvm_register(dev);
+
+	ns->lba_shift = ilog2(dev->sec_size) - 9;
+
+	return ret;
 }
 
-void nvme_nvm_unregister(struct request_queue *q, char *disk_name)
+void nvme_nvm_unregister(struct nvme_ns *ns)
 {
-	nvm_unregister(disk_name);
+	nvm_unregister(ns->ndev);
+	kfree(ns->ndev);
 }
 
 /* move to shared place when used in multiple places. */

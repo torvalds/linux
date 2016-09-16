@@ -660,22 +660,15 @@ static void nvm_exit(struct nvm_dev *dev)
 	pr_info("nvm: successfully unloaded\n");
 }
 
-int nvm_register(struct request_queue *q, char *disk_name,
-							struct nvm_dev_ops *ops)
+struct nvm_dev *nvm_alloc_dev(int node)
 {
-	struct nvm_dev *dev;
+	return kzalloc_node(sizeof(struct nvm_dev), GFP_KERNEL, node);
+}
+EXPORT_SYMBOL(nvm_alloc_dev);
+
+int nvm_register(struct nvm_dev *dev)
+{
 	int ret;
-
-	if (!ops->identity)
-		return -EINVAL;
-
-	dev = kzalloc(sizeof(struct nvm_dev), GFP_KERNEL);
-	if (!dev)
-		return -ENOMEM;
-
-	dev->q = q;
-	dev->ops = ops;
-	strncpy(dev->name, disk_name, DISK_NAME_LEN);
 
 	ret = nvm_init(dev);
 	if (ret)
@@ -714,29 +707,17 @@ int nvm_register(struct request_queue *q, char *disk_name,
 	return 0;
 err_init:
 	kfree(dev->lun_map);
-	kfree(dev);
 	return ret;
 }
 EXPORT_SYMBOL(nvm_register);
 
-void nvm_unregister(char *disk_name)
+void nvm_unregister(struct nvm_dev *dev)
 {
-	struct nvm_dev *dev;
-
 	down_write(&nvm_lock);
-	dev = nvm_find_nvm_dev(disk_name);
-	if (!dev) {
-		pr_err("nvm: could not find device %s to unregister\n",
-								disk_name);
-		up_write(&nvm_lock);
-		return;
-	}
-
 	list_del(&dev->devices);
 	up_write(&nvm_lock);
 
 	nvm_exit(dev);
-	kfree(dev);
 }
 EXPORT_SYMBOL(nvm_unregister);
 
