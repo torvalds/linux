@@ -1,2 +1,2 @@
 subdir-y := accounting auxdisplay blackfin \
-	laptops pcmcia watchdog
+	laptops pcmcia
