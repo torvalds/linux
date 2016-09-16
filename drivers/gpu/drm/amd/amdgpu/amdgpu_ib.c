@@ -125,7 +125,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	unsigned patch_offset = ~0;
 	struct amdgpu_vm *vm;
 	uint64_t fence_ctx;
-	uint32_t status = 0;
+	uint32_t status = 0, alloc_size;
 
 	unsigned i;
 	int r = 0;
@@ -152,7 +152,10 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		return -EINVAL;
 	}
 
-	r = amdgpu_ring_alloc(ring, 256 * num_ibs);
+	alloc_size = amdgpu_ring_get_dma_frame_size(ring) +
+		num_ibs * amdgpu_ring_get_emit_ib_size(ring);
+
+	r = amdgpu_ring_alloc(ring, alloc_size);
 	if (r) {
 		dev_err(adev->dev, "scheduling IB failed (%d).\n", r);
 		return r;
