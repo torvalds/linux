@@ -1506,6 +1506,7 @@ struct ipr_ioa_cfg {
 	u8 log_level;
 #define IPR_MAX_LOG_LEVEL			4
 #define IPR_DEFAULT_LOG_LEVEL		2
+#define IPR_DEBUG_LOG_LEVEL		3
 
 #define IPR_NUM_TRACE_INDEX_BITS	8
 #define IPR_NUM_TRACE_ENTRIES		(1 << IPR_NUM_TRACE_INDEX_BITS)
