@@ -385,12 +385,8 @@ static void unmap_peb(struct ubi_attach_info *ai, int pnum)
 	struct rb_node *node, *node2;
 	struct ubi_ainf_peb *aeb;
 
-	for (node = rb_first(&ai->volumes); node; node = rb_next(node)) {
-		av = rb_entry(node, struct ubi_ainf_volume, rb);
-
-		for (node2 = rb_first(&av->root); node2;
-		     node2 = rb_next(node2)) {
-			aeb = rb_entry(node2, struct ubi_ainf_peb, u.rb);
+	ubi_rb_for_each_entry(node, av, &ai->volumes, rb) {
+		ubi_rb_for_each_entry(node2, aeb, &av->root, u.rb) {
 			if (aeb->pnum == pnum) {
 				rb_erase(&aeb->u.rb, &av->root);
 				av->leb_count--;
