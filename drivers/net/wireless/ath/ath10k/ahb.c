@@ -509,6 +509,7 @@ static int ath10k_ahb_resource_init(struct ath10k *ar)
 	ar_ahb->irq = platform_get_irq_byname(pdev, "legacy");
 	if (ar_ahb->irq < 0) {
 		ath10k_err(ar, "failed to get irq number: %d\n", ar_ahb->irq);
+		ret = ar_ahb->irq;
 		goto err_clock_deinit;
 	}
 
@@ -787,6 +788,7 @@ static int ath10k_ahb_probe(struct platform_device *pdev)
 	chip_id = ath10k_ahb_soc_read32(ar, SOC_CHIP_ID_ADDRESS);
 	if (chip_id == 0xffffffff) {
 		ath10k_err(ar, "failed to get chip id\n");
+		ret = -ENODEV;
 		goto err_halt_device;
 	}
 
