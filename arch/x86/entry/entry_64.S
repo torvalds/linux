@@ -372,7 +372,6 @@ END(ptregs_\func)
 /*
  * %rdi: prev task
  * %rsi: next task
- * rsi: task we're switching to
  */
 ENTRY(__switch_to_asm)
 	/*
