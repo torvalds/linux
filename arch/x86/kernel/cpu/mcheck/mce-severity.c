@@ -311,7 +311,7 @@ static int mce_severity_intel(struct mce *m, int tolerant, char **msg, bool is_e
 			*msg = s->msg;
 		s->covered = 1;
 		if (s->sev >= MCE_UC_SEVERITY && ctx == IN_KERNEL) {
-			if (panic_on_oops || tolerant < 1)
+			if (tolerant < 1)
 				return MCE_PANIC_SEVERITY;
 		}
 		return s->sev;
