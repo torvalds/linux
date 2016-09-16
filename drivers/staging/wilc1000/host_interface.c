@@ -3329,7 +3329,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 
 	init_completion(&hif_wait_response);
 
-	hif_drv  = kzalloc(sizeof(struct host_if_drv), GFP_KERNEL);
+	hif_drv  = kzalloc(sizeof(*hif_drv), GFP_KERNEL);
 	if (!hif_drv) {
 		result = -ENOMEM;
 		goto _fail_;
@@ -3878,7 +3878,7 @@ static void *host_int_ParseJoinBssParam(struct network_info *ptstrNetworkInfo)
 	pu8IEs = ptstrNetworkInfo->ies;
 	u16IEsLen = ptstrNetworkInfo->ies_len;
 
-	pNewJoinBssParam = kzalloc(sizeof(struct join_bss_param), GFP_KERNEL);
+	pNewJoinBssParam = kzalloc(sizeof(*pNewJoinBssParam), GFP_KERNEL);
 	if (pNewJoinBssParam) {
 		pNewJoinBssParam->dtim_period = ptstrNetworkInfo->dtim_period;
 		pNewJoinBssParam->beacon_period = ptstrNetworkInfo->beacon_period;
