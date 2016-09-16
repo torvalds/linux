@@ -116,9 +116,9 @@ nvkm_volt_map(struct nvkm_volt *volt, u8 id, u8 temp)
 			return volt->speedo;
 
 		if (ver == 0x10 || (ver == 0x20 && info.mode == 0)) {
-			result  =  (s64)info.arg[0] / 10;
-			result += ((s64)info.arg[1] * volt->speedo) / 10;
-			result += ((s64)info.arg[2] * volt->speedo * volt->speedo) / 100000;
+			result  = div64_s64((s64)info.arg[0], 10);
+			result += div64_s64((s64)info.arg[1] * volt->speedo, 10);
+			result += div64_s64((s64)info.arg[2] * volt->speedo * volt->speedo, 100000);
 		} else if (ver == 0x20) {
 			switch (info.mode) {
 			/* 0x0 handled above! */
