@@ -726,7 +726,7 @@ static int do_dentry_open(struct file *f,
 	if (error)
 		goto cleanup_all;
 
-	error = break_lease(inode, f->f_flags);
+	error = break_lease(locks_inode(f), f->f_flags);
 	if (error)
 		goto cleanup_all;
 
