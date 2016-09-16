@@ -1430,6 +1430,7 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 
 		r = amdgpu_vm_clear_bo(adev, vm, pt);
 		if (r) {
+			amdgpu_bo_unref(&pt->shadow);
 			amdgpu_bo_unref(&pt);
 			goto error_free;
 		}
@@ -1636,6 +1637,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	return 0;
 
 error_free_page_directory:
+	amdgpu_bo_unref(&vm->page_directory->shadow);
 	amdgpu_bo_unref(&vm->page_directory);
 	vm->page_directory = NULL;
 
@@ -1675,15 +1677,17 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	}
 
 	for (i = 0; i < amdgpu_vm_num_pdes(adev); i++) {
-		if (vm->page_tables[i].entry.robj &&
-		    vm->page_tables[i].entry.robj->shadow)
-			amdgpu_bo_unref(&vm->page_tables[i].entry.robj->shadow);
-		amdgpu_bo_unref(&vm->page_tables[i].entry.robj);
+		struct amdgpu_bo *pt = vm->page_tables[i].entry.robj;
+
+		if (!pt)
+			continue;
+
+		amdgpu_bo_unref(&pt->shadow);
+		amdgpu_bo_unref(&pt);
 	}
 	drm_free_large(vm->page_tables);
 
-	if (vm->page_directory->shadow)
-		amdgpu_bo_unref(&vm->page_directory->shadow);
+	amdgpu_bo_unref(&vm->page_directory->shadow);
 	amdgpu_bo_unref(&vm->page_directory);
 	fence_put(vm->page_directory_fence);
 }
