@@ -149,8 +149,8 @@ found:
 		return -EIO;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
-	if (IS_ERR(priv))
-		return PTR_ERR(priv);
+	if (!priv)
+		return -ENOMEM;
 
 	if (!devm_request_region(&pdev->dev, pmbase + PMBASE_OFFSET,
 				PMBASE_SIZE, DRV_NAME)) {
@@ -161,9 +161,9 @@ found:
 
 	priv->iobase = devm_ioport_map(&pdev->dev, pmbase + PMBASE_OFFSET,
 			PMBASE_SIZE);
-	if (IS_ERR(priv->iobase)) {
+	if (!priv->iobase) {
 		pr_err(DRV_NAME "Cannot map ioport\n");
-		return PTR_ERR(priv->iobase);
+		return -ENOMEM;
 	}
 
 	amd_rng.priv = (unsigned long)priv;
