@@ -45,26 +45,17 @@ static void Init_ODM_ComInfo_88E(struct adapter *Adapter)
 	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
 	struct dm_priv	*pdmpriv = &hal_data->dmpriv;
 	struct odm_dm_struct *dm_odm = &(hal_data->odmpriv);
-	u8 cut_ver;
 
 	/*  Init Value */
 	memset(dm_odm, 0, sizeof(*dm_odm));
 
 	dm_odm->Adapter = Adapter;
-
-	ODM_CmnInfoInit(dm_odm, ODM_CMNINFO_PLATFORM, ODM_CE);
-
-	ODM_CmnInfoInit(dm_odm, ODM_CMNINFO_IC_TYPE, ODM_RTL8188E);
-
-	cut_ver = ODM_CUT_A;
-
-	ODM_CmnInfoInit(dm_odm, ODM_CMNINFO_CUT_VER, cut_ver);
-
-	ODM_CmnInfoInit(dm_odm, ODM_CMNINFO_MP_TEST_CHIP, hal_data->VersionID.ChipType == NORMAL_CHIP ? true : false);
-
-	ODM_CmnInfoInit(dm_odm, ODM_CMNINFO_PATCH_ID, hal_data->CustomerID);
-	ODM_CmnInfoInit(dm_odm, ODM_CMNINFO_BWIFI_TEST, Adapter->registrypriv.wifi_spec);
-
+	dm_odm->SupportPlatform = ODM_CE;
+	dm_odm->SupportICType = ODM_RTL8188E;
+	dm_odm->CutVersion = ODM_CUT_A;
+	dm_odm->bIsMPChip = hal_data->VersionID.ChipType == NORMAL_CHIP;
+	dm_odm->PatchID = hal_data->CustomerID;
+	dm_odm->bWIFITest = Adapter->registrypriv.wifi_spec;
 
 	if (hal_data->rf_type == RF_1T1R)
 		dm_odm->RFType = ODM_1T1R;
@@ -73,7 +64,13 @@ static void Init_ODM_ComInfo_88E(struct adapter *Adapter)
 	else if (hal_data->rf_type == RF_1T2R)
 		dm_odm->RFType = ODM_1T2R;
 
-	ODM_CmnInfoInit(dm_odm, ODM_CMNINFO_RF_ANTENNA_TYPE, hal_data->TRxAntDivType);
+	dm_odm->AntDivType = hal_data->TRxAntDivType;
+
+	/*  Tx power tracking BB swing table. */
+	/*  The base index = 12. +((12-n)/2)dB 13~?? = decrease tx pwr by -((n-12)/2)dB */
+	dm_odm->BbSwingIdxOfdm = 12; /*  Set defalut value as index 12. */
+	dm_odm->BbSwingIdxOfdmCurrent = 12;
+	dm_odm->BbSwingFlagOfdm = false;
 
 	pdmpriv->InitODMFlag =	ODM_RF_CALIBRATION |
 				ODM_RF_TX_PWR_TRACK;
@@ -122,7 +119,13 @@ static void Update_ODM_ComInfo_88E(struct adapter *Adapter)
 	dm_odm->mp_mode = &Adapter->registrypriv.mp_mode;
 	dm_odm->pbScanInProcess = (bool *)&pmlmepriv->bScanInProcess;
 	dm_odm->pbPowerSaving = (bool *)&pwrctrlpriv->bpower_saving;
-	ODM_CmnInfoInit(dm_odm, ODM_CMNINFO_RF_ANTENNA_TYPE, hal_data->TRxAntDivType);
+	dm_odm->AntDivType = hal_data->TRxAntDivType;
+
+	/*  Tx power tracking BB swing table. */
+	/*  The base index = 12. +((12-n)/2)dB 13~?? = decrease tx pwr by -((n-12)/2)dB */
+	dm_odm->BbSwingIdxOfdm = 12; /*  Set defalut value as index 12. */
+	dm_odm->BbSwingIdxOfdmCurrent = 12;
+	dm_odm->BbSwingFlagOfdm = false;
 
 	for (i = 0; i < NUM_STA; i++)
 		ODM_CmnInfoPtrArrayHook(dm_odm, ODM_CMNINFO_STA_STATUS, i, NULL);
