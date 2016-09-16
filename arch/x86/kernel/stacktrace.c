@@ -79,9 +79,14 @@ void save_stack_trace_regs(struct pt_regs *regs, struct stack_trace *trace)
 
 void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 {
+	if (!try_get_task_stack(tsk))
+		return;
+
 	dump_trace(tsk, NULL, NULL, 0, &save_stack_ops_nosched, trace);
 	if (trace->nr_entries < trace->max_entries)
 		trace->entries[trace->nr_entries++] = ULONG_MAX;
+
+	put_task_stack(tsk);
 }
 EXPORT_SYMBOL_GPL(save_stack_trace_tsk);
 
