@@ -50,7 +50,10 @@ unsigned int rxrpc_idle_ack_delay = 0.5 * HZ;
  * limit is hit, we should generate an EXCEEDS_WINDOW ACK and discard further
  * packets.
  */
-unsigned int rxrpc_rx_window_size = RXRPC_RXTX_BUFF_SIZE - 46;
+unsigned int rxrpc_rx_window_size = RXRPC_INIT_RX_WINDOW_SIZE;
+#if (RXRPC_RXTX_BUFF_SIZE - 1) < RXRPC_INIT_RX_WINDOW_SIZE
+#error Need to reduce RXRPC_INIT_RX_WINDOW_SIZE
+#endif
 
 /*
  * Maximum Rx MTU size.  This indicates to the sender the size of jumbo packet

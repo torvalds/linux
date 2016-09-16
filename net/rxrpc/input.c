@@ -59,6 +59,8 @@ static void rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to)
 
 	spin_unlock(&call->lock);
 
+	wake_up(&call->waitq);
+
 	while (list) {
 		skb = list;
 		list = skb->next;
@@ -125,7 +127,7 @@ static bool rxrpc_validate_jumbo(struct sk_buff *skb)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	unsigned int offset = sp->offset;
-	unsigned int len = skb->data_len;
+	unsigned int len = skb->len;
 	int nr_jumbo = 1;
 	u8 flags = sp->hdr.flags;
 
@@ -162,7 +164,7 @@ protocol_error:
  * (that information is encoded in the ACK packet).
  */
 static void rxrpc_input_dup_data(struct rxrpc_call *call, rxrpc_seq_t seq,
-				 u8 annotation, bool *_jumbo_dup)
+				 u8 annotation, bool *_jumbo_bad)
 {
 	/* Discard normal packets that are duplicates. */
 	if (annotation == 0)
@@ -172,9 +174,9 @@ static void rxrpc_input_dup_data(struct rxrpc_call *call, rxrpc_seq_t seq,
 	 * more partially duplicate jumbo packets, we refuse to take any more
 	 * jumbos for this call.
 	 */
-	if (!*_jumbo_dup) {
-		call->nr_jumbo_dup++;
-		*_jumbo_dup = true;
+	if (!*_jumbo_bad) {
+		call->nr_jumbo_bad++;
+		*_jumbo_bad = true;
 	}
 }
 
@@ -189,12 +191,12 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb,
 	unsigned int ix;
 	rxrpc_serial_t serial = sp->hdr.serial, ack_serial = 0;
 	rxrpc_seq_t seq = sp->hdr.seq, hard_ack;
-	bool immediate_ack = false, jumbo_dup = false, queued;
+	bool immediate_ack = false, jumbo_bad = false, queued;
 	u16 len;
 	u8 ack = 0, flags, annotation = 0;
 
 	_enter("{%u,%u},{%u,%u}",
-	       call->rx_hard_ack, call->rx_top, skb->data_len, seq);
+	       call->rx_hard_ack, call->rx_top, skb->len, seq);
 
 	_proto("Rx DATA %%%u { #%u f=%02x }",
 	       sp->hdr.serial, seq, sp->hdr.flags);
@@ -220,7 +222,7 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb,
 
 	flags = sp->hdr.flags;
 	if (flags & RXRPC_JUMBO_PACKET) {
-		if (call->nr_jumbo_dup > 3) {
+		if (call->nr_jumbo_bad > 3) {
 			ack = RXRPC_ACK_NOSPACE;
 			ack_serial = serial;
 			goto ack;
@@ -231,7 +233,7 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb,
 next_subpacket:
 	queued = false;
 	ix = seq & RXRPC_RXTX_BUFF_MASK;
-	len = skb->data_len;
+	len = skb->len;
 	if (flags & RXRPC_JUMBO_PACKET)
 		len = RXRPC_JUMBO_DATALEN;
 
@@ -257,7 +259,7 @@ next_subpacket:
 	}
 
 	if (call->rxtx_buffer[ix]) {
-		rxrpc_input_dup_data(call, seq, annotation, &jumbo_dup);
+		rxrpc_input_dup_data(call, seq, annotation, &jumbo_bad);
 		if (ack != RXRPC_ACK_DUPLICATE) {
 			ack = RXRPC_ACK_DUPLICATE;
 			ack_serial = serial;
@@ -302,6 +304,15 @@ skip:
 		annotation++;
 		if (flags & RXRPC_JUMBO_PACKET)
 			annotation |= RXRPC_RX_ANNO_JLAST;
+		if (after(seq, hard_ack + call->rx_winsize)) {
+			ack = RXRPC_ACK_EXCEEDS_WINDOW;
+			ack_serial = serial;
+			if (!jumbo_bad) {
+				call->nr_jumbo_bad++;
+				jumbo_bad = true;
+			}
+			goto ack;
+		}
 
 		_proto("Rx DATA Jumbo %%%u", serial);
 		goto next_subpacket;
@@ -331,14 +342,16 @@ static void rxrpc_input_ackinfo(struct rxrpc_call *call, struct sk_buff *skb,
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct rxrpc_peer *peer;
 	unsigned int mtu;
+	u32 rwind = ntohl(ackinfo->rwind);
 
 	_proto("Rx ACK %%%u Info { rx=%u max=%u rwin=%u jm=%u }",
 	       sp->hdr.serial,
 	       ntohl(ackinfo->rxMTU), ntohl(ackinfo->maxMTU),
-	       ntohl(ackinfo->rwind), ntohl(ackinfo->jumbo_max));
+	       rwind, ntohl(ackinfo->jumbo_max));
 
-	if (call->tx_winsize > ntohl(ackinfo->rwind))
-		call->tx_winsize = ntohl(ackinfo->rwind);
+	if (rwind > RXRPC_RXTX_BUFF_SIZE - 1)
+		rwind = RXRPC_RXTX_BUFF_SIZE - 1;
+	call->tx_winsize = rwind;
 
 	mtu = min(ntohl(ackinfo->rxMTU), ntohl(ackinfo->maxMTU));
 
@@ -442,7 +455,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 	}
 
 	offset = sp->offset + nr_acks + 3;
-	if (skb->data_len >= offset + sizeof(buf.info)) {
+	if (skb->len >= offset + sizeof(buf.info)) {
 		if (skb_copy_bits(skb, offset, &buf.info, sizeof(buf.info)) < 0)
 			return rxrpc_proto_abort("XAI", call, 0);
 		rxrpc_input_ackinfo(call, skb, &buf.info);

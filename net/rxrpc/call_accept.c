@@ -121,7 +121,7 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 
 		call->user_call_ID = user_call_ID;
 		call->notify_rx = notify_rx;
-		rxrpc_get_call(call, rxrpc_call_got);
+		rxrpc_get_call(call, rxrpc_call_got_kernel);
 		user_attach_call(call, user_call_ID);
 		rxrpc_get_call(call, rxrpc_call_got_userid);
 		rb_link_node(&call->sock_node, parent, pp);
@@ -221,6 +221,7 @@ void rxrpc_discard_prealloc(struct rxrpc_sock *rx)
 		if (rx->discard_new_call) {
 			_debug("discard %lx", call->user_call_ID);
 			rx->discard_new_call(call, call->user_call_ID);
+			rxrpc_put_call(call, rxrpc_call_put_kernel);
 		}
 		rxrpc_call_completed(call);
 		rxrpc_release_call(rx, call);
@@ -300,6 +301,7 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 	smp_store_release(&b->call_backlog_tail,
 			  (call_tail + 1) & (RXRPC_BACKLOG_MAX - 1));
 
+	rxrpc_see_call(call);
 	call->conn = conn;
 	call->peer = rxrpc_get_peer(conn->params.peer);
 	return call;
@@ -401,6 +403,13 @@ found_service:
 	if (call->state == RXRPC_CALL_SERVER_ACCEPTING)
 		rxrpc_notify_socket(call);
 
+	/* We have to discard the prealloc queue's ref here and rely on a
+	 * combination of the RCU read lock and refs held either by the socket
+	 * (recvmsg queue, to-be-accepted queue or user ID tree) or the kernel
+	 * service to prevent the call from being deallocated too early.
+	 */
+	rxrpc_put_call(call, rxrpc_call_put);
+
 	_leave(" = %p{%d}", call, call->debug_id);
 out:
 	spin_unlock(&rx->incoming_lock);
@@ -425,9 +434,11 @@ struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 
 	write_lock(&rx->call_lock);
 
-	ret = -ENODATA;
-	if (list_empty(&rx->to_be_accepted))
-		goto out;
+	if (list_empty(&rx->to_be_accepted)) {
+		write_unlock(&rx->call_lock);
+		kleave(" = -ENODATA [empty]");
+		return ERR_PTR(-ENODATA);
+	}
 
 	/* check the user ID isn't already in use */
 	pp = &rx->calls.rb_node;
@@ -466,7 +477,6 @@ struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 	}
 
 	/* formalise the acceptance */
-	rxrpc_get_call(call, rxrpc_call_got);
 	call->notify_rx = notify_rx;
 	call->user_call_ID = user_call_ID;
 	rxrpc_get_call(call, rxrpc_call_got_userid);

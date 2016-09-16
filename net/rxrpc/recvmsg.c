@@ -118,6 +118,7 @@ static int rxrpc_recvmsg_new_call(struct rxrpc_sock *rx,
 		list_del_init(&call->recvmsg_link);
 		write_unlock_bh(&rx->recvmsg_lock);
 
+		rxrpc_get_call(call, rxrpc_call_got);
 		write_lock(&rx->call_lock);
 		list_add_tail(&call->accept_link, &rx->to_be_accepted);
 		write_unlock(&rx->call_lock);
@@ -463,6 +464,10 @@ try_again:
 					 flags, &copied);
 		if (ret == -EAGAIN)
 			ret = 0;
+
+		if (after(call->rx_top, call->rx_hard_ack) &&
+		    call->rxtx_buffer[(call->rx_hard_ack + 1) & RXRPC_RXTX_BUFF_MASK])
+			rxrpc_notify_socket(call);
 		break;
 	default:
 		ret = 0;

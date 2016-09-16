@@ -56,8 +56,10 @@ const char rxrpc_call_traces[rxrpc_call__nr_trace][4] = {
 	[rxrpc_call_seen]		= "SEE",
 	[rxrpc_call_got]		= "GOT",
 	[rxrpc_call_got_userid]		= "Gus",
+	[rxrpc_call_got_kernel]		= "Gke",
 	[rxrpc_call_put]		= "PUT",
 	[rxrpc_call_put_userid]		= "Pus",
+	[rxrpc_call_put_kernel]		= "Pke",
 	[rxrpc_call_put_noqueue]	= "PNQ",
 };
 
@@ -150,7 +152,7 @@ struct rxrpc_call *rxrpc_alloc_call(gfp_t gfp)
 	memset(&call->sock_node, 0xed, sizeof(call->sock_node));
 
 	/* Leave space in the ring to handle a maxed-out jumbo packet */
-	call->rx_winsize = RXRPC_RXTX_BUFF_SIZE - 1 - 46;
+	call->rx_winsize = rxrpc_rx_window_size;
 	call->tx_winsize = 16;
 	call->rx_expect_next = 1;
 	return call;
@@ -462,9 +464,6 @@ void rxrpc_release_call(struct rxrpc_sock *rx, struct rxrpc_call *call)
 		call->rxtx_buffer[i] = NULL;
 	}
 
-	/* We have to release the prealloc backlog ref */
-	if (rxrpc_is_service_call(call))
-		rxrpc_put_call(call, rxrpc_call_put);
 	_leave("");
 }
 

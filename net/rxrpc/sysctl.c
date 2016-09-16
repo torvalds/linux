@@ -20,7 +20,7 @@ static const unsigned int one = 1;
 static const unsigned int four = 4;
 static const unsigned int thirtytwo = 32;
 static const unsigned int n_65535 = 65535;
-static const unsigned int n_max_acks = RXRPC_MAXACKS;
+static const unsigned int n_max_acks = RXRPC_RXTX_BUFF_SIZE - 1;
 
 /*
  * RxRPC operating parameters.
