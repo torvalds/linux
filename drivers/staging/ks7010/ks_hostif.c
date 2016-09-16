@@ -14,6 +14,7 @@
 #include "eap_packet.h"
 #include "michael_mic.h"
 
+#include <linux/etherdevice.h>
 #include <linux/if_ether.h>
 #include <linux/if_arp.h>
 
@@ -780,7 +781,7 @@ void hostif_start_confirm(struct ks_wlan_private *priv)
 	wrqu.data.flags = 0;
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 	if ((priv->connect_status & CONNECT_STATUS_MASK) == CONNECT_STATUS) {
-		memset(wrqu.ap_addr.sa_data, '\0', ETH_ALEN);
+		eth_zero_addr(wrqu.ap_addr.sa_data);
 		DPRINTK(3, "IWEVENT: disconnect\n");
 		wireless_send_event(priv->net_dev, SIOCGIWAP, &wrqu, NULL);
 	}
@@ -838,7 +839,7 @@ void hostif_connect_indication(struct ks_wlan_private *priv)
 	wrqu0.ap_addr.sa_family = ARPHRD_ETHER;
 	if ((priv->connect_status & CONNECT_STATUS_MASK) == DISCONNECT_STATUS &&
 	    (old_status & CONNECT_STATUS_MASK) == CONNECT_STATUS) {
-		memset(wrqu0.ap_addr.sa_data, '\0', ETH_ALEN);
+		eth_zero_addr(wrqu0.ap_addr.sa_data);
 		DPRINTK(3, "IWEVENT: disconnect\n");
 		DPRINTK(3, "disconnect :: scan_ind_count=%d\n",
 			priv->scan_ind_count);
@@ -910,7 +911,7 @@ void hostif_stop_confirm(struct ks_wlan_private *priv)
 		if ((priv->connect_status & CONNECT_STATUS_MASK) ==
 		    DISCONNECT_STATUS
 		    && (old_status & CONNECT_STATUS_MASK) == CONNECT_STATUS) {
-			memset(wrqu0.ap_addr.sa_data, '\0', ETH_ALEN);
+			eth_zero_addr(wrqu0.ap_addr.sa_data);
 			DPRINTK(3, "IWEVENT: disconnect\n");
 			printk("IWEVENT: disconnect\n");
 			DPRINTK(3, "disconnect :: scan_ind_count=%d\n",
