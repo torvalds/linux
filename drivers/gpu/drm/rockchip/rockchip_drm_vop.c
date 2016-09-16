@@ -1547,11 +1547,15 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 
 	ret = vop_create_crtc(vop);
 	if (ret)
-		return ret;
+		goto err_enable_irq;
 
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;
+
+err_enable_irq:
+	enable_irq(vop->irq); /* To balance out the disable_irq above */
+	return ret;
 }
 
 static void vop_unbind(struct device *dev, struct device *master, void *data)
