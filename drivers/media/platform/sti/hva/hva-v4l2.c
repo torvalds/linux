@@ -40,7 +40,7 @@
 #define fh_to_ctx(f)    (container_of(f, struct hva_ctx, fh))
 
 /* registry of available encoders */
-const struct hva_enc *hva_encoders[] = {
+static const struct hva_enc *hva_encoders[] = {
 	&nv12h264enc,
 	&nv21h264enc,
 };
@@ -1398,7 +1398,7 @@ static const struct of_device_id hva_match_types[] = {
 
 MODULE_DEVICE_TABLE(of, hva_match_types);
 
-struct platform_driver hva_driver = {
+static struct platform_driver hva_driver = {
 	.probe  = hva_probe,
 	.remove = hva_remove,
 	.driver = {
