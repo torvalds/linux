@@ -37,6 +37,7 @@
 #include <asm/timer.h>
 #include <asm/desc.h>
 #include <asm/ldt.h>
+#include <asm/unwind.h>
 
 #include "perf_event.h"
 
@@ -2247,31 +2248,12 @@ void arch_perf_update_userpage(struct perf_event *event,
 	cyc2ns_read_end(data);
 }
 
-/*
- * callchain support
- */
-
-static int backtrace_stack(void *data, const char *name)
-{
-	return 0;
-}
-
-static int backtrace_address(void *data, unsigned long addr, int reliable)
-{
-	struct perf_callchain_entry_ctx *entry = data;
-
-	return perf_callchain_store(entry, addr);
-}
-
-static const struct stacktrace_ops backtrace_ops = {
-	.stack			= backtrace_stack,
-	.address		= backtrace_address,
-	.walk_stack		= print_context_stack_bp,
-};
-
 void
 perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs)
 {
+	struct unwind_state state;
+	unsigned long addr;
+
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
 		/* TODO: We don't support guest os callchain now */
 		return;
@@ -2280,7 +2262,12 @@ perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *re
 	if (perf_callchain_store(entry, regs->ip))
 		return;
 
-	dump_trace(NULL, regs, NULL, 0, &backtrace_ops, entry);
+	for (unwind_start(&state, current, regs, NULL); !unwind_done(&state);
+	     unwind_next_frame(&state)) {
+		addr = unwind_get_return_address(&state);
+		if (!addr || perf_callchain_store(entry, addr))
+			return;
+	}
 }
 
 static inline int
