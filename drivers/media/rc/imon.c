@@ -607,7 +607,7 @@ static int send_packet(struct imon_context *ictx)
 		ictx->tx_urb->actual_length = 0;
 	}
 
-	init_completion(&ictx->tx.finished);
+	reinit_completion(&ictx->tx.finished);
 	ictx->tx.busy = true;
 	smp_rmb(); /* ensure later readers know we're busy */
 
@@ -2216,6 +2216,8 @@ static struct imon_context *imon_init_intf0(struct usb_interface *intf,
 	ictx->tx_urb = tx_urb;
 	ictx->rf_device = false;
 
+	init_completion(&ictx->tx.finished);
+
 	ictx->vendor  = le16_to_cpu(ictx->usbdev_intf0->descriptor.idVendor);
 	ictx->product = le16_to_cpu(ictx->usbdev_intf0->descriptor.idProduct);
 
@@ -2491,7 +2493,7 @@ static void imon_disconnect(struct usb_interface *interface)
 	/* Abort ongoing write */
 	if (ictx->tx.busy) {
 		usb_kill_urb(ictx->tx_urb);
-		complete_all(&ictx->tx.finished);
+		complete(&ictx->tx.finished);
 	}
 
 	if (ifnum == 0) {
