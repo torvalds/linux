@@ -13,6 +13,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include "exynos-syscon-restart.dtsi"
 
@@ -96,7 +97,8 @@
 				<0x10482000 0x1000>,
 				<0x10484000 0x2000>,
 				<0x10486000 0x2000>;
-			interrupts = <1 9 0xf04>;
+			interrupts = <GIC_PPI 9
+					(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 		};
 
 		sysreg_system_controller: syscon@10050000 {
