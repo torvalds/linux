@@ -2371,6 +2371,7 @@ static int kvm_vcpu_release(struct inode *inode, struct file *filp)
 {
 	struct kvm_vcpu *vcpu = filp->private_data;
 
+	debugfs_remove_recursive(vcpu->debugfs_dentry);
 	kvm_put_kvm(vcpu->kvm);
 	return 0;
 }
@@ -2391,6 +2392,32 @@ static struct file_operations kvm_vcpu_fops = {
 static int create_vcpu_fd(struct kvm_vcpu *vcpu)
 {
 	return anon_inode_getfd("kvm-vcpu", &kvm_vcpu_fops, vcpu, O_RDWR | O_CLOEXEC);
+}
+
+static int kvm_create_vcpu_debugfs(struct kvm_vcpu *vcpu)
+{
+	char dir_name[ITOA_MAX_LEN * 2];
+	int ret;
+
+	if (!kvm_arch_has_vcpu_debugfs())
+		return 0;
+
+	if (!debugfs_initialized())
+		return 0;
+
+	snprintf(dir_name, sizeof(dir_name), "vcpu%d", vcpu->vcpu_id);
+	vcpu->debugfs_dentry = debugfs_create_dir(dir_name,
+								vcpu->kvm->debugfs_dentry);
+	if (!vcpu->debugfs_dentry)
+		return -ENOMEM;
+
+	ret = kvm_arch_create_vcpu_debugfs(vcpu);
+	if (ret < 0) {
+		debugfs_remove_recursive(vcpu->debugfs_dentry);
+		return ret;
+	}
+
+	return 0;
 }
 
 /*
@@ -2425,6 +2452,10 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 	if (r)
 		goto vcpu_destroy;
 
+	r = kvm_create_vcpu_debugfs(vcpu);
+	if (r)
+		goto vcpu_destroy;
+
 	mutex_lock(&kvm->lock);
 	if (kvm_get_vcpu_by_id(kvm, id)) {
 		r = -EEXIST;
@@ -2456,6 +2487,7 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 
 unlock_vcpu_destroy:
 	mutex_unlock(&kvm->lock);
+	debugfs_remove_recursive(vcpu->debugfs_dentry);
 vcpu_destroy:
 	kvm_arch_vcpu_destroy(vcpu);
 vcpu_decrement:
