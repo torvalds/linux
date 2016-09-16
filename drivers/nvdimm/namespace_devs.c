@@ -1584,8 +1584,10 @@ static int find_pmem_label_set(struct nd_region *nd_region,
 	int rc = -ENODEV, l;
 	u16 i;
 
-	if (cookie == 0)
+	if (cookie == 0) {
+		dev_dbg(&nd_region->dev, "invalid interleave-set-cookie\n");
 		return -ENXIO;
+	}
 
 	/*
 	 * Find a complete set of labels by uuid.  By definition we can start
