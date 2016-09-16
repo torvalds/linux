@@ -186,40 +186,19 @@ static struct ubi_ainf_volume *add_vol(struct ubi_attach_info *ai, int vol_id,
 				       int last_eb_bytes)
 {
 	struct ubi_ainf_volume *av;
-	struct rb_node **p = &ai->volumes.rb_node, *parent = NULL;
 
-	while (*p) {
-		parent = *p;
-		av = rb_entry(parent, struct ubi_ainf_volume, rb);
+	av = ubi_add_av(ai, vol_id);
+	if (IS_ERR(av))
+		return av;
 
-		if (vol_id > av->vol_id)
-			p = &(*p)->rb_left;
-		else if (vol_id < av->vol_id)
-			p = &(*p)->rb_right;
-		else
-			return ERR_PTR(-EINVAL);
-	}
-
-	av = kmalloc(sizeof(struct ubi_ainf_volume), GFP_KERNEL);
-	if (!av)
-		goto out;
-
-	av->highest_lnum = av->leb_count = av->used_ebs = 0;
-	av->vol_id = vol_id;
 	av->data_pad = data_pad;
 	av->last_data_size = last_eb_bytes;
 	av->compat = 0;
 	av->vol_type = vol_type;
-	av->root = RB_ROOT;
 	if (av->vol_type == UBI_STATIC_VOLUME)
 		av->used_ebs = used_ebs;
 
 	dbg_bld("found volume (ID %i)", vol_id);
-
-	rb_link_node(&av->rb, parent, p);
-	rb_insert_color(&av->rb, &ai->volumes);
-
-out:
 	return av;
 }
 
