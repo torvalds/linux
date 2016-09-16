@@ -140,41 +140,35 @@ static inline void omap_rng_write(struct omap_rng_dev *priv, u16 reg,
 	__raw_writel(val, priv->base + priv->pdata->regs[reg]);
 }
 
-static int omap_rng_data_present(struct hwrng *rng, int wait)
+
+static int omap_rng_do_read(struct hwrng *rng, void *data, size_t max,
+			    bool wait)
 {
 	struct omap_rng_dev *priv;
-	int data, i;
+	int i, present;
 
 	priv = (struct omap_rng_dev *)rng->priv;
+
+	if (max < priv->pdata->data_size)
+		return 0;
 
 	for (i = 0; i < 20; i++) {
-		data = priv->pdata->data_present(priv);
-		if (data || !wait)
+		present = priv->pdata->data_present(priv);
+		if (present || !wait)
 			break;
-		/* RNG produces data fast enough (2+ MBit/sec, even
-		 * during "rngtest" loads, that these delays don't
-		 * seem to trigger.  We *could* use the RNG IRQ, but
-		 * that'd be higher overhead ... so why bother?
-		 */
+
 		udelay(10);
 	}
-	return data;
-}
+	if (!present)
+		return 0;
 
-static int omap_rng_data_read(struct hwrng *rng, u32 *data)
-{
-	struct omap_rng_dev *priv;
-	u32 data_size, i;
-
-	priv = (struct omap_rng_dev *)rng->priv;
-	data_size = priv->pdata->data_size;
-
-	for (i = 0; i < data_size / sizeof(u32); i++)
-		data[i] = omap_rng_read(priv, RNG_OUTPUT_L_REG + i);
+	memcpy_fromio(data, priv->base + priv->pdata->regs[RNG_OUTPUT_L_REG],
+		      priv->pdata->data_size);
 
 	if (priv->pdata->regs[RNG_INTACK_REG])
 		omap_rng_write(priv, RNG_INTACK_REG, RNG_REG_INTACK_RDY_MASK);
-	return data_size;
+
+	return priv->pdata->data_size;
 }
 
 static int omap_rng_init(struct hwrng *rng)
@@ -195,8 +189,7 @@ static void omap_rng_cleanup(struct hwrng *rng)
 
 static struct hwrng omap_rng_ops = {
 	.name		= "omap",
-	.data_present	= omap_rng_data_present,
-	.data_read	= omap_rng_data_read,
+	.read 		= omap_rng_do_read,
 	.init		= omap_rng_init,
 	.cleanup	= omap_rng_cleanup,
 };
