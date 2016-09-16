@@ -65,7 +65,7 @@ static inline struct kthread *to_kthread(struct task_struct *k)
 static struct kthread *to_live_kthread(struct task_struct *k)
 {
 	struct completion *vfork = ACCESS_ONCE(k->vfork_done);
-	if (likely(vfork))
+	if (likely(vfork) && try_get_task_stack(k))
 		return __to_kthread(vfork);
 	return NULL;
 }
@@ -427,8 +427,10 @@ void kthread_unpark(struct task_struct *k)
 {
 	struct kthread *kthread = to_live_kthread(k);
 
-	if (kthread)
+	if (kthread) {
 		__kthread_unpark(k, kthread);
+		put_task_stack(k);
+	}
 }
 EXPORT_SYMBOL_GPL(kthread_unpark);
 
@@ -457,6 +459,7 @@ int kthread_park(struct task_struct *k)
 				wait_for_completion(&kthread->parked);
 			}
 		}
+		put_task_stack(k);
 		ret = 0;
 	}
 	return ret;
@@ -492,6 +495,7 @@ int kthread_stop(struct task_struct *k)
 		__kthread_unpark(k, kthread);
 		wake_up_process(k);
 		wait_for_completion(&kthread->exited);
+		put_task_stack(k);
 	}
 	ret = k->exit_code;
 	put_task_struct(k);
