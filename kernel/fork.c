@@ -159,15 +159,41 @@ void __weak arch_release_thread_stack(unsigned long *stack)
  * kmemcache based allocator.
  */
 # if THREAD_SIZE >= PAGE_SIZE || defined(CONFIG_VMAP_STACK)
+
+#ifdef CONFIG_VMAP_STACK
+/*
+ * vmalloc() is a bit slow, and calling vfree() enough times will force a TLB
+ * flush.  Try to minimize the number of calls by caching stacks.
+ */
+#define NR_CACHED_STACKS 2
+static DEFINE_PER_CPU(struct vm_struct *, cached_stacks[NR_CACHED_STACKS]);
+#endif
+
 static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
 {
 #ifdef CONFIG_VMAP_STACK
-	void *stack = __vmalloc_node_range(THREAD_SIZE, THREAD_SIZE,
-					   VMALLOC_START, VMALLOC_END,
-					   THREADINFO_GFP | __GFP_HIGHMEM,
-					   PAGE_KERNEL,
-					   0, node,
-					   __builtin_return_address(0));
+	void *stack;
+	int i;
+
+	local_irq_disable();
+	for (i = 0; i < NR_CACHED_STACKS; i++) {
+		struct vm_struct *s = this_cpu_read(cached_stacks[i]);
+
+		if (!s)
+			continue;
+		this_cpu_write(cached_stacks[i], NULL);
+
+		tsk->stack_vm_area = s;
+		local_irq_enable();
+		return s->addr;
+	}
+	local_irq_enable();
+
+	stack = __vmalloc_node_range(THREAD_SIZE, THREAD_SIZE,
+				     VMALLOC_START, VMALLOC_END,
+				     THREADINFO_GFP | __GFP_HIGHMEM,
+				     PAGE_KERNEL,
+				     0, node, __builtin_return_address(0));
 
 	/*
 	 * We can't call find_vm_area() in interrupt context, and
@@ -187,10 +213,28 @@ static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
 
 static inline void free_thread_stack(struct task_struct *tsk)
 {
-	if (task_stack_vm_area(tsk))
+#ifdef CONFIG_VMAP_STACK
+	if (task_stack_vm_area(tsk)) {
+		unsigned long flags;
+		int i;
+
+		local_irq_save(flags);
+		for (i = 0; i < NR_CACHED_STACKS; i++) {
+			if (this_cpu_read(cached_stacks[i]))
+				continue;
+
+			this_cpu_write(cached_stacks[i], tsk->stack_vm_area);
+			local_irq_restore(flags);
+			return;
+		}
+		local_irq_restore(flags);
+
 		vfree(tsk->stack);
-	else
-		__free_pages(virt_to_page(tsk->stack), THREAD_SIZE_ORDER);
+		return;
+	}
+#endif
+
+	__free_pages(virt_to_page(tsk->stack), THREAD_SIZE_ORDER);
 }
 # else
 static struct kmem_cache *thread_stack_cache;
