@@ -63,7 +63,7 @@
 
 /*--- Mins & Maxs -----------------------------------*/
 #define	HFA384x_PORTID_MAX		((u16)7)
-#define	HFA384x_NUMPORTS_MAX		((u16)(HFA384x_PORTID_MAX+1))
+#define	HFA384x_NUMPORTS_MAX		((u16)(HFA384x_PORTID_MAX + 1))
 #define	HFA384x_PDR_LEN_MAX		((u16)512) /* in bytes, from EK */
 #define	HFA384x_PDA_RECS_MAX		((u16)200) /* a guess */
 #define	HFA384x_PDA_LEN_MAX		((u16)1024) /* in bytes, from EK*/
