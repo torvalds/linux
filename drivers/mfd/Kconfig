@@ -340,14 +340,6 @@ config MFD_HI655X_PMIC
 	help
 	  Select this option to enable Hisilicon hi655x series pmic driver.
 
-config HTC_EGPIO
-	bool "HTC EGPIO support"
-	depends on GPIOLIB && ARM
-	help
-	    This driver supports the CPLD egpio chip present on
-	    several HTC phones.  It provides basic support for input
-	    pins, output pins, and irqs.
-
 config HTC_PASIC3
 	tristate "HTC PASIC3 LED/DS1WM chip support"
 	select MFD_CORE
