@@ -358,8 +358,6 @@ static inline int extcon_set_state_sync(struct extcon_dev *edev, unsigned int id
 }
 
 static inline int extcon_sync(struct extcon_dev *edev, unsigned int id)
-<<<<<<< HEAD
-=======
 {
 	return 0;
 }
@@ -373,50 +371,23 @@ static inline int extcon_get_property(struct extcon_dev *edev, unsigned int id,
 static inline int extcon_set_property(struct extcon_dev *edev, unsigned int id,
 					unsigned int prop,
 					union extcon_property_value prop_val)
->>>>>>> next
 {
 	return 0;
 }
 
-<<<<<<< HEAD
-static inline int extcon_get_property(struct extcon_dev *edev, unsigned int id,
-					unsigned int prop,
-					union extcon_property_value *prop_val)
-{
-	return 0;
-}
-static inline int extcon_set_property(struct extcon_dev *edev, unsigned int id,
-					unsigned int prop,
-=======
-static inline int extcon_set_property_sync(struct extcon_dev *edev,
-					unsigned int id, unsigned int prop,
->>>>>>> next
-					union extcon_property_value prop_val)
-{
-	return 0;
-}
-
-<<<<<<< HEAD
 static inline int extcon_set_property_sync(struct extcon_dev *edev,
 					unsigned int id, unsigned int prop,
 					union extcon_property_value prop_val)
-=======
-static inline int extcon_get_property_capability(struct extcon_dev *edev,
-					unsigned int id, unsigned int prop)
->>>>>>> next
 {
 	return 0;
 }
 
-<<<<<<< HEAD
 static inline int extcon_get_property_capability(struct extcon_dev *edev,
 					unsigned int id, unsigned int prop)
 {
 	return 0;
 }
 
-=======
->>>>>>> next
 static inline int extcon_set_property_capability(struct extcon_dev *edev,
 					unsigned int id, unsigned int prop)
 {
