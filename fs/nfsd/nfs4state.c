@@ -221,6 +221,7 @@ find_blocked_lock(struct nfs4_lockowner *lo, struct knfsd_fh *fh,
 	list_for_each_entry(cur, &lo->lo_blocked, nbl_list) {
 		if (fh_match(fh, &cur->nbl_fh)) {
 			list_del_init(&cur->nbl_list);
+			list_del_init(&cur->nbl_lru);
 			found = cur;
 			break;
 		}
@@ -4580,6 +4581,7 @@ nfs4_laundromat(struct nfsd_net *nn)
 	struct nfs4_openowner *oo;
 	struct nfs4_delegation *dp;
 	struct nfs4_ol_stateid *stp;
+	struct nfsd4_blocked_lock *nbl;
 	struct list_head *pos, *next, reaplist;
 	time_t cutoff = get_seconds() - nn->nfsd4_lease;
 	time_t t, new_timeo = nn->nfsd4_lease;
@@ -4647,6 +4649,41 @@ nfs4_laundromat(struct nfsd_net *nn)
 		spin_lock(&nn->client_lock);
 	}
 	spin_unlock(&nn->client_lock);
+
+	/*
+	 * It's possible for a client to try and acquire an already held lock
+	 * that is being held for a long time, and then lose interest in it.
+	 * So, we clean out any un-revisited request after a lease period
+	 * under the assumption that the client is no longer interested.
+	 *
+	 * RFC5661, sec. 9.6 states that the client must not rely on getting
+	 * notifications and must continue to poll for locks, even when the
+	 * server supports them. Thus this shouldn't lead to clients blocking
+	 * indefinitely once the lock does become free.
+	 */
+	BUG_ON(!list_empty(&reaplist));
+	spin_lock(&nn->client_lock);
+	while (!list_empty(&nn->blocked_locks_lru)) {
+		nbl = list_first_entry(&nn->blocked_locks_lru,
+					struct nfsd4_blocked_lock, nbl_lru);
+		if (time_after((unsigned long)nbl->nbl_time,
+			       (unsigned long)cutoff)) {
+			t = nbl->nbl_time - cutoff;
+			new_timeo = min(new_timeo, t);
+			break;
+		}
+		list_move(&nbl->nbl_lru, &reaplist);
+		list_del_init(&nbl->nbl_list);
+	}
+	spin_unlock(&nn->client_lock);
+
+	while (!list_empty(&reaplist)) {
+		nbl = list_first_entry(&nn->blocked_locks_lru,
+					struct nfsd4_blocked_lock, nbl_lru);
+		list_del_init(&nbl->nbl_lru);
+		posix_unblock_lock(&nbl->nbl_lock);
+		free_blocked_lock(nbl);
+	}
 
 	new_timeo = max_t(time_t, new_timeo, NFSD_LAUNDROMAT_MINTIMEOUT);
 	return new_timeo;
@@ -5398,9 +5435,11 @@ nfsd4_lm_notify(struct file_lock *fl)
 						struct nfsd4_blocked_lock, nbl_lock);
 	bool queue = false;
 
+	/* An empty list means that something else is going to be using it */
 	spin_lock(&nn->client_lock);
 	if (!list_empty(&nbl->nbl_list)) {
 		list_del_init(&nbl->nbl_list);
+		list_del_init(&nbl->nbl_lru);
 		queue = true;
 	}
 	spin_unlock(&nn->client_lock);
@@ -5825,8 +5864,10 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	}
 
 	if (fl_flags & FL_SLEEP) {
+		nbl->nbl_time = jiffies;
 		spin_lock(&nn->client_lock);
 		list_add_tail(&nbl->nbl_list, &lock_sop->lo_blocked);
+		list_add_tail(&nbl->nbl_lru, &nn->blocked_locks_lru);
 		spin_unlock(&nn->client_lock);
 	}
 
@@ -5858,6 +5899,7 @@ out:
 		if (fl_flags & FL_SLEEP) {
 			spin_lock(&nn->client_lock);
 			list_del_init(&nbl->nbl_list);
+			list_del_init(&nbl->nbl_lru);
 			spin_unlock(&nn->client_lock);
 		}
 		free_blocked_lock(nbl);
@@ -6898,6 +6940,7 @@ static int nfs4_state_create_net(struct net *net)
 	INIT_LIST_HEAD(&nn->client_lru);
 	INIT_LIST_HEAD(&nn->close_lru);
 	INIT_LIST_HEAD(&nn->del_recall_lru);
+	INIT_LIST_HEAD(&nn->blocked_locks_lru);
 	spin_lock_init(&nn->client_lock);
 
 	INIT_DELAYED_WORK(&nn->laundromat_work, laundromat_main);
@@ -6995,6 +7038,7 @@ nfs4_state_shutdown_net(struct net *net)
 	struct nfs4_delegation *dp = NULL;
 	struct list_head *pos, *next, reaplist;
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	struct nfsd4_blocked_lock *nbl;
 
 	cancel_delayed_work_sync(&nn->laundromat_work);
 	locks_end_grace(&nn->nfsd4_manager);
@@ -7013,6 +7057,24 @@ nfs4_state_shutdown_net(struct net *net)
 		put_clnt_odstate(dp->dl_clnt_odstate);
 		nfs4_put_deleg_lease(dp->dl_stid.sc_file);
 		nfs4_put_stid(&dp->dl_stid);
+	}
+
+	BUG_ON(!list_empty(&reaplist));
+	spin_lock(&nn->client_lock);
+	while (!list_empty(&nn->blocked_locks_lru)) {
+		nbl = list_first_entry(&nn->blocked_locks_lru,
+					struct nfsd4_blocked_lock, nbl_lru);
+		list_move(&nbl->nbl_lru, &reaplist);
+		list_del_init(&nbl->nbl_list);
+	}
+	spin_unlock(&nn->client_lock);
+
+	while (!list_empty(&reaplist)) {
+		nbl = list_first_entry(&nn->blocked_locks_lru,
+					struct nfsd4_blocked_lock, nbl_lru);
+		list_del_init(&nbl->nbl_lru);
+		posix_unblock_lock(&nbl->nbl_lock);
+		free_blocked_lock(nbl);
 	}
 
 	nfsd4_client_tracking_exit(net);
