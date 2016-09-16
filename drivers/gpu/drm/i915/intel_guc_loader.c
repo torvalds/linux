@@ -375,9 +375,8 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 	/* Enable MIA caching. GuC clock gating is disabled. */
 	I915_WRITE(GUC_SHIM_CONTROL, GUC_SHIM_CONTROL_VALUE);
 
-	/* WaDisableMinuteIaClockGating:skl,bxt */
-	if (IS_SKL_REVID(dev, 0, SKL_REVID_B0) ||
-	    IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
+	/* WaDisableMinuteIaClockGating:bxt */
+	if (IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
 		I915_WRITE(GUC_SHIM_CONTROL, (I915_READ(GUC_SHIM_CONTROL) &
 					      ~GUC_ENABLE_MIA_CLOCK_GATING));
 	}
