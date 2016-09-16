@@ -599,7 +599,7 @@ int nvme_identify_ns(struct nvme_ctrl *dev, unsigned nsid,
 }
 
 int nvme_get_features(struct nvme_ctrl *dev, unsigned fid, unsigned nsid,
-					dma_addr_t dma_addr, u32 *result)
+		      void *buffer, size_t buflen, u32 *result)
 {
 	struct nvme_command c;
 	struct nvme_completion cqe;
@@ -608,10 +608,9 @@ int nvme_get_features(struct nvme_ctrl *dev, unsigned fid, unsigned nsid,
 	memset(&c, 0, sizeof(c));
 	c.features.opcode = nvme_admin_get_features;
 	c.features.nsid = cpu_to_le32(nsid);
-	c.features.dptr.prp1 = cpu_to_le64(dma_addr);
 	c.features.fid = cpu_to_le32(fid);
 
-	ret = __nvme_submit_sync_cmd(dev->admin_q, &c, &cqe, NULL, 0, 0,
+	ret = __nvme_submit_sync_cmd(dev->admin_q, &c, &cqe, buffer, buflen, 0,
 			NVME_QID_ANY, 0, 0);
 	if (ret >= 0 && result)
 		*result = le32_to_cpu(cqe.result);
@@ -619,7 +618,7 @@ int nvme_get_features(struct nvme_ctrl *dev, unsigned fid, unsigned nsid,
 }
 
 int nvme_set_features(struct nvme_ctrl *dev, unsigned fid, unsigned dword11,
-					dma_addr_t dma_addr, u32 *result)
+		      void *buffer, size_t buflen, u32 *result)
 {
 	struct nvme_command c;
 	struct nvme_completion cqe;
@@ -627,12 +626,11 @@ int nvme_set_features(struct nvme_ctrl *dev, unsigned fid, unsigned dword11,
 
 	memset(&c, 0, sizeof(c));
 	c.features.opcode = nvme_admin_set_features;
-	c.features.dptr.prp1 = cpu_to_le64(dma_addr);
 	c.features.fid = cpu_to_le32(fid);
 	c.features.dword11 = cpu_to_le32(dword11);
 
-	ret = __nvme_submit_sync_cmd(dev->admin_q, &c, &cqe, NULL, 0, 0,
-			NVME_QID_ANY, 0, 0);
+	ret = __nvme_submit_sync_cmd(dev->admin_q, &c, &cqe,
+			buffer, buflen, 0, NVME_QID_ANY, 0, 0);
 	if (ret >= 0 && result)
 		*result = le32_to_cpu(cqe.result);
 	return ret;
@@ -666,7 +664,7 @@ int nvme_set_queue_count(struct nvme_ctrl *ctrl, int *count)
 	u32 result;
 	int status, nr_io_queues;
 
-	status = nvme_set_features(ctrl, NVME_FEAT_NUM_QUEUES, q_count, 0,
+	status = nvme_set_features(ctrl, NVME_FEAT_NUM_QUEUES, q_count, NULL, 0,
 			&result);
 	if (status < 0)
 		return status;

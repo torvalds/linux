@@ -906,7 +906,7 @@ static int nvme_trans_log_temperature(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	kfree(smart_log);
 
 	/* Get Features for Temp Threshold */
-	res = nvme_get_features(ns->ctrl, NVME_FEAT_TEMP_THRESH, 0, 0,
+	res = nvme_get_features(ns->ctrl, NVME_FEAT_TEMP_THRESH, 0, NULL, 0,
 								&feature_resp);
 	if (res != NVME_SC_SUCCESS)
 		temp_c_thresh = LOG_TEMP_UNKNOWN;
@@ -1039,7 +1039,7 @@ static int nvme_trans_fill_caching_page(struct nvme_ns *ns,
 	if (len < MODE_PAGE_CACHING_LEN)
 		return -EINVAL;
 
-	nvme_sc = nvme_get_features(ns->ctrl, NVME_FEAT_VOLATILE_WC, 0, 0,
+	nvme_sc = nvme_get_features(ns->ctrl, NVME_FEAT_VOLATILE_WC, 0, NULL, 0,
 								&feature_resp);
 	res = nvme_trans_status_code(hdr, nvme_sc);
 	if (res)
@@ -1328,7 +1328,7 @@ static int nvme_trans_modesel_get_mp(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	case MODE_PAGE_CACHING:
 		dword11 = ((mode_page[2] & CACHING_MODE_PAGE_WCE_MASK) ? 1 : 0);
 		nvme_sc = nvme_set_features(ns->ctrl, NVME_FEAT_VOLATILE_WC,
-					    dword11, 0, NULL);
+					    dword11, NULL, 0, NULL);
 		res = nvme_trans_status_code(hdr, nvme_sc);
 		break;
 	case MODE_PAGE_CONTROL:
