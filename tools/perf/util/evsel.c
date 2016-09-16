@@ -1067,6 +1067,11 @@ int perf_evsel__append_tp_filter(struct perf_evsel *evsel, const char *filter)
 	return perf_evsel__append_filter(evsel, "(%s) && (%s)", filter);
 }
 
+int perf_evsel__append_addr_filter(struct perf_evsel *evsel, const char *filter)
+{
+	return perf_evsel__append_filter(evsel, "%s,%s", filter);
+}
+
 int perf_evsel__enable(struct perf_evsel *evsel)
 {
 	int nthreads = thread_map__nr(evsel->threads);
