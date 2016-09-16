@@ -622,6 +622,8 @@ static const struct amdgpu_ring_funcs vce_v2_0_ring_funcs = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_vce_ring_begin_use,
 	.end_use = amdgpu_vce_ring_end_use,
+	.get_emit_ib_size = amdgpu_vce_ring_get_emit_ib_size,
+	.get_dma_frame_size = amdgpu_vce_ring_get_dma_frame_size,
 };
 
 static void vce_v2_0_set_ring_funcs(struct amdgpu_device *adev)
