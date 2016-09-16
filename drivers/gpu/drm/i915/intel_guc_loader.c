@@ -382,8 +382,7 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 	}
 
 	/* WaC6DisallowByGfxPause*/
-	if (IS_SKL_REVID(dev, 0, SKL_REVID_C0) ||
-	    IS_BXT_REVID(dev, 0, BXT_REVID_B0))
+	if (IS_BXT_REVID(dev, 0, BXT_REVID_B0))
 		I915_WRITE(GEN6_GFXPAUSE, 0x30FFF);
 
 	if (IS_BROXTON(dev))

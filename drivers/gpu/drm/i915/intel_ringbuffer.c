@@ -882,9 +882,8 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 	WA_CLR_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN5,
 			  GEN9_CCS_TLB_PREFETCH_ENABLE);
 
-	/* WaDisableMaskBasedCammingInRCC:skl,bxt */
-	if (IS_SKL_REVID(dev_priv, SKL_REVID_C0, SKL_REVID_C0) ||
-	    IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1))
+	/* WaDisableMaskBasedCammingInRCC:bxt */
+	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1))
 		WA_SET_BIT_MASKED(SLICE_ECO_CHICKEN0,
 				  PIXEL_MASK_CAMMING_DISABLE);
 
