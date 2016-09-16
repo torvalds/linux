@@ -27,11 +27,15 @@
 #include "../../util/auxtrace.h"
 #include "../../util/cpumap.h"
 #include "../../util/evlist.h"
+#include "../../util/evsel.h"
 #include "../../util/pmu.h"
 #include "../../util/thread_map.h"
 #include "../../util/cs-etm.h"
 
 #include <stdlib.h>
+
+#define ENABLE_SINK_MAX	128
+#define CS_BUS_DEVICE_PATH "/bus/coresight/devices/"
 
 struct cs_etm_recording {
 	struct auxtrace_record	itr;
@@ -556,4 +560,58 @@ struct auxtrace_record *cs_etm_record_init(int *err)
 	return &ptr->itr;
 out:
 	return NULL;
+}
+
+static FILE *cs_device__open_file(const char *name)
+{
+	struct stat st;
+	char path[PATH_MAX];
+	const char *sysfs;
+
+	sysfs = sysfs__mountpoint();
+	if (!sysfs)
+		return NULL;
+
+	snprintf(path, PATH_MAX,
+		 "%s" CS_BUS_DEVICE_PATH "%s", sysfs, name);
+
+	printf("path: %s\n", path);
+
+	if (stat(path, &st) < 0)
+		return NULL;
+
+	return fopen(path, "w");
+
+}
+
+static __attribute__((format(printf, 2, 3)))
+int cs_device__print_file(const char *name, const char *fmt, ...)
+{
+	va_list args;
+	FILE *file;
+	int ret = -EINVAL;
+
+	va_start(args, fmt);
+	file = cs_device__open_file(name);
+	if (file) {
+		ret = vfprintf(file, fmt, args);
+		fclose(file);
+	}
+	va_end(args);
+	return ret;
+}
+
+int cs_etm_set_drv_config(struct perf_evsel_config_term *term)
+{
+	int ret;
+	char enable_sink[ENABLE_SINK_MAX];
+
+	snprintf(enable_sink, ENABLE_SINK_MAX, "%s/%s",
+		 term->val.drv_cfg, "enable_sink");
+
+	ret = cs_device__print_file(enable_sink, "%d", 1);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
