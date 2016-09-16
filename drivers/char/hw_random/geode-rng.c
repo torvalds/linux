@@ -95,8 +95,8 @@ static int __init mod_init(void)
 				return -ENODEV;
 
 			mem = devm_ioremap(&pdev->dev, rng_base, 0x58);
-			if (IS_ERR(mem))
-				return PTR_ERR(mem);
+			if (!mem)
+				return -ENOMEM;
 			geode_rng.priv = (unsigned long)mem;
 
 			pr_info("AMD Geode RNG detected\n");
