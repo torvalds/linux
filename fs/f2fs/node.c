@@ -1513,7 +1513,7 @@ int wait_on_node_pages_writeback(struct f2fs_sb_info *sbi, nid_t ino)
 {
 	pgoff_t index = 0, end = ULONG_MAX;
 	struct pagevec pvec;
-	int ret2 = 0, ret = 0;
+	int ret2, ret = 0;
 
 	pagevec_init(&pvec, 0);
 
@@ -1542,10 +1542,7 @@ int wait_on_node_pages_writeback(struct f2fs_sb_info *sbi, nid_t ino)
 		cond_resched();
 	}
 
-	if (unlikely(test_and_clear_bit(AS_ENOSPC, &NODE_MAPPING(sbi)->flags)))
-		ret2 = -ENOSPC;
-	if (unlikely(test_and_clear_bit(AS_EIO, &NODE_MAPPING(sbi)->flags)))
-		ret2 = -EIO;
+	ret2 = filemap_check_errors(NODE_MAPPING(sbi));
 	if (!ret)
 		ret = ret2;
 	return ret;
