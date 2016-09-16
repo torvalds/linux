@@ -1435,7 +1435,7 @@ static DEVICE_ATTR(rescan_controller, S_IWUSR, NULL, nvme_sysfs_rescan);
 static ssize_t wwid_show(struct device *dev, struct device_attribute *attr,
 								char *buf)
 {
-	struct nvme_ns *ns = dev_to_disk(dev)->private_data;
+	struct nvme_ns *ns = nvme_get_ns_from_dev(dev);
 	struct nvme_ctrl *ctrl = ns->ctrl;
 	int serial_len = sizeof(ctrl->serial);
 	int model_len = sizeof(ctrl->model);
@@ -1459,7 +1459,7 @@ static DEVICE_ATTR(wwid, S_IRUGO, wwid_show, NULL);
 static ssize_t uuid_show(struct device *dev, struct device_attribute *attr,
 								char *buf)
 {
-	struct nvme_ns *ns = dev_to_disk(dev)->private_data;
+	struct nvme_ns *ns = nvme_get_ns_from_dev(dev);
 	return sprintf(buf, "%pU\n", ns->uuid);
 }
 static DEVICE_ATTR(uuid, S_IRUGO, uuid_show, NULL);
@@ -1467,7 +1467,7 @@ static DEVICE_ATTR(uuid, S_IRUGO, uuid_show, NULL);
 static ssize_t eui_show(struct device *dev, struct device_attribute *attr,
 								char *buf)
 {
-	struct nvme_ns *ns = dev_to_disk(dev)->private_data;
+	struct nvme_ns *ns = nvme_get_ns_from_dev(dev);
 	return sprintf(buf, "%8phd\n", ns->eui);
 }
 static DEVICE_ATTR(eui, S_IRUGO, eui_show, NULL);
@@ -1475,7 +1475,7 @@ static DEVICE_ATTR(eui, S_IRUGO, eui_show, NULL);
 static ssize_t nsid_show(struct device *dev, struct device_attribute *attr,
 								char *buf)
 {
-	struct nvme_ns *ns = dev_to_disk(dev)->private_data;
+	struct nvme_ns *ns = nvme_get_ns_from_dev(dev);
 	return sprintf(buf, "%d\n", ns->ns_id);
 }
 static DEVICE_ATTR(nsid, S_IRUGO, nsid_show, NULL);
@@ -1492,7 +1492,7 @@ static umode_t nvme_ns_attrs_are_visible(struct kobject *kobj,
 		struct attribute *a, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
-	struct nvme_ns *ns = dev_to_disk(dev)->private_data;
+	struct nvme_ns *ns = nvme_get_ns_from_dev(dev);
 
 	if (a == &dev_attr_uuid.attr) {
 		if (!memchr_inv(ns->uuid, 0, sizeof(ns->uuid)))
@@ -1684,7 +1684,8 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 		goto out_free_queue;
 
 	if (nvme_nvm_ns_supported(ns, id)) {
-		if (nvme_nvm_register(ns, disk_name, node)) {
+		if (nvme_nvm_register(ns, disk_name, node,
+							&nvme_ns_attr_group)) {
 			dev_warn(ctrl->dev, "%s: LightNVM init failure\n",
 								__func__);
 			goto out_free_id;

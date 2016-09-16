@@ -27,6 +27,8 @@
 #include <linux/lightnvm.h>
 #include <linux/sched/sysctl.h>
 
+#include "lightnvm.h"
+
 static LIST_HEAD(nvm_tgt_types);
 static DECLARE_RWSEM(nvm_tgtt_lock);
 static LIST_HEAD(nvm_mgrs);
@@ -598,15 +600,19 @@ static void nvm_free_mgr(struct nvm_dev *dev)
 	dev->mt = NULL;
 }
 
-static void nvm_free(struct nvm_dev *dev)
+void nvm_free(struct nvm_dev *dev)
 {
 	if (!dev)
 		return;
 
 	nvm_free_mgr(dev);
 
+	if (dev->dma_pool)
+		dev->ops->destroy_dma_pool(dev->dma_pool);
+
 	kfree(dev->lptbl);
 	kfree(dev->lun_map);
+	kfree(dev);
 }
 
 static int nvm_init(struct nvm_dev *dev)
@@ -653,11 +659,7 @@ err:
 
 static void nvm_exit(struct nvm_dev *dev)
 {
-	if (dev->dma_pool)
-		dev->ops->destroy_dma_pool(dev->dma_pool);
-	nvm_free(dev);
-
-	pr_info("nvm: successfully unloaded\n");
+	nvm_sysfs_unregister_dev(dev);
 }
 
 struct nvm_dev *nvm_alloc_dev(int node)
@@ -689,6 +691,10 @@ int nvm_register(struct nvm_dev *dev)
 		}
 	}
 
+	ret = nvm_sysfs_register_dev(dev);
+	if (ret)
+		goto err_ppalist;
+
 	if (dev->identity.cap & NVM_ID_DCAP_BBLKMGMT) {
 		ret = nvm_get_sysblock(dev, &dev->sb);
 		if (!ret)
@@ -705,6 +711,8 @@ int nvm_register(struct nvm_dev *dev)
 	up_write(&nvm_lock);
 
 	return 0;
+err_ppalist:
+	dev->ops->destroy_dma_pool(dev->dma_pool);
 err_init:
 	kfree(dev->lun_map);
 	return ret;
