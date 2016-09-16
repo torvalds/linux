@@ -109,6 +109,97 @@ static int uniphier_clk_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id uniphier_clk_match[] = {
+	/* System clock */
+	{
+		.compatible = "socionext,uniphier-ld4-clock",
+		.data = uniphier_ld4_sys_clk_data,
+	},
+	{
+		.compatible = "socionext,uniphier-pro4-clock",
+		.data = uniphier_pro4_sys_clk_data,
+	},
+	{
+		.compatible = "socionext,uniphier-sld8-clock",
+		.data = uniphier_sld8_sys_clk_data,
+	},
+	{
+		.compatible = "socionext,uniphier-pro5-clock",
+		.data = uniphier_pro5_sys_clk_data,
+	},
+	{
+		.compatible = "socionext,uniphier-pxs2-clock",
+		.data = uniphier_pxs2_sys_clk_data,
+	},
+	{
+		.compatible = "socionext,uniphier-ld11-clock",
+		.data = uniphier_ld11_sys_clk_data,
+	},
+	{
+		.compatible = "socionext,uniphier-ld20-clock",
+		.data = uniphier_ld20_sys_clk_data,
+	},
+	/* Media I/O clock */
+	{
+		.compatible = "socionext,uniphier-sld3-mio-clock",
+		.data = uniphier_sld3_mio_clk_data,
+	},
+	{
+		.compatible = "socionext,uniphier-ld4-mio-clock",
+		.data = uniphier_sld3_mio_clk_data,
+	},
+	{
+		.compatible = "socionext,uniphier-pro4-mio-clock",
+		.data = uniphier_sld3_mio_clk_data,
+	},
+	{
+		.compatible = "socionext,uniphier-sld8-mio-clock",
+		.data = uniphier_sld3_mio_clk_data,
+	},
+	{
+		.compatible = "socionext,uniphier-pro5-mio-clock",
+		.data = uniphier_pro5_mio_clk_data,
+	},
+	{
+		.compatible = "socionext,uniphier-pxs2-mio-clock",
+		.data = uniphier_pro5_mio_clk_data,
+	},
+	{
+		.compatible = "socionext,uniphier-ld11-mio-clock",
+		.data = uniphier_sld3_mio_clk_data,
+	},
+	{
+		.compatible = "socionext,uniphier-ld20-mio-clock",
+		.data = uniphier_pro5_mio_clk_data,
+	},
+	/* Peripheral clock */
+	{
+		.compatible = "socionext,uniphier-ld4-peri-clock",
+		.data = uniphier_ld4_peri_clk_data,
+	},
+	{
+		.compatible = "socionext,uniphier-pro4-peri-clock",
+		.data = uniphier_pro4_peri_clk_data,
+	},
+	{
+		.compatible = "socionext,uniphier-sld8-peri-clock",
+		.data = uniphier_ld4_peri_clk_data,
+	},
+	{
+		.compatible = "socionext,uniphier-pro5-peri-clock",
+		.data = uniphier_pro4_peri_clk_data,
+	},
+	{
+		.compatible = "socionext,uniphier-pxs2-peri-clock",
+		.data = uniphier_pro4_peri_clk_data,
+	},
+	{
+		.compatible = "socionext,uniphier-ld11-peri-clock",
+		.data = uniphier_pro4_peri_clk_data,
+	},
+	{
+		.compatible = "socionext,uniphier-ld20-peri-clock",
+		.data = uniphier_pro4_peri_clk_data,
+	},
 	{ /* sentinel */ }
 };
 
