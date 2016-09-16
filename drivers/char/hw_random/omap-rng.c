@@ -65,8 +65,10 @@
 #define OMAP4_RNG_OUTPUT_SIZE			0x8
 
 enum {
-	RNG_OUTPUT_L_REG = 0,
-	RNG_OUTPUT_H_REG,
+	RNG_OUTPUT_0_REG = 0,
+	RNG_OUTPUT_1_REG,
+	RNG_OUTPUT_2_REG,
+	RNG_OUTPUT_3_REG,
 	RNG_STATUS_REG,
 	RNG_INTMASK_REG,
 	RNG_INTACK_REG,
@@ -82,7 +84,7 @@ enum {
 };
 
 static const u16 reg_map_omap2[] = {
-	[RNG_OUTPUT_L_REG]	= 0x0,
+	[RNG_OUTPUT_0_REG]	= 0x0,
 	[RNG_STATUS_REG]	= 0x4,
 	[RNG_CONFIG_REG]	= 0x28,
 	[RNG_REV_REG]		= 0x3c,
@@ -90,8 +92,8 @@ static const u16 reg_map_omap2[] = {
 };
 
 static const u16 reg_map_omap4[] = {
-	[RNG_OUTPUT_L_REG]	= 0x0,
-	[RNG_OUTPUT_H_REG]	= 0x4,
+	[RNG_OUTPUT_0_REG]	= 0x0,
+	[RNG_OUTPUT_1_REG]	= 0x4,
 	[RNG_STATUS_REG]	= 0x8,
 	[RNG_INTMASK_REG]	= 0xc,
 	[RNG_INTACK_REG]	= 0x10,
@@ -163,7 +165,7 @@ static int omap_rng_do_read(struct hwrng *rng, void *data, size_t max,
 	if (!present)
 		return 0;
 
-	memcpy_fromio(data, priv->base + priv->pdata->regs[RNG_OUTPUT_L_REG],
+	memcpy_fromio(data, priv->base + priv->pdata->regs[RNG_OUTPUT_0_REG],
 		      priv->pdata->data_size);
 
 	if (priv->pdata->regs[RNG_INTACK_REG])
