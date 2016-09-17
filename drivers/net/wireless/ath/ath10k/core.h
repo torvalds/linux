@@ -65,6 +65,10 @@
 #define ATH10K_KEEPALIVE_MAX_IDLE 3895
 #define ATH10K_KEEPALIVE_MAX_UNRESPONSIVE 3900
 
+/* NAPI poll budget */
+#define ATH10K_NAPI_BUDGET      64
+#define ATH10K_NAPI_QUOTA_LIMIT 60
+
 struct ath10k;
 
 enum ath10k_bus {
@@ -142,6 +146,7 @@ struct ath10k_wmi {
 	enum ath10k_htc_ep_id eid;
 	struct completion service_ready;
 	struct completion unified_ready;
+	struct completion barrier;
 	wait_queue_head_t tx_credits_wq;
 	DECLARE_BITMAP(svc_map, WMI_SERVICE_MAX);
 	struct wmi_cmd_map *cmd;
@@ -440,7 +445,7 @@ struct ath10k_debug {
 	struct completion tpc_complete;
 
 	/* protected by conf_mutex */
-	u32 fw_dbglog_mask;
+	u64 fw_dbglog_mask;
 	u32 fw_dbglog_level;
 	u32 pktlog_filter;
 	u32 reg_addr;
@@ -550,6 +555,13 @@ enum ath10k_fw_features {
 	 * is used to configure WMI_COEX_GPIO_SUPPORT.
 	 */
 	ATH10K_FW_FEATURE_BTCOEX_PARAM = 14,
+
+	/* Older firmware with HTT delivers incorrect tx status for null func
+	 * frames to driver, but this fixed in 10.2 and 10.4 firmware versions.
+	 * Also this workaround results in reporting of incorrect null func
+	 * status for 10.4. This flag is used to skip the workaround.
+	 */
+	ATH10K_FW_FEATURE_SKIP_NULL_FUNC_WAR = 15,
 
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
@@ -663,6 +675,15 @@ struct ath10k_fw_file {
 
 	const void *codeswap_data;
 	size_t codeswap_len;
+
+	/* The original idea of struct ath10k_fw_file was that it only
+	 * contains struct firmware and pointers to various parts (actual
+	 * firmware binary, otp, metadata etc) of the file. This seg_info
+	 * is actually created separate but as this is used similarly as
+	 * the other firmware components it's more convenient to have it
+	 * here.
+	 */
+	struct ath10k_swap_code_seg_info *firmware_swap_code_seg_info;
 };
 
 struct ath10k_fw_components {
@@ -715,53 +736,7 @@ struct ath10k {
 	struct ath10k_htc htc;
 	struct ath10k_htt htt;
 
-	struct ath10k_hw_params {
-		u32 id;
-		u16 dev_id;
-		const char *name;
-		u32 patch_load_addr;
-		int uart_pin;
-		u32 otp_exe_param;
-
-		/* Type of hw cycle counter wraparound logic, for more info
-		 * refer enum ath10k_hw_cc_wraparound_type.
-		 */
-		enum ath10k_hw_cc_wraparound_type cc_wraparound_type;
-
-		/* Some of chip expects fragment descriptor to be continuous
-		 * memory for any TX operation. Set continuous_frag_desc flag
-		 * for the hardware which have such requirement.
-		 */
-		bool continuous_frag_desc;
-
-		/* CCK hardware rate table mapping for the newer chipsets
-		 * like QCA99X0, QCA4019 got revised. The CCK h/w rate values
-		 * are in a proper order with respect to the rate/preamble
-		 */
-		bool cck_rate_map_rev2;
-
-		u32 channel_counters_freq_hz;
-
-		/* Mgmt tx descriptors threshold for limiting probe response
-		 * frames.
-		 */
-		u32 max_probe_resp_desc_thres;
-
-		/* The padding bytes's location is different on various chips */
-		enum ath10k_hw_4addr_pad hw_4addr_pad;
-
-		u32 tx_chain_mask;
-		u32 rx_chain_mask;
-		u32 max_spatial_stream;
-		u32 cal_data_len;
-
-		struct ath10k_hw_params_fw {
-			const char *dir;
-			const char *board;
-			size_t board_size;
-			size_t board_ext_size;
-		} fw;
-	} hw_params;
+	struct ath10k_hw_params hw_params;
 
 	/* contains the firmware images used with ATH10K_FIRMWARE_MODE_NORMAL */
 	struct ath10k_fw_components normal_mode_fw;
@@ -773,10 +748,6 @@ struct ath10k {
 
 	const struct firmware *pre_cal_file;
 	const struct firmware *cal_file;
-
-	struct {
-		struct ath10k_swap_code_seg_info *firmware_swap_code_seg_info;
-	} swap;
 
 	struct {
 		u32 vendor;
@@ -935,6 +906,10 @@ struct ath10k {
 
 	struct ath10k_thermal thermal;
 	struct ath10k_wow wow;
+
+	/* NAPI */
+	struct net_device napi_dev;
+	struct napi_struct napi;
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));

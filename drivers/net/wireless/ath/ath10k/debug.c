@@ -1228,9 +1228,9 @@ static ssize_t ath10k_read_fw_dbglog(struct file *file,
 {
 	struct ath10k *ar = file->private_data;
 	unsigned int len;
-	char buf[64];
+	char buf[96];
 
-	len = scnprintf(buf, sizeof(buf), "0x%08x %u\n",
+	len = scnprintf(buf, sizeof(buf), "0x%16llx %u\n",
 			ar->debug.fw_dbglog_mask, ar->debug.fw_dbglog_level);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
@@ -1242,15 +1242,16 @@ static ssize_t ath10k_write_fw_dbglog(struct file *file,
 {
 	struct ath10k *ar = file->private_data;
 	int ret;
-	char buf[64];
-	unsigned int log_level, mask;
+	char buf[96];
+	unsigned int log_level;
+	u64 mask;
 
 	simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
 
 	/* make sure that buf is null terminated */
 	buf[sizeof(buf) - 1] = 0;
 
-	ret = sscanf(buf, "%x %u", &mask, &log_level);
+	ret = sscanf(buf, "%llx %u", &mask, &log_level);
 
 	if (!ret)
 		return -EINVAL;

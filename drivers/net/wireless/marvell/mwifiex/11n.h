@@ -171,9 +171,10 @@ mwifiex_find_stream_to_delete(struct mwifiex_private *priv, int ptr_tid,
 static inline int mwifiex_is_sta_11n_enabled(struct mwifiex_private *priv,
 					     struct mwifiex_sta_node *node)
 {
-
-	if (!node || (priv->bss_role != MWIFIEX_BSS_ROLE_UAP) ||
-	    !priv->ap_11n_enabled)
+	if (!node || ((priv->bss_role == MWIFIEX_BSS_ROLE_UAP) &&
+		      !priv->ap_11n_enabled) ||
+	    ((priv->bss_mode == NL80211_IFTYPE_ADHOC) &&
+	     !priv->adapter->adhoc_11n_enabled))
 		return 0;
 
 	return node->is_11n_enabled;

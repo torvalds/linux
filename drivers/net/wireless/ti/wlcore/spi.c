@@ -84,7 +84,7 @@ struct wilink_familiy_data {
 	char name[8];
 };
 
-const struct wilink_familiy_data *wilink_data;
+static const struct wilink_familiy_data *wilink_data;
 
 static const struct wilink_familiy_data wl18xx_data = {
 	.name = "wl18xx",

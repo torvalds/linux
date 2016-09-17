@@ -338,11 +338,6 @@ enum ath10k_hw_rate_rev2_cck {
 	ATH10K_HW_RATE_REV2_CCK_SP_11M,
 };
 
-enum ath10k_hw_4addr_pad {
-	ATH10K_HW_4ADDR_PAD_AFTER,
-	ATH10K_HW_4ADDR_PAD_BEFORE,
-};
-
 enum ath10k_hw_cc_wraparound_type {
 	ATH10K_HW_CC_WRAP_DISABLED = 0,
 
@@ -362,6 +357,77 @@ enum ath10k_hw_cc_wraparound_type {
 	 */
 	ATH10K_HW_CC_WRAP_SHIFTED_EACH = 2,
 };
+
+struct ath10k_hw_params {
+	u32 id;
+	u16 dev_id;
+	const char *name;
+	u32 patch_load_addr;
+	int uart_pin;
+	u32 otp_exe_param;
+
+	/* Type of hw cycle counter wraparound logic, for more info
+	 * refer enum ath10k_hw_cc_wraparound_type.
+	 */
+	enum ath10k_hw_cc_wraparound_type cc_wraparound_type;
+
+	/* Some of chip expects fragment descriptor to be continuous
+	 * memory for any TX operation. Set continuous_frag_desc flag
+	 * for the hardware which have such requirement.
+	 */
+	bool continuous_frag_desc;
+
+	/* CCK hardware rate table mapping for the newer chipsets
+	 * like QCA99X0, QCA4019 got revised. The CCK h/w rate values
+	 * are in a proper order with respect to the rate/preamble
+	 */
+	bool cck_rate_map_rev2;
+
+	u32 channel_counters_freq_hz;
+
+	/* Mgmt tx descriptors threshold for limiting probe response
+	 * frames.
+	 */
+	u32 max_probe_resp_desc_thres;
+
+	u32 tx_chain_mask;
+	u32 rx_chain_mask;
+	u32 max_spatial_stream;
+	u32 cal_data_len;
+
+	struct ath10k_hw_params_fw {
+		const char *dir;
+		const char *board;
+		size_t board_size;
+		size_t board_ext_size;
+	} fw;
+
+	/* qca99x0 family chips deliver broadcast/multicast management
+	 * frames encrypted and expect software do decryption.
+	 */
+	bool sw_decrypt_mcast_mgmt;
+
+	const struct ath10k_hw_ops *hw_ops;
+};
+
+struct htt_rx_desc;
+
+/* Defines needed for Rx descriptor abstraction */
+struct ath10k_hw_ops {
+	int (*rx_desc_get_l3_pad_bytes)(struct htt_rx_desc *rxd);
+};
+
+extern const struct ath10k_hw_ops qca988x_ops;
+extern const struct ath10k_hw_ops qca99x0_ops;
+
+static inline int
+ath10k_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw,
+				struct htt_rx_desc *rxd)
+{
+	if (hw->hw_ops->rx_desc_get_l3_pad_bytes)
+		return hw->hw_ops->rx_desc_get_l3_pad_bytes(rxd);
+	return 0;
+}
 
 /* Target specific defines for MAIN firmware */
 #define TARGET_NUM_VDEVS			8

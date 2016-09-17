@@ -1654,7 +1654,7 @@ static void _rtl8723e_read_adapter_info(struct ieee80211_hw *hw,
 			rtlefuse->autoload_failflag, hwinfo);
 
 	if (rtlhal->oem_id != RT_CID_DEFAULT)
-		return;
+		goto exit;
 
 	switch (rtlefuse->eeprom_oemid) {
 	case EEPROM_CID_DEFAULT:

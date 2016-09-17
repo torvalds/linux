@@ -462,13 +462,13 @@ static void ath10k_ahb_halt_chip(struct ath10k *ar)
 static irqreturn_t ath10k_ahb_interrupt_handler(int irq, void *arg)
 {
 	struct ath10k *ar = arg;
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 
 	if (!ath10k_pci_irq_pending(ar))
 		return IRQ_NONE;
 
 	ath10k_pci_disable_and_clear_legacy_irq(ar);
-	tasklet_schedule(&ar_pci->intr_tq);
+	ath10k_pci_irq_msi_fw_mask(ar);
+	napi_schedule(&ar->napi);
 
 	return IRQ_HANDLED;
 }
@@ -577,7 +577,7 @@ static int ath10k_ahb_resource_init(struct ath10k *ar)
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "irq: %d\n", ar_ahb->irq);
 
-	ath10k_dbg(ar, ATH10K_DBG_BOOT, "mem: 0x%p mem_len: %lu gcc mem: 0x%p tcsr_mem: 0x%p\n",
+	ath10k_dbg(ar, ATH10K_DBG_BOOT, "mem: 0x%pK mem_len: %lu gcc mem: 0x%pK tcsr_mem: 0x%pK\n",
 		   ar_ahb->mem, ar_ahb->mem_len,
 		   ar_ahb->gcc_mem, ar_ahb->tcsr_mem);
 	return 0;
@@ -717,6 +717,9 @@ static void ath10k_ahb_hif_stop(struct ath10k *ar)
 	synchronize_irq(ar_ahb->irq);
 
 	ath10k_pci_flush(ar);
+
+	napi_synchronize(&ar->napi);
+	napi_disable(&ar->napi);
 }
 
 static int ath10k_ahb_hif_power_up(struct ath10k *ar)
@@ -748,6 +751,7 @@ static int ath10k_ahb_hif_power_up(struct ath10k *ar)
 		ath10k_err(ar, "could not wake up target CPU: %d\n", ret);
 		goto err_ce_deinit;
 	}
+	napi_enable(&ar->napi);
 
 	return 0;
 
@@ -831,7 +835,7 @@ static int ath10k_ahb_probe(struct platform_device *pdev)
 		goto err_resource_deinit;
 	}
 
-	ath10k_pci_init_irq_tasklets(ar);
+	ath10k_pci_init_napi(ar);
 
 	ret = ath10k_ahb_request_irq_legacy(ar);
 	if (ret)

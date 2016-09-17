@@ -820,6 +820,7 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_ie_types_num_probes *num_probes_tlv;
 	struct mwifiex_ie_types_scan_chan_gap *chan_gap_tlv;
+	struct mwifiex_ie_types_random_mac *random_mac_tlv;
 	struct mwifiex_ie_types_wildcard_ssid_params *wildcard_ssid_tlv;
 	struct mwifiex_ie_types_bssid_list *bssid_tlv;
 	u8 *tlv_pos;
@@ -835,6 +836,7 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 	u8 ssid_filter;
 	struct mwifiex_ie_types_htcap *ht_cap;
 	struct mwifiex_ie_types_bss_mode *bss_mode;
+	const u8 zero_mac[6] = {0, 0, 0, 0, 0, 0};
 
 	/* The tlv_buf_len is calculated for each scan command.  The TLVs added
 	   in this routine will be preserved since the routine that sends the
@@ -966,6 +968,18 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 				     cpu_to_le16((user_scan_in->scan_chan_gap));
 			tlv_pos +=
 				  sizeof(struct mwifiex_ie_types_scan_chan_gap);
+		}
+
+		if (!ether_addr_equal(user_scan_in->random_mac, zero_mac)) {
+			random_mac_tlv = (void *)tlv_pos;
+			random_mac_tlv->header.type =
+					 cpu_to_le16(TLV_TYPE_RANDOM_MAC);
+			random_mac_tlv->header.len =
+				    cpu_to_le16(sizeof(random_mac_tlv->mac));
+			ether_addr_copy(random_mac_tlv->mac,
+					user_scan_in->random_mac);
+			tlv_pos +=
+				  sizeof(struct mwifiex_ie_types_random_mac);
 		}
 	} else {
 		scan_cfg_out->bss_mode = (u8) adapter->scan_mode;
@@ -1922,6 +1936,7 @@ mwifiex_active_scan_req_for_passive_chan(struct mwifiex_private *priv)
 	}
 
 	adapter->active_scan_triggered = true;
+	ether_addr_copy(user_scan_cfg->random_mac, priv->random_mac);
 	user_scan_cfg->num_ssids = priv->scan_request->n_ssids;
 	user_scan_cfg->ssid_list = priv->scan_request->ssids;
 
@@ -2179,18 +2194,14 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 
 		if (chan_band_tlv && adapter->nd_info) {
 			adapter->nd_info->matches[idx] =
-				kzalloc(sizeof(*pmatch) +
-				sizeof(u32), GFP_ATOMIC);
+				kzalloc(sizeof(*pmatch) + sizeof(u32),
+					GFP_ATOMIC);
 
 			pmatch = adapter->nd_info->matches[idx];
 
 			if (pmatch) {
-				memset(pmatch, 0, sizeof(*pmatch));
-				if (chan_band_tlv) {
-					pmatch->n_channels = 1;
-					pmatch->channels[0] =
-						chan_band->chan_number;
-				}
+				pmatch->n_channels = 1;
+				pmatch->channels[0] = chan_band->chan_number;
 			}
 		}
 
@@ -2761,6 +2772,7 @@ static int mwifiex_scan_specific_ssid(struct mwifiex_private *priv,
 	if (!scan_cfg)
 		return -ENOMEM;
 
+	ether_addr_copy(scan_cfg->random_mac, priv->random_mac);
 	scan_cfg->ssid_list = req_ssid;
 	scan_cfg->num_ssids = 1;
 

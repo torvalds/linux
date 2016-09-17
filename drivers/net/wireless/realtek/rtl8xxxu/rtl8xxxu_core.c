@@ -894,7 +894,7 @@ int rtl8xxxu_write_rfreg(struct rtl8xxxu_priv *priv,
 	return retval;
 }
 
-int
+static int
 rtl8xxxu_gen1_h2c_cmd(struct rtl8xxxu_priv *priv, struct h2c_cmd *h2c, int len)
 {
 	struct device *dev = &priv->udev->dev;
@@ -3847,28 +3847,6 @@ void rtl8xxxu_gen2_disable_rf(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write32(priv, REG_RX_WAIT_CCA, val32);
 }
 
-static void rtl8xxxu_old_init_queue_reserved_page(struct rtl8xxxu_priv *priv)
-{
-	u8 val8;
-	u32 val32;
-
-	if (priv->ep_tx_normal_queue)
-		val8 = TX_PAGE_NUM_NORM_PQ;
-	else
-		val8 = 0;
-
-	rtl8xxxu_write8(priv, REG_RQPN_NPQ, val8);
-
-	val32 = (TX_PAGE_NUM_PUBQ << RQPN_PUB_PQ_SHIFT) | RQPN_LOAD;
-
-	if (priv->ep_tx_high_queue)
-		val32 |= (TX_PAGE_NUM_HI_PQ << RQPN_HI_PQ_SHIFT);
-	if (priv->ep_tx_low_queue)
-		val32 |= (TX_PAGE_NUM_LO_PQ << RQPN_LO_PQ_SHIFT);
-
-	rtl8xxxu_write32(priv, REG_RQPN, val32);
-}
-
 static void rtl8xxxu_init_queue_reserved_page(struct rtl8xxxu_priv *priv)
 {
 	struct rtl8xxxu_fileops *fops = priv->fops;
@@ -3929,12 +3907,8 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		goto exit;
 	}
 
-	if (!macpower) {
-		if (priv->fops->total_page_num)
-			rtl8xxxu_init_queue_reserved_page(priv);
-		else
-			rtl8xxxu_old_init_queue_reserved_page(priv);
-	}
+	if (!macpower)
+		rtl8xxxu_init_queue_reserved_page(priv);
 
 	ret = rtl8xxxu_init_queue_priority(priv);
 	dev_dbg(dev, "%s: init_queue_priority %i\n", __func__, ret);
@@ -3947,11 +3921,11 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	rtl8xxxu_write16(priv, REG_TRXFF_BNDY + 2, priv->fops->trxff_boundary);
 
 	ret = rtl8xxxu_download_firmware(priv);
-	dev_dbg(dev, "%s: download_fiwmare %i\n", __func__, ret);
+	dev_dbg(dev, "%s: download_firmware %i\n", __func__, ret);
 	if (ret)
 		goto exit;
 	ret = rtl8xxxu_start_firmware(priv);
-	dev_dbg(dev, "%s: start_fiwmare %i\n", __func__, ret);
+	dev_dbg(dev, "%s: start_firmware %i\n", __func__, ret);
 	if (ret)
 		goto exit;
 
@@ -3994,13 +3968,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		/*
 		 * Set TX buffer boundary
 		 */
-		if (priv->rtl_chip == RTL8192E)
-			val8 = TX_TOTAL_PAGE_NUM_8192E + 1;
-		else
-			val8 = TX_TOTAL_PAGE_NUM + 1;
-
-		if (priv->rtl_chip == RTL8723B)
-			val8 -= 1;
+		val8 = priv->fops->total_page_num + 1;
 
 		rtl8xxxu_write8(priv, REG_TXPKTBUF_BCNQ_BDNY, val8);
 		rtl8xxxu_write8(priv, REG_TXPKTBUF_MGQ_BDNY, val8);
@@ -4032,10 +4000,9 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		priv->fops->usb_quirks(priv);
 
 		/*
-		 * Presumably this is for 8188EU as well
-		 * Enable TX report and TX report timer
+		 * Enable TX report and TX report timer for 8723bu/8188eu/...
 		 */
-		if (priv->rtl_chip == RTL8723B) {
+		if (priv->fops->has_tx_report) {
 			val8 = rtl8xxxu_read8(priv, REG_TX_REPORT_CTRL);
 			val8 |= TX_REPORT_CTRL_TIMER_ENABLE;
 			rtl8xxxu_write8(priv, REG_TX_REPORT_CTRL, val8);
@@ -4228,7 +4195,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	/*
 	 * This should enable thermal meter
 	 */
-	if (priv->fops->tx_desc_size == sizeof(struct rtl8xxxu_txdesc40))
+	if (priv->fops->gen2_thermal_meter)
 		rtl8xxxu_write_rfreg(priv,
 				     RF_A, RF6052_REG_T_METER_8723B, 0x37cf8);
 	else
@@ -4783,6 +4750,113 @@ static void rtl8xxxu_dump_action(struct device *dev,
 	}
 }
 
+/*
+ * Fill in v1 (gen1) specific TX descriptor bits.
+ * This format is used on 8188cu/8192cu/8723au
+ */
+void
+rtl8xxxu_fill_txdesc_v1(struct ieee80211_hdr *hdr,
+			struct rtl8xxxu_txdesc32 *tx_desc, u32 rate,
+			u16 rate_flag, bool sgi, bool short_preamble,
+			bool ampdu_enable)
+{
+	u16 seq_number;
+
+	seq_number = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
+
+	tx_desc->txdw5 = cpu_to_le32(rate);
+
+	if (ieee80211_is_data(hdr->frame_control))
+		tx_desc->txdw5 |= cpu_to_le32(0x0001ff00);
+
+	tx_desc->txdw3 = cpu_to_le32((u32)seq_number << TXDESC32_SEQ_SHIFT);
+
+	if (ampdu_enable)
+		tx_desc->txdw1 |= cpu_to_le32(TXDESC32_AGG_ENABLE);
+	else
+		tx_desc->txdw1 |= cpu_to_le32(TXDESC32_AGG_BREAK);
+
+	if (ieee80211_is_mgmt(hdr->frame_control)) {
+		tx_desc->txdw5 = cpu_to_le32(rate);
+		tx_desc->txdw4 |= cpu_to_le32(TXDESC32_USE_DRIVER_RATE);
+		tx_desc->txdw5 |= cpu_to_le32(6 << TXDESC32_RETRY_LIMIT_SHIFT);
+		tx_desc->txdw5 |= cpu_to_le32(TXDESC32_RETRY_LIMIT_ENABLE);
+	}
+
+	if (ieee80211_is_data_qos(hdr->frame_control))
+		tx_desc->txdw4 |= cpu_to_le32(TXDESC32_QOS);
+
+	if (short_preamble)
+		tx_desc->txdw4 |= cpu_to_le32(TXDESC32_SHORT_PREAMBLE);
+
+	if (sgi)
+		tx_desc->txdw5 |= cpu_to_le32(TXDESC32_SHORT_GI);
+
+	if (rate_flag & IEEE80211_TX_RC_USE_RTS_CTS) {
+		/*
+		 * Use RTS rate 24M - does the mac80211 tell
+		 * us which to use?
+		 */
+		tx_desc->txdw4 |= cpu_to_le32(DESC_RATE_24M <<
+					      TXDESC32_RTS_RATE_SHIFT);
+		tx_desc->txdw4 |= cpu_to_le32(TXDESC32_RTS_CTS_ENABLE);
+		tx_desc->txdw4 |= cpu_to_le32(TXDESC32_HW_RTS_ENABLE);
+	}
+}
+
+/*
+ * Fill in v2 (gen2) specific TX descriptor bits.
+ * This format is used on 8192eu/8723bu
+ */
+void
+rtl8xxxu_fill_txdesc_v2(struct ieee80211_hdr *hdr,
+			struct rtl8xxxu_txdesc32 *tx_desc32, u32 rate,
+			u16 rate_flag, bool sgi, bool short_preamble,
+			bool ampdu_enable)
+{
+	struct rtl8xxxu_txdesc40 *tx_desc40;
+	u16 seq_number;
+
+	tx_desc40 = (struct rtl8xxxu_txdesc40 *)tx_desc32;
+
+	seq_number = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
+
+	tx_desc40->txdw4 = cpu_to_le32(rate);
+	if (ieee80211_is_data(hdr->frame_control)) {
+		tx_desc40->txdw4 |= cpu_to_le32(0x1f <<
+						TXDESC40_DATA_RATE_FB_SHIFT);
+	}
+
+	tx_desc40->txdw9 = cpu_to_le32((u32)seq_number << TXDESC40_SEQ_SHIFT);
+
+	if (ampdu_enable)
+		tx_desc40->txdw2 |= cpu_to_le32(TXDESC40_AGG_ENABLE);
+	else
+		tx_desc40->txdw2 |= cpu_to_le32(TXDESC40_AGG_BREAK);
+
+	if (ieee80211_is_mgmt(hdr->frame_control)) {
+		tx_desc40->txdw4 = cpu_to_le32(rate);
+		tx_desc40->txdw3 |= cpu_to_le32(TXDESC40_USE_DRIVER_RATE);
+		tx_desc40->txdw4 |=
+			cpu_to_le32(6 << TXDESC40_RETRY_LIMIT_SHIFT);
+		tx_desc40->txdw4 |= cpu_to_le32(TXDESC40_RETRY_LIMIT_ENABLE);
+	}
+
+	if (short_preamble)
+		tx_desc40->txdw5 |= cpu_to_le32(TXDESC40_SHORT_PREAMBLE);
+
+	if (rate_flag & IEEE80211_TX_RC_USE_RTS_CTS) {
+		/*
+		 * Use RTS rate 24M - does the mac80211 tell
+		 * us which to use?
+		 */
+		tx_desc40->txdw4 |= cpu_to_le32(DESC_RATE_24M <<
+						TXDESC40_RTS_RATE_SHIFT);
+		tx_desc40->txdw3 |= cpu_to_le32(TXDESC40_RTS_CTS_ENABLE);
+		tx_desc40->txdw3 |= cpu_to_le32(TXDESC40_HW_RTS_ENABLE);
+	}
+}
+
 static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 			struct ieee80211_tx_control *control,
 			struct sk_buff *skb)
@@ -4792,7 +4866,6 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 	struct ieee80211_rate *tx_rate = ieee80211_get_tx_rate(hw, tx_info);
 	struct rtl8xxxu_priv *priv = hw->priv;
 	struct rtl8xxxu_txdesc32 *tx_desc;
-	struct rtl8xxxu_txdesc40 *tx_desc40;
 	struct rtl8xxxu_tx_urb *tx_urb;
 	struct ieee80211_sta *sta = NULL;
 	struct ieee80211_vif *vif = tx_info->control.vif;
@@ -4803,7 +4876,7 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 	u16 rate_flag = tx_info->control.rates[0].flags;
 	int tx_desc_size = priv->fops->tx_desc_size;
 	int ret;
-	bool usedesc40, ampdu_enable;
+	bool usedesc40, ampdu_enable, sgi = false, short_preamble = false;
 
 	if (skb_headroom(skb) < tx_desc_size) {
 		dev_warn(dev,
@@ -4881,107 +4954,26 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 		}
 	}
 
-	if (rate_flag & IEEE80211_TX_RC_MCS)
+	if (rate_flag & IEEE80211_TX_RC_MCS &&
+	    !ieee80211_is_mgmt(hdr->frame_control))
 		rate = tx_info->control.rates[0].idx + DESC_RATE_MCS0;
 	else
 		rate = tx_rate->hw_value;
 
+	if (rate_flag & IEEE80211_TX_RC_SHORT_GI ||
+	    (ieee80211_is_data_qos(hdr->frame_control) &&
+	     sta && sta->ht_cap.cap &
+	     (IEEE80211_HT_CAP_SGI_40 | IEEE80211_HT_CAP_SGI_20)))
+		sgi = true;
+
+	if (rate_flag & IEEE80211_TX_RC_USE_SHORT_PREAMBLE ||
+	    (sta && vif && vif->bss_conf.use_short_preamble))
+		short_preamble = true;
+
 	seq_number = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
-	if (!usedesc40) {
-		tx_desc->txdw5 = cpu_to_le32(rate);
 
-		if (ieee80211_is_data(hdr->frame_control))
-			tx_desc->txdw5 |= cpu_to_le32(0x0001ff00);
-
-		tx_desc->txdw3 =
-			cpu_to_le32((u32)seq_number << TXDESC32_SEQ_SHIFT);
-
-		if (ampdu_enable)
-			tx_desc->txdw1 |= cpu_to_le32(TXDESC32_AGG_ENABLE);
-		else
-			tx_desc->txdw1 |= cpu_to_le32(TXDESC32_AGG_BREAK);
-
-		if (ieee80211_is_mgmt(hdr->frame_control)) {
-			tx_desc->txdw5 = cpu_to_le32(tx_rate->hw_value);
-			tx_desc->txdw4 |=
-				cpu_to_le32(TXDESC32_USE_DRIVER_RATE);
-			tx_desc->txdw5 |=
-				cpu_to_le32(6 << TXDESC32_RETRY_LIMIT_SHIFT);
-			tx_desc->txdw5 |=
-				cpu_to_le32(TXDESC32_RETRY_LIMIT_ENABLE);
-		}
-
-		if (ieee80211_is_data_qos(hdr->frame_control))
-			tx_desc->txdw4 |= cpu_to_le32(TXDESC32_QOS);
-
-		if (rate_flag & IEEE80211_TX_RC_USE_SHORT_PREAMBLE ||
-		    (sta && vif && vif->bss_conf.use_short_preamble))
-			tx_desc->txdw4 |= cpu_to_le32(TXDESC32_SHORT_PREAMBLE);
-
-		if (rate_flag & IEEE80211_TX_RC_SHORT_GI ||
-		    (ieee80211_is_data_qos(hdr->frame_control) &&
-		     sta && sta->ht_cap.cap &
-		     (IEEE80211_HT_CAP_SGI_40 | IEEE80211_HT_CAP_SGI_20))) {
-			tx_desc->txdw5 |= cpu_to_le32(TXDESC32_SHORT_GI);
-		}
-
-		if (rate_flag & IEEE80211_TX_RC_USE_RTS_CTS) {
-			/*
-			 * Use RTS rate 24M - does the mac80211 tell
-			 * us which to use?
-			 */
-			tx_desc->txdw4 |=
-				cpu_to_le32(DESC_RATE_24M <<
-					    TXDESC32_RTS_RATE_SHIFT);
-			tx_desc->txdw4 |=
-				cpu_to_le32(TXDESC32_RTS_CTS_ENABLE);
-			tx_desc->txdw4 |= cpu_to_le32(TXDESC32_HW_RTS_ENABLE);
-		}
-	} else {
-		tx_desc40 = (struct rtl8xxxu_txdesc40 *)tx_desc;
-
-		tx_desc40->txdw4 = cpu_to_le32(rate);
-		if (ieee80211_is_data(hdr->frame_control)) {
-			tx_desc->txdw4 |=
-				cpu_to_le32(0x1f <<
-					    TXDESC40_DATA_RATE_FB_SHIFT);
-		}
-
-		tx_desc40->txdw9 =
-			cpu_to_le32((u32)seq_number << TXDESC40_SEQ_SHIFT);
-
-		if (ampdu_enable)
-			tx_desc40->txdw2 |= cpu_to_le32(TXDESC40_AGG_ENABLE);
-		else
-			tx_desc40->txdw2 |= cpu_to_le32(TXDESC40_AGG_BREAK);
-
-		if (ieee80211_is_mgmt(hdr->frame_control)) {
-			tx_desc40->txdw4 = cpu_to_le32(tx_rate->hw_value);
-			tx_desc40->txdw3 |=
-				cpu_to_le32(TXDESC40_USE_DRIVER_RATE);
-			tx_desc40->txdw4 |=
-				cpu_to_le32(6 << TXDESC40_RETRY_LIMIT_SHIFT);
-			tx_desc40->txdw4 |=
-				cpu_to_le32(TXDESC40_RETRY_LIMIT_ENABLE);
-		}
-
-		if (rate_flag & IEEE80211_TX_RC_USE_SHORT_PREAMBLE ||
-		    (sta && vif && vif->bss_conf.use_short_preamble))
-			tx_desc40->txdw5 |=
-				cpu_to_le32(TXDESC40_SHORT_PREAMBLE);
-
-		if (rate_flag & IEEE80211_TX_RC_USE_RTS_CTS) {
-			/*
-			 * Use RTS rate 24M - does the mac80211 tell
-			 * us which to use?
-			 */
-			tx_desc->txdw4 |=
-				cpu_to_le32(DESC_RATE_24M <<
-					    TXDESC40_RTS_RATE_SHIFT);
-			tx_desc->txdw3 |= cpu_to_le32(TXDESC40_RTS_CTS_ENABLE);
-			tx_desc->txdw3 |= cpu_to_le32(TXDESC40_HW_RTS_ENABLE);
-		}
-	}
+	priv->fops->fill_txdesc(hdr, tx_desc, rate, rate_flag,
+				sgi, short_preamble, ampdu_enable);
 
 	rtl8xxxu_calc_tx_desc_csum(tx_desc);
 
@@ -5704,7 +5696,7 @@ rtl8xxxu_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	switch (action) {
 	case IEEE80211_AMPDU_TX_START:
-		dev_info(dev, "%s: IEEE80211_AMPDU_TX_START\n", __func__);
+		dev_dbg(dev, "%s: IEEE80211_AMPDU_TX_START\n", __func__);
 		ampdu_factor = sta->ht_cap.ampdu_factor;
 		ampdu_density = sta->ht_cap.ampdu_density;
 		rtl8xxxu_set_ampdu_factor(priv, ampdu_factor);
@@ -5714,21 +5706,21 @@ rtl8xxxu_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			ampdu_factor, ampdu_density);
 		break;
 	case IEEE80211_AMPDU_TX_STOP_FLUSH:
-		dev_info(dev, "%s: IEEE80211_AMPDU_TX_STOP_FLUSH\n", __func__);
+		dev_dbg(dev, "%s: IEEE80211_AMPDU_TX_STOP_FLUSH\n", __func__);
 		rtl8xxxu_set_ampdu_factor(priv, 0);
 		rtl8xxxu_set_ampdu_min_space(priv, 0);
 		break;
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
-		dev_info(dev, "%s: IEEE80211_AMPDU_TX_STOP_FLUSH_CONT\n",
+		dev_dbg(dev, "%s: IEEE80211_AMPDU_TX_STOP_FLUSH_CONT\n",
 			 __func__);
 		rtl8xxxu_set_ampdu_factor(priv, 0);
 		rtl8xxxu_set_ampdu_min_space(priv, 0);
 		break;
 	case IEEE80211_AMPDU_RX_START:
-		dev_info(dev, "%s: IEEE80211_AMPDU_RX_START\n", __func__);
+		dev_dbg(dev, "%s: IEEE80211_AMPDU_RX_START\n", __func__);
 		break;
 	case IEEE80211_AMPDU_RX_STOP:
-		dev_info(dev, "%s: IEEE80211_AMPDU_RX_STOP\n", __func__);
+		dev_dbg(dev, "%s: IEEE80211_AMPDU_RX_STOP\n", __func__);
 		break;
 	default:
 		break;
@@ -5947,7 +5939,7 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	struct ieee80211_hw *hw;
 	struct usb_device *udev;
 	struct ieee80211_supported_band *sband;
-	int ret = 0;
+	int ret;
 	int untested = 1;
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
@@ -5971,6 +5963,18 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 		if (id->idProduct == 0x1004)
 			untested = 0;
 		break;
+	case 0x20f4:
+		if (id->idProduct == 0x648b)
+			untested = 0;
+		break;
+	case 0x2001:
+		if (id->idProduct == 0x3308)
+			untested = 0;
+		break;
+	case 0x2357:
+		if (id->idProduct == 0x0109)
+			untested = 0;
+		break;
 	default:
 		break;
 	}
@@ -5987,6 +5991,7 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	hw = ieee80211_alloc_hw(sizeof(struct rtl8xxxu_priv), &rtl8xxxu_ops);
 	if (!hw) {
 		ret = -ENOMEM;
+		priv = NULL;
 		goto exit;
 	}
 
@@ -6035,6 +6040,8 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	}
 
 	ret = rtl8xxxu_init_device(hw);
+	if (ret)
+		goto exit;
 
 	hw->wiphy->max_scan_ssids = 1;
 	hw->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
@@ -6085,9 +6092,20 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 		goto exit;
 	}
 
+	return 0;
+
 exit:
-	if (ret < 0)
-		usb_put_dev(udev);
+	usb_set_intfdata(interface, NULL);
+
+	if (priv) {
+		kfree(priv->fw_data);
+		mutex_destroy(&priv->usb_buf_mutex);
+		mutex_destroy(&priv->h2c_mutex);
+	}
+	usb_put_dev(udev);
+
+	ieee80211_free_hw(hw);
+
 	return ret;
 }
 
@@ -6111,6 +6129,11 @@ static void rtl8xxxu_disconnect(struct usb_interface *interface)
 	mutex_destroy(&priv->usb_buf_mutex);
 	mutex_destroy(&priv->h2c_mutex);
 
+	if (priv->udev->state != USB_STATE_NOTATTACHED) {
+		dev_info(&priv->udev->dev,
+			 "Device still attached, trying to reset\n");
+		usb_reset_device(priv->udev);
+	}
 	usb_put_dev(priv->udev);
 	ieee80211_free_hw(hw);
 }
@@ -6123,6 +6146,9 @@ static struct usb_device_id dev_table[] = {
 {USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0x0724, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8723au_fops},
 {USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0x818b, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8192eu_fops},
+/* Tested by Myckel Habets */
+{USB_DEVICE_AND_INTERFACE_INFO(0x2357, 0x0109, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8192eu_fops},
 {USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0xb720, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8723bu_fops},
@@ -6139,6 +6165,12 @@ static struct usb_device_id dev_table[] = {
 	.driver_info = (unsigned long)&rtl8192cu_fops},
 /* Tested by Andrea Merello */
 {USB_DEVICE_AND_INTERFACE_INFO(0x050d, 0x1004, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8192cu_fops},
+/* Tested by Jocelyn Mayer */
+{USB_DEVICE_AND_INTERFACE_INFO(0x20f4, 0x648b, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8192cu_fops},
+/* Tested by Stefano Bravi */
+{USB_DEVICE_AND_INTERFACE_INFO(0x2001, 0x3308, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8192cu_fops},
 /* Currently untested 8188 series devices */
 {USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0x8191, 0xff, 0xff, 0xff),
@@ -6187,8 +6219,6 @@ static struct usb_device_id dev_table[] = {
 	.driver_info = (unsigned long)&rtl8192cu_fops},
 {USB_DEVICE_AND_INTERFACE_INFO(0x13d3, 0x3357, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8192cu_fops},
-{USB_DEVICE_AND_INTERFACE_INFO(0x2001, 0x3308, 0xff, 0xff, 0xff),
-	.driver_info = (unsigned long)&rtl8192cu_fops},
 {USB_DEVICE_AND_INTERFACE_INFO(0x2001, 0x330b, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8192cu_fops},
 {USB_DEVICE_AND_INTERFACE_INFO(0x2019, 0x4902, 0xff, 0xff, 0xff),
@@ -6198,8 +6228,6 @@ static struct usb_device_id dev_table[] = {
 {USB_DEVICE_AND_INTERFACE_INFO(0x2019, 0xab2e, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8192cu_fops},
 {USB_DEVICE_AND_INTERFACE_INFO(0x2019, 0xed17, 0xff, 0xff, 0xff),
-	.driver_info = (unsigned long)&rtl8192cu_fops},
-{USB_DEVICE_AND_INTERFACE_INFO(0x20f4, 0x648b, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8192cu_fops},
 {USB_DEVICE_AND_INTERFACE_INFO(0x4855, 0x0090, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8192cu_fops},

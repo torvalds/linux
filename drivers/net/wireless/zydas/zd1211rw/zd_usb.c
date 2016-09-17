@@ -193,7 +193,7 @@ static int upload_code(struct usb_device *udev,
 			0, 0, p, sizeof(ret), 5000 /* ms */);
 		if (r != sizeof(ret)) {
 			dev_err(&udev->dev,
-				"control request firmeware confirmation failed."
+				"control request firmware confirmation failed."
 				" Return value %d\n", r);
 			if (r >= 0)
 				r = -ENODEV;
