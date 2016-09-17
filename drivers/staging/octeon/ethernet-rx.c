@@ -450,12 +450,10 @@ void cvm_oct_poll_controller(struct net_device *dev)
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(oct_rx_group); i++) {
-
 		if (!(pow_receive_groups & BIT(i)))
 			continue;
 
 		cvm_oct_poll(&oct_rx_group[i], 16);
-
 	}
 }
 #endif
@@ -537,7 +535,6 @@ void cvm_oct_rx_shutdown(void)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(oct_rx_group); i++) {
-
 		if (!(pow_receive_groups & BIT(i)))
 			continue;
 
