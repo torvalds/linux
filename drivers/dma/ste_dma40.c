@@ -2198,7 +2198,7 @@ static struct d40_desc *
 d40_prep_desc(struct d40_chan *chan, struct scatterlist *sg,
 	      unsigned int sg_len, unsigned long dma_flags)
 {
-	struct stedma40_chan_cfg *cfg = &chan->dma_cfg;
+	struct stedma40_chan_cfg *cfg;
 	struct d40_desc *desc;
 	int ret;
 
@@ -2206,6 +2206,7 @@ d40_prep_desc(struct d40_chan *chan, struct scatterlist *sg,
 	if (!desc)
 		return NULL;
 
+	cfg = &chan->dma_cfg;
 	desc->lli_len = d40_sg_2_dmalen(sg, sg_len, cfg->src_info.data_width,
 					cfg->dst_info.data_width);
 	if (desc->lli_len < 0) {
