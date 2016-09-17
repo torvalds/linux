@@ -1140,8 +1140,7 @@ static void ks7010_sdio_remove(struct sdio_func *func)
 		/* send stop request to MAC */
 		{
 			struct hostif_stop_request_t *pp;
-			pp = (struct hostif_stop_request_t *)
-			    kzalloc(hif_align_size(sizeof(*pp)), GFP_KERNEL);
+			pp = kzalloc(hif_align_size(sizeof(*pp)), GFP_KERNEL);
 			if (!pp) {
 				DPRINTK(3, "allocate memory failed..\n");
 				return;	/* to do goto ni suru */
