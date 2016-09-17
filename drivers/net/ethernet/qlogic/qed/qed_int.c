@@ -1377,7 +1377,7 @@ static const char *attn_master_to_str(u8 master)
 	case 9: return "DBU";
 	case 10: return "DMAE";
 	default:
-		return "Unkown";
+		return "Unknown";
 	}
 }
 
@@ -1555,7 +1555,7 @@ static int qed_dorq_attn_cb(struct qed_hwfn *p_hwfn)
 				     DORQ_REG_DB_DROP_DETAILS);
 
 		DP_INFO(p_hwfn->cdev,
-			"DORQ db_drop: adress 0x%08x Opaque FID 0x%04x Size [bytes] 0x%08x Reason: 0x%08x\n",
+			"DORQ db_drop: address 0x%08x Opaque FID 0x%04x Size [bytes] 0x%08x Reason: 0x%08x\n",
 			qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
 			       DORQ_REG_DB_DROP_DETAILS_ADDRESS),
 			(u16)(details & QED_DORQ_ATTENTION_OPAQUE_MASK),
