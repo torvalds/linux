@@ -3203,7 +3203,6 @@ static void rt5663_i2c_shutdown(struct i2c_client *client)
 static struct i2c_driver rt5663_i2c_driver = {
 	.driver = {
 		.name = "rt5663",
-		.owner = THIS_MODULE,
 		.acpi_match_table = ACPI_PTR(rt5663_acpi_match),
 		.of_match_table = of_match_ptr(rt5663_of_match),
 	},
