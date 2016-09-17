@@ -476,11 +476,11 @@ static int prism2_connect(struct wiphy *wiphy, struct net_device *dev,
 
 	/* Set the authorization */
 	if ((sme->auth_type == NL80211_AUTHTYPE_OPEN_SYSTEM) ||
-		((sme->auth_type == NL80211_AUTHTYPE_AUTOMATIC) && !is_wep))
-			msg_join.authtype.data = P80211ENUM_authalg_opensystem;
+	    ((sme->auth_type == NL80211_AUTHTYPE_AUTOMATIC) && !is_wep))
+		msg_join.authtype.data = P80211ENUM_authalg_opensystem;
 	else if ((sme->auth_type == NL80211_AUTHTYPE_SHARED_KEY) ||
-		((sme->auth_type == NL80211_AUTHTYPE_AUTOMATIC) && is_wep))
-			msg_join.authtype.data = P80211ENUM_authalg_sharedkey;
+		 ((sme->auth_type == NL80211_AUTHTYPE_AUTOMATIC) && is_wep))
+		msg_join.authtype.data = P80211ENUM_authalg_sharedkey;
 	else
 		netdev_warn(dev,
 			"Unhandled authorisation type for connect (%d)\n",
