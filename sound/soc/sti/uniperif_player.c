@@ -893,8 +893,10 @@ static int uni_player_start(struct uniperif *player)
 	SET_UNIPERIF_SOFT_RST_SOFT_RST(player);
 
 	ret = reset_player(player);
-	if (ret < 0)
+	if (ret < 0) {
+		clk_disable_unprepare(player->clk);
 		return ret;
+	}
 
 	/*
 	 * Does not use IEC61937 features of the uniperipheral hardware.
