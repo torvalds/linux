@@ -506,7 +506,12 @@ static struct sk_buff *pfifo_fast_dequeue(struct Qdisc *qdisc)
 
 	if (likely(band >= 0)) {
 		struct sk_buff_head *list = band2list(priv, band);
-		struct sk_buff *skb = __qdisc_dequeue_head(qdisc, list);
+		struct sk_buff *skb = __qdisc_dequeue_head(list);
+
+		if (likely(skb != NULL)) {
+			qdisc_qstats_backlog_dec(qdisc, skb);
+			qdisc_bstats_update(qdisc, skb);
+		}
 
 		qdisc->q.qlen--;
 		if (skb_queue_empty(list))

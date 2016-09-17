@@ -614,10 +614,16 @@ static inline int qdisc_enqueue_tail(struct sk_buff *skb, struct Qdisc *sch)
 	return __qdisc_enqueue_tail(skb, sch, &sch->q);
 }
 
-static inline struct sk_buff *__qdisc_dequeue_head(struct Qdisc *sch,
-						   struct sk_buff_head *list)
+static inline struct sk_buff *__qdisc_dequeue_head(struct sk_buff_head *list)
 {
 	struct sk_buff *skb = __skb_dequeue(list);
+
+	return skb;
+}
+
+static inline struct sk_buff *qdisc_dequeue_head(struct Qdisc *sch)
+{
+	struct sk_buff *skb = __qdisc_dequeue_head(&sch->q);
 
 	if (likely(skb != NULL)) {
 		qdisc_qstats_backlog_dec(sch, skb);
@@ -625,11 +631,6 @@ static inline struct sk_buff *__qdisc_dequeue_head(struct Qdisc *sch,
 	}
 
 	return skb;
-}
-
-static inline struct sk_buff *qdisc_dequeue_head(struct Qdisc *sch)
-{
-	return __qdisc_dequeue_head(sch, &sch->q);
 }
 
 /* Instead of calling kfree_skb() while root qdisc lock is held,
