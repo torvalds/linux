@@ -3404,7 +3404,7 @@ static int __init d40_lcla_allocate(struct d40_base *base)
 	struct d40_lcla_pool *pool = &base->lcla_pool;
 	unsigned long *page_list;
 	int i, j;
-	int ret = 0;
+	int ret;
 
 	/*
 	 * This is somewhat ugly. We need 8192 bytes that are 18 bit aligned,
@@ -3476,6 +3476,7 @@ static int __init d40_lcla_allocate(struct d40_base *base)
 
 	writel(virt_to_phys(base->lcla_pool.base),
 	       base->virtbase + D40_DREG_LCLA);
+	ret = 0;
  free_page_list:
 	kfree(page_list);
 	return ret;
