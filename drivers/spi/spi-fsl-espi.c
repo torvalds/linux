@@ -538,8 +538,8 @@ static size_t fsl_espi_max_message_size(struct spi_device *spi)
 	return SPCOM_TRANLEN_MAX;
 }
 
-static struct spi_master * fsl_espi_probe(struct device *dev,
-		struct resource *mem, unsigned int irq)
+static int fsl_espi_probe(struct device *dev, struct resource *mem,
+			  unsigned int irq)
 {
 	struct fsl_spi_platform_data *pdata = dev_get_platdata(dev);
 	struct spi_master *master;
@@ -547,13 +547,11 @@ static struct spi_master * fsl_espi_probe(struct device *dev,
 	struct device_node *nc;
 	const __be32 *prop;
 	u32 regval, csmode;
-	int i, len, ret = 0;
+	int i, len, ret;
 
 	master = spi_alloc_master(dev, sizeof(struct mpc8xxx_spi));
-	if (!master) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	if (!master)
+		return -ENOMEM;
 
 	dev_set_drvdata(dev, master);
 
@@ -647,7 +645,7 @@ static struct spi_master * fsl_espi_probe(struct device *dev,
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
-	return master;
+	return 0;
 
 err_pm:
 	pm_runtime_put_noidle(dev);
@@ -655,8 +653,7 @@ err_pm:
 	pm_runtime_set_suspended(dev);
 err_probe:
 	spi_master_put(master);
-err:
-	return ERR_PTR(ret);
+	return ret;
 }
 
 static int of_fsl_espi_get_chipselects(struct device *dev)
@@ -682,7 +679,6 @@ static int of_fsl_espi_probe(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
 	struct device_node *np = ofdev->dev.of_node;
-	struct spi_master *master;
 	struct resource mem;
 	unsigned int irq;
 	int ret;
@@ -703,11 +699,7 @@ static int of_fsl_espi_probe(struct platform_device *ofdev)
 	if (!irq)
 		return -EINVAL;
 
-	master = fsl_espi_probe(dev, &mem, irq);
-	if (IS_ERR(master))
-		return PTR_ERR(master);
-
-	return 0;
+	return fsl_espi_probe(dev, &mem, irq);
 }
 
 static int of_fsl_espi_remove(struct platform_device *dev)
