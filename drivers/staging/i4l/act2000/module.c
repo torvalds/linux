@@ -28,7 +28,7 @@ static unsigned short act2000_isa_ports[] =
 static act2000_card *cards = (act2000_card *) NULL;
 
 /* Parameters to be set by insmod */
-static int   act_bus  =  0;
+static int   act_bus;
 static int   act_port = -1;  /* -1 = Autoprobe  */
 static int   act_irq  = -1;
 static char *act_id   = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
