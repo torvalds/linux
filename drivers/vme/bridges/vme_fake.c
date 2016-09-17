@@ -273,7 +273,6 @@ static int fake_master_set(struct vme_master_resource *image, int enabled,
 	}
 
 	if (size & 0xFFFF) {
-		spin_unlock(&image->lock);
 		pr_err("Invalid size alignment\n");
 		retval = -EINVAL;
 		goto err_window;
@@ -292,7 +291,6 @@ static int fake_master_set(struct vme_master_resource *image, int enabled,
 	case VME_D32:
 		break;
 	default:
-		spin_unlock(&image->lock);
 		pr_err("Invalid data width\n");
 		retval = -EINVAL;
 		goto err_dwidth;
@@ -311,7 +309,6 @@ static int fake_master_set(struct vme_master_resource *image, int enabled,
 	case VME_USER4:
 		break;
 	default:
-		spin_unlock(&image->lock);
 		pr_err("Invalid address space\n");
 		retval = -EINVAL;
 		goto err_aspace;
