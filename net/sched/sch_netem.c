@@ -502,7 +502,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 			1<<(prandom_u32() % 8);
 	}
 
-	if (unlikely(skb_queue_len(&sch->q) >= sch->limit))
+	if (unlikely(sch->q.qlen >= sch->limit))
 		return qdisc_drop(skb, sch, to_free);
 
 	qdisc_qstats_backlog_inc(sch, skb);
@@ -522,7 +522,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		if (q->rate) {
 			struct sk_buff *last;
 
-			if (!skb_queue_empty(&sch->q))
+			if (sch->q.qlen)
 				last = skb_peek_tail(&sch->q);
 			else
 				last = netem_rb_to_skb(rb_last(&q->t_root));
