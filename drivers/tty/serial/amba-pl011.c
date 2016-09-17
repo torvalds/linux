@@ -2330,16 +2330,13 @@ static struct console amba_console = {
 
 static void pl011_putc(struct uart_port *port, int c)
 {
-	struct uart_amba_port *uap =
-		container_of(port, struct uart_amba_port, port);
-
 	while (readl(port->membase + UART01x_FR) & UART01x_FR_TXFF)
 		cpu_relax();
 	if (port->iotype == UPIO_MEM32)
 		writel(c, port->membase + UART01x_DR);
 	else
 		writeb(c, port->membase + UART01x_DR);
-	while (readl(port->membase + UART01x_FR) & uap->vendor->fr_busy)
+	while (readl(port->membase + UART01x_FR) & UART01x_FR_BUSY)
 		cpu_relax();
 }
 
