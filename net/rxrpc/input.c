@@ -384,7 +384,7 @@ static void rxrpc_input_soft_acks(struct rxrpc_call *call, u8 *acks,
 
 	for (; nr_acks > 0; nr_acks--, seq++) {
 		ix = seq & RXRPC_RXTX_BUFF_MASK;
-		switch (*acks) {
+		switch (*acks++) {
 		case RXRPC_ACK_TYPE_ACK:
 			call->rxtx_annotations[ix] = RXRPC_TX_ANNO_ACK;
 			break;
