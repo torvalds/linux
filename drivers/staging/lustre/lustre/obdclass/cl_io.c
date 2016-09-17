@@ -936,8 +936,6 @@ void cl_page_list_splice(struct cl_page_list *list, struct cl_page_list *head)
 }
 EXPORT_SYMBOL(cl_page_list_splice);
 
-void cl_page_disown0(const struct lu_env *env,
-		     struct cl_io *io, struct cl_page *pg);
 
 /**
  * Disowns pages in a queue.
