@@ -5530,22 +5530,6 @@ int nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, const nfs4
 	return err;
 }
 
-#define NFS4_LOCK_MINTIMEOUT (1 * HZ)
-#define NFS4_LOCK_MAXTIMEOUT (30 * HZ)
-
-/* 
- * sleep, with exponential backoff, and retry the LOCK operation. 
- */
-static unsigned long
-nfs4_set_lock_task_retry(unsigned long timeout)
-{
-	freezable_schedule_timeout_interruptible(timeout);
-	timeout <<= 1;
-	if (timeout > NFS4_LOCK_MAXTIMEOUT)
-		return NFS4_LOCK_MAXTIMEOUT;
-	return timeout;
-}
-
 static int _nfs4_proc_getlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 {
 	struct inode *inode = state->inode;
@@ -6178,12 +6162,32 @@ static int nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock *
 	return err;
 }
 
+#define NFS4_LOCK_MINTIMEOUT (1 * HZ)
+#define NFS4_LOCK_MAXTIMEOUT (30 * HZ)
+
+static int
+nfs4_retry_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
+{
+	int		status = -ERESTARTSYS;
+	unsigned long	timeout = NFS4_LOCK_MINTIMEOUT;
+
+	while(!signalled()) {
+		status = nfs4_proc_setlk(state, cmd, request);
+		if ((status != -EAGAIN) || IS_SETLK(cmd))
+			break;
+		freezable_schedule_timeout_interruptible(timeout);
+		timeout *= 2;
+		timeout = min_t(unsigned long, NFS4_LOCK_MAXTIMEOUT, timeout);
+		status = -ERESTARTSYS;
+	}
+	return status;
+}
+
 static int
 nfs4_proc_lock(struct file *filp, int cmd, struct file_lock *request)
 {
 	struct nfs_open_context *ctx;
 	struct nfs4_state *state;
-	unsigned long timeout = NFS4_LOCK_MINTIMEOUT;
 	int status;
 
 	/* verify open state */
@@ -6233,16 +6237,7 @@ nfs4_proc_lock(struct file *filp, int cmd, struct file_lock *request)
 	if (status != 0)
 		return status;
 
-	do {
-		status = nfs4_proc_setlk(state, cmd, request);
-		if ((status != -EAGAIN) || IS_SETLK(cmd))
-			break;
-		timeout = nfs4_set_lock_task_retry(timeout);
-		status = -ERESTARTSYS;
-		if (signalled())
-			break;
-	} while(status < 0);
-	return status;
+	return nfs4_retry_setlk(state, cmd, request);
 }
 
 int nfs4_lock_delegation_recall(struct file_lock *fl, struct nfs4_state *state, const nfs4_stateid *stateid)
