@@ -3301,9 +3301,9 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 	if (!base->lookup_log_chans)
 		goto failure;
 
-	base->reg_val_backup_chan = kmalloc(base->num_phy_chans *
-					    sizeof(d40_backup_regs_chan),
-					    GFP_KERNEL);
+	base->reg_val_backup_chan = kmalloc_array(base->num_phy_chans,
+						  sizeof(d40_backup_regs_chan),
+						  GFP_KERNEL);
 	if (!base->reg_val_backup_chan)
 		goto failure;
 
