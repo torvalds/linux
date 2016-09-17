@@ -592,7 +592,7 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 	}
 
 #ifdef CONFIG_CHECKPOINT_RESTORE
-# ifdef CONFIG_X86_X32
+# ifdef CONFIG_X86_X32_ABI
 	case ARCH_MAP_VDSO_X32:
 		return prctl_map_vdso(&vdso_image_x32, addr);
 # endif
