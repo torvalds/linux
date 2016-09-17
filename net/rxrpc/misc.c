@@ -150,3 +150,17 @@ const char rxrpc_receive_traces[rxrpc_receive__nr_trace][4] = {
 	[rxrpc_receive_rotate]		= "ROT",
 	[rxrpc_receive_end]		= "END",
 };
+
+const char rxrpc_recvmsg_traces[rxrpc_recvmsg__nr_trace][5] = {
+	[rxrpc_recvmsg_enter]		= "ENTR",
+	[rxrpc_recvmsg_wait]		= "WAIT",
+	[rxrpc_recvmsg_dequeue]		= "DEQU",
+	[rxrpc_recvmsg_hole]		= "HOLE",
+	[rxrpc_recvmsg_next]		= "NEXT",
+	[rxrpc_recvmsg_cont]		= "CONT",
+	[rxrpc_recvmsg_full]		= "FULL",
+	[rxrpc_recvmsg_data_return]	= "DATA",
+	[rxrpc_recvmsg_terminal]	= "TERM",
+	[rxrpc_recvmsg_to_be_accepted]	= "TBAC",
+	[rxrpc_recvmsg_return]		= "RETN",
+};

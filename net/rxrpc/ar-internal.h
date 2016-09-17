@@ -617,6 +617,23 @@ enum rxrpc_receive_trace {
 
 extern const char rxrpc_receive_traces[rxrpc_receive__nr_trace][4];
 
+enum rxrpc_recvmsg_trace {
+	rxrpc_recvmsg_enter,
+	rxrpc_recvmsg_wait,
+	rxrpc_recvmsg_dequeue,
+	rxrpc_recvmsg_hole,
+	rxrpc_recvmsg_next,
+	rxrpc_recvmsg_cont,
+	rxrpc_recvmsg_full,
+	rxrpc_recvmsg_data_return,
+	rxrpc_recvmsg_terminal,
+	rxrpc_recvmsg_to_be_accepted,
+	rxrpc_recvmsg_return,
+	rxrpc_recvmsg__nr_trace
+};
+
+extern const char rxrpc_recvmsg_traces[rxrpc_recvmsg__nr_trace][5];
+
 extern const char *const rxrpc_pkts[];
 extern const char *rxrpc_acks(u8 reason);
 

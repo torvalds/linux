@@ -323,6 +323,40 @@ TRACE_EVENT(rxrpc_receive,
 		      __entry->top)
 	    );
 
+TRACE_EVENT(rxrpc_recvmsg,
+	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_recvmsg_trace why,
+		     rxrpc_seq_t seq, unsigned int offset, unsigned int len,
+		     int ret),
+
+	    TP_ARGS(call, why, seq, offset, len, ret),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_call *,	call		)
+		    __field(enum rxrpc_recvmsg_trace,	why		)
+		    __field(rxrpc_seq_t,		seq		)
+		    __field(unsigned int,		offset		)
+		    __field(unsigned int,		len		)
+		    __field(int,			ret		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->why = why;
+		    __entry->seq = seq;
+		    __entry->offset = offset;
+		    __entry->len = len;
+		    __entry->ret = ret;
+			   ),
+
+	    TP_printk("c=%p %s q=%08x o=%u l=%u ret=%d",
+		      __entry->call,
+		      rxrpc_recvmsg_traces[__entry->why],
+		      __entry->seq,
+		      __entry->offset,
+		      __entry->len,
+		      __entry->ret)
+	    );
+
 #endif /* _TRACE_RXRPC_H */
 
 /* This part must be outside protection */
