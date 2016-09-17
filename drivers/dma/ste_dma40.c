@@ -3572,7 +3572,7 @@ static int __init d40_probe(struct platform_device *pdev)
 	if (!res) {
 		ret = -ENOENT;
 		d40_err(&pdev->dev, "No \"lcpa\" memory resource\n");
-		goto failure;
+		goto destroy_cache;
 	}
 	base->lcpa_size = resource_size(res);
 	base->phy_lcpa = res->start;
@@ -3581,7 +3581,7 @@ static int __init d40_probe(struct platform_device *pdev)
 			       D40_NAME " I/O lcpa") == NULL) {
 		ret = -EBUSY;
 		d40_err(&pdev->dev, "Failed to request LCPA region %pR\n", res);
-		goto failure;
+		goto destroy_cache;
 	}
 
 	/* We make use of ESRAM memory for this. */
@@ -3597,7 +3597,7 @@ static int __init d40_probe(struct platform_device *pdev)
 	if (!base->lcpa_base) {
 		ret = -ENOMEM;
 		d40_err(&pdev->dev, "Failed to ioremap LCPA region\n");
-		goto failure;
+		goto destroy_cache;
 	}
 	/* If lcla has to be located in ESRAM we don't need to allocate */
 	if (base->plat_data->use_esram_lcla) {
@@ -3607,14 +3607,14 @@ static int __init d40_probe(struct platform_device *pdev)
 			ret = -ENOENT;
 			d40_err(&pdev->dev,
 				"No \"lcla_esram\" memory resource\n");
-			goto failure;
+			goto destroy_cache;
 		}
 		base->lcla_pool.base = ioremap(res->start,
 						resource_size(res));
 		if (!base->lcla_pool.base) {
 			ret = -ENOMEM;
 			d40_err(&pdev->dev, "Failed to ioremap LCLA region\n");
-			goto failure;
+			goto destroy_cache;
 		}
 		writel(res->start, base->virtbase + D40_DREG_LCLA);
 
@@ -3622,7 +3622,7 @@ static int __init d40_probe(struct platform_device *pdev)
 		ret = d40_lcla_allocate(base);
 		if (ret) {
 			d40_err(&pdev->dev, "Failed to allocate LCLA area\n");
-			goto failure;
+			goto destroy_cache;
 		}
 	}
 
@@ -3633,7 +3633,7 @@ static int __init d40_probe(struct platform_device *pdev)
 	ret = request_irq(base->irq, d40_handle_interrupt, 0, D40_NAME, base);
 	if (ret) {
 		d40_err(&pdev->dev, "No IRQ defined\n");
-		goto failure;
+		goto destroy_cache;
 	}
 
 	if (base->plat_data->use_esram_lcla) {
@@ -3643,7 +3643,7 @@ static int __init d40_probe(struct platform_device *pdev)
 			d40_err(&pdev->dev, "Failed to get lcpa_regulator\n");
 			ret = PTR_ERR(base->lcpa_regulator);
 			base->lcpa_regulator = NULL;
-			goto failure;
+			goto destroy_cache;
 		}
 
 		ret = regulator_enable(base->lcpa_regulator);
@@ -3652,7 +3652,7 @@ static int __init d40_probe(struct platform_device *pdev)
 				"Failed to enable lcpa_regulator\n");
 			regulator_put(base->lcpa_regulator);
 			base->lcpa_regulator = NULL;
-			goto failure;
+			goto destroy_cache;
 		}
 	}
 
@@ -3667,13 +3667,13 @@ static int __init d40_probe(struct platform_device *pdev)
 
 	ret = d40_dmaengine_init(base, num_reserved_chans);
 	if (ret)
-		goto failure;
+		goto destroy_cache;
 
 	base->dev->dma_parms = &base->dma_parms;
 	ret = dma_set_max_seg_size(base->dev, STEDMA40_MAX_SEG_SIZE);
 	if (ret) {
 		d40_err(&pdev->dev, "Failed to set dma max seg size\n");
-		goto failure;
+		goto destroy_cache;
 	}
 
 	d40_hw_init(base);
@@ -3687,8 +3687,7 @@ static int __init d40_probe(struct platform_device *pdev)
 
 	dev_info(base->dev, "initialized\n");
 	return 0;
-
-failure:
+ destroy_cache:
 	kmem_cache_destroy(base->desc_slab);
 	if (base->virtbase)
 		iounmap(base->virtbase);
