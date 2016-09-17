@@ -321,16 +321,30 @@ void radeon_crtc_handle_vblank(struct radeon_device *rdev, int crtc_id)
 	update_pending = radeon_page_flip_pending(rdev, crtc_id);
 
 	/* Has the pageflip already completed in crtc, or is it certain
-	 * to complete in this vblank?
+	 * to complete in this vblank? GET_DISTANCE_TO_VBLANKSTART provides
+	 * distance to start of "fudged earlier" vblank in vpos, distance to
+	 * start of real vblank in hpos. vpos >= 0 && hpos < 0 means we are in
+	 * the last few scanlines before start of real vblank, where the vblank
+	 * irq can fire, so we have sampled update_pending a bit too early and
+	 * know the flip will complete at leading edge of the upcoming real
+	 * vblank. On pre-AVIVO hardware, flips also complete inside the real
+	 * vblank, not only at leading edge, so if update_pending for hpos >= 0
+	 *  == inside real vblank, the flip will complete almost immediately.
+	 * Note that this method of completion handling is still not 100% race
+	 * free, as we could execute before the radeon_flip_work_func managed
+	 * to run and set the RADEON_FLIP_SUBMITTED status, thereby we no-op,
+	 * but the flip still gets programmed into hw and completed during
+	 * vblank, leading to a delayed emission of the flip completion event.
+	 * This applies at least to pre-AVIVO hardware, where flips are always
+	 * completing inside vblank, not only at leading edge of vblank.
 	 */
 	if (update_pending &&
-	    (DRM_SCANOUTPOS_VALID & radeon_get_crtc_scanoutpos(rdev->ddev,
-							       crtc_id,
-							       USE_REAL_VBLANKSTART,
-							       &vpos, &hpos, NULL, NULL,
-							       &rdev->mode_info.crtcs[crtc_id]->base.hwmode)) &&
-	    ((vpos >= (99 * rdev->mode_info.crtcs[crtc_id]->base.hwmode.crtc_vdisplay)/100) ||
-	     (vpos < 0 && !ASIC_IS_AVIVO(rdev)))) {
+	    (DRM_SCANOUTPOS_VALID &
+	     radeon_get_crtc_scanoutpos(rdev->ddev, crtc_id,
+					GET_DISTANCE_TO_VBLANKSTART,
+					&vpos, &hpos, NULL, NULL,
+					&rdev->mode_info.crtcs[crtc_id]->base.hwmode)) &&
+	    ((vpos >= 0 && hpos < 0) || (hpos >= 0 && !ASIC_IS_AVIVO(rdev)))) {
 		/* crtc didn't flip in this target vblank interval,
 		 * but flip is pending in crtc. Based on the current
 		 * scanout position we know that the current frame is
