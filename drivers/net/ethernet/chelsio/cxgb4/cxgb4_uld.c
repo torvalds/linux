@@ -308,7 +308,7 @@ int cfg_queues_uld(struct adapter *adap, unsigned int uld_type,
 	}
 
 	rxq_info->rspq_id = kcalloc(nrxq, sizeof(unsigned short), GFP_KERNEL);
-	if (!rxq_info->uldrxq) {
+	if (!rxq_info->rspq_id) {
 		kfree(rxq_info->uldrxq);
 		kfree(rxq_info);
 		return -ENOMEM;
