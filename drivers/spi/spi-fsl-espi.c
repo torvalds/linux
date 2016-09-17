@@ -361,7 +361,6 @@ out:
 static int fsl_espi_setup(struct spi_device *spi)
 {
 	struct mpc8xxx_spi *mpc8xxx_spi;
-	u32 hw_mode;
 	u32 loop_mode;
 	struct spi_mpc8xxx_cs *cs = spi_get_ctldata(spi);
 
@@ -379,7 +378,6 @@ static int fsl_espi_setup(struct spi_device *spi)
 
 	pm_runtime_get_sync(mpc8xxx_spi->dev);
 
-	hw_mode = cs->hw_mode; /* Save original settings */
 	cs->hw_mode = fsl_espi_read_reg(mpc8xxx_spi,
 					   ESPI_SPMODEx(spi->chip_select));
 	/* mask out bits we are going to set */
