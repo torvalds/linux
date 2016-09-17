@@ -1780,42 +1780,40 @@ static bool d40_alloc_mask_set(struct d40_phy_res *phy,
 		    phy->allocated_dst == D40_ALLOC_FREE) {
 			phy->allocated_dst = D40_ALLOC_PHY;
 			phy->allocated_src = D40_ALLOC_PHY;
-			goto found;
+			goto found_unlock;
 		} else
-			goto not_found;
+			goto not_found_unlock;
 	}
 
 	/* Logical channel */
 	if (is_src) {
 		if (phy->allocated_src == D40_ALLOC_PHY)
-			goto not_found;
+			goto not_found_unlock;
 
 		if (phy->allocated_src == D40_ALLOC_FREE)
 			phy->allocated_src = D40_ALLOC_LOG_FREE;
 
 		if (!(phy->allocated_src & BIT(log_event_line))) {
 			phy->allocated_src |= BIT(log_event_line);
-			goto found;
+			goto found_unlock;
 		} else
-			goto not_found;
+			goto not_found_unlock;
 	} else {
 		if (phy->allocated_dst == D40_ALLOC_PHY)
-			goto not_found;
+			goto not_found_unlock;
 
 		if (phy->allocated_dst == D40_ALLOC_FREE)
 			phy->allocated_dst = D40_ALLOC_LOG_FREE;
 
 		if (!(phy->allocated_dst & BIT(log_event_line))) {
 			phy->allocated_dst |= BIT(log_event_line);
-			goto found;
-		} else
-			goto not_found;
+			goto found_unlock;
+		}
 	}
-
-not_found:
+ not_found_unlock:
 	spin_unlock_irqrestore(&phy->lock, flags);
 	return false;
-found:
+ found_unlock:
 	spin_unlock_irqrestore(&phy->lock, flags);
 	return true;
 }
