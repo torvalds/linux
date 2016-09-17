@@ -50,7 +50,7 @@ static void fsl_mc_msi_update_dom_ops(struct msi_domain_info *info)
 	/*
 	 * set_desc should not be set by the caller
 	 */
-	if (ops->set_desc == NULL)
+	if (!ops->set_desc)
 		ops->set_desc = fsl_mc_msi_set_desc;
 }
 
@@ -140,7 +140,7 @@ static void fsl_mc_msi_update_chip_ops(struct msi_domain_info *info)
 	/*
 	 * irq_write_msi_msg should not be set by the caller
 	 */
-	if (chip->irq_write_msi_msg == NULL)
+	if (!chip->irq_write_msi_msg)
 		chip->irq_write_msi_msg = fsl_mc_msi_write_msg;
 }
 
