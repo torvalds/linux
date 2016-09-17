@@ -3414,10 +3414,8 @@ static int __init d40_lcla_allocate(struct d40_base *base)
 	page_list = kmalloc_array(MAX_LCLA_ALLOC_ATTEMPTS,
 				  sizeof(*page_list),
 				  GFP_KERNEL);
-	if (!page_list) {
-		ret = -ENOMEM;
-		goto failure;
-	}
+	if (!page_list)
+		return -ENOMEM;
 
 	/* Calculating how many pages that are required */
 	base->lcla_pool.pages = SZ_1K * base->num_phy_chans / PAGE_SIZE;
