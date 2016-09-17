@@ -3489,9 +3489,7 @@ static int __init d40_of_probe(struct platform_device *pdev,
 	int num_phy = 0, num_memcpy = 0, num_disabled = 0;
 	const __be32 *list;
 
-	pdata = devm_kzalloc(&pdev->dev,
-			     sizeof(struct stedma40_platform_data),
-			     GFP_KERNEL);
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 
