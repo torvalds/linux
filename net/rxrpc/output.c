@@ -225,6 +225,15 @@ int rxrpc_send_data_packet(struct rxrpc_connection *conn, struct sk_buff *skb)
 	msg.msg_controllen = 0;
 	msg.msg_flags = 0;
 
+	if (IS_ENABLED(CONFIG_AF_RXRPC_INJECT_LOSS)) {
+		static int lose;
+		if ((lose++ & 7) == 7) {
+			rxrpc_lose_skb(skb, rxrpc_skb_tx_lost);
+			_leave(" = 0 [lose]");
+			return 0;
+		}
+	}
+
 	/* send the packet with the don't fragment bit set if we currently
 	 * think it's small enough */
 	if (skb->len - sizeof(struct rxrpc_wire_header) < conn->params.peer->maxdata) {

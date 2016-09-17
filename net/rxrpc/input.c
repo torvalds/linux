@@ -712,6 +712,14 @@ void rxrpc_data_ready(struct sock *udp_sk)
 	skb_orphan(skb);
 	sp = rxrpc_skb(skb);
 
+	if (IS_ENABLED(CONFIG_AF_RXRPC_INJECT_LOSS)) {
+		static int lose;
+		if ((lose++ & 7) == 7) {
+			rxrpc_lose_skb(skb, rxrpc_skb_rx_lost);
+			return;
+		}
+	}
+
 	_net("Rx UDP packet from %08x:%04hu",
 	     ntohl(ip_hdr(skb)->saddr), ntohs(udp_hdr(skb)->source));
 
