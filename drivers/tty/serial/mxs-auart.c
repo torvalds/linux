@@ -1534,7 +1534,7 @@ static int mxs_get_clks(struct mxs_auart_port *s,
 	err = clk_set_rate(s->clk, clk_get_rate(s->clk_ahb));
 	if (err) {
 		dev_err(s->dev, "Failed to set rate!\n");
-		return err;
+		goto disable_clk_ahb;
 	}
 
 	err = clk_prepare_enable(s->clk);
