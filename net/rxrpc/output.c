@@ -38,12 +38,14 @@ struct rxrpc_pkt_buffer {
 static size_t rxrpc_fill_out_ack(struct rxrpc_call *call,
 				 struct rxrpc_pkt_buffer *pkt)
 {
+	rxrpc_serial_t serial;
 	rxrpc_seq_t hard_ack, top, seq;
 	int ix;
 	u32 mtu, jmax;
 	u8 *ackp = pkt->acks;
 
 	/* Barrier against rxrpc_input_data(). */
+	serial = call->ackr_serial;
 	hard_ack = READ_ONCE(call->rx_hard_ack);
 	top = smp_load_acquire(&call->rx_top);
 
@@ -51,7 +53,7 @@ static size_t rxrpc_fill_out_ack(struct rxrpc_call *call,
 	pkt->ack.maxSkew	= htons(call->ackr_skew);
 	pkt->ack.firstPacket	= htonl(hard_ack + 1);
 	pkt->ack.previousPacket	= htonl(call->ackr_prev_seq);
-	pkt->ack.serial		= htonl(call->ackr_serial);
+	pkt->ack.serial		= htonl(serial);
 	pkt->ack.reason		= call->ackr_reason;
 	pkt->ack.nAcks		= top - hard_ack;
 
@@ -74,6 +76,9 @@ static size_t rxrpc_fill_out_ack(struct rxrpc_call *call,
 	pkt->ackinfo.maxMTU	= htonl(mtu);
 	pkt->ackinfo.rwind	= htonl(call->rx_winsize);
 	pkt->ackinfo.jumbo_max	= htonl(jmax);
+
+	trace_rxrpc_tx_ack(call, hard_ack + 1, serial, call->ackr_reason,
+			   top - hard_ack);
 
 	*ackp++ = 0;
 	*ackp++ = 0;

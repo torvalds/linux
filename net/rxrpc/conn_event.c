@@ -98,6 +98,9 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 		pkt.info.rwind		= htonl(rxrpc_rx_window_size);
 		pkt.info.jumbo_max	= htonl(rxrpc_rx_jumbo_max);
 		len += sizeof(pkt.ack) + sizeof(pkt.info);
+
+		trace_rxrpc_tx_ack(NULL, chan->last_seq, 0,
+				   RXRPC_ACK_DUPLICATE, 0);
 		break;
 	}
 
