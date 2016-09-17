@@ -638,6 +638,10 @@ __be32 nfs4_callback_notify_lock(struct cb_notify_lock_args *args, void *dummy,
 	dprintk_rcu("NFS: CB_NOTIFY_LOCK request from %s\n",
 		rpc_peeraddr2str(cps->clp->cl_rpcclient, RPC_DISPLAY_ADDR));
 
+	/* Don't wake anybody if the string looked bogus */
+	if (args->cbnl_valid)
+		__wake_up(&cps->clp->cl_lock_waitq, TASK_NORMAL, 0, args);
+
 	return htonl(NFS4_OK);
 }
 #endif /* CONFIG_NFS_V4_1 */

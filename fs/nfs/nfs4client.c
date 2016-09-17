@@ -199,6 +199,9 @@ struct nfs_client *nfs4_alloc_client(const struct nfs_client_initdata *cl_init)
 	clp->cl_minorversion = cl_init->minorversion;
 	clp->cl_mvops = nfs_v4_minor_ops[cl_init->minorversion];
 	clp->cl_mig_gen = 1;
+#if IS_ENABLED(CONFIG_NFS_V4_1)
+	init_waitqueue_head(&clp->cl_lock_waitq);
+#endif
 	return clp;
 
 error:

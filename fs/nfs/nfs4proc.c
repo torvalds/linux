@@ -6166,7 +6166,8 @@ static int nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock *
 #define NFS4_LOCK_MAXTIMEOUT (30 * HZ)
 
 static int
-nfs4_retry_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
+nfs4_retry_setlk_simple(struct nfs4_state *state, int cmd,
+			struct file_lock *request)
 {
 	int		status = -ERESTARTSYS;
 	unsigned long	timeout = NFS4_LOCK_MINTIMEOUT;
@@ -6182,6 +6183,97 @@ nfs4_retry_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 	}
 	return status;
 }
+
+#ifdef CONFIG_NFS_V4_1
+struct nfs4_lock_waiter {
+	struct task_struct	*task;
+	struct inode		*inode;
+	struct nfs_lowner	*owner;
+	bool			notified;
+};
+
+static int
+nfs4_wake_lock_waiter(wait_queue_t *wait, unsigned int mode, int flags, void *key)
+{
+	int ret;
+	struct cb_notify_lock_args *cbnl = key;
+	struct nfs4_lock_waiter	*waiter	= wait->private;
+	struct nfs_lowner	*lowner = &cbnl->cbnl_owner,
+				*wowner = waiter->owner;
+
+	/* Only wake if the callback was for the same owner */
+	if (lowner->clientid != wowner->clientid ||
+	    lowner->id != wowner->id		 ||
+	    lowner->s_dev != wowner->s_dev)
+		return 0;
+
+	/* Make sure it's for the right inode */
+	if (nfs_compare_fh(NFS_FH(waiter->inode), &cbnl->cbnl_fh))
+		return 0;
+
+	waiter->notified = true;
+
+	/* override "private" so we can use default_wake_function */
+	wait->private = waiter->task;
+	ret = autoremove_wake_function(wait, mode, flags, key);
+	wait->private = waiter;
+	return ret;
+}
+
+static int
+nfs4_retry_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
+{
+	int status = -ERESTARTSYS;
+	unsigned long flags;
+	struct nfs4_lock_state *lsp = request->fl_u.nfs4_fl.owner;
+	struct nfs_server *server = NFS_SERVER(state->inode);
+	struct nfs_client *clp = server->nfs_client;
+	wait_queue_head_t *q = &clp->cl_lock_waitq;
+	struct nfs_lowner owner = { .clientid = clp->cl_clientid,
+				    .id = lsp->ls_seqid.owner_id,
+				    .s_dev = server->s_dev };
+	struct nfs4_lock_waiter waiter = { .task  = current,
+					   .inode = state->inode,
+					   .owner = &owner,
+					   .notified = false };
+	wait_queue_t wait;
+
+	/* Don't bother with waitqueue if we don't expect a callback */
+	if (!test_bit(NFS_STATE_MAY_NOTIFY_LOCK, &state->flags))
+		return nfs4_retry_setlk_simple(state, cmd, request);
+
+	init_wait(&wait);
+	wait.private = &waiter;
+	wait.func = nfs4_wake_lock_waiter;
+	add_wait_queue(q, &wait);
+
+	while(!signalled()) {
+		status = nfs4_proc_setlk(state, cmd, request);
+		if ((status != -EAGAIN) || IS_SETLK(cmd))
+			break;
+
+		status = -ERESTARTSYS;
+		spin_lock_irqsave(&q->lock, flags);
+		if (waiter.notified) {
+			spin_unlock_irqrestore(&q->lock, flags);
+			continue;
+		}
+		set_current_state(TASK_INTERRUPTIBLE);
+		spin_unlock_irqrestore(&q->lock, flags);
+
+		freezable_schedule_timeout_interruptible(NFS4_LOCK_MAXTIMEOUT);
+	}
+
+	finish_wait(q, &wait);
+	return status;
+}
+#else /* !CONFIG_NFS_V4_1 */
+static inline int
+nfs4_retry_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
+{
+	return nfs4_retry_setlk_simple(state, cmd, request);
+}
+#endif
 
 static int
 nfs4_proc_lock(struct file *filp, int cmd, struct file_lock *request)
