@@ -80,17 +80,13 @@
 	((SPI_AGGR_BUFFER_SIZE / WSPI_MAX_CHUNK_SIZE) + 1)
 
 
-struct wilink_familiy_data {
-	char name[8];
-};
+static const struct wilink_family_data *wilink_data;
 
-static const struct wilink_familiy_data *wilink_data;
-
-static const struct wilink_familiy_data wl18xx_data = {
+static const struct wilink_family_data wl18xx_data = {
 	.name = "wl18xx",
 };
 
-static const struct wilink_familiy_data wl12xx_data = {
+static const struct wilink_family_data wl12xx_data = {
 	.name = "wl12xx",
 };
 
@@ -461,7 +457,7 @@ static int wlcore_probe_of(struct spi_device *spi, struct wl12xx_spi_glue *glue,
 		return -ENODEV;
 
 	wilink_data = of_id->data;
-	dev_info(&spi->dev, "selected chip familiy is %s\n",
+	dev_info(&spi->dev, "selected chip family is %s\n",
 		 wilink_data->name);
 
 	if (of_find_property(dt_node, "clock-xtal", NULL))

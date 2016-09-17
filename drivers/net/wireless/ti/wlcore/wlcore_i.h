@@ -42,6 +42,12 @@
  */
 #define WL12XX_NVS_NAME "ti-connectivity/wl1271-nvs.bin"
 
+struct wilink_family_data {
+	const char *name;
+	const char *nvs_name;	/* wl12xx nvs file */
+	const char *cfg_name;	/* wl18xx cfg file */
+};
+
 #define WL1271_TX_SECURITY_LO16(s) ((u16)((s) & 0xffff))
 #define WL1271_TX_SECURITY_HI32(s) ((u32)(((s) >> 16) & 0xffffffff))
 #define WL1271_TX_SQN_POST_RECOVERY_PADDING 0xff
@@ -208,6 +214,7 @@ struct wl1271_if_operations {
 
 struct wlcore_platdev_data {
 	struct wl1271_if_operations *if_ops;
+	const struct wilink_family_data *family;
 
 	bool ref_clock_xtal;	/* specify whether the clock is XTAL or not */
 	u32 ref_clock_freq;	/* in Hertz */
