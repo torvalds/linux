@@ -2238,8 +2238,8 @@ d40_prep_sg(struct dma_chan *dchan, struct scatterlist *sg_src,
 	    enum dma_transfer_direction direction, unsigned long dma_flags)
 {
 	struct d40_chan *chan = container_of(dchan, struct d40_chan, chan);
-	dma_addr_t src_dev_addr = 0;
-	dma_addr_t dst_dev_addr = 0;
+	dma_addr_t src_dev_addr;
+	dma_addr_t dst_dev_addr;
 	struct d40_desc *desc;
 	unsigned long flags;
 	int ret;
@@ -2258,6 +2258,8 @@ d40_prep_sg(struct dma_chan *dchan, struct scatterlist *sg_src,
 	if (sg_next(&sg_src[sg_len - 1]) == sg_src)
 		desc->cyclic = true;
 
+	src_dev_addr = 0;
+	dst_dev_addr = 0;
 	if (direction == DMA_DEV_TO_MEM)
 		src_dev_addr = chan->runtime_addr;
 	else if (direction == DMA_MEM_TO_DEV)
