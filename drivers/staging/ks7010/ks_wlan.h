@@ -499,7 +499,7 @@ struct ks_wlan_private {
 	uint wakeup_count;	/* for detect wakeup loop */
 };
 
-extern int ks_wlan_net_start(struct net_device *dev);
-extern int ks_wlan_net_stop(struct net_device *dev);
+int ks_wlan_net_start(struct net_device *dev);
+int ks_wlan_net_stop(struct net_device *dev);
 
 #endif /* _KS_WLAN_H */

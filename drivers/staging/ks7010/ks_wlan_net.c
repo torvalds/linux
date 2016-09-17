@@ -69,10 +69,6 @@ static const struct iw_handler_def ks_wlan_handler_def;
 /*
  *	function prototypes
  */
-extern int ks_wlan_hw_tx(struct ks_wlan_private *priv, void *p,
-			 unsigned long size,
-			 void (*complete_handler) (void *arg1, void *arg2),
-			 void *arg1, void *arg2);
 static int ks_wlan_open(struct net_device *dev);
 static void ks_wlan_tx_timeout(struct net_device *dev);
 static int ks_wlan_start_xmit(struct sk_buff *skb, struct net_device *dev);
