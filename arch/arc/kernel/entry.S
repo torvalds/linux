@@ -35,7 +35,7 @@ ENTRY(sys_clone_wrapper)
 	btst r10, TIF_SYSCALL_TRACE
 	bnz  tracesys_exit
 
-	b ret_from_system_call
+	b .Lret_from_system_call
 END(sys_clone_wrapper)
 
 ENTRY(ret_from_fork)
@@ -248,20 +248,18 @@ ENTRY(EV_Trap)
 	; syscall num shd not exceed the total system calls avail
 	cmp     r8,  NR_syscalls
 	mov.hi  r0, -ENOSYS
-	bhi     ret_from_system_call
+	bhi     .Lret_from_system_call
 
 	; Offset into the syscall_table and call handler
 	ld.as   r9,[sys_call_table, r8]
 	jl      [r9]        ; Entry into Sys Call Handler
 
-	; fall through to ret_from_system_call
-END(EV_Trap)
-
-ENTRY(ret_from_system_call)
+.Lret_from_system_call:
 
 	st  r0, [sp, PT_r0]     ; sys call return value in pt_regs
 
-	; fall through yet again to ret_from_exception
+	; fall through to ret_from_exception
+END(EV_Trap)
 
 ;############# Return from Intr/Excp/Trap (Linux Specifics) ##############
 ;
