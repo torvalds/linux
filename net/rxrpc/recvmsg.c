@@ -300,10 +300,13 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 		if (msg)
 			sock_recv_timestamp(msg, sock->sk, skb);
 
-		if (rx_pkt_offset == 0)
+		if (rx_pkt_offset == 0) {
 			ret = rxrpc_locate_data(call, skb,
 						&call->rxtx_annotations[ix],
 						&rx_pkt_offset, &rx_pkt_len);
+			if (ret < 0)
+				goto out;
+		}
 		_debug("recvmsg %x DATA #%u { %d, %d }",
 		       sp->hdr.callNumber, seq, rx_pkt_offset, rx_pkt_len);
 
