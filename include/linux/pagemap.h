@@ -518,58 +518,9 @@ void page_endio(struct page *page, bool is_write, int err);
 extern void add_page_wait_queue(struct page *page, wait_queue_t *waiter);
 
 /*
- * Fault one or two userspace pages into pagetables.
- * Return -EINVAL if more than two pages would be needed.
- * Return non-zero on a fault.
+ * Fault everything in given userspace address range in.
  */
 static inline int fault_in_pages_writeable(char __user *uaddr, int size)
-{
-	int span, ret;
-
-	if (unlikely(size == 0))
-		return 0;
-
-	span = offset_in_page(uaddr) + size;
-	if (span > 2 * PAGE_SIZE)
-		return -EINVAL;
-	/*
-	 * Writing zeroes into userspace here is OK, because we know that if
-	 * the zero gets there, we'll be overwriting it.
-	 */
-	ret = __put_user(0, uaddr);
-	if (ret == 0 && span > PAGE_SIZE)
-		ret = __put_user(0, uaddr + size - 1);
-	return ret;
-}
-
-static inline int fault_in_pages_readable(const char __user *uaddr, int size)
-{
-	volatile char c;
-	int ret;
-
-	if (unlikely(size == 0))
-		return 0;
-
-	ret = __get_user(c, uaddr);
-	if (ret == 0) {
-		const char __user *end = uaddr + size - 1;
-
-		if (((unsigned long)uaddr & PAGE_MASK) !=
-				((unsigned long)end & PAGE_MASK)) {
-			ret = __get_user(c, end);
-			(void)c;
-		}
-	}
-	return ret;
-}
-
-/*
- * Multipage variants of the above prefault helpers, useful if more than
- * PAGE_SIZE of data needs to be prefaulted. These are separate from the above
- * functions (which only handle up to PAGE_SIZE) to avoid clobbering the
- * filemap.c hotpaths.
- */
-static inline int fault_in_multipages_writeable(char __user *uaddr, int size)
 {
 	char __user *end = uaddr + size - 1;
 
@@ -596,8 +547,7 @@ static inline int fault_in_multipages_writeable(char __user *uaddr, int size)
 	return 0;
 }
 
-static inline int fault_in_multipages_readable(const char __user *uaddr,
-					       int size)
+static inline int fault_in_pages_readable(const char __user *uaddr, int size)
 {
 	volatile char c;
 	const char __user *end = uaddr + size - 1;
