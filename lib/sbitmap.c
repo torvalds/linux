@@ -246,10 +246,15 @@ EXPORT_SYMBOL_GPL(sbitmap_queue_resize);
 
 int __sbitmap_queue_get(struct sbitmap_queue *sbq)
 {
-	unsigned int hint;
+	unsigned int hint, depth;
 	int nr;
 
 	hint = this_cpu_read(*sbq->alloc_hint);
+	depth = READ_ONCE(sbq->sb.depth);
+	if (unlikely(hint >= depth)) {
+		hint = depth ? prandom_u32() % depth : 0;
+		this_cpu_write(*sbq->alloc_hint, hint);
+	}
 	nr = sbitmap_get(&sbq->sb, hint, sbq->round_robin);
 
 	if (nr == -1) {
@@ -258,7 +263,7 @@ int __sbitmap_queue_get(struct sbitmap_queue *sbq)
 	} else if (nr == hint || unlikely(sbq->round_robin)) {
 		/* Only update the hint if we used it. */
 		hint = nr + 1;
-		if (hint >= sbq->sb.depth - 1)
+		if (hint >= depth - 1)
 			hint = 0;
 		this_cpu_write(*sbq->alloc_hint, hint);
 	}
