@@ -262,8 +262,6 @@ static inline u32 iwl_rx_packet_payload_len(const struct iwl_rx_packet *pkt)
  *	(i.e. mark it as non-idle).
  * @CMD_WANT_ASYNC_CALLBACK: the op_mode's async callback function must be
  *	called after this command completes. Valid only with CMD_ASYNC.
- * @CMD_TB_BITMAP_POS: Position of the first bit for the TB bitmap. We need to
- *	check that we leave enough room for the TBs bitmap which needs 20 bits.
  */
 enum CMD_MODE {
 	CMD_ASYNC		= BIT(0),
@@ -274,8 +272,6 @@ enum CMD_MODE {
 	CMD_MAKE_TRANS_IDLE	= BIT(5),
 	CMD_WAKE_UP_TRANS	= BIT(6),
 	CMD_WANT_ASYNC_CALLBACK	= BIT(7),
-
-	CMD_TB_BITMAP_POS	= 11,
 };
 
 #define DEF_CMD_PAYLOAD_SIZE 320
@@ -648,6 +644,8 @@ struct iwl_trans_ops {
 
 	void (*txq_set_shared_mode)(struct iwl_trans *trans, u32 txq_id,
 				    bool shared);
+
+	dma_addr_t (*get_txq_byte_table)(struct iwl_trans *trans, int txq_id);
 
 	int (*wait_tx_queue_empty)(struct iwl_trans *trans, u32 txq_bm);
 	void (*freeze_txq_timer)(struct iwl_trans *trans, unsigned long txqs,
@@ -1071,6 +1069,15 @@ static inline void iwl_trans_txq_set_shared_mode(struct iwl_trans *trans,
 {
 	if (trans->ops->txq_set_shared_mode)
 		trans->ops->txq_set_shared_mode(trans, queue, shared_mode);
+}
+
+static inline dma_addr_t iwl_trans_get_txq_byte_table(struct iwl_trans *trans,
+						      int queue)
+{
+	/* we should never be called if the trans doesn't support it */
+	BUG_ON(!trans->ops->get_txq_byte_table);
+
+	return trans->ops->get_txq_byte_table(trans, queue);
 }
 
 static inline void iwl_trans_txq_enable(struct iwl_trans *trans, int queue,

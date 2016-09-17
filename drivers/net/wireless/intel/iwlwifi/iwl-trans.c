@@ -65,6 +65,7 @@
 
 #include "iwl-trans.h"
 #include "iwl-drv.h"
+#include "iwl-fh.h"
 
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 				  struct device *dev,

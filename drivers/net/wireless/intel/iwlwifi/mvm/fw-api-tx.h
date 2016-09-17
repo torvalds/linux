@@ -578,6 +578,85 @@ struct iwl_mvm_ba_notif {
 } __packed;
 
 /**
+ * struct iwl_mvm_compressed_ba_tfd - progress of a TFD queue
+ * @q_num: TFD queue number
+ * @tfd_index: Index of first un-acked frame in the  TFD queue
+ */
+struct iwl_mvm_compressed_ba_tfd {
+	u8 q_num;
+	u8 reserved;
+	__le16 tfd_index;
+} __packed; /* COMPRESSED_BA_TFD_API_S_VER_1 */
+
+/**
+ * struct iwl_mvm_compressed_ba_ratid - progress of a RA TID queue
+ * @q_num: RA TID queue number
+ * @tid: TID of the queue
+ * @ssn: BA window current SSN
+ */
+struct iwl_mvm_compressed_ba_ratid {
+	u8 q_num;
+	u8 tid;
+	__le16 ssn;
+} __packed; /* COMPRESSED_BA_RATID_API_S_VER_1 */
+
+/*
+ * enum iwl_mvm_ba_resp_flags - TX aggregation status
+ * @IWL_MVM_BA_RESP_TX_AGG: generated due to BA
+ * @IWL_MVM_BA_RESP_TX_BAR: generated due to BA after BAR
+ * @IWL_MVM_BA_RESP_TX_AGG_FAIL: aggregation didn't receive BA
+ * @IWL_MVM_BA_RESP_TX_UNDERRUN: aggregation got underrun
+ * @IWL_MVM_BA_RESP_TX_BT_KILL: aggregation got BT-kill
+ * @IWL_MVM_BA_RESP_TX_DSP_TIMEOUT: aggregation didn't finish within the
+ *	expected time
+ */
+enum iwl_mvm_ba_resp_flags {
+	IWL_MVM_BA_RESP_TX_AGG,
+	IWL_MVM_BA_RESP_TX_BAR,
+	IWL_MVM_BA_RESP_TX_AGG_FAIL,
+	IWL_MVM_BA_RESP_TX_UNDERRUN,
+	IWL_MVM_BA_RESP_TX_BT_KILL,
+	IWL_MVM_BA_RESP_TX_DSP_TIMEOUT
+};
+
+/**
+ * struct iwl_mvm_compressed_ba_notif - notifies about reception of BA
+ * ( BA_NOTIF = 0xc5 )
+ * @flags: status flag, see the &iwl_mvm_ba_resp_flags
+ * @sta_id: Index of recipient (BA-sending) station in fw's station table
+ * @reduced_txp: power reduced according to TPC. This is the actual value and
+ *	not a copy from the LQ command. Thus, if not the first rate was used
+ *	for Tx-ing then this value will be set to 0 by FW.
+ * @initial_rate: TLC rate info, initial rate index, TLC table color
+ * @retry_cnt: retry count
+ * @query_byte_cnt: SCD query byte count
+ * @query_frame_cnt: SCD query frame count
+ * @txed: number of frames sent in the aggregation (all-TIDs)
+ * @done: number of frames that were Acked by the BA (all-TIDs)
+ * @wireless_time: Wireless-media time
+ * @tx_rate: the rate the aggregation was sent at
+ * @tfd_cnt: number of TFD-Q elements
+ * @ra_tid_cnt: number of RATID-Q elements
+ */
+struct iwl_mvm_compressed_ba_notif {
+	__le32 flags;
+	u8 sta_id;
+	u8 reduced_txp;
+	u8 initial_rate;
+	u8 retry_cnt;
+	__le32 query_byte_cnt;
+	__le16 query_frame_cnt;
+	__le16 txed;
+	__le16 done;
+	__le32 wireless_time;
+	__le32 tx_rate;
+	__le16 tfd_cnt;
+	__le16 ra_tid_cnt;
+	struct iwl_mvm_compressed_ba_tfd tfd[1];
+	struct iwl_mvm_compressed_ba_ratid ra_tid[0];
+} __packed; /* COMPRESSED_BA_RES_API_S_VER_4 */
+
+/**
  * struct iwl_mac_beacon_cmd_v6 - beacon template command
  * @tx: the tx commands associated with the beacon frame
  * @template_id: currently equal to the mac context id of the coresponding

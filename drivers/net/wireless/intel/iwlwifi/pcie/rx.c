@@ -1142,7 +1142,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 
 		sequence = le16_to_cpu(pkt->hdr.sequence);
 		index = SEQ_TO_INDEX(sequence);
-		cmd_index = get_cmd_index(&txq->q, index);
+		cmd_index = get_cmd_index(txq, index);
 
 		if (rxq->id == 0)
 			iwl_op_mode_rx(trans->op_mode, &rxq->napi,
@@ -1884,6 +1884,20 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 		IWL_DEBUG_ISR(trans, "ISR inta_fh 0x%08x, enabled 0x%08x\n",
 			      inta_fh,
 			      iwl_read32(trans, CSR_MSIX_FH_INT_MASK_AD));
+
+	if ((trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_NON_RX) &&
+	    inta_fh & MSIX_FH_INT_CAUSES_Q0) {
+		local_bh_disable();
+		iwl_pcie_rx_handle(trans, 0);
+		local_bh_enable();
+	}
+
+	if ((trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_FIRST_RSS) &&
+	    inta_fh & MSIX_FH_INT_CAUSES_Q1) {
+		local_bh_disable();
+		iwl_pcie_rx_handle(trans, 1);
+		local_bh_enable();
+	}
 
 	/* This "Tx" DMA channel is used only for loading uCode */
 	if (inta_fh & MSIX_FH_INT_CAUSES_D2S_CH0_NUM) {
