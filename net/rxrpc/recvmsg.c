@@ -240,9 +240,6 @@ static int rxrpc_locate_data(struct rxrpc_call *call, struct sk_buff *skb,
 	int ret;
 	u8 annotation = *_annotation;
 
-	if (offset > 0)
-		return 0;
-
 	/* Locate the subpacket */
 	offset = sp->offset;
 	len = skb->len - sp->offset;
@@ -303,8 +300,10 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 		if (msg)
 			sock_recv_timestamp(msg, sock->sk, skb);
 
-		ret = rxrpc_locate_data(call, skb, &call->rxtx_annotations[ix],
-					&rx_pkt_offset, &rx_pkt_len);
+		if (rx_pkt_offset == 0)
+			ret = rxrpc_locate_data(call, skb,
+						&call->rxtx_annotations[ix],
+						&rx_pkt_offset, &rx_pkt_len);
 		_debug("recvmsg %x DATA #%u { %d, %d }",
 		       sp->hdr.callNumber, seq, rx_pkt_offset, rx_pkt_len);
 
