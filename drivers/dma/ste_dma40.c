@@ -3431,7 +3431,7 @@ static int __init d40_lcla_allocate(struct d40_base *base)
 
 			for (j = 0; j < i; j++)
 				free_pages(page_list[j], base->lcla_pool.pages);
-			goto failure;
+			goto free_page_list;
 		}
 
 		if ((virt_to_phys((void *)page_list[i]) &
@@ -3458,7 +3458,7 @@ static int __init d40_lcla_allocate(struct d40_base *base)
 							 GFP_KERNEL);
 		if (!base->lcla_pool.base_unaligned) {
 			ret = -ENOMEM;
-			goto failure;
+			goto free_page_list;
 		}
 
 		base->lcla_pool.base = PTR_ALIGN(base->lcla_pool.base_unaligned,
@@ -3471,12 +3471,12 @@ static int __init d40_lcla_allocate(struct d40_base *base)
 	if (dma_mapping_error(base->dev, pool->dma_addr)) {
 		pool->dma_addr = 0;
 		ret = -ENOMEM;
-		goto failure;
+		goto free_page_list;
 	}
 
 	writel(virt_to_phys(base->lcla_pool.base),
 	       base->virtbase + D40_DREG_LCLA);
-failure:
+ free_page_list:
 	kfree(page_list);
 	return ret;
 }
