@@ -818,7 +818,7 @@ idle_connection:
 static struct rxrpc_connection *
 rxrpc_put_one_client_conn(struct rxrpc_connection *conn)
 {
-	struct rxrpc_connection *next;
+	struct rxrpc_connection *next = NULL;
 	struct rxrpc_local *local = conn->params.local;
 	unsigned int nr_conns;
 
@@ -834,24 +834,22 @@ rxrpc_put_one_client_conn(struct rxrpc_connection *conn)
 
 	ASSERTCMP(conn->cache_state, ==, RXRPC_CONN_CLIENT_INACTIVE);
 
-	if (!test_bit(RXRPC_CONN_COUNTED, &conn->flags))
-		return NULL;
+	if (test_bit(RXRPC_CONN_COUNTED, &conn->flags)) {
+		spin_lock(&rxrpc_client_conn_cache_lock);
+		nr_conns = --rxrpc_nr_client_conns;
 
-	spin_lock(&rxrpc_client_conn_cache_lock);
-	nr_conns = --rxrpc_nr_client_conns;
+		if (nr_conns < rxrpc_max_client_connections &&
+		    !list_empty(&rxrpc_waiting_client_conns)) {
+			next = list_entry(rxrpc_waiting_client_conns.next,
+					  struct rxrpc_connection, cache_link);
+			rxrpc_get_connection(next);
+			rxrpc_activate_conn(next);
+		}
 
-	next = NULL;
-	if (nr_conns < rxrpc_max_client_connections &&
-	    !list_empty(&rxrpc_waiting_client_conns)) {
-		next = list_entry(rxrpc_waiting_client_conns.next,
-				  struct rxrpc_connection, cache_link);
-		rxrpc_get_connection(next);
-		rxrpc_activate_conn(next);
+		spin_unlock(&rxrpc_client_conn_cache_lock);
 	}
 
-	spin_unlock(&rxrpc_client_conn_cache_lock);
 	rxrpc_kill_connection(conn);
-
 	if (next)
 		rxrpc_activate_channels(next);
 
