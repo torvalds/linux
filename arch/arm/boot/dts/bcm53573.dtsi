@@ -143,5 +143,17 @@
 		gmac1: ethernet@b000 {
 			reg = <0xb000 0x1000>;
 		};
+
+		pmu@12000 {
+			compatible = "simple-mfd", "syscon";
+			reg = <0x00012000 0x00001000>;
+
+			ilp: ilp {
+				compatible = "brcm,bcm53573-ilp";
+				clocks = <&alp>;
+				#clock-cells = <0>;
+				clock-output-names = "ilp";
+			};
+		};
 	};
 };
