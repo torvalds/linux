@@ -137,6 +137,11 @@ int rxrpc_send_call_packet(struct rxrpc_call *call, u8 type)
 	switch (type) {
 	case RXRPC_PACKET_TYPE_ACK:
 		spin_lock_bh(&call->lock);
+		if (!call->ackr_reason) {
+			spin_unlock_bh(&call->lock);
+			ret = 0;
+			goto out;
+		}
 		n = rxrpc_fill_out_ack(call, pkt);
 		call->ackr_reason = 0;
 
