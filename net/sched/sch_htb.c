@@ -162,7 +162,7 @@ struct htb_sched {
 	struct work_struct	work;
 
 	/* non shaped skbs; let them go directly thru */
-	struct sk_buff_head	direct_queue;
+	struct qdisc_skb_head	direct_queue;
 	long			direct_pkts;
 
 	struct qdisc_watchdog	watchdog;
@@ -570,6 +570,22 @@ static inline void htb_deactivate(struct htb_sched *q, struct htb_class *cl)
 	list_del_init(&cl->un.leaf.drop_list);
 }
 
+static void htb_enqueue_tail(struct sk_buff *skb, struct Qdisc *sch,
+			     struct qdisc_skb_head *qh)
+{
+	struct sk_buff *last = qh->tail;
+
+	if (last) {
+		skb->next = NULL;
+		last->next = skb;
+		qh->tail = skb;
+	} else {
+		qh->tail = skb;
+		qh->head = skb;
+	}
+	qh->qlen++;
+}
+
 static int htb_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		       struct sk_buff **to_free)
 {
@@ -580,7 +596,7 @@ static int htb_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	if (cl == HTB_DIRECT) {
 		/* enqueue to helper queue */
 		if (q->direct_queue.qlen < q->direct_qlen) {
-			__skb_queue_tail(&q->direct_queue, skb);
+			htb_enqueue_tail(skb, sch, &q->direct_queue);
 			q->direct_pkts++;
 		} else {
 			return qdisc_drop(skb, sch, to_free);
@@ -888,7 +904,7 @@ static struct sk_buff *htb_dequeue(struct Qdisc *sch)
 	unsigned long start_at;
 
 	/* try to dequeue direct packets as high prio (!) to minimize cpu work */
-	skb = __skb_dequeue(&q->direct_queue);
+	skb = __qdisc_dequeue_head(&q->direct_queue);
 	if (skb != NULL) {
 ok:
 		qdisc_bstats_update(sch, skb);
@@ -1019,7 +1035,7 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt)
 
 	qdisc_watchdog_init(&q->watchdog, sch);
 	INIT_WORK(&q->work, htb_work_func);
-	__skb_queue_head_init(&q->direct_queue);
+	qdisc_skb_head_init(&q->direct_queue);
 
 	if (tb[TCA_HTB_DIRECT_QLEN])
 		q->direct_qlen = nla_get_u32(tb[TCA_HTB_DIRECT_QLEN]);
