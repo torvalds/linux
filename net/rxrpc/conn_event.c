@@ -377,7 +377,7 @@ void rxrpc_process_connection(struct work_struct *work)
 	u32 abort_code = RX_PROTOCOL_ERROR;
 	int ret;
 
-	_enter("{%d}", conn->debug_id);
+	rxrpc_see_connection(conn);
 
 	if (test_and_clear_bit(RXRPC_CONN_EV_CHALLENGE, &conn->events))
 		rxrpc_secure_connection(conn);

@@ -479,8 +479,6 @@ void rxrpc_release_calls_on_socket(struct rxrpc_sock *rx)
 				  struct rxrpc_call, accept_link);
 		list_del(&call->accept_link);
 		rxrpc_abort_call("SKR", call, 0, RX_CALL_DEAD, ECONNRESET);
-		rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ABORT);
-		rxrpc_release_call(rx, call);
 		rxrpc_put_call(call, rxrpc_call_put);
 	}
 

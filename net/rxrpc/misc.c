@@ -101,3 +101,34 @@ const char *rxrpc_acks(u8 reason)
 		reason = ARRAY_SIZE(str) - 1;
 	return str[reason];
 }
+
+const char rxrpc_conn_traces[rxrpc_conn__nr_trace][4] = {
+	[rxrpc_conn_new_client]		= "NWc",
+	[rxrpc_conn_new_service]	= "NWs",
+	[rxrpc_conn_queued]		= "QUE",
+	[rxrpc_conn_seen]		= "SEE",
+	[rxrpc_conn_got]		= "GOT",
+	[rxrpc_conn_put_client]		= "PTc",
+	[rxrpc_conn_put_service]	= "PTs",
+};
+
+const char rxrpc_client_traces[rxrpc_client__nr_trace][7] = {
+	[rxrpc_client_activate_chans]	= "Activa",
+	[rxrpc_client_alloc]		= "Alloc ",
+	[rxrpc_client_chan_activate]	= "ChActv",
+	[rxrpc_client_chan_disconnect]	= "ChDisc",
+	[rxrpc_client_chan_pass]	= "ChPass",
+	[rxrpc_client_chan_unstarted]	= "ChUnst",
+	[rxrpc_client_cleanup]		= "Clean ",
+	[rxrpc_client_count]		= "Count ",
+	[rxrpc_client_discard]		= "Discar",
+	[rxrpc_client_duplicate]	= "Duplic",
+	[rxrpc_client_exposed]		= "Expose",
+	[rxrpc_client_replace]		= "Replac",
+	[rxrpc_client_to_active]	= "->Actv",
+	[rxrpc_client_to_culled]	= "->Cull",
+	[rxrpc_client_to_idle]		= "->Idle",
+	[rxrpc_client_to_inactive]	= "->Inac",
+	[rxrpc_client_to_waiting]	= "->Wait",
+	[rxrpc_client_uncount]		= "Uncoun",
+};

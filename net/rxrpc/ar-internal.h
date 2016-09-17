@@ -314,6 +314,7 @@ enum rxrpc_conn_cache_state {
 	RXRPC_CONN_CLIENT_ACTIVE,	/* Conn is on active list, doing calls */
 	RXRPC_CONN_CLIENT_CULLED,	/* Conn is culled and delisted, doing calls */
 	RXRPC_CONN_CLIENT_IDLE,		/* Conn is on idle list, doing mostly nothing */
+	RXRPC_CONN__NR_CACHE_STATES
 };
 
 /*
@@ -533,6 +534,44 @@ struct rxrpc_call {
 	rxrpc_serial_t		acks_latest;	/* serial number of latest ACK received */
 };
 
+enum rxrpc_conn_trace {
+	rxrpc_conn_new_client,
+	rxrpc_conn_new_service,
+	rxrpc_conn_queued,
+	rxrpc_conn_seen,
+	rxrpc_conn_got,
+	rxrpc_conn_put_client,
+	rxrpc_conn_put_service,
+	rxrpc_conn__nr_trace
+};
+
+extern const char rxrpc_conn_traces[rxrpc_conn__nr_trace][4];
+
+enum rxrpc_client_trace {
+	rxrpc_client_activate_chans,
+	rxrpc_client_alloc,
+	rxrpc_client_chan_activate,
+	rxrpc_client_chan_disconnect,
+	rxrpc_client_chan_pass,
+	rxrpc_client_chan_unstarted,
+	rxrpc_client_cleanup,
+	rxrpc_client_count,
+	rxrpc_client_discard,
+	rxrpc_client_duplicate,
+	rxrpc_client_exposed,
+	rxrpc_client_replace,
+	rxrpc_client_to_active,
+	rxrpc_client_to_culled,
+	rxrpc_client_to_idle,
+	rxrpc_client_to_inactive,
+	rxrpc_client_to_waiting,
+	rxrpc_client_uncount,
+	rxrpc_client__nr_trace
+};
+
+extern const char rxrpc_client_traces[rxrpc_client__nr_trace][7];
+extern const char rxrpc_conn_cache_states[RXRPC_CONN__NR_CACHE_STATES][5];
+
 enum rxrpc_call_trace {
 	rxrpc_call_new_client,
 	rxrpc_call_new_service,
@@ -734,7 +773,11 @@ struct rxrpc_connection *rxrpc_find_connection_rcu(struct rxrpc_local *,
 void __rxrpc_disconnect_call(struct rxrpc_connection *, struct rxrpc_call *);
 void rxrpc_disconnect_call(struct rxrpc_call *);
 void rxrpc_kill_connection(struct rxrpc_connection *);
-void __rxrpc_put_connection(struct rxrpc_connection *);
+bool rxrpc_queue_conn(struct rxrpc_connection *);
+void rxrpc_see_connection(struct rxrpc_connection *);
+void rxrpc_get_connection(struct rxrpc_connection *);
+struct rxrpc_connection *rxrpc_get_connection_maybe(struct rxrpc_connection *);
+void rxrpc_put_service_conn(struct rxrpc_connection *);
 void __exit rxrpc_destroy_all_connections(void);
 
 static inline bool rxrpc_conn_is_client(const struct rxrpc_connection *conn)
@@ -747,38 +790,15 @@ static inline bool rxrpc_conn_is_service(const struct rxrpc_connection *conn)
 	return !rxrpc_conn_is_client(conn);
 }
 
-static inline void rxrpc_get_connection(struct rxrpc_connection *conn)
-{
-	atomic_inc(&conn->usage);
-}
-
-static inline
-struct rxrpc_connection *rxrpc_get_connection_maybe(struct rxrpc_connection *conn)
-{
-	return atomic_inc_not_zero(&conn->usage) ? conn : NULL;
-}
-
 static inline void rxrpc_put_connection(struct rxrpc_connection *conn)
 {
 	if (!conn)
 		return;
 
-	if (rxrpc_conn_is_client(conn)) {
-		if (atomic_dec_and_test(&conn->usage))
-			rxrpc_put_client_conn(conn);
-	} else {
-		if (atomic_dec_return(&conn->usage) == 1)
-			__rxrpc_put_connection(conn);
-	}
-}
-
-static inline bool rxrpc_queue_conn(struct rxrpc_connection *conn)
-{
-	if (!rxrpc_get_connection_maybe(conn))
-		return false;
-	if (!rxrpc_queue_work(&conn->processor))
-		rxrpc_put_connection(conn);
-	return true;
+	if (rxrpc_conn_is_client(conn))
+		rxrpc_put_client_conn(conn);
+	else
+		rxrpc_put_service_conn(conn);
 }
 
 /*

@@ -16,6 +16,66 @@
 
 #include <linux/tracepoint.h>
 
+TRACE_EVENT(rxrpc_conn,
+	    TP_PROTO(struct rxrpc_connection *conn, enum rxrpc_conn_trace op,
+		     int usage, const void *where),
+
+	    TP_ARGS(conn, op, usage, where),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_connection *,	conn		)
+		    __field(int,			op		)
+		    __field(int,			usage		)
+		    __field(const void *,		where		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->conn = conn;
+		    __entry->op = op;
+		    __entry->usage = usage;
+		    __entry->where = where;
+			   ),
+
+	    TP_printk("C=%p %s u=%d sp=%pSR",
+		      __entry->conn,
+		      rxrpc_conn_traces[__entry->op],
+		      __entry->usage,
+		      __entry->where)
+	    );
+
+TRACE_EVENT(rxrpc_client,
+	    TP_PROTO(struct rxrpc_connection *conn, int channel,
+		     enum rxrpc_client_trace op),
+
+	    TP_ARGS(conn, channel, op),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_connection *,	conn		)
+		    __field(u32,			cid		)
+		    __field(int,			channel		)
+		    __field(int,			usage		)
+		    __field(enum rxrpc_client_trace,	op		)
+		    __field(enum rxrpc_conn_cache_state, cs		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->conn = conn;
+		    __entry->channel = channel;
+		    __entry->usage = atomic_read(&conn->usage);
+		    __entry->op = op;
+		    __entry->cid = conn->proto.cid;
+		    __entry->cs = conn->cache_state;
+			   ),
+
+	    TP_printk("C=%p h=%2d %s %s i=%08x u=%d",
+		      __entry->conn,
+		      __entry->channel,
+		      rxrpc_client_traces[__entry->op],
+		      rxrpc_conn_cache_states[__entry->cs],
+		      __entry->cid,
+		      __entry->usage)
+	    );
+
 TRACE_EVENT(rxrpc_call,
 	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_call_trace op,
 		     int usage, const void *where, const void *aux),
