@@ -1831,7 +1831,7 @@ static bool d40_alloc_mask_free(struct d40_phy_res *phy, bool is_src,
 		phy->allocated_dst = D40_ALLOC_FREE;
 		phy->allocated_src = D40_ALLOC_FREE;
 		is_free = true;
-		goto out;
+		goto unlock;
 	}
 
 	/* Logical channel */
@@ -1847,8 +1847,7 @@ static bool d40_alloc_mask_free(struct d40_phy_res *phy, bool is_src,
 
 	is_free = ((phy->allocated_src | phy->allocated_dst) ==
 		   D40_ALLOC_FREE);
-
-out:
+ unlock:
 	spin_unlock_irqrestore(&phy->lock, flags);
 
 	return is_free;
