@@ -92,6 +92,8 @@ static void nft_payload_eval(const struct nft_expr *expr,
 		offset = skb_network_offset(skb);
 		break;
 	case NFT_PAYLOAD_TRANSPORT_HEADER:
+		if (!pkt->tprot_set)
+			goto err;
 		offset = pkt->xt.thoff;
 		break;
 	default:
@@ -184,6 +186,8 @@ static void nft_payload_set_eval(const struct nft_expr *expr,
 		offset = skb_network_offset(skb);
 		break;
 	case NFT_PAYLOAD_TRANSPORT_HEADER:
+		if (!pkt->tprot_set)
+			goto err;
 		offset = pkt->xt.thoff;
 		break;
 	default:
