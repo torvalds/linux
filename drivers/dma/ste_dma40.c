@@ -2094,8 +2094,7 @@ static bool d40_is_paused(struct d40_chan *d40c)
 			D40_CHAN_POS(d40c->phy_chan->num);
 		if (status == D40_DMA_SUSPENDED || status == D40_DMA_STOP)
 			is_paused = true;
-
-		goto _exit;
+		goto unlock;
 	}
 
 	if (d40c->dma_cfg.dir == DMA_MEM_TO_DEV ||
@@ -2105,7 +2104,7 @@ static bool d40_is_paused(struct d40_chan *d40c)
 		status = readl(chanbase + D40_CHAN_REG_SSLNK);
 	} else {
 		chan_err(d40c, "Unknown direction\n");
-		goto _exit;
+		goto unlock;
 	}
 
 	status = (status & D40_EVENTLINE_MASK(event)) >>
@@ -2113,7 +2112,7 @@ static bool d40_is_paused(struct d40_chan *d40c)
 
 	if (status != D40_DMA_RUN)
 		is_paused = true;
-_exit:
+ unlock:
 	spin_unlock_irqrestore(&d40c->lock, flags);
 	return is_paused;
 
