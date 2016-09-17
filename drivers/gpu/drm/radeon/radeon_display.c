@@ -452,16 +452,19 @@ static void radeon_flip_work_func(struct work_struct *__work)
 	}
 
 	/* Wait until we're out of the vertical blank period before the one
-	 * targeted by the flip
+	 * targeted by the flip. Always wait on pre DCE4 to avoid races with
+	 * flip completion handling from vblank irq, as these old asics don't
+	 * have reliable pageflip completion interrupts.
 	 */
 	while (radeon_crtc->enabled &&
-	       (radeon_get_crtc_scanoutpos(dev, work->crtc_id, 0,
-					   &vpos, &hpos, NULL, NULL,
-					   &crtc->hwmode)
+		(radeon_get_crtc_scanoutpos(dev, work->crtc_id, 0,
+					    &vpos, &hpos, NULL, NULL,
+					    &crtc->hwmode)
 		& (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK)) ==
-	       (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK) &&
-	       (int)(work->target_vblank -
-		     dev->driver->get_vblank_counter(dev, work->crtc_id)) > 0)
+		(DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK) &&
+		(!ASIC_IS_AVIVO(rdev) ||
+		((int) (work->target_vblank -
+		dev->driver->get_vblank_counter(dev, work->crtc_id)) > 0)))
 		usleep_range(1000, 2000);
 
 	/* We borrow the event spin lock for protecting flip_status */
