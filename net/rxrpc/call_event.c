@@ -31,7 +31,7 @@ static void rxrpc_set_timer(struct rxrpc_call *call)
 	_enter("{%ld,%ld,%ld:%ld}",
 	       call->ack_at - now, call->resend_at - now, call->expire_at - now,
 	       call->timer.expires - now);
-	
+
 	read_lock_bh(&call->state_lock);
 
 	if (call->state < RXRPC_CALL_COMPLETE) {
