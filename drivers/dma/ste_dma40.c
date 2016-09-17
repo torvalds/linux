@@ -3144,11 +3144,11 @@ static int __init d40_phy_res_init(struct d40_base *base)
 static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 {
 	struct stedma40_platform_data *plat_data = dev_get_platdata(&pdev->dev);
-	struct clk *clk = NULL;
-	void __iomem *virtbase = NULL;
-	struct resource *res = NULL;
-	struct d40_base *base = NULL;
-	int num_log_chans = 0;
+	struct clk *clk;
+	void __iomem *virtbase;
+	struct resource *res;
+	struct d40_base *base;
+	int num_log_chans;
 	int num_phy_chans;
 	int num_memcpy_chans;
 	int clk_ret = -EINVAL;
