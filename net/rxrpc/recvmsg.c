@@ -296,8 +296,6 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 	unsigned int rx_pkt_offset, rx_pkt_len;
 	int ix, copy, ret = -EAGAIN, ret2;
 
-	_enter("");
-
 	rx_pkt_offset = call->rx_pkt_offset;
 	rx_pkt_len = call->rx_pkt_len;
 
@@ -343,8 +341,6 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 			trace_rxrpc_recvmsg(call, rxrpc_recvmsg_cont, seq,
 					    rx_pkt_offset, rx_pkt_len, 0);
 		}
-		_debug("recvmsg %x DATA #%u { %d, %d }",
-		       sp->hdr.callNumber, seq, rx_pkt_offset, rx_pkt_len);
 
 		/* We have to handle short, empty and used-up DATA packets. */
 		remain = len - *_offset;
@@ -360,8 +356,6 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 			}
 
 			/* handle piecemeal consumption of data packets */
-			_debug("copied %d @%zu", copy, *_offset);
-
 			rx_pkt_offset += copy;
 			rx_pkt_len -= copy;
 			*_offset += copy;
@@ -370,7 +364,6 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 		if (rx_pkt_len > 0) {
 			trace_rxrpc_recvmsg(call, rxrpc_recvmsg_full, seq,
 					    rx_pkt_offset, rx_pkt_len, 0);
-			_debug("buffer full");
 			ASSERTCMP(*_offset, ==, len);
 			ret = 0;
 			break;
@@ -398,7 +391,6 @@ out:
 done:
 	trace_rxrpc_recvmsg(call, rxrpc_recvmsg_data_return, seq,
 			    rx_pkt_offset, rx_pkt_len, ret);
-	_leave(" = %d [%u/%u]", ret, seq, top);
 	return ret;
 }
 
