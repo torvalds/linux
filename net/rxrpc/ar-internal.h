@@ -539,6 +539,8 @@ enum rxrpc_call_trace {
 	rxrpc_call_queued,
 	rxrpc_call_queued_ref,
 	rxrpc_call_seen,
+	rxrpc_call_connected,
+	rxrpc_call_release,
 	rxrpc_call_got,
 	rxrpc_call_got_userid,
 	rxrpc_call_got_kernel,
@@ -546,6 +548,7 @@ enum rxrpc_call_trace {
 	rxrpc_call_put_userid,
 	rxrpc_call_put_kernel,
 	rxrpc_call_put_noqueue,
+	rxrpc_call_error,
 	rxrpc_call__nr_trace
 };
 

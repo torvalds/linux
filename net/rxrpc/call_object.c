@@ -53,6 +53,8 @@ const char rxrpc_call_traces[rxrpc_call__nr_trace][4] = {
 	[rxrpc_call_new_service]	= "NWs",
 	[rxrpc_call_queued]		= "QUE",
 	[rxrpc_call_queued_ref]		= "QUR",
+	[rxrpc_call_connected]		= "CON",
+	[rxrpc_call_release]		= "RLS",
 	[rxrpc_call_seen]		= "SEE",
 	[rxrpc_call_got]		= "GOT",
 	[rxrpc_call_got_userid]		= "Gus",
@@ -61,6 +63,7 @@ const char rxrpc_call_traces[rxrpc_call__nr_trace][4] = {
 	[rxrpc_call_put_userid]		= "Pus",
 	[rxrpc_call_put_kernel]		= "Pke",
 	[rxrpc_call_put_noqueue]	= "PNQ",
+	[rxrpc_call_error]		= "*E*",
 };
 
 struct kmem_cache *rxrpc_call_jar;
@@ -222,8 +225,8 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 		return call;
 	}
 
-	trace_rxrpc_call(call, 0, atomic_read(&call->usage), here,
-			 (const void *)user_call_ID);
+	trace_rxrpc_call(call, rxrpc_call_new_client, atomic_read(&call->usage),
+			 here, (const void *)user_call_ID);
 
 	/* Publish the call, even though it is incompletely set up as yet */
 	write_lock(&rx->call_lock);
@@ -263,6 +266,9 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 	if (ret < 0)
 		goto error;
 
+	trace_rxrpc_call(call, rxrpc_call_connected, atomic_read(&call->usage),
+			 here, ERR_PTR(ret));
+
 	spin_lock_bh(&call->conn->params.peer->lock);
 	hlist_add_head(&call->error_link,
 		       &call->conn->params.peer->error_targets);
@@ -287,6 +293,8 @@ error_dup_user_ID:
 error:
 	__rxrpc_set_call_completion(call, RXRPC_CALL_LOCAL_ERROR,
 				    RX_CALL_DEAD, ret);
+	trace_rxrpc_call(call, rxrpc_call_error, atomic_read(&call->usage),
+			 here, ERR_PTR(ret));
 	rxrpc_release_call(rx, call);
 	rxrpc_put_call(call, rxrpc_call_put);
 	_leave(" = %d", ret);
@@ -396,15 +404,17 @@ void rxrpc_get_call(struct rxrpc_call *call, enum rxrpc_call_trace op)
  */
 void rxrpc_release_call(struct rxrpc_sock *rx, struct rxrpc_call *call)
 {
+	const void *here = __builtin_return_address(0);
 	struct rxrpc_connection *conn = call->conn;
 	bool put = false;
 	int i;
 
 	_enter("{%d,%d}", call->debug_id, atomic_read(&call->usage));
 
-	ASSERTCMP(call->state, ==, RXRPC_CALL_COMPLETE);
+	trace_rxrpc_call(call, rxrpc_call_release, atomic_read(&call->usage),
+			 here, (const void *)call->flags);
 
-	rxrpc_see_call(call);
+	ASSERTCMP(call->state, ==, RXRPC_CALL_COMPLETE);
 
 	spin_lock_bh(&call->lock);
 	if (test_and_set_bit(RXRPC_CALL_RELEASED, &call->flags))
