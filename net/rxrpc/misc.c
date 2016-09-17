@@ -141,3 +141,12 @@ const char rxrpc_transmit_traces[rxrpc_transmit__nr_trace][4] = {
 	[rxrpc_transmit_rotate]		= "ROT",
 	[rxrpc_transmit_end]		= "END",
 };
+
+const char rxrpc_receive_traces[rxrpc_receive__nr_trace][4] = {
+	[rxrpc_receive_incoming]	= "INC",
+	[rxrpc_receive_queue]		= "QUE",
+	[rxrpc_receive_queue_last]	= "QLS",
+	[rxrpc_receive_front]		= "FRN",
+	[rxrpc_receive_rotate]		= "ROT",
+	[rxrpc_receive_end]		= "END",
+};

@@ -367,6 +367,9 @@ found_service:
 		goto out;
 	}
 
+	trace_rxrpc_receive(call, rxrpc_receive_incoming,
+			    sp->hdr.serial, sp->hdr.seq);
+
 	/* Make the call live. */
 	rxrpc_incoming_call(rx, call, skb);
 	conn = call->conn;

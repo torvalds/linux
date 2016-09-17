@@ -134,6 +134,7 @@ static void rxrpc_end_rx_phase(struct rxrpc_call *call)
 {
 	_enter("%d,%s", call->debug_id, rxrpc_call_states[call->state]);
 
+	trace_rxrpc_receive(call, rxrpc_receive_end, 0, call->rx_top);
 	ASSERTCMP(call->rx_hard_ack, ==, call->rx_top);
 
 	if (call->state == RXRPC_CALL_CLIENT_RECV_REPLY) {
@@ -167,6 +168,7 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 {
 	struct rxrpc_skb_priv *sp;
 	struct sk_buff *skb;
+	rxrpc_serial_t serial;
 	rxrpc_seq_t hard_ack, top;
 	u8 flags;
 	int ix;
@@ -183,6 +185,10 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 	rxrpc_see_skb(skb);
 	sp = rxrpc_skb(skb);
 	flags = sp->hdr.flags;
+	serial = sp->hdr.serial;
+	if (call->rxtx_annotations[ix] & RXRPC_RX_ANNO_JUMBO)
+		serial += (call->rxtx_annotations[ix] & RXRPC_RX_ANNO_JUMBO) - 1;
+
 	call->rxtx_buffer[ix] = NULL;
 	call->rxtx_annotations[ix] = 0;
 	/* Barrier against rxrpc_input_data(). */
@@ -191,6 +197,7 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 	rxrpc_free_skb(skb);
 
 	_debug("%u,%u,%02x", hard_ack, top, flags);
+	trace_rxrpc_receive(call, rxrpc_receive_rotate, serial, hard_ack);
 	if (flags & RXRPC_LAST_PACKET)
 		rxrpc_end_rx_phase(call);
 }
@@ -308,6 +315,10 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 		smp_rmb();
 		rxrpc_see_skb(skb);
 		sp = rxrpc_skb(skb);
+
+		if (!(flags & MSG_PEEK))
+			trace_rxrpc_receive(call, rxrpc_receive_front,
+					    sp->hdr.serial, seq);
 
 		if (msg)
 			sock_recv_timestamp(msg, sock->sk, skb);

@@ -605,6 +605,18 @@ enum rxrpc_transmit_trace {
 
 extern const char rxrpc_transmit_traces[rxrpc_transmit__nr_trace][4];
 
+enum rxrpc_receive_trace {
+	rxrpc_receive_incoming,
+	rxrpc_receive_queue,
+	rxrpc_receive_queue_last,
+	rxrpc_receive_front,
+	rxrpc_receive_rotate,
+	rxrpc_receive_end,
+	rxrpc_receive__nr_trace
+};
+
+extern const char rxrpc_receive_traces[rxrpc_receive__nr_trace][4];
+
 extern const char *const rxrpc_pkts[];
 extern const char *rxrpc_acks(u8 reason);
 

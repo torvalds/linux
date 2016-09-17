@@ -284,8 +284,12 @@ next_subpacket:
 	call->rxtx_buffer[ix] = skb;
 	if (after(seq, call->rx_top))
 		smp_store_release(&call->rx_top, seq);
-	if (flags & RXRPC_LAST_PACKET)
+	if (flags & RXRPC_LAST_PACKET) {
 		set_bit(RXRPC_CALL_RX_LAST, &call->flags);
+		trace_rxrpc_receive(call, rxrpc_receive_queue_last, serial, seq);
+	} else {
+		trace_rxrpc_receive(call, rxrpc_receive_queue, serial, seq);
+	}
 	queued = true;
 
 	if (after_eq(seq, call->rx_expect_next)) {
