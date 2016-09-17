@@ -15,6 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <linux/random.h>
 #include <linux/sbitmap.h>
 
 int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
@@ -209,6 +210,11 @@ int sbitmap_queue_init_node(struct sbitmap_queue *sbq, unsigned int depth,
 	if (!sbq->alloc_hint) {
 		sbitmap_free(&sbq->sb);
 		return -ENOMEM;
+	}
+
+	if (depth && !round_robin) {
+		for_each_possible_cpu(i)
+			*per_cpu_ptr(sbq->alloc_hint, i) = prandom_u32() % depth;
 	}
 
 	sbq->wake_batch = sbq_calc_wake_batch(depth);

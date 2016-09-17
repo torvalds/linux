@@ -7,7 +7,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/random.h>
 
 #include <linux/blk-mq.h>
 #include "blk.h"
@@ -417,13 +416,6 @@ void blk_mq_free_tags(struct blk_mq_tags *tags)
 	sbitmap_queue_free(&tags->breserved_tags);
 	free_cpumask_var(tags->cpumask);
 	kfree(tags);
-}
-
-void blk_mq_tag_init_last_tag(struct blk_mq_tags *tags, unsigned int *tag)
-{
-	unsigned int depth = tags->nr_tags - tags->nr_reserved_tags;
-
-	*tag = prandom_u32() % depth;
 }
 
 int blk_mq_tag_update_depth(struct blk_mq_tags *tags, unsigned int tdepth)
