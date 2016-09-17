@@ -2210,13 +2210,13 @@ d40_prep_desc(struct d40_chan *chan, struct scatterlist *sg,
 					cfg->dst_info.data_width);
 	if (desc->lli_len < 0) {
 		chan_err(chan, "Unaligned size\n");
-		goto err;
+		goto free_desc;
 	}
 
 	ret = d40_pool_lli_alloc(chan, desc, desc->lli_len);
 	if (ret < 0) {
 		chan_err(chan, "Could not allocate lli\n");
-		goto err;
+		goto free_desc;
 	}
 
 	desc->lli_current = 0;
@@ -2226,8 +2226,7 @@ d40_prep_desc(struct d40_chan *chan, struct scatterlist *sg,
 	dma_async_tx_descriptor_init(&desc->txd, &chan->chan);
 
 	return desc;
-
-err:
+ free_desc:
 	d40_desc_free(chan, desc);
 	return NULL;
 }
