@@ -35,13 +35,6 @@
 #include "conf.h"
 #include "ini.h"
 
-/*
- * wl127x and wl128x are using the same NVS file name. However, the
- * ini parameters between them are different.  The driver validates
- * the correct NVS size in wl1271_boot_upload_nvs().
- */
-#define WL12XX_NVS_NAME "ti-connectivity/wl1271-nvs.bin"
-
 struct wilink_family_data {
 	const char *name;
 	const char *nvs_name;	/* wl12xx nvs file */
