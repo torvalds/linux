@@ -1565,7 +1565,7 @@ static const struct platform_device_id mxcnd_devtype[] = {
 };
 MODULE_DEVICE_TABLE(platform, mxcnd_devtype);
 
-#ifdef CONFIG_OF_MTD
+#ifdef CONFIG_OF
 static const struct of_device_id mxcnd_dt_ids[] = {
 	{
 		.compatible = "fsl,imx21-nand",
