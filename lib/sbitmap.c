@@ -196,7 +196,7 @@ static unsigned int sbq_calc_wake_batch(unsigned int depth)
 }
 
 int sbitmap_queue_init_node(struct sbitmap_queue *sbq, unsigned int depth,
-			    int shift, gfp_t flags, int node)
+			    int shift, bool round_robin, gfp_t flags, int node)
 {
 	int ret;
 	int i;
@@ -225,6 +225,8 @@ int sbitmap_queue_init_node(struct sbitmap_queue *sbq, unsigned int depth,
 		init_waitqueue_head(&sbq->ws[i].wait);
 		atomic_set(&sbq->ws[i].wait_cnt, sbq->wake_batch);
 	}
+
+	sbq->round_robin = round_robin;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(sbitmap_queue_init_node);
@@ -236,18 +238,18 @@ void sbitmap_queue_resize(struct sbitmap_queue *sbq, unsigned int depth)
 }
 EXPORT_SYMBOL_GPL(sbitmap_queue_resize);
 
-int __sbitmap_queue_get(struct sbitmap_queue *sbq, bool round_robin)
+int __sbitmap_queue_get(struct sbitmap_queue *sbq)
 {
 	unsigned int hint;
 	int nr;
 
 	hint = this_cpu_read(*sbq->alloc_hint);
-	nr = sbitmap_get(&sbq->sb, hint, round_robin);
+	nr = sbitmap_get(&sbq->sb, hint, sbq->round_robin);
 
 	if (nr == -1) {
 		/* If the map is full, a hint won't do us much good. */
 		this_cpu_write(*sbq->alloc_hint, 0);
-	} else if (nr == hint || unlikely(round_robin)) {
+	} else if (nr == hint || unlikely(sbq->round_robin)) {
 		/* Only update the hint if we used it. */
 		hint = nr + 1;
 		if (hint >= sbq->sb.depth - 1)
@@ -304,11 +306,11 @@ static void sbq_wake_up(struct sbitmap_queue *sbq)
 }
 
 void sbitmap_queue_clear(struct sbitmap_queue *sbq, unsigned int nr,
-			 bool round_robin, unsigned int cpu)
+			 unsigned int cpu)
 {
 	sbitmap_clear_bit(&sbq->sb, nr);
 	sbq_wake_up(sbq);
-	if (likely(!round_robin))
+	if (likely(!sbq->round_robin))
 		*per_cpu_ptr(sbq->alloc_hint, cpu) = nr;
 }
 EXPORT_SYMBOL_GPL(sbitmap_queue_clear);

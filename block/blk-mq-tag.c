@@ -91,14 +91,11 @@ static inline bool hctx_may_queue(struct blk_mq_hw_ctx *hctx,
 	return atomic_read(&hctx->nr_active) < depth;
 }
 
-#define BT_ALLOC_RR(tags) (tags->alloc_policy == BLK_TAG_ALLOC_RR)
-
-static int __bt_get(struct blk_mq_hw_ctx *hctx, struct sbitmap_queue *bt,
-		    struct blk_mq_tags *tags)
+static int __bt_get(struct blk_mq_hw_ctx *hctx, struct sbitmap_queue *bt)
 {
 	if (!hctx_may_queue(hctx, bt))
 		return -1;
-	return __sbitmap_queue_get(bt, BT_ALLOC_RR(tags));
+	return __sbitmap_queue_get(bt);
 }
 
 static int bt_get(struct blk_mq_alloc_data *data, struct sbitmap_queue *bt,
@@ -108,7 +105,7 @@ static int bt_get(struct blk_mq_alloc_data *data, struct sbitmap_queue *bt,
 	DEFINE_WAIT(wait);
 	int tag;
 
-	tag = __bt_get(hctx, bt, tags);
+	tag = __bt_get(hctx, bt);
 	if (tag != -1)
 		return tag;
 
@@ -119,7 +116,7 @@ static int bt_get(struct blk_mq_alloc_data *data, struct sbitmap_queue *bt,
 	do {
 		prepare_to_wait(&ws->wait, &wait, TASK_UNINTERRUPTIBLE);
 
-		tag = __bt_get(hctx, bt, tags);
+		tag = __bt_get(hctx, bt);
 		if (tag != -1)
 			break;
 
@@ -136,7 +133,7 @@ static int bt_get(struct blk_mq_alloc_data *data, struct sbitmap_queue *bt,
 		 * Retry tag allocation after running the hardware queue,
 		 * as running the queue may also have found completions.
 		 */
-		tag = __bt_get(hctx, bt, tags);
+		tag = __bt_get(hctx, bt);
 		if (tag != -1)
 			break;
 
@@ -206,12 +203,10 @@ void blk_mq_put_tag(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
 		const int real_tag = tag - tags->nr_reserved_tags;
 
 		BUG_ON(real_tag >= tags->nr_tags);
-		sbitmap_queue_clear(&tags->bitmap_tags, real_tag,
-				    BT_ALLOC_RR(tags), ctx->cpu);
+		sbitmap_queue_clear(&tags->bitmap_tags, real_tag, ctx->cpu);
 	} else {
 		BUG_ON(tag >= tags->nr_reserved_tags);
-		sbitmap_queue_clear(&tags->breserved_tags, tag,
-				    BT_ALLOC_RR(tags), ctx->cpu);
+		sbitmap_queue_clear(&tags->breserved_tags, tag, ctx->cpu);
 	}
 }
 
@@ -363,21 +358,23 @@ static unsigned int bt_unused_tags(const struct sbitmap_queue *bt)
 	return bt->sb.depth - sbitmap_weight(&bt->sb);
 }
 
-static int bt_alloc(struct sbitmap_queue *bt, unsigned int depth, int node)
+static int bt_alloc(struct sbitmap_queue *bt, unsigned int depth,
+		    bool round_robin, int node)
 {
-	return sbitmap_queue_init_node(bt, depth, -1, GFP_KERNEL, node);
+	return sbitmap_queue_init_node(bt, depth, -1, round_robin, GFP_KERNEL,
+				       node);
 }
 
 static struct blk_mq_tags *blk_mq_init_bitmap_tags(struct blk_mq_tags *tags,
 						   int node, int alloc_policy)
 {
 	unsigned int depth = tags->nr_tags - tags->nr_reserved_tags;
+	bool round_robin = alloc_policy == BLK_TAG_ALLOC_RR;
 
-	tags->alloc_policy = alloc_policy;
-
-	if (bt_alloc(&tags->bitmap_tags, depth, node))
+	if (bt_alloc(&tags->bitmap_tags, depth, round_robin, node))
 		goto free_tags;
-	if (bt_alloc(&tags->breserved_tags, tags->nr_reserved_tags, node))
+	if (bt_alloc(&tags->breserved_tags, tags->nr_reserved_tags, round_robin,
+		     node))
 		goto free_bitmap_tags;
 
 	return tags;
