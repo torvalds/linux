@@ -179,6 +179,15 @@ extern __be32 nfs4_callback_devicenotify(
 	struct cb_devicenotifyargs *args,
 	void *dummy, struct cb_process_state *cps);
 
+struct cb_notify_lock_args {
+	struct nfs_fh			cbnl_fh;
+	struct nfs_lowner		cbnl_owner;
+	bool				cbnl_valid;
+};
+
+extern __be32 nfs4_callback_notify_lock(struct cb_notify_lock_args *args,
+					 void *dummy,
+					 struct cb_process_state *cps);
 #endif /* CONFIG_NFS_V4_1 */
 extern int check_gss_callback_principal(struct nfs_client *, struct svc_rqst *);
 extern __be32 nfs4_callback_getattr(struct cb_getattrargs *args,
