@@ -1696,6 +1696,9 @@ struct lwp_register_item {
 extern int (*ptlrpc_put_connection_superhack)(struct ptlrpc_connection *c);
 
 /* obd_mount.c */
+int lustre_unregister_fs(void);
+int lustre_register_fs(void);
+int lustre_check_exclusion(struct super_block *sb, char *svname);
 
 /* sysctl.c */
 int obd_sysctl_init(void);

@@ -1047,8 +1047,6 @@ int class_process_proc_param(char *prefix, struct lprocfs_vars *lvars,
 }
 EXPORT_SYMBOL(class_process_proc_param);
 
-extern int lustre_check_exclusion(struct super_block *sb, char *svname);
-
 /** Parse a configuration llog, doing various manipulations on them
  * for various reasons, (modifications for compatibility, skip obsolete
  * records, change uuids, etc), then class_process_config() resulting

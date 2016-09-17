@@ -450,8 +450,6 @@ static int __init obdclass_init(void)
 {
 	int i, err;
 
-	int lustre_register_fs(void);
-
 	LCONSOLE_INFO("Lustre: Build Version: " LUSTRE_VERSION_STRING "\n");
 
 	spin_lock_init(&obd_types_lock);
@@ -518,8 +516,6 @@ static int __init obdclass_init(void)
 
 static void obdclass_exit(void)
 {
-	int lustre_unregister_fs(void);
-
 	lustre_unregister_fs();
 
 	misc_deregister(&obd_psdev);
