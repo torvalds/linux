@@ -59,6 +59,7 @@ static void rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to)
 
 	spin_unlock(&call->lock);
 
+	trace_rxrpc_transmit(call, rxrpc_transmit_rotate);
 	wake_up(&call->waitq);
 
 	while (list) {
@@ -107,6 +108,7 @@ static bool rxrpc_end_tx_phase(struct rxrpc_call *call, const char *abort_why)
 	}
 
 	write_unlock(&call->state_lock);
+	trace_rxrpc_transmit(call, rxrpc_transmit_end);
 	_leave(" = ok");
 	return true;
 }

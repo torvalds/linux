@@ -208,6 +208,32 @@ TRACE_EVENT(rxrpc_abort,
 		      __entry->abort_code, __entry->error, __entry->why)
 	    );
 
+TRACE_EVENT(rxrpc_transmit,
+	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_transmit_trace why),
+
+	    TP_ARGS(call, why),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_call *,	call		)
+		    __field(enum rxrpc_transmit_trace,	why		)
+		    __field(rxrpc_seq_t,		tx_hard_ack	)
+		    __field(rxrpc_seq_t,		tx_top		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->why = why;
+		    __entry->tx_hard_ack = call->tx_hard_ack;
+		    __entry->tx_top = call->tx_top;
+			   ),
+
+	    TP_printk("c=%p %s f=%08x n=%u",
+		      __entry->call,
+		      rxrpc_transmit_traces[__entry->why],
+		      __entry->tx_hard_ack + 1,
+		      __entry->tx_top - __entry->tx_hard_ack)
+	    );
+
 #endif /* _TRACE_RXRPC_H */
 
 /* This part must be outside protection */

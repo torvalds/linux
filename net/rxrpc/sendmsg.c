@@ -56,6 +56,7 @@ static int rxrpc_wait_for_tx_window(struct rxrpc_sock *rx,
 			break;
 		}
 
+		trace_rxrpc_transmit(call, rxrpc_transmit_wait);
 		release_sock(&rx->sk);
 		*timeo = schedule_timeout(*timeo);
 		lock_sock(&rx->sk);
@@ -104,8 +105,14 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	smp_wmb();
 	call->rxtx_buffer[ix] = skb;
 	call->tx_top = seq;
-	if (last)
+	if (last) {
 		set_bit(RXRPC_CALL_TX_LAST, &call->flags);
+		trace_rxrpc_transmit(call, rxrpc_transmit_queue_last);
+	} else if (sp->hdr.flags & RXRPC_REQUEST_ACK) {
+		trace_rxrpc_transmit(call, rxrpc_transmit_queue_reqack);
+	} else {
+		trace_rxrpc_transmit(call, rxrpc_transmit_queue);
+	}
 
 	if (last || call->state == RXRPC_CALL_SERVER_ACK_REQUEST) {
 		_debug("________awaiting reply/ACK__________");
