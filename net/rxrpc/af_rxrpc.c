@@ -45,7 +45,7 @@ u32 rxrpc_epoch;
 atomic_t rxrpc_debug_id;
 
 /* count of skbs currently in use */
-atomic_t rxrpc_n_skbs;
+atomic_t rxrpc_n_tx_skbs, rxrpc_n_rx_skbs;
 
 struct workqueue_struct *rxrpc_workqueue;
 
@@ -867,7 +867,8 @@ static void __exit af_rxrpc_exit(void)
 	proto_unregister(&rxrpc_proto);
 	rxrpc_destroy_all_calls();
 	rxrpc_destroy_all_connections();
-	ASSERTCMP(atomic_read(&rxrpc_n_skbs), ==, 0);
+	ASSERTCMP(atomic_read(&rxrpc_n_tx_skbs), ==, 0);
+	ASSERTCMP(atomic_read(&rxrpc_n_rx_skbs), ==, 0);
 	rxrpc_destroy_all_locals();
 
 	remove_proc_entry("rxrpc_conns", init_net.proc_net);

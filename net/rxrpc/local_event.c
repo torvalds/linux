@@ -90,7 +90,7 @@ void rxrpc_process_local_events(struct rxrpc_local *local)
 	if (skb) {
 		struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 
-		rxrpc_see_skb(skb);
+		rxrpc_see_skb(skb, rxrpc_skb_rx_seen);
 		_debug("{%d},{%u}", local->debug_id, sp->hdr.type);
 
 		switch (sp->hdr.type) {
@@ -107,7 +107,7 @@ void rxrpc_process_local_events(struct rxrpc_local *local)
 			break;
 		}
 
-		rxrpc_free_skb(skb);
+		rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
 	}
 
 	_leave("");

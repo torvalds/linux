@@ -102,6 +102,24 @@ const char *rxrpc_acks(u8 reason)
 	return str[reason];
 }
 
+const char rxrpc_skb_traces[rxrpc_skb__nr_trace][7] = {
+	[rxrpc_skb_rx_cleaned]		= "Rx CLN",
+	[rxrpc_skb_rx_freed]		= "Rx FRE",
+	[rxrpc_skb_rx_got]		= "Rx GOT",
+	[rxrpc_skb_rx_lost]		= "Rx *L*",
+	[rxrpc_skb_rx_received]		= "Rx RCV",
+	[rxrpc_skb_rx_purged]		= "Rx PUR",
+	[rxrpc_skb_rx_rotated]		= "Rx ROT",
+	[rxrpc_skb_rx_seen]		= "Rx SEE",
+	[rxrpc_skb_tx_cleaned]		= "Tx CLN",
+	[rxrpc_skb_tx_freed]		= "Tx FRE",
+	[rxrpc_skb_tx_got]		= "Tx GOT",
+	[rxrpc_skb_tx_lost]		= "Tx *L*",
+	[rxrpc_skb_tx_new]		= "Tx NEW",
+	[rxrpc_skb_tx_rotated]		= "Tx ROT",
+	[rxrpc_skb_tx_seen]		= "Tx SEE",
+};
+
 const char rxrpc_conn_traces[rxrpc_conn__nr_trace][4] = {
 	[rxrpc_conn_new_client]		= "NWc",
 	[rxrpc_conn_new_service]	= "NWs",

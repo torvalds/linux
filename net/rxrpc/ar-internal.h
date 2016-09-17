@@ -520,6 +520,7 @@ struct rxrpc_call {
 	rxrpc_seq_t		rx_expect_next;	/* Expected next packet sequence number */
 	u8			rx_winsize;	/* Size of Rx window */
 	u8			tx_winsize;	/* Maximum size of Tx window */
+	bool			tx_phase;	/* T if transmission phase, F if receive phase */
 	u8			nr_jumbo_bad;	/* Number of jumbo dups/exceeds-windows */
 
 	/* receive-phase ACK management */
@@ -533,6 +534,27 @@ struct rxrpc_call {
 	/* transmission-phase ACK management */
 	rxrpc_serial_t		acks_latest;	/* serial number of latest ACK received */
 };
+
+enum rxrpc_skb_trace {
+	rxrpc_skb_rx_cleaned,
+	rxrpc_skb_rx_freed,
+	rxrpc_skb_rx_got,
+	rxrpc_skb_rx_lost,
+	rxrpc_skb_rx_received,
+	rxrpc_skb_rx_rotated,
+	rxrpc_skb_rx_purged,
+	rxrpc_skb_rx_seen,
+	rxrpc_skb_tx_cleaned,
+	rxrpc_skb_tx_freed,
+	rxrpc_skb_tx_got,
+	rxrpc_skb_tx_lost,
+	rxrpc_skb_tx_new,
+	rxrpc_skb_tx_rotated,
+	rxrpc_skb_tx_seen,
+	rxrpc_skb__nr_trace
+};
+
+extern const char rxrpc_skb_traces[rxrpc_skb__nr_trace][7];
 
 enum rxrpc_conn_trace {
 	rxrpc_conn_new_client,
@@ -642,7 +664,7 @@ extern const char *rxrpc_acks(u8 reason);
 /*
  * af_rxrpc.c
  */
-extern atomic_t rxrpc_n_skbs;
+extern atomic_t rxrpc_n_tx_skbs, rxrpc_n_rx_skbs;
 extern u32 rxrpc_epoch;
 extern atomic_t rxrpc_debug_id;
 extern struct workqueue_struct *rxrpc_workqueue;
@@ -1000,10 +1022,11 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *, struct msghdr *, size_t);
  */
 void rxrpc_kernel_data_consumed(struct rxrpc_call *, struct sk_buff *);
 void rxrpc_packet_destructor(struct sk_buff *);
-void rxrpc_new_skb(struct sk_buff *);
-void rxrpc_see_skb(struct sk_buff *);
-void rxrpc_get_skb(struct sk_buff *);
-void rxrpc_free_skb(struct sk_buff *);
+void rxrpc_new_skb(struct sk_buff *, enum rxrpc_skb_trace);
+void rxrpc_see_skb(struct sk_buff *, enum rxrpc_skb_trace);
+void rxrpc_get_skb(struct sk_buff *, enum rxrpc_skb_trace);
+void rxrpc_free_skb(struct sk_buff *, enum rxrpc_skb_trace);
+void rxrpc_lose_skb(struct sk_buff *, enum rxrpc_skb_trace);
 void rxrpc_purge_queue(struct sk_buff_head *);
 
 /*

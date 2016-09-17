@@ -107,14 +107,14 @@ TRACE_EVENT(rxrpc_call,
 	    );
 
 TRACE_EVENT(rxrpc_skb,
-	    TP_PROTO(struct sk_buff *skb, int op, int usage, int mod_count,
-		     const void *where),
+	    TP_PROTO(struct sk_buff *skb, enum rxrpc_skb_trace op,
+		     int usage, int mod_count, const void *where),
 
 	    TP_ARGS(skb, op, usage, mod_count, where),
 
 	    TP_STRUCT__entry(
 		    __field(struct sk_buff *,		skb		)
-		    __field(int,			op		)
+		    __field(enum rxrpc_skb_trace,	op		)
 		    __field(int,			usage		)
 		    __field(int,			mod_count	)
 		    __field(const void *,		where		)
@@ -130,11 +130,7 @@ TRACE_EVENT(rxrpc_skb,
 
 	    TP_printk("s=%p %s u=%d m=%d p=%pSR",
 		      __entry->skb,
-		      (__entry->op == 0 ? "NEW" :
-		       __entry->op == 1 ? "SEE" :
-		       __entry->op == 2 ? "GET" :
-		       __entry->op == 3 ? "FRE" :
-		       "PUR"),
+		      rxrpc_skb_traces[__entry->op],
 		      __entry->usage,
 		      __entry->mod_count,
 		      __entry->where)

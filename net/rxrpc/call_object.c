@@ -182,6 +182,7 @@ static struct rxrpc_call *rxrpc_alloc_client_call(struct sockaddr_rxrpc *srx,
 		return ERR_PTR(-ENOMEM);
 	call->state = RXRPC_CALL_CLIENT_AWAIT_CONN;
 	call->service_id = srx->srx_service;
+	call->tx_phase = true;
 
 	_leave(" = %p", call);
 	return call;
@@ -458,7 +459,9 @@ void rxrpc_release_call(struct rxrpc_sock *rx, struct rxrpc_call *call)
 		rxrpc_disconnect_call(call);
 
 	for (i = 0; i < RXRPC_RXTX_BUFF_SIZE; i++) {
-		rxrpc_free_skb(call->rxtx_buffer[i]);
+		rxrpc_free_skb(call->rxtx_buffer[i],
+			       (call->tx_phase ? rxrpc_skb_tx_cleaned :
+				rxrpc_skb_rx_cleaned));
 		call->rxtx_buffer[i] = NULL;
 	}
 
@@ -552,9 +555,11 @@ void rxrpc_cleanup_call(struct rxrpc_call *call)
 
 	/* Clean up the Rx/Tx buffer */
 	for (i = 0; i < RXRPC_RXTX_BUFF_SIZE; i++)
-		rxrpc_free_skb(call->rxtx_buffer[i]);
+		rxrpc_free_skb(call->rxtx_buffer[i],
+			       (call->tx_phase ? rxrpc_skb_tx_cleaned :
+				rxrpc_skb_rx_cleaned));
 
-	rxrpc_free_skb(call->tx_pending);
+	rxrpc_free_skb(call->tx_pending, rxrpc_skb_tx_cleaned);
 
 	call_rcu(&call->rcu, rxrpc_rcu_destroy_call);
 }

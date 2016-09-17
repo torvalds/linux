@@ -50,7 +50,7 @@ static void rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to)
 		call->tx_hard_ack++;
 		ix = call->tx_hard_ack & RXRPC_RXTX_BUFF_MASK;
 		skb = call->rxtx_buffer[ix];
-		rxrpc_see_skb(skb);
+		rxrpc_see_skb(skb, rxrpc_skb_tx_rotated);
 		call->rxtx_buffer[ix] = NULL;
 		call->rxtx_annotations[ix] = 0;
 		skb->next = list;
@@ -66,7 +66,7 @@ static void rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to)
 		skb = list;
 		list = skb->next;
 		skb->next = NULL;
-		rxrpc_free_skb(skb);
+		rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
 	}
 }
 
@@ -99,6 +99,7 @@ static bool rxrpc_end_tx_phase(struct rxrpc_call *call, const char *abort_why)
 	default:
 		break;
 	case RXRPC_CALL_CLIENT_AWAIT_REPLY:
+		call->tx_phase = false;
 		call->state = RXRPC_CALL_CLIENT_RECV_REPLY;
 		break;
 	case RXRPC_CALL_SERVER_AWAIT_ACK:
@@ -278,7 +279,7 @@ next_subpacket:
 	 * Barriers against rxrpc_recvmsg_data() and rxrpc_rotate_rx_window()
 	 * and also rxrpc_fill_out_ack().
 	 */
-	rxrpc_get_skb(skb);
+	rxrpc_get_skb(skb, rxrpc_skb_rx_got);
 	call->rxtx_annotations[ix] = annotation;
 	smp_wmb();
 	call->rxtx_buffer[ix] = skb;
@@ -691,13 +692,13 @@ void rxrpc_data_ready(struct sock *udp_sk)
 		return;
 	}
 
-	rxrpc_new_skb(skb);
+	rxrpc_new_skb(skb, rxrpc_skb_rx_received);
 
 	_net("recv skb %p", skb);
 
 	/* we'll probably need to checksum it (didn't call sock_recvmsg) */
 	if (skb_checksum_complete(skb)) {
-		rxrpc_free_skb(skb);
+		rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
 		__UDP_INC_STATS(&init_net, UDP_MIB_INERRORS, 0);
 		_leave(" [CSUM failed]");
 		return;
@@ -821,7 +822,7 @@ void rxrpc_data_ready(struct sock *udp_sk)
 discard_unlock:
 	rcu_read_unlock();
 discard:
-	rxrpc_free_skb(skb);
+	rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
 out:
 	trace_rxrpc_rx_done(0, 0);
 	return;

@@ -100,7 +100,7 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	ASSERTCMP(seq, ==, call->tx_top + 1);
 
 	ix = seq & RXRPC_RXTX_BUFF_MASK;
-	rxrpc_get_skb(skb);
+	rxrpc_get_skb(skb, rxrpc_skb_tx_got);
 	call->rxtx_annotations[ix] = RXRPC_TX_ANNO_UNACK;
 	smp_wmb();
 	call->rxtx_buffer[ix] = skb;
@@ -146,7 +146,7 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 		rxrpc_instant_resend(call, ix);
 	}
 
-	rxrpc_free_skb(skb);
+	rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
 	_leave("");
 }
 
@@ -201,7 +201,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 
 	skb = call->tx_pending;
 	call->tx_pending = NULL;
-	rxrpc_see_skb(skb);
+	rxrpc_see_skb(skb, rxrpc_skb_tx_seen);
 
 	copied = 0;
 	do {
@@ -242,7 +242,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			if (!skb)
 				goto maybe_error;
 
-			rxrpc_new_skb(skb);
+			rxrpc_new_skb(skb, rxrpc_skb_tx_new);
 
 			_debug("ALLOC SEND %p", skb);
 
@@ -352,7 +352,7 @@ out:
 	return ret;
 
 call_terminated:
-	rxrpc_free_skb(skb);
+	rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
 	_leave(" = %d", -call->error);
 	return -call->error;
 

@@ -324,7 +324,7 @@ void rxrpc_reject_packets(struct rxrpc_local *local)
 	whdr.type = RXRPC_PACKET_TYPE_ABORT;
 
 	while ((skb = skb_dequeue(&local->reject_queue))) {
-		rxrpc_see_skb(skb);
+		rxrpc_see_skb(skb, rxrpc_skb_rx_seen);
 		sp = rxrpc_skb(skb);
 
 		if (rxrpc_extract_addr_from_skb(&srx, skb) == 0) {
@@ -343,7 +343,7 @@ void rxrpc_reject_packets(struct rxrpc_local *local)
 			kernel_sendmsg(local->socket, &msg, iov, 2, size);
 		}
 
-		rxrpc_free_skb(skb);
+		rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
 	}
 
 	_leave("");

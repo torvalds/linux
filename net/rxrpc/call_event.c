@@ -170,7 +170,7 @@ static void rxrpc_resend(struct rxrpc_call *call)
 			continue;
 
 		skb = call->rxtx_buffer[ix];
-		rxrpc_see_skb(skb);
+		rxrpc_see_skb(skb, rxrpc_skb_tx_seen);
 		sp = rxrpc_skb(skb);
 
 		if (annotation == RXRPC_TX_ANNO_UNACK) {
@@ -199,7 +199,7 @@ static void rxrpc_resend(struct rxrpc_call *call)
 			continue;
 
 		skb = call->rxtx_buffer[ix];
-		rxrpc_get_skb(skb);
+		rxrpc_get_skb(skb, rxrpc_skb_tx_got);
 		spin_unlock_bh(&call->lock);
 		sp = rxrpc_skb(skb);
 
@@ -211,7 +211,7 @@ static void rxrpc_resend(struct rxrpc_call *call)
 
 		if (rxrpc_send_data_packet(call->conn, skb) < 0) {
 			call->resend_at = now + 2;
-			rxrpc_free_skb(skb);
+			rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
 			return;
 		}
 
@@ -219,7 +219,7 @@ static void rxrpc_resend(struct rxrpc_call *call)
 			rxrpc_expose_client_call(call);
 		sp->resend_at = now + rxrpc_resend_timeout;
 
-		rxrpc_free_skb(skb);
+		rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
 		spin_lock_bh(&call->lock);
 
 		/* We need to clear the retransmit state, but there are two
