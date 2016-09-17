@@ -1636,7 +1636,7 @@ static int lmv_close(struct obd_export *exp, struct md_op_data *op_data,
  * For striped-directory, it will locate MDT by name. And also
  * it will reset op_fid1 with the FID of the chosen stripe.
  **/
-struct lmv_tgt_desc *
+static struct lmv_tgt_desc *
 lmv_locate_target_for_name(struct lmv_obd *lmv, struct lmv_stripe_md *lsm,
 			   const char *name, int namelen, struct lu_fid *fid,
 			   u32 *mds)
@@ -2418,9 +2418,9 @@ out:
 	return rc;
 }
 
-int lmv_read_page(struct obd_export *exp, struct md_op_data *op_data,
-		  struct md_callback *cb_op, __u64 offset,
-		  struct page **ppage)
+static int lmv_read_page(struct obd_export *exp, struct md_op_data *op_data,
+			 struct md_callback *cb_op, __u64 offset,
+			 struct page **ppage)
 {
 	struct lmv_stripe_md *lsm = op_data->op_mea1;
 	struct obd_device *obd = exp->exp_obd;
@@ -2771,8 +2771,9 @@ static int lmv_pack_md_v1(const struct lmv_stripe_md *lsm,
 	return 0;
 }
 
-int lmv_pack_md(union lmv_mds_md **lmmp, const struct lmv_stripe_md *lsm,
-		int stripe_count)
+static int
+lmv_pack_md(union lmv_mds_md **lmmp, const struct lmv_stripe_md *lsm,
+	    int stripe_count)
 {
 	int lmm_size = 0, rc = 0;
 	bool allocated = false;
@@ -2966,15 +2967,15 @@ int lmv_unpack_md(struct obd_export *exp, struct lmv_stripe_md **lsmp,
 }
 EXPORT_SYMBOL(lmv_unpack_md);
 
-int lmv_unpackmd(struct obd_export *exp, struct lov_stripe_md **lsmp,
-		 struct lov_mds_md *lmm, int disk_len)
+static int lmv_unpackmd(struct obd_export *exp, struct lov_stripe_md **lsmp,
+			struct lov_mds_md *lmm, int disk_len)
 {
 	return lmv_unpack_md(exp, (struct lmv_stripe_md **)lsmp,
 			     (union lmv_mds_md *)lmm, disk_len);
 }
 
-int lmv_packmd(struct obd_export *exp, struct lov_mds_md **lmmp,
-	       struct lov_stripe_md *lsm)
+static int lmv_packmd(struct obd_export *exp, struct lov_mds_md **lmmp,
+		      struct lov_stripe_md *lsm)
 {
 	const struct lmv_stripe_md *lmv = (struct lmv_stripe_md *)lsm;
 	struct obd_device *obd = exp->exp_obd;
@@ -3177,9 +3178,10 @@ static int lmv_revalidate_lock(struct obd_export *exp, struct lookup_intent *it,
 	return rc;
 }
 
-int lmv_get_fid_from_lsm(struct obd_export *exp,
-			 const struct lmv_stripe_md *lsm,
-			 const char *name, int namelen, struct lu_fid *fid)
+static int
+lmv_get_fid_from_lsm(struct obd_export *exp,
+		     const struct lmv_stripe_md *lsm,
+		     const char *name, int namelen, struct lu_fid *fid)
 {
 	const struct lmv_oinfo *oinfo;
 
@@ -3269,14 +3271,16 @@ static int lmv_quotacheck(struct obd_device *unused, struct obd_export *exp,
 	return rc;
 }
 
-int lmv_update_lsm_md(struct obd_export *exp, struct lmv_stripe_md *lsm,
-		      struct mdt_body *body, ldlm_blocking_callback cb_blocking)
+static int
+lmv_update_lsm_md(struct obd_export *exp, struct lmv_stripe_md *lsm,
+		  struct mdt_body *body, ldlm_blocking_callback cb_blocking)
 {
 	return lmv_revalidate_slaves(exp, body, lsm, cb_blocking, 0);
 }
 
-int lmv_merge_attr(struct obd_export *exp, const struct lmv_stripe_md *lsm,
-		   struct cl_attr *attr)
+static int
+lmv_merge_attr(struct obd_export *exp, const struct lmv_stripe_md *lsm,
+	       struct cl_attr *attr)
 {
 	int i;
 
