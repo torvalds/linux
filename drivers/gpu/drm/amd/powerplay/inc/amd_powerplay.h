@@ -260,6 +260,7 @@ enum amd_pp_clock_type {
 struct amd_pp_clocks {
 	uint32_t count;
 	uint32_t clock[MAX_NUM_CLOCKS];
+	uint32_t latency[MAX_NUM_CLOCKS];
 };
 
 
