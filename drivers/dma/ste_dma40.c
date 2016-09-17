@@ -3730,7 +3730,7 @@ failure:
 	kfree(base->lookup_phy_chans);
 	kfree(base->phy_res);
 	kfree(base);
-report_failure:
+ report_failure:
 	d40_err(&pdev->dev, "probe failed\n");
 	return ret;
 }
