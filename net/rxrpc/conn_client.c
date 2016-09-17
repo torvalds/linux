@@ -721,7 +721,6 @@ void rxrpc_disconnect_client_call(struct rxrpc_call *call)
 	}
 
 	ASSERTCMP(rcu_access_pointer(chan->call), ==, call);
-	ASSERTCMP(atomic_read(&conn->usage), >=, 2);
 
 	/* If a client call was exposed to the world, we save the result for
 	 * retransmission.
