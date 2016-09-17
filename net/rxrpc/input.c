@@ -440,6 +440,8 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 	hard_ack = first_soft_ack - 1;
 	nr_acks = buf.ack.nAcks;
 
+	trace_rxrpc_rx_ack(call, first_soft_ack, buf.ack.reason, nr_acks);
+
 	_proto("Rx ACK %%%u { m=%hu f=#%u p=#%u s=%%%u r=%s n=%u }",
 	       sp->hdr.serial,
 	       ntohs(buf.ack.maxSkew),
