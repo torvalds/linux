@@ -83,8 +83,6 @@ struct super_operations lustre_super_operations = {
 };
 MODULE_ALIAS_FS("lustre");
 
-void lustre_register_client_process_config(int (*cpc)(struct lustre_cfg *lcfg));
-
 static int __init lustre_init(void)
 {
 	lnet_process_id_t lnet_id;
