@@ -1401,7 +1401,7 @@ static int __init fbtft_device_init(void)
 	long val;
 	int ret = 0;
 
-	if (name == NULL) {
+	if (!name) {
 #ifdef MODULE
 		pr_err("missing module parameter: 'name'\n");
 		return -EINVAL;
