@@ -186,7 +186,8 @@ int dgnc_tty_register(struct dgnc_board *brd)
 	if (IS_ERR(brd->serial_driver))
 		return PTR_ERR(brd->serial_driver);
 
-	snprintf(brd->serial_name, MAXTTYNAMELEN, "tty_dgnc_%d_", brd->boardnum);
+	snprintf(brd->serial_name, MAXTTYNAMELEN, "tty_dgnc_%d_",
+		 brd->boardnum);
 
 	brd->serial_driver->name = brd->serial_name;
 	brd->serial_driver->name_base = 0;
