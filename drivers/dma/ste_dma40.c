@@ -2891,7 +2891,7 @@ static int __init d40_dmaengine_init(struct d40_base *base,
 
 	if (err) {
 		d40_err(base->dev, "Failed to register slave channels\n");
-		goto failure1;
+		goto exit;
 	}
 
 	d40_chan_init(base, &base->dma_memcpy, base->log_chans,
@@ -2908,7 +2908,7 @@ static int __init d40_dmaengine_init(struct d40_base *base,
 	if (err) {
 		d40_err(base->dev,
 			"Failed to register memcpy only channels\n");
-		goto failure2;
+		goto unregister_slave;
 	}
 
 	d40_chan_init(base, &base->dma_both, base->phy_chans,
@@ -2926,14 +2926,14 @@ static int __init d40_dmaengine_init(struct d40_base *base,
 	if (err) {
 		d40_err(base->dev,
 			"Failed to register logical and physical capable channels\n");
-		goto failure3;
+		goto unregister_memcpy;
 	}
 	return 0;
-failure3:
+ unregister_memcpy:
 	dma_async_device_unregister(&base->dma_memcpy);
-failure2:
+ unregister_slave:
 	dma_async_device_unregister(&base->dma_slave);
-failure1:
+ exit:
 	return err;
 }
 
