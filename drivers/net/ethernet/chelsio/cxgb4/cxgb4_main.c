@@ -226,11 +226,6 @@ static struct dentry *cxgb4_debugfs_root;
 
 LIST_HEAD(adapter_list);
 DEFINE_MUTEX(uld_mutex);
-/* Adapter list to be accessed from atomic context */
-static LIST_HEAD(adap_rcu_list);
-static DEFINE_SPINLOCK(adap_rcu_lock);
-static struct cxgb4_uld_info ulds[CXGB4_ULD_MAX];
-static const char *const uld_str[] = { "RDMA", "iSCSI", "iSCSIT" };
 
 static void link_report(struct net_device *dev)
 {
@@ -678,56 +673,6 @@ out:
 	return 0;
 }
 
-/* Flush the aggregated lro sessions */
-static void uldrx_flush_handler(struct sge_rspq *q)
-{
-	if (ulds[q->uld].lro_flush)
-		ulds[q->uld].lro_flush(&q->lro_mgr);
-}
-
-/**
- *	uldrx_handler - response queue handler for ULD queues
- *	@q: the response queue that received the packet
- *	@rsp: the response queue descriptor holding the offload message
- *	@gl: the gather list of packet fragments
- *
- *	Deliver an ingress offload packet to a ULD.  All processing is done by
- *	the ULD, we just maintain statistics.
- */
-static int uldrx_handler(struct sge_rspq *q, const __be64 *rsp,
-			 const struct pkt_gl *gl)
-{
-	struct sge_ofld_rxq *rxq = container_of(q, struct sge_ofld_rxq, rspq);
-	int ret;
-
-	/* FW can send CPLs encapsulated in a CPL_FW4_MSG.
-	 */
-	if (((const struct rss_header *)rsp)->opcode == CPL_FW4_MSG &&
-	    ((const struct cpl_fw4_msg *)(rsp + 1))->type == FW_TYPE_RSSCPL)
-		rsp += 2;
-
-	if (q->flush_handler)
-		ret = ulds[q->uld].lro_rx_handler(q->adap->uld_handle[q->uld],
-						  rsp, gl, &q->lro_mgr,
-						  &q->napi);
-	else
-		ret = ulds[q->uld].rx_handler(q->adap->uld_handle[q->uld],
-					      rsp, gl);
-
-	if (ret) {
-		rxq->stats.nomem++;
-		return -1;
-	}
-
-	if (gl == NULL)
-		rxq->stats.imm++;
-	else if (gl == CXGB4_MSG_AN)
-		rxq->stats.an++;
-	else
-		rxq->stats.pkts++;
-	return 0;
-}
-
 static void disable_msi(struct adapter *adapter)
 {
 	if (adapter->flags & USING_MSIX) {
@@ -779,30 +724,12 @@ static void name_msix_vecs(struct adapter *adap)
 			snprintf(adap->msix_info[msi_idx].desc, n, "%s-Rx%d",
 				 d->name, i);
 	}
-
-	/* offload queues */
-	for_each_iscsirxq(&adap->sge, i)
-		snprintf(adap->msix_info[msi_idx++].desc, n, "%s-iscsi%d",
-			 adap->port[0]->name, i);
-
-	for_each_iscsitrxq(&adap->sge, i)
-		snprintf(adap->msix_info[msi_idx++].desc, n, "%s-iSCSIT%d",
-			 adap->port[0]->name, i);
-
-	for_each_rdmarxq(&adap->sge, i)
-		snprintf(adap->msix_info[msi_idx++].desc, n, "%s-rdma%d",
-			 adap->port[0]->name, i);
-
-	for_each_rdmaciq(&adap->sge, i)
-		snprintf(adap->msix_info[msi_idx++].desc, n, "%s-rdma-ciq%d",
-			 adap->port[0]->name, i);
 }
 
 static int request_msix_queue_irqs(struct adapter *adap)
 {
 	struct sge *s = &adap->sge;
-	int err, ethqidx, iscsiqidx = 0, rdmaqidx = 0, rdmaciqqidx = 0;
-	int iscsitqidx = 0;
+	int err, ethqidx;
 	int msi_index = 2;
 
 	err = request_irq(adap->msix_info[1].vec, t4_sge_intr_msix, 0,
@@ -819,57 +746,9 @@ static int request_msix_queue_irqs(struct adapter *adap)
 			goto unwind;
 		msi_index++;
 	}
-	for_each_iscsirxq(s, iscsiqidx) {
-		err = request_irq(adap->msix_info[msi_index].vec,
-				  t4_sge_intr_msix, 0,
-				  adap->msix_info[msi_index].desc,
-				  &s->iscsirxq[iscsiqidx].rspq);
-		if (err)
-			goto unwind;
-		msi_index++;
-	}
-	for_each_iscsitrxq(s, iscsitqidx) {
-		err = request_irq(adap->msix_info[msi_index].vec,
-				  t4_sge_intr_msix, 0,
-				  adap->msix_info[msi_index].desc,
-				  &s->iscsitrxq[iscsitqidx].rspq);
-		if (err)
-			goto unwind;
-		msi_index++;
-	}
-	for_each_rdmarxq(s, rdmaqidx) {
-		err = request_irq(adap->msix_info[msi_index].vec,
-				  t4_sge_intr_msix, 0,
-				  adap->msix_info[msi_index].desc,
-				  &s->rdmarxq[rdmaqidx].rspq);
-		if (err)
-			goto unwind;
-		msi_index++;
-	}
-	for_each_rdmaciq(s, rdmaciqqidx) {
-		err = request_irq(adap->msix_info[msi_index].vec,
-				  t4_sge_intr_msix, 0,
-				  adap->msix_info[msi_index].desc,
-				  &s->rdmaciq[rdmaciqqidx].rspq);
-		if (err)
-			goto unwind;
-		msi_index++;
-	}
 	return 0;
 
 unwind:
-	while (--rdmaciqqidx >= 0)
-		free_irq(adap->msix_info[--msi_index].vec,
-			 &s->rdmaciq[rdmaciqqidx].rspq);
-	while (--rdmaqidx >= 0)
-		free_irq(adap->msix_info[--msi_index].vec,
-			 &s->rdmarxq[rdmaqidx].rspq);
-	while (--iscsitqidx >= 0)
-		free_irq(adap->msix_info[--msi_index].vec,
-			 &s->iscsitrxq[iscsitqidx].rspq);
-	while (--iscsiqidx >= 0)
-		free_irq(adap->msix_info[--msi_index].vec,
-			 &s->iscsirxq[iscsiqidx].rspq);
 	while (--ethqidx >= 0)
 		free_irq(adap->msix_info[--msi_index].vec,
 			 &s->ethrxq[ethqidx].rspq);
@@ -885,16 +764,6 @@ static void free_msix_queue_irqs(struct adapter *adap)
 	free_irq(adap->msix_info[1].vec, &s->fw_evtq);
 	for_each_ethrxq(s, i)
 		free_irq(adap->msix_info[msi_index++].vec, &s->ethrxq[i].rspq);
-	for_each_iscsirxq(s, i)
-		free_irq(adap->msix_info[msi_index++].vec,
-			 &s->iscsirxq[i].rspq);
-	for_each_iscsitrxq(s, i)
-		free_irq(adap->msix_info[msi_index++].vec,
-			 &s->iscsitrxq[i].rspq);
-	for_each_rdmarxq(s, i)
-		free_irq(adap->msix_info[msi_index++].vec, &s->rdmarxq[i].rspq);
-	for_each_rdmaciq(s, i)
-		free_irq(adap->msix_info[msi_index++].vec, &s->rdmaciq[i].rspq);
 }
 
 /**
@@ -1033,42 +902,11 @@ static void enable_rx(struct adapter *adap)
 	}
 }
 
-static int alloc_ofld_rxqs(struct adapter *adap, struct sge_ofld_rxq *q,
-			   unsigned int nq, unsigned int per_chan, int msi_idx,
-			   u16 *ids, bool lro)
-{
-	int i, err;
 
-	for (i = 0; i < nq; i++, q++) {
-		if (msi_idx > 0)
-			msi_idx++;
-		err = t4_sge_alloc_rxq(adap, &q->rspq, false,
-				       adap->port[i / per_chan],
-				       msi_idx, q->fl.size ? &q->fl : NULL,
-				       uldrx_handler,
-				       lro ? uldrx_flush_handler : NULL,
-				       0);
-		if (err)
-			return err;
-		memset(&q->stats, 0, sizeof(q->stats));
-		if (ids)
-			ids[i] = q->rspq.abs_id;
-	}
-	return 0;
-}
-
-/**
- *	setup_sge_queues - configure SGE Tx/Rx/response queues
- *	@adap: the adapter
- *
- *	Determines how many sets of SGE queues to use and initializes them.
- *	We support multiple queue sets per port if we have MSI-X, otherwise
- *	just one queue set per port.
- */
-static int setup_sge_queues(struct adapter *adap)
+static int setup_fw_sge_queues(struct adapter *adap)
 {
-	int err, i, j;
 	struct sge *s = &adap->sge;
+	int err = 0;
 
 	bitmap_zero(s->starving_fl, s->egr_sz);
 	bitmap_zero(s->txq_maperr, s->egr_sz);
@@ -1083,25 +921,27 @@ static int setup_sge_queues(struct adapter *adap)
 		adap->msi_idx = -((int)s->intrq.abs_id + 1);
 	}
 
-	/* NOTE: If you add/delete any Ingress/Egress Queue allocations in here,
-	 * don't forget to update the following which need to be
-	 * synchronized to and changes here.
-	 *
-	 * 1. The calculations of MAX_INGQ in cxgb4.h.
-	 *
-	 * 2. Update enable_msix/name_msix_vecs/request_msix_queue_irqs
-	 *    to accommodate any new/deleted Ingress Queues
-	 *    which need MSI-X Vectors.
-	 *
-	 * 3. Update sge_qinfo_show() to include information on the
-	 *    new/deleted queues.
-	 */
 	err = t4_sge_alloc_rxq(adap, &s->fw_evtq, true, adap->port[0],
 			       adap->msi_idx, NULL, fwevtq_handler, NULL, -1);
-	if (err) {
-freeout:	t4_free_sge_resources(adap);
-		return err;
-	}
+	if (err)
+		t4_free_sge_resources(adap);
+	return err;
+}
+
+/**
+ *	setup_sge_queues - configure SGE Tx/Rx/response queues
+ *	@adap: the adapter
+ *
+ *	Determines how many sets of SGE queues to use and initializes them.
+ *	We support multiple queue sets per port if we have MSI-X, otherwise
+ *	just one queue set per port.
+ */
+static int setup_sge_queues(struct adapter *adap)
+{
+	int err, i, j;
+	struct sge *s = &adap->sge;
+	struct sge_uld_rxq_info *rxq_info = s->uld_rxq_info[CXGB4_ULD_RDMA];
+	unsigned int cmplqid = 0;
 
 	for_each_port(adap, i) {
 		struct net_device *dev = adap->port[i];
@@ -1132,8 +972,8 @@ freeout:	t4_free_sge_resources(adap);
 		}
 	}
 
-	j = s->iscsiqsets / adap->params.nports; /* iscsi queues per channel */
-	for_each_iscsirxq(s, i) {
+	j = s->ofldqsets / adap->params.nports; /* iscsi queues per channel */
+	for_each_ofldtxq(s, i) {
 		err = t4_sge_alloc_ofld_txq(adap, &s->ofldtxq[i],
 					    adap->port[i / j],
 					    s->fw_evtq.cntxt_id);
@@ -1141,30 +981,15 @@ freeout:	t4_free_sge_resources(adap);
 			goto freeout;
 	}
 
-#define ALLOC_OFLD_RXQS(firstq, nq, per_chan, ids, lro) do { \
-	err = alloc_ofld_rxqs(adap, firstq, nq, per_chan, adap->msi_idx, ids, lro); \
-	if (err) \
-		goto freeout; \
-	if (adap->msi_idx > 0) \
-		adap->msi_idx += nq; \
-} while (0)
-
-	ALLOC_OFLD_RXQS(s->iscsirxq, s->iscsiqsets, j, s->iscsi_rxq, false);
-	ALLOC_OFLD_RXQS(s->iscsitrxq, s->niscsitq, j, s->iscsit_rxq, true);
-	ALLOC_OFLD_RXQS(s->rdmarxq, s->rdmaqs, 1, s->rdma_rxq, false);
-	j = s->rdmaciqs / adap->params.nports; /* rdmaq queues per channel */
-	ALLOC_OFLD_RXQS(s->rdmaciq, s->rdmaciqs, j, s->rdma_ciq, false);
-
-#undef ALLOC_OFLD_RXQS
-
 	for_each_port(adap, i) {
-		/*
-		 * Note that ->rdmarxq[i].rspq.cntxt_id below is 0 if we don't
+		/* Note that cmplqid below is 0 if we don't
 		 * have RDMA queues, and that's the right value.
 		 */
+		if (rxq_info)
+			cmplqid	= rxq_info->uldrxq[i].rspq.cntxt_id;
+
 		err = t4_sge_alloc_ctrl_txq(adap, &s->ctrlq[i], adap->port[i],
-					    s->fw_evtq.cntxt_id,
-					    s->rdmarxq[i].rspq.cntxt_id);
+					    s->fw_evtq.cntxt_id, cmplqid);
 		if (err)
 			goto freeout;
 	}
@@ -1175,6 +1000,9 @@ freeout:	t4_free_sge_resources(adap);
 		     RSSCONTROL_V(netdev2pinfo(adap->port[0])->tx_chan) |
 		     QUEUENUMBER_V(s->ethrxq[0].rspq.abs_id));
 	return 0;
+freeout:
+	t4_free_sge_resources(adap);
+	return err;
 }
 
 /*
@@ -2317,7 +2145,7 @@ static void disable_dbs(struct adapter *adap)
 
 	for_each_ethrxq(&adap->sge, i)
 		disable_txq_db(&adap->sge.ethtxq[i].q);
-	for_each_iscsirxq(&adap->sge, i)
+	for_each_ofldtxq(&adap->sge, i)
 		disable_txq_db(&adap->sge.ofldtxq[i].q);
 	for_each_port(adap, i)
 		disable_txq_db(&adap->sge.ctrlq[i].q);
@@ -2329,7 +2157,7 @@ static void enable_dbs(struct adapter *adap)
 
 	for_each_ethrxq(&adap->sge, i)
 		enable_txq_db(adap, &adap->sge.ethtxq[i].q);
-	for_each_iscsirxq(&adap->sge, i)
+	for_each_ofldtxq(&adap->sge, i)
 		enable_txq_db(adap, &adap->sge.ofldtxq[i].q);
 	for_each_port(adap, i)
 		enable_txq_db(adap, &adap->sge.ctrlq[i].q);
@@ -2337,9 +2165,10 @@ static void enable_dbs(struct adapter *adap)
 
 static void notify_rdma_uld(struct adapter *adap, enum cxgb4_control cmd)
 {
-	if (adap->uld_handle[CXGB4_ULD_RDMA])
-		ulds[CXGB4_ULD_RDMA].control(adap->uld_handle[CXGB4_ULD_RDMA],
-				cmd);
+	enum cxgb4_uld type = CXGB4_ULD_RDMA;
+
+	if (adap->uld && adap->uld[type].handle)
+		adap->uld[type].control(adap->uld[type].handle, cmd);
 }
 
 static void process_db_full(struct work_struct *work)
@@ -2393,13 +2222,14 @@ out:
 	if (ret)
 		CH_WARN(adap, "DB drop recovery failed.\n");
 }
+
 static void recover_all_queues(struct adapter *adap)
 {
 	int i;
 
 	for_each_ethrxq(&adap->sge, i)
 		sync_txq_pidx(adap, &adap->sge.ethtxq[i].q);
-	for_each_iscsirxq(&adap->sge, i)
+	for_each_ofldtxq(&adap->sge, i)
 		sync_txq_pidx(adap, &adap->sge.ofldtxq[i].q);
 	for_each_port(adap, i)
 		sync_txq_pidx(adap, &adap->sge.ctrlq[i].q);
@@ -2464,94 +2294,12 @@ void t4_db_dropped(struct adapter *adap)
 	queue_work(adap->workq, &adap->db_drop_task);
 }
 
-static void uld_attach(struct adapter *adap, unsigned int uld)
+void t4_register_netevent_notifier(void)
 {
-	void *handle;
-	struct cxgb4_lld_info lli;
-	unsigned short i;
-
-	lli.pdev = adap->pdev;
-	lli.pf = adap->pf;
-	lli.l2t = adap->l2t;
-	lli.tids = &adap->tids;
-	lli.ports = adap->port;
-	lli.vr = &adap->vres;
-	lli.mtus = adap->params.mtus;
-	if (uld == CXGB4_ULD_RDMA) {
-		lli.rxq_ids = adap->sge.rdma_rxq;
-		lli.ciq_ids = adap->sge.rdma_ciq;
-		lli.nrxq = adap->sge.rdmaqs;
-		lli.nciq = adap->sge.rdmaciqs;
-	} else if (uld == CXGB4_ULD_ISCSI) {
-		lli.rxq_ids = adap->sge.iscsi_rxq;
-		lli.nrxq = adap->sge.iscsiqsets;
-	} else if (uld == CXGB4_ULD_ISCSIT) {
-		lli.rxq_ids = adap->sge.iscsit_rxq;
-		lli.nrxq = adap->sge.niscsitq;
-	}
-	lli.ntxq = adap->sge.iscsiqsets;
-	lli.nchan = adap->params.nports;
-	lli.nports = adap->params.nports;
-	lli.wr_cred = adap->params.ofldq_wr_cred;
-	lli.adapter_type = adap->params.chip;
-	lli.iscsi_iolen = MAXRXDATA_G(t4_read_reg(adap, TP_PARA_REG2_A));
-	lli.iscsi_tagmask = t4_read_reg(adap, ULP_RX_ISCSI_TAGMASK_A);
-	lli.iscsi_pgsz_order = t4_read_reg(adap, ULP_RX_ISCSI_PSZ_A);
-	lli.iscsi_llimit = t4_read_reg(adap, ULP_RX_ISCSI_LLIMIT_A);
-	lli.iscsi_ppm = &adap->iscsi_ppm;
-	lli.cclk_ps = 1000000000 / adap->params.vpd.cclk;
-	lli.udb_density = 1 << adap->params.sge.eq_qpp;
-	lli.ucq_density = 1 << adap->params.sge.iq_qpp;
-	lli.filt_mode = adap->params.tp.vlan_pri_map;
-	/* MODQ_REQ_MAP sets queues 0-3 to chan 0-3 */
-	for (i = 0; i < NCHAN; i++)
-		lli.tx_modq[i] = i;
-	lli.gts_reg = adap->regs + MYPF_REG(SGE_PF_GTS_A);
-	lli.db_reg = adap->regs + MYPF_REG(SGE_PF_KDOORBELL_A);
-	lli.fw_vers = adap->params.fw_vers;
-	lli.dbfifo_int_thresh = dbfifo_int_thresh;
-	lli.sge_ingpadboundary = adap->sge.fl_align;
-	lli.sge_egrstatuspagesize = adap->sge.stat_len;
-	lli.sge_pktshift = adap->sge.pktshift;
-	lli.enable_fw_ofld_conn = adap->flags & FW_OFLD_CONN;
-	lli.max_ordird_qp = adap->params.max_ordird_qp;
-	lli.max_ird_adapter = adap->params.max_ird_adapter;
-	lli.ulptx_memwrite_dsgl = adap->params.ulptx_memwrite_dsgl;
-	lli.nodeid = dev_to_node(adap->pdev_dev);
-
-	handle = ulds[uld].add(&lli);
-	if (IS_ERR(handle)) {
-		dev_warn(adap->pdev_dev,
-			 "could not attach to the %s driver, error %ld\n",
-			 uld_str[uld], PTR_ERR(handle));
-		return;
-	}
-
-	adap->uld_handle[uld] = handle;
-
 	if (!netevent_registered) {
 		register_netevent_notifier(&cxgb4_netevent_nb);
 		netevent_registered = true;
 	}
-
-	if (adap->flags & FULL_INIT_DONE)
-		ulds[uld].state_change(handle, CXGB4_STATE_UP);
-}
-
-static void attach_ulds(struct adapter *adap)
-{
-	unsigned int i;
-
-	spin_lock(&adap_rcu_lock);
-	list_add_tail_rcu(&adap->rcu_node, &adap_rcu_list);
-	spin_unlock(&adap_rcu_lock);
-
-	mutex_lock(&uld_mutex);
-	list_add_tail(&adap->list_node, &adapter_list);
-	for (i = 0; i < CXGB4_ULD_MAX; i++)
-		if (ulds[i].add)
-			uld_attach(adap, i);
-	mutex_unlock(&uld_mutex);
 }
 
 static void detach_ulds(struct adapter *adap)
@@ -2561,12 +2309,6 @@ static void detach_ulds(struct adapter *adap)
 	mutex_lock(&uld_mutex);
 	list_del(&adap->list_node);
 	for (i = 0; i < CXGB4_ULD_MAX; i++)
-		if (adap->uld_handle[i]) {
-			ulds[i].state_change(adap->uld_handle[i],
-					     CXGB4_STATE_DETACH);
-			adap->uld_handle[i] = NULL;
-		}
-	for (i = 0; i < CXGB4_PCI_ULD_MAX; i++)
 		if (adap->uld && adap->uld[i].handle) {
 			adap->uld[i].state_change(adap->uld[i].handle,
 					     CXGB4_STATE_DETACH);
@@ -2577,10 +2319,6 @@ static void detach_ulds(struct adapter *adap)
 		netevent_registered = false;
 	}
 	mutex_unlock(&uld_mutex);
-
-	spin_lock(&adap_rcu_lock);
-	list_del_rcu(&adap->rcu_node);
-	spin_unlock(&adap_rcu_lock);
 }
 
 static void notify_ulds(struct adapter *adap, enum cxgb4_state new_state)
@@ -2589,64 +2327,11 @@ static void notify_ulds(struct adapter *adap, enum cxgb4_state new_state)
 
 	mutex_lock(&uld_mutex);
 	for (i = 0; i < CXGB4_ULD_MAX; i++)
-		if (adap->uld_handle[i])
-			ulds[i].state_change(adap->uld_handle[i], new_state);
-	for (i = 0; i < CXGB4_PCI_ULD_MAX; i++)
 		if (adap->uld && adap->uld[i].handle)
 			adap->uld[i].state_change(adap->uld[i].handle,
 						  new_state);
 	mutex_unlock(&uld_mutex);
 }
-
-/**
- *	cxgb4_register_uld - register an upper-layer driver
- *	@type: the ULD type
- *	@p: the ULD methods
- *
- *	Registers an upper-layer driver with this driver and notifies the ULD
- *	about any presently available devices that support its type.  Returns
- *	%-EBUSY if a ULD of the same type is already registered.
- */
-int cxgb4_register_uld(enum cxgb4_uld type, const struct cxgb4_uld_info *p)
-{
-	int ret = 0;
-	struct adapter *adap;
-
-	if (type >= CXGB4_ULD_MAX)
-		return -EINVAL;
-	mutex_lock(&uld_mutex);
-	if (ulds[type].add) {
-		ret = -EBUSY;
-		goto out;
-	}
-	ulds[type] = *p;
-	list_for_each_entry(adap, &adapter_list, list_node)
-		uld_attach(adap, type);
-out:	mutex_unlock(&uld_mutex);
-	return ret;
-}
-EXPORT_SYMBOL(cxgb4_register_uld);
-
-/**
- *	cxgb4_unregister_uld - unregister an upper-layer driver
- *	@type: the ULD type
- *
- *	Unregisters an existing upper-layer driver.
- */
-int cxgb4_unregister_uld(enum cxgb4_uld type)
-{
-	struct adapter *adap;
-
-	if (type >= CXGB4_ULD_MAX)
-		return -EINVAL;
-	mutex_lock(&uld_mutex);
-	list_for_each_entry(adap, &adapter_list, list_node)
-		adap->uld_handle[type] = NULL;
-	ulds[type].add = NULL;
-	mutex_unlock(&uld_mutex);
-	return 0;
-}
-EXPORT_SYMBOL(cxgb4_unregister_uld);
 
 #if IS_ENABLED(CONFIG_IPV6)
 static int cxgb4_inet6addr_handler(struct notifier_block *this,
@@ -2752,7 +2437,6 @@ static int cxgb_up(struct adapter *adap)
 				  adap->msix_info[0].desc, adap);
 		if (err)
 			goto irq_err;
-
 		err = request_msix_queue_irqs(adap);
 		if (err) {
 			free_irq(adap->msix_info[0].vec, adap);
@@ -4262,6 +3946,7 @@ static int adap_init0(struct adapter *adap)
 		adap->params.ofldq_wr_cred = val[5];
 
 		adap->params.offload = 1;
+		adap->num_ofld_uld += 1;
 	}
 	if (caps_cmd.rdmacaps) {
 		params[0] = FW_PARAM_PFVF(STAG_START);
@@ -4314,6 +3999,7 @@ static int adap_init0(struct adapter *adap)
 			 "max_ordird_qp %d max_ird_adapter %d\n",
 			 adap->params.max_ordird_qp,
 			 adap->params.max_ird_adapter);
+		adap->num_ofld_uld += 2;
 	}
 	if (caps_cmd.iscsicaps) {
 		params[0] = FW_PARAM_PFVF(ISCSI_START);
@@ -4324,6 +4010,8 @@ static int adap_init0(struct adapter *adap)
 			goto bye;
 		adap->vres.iscsi.start = val[0];
 		adap->vres.iscsi.size = val[1] - val[0] + 1;
+		/* LIO target and cxgb4i initiaitor */
+		adap->num_ofld_uld += 2;
 	}
 	if (caps_cmd.cryptocaps) {
 		/* Should query params here...TODO */
@@ -4523,14 +4211,14 @@ static void cfg_queues(struct adapter *adap)
 #ifndef CONFIG_CHELSIO_T4_DCB
 	int q10g = 0;
 #endif
-	int ciq_size;
 
 	/* Reduce memory usage in kdump environment, disable all offload.
 	 */
 	if (is_kdump_kernel()) {
 		adap->params.offload = 0;
 		adap->params.crypto = 0;
-	} else if (adap->num_uld && uld_mem_alloc(adap)) {
+	} else if (is_uld(adap) && t4_uld_mem_alloc(adap)) {
+		adap->params.offload = 0;
 		adap->params.crypto = 0;
 	}
 
@@ -4576,33 +4264,18 @@ static void cfg_queues(struct adapter *adap)
 	s->ethqsets = qidx;
 	s->max_ethqsets = qidx;   /* MSI-X may lower it later */
 
-	if (is_offload(adap)) {
+	if (is_uld(adap)) {
 		/*
 		 * For offload we use 1 queue/channel if all ports are up to 1G,
 		 * otherwise we divide all available queues amongst the channels
 		 * capped by the number of available cores.
 		 */
 		if (n10g) {
-			i = min_t(int, ARRAY_SIZE(s->iscsirxq),
-				  num_online_cpus());
-			s->iscsiqsets = roundup(i, adap->params.nports);
-		} else
-			s->iscsiqsets = adap->params.nports;
-		/* For RDMA one Rx queue per channel suffices */
-		s->rdmaqs = adap->params.nports;
-		/* Try and allow at least 1 CIQ per cpu rounding down
-		 * to the number of ports, with a minimum of 1 per port.
-		 * A 2 port card in a 6 cpu system: 6 CIQs, 3 / port.
-		 * A 4 port card in a 6 cpu system: 4 CIQs, 1 / port.
-		 * A 4 port card in a 2 cpu system: 4 CIQs, 1 / port.
-		 */
-		s->rdmaciqs = min_t(int, MAX_RDMA_CIQS, num_online_cpus());
-		s->rdmaciqs = (s->rdmaciqs / adap->params.nports) *
-				adap->params.nports;
-		s->rdmaciqs = max_t(int, s->rdmaciqs, adap->params.nports);
-
-		if (!is_t4(adap->params.chip))
-			s->niscsitq = s->iscsiqsets;
+			i = num_online_cpus();
+			s->ofldqsets = roundup(i, adap->params.nports);
+		} else {
+			s->ofldqsets = adap->params.nports;
+		}
 	}
 
 	for (i = 0; i < ARRAY_SIZE(s->ethrxq); i++) {
@@ -4621,47 +4294,8 @@ static void cfg_queues(struct adapter *adap)
 	for (i = 0; i < ARRAY_SIZE(s->ofldtxq); i++)
 		s->ofldtxq[i].q.size = 1024;
 
-	for (i = 0; i < ARRAY_SIZE(s->iscsirxq); i++) {
-		struct sge_ofld_rxq *r = &s->iscsirxq[i];
-
-		init_rspq(adap, &r->rspq, 5, 1, 1024, 64);
-		r->rspq.uld = CXGB4_ULD_ISCSI;
-		r->fl.size = 72;
-	}
-
-	if (!is_t4(adap->params.chip)) {
-		for (i = 0; i < ARRAY_SIZE(s->iscsitrxq); i++) {
-			struct sge_ofld_rxq *r = &s->iscsitrxq[i];
-
-			init_rspq(adap, &r->rspq, 5, 1, 1024, 64);
-			r->rspq.uld = CXGB4_ULD_ISCSIT;
-			r->fl.size = 72;
-		}
-	}
-
-	for (i = 0; i < ARRAY_SIZE(s->rdmarxq); i++) {
-		struct sge_ofld_rxq *r = &s->rdmarxq[i];
-
-		init_rspq(adap, &r->rspq, 5, 1, 511, 64);
-		r->rspq.uld = CXGB4_ULD_RDMA;
-		r->fl.size = 72;
-	}
-
-	ciq_size = 64 + adap->vres.cq.size + adap->tids.nftids;
-	if (ciq_size > SGE_MAX_IQ_SIZE) {
-		CH_WARN(adap, "CIQ size too small for available IQs\n");
-		ciq_size = SGE_MAX_IQ_SIZE;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(s->rdmaciq); i++) {
-		struct sge_ofld_rxq *r = &s->rdmaciq[i];
-
-		init_rspq(adap, &r->rspq, 5, 1, ciq_size, 64);
-		r->rspq.uld = CXGB4_ULD_RDMA;
-	}
-
 	init_rspq(adap, &s->fw_evtq, 0, 1, 1024, 64);
-	init_rspq(adap, &s->intrq, 0, 1, 2 * MAX_INGQ, 64);
+	init_rspq(adap, &s->intrq, 0, 1, 512, 64);
 }
 
 /*
@@ -4695,7 +4329,15 @@ static void reduce_ethqs(struct adapter *adap, int n)
 static int get_msix_info(struct adapter *adap)
 {
 	struct uld_msix_info *msix_info;
-	int max_ingq = (MAX_OFLD_QSETS * adap->num_uld);
+	unsigned int max_ingq = 0;
+
+	if (is_offload(adap))
+		max_ingq += MAX_OFLD_QSETS * adap->num_ofld_uld;
+	if (is_pci_uld(adap))
+		max_ingq += MAX_OFLD_QSETS * adap->num_uld;
+
+	if (!max_ingq)
+		goto out;
 
 	msix_info = kcalloc(max_ingq, sizeof(*msix_info), GFP_KERNEL);
 	if (!msix_info)
@@ -4709,12 +4351,13 @@ static int get_msix_info(struct adapter *adap)
 	}
 	spin_lock_init(&adap->msix_bmap_ulds.lock);
 	adap->msix_info_ulds = msix_info;
+out:
 	return 0;
 }
 
 static void free_msix_info(struct adapter *adap)
 {
-	if (!adap->num_uld)
+	if (!(adap->num_uld && adap->num_ofld_uld))
 		return;
 
 	kfree(adap->msix_info_ulds);
@@ -4733,32 +4376,32 @@ static int enable_msix(struct adapter *adap)
 	struct msix_entry *entries;
 	int max_ingq = MAX_INGQ;
 
-	max_ingq += (MAX_OFLD_QSETS * adap->num_uld);
+	if (is_pci_uld(adap))
+		max_ingq += (MAX_OFLD_QSETS * adap->num_uld);
+	if (is_offload(adap))
+		max_ingq += (MAX_OFLD_QSETS * adap->num_ofld_uld);
 	entries = kmalloc(sizeof(*entries) * (max_ingq + 1),
 			  GFP_KERNEL);
 	if (!entries)
 		return -ENOMEM;
 
 	/* map for msix */
-	if (is_pci_uld(adap) && get_msix_info(adap))
+	if (get_msix_info(adap)) {
+		adap->params.offload = 0;
 		adap->params.crypto = 0;
+	}
 
 	for (i = 0; i < max_ingq + 1; ++i)
 		entries[i].entry = i;
 
 	want = s->max_ethqsets + EXTRA_VECS;
 	if (is_offload(adap)) {
-		want += s->rdmaqs + s->rdmaciqs + s->iscsiqsets	+
-			s->niscsitq;
-		/* need nchan for each possible ULD */
-		if (is_t4(adap->params.chip))
-			ofld_need = 3 * nchan;
-		else
-			ofld_need = 4 * nchan;
+		want += adap->num_ofld_uld * s->ofldqsets;
+		ofld_need = adap->num_ofld_uld * nchan;
 	}
 	if (is_pci_uld(adap)) {
-		want += netif_get_num_default_rss_queues() * nchan;
-		uld_need = nchan;
+		want += adap->num_uld * s->ofldqsets;
+		uld_need = adap->num_uld * nchan;
 	}
 #ifdef CONFIG_CHELSIO_T4_DCB
 	/* For Data Center Bridging we need 8 Ethernet TX Priority Queues for
@@ -4786,43 +4429,25 @@ static int enable_msix(struct adapter *adap)
 		if (i < s->ethqsets)
 			reduce_ethqs(adap, i);
 	}
-	if (is_pci_uld(adap)) {
+	if (is_uld(adap)) {
 		if (allocated < want)
 			s->nqs_per_uld = nchan;
 		else
-			s->nqs_per_uld = netif_get_num_default_rss_queues() *
-					nchan;
+			s->nqs_per_uld = s->ofldqsets;
 	}
 
-	if (is_offload(adap)) {
-		if (allocated < want) {
-			s->rdmaqs = nchan;
-			s->rdmaciqs = nchan;
-
-			if (!is_t4(adap->params.chip))
-				s->niscsitq = nchan;
-		}
-
-		/* leftovers go to OFLD */
-		i = allocated - EXTRA_VECS - s->max_ethqsets -
-			s->rdmaqs - s->rdmaciqs - s->niscsitq;
-		if (is_pci_uld(adap))
-			i -= s->nqs_per_uld * adap->num_uld;
-		s->iscsiqsets = (i / nchan) * nchan;  /* round down */
-
-	}
-
-	for (i = 0; i < (allocated - (s->nqs_per_uld * adap->num_uld)); ++i)
+	for (i = 0; i < (s->max_ethqsets + EXTRA_VECS); ++i)
 		adap->msix_info[i].vec = entries[i].vector;
-	if (is_pci_uld(adap)) {
-		for (j = 0 ; i < allocated; ++i, j++)
+	if (is_uld(adap)) {
+		for (j = 0 ; i < allocated; ++i, j++) {
 			adap->msix_info_ulds[j].vec = entries[i].vector;
+			adap->msix_info_ulds[j].idx = i;
+		}
 		adap->msix_bmap_ulds.mapsize = j;
 	}
 	dev_info(adap->pdev_dev, "%d MSI-X vectors allocated, "
-		 "nic %d iscsi %d rdma cpl %d rdma ciq %d uld %d\n",
-		 allocated, s->max_ethqsets, s->iscsiqsets, s->rdmaqs,
-		 s->rdmaciqs, s->nqs_per_uld);
+		 "nic %d per uld %d\n",
+		 allocated, s->max_ethqsets, s->nqs_per_uld);
 
 	kfree(entries);
 	return 0;
@@ -5535,10 +5160,14 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* PCIe EEH recovery on powerpc platforms needs fundamental reset */
 	pdev->needs_freset = 1;
 
-	if (is_offload(adapter))
-		attach_ulds(adapter);
+	if (is_uld(adapter)) {
+		mutex_lock(&uld_mutex);
+		list_add_tail(&adapter->list_node, &adapter_list);
+		mutex_unlock(&uld_mutex);
+	}
 
 	print_adapter_info(adapter);
+	setup_fw_sge_queues(adapter);
 	return 0;
 
 sriov:
@@ -5593,8 +5222,8 @@ sriov:
 	free_some_resources(adapter);
 	if (adapter->flags & USING_MSIX)
 		free_msix_info(adapter);
-	if (adapter->num_uld)
-		uld_mem_free(adapter);
+	if (adapter->num_uld || adapter->num_ofld_uld)
+		t4_uld_mem_free(adapter);
  out_unmap_bar:
 	if (!is_t4(adapter->params.chip))
 		iounmap(adapter->bar2);
@@ -5631,7 +5260,7 @@ static void remove_one(struct pci_dev *pdev)
 		 */
 		destroy_workqueue(adapter->workq);
 
-		if (is_offload(adapter))
+		if (is_uld(adapter))
 			detach_ulds(adapter);
 
 		disable_interrupts(adapter);
@@ -5658,8 +5287,8 @@ static void remove_one(struct pci_dev *pdev)
 
 		if (adapter->flags & USING_MSIX)
 			free_msix_info(adapter);
-		if (adapter->num_uld)
-			uld_mem_free(adapter);
+		if (adapter->num_uld || adapter->num_ofld_uld)
+			t4_uld_mem_free(adapter);
 		free_some_resources(adapter);
 #if IS_ENABLED(CONFIG_IPV6)
 		t4_cleanup_clip_tbl(adapter);
@@ -5690,12 +5319,58 @@ static void remove_one(struct pci_dev *pdev)
 #endif
 }
 
+/* "Shutdown" quiesces the device, stopping Ingress Packet and Interrupt
+ * delivery.  This is essentially a stripped down version of the PCI remove()
+ * function where we do the minimal amount of work necessary to shutdown any
+ * further activity.
+ */
+static void shutdown_one(struct pci_dev *pdev)
+{
+	struct adapter *adapter = pci_get_drvdata(pdev);
+
+	/* As with remove_one() above (see extended comment), we only want do
+	 * do cleanup on PCI Devices which went all the way through init_one()
+	 * ...
+	 */
+	if (!adapter) {
+		pci_release_regions(pdev);
+		return;
+	}
+
+	if (adapter->pf == 4) {
+		int i;
+
+		for_each_port(adapter, i)
+			if (adapter->port[i]->reg_state == NETREG_REGISTERED)
+				cxgb_close(adapter->port[i]);
+
+		t4_uld_clean_up(adapter);
+		disable_interrupts(adapter);
+		disable_msi(adapter);
+
+		t4_sge_stop(adapter);
+		if (adapter->flags & FW_OK)
+			t4_fw_bye(adapter, adapter->mbox);
+	}
+#ifdef CONFIG_PCI_IOV
+	else {
+		if (adapter->port[0])
+			unregister_netdev(adapter->port[0]);
+		iounmap(adapter->regs);
+		kfree(adapter->vfinfo);
+		kfree(adapter);
+		pci_disable_sriov(pdev);
+		pci_release_regions(pdev);
+	}
+#endif
+}
+
 static struct pci_driver cxgb4_driver = {
 	.name     = KBUILD_MODNAME,
 	.id_table = cxgb4_pci_tbl,
 	.probe    = init_one,
 	.remove   = remove_one,
-	.shutdown = remove_one,
+	.shutdown = shutdown_one,
 #ifdef CONFIG_PCI_IOV
 	.sriov_configure = cxgb4_iov_configure,
 #endif
