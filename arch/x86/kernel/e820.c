@@ -802,7 +802,7 @@ unsigned long __init e820_end_of_low_ram_pfn(void)
 	return e820_end_pfn(1UL << (32-PAGE_SHIFT));
 }
 
-static void early_panic(char *msg)
+static void __init early_panic(char *msg)
 {
 	early_printk(msg);
 	panic(msg);
@@ -912,7 +912,7 @@ void __init finish_e820_parsing(void)
 	}
 }
 
-static const char *e820_type_to_string(int e820_type)
+static const char *__init e820_type_to_string(int e820_type)
 {
 	switch (e820_type) {
 	case E820_RESERVED_KERN:
@@ -926,7 +926,7 @@ static const char *e820_type_to_string(int e820_type)
 	}
 }
 
-static unsigned long e820_type_to_iomem_type(int e820_type)
+static unsigned long __init e820_type_to_iomem_type(int e820_type)
 {
 	switch (e820_type) {
 	case E820_RESERVED_KERN:
@@ -942,7 +942,7 @@ static unsigned long e820_type_to_iomem_type(int e820_type)
 	}
 }
 
-static unsigned long e820_type_to_iores_desc(int e820_type)
+static unsigned long __init e820_type_to_iores_desc(int e820_type)
 {
 	switch (e820_type) {
 	case E820_ACPI:
@@ -961,7 +961,7 @@ static unsigned long e820_type_to_iores_desc(int e820_type)
 	}
 }
 
-static bool do_mark_busy(u32 type, struct resource *res)
+static bool __init do_mark_busy(u32 type, struct resource *res)
 {
 	/* this is the legacy bios/dos rom-shadow + mmio region */
 	if (res->start < (1ULL<<20))
@@ -1027,7 +1027,7 @@ void __init e820_reserve_resources(void)
 }
 
 /* How much should we pad RAM ending depending on where it is? */
-static unsigned long ram_alignment(resource_size_t pos)
+static unsigned long __init ram_alignment(resource_size_t pos)
 {
 	unsigned long mb = pos >> 20;
 
