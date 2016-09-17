@@ -96,7 +96,7 @@ int lkl_disk_add(struct lkl_disk *disk)
 		ret = -LKL_ENOMEM;
 		goto out_free;
 	}
-	dev->config.capacity = capacity;
+	dev->config.capacity = capacity / 512;
 
 	ret = virtio_dev_setup(&dev->dev, 1, 32);
 	if (ret)

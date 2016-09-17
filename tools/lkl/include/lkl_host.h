@@ -30,12 +30,20 @@ struct iovec {
 
 extern struct lkl_dev_blk_ops lkl_dev_blk_ops;
 
+/**
+ * struct lkl_blk_req - block device request
+ *
+ * @type: type of request
+ * @prio: priority of request - currently unused
+ * @sector: offset in units 512 bytes for read / write requests
+ * @buf: an array of buffers to be used for read / write requests
+ * @count: the number of buffers
+ */
+struct lkl_blk_req {
 #define LKL_DEV_BLK_TYPE_READ		0
 #define LKL_DEV_BLK_TYPE_WRITE		1
 #define LKL_DEV_BLK_TYPE_FLUSH		4
 #define LKL_DEV_BLK_TYPE_FLUSH_OUT	5
-
-struct lkl_blk_req {
 	unsigned int type;
 	unsigned int prio;
 	unsigned long long sector;
@@ -43,11 +51,27 @@ struct lkl_blk_req {
 	int count;
 };
 
+/**
+ * struct lkl_dev_blk_ops - block device host operations
+ */
 struct lkl_dev_blk_ops {
+	/**
+	 * @get_capacity: returns the disk capacity in bytes
+	 *
+	 * @disk - the disk for which the capacity is requested;
+	 * @res - pointer to receive the capacity, in bytes;
+	 * @returns - 0 in case of success, negative value in case of error
+	 */
 	int (*get_capacity)(struct lkl_disk disk, unsigned long long *res);
 #define LKL_DEV_BLK_STATUS_OK		0
 #define LKL_DEV_BLK_STATUS_IOERR	1
 #define LKL_DEV_BLK_STATUS_UNSUP	2
+	/**
+	 * @request: issue a block request
+	 *
+	 * @disk - the disk the request is issued to;
+	 * @req - a request described by &struct lkl_blk_req
+	 */
 	int (*request)(struct lkl_disk disk, struct lkl_blk_req *req);
 };
 
