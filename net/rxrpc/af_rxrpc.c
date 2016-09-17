@@ -109,12 +109,14 @@ static int rxrpc_validate_address(struct rxrpc_sock *rx,
 		tail = offsetof(struct sockaddr_rxrpc, transport.sin.__pad);
 		break;
 
+#ifdef CONFIG_AF_RXRPC_IPV6
 	case AF_INET6:
 		if (srx->transport_len < sizeof(struct sockaddr_in6))
 			return -EINVAL;
 		tail = offsetof(struct sockaddr_rxrpc, transport) +
 			sizeof(struct sockaddr_in6);
 		break;
+#endif
 
 	default:
 		return -EAFNOSUPPORT;
@@ -413,9 +415,11 @@ static int rxrpc_sendmsg(struct socket *sock, struct msghdr *m, size_t len)
 		case AF_INET:
 			rx->srx.transport_len = sizeof(struct sockaddr_in);
 			break;
+#ifdef CONFIG_AF_RXRPC_IPV6
 		case AF_INET6:
 			rx->srx.transport_len = sizeof(struct sockaddr_in6);
 			break;
+#endif
 		default:
 			ret = -EAFNOSUPPORT;
 			goto error_unlock;
@@ -570,7 +574,8 @@ static int rxrpc_create(struct net *net, struct socket *sock, int protocol,
 		return -EAFNOSUPPORT;
 
 	/* we support transport protocol UDP/UDP6 only */
-	if (protocol != PF_INET && protocol != PF_INET6)
+	if (protocol != PF_INET &&
+	    IS_ENABLED(CONFIG_AF_RXRPC_IPV6) && protocol != PF_INET6)
 		return -EPROTONOSUPPORT;
 
 	if (sock->type != SOCK_DGRAM)

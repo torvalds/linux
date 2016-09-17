@@ -134,6 +134,7 @@ struct rxrpc_connection *rxrpc_find_connection_rcu(struct rxrpc_local *local,
 			    srx.transport.sin.sin_addr.s_addr)
 				goto not_found;
 			break;
+#ifdef CONFIG_AF_RXRPC_IPV6
 		case AF_INET6:
 			if (peer->srx.transport.sin6.sin6_port !=
 			    srx.transport.sin6.sin6_port ||
@@ -142,6 +143,7 @@ struct rxrpc_connection *rxrpc_find_connection_rcu(struct rxrpc_local *local,
 				   sizeof(struct in6_addr)) != 0)
 				goto not_found;
 			break;
+#endif
 		default:
 			BUG();
 		}

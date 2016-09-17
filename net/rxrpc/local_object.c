@@ -58,6 +58,7 @@ static long rxrpc_local_cmp_key(const struct rxrpc_local *local,
 			memcmp(&local->srx.transport.sin.sin_addr,
 			       &srx->transport.sin.sin_addr,
 			       sizeof(struct in_addr));
+#ifdef CONFIG_AF_RXRPC_IPV6
 	case AF_INET6:
 		/* If the choice of UDP6 port is left up to the transport, then
 		 * the endpoint record doesn't match.
@@ -67,6 +68,7 @@ static long rxrpc_local_cmp_key(const struct rxrpc_local *local,
 			memcmp(&local->srx.transport.sin6.sin6_addr,
 			       &srx->transport.sin6.sin6_addr,
 			       sizeof(struct in6_addr));
+#endif
 	default:
 		BUG();
 	}

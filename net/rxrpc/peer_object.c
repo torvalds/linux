@@ -52,11 +52,13 @@ static unsigned long rxrpc_peer_hash_key(struct rxrpc_local *local,
 		size = sizeof(srx->transport.sin.sin_addr);
 		p = (u16 *)&srx->transport.sin.sin_addr;
 		break;
+#ifdef CONFIG_AF_RXRPC_IPV6
 	case AF_INET6:
 		hash_key += (u16 __force)srx->transport.sin.sin_port;
 		size = sizeof(srx->transport.sin6.sin6_addr);
 		p = (u16 *)&srx->transport.sin6.sin6_addr;
 		break;
+#endif
 	default:
 		WARN(1, "AF_RXRPC: Unsupported transport address family\n");
 		return 0;
@@ -100,12 +102,14 @@ static long rxrpc_peer_cmp_key(const struct rxrpc_peer *peer,
 			memcmp(&peer->srx.transport.sin.sin_addr,
 			       &srx->transport.sin.sin_addr,
 			       sizeof(struct in_addr));
+#ifdef CONFIG_AF_RXRPC_IPV6
 	case AF_INET6:
 		return ((u16 __force)peer->srx.transport.sin6.sin6_port -
 			(u16 __force)srx->transport.sin6.sin6_port) ?:
 			memcmp(&peer->srx.transport.sin6.sin6_addr,
 			       &srx->transport.sin6.sin6_addr,
 			       sizeof(struct in6_addr));
+#endif
 	default:
 		BUG();
 	}
@@ -159,7 +163,9 @@ static void rxrpc_assess_MTU_size(struct rxrpc_peer *peer)
 	struct rtable *rt;
 	struct flowi fl;
 	struct flowi4 *fl4 = &fl.u.ip4;
+#ifdef CONFIG_AF_RXRPC_IPV6
 	struct flowi6 *fl6 = &fl.u.ip6;
+#endif
 
 	peer->if_mtu = 1500;
 
@@ -177,6 +183,7 @@ static void rxrpc_assess_MTU_size(struct rxrpc_peer *peer)
 		dst = &rt->dst;
 		break;
 
+#ifdef CONFIG_AF_RXRPC_IPV6
 	case AF_INET6:
 		fl6->flowi6_iif = LOOPBACK_IFINDEX;
 		fl6->flowi6_scope = RT_SCOPE_UNIVERSE;
@@ -191,6 +198,7 @@ static void rxrpc_assess_MTU_size(struct rxrpc_peer *peer)
 			return;
 		}
 		break;
+#endif
 
 	default:
 		BUG();
@@ -241,9 +249,11 @@ static void rxrpc_init_peer(struct rxrpc_peer *peer, unsigned long hash_key)
 	case AF_INET:
 		peer->hdrsize = sizeof(struct iphdr);
 		break;
+#ifdef CONFIG_AF_RXRPC_IPV6
 	case AF_INET6:
 		peer->hdrsize = sizeof(struct ipv6hdr);
 		break;
+#endif
 	default:
 		BUG();
 	}

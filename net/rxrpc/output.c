@@ -259,6 +259,7 @@ send_fragmentable:
 		}
 		break;
 
+#ifdef CONFIG_AF_RXRPC_IPV6
 	case AF_INET6:
 		opt = IPV6_PMTUDISC_DONT;
 		ret = kernel_setsockopt(conn->params.local->socket,
@@ -274,6 +275,7 @@ send_fragmentable:
 					  (char *)&opt, sizeof(opt));
 		}
 		break;
+#endif
 	}
 
 	up_write(&conn->params.local->defrag_sem);
