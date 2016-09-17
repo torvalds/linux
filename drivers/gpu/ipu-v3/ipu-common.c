@@ -978,6 +978,12 @@ static int ipu_submodules_init(struct ipu_soc *ipu,
 		goto err_vdi;
 	}
 
+	ret = ipu_image_convert_init(ipu, dev);
+	if (ret) {
+		unit = "image_convert";
+		goto err_image_convert;
+	}
+
 	ret = ipu_di_init(ipu, dev, 0, ipu_base + devtype->disp0_ofs,
 			  IPU_CONF_DI0_EN, ipu_clk);
 	if (ret) {
@@ -1032,6 +1038,8 @@ err_dc:
 err_di_1:
 	ipu_di_exit(ipu, 0);
 err_di_0:
+	ipu_image_convert_exit(ipu);
+err_image_convert:
 	ipu_vdi_exit(ipu);
 err_vdi:
 	ipu_ic_exit(ipu);
@@ -1118,6 +1126,7 @@ static void ipu_submodules_exit(struct ipu_soc *ipu)
 	ipu_dc_exit(ipu);
 	ipu_di_exit(ipu, 1);
 	ipu_di_exit(ipu, 0);
+	ipu_image_convert_exit(ipu);
 	ipu_vdi_exit(ipu);
 	ipu_ic_exit(ipu);
 	ipu_csi_exit(ipu, 1);

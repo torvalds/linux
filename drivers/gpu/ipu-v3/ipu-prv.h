@@ -166,6 +166,7 @@ struct ipu_dmfc_priv;
 struct ipu_di;
 struct ipu_ic_priv;
 struct ipu_vdi;
+struct ipu_image_convert_priv;
 struct ipu_smfc_priv;
 
 struct ipu_devtype;
@@ -199,6 +200,7 @@ struct ipu_soc {
 	struct ipu_csi		*csi_priv[2];
 	struct ipu_ic_priv	*ic_priv;
 	struct ipu_vdi          *vdi_priv;
+	struct ipu_image_convert_priv *image_convert_priv;
 	struct ipu_smfc_priv	*smfc_priv;
 };
 
@@ -232,6 +234,9 @@ void ipu_ic_exit(struct ipu_soc *ipu);
 int ipu_vdi_init(struct ipu_soc *ipu, struct device *dev,
 		 unsigned long base, u32 module);
 void ipu_vdi_exit(struct ipu_soc *ipu);
+
+int ipu_image_convert_init(struct ipu_soc *ipu, struct device *dev);
+void ipu_image_convert_exit(struct ipu_soc *ipu);
 
 int ipu_di_init(struct ipu_soc *ipu, struct device *dev, int id,
 		unsigned long base, u32 module, struct clk *ipu_clk);
