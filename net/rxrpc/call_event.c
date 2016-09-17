@@ -163,8 +163,7 @@ static void rxrpc_resend(struct rxrpc_call *call)
 	 */
 	now = jiffies;
 	resend_at = now + rxrpc_resend_timeout;
-	seq = cursor + 1;
-	do {
+	for (seq = cursor + 1; before_eq(seq, top); seq++) {
 		ix = seq & RXRPC_RXTX_BUFF_MASK;
 		annotation = call->rxtx_annotations[ix];
 		if (annotation == RXRPC_TX_ANNO_ACK)
@@ -184,8 +183,7 @@ static void rxrpc_resend(struct rxrpc_call *call)
 
 		/* Okay, we need to retransmit a packet. */
 		call->rxtx_annotations[ix] = RXRPC_TX_ANNO_RETRANS;
-		seq++;
-	} while (before_eq(seq, top));
+	}
 
 	call->resend_at = resend_at;
 
@@ -194,8 +192,7 @@ static void rxrpc_resend(struct rxrpc_call *call)
 	 * lock is dropped, it may clear some of the retransmission markers for
 	 * packets that it soft-ACKs.
 	 */
-	seq = cursor + 1;
-	do {
+	for (seq = cursor + 1; before_eq(seq, top); seq++) {
 		ix = seq & RXRPC_RXTX_BUFF_MASK;
 		annotation = call->rxtx_annotations[ix];
 		if (annotation != RXRPC_TX_ANNO_RETRANS)
@@ -237,8 +234,7 @@ static void rxrpc_resend(struct rxrpc_call *call)
 
 		if (after(call->tx_hard_ack, seq))
 			seq = call->tx_hard_ack;
-		seq++;
-	} while (before_eq(seq, top));
+	}
 
 out_unlock:
 	spin_unlock_bh(&call->lock);
