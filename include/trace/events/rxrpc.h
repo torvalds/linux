@@ -93,11 +93,12 @@ TRACE_EVENT(rxrpc_rx_packet,
 		    memcpy(&__entry->hdr, &sp->hdr, sizeof(__entry->hdr));
 			   ),
 
-	    TP_printk("%08x:%08x:%08x:%04x %08x %08x %02x %02x",
+	    TP_printk("%08x:%08x:%08x:%04x %08x %08x %02x %02x %s",
 		      __entry->hdr.epoch, __entry->hdr.cid,
 		      __entry->hdr.callNumber, __entry->hdr.serviceId,
 		      __entry->hdr.serial, __entry->hdr.seq,
-		      __entry->hdr.type, __entry->hdr.flags)
+		      __entry->hdr.type, __entry->hdr.flags,
+		      __entry->hdr.type <= 15 ? rxrpc_pkts[__entry->hdr.type] : "?UNK")
 	    );
 
 TRACE_EVENT(rxrpc_rx_done,

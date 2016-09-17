@@ -551,6 +551,9 @@ enum rxrpc_call_trace {
 
 extern const char rxrpc_call_traces[rxrpc_call__nr_trace][4];
 
+extern const char *const rxrpc_pkts[];
+extern const char *rxrpc_acks(u8 reason);
+
 #include <trace/events/rxrpc.h>
 
 /*
@@ -851,10 +854,7 @@ extern unsigned int rxrpc_rx_mtu;
 extern unsigned int rxrpc_rx_jumbo_max;
 extern unsigned int rxrpc_resend_timeout;
 
-extern const char *const rxrpc_pkts[];
 extern const s8 rxrpc_ack_priority[];
-
-extern const char *rxrpc_acks(u8 reason);
 
 /*
  * output.c
