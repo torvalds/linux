@@ -1090,19 +1090,21 @@ static uint32_t kfd_generate_gpu_id(struct kfd_dev *gpu)
 {
 	uint32_t hashout;
 	uint32_t buf[7];
+	uint64_t local_mem_size;
 	int i;
 
 	if (!gpu)
 		return 0;
+
+	local_mem_size = gpu->kfd2kgd->get_vmem_size(gpu->kgd);
 
 	buf[0] = gpu->pdev->devfn;
 	buf[1] = gpu->pdev->subsystem_vendor;
 	buf[2] = gpu->pdev->subsystem_device;
 	buf[3] = gpu->pdev->device;
 	buf[4] = gpu->pdev->bus->number;
-	buf[5] = (uint32_t)(gpu->kfd2kgd->get_vmem_size(gpu->kgd)
-			& 0xffffffff);
-	buf[6] = (uint32_t)(gpu->kfd2kgd->get_vmem_size(gpu->kgd) >> 32);
+	buf[5] = lower_32_bits(local_mem_size);
+	buf[6] = upper_32_bits(local_mem_size);
 
 	for (i = 0, hashout = 0; i < 7; i++)
 		hashout ^= hash_32(buf[i], KFD_GPU_ID_HASH_WIDTH);
