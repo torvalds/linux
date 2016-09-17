@@ -134,6 +134,8 @@ static void rxrpc_end_rx_phase(struct rxrpc_call *call)
 {
 	_enter("%d,%s", call->debug_id, rxrpc_call_states[call->state]);
 
+	ASSERTCMP(call->rx_hard_ack, ==, call->rx_top);
+
 	if (call->state == RXRPC_CALL_CLIENT_RECV_REPLY) {
 		rxrpc_propose_ACK(call, RXRPC_ACK_IDLE, 0, 0, true, false);
 		rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ACK);
@@ -163,8 +165,10 @@ static void rxrpc_end_rx_phase(struct rxrpc_call *call)
  */
 static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 {
+	struct rxrpc_skb_priv *sp;
 	struct sk_buff *skb;
 	rxrpc_seq_t hard_ack, top;
+	u8 flags;
 	int ix;
 
 	_enter("%d", call->debug_id);
@@ -177,6 +181,8 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 	ix = hard_ack & RXRPC_RXTX_BUFF_MASK;
 	skb = call->rxtx_buffer[ix];
 	rxrpc_see_skb(skb);
+	sp = rxrpc_skb(skb);
+	flags = sp->hdr.flags;
 	call->rxtx_buffer[ix] = NULL;
 	call->rxtx_annotations[ix] = 0;
 	/* Barrier against rxrpc_input_data(). */
@@ -184,8 +190,8 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 
 	rxrpc_free_skb(skb);
 
-	_debug("%u,%u,%lx", hard_ack, top, call->flags);
-	if (hard_ack == top && test_bit(RXRPC_CALL_RX_LAST, &call->flags))
+	_debug("%u,%u,%02x", hard_ack, top, flags);
+	if (flags & RXRPC_LAST_PACKET)
 		rxrpc_end_rx_phase(call);
 }
 
@@ -278,12 +284,18 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 	size_t remain;
 	bool last;
 	unsigned int rx_pkt_offset, rx_pkt_len;
-	int ix, copy, ret = 0;
+	int ix, copy, ret = -EAGAIN, ret2;
 
 	_enter("");
 
 	rx_pkt_offset = call->rx_pkt_offset;
 	rx_pkt_len = call->rx_pkt_len;
+
+	if (call->state >= RXRPC_CALL_SERVER_ACK_REQUEST) {
+		seq = call->rx_hard_ack;
+		ret = 1;
+		goto done;
+	}
 
 	/* Barriers against rxrpc_input_data(). */
 	hard_ack = call->rx_hard_ack;
@@ -301,11 +313,13 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 			sock_recv_timestamp(msg, sock->sk, skb);
 
 		if (rx_pkt_offset == 0) {
-			ret = rxrpc_locate_data(call, skb,
-						&call->rxtx_annotations[ix],
-						&rx_pkt_offset, &rx_pkt_len);
-			if (ret < 0)
+			ret2 = rxrpc_locate_data(call, skb,
+						 &call->rxtx_annotations[ix],
+						 &rx_pkt_offset, &rx_pkt_len);
+			if (ret2 < 0) {
+				ret = ret2;
 				goto out;
+			}
 		}
 		_debug("recvmsg %x DATA #%u { %d, %d }",
 		       sp->hdr.callNumber, seq, rx_pkt_offset, rx_pkt_len);
@@ -316,10 +330,12 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 		if (copy > remain)
 			copy = remain;
 		if (copy > 0) {
-			ret = skb_copy_datagram_iter(skb, rx_pkt_offset, iter,
-						     copy);
-			if (ret < 0)
+			ret2 = skb_copy_datagram_iter(skb, rx_pkt_offset, iter,
+						      copy);
+			if (ret2 < 0) {
+				ret = ret2;
 				goto out;
+			}
 
 			/* handle piecemeal consumption of data packets */
 			_debug("copied %d @%zu", copy, *_offset);
@@ -332,6 +348,7 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 		if (rx_pkt_len > 0) {
 			_debug("buffer full");
 			ASSERTCMP(*_offset, ==, len);
+			ret = 0;
 			break;
 		}
 
@@ -342,19 +359,19 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 		rx_pkt_offset = 0;
 		rx_pkt_len = 0;
 
-		ASSERTIFCMP(last, seq, ==, top);
+		if (last) {
+			ASSERTCMP(seq, ==, READ_ONCE(call->rx_top));
+			ret = 1;
+			goto out;
+		}
 	}
 
-	if (after(seq, top)) {
-		ret = -EAGAIN;
-		if (test_bit(RXRPC_CALL_RX_LAST, &call->flags))
-			ret = 1;
-	}
 out:
 	if (!(flags & MSG_PEEK)) {
 		call->rx_pkt_offset = rx_pkt_offset;
 		call->rx_pkt_len = rx_pkt_len;
 	}
+done:
 	_leave(" = %d [%u/%u]", ret, seq, top);
 	return ret;
 }
