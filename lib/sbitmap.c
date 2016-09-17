@@ -321,7 +321,7 @@ void sbitmap_queue_clear(struct sbitmap_queue *sbq, unsigned int nr,
 {
 	sbitmap_clear_bit(&sbq->sb, nr);
 	sbq_wake_up(sbq);
-	if (likely(!sbq->round_robin))
+	if (likely(!sbq->round_robin && nr < sbq->sb.depth))
 		*per_cpu_ptr(sbq->alloc_hint, cpu) = nr;
 }
 EXPORT_SYMBOL_GPL(sbitmap_queue_clear);
