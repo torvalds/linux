@@ -2,6 +2,7 @@
 #define BLK_MQ_H
 
 #include <linux/blkdev.h>
+#include <linux/sbitmap.h>
 
 struct blk_mq_tags;
 struct blk_flush_queue;
@@ -10,12 +11,6 @@ struct blk_mq_cpu_notifier {
 	struct list_head list;
 	void *data;
 	int (*notify)(void *data, unsigned long action, unsigned int cpu);
-};
-
-struct blk_mq_ctxmap {
-	unsigned int size;
-	unsigned int bits_per_word;
-	struct blk_align_bitmap *map;
 };
 
 struct blk_mq_hw_ctx {
@@ -37,7 +32,7 @@ struct blk_mq_hw_ctx {
 
 	void			*driver_data;
 
-	struct blk_mq_ctxmap	ctx_map;
+	struct sbitmap		ctx_map;
 
 	struct blk_mq_ctx	**ctxs;
 	unsigned int		nr_ctx;
