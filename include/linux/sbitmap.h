@@ -99,6 +99,14 @@ struct sbitmap_queue {
 	 */
 	struct sbitmap sb;
 
+	/*
+	 * @alloc_hint: Cache of last successfully allocated or freed bit.
+	 *
+	 * This is per-cpu, which allows multiple users to stick to different
+	 * cachelines until the map is exhausted.
+	 */
+	unsigned int __percpu *alloc_hint;
+
 	/**
 	 * @wake_batch: Number of bits which must be freed before we wake up any
 	 * waiters.
@@ -267,6 +275,7 @@ int sbitmap_queue_init_node(struct sbitmap_queue *sbq, unsigned int depth,
 static inline void sbitmap_queue_free(struct sbitmap_queue *sbq)
 {
 	kfree(sbq->ws);
+	free_percpu(sbq->alloc_hint);
 	sbitmap_free(&sbq->sb);
 }
 
@@ -282,12 +291,46 @@ static inline void sbitmap_queue_free(struct sbitmap_queue *sbq)
 void sbitmap_queue_resize(struct sbitmap_queue *sbq, unsigned int depth);
 
 /**
+ * __sbitmap_queue_get() - Try to allocate a free bit from a &struct
+ * sbitmap_queue with preemption already disabled.
+ * @sbq: Bitmap queue to allocate from.
+ * @round_robin: See sbitmap_get().
+ *
+ * Return: Non-negative allocated bit number if successful, -1 otherwise.
+ */
+int __sbitmap_queue_get(struct sbitmap_queue *sbq, bool round_robin);
+
+/**
+ * sbitmap_queue_get() - Try to allocate a free bit from a &struct
+ * sbitmap_queue.
+ * @sbq: Bitmap queue to allocate from.
+ * @round_robin: See sbitmap_get().
+ * @cpu: Output parameter; will contain the CPU we ran on (e.g., to be passed to
+ *       sbitmap_queue_clear()).
+ *
+ * Return: Non-negative allocated bit number if successful, -1 otherwise.
+ */
+static inline int sbitmap_queue_get(struct sbitmap_queue *sbq, bool round_robin,
+				    unsigned int *cpu)
+{
+	int nr;
+
+	*cpu = get_cpu();
+	nr = __sbitmap_queue_get(sbq, round_robin);
+	put_cpu();
+	return nr;
+}
+
+/**
  * sbitmap_queue_clear() - Free an allocated bit and wake up waiters on a
  * &struct sbitmap_queue.
  * @sbq: Bitmap to free from.
  * @nr: Bit number to free.
+ * @round_robin: See sbitmap_get().
+ * @cpu: CPU the bit was allocated on.
  */
-void sbitmap_queue_clear(struct sbitmap_queue *sbq, unsigned int nr);
+void sbitmap_queue_clear(struct sbitmap_queue *sbq, unsigned int nr,
+			 bool round_robin, unsigned int cpu);
 
 static inline int sbq_index_inc(int index)
 {
