@@ -949,10 +949,8 @@ static int lmv_hsm_ct_register(struct lmv_obd *lmv, unsigned int cmd, int len,
 
 	rc = libcfs_kkuc_group_add(filp, lk->lk_uid, lk->lk_group,
 				   &kcd, sizeof(kcd));
-	if (rc) {
-		if (filp)
-			fput(filp);
-	}
+	if (rc && filp)
+		fput(filp);
 
 	return rc;
 }
