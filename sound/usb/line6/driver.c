@@ -66,10 +66,17 @@ static int line6_start_listen(struct usb_line6 *line6)
 {
 	int err;
 
-	usb_fill_int_urb(line6->urb_listen, line6->usbdev,
-		usb_rcvintpipe(line6->usbdev, line6->properties->ep_ctrl_r),
-		line6->buffer_listen, LINE6_BUFSIZE_LISTEN,
-		line6_data_received, line6, line6->interval);
+	if (line6->properties->capabilities & LINE6_CAP_CONTROL_MIDI) {
+		usb_fill_int_urb(line6->urb_listen, line6->usbdev,
+			usb_rcvintpipe(line6->usbdev, line6->properties->ep_ctrl_r),
+			line6->buffer_listen, LINE6_BUFSIZE_LISTEN,
+			line6_data_received, line6, line6->interval);
+	} else {
+		usb_fill_bulk_urb(line6->urb_listen, line6->usbdev,
+			usb_rcvbulkpipe(line6->usbdev, line6->properties->ep_ctrl_r),
+			line6->buffer_listen, LINE6_BUFSIZE_LISTEN,
+			line6_data_received, line6);
+	}
 	line6->urb_listen->actual_length = 0;
 	err = usb_submit_urb(line6->urb_listen, GFP_ATOMIC);
 	return err;
@@ -90,6 +97,7 @@ static int line6_send_raw_message(struct usb_line6 *line6, const char *buffer,
 				  int size)
 {
 	int i, done = 0;
+	const struct line6_properties *properties = line6->properties;
 
 	for (i = 0; i < size; i += line6->max_packet_size) {
 		int partial;
@@ -97,15 +105,21 @@ static int line6_send_raw_message(struct usb_line6 *line6, const char *buffer,
 		int frag_size = min(line6->max_packet_size, size - i);
 		int retval;
 
-		retval = usb_interrupt_msg(line6->usbdev,
-					usb_sndintpipe(line6->usbdev,
-						line6->properties->ep_ctrl_w),
-					(char *)frag_buf, frag_size,
-					&partial, LINE6_TIMEOUT * HZ);
+		if (properties->capabilities & LINE6_CAP_CONTROL_MIDI) {
+			retval = usb_interrupt_msg(line6->usbdev,
+						usb_sndintpipe(line6->usbdev, properties->ep_ctrl_w),
+						(char *)frag_buf, frag_size,
+						&partial, LINE6_TIMEOUT * HZ);
+		} else {
+			retval = usb_bulk_msg(line6->usbdev,
+						usb_sndbulkpipe(line6->usbdev, properties->ep_ctrl_w),
+						(char *)frag_buf, frag_size,
+						&partial, LINE6_TIMEOUT * HZ);
+		}
 
 		if (retval) {
 			dev_err(line6->ifcdev,
-				"usb_interrupt_msg failed (%d)\n", retval);
+				"usb_bulk_msg failed (%d)\n", retval);
 			break;
 		}
 
@@ -140,10 +154,17 @@ static int line6_send_raw_message_async_part(struct message *msg,
 	int done = msg->done;
 	int bytes = min(msg->size - done, line6->max_packet_size);
 
-	usb_fill_int_urb(urb, line6->usbdev,
-		usb_sndintpipe(line6->usbdev, line6->properties->ep_ctrl_w),
-		(char *)msg->buffer + done, bytes,
-		line6_async_request_sent, msg, line6->interval);
+	if (line6->properties->capabilities & LINE6_CAP_CONTROL_MIDI) {
+		usb_fill_int_urb(urb, line6->usbdev,
+			usb_sndintpipe(line6->usbdev, line6->properties->ep_ctrl_w),
+			(char *)msg->buffer + done, bytes,
+			line6_async_request_sent, msg, line6->interval);
+	} else {
+		usb_fill_bulk_urb(urb, line6->usbdev,
+			usb_sndbulkpipe(line6->usbdev, line6->properties->ep_ctrl_w),
+			(char *)msg->buffer + done, bytes,
+			line6_async_request_sent, msg);
+	}
 
 	msg->done += bytes;
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
@@ -462,7 +483,18 @@ static void line6_destruct(struct snd_card *card)
 static void line6_get_interval(struct usb_line6 *line6)
 {
 	struct usb_device *usbdev = line6->usbdev;
-	struct usb_host_endpoint *ep = usbdev->ep_in[line6->properties->ep_ctrl_r];
+	const struct line6_properties *properties = line6->properties;
+	int pipe;
+	struct usb_host_endpoint *ep;
+
+	if (properties->capabilities & LINE6_CAP_CONTROL_MIDI) {
+		pipe =
+			usb_rcvintpipe(line6->usbdev, line6->properties->ep_ctrl_r);
+	} else {
+		pipe =
+			usb_rcvbulkpipe(line6->usbdev, line6->properties->ep_ctrl_r);
+	}
+	ep = usbdev->ep_in[usb_pipeendpoint(pipe)];
 
 	if (ep) {
 		line6->interval = ep->desc.bInterval;
@@ -483,7 +515,7 @@ static void line6_get_interval(struct usb_line6 *line6)
 	}
 }
 
-static int line6_init_cap_control(struct usb_line6 *line6)
+static int line6_init_cap_control_midi(struct usb_line6 *line6)
 {
 	int ret;
 
@@ -573,8 +605,8 @@ int line6_probe(struct usb_interface *interface,
 
 	line6_get_interval(line6);
 
-	if (properties->capabilities & LINE6_CAP_CONTROL) {
-		ret = line6_init_cap_control(line6);
+	if (properties->capabilities & LINE6_CAP_CONTROL_MIDI) {
+		ret = line6_init_cap_control_midi(line6);
 		if (ret < 0)
 			goto error;
 	}
@@ -644,7 +676,7 @@ int line6_suspend(struct usb_interface *interface, pm_message_t message)
 
 	snd_power_change_state(line6->card, SNDRV_CTL_POWER_D3hot);
 
-	if (line6->properties->capabilities & LINE6_CAP_CONTROL)
+	if (line6->properties->capabilities & LINE6_CAP_CONTROL_MIDI)
 		line6_stop_listen(line6);
 
 	if (line6pcm != NULL) {
@@ -663,7 +695,7 @@ int line6_resume(struct usb_interface *interface)
 {
 	struct usb_line6 *line6 = usb_get_intfdata(interface);
 
-	if (line6->properties->capabilities & LINE6_CAP_CONTROL)
+	if (line6->properties->capabilities & LINE6_CAP_CONTROL_MIDI)
 		line6_start_listen(line6);
 
 	snd_power_change_state(line6->card, SNDRV_CTL_POWER_D0);

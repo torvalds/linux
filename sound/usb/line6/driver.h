@@ -104,6 +104,8 @@ enum {
 	LINE6_CAP_HWMON =	1 << 2,
 	/* device requires output data when input is read */
 	LINE6_CAP_IN_NEEDS_OUT = 1 << 3,
+	/* device uses raw MIDI via USB (data endpoints) */
+	LINE6_CAP_CONTROL_MIDI = 1 << 4,
 };
 
 /*
@@ -142,10 +144,10 @@ struct usb_line6 {
 	/* Line 6 MIDI device data structure */
 	struct snd_line6_midi *line6midi;
 
-	/* URB for listening to PODxt Pro control endpoint */
+	/* URB for listening to POD data endpoint */
 	struct urb *urb_listen;
 
-	/* Buffer for listening to PODxt Pro control endpoint */
+	/* Buffer for listening to POD data endpoint */
 	unsigned char *buffer_listen;
 
 	/* Buffer for message to be processed */
