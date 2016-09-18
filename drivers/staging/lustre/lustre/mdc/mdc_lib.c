@@ -328,7 +328,7 @@ void mdc_setattr_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 
 	lum = req_capsule_client_get(&req->rq_pill, &RMF_EADATA);
 	if (!ea) { /* Remove LOV EA */
-		lum->lmm_magic = LOV_USER_MAGIC_V1;
+		lum->lmm_magic = cpu_to_le32(LOV_USER_MAGIC_V1);
 		lum->lmm_stripe_size = 0;
 		lum->lmm_stripe_count = 0;
 		lum->lmm_stripe_offset = (typeof(lum->lmm_stripe_offset))(-1);
