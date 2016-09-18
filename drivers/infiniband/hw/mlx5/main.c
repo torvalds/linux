@@ -2924,6 +2924,7 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	struct mlx5_ib_dev *dev;
 	enum rdma_link_layer ll;
 	int port_type_cap;
+	const char *name;
 	int err;
 	int i;
 
@@ -2956,7 +2957,12 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 
 	MLX5_INIT_DOORBELL_LOCK(&dev->uar_lock);
 
-	strlcpy(dev->ib_dev.name, "mlx5_%d", IB_DEVICE_NAME_MAX);
+	if (!mlx5_lag_is_active(mdev))
+		name = "mlx5_%d";
+	else
+		name = "mlx5_bond_%d";
+
+	strlcpy(dev->ib_dev.name, name, IB_DEVICE_NAME_MAX);
 	dev->ib_dev.owner		= THIS_MODULE;
 	dev->ib_dev.node_type		= RDMA_NODE_IB_CA;
 	dev->ib_dev.local_dma_lkey	= 0 /* not supported for now */;
