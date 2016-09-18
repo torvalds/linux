@@ -2802,7 +2802,6 @@ lmv_pack_md(union lmv_mds_md **lmmp, const struct lmv_stripe_md *lsm,
 
 	return lmm_size;
 }
-EXPORT_SYMBOL(lmv_pack_md);
 
 static int lmv_unpack_md_v1(struct obd_export *exp, struct lmv_stripe_md *lsm,
 			    const struct lmv_mds_md_v1 *lmm1)

@@ -219,7 +219,6 @@ int fld_client_del_target(struct lu_client_fld *fld, __u64 idx)
 	spin_unlock(&fld->lcf_lock);
 	return -ENOENT;
 }
-EXPORT_SYMBOL(fld_client_del_target);
 
 static struct dentry *fld_debugfs_dir;
 
@@ -454,7 +453,6 @@ void fld_client_flush(struct lu_client_fld *fld)
 {
 	fld_cache_flush(fld->lcf_cache);
 }
-EXPORT_SYMBOL(fld_client_flush);
 
 static int __init fld_init(void)
 {
