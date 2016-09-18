@@ -107,7 +107,7 @@ static int llog_cat_id2handle(const struct lu_env *env,
 	}
 
 	down_write(&cathandle->lgh_lock);
-	list_add(&loghandle->u.phd.phd_entry, &cathandle->u.chd.chd_head);
+	list_add_tail(&loghandle->u.phd.phd_entry, &cathandle->u.chd.chd_head);
 	up_write(&cathandle->lgh_lock);
 
 	loghandle->u.phd.phd_cat_handle = cathandle;
