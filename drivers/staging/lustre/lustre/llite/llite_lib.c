@@ -807,7 +807,7 @@ void ll_lli_init(struct ll_inode_info *lli)
 		mutex_init(&lli->lli_size_mutex);
 		lli->lli_symlink_name = NULL;
 		init_rwsem(&lli->lli_trunc_sem);
-		mutex_init(&lli->lli_write_mutex);
+		range_lock_tree_init(&lli->lli_write_tree);
 		init_rwsem(&lli->lli_glimpse_sem);
 		lli->lli_glimpse_time = 0;
 		INIT_LIST_HEAD(&lli->lli_agl_list);

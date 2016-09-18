@@ -46,6 +46,7 @@
 #include <linux/xattr.h>
 #include <linux/posix_acl_xattr.h>
 #include "vvp_internal.h"
+#include "range_lock.h"
 
 #ifndef FMODE_EXEC
 #define FMODE_EXEC 0
@@ -210,7 +211,7 @@ struct ll_inode_info {
 			 * }
 			 */
 			struct rw_semaphore		f_trunc_sem;
-			struct mutex			f_write_mutex;
+			struct range_lock_tree		f_write_tree;
 
 			struct rw_semaphore		f_glimpse_sem;
 			unsigned long			f_glimpse_time;
@@ -235,7 +236,7 @@ struct ll_inode_info {
 #define lli_symlink_name	u.f.f_symlink_name
 #define lli_maxbytes	    u.f.f_maxbytes
 #define lli_trunc_sem	   u.f.f_trunc_sem
-#define lli_write_mutex	 u.f.f_write_mutex
+#define lli_write_tree		u.f.f_write_tree
 #define lli_glimpse_sem		u.f.f_glimpse_sem
 #define lli_glimpse_time	u.f.f_glimpse_time
 #define lli_agl_list		u.f.f_agl_list

@@ -1126,6 +1126,7 @@ ll_file_io_generic(const struct lu_env *env, struct vvp_io_args *args,
 {
 	struct ll_inode_info *lli = ll_i2info(file_inode(file));
 	struct ll_file_data  *fd  = LUSTRE_FPRIVATE(file);
+	struct range_lock range;
 	struct cl_io	 *io;
 	ssize_t	       result;
 
@@ -1138,7 +1139,12 @@ restart:
 
 	if (cl_io_rw_init(env, io, iot, *ppos, count) == 0) {
 		struct vvp_io *vio = vvp_env_io(env);
-		int write_mutex_locked = 0;
+		bool range_locked = false;
+
+		if (file->f_flags & O_APPEND)
+			range_lock_init(&range, 0, LUSTRE_EOF);
+		else
+			range_lock_init(&range, *ppos, *ppos + count - 1);
 
 		vio->vui_fd  = LUSTRE_FPRIVATE(file);
 		vio->vui_io_subtype = args->via_io_subtype;
@@ -1147,14 +1153,23 @@ restart:
 		case IO_NORMAL:
 			vio->vui_iter = args->u.normal.via_iter;
 			vio->vui_iocb = args->u.normal.via_iocb;
-			if ((iot == CIT_WRITE) &&
+			/*
+			 * Direct IO reads must also take range lock,
+			 * or multiple reads will try to work on the same pages
+			 * See LU-6227 for details.
+			 */
+			if (((iot == CIT_WRITE) ||
+			     (iot == CIT_READ && (file->f_flags & O_DIRECT))) &&
 			    !(vio->vui_fd->fd_flags & LL_FILE_GROUP_LOCKED)) {
-				if (mutex_lock_interruptible(&lli->
-							       lli_write_mutex)) {
-					result = -ERESTARTSYS;
+				CDEBUG(D_VFSTRACE, "Range lock [%llu, %llu]\n",
+				       range.rl_node.in_extent.start,
+				       range.rl_node.in_extent.end);
+				result = range_lock(&lli->lli_write_tree,
+						    &range);
+				if (result < 0)
 					goto out;
-				}
-				write_mutex_locked = 1;
+
+				range_locked = true;
 			}
 			down_read(&lli->lli_trunc_sem);
 			break;
@@ -1171,8 +1186,12 @@ restart:
 		ll_cl_remove(file, env);
 		if (args->via_io_subtype == IO_NORMAL)
 			up_read(&lli->lli_trunc_sem);
-		if (write_mutex_locked)
-			mutex_unlock(&lli->lli_write_mutex);
+		if (range_locked) {
+			CDEBUG(D_VFSTRACE, "Range unlock [%llu, %llu]\n",
+			       range.rl_node.in_extent.start,
+			       range.rl_node.in_extent.end);
+			range_unlock(&lli->lli_write_tree, &range);
+		}
 	} else {
 		/* cl_io_rw_init() handled IO */
 		result = io->ci_result;
