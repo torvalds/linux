@@ -4472,10 +4472,10 @@ static void rtl8192_query_rxphystatus(struct r8192_priv *priv,
 				 */
 				pstats->SignalQuality =
 					precord_stats->SignalQuality =
-					(u8)(evm & 0xff);
+					evm & 0xff;
 			pstats->RxMIMOSignalQuality[i] =
 				precord_stats->RxMIMOSignalQuality[i] =
-				(u8)(evm & 0xff);
+				evm & 0xff;
 		}
 
 
@@ -5010,8 +5010,7 @@ static int rtl8192_usb_probe(struct usb_interface *intf,
 
 	dev->netdev_ops = &rtl8192_netdev_ops;
 
-	dev->wireless_handlers =
-		(struct iw_handler_def *)&r8192_wx_handlers_def;
+	dev->wireless_handlers = &r8192_wx_handlers_def;
 
 	dev->type = ARPHRD_ETHER;
 
@@ -5219,7 +5218,8 @@ void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
 		} else {
 			/* Key Material */
 			if (KeyContent) {
-				write_nic_dword(dev, WCAMI, (u32)(*(KeyContent + i - 2)));
+				write_nic_dword(dev, WCAMI,
+						*(KeyContent + i - 2));
 				write_nic_dword(dev, RWCAM, TargetCommand);
 			}
 		}

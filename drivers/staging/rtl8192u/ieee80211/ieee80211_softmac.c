@@ -806,7 +806,7 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 		*(tag++) = 2;
 
 		put_unaligned_le16(ieee->current_network.atim_window,
-				   (u8 *)tag);
+				   tag);
 		tag+=2;
 	}
 
