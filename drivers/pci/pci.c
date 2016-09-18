@@ -552,8 +552,9 @@ static const struct pci_platform_pm_ops *pci_platform_pm;
 
 int pci_set_platform_pm(const struct pci_platform_pm_ops *ops)
 {
-	if (!ops->is_manageable || !ops->set_state || !ops->choose_state ||
-	    !ops->sleep_wake || !ops->run_wake || !ops->need_resume)
+	if (!ops->is_manageable || !ops->set_state  || !ops->get_state ||
+	    !ops->choose_state  || !ops->sleep_wake || !ops->run_wake  ||
+	    !ops->need_resume)
 		return -EINVAL;
 	pci_platform_pm = ops;
 	return 0;
@@ -568,6 +569,11 @@ static inline int platform_pci_set_power_state(struct pci_dev *dev,
 					       pci_power_t t)
 {
 	return pci_platform_pm ? pci_platform_pm->set_state(dev, t) : -ENOSYS;
+}
+
+static inline pci_power_t platform_pci_get_power_state(struct pci_dev *dev)
+{
+	return pci_platform_pm ? pci_platform_pm->get_state(dev) : PCI_UNKNOWN;
 }
 
 static inline pci_power_t platform_pci_choose_state(struct pci_dev *dev)
