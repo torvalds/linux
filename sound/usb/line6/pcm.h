@@ -73,6 +73,7 @@ enum {
 	LINE6_STREAM_PCM,
 	LINE6_STREAM_MONITOR,
 	LINE6_STREAM_IMPULSE,
+	LINE6_STREAM_CAPTURE_HELPER,
 };
 
 /* misc bit flags for PCM operation */
@@ -191,7 +192,8 @@ extern int snd_line6_hw_params(struct snd_pcm_substream *substream,
 extern int snd_line6_hw_free(struct snd_pcm_substream *substream);
 extern snd_pcm_uframes_t snd_line6_pointer(struct snd_pcm_substream *substream);
 extern void line6_pcm_disconnect(struct snd_line6_pcm *line6pcm);
-extern int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int type);
+extern int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int type,
+			       bool start);
 extern void line6_pcm_release(struct snd_line6_pcm *line6pcm, int type);
 
 #endif

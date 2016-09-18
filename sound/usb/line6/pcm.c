@@ -52,7 +52,7 @@ static int snd_line6_impulse_volume_put(struct snd_kcontrol *kcontrol,
 
 	line6pcm->impulse_volume = value;
 	if (value > 0) {
-		err = line6_pcm_acquire(line6pcm, LINE6_STREAM_IMPULSE);
+		err = line6_pcm_acquire(line6pcm, LINE6_STREAM_IMPULSE, true);
 		if (err < 0) {
 			line6pcm->impulse_volume = 0;
 			return err;
@@ -242,6 +242,14 @@ int snd_line6_trigger(struct snd_pcm_substream *substream, int cmd)
 		switch (cmd) {
 		case SNDRV_PCM_TRIGGER_START:
 		case SNDRV_PCM_TRIGGER_RESUME:
+			if (s->stream == SNDRV_PCM_STREAM_CAPTURE &&
+				(line6pcm->line6->properties->capabilities &
+					LINE6_CAP_IN_NEEDS_OUT)) {
+				err = line6_stream_start(line6pcm, SNDRV_PCM_STREAM_PLAYBACK,
+						 LINE6_STREAM_CAPTURE_HELPER);
+				if (err < 0)
+					return err;
+			}
 			err = line6_stream_start(line6pcm, s->stream,
 						 LINE6_STREAM_PCM);
 			if (err < 0)
@@ -250,6 +258,12 @@ int snd_line6_trigger(struct snd_pcm_substream *substream, int cmd)
 
 		case SNDRV_PCM_TRIGGER_STOP:
 		case SNDRV_PCM_TRIGGER_SUSPEND:
+			if (s->stream == SNDRV_PCM_STREAM_CAPTURE &&
+				(line6pcm->line6->properties->capabilities &
+					LINE6_CAP_IN_NEEDS_OUT)) {
+				line6_stream_stop(line6pcm, SNDRV_PCM_STREAM_PLAYBACK,
+					  LINE6_STREAM_CAPTURE_HELPER);
+			}
 			line6_stream_stop(line6pcm, s->stream,
 					  LINE6_STREAM_PCM);
 			break;
@@ -283,14 +297,15 @@ snd_pcm_uframes_t snd_line6_pointer(struct snd_pcm_substream *substream)
 	return pstr->pos_done;
 }
 
-/* Acquire and start duplex streams:
+/* Acquire and optionally start duplex streams:
  * type is either LINE6_STREAM_IMPULSE or LINE6_STREAM_MONITOR
  */
-int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int type)
+int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int type, bool start)
 {
 	struct line6_pcm_stream *pstr;
 	int ret = 0, dir;
 
+	/* TODO: We should assert SNDRV_PCM_STREAM_PLAYBACK/CAPTURE == 0/1 */
 	mutex_lock(&line6pcm->state_mutex);
 	for (dir = 0; dir < 2; dir++) {
 		pstr = get_stream(line6pcm, dir);
@@ -300,10 +315,12 @@ int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int type)
 		if (!pstr->running)
 			line6_wait_clear_audio_urbs(line6pcm, pstr);
 	}
-	for (dir = 0; dir < 2; dir++) {
-		ret = line6_stream_start(line6pcm, dir, type);
-		if (ret < 0)
-			goto error;
+	if (start) {
+		for (dir = 0; dir < 2; dir++) {
+			ret = line6_stream_start(line6pcm, dir, type);
+			if (ret < 0)
+				goto error;
+		}
 	}
  error:
 	mutex_unlock(&line6pcm->state_mutex);

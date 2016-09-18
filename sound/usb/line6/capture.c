@@ -232,6 +232,8 @@ static int snd_line6_capture_open(struct snd_pcm_substream *substream)
 	if (err < 0)
 		return err;
 
+	line6_pcm_acquire(line6pcm, LINE6_STREAM_CAPTURE_HELPER, false);
+
 	runtime->hw = line6pcm->properties->capture_hw;
 	return 0;
 }
@@ -239,6 +241,9 @@ static int snd_line6_capture_open(struct snd_pcm_substream *substream)
 /* close capture callback */
 static int snd_line6_capture_close(struct snd_pcm_substream *substream)
 {
+	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
+
+	line6_pcm_release(line6pcm, LINE6_STREAM_CAPTURE_HELPER);
 	return 0;
 }
 

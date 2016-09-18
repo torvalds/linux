@@ -100,8 +100,10 @@ enum {
 	LINE6_CAP_CONTROL =	1 << 0,
 	/* device supports PCM input/output via USB */
 	LINE6_CAP_PCM =		1 << 1,
-	/* device support hardware monitoring */
+	/* device supports hardware monitoring */
 	LINE6_CAP_HWMON =	1 << 2,
+	/* device requires output data when input is read */
+	LINE6_CAP_IN_NEEDS_OUT = 1 << 3,
 };
 
 /*
