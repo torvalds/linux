@@ -1099,7 +1099,7 @@ static int osc_extent_make_ready(const struct lu_env *env,
 	struct osc_async_page *oap;
 	struct osc_async_page *last = NULL;
 	struct osc_object *obj = ext->oe_obj;
-	int page_count = 0;
+	unsigned int page_count = 0;
 	int rc;
 
 	/* we're going to grab page lock, so object lock must not be taken. */
@@ -1140,9 +1140,11 @@ static int osc_extent_make_ready(const struct lu_env *env,
 	 * the size of file.
 	 */
 	if (!(last->oap_async_flags & ASYNC_COUNT_STABLE)) {
-		last->oap_count = osc_refresh_count(env, last, OBD_BRW_WRITE);
-		LASSERT(last->oap_count > 0);
-		LASSERT(last->oap_page_off + last->oap_count <= PAGE_SIZE);
+		int last_oap_count = osc_refresh_count(env, last, OBD_BRW_WRITE);
+
+		LASSERT(last_oap_count > 0);
+		LASSERT(last->oap_page_off + last_oap_count <= PAGE_SIZE);
+		last->oap_count = last_oap_count;
 		spin_lock(&last->oap_lock);
 		last->oap_async_flags |= ASYNC_COUNT_STABLE;
 		spin_unlock(&last->oap_lock);

@@ -64,7 +64,7 @@ struct osc_io {
 	/** true if this io is lockless. */
 	unsigned int		oi_lockless;
 	/** how many LRU pages are reserved for this IO */
-	int oi_lru_reserved;
+	unsigned long		oi_lru_reserved;
 
 	/** active extents, we know how many bytes is going to be written,
 	 * so having an active extent will prevent it from being fragmented

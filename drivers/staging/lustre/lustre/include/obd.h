@@ -176,7 +176,7 @@ struct obd_type {
 struct brw_page {
 	u64 off;
 	struct page *pg;
-	int count;
+	unsigned int count;
 	u32 flag;
 };
 
