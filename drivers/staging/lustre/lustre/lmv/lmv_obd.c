@@ -1573,9 +1573,13 @@ lmv_locate_target_for_name(struct lmv_obd *lmv, struct lmv_stripe_md *lsm,
 	const struct lmv_oinfo *oinfo;
 	struct lmv_tgt_desc *tgt;
 
-	oinfo = lsm_name_to_stripe_info(lsm, name, namelen);
-	if (IS_ERR(oinfo))
-		return ERR_CAST(oinfo);
+	if (OBD_FAIL_CHECK(OBD_FAIL_LFSCK_BAD_NAME_HASH)) {
+		oinfo = &lsm->lsm_md_oinfo[cfs_fail_val];
+	} else {
+		oinfo = lsm_name_to_stripe_info(lsm, name, namelen);
+		if (IS_ERR(oinfo))
+			return ERR_CAST(oinfo);
+	}
 
 	*fid = oinfo->lmo_fid;
 	*mds = oinfo->lmo_mds;
