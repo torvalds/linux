@@ -180,8 +180,6 @@ int _ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 
 	if (priv->reg.operation_mode == MODE_INFRASTRUCTURE &&
 	    (priv->connect_status & CONNECT_STATUS_MASK) == CONNECT_STATUS) {
-
-		//DPRINTK(1,"psstatus.status=%d\n",atomic_read(&priv->psstatus.status));
 		if (priv->dev_state == DEVICE_STATE_SLEEP) {
 			switch (atomic_read(&priv->psstatus.status)) {
 			case PS_SNOOZE:	/* 4 */
@@ -244,7 +242,6 @@ int _ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 				break;
 			}
 		}
-
 	}
 
 	return rc;
@@ -343,7 +340,6 @@ static void tx_device_task(void *dev)
 						   &priv->ks_wlan_hw.rw_wq, 1);
 				return;
 			}
-
 		}
 		kfree(sp->sendp);	/* allocated memory free */
 		if (sp->complete_handler)	/* TX Complete */
@@ -597,7 +593,6 @@ static void ks_sdio_interrupt(struct sdio_func *func)
 				}
 				complete(&priv->psstatus.wakeup_wait);
 			}
-
 		}
 
 		do {
