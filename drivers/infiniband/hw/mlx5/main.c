@@ -118,8 +118,17 @@ static int mlx5_netdev_event(struct notifier_block *this,
 		break;
 
 	case NETDEV_UP:
-	case NETDEV_DOWN:
-		if (ndev == ibdev->roce.netdev && ibdev->ib_active) {
+	case NETDEV_DOWN: {
+		struct net_device *lag_ndev = mlx5_lag_get_roce_netdev(ibdev->mdev);
+		struct net_device *upper = NULL;
+
+		if (lag_ndev) {
+			upper = netdev_master_upper_dev_get(lag_ndev);
+			dev_put(lag_ndev);
+		}
+
+		if ((upper == ndev || (!upper && ndev == ibdev->roce.netdev))
+		    && ibdev->ib_active) {
 			struct ib_event ibev = {0};
 
 			ibev.device = &ibdev->ib_dev;
@@ -129,6 +138,7 @@ static int mlx5_netdev_event(struct notifier_block *this,
 			ib_dispatch_event(&ibev);
 		}
 		break;
+	}
 
 	default:
 		break;
@@ -142,6 +152,10 @@ static struct net_device *mlx5_ib_get_netdev(struct ib_device *device,
 {
 	struct mlx5_ib_dev *ibdev = to_mdev(device);
 	struct net_device *ndev;
+
+	ndev = mlx5_lag_get_roce_netdev(ibdev->mdev);
+	if (ndev)
+		return ndev;
 
 	/* Ensure ndev does not disappear before we invoke dev_hold()
 	 */
@@ -158,7 +172,7 @@ static int mlx5_query_port_roce(struct ib_device *device, u8 port_num,
 				struct ib_port_attr *props)
 {
 	struct mlx5_ib_dev *dev = to_mdev(device);
-	struct net_device *ndev;
+	struct net_device *ndev, *upper;
 	enum ib_mtu ndev_ib_mtu;
 	u16 qkey_viol_cntr;
 
@@ -181,6 +195,17 @@ static int mlx5_query_port_roce(struct ib_device *device, u8 port_num,
 	ndev = mlx5_ib_get_netdev(device, port_num);
 	if (!ndev)
 		return 0;
+
+	if (mlx5_lag_is_active(dev->mdev)) {
+		rcu_read_lock();
+		upper = netdev_master_upper_dev_get_rcu(ndev);
+		if (upper) {
+			dev_put(ndev);
+			ndev = upper;
+			dev_hold(ndev);
+		}
+		rcu_read_unlock();
+	}
 
 	if (netif_running(ndev) && netif_carrier_ok(ndev)) {
 		props->state      = IB_PORT_ACTIVE;
