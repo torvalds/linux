@@ -1536,7 +1536,7 @@ static int osc_enter_cache_try(struct client_obd *cli,
 {
 	int rc;
 
-	OSC_DUMP_GRANT(D_CACHE, cli, "need:%d.\n", bytes);
+	OSC_DUMP_GRANT(D_CACHE, cli, "need:%d\n", bytes);
 
 	rc = osc_reserve_grant(cli, bytes);
 	if (rc < 0)
@@ -1581,11 +1581,13 @@ static int osc_enter_cache(const struct lu_env *env, struct client_obd *cli,
 	struct osc_object *osc = oap->oap_obj;
 	struct lov_oinfo *loi = osc->oo_oinfo;
 	struct osc_cache_waiter ocw;
-	struct l_wait_info lwi = LWI_TIMEOUT_INTR(cfs_time_seconds(600), NULL,
-						  LWI_ON_SIGNAL_NOOP, NULL);
+	struct l_wait_info lwi;
 	int rc = -EDQUOT;
 
-	OSC_DUMP_GRANT(D_CACHE, cli, "need:%d.\n", bytes);
+	lwi = LWI_TIMEOUT_INTR(cfs_time_seconds(AT_OFF ? obd_timeout : at_max),
+			       NULL, LWI_ON_SIGNAL_NOOP, NULL);
+
+	OSC_DUMP_GRANT(D_CACHE, cli, "need:%d\n", bytes);
 
 	spin_lock(&cli->cl_loi_list_lock);
 
@@ -1595,12 +1597,14 @@ static int osc_enter_cache(const struct lu_env *env, struct client_obd *cli,
 	if (OBD_FAIL_CHECK(OBD_FAIL_OSC_NO_GRANT) ||
 	    !cli->cl_dirty_max_pages || cli->cl_ar.ar_force_sync ||
 	    loi->loi_ar.ar_force_sync) {
+		OSC_DUMP_GRANT(D_CACHE, cli, "forced sync i/o\n");
 		rc = -EDQUOT;
 		goto out;
 	}
 
 	/* Hopefully normal case - cache space and write credits available */
 	if (osc_enter_cache_try(cli, oap, bytes, 0)) {
+		OSC_DUMP_GRANT(D_CACHE, cli, "granted from cache\n");
 		rc = 0;
 		goto out;
 	}
@@ -1629,32 +1633,49 @@ static int osc_enter_cache(const struct lu_env *env, struct client_obd *cli,
 
 		spin_lock(&cli->cl_loi_list_lock);
 
-		/* l_wait_event is interrupted by signal, or timed out */
 		if (rc < 0) {
-			if (rc == -ETIMEDOUT) {
-				OSC_DUMP_GRANT(D_ERROR, cli,
-					       "try to reserve %d.\n", bytes);
-				osc_extent_tree_dump(D_ERROR, osc);
-				rc = -EDQUOT;
-			}
-
+			/* l_wait_event is interrupted by signal, or timed out */
 			list_del_init(&ocw.ocw_entry);
-			goto out;
+			break;
 		}
-
 		LASSERT(list_empty(&ocw.ocw_entry));
 		rc = ocw.ocw_rc;
 
 		if (rc != -EDQUOT)
-			goto out;
+			break;
 		if (osc_enter_cache_try(cli, oap, bytes, 0)) {
 			rc = 0;
-			goto out;
+			break;
 		}
+	}
+
+	switch (rc) {
+	case 0:
+		OSC_DUMP_GRANT(D_CACHE, cli, "finally got grant space\n");
+		break;
+	case -ETIMEDOUT:
+		OSC_DUMP_GRANT(D_CACHE, cli,
+			       "timeout, fall back to sync i/o\n");
+		osc_extent_tree_dump(D_CACHE, osc);
+		/* fall back to synchronous I/O */
+		rc = -EDQUOT;
+		break;
+	case -EINTR:
+		/* Ensures restartability - LU-3581 */
+		OSC_DUMP_GRANT(D_CACHE, cli, "interrupted\n");
+		rc = -ERESTARTSYS;
+		break;
+	case -EDQUOT:
+		OSC_DUMP_GRANT(D_CACHE, cli,
+			       "no grant space, fall back to sync i/o\n");
+		break;
+	default:
+		CDEBUG(D_CACHE, "%s: event for cache space @ %p never arrived due to %d, fall back to sync i/o\n",
+		       cli->cl_import->imp_obd->obd_name, &ocw, rc);
+		break;
 	}
 out:
 	spin_unlock(&cli->cl_loi_list_lock);
-	OSC_DUMP_GRANT(D_CACHE, cli, "returned %d.\n", rc);
 	return rc;
 }
 
@@ -1679,10 +1700,8 @@ void osc_wake_cache_waiters(struct client_obd *cli)
 			goto wakeup;
 		}
 
-		ocw->ocw_rc = 0;
-		if (!osc_enter_cache_try(cli, ocw->ocw_oap, ocw->ocw_grant, 0))
-			ocw->ocw_rc = -EDQUOT;
-
+		if (osc_enter_cache_try(cli, ocw->ocw_oap, ocw->ocw_grant, 0))
+			ocw->ocw_rc = 0;
 wakeup:
 		CDEBUG(D_CACHE, "wake up %p for oap %p, avail grant %ld, %d\n",
 		       ocw, ocw->ocw_oap, cli->cl_avail_grant, ocw->ocw_rc);
