@@ -470,8 +470,7 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 	if (flags & LDLM_FL_FAILED)
 		goto granted;
 
-	if (!(flags & (LDLM_FL_BLOCK_WAIT | LDLM_FL_BLOCK_GRANTED |
-		       LDLM_FL_BLOCK_CONV))) {
+	if (!(flags & LDLM_FL_BLOCKED_MASK)) {
 		if (!data)
 			/* mds granted the lock in the reply */
 			goto granted;

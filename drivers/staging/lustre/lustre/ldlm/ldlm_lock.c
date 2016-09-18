@@ -1549,8 +1549,7 @@ enum ldlm_error ldlm_lock_enqueue(struct ldlm_namespace *ns,
 		 * before we got a chance to actually enqueue it.  We don't
 		 * need to do anything else.
 		 */
-		*flags &= ~(LDLM_FL_BLOCK_GRANTED |
-			    LDLM_FL_BLOCK_CONV | LDLM_FL_BLOCK_WAIT);
+		*flags &= ~LDLM_FL_BLOCKED_MASK;
 		goto out;
 	}
 

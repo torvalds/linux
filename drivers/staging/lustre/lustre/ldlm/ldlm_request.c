@@ -177,8 +177,7 @@ int ldlm_completion_ast_async(struct ldlm_lock *lock, __u64 flags, void *data)
 		return 0;
 	}
 
-	if (!(flags & (LDLM_FL_BLOCK_WAIT | LDLM_FL_BLOCK_GRANTED |
-		       LDLM_FL_BLOCK_CONV))) {
+	if (!(flags & LDLM_FL_BLOCKED_MASK)) {
 		wake_up(&lock->l_waitq);
 		return ldlm_completion_tail(lock);
 	}
@@ -224,8 +223,7 @@ int ldlm_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 		goto noreproc;
 	}
 
-	if (!(flags & (LDLM_FL_BLOCK_WAIT | LDLM_FL_BLOCK_GRANTED |
-		       LDLM_FL_BLOCK_CONV))) {
+	if (!(flags & LDLM_FL_BLOCKED_MASK)) {
 		wake_up(&lock->l_waitq);
 		return 0;
 	}
