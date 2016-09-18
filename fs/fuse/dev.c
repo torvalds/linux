@@ -1364,7 +1364,6 @@ static ssize_t fuse_dev_splice_read(struct file *in, loff_t *ppos,
 		goto out;
 
 	ret = 0;
-	pipe_lock(pipe);
 
 	if (!pipe->readers) {
 		send_sig(SIGPIPE, current, 0);
@@ -1400,7 +1399,6 @@ static ssize_t fuse_dev_splice_read(struct file *in, loff_t *ppos,
 	}
 
 out_unlock:
-	pipe_unlock(pipe);
 
 	if (do_wakeup) {
 		smp_mb();
