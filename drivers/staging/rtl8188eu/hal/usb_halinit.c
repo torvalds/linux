@@ -1498,9 +1498,6 @@ void rtw_hal_set_hwreg(struct adapter *Adapter, u8 variable, u8 *val)
 	case HW_VAR_SEC_CFG:
 		usb_write8(Adapter, REG_SECCFG, *((u8 *)val));
 		break;
-	case HW_VAR_DM_FLAG:
-		podmpriv->SupportAbility = *((u8 *)val);
-		break;
 	case HW_VAR_DM_FUNC_OP:
 		if (val[0])
 			podmpriv->BK_SupportAbility = podmpriv->SupportAbility;
@@ -1769,7 +1766,6 @@ void rtw_hal_set_hwreg(struct adapter *Adapter, u8 variable, u8 *val)
 void rtw_hal_get_hwreg(struct adapter *Adapter, u8 variable, u8 *val)
 {
 	struct hal_data_8188e	*haldata = GET_HAL_DATA(Adapter);
-	struct odm_dm_struct *podmpriv = &haldata->odmpriv;
 
 	switch (variable) {
 	case HW_VAR_BASIC_RATE:
@@ -1780,9 +1776,6 @@ void rtw_hal_get_hwreg(struct adapter *Adapter, u8 variable, u8 *val)
 	case HW_VAR_BCN_VALID:
 		/* BCN_VALID, BIT16 of REG_TDECTRL = BIT0 of REG_TDECTRL+2 */
 		val[0] = (BIT(0) & usb_read8(Adapter, REG_TDECTRL+2)) ? true : false;
-		break;
-	case HW_VAR_DM_FLAG:
-		val[0] = podmpriv->SupportAbility;
 		break;
 	case HW_VAR_RF_TYPE:
 		val[0] = haldata->rf_type;
