@@ -2712,7 +2712,7 @@ static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
 	if (size & 0x3 || *pos & 0x3)
 		return -EINVAL;
 
-	config = kmalloc(256 * sizeof(*config), GFP_KERNEL);
+	config = kmalloc_array(256, sizeof(*config), GFP_KERNEL);
 	if (!config)
 		return -ENOMEM;
 
