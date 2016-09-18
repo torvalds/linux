@@ -190,8 +190,6 @@ int lov_packmd(struct obd_export *exp, struct lov_mds_md **lmm,
 	       struct lov_stripe_md *lsm);
 int lov_unpackmd(struct obd_export *exp, struct lov_stripe_md **lsmp,
 		 struct lov_mds_md *lmm, int lmm_bytes);
-int lov_getstripe(struct obd_export *exp,
-		  struct lov_stripe_md *lsm, struct lov_user_md __user *lump);
 int lov_alloc_memmd(struct lov_stripe_md **lsmp, __u16 stripe_count,
 		    int pattern, int magic);
 int lov_free_memmd(struct lov_stripe_md **lsmp);

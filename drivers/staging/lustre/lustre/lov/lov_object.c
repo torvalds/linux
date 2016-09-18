@@ -75,6 +75,13 @@ struct lov_layout_operations {
 
 static int lov_layout_wait(const struct lu_env *env, struct lov_object *lov);
 
+void lov_lsm_put(struct cl_object *unused, struct lov_stripe_md *lsm)
+{
+	if (lsm)
+		lov_free_memmd(&lsm);
+}
+EXPORT_SYMBOL(lov_lsm_put);
+
 /*****************************************************************************
  *
  * Lov object layout operations.
@@ -904,13 +911,30 @@ int lov_lock_init(const struct lu_env *env, struct cl_object *obj,
 				    io);
 }
 
+static int lov_object_getstripe(const struct lu_env *env, struct cl_object *obj,
+				struct lov_user_md __user *lum)
+{
+	struct lov_object *lov = cl2lov(obj);
+	struct lov_stripe_md *lsm;
+	int rc = 0;
+
+	lsm = lov_lsm_addref(lov);
+	if (!lsm)
+		return -ENODATA;
+
+	rc = lov_getstripe(cl2lov(obj), lsm, lum);
+	lov_lsm_put(obj, lsm);
+	return rc;
+}
+
 static const struct cl_object_operations lov_ops = {
 	.coo_page_init = lov_page_init,
 	.coo_lock_init = lov_lock_init,
 	.coo_io_init   = lov_io_init,
 	.coo_attr_get  = lov_attr_get,
 	.coo_attr_set  = lov_attr_set,
-	.coo_conf_set  = lov_conf_set
+	.coo_conf_set  = lov_conf_set,
+	.coo_getstripe = lov_object_getstripe
 };
 
 static const struct lu_object_operations lov_lu_obj_ops = {
@@ -947,7 +971,7 @@ struct lu_object *lov_object_alloc(const struct lu_env *env,
 	return obj;
 }
 
-static struct lov_stripe_md *lov_lsm_addref(struct lov_object *lov)
+struct lov_stripe_md *lov_lsm_addref(struct lov_object *lov)
 {
 	struct lov_stripe_md *lsm = NULL;
 
@@ -977,13 +1001,6 @@ struct lov_stripe_md *lov_lsm_get(struct cl_object *clobj)
 	return lsm;
 }
 EXPORT_SYMBOL(lov_lsm_get);
-
-void lov_lsm_put(struct cl_object *unused, struct lov_stripe_md *lsm)
-{
-	if (lsm)
-		lov_free_memmd(&lsm);
-}
-EXPORT_SYMBOL(lov_lsm_put);
 
 int lov_read_and_clear_async_rc(struct cl_object *clob)
 {

@@ -556,6 +556,8 @@ struct lov_lock_link *lov_lock_link_find(const struct lu_env *env,
 					 struct lovsub_lock *sub);
 struct lov_io_sub *lov_page_subio(const struct lu_env *env, struct lov_io *lio,
 				  const struct cl_page_slice *slice);
+
+struct lov_stripe_md *lov_lsm_addref(struct lov_object *lov);
 int lov_page_stripe(const struct cl_page *page);
 
 #define lov_foreach_target(lov, var)		    \
@@ -746,6 +748,10 @@ static inline struct lov_layout_raid0 *lov_r0(struct lov_object *lov)
 		lov->lo_lsm->lsm_wire.lw_magic == LOV_MAGIC_V3);
 	return &lov->u.raid0;
 }
+
+/* lov_pack.c */
+int lov_getstripe(struct lov_object *obj, struct lov_stripe_md *lsm,
+		  struct lov_user_md __user *lump);
 
 /** @} lov */
 
