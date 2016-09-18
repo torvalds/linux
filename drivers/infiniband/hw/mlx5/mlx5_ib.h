@@ -605,6 +605,7 @@ struct mlx5_roce {
 	rwlock_t		netdev_lock;
 	struct net_device	*netdev;
 	struct notifier_block	nb;
+	atomic_t		next_port;
 };
 
 struct mlx5_ib_dev {

@@ -1873,7 +1873,8 @@ static void get_cqs(enum ib_qp_type qp_type,
 }
 
 static int modify_raw_packet_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
-				const struct mlx5_modify_raw_qp_param *raw_qp_param);
+				const struct mlx5_modify_raw_qp_param *raw_qp_param,
+				u8 lag_tx_affinity);
 
 static void destroy_qp_common(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp)
 {
@@ -1902,7 +1903,7 @@ static void destroy_qp_common(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp)
 				.operation = MLX5_CMD_OP_2RST_QP
 			};
 
-			err = modify_raw_packet_qp(dev, qp, &raw_qp_param);
+			err = modify_raw_packet_qp(dev, qp, &raw_qp_param, 0);
 		}
 		if (err)
 			mlx5_ib_warn(dev, "mlx5_ib: modify QP 0x%06x to RESET failed\n",
@@ -2158,6 +2159,31 @@ static int modify_raw_packet_eth_prio(struct mlx5_core_dev *dev,
 
 	tisc = MLX5_ADDR_OF(modify_tis_in, in, ctx);
 	MLX5_SET(tisc, tisc, prio, ((sl & 0x7) << 1));
+
+	err = mlx5_core_modify_tis(dev, sq->tisn, in, inlen);
+
+	kvfree(in);
+
+	return err;
+}
+
+static int modify_raw_packet_tx_affinity(struct mlx5_core_dev *dev,
+					 struct mlx5_ib_sq *sq, u8 tx_affinity)
+{
+	void *in;
+	void *tisc;
+	int inlen;
+	int err;
+
+	inlen = MLX5_ST_SZ_BYTES(modify_tis_in);
+	in = mlx5_vzalloc(inlen);
+	if (!in)
+		return -ENOMEM;
+
+	MLX5_SET(modify_tis_in, in, bitmask.lag_tx_port_affinity, 1);
+
+	tisc = MLX5_ADDR_OF(modify_tis_in, in, ctx);
+	MLX5_SET(tisc, tisc, lag_tx_port_affinity, tx_affinity);
 
 	err = mlx5_core_modify_tis(dev, sq->tisn, in, inlen);
 
@@ -2446,7 +2472,8 @@ out:
 }
 
 static int modify_raw_packet_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
-				const struct mlx5_modify_raw_qp_param *raw_qp_param)
+				const struct mlx5_modify_raw_qp_param *raw_qp_param,
+				u8 tx_affinity)
 {
 	struct mlx5_ib_raw_packet_qp *raw_packet_qp = &qp->raw_packet_qp;
 	struct mlx5_ib_rq *rq = &raw_packet_qp->rq;
@@ -2487,8 +2514,16 @@ static int modify_raw_packet_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 			return err;
 	}
 
-	if (qp->sq.wqe_cnt)
+	if (qp->sq.wqe_cnt) {
+		if (tx_affinity) {
+			err = modify_raw_packet_tx_affinity(dev->mdev, sq,
+							    tx_affinity);
+			if (err)
+				return err;
+		}
+
 		return modify_raw_packet_qp_sq(dev->mdev, sq, sq_state);
+	}
 
 	return 0;
 }
@@ -2547,6 +2582,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	int mlx5_st;
 	int err;
 	u16 op;
+	u8 tx_affinity = 0;
 
 	context = kzalloc(sizeof(*context), GFP_KERNEL);
 	if (!context)
@@ -2573,6 +2609,23 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 		case IB_MIG_ARMED:
 			context->flags |= cpu_to_be32(MLX5_QP_PM_ARMED << 11);
 			break;
+		}
+	}
+
+	if ((cur_state == IB_QPS_RESET) && (new_state == IB_QPS_INIT)) {
+		if ((ibqp->qp_type == IB_QPT_RC) ||
+		    (ibqp->qp_type == IB_QPT_UD &&
+		     !(qp->flags & MLX5_IB_QP_SQPN_QP1)) ||
+		    (ibqp->qp_type == IB_QPT_UC) ||
+		    (ibqp->qp_type == IB_QPT_RAW_PACKET) ||
+		    (ibqp->qp_type == IB_QPT_XRC_INI) ||
+		    (ibqp->qp_type == IB_QPT_XRC_TGT)) {
+			if (mlx5_lag_is_active(dev->mdev)) {
+				tx_affinity = (unsigned int)atomic_add_return(1,
+						&dev->roce.next_port) %
+						MLX5_MAX_PORTS + 1;
+				context->flags |= cpu_to_be32(tx_affinity << 24);
+			}
 		}
 	}
 
@@ -2724,7 +2777,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 			raw_qp_param.rq_q_ctr_id = mibport->q_cnt_id;
 			raw_qp_param.set_mask |= MLX5_RAW_QP_MOD_SET_RQ_Q_CTR_ID;
 		}
-		err = modify_raw_packet_qp(dev, qp, &raw_qp_param);
+		err = modify_raw_packet_qp(dev, qp, &raw_qp_param, tx_affinity);
 	} else {
 		err = mlx5_core_qp_modify(dev->mdev, op, optpar, context,
 					  &base->mqp);
