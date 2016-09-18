@@ -744,6 +744,18 @@ static ssize_t max_easize_show(struct kobject *kobj,
 }
 LUSTRE_RO_ATTR(max_easize);
 
+/**
+ * Get default_easize.
+ *
+ * \see client_obd::cl_default_mds_easize
+ *
+ * \param[in] kobj	kernel object for sysfs tree
+ * \param[in] attr	attribute of this kernel object
+ * \param[in] buf	buffer to write data into
+ *
+ * \retval positive	\a count on success
+ * \retval negative	negated errno on failure
+ */
 static ssize_t default_easize_show(struct kobject *kobj,
 				   struct attribute *attr,
 				   char *buf)
@@ -759,7 +771,44 @@ static ssize_t default_easize_show(struct kobject *kobj,
 
 	return sprintf(buf, "%u\n", ealen);
 }
-LUSTRE_RO_ATTR(default_easize);
+
+/**
+ * Set default_easize.
+ *
+ * Range checking on the passed value is handled by
+ * ll_set_default_mdsize().
+ *
+ * \see client_obd::cl_default_mds_easize
+ *
+ * \param[in] kobj	kernel object for sysfs tree
+ * \param[in] attr	attribute of this kernel object
+ * \param[in] buffer	string passed from user space
+ * \param[in] count	\a buffer length
+ *
+ * \retval positive	\a count on success
+ * \retval negative	negated errno on failure
+ */
+static ssize_t default_easize_store(struct kobject *kobj,
+				    struct attribute *attr,
+				    const char *buffer,
+				    size_t count)
+{
+	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
+					      ll_kobj);
+	unsigned long val;
+	int rc;
+
+	rc = kstrtoul(buffer, 10, &val);
+	if (rc)
+		return rc;
+
+	rc = ll_set_default_mdsize(sbi, val);
+	if (rc)
+		return rc;
+
+	return count;
+}
+LUSTRE_RW_ATTR(default_easize);
 
 static int ll_sbi_flags_seq_show(struct seq_file *m, void *v)
 {

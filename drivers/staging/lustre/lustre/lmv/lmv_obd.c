@@ -2623,6 +2623,22 @@ static int lmv_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 	return 0;
 }
 
+/**
+ * Get by key a value associated with a LMV device.
+ *
+ * Dispatch request to lower-layer devices as needed.
+ *
+ * \param[in]  env	execution environment for this thread
+ * \param[in]  exp	export for the LMV device
+ * \param[in]  keylen	length of key identifier
+ * \param[in]  key	identifier of key to get value for
+ * \param[in]  vallen	size of \a val
+ * \param[out] val	pointer to storage location for value
+ * \param[in]  lsm	optional striping metadata of object
+ *
+ * \retval 0		on success
+ * \retval negative	negated errno on failure
+ */
 static int lmv_get_info(const struct lu_env *env, struct obd_export *exp,
 			__u32 keylen, void *key, __u32 *vallen, void *val,
 			struct lov_stripe_md *lsm)
@@ -2686,6 +2702,22 @@ static int lmv_get_info(const struct lu_env *env, struct obd_export *exp,
 	return -EINVAL;
 }
 
+/**
+ * Asynchronously set by key a value associated with a LMV device.
+ *
+ * Dispatch request to lower-layer devices as needed.
+ *
+ * \param[in] env	execution environment for this thread
+ * \param[in] exp	export for the LMV device
+ * \param[in] keylen	length of key identifier
+ * \param[in] key	identifier of key to store value for
+ * \param[in] vallen	size of value to store
+ * \param[in] val	pointer to data to be stored
+ * \param[in] set	optional list of related ptlrpc requests
+ *
+ * \retval 0		on success
+ * \retval negative	negated errno on failure
+ */
 static int lmv_set_info_async(const struct lu_env *env, struct obd_export *exp,
 			      u32 keylen, void *key, u32 vallen,
 			      void *val, struct ptlrpc_request_set *set)
@@ -2703,7 +2735,8 @@ static int lmv_set_info_async(const struct lu_env *env, struct obd_export *exp,
 	}
 	lmv = &obd->u.lmv;
 
-	if (KEY_IS(KEY_READ_ONLY) || KEY_IS(KEY_FLUSH_CTX)) {
+	if (KEY_IS(KEY_READ_ONLY) || KEY_IS(KEY_FLUSH_CTX) ||
+	    KEY_IS(KEY_DEFAULT_EASIZE)) {
 		int i, err = 0;
 
 		for (i = 0; i < lmv->desc.ld_tgt_count; i++) {

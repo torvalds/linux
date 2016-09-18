@@ -839,6 +839,7 @@ int ll_prep_inode(struct inode **inode, struct ptlrpc_request *req,
 int ll_obd_statfs(struct inode *inode, void __user *arg);
 int ll_get_max_mdsize(struct ll_sb_info *sbi, int *max_mdsize);
 int ll_get_default_mdsize(struct ll_sb_info *sbi, int *default_mdsize);
+int ll_set_default_mdsize(struct ll_sb_info *sbi, int default_mdsize);
 int ll_process_config(struct lustre_cfg *lcfg);
 
 enum {
