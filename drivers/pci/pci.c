@@ -1959,9 +1959,22 @@ static pci_power_t pci_target_state(struct pci_dev *dev)
 		default:
 			target_state = state;
 		}
-	} else if (!dev->pm_cap) {
+
+		return target_state;
+	}
+
+	if (!dev->pm_cap)
 		target_state = PCI_D0;
-	} else if (device_may_wakeup(&dev->dev)) {
+
+	/*
+	 * If the device is in D3cold even though it's not power-manageable by
+	 * the platform, it may have been powered down by non-standard means.
+	 * Best to let it slumber.
+	 */
+	if (dev->current_state == PCI_D3cold)
+		target_state = PCI_D3cold;
+
+	if (device_may_wakeup(&dev->dev)) {
 		/*
 		 * Find the deepest state from which the device can generate
 		 * wake-up events, make it the target state and enable device
