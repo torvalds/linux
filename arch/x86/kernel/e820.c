@@ -40,10 +40,10 @@
  * user can e.g. boot the original kernel with mem=1G while still booting the
  * next kernel with full memory.
  */
-static struct e820map initial_e820;
-static struct e820map initial_e820_saved;
-struct e820map *e820 = &initial_e820;
-struct e820map *e820_saved = &initial_e820_saved;
+static struct e820map initial_e820  __initdata;
+static struct e820map initial_e820_saved  __initdata;
+struct e820map *e820 __refdata = &initial_e820;
+struct e820map *e820_saved __refdata = &initial_e820_saved;
 
 /* For PCI or other memory-mapped resources */
 unsigned long pci_mem_start = 0xaeedbabe;
