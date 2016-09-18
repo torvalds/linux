@@ -793,6 +793,11 @@ config NET_IFE_SKBPRIO
         depends on NET_ACT_IFE
         ---help---
 
+config NET_IFE_SKBTCINDEX
+        tristate "Support to encoding decoding skb tcindex on IFE action"
+        depends on NET_ACT_IFE
+        ---help---
+
 config NET_CLS_IND
 	bool "Incoming device classification"
 	depends on NET_CLS_U32 || NET_CLS_FW
