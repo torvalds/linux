@@ -42,11 +42,11 @@
 #include <linux/file.h>
 #include <linux/sched.h>
 #include <linux/mount.h>
-#include "llite_internal.h"
 #include "../include/lustre/ll_fiemap.h"
 #include "../include/lustre/lustre_ioctl.h"
 
 #include "../include/cl_object.h"
+#include "llite_internal.h"
 
 static int
 ll_put_grouplock(struct inode *inode, struct file *file, unsigned long arg);

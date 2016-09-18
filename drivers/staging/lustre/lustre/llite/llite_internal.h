@@ -39,11 +39,14 @@
 #include "../include/lustre_linkea.h"
 
 /* for struct cl_lock_descr and struct cl_io */
+#include "../include/lustre_patchless_compat.h"
+#include "../include/lustre_compat.h"
 #include "../include/cl_object.h"
 #include "../include/lustre_lmv.h"
 #include "../include/lustre_mdc.h"
 #include "../include/lustre_intent.h"
 #include <linux/compat.h>
+#include <linux/namei.h>
 #include <linux/xattr.h>
 #include <linux/posix_acl_xattr.h>
 #include "vvp_internal.h"

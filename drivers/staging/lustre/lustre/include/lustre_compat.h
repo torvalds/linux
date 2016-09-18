@@ -30,8 +30,8 @@
  * Lustre is a trademark of Sun Microsystems, Inc.
  */
 
-#ifndef _LINUX_COMPAT25_H
-#define _LINUX_COMPAT25_H
+#ifndef _LUSTRE_COMPAT_H
+#define _LUSTRE_COMPAT_H
 
 #include <linux/fs_struct.h>
 #include <linux/namei.h>
@@ -74,4 +74,4 @@
 # define ext2_find_next_zero_bit  find_next_zero_bit_le
 #endif
 
-#endif /* _COMPAT25_H */
+#endif /* _LUSTRE_COMPAT_H */

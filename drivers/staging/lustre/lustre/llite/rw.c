@@ -52,7 +52,6 @@
 
 #include "../include/obd_cksum.h"
 #include "llite_internal.h"
-#include "../include/linux/lustre_compat25.h"
 
 static void ll_ra_stats_inc_sbi(struct ll_sb_info *sbi, enum ra_stat which);
 

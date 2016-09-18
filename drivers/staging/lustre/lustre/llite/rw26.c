@@ -52,7 +52,6 @@
 #define DEBUG_SUBSYSTEM S_LLITE
 
 #include "llite_internal.h"
-#include "../include/linux/lustre_compat25.h"
 
 /**
  * Implements Linux VM address_space::invalidatepage() method. This method is

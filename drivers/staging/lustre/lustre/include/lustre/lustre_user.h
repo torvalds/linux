@@ -42,8 +42,33 @@
  * @{
  */
 
+#ifdef __KERNEL__
+# include <linux/quota.h>
+# include <linux/string.h> /* snprintf() */
+# include <linux/version.h>
+#else /* !__KERNEL__ */
+# define NEED_QUOTA_DEFS
+# include <stdio.h> /* snprintf() */
+# include <string.h>
+# include <sys/quota.h>
+# include <sys/stat.h>
+#endif /* __KERNEL__ */
 #include "ll_fiemap.h"
-#include "../linux/lustre_user.h"
+
+/*
+ * We need to always use 64bit version because the structure
+ * is shared across entire cluster where 32bit and 64bit machines
+ * are co-existing.
+ */
+#if __BITS_PER_LONG != 64 || defined(__ARCH_WANT_STAT64)
+typedef struct stat64   lstat_t;
+#define lstat_f  lstat64
+#else
+typedef struct stat     lstat_t;
+#define lstat_f  lstat
+#endif
+
+#define HAVE_LOV_USER_MDS_DATA
 
 #define LUSTRE_EOF 0xffffffffffffffffULL
 

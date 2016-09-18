@@ -41,7 +41,7 @@
 #define PRINT_CMD CDEBUG
 
 #include "../include/obd.h"
-#include "../include/linux/lustre_compat25.h"
+#include "../include/lustre_compat.h"
 #include "../include/obd_class.h"
 #include "../include/lustre/lustre_user.h"
 #include "../include/lustre_log.h"
