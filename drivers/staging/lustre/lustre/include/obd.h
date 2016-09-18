@@ -812,7 +812,7 @@ struct md_enqueue_info {
 	struct inode	   *mi_dir;
 	int (*mi_cb)(struct ptlrpc_request *req,
 		     struct md_enqueue_info *minfo, int rc);
-	__u64		   mi_cbdata;
+	void			*mi_cbdata;
 };
 
 struct obd_ops {

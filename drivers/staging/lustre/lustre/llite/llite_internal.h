@@ -1131,10 +1131,12 @@ struct ll_statahead_info {
 	wait_queue_head_t	sai_waitq;      /* stat-ahead wait queue */
 	struct ptlrpc_thread    sai_thread;     /* stat-ahead thread */
 	struct ptlrpc_thread    sai_agl_thread; /* AGL thread */
-	struct list_head	sai_entries;    /* entry list */
-	struct list_head	sai_entries_received; /* entries returned */
-	struct list_head	sai_entries_stated;   /* entries stated */
-	struct list_head	sai_entries_agl; /* AGL entries to be sent */
+	struct list_head	sai_interim_entries; /* entries which got async
+						      * stat reply, but not
+						      * instantiated
+						      */
+	struct list_head	sai_entries;	/* completed entries */
+	struct list_head	sai_agls;	/* AGLs to be sent */
 	struct list_head	sai_cache[LL_SA_CACHE_SIZE];
 	spinlock_t		sai_cache_lock[LL_SA_CACHE_SIZE];
 	atomic_t		sai_cache_count; /* entry count in cache */
