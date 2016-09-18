@@ -1796,7 +1796,8 @@ static int brw_interpret(const struct lu_env *env,
 
 		if (lustre_msg_get_opc(req->rq_reqmsg) == OST_WRITE) {
 			struct lov_oinfo *loi = cl2osc(obj)->oo_oinfo;
-			loff_t last_off = last->oap_count + last->oap_obj_off;
+			loff_t last_off = last->oap_count + last->oap_obj_off +
+					  last->oap_page_off;
 
 			/* Change file size if this is an out of quota or
 			 * direct IO write and it extends the file size
