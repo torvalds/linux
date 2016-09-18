@@ -1688,15 +1688,19 @@ static int lmv_create(struct obd_export *exp, struct md_op_data *op_data,
 	if (rc)
 		return rc;
 
-	/*
-	 * Send the create request to the MDT where the object
-	 * will be located
-	 */
-	tgt = lmv_find_target(lmv, &op_data->op_fid2);
-	if (IS_ERR(tgt))
-		return PTR_ERR(tgt);
+	if (exp_connect_flags(exp) & OBD_CONNECT_DIR_STRIPE) {
+		/*
+		 * Send the create request to the MDT where the object
+		 * will be located
+		 */
+		tgt = lmv_find_target(lmv, &op_data->op_fid2);
+		if (IS_ERR(tgt))
+			return PTR_ERR(tgt);
 
-	op_data->op_mds = tgt->ltd_idx;
+		op_data->op_mds = tgt->ltd_idx;
+	} else {
+		CDEBUG(D_CONFIG, "Server doesn't support striped dirs\n");
+	}
 
 	CDEBUG(D_INODE, "CREATE obj "DFID" -> mds #%x\n",
 	       PFID(&op_data->op_fid1), op_data->op_mds);
