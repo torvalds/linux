@@ -111,6 +111,8 @@ struct usb_line6 {
 
 	/* Interval (ms) */
 	int interval;
+	/* Number of isochronous URBs used for frame transfers */
+	int iso_buffers;
 
 	/* Maximum size of USB packet */
 	int max_packet_size;

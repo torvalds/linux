@@ -467,6 +467,7 @@ static void line6_get_interval(struct usb_line6 *line6)
 	unsigned epnum = usb_pipeendpoint(pipe);
 
 	ep = usbdev->ep_in[epnum];
+	line6->iso_buffers = LINE6_ISO_BUFFERS;
 	if (ep) {
 		line6->interval = ep->desc.bInterval;
 		line6->max_packet_size = le16_to_cpu(ep->desc.wMaxPacketSize);

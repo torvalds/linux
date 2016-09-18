@@ -104,7 +104,7 @@ static void line6_unlink_audio_urbs(struct snd_line6_pcm *line6pcm,
 {
 	int i;
 
-	for (i = 0; i < LINE6_ISO_BUFFERS; i++) {
+	for (i = 0; i < line6pcm->line6->iso_buffers; i++) {
 		if (test_bit(i, &pcms->active_urbs)) {
 			if (!test_and_set_bit(i, &pcms->unlink_urbs))
 				usb_unlink_urb(pcms->urbs[i]);
@@ -124,7 +124,7 @@ static void line6_wait_clear_audio_urbs(struct snd_line6_pcm *line6pcm,
 
 	do {
 		alive = 0;
-		for (i = 0; i < LINE6_ISO_BUFFERS; i++) {
+		for (i = 0; i < line6pcm->line6->iso_buffers; i++) {
 			if (test_bit(i, &pcms->active_urbs))
 				alive++;
 		}
@@ -153,7 +153,8 @@ static int line6_buffer_acquire(struct snd_line6_pcm *line6pcm,
 {
 	/* Invoked multiple times in a row so allocate once only */
 	if (!test_and_set_bit(type, &pstr->opened) && !pstr->buffer) {
-		pstr->buffer = kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
+		pstr->buffer = kmalloc(line6pcm->line6->iso_buffers *
+				       LINE6_ISO_PACKETS *
 				       line6pcm->max_packet_size, GFP_KERNEL);
 		if (!pstr->buffer)
 			return -ENOMEM;
@@ -434,24 +435,30 @@ static struct snd_kcontrol_new line6_controls[] = {
 /*
 	Cleanup the PCM device.
 */
-static void cleanup_urbs(struct line6_pcm_stream *pcms)
+static void cleanup_urbs(struct line6_pcm_stream *pcms, int iso_buffers)
 {
 	int i;
 
-	for (i = 0; i < LINE6_ISO_BUFFERS; i++) {
+	/* Most likely impossible in current code... */
+	if (pcms->urbs == NULL)
+		return;
+
+	for (i = 0; i < iso_buffers; i++) {
 		if (pcms->urbs[i]) {
 			usb_kill_urb(pcms->urbs[i]);
 			usb_free_urb(pcms->urbs[i]);
 		}
 	}
+	kfree(pcms->urbs);
+	pcms->urbs = NULL;
 }
 
 static void line6_cleanup_pcm(struct snd_pcm *pcm)
 {
 	struct snd_line6_pcm *line6pcm = snd_pcm_chip(pcm);
 
-	cleanup_urbs(&line6pcm->out);
-	cleanup_urbs(&line6pcm->in);
+	cleanup_urbs(&line6pcm->out, line6pcm->line6->iso_buffers);
+	cleanup_urbs(&line6pcm->in, line6pcm->line6->iso_buffers);
 	kfree(line6pcm);
 }
 

@@ -90,7 +90,7 @@ struct line6_pcm_properties {
 
 struct line6_pcm_stream {
 	/* allocated URBs */
-	struct urb *urbs[LINE6_ISO_BUFFERS];
+	struct urb **urbs;
 
 	/* Temporary buffer;
 	 * Since the packet size is not known in advance, this buffer is

@@ -29,10 +29,10 @@ static int submit_audio_in_urb(struct snd_line6_pcm *line6pcm)
 	int ret;
 	struct urb *urb_in;
 
-	index =
-	    find_first_zero_bit(&line6pcm->in.active_urbs, LINE6_ISO_BUFFERS);
+	index = find_first_zero_bit(&line6pcm->in.active_urbs,
+				    line6pcm->line6->iso_buffers);
 
-	if (index < 0 || index >= LINE6_ISO_BUFFERS) {
+	if (index < 0 || index >= line6pcm->line6->iso_buffers) {
 		dev_err(line6pcm->line6->ifcdev, "no free URB found\n");
 		return -EINVAL;
 	}
@@ -73,7 +73,7 @@ int line6_submit_audio_in_all_urbs(struct snd_line6_pcm *line6pcm)
 {
 	int ret = 0, i;
 
-	for (i = 0; i < LINE6_ISO_BUFFERS; ++i) {
+	for (i = 0; i < line6pcm->line6->iso_buffers; ++i) {
 		ret = submit_audio_in_urb(line6pcm);
 		if (ret < 0)
 			break;
@@ -154,7 +154,7 @@ static void audio_in_callback(struct urb *urb)
 	line6pcm->in.last_frame = urb->start_frame;
 
 	/* find index of URB */
-	for (index = 0; index < LINE6_ISO_BUFFERS; ++index)
+	for (index = 0; index < line6pcm->line6->iso_buffers; ++index)
 		if (urb == line6pcm->in.urbs[index])
 			break;
 
@@ -247,8 +247,13 @@ int line6_create_audio_in_urbs(struct snd_line6_pcm *line6pcm)
 	struct usb_line6 *line6 = line6pcm->line6;
 	int i;
 
+	line6pcm->in.urbs = kzalloc(
+		sizeof(struct urb *) * line6->iso_buffers, GFP_KERNEL);
+	if (line6pcm->in.urbs == NULL)
+		return -ENOMEM;
+
 	/* create audio URBs and fill in constant values: */
-	for (i = 0; i < LINE6_ISO_BUFFERS; ++i) {
+	for (i = 0; i < line6->iso_buffers; ++i) {
 		struct urb *urb;
 
 		/* URB for audio in: */
