@@ -792,7 +792,8 @@ static struct completion ldlm_pools_comp;
  */
 static unsigned long ldlm_pools_count(ldlm_side_t client, gfp_t gfp_mask)
 {
-	int total = 0, nr_ns;
+	unsigned long total = 0;
+	int nr_ns;
 	struct ldlm_namespace *ns;
 	struct ldlm_namespace *ns_old = NULL; /* loop detection */
 	void *cookie;
