@@ -806,7 +806,6 @@ struct md_enqueue_info {
 	int (*mi_cb)(struct ptlrpc_request *req,
 		     struct md_enqueue_info *minfo, int rc);
 	__u64		   mi_cbdata;
-	unsigned int	    mi_generation;
 };
 
 struct obd_ops {

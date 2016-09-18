@@ -116,6 +116,7 @@ static struct ll_sb_info *ll_init_sbi(struct super_block *sb)
 	sbi->ll_sa_max = LL_SA_RPC_DEF;
 	atomic_set(&sbi->ll_sa_total, 0);
 	atomic_set(&sbi->ll_sa_wrong, 0);
+	atomic_set(&sbi->ll_sa_running, 0);
 	atomic_set(&sbi->ll_agl_total, 0);
 	sbi->ll_flags |= LL_SBI_AGL_ENABLED;
 
@@ -630,6 +631,12 @@ void ll_kill_super(struct super_block *sb)
 	if (sbi) {
 		sb->s_dev = sbi->ll_sdev_orig;
 		sbi->ll_umounting = 1;
+
+		/* wait running statahead threads to quit */
+		while (atomic_read(&sbi->ll_sa_running) > 0) {
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			schedule_timeout(msecs_to_jiffies(MSEC_PER_SEC >> 3));
+		}
 	}
 }
 
@@ -795,6 +802,7 @@ void ll_lli_init(struct ll_inode_info *lli)
 		lli->lli_sai = NULL;
 		spin_lock_init(&lli->lli_sa_lock);
 		lli->lli_opendir_pid = 0;
+		lli->lli_sa_enabled = 0;
 	} else {
 		mutex_init(&lli->lli_size_mutex);
 		lli->lli_symlink_name = NULL;

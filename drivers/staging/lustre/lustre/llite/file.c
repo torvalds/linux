@@ -351,13 +351,11 @@ int ll_file_release(struct inode *inode, struct file *file)
 	fd = LUSTRE_FPRIVATE(file);
 	LASSERT(fd);
 
-	/* The last ref on @file, maybe not be the owner pid of statahead.
-	 * Different processes can open the same dir, "ll_opendir_key" means:
-	 * it is me that should stop the statahead thread.
+	/* The last ref on @file, maybe not be the owner pid of statahead,
+	 * because parent and child process can share the same file handle.
 	 */
-	if (S_ISDIR(inode->i_mode) && lli->lli_opendir_key == fd &&
-	    lli->lli_opendir_pid != 0)
-		ll_stop_statahead(inode, lli->lli_opendir_key);
+	if (S_ISDIR(inode->i_mode) && lli->lli_opendir_key == fd)
+		ll_deauthorize_statahead(inode, fd);
 
 	if (is_root_inode(inode)) {
 		LUSTRE_FPRIVATE(file) = NULL;
@@ -530,7 +528,7 @@ int ll_file_open(struct inode *inode, struct file *file)
 	struct obd_client_handle **och_p = NULL;
 	__u64 *och_usecount = NULL;
 	struct ll_file_data *fd;
-	int rc = 0, opendir_set = 0;
+	int rc = 0;
 
 	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p), flags %o\n",
 	       PFID(ll_inode2fid(inode)), inode, file->f_flags);
@@ -545,16 +543,8 @@ int ll_file_open(struct inode *inode, struct file *file)
 	}
 
 	fd->fd_file = file;
-	if (S_ISDIR(inode->i_mode)) {
-		spin_lock(&lli->lli_sa_lock);
-		if (!lli->lli_opendir_key && !lli->lli_sai &&
-		    lli->lli_opendir_pid == 0) {
-			lli->lli_opendir_key = fd;
-			lli->lli_opendir_pid = current_pid();
-			opendir_set = 1;
-		}
-		spin_unlock(&lli->lli_sa_lock);
-	}
+	if (S_ISDIR(inode->i_mode))
+		ll_authorize_statahead(inode, fd);
 
 	if (is_root_inode(inode)) {
 		LUSTRE_FPRIVATE(file) = fd;
@@ -713,9 +703,10 @@ out_och_free:
 		mutex_unlock(&lli->lli_och_mutex);
 
 out_openerr:
-		if (opendir_set != 0)
-			ll_stop_statahead(inode, lli->lli_opendir_key);
-		ll_file_data_put(fd);
+		if (lli->lli_opendir_key == fd)
+			ll_deauthorize_statahead(inode, fd);
+		if (fd)
+			ll_file_data_put(fd);
 	} else {
 		ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_OPEN, 1);
 	}
