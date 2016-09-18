@@ -1015,6 +1015,14 @@ static u8 create_instance_scan_rsp_data(struct hci_dev *hdev, u8 instance,
 
 	instance_flags = adv_instance->flags;
 
+	if ((instance_flags & MGMT_ADV_FLAG_APPEARANCE) && hdev->appearance) {
+		ptr[0] = 3;
+		ptr[1] = EIR_APPEARANCE;
+		put_unaligned_le16(hdev->appearance, ptr + 2);
+		scan_rsp_len += 4;
+		ptr += 4;
+	}
+
 	memcpy(ptr, adv_instance->scan_rsp_data,
 	       adv_instance->scan_rsp_len);
 

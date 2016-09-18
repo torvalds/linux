@@ -598,6 +598,12 @@ struct mgmt_rp_read_ext_info {
 	__u8     eir[0];
 } __packed;
 
+#define MGMT_OP_SET_APPEARANCE		0x0043
+struct mgmt_cp_set_appearance {
+	__u16	appearance;
+} __packed;
+#define MGMT_SET_APPEARANCE_SIZE	2
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16	opcode;

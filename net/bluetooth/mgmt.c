@@ -105,6 +105,7 @@ static const u16 mgmt_commands[] = {
 	MGMT_OP_GET_ADV_SIZE_INFO,
 	MGMT_OP_START_LIMITED_DISCOVERY,
 	MGMT_OP_READ_EXT_INFO,
+	MGMT_OP_SET_APPEARANCE,
 };
 
 static const u16 mgmt_events[] = {
@@ -3143,6 +3144,34 @@ failed:
 	return err;
 }
 
+static int set_appearance(struct sock *sk, struct hci_dev *hdev, void *data,
+			  u16 len)
+{
+	struct mgmt_cp_set_appearance *cp = data;
+	u16 apperance;
+	int err;
+
+	BT_DBG("");
+
+	apperance = le16_to_cpu(cp->appearance);
+
+	hci_dev_lock(hdev);
+
+	if (hdev->appearance != apperance) {
+		hdev->appearance = apperance;
+
+		if (hci_dev_test_flag(hdev, HCI_LE_ADV))
+			adv_expire(hdev, MGMT_ADV_FLAG_APPEARANCE);
+	}
+
+	err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_SET_APPEARANCE, 0, NULL,
+				0);
+
+	hci_dev_unlock(hdev);
+
+	return err;
+}
+
 static void read_local_oob_data_complete(struct hci_dev *hdev, u8 status,
 				         u16 opcode, struct sk_buff *skb)
 {
@@ -5918,6 +5947,7 @@ static u32 get_supported_adv_flags(struct hci_dev *hdev)
 	flags |= MGMT_ADV_FLAG_DISCOV;
 	flags |= MGMT_ADV_FLAG_LIMITED_DISCOV;
 	flags |= MGMT_ADV_FLAG_MANAGED_FLAGS;
+	flags |= MGMT_ADV_FLAG_APPEARANCE;
 	flags |= MGMT_ADV_FLAG_LOCAL_NAME;
 
 	if (hdev->adv_tx_power != HCI_TX_POWER_INVALID)
@@ -5999,6 +6029,9 @@ static bool tlv_data_is_valid(struct hci_dev *hdev, u32 adv_flags, u8 *data,
 		/* at least 1 byte of name should fit in */
 		if (adv_flags & MGMT_ADV_FLAG_LOCAL_NAME)
 			max_len -= 3;
+
+		if (adv_flags & MGMT_ADV_FLAG_APPEARANCE)
+			max_len -= 4;
 	}
 
 	if (len > max_len)
@@ -6335,6 +6368,9 @@ static u8 tlv_data_max_len(u32 adv_flags, bool is_adv_data)
 		/* at least 1 byte of name should fit in */
 		if (adv_flags & MGMT_ADV_FLAG_LOCAL_NAME)
 			max_len -= 3;
+
+		if (adv_flags & (MGMT_ADV_FLAG_APPEARANCE))
+			max_len -= 4;
 	}
 
 	return max_len;
@@ -6470,6 +6506,7 @@ static const struct hci_mgmt_handler mgmt_handlers[] = {
 	{ start_limited_discovery, MGMT_START_DISCOVERY_SIZE },
 	{ read_ext_controller_info,MGMT_READ_EXT_INFO_SIZE,
 						HCI_MGMT_UNTRUSTED },
+	{ set_appearance,	   MGMT_SET_APPEARANCE_SIZE },
 };
 
 void mgmt_index_added(struct hci_dev *hdev)
