@@ -154,7 +154,7 @@ struct adapter {
 	struct	eeprom_priv eeprompriv;
 	struct	led_priv	ledpriv;
 
-	void *HalData;
+	struct hal_data_8188e *HalData;
 
 	s32	bDriverStopped;
 	s32	bSurpriseRemoved;
