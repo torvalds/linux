@@ -71,7 +71,6 @@ void sptlrpc_gc_add_sec(struct ptlrpc_sec *sec)
 
 	CDEBUG(D_SEC, "added sec %p(%s)\n", sec, sec->ps_policy->sp_name);
 }
-EXPORT_SYMBOL(sptlrpc_gc_add_sec);
 
 void sptlrpc_gc_del_sec(struct ptlrpc_sec *sec)
 {
@@ -95,7 +94,6 @@ void sptlrpc_gc_del_sec(struct ptlrpc_sec *sec)
 
 	CDEBUG(D_SEC, "del sec %p(%s)\n", sec, sec->ps_policy->sp_name);
 }
-EXPORT_SYMBOL(sptlrpc_gc_del_sec);
 
 static void sec_process_ctx_list(void)
 {

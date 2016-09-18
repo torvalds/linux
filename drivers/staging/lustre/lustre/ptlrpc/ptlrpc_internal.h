@@ -62,6 +62,11 @@ void ptlrpc_request_cache_fini(void);
 struct ptlrpc_request *ptlrpc_request_cache_alloc(gfp_t flags);
 void ptlrpc_request_cache_free(struct ptlrpc_request *req);
 void ptlrpc_init_xid(void);
+void ptlrpc_set_add_new_req(struct ptlrpcd_ctl *pc,
+			    struct ptlrpc_request *req);
+int ptlrpc_expired_set(void *data);
+int ptlrpc_set_next_timeout(struct ptlrpc_request_set *);
+void ptlrpc_resend_req(struct ptlrpc_request *request);
 
 /* events.c */
 int ptlrpc_init_portals(void);

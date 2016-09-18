@@ -425,7 +425,6 @@ void ptlrpc_fail_import(struct obd_import *imp, __u32 conn_cnt)
 		ptlrpc_pinger_force(imp);
 	}
 }
-EXPORT_SYMBOL(ptlrpc_fail_import);
 
 int ptlrpc_reconnect_import(struct obd_import *imp)
 {
