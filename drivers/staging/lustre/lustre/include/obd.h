@@ -867,8 +867,7 @@ struct obd_ops {
 			struct lov_stripe_md **mem_tgt,
 			struct lov_mds_md *disk_src, int disk_len);
 	int (*create)(const struct lu_env *env, struct obd_export *exp,
-		      struct obdo *oa, struct lov_stripe_md **ea,
-		      struct obd_trans_info *oti);
+		      struct obdo *oa, struct obd_trans_info *oti);
 	int (*destroy)(const struct lu_env *env, struct obd_export *exp,
 		       struct obdo *oa, struct lov_stripe_md *ea,
 		       struct obd_trans_info *oti, struct obd_export *md_exp);

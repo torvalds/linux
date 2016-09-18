@@ -398,24 +398,16 @@ static int osc_setattr_async(struct obd_export *exp, struct obd_info *oinfo,
 				      oinfo->oi_cb_up, oinfo, rqset);
 }
 
-static int osc_real_create(struct obd_export *exp, struct obdo *oa,
-			   struct lov_stripe_md **ea,
-			   struct obd_trans_info *oti)
+static int osc_create(const struct lu_env *env, struct obd_export *exp,
+		      struct obdo *oa, struct obd_trans_info *oti)
 {
 	struct ptlrpc_request *req;
 	struct ost_body *body;
-	struct lov_stripe_md *lsm;
 	int rc;
 
 	LASSERT(oa);
-	LASSERT(ea);
-
-	lsm = *ea;
-	if (!lsm) {
-		rc = obd_alloc_memmd(exp, &lsm);
-		if (rc < 0)
-			return rc;
-	}
+	LASSERT(oa->o_valid & OBD_MD_FLGROUP);
+	LASSERT(fid_seq_is_echo(ostid_seq(&oa->o_oi)));
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_OST_CREATE);
 	if (!req) {
@@ -461,13 +453,6 @@ static int osc_real_create(struct obd_export *exp, struct obdo *oa,
 	oa->o_blksize = cli_brw_size(exp->exp_obd);
 	oa->o_valid |= OBD_MD_FLBLKSZ;
 
-	/* XXX LOV STACKING: the lsm that is passed to us from LOV does not
-	 * have valid lsm_oinfo data structs, so don't go touching that.
-	 * This needs to be fixed in a big way.
-	 */
-	lsm->lsm_oi = oa->o_oi;
-	*ea = lsm;
-
 	if (oti && oa->o_valid & OBD_MD_FLCOOKIE) {
 		if (!oti->oti_logcookies)
 			oti->oti_logcookies = &oti->oti_onecookie;
@@ -479,8 +464,6 @@ static int osc_real_create(struct obd_export *exp, struct obdo *oa,
 out_req:
 	ptlrpc_req_finished(req);
 out:
-	if (rc && !*ea)
-		obd_free_memmd(exp, &lsm);
 	return rc;
 }
 
@@ -654,25 +637,6 @@ static int osc_can_send_destroy(struct client_obd *cli)
 		wake_up(&cli->cl_destroy_waitq);
 	}
 	return 0;
-}
-
-static int osc_create(const struct lu_env *env, struct obd_export *exp,
-		      struct obdo *oa, struct lov_stripe_md **ea,
-		      struct obd_trans_info *oti)
-{
-	int rc = 0;
-
-	LASSERT(oa);
-	LASSERT(ea);
-	LASSERT(oa->o_valid & OBD_MD_FLGROUP);
-
-	if (!fid_seq_is_mdt(ostid_seq(&oa->o_oi)))
-		return osc_real_create(exp, oa, ea, oti);
-
-	/* we should not get here anymore */
-	LBUG();
-
-	return rc;
 }
 
 /* Destroy requests can be async always on the client, and we don't even really

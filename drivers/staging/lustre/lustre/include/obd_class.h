@@ -677,15 +677,6 @@ static inline int obd_unpackmd(struct obd_export *exp,
 	return rc;
 }
 
-/* helper functions */
-static inline int obd_alloc_memmd(struct obd_export *exp,
-				  struct lov_stripe_md **mem_tgt)
-{
-	LASSERT(mem_tgt);
-	LASSERT(!*mem_tgt);
-	return obd_unpackmd(exp, mem_tgt, NULL, 0);
-}
-
 static inline int obd_free_memmd(struct obd_export *exp,
 				 struct lov_stripe_md **mem_tgt)
 {
@@ -699,15 +690,14 @@ static inline int obd_free_memmd(struct obd_export *exp,
 }
 
 static inline int obd_create(const struct lu_env *env, struct obd_export *exp,
-			     struct obdo *obdo, struct lov_stripe_md **ea,
-			     struct obd_trans_info *oti)
+			     struct obdo *obdo, struct obd_trans_info *oti)
 {
 	int rc;
 
 	EXP_CHECK_DT_OP(exp, create);
 	EXP_COUNTER_INCREMENT(exp, create);
 
-	rc = OBP(exp->exp_obd, create)(env, exp, obdo, ea, oti);
+	rc = OBP(exp->exp_obd, create)(env, exp, obdo, oti);
 	return rc;
 }
 
