@@ -1198,9 +1198,6 @@ static enum ldlm_policy_res ldlm_cancel_lrur_policy(struct ldlm_namespace *ns,
 	if (slv == 0 || lv < slv)
 		return LDLM_POLICY_KEEP_LOCK;
 
-	if (ns->ns_cancel && ns->ns_cancel(lock) == 0)
-		return LDLM_POLICY_KEEP_LOCK;
-
 	return LDLM_POLICY_CANCEL_LOCK;
 }
 
@@ -1242,9 +1239,6 @@ static enum ldlm_policy_res ldlm_cancel_aged_policy(struct ldlm_namespace *ns,
 	if ((added >= count) &&
 	    time_before(cfs_time_current(),
 			cfs_time_add(lock->l_last_used, ns->ns_max_age)))
-		return LDLM_POLICY_KEEP_LOCK;
-
-	if (ns->ns_cancel && ns->ns_cancel(lock) == 0)
 		return LDLM_POLICY_KEEP_LOCK;
 
 	return LDLM_POLICY_CANCEL_LOCK;
