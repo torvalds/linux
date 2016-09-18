@@ -101,13 +101,6 @@ int cz_send_msg_to_smc(struct amdgpu_device *adev, u16 msg)
 	return 0;
 }
 
-int cz_send_msg_to_smc_with_parameter_async(struct amdgpu_device *adev,
-						u16 msg, u32 parameter)
-{
-	WREG32(mmSMU_MP1_SRBM2P_ARG_0, parameter);
-	return cz_send_msg_to_smc_async(adev, msg);
-}
-
 int cz_send_msg_to_smc_with_parameter(struct amdgpu_device *adev,
 						u16 msg, u32 parameter)
 {
