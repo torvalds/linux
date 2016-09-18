@@ -407,7 +407,7 @@ enum stats_track_type {
 	"nolck",	\
 	"checksum",	\
 	"flock",	\
-	"xattr",	\
+	"user_xattr",	\
 	"acl",		\
 	"???",		\
 	"???",		\
@@ -423,7 +423,7 @@ enum stats_track_type {
 	"verbose",	\
 	"layout",	\
 	"user_fid2path",\
-	"xattr",	\
+	"xattr_cache",	\
 	"norootsquash",	\
 }
 
