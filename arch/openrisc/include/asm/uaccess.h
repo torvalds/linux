@@ -276,7 +276,7 @@ copy_from_user(void *to, const void *from, unsigned long n)
 	unsigned long res = n;
 
 	if (likely(access_ok(VERIFY_READ, from, n)))
-		n = __copy_tofrom_user(to, from, n);
+		res = __copy_tofrom_user(to, from, n);
 	if (unlikely(res))
 		memset(to + (n - res), 0, res);
 	return res;
