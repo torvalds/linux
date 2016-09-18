@@ -1191,6 +1191,9 @@ static int usbhid_start(struct hid_device *hid)
 		device_set_wakeup_enable(&dev->dev, 1);
 	}
 
+	if (dev->actconfig->desc.bmAttributes & USB_CONFIG_ATT_WAKEUP)
+		device_set_wakeup_enable(&dev->dev, 1);
+
 	mutex_unlock(&usbhid->mutex);
 	return 0;
 
