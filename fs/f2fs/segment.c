@@ -1675,10 +1675,8 @@ void f2fs_wait_on_encrypted_page_writeback(struct f2fs_sb_info *sbi,
 {
 	struct page *cpage;
 
-	if (blkaddr == NEW_ADDR)
+	if (blkaddr == NEW_ADDR || blkaddr == NULL_ADDR)
 		return;
-
-	f2fs_bug_on(sbi, blkaddr == NULL_ADDR);
 
 	cpage = find_lock_page(META_MAPPING(sbi), blkaddr);
 	if (cpage) {

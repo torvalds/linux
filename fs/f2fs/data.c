@@ -639,9 +639,6 @@ ssize_t f2fs_preallocate_blocks(struct kiocb *iocb, struct iov_iter *from)
 
 	map.m_next_pgofs = NULL;
 
-	if (f2fs_encrypted_inode(inode))
-		return 0;
-
 	if (iocb->ki_flags & IOCB_DIRECT) {
 		ret = f2fs_convert_inline_inode(inode);
 		if (ret)
@@ -1532,8 +1529,7 @@ static int prepare_write_begin(struct f2fs_sb_info *sbi,
 	 * we already allocated all the blocks, so we don't need to get
 	 * the block addresses when there is no need to fill the page.
 	 */
-	if (!f2fs_has_inline_data(inode) && !f2fs_encrypted_inode(inode) &&
-					len == PAGE_SIZE)
+	if (!f2fs_has_inline_data(inode) && len == PAGE_SIZE)
 		return 0;
 
 	if (f2fs_has_inline_data(inode) ||
