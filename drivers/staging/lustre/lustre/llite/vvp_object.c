@@ -67,8 +67,8 @@ static int vvp_object_print(const struct lu_env *env, void *cookie,
 
 	(*p)(env, cookie, "(%s %d %d) inode: %p ",
 	     list_empty(&obj->vob_pending_list) ? "-" : "+",
-	     obj->vob_transient_pages, atomic_read(&obj->vob_mmap_cnt),
-	     inode);
+	     atomic_read(&obj->vob_transient_pages),
+	     atomic_read(&obj->vob_mmap_cnt), inode);
 	if (inode) {
 		lli = ll_i2info(inode);
 		(*p)(env, cookie, "%lu/%u %o %u %d %p "DFID,
@@ -220,7 +220,7 @@ static int vvp_object_init0(const struct lu_env *env,
 			    const struct cl_object_conf *conf)
 {
 	vob->vob_inode = conf->coc_inode;
-	vob->vob_transient_pages = 0;
+	atomic_set(&vob->vob_transient_pages, 0);
 	cl_object_page_init(&vob->vob_cl, sizeof(struct vvp_page));
 	return 0;
 }
