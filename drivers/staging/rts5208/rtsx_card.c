@@ -1027,26 +1027,26 @@ int card_share_mode(struct rtsx_chip *chip, int card)
 
 	if (CHECK_PID(chip, 0x5208)) {
 		mask = CARD_SHARE_MASK;
-		if (card == SD_CARD)
+		if (card == SD_CARD) {
 			value = CARD_SHARE_48_SD;
-		else if (card == MS_CARD)
+		} else if (card == MS_CARD) {
 			value = CARD_SHARE_48_MS;
-		else if (card == XD_CARD)
+		} else if (card == XD_CARD) {
 			value = CARD_SHARE_48_XD;
-		else {
+		} else {
 			rtsx_trace(chip);
 			return STATUS_FAIL;
 		}
 
 	} else if (CHECK_PID(chip, 0x5288)) {
 		mask = 0x03;
-		if (card == SD_CARD)
+		if (card == SD_CARD) {
 			value = CARD_SHARE_BAROSSA_SD;
-		else if (card == MS_CARD)
+		} else if (card == MS_CARD) {
 			value = CARD_SHARE_BAROSSA_MS;
-		else if (card == XD_CARD)
+		} else if (card == XD_CARD) {
 			value = CARD_SHARE_BAROSSA_XD;
-		else {
+		} else {
 			rtsx_trace(chip);
 			return STATUS_FAIL;
 		}
@@ -1072,15 +1072,15 @@ int select_card(struct rtsx_chip *chip, int card)
 	if (chip->cur_card != card) {
 		u8 mod;
 
-		if (card == SD_CARD)
+		if (card == SD_CARD) {
 			mod = SD_MOD_SEL;
-		else if (card == MS_CARD)
+		} else if (card == MS_CARD) {
 			mod = MS_MOD_SEL;
-		else if (card == XD_CARD)
+		} else if (card == XD_CARD) {
 			mod = XD_MOD_SEL;
-		else if (card == SPI_CARD)
+		} else if (card == SPI_CARD) {
 			mod = SPI_MOD_SEL;
-		else {
+		} else {
 			rtsx_trace(chip);
 			return STATUS_FAIL;
 		}
