@@ -228,11 +228,6 @@ EXPORT_SYMBOL(cl_page_find);
 
 static inline int cl_page_invariant(const struct cl_page *pg)
 {
-	/*
-	 * Page invariant is protected by a VM lock.
-	 */
-	LINVRNT(cl_page_is_vmlocked(NULL, pg));
-
 	return cl_page_in_use_noref(pg);
 }
 
@@ -864,7 +859,6 @@ void cl_page_completion(const struct lu_env *env,
 			       (const struct lu_env *,
 				const struct cl_page_slice *, int), ioret);
 	if (anchor) {
-		LASSERT(cl_page_is_vmlocked(env, pg));
 		LASSERT(pg->cp_sync_io == anchor);
 		pg->cp_sync_io = NULL;
 	}

@@ -444,18 +444,10 @@ static int vvp_transient_page_prep(const struct lu_env *env,
 	return 0;
 }
 
-static void vvp_transient_page_verify(const struct cl_page *page)
-{
-	struct inode *inode = vvp_object_inode(page->cp_obj);
-
-	LASSERT(!inode_trylock(inode));
-}
-
 static int vvp_transient_page_own(const struct lu_env *env,
 				  const struct cl_page_slice *slice,
 				  struct cl_io *unused, int nonblock)
 {
-	vvp_transient_page_verify(slice->cpl_page);
 	return 0;
 }
 
@@ -463,21 +455,18 @@ static void vvp_transient_page_assume(const struct lu_env *env,
 				      const struct cl_page_slice *slice,
 				      struct cl_io *unused)
 {
-	vvp_transient_page_verify(slice->cpl_page);
 }
 
 static void vvp_transient_page_unassume(const struct lu_env *env,
 					const struct cl_page_slice *slice,
 					struct cl_io *unused)
 {
-	vvp_transient_page_verify(slice->cpl_page);
 }
 
 static void vvp_transient_page_disown(const struct lu_env *env,
 				      const struct cl_page_slice *slice,
 				      struct cl_io *unused)
 {
-	vvp_transient_page_verify(slice->cpl_page);
 }
 
 static void vvp_transient_page_discard(const struct lu_env *env,
@@ -485,8 +474,6 @@ static void vvp_transient_page_discard(const struct lu_env *env,
 				       struct cl_io *unused)
 {
 	struct cl_page *page = slice->cpl_page;
-
-	vvp_transient_page_verify(slice->cpl_page);
 
 	/*
 	 * For transient pages, remove it from the radix tree.
@@ -511,7 +498,6 @@ vvp_transient_page_completion(const struct lu_env *env,
 			      const struct cl_page_slice *slice,
 			      int ioret)
 {
-	vvp_transient_page_verify(slice->cpl_page);
 }
 
 static void vvp_transient_page_fini(const struct lu_env *env,
@@ -522,7 +508,6 @@ static void vvp_transient_page_fini(const struct lu_env *env,
 	struct vvp_object *clobj = cl2vvp(clp->cp_obj);
 
 	vvp_page_fini_common(vpg);
-	LASSERT(!inode_trylock(clobj->vob_inode));
 	clobj->vob_transient_pages--;
 }
 
@@ -570,7 +555,6 @@ int vvp_page_init(const struct lu_env *env, struct cl_object *obj,
 	} else {
 		struct vvp_object *clobj = cl2vvp(obj);
 
-		LASSERT(!inode_trylock(clobj->vob_inode));
 		cl_page_slice_add(page, &vpg->vpg_cl, obj, index,
 				  &vvp_transient_page_ops);
 		clobj->vob_transient_pages++;
