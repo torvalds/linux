@@ -35,6 +35,12 @@ Description:	Displays a set of alternate modes supported by a wheel. Each
 		  DF-EX <*--------> G25 <-> G27
 		  DF-EX <*----------------> G27
 
+		G29:
+		  DF-EX <*> DFP <-> G25 <-> G27 <-> G29
+		  DF-EX <*--------> G25 <-> G27 <-> G29
+		  DF-EX <*----------------> G27 <-> G29
+		  DF-EX <*------------------------> G29
+
 		DFGT:
 		  DF-EX <*> DFP <-> DFGT
 		  DF-EX <*--------> DFGT
