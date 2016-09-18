@@ -413,7 +413,7 @@ static int ll_read_ahead_pages(const struct lu_env *env,
 			 * forward read-ahead, it will be fixed when backward
 			 * read-ahead is implemented
 			 */
-			LASSERTF(page_idx > ria->ria_stoff, "Invalid page_idx %lu rs %lu re %lu ro %lu rl %lu rp %lu\n",
+			LASSERTF(page_idx >= ria->ria_stoff, "Invalid page_idx %lu rs %lu re %lu ro %lu rl %lu rp %lu\n",
 				 page_idx,
 				 ria->ria_start, ria->ria_end, ria->ria_stoff,
 				 ria->ria_length, ria->ria_pages);
@@ -474,10 +474,22 @@ int ll_readahead(const struct lu_env *env, struct cl_io *io,
 	}
 
 	/* Reserve a part of the read-ahead window that we'll be issuing */
-	if (ras->ras_window_len) {
-		start = ras->ras_next_readahead;
+	if (ras->ras_window_len > 0) {
+		/*
+		 * Note: other thread might rollback the ras_next_readahead,
+		 * if it can not get the full size of prepared pages, see the
+		 * end of this function. For stride read ahead, it needs to
+		 * make sure the offset is no less than ras_stride_offset,
+		 * so that stride read ahead can work correctly.
+		 */
+		if (stride_io_mode(ras))
+			start = max(ras->ras_next_readahead,
+				    ras->ras_stride_offset);
+		else
+			start = ras->ras_next_readahead;
 		end = ras->ras_window_start + ras->ras_window_len - 1;
 	}
+
 	if (end != 0) {
 		unsigned long rpc_boundary;
 		/*
