@@ -155,6 +155,7 @@ int lmv_revalidate_slaves(struct obd_export *exp, struct mdt_body *mbody,
 {
 	struct obd_device *obd = exp->exp_obd;
 	struct lmv_obd *lmv = &obd->u.lmv;
+	struct ptlrpc_request *req = NULL;
 	struct mdt_body *body;
 	struct md_op_data *op_data;
 	unsigned long size = 0;
@@ -178,7 +179,6 @@ int lmv_revalidate_slaves(struct obd_export *exp, struct mdt_body *mbody,
 	 */
 	for (i = 0; i < lsm->lsm_md_stripe_count; i++) {
 		struct lookup_intent it = { .it_op = IT_GETATTR };
-		struct ptlrpc_request *req = NULL;
 		struct lustre_handle *lockh = NULL;
 		struct lmv_tgt_desc *tgt = NULL;
 		struct inode *inode;
@@ -205,6 +205,11 @@ int lmv_revalidate_slaves(struct obd_export *exp, struct mdt_body *mbody,
 		CDEBUG(D_INODE, "Revalidate slave "DFID" -> mds #%d\n",
 		       PFID(&fid), tgt->ltd_idx);
 
+		if (req) {
+			ptlrpc_req_finished(req);
+			req = NULL;
+		}
+
 		rc = md_intent_lock(tgt->ltd_exp, op_data, &it, &req,
 				    cb_blocking, extra_lock_flags);
 		if (rc < 0)
@@ -228,9 +233,6 @@ int lmv_revalidate_slaves(struct obd_export *exp, struct mdt_body *mbody,
 				       PFID(&lsm->lsm_md_oinfo[i].lmo_fid),
 				       PFID(&lsm->lsm_md_oinfo[0].lmo_fid));
 
-				if (req)
-					ptlrpc_req_finished(req);
-
 				if (it.it_lock_mode && lockh) {
 					ldlm_lock_decref(lockh, it.it_lock_mode);
 					it.it_lock_mode = 0;
@@ -245,9 +247,6 @@ int lmv_revalidate_slaves(struct obd_export *exp, struct mdt_body *mbody,
 			LTIME_S(inode->i_atime) = body->mbo_atime;
 			LTIME_S(inode->i_ctime) = body->mbo_ctime;
 			LTIME_S(inode->i_mtime) = body->mbo_mtime;
-
-			if (req)
-				ptlrpc_req_finished(req);
 		}
 
 		md_set_lock_data(tgt->ltd_exp, lockh, inode, NULL);
@@ -288,6 +287,9 @@ int lmv_revalidate_slaves(struct obd_export *exp, struct mdt_body *mbody,
 		mbody->mbo_mtime = mtime;
 	}
 cleanup:
+	if (req)
+		ptlrpc_req_finished(req);
+
 	kfree(op_data);
 	return rc;
 }
