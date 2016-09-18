@@ -875,12 +875,17 @@ static void iwl_mvm_change_queue_owner(struct iwl_mvm *mvm, int queue)
 	cmd.tx_fifo = iwl_mvm_ac_to_tx_fifo[tid_to_mac80211_ac[tid]];
 
 	ret = iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, 0, sizeof(cmd), &cmd);
-	if (ret)
+	if (ret) {
 		IWL_ERR(mvm, "Failed to update owner of TXQ %d (ret=%d)\n",
 			queue, ret);
-	else
-		IWL_DEBUG_TX_QUEUES(mvm, "Changed TXQ %d ownership to tid %d\n",
-				    queue, tid);
+		return;
+	}
+
+	spin_lock_bh(&mvm->queue_info_lock);
+	mvm->queue_info[queue].txq_tid = tid;
+	spin_unlock_bh(&mvm->queue_info_lock);
+	IWL_DEBUG_TX_QUEUES(mvm, "Changed TXQ %d ownership to tid %d\n",
+			    queue, tid);
 }
 
 static void iwl_mvm_unshare_queue(struct iwl_mvm *mvm, int queue)
