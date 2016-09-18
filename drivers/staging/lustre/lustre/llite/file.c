@@ -1540,39 +1540,33 @@ static int ll_lov_setea(struct inode *inode, struct file *file,
 static int ll_lov_setstripe(struct inode *inode, struct file *file,
 			    unsigned long arg)
 {
-	struct lov_user_md_v3 lumv3;
-	struct lov_user_md_v1 *lumv1 = (struct lov_user_md_v1 *)&lumv3;
-	struct lov_user_md_v1 __user *lumv1p = (void __user *)arg;
-	struct lov_user_md_v3 __user *lumv3p = (void __user *)arg;
+	struct lov_user_md __user *lum = (struct lov_user_md __user *)arg;
+	struct lov_user_md *klum;
 	int lum_size, rc;
 	__u64 flags = FMODE_WRITE;
 
-	/* first try with v1 which is smaller than v3 */
-	lum_size = sizeof(struct lov_user_md_v1);
-	if (copy_from_user(lumv1, lumv1p, lum_size))
-		return -EFAULT;
+	rc = ll_copy_user_md(lum, &klum);
+	if (rc < 0)
+		return rc;
 
-	if (lumv1->lmm_magic == LOV_USER_MAGIC_V3) {
-		lum_size = sizeof(struct lov_user_md_v3);
-		if (copy_from_user(&lumv3, lumv3p, lum_size))
-			return -EFAULT;
-	}
-
-	rc = ll_lov_setstripe_ea_info(inode, file->f_path.dentry, flags, lumv1,
+	lum_size = rc;
+	rc = ll_lov_setstripe_ea_info(inode, file->f_path.dentry, flags, klum,
 				      lum_size);
 	cl_lov_delay_create_clear(&file->f_flags);
 	if (rc == 0) {
 		struct lov_stripe_md *lsm;
 		__u32 gen;
 
-		put_user(0, &lumv1p->lmm_stripe_count);
+		put_user(0, &lum->lmm_stripe_count);
 
 		ll_layout_refresh(inode, &gen);
 		lsm = ccc_inode_lsm_get(inode);
 		rc = obd_iocontrol(LL_IOC_LOV_GETSTRIPE, ll_i2dtexp(inode),
-				   0, lsm, (void __user *)arg);
+				   0, lsm, lum);
 		ccc_inode_lsm_put(inode, lsm);
 	}
+
+	kfree(klum);
 	return rc;
 }
 

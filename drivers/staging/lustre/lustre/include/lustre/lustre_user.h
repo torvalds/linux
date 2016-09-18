@@ -280,10 +280,12 @@ enum ll_lease_type {
 #define LL_FILE_LOCKLESS_IO     0x00000010 /* server-side locks with cio */
 #define LL_FILE_RMTACL	  0x00000020
 
-#define LOV_USER_MAGIC_V1 0x0BD10BD0
-#define LOV_USER_MAGIC    LOV_USER_MAGIC_V1
-#define LOV_USER_MAGIC_JOIN_V1 0x0BD20BD0
-#define LOV_USER_MAGIC_V3 0x0BD30BD0
+#define LOV_USER_MAGIC_V1	0x0BD10BD0
+#define LOV_USER_MAGIC		LOV_USER_MAGIC_V1
+#define LOV_USER_MAGIC_JOIN_V1	0x0BD20BD0
+#define LOV_USER_MAGIC_V3	0x0BD30BD0
+/* 0x0BD40BD0 is occupied by LOV_MAGIC_MIGRATE */
+#define LOV_USER_MAGIC_SPECIFIC	0x0BD50BD0	/* for specific OSTs */
 
 #define LMV_USER_MAGIC    0x0CD30CD0    /*default lmv magic*/
 
@@ -361,12 +363,11 @@ struct lov_user_md_v3 {	   /* LOV EA user data (host-endian) */
 
 static inline __u32 lov_user_md_size(__u16 stripes, __u32 lmm_magic)
 {
-	if (lmm_magic == LOV_USER_MAGIC_V3)
-		return sizeof(struct lov_user_md_v3) +
-				stripes * sizeof(struct lov_user_ost_data_v1);
-	else
+	if (lmm_magic == LOV_USER_MAGIC_V1)
 		return sizeof(struct lov_user_md_v1) +
 				stripes * sizeof(struct lov_user_ost_data_v1);
+	return sizeof(struct lov_user_md_v3) +
+	       stripes * sizeof(struct lov_user_ost_data_v1);
 }
 
 /* Compile with -D_LARGEFILE64_SOURCE or -D_GNU_SOURCE (or #define) to

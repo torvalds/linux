@@ -2507,6 +2507,36 @@ void ll_dirty_page_discard_warn(struct page *page, int ioret)
 		free_page((unsigned long)buf);
 }
 
+ssize_t ll_copy_user_md(const struct lov_user_md __user *md,
+			struct lov_user_md **kbuf)
+{
+	struct lov_user_md lum;
+	ssize_t lum_size;
+
+	if (copy_from_user(&lum, md, sizeof(lum))) {
+		lum_size = -EFAULT;
+		goto no_kbuf;
+	}
+
+	lum_size = ll_lov_user_md_size(&lum);
+	if (lum_size < 0)
+		goto no_kbuf;
+
+	*kbuf = kzalloc(lum_size, GFP_NOFS);
+	if (!*kbuf) {
+		lum_size = -ENOMEM;
+		goto no_kbuf;
+	}
+
+	if (copy_from_user(*kbuf, md, lum_size) != 0) {
+		kfree(*kbuf);
+		*kbuf = NULL;
+		lum_size = -EFAULT;
+	}
+no_kbuf:
+	return lum_size;
+}
+
 /*
  * Compute llite root squash state after a change of root squash
  * configuration setting or add/remove of a lnet nid
