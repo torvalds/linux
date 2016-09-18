@@ -311,6 +311,19 @@ static int import_sec_check_expire(struct obd_import *imp)
 	return sptlrpc_import_sec_adapt(imp, NULL, NULL);
 }
 
+/**
+ * Get and validate the client side ptlrpc security facilities from
+ * \a imp. There is a race condition on client reconnect when the import is
+ * being destroyed while there are outstanding client bound requests. In
+ * this case do not output any error messages if import secuity is not
+ * found.
+ *
+ * \param[in] imp obd import associated with client
+ * \param[out] sec client side ptlrpc security
+ *
+ * \retval 0 if security retrieved successfully
+ * \retval -ve errno if there was a problem
+ */
 static int import_sec_validate_get(struct obd_import *imp,
 				   struct ptlrpc_sec **sec)
 {
@@ -323,9 +336,11 @@ static int import_sec_validate_get(struct obd_import *imp,
 	}
 
 	*sec = sptlrpc_import_sec_ref(imp);
+	/* Only output an error when the import is still active */
 	if (!*sec) {
-		CERROR("import %p (%s) with no sec\n",
-		       imp, ptlrpc_import_state_name(imp->imp_state));
+		if (list_empty(&imp->imp_zombie_chain))
+			CERROR("import %p (%s) with no sec\n",
+			       imp, ptlrpc_import_state_name(imp->imp_state));
 		return -EACCES;
 	}
 
