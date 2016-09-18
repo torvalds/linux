@@ -2085,7 +2085,7 @@ static int __init xgifb_init(void)
 {
 	char *option = NULL;
 
-	if (forcecrt2type != NULL)
+	if (forcecrt2type)
 		XGIfb_search_crt2type(forcecrt2type);
 	if (fb_get_options("xgifb", &option))
 		return -ENODEV;
