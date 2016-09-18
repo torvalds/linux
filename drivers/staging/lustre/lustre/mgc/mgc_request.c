@@ -1159,7 +1159,7 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 
 	while (datalen > 0) {
 		int   entry_len = sizeof(*entry);
-		int   is_ost;
+		int is_ost, i;
 		struct obd_device *obd;
 		char *obdname;
 		char *cname;
@@ -1265,11 +1265,17 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 			continue;
 		}
 
-		/* TODO: iterate all nids to find one */
+		/* iterate all nids to find one */
 		/* find uuid by nid */
-		rc = client_import_find_conn(obd->u.cli.cl_import,
-					     entry->u.nids[0],
-					     (struct obd_uuid *)uuid);
+		rc = -ENOENT;
+		for (i = 0; i < entry->mne_nid_count; i++) {
+			rc = client_import_find_conn(obd->u.cli.cl_import,
+						     entry->u.nids[0],
+						     (struct obd_uuid *)uuid);
+			if (!rc)
+				break;
+		}
+
 		up_read(&obd->u.cli.cl_sem);
 		if (rc < 0) {
 			CERROR("mgc: cannot find uuid by nid %s\n",
