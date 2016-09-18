@@ -85,7 +85,7 @@ static void vvp_req_attr_set(const struct lu_env *env,
 	if (OBD_FAIL_CHECK(OBD_FAIL_LFSCK_INVALID_PFID))
 		oa->o_parent_oid++;
 	memcpy(attr->cra_jobid, ll_i2info(inode)->lli_jobid,
-	       JOBSTATS_JOBID_SIZE);
+	       LUSTRE_JOBID_SIZE);
 }
 
 static void vvp_req_completion(const struct lu_env *env,

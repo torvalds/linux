@@ -684,7 +684,7 @@ void lustre_assert_wire_constants(void)
 		 (long long)(int)offsetof(struct ptlrpc_body_v3, pb_padding));
 	LASSERTF((int)sizeof(((struct ptlrpc_body_v3 *)0)->pb_padding) == 32, "found %lld\n",
 		 (long long)(int)sizeof(((struct ptlrpc_body_v3 *)0)->pb_padding));
-	CLASSERT(JOBSTATS_JOBID_SIZE == 32);
+	CLASSERT(LUSTRE_JOBID_SIZE == 32);
 	LASSERTF((int)offsetof(struct ptlrpc_body_v3, pb_jobid) == 152, "found %lld\n",
 		 (long long)(int)offsetof(struct ptlrpc_body_v3, pb_jobid));
 	LASSERTF((int)sizeof(((struct ptlrpc_body_v3 *)0)->pb_jobid) == 32, "found %lld\n",
@@ -3300,50 +3300,6 @@ void lustre_assert_wire_constants(void)
 	LASSERTF((int)sizeof(((struct changelog_rec *)0)->cr_pfid) == 16, "found %lld\n",
 		 (long long)(int)sizeof(((struct changelog_rec *)0)->cr_pfid));
 
-	/* Checks for struct changelog_ext_rec */
-	LASSERTF((int)sizeof(struct changelog_ext_rec) == 96, "found %lld\n",
-		 (long long)(int)sizeof(struct changelog_ext_rec));
-	LASSERTF((int)offsetof(struct changelog_ext_rec, cr_namelen) == 0, "found %lld\n",
-		 (long long)(int)offsetof(struct changelog_ext_rec, cr_namelen));
-	LASSERTF((int)sizeof(((struct changelog_ext_rec *)0)->cr_namelen) == 2, "found %lld\n",
-		 (long long)(int)sizeof(((struct changelog_ext_rec *)0)->cr_namelen));
-	LASSERTF((int)offsetof(struct changelog_ext_rec, cr_flags) == 2, "found %lld\n",
-		 (long long)(int)offsetof(struct changelog_ext_rec, cr_flags));
-	LASSERTF((int)sizeof(((struct changelog_ext_rec *)0)->cr_flags) == 2, "found %lld\n",
-		 (long long)(int)sizeof(((struct changelog_ext_rec *)0)->cr_flags));
-	LASSERTF((int)offsetof(struct changelog_ext_rec, cr_type) == 4, "found %lld\n",
-		 (long long)(int)offsetof(struct changelog_ext_rec, cr_type));
-	LASSERTF((int)sizeof(((struct changelog_ext_rec *)0)->cr_type) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct changelog_ext_rec *)0)->cr_type));
-	LASSERTF((int)offsetof(struct changelog_ext_rec, cr_index) == 8, "found %lld\n",
-		 (long long)(int)offsetof(struct changelog_ext_rec, cr_index));
-	LASSERTF((int)sizeof(((struct changelog_ext_rec *)0)->cr_index) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct changelog_ext_rec *)0)->cr_index));
-	LASSERTF((int)offsetof(struct changelog_ext_rec, cr_prev) == 16, "found %lld\n",
-		 (long long)(int)offsetof(struct changelog_ext_rec, cr_prev));
-	LASSERTF((int)sizeof(((struct changelog_ext_rec *)0)->cr_prev) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct changelog_ext_rec *)0)->cr_prev));
-	LASSERTF((int)offsetof(struct changelog_ext_rec, cr_time) == 24, "found %lld\n",
-		 (long long)(int)offsetof(struct changelog_ext_rec, cr_time));
-	LASSERTF((int)sizeof(((struct changelog_ext_rec *)0)->cr_time) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct changelog_ext_rec *)0)->cr_time));
-	LASSERTF((int)offsetof(struct changelog_ext_rec, cr_tfid) == 32, "found %lld\n",
-		 (long long)(int)offsetof(struct changelog_ext_rec, cr_tfid));
-	LASSERTF((int)sizeof(((struct changelog_ext_rec *)0)->cr_tfid) == 16, "found %lld\n",
-		 (long long)(int)sizeof(((struct changelog_ext_rec *)0)->cr_tfid));
-	LASSERTF((int)offsetof(struct changelog_ext_rec, cr_pfid) == 48, "found %lld\n",
-		 (long long)(int)offsetof(struct changelog_ext_rec, cr_pfid));
-	LASSERTF((int)sizeof(((struct changelog_ext_rec *)0)->cr_pfid) == 16, "found %lld\n",
-		 (long long)(int)sizeof(((struct changelog_ext_rec *)0)->cr_pfid));
-	LASSERTF((int)offsetof(struct changelog_ext_rec, cr_sfid) == 64, "found %lld\n",
-		 (long long)(int)offsetof(struct changelog_ext_rec, cr_sfid));
-	LASSERTF((int)sizeof(((struct changelog_ext_rec *)0)->cr_sfid) == 16, "found %lld\n",
-		 (long long)(int)sizeof(((struct changelog_ext_rec *)0)->cr_sfid));
-	LASSERTF((int)offsetof(struct changelog_ext_rec, cr_spfid) == 80, "found %lld\n",
-		 (long long)(int)offsetof(struct changelog_ext_rec, cr_spfid));
-	LASSERTF((int)sizeof(((struct changelog_ext_rec *)0)->cr_spfid) == 16, "found %lld\n",
-		 (long long)(int)sizeof(((struct changelog_ext_rec *)0)->cr_spfid));
-
 	/* Checks for struct changelog_setinfo */
 	LASSERTF((int)sizeof(struct changelog_setinfo) == 12, "found %lld\n",
 		 (long long)(int)sizeof(struct changelog_setinfo));
@@ -3367,10 +3323,10 @@ void lustre_assert_wire_constants(void)
 		 (long long)(int)offsetof(struct llog_changelog_rec, cr));
 	LASSERTF((int)sizeof(((struct llog_changelog_rec *)0)->cr) == 64, "found %lld\n",
 		 (long long)(int)sizeof(((struct llog_changelog_rec *)0)->cr));
-	LASSERTF((int)offsetof(struct llog_changelog_rec, cr_tail) == 80, "found %lld\n",
-		 (long long)(int)offsetof(struct llog_changelog_rec, cr_tail));
-	LASSERTF((int)sizeof(((struct llog_changelog_rec *)0)->cr_tail) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct llog_changelog_rec *)0)->cr_tail));
+	LASSERTF((int)offsetof(struct llog_changelog_rec, cr_do_not_use) == 80, "found %lld\n",
+		 (long long)(int)offsetof(struct llog_changelog_rec, cr_do_not_use));
+	LASSERTF((int)sizeof(((struct llog_changelog_rec *)0)->cr_do_not_use) == 8, "found %lld\n",
+		 (long long)(int)sizeof(((struct llog_changelog_rec *)0)->cr_do_not_use));
 
 	/* Checks for struct llog_changelog_user_rec */
 	LASSERTF((int)sizeof(struct llog_changelog_user_rec) == 40, "found %lld\n",

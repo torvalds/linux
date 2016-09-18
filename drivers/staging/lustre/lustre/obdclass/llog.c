@@ -137,6 +137,7 @@ static int llog_read_header(const struct lu_env *env,
 int llog_init_handle(const struct lu_env *env, struct llog_handle *handle,
 		     int flags, struct obd_uuid *uuid)
 {
+	enum llog_flag fmt = flags & LLOG_F_EXT_MASK;
 	struct llog_log_hdr	*llh;
 	int			 rc;
 
@@ -194,6 +195,7 @@ int llog_init_handle(const struct lu_env *env, struct llog_handle *handle,
 		       flags, LLOG_F_IS_CAT, LLOG_F_IS_PLAIN);
 		rc = -EINVAL;
 	}
+	llh->llh_flags |= fmt;
 out:
 	if (rc) {
 		kfree(llh);
@@ -262,7 +264,7 @@ repeat:
 		 */
 		for (rec = (struct llog_rec_hdr *)buf;
 		     (char *)rec < buf + LLOG_CHUNK_SIZE;
-		     rec = (struct llog_rec_hdr *)((char *)rec + rec->lrh_len)) {
+		     rec = llog_rec_hdr_next(rec)) {
 			CDEBUG(D_OTHER, "processing rec 0x%p type %#x\n",
 			       rec, rec->lrh_type);
 

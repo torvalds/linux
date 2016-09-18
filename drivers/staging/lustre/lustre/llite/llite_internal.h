@@ -232,7 +232,7 @@ struct ll_inode_info {
 			 * so the read/write statistics for jobid will not be
 			 * accurate if the file is shared by different jobs.
 			 */
-			char		     f_jobid[JOBSTATS_JOBID_SIZE];
+			char		     f_jobid[LUSTRE_JOBID_SIZE];
 		} f;
 
 #define lli_size_mutex          u.f.f_size_mutex

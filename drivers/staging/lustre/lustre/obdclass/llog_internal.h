@@ -70,4 +70,9 @@ int llog_process_or_fork(const struct lu_env *env,
 			 llog_cb_t cb, void *data, void *catdata, bool fork);
 int llog_cat_cleanup(const struct lu_env *env, struct llog_handle *cathandle,
 		     struct llog_handle *loghandle, int index);
+
+static inline struct llog_rec_hdr *llog_rec_hdr_next(struct llog_rec_hdr *rec)
+{
+	return (struct llog_rec_hdr *)((char *)rec + rec->lrh_len);
+}
 #endif

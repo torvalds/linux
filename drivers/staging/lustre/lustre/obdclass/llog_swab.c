@@ -172,20 +172,23 @@ void lustre_swab_llog_rec(struct llog_rec_hdr *rec)
 		__swab64s(&cr->cr.cr_time);
 		lustre_swab_lu_fid(&cr->cr.cr_tfid);
 		lustre_swab_lu_fid(&cr->cr.cr_pfid);
-		if (CHANGELOG_REC_EXTENDED(&cr->cr)) {
-			struct llog_changelog_ext_rec *ext =
-				(struct llog_changelog_ext_rec *)rec;
+		if (cr->cr.cr_flags & CLF_RENAME) {
+			struct changelog_ext_rename *rnm =
+				changelog_rec_rename(&cr->cr);
 
-			lustre_swab_lu_fid(&ext->cr.cr_sfid);
-			lustre_swab_lu_fid(&ext->cr.cr_spfid);
-			tail = &ext->cr_tail;
-		} else {
-			tail = &cr->cr_tail;
+			lustre_swab_lu_fid(&rnm->cr_sfid);
+			lustre_swab_lu_fid(&rnm->cr_spfid);
 		}
-		tail = (struct llog_rec_tail *)((char *)tail +
+		/*
+		 * Because the tail follows a variable-length structure we need
+		 * to compute its location at runtime
+		 */
+		tail = (struct llog_rec_tail *)((char *)&cr->cr +
+						changelog_rec_size(&cr->cr) +
 						cr->cr.cr_namelen);
 		break;
 	}
+
 	case CHANGELOG_USER_REC:
 	{
 		struct llog_changelog_user_rec *cur =

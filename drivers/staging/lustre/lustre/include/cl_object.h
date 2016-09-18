@@ -1899,7 +1899,7 @@ struct cl_req_attr {
 	/** Generic attributes for the server consumption. */
 	struct obdo	*cra_oa;
 	/** Jobid */
-	char		 cra_jobid[JOBSTATS_JOBID_SIZE];
+	char		 cra_jobid[LUSTRE_JOBID_SIZE];
 };
 
 /**

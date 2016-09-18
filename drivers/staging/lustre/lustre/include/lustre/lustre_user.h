@@ -673,11 +673,16 @@ static inline const char *changelog_type2str(int type)
 }
 
 /* per-record flags */
-#define CLF_VERSION     0x1000
-#define CLF_EXT_VERSION 0x2000
 #define CLF_FLAGSHIFT   12
 #define CLF_FLAGMASK    ((1U << CLF_FLAGSHIFT) - 1)
 #define CLF_VERMASK     (~CLF_FLAGMASK)
+enum changelog_rec_flags {
+	CLF_VERSION	= 0x1000,
+	CLF_RENAME	= 0x2000,
+	CLF_JOBID	= 0x4000,
+	CLF_SUPPORTED	= CLF_VERSION | CLF_RENAME | CLF_JOBID
+};
+
 /* Anything under the flagmask may be per-type (if desired) */
 /* Flags for unlink */
 #define CLF_UNLINK_LAST       0x0001 /* Unlink of last hardlink */
@@ -761,12 +766,35 @@ static inline void hsm_set_cl_error(int *flags, int error)
 	*flags |= (error << CLF_HSM_ERR_L);
 }
 
-#define CR_MAXSIZE cfs_size_round(2 * NAME_MAX + 1 + \
-				  sizeof(struct changelog_ext_rec))
+enum changelog_send_flag {
+	/* Not yet implemented */
+	CHANGELOG_FLAG_FOLLOW	= BIT(0),
+	/*
+	 * Blocking IO makes sense in case of slow user parsing of the records,
+	 * but it also prevents us from cleaning up if the records are not
+	 * consumed.
+	 */
+	CHANGELOG_FLAG_BLOCK	= BIT(1),
+	/* Pack jobid into the changelog records if available. */
+	CHANGELOG_FLAG_JOBID	= BIT(2),
+};
 
+#define CR_MAXSIZE cfs_size_round(2 * NAME_MAX + 2 + \
+				  changelog_rec_offset(CLF_SUPPORTED))
+
+/* 31 usable bytes string + null terminator. */
+#define LUSTRE_JOBID_SIZE	32
+
+/*
+ * This is the minimal changelog record. It can contain extensions
+ * such as rename fields or process jobid. Its exact content is described
+ * by the cr_flags.
+ *
+ * Extensions are packed in the same order as their corresponding flags.
+ */
 struct changelog_rec {
 	__u16		 cr_namelen;
-	__u16		 cr_flags; /**< (flags&CLF_FLAGMASK)|CLF_VERSION */
+	__u16		 cr_flags; /**< \a changelog_rec_flags */
 	__u32		 cr_type;  /**< \a changelog_rec_type */
 	__u64		 cr_index; /**< changelog record number */
 	__u64		 cr_prev;  /**< last index for this target fid */
@@ -776,55 +804,116 @@ struct changelog_rec {
 		__u32	 cr_markerflags; /**< CL_MARK flags */
 	};
 	struct lu_fid	    cr_pfid;	/**< parent fid */
-	char		  cr_name[0];     /**< last element */
 } __packed;
 
-/* changelog_ext_rec is 2*sizeof(lu_fid) bigger than changelog_rec, to save
- * space, only rename uses changelog_ext_rec, while others use changelog_rec to
- * store records.
- */
-struct changelog_ext_rec {
-	__u16			cr_namelen;
-	__u16			cr_flags; /**< (flags & CLF_FLAGMASK) |
-					   *	CLF_EXT_VERSION
-					   */
-	__u32			cr_type;  /**< \a changelog_rec_type */
-	__u64			cr_index; /**< changelog record number */
-	__u64			cr_prev;  /**< last index for this target fid */
-	__u64			cr_time;
-	union {
-		struct lu_fid	cr_tfid;	/**< target fid */
-		__u32		cr_markerflags; /**< CL_MARK flags */
-	};
-	struct lu_fid		cr_pfid;	/**< target parent fid */
-	struct lu_fid		cr_sfid;	/**< source fid, or zero */
-	struct lu_fid		cr_spfid;     /**< source parent fid, or zero */
-	char			cr_name[0];     /**< last element */
-} __packed;
+/* Changelog extension for RENAME. */
+struct changelog_ext_rename {
+	struct lu_fid	cr_sfid;	/**< source fid, or zero */
+	struct lu_fid	cr_spfid;	/**< source parent fid, or zero */
+};
 
-#define CHANGELOG_REC_EXTENDED(rec) \
-	(((rec)->cr_flags & CLF_VERMASK) == CLF_EXT_VERSION)
+/* Changelog extension to include JOBID. */
+struct changelog_ext_jobid {
+	char	cr_jobid[LUSTRE_JOBID_SIZE];	/**< zero-terminated string. */
+};
+
+static inline unsigned int changelog_rec_offset(enum changelog_rec_flags crf)
+{
+	unsigned int size = sizeof(struct changelog_rec);
+
+	if (crf & CLF_RENAME)
+		size += sizeof(struct changelog_ext_rename);
+
+	if (crf & CLF_JOBID)
+		size += sizeof(struct changelog_ext_jobid);
+
+	return size;
+}
 
 static inline int changelog_rec_size(struct changelog_rec *rec)
 {
-	return CHANGELOG_REC_EXTENDED(rec) ? sizeof(struct changelog_ext_rec) :
-					     sizeof(*rec);
+	return changelog_rec_offset(rec->cr_flags);
 }
 
+static inline unsigned int changelog_rec_varsize(struct changelog_rec *rec)
+{
+	return changelog_rec_size(rec) - sizeof(*rec) + rec->cr_namelen;
+}
+
+static inline
+struct changelog_ext_rename *changelog_rec_rename(struct changelog_rec *rec)
+{
+	enum changelog_rec_flags crf = rec->cr_flags & CLF_VERSION;
+
+	return (struct changelog_ext_rename *)((char *)rec +
+					       changelog_rec_offset(crf));
+}
+
+/* The jobid follows the rename extension, if present */
+static inline
+struct changelog_ext_jobid *changelog_rec_jobid(struct changelog_rec *rec)
+{
+	enum changelog_rec_flags crf = rec->cr_flags &
+				       (CLF_VERSION | CLF_RENAME);
+
+	return (struct changelog_ext_jobid *)((char *)rec +
+					      changelog_rec_offset(crf));
+}
+
+/* The name follows the rename and jobid extensions, if present */
 static inline char *changelog_rec_name(struct changelog_rec *rec)
 {
-	return CHANGELOG_REC_EXTENDED(rec) ?
-		((struct changelog_ext_rec *)rec)->cr_name : rec->cr_name;
+	return (char *)rec + changelog_rec_offset(rec->cr_flags &
+						  CLF_SUPPORTED);
 }
 
-static inline int changelog_rec_snamelen(struct changelog_ext_rec *rec)
+static inline int changelog_rec_snamelen(struct changelog_rec *rec)
 {
-	return rec->cr_namelen - strlen(rec->cr_name) - 1;
+	return rec->cr_namelen - strlen(changelog_rec_name(rec)) - 1;
 }
 
-static inline char *changelog_rec_sname(struct changelog_ext_rec *rec)
+static inline char *changelog_rec_sname(struct changelog_rec *rec)
 {
-	return rec->cr_name + strlen(rec->cr_name) + 1;
+	char *cr_name = changelog_rec_name(rec);
+
+	return cr_name + strlen(cr_name) + 1;
+}
+
+/*
+ * Remap a record to the desired format as specified by the crf flags.
+ * The record must be big enough to contain the final remapped version.
+ */
+static inline void changelog_remap_rec(struct changelog_rec *rec,
+				       enum changelog_rec_flags crf)
+{
+	size_t var_size;
+	char *var_part;
+
+	crf &= CLF_SUPPORTED;
+
+	if ((rec->cr_flags & CLF_SUPPORTED) == crf)
+		return;
+
+	if ((crf & CLF_JOBID) && rec->cr_flags & CLF_JOBID) {
+		var_part = (char *)changelog_rec_jobid(rec);
+		var_size = rec->cr_namelen + sizeof(struct changelog_ext_jobid);
+	} else {
+		var_part = changelog_rec_name(rec);
+		var_size = rec->cr_namelen;
+	}
+
+	memmove((char *)rec + changelog_rec_offset(crf & ~CLF_JOBID), var_part,
+		var_size);
+
+	if ((crf & CLF_RENAME) && !(rec->cr_flags & CLF_RENAME))
+		memset(changelog_rec_rename(rec), 0,
+		       sizeof(struct changelog_ext_rename));
+
+	if ((crf & CLF_JOBID) && !(rec->cr_flags & CLF_JOBID))
+		memset(changelog_rec_jobid(rec), 0,
+		       sizeof(struct changelog_ext_jobid));
+
+	rec->cr_flags = (rec->cr_flags & CLF_FLAGMASK) | crf;
 }
 
 struct ioc_changelog {

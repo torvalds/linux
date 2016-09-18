@@ -1378,7 +1378,7 @@ void lustre_msg_set_jobid(struct lustre_msg *msg, char *jobid)
 		LASSERTF(pb, "invalid msg %p: no ptlrpc body!\n", msg);
 
 		if (jobid)
-			memcpy(pb->pb_jobid, jobid, JOBSTATS_JOBID_SIZE);
+			memcpy(pb->pb_jobid, jobid, LUSTRE_JOBID_SIZE);
 		else if (pb->pb_jobid[0] == '\0')
 			lustre_get_jobid(pb->pb_jobid);
 		return;
