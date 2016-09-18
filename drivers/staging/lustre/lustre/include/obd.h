@@ -196,6 +196,16 @@ enum obd_cl_sem_lock_class {
 	OBD_CLI_SEM_MDCOSC,
 };
 
+/*
+ * Limit reply buffer size for striping data to one x86_64 page. This
+ * value is chosen to fit the striping data for common use cases while
+ * staying well below the limit at which the buffer must be backed by
+ * vmalloc(). Excessive use of vmalloc() may cause spinlock contention
+ * on the MDS.
+ */
+#define OBD_MAX_DEFAULT_EA_SIZE		4096
+#define OBD_MAX_DEFAULT_COOKIE_SIZE	4096
+
 struct mdc_rpc_lock;
 struct obd_import;
 struct client_obd {
@@ -203,12 +213,39 @@ struct client_obd {
 	struct obd_uuid	  cl_target_uuid;
 	struct obd_import       *cl_import; /* ptlrpc connection state */
 	size_t			 cl_conn_count;
-	/* max_mds_easize is purely a performance thing so we don't have to
-	 * call obd_size_diskmd() all the time.
+	/*
+	 * Cache maximum and default values for easize and cookiesize. This is
+	 * strictly a performance optimization to minimize calls to
+	 * obd_size_diskmd(). The default values are used to calculate the
+	 * initial size of a request buffer. The ptlrpc layer will resize the
+	 * buffer as needed to accommodate a larger reply from the
+	 * server. The default values should be small enough to avoid wasted
+	 * memory and excessive use of vmalloc(), yet large enough to avoid
+	 * reallocating the buffer in the common use case.
+	 */
+	/*
+	 * Default EA size for striping attributes. It is initialized at
+	 * mount-time based on the default stripe width of the filesystem,
+	 * then it tracks the largest observed EA size advertised by
+	 * the MDT, up to a maximum value of OBD_MAX_DEFAULT_EA_SIZE.
 	 */
 	u32			 cl_default_mds_easize;
+	/* Maximum possible EA size computed at mount-time based on
+	 * the number of OSTs in the filesystem. May be increased at
+	 * run-time if a larger observed size is advertised by the MDT.
+	 */
 	u32			 cl_max_mds_easize;
+	/* Default cookie size for llog cookies (see struct llog_cookie). It is
+	 * initialized to zero at mount-time, then it tracks the largest
+	 * observed cookie size advertised by the MDT, up to a maximum value of
+	 * OBD_MAX_DEFAULT_COOKIE_SIZE. Note that llog_cookies are not
+	 * used by clients communicating with MDS versions 2.4.0 and later.
+	 */
 	u32			 cl_default_mds_cookiesize;
+	/* Maximum possible cookie size computed at mount-time based on
+	 * the number of OSTs in the filesystem. May be increased at
+	 * run-time if a larger observed size is advertised by the MDT.
+	 */
 	u32			 cl_max_mds_cookiesize;
 
 	enum lustre_sec_part     cl_sp_me;
