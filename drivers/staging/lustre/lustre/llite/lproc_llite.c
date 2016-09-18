@@ -846,7 +846,7 @@ static ssize_t unstable_stats_store(struct kobject *kobj,
 
 	if (!count)
 		return 0;
-	if (count < 0 || count >= sizeof(kernbuf))
+	if (count >= sizeof(kernbuf))
 		return -EINVAL;
 
 	if (copy_from_user(kernbuf, buffer, count))
