@@ -1290,7 +1290,7 @@ static inline bool lu_name_is_valid_2(const char *name, size_t name_len)
  */
 struct lu_buf {
 	void   *lb_buf;
-	ssize_t lb_len;
+	size_t	lb_len;
 };
 
 #define DLUBUF "(%p %zu)"

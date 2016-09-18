@@ -341,7 +341,7 @@ int lu_site_purge(const struct lu_env *env, struct lu_site *s, int nr)
 	int		      start;
 	int		      count;
 	int		      bnr;
-	int		      i;
+	unsigned int i;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_OBD_NO_LRU))
 		return 0;
@@ -869,11 +869,11 @@ EXPORT_SYMBOL(lu_site_print);
 /**
  * Return desired hash table order.
  */
-static int lu_htable_order(struct lu_device *top)
+static unsigned int lu_htable_order(struct lu_device *top)
 {
 	unsigned long bits_max = LU_SITE_BITS_MAX;
 	unsigned long cache_size;
-	int bits;
+	unsigned int bits;
 
 	/*
 	 * Calculate hash table size, assuming that we want reasonable
@@ -1325,7 +1325,7 @@ static unsigned key_set_version;
 int lu_context_key_register(struct lu_context_key *key)
 {
 	int result;
-	int i;
+	unsigned int i;
 
 	LASSERT(key->lct_init);
 	LASSERT(key->lct_fini);
@@ -1531,7 +1531,7 @@ EXPORT_SYMBOL(lu_context_key_revive);
 
 static void keys_fini(struct lu_context *ctx)
 {
-	int	i;
+	unsigned int i;
 
 	if (!ctx->lc_value)
 		return;
@@ -1545,7 +1545,7 @@ static void keys_fini(struct lu_context *ctx)
 
 static int keys_fill(struct lu_context *ctx)
 {
-	int i;
+	unsigned int i;
 
 	LINVRNT(ctx->lc_value);
 	for (i = 0; i < ARRAY_SIZE(lu_keys); ++i) {
@@ -1658,7 +1658,7 @@ EXPORT_SYMBOL(lu_context_enter);
  */
 void lu_context_exit(struct lu_context *ctx)
 {
-	int i;
+	unsigned int i;
 
 	LINVRNT(ctx->lc_state == LCS_ENTERED);
 	ctx->lc_state = LCS_LEFT;
@@ -1740,7 +1740,7 @@ static void lu_site_stats_get(struct cfs_hash *hs,
 			      struct lu_site_stats *stats, int populated)
 {
 	struct cfs_hash_bd bd;
-	int	   i;
+	unsigned int i;
 
 	cfs_hash_for_each_bucket(hs, &bd, i) {
 		struct lu_site_bkt_data *bkt = cfs_hash_bd_extra_get(hs, &bd);
