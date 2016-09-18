@@ -88,30 +88,16 @@ struct lov_stripe_md {
 	/* maximum possible file size, might change as OSTs status changes,
 	 * e.g. disconnected, deactivated
 	 */
-	__u64	    lsm_maxbytes;
-	struct {
-		/* Public members. */
-		struct ost_id lw_object_oi; /* lov object id/seq */
-
-		/* LOV-private members start here -- only for use in lov/. */
-		__u32 lw_magic;
-		__u32 lw_stripe_size;      /* size of the stripe */
-		__u32 lw_pattern;	  /* striping pattern (RAID0, RAID1) */
-		__u16 lw_stripe_count;  /* number of objects being striped over */
-		__u16 lw_layout_gen;       /* generation of the layout */
-		char  lw_pool_name[LOV_MAXPOOLNAME + 1]; /* pool name */
-	} lsm_wire;
-
+	__u64		lsm_maxbytes;
+	struct ost_id	lsm_oi;
+	__u32		lsm_magic;
+	__u32		lsm_stripe_size;
+	__u32		lsm_pattern;	/* striping pattern (RAID0, RAID1) */
+	__u16		lsm_stripe_count;
+	__u16		lsm_layout_gen;
+	char		lsm_pool_name[LOV_MAXPOOLNAME + 1];
 	struct lov_oinfo *lsm_oinfo[0];
 };
-
-#define lsm_oi		 lsm_wire.lw_object_oi
-#define lsm_magic	lsm_wire.lw_magic
-#define lsm_layout_gen   lsm_wire.lw_layout_gen
-#define lsm_stripe_size  lsm_wire.lw_stripe_size
-#define lsm_pattern      lsm_wire.lw_pattern
-#define lsm_stripe_count lsm_wire.lw_stripe_count
-#define lsm_pool_name    lsm_wire.lw_pool_name
 
 static inline bool lsm_is_released(struct lov_stripe_md *lsm)
 {
