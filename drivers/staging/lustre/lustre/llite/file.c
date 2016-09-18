@@ -2802,11 +2802,15 @@ int ll_migrate(struct inode *parent, struct file *file, int mdtidx,
 	qstr.name = name;
 	qstr.len = namelen;
 	dchild = d_lookup(file_dentry(file), &qstr);
-	if (dchild && dchild->d_inode) {
+	if (dchild) {
 		op_data->op_fid3 = *ll_inode2fid(dchild->d_inode);
 		if (dchild->d_inode) {
 			child_inode = igrab(dchild->d_inode);
-			ll_invalidate_aliases(child_inode);
+			if (child_inode) {
+				inode_lock(child_inode);
+				op_data->op_fid3 = *ll_inode2fid(child_inode);
+				ll_invalidate_aliases(child_inode);
+			}
 		}
 		dput(dchild);
 	} else {
@@ -2847,6 +2851,7 @@ int ll_migrate(struct inode *parent, struct file *file, int mdtidx,
 out_free:
 	if (child_inode) {
 		clear_nlink(child_inode);
+		inode_unlock(child_inode);
 		iput(child_inode);
 	}
 
