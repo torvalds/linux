@@ -1807,6 +1807,63 @@ static void vi_update_rom_medium_grain_clock_gating(struct amdgpu_device *adev,
 		WREG32_SMC(ixCGTT_ROM_CLK_CTRL0, data);
 }
 
+static int vi_common_set_clockgating_state_by_smu(void *handle,
+					   enum amd_clockgating_state state)
+{
+	uint32_t msg_id, pp_state;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	void *pp_handle = adev->powerplay.pp_handle;
+
+	if (state == AMD_CG_STATE_UNGATE)
+		pp_state = 0;
+	else
+		pp_state = PP_STATE_CG | PP_STATE_LS;
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_SYS,
+		       PP_BLOCK_SYS_MC,
+		       PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
+		       pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_SYS,
+		       PP_BLOCK_SYS_SDMA,
+		       PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
+		       pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_SYS,
+		       PP_BLOCK_SYS_HDP,
+		       PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
+		       pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_SYS,
+		       PP_BLOCK_SYS_BIF,
+		       PP_STATE_SUPPORT_LS,
+		       pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_SYS,
+		       PP_BLOCK_SYS_BIF,
+		       PP_STATE_SUPPORT_CG,
+		       pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_SYS,
+		       PP_BLOCK_SYS_DRM,
+		       PP_STATE_SUPPORT_LS,
+		       pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_SYS,
+		       PP_BLOCK_SYS_ROM,
+		       PP_STATE_SUPPORT_CG,
+		       pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	return 0;
+}
+
 static int vi_common_set_clockgating_state(void *handle,
 					   enum amd_clockgating_state state)
 {
@@ -1832,6 +1889,10 @@ static int vi_common_set_clockgating_state(void *handle,
 		vi_update_hdp_light_sleep(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		break;
+	case CHIP_TONGA:
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
+		vi_common_set_clockgating_state_by_smu(adev, state);
 	default:
 		break;
 	}
