@@ -249,6 +249,8 @@ static int tcf_act_police(struct sk_buff *skb, const struct tc_action *a,
 			police->tcfp_t_c = now;
 			police->tcfp_toks = toks;
 			police->tcfp_ptoks = ptoks;
+			if (police->tcfp_result == TC_ACT_SHOT)
+				police->tcf_qstats.drops++;
 			spin_unlock(&police->tcf_lock);
 			return police->tcfp_result;
 		}
