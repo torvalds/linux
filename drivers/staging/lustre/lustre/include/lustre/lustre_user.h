@@ -881,41 +881,63 @@ static inline char *changelog_rec_sname(struct changelog_rec *rec)
 	return cr_name + strlen(cr_name) + 1;
 }
 
-/*
+/**
  * Remap a record to the desired format as specified by the crf flags.
  * The record must be big enough to contain the final remapped version.
+ * Superfluous extension fields are removed and missing ones are added
+ * and zeroed. The flags of the record are updated accordingly.
+ *
+ * The jobid and rename extensions can be added to a record, to match the
+ * format an application expects, typically. In this case, the newly added
+ * fields will be zeroed.
+ * The Jobid field can be removed, to guarantee compatibility with older
+ * clients that don't expect this field in the records they process.
+ *
+ * The following assumptions are being made:
+ *	- CLF_RENAME will not be removed
+ *	- CLF_JOBID will not be added without CLF_RENAME being added too
+ *
+ * @param[in,out]  rec		The record to remap.
+ * @param[in]	   crf_wanted	Flags describing the desired extensions.
  */
 static inline void changelog_remap_rec(struct changelog_rec *rec,
-				       enum changelog_rec_flags crf)
+				       enum changelog_rec_flags crf_wanted)
 {
-	size_t var_size;
-	char *var_part;
+	char *jid_mov, *rnm_mov;
 
-	crf &= CLF_SUPPORTED;
+	crf_wanted &= CLF_SUPPORTED;
 
-	if ((rec->cr_flags & CLF_SUPPORTED) == crf)
+	if ((rec->cr_flags & CLF_SUPPORTED) == crf_wanted)
 		return;
 
-	if ((crf & CLF_JOBID) && rec->cr_flags & CLF_JOBID) {
-		var_part = (char *)changelog_rec_jobid(rec);
-		var_size = rec->cr_namelen + sizeof(struct changelog_ext_jobid);
-	} else {
-		var_part = changelog_rec_name(rec);
-		var_size = rec->cr_namelen;
-	}
+	/* First move the variable-length name field */
+	memmove((char *)rec + changelog_rec_offset(crf_wanted),
+		changelog_rec_name(rec), rec->cr_namelen);
 
-	memmove((char *)rec + changelog_rec_offset(crf & ~CLF_JOBID), var_part,
-		var_size);
+	/* Locations of jobid and rename extensions in the remapped record */
+	jid_mov = (char *)rec +
+		  changelog_rec_offset(crf_wanted & ~CLF_JOBID);
+	rnm_mov = (char *)rec +
+		  changelog_rec_offset(crf_wanted & ~(CLF_JOBID | CLF_RENAME));
 
-	if ((crf & CLF_RENAME) && !(rec->cr_flags & CLF_RENAME))
-		memset(changelog_rec_rename(rec), 0,
-		       sizeof(struct changelog_ext_rename));
+	/* Move the extension fields to the desired positions */
+	if ((crf_wanted & CLF_JOBID) && (rec->cr_flags & CLF_JOBID))
+		memmove(jid_mov, changelog_rec_jobid(rec),
+			sizeof(struct changelog_ext_jobid));
 
-	if ((crf & CLF_JOBID) && !(rec->cr_flags & CLF_JOBID))
-		memset(changelog_rec_jobid(rec), 0,
-		       sizeof(struct changelog_ext_jobid));
+	if ((crf_wanted & CLF_RENAME) && (rec->cr_flags & CLF_RENAME))
+		memmove(rnm_mov, changelog_rec_rename(rec),
+			sizeof(struct changelog_ext_rename));
 
-	rec->cr_flags = (rec->cr_flags & CLF_FLAGMASK) | crf;
+	/* Clear newly added fields */
+	if ((crf_wanted & CLF_JOBID) && !(rec->cr_flags & CLF_JOBID))
+		memset(jid_mov, 0, sizeof(struct changelog_ext_jobid));
+
+	if ((crf_wanted & CLF_RENAME) && !(rec->cr_flags & CLF_RENAME))
+		memset(rnm_mov, 0, sizeof(struct changelog_ext_rename));
+
+	/* Update the record's flags accordingly */
+	rec->cr_flags = (rec->cr_flags & CLF_FLAGMASK) | crf_wanted;
 }
 
 struct ioc_changelog {
