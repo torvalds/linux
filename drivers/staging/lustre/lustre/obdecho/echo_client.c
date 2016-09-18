@@ -1010,7 +1010,7 @@ static int cl_echo_object_brw(struct echo_object *eco, int rw, u64 offset,
 	struct cl_io	    *io;
 	struct cl_page	  *clp;
 	struct lustre_handle    lh = { 0 };
-	int page_size = cl_page_size(obj);
+	size_t page_size = cl_page_size(obj);
 	int refcheck;
 	int rc;
 	int i;

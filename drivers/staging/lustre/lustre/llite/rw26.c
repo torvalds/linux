@@ -213,10 +213,10 @@ ssize_t ll_direct_rw_pages(const struct lu_env *env, struct cl_io *io,
 	int i;
 	ssize_t rc = 0;
 	loff_t file_offset  = pv->ldp_start_offset;
-	long size	   = pv->ldp_size;
+	size_t size = pv->ldp_size;
 	int page_count      = pv->ldp_nr;
 	struct page **pages = pv->ldp_pages;
-	long page_size      = cl_page_size(obj);
+	size_t page_size = cl_page_size(obj);
 	bool do_io;
 	int  io_pages       = 0;
 

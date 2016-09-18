@@ -200,7 +200,7 @@ static int osc_io_submit(const struct lu_env *env,
  * Expand stripe KMS if necessary.
  */
 static void osc_page_touch_at(const struct lu_env *env,
-			      struct cl_object *obj, pgoff_t idx, unsigned to)
+			      struct cl_object *obj, pgoff_t idx, size_t to)
 {
 	struct lov_oinfo *loi = cl2osc(obj)->oo_oinfo;
 	struct cl_attr *attr = &osc_env_info(env)->oti_attr;
@@ -369,7 +369,7 @@ static int osc_io_fault_start(const struct lu_env *env,
 
 	io = ios->cis_io;
 	fio = &io->u.ci_fault;
-	CDEBUG(D_INFO, "%lu %d %d\n",
+	CDEBUG(D_INFO, "%lu %d %zu\n",
 	       fio->ft_index, fio->ft_writable, fio->ft_nob);
 	/*
 	 * If mapping is writeable, adjust kms to cover this page,
