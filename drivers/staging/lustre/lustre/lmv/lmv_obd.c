@@ -1579,6 +1579,8 @@ lmv_locate_target_for_name(struct lmv_obd *lmv, struct lmv_stripe_md *lsm,
 	struct lmv_tgt_desc *tgt;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_LFSCK_BAD_NAME_HASH)) {
+		if (cfs_fail_val >= lsm->lsm_md_stripe_count)
+			return ERR_PTR(-EBADF);
 		oinfo = &lsm->lsm_md_oinfo[cfs_fail_val];
 	} else {
 		oinfo = lsm_name_to_stripe_info(lsm, name, namelen);
@@ -1586,11 +1588,15 @@ lmv_locate_target_for_name(struct lmv_obd *lmv, struct lmv_stripe_md *lsm,
 			return ERR_CAST(oinfo);
 	}
 
-	*fid = oinfo->lmo_fid;
-	*mds = oinfo->lmo_mds;
-	tgt = lmv_get_target(lmv, *mds, NULL);
+	if (fid)
+		*fid = oinfo->lmo_fid;
+	if (mds)
+		*mds = oinfo->lmo_mds;
 
-	CDEBUG(D_INFO, "locate on mds %u "DFID"\n", *mds, PFID(fid));
+	tgt = lmv_get_target(lmv, oinfo->lmo_mds, NULL);
+
+	CDEBUG(D_INFO, "locate on mds %u " DFID "\n", oinfo->lmo_mds,
+	       PFID(&oinfo->lmo_fid));
 	return tgt;
 }
 
@@ -1953,10 +1959,24 @@ static int lmv_rename(struct obd_export *exp, struct md_op_data *op_data,
 	if (op_data->op_cli_flags & CLI_MIGRATE) {
 		LASSERTF(fid_is_sane(&op_data->op_fid3), "invalid FID "DFID"\n",
 			 PFID(&op_data->op_fid3));
+
+		if (op_data->op_mea1) {
+			struct lmv_stripe_md *lsm = op_data->op_mea1;
+			struct lmv_tgt_desc *tmp;
+
+			/* Fix the parent fid for striped dir */
+			tmp = lmv_locate_target_for_name(lmv, lsm, old,
+							 oldlen,
+							 &op_data->op_fid1,
+							 NULL);
+			if (IS_ERR(tmp))
+				return PTR_ERR(tmp);
+		}
+
 		rc = lmv_fid_alloc(NULL, exp, &op_data->op_fid2, op_data);
 		if (rc)
 			return rc;
-		src_tgt = lmv_locate_mds(lmv, op_data, &op_data->op_fid3);
+		src_tgt = lmv_find_target(lmv, &op_data->op_fid3);
 	} else {
 		if (op_data->op_mea1) {
 			struct lmv_stripe_md *lsm = op_data->op_mea1;
