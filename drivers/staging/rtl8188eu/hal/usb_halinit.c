@@ -2040,10 +2040,3 @@ void rtw_hal_def_value_init(struct adapter *adapt)
 	for (i = 0; i < HP_THERMAL_NUM; i++)
 		haldata->odmpriv.RFCalibrateInfo.ThermalValue_HP[i] = 0;
 }
-
-void rtl8188eu_set_hal_ops(struct adapter *adapt)
-{
-	adapt->HalData = kzalloc(sizeof(struct hal_data_8188e), GFP_KERNEL);
-	if (!adapt->HalData)
-		DBG_88E("cant not alloc memory for HAL DATA\n");
-}

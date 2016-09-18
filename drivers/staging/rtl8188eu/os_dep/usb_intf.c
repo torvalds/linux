@@ -28,6 +28,8 @@
 #include <usb_hal.h>
 #include <rtw_ioctl.h>
 
+#include "rtl8188e_hal.h"
+
 #define USB_VENDER_ID_REALTEK		0x0bda
 
 /* DID_USB_v916_20130116 */
@@ -361,8 +363,9 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 		padapter->pmondev = pmondev;
 	}
 
-	/* step 2. hook HalFunc, allocate HalData */
-	rtl8188eu_set_hal_ops(padapter);
+	padapter->HalData = kzalloc(sizeof(struct hal_data_8188e), GFP_KERNEL);
+	if (!padapter->HalData)
+		DBG_88E("cant not alloc memory for HAL DATA\n");
 
 	padapter->intf_start = &usb_intf_start;
 	padapter->intf_stop = &usb_intf_stop;

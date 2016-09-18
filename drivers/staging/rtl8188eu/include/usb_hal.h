@@ -15,6 +15,4 @@
 #ifndef __USB_HAL_H__
 #define __USB_HAL_H__
 
-void rtl8188eu_set_hal_ops(struct adapter *padapter);
-
 #endif /* __USB_HAL_H__ */
