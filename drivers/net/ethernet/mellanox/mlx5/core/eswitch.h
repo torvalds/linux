@@ -209,6 +209,9 @@ struct mlx5_eswitch {
 	int                     mode;
 };
 
+void esw_offloads_cleanup(struct mlx5_eswitch *esw, int nvports);
+int esw_offloads_init(struct mlx5_eswitch *esw, int nvports);
+
 /* E-Switch API */
 int mlx5_eswitch_init(struct mlx5_core_dev *dev);
 void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw);

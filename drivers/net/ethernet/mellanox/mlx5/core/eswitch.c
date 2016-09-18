@@ -81,9 +81,6 @@ enum {
 			    MC_ADDR_CHANGE | \
 			    PROMISC_CHANGE)
 
-int esw_offloads_init(struct mlx5_eswitch *esw, int nvports);
-void esw_offloads_cleanup(struct mlx5_eswitch *esw, int nvports);
-
 static int arm_vport_context_events_cmd(struct mlx5_core_dev *dev, u16 vport,
 					u32 events_mask)
 {
