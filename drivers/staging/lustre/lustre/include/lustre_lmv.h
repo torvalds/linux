@@ -55,7 +55,7 @@ struct lmv_stripe_md {
 static inline bool
 lsm_md_eq(const struct lmv_stripe_md *lsm1, const struct lmv_stripe_md *lsm2)
 {
-	int idx;
+	__u32 idx;
 
 	if (lsm1->lsm_md_magic != lsm2->lsm_md_magic ||
 	    lsm1->lsm_md_stripe_count != lsm2->lsm_md_stripe_count ||
@@ -92,7 +92,7 @@ static inline void lmv_free_memmd(struct lmv_stripe_md *lsm)
 static inline void lmv1_le_to_cpu(struct lmv_mds_md_v1 *lmv_dst,
 				  const struct lmv_mds_md_v1 *lmv_src)
 {
-	int i;
+	__u32 i;
 
 	lmv_dst->lmv_magic = le32_to_cpu(lmv_src->lmv_magic);
 	lmv_dst->lmv_stripe_count = le32_to_cpu(lmv_src->lmv_stripe_count);

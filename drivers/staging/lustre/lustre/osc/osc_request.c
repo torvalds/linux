@@ -823,9 +823,10 @@ static void osc_announce_cached(struct client_obd *cli, struct obdo *oa,
 		       cli->cl_dirty_pages, cli->cl_dirty_max_pages);
 		oa->o_undirty = 0;
 	} else {
-		long max_in_flight = (cli->cl_max_pages_per_rpc <<
-				      PAGE_SHIFT) *
-				     (cli->cl_max_rpcs_in_flight + 1);
+		unsigned long max_in_flight;
+
+		max_in_flight = (cli->cl_max_pages_per_rpc << PAGE_SHIFT) *
+				(cli->cl_max_rpcs_in_flight + 1);
 		oa->o_undirty = max(cli->cl_dirty_max_pages << PAGE_SHIFT,
 				    max_in_flight);
 	}
@@ -2048,7 +2049,7 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 	}
 	spin_unlock(&cli->cl_loi_list_lock);
 
-	DEBUG_REQ(D_INODE, req, "%d pages, aa %p. now %dr/%dw in flight",
+	DEBUG_REQ(D_INODE, req, "%d pages, aa %p. now %ur/%dw in flight",
 		  page_count, aa, cli->cl_r_in_flight,
 		  cli->cl_w_in_flight);
 

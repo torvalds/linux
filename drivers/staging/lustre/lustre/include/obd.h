@@ -222,11 +222,11 @@ struct client_obd {
 	struct sptlrpc_flavor    cl_flvr_mgc;   /* fixed flavor of mgc->mgs */
 
 	/* the grant values are protected by loi_list_lock below */
-	long		     cl_dirty_pages;	/* all _dirty_ in pahges */
-	long		     cl_dirty_max_pages;/* allowed w/o rpc */
-	long		     cl_dirty_transit; /* dirty synchronous */
-	long		     cl_avail_grant;   /* bytes of credit for ost */
-	long		     cl_lost_grant;    /* lost credits (trunc) */
+	unsigned long		 cl_dirty_pages;	/* all _dirty_ in pahges */
+	unsigned long		 cl_dirty_max_pages;	/* allowed w/o rpc */
+	unsigned long		 cl_dirty_transit;	/* dirty synchronous */
+	unsigned long		 cl_avail_grant;	/* bytes of credit for ost */
+	unsigned long		 cl_lost_grant;		/* lost credits (trunc) */
 
 	/* since we allocate grant by blocks, we don't know how many grant will
 	 * be used to add a page into cache. As a solution, we reserve maximum
@@ -268,13 +268,13 @@ struct client_obd {
 	struct list_head	       cl_loi_hp_ready_list;
 	struct list_head	       cl_loi_write_list;
 	struct list_head	       cl_loi_read_list;
-	int		      cl_r_in_flight;
-	int		      cl_w_in_flight;
+	__u32			 cl_r_in_flight;
+	__u32			 cl_w_in_flight;
 	/* just a sum of the loi/lop pending numbers to be exported by sysfs */
 	atomic_t	     cl_pending_w_pages;
 	atomic_t	     cl_pending_r_pages;
 	__u32			 cl_max_pages_per_rpc;
-	int		      cl_max_rpcs_in_flight;
+	__u32			 cl_max_rpcs_in_flight;
 	struct obd_histogram     cl_read_rpc_hist;
 	struct obd_histogram     cl_write_rpc_hist;
 	struct obd_histogram     cl_read_page_hist;
@@ -1183,8 +1183,8 @@ static inline void client_adjust_max_dirty(struct client_obd *cli)
 		cli->cl_dirty_max_pages =
 			(OSC_MAX_DIRTY_DEFAULT * 1024 * 1024) >> PAGE_SHIFT;
 	else {
-		long dirty_max = cli->cl_max_rpcs_in_flight *
-				 cli->cl_max_pages_per_rpc;
+		unsigned long dirty_max = cli->cl_max_rpcs_in_flight *
+					  cli->cl_max_pages_per_rpc;
 
 		if (dirty_max > cli->cl_dirty_max_pages)
 			cli->cl_dirty_max_pages = dirty_max;

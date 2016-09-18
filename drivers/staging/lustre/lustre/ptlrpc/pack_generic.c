@@ -1734,7 +1734,7 @@ EXPORT_SYMBOL(lustre_swab_mgs_target_info);
 
 void lustre_swab_mgs_nidtbl_entry(struct mgs_nidtbl_entry *entry)
 {
-	int i;
+	__u8 i;
 
 	__swab64s(&entry->mne_version);
 	__swab32s(&entry->mne_instance);
@@ -1823,7 +1823,7 @@ static void lustre_swab_fiemap_extent(struct ll_fiemap_extent *fm_extent)
 
 void lustre_swab_fiemap(struct ll_user_fiemap *fiemap)
 {
-	int i;
+	__u32 i;
 
 	__swab64s(&fiemap->fm_start);
 	__swab64s(&fiemap->fm_length);

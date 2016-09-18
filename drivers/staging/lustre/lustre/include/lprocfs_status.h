@@ -499,7 +499,7 @@ static inline __u64 lprocfs_stats_collector(struct lprocfs_stats *stats,
 					    int idx,
 					    enum lprocfs_fields_flags field)
 {
-	int	      i;
+	unsigned int i;
 	unsigned int  num_cpu;
 	unsigned long flags	= 0;
 	__u64	      ret	= 0;
