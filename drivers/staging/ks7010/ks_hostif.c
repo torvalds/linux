@@ -92,8 +92,6 @@ static void ks_wlan_hw_wakeup_task(struct work_struct *work)
 static
 int ks_wlan_do_power_save(struct ks_wlan_private *priv)
 {
-	int rc = 0;
-
 	DPRINTK(4, "psstatus.status=%d\n", atomic_read(&priv->psstatus.status));
 
 	if ((priv->connect_status & CONNECT_STATUS_MASK) == CONNECT_STATUS) {
@@ -101,7 +99,7 @@ int ks_wlan_do_power_save(struct ks_wlan_private *priv)
 	} else {
 		priv->dev_state = DEVICE_STATE_READY;
 	}
-	return rc;
+	return 0;
 }
 
 static
@@ -213,7 +211,6 @@ int get_ap_information(struct ks_wlan_private *priv, struct ap_info_t *ap_info,
 {
 	unsigned char *bp;
 	int bsize, offset;
-	int rc = 0;
 
 	DPRINTK(3, "\n");
 	memset(ap, 0, sizeof(struct local_ap_t));
@@ -311,7 +308,7 @@ int get_ap_information(struct ks_wlan_private *priv, struct ap_info_t *ap_info,
 		bp += (*(bp + 1) + 2);	/* pointer update */
 	}
 
-	return rc;
+	return 0;
 }
 
 static
@@ -2681,7 +2678,6 @@ void hostif_sme_enqueue(struct ks_wlan_private *priv, unsigned short event)
 
 int hostif_init(struct ks_wlan_private *priv)
 {
-	int rc = 0;
 	int i;
 
 	DPRINTK(3, "\n");
@@ -2731,7 +2727,7 @@ int hostif_init(struct ks_wlan_private *priv)
 
 	tasklet_init(&priv->sme_task, hostif_sme_task, (unsigned long)priv);
 
-	return rc;
+	return 0;
 }
 
 void hostif_exit(struct ks_wlan_private *priv)
