@@ -657,6 +657,17 @@ static int lg_event(struct hid_device *hdev, struct hid_field *field,
 	return 0;
 }
 
+static int lg_raw_event(struct hid_device *hdev, struct hid_report *report,
+		u8 *rd, int size)
+{
+	struct lg_drv_data *drv_data = hid_get_drvdata(hdev);
+
+	if (drv_data->quirks & LG_FF4)
+		return lg4ff_raw_event(hdev, report, rd, size, drv_data);
+
+	return 0;
+}
+
 static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	struct usb_interface *iface = to_usb_interface(hdev->dev.parent);
@@ -830,6 +841,7 @@ static struct hid_driver lg_driver = {
 	.input_mapping = lg_input_mapping,
 	.input_mapped = lg_input_mapped,
 	.event = lg_event,
+	.raw_event = lg_raw_event,
 	.probe = lg_probe,
 	.remove = lg_remove,
 };

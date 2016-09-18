@@ -329,6 +329,38 @@ int lg4ff_adjust_input_event(struct hid_device *hid, struct hid_field *field,
 	}
 }
 
+int lg4ff_raw_event(struct hid_device *hdev, struct hid_report *report,
+		u8 *rd, int size, struct lg_drv_data *drv_data)
+{
+	struct lg4ff_device_entry *entry = drv_data->device_props;
+
+	if (!entry)
+		return 0;
+
+	/* adjust HID report present combined pedals data */
+	if (entry->wdata.combine) {
+		switch (entry->wdata.product_id) {
+		case USB_DEVICE_ID_LOGITECH_WHEEL:
+			rd[5] = rd[3];
+			rd[6] = 0x7F;
+			return 1;
+		case USB_DEVICE_ID_LOGITECH_MOMO_WHEEL:
+		case USB_DEVICE_ID_LOGITECH_MOMO_WHEEL2:
+			rd[4] = rd[3];
+			rd[5] = 0x7F;
+			return 1;
+		case USB_DEVICE_ID_LOGITECH_DFP_WHEEL:
+			rd[5] = rd[4];
+			rd[6] = 0x7F;
+			return 1;
+		default:
+			return 0;
+		}
+	}
+
+	return 0;
+}
+
 static void lg4ff_init_wheel_data(struct lg4ff_wheel_data * const wdata, const struct lg4ff_wheel *wheel,
 				  const struct lg4ff_multimode_wheel *mmode_wheel,
 				  const u16 real_product_id)
