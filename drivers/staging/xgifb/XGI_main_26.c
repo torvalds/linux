@@ -62,7 +62,6 @@ static int XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr,
 	unsigned short ModeNo = modeno;
 	unsigned short ModeIdIndex = 0, ClockIndex = 0;
 	unsigned short RefreshRateTableIndex = 0;
-	int Clock;
 
 	InitTo330Pointer(HwDeviceExtension->jChipType, XGI_Pr);
 
@@ -73,9 +72,7 @@ static int XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr,
 
 	ClockIndex = XGI330_RefIndex[RefreshRateTableIndex].Ext_CRTVCLK;
 
-	Clock = XGI_VCLKData[ClockIndex].CLOCK * 1000;
-
-	return Clock;
+	return XGI_VCLKData[ClockIndex].CLOCK * 1000;
 }
 
 static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
