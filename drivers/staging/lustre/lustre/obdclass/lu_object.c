@@ -1300,7 +1300,6 @@ void lu_stack_fini(const struct lu_env *env, struct lu_device *top)
 		}
 	}
 }
-EXPORT_SYMBOL(lu_stack_fini);
 
 enum {
 	/**
@@ -1522,14 +1521,12 @@ void lu_context_key_quiesce(struct lu_context_key *key)
 		++key_set_version;
 	}
 }
-EXPORT_SYMBOL(lu_context_key_quiesce);
 
 void lu_context_key_revive(struct lu_context_key *key)
 {
 	key->lct_tags &= ~LCT_QUIESCENT;
 	++key_set_version;
 }
-EXPORT_SYMBOL(lu_context_key_revive);
 
 static void keys_fini(struct lu_context *ctx)
 {
@@ -1688,7 +1685,6 @@ int lu_context_refill(struct lu_context *ctx)
 {
 	return likely(ctx->lc_version == key_set_version) ? 0 : keys_fill(ctx);
 }
-EXPORT_SYMBOL(lu_context_refill);
 
 /**
  * lu_ctx_tags/lu_ses_tags will be updated if there are new types of

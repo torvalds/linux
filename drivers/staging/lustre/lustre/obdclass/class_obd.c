@@ -44,7 +44,6 @@
 #include "llog_internal.h"
 
 struct obd_device *obd_devs[MAX_OBD_DEVICES];
-EXPORT_SYMBOL(obd_devs);
 struct list_head obd_types;
 DEFINE_RWLOCK(obd_dev_lock);
 
@@ -79,8 +78,6 @@ atomic_long_t obd_dirty_transit_pages;
 EXPORT_SYMBOL(obd_dirty_transit_pages);
 
 char obd_jobid_var[JOBSTATS_JOBID_VAR_MAX_LEN + 1] = JOBSTATS_DISABLE;
-EXPORT_SYMBOL(obd_jobid_var);
-
 char obd_jobid_node[LUSTRE_JOBID_SIZE + 1];
 
 /* Get jobid of current process from stored variable or calculate

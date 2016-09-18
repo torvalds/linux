@@ -133,7 +133,6 @@ void class_put_type(struct obd_type *type)
 	module_put(type->typ_dt_ops->owner);
 	spin_unlock(&type->obd_type_lock);
 }
-EXPORT_SYMBOL(class_put_type);
 
 #define CLASS_MAX_NAME 1024
 
@@ -391,7 +390,6 @@ int class_name2dev(const char *name)
 
 	return -1;
 }
-EXPORT_SYMBOL(class_name2dev);
 
 struct obd_device *class_name2obd(const char *name)
 {
@@ -421,7 +419,6 @@ int class_uuid2dev(struct obd_uuid *uuid)
 
 	return -1;
 }
-EXPORT_SYMBOL(class_uuid2dev);
 
 /**
  * Get obd device from ::obd_devs[]
@@ -450,7 +447,6 @@ struct obd_device *class_num2obd(int num)
 
 	return obd;
 }
-EXPORT_SYMBOL(class_num2obd);
 
 /* Search for a client OBD connected to tgt_uuid.  If grp_uuid is
  * specified, then only the client with that uuid is returned,
@@ -817,7 +813,6 @@ void class_unlink_export(struct obd_export *exp)
 	spin_unlock(&exp->exp_obd->obd_dev_lock);
 	class_export_put(exp);
 }
-EXPORT_SYMBOL(class_unlink_export);
 
 /* Import management functions */
 static void class_import_destroy(struct obd_import *imp)
@@ -973,7 +968,6 @@ void __class_export_add_lock_ref(struct obd_export *exp, struct ldlm_lock *lock)
 	       lock, exp, lock->l_exp_refs_nr);
 	spin_unlock(&exp->exp_locks_list_guard);
 }
-EXPORT_SYMBOL(__class_export_add_lock_ref);
 
 void __class_export_del_lock_ref(struct obd_export *exp, struct ldlm_lock *lock)
 {
@@ -991,7 +985,6 @@ void __class_export_del_lock_ref(struct obd_export *exp, struct ldlm_lock *lock)
 	       lock, exp, lock->l_exp_refs_nr);
 	spin_unlock(&exp->exp_locks_list_guard);
 }
-EXPORT_SYMBOL(__class_export_del_lock_ref);
 #endif
 
 /* A connection defines an export context in which preallocation can
@@ -1100,7 +1093,6 @@ EXPORT_SYMBOL(class_fail_export);
 
 #if LUSTRE_TRACKS_LOCK_EXP_REFS
 void (*class_export_dump_hook)(struct obd_export *) = NULL;
-EXPORT_SYMBOL(class_export_dump_hook);
 #endif
 
 /* Total amount of zombies to be destroyed */
