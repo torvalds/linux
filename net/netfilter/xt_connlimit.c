@@ -366,14 +366,8 @@ static int connlimit_mt_check(const struct xt_mtchk_param *par)
 	unsigned int i;
 	int ret;
 
-	if (unlikely(!connlimit_rnd)) {
-		u_int32_t rand;
+	net_get_random_once(&connlimit_rnd, sizeof(connlimit_rnd));
 
-		do {
-			get_random_bytes(&rand, sizeof(rand));
-		} while (!rand);
-		cmpxchg(&connlimit_rnd, 0, rand);
-	}
 	ret = nf_ct_l3proto_try_module_get(par->family);
 	if (ret < 0) {
 		pr_info("cannot load conntrack support for "
