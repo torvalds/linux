@@ -6005,8 +6005,7 @@ static int read_adv_features(struct sock *sk, struct hci_dev *hdev,
 	return err;
 }
 
-static bool tlv_data_is_valid(struct hci_dev *hdev, u32 adv_flags, u8 *data,
-			      u8 len, bool is_adv_data)
+static bool tlv_data_is_valid(u32 adv_flags, u8 *data, u8 len, bool is_adv_data)
 {
 	u8 max_len = HCI_MAX_AD_LENGTH;
 	int i, cur_len;
@@ -6168,8 +6167,8 @@ static int add_advertising(struct sock *sk, struct hci_dev *hdev,
 		goto unlock;
 	}
 
-	if (!tlv_data_is_valid(hdev, flags, cp->data, cp->adv_data_len, true) ||
-	    !tlv_data_is_valid(hdev, flags, cp->data + cp->adv_data_len,
+	if (!tlv_data_is_valid(flags, cp->data, cp->adv_data_len, true) ||
+	    !tlv_data_is_valid(flags, cp->data + cp->adv_data_len,
 			       cp->scan_rsp_len, false)) {
 		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_ADD_ADVERTISING,
 				      MGMT_STATUS_INVALID_PARAMS);
