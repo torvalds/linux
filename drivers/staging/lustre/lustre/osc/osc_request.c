@@ -2733,51 +2733,7 @@ static int osc_get_info(const struct lu_env *env, struct obd_export *exp,
 	if (!vallen || !val)
 		return -EFAULT;
 
-	if (KEY_IS(KEY_LOCK_TO_STRIPE)) {
-		__u32 *stripe = val;
-		*vallen = sizeof(*stripe);
-		*stripe = 0;
-		return 0;
-	} else if (KEY_IS(KEY_LAST_ID)) {
-		struct ptlrpc_request *req;
-		u64 *reply;
-		char *tmp;
-		int rc;
-
-		req = ptlrpc_request_alloc(class_exp2cliimp(exp),
-					   &RQF_OST_GET_INFO_LAST_ID);
-		if (!req)
-			return -ENOMEM;
-
-		req_capsule_set_size(&req->rq_pill, &RMF_SETINFO_KEY,
-				     RCL_CLIENT, keylen);
-		rc = ptlrpc_request_pack(req, LUSTRE_OST_VERSION, OST_GET_INFO);
-		if (rc) {
-			ptlrpc_request_free(req);
-			return rc;
-		}
-
-		tmp = req_capsule_client_get(&req->rq_pill, &RMF_SETINFO_KEY);
-		memcpy(tmp, key, keylen);
-
-		req->rq_no_delay = 1;
-		req->rq_no_resend = 1;
-		ptlrpc_request_set_replen(req);
-		rc = ptlrpc_queue_wait(req);
-		if (rc)
-			goto out;
-
-		reply = req_capsule_server_get(&req->rq_pill, &RMF_OBD_ID);
-		if (!reply) {
-			rc = -EPROTO;
-			goto out;
-		}
-
-		*((u64 *)val) = *reply;
-out:
-		ptlrpc_req_finished(req);
-		return rc;
-	} else if (KEY_IS(KEY_FIEMAP)) {
+	if (KEY_IS(KEY_FIEMAP)) {
 		struct ll_fiemap_info_key *fm_key = key;
 		struct ldlm_res_id res_id;
 		ldlm_policy_data_t policy;
