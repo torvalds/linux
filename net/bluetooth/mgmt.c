@@ -6065,7 +6065,8 @@ static bool tlv_data_is_valid(u32 adv_flags, u8 *data, u8 len, bool is_adv_data)
 	for (i = 0, cur_len = 0; i < len; i += (cur_len + 1)) {
 		cur_len = data[i];
 
-		if (data[i + 1] == EIR_FLAGS && flags_managed(adv_flags))
+		if (data[i + 1] == EIR_FLAGS &&
+		    (!is_adv_data || flags_managed(adv_flags)))
 			return false;
 
 		if (data[i + 1] == EIR_TX_POWER && tx_power_managed(adv_flags))
