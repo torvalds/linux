@@ -414,7 +414,7 @@ static int lmv_intent_lookup(struct obd_export *exp,
 	 * Both migrating dir and unknown hash dir need to try
 	 * all of sub-stripes
 	 */
-	if (lsm && !lmv_is_known_hash_type(lsm)) {
+	if (lsm && !lmv_is_known_hash_type(lsm->lsm_md_hash_type)) {
 		struct lmv_oinfo *oinfo = &lsm->lsm_md_oinfo[0];
 
 		op_data->op_fid1 = oinfo->lmo_fid;
