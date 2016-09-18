@@ -880,7 +880,8 @@ static int __ldlm_namespace_free(struct ldlm_namespace *ns, int force)
 		       ldlm_ns_name(ns), atomic_read(&ns->ns_bref));
 force_wait:
 		if (force)
-			lwi = LWI_TIMEOUT(obd_timeout * HZ / 4, NULL, NULL);
+			lwi = LWI_TIMEOUT(msecs_to_jiffies(obd_timeout *
+					  MSEC_PER_SEC) / 4, NULL, NULL);
 
 		rc = l_wait_event(ns->ns_waitq,
 				  atomic_read(&ns->ns_bref) == 0, &lwi);

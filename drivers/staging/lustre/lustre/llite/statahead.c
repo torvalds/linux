@@ -1154,7 +1154,8 @@ out:
 	 */
 	while (sai->sai_sent != sai->sai_replied) {
 		/* in case we're not woken up, timeout wait */
-		lwi = LWI_TIMEOUT(HZ >> 3, NULL, NULL);
+		lwi = LWI_TIMEOUT(msecs_to_jiffies(MSEC_PER_SEC >> 3),
+				  NULL, NULL);
 		l_wait_event(thread->t_ctl_waitq,
 			     sai->sai_sent == sai->sai_replied, &lwi);
 	}

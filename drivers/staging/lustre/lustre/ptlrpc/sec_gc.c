@@ -182,7 +182,8 @@ again:
 		/* check ctx list again before sleep */
 		sec_process_ctx_list();
 
-		lwi = LWI_TIMEOUT(SEC_GC_INTERVAL * HZ, NULL, NULL);
+		lwi = LWI_TIMEOUT(msecs_to_jiffies(SEC_GC_INTERVAL * MSEC_PER_SEC),
+				  NULL, NULL);
 		l_wait_event(thread->t_ctl_waitq,
 			     thread_is_stopping(thread) ||
 			     thread_is_signal(thread),
