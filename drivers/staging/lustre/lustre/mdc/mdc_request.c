@@ -447,7 +447,7 @@ static int mdc_get_lustre_md(struct obd_export *exp,
 		if (rc < 0)
 			goto out;
 
-		if (rc < sizeof(*md->lsm)) {
+		if (rc < (typeof(rc))sizeof(*md->lsm)) {
 			CDEBUG(D_INFO,
 			       "lsm size too small: rc < sizeof (*md->lsm) (%d < %d)\n",
 			       rc, (int)sizeof(*md->lsm));
@@ -485,7 +485,7 @@ static int mdc_get_lustre_md(struct obd_export *exp,
 			if (rc < 0)
 				goto out;
 
-			if (rc < sizeof(*md->lmv)) {
+			if (rc < (typeof(rc))sizeof(*md->lmv)) {
 				CDEBUG(D_INFO,
 				       "size too small: rc < sizeof(*md->lmv) (%d < %d)\n",
 					rc, (int)sizeof(*md->lmv));
@@ -1843,7 +1843,7 @@ out:
 	return rc;
 }
 
-static struct kuc_hdr *changelog_kuc_hdr(char *buf, int len, int flags)
+static struct kuc_hdr *changelog_kuc_hdr(char *buf, size_t len, u32 flags)
 {
 	struct kuc_hdr *lh = (struct kuc_hdr *)buf;
 
@@ -1876,7 +1876,8 @@ static int changelog_kkuc_cb(const struct lu_env *env, struct llog_handle *llh,
 	struct changelog_show *cs = data;
 	struct llog_changelog_rec *rec = (struct llog_changelog_rec *)hdr;
 	struct kuc_hdr *lh;
-	int len, rc;
+	size_t len;
+	int rc;
 
 	if (rec->cr_hdr.lrh_type != CHANGELOG_REC) {
 		rc = -EINVAL;
@@ -1907,7 +1908,7 @@ static int changelog_kkuc_cb(const struct lu_env *env, struct llog_handle *llh,
 	memcpy(lh + 1, &rec->cr, len - sizeof(*lh));
 
 	rc = libcfs_kkuc_msg_put(cs->cs_fp, lh);
-	CDEBUG(D_HSM, "kucmsg fp %p len %d rc %d\n", cs->cs_fp, len, rc);
+	CDEBUG(D_HSM, "kucmsg fp %p len %zu rc %d\n", cs->cs_fp, len, rc);
 
 	return rc;
 }
@@ -2369,7 +2370,7 @@ static void lustre_swab_hai(struct hsm_action_item *h)
 static void lustre_swab_hal(struct hsm_action_list *h)
 {
 	struct hsm_action_item	*hai;
-	int			 i;
+	u32 i;
 
 	__swab32s(&h->hal_version);
 	__swab32s(&h->hal_count);
@@ -2418,14 +2419,14 @@ static int mdc_ioc_hsm_ct_start(struct obd_export *exp,
  * @param val KUC message (kuc_hdr + hsm_action_list)
  * @param len total length of message
  */
-static int mdc_hsm_copytool_send(int len, void *val)
+static int mdc_hsm_copytool_send(size_t len, void *val)
 {
 	struct kuc_hdr		*lh = (struct kuc_hdr *)val;
 	struct hsm_action_list	*hal = (struct hsm_action_list *)(lh + 1);
 
 	if (len < sizeof(*lh) + sizeof(*hal)) {
-		CERROR("Short HSM message %d < %d\n", len,
-		       (int)(sizeof(*lh) + sizeof(*hal)));
+		CERROR("Short HSM message %zu < %zu\n", len,
+		       sizeof(*lh) + sizeof(*hal));
 		return -EPROTO;
 	}
 	if (lh->kuc_magic == __swab16(KUC_MAGIC)) {
@@ -2528,18 +2529,18 @@ static int mdc_get_info(const struct lu_env *env, struct obd_export *exp,
 	int rc = -EINVAL;
 
 	if (KEY_IS(KEY_MAX_EASIZE)) {
-		int mdsize, *max_easize;
+		u32 mdsize, *max_easize;
 
 		if (*vallen != sizeof(int))
 			return -EINVAL;
-		mdsize = *(int *)val;
+		mdsize = *(u32 *)val;
 		if (mdsize > exp->exp_obd->u.cli.cl_max_mds_easize)
 			exp->exp_obd->u.cli.cl_max_mds_easize = mdsize;
 		max_easize = val;
 		*max_easize = exp->exp_obd->u.cli.cl_max_mds_easize;
 		return 0;
 	} else if (KEY_IS(KEY_DEFAULT_EASIZE)) {
-		int *default_easize;
+		u32 *default_easize;
 
 		if (*vallen != sizeof(int))
 			return -EINVAL;
@@ -2556,7 +2557,7 @@ static int mdc_get_info(const struct lu_env *env, struct obd_export *exp,
 		*data = imp->imp_connect_data;
 		return 0;
 	} else if (KEY_IS(KEY_TGT_COUNT)) {
-		*((int *)val) = 1;
+		*((u32 *)val) = 1;
 		return 0;
 	}
 
@@ -2784,8 +2785,8 @@ err_rpc_lock:
  * a large number of stripes is possible.  If a larger reply buffer is
  * required it will be reallocated in the ptlrpc layer due to overflow.
  */
-static int mdc_init_ea_size(struct obd_export *exp, int easize,
-			    int def_easize, int cookiesize, int def_cookiesize)
+static int mdc_init_ea_size(struct obd_export *exp, u32 easize, u32 def_easize,
+			    u32 cookiesize, u32 def_cookiesize)
 {
 	struct obd_device *obd = exp->exp_obd;
 	struct client_obd *cli = &obd->u.cli;

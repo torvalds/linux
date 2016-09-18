@@ -520,8 +520,9 @@ int lmv_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
 	LASSERT(fid_is_sane(&op_data->op_fid1));
 
 	CDEBUG(D_INODE, "INTENT LOCK '%s' for "DFID" '%*s' on "DFID"\n",
-	       LL_IT2STR(it), PFID(&op_data->op_fid2), op_data->op_namelen,
-	       op_data->op_name, PFID(&op_data->op_fid1));
+	       LL_IT2STR(it), PFID(&op_data->op_fid2),
+	       (int)op_data->op_namelen, op_data->op_name,
+	       PFID(&op_data->op_fid1));
 
 	rc = lmv_check_connect(obd);
 	if (rc)

@@ -1358,9 +1358,9 @@ static inline int md_close(struct obd_export *exp, struct md_op_data *op_data,
 }
 
 static inline int md_create(struct obd_export *exp, struct md_op_data *op_data,
-			    const void *data, int datalen, int mode, __u32 uid,
-			    __u32 gid, cfs_cap_t cap_effective, __u64 rdev,
-			    struct ptlrpc_request **request)
+			    const void *data, size_t datalen, umode_t mode,
+			    uid_t uid, gid_t gid, cfs_cap_t cap_effective,
+			    __u64 rdev, struct ptlrpc_request **request)
 {
 	int rc;
 
@@ -1440,8 +1440,8 @@ static inline int md_link(struct obd_export *exp, struct md_op_data *op_data,
 }
 
 static inline int md_rename(struct obd_export *exp, struct md_op_data *op_data,
-			    const char *old, int oldlen, const char *new,
-			    int newlen, struct ptlrpc_request **request)
+			    const char *old, size_t oldlen, const char *new,
+			    size_t newlen, struct ptlrpc_request **request)
 {
 	int rc;
 
@@ -1453,7 +1453,7 @@ static inline int md_rename(struct obd_export *exp, struct md_op_data *op_data,
 }
 
 static inline int md_setattr(struct obd_export *exp, struct md_op_data *op_data,
-			     void *ea, int ealen, void *ea2, int ea2len,
+			     void *ea, size_t ealen, void *ea2, size_t ea2len,
 			     struct ptlrpc_request **request,
 			     struct md_open_data **mod)
 {

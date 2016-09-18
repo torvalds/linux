@@ -235,7 +235,7 @@ mdc_intent_open_pack(struct obd_export *exp, struct lookup_intent *it,
 	struct obd_device     *obddev = class_exp2obd(exp);
 	struct ldlm_intent    *lit;
 	const void *lmm = op_data->op_data;
-	int lmmsize = op_data->op_data_size;
+	u32 lmmsize = op_data->op_data_size;
 	LIST_HEAD(cancels);
 	int		    count = 0;
 	int		    mode;
@@ -317,7 +317,8 @@ mdc_intent_getxattr_pack(struct obd_export *exp,
 {
 	struct ptlrpc_request	*req;
 	struct ldlm_intent	*lit;
-	int			rc, count = 0, maxdata;
+	int rc, count = 0;
+	u32 maxdata;
 	LIST_HEAD(cancels);
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
@@ -402,7 +403,7 @@ static struct ptlrpc_request *mdc_intent_getattr_pack(struct obd_export *exp,
 				       OBD_MD_MEA | OBD_MD_FLACL;
 	struct ldlm_intent    *lit;
 	int		    rc;
-	int		    easize;
+	u32 easize;
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
 				   &RQF_LDLM_INTENT_GETATTR);
@@ -507,7 +508,7 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 	struct ldlm_reply   *lockrep;
 	struct ldlm_lock    *lock;
 	void		*lvb_data = NULL;
-	int		  lvb_len = 0;
+	u32 lvb_len = 0;
 
 	LASSERT(rc >= 0);
 	/* Similarly, if we're going to replay this request, we don't want to
@@ -952,8 +953,8 @@ static int mdc_finish_intent_lock(struct obd_export *exp,
 	}
 	CDEBUG(D_DENTRY,
 	       "D_IT dentry %.*s intent: %s status %d disp %x rc %d\n",
-	       op_data->op_namelen, op_data->op_name, ldlm_it2str(it->it_op),
-	       it->it_status, it->it_disposition, rc);
+	       (int)op_data->op_namelen, op_data->op_name,
+	       ldlm_it2str(it->it_op), it->it_status, it->it_disposition, rc);
 	return rc;
 }
 
@@ -1067,7 +1068,7 @@ int mdc_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
 	LASSERT(it);
 
 	CDEBUG(D_DLMTRACE, "(name: %.*s,"DFID") in obj "DFID
-		", intent: %s flags %#Lo\n", op_data->op_namelen,
+		", intent: %s flags %#Lo\n", (int)op_data->op_namelen,
 		op_data->op_name, PFID(&op_data->op_fid2),
 		PFID(&op_data->op_fid1), ldlm_it2str(it->it_op),
 		it->it_flags);
@@ -1177,8 +1178,8 @@ int mdc_intent_getattr_async(struct obd_export *exp,
 
 	CDEBUG(D_DLMTRACE,
 	       "name: %.*s in inode " DFID ", intent: %s flags %#Lo\n",
-	       op_data->op_namelen, op_data->op_name, PFID(&op_data->op_fid1),
-	       ldlm_it2str(it->it_op), it->it_flags);
+	       (int)op_data->op_namelen, op_data->op_name,
+	       PFID(&op_data->op_fid1), ldlm_it2str(it->it_op), it->it_flags);
 
 	fid_build_reg_res_name(&op_data->op_fid1, &res_id);
 	req = mdc_intent_getattr_pack(exp, it, op_data);

@@ -245,8 +245,8 @@ static int lmv_connect(const struct lu_env *env,
 	return rc;
 }
 
-static int lmv_init_ea_size(struct obd_export *exp, int easize,
-			    int def_easize, int cookiesize, int def_cookiesize)
+static int lmv_init_ea_size(struct obd_export *exp, u32 easize, u32 def_easize,
+			    u32 cookiesize, u32 def_cookiesize)
 {
 	struct obd_device   *obd = exp->exp_obd;
 	struct lmv_obd      *lmv = &obd->u.lmv;
@@ -1660,9 +1660,9 @@ lmv_locate_mds(struct lmv_obd *lmv, struct md_op_data *op_data,
 }
 
 static int lmv_create(struct obd_export *exp, struct md_op_data *op_data,
-		      const void *data, int datalen, int mode, __u32 uid,
-		      __u32 gid, cfs_cap_t cap_effective, __u64 rdev,
-		      struct ptlrpc_request **request)
+		      const void *data, size_t datalen, umode_t mode,
+		      uid_t uid, gid_t gid, cfs_cap_t cap_effective,
+		      __u64 rdev, struct ptlrpc_request **request)
 {
 	struct obd_device       *obd = exp->exp_obd;
 	struct lmv_obd	  *lmv = &obd->u.lmv;
@@ -1681,8 +1681,8 @@ static int lmv_create(struct obd_export *exp, struct md_op_data *op_data,
 		return PTR_ERR(tgt);
 
 	CDEBUG(D_INODE, "CREATE name '%.*s' on "DFID" -> mds #%x\n",
-	       op_data->op_namelen, op_data->op_name, PFID(&op_data->op_fid1),
-	       op_data->op_mds);
+	       (int)op_data->op_namelen, op_data->op_name,
+	       PFID(&op_data->op_fid1), op_data->op_mds);
 
 	rc = lmv_fid_alloc(NULL, exp, &op_data->op_fid2, op_data);
 	if (rc)
@@ -1785,8 +1785,8 @@ lmv_getattr_name(struct obd_export *exp, struct md_op_data *op_data,
 		return PTR_ERR(tgt);
 
 	CDEBUG(D_INODE, "GETATTR_NAME for %*s on " DFID " -> mds #%u\n",
-	       op_data->op_namelen, op_data->op_name, PFID(&op_data->op_fid1),
-	       tgt->ltd_idx);
+	       (int)op_data->op_namelen, op_data->op_name,
+	       PFID(&op_data->op_fid1), tgt->ltd_idx);
 
 	rc = md_getattr_name(tgt->ltd_exp, op_data, preq);
 	if (rc != 0)
@@ -1879,7 +1879,7 @@ static int lmv_link(struct obd_export *exp, struct md_op_data *op_data,
 	LASSERT(op_data->op_namelen != 0);
 
 	CDEBUG(D_INODE, "LINK "DFID":%*s to "DFID"\n",
-	       PFID(&op_data->op_fid2), op_data->op_namelen,
+	       PFID(&op_data->op_fid2), (int)op_data->op_namelen,
 	       op_data->op_name, PFID(&op_data->op_fid1));
 
 	op_data->op_fsuid = from_kuid(&init_user_ns, current_fsuid());
@@ -1916,7 +1916,8 @@ static int lmv_link(struct obd_export *exp, struct md_op_data *op_data,
 }
 
 static int lmv_rename(struct obd_export *exp, struct md_op_data *op_data,
-		      const char *old, int oldlen, const char *new, int newlen,
+		      const char *old, size_t oldlen,
+		      const char *new, size_t newlen,
 		      struct ptlrpc_request **request)
 {
 	struct obd_device       *obd = exp->exp_obd;
@@ -1927,9 +1928,9 @@ static int lmv_rename(struct obd_export *exp, struct md_op_data *op_data,
 	LASSERT(oldlen != 0);
 
 	CDEBUG(D_INODE, "RENAME %.*s in "DFID":%d to %.*s in "DFID":%d\n",
-	       oldlen, old, PFID(&op_data->op_fid1),
+	       (int)oldlen, old, PFID(&op_data->op_fid1),
 	       op_data->op_mea1 ? op_data->op_mea1->lsm_md_stripe_count : 0,
-	       newlen, new, PFID(&op_data->op_fid2),
+	       (int)newlen, new, PFID(&op_data->op_fid2),
 	       op_data->op_mea2 ? op_data->op_mea2->lsm_md_stripe_count : 0);
 
 	rc = lmv_check_connect(obd);
@@ -2035,7 +2036,7 @@ static int lmv_rename(struct obd_export *exp, struct md_op_data *op_data,
 }
 
 static int lmv_setattr(struct obd_export *exp, struct md_op_data *op_data,
-		       void *ea, int ealen, void *ea2, int ea2len,
+		       void *ea, size_t ealen, void *ea2, size_t ea2len,
 		       struct ptlrpc_request **request,
 		       struct md_open_data **mod)
 {
