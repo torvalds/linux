@@ -1452,14 +1452,14 @@ static int echo_client_prep_commit(const struct lu_env *env,
 		LASSERT(lpages == npages);
 
 		for (i = 0; i < lpages; i++) {
-			struct page *page = lnb[i].page;
+			struct page *page = lnb[i].lnb_page;
 
 			/* read past eof? */
-			if (!page  && lnb[i].rc == 0)
+			if (!page  && lnb[i].lnb_rc == 0)
 				continue;
 
 			if (async)
-				lnb[i].flags |= OBD_BRW_ASYNC;
+				lnb[i].lnb_flags |= OBD_BRW_ASYNC;
 
 			if (ostid_id(&oa->o_oi) == ECHO_PERSISTENT_OBJID ||
 			    (oa->o_valid & OBD_MD_FLFLAGS) == 0 ||

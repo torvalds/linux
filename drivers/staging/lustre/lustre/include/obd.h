@@ -437,11 +437,11 @@ struct lmv_obd {
 struct niobuf_local {
 	__u64		lnb_file_offset;
 	__u32		lnb_page_offset;
-	__u32		len;
-	__u32		flags;
-	struct page	*page;
-	struct dentry	*dentry;
-	int		rc;
+	__u32		lnb_len;
+	__u32		lnb_flags;
+	struct page	*lnb_page;
+	void		*lnb_data;
+	int		lnb_rc;
 };
 
 #define LUSTRE_FLD_NAME	 "fld"
