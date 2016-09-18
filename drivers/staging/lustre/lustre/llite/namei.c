@@ -1015,8 +1015,8 @@ static int ll_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	if (!IS_POSIXACL(dir) || !exp_connect_umask(ll_i2mdexp(dir)))
 		mode &= ~current_umask();
 	mode = (mode & (S_IRWXUGO | S_ISVTX)) | S_IFDIR;
-	err = ll_new_node(dir, dentry, NULL, mode, 0, LUSTRE_OPC_MKDIR);
 
+	err = ll_new_node(dir, dentry, NULL, mode, 0, LUSTRE_OPC_MKDIR);
 	if (!err)
 		ll_stats_ops_tally(ll_i2sbi(dir), LPROC_LL_MKDIR, 1);
 
