@@ -191,6 +191,13 @@ struct ll_inode_info {
 			unsigned int			lli_sa_generation;
 			/* directory stripe information */
 			struct lmv_stripe_md	       *lli_lsm_md;
+			/* default directory stripe offset.  This is extracted
+			 * from the "dmv" xattr in order to decide which MDT to
+			 * create a subdirectory on.  The MDS itself fetches
+			 * "dmv" and gets the rest of the default layout itself
+			 * (count, hash, etc).
+			 */
+			__u32				lli_def_stripe_offset;
 		};
 
 		/* for non-directory */

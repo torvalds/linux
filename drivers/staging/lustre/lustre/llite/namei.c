@@ -204,6 +204,8 @@ int ll_md_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 		}
 
 		if (bits & MDS_INODELOCK_XATTR) {
+			if (S_ISDIR(inode->i_mode))
+				ll_i2info(inode)->lli_def_stripe_offset = -1;
 			ll_xattr_cache_destroy(inode);
 			bits &= ~MDS_INODELOCK_XATTR;
 		}
@@ -833,7 +835,7 @@ static int ll_new_node(struct inode *dir, struct dentry *dentry,
 
 	if (unlikely(tgt))
 		tgt_len = strlen(tgt) + 1;
-
+again:
 	op_data = ll_prep_md_op_data(NULL, dir, NULL,
 				     dentry->d_name.name,
 				     dentry->d_name.len,
@@ -848,8 +850,44 @@ static int ll_new_node(struct inode *dir, struct dentry *dentry,
 			from_kgid(&init_user_ns, current_fsgid()),
 			cfs_curproc_cap_pack(), rdev, &request);
 	ll_finish_md_op_data(op_data);
-	if (err)
+	if (err < 0 && err != -EREMOTE)
 		goto err_exit;
+
+	/*
+	 * If the client doesn't know where to create a subdirectory (or
+	 * in case of a race that sends the RPC to the wrong MDS), the
+	 * MDS will return -EREMOTE and the client will fetch the layout
+	 * of the directory, then create the directory on the right MDT.
+	 */
+	if (unlikely(err == -EREMOTE)) {
+		struct ll_inode_info *lli = ll_i2info(dir);
+		struct lmv_user_md *lum;
+		int lumsize, err2;
+
+		ptlrpc_req_finished(request);
+		request = NULL;
+
+		err2 = ll_dir_getstripe(dir, (void **)&lum, &lumsize, &request,
+					OBD_MD_DEFAULT_MEA);
+		if (!err2) {
+			/* Update stripe_offset and retry */
+			lli->lli_def_stripe_offset = lum->lum_stripe_offset;
+		} else if (err2 == -ENODATA &&
+			   lli->lli_def_stripe_offset != -1) {
+			/*
+			 * If there are no default stripe EA on the MDT, but the
+			 * client has default stripe, then it probably means
+			 * default stripe EA has just been deleted.
+			 */
+			lli->lli_def_stripe_offset = -1;
+		} else {
+			goto err_exit;
+		}
+
+		ptlrpc_req_finished(request);
+		request = NULL;
+		goto again;
+	}
 
 	ll_update_times(request, dir);
 
@@ -859,7 +897,8 @@ static int ll_new_node(struct inode *dir, struct dentry *dentry,
 
 	d_instantiate(dentry, inode);
 err_exit:
-	ptlrpc_req_finished(request);
+	if (request)
+		ptlrpc_req_finished(request);
 
 	return err;
 }

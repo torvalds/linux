@@ -802,6 +802,7 @@ void ll_lli_init(struct ll_inode_info *lli)
 		spin_lock_init(&lli->lli_sa_lock);
 		lli->lli_opendir_pid = 0;
 		lli->lli_sa_enabled = 0;
+		lli->lli_def_stripe_offset = -1;
 	} else {
 		mutex_init(&lli->lli_size_mutex);
 		lli->lli_symlink_name = NULL;
@@ -2342,8 +2343,12 @@ struct md_op_data *ll_prep_md_op_data(struct md_op_data *op_data,
 
 	ll_i2gids(op_data->op_suppgids, i1, i2);
 	op_data->op_fid1 = *ll_inode2fid(i1);
-	if (S_ISDIR(i1->i_mode))
+	op_data->op_default_stripe_offset = -1;
+	if (S_ISDIR(i1->i_mode)) {
 		op_data->op_mea1 = ll_i2info(i1)->lli_lsm_md;
+		op_data->op_default_stripe_offset =
+			ll_i2info(i1)->lli_def_stripe_offset;
+	}
 
 	if (i2) {
 		op_data->op_fid2 = *ll_inode2fid(i2);
