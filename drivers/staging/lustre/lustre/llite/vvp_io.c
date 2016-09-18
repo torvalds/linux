@@ -821,7 +821,7 @@ static void write_commit_callback(const struct lu_env *env, struct cl_io *io,
 	cl_page_disown(env, io, page);
 
 	/* held in ll_cl_init() */
-	lu_ref_del(&page->cp_reference, "cl_io", io);
+	lu_ref_del(&page->cp_reference, "cl_io", cl_io_top(io));
 	cl_page_put(env, page);
 }
 
