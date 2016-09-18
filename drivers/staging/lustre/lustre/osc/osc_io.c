@@ -484,11 +484,13 @@ static int osc_io_setattr_start(const struct lu_env *env,
 	memset(oa, 0, sizeof(*oa));
 	if (result == 0) {
 		oa->o_oi = loi->loi_oi;
+		obdo_set_parent_fid(oa, io->u.ci_setattr.sa_parent_fid);
+		oa->o_stripe_idx = io->u.ci_setattr.sa_stripe_index;
 		oa->o_mtime = attr->cat_mtime;
 		oa->o_atime = attr->cat_atime;
 		oa->o_ctime = attr->cat_ctime;
-		oa->o_valid = OBD_MD_FLID | OBD_MD_FLGROUP | OBD_MD_FLATIME |
-			OBD_MD_FLCTIME | OBD_MD_FLMTIME;
+		oa->o_valid |= OBD_MD_FLID | OBD_MD_FLGROUP | OBD_MD_FLATIME |
+			       OBD_MD_FLCTIME | OBD_MD_FLMTIME;
 		if (ia_valid & ATTR_SIZE) {
 			oa->o_size = size;
 			oa->o_blocks = OBD_OBJECT_EOF;

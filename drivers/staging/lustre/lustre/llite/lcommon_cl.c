@@ -99,6 +99,7 @@ int cl_setattr_ost(struct inode *inode, const struct iattr *attr)
 	io->u.ci_setattr.sa_attr.lvb_ctime = LTIME_S(attr->ia_ctime);
 	io->u.ci_setattr.sa_attr.lvb_size = attr->ia_size;
 	io->u.ci_setattr.sa_valid = attr->ia_valid;
+	io->u.ci_setattr.sa_parent_fid = ll_inode2fid(inode);
 
 again:
 	if (cl_io_init(env, io, CIT_SETATTR, io->ci_obj) == 0) {
