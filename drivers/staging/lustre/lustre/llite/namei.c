@@ -47,8 +47,8 @@
 #include "../include/lustre_ver.h"
 #include "llite_internal.h"
 
-static int ll_create_it(struct inode *, struct dentry *,
-			int, struct lookup_intent *);
+static int ll_create_it(struct inode *dir, struct dentry *dentry,
+			struct lookup_intent *it);
 
 /* called from iget5_locked->find_inode() under inode_hash_lock spinlock */
 static int ll_test_inode(struct inode *inode, void *opaque)
@@ -668,7 +668,7 @@ static int ll_atomic_open(struct inode *dir, struct dentry *dentry,
 	if (!rc) {
 		if (it_disposition(it, DISP_OPEN_CREATE)) {
 			/* Dentry instantiated in ll_create_it. */
-			rc = ll_create_it(dir, dentry, mode, it);
+			rc = ll_create_it(dir, dentry, it);
 			if (rc) {
 				/* We dget in ll_splice_alias. */
 				if (de)
@@ -754,7 +754,7 @@ static struct inode *ll_create_node(struct inode *dir, struct lookup_intent *it)
  * If the create succeeds, we fill in the inode information
  * with d_instantiate().
  */
-static int ll_create_it(struct inode *dir, struct dentry *dentry, int mode,
+static int ll_create_it(struct inode *dir, struct dentry *dentry,
 			struct lookup_intent *it)
 {
 	struct inode *inode;
