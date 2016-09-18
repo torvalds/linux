@@ -8160,6 +8160,15 @@ S:	Maintained
 W:	https://fedorahosted.org/dropwatch/
 F:	net/core/drop_monitor.c
 
+NETWORKING [DSA]
+M:	Andrew Lunn <andrew@lunn.ch>
+M:	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
+M:	Florian Fainelli <f.fainelli@gmail.com>
+S:	Maintained
+F:	net/dsa/
+F:	include/net/dsa.h
+F:	drivers/net/dsa/
+
 NETWORKING [GENERAL]
 M:	"David S. Miller" <davem@davemloft.net>
 L:	netdev@vger.kernel.org
