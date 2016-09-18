@@ -1073,11 +1073,11 @@ struct cl_client_cache *cl_cache_init(unsigned long lru_page_max)
 	/* Initialize cache data */
 	atomic_set(&cache->ccc_users, 1);
 	cache->ccc_lru_max = lru_page_max;
-	atomic_set(&cache->ccc_lru_left, lru_page_max);
+	atomic_long_set(&cache->ccc_lru_left, lru_page_max);
 	spin_lock_init(&cache->ccc_lru_lock);
 	INIT_LIST_HEAD(&cache->ccc_lru);
 
-	atomic_set(&cache->ccc_unstable_nr, 0);
+	atomic_long_set(&cache->ccc_unstable_nr, 0);
 	init_waitqueue_head(&cache->ccc_unstable_waitq);
 
 	return cache;

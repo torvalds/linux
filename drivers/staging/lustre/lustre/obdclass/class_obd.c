@@ -55,9 +55,9 @@ unsigned int obd_dump_on_timeout;
 EXPORT_SYMBOL(obd_dump_on_timeout);
 unsigned int obd_dump_on_eviction;
 EXPORT_SYMBOL(obd_dump_on_eviction);
-unsigned int obd_max_dirty_pages = 256;
+unsigned long obd_max_dirty_pages;
 EXPORT_SYMBOL(obd_max_dirty_pages);
-atomic_t obd_dirty_pages;
+atomic_long_t obd_dirty_pages;
 EXPORT_SYMBOL(obd_dirty_pages);
 unsigned int obd_timeout = OBD_TIMEOUT_DEFAULT;   /* seconds */
 EXPORT_SYMBOL(obd_timeout);
@@ -75,7 +75,7 @@ EXPORT_SYMBOL(at_early_margin);
 int at_extra = 30;
 EXPORT_SYMBOL(at_extra);
 
-atomic_t obd_dirty_transit_pages;
+atomic_long_t obd_dirty_transit_pages;
 EXPORT_SYMBOL(obd_dirty_transit_pages);
 
 char obd_jobid_var[JOBSTATS_JOBID_VAR_MAX_LEN + 1] = JOBSTATS_DISABLE;

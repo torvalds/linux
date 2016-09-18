@@ -926,7 +926,8 @@ void ll_put_super(struct super_block *sb)
 	struct lustre_sb_info *lsi = s2lsi(sb);
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
 	char *profilenm = get_profile_name(sb);
-	int ccc_count, next, force = 1, rc = 0;
+	int next, force = 1, rc = 0;
+	long ccc_count;
 
 	CDEBUG(D_VFSTRACE, "VFS Op: sb %p - %s\n", sb, profilenm);
 
@@ -947,13 +948,13 @@ void ll_put_super(struct super_block *sb)
 		struct l_wait_info lwi = LWI_INTR(LWI_ON_SIGNAL_NOOP, NULL);
 
 		rc = l_wait_event(sbi->ll_cache->ccc_unstable_waitq,
-				  !atomic_read(&sbi->ll_cache->ccc_unstable_nr),
+				  !atomic_long_read(&sbi->ll_cache->ccc_unstable_nr),
 				  &lwi);
 	}
 
-	ccc_count = atomic_read(&sbi->ll_cache->ccc_unstable_nr);
+	ccc_count = atomic_long_read(&sbi->ll_cache->ccc_unstable_nr);
 	if (!force && rc != -EINTR)
-		LASSERTF(!ccc_count, "count: %i\n", ccc_count);
+		LASSERTF(!ccc_count, "count: %li\n", ccc_count);
 
 	/* We need to set force before the lov_disconnect in
 	 * lustre_common_put_super, since l_d cleans up osc's as well.

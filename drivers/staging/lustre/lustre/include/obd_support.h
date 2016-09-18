@@ -52,9 +52,9 @@ extern unsigned int at_max;
 extern unsigned int at_history;
 extern int at_early_margin;
 extern int at_extra;
-extern unsigned int obd_max_dirty_pages;
-extern atomic_t obd_dirty_pages;
-extern atomic_t obd_dirty_transit_pages;
+extern unsigned long obd_max_dirty_pages;
+extern atomic_long_t obd_dirty_pages;
+extern atomic_long_t obd_dirty_transit_pages;
 extern char obd_jobid_var[];
 
 /* Some hash init argument constants */

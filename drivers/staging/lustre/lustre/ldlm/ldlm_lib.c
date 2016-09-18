@@ -328,11 +328,11 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	/* lru for osc. */
 	INIT_LIST_HEAD(&cli->cl_lru_osc);
 	atomic_set(&cli->cl_lru_shrinkers, 0);
-	atomic_set(&cli->cl_lru_busy, 0);
-	atomic_set(&cli->cl_lru_in_list, 0);
+	atomic_long_set(&cli->cl_lru_busy, 0);
+	atomic_long_set(&cli->cl_lru_in_list, 0);
 	INIT_LIST_HEAD(&cli->cl_lru_list);
 	spin_lock_init(&cli->cl_lru_list_lock);
-	atomic_set(&cli->cl_unstable_count, 0);
+	atomic_long_set(&cli->cl_unstable_count, 0);
 
 	init_waitqueue_head(&cli->cl_destroy_waitq);
 	atomic_set(&cli->cl_destroy_in_flight, 0);

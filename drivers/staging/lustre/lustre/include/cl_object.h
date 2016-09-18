@@ -2326,7 +2326,7 @@ struct cl_client_cache {
 	/**
 	 * # of LRU entries available
 	 */
-	atomic_t		ccc_lru_left;
+	atomic_long_t		ccc_lru_left;
 	/**
 	 * List of entities(OSCs) for this LRU cache
 	 */
@@ -2346,7 +2346,7 @@ struct cl_client_cache {
 	/**
 	 * # of unstable pages for this mount point
 	 */
-	atomic_t		ccc_unstable_nr;
+	atomic_long_t		ccc_unstable_nr;
 	/**
 	 * Waitq for awaiting unstable pages to reach zero.
 	 * Used at umounting time and signaled on BRW commit
