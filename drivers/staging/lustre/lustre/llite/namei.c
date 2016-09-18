@@ -987,7 +987,7 @@ static int ll_unlink(struct inode *dir, struct dentry *dchild)
 	if (IS_ERR(op_data))
 		return PTR_ERR(op_data);
 
-	if (dchild && dchild->d_inode)
+	if (dchild->d_inode)
 		op_data->op_fid3 = *ll_inode2fid(dchild->d_inode);
 
 	op_data->op_fid2 = op_data->op_fid3;
@@ -1039,7 +1039,7 @@ static int ll_rmdir(struct inode *dir, struct dentry *dchild)
 	if (IS_ERR(op_data))
 		return PTR_ERR(op_data);
 
-	if (dchild && dchild->d_inode)
+	if (dchild->d_inode)
 		op_data->op_fid3 = *ll_inode2fid(dchild->d_inode);
 
 	op_data->op_fid2 = op_data->op_fid3;
@@ -1120,9 +1120,9 @@ static int ll_rename(struct inode *src, struct dentry *src_dchild,
 	if (IS_ERR(op_data))
 		return PTR_ERR(op_data);
 
-	if (src_dchild && src_dchild->d_inode)
+	if (src_dchild->d_inode)
 		op_data->op_fid3 = *ll_inode2fid(src_dchild->d_inode);
-	if (tgt_dchild && tgt_dchild->d_inode)
+	if (tgt_dchild->d_inode)
 		op_data->op_fid4 = *ll_inode2fid(tgt_dchild->d_inode);
 
 	err = md_rename(sbi->ll_md_exp, op_data,
