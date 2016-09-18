@@ -203,8 +203,6 @@ ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
 		buf->len = spd->partial[page_nr].len;
 		buf->private = spd->partial[page_nr].private;
 		buf->ops = spd->ops;
-		if (spd->flags & SPLICE_F_GIFT)
-			buf->flags |= PIPE_BUF_FLAG_GIFT;
 
 		pipe->nrbufs++;
 		page_nr++;
@@ -224,6 +222,27 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(splice_to_pipe);
+
+ssize_t add_to_pipe(struct pipe_inode_info *pipe, struct pipe_buffer *buf)
+{
+	int ret;
+
+	if (unlikely(!pipe->readers)) {
+		send_sig(SIGPIPE, current, 0);
+		ret = -EPIPE;
+	} else if (pipe->nrbufs == pipe->buffers) {
+		ret = -EAGAIN;
+	} else {
+		int newbuf = (pipe->curbuf + pipe->nrbufs) & (pipe->buffers - 1);
+		pipe->bufs[newbuf] = *buf;
+		pipe->nrbufs++;
+		return buf->len;
+	}
+	buf->ops->release(pipe, buf);
+	buf->ops = NULL;
+	return ret;
+}
+EXPORT_SYMBOL(add_to_pipe);
 
 void spd_release_page(struct splice_pipe_desc *spd, unsigned int i)
 {
@@ -1415,32 +1434,50 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 	return -EINVAL;
 }
 
-static int get_iovec_page_array(struct iov_iter *from,
-				struct page **pages,
-				struct partial_page *partial,
-				unsigned int pipe_buffers)
+static int iter_to_pipe(struct iov_iter *from,
+			struct pipe_inode_info *pipe,
+			unsigned flags)
 {
-	int buffers = 0;
-	while (iov_iter_count(from)) {
+	struct pipe_buffer buf = {
+		.ops = &user_page_pipe_buf_ops,
+		.flags = flags
+	};
+	size_t total = 0;
+	int ret = 0;
+	bool failed = false;
+
+	while (iov_iter_count(from) && !failed) {
+		struct page *pages[16];
 		ssize_t copied;
 		size_t start;
+		int n;
 
-		copied = iov_iter_get_pages(from, pages + buffers, ~0UL,
-					pipe_buffers - buffers, &start);
-		if (copied <= 0)
-			return buffers ? buffers : copied;
+		copied = iov_iter_get_pages(from, pages, ~0UL, 16, &start);
+		if (copied <= 0) {
+			ret = copied;
+			break;
+		}
 
-		iov_iter_advance(from, copied);
-		while (copied) {
+		for (n = 0; copied; n++, start = 0) {
 			int size = min_t(int, copied, PAGE_SIZE - start);
-			partial[buffers].offset = start;
-			partial[buffers].len = size;
+			if (!failed) {
+				buf.page = pages[n];
+				buf.offset = start;
+				buf.len = size;
+				ret = add_to_pipe(pipe, &buf);
+				if (unlikely(ret < 0)) {
+					failed = true;
+				} else {
+					iov_iter_advance(from, ret);
+					total += ret;
+				}
+			} else {
+				put_page(pages[n]);
+			}
 			copied -= size;
-			start = 0;
-			buffers++;
 		}
 	}
-	return buffers;
+	return total ? total : ret;
 }
 
 static int pipe_to_user(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
@@ -1501,17 +1538,11 @@ static long vmsplice_to_pipe(struct file *file, const struct iovec __user *uiov,
 	struct iovec iovstack[UIO_FASTIOV];
 	struct iovec *iov = iovstack;
 	struct iov_iter from;
-	struct page *pages[PIPE_DEF_BUFFERS];
-	struct partial_page partial[PIPE_DEF_BUFFERS];
-	struct splice_pipe_desc spd = {
-		.pages = pages,
-		.partial = partial,
-		.nr_pages_max = PIPE_DEF_BUFFERS,
-		.flags = flags,
-		.ops = &user_page_pipe_buf_ops,
-		.spd_release = spd_release_page,
-	};
 	long ret;
+	unsigned buf_flag = 0;
+
+	if (flags & SPLICE_F_GIFT)
+		buf_flag = PIPE_BUF_FLAG_GIFT;
 
 	pipe = get_pipe_info(file);
 	if (!pipe)
@@ -1522,26 +1553,13 @@ static long vmsplice_to_pipe(struct file *file, const struct iovec __user *uiov,
 	if (ret < 0)
 		return ret;
 
-	if (splice_grow_spd(pipe, &spd)) {
-		kfree(iov);
-		return -ENOMEM;
-	}
-
 	pipe_lock(pipe);
 	ret = wait_for_space(pipe, flags);
-	if (!ret) {
-		spd.nr_pages = get_iovec_page_array(&from, spd.pages,
-						    spd.partial,
-						    spd.nr_pages_max);
-		if (spd.nr_pages <= 0)
-			ret = spd.nr_pages;
-		else
-			ret = splice_to_pipe(pipe, &spd);
-	}
+	if (!ret)
+		ret = iter_to_pipe(&from, pipe, buf_flag);
 	pipe_unlock(pipe);
 	if (ret > 0)
 		wakeup_pipe_readers(pipe);
-	splice_shrink_spd(&spd);
 	kfree(iov);
 	return ret;
 }
