@@ -399,7 +399,6 @@ act2000_isa_download(act2000_card *card, act2000_ddef __user *cb)
 	unsigned int length;
 	int l;
 	int c;
-	long timeout;
 	u_char *b;
 	u_char __user *p;
 	u_char *buf;
@@ -417,7 +416,6 @@ act2000_isa_download(act2000_card *card, act2000_ddef __user *cb)
 	buf = kmalloc(1024, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
-	timeout = 0;
 	while (length) {
 		l = (length > 1024) ? 1024 : length;
 		c = 0;
