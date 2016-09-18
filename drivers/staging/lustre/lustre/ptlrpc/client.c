@@ -2455,7 +2455,8 @@ void ptlrpc_free_committed(struct obd_import *imp)
 	       imp->imp_obd->obd_name, imp->imp_peer_committed_transno,
 	       imp->imp_generation);
 
-	if (imp->imp_generation != imp->imp_last_generation_checked)
+	if (imp->imp_generation != imp->imp_last_generation_checked ||
+	    !imp->imp_last_transno_checked)
 		skip_committed_list = false;
 
 	imp->imp_last_transno_checked = imp->imp_peer_committed_transno;
@@ -2502,6 +2503,9 @@ free_req:
 		LASSERT(req->rq_transno != 0);
 		if (req->rq_import_generation < imp->imp_generation) {
 			DEBUG_REQ(D_RPCTRACE, req, "free stale open request");
+			ptlrpc_free_request(req);
+		} else if (!req->rq_replay) {
+			DEBUG_REQ(D_RPCTRACE, req, "free closed open request");
 			ptlrpc_free_request(req);
 		}
 	}
