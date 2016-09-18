@@ -295,8 +295,8 @@ enum ll_lease_type {
 #define LOV_PATTERN_F_HOLE	0x40000000 /* there is hole in LOV EA */
 #define LOV_PATTERN_F_RELEASED	0x80000000 /* HSM released file */
 
-#define LOV_MAXPOOLNAME 16
-#define LOV_POOLNAMEF "%.16s"
+#define LOV_MAXPOOLNAME 15
+#define LOV_POOLNAMEF "%.15s"
 
 #define LOV_MIN_STRIPE_BITS 16   /* maximum PAGE_SIZE (ia64), power of 2 */
 #define LOV_MIN_STRIPE_SIZE (1 << LOV_MIN_STRIPE_BITS)
@@ -354,7 +354,7 @@ struct lov_user_md_v3 {	   /* LOV EA user data (host-endian) */
 					   * used when reading
 					   */
 	};
-	char  lmm_pool_name[LOV_MAXPOOLNAME]; /* pool name */
+	char  lmm_pool_name[LOV_MAXPOOLNAME + 1];   /* pool name */
 	struct lov_user_ost_data_v1 lmm_objects[0]; /* per-stripe data */
 } __packed;
 
@@ -414,7 +414,7 @@ struct lmv_user_md_v1 {
 	__u32	lum_padding1;
 	__u32	lum_padding2;
 	__u32	lum_padding3;
-	char	lum_pool_name[LOV_MAXPOOLNAME];
+	char	lum_pool_name[LOV_MAXPOOLNAME + 1];
 	struct	lmv_user_mds_data  lum_objects[0];
 } __packed;
 

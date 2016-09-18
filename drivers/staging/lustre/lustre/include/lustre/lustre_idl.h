@@ -1620,7 +1620,7 @@ struct lov_mds_md_v3 {	    /* LOV EA mds/wire data (little-endian) */
 	/* lmm_stripe_count used to be __u32 */
 	__u16 lmm_stripe_count;   /* num stripes in use for this object */
 	__u16 lmm_layout_gen;     /* layout generation number */
-	char  lmm_pool_name[LOV_MAXPOOLNAME]; /* must be 32bit aligned */
+	char  lmm_pool_name[LOV_MAXPOOLNAME + 1]; /* must be 32bit aligned */
 	struct lov_ost_data_v1 lmm_objects[0]; /* per-stripe data */
 };
 
@@ -2498,7 +2498,7 @@ struct lmv_mds_md_v1 {
 	__u32 lmv_padding1;
 	__u64 lmv_padding2;
 	__u64 lmv_padding3;
-	char lmv_pool_name[LOV_MAXPOOLNAME];	/* pool name */
+	char lmv_pool_name[LOV_MAXPOOLNAME + 1];/* pool name */
 	struct lu_fid lmv_stripe_fids[0];	/* FIDs for each stripe */
 };
 

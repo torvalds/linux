@@ -99,7 +99,7 @@ struct lov_stripe_md {
 		__u32 lw_pattern;	  /* striping pattern (RAID0, RAID1) */
 		__u16 lw_stripe_count;  /* number of objects being striped over */
 		__u16 lw_layout_gen;       /* generation of the layout */
-		char  lw_pool_name[LOV_MAXPOOLNAME]; /* pool name */
+		char  lw_pool_name[LOV_MAXPOOLNAME + 1]; /* pool name */
 	} lsm_wire;
 
 	struct lov_oinfo *lsm_oinfo[0];
