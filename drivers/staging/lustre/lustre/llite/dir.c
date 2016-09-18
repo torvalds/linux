@@ -1568,6 +1568,23 @@ out_quotactl:
 		return rc;
 	case OBD_IOC_FID2PATH:
 		return ll_fid2path(inode, (void __user *)arg);
+	case LL_IOC_FID2MDTIDX: {
+		struct obd_export *exp = ll_i2mdexp(inode);
+		struct lu_fid fid;
+		__u32 index;
+
+		if (copy_from_user(&fid, (const struct lu_fid __user *)arg,
+				   sizeof(fid)))
+			return -EFAULT;
+
+		/* Call mdc_iocontrol */
+		rc = obd_iocontrol(LL_IOC_FID2MDTIDX, exp, sizeof(fid), &fid,
+				   &index);
+		if (rc)
+			return rc;
+
+		return index;
+	}
 	case LL_IOC_HSM_REQUEST: {
 		struct hsm_user_request	*hur;
 		ssize_t			 totalsize;

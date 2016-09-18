@@ -62,6 +62,11 @@ int lmv_revalidate_slaves(struct obd_export *exp, struct mdt_body *mbody,
 			  ldlm_blocking_callback cb_blocking,
 			  int extra_lock_flags);
 
+static inline struct obd_device *lmv2obd_dev(struct lmv_obd *lmv)
+{
+	return container_of0(lmv, struct obd_device, u.lmv);
+}
+
 static inline struct lmv_tgt_desc *
 lmv_get_target(struct lmv_obd *lmv, u32 mdt_idx, int *index)
 {

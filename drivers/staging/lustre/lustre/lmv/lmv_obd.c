@@ -1073,6 +1073,21 @@ static int lmv_iocontrol(unsigned int cmd, struct obd_export *exp,
 		rc = obd_iocontrol(cmd, tgt->ltd_exp, len, karg, uarg);
 		break;
 	}
+	case LL_IOC_FID2MDTIDX: {
+		struct lu_fid *fid = karg;
+		int mdt_index;
+
+		rc = lmv_fld_lookup(lmv, fid, &mdt_index);
+		if (rc)
+			return rc;
+
+		/*
+		 * Note: this is from llite(see ll_dir_ioctl()), @uarg does not
+		 * point to user space memory for FID2MDTIDX.
+		 */
+		*(__u32 *)uarg = mdt_index;
+		break;
+	}
 	case OBD_IOC_FID2PATH: {
 		rc = lmv_fid2path(exp, len, karg, uarg);
 		break;
@@ -1671,12 +1686,43 @@ lmv_locate_target_for_name(struct lmv_obd *lmv, struct lmv_stripe_md *lsm,
  * retval		pointer to the lmv_tgt_desc if succeed.
  *			ERR_PTR(errno) if failed.
  */
-struct lmv_tgt_desc
-*lmv_locate_mds(struct lmv_obd *lmv, struct md_op_data *op_data,
-		struct lu_fid *fid)
+struct lmv_tgt_desc*
+lmv_locate_mds(struct lmv_obd *lmv, struct md_op_data *op_data,
+	       struct lu_fid *fid)
 {
 	struct lmv_stripe_md *lsm = op_data->op_mea1;
 	struct lmv_tgt_desc *tgt;
+
+	/*
+	 * During creating VOLATILE file, it should honor the mdt
+	 * index if the file under striped dir is being restored, see
+	 * ct_restore().
+	 */
+	if (op_data->op_bias & MDS_CREATE_VOLATILE &&
+	    (int)op_data->op_mds != -1 && lsm) {
+		int i;
+
+		tgt = lmv_get_target(lmv, op_data->op_mds, NULL);
+		if (IS_ERR(tgt))
+			return tgt;
+
+		/* refill the right parent fid */
+		for (i = 0; i < lsm->lsm_md_stripe_count; i++) {
+			struct lmv_oinfo *oinfo;
+
+			oinfo = &lsm->lsm_md_oinfo[i];
+			if (oinfo->lmo_mds == op_data->op_mds) {
+				*fid = oinfo->lmo_fid;
+				break;
+			}
+		}
+
+		/* Hmm, can not find the stripe by mdt_index(op_mds) */
+		if (i == lsm->lsm_md_stripe_count)
+			tgt = ERR_PTR(-EINVAL);
+
+		return tgt;
+	}
 
 	if (!lsm || !op_data->op_namelen) {
 		tgt = lmv_find_target(lmv, fid);
