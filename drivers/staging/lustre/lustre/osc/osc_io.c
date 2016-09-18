@@ -233,7 +233,7 @@ static void osc_page_touch_at(const struct lu_env *env,
 		attr->cat_size = kms;
 		valid |= CAT_SIZE;
 	}
-	cl_object_attr_set(env, obj, attr, valid);
+	cl_object_attr_update(env, obj, attr, valid);
 	cl_object_attr_unlock(obj);
 }
 
@@ -476,7 +476,8 @@ static int osc_io_setattr_start(const struct lu_env *env,
 				attr->cat_ctime = lvb->lvb_ctime;
 				cl_valid |= CAT_CTIME;
 			}
-			result = cl_object_attr_set(env, obj, attr, cl_valid);
+			result = cl_object_attr_update(env, obj, attr,
+						       cl_valid);
 		}
 		cl_object_attr_unlock(obj);
 	}
@@ -564,7 +565,7 @@ static int osc_io_read_start(const struct lu_env *env,
 	if (!slice->cis_io->ci_noatime) {
 		cl_object_attr_lock(obj);
 		attr->cat_atime = ktime_get_real_seconds();
-		rc = cl_object_attr_set(env, obj, attr, CAT_ATIME);
+		rc = cl_object_attr_update(env, obj, attr, CAT_ATIME);
 		cl_object_attr_unlock(obj);
 	}
 	return rc;
@@ -581,7 +582,7 @@ static int osc_io_write_start(const struct lu_env *env,
 	cl_object_attr_lock(obj);
 	attr->cat_ctime = ktime_get_real_seconds();
 	attr->cat_mtime = attr->cat_ctime;
-	rc = cl_object_attr_set(env, obj, attr, CAT_MTIME | CAT_CTIME);
+	rc = cl_object_attr_update(env, obj, attr, CAT_MTIME | CAT_CTIME);
 	cl_object_attr_unlock(obj);
 
 	return rc;

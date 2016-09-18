@@ -369,8 +369,8 @@ struct cl_object_operations {
 	 * \return the same convention as for
 	 * cl_object_operations::coo_attr_get() is used.
 	 */
-	int (*coo_attr_set)(const struct lu_env *env, struct cl_object *obj,
-			    const struct cl_attr *attr, unsigned valid);
+	int (*coo_attr_update)(const struct lu_env *env, struct cl_object *obj,
+			       const struct cl_attr *attr, unsigned int valid);
 	/**
 	 * Update object configuration. Called top-to-bottom to modify object
 	 * configuration.
@@ -2171,8 +2171,8 @@ void cl_object_attr_lock(struct cl_object *o);
 void cl_object_attr_unlock(struct cl_object *o);
 int  cl_object_attr_get(const struct lu_env *env, struct cl_object *obj,
 			struct cl_attr *attr);
-int  cl_object_attr_set(const struct lu_env *env, struct cl_object *obj,
-			const struct cl_attr *attr, unsigned valid);
+int  cl_object_attr_update(const struct lu_env *env, struct cl_object *obj,
+			   const struct cl_attr *attr, unsigned int valid);
 int  cl_object_glimpse(const struct lu_env *env, struct cl_object *obj,
 		       struct ost_lvb *lvb);
 int  cl_conf_set(const struct lu_env *env, struct cl_object *obj,

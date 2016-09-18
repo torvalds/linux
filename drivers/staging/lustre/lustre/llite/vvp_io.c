@@ -627,7 +627,7 @@ static int vvp_io_setattr_time(const struct lu_env *env,
 		attr->cat_mtime = io->u.ci_setattr.sa_attr.lvb_mtime;
 		valid |= CAT_MTIME;
 	}
-	result = cl_object_attr_set(env, obj, attr, valid);
+	result = cl_object_attr_update(env, obj, attr, valid);
 	cl_object_attr_unlock(obj);
 
 	return result;
