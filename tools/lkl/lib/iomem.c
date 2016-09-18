@@ -5,15 +5,14 @@
 #include "iomem.h"
 
 #define IOMEM_OFFSET_BITS		24
-#define IOMEM_ADDR_MARK			0x8000000
-#define MAX_IOMEM_REGIONS		(IOMEM_ADDR_MARK >> IOMEM_OFFSET_BITS)
+#define MAX_IOMEM_REGIONS		256
 
 #define IOMEM_ADDR_TO_INDEX(addr) \
-	((((uintptr_t)addr & ~IOMEM_ADDR_MARK) >> IOMEM_OFFSET_BITS))
+	(((uintptr_t)addr) >> IOMEM_OFFSET_BITS)
 #define IOMEM_ADDR_TO_OFFSET(addr) \
 	(((uintptr_t)addr) & ((1 << IOMEM_OFFSET_BITS) - 1))
 #define IOMEM_INDEX_TO_ADDR(i) \
-	(void *)(uintptr_t)((i << IOMEM_OFFSET_BITS) | IOMEM_ADDR_MARK)
+	(void *)(uintptr_t)(i << IOMEM_OFFSET_BITS)
 
 static struct iomem_region {
 	void *data;
@@ -28,7 +27,7 @@ void* register_iomem(void *data, int size, const struct lkl_iomem_ops *ops)
 	if (size > (1 << IOMEM_OFFSET_BITS) - 1)
 		return NULL;
 
-	for (i = 0; i < MAX_IOMEM_REGIONS; i++)
+	for (i = 1; i < MAX_IOMEM_REGIONS; i++)
 		if (!iomem_regions[i].ops)
 			break;
 
