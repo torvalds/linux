@@ -1075,36 +1075,42 @@ static int ptlrpc_import_delay_req(struct obd_import *imp,
 }
 
 /**
- * Decide if the error message regarding provided request \a req
- * should be printed to the console or not.
- * Makes it's decision on request status and other properties.
- * Returns 1 to print error on the system console or 0 if not.
+ * Decide if the error message should be printed to the console or not.
+ * Makes its decision based on request type, status, and failure frequency.
+ *
+ * \param[in] req  request that failed and may need a console message
+ *
+ * \retval false if no message should be printed
+ * \retval true  if console message should be printed
  */
-static int ptlrpc_console_allow(struct ptlrpc_request *req)
+static bool ptlrpc_console_allow(struct ptlrpc_request *req)
 {
 	__u32 opc;
-	int err;
 
 	LASSERT(req->rq_reqmsg);
 	opc = lustre_msg_get_opc(req->rq_reqmsg);
 
-	/*
-	 * Suppress particular reconnect errors which are to be expected.  No
-	 * errors are suppressed for the initial connection on an import
-	 */
-	if ((lustre_handle_is_used(&req->rq_import->imp_remote_handle)) &&
-	    (opc == OST_CONNECT || opc == MDS_CONNECT || opc == MGS_CONNECT)) {
-		/* Suppress timed out reconnect requests */
-		if (req->rq_timedout)
-			return 0;
+	/* Suppress particular reconnect errors which are to be expected. */
+	if (opc == OST_CONNECT || opc == MDS_CONNECT || opc == MGS_CONNECT) {
+		int err;
 
-		/* Suppress unavailable/again reconnect requests */
+		/* Suppress timed out reconnect requests */
+		if (lustre_handle_is_used(&req->rq_import->imp_remote_handle) ||
+		    req->rq_timedout)
+			return false;
+
+		/*
+		 * Suppress most unavailable/again reconnect requests, but
+		 * print occasionally so it is clear client is trying to
+		 * connect to a server where no target is running.
+		 */
 		err = lustre_msg_get_status(req->rq_repmsg);
-		if (err == -ENODEV || err == -EAGAIN)
-			return 0;
+		if ((err == -ENODEV || err == -EAGAIN) &&
+		    req->rq_import->imp_conn_cnt % 30 != 20)
+			return false;
 	}
 
-	return 1;
+	return true;
 }
 
 /**
@@ -1118,14 +1124,14 @@ static int ptlrpc_check_status(struct ptlrpc_request *req)
 	err = lustre_msg_get_status(req->rq_repmsg);
 	if (lustre_msg_get_type(req->rq_repmsg) == PTL_RPC_MSG_ERR) {
 		struct obd_import *imp = req->rq_import;
+		lnet_nid_t nid = imp->imp_connection->c_peer.nid;
 		__u32 opc = lustre_msg_get_opc(req->rq_reqmsg);
 
 		if (ptlrpc_console_allow(req))
-			LCONSOLE_ERROR_MSG(0x011, "%s: Communicating with %s, operation %s failed with %d.\n",
+			LCONSOLE_ERROR_MSG(0x011, "%s: operation %s to node %s failed: rc = %d\n",
 					   imp->imp_obd->obd_name,
-					   libcfs_nid2str(
-						   imp->imp_connection->c_peer.nid),
-					   ll_opcode2str(opc), err);
+					   ll_opcode2str(opc),
+					   libcfs_nid2str(nid), err);
 		return err < 0 ? err : -EINVAL;
 	}
 
@@ -1282,7 +1288,7 @@ static int after_reply(struct ptlrpc_request *req)
 		 * some reason. Try to reconnect, and if that fails, punt to
 		 * the upcall.
 		 */
-		if (ll_rpc_recoverable_error(rc)) {
+		if (ptlrpc_recoverable_error(rc)) {
 			if (req->rq_send_state != LUSTRE_IMP_FULL ||
 			    imp->imp_obd->obd_no_recov || imp->imp_dlm_fake) {
 				return rc;
