@@ -688,8 +688,7 @@ static int tcp_splice_data_recv(read_descriptor_t *rd_desc, struct sk_buff *skb,
 	int ret;
 
 	ret = skb_splice_bits(skb, skb->sk, offset, tss->pipe,
-			      min(rd_desc->count, len), tss->flags,
-			      skb_socket_splice);
+			      min(rd_desc->count, len), tss->flags);
 	if (ret > 0)
 		rd_desc->count -= ret;
 	return ret;
