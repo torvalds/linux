@@ -892,6 +892,8 @@ static irqreturn_t rockchip_usb2phy_linestate_irq(int irq, void *data)
 	if (!property_enabled(rphy->grf, &rport->port_cfg->ls_det_st))
 		return IRQ_NONE;
 
+	dev_dbg(&rport->phy->dev, "linestate interrupt\n");
+
 	mutex_lock(&rport->mutex);
 
 	/* disable linestate detect irq and clear its status */
@@ -1054,6 +1056,21 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 		if (ret) {
 			dev_err(rphy->dev,
 				"failed to request otg-bvalid irq handle\n");
+			goto out;
+		}
+
+		rport->ls_irq = of_irq_get_byname(child_np, "linestate");
+		if (rport->ls_irq < 0) {
+			dev_err(rphy->dev, "no linestate irq provided\n");
+			goto out;
+		}
+
+		ret = devm_request_threaded_irq(rphy->dev, rport->ls_irq, NULL,
+						rockchip_usb2phy_linestate_irq,
+						IRQF_ONESHOT,
+						"rockchip_usb2phy", rport);
+		if (ret) {
+			dev_err(rphy->dev, "failed to request linestate irq handle\n");
 			goto out;
 		}
 	}
@@ -1234,6 +1251,47 @@ static int rk3366_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 	return ret;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int rockchip_usb2phy_pm_suspend(struct device *dev)
+{
+	struct rockchip_usb2phy *rphy = dev_get_drvdata(dev);
+	struct rockchip_usb2phy_port *rport;
+	int index;
+
+	for (index = 0; index < rphy->phy_cfg->num_ports; index++) {
+		rport = &rphy->ports[index];
+		if (!rport->phy)
+			continue;
+
+		/* activate the linestate to detect the next interrupt. */
+		property_enable(rphy->grf, &rport->port_cfg->ls_det_clr, true);
+		property_enable(rphy->grf, &rport->port_cfg->ls_det_en, true);
+	}
+
+	return 0;
+}
+
+static int rockchip_usb2phy_pm_resume(struct device *dev)
+{
+	struct rockchip_usb2phy *rphy = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (rphy->phy_cfg->phy_tuning)
+		ret = rphy->phy_cfg->phy_tuning(rphy);
+
+	return ret;
+}
+
+static const struct dev_pm_ops rockchip_usb2phy_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(rockchip_usb2phy_pm_suspend,
+				rockchip_usb2phy_pm_resume)
+};
+
+#define ROCKCHIP_USB2PHY_DEV_PM	(&rockchip_usb2phy_dev_pm_ops)
+#else
+#define ROCKCHIP_USB2PHY_DEV_PM	NULL
+#endif /* CONFIG_PM_SLEEP */
+
 static const struct rockchip_usb2phy_cfg rk3228_phy_cfgs[] = {
 	{
 		.reg = 0x760,
@@ -1367,8 +1425,12 @@ static const struct rockchip_usb2phy_cfg rk3399_phy_cfgs[] = {
 				.bvalid_det_en	= { 0xe3c0, 3, 3, 0, 1 },
 				.bvalid_det_st	= { 0xe3e0, 3, 3, 0, 1 },
 				.bvalid_det_clr	= { 0xe3d0, 3, 3, 0, 1 },
+				.ls_det_en	= { 0xe3c0, 2, 2, 0, 1 },
+				.ls_det_st	= { 0xe3e0, 2, 2, 0, 1 },
+				.ls_det_clr	= { 0xe3d0, 2, 2, 0, 1 },
 				.utmi_avalid	= { 0xe2ac, 7, 7, 0, 1 },
 				.utmi_bvalid	= { 0xe2ac, 12, 12, 0, 1 },
+				.utmi_ls	= { 0xe2ac, 14, 13, 0, 1 },
 			},
 			[USB2PHY_PORT_HOST] = {
 				.phy_sus	= { 0xe458, 1, 0, 0x2, 0x1 },
@@ -1402,8 +1464,12 @@ static const struct rockchip_usb2phy_cfg rk3399_phy_cfgs[] = {
 				.bvalid_det_en  = { 0xe3c0, 8, 8, 0, 1 },
 				.bvalid_det_st  = { 0xe3e0, 8, 8, 0, 1 },
 				.bvalid_det_clr = { 0xe3d0, 8, 8, 0, 1 },
+				.ls_det_en	= { 0xe3c0, 7, 7, 0, 1 },
+				.ls_det_st	= { 0xe3e0, 7, 7, 0, 1 },
+				.ls_det_clr	= { 0xe3d0, 7, 7, 0, 1 },
 				.utmi_avalid	= { 0xe2ac, 10, 10, 0, 1 },
 				.utmi_bvalid    = { 0xe2ac, 16, 16, 0, 1 },
+				.utmi_ls	= { 0xe2ac, 18, 17, 0, 1 },
 			},
 			[USB2PHY_PORT_HOST] = {
 				.phy_sus	= { 0xe468, 1, 0, 0x2, 0x1 },
@@ -1475,6 +1541,7 @@ static struct platform_driver rockchip_usb2phy_driver = {
 	.probe		= rockchip_usb2phy_probe,
 	.driver		= {
 		.name	= "rockchip-usb2phy",
+		.pm	= ROCKCHIP_USB2PHY_DEV_PM,
 		.of_match_table = rockchip_usb2phy_dt_match,
 	},
 };
