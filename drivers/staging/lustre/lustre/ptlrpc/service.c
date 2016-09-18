@@ -1015,6 +1015,7 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 	struct ptlrpc_request *reqcopy;
 	struct lustre_msg *reqmsg;
 	long olddl = req->rq_deadline - ktime_get_real_seconds();
+	time64_t newdl;
 	int rc;
 
 	/* deadline is when the client expects us to reply, margin is the
@@ -1052,16 +1053,14 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 	 */
 	at_measured(&svcpt->scp_at_estimate, at_extra +
 		    ktime_get_real_seconds() - req->rq_arrival_time.tv_sec);
+	newdl = req->rq_arrival_time.tv_sec + at_get(&svcpt->scp_at_estimate);
 
 	/* Check to see if we've actually increased the deadline -
 	 * we may be past adaptive_max
 	 */
-	if (req->rq_deadline >= req->rq_arrival_time.tv_sec +
-	    at_get(&svcpt->scp_at_estimate)) {
+	if (req->rq_deadline >= newdl) {
 		DEBUG_REQ(D_WARNING, req, "Couldn't add any time (%ld/%lld), not sending early reply\n",
-			  olddl, req->rq_arrival_time.tv_sec +
-			  at_get(&svcpt->scp_at_estimate) -
-			  ktime_get_real_seconds());
+			  olddl, newdl - ktime_get_real_seconds());
 		return -ETIMEDOUT;
 	}
 
@@ -1117,8 +1116,7 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 
 	if (!rc) {
 		/* Adjust our own deadline to what we told the client */
-		req->rq_deadline = req->rq_arrival_time.tv_sec +
-				   at_get(&svcpt->scp_at_estimate);
+		req->rq_deadline = newdl;
 		req->rq_early_count++; /* number sent, server side */
 	} else {
 		DEBUG_REQ(D_ERROR, req, "Early reply send failed %d", rc);
