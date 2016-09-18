@@ -343,8 +343,6 @@ static __u8 *lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
 	struct lg_drv_data *drv_data = hid_get_drvdata(hdev);
-	struct usb_device_descriptor *udesc;
-	__u16 bcdDevice, rev_maj, rev_min;
 
 	if ((drv_data->quirks & LG_RDESC) && *rsize >= 91 && rdesc[83] == 0x26 &&
 			rdesc[84] == 0x8c && rdesc[85] == 0x02) {
@@ -365,18 +363,7 @@ static __u8 *lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 
 	/* Several wheels report as this id when operating in emulation mode. */
 	case USB_DEVICE_ID_LOGITECH_WHEEL:
-		udesc = &(hid_to_usb_dev(hdev)->descriptor);
-		if (!udesc) {
-			hid_err(hdev, "NULL USB device descriptor\n");
-			break;
-		}
-		bcdDevice = le16_to_cpu(udesc->bcdDevice);
-		rev_maj = bcdDevice >> 8;
-		rev_min = bcdDevice & 0xff;
-
-		/* Update the report descriptor for only the Driving Force wheel */
-		if (rev_maj == 1 && rev_min == 2 &&
-				*rsize == DF_RDESC_ORIG_SIZE) {
+		if (*rsize == DF_RDESC_ORIG_SIZE) {
 			hid_info(hdev,
 				"fixing up Logitech Driving Force report descriptor\n");
 			rdesc = df_rdesc_fixed;
