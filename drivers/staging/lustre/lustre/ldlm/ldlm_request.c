@@ -561,7 +561,7 @@ static inline int ldlm_capsule_handles_avail(struct req_capsule *pill,
 					     enum req_location loc,
 					     int off)
 {
-	int size = req_capsule_msg_size(pill, loc);
+	u32 size = req_capsule_msg_size(pill, loc);
 
 	return ldlm_req_handles_avail(size, off);
 }
@@ -570,7 +570,7 @@ static inline int ldlm_format_handles_avail(struct obd_import *imp,
 					    const struct req_format *fmt,
 					    enum req_location loc, int off)
 {
-	int size = req_capsule_fmt_size(imp->imp_msg_magic, fmt, loc);
+	u32 size = req_capsule_fmt_size(imp->imp_msg_magic, fmt, loc);
 
 	return ldlm_req_handles_avail(size, off);
 }

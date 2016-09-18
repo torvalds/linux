@@ -2616,9 +2616,9 @@ int ptlrpc_reconnect_import(struct obd_import *imp);
  * @{
  */
 int ptlrpc_buf_need_swab(struct ptlrpc_request *req, const int inout,
-			 int index);
+			 u32 index);
 void ptlrpc_buf_set_swabbed(struct ptlrpc_request *req, const int inout,
-			    int index);
+			    u32 index);
 int ptlrpc_unpack_rep_msg(struct ptlrpc_request *req, int len);
 int ptlrpc_unpack_req_msg(struct ptlrpc_request *req, int len);
 
@@ -2637,27 +2637,27 @@ int lustre_shrink_msg(struct lustre_msg *msg, int segment,
 		      unsigned int newlen, int move_data);
 void lustre_free_reply_state(struct ptlrpc_reply_state *rs);
 int __lustre_unpack_msg(struct lustre_msg *m, int len);
-int lustre_msg_hdr_size(__u32 magic, int count);
-int lustre_msg_size(__u32 magic, int count, __u32 *lengths);
-int lustre_msg_size_v2(int count, __u32 *lengths);
-int lustre_packed_msg_size(struct lustre_msg *msg);
-int lustre_msg_early_size(void);
-void *lustre_msg_buf_v2(struct lustre_msg_v2 *m, int n, int min_size);
-void *lustre_msg_buf(struct lustre_msg *m, int n, int minlen);
-int lustre_msg_buflen(struct lustre_msg *m, int n);
-int lustre_msg_bufcount(struct lustre_msg *m);
-char *lustre_msg_string(struct lustre_msg *m, int n, int max_len);
+u32 lustre_msg_hdr_size(__u32 magic, u32 count);
+u32 lustre_msg_size(__u32 magic, int count, __u32 *lengths);
+u32 lustre_msg_size_v2(int count, __u32 *lengths);
+u32 lustre_packed_msg_size(struct lustre_msg *msg);
+u32 lustre_msg_early_size(void);
+void *lustre_msg_buf_v2(struct lustre_msg_v2 *m, u32 n, u32 min_size);
+void *lustre_msg_buf(struct lustre_msg *m, u32 n, u32 minlen);
+u32 lustre_msg_buflen(struct lustre_msg *m, u32 n);
+u32 lustre_msg_bufcount(struct lustre_msg *m);
+char *lustre_msg_string(struct lustre_msg *m, u32 n, u32 max_len);
 __u32 lustre_msghdr_get_flags(struct lustre_msg *msg);
 void lustre_msghdr_set_flags(struct lustre_msg *msg, __u32 flags);
 __u32 lustre_msg_get_flags(struct lustre_msg *msg);
-void lustre_msg_add_flags(struct lustre_msg *msg, int flags);
-void lustre_msg_set_flags(struct lustre_msg *msg, int flags);
-void lustre_msg_clear_flags(struct lustre_msg *msg, int flags);
+void lustre_msg_add_flags(struct lustre_msg *msg, u32 flags);
+void lustre_msg_set_flags(struct lustre_msg *msg, u32 flags);
+void lustre_msg_clear_flags(struct lustre_msg *msg, u32 flags);
 __u32 lustre_msg_get_op_flags(struct lustre_msg *msg);
-void lustre_msg_add_op_flags(struct lustre_msg *msg, int flags);
+void lustre_msg_add_op_flags(struct lustre_msg *msg, u32 flags);
 struct lustre_handle *lustre_msg_get_handle(struct lustre_msg *msg);
 __u32 lustre_msg_get_type(struct lustre_msg *msg);
-void lustre_msg_add_version(struct lustre_msg *msg, int version);
+void lustre_msg_add_version(struct lustre_msg *msg, u32 version);
 __u32 lustre_msg_get_opc(struct lustre_msg *msg);
 __u64 lustre_msg_get_last_committed(struct lustre_msg *msg);
 __u64 *lustre_msg_get_versions(struct lustre_msg *msg);
