@@ -283,8 +283,8 @@ int ptlrpc_at_get_net_latency(struct ptlrpc_request *req)
 }
 
 /* Adjust expected network latency */
-static void ptlrpc_at_adj_net_latency(struct ptlrpc_request *req,
-				      unsigned int service_time)
+void ptlrpc_at_adj_net_latency(struct ptlrpc_request *req,
+			       unsigned int service_time)
 {
 	unsigned int nl, oldnl;
 	struct imp_at *at;

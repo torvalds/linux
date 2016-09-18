@@ -846,6 +846,14 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 	imp->imp_obd->obd_self_export->exp_connect_data = *ocd;
 	class_export_put(exp);
 
+	/*
+	 * The net statistics after (re-)connect is not valid anymore,
+	 * because may reflect other routing, etc.
+	 */
+	at_init(&imp->imp_at.iat_net_latency, 0, 0);
+	ptlrpc_at_adj_net_latency(request,
+				  lustre_msg_get_service_time(request->rq_repmsg));
+
 	obd_import_event(imp->imp_obd, imp, IMP_EVENT_OCD);
 
 	if (aa->pcaa_initial_connect) {

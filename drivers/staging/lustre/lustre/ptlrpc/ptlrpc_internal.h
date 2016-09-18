@@ -53,6 +53,8 @@ int ptlrpc_start_thread(struct ptlrpc_service_part *svcpt, int wait);
 int ptlrpcd_start(struct ptlrpcd_ctl *pc);
 
 /* client.c */
+void ptlrpc_at_adj_net_latency(struct ptlrpc_request *req,
+			       unsigned int service_time);
 struct ptlrpc_bulk_desc *ptlrpc_new_bulk(unsigned npages, unsigned max_brw,
 					 unsigned type, unsigned portal);
 int ptlrpc_request_cache_init(void);
