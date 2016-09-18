@@ -794,7 +794,7 @@ void ll_update_times(struct ptlrpc_request *request, struct inode *inode)
 }
 
 static int ll_new_node(struct inode *dir, struct dentry *dentry,
-		       const char *tgt, int mode, int rdev,
+		       const char *tgt, umode_t mode, int rdev,
 		       __u32 opc)
 {
 	struct ptlrpc_request *request = NULL;
