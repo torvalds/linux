@@ -110,6 +110,9 @@ void led_trigger_set(struct led_classdev *led_cdev, struct led_trigger *trig)
 	char *envp[2];
 	const char *name;
 
+	if (!led_cdev->trigger && !trig)
+		return;
+
 	name = trig ? trig->name : "none";
 	event = kasprintf(GFP_KERNEL, "TRIGGER=%s", name);
 
