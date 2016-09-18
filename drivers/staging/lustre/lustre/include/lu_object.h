@@ -1319,5 +1319,12 @@ struct lu_kmem_descr {
 int  lu_kmem_init(struct lu_kmem_descr *caches);
 void lu_kmem_fini(struct lu_kmem_descr *caches);
 
+void lu_buf_free(struct lu_buf *buf);
+void lu_buf_alloc(struct lu_buf *buf, size_t size);
+void lu_buf_realloc(struct lu_buf *buf, size_t size);
+
+int lu_buf_check_and_grow(struct lu_buf *buf, size_t len);
+struct lu_buf *lu_buf_check_and_alloc(struct lu_buf *buf, size_t len);
+
 /** @} lu */
 #endif /* __LUSTRE_LU_OBJECT_H */
