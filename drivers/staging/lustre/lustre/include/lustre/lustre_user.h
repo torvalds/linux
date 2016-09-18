@@ -819,9 +819,9 @@ struct changelog_ext_jobid {
 	char	cr_jobid[LUSTRE_JOBID_SIZE];	/**< zero-terminated string. */
 };
 
-static inline unsigned int changelog_rec_offset(enum changelog_rec_flags crf)
+static inline size_t changelog_rec_offset(enum changelog_rec_flags crf)
 {
-	unsigned int size = sizeof(struct changelog_rec);
+	size_t size = sizeof(struct changelog_rec);
 
 	if (crf & CLF_RENAME)
 		size += sizeof(struct changelog_ext_rename);
@@ -832,12 +832,12 @@ static inline unsigned int changelog_rec_offset(enum changelog_rec_flags crf)
 	return size;
 }
 
-static inline int changelog_rec_size(struct changelog_rec *rec)
+static inline size_t changelog_rec_size(struct changelog_rec *rec)
 {
 	return changelog_rec_offset(rec->cr_flags);
 }
 
-static inline unsigned int changelog_rec_varsize(struct changelog_rec *rec)
+static inline size_t changelog_rec_varsize(struct changelog_rec *rec)
 {
 	return changelog_rec_size(rec) - sizeof(*rec) + rec->cr_namelen;
 }
@@ -869,7 +869,7 @@ static inline char *changelog_rec_name(struct changelog_rec *rec)
 						  CLF_SUPPORTED);
 }
 
-static inline int changelog_rec_snamelen(struct changelog_rec *rec)
+static inline size_t changelog_rec_snamelen(struct changelog_rec *rec)
 {
 	return rec->cr_namelen - strlen(changelog_rec_name(rec)) - 1;
 }
