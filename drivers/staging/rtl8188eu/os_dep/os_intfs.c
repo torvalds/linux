@@ -23,8 +23,6 @@
 #include <rtw_ioctl.h>
 #include <rtl8188e_hal.h>
 
-#include <usb_hal.h>
-
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Realtek Wireless Lan Driver");
 MODULE_AUTHOR("Realtek Semiconductor Corp.");

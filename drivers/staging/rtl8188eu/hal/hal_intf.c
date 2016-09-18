@@ -17,7 +17,6 @@
 #include <osdep_service.h>
 #include <drv_types.h>
 #include <hal_intf.h>
-#include <usb_hal.h>
 
 uint	 rtw_hal_init(struct adapter *adapt)
 {

@@ -25,7 +25,6 @@
 #include <osdep_intf.h>
 
 #include <usb_ops_linux.h>
-#include <usb_hal.h>
 #include <rtw_ioctl.h>
 
 #include "rtl8188e_hal.h"
