@@ -605,18 +605,6 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 	return true;
 }
 
-static s32 xmitframe_direct(struct adapter *adapt, struct xmit_frame *pxmitframe)
-{
-	s32 res;
-
-	res = rtw_xmitframe_coalesce(adapt, pxmitframe->pkt, pxmitframe);
-	if (res == _SUCCESS)
-		rtw_dump_xframe(adapt, pxmitframe);
-	else
-		DBG_88E("==> %s xmitframe_coalsece failed\n", __func__);
-	return res;
-}
-
 /*
  * Return
  *	true	dump packet directly
@@ -648,7 +636,12 @@ s32 rtw_hal_xmit(struct adapter *adapt, struct xmit_frame *pxmitframe)
 	pxmitframe->buf_addr = pxmitbuf->pbuf;
 	pxmitbuf->priv_data = pxmitframe;
 
-	if (xmitframe_direct(adapt, pxmitframe) != _SUCCESS) {
+	res = rtw_xmitframe_coalesce(adapt, pxmitframe->pkt, pxmitframe);
+
+	if (res == _SUCCESS) {
+		rtw_dump_xframe(adapt, pxmitframe);
+	} else {
+		DBG_88E("==> %s xmitframe_coalsece failed\n", __func__);
 		rtw_free_xmitbuf(pxmitpriv, pxmitbuf);
 		rtw_free_xmitframe(pxmitpriv, pxmitframe);
 	}
