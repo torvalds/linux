@@ -181,7 +181,15 @@ static void audio_in_callback(struct urb *urb)
 
 		length += fsize;
 
-		/* the following assumes LINE6_ISO_PACKETS == 1: */
+		BUILD_BUG_ON_MSG(LINE6_ISO_PACKETS != 1,
+			"The following code assumes LINE6_ISO_PACKETS == 1");
+		/* TODO:
+		 * Also, if iso_buffers != 2, the prev frame is almost random at
+		 * playback side.
+		 * This needs to be redesigned. It should be "stable", but we may
+		 * experience sync problems on such high-speed configs.
+		 */
+
 		line6pcm->prev_fbuf = fbuf;
 		line6pcm->prev_fsize = fsize;
 

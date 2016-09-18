@@ -18,7 +18,13 @@
 
 #include "midi.h"
 
-#define USB_INTERVALS_PER_SECOND 1000
+/* USB 1.1 speed configuration */
+#define USB_LOW_INTERVALS_PER_SECOND 1000
+#define USB_LOW_ISO_BUFFERS 2
+
+/* USB 2.0+ speed configuration */
+#define USB_HIGH_INTERVALS_PER_SECOND 8000
+#define USB_HIGH_ISO_BUFFERS 16
 
 /* Fallback USB interval and max packet size values */
 #define LINE6_FALLBACK_INTERVAL 10
@@ -109,12 +115,15 @@ struct usb_line6 {
 	/* Properties */
 	const struct line6_properties *properties;
 
-	/* Interval (ms) */
+	/* Interval for data USB packets */
 	int interval;
+	/* ...for isochronous transfers framing */
+	int intervals_per_second;
+
 	/* Number of isochronous URBs used for frame transfers */
 	int iso_buffers;
 
-	/* Maximum size of USB packet */
+	/* Maximum size of data USB packet */
 	int max_packet_size;
 
 	/* Device representing the USB interface */

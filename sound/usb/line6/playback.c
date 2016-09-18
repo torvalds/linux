@@ -151,7 +151,7 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 		line6pcm->properties->rates.rats[0].num_min;
 	const int frame_factor =
 		line6pcm->properties->rates.rats[0].den *
-		(USB_INTERVALS_PER_SECOND / LINE6_ISO_INTERVAL);
+		(line6pcm->line6->intervals_per_second / LINE6_ISO_INTERVAL);
 	struct urb *urb_out;
 
 	index = find_first_zero_bit(&line6pcm->out.active_urbs,

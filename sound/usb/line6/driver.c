@@ -462,14 +462,18 @@ static void line6_destruct(struct snd_card *card)
 static void line6_get_interval(struct usb_line6 *line6)
 {
 	struct usb_device *usbdev = line6->usbdev;
-	struct usb_host_endpoint *ep;
-	unsigned pipe = usb_rcvintpipe(usbdev, line6->properties->ep_ctrl_r);
-	unsigned epnum = usb_pipeendpoint(pipe);
+	struct usb_host_endpoint *ep = usbdev->ep_in[line6->properties->ep_ctrl_r];
 
-	ep = usbdev->ep_in[epnum];
-	line6->iso_buffers = LINE6_ISO_BUFFERS;
 	if (ep) {
 		line6->interval = ep->desc.bInterval;
+		if (usbdev->speed == USB_SPEED_LOW) {
+			line6->intervals_per_second = USB_LOW_INTERVALS_PER_SECOND;
+			line6->iso_buffers = USB_LOW_ISO_BUFFERS;
+		} else {
+			line6->intervals_per_second = USB_HIGH_INTERVALS_PER_SECOND;
+			line6->iso_buffers = USB_HIGH_ISO_BUFFERS;
+		}
+
 		line6->max_packet_size = le16_to_cpu(ep->desc.wMaxPacketSize);
 	} else {
 		dev_err(line6->ifcdev,
@@ -559,6 +563,7 @@ int line6_probe(struct usb_interface *interface,
 	/* query interface number */
 	interface_number = interface->cur_altsetting->desc.bInterfaceNumber;
 
+	/* TODO reserves the bus bandwidth even without actual transfer */
 	ret = usb_set_interface(usbdev, interface_number,
 				properties->altsetting);
 	if (ret < 0) {

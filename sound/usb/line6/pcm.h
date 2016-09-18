@@ -20,9 +20,6 @@
 
 #include "driver.h"
 
-/* number of URBs */
-#define LINE6_ISO_BUFFERS	2
-
 /*
 	number of USB frames per URB
 	The Line 6 Windows driver always transmits two frames per packet, but
@@ -31,7 +28,9 @@
 */
 #define LINE6_ISO_PACKETS	1
 
-/* in a "full speed" device (such as the PODxt Pro) this means 1ms */
+/* in a "full speed" device (such as the PODxt Pro) this means 1ms,
+ *  for "high speed" it's 1/8ms
+ */
 #define LINE6_ISO_INTERVAL	1
 
 #define LINE6_IMPULSE_DEFAULT_PERIOD 100
