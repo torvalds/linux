@@ -1264,8 +1264,7 @@ static int mdc_read_page_remote(void *data, struct page *page0)
 		lu_pgs >>= LU_PAGE_SHIFT;
 		LASSERT(!(req->rq_bulk->bd_nob_transferred & ~LU_PAGE_MASK));
 
-		CDEBUG(D_INODE, "read %d(%d)/%d pages\n", rd_pgs, lu_pgs,
-		       op_data->op_npages);
+		CDEBUG(D_INODE, "read %d(%d) pages\n", rd_pgs, lu_pgs);
 
 		mdc_adjust_dirpages(page_pool, rd_pgs, lu_pgs);
 

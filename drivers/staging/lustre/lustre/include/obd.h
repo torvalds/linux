@@ -736,6 +736,14 @@ static inline int it_to_lock_mode(struct lookup_intent *it)
 	return -EINVAL;
 }
 
+enum md_cli_flags {
+	CLI_SET_MEA	= BIT(0),
+	CLI_RM_ENTRY	= BIT(1),
+	CLI_HASH64	= BIT(2),
+	CLI_API32	= BIT(3),
+	CLI_MIGRATE	= BIT(4),
+};
+
 struct md_op_data {
 	struct lu_fid	   op_fid1; /* operation fid1 (usually parent) */
 	struct lu_fid	   op_fid2; /* operation fid2 (usually child) */
@@ -773,33 +781,22 @@ struct md_op_data {
 	__u64		   op_offset;
 
 	/* Used by readdir */
-	__u32		   op_npages;
+	__u32			op_max_pages;
 
 	/* used to transfer info between the stacks of MD client
 	 * see enum op_cli_flags
 	 */
-	__u32			op_cli_flags;
+	enum md_cli_flags	op_cli_flags;
 
 	/* File object data version for HSM release, on client */
 	__u64			op_data_version;
 	struct lustre_handle	op_lease_handle;
 };
 
-#define op_stripe_offset       op_ioepoch
-#define op_max_pages           op_valid
-
 struct md_callback {
 	int (*md_blocking_ast)(struct ldlm_lock *lock,
 			       struct ldlm_lock_desc *desc,
 			       void *data, int flag);
-};
-
-enum op_cli_flags {
-	CLI_SET_MEA	= 1 << 0,
-	CLI_RM_ENTRY	= 1 << 1,
-	CLI_HASH64	= BIT(2),
-	CLI_API32	= BIT(3),
-	CLI_MIGRATE	= BIT(4),
 };
 
 struct md_enqueue_info;
