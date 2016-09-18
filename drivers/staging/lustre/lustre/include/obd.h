@@ -435,7 +435,7 @@ struct lmv_obd {
 	int			max_def_cookiesize;
 	int			server_timeout;
 
-	int			tgts_size; /* size of tgts array */
+	u32			tgts_size; /* size of tgts array */
 	struct lmv_tgt_desc	**tgts;
 
 	struct obd_connect_data	conn_data;

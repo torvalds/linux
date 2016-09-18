@@ -1353,10 +1353,10 @@ static int lmv_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 		return -EINVAL;
 	}
 
-	lmv->tgts = kcalloc(32, sizeof(*lmv->tgts), GFP_NOFS);
+	lmv->tgts_size = 32U;
+	lmv->tgts = kcalloc(lmv->tgts_size, sizeof(*lmv->tgts), GFP_NOFS);
 	if (!lmv->tgts)
 		return -ENOMEM;
-	lmv->tgts_size = 32;
 
 	obd_str2uuid(&lmv->desc.ld_uuid, desc->ld_uuid.uuid);
 	lmv->desc.ld_tgt_count = 0;
