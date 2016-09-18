@@ -61,7 +61,7 @@ static int prism2sta_probe_usb(struct usb_interface *interface,
 {
 	struct usb_device *dev;
 
-	wlandevice_t *wlandev = NULL;
+	struct wlandevice *wlandev = NULL;
 	hfa384x_t *hw = NULL;
 	int result = 0;
 
@@ -134,9 +134,9 @@ done:
 
 static void prism2sta_disconnect_usb(struct usb_interface *interface)
 {
-	wlandevice_t *wlandev;
+	struct wlandevice *wlandev;
 
-	wlandev = (wlandevice_t *)usb_get_intfdata(interface);
+	wlandev = (struct wlandevice *)usb_get_intfdata(interface);
 	if (wlandev) {
 		LIST_HEAD(cleanlist);
 		hfa384x_usbctlx_t *ctlx, *temp;
@@ -219,9 +219,9 @@ static int prism2sta_suspend(struct usb_interface *interface,
 			     pm_message_t message)
 {
 	hfa384x_t *hw = NULL;
-	wlandevice_t *wlandev;
+	struct wlandevice *wlandev;
 
-	wlandev = (wlandevice_t *)usb_get_intfdata(interface);
+	wlandev = (struct wlandevice *)usb_get_intfdata(interface);
 	if (!wlandev)
 		return -ENODEV;
 
@@ -242,9 +242,9 @@ static int prism2sta_resume(struct usb_interface *interface)
 {
 	int result = 0;
 	hfa384x_t *hw = NULL;
-	wlandevice_t *wlandev;
+	struct wlandevice *wlandev;
 
-	wlandev = (wlandevice_t *)usb_get_intfdata(interface);
+	wlandev = (struct wlandevice *)usb_get_intfdata(interface);
 	if (!wlandev)
 		return -ENODEV;
 

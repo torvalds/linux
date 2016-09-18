@@ -157,7 +157,7 @@ extern int wlan_watchdog;
 extern int wlan_wext_write;
 
 /* WLAN device type */
-typedef struct wlandevice {
+struct wlandevice {
 	void *priv;		/* private data for MSD */
 
 	/* Subsystem State */
@@ -222,19 +222,19 @@ typedef struct wlandevice {
 	u8 spy_number;
 	char spy_address[IW_MAX_SPY][ETH_ALEN];
 	struct iw_quality spy_stat[IW_MAX_SPY];
-} wlandevice_t;
+};
 
 /* WEP stuff */
-int wep_change_key(wlandevice_t *wlandev, int keynum, u8 *key, int keylen);
-int wep_decrypt(wlandevice_t *wlandev, u8 *buf, u32 len, int key_override,
+int wep_change_key(struct wlandevice *wlandev, int keynum, u8 *key, int keylen);
+int wep_decrypt(struct wlandevice *wlandev, u8 *buf, u32 len, int key_override,
 		u8 *iv, u8 *icv);
-int wep_encrypt(wlandevice_t *wlandev, u8 *buf, u8 *dst, u32 len, int keynum,
+int wep_encrypt(struct wlandevice *wlandev, u8 *buf, u8 *dst, u32 len, int keynum,
 		u8 *iv, u8 *icv);
 
-int wlan_setup(wlandevice_t *wlandev, struct device *physdev);
-void wlan_unsetup(wlandevice_t *wlandev);
-int register_wlandev(wlandevice_t *wlandev);
-int unregister_wlandev(wlandevice_t *wlandev);
-void p80211netdev_rx(wlandevice_t *wlandev, struct sk_buff *skb);
-void p80211netdev_hwremoved(wlandevice_t *wlandev);
+int wlan_setup(struct wlandevice *wlandev, struct device *physdev);
+void wlan_unsetup(struct wlandevice *wlandev);
+int register_wlandev(struct wlandevice *wlandev);
+int unregister_wlandev(struct wlandevice *wlandev);
+void p80211netdev_rx(struct wlandevice *wlandev, struct sk_buff *skb);
+void p80211netdev_hwremoved(struct wlandevice *wlandev);
 #endif

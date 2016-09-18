@@ -161,13 +161,13 @@ static hfa384x_caplevel_t priid;
 /* Local Function Declarations */
 
 static int prism2_fwapply(const struct ihex_binrec *rfptr,
-wlandevice_t *wlandev);
+struct wlandevice *wlandev);
 
 static int read_fwfile(const struct ihex_binrec *rfptr);
 
 static int mkimage(struct imgchunk *clist, unsigned int *ccnt);
 
-static int read_cardpda(struct pda *pda, wlandevice_t *wlandev);
+static int read_cardpda(struct pda *pda, struct wlandevice *wlandev);
 
 static int mkpdrlist(struct pda *pda);
 
@@ -177,7 +177,7 @@ static int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
 static int crcimage(struct imgchunk *fchunk, unsigned int nfchunks,
 	     struct s3crcrec *s3crc, unsigned int ns3crc);
 
-static int writeimage(wlandevice_t *wlandev, struct imgchunk *fchunk,
+static int writeimage(struct wlandevice *wlandev, struct imgchunk *fchunk,
 	       unsigned int nfchunks);
 static void free_chunks(struct imgchunk *fchunk, unsigned int *nfchunks);
 
@@ -201,7 +201,7 @@ static int validate_identity(void);
 *	0	- success
 *	~0	- failure
 ----------------------------------------------------------------*/
-static int prism2_fwtry(struct usb_device *udev, wlandevice_t *wlandev)
+static int prism2_fwtry(struct usb_device *udev, struct wlandevice *wlandev)
 {
 	const struct firmware *fw_entry = NULL;
 
@@ -239,7 +239,7 @@ static int prism2_fwtry(struct usb_device *udev, wlandevice_t *wlandev)
 *	~0	- failure
 ----------------------------------------------------------------*/
 static int prism2_fwapply(const struct ihex_binrec *rfptr,
-			  wlandevice_t *wlandev)
+			  struct wlandevice *wlandev)
 {
 	signed int result = 0;
 	struct p80211msg_dot11req_mibget getmsg;
@@ -766,7 +766,7 @@ static int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
 *	0	- success
 *	~0	- failure (probably an errno)
 ----------------------------------------------------------------*/
-static int read_cardpda(struct pda *pda, wlandevice_t *wlandev)
+static int read_cardpda(struct pda *pda, struct wlandevice *wlandev)
 {
 	int result = 0;
 	struct p80211msg_p2req_readpda *msg;
@@ -982,7 +982,7 @@ static int read_fwfile(const struct ihex_binrec *record)
 *	0	success
 *	~0	failure
 ----------------------------------------------------------------*/
-static int writeimage(wlandevice_t *wlandev, struct imgchunk *fchunk,
+static int writeimage(struct wlandevice *wlandev, struct imgchunk *fchunk,
 	       unsigned int nfchunks)
 {
 	int result = 0;

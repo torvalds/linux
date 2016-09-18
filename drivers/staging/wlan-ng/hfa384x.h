@@ -1273,7 +1273,7 @@ typedef struct hfa384x {
 	int join_retries;	/* number of join retries till we fail */
 	hfa384x_JoinRequest_data_t joinreq;	/* join request saved data */
 
-	wlandevice_t *wlandev;
+	struct wlandevice *wlandev;
 	/* Timer to allow for the deferred processing of linkstatus messages */
 	struct work_struct link_bh;
 
@@ -1410,7 +1410,7 @@ int
 hfa384x_drvr_txframe(hfa384x_t *hw, struct sk_buff *skb,
 		     union p80211_hdr *p80211_hdr,
 		     struct p80211_metawep *p80211_wep);
-void hfa384x_tx_timeout(wlandevice_t *wlandev);
+void hfa384x_tx_timeout(struct wlandevice *wlandev);
 
 int hfa384x_cmd_initialize(hfa384x_t *hw);
 int hfa384x_cmd_enable(hfa384x_t *hw, u16 macport);

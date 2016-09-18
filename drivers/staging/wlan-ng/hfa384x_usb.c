@@ -154,7 +154,7 @@ static void dbprint_urb(struct urb *urb);
 #endif
 
 static void
-hfa384x_int_rxmonitor(wlandevice_t *wlandev, hfa384x_usb_rxfrm_t *rxfrm);
+hfa384x_int_rxmonitor(struct wlandevice *wlandev, hfa384x_usb_rxfrm_t *rxfrm);
 
 static void hfa384x_usb_defer(struct work_struct *data);
 
@@ -169,11 +169,11 @@ static void hfa384x_ctlxout_callback(struct urb *urb);
 static void hfa384x_usbin_callback(struct urb *urb);
 
 static void
-hfa384x_usbin_txcompl(wlandevice_t *wlandev, hfa384x_usbin_t *usbin);
+hfa384x_usbin_txcompl(struct wlandevice *wlandev, hfa384x_usbin_t *usbin);
 
-static void hfa384x_usbin_rx(wlandevice_t *wlandev, struct sk_buff *skb);
+static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb);
 
-static void hfa384x_usbin_info(wlandevice_t *wlandev, hfa384x_usbin_t *usbin);
+static void hfa384x_usbin_info(struct wlandevice *wlandev, hfa384x_usbin_t *usbin);
 
 static void hfa384x_usbin_ctlx(hfa384x_t *hw, hfa384x_usbin_t *usbin,
 			       int urb_status);
@@ -2656,7 +2656,7 @@ exit:
 	return result;
 }
 
-void hfa384x_tx_timeout(wlandevice_t *wlandev)
+void hfa384x_tx_timeout(struct wlandevice *wlandev)
 {
 	hfa384x_t *hw = wlandev->priv;
 	unsigned long flags;
@@ -2988,7 +2988,7 @@ unlock:
 ----------------------------------------------------------------*/
 static void hfa384x_usbin_callback(struct urb *urb)
 {
-	wlandevice_t *wlandev = urb->context;
+	struct wlandevice *wlandev = urb->context;
 	hfa384x_t *hw;
 	hfa384x_usbin_t *usbin = (hfa384x_usbin_t *)urb->transfer_buffer;
 	struct sk_buff *skb = NULL;
@@ -3285,7 +3285,7 @@ unlock:
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-static void hfa384x_usbin_txcompl(wlandevice_t *wlandev,
+static void hfa384x_usbin_txcompl(struct wlandevice *wlandev,
 				  hfa384x_usbin_t *usbin)
 {
 	u16 status;
@@ -3316,7 +3316,7 @@ static void hfa384x_usbin_txcompl(wlandevice_t *wlandev,
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-static void hfa384x_usbin_rx(wlandevice_t *wlandev, struct sk_buff *skb)
+static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb)
 {
 	hfa384x_usbin_t *usbin = (hfa384x_usbin_t *)skb->data;
 	hfa384x_t *hw = wlandev->priv;
@@ -3416,7 +3416,7 @@ static void hfa384x_usbin_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-static void hfa384x_int_rxmonitor(wlandevice_t *wlandev,
+static void hfa384x_int_rxmonitor(struct wlandevice *wlandev,
 				  hfa384x_usb_rxfrm_t *rxfrm)
 {
 	hfa384x_rx_frame_t *rxdesc = &(rxfrm->desc);
@@ -3517,7 +3517,7 @@ static void hfa384x_int_rxmonitor(wlandevice_t *wlandev,
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-static void hfa384x_usbin_info(wlandevice_t *wlandev, hfa384x_usbin_t *usbin)
+static void hfa384x_usbin_info(struct wlandevice *wlandev, hfa384x_usbin_t *usbin)
 {
 	usbin->infofrm.info.framelen =
 	    le16_to_cpu(usbin->infofrm.info.framelen);
@@ -3542,7 +3542,7 @@ static void hfa384x_usbin_info(wlandevice_t *wlandev, hfa384x_usbin_t *usbin)
 ----------------------------------------------------------------*/
 static void hfa384x_usbout_callback(struct urb *urb)
 {
-	wlandevice_t *wlandev = urb->context;
+	struct wlandevice *wlandev = urb->context;
 
 #ifdef DEBUG_USB
 	dbprint_urb(urb);

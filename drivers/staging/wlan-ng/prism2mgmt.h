@@ -63,24 +63,24 @@
 extern int prism2_reset_holdtime;
 extern int prism2_reset_settletime;
 
-u32 prism2sta_ifstate(wlandevice_t *wlandev, u32 ifstate);
+u32 prism2sta_ifstate(struct wlandevice *wlandev, u32 ifstate);
 
-void prism2sta_ev_info(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf);
-void prism2sta_ev_txexc(wlandevice_t *wlandev, u16 status);
-void prism2sta_ev_tx(wlandevice_t *wlandev, u16 status);
-void prism2sta_ev_alloc(wlandevice_t *wlandev);
+void prism2sta_ev_info(struct wlandevice *wlandev, hfa384x_InfFrame_t *inf);
+void prism2sta_ev_txexc(struct wlandevice *wlandev, u16 status);
+void prism2sta_ev_tx(struct wlandevice *wlandev, u16 status);
+void prism2sta_ev_alloc(struct wlandevice *wlandev);
 
-int prism2mgmt_mibset_mibget(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_scan_results(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_start(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_readpda(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_ramdl_state(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_ramdl_write(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_flashdl_state(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_flashdl_write(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_autojoin(wlandevice_t *wlandev, void *msgp);
+int prism2mgmt_mibset_mibget(struct wlandevice *wlandev, void *msgp);
+int prism2mgmt_scan(struct wlandevice *wlandev, void *msgp);
+int prism2mgmt_scan_results(struct wlandevice *wlandev, void *msgp);
+int prism2mgmt_start(struct wlandevice *wlandev, void *msgp);
+int prism2mgmt_wlansniff(struct wlandevice *wlandev, void *msgp);
+int prism2mgmt_readpda(struct wlandevice *wlandev, void *msgp);
+int prism2mgmt_ramdl_state(struct wlandevice *wlandev, void *msgp);
+int prism2mgmt_ramdl_write(struct wlandevice *wlandev, void *msgp);
+int prism2mgmt_flashdl_state(struct wlandevice *wlandev, void *msgp);
+int prism2mgmt_flashdl_write(struct wlandevice *wlandev, void *msgp);
+int prism2mgmt_autojoin(struct wlandevice *wlandev, void *msgp);
 
 /*---------------------------------------------------------------
 * conversion functions going between wlan message data types and
@@ -108,8 +108,8 @@ void prism2sta_commsqual_defer(struct work_struct *data);
 void prism2sta_commsqual_timer(unsigned long data);
 
 /* Interface callback functions, passing data back up to the cfg80211 layer */
-void prism2_connect_result(wlandevice_t *wlandev, u8 failed);
-void prism2_disconnected(wlandevice_t *wlandev);
-void prism2_roamed(wlandevice_t *wlandev);
+void prism2_connect_result(struct wlandevice *wlandev, u8 failed);
+void prism2_disconnected(struct wlandevice *wlandev);
+void prism2_roamed(struct wlandevice *wlandev);
 
 #endif
