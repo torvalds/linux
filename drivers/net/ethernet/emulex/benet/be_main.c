@@ -4365,7 +4365,7 @@ static void be_setup_init(struct be_adapter *adapter)
  * for distribution between the VFs. This self-imposed limit will determine the
  * no: of VFs for which RSS can be enabled.
  */
-void be_calculate_pf_pool_rss_tables(struct be_adapter *adapter)
+static void be_calculate_pf_pool_rss_tables(struct be_adapter *adapter)
 {
 	struct be_port_resources port_res = {0};
 	u8 rss_tables_on_port;
