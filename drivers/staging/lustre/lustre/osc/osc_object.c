@@ -195,7 +195,6 @@ static int osc_object_glimpse(const struct lu_env *env,
 
 static int osc_object_ast_clear(struct ldlm_lock *lock, void *data)
 {
-	LASSERT(lock->l_granted_mode == lock->l_req_mode);
 	if (lock->l_ast_data == data)
 		lock->l_ast_data = NULL;
 	return LDLM_ITER_CONTINUE;
