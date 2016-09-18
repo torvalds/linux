@@ -75,7 +75,7 @@ int usb_write8(struct adapter *adapter, u32 addr, u8 val);
 int usb_write16(struct adapter *adapter, u32 addr, u16 val);
 int usb_write32(struct adapter *adapter, u32 addr, u32 val);
 
-u32 usb_write_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
+u32 usb_write_port(struct adapter *adapter, u32 addr, u32 cnt, struct xmit_buf *pmem);
 void usb_write_port_cancel(struct adapter *adapter);
 
 #endif

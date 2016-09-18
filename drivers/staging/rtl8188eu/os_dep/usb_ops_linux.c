@@ -693,7 +693,7 @@ check_completion:
 	tasklet_hi_schedule(&pxmitpriv->xmit_tasklet);
 }
 
-u32 usb_write_port(struct adapter *padapter, u32 addr, u32 cnt, u8 *wmem)
+u32 usb_write_port(struct adapter *padapter, u32 addr, u32 cnt, struct xmit_buf *xmitbuf)
 {
 	unsigned long irqL;
 	unsigned int pipe;
@@ -702,8 +702,7 @@ u32 usb_write_port(struct adapter *padapter, u32 addr, u32 cnt, u8 *wmem)
 	struct urb *purb = NULL;
 	struct dvobj_priv	*pdvobj = adapter_to_dvobj(padapter);
 	struct xmit_priv	*pxmitpriv = &padapter->xmitpriv;
-	struct xmit_buf *pxmitbuf = (struct xmit_buf *)wmem;
-	struct xmit_frame *pxmitframe = (struct xmit_frame *)pxmitbuf->priv_data;
+	struct xmit_frame *pxmitframe = (struct xmit_frame *)xmitbuf->priv_data;
 	struct usb_device *pusbd = pdvobj->pusbdev;
 
 
@@ -713,7 +712,7 @@ u32 usb_write_port(struct adapter *padapter, u32 addr, u32 cnt, u8 *wmem)
 	    (padapter->pwrctrlpriv.pnp_bstop_trx)) {
 		RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
 			 ("usb_write_port:( padapter->bDriverStopped ||padapter->bSurpriseRemoved ||adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n"));
-		rtw_sctx_done_err(&pxmitbuf->sctx, RTW_SCTX_DONE_TX_DENY);
+		rtw_sctx_done_err(&xmitbuf->sctx, RTW_SCTX_DONE_TX_DENY);
 		goto exit;
 	}
 
@@ -722,44 +721,44 @@ u32 usb_write_port(struct adapter *padapter, u32 addr, u32 cnt, u8 *wmem)
 	switch (addr) {
 	case VO_QUEUE_INX:
 		pxmitpriv->voq_cnt++;
-		pxmitbuf->flags = VO_QUEUE_INX;
+		xmitbuf->flags = VO_QUEUE_INX;
 		break;
 	case VI_QUEUE_INX:
 		pxmitpriv->viq_cnt++;
-		pxmitbuf->flags = VI_QUEUE_INX;
+		xmitbuf->flags = VI_QUEUE_INX;
 		break;
 	case BE_QUEUE_INX:
 		pxmitpriv->beq_cnt++;
-		pxmitbuf->flags = BE_QUEUE_INX;
+		xmitbuf->flags = BE_QUEUE_INX;
 		break;
 	case BK_QUEUE_INX:
 		pxmitpriv->bkq_cnt++;
-		pxmitbuf->flags = BK_QUEUE_INX;
+		xmitbuf->flags = BK_QUEUE_INX;
 		break;
 	case HIGH_QUEUE_INX:
-		pxmitbuf->flags = HIGH_QUEUE_INX;
+		xmitbuf->flags = HIGH_QUEUE_INX;
 		break;
 	default:
-		pxmitbuf->flags = MGT_QUEUE_INX;
+		xmitbuf->flags = MGT_QUEUE_INX;
 		break;
 	}
 
 	spin_unlock_irqrestore(&pxmitpriv->lock, irqL);
 
-	purb	= pxmitbuf->pxmit_urb[0];
+	purb	= xmitbuf->pxmit_urb[0];
 
 	/* translate DMA FIFO addr to pipehandle */
 	pipe = ffaddr2pipehdl(pdvobj, addr);
 
 	usb_fill_bulk_urb(purb, pusbd, pipe,
-			  pxmitframe->buf_addr, /*  pxmitbuf->pbuf */
+			  pxmitframe->buf_addr, /*  xmitbuf->pbuf */
 			  cnt,
 			  usb_write_port_complete,
-			  pxmitbuf);/* context is pxmitbuf */
+			  xmitbuf);/* context is xmitbuf */
 
 	status = usb_submit_urb(purb, GFP_ATOMIC);
 	if (status) {
-		rtw_sctx_done_err(&pxmitbuf->sctx, RTW_SCTX_DONE_WRITE_PORT_ERR);
+		rtw_sctx_done_err(&xmitbuf->sctx, RTW_SCTX_DONE_WRITE_PORT_ERR);
 		DBG_88E("usb_write_port, status =%d\n", status);
 		RT_TRACE(_module_hci_ops_os_c_, _drv_err_, ("usb_write_port(): usb_submit_urb, status =%x\n", status));
 
@@ -781,7 +780,7 @@ u32 usb_write_port(struct adapter *padapter, u32 addr, u32 cnt, u8 *wmem)
 
 exit:
 	if (ret != _SUCCESS)
-		rtw_free_xmitbuf(pxmitpriv, pxmitbuf);
+		rtw_free_xmitbuf(pxmitpriv, xmitbuf);
 	return ret;
 }
 
