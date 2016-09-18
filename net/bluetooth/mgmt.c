@@ -38,7 +38,7 @@
 #include "mgmt_util.h"
 
 #define MGMT_VERSION	1
-#define MGMT_REVISION	13
+#define MGMT_REVISION	14
 
 static const u16 mgmt_commands[] = {
 	MGMT_OP_READ_INDEX_LIST,
