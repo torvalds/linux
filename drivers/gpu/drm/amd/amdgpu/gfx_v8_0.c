@@ -5979,6 +5979,76 @@ static int gfx_v8_0_update_gfx_clock_gating(struct amdgpu_device *adev,
 	return 0;
 }
 
+static int gfx_v8_0_tonga_update_gfx_clock_gating(struct amdgpu_device *adev,
+					  enum amd_clockgating_state state)
+{
+	uint32_t msg_id, pp_state;
+	void *pp_handle = adev->powerplay.pp_handle;
+
+	if (state == AMD_CG_STATE_UNGATE)
+		pp_state = 0;
+	else
+		pp_state = PP_STATE_CG | PP_STATE_LS;
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+			PP_BLOCK_GFX_CG,
+			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
+			pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+			PP_BLOCK_GFX_MG,
+			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
+			pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	return 0;
+}
+
+static int gfx_v8_0_polaris_update_gfx_clock_gating(struct amdgpu_device *adev,
+					  enum amd_clockgating_state state)
+{
+	uint32_t msg_id, pp_state;
+	void *pp_handle = adev->powerplay.pp_handle;
+
+	if (state == AMD_CG_STATE_UNGATE)
+		pp_state = 0;
+	else
+		pp_state = PP_STATE_CG | PP_STATE_LS;
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+			PP_BLOCK_GFX_CG,
+			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
+			pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+			PP_BLOCK_GFX_3D,
+			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
+			pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+			PP_BLOCK_GFX_MG,
+			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
+			pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+			PP_BLOCK_GFX_RLC,
+			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
+			pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+			PP_BLOCK_GFX_CP,
+			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
+			pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	return 0;
+}
+
 static int gfx_v8_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
@@ -5990,6 +6060,13 @@ static int gfx_v8_0_set_clockgating_state(void *handle,
 	case CHIP_STONEY:
 		gfx_v8_0_update_gfx_clock_gating(adev,
 						 state == AMD_CG_STATE_GATE ? true : false);
+		break;
+	case CHIP_TONGA:
+		gfx_v8_0_tonga_update_gfx_clock_gating(adev, state);
+		break;
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
+		gfx_v8_0_polaris_update_gfx_clock_gating(adev, state);
 		break;
 	default:
 		break;
