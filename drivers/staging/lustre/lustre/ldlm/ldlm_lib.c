@@ -536,7 +536,7 @@ int client_disconnect_export(struct obd_export *exp)
 	imp = cli->cl_import;
 
 	down_write(&cli->cl_sem);
-	CDEBUG(D_INFO, "disconnect %s - %d\n", obd->obd_name,
+	CDEBUG(D_INFO, "disconnect %s - %zu\n", obd->obd_name,
 	       cli->cl_conn_count);
 
 	if (!cli->cl_conn_count) {

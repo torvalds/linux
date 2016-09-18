@@ -202,7 +202,7 @@ struct client_obd {
 	struct rw_semaphore  cl_sem;
 	struct obd_uuid	  cl_target_uuid;
 	struct obd_import       *cl_import; /* ptlrpc connection state */
-	int		      cl_conn_count;
+	size_t			 cl_conn_count;
 	/* max_mds_easize is purely a performance thing so we don't have to
 	 * call obd_size_diskmd() all the time.
 	 */
