@@ -302,30 +302,6 @@ static int lmv_connect(const struct lu_env *env,
 	return rc;
 }
 
-static void lmv_set_timeouts(struct obd_device *obd)
-{
-	struct lmv_obd	*lmv;
-	u32 i;
-
-	lmv = &obd->u.lmv;
-	if (lmv->server_timeout == 0)
-		return;
-
-	if (lmv->connected == 0)
-		return;
-
-	for (i = 0; i < lmv->desc.ld_tgt_count; i++) {
-		struct lmv_tgt_desc *tgt = lmv->tgts[i];
-
-		tgt = lmv->tgts[i];
-		if (!tgt || !tgt->ltd_exp || !tgt->ltd_active)
-			continue;
-
-		obd_set_info_async(NULL, tgt->ltd_exp, sizeof(KEY_INTERMDS),
-				   KEY_INTERMDS, 0, NULL, NULL);
-	}
-}
-
 static int lmv_init_ea_size(struct obd_export *exp, int easize,
 			    int def_easize, int cookiesize, int def_cookiesize)
 {
@@ -616,7 +592,6 @@ int lmv_check_connect(struct obd_device *obd)
 			goto out_disc;
 	}
 
-	lmv_set_timeouts(obd);
 	class_export_put(lmv->exp);
 	lmv->connected = 1;
 	easize = lmv_mds_md_size(lmv->desc.ld_tgt_count, LMV_MAGIC);
