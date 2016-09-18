@@ -385,10 +385,6 @@ static int ldlm_pool_recalc(struct ldlm_pool *pl)
 			      pl->pl_recalc_period;
 	if (recalc_interval_sec <= 0) {
 		/* Prevent too frequent recalculation. */
-		CDEBUG(D_DLMTRACE,
-		       "Negative interval(%d), too short period(%lld)",
-		       recalc_interval_sec,
-		       (s64)pl->pl_recalc_period);
 		recalc_interval_sec = 1;
 	}
 

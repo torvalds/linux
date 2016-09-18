@@ -1385,7 +1385,7 @@ static int osc_completion(const struct lu_env *env, struct osc_async_page *oap,
 	struct client_obd *__tmp = (cli);				      \
 	CDEBUG(lvl, "%s: grant { dirty: %ld/%ld dirty_pages: %ld/%lu "	      \
 	       "dropped: %ld avail: %ld, reserved: %ld, flight: %d }"	      \
-	       "lru {in list: %ld, left: %ld, waiters: %d }" fmt,	      \
+	       "lru {in list: %ld, left: %ld, waiters: %d }" fmt "\n",	      \
 	       __tmp->cl_import->imp_obd->obd_name,			      \
 	       __tmp->cl_dirty_pages, __tmp->cl_dirty_max_pages,	      \
 	       atomic_long_read(&obd_dirty_pages), obd_max_dirty_pages,	      \
