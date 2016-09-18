@@ -164,8 +164,11 @@ EXPORT_SYMBOL(class_handle2object);
 
 void class_handle_free_cb(struct rcu_head *rcu)
 {
-	struct portals_handle *h = RCU2HANDLE(rcu);
-	void *ptr = (void *)(unsigned long)h->h_cookie;
+	struct portals_handle *h;
+	void *ptr;
+
+	h = container_of(rcu, struct portals_handle, h_rcu);
+	ptr = (void *)(unsigned long)h->h_cookie;
 
 	if (h->h_ops->hop_free)
 		h->h_ops->hop_free(ptr, h->h_size);
