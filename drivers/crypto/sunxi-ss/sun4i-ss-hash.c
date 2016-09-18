@@ -165,7 +165,7 @@ int sun4i_hash_import_sha1(struct ahash_request *areq, const void *in)
  * write remaining data in op->buf
  * final state op->len=56
  */
-int sun4i_hash(struct ahash_request *areq)
+static int sun4i_hash(struct ahash_request *areq)
 {
 	u32 v, ivmode = 0;
 	unsigned int i = 0;
