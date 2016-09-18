@@ -406,7 +406,7 @@ struct lov_obd {
 struct lmv_tgt_desc {
 	struct obd_uuid		ltd_uuid;
 	struct obd_export	*ltd_exp;
-	int			ltd_idx;
+	u32			ltd_idx;
 	struct mutex		ltd_fid_mutex;
 	unsigned long		ltd_active:1; /* target up for requests */
 };

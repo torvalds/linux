@@ -113,7 +113,7 @@ static int lmv_intent_remote(struct obd_export *exp, struct lookup_intent *it,
 	}
 
 	op_data->op_bias = MDS_CROSS_REF;
-	CDEBUG(D_INODE, "REMOTE_INTENT with fid="DFID" -> mds #%d\n",
+	CDEBUG(D_INODE, "REMOTE_INTENT with fid=" DFID " -> mds #%u\n",
 	       PFID(&body->mbo_fid1), tgt->ltd_idx);
 
 	rc = md_intent_lock(tgt->ltd_exp, op_data, it, &req, cb_blocking,
@@ -202,7 +202,7 @@ int lmv_revalidate_slaves(struct obd_export *exp, struct mdt_body *mbody,
 			goto cleanup;
 		}
 
-		CDEBUG(D_INODE, "Revalidate slave "DFID" -> mds #%d\n",
+		CDEBUG(D_INODE, "Revalidate slave " DFID " -> mds #%u\n",
 		       PFID(&fid), tgt->ltd_idx);
 
 		if (req) {
@@ -349,7 +349,7 @@ static int lmv_intent_open(struct obd_export *exp, struct md_op_data *op_data,
 			return rc;
 	}
 
-	CDEBUG(D_INODE, "OPEN_INTENT with fid1=" DFID ", fid2=" DFID ", name='%s' -> mds #%d\n",
+	CDEBUG(D_INODE, "OPEN_INTENT with fid1=" DFID ", fid2=" DFID ", name='%s' -> mds #%u\n",
 	       PFID(&op_data->op_fid1),
 	       PFID(&op_data->op_fid2), op_data->op_name, tgt->ltd_idx);
 
@@ -427,7 +427,7 @@ static int lmv_intent_lookup(struct obd_export *exp,
 	if (!fid_is_sane(&op_data->op_fid2))
 		fid_zero(&op_data->op_fid2);
 
-	CDEBUG(D_INODE, "LOOKUP_INTENT with fid1="DFID", fid2="DFID", name='%s' -> mds #%d lsm=%p lsm_magic=%x\n",
+	CDEBUG(D_INODE, "LOOKUP_INTENT with fid1=" DFID ", fid2=" DFID ", name='%s' -> mds #%u lsm=%p lsm_magic=%x\n",
 	       PFID(&op_data->op_fid1), PFID(&op_data->op_fid2),
 	       op_data->op_name ? op_data->op_name : "<NULL>",
 	       tgt->ltd_idx, lsm, !lsm ? -1 : lsm->lsm_md_magic);
