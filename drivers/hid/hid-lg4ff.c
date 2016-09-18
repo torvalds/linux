@@ -137,6 +137,7 @@ struct lg4ff_alternate_mode {
 };
 
 static const struct lg4ff_wheel lg4ff_devices[] = {
+	{USB_DEVICE_ID_LOGITECH_WINGMAN_FFG, lg4ff_wheel_effects, 40, 180, NULL},
 	{USB_DEVICE_ID_LOGITECH_WHEEL,       lg4ff_wheel_effects, 40, 270, NULL},
 	{USB_DEVICE_ID_LOGITECH_MOMO_WHEEL,  lg4ff_wheel_effects, 40, 270, NULL},
 	{USB_DEVICE_ID_LOGITECH_DFP_WHEEL,   lg4ff_wheel_effects, 40, 900, lg4ff_set_range_dfp},
@@ -345,6 +346,7 @@ int lg4ff_raw_event(struct hid_device *hdev, struct hid_report *report,
 			rd[5] = rd[3];
 			rd[6] = 0x7F;
 			return 1;
+		case USB_DEVICE_ID_LOGITECH_WINGMAN_FFG:
 		case USB_DEVICE_ID_LOGITECH_MOMO_WHEEL:
 		case USB_DEVICE_ID_LOGITECH_MOMO_WHEEL2:
 			rd[4] = rd[3];
