@@ -2078,7 +2078,7 @@ static bool amdgpu_check_soft_reset(struct amdgpu_device *adev)
 	return asic_hang;
 }
 
-int amdgpu_pre_soft_reset(struct amdgpu_device *adev)
+static int amdgpu_pre_soft_reset(struct amdgpu_device *adev)
 {
 	int i, r = 0;
 

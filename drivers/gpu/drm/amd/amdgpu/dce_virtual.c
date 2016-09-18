@@ -95,7 +95,7 @@ static bool dce_virtual_is_display_hung(struct amdgpu_device *adev)
 	return false;
 }
 
-void dce_virtual_stop_mc_access(struct amdgpu_device *adev,
+static void dce_virtual_stop_mc_access(struct amdgpu_device *adev,
 			      struct amdgpu_mode_mc_save *save)
 {
 	switch (adev->asic_type) {
@@ -127,13 +127,13 @@ void dce_virtual_stop_mc_access(struct amdgpu_device *adev,
 
 	return;
 }
-void dce_virtual_resume_mc_access(struct amdgpu_device *adev,
+static void dce_virtual_resume_mc_access(struct amdgpu_device *adev,
 				struct amdgpu_mode_mc_save *save)
 {
 	return;
 }
 
-void dce_virtual_set_vga_render_state(struct amdgpu_device *adev,
+static void dce_virtual_set_vga_render_state(struct amdgpu_device *adev,
 				    bool render)
 {
 	return;
