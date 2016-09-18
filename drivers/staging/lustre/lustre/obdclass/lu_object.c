@@ -767,13 +767,15 @@ struct lu_object *lu_object_find_slice(const struct lu_env *env,
 	struct lu_object *obj;
 
 	top = lu_object_find(env, dev, f, conf);
-	if (!IS_ERR(top)) {
-		obj = lu_object_locate(top->lo_header, dev->ld_type);
-		if (!obj)
-			lu_object_put(env, top);
-	} else {
-		obj = top;
+	if (IS_ERR(top))
+		return top;
+
+	obj = lu_object_locate(top->lo_header, dev->ld_type);
+	if (unlikely(!obj)) {
+		lu_object_put(env, top);
+		obj = ERR_PTR(-ENOENT);
 	}
+
 	return obj;
 }
 EXPORT_SYMBOL(lu_object_find_slice);
