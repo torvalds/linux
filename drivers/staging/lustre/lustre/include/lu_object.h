@@ -623,6 +623,11 @@ struct lu_site {
 	spinlock_t		ls_ld_lock;
 
 	/**
+	 * Lock to serialize site purge.
+	 */
+	struct mutex		ls_purge_mutex;
+
+	/**
 	 * lu_site stats
 	 */
 	struct lprocfs_stats	*ls_stats;
