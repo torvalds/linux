@@ -1091,6 +1091,7 @@ ldlm_resource_get(struct ldlm_namespace *ns, struct ldlm_resource *parent,
 	struct cfs_hash_bd	 bd;
 	__u64		 version;
 	int		      ns_refcount = 0;
+	int rc;
 
 	LASSERT(!parent);
 	LASSERT(ns->ns_rs_hash);
@@ -1140,8 +1141,9 @@ lvbo_init:
 		}
 
 		if (unlikely(res->lr_lvb_len < 0)) {
+			rc = res->lr_lvb_len;
 			ldlm_resource_putref(res);
-			res = ERR_PTR(res->lr_lvb_len);
+			res = ERR_PTR(rc);
 		}
 		return res;
 	}
@@ -1152,8 +1154,6 @@ lvbo_init:
 
 	cfs_hash_bd_unlock(ns->ns_rs_hash, &bd, 1);
 	if (ns->ns_lvbo && ns->ns_lvbo->lvbo_init) {
-		int rc;
-
 		OBD_FAIL_TIMEOUT(OBD_FAIL_LDLM_CREATE_RESOURCE, 2);
 		rc = ns->ns_lvbo->lvbo_init(res);
 		if (rc < 0) {
