@@ -2084,7 +2084,6 @@ static struct obd_ops lov_obd_ops = {
 	.destroy        = lov_destroy,
 	.getattr_async  = lov_getattr_async,
 	.setattr_async  = lov_setattr_async,
-	.adjust_kms     = lov_adjust_kms,
 	.iocontrol      = lov_iocontrol,
 	.get_info       = lov_get_info,
 	.set_info_async = lov_set_info_async,

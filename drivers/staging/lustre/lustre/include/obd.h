@@ -866,7 +866,6 @@ struct obd_ops {
 	int (*unpackmd)(struct obd_export *exp,
 			struct lov_stripe_md **mem_tgt,
 			struct lov_mds_md *disk_src, int disk_len);
-	int (*preallocate)(struct lustre_handle *, u32 *req, u64 *ids);
 	int (*create)(const struct lu_env *env, struct obd_export *exp,
 		      struct obdo *oa, struct lov_stripe_md **ea,
 		      struct obd_trans_info *oti);
@@ -882,8 +881,6 @@ struct obd_ops {
 		       struct obd_info *oinfo);
 	int (*getattr_async)(struct obd_export *exp, struct obd_info *oinfo,
 			     struct ptlrpc_request_set *set);
-	int (*adjust_kms)(struct obd_export *exp, struct lov_stripe_md *lsm,
-			  u64 size, int shrink);
 	int (*preprw)(const struct lu_env *env, int cmd,
 		      struct obd_export *exp, struct obdo *oa, int objcount,
 		      struct obd_ioobj *obj, struct niobuf_remote *remote,

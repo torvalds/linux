@@ -1152,19 +1152,6 @@ static inline int obd_commitrw(const struct lu_env *env, int cmd,
 	return rc;
 }
 
-static inline int obd_adjust_kms(struct obd_export *exp,
-				 struct lov_stripe_md *lsm, u64 size,
-				 int shrink)
-{
-	int rc;
-
-	EXP_CHECK_DT_OP(exp, adjust_kms);
-	EXP_COUNTER_INCREMENT(exp, adjust_kms);
-
-	rc = OBP(exp->exp_obd, adjust_kms)(exp, lsm, size, shrink);
-	return rc;
-}
-
 static inline int obd_iocontrol(unsigned int cmd, struct obd_export *exp,
 				int len, void *karg, void __user *uarg)
 {

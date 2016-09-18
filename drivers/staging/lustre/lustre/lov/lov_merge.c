@@ -105,45 +105,6 @@ int lov_merge_lvb_kms(struct lov_stripe_md *lsm,
 	return rc;
 }
 
-/* Must be called under the lov_stripe_lock() */
-int lov_adjust_kms(struct obd_export *exp, struct lov_stripe_md *lsm,
-		   u64 size, int shrink)
-{
-	struct lov_oinfo *loi;
-	int stripe = 0;
-	__u64 kms;
-
-	assert_spin_locked(&lsm->lsm_lock);
-	LASSERT(lsm->lsm_lock_owner == current_pid());
-
-	if (shrink) {
-		for (; stripe < lsm->lsm_stripe_count; stripe++) {
-			struct lov_oinfo *loi = lsm->lsm_oinfo[stripe];
-
-			kms = lov_size_to_stripe(lsm, size, stripe);
-			CDEBUG(D_INODE,
-			       "stripe %d KMS %sing %llu->%llu\n",
-			       stripe, kms > loi->loi_kms ? "increase":"shrink",
-			       loi->loi_kms, kms);
-			loi->loi_lvb.lvb_size = kms;
-			loi_kms_set(loi, loi->loi_lvb.lvb_size);
-		}
-		return 0;
-	}
-
-	if (size > 0)
-		stripe = lov_stripe_number(lsm, size - 1);
-	kms = lov_size_to_stripe(lsm, size, stripe);
-	loi = lsm->lsm_oinfo[stripe];
-
-	CDEBUG(D_INODE, "stripe %d KMS %sincreasing %llu->%llu\n",
-	       stripe, kms > loi->loi_kms ? "" : "not ", loi->loi_kms, kms);
-	if (kms > loi->loi_kms)
-		loi_kms_set(loi, kms);
-
-	return 0;
-}
-
 void lov_merge_attrs(struct obdo *tgt, struct obdo *src, u64 valid,
 		     struct lov_stripe_md *lsm, int stripeno, int *set)
 {
