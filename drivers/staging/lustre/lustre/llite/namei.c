@@ -132,7 +132,6 @@ struct inode *ll_iget(struct super_block *sb, ino_t hash,
 		CDEBUG(D_VFSTRACE, "got inode: "DFID"(%p): rc = %d\n",
 		       PFID(&md->body->mbo_fid1), inode, rc);
 		if (rc) {
-			make_bad_inode(inode);
 			iput(inode);
 			inode = ERR_PTR(rc);
 		}
