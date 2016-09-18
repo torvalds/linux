@@ -1093,6 +1093,16 @@ kiblnd_init_rdma(struct kib_conn *conn, struct kib_tx *tx, int type,
 			break;
 		}
 
+		if (tx->tx_nwrq >= IBLND_MAX_RDMA_FRAGS) {
+			CERROR("RDMA has too many fragments for peer %s (%d), src idx/frags: %d/%d dst idx/frags: %d/%d\n",
+			       libcfs_nid2str(conn->ibc_peer->ibp_nid),
+			       IBLND_MAX_RDMA_FRAGS,
+			       srcidx, srcrd->rd_nfrags,
+			       dstidx, dstrd->rd_nfrags);
+			rc = -EMSGSIZE;
+			break;
+		}
+
 		wrknob = min(min(kiblnd_rd_frag_size(srcrd, srcidx),
 				 kiblnd_rd_frag_size(dstrd, dstidx)),
 			     (__u32)resid);
