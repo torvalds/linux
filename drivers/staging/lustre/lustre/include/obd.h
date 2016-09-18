@@ -317,7 +317,7 @@ struct client_obd {
 	/* used by quotacheck when the servers are older than 2.4 */
 	int		      cl_qchk_stat; /* quotacheck stat of the peer */
 #define CL_NOT_QUOTACHECKED 1   /* client->cl_qchk_stat init value */
-#if LUSTRE_VERSION_CODE >= OBD_OCD_VERSION(2, 7, 50, 0)
+#if OBD_OCD_VERSION(2, 7, 53, 0) < LUSTRE_VERSION_CODE
 #warning "please consider removing quotacheck compatibility code"
 #endif
 

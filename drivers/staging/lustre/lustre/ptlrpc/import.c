@@ -1042,7 +1042,7 @@ finish:
 			warned = true;
 		}
 
-#if LUSTRE_VERSION_CODE < OBD_OCD_VERSION(3, 2, 50, 0)
+#if OBD_OCD_VERSION(3, 0, 53, 0) > LUSTRE_VERSION_CODE
 		/* Check if server has LU-1252 fix applied to not always swab
 		 * the IR MNE entries. Do this only once per connection.  This
 		 * fixup is version-limited, because we don't want to carry the
@@ -1060,8 +1060,6 @@ finish:
 			imp->imp_need_mne_swab = 1;
 		else /* clear if server was upgraded since last connect */
 			imp->imp_need_mne_swab = 0;
-#else
-#warning "LU-1644: Remove old OBD_CONNECT_MNE_SWAB fixup and imp_need_mne_swab"
 #endif
 
 		if (ocd->ocd_connect_flags & OBD_CONNECT_CKSUM) {

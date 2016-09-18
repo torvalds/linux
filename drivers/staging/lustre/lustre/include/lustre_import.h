@@ -285,8 +285,10 @@ struct obd_import {
 				  imp_resend_replay:1,
 				  /* disable normal recovery, for test only. */
 				  imp_no_pinger_recover:1,
+#if OBD_OCD_VERSION(3, 0, 53, 0) > LUSTRE_VERSION_CODE
 				  /* need IR MNE swab */
 				  imp_need_mne_swab:1,
+#endif
 				  /* import must be reconnected instead of
 				   * chosing new connection
 				   */
