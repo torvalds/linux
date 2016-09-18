@@ -73,7 +73,7 @@ int _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *padapter)
 	if (!precvpriv->pallocated_frame_buf)
 		return _FAIL;
 
-	precvpriv->precv_frame_buf = (u8 *)N_BYTE_ALIGMENT((size_t)(precvpriv->pallocated_frame_buf), RXFRAME_ALIGN_SZ);
+	precvpriv->precv_frame_buf = PTR_ALIGN(precvpriv->pallocated_frame_buf, RXFRAME_ALIGN_SZ);
 
 	precvframe = (struct recv_frame *)precvpriv->precv_frame_buf;
 

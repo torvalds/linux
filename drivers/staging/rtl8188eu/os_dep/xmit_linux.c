@@ -72,7 +72,7 @@ int rtw_os_xmit_resource_alloc(struct adapter *padapter, struct xmit_buf *pxmitb
 	if (pxmitbuf->pallocated_buf == NULL)
 		return _FAIL;
 
-	pxmitbuf->pbuf = (u8 *)N_BYTE_ALIGMENT((size_t)(pxmitbuf->pallocated_buf), XMITBUF_ALIGN_SZ);
+	pxmitbuf->pbuf = PTR_ALIGN(pxmitbuf->pallocated_buf, XMITBUF_ALIGN_SZ);
 	pxmitbuf->dma_transfer_addr = 0;
 
 	for (i = 0; i < 8; i++) {
