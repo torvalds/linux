@@ -1099,10 +1099,8 @@ static int dwc2_hsotg_ep_sethalt(struct usb_ep *ep, int value, bool now);
  */
 static struct dwc2_hsotg_req *get_ep_head(struct dwc2_hsotg_ep *hs_ep)
 {
-	if (list_empty(&hs_ep->queue))
-		return NULL;
-
-	return list_first_entry(&hs_ep->queue, struct dwc2_hsotg_req, queue);
+	return list_first_entry_or_null(&hs_ep->queue, struct dwc2_hsotg_req,
+					queue);
 }
 
 /**
