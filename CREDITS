@@ -3691,7 +3691,7 @@ S: Germany
 N: Geert Uytterhoeven
 E: geert@linux-m68k.org
 W: http://users.telenet.be/geertu/
-P: 1024/862678A6 C51D 361C 0BD1 4C90 B275  C553 6EEA 11BA 8626 78A6
+P: 4096R/4804B4BC3F55EEFB 750D 82B0 A781 5431 5E25  925B 4804 B4BC 3F55 EEFB
 D: m68k/Amiga and PPC/CHRP Longtrail coordinator
 D: Frame buffer device and XF68_FBDev maintainer
 D: m68k IDE maintainer
