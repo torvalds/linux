@@ -90,7 +90,9 @@ void line6_capture_copy(struct snd_line6_pcm *line6pcm, char *fbuf, int fsize)
 	struct snd_pcm_substream *substream =
 	    get_substream(line6pcm, SNDRV_PCM_STREAM_CAPTURE);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	const int bytes_per_frame = line6pcm->properties->bytes_per_frame;
+	const int bytes_per_frame =
+		line6pcm->properties->bytes_per_channel *
+		line6pcm->properties->capture_hw.channels_max;
 	int frames = fsize / bytes_per_frame;
 
 	if (runtime == NULL)
@@ -191,7 +193,9 @@ static void audio_in_callback(struct urb *urb)
 		 */
 
 		line6pcm->prev_fbuf = fbuf;
-		line6pcm->prev_fsize = fsize;
+		line6pcm->prev_fsize = fsize /
+			(line6pcm->properties->bytes_per_channel *
+			line6pcm->properties->capture_hw.channels_max);
 
 		if (!test_bit(LINE6_STREAM_IMPULSE, &line6pcm->in.running) &&
 		    test_bit(LINE6_STREAM_PCM, &line6pcm->in.running) &&

@@ -84,7 +84,7 @@ enum {
 struct line6_pcm_properties {
 	struct snd_pcm_hardware playback_hw, capture_hw;
 	struct snd_pcm_hw_constraint_ratdens rates;
-	int bytes_per_frame;
+	int bytes_per_channel;
 };
 
 struct line6_pcm_stream {

@@ -25,8 +25,6 @@ enum {
 	LINE6_PODHD500_1,
 };
 
-#define PODHD_BYTES_PER_FRAME 6	/* 24bit audio (stereo) */
-
 static struct snd_ratden podhd_ratden = {
 	.num_min = 48000,
 	.num_max = 48000,
@@ -73,7 +71,7 @@ static struct line6_pcm_properties podhd_pcm_properties = {
 	.rates = {
 			    .nrats = 1,
 			    .rats = &podhd_ratden},
-	.bytes_per_frame = PODHD_BYTES_PER_FRAME
+	.bytes_per_channel = 3 /* 24bit audio (stereo) */
 };
 
 /*

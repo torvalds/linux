@@ -114,7 +114,7 @@ static struct line6_pcm_properties toneport_pcm_properties = {
 	.rates = {
 			    .nrats = 1,
 			    .rats = &toneport_ratden},
-	.bytes_per_frame = 4
+	.bytes_per_channel = 2
 };
 
 static const struct {
