@@ -12,8 +12,9 @@
 #ifndef DRIVER_H
 #define DRIVER_H
 
-#include <linux/spinlock.h>
 #include <linux/usb.h>
+#include <linux/mutex.h>
+#include <linux/kfifo.h>
 #include <sound/core.h>
 
 #include "midi.h"
@@ -32,7 +33,16 @@
 
 #define LINE6_TIMEOUT 1
 #define LINE6_BUFSIZE_LISTEN 64
-#define LINE6_MESSAGE_MAXLEN 256
+#define LINE6_MIDI_MESSAGE_MAXLEN 256
+
+#define LINE6_RAW_MESSAGES_MAXCOUNT_ORDER 7
+/* 4k packets are common, BUFSIZE * MAXCOUNT should be bigger... */
+#define LINE6_RAW_MESSAGES_MAXCOUNT (1 << LINE6_RAW_MESSAGES_MAXCOUNT_ORDER)
+
+
+#if LINE6_BUFSIZE_LISTEN > 65535
+#error "Use dynamic fifo instead"
+#endif
 
 /*
 	Line 6 MIDI control commands
@@ -155,6 +165,15 @@ struct usb_line6 {
 
 	/* Length of message to be processed, generated from MIDI layer  */
 	int message_length;
+
+	/* Circular buffer for non-MIDI control messages */
+	struct {
+		struct mutex read_lock;
+		wait_queue_head_t wait_queue;
+		unsigned int active:1;
+		STRUCT_KFIFO_REC_2(LINE6_BUFSIZE_LISTEN * LINE6_RAW_MESSAGES_MAXCOUNT)
+			fifo;
+	} messages;
 
 	/* If MIDI is supported, buffer_message contains the pre-processed data;
 	 * otherwise the data is only in urb_listen (buffer_incoming).
