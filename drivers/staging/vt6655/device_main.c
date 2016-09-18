@@ -735,7 +735,7 @@ static bool device_alloc_rx_buf(struct vnt_private *priv,
 	struct vnt_rd_info *rd_info = rd->rd_info;
 
 	rd_info->skb = dev_alloc_skb((int)priv->rx_buf_sz);
-	if (rd_info->skb == NULL)
+	if (!rd_info->skb)
 		return false;
 
 	rd_info->skb_dma =
