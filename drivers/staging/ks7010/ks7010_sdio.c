@@ -537,7 +537,7 @@ static void ks7010_rw_function(struct work_struct *work)
 
 	if (rw_data & RSIZE_MASK) {	/* Read schedule */
 		ks_wlan_hw_rx((void *)priv,
-			      (uint16_t) (((rw_data & RSIZE_MASK) << 4)));
+			      (uint16_t)(((rw_data & RSIZE_MASK) << 4)));
 	}
 	if ((rw_data & WSTATUS_MASK))
 		tx_device_task((void *)priv);
@@ -609,7 +609,7 @@ static void ks_sdio_interrupt(struct sdio_func *func)
 			rsize = rw_data & RSIZE_MASK;
 			if (rsize) {	/* Read schedule */
 				ks_wlan_hw_rx((void *)priv,
-					      (uint16_t) (((rsize) << 4)));
+					      (uint16_t)(((rsize) << 4)));
 			}
 			if (rw_data & WSTATUS_MASK) {
 #if 0
@@ -1150,7 +1150,7 @@ static void ks7010_sdio_remove(struct sdio_func *func)
 			    cpu_to_le16((uint16_t)
 					(sizeof(*pp) -
 					 sizeof(pp->header.size)));
-			pp->header.event = cpu_to_le16((uint16_t) HIF_STOP_REQ);
+			pp->header.event = cpu_to_le16((uint16_t)HIF_STOP_REQ);
 
 			sdio_claim_host(func);
 			write_to_device(priv, (unsigned char *)pp,
