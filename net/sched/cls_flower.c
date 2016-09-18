@@ -241,7 +241,8 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 	tc.type = TC_SETUP_CLSFLOWER;
 	tc.cls_flower = &offload;
 
-	err = dev->netdev_ops->ndo_setup_tc(dev, tp->q->handle, tp->protocol, &tc);
+	err = dev->netdev_ops->ndo_setup_tc(dev, tp->q->handle, tp->protocol,
+					    &tc);
 
 	if (tc_skip_sw(flags))
 		return err;

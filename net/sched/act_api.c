@@ -592,9 +592,8 @@ err_out:
 	return ERR_PTR(err);
 }
 
-int tcf_action_init(struct net *net, struct nlattr *nla,
-				  struct nlattr *est, char *name, int ovr,
-				  int bind, struct list_head *actions)
+int tcf_action_init(struct net *net, struct nlattr *nla, struct nlattr *est,
+		    char *name, int ovr, int bind, struct list_head *actions)
 {
 	struct nlattr *tb[TCA_ACT_MAX_PRIO + 1];
 	struct tc_action *act;
@@ -923,9 +922,8 @@ tcf_add_notify(struct net *net, struct nlmsghdr *n, struct list_head *actions,
 	return err;
 }
 
-static int
-tcf_action_add(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
-	       u32 portid, int ovr)
+static int tcf_action_add(struct net *net, struct nlattr *nla,
+			  struct nlmsghdr *n, u32 portid, int ovr)
 {
 	int ret = 0;
 	LIST_HEAD(actions);
@@ -988,8 +986,7 @@ replay:
 	return ret;
 }
 
-static struct nlattr *
-find_dump_kind(const struct nlmsghdr *n)
+static struct nlattr *find_dump_kind(const struct nlmsghdr *n)
 {
 	struct nlattr *tb1, *tb2[TCA_ACT_MAX + 1];
 	struct nlattr *tb[TCA_ACT_MAX_PRIO + 1];
@@ -1016,8 +1013,7 @@ find_dump_kind(const struct nlmsghdr *n)
 	return kind;
 }
 
-static int
-tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
+static int tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlmsghdr *nlh;

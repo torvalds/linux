@@ -204,7 +204,8 @@ out:
 	return retval;
 }
 
-static int tcf_mirred_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
+static int tcf_mirred_dump(struct sk_buff *skb, struct tc_action *a, int bind,
+			   int ref)
 {
 	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_mirred *m = to_mirred(a);

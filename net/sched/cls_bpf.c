@@ -55,7 +55,8 @@ static const struct nla_policy bpf_policy[TCA_BPF_MAX + 1] = {
 	[TCA_BPF_CLASSID]	= { .type = NLA_U32 },
 	[TCA_BPF_FLAGS]		= { .type = NLA_U32 },
 	[TCA_BPF_FD]		= { .type = NLA_U32 },
-	[TCA_BPF_NAME]		= { .type = NLA_NUL_STRING, .len = CLS_BPF_NAME_LEN },
+	[TCA_BPF_NAME]		= { .type = NLA_NUL_STRING,
+				    .len = CLS_BPF_NAME_LEN },
 	[TCA_BPF_OPS_LEN]	= { .type = NLA_U16 },
 	[TCA_BPF_OPS]		= { .type = NLA_BINARY,
 				    .len = sizeof(struct sock_filter) * BPF_MAXINSNS },
@@ -409,7 +410,8 @@ static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
 		goto errout;
 	}
 
-	ret = cls_bpf_modify_existing(net, tp, prog, base, tb, tca[TCA_RATE], ovr);
+	ret = cls_bpf_modify_existing(net, tp, prog, base, tb, tca[TCA_RATE],
+				      ovr);
 	if (ret < 0)
 		goto errout;
 

@@ -87,12 +87,14 @@ static u32 flow_get_dst(const struct sk_buff *skb, const struct flow_keys *flow)
 	return addr_fold(skb_dst(skb)) ^ (__force u16) tc_skb_protocol(skb);
 }
 
-static u32 flow_get_proto(const struct sk_buff *skb, const struct flow_keys *flow)
+static u32 flow_get_proto(const struct sk_buff *skb,
+			  const struct flow_keys *flow)
 {
 	return flow->basic.ip_proto;
 }
 
-static u32 flow_get_proto_src(const struct sk_buff *skb, const struct flow_keys *flow)
+static u32 flow_get_proto_src(const struct sk_buff *skb,
+			      const struct flow_keys *flow)
 {
 	if (flow->ports.ports)
 		return ntohs(flow->ports.src);
@@ -100,7 +102,8 @@ static u32 flow_get_proto_src(const struct sk_buff *skb, const struct flow_keys 
 	return addr_fold(skb->sk);
 }
 
-static u32 flow_get_proto_dst(const struct sk_buff *skb, const struct flow_keys *flow)
+static u32 flow_get_proto_dst(const struct sk_buff *skb,
+			      const struct flow_keys *flow)
 {
 	if (flow->ports.ports)
 		return ntohs(flow->ports.dst);
@@ -149,7 +152,8 @@ static u32 flow_get_nfct(const struct sk_buff *skb)
 })
 #endif
 
-static u32 flow_get_nfct_src(const struct sk_buff *skb, const struct flow_keys *flow)
+static u32 flow_get_nfct_src(const struct sk_buff *skb,
+			     const struct flow_keys *flow)
 {
 	switch (tc_skb_protocol(skb)) {
 	case htons(ETH_P_IP):
@@ -161,7 +165,8 @@ fallback:
 	return flow_get_src(skb, flow);
 }
 
-static u32 flow_get_nfct_dst(const struct sk_buff *skb, const struct flow_keys *flow)
+static u32 flow_get_nfct_dst(const struct sk_buff *skb,
+			     const struct flow_keys *flow)
 {
 	switch (tc_skb_protocol(skb)) {
 	case htons(ETH_P_IP):
@@ -173,14 +178,16 @@ fallback:
 	return flow_get_dst(skb, flow);
 }
 
-static u32 flow_get_nfct_proto_src(const struct sk_buff *skb, const struct flow_keys *flow)
+static u32 flow_get_nfct_proto_src(const struct sk_buff *skb,
+				   const struct flow_keys *flow)
 {
 	return ntohs(CTTUPLE(skb, src.u.all));
 fallback:
 	return flow_get_proto_src(skb, flow);
 }
 
-static u32 flow_get_nfct_proto_dst(const struct sk_buff *skb, const struct flow_keys *flow)
+static u32 flow_get_nfct_proto_dst(const struct sk_buff *skb,
+				   const struct flow_keys *flow)
 {
 	return ntohs(CTTUPLE(skb, dst.u.all));
 fallback:
