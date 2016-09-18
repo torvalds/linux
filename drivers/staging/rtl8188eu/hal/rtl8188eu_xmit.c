@@ -33,11 +33,7 @@ s32 rtw_hal_init_xmit_priv(struct adapter *adapt)
 
 static u8 urb_zero_packet_chk(struct adapter *adapt, int sz)
 {
-	u8 set_tx_desc_offset;
-	struct hal_data_8188e	*haldata = GET_HAL_DATA(adapt);
-	set_tx_desc_offset = (((sz + TXDESC_SIZE) %  haldata->UsbBulkOutSize) == 0) ? 1 : 0;
-
-	return set_tx_desc_offset;
+	return !((sz + TXDESC_SIZE) % adapt->HalData->UsbBulkOutSize);
 }
 
 static void rtl8188eu_cal_txdesc_chksum(struct tx_desc	*ptxdesc)
@@ -175,7 +171,7 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 	u8 data_rate, pwr_status, offset;
 	struct adapter		*adapt = pxmitframe->padapter;
 	struct pkt_attrib	*pattrib = &pxmitframe->attrib;
-	struct hal_data_8188e	*haldata = GET_HAL_DATA(adapt);
+	struct odm_dm_struct *odmpriv = &adapt->HalData->odmpriv;
 	struct tx_desc	*ptxdesc = (struct tx_desc *)pmem;
 	struct mlme_ext_priv	*pmlmeext = &adapt->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
@@ -259,12 +255,12 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 			ptxdesc->txdw5 |= cpu_to_le32(0x0001ff00);/* DATA/RTS  Rate FB LMT */
 
 			if (pattrib->ht_en) {
-				if (ODM_RA_GetShortGI_8188E(&haldata->odmpriv, pattrib->mac_id))
+				if (ODM_RA_GetShortGI_8188E(odmpriv, pattrib->mac_id))
 					ptxdesc->txdw5 |= cpu_to_le32(SGI);/* SGI */
 			}
-			data_rate = ODM_RA_GetDecisionRate_8188E(&haldata->odmpriv, pattrib->mac_id);
+			data_rate = ODM_RA_GetDecisionRate_8188E(odmpriv, pattrib->mac_id);
 			ptxdesc->txdw5 |= cpu_to_le32(data_rate & 0x3F);
-			pwr_status = ODM_RA_GetHwPwrStatus_8188E(&haldata->odmpriv, pattrib->mac_id);
+			pwr_status = ODM_RA_GetHwPwrStatus_8188E(odmpriv, pattrib->mac_id);
 			ptxdesc->txdw4 |= cpu_to_le32((pwr_status & 0x7) << PWR_STATUS_SHT);
 		} else {
 			/*  EAP data packet and ARP packet and DHCP. */
@@ -332,8 +328,7 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 		ptxdesc->txdw4 |= cpu_to_le32(HW_SSN);	/*  Hw set sequence number */
 	}
 
-	rtl88eu_dm_set_tx_ant_by_tx_info(&haldata->odmpriv, pmem,
-					 pattrib->mac_id);
+	rtl88eu_dm_set_tx_ant_by_tx_info(odmpriv, pmem, pattrib->mac_id);
 
 	rtl8188eu_cal_txdesc_chksum(ptxdesc);
 	_dbg_dump_tx_info(adapt, pxmitframe->frame_tag, ptxdesc);
@@ -426,7 +421,6 @@ static u32 xmitframe_need_length(struct xmit_frame *pxmitframe)
 
 s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitpriv)
 {
-	struct hal_data_8188e	*haldata = GET_HAL_DATA(adapt);
 	struct xmit_frame *pxmitframe = NULL;
 	struct xmit_frame *pfirstframe = NULL;
 	struct xmit_buf *pxmitbuf;
@@ -442,7 +436,7 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 	u32 pbuf_tail;	/*  last pkt tail */
 	u32 len;	/*  packet length, except TXDESC_SIZE and PKT_OFFSET */
 
-	u32 bulksize = haldata->UsbBulkOutSize;
+	u32 bulksize = adapt->HalData->UsbBulkOutSize;
 	u8 desc_cnt;
 	u32 bulkptr;
 
@@ -563,7 +557,7 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 
 		if (pbuf < bulkptr) {
 			desc_cnt++;
-			if (desc_cnt == haldata->UsbTxAggDescNum)
+			if (desc_cnt == adapt->HalData->UsbTxAggDescNum)
 				break;
 		} else {
 			desc_cnt = 0;

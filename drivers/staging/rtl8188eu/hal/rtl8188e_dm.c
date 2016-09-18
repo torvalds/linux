@@ -42,7 +42,7 @@ static void dm_InitGPIOSetting(struct adapter *Adapter)
 /*  */
 static void Init_ODM_ComInfo_88E(struct adapter *Adapter)
 {
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *hal_data = Adapter->HalData;
 	struct dm_priv	*pdmpriv = &hal_data->dmpriv;
 	struct odm_dm_struct *dm_odm = &(hal_data->odmpriv);
 
@@ -83,7 +83,7 @@ static void Update_ODM_ComInfo_88E(struct adapter *Adapter)
 	struct mlme_ext_priv	*pmlmeext = &Adapter->mlmeextpriv;
 	struct mlme_priv	*pmlmepriv = &Adapter->mlmepriv;
 	struct pwrctrl_priv *pwrctrlpriv = &Adapter->pwrctrlpriv;
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *hal_data = Adapter->HalData;
 	struct odm_dm_struct *dm_odm = &(hal_data->odmpriv);
 	struct dm_priv	*pdmpriv = &hal_data->dmpriv;
 	int i;
@@ -133,9 +133,8 @@ static void Update_ODM_ComInfo_88E(struct adapter *Adapter)
 
 void rtl8188e_InitHalDm(struct adapter *Adapter)
 {
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
-	struct dm_priv	*pdmpriv = &hal_data->dmpriv;
-	struct odm_dm_struct *dm_odm = &(hal_data->odmpriv);
+	struct dm_priv	*pdmpriv = &Adapter->HalData->dmpriv;
+	struct odm_dm_struct *dm_odm = &(Adapter->HalData->odmpriv);
 
 	dm_InitGPIOSetting(Adapter);
 	pdmpriv->DM_Type = DM_Type_ByDriver;
@@ -147,7 +146,6 @@ void rtl8188e_InitHalDm(struct adapter *Adapter)
 void rtw_hal_dm_watchdog(struct adapter *Adapter)
 {
 	u8 hw_init_completed = false;
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
 	struct mlme_priv *pmlmepriv = NULL;
 	u8 bLinked = false;
 
@@ -169,8 +167,8 @@ void rtw_hal_dm_watchdog(struct adapter *Adapter)
 			bLinked = true;
 	}
 
-	hal_data->odmpriv.bLinked = bLinked;
-	ODM_DMWatchdog(&hal_data->odmpriv);
+	Adapter->HalData->odmpriv.bLinked = bLinked;
+	ODM_DMWatchdog(&Adapter->HalData->odmpriv);
 skip_dm:
 	/*  Check GPIO to determine current RF on/off and Pbc status. */
 	/*  Check Hardware Radio ON/OFF or not */
@@ -179,9 +177,8 @@ skip_dm:
 
 void rtw_hal_dm_init(struct adapter *Adapter)
 {
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
-	struct dm_priv	*pdmpriv = &hal_data->dmpriv;
-	struct odm_dm_struct *podmpriv = &hal_data->odmpriv;
+	struct dm_priv	*pdmpriv = &Adapter->HalData->dmpriv;
+	struct odm_dm_struct *podmpriv = &Adapter->HalData->odmpriv;
 
 	memset(pdmpriv, 0, sizeof(struct dm_priv));
 	Init_ODM_ComInfo_88E(Adapter);
@@ -192,9 +189,7 @@ void rtw_hal_dm_init(struct adapter *Adapter)
 /*  Compare RSSI for deciding antenna */
 void rtw_hal_antdiv_rssi_compared(struct adapter *Adapter, struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src)
 {
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
-
-	if (0 != hal_data->AntDivCfg) {
+	if (0 != Adapter->HalData->AntDivCfg) {
 		/* select optimum_antenna for before linked =>For antenna diversity */
 		if (dst->Rssi >=  src->Rssi) {/* keep org parameter */
 			src->Rssi = dst->Rssi;
@@ -206,13 +201,12 @@ void rtw_hal_antdiv_rssi_compared(struct adapter *Adapter, struct wlan_bssid_ex 
 /*  Add new function to reset the state of antenna diversity before link. */
 u8 rtw_hal_antdiv_before_linked(struct adapter *Adapter)
 {
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
-	struct odm_dm_struct *dm_odm = &hal_data->odmpriv;
+	struct odm_dm_struct *dm_odm = &Adapter->HalData->odmpriv;
 	struct sw_ant_switch *dm_swat_tbl = &dm_odm->DM_SWAT_Table;
 	struct mlme_priv *pmlmepriv = &(Adapter->mlmepriv);
 
 	/*  Condition that does not need to use antenna diversity. */
-	if (hal_data->AntDivCfg == 0)
+	if (Adapter->HalData->AntDivCfg == 0)
 		return false;
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED))

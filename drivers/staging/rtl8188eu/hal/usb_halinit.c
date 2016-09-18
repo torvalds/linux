@@ -27,7 +27,7 @@
 
 static void _ConfigNormalChipOutEP_8188E(struct adapter *adapt, u8 NumOutPipe)
 {
-	struct hal_data_8188e	*haldata	= GET_HAL_DATA(adapt);
+	struct hal_data_8188e *haldata = adapt->HalData;
 
 	switch (NumOutPipe) {
 	case	3:
@@ -50,13 +50,12 @@ static void _ConfigNormalChipOutEP_8188E(struct adapter *adapt, u8 NumOutPipe)
 
 static bool HalUsbSetQueuePipeMapping8188EUsb(struct adapter *adapt, u8 NumInPipe, u8 NumOutPipe)
 {
-	struct hal_data_8188e	*haldata	= GET_HAL_DATA(adapt);
 	bool			result		= false;
 
 	_ConfigNormalChipOutEP_8188E(adapt, NumOutPipe);
 
 	/*  Normal chip with one IN and one OUT doesn't have interrupt IN EP. */
-	if (haldata->OutEpNumber == 1) {
+	if (adapt->HalData->OutEpNumber == 1) {
 		if (NumInPipe != 1)
 			return result;
 	}
@@ -70,7 +69,7 @@ static bool HalUsbSetQueuePipeMapping8188EUsb(struct adapter *adapt, u8 NumInPip
 
 void rtw_hal_chip_configure(struct adapter *adapt)
 {
-	struct hal_data_8188e	*haldata	= GET_HAL_DATA(adapt);
+	struct hal_data_8188e *haldata = adapt->HalData;
 	struct dvobj_priv	*pdvobjpriv = adapter_to_dvobj(adapt);
 
 	if (pdvobjpriv->ishighspeed)
@@ -97,8 +96,7 @@ u32 rtw_hal_power_on(struct adapter *adapt)
 {
 	u16 value16;
 	/*  HW Power on sequence */
-	struct hal_data_8188e	*haldata	= GET_HAL_DATA(adapt);
-	if (haldata->bMacPwrCtrlOn)
+	if (adapt->HalData->bMacPwrCtrlOn)
 		return _SUCCESS;
 
 	if (!rtl88eu_pwrseqcmdparsing(adapt, PWR_CUT_ALL_MSK,
@@ -118,7 +116,7 @@ u32 rtw_hal_power_on(struct adapter *adapt)
 	/*  for SDIO - Set CR bit10 to enable 32k calibration. Suggested by SD1 Gimmy. Added by tynli. 2011.08.31. */
 
 	usb_write16(adapt, REG_CR, value16);
-	haldata->bMacPwrCtrlOn = true;
+	adapt->HalData->bMacPwrCtrlOn = true;
 
 	return _SUCCESS;
 }
@@ -128,18 +126,17 @@ static void _InitInterrupt(struct adapter *Adapter)
 {
 	u32 imr, imr_ex;
 	u8  usb_opt;
-	struct hal_data_8188e	*haldata = GET_HAL_DATA(Adapter);
 
 	/* HISR write one to clear */
 	usb_write32(Adapter, REG_HISR_88E, 0xFFFFFFFF);
 	/*  HIMR - */
 	imr = IMR_PSTIMEOUT_88E | IMR_TBDER_88E | IMR_CPWM_88E | IMR_CPWM2_88E;
 	usb_write32(Adapter, REG_HIMR_88E, imr);
-	haldata->IntrMask[0] = imr;
+	Adapter->HalData->IntrMask[0] = imr;
 
 	imr_ex = IMR_TXERR_88E | IMR_RXERR_88E | IMR_TXFOVW_88E | IMR_RXFOVW_88E;
 	usb_write32(Adapter, REG_HIMRE_88E, imr_ex);
-	haldata->IntrMask[1] = imr_ex;
+	Adapter->HalData->IntrMask[1] = imr_ex;
 
 	/*  REG_USB_SPECIAL_OPTION - BIT(4) */
 	/*  0; Use interrupt endpoint to upload interrupt pkt */
@@ -156,7 +153,6 @@ static void _InitInterrupt(struct adapter *Adapter)
 
 static void _InitQueueReservedPage(struct adapter *Adapter)
 {
-	struct hal_data_8188e		*haldata = GET_HAL_DATA(Adapter);
 	struct registry_priv	*pregistrypriv = &Adapter->registrypriv;
 	u32 numHQ	= 0;
 	u32 numLQ	= 0;
@@ -167,14 +163,14 @@ static void _InitQueueReservedPage(struct adapter *Adapter)
 	bool bWiFiConfig = pregistrypriv->wifi_spec;
 
 	if (bWiFiConfig) {
-		if (haldata->OutEpQueueSel & TX_SELE_HQ)
+		if (Adapter->HalData->OutEpQueueSel & TX_SELE_HQ)
 			numHQ =  0x29;
 
-		if (haldata->OutEpQueueSel & TX_SELE_LQ)
+		if (Adapter->HalData->OutEpQueueSel & TX_SELE_LQ)
 			numLQ = 0x1C;
 
 		/*  NOTE: This step shall be proceed before writing REG_RQPN. */
-		if (haldata->OutEpQueueSel & TX_SELE_NQ)
+		if (Adapter->HalData->OutEpQueueSel & TX_SELE_NQ)
 			numNQ = 0x1C;
 		value8 = (u8)_NPQ(numNQ);
 		usb_write8(Adapter, REG_RQPN_NPQ, value8);
@@ -224,10 +220,9 @@ static void _InitNormalChipRegPriority(struct adapter *Adapter, u16 beQ,
 
 static void _InitNormalChipOneOutEpPriority(struct adapter *Adapter)
 {
-	struct hal_data_8188e	*haldata	= GET_HAL_DATA(Adapter);
-
 	u16 value = 0;
-	switch (haldata->OutEpQueueSel) {
+
+	switch (Adapter->HalData->OutEpQueueSel) {
 	case TX_SELE_HQ:
 		value = QUEUE_HIGH;
 		break;
@@ -246,13 +241,12 @@ static void _InitNormalChipOneOutEpPriority(struct adapter *Adapter)
 
 static void _InitNormalChipTwoOutEpPriority(struct adapter *Adapter)
 {
-	struct hal_data_8188e	*haldata	= GET_HAL_DATA(Adapter);
 	struct registry_priv *pregistrypriv = &Adapter->registrypriv;
 	u16 beQ, bkQ, viQ, voQ, mgtQ, hiQ;
 	u16 valueHi = 0;
 	u16 valueLow = 0;
 
-	switch (haldata->OutEpQueueSel) {
+	switch (Adapter->HalData->OutEpQueueSel) {
 	case (TX_SELE_HQ | TX_SELE_LQ):
 		valueHi = QUEUE_HIGH;
 		valueLow = QUEUE_LOW;
@@ -312,9 +306,7 @@ static void _InitNormalChipThreeOutEpPriority(struct adapter *Adapter)
 
 static void _InitQueuePriority(struct adapter *Adapter)
 {
-	struct hal_data_8188e	*haldata = GET_HAL_DATA(Adapter);
-
-	switch (haldata->OutEpNumber) {
+	switch (Adapter->HalData->OutEpNumber) {
 	case 1:
 		_InitNormalChipOneOutEpPriority(Adapter);
 		break;
@@ -356,7 +348,7 @@ static void _InitDriverInfoSize(struct adapter *Adapter, u8 drvInfoSize)
 
 static void _InitWMACSetting(struct adapter *Adapter)
 {
-	struct hal_data_8188e	*haldata = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *haldata = Adapter->HalData;
 
 	haldata->ReceiveConfig = RCR_AAP | RCR_APM | RCR_AM | RCR_AB |
 				  RCR_CBSSID_DATA | RCR_CBSSID_BCN |
@@ -455,7 +447,7 @@ static void _InitRetryFunction(struct adapter *Adapter)
  */
 static void usb_AggSettingTxUpdate(struct adapter *Adapter)
 {
-	struct hal_data_8188e	*haldata = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *haldata = Adapter->HalData;
 	u32 value32;
 
 	if (Adapter->registrypriv.wifi_spec)
@@ -491,7 +483,7 @@ usb_AggSettingRxUpdate(
 		struct adapter *Adapter
 	)
 {
-	struct hal_data_8188e	*haldata = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *haldata = Adapter->HalData;
 	u8 valueDMA;
 	u8 valueUSB;
 
@@ -565,8 +557,6 @@ usb_AggSettingRxUpdate(
 
 static void InitUsbAggregationSetting(struct adapter *Adapter)
 {
-	struct hal_data_8188e	*haldata = GET_HAL_DATA(Adapter);
-
 	/*  Tx aggregation setting */
 	usb_AggSettingTxUpdate(Adapter);
 
@@ -574,12 +564,12 @@ static void InitUsbAggregationSetting(struct adapter *Adapter)
 	usb_AggSettingRxUpdate(Adapter);
 
 	/*  201/12/10 MH Add for USB agg mode dynamic switch. */
-	haldata->UsbRxHighSpeedMode = false;
+	Adapter->HalData->UsbRxHighSpeedMode = false;
 }
 
 static void _InitBeaconParameters(struct adapter *Adapter)
 {
-	struct hal_data_8188e	*haldata = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *haldata = Adapter->HalData;
 
 	usb_write16(Adapter, REG_BCN_CTRL, 0x1010);
 
@@ -621,7 +611,7 @@ enum {
 
 static void _InitAntenna_Selection(struct adapter *Adapter)
 {
-	struct hal_data_8188e	*haldata	= GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *haldata = Adapter->HalData;
 
 	if (haldata->AntDivCfg == 0)
 		return;
@@ -677,7 +667,7 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	u16  value16;
 	u8 txpktbuf_bndy;
 	u32 status = _SUCCESS;
-	struct hal_data_8188e		*haldata = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *haldata = Adapter->HalData;
 	struct pwrctrl_priv		*pwrctrlpriv = &Adapter->pwrctrlpriv;
 	struct registry_priv	*pregistrypriv = &Adapter->registrypriv;
 	unsigned long init_start_time = jiffies;
@@ -904,7 +894,6 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_END);
 static void CardDisableRTL8188EU(struct adapter *Adapter)
 {
 	u8 val8;
-	struct hal_data_8188e	*haldata	= GET_HAL_DATA(Adapter);
 
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("CardDisableRTL8188EU\n"));
 
@@ -957,7 +946,7 @@ static void CardDisableRTL8188EU(struct adapter *Adapter)
 	val8 = usb_read8(Adapter, REG_GPIO_IO_SEL+1);
 	usb_write8(Adapter, REG_GPIO_IO_SEL+1, val8|0x0F);/* Reg0x43 */
 	usb_write32(Adapter, REG_BB_PAD_CTRL, 0x00080808);/* set LNA ,TRSW,EX_PA Pin to output mode */
-	haldata->bMacPwrCtrlOn = false;
+	Adapter->HalData->bMacPwrCtrlOn = false;
 	Adapter->bFWReady = false;
 }
 
@@ -1035,7 +1024,7 @@ exit:
 /*  */
 static void Hal_EfuseParsePIDVID_8188EU(struct adapter *adapt, u8 *hwinfo, bool AutoLoadFail)
 {
-	struct hal_data_8188e	*haldata = GET_HAL_DATA(adapt);
+	struct hal_data_8188e *haldata = adapt->HalData;
 
 	if (!AutoLoadFail) {
 		/*  VID, PID */
@@ -1120,9 +1109,7 @@ static void _ReadPROMContent(
 
 static void _ReadRFType(struct adapter *Adapter)
 {
-	struct hal_data_8188e	*haldata = GET_HAL_DATA(Adapter);
-
-	haldata->rf_chip = RF_6052;
+	Adapter->HalData->rf_chip = RF_6052;
 }
 
 void rtw_hal_read_chip_info(struct adapter *Adapter)
@@ -1145,7 +1132,7 @@ static void rtl8192cu_trigger_gpio_0(struct adapter *adapt)
 
 static void ResumeTxBeacon(struct adapter *adapt)
 {
-	struct hal_data_8188e *haldata = GET_HAL_DATA(adapt);
+	struct hal_data_8188e *haldata = adapt->HalData;
 
 	/*  2010.03.01. Marked by tynli. No need to call workitem beacause we record the value */
 	/*  which should be read from register to a global variable. */
@@ -1159,7 +1146,7 @@ static void ResumeTxBeacon(struct adapter *adapt)
 
 static void StopTxBeacon(struct adapter *adapt)
 {
-	struct hal_data_8188e *haldata = GET_HAL_DATA(adapt);
+	struct hal_data_8188e *haldata = adapt->HalData;
 
 	/*  2010.03.01. Marked by tynli. No need to call workitem beacause we record the value */
 	/*  which should be read from register to a global variable. */
@@ -1266,7 +1253,7 @@ static void hw_var_set_bcn_func(struct adapter *Adapter, u8 variable, u8 *val)
 
 void rtw_hal_set_hwreg(struct adapter *Adapter, u8 variable, u8 *val)
 {
-	struct hal_data_8188e	*haldata = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *haldata = Adapter->HalData;
 	struct dm_priv	*pdmpriv = &haldata->dmpriv;
 	struct odm_dm_struct *podmpriv = &haldata->odmpriv;
 
@@ -1765,11 +1752,9 @@ void rtw_hal_set_hwreg(struct adapter *Adapter, u8 variable, u8 *val)
 
 void rtw_hal_get_hwreg(struct adapter *Adapter, u8 variable, u8 *val)
 {
-	struct hal_data_8188e	*haldata = GET_HAL_DATA(Adapter);
-
 	switch (variable) {
 	case HW_VAR_BASIC_RATE:
-		*((u16 *)(val)) = haldata->BasicRateSet;
+		*((u16 *)(val)) = Adapter->HalData->BasicRateSet;
 	case HW_VAR_TXPAUSE:
 		val[0] = usb_read8(Adapter, REG_TXPAUSE);
 		break;
@@ -1778,7 +1763,7 @@ void rtw_hal_get_hwreg(struct adapter *Adapter, u8 variable, u8 *val)
 		val[0] = (BIT(0) & usb_read8(Adapter, REG_TDECTRL+2)) ? true : false;
 		break;
 	case HW_VAR_RF_TYPE:
-		val[0] = haldata->rf_type;
+		val[0] = Adapter->HalData->rf_type;
 		break;
 	case HW_VAR_FWLPS_RF_ON:
 		{
@@ -1799,13 +1784,13 @@ void rtw_hal_get_hwreg(struct adapter *Adapter, u8 variable, u8 *val)
 		}
 		break;
 	case HW_VAR_CURRENT_ANTENNA:
-		val[0] = haldata->CurAntenna;
+		val[0] = Adapter->HalData->CurAntenna;
 		break;
 	case HW_VAR_EFUSE_BYTES: /*  To get EFUE total used bytes, added by Roger, 2008.12.22. */
-		*((u16 *)(val)) = haldata->EfuseUsedBytes;
+		*((u16 *)(val)) = Adapter->HalData->EfuseUsedBytes;
 		break;
 	case HW_VAR_APFM_ON_MAC:
-		*val = haldata->bMacPwrCtrlOn;
+		*val = Adapter->HalData->bMacPwrCtrlOn;
 		break;
 	case HW_VAR_CHK_HI_QUEUE_EMPTY:
 		*val = ((usb_read32(Adapter, REG_HGQ_INFORMATION)&0x0000ff00) == 0) ? true : false;
@@ -1825,7 +1810,7 @@ u8 rtw_hal_get_def_var(
 		void *pValue
 	)
 {
-	struct hal_data_8188e	*haldata = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *haldata = Adapter->HalData;
 	u8 bResult = _SUCCESS;
 
 	switch (eVariable) {
@@ -1921,7 +1906,7 @@ void UpdateHalRAMask8188EUsb(struct adapter *adapt, u32 mac_id, u8 rssi_level)
 	u8 shortGIrate = false;
 	int	supportRateNum = 0;
 	struct sta_info	*psta;
-	struct hal_data_8188e	*haldata = GET_HAL_DATA(adapt);
+	struct odm_dm_struct *odmpriv = &adapt->HalData->odmpriv;
 	struct mlme_ext_priv	*pmlmeext = &adapt->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex	*cur_network = &pmlmeinfo->network;
@@ -1960,7 +1945,7 @@ void UpdateHalRAMask8188EUsb(struct adapter *adapt, u32 mac_id, u8 rssi_level)
 		break;
 	}
 
-	rate_bitmap = ODM_Get_Rate_Bitmap(&haldata->odmpriv, mac_id, mask, rssi_level);
+	rate_bitmap = ODM_Get_Rate_Bitmap(odmpriv, mac_id, mask, rssi_level);
 	DBG_88E("%s => mac_id:%d, networkType:0x%02x, mask:0x%08x\n\t ==> rssi_level:%d, rate_bitmap:0x%08x\n",
 		__func__, mac_id, networkType, mask, rssi_level, rate_bitmap);
 
@@ -1968,8 +1953,7 @@ void UpdateHalRAMask8188EUsb(struct adapter *adapt, u32 mac_id, u8 rssi_level)
 
 	init_rate = get_highest_rate_idx(mask)&0x3f;
 
-	ODM_RA_UpdateRateInfo_8188E(&haldata->odmpriv, mac_id,
-				    raid, mask, shortGIrate);
+	ODM_RA_UpdateRateInfo_8188E(odmpriv, mac_id, raid, mask, shortGIrate);
 
 	/* set ra_id */
 	psta->raid = raid;
@@ -2012,11 +1996,10 @@ void rtw_hal_bcn_related_reg_setting(struct adapter *adapt)
 
 void rtw_hal_def_value_init(struct adapter *adapt)
 {
-	struct hal_data_8188e *haldata;
+	struct hal_data_8188e *haldata = adapt->HalData;
 	struct pwrctrl_priv *pwrctrlpriv;
 	u8 i;
 
-	haldata = GET_HAL_DATA(adapt);
 	pwrctrlpriv = &adapt->pwrctrlpriv;
 
 	/* init default value */

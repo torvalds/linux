@@ -65,8 +65,7 @@ static u32 rf_serial_read(struct adapter *adapt,
 			enum rf_radio_path rfpath, u32 offset)
 {
 	u32 ret = 0;
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
-	struct bb_reg_def *phyreg = &hal_data->PHYRegDef[rfpath];
+	struct bb_reg_def *phyreg = &adapt->HalData->PHYRegDef[rfpath];
 	u32 tmplong, tmplong2;
 	u8 rfpi_enable = 0;
 
@@ -110,8 +109,7 @@ static void rf_serial_write(struct adapter *adapt,
 			    u32 data)
 {
 	u32 data_and_addr = 0;
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
-	struct bb_reg_def *phyreg = &hal_data->PHYRegDef[rfpath];
+	struct bb_reg_def *phyreg = &adapt->HalData->PHYRegDef[rfpath];
 
 	offset &= 0xff;
 	data_and_addr = ((offset<<20) | (data&0x000fffff)) & 0x0fffffff;
@@ -147,7 +145,7 @@ void phy_set_rf_reg(struct adapter *adapt, enum rf_radio_path rf_path,
 static void get_tx_power_index(struct adapter *adapt, u8 channel, u8 *cck_pwr,
 			       u8 *ofdm_pwr, u8 *bw20_pwr, u8 *bw40_pwr)
 {
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
+	struct hal_data_8188e *hal_data = adapt->HalData;
 	u8 index = (channel - 1);
 	u8 TxCount = 0, path_nums;
 
@@ -183,7 +181,7 @@ static void phy_power_index_check(struct adapter *adapt, u8 channel,
 				  u8 *cck_pwr, u8 *ofdm_pwr, u8 *bw20_pwr,
 				  u8 *bw40_pwr)
 {
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
+	struct hal_data_8188e *hal_data = adapt->HalData;
 
 	hal_data->CurrentCckTxPwrIdx = cck_pwr[0];
 	hal_data->CurrentOfdm24GTxPwrIdx = ofdm_pwr[0];
@@ -211,7 +209,7 @@ void phy_set_tx_power_level(struct adapter *adapt, u8 channel)
 
 static void phy_set_bw_mode_callback(struct adapter *adapt)
 {
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
+	struct hal_data_8188e *hal_data = adapt->HalData;
 	u8 reg_bw_opmode;
 	u8 reg_prsr_rsc;
 
@@ -277,7 +275,7 @@ static void phy_set_bw_mode_callback(struct adapter *adapt)
 void rtw_hal_set_bwmode(struct adapter *adapt, enum ht_channel_width bandwidth,
 		     unsigned char offset)
 {
-	struct hal_data_8188e	*hal_data = GET_HAL_DATA(adapt);
+	struct hal_data_8188e *hal_data = adapt->HalData;
 	enum ht_channel_width tmp_bw = hal_data->CurrentChannelBW;
 
 	hal_data->CurrentChannelBW = bandwidth;
@@ -293,7 +291,7 @@ static void phy_sw_chnl_callback(struct adapter *adapt, u8 channel)
 {
 	u8 rf_path;
 	u32 param1, param2;
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
+	struct hal_data_8188e *hal_data = adapt->HalData;
 
 	phy_set_tx_power_level(adapt, channel);
 
@@ -309,7 +307,7 @@ static void phy_sw_chnl_callback(struct adapter *adapt, u8 channel)
 
 void rtw_hal_set_chan(struct adapter *adapt, u8 channel)
 {
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
+	struct hal_data_8188e *hal_data = adapt->HalData;
 	u8 tmpchannel = hal_data->CurrentChannel;
 
 	if (hal_data->rf_chip == RF_PSEUDO_11N)
@@ -404,7 +402,7 @@ static void dm_txpwr_track_setpwr(struct odm_dm_struct *dm_odm)
 
 void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 {
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
+	struct hal_data_8188e *hal_data = adapt->HalData;
 	u8 thermal_val = 0, delta, delta_lck, delta_iqk, offset;
 	u8 thermal_avg_count = 0;
 	u32 thermal_avg = 0;
@@ -629,8 +627,7 @@ static u8 phy_path_a_rx_iqk(struct adapter *adapt, bool configPathB)
 {
 	u32 reg_eac, reg_e94, reg_e9c, reg_ea4, u4tmp;
 	u8 result = 0x00;
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &hal_data->odmpriv;
+	struct odm_dm_struct *dm_odm = &adapt->HalData->odmpriv;
 
 	/* 1 Get TXIMR setting */
 	/* modify RXIQK mode table */
@@ -734,8 +731,7 @@ static u8 phy_path_b_iqk(struct adapter *adapt)
 {
 	u32 regeac, regeb4, regebc, regec4, regecc;
 	u8 result = 0x00;
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &hal_data->odmpriv;
+	struct odm_dm_struct *dm_odm = &adapt->HalData->odmpriv;
 
 	/* One shot, path B LOK & IQK */
 	phy_set_bb_reg(adapt, rIQK_AGC_Cont, bMaskDWord, 0x00000002);
@@ -951,8 +947,7 @@ static bool simularity_compare(struct adapter *adapt, s32 resulta[][8],
 			       u8 c1, u8 c2)
 {
 	u32 i, j, diff, sim_bitmap = 0, bound;
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &hal_data->odmpriv;
+	struct odm_dm_struct *dm_odm = &adapt->HalData->odmpriv;
 	u8 final_candidate[2] = {0xFF, 0xFF};	/* for path A and path B */
 	bool result = true;
 	s32 tmp1 = 0, tmp2 = 0;
@@ -1030,8 +1025,7 @@ static bool simularity_compare(struct adapter *adapt, s32 resulta[][8],
 static void phy_iq_calibrate(struct adapter *adapt, s32 result[][8],
 			     u8 t, bool is2t)
 {
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &hal_data->odmpriv;
+	struct odm_dm_struct *dm_odm = &adapt->HalData->odmpriv;
 	u32 i;
 	u8 path_a_ok, path_b_ok;
 	u32 adda_reg[IQK_ADDA_REG_NUM] = {
@@ -1276,8 +1270,7 @@ static void phy_lc_calibrate(struct adapter *adapt, bool is2t)
 
 void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 {
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &hal_data->odmpriv;
+	struct odm_dm_struct *dm_odm = &adapt->HalData->odmpriv;
 	s32 result[4][8];
 	u8 i, final, chn_index;
 	bool pathaok, pathbok;
@@ -1388,7 +1381,7 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 				       (reg_ec4 == 0));
 	}
 
-	chn_index = get_right_chnl_for_iqk(hal_data->CurrentChannel);
+	chn_index = get_right_chnl_for_iqk(adapt->HalData->CurrentChannel);
 
 	if (final < 4) {
 		for (i = 0; i < IQK_Matrix_REG_NUM; i++)
@@ -1404,8 +1397,7 @@ void rtl88eu_phy_lc_calibrate(struct adapter *adapt)
 {
 	bool singletone = false, carrier_sup = false;
 	u32 timeout = 2000, timecount = 0;
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &hal_data->odmpriv;
+	struct odm_dm_struct *dm_odm = &adapt->HalData->odmpriv;
 
 	if (!(dm_odm->SupportAbility & ODM_RF_CALIBRATION))
 		return;
