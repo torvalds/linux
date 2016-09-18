@@ -1604,9 +1604,9 @@ EXPORT_SYMBOL(lustre_swab_obd_ioobj);
 
 void lustre_swab_niobuf_remote(struct niobuf_remote *nbr)
 {
-	__swab64s(&nbr->offset);
-	__swab32s(&nbr->len);
-	__swab32s(&nbr->flags);
+	__swab64s(&nbr->rnb_offset);
+	__swab32s(&nbr->rnb_len);
+	__swab32s(&nbr->rnb_flags);
 }
 EXPORT_SYMBOL(lustre_swab_niobuf_remote);
 
@@ -2061,7 +2061,7 @@ EXPORT_SYMBOL(dump_ioo);
 void dump_rniobuf(struct niobuf_remote *nb)
 {
 	CDEBUG(D_RPCTRACE, "niobuf_remote: offset=%llu, len=%d, flags=%x\n",
-	       nb->offset, nb->len, nb->flags);
+	       nb->rnb_offset, nb->rnb_len, nb->rnb_flags);
 }
 EXPORT_SYMBOL(dump_rniobuf);
 

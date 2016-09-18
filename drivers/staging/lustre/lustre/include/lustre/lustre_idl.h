@@ -1803,9 +1803,9 @@ void lustre_swab_obd_ioobj(struct obd_ioobj *ioo);
 
 /* multiple of 8 bytes => can array */
 struct niobuf_remote {
-	__u64 offset;
-	__u32 len;
-	__u32 flags;
+	__u64	rnb_offset;
+	__u32	rnb_len;
+	__u32	rnb_flags;
 };
 
 void lustre_swab_niobuf_remote(struct niobuf_remote *nbr);

@@ -1652,18 +1652,18 @@ void lustre_assert_wire_constants(void)
 	/* Checks for struct niobuf_remote */
 	LASSERTF((int)sizeof(struct niobuf_remote) == 16, "found %lld\n",
 		 (long long)(int)sizeof(struct niobuf_remote));
-	LASSERTF((int)offsetof(struct niobuf_remote, offset) == 0, "found %lld\n",
-		 (long long)(int)offsetof(struct niobuf_remote, offset));
-	LASSERTF((int)sizeof(((struct niobuf_remote *)0)->offset) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct niobuf_remote *)0)->offset));
-	LASSERTF((int)offsetof(struct niobuf_remote, len) == 8, "found %lld\n",
-		 (long long)(int)offsetof(struct niobuf_remote, len));
-	LASSERTF((int)sizeof(((struct niobuf_remote *)0)->len) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct niobuf_remote *)0)->len));
-	LASSERTF((int)offsetof(struct niobuf_remote, flags) == 12, "found %lld\n",
-		 (long long)(int)offsetof(struct niobuf_remote, flags));
-	LASSERTF((int)sizeof(((struct niobuf_remote *)0)->flags) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct niobuf_remote *)0)->flags));
+	LASSERTF((int)offsetof(struct niobuf_remote, rnb_offset) == 0, "found %lld\n",
+		 (long long)(int)offsetof(struct niobuf_remote, rnb_offset));
+	LASSERTF((int)sizeof(((struct niobuf_remote *)0)->rnb_offset) == 8, "found %lld\n",
+		 (long long)(int)sizeof(((struct niobuf_remote *)0)->rnb_offset));
+	LASSERTF((int)offsetof(struct niobuf_remote, rnb_len) == 8, "found %lld\n",
+		 (long long)(int)offsetof(struct niobuf_remote, rnb_len));
+	LASSERTF((int)sizeof(((struct niobuf_remote *)0)->rnb_len) == 4, "found %lld\n",
+		 (long long)(int)sizeof(((struct niobuf_remote *)0)->rnb_len));
+	LASSERTF((int)offsetof(struct niobuf_remote, rnb_flags) == 12, "found %lld\n",
+		 (long long)(int)offsetof(struct niobuf_remote, rnb_flags));
+	LASSERTF((int)sizeof(((struct niobuf_remote *)0)->rnb_flags) == 4, "found %lld\n",
+		 (long long)(int)sizeof(((struct niobuf_remote *)0)->rnb_flags));
 	LASSERTF(OBD_BRW_READ == 0x01, "found 0x%.8x\n",
 		 OBD_BRW_READ);
 	LASSERTF(OBD_BRW_WRITE == 0x02, "found 0x%.8x\n",

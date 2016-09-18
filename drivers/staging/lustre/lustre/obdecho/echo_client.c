@@ -1437,9 +1437,9 @@ static int echo_client_prep_commit(const struct lu_env *env,
 			npages = tot_pages;
 
 		for (i = 0; i < npages; i++, off += PAGE_SIZE) {
-			rnb[i].offset = off;
-			rnb[i].len = PAGE_SIZE;
-			rnb[i].flags = brw_flags;
+			rnb[i].rnb_offset = off;
+			rnb[i].rnb_len = PAGE_SIZE;
+			rnb[i].rnb_flags = brw_flags;
 		}
 
 		ioo.ioo_bufcnt = npages;
@@ -1469,13 +1469,13 @@ static int echo_client_prep_commit(const struct lu_env *env,
 			if (rw == OBD_BRW_WRITE)
 				echo_client_page_debug_setup(page, rw,
 							    ostid_id(&oa->o_oi),
-							     rnb[i].offset,
-							     rnb[i].len);
+							     rnb[i].rnb_offset,
+							     rnb[i].rnb_len);
 			else
 				echo_client_page_debug_check(page,
 							    ostid_id(&oa->o_oi),
-							     rnb[i].offset,
-							     rnb[i].len);
+							     rnb[i].rnb_offset,
+							     rnb[i].rnb_len);
 		}
 
 		ret = obd_commitrw(env, rw, exp, oa, 1, &ioo,
