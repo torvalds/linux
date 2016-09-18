@@ -608,7 +608,7 @@ struct osc_extent {
 	/** link list of osc_object's oo_{hp|urgent|locking}_exts. */
 	struct list_head	 oe_link;
 	/** state of this extent */
-	unsigned int       oe_state;
+	enum osc_extent_state	oe_state;
 	/** flags for this extent. */
 	unsigned int       oe_intree:1,
 	/** 0 is write, 1 is read */

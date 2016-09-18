@@ -237,7 +237,7 @@ struct client_obd {
 	 * the extent size. A chunk is max(PAGE_SIZE, OST block size)
 	 */
 	int		  cl_chunkbits;
-	int		  cl_extent_tax; /* extent overhead, by bytes */
+	unsigned int	  cl_extent_tax; /* extent overhead, by bytes */
 
 	/* keep track of objects that have lois that contain pages which
 	 * have been queued for async brw.  this lock also protects the

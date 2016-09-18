@@ -109,11 +109,11 @@ static int osc_io_submit(const struct lu_env *env,
 
 	struct cl_page_list *qin = &queue->c2_qin;
 	struct cl_page_list *qout = &queue->c2_qout;
-	int queued = 0;
+	unsigned int queued = 0;
 	int result = 0;
 	int cmd;
 	int brw_flags;
-	int max_pages;
+	unsigned int max_pages;
 
 	LASSERT(qin->pl_nr > 0);
 

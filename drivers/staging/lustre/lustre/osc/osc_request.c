@@ -1110,7 +1110,7 @@ static u32 osc_checksum_bulk(int nob, u32 pg_count,
 	}
 
 	while (nob > 0 && pg_count > 0) {
-		int count = pga[i]->count > nob ? nob : pga[i]->count;
+		unsigned int count = pga[i]->count > nob ? nob : pga[i]->count;
 
 		/* corrupt the data before we compute the checksum, to
 		 * simulate an OST->client data error
@@ -1120,7 +1120,7 @@ static u32 osc_checksum_bulk(int nob, u32 pg_count,
 			unsigned char *ptr = kmap(pga[i]->pg);
 			int off = pga[i]->off & ~PAGE_MASK;
 
-			memcpy(ptr + off, "bad1", min(4, nob));
+			memcpy(ptr + off, "bad1", min_t(typeof(nob), 4, nob));
 			kunmap(pga[i]->pg);
 		}
 		cfs_crypto_hash_update_page(hdesc, pga[i]->pg,
