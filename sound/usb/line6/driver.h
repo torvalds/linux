@@ -147,15 +147,18 @@ struct usb_line6 {
 	/* URB for listening to POD data endpoint */
 	struct urb *urb_listen;
 
-	/* Buffer for listening to POD data endpoint */
+	/* Buffer for incoming data from POD data endpoint */
 	unsigned char *buffer_listen;
 
-	/* Buffer for message to be processed */
+	/* Buffer for message to be processed, generated from MIDI layer */
 	unsigned char *buffer_message;
 
-	/* Length of message to be processed */
+	/* Length of message to be processed, generated from MIDI layer  */
 	int message_length;
 
+	/* If MIDI is supported, buffer_message contains the pre-processed data;
+	 * otherwise the data is only in urb_listen (buffer_incoming).
+	 */
 	void (*process_message)(struct usb_line6 *);
 	void (*disconnect)(struct usb_line6 *line6);
 };

@@ -290,26 +290,31 @@ static void line6_data_received(struct urb *urb)
 	if (urb->status == -ESHUTDOWN)
 		return;
 
-	done =
-	    line6_midibuf_write(mb, urb->transfer_buffer, urb->actual_length);
-
-	if (done < urb->actual_length) {
-		line6_midibuf_ignore(mb, done);
-		dev_dbg(line6->ifcdev, "%d %d buffer overflow - message skipped\n",
-			done, urb->actual_length);
-	}
-
-	for (;;) {
+	if (line6->properties->capabilities & LINE6_CAP_CONTROL_MIDI) {
 		done =
-		    line6_midibuf_read(mb, line6->buffer_message,
-				       LINE6_MESSAGE_MAXLEN);
+			line6_midibuf_write(mb, urb->transfer_buffer, urb->actual_length);
 
-		if (done == 0)
-			break;
+		if (done < urb->actual_length) {
+			line6_midibuf_ignore(mb, done);
+			dev_dbg(line6->ifcdev, "%d %d buffer overflow - message skipped\n",
+				done, urb->actual_length);
+		}
 
-		line6->message_length = done;
-		line6_midi_receive(line6, line6->buffer_message, done);
+		for (;;) {
+			done =
+				line6_midibuf_read(mb, line6->buffer_message,
+						LINE6_MESSAGE_MAXLEN);
 
+			if (done == 0)
+				break;
+
+			line6->message_length = done;
+			line6_midi_receive(line6, line6->buffer_message, done);
+
+			if (line6->process_message)
+				line6->process_message(line6);
+		}
+	} else {
 		if (line6->process_message)
 			line6->process_message(line6);
 	}
@@ -469,7 +474,9 @@ static void line6_destruct(struct snd_card *card)
 	struct usb_device *usbdev = line6->usbdev;
 
 	/* free buffer memory first: */
-	kfree(line6->buffer_message);
+	if (line6->properties->capabilities & LINE6_CAP_CONTROL_MIDI)
+		kfree(line6->buffer_message);
+
 	kfree(line6->buffer_listen);
 
 	/* then free URBs: */
@@ -515,7 +522,7 @@ static void line6_get_interval(struct usb_line6 *line6)
 	}
 }
 
-static int line6_init_cap_control_midi(struct usb_line6 *line6)
+static int line6_init_cap_control(struct usb_line6 *line6)
 {
 	int ret;
 
@@ -524,13 +531,15 @@ static int line6_init_cap_control_midi(struct usb_line6 *line6)
 	if (!line6->buffer_listen)
 		return -ENOMEM;
 
-	line6->buffer_message = kmalloc(LINE6_MESSAGE_MAXLEN, GFP_KERNEL);
-	if (!line6->buffer_message)
-		return -ENOMEM;
-
 	line6->urb_listen = usb_alloc_urb(0, GFP_KERNEL);
 	if (!line6->urb_listen)
 		return -ENOMEM;
+
+	if (line6->properties->capabilities & LINE6_CAP_CONTROL_MIDI) {
+		line6->buffer_message = kmalloc(LINE6_MESSAGE_MAXLEN, GFP_KERNEL);
+		if (!line6->buffer_message)
+			return -ENOMEM;
+	}
 
 	ret = line6_start_listen(line6);
 	if (ret < 0) {
@@ -605,8 +614,8 @@ int line6_probe(struct usb_interface *interface,
 
 	line6_get_interval(line6);
 
-	if (properties->capabilities & LINE6_CAP_CONTROL_MIDI) {
-		ret = line6_init_cap_control_midi(line6);
+	if (properties->capabilities & LINE6_CAP_CONTROL) {
+		ret = line6_init_cap_control(line6);
 		if (ret < 0)
 			goto error;
 	}
@@ -676,7 +685,7 @@ int line6_suspend(struct usb_interface *interface, pm_message_t message)
 
 	snd_power_change_state(line6->card, SNDRV_CTL_POWER_D3hot);
 
-	if (line6->properties->capabilities & LINE6_CAP_CONTROL_MIDI)
+	if (line6->properties->capabilities & LINE6_CAP_CONTROL)
 		line6_stop_listen(line6);
 
 	if (line6pcm != NULL) {
@@ -695,7 +704,7 @@ int line6_resume(struct usb_interface *interface)
 {
 	struct usb_line6 *line6 = usb_get_intfdata(interface);
 
-	if (line6->properties->capabilities & LINE6_CAP_CONTROL_MIDI)
+	if (line6->properties->capabilities & LINE6_CAP_CONTROL)
 		line6_start_listen(line6);
 
 	snd_power_change_state(line6->card, SNDRV_CTL_POWER_D0);
