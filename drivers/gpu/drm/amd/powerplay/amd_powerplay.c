@@ -191,11 +191,9 @@ static int pp_sw_reset(void *handle)
 }
 
 
-static int pp_set_clockgating_state(void *handle,
-				    enum amd_clockgating_state state)
+int amd_set_clockgating_by_smu(void *handle, uint32_t msg_id)
 {
 	struct pp_hwmgr  *hwmgr;
-	uint32_t msg_id, pp_state;
 
 	if (handle == NULL)
 		return -EINVAL;
@@ -209,76 +207,7 @@ static int pp_set_clockgating_state(void *handle,
 		return 0;
 	}
 
-	if (state == AMD_CG_STATE_UNGATE)
-		pp_state = 0;
-	else
-		pp_state = PP_STATE_CG | PP_STATE_LS;
-
-	/* Enable/disable GFX blocks clock gating through SMU */
-	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
-			PP_BLOCK_GFX_CG,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
-			pp_state);
-	hwmgr->hwmgr_func->update_clock_gatings(hwmgr, &msg_id);
-	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
-			PP_BLOCK_GFX_3D,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
-			pp_state);
-	hwmgr->hwmgr_func->update_clock_gatings(hwmgr, &msg_id);
-	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
-			PP_BLOCK_GFX_RLC,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
-			pp_state);
-	hwmgr->hwmgr_func->update_clock_gatings(hwmgr, &msg_id);
-	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
-			PP_BLOCK_GFX_CP,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
-			pp_state);
-	hwmgr->hwmgr_func->update_clock_gatings(hwmgr, &msg_id);
-	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
-			PP_BLOCK_GFX_MG,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
-			pp_state);
-	hwmgr->hwmgr_func->update_clock_gatings(hwmgr, &msg_id);
-
-	/* Enable/disable System blocks clock gating through SMU */
-	msg_id = PP_CG_MSG_ID(PP_GROUP_SYS,
-			PP_BLOCK_SYS_BIF,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
-			pp_state);
-	hwmgr->hwmgr_func->update_clock_gatings(hwmgr, &msg_id);
-	msg_id = PP_CG_MSG_ID(PP_GROUP_SYS,
-			PP_BLOCK_SYS_BIF,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
-			pp_state);
-	hwmgr->hwmgr_func->update_clock_gatings(hwmgr, &msg_id);
-	msg_id = PP_CG_MSG_ID(PP_GROUP_SYS,
-			PP_BLOCK_SYS_MC,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
-			pp_state);
-	hwmgr->hwmgr_func->update_clock_gatings(hwmgr, &msg_id);
-	msg_id = PP_CG_MSG_ID(PP_GROUP_SYS,
-			PP_BLOCK_SYS_ROM,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
-			pp_state);
-	hwmgr->hwmgr_func->update_clock_gatings(hwmgr, &msg_id);
-	msg_id = PP_CG_MSG_ID(PP_GROUP_SYS,
-			PP_BLOCK_SYS_DRM,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
-			pp_state);
-	hwmgr->hwmgr_func->update_clock_gatings(hwmgr, &msg_id);
-	msg_id = PP_CG_MSG_ID(PP_GROUP_SYS,
-			PP_BLOCK_SYS_HDP,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
-			pp_state);
-	hwmgr->hwmgr_func->update_clock_gatings(hwmgr, &msg_id);
-	msg_id = PP_CG_MSG_ID(PP_GROUP_SYS,
-			PP_BLOCK_SYS_SDMA,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
-			pp_state);
-	hwmgr->hwmgr_func->update_clock_gatings(hwmgr, &msg_id);
-
-	return 0;
+	return hwmgr->hwmgr_func->update_clock_gatings(hwmgr, &msg_id);
 }
 
 static int pp_set_powergating_state(void *handle,
@@ -362,7 +291,7 @@ const struct amd_ip_funcs pp_ip_funcs = {
 	.is_idle = pp_is_idle,
 	.wait_for_idle = pp_wait_for_idle,
 	.soft_reset = pp_sw_reset,
-	.set_clockgating_state = pp_set_clockgating_state,
+	.set_clockgating_state = NULL,
 	.set_powergating_state = pp_set_powergating_state,
 };
 
