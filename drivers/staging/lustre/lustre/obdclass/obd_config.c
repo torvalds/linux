@@ -738,7 +738,7 @@ static int process_param2_config(struct lustre_cfg *lcfg)
 	}
 
 	start = ktime_get();
-	rc = call_usermodehelper(argv[0], argv, NULL, 1);
+	rc = call_usermodehelper(argv[0], argv, NULL, UMH_WAIT_PROC);
 	end = ktime_get();
 
 	if (rc < 0) {
