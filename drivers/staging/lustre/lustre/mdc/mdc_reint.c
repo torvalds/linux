@@ -113,8 +113,7 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 	if (op_data->op_attr.ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID))
 		bits |= MDS_INODELOCK_LOOKUP;
 	if ((op_data->op_flags & MF_MDC_CANCEL_FID1) &&
-	    (fid_is_sane(&op_data->op_fid1)) &&
-	    !OBD_FAIL_CHECK(OBD_FAIL_LDLM_BL_CALLBACK_NET))
+	    (fid_is_sane(&op_data->op_fid1)))
 		count = mdc_resource_get_unused(exp, &op_data->op_fid1,
 						&cancels, LCK_EX, bits);
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
@@ -305,14 +304,12 @@ int mdc_unlink(struct obd_export *exp, struct md_op_data *op_data,
 	LASSERT(!req);
 
 	if ((op_data->op_flags & MF_MDC_CANCEL_FID1) &&
-	    (fid_is_sane(&op_data->op_fid1)) &&
-	    !OBD_FAIL_CHECK(OBD_FAIL_LDLM_BL_CALLBACK_NET))
+	    (fid_is_sane(&op_data->op_fid1)))
 		count = mdc_resource_get_unused(exp, &op_data->op_fid1,
 						&cancels, LCK_EX,
 						MDS_INODELOCK_UPDATE);
 	if ((op_data->op_flags & MF_MDC_CANCEL_FID3) &&
-	    (fid_is_sane(&op_data->op_fid3)) &&
-	    !OBD_FAIL_CHECK(OBD_FAIL_LDLM_BL_CALLBACK_NET))
+	    (fid_is_sane(&op_data->op_fid3)))
 		count += mdc_resource_get_unused(exp, &op_data->op_fid3,
 						 &cancels, LCK_EX,
 						 MDS_INODELOCK_FULL);
