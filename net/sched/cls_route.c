@@ -559,7 +559,8 @@ static int route4_change(struct net *net, struct sk_buff *in_skb,
 	return 0;
 
 errout:
-	tcf_exts_destroy(&f->exts);
+	if (f)
+		tcf_exts_destroy(&f->exts);
 	kfree(f);
 	return err;
 }
