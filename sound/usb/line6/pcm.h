@@ -156,11 +156,12 @@ struct snd_line6_pcm {
 	/* Previously captured frame (for software monitoring) */
 	unsigned char *prev_fbuf;
 
-	/* Size of previously captured frame (for software monitoring) */
+	/* Size of previously captured frame (for software monitoring/sync) */
 	int prev_fsize;
 
 	/* Maximum size of USB packet */
-	int max_packet_size;
+	int max_packet_size_in;
+	int max_packet_size_out;
 
 	/* PCM playback volume (left and right) */
 	int volume_playback[2];

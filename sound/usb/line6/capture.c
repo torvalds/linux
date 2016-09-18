@@ -44,13 +44,13 @@ static int submit_audio_in_urb(struct snd_line6_pcm *line6pcm)
 		struct usb_iso_packet_descriptor *fin =
 		    &urb_in->iso_frame_desc[i];
 		fin->offset = urb_size;
-		fin->length = line6pcm->max_packet_size;
-		urb_size += line6pcm->max_packet_size;
+		fin->length = line6pcm->max_packet_size_in;
+		urb_size += line6pcm->max_packet_size_in;
 	}
 
 	urb_in->transfer_buffer =
 	    line6pcm->in.buffer +
-	    index * LINE6_ISO_PACKETS * line6pcm->max_packet_size;
+	    index * LINE6_ISO_PACKETS * line6pcm->max_packet_size_in;
 	urb_in->transfer_buffer_length = urb_size;
 	urb_in->context = line6pcm;
 
@@ -173,10 +173,10 @@ static void audio_in_callback(struct urb *urb)
 		fbuf = urb->transfer_buffer + fin->offset;
 		fsize = fin->actual_length;
 
-		if (fsize > line6pcm->max_packet_size) {
+		if (fsize > line6pcm->max_packet_size_in) {
 			dev_err(line6pcm->line6->ifcdev,
 				"driver and/or device bug: packet too large (%d > %d)\n",
-				fsize, line6pcm->max_packet_size);
+				fsize, line6pcm->max_packet_size_in);
 		}
 
 		length += fsize;
