@@ -1725,6 +1725,11 @@ int class_procfs_clean(void);
 /* prng.c */
 #define ll_generate_random_uuid(uuid_out) cfs_get_random_bytes(uuid_out, sizeof(class_uuid_t))
 
+/* statfs_pack.c */
+struct kstatfs;
+void statfs_pack(struct obd_statfs *osfs, struct kstatfs *sfs);
+void statfs_unpack(struct kstatfs *sfs, struct obd_statfs *osfs);
+
 /* root squash info */
 struct rw_semaphore;
 struct root_squash_info {

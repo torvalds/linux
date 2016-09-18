@@ -51,7 +51,6 @@
 #include "lustre_cfg.h"
 
 /* target.c */
-struct kstatfs;
 struct ptlrpc_request;
 struct obd_export;
 struct lu_target;
@@ -74,42 +73,7 @@ int do_set_info_async(struct obd_import *imp,
 		      u32 vallen, void *val,
 		      struct ptlrpc_request_set *set);
 
-#define OBD_RECOVERY_MAX_TIME (obd_timeout * 18) /* b13079 */
-
 void target_send_reply(struct ptlrpc_request *req, int rc, int fail_id);
-
-/* client.c */
-
-int client_sanobd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg);
-struct client_obd *client_conn2cli(struct lustre_handle *conn);
-
-struct md_open_data;
-struct obd_client_handle {
-	struct lustre_handle	 och_fh;
-	struct lu_fid		 och_fid;
-	struct md_open_data	*och_mod;
-	struct lustre_handle	 och_lease_handle; /* open lock for lease */
-	__u32			 och_magic;
-	fmode_t			 och_flags;
-};
-
-#define OBD_CLIENT_HANDLE_MAGIC 0xd15ea5ed
-
-/* statfs_pack.c */
-void statfs_unpack(struct kstatfs *sfs, struct obd_statfs *osfs);
-
-/* Until such time as we get_info the per-stripe maximum from the OST,
- * we define this to be 2T - 4k, which is the ext3 maxbytes.
- */
-#define LUSTRE_STRIPE_MAXBYTES 0x1fffffff000ULL
-
-/* Special values for remove LOV EA from disk */
-#define LOVEA_DELETE_VALUES(size, count, offset) (size == 0 && count == 0 && \
-						 offset == (typeof(offset))(-1))
-
-#define LMVEA_DELETE_VALUES(count, offset) ((count) == 0 && \
-					    (offset) == (typeof(offset))(-1))
-/* #define POISON_BULK 0 */
 
 /*
  * l_wait_event is a flexible sleeping function, permitting simple caller

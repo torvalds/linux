@@ -41,6 +41,7 @@
 #include "lustre_export.h"
 #include "lustre_fid.h"
 #include "lustre_fld.h"
+#include "lustre_handles.h"
 #include "lustre_intent.h"
 
 #define MAX_OBD_DEVICES 8192
@@ -71,6 +72,11 @@ static inline void loi_kms_set(struct lov_oinfo *oinfo, __u64 kms)
 static inline void loi_init(struct lov_oinfo *loi)
 {
 }
+
+/* Until such time as we get_info the per-stripe maximum from the OST,
+ * we define this to be 2T - 4k, which is the ext3 maxbytes.
+ */
+#define LUSTRE_STRIPE_MAXBYTES 0x1fffffff000ULL
 
 struct lov_stripe_md {
 	atomic_t     lsm_refc;
@@ -948,6 +954,17 @@ struct md_open_data {
 	atomic_t		  mod_refcount;
 	bool			  mod_is_create;
 };
+
+struct obd_client_handle {
+	struct lustre_handle	 och_fh;
+	struct lu_fid		 och_fid;
+	struct md_open_data	*och_mod;
+	struct lustre_handle	 och_lease_handle; /* open lock for lease */
+	__u32			 och_magic;
+	int			 och_flags;
+};
+
+#define OBD_CLIENT_HANDLE_MAGIC 0xd15ea5ed
 
 struct lookup_intent;
 struct cl_attr;
