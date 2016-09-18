@@ -791,7 +791,7 @@ static void bcm_enet_adjust_phy_link(struct net_device *dev)
 	int status_changed;
 
 	priv = netdev_priv(dev);
-	phydev = priv->phydev;
+	phydev = dev->phydev;
 	status_changed = 0;
 
 	if (priv->old_link != phydev->link) {
@@ -913,7 +913,6 @@ static int bcm_enet_open(struct net_device *dev)
 		priv->old_link = 0;
 		priv->old_duplex = -1;
 		priv->old_pause = -1;
-		priv->phydev = phydev;
 	}
 
 	/* mask all interrupts and request them */
@@ -1085,7 +1084,7 @@ static int bcm_enet_open(struct net_device *dev)
 			 ENETDMAC_IRMASK, priv->tx_chan);
 
 	if (priv->has_phy)
-		phy_start(priv->phydev);
+		phy_start(phydev);
 	else
 		bcm_enet_adjust_link(dev);
 
@@ -1127,7 +1126,7 @@ out_freeirq:
 	free_irq(dev->irq, dev);
 
 out_phy_disconnect:
-	phy_disconnect(priv->phydev);
+	phy_disconnect(phydev);
 
 	return ret;
 }
@@ -1190,7 +1189,7 @@ static int bcm_enet_stop(struct net_device *dev)
 	netif_stop_queue(dev);
 	napi_disable(&priv->napi);
 	if (priv->has_phy)
-		phy_stop(priv->phydev);
+		phy_stop(dev->phydev);
 	del_timer_sync(&priv->rx_timeout);
 
 	/* mask all interrupts */
@@ -1234,10 +1233,8 @@ static int bcm_enet_stop(struct net_device *dev)
 	free_irq(dev->irq, dev);
 
 	/* release phy */
-	if (priv->has_phy) {
-		phy_disconnect(priv->phydev);
-		priv->phydev = NULL;
-	}
+	if (priv->has_phy)
+		phy_disconnect(dev->phydev);
 
 	return 0;
 }
@@ -1437,9 +1434,9 @@ static int bcm_enet_nway_reset(struct net_device *dev)
 
 	priv = netdev_priv(dev);
 	if (priv->has_phy) {
-		if (!priv->phydev)
+		if (!dev->phydev)
 			return -ENODEV;
-		return genphy_restart_aneg(priv->phydev);
+		return genphy_restart_aneg(dev->phydev);
 	}
 
 	return -EOPNOTSUPP;
@@ -1456,9 +1453,9 @@ static int bcm_enet_get_settings(struct net_device *dev,
 	cmd->maxtxpkt = 0;
 
 	if (priv->has_phy) {
-		if (!priv->phydev)
+		if (!dev->phydev)
 			return -ENODEV;
-		return phy_ethtool_gset(priv->phydev, cmd);
+		return phy_ethtool_gset(dev->phydev, cmd);
 	} else {
 		cmd->autoneg = 0;
 		ethtool_cmd_speed_set(cmd, ((priv->force_speed_100)
@@ -1483,9 +1480,9 @@ static int bcm_enet_set_settings(struct net_device *dev,
 
 	priv = netdev_priv(dev);
 	if (priv->has_phy) {
-		if (!priv->phydev)
+		if (!dev->phydev)
 			return -ENODEV;
-		return phy_ethtool_sset(priv->phydev, cmd);
+		return phy_ethtool_sset(dev->phydev, cmd);
 	} else {
 
 		if (cmd->autoneg ||
@@ -1604,9 +1601,9 @@ static int bcm_enet_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	priv = netdev_priv(dev);
 	if (priv->has_phy) {
-		if (!priv->phydev)
+		if (!dev->phydev)
 			return -ENODEV;
-		return phy_mii_ioctl(priv->phydev, rq, cmd);
+		return phy_mii_ioctl(dev->phydev, rq, cmd);
 	} else {
 		struct mii_if_info mii;
 
