@@ -73,10 +73,12 @@ static inline void loi_init(struct lov_oinfo *loi)
 {
 }
 
-/* Until such time as we get_info the per-stripe maximum from the OST,
- * we define this to be 2T - 4k, which is the ext3 maxbytes.
+/*
+ * If we are unable to get the maximum object size from the OST in
+ * ocd_maxbytes using OBD_CONNECT_MAXBYTES, then we fall back to using
+ * the old maximum object size from ext3.
  */
-#define LUSTRE_STRIPE_MAXBYTES 0x1fffffff000ULL
+#define LUSTRE_EXT3_STRIPE_MAXBYTES 0x1fffffff000ULL
 
 struct lov_stripe_md {
 	atomic_t     lsm_refc;

@@ -190,7 +190,7 @@ static int osc_unpackmd(struct obd_export *exp, struct lov_stripe_md **lsmp,
 	    (imp->imp_connect_data.ocd_connect_flags & OBD_CONNECT_MAXBYTES))
 		(*lsmp)->lsm_maxbytes = imp->imp_connect_data.ocd_maxbytes;
 	else
-		(*lsmp)->lsm_maxbytes = LUSTRE_STRIPE_MAXBYTES;
+		(*lsmp)->lsm_maxbytes = LUSTRE_EXT3_STRIPE_MAXBYTES;
 
 	return lsm_size;
 }

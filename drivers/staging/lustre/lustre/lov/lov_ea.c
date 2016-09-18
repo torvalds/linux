@@ -154,14 +154,14 @@ static int lsm_destroy_plain(struct lov_stripe_md *lsm, struct obdo *oa,
 }
 
 /* Find minimum stripe maxbytes value.  For inactive or
- * reconnecting targets use LUSTRE_STRIPE_MAXBYTES.
+ * reconnecting targets use LUSTRE_EXT3_STRIPE_MAXBYTES.
  */
 static void lov_tgt_maxbytes(struct lov_tgt_desc *tgt, __u64 *stripe_maxbytes)
 {
 	struct obd_import *imp = tgt->ltd_obd->u.cli.cl_import;
 
 	if (!imp || !tgt->ltd_active) {
-		*stripe_maxbytes = LUSTRE_STRIPE_MAXBYTES;
+		*stripe_maxbytes = LUSTRE_EXT3_STRIPE_MAXBYTES;
 		return;
 	}
 
@@ -172,7 +172,7 @@ static void lov_tgt_maxbytes(struct lov_tgt_desc *tgt, __u64 *stripe_maxbytes)
 		if (*stripe_maxbytes > imp->imp_connect_data.ocd_maxbytes)
 			*stripe_maxbytes = imp->imp_connect_data.ocd_maxbytes;
 	} else {
-		*stripe_maxbytes = LUSTRE_STRIPE_MAXBYTES;
+		*stripe_maxbytes = LUSTRE_EXT3_STRIPE_MAXBYTES;
 	}
 	spin_unlock(&imp->imp_lock);
 }

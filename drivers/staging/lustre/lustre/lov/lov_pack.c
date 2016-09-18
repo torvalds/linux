@@ -284,7 +284,7 @@ int lov_alloc_memmd(struct lov_stripe_md **lsmp, __u16 stripe_count,
 	spin_lock_init(&(*lsmp)->lsm_lock);
 	(*lsmp)->lsm_magic = magic;
 	(*lsmp)->lsm_stripe_count = stripe_count;
-	(*lsmp)->lsm_maxbytes = LUSTRE_STRIPE_MAXBYTES * stripe_count;
+	(*lsmp)->lsm_maxbytes = LUSTRE_EXT3_STRIPE_MAXBYTES * stripe_count;
 	(*lsmp)->lsm_pattern = pattern;
 	(*lsmp)->lsm_pool_name[0] = '\0';
 	(*lsmp)->lsm_layout_gen = 0;
