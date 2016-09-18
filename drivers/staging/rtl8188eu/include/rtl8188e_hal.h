@@ -353,7 +353,6 @@ struct hal_data_8188e {
 
 #define GET_HAL_DATA(__pAdapter)				\
 	((struct hal_data_8188e *)((__pAdapter)->HalData))
-#define GET_RF_TYPE(priv)		(GET_HAL_DATA(priv)->rf_type)
 
 /*  rtl8188e_hal_init.c */
 void _8051Reset88E(struct adapter *padapter);
