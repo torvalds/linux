@@ -113,7 +113,6 @@ struct pkt_attrib {
 	u8	dhcp_pkt;
 	u16	ether_type;
 	u16	seqnum;
-	u16	pkt_hdrlen;	/* the original 802.3 pkt header len */
 	u16	hdrlen;		/* the WLAN Header Len */
 	u32	pktlen;		/* the original 802.3 pkt raw_data len (not include
 				 * ether_hdr data) */
