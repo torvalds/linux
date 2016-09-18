@@ -1987,6 +1987,7 @@ void lustre_swab_generic_32s(__u32 *val);
 #define DISP_OPEN_LOCK       0x02000000
 #define DISP_OPEN_LEASE      0x04000000
 #define DISP_OPEN_STRIPE     0x08000000
+#define DISP_OPEN_DENY		0x10000000
 
 /* INODE LOCK PARTS */
 #define MDS_INODELOCK_LOOKUP 0x000001	/* For namespace, dentry etc, and also

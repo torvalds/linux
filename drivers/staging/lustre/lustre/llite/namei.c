@@ -505,8 +505,8 @@ static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,
 	struct lookup_intent lookup_it = { .it_op = IT_LOOKUP };
 	struct dentry *save = dentry, *retval;
 	struct ptlrpc_request *req = NULL;
+	struct md_op_data *op_data = NULL;
 	struct inode *inode;
-	struct md_op_data *op_data;
 	__u32 opc;
 	int rc;
 
@@ -549,7 +549,36 @@ static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,
 
 	rc = md_intent_lock(ll_i2mdexp(parent), op_data, it, &req,
 			    &ll_md_blocking_ast, 0);
-	ll_finish_md_op_data(op_data);
+	/*
+	 * If the MDS allows the client to chgrp (CFS_SETGRP_PERM), but the
+	 * client does not know which suppgid should be sent to the MDS, or
+	 * some other(s) changed the target file's GID after this RPC sent
+	 * to the MDS with the suppgid as the original GID, then we should
+	 * try again with right suppgid.
+	 */
+	if (rc == -EACCES && it->it_op & IT_OPEN &&
+	    it_disposition(it, DISP_OPEN_DENY)) {
+		struct mdt_body *body;
+
+		LASSERT(req);
+
+		body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
+		if (op_data->op_suppgids[0] == body->mbo_gid ||
+		    op_data->op_suppgids[1] == body->mbo_gid ||
+		    !in_group_p(make_kgid(&init_user_ns, body->mbo_gid))) {
+			retval = ERR_PTR(-EACCES);
+			goto out;
+		}
+
+		fid_zero(&op_data->op_fid2);
+		op_data->op_suppgids[1] = body->mbo_gid;
+		ptlrpc_req_finished(req);
+		req = NULL;
+		ll_intent_release(it);
+		rc = md_intent_lock(ll_i2mdexp(parent), op_data, it, &req,
+				    ll_md_blocking_ast, 0);
+	}
+
 	if (rc < 0) {
 		retval = ERR_PTR(rc);
 		goto out;
@@ -575,6 +604,9 @@ static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,
 	else
 		retval = dentry;
 out:
+	if (op_data && !IS_ERR(op_data))
+		ll_finish_md_op_data(op_data);
+
 	ptlrpc_req_finished(req);
 	return retval;
 }
