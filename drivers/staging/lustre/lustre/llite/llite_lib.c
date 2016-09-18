@@ -1909,20 +1909,13 @@ void ll_delete_inode(struct inode *inode)
 		 * osc_extent implementation at LU-1030.
 		 */
 		cl_sync_file_range(inode, 0, OBD_OBJECT_EOF,
-				   CL_FSYNC_DISCARD, 1);
+				   CL_FSYNC_LOCAL, 1);
 
 	truncate_inode_pages_final(&inode->i_data);
 
-	/* Workaround for LU-118 */
-	if (inode->i_data.nrpages) {
-		spin_lock_irq(&inode->i_data.tree_lock);
-		spin_unlock_irq(&inode->i_data.tree_lock);
-		LASSERTF(inode->i_data.nrpages == 0,
-			 "inode="DFID"(%p) nrpages=%lu, see http://jira.whamcloud.com/browse/LU-118\n",
-			 PFID(ll_inode2fid(inode)), inode,
-			 inode->i_data.nrpages);
-	}
-	/* Workaround end */
+	LASSERTF(!inode->i_data.nrpages,
+		 "inode=" DFID "(%p) nrpages=%lu, see http://jira.whamcloud.com/browse/LU-118\n",
+		 PFID(ll_inode2fid(inode)), inode, inode->i_data.nrpages);
 
 	ll_clear_inode(inode);
 	clear_inode(inode);
