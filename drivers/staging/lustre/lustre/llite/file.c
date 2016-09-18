@@ -1301,7 +1301,10 @@ int ll_lov_setstripe_ea_info(struct inode *inode, struct dentry *dentry,
 			     int lum_size)
 {
 	struct lov_stripe_md *lsm = NULL;
-	struct lookup_intent oit = {.it_op = IT_OPEN, .it_flags = flags};
+	struct lookup_intent oit = {
+		.it_op = IT_OPEN,
+		.it_flags = flags | MDS_OPEN_BY_FID,
+	};
 	int rc = 0;
 
 	lsm = ccc_inode_lsm_get(inode);
@@ -1314,13 +1317,12 @@ int ll_lov_setstripe_ea_info(struct inode *inode, struct dentry *dentry,
 	}
 
 	ll_inode_size_lock(inode);
-	oit.it_flags |= MDS_OPEN_BY_FID;
 	rc = ll_intent_file_open(dentry, lum, lum_size, &oit);
-	if (rc)
+	if (rc < 0)
 		goto out_unlock;
 	rc = oit.it_status;
 	if (rc < 0)
-		goto out_req_free;
+		goto out_unlock;
 
 	ll_release_openhandle(inode, &oit);
 
@@ -1330,9 +1332,6 @@ out_unlock:
 	ccc_inode_lsm_put(inode, lsm);
 out:
 	return rc;
-out_req_free:
-	ptlrpc_req_finished((struct ptlrpc_request *)oit.it_request);
-	goto out;
 }
 
 int ll_lov_getstripe_ea_info(struct inode *inode, const char *filename,
