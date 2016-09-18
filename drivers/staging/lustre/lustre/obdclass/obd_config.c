@@ -414,16 +414,11 @@ static int class_cleanup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	}
 	/* Leave this on forever */
 	obd->obd_stopping = 1;
-
-	/* wait for already-arrived-connections to finish. */
-	while (obd->obd_conn_inprogress > 0) {
-		spin_unlock(&obd->obd_dev_lock);
-
-		cond_resched();
-
-		spin_lock(&obd->obd_dev_lock);
-	}
 	spin_unlock(&obd->obd_dev_lock);
+
+	while (obd->obd_conn_inprogress > 0)
+		yield();
+	smp_rmb();
 
 	if (lcfg->lcfg_bufcount >= 2 && LUSTRE_CFG_BUFLEN(lcfg, 1) > 0) {
 		for (flag = lustre_cfg_string(lcfg, 1); *flag != 0; flag++)
