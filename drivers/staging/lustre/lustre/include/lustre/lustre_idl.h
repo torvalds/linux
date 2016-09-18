@@ -1013,12 +1013,12 @@ static inline struct lu_dirent *lu_dirent_next(struct lu_dirent *ent)
 	return next;
 }
 
-static inline int lu_dirent_calc_size(int namelen, __u16 attr)
+static inline size_t lu_dirent_calc_size(size_t namelen, __u16 attr)
 {
-	int size;
+	size_t size;
 
 	if (attr & LUDA_TYPE) {
-		const unsigned align = sizeof(struct luda_type) - 1;
+		const size_t align = sizeof(struct luda_type) - 1;
 
 		size = (sizeof(struct lu_dirent) + namelen + align) & ~align;
 		size += sizeof(struct luda_type);
@@ -1027,15 +1027,6 @@ static inline int lu_dirent_calc_size(int namelen, __u16 attr)
 	}
 
 	return (size + 7) & ~7;
-}
-
-static inline int lu_dirent_size(const struct lu_dirent *ent)
-{
-	if (le16_to_cpu(ent->lde_reclen) == 0) {
-		return lu_dirent_calc_size(le16_to_cpu(ent->lde_namelen),
-					   le32_to_cpu(ent->lde_attrs));
-	}
-	return le16_to_cpu(ent->lde_reclen);
 }
 
 #define MDS_DIR_END_OFF 0xfffffffffffffffeULL
