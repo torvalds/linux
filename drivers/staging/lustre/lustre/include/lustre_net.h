@@ -261,7 +261,10 @@
 
 #define MDS_MAXREQSIZE		(5 * 1024)	/* >= 4736 */
 
-#define OST_MAXREQSIZE		(5 * 1024)
+/**
+ * FIEMAP request can be 4K+ for now
+ */
+#define OST_MAXREQSIZE		(16 * 1024)
 
 /* Macro to hide a typecast. */
 #define ptlrpc_req_async_args(req) ((void *)&req->rq_async_args)
