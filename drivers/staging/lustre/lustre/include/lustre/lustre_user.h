@@ -202,8 +202,8 @@ struct ost_id {
 #define LL_IOC_LOV_SETSTRIPE	    _IOW('f', 154, long)
 #define LL_IOC_LOV_GETSTRIPE	    _IOW('f', 155, long)
 #define LL_IOC_LOV_SETEA		_IOW('f', 156, long)
-#define LL_IOC_RECREATE_OBJ	     _IOW('f', 157, long)
-#define LL_IOC_RECREATE_FID	     _IOW('f', 157, struct lu_fid)
+/*	LL_IOC_RECREATE_OBJ		157 obsolete */
+/*	LL_IOC_RECREATE_FID		158 obsolete */
 #define LL_IOC_GROUP_LOCK	       _IOW('f', 158, long)
 #define LL_IOC_GROUP_UNLOCK	     _IOW('f', 159, long)
 /* #define LL_IOC_QUOTACHECK		160 OBD_IOC_QUOTACHECK */

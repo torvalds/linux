@@ -696,11 +696,6 @@ static int osc_create(const struct lu_env *env, struct obd_export *exp,
 	LASSERT(ea);
 	LASSERT(oa->o_valid & OBD_MD_FLGROUP);
 
-	if ((oa->o_valid & OBD_MD_FLFLAGS) &&
-	    oa->o_flags == OBD_FL_RECREATE_OBJS) {
-		return osc_real_create(exp, oa, ea, oti);
-	}
-
 	if (!fid_seq_is_mdt(ostid_seq(&oa->o_oi)))
 		return osc_real_create(exp, oa, ea, oti);
 

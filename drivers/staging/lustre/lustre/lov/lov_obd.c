@@ -972,92 +972,6 @@ out:
 	return rc;
 }
 
-static int lov_recreate(struct obd_export *exp, struct obdo *src_oa,
-			struct lov_stripe_md **ea, struct obd_trans_info *oti)
-{
-	struct lov_stripe_md *obj_mdp, *lsm;
-	struct lov_obd *lov = &exp->exp_obd->u.lov;
-	unsigned ost_idx;
-	int rc, i;
-
-	LASSERT(src_oa->o_valid & OBD_MD_FLFLAGS &&
-		src_oa->o_flags & OBD_FL_RECREATE_OBJS);
-
-	obj_mdp = kzalloc(sizeof(*obj_mdp), GFP_NOFS);
-	if (!obj_mdp)
-		return -ENOMEM;
-
-	ost_idx = src_oa->o_nlink;
-	lsm = *ea;
-	if (!lsm) {
-		rc = -EINVAL;
-		goto out;
-	}
-	if (ost_idx >= lov->desc.ld_tgt_count ||
-	    !lov->lov_tgts[ost_idx]) {
-		rc = -EINVAL;
-		goto out;
-	}
-
-	for (i = 0; i < lsm->lsm_stripe_count; i++) {
-		struct lov_oinfo *loi = lsm->lsm_oinfo[i];
-
-		if (lov_oinfo_is_dummy(loi))
-			continue;
-
-		if (loi->loi_ost_idx == ost_idx) {
-			if (ostid_id(&loi->loi_oi) != ostid_id(&src_oa->o_oi)) {
-				rc = -EINVAL;
-				goto out;
-			}
-			break;
-		}
-	}
-	if (i == lsm->lsm_stripe_count) {
-		rc = -EINVAL;
-		goto out;
-	}
-
-	rc = obd_create(NULL, lov->lov_tgts[ost_idx]->ltd_exp,
-			src_oa, &obj_mdp, oti);
-out:
-	kfree(obj_mdp);
-	return rc;
-}
-
-/* the LOV expects oa->o_id to be set to the LOV object id */
-static int lov_create(const struct lu_env *env, struct obd_export *exp,
-		      struct obdo *src_oa, struct lov_stripe_md **ea,
-		      struct obd_trans_info *oti)
-{
-	struct lov_obd *lov;
-	int rc = 0;
-
-	LASSERT(ea);
-	if (!exp)
-		return -EINVAL;
-
-	if ((src_oa->o_valid & OBD_MD_FLFLAGS) &&
-	    src_oa->o_flags == OBD_FL_DELORPHAN) {
-		/* should be used with LOV anymore */
-		LBUG();
-	}
-
-	lov = &exp->exp_obd->u.lov;
-	if (!lov->desc.ld_active_tgt_count)
-		return -EIO;
-
-	obd_getref(exp->exp_obd);
-	/* Recreate a specific object id at the given OST index */
-	if ((src_oa->o_valid & OBD_MD_FLFLAGS) &&
-	    (src_oa->o_flags & OBD_FL_RECREATE_OBJS)) {
-		rc = lov_recreate(exp, src_oa, ea, oti);
-	}
-
-	obd_putref(exp->exp_obd);
-	return rc;
-}
-
 #define ASSERT_LSM_MAGIC(lsmp)						  \
 do {									    \
 	LASSERT((lsmp));						\
@@ -2281,7 +2195,6 @@ static struct obd_ops lov_obd_ops = {
 	.statfs_async   = lov_statfs_async,
 	.packmd         = lov_packmd,
 	.unpackmd       = lov_unpackmd,
-	.create         = lov_create,
 	.destroy        = lov_destroy,
 	.getattr_async  = lov_getattr_async,
 	.setattr_async  = lov_setattr_async,
