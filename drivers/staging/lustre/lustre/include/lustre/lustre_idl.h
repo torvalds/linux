@@ -3468,6 +3468,14 @@ struct getinfo_fid2path {
 
 void lustre_swab_fid2path(struct getinfo_fid2path *gf);
 
+/** path2parent request/reply structures */
+struct getparent {
+	struct lu_fid	gp_fid;		/**< parent FID */
+	__u32		gp_linkno;	/**< hardlink number */
+	__u32		gp_name_size;	/**< size of the name field */
+	char		gp_name[0];	/**< zero-terminated link name */
+} __packed;
+
 enum {
 	LAYOUT_INTENT_ACCESS    = 0,
 	LAYOUT_INTENT_READ      = 1,

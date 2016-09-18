@@ -36,6 +36,7 @@
 #include "../include/lustre_ver.h"
 #include "../include/lustre_disk.h"	/* for s2sbi */
 #include "../include/lustre_eacl.h"
+#include "../include/lustre_linkea.h"
 
 /* for struct cl_lock_descr and struct cl_io */
 #include "../include/cl_object.h"
@@ -1038,7 +1039,17 @@ static inline __u64 ll_file_maxbytes(struct inode *inode)
 /* llite/xattr.c */
 extern const struct xattr_handler *ll_xattr_handlers[];
 
+#define XATTR_USER_T		1
+#define XATTR_TRUSTED_T		2
+#define XATTR_SECURITY_T	3
+#define XATTR_ACL_ACCESS_T	4
+#define XATTR_ACL_DEFAULT_T	5
+#define XATTR_LUSTRE_T		6
+#define XATTR_OTHER_T		7
+
 ssize_t ll_listxattr(struct dentry *dentry, char *buffer, size_t size);
+int ll_xattr_list(struct inode *inode, const char *name, int type,
+		  void *buffer, size_t size, __u64 valid);
 
 /**
  * Common IO arguments for various VFS I/O interfaces.
@@ -1398,6 +1409,8 @@ void ll_xattr_fini(void);
 
 int ll_page_sync_io(const struct lu_env *env, struct cl_io *io,
 		    struct cl_page *page, enum cl_req_type crt);
+
+int ll_getparent(struct file *file, struct getparent __user *arg);
 
 /* lcommon_cl.c */
 int cl_setattr_ost(struct inode *inode, const struct iattr *attr);

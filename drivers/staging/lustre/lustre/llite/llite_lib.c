@@ -2545,3 +2545,128 @@ void ll_compute_rootsquash_state(struct ll_sb_info *sbi)
 	}
 	up_write(&squash->rsi_sem);
 }
+
+/**
+ * Parse linkea content to extract information about a given hardlink
+ *
+ * \param[in]	ldata		- Initialized linkea data
+ * \param[in]	linkno		- Link identifier
+ * \param[out]	parent_fid	- The entry's parent FID
+ * \param[in]	size		- Entry name destination buffer
+ *
+ * \retval 0 on success
+ * \retval Appropriate negative error code on failure
+ */
+static int ll_linkea_decode(struct linkea_data *ldata, unsigned int linkno,
+			    struct lu_fid *parent_fid, struct lu_name *ln)
+{
+	unsigned int idx;
+	int rc;
+
+	rc = linkea_init(ldata);
+	if (rc < 0)
+		return rc;
+
+	if (linkno >= ldata->ld_leh->leh_reccount)
+		/* beyond last link */
+		return -ENODATA;
+
+	linkea_first_entry(ldata);
+	for (idx = 0; ldata->ld_lee; idx++) {
+		linkea_entry_unpack(ldata->ld_lee, &ldata->ld_reclen, ln,
+				    parent_fid);
+		if (idx == linkno)
+			break;
+
+		linkea_next_entry(ldata);
+	}
+
+	if (idx < linkno)
+		return -ENODATA;
+
+	return 0;
+}
+
+/**
+ * Get parent FID and name of an identified link. Operation is performed for
+ * a given link number, letting the caller iterate over linkno to list one or
+ * all links of an entry.
+ *
+ * \param[in]	  file	- File descriptor against which to perform the operation
+ * \param[in,out] arg	- User-filled structure containing the linkno to operate
+ *			  on and the available size. It is eventually filled with
+ *			  the requested information or left untouched on error
+ *
+ * \retval - 0 on success
+ * \retval - Appropriate negative error code on failure
+ */
+int ll_getparent(struct file *file, struct getparent __user *arg)
+{
+	struct inode *inode = file_inode(file);
+	struct linkea_data *ldata;
+	struct lu_fid parent_fid;
+	struct lu_buf buf = {
+		.lb_buf = NULL,
+		.lb_len = 0
+	};
+	struct lu_name ln;
+	u32 name_size;
+	u32 linkno;
+	int rc;
+
+	if (!capable(CFS_CAP_DAC_READ_SEARCH) &&
+	    !(ll_i2sbi(inode)->ll_flags & LL_SBI_USER_FID2PATH))
+		return -EPERM;
+
+	if (get_user(name_size, &arg->gp_name_size))
+		return -EFAULT;
+
+	if (get_user(linkno, &arg->gp_linkno))
+		return -EFAULT;
+
+	if (name_size > PATH_MAX)
+		return -EINVAL;
+
+	ldata = kzalloc(sizeof(*ldata), GFP_NOFS);
+	if (!ldata)
+		return -ENOMEM;
+
+	rc = linkea_data_new(ldata, &buf);
+	if (rc < 0)
+		goto ldata_free;
+
+	rc = ll_xattr_list(inode, XATTR_NAME_LINK, XATTR_TRUSTED_T, buf.lb_buf,
+			   buf.lb_len, OBD_MD_FLXATTR);
+	if (rc < 0)
+		goto lb_free;
+
+	rc = ll_linkea_decode(ldata, linkno, &parent_fid, &ln);
+	if (rc < 0)
+		goto lb_free;
+
+	if (ln.ln_namelen >= name_size) {
+		rc = -EOVERFLOW;
+		goto lb_free;
+	}
+
+	if (copy_to_user(&arg->gp_fid, &parent_fid, sizeof(arg->gp_fid))) {
+		rc = -EFAULT;
+		goto lb_free;
+	}
+
+	if (copy_to_user(&arg->gp_name, ln.ln_name, ln.ln_namelen)) {
+		rc = -EFAULT;
+		goto lb_free;
+	}
+
+	if (put_user('\0', arg->gp_name + ln.ln_namelen)) {
+		rc = -EFAULT;
+		goto lb_free;
+	}
+
+lb_free:
+	lu_buf_free(&buf);
+ldata_free:
+	kfree(ldata);
+	return rc;
+}

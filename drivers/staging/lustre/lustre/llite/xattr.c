@@ -44,14 +44,6 @@
 
 #include "llite_internal.h"
 
-#define XATTR_USER_T	    (1)
-#define XATTR_TRUSTED_T	 (2)
-#define XATTR_SECURITY_T	(3)
-#define XATTR_ACL_ACCESS_T      (4)
-#define XATTR_ACL_DEFAULT_T     (5)
-#define XATTR_LUSTRE_T	  (6)
-#define XATTR_OTHER_T	   (7)
-
 static
 int get_xattr_type(const char *name)
 {
@@ -219,7 +211,7 @@ static int ll_xattr_set(const struct xattr_handler *handler,
 				   flags);
 }
 
-static int
+int
 ll_xattr_list(struct inode *inode, const char *name, int type, void *buffer,
 	      size_t size, __u64 valid)
 {

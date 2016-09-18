@@ -1562,6 +1562,8 @@ out_quotactl:
 		return rc;
 	case OBD_IOC_FID2PATH:
 		return ll_fid2path(inode, (void __user *)arg);
+	case LL_IOC_GETPARENT:
+		return ll_getparent(file, (void __user *)arg);
 	case LL_IOC_FID2MDTIDX: {
 		struct obd_export *exp = ll_i2mdexp(inode);
 		struct lu_fid fid;

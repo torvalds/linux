@@ -2362,6 +2362,8 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		return 0;
 	}
+	case LL_IOC_GETPARENT:
+		return ll_getparent(file, (struct getparent __user *)arg);
 	case OBD_IOC_FID2PATH:
 		return ll_fid2path(inode, (void __user *)arg);
 	case LL_IOC_DATA_VERSION: {
