@@ -971,14 +971,14 @@ void __hci_req_enable_advertising(struct hci_request *req)
 	hci_req_add(req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(enable), &enable);
 }
 
-static u8 create_default_scan_rsp_data(struct hci_dev *hdev, u8 *ptr)
+static u8 append_local_name(struct hci_dev *hdev, u8 *ptr, u8 ad_len)
 {
-	u8 ad_len = 0;
 	size_t name_len;
+	int max_len;
 
+	max_len = HCI_MAX_AD_LENGTH - ad_len - 2;
 	name_len = strlen(hdev->dev_name);
-	if (name_len > 0) {
-		size_t max_len = HCI_MAX_AD_LENGTH - ad_len - 2;
+	if (name_len > 0 && max_len > 0) {
 
 		if (name_len > max_len) {
 			name_len = max_len;
@@ -997,22 +997,34 @@ static u8 create_default_scan_rsp_data(struct hci_dev *hdev, u8 *ptr)
 	return ad_len;
 }
 
+static u8 create_default_scan_rsp_data(struct hci_dev *hdev, u8 *ptr)
+{
+	return append_local_name(hdev, ptr, 0);
+}
+
 static u8 create_instance_scan_rsp_data(struct hci_dev *hdev, u8 instance,
 					u8 *ptr)
 {
 	struct adv_info *adv_instance;
+	u32 instance_flags;
+	u8 scan_rsp_len = 0;
 
 	adv_instance = hci_find_adv_instance(hdev, instance);
 	if (!adv_instance)
 		return 0;
 
-	/* TODO: Set the appropriate entries based on advertising instance flags
-	 * here once flags other than 0 are supported.
-	 */
+	instance_flags = adv_instance->flags;
+
 	memcpy(ptr, adv_instance->scan_rsp_data,
 	       adv_instance->scan_rsp_len);
 
-	return adv_instance->scan_rsp_len;
+	scan_rsp_len += adv_instance->scan_rsp_len;
+	ptr += adv_instance->scan_rsp_len;
+
+	if (instance_flags & MGMT_ADV_FLAG_LOCAL_NAME)
+		scan_rsp_len = append_local_name(hdev, ptr, scan_rsp_len);
+
+	return scan_rsp_len;
 }
 
 void __hci_req_update_scan_rsp_data(struct hci_request *req, u8 instance)
