@@ -1252,16 +1252,16 @@ lmv_out_free:
 		tmp->lum_stripe_count = 0;
 		tmp->lum_stripe_offset = mdt_index;
 		for (i = 0; i < stripe_count; i++) {
-			struct lu_fid   *fid;
+			struct lu_fid fid;
 
-			fid = &lmm->lmv_md_v1.lmv_stripe_fids[i];
-			mdt_index = ll_get_mdt_idx_by_fid(sbi, fid);
+			fid_le_to_cpu(&fid, &lmm->lmv_md_v1.lmv_stripe_fids[i]);
+			mdt_index = ll_get_mdt_idx_by_fid(sbi, &fid);
 			if (mdt_index < 0) {
 				rc = mdt_index;
 				goto out_tmp;
 			}
 			tmp->lum_objects[i].lum_mds = mdt_index;
-			tmp->lum_objects[i].lum_fid = *fid;
+			tmp->lum_objects[i].lum_fid = fid;
 			tmp->lum_stripe_count++;
 		}
 

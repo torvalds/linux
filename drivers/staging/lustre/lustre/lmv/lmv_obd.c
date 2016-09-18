@@ -2907,7 +2907,7 @@ static int lmv_unpack_md_v1(struct obd_export *exp, struct lmv_stripe_md *lsm,
 	       lsm->lsm_md_hash_type, lsm->lsm_md_layout_version);
 
 	stripe_count = le32_to_cpu(lmm1->lmv_stripe_count);
-	for (i = 0; i < le32_to_cpu(stripe_count); i++) {
+	for (i = 0; i < stripe_count; i++) {
 		fid_le_to_cpu(&lsm->lsm_md_oinfo[i].lmo_fid,
 			      &lmm1->lmv_stripe_fids[i]);
 		rc = lmv_fld_lookup(lmv, &lsm->lsm_md_oinfo[i].lmo_fid,
