@@ -35,8 +35,8 @@ ksocknal_alloc_tx(int type, int size)
 		spin_lock(&ksocknal_data.ksnd_tx_lock);
 
 		if (!list_empty(&ksocknal_data.ksnd_idle_noop_txs)) {
-			tx = list_entry(ksocknal_data.ksnd_idle_noop_txs. \
-					    next, struct ksock_tx, tx_list);
+			tx = list_entry(ksocknal_data.ksnd_idle_noop_txs.next,
+					struct ksock_tx, tx_list);
 			LASSERT(tx->tx_desc_size == size);
 			list_del(&tx->tx_list);
 		}
