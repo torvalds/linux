@@ -338,7 +338,7 @@ int lu_site_purge(const struct lu_env *env, struct lu_site *s, int nr)
 	struct cfs_hash_bd	    bd2;
 	struct list_head	       dispose;
 	int		      did_sth;
-	int		      start;
+	unsigned int start;
 	int		      count;
 	int		      bnr;
 	unsigned int i;

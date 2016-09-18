@@ -602,7 +602,7 @@ struct lu_site {
 	/**
 	 * index of bucket on hash table while purging
 	 */
-	int		       ls_purge_start;
+	unsigned int		ls_purge_start;
 	/**
 	 * Top-level device for this stack.
 	 */
