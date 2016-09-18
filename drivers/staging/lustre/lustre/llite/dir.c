@@ -48,7 +48,6 @@
 #include "../include/obd_class.h"
 #include "../include/lustre/lustre_ioctl.h"
 #include "../include/lustre_lib.h"
-#include "../include/lustre_lite.h"
 #include "../include/lustre_dlm.h"
 #include "../include/lustre_fid.h"
 #include "../include/lustre_kernelcomm.h"
@@ -135,7 +134,7 @@
  *
  */
 struct page *ll_get_dir_page(struct inode *dir, struct md_op_data *op_data,
-			     __u64 offset, struct ll_dir_chain *chain)
+			     __u64 offset)
 {
 	struct md_callback cb_op;
 	struct page *page;
@@ -202,13 +201,10 @@ int ll_dir_read(struct inode *inode, __u64 *ppos, struct md_op_data *op_data,
 	int		   is_api32 = ll_need_32bit_api(sbi);
 	int		   is_hash64 = sbi->ll_flags & LL_SBI_64BIT_HASH;
 	struct page	  *page;
-	struct ll_dir_chain   chain;
 	bool		   done = false;
 	int		   rc = 0;
 
-	ll_dir_chain_init(&chain);
-
-	page = ll_get_dir_page(inode, op_data, pos, &chain);
+	page = ll_get_dir_page(inode, op_data, pos);
 
 	while (rc == 0 && !done) {
 		struct lu_dirpage *dp;
@@ -286,13 +282,11 @@ int ll_dir_read(struct inode *inode, __u64 *ppos, struct md_op_data *op_data,
 					le32_to_cpu(dp->ldp_flags) &
 					LDF_COLLIDE);
 			next = pos;
-			page = ll_get_dir_page(inode, op_data, pos,
-					       &chain);
+			page = ll_get_dir_page(inode, op_data, pos);
 		}
 	}
 
 	ctx->pos = pos;
-	ll_dir_chain_fini(&chain);
 	return rc;
 }
 

@@ -39,7 +39,6 @@
 #define DEBUG_SUBSYSTEM S_LLITE
 
 #include "../include/obd_support.h"
-#include "../include/lustre_lite.h"
 #include "../include/lustre_dlm.h"
 #include "llite_internal.h"
 
@@ -1019,7 +1018,6 @@ static int ll_statahead_thread(void *arg)
 	int		       first  = 0;
 	int		       rc     = 0;
 	struct md_op_data *op_data;
-	struct ll_dir_chain       chain;
 	struct l_wait_info	lwi    = { 0 };
 
 	sai = ll_sai_get(dir);
@@ -1052,13 +1050,12 @@ static int ll_statahead_thread(void *arg)
 	spin_unlock(&lli->lli_sa_lock);
 	wake_up(&thread->t_ctl_waitq);
 
-	ll_dir_chain_init(&chain);
 	while (pos != MDS_DIR_END_OFF && thread_is_running(thread)) {
 		struct lu_dirpage *dp;
 		struct lu_dirent  *ent;
 
 		sai->sai_in_readpage = 1;
-		page = ll_get_dir_page(dir, op_data, pos, &chain);
+		page = ll_get_dir_page(dir, op_data, pos);
 		sai->sai_in_readpage = 0;
 		if (IS_ERR(page)) {
 			rc = PTR_ERR(page);
@@ -1146,7 +1143,6 @@ static int ll_statahead_thread(void *arg)
 			break;
 		}
 	}
-	ll_dir_chain_fini(&chain);
 	ll_finish_md_op_data(op_data);
 
 	if (rc < 0) {
@@ -1280,7 +1276,6 @@ enum {
 
 static int is_first_dirent(struct inode *dir, struct dentry *dentry)
 {
-	struct ll_dir_chain   chain;
 	const struct qstr  *target = &dentry->d_name;
 	struct md_op_data *op_data;
 	struct page	  *page;
@@ -1297,8 +1292,7 @@ static int is_first_dirent(struct inode *dir, struct dentry *dentry)
 	 */
 	op_data->op_max_pages = ll_i2sbi(dir)->ll_md_brw_pages;
 
-	ll_dir_chain_init(&chain);
-	page = ll_get_dir_page(dir, op_data, pos, &chain);
+	page = ll_get_dir_page(dir, op_data, pos);
 
 	while (1) {
 		struct lu_dirpage *dp;
@@ -1387,11 +1381,10 @@ static int is_first_dirent(struct inode *dir, struct dentry *dentry)
 			ll_release_page(dir, page,
 					le32_to_cpu(dp->ldp_flags) &
 					LDF_COLLIDE);
-			page = ll_get_dir_page(dir, op_data, pos, &chain);
+			page = ll_get_dir_page(dir, op_data, pos);
 		}
 	}
 out:
-	ll_dir_chain_fini(&chain);
 	ll_finish_md_op_data(op_data);
 	return rc;
 }

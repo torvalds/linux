@@ -38,7 +38,6 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 #include "../include/lustre_dlm.h"
-#include "../include/lustre_lite.h"
 #include <linux/pagemap.h>
 #include <linux/file.h>
 #include <linux/sched.h>

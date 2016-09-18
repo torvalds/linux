@@ -43,13 +43,11 @@
 
 #include "../include/lustre/lustre_idl.h"
 #include "../include/obd_support.h"
-#include "../include/lustre_lib.h"
 #include "../include/lustre_net.h"
 #include "../include/obd_class.h"
 #include "../include/lustre_lmv.h"
 #include "../include/lprocfs_status.h"
 #include "../include/cl_object.h"
-#include "../include/lustre_lite.h"
 #include "../include/lustre_fid.h"
 #include "../include/lustre/lustre_ioctl.h"
 #include "../include/lustre_kernelcomm.h"

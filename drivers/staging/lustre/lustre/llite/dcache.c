@@ -37,7 +37,6 @@
 #define DEBUG_SUBSYSTEM S_LLITE
 
 #include "../include/obd_support.h"
-#include "../include/lustre_lite.h"
 #include "../include/lustre/lustre_idl.h"
 #include "../include/lustre_dlm.h"
 

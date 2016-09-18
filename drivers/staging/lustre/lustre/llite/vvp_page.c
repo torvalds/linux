@@ -44,8 +44,6 @@
 #include <linux/page-flags.h>
 #include <linux/pagemap.h>
 
-#include "../include/lustre_lite.h"
-
 #include "llite_internal.h"
 #include "vvp_internal.h"
 

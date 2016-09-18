@@ -39,7 +39,6 @@
 #include "../../include/linux/libcfs/libcfs.h"
 
 #include "../include/obd.h"
-#include "../include/lustre_lite.h"
 
 #include "llite_internal.h"
 #include "vvp_internal.h"
