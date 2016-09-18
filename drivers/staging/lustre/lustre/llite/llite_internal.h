@@ -191,9 +191,6 @@ struct ll_inode_info {
 			unsigned int			lli_sa_generation;
 			/* directory stripe information */
 			struct lmv_stripe_md	       *lli_lsm_md;
-			/* striped directory size */
-			loff_t				lli_stripe_dir_size;
-			u64				lli_stripe_dir_nlink;
 		};
 
 		/* for non-directory */

@@ -3240,27 +3240,25 @@ static int lmv_quotacheck(struct obd_device *unused, struct obd_export *exp,
 	return rc;
 }
 
-static int
-lmv_update_lsm_md(struct obd_export *exp, struct lmv_stripe_md *lsm,
-		  struct mdt_body *body, ldlm_blocking_callback cb_blocking)
+static int lmv_merge_attr(struct obd_export *exp,
+			  const struct lmv_stripe_md *lsm,
+			  struct cl_attr *attr,
+			  ldlm_blocking_callback cb_blocking)
 {
-	return lmv_revalidate_slaves(exp, body, lsm, cb_blocking, 0);
-}
+	int rc, i;
 
-static int
-lmv_merge_attr(struct obd_export *exp, const struct lmv_stripe_md *lsm,
-	       struct cl_attr *attr)
-{
-	int i;
+	rc = lmv_revalidate_slaves(exp, lsm, cb_blocking, 0);
+	if (rc < 0)
+		return rc;
 
 	for (i = 0; i < lsm->lsm_md_stripe_count; i++) {
 		struct inode *inode = lsm->lsm_md_oinfo[i].lmo_root;
 
-		CDEBUG(D_INFO, ""DFID" size %llu, nlink %u, atime %lu ctime %lu, mtime %lu.\n",
+		CDEBUG(D_INFO, ""DFID" size %llu, blocks %llu nlink %u, atime %lu ctime %lu, mtime %lu.\n",
 		       PFID(&lsm->lsm_md_oinfo[i].lmo_fid),
-		       i_size_read(inode), inode->i_nlink,
-		       LTIME_S(inode->i_atime), LTIME_S(inode->i_ctime),
-		       LTIME_S(inode->i_mtime));
+		       i_size_read(inode), (unsigned long long)inode->i_blocks,
+		       inode->i_nlink, LTIME_S(inode->i_atime),
+		       LTIME_S(inode->i_ctime), LTIME_S(inode->i_mtime));
 
 		/* for slave stripe, it needs to subtract nlink for . and .. */
 		if (i)
@@ -3269,6 +3267,7 @@ lmv_merge_attr(struct obd_export *exp, const struct lmv_stripe_md *lsm,
 			attr->cat_nlink = inode->i_nlink;
 
 		attr->cat_size += i_size_read(inode);
+		attr->cat_blocks += inode->i_blocks;
 
 		if (attr->cat_atime < LTIME_S(inode->i_atime))
 			attr->cat_atime = LTIME_S(inode->i_atime);
@@ -3326,7 +3325,6 @@ static struct md_ops lmv_md_ops = {
 	.lock_match		= lmv_lock_match,
 	.get_lustre_md		= lmv_get_lustre_md,
 	.free_lustre_md		= lmv_free_lustre_md,
-	.update_lsm_md		= lmv_update_lsm_md,
 	.merge_attr		= lmv_merge_attr,
 	.set_open_replay_data	= lmv_set_open_replay_data,
 	.clear_open_replay_data	= lmv_clear_open_replay_data,

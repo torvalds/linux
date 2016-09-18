@@ -1117,12 +1117,7 @@ static int ll_init_lsm_md(struct inode *inode, struct lustre_md *md)
 		}
 	}
 
-	/*
-	 * Here is where the lsm is being initialized(fill lmo_info) after
-	 * client retrieve MD stripe information from MDT.
-	 */
-	return md_update_lsm_md(ll_i2mdexp(inode), lsm, md->body,
-				ll_md_blocking_ast);
+	return 0;
 }
 
 static inline int lli_lsm_md_eq(const struct lmv_stripe_md *lsm_md1,

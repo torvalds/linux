@@ -3045,12 +3045,13 @@ static int ll_merge_md_attr(struct inode *inode)
 
 	LASSERT(ll_i2info(inode)->lli_lsm_md);
 	rc = md_merge_attr(ll_i2mdexp(inode), ll_i2info(inode)->lli_lsm_md,
-			   &attr);
+			   &attr, ll_md_blocking_ast);
 	if (rc)
 		return rc;
 
-	ll_i2info(inode)->lli_stripe_dir_size = attr.cat_size;
-	ll_i2info(inode)->lli_stripe_dir_nlink = attr.cat_nlink;
+	set_nlink(inode, attr.cat_nlink);
+	inode->i_blocks = attr.cat_blocks;
+	i_size_write(inode, attr.cat_size);
 
 	ll_i2info(inode)->lli_atime = attr.cat_atime;
 	ll_i2info(inode)->lli_mtime = attr.cat_mtime;
@@ -3123,16 +3124,10 @@ int ll_getattr(struct vfsmount *mnt, struct dentry *de, struct kstat *stat)
 	stat->mtime = inode->i_mtime;
 	stat->ctime = inode->i_ctime;
 	stat->blksize = 1 << inode->i_blkbits;
-	stat->blocks = inode->i_blocks;
 
-	if (S_ISDIR(inode->i_mode) &&
-	    ll_i2info(inode)->lli_lsm_md) {
-		stat->nlink = lli->lli_stripe_dir_nlink;
-		stat->size = lli->lli_stripe_dir_size;
-	} else {
-		stat->nlink = inode->i_nlink;
-		stat->size = i_size_read(inode);
-	}
+	stat->nlink = inode->i_nlink;
+	stat->size = i_size_read(inode);
+	stat->blocks = inode->i_blocks;
 
 	return 0;
 }
