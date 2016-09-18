@@ -573,6 +573,11 @@ enum lvb_type {
 };
 
 /**
+ * LDLM_GID_ANY is used to match any group id in ldlm_lock_match().
+ */
+#define LDLM_GID_ANY	((__u64)-1)
+
+/**
  * LDLM lock structure
  *
  * Represents a single LDLM lock and its state in memory. Each lock is
