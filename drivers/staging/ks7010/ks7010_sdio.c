@@ -14,7 +14,7 @@
 #include <linux/mmc/card.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/workqueue.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include "ks_wlan.h"
 #include "ks_wlan_ioctl.h"
