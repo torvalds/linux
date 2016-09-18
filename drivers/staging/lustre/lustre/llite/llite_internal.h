@@ -161,7 +161,7 @@ struct ll_inode_info {
 		/* for directory */
 		struct {
 			/* serialize normal readdir and statahead-readdir. */
-			struct mutex			d_readdir_mutex;
+			struct mutex			lli_readdir_mutex;
 
 			/* metadata statahead */
 			/* since parent-child threads can share the same @file
@@ -169,44 +169,35 @@ struct ll_inode_info {
 			 * case of parent exit before child -- it is me should
 			 * cleanup the dir readahead.
 			 */
-			void			   *d_opendir_key;
-			struct ll_statahead_info       *d_sai;
+			void			       *lli_opendir_key;
+			struct ll_statahead_info       *lli_sai;
 			/* protect statahead stuff. */
-			spinlock_t			d_sa_lock;
+			spinlock_t			lli_sa_lock;
 			/* "opendir_pid" is the token when lookup/revalidate
 			 * -- I am the owner of dir statahead.
 			 */
-			pid_t			   d_opendir_pid;
+			pid_t				lli_opendir_pid;
 			/* stat will try to access statahead entries or start
 			 * statahead if this flag is set, and this flag will be
 			 * set upon dir open, and cleared when dir is closed,
 			 * statahead hit ratio is too low, or start statahead
 			 * thread failed.
 			 */
-			unsigned int			d_sa_enabled:1;
+			unsigned int			lli_sa_enabled:1;
+			/* generation for statahead */
+			unsigned int			lli_sa_generation;
 			/* directory stripe information */
-			struct lmv_stripe_md		*d_lsm_md;
+			struct lmv_stripe_md	       *lli_lsm_md;
 			/* striped directory size */
-			loff_t				d_stripe_size;
-			/* striped directory nlink */
-			__u64				d_stripe_nlink;
-		} d;
-
-#define lli_readdir_mutex       u.d.d_readdir_mutex
-#define lli_opendir_key	 u.d.d_opendir_key
-#define lli_sai		 u.d.d_sai
-#define lli_sa_lock	     u.d.d_sa_lock
-#define lli_sa_enabled		u.d.d_sa_enabled
-#define lli_opendir_pid	 u.d.d_opendir_pid
-#define lli_lsm_md		u.d.d_lsm_md
-#define lli_stripe_dir_size	u.d.d_stripe_size
-#define lli_stripe_dir_nlink	u.d.d_stripe_nlink
+			loff_t				lli_stripe_dir_size;
+			u64				lli_stripe_dir_nlink;
+		};
 
 		/* for non-directory */
 		struct {
-			struct mutex			f_size_mutex;
-			char				*f_symlink_name;
-			__u64				f_maxbytes;
+			struct mutex			lli_size_mutex;
+			char			       *lli_symlink_name;
+			__u64				lli_maxbytes;
 			/*
 			 * struct rw_semaphore {
 			 *    signed long	count;     // align d.d_def_acl
@@ -214,16 +205,16 @@ struct ll_inode_info {
 			 *    struct list_head wait_list;
 			 * }
 			 */
-			struct rw_semaphore		f_trunc_sem;
-			struct range_lock_tree		f_write_tree;
+			struct rw_semaphore		lli_trunc_sem;
+			struct range_lock_tree		lli_write_tree;
 
-			struct rw_semaphore		f_glimpse_sem;
-			unsigned long			f_glimpse_time;
-			struct list_head			f_agl_list;
-			__u64				f_agl_index;
+			struct rw_semaphore		lli_glimpse_sem;
+			unsigned long			lli_glimpse_time;
+			struct list_head		lli_agl_list;
+			__u64				lli_agl_index;
 
 			/* for writepage() only to communicate to fsync */
-			int				f_async_rc;
+			int				lli_async_rc;
 
 			/*
 			 * whenever a process try to read/write the file, the
@@ -233,22 +224,9 @@ struct ll_inode_info {
 			 * so the read/write statistics for jobid will not be
 			 * accurate if the file is shared by different jobs.
 			 */
-			char		     f_jobid[LUSTRE_JOBID_SIZE];
-		} f;
-
-#define lli_size_mutex          u.f.f_size_mutex
-#define lli_symlink_name	u.f.f_symlink_name
-#define lli_maxbytes	    u.f.f_maxbytes
-#define lli_trunc_sem	   u.f.f_trunc_sem
-#define lli_write_tree		u.f.f_write_tree
-#define lli_glimpse_sem		u.f.f_glimpse_sem
-#define lli_glimpse_time	u.f.f_glimpse_time
-#define lli_agl_list		u.f.f_agl_list
-#define lli_agl_index		u.f.f_agl_index
-#define lli_async_rc		u.f.f_async_rc
-#define lli_jobid		u.f.f_jobid
-
-	} u;
+			char				lli_jobid[LUSTRE_JOBID_SIZE];
+		};
+	};
 
 	/* XXX: For following frequent used members, although they maybe special
 	 *      used for non-directory object, it is some time-wasting to check
@@ -1095,11 +1073,10 @@ void ll_ra_stats_inc(struct inode *inode, enum ra_stat which);
 
 /* per inode struct, for dir only */
 struct ll_statahead_info {
-	struct inode	   *sai_inode;
+	struct dentry	   *sai_dentry;
 	atomic_t	    sai_refcount;   /* when access this struct, hold
 					     * refcount
 					     */
-	unsigned int	    sai_generation; /* generation for statahead */
 	unsigned int	    sai_max;	/* max ahead of lookup */
 	__u64		   sai_sent;       /* stat requests sent count */
 	__u64		   sai_replied;    /* stat requests which received
@@ -1142,8 +1119,7 @@ struct ll_statahead_info {
 	atomic_t		sai_cache_count; /* entry count in cache */
 };
 
-int do_statahead_enter(struct inode *dir, struct dentry **dentry,
-		       int only_unplug);
+int ll_statahead(struct inode *dir, struct dentry **dentry, bool unplug);
 void ll_authorize_statahead(struct inode *dir, void *key);
 void ll_deauthorize_statahead(struct inode *dir, void *key);
 
@@ -1175,24 +1151,12 @@ static inline int ll_glimpse_size(struct inode *inode)
 	return rc;
 }
 
-static inline void
-ll_statahead_mark(struct inode *dir, struct dentry *dentry)
-{
-	struct ll_inode_info     *lli = ll_i2info(dir);
-	struct ll_statahead_info *sai = lli->lli_sai;
-	struct ll_dentry_data    *ldd = ll_d2d(dentry);
-
-	/* not the same process, don't mark */
-	if (lli->lli_opendir_pid != current_pid())
-		return;
-
-	LASSERT(ldd);
-	if (sai)
-		ldd->lld_sa_generation = sai->sai_generation;
-}
-
+/*
+ * dentry may statahead when statahead is enabled and current process has opened
+ * parent directory, and this dentry hasn't accessed statahead cache before
+ */
 static inline bool
-dentry_need_statahead(struct inode *dir, struct dentry *dentry)
+dentry_may_statahead(struct inode *dir, struct dentry *dentry)
 {
 	struct ll_inode_info  *lli;
 	struct ll_dentry_data *ldd;
@@ -1215,36 +1179,25 @@ dentry_need_statahead(struct inode *dir, struct dentry *dentry)
 	if (lli->lli_opendir_pid != current_pid())
 		return false;
 
-	ldd = ll_d2d(dentry);
 	/*
-	 * When stats a dentry, the system trigger more than once "revalidate"
-	 * or "lookup", for "getattr", for "getxattr", and maybe for others.
-	 * Under patchless client mode, the operation intent is not accurate,
-	 * which maybe misguide the statahead thread. For example:
-	 * The "revalidate" call for "getattr" and "getxattr" of a dentry maybe
-	 * have the same operation intent -- "IT_GETATTR".
-	 * In fact, one dentry should has only one chance to interact with the
-	 * statahead thread, otherwise the statahead windows will be confused.
+	 * When stating a dentry, kernel may trigger 'revalidate' or 'lookup'
+	 * multiple times, eg. for 'getattr', 'getxattr' and etc.
+	 * For patchless client, lookup intent is not accurate, which may
+	 * misguide statahead. For example:
+	 * The 'revalidate' call for 'getattr' and 'getxattr' of a dentry will
+	 * have the same intent -- IT_GETATTR, while one dentry should access
+	 * statahead cache once, otherwise statahead windows is messed up.
 	 * The solution is as following:
-	 * Assign "lld_sa_generation" with "sai_generation" when a dentry
-	 * "IT_GETATTR" for the first time, and the subsequent "IT_GETATTR"
-	 * will bypass interacting with statahead thread for checking:
-	 * "lld_sa_generation == lli_sai->sai_generation"
+	 * Assign 'lld_sa_generation' with 'lli_sa_generation' when a dentry
+	 * IT_GETATTR for the first time, and subsequent IT_GETATTR will
+	 * bypass interacting with statahead cache by checking
+	 * 'lld_sa_generation == lli->lli_sa_generation'.
 	 */
-	if (ldd && lli->lli_sai &&
-	    ldd->lld_sa_generation == lli->lli_sai->sai_generation)
+	ldd = ll_d2d(dentry);
+	if (ldd && ldd->lld_sa_generation == lli->lli_sa_generation)
 		return false;
 
 	return true;
-}
-
-static inline int
-ll_statahead_enter(struct inode *dir, struct dentry **dentryp, int only_unplug)
-{
-	if (!dentry_need_statahead(dir, *dentryp))
-		return -EAGAIN;
-
-	return do_statahead_enter(dir, dentryp, only_unplug);
 }
 
 /* llite ioctl register support routine */
