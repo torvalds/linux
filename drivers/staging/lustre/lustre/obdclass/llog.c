@@ -235,6 +235,10 @@ static int llog_process_thread(void *arg)
 	else
 		last_index = LLOG_BITMAP_BYTES * 8 - 1;
 
+	/* Record is not in this buffer. */
+	if (index > last_index)
+		goto out;
+
 	while (rc == 0) {
 		struct llog_rec_hdr *rec;
 
