@@ -147,12 +147,6 @@ lsm_stripe_by_offset_plain(struct lov_stripe_md *lsm, int *stripeno,
 		*swidth = (u64)lsm->lsm_stripe_size * lsm->lsm_stripe_count;
 }
 
-static int lsm_destroy_plain(struct lov_stripe_md *lsm, struct obdo *oa,
-			     struct obd_export *md_exp)
-{
-	return 0;
-}
-
 /* Find minimum stripe maxbytes value.  For inactive or
  * reconnecting targets use LUSTRE_EXT3_STRIPE_MAXBYTES.
  */
@@ -246,7 +240,6 @@ static int lsm_unpackmd_v1(struct lov_obd *lov, struct lov_stripe_md *lsm,
 
 const struct lsm_operations lsm_v1_ops = {
 	.lsm_free	    = lsm_free_plain,
-	.lsm_destroy	 = lsm_destroy_plain,
 	.lsm_stripe_by_index    = lsm_stripe_by_index_plain,
 	.lsm_stripe_by_offset   = lsm_stripe_by_offset_plain,
 	.lsm_lmm_verify	 = lsm_lmm_verify_v1,
@@ -336,7 +329,6 @@ static int lsm_unpackmd_v3(struct lov_obd *lov, struct lov_stripe_md *lsm,
 
 const struct lsm_operations lsm_v3_ops = {
 	.lsm_free	    = lsm_free_plain,
-	.lsm_destroy	 = lsm_destroy_plain,
 	.lsm_stripe_by_index    = lsm_stripe_by_index_plain,
 	.lsm_stripe_by_offset   = lsm_stripe_by_offset_plain,
 	.lsm_lmm_verify	 = lsm_lmm_verify_v3,

@@ -702,16 +702,14 @@ static inline int obd_create(const struct lu_env *env, struct obd_export *exp,
 }
 
 static inline int obd_destroy(const struct lu_env *env, struct obd_export *exp,
-			      struct obdo *obdo, struct lov_stripe_md *ea,
-			      struct obd_trans_info *oti,
-			      struct obd_export *md_exp)
+			      struct obdo *obdo, struct obd_trans_info *oti)
 {
 	int rc;
 
 	EXP_CHECK_DT_OP(exp, destroy);
 	EXP_COUNTER_INCREMENT(exp, destroy);
 
-	rc = OBP(exp->exp_obd, destroy)(env, exp, obdo, ea, oti, md_exp);
+	rc = OBP(exp->exp_obd, destroy)(env, exp, obdo, oti);
 	return rc;
 }
 

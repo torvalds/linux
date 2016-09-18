@@ -980,59 +980,6 @@ do {									    \
 		 "%p->lsm_magic=%x\n", (lsmp), (lsmp)->lsm_magic);	      \
 } while (0)
 
-static int lov_destroy(const struct lu_env *env, struct obd_export *exp,
-		       struct obdo *oa, struct lov_stripe_md *lsm,
-		       struct obd_trans_info *oti, struct obd_export *md_exp)
-{
-	struct lov_request_set *set;
-	struct obd_info oinfo;
-	struct lov_request *req;
-	struct lov_obd *lov;
-	int rc = 0, err = 0;
-
-	ASSERT_LSM_MAGIC(lsm);
-
-	if (!exp || !exp->exp_obd)
-		return -ENODEV;
-
-	if (oa->o_valid & OBD_MD_FLCOOKIE) {
-		LASSERT(oti);
-		LASSERT(oti->oti_logcookies);
-	}
-
-	lov = &exp->exp_obd->u.lov;
-	obd_getref(exp->exp_obd);
-	rc = lov_prep_destroy_set(exp, &oinfo, oa, lsm, oti, &set);
-	if (rc)
-		goto out;
-
-	list_for_each_entry(req, &set->set_list, rq_link) {
-		if (oa->o_valid & OBD_MD_FLCOOKIE)
-			oti->oti_logcookies = set->set_cookies + req->rq_stripe;
-
-		err = obd_destroy(env, lov->lov_tgts[req->rq_idx]->ltd_exp,
-				  req->rq_oi.oi_oa, NULL, oti, NULL);
-		err = lov_update_common_set(set, req, err);
-		if (err) {
-			CERROR("%s: destroying objid "DOSTID" subobj "
-			       DOSTID" on OST idx %d: rc = %d\n",
-			       exp->exp_obd->obd_name, POSTID(&oa->o_oi),
-			       POSTID(&req->rq_oi.oi_oa->o_oi),
-			       req->rq_idx, err);
-			if (!rc)
-				rc = err;
-		}
-	}
-
-	if (rc == 0)
-		rc = lsm_op_find(lsm->lsm_magic)->lsm_destroy(lsm, oa, md_exp);
-
-	err = lov_fini_destroy_set(set);
-out:
-	obd_putref(exp->exp_obd);
-	return rc ? rc : err;
-}
-
 static int lov_getattr_interpret(struct ptlrpc_request_set *rqset,
 				 void *data, int rc)
 {
@@ -2081,7 +2028,6 @@ static struct obd_ops lov_obd_ops = {
 	.statfs_async   = lov_statfs_async,
 	.packmd         = lov_packmd,
 	.unpackmd       = lov_unpackmd,
-	.destroy        = lov_destroy,
 	.getattr_async  = lov_getattr_async,
 	.setattr_async  = lov_setattr_async,
 	.iocontrol      = lov_iocontrol,

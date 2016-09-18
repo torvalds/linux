@@ -189,12 +189,6 @@ static int ll_close_inode_openhandle(struct obd_export *md_exp,
 		spin_unlock(&lli->lli_lock);
 	}
 
-	if (rc == 0) {
-		rc = ll_objects_destroy(req, inode);
-		if (rc)
-			CERROR("inode %lu ll_objects destroy: rc = %d\n",
-			       inode->i_ino, rc);
-	}
 	if (rc == 0 && op_data->op_bias & MDS_HSM_RELEASE) {
 		struct mdt_body *body;
 

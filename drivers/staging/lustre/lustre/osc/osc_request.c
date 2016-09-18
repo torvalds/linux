@@ -651,8 +651,7 @@ static int osc_can_send_destroy(struct client_obd *cli)
  * cookies to the MDS after committing destroy transactions.
  */
 static int osc_destroy(const struct lu_env *env, struct obd_export *exp,
-		       struct obdo *oa, struct lov_stripe_md *ea,
-		       struct obd_trans_info *oti, struct obd_export *md_export)
+		       struct obdo *oa, struct obd_trans_info *oti)
 {
 	struct client_obd *cli = &exp->exp_obd->u.cli;
 	struct ptlrpc_request *req;

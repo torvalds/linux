@@ -721,8 +721,6 @@ void ll_release_page(struct inode *inode, struct page *page, bool remove);
 /* llite/namei.c */
 extern const struct inode_operations ll_special_inode_operations;
 
-int ll_objects_destroy(struct ptlrpc_request *request,
-		       struct inode *dir);
 struct inode *ll_iget(struct super_block *sb, ino_t hash,
 		      struct lustre_md *lic);
 int ll_test_inode_by_fid(struct inode *inode, void *opaque);

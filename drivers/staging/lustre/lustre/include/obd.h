@@ -869,8 +869,7 @@ struct obd_ops {
 	int (*create)(const struct lu_env *env, struct obd_export *exp,
 		      struct obdo *oa, struct obd_trans_info *oti);
 	int (*destroy)(const struct lu_env *env, struct obd_export *exp,
-		       struct obdo *oa, struct lov_stripe_md *ea,
-		       struct obd_trans_info *oti, struct obd_export *md_exp);
+		       struct obdo *oa, struct obd_trans_info *oti);
 	int (*setattr)(const struct lu_env *, struct obd_export *exp,
 		       struct obd_info *oinfo, struct obd_trans_info *oti);
 	int (*setattr_async)(struct obd_export *exp, struct obd_info *oinfo,
@@ -1058,8 +1057,6 @@ struct md_ops {
 
 struct lsm_operations {
 	void (*lsm_free)(struct lov_stripe_md *);
-	int (*lsm_destroy)(struct lov_stripe_md *, struct obdo *oa,
-			   struct obd_export *md_exp);
 	void (*lsm_stripe_by_index)(struct lov_stripe_md *, int *, u64 *,
 				    u64 *);
 	void (*lsm_stripe_by_offset)(struct lov_stripe_md *, int *, u64 *,
