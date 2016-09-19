@@ -96,6 +96,7 @@ enum bpf_return_type {
 struct bpf_func_proto {
 	u64 (*func)(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5);
 	bool gpl_only;
+	bool pkt_access;
 	enum bpf_return_type ret_type;
 	enum bpf_arg_type arg1_type;
 	enum bpf_arg_type arg2_type;
@@ -151,7 +152,8 @@ struct bpf_verifier_ops {
 	 */
 	bool (*is_valid_access)(int off, int size, enum bpf_access_type type,
 				enum bpf_reg_type *reg_type);
-
+	int (*gen_prologue)(struct bpf_insn *insn, bool direct_write,
+			    const struct bpf_prog *prog);
 	u32 (*convert_ctx_access)(enum bpf_access_type type, int dst_reg,
 				  int src_reg, int ctx_off,
 				  struct bpf_insn *insn, struct bpf_prog *prog);

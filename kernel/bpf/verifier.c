@@ -196,6 +196,7 @@ struct verifier_env {
 	u32 used_map_cnt;		/* number of used maps */
 	u32 id_gen;			/* used to generate unique reg IDs */
 	bool allow_ptr_leaks;
+	bool seen_direct_write;
 };
 
 #define BPF_COMPLEXITY_LIMIT_INSNS	65536
@@ -204,6 +205,7 @@ struct verifier_env {
 struct bpf_call_arg_meta {
 	struct bpf_map *map_ptr;
 	bool raw_mode;
+	bool pkt_access;
 	int regno;
 	int access_size;
 };
@@ -654,10 +656,17 @@ static int check_map_access(struct verifier_env *env, u32 regno, int off,
 
 #define MAX_PACKET_OFF 0xffff
 
-static bool may_write_pkt_data(enum bpf_prog_type type)
+static bool may_access_direct_pkt_data(struct verifier_env *env,
+				       const struct bpf_call_arg_meta *meta)
 {
-	switch (type) {
+	switch (env->prog->type) {
+	case BPF_PROG_TYPE_SCHED_CLS:
+	case BPF_PROG_TYPE_SCHED_ACT:
 	case BPF_PROG_TYPE_XDP:
+		if (meta)
+			return meta->pkt_access;
+
+		env->seen_direct_write = true;
 		return true;
 	default:
 		return false;
@@ -817,7 +826,7 @@ static int check_mem_access(struct verifier_env *env, u32 regno, int off,
 			err = check_stack_read(state, off, size, value_regno);
 		}
 	} else if (state->regs[regno].type == PTR_TO_PACKET) {
-		if (t == BPF_WRITE && !may_write_pkt_data(env->prog->type)) {
+		if (t == BPF_WRITE && !may_access_direct_pkt_data(env, NULL)) {
 			verbose("cannot write into packet\n");
 			return -EACCES;
 		}
@@ -950,8 +959,8 @@ static int check_func_arg(struct verifier_env *env, u32 regno,
 		return 0;
 	}
 
-	if (type == PTR_TO_PACKET && !may_write_pkt_data(env->prog->type)) {
-		verbose("helper access to the packet is not allowed for clsact\n");
+	if (type == PTR_TO_PACKET && !may_access_direct_pkt_data(env, meta)) {
+		verbose("helper access to the packet is not allowed\n");
 		return -EACCES;
 	}
 
@@ -1191,6 +1200,7 @@ static int check_call(struct verifier_env *env, int func_id)
 	changes_data = bpf_helper_changes_skb_data(fn->func);
 
 	memset(&meta, 0, sizeof(meta));
+	meta.pkt_access = fn->pkt_access;
 
 	/* We only support one arg being in raw mode at the moment, which
 	 * is sufficient for the helper functions we have right now.
@@ -2675,18 +2685,35 @@ static void convert_pseudo_ld_imm64(struct verifier_env *env)
  */
 static int convert_ctx_accesses(struct verifier_env *env)
 {
-	struct bpf_insn *insn = env->prog->insnsi;
-	int insn_cnt = env->prog->len;
-	struct bpf_insn insn_buf[16];
+	const struct bpf_verifier_ops *ops = env->prog->aux->ops;
+	struct bpf_insn insn_buf[16], *insn;
 	struct bpf_prog *new_prog;
 	enum bpf_access_type type;
-	int i;
+	int i, insn_cnt, cnt;
 
-	if (!env->prog->aux->ops->convert_ctx_access)
+	if (ops->gen_prologue) {
+		cnt = ops->gen_prologue(insn_buf, env->seen_direct_write,
+					env->prog);
+		if (cnt >= ARRAY_SIZE(insn_buf)) {
+			verbose("bpf verifier is misconfigured\n");
+			return -EINVAL;
+		} else if (cnt) {
+			new_prog = bpf_patch_insn_single(env->prog, 0,
+							 insn_buf, cnt);
+			if (!new_prog)
+				return -ENOMEM;
+			env->prog = new_prog;
+		}
+	}
+
+	if (!ops->convert_ctx_access)
 		return 0;
 
+	insn_cnt = env->prog->len;
+	insn = env->prog->insnsi;
+
 	for (i = 0; i < insn_cnt; i++, insn++) {
-		u32 insn_delta, cnt;
+		u32 insn_delta;
 
 		if (insn->code == (BPF_LDX | BPF_MEM | BPF_W) ||
 		    insn->code == (BPF_LDX | BPF_MEM | BPF_DW))
@@ -2703,9 +2730,8 @@ static int convert_ctx_accesses(struct verifier_env *env)
 			continue;
 		}
 
-		cnt = env->prog->aux->ops->
-			convert_ctx_access(type, insn->dst_reg, insn->src_reg,
-					   insn->off, insn_buf, env->prog);
+		cnt = ops->convert_ctx_access(type, insn->dst_reg, insn->src_reg,
+					      insn->off, insn_buf, env->prog);
 		if (cnt == 0 || cnt >= ARRAY_SIZE(insn_buf)) {
 			verbose("bpf verifier is misconfigured\n");
 			return -EINVAL;
