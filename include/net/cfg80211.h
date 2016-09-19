@@ -712,7 +712,7 @@ struct cfg80211_bitrate_mask {
  *	MAC address based access control
  * @pbss: If set, start as a PCP instead of AP. Relevant for DMG
  *	networks.
- * @beacon_rate: masks for setting user configured beacon tx rate.
+ * @beacon_rate: bitrate to be used for beacons
  */
 struct cfg80211_ap_settings {
 	struct cfg80211_chan_def chandef;
@@ -1365,6 +1365,7 @@ struct mesh_config {
  * @beacon_interval: beacon interval to use
  * @mcast_rate: multicat rate for Mesh Node [6Mbps is the default for 802.11a]
  * @basic_rates: basic rates to use when creating the mesh
+ * @beacon_rate: bitrate to be used for beacons
  *
  * These parameters are fixed when the mesh is created.
  */
@@ -1385,6 +1386,7 @@ struct mesh_setup {
 	u16 beacon_interval;
 	int mcast_rate[NUM_NL80211_BANDS];
 	u32 basic_rates;
+	struct cfg80211_bitrate_mask beacon_rate;
 };
 
 /**

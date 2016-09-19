@@ -3569,13 +3569,12 @@ out:
 	return 0;
 }
 
-static int validate_beacon_tx_rate(struct cfg80211_ap_settings *params)
+static int validate_beacon_tx_rate(struct cfg80211_registered_device *rdev,
+				   enum nl80211_band band,
+				   struct cfg80211_bitrate_mask *beacon_rate)
 {
-	u32 rate, count_ht, count_vht, i;
-	enum nl80211_band band;
-
-	band = params->chandef.chan->band;
-	rate = params->beacon_rate.control[band].legacy;
+	u32 count_ht, count_vht, i;
+	u32 rate = beacon_rate->control[band].legacy;
 
 	/* Allow only one rate */
 	if (hweight32(rate) > 1)
@@ -3583,9 +3582,9 @@ static int validate_beacon_tx_rate(struct cfg80211_ap_settings *params)
 
 	count_ht = 0;
 	for (i = 0; i < IEEE80211_HT_MCS_MASK_LEN; i++) {
-		if (hweight8(params->beacon_rate.control[band].ht_mcs[i]) > 1) {
+		if (hweight8(beacon_rate->control[band].ht_mcs[i]) > 1) {
 			return -EINVAL;
-		} else if (params->beacon_rate.control[band].ht_mcs[i]) {
+		} else if (beacon_rate->control[band].ht_mcs[i]) {
 			count_ht++;
 			if (count_ht > 1)
 				return -EINVAL;
@@ -3596,9 +3595,9 @@ static int validate_beacon_tx_rate(struct cfg80211_ap_settings *params)
 
 	count_vht = 0;
 	for (i = 0; i < NL80211_VHT_NSS_MAX; i++) {
-		if (hweight16(params->beacon_rate.control[band].vht_mcs[i]) > 1) {
+		if (hweight16(beacon_rate->control[band].vht_mcs[i]) > 1) {
 			return -EINVAL;
-		} else if (params->beacon_rate.control[band].vht_mcs[i]) {
+		} else if (beacon_rate->control[band].vht_mcs[i]) {
 			count_vht++;
 			if (count_vht > 1)
 				return -EINVAL;
@@ -3608,6 +3607,19 @@ static int validate_beacon_tx_rate(struct cfg80211_ap_settings *params)
 	}
 
 	if ((count_ht && count_vht) || (!rate && !count_ht && !count_vht))
+		return -EINVAL;
+
+	if (rate &&
+	    !wiphy_ext_feature_isset(&rdev->wiphy,
+				     NL80211_EXT_FEATURE_BEACON_RATE_LEGACY))
+		return -EINVAL;
+	if (count_ht &&
+	    !wiphy_ext_feature_isset(&rdev->wiphy,
+				     NL80211_EXT_FEATURE_BEACON_RATE_HT))
+		return -EINVAL;
+	if (count_vht &&
+	    !wiphy_ext_feature_isset(&rdev->wiphy,
+				     NL80211_EXT_FEATURE_BEACON_RATE_VHT))
 		return -EINVAL;
 
 	return 0;
@@ -3847,7 +3859,8 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 		if (err)
 			return err;
 
-		err = validate_beacon_tx_rate(&params);
+		err = validate_beacon_tx_rate(rdev, params.chandef.chan->band,
+					      &params.beacon_rate);
 		if (err)
 			return err;
 	}
@@ -9402,6 +9415,17 @@ static int nl80211_join_mesh(struct sk_buff *skb, struct genl_info *info)
 
 		err = ieee80211_get_ratemask(sband, rates, n_rates,
 					     &setup.basic_rates);
+		if (err)
+			return err;
+	}
+
+	if (info->attrs[NL80211_ATTR_TX_RATES]) {
+		err = nl80211_parse_tx_bitrate_mask(info, &setup.beacon_rate);
+		if (err)
+			return err;
+
+		err = validate_beacon_tx_rate(rdev, setup.chandef.chan->band,
+					      &setup.beacon_rate);
 		if (err)
 			return err;
 	}

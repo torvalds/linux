@@ -1343,7 +1343,13 @@ enum nl80211_commands {
  *	enum nl80211_band value is used as the index (nla_type() of the nested
  *	data. If a band is not included, it will be configured to allow all
  *	rates based on negotiated supported rates information. This attribute
- *	is used with %NL80211_CMD_SET_TX_BITRATE_MASK.
+ *	is used with %NL80211_CMD_SET_TX_BITRATE_MASK and with starting AP,
+ *	and joining mesh networks (not IBSS yet). In the later case, it must
+ *	specify just a single bitrate, which is to be used for the beacon.
+ *	The driver must also specify support for this with the extended
+ *	features NL80211_EXT_FEATURE_BEACON_RATE_LEGACY,
+ *	NL80211_EXT_FEATURE_BEACON_RATE_HT and
+ *	NL80211_EXT_FEATURE_BEACON_RATE_VHT.
  *
  * @NL80211_ATTR_FRAME_MATCH: A binary attribute which typically must contain
  *	at least one byte, currently used with @NL80211_CMD_REGISTER_FRAME.
@@ -4551,6 +4557,12 @@ enum nl80211_feature_flags {
  *	(if available).
  * @NL80211_EXT_FEATURE_SET_SCAN_DWELL: This driver supports configuration of
  *	channel dwell time.
+ * @NL80211_EXT_FEATURE_BEACON_RATE_LEGACY: Driver supports beacon rate
+ *	configuration (AP/mesh), supporting a legacy (non HT/VHT) rate.
+ * @NL80211_EXT_FEATURE_BEACON_RATE_HT: Driver supports beacon rate
+ *	configuration (AP/mesh) with HT rates.
+ * @NL80211_EXT_FEATURE_BEACON_RATE_VHT: Driver supports beacon rate
+ *	configuration (AP/mesh) with VHT rates.
  *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
@@ -4562,6 +4574,9 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_SCAN_START_TIME,
 	NL80211_EXT_FEATURE_BSS_PARENT_TSF,
 	NL80211_EXT_FEATURE_SET_SCAN_DWELL,
+	NL80211_EXT_FEATURE_BEACON_RATE_LEGACY,
+	NL80211_EXT_FEATURE_BEACON_RATE_HT,
+	NL80211_EXT_FEATURE_BEACON_RATE_VHT,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,
