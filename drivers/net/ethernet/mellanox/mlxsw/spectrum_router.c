@@ -252,7 +252,9 @@ static int mlxsw_sp_lpm_tree_alloc(struct mlxsw_sp *mlxsw_sp,
 {
 	char ralta_pl[MLXSW_REG_RALTA_LEN];
 
-	mlxsw_reg_ralta_pack(ralta_pl, true, lpm_tree->proto, lpm_tree->id);
+	mlxsw_reg_ralta_pack(ralta_pl, true,
+			     (enum mlxsw_reg_ralxx_protocol) lpm_tree->proto,
+			     lpm_tree->id);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralta), ralta_pl);
 }
 
@@ -261,7 +263,9 @@ static int mlxsw_sp_lpm_tree_free(struct mlxsw_sp *mlxsw_sp,
 {
 	char ralta_pl[MLXSW_REG_RALTA_LEN];
 
-	mlxsw_reg_ralta_pack(ralta_pl, false, lpm_tree->proto, lpm_tree->id);
+	mlxsw_reg_ralta_pack(ralta_pl, false,
+			     (enum mlxsw_reg_ralxx_protocol) lpm_tree->proto,
+			     lpm_tree->id);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralta), ralta_pl);
 }
 
@@ -384,7 +388,9 @@ static int mlxsw_sp_vr_lpm_tree_bind(struct mlxsw_sp *mlxsw_sp,
 {
 	char raltb_pl[MLXSW_REG_RALTB_LEN];
 
-	mlxsw_reg_raltb_pack(raltb_pl, vr->id, vr->proto, vr->lpm_tree->id);
+	mlxsw_reg_raltb_pack(raltb_pl, vr->id,
+			     (enum mlxsw_reg_ralxx_protocol) vr->proto,
+			     vr->lpm_tree->id);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(raltb), raltb_pl);
 }
 
@@ -394,7 +400,8 @@ static int mlxsw_sp_vr_lpm_tree_unbind(struct mlxsw_sp *mlxsw_sp,
 	char raltb_pl[MLXSW_REG_RALTB_LEN];
 
 	/* Bind to tree 0 which is default */
-	mlxsw_reg_raltb_pack(raltb_pl, vr->id, vr->proto, 0);
+	mlxsw_reg_raltb_pack(raltb_pl, vr->id,
+			     (enum mlxsw_reg_ralxx_protocol) vr->proto, 0);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(raltb), raltb_pl);
 }
 
@@ -1081,9 +1088,10 @@ static int mlxsw_sp_adj_index_mass_update_vr(struct mlxsw_sp *mlxsw_sp,
 {
 	char raleu_pl[MLXSW_REG_RALEU_LEN];
 
-	mlxsw_reg_raleu_pack(raleu_pl, vr->proto, vr->id,
-			     adj_index, ecmp_size,
-			     new_adj_index, new_ecmp_size);
+	mlxsw_reg_raleu_pack(raleu_pl,
+			     (enum mlxsw_reg_ralxx_protocol) vr->proto, vr->id,
+			     adj_index, ecmp_size, new_adj_index,
+			     new_ecmp_size);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(raleu), raleu_pl);
 }
 
@@ -1558,8 +1566,9 @@ static int mlxsw_sp_fib_entry_op4_remote(struct mlxsw_sp *mlxsw_sp,
 		trap_id = MLXSW_TRAP_ID_RTR_INGRESS0;
 	}
 
-	mlxsw_reg_ralue_pack4(ralue_pl, vr->proto, op, vr->id,
-			      fib_entry->key.prefix_len, *p_dip);
+	mlxsw_reg_ralue_pack4(ralue_pl,
+			      (enum mlxsw_reg_ralxx_protocol) vr->proto, op,
+			      vr->id, fib_entry->key.prefix_len, *p_dip);
 	mlxsw_reg_ralue_act_remote_pack(ralue_pl, trap_action, trap_id,
 					adjacency_index, ecmp_size);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralue), ralue_pl);
@@ -1573,8 +1582,9 @@ static int mlxsw_sp_fib_entry_op4_local(struct mlxsw_sp *mlxsw_sp,
 	u32 *p_dip = (u32 *) fib_entry->key.addr;
 	struct mlxsw_sp_vr *vr = fib_entry->vr;
 
-	mlxsw_reg_ralue_pack4(ralue_pl, vr->proto, op, vr->id,
-			      fib_entry->key.prefix_len, *p_dip);
+	mlxsw_reg_ralue_pack4(ralue_pl,
+			      (enum mlxsw_reg_ralxx_protocol) vr->proto, op,
+			      vr->id, fib_entry->key.prefix_len, *p_dip);
 	mlxsw_reg_ralue_act_local_pack(ralue_pl,
 				       MLXSW_REG_RALUE_TRAP_ACTION_NOP, 0,
 				       fib_entry->rif);
@@ -1589,8 +1599,9 @@ static int mlxsw_sp_fib_entry_op4_trap(struct mlxsw_sp *mlxsw_sp,
 	u32 *p_dip = (u32 *) fib_entry->key.addr;
 	struct mlxsw_sp_vr *vr = fib_entry->vr;
 
-	mlxsw_reg_ralue_pack4(ralue_pl, vr->proto, op, vr->id,
-			      fib_entry->key.prefix_len, *p_dip);
+	mlxsw_reg_ralue_pack4(ralue_pl,
+			      (enum mlxsw_reg_ralxx_protocol) vr->proto, op,
+			      vr->id, fib_entry->key.prefix_len, *p_dip);
 	mlxsw_reg_ralue_act_ip2me_pack(ralue_pl);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralue), ralue_pl);
 }
@@ -1753,8 +1764,8 @@ mlxsw_sp_fib_entry_find(struct mlxsw_sp *mlxsw_sp,
 					 fib4->fi->fib_dev);
 }
 
-void mlxsw_sp_fib_entry_put(struct mlxsw_sp *mlxsw_sp,
-			    struct mlxsw_sp_fib_entry *fib_entry)
+static void mlxsw_sp_fib_entry_put(struct mlxsw_sp *mlxsw_sp,
+				   struct mlxsw_sp_fib_entry *fib_entry)
 {
 	struct mlxsw_sp_vr *vr = fib_entry->vr;
 
