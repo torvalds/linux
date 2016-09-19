@@ -66,7 +66,7 @@ their statements on legal matters.
 
 For common questions and answers about the GPL, please see:
 
-	http://www.gnu.org/licenses/gpl-faq.html
+	https://www.gnu.org/licenses/gpl-faq.html
 
 
 Documentation
@@ -117,11 +117,9 @@ required reading:
     Other excellent descriptions of how to create patches properly are:
 
 	"The Perfect Patch"
-
-		http://www.ozlabs.org/~akpm/stuff/tpp.txt
+		https://www.ozlabs.org/~akpm/stuff/tpp.txt
 
 	"Linux kernel patch submission format"
-
 		http://linux.yyz.us/patch-format.html
 
   :ref:`Documentation/stable_api_nonsense.txt <stable_api_nonsense>`
@@ -202,7 +200,7 @@ Becoming A Kernel Developer
 If you do not know anything about Linux kernel development, you should
 look at the Linux KernelNewbies project:
 
-	http://kernelnewbies.org
+	https://kernelnewbies.org
 
 It consists of a helpful mailing list where you can ask almost any type
 of basic kernel development question (make sure to search the archives
@@ -220,7 +218,7 @@ If you do not know where you want to start, but you want to look for
 some task to start doing to join into the kernel development community,
 go to the Linux Kernel Janitor's project:
 
-	http://kernelnewbies.org/KernelJanitors
+	https://kernelnewbies.org/KernelJanitors
 
 It is a great place to start.  It describes a list of relatively simple
 problems that need to be cleaned up and fixed within the Linux kernel
@@ -234,7 +232,7 @@ tree, but need some help getting it in the proper form, the
 kernel-mentors project was created to help you out with this.  It is a
 mailing list, and can be found at:
 
-	http://selenic.com/mailman/listinfo/kernel-mentors
+	https://selenic.com/mailman/listinfo/kernel-mentors
 
 Before making any actual modifications to the Linux kernel code, it is
 imperative to understand how the code in question works.  For this
@@ -264,7 +262,7 @@ branches.  These different branches are:
 4.x kernel tree
 -----------------
 4.x kernels are maintained by Linus Torvalds, and can be found on
-kernel.org in the pub/linux/kernel/v4.x/ directory.  Its development
+https://kernel.org in the pub/linux/kernel/v4.x/ directory.  Its development
 process is as follows:
 
   - As soon as a new kernel is released a two weeks window is open,
@@ -272,7 +270,7 @@ process is as follows:
     Linus, usually the patches that have already been included in the
     -next kernel for a few weeks.  The preferred way to submit big changes
     is using git (the kernel's source management tool, more information
-    can be found at http://git-scm.com/) but plain patches are also just
+    can be found at https://git-scm.com/) but plain patches are also just
     fine.
   - After two weeks a -rc1 kernel is released it is now possible to push
     only patches that do not include new features that could affect the
@@ -340,7 +338,7 @@ submission and other already ongoing work are avoided.
 Most of these repositories are git trees, but there are also other SCMs
 in use, or patch queues being published as quilt series.  Addresses of
 these subsystem repositories are listed in the MAINTAINERS file.  Many
-of them can be browsed at http://git.kernel.org/.
+of them can be browsed at https://git.kernel.org/.
 
 Before a proposed patch is committed to such a subsystem tree, it is
 subject to review which primarily happens on mailing lists (see the
@@ -349,7 +347,7 @@ process is tracked with the tool patchwork.  Patchwork offers a web
 interface which shows patch postings, any comments on a patch or
 revisions to it, and maintainers can mark patches as under review,
 accepted, or rejected.  Most of these patchwork sites are listed at
-http://patchwork.kernel.org/.
+https://patchwork.kernel.org/.
 
 4.x -next kernel tree for integration tests
 -------------------------------------------
@@ -358,7 +356,7 @@ tree, they need to be integration-tested.  For this purpose, a special
 testing repository exists into which virtually all subsystem trees are
 pulled on an almost daily basis:
 
-	http://git.kernel.org/?p=linux/kernel/git/next/linux-next.git
+	https://git.kernel.org/?p=linux/kernel/git/next/linux-next.git
 
 This way, the -next kernel gives a summary outlook onto what will be
 expected to go into the mainline kernel at the next merge period.
@@ -368,11 +366,11 @@ Adventurous testers are very welcome to runtime-test the -next kernel.
 Bug Reporting
 -------------
 
-bugzilla.kernel.org is where the Linux kernel developers track kernel
+https://bugzilla.kernel.org is where the Linux kernel developers track kernel
 bugs.  Users are encouraged to report all bugs that they find in this
 tool.  For details on how to use the kernel bugzilla, please see:
 
-	http://bugzilla.kernel.org/page.cgi?id=faq.html
+	https://bugzilla.kernel.org/page.cgi?id=faq.html
 
 The file REPORTING-BUGS in the main kernel source directory has a good
 template for how to report a possible kernel bug, and details what kind
@@ -390,13 +388,14 @@ your skills, and other developers will be aware of your presence. Fixing
 bugs is one of the best ways to get merits among other developers, because
 not many people like wasting time fixing other people's bugs.
 
-To work in the already reported bug reports, go to http://bugzilla.kernel.org.
+To work in the already reported bug reports, go to https://bugzilla.kernel.org.
 If you want to be advised of the future bug reports, you can subscribe to the
 bugme-new mailing list (only new bug reports are mailed here) or to the
 bugme-janitor mailing list (every change in the bugzilla is mailed here)
 
-	http://lists.linux-foundation.org/mailman/listinfo/bugme-new
-	http://lists.linux-foundation.org/mailman/listinfo/bugme-janitors
+	https://lists.linux-foundation.org/mailman/listinfo/bugme-new
+
+	https://lists.linux-foundation.org/mailman/listinfo/bugme-janitors
 
 
 
@@ -632,8 +631,6 @@ ChangeLog section of the document:
       http://www.ozlabs.org/~akpm/stuff/tpp.txt
 
 
-
-
 All of these things are sometimes very hard to do. It can take years to
 perfect these practices (if at all). It's a continuous process of
 improvement that requires a lot of patience and determination. But
@@ -646,7 +643,7 @@ start exactly where you are now.
 ----------
 
 Thanks to Paolo Ciarrocchi who allowed the "Development Process"
-(http://lwn.net/Articles/94386/) section
+(https://lwn.net/Articles/94386/) section
 to be based on text he had written, and to Randy Dunlap and Gerrit
 Huizenga for some of the list of things you should and should not say.
 Also thanks to Pat Mochel, Hanna Linder, Randy Dunlap, Kay Sievers,
