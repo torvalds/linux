@@ -137,6 +137,7 @@
 #define OMAP_ALIGNED		__attribute__((aligned(sizeof(u32))))
 
 #define BUFLEN			PAGE_SIZE
+#define OMAP_SHA_DMA_THRESHOLD	256
 
 struct omap_sham_dev;
 
@@ -1435,10 +1436,11 @@ static int omap_sham_final(struct ahash_request *req)
 	/*
 	 * OMAP HW accel works only with buffers >= 9.
 	 * HMAC is always >= 9 because ipad == block size.
-	 * If buffersize is less than 240, we use fallback SW encoding,
-	 * as using DMA + HW in this case doesn't provide any benefit.
+	 * If buffersize is less than DMA_THRESHOLD, we use fallback
+	 * SW encoding, as using DMA + HW in this case doesn't provide
+	 * any benefit.
 	 */
-	if (!ctx->digcnt && ctx->bufcnt < 240)
+	if (!ctx->digcnt && ctx->bufcnt < OMAP_SHA_DMA_THRESHOLD)
 		return omap_sham_final_shash(req);
 	else if (ctx->bufcnt)
 		return omap_sham_enqueue(req, OP_FINAL);
