@@ -84,9 +84,25 @@ static int tc3589x_gpio_direction_input(struct gpio_chip *chip,
 	return tc3589x_set_bits(tc3589x, reg, BIT(pos), 0);
 }
 
-static int tc3589x_gpio_single_ended(struct gpio_chip *chip,
-				     unsigned offset,
-				     enum single_ended_mode mode)
+static int tc3589x_gpio_get_direction(struct gpio_chip *chip,
+				      unsigned offset)
+{
+	struct tc3589x_gpio *tc3589x_gpio = gpiochip_get_data(chip);
+	struct tc3589x *tc3589x = tc3589x_gpio->tc3589x;
+	u8 reg = TC3589x_GPIODIR0 + offset / 8;
+	unsigned pos = offset % 8;
+	int ret;
+
+	ret = tc3589x_reg_read(tc3589x, reg);
+	if (ret < 0)
+		return ret;
+
+	return !!(ret & BIT(pos));
+}
+
+static int tc3589x_gpio_set_single_ended(struct gpio_chip *chip,
+					 unsigned offset,
+					 enum single_ended_mode mode)
 {
 	struct tc3589x_gpio *tc3589x_gpio = gpiochip_get_data(chip);
 	struct tc3589x *tc3589x = tc3589x_gpio->tc3589x;
@@ -127,11 +143,12 @@ static int tc3589x_gpio_single_ended(struct gpio_chip *chip,
 static const struct gpio_chip template_chip = {
 	.label			= "tc3589x",
 	.owner			= THIS_MODULE,
-	.direction_input	= tc3589x_gpio_direction_input,
 	.get			= tc3589x_gpio_get,
-	.direction_output	= tc3589x_gpio_direction_output,
 	.set			= tc3589x_gpio_set,
-	.set_single_ended	= tc3589x_gpio_single_ended,
+	.direction_output	= tc3589x_gpio_direction_output,
+	.direction_input	= tc3589x_gpio_direction_input,
+	.get_direction		= tc3589x_gpio_get_direction,
+	.set_single_ended	= tc3589x_gpio_set_single_ended,
 	.can_sleep		= true,
 };
 
