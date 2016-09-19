@@ -1,3 +1,5 @@
+.. _kernel_docs:
+
 Index of Documentation for People Interested in Writing and/or Understanding the Linux Kernel
 =============================================================================================
 

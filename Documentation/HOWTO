@@ -90,19 +90,19 @@ required reading:
     what is necessary to do to configure and build the kernel.  People
     who are new to the kernel should start here.
 
-  Documentation/Changes
+  :ref:`Documentation/Changes <changes>`
     This file gives a list of the minimum levels of various software
     packages that are necessary to build and run the kernel
     successfully.
 
-  Documentation/CodingStyle
+  :ref:`Documentation/CodingStyle <codingstyle>`
     This describes the Linux kernel coding style, and some of the
     rationale behind it. All new code is expected to follow the
     guidelines in this document. Most maintainers will only accept
     patches if these rules are followed, and many people will only
     review code if it is in the proper style.
 
-  Documentation/SubmittingPatches and Documentation/SubmittingDrivers
+  :ref:`Documentation/SubmittingPatches <submittingpatches>` and :ref:`Documentation/SubmittingDrivers <submittingdrivers>`
     These files describe in explicit detail how to successfully create
     and send a patch, including (but not limited to):
 
@@ -124,7 +124,7 @@ required reading:
 
 		http://linux.yyz.us/patch-format.html
 
-  Documentation/stable_api_nonsense.txt
+  :ref:`Documentation/stable_api_nonsense.txt <stable_api_nonsense>`
     This file describes the rationale behind the conscious decision to
     not have a stable API within the kernel, including things like:
 
@@ -137,29 +137,29 @@ required reading:
     philosophy and is very important for people moving to Linux from
     development on other Operating Systems.
 
-  Documentation/SecurityBugs
+  :ref:`Documentation/SecurityBugs <securitybugs>`
     If you feel you have found a security problem in the Linux kernel,
     please follow the steps in this document to help notify the kernel
     developers, and help solve the issue.
 
-  Documentation/ManagementStyle
+  :ref:`Documentation/ManagementStyle <managementstyle>`
     This document describes how Linux kernel maintainers operate and the
     shared ethos behind their methodologies.  This is important reading
     for anyone new to kernel development (or anyone simply curious about
     it), as it resolves a lot of common misconceptions and confusion
     about the unique behavior of kernel maintainers.
 
-  Documentation/stable_kernel_rules.txt
+  :ref:`Documentation/stable_kernel_rules.txt <stable_kernel_rules>`
     This file describes the rules on how the stable kernel releases
     happen, and what to do if you want to get a change into one of these
     releases.
 
-  Documentation/kernel-docs.txt
+  :ref:`Documentation/kernel-docs.txt <kernel_docs>`
     A list of external documentation that pertains to kernel
     development.  Please consult this list if you do not find what you
     are looking for within the in-kernel documentation.
 
-  Documentation/applying-patches.txt
+  :ref:`Documentation/applying-patches.txt <applying_patches>`
     A good introduction describing exactly what a patch is and how to
     apply it to the different development branches of the kernel.
 

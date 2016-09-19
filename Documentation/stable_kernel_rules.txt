@@ -1,3 +1,5 @@
+.. _stable_kernel_rules:
+
 Everything you ever wanted to know about Linux -stable releases
 ===============================================================
 
