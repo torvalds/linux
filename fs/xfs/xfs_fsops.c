@@ -553,7 +553,7 @@ xfs_growfs_data_private(
 		error = xfs_free_extent(tp,
 				XFS_AGB_TO_FSB(mp, agno,
 					be32_to_cpu(agf->agf_length) - new),
-				new, &oinfo);
+				new, &oinfo, XFS_AG_RESV_NONE);
 		if (error)
 			goto error0;
 	}
