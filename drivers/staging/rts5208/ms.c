@@ -4077,7 +4077,7 @@ void ms_free_l2p_tbl(struct rtsx_chip *chip)
 	struct ms_info *ms_card = &chip->ms_card;
 	int i = 0;
 
-	if (ms_card->segment != NULL) {
+	if (ms_card->segment) {
 		for (i = 0; i < ms_card->segment_cnt; i++) {
 			vfree(ms_card->segment[i].l2p_table);
 			ms_card->segment[i].l2p_table = NULL;
