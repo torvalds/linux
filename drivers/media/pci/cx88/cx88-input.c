@@ -631,7 +631,8 @@ void cx88_i2c_init_ir(struct cx88_core *core)
 			/* Hauppauge XVR */
 			core->init_data.name = "cx88 Hauppauge XVR remote";
 			core->init_data.ir_codes = RC_MAP_HAUPPAUGE;
-			core->init_data.type = RC_BIT_RC5;
+			core->init_data.type = RC_BIT_RC5 | RC_BIT_RC6_MCE |
+							RC_BIT_RC6_6A_32;
 			core->init_data.internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
 
 			info.platform_data = &core->init_data;
