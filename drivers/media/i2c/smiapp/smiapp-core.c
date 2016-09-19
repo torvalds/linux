@@ -2524,10 +2524,20 @@ static int smiapp_register_subdev(struct smiapp_sensor *sensor,
 	if (rval) {
 		dev_err(&client->dev,
 			"media_create_pad_link failed\n");
+		v4l2_device_unregister_subdev(&ssd->sd);
 		return rval;
 	}
 
 	return 0;
+}
+
+static void smiapp_unregistered(struct v4l2_subdev *subdev)
+{
+	struct smiapp_sensor *sensor = to_smiapp_sensor(subdev);
+	unsigned int i;
+
+	for (i = 1; i < sensor->ssds_used; i++)
+		v4l2_device_unregister_subdev(&sensor->ssds[i].sd);
 }
 
 static int smiapp_registered(struct v4l2_subdev *subdev)
@@ -2544,10 +2554,19 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 			return rval;
 	}
 
-	return smiapp_register_subdev(
+	rval = smiapp_register_subdev(
 		sensor, sensor->pixel_array, sensor->binner,
 		SMIAPP_PA_PAD_SRC, SMIAPP_PAD_SINK,
 		MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE);
+	if (rval)
+		goto out_err;
+
+	return 0;
+
+out_err:
+	smiapp_unregistered(subdev);
+
+	return rval;
 }
 
 static void smiapp_cleanup(struct smiapp_sensor *sensor)
@@ -2894,6 +2913,7 @@ static const struct media_entity_operations smiapp_entity_ops = {
 
 static const struct v4l2_subdev_internal_ops smiapp_internal_src_ops = {
 	.registered = smiapp_registered,
+	.unregistered = smiapp_unregistered,
 	.open = smiapp_open,
 	.close = smiapp_close,
 };
