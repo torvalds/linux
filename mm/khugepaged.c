@@ -882,6 +882,11 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
 		.pmd = pmd,
 	};
 
+	/* we only decide to swapin, if there is enough young ptes */
+	if (referenced < HPAGE_PMD_NR/2) {
+		trace_mm_collapse_huge_page_swapin(mm, swapped_in, referenced, 0);
+		return false;
+	}
 	fe.pte = pte_offset_map(pmd, address);
 	for (; fe.address < address + HPAGE_PMD_NR*PAGE_SIZE;
 			fe.pte++, fe.address += PAGE_SIZE) {
@@ -889,11 +894,6 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
 		if (!is_swap_pte(pteval))
 			continue;
 		swapped_in++;
-		/* we only decide to swapin, if there is enough young ptes */
-		if (referenced < HPAGE_PMD_NR/2) {
-			trace_mm_collapse_huge_page_swapin(mm, swapped_in, referenced, 0);
-			return false;
-		}
 		ret = do_swap_page(&fe, pteval);
 
 		/* do_swap_page returns VM_FAULT_RETRY with released mmap_sem */
