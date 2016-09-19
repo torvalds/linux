@@ -18,7 +18,7 @@
 #include "socfpga_cyclone5_mcv.dtsi"
 
 / {
-	model = "DENX MCV EVK";
+	model = "Aries/DENX MCV EVK";
 	compatible = "altr,socfpga-cyclone5", "altr,socfpga";
 
 	aliases {
