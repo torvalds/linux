@@ -378,7 +378,7 @@ void __init sa1100_map_io(void)
 
 void __init sa1100_timer_init(void)
 {
-	pxa_timer_nodt_init(IRQ_OST0, io_p2v(0x90000000), 3686400);
+	pxa_timer_nodt_init(IRQ_OST0, io_p2v(0x90000000));
 }
 
 static struct resource irq_resource =

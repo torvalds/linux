@@ -69,8 +69,7 @@ void __init pxa_timer_init(void)
 		pxa27x_clocks_init();
 	if (cpu_is_pxa3xx())
 		pxa3xx_clocks_init();
-	pxa_timer_nodt_init(IRQ_OST0, io_p2v(0x40a00000),
-			    get_clock_tick_rate());
+	pxa_timer_nodt_init(IRQ_OST0, io_p2v(0x40a00000));
 }
 
 /*
