@@ -219,10 +219,40 @@ static ssize_t toolaction_store(struct device *dev,
 static DEVICE_ATTR_RW(toolaction);
 
 static ssize_t boottotool_show(struct device *dev,
-			       struct device_attribute *attr, char *buf);
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	struct efi_spar_indication efi_spar_indication;
+
+	visorchannel_read(controlvm_channel,
+			  offsetof(struct spar_controlvm_channel_protocol,
+				   efi_spar_ind), &efi_spar_indication,
+			  sizeof(struct efi_spar_indication));
+	return scnprintf(buf, PAGE_SIZE, "%u\n",
+			 efi_spar_indication.boot_to_tool);
+}
+
 static ssize_t boottotool_store(struct device *dev,
-				struct device_attribute *attr, const char *buf,
-				size_t count);
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	int val, ret;
+	struct efi_spar_indication efi_spar_indication;
+
+	if (kstrtoint(buf, 10, &val))
+		return -EINVAL;
+
+	efi_spar_indication.boot_to_tool = val;
+	ret = visorchannel_write
+		(controlvm_channel,
+		 offsetof(struct spar_controlvm_channel_protocol,
+			  efi_spar_ind), &(efi_spar_indication),
+		 sizeof(struct efi_spar_indication));
+
+	if (ret)
+		return ret;
+	return count;
+}
 static DEVICE_ATTR_RW(boottotool);
 
 static ssize_t error_show(struct device *dev, struct device_attribute *attr,
@@ -456,42 +486,6 @@ parser_string_get(struct parser_context *ctx)
 		memcpy(value, pscan, value_length);
 	((u8 *)(value))[value_length] = '\0';
 	return value;
-}
-
-static ssize_t boottotool_show(struct device *dev,
-			       struct device_attribute *attr,
-			       char *buf)
-{
-	struct efi_spar_indication efi_spar_indication;
-
-	visorchannel_read(controlvm_channel,
-			  offsetof(struct spar_controlvm_channel_protocol,
-				   efi_spar_ind), &efi_spar_indication,
-			  sizeof(struct efi_spar_indication));
-	return scnprintf(buf, PAGE_SIZE, "%u\n",
-			 efi_spar_indication.boot_to_tool);
-}
-
-static ssize_t boottotool_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t count)
-{
-	int val, ret;
-	struct efi_spar_indication efi_spar_indication;
-
-	if (kstrtoint(buf, 10, &val))
-		return -EINVAL;
-
-	efi_spar_indication.boot_to_tool = val;
-	ret = visorchannel_write
-		(controlvm_channel,
-		 offsetof(struct spar_controlvm_channel_protocol,
-			  efi_spar_ind), &(efi_spar_indication),
-		 sizeof(struct efi_spar_indication));
-
-	if (ret)
-		return ret;
-	return count;
 }
 
 static ssize_t error_show(struct device *dev, struct device_attribute *attr,
