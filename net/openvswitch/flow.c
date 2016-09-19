@@ -767,8 +767,6 @@ int ovs_flow_key_extract_userspace(struct net *net, const struct nlattr *attr,
 {
 	int err;
 
-	memset(key, 0, OVS_SW_FLOW_KEY_METADATA_SIZE);
-
 	/* Extract metadata from netlink attributes. */
 	err = ovs_nla_get_flow_metadata(net, attr, key, log);
 	if (err)
