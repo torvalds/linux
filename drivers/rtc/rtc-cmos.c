@@ -62,6 +62,8 @@ struct cmos_rtc {
 	u8			day_alrm;
 	u8			mon_alrm;
 	u8			century;
+
+	struct rtc_wkalrm	saved_wkalrm;
 };
 
 /* both platform and pnp busses use negative numbers for invalid irqs */
@@ -879,6 +881,8 @@ static int cmos_suspend(struct device *dev)
 			enable_irq_wake(cmos->irq);
 	}
 
+	cmos_read_alarm(dev, &cmos->saved_wkalrm);
+
 	dev_dbg(dev, "suspend%s, ctrl %02x\n",
 			(tmp & RTC_AIE) ? ", alarm may wake" : "",
 			tmp);
@@ -899,6 +903,22 @@ static inline int cmos_poweroff(struct device *dev)
 
 #ifdef	CONFIG_PM_SLEEP
 
+static void cmos_check_wkalrm(struct device *dev)
+{
+	struct cmos_rtc *cmos = dev_get_drvdata(dev);
+	struct rtc_wkalrm current_alarm;
+	time64_t t_current_expires;
+	time64_t t_saved_expires;
+
+	cmos_read_alarm(dev, &current_alarm);
+	t_current_expires = rtc_tm_to_time64(&current_alarm.time);
+	t_saved_expires = rtc_tm_to_time64(&cmos->saved_wkalrm.time);
+	if (t_current_expires != t_saved_expires ||
+	    cmos->saved_wkalrm.enabled != current_alarm.enabled) {
+		cmos_set_alarm(dev, &cmos->saved_wkalrm);
+	}
+}
+
 static void cmos_check_acpi_rtc_status(struct device *dev,
 				       unsigned char *rtc_control);
 
@@ -914,6 +934,9 @@ static int cmos_resume(struct device *dev)
 			disable_irq_wake(cmos->irq);
 		cmos->enabled_wake = 0;
 	}
+
+	/* The BIOS might have changed the alarm, restore it */
+	cmos_check_wkalrm(dev);
 
 	spin_lock_irq(&rtc_lock);
 	tmp = cmos->suspend_ctrl;
