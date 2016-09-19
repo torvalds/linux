@@ -328,10 +328,6 @@ static struct platform_device visorchipset_platform_device = {
 };
 
 /* Function prototypes */
-static void controlvm_respond_physdev_changestate(
-		struct controlvm_message_header *msg_hdr, int response,
-		struct spar_segment_state state);
-
 static void parser_done(struct parser_context *ctx);
 
 static uuid_le
