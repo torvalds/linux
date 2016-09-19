@@ -47,9 +47,10 @@ kernel patches.
     but any one function that uses more than 512 bytes on the stack is a
     candidate for change.
 
-11: Include kernel-doc to document global kernel APIs.  (Not required for
-    static functions, but OK there also.) Use 'make htmldocs' or 'make
-    mandocs' to check the kernel-doc and fix any issues.
+11: Include :ref:`kernel-doc <kernel_doc>` to document global  kernel APIs.
+    (Not required for static functions, but OK there also.) Use
+    ``make htmldocs`` or ``make pdfdocs`` to check the
+    :ref:`kernel-doc <kernel_doc>` and fix any issues.
 
 12: Has been tested with CONFIG_PREEMPT, CONFIG_DEBUG_PREEMPT,
     CONFIG_DEBUG_SLAB, CONFIG_DEBUG_PAGEALLOC, CONFIG_DEBUG_MUTEXES,
