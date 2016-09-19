@@ -441,7 +441,15 @@ static void generic_exec_sequence(struct drm_panel *panel, enum mipi_seq seq_id)
 			operation_size = *data++;
 
 		if (mipi_elem_exec) {
+			const u8 *next = data + operation_size;
+
 			data = mipi_elem_exec(intel_dsi, data);
+
+			/* Consistency check if we have size. */
+			if (operation_size && data != next) {
+				DRM_ERROR("Inconsistent operation size\n");
+				return;
+			}
 		} else if (operation_size) {
 			/* We have size, skip. */
 			DRM_DEBUG_KMS("Unsupported MIPI operation byte %u\n",
