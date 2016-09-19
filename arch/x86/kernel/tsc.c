@@ -689,7 +689,12 @@ unsigned long native_calibrate_tsc(void)
 		switch (boot_cpu_data.x86_model) {
 		case INTEL_FAM6_SKYLAKE_MOBILE:
 		case INTEL_FAM6_SKYLAKE_DESKTOP:
+		case INTEL_FAM6_KABYLAKE_MOBILE:
+		case INTEL_FAM6_KABYLAKE_DESKTOP:
 			crystal_khz = 24000;	/* 24.0 MHz */
+			break;
+		case INTEL_FAM6_SKYLAKE_X:
+			crystal_khz = 25000;	/* 25.0 MHz */
 			break;
 		case INTEL_FAM6_ATOM_GOLDMONT:
 			crystal_khz = 19200;	/* 19.2 MHz */
