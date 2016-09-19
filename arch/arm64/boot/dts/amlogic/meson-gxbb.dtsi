@@ -151,6 +151,25 @@
 		#size-cells = <2>;
 		ranges;
 
+		usb0_phy: phy@c0000000 {
+			compatible = "amlogic,meson-gxbb-usb2-phy";
+			#phy-cells = <0>;
+			reg = <0x0 0xc0000000 0x0 0x20>;
+			resets = <&reset RESET_USB_OTG>;
+			clocks = <&clkc CLKID_USB>, <&clkc CLKID_USB0>;
+			clock-names = "usb_general", "usb";
+			status = "disabled";
+		};
+
+		usb1_phy: phy@c0000020 {
+			compatible = "amlogic,meson-gxbb-usb2-phy";
+			#phy-cells = <0>;
+			reg = <0x0 0xc0000020 0x0 0x20>;
+			clocks = <&clkc CLKID_USB>, <&clkc CLKID_USB1>;
+			clock-names = "usb_general", "usb";
+			status = "disabled";
+		};
+
 		cbus: cbus@c1100000 {
 			compatible = "simple-bus";
 			reg = <0x0 0xc1100000 0x0 0x100000>;
@@ -180,6 +199,27 @@
 				status = "disabled";
 			};
 
+			pwm_ab: pwm@8550 {
+				compatible = "amlogic,meson-gxbb-pwm";
+				reg = <0x0 0x08550 0x0 0x10>;
+				#pwm-cells = <3>;
+				status = "disabled";
+			};
+
+			pwm_cd: pwm@8650 {
+				compatible = "amlogic,meson-gxbb-pwm";
+				reg = <0x0 0x08650 0x0 0x10>;
+				#pwm-cells = <3>;
+				status = "disabled";
+			};
+
+			pwm_ef: pwm@86c0 {
+				compatible = "amlogic,meson-gxbb-pwm";
+				reg = <0x0 0x086c0 0x0 0x10>;
+				#pwm-cells = <3>;
+				status = "disabled";
+			};
+
 			uart_C: serial@8700 {
 				compatible = "amlogic,meson-uart";
 				reg = <0x0 0x8700 0x0 0x14>;
@@ -192,6 +232,45 @@
 				compatible = "amlogic,meson-gxbb-wdt";
 				reg = <0x0 0x098d0 0x0 0x10>;
 				clocks = <&xtal>;
+			};
+
+			spifc: spi@8c80 {
+				compatible = "amlogic,meson-gxbb-spifc";
+				reg = <0x0 0x08c80 0x0 0x80>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&clkc CLKID_SPI>;
+				status = "disabled";
+			};
+
+			i2c_A: i2c@8500 {
+				compatible = "amlogic,meson-gxbb-i2c";
+				reg = <0x0 0x08500 0x0 0x20>;
+				interrupts = <GIC_SPI 21 IRQ_TYPE_EDGE_RISING>;
+				clocks = <&clkc CLKID_I2C>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			i2c_B: i2c@87c0 {
+				compatible = "amlogic,meson-gxbb-i2c";
+				reg = <0x0 0x087c0 0x0 0x20>;
+				interrupts = <GIC_SPI 214 IRQ_TYPE_EDGE_RISING>;
+				clocks = <&clkc CLKID_I2C>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			i2c_C: i2c@87e0 {
+				compatible = "amlogic,meson-gxbb-i2c";
+				reg = <0x0 0x087e0 0x0 0x20>;
+				interrupts = <GIC_SPI 215 IRQ_TYPE_EDGE_RISING>;
+				clocks = <&clkc CLKID_I2C>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
 			};
 		};
 
@@ -241,6 +320,14 @@
 					mux {
 						groups = "remote_input_ao";
 						function = "remote_input_ao";
+					};
+				};
+
+				i2c_ao_pins: i2c_ao {
+					mux {
+						groups = "i2c_sck_ao",
+						       "i2c_sda_ao";
+						function = "i2c_ao";
 					};
 				};
 
@@ -294,6 +381,23 @@
 				interrupts = <GIC_SPI 196 IRQ_TYPE_EDGE_RISING>;
 				status = "disabled";
 			};
+
+			pwm_ab_AO: pwm@550 {
+				compatible = "amlogic,meson-gxbb-pwm";
+				reg = <0x0 0x0550 0x0 0x10>;
+				#pwm-cells = <3>;
+				status = "disabled";
+			};
+
+			i2c_AO: i2c@500 {
+				compatible = "amlogic,meson-gxbb-i2c";
+				reg = <0x0 0x500 0x0 0x20>;
+				interrupts = <GIC_SPI 195 IRQ_TYPE_EDGE_RISING>;
+				clocks = <&clkc CLKID_AO_I2C>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
 		};
 
 		periphs: periphs@c8834000 {
@@ -333,6 +437,16 @@
 					};
 				};
 
+				nor_pins: nor {
+					mux {
+						groups = "nor_d",
+						       "nor_q",
+						       "nor_c",
+						       "nor_cs";
+						function = "nor";
+					};
+				};
+
 				sdcard_pins: sdcard {
 					mux {
 						groups = "sdcard_d0",
@@ -342,6 +456,25 @@
 						       "sdcard_cmd",
 						       "sdcard_clk";
 						function = "sdcard";
+					};
+				};
+
+				sdio_pins: sdio {
+					mux {
+						groups = "sdio_d0",
+						       "sdio_d1",
+						       "sdio_d2",
+						       "sdio_d3",
+						       "sdio_cmd",
+						       "sdio_clk";
+						function = "sdio";
+					};
+				};
+
+				sdio_irq_pins: sdio_irq {
+					mux {
+						groups = "sdio_irq";
+						function = "sdio";
 					};
 				};
 
@@ -366,6 +499,30 @@
 						groups = "uart_tx_c",
 						       "uart_rx_c";
 						function = "uart_c";
+					};
+				};
+
+				i2c_a_pins: i2c_a {
+					mux {
+						groups = "i2c_sck_a",
+						       "i2c_sda_a";
+						function = "i2c_a";
+					};
+				};
+
+				i2c_b_pins: i2c_b {
+					mux {
+						groups = "i2c_sck_b",
+						       "i2c_sda_b";
+						function = "i2c_b";
+					};
+				};
+
+				i2c_c_pins: i2c_c {
+					mux {
+						groups = "i2c_sck_c",
+						       "i2c_sda_c";
+						function = "i2c_c";
 					};
 				};
 
@@ -452,6 +609,15 @@
 				#clock-cells = <1>;
 				reg = <0x0 0x0 0x0 0x3db>;
 			};
+
+			mailbox: mailbox@404 {
+				compatible = "amlogic,meson-gxbb-mhu";
+				reg = <0 0x404 0 0x4c>;
+				interrupts = <0 208 IRQ_TYPE_EDGE_RISING>,
+					     <0 209 IRQ_TYPE_EDGE_RISING>,
+					     <0 210 IRQ_TYPE_EDGE_RISING>;
+				#mbox-cells = <1>;
+			};
 		};
 
 		apb: apb@d0000000 {
@@ -462,14 +628,40 @@
 			ranges = <0x0 0x0 0x0 0xd0000000 0x0 0x200000>;
 		};
 
+		usb0: usb@c9000000 {
+			compatible = "amlogic,meson-gxbb-usb", "snps,dwc2";
+			reg = <0x0 0xc9000000 0x0 0x40000>;
+			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clkc CLKID_USB0_DDR_BRIDGE>;
+			clock-names = "otg";
+			phys = <&usb0_phy>;
+			phy-names = "usb2-phy";
+			dr_mode = "host";
+			status = "disabled";
+		};
+
+		usb1: usb@c9100000 {
+			compatible = "amlogic,meson-gxbb-usb", "snps,dwc2";
+			reg = <0x0 0xc9100000 0x0 0x40000>;
+			interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clkc CLKID_USB1_DDR_BRIDGE>;
+			clock-names = "otg";
+			phys = <&usb1_phy>;
+			phy-names = "usb2-phy";
+			dr_mode = "host";
+			status = "disabled";
+		};
+
 		ethmac: ethernet@c9410000 {
-			compatible = "amlogic,meson6-dwmac", "snps,dwmac";
+			compatible = "amlogic,meson-gxbb-dwmac", "snps,dwmac";
 			reg = <0x0 0xc9410000 0x0 0x10000
 			       0x0 0xc8834540 0x0 0x4>;
 			interrupts = <0 8 1>;
 			interrupt-names = "macirq";
-			clocks = <&clkc CLKID_ETH>;
-			clock-names = "stmmaceth";
+			clocks = <&clkc CLKID_ETH>,
+				 <&clkc CLKID_FCLK_DIV2>,
+				 <&clkc CLKID_MPLL2>;
+			clock-names = "stmmaceth", "clkin0", "clkin1";
 			phy-mode = "rgmii";
 			status = "disabled";
 		};
