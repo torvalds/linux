@@ -334,64 +334,6 @@ static void controlvm_respond_physdev_changestate(
 
 static void parser_done(struct parser_context *ctx);
 
-static struct parser_context *
-parser_init_byte_stream(u64 addr, u32 bytes, bool local, bool *retry)
-{
-	int allocbytes = sizeof(struct parser_context) + bytes;
-	struct parser_context *ctx;
-
-	if (retry)
-		*retry = false;
-
-	/*
-	 * alloc an 0 extra byte to ensure payload is
-	 * '\0'-terminated
-	 */
-	allocbytes++;
-	if ((controlvm_payload_bytes_buffered + bytes)
-	    > MAX_CONTROLVM_PAYLOAD_BYTES) {
-		if (retry)
-			*retry = true;
-		return NULL;
-	}
-	ctx = kzalloc(allocbytes, GFP_KERNEL | __GFP_NORETRY);
-	if (!ctx) {
-		if (retry)
-			*retry = true;
-		return NULL;
-	}
-
-	ctx->allocbytes = allocbytes;
-	ctx->param_bytes = bytes;
-	ctx->curr = NULL;
-	ctx->bytes_remaining = 0;
-	ctx->byte_stream = false;
-	if (local) {
-		void *p;
-
-		if (addr > virt_to_phys(high_memory - 1))
-			goto err_finish_ctx;
-		p = __va((unsigned long)(addr));
-		memcpy(ctx->data, p, bytes);
-	} else {
-		void *mapping = memremap(addr, bytes, MEMREMAP_WB);
-
-		if (!mapping)
-			goto err_finish_ctx;
-		memcpy(ctx->data, mapping, bytes);
-		memunmap(mapping);
-	}
-
-	ctx->byte_stream = true;
-	controlvm_payload_bytes_buffered += ctx->param_bytes;
-
-	return ctx;
-
-err_finish_ctx:
-	parser_done(ctx);
-	return NULL;
-}
-
 static uuid_le
 parser_id_get(struct parser_context *ctx)
 {
@@ -1904,6 +1846,64 @@ visorchipset_file_cleanup(dev_t major_dev)
 		cdev_del(&file_cdev);
 	file_cdev.ops = NULL;
 	unregister_chrdev_region(major_dev, 1);
+}
+
+static struct parser_context *
+parser_init_byte_stream(u64 addr, u32 bytes, bool local, bool *retry)
+{
+	int allocbytes = sizeof(struct parser_context) + bytes;
+	struct parser_context *ctx;
+
+	if (retry)
+		*retry = false;
+
+	/*
+	 * alloc an 0 extra byte to ensure payload is
+	 * '\0'-terminated
+	 */
+	allocbytes++;
+	if ((controlvm_payload_bytes_buffered + bytes)
+	    > MAX_CONTROLVM_PAYLOAD_BYTES) {
+		if (retry)
+			*retry = true;
+		return NULL;
+	}
+	ctx = kzalloc(allocbytes, GFP_KERNEL | __GFP_NORETRY);
+	if (!ctx) {
+		if (retry)
+			*retry = true;
+		return NULL;
+	}
+
+	ctx->allocbytes = allocbytes;
+	ctx->param_bytes = bytes;
+	ctx->curr = NULL;
+	ctx->bytes_remaining = 0;
+	ctx->byte_stream = false;
+	if (local) {
+		void *p;
+
+		if (addr > virt_to_phys(high_memory - 1))
+			goto err_finish_ctx;
+		p = __va((unsigned long)(addr));
+		memcpy(ctx->data, p, bytes);
+	} else {
+		void *mapping = memremap(addr, bytes, MEMREMAP_WB);
+
+		if (!mapping)
+			goto err_finish_ctx;
+		memcpy(ctx->data, mapping, bytes);
+		memunmap(mapping);
+	}
+
+	ctx->byte_stream = true;
+	controlvm_payload_bytes_buffered += ctx->param_bytes;
+
+	return ctx;
+
+err_finish_ctx:
+	parser_done(ctx);
+	return NULL;
 }
 
 /**
