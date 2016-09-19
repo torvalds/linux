@@ -284,8 +284,6 @@ struct tps65218 {
 	struct regmap *regmap;
 };
 
-int tps65218_reg_read(struct tps65218 *tps, unsigned int reg,
-					unsigned int *val);
 int tps65218_reg_write(struct tps65218 *tps, unsigned int reg,
 			unsigned int val, unsigned int level);
 int tps65218_set_bits(struct tps65218 *tps, unsigned int reg,
