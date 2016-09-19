@@ -169,7 +169,7 @@ EXPORT_SYMBOL_GPL(sbitmap_any_bit_clear);
 
 unsigned int sbitmap_weight(const struct sbitmap *sb)
 {
-	unsigned int i, weight;
+	unsigned int i, weight = 0;
 
 	for (i = 0; i < sb->map_nr; i++) {
 		const struct sbitmap_word *word = &sb->map[i];
