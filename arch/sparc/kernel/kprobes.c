@@ -5,7 +5,7 @@
 
 #include <linux/kernel.h>
 #include <linux/kprobes.h>
-#include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/kdebug.h>
 #include <linux/slab.h>
 #include <linux/context_tracking.h>
