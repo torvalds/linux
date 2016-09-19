@@ -258,7 +258,7 @@ int line6_init_midi(struct usb_line6 *line6)
 	struct snd_rawmidi *rmidi;
 	struct snd_line6_midi *line6midi;
 
-	if (!(line6->properties->capabilities & LINE6_CAP_CONTROL)) {
+	if (!(line6->properties->capabilities & LINE6_CAP_CONTROL_MIDI)) {
 		/* skip MIDI initialization and report success */
 		return 0;
 	}
