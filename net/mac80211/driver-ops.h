@@ -162,7 +162,8 @@ static inline void drv_bss_info_changed(struct ieee80211_local *local,
 		return;
 
 	if (WARN_ON_ONCE(sdata->vif.type == NL80211_IFTYPE_P2P_DEVICE ||
-			 sdata->vif.type == NL80211_IFTYPE_MONITOR))
+			 (sdata->vif.type == NL80211_IFTYPE_MONITOR &&
+			  !sdata->vif.mu_mimo_owner)))
 		return;
 
 	if (!check_sdata_in_driver(sdata))
@@ -497,21 +498,6 @@ static inline void drv_sta_add_debugfs(struct ieee80211_local *local,
 	if (local->ops->sta_add_debugfs)
 		local->ops->sta_add_debugfs(&local->hw, &sdata->vif,
 					    sta, dir);
-}
-
-static inline void drv_sta_remove_debugfs(struct ieee80211_local *local,
-					  struct ieee80211_sub_if_data *sdata,
-					  struct ieee80211_sta *sta,
-					  struct dentry *dir)
-{
-	might_sleep();
-
-	sdata = get_bss_sdata(sdata);
-	check_sdata_in_driver(sdata);
-
-	if (local->ops->sta_remove_debugfs)
-		local->ops->sta_remove_debugfs(&local->hw, &sdata->vif,
-					       sta, dir);
 }
 #endif
 

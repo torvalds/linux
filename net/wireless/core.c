@@ -1252,7 +1252,7 @@ static int __init cfg80211_init(void)
 	if (err)
 		goto out_fail_reg;
 
-	cfg80211_wq = create_singlethread_workqueue("cfg80211");
+	cfg80211_wq = alloc_ordered_workqueue("cfg80211", WQ_MEM_RECLAIM);
 	if (!cfg80211_wq) {
 		err = -ENOMEM;
 		goto out_fail_wq;

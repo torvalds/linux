@@ -249,9 +249,9 @@ struct cfg80211_event {
 };
 
 struct cfg80211_cached_keys {
-	struct key_params params[6];
-	u8 data[6][WLAN_MAX_KEY_LEN];
-	int def, defmgmt;
+	struct key_params params[4];
+	u8 data[4][WLAN_KEY_LEN_WEP104];
+	int def;
 };
 
 enum cfg80211_chan_mode {

@@ -408,10 +408,10 @@ static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 
 	if (!wdev->wext.keys) {
 		wdev->wext.keys = kzalloc(sizeof(*wdev->wext.keys),
-					      GFP_KERNEL);
+					  GFP_KERNEL);
 		if (!wdev->wext.keys)
 			return -ENOMEM;
-		for (i = 0; i < 6; i++)
+		for (i = 0; i < 4; i++)
 			wdev->wext.keys->params[i].key =
 				wdev->wext.keys->data[i];
 	}
@@ -460,7 +460,7 @@ static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 		if (err == -ENOENT)
 			err = 0;
 		if (!err) {
-			if (!addr) {
+			if (!addr && idx < 4) {
 				memset(wdev->wext.keys->data[idx], 0,
 				       sizeof(wdev->wext.keys->data[idx]));
 				wdev->wext.keys->params[idx].key_len = 0;
@@ -487,6 +487,9 @@ static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 	err = 0;
 	if (wdev->current_bss)
 		err = rdev_add_key(rdev, dev, idx, pairwise, addr, params);
+	else if (params->cipher != WLAN_CIPHER_SUITE_WEP40 &&
+		 params->cipher != WLAN_CIPHER_SUITE_WEP104)
+		return -EINVAL;
 	if (err)
 		return err;
 

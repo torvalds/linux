@@ -39,7 +39,7 @@ static struct wireless_dev *ieee80211_add_iface(struct wiphy *wiphy,
 
 	if (type == NL80211_IFTYPE_MONITOR && flags) {
 		sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
-		sdata->u.mntr_flags = *flags;
+		sdata->u.mntr.flags = *flags;
 	}
 
 	return wdev;
@@ -73,8 +73,29 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 		sdata->u.mgd.use_4addr = params->use_4addr;
 	}
 
-	if (sdata->vif.type == NL80211_IFTYPE_MONITOR && flags) {
+	if (sdata->vif.type == NL80211_IFTYPE_MONITOR) {
 		struct ieee80211_local *local = sdata->local;
+		struct ieee80211_sub_if_data *monitor_sdata;
+		u32 mu_mntr_cap_flag = NL80211_EXT_FEATURE_MU_MIMO_AIR_SNIFFER;
+
+		monitor_sdata = rtnl_dereference(local->monitor_sdata);
+		if (monitor_sdata &&
+		    wiphy_ext_feature_isset(wiphy, mu_mntr_cap_flag)) {
+			memcpy(monitor_sdata->vif.bss_conf.mu_group.membership,
+			       params->vht_mumimo_groups, WLAN_MEMBERSHIP_LEN);
+			memcpy(monitor_sdata->vif.bss_conf.mu_group.position,
+			       params->vht_mumimo_groups + WLAN_MEMBERSHIP_LEN,
+			       WLAN_USER_POSITION_LEN);
+			monitor_sdata->vif.mu_mimo_owner = true;
+			ieee80211_bss_info_change_notify(monitor_sdata,
+							 BSS_CHANGED_MU_GROUPS);
+
+			ether_addr_copy(monitor_sdata->u.mntr.mu_follow_addr,
+					params->macaddr);
+		}
+
+		if (!flags)
+			return 0;
 
 		if (ieee80211_sdata_running(sdata)) {
 			u32 mask = MONITOR_FLAG_COOK_FRAMES |
@@ -89,11 +110,11 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 			 *	cooked_mntrs, monitor and all fif_* counters
 			 *	reconfigure hardware
 			 */
-			if ((*flags & mask) != (sdata->u.mntr_flags & mask))
+			if ((*flags & mask) != (sdata->u.mntr.flags & mask))
 				return -EBUSY;
 
 			ieee80211_adjust_monitor_flags(sdata, -1);
-			sdata->u.mntr_flags = *flags;
+			sdata->u.mntr.flags = *flags;
 			ieee80211_adjust_monitor_flags(sdata, 1);
 
 			ieee80211_configure_filter(local);
@@ -103,7 +124,7 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 			 * and ieee80211_do_open take care of "everything"
 			 * mentioned in the comment above.
 			 */
-			sdata->u.mntr_flags = *flags;
+			sdata->u.mntr.flags = *flags;
 		}
 	}
 
@@ -2940,10 +2961,6 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	chanctx = container_of(conf, struct ieee80211_chanctx, conf);
-	if (!chanctx) {
-		err = -EBUSY;
-		goto out;
-	}
 
 	ch_switch.timestamp = 0;
 	ch_switch.device_timestamp = 0;

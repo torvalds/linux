@@ -420,7 +420,7 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
-	trace_api_scan_completed(local, info);
+	trace_api_scan_completed(local, info->aborted);
 
 	set_bit(SCAN_COMPLETED, &local->scanning);
 	if (info->aborted)

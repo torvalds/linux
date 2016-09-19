@@ -2432,7 +2432,8 @@ struct cfg80211_qos_map {
  *	cases, the result of roaming is indicated with a call to
  *	cfg80211_roamed() or cfg80211_roamed_bss().
  *	(invoked with the wireless_dev mutex held)
- * @disconnect: Disconnect from the BSS/ESS.
+ * @disconnect: Disconnect from the BSS/ESS. Once done, call
+ *	cfg80211_disconnected().
  *	(invoked with the wireless_dev mutex held)
  *
  * @join_ibss: Join the specified IBSS (or create if necessary). Once done, call
@@ -3955,6 +3956,34 @@ unsigned int cfg80211_classify8021d(struct sk_buff *skb,
 				    struct cfg80211_qos_map *qos_map);
 
 /**
+ * cfg80211_find_ie_match - match information element and byte array in data
+ *
+ * @eid: element ID
+ * @ies: data consisting of IEs
+ * @len: length of data
+ * @match: byte array to match
+ * @match_len: number of bytes in the match array
+ * @match_offset: offset in the IE where the byte array should match.
+ *	If match_len is zero, this must also be set to zero.
+ *	Otherwise this must be set to 2 or more, because the first
+ *	byte is the element id, which is already compared to eid, and
+ *	the second byte is the IE length.
+ *
+ * Return: %NULL if the element ID could not be found or if
+ * the element is invalid (claims to be longer than the given
+ * data) or if the byte array doesn't match, or a pointer to the first
+ * byte of the requested element, that is the byte containing the
+ * element ID.
+ *
+ * Note: There are no checks on the element length other than
+ * having to fit into the given data and being large enough for the
+ * byte array to match.
+ */
+const u8 *cfg80211_find_ie_match(u8 eid, const u8 *ies, int len,
+				 const u8 *match, int match_len,
+				 int match_offset);
+
+/**
  * cfg80211_find_ie - find information element in data
  *
  * @eid: element ID
@@ -3969,7 +3998,10 @@ unsigned int cfg80211_classify8021d(struct sk_buff *skb,
  * Note: There are no checks on the element length other than
  * having to fit into the given data.
  */
-const u8 *cfg80211_find_ie(u8 eid, const u8 *ies, int len);
+static inline const u8 *cfg80211_find_ie(u8 eid, const u8 *ies, int len)
+{
+	return cfg80211_find_ie_match(eid, ies, len, NULL, 0, 0);
+}
 
 /**
  * cfg80211_find_vendor_ie - find vendor specific information element in data

@@ -218,7 +218,7 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 				   struct key_params *params, int key_idx,
 				   bool pairwise, const u8 *mac_addr)
 {
-	if (key_idx > 5)
+	if (key_idx < 0 || key_idx > 5)
 		return -EINVAL;
 
 	if (!pairwise && mac_addr && !(rdev->wiphy.flags & WIPHY_FLAG_IBSS_RSN))
@@ -249,7 +249,13 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 		/* Disallow BIP (group-only) cipher as pairwise cipher */
 		if (pairwise)
 			return -EINVAL;
+		if (key_idx < 4)
+			return -EINVAL;
 		break;
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
+		if (key_idx > 3)
+			return -EINVAL;
 	default:
 		break;
 	}
@@ -906,7 +912,7 @@ void cfg80211_upload_connect_keys(struct wireless_dev *wdev)
 	if (!wdev->connect_keys)
 		return;
 
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < 4; i++) {
 		if (!wdev->connect_keys->params[i].cipher)
 			continue;
 		if (rdev_add_key(rdev, dev, i, false, NULL,
@@ -919,9 +925,6 @@ void cfg80211_upload_connect_keys(struct wireless_dev *wdev)
 				netdev_err(dev, "failed to set defkey %d\n", i);
 				continue;
 			}
-		if (wdev->connect_keys->defmgmt == i)
-			if (rdev_set_default_mgmt_key(rdev, dev, i))
-				netdev_err(dev, "failed to set mgtdef %d\n", i);
 	}
 
 	kzfree(wdev->connect_keys);
