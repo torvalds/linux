@@ -136,27 +136,6 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 			  err);
 }
 
-static void
-_brcmf_set_mac_address(struct work_struct *work)
-{
-	struct brcmf_if *ifp;
-	s32 err;
-
-	ifp = container_of(work, struct brcmf_if, setmacaddr_work);
-
-	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d\n", ifp->bsscfgidx);
-
-	err = brcmf_fil_iovar_data_set(ifp, "cur_etheraddr", ifp->mac_addr,
-				       ETH_ALEN);
-	if (err < 0) {
-		brcmf_err("Setting cur_etheraddr failed, %d\n", err);
-	} else {
-		brcmf_dbg(TRACE, "MAC address updated to %pM\n",
-			  ifp->mac_addr);
-		memcpy(ifp->ndev->dev_addr, ifp->mac_addr, ETH_ALEN);
-	}
-}
-
 #if IS_ENABLED(CONFIG_IPV6)
 static void _brcmf_update_ndtable(struct work_struct *work)
 {
@@ -190,10 +169,20 @@ static int brcmf_netdev_set_mac_address(struct net_device *ndev, void *addr)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct sockaddr *sa = (struct sockaddr *)addr;
+	int err;
 
-	memcpy(&ifp->mac_addr, sa->sa_data, ETH_ALEN);
-	schedule_work(&ifp->setmacaddr_work);
-	return 0;
+	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d\n", ifp->bsscfgidx);
+
+	err = brcmf_fil_iovar_data_set(ifp, "cur_etheraddr", sa->sa_data,
+				       ETH_ALEN);
+	if (err < 0) {
+		brcmf_err("Setting cur_etheraddr failed, %d\n", err);
+	} else {
+		brcmf_dbg(TRACE, "updated to %pM\n", sa->sa_data);
+		memcpy(ifp->mac_addr, sa->sa_data, ETH_ALEN);
+		memcpy(ifp->ndev->dev_addr, ifp->mac_addr, ETH_ALEN);
+	}
+	return err;
 }
 
 static void brcmf_netdev_set_multicast_list(struct net_device *ndev)
@@ -525,7 +514,6 @@ int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked)
 	/* set the mac address */
 	memcpy(ndev->dev_addr, ifp->mac_addr, ETH_ALEN);
 
-	INIT_WORK(&ifp->setmacaddr_work, _brcmf_set_mac_address);
 	INIT_WORK(&ifp->multicast_work, _brcmf_set_multicast_list);
 	INIT_WORK(&ifp->ndoffload_work, _brcmf_update_ndtable);
 
@@ -730,7 +718,6 @@ static void brcmf_del_if(struct brcmf_pub *drvr, s32 bsscfgidx,
 		}
 
 		if (ifp->ndev->netdev_ops == &brcmf_netdev_ops_pri) {
-			cancel_work_sync(&ifp->setmacaddr_work);
 			cancel_work_sync(&ifp->multicast_work);
 			cancel_work_sync(&ifp->ndoffload_work);
 		}
