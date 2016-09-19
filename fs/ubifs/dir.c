@@ -712,15 +712,15 @@ out_cancel:
 
 /**
  * check_dir_empty - check if a directory is empty or not.
- * @c: UBIFS file-system description object
  * @dir: VFS inode object of the directory to check
  *
  * This function checks if directory @dir is empty. Returns zero if the
  * directory is empty, %-ENOTEMPTY if it is not, and other negative error codes
  * in case of of errors.
  */
-static int check_dir_empty(struct ubifs_info *c, struct inode *dir)
+int ubifs_check_dir_empty(struct inode *dir)
 {
+	struct ubifs_info *c = dir->i_sb->s_fs_info;
 	struct qstr nm = { .name = NULL };
 	struct ubifs_dent_node *dent;
 	union ubifs_key key;
@@ -758,7 +758,7 @@ static int ubifs_rmdir(struct inode *dir, struct dentry *dentry)
 		inode->i_ino, dir->i_ino);
 	ubifs_assert(inode_is_locked(dir));
 	ubifs_assert(inode_is_locked(inode));
-	err = check_dir_empty(c, d_inode(dentry));
+	err = ubifs_check_dir_empty(d_inode(dentry));
 	if (err)
 		return err;
 
@@ -1108,7 +1108,7 @@ static int do_rename(struct inode *old_dir, struct dentry *old_dentry,
 		ubifs_assert(inode_is_locked(new_inode));
 
 	if (unlink && is_dir) {
-		err = check_dir_empty(c, new_inode);
+		err = ubifs_check_dir_empty(new_inode);
 		if (err)
 			return err;
 	}
