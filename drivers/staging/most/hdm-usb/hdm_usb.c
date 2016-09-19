@@ -197,12 +197,8 @@ static void free_anchored_buffers(struct most_dev *mdev, unsigned int channel,
 {
 	struct mbo *mbo;
 	struct urb *urb;
-	spinlock_t *lock = mdev->anchor_list_lock + channel; /* temp. lock */
-	unsigned long flags;
 
-	spin_lock_irqsave(lock, flags);
 	while ((urb = usb_get_from_anchor(&mdev->busy_urbs[channel]))) {
-		spin_unlock_irqrestore(lock, flags);
 		mbo = urb->context;
 		usb_kill_urb(urb);
 		if (mbo && mbo->complete) {
@@ -211,9 +207,7 @@ static void free_anchored_buffers(struct most_dev *mdev, unsigned int channel,
 			mbo->complete(mbo);
 		}
 		usb_free_urb(urb);
-		spin_lock_irqsave(lock, flags);
 	}
-	spin_unlock_irqrestore(lock, flags);
 }
 
 /**
@@ -605,10 +599,8 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 	struct device *dev;
 	int retval = 0;
 	struct urb *urb;
-	unsigned long flags;
 	unsigned long length;
 	void *virt_address;
-	spinlock_t *lock; /* temp. lock */
 
 	if (unlikely(!iface || !mbo))
 		return -EIO;
@@ -657,10 +649,7 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 	}
 	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
-	lock = mdev->anchor_list_lock + channel;
-	spin_lock_irqsave(lock, flags);
 	usb_anchor_urb(urb, &mdev->busy_urbs[channel]);
-	spin_unlock_irqrestore(lock, flags);
 
 	retval = usb_submit_urb(urb, GFP_KERNEL);
 	if (retval) {
@@ -670,9 +659,7 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 	return 0;
 
 _error_1:
-	spin_lock_irqsave(lock, flags);
 	usb_unanchor_urb(urb);
-	spin_unlock_irqrestore(lock, flags);
 _error:
 	usb_free_urb(urb);
 	return retval;
