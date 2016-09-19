@@ -954,12 +954,18 @@ static int read_ext_controller_info(struct sock *sk, struct hci_dev *hdev,
 
 static int ext_info_changed(struct hci_dev *hdev, struct sock *skip)
 {
-	struct mgmt_ev_ext_info_changed ev;
+	char buf[512];
+	struct mgmt_ev_ext_info_changed *ev = (void *)buf;
+	u16 eir_len;
 
-	ev.eir_len = cpu_to_le16(0);
+	memset(buf, 0, sizeof(buf));
 
-	return mgmt_limited_event(MGMT_EV_EXT_INFO_CHANGED, hdev, &ev,
-				  sizeof(ev), HCI_MGMT_EXT_INFO_EVENTS, skip);
+	eir_len = append_eir_data_to_buf(hdev, ev->eir);
+	ev->eir_len = cpu_to_le16(eir_len);
+
+	return mgmt_limited_event(MGMT_EV_EXT_INFO_CHANGED, hdev, ev,
+				  sizeof(*ev) + eir_len,
+				  HCI_MGMT_EXT_INFO_EVENTS, skip);
 }
 
 static int send_settings_rsp(struct sock *sk, u16 opcode, struct hci_dev *hdev)
