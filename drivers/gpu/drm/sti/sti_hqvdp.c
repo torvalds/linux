@@ -17,6 +17,7 @@
 #include "sti_hqvdp_lut.h"
 #include "sti_plane.h"
 #include "sti_vtg.h"
+#include "sti_drv.h"
 
 /* Firmware name */
 #define HQVDP_FMW_NAME          "hqvdp-stih407.bin"
@@ -783,7 +784,7 @@ static void sti_hqvdp_disable(struct sti_hqvdp *hqvdp)
  * RETURNS:
  * 0 on success.
  */
-int sti_hqvdp_vtg_cb(struct notifier_block *nb, unsigned long evt, void *data)
+static int sti_hqvdp_vtg_cb(struct notifier_block *nb, unsigned long evt, void *data)
 {
 	struct sti_hqvdp *hqvdp = container_of(nb, struct sti_hqvdp, vtg_nb);
 	int btm_cmd_offset, top_cmd_offest;
@@ -1250,7 +1251,7 @@ static int sti_hqvdp_late_register(struct drm_plane *drm_plane)
 	return hqvdp_debugfs_init(hqvdp, drm_plane->dev->primary);
 }
 
-struct drm_plane_funcs sti_hqvdp_plane_helpers_funcs = {
+static const struct drm_plane_funcs sti_hqvdp_plane_helpers_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = sti_hqvdp_destroy,
@@ -1289,7 +1290,7 @@ static struct drm_plane *sti_hqvdp_create(struct drm_device *drm_dev,
 	return &hqvdp->plane.drm_plane;
 }
 
-int sti_hqvdp_bind(struct device *dev, struct device *master, void *data)
+static int sti_hqvdp_bind(struct device *dev, struct device *master, void *data)
 {
 	struct sti_hqvdp *hqvdp = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;

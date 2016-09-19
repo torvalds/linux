@@ -18,6 +18,7 @@
 #include <drm/drm_crtc_helper.h>
 
 #include "sti_crtc.h"
+#include "sti_drv.h"
 #include "sti_vtg.h"
 
 /* glue registers */

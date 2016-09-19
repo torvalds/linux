@@ -473,8 +473,8 @@ static void sti_gdp_disable(struct sti_gdp *gdp)
  * RETURNS:
  * 0 on success.
  */
-int sti_gdp_field_cb(struct notifier_block *nb,
-		unsigned long event, void *data)
+static int sti_gdp_field_cb(struct notifier_block *nb,
+			    unsigned long event, void *data)
 {
 	struct sti_gdp *gdp = container_of(nb, struct sti_gdp, vtg_field_nb);
 
@@ -882,7 +882,7 @@ static int sti_gdp_late_register(struct drm_plane *drm_plane)
 	return gdp_debugfs_init(gdp, drm_plane->dev->primary);
 }
 
-struct drm_plane_funcs sti_gdp_plane_helpers_funcs = {
+static const struct drm_plane_funcs sti_gdp_plane_helpers_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = sti_gdp_destroy,

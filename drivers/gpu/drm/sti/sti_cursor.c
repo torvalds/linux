@@ -345,7 +345,7 @@ static int sti_cursor_late_register(struct drm_plane *drm_plane)
 	return cursor_debugfs_init(cursor, drm_plane->dev->primary);
 }
 
-struct drm_plane_funcs sti_cursor_plane_helpers_funcs = {
+static const struct drm_plane_funcs sti_cursor_plane_helpers_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = sti_cursor_destroy,

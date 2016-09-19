@@ -25,7 +25,7 @@
 /*
  * stiH407 compositor properties
  */
-struct sti_compositor_data stih407_compositor_data = {
+static const struct sti_compositor_data stih407_compositor_data = {
 	.nb_subdev = 8,
 	.subdev_desc = {
 			{STI_CURSOR_SUBDEV, (int)STI_CURSOR, 0x000},
@@ -46,7 +46,7 @@ struct sti_compositor_data stih407_compositor_data = {
  * Moreover, GDPx is different for Main and Aux Mixer. So this subdev map does
  * not fit for stiH416 if we want to enable the MIXER_AUX.
  */
-struct sti_compositor_data stih416_compositor_data = {
+static const struct sti_compositor_data stih416_compositor_data = {
 	.nb_subdev = 3,
 	.subdev_desc = {
 			{STI_GPD_SUBDEV, (int)STI_GDP_0, 0x100},

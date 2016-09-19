@@ -358,7 +358,7 @@ int sti_mixer_set_plane_status(struct sti_mixer *mixer,
 	return 0;
 }
 
-void sti_mixer_set_matrix(struct sti_mixer *mixer)
+static void sti_mixer_set_matrix(struct sti_mixer *mixer)
 {
 	unsigned int i;
 
