@@ -4502,6 +4502,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	u16 chanspec = chandef_to_chanspec(&cfg->d11inf, &settings->chandef);
 	bool mbss;
 	int is_11d;
+	bool supports_11d;
 
 	brcmf_dbg(TRACE, "ctrlchn=%d, center=%d, bw=%d, beacon_interval=%d, dtim_period=%d,\n",
 		  settings->chandef.chan->hw_value,
@@ -4514,11 +4515,16 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	mbss = ifp->vif->mbss;
 
 	/* store current 11d setting */
-	brcmf_fil_cmd_int_get(ifp, BRCMF_C_GET_REGULATORY, &ifp->vif->is_11d);
-	country_ie = brcmf_parse_tlvs((u8 *)settings->beacon.tail,
-				      settings->beacon.tail_len,
-				      WLAN_EID_COUNTRY);
-	is_11d = country_ie ? 1 : 0;
+	if (brcmf_fil_cmd_int_get(ifp, BRCMF_C_GET_REGULATORY,
+				  &ifp->vif->is_11d)) {
+		supports_11d = false;
+	} else {
+		country_ie = brcmf_parse_tlvs((u8 *)settings->beacon.tail,
+					      settings->beacon.tail_len,
+					      WLAN_EID_COUNTRY);
+		is_11d = country_ie ? 1 : 0;
+		supports_11d = true;
+	}
 
 	memset(&ssid_le, 0, sizeof(ssid_le));
 	if (settings->ssid == NULL || settings->ssid_len == 0) {
@@ -4577,7 +4583,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 
 	/* Parameters shared by all radio interfaces */
 	if (!mbss) {
-		if (is_11d != ifp->vif->is_11d) {
+		if ((supports_11d) && (is_11d != ifp->vif->is_11d)) {
 			err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_REGULATORY,
 						    is_11d);
 			if (err < 0) {
@@ -4619,7 +4625,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 			brcmf_err("SET INFRA error %d\n", err);
 			goto exit;
 		}
-	} else if (WARN_ON(is_11d != ifp->vif->is_11d)) {
+	} else if (WARN_ON(supports_11d && (is_11d != ifp->vif->is_11d))) {
 		/* Multiple-BSS should use same 11d configuration */
 		err = -EINVAL;
 		goto exit;
@@ -4753,11 +4759,8 @@ static int brcmf_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev)
 			brcmf_err("setting INFRA mode failed %d\n", err);
 		if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_MBSS))
 			brcmf_fil_iovar_int_set(ifp, "mbss", 0);
-		err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_REGULATORY,
-					    ifp->vif->is_11d);
-		if (err < 0)
-			brcmf_err("restoring REGULATORY setting failed %d\n",
-				  err);
+		brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_REGULATORY,
+				      ifp->vif->is_11d);
 		/* Bring device back up so it can be used again */
 		err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_UP, 1);
 		if (err < 0)
