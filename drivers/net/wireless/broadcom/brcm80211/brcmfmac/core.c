@@ -1048,8 +1048,7 @@ fail:
 		brcmf_fws_del_interface(ifp);
 		brcmf_fws_deinit(drvr);
 	}
-	if (ifp)
-		brcmf_net_detach(ifp->ndev, false);
+	brcmf_net_detach(ifp->ndev, false);
 	if (p2p_ifp)
 		brcmf_net_detach(p2p_ifp->ndev, false);
 	drvr->iflist[0] = NULL;
