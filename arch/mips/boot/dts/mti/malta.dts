@@ -50,6 +50,37 @@
 		interrupts = <GIC_SHARED 3 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
+	flash@1e000000 {
+		compatible = "intel,dt28f160", "cfi-flash";
+		reg = <0x1e000000 0x400000>;
+		bank-width = <4>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			yamon@0 {
+				label = "YAMON";
+				reg = <0x0 0x100000>;
+				read-only;
+			};
+
+			user-fs@100000 {
+				label = "User FS";
+				reg = <0x100000 0x2e0000>;
+			};
+
+			board-config@3e0000 {
+				label = "Board Config";
+				reg = <0x3e0000 0x20000>;
+				read-only;
+			};
+		};
+	};
+
 	isa {
 		compatible = "isa";
 		#address-cells = <2>;
