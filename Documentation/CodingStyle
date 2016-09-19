@@ -2,7 +2,7 @@ Linux kernel coding style
 =========================
 
 This is a short document describing the preferred coding style for the
-linux kernel.  Coding style is very personal, and I won't _force_ my
+linux kernel.  Coding style is very personal, and I won't **force** my
 views on anybody, but this is what goes for anything that I have to be
 able to maintain, and I'd prefer it for most other things too.  Please
 at least consider the points made here.
@@ -136,10 +136,10 @@ opening brace at the beginning of the next line, thus:
 
 Heretic people all over the world have claimed that this inconsistency
 is ...  well ...  inconsistent, but all right-thinking people know that
-(a) K&R are _right_ and (b) K&R are right.  Besides, functions are
+(a) K&R are **right** and (b) K&R are right.  Besides, functions are
 special anyway (you can't nest them in C).
 
-Note that the closing brace is empty on a line of its own, _except_ in
+Note that the closing brace is empty on a line of its own, **except** in
 the cases where it is followed by a continuation of the same statement,
 ie a ``while`` in a do-statement or an ``else`` in an if-statement, like
 this:
@@ -283,10 +283,10 @@ HOWEVER, while mixed-case names are frowned upon, descriptive names for
 global variables are a must.  To call a global function ``foo`` is a
 shooting offense.
 
-GLOBAL variables (to be used only if you _really_ need them) need to
+GLOBAL variables (to be used only if you **really** need them) need to
 have descriptive names, as do global functions.  If you have a function
 that counts the number of active users, you should call that
-``count_active_users()`` or similar, you should _not_ call it ``cntusr()``.
+``count_active_users()`` or similar, you should **not** call it ``cntusr()``.
 
 Encoding the type of a function into the name (so-called Hungarian
 notation) is brain damaged - the compiler knows the types anyway and can
@@ -308,7 +308,7 @@ See chapter 6 (Functions).
 -----------
 
 Please don't use things like ``vps_t``.
-It's a _mistake_ to use typedef for structures and pointers. When you see a
+It's a **mistake** to use typedef for structures and pointers. When you see a
 
 .. code-block:: c
 
@@ -327,7 +327,7 @@ you can actually tell what ``a`` is.
 Lots of people think that typedefs ``help readability``. Not so. They are
 useful only for:
 
- (a) totally opaque objects (where the typedef is actively used to _hide_
+ (a) totally opaque objects (where the typedef is actively used to **hide**
      what the object is).
 
      Example: ``pte_t`` etc. opaque objects that you can only access using
@@ -335,15 +335,15 @@ useful only for:
 
      NOTE! Opaqueness and ``accessor functions`` are not good in themselves.
      The reason we have them for things like pte_t etc. is that there
-     really is absolutely _zero_ portably accessible information there.
+     really is absolutely **zero** portably accessible information there.
 
- (b) Clear integer types, where the abstraction _helps_ avoid confusion
+ (b) Clear integer types, where the abstraction **helps** avoid confusion
      whether it is ``int`` or ``long``.
 
      u8/u16/u32 are perfectly fine typedefs, although they fit into
      category (d) better than here.
 
-     NOTE! Again - there needs to be a _reason_ for this. If something is
+     NOTE! Again - there needs to be a **reason** for this. If something is
      ``unsigned long``, then there's no reason to do
 
 	typedef unsigned long myflags_t;
@@ -352,7 +352,7 @@ useful only for:
      might be an ``unsigned int`` and under other configurations might be
      ``unsigned long``, then by all means go ahead and use a typedef.
 
- (c) when you use sparse to literally create a _new_ type for
+ (c) when you use sparse to literally create a **new** type for
      type-checking.
 
  (d) New types which are identical to standard C99 types, in certain
@@ -381,7 +381,7 @@ Maybe there are other cases too, but the rule should basically be to NEVER
 EVER use a typedef unless you can clearly match one of those rules.
 
 In general, a pointer, or a struct that has elements that can reasonably
-be directly accessed should _never_ be a typedef.
+be directly accessed should **never** be a typedef.
 
 
 6) Functions
@@ -509,7 +509,7 @@ Ideally you should simulate errors to test all exit paths.
 
 Comments are good, but there is also a danger of over-commenting.  NEVER
 try to explain HOW your code works in a comment: it's much better to
-write the code so that the _working_ is obvious, and it's a waste of
+write the code so that the **working** is obvious, and it's a waste of
 time to explain badly written code.
 
 Generally, you want your comments to tell WHAT your code does, not HOW.
@@ -656,14 +656,14 @@ Data structures that have visibility outside the single-threaded
 environment they are created and destroyed in should always have
 reference counts.  In the kernel, garbage collection doesn't exist (and
 outside the kernel garbage collection is slow and inefficient), which
-means that you absolutely _have_ to reference count all your uses.
+means that you absolutely **have** to reference count all your uses.
 
 Reference counting means that you can avoid locking, and allows multiple
 users to have access to the data structure in parallel - and not having
 to worry about the structure suddenly going away from under them just
 because they slept or did something else for a while.
 
-Note that locking is _not_ a replacement for reference counting.
+Note that locking is **not** a replacement for reference counting.
 Locking is used to keep data structures coherent, while reference
 counting is a memory management technique.  Usually both are needed, and
 they are not to be confused with each other.
@@ -719,7 +719,7 @@ Things to avoid when using macros:
 				return -EBUGGERED;	\
 		} while (0)
 
-is a _very_ bad idea.  It looks like a function call but exits the ``calling``
+is a **very** bad idea.  It looks like a function call but exits the ``calling``
 function; don't break the internal parsers of those who will read the code.
 
 2) macros that depend on having a local variable with a magic name:
