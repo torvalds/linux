@@ -22,6 +22,7 @@ struct vm_fault;
  * Flags for iomap mappings:
  */
 #define IOMAP_F_MERGED	0x01	/* contains multiple blocks/extents */
+#define IOMAP_F_SHARED	0x02	/* block shared with another file */
 
 /*
  * Magic value for blkno:

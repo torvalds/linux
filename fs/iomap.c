@@ -512,6 +512,8 @@ static int iomap_to_fiemap(struct fiemap_extent_info *fi,
 
 	if (iomap->flags & IOMAP_F_MERGED)
 		flags |= FIEMAP_EXTENT_MERGED;
+	if (iomap->flags & IOMAP_F_SHARED)
+		flags |= FIEMAP_EXTENT_SHARED;
 
 	return fiemap_fill_next_extent(fi, iomap->offset,
 			iomap->blkno != IOMAP_NULL_BLOCK ? iomap->blkno << 9: 0,
