@@ -4210,11 +4210,16 @@ int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		vf->max_stat_ctxs = le16_to_cpu(resp->max_stat_ctx);
 
 		memcpy(vf->mac_addr, resp->mac_address, ETH_ALEN);
-		if (is_valid_ether_addr(vf->mac_addr))
+		mutex_unlock(&bp->hwrm_cmd_lock);
+
+		if (is_valid_ether_addr(vf->mac_addr)) {
 			/* overwrite netdev dev_adr with admin VF MAC */
 			memcpy(bp->dev->dev_addr, vf->mac_addr, ETH_ALEN);
-		else
+		} else {
 			random_ether_addr(bp->dev->dev_addr);
+			rc = bnxt_approve_mac(bp, bp->dev->dev_addr);
+		}
+		return rc;
 #endif
 	}
 
