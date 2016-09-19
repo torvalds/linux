@@ -132,21 +132,6 @@ queue:
 }
 
 /*
- * Remove @event from group's notification queue. It is the responsibility of
- * the caller to destroy the event.
- */
-void fsnotify_remove_event(struct fsnotify_group *group,
-			   struct fsnotify_event *event)
-{
-	mutex_lock(&group->notification_mutex);
-	if (!list_empty(&event->list)) {
-		list_del_init(&event->list);
-		group->q_len--;
-	}
-	mutex_unlock(&group->notification_mutex);
-}
-
-/*
  * Remove and return the first event from the notification list.  It is the
  * responsibility of the caller to destroy the obtained event
  */
