@@ -385,11 +385,8 @@ static void generic_exec_sequence(struct drm_panel *panel, enum mipi_seq seq_id)
 		return;
 
 	data = dev_priv->vbt.dsi.sequence[seq_id];
-	if (!data) {
-		DRM_DEBUG_KMS("MIPI sequence %d - %s not available\n",
-			      seq_id, sequence_name(seq_id));
+	if (!data)
 		return;
-	}
 
 	WARN_ON(*data != seq_id);
 
