@@ -1225,20 +1225,6 @@ config SCSI_NCR53C8XX_NO_DISCONNECT
 	  not allow targets to disconnect is not reasonable if there is more
 	  than 1 device on a SCSI bus. The normal answer therefore is N.
 
-config SCSI_PAS16
-	tristate "PAS16 SCSI support"
-	depends on ISA && SCSI
-	select SCSI_SPI_ATTRS
-	---help---
-	  This is support for a SCSI host adapter.  It is explained in section
-	  3.10 of the SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.  If it doesn't work out
-	  of the box, you may have to change some settings in
-	  <file:drivers/scsi/pas16.h>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called pas16.
-
 config SCSI_QLOGIC_FAS
 	tristate "Qlogic FAS SCSI support"
 	depends on ISA && SCSI

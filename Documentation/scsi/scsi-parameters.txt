@@ -80,9 +80,6 @@ parameters may be changed at runtime by the command
 			Format: <buffer_size>,<write_threshold>
 			See also Documentation/scsi/st.txt.
 
-	pas16=		[HW,SCSI]
-			See header of drivers/scsi/pas16.c.
-
 	scsi_debug_*=	[SCSI]
 			See drivers/scsi/scsi_debug.c.
 
