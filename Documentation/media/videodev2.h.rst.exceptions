@@ -268,12 +268,14 @@ replace define V4L2_DV_BT_STD_CEA861 dv-bt-standards
 replace define V4L2_DV_BT_STD_DMT dv-bt-standards
 replace define V4L2_DV_BT_STD_CVT dv-bt-standards
 replace define V4L2_DV_BT_STD_GTF dv-bt-standards
+replace define V4L2_DV_BT_STD_SDI dv-bt-standards
 
 replace define V4L2_DV_FL_REDUCED_BLANKING dv-bt-standards
 replace define V4L2_DV_FL_CAN_REDUCE_FPS dv-bt-standards
 replace define V4L2_DV_FL_REDUCED_FPS dv-bt-standards
 replace define V4L2_DV_FL_HALF_LINE dv-bt-standards
 replace define V4L2_DV_FL_IS_CE_VIDEO dv-bt-standards
+replace define V4L2_DV_FL_FIRST_FIELD_EXTRA_LINE dv-bt-standards
 
 replace define V4L2_DV_BT_656_1120 dv-timing-types
 
@@ -301,6 +303,8 @@ replace define V4L2_IN_ST_NO_CARRIER input-status
 replace define V4L2_IN_ST_MACROVISION input-status
 replace define V4L2_IN_ST_NO_ACCESS input-status
 replace define V4L2_IN_ST_VTR input-status
+replace define V4L2_IN_ST_NO_V_LOCK input-status
+replace define V4L2_IN_ST_NO_STD_LOCK input-status
 
 replace define V4L2_IN_CAP_DV_TIMINGS input-capabilities
 replace define V4L2_IN_CAP_STD input-capabilities
