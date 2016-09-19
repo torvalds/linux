@@ -878,6 +878,16 @@ static inline u16 eir_append_data(u8 *eir, u16 eir_len, u8 type, u8 *data,
 	return eir_len;
 }
 
+static inline u16 eir_append_le16(u8 *eir, u16 eir_len, u8 type, u16 data)
+{
+	eir[eir_len++] = sizeof(type) + sizeof(data);
+	eir[eir_len++] = type;
+	put_unaligned_le16(data, &eir[eir_len]);
+	eir_len += sizeof(data);
+
+	return eir_len;
+}
+
 static u16 append_eir_data_to_buf(struct hci_dev *hdev, u8 *eir)
 {
 	u16 eir_len = 0;
@@ -886,6 +896,10 @@ static u16 append_eir_data_to_buf(struct hci_dev *hdev, u8 *eir)
 	if (hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
 		eir_len = eir_append_data(eir, eir_len, EIR_CLASS_OF_DEV,
 					  hdev->dev_class, 3);
+
+	if (hci_dev_test_flag(hdev, HCI_LE_ENABLED))
+		eir_len = eir_append_le16(eir, eir_len, EIR_APPEARANCE,
+					  hdev->appearance);
 
 	name_len = strlen(hdev->dev_name);
 	eir_len = eir_append_data(eir, eir_len, EIR_NAME_COMPLETE,
