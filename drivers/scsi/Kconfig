@@ -1425,23 +1425,6 @@ config SCSI_U14_34F_MAX_TAGS
 	  by the driver for each probed SCSI device is reported at boot time.
 	  This is equivalent to the "u14-34f=mq:8" boot option.
 
-config SCSI_ULTRASTOR
-	tristate "UltraStor SCSI support"
-	depends on X86 && ISA && SCSI && ISA_DMA_API
-	---help---
-	  This is support for the UltraStor 14F, 24F and 34F SCSI-2 host
-	  adapter family.  This driver is explained in section 3.12 of the
-	  SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.  If it doesn't work out
-	  of the box, you may have to change some settings in
-	  <file:drivers/scsi/ultrastor.h>.
-
-	  Note that there is also another driver for the same hardware:
-	  "UltraStor 14F/34F support", above.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ultrastor.
-
 config SCSI_NSP32
 	tristate "Workbit NinjaSCSI-32Bi/UDE support"
 	depends on PCI && SCSI && !64BIT
