@@ -65,17 +65,6 @@
 #define DRCI_WRITE_REQ		0xA1
 
 /**
- * struct buf_anchor - used to create a list of pending URBs
- * @urb: pointer to USB request block
- * @list: linked list
- * @urb_completion:
- */
-struct buf_anchor {
-	struct urb *urb;
-	struct list_head list;
-};
-
-/**
  * struct most_dci_obj - Direct Communication Interface
  * @kobj:position in sysfs
  * @usb_device: pointer to the usb device
@@ -116,7 +105,7 @@ struct clear_hold_work {
  * @anchor_list_lock: locks list access
  * @padding_active: indicates channel uses padding
  * @is_channel_healthy: health status table of each channel
- * @anchor_list: list of anchored items
+ * @busy_urbs: list of anchored items
  * @io_mutex: synchronize I/O with disconnect
  * @link_stat_timer: timer for link status reports
  * @poll_work_obj: work for polling link status
@@ -137,7 +126,7 @@ struct most_dev {
 	bool padding_active[MAX_NUM_ENDPOINTS];
 	bool is_channel_healthy[MAX_NUM_ENDPOINTS];
 	struct clear_hold_work clear_work[MAX_NUM_ENDPOINTS];
-	struct list_head *anchor_list;
+	struct usb_anchor *busy_urbs;
 	struct mutex io_mutex;
 	struct timer_list link_stat_timer;
 	struct work_struct poll_work_obj;
@@ -207,29 +196,22 @@ static void free_anchored_buffers(struct most_dev *mdev, unsigned int channel,
 				  enum mbo_status_flags status)
 {
 	struct mbo *mbo;
-	struct buf_anchor *anchor, *tmp;
+	struct urb *urb;
 	spinlock_t *lock = mdev->anchor_list_lock + channel; /* temp. lock */
 	unsigned long flags;
 
 	spin_lock_irqsave(lock, flags);
-	list_for_each_entry_safe(anchor, tmp, &mdev->anchor_list[channel],
-				 list) {
-		struct urb *urb = anchor->urb;
-
+	while ((urb = usb_get_from_anchor(&mdev->busy_urbs[channel]))) {
 		spin_unlock_irqrestore(lock, flags);
-		if (likely(urb)) {
-			mbo = urb->context;
-			usb_kill_urb(urb);
-			if (mbo && mbo->complete) {
-				mbo->status = status;
-				mbo->processed_length = 0;
-				mbo->complete(mbo);
-			}
-			usb_free_urb(urb);
+		mbo = urb->context;
+		usb_kill_urb(urb);
+		if (mbo && mbo->complete) {
+			mbo->status = status;
+			mbo->processed_length = 0;
+			mbo->complete(mbo);
 		}
+		usb_free_urb(urb);
 		spin_lock_irqsave(lock, flags);
-		list_del(&anchor->list);
-		kfree(anchor);
 	}
 	spin_unlock_irqrestore(lock, flags);
 }
@@ -394,7 +376,6 @@ static int hdm_remove_padding(struct most_dev *mdev, int channel,
 static void hdm_write_completion(struct urb *urb)
 {
 	struct mbo *mbo = urb->context;
-	struct buf_anchor *anchor = mbo->priv;
 	struct most_dev *mdev = to_mdev(mbo->ifp);
 	unsigned int channel = mbo->hdm_channel_id;
 	struct device *dev = &mdev->usb_device->dev;
@@ -426,14 +407,13 @@ static void hdm_write_completion(struct urb *urb)
 			mbo->status = MBO_E_INVAL;
 			break;
 		}
+		usb_unanchor_urb(urb);
 	} else {
 		mbo->status = MBO_SUCCESS;
 		mbo->processed_length = urb->actual_length;
 	}
 
-	list_del(&anchor->list);
 	spin_unlock_irqrestore(lock, flags);
-	kfree(anchor);
 
 	if (likely(mbo->complete))
 		mbo->complete(mbo);
@@ -551,7 +531,6 @@ static void hdm_write_completion(struct urb *urb)
 static void hdm_read_completion(struct urb *urb)
 {
 	struct mbo *mbo = urb->context;
-	struct buf_anchor *anchor = mbo->priv;
 	struct most_dev *mdev = to_mdev(mbo->ifp);
 	unsigned int channel = mbo->hdm_channel_id;
 	struct device *dev = &mdev->usb_device->dev;
@@ -585,6 +564,7 @@ static void hdm_read_completion(struct urb *urb)
 			mbo->status = MBO_E_INVAL;
 			break;
 		}
+		usb_unanchor_urb(urb);
 	} else {
 		mbo->processed_length = urb->actual_length;
 		mbo->status = MBO_SUCCESS;
@@ -595,9 +575,7 @@ static void hdm_read_completion(struct urb *urb)
 		}
 	}
 
-	list_del(&anchor->list);
 	spin_unlock_irqrestore(lock, flags);
-	kfree(anchor);
 
 	if (likely(mbo->complete))
 		mbo->complete(mbo);
@@ -623,7 +601,6 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 		       struct mbo *mbo)
 {
 	struct most_dev *mdev;
-	struct buf_anchor *anchor;
 	struct most_channel_config *conf;
 	struct device *dev;
 	int retval = 0;
@@ -648,15 +625,6 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 	urb = usb_alloc_urb(NO_ISOCHRONOUS_URB, GFP_ATOMIC);
 	if (!urb)
 		return -ENOMEM;
-
-	anchor = kzalloc(sizeof(*anchor), GFP_ATOMIC);
-	if (!anchor) {
-		retval = -ENOMEM;
-		goto _error;
-	}
-
-	anchor->urb = urb;
-	mbo->priv = anchor;
 
 	if ((conf->direction & MOST_CH_TX) && mdev->padding_active[channel] &&
 	    hdm_add_padding(mdev, channel, mbo)) {
@@ -691,7 +659,7 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 
 	lock = mdev->anchor_list_lock + channel;
 	spin_lock_irqsave(lock, flags);
-	list_add_tail(&anchor->list, &mdev->anchor_list[channel]);
+	usb_anchor_urb(urb, &mdev->busy_urbs[channel]);
 	spin_unlock_irqrestore(lock, flags);
 
 	retval = usb_submit_urb(urb, GFP_KERNEL);
@@ -703,9 +671,8 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 
 _error_1:
 	spin_lock_irqsave(lock, flags);
-	list_del(&anchor->list);
+	usb_unanchor_urb(urb);
 	spin_unlock_irqrestore(lock, flags);
-	kfree(anchor);
 _error:
 	usb_free_urb(urb);
 	return retval;
@@ -1281,9 +1248,9 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 	if (!mdev->ep_address)
 		goto exit_free2;
 
-	mdev->anchor_list =
-		kcalloc(num_endpoints, sizeof(*mdev->anchor_list), GFP_KERNEL);
-	if (!mdev->anchor_list)
+	mdev->busy_urbs =
+		kcalloc(num_endpoints, sizeof(*mdev->busy_urbs), GFP_KERNEL);
+	if (!mdev->busy_urbs)
 		goto exit_free3;
 
 	tmp_cap = mdev->cap;
@@ -1308,7 +1275,7 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 		else
 			tmp_cap->direction = MOST_CH_TX;
 		tmp_cap++;
-		INIT_LIST_HEAD(&mdev->anchor_list[i]);
+		init_usb_anchor(&mdev->busy_urbs[i]);
 		spin_lock_init(&mdev->anchor_list_lock[i]);
 		err = drci_wr_reg(usb_dev,
 				  DRCI_REG_BASE + DRCI_COMMAND +
@@ -1358,7 +1325,7 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 	return 0;
 
 exit_free4:
-	kfree(mdev->anchor_list);
+	kfree(mdev->busy_urbs);
 exit_free3:
 	kfree(mdev->ep_address);
 exit_free2:
@@ -1399,7 +1366,7 @@ static void hdm_disconnect(struct usb_interface *interface)
 	destroy_most_dci_obj(mdev->dci);
 	most_deregister_interface(&mdev->iface);
 
-	kfree(mdev->anchor_list);
+	kfree(mdev->busy_urbs);
 	kfree(mdev->cap);
 	kfree(mdev->conf);
 	kfree(mdev->ep_address);
