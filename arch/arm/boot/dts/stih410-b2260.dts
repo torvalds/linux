@@ -15,7 +15,7 @@
 	compatible = "st,stih410-b2260", "st,stih410";
 
 	chosen {
-		bootargs = "console=ttyAS1,115200";
+		bootargs = "console=ttyAS1,115200 clk_ignore_unused";
 		linux,stdout-path = &uart1;
 	};
 
@@ -144,6 +144,10 @@
 		};
 
 		ehci1: usb@9a83e00 {
+			status = "okay";
+		};
+
+		st_dwc3: dwc3@8f94000 {
 			status = "okay";
 		};
 
