@@ -743,7 +743,7 @@ static inline int check_sd_speed_prior(u32 sd_speed_prior)
 	int i;
 
 	for (i = 0; i < 4; i++) {
-		u8 tmp = (u8)(sd_speed_prior >> (i*8));
+		u8 tmp = (u8)(sd_speed_prior >> (i * 8));
 
 		if ((tmp < 0x01) || (tmp > 0x04)) {
 			fake_para = true;
@@ -2336,7 +2336,7 @@ int rtsx_write_ppbuf(struct rtsx_chip *chip, u8 *buf, int buf_len)
 
 	ptr = buf;
 	reg_addr = PPBUF_BASE2;
-	for (i = 0; i < buf_len/256; i++) {
+	for (i = 0; i < buf_len / 256; i++) {
 		rtsx_init_cmd(chip);
 
 		for (j = 0; j < 256; j++) {
@@ -2352,10 +2352,10 @@ int rtsx_write_ppbuf(struct rtsx_chip *chip, u8 *buf, int buf_len)
 		}
 	}
 
-	if (buf_len%256) {
+	if (buf_len % 256) {
 		rtsx_init_cmd(chip);
 
-		for (j = 0; j < buf_len%256; j++) {
+		for (j = 0; j < buf_len % 256; j++) {
 			rtsx_add_cmd(chip, WRITE_REG_CMD, reg_addr++, 0xFF,
 				     *ptr);
 			ptr++;
