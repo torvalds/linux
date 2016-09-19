@@ -9,16 +9,16 @@
 #include "am57xx-beagle-x15-common.dtsi"
 
 / {
-	/* NOTE: This describes the "original" pre-production A2 revision */
-	model = "TI AM5728 BeagleBoard-X15";
+	model = "TI AM5728 BeagleBoard-X15 rev B1";
 };
 
 &tpd12s015 {
 	gpios = <&gpio7 10 GPIO_ACTIVE_HIGH>,	/* gpio7_10, CT CP HPD */
-		<&gpio6 28 GPIO_ACTIVE_HIGH>,	/* gpio6_28, LS OE */
+		<&gpio2 30 GPIO_ACTIVE_HIGH>,	/* gpio2_30, LS OE */
 		<&gpio7 12 GPIO_ACTIVE_HIGH>;	/* gpio7_12/sp1_cs2, HPD */
 };
 
 &mmc1 {
-	vmmc-supply = <&ldo1_reg>;
+	vmmc-supply = <&vdd_3v3>;
+	vmmc-aux-supply = <&ldo1_reg>;
 };
