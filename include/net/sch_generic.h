@@ -36,6 +36,14 @@ struct qdisc_size_table {
 	u16			data[];
 };
 
+/* similar to sk_buff_head, but skb->prev pointer is undefined. */
+struct qdisc_skb_head {
+	struct sk_buff	*head;
+	struct sk_buff	*tail;
+	__u32		qlen;
+	spinlock_t	lock;
+};
+
 struct Qdisc {
 	int 			(*enqueue)(struct sk_buff *skb,
 					   struct Qdisc *sch,
@@ -76,7 +84,7 @@ struct Qdisc {
 	 * For performance sake on SMP, we put highly modified fields at the end
 	 */
 	struct sk_buff		*gso_skb ____cacheline_aligned_in_smp;
-	struct sk_buff_head	q;
+	struct qdisc_skb_head	q;
 	struct gnet_stats_basic_packed bstats;
 	seqcount_t		running;
 	struct gnet_stats_queue	qstats;
@@ -600,10 +608,27 @@ static inline void qdisc_qstats_overlimit(struct Qdisc *sch)
 	sch->qstats.overlimits++;
 }
 
-static inline int __qdisc_enqueue_tail(struct sk_buff *skb, struct Qdisc *sch,
-				       struct sk_buff_head *list)
+static inline void qdisc_skb_head_init(struct qdisc_skb_head *qh)
 {
-	__skb_queue_tail(list, skb);
+	qh->head = NULL;
+	qh->tail = NULL;
+	qh->qlen = 0;
+}
+
+static inline int __qdisc_enqueue_tail(struct sk_buff *skb, struct Qdisc *sch,
+				       struct qdisc_skb_head *qh)
+{
+	struct sk_buff *last = qh->tail;
+
+	if (last) {
+		skb->next = NULL;
+		last->next = skb;
+		qh->tail = skb;
+	} else {
+		qh->tail = skb;
+		qh->head = skb;
+	}
+	qh->qlen++;
 	qdisc_qstats_backlog_inc(sch, skb);
 
 	return NET_XMIT_SUCCESS;
@@ -614,14 +639,16 @@ static inline int qdisc_enqueue_tail(struct sk_buff *skb, struct Qdisc *sch)
 	return __qdisc_enqueue_tail(skb, sch, &sch->q);
 }
 
-static inline struct sk_buff *__qdisc_dequeue_head(struct Qdisc *sch,
-						   struct sk_buff_head *list)
+static inline struct sk_buff *__qdisc_dequeue_head(struct qdisc_skb_head *qh)
 {
-	struct sk_buff *skb = __skb_dequeue(list);
+	struct sk_buff *skb = qh->head;
 
 	if (likely(skb != NULL)) {
-		qdisc_qstats_backlog_dec(sch, skb);
-		qdisc_bstats_update(sch, skb);
+		qh->head = skb->next;
+		qh->qlen--;
+		if (qh->head == NULL)
+			qh->tail = NULL;
+		skb->next = NULL;
 	}
 
 	return skb;
@@ -629,7 +656,14 @@ static inline struct sk_buff *__qdisc_dequeue_head(struct Qdisc *sch,
 
 static inline struct sk_buff *qdisc_dequeue_head(struct Qdisc *sch)
 {
-	return __qdisc_dequeue_head(sch, &sch->q);
+	struct sk_buff *skb = __qdisc_dequeue_head(&sch->q);
+
+	if (likely(skb != NULL)) {
+		qdisc_qstats_backlog_dec(sch, skb);
+		qdisc_bstats_update(sch, skb);
+	}
+
+	return skb;
 }
 
 /* Instead of calling kfree_skb() while root qdisc lock is held,
@@ -642,10 +676,10 @@ static inline void __qdisc_drop(struct sk_buff *skb, struct sk_buff **to_free)
 }
 
 static inline unsigned int __qdisc_queue_drop_head(struct Qdisc *sch,
-						   struct sk_buff_head *list,
+						   struct qdisc_skb_head *qh,
 						   struct sk_buff **to_free)
 {
-	struct sk_buff *skb = __skb_dequeue(list);
+	struct sk_buff *skb = __qdisc_dequeue_head(qh);
 
 	if (likely(skb != NULL)) {
 		unsigned int len = qdisc_pkt_len(skb);
@@ -666,7 +700,9 @@ static inline unsigned int qdisc_queue_drop_head(struct Qdisc *sch,
 
 static inline struct sk_buff *qdisc_peek_head(struct Qdisc *sch)
 {
-	return skb_peek(&sch->q);
+	const struct qdisc_skb_head *qh = &sch->q;
+
+	return qh->head;
 }
 
 /* generic pseudo peek method for non-work-conserving qdisc */
@@ -701,15 +737,19 @@ static inline struct sk_buff *qdisc_dequeue_peeked(struct Qdisc *sch)
 	return skb;
 }
 
-static inline void __qdisc_reset_queue(struct sk_buff_head *list)
+static inline void __qdisc_reset_queue(struct qdisc_skb_head *qh)
 {
 	/*
 	 * We do not know the backlog in bytes of this list, it
 	 * is up to the caller to correct it
 	 */
-	if (!skb_queue_empty(list)) {
-		rtnl_kfree_skbs(list->next, list->prev);
-		__skb_queue_head_init(list);
+	ASSERT_RTNL();
+	if (qh->qlen) {
+		rtnl_kfree_skbs(qh->head, qh->tail);
+
+		qh->head = NULL;
+		qh->tail = NULL;
+		qh->qlen = 0;
 	}
 }
 
