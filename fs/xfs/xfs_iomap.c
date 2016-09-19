@@ -70,15 +70,13 @@ xfs_bmbt_to_iomap(
 	iomap->bdev = xfs_find_bdev_for_inode(VFS_I(ip));
 }
 
-STATIC int
-xfs_iomap_eof_align_last_fsb(
-	xfs_mount_t	*mp,
-	xfs_inode_t	*ip,
-	xfs_extlen_t	extsize,
-	xfs_fileoff_t	*last_fsb)
+static xfs_extlen_t
+xfs_eof_alignment(
+	struct xfs_inode	*ip,
+	xfs_extlen_t		extsize)
 {
-	xfs_extlen_t	align = 0;
-	int		eof, error;
+	struct xfs_mount	*mp = ip->i_mount;
+	xfs_extlen_t		align = 0;
 
 	if (!XFS_IS_REALTIME_INODE(ip)) {
 		/*
@@ -109,8 +107,21 @@ xfs_iomap_eof_align_last_fsb(
 			align = extsize;
 	}
 
+	return align;
+}
+
+STATIC int
+xfs_iomap_eof_align_last_fsb(
+	struct xfs_inode	*ip,
+	xfs_extlen_t		extsize,
+	xfs_fileoff_t		*last_fsb)
+{
+	xfs_extlen_t		align = xfs_eof_alignment(ip, extsize);
+
 	if (align) {
 		xfs_fileoff_t	new_last_fsb = roundup_64(*last_fsb, align);
+		int		eof, error;
+
 		error = xfs_bmap_eof(ip, new_last_fsb, XFS_DATA_FORK, &eof);
 		if (error)
 			return error;
@@ -180,7 +191,7 @@ xfs_iomap_write_direct(
 		 */
 		ASSERT(XFS_IFORK_PTR(ip, XFS_DATA_FORK)->if_flags &
 								XFS_IFEXTENTS);
-		error = xfs_iomap_eof_align_last_fsb(mp, ip, extsz, &last_fsb);
+		error = xfs_iomap_eof_align_last_fsb(ip, extsz, &last_fsb);
 		if (error)
 			goto out_unlock;
 	} else {
@@ -638,7 +649,7 @@ retry:
 	}
 
 	if (prealloc || extsz) {
-		error = xfs_iomap_eof_align_last_fsb(mp, ip, extsz, &last_fsb);
+		error = xfs_iomap_eof_align_last_fsb(ip, extsz, &last_fsb);
 		if (error)
 			return error;
 	}
