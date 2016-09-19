@@ -3419,10 +3419,10 @@ static int bnxt_hwrm_vnic_set_rss(struct bnxt *bp, u16 vnic_id, bool set_rss)
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_VNIC_RSS_CFG, -1, -1);
 	if (set_rss) {
-		vnic->hash_type = BNXT_RSS_HASH_TYPE_FLAG_IPV4 |
-				 BNXT_RSS_HASH_TYPE_FLAG_TCP_IPV4 |
-				 BNXT_RSS_HASH_TYPE_FLAG_IPV6 |
-				 BNXT_RSS_HASH_TYPE_FLAG_TCP_IPV6;
+		vnic->hash_type = VNIC_RSS_CFG_REQ_HASH_TYPE_IPV4 |
+				  VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV4 |
+				  VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6 |
+				  VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV6;
 
 		req.hash_type = cpu_to_le32(vnic->hash_type);
 

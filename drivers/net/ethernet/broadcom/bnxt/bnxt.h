@@ -389,11 +389,6 @@ struct rx_tpa_end_cmp_ext {
 
 #define INVALID_HW_RING_ID	((u16)-1)
 
-#define BNXT_RSS_HASH_TYPE_FLAG_IPV4		0x01
-#define BNXT_RSS_HASH_TYPE_FLAG_TCP_IPV4	0x02
-#define BNXT_RSS_HASH_TYPE_FLAG_IPV6		0x04
-#define BNXT_RSS_HASH_TYPE_FLAG_TCP_IPV6	0x08
-
 /* The hardware supports certain page sizes.  Use the supported page sizes
  * to allocate the rings.
  */
