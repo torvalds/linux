@@ -500,18 +500,6 @@ config SCSI_ADVANSYS
 	  To compile this driver as a module, choose M here: the
 	  module will be called advansys.
 
-config SCSI_IN2000
-	tristate "Always IN2000 SCSI support"
-	depends on ISA && SCSI
-	help
-	  This is support for an ISA bus SCSI host adapter.  You'll find more
-	  information in <file:Documentation/scsi/in2000.txt>. If it doesn't work
-	  out of the box, you may have to change the jumpers for IRQ or
-	  address selection.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called in2000.
-
 config SCSI_ARCMSR
 	tristate "ARECA (ARC11xx/12xx/13xx/16xx) SATA/SAS RAID Host Adapter"
 	depends on PCI && SCSI

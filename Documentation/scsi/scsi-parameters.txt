@@ -47,9 +47,6 @@ parameters may be changed at runtime by the command
 
 	gvp11=		[HW,SCSI]
 
-	in2000=		[HW,SCSI]
-			See header of drivers/scsi/in2000.c.
-
 	ips=		[HW,SCSI] Adaptec / IBM ServeRAID controller
 			See header of drivers/scsi/ips.c.
 
