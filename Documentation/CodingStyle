@@ -333,9 +333,11 @@ useful only for:
      Example: ``pte_t`` etc. opaque objects that you can only access using
      the proper accessor functions.
 
-     NOTE! Opaqueness and ``accessor functions`` are not good in themselves.
-     The reason we have them for things like pte_t etc. is that there
-     really is absolutely **zero** portably accessible information there.
+     .. note::
+
+       Opaqueness and ``accessor functions`` are not good in themselves.
+       The reason we have them for things like pte_t etc. is that there
+       really is absolutely **zero** portably accessible information there.
 
  (b) Clear integer types, where the abstraction **helps** avoid confusion
      whether it is ``int`` or ``long``.
@@ -343,8 +345,10 @@ useful only for:
      u8/u16/u32 are perfectly fine typedefs, although they fit into
      category (d) better than here.
 
-     NOTE! Again - there needs to be a **reason** for this. If something is
-     ``unsigned long``, then there's no reason to do
+     .. note::
+
+       Again - there needs to be a **reason** for this. If something is
+       ``unsigned long``, then there's no reason to do
 
 	typedef unsigned long myflags_t;
 
