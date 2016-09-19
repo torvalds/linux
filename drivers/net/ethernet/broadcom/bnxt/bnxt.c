@@ -93,50 +93,49 @@ enum board_idx {
 	BCM57404_NPAR,
 	BCM57406_NPAR,
 	BCM57407_SFP,
+	BCM57407_NPAR,
 	BCM57414_NPAR,
 	BCM57416_NPAR,
-	BCM57304_VF,
-	BCM57404_VF,
-	BCM57414_VF,
-	BCM57314_VF,
+	NETXTREME_E_VF,
+	NETXTREME_C_VF,
 };
 
 /* indexed by enum above */
 static const struct {
 	char *name;
 } board_info[] = {
-	{ "Broadcom BCM57301 NetXtreme-C Single-port 10Gb Ethernet" },
-	{ "Broadcom BCM57302 NetXtreme-C Dual-port 10Gb/25Gb Ethernet" },
-	{ "Broadcom BCM57304 NetXtreme-C Dual-port 10Gb/25Gb/40Gb/50Gb Ethernet" },
+	{ "Broadcom BCM57301 NetXtreme-C 10Gb Ethernet" },
+	{ "Broadcom BCM57302 NetXtreme-C 10Gb/25Gb Ethernet" },
+	{ "Broadcom BCM57304 NetXtreme-C 10Gb/25Gb/40Gb/50Gb Ethernet" },
 	{ "Broadcom BCM57417 NetXtreme-E Ethernet Partition" },
-	{ "Broadcom BCM58700 Nitro 4-port 1Gb/2.5Gb/10Gb Ethernet" },
-	{ "Broadcom BCM57311 NetXtreme-C Single-port 10Gb Ethernet" },
-	{ "Broadcom BCM57312 NetXtreme-C Dual-port 10Gb/25Gb Ethernet" },
-	{ "Broadcom BCM57402 NetXtreme-E Dual-port 10Gb Ethernet" },
-	{ "Broadcom BCM57404 NetXtreme-E Dual-port 10Gb/25Gb Ethernet" },
-	{ "Broadcom BCM57406 NetXtreme-E Dual-port 10GBase-T Ethernet" },
+	{ "Broadcom BCM58700 Nitro 1Gb/2.5Gb/10Gb Ethernet" },
+	{ "Broadcom BCM57311 NetXtreme-C 10Gb Ethernet" },
+	{ "Broadcom BCM57312 NetXtreme-C 10Gb/25Gb Ethernet" },
+	{ "Broadcom BCM57402 NetXtreme-E 10Gb Ethernet" },
+	{ "Broadcom BCM57404 NetXtreme-E 10Gb/25Gb Ethernet" },
+	{ "Broadcom BCM57406 NetXtreme-E 10GBase-T Ethernet" },
 	{ "Broadcom BCM57402 NetXtreme-E Ethernet Partition" },
-	{ "Broadcom BCM57407 NetXtreme-E Dual-port 10GBase-T Ethernet" },
-	{ "Broadcom BCM57412 NetXtreme-E Dual-port 10Gb Ethernet" },
-	{ "Broadcom BCM57414 NetXtreme-E Dual-port 10Gb/25Gb Ethernet" },
-	{ "Broadcom BCM57416 NetXtreme-E Dual-port 10GBase-T Ethernet" },
-	{ "Broadcom BCM57417 NetXtreme-E Dual-port 10GBase-T Ethernet" },
+	{ "Broadcom BCM57407 NetXtreme-E 10GBase-T Ethernet" },
+	{ "Broadcom BCM57412 NetXtreme-E 10Gb Ethernet" },
+	{ "Broadcom BCM57414 NetXtreme-E 10Gb/25Gb Ethernet" },
+	{ "Broadcom BCM57416 NetXtreme-E 10GBase-T Ethernet" },
+	{ "Broadcom BCM57417 NetXtreme-E 10GBase-T Ethernet" },
 	{ "Broadcom BCM57412 NetXtreme-E Ethernet Partition" },
-	{ "Broadcom BCM57314 NetXtreme-C Dual-port 10Gb/25Gb/40Gb/50Gb Ethernet" },
-	{ "Broadcom BCM57417 NetXtreme-E Dual-port 10Gb/25Gb Ethernet" },
-	{ "Broadcom BCM57416 NetXtreme-E Dual-port 10Gb Ethernet" },
+	{ "Broadcom BCM57314 NetXtreme-C 10Gb/25Gb/40Gb/50Gb Ethernet" },
+	{ "Broadcom BCM57417 NetXtreme-E 10Gb/25Gb Ethernet" },
+	{ "Broadcom BCM57416 NetXtreme-E 10Gb Ethernet" },
 	{ "Broadcom BCM57404 NetXtreme-E Ethernet Partition" },
 	{ "Broadcom BCM57406 NetXtreme-E Ethernet Partition" },
-	{ "Broadcom BCM57407 NetXtreme-E Dual-port 25Gb Ethernet" },
+	{ "Broadcom BCM57407 NetXtreme-E 25Gb Ethernet" },
+	{ "Broadcom BCM57407 NetXtreme-E Ethernet Partition" },
 	{ "Broadcom BCM57414 NetXtreme-E Ethernet Partition" },
 	{ "Broadcom BCM57416 NetXtreme-E Ethernet Partition" },
-	{ "Broadcom BCM57304 NetXtreme-C Ethernet Virtual Function" },
-	{ "Broadcom BCM57404 NetXtreme-E Ethernet Virtual Function" },
-	{ "Broadcom BCM57414 NetXtreme-E Ethernet Virtual Function" },
-	{ "Broadcom BCM57314 NetXtreme-E Ethernet Virtual Function" },
+	{ "Broadcom NetXtreme-E Ethernet Virtual Function" },
+	{ "Broadcom NetXtreme-C Ethernet Virtual Function" },
 };
 
 static const struct pci_device_id bnxt_pci_tbl[] = {
+	{ PCI_VDEVICE(BROADCOM, 0x16c0), .driver_data = BCM57417_NPAR },
 	{ PCI_VDEVICE(BROADCOM, 0x16c8), .driver_data = BCM57301 },
 	{ PCI_VDEVICE(BROADCOM, 0x16c9), .driver_data = BCM57302 },
 	{ PCI_VDEVICE(BROADCOM, 0x16ca), .driver_data = BCM57304 },
@@ -160,13 +159,19 @@ static const struct pci_device_id bnxt_pci_tbl[] = {
 	{ PCI_VDEVICE(BROADCOM, 0x16e7), .driver_data = BCM57404_NPAR },
 	{ PCI_VDEVICE(BROADCOM, 0x16e8), .driver_data = BCM57406_NPAR },
 	{ PCI_VDEVICE(BROADCOM, 0x16e9), .driver_data = BCM57407_SFP },
+	{ PCI_VDEVICE(BROADCOM, 0x16ea), .driver_data = BCM57407_NPAR },
+	{ PCI_VDEVICE(BROADCOM, 0x16eb), .driver_data = BCM57412_NPAR },
 	{ PCI_VDEVICE(BROADCOM, 0x16ec), .driver_data = BCM57414_NPAR },
+	{ PCI_VDEVICE(BROADCOM, 0x16ed), .driver_data = BCM57414_NPAR },
 	{ PCI_VDEVICE(BROADCOM, 0x16ee), .driver_data = BCM57416_NPAR },
+	{ PCI_VDEVICE(BROADCOM, 0x16ef), .driver_data = BCM57416_NPAR },
 #ifdef CONFIG_BNXT_SRIOV
-	{ PCI_VDEVICE(BROADCOM, 0x16cb), .driver_data = BCM57304_VF },
-	{ PCI_VDEVICE(BROADCOM, 0x16d3), .driver_data = BCM57404_VF },
-	{ PCI_VDEVICE(BROADCOM, 0x16dc), .driver_data = BCM57414_VF },
-	{ PCI_VDEVICE(BROADCOM, 0x16e1), .driver_data = BCM57314_VF },
+	{ PCI_VDEVICE(BROADCOM, 0x16c1), .driver_data = NETXTREME_E_VF },
+	{ PCI_VDEVICE(BROADCOM, 0x16cb), .driver_data = NETXTREME_C_VF },
+	{ PCI_VDEVICE(BROADCOM, 0x16d3), .driver_data = NETXTREME_E_VF },
+	{ PCI_VDEVICE(BROADCOM, 0x16dc), .driver_data = NETXTREME_E_VF },
+	{ PCI_VDEVICE(BROADCOM, 0x16e1), .driver_data = NETXTREME_C_VF },
+	{ PCI_VDEVICE(BROADCOM, 0x16e5), .driver_data = NETXTREME_C_VF },
 #endif
 	{ 0 }
 };
@@ -189,8 +194,7 @@ static const u16 bnxt_async_events_arr[] = {
 
 static bool bnxt_vf_pciid(enum board_idx idx)
 {
-	return (idx == BCM57304_VF || idx == BCM57404_VF ||
-		idx == BCM57314_VF || idx == BCM57414_VF);
+	return (idx == NETXTREME_C_VF || idx == NETXTREME_E_VF);
 }
 
 #define DB_CP_REARM_FLAGS	(DB_KEY_CP | DB_IDX_VALID)
