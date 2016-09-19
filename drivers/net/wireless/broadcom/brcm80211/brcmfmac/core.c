@@ -873,9 +873,12 @@ static int brcmf_inet6addr_changed(struct notifier_block *nb,
 		}
 		break;
 	case NETDEV_DOWN:
-		if (i < NDOL_MAX_ENTRIES)
-			for (; i < ifp->ipv6addr_idx; i++)
+		if (i < NDOL_MAX_ENTRIES) {
+			for (; i < ifp->ipv6addr_idx - 1; i++)
 				table[i] = table[i + 1];
+			memset(&table[i], 0, sizeof(table[i]));
+			ifp->ipv6addr_idx--;
+		}
 		break;
 	default:
 		break;
