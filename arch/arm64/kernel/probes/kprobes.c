@@ -19,7 +19,7 @@
 #include <linux/kasan.h>
 #include <linux/kernel.h>
 #include <linux/kprobes.h>
-#include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/slab.h>
 #include <linux/stop_machine.h>
 #include <linux/stringify.h>
