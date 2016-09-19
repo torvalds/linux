@@ -878,13 +878,32 @@ static inline u16 eir_append_data(u8 *eir, u16 eir_len, u8 type, u8 *data,
 	return eir_len;
 }
 
+static u16 append_eir_data_to_buf(struct hci_dev *hdev, u8 *eir)
+{
+	u16 eir_len = 0;
+	size_t name_len;
+
+	if (hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
+		eir_len = eir_append_data(eir, eir_len, EIR_CLASS_OF_DEV,
+					  hdev->dev_class, 3);
+
+	name_len = strlen(hdev->dev_name);
+	eir_len = eir_append_data(eir, eir_len, EIR_NAME_COMPLETE,
+				  hdev->dev_name, name_len);
+
+	name_len = strlen(hdev->short_name);
+	eir_len = eir_append_data(eir, eir_len, EIR_NAME_SHORT,
+				  hdev->short_name, name_len);
+
+	return eir_len;
+}
+
 static int read_ext_controller_info(struct sock *sk, struct hci_dev *hdev,
 				    void *data, u16 data_len)
 {
 	char buf[512];
 	struct mgmt_rp_read_ext_info *rp = (void *)buf;
-	u16 eir_len = 0;
-	size_t name_len;
+	u16 eir_len;
 
 	BT_DBG("sock %p %s", sk, hdev->name);
 
@@ -900,18 +919,8 @@ static int read_ext_controller_info(struct sock *sk, struct hci_dev *hdev,
 	rp->supported_settings = cpu_to_le32(get_supported_settings(hdev));
 	rp->current_settings = cpu_to_le32(get_current_settings(hdev));
 
-	if (hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
-		eir_len = eir_append_data(rp->eir, eir_len, EIR_CLASS_OF_DEV,
-					  hdev->dev_class, 3);
 
-	name_len = strlen(hdev->dev_name);
-	eir_len = eir_append_data(rp->eir, eir_len, EIR_NAME_COMPLETE,
-				  hdev->dev_name, name_len);
-
-	name_len = strlen(hdev->short_name);
-	eir_len = eir_append_data(rp->eir, eir_len, EIR_NAME_SHORT,
-				  hdev->short_name, name_len);
-
+	eir_len = append_eir_data_to_buf(hdev, rp->eir);
 	rp->eir_len = cpu_to_le16(eir_len);
 
 	hci_dev_unlock(hdev);
