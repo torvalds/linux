@@ -18,7 +18,7 @@
 
 #include <linux/linkage.h>
 
-ENTRY(strcpy)
+ENTRY_CFI(strcpy)
 	or	r2,r0,r1
 	bmsk_s	r2,r2,1
 	brne.d	r2,0,charloop
@@ -67,4 +67,4 @@ charloop:
 	brne.d	r3,0,charloop
 	stb.ab	r3,[r10,1]
 	j	[blink]
-END(strcpy)
+END_CFI(strcpy)
