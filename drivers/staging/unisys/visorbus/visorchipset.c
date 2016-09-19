@@ -1609,121 +1609,6 @@ parahotplug_process_message(struct controlvm_message *inmsg)
 	}
 }
 
-/**
- * handle_command() - process a controlvm message
- * @inmsg:        the message to process
- * @channel_addr: address of the controlvm channel
- *
- * Return:
- *    false - this function will return false only in the case where the
- *            controlvm message was NOT processed, but processing must be
- *            retried before reading the next controlvm message; a
- *            scenario where this can occur is when we need to throttle
- *            the allocation of memory in which to copy out controlvm
- *            payload data
- *    true  - processing of the controlvm message completed,
- *            either successfully or with an error
- */
-static bool
-handle_command(struct controlvm_message inmsg, u64 channel_addr)
-{
-	struct controlvm_message_packet *cmd = &inmsg.cmd;
-	u64 parm_addr;
-	u32 parm_bytes;
-	struct parser_context *parser_ctx = NULL;
-	bool local_addr;
-	struct controlvm_message ackmsg;
-
-	/* create parsing context if necessary */
-	local_addr = (inmsg.hdr.flags.test_message == 1);
-	if (channel_addr == 0)
-		return true;
-	parm_addr = channel_addr + inmsg.hdr.payload_vm_offset;
-	parm_bytes = inmsg.hdr.payload_bytes;
-
-	/*
-	 * Parameter and channel addresses within test messages actually lie
-	 * within our OS-controlled memory. We need to know that, because it
-	 * makes a difference in how we compute the virtual address.
-	 */
-	if (parm_addr && parm_bytes) {
-		bool retry = false;
-
-		parser_ctx =
-		    parser_init_byte_stream(parm_addr, parm_bytes,
-					    local_addr, &retry);
-		if (!parser_ctx && retry)
-			return false;
-	}
-
-	if (!local_addr) {
-		controlvm_init_response(&ackmsg, &inmsg.hdr,
-					CONTROLVM_RESP_SUCCESS);
-		if (controlvm_channel)
-			visorchannel_signalinsert(controlvm_channel,
-						  CONTROLVM_QUEUE_ACK,
-						  &ackmsg);
-	}
-	switch (inmsg.hdr.id) {
-	case CONTROLVM_CHIPSET_INIT:
-		chipset_init(&inmsg);
-		break;
-	case CONTROLVM_BUS_CREATE:
-		bus_create(&inmsg);
-		break;
-	case CONTROLVM_BUS_DESTROY:
-		bus_destroy(&inmsg);
-		break;
-	case CONTROLVM_BUS_CONFIGURE:
-		bus_configure(&inmsg, parser_ctx);
-		break;
-	case CONTROLVM_DEVICE_CREATE:
-		my_device_create(&inmsg);
-		break;
-	case CONTROLVM_DEVICE_CHANGESTATE:
-		if (cmd->device_change_state.flags.phys_device) {
-			parahotplug_process_message(&inmsg);
-		} else {
-			/*
-			 * save the hdr and cmd structures for later use
-			 * when sending back the response to Command
-			 */
-			my_device_changestate(&inmsg);
-			break;
-		}
-		break;
-	case CONTROLVM_DEVICE_DESTROY:
-		my_device_destroy(&inmsg);
-		break;
-	case CONTROLVM_DEVICE_CONFIGURE:
-		/* no op for now, just send a respond that we passed */
-		if (inmsg.hdr.flags.response_expected)
-			controlvm_respond(&inmsg.hdr, CONTROLVM_RESP_SUCCESS);
-		break;
-	case CONTROLVM_CHIPSET_READY:
-		chipset_ready(&inmsg.hdr);
-		break;
-	case CONTROLVM_CHIPSET_SELFTEST:
-		chipset_selftest(&inmsg.hdr);
-		break;
-	case CONTROLVM_CHIPSET_STOP:
-		chipset_notready(&inmsg.hdr);
-		break;
-	default:
-		if (inmsg.hdr.flags.response_expected)
-			controlvm_respond
-				(&inmsg.hdr,
-				 -CONTROLVM_RESP_ERROR_MESSAGE_ID_UNKNOWN);
-		break;
-	}
-
-	if (parser_ctx) {
-		parser_done(parser_ctx);
-		parser_ctx = NULL;
-	}
-	return true;
-}
-
 static inline unsigned int
 issue_vmcall_io_controlvm_addr(u64 *control_addr, u32 *control_bytes)
 {
@@ -2089,6 +1974,121 @@ visorchipset_file_cleanup(dev_t major_dev)
 		cdev_del(&file_cdev);
 	file_cdev.ops = NULL;
 	unregister_chrdev_region(major_dev, 1);
+}
+
+/**
+ * handle_command() - process a controlvm message
+ * @inmsg:        the message to process
+ * @channel_addr: address of the controlvm channel
+ *
+ * Return:
+ *    false - this function will return false only in the case where the
+ *            controlvm message was NOT processed, but processing must be
+ *            retried before reading the next controlvm message; a
+ *            scenario where this can occur is when we need to throttle
+ *            the allocation of memory in which to copy out controlvm
+ *            payload data
+ *    true  - processing of the controlvm message completed,
+ *            either successfully or with an error
+ */
+static bool
+handle_command(struct controlvm_message inmsg, u64 channel_addr)
+{
+	struct controlvm_message_packet *cmd = &inmsg.cmd;
+	u64 parm_addr;
+	u32 parm_bytes;
+	struct parser_context *parser_ctx = NULL;
+	bool local_addr;
+	struct controlvm_message ackmsg;
+
+	/* create parsing context if necessary */
+	local_addr = (inmsg.hdr.flags.test_message == 1);
+	if (channel_addr == 0)
+		return true;
+	parm_addr = channel_addr + inmsg.hdr.payload_vm_offset;
+	parm_bytes = inmsg.hdr.payload_bytes;
+
+	/*
+	 * Parameter and channel addresses within test messages actually lie
+	 * within our OS-controlled memory. We need to know that, because it
+	 * makes a difference in how we compute the virtual address.
+	 */
+	if (parm_addr && parm_bytes) {
+		bool retry = false;
+
+		parser_ctx =
+		    parser_init_byte_stream(parm_addr, parm_bytes,
+					    local_addr, &retry);
+		if (!parser_ctx && retry)
+			return false;
+	}
+
+	if (!local_addr) {
+		controlvm_init_response(&ackmsg, &inmsg.hdr,
+					CONTROLVM_RESP_SUCCESS);
+		if (controlvm_channel)
+			visorchannel_signalinsert(controlvm_channel,
+						  CONTROLVM_QUEUE_ACK,
+						  &ackmsg);
+	}
+	switch (inmsg.hdr.id) {
+	case CONTROLVM_CHIPSET_INIT:
+		chipset_init(&inmsg);
+		break;
+	case CONTROLVM_BUS_CREATE:
+		bus_create(&inmsg);
+		break;
+	case CONTROLVM_BUS_DESTROY:
+		bus_destroy(&inmsg);
+		break;
+	case CONTROLVM_BUS_CONFIGURE:
+		bus_configure(&inmsg, parser_ctx);
+		break;
+	case CONTROLVM_DEVICE_CREATE:
+		my_device_create(&inmsg);
+		break;
+	case CONTROLVM_DEVICE_CHANGESTATE:
+		if (cmd->device_change_state.flags.phys_device) {
+			parahotplug_process_message(&inmsg);
+		} else {
+			/*
+			 * save the hdr and cmd structures for later use
+			 * when sending back the response to Command
+			 */
+			my_device_changestate(&inmsg);
+			break;
+		}
+		break;
+	case CONTROLVM_DEVICE_DESTROY:
+		my_device_destroy(&inmsg);
+		break;
+	case CONTROLVM_DEVICE_CONFIGURE:
+		/* no op for now, just send a respond that we passed */
+		if (inmsg.hdr.flags.response_expected)
+			controlvm_respond(&inmsg.hdr, CONTROLVM_RESP_SUCCESS);
+		break;
+	case CONTROLVM_CHIPSET_READY:
+		chipset_ready(&inmsg.hdr);
+		break;
+	case CONTROLVM_CHIPSET_SELFTEST:
+		chipset_selftest(&inmsg.hdr);
+		break;
+	case CONTROLVM_CHIPSET_STOP:
+		chipset_notready(&inmsg.hdr);
+		break;
+	default:
+		if (inmsg.hdr.flags.response_expected)
+			controlvm_respond
+				(&inmsg.hdr,
+				 -CONTROLVM_RESP_ERROR_MESSAGE_ID_UNKNOWN);
+		break;
+	}
+
+	if (parser_ctx) {
+		parser_done(parser_ctx);
+		parser_ctx = NULL;
+	}
+	return true;
 }
 
 static void
