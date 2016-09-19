@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2015 Masahiro Yamada <yamada.masahiro@socionext.com>
+ * Copyright (C) 2015-2016 Socionext Inc.
+ *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,27 +20,10 @@
 
 #ifdef CONFIG_CACHE_UNIPHIER
 int uniphier_cache_init(void);
-int uniphier_cache_l2_is_enabled(void);
-void uniphier_cache_l2_touch_range(unsigned long start, unsigned long end);
-void uniphier_cache_l2_set_locked_ways(u32 way_mask);
 #else
 static inline int uniphier_cache_init(void)
 {
 	return -ENODEV;
-}
-
-static inline int uniphier_cache_l2_is_enabled(void)
-{
-	return 0;
-}
-
-static inline void uniphier_cache_l2_touch_range(unsigned long start,
-						 unsigned long end)
-{
-}
-
-static inline void uniphier_cache_l2_set_locked_ways(u32 way_mask)
-{
 }
 #endif
 
