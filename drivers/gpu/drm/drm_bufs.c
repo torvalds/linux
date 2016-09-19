@@ -905,14 +905,14 @@ int drm_legacy_addbufs_pci(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	entry->buflist = kzalloc(count * sizeof(*entry->buflist), GFP_KERNEL);
+	entry->buflist = kcalloc(count, sizeof(*entry->buflist), GFP_KERNEL);
 	if (!entry->buflist) {
 		mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;
 	}
 
-	entry->seglist = kzalloc(count * sizeof(*entry->seglist), GFP_KERNEL);
+	entry->seglist = kcalloc(count, sizeof(*entry->seglist), GFP_KERNEL);
 	if (!entry->seglist) {
 		kfree(entry->buflist);
 		mutex_unlock(&dev->struct_mutex);
