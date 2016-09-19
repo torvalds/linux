@@ -1729,7 +1729,7 @@ BBuGetFrameTime(
 	unsigned int uFrameTime;
 	unsigned int uPreamble;
 	unsigned int uTmp;
-	unsigned int uRateIdx = (unsigned int) wRate;
+	unsigned int uRateIdx = (unsigned int)wRate;
 	unsigned int uRate = 0;
 
 	if (uRateIdx > RATE_54M)
