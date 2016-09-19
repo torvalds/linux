@@ -370,13 +370,15 @@ int __init i8259_of_init(struct device_node *node, struct device_node *parent)
 	struct irq_domain *domain;
 	unsigned int parent_irq;
 
+	domain = __init_i8259_irqs(node);
+
 	parent_irq = irq_of_parse_and_map(node, 0);
 	if (!parent_irq) {
 		pr_err("Failed to map i8259 parent IRQ\n");
+		irq_domain_remove(domain);
 		return -ENODEV;
 	}
 
-	domain = __init_i8259_irqs(node);
 	irq_set_chained_handler_and_data(parent_irq, i8259_irq_dispatch,
 					 domain);
 	return 0;
