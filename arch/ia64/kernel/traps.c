@@ -17,11 +17,12 @@
 #include <linux/kprobes.h>
 #include <linux/delay.h>		/* for ssleep() */
 #include <linux/kdebug.h>
+#include <linux/uaccess.h>
 
 #include <asm/fpswa.h>
 #include <asm/intrinsics.h>
 #include <asm/processor.h>
-#include <linux/uaccess.h>
+#include <asm/exception.h>
 #include <asm/setup.h>
 
 fpswa_interface_t *fpswa_interface;
