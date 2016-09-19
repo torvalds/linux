@@ -1595,15 +1595,9 @@ static s32 brcmf_set_auth_type(struct net_device *ndev,
 		val = 1;
 		brcmf_dbg(CONN, "shared key\n");
 		break;
-	case NL80211_AUTHTYPE_AUTOMATIC:
-		val = 2;
-		brcmf_dbg(CONN, "automatic\n");
-		break;
-	case NL80211_AUTHTYPE_NETWORK_EAP:
-		brcmf_dbg(CONN, "network eap\n");
 	default:
 		val = 2;
-		brcmf_err("invalid auth type (%d)\n", sme->auth_type);
+		brcmf_dbg(CONN, "automatic, auth type (%d)\n", sme->auth_type);
 		break;
 	}
 
