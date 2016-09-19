@@ -131,6 +131,3 @@ parameters may be changed at runtime by the command
 
 	wd33c93=	[HW,SCSI]
 			See header of drivers/scsi/wd33c93.c.
-
-	wd7000=		[HW,SCSI]
-			See header of drivers/scsi/wd7000.c.

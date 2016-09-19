@@ -396,18 +396,6 @@ config SCSI_3W_SAS
 	  Please read the comments at the top of
 	  <file:drivers/scsi/3w-sas.c>.
 
-config SCSI_7000FASST
-	tristate "7000FASST SCSI support"
-	depends on ISA && SCSI && ISA_DMA_API
-	select CHECK_SIGNATURE
-	help
-	  This driver supports the Western Digital 7000 SCSI host adapter
-	  family.  Some information is in the source:
-	  <file:drivers/scsi/wd7000.c>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called wd7000.
-
 config SCSI_ACARD
 	tristate "ACARD SCSI support"
 	depends on PCI && SCSI
