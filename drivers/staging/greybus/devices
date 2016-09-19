@@ -1,0 +1,11 @@
+T:  Bus=01 Lev=03 Prnt=07 Port=02 Cnt=03 Dev#= 12 Spd=12   MxCh= 0
+D:  Ver= 2.00 Cls=00(>ifc ) Sub=00 Prot=00 MxPS=64 #Cfgs=  1
+P:  Vendor=ffff ProdID=0001 Rev= 1.00
+S:  Manufacturer=Greybus
+S:  Product=SVC Bridge
+S:  SerialNumber=12239
+C:* #Ifs= 1 Cfg#= 1 Atr=c0 MxPwr=100mA
+I:* If#= 0 Alt= 0 #EPs= 3 Cls=ff(vend.) Sub=ff Prot=ff Driver=es1_ap_driver
+E:  Ad=81(I) Atr=03(Int.) MxPS=  64 Ivl=64ms
+E:  Ad=82(I) Atr=02(Bulk) MxPS=  64 Ivl=0ms
+E:  Ad=02(O) Atr=02(Bulk) MxPS=  64 Ivl=0ms
