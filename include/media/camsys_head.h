@@ -28,16 +28,20 @@
 *v0.a.0:
          1) support external flash IC
 *v0.b.0:
-		 1) add CamSys_SensorBit0_CifBit4 in enum camsys_cifio_e. 
+	1) add CamSys_SensorBit0_CifBit4 in enum camsys_cifio_e.
+*v0.c.0:
+	1) support sensor powerup sequence configurable.
+*v0.d.0:
+	1) powerup sequence type moved to common_head.h.
 */
-#define CAMSYS_HEAD_VERSION           KERNEL_VERSION(0,0xb,0)
+#define CAMSYS_HEAD_VERSION           KERNEL_VERSION(0,0xd,0)
 
-#define CAMSYS_MARVIN_DEVNAME         "camsys_marvin"           
+#define CAMSYS_MARVIN_DEVNAME         "camsys_marvin"
 #define CAMSYS_CIF0_DEVNAME           "camsys_cif0"
 #define CAMSYS_CIF1_DEVNAME           "camsys_cif1"
 
 #define CAMSYS_NAME_LEN               32
-  
+
 #define CAMSYS_DEVID_MARVIN           0x00000001
 #define CAMSYS_DEVID_CIF_0            0x00000002
 #define CAMSYS_DEVID_CIF_1            0x00000004
