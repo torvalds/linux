@@ -1078,6 +1078,7 @@ static struct sk_buff *ncm_wrap_ntb(struct gether *port,
 			if (!ncm->skb_tx_data)
 				goto err;
 
+			ncm->skb_tx_data->dev = ncm->netdev;
 			ntb_data = (void *) skb_put(ncm->skb_tx_data, ncb_len);
 			memset(ntb_data, 0, ncb_len);
 			/* dwSignature */
@@ -1096,6 +1097,8 @@ static struct sk_buff *ncm_wrap_ntb(struct gether *port,
 						    GFP_ATOMIC);
 			if (!ncm->skb_tx_ndp)
 				goto err;
+
+			ncm->skb_tx_ndp->dev = ncm->netdev;
 			ntb_ndp = (void *) skb_put(ncm->skb_tx_ndp,
 						    opts->ndp_size);
 			memset(ntb_ndp, 0, ncb_len);
