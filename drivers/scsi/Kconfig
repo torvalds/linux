@@ -637,20 +637,6 @@ config SCSI_DMX3191D
 	  To compile this driver as a module, choose M here: the
 	  module will be called dmx3191d.
 
-config SCSI_DTC3280
-	tristate "DTC3180/3280 SCSI support"
-	depends on ISA && SCSI
-	select SCSI_SPI_ATTRS
-	select CHECK_SIGNATURE
-	help
-	  This is support for DTC 3180/3280 SCSI Host Adapters.  Please read
-	  the SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>, and the file
-	  <file:Documentation/scsi/dtc3x80.txt>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called dtc.
-
 config SCSI_EATA
 	tristate "EATA ISA/EISA/PCI (DPT and generic EATA/DMA-compliant boards) support"
 	depends on (ISA || EISA || PCI) && SCSI && ISA_DMA_API

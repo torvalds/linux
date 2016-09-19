@@ -34,9 +34,6 @@ parameters may be changed at runtime by the command
 			See drivers/scsi/BusLogic.c, comment before function
 			BusLogic_ParseDriverOptions().
 
-	dtc3181e=	[HW,SCSI]
-			See Documentation/scsi/g_NCR5380.txt.
-
 	eata=		[HW,SCSI]
 
 	fdomain=	[HW,SCSI]
