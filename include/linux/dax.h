@@ -6,9 +6,13 @@
 #include <linux/radix-tree.h>
 #include <asm/pgtable.h>
 
+struct iomap_ops;
+
 /* We use lowest available exceptional entry bit for locking */
 #define RADIX_DAX_ENTRY_LOCK (1 << RADIX_TREE_EXCEPTIONAL_SHIFT)
 
+ssize_t iomap_dax_rw(struct kiocb *iocb, struct iov_iter *iter,
+		struct iomap_ops *ops);
 ssize_t dax_do_io(struct kiocb *, struct inode *, struct iov_iter *,
 		  get_block_t, dio_iodone_t, int flags);
 int dax_zero_page_range(struct inode *, loff_t from, unsigned len, get_block_t);
