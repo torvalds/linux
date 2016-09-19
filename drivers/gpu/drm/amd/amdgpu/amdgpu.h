@@ -57,6 +57,7 @@
 #include "amdgpu_acp.h"
 
 #include "gpu_scheduler.h"
+#include "amdgpu_virt.h"
 
 /*
  * Modules parameters.
@@ -1931,37 +1932,6 @@ struct amdgpu_atcs {
  */
 struct cgs_device *amdgpu_cgs_create_device(struct amdgpu_device *adev);
 void amdgpu_cgs_destroy_device(struct cgs_device *cgs_device);
-
-
-#define AMDGPU_SRIOV_CAPS_SRIOV_VBIOS  (1 << 0) /* vBIOS is sr-iov ready */
-#define AMDGPU_SRIOV_CAPS_ENABLE_IOV   (1 << 1) /* sr-iov is enabled on this GPU */
-#define AMDGPU_SRIOV_CAPS_IS_VF        (1 << 2) /* this GPU is a virtual function */
-#define AMDGPU_PASSTHROUGH_MODE        (1 << 3) /* thw whole GPU is pass through for VM */
-/* GPU virtualization */
-struct amdgpu_virtualization {
-	uint32_t virtual_caps;
-};
-
-#define amdgpu_sriov_enabled(adev) \
-((adev)->virtualization.virtual_caps & AMDGPU_SRIOV_CAPS_ENABLE_IOV)
-
-#define amdgpu_sriov_vf(adev) \
-((adev)->virtualization.virtual_caps & AMDGPU_SRIOV_CAPS_IS_VF)
-
-#define amdgpu_sriov_bios(adev) \
-((adev)->virtualization.virtual_caps & AMDGPU_SRIOV_CAPS_SRIOV_VBIOS)
-
-#define amdgpu_passthrough(adev) \
-((adev)->virtualization.virtual_caps & AMDGPU_PASSTHROUGH_MODE)
-
-static inline bool is_virtual_machine(void)
-{
-#ifdef CONFIG_X86
-	return boot_cpu_has(X86_FEATURE_HYPERVISOR);
-#else
-	return false;
-#endif
-}
 
 /*
  * Core structure, functions and helpers.
