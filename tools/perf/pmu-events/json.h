@@ -20,6 +20,12 @@ extern int eprintf(int level, int var, const char *fmt, ...);
 #define pr_err(fmt, ...) \
 	eprintf(0, verbose, pr_fmt(fmt), ##__VA_ARGS__)
 
+#define pr_info(fmt, ...) \
+	eprintf(1, verbose, pr_fmt(fmt), ##__VA_ARGS__)
+
+#define pr_debug(fmt, ...) \
+	eprintf(2, verbose, pr_fmt(fmt), ##__VA_ARGS__)
+
 #ifndef roundup
 #define roundup(x, y) (                                \
 {                                                      \
