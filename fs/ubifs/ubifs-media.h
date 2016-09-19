@@ -301,6 +301,13 @@ enum {
 #define UBIFS_MAX_NODE_SZ UBIFS_MAX_INO_NODE_SZ
 
 /*
+ * xattr name of UBIFS encryption context, we don't use a prefix
+ * nor a long name to not waste space on the flash.
+ */
+#define UBIFS_XATTR_NAME_ENCRYPTION_CONTEXT "c"
+
+
+/*
  * On-flash inode flags.
  *
  * UBIFS_COMPR_FL: use compression for this inode
