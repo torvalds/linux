@@ -327,9 +327,6 @@ static struct platform_device visorchipset_platform_device = {
 	.dev.release = visorchipset_dev_release,
 };
 
-/* Function prototypes */
-static void parser_done(struct parser_context *ctx);
-
 static uuid_le
 parser_id_get(struct parser_context *ctx)
 {
