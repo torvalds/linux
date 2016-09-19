@@ -2152,6 +2152,10 @@ int f2fs_fiemap(struct inode *inode, struct fiemap_extent_info *, u64, u64);
 void f2fs_set_page_dirty_nobuffers(struct page *);
 void f2fs_invalidate_page(struct page *, unsigned int, unsigned int);
 int f2fs_release_page(struct page *, gfp_t);
+#ifdef CONFIG_MIGRATION
+int f2fs_migrate_page(struct address_space *, struct page *, struct page *,
+				enum migrate_mode);
+#endif
 
 /*
  * gc.c
