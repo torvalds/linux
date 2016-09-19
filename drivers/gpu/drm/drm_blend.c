@@ -30,7 +30,7 @@
 #include <linux/slab.h>
 #include <linux/sort.h>
 
-#include "drm_internal.h"
+#include "drm_crtc_internal.h"
 
 /**
  * drm_plane_create_zpos_property - create mutable zpos property
