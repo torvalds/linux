@@ -62,6 +62,13 @@
 	};
 };
 
+&i2c1 {
+	mma7660: accelerometer@4c {
+		reg = <0x4c>;
+		compatible = "fsl,mma7660";
+	};
+};
+
 &mmc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins_a>;
