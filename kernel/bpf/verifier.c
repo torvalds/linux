@@ -671,7 +671,7 @@ static int check_packet_access(struct verifier_env *env, u32 regno, int off,
 	struct reg_state *reg = &regs[regno];
 
 	off += reg->off;
-	if (off < 0 || off + size > reg->range) {
+	if (off < 0 || size <= 0 || off + size > reg->range) {
 		verbose("invalid access to packet, off=%d size=%d, R%d(id=%d,off=%d,r=%d)\n",
 			off, size, regno, reg->id, reg->off, reg->range);
 		return -EACCES;
