@@ -92,11 +92,9 @@ static int mtk_mdp_vpu_send_msg(void *msg, int len, struct mtk_mdp_vpu *vpu,
 
 	mutex_lock(&ctx->mdp_dev->vpulock);
 	err = vpu_ipi_send(vpu->pdev, (enum ipi_id)id, msg, len);
-	if (err) {
-		mutex_unlock(&ctx->mdp_dev->vpulock);
+	if (err)
 		dev_err(&ctx->mdp_dev->pdev->dev,
 			"vpu_ipi_send fail status %d\n", err);
-	}
 	mutex_unlock(&ctx->mdp_dev->vpulock);
 
 	return err;
