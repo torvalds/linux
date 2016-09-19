@@ -353,59 +353,6 @@ static ssize_t remaining_steps_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(remaining_steps);
 
-static ssize_t devicedisabled_store(struct device *dev,
-				    struct device_attribute *attr,
-				    const char *buf, size_t count);
-static DEVICE_ATTR_WO(devicedisabled);
-
-static ssize_t deviceenabled_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf, size_t count);
-static DEVICE_ATTR_WO(deviceenabled);
-
-static struct attribute *visorchipset_install_attrs[] = {
-	&dev_attr_toolaction.attr,
-	&dev_attr_boottotool.attr,
-	&dev_attr_error.attr,
-	&dev_attr_textid.attr,
-	&dev_attr_remaining_steps.attr,
-	NULL
-};
-
-static struct attribute_group visorchipset_install_group = {
-	.name = "install",
-	.attrs = visorchipset_install_attrs
-};
-
-static struct attribute *visorchipset_parahotplug_attrs[] = {
-	&dev_attr_devicedisabled.attr,
-	&dev_attr_deviceenabled.attr,
-	NULL
-};
-
-static struct attribute_group visorchipset_parahotplug_group = {
-	.name = "parahotplug",
-	.attrs = visorchipset_parahotplug_attrs
-};
-
-static const struct attribute_group *visorchipset_dev_groups[] = {
-	&visorchipset_install_group,
-	&visorchipset_parahotplug_group,
-	NULL
-};
-
-static void visorchipset_dev_release(struct device *dev)
-{
-}
-
-/* /sys/devices/platform/visorchipset */
-static struct platform_device visorchipset_platform_device = {
-	.name = "visorchipset",
-	.id = -1,
-	.dev.groups = visorchipset_dev_groups,
-	.dev.release = visorchipset_dev_release,
-};
-
 static uuid_le
 parser_id_get(struct parser_context *ctx)
 {
@@ -1185,79 +1132,6 @@ initialize_controlvm_payload(void)
 					  &controlvm_payload_info);
 }
 
-/**
- * visorchipset_chipset_ready() - sends chipset_ready action
- *
- * Send ACTION=online for DEVPATH=/sys/devices/platform/visorchipset.
- *
- * Return: CONTROLVM_RESP_SUCCESS
- */
-static int
-visorchipset_chipset_ready(void)
-{
-	kobject_uevent(&visorchipset_platform_device.dev.kobj, KOBJ_ONLINE);
-	return CONTROLVM_RESP_SUCCESS;
-}
-
-static int
-visorchipset_chipset_selftest(void)
-{
-	char env_selftest[20];
-	char *envp[] = { env_selftest, NULL };
-
-	sprintf(env_selftest, "SPARSP_SELFTEST=%d", 1);
-	kobject_uevent_env(&visorchipset_platform_device.dev.kobj, KOBJ_CHANGE,
-			   envp);
-	return CONTROLVM_RESP_SUCCESS;
-}
-
-/**
- * visorchipset_chipset_notready() - sends chipset_notready action
- *
- * Send ACTION=offline for DEVPATH=/sys/devices/platform/visorchipset.
- *
- * Return: CONTROLVM_RESP_SUCCESS
- */
-static int
-visorchipset_chipset_notready(void)
-{
-	kobject_uevent(&visorchipset_platform_device.dev.kobj, KOBJ_OFFLINE);
-	return CONTROLVM_RESP_SUCCESS;
-}
-
-static void
-chipset_ready(struct controlvm_message_header *msg_hdr)
-{
-	int rc = visorchipset_chipset_ready();
-
-	if (rc != CONTROLVM_RESP_SUCCESS)
-		rc = -rc;
-	if (msg_hdr->flags.response_expected)
-		controlvm_respond(msg_hdr, rc);
-}
-
-static void
-chipset_selftest(struct controlvm_message_header *msg_hdr)
-{
-	int rc = visorchipset_chipset_selftest();
-
-	if (rc != CONTROLVM_RESP_SUCCESS)
-		rc = -rc;
-	if (msg_hdr->flags.response_expected)
-		controlvm_respond(msg_hdr, rc);
-}
-
-static void
-chipset_notready(struct controlvm_message_header *msg_hdr)
-{
-	int rc = visorchipset_chipset_notready();
-
-	if (rc != CONTROLVM_RESP_SUCCESS)
-		rc = -rc;
-	if (msg_hdr->flags.response_expected)
-		controlvm_respond(msg_hdr, rc);
-}
-
 /*
  * The general parahotplug flow works as follows. The visorchipset
  * driver receives a DEVICE_CHANGESTATE message from Command
@@ -1335,38 +1209,6 @@ parahotplug_request_destroy(struct parahotplug_request *req)
 }
 
 /**
- * parahotplug_request_kickoff() - initiate parahotplug request
- * @req: the request to initiate
- *
- * Cause uevent to run the user level script to do the disable/enable specified
- * in the parahotplug_request.
- */
-static void
-parahotplug_request_kickoff(struct parahotplug_request *req)
-{
-	struct controlvm_message_packet *cmd = &req->msg.cmd;
-	char env_cmd[40], env_id[40], env_state[40], env_bus[40], env_dev[40],
-	    env_func[40];
-	char *envp[] = {
-		env_cmd, env_id, env_state, env_bus, env_dev, env_func, NULL
-	};
-
-	sprintf(env_cmd, "SPAR_PARAHOTPLUG=1");
-	sprintf(env_id, "SPAR_PARAHOTPLUG_ID=%d", req->id);
-	sprintf(env_state, "SPAR_PARAHOTPLUG_STATE=%d",
-		cmd->device_change_state.state.active);
-	sprintf(env_bus, "SPAR_PARAHOTPLUG_BUS=%d",
-		cmd->device_change_state.bus_no);
-	sprintf(env_dev, "SPAR_PARAHOTPLUG_DEVICE=%d",
-		cmd->device_change_state.dev_no >> 3);
-	sprintf(env_func, "SPAR_PARAHOTPLUG_FUNCTION=%d",
-		cmd->device_change_state.dev_no & 0x7);
-
-	kobject_uevent_env(&visorchipset_platform_device.dev.kobj, KOBJ_CHANGE,
-			   envp);
-}
-
-/**
  * parahotplug_request_complete() - mark request as complete
  * @id:     the id of the request
  * @active: indicates whether the request is assigned to active partition
@@ -1408,6 +1250,138 @@ parahotplug_request_complete(int id, u16 active)
 
 	spin_unlock(&parahotplug_request_list_lock);
 	return -EINVAL;
+}
+
+/**
+ * devicedisabled_store() - disables the hotplug device
+ * @dev:   sysfs interface variable not utilized in this function
+ * @attr:  sysfs interface variable not utilized in this function
+ * @buf:   buffer containing the device id
+ * @count: the size of the buffer
+ *
+ * The parahotplug/devicedisabled interface gets called by our support script
+ * when an SR-IOV device has been shut down. The ID is passed to the script
+ * and then passed back when the device has been removed.
+ *
+ * Return: the size of the buffer for success or negative for error
+ */
+static ssize_t devicedisabled_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	unsigned int id;
+	int err;
+
+	if (kstrtouint(buf, 10, &id))
+		return -EINVAL;
+
+	err = parahotplug_request_complete(id, 0);
+	if (err < 0)
+		return err;
+	return count;
+}
+static DEVICE_ATTR_WO(devicedisabled);
+
+/**
+ * deviceenabled_store() - enables the hotplug device
+ * @dev:   sysfs interface variable not utilized in this function
+ * @attr:  sysfs interface variable not utilized in this function
+ * @buf:   buffer containing the device id
+ * @count: the size of the buffer
+ *
+ * The parahotplug/deviceenabled interface gets called by our support script
+ * when an SR-IOV device has been recovered. The ID is passed to the script
+ * and then passed back when the device has been brought back up.
+ *
+ * Return: the size of the buffer for success or negative for error
+ */
+static ssize_t deviceenabled_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	unsigned int id;
+
+	if (kstrtouint(buf, 10, &id))
+		return -EINVAL;
+
+	parahotplug_request_complete(id, 1);
+	return count;
+}
+static DEVICE_ATTR_WO(deviceenabled);
+
+static struct attribute *visorchipset_install_attrs[] = {
+	&dev_attr_toolaction.attr,
+	&dev_attr_boottotool.attr,
+	&dev_attr_error.attr,
+	&dev_attr_textid.attr,
+	&dev_attr_remaining_steps.attr,
+	NULL
+};
+
+static struct attribute_group visorchipset_install_group = {
+	.name = "install",
+	.attrs = visorchipset_install_attrs
+};
+
+static struct attribute *visorchipset_parahotplug_attrs[] = {
+	&dev_attr_devicedisabled.attr,
+	&dev_attr_deviceenabled.attr,
+	NULL
+};
+
+static struct attribute_group visorchipset_parahotplug_group = {
+	.name = "parahotplug",
+	.attrs = visorchipset_parahotplug_attrs
+};
+
+static const struct attribute_group *visorchipset_dev_groups[] = {
+	&visorchipset_install_group,
+	&visorchipset_parahotplug_group,
+	NULL
+};
+
+static void visorchipset_dev_release(struct device *dev)
+{
+}
+
+/* /sys/devices/platform/visorchipset */
+static struct platform_device visorchipset_platform_device = {
+	.name = "visorchipset",
+	.id = -1,
+	.dev.groups = visorchipset_dev_groups,
+	.dev.release = visorchipset_dev_release,
+};
+
+/**
+ * parahotplug_request_kickoff() - initiate parahotplug request
+ * @req: the request to initiate
+ *
+ * Cause uevent to run the user level script to do the disable/enable specified
+ * in the parahotplug_request.
+ */
+static void
+parahotplug_request_kickoff(struct parahotplug_request *req)
+{
+	struct controlvm_message_packet *cmd = &req->msg.cmd;
+	char env_cmd[40], env_id[40], env_state[40], env_bus[40], env_dev[40],
+	    env_func[40];
+	char *envp[] = {
+		env_cmd, env_id, env_state, env_bus, env_dev, env_func, NULL
+	};
+
+	sprintf(env_cmd, "SPAR_PARAHOTPLUG=1");
+	sprintf(env_id, "SPAR_PARAHOTPLUG_ID=%d", req->id);
+	sprintf(env_state, "SPAR_PARAHOTPLUG_STATE=%d",
+		cmd->device_change_state.state.active);
+	sprintf(env_bus, "SPAR_PARAHOTPLUG_BUS=%d",
+		cmd->device_change_state.bus_no);
+	sprintf(env_dev, "SPAR_PARAHOTPLUG_DEVICE=%d",
+		cmd->device_change_state.dev_no >> 3);
+	sprintf(env_func, "SPAR_PARAHOTPLUG_FUNCTION=%d",
+		cmd->device_change_state.dev_no & 0x7);
+
+	kobject_uevent_env(&visorchipset_platform_device.dev.kobj, KOBJ_CHANGE,
+			   envp);
 }
 
 /**
@@ -1456,6 +1430,79 @@ parahotplug_process_message(struct controlvm_message *inmsg)
 
 		parahotplug_request_kickoff(req);
 	}
+}
+
+/**
+ * visorchipset_chipset_ready() - sends chipset_ready action
+ *
+ * Send ACTION=online for DEVPATH=/sys/devices/platform/visorchipset.
+ *
+ * Return: CONTROLVM_RESP_SUCCESS
+ */
+static int
+visorchipset_chipset_ready(void)
+{
+	kobject_uevent(&visorchipset_platform_device.dev.kobj, KOBJ_ONLINE);
+	return CONTROLVM_RESP_SUCCESS;
+}
+
+static int
+visorchipset_chipset_selftest(void)
+{
+	char env_selftest[20];
+	char *envp[] = { env_selftest, NULL };
+
+	sprintf(env_selftest, "SPARSP_SELFTEST=%d", 1);
+	kobject_uevent_env(&visorchipset_platform_device.dev.kobj, KOBJ_CHANGE,
+			   envp);
+	return CONTROLVM_RESP_SUCCESS;
+}
+
+/**
+ * visorchipset_chipset_notready() - sends chipset_notready action
+ *
+ * Send ACTION=offline for DEVPATH=/sys/devices/platform/visorchipset.
+ *
+ * Return: CONTROLVM_RESP_SUCCESS
+ */
+static int
+visorchipset_chipset_notready(void)
+{
+	kobject_uevent(&visorchipset_platform_device.dev.kobj, KOBJ_OFFLINE);
+	return CONTROLVM_RESP_SUCCESS;
+}
+
+static void
+chipset_ready(struct controlvm_message_header *msg_hdr)
+{
+	int rc = visorchipset_chipset_ready();
+
+	if (rc != CONTROLVM_RESP_SUCCESS)
+		rc = -rc;
+	if (msg_hdr->flags.response_expected)
+		controlvm_respond(msg_hdr, rc);
+}
+
+static void
+chipset_selftest(struct controlvm_message_header *msg_hdr)
+{
+	int rc = visorchipset_chipset_selftest();
+
+	if (rc != CONTROLVM_RESP_SUCCESS)
+		rc = -rc;
+	if (msg_hdr->flags.response_expected)
+		controlvm_respond(msg_hdr, rc);
+}
+
+static void
+chipset_notready(struct controlvm_message_header *msg_hdr)
+{
+	int rc = visorchipset_chipset_notready();
+
+	if (rc != CONTROLVM_RESP_SUCCESS)
+		rc = -rc;
+	if (msg_hdr->flags.response_expected)
+		controlvm_respond(msg_hdr, rc);
 }
 
 static inline unsigned int
@@ -1638,61 +1685,6 @@ device_resume_response(struct visor_device *dev_info, int response)
 
 	kfree(dev_info->pending_msg_hdr);
 	dev_info->pending_msg_hdr = NULL;
-}
-
-/**
- * devicedisabled_store() - disables the hotplug device
- * @dev:   sysfs interface variable not utilized in this function
- * @attr:  sysfs interface variable not utilized in this function
- * @buf:   buffer containing the device id
- * @count: the size of the buffer
- *
- * The parahotplug/devicedisabled interface gets called by our support script
- * when an SR-IOV device has been shut down. The ID is passed to the script
- * and then passed back when the device has been removed.
- *
- * Return: the size of the buffer for success or negative for error
- */
-static ssize_t devicedisabled_store(struct device *dev,
-				    struct device_attribute *attr,
-				    const char *buf, size_t count)
-{
-	unsigned int id;
-	int err;
-
-	if (kstrtouint(buf, 10, &id))
-		return -EINVAL;
-
-	err = parahotplug_request_complete(id, 0);
-	if (err < 0)
-		return err;
-	return count;
-}
-
-/**
- * deviceenabled_store() - enables the hotplug device
- * @dev:   sysfs interface variable not utilized in this function
- * @attr:  sysfs interface variable not utilized in this function
- * @buf:   buffer containing the device id
- * @count: the size of the buffer
- *
- * The parahotplug/deviceenabled interface gets called by our support script
- * when an SR-IOV device has been recovered. The ID is passed to the script
- * and then passed back when the device has been brought back up.
- *
- * Return: the size of the buffer for success or negative for error
- */
-static ssize_t deviceenabled_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf, size_t count)
-{
-	unsigned int id;
-
-	if (kstrtouint(buf, 10, &id))
-		return -EINVAL;
-
-	parahotplug_request_complete(id, 1);
-	return count;
 }
 
 static int
