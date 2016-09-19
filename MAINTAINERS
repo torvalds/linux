@@ -5307,6 +5307,13 @@ F:	drivers/staging/greybus/power_supply.c
 F:	drivers/staging/greybus/spi.c
 F:	drivers/staging/greybus/spilib.c
 
+GREYBUS PROTOCOLS DRIVERS
+M:	Bryan O'Donoghue <pure.logic@nexus-software.ie>
+S:	Maintained
+F:	drivers/staging/greybus/loopback.c
+F:	drivers/staging/greybus/timesync.c
+F:	drivers/staging/greybus/timesync_platform.c
+
 GSPCA FINEPIX SUBDRIVER
 M:	Frank Zago <frank@zago.net>
 L:	linux-media@vger.kernel.org
