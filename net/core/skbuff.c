@@ -4522,8 +4522,10 @@ int skb_ensure_writable(struct sk_buff *skb, int write_len)
 }
 EXPORT_SYMBOL(skb_ensure_writable);
 
-/* remove VLAN header from packet and update csum accordingly. */
-static int __skb_vlan_pop(struct sk_buff *skb, u16 *vlan_tci)
+/* remove VLAN header from packet and update csum accordingly.
+ * expects a non skb_vlan_tag_present skb with a vlan tag payload
+ */
+int __skb_vlan_pop(struct sk_buff *skb, u16 *vlan_tci)
 {
 	struct vlan_hdr *vhdr;
 	unsigned int offset = skb->data - skb_mac_header(skb);
@@ -4554,6 +4556,7 @@ pull:
 
 	return err;
 }
+EXPORT_SYMBOL(__skb_vlan_pop);
 
 int skb_vlan_pop(struct sk_buff *skb)
 {
