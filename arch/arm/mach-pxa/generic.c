@@ -43,21 +43,6 @@ void clear_reset_status(unsigned int mask)
 	}
 }
 
-unsigned long get_clock_tick_rate(void)
-{
-	unsigned long clock_tick_rate;
-
-	if (cpu_is_pxa25x())
-		clock_tick_rate = 3686400;
-	else if (machine_is_mainstone())
-		clock_tick_rate = 3249600;
-	else
-		clock_tick_rate = 3250000;
-
-	return clock_tick_rate;
-}
-EXPORT_SYMBOL(get_clock_tick_rate);
-
 /*
  * For non device-tree builds, keep legacy timer init
  */
