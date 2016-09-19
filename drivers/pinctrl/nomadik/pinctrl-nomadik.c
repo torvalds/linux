@@ -1177,7 +1177,7 @@ static int nmk_gpio_probe(struct platform_device *dev)
 				   irqchip,
 				   0,
 				   handle_edge_irq,
-				   IRQ_TYPE_EDGE_FALLING);
+				   IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(&dev->dev, "could not add irqchip\n");
 		gpiochip_remove(&nmk_chip->chip);
