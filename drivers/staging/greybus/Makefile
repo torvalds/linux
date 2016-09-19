@@ -1,3 +1,4 @@
+# Greybus core
 greybus-y :=	core.o		\
 		debugfs.o	\
 		hd.o		\
@@ -13,135 +14,83 @@ greybus-y :=	core.o		\
 		timesync.o	\
 		timesync_platform.o
 
-gb-gbphy-y := gbphy.o
-
-# Prefix all modules with gb-
-gb-vibrator-y := vibrator.o
-gb-power-supply-y := power_supply.o
-gb-log-y := log.o
-gb-loopback-y := loopback.o
-gb-light-y := light.o
-gb-raw-y := raw.o
-gb-hid-y := hid.o
-gb-es2-y := es2.o
-gb-arche-y := arche-platform.o arche-apb-ctrl.o
-gb-audio-module-y := audio_module.o audio_topology.o
-gb-audio-codec-y := audio_codec.o
-gb-audio-gb-y := audio_gb.o
-gb-audio-apbridgea-y := audio_apbridgea.o
-gb-audio-manager-y += audio_manager.o
-gb-audio-manager-y += audio_manager_module.o
-gb-bootrom-y := bootrom.o
-gb-camera-y := camera.o
-gb-firmware-y := fw-core.o fw-download.o fw-management.o authentication.o
-gb-spilib-y := spilib.o
-gb-sdio-y := sdio.o
-gb-uart-y := uart.o
-gb-pwm-y := pwm.o
-gb-gpio-y := gpio.o
-gb-i2c-y := i2c.o
-gb-usb-y := usb.o
-gb-spi-y := spi.o
-
-obj-m += greybus.o
-obj-m += gb-gbphy.o
-obj-m += gb-vibrator.o
-obj-m += gb-power-supply.o
-obj-m += gb-log.o
-obj-m += gb-loopback.o
-obj-m += gb-light.o
-obj-m += gb-hid.o
-obj-m += gb-raw.o
-obj-m += gb-es2.o
-ifeq ($(CONFIG_USB_HSIC_USB3613),y)
- obj-m += gb-arche.o
-endif
-ifeq ($(CONFIG_ARCH_MSM8994),y)
- obj-m += gb-audio-codec.o
- obj-m += gb-audio-module.o
- obj-m += gb-camera.o
-endif
-obj-m += gb-audio-gb.o
-obj-m += gb-audio-apbridgea.o
-obj-m += gb-audio-manager.o
-obj-m += gb-bootrom.o
-obj-m += gb-firmware.o
-obj-m += gb-spilib.o
-obj-m += gb-sdio.o
-obj-m += gb-uart.o
-obj-m += gb-pwm.o
-obj-m += gb-gpio.o
-obj-m += gb-i2c.o
-obj-m += gb-usb.o
-obj-m += gb-spi.o
-
-KERNELVER		?= $(shell uname -r)
-KERNELDIR 		?= /lib/modules/$(KERNELVER)/build
-INSTALL_MOD_PATH	?= /..
-PWD			:= $(shell pwd)
-
-# kernel config option that shall be enable
-CONFIG_OPTIONS_ENABLE := POWER_SUPPLY PWM SYSFS SPI USB SND_SOC MMC LEDS_CLASS INPUT
-
-# kernel config option that shall be disable
-CONFIG_OPTIONS_DISABLE :=
-
-# this only run in kbuild part of the makefile
-ifneq ($(KERNELRELEASE),)
-# This function returns the argument version if current kernel version is minor
-# than the passed version, return 1 if equal or the current kernel version if it
-# is greater than argument version.
-kvers_cmp=$(shell [ "$(KERNELVERSION)" = "$(1)" ] && echo 1 || printf "$(1)\n$(KERNELVERSION)" | sort -V | tail -1)
-
-ifneq ($(call kvers_cmp,"3.19.0"),3.19.0)
-    CONFIG_OPTIONS_ENABLE += LEDS_CLASS_FLASH
-endif
-
-ifneq ($(call kvers_cmp,"4.2.0"),4.2.0)
-    CONFIG_OPTIONS_ENABLE += V4L2_FLASH_LED_CLASS
-endif
-
-$(foreach opt,$(CONFIG_OPTIONS_ENABLE),$(if $(CONFIG_$(opt)),, \
-     $(error CONFIG_$(opt) is disabled in the kernel configuration and must be enable \
-     to continue compilation)))
-$(foreach opt,$(CONFIG_OPTIONS_DISABLE),$(if $(filter m y, $(CONFIG_$(opt))), \
-     $(error CONFIG_$(opt) is enabled in the kernel configuration and must be disable \
-     to continue compilation),))
-endif
-
-# add -Wall to try to catch everything we can.
-ccflags-y := -Wall
+obj-$(CONFIG_GREYBUS)		+= greybus.o
 
 # needed for trace events
 ccflags-y += -I$(src)
 
-GB_AUDIO_MANAGER_SYSFS ?= true
-ifeq ($(GB_AUDIO_MANAGER_SYSFS),true)
-gb-audio-manager-y += audio_manager_sysfs.o
-ccflags-y += -DGB_AUDIO_MANAGER_SYSFS
-endif
 
-all: module
+# Greybus Host controller drivers
+gb-es2-y := es2.o
 
-tools::
-	$(MAKE) -C tools KERNELDIR=$(realpath $(KERNELDIR))
+obj-$(CONFIG_GREYBUS_ES2)	+= gb-es2.o
 
-module:
-	$(MAKE) -C $(KERNELDIR) M=$(PWD)
+# Greybus class drivers
+gb-bootrom-y		:= bootrom.o
+gb-camera-y		:= camera.o
+gb-firmware-y		:= fw-core.o fw-download.o fw-management.o authentication.o
+gb-spilib-y		:= spilib.o
+gb-hid-y		:= hid.o
+gb-light-y		:= light.o
+gb-log-y		:= log.o
+gb-loopback-y		:= loopback.o
+gb-power-supply-y	:= power_supply.o
+gb-raw-y		:= raw.o
+gb-vibrator-y		:= vibrator.o
 
-check:
-	$(MAKE) -C $(KERNELDIR) M=$(PWD) C=2 CF="-D__CHECK_ENDIAN__"
+obj-$(CONFIG_GREYBUS_BOOTROM)	+= gb-bootrom.o
+obj-$(CONFIG_GREYBUS_CAMERA)	+= gb-camera.o
+obj-$(CONFIG_GREYBUS_FIRMWARE)	+= gb-firmware.o gb-spilib.o
+obj-$(CONFIG_GREYBUS_HID)	+= gb-hid.o
+obj-$(CONFIG_GREYBUS_LIGHT)	+= gb-light.o
+obj-$(CONFIG_GREYBUS_LOG)	+= gb-log.o
+obj-$(CONFIG_GREYBUS_LOOPBACK)	+= gb-loopback.o
+obj-$(CONFIG_GREYBUS_POWER)	+= gb-power-supply.o
+obj-$(CONFIG_GREYBUS_RAW)	+= gb-raw.o
+obj-$(CONFIG_GREYBUS_VIBRATOR)	+= gb-vibrator.o
 
-clean:
-	rm -f *.o *~ core .depend .*.cmd *.ko *.mod.c
-	rm -f Module.markers Module.symvers modules.order
-	rm -rf .tmp_versions Modules.symvers
-	$(MAKE) -C tools clean
+# Greybus Audio is a bunch of modules
+gb-audio-module-y	:= audio_module.o audio_topology.o
+gb-audio-codec-y	:= audio_codec.o
+gb-audio-gb-y		:= audio_gb.o
+gb-audio-apbridgea-y	:= audio_apbridgea.o
+gb-audio-manager-y	:= audio_manager.o audio_manager_module.o
 
-coccicheck:
-	$(MAKE) -C $(KERNELDIR) M=$(PWD) coccicheck
+# Greybus Audio sysfs helpers can be useful when debugging
+#GB_AUDIO_MANAGER_SYSFS ?= true
+#ifeq ($(GB_AUDIO_MANAGER_SYSFS),true)
+#gb-audio-manager-y += audio_manager_sysfs.o
+#ccflags-y += -DGB_AUDIO_MANAGER_SYSFS
+#endif
 
-install: module
-	mkdir -p $(INSTALL_MOD_PATH)/lib/modules/$(KERNELVER)/kernel/drivers/greybus/
-	cp -f *.ko $(INSTALL_MOD_PATH)/lib/modules/$(KERNELVER)/kernel/drivers/greybus/
-	depmod -b $(INSTALL_MOD_PATH) -a $(KERNELVER)
+obj-$(CONFIG_GREYBUS_AUDIO_MSM8994)	+= gb-audio-codec.o
+obj-$(CONFIG_GREYBUS_AUDIO_MSM8994)	+= gb-audio-module.o
+obj-$(CONFIG_GREYBUS_AUDIO)		+= gb-audio-gb.o
+obj-$(CONFIG_GREYBUS_AUDIO)		+= gb-audio-apbridgea.o
+obj-$(CONFIG_GREYBUS_AUDIO)		+= gb-audio-manager.o
+
+
+# Greybus Bridged PHY drivers
+gb-gbphy-y := gbphy.o
+gb-gpio-y := gpio.o
+gb-i2c-y := i2c.o
+gb-pwm-y := pwm.o
+gb-sdio-y := sdio.o
+gb-spi-y := spi.o
+gb-uart-y := uart.o
+gb-usb-y := usb.o
+
+obj-$(CONFIG_GREYBUS_BRIDGED_PHY)	+= gb-gbphy.o
+obj-$(CONFIG_GREYBUS_GPIO)		+= gb-gpio.o
+obj-$(CONFIG_GREYBUS_I2C)		+= gb-i2c.o
+obj-$(CONFIG_GREYBUS_PWM)		+= gb-pwm.o
+obj-$(CONFIG_GREYBUS_SDIO)		+= gb-sdio.o
+obj-$(CONFIG_GREYBUS_SPI)		+= gb-spi.o
+obj-$(CONFIG_GREYBUS_UART)		+= gb-uart.o
+obj-$(CONFIG_GREYBUS_USB)		+= gb-usb.o
+
+
+# Greybus Platform driver
+gb-arche-y	:= arche-platform.o arche-apb-ctrl.o
+
+obj-$(CONFIG_USB_HSIC_USB3613)	+= gb-arche.o
