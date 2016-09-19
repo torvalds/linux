@@ -5283,6 +5283,13 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/aeroflex/
 
+GREYBUS SUBSYSTEM
+M:	Johan Hovold <johan@kernel.org>
+M:	Alex Elder <elder@kernel.org>
+M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+S:	Maintained
+F:	drivers/staging/greybus/
+
 GSPCA FINEPIX SUBDRIVER
 M:	Frank Zago <frank@zago.net>
 L:	linux-media@vger.kernel.org
