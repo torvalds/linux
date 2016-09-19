@@ -233,8 +233,8 @@ void sysfs_remove_group(struct kobject *kobj,
 		kn = kernfs_find_and_get(parent, grp->name);
 		if (!kn) {
 			WARN(!kn, KERN_WARNING
-			     "sysfs group %p not found for kobject '%s'\n",
-			     grp, kobject_name(kobj));
+			     "sysfs group '%s' not found for kobject '%s'\n",
+			     grp->name, kobject_name(kobj));
 			return;
 		}
 	} else {
