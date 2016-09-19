@@ -1226,7 +1226,7 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
 	eth_hdr = (struct ether_hdr *)&pp->data[0];
 	eth_proto = ntohs(eth_hdr->h_proto);
 
-	/* for MIC FAILUER REPORT check */
+	/* for MIC FAILURE REPORT check */
 	if (eth_proto == ETHER_PROTOCOL_TYPE_EAP
 	    && priv->wpa.mic_failure.failure > 0) {
 		aa1x_hdr = (struct ieee802_1x_hdr *)(eth_hdr + 1);
@@ -1279,7 +1279,7 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
 			  (void *)send_packet_complete, (void *)priv,
 			  (void *)packet);
 
-	/* MIC FAILUER REPORT check */
+	/* MIC FAILURE REPORT check */
 	if (eth_proto == ETHER_PROTOCOL_TYPE_EAP
 	    && priv->wpa.mic_failure.failure > 0) {
 		if (keyinfo & WPA_KEY_INFO_ERROR
@@ -1848,7 +1848,7 @@ void hostif_mic_failure_request(struct ks_wlan_private *priv,
 	ks_wlan_hw_tx(priv, pp, hif_align_size(sizeof(*pp)), NULL, NULL, NULL);
 }
 
-/* Device I/O Recieve indicate */
+/* Device I/O Receive indicate */
 static void devio_rec_ind(struct ks_wlan_private *priv, unsigned char *p,
 			  unsigned int size)
 {
