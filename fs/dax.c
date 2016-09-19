@@ -580,14 +580,13 @@ static int dax_load_hole(struct address_space *mapping, void *entry,
 	return VM_FAULT_LOCKED;
 }
 
-static int copy_user_bh(struct page *to, struct inode *inode,
-		struct buffer_head *bh, unsigned long vaddr)
+static int copy_user_dax(struct block_device *bdev, sector_t sector, size_t size,
+		struct page *to, unsigned long vaddr)
 {
 	struct blk_dax_ctl dax = {
-		.sector = to_sector(bh, inode),
-		.size = bh->b_size,
+		.sector = sector,
+		.size = size,
 	};
-	struct block_device *bdev = bh->b_bdev;
 	void *vto;
 
 	if (dax_map_atomic(bdev, &dax) < 0)
@@ -867,7 +866,8 @@ int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
 	if (vmf->cow_page) {
 		struct page *new_page = vmf->cow_page;
 		if (buffer_written(&bh))
-			error = copy_user_bh(new_page, inode, &bh, vaddr);
+			error = copy_user_dax(bh.b_bdev, to_sector(&bh, inode),
+					bh.b_size, new_page, vaddr);
 		else
 			clear_user_highpage(new_page, vaddr);
 		if (error)
