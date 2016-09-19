@@ -1018,11 +1018,9 @@ gen5_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, bool 
 __gen5_write(8)
 __gen5_write(16)
 __gen5_write(32)
-__gen5_write(64)
 __gen2_write(8)
 __gen2_write(16)
 __gen2_write(32)
-__gen2_write(64)
 
 #undef __gen5_write
 #undef __gen2_write
@@ -1112,23 +1110,18 @@ gen9_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, \
 __gen9_write(8)
 __gen9_write(16)
 __gen9_write(32)
-__gen9_write(64)
 __chv_write(8)
 __chv_write(16)
 __chv_write(32)
-__chv_write(64)
 __gen8_write(8)
 __gen8_write(16)
 __gen8_write(32)
-__gen8_write(64)
 __hsw_write(8)
 __hsw_write(16)
 __hsw_write(32)
-__hsw_write(64)
 __gen6_write(8)
 __gen6_write(16)
 __gen6_write(32)
-__gen6_write(64)
 
 #undef __gen9_write
 #undef __chv_write
@@ -1158,7 +1151,6 @@ static void vgpu_write##x(struct drm_i915_private *dev_priv, \
 __vgpu_write(8)
 __vgpu_write(16)
 __vgpu_write(32)
-__vgpu_write(64)
 
 #undef __vgpu_write
 #undef VGPU_WRITE_FOOTER
@@ -1169,7 +1161,6 @@ do { \
 	dev_priv->uncore.funcs.mmio_writeb = x##_write8; \
 	dev_priv->uncore.funcs.mmio_writew = x##_write16; \
 	dev_priv->uncore.funcs.mmio_writel = x##_write32; \
-	dev_priv->uncore.funcs.mmio_writeq = x##_write64; \
 } while (0)
 
 #define ASSIGN_READ_MMIO_VFUNCS(x) \
@@ -1597,8 +1588,10 @@ static int gen6_reset_engines(struct drm_i915_private *dev_priv,
 	if (engine_mask == ALL_ENGINES) {
 		hw_mask = GEN6_GRDOM_FULL;
 	} else {
+		unsigned int tmp;
+
 		hw_mask = 0;
-		for_each_engine_masked(engine, dev_priv, engine_mask)
+		for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
 			hw_mask |= hw_engine_mask[engine->id];
 	}
 
@@ -1714,15 +1707,16 @@ static int gen8_reset_engines(struct drm_i915_private *dev_priv,
 			      unsigned engine_mask)
 {
 	struct intel_engine_cs *engine;
+	unsigned int tmp;
 
-	for_each_engine_masked(engine, dev_priv, engine_mask)
+	for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
 		if (gen8_request_engine_reset(engine))
 			goto not_ready;
 
 	return gen6_reset_engines(dev_priv, engine_mask);
 
 not_ready:
-	for_each_engine_masked(engine, dev_priv, engine_mask)
+	for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
 		gen8_unrequest_engine_reset(engine);
 
 	return -EIO;

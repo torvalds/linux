@@ -87,7 +87,6 @@ struct intel_ring {
 	void *vaddr;
 
 	struct intel_engine_cs *engine;
-	struct list_head link;
 
 	struct list_head request_list;
 
@@ -157,7 +156,6 @@ struct intel_engine_cs {
 	u32		mmio_base;
 	unsigned int irq_shift;
 	struct intel_ring *buffer;
-	struct list_head buffers;
 
 	/* Rather than have every client wait upon all user interrupts,
 	 * with the herd waking after every interrupt and each doing the
@@ -211,6 +209,8 @@ struct intel_engine_cs {
 	void		(*irq_disable)(struct intel_engine_cs *engine);
 
 	int		(*init_hw)(struct intel_engine_cs *engine);
+	void		(*reset_hw)(struct intel_engine_cs *engine,
+				    struct drm_i915_gem_request *req);
 
 	int		(*init_context)(struct drm_i915_gem_request *req);
 
@@ -226,7 +226,15 @@ struct intel_engine_cs {
 #define I915_DISPATCH_PINNED BIT(1)
 #define I915_DISPATCH_RS     BIT(2)
 	int		(*emit_request)(struct drm_i915_gem_request *req);
+
+	/* Pass the request to the hardware queue (e.g. directly into
+	 * the legacy ringbuffer or to the end of an execlist).
+	 *
+	 * This is called from an atomic context with irqs disabled; must
+	 * be irq safe.
+	 */
 	void		(*submit_request)(struct drm_i915_gem_request *req);
+
 	/* Some chipsets are not quite as coherent as advertised and need
 	 * an expensive kick to force a true read of the up-to-date seqno.
 	 * However, the up-to-date seqno is not always required and the last
@@ -298,11 +306,14 @@ struct intel_engine_cs {
 	/* Execlists */
 	struct tasklet_struct irq_tasklet;
 	spinlock_t execlist_lock; /* used inside tasklet, use spin_lock_bh */
+	struct execlist_port {
+		struct drm_i915_gem_request *request;
+		unsigned int count;
+	} execlist_port[2];
 	struct list_head execlist_queue;
 	unsigned int fw_domains;
-	unsigned int next_context_status_buffer;
-	unsigned int idle_lite_restore_wa;
 	bool disable_lite_restore_wa;
+	bool preempt_wa;
 	u32 ctx_desc_template;
 
 	/**
@@ -441,6 +452,8 @@ void intel_ring_free(struct intel_ring *ring);
 void intel_engine_stop(struct intel_engine_cs *engine);
 void intel_engine_cleanup(struct intel_engine_cs *engine);
 
+void intel_legacy_submission_resume(struct drm_i915_private *dev_priv);
+
 int intel_ring_alloc_request_extras(struct drm_i915_gem_request *request);
 
 int __must_check intel_ring_begin(struct drm_i915_gem_request *req, int n);
@@ -479,6 +492,7 @@ int __intel_ring_space(int head, int tail, int size);
 void intel_ring_update_space(struct intel_ring *ring);
 
 void intel_engine_init_seqno(struct intel_engine_cs *engine, u32 seqno);
+void intel_engine_reset_irq(struct intel_engine_cs *engine);
 
 void intel_engine_setup_common(struct intel_engine_cs *engine);
 int intel_engine_init_common(struct intel_engine_cs *engine);
@@ -486,11 +500,11 @@ int intel_engine_create_scratch(struct intel_engine_cs *engine, int size);
 void intel_engine_cleanup_common(struct intel_engine_cs *engine);
 
 static inline int intel_engine_idle(struct intel_engine_cs *engine,
-				    bool interruptible)
+				    unsigned int flags)
 {
 	/* Wait upon the last request to be completed */
 	return i915_gem_active_wait_unlocked(&engine->last_request,
-					     interruptible, NULL, NULL);
+					     flags, NULL, NULL);
 }
 
 int intel_init_render_ring_buffer(struct intel_engine_cs *engine);

@@ -78,9 +78,11 @@ struct i915_guc_client {
 	uint16_t doorbell_id;
 	uint16_t padding[3];		/* Maintain alignment		*/
 
+	spinlock_t wq_lock;
 	uint32_t wq_offset;
 	uint32_t wq_size;
 	uint32_t wq_tail;
+	uint32_t wq_rsvd;
 	uint32_t no_wq_space;
 	uint32_t b_fail;
 	int retcode;
@@ -157,7 +159,7 @@ extern int intel_guc_resume(struct drm_device *dev);
 /* i915_guc_submission.c */
 int i915_guc_submission_init(struct drm_i915_private *dev_priv);
 int i915_guc_submission_enable(struct drm_i915_private *dev_priv);
-int i915_guc_wq_check_space(struct drm_i915_gem_request *rq);
+int i915_guc_wq_reserve(struct drm_i915_gem_request *rq);
 void i915_guc_submission_disable(struct drm_i915_private *dev_priv);
 void i915_guc_submission_fini(struct drm_i915_private *dev_priv);
 

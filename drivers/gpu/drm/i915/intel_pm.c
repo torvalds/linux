@@ -2853,13 +2853,7 @@ bool ilk_disable_lp_wm(struct drm_device *dev)
 	return _ilk_disable_lp_wm(dev_priv, WM_DIRTY_LP_ALL);
 }
 
-/*
- * On gen9, we need to allocate Display Data Buffer (DDB) portions to the
- * different active planes.
- */
-
-#define SKL_DDB_SIZE		896	/* in blocks */
-#define BXT_DDB_SIZE		512
+#define SKL_SAGV_BLOCK_TIME	30 /* µs */
 
 /*
  * Return the index of a plane in the SKL DDB and wm result arrays.  Primary
@@ -2881,6 +2875,153 @@ skl_wm_plane_id(const struct intel_plane *plane)
 		MISSING_CASE(plane->base.type);
 		return plane->plane;
 	}
+}
+
+/*
+ * SAGV dynamically adjusts the system agent voltage and clock frequencies
+ * depending on power and performance requirements. The display engine access
+ * to system memory is blocked during the adjustment time. Because of the
+ * blocking time, having this enabled can cause full system hangs and/or pipe
+ * underruns if we don't meet all of the following requirements:
+ *
+ *  - <= 1 pipe enabled
+ *  - All planes can enable watermarks for latencies >= SAGV engine block time
+ *  - We're not using an interlaced display configuration
+ */
+int
+skl_enable_sagv(struct drm_i915_private *dev_priv)
+{
+	int ret;
+
+	if (dev_priv->skl_sagv_status == I915_SKL_SAGV_NOT_CONTROLLED ||
+	    dev_priv->skl_sagv_status == I915_SKL_SAGV_ENABLED)
+		return 0;
+
+	DRM_DEBUG_KMS("Enabling the SAGV\n");
+	mutex_lock(&dev_priv->rps.hw_lock);
+
+	ret = sandybridge_pcode_write(dev_priv, GEN9_PCODE_SAGV_CONTROL,
+				      GEN9_SAGV_ENABLE);
+
+	/* We don't need to wait for the SAGV when enabling */
+	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	/*
+	 * Some skl systems, pre-release machines in particular,
+	 * don't actually have an SAGV.
+	 */
+	if (ret == -ENXIO) {
+		DRM_DEBUG_DRIVER("No SAGV found on system, ignoring\n");
+		dev_priv->skl_sagv_status = I915_SKL_SAGV_NOT_CONTROLLED;
+		return 0;
+	} else if (ret < 0) {
+		DRM_ERROR("Failed to enable the SAGV\n");
+		return ret;
+	}
+
+	dev_priv->skl_sagv_status = I915_SKL_SAGV_ENABLED;
+	return 0;
+}
+
+static int
+skl_do_sagv_disable(struct drm_i915_private *dev_priv)
+{
+	int ret;
+	uint32_t temp = GEN9_SAGV_DISABLE;
+
+	ret = sandybridge_pcode_read(dev_priv, GEN9_PCODE_SAGV_CONTROL,
+				     &temp);
+	if (ret)
+		return ret;
+	else
+		return temp & GEN9_SAGV_IS_DISABLED;
+}
+
+int
+skl_disable_sagv(struct drm_i915_private *dev_priv)
+{
+	int ret, result;
+
+	if (dev_priv->skl_sagv_status == I915_SKL_SAGV_NOT_CONTROLLED ||
+	    dev_priv->skl_sagv_status == I915_SKL_SAGV_DISABLED)
+		return 0;
+
+	DRM_DEBUG_KMS("Disabling the SAGV\n");
+	mutex_lock(&dev_priv->rps.hw_lock);
+
+	/* bspec says to keep retrying for at least 1 ms */
+	ret = wait_for(result = skl_do_sagv_disable(dev_priv), 1);
+	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	if (ret == -ETIMEDOUT) {
+		DRM_ERROR("Request to disable SAGV timed out\n");
+		return -ETIMEDOUT;
+	}
+
+	/*
+	 * Some skl systems, pre-release machines in particular,
+	 * don't actually have an SAGV.
+	 */
+	if (result == -ENXIO) {
+		DRM_DEBUG_DRIVER("No SAGV found on system, ignoring\n");
+		dev_priv->skl_sagv_status = I915_SKL_SAGV_NOT_CONTROLLED;
+		return 0;
+	} else if (result < 0) {
+		DRM_ERROR("Failed to disable the SAGV\n");
+		return result;
+	}
+
+	dev_priv->skl_sagv_status = I915_SKL_SAGV_DISABLED;
+	return 0;
+}
+
+bool skl_can_enable_sagv(struct drm_atomic_state *state)
+{
+	struct drm_device *dev = state->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	struct drm_crtc *crtc;
+	enum pipe pipe;
+	int level, plane;
+
+	/*
+	 * SKL workaround: bspec recommends we disable the SAGV when we have
+	 * more then one pipe enabled
+	 *
+	 * If there are no active CRTCs, no additional checks need be performed
+	 */
+	if (hweight32(intel_state->active_crtcs) == 0)
+		return true;
+	else if (hweight32(intel_state->active_crtcs) > 1)
+		return false;
+
+	/* Since we're now guaranteed to only have one active CRTC... */
+	pipe = ffs(intel_state->active_crtcs) - 1;
+	crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+
+	if (crtc->state->mode.flags & DRM_MODE_FLAG_INTERLACE)
+		return false;
+
+	for_each_plane(dev_priv, pipe, plane) {
+		/* Skip this plane if it's not enabled */
+		if (intel_state->wm_results.plane[pipe][plane][0] == 0)
+			continue;
+
+		/* Find the highest enabled wm level for this plane */
+		for (level = ilk_wm_max_level(dev);
+		     intel_state->wm_results.plane[pipe][plane][level] == 0; --level)
+		     { }
+
+		/*
+		 * If any of the planes on this pipe don't enable wm levels
+		 * that incur memory latencies higher then 30µs we can't enable
+		 * the SAGV
+		 */
+		if (dev_priv->wm.skl_latency[level] < SKL_SAGV_BLOCK_TIME)
+			return false;
+	}
+
+	return true;
 }
 
 static void
@@ -2909,10 +3050,8 @@ skl_ddb_get_pipe_allocation_limits(struct drm_device *dev,
 	else
 		*num_active = hweight32(dev_priv->active_crtcs);
 
-	if (IS_BROXTON(dev))
-		ddb_size = BXT_DDB_SIZE;
-	else
-		ddb_size = SKL_DDB_SIZE;
+	ddb_size = INTEL_INFO(dev_priv)->ddb_size;
+	WARN_ON(ddb_size == 0);
 
 	ddb_size -= 4; /* 4 blocks for bypass path allocation */
 
@@ -3688,183 +3827,82 @@ static void skl_ddb_entry_write(struct drm_i915_private *dev_priv,
 		I915_WRITE(reg, 0);
 }
 
-static void skl_write_wm_values(struct drm_i915_private *dev_priv,
-				const struct skl_wm_values *new)
+void skl_write_plane_wm(struct intel_crtc *intel_crtc,
+			const struct skl_wm_values *wm,
+			int plane)
 {
-	struct drm_device *dev = &dev_priv->drm;
-	struct intel_crtc *crtc;
+	struct drm_crtc *crtc = &intel_crtc->base;
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	int level, max_level = ilk_wm_max_level(dev);
+	enum pipe pipe = intel_crtc->pipe;
 
-	for_each_intel_crtc(dev, crtc) {
-		int i, level, max_level = ilk_wm_max_level(dev);
-		enum pipe pipe = crtc->pipe;
-
-		if ((new->dirty_pipes & drm_crtc_mask(&crtc->base)) == 0)
-			continue;
-		if (!crtc->active)
-			continue;
-
-		I915_WRITE(PIPE_WM_LINETIME(pipe), new->wm_linetime[pipe]);
-
-		for (level = 0; level <= max_level; level++) {
-			for (i = 0; i < intel_num_planes(crtc); i++)
-				I915_WRITE(PLANE_WM(pipe, i, level),
-					   new->plane[pipe][i][level]);
-			I915_WRITE(CUR_WM(pipe, level),
-				   new->plane[pipe][PLANE_CURSOR][level]);
-		}
-		for (i = 0; i < intel_num_planes(crtc); i++)
-			I915_WRITE(PLANE_WM_TRANS(pipe, i),
-				   new->plane_trans[pipe][i]);
-		I915_WRITE(CUR_WM_TRANS(pipe),
-			   new->plane_trans[pipe][PLANE_CURSOR]);
-
-		for (i = 0; i < intel_num_planes(crtc); i++) {
-			skl_ddb_entry_write(dev_priv,
-					    PLANE_BUF_CFG(pipe, i),
-					    &new->ddb.plane[pipe][i]);
-			skl_ddb_entry_write(dev_priv,
-					    PLANE_NV12_BUF_CFG(pipe, i),
-					    &new->ddb.y_plane[pipe][i]);
-		}
-
-		skl_ddb_entry_write(dev_priv, CUR_BUF_CFG(pipe),
-				    &new->ddb.plane[pipe][PLANE_CURSOR]);
+	for (level = 0; level <= max_level; level++) {
+		I915_WRITE(PLANE_WM(pipe, plane, level),
+			   wm->plane[pipe][plane][level]);
 	}
+	I915_WRITE(PLANE_WM_TRANS(pipe, plane), wm->plane_trans[pipe][plane]);
+
+	skl_ddb_entry_write(dev_priv, PLANE_BUF_CFG(pipe, plane),
+			    &wm->ddb.plane[pipe][plane]);
+	skl_ddb_entry_write(dev_priv, PLANE_NV12_BUF_CFG(pipe, plane),
+			    &wm->ddb.y_plane[pipe][plane]);
 }
 
-/*
- * When setting up a new DDB allocation arrangement, we need to correctly
- * sequence the times at which the new allocations for the pipes are taken into
- * account or we'll have pipes fetching from space previously allocated to
- * another pipe.
- *
- * Roughly the sequence looks like:
- *  1. re-allocate the pipe(s) with the allocation being reduced and not
- *     overlapping with a previous light-up pipe (another way to put it is:
- *     pipes with their new allocation strickly included into their old ones).
- *  2. re-allocate the other pipes that get their allocation reduced
- *  3. allocate the pipes having their allocation increased
- *
- * Steps 1. and 2. are here to take care of the following case:
- * - Initially DDB looks like this:
- *     |   B    |   C    |
- * - enable pipe A.
- * - pipe B has a reduced DDB allocation that overlaps with the old pipe C
- *   allocation
- *     |  A  |  B  |  C  |
- *
- * We need to sequence the re-allocation: C, B, A (and not B, C, A).
- */
-
-static void
-skl_wm_flush_pipe(struct drm_i915_private *dev_priv, enum pipe pipe, int pass)
+void skl_write_cursor_wm(struct intel_crtc *intel_crtc,
+			 const struct skl_wm_values *wm)
 {
-	int plane;
+	struct drm_crtc *crtc = &intel_crtc->base;
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	int level, max_level = ilk_wm_max_level(dev);
+	enum pipe pipe = intel_crtc->pipe;
 
-	DRM_DEBUG_KMS("flush pipe %c (pass %d)\n", pipe_name(pipe), pass);
-
-	for_each_plane(dev_priv, pipe, plane) {
-		I915_WRITE(PLANE_SURF(pipe, plane),
-			   I915_READ(PLANE_SURF(pipe, plane)));
+	for (level = 0; level <= max_level; level++) {
+		I915_WRITE(CUR_WM(pipe, level),
+			   wm->plane[pipe][PLANE_CURSOR][level]);
 	}
-	I915_WRITE(CURBASE(pipe), I915_READ(CURBASE(pipe)));
+	I915_WRITE(CUR_WM_TRANS(pipe), wm->plane_trans[pipe][PLANE_CURSOR]);
+
+	skl_ddb_entry_write(dev_priv, CUR_BUF_CFG(pipe),
+			    &wm->ddb.plane[pipe][PLANE_CURSOR]);
 }
 
-static bool
-skl_ddb_allocation_included(const struct skl_ddb_allocation *old,
-			    const struct skl_ddb_allocation *new,
-			    enum pipe pipe)
+bool skl_ddb_allocation_equals(const struct skl_ddb_allocation *old,
+			       const struct skl_ddb_allocation *new,
+			       enum pipe pipe)
 {
-	uint16_t old_size, new_size;
-
-	old_size = skl_ddb_entry_size(&old->pipe[pipe]);
-	new_size = skl_ddb_entry_size(&new->pipe[pipe]);
-
-	return old_size != new_size &&
-	       new->pipe[pipe].start >= old->pipe[pipe].start &&
-	       new->pipe[pipe].end <= old->pipe[pipe].end;
+	return new->pipe[pipe].start == old->pipe[pipe].start &&
+	       new->pipe[pipe].end == old->pipe[pipe].end;
 }
 
-static void skl_flush_wm_values(struct drm_i915_private *dev_priv,
-				struct skl_wm_values *new_values)
+static inline bool skl_ddb_entries_overlap(const struct skl_ddb_entry *a,
+					   const struct skl_ddb_entry *b)
 {
-	struct drm_device *dev = &dev_priv->drm;
-	struct skl_ddb_allocation *cur_ddb, *new_ddb;
-	bool reallocated[I915_MAX_PIPES] = {};
-	struct intel_crtc *crtc;
-	enum pipe pipe;
+	return a->start < b->end && b->start < a->end;
+}
 
-	new_ddb = &new_values->ddb;
-	cur_ddb = &dev_priv->wm.skl_hw.ddb;
+bool skl_ddb_allocation_overlaps(struct drm_atomic_state *state,
+				 const struct skl_ddb_allocation *old,
+				 const struct skl_ddb_allocation *new,
+				 enum pipe pipe)
+{
+	struct drm_device *dev = state->dev;
+	struct intel_crtc *intel_crtc;
+	enum pipe otherp;
 
-	/*
-	 * First pass: flush the pipes with the new allocation contained into
-	 * the old space.
-	 *
-	 * We'll wait for the vblank on those pipes to ensure we can safely
-	 * re-allocate the freed space without this pipe fetching from it.
-	 */
-	for_each_intel_crtc(dev, crtc) {
-		if (!crtc->active)
+	for_each_intel_crtc(dev, intel_crtc) {
+		otherp = intel_crtc->pipe;
+
+		if (otherp == pipe)
 			continue;
 
-		pipe = crtc->pipe;
-
-		if (!skl_ddb_allocation_included(cur_ddb, new_ddb, pipe))
-			continue;
-
-		skl_wm_flush_pipe(dev_priv, pipe, 1);
-		intel_wait_for_vblank(dev, pipe);
-
-		reallocated[pipe] = true;
+		if (skl_ddb_entries_overlap(&new->pipe[pipe],
+					    &old->pipe[otherp]))
+			return true;
 	}
 
-
-	/*
-	 * Second pass: flush the pipes that are having their allocation
-	 * reduced, but overlapping with a previous allocation.
-	 *
-	 * Here as well we need to wait for the vblank to make sure the freed
-	 * space is not used anymore.
-	 */
-	for_each_intel_crtc(dev, crtc) {
-		if (!crtc->active)
-			continue;
-
-		pipe = crtc->pipe;
-
-		if (reallocated[pipe])
-			continue;
-
-		if (skl_ddb_entry_size(&new_ddb->pipe[pipe]) <
-		    skl_ddb_entry_size(&cur_ddb->pipe[pipe])) {
-			skl_wm_flush_pipe(dev_priv, pipe, 2);
-			intel_wait_for_vblank(dev, pipe);
-			reallocated[pipe] = true;
-		}
-	}
-
-	/*
-	 * Third pass: flush the pipes that got more space allocated.
-	 *
-	 * We don't need to actively wait for the update here, next vblank
-	 * will just get more DDB space with the correct WM values.
-	 */
-	for_each_intel_crtc(dev, crtc) {
-		if (!crtc->active)
-			continue;
-
-		pipe = crtc->pipe;
-
-		/*
-		 * At this point, only the pipes more space than before are
-		 * left to re-allocate.
-		 */
-		if (reallocated[pipe])
-			continue;
-
-		skl_wm_flush_pipe(dev_priv, pipe, 3);
-	}
+	return false;
 }
 
 static int skl_update_pipe_wm(struct drm_crtc_state *cstate,
@@ -3964,9 +4002,31 @@ skl_compute_ddb(struct drm_atomic_state *state)
 		ret = skl_allocate_pipe_ddb(cstate, ddb);
 		if (ret)
 			return ret;
+
+		ret = drm_atomic_add_affected_planes(state, &intel_crtc->base);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
+}
+
+static void
+skl_copy_wm_for_pipe(struct skl_wm_values *dst,
+		     struct skl_wm_values *src,
+		     enum pipe pipe)
+{
+	dst->wm_linetime[pipe] = src->wm_linetime[pipe];
+	memcpy(dst->plane[pipe], src->plane[pipe],
+	       sizeof(dst->plane[pipe]));
+	memcpy(dst->plane_trans[pipe], src->plane_trans[pipe],
+	       sizeof(dst->plane_trans[pipe]));
+
+	dst->ddb.pipe[pipe] = src->ddb.pipe[pipe];
+	memcpy(dst->ddb.y_plane[pipe], src->ddb.y_plane[pipe],
+	       sizeof(dst->ddb.y_plane[pipe]));
+	memcpy(dst->ddb.plane[pipe], src->ddb.plane[pipe],
+	       sizeof(dst->ddb.plane[pipe]));
 }
 
 static int
@@ -4041,8 +4101,10 @@ static void skl_update_wm(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct skl_wm_values *results = &dev_priv->wm.skl_results;
+	struct skl_wm_values *hw_vals = &dev_priv->wm.skl_hw;
 	struct intel_crtc_state *cstate = to_intel_crtc_state(crtc->state);
 	struct skl_pipe_wm *pipe_wm = &cstate->wm.skl.optimal;
+	enum pipe pipe = intel_crtc->pipe;
 
 	if ((results->dirty_pipes & drm_crtc_mask(crtc)) == 0)
 		return;
@@ -4051,11 +4113,22 @@ static void skl_update_wm(struct drm_crtc *crtc)
 
 	mutex_lock(&dev_priv->wm.wm_mutex);
 
-	skl_write_wm_values(dev_priv, results);
-	skl_flush_wm_values(dev_priv, results);
+	/*
+	 * If this pipe isn't active already, we're going to be enabling it
+	 * very soon. Since it's safe to update a pipe's ddb allocation while
+	 * the pipe's shut off, just do so here. Already active pipes will have
+	 * their watermarks updated once we update their planes.
+	 */
+	if (crtc->state->active_changed) {
+		int plane;
 
-	/* store the new configuration */
-	dev_priv->wm.skl_hw = *results;
+		for (plane = 0; plane < intel_num_planes(intel_crtc); plane++)
+			skl_write_plane_wm(intel_crtc, results, plane);
+
+		skl_write_cursor_wm(intel_crtc, results);
+	}
+
+	skl_copy_wm_for_pipe(hw_vals, results, pipe);
 
 	mutex_unlock(&dev_priv->wm.wm_mutex);
 }
@@ -5550,7 +5623,7 @@ static int cherryview_rps_max_freq(struct drm_i915_private *dev_priv)
 
 	val = vlv_punit_read(dev_priv, FB_GFX_FMAX_AT_VMAX_FUSE);
 
-	switch (INTEL_INFO(dev_priv)->eu_total) {
+	switch (INTEL_INFO(dev_priv)->sseu.eu_total) {
 	case 8:
 		/* (2 * 4) config */
 		rp0 = (val >> FB_GFX_FMAX_AT_VMAX_2SS4EU_FUSE_SHIFT);
@@ -6691,9 +6764,7 @@ void intel_autoenable_gt_powersave(struct drm_i915_private *dev_priv)
 
 	if (IS_IRONLAKE_M(dev_priv)) {
 		ironlake_enable_drps(dev_priv);
-		mutex_lock(&dev_priv->drm.struct_mutex);
 		intel_init_emon(dev_priv);
-		mutex_unlock(&dev_priv->drm.struct_mutex);
 	} else if (INTEL_INFO(dev_priv)->gen >= 6) {
 		/*
 		 * PCU communication is slow and this doesn't need to be
@@ -7659,8 +7730,54 @@ void intel_init_pm(struct drm_device *dev)
 	}
 }
 
+static inline int gen6_check_mailbox_status(struct drm_i915_private *dev_priv)
+{
+	uint32_t flags =
+		I915_READ_FW(GEN6_PCODE_MAILBOX) & GEN6_PCODE_ERROR_MASK;
+
+	switch (flags) {
+	case GEN6_PCODE_SUCCESS:
+		return 0;
+	case GEN6_PCODE_UNIMPLEMENTED_CMD:
+	case GEN6_PCODE_ILLEGAL_CMD:
+		return -ENXIO;
+	case GEN6_PCODE_MIN_FREQ_TABLE_GT_RATIO_OUT_OF_RANGE:
+	case GEN7_PCODE_MIN_FREQ_TABLE_GT_RATIO_OUT_OF_RANGE:
+		return -EOVERFLOW;
+	case GEN6_PCODE_TIMEOUT:
+		return -ETIMEDOUT;
+	default:
+		MISSING_CASE(flags)
+		return 0;
+	}
+}
+
+static inline int gen7_check_mailbox_status(struct drm_i915_private *dev_priv)
+{
+	uint32_t flags =
+		I915_READ_FW(GEN6_PCODE_MAILBOX) & GEN6_PCODE_ERROR_MASK;
+
+	switch (flags) {
+	case GEN6_PCODE_SUCCESS:
+		return 0;
+	case GEN6_PCODE_ILLEGAL_CMD:
+		return -ENXIO;
+	case GEN7_PCODE_TIMEOUT:
+		return -ETIMEDOUT;
+	case GEN7_PCODE_ILLEGAL_DATA:
+		return -EINVAL;
+	case GEN7_PCODE_MIN_FREQ_TABLE_GT_RATIO_OUT_OF_RANGE:
+		return -EOVERFLOW;
+	default:
+		MISSING_CASE(flags);
+		return 0;
+	}
+}
+
 int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val)
 {
+	int status;
+
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 
 	/* GEN6_PCODE_* are outside of the forcewake domain, we can
@@ -7687,12 +7804,25 @@ int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val
 	*val = I915_READ_FW(GEN6_PCODE_DATA);
 	I915_WRITE_FW(GEN6_PCODE_DATA, 0);
 
+	if (INTEL_GEN(dev_priv) > 6)
+		status = gen7_check_mailbox_status(dev_priv);
+	else
+		status = gen6_check_mailbox_status(dev_priv);
+
+	if (status) {
+		DRM_DEBUG_DRIVER("warning: pcode (read) mailbox access failed: %d\n",
+				 status);
+		return status;
+	}
+
 	return 0;
 }
 
 int sandybridge_pcode_write(struct drm_i915_private *dev_priv,
-			       u32 mbox, u32 val)
+			    u32 mbox, u32 val)
 {
+	int status;
+
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 
 	/* GEN6_PCODE_* are outside of the forcewake domain, we can
@@ -7716,6 +7846,17 @@ int sandybridge_pcode_write(struct drm_i915_private *dev_priv,
 	}
 
 	I915_WRITE_FW(GEN6_PCODE_DATA, 0);
+
+	if (INTEL_GEN(dev_priv) > 6)
+		status = gen7_check_mailbox_status(dev_priv);
+	else
+		status = gen6_check_mailbox_status(dev_priv);
+
+	if (status) {
+		DRM_DEBUG_DRIVER("warning: pcode (write) mailbox access failed: %d\n",
+				 status);
+		return status;
+	}
 
 	return 0;
 }

@@ -233,16 +233,18 @@ void i915_gem_request_retire_upto(struct drm_i915_gem_request *req)
 	} while (tmp != req);
 }
 
-static int i915_gem_check_wedge(unsigned int reset_counter, bool interruptible)
+static int i915_gem_check_wedge(struct drm_i915_private *dev_priv)
 {
-	if (__i915_terminally_wedged(reset_counter))
+	struct i915_gpu_error *error = &dev_priv->gpu_error;
+
+	if (i915_terminally_wedged(error))
 		return -EIO;
 
-	if (__i915_reset_in_progress(reset_counter)) {
+	if (i915_reset_in_progress(error)) {
 		/* Non-interruptible callers can't handle -EAGAIN, hence return
 		 * -EIO unconditionally for these.
 		 */
-		if (!interruptible)
+		if (!dev_priv->mm.interruptible)
 			return -EIO;
 
 		return -EAGAIN;
@@ -258,7 +260,9 @@ static int i915_gem_init_seqno(struct drm_i915_private *dev_priv, u32 seqno)
 
 	/* Carefully retire all requests without writing to the rings */
 	for_each_engine(engine, dev_priv) {
-		ret = intel_engine_idle(engine, true);
+		ret = intel_engine_idle(engine,
+					I915_WAIT_INTERRUPTIBLE |
+					I915_WAIT_LOCKED);
 		if (ret)
 			return ret;
 	}
@@ -314,6 +318,26 @@ static int i915_gem_get_seqno(struct drm_i915_private *dev_priv, u32 *seqno)
 	return 0;
 }
 
+static int __i915_sw_fence_call
+submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
+{
+	struct drm_i915_gem_request *request =
+		container_of(fence, typeof(*request), submit);
+
+	/* Will be called from irq-context when using foreign DMA fences */
+
+	switch (state) {
+	case FENCE_COMPLETE:
+		request->engine->submit_request(request);
+		break;
+
+	case FENCE_FREE:
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
 /**
  * i915_gem_request_alloc - allocate a request structure
  *
@@ -331,7 +355,6 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 		       struct i915_gem_context *ctx)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
-	unsigned int reset_counter = i915_reset_counter(&dev_priv->gpu_error);
 	struct drm_i915_gem_request *req;
 	u32 seqno;
 	int ret;
@@ -340,7 +363,7 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	 * EIO if the GPU is already wedged, or EAGAIN to drop the struct_mutex
 	 * and restart.
 	 */
-	ret = i915_gem_check_wedge(reset_counter, dev_priv->mm.interruptible);
+	ret = i915_gem_check_wedge(dev_priv);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -393,6 +416,8 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 		   engine->fence_context,
 		   seqno);
 
+	i915_sw_fence_init(&req->submit, submit_notify);
+
 	INIT_LIST_HEAD(&req->active_list);
 	req->i915 = dev_priv;
 	req->engine = engine;
@@ -402,7 +427,6 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	req->previous_context = NULL;
 	req->file_priv = NULL;
 	req->batch = NULL;
-	req->elsp_submitted = 0;
 
 	/*
 	 * Reserve space in the ring buffer for all the commands required to
@@ -436,6 +460,94 @@ err:
 	return ERR_PTR(ret);
 }
 
+static int
+i915_gem_request_await_request(struct drm_i915_gem_request *to,
+			       struct drm_i915_gem_request *from)
+{
+	int idx, ret;
+
+	GEM_BUG_ON(to == from);
+
+	if (to->engine == from->engine)
+		return 0;
+
+	idx = intel_engine_sync_index(from->engine, to->engine);
+	if (from->fence.seqno <= from->engine->semaphore.sync_seqno[idx])
+		return 0;
+
+	trace_i915_gem_ring_sync_to(to, from);
+	if (!i915.semaphores) {
+		if (!i915_spin_request(from, TASK_INTERRUPTIBLE, 2)) {
+			ret = i915_sw_fence_await_dma_fence(&to->submit,
+							    &from->fence, 0,
+							    GFP_KERNEL);
+			if (ret < 0)
+				return ret;
+		}
+	} else {
+		ret = to->engine->semaphore.sync_to(to, from);
+		if (ret)
+			return ret;
+	}
+
+	from->engine->semaphore.sync_seqno[idx] = from->fence.seqno;
+	return 0;
+}
+
+/**
+ * i915_gem_request_await_object - set this request to (async) wait upon a bo
+ *
+ * @to: request we are wishing to use
+ * @obj: object which may be in use on another ring.
+ *
+ * This code is meant to abstract object synchronization with the GPU.
+ * Conceptually we serialise writes between engines inside the GPU.
+ * We only allow one engine to write into a buffer at any time, but
+ * multiple readers. To ensure each has a coherent view of memory, we must:
+ *
+ * - If there is an outstanding write request to the object, the new
+ *   request must wait for it to complete (either CPU or in hw, requests
+ *   on the same ring will be naturally ordered).
+ *
+ * - If we are a write request (pending_write_domain is set), the new
+ *   request must wait for outstanding read requests to complete.
+ *
+ * Returns 0 if successful, else propagates up the lower layer error.
+ */
+int
+i915_gem_request_await_object(struct drm_i915_gem_request *to,
+			      struct drm_i915_gem_object *obj,
+			      bool write)
+{
+	struct i915_gem_active *active;
+	unsigned long active_mask;
+	int idx;
+
+	if (write) {
+		active_mask = i915_gem_object_get_active(obj);
+		active = obj->last_read;
+	} else {
+		active_mask = 1;
+		active = &obj->last_write;
+	}
+
+	for_each_active(active_mask, idx) {
+		struct drm_i915_gem_request *request;
+		int ret;
+
+		request = i915_gem_active_peek(&active[idx],
+					       &obj->base.dev->struct_mutex);
+		if (!request)
+			continue;
+
+		ret = i915_gem_request_await_request(to, request);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static void i915_gem_mark_busy(const struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
@@ -466,9 +578,12 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 {
 	struct intel_engine_cs *engine = request->engine;
 	struct intel_ring *ring = request->ring;
+	struct drm_i915_gem_request *prev;
 	u32 request_start;
 	u32 reserved_tail;
 	int ret;
+
+	trace_i915_gem_request_add(request);
 
 	/*
 	 * To ensure that this call will not fail, space for its emissions
@@ -493,20 +608,6 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 		WARN(ret, "engine->emit_flush() failed: %d!\n", ret);
 	}
 
-	trace_i915_gem_request_add(request);
-
-	/* Seal the request and mark it as pending execution. Note that
-	 * we may inspect this state, without holding any locks, during
-	 * hangcheck. Hence we apply the barrier to ensure that we do not
-	 * see a more recent value in the hws than we are tracking.
-	 */
-	request->emitted_jiffies = jiffies;
-	request->previous_seqno = engine->last_submitted_seqno;
-	engine->last_submitted_seqno = request->fence.seqno;
-	i915_gem_active_set(&engine->last_request, request);
-	list_add_tail(&request->link, &engine->request_list);
-	list_add_tail(&request->ring_link, &ring->request_list);
-
 	/* Record the position of the start of the breadcrumb so that
 	 * should we detect the updated seqno part-way through the
 	 * GPU processing the request, we never over-estimate the
@@ -527,8 +628,40 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 		  "for adding the request (%d bytes)\n",
 		  reserved_tail, ret);
 
+	/* Seal the request and mark it as pending execution. Note that
+	 * we may inspect this state, without holding any locks, during
+	 * hangcheck. Hence we apply the barrier to ensure that we do not
+	 * see a more recent value in the hws than we are tracking.
+	 */
+
+	prev = i915_gem_active_raw(&engine->last_request,
+				   &request->i915->drm.struct_mutex);
+	if (prev)
+		i915_sw_fence_await_sw_fence(&request->submit, &prev->submit,
+					     &request->submitq);
+
+	request->emitted_jiffies = jiffies;
+	request->previous_seqno = engine->last_submitted_seqno;
+	engine->last_submitted_seqno = request->fence.seqno;
+	i915_gem_active_set(&engine->last_request, request);
+	list_add_tail(&request->link, &engine->request_list);
+	list_add_tail(&request->ring_link, &ring->request_list);
+
 	i915_gem_mark_busy(engine);
-	engine->submit_request(request);
+
+	local_bh_disable();
+	i915_sw_fence_commit(&request->submit);
+	local_bh_enable(); /* Kick the execlists tasklet if just scheduled */
+}
+
+static void reset_wait_queue(wait_queue_head_t *q, wait_queue_t *wait)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&q->lock, flags);
+	if (list_empty(&wait->task_list))
+		__add_wait_queue(q, wait);
+	spin_unlock_irqrestore(&q->lock, flags);
 }
 
 static unsigned long local_clock_us(unsigned int *cpu)
@@ -598,7 +731,7 @@ bool __i915_spin_request(const struct drm_i915_gem_request *req,
 /**
  * i915_wait_request - wait until execution of request has finished
  * @req: duh!
- * @interruptible: do an interruptible wait (normally yes)
+ * @flags: how to wait
  * @timeout: in - how long to wait (NULL forever); out - how much time remaining
  * @rps: client to charge for RPS boosting
  *
@@ -613,17 +746,22 @@ bool __i915_spin_request(const struct drm_i915_gem_request *req,
  * errno with remaining time filled in timeout argument.
  */
 int i915_wait_request(struct drm_i915_gem_request *req,
-		      bool interruptible,
+		      unsigned int flags,
 		      s64 *timeout,
 		      struct intel_rps_client *rps)
 {
-	int state = interruptible ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;
+	const int state = flags & I915_WAIT_INTERRUPTIBLE ?
+		TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;
 	DEFINE_WAIT(reset);
 	struct intel_wait wait;
 	unsigned long timeout_remain;
 	int ret = 0;
 
 	might_sleep();
+#if IS_ENABLED(CONFIG_LOCKDEP)
+	GEM_BUG_ON(!!lockdep_is_held(&req->i915->drm.struct_mutex) !=
+		   !!(flags & I915_WAIT_LOCKED));
+#endif
 
 	if (i915_gem_request_completed(req))
 		return 0;
@@ -666,7 +804,8 @@ int i915_wait_request(struct drm_i915_gem_request *req,
 		goto complete;
 
 	set_current_state(state);
-	add_wait_queue(&req->i915->gpu_error.wait_queue, &reset);
+	if (flags & I915_WAIT_LOCKED)
+		add_wait_queue(&req->i915->gpu_error.wait_queue, &reset);
 
 	intel_wait_init(&wait, req->fence.seqno);
 	if (intel_engine_add_wait(req->engine, &wait))
@@ -702,14 +841,35 @@ wakeup:
 		if (__i915_request_irq_complete(req))
 			break;
 
+		/* If the GPU is hung, and we hold the lock, reset the GPU
+		 * and then check for completion. On a full reset, the engine's
+		 * HW seqno will be advanced passed us and we are complete.
+		 * If we do a partial reset, we have to wait for the GPU to
+		 * resume and update the breadcrumb.
+		 *
+		 * If we don't hold the mutex, we can just wait for the worker
+		 * to come along and update the breadcrumb (either directly
+		 * itself, or indirectly by recovering the GPU).
+		 */
+		if (flags & I915_WAIT_LOCKED &&
+		    i915_reset_in_progress(&req->i915->gpu_error)) {
+			__set_current_state(TASK_RUNNING);
+			i915_reset(req->i915);
+			reset_wait_queue(&req->i915->gpu_error.wait_queue,
+					 &reset);
+			continue;
+		}
+
 		/* Only spin if we know the GPU is processing this request */
 		if (i915_spin_request(req, state, 2))
 			break;
 	}
-	remove_wait_queue(&req->i915->gpu_error.wait_queue, &reset);
 
 	intel_engine_remove_wait(req->engine, &wait);
+	if (flags & I915_WAIT_LOCKED)
+		remove_wait_queue(&req->i915->gpu_error.wait_queue, &reset);
 	__set_current_state(TASK_RUNNING);
+
 complete:
 	trace_i915_gem_request_wait_end(req);
 
@@ -749,21 +909,24 @@ complete:
 	return ret;
 }
 
-static void engine_retire_requests(struct intel_engine_cs *engine)
+static bool engine_retire_requests(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *request, *next;
 
 	list_for_each_entry_safe(request, next, &engine->request_list, link) {
 		if (!i915_gem_request_completed(request))
-			break;
+			return false;
 
 		i915_gem_request_retire(request);
 	}
+
+	return true;
 }
 
 void i915_gem_retire_requests(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
+	unsigned int tmp;
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
@@ -772,11 +935,9 @@ void i915_gem_retire_requests(struct drm_i915_private *dev_priv)
 
 	GEM_BUG_ON(!dev_priv->gt.awake);
 
-	for_each_engine(engine, dev_priv) {
-		engine_retire_requests(engine);
-		if (!intel_engine_is_active(engine))
+	for_each_engine_masked(engine, dev_priv, dev_priv->gt.active_engines, tmp)
+		if (engine_retire_requests(engine))
 			dev_priv->gt.active_engines &= ~intel_engine_flag(engine);
-	}
 
 	if (dev_priv->gt.active_engines == 0)
 		queue_delayed_work(dev_priv->wq,

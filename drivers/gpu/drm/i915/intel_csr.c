@@ -34,15 +34,15 @@
  * low-power state and comes back to normal.
  */
 
-#define I915_CSR_KBL "i915/kbl_dmc_ver1.bin"
+#define I915_CSR_KBL "i915/kbl_dmc_ver1_01.bin"
 MODULE_FIRMWARE(I915_CSR_KBL);
 #define KBL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 1)
 
-#define I915_CSR_SKL "i915/skl_dmc_ver1.bin"
+#define I915_CSR_SKL "i915/skl_dmc_ver1_26.bin"
 MODULE_FIRMWARE(I915_CSR_SKL);
-#define SKL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 23)
+#define SKL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 26)
 
-#define I915_CSR_BXT "i915/bxt_dmc_ver1.bin"
+#define I915_CSR_BXT "i915/bxt_dmc_ver1_07.bin"
 MODULE_FIRMWARE(I915_CSR_BXT);
 #define BXT_CSR_VERSION_REQUIRED	CSR_VERSION(1, 7)
 

@@ -1131,10 +1131,22 @@ i915_gem_execbuffer_move_to_gpu(struct drm_i915_gem_request *req,
 
 	list_for_each_entry(vma, vmas, exec_list) {
 		struct drm_i915_gem_object *obj = vma->obj;
+		struct reservation_object *resv;
 
 		if (obj->flags & other_rings) {
-			ret = i915_gem_object_sync(obj, req);
+			ret = i915_gem_request_await_object
+				(req, obj, obj->base.pending_write_domain);
 			if (ret)
+				return ret;
+		}
+
+		resv = i915_gem_object_get_dmabuf_resv(obj);
+		if (resv) {
+			ret = i915_sw_fence_await_reservation
+				(&req->submit, resv, &i915_fence_ops,
+				 obj->base.pending_write_domain, 10*HZ,
+				 GFP_KERNEL | __GFP_NOWARN);
+			if (ret < 0)
 				return ret;
 		}
 
@@ -1253,11 +1265,8 @@ static struct i915_gem_context *
 i915_gem_validate_context(struct drm_device *dev, struct drm_file *file,
 			  struct intel_engine_cs *engine, const u32 ctx_id)
 {
-	struct i915_gem_context *ctx = NULL;
+	struct i915_gem_context *ctx;
 	struct i915_ctx_hang_stats *hs;
-
-	if (engine->id != RCS && ctx_id != DEFAULT_CONTEXT_HANDLE)
-		return ERR_PTR(-EINVAL);
 
 	ctx = i915_gem_context_lookup(file->driver_priv, ctx_id);
 	if (IS_ERR(ctx))
@@ -1538,13 +1547,9 @@ gen8_dispatch_bsd_engine(struct drm_i915_private *dev_priv,
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 
 	/* Check whether the file_priv has already selected one ring. */
-	if ((int)file_priv->bsd_engine < 0) {
-		/* If not, use the ping-pong mechanism to select one. */
-		mutex_lock(&dev_priv->drm.struct_mutex);
-		file_priv->bsd_engine = dev_priv->mm.bsd_engine_dispatch_index;
-		dev_priv->mm.bsd_engine_dispatch_index ^= 1;
-		mutex_unlock(&dev_priv->drm.struct_mutex);
-	}
+	if ((int)file_priv->bsd_engine < 0)
+		file_priv->bsd_engine = atomic_fetch_xor(1,
+			 &dev_priv->mm.bsd_engine_dispatch_index);
 
 	return file_priv->bsd_engine;
 }

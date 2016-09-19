@@ -420,22 +420,6 @@ static void i915_gem_context_unpin(struct i915_gem_context *ctx,
 	}
 }
 
-void i915_gem_context_reset(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	lockdep_assert_held(&dev->struct_mutex);
-
-	if (i915.enable_execlists) {
-		struct i915_gem_context *ctx;
-
-		list_for_each_entry(ctx, &dev_priv->context_list, link)
-			intel_lr_context_reset(dev_priv, ctx);
-	}
-
-	i915_gem_context_lost(dev_priv);
-}
-
 int i915_gem_context_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);

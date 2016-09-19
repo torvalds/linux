@@ -312,10 +312,6 @@ struct i915_page_dma {
 #define px_page(px) (px_base(px)->page)
 #define px_dma(px) (px_base(px)->daddr)
 
-struct i915_page_scratch {
-	struct i915_page_dma base;
-};
-
 struct i915_page_table {
 	struct i915_page_dma base;
 
@@ -361,7 +357,7 @@ struct i915_address_space {
 
 	bool closed;
 
-	struct i915_page_scratch *scratch_page;
+	struct i915_page_dma scratch_page;
 	struct i915_page_table *scratch_pt;
 	struct i915_page_directory *scratch_pd;
 	struct i915_page_directory_pointer *scratch_pdp; /* GEN8+ & 48b PPGTT */

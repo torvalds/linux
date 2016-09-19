@@ -799,10 +799,8 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 	 */
 	if (cache->fb.tiling_mode != I915_TILING_X ||
 	    cache->fb.fence_reg == I915_FENCE_REG_NONE) {
-		if (INTEL_GEN(dev_priv) < 5) {
-			fbc->no_fbc_reason = "framebuffer not tiled or fenced";
-			return false;
-		}
+		fbc->no_fbc_reason = "framebuffer not tiled or fenced";
+		return false;
 	}
 	if (INTEL_INFO(dev_priv)->gen <= 4 && !IS_G4X(dev_priv) &&
 	    cache->plane.rotation != DRM_ROTATE_0) {

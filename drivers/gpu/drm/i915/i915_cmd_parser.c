@@ -984,7 +984,7 @@ static u32 *copy_batch(struct drm_i915_gem_object *dst_obj,
 
 	src = ERR_PTR(-ENODEV);
 	if (src_needs_clflush &&
-	    i915_memcpy_from_wc((void *)(uintptr_t)batch_start_offset, 0, 0)) {
+	    i915_memcpy_from_wc((void *)(uintptr_t)batch_start_offset, NULL, 0)) {
 		src = i915_gem_object_pin_map(src_obj, I915_MAP_WC);
 		if (!IS_ERR(src)) {
 			i915_memcpy_from_wc(dst,

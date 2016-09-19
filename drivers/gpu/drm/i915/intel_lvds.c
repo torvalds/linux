@@ -230,20 +230,21 @@ static void intel_lvds_pps_init_hw(struct drm_i915_private *dev_priv,
 	I915_WRITE(PP_DIVISOR(0), val);
 }
 
-static void intel_pre_enable_lvds(struct intel_encoder *encoder)
+static void intel_pre_enable_lvds(struct intel_encoder *encoder,
+				  struct intel_crtc_state *pipe_config,
+				  struct drm_connector_state *conn_state)
 {
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
-	const struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->base.crtc);
+	const struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	int pipe = crtc->pipe;
 	u32 temp;
 
-	if (HAS_PCH_SPLIT(dev)) {
+	if (HAS_PCH_SPLIT(dev_priv)) {
 		assert_fdi_rx_pll_disabled(dev_priv, pipe);
 		assert_shared_dpll_disabled(dev_priv,
-					    crtc->config->shared_dpll);
+					    pipe_config->shared_dpll);
 	} else {
 		assert_pll_disabled(dev_priv, pipe);
 	}
@@ -253,7 +254,7 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder)
 	temp = lvds_encoder->init_lvds_val;
 	temp |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP;
 
-	if (HAS_PCH_CPT(dev)) {
+	if (HAS_PCH_CPT(dev_priv)) {
 		temp &= ~PORT_TRANS_SEL_MASK;
 		temp |= PORT_TRANS_SEL_CPT(pipe);
 	} else {
@@ -266,7 +267,7 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder)
 
 	/* set the corresponsding LVDS_BORDER bit */
 	temp &= ~LVDS_BORDER_ENABLE;
-	temp |= crtc->config->gmch_pfit.lvds_border_bits;
+	temp |= pipe_config->gmch_pfit.lvds_border_bits;
 	/* Set the B0-B3 data pairs corresponding to whether we're going to
 	 * set the DPLLs for dual-channel mode or not.
 	 */
@@ -289,7 +290,7 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder)
 	if (IS_GEN4(dev_priv)) {
 		/* Bspec wording suggests that LVDS port dithering only exists
 		 * for 18bpp panels. */
-		if (crtc->config->dither && crtc->config->pipe_bpp == 18)
+		if (pipe_config->dither && pipe_config->pipe_bpp == 18)
 			temp |= LVDS_ENABLE_DITHER;
 		else
 			temp &= ~LVDS_ENABLE_DITHER;
@@ -306,7 +307,9 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder)
 /**
  * Sets the power state for the panel.
  */
-static void intel_enable_lvds(struct intel_encoder *encoder)
+static void intel_enable_lvds(struct intel_encoder *encoder,
+			      struct intel_crtc_state *pipe_config,
+			      struct drm_connector_state *conn_state)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
@@ -324,11 +327,12 @@ static void intel_enable_lvds(struct intel_encoder *encoder)
 	intel_panel_enable_backlight(intel_connector);
 }
 
-static void intel_disable_lvds(struct intel_encoder *encoder)
+static void intel_disable_lvds(struct intel_encoder *encoder,
+			       struct intel_crtc_state *old_crtc_state,
+			       struct drm_connector_state *old_conn_state)
 {
-	struct drm_device *dev = encoder->base.dev;
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	I915_WRITE(PP_CONTROL(0), I915_READ(PP_CONTROL(0)) & ~PANEL_POWER_ON);
 	if (intel_wait_for_register(dev_priv, PP_STATUS(0), PP_ON, 0, 1000))
@@ -338,7 +342,10 @@ static void intel_disable_lvds(struct intel_encoder *encoder)
 	POSTING_READ(lvds_encoder->reg);
 }
 
-static void gmch_disable_lvds(struct intel_encoder *encoder)
+static void gmch_disable_lvds(struct intel_encoder *encoder,
+			      struct intel_crtc_state *old_crtc_state,
+			      struct drm_connector_state *old_conn_state)
+
 {
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
 	struct intel_connector *intel_connector =
@@ -346,10 +353,12 @@ static void gmch_disable_lvds(struct intel_encoder *encoder)
 
 	intel_panel_disable_backlight(intel_connector);
 
-	intel_disable_lvds(encoder);
+	intel_disable_lvds(encoder, old_crtc_state, old_conn_state);
 }
 
-static void pch_disable_lvds(struct intel_encoder *encoder)
+static void pch_disable_lvds(struct intel_encoder *encoder,
+			     struct intel_crtc_state *old_crtc_state,
+			     struct drm_connector_state *old_conn_state)
 {
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
 	struct intel_connector *intel_connector =
@@ -358,9 +367,11 @@ static void pch_disable_lvds(struct intel_encoder *encoder)
 	intel_panel_disable_backlight(intel_connector);
 }
 
-static void pch_post_disable_lvds(struct intel_encoder *encoder)
+static void pch_post_disable_lvds(struct intel_encoder *encoder,
+				  struct intel_crtc_state *old_crtc_state,
+				  struct drm_connector_state *old_conn_state)
 {
-	intel_disable_lvds(encoder);
+	intel_disable_lvds(encoder, old_crtc_state, old_conn_state);
 }
 
 static enum drm_mode_status
@@ -382,7 +393,8 @@ intel_lvds_mode_valid(struct drm_connector *connector,
 }
 
 static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
-				      struct intel_crtc_state *pipe_config)
+				      struct intel_crtc_state *pipe_config,
+				      struct drm_connector_state *conn_state)
 {
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct intel_lvds_encoder *lvds_encoder =

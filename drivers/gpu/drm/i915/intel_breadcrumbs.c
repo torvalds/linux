@@ -462,7 +462,10 @@ static int intel_breadcrumbs_signaler(void *arg)
 			 */
 			intel_engine_remove_wait(engine,
 						 &request->signaling.wait);
+
+			local_bh_disable();
 			fence_signal(&request->fence);
+			local_bh_enable(); /* kick start the tasklets */
 
 			/* Find the next oldest signal. Note that as we have
 			 * not been holding the lock, another client may

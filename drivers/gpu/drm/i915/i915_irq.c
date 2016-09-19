@@ -371,7 +371,7 @@ void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv)
 	spin_lock_irq(&dev_priv->irq_lock);
 	dev_priv->rps.interrupts_enabled = false;
 
-	I915_WRITE(GEN6_PMINTRMSK, gen6_sanitize_rps_pm_mask(dev_priv, ~0));
+	I915_WRITE(GEN6_PMINTRMSK, gen6_sanitize_rps_pm_mask(dev_priv, ~0u));
 
 	__gen6_disable_pm_irq(dev_priv, dev_priv->pm_rps_events);
 	I915_WRITE(gen6_pm_ier(dev_priv), I915_READ(gen6_pm_ier(dev_priv)) &
@@ -2497,57 +2497,52 @@ static void i915_reset_and_wakeup(struct drm_i915_private *dev_priv)
 	char *error_event[] = { I915_ERROR_UEVENT "=1", NULL };
 	char *reset_event[] = { I915_RESET_UEVENT "=1", NULL };
 	char *reset_done_event[] = { I915_ERROR_UEVENT "=0", NULL };
-	int ret;
 
 	kobject_uevent_env(kobj, KOBJ_CHANGE, error_event);
 
+	DRM_DEBUG_DRIVER("resetting chip\n");
+	kobject_uevent_env(kobj, KOBJ_CHANGE, reset_event);
+
 	/*
-	 * Note that there's only one work item which does gpu resets, so we
-	 * need not worry about concurrent gpu resets potentially incrementing
-	 * error->reset_counter twice. We only need to take care of another
-	 * racing irq/hangcheck declaring the gpu dead for a second time. A
-	 * quick check for that is good enough: schedule_work ensures the
-	 * correct ordering between hang detection and this work item, and since
-	 * the reset in-progress bit is only ever set by code outside of this
-	 * work we don't need to worry about any other races.
+	 * In most cases it's guaranteed that we get here with an RPM
+	 * reference held, for example because there is a pending GPU
+	 * request that won't finish until the reset is done. This
+	 * isn't the case at least when we get here by doing a
+	 * simulated reset via debugs, so get an RPM reference.
 	 */
-	if (i915_reset_in_progress(&dev_priv->gpu_error)) {
-		DRM_DEBUG_DRIVER("resetting chip\n");
-		kobject_uevent_env(kobj, KOBJ_CHANGE, reset_event);
+	intel_runtime_pm_get(dev_priv);
+	intel_prepare_reset(dev_priv);
 
-		/*
-		 * In most cases it's guaranteed that we get here with an RPM
-		 * reference held, for example because there is a pending GPU
-		 * request that won't finish until the reset is done. This
-		 * isn't the case at least when we get here by doing a
-		 * simulated reset via debugs, so get an RPM reference.
-		 */
-		intel_runtime_pm_get(dev_priv);
-
-		intel_prepare_reset(dev_priv);
-
+	do {
 		/*
 		 * All state reset _must_ be completed before we update the
 		 * reset counter, for otherwise waiters might miss the reset
 		 * pending state and not properly drop locks, resulting in
 		 * deadlocks with the reset work.
 		 */
-		ret = i915_reset(dev_priv);
+		if (mutex_trylock(&dev_priv->drm.struct_mutex)) {
+			i915_reset(dev_priv);
+			mutex_unlock(&dev_priv->drm.struct_mutex);
+		}
 
-		intel_finish_reset(dev_priv);
+		/* We need to wait for anyone holding the lock to wakeup */
+	} while (wait_on_bit_timeout(&dev_priv->gpu_error.flags,
+				     I915_RESET_IN_PROGRESS,
+				     TASK_UNINTERRUPTIBLE,
+				     HZ));
 
-		intel_runtime_pm_put(dev_priv);
+	intel_finish_reset(dev_priv);
+	intel_runtime_pm_put(dev_priv);
 
-		if (ret == 0)
-			kobject_uevent_env(kobj,
-					   KOBJ_CHANGE, reset_done_event);
+	if (!test_bit(I915_WEDGED, &dev_priv->gpu_error.flags))
+		kobject_uevent_env(kobj,
+				   KOBJ_CHANGE, reset_done_event);
 
-		/*
-		 * Note: The wake_up also serves as a memory barrier so that
-		 * waiters see the update value of the reset counter atomic_t.
-		 */
-		wake_up_all(&dev_priv->gpu_error.reset_queue);
-	}
+	/*
+	 * Note: The wake_up also serves as a memory barrier so that
+	 * waiters see the updated value of the dev_priv->gpu_error.
+	 */
+	wake_up_all(&dev_priv->gpu_error.reset_queue);
 }
 
 static void i915_report_and_clear_eir(struct drm_i915_private *dev_priv)
@@ -2666,25 +2661,26 @@ void i915_handle_error(struct drm_i915_private *dev_priv,
 	i915_capture_error_state(dev_priv, engine_mask, error_msg);
 	i915_report_and_clear_eir(dev_priv);
 
-	if (engine_mask) {
-		atomic_or(I915_RESET_IN_PROGRESS_FLAG,
-				&dev_priv->gpu_error.reset_counter);
+	if (!engine_mask)
+		return;
 
-		/*
-		 * Wakeup waiting processes so that the reset function
-		 * i915_reset_and_wakeup doesn't deadlock trying to grab
-		 * various locks. By bumping the reset counter first, the woken
-		 * processes will see a reset in progress and back off,
-		 * releasing their locks and then wait for the reset completion.
-		 * We must do this for _all_ gpu waiters that might hold locks
-		 * that the reset work needs to acquire.
-		 *
-		 * Note: The wake_up serves as the required memory barrier to
-		 * ensure that the waiters see the updated value of the reset
-		 * counter atomic_t.
-		 */
-		i915_error_wake_up(dev_priv);
-	}
+	if (test_and_set_bit(I915_RESET_IN_PROGRESS,
+			     &dev_priv->gpu_error.flags))
+		return;
+
+	/*
+	 * Wakeup waiting processes so that the reset function
+	 * i915_reset_and_wakeup doesn't deadlock trying to grab
+	 * various locks. By bumping the reset counter first, the woken
+	 * processes will see a reset in progress and back off,
+	 * releasing their locks and then wait for the reset completion.
+	 * We must do this for _all_ gpu waiters that might hold locks
+	 * that the reset work needs to acquire.
+	 *
+	 * Note: The wake_up also provides a memory barrier to ensure that the
+	 * waiters see the updated value of the reset flags.
+	 */
+	i915_error_wake_up(dev_priv);
 
 	i915_reset_and_wakeup(dev_priv);
 }
@@ -2835,10 +2831,10 @@ semaphore_wait_to_signaller_ring(struct intel_engine_cs *engine, u32 ipehr,
 		}
 	}
 
-	DRM_ERROR("No signaller ring found for ring %i, ipehr 0x%08x, offset 0x%016llx\n",
-		  engine->id, ipehr, offset);
+	DRM_DEBUG_DRIVER("No signaller ring found for ring %i, ipehr 0x%08x, offset 0x%016llx\n",
+			 engine->id, ipehr, offset);
 
-	return NULL;
+	return ERR_PTR(-ENODEV);
 }
 
 static struct intel_engine_cs *
@@ -2925,6 +2921,9 @@ static int semaphore_passed(struct intel_engine_cs *engine)
 	signaller = semaphore_waits_for(engine, &seqno);
 	if (signaller == NULL)
 		return -1;
+
+	if (IS_ERR(signaller))
+		return 0;
 
 	/* Prevent pathological recursion due to driver bugs */
 	if (signaller->hangcheck.deadlock >= I915_NUM_ENGINES)
@@ -3079,6 +3078,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 		bool busy = intel_engine_has_waiter(engine);
 		u64 acthd;
 		u32 seqno;
+		u32 submit;
 
 		semaphore_clear_deadlocks(dev_priv);
 
@@ -3094,14 +3094,11 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 
 		acthd = intel_engine_get_active_head(engine);
 		seqno = intel_engine_get_seqno(engine);
+		submit = READ_ONCE(engine->last_submitted_seqno);
 
 		if (engine->hangcheck.seqno == seqno) {
-			if (!intel_engine_is_active(engine)) {
+			if (i915_seqno_passed(seqno, submit)) {
 				engine->hangcheck.action = HANGCHECK_IDLE;
-				if (busy) {
-					/* Safeguard against driver failure */
-					engine->hangcheck.score += BUSY;
-				}
 			} else {
 				/* We always increment the hangcheck score
 				 * if the engine is busy and still processing
@@ -3167,6 +3164,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 
 	if (hung) {
 		char msg[80];
+		unsigned int tmp;
 		int len;
 
 		/* If some rings hung but others were still busy, only
@@ -3176,7 +3174,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 			hung &= ~stuck;
 		len = scnprintf(msg, sizeof(msg),
 				"%s on ", stuck == hung ? "No progress" : "Hang");
-		for_each_engine_masked(engine, dev_priv, hung)
+		for_each_engine_masked(engine, dev_priv, hung, tmp)
 			len += scnprintf(msg + len, sizeof(msg) - len,
 					 "%s, ", engine->name);
 		msg[len-2] = '\0';
@@ -4502,7 +4500,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		dev_priv->rps.pm_intr_keep |= GEN6_PM_RP_UP_EI_EXPIRED;
 
 	if (INTEL_INFO(dev_priv)->gen >= 8)
-		dev_priv->rps.pm_intr_keep |= GEN8_PMINTR_REDIRECT_TO_NON_DISP;
+		dev_priv->rps.pm_intr_keep |= GEN8_PMINTR_REDIRECT_TO_GUC;
 
 	INIT_DELAYED_WORK(&dev_priv->gpu_error.hangcheck_work,
 			  i915_hangcheck_elapsed);

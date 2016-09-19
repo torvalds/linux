@@ -63,6 +63,7 @@ static void i915_restore_display(struct drm_device *dev)
 int i915_save_state(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	int i;
 
 	mutex_lock(&dev->struct_mutex);
@@ -70,7 +71,7 @@ int i915_save_state(struct drm_device *dev)
 	i915_save_display(dev);
 
 	if (IS_GEN4(dev))
-		pci_read_config_word(dev->pdev, GCDGMBUS,
+		pci_read_config_word(pdev, GCDGMBUS,
 				     &dev_priv->regfile.saveGCDGMBUS);
 
 	/* Cache mode state */
@@ -108,6 +109,7 @@ int i915_save_state(struct drm_device *dev)
 int i915_restore_state(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	int i;
 
 	mutex_lock(&dev->struct_mutex);
@@ -115,7 +117,7 @@ int i915_restore_state(struct drm_device *dev)
 	i915_gem_restore_fences(dev);
 
 	if (IS_GEN4(dev))
-		pci_write_config_word(dev->pdev, GCDGMBUS,
+		pci_write_config_word(pdev, GCDGMBUS,
 				      dev_priv->regfile.saveGCDGMBUS);
 	i915_restore_display(dev);
 

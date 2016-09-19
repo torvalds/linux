@@ -28,6 +28,7 @@
 #include <linux/fence.h>
 
 #include "i915_gem.h"
+#include "i915_sw_fence.h"
 
 struct intel_wait {
 	struct rb_node node;
@@ -82,26 +83,32 @@ struct drm_i915_gem_request {
 	struct intel_ring *ring;
 	struct intel_signal_node signaling;
 
+	struct i915_sw_fence submit;
+	wait_queue_t submitq;
+
 	/** GEM sequence number associated with the previous request,
 	 * when the HWS breadcrumb is equal to this the GPU is processing
 	 * this request.
 	 */
 	u32 previous_seqno;
 
-	/** Position in the ringbuffer of the start of the request */
+	/** Position in the ring of the start of the request */
 	u32 head;
 
 	/**
-	 * Position in the ringbuffer of the start of the postfix.
-	 * This is required to calculate the maximum available ringbuffer
-	 * space without overwriting the postfix.
+	 * Position in the ring of the start of the postfix.
+	 * This is required to calculate the maximum available ring space
+	 * without overwriting the postfix.
 	 */
 	u32 postfix;
 
-	/** Position in the ringbuffer of the end of the whole request */
+	/** Position in the ring of the end of the whole request */
 	u32 tail;
 
-	/** Preallocate space in the ringbuffer for the emitting the request */
+	/** Position in the ring of the end of any workarounds after the tail */
+	u32 wa_tail;
+
+	/** Preallocate space in the ring for the emitting the request */
 	u32 reserved_space;
 
 	/**
@@ -134,27 +141,8 @@ struct drm_i915_gem_request {
 	/** file_priv list entry for this request */
 	struct list_head client_list;
 
-	/**
-	 * The ELSP only accepts two elements at a time, so we queue
-	 * context/tail pairs on a given queue (ring->execlist_queue) until the
-	 * hardware is available. The queue serves a double purpose: we also use
-	 * it to keep track of the up to 2 contexts currently in the hardware
-	 * (usually one in execution and the other queued up by the GPU): We
-	 * only remove elements from the head of the queue when the hardware
-	 * informs us that an element has been completed.
-	 *
-	 * All accesses to the queue are mediated by a spinlock
-	 * (ring->execlist_lock).
-	 */
-
-	/** Execlist link in the submission queue.*/
+	/** Link in the execlist submission queue, guarded by execlist_lock. */
 	struct list_head execlist_link;
-
-	/** Execlists no. of times this request has been sent to the ELSP */
-	int elsp_submitted;
-
-	/** Execlists context hardware id. */
-	unsigned int ctx_hw_id;
 };
 
 extern const struct fence_ops i915_fence_ops;
@@ -222,6 +210,11 @@ static inline void i915_gem_request_assign(struct drm_i915_gem_request **pdst,
 	*pdst = src;
 }
 
+int
+i915_gem_request_await_object(struct drm_i915_gem_request *to,
+			      struct drm_i915_gem_object *obj,
+			      bool write);
+
 void __i915_add_request(struct drm_i915_gem_request *req, bool flush_caches);
 #define i915_add_request(req) \
 	__i915_add_request(req, true)
@@ -234,10 +227,12 @@ struct intel_rps_client;
 #define IS_RPS_USER(p) (!IS_ERR_OR_NULL(p))
 
 int i915_wait_request(struct drm_i915_gem_request *req,
-		      bool interruptible,
+		      unsigned int flags,
 		      s64 *timeout,
 		      struct intel_rps_client *rps)
 	__attribute__((nonnull(1)));
+#define I915_WAIT_INTERRUPTIBLE	BIT(0)
+#define I915_WAIT_LOCKED	BIT(1) /* struct_mutex held, handle GPU reset */
 
 static inline u32 intel_engine_get_seqno(struct intel_engine_cs *engine);
 
@@ -472,6 +467,19 @@ __i915_gem_active_get_rcu(const struct i915_gem_active *active)
 		if (!request || i915_gem_request_completed(request))
 			return NULL;
 
+		/* An especially silly compiler could decide to recompute the
+		 * result of i915_gem_request_completed, more specifically
+		 * re-emit the load for request->fence.seqno. A race would catch
+		 * a later seqno value, which could flip the result from true to
+		 * false. Which means part of the instructions below might not
+		 * be executed, while later on instructions are executed. Due to
+		 * barriers within the refcounting the inconsistency can't reach
+		 * past the call to i915_gem_request_get_rcu, but not executing
+		 * that while still executing i915_gem_request_put() creates
+		 * havoc enough.  Prevent this with a compiler barrier.
+		 */
+		barrier();
+
 		request = i915_gem_request_get_rcu(request);
 
 		/* What stops the following rcu_access_pointer() from occurring
@@ -578,13 +586,15 @@ i915_gem_active_wait(const struct i915_gem_active *active, struct mutex *mutex)
 	if (!request)
 		return 0;
 
-	return i915_wait_request(request, true, NULL, NULL);
+	return i915_wait_request(request,
+				 I915_WAIT_INTERRUPTIBLE | I915_WAIT_LOCKED,
+				 NULL, NULL);
 }
 
 /**
  * i915_gem_active_wait_unlocked - waits until the request is completed
  * @active - the active request on which to wait
- * @interruptible - whether the wait can be woken by a userspace signal
+ * @flags - how to wait
  * @timeout - how long to wait at most
  * @rps - userspace client to charge for a waitboost
  *
@@ -605,7 +615,7 @@ i915_gem_active_wait(const struct i915_gem_active *active, struct mutex *mutex)
  */
 static inline int
 i915_gem_active_wait_unlocked(const struct i915_gem_active *active,
-			      bool interruptible,
+			      unsigned int flags,
 			      s64 *timeout,
 			      struct intel_rps_client *rps)
 {
@@ -614,7 +624,7 @@ i915_gem_active_wait_unlocked(const struct i915_gem_active *active,
 
 	request = i915_gem_active_get_unlocked(active);
 	if (request) {
-		ret = i915_wait_request(request, interruptible, timeout, rps);
+		ret = i915_wait_request(request, flags, timeout, rps);
 		i915_gem_request_put(request);
 	}
 
@@ -641,7 +651,9 @@ i915_gem_active_retire(struct i915_gem_active *active,
 	if (!request)
 		return 0;
 
-	ret = i915_wait_request(request, true, NULL, NULL);
+	ret = i915_wait_request(request,
+				I915_WAIT_INTERRUPTIBLE | I915_WAIT_LOCKED,
+				NULL, NULL);
 	if (ret)
 		return ret;
 

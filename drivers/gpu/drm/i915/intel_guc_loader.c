@@ -97,7 +97,7 @@ const char *intel_guc_fw_status_repr(enum intel_guc_fw_status status)
 	}
 };
 
-static void direct_interrupts_to_host(struct drm_i915_private *dev_priv)
+static void guc_interrupts_release(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 	int irqs;
@@ -114,7 +114,7 @@ static void direct_interrupts_to_host(struct drm_i915_private *dev_priv)
 	I915_WRITE(GUC_WD_VECS_IER, 0);
 }
 
-static void direct_interrupts_to_guc(struct drm_i915_private *dev_priv)
+static void guc_interrupts_capture(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 	int irqs;
@@ -134,13 +134,28 @@ static void direct_interrupts_to_guc(struct drm_i915_private *dev_priv)
 	I915_WRITE(GUC_WD_VECS_IER, ~irqs);
 
 	/*
-	 * If GuC has routed PM interrupts to itself, don't keep it.
-	 * and keep other interrupts those are unmasked by GuC.
-	*/
+	 * The REDIRECT_TO_GUC bit of the PMINTRMSK register directs all
+	 * (unmasked) PM interrupts to the GuC. All other bits of this
+	 * register *disable* generation of a specific interrupt.
+	 *
+	 * 'pm_intr_keep' indicates bits that are NOT to be set when
+	 * writing to the PM interrupt mask register, i.e. interrupts
+	 * that must not be disabled.
+	 *
+	 * If the GuC is handling these interrupts, then we must not let
+	 * the PM code disable ANY interrupt that the GuC is expecting.
+	 * So for each ENABLED (0) bit in this register, we must SET the
+	 * bit in pm_intr_keep so that it's left enabled for the GuC.
+	 *
+	 * OTOH the REDIRECT_TO_GUC bit is initially SET in pm_intr_keep
+	 * (so interrupts go to the DISPLAY unit at first); but here we
+	 * need to CLEAR that bit, which will result in the register bit
+	 * being left SET!
+	 */
 	tmp = I915_READ(GEN6_PMINTRMSK);
-	if (tmp & GEN8_PMINTR_REDIRECT_TO_NON_DISP) {
-		dev_priv->rps.pm_intr_keep |= ~(tmp & ~GEN8_PMINTR_REDIRECT_TO_NON_DISP);
-		dev_priv->rps.pm_intr_keep &= ~GEN8_PMINTR_REDIRECT_TO_NON_DISP;
+	if (tmp & GEN8_PMINTR_REDIRECT_TO_GUC) {
+		dev_priv->rps.pm_intr_keep |= ~tmp;
+		dev_priv->rps.pm_intr_keep &= ~GEN8_PMINTR_REDIRECT_TO_GUC;
 	}
 }
 
@@ -152,17 +167,24 @@ static u32 get_gttype(struct drm_i915_private *dev_priv)
 
 static u32 get_core_family(struct drm_i915_private *dev_priv)
 {
-	switch (INTEL_INFO(dev_priv)->gen) {
+	u32 gen = INTEL_GEN(dev_priv);
+
+	switch (gen) {
 	case 9:
 		return GFXCORE_FAMILY_GEN9;
 
 	default:
-		DRM_ERROR("GUC: unsupported core family\n");
+		WARN(1, "GEN%d does not support GuC operation!\n", gen);
 		return GFXCORE_FAMILY_UNKNOWN;
 	}
 }
 
-static void set_guc_init_params(struct drm_i915_private *dev_priv)
+/*
+ * Initialise the GuC parameter block before starting the firmware
+ * transfer. These parameters are read by the firmware on startup
+ * and cannot be changed thereafter.
+ */
+static void guc_params_init(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
 	u32 params[GUC_CTL_MAX_DWORDS];
@@ -375,11 +397,11 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 		I915_WRITE(GEN7_MISCCPCTL, (GEN8_DOP_CLOCK_GATE_GUC_ENABLE |
 					    I915_READ(GEN7_MISCCPCTL)));
 
-		/* allows for 5us before GT can go to RC6 */
+		/* allows for 5us (in 10ns units) before GT can go to RC6 */
 		I915_WRITE(GUC_ARAT_C6DIS, 0x1FF);
 	}
 
-	set_guc_init_params(dev_priv);
+	guc_params_init(dev_priv);
 
 	ret = guc_ucode_xfer_dma(dev_priv, vma);
 
@@ -394,7 +416,7 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 	return ret;
 }
 
-static int i915_reset_guc(struct drm_i915_private *dev_priv)
+static int guc_hw_reset(struct drm_i915_private *dev_priv)
 {
 	int ret;
 	u32 guc_status;
@@ -447,7 +469,7 @@ int intel_guc_setup(struct drm_device *dev)
 		goto fail;
 	} else if (*fw_path == '\0') {
 		/* Device has a GuC but we don't know what f/w to load? */
-		DRM_INFO("No GuC firmware known for this platform\n");
+		WARN(1, "No GuC firmware known for this platform!\n");
 		err = -ENODEV;
 		goto fail;
 	}
@@ -461,7 +483,7 @@ int intel_guc_setup(struct drm_device *dev)
 		goto fail;
 	}
 
-	direct_interrupts_to_host(dev_priv);
+	guc_interrupts_release(dev_priv);
 
 	guc_fw->guc_fw_load_status = GUC_FIRMWARE_PENDING;
 
@@ -484,11 +506,9 @@ int intel_guc_setup(struct drm_device *dev)
 		 * Always reset the GuC just before (re)loading, so
 		 * that the state and timing are fairly predictable
 		 */
-		err = i915_reset_guc(dev_priv);
-		if (err) {
-			DRM_ERROR("GuC reset failed: %d\n", err);
+		err = guc_hw_reset(dev_priv);
+		if (err)
 			goto fail;
-		}
 
 		err = guc_ucode_xfer(dev_priv);
 		if (!err)
@@ -511,7 +531,7 @@ int intel_guc_setup(struct drm_device *dev)
 		err = i915_guc_submission_enable(dev_priv);
 		if (err)
 			goto fail;
-		direct_interrupts_to_guc(dev_priv);
+		guc_interrupts_capture(dev_priv);
 	}
 
 	return 0;
@@ -520,7 +540,7 @@ fail:
 	if (guc_fw->guc_fw_load_status == GUC_FIRMWARE_PENDING)
 		guc_fw->guc_fw_load_status = GUC_FIRMWARE_FAIL;
 
-	direct_interrupts_to_host(dev_priv);
+	guc_interrupts_release(dev_priv);
 	i915_guc_submission_disable(dev_priv);
 	i915_guc_submission_fini(dev_priv);
 
@@ -546,15 +566,15 @@ fail:
 	else if (err == 0)
 		DRM_INFO("GuC firmware load skipped\n");
 	else if (ret != -EIO)
-		DRM_INFO("GuC firmware load failed: %d\n", err);
+		DRM_NOTE("GuC firmware load failed: %d\n", err);
 	else
-		DRM_ERROR("GuC firmware load failed: %d\n", err);
+		DRM_WARN("GuC firmware load failed: %d\n", err);
 
 	if (i915.enable_guc_submission) {
 		if (fw_path == NULL)
 			DRM_INFO("GuC submission without firmware not supported\n");
 		if (ret == 0)
-			DRM_INFO("Falling back from GuC submission to execlist mode\n");
+			DRM_NOTE("Falling back from GuC submission to execlist mode\n");
 		else
 			DRM_ERROR("GuC init failed: %d\n", ret);
 	}
@@ -565,6 +585,7 @@ fail:
 
 static void guc_fw_fetch(struct drm_device *dev, struct intel_guc_fw *guc_fw)
 {
+	struct pci_dev *pdev = dev->pdev;
 	struct drm_i915_gem_object *obj;
 	const struct firmware *fw;
 	struct guc_css_header *css;
@@ -574,7 +595,7 @@ static void guc_fw_fetch(struct drm_device *dev, struct intel_guc_fw *guc_fw)
 	DRM_DEBUG_DRIVER("before requesting firmware: GuC fw fetch status %s\n",
 		intel_guc_fw_status_repr(guc_fw->guc_fw_fetch_status));
 
-	err = request_firmware(&fw, guc_fw->guc_fw_path, &dev->pdev->dev);
+	err = request_firmware(&fw, guc_fw->guc_fw_path, &pdev->dev);
 	if (err)
 		goto fail;
 	if (!fw)
@@ -585,7 +606,7 @@ static void guc_fw_fetch(struct drm_device *dev, struct intel_guc_fw *guc_fw)
 
 	/* Check the size of the blob before examining buffer contents */
 	if (fw->size < sizeof(struct guc_css_header)) {
-		DRM_ERROR("Firmware header is missing\n");
+		DRM_NOTE("Firmware header is missing\n");
 		goto fail;
 	}
 
@@ -597,7 +618,7 @@ static void guc_fw_fetch(struct drm_device *dev, struct intel_guc_fw *guc_fw)
 		css->key_size_dw - css->exponent_size_dw) * sizeof(u32);
 
 	if (guc_fw->header_size != sizeof(struct guc_css_header)) {
-		DRM_ERROR("CSS header definition mismatch\n");
+		DRM_NOTE("CSS header definition mismatch\n");
 		goto fail;
 	}
 
@@ -607,7 +628,7 @@ static void guc_fw_fetch(struct drm_device *dev, struct intel_guc_fw *guc_fw)
 
 	/* now RSA */
 	if (css->key_size_dw != UOS_RSA_SCRATCH_MAX_COUNT) {
-		DRM_ERROR("RSA key size is bad\n");
+		DRM_NOTE("RSA key size is bad\n");
 		goto fail;
 	}
 	guc_fw->rsa_offset = guc_fw->ucode_offset + guc_fw->ucode_size;
@@ -616,14 +637,14 @@ static void guc_fw_fetch(struct drm_device *dev, struct intel_guc_fw *guc_fw)
 	/* At least, it should have header, uCode and RSA. Size of all three. */
 	size = guc_fw->header_size + guc_fw->ucode_size + guc_fw->rsa_size;
 	if (fw->size < size) {
-		DRM_ERROR("Missing firmware components\n");
+		DRM_NOTE("Missing firmware components\n");
 		goto fail;
 	}
 
 	/* Header and uCode will be loaded to WOPCM. Size of the two. */
 	size = guc_fw->header_size + guc_fw->ucode_size;
 	if (size > guc_wopcm_size(to_i915(dev))) {
-		DRM_ERROR("Firmware is too large to fit in WOPCM\n");
+		DRM_NOTE("Firmware is too large to fit in WOPCM\n");
 		goto fail;
 	}
 
@@ -638,7 +659,7 @@ static void guc_fw_fetch(struct drm_device *dev, struct intel_guc_fw *guc_fw)
 
 	if (guc_fw->guc_fw_major_found != guc_fw->guc_fw_major_wanted ||
 	    guc_fw->guc_fw_minor_found < guc_fw->guc_fw_minor_wanted) {
-		DRM_ERROR("GuC firmware version %d.%d, required %d.%d\n",
+		DRM_NOTE("GuC firmware version %d.%d, required %d.%d\n",
 			guc_fw->guc_fw_major_found, guc_fw->guc_fw_minor_found,
 			guc_fw->guc_fw_major_wanted, guc_fw->guc_fw_minor_wanted);
 		err = -ENOEXEC;
@@ -668,10 +689,10 @@ static void guc_fw_fetch(struct drm_device *dev, struct intel_guc_fw *guc_fw)
 	return;
 
 fail:
+	DRM_WARN("Failed to fetch valid GuC firmware from %s (error %d)\n",
+		 guc_fw->guc_fw_path, err);
 	DRM_DEBUG_DRIVER("GuC fw fetch status FAIL; err %d, fw %p, obj %p\n",
 		err, fw, guc_fw->guc_fw_obj);
-	DRM_ERROR("Failed to fetch GuC firmware from %s (error %d)\n",
-		  guc_fw->guc_fw_path, err);
 
 	mutex_lock(&dev->struct_mutex);
 	obj = guc_fw->guc_fw_obj;
@@ -752,7 +773,7 @@ void intel_guc_fini(struct drm_device *dev)
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 
 	mutex_lock(&dev->struct_mutex);
-	direct_interrupts_to_host(dev_priv);
+	guc_interrupts_release(dev_priv);
 	i915_guc_submission_disable(dev_priv);
 	i915_guc_submission_fini(dev_priv);
 

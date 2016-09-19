@@ -336,6 +336,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 {
 	struct drm_device *dev = error_priv->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct drm_i915_error_state *error = error_priv->error;
 	struct drm_i915_error_object *obj;
 	int i, j, offset, elt;
@@ -367,11 +368,11 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	}
 	err_printf(m, "Reset count: %u\n", error->reset_count);
 	err_printf(m, "Suspend count: %u\n", error->suspend_count);
-	err_printf(m, "PCI ID: 0x%04x\n", dev->pdev->device);
-	err_printf(m, "PCI Revision: 0x%02x\n", dev->pdev->revision);
+	err_printf(m, "PCI ID: 0x%04x\n", pdev->device);
+	err_printf(m, "PCI Revision: 0x%02x\n", pdev->revision);
 	err_printf(m, "PCI Subsystem: %04x:%04x\n",
-		   dev->pdev->subsystem_vendor,
-		   dev->pdev->subsystem_device);
+		   pdev->subsystem_vendor,
+		   pdev->subsystem_device);
 	err_printf(m, "IOMMU enabled?: %d\n", error->iommu);
 
 	if (HAS_CSR(dev)) {
@@ -488,7 +489,10 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			}
 		}
 
-		if (ee->num_waiters) {
+		if (IS_ERR(ee->waiters)) {
+			err_printf(m, "%s --- ? waiters [unable to acquire spinlock]\n",
+				   dev_priv->engine[i].name);
+		} else if (ee->num_waiters) {
 			err_printf(m, "%s --- %d waiters\n",
 				   dev_priv->engine[i].name,
 				   ee->num_waiters);
@@ -647,7 +651,8 @@ static void i915_error_state_free(struct kref *error_ref)
 		i915_error_object_free(ee->wa_ctx);
 
 		kfree(ee->requests);
-		kfree(ee->waiters);
+		if (!IS_ERR_OR_NULL(ee->waiters))
+			kfree(ee->waiters);
 	}
 
 	i915_error_object_free(error->semaphore);
@@ -932,7 +937,14 @@ static void error_record_engine_waiters(struct intel_engine_cs *engine,
 	ee->num_waiters = 0;
 	ee->waiters = NULL;
 
-	spin_lock(&b->lock);
+	if (RB_EMPTY_ROOT(&b->waiters))
+		return;
+
+	if (!spin_trylock(&b->lock)) {
+		ee->waiters = ERR_PTR(-EDEADLK);
+		return;
+	}
+
 	count = 0;
 	for (rb = rb_first(&b->waiters); rb != NULL; rb = rb_next(rb))
 		count++;
@@ -946,9 +958,13 @@ static void error_record_engine_waiters(struct intel_engine_cs *engine,
 	if (!waiter)
 		return;
 
-	ee->waiters = waiter;
+	if (!spin_trylock(&b->lock)) {
+		kfree(waiter);
+		ee->waiters = ERR_PTR(-EDEADLK);
+		return;
+	}
 
-	spin_lock(&b->lock);
+	ee->waiters = waiter;
 	for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
 		struct intel_wait *w = container_of(rb, typeof(*w), node);
 
@@ -1009,7 +1025,7 @@ static void error_record_engine_registers(struct drm_i915_error_state *error,
 	if (INTEL_GEN(dev_priv) > 2)
 		ee->mode = I915_READ_MODE(engine);
 
-	if (I915_NEED_GFX_HWS(dev_priv)) {
+	if (!HWS_NEEDS_PHYSICAL(dev_priv)) {
 		i915_reg_t mmio;
 
 		if (IS_GEN7(dev_priv)) {
