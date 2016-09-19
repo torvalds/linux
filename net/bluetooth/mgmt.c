@@ -3187,6 +3187,8 @@ static int set_appearance(struct sock *sk, struct hci_dev *hdev, void *data,
 
 		if (hci_dev_test_flag(hdev, HCI_LE_ADV))
 			adv_expire(hdev, MGMT_ADV_FLAG_APPEARANCE);
+
+		ext_info_changed(hdev, sk);
 	}
 
 	err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_SET_APPEARANCE, 0, NULL,
