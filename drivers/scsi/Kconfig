@@ -1345,23 +1345,6 @@ config SCSI_AM53C974
 	  To compile this driver as a module, choose M here: the
 	  module will be called am53c974.
 
-config SCSI_T128
-	tristate "Trantor T128/T128F/T228 SCSI support"
-	depends on ISA && SCSI
-	select SCSI_SPI_ATTRS
-	select CHECK_SIGNATURE
-	---help---
-	  This is support for a SCSI host adapter. It is explained in section
-	  3.11 of the SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.  If it doesn't work out
-	  of the box, you may have to change some settings in
-	  <file:drivers/scsi/t128.h>.  Note that Trantor was purchased by
-	  Adaptec, and some former Trantor products are being sold under the
-	  Adaptec name.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called t128.
-
 config SCSI_NSP32
 	tristate "Workbit NinjaSCSI-32Bi/UDE support"
 	depends on PCI && SCSI && !64BIT

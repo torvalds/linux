@@ -113,9 +113,6 @@ parameters may be changed at runtime by the command
 	sym53c416=	[HW,SCSI]
 			See header of drivers/scsi/sym53c416.c.
 
-	t128=		[HW,SCSI]
-			See header of drivers/scsi/t128.c.
-
 	tmscsim=	[HW,SCSI]
 			See comment before function dc390_setup() in
 			drivers/scsi/tmscsim.c.
