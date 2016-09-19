@@ -50,7 +50,6 @@
  * Module parameters
  */
 static int visorchipset_major;
-static unsigned long controlvm_payload_bytes_buffered;
 
 static int
 visorchipset_open(struct inode *inode, struct file *file)
@@ -106,6 +105,7 @@ struct visor_controlvm_payload_info {
 };
 
 static struct visor_controlvm_payload_info controlvm_payload_info;
+static unsigned long controlvm_payload_bytes_buffered;
 
 /*
  * The following globals are used to handle the scenario where we are unable to
