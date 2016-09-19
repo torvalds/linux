@@ -1,5 +1,8 @@
 /dts-v1/;
 
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/mips-gic.h>
+
 /memreserve/ 0x00000000 0x00001000;	/* YAMON exception vectors */
 /memreserve/ 0x00001000 0x000ef000;	/* YAMON */
 /memreserve/ 0x000f0000 0x00010000;	/* PIIX4 ISA memory */
@@ -8,4 +11,42 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 	compatible = "mti,malta";
+
+	cpu_intc: interrupt-controller {
+		compatible = "mti,cpu-interrupt-controller";
+
+		interrupt-controller;
+		#interrupt-cells = <1>;
+	};
+
+	gic: interrupt-controller@1bdc0000 {
+		compatible = "mti,gic";
+		reg = <0x1bdc0000 0x20000>;
+
+		interrupt-controller;
+		#interrupt-cells = <3>;
+
+		/*
+		 * Declare the interrupt-parent even though the mti,gic
+		 * binding doesn't require it, such that the kernel can
+		 * figure out that cpu_intc is the root interrupt
+		 * controller & should be probed first.
+		 */
+		interrupt-parent = <&cpu_intc>;
+
+		timer {
+			compatible = "mti,gic-timer";
+			interrupts = <GIC_LOCAL 1 IRQ_TYPE_NONE>;
+		};
+	};
+
+	i8259: interrupt-controller@20 {
+		compatible = "intel,i8259";
+
+		interrupt-controller;
+		#interrupt-cells = <1>;
+
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SHARED 3 IRQ_TYPE_LEVEL_HIGH>;
+	};
 };

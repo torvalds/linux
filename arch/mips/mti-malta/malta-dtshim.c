@@ -17,6 +17,8 @@
 #include <asm/bootinfo.h>
 #include <asm/fw/fw.h>
 #include <asm/mips-boards/generic.h>
+#include <asm/mips-boards/malta.h>
+#include <asm/mips-cm.h>
 #include <asm/page.h>
 
 #define ROCIT_REG_BASE			0x1f403000
@@ -226,6 +228,80 @@ static void __init append_memory(void *fdt, int root_off)
 		panic("Unable to set linux,usable-memory property: %d", err);
 }
 
+static void __init remove_gic(void *fdt)
+{
+	int err, gic_off, i8259_off, cpu_off;
+	void __iomem *biu_base;
+	uint32_t cpu_phandle, sc_cfg;
+
+	/* if we have a CM which reports a GIC is present, leave the DT alone */
+	err = mips_cm_probe();
+	if (!err && (read_gcr_gic_status() & CM_GCR_GIC_STATUS_GICEX_MSK))
+		return;
+
+	if (malta_scon() == MIPS_REVISION_SCON_ROCIT) {
+		/*
+		 * On systems using the RocIT system controller a GIC may be
+		 * present without a CM. Detect whether that is the case.
+		 */
+		biu_base = ioremap_nocache(MSC01_BIU_REG_BASE,
+				MSC01_BIU_ADDRSPACE_SZ);
+		sc_cfg = __raw_readl(biu_base + MSC01_SC_CFG_OFS);
+		if (sc_cfg & MSC01_SC_CFG_GICPRES_MSK) {
+			/* enable the GIC at the system controller level */
+			sc_cfg |= BIT(MSC01_SC_CFG_GICENA_SHF);
+			__raw_writel(sc_cfg, biu_base + MSC01_SC_CFG_OFS);
+			return;
+		}
+	}
+
+	gic_off = fdt_node_offset_by_compatible(fdt, -1, "mti,gic");
+	if (gic_off < 0) {
+		pr_warn("malta-dtshim: unable to find DT GIC node: %d\n",
+			gic_off);
+		return;
+	}
+
+	err = fdt_nop_node(fdt, gic_off);
+	if (err)
+		pr_warn("malta-dtshim: unable to nop GIC node\n");
+
+	i8259_off = fdt_node_offset_by_compatible(fdt, -1, "intel,i8259");
+	if (i8259_off < 0) {
+		pr_warn("malta-dtshim: unable to find DT i8259 node: %d\n",
+			i8259_off);
+		return;
+	}
+
+	cpu_off = fdt_node_offset_by_compatible(fdt, -1,
+			"mti,cpu-interrupt-controller");
+	if (cpu_off < 0) {
+		pr_warn("malta-dtshim: unable to find CPU intc node: %d\n",
+			cpu_off);
+		return;
+	}
+
+	cpu_phandle = fdt_get_phandle(fdt, cpu_off);
+	if (!cpu_phandle) {
+		pr_warn("malta-dtshim: unable to get CPU intc phandle\n");
+		return;
+	}
+
+	err = fdt_setprop_u32(fdt, i8259_off, "interrupt-parent", cpu_phandle);
+	if (err) {
+		pr_warn("malta-dtshim: unable to set i8259 interrupt-parent: %d\n",
+			err);
+		return;
+	}
+
+	err = fdt_setprop_u32(fdt, i8259_off, "interrupts", 2);
+	if (err) {
+		pr_warn("malta-dtshim: unable to set i8259 interrupts: %d\n",
+			err);
+		return;
+	}
+}
+
 void __init *malta_dt_shim(void *fdt)
 {
 	int root_off, len, err;
@@ -251,6 +327,7 @@ void __init *malta_dt_shim(void *fdt)
 		return fdt;
 
 	append_memory(fdt_buf, root_off);
+	remove_gic(fdt_buf);
 
 	err = fdt_pack(fdt_buf);
 	if (err)
