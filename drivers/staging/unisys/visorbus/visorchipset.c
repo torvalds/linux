@@ -271,8 +271,6 @@ static struct platform_device visorchipset_platform_device = {
 };
 
 /* Function prototypes */
-static void controlvm_respond(struct controlvm_message_header *msg_hdr,
-			      int response);
 static void controlvm_respond_chipset_init(
 		struct controlvm_message_header *msg_hdr, int response,
 		enum ultra_chipset_feature features);
