@@ -50,7 +50,6 @@
  * Module parameters
  */
 static int visorchipset_major;
-static int visorchipset_visorbusregwait = 1;	/* default is on */
 static unsigned long controlvm_payload_bytes_buffered;
 static u32 dump_vhba_bus;
 
@@ -2311,9 +2310,6 @@ static void exit_unisys(void)
 module_param_named(major, visorchipset_major, int, S_IRUGO);
 MODULE_PARM_DESC(visorchipset_major,
 		 "major device number to use for the device node");
-module_param_named(visorbusregwait, visorchipset_visorbusregwait, int, S_IRUGO);
-MODULE_PARM_DESC(visorchipset_visorbusregwait,
-		 "1 to have the module wait for the visor bus to register");
 
 module_init(init_unisys);
 module_exit(exit_unisys);
