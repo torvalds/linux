@@ -78,6 +78,7 @@ static inline void RESET_CIE_WATCHDOG(struct rtllib_device *__pIeeeDev)
 {
 	GET_CIE_WATCHDOG(__pIeeeDev) = 0;
 }
+
 #define UPDATE_CIE_WATCHDOG(__pIeeeDev) (++GET_CIE_WATCHDOG(__pIeeeDev))
 
 void dot11d_init(struct rtllib_device *dev);
