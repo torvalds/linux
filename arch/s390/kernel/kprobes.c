@@ -26,12 +26,14 @@
 #include <linux/stop_machine.h>
 #include <linux/kdebug.h>
 #include <linux/uaccess.h>
+#include <linux/extable.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/hardirq.h>
 #include <linux/ftrace.h>
 #include <asm/cacheflush.h>
 #include <asm/sections.h>
+#include <asm/uaccess.h>
 #include <asm/dis.h>
 
 DEFINE_PER_CPU(struct kprobe *, current_kprobe);
