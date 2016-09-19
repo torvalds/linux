@@ -179,7 +179,6 @@ struct parahotplug_request {
 
 static LIST_HEAD(parahotplug_request_list);
 static DEFINE_SPINLOCK(parahotplug_request_list_lock);	/* lock for above */
-static void parahotplug_process_list(void);
 
 /* info for /dev/visorchipset */
 static dev_t major_dev = -1; /*< indicates major num for device */
@@ -1466,37 +1465,6 @@ parahotplug_request_kickoff(struct parahotplug_request *req)
 }
 
 /**
- * parahotplug_process_list() - remove any request from the list that's been on
- *                              there too long and respond with an error
- */
-static void
-parahotplug_process_list(void)
-{
-	struct list_head *pos;
-	struct list_head *tmp;
-
-	spin_lock(&parahotplug_request_list_lock);
-
-	list_for_each_safe(pos, tmp, &parahotplug_request_list) {
-		struct parahotplug_request *req =
-		    list_entry(pos, struct parahotplug_request, list);
-
-		if (!time_after_eq(jiffies, req->expiration))
-			continue;
-
-		list_del(pos);
-		if (req->msg.hdr.flags.response_expected)
-			controlvm_respond_physdev_changestate(
-				&req->msg.hdr,
-				CONTROLVM_RESP_ERROR_DEVICE_UDEV_TIMEOUT,
-				req->msg.cmd.device_change_state.state);
-		parahotplug_request_destroy(req);
-	}
-
-	spin_unlock(&parahotplug_request_list_lock);
-}
-
-/**
  * parahotplug_request_complete() - mark request as complete
  * @id:     the id of the request
  * @active: indicates whether the request is assigned to active partition
@@ -2089,6 +2057,37 @@ read_controlvm_event(struct controlvm_message *msg)
 		return true;
 	}
 	return false;
+}
+
+/**
+ * parahotplug_process_list() - remove any request from the list that's been on
+ *                              there too long and respond with an error
+ */
+static void
+parahotplug_process_list(void)
+{
+	struct list_head *pos;
+	struct list_head *tmp;
+
+	spin_lock(&parahotplug_request_list_lock);
+
+	list_for_each_safe(pos, tmp, &parahotplug_request_list) {
+		struct parahotplug_request *req =
+		    list_entry(pos, struct parahotplug_request, list);
+
+		if (!time_after_eq(jiffies, req->expiration))
+			continue;
+
+		list_del(pos);
+		if (req->msg.hdr.flags.response_expected)
+			controlvm_respond_physdev_changestate(
+				&req->msg.hdr,
+				CONTROLVM_RESP_ERROR_DEVICE_UDEV_TIMEOUT,
+				req->msg.cmd.device_change_state.state);
+		parahotplug_request_destroy(req);
+	}
+
+	spin_unlock(&parahotplug_request_list_lock);
 }
 
 static void
