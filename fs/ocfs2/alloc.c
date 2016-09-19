@@ -6404,42 +6404,33 @@ static int ocfs2_free_cached_blocks(struct ocfs2_super *osb,
 		goto out_mutex;
 	}
 
-	handle = ocfs2_start_trans(osb, OCFS2_SUBALLOC_FREE);
-	if (IS_ERR(handle)) {
-		ret = PTR_ERR(handle);
-		mlog_errno(ret);
-		goto out_unlock;
-	}
-
 	while (head) {
 		if (head->free_bg)
 			bg_blkno = head->free_bg;
 		else
 			bg_blkno = ocfs2_which_suballoc_group(head->free_blk,
 							      head->free_bit);
+		handle = ocfs2_start_trans(osb, OCFS2_SUBALLOC_FREE);
+		if (IS_ERR(handle)) {
+			ret = PTR_ERR(handle);
+			mlog_errno(ret);
+			goto out_unlock;
+		}
+
 		trace_ocfs2_free_cached_blocks(
 		     (unsigned long long)head->free_blk, head->free_bit);
 
 		ret = ocfs2_free_suballoc_bits(handle, inode, di_bh,
 					       head->free_bit, bg_blkno, 1);
-		if (ret) {
+		if (ret)
 			mlog_errno(ret);
-			goto out_journal;
-		}
 
-		ret = ocfs2_extend_trans(handle, OCFS2_SUBALLOC_FREE);
-		if (ret) {
-			mlog_errno(ret);
-			goto out_journal;
-		}
+		ocfs2_commit_trans(osb, handle);
 
 		tmp = head;
 		head = head->free_next;
 		kfree(tmp);
 	}
-
-out_journal:
-	ocfs2_commit_trans(osb, handle);
 
 out_unlock:
 	ocfs2_inode_unlock(inode, 1);
