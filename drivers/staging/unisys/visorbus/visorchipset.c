@@ -51,7 +51,6 @@
  */
 static int visorchipset_major;
 static unsigned long controlvm_payload_bytes_buffered;
-static u32 dump_vhba_bus;
 
 static int
 visorchipset_open(struct inode *inode, struct file *file)
@@ -1011,10 +1010,8 @@ bus_create(struct controlvm_message *inmsg)
 		goto out_bus_epilog;
 	}
 	bus_info->visorchannel = visorchannel;
-	if (uuid_le_cmp(cmd->create_bus.bus_inst_uuid, spar_siovm_uuid) == 0) {
-		dump_vhba_bus = bus_no;
+	if (uuid_le_cmp(cmd->create_bus.bus_inst_uuid, spar_siovm_uuid) == 0)
 		save_crash_message(inmsg, CRASH_BUS);
-	}
 
 	POSTCODE_LINUX_3(BUS_CREATE_EXIT_PC, bus_no, POSTCODE_SEVERITY_INFO);
 
