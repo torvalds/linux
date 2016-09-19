@@ -285,6 +285,7 @@ static inline int atomic_fetch_##op(int i, atomic_t *v)			\
 ATOMIC_OPS(add, +=, CTOP_INST_AADD_DI_R2_R2_R3)
 #define atomic_sub(i, v) atomic_add(-(i), (v))
 #define atomic_sub_return(i, v) atomic_add_return(-(i), (v))
+#define atomic_fetch_sub(i, v) atomic_fetch_add(-(i), (v))
 
 #undef ATOMIC_OPS
 #define ATOMIC_OPS(op, c_op, asm_op)					\
@@ -293,6 +294,7 @@ ATOMIC_OPS(add, +=, CTOP_INST_AADD_DI_R2_R2_R3)
 
 ATOMIC_OPS(and, &=, CTOP_INST_AAND_DI_R2_R2_R3)
 #define atomic_andnot(mask, v) atomic_and(~(mask), (v))
+#define atomic_fetch_andnot(mask, v) atomic_fetch_and(~(mask), (v))
 ATOMIC_OPS(or, |=, CTOP_INST_AOR_DI_R2_R2_R3)
 ATOMIC_OPS(xor, ^=, CTOP_INST_AXOR_DI_R2_R2_R3)
 
