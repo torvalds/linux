@@ -263,6 +263,7 @@ struct intel_panel {
 		bool enabled;
 		bool combination_mode;	/* gen 2/4 only */
 		bool active_low_pwm;
+		bool alternate_pwm_increment;	/* lpt+ */
 
 		/* PWM chip */
 		bool util_pin_active_low;	/* bxt+ */
