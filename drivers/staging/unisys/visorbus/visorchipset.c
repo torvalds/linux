@@ -177,9 +177,6 @@ struct parahotplug_request {
 	struct controlvm_message msg;
 };
 
-static LIST_HEAD(parahotplug_request_list);
-static DEFINE_SPINLOCK(parahotplug_request_list_lock);	/* lock for above */
-
 /* info for /dev/visorchipset */
 static dev_t major_dev = -1; /*< indicates major num for device */
 
@@ -1207,6 +1204,9 @@ parahotplug_request_destroy(struct parahotplug_request *req)
 {
 	kfree(req);
 }
+
+static LIST_HEAD(parahotplug_request_list);
+static DEFINE_SPINLOCK(parahotplug_request_list_lock);	/* lock for above */
 
 /**
  * parahotplug_request_complete() - mark request as complete
