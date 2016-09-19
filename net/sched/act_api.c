@@ -592,6 +592,17 @@ err_out:
 	return ERR_PTR(err);
 }
 
+static void cleanup_a(struct list_head *actions, int ovr)
+{
+	struct tc_action *a;
+
+	if (!ovr)
+		return;
+
+	list_for_each_entry(a, actions, list)
+		a->tcfa_refcnt--;
+}
+
 int tcf_action_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 		    char *name, int ovr, int bind, struct list_head *actions)
 {
@@ -611,8 +622,15 @@ int tcf_action_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 			goto err;
 		}
 		act->order = i;
+		if (ovr)
+			act->tcfa_refcnt++;
 		list_add_tail(&act->list, actions);
 	}
+
+	/* Remove the temp refcnt which was necessary to protect against
+	 * destroying an existing action which was being replaced
+	 */
+	cleanup_a(actions, ovr);
 	return 0;
 
 err:
@@ -882,6 +900,8 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 			goto err;
 		}
 		act->order = i;
+		if (event == RTM_GETACTION)
+			act->tcfa_refcnt++;
 		list_add_tail(&act->list, &actions);
 	}
 
