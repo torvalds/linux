@@ -102,7 +102,7 @@ struct clear_hold_work {
  * @link_stat: link status of hardware
  * @description: device description
  * @suffix: suffix for channel name
- * @anchor_list_lock: locks list access
+ * @channel_lock: synchronize channel access
  * @padding_active: indicates channel uses padding
  * @is_channel_healthy: health status table of each channel
  * @busy_urbs: list of anchored items
@@ -122,7 +122,7 @@ struct most_dev {
 	u16 link_stat;
 	char description[MAX_STRING_LEN];
 	char suffix[MAX_NUM_ENDPOINTS][MAX_SUFFIX_LEN];
-	spinlock_t anchor_list_lock[MAX_NUM_ENDPOINTS];
+	spinlock_t channel_lock[MAX_NUM_ENDPOINTS]; /* sync channel access */
 	bool padding_active[MAX_NUM_ENDPOINTS];
 	bool is_channel_healthy[MAX_NUM_ENDPOINTS];
 	struct clear_hold_work clear_work[MAX_NUM_ENDPOINTS];
@@ -270,7 +270,7 @@ static int hdm_poison_channel(struct most_interface *iface, int channel)
 		return -ECHRNG;
 	}
 
-	lock = mdev->anchor_list_lock + channel;
+	lock = mdev->channel_lock + channel;
 	spin_lock_irqsave(lock, flags);
 	mdev->is_channel_healthy[channel] = false;
 	spin_unlock_irqrestore(lock, flags);
@@ -373,7 +373,7 @@ static void hdm_write_completion(struct urb *urb)
 	struct most_dev *mdev = to_mdev(mbo->ifp);
 	unsigned int channel = mbo->hdm_channel_id;
 	struct device *dev = &mdev->usb_device->dev;
-	spinlock_t *lock = mdev->anchor_list_lock + channel; /* temp. lock */
+	spinlock_t *lock = mdev->channel_lock + channel;
 	unsigned long flags;
 
 	spin_lock_irqsave(lock, flags);
@@ -527,7 +527,7 @@ static void hdm_read_completion(struct urb *urb)
 	struct most_dev *mdev = to_mdev(mbo->ifp);
 	unsigned int channel = mbo->hdm_channel_id;
 	struct device *dev = &mdev->usb_device->dev;
-	spinlock_t *lock = mdev->anchor_list_lock + channel; /* temp. lock */
+	spinlock_t *lock = mdev->channel_lock + channel;
 	unsigned long flags;
 
 	spin_lock_irqsave(lock, flags);
@@ -1261,7 +1261,7 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 			tmp_cap->direction = MOST_CH_TX;
 		tmp_cap++;
 		init_usb_anchor(&mdev->busy_urbs[i]);
-		spin_lock_init(&mdev->anchor_list_lock[i]);
+		spin_lock_init(&mdev->channel_lock[i]);
 		err = drci_wr_reg(usb_dev,
 				  DRCI_REG_BASE + DRCI_COMMAND +
 				  ep_desc->bEndpointAddress * 16,
