@@ -79,8 +79,6 @@ parameters may be changed at runtime by the command
 
 	ncr53c8xx=	[HW,SCSI]
 
-	nodisconnect	[HW,SCSI,M68K] Disables SCSI disconnects.
-
 	osst=		[HW,SCSI] SCSI Tape Driver
 			Format: <buffer_size>,<write_threshold>
 			See also Documentation/scsi/st.txt.
