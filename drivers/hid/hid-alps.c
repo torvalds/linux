@@ -139,8 +139,8 @@ static int u1_read_write_register(struct hid_device *hdev, u32 address,
 	if (read_flag) {
 		readbuf = kzalloc(U1_FEATURE_REPORT_LEN, GFP_KERNEL);
 		if (!readbuf) {
-			kfree(input);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto exit;
 		}
 
 		ret = hid_hw_raw_request(hdev, U1_FEATURE_REPORT_ID, readbuf,
@@ -149,6 +149,7 @@ static int u1_read_write_register(struct hid_device *hdev, u32 address,
 
 		if (ret < 0) {
 			dev_err(&hdev->dev, "failed read register (%d)\n", ret);
+			kfree(readbuf);
 			goto exit;
 		}
 
