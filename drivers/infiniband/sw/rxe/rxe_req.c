@@ -548,23 +548,23 @@ static void update_wqe_psn(struct rxe_qp *qp,
 static void save_state(struct rxe_send_wqe *wqe,
 		       struct rxe_qp *qp,
 		       struct rxe_send_wqe *rollback_wqe,
-		       struct rxe_qp *rollback_qp)
+		       u32 *rollback_psn)
 {
 	rollback_wqe->state     = wqe->state;
 	rollback_wqe->first_psn = wqe->first_psn;
 	rollback_wqe->last_psn  = wqe->last_psn;
-	rollback_qp->req.psn    = qp->req.psn;
+	*rollback_psn		= qp->req.psn;
 }
 
 static void rollback_state(struct rxe_send_wqe *wqe,
 			   struct rxe_qp *qp,
 			   struct rxe_send_wqe *rollback_wqe,
-			   struct rxe_qp *rollback_qp)
+			   u32 rollback_psn)
 {
 	wqe->state     = rollback_wqe->state;
 	wqe->first_psn = rollback_wqe->first_psn;
 	wqe->last_psn  = rollback_wqe->last_psn;
-	qp->req.psn    = rollback_qp->req.psn;
+	qp->req.psn    = rollback_psn;
 }
 
 static void update_state(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
@@ -593,8 +593,8 @@ int rxe_requester(void *arg)
 	int mtu;
 	int opcode;
 	int ret;
-	struct rxe_qp rollback_qp;
 	struct rxe_send_wqe rollback_wqe;
+	u32 rollback_psn;
 
 next_wqe:
 	if (unlikely(!qp->valid || qp->req.state == QP_STATE_ERROR))
@@ -719,7 +719,7 @@ next_wqe:
 	 * rxe_xmit_packet().
 	 * Otherwise, completer might initiate an unjustified retry flow.
 	 */
-	save_state(wqe, qp, &rollback_wqe, &rollback_qp);
+	save_state(wqe, qp, &rollback_wqe, &rollback_psn);
 	update_wqe_state(qp, wqe, &pkt);
 	update_wqe_psn(qp, wqe, &pkt, payload);
 	ret = rxe_xmit_packet(to_rdev(qp->ibqp.device), qp, &pkt, skb);
@@ -727,7 +727,7 @@ next_wqe:
 		qp->need_req_skb = 1;
 		kfree_skb(skb);
 
-		rollback_state(wqe, qp, &rollback_wqe, &rollback_qp);
+		rollback_state(wqe, qp, &rollback_wqe, rollback_psn);
 
 		if (ret == -EAGAIN) {
 			rxe_run_task(&qp->req.task, 1);
