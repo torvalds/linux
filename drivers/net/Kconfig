@@ -149,6 +149,7 @@ config IPVLAN
     tristate "IP-VLAN support"
     depends on INET
     depends on IPV6
+    depends on NETFILTER
     depends on NET_L3_MASTER_DEV
     ---help---
       This allows one to create virtual devices off of a main interface
