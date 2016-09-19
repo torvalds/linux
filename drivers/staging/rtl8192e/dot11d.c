@@ -53,7 +53,6 @@ void dot11d_init(struct rtllib_device *ieee)
 	memset(pDot11dInfo->channel_map, 0, MAX_CHANNEL_NUMBER+1);
 	memset(pDot11dInfo->MaxTxPwrDbmList, 0xFF, MAX_CHANNEL_NUMBER + 1);
 	RESET_CIE_WATCHDOG(ieee);
-
 }
 EXPORT_SYMBOL(dot11d_init);
 
@@ -98,7 +97,6 @@ void Dot11d_Channelmap(u8 channel_plan, struct rtllib_device *ieee)
 	}
 }
 EXPORT_SYMBOL(Dot11d_Channelmap);
-
 
 void Dot11d_Reset(struct rtllib_device *ieee)
 {
