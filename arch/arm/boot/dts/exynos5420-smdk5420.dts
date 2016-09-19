@@ -19,7 +19,8 @@
 	model = "Samsung SMDK5420 board based on EXYNOS5420";
 	compatible = "samsung,smdk5420", "samsung,exynos5420", "samsung,exynos5";
 
-	memory {
+	memory@20000000 {
+		device_type = "memory";
 		reg = <0x20000000 0x80000000>;
 	};
 

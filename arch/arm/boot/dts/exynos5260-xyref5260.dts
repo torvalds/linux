@@ -16,7 +16,8 @@
 	model = "SAMSUNG XYREF5260 board based on EXYNOS5260";
 	compatible = "samsung,xyref5260", "samsung,exynos5260", "samsung,exynos5";
 
-	memory {
+	memory@20000000 {
+		device_type = "memory";
 		reg = <0x20000000 0x80000000>;
 	};
 
