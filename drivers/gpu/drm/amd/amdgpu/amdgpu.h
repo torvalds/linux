@@ -2343,6 +2343,11 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_gfx_get_gpu_clock_counter(adev) (adev)->gfx.funcs->get_gpu_clock_counter((adev))
 #define amdgpu_gfx_select_se_sh(adev, se, sh, instance) (adev)->gfx.funcs->select_se_sh((adev), (se), (sh), (instance))
 
+#define amdgpu_dpm_read_sensor(adev, idx, value) \
+	((adev)->pp_enabled ? \
+		(adev)->powerplay.pp_funcs->read_sensor(adev->powerplay.pp_handle, (idx), (value)) : \
+		-EINVAL)
+
 #define amdgpu_dpm_get_temperature(adev) \
 	((adev)->pp_enabled ?						\
 	      (adev)->powerplay.pp_funcs->get_temperature((adev)->powerplay.pp_handle) : \
@@ -2393,11 +2398,6 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 	((adev)->pp_enabled ?						\
 	      (adev)->powerplay.pp_funcs->powergate_vce((adev)->powerplay.pp_handle, (g)) : \
 	      (adev)->pm.funcs->powergate_vce((adev), (g)))
-
-#define amdgpu_dpm_debugfs_print_current_performance_level(adev, m) \
-	((adev)->pp_enabled ?						\
-	      (adev)->powerplay.pp_funcs->print_current_performance_level((adev)->powerplay.pp_handle, (m)) : \
-	      (adev)->pm.funcs->debugfs_print_current_performance_level((adev), (m)))
 
 #define amdgpu_dpm_get_current_power_state(adev) \
 	(adev)->powerplay.pp_funcs->get_current_power_state((adev)->powerplay.pp_handle)

@@ -1322,6 +1322,64 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
  */
 #if defined(CONFIG_DEBUG_FS)
 
+static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *adev)
+{
+	int32_t value;
+
+	/* sanity check PP is enabled */
+	if (!(adev->powerplay.pp_funcs &&
+	      adev->powerplay.pp_funcs->read_sensor))
+	      return -EINVAL;
+
+	/* GPU Clocks */
+	seq_printf(m, "GFX Clocks and Power:\n");
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GFX_MCLK, &value))
+		seq_printf(m, "\t%u MHz (MCLK)\n", value/100);
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GFX_SCLK, &value))
+		seq_printf(m, "\t%u MHz (SCLK)\n", value/100);
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VDDGFX, &value))
+		seq_printf(m, "\t%u mV (VDDGFX)\n", value);
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VDDNB, &value))
+		seq_printf(m, "\t%u mV (VDDNB)\n", value);
+	seq_printf(m, "\n");
+
+	/* GPU Temp */
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_TEMP, &value))
+		seq_printf(m, "GPU Temperature: %u C\n", value/1000);
+
+	/* GPU Load */
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_LOAD, &value))
+		seq_printf(m, "GPU Load: %u %%\n", value);
+	seq_printf(m, "\n");
+
+	/* UVD clocks */
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_POWER, &value)) {
+		if (!value) {
+			seq_printf(m, "UVD: Disabled\n");
+		} else {
+			seq_printf(m, "UVD: Enabled\n");
+			if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_DCLK, &value))
+				seq_printf(m, "\t%u MHz (DCLK)\n", value/100);
+			if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_VCLK, &value))
+				seq_printf(m, "\t%u MHz (VCLK)\n", value/100);
+		}
+	}
+	seq_printf(m, "\n");
+
+	/* VCE clocks */
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VCE_POWER, &value)) {
+		if (!value) {
+			seq_printf(m, "VCE: Disabled\n");
+		} else {
+			seq_printf(m, "VCE: Enabled\n");
+			if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VCE_ECCLK, &value))
+				seq_printf(m, "\t%u MHz (ECCLK)\n", value/100);
+		}
+	}
+
+	return 0;
+}
+
 static int amdgpu_debugfs_pm_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -1337,11 +1395,11 @@ static int amdgpu_debugfs_pm_info(struct seq_file *m, void *data)
 	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON)) {
 		seq_printf(m, "PX asic powered off\n");
 	} else if (adev->pp_enabled) {
-		amdgpu_dpm_debugfs_print_current_performance_level(adev, m);
+		return amdgpu_debugfs_pm_info_pp(m, adev);
 	} else {
 		mutex_lock(&adev->pm.mutex);
 		if (adev->pm.funcs->debugfs_print_current_performance_level)
-			amdgpu_dpm_debugfs_print_current_performance_level(adev, m);
+			adev->pm.funcs->debugfs_print_current_performance_level(adev, m);
 		else
 			seq_printf(m, "Debugfs support not implemented for this asic\n");
 		mutex_unlock(&adev->pm.mutex);

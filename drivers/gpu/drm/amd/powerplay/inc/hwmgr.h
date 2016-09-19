@@ -311,8 +311,6 @@ struct pp_hwmgr_func {
 	int (*get_sclk)(struct pp_hwmgr *hwmgr, bool low);
 	int (*power_state_set)(struct pp_hwmgr *hwmgr,
 						const void *state);
-	void (*print_current_perforce_level)(struct pp_hwmgr *hwmgr,
-							struct seq_file *m);
 	int (*enable_clock_power_gating)(struct pp_hwmgr *hwmgr);
 	int (*notify_smc_display_config_after_ps_adjustment)(struct pp_hwmgr *hwmgr);
 	int (*display_config_changed)(struct pp_hwmgr *hwmgr);

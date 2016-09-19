@@ -576,28 +576,6 @@ enum amd_pm_state_type pp_dpm_get_current_power_state(void *handle)
 	}
 }
 
-static void
-pp_debugfs_print_current_performance_level(void *handle,
-					       struct seq_file *m)
-{
-	struct pp_hwmgr  *hwmgr;
-
-	if (handle == NULL)
-		return;
-
-	hwmgr = ((struct pp_instance *)handle)->hwmgr;
-
-	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL)
-		return;
-
-	if (hwmgr->hwmgr_func->print_current_perforce_level == NULL) {
-		printk(KERN_INFO "%s was not implemented.\n", __func__);
-		return;
-	}
-
-	hwmgr->hwmgr_func->print_current_perforce_level(hwmgr, m);
-}
-
 static int pp_dpm_set_fan_control_mode(void *handle, uint32_t mode)
 {
 	struct pp_hwmgr  *hwmgr;
@@ -925,7 +903,6 @@ const struct amd_powerplay_funcs pp_dpm_funcs = {
 	.powergate_vce = pp_dpm_powergate_vce,
 	.powergate_uvd = pp_dpm_powergate_uvd,
 	.dispatch_tasks = pp_dpm_dispatch_tasks,
-	.print_current_performance_level = pp_debugfs_print_current_performance_level,
 	.set_fan_control_mode = pp_dpm_set_fan_control_mode,
 	.get_fan_control_mode = pp_dpm_get_fan_control_mode,
 	.set_fan_speed_percent = pp_dpm_set_fan_speed_percent,

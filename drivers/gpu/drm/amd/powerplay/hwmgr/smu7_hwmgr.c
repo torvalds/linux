@@ -3112,38 +3112,6 @@ static int smu7_get_pp_table_entry(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static void
-smu7_print_current_perforce_level(struct pp_hwmgr *hwmgr, struct seq_file *m)
-{
-	uint32_t sclk, mclk, activity_percent;
-	uint32_t offset;
-	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-
-	smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_API_GetSclkFrequency);
-
-	sclk = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
-
-	smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_API_GetMclkFrequency);
-
-	mclk = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
-	seq_printf(m, "\n [  mclk  ]: %u MHz\n\n [  sclk  ]: %u MHz\n",
-			mclk / 100, sclk / 100);
-
-	offset = data->soft_regs_start + smum_get_offsetof(hwmgr->smumgr,
-							SMU_SoftRegisters,
-							AverageGraphicsActivity);
-
-	activity_percent = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset);
-	activity_percent += 0x80;
-	activity_percent >>= 8;
-
-	seq_printf(m, "\n [GPU load]: %u%%\n\n", activity_percent > 100 ? 100 : activity_percent);
-
-	seq_printf(m, "uvd    %sabled\n", data->uvd_power_gated ? "dis" : "en");
-
-	seq_printf(m, "vce    %sabled\n", data->vce_power_gated ? "dis" : "en");
-}
-
 static int smu7_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
 {
 	uint32_t sclk, mclk, activity_percent;
@@ -3173,6 +3141,12 @@ static int smu7_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
 		return 0;
 	case AMDGPU_PP_SENSOR_GPU_TEMP:
 		*value = smu7_thermal_get_temperature(hwmgr);
+		return 0;
+	case AMDGPU_PP_SENSOR_UVD_POWER:
+		*value = data->uvd_power_gated ? 0 : 1;
+		return 0;
+	case AMDGPU_PP_SENSOR_VCE_POWER:
+		*value = data->vce_power_gated ? 0 : 1;
 		return 0;
 	default:
 		return -EINVAL;
@@ -4318,7 +4292,6 @@ static struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.patch_boot_state = smu7_dpm_patch_boot_state,
 	.get_pp_table_entry = smu7_get_pp_table_entry,
 	.get_num_of_pp_table_entries = smu7_get_number_of_powerplay_table_entries,
-	.print_current_perforce_level = smu7_print_current_perforce_level,
 	.powerdown_uvd = smu7_powerdown_uvd,
 	.powergate_uvd = smu7_powergate_uvd,
 	.powergate_vce = smu7_powergate_vce,

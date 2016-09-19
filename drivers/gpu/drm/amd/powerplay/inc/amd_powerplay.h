@@ -39,6 +39,8 @@ enum amd_pp_sensors {
 	AMDGPU_PP_SENSOR_GPU_LOAD,
 	AMDGPU_PP_SENSOR_GFX_MCLK,
 	AMDGPU_PP_SENSOR_GPU_TEMP,
+	AMDGPU_PP_SENSOR_VCE_POWER,
+	AMDGPU_PP_SENSOR_UVD_POWER,
 };
 
 enum amd_pp_event {
@@ -343,8 +345,6 @@ struct amd_powerplay_funcs {
 	int (*powergate_uvd)(void *handle, bool gate);
 	int (*dispatch_tasks)(void *handle, enum amd_pp_event event_id,
 				   void *input, void *output);
-	void (*print_current_performance_level)(void *handle,
-						      struct seq_file *m);
 	int (*set_fan_control_mode)(void *handle, uint32_t mode);
 	int (*get_fan_control_mode)(void *handle);
 	int (*set_fan_speed_percent)(void *handle, uint32_t percent);
