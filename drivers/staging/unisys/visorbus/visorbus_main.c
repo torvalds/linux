@@ -35,8 +35,6 @@ static int visorbus_forcenomatch;
 
 static int busreg_rc = -ENODEV; /* stores the result from bus registration */
 
-static int visorbus_uevent(struct device *xdev, struct kobj_uevent_env *env);
-static int visorbus_match(struct device *xdev, struct device_driver *xdrv);
 static void fix_vbus_dev_info(struct visor_device *visordev);
 
 /*
@@ -97,18 +95,6 @@ static const struct attribute_group visorbus_dev_group = {
 static const struct attribute_group *visorbus_dev_groups[] = {
 	&visorbus_dev_group,
 	NULL,
-};
-
-/*
- * This describes the TYPE of bus.
- *  (Don't confuse this with an INSTANCE of the bus.)
- */
-struct bus_type visorbus_type = {
-	.name = "visorbus",
-	.match = visorbus_match,
-	.uevent = visorbus_uevent,
-	.dev_groups = visorbus_dev_groups,
-	.bus_groups = visorbus_bus_groups,
 };
 
 /* filled in with info about parent chipset driver when we register with it */
@@ -173,6 +159,18 @@ visorbus_match(struct device *xdev, struct device_driver *xdrv)
 
 	return 0;
 }
+
+/*
+ * This describes the TYPE of bus.
+ *  (Don't confuse this with an INSTANCE of the bus.)
+ */
+struct bus_type visorbus_type = {
+	.name = "visorbus",
+	.match = visorbus_match,
+	.uevent = visorbus_uevent,
+	.dev_groups = visorbus_dev_groups,
+	.bus_groups = visorbus_bus_groups,
+};
 
 /**
  * visorbus_releae_busdevice() - called when device_unregister() is called for
