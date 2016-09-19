@@ -996,6 +996,10 @@ parse_mipi_sequence(struct drm_i915_private *dev_priv,
 			goto err;
 		}
 
+		/* Log about presence of sequences we won't run. */
+		if (seq_id == MIPI_SEQ_TEAR_ON || seq_id == MIPI_SEQ_TEAR_OFF)
+			DRM_DEBUG_KMS("Unsupported sequence %u\n", seq_id);
+
 		dev_priv->vbt.dsi.sequence[seq_id] = data + index;
 
 		if (sequence->version >= 3)
