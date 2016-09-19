@@ -1748,6 +1748,20 @@ static int blkdev_open(struct inode * inode, struct file * filp)
 	if (bdev == NULL)
 		return -ENOMEM;
 
+	/*
+	 * A negative i_writecount for bdev->bd_inode means that the bdev
+	 * or one of its paritions is mounted in a user namespace. Deny
+	 * writing for non-root in this case, otherwise an unprivileged
+	 * user can attack the kernel by modifying the backing store of a
+	 * mounted filesystem.
+	 */
+	if ((filp->f_mode & FMODE_WRITE) &&
+	    !file_ns_capable(filp, &init_user_ns, CAP_SYS_ADMIN) &&
+	    !atomic_inc_unless_negative(&bdev->bd_inode->i_writecount)) {
+		bdput(bdev);
+		return -EBUSY;
+	}
+
 	filp->f_mapping = bdev->bd_inode->i_mapping;
 	filp->f_wb_err = filemap_sample_wb_err(filp->f_mapping);
 
@@ -1844,6 +1858,9 @@ EXPORT_SYMBOL(blkdev_put);
 static int blkdev_close(struct inode * inode, struct file * filp)
 {
 	struct block_device *bdev = I_BDEV(bdev_file_inode(filp));
+	if (filp->f_mode & FMODE_WRITE &&
+	    !file_ns_capable(filp, &init_user_ns, CAP_SYS_ADMIN))
+		atomic_dec(&bdev->bd_inode->i_writecount);
 	blkdev_put(bdev, filp->f_mode);
 	return 0;
 }
