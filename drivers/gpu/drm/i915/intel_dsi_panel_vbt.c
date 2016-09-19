@@ -459,6 +459,8 @@ static void generic_exec_sequence(struct drm_panel *panel, enum mipi_seq seq_id)
 static int vbt_panel_prepare(struct drm_panel *panel)
 {
 	generic_exec_sequence(panel, MIPI_SEQ_ASSERT_RESET);
+	generic_exec_sequence(panel, MIPI_SEQ_POWER_ON);
+	generic_exec_sequence(panel, MIPI_SEQ_DEASSERT_RESET);
 	generic_exec_sequence(panel, MIPI_SEQ_INIT_OTP);
 
 	return 0;
@@ -466,7 +468,8 @@ static int vbt_panel_prepare(struct drm_panel *panel)
 
 static int vbt_panel_unprepare(struct drm_panel *panel)
 {
-	generic_exec_sequence(panel, MIPI_SEQ_DEASSERT_RESET);
+	generic_exec_sequence(panel, MIPI_SEQ_ASSERT_RESET);
+	generic_exec_sequence(panel, MIPI_SEQ_POWER_OFF);
 
 	return 0;
 }
