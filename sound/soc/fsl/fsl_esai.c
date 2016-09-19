@@ -781,7 +781,7 @@ static const struct regmap_config fsl_esai_regmap_config = {
 	.readable_reg = fsl_esai_readable_reg,
 	.volatile_reg = fsl_esai_volatile_reg,
 	.writeable_reg = fsl_esai_writeable_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_FLAT,
 };
 
 static int fsl_esai_probe(struct platform_device *pdev)
