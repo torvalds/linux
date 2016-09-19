@@ -2233,7 +2233,7 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 		goto done;
 	}
 
-	n_pages = size >> PAGE_SHIFT;
+	n_pages = vma_pages(vma);
 
 	/* get reference to current buf map (if any) */
 	bm = comedi_buf_map_from_subdev_get(s);
