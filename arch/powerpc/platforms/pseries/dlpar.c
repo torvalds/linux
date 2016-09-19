@@ -413,6 +413,7 @@ void queue_hotplug_event(struct pseries_hp_errorlog *hp_errlog,
 		queue_work(pseries_hp_wq, (struct work_struct *)work);
 	} else {
 		*rc = -ENOMEM;
+		kfree(hp_errlog_copy);
 		complete(hotplug_done);
 	}
 }
