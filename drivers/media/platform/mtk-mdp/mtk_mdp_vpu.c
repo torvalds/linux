@@ -25,7 +25,8 @@ static inline struct mtk_mdp_ctx *vpu_to_ctx(struct mtk_mdp_vpu *vpu)
 
 static void mtk_mdp_vpu_handle_init_ack(struct mdp_ipi_comm_ack *msg)
 {
-	struct mtk_mdp_vpu *vpu = (struct mtk_mdp_vpu *)msg->ap_inst;
+	struct mtk_mdp_vpu *vpu = (struct mtk_mdp_vpu *)
+					(unsigned long)msg->ap_inst;
 
 	/* mapping VPU address to kernel virtual address */
 	vpu->vsi = (struct mdp_process_vsi *)
@@ -37,7 +38,8 @@ static void mtk_mdp_vpu_ipi_handler(void *data, unsigned int len, void *priv)
 {
 	unsigned int msg_id = *(unsigned int *)data;
 	struct mdp_ipi_comm_ack *msg = (struct mdp_ipi_comm_ack *)data;
-	struct mtk_mdp_vpu *vpu = (struct mtk_mdp_vpu *)msg->ap_inst;
+	struct mtk_mdp_vpu *vpu = (struct mtk_mdp_vpu *)
+					(unsigned long)msg->ap_inst;
 	struct mtk_mdp_ctx *ctx;
 
 	vpu->failure = msg->status;
@@ -108,7 +110,7 @@ static int mtk_mdp_vpu_send_ap_ipi(struct mtk_mdp_vpu *vpu, uint32_t msg_id)
 	msg.msg_id = msg_id;
 	msg.ipi_id = IPI_MDP;
 	msg.vpu_inst_addr = vpu->inst_addr;
-	msg.ap_inst = (uint64_t)vpu;
+	msg.ap_inst = (unsigned long)vpu;
 	err = mtk_mdp_vpu_send_msg((void *)&msg, sizeof(msg), vpu, IPI_MDP);
 	if (!err && vpu->failure)
 		err = -EINVAL;
@@ -126,7 +128,7 @@ int mtk_mdp_vpu_init(struct mtk_mdp_vpu *vpu)
 
 	msg.msg_id = AP_MDP_INIT;
 	msg.ipi_id = IPI_MDP;
-	msg.ap_inst = (uint64_t)vpu;
+	msg.ap_inst = (unsigned long)vpu;
 	err = mtk_mdp_vpu_send_msg((void *)&msg, sizeof(msg), vpu, IPI_MDP);
 	if (!err && vpu->failure)
 		err = -EINVAL;
