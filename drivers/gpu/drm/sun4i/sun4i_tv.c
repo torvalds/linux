@@ -507,8 +507,14 @@ static int sun4i_tv_comp_get_modes(struct drm_connector *connector)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(tv_modes); i++) {
-		struct drm_display_mode *mode = drm_mode_create(connector->dev);
+		struct drm_display_mode *mode;
 		const struct tv_mode *tv_mode = &tv_modes[i];
+
+		mode = drm_mode_create(connector->dev);
+		if (!mode) {
+			DRM_ERROR("Failed to create a new display mode\n");
+			return 0;
+		}
 
 		strcpy(mode->name, tv_mode->name);
 
