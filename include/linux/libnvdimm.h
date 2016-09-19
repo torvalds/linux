@@ -50,23 +50,6 @@ typedef int (*ndctl_fn)(struct nvdimm_bus_descriptor *nd_desc,
 		struct nvdimm *nvdimm, unsigned int cmd, void *buf,
 		unsigned int buf_len, int *cmd_rc);
 
-struct nd_namespace_label;
-struct nvdimm_drvdata;
-
-struct nd_mapping {
-	struct nvdimm *nvdimm;
-	struct nd_namespace_label **labels;
-	u64 start;
-	u64 size;
-	/*
-	 * @ndd is for private use at region enable / disable time for
-	 * get_ndd() + put_ndd(), all other nd_mapping to ndd
-	 * conversions use to_ndd() which respects enabled state of the
-	 * nvdimm.
-	 */
-	struct nvdimm_drvdata *ndd;
-};
-
 struct nvdimm_bus_descriptor {
 	const struct attribute_group **attr_groups;
 	unsigned long cmd_mask;
@@ -89,9 +72,15 @@ struct nd_interleave_set {
 	u64 cookie;
 };
 
+struct nd_mapping_desc {
+	struct nvdimm *nvdimm;
+	u64 start;
+	u64 size;
+};
+
 struct nd_region_desc {
 	struct resource *res;
-	struct nd_mapping *nd_mapping;
+	struct nd_mapping_desc *mapping;
 	u16 num_mappings;
 	const struct attribute_group **attr_groups;
 	struct nd_interleave_set *nd_set;

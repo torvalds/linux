@@ -1627,9 +1627,9 @@ static int acpi_nfit_init_interleave_set(struct acpi_nfit_desc *acpi_desc,
 	if (!info)
 		return -ENOMEM;
 	for (i = 0; i < nr; i++) {
-		struct nd_mapping *nd_mapping = &ndr_desc->nd_mapping[i];
+		struct nd_mapping_desc *mapping = &ndr_desc->mapping[i];
 		struct nfit_set_info_map *map = &info->mapping[i];
-		struct nvdimm *nvdimm = nd_mapping->nvdimm;
+		struct nvdimm *nvdimm = mapping->nvdimm;
 		struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
 		struct acpi_nfit_memory_map *memdev = memdev_from_spa(acpi_desc,
 				spa->range_index, i);
@@ -2053,7 +2053,7 @@ static int acpi_nfit_insert_resource(struct acpi_nfit_desc *acpi_desc,
 }
 
 static int acpi_nfit_init_mapping(struct acpi_nfit_desc *acpi_desc,
-		struct nd_mapping *nd_mapping, struct nd_region_desc *ndr_desc,
+		struct nd_mapping_desc *mapping, struct nd_region_desc *ndr_desc,
 		struct acpi_nfit_memory_map *memdev,
 		struct nfit_spa *nfit_spa)
 {
@@ -2070,12 +2070,12 @@ static int acpi_nfit_init_mapping(struct acpi_nfit_desc *acpi_desc,
 		return -ENODEV;
 	}
 
-	nd_mapping->nvdimm = nvdimm;
+	mapping->nvdimm = nvdimm;
 	switch (nfit_spa_type(spa)) {
 	case NFIT_SPA_PM:
 	case NFIT_SPA_VOLATILE:
-		nd_mapping->start = memdev->address;
-		nd_mapping->size = memdev->region_size;
+		mapping->start = memdev->address;
+		mapping->size = memdev->region_size;
 		break;
 	case NFIT_SPA_DCR:
 		nfit_mem = nvdimm_provider_data(nvdimm);
@@ -2083,13 +2083,13 @@ static int acpi_nfit_init_mapping(struct acpi_nfit_desc *acpi_desc,
 			dev_dbg(acpi_desc->dev, "spa%d %s missing bdw\n",
 					spa->range_index, nvdimm_name(nvdimm));
 		} else {
-			nd_mapping->size = nfit_mem->bdw->capacity;
-			nd_mapping->start = nfit_mem->bdw->start_address;
+			mapping->size = nfit_mem->bdw->capacity;
+			mapping->start = nfit_mem->bdw->start_address;
 			ndr_desc->num_lanes = nfit_mem->bdw->windows;
 			blk_valid = 1;
 		}
 
-		ndr_desc->nd_mapping = nd_mapping;
+		ndr_desc->mapping = mapping;
 		ndr_desc->num_mappings = blk_valid;
 		ndbr_desc = to_blk_region_desc(ndr_desc);
 		ndbr_desc->enable = acpi_nfit_blk_region_enable;
@@ -2115,7 +2115,7 @@ static bool nfit_spa_is_virtual(struct acpi_nfit_system_address *spa)
 static int acpi_nfit_register_region(struct acpi_nfit_desc *acpi_desc,
 		struct nfit_spa *nfit_spa)
 {
-	static struct nd_mapping nd_mappings[ND_MAX_MAPPINGS];
+	static struct nd_mapping_desc mappings[ND_MAX_MAPPINGS];
 	struct acpi_nfit_system_address *spa = nfit_spa->spa;
 	struct nd_blk_region_desc ndbr_desc;
 	struct nd_region_desc *ndr_desc;
@@ -2134,7 +2134,7 @@ static int acpi_nfit_register_region(struct acpi_nfit_desc *acpi_desc,
 	}
 
 	memset(&res, 0, sizeof(res));
-	memset(&nd_mappings, 0, sizeof(nd_mappings));
+	memset(&mappings, 0, sizeof(mappings));
 	memset(&ndbr_desc, 0, sizeof(ndbr_desc));
 	res.start = spa->address;
 	res.end = res.start + spa->length - 1;
@@ -2150,7 +2150,7 @@ static int acpi_nfit_register_region(struct acpi_nfit_desc *acpi_desc,
 
 	list_for_each_entry(nfit_memdev, &acpi_desc->memdevs, list) {
 		struct acpi_nfit_memory_map *memdev = nfit_memdev->memdev;
-		struct nd_mapping *nd_mapping;
+		struct nd_mapping_desc *mapping;
 
 		if (memdev->range_index != spa->range_index)
 			continue;
@@ -2159,14 +2159,14 @@ static int acpi_nfit_register_region(struct acpi_nfit_desc *acpi_desc,
 					spa->range_index, ND_MAX_MAPPINGS);
 			return -ENXIO;
 		}
-		nd_mapping = &nd_mappings[count++];
-		rc = acpi_nfit_init_mapping(acpi_desc, nd_mapping, ndr_desc,
+		mapping = &mappings[count++];
+		rc = acpi_nfit_init_mapping(acpi_desc, mapping, ndr_desc,
 				memdev, nfit_spa);
 		if (rc)
 			goto out;
 	}
 
-	ndr_desc->nd_mapping = nd_mappings;
+	ndr_desc->mapping = mappings;
 	ndr_desc->num_mappings = count;
 	rc = acpi_nfit_init_interleave_set(acpi_desc, ndr_desc, spa);
 	if (rc)

@@ -98,6 +98,20 @@ struct nd_percpu_lane {
 	spinlock_t lock;
 };
 
+struct nd_mapping {
+	struct nvdimm *nvdimm;
+	struct nd_namespace_label **labels;
+	u64 start;
+	u64 size;
+	/*
+	 * @ndd is for private use at region enable / disable time for
+	 * get_ndd() + put_ndd(), all other nd_mapping to ndd
+	 * conversions use to_ndd() which respects enabled state of the
+	 * nvdimm.
+	 */
+	struct nvdimm_drvdata *ndd;
+};
+
 struct nd_region {
 	struct device dev;
 	struct ida ns_ida;

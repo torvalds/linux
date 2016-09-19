@@ -755,10 +755,10 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 	int ro = 0;
 
 	for (i = 0; i < ndr_desc->num_mappings; i++) {
-		struct nd_mapping *nd_mapping = &ndr_desc->nd_mapping[i];
-		struct nvdimm *nvdimm = nd_mapping->nvdimm;
+		struct nd_mapping_desc *mapping = &ndr_desc->mapping[i];
+		struct nvdimm *nvdimm = mapping->nvdimm;
 
-		if ((nd_mapping->start | nd_mapping->size) % SZ_4K) {
+		if ((mapping->start | mapping->size) % SZ_4K) {
 			dev_err(&nvdimm_bus->dev, "%s: %s mapping%d is not 4K aligned\n",
 					caller, dev_name(&nvdimm->dev), i);
 
@@ -809,11 +809,13 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 		ndl->count = 0;
 	}
 
-	memcpy(nd_region->mapping, ndr_desc->nd_mapping,
-			sizeof(struct nd_mapping) * ndr_desc->num_mappings);
 	for (i = 0; i < ndr_desc->num_mappings; i++) {
-		struct nd_mapping *nd_mapping = &ndr_desc->nd_mapping[i];
-		struct nvdimm *nvdimm = nd_mapping->nvdimm;
+		struct nd_mapping_desc *mapping = &ndr_desc->mapping[i];
+		struct nvdimm *nvdimm = mapping->nvdimm;
+
+		nd_region->mapping[i].nvdimm = nvdimm;
+		nd_region->mapping[i].start = mapping->start;
+		nd_region->mapping[i].size = mapping->size;
 
 		get_device(&nvdimm->dev);
 	}
