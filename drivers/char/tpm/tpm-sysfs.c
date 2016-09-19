@@ -193,7 +193,7 @@ static ssize_t caps_show(struct device *dev, struct device_attribute *attr,
 		       be32_to_cpu(cap.manufacturer_id));
 
 	/* Try to get a TPM version 1.2 TPM_CAP_VERSION_INFO */
-	rc = tpm_getcap(chip, CAP_VERSION_1_2, &cap,
+	rc = tpm_getcap(chip, TPM_CAP_VERSION_1_2, &cap,
 			"attempting to determine the 1.2 version");
 	if (!rc) {
 		str += sprintf(str,
@@ -204,7 +204,7 @@ static ssize_t caps_show(struct device *dev, struct device_attribute *attr,
 			       cap.tpm_version_1_2.revMinor);
 	} else {
 		/* Otherwise just use TPM_STRUCT_VER */
-		rc = tpm_getcap(chip, CAP_VERSION_1_1, &cap,
+		rc = tpm_getcap(chip, TPM_CAP_VERSION_1_1, &cap,
 				"attempting to determine the 1.1 version");
 		if (rc)
 			return 0;

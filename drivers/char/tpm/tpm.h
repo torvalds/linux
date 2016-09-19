@@ -282,21 +282,20 @@ typedef union {
 } cap_t;
 
 enum tpm_capabilities {
-	TPM_CAP_FLAG = cpu_to_be32(4),
-	TPM_CAP_PROP = cpu_to_be32(5),
-	CAP_VERSION_1_1 = cpu_to_be32(0x06),
-	CAP_VERSION_1_2 = cpu_to_be32(0x1A)
+	TPM_CAP_FLAG = 4,
+	TPM_CAP_PROP = 5,
+	TPM_CAP_VERSION_1_1 = 0x06,
+	TPM_CAP_VERSION_1_2 = 0x1A,
 };
 
 enum tpm_sub_capabilities {
-	TPM_CAP_PROP_PCR = cpu_to_be32(0x101),
-	TPM_CAP_PROP_MANUFACTURER = cpu_to_be32(0x103),
-	TPM_CAP_FLAG_PERM = cpu_to_be32(0x108),
-	TPM_CAP_FLAG_VOL = cpu_to_be32(0x109),
-	TPM_CAP_PROP_OWNER = cpu_to_be32(0x111),
-	TPM_CAP_PROP_TIS_TIMEOUT = cpu_to_be32(0x115),
-	TPM_CAP_PROP_TIS_DURATION = cpu_to_be32(0x120),
-
+	TPM_CAP_PROP_PCR = 0x101,
+	TPM_CAP_PROP_MANUFACTURER = 0x103,
+	TPM_CAP_FLAG_PERM = 0x108,
+	TPM_CAP_FLAG_VOL = 0x109,
+	TPM_CAP_PROP_OWNER = 0x111,
+	TPM_CAP_PROP_TIS_TIMEOUT = 0x115,
+	TPM_CAP_PROP_TIS_DURATION = 0x120,
 };
 
 struct	tpm_getcap_params_in {
@@ -484,7 +483,7 @@ ssize_t tpm_transmit(struct tpm_chip *chip, const u8 *buf, size_t bufsiz,
 		     unsigned int flags);
 ssize_t tpm_transmit_cmd(struct tpm_chip *chip, const void *cmd, int len,
 			 unsigned int flags, const char *desc);
-ssize_t tpm_getcap(struct tpm_chip *chip, __be32 subcap_id, cap_t *cap,
+ssize_t tpm_getcap(struct tpm_chip *chip, u32 subcap_id, cap_t *cap,
 		   const char *desc);
 int tpm_get_timeouts(struct tpm_chip *);
 int tpm1_auto_startup(struct tpm_chip *chip);
