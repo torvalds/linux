@@ -245,7 +245,7 @@ static irqreturn_t hva_hw_err_irq_thread(int irq, void *arg)
 		ctx->hw_err = true;
 	}
 
-	if (hva->lmi_err_reg) {
+	if (hva->emi_err_reg) {
 		dev_err(dev, "%s     external memory interface error: 0x%08x\n",
 			ctx->name, hva->emi_err_reg);
 		ctx->hw_err = true;
