@@ -242,7 +242,8 @@ static int bru_set_selection(struct v4l2_subdev *subdev,
 		goto done;
 	}
 
-	/* The compose rectangle top left corner must be inside the output
+	/*
+	 * The compose rectangle top left corner must be inside the output
 	 * frame.
 	 */
 	format = vsp1_entity_get_pad_format(&bru->entity, config,

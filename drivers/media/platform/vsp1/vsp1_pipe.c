@@ -136,7 +136,7 @@ static const struct vsp1_format_info vsp1_video_formats[] = {
 	  3, { 8, 8, 8 }, false, true, 1, 1, false },
 };
 
-/*
+/**
  * vsp1_get_format_info - Retrieve format information for a 4CC
  * @vsp1: the VSP1 device
  * @fourcc: the format 4CC

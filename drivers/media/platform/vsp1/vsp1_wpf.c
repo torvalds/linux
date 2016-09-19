@@ -222,7 +222,8 @@ static void wpf_configure(struct vsp1_entity *entity,
 		unsigned int height = source_format->height;
 		unsigned int offset;
 
-		/* Cropping. The partition algorithm can split the image into
+		/*
+		 * Cropping. The partition algorithm can split the image into
 		 * multiple slices.
 		 */
 		if (pipe->partitions > 1)
@@ -238,7 +239,8 @@ static void wpf_configure(struct vsp1_entity *entity,
 		if (pipe->lif)
 			return;
 
-		/* Update the memory offsets based on flipping configuration.
+		/*
+		 * Update the memory offsets based on flipping configuration.
 		 * The destination addresses point to the locations where the
 		 * VSP starts writing to memory, which can be different corners
 		 * of the image depending on vertical flipping.
@@ -246,7 +248,8 @@ static void wpf_configure(struct vsp1_entity *entity,
 		if (pipe->partitions > 1) {
 			const struct vsp1_format_info *fmtinfo = wpf->fmtinfo;
 
-			/* Horizontal flipping is handled through a line buffer
+			/*
+			 * Horizontal flipping is handled through a line buffer
 			 * and doesn't modify the start address, but still needs
 			 * to be handled when image partitioning is in effect to
 			 * order the partitions correctly.

@@ -35,7 +35,7 @@ enum vsp1_entity_type {
 	VSP1_ENTITY_WPF,
 };
 
-/*
+/**
  * enum vsp1_entity_params - Entity configuration parameters class
  * @VSP1_ENTITY_PARAMS_INIT - Initial parameters
  * @VSP1_ENTITY_PARAMS_PARTITION - Per-image partition parameters

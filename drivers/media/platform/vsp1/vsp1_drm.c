@@ -283,7 +283,8 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int rpf_index,
 		cfg->pixelformat, cfg->pitch, &cfg->mem[0], &cfg->mem[1],
 		&cfg->mem[2], cfg->zpos);
 
-	/* Store the format, stride, memory buffer address, crop and compose
+	/*
+	 * Store the format, stride, memory buffer address, crop and compose
 	 * rectangles and Z-order position and for the input.
 	 */
 	fmtinfo = vsp1_get_format_info(vsp1, cfg->pixelformat);

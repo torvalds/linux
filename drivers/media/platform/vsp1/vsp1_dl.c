@@ -296,7 +296,8 @@ struct vsp1_dl_list *vsp1_dl_list_get(struct vsp1_dl_manager *dlm)
 		dl = list_first_entry(&dlm->free, struct vsp1_dl_list, list);
 		list_del(&dl->list);
 
-		/* The display list chain must be initialised to ensure every
+		/*
+		 * The display list chain must be initialised to ensure every
 		 * display list can assert list_empty() if it is not in a chain.
 		 */
 		INIT_LIST_HEAD(&dl->chain);
@@ -315,7 +316,8 @@ static void __vsp1_dl_list_put(struct vsp1_dl_list *dl)
 	if (!dl)
 		return;
 
-	/* Release any linked display-lists which were chained for a single
+	/*
+	 * Release any linked display-lists which were chained for a single
 	 * hardware operation.
 	 */
 	if (dl->has_chain) {
@@ -325,7 +327,8 @@ static void __vsp1_dl_list_put(struct vsp1_dl_list *dl)
 
 	dl->has_chain = false;
 
-	/* We can't free fragments here as DMA memory can only be freed in
+	/*
+	 * We can't free fragments here as DMA memory can only be freed in
 	 * interruptible context. Move all fragments to the display list
 	 * manager's list of fragments to be freed, they will be
 	 * garbage-collected by the work queue.
@@ -437,7 +440,8 @@ static void vsp1_dl_list_fill_header(struct vsp1_dl_list *dl, bool is_last)
 	struct vsp1_dl_body *dlb;
 	unsigned int num_lists = 0;
 
-	/* Fill the header with the display list bodies addresses and sizes. The
+	/*
+	 * Fill the header with the display list bodies addresses and sizes. The
 	 * address of the first body has already been filled when the display
 	 * list was allocated.
 	 */
@@ -456,7 +460,8 @@ static void vsp1_dl_list_fill_header(struct vsp1_dl_list *dl, bool is_last)
 
 	dl->header->num_lists = num_lists;
 
-	/* If this display list's chain is not empty, we are on a list, where
+	/*
+	 * If this display list's chain is not empty, we are on a list, where
 	 * the next item in the list is the display list entity which should be
 	 * automatically queued by the hardware.
 	 */
@@ -482,7 +487,8 @@ void vsp1_dl_list_commit(struct vsp1_dl_list *dl)
 	if (dl->dlm->mode == VSP1_DL_MODE_HEADER) {
 		struct vsp1_dl_list *dl_child;
 
-		/* In header mode the caller guarantees that the hardware is
+		/*
+		 * In header mode the caller guarantees that the hardware is
 		 * idle at this point.
 		 */
 
@@ -495,7 +501,8 @@ void vsp1_dl_list_commit(struct vsp1_dl_list *dl)
 			vsp1_dl_list_fill_header(dl_child, last);
 		}
 
-		/* Commit the head display list to hardware. Chained headers
+		/*
+		 * Commit the head display list to hardware. Chained headers
 		 * will auto-start.
 		 */
 		vsp1_write(vsp1, VI6_DL_HDR_ADDR(dlm->index), dl->dma);

@@ -205,7 +205,7 @@ static void vsp1_video_pipeline_setup_partitions(struct vsp1_pipeline *pipe)
 	pipe->partitions = DIV_ROUND_UP(format->width, div_size);
 }
 
-/*
+/**
  * vsp1_video_partition - Calculate the active partition output window
  *
  * @div_size: pre-determined maximum partition division size
@@ -242,7 +242,8 @@ static struct v4l2_rect vsp1_video_partition(struct vsp1_pipeline *pipe,
 
 	modulus = format->width % div_size;
 
-	/* We need to prevent the last partition from being smaller than the
+	/*
+	 * We need to prevent the last partition from being smaller than the
 	 * *minimum* width of the hardware capabilities.
 	 *
 	 * If the modulus is less than half of the partition size,
@@ -251,7 +252,8 @@ static struct v4l2_rect vsp1_video_partition(struct vsp1_pipeline *pipe,
 	 * to prevents this:       |1234|1234|1234|1234|1|.
 	 */
 	if (modulus) {
-		/* pipe->partitions is 1 based, whilst index is a 0 based index.
+		/*
+		 * pipe->partitions is 1 based, whilst index is a 0 based index.
 		 * Normalise this locally.
 		 */
 		unsigned int partitions = pipe->partitions - 1;
@@ -371,7 +373,8 @@ static void vsp1_video_pipeline_run(struct vsp1_pipeline *pipe)
 	if (!pipe->dl)
 		pipe->dl = vsp1_dl_list_get(pipe->output->dlm);
 
-	/* Start with the runtime parameters as the configure operation can
+	/*
+	 * Start with the runtime parameters as the configure operation can
 	 * compute/cache information needed when configuring partitions. This
 	 * is the case with flipping in the WPF.
 	 */
@@ -391,13 +394,15 @@ static void vsp1_video_pipeline_run(struct vsp1_pipeline *pipe)
 	     pipe->current_partition++) {
 		struct vsp1_dl_list *dl;
 
-		/* Partition configuration operations will utilise
+		/*
+		 * Partition configuration operations will utilise
 		 * the pipe->current_partition variable to determine
 		 * the work they should complete.
 		 */
 		dl = vsp1_dl_list_get(pipe->output->dlm);
 
-		/* An incomplete chain will still function, but output only
+		/*
+		 * An incomplete chain will still function, but output only
 		 * the partitions that had a dl available. The frame end
 		 * interrupt will be marked on the last dl in the chain.
 		 */
@@ -818,7 +823,8 @@ static void vsp1_video_stop_streaming(struct vb2_queue *vq)
 	unsigned long flags;
 	int ret;
 
-	/* Clear the buffers ready flag to make sure the device won't be started
+	/*
+	 * Clear the buffers ready flag to make sure the device won't be started
 	 * by a QBUF on the video node on the other side of the pipeline.
 	 */
 	spin_lock_irqsave(&video->irqlock, flags);

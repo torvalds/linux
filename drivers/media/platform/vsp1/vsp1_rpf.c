@@ -75,7 +75,8 @@ static void rpf_configure(struct vsp1_entity *entity,
 		unsigned int offsets[2];
 		struct v4l2_rect crop;
 
-		/* Source size and crop offsets.
+		/*
+		 * Source size and crop offsets.
 		 *
 		 * The crop offsets correspond to the location of the crop
 		 * rectangle top left corner in the plane buffer. Only two
@@ -84,7 +85,8 @@ static void rpf_configure(struct vsp1_entity *entity,
 		 */
 		crop = *vsp1_rwpf_get_crop(rpf, rpf->entity.config);
 
-		/* Partition Algorithm Control
+		/*
+		 * Partition Algorithm Control
 		 *
 		 * The partition algorithm can split this frame into multiple
 		 * slices. We must scale our partition window based on the pipe
@@ -98,7 +100,8 @@ static void rpf_configure(struct vsp1_entity *entity,
 			struct vsp1_entity *wpf = &pipe->output->entity;
 			unsigned int input_width = crop.width;
 
-			/* Scale the partition window based on the configuration
+			/*
+			 * Scale the partition window based on the configuration
 			 * of the pipeline.
 			 */
 			output = vsp1_entity_get_pad_format(wpf, wpf->config,

@@ -132,7 +132,8 @@ static int vsp1_rwpf_get_selection(struct v4l2_subdev *subdev,
 	struct v4l2_mbus_framefmt *format;
 	int ret = 0;
 
-	/* Cropping is only supported on the RPF and is implemented on the sink
+	/*
+	 * Cropping is only supported on the RPF and is implemented on the sink
 	 * pad.
 	 */
 	if (rwpf->entity.type == VSP1_ENTITY_WPF || sel->pad != RWPF_PAD_SINK)
@@ -180,7 +181,8 @@ static int vsp1_rwpf_set_selection(struct v4l2_subdev *subdev,
 	struct v4l2_rect *crop;
 	int ret = 0;
 
-	/* Cropping is only supported on the RPF and is implemented on the sink
+	/*
+	 * Cropping is only supported on the RPF and is implemented on the sink
 	 * pad.
 	 */
 	if (rwpf->entity.type == VSP1_ENTITY_WPF || sel->pad != RWPF_PAD_SINK)

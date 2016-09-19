@@ -224,7 +224,8 @@ static void clu_configure(struct vsp1_entity *entity,
 
 	switch (params) {
 	case VSP1_ENTITY_PARAMS_INIT: {
-		/* The format can't be changed during streaming, only verify it
+		/*
+		 * The format can't be changed during streaming, only verify it
 		 * at setup time and store the information internally for future
 		 * runtime configuration calls.
 		 */
