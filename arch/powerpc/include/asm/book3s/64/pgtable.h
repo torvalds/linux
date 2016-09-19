@@ -6,6 +6,8 @@
  */
 #define _PAGE_BIT_SWAP_TYPE	0
 
+#define _PAGE_RO		0
+
 #define _PAGE_EXEC		0x00001 /* execute permission */
 #define _PAGE_WRITE		0x00002 /* write access allowed */
 #define _PAGE_READ		0x00004	/* read access allowed */
