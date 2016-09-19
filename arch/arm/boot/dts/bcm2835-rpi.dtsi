@@ -39,7 +39,7 @@
 	};
 
 	alt0: alt0 {
-		brcm,pins = <0 1 2 3 4 5 7 8 9 10 11 14 15>;
+		brcm,pins = <2 3 4 5 7 8 9 10 11 14 15>;
 		brcm,function = <BCM2835_FSEL_ALT0>;
 	};
 
@@ -50,6 +50,8 @@
 };
 
 &i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_gpio0>;
 	status = "okay";
 	clock-frequency = <100000>;
 };
