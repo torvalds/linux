@@ -401,7 +401,6 @@ static void hdm_write_completion(struct urb *urb)
 			mbo->status = MBO_E_INVAL;
 			break;
 		}
-		usb_unanchor_urb(urb);
 	} else {
 		mbo->status = MBO_SUCCESS;
 		mbo->processed_length = urb->actual_length;
@@ -558,7 +557,6 @@ static void hdm_read_completion(struct urb *urb)
 			mbo->status = MBO_E_INVAL;
 			break;
 		}
-		usb_unanchor_urb(urb);
 	} else {
 		mbo->processed_length = urb->actual_length;
 		mbo->status = MBO_SUCCESS;
