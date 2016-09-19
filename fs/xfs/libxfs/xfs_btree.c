@@ -2070,7 +2070,7 @@ __xfs_btree_updkeys(
 	struct xfs_buf		*bp0,
 	bool			force_all)
 {
-	union xfs_btree_bigkey	key;	/* keys from current level */
+	union xfs_btree_key	key;	/* keys from current level */
 	union xfs_btree_key	*lkey;	/* keys from the next level up */
 	union xfs_btree_key	*hkey;
 	union xfs_btree_key	*nlkey;	/* keys from the next level up */
@@ -2086,7 +2086,7 @@ __xfs_btree_updkeys(
 
 	trace_xfs_btree_updkeys(cur, level, bp0);
 
-	lkey = (union xfs_btree_key *)&key;
+	lkey = &key;
 	hkey = xfs_btree_high_key_from_key(cur, lkey);
 	xfs_btree_get_keys(cur, block, lkey);
 	for (level++; level < cur->bc_nlevels; level++) {
@@ -3226,7 +3226,7 @@ xfs_btree_insrec(
 	struct xfs_buf		*bp;	/* buffer for block */
 	union xfs_btree_ptr	nptr;	/* new block ptr */
 	struct xfs_btree_cur	*ncur;	/* new btree cursor */
-	union xfs_btree_bigkey	nkey;	/* new block key */
+	union xfs_btree_key	nkey;	/* new block key */
 	union xfs_btree_key	*lkey;
 	int			optr;	/* old key/record index */
 	int			ptr;	/* key/record index */
@@ -3241,7 +3241,7 @@ xfs_btree_insrec(
 	XFS_BTREE_TRACE_ARGIPR(cur, level, *ptrp, &rec);
 
 	ncur = NULL;
-	lkey = (union xfs_btree_key *)&nkey;
+	lkey = &nkey;
 
 	/*
 	 * If we have an external root pointer, and we've made it to the
@@ -3444,14 +3444,14 @@ xfs_btree_insert(
 	union xfs_btree_ptr	nptr;	/* new block number (split result) */
 	struct xfs_btree_cur	*ncur;	/* new cursor (split result) */
 	struct xfs_btree_cur	*pcur;	/* previous level's cursor */
-	union xfs_btree_bigkey	bkey;	/* key of block to insert */
+	union xfs_btree_key	bkey;	/* key of block to insert */
 	union xfs_btree_key	*key;
 	union xfs_btree_rec	rec;	/* record to insert */
 
 	level = 0;
 	ncur = NULL;
 	pcur = cur;
-	key = (union xfs_btree_key *)&bkey;
+	key = &bkey;
 
 	xfs_btree_set_ptr_null(cur, &nptr);
 

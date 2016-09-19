@@ -37,30 +37,18 @@ union xfs_btree_ptr {
 	__be64			l;	/* long form ptr */
 };
 
+/*
+ * The in-core btree key.  Overlapping btrees actually store two keys
+ * per pointer, so we reserve enough memory to hold both.  The __*bigkey
+ * items should never be accessed directly.
+ */
 union xfs_btree_key {
 	struct xfs_bmbt_key		bmbt;
 	xfs_bmdr_key_t			bmbr;	/* bmbt root block */
 	xfs_alloc_key_t			alloc;
 	struct xfs_inobt_key		inobt;
 	struct xfs_rmap_key		rmap;
-};
-
-/*
- * In-core key that holds both low and high keys for overlapped btrees.
- * The two keys are packed next to each other on disk, so do the same
- * in memory.  Preserve the existing xfs_btree_key as a single key to
- * avoid the mental model breakage that would happen if we passed a
- * bigkey into a function that operates on a single key.
- */
-union xfs_btree_bigkey {
-	struct xfs_bmbt_key		bmbt;
-	xfs_bmdr_key_t			bmbr;	/* bmbt root block */
-	xfs_alloc_key_t			alloc;
-	struct xfs_inobt_key		inobt;
-	struct {
-		struct xfs_rmap_key	rmap;
-		struct xfs_rmap_key	rmap_hi;
-	};
+	struct xfs_rmap_key		__rmap_bigkey[2];
 };
 
 union xfs_btree_rec {
