@@ -5,7 +5,7 @@ Intro
 =====
 
 This document is designed to provide a list of the minimum levels of
-software necessary to run the 3.0 kernels.
+software necessary to run the 4.x kernels.
 
 This document is originally based on my "Changes" file for 2.0.x kernels
 and therefore owes credit to the same people as that file (Jared Mauch,
@@ -51,8 +51,10 @@ mcelog                 0.6              mcelog --version
 iptables               1.4.2            iptables -V
 openssl & libcrypto    1.0.0            openssl version
 bc                     1.06.95          bc --version
+Sphinx\ [#f1]_	       1.2		sphinx-build --version
 ====================== ===============  ========================================
 
+.. [#f1] Sphinx is needed only to build the Kernel documentation
 
 Kernel compilation
 ******************
@@ -307,6 +309,30 @@ On x86 kernels the mcelog utility is needed to process and log machine check
 events when ``CONFIG_X86_MCE`` is enabled. Machine check events are errors
 reported by the CPU. Processing them is strongly encouraged.
 
+Kernel documentation
+********************
+
+Sphinx
+------
+
+The ReST markups currently used by the Documentation/ files are meant to be
+built with ``Sphinx`` version 1.2 or upper. If you're desiring to build
+PDF outputs, it is recommended to use version 1.4.6.
+
+.. note::
+
+  Please notice that, for PDF and LaTeX output, you'll also need ``XeLaTeX``
+  version 3.14159265. Depending on the distribution, you may also need
+  to install a series of ``texlive`` packages that provide the minimal
+  set of functionalities required for ``XeLaTex`` to work.
+
+Other tools
+-----------
+
+In order to produce documentation from DocBook, you'll also need ``xmlto``.
+Please notice, however, that we're currently migrating all documents to use
+``Sphinx``.
+
 Getting updated software
 ========================
 
@@ -453,3 +479,11 @@ NFS-Utils
 ---------
 
 - <http://nfs.sourceforge.net/>
+
+Kernel documentation
+********************
+
+Sphinx
+------
+
+- <http://www.sphinx-doc.org/>
