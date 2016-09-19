@@ -32,6 +32,7 @@
 #include <linux/buffer_head.h>
 #include <linux/mpage.h>
 #include <linux/fiemap.h>
+#include <linux/iomap.h>
 #include <linux/namei.h>
 #include <linux/uio.h>
 #include "ext2.h"
@@ -787,6 +788,59 @@ int ext2_get_block(struct inode *inode, sector_t iblock,
 
 }
 
+#ifdef CONFIG_FS_DAX
+static int ext2_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
+		unsigned flags, struct iomap *iomap)
+{
+	unsigned int blkbits = inode->i_blkbits;
+	unsigned long first_block = offset >> blkbits;
+	unsigned long max_blocks = (length + (1 << blkbits) - 1) >> blkbits;
+	bool new = false, boundary = false;
+	u32 bno;
+	int ret;
+
+	ret = ext2_get_blocks(inode, first_block, max_blocks,
+			&bno, &new, &boundary, flags & IOMAP_WRITE);
+	if (ret < 0)
+		return ret;
+
+	iomap->flags = 0;
+	iomap->bdev = inode->i_sb->s_bdev;
+	iomap->offset = first_block << blkbits;
+
+	if (ret == 0) {
+		iomap->type = IOMAP_HOLE;
+		iomap->blkno = IOMAP_NULL_BLOCK;
+		iomap->length = 1 << blkbits;
+	} else {
+		iomap->type = IOMAP_MAPPED;
+		iomap->blkno = (sector_t)bno << (blkbits - 9);
+		iomap->length = (u64)ret << blkbits;
+		iomap->flags |= IOMAP_F_MERGED;
+	}
+
+	if (new)
+		iomap->flags |= IOMAP_F_NEW;
+	return 0;
+}
+
+static int
+ext2_iomap_end(struct inode *inode, loff_t offset, loff_t length,
+		ssize_t written, unsigned flags, struct iomap *iomap)
+{
+	if (iomap->type == IOMAP_MAPPED &&
+	    written < length &&
+	    (flags & IOMAP_WRITE))
+		ext2_write_failed(inode->i_mapping, offset + length);
+	return 0;
+}
+
+struct iomap_ops ext2_iomap_ops = {
+	.iomap_begin		= ext2_iomap_begin,
+	.iomap_end		= ext2_iomap_end,
+};
+#endif /* CONFIG_FS_DAX */
+
 int ext2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		u64 start, u64 len)
 {
@@ -872,11 +926,10 @@ ext2_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	loff_t offset = iocb->ki_pos;
 	ssize_t ret;
 
-	if (IS_DAX(inode))
-		ret = dax_do_io(iocb, inode, iter, ext2_get_block, NULL,
-				DIO_LOCKING);
-	else
-		ret = blockdev_direct_IO(iocb, inode, iter, ext2_get_block);
+	if (WARN_ON_ONCE(IS_DAX(inode)))
+		return -EIO;
+
+	ret = blockdev_direct_IO(iocb, inode, iter, ext2_get_block);
 	if (ret < 0 && iov_iter_rw(iter) == WRITE)
 		ext2_write_failed(mapping, offset + count);
 	return ret;
