@@ -177,8 +177,10 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 	hists__new_col_len(hists, HISTC_LOCAL_WEIGHT, 12);
 	hists__new_col_len(hists, HISTC_GLOBAL_WEIGHT, 12);
 
-	if (h->srcline)
-		hists__new_col_len(hists, HISTC_SRCLINE, strlen(h->srcline));
+	if (h->srcline) {
+		len = MAX(strlen(h->srcline), strlen(sort_srcline.se_header));
+		hists__new_col_len(hists, HISTC_SRCLINE, len);
+	}
 
 	if (h->srcfile)
 		hists__new_col_len(hists, HISTC_SRCFILE, strlen(h->srcfile));
