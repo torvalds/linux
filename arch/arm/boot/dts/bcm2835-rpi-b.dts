@@ -16,7 +16,7 @@
 };
 
 &gpio {
-	pinctrl-0 = <&gpioout &alt0 &alt3>;
+	pinctrl-0 = <&gpioout &alt0>;
 };
 
 &hdmi {

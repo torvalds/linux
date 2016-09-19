@@ -42,11 +42,6 @@
 		brcm,pins = <4 5 7 8 9 10 11 14 15>;
 		brcm,function = <BCM2835_FSEL_ALT0>;
 	};
-
-	alt3: alt3 {
-		brcm,pins = <>;
-		brcm,function = <BCM2835_FSEL_ALT3>;
-	};
 };
 
 &i2c0 {
