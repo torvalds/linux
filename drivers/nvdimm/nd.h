@@ -83,9 +83,6 @@ static inline struct nd_namespace_index *to_next_namespace_index(
 		(unsigned long long) (res ? resource_size(res) : 0), \
 		(unsigned long long) (res ? res->start : 0), ##arg)
 
-#define for_each_label(l, label, labels) \
-	for (l = 0; (label = labels ? labels[l] : NULL); l++)
-
 #define for_each_dpa_resource(ndd, res) \
 	for (res = (ndd)->dpa.child; res; res = res->sibling)
 
@@ -98,11 +95,22 @@ struct nd_percpu_lane {
 	spinlock_t lock;
 };
 
+struct nd_label_ent {
+	struct list_head list;
+	struct nd_namespace_label *label;
+};
+
+enum nd_mapping_lock_class {
+	ND_MAPPING_CLASS0,
+	ND_MAPPING_UUID_SCAN,
+};
+
 struct nd_mapping {
 	struct nvdimm *nvdimm;
-	struct nd_namespace_label **labels;
 	u64 start;
 	u64 size;
+	struct list_head labels;
+	struct mutex lock;
 	/*
 	 * @ndd is for private use at region enable / disable time for
 	 * get_ndd() + put_ndd(), all other nd_mapping to ndd

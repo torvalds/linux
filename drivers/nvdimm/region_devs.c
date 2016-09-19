@@ -487,6 +487,17 @@ u64 nd_region_interleave_set_cookie(struct nd_region *nd_region)
 	return 0;
 }
 
+void nd_mapping_free_labels(struct nd_mapping *nd_mapping)
+{
+	struct nd_label_ent *label_ent, *e;
+
+	WARN_ON(!mutex_is_locked(&nd_mapping->lock));
+	list_for_each_entry_safe(label_ent, e, &nd_mapping->labels, list) {
+		list_del(&label_ent->list);
+		kfree(label_ent);
+	}
+}
+
 /*
  * Upon successful probe/remove, take/release a reference on the
  * associated interleave set (if present), and plant new btt + namespace
@@ -507,8 +518,10 @@ static void nd_region_notify_driver_action(struct nvdimm_bus *nvdimm_bus,
 			struct nvdimm_drvdata *ndd = nd_mapping->ndd;
 			struct nvdimm *nvdimm = nd_mapping->nvdimm;
 
-			kfree(nd_mapping->labels);
-			nd_mapping->labels = NULL;
+			mutex_lock(&nd_mapping->lock);
+			nd_mapping_free_labels(nd_mapping);
+			mutex_unlock(&nd_mapping->lock);
+
 			put_ndd(ndd);
 			nd_mapping->ndd = NULL;
 			if (ndd)
@@ -816,6 +829,8 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 		nd_region->mapping[i].nvdimm = nvdimm;
 		nd_region->mapping[i].start = mapping->start;
 		nd_region->mapping[i].size = mapping->size;
+		INIT_LIST_HEAD(&nd_region->mapping[i].labels);
+		mutex_init(&nd_region->mapping[i].lock);
 
 		get_device(&nvdimm->dev);
 	}

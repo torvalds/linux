@@ -73,6 +73,7 @@ bool nd_is_uuid_unique(struct device *dev, u8 *uuid);
 struct nd_region;
 struct nvdimm_drvdata;
 struct nd_mapping;
+void nd_mapping_free_labels(struct nd_mapping *nd_mapping);
 resource_size_t nd_pmem_available_dpa(struct nd_region *nd_region,
 		struct nd_mapping *nd_mapping, resource_size_t *overlap);
 resource_size_t nd_blk_available_dpa(struct nd_mapping *nd_mapping);
