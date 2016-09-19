@@ -141,7 +141,9 @@ void led_trigger_set(struct led_classdev *led_cdev, struct led_trigger *trig)
 	if (event) {
 		envp[0] = event;
 		envp[1] = NULL;
-		kobject_uevent_env(&led_cdev->dev->kobj, KOBJ_CHANGE, envp);
+		if (kobject_uevent_env(&led_cdev->dev->kobj, KOBJ_CHANGE, envp))
+			dev_err(led_cdev->dev,
+				"%s: Error sending uevent\n", __func__);
 		kfree(event);
 	}
 }
