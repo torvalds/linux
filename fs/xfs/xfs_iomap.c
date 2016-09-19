@@ -934,11 +934,13 @@ error_on_bmapi_transaction:
 	return error;
 }
 
-static inline bool imap_needs_alloc(struct xfs_bmbt_irec *imap, int nimaps)
+static inline bool imap_needs_alloc(struct inode *inode,
+		struct xfs_bmbt_irec *imap, int nimaps)
 {
 	return !nimaps ||
 		imap->br_startblock == HOLESTARTBLOCK ||
-		imap->br_startblock == DELAYSTARTBLOCK;
+		imap->br_startblock == DELAYSTARTBLOCK ||
+		(IS_DAX(inode) && ISUNWRITTEN(imap));
 }
 
 static int
@@ -959,7 +961,8 @@ xfs_file_iomap_begin(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
-	if ((flags & IOMAP_WRITE) && !xfs_get_extsz_hint(ip)) {
+	if ((flags & IOMAP_WRITE) &&
+	    !IS_DAX(inode) && !xfs_get_extsz_hint(ip)) {
 		return xfs_file_iomap_begin_delay(inode, offset, length, flags,
 				iomap);
 	}
@@ -979,7 +982,7 @@ xfs_file_iomap_begin(
 		return error;
 	}
 
-	if ((flags & IOMAP_WRITE) && imap_needs_alloc(&imap, nimaps)) {
+	if ((flags & IOMAP_WRITE) && imap_needs_alloc(inode, &imap, nimaps)) {
 		/*
 		 * We cap the maximum length we map here to MAX_WRITEBACK_PAGES
 		 * pages to keep the chunks of work done where somewhat symmetric
