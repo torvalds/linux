@@ -12,6 +12,7 @@
 struct super_block;
 struct file_system_type;
 struct iomap;
+struct iomap_ops;
 struct linux_binprm;
 struct path;
 struct mount;
@@ -164,3 +165,13 @@ extern struct dentry_operations ns_dentry_operations;
 extern int do_vfs_ioctl(struct file *file, unsigned int fd, unsigned int cmd,
 		    unsigned long arg);
 extern long vfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
+
+/*
+ * iomap support:
+ */
+typedef loff_t (*iomap_actor_t)(struct inode *inode, loff_t pos, loff_t len,
+		void *data, struct iomap *iomap);
+
+loff_t iomap_apply(struct inode *inode, loff_t pos, loff_t length,
+		unsigned flags, struct iomap_ops *ops, void *data,
+		iomap_actor_t actor);
