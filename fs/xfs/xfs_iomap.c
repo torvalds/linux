@@ -1000,6 +1000,7 @@ xfs_file_iomap_begin(
 		if (error)
 			return error;
 
+		iomap->flags = IOMAP_F_NEW;
 		trace_xfs_iomap_alloc(ip, offset, length, 0, &imap);
 	} else {
 		ASSERT(nimaps);
