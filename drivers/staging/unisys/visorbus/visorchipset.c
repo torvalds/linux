@@ -1357,27 +1357,6 @@ chipset_notready(struct controlvm_message_header *msg_hdr)
 		controlvm_respond(msg_hdr, rc);
 }
 
-/**
- * read_controlvm_event() - retreives the next message from the
- *                          CONTROLVM_QUEUE_EVENT queue in the controlvm
- *                          channel
- * @msg: pointer to the retrieved message
- *
- * Return: true if a valid message was retrieved or false otherwise
- */
-static bool
-read_controlvm_event(struct controlvm_message *msg)
-{
-	if (visorchannel_signalremove(controlvm_channel,
-				      CONTROLVM_QUEUE_EVENT, msg)) {
-		/* got a message */
-		if (msg->hdr.flags.test_message == 1)
-			return false;
-		return true;
-	}
-	return false;
-}
-
 /*
  * The general parahotplug flow works as follows. The visorchipset
  * driver receives a DEVICE_CHANGESTATE message from Command
@@ -2089,6 +2068,27 @@ handle_command(struct controlvm_message inmsg, u64 channel_addr)
 		parser_ctx = NULL;
 	}
 	return true;
+}
+
+/**
+ * read_controlvm_event() - retreives the next message from the
+ *                          CONTROLVM_QUEUE_EVENT queue in the controlvm
+ *                          channel
+ * @msg: pointer to the retrieved message
+ *
+ * Return: true if a valid message was retrieved or false otherwise
+ */
+static bool
+read_controlvm_event(struct controlvm_message *msg)
+{
+	if (visorchannel_signalremove(controlvm_channel,
+				      CONTROLVM_QUEUE_EVENT, msg)) {
+		/* got a message */
+		if (msg->hdr.flags.test_message == 1)
+			return false;
+		return true;
+	}
+	return false;
 }
 
 static void
