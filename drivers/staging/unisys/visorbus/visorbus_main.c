@@ -111,9 +111,6 @@ struct bus_type visorbus_type = {
 	.bus_groups = visorbus_bus_groups,
 };
 
-static long long bus_count;	/* number of bus instances */
-					/* ever-increasing */
-
 /* filled in with info about parent chipset driver when we register with it */
 static struct ultra_vbus_deviceinfo chipset_driverinfo;
 /* filled in with info about this driver, wrt it servicing client busses */
@@ -1070,7 +1067,6 @@ create_bus_instance(struct visor_device *dev)
 	} else {
 		kfree(hdr_info);
 	}
-	bus_count++;
 	list_add_tail(&dev->list_all, &list_all_bus_instances);
 	dev_set_drvdata(&dev->device, dev);
 	return 0;
@@ -1091,7 +1087,6 @@ remove_bus_instance(struct visor_device *dev)
 	 * successfully been able to trace thru the code to see where/how
 	 * release() gets called.  But I know it does.
 	 */
-	bus_count--;
 	if (dev->visorchannel) {
 		visorchannel_destroy(dev->visorchannel);
 		dev->visorchannel = NULL;
