@@ -369,6 +369,8 @@ found_service:
 
 	if (rx->notify_new_call)
 		rx->notify_new_call(&rx->sk, call, call->user_call_ID);
+	else
+		sk_acceptq_added(&rx->sk);
 
 	spin_lock(&conn->state_lock);
 	switch (conn->state) {

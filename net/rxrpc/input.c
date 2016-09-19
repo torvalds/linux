@@ -238,7 +238,7 @@ next_subpacket:
 		len = RXRPC_JUMBO_DATALEN;
 
 	if (flags & RXRPC_LAST_PACKET) {
-		if (test_and_set_bit(RXRPC_CALL_RX_LAST, &call->flags) &&
+		if (test_bit(RXRPC_CALL_RX_LAST, &call->flags) &&
 		    seq != call->rx_top)
 			return rxrpc_proto_abort("LSN", call, seq);
 	} else {
@@ -282,6 +282,8 @@ next_subpacket:
 	call->rxtx_buffer[ix] = skb;
 	if (after(seq, call->rx_top))
 		smp_store_release(&call->rx_top, seq);
+	if (flags & RXRPC_LAST_PACKET)
+		set_bit(RXRPC_CALL_RX_LAST, &call->flags);
 	queued = true;
 
 	if (after_eq(seq, call->rx_expect_next)) {
@@ -382,7 +384,7 @@ static void rxrpc_input_soft_acks(struct rxrpc_call *call, u8 *acks,
 
 	for (; nr_acks > 0; nr_acks--, seq++) {
 		ix = seq & RXRPC_RXTX_BUFF_MASK;
-		switch (*acks) {
+		switch (*acks++) {
 		case RXRPC_ACK_TYPE_ACK:
 			call->rxtx_annotations[ix] = RXRPC_TX_ANNO_ACK;
 			break;

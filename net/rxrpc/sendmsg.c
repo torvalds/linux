@@ -214,7 +214,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 					goto maybe_error;
 			}
 
-			max = call->conn->params.peer->maxdata;
+			max = RXRPC_JUMBO_DATALEN;
 			max -= call->conn->security_size;
 			max &= ~(call->conn->size_align - 1UL);
 
