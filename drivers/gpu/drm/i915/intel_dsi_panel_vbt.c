@@ -477,12 +477,14 @@ static int vbt_panel_unprepare(struct drm_panel *panel)
 static int vbt_panel_enable(struct drm_panel *panel)
 {
 	generic_exec_sequence(panel, MIPI_SEQ_DISPLAY_ON);
+	generic_exec_sequence(panel, MIPI_SEQ_BACKLIGHT_ON);
 
 	return 0;
 }
 
 static int vbt_panel_disable(struct drm_panel *panel)
 {
+	generic_exec_sequence(panel, MIPI_SEQ_BACKLIGHT_OFF);
 	generic_exec_sequence(panel, MIPI_SEQ_DISPLAY_OFF);
 
 	return 0;
