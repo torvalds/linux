@@ -314,6 +314,7 @@ enum rxrpc_conn_cache_state {
 	RXRPC_CONN_CLIENT_ACTIVE,	/* Conn is on active list, doing calls */
 	RXRPC_CONN_CLIENT_CULLED,	/* Conn is culled and delisted, doing calls */
 	RXRPC_CONN_CLIENT_IDLE,		/* Conn is on idle list, doing mostly nothing */
+	RXRPC_CONN__NR_CACHE_STATES
 };
 
 /*
@@ -519,6 +520,7 @@ struct rxrpc_call {
 	rxrpc_seq_t		rx_expect_next;	/* Expected next packet sequence number */
 	u8			rx_winsize;	/* Size of Rx window */
 	u8			tx_winsize;	/* Maximum size of Tx window */
+	bool			tx_phase;	/* T if transmission phase, F if receive phase */
 	u8			nr_jumbo_bad;	/* Number of jumbo dups/exceeds-windows */
 
 	/* receive-phase ACK management */
@@ -533,12 +535,73 @@ struct rxrpc_call {
 	rxrpc_serial_t		acks_latest;	/* serial number of latest ACK received */
 };
 
+enum rxrpc_skb_trace {
+	rxrpc_skb_rx_cleaned,
+	rxrpc_skb_rx_freed,
+	rxrpc_skb_rx_got,
+	rxrpc_skb_rx_lost,
+	rxrpc_skb_rx_received,
+	rxrpc_skb_rx_rotated,
+	rxrpc_skb_rx_purged,
+	rxrpc_skb_rx_seen,
+	rxrpc_skb_tx_cleaned,
+	rxrpc_skb_tx_freed,
+	rxrpc_skb_tx_got,
+	rxrpc_skb_tx_lost,
+	rxrpc_skb_tx_new,
+	rxrpc_skb_tx_rotated,
+	rxrpc_skb_tx_seen,
+	rxrpc_skb__nr_trace
+};
+
+extern const char rxrpc_skb_traces[rxrpc_skb__nr_trace][7];
+
+enum rxrpc_conn_trace {
+	rxrpc_conn_new_client,
+	rxrpc_conn_new_service,
+	rxrpc_conn_queued,
+	rxrpc_conn_seen,
+	rxrpc_conn_got,
+	rxrpc_conn_put_client,
+	rxrpc_conn_put_service,
+	rxrpc_conn__nr_trace
+};
+
+extern const char rxrpc_conn_traces[rxrpc_conn__nr_trace][4];
+
+enum rxrpc_client_trace {
+	rxrpc_client_activate_chans,
+	rxrpc_client_alloc,
+	rxrpc_client_chan_activate,
+	rxrpc_client_chan_disconnect,
+	rxrpc_client_chan_pass,
+	rxrpc_client_chan_unstarted,
+	rxrpc_client_cleanup,
+	rxrpc_client_count,
+	rxrpc_client_discard,
+	rxrpc_client_duplicate,
+	rxrpc_client_exposed,
+	rxrpc_client_replace,
+	rxrpc_client_to_active,
+	rxrpc_client_to_culled,
+	rxrpc_client_to_idle,
+	rxrpc_client_to_inactive,
+	rxrpc_client_to_waiting,
+	rxrpc_client_uncount,
+	rxrpc_client__nr_trace
+};
+
+extern const char rxrpc_client_traces[rxrpc_client__nr_trace][7];
+extern const char rxrpc_conn_cache_states[RXRPC_CONN__NR_CACHE_STATES][5];
+
 enum rxrpc_call_trace {
 	rxrpc_call_new_client,
 	rxrpc_call_new_service,
 	rxrpc_call_queued,
 	rxrpc_call_queued_ref,
 	rxrpc_call_seen,
+	rxrpc_call_connected,
+	rxrpc_call_release,
 	rxrpc_call_got,
 	rxrpc_call_got_userid,
 	rxrpc_call_got_kernel,
@@ -546,17 +609,62 @@ enum rxrpc_call_trace {
 	rxrpc_call_put_userid,
 	rxrpc_call_put_kernel,
 	rxrpc_call_put_noqueue,
+	rxrpc_call_error,
 	rxrpc_call__nr_trace
 };
 
 extern const char rxrpc_call_traces[rxrpc_call__nr_trace][4];
+
+enum rxrpc_transmit_trace {
+	rxrpc_transmit_wait,
+	rxrpc_transmit_queue,
+	rxrpc_transmit_queue_reqack,
+	rxrpc_transmit_queue_last,
+	rxrpc_transmit_rotate,
+	rxrpc_transmit_end,
+	rxrpc_transmit__nr_trace
+};
+
+extern const char rxrpc_transmit_traces[rxrpc_transmit__nr_trace][4];
+
+enum rxrpc_receive_trace {
+	rxrpc_receive_incoming,
+	rxrpc_receive_queue,
+	rxrpc_receive_queue_last,
+	rxrpc_receive_front,
+	rxrpc_receive_rotate,
+	rxrpc_receive_end,
+	rxrpc_receive__nr_trace
+};
+
+extern const char rxrpc_receive_traces[rxrpc_receive__nr_trace][4];
+
+enum rxrpc_recvmsg_trace {
+	rxrpc_recvmsg_enter,
+	rxrpc_recvmsg_wait,
+	rxrpc_recvmsg_dequeue,
+	rxrpc_recvmsg_hole,
+	rxrpc_recvmsg_next,
+	rxrpc_recvmsg_cont,
+	rxrpc_recvmsg_full,
+	rxrpc_recvmsg_data_return,
+	rxrpc_recvmsg_terminal,
+	rxrpc_recvmsg_to_be_accepted,
+	rxrpc_recvmsg_return,
+	rxrpc_recvmsg__nr_trace
+};
+
+extern const char rxrpc_recvmsg_traces[rxrpc_recvmsg__nr_trace][5];
+
+extern const char *const rxrpc_pkts[];
+extern const char *rxrpc_acks(u8 reason);
 
 #include <trace/events/rxrpc.h>
 
 /*
  * af_rxrpc.c
  */
-extern atomic_t rxrpc_n_skbs;
+extern atomic_t rxrpc_n_tx_skbs, rxrpc_n_rx_skbs;
 extern u32 rxrpc_epoch;
 extern atomic_t rxrpc_debug_id;
 extern struct workqueue_struct *rxrpc_workqueue;
@@ -728,7 +836,11 @@ struct rxrpc_connection *rxrpc_find_connection_rcu(struct rxrpc_local *,
 void __rxrpc_disconnect_call(struct rxrpc_connection *, struct rxrpc_call *);
 void rxrpc_disconnect_call(struct rxrpc_call *);
 void rxrpc_kill_connection(struct rxrpc_connection *);
-void __rxrpc_put_connection(struct rxrpc_connection *);
+bool rxrpc_queue_conn(struct rxrpc_connection *);
+void rxrpc_see_connection(struct rxrpc_connection *);
+void rxrpc_get_connection(struct rxrpc_connection *);
+struct rxrpc_connection *rxrpc_get_connection_maybe(struct rxrpc_connection *);
+void rxrpc_put_service_conn(struct rxrpc_connection *);
 void __exit rxrpc_destroy_all_connections(void);
 
 static inline bool rxrpc_conn_is_client(const struct rxrpc_connection *conn)
@@ -741,38 +853,15 @@ static inline bool rxrpc_conn_is_service(const struct rxrpc_connection *conn)
 	return !rxrpc_conn_is_client(conn);
 }
 
-static inline void rxrpc_get_connection(struct rxrpc_connection *conn)
-{
-	atomic_inc(&conn->usage);
-}
-
-static inline
-struct rxrpc_connection *rxrpc_get_connection_maybe(struct rxrpc_connection *conn)
-{
-	return atomic_inc_not_zero(&conn->usage) ? conn : NULL;
-}
-
 static inline void rxrpc_put_connection(struct rxrpc_connection *conn)
 {
 	if (!conn)
 		return;
 
-	if (rxrpc_conn_is_client(conn)) {
-		if (atomic_dec_and_test(&conn->usage))
-			rxrpc_put_client_conn(conn);
-	} else {
-		if (atomic_dec_return(&conn->usage) == 1)
-			__rxrpc_put_connection(conn);
-	}
-}
-
-static inline bool rxrpc_queue_conn(struct rxrpc_connection *conn)
-{
-	if (!rxrpc_get_connection_maybe(conn))
-		return false;
-	if (!rxrpc_queue_work(&conn->processor))
-		rxrpc_put_connection(conn);
-	return true;
+	if (rxrpc_conn_is_client(conn))
+		rxrpc_put_client_conn(conn);
+	else
+		rxrpc_put_service_conn(conn);
 }
 
 /*
@@ -851,10 +940,7 @@ extern unsigned int rxrpc_rx_mtu;
 extern unsigned int rxrpc_rx_jumbo_max;
 extern unsigned int rxrpc_resend_timeout;
 
-extern const char *const rxrpc_pkts[];
 extern const s8 rxrpc_ack_priority[];
-
-extern const char *rxrpc_acks(u8 reason);
 
 /*
  * output.c
@@ -936,10 +1022,11 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *, struct msghdr *, size_t);
  */
 void rxrpc_kernel_data_consumed(struct rxrpc_call *, struct sk_buff *);
 void rxrpc_packet_destructor(struct sk_buff *);
-void rxrpc_new_skb(struct sk_buff *);
-void rxrpc_see_skb(struct sk_buff *);
-void rxrpc_get_skb(struct sk_buff *);
-void rxrpc_free_skb(struct sk_buff *);
+void rxrpc_new_skb(struct sk_buff *, enum rxrpc_skb_trace);
+void rxrpc_see_skb(struct sk_buff *, enum rxrpc_skb_trace);
+void rxrpc_get_skb(struct sk_buff *, enum rxrpc_skb_trace);
+void rxrpc_free_skb(struct sk_buff *, enum rxrpc_skb_trace);
+void rxrpc_lose_skb(struct sk_buff *, enum rxrpc_skb_trace);
 void rxrpc_purge_queue(struct sk_buff_head *);
 
 /*

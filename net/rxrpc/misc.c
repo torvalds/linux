@@ -101,3 +101,84 @@ const char *rxrpc_acks(u8 reason)
 		reason = ARRAY_SIZE(str) - 1;
 	return str[reason];
 }
+
+const char rxrpc_skb_traces[rxrpc_skb__nr_trace][7] = {
+	[rxrpc_skb_rx_cleaned]		= "Rx CLN",
+	[rxrpc_skb_rx_freed]		= "Rx FRE",
+	[rxrpc_skb_rx_got]		= "Rx GOT",
+	[rxrpc_skb_rx_lost]		= "Rx *L*",
+	[rxrpc_skb_rx_received]		= "Rx RCV",
+	[rxrpc_skb_rx_purged]		= "Rx PUR",
+	[rxrpc_skb_rx_rotated]		= "Rx ROT",
+	[rxrpc_skb_rx_seen]		= "Rx SEE",
+	[rxrpc_skb_tx_cleaned]		= "Tx CLN",
+	[rxrpc_skb_tx_freed]		= "Tx FRE",
+	[rxrpc_skb_tx_got]		= "Tx GOT",
+	[rxrpc_skb_tx_lost]		= "Tx *L*",
+	[rxrpc_skb_tx_new]		= "Tx NEW",
+	[rxrpc_skb_tx_rotated]		= "Tx ROT",
+	[rxrpc_skb_tx_seen]		= "Tx SEE",
+};
+
+const char rxrpc_conn_traces[rxrpc_conn__nr_trace][4] = {
+	[rxrpc_conn_new_client]		= "NWc",
+	[rxrpc_conn_new_service]	= "NWs",
+	[rxrpc_conn_queued]		= "QUE",
+	[rxrpc_conn_seen]		= "SEE",
+	[rxrpc_conn_got]		= "GOT",
+	[rxrpc_conn_put_client]		= "PTc",
+	[rxrpc_conn_put_service]	= "PTs",
+};
+
+const char rxrpc_client_traces[rxrpc_client__nr_trace][7] = {
+	[rxrpc_client_activate_chans]	= "Activa",
+	[rxrpc_client_alloc]		= "Alloc ",
+	[rxrpc_client_chan_activate]	= "ChActv",
+	[rxrpc_client_chan_disconnect]	= "ChDisc",
+	[rxrpc_client_chan_pass]	= "ChPass",
+	[rxrpc_client_chan_unstarted]	= "ChUnst",
+	[rxrpc_client_cleanup]		= "Clean ",
+	[rxrpc_client_count]		= "Count ",
+	[rxrpc_client_discard]		= "Discar",
+	[rxrpc_client_duplicate]	= "Duplic",
+	[rxrpc_client_exposed]		= "Expose",
+	[rxrpc_client_replace]		= "Replac",
+	[rxrpc_client_to_active]	= "->Actv",
+	[rxrpc_client_to_culled]	= "->Cull",
+	[rxrpc_client_to_idle]		= "->Idle",
+	[rxrpc_client_to_inactive]	= "->Inac",
+	[rxrpc_client_to_waiting]	= "->Wait",
+	[rxrpc_client_uncount]		= "Uncoun",
+};
+
+const char rxrpc_transmit_traces[rxrpc_transmit__nr_trace][4] = {
+	[rxrpc_transmit_wait]		= "WAI",
+	[rxrpc_transmit_queue]		= "QUE",
+	[rxrpc_transmit_queue_reqack]	= "QRA",
+	[rxrpc_transmit_queue_last]	= "QLS",
+	[rxrpc_transmit_rotate]		= "ROT",
+	[rxrpc_transmit_end]		= "END",
+};
+
+const char rxrpc_receive_traces[rxrpc_receive__nr_trace][4] = {
+	[rxrpc_receive_incoming]	= "INC",
+	[rxrpc_receive_queue]		= "QUE",
+	[rxrpc_receive_queue_last]	= "QLS",
+	[rxrpc_receive_front]		= "FRN",
+	[rxrpc_receive_rotate]		= "ROT",
+	[rxrpc_receive_end]		= "END",
+};
+
+const char rxrpc_recvmsg_traces[rxrpc_recvmsg__nr_trace][5] = {
+	[rxrpc_recvmsg_enter]		= "ENTR",
+	[rxrpc_recvmsg_wait]		= "WAIT",
+	[rxrpc_recvmsg_dequeue]		= "DEQU",
+	[rxrpc_recvmsg_hole]		= "HOLE",
+	[rxrpc_recvmsg_next]		= "NEXT",
+	[rxrpc_recvmsg_cont]		= "CONT",
+	[rxrpc_recvmsg_full]		= "FULL",
+	[rxrpc_recvmsg_data_return]	= "DATA",
+	[rxrpc_recvmsg_terminal]	= "TERM",
+	[rxrpc_recvmsg_to_be_accepted]	= "TBAC",
+	[rxrpc_recvmsg_return]		= "RETN",
+};
