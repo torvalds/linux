@@ -185,10 +185,37 @@ static dev_t major_dev = -1; /*< indicates major num for device */
 
 /* prototypes for attributes */
 static ssize_t toolaction_show(struct device *dev,
-			       struct device_attribute *attr, char *buf);
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	u8 tool_action = 0;
+
+	visorchannel_read(controlvm_channel,
+			  offsetof(struct spar_controlvm_channel_protocol,
+				   tool_action), &tool_action, sizeof(u8));
+	return scnprintf(buf, PAGE_SIZE, "%u\n", tool_action);
+}
+
 static ssize_t toolaction_store(struct device *dev,
 				struct device_attribute *attr,
-				const char *buf, size_t count);
+				const char *buf, size_t count)
+{
+	u8 tool_action;
+	int ret;
+
+	if (kstrtou8(buf, 10, &tool_action))
+		return -EINVAL;
+
+	ret = visorchannel_write
+		(controlvm_channel,
+		 offsetof(struct spar_controlvm_channel_protocol,
+			  tool_action),
+		 &tool_action, sizeof(u8));
+
+	if (ret)
+		return ret;
+	return count;
+}
 static DEVICE_ATTR_RW(toolaction);
 
 static ssize_t boottotool_show(struct device *dev,
@@ -429,39 +456,6 @@ parser_string_get(struct parser_context *ctx)
 		memcpy(value, pscan, value_length);
 	((u8 *)(value))[value_length] = '\0';
 	return value;
-}
-
-static ssize_t toolaction_show(struct device *dev,
-			       struct device_attribute *attr,
-			       char *buf)
-{
-	u8 tool_action = 0;
-
-	visorchannel_read(controlvm_channel,
-			  offsetof(struct spar_controlvm_channel_protocol,
-				   tool_action), &tool_action, sizeof(u8));
-	return scnprintf(buf, PAGE_SIZE, "%u\n", tool_action);
-}
-
-static ssize_t toolaction_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t count)
-{
-	u8 tool_action;
-	int ret;
-
-	if (kstrtou8(buf, 10, &tool_action))
-		return -EINVAL;
-
-	ret = visorchannel_write
-		(controlvm_channel,
-		 offsetof(struct spar_controlvm_channel_protocol,
-			  tool_action),
-		 &tool_action, sizeof(u8));
-
-	if (ret)
-		return ret;
-	return count;
 }
 
 static ssize_t boottotool_show(struct device *dev,
