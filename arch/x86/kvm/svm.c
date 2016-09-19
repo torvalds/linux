@@ -1412,7 +1412,7 @@ static void avic_vm_destroy(struct kvm *kvm)
 static int avic_vm_init(struct kvm *kvm)
 {
 	unsigned long flags;
-	int err = -ENOMEM;
+	int vm_id, err = -ENOMEM;
 	struct kvm_arch *vm_data = &kvm->arch;
 	struct page *p_page;
 	struct page *l_page;
@@ -1420,9 +1420,10 @@ static int avic_vm_init(struct kvm *kvm)
 	if (!avic)
 		return 0;
 
-	vm_data->avic_vm_id = avic_get_next_vm_id();
-	if (vm_data->avic_vm_id < 0)
-		return vm_data->avic_vm_id;
+	vm_id = avic_get_next_vm_id();
+	if (vm_id < 0)
+		return vm_id;
+	vm_data->avic_vm_id = (u32)vm_id;
 
 	/* Allocating physical APIC ID table (4KB) */
 	p_page = alloc_page(GFP_KERNEL);
