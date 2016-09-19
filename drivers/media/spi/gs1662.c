@@ -134,7 +134,8 @@ static const struct v4l2_dv_timings_cap gs_timings_cap = {
 	/* keep this initialization for compatibility with GCC < 4.4.6 */
 	.reserved = { 0 },
 	V4L2_INIT_BT_TIMINGS(GS_WIDTH_MIN, GS_WIDTH_MAX, GS_HEIGHT_MIN,
-			     GS_HEIGHT_MAX, GS_PIXELCLOCK_MIN, GS_PIXELCLOCK_MAX,
+			     GS_HEIGHT_MAX, GS_PIXELCLOCK_MIN,
+			     GS_PIXELCLOCK_MAX,
 			     V4L2_DV_BT_STD_CEA861 | V4L2_DV_BT_STD_SDI,
 			     V4L2_DV_BT_CAP_PROGRESSIVE
 			     | V4L2_DV_BT_CAP_INTERLACED)
@@ -237,7 +238,8 @@ static u16 get_register_timings(struct v4l2_dv_timings *timings)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(reg_fmt); i++) {
-		if (v4l2_match_dv_timings(timings, &reg_fmt[i].format, 0, false))
+		if (v4l2_match_dv_timings(timings, &reg_fmt[i].format, 0,
+					  false))
 			return reg_fmt[i].reg_value | MASK_FORCE_STD;
 	}
 
@@ -283,8 +285,10 @@ static int gs_query_dv_timings(struct v4l2_subdev *sd,
 	if (gs->enabled)
 		return -EBUSY;
 
-	/* Check if the component detect a line, a frame or something else
-	 * which looks like a video signal activity.*/
+	/*
+	 * Check if the component detect a line, a frame or something else
+	 * which looks like a video signal activity.
+	 */
 	for (i = 0; i < 4; i++) {
 		gs_read_register(gs->pdev, REG_LINES_PER_FRAME + i, &reg_value);
 		if (reg_value)
@@ -337,10 +341,10 @@ static int gs_s_stream(struct v4l2_subdev *sd, int enable)
 		/* To force the specific format */
 		reg_value = get_register_timings(&gs->current_timings);
 		return gs_write_register(gs->pdev, REG_FORCE_FMT, reg_value);
-	} else {
-		/* To renable auto-detection mode */
-		return gs_write_register(gs->pdev, REG_FORCE_FMT, 0x0);
 	}
+
+	/* To renable auto-detection mode */
+	return gs_write_register(gs->pdev, REG_FORCE_FMT, 0x0);
 }
 
 static int gs_g_input_status(struct v4l2_subdev *sd, u32 *status)
@@ -349,8 +353,10 @@ static int gs_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	u16 reg_value, i;
 	int ret;
 
-	/* Check if the component detect a line, a frame or something else
-	 * which looks like a video signal activity.*/
+	/*
+	 * Check if the component detect a line, a frame or something else
+	 * which looks like a video signal activity.
+	 */
 	for (i = 0; i < 4; i++) {
 		ret = gs_read_register(gs->pdev,
 				       REG_LINES_PER_FRAME + i, &reg_value);
@@ -404,7 +410,7 @@ static const struct v4l2_subdev_video_ops gs_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops gs_pad_ops = {
-	.enum_dv_timings= gs_enum_dv_timings,
+	.enum_dv_timings = gs_enum_dv_timings,
 	.dv_timings_cap = gs_dv_timings_cap,
 };
 
