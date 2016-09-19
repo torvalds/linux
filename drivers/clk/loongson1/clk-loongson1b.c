@@ -26,7 +26,7 @@ static unsigned long ls1x_pll_recalc_rate(struct clk_hw *hw,
 	u32 pll, rate;
 
 	pll = __raw_readl(LS1X_CLK_PLL_FREQ);
-	rate = 12 + (pll & 0x3f) + (((pll >> 8) & 0x3ff) >> 10);
+	rate = 12 + (pll & GENMASK(5, 0));
 	rate *= OSC;
 	rate >>= 1;
 
