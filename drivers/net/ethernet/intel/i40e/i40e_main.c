@@ -7661,6 +7661,8 @@ static int i40e_init_msix(struct i40e_pf *pf)
 #endif
 	/* can we reserve enough for iWARP? */
 	if (pf->flags & I40E_FLAG_IWARP_ENABLED) {
+		iwarp_requested = pf->num_iwarp_msix;
+
 		if (!vectors_left)
 			pf->num_iwarp_msix = 0;
 		else if (vectors_left < pf->num_iwarp_msix)
@@ -7702,21 +7704,6 @@ static int i40e_init_msix(struct i40e_pf *pf)
 		pf->msix_entries[i].entry = i;
 	v_actual = i40e_reserve_msix_vectors(pf, v_budget);
 
-	if (v_actual != v_budget) {
-		/* If we have limited resources, we will start with no vectors
-		 * for the special features and then allocate vectors to some
-		 * of these features based on the policy and at the end disable
-		 * the features that did not get any vectors.
-		 */
-		iwarp_requested = pf->num_iwarp_msix;
-		pf->num_iwarp_msix = 0;
-#ifdef I40E_FCOE
-		pf->num_fcoe_qps = 0;
-		pf->num_fcoe_msix = 0;
-#endif
-		pf->num_vmdq_msix = 0;
-	}
-
 	if (v_actual < I40E_MIN_MSIX) {
 		pf->flags &= ~I40E_FLAG_MSIX_ENABLED;
 		kfree(pf->msix_entries);
@@ -7730,9 +7717,16 @@ static int i40e_init_msix(struct i40e_pf *pf)
 		pf->num_lan_qps = 1;
 		pf->num_lan_msix = 1;
 
-	} else if (v_actual != v_budget) {
+	} else if (!vectors_left) {
+		/* If we have limited resources, we will start with no vectors
+		 * for the special features and then allocate vectors to some
+		 * of these features based on the policy and at the end disable
+		 * the features that did not get any vectors.
+		 */
 		int vec;
 
+		dev_info(&pf->pdev->dev,
+			 "MSI-X vector limit reached, attempting to redistribute vectors\n");
 		/* reserve the misc vector */
 		vec = v_actual - 1;
 
@@ -7740,6 +7734,10 @@ static int i40e_init_msix(struct i40e_pf *pf)
 		pf->num_vmdq_msix = 1;    /* force VMDqs to only one vector */
 		pf->num_vmdq_vsis = 1;
 		pf->num_vmdq_qps = 1;
+#ifdef I40E_FCOE
+		pf->num_fcoe_qps = 0;
+		pf->num_fcoe_msix = 0;
+#endif
 		pf->flags &= ~I40E_FLAG_FD_SB_ENABLED;
 
 		/* partition out the remaining vectors */
@@ -7775,6 +7773,7 @@ static int i40e_init_msix(struct i40e_pf *pf)
 			pf->num_lan_msix = min_t(int,
 			       (vec - (pf->num_iwarp_msix + pf->num_vmdq_vsis)),
 							      pf->num_lan_msix);
+			pf->num_lan_qps = pf->num_lan_msix;
 #ifdef I40E_FCOE
 			/* give one vector to FCoE */
 			if (pf->flags & I40E_FLAG_FCOE_ENABLED) {
@@ -7804,6 +7803,13 @@ static int i40e_init_msix(struct i40e_pf *pf)
 		pf->flags &= ~I40E_FLAG_FCOE_ENABLED;
 	}
 #endif
+	i40e_debug(&pf->hw, I40E_DEBUG_INIT,
+		   "MSI-X vector distribution: PF %d, VMDq %d, FDSB %d, iWARP %d\n",
+		   pf->num_lan_msix,
+		   pf->num_vmdq_msix * pf->num_vmdq_vsis,
+		   pf->num_fdsb_msix,
+		   pf->num_iwarp_msix);
+
 	return v_actual;
 }
 
