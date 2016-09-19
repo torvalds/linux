@@ -14,7 +14,7 @@
 #include <linux/ptrace.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
-#include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/uaccess.h>
 
 #include <asm/traps.h>
