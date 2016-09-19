@@ -586,13 +586,6 @@ qca8k_setup(struct dsa_switch *ds)
 }
 
 static int
-qca8k_set_addr(struct dsa_switch *ds, u8 *addr)
-{
-	/* The subsystem always calls this function so add an empty stub */
-	return 0;
-}
-
-static int
 qca8k_phy_read(struct dsa_switch *ds, int phy, int regnum)
 {
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
@@ -921,7 +914,6 @@ qca8k_get_tag_protocol(struct dsa_switch *ds)
 static struct dsa_switch_ops qca8k_switch_ops = {
 	.get_tag_protocol	= qca8k_get_tag_protocol,
 	.setup			= qca8k_setup,
-	.set_addr		= qca8k_set_addr,
 	.get_strings		= qca8k_get_strings,
 	.phy_read		= qca8k_phy_read,
 	.phy_write		= qca8k_phy_write,
