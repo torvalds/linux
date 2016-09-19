@@ -79,6 +79,9 @@
 #define	CLK_CTL_DIV_MASK	0xff
 #define	CLK_CTL_SCLKEN		BIT(8)
 
+#define CARD_OPT_WIDTH8		BIT(13)
+#define CARD_OPT_WIDTH		BIT(15)
+
 #define TMIO_BBS		512		/* Boot block size */
 
 /* Definitions for values the CTRL_SDIO_STATUS register can take. */
