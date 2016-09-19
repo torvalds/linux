@@ -492,6 +492,8 @@
 		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_USBPHY480M>, <&cru HCLK_HOST>;
 		clock-names = "usbphy_480m", "hclk_host0";
+		phys = <&u2phy_host>;
+		phy-names = "usb";
 		status = "disabled";
 	};
 
