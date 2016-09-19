@@ -2091,12 +2091,48 @@ static int _mv88e6xxx_atu_load(struct mv88e6xxx_chip *chip,
 	return _mv88e6xxx_atu_cmd(chip, entry->fid, GLOBAL_ATU_OP_LOAD_DB);
 }
 
+static int _mv88e6xxx_atu_getnext(struct mv88e6xxx_chip *chip, u16 fid,
+				  struct mv88e6xxx_atu_entry *entry);
+
+static int mv88e6xxx_atu_get(struct mv88e6xxx_chip *chip, int fid,
+			     const u8 *addr, struct mv88e6xxx_atu_entry *entry)
+{
+	struct mv88e6xxx_atu_entry next;
+	int err;
+
+	eth_broadcast_addr(next.mac);
+
+	err = _mv88e6xxx_atu_mac_write(chip, next.mac);
+	if (err)
+		return err;
+
+	do {
+		err = _mv88e6xxx_atu_getnext(chip, fid, &next);
+		if (err)
+			return err;
+
+		if (next.state == GLOBAL_ATU_DATA_STATE_UNUSED)
+			break;
+
+		if (ether_addr_equal(next.mac, addr)) {
+			*entry = next;
+			return 0;
+		}
+	} while (!is_broadcast_ether_addr(next.mac));
+
+	memset(entry, 0, sizeof(*entry));
+	entry->fid = fid;
+	ether_addr_copy(entry->mac, addr);
+
+	return 0;
+}
+
 static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
 					const unsigned char *addr, u16 vid,
 					u8 state)
 {
-	struct mv88e6xxx_atu_entry entry = { 0 };
 	struct mv88e6xxx_vtu_stu_entry vlan;
+	struct mv88e6xxx_atu_entry entry;
 	int err;
 
 	/* Null VLAN ID corresponds to the port private database */
@@ -2107,12 +2143,18 @@ static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
 	if (err)
 		return err;
 
-	entry.fid = vlan.fid;
-	entry.state = state;
-	ether_addr_copy(entry.mac, addr);
-	if (state != GLOBAL_ATU_DATA_STATE_UNUSED) {
-		entry.trunk = false;
-		entry.portv_trunkid = BIT(port);
+	err = mv88e6xxx_atu_get(chip, vlan.fid, addr, &entry);
+	if (err)
+		return err;
+
+	/* Purge the ATU entry only if no port is using it anymore */
+	if (state == GLOBAL_ATU_DATA_STATE_UNUSED) {
+		entry.portv_trunkid &= ~BIT(port);
+		if (!entry.portv_trunkid)
+			entry.state = GLOBAL_ATU_DATA_STATE_UNUSED;
+	} else {
+		entry.portv_trunkid |= BIT(port);
+		entry.state = state;
 	}
 
 	return _mv88e6xxx_atu_load(chip, &entry);
