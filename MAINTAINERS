@@ -12569,7 +12569,7 @@ F:	include/linux/if_*vlan.h
 F:	net/8021q/
 
 VLYNQ BUS
-M:	Florian Fainelli <florian@openwrt.org>
+M:	Florian Fainelli <f.fainelli@gmail.com>
 L:	openwrt-devel@lists.openwrt.org (subscribers-only)
 S:	Maintained
 F:	drivers/vlynq/vlynq.c
