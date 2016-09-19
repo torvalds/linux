@@ -11,10 +11,10 @@
 #define BNXT_H
 
 #define DRV_MODULE_NAME		"bnxt_en"
-#define DRV_MODULE_VERSION	"1.3.0"
+#define DRV_MODULE_VERSION	"1.5.0"
 
 #define DRV_VER_MAJ	1
-#define DRV_VER_MIN	3
+#define DRV_VER_MIN	5
 #define DRV_VER_UPD	0
 
 struct tx_bd {
@@ -106,11 +106,11 @@ struct tx_cmp {
 	 #define CMP_TYPE_REMOTE_DRIVER_REQ			 34
 	 #define CMP_TYPE_REMOTE_DRIVER_RESP			 36
 	 #define CMP_TYPE_ERROR_STATUS				 48
-	 #define CMPL_BASE_TYPE_STAT_EJECT			 (0x1aUL << 0)
-	 #define CMPL_BASE_TYPE_HWRM_DONE			 (0x20UL << 0)
-	 #define CMPL_BASE_TYPE_HWRM_FWD_REQ			 (0x22UL << 0)
-	 #define CMPL_BASE_TYPE_HWRM_FWD_RESP			 (0x24UL << 0)
-	 #define CMPL_BASE_TYPE_HWRM_ASYNC_EVENT		 (0x2eUL << 0)
+	 #define CMPL_BASE_TYPE_STAT_EJECT			 0x1aUL
+	 #define CMPL_BASE_TYPE_HWRM_DONE			 0x20UL
+	 #define CMPL_BASE_TYPE_HWRM_FWD_REQ			 0x22UL
+	 #define CMPL_BASE_TYPE_HWRM_FWD_RESP			 0x24UL
+	 #define CMPL_BASE_TYPE_HWRM_ASYNC_EVENT		 0x2eUL
 
 	#define TX_CMP_FLAGS_ERROR				(1 << 6)
 	#define TX_CMP_FLAGS_PUSH				(1 << 7)

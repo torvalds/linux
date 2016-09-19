@@ -4253,6 +4253,9 @@ static int bnxt_hwrm_queue_qportcfg(struct bnxt *bp)
 	if (bp->max_tc > BNXT_MAX_QUEUE)
 		bp->max_tc = BNXT_MAX_QUEUE;
 
+	if (resp->queue_cfg_info & QUEUE_QPORTCFG_RESP_QUEUE_CFG_INFO_ASYM_CFG)
+		bp->max_tc = 1;
+
 	qptr = &resp->queue_id0;
 	for (i = 0; i < bp->max_tc; i++) {
 		bp->q_info[i].queue_id = *qptr++;
