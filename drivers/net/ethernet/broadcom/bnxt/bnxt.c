@@ -32,6 +32,7 @@
 #include <linux/mii.h>
 #include <linux/if.h>
 #include <linux/if_vlan.h>
+#include <linux/rtc.h>
 #include <net/ip.h>
 #include <net/tcp.h>
 #include <net/udp.h>
@@ -4314,6 +4315,27 @@ hwrm_ver_get_exit:
 	return rc;
 }
 
+int bnxt_hwrm_fw_set_time(struct bnxt *bp)
+{
+	struct hwrm_fw_set_time_input req = {0};
+	struct rtc_time tm;
+	struct timeval tv;
+
+	if (bp->hwrm_spec_code < 0x10400)
+		return -EOPNOTSUPP;
+
+	do_gettimeofday(&tv);
+	rtc_time_to_tm(tv.tv_sec, &tm);
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FW_SET_TIME, -1, -1);
+	req.year = cpu_to_le16(1900 + tm.tm_year);
+	req.month = 1 + tm.tm_mon;
+	req.day = tm.tm_mday;
+	req.hour = tm.tm_hour;
+	req.minute = tm.tm_min;
+	req.second = tm.tm_sec;
+	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+}
+
 static int bnxt_hwrm_port_qstats(struct bnxt *bp)
 {
 	int rc;
@@ -6810,6 +6832,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = bnxt_hwrm_ver_get(bp);
 	if (rc)
 		goto init_err;
+
+	bnxt_hwrm_fw_set_time(bp);
 
 	dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_SG |
 			   NETIF_F_TSO | NETIF_F_TSO6 |
