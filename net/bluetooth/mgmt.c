@@ -3178,6 +3178,10 @@ static int set_appearance(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	BT_DBG("");
 
+	if (!lmp_le_capable(hdev))
+		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_APPEARANCE,
+				       MGMT_STATUS_NOT_SUPPORTED);
+
 	apperance = le16_to_cpu(cp->appearance);
 
 	hci_dev_lock(hdev);
