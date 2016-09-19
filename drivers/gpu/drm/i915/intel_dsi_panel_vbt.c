@@ -126,6 +126,8 @@ static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 	u16 len;
 	enum port port;
 
+	DRM_DEBUG_KMS("\n");
+
 	flags = *data++;
 	type = *data++;
 
@@ -198,6 +200,8 @@ out:
 static const u8 *mipi_exec_delay(struct intel_dsi *intel_dsi, const u8 *data)
 {
 	u32 delay = *((const u32 *) data);
+
+	DRM_DEBUG_KMS("\n");
 
 	usleep_range(delay, delay + 10);
 	data += 4;
@@ -307,6 +311,8 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 	u8 gpio_source, gpio_index;
 	bool value;
 
+	DRM_DEBUG_KMS("\n");
+
 	if (dev_priv->vbt.dsi.seq_version >= 3)
 		data++;
 
@@ -331,8 +337,10 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 	return data;
 }
 
-static const u8 *mipi_exec_i2c_skip(struct intel_dsi *intel_dsi, const u8 *data)
+static const u8 *mipi_exec_i2c(struct intel_dsi *intel_dsi, const u8 *data)
 {
+	DRM_DEBUG_KMS("Skipping I2C element execution\n");
+
 	return data + *(data + 6) + 7;
 }
 
@@ -342,7 +350,7 @@ static const fn_mipi_elem_exec exec_elem[] = {
 	[MIPI_SEQ_ELEM_SEND_PKT] = mipi_exec_send_packet,
 	[MIPI_SEQ_ELEM_DELAY] = mipi_exec_delay,
 	[MIPI_SEQ_ELEM_GPIO] = mipi_exec_gpio,
-	[MIPI_SEQ_ELEM_I2C] = mipi_exec_i2c_skip,
+	[MIPI_SEQ_ELEM_I2C] = mipi_exec_i2c,
 };
 
 /*
