@@ -479,8 +479,8 @@
 		compatible = "generic-ehci";
 		reg = <0x0 0xff480000 0x0 0x20000>;
 		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru SCLK_OTG_PHY0>, <&cru HCLK_HOST>;
-		clock-names = "sclk_otgphy0", "hclk_host0";
+		clocks = <&cru SCLK_USBPHY480M>, <&cru HCLK_HOST>;
+		clock-names = "usbphy_480m", "hclk_host0";
 		phys = <&u2phy_host>;
 		phy-names = "usb";
 		status = "disabled";
@@ -490,8 +490,8 @@
 		compatible = "generic-ohci";
 		reg = <0x0 0xff4a0000 0x0 0x20000>;
 		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru SCLK_OTG_PHY0>, <&cru HCLK_HOST>;
-		clock-names = "sclk_otgphy0", "hclk_host0";
+		clocks = <&cru SCLK_USBPHY480M>, <&cru HCLK_HOST>;
+		clock-names = "usbphy_480m", "hclk_host0";
 		status = "disabled";
 	};
 

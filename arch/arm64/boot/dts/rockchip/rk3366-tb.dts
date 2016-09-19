@@ -264,8 +264,8 @@
 			     <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "otg_id", "otg_bvalid",
 				  "otg_linestate", "host0_linestate";
-		clocks = <&cru SCLK_USBPHY480M>;
-		clock-names = "usbphy_480m";
+		clocks = <&cru SCLK_USBPHY480M>, <&cru HCLK_OTG>;
+		clock-names = "sclk_otgphy0", "otg";
 
 		usb_bc {
 			compatible = "inno,phy";
@@ -862,8 +862,8 @@
 };
 
 &usb_otg {
-	clocks = <&cru SCLK_OTG_PHY0>, <&cru HCLK_OTG>;
-	clock-names = "sclk_otgphy0", "otg";
+	clocks = <&cru SCLK_USBPHY480M>, <&cru HCLK_OTG>;
+	clock-names = "usbphy_480m", "otg";
 	resets = <&cru SRST_USBOTG_AHB>,
 		 <&cru SRST_USBOTG_PHY>,
 		 <&cru SRST_USBOTG_CON>;
