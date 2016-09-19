@@ -38,6 +38,7 @@ static void disable_8259A_irq(struct irq_data *d);
 static void enable_8259A_irq(struct irq_data *d);
 static void mask_and_ack_8259A(struct irq_data *d);
 static void init_8259A(int auto_eoi);
+static int (*i8259_poll)(void) = i8259_irq;
 
 static struct irq_chip i8259A_chip = {
 	.name			= "XT-PIC",
@@ -50,6 +51,11 @@ static struct irq_chip i8259A_chip = {
 /*
  * 8259A PIC functions to handle ISA devices:
  */
+
+void i8259_set_poll(int (*poll)(void))
+{
+	i8259_poll = poll;
+}
 
 /*
  * This contains the irq mask for both 8259A irq controllers,
@@ -355,7 +361,7 @@ void __init init_i8259_irqs(void)
 static void i8259_irq_dispatch(struct irq_desc *desc)
 {
 	struct irq_domain *domain = irq_desc_get_handler_data(desc);
-	int hwirq = i8259_irq();
+	int hwirq = i8259_poll();
 	unsigned int irq;
 
 	if (hwirq < 0)
