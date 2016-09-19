@@ -164,21 +164,37 @@ required reading:
     apply it to the different development branches of the kernel.
 
 The kernel also has a large number of documents that can be
-automatically generated from the source code itself.  This includes a
+automatically generated from the source code itself or from
+ReStructuredText markups (ReST), like this one. This includes a
 full description of the in-kernel API, and rules on how to handle
-locking properly.  The documents will be created in the
-Documentation/DocBook/ directory and can be generated as PDF,
-Postscript, HTML, and man pages by running:
+locking properly.
+
+All such documents can be generated as PDF or HTML by running:
 
 ::
 
 	make pdfdocs
-	make psdocs
 	make htmldocs
-	make mandocs
 
 respectively from the main kernel source directory.
 
+The documents that uses ReST markup will be generated at Documentation/output.
+They can also be generated on LaTeX and ePub formats with:
+
+::
+
+	make latexdocs
+	make epubdocs
+
+Currently, there are some documents written on DocBook that are in
+the process of conversion to ReST. Such documents will be created in the
+Documentation/DocBook/ directory and can be generated also as
+Postscript or man pages by running:
+
+::
+
+	make psdocs
+	make mandocs
 
 Becoming A Kernel Developer
 ---------------------------
