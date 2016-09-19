@@ -135,7 +135,7 @@
 #define OMAP_ALIGN_MASK		(sizeof(u32)-1)
 #define OMAP_ALIGNED		__attribute__((aligned(sizeof(u32))))
 
-#define BUFLEN			PAGE_SIZE
+#define BUFLEN			SHA512_BLOCK_SIZE
 #define OMAP_SHA_DMA_THRESHOLD	256
 
 struct omap_sham_dev;
