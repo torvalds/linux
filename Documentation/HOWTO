@@ -292,11 +292,9 @@ process is as follows:
 It is worth mentioning what Andrew Morton wrote on the linux-kernel
 mailing list about kernel releases:
 
-::
-
-	"Nobody knows when a kernel will be released, because it's
+	*"Nobody knows when a kernel will be released, because it's
 	released according to perceived bug status, not according to a
-	preconceived timeline."
+	preconceived timeline."*
 
 4.x.y -stable kernel tree
 -------------------------
@@ -449,13 +447,14 @@ add your statements between the individual quoted sections instead of
 writing at the top of the mail.
 
 If you add patches to your mail, make sure they are plain readable text
-as stated in Documentation/SubmittingPatches. Kernel developers don't
-want to deal with attachments or compressed patches; they may want
-to comment on individual lines of your patch, which works only that way.
-Make sure you use a mail program that does not mangle spaces and tab
-characters. A good first test is to send the mail to yourself and try
-to apply your own patch by yourself. If that doesn't work, get your
-mail program fixed or change it until it works.
+as stated in Documentation/SubmittingPatches.
+Kernel developers don't want to deal with
+attachments or compressed patches; they may want to comment on
+individual lines of your patch, which works only that way. Make sure you
+use a mail program that does not mangle spaces and tab characters. A
+good first test is to send the mail to yourself and try to apply your
+own patch by yourself. If that doesn't work, get your mail program fixed
+or change it until it works.
 
 Above all, please remember to show respect to other subscribers.
 
@@ -496,8 +495,8 @@ Remember, being wrong is acceptable as long as you are willing to work
 toward a solution that is right.
 
 It is normal that the answers to your first patch might simply be a list
-of a dozen things you should correct.  This does _not_ imply that your
-patch will not be accepted, and it is _not_ meant against you
+of a dozen things you should correct.  This does **not** imply that your
+patch will not be accepted, and it is **not** meant against you
 personally.  Simply correct all issues raised against your patch and
 resend it.
 
@@ -582,19 +581,17 @@ The reasons for breaking things up are the following:
 
 Here is an analogy from kernel developer Al Viro:
 
-::
-
-	"Think of a teacher grading homework from a math student.  The
+	*"Think of a teacher grading homework from a math student.  The
 	teacher does not want to see the student's trials and errors
 	before they came up with the solution. They want to see the
 	cleanest, most elegant answer.  A good student knows this, and
 	would never submit her intermediate work before the final
-	solution.
+	solution.*
 
-	The same is true of kernel development. The maintainers and
+	*The same is true of kernel development. The maintainers and
 	reviewers do not want to see the thought process behind the
 	solution to the problem one is solving. They want to see a
-	simple and elegant solution."
+	simple and elegant solution."*
 
 It may be challenging to keep the balance between presenting an elegant
 solution and working together with the community and discussing your
@@ -632,7 +629,6 @@ For more details on what this should all look like, please see the
 ChangeLog section of the document:
 
   "The Perfect Patch"
-
       http://www.ozlabs.org/~akpm/stuff/tpp.txt
 
 
