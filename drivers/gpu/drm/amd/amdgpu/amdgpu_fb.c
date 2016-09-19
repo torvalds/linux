@@ -25,6 +25,7 @@
  */
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/pm_runtime.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
@@ -47,8 +48,35 @@ struct amdgpu_fbdev {
 	struct amdgpu_device *adev;
 };
 
+static int
+amdgpufb_open(struct fb_info *info, int user)
+{
+	struct amdgpu_fbdev *rfbdev = info->par;
+	struct amdgpu_device *adev = rfbdev->adev;
+	int ret = pm_runtime_get_sync(adev->ddev->dev);
+	if (ret < 0 && ret != -EACCES) {
+		pm_runtime_mark_last_busy(adev->ddev->dev);
+		pm_runtime_put_autosuspend(adev->ddev->dev);
+		return ret;
+	}
+	return 0;
+}
+
+static int
+amdgpufb_release(struct fb_info *info, int user)
+{
+	struct amdgpu_fbdev *rfbdev = info->par;
+	struct amdgpu_device *adev = rfbdev->adev;
+
+	pm_runtime_mark_last_busy(adev->ddev->dev);
+	pm_runtime_put_autosuspend(adev->ddev->dev);
+	return 0;
+}
+
 static struct fb_ops amdgpufb_ops = {
 	.owner = THIS_MODULE,
+	.fb_open = amdgpufb_open,
+	.fb_release = amdgpufb_release,
 	.fb_check_var = drm_fb_helper_check_var,
 	.fb_set_par = drm_fb_helper_set_par,
 	.fb_fillrect = drm_fb_helper_cfb_fillrect,

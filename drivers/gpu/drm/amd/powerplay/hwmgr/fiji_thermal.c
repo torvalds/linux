@@ -152,7 +152,7 @@ int fiji_fan_ctrl_set_default_mode(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int fiji_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr)
+static int fiji_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr)
 {
 	int result;
 
@@ -421,7 +421,7 @@ int fiji_thermal_stop_thermal_controller(struct pp_hwmgr *hwmgr)
 * @param    Result the last failure code
 * @return   result from set temperature range routine
 */
-int tf_fiji_thermal_setup_fan_table(struct pp_hwmgr *hwmgr,
+static int tf_fiji_thermal_setup_fan_table(struct pp_hwmgr *hwmgr,
 		void *input, void *output, void *storage, int result)
 {
 	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
@@ -533,7 +533,7 @@ int tf_fiji_thermal_setup_fan_table(struct pp_hwmgr *hwmgr,
 * @param    Result the last failure code
 * @return   result from set temperature range routine
 */
-int tf_fiji_thermal_start_smc_fan_control(struct pp_hwmgr *hwmgr,
+static int tf_fiji_thermal_start_smc_fan_control(struct pp_hwmgr *hwmgr,
 		void *input, void *output, void *storage, int result)
 {
 /* If the fantable setup has failed we could have disabled

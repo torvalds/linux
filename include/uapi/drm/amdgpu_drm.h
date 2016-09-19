@@ -649,6 +649,7 @@ struct drm_amdgpu_info_hw_ip {
  * Supported GPU families
  */
 #define AMDGPU_FAMILY_UNKNOWN			0
+#define AMDGPU_FAMILY_SI			110 /* Hainan, Oland, Verde, Pitcairn, Tahiti */
 #define AMDGPU_FAMILY_CI			120 /* Bonaire, Hawaii */
 #define AMDGPU_FAMILY_KV			125 /* Kaveri, Kabini, Mullins */
 #define AMDGPU_FAMILY_VI			130 /* Iceland, Tonga */

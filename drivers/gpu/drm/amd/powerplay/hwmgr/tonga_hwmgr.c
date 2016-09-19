@@ -29,8 +29,8 @@
 #include "tonga_hwmgr.h"
 #include "pptable.h"
 #include "processpptables.h"
-#include "tonga_processpptables.h"
-#include "tonga_pptable.h"
+#include "process_pptables_v1_0.h"
+#include "pptable_v1_0.h"
 #include "pp_debug.h"
 #include "tonga_ppsmc.h"
 #include "cgs_common.h"
@@ -202,6 +202,7 @@ uint8_t tonga_get_voltage_id(pp_atomctrl_voltage_table *voltage_table,
 	return i - 1;
 }
 
+
 /**
  * @brief PhwTonga_GetVoltageOrder
  *  Returns index of requested voltage record in lookup(table)
@@ -229,7 +230,7 @@ uint8_t tonga_get_voltage_index(phm_ppt_v1_voltage_lookup_table *look_up_table,
 	return i-1;
 }
 
-bool tonga_is_dpm_running(struct pp_hwmgr *hwmgr)
+static bool tonga_is_dpm_running(struct pp_hwmgr *hwmgr)
 {
 	/*
 	 * We return the status of Voltage Control instead of checking SCLK/MCLK DPM
@@ -334,7 +335,7 @@ void tonga_initialize_dpm_defaults(struct pp_hwmgr *hwmgr)
 
 }
 
-int tonga_update_sclk_threshold(struct pp_hwmgr *hwmgr)
+static int tonga_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 {
 	tonga_hwmgr *data = (tonga_hwmgr *)(hwmgr->backend);
 
@@ -771,7 +772,7 @@ int tonga_set_boot_state(struct pp_hwmgr *hwmgr)
  * @param    hwmgr  the address of the powerplay hardware manager.
  * @return   always 0
  */
-int tonga_process_firmware_header(struct pp_hwmgr *hwmgr)
+static int tonga_process_firmware_header(struct pp_hwmgr *hwmgr)
 {
 	tonga_hwmgr *data = (tonga_hwmgr *)(hwmgr->backend);
 	struct tonga_smumgr *tonga_smu = (struct tonga_smumgr *)(hwmgr->smumgr->backend);
@@ -1313,15 +1314,6 @@ static int tonga_populate_smc_mvdd_table(struct pp_hwmgr *hwmgr,
 
 	return 0;
 }
-
-/**
- * Convert a voltage value in mv unit to VID number required by SMU firmware
- */
-static uint8_t convert_to_vid(uint16_t vddc)
-{
-	return (uint8_t) ((6200 - (vddc * VOLTAGE_SCALE)) / 25);
-}
-
 
 /**
  * Preparation of vddc and vddgfx CAC tables for SMC.
@@ -2894,7 +2886,7 @@ int tonga_populate_smc_initial_state(struct pp_hwmgr *hwmgr,
  * @param    pInput  the pointer to input data (PowerState)
  * @return   always 0
  */
-int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
+static int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
 	tonga_hwmgr *data = (tonga_hwmgr *)(hwmgr->backend);
@@ -3989,7 +3981,7 @@ int tonga_set_valid_flag(phw_tonga_mc_reg_table *table)
 	return 0;
 }
 
-int tonga_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
+static int tonga_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
 	tonga_hwmgr *data = (tonga_hwmgr *)(hwmgr->backend);
@@ -4326,6 +4318,79 @@ int tonga_program_voting_clients(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static void tonga_set_dpm_event_sources(struct pp_hwmgr *hwmgr, uint32_t sources)
+{
+	bool protection;
+	enum DPM_EVENT_SRC src;
+
+	switch (sources) {
+	default:
+		printk(KERN_ERR "Unknown throttling event sources.");
+		/* fall through */
+	case 0:
+		protection = false;
+		/* src is unused */
+		break;
+	case (1 << PHM_AutoThrottleSource_Thermal):
+		protection = true;
+		src = DPM_EVENT_SRC_DIGITAL;
+		break;
+	case (1 << PHM_AutoThrottleSource_External):
+		protection = true;
+		src = DPM_EVENT_SRC_EXTERNAL;
+		break;
+	case (1 << PHM_AutoThrottleSource_External) |
+			(1 << PHM_AutoThrottleSource_Thermal):
+		protection = true;
+		src = DPM_EVENT_SRC_DIGITAL_OR_EXTERNAL;
+		break;
+	}
+	/* Order matters - don't enable thermal protection for the wrong source. */
+	if (protection) {
+		PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, CG_THERMAL_CTRL,
+				DPM_EVENT_SRC, src);
+		PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, GENERAL_PWRMGT,
+				THERMAL_PROTECTION_DIS,
+				!phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+						PHM_PlatformCaps_ThermalController));
+	} else
+		PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, GENERAL_PWRMGT,
+				THERMAL_PROTECTION_DIS, 1);
+}
+
+static int tonga_enable_auto_throttle_source(struct pp_hwmgr *hwmgr,
+		PHM_AutoThrottleSource source)
+{
+	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
+
+	if (!(data->active_auto_throttle_sources & (1 << source))) {
+		data->active_auto_throttle_sources |= 1 << source;
+		tonga_set_dpm_event_sources(hwmgr, data->active_auto_throttle_sources);
+	}
+	return 0;
+}
+
+static int tonga_enable_thermal_auto_throttle(struct pp_hwmgr *hwmgr)
+{
+	return tonga_enable_auto_throttle_source(hwmgr, PHM_AutoThrottleSource_Thermal);
+}
+
+static int tonga_disable_auto_throttle_source(struct pp_hwmgr *hwmgr,
+		PHM_AutoThrottleSource source)
+{
+	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
+
+	if (data->active_auto_throttle_sources & (1 << source)) {
+		data->active_auto_throttle_sources &= ~(1 << source);
+		tonga_set_dpm_event_sources(hwmgr, data->active_auto_throttle_sources);
+	}
+	return 0;
+}
+
+static int tonga_disable_thermal_auto_throttle(struct pp_hwmgr *hwmgr)
+{
+	return tonga_disable_auto_throttle_source(hwmgr, PHM_AutoThrottleSource_Thermal);
+}
 
 int tonga_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
@@ -4409,6 +4474,10 @@ int tonga_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE((tmp_result == 0),
 			"Failed to power control set level!", result = tmp_result);
 
+	tmp_result = tonga_enable_thermal_auto_throttle(hwmgr);
+	PP_ASSERT_WITH_CODE((0 == tmp_result),
+			"Failed to enable thermal auto throttle!", result = tmp_result);
+
 	return result;
 }
 
@@ -4419,6 +4488,10 @@ int tonga_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	tmp_result = tonga_check_for_dpm_running(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 		"SMC is still running!", return 0);
+
+	tmp_result = tonga_disable_thermal_auto_throttle(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to disable thermal auto throttle!", result = tmp_result);
 
 	tmp_result = tonga_stop_dpm(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
@@ -5090,7 +5163,7 @@ static int tonga_get_pp_table_entry(struct pp_hwmgr *hwmgr,
 
 	tonga_ps = cast_phw_tonga_power_state(&(ps->hardware));
 
-	result = tonga_get_powerplay_table_entry(hwmgr, entry_index, ps,
+	result = get_powerplay_table_entry_v1_0(hwmgr, entry_index, ps,
 			tonga_get_pp_table_entry_callback_func);
 
 	/* This is the earliest time we have all the dependency table and the VBIOS boot state
@@ -6254,7 +6327,7 @@ static const struct pp_hwmgr_func tonga_hwmgr_funcs = {
 	.get_sclk = tonga_dpm_get_sclk,
 	.patch_boot_state = tonga_dpm_patch_boot_state,
 	.get_pp_table_entry = tonga_get_pp_table_entry,
-	.get_num_of_pp_table_entries = tonga_get_number_of_powerplay_table_entries,
+	.get_num_of_pp_table_entries = get_number_of_powerplay_table_entries_v1_0,
 	.print_current_perforce_level = tonga_print_current_perforce_level,
 	.powerdown_uvd = tonga_phm_powerdown_uvd,
 	.powergate_uvd = tonga_phm_powergate_uvd,
@@ -6290,7 +6363,7 @@ static const struct pp_hwmgr_func tonga_hwmgr_funcs = {
 int tonga_hwmgr_init(struct pp_hwmgr *hwmgr)
 {
 	hwmgr->hwmgr_func = &tonga_hwmgr_funcs;
-	hwmgr->pptable_func = &tonga_pptable_funcs;
+	hwmgr->pptable_func = &pptable_v1_0_funcs;
 	pp_tonga_thermal_initialize(hwmgr);
 	return 0;
 }

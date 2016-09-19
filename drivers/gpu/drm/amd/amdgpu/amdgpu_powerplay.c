@@ -30,6 +30,7 @@
 #include "amdgpu_pm.h"
 #include <drm/amdgpu_drm.h>
 #include "amdgpu_powerplay.h"
+#include "si_dpm.h"
 #include "cik_dpm.h"
 #include "vi_dpm.h"
 
@@ -52,10 +53,6 @@ static int amdgpu_powerplay_init(struct amdgpu_device *adev)
 		pp_init->chip_family = adev->family;
 		pp_init->chip_id = adev->asic_type;
 		pp_init->device = amdgpu_cgs_create_device(adev);
-		pp_init->rev_id = adev->pdev->revision;
-		pp_init->sub_sys_id = adev->pdev->subsystem_device;
-		pp_init->sub_vendor_id = adev->pdev->subsystem_vendor;
-
 		ret = amd_powerplay_init(pp_init, amd_pp);
 		kfree(pp_init);
 #endif
@@ -63,6 +60,15 @@ static int amdgpu_powerplay_init(struct amdgpu_device *adev)
 		amd_pp->pp_handle = (void *)adev;
 
 		switch (adev->asic_type) {
+#ifdef CONFIG_DRM_AMDGPU_SI
+		case CHIP_TAHITI:
+		case CHIP_PITCAIRN:
+		case CHIP_VERDE:
+		case CHIP_OLAND:
+		case CHIP_HAINAN:
+			amd_pp->ip_funcs = &si_dpm_ip_funcs;
+		break;
+#endif
 #ifdef CONFIG_DRM_AMDGPU_CIK
 		case CHIP_BONAIRE:
 		case CHIP_HAWAII:

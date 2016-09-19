@@ -152,7 +152,7 @@ int polaris10_fan_ctrl_set_default_mode(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int polaris10_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr)
+static int polaris10_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr)
 {
 	int result;
 
@@ -425,7 +425,7 @@ int polaris10_thermal_stop_thermal_controller(struct pp_hwmgr *hwmgr)
 * @param    Result the last failure code
 * @return   result from set temperature range routine
 */
-int tf_polaris10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr,
+static int tf_polaris10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr,
 		void *input, void *output, void *storage, int result)
 {
 	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
@@ -537,7 +537,7 @@ int tf_polaris10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr,
 * @param    Result the last failure code
 * @return   result from set temperature range routine
 */
-int tf_polaris10_thermal_start_smc_fan_control(struct pp_hwmgr *hwmgr,
+static int tf_polaris10_thermal_start_smc_fan_control(struct pp_hwmgr *hwmgr,
 		void *input, void *output, void *storage, int result)
 {
 /* If the fantable setup has failed we could have disabled

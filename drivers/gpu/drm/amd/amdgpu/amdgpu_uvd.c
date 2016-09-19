@@ -249,22 +249,13 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 
 int amdgpu_uvd_sw_fini(struct amdgpu_device *adev)
 {
-	int r;
-
 	kfree(adev->uvd.saved_bo);
 
 	amd_sched_entity_fini(&adev->uvd.ring.sched, &adev->uvd.entity);
 
-	if (adev->uvd.vcpu_bo) {
-		r = amdgpu_bo_reserve(adev->uvd.vcpu_bo, false);
-		if (!r) {
-			amdgpu_bo_kunmap(adev->uvd.vcpu_bo);
-			amdgpu_bo_unpin(adev->uvd.vcpu_bo);
-			amdgpu_bo_unreserve(adev->uvd.vcpu_bo);
-		}
-
-		amdgpu_bo_unref(&adev->uvd.vcpu_bo);
-	}
+	amdgpu_bo_free_kernel(&adev->uvd.vcpu_bo,
+			      &adev->uvd.gpu_addr,
+			      (void **)&adev->uvd.cpu_addr);
 
 	amdgpu_ring_fini(&adev->uvd.ring);
 
@@ -890,6 +881,10 @@ int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx)
 			  ib->length_dw);
 		return -EINVAL;
 	}
+
+	r = amdgpu_cs_sysvm_access_required(parser);
+	if (r)
+		return r;
 
 	ctx.parser = parser;
 	ctx.buf_sizes = buf_sizes;

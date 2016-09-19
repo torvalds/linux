@@ -26,13 +26,13 @@
 
 #include "gpu_scheduler.h"
 
-#define AMDGPU_PL_GDS		TTM_PL_PRIV0
-#define AMDGPU_PL_GWS		TTM_PL_PRIV1
-#define AMDGPU_PL_OA		TTM_PL_PRIV2
+#define AMDGPU_PL_GDS		(TTM_PL_PRIV + 0)
+#define AMDGPU_PL_GWS		(TTM_PL_PRIV + 1)
+#define AMDGPU_PL_OA		(TTM_PL_PRIV + 2)
 
-#define AMDGPU_PL_FLAG_GDS		TTM_PL_FLAG_PRIV0
-#define AMDGPU_PL_FLAG_GWS		TTM_PL_FLAG_PRIV1
-#define AMDGPU_PL_FLAG_OA		TTM_PL_FLAG_PRIV2
+#define AMDGPU_PL_FLAG_GDS		(TTM_PL_FLAG_PRIV << 0)
+#define AMDGPU_PL_FLAG_GWS		(TTM_PL_FLAG_PRIV << 1)
+#define AMDGPU_PL_FLAG_OA		(TTM_PL_FLAG_PRIV << 2)
 
 #define AMDGPU_TTM_LRU_SIZE	20
 
@@ -77,4 +77,7 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 			struct fence **fence);
 
 int amdgpu_mmap(struct file *filp, struct vm_area_struct *vma);
+bool amdgpu_ttm_is_bound(struct ttm_tt *ttm);
+int amdgpu_ttm_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem);
+
 #endif

@@ -41,6 +41,9 @@
 #include "atom.h"
 #include "amdgpu_atombios.h"
 #include "amd_pcie.h"
+#ifdef CONFIG_DRM_AMDGPU_SI
+#include "si.h"
+#endif
 #ifdef CONFIG_DRM_AMDGPU_CIK
 #include "cik.h"
 #endif
@@ -52,6 +55,11 @@ static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev);
 static void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev);
 
 static const char *amdgpu_asic_name[] = {
+	"TAHITI",
+	"PITCAIRN",
+	"VERDE",
+	"OLAND",
+	"HAINAN",
 	"BONAIRE",
 	"KAVERI",
 	"KABINI",
@@ -1027,7 +1035,7 @@ static void amdgpu_switcheroo_set_state(struct pci_dev *pdev, enum vga_switchero
 		/* don't suspend or resume card normally */
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 
-		amdgpu_resume_kms(dev, true, true);
+		amdgpu_device_resume(dev, true, true);
 
 		dev->pdev->d3_delay = d3_delay;
 
@@ -1037,7 +1045,7 @@ static void amdgpu_switcheroo_set_state(struct pci_dev *pdev, enum vga_switchero
 		printk(KERN_INFO "amdgpu: switched off\n");
 		drm_kms_helper_poll_disable(dev);
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
-		amdgpu_suspend_kms(dev, true, true);
+		amdgpu_device_suspend(dev, true, true);
 		dev->switch_power_state = DRM_SWITCH_POWER_OFF;
 	}
 }
@@ -1231,6 +1239,18 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 		if (r)
 			return r;
 		break;
+#ifdef CONFIG_DRM_AMDGPU_SI
+	case CHIP_VERDE:
+	case CHIP_TAHITI:
+	case CHIP_PITCAIRN:
+	case CHIP_OLAND:
+	case CHIP_HAINAN:
+		adev->family = AMDGPU_FAMILY_SI;
+		r = si_set_ip_blocks(adev);
+		if (r)
+			return r;
+		break;
+#endif
 #ifdef CONFIG_DRM_AMDGPU_CIK
 	case CHIP_BONAIRE:
 	case CHIP_HAWAII:
@@ -1346,6 +1366,9 @@ static int amdgpu_late_init(struct amdgpu_device *adev)
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_block_status[i].valid)
+			continue;
+		if (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_UVD ||
+			adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_VCE)
 			continue;
 		/* enable clockgating to save power */
 		r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
@@ -1490,6 +1513,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 {
 	int r, i;
 	bool runtime = false;
+	u32 max_MBps;
 
 	adev->shutdown = false;
 	adev->dev = &pdev->dev;
@@ -1513,6 +1537,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	adev->smc_wreg = &amdgpu_invalid_wreg;
 	adev->pcie_rreg = &amdgpu_invalid_rreg;
 	adev->pcie_wreg = &amdgpu_invalid_wreg;
+	adev->pciep_rreg = &amdgpu_invalid_rreg;
+	adev->pciep_wreg = &amdgpu_invalid_wreg;
 	adev->uvd_ctx_rreg = &amdgpu_invalid_rreg;
 	adev->uvd_ctx_wreg = &amdgpu_invalid_wreg;
 	adev->didt_rreg = &amdgpu_invalid_rreg;
@@ -1549,12 +1575,22 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	spin_lock_init(&adev->didt_idx_lock);
 	spin_lock_init(&adev->gc_cac_idx_lock);
 	spin_lock_init(&adev->audio_endpt_idx_lock);
+	spin_lock_init(&adev->mm_stats.lock);
 
 	INIT_LIST_HEAD(&adev->shadow_list);
 	mutex_init(&adev->shadow_list_lock);
 
-	adev->rmmio_base = pci_resource_start(adev->pdev, 5);
-	adev->rmmio_size = pci_resource_len(adev->pdev, 5);
+	INIT_LIST_HEAD(&adev->gtt_list);
+	spin_lock_init(&adev->gtt_list_lock);
+
+	if (adev->asic_type >= CHIP_BONAIRE) {
+		adev->rmmio_base = pci_resource_start(adev->pdev, 5);
+		adev->rmmio_size = pci_resource_len(adev->pdev, 5);
+	} else {
+		adev->rmmio_base = pci_resource_start(adev->pdev, 2);
+		adev->rmmio_size = pci_resource_len(adev->pdev, 2);
+	}
+
 	adev->rmmio = ioremap(adev->rmmio_base, adev->rmmio_size);
 	if (adev->rmmio == NULL) {
 		return -ENOMEM;
@@ -1562,8 +1598,9 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	DRM_INFO("register mmio base: 0x%08X\n", (uint32_t)adev->rmmio_base);
 	DRM_INFO("register mmio size: %u\n", (unsigned)adev->rmmio_size);
 
-	/* doorbell bar mapping */
-	amdgpu_doorbell_init(adev);
+	if (adev->asic_type >= CHIP_BONAIRE)
+		/* doorbell bar mapping */
+		amdgpu_doorbell_init(adev);
 
 	/* io port mapping */
 	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
@@ -1659,6 +1696,14 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	}
 
 	adev->accel_working = true;
+
+	/* Initialize the buffer migration limit. */
+	if (amdgpu_moverate >= 0)
+		max_MBps = amdgpu_moverate;
+	else
+		max_MBps = 8; /* Allow 8 MB/s. */
+	/* Get a log2 for easy divisions. */
+	adev->mm_stats.log2_max_MBps = ilog2(max(1u, max_MBps));
 
 	amdgpu_fbdev_init(adev);
 
@@ -1764,7 +1809,8 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	adev->rio_mem = NULL;
 	iounmap(adev->rmmio);
 	adev->rmmio = NULL;
-	amdgpu_doorbell_fini(adev);
+	if (adev->asic_type >= CHIP_BONAIRE)
+		amdgpu_doorbell_fini(adev);
 	amdgpu_debugfs_regs_cleanup(adev);
 	amdgpu_debugfs_remove_files(adev);
 }
@@ -1774,7 +1820,7 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
  * Suspend & resume.
  */
 /**
- * amdgpu_suspend_kms - initiate device suspend
+ * amdgpu_device_suspend - initiate device suspend
  *
  * @pdev: drm dev pointer
  * @state: suspend state
@@ -1783,7 +1829,7 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
  * Returns 0 for success or an error on failure.
  * Called at driver suspend.
  */
-int amdgpu_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
+int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 {
 	struct amdgpu_device *adev;
 	struct drm_crtc *crtc;
@@ -1796,7 +1842,8 @@ int amdgpu_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
 
 	adev = dev->dev_private;
 
-	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF ||
+	    dev->switch_power_state == DRM_SWITCH_POWER_DYNAMIC_OFF)
 		return 0;
 
 	drm_kms_helper_poll_disable(dev);
@@ -1851,6 +1898,10 @@ int amdgpu_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
 		/* Shut down the device */
 		pci_disable_device(dev->pdev);
 		pci_set_power_state(dev->pdev, PCI_D3hot);
+	} else {
+		r = amdgpu_asic_reset(adev);
+		if (r)
+			DRM_ERROR("amdgpu asic reset failed\n");
 	}
 
 	if (fbcon) {
@@ -1862,7 +1913,7 @@ int amdgpu_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
 }
 
 /**
- * amdgpu_resume_kms - initiate device resume
+ * amdgpu_device_resume - initiate device resume
  *
  * @pdev: drm dev pointer
  *
@@ -1870,32 +1921,37 @@ int amdgpu_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
  * Returns 0 for success or an error on failure.
  * Called at driver resume.
  */
-int amdgpu_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
+int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 {
 	struct drm_connector *connector;
 	struct amdgpu_device *adev = dev->dev_private;
 	struct drm_crtc *crtc;
 	int r;
 
-	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF ||
+	    dev->switch_power_state == DRM_SWITCH_POWER_DYNAMIC_OFF)
 		return 0;
 
-	if (fbcon) {
+	if (fbcon)
 		console_lock();
-	}
+
 	if (resume) {
 		pci_set_power_state(dev->pdev, PCI_D0);
 		pci_restore_state(dev->pdev);
-		if (pci_enable_device(dev->pdev)) {
+		r = pci_enable_device(dev->pdev);
+		if (r) {
 			if (fbcon)
 				console_unlock();
-			return -1;
+			return r;
 		}
 	}
 
 	/* post card */
-	if (!amdgpu_card_posted(adev))
-		amdgpu_atom_asic_init(adev->mode_info.atom_context);
+	if (!amdgpu_card_posted(adev) || !resume) {
+		r = amdgpu_atom_asic_init(adev->mode_info.atom_context);
+		if (r)
+			DRM_ERROR("amdgpu asic init failed\n");
+	}
 
 	r = amdgpu_resume(adev);
 	if (r)
@@ -2163,6 +2219,11 @@ retry:
 	}
 	if (!r) {
 		amdgpu_irq_gpu_reset_resume_helper(adev);
+		if (need_full_reset && amdgpu_need_backup(adev)) {
+			r = amdgpu_ttm_recover_gart(adev);
+			if (r)
+				DRM_ERROR("gart recovery failed!!!\n");
+		}
 		r = amdgpu_ib_ring_tests(adev);
 		if (r) {
 			dev_err(adev->dev, "ib ring test failed (%d).\n", r);
@@ -2600,7 +2661,7 @@ static ssize_t amdgpu_debugfs_regs_smc_read(struct file *f, char __user *buf,
 	while (size) {
 		uint32_t value;
 
-		value = RREG32_SMC(*pos >> 2);
+		value = RREG32_SMC(*pos);
 		r = put_user(value, (uint32_t *)buf);
 		if (r)
 			return r;
@@ -2631,7 +2692,7 @@ static ssize_t amdgpu_debugfs_regs_smc_write(struct file *f, const char __user *
 		if (r)
 			return r;
 
-		WREG32_SMC(*pos >> 2, value);
+		WREG32_SMC(*pos, value);
 
 		result += 4;
 		buf += 4;

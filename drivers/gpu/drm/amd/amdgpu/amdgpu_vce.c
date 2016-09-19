@@ -634,7 +634,11 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 	uint32_t allocated = 0;
 	uint32_t tmp, handle = 0;
 	uint32_t *size = &tmp;
-	int i, r = 0, idx = 0;
+	int i, r, idx = 0;
+
+	r = amdgpu_cs_sysvm_access_required(p);
+	if (r)
+		return r;
 
 	while (idx < ib->length_dw) {
 		uint32_t len = amdgpu_get_ib_value(p, ib_idx, idx);
@@ -799,6 +803,18 @@ void amdgpu_vce_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq,
 	amdgpu_ring_write(ring, VCE_CMD_END);
 }
 
+unsigned amdgpu_vce_ring_get_emit_ib_size(struct amdgpu_ring *ring)
+{
+	return
+		4; /* amdgpu_vce_ring_emit_ib */
+}
+
+unsigned amdgpu_vce_ring_get_dma_frame_size(struct amdgpu_ring *ring)
+{
+	return
+		6; /* amdgpu_vce_ring_emit_fence  x1 no user fence */
+}
+
 /**
  * amdgpu_vce_ring_test_ring - test if VCE ring is working
  *
@@ -850,8 +866,8 @@ int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	struct fence *fence = NULL;
 	long r;
 
-	/* skip vce ring1 ib test for now, since it's not reliable */
-	if (ring == &ring->adev->vce.ring[1])
+	/* skip vce ring1/2 ib test for now, since it's not reliable */
+	if (ring != &ring->adev->vce.ring[0])
 		return 0;
 
 	r = amdgpu_vce_get_create_msg(ring, 1, NULL);

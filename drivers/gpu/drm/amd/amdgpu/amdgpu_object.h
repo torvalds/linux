@@ -31,6 +31,8 @@
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 
+#define AMDGPU_BO_INVALID_OFFSET	LONG_MAX
+
 /**
  * amdgpu_mem_type_to_domain - return domain corresponding to mem_type
  * @mem_type:	ttm memory type
@@ -128,6 +130,8 @@ int amdgpu_bo_create_kernel(struct amdgpu_device *adev,
 			    unsigned long size, int align,
 			    u32 domain, struct amdgpu_bo **bo_ptr,
 			    u64 *gpu_addr, void **cpu_addr);
+void amdgpu_bo_free_kernel(struct amdgpu_bo **bo, u64 *gpu_addr,
+			   void **cpu_addr);
 int amdgpu_bo_kmap(struct amdgpu_bo *bo, void **ptr);
 void amdgpu_bo_kunmap(struct amdgpu_bo *bo);
 struct amdgpu_bo *amdgpu_bo_ref(struct amdgpu_bo *bo);

@@ -639,7 +639,7 @@ void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
  * Used at driver startup.
  * Returns true if virtual or false if not.
  */
-static bool radeon_device_is_virtual(void)
+bool radeon_device_is_virtual(void)
 {
 #ifdef CONFIG_X86
 	return boot_cpu_has(X86_FEATURE_HYPERVISOR);
@@ -1594,7 +1594,8 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend,
 
 	rdev = dev->dev_private;
 
-	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF ||
+	    dev->switch_power_state == DRM_SWITCH_POWER_DYNAMIC_OFF)
 		return 0;
 
 	drm_kms_helper_poll_disable(dev);
@@ -1689,7 +1690,8 @@ int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 	struct drm_crtc *crtc;
 	int r;
 
-	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF ||
+	    dev->switch_power_state == DRM_SWITCH_POWER_DYNAMIC_OFF)
 		return 0;
 
 	if (fbcon) {
@@ -1956,14 +1958,3 @@ static void radeon_debugfs_remove_files(struct radeon_device *rdev)
 	}
 #endif
 }
-
-#if defined(CONFIG_DEBUG_FS)
-int radeon_debugfs_init(struct drm_minor *minor)
-{
-	return 0;
-}
-
-void radeon_debugfs_cleanup(struct drm_minor *minor)
-{
-}
-#endif

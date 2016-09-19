@@ -781,7 +781,7 @@ static int iceland_upload_firmware(struct pp_hwmgr *hwmgr)
  * @param    hwmgr  the address of the powerplay hardware manager.
  * @return   always 0
  */
-int iceland_process_firmware_header(struct pp_hwmgr *hwmgr)
+static int iceland_process_firmware_header(struct pp_hwmgr *hwmgr)
 {
 	iceland_hwmgr *data = (iceland_hwmgr *)(hwmgr->backend);
 
@@ -1353,14 +1353,6 @@ static int iceland_populate_smc_mvdd_table(struct pp_hwmgr *hwmgr,
 	CONVERT_FROM_HOST_TO_SMC_UL(table->MvddLevelCount);
 
 	return 0;
-}
-
-/**
- * Convert a voltage value in mv unit to VID number required by SMU firmware
- */
-static uint8_t convert_to_vid(uint16_t vddc)
-{
-	return (uint8_t) ((6200 - (vddc * VOLTAGE_SCALE)) / 25);
 }
 
 int iceland_populate_bapm_vddc_vid_sidd(struct pp_hwmgr *hwmgr)
@@ -2606,7 +2598,7 @@ static int iceland_populate_smc_initial_state(struct pp_hwmgr *hwmgr)
  * @param    pInput  the pointer to input data (PowerState)
  * @return   always 0
  */
-int iceland_init_smc_table(struct pp_hwmgr *hwmgr)
+static int iceland_init_smc_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
 	iceland_hwmgr *data = (iceland_hwmgr *)(hwmgr->backend);
@@ -4629,7 +4621,7 @@ static int iceland_update_vce_dpm(struct pp_hwmgr *hwmgr, const void *input)
 	return 0;
 }
 
-int iceland_update_sclk_threshold(struct pp_hwmgr *hwmgr)
+static int iceland_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 {
 	iceland_hwmgr *data = (iceland_hwmgr *)(hwmgr->backend);
 

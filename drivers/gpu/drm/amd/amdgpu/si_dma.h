@@ -20,16 +20,10 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef TONGA_PROCESSPPTABLES_H
-#define TONGA_PROCESSPPTABLES_H
 
-#include "hwmgr.h"
+#ifndef __SI_DMA_H__
+#define __SI_DMA_H__
 
-extern const struct pp_table_func tonga_pptable_funcs;
-extern int tonga_get_number_of_powerplay_table_entries(struct pp_hwmgr *hwmgr);
-extern int tonga_get_powerplay_table_entry(struct pp_hwmgr *hwmgr, uint32_t entry_index,
-		struct pp_power_state *power_state, int (*call_back_func)(struct pp_hwmgr *, void *,
-				struct pp_power_state *, void *, uint32_t));
+extern const struct amd_ip_funcs si_dma_ip_funcs;
 
 #endif
-

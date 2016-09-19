@@ -1,3 +1,10 @@
+config DRM_AMDGPU_SI
+	bool "Enable amdgpu support for SI parts"
+	depends on DRM_AMDGPU
+	help
+	  Choose this option if you want to enable experimental support
+	  for SI asics.
+
 config DRM_AMDGPU_CIK
 	bool "Enable amdgpu support for CIK parts"
 	depends on DRM_AMDGPU

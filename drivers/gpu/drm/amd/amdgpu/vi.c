@@ -1650,7 +1650,7 @@ static int vi_common_early_init(void *handle)
 			AMD_PG_SUPPORT_GFX_PIPELINE |
 			AMD_PG_SUPPORT_UVD |
 			AMD_PG_SUPPORT_VCE;
-		adev->external_rev_id = adev->rev_id + 0x1;
+		adev->external_rev_id = adev->rev_id + 0x61;
 		break;
 	default:
 		/* FIXME: not supported yet */

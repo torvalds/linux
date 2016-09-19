@@ -30,10 +30,10 @@
 #include "amdgpu.h"
 #include "amdgpu_vce.h"
 #include "cikd.h"
-
 #include "vce/vce_2_0_d.h"
 #include "vce/vce_2_0_sh_mask.h"
-
+#include "smu/smu_7_0_1_d.h"
+#include "smu/smu_7_0_1_sh_mask.h"
 #include "oss/oss_2_0_d.h"
 #include "oss/oss_2_0_sh_mask.h"
 
@@ -193,6 +193,8 @@ static int vce_v2_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	adev->vce.num_rings = 2;
+
 	vce_v2_0_set_ring_funcs(adev);
 	vce_v2_0_set_irq_funcs(adev);
 
@@ -202,7 +204,7 @@ static int vce_v2_0_early_init(void *handle)
 static int vce_v2_0_sw_init(void *handle)
 {
 	struct amdgpu_ring *ring;
-	int r;
+	int r, i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* VCE */
@@ -219,19 +221,14 @@ static int vce_v2_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	ring = &adev->vce.ring[0];
-	sprintf(ring->name, "vce0");
-	r = amdgpu_ring_init(adev, ring, 512, VCE_CMD_NO_OP, 0xf,
-			     &adev->vce.irq, 0, AMDGPU_RING_TYPE_VCE);
-	if (r)
-		return r;
-
-	ring = &adev->vce.ring[1];
-	sprintf(ring->name, "vce1");
-	r = amdgpu_ring_init(adev, ring, 512, VCE_CMD_NO_OP, 0xf,
-			     &adev->vce.irq, 0, AMDGPU_RING_TYPE_VCE);
-	if (r)
-		return r;
+	for (i = 0; i < adev->vce.num_rings; i++) {
+		ring = &adev->vce.ring[i];
+		sprintf(ring->name, "vce%d", i);
+		r = amdgpu_ring_init(adev, ring, 512, VCE_CMD_NO_OP, 0xf,
+				     &adev->vce.irq, 0, AMDGPU_RING_TYPE_VCE);
+		if (r)
+			return r;
+	}
 
 	return r;
 }
@@ -254,29 +251,23 @@ static int vce_v2_0_sw_fini(void *handle)
 
 static int vce_v2_0_hw_init(void *handle)
 {
-	struct amdgpu_ring *ring;
-	int r;
+	int r, i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	r = vce_v2_0_start(adev);
+	/* this error mean vcpu not in running state, so just skip ring test, not stop driver initialize */
 	if (r)
-/* this error mean vcpu not in running state, so just skip ring test, not stop driver initialize */
 		return 0;
 
-	ring = &adev->vce.ring[0];
-	ring->ready = true;
-	r = amdgpu_ring_test_ring(ring);
-	if (r) {
-		ring->ready = false;
-		return r;
-	}
+	for (i = 0; i < adev->vce.num_rings; i++)
+		adev->vce.ring[i].ready = false;
 
-	ring = &adev->vce.ring[1];
-	ring->ready = true;
-	r = amdgpu_ring_test_ring(ring);
-	if (r) {
-		ring->ready = false;
-		return r;
+	for (i = 0; i < adev->vce.num_rings; i++) {
+		r = amdgpu_ring_test_ring(&adev->vce.ring[i]);
+		if (r)
+			return r;
+		else
+			adev->vce.ring[i].ready = true;
 	}
 
 	DRM_INFO("VCE initialized successfully.\n");
@@ -548,11 +539,28 @@ static int vce_v2_0_process_interrupt(struct amdgpu_device *adev,
 	return 0;
 }
 
+static void vce_v2_0_set_bypass_mode(struct amdgpu_device *adev, bool enable)
+{
+	u32 tmp = RREG32_SMC(ixGCK_DFS_BYPASS_CNTL);
+
+	if (enable)
+		tmp |= GCK_DFS_BYPASS_CNTL__BYPASSECLK_MASK;
+	else
+		tmp &= ~GCK_DFS_BYPASS_CNTL__BYPASSECLK_MASK;
+
+	WREG32_SMC(ixGCK_DFS_BYPASS_CNTL, tmp);
+}
+
+
 static int vce_v2_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
 	bool gate = false;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
+
+
+	vce_v2_0_set_bypass_mode(adev, enable);
 
 	if (state == AMD_CG_STATE_GATE)
 		gate = true;
@@ -614,12 +622,16 @@ static const struct amdgpu_ring_funcs vce_v2_0_ring_funcs = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_vce_ring_begin_use,
 	.end_use = amdgpu_vce_ring_end_use,
+	.get_emit_ib_size = amdgpu_vce_ring_get_emit_ib_size,
+	.get_dma_frame_size = amdgpu_vce_ring_get_dma_frame_size,
 };
 
 static void vce_v2_0_set_ring_funcs(struct amdgpu_device *adev)
 {
-	adev->vce.ring[0].funcs = &vce_v2_0_ring_funcs;
-	adev->vce.ring[1].funcs = &vce_v2_0_ring_funcs;
+	int i;
+
+	for (i = 0; i < adev->vce.num_rings; i++)
+		adev->vce.ring[i].funcs = &vce_v2_0_ring_funcs;
 }
 
 static const struct amdgpu_irq_src_funcs vce_v2_0_irq_funcs = {

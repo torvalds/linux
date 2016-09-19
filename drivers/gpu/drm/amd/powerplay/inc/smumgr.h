@@ -74,7 +74,6 @@ struct pp_smumgr_func {
 struct pp_smumgr {
 	uint32_t chip_family;
 	uint32_t chip_id;
-	uint32_t hw_revision;
 	void *device;
 	void *backend;
 	uint32_t usec_timeout;
@@ -121,6 +120,12 @@ extern int smu_allocate_memory(void *device, uint32_t size,
 			 void **kptr, void *handle);
 
 extern int smu_free_memory(void *device, void *handle);
+
+extern int cz_smum_init(struct pp_smumgr *smumgr);
+extern int iceland_smum_init(struct pp_smumgr *smumgr);
+extern int tonga_smum_init(struct pp_smumgr *smumgr);
+extern int fiji_smum_init(struct pp_smumgr *smumgr);
+extern int polaris10_smum_init(struct pp_smumgr *smumgr);
 
 #define SMUM_FIELD_SHIFT(reg, field) reg##__##field##__SHIFT
 

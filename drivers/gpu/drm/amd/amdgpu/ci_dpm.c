@@ -5396,7 +5396,7 @@ static void ci_dpm_disable(struct amdgpu_device *adev)
 	amdgpu_irq_put(adev, &adev->pm.dpm.thermal.irq,
 		       AMDGPU_THERMAL_IRQ_HIGH_TO_LOW);
 
-	ci_dpm_powergate_uvd(adev, false);
+	ci_dpm_powergate_uvd(adev, true);
 
 	if (!amdgpu_ci_is_smc_running(adev))
 		return;
@@ -6036,7 +6036,7 @@ static int ci_dpm_init(struct amdgpu_device *adev)
 
 	pi->caps_dynamic_ac_timing = true;
 
-	pi->uvd_power_gated = false;
+	pi->uvd_power_gated = true;
 
 	/* make sure dc limits are valid */
 	if ((adev->pm.dpm.dyn_state.max_clock_voltage_on_dc.sclk == 0) ||
@@ -6178,8 +6178,6 @@ static int ci_dpm_late_init(void *handle)
 	ret = ci_set_temperature_range(adev);
 	if (ret)
 		return ret;
-
-	ci_dpm_powergate_uvd(adev, true);
 
 	return 0;
 }

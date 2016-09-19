@@ -91,6 +91,7 @@ static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
 				      uint32_t *offset)
 {
 	struct drm_gem_object *gobj;
+	unsigned long size;
 
 	gobj = drm_gem_object_lookup(p->filp, data->handle);
 	if (gobj == NULL)
@@ -101,6 +102,11 @@ static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
 	p->uf_entry.tv.bo = &p->uf_entry.robj->tbo;
 	p->uf_entry.tv.shared = true;
 	p->uf_entry.user_pages = NULL;
+
+	size = amdgpu_bo_size(p->uf_entry.robj);
+	if (size != PAGE_SIZE || (data->offset + 8) > size)
+		return -EINVAL;
+
 	*offset = data->offset;
 
 	drm_gem_object_unreference_unlocked(gobj);
@@ -235,56 +241,115 @@ free_chunk:
 	return ret;
 }
 
-/* Returns how many bytes TTM can move per IB.
+/* Convert microseconds to bytes. */
+static u64 us_to_bytes(struct amdgpu_device *adev, s64 us)
+{
+	if (us <= 0 || !adev->mm_stats.log2_max_MBps)
+		return 0;
+
+	/* Since accum_us is incremented by a million per second, just
+	 * multiply it by the number of MB/s to get the number of bytes.
+	 */
+	return us << adev->mm_stats.log2_max_MBps;
+}
+
+static s64 bytes_to_us(struct amdgpu_device *adev, u64 bytes)
+{
+	if (!adev->mm_stats.log2_max_MBps)
+		return 0;
+
+	return bytes >> adev->mm_stats.log2_max_MBps;
+}
+
+/* Returns how many bytes TTM can move right now. If no bytes can be moved,
+ * it returns 0. If it returns non-zero, it's OK to move at least one buffer,
+ * which means it can go over the threshold once. If that happens, the driver
+ * will be in debt and no other buffer migrations can be done until that debt
+ * is repaid.
+ *
+ * This approach allows moving a buffer of any size (it's important to allow
+ * that).
+ *
+ * The currency is simply time in microseconds and it increases as the clock
+ * ticks. The accumulated microseconds (us) are converted to bytes and
+ * returned.
  */
 static u64 amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev)
 {
-	u64 real_vram_size = adev->mc.real_vram_size;
-	u64 vram_usage = atomic64_read(&adev->vram_usage);
+	s64 time_us, increment_us;
+	u64 max_bytes;
+	u64 free_vram, total_vram, used_vram;
 
-	/* This function is based on the current VRAM usage.
+	/* Allow a maximum of 200 accumulated ms. This is basically per-IB
+	 * throttling.
 	 *
-	 * - If all of VRAM is free, allow relocating the number of bytes that
-	 *   is equal to 1/4 of the size of VRAM for this IB.
-
-	 * - If more than one half of VRAM is occupied, only allow relocating
-	 *   1 MB of data for this IB.
-	 *
-	 * - From 0 to one half of used VRAM, the threshold decreases
-	 *   linearly.
-	 *         __________________
-	 * 1/4 of -|\               |
-	 * VRAM    | \              |
-	 *         |  \             |
-	 *         |   \            |
-	 *         |    \           |
-	 *         |     \          |
-	 *         |      \         |
-	 *         |       \________|1 MB
-	 *         |----------------|
-	 *    VRAM 0 %             100 %
-	 *         used            used
-	 *
-	 * Note: It's a threshold, not a limit. The threshold must be crossed
-	 * for buffer relocations to stop, so any buffer of an arbitrary size
-	 * can be moved as long as the threshold isn't crossed before
-	 * the relocation takes place. We don't want to disable buffer
-	 * relocations completely.
-	 *
-	 * The idea is that buffers should be placed in VRAM at creation time
-	 * and TTM should only do a minimum number of relocations during
-	 * command submission. In practice, you need to submit at least
-	 * a dozen IBs to move all buffers to VRAM if they are in GTT.
-	 *
-	 * Also, things can get pretty crazy under memory pressure and actual
-	 * VRAM usage can change a lot, so playing safe even at 50% does
-	 * consistently increase performance.
+	 * It means that in order to get full max MBps, at least 5 IBs per
+	 * second must be submitted and not more than 200ms apart from each
+	 * other.
 	 */
+	const s64 us_upper_bound = 200000;
 
-	u64 half_vram = real_vram_size >> 1;
-	u64 half_free_vram = vram_usage >= half_vram ? 0 : half_vram - vram_usage;
-	u64 bytes_moved_threshold = half_free_vram >> 1;
-	return max(bytes_moved_threshold, 1024*1024ull);
+	if (!adev->mm_stats.log2_max_MBps)
+		return 0;
+
+	total_vram = adev->mc.real_vram_size - adev->vram_pin_size;
+	used_vram = atomic64_read(&adev->vram_usage);
+	free_vram = used_vram >= total_vram ? 0 : total_vram - used_vram;
+
+	spin_lock(&adev->mm_stats.lock);
+
+	/* Increase the amount of accumulated us. */
+	time_us = ktime_to_us(ktime_get());
+	increment_us = time_us - adev->mm_stats.last_update_us;
+	adev->mm_stats.last_update_us = time_us;
+	adev->mm_stats.accum_us = min(adev->mm_stats.accum_us + increment_us,
+                                      us_upper_bound);
+
+	/* This prevents the short period of low performance when the VRAM
+	 * usage is low and the driver is in debt or doesn't have enough
+	 * accumulated us to fill VRAM quickly.
+	 *
+	 * The situation can occur in these cases:
+	 * - a lot of VRAM is freed by userspace
+	 * - the presence of a big buffer causes a lot of evictions
+	 *   (solution: split buffers into smaller ones)
+	 *
+	 * If 128 MB or 1/8th of VRAM is free, start filling it now by setting
+	 * accum_us to a positive number.
+	 */
+	if (free_vram >= 128 * 1024 * 1024 || free_vram >= total_vram / 8) {
+		s64 min_us;
+
+		/* Be more aggresive on dGPUs. Try to fill a portion of free
+		 * VRAM now.
+		 */
+		if (!(adev->flags & AMD_IS_APU))
+			min_us = bytes_to_us(adev, free_vram / 4);
+		else
+			min_us = 0; /* Reset accum_us on APUs. */
+
+		adev->mm_stats.accum_us = max(min_us, adev->mm_stats.accum_us);
+	}
+
+	/* This returns 0 if the driver is in debt to disallow (optional)
+	 * buffer moves.
+	 */
+	max_bytes = us_to_bytes(adev, adev->mm_stats.accum_us);
+
+	spin_unlock(&adev->mm_stats.lock);
+	return max_bytes;
+}
+
+/* Report how many bytes have really been moved for the last command
+ * submission. This can result in a debt that can stop buffer migrations
+ * temporarily.
+ */
+static void amdgpu_cs_report_moved_bytes(struct amdgpu_device *adev,
+					 u64 num_bytes)
+{
+	spin_lock(&adev->mm_stats.lock);
+	adev->mm_stats.accum_us -= bytes_to_us(adev, num_bytes);
+	spin_unlock(&adev->mm_stats.lock);
 }
 
 static int amdgpu_cs_bo_validate(struct amdgpu_cs_parser *p,
@@ -297,15 +362,10 @@ static int amdgpu_cs_bo_validate(struct amdgpu_cs_parser *p,
 	if (bo->pin_count)
 		return 0;
 
-	/* Avoid moving this one if we have moved too many buffers
-	 * for this IB already.
-	 *
-	 * Note that this allows moving at least one buffer of
-	 * any size, because it doesn't take the current "bo"
-	 * into account. We don't want to disallow buffer moves
-	 * completely.
+	/* Don't move this buffer if we have depleted our allowance
+	 * to move it. Don't move anything if the threshold is zero.
 	 */
-	if (p->bytes_moved <= p->bytes_moved_threshold)
+	if (p->bytes_moved < p->bytes_moved_threshold)
 		domain = bo->prefered_domains;
 	else
 		domain = bo->allowed_domains;
@@ -317,17 +377,67 @@ retry:
 	p->bytes_moved += atomic64_read(&bo->adev->num_bytes_moved) -
 		initial_bytes_moved;
 
-	if (unlikely(r)) {
-		if (r != -ERESTARTSYS && domain != bo->allowed_domains) {
-			domain = bo->allowed_domains;
-			goto retry;
-		}
+	if (unlikely(r == -ENOMEM) && domain != bo->allowed_domains) {
+		domain = bo->allowed_domains;
+		goto retry;
 	}
 
 	return r;
 }
 
-int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
+/* Last resort, try to evict something from the current working set */
+static bool amdgpu_cs_try_evict(struct amdgpu_cs_parser *p,
+				struct amdgpu_bo_list_entry *lobj)
+{
+	uint32_t domain = lobj->robj->allowed_domains;
+	int r;
+
+	if (!p->evictable)
+		return false;
+
+	for (;&p->evictable->tv.head != &p->validated;
+	     p->evictable = list_prev_entry(p->evictable, tv.head)) {
+
+		struct amdgpu_bo_list_entry *candidate = p->evictable;
+		struct amdgpu_bo *bo = candidate->robj;
+		u64 initial_bytes_moved;
+		uint32_t other;
+
+		/* If we reached our current BO we can forget it */
+		if (candidate == lobj)
+			break;
+
+		other = amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type);
+
+		/* Check if this BO is in one of the domains we need space for */
+		if (!(other & domain))
+			continue;
+
+		/* Check if we can move this BO somewhere else */
+		other = bo->allowed_domains & ~domain;
+		if (!other)
+			continue;
+
+		/* Good we can try to move this BO somewhere else */
+		amdgpu_ttm_placement_from_domain(bo, other);
+		initial_bytes_moved = atomic64_read(&bo->adev->num_bytes_moved);
+		r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
+		p->bytes_moved += atomic64_read(&bo->adev->num_bytes_moved) -
+			initial_bytes_moved;
+
+		if (unlikely(r))
+			break;
+
+		p->evictable = list_prev_entry(p->evictable, tv.head);
+		list_move(&candidate->tv.head, &p->validated);
+
+		return true;
+	}
+
+	return false;
+}
+
+static int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 			    struct list_head *validated)
 {
 	struct amdgpu_bo_list_entry *lobj;
@@ -351,9 +461,15 @@ int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 			binding_userptr = true;
 		}
 
-		r = amdgpu_cs_bo_validate(p, bo);
+		if (p->evictable == lobj)
+			p->evictable = NULL;
+
+		do {
+			r = amdgpu_cs_bo_validate(p, bo);
+		} while (r == -ENOMEM && amdgpu_cs_try_evict(p, lobj));
 		if (r)
 			return r;
+
 		if (bo->shadow) {
 			r = amdgpu_cs_bo_validate(p, bo);
 			if (r)
@@ -481,6 +597,9 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 
 	p->bytes_moved_threshold = amdgpu_cs_get_threshold_for_moves(p->adev);
 	p->bytes_moved = 0;
+	p->evictable = list_last_entry(&p->validated,
+				       struct amdgpu_bo_list_entry,
+				       tv.head);
 
 	r = amdgpu_cs_list_validate(p, &duplicates);
 	if (r) {
@@ -493,6 +612,8 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		DRM_ERROR("amdgpu_cs_list_validate(validated) failed.\n");
 		goto error_validate;
 	}
+
+	amdgpu_cs_report_moved_bytes(p->adev, p->bytes_moved);
 
 	fpriv->vm.last_eviction_counter =
 		atomic64_read(&p->adev->num_evictions);
@@ -524,8 +645,12 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		}
 	}
 
-	if (p->uf_entry.robj)
-		p->job->uf_addr += amdgpu_bo_gpu_offset(p->uf_entry.robj);
+	if (!r && p->uf_entry.robj) {
+		struct amdgpu_bo *uf = p->uf_entry.robj;
+
+		r = amdgpu_ttm_bind(uf->tbo.ttm, &uf->tbo.mem);
+		p->job->uf_addr += amdgpu_bo_gpu_offset(uf);
+	}
 
 error_validate:
 	if (r) {
@@ -735,6 +860,14 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 		if (r)
 			return r;
 
+		if (ib->flags & AMDGPU_IB_FLAG_PREAMBLE) {
+			parser->job->preamble_status |= AMDGPU_PREAMBLE_IB_PRESENT;
+			if (!parser->ctx->preamble_presented) {
+				parser->job->preamble_status |= AMDGPU_PREAMBLE_IB_PRESENT_FIRST;
+				parser->ctx->preamble_presented = true;
+			}
+		}
+
 		if (parser->job->ring && parser->job->ring != ring)
 			return -EINVAL;
 
@@ -874,7 +1007,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	}
 
 	job->owner = p->filp;
-	job->ctx = entity->fence_context;
+	job->fence_ctx = entity->fence_context;
 	p->fence = fence_get(&job->base.s_fence->finished);
 	cs->out.handle = amdgpu_ctx_add_fence(p->ctx, ring, p->fence);
 	job->uf_sequence = cs->out.handle;
@@ -1039,4 +1172,30 @@ amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
 	}
 
 	return NULL;
+}
+
+/**
+ * amdgpu_cs_sysvm_access_required - make BOs accessible by the system VM
+ *
+ * @parser: command submission parser context
+ *
+ * Helper for UVD/VCE VM emulation, make sure BOs are accessible by the system VM.
+ */
+int amdgpu_cs_sysvm_access_required(struct amdgpu_cs_parser *parser)
+{
+	unsigned i;
+	int r;
+
+	if (!parser->bo_list)
+		return 0;
+
+	for (i = 0; i < parser->bo_list->num_entries; i++) {
+		struct amdgpu_bo *bo = parser->bo_list->array[i].robj;
+
+		r = amdgpu_ttm_bind(bo->tbo.ttm, &bo->tbo.mem);
+		if (unlikely(r))
+			return r;
+	}
+
+	return 0;
 }

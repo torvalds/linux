@@ -38,8 +38,6 @@
 #include "amdgpu_trace.h"
 
 
-int amdgpu_ttm_init(struct amdgpu_device *adev);
-void amdgpu_ttm_fini(struct amdgpu_device *adev);
 
 static u64 amdgpu_get_vis_part_size(struct amdgpu_device *adev,
 						struct ttm_mem_reg *mem)
@@ -285,6 +283,35 @@ error_free:
 	amdgpu_bo_unref(bo_ptr);
 
 	return r;
+}
+
+/**
+ * amdgpu_bo_free_kernel - free BO for kernel use
+ *
+ * @bo: amdgpu BO to free
+ *
+ * unmaps and unpin a BO for kernel internal use.
+ */
+void amdgpu_bo_free_kernel(struct amdgpu_bo **bo, u64 *gpu_addr,
+			   void **cpu_addr)
+{
+	if (*bo == NULL)
+		return;
+
+	if (likely(amdgpu_bo_reserve(*bo, false) == 0)) {
+		if (cpu_addr)
+			amdgpu_bo_kunmap(*bo);
+
+		amdgpu_bo_unpin(*bo);
+		amdgpu_bo_unreserve(*bo);
+	}
+	amdgpu_bo_unref(bo);
+
+	if (gpu_addr)
+		*gpu_addr = 0;
+
+	if (cpu_addr)
+		*cpu_addr = NULL;
 }
 
 int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
@@ -646,6 +673,11 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 		dev_err(bo->adev->dev, "%p pin failed\n", bo);
 		goto error;
 	}
+	r = amdgpu_ttm_bind(bo->tbo.ttm, &bo->tbo.mem);
+	if (unlikely(r)) {
+		dev_err(bo->adev->dev, "%p bind failed\n", bo);
+		goto error;
+	}
 
 	bo->pin_count = 1;
 	if (gpu_addr != NULL)
@@ -692,7 +724,7 @@ int amdgpu_bo_unpin(struct amdgpu_bo *bo)
 		bo->adev->vram_pin_size -= amdgpu_bo_size(bo);
 		if (bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
 			bo->adev->invisible_pin_size -= amdgpu_bo_size(bo);
-	} else {
+	} else if (bo->tbo.mem.mem_type == TTM_PL_TT) {
 		bo->adev->gart_pin_size -= amdgpu_bo_size(bo);
 	}
 
@@ -918,8 +950,11 @@ void amdgpu_bo_fence(struct amdgpu_bo *bo, struct fence *fence,
 u64 amdgpu_bo_gpu_offset(struct amdgpu_bo *bo)
 {
 	WARN_ON_ONCE(bo->tbo.mem.mem_type == TTM_PL_SYSTEM);
+	WARN_ON_ONCE(bo->tbo.mem.mem_type == TTM_PL_TT &&
+		     !amdgpu_ttm_is_bound(bo->tbo.ttm));
 	WARN_ON_ONCE(!ww_mutex_is_locked(&bo->tbo.resv->lock) &&
 		     !bo->pin_count);
+	WARN_ON_ONCE(bo->tbo.mem.start == AMDGPU_BO_INVALID_OFFSET);
 
 	return bo->tbo.offset;
 }

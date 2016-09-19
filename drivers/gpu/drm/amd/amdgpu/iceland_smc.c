@@ -121,7 +121,7 @@ out:
 	return result;
 }
 
-void iceland_start_smc(struct amdgpu_device *adev)
+static void iceland_start_smc(struct amdgpu_device *adev)
 {
 	uint32_t val = RREG32_SMC(ixSMC_SYSCON_RESET_CNTL);
 
@@ -129,7 +129,7 @@ void iceland_start_smc(struct amdgpu_device *adev)
 	WREG32_SMC(ixSMC_SYSCON_RESET_CNTL, val);
 }
 
-void iceland_reset_smc(struct amdgpu_device *adev)
+static void iceland_reset_smc(struct amdgpu_device *adev)
 {
 	uint32_t val = RREG32_SMC(ixSMC_SYSCON_RESET_CNTL);
 
@@ -145,7 +145,7 @@ static int iceland_program_jump_on_start(struct amdgpu_device *adev)
 	return 0;
 }
 
-void iceland_stop_smc_clock(struct amdgpu_device *adev)
+static void iceland_stop_smc_clock(struct amdgpu_device *adev)
 {
 	uint32_t val = RREG32_SMC(ixSMC_SYSCON_CLOCK_CNTL_0);
 
@@ -153,7 +153,7 @@ void iceland_stop_smc_clock(struct amdgpu_device *adev)
 	WREG32_SMC(ixSMC_SYSCON_CLOCK_CNTL_0, val);
 }
 
-void iceland_start_smc_clock(struct amdgpu_device *adev)
+static void iceland_start_smc_clock(struct amdgpu_device *adev)
 {
 	uint32_t val = RREG32_SMC(ixSMC_SYSCON_CLOCK_CNTL_0);
 

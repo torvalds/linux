@@ -369,4 +369,8 @@
 #define VCE_CMD_IB_AUTO	0x00000005
 #define VCE_CMD_SEMAPHORE	0x00000006
 
+#define VCE_CMD_IB_VM           0x00000102
+#define VCE_CMD_WAIT_GE         0x00000106
+#define VCE_CMD_UPDATE_PTB      0x00000107
+#define VCE_CMD_FLUSH_TLB       0x00000108
 #endif
