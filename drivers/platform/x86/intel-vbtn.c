@@ -97,7 +97,7 @@ static int intel_vbtn_probe(struct platform_device *device)
 	int err;
 
 	status = acpi_evaluate_object(handle, "VBDL", NULL, NULL);
-	if (!ACPI_SUCCESS(status)) {
+	if (ACPI_FAILURE(status)) {
 		dev_warn(&device->dev, "failed to read Intel Virtual Button driver\n");
 		return -ENODEV;
 	}
