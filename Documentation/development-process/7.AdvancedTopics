@@ -1,11 +1,15 @@
-7: ADVANCED TOPICS
+.. _development_advancedtopics:
+
+Advanced topics
+===============
 
 At this point, hopefully, you have a handle on how the development process
 works.  There is still more to learn, however!  This section will cover a
 number of topics which can be helpful for developers wanting to become a
 regular part of the Linux kernel development process.
 
-7.1: MANAGING PATCHES WITH GIT
+Managing patches with git
+-------------------------
 
 The use of distributed version control for the kernel began in early 2002,
 when Linus first started playing with the proprietary BitKeeper
@@ -114,6 +118,8 @@ radar.  Kernel developers tend to get unhappy when they see that kind of
 thing happening; putting up a git tree with unreviewed or off-topic patches
 can affect your ability to get trees pulled in the future.  Quoting Linus:
 
+::
+
 	You can send me patches, but for me to pull a git patch from you, I
 	need to know that you know what you're doing, and I need to be able
 	to trust things *without* then having to go and check every
@@ -141,7 +147,8 @@ format the request as other developers expect, and will also check to be
 sure that you have remembered to push those changes to the public server.
 
 
-7.2: REVIEWING PATCHES
+Reviewing patches
+-----------------
 
 Some readers will certainly object to putting this section with "advanced
 topics" on the grounds that even beginning kernel developers should be
