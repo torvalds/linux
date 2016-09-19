@@ -289,7 +289,8 @@ act2000_command(act2000_card *card, isdn_ctrl *c)
 			if (copy_from_user(tmp, arg,
 					   sizeof(tmp)))
 				return -EFAULT;
-			if ((ret = act2000_set_msn(card, tmp)))
+			ret = act2000_set_msn(card, tmp);
+			if (ret)
 				return ret;
 			if (card->flags & ACT2000_FLAGS_RUNNING)
 				return (actcapi_manufacturer_req_msn(card));
