@@ -54,7 +54,7 @@ int ins__scnprintf(struct ins *ins, char *bf, size_t size,
 	return ins__raw_scnprintf(ins, bf, size, ops);
 }
 
-static int call__parse(struct ins_operands *ops)
+static int call__parse(struct ins_operands *ops, struct map *map __maybe_unused)
 {
 	char *endptr, *tok, *name;
 
@@ -114,7 +114,7 @@ bool ins__is_call(const struct ins *ins)
 	return ins->ops == &call_ops;
 }
 
-static int jump__parse(struct ins_operands *ops)
+static int jump__parse(struct ins_operands *ops, struct map *map __maybe_unused)
 {
 	const char *s = strchr(ops->raw, '+');
 
@@ -169,7 +169,7 @@ static int comment__symbol(char *raw, char *comment, u64 *addrp, char **namep)
 	return 0;
 }
 
-static int lock__parse(struct ins_operands *ops)
+static int lock__parse(struct ins_operands *ops, struct map *map)
 {
 	char *name;
 
@@ -190,7 +190,7 @@ static int lock__parse(struct ins_operands *ops)
 		return 0;
 
 	if (ops->locked.ins->ops->parse &&
-	    ops->locked.ins->ops->parse(ops->locked.ops) < 0)
+	    ops->locked.ins->ops->parse(ops->locked.ops, map) < 0)
 		goto out_free_ops;
 
 	return 0;
@@ -233,7 +233,7 @@ static struct ins_ops lock_ops = {
 	.scnprintf = lock__scnprintf,
 };
 
-static int mov__parse(struct ins_operands *ops)
+static int mov__parse(struct ins_operands *ops, struct map *map __maybe_unused)
 {
 	char *s = strchr(ops->raw, ','), *target, *comment, prev;
 
@@ -300,7 +300,7 @@ static struct ins_ops mov_ops = {
 	.scnprintf = mov__scnprintf,
 };
 
-static int dec__parse(struct ins_operands *ops)
+static int dec__parse(struct ins_operands *ops, struct map *map __maybe_unused)
 {
 	char *target, *comment, *s, prev;
 
@@ -705,7 +705,7 @@ int hist_entry__inc_addr_samples(struct hist_entry *he, int evidx, u64 ip)
 	return symbol__inc_addr_samples(he->ms.sym, he->ms.map, evidx, ip);
 }
 
-static void disasm_line__init_ins(struct disasm_line *dl)
+static void disasm_line__init_ins(struct disasm_line *dl, struct map *map)
 {
 	dl->ins = ins__find(dl->name);
 
@@ -715,7 +715,7 @@ static void disasm_line__init_ins(struct disasm_line *dl)
 	if (!dl->ins->ops)
 		return;
 
-	if (dl->ins->ops->parse && dl->ins->ops->parse(&dl->ops) < 0)
+	if (dl->ins->ops->parse && dl->ins->ops->parse(&dl->ops, map) < 0)
 		dl->ins = NULL;
 }
 
@@ -757,7 +757,8 @@ out_free_name:
 }
 
 static struct disasm_line *disasm_line__new(s64 offset, char *line,
-					size_t privsize, int line_nr)
+					    size_t privsize, int line_nr,
+					    struct map *map)
 {
 	struct disasm_line *dl = zalloc(sizeof(*dl) + privsize);
 
@@ -772,7 +773,7 @@ static struct disasm_line *disasm_line__new(s64 offset, char *line,
 			if (disasm_line__parse(dl->line, &dl->name, &dl->ops.raw) < 0)
 				goto out_free_line;
 
-			disasm_line__init_ins(dl);
+			disasm_line__init_ins(dl, map);
 		}
 	}
 
@@ -1144,7 +1145,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 			parsed_line = tmp2 + 1;
 	}
 
-	dl = disasm_line__new(offset, parsed_line, privsize, *line_nr);
+	dl = disasm_line__new(offset, parsed_line, privsize, *line_nr, map);
 	free(line);
 	(*line_nr)++;
 
