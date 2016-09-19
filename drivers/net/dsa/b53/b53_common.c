@@ -764,11 +764,6 @@ static int b53_get_sset_count(struct dsa_switch *ds)
 	return b53_get_mib_size(dev);
 }
 
-static int b53_set_addr(struct dsa_switch *ds, u8 *addr)
-{
-	return 0;
-}
-
 static int b53_setup(struct dsa_switch *ds)
 {
 	struct b53_device *dev = ds->priv;
@@ -1466,7 +1461,6 @@ static enum dsa_tag_protocol b53_get_tag_protocol(struct dsa_switch *ds)
 static struct dsa_switch_ops b53_switch_ops = {
 	.get_tag_protocol	= b53_get_tag_protocol,
 	.setup			= b53_setup,
-	.set_addr		= b53_set_addr,
 	.get_strings		= b53_get_strings,
 	.get_ethtool_stats	= b53_get_ethtool_stats,
 	.get_sset_count		= b53_get_sset_count,
