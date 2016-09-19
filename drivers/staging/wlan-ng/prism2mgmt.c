@@ -685,9 +685,7 @@ failed:
 	msg->resultcode.data = P80211ENUM_resultcode_invalid_parameters;
 
 done:
-	result = 0;
-
-	return result;
+	return 0;
 }
 
 /*----------------------------------------------------------------
