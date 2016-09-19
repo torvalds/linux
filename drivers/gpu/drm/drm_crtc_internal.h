@@ -115,6 +115,8 @@ int drm_mode_object_get_properties(struct drm_mode_object *obj, bool atomic,
 				   uint32_t __user *prop_ptr,
 				   uint64_t __user *prop_values,
 				   uint32_t *arg_count_props);
+struct drm_property *drm_mode_obj_find_prop_id(struct drm_mode_object *obj,
+					       uint32_t prop_id);
 
 /* IOCTL */
 
