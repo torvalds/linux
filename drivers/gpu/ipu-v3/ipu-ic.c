@@ -619,7 +619,7 @@ int ipu_ic_task_idma_init(struct ipu_ic *ic, struct ipuv3_channel *channel,
 	ipu_ic_write(ic, ic_idmac_2, IC_IDMAC_2);
 	ipu_ic_write(ic, ic_idmac_3, IC_IDMAC_3);
 
-	if (rot >= IPU_ROTATE_90_RIGHT)
+	if (ipu_rot_mode_is_irt(rot))
 		ic->rotation = true;
 
 unlock:

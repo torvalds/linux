@@ -685,9 +685,6 @@ static void imx_tve_unbind(struct device *dev, struct device *master,
 {
 	struct imx_tve *tve = dev_get_drvdata(dev);
 
-	tve->connector.funcs->destroy(&tve->connector);
-	tve->encoder.funcs->destroy(&tve->encoder);
-
 	if (!IS_ERR(tve->dac_reg))
 		regulator_disable(tve->dac_reg);
 }
