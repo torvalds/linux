@@ -5290,6 +5290,16 @@ M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 S:	Maintained
 F:	drivers/staging/greybus/
 
+GREYBUS PROTOCOLS DRIVERS
+M:	Rui Miguel Silva <rmfrfs@gmail.com>
+S:	Maintained
+F:	drivers/staging/greybus/sdio.c
+F:	drivers/staging/greybus/light.c
+F:	drivers/staging/greybus/gpio.c
+F:	drivers/staging/greybus/power_supply.c
+F:	drivers/staging/greybus/spi.c
+F:	drivers/staging/greybus/spilib.c
+
 GSPCA FINEPIX SUBDRIVER
 M:	Frank Zago <frank@zago.net>
 L:	linux-media@vger.kernel.org
