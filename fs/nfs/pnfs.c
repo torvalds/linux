@@ -924,6 +924,7 @@ pnfs_alloc_init_layoutget_args(struct pnfs_layout_hdr *lo,
 {
 	struct inode *ino = lo->plh_inode;
 	struct nfs_server *server = NFS_SERVER(ino);
+	size_t max_pages = max_response_pages(server);
 	struct nfs4_layoutget *lgp;
 	loff_t i_size;
 
@@ -932,6 +933,15 @@ pnfs_alloc_init_layoutget_args(struct pnfs_layout_hdr *lo,
 	lgp = kzalloc(sizeof(*lgp), gfp_flags);
 	if (lgp == NULL)
 		return NULL;
+
+	lgp->args.layout.pages = nfs4_alloc_pages(max_pages, gfp_flags);
+	if (!lgp->args.layout.pages) {
+		kfree(lgp);
+		return NULL;
+	}
+	lgp->args.layout.pglen = max_pages * PAGE_SIZE;
+	lgp->res.layoutp = &lgp->args.layout;
+
 
 	i_size = i_size_read(ino);
 
@@ -1835,7 +1845,7 @@ lookup_again:
 		goto out_put_layout_hdr;
 	}
 
-	lseg = nfs4_proc_layoutget(lgp, &timeout, gfp_flags);
+	lseg = nfs4_proc_layoutget(lgp, &timeout);
 	trace_pnfs_update_layout(ino, pos, count, iomode, lo, lseg,
 				 PNFS_UPDATE_LAYOUT_SEND_LAYOUTGET);
 	atomic_dec(&lo->plh_outstanding);
