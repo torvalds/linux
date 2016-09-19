@@ -145,7 +145,7 @@ __faddr2line() {
 
 		local hexsize=0x$(printf %x $sym_size)
 		echo "$func+$offset/$hexsize:"
-		addr2line -fpie $objfile $hexaddr | sed "s;$dir_prefix;;"
+		addr2line -fpie $objfile $hexaddr | sed "s; $dir_prefix\(\./\)*; ;"
 		DONE=1
 
 	done < <(readelf -sW $objfile | awk -v f=$func '$8 == f {print}')
