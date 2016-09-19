@@ -123,8 +123,5 @@ parameters may be changed at runtime by the command
 			See comment before function dc390_setup() in
 			drivers/scsi/tmscsim.c.
 
-	u14-34f=	[HW,SCSI] UltraStor 14F/34F SCSI host adapter
-			See header of drivers/scsi/u14-34f.c.
-
 	wd33c93=	[HW,SCSI]
 			See header of drivers/scsi/wd33c93.c.
