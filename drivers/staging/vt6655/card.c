@@ -619,7 +619,7 @@ CARDvSafeResetRx(
 static unsigned short CARDwGetCCKControlRate(struct vnt_private *priv,
 					     unsigned short wRateIdx)
 {
-	unsigned int ui = (unsigned int) wRateIdx;
+	unsigned int ui = (unsigned int)wRateIdx;
 
 	while (ui > RATE_1M) {
 		if (priv->basic_rates & ((u32)0x1 << ui))
@@ -645,7 +645,7 @@ static unsigned short CARDwGetCCKControlRate(struct vnt_private *priv,
 static unsigned short CARDwGetOFDMControlRate(struct vnt_private *priv,
 					      unsigned short wRateIdx)
 {
-	unsigned int ui = (unsigned int) wRateIdx;
+	unsigned int ui = (unsigned int)wRateIdx;
 
 	pr_debug("BASIC RATE: %X\n", priv->basic_rates);
 
