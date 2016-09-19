@@ -185,7 +185,7 @@ static void dce_v6_0_pageflip_interrupt_init(struct amdgpu_device *adev)
 	unsigned i;
 
 	/* Enable pflip interrupts */
-	for (i = 0; i <= adev->mode_info.num_crtc; i++)
+	for (i = 0; i < adev->mode_info.num_crtc; i++)
 		amdgpu_irq_get(adev, &adev->pageflip_irq, i);
 }
 
@@ -194,7 +194,7 @@ static void dce_v6_0_pageflip_interrupt_fini(struct amdgpu_device *adev)
 	unsigned i;
 
 	/* Disable pflip interrupts */
-	for (i = 0; i <= adev->mode_info.num_crtc; i++)
+	for (i = 0; i < adev->mode_info.num_crtc; i++)
 		amdgpu_irq_put(adev, &adev->pageflip_irq, i);
 }
 
