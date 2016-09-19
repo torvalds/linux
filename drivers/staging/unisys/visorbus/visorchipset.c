@@ -256,9 +256,35 @@ static ssize_t boottotool_store(struct device *dev,
 static DEVICE_ATTR_RW(boottotool);
 
 static ssize_t error_show(struct device *dev, struct device_attribute *attr,
-			  char *buf);
+			  char *buf)
+{
+	u32 error = 0;
+
+	visorchannel_read(controlvm_channel,
+			  offsetof(struct spar_controlvm_channel_protocol,
+				   installation_error),
+			  &error, sizeof(u32));
+	return scnprintf(buf, PAGE_SIZE, "%i\n", error);
+}
+
 static ssize_t error_store(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count);
+			   const char *buf, size_t count)
+{
+	u32 error;
+	int ret;
+
+	if (kstrtou32(buf, 10, &error))
+		return -EINVAL;
+
+	ret = visorchannel_write
+		(controlvm_channel,
+		 offsetof(struct spar_controlvm_channel_protocol,
+			  installation_error),
+		 &error, sizeof(u32));
+	if (ret)
+		return ret;
+	return count;
+}
 static DEVICE_ATTR_RW(error);
 
 static ssize_t textid_show(struct device *dev, struct device_attribute *attr,
@@ -421,37 +447,6 @@ parser_string_get(struct parser_context *ctx)
 		memcpy(value, pscan, value_length);
 	((u8 *)(value))[value_length] = '\0';
 	return value;
-}
-
-static ssize_t error_show(struct device *dev, struct device_attribute *attr,
-			  char *buf)
-{
-	u32 error = 0;
-
-	visorchannel_read(controlvm_channel,
-			  offsetof(struct spar_controlvm_channel_protocol,
-				   installation_error),
-			  &error, sizeof(u32));
-	return scnprintf(buf, PAGE_SIZE, "%i\n", error);
-}
-
-static ssize_t error_store(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count)
-{
-	u32 error;
-	int ret;
-
-	if (kstrtou32(buf, 10, &error))
-		return -EINVAL;
-
-	ret = visorchannel_write
-		(controlvm_channel,
-		 offsetof(struct spar_controlvm_channel_protocol,
-			  installation_error),
-		 &error, sizeof(u32));
-	if (ret)
-		return ret;
-	return count;
 }
 
 static ssize_t textid_show(struct device *dev, struct device_attribute *attr,
