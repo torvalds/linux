@@ -344,6 +344,20 @@ static const u8 *mipi_exec_i2c(struct intel_dsi *intel_dsi, const u8 *data)
 	return data + *(data + 6) + 7;
 }
 
+static const u8 *mipi_exec_spi(struct intel_dsi *intel_dsi, const u8 *data)
+{
+	DRM_DEBUG_KMS("Skipping SPI element execution\n");
+
+	return data + *(data + 5) + 6;
+}
+
+static const u8 *mipi_exec_pmic(struct intel_dsi *intel_dsi, const u8 *data)
+{
+	DRM_DEBUG_KMS("Skipping PMIC element execution\n");
+
+	return data + 15;
+}
+
 typedef const u8 * (*fn_mipi_elem_exec)(struct intel_dsi *intel_dsi,
 					const u8 *data);
 static const fn_mipi_elem_exec exec_elem[] = {
@@ -351,6 +365,8 @@ static const fn_mipi_elem_exec exec_elem[] = {
 	[MIPI_SEQ_ELEM_DELAY] = mipi_exec_delay,
 	[MIPI_SEQ_ELEM_GPIO] = mipi_exec_gpio,
 	[MIPI_SEQ_ELEM_I2C] = mipi_exec_i2c,
+	[MIPI_SEQ_ELEM_SPI] = mipi_exec_spi,
+	[MIPI_SEQ_ELEM_PMIC] = mipi_exec_pmic,
 };
 
 /*
