@@ -1752,73 +1752,6 @@ static u64 controlvm_get_channel_address(void)
 }
 
 static void
-controlvm_periodic_work(struct work_struct *work)
-{
-	struct controlvm_message inmsg;
-	bool got_command = false;
-	bool handle_command_failed = false;
-
-	while (visorchannel_signalremove(controlvm_channel,
-					 CONTROLVM_QUEUE_RESPONSE,
-					 &inmsg))
-		;
-	if (!got_command) {
-		if (controlvm_pending_msg_valid) {
-			/*
-			 * we throttled processing of a prior
-			 * msg, so try to process it again
-			 * rather than reading a new one
-			 */
-			inmsg = controlvm_pending_msg;
-			controlvm_pending_msg_valid = false;
-			got_command = true;
-		} else {
-			got_command = read_controlvm_event(&inmsg);
-		}
-	}
-
-	handle_command_failed = false;
-	while (got_command && (!handle_command_failed)) {
-		most_recent_message_jiffies = jiffies;
-		if (handle_command(inmsg,
-				   visorchannel_get_physaddr
-				   (controlvm_channel)))
-			got_command = read_controlvm_event(&inmsg);
-		else {
-			/*
-			 * this is a scenario where throttling
-			 * is required, but probably NOT an
-			 * error...; we stash the current
-			 * controlvm msg so we will attempt to
-			 * reprocess it on our next loop
-			 */
-			handle_command_failed = true;
-			controlvm_pending_msg = inmsg;
-			controlvm_pending_msg_valid = true;
-		}
-	}
-
-	/* parahotplug_worker */
-	parahotplug_process_list();
-
-	if (time_after(jiffies,
-		       most_recent_message_jiffies + (HZ * MIN_IDLE_SECONDS))) {
-		/*
-		 * it's been longer than MIN_IDLE_SECONDS since we
-		 * processed our last controlvm message; slow down the
-		 * polling
-		 */
-		if (poll_jiffies != POLLJIFFIES_CONTROLVMCHANNEL_SLOW)
-			poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_SLOW;
-	} else {
-		if (poll_jiffies != POLLJIFFIES_CONTROLVMCHANNEL_FAST)
-			poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
-	}
-
-	schedule_delayed_work(&periodic_controlvm_work, poll_jiffies);
-}
-
-static void
 setup_crash_devices_work_queue(struct work_struct *work)
 {
 	struct controlvm_message local_crash_bus_msg;
@@ -2156,6 +2089,73 @@ visorchipset_file_cleanup(dev_t major_dev)
 		cdev_del(&file_cdev);
 	file_cdev.ops = NULL;
 	unregister_chrdev_region(major_dev, 1);
+}
+
+static void
+controlvm_periodic_work(struct work_struct *work)
+{
+	struct controlvm_message inmsg;
+	bool got_command = false;
+	bool handle_command_failed = false;
+
+	while (visorchannel_signalremove(controlvm_channel,
+					 CONTROLVM_QUEUE_RESPONSE,
+					 &inmsg))
+		;
+	if (!got_command) {
+		if (controlvm_pending_msg_valid) {
+			/*
+			 * we throttled processing of a prior
+			 * msg, so try to process it again
+			 * rather than reading a new one
+			 */
+			inmsg = controlvm_pending_msg;
+			controlvm_pending_msg_valid = false;
+			got_command = true;
+		} else {
+			got_command = read_controlvm_event(&inmsg);
+		}
+	}
+
+	handle_command_failed = false;
+	while (got_command && (!handle_command_failed)) {
+		most_recent_message_jiffies = jiffies;
+		if (handle_command(inmsg,
+				   visorchannel_get_physaddr
+				   (controlvm_channel)))
+			got_command = read_controlvm_event(&inmsg);
+		else {
+			/*
+			 * this is a scenario where throttling
+			 * is required, but probably NOT an
+			 * error...; we stash the current
+			 * controlvm msg so we will attempt to
+			 * reprocess it on our next loop
+			 */
+			handle_command_failed = true;
+			controlvm_pending_msg = inmsg;
+			controlvm_pending_msg_valid = true;
+		}
+	}
+
+	/* parahotplug_worker */
+	parahotplug_process_list();
+
+	if (time_after(jiffies,
+		       most_recent_message_jiffies + (HZ * MIN_IDLE_SECONDS))) {
+		/*
+		 * it's been longer than MIN_IDLE_SECONDS since we
+		 * processed our last controlvm message; slow down the
+		 * polling
+		 */
+		if (poll_jiffies != POLLJIFFIES_CONTROLVMCHANNEL_SLOW)
+			poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_SLOW;
+	} else {
+		if (poll_jiffies != POLLJIFFIES_CONTROLVMCHANNEL_FAST)
+			poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
+	}
+
+	schedule_delayed_work(&periodic_controlvm_work, poll_jiffies);
 }
 
 static int
