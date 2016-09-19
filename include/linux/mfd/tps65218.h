@@ -282,6 +282,7 @@ struct tps65218 {
 	struct regulator_desc desc[TPS65218_NUM_REGULATOR];
 	struct tps_info *info[TPS65218_NUM_REGULATOR];
 	struct regmap *regmap;
+	u8 *strobes;
 };
 
 int tps65218_reg_write(struct tps65218 *tps, unsigned int reg,
