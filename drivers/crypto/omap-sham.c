@@ -1340,6 +1340,16 @@ static void omap_sham_cra_exit(struct crypto_tfm *tfm)
 	}
 }
 
+static int omap_sham_export(struct ahash_request *req, void *out)
+{
+	return -ENOTSUPP;
+}
+
+static int omap_sham_import(struct ahash_request *req, const void *in)
+{
+	return -ENOTSUPP;
+}
+
 static struct ahash_alg algs_sha1_md5[] = {
 {
 	.init		= omap_sham_init,
@@ -1998,8 +2008,13 @@ static int omap_sham_probe(struct platform_device *pdev)
 
 	for (i = 0; i < dd->pdata->algs_info_size; i++) {
 		for (j = 0; j < dd->pdata->algs_info[i].size; j++) {
-			err = crypto_register_ahash(
-					&dd->pdata->algs_info[i].algs_list[j]);
+			struct ahash_alg *alg;
+
+			alg = &dd->pdata->algs_info[i].algs_list[j];
+			alg->export = omap_sham_export;
+			alg->import = omap_sham_import;
+			alg->halg.statesize = sizeof(struct omap_sham_reqctx);
+			err = crypto_register_ahash(alg);
 			if (err)
 				goto err_algs;
 
