@@ -1899,15 +1899,35 @@ static int hdmi_dev_config_audio(struct hdmi *hdmi, struct hdmi_audio *audio)
 		else
 			hdmi_writel(hdmi_dev, AUD_CONF2, 0x0);
 		usleep_range(90, 100);
-		if (channel == I2S_CHANNEL_7_8) {
-			HDMIDBG("hbr mode.\n");
-			hdmi_writel(hdmi_dev, AUD_CONF2, 0x1);
-			word_length = I2S_24BIT_SAMPLE;
-		} else if ((audio->rate == HDMI_AUDIO_FS_48000) ||
-			   (audio->rate == HDMI_AUDIO_FS_192000)) {
-			HDMIDBG("nlpcm mode.\n");
-			hdmi_writel(hdmi_dev, AUD_CONF2, 0x2);
-			word_length = I2S_24BIT_SAMPLE;
+		/*
+		 * when we try to use hdmi nlpcm mode
+		 * we should use set AUD_CONF2 to open this route and set
+		 * word_length to 24bit for b.p.c.u.v with 16bit raw data
+		 * when the bitstream data  up to 8 channel, we should use
+		 * the hdmi hbr mode
+		 * HBR Mode : Dolby TrueHD
+		 *            Dolby Atmos
+		 *            DTS-HDMA
+		 * NLPCM Mode :
+		 * FS_32000 FS_44100 FS_48000 : Dolby Digital &  DTS
+		 * FS_176400 FS_192000        : Dolby Digital Plus
+		 */
+		if (audio->type == HDMI_AUDIO_NLPCM) {
+			if (channel == I2S_CHANNEL_7_8) {
+				HDMIDBG("hbr mode.\n");
+				hdmi_writel(hdmi_dev, AUD_CONF2, 0x1);
+				word_length = I2S_24BIT_SAMPLE;
+			} else if ((audio->rate == HDMI_AUDIO_FS_32000) ||
+				   (audio->rate == HDMI_AUDIO_FS_44100) ||
+				   (audio->rate == HDMI_AUDIO_FS_48000) ||
+				   (audio->rate == HDMI_AUDIO_FS_176400) ||
+				   (audio->rate == HDMI_AUDIO_FS_192000)) {
+				HDMIDBG("nlpcm mode.\n");
+				hdmi_writel(hdmi_dev, AUD_CONF2, 0x2);
+				word_length = I2S_24BIT_SAMPLE;
+			} else {
+				hdmi_writel(hdmi_dev, AUD_CONF2, 0x0);
+			}
 		} else {
 			if (design_id >= 0x21)
 				hdmi_writel(hdmi_dev, AUD_CONF2, 0x4);
