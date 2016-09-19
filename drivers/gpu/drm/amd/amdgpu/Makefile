@@ -52,10 +52,7 @@ amdgpu-y += \
 amdgpu-y += \
 	amdgpu_dpm.o \
 	amdgpu_powerplay.o \
-	cz_smc.o cz_dpm.o \
-	tonga_smc.o tonga_dpm.o \
-	fiji_smc.o fiji_dpm.o \
-	iceland_smc.o iceland_dpm.o
+	cz_smc.o cz_dpm.o
 
 # add DCE block
 amdgpu-y += \
