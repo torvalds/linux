@@ -1849,6 +1849,25 @@ static int bnxt_get_module_eeprom(struct net_device *dev,
 	return rc;
 }
 
+static int bnxt_nway_reset(struct net_device *dev)
+{
+	int rc = 0;
+
+	struct bnxt *bp = netdev_priv(dev);
+	struct bnxt_link_info *link_info = &bp->link_info;
+
+	if (!BNXT_SINGLE_PF(bp))
+		return -EOPNOTSUPP;
+
+	if (!(link_info->autoneg & BNXT_AUTONEG_SPEED))
+		return -EINVAL;
+
+	if (netif_running(dev))
+		rc = bnxt_hwrm_set_link_setting(bp, true, false);
+
+	return rc;
+}
+
 const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_link_ksettings	= bnxt_get_link_ksettings,
 	.set_link_ksettings	= bnxt_set_link_ksettings,
@@ -1881,4 +1900,5 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.set_eee		= bnxt_set_eee,
 	.get_module_info	= bnxt_get_module_info,
 	.get_module_eeprom	= bnxt_get_module_eeprom,
+	.nway_reset		= bnxt_nway_reset
 };
