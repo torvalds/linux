@@ -151,7 +151,7 @@ struct omap_sham_reqctx {
 
 	/* walk state */
 	struct scatterlist	*sg;
-	struct scatterlist	sgl;
+	struct scatterlist	sgl_tmp;
 	unsigned int		offset;	/* offset in current sg */
 	unsigned int		total;	/* total request */
 
@@ -583,18 +583,19 @@ static int omap_sham_xmit_dma(struct omap_sham_dev *dd, dma_addr_t dma_addr,
 	if (is_sg) {
 		/*
 		 * The SG entry passed in may not have the 'length' member
-		 * set correctly so use a local SG entry (sgl) with the
+		 * set correctly so use a local SG entry (sgl_tmp) with the
 		 * proper value for 'length' instead.  If this is not done,
 		 * the dmaengine may try to DMA the incorrect amount of data.
 		 */
-		sg_init_table(&ctx->sgl, 1);
-		sg_assign_page(&ctx->sgl, sg_page(ctx->sg));
-		ctx->sgl.offset = ctx->sg->offset;
-		sg_dma_len(&ctx->sgl) = len32;
-		sg_dma_address(&ctx->sgl) = sg_dma_address(ctx->sg);
+		sg_init_table(&ctx->sgl_tmp, 1);
+		sg_assign_page(&ctx->sgl_tmp, sg_page(ctx->sg));
+		ctx->sgl_tmp.offset = ctx->sg->offset;
+		sg_dma_len(&ctx->sgl_tmp) = len32;
+		sg_dma_address(&ctx->sgl_tmp) = sg_dma_address(ctx->sg);
 
-		tx = dmaengine_prep_slave_sg(dd->dma_lch, &ctx->sgl, 1,
-			DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		tx = dmaengine_prep_slave_sg(dd->dma_lch, &ctx->sgl_tmp, 1,
+					     DMA_MEM_TO_DEV,
+					     DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	} else {
 		tx = dmaengine_prep_slave_single(dd->dma_lch, dma_addr, len32,
 			DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
