@@ -95,11 +95,9 @@ int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	case ACL_TYPE_ACCESS:
 		name = XATTR_NAME_POSIX_ACL_ACCESS;
 		if (acl) {
-			ret = posix_acl_equiv_mode(acl, &new_mode);
-			if (ret < 0)
+			ret = posix_acl_update_mode(inode, &new_mode, &acl);
+			if (ret)
 				goto out;
-			if (ret == 0)
-				acl = NULL;
 		}
 		break;
 	case ACL_TYPE_DEFAULT:
