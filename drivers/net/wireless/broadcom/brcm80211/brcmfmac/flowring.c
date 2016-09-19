@@ -495,14 +495,18 @@ void brcmf_flowring_add_tdls_peer(struct brcmf_flowring *flow, int ifidx,
 	} else {
 		search = flow->tdls_entry;
 		if (memcmp(search->mac, peer, ETH_ALEN) == 0)
-			return;
+			goto free_entry;
 		while (search->next) {
 			search = search->next;
 			if (memcmp(search->mac, peer, ETH_ALEN) == 0)
-				return;
+				goto free_entry;
 		}
 		search->next = tdls_entry;
 	}
 
 	flow->tdls_active = true;
+	return;
+
+free_entry:
+	kfree(tdls_entry);
 }
