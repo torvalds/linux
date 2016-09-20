@@ -2137,8 +2137,9 @@ static void mtk_get_ethtool_stats(struct net_device *dev,
 		}
 	}
 
+	data_src = (u64 *)hwstats;
+
 	do {
-		data_src = (u64 *)hwstats;
 		data_dst = data;
 		start = u64_stats_fetch_begin_irq(&hwstats->syncp);
 
