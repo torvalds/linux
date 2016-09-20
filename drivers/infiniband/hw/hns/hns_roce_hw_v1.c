@@ -2410,10 +2410,19 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 			       QP_CONTEXT_QPC_BYTES_156_RETRY_COUNT_INIT_M,
 			       QP_CONTEXT_QPC_BYTES_156_RETRY_COUNT_INIT_S,
 			       attr->retry_cnt);
-		roce_set_field(context->qpc_bytes_156,
-			       QP_CONTEXT_QPC_BYTES_156_ACK_TIMEOUT_M,
-			       QP_CONTEXT_QPC_BYTES_156_ACK_TIMEOUT_S,
-			       attr->timeout);
+		if (attr->timeout < 0x12) {
+			dev_info(dev, "ack timeout value(0x%x) must bigger than 0x12.\n",
+				 attr->timeout);
+			roce_set_field(context->qpc_bytes_156,
+				       QP_CONTEXT_QPC_BYTES_156_ACK_TIMEOUT_M,
+				       QP_CONTEXT_QPC_BYTES_156_ACK_TIMEOUT_S,
+				       0x12);
+		} else {
+			roce_set_field(context->qpc_bytes_156,
+				       QP_CONTEXT_QPC_BYTES_156_ACK_TIMEOUT_M,
+				       QP_CONTEXT_QPC_BYTES_156_ACK_TIMEOUT_S,
+				       attr->timeout);
+		}
 		roce_set_field(context->qpc_bytes_156,
 			       QP_CONTEXT_QPC_BYTES_156_RNR_RETRY_COUNT_INIT_M,
 			       QP_CONTEXT_QPC_BYTES_156_RNR_RETRY_COUNT_INIT_S,
