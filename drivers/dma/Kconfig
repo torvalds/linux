@@ -315,7 +315,6 @@ config MOXART_DMA
 	tristate "MOXART DMA support"
 	depends on ARCH_MOXART
 	select DMA_ENGINE
-	select DMA_OF
 	select DMA_VIRTUAL_CHANNELS
 	help
 	  Enable support for the MOXA ART SoC DMA controller.
