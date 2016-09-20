@@ -74,6 +74,7 @@ header-y += bpf_common.h
 header-y += bpf.h
 header-y += bpqether.h
 header-y += bsg.h
+header-y += bt-bmc.h
 header-y += btrfs.h
 header-y += can.h
 header-y += capability.h
