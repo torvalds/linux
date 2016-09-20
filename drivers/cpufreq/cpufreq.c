@@ -2503,6 +2503,7 @@ int cpufreq_register_driver(struct cpufreq_driver *driver_data)
 	if (ret < 0)
 		goto err_if_unreg;
 	hp_online = ret;
+	ret = 0;
 
 	pr_debug("driver %s up and running\n", driver_data->name);
 	goto out;
