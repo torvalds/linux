@@ -7818,7 +7818,7 @@ struct task_struct *curr_task(int cpu)
  *
  * ONLY VALID WHEN THE WHOLE SYSTEM IS STOPPED!
  */
-void set_curr_task(int cpu, struct task_struct *p)
+void ia64_set_curr_task(int cpu, struct task_struct *p)
 {
 	cpu_curr(cpu) = p;
 }
