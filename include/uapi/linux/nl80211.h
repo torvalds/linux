@@ -863,6 +863,9 @@
  *	the response to this command.
  *	Look at %NL80211_ATTR_SOCKET_OWNER as well.
  * @NL80211_CMD_DEL_NAN_FUNCTION: Delete a NAN function by cookie.
+ *	This command is also used as a notification sent when a NAN function is
+ *	terminated. This will contain a %NL80211_ATTR_NAN_FUNC_INST_ID
+ *	and %NL80211_ATTR_COOKIE attributes.
  * @NL80211_CMD_CHANGE_NAN_CONFIG: Change current NAN configuration. NAN
  *	must be operational (%NL80211_CMD_START_NAN was executed).
  *	It must contain at least one of the following attributes:
@@ -4983,6 +4986,21 @@ enum nl80211_nan_function_type {
 enum nl80211_nan_publish_type {
 	NL80211_NAN_SOLICITED_PUBLISH = 1 << 0,
 	NL80211_NAN_UNSOLICITED_PUBLISH = 1 << 1,
+};
+
+/**
+ * enum nl80211_nan_func_term_reason - NAN functions termination reason
+ *
+ * Defines termination reasons of a NAN function
+ *
+ * @NL80211_NAN_FUNC_TERM_REASON_USER_REQUEST: requested by user
+ * @NL80211_NAN_FUNC_TERM_REASON_TTL_EXPIRED: timeout
+ * @NL80211_NAN_FUNC_TERM_REASON_ERROR: errored
+ */
+enum nl80211_nan_func_term_reason {
+	NL80211_NAN_FUNC_TERM_REASON_USER_REQUEST,
+	NL80211_NAN_FUNC_TERM_REASON_TTL_EXPIRED,
+	NL80211_NAN_FUNC_TERM_REASON_ERROR,
 };
 
 #define NL80211_NAN_FUNC_SERVICE_ID_LEN 6

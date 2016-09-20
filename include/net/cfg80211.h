@@ -5731,6 +5731,22 @@ struct cfg80211_nan_match_params {
 void cfg80211_nan_match(struct wireless_dev *wdev,
 			struct cfg80211_nan_match_params *match, gfp_t gfp);
 
+/**
+ * cfg80211_nan_func_terminated - notify about NAN function termination.
+ *
+ * @wdev: the wireless device reporting the match
+ * @inst_id: the local instance id
+ * @reason: termination reason (one of the NL80211_NAN_FUNC_TERM_REASON_*)
+ * @cookie: unique NAN function identifier
+ * @gfp: allocation flags
+ *
+ * This function reports that the a NAN function is terminated.
+ */
+void cfg80211_nan_func_terminated(struct wireless_dev *wdev,
+				  u8 inst_id,
+				  enum nl80211_nan_func_term_reason reason,
+				  u64 cookie, gfp_t gfp);
+
 /* ethtool helper */
 void cfg80211_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info);
 
