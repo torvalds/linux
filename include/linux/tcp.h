@@ -19,6 +19,7 @@
 
 
 #include <linux/skbuff.h>
+#include <linux/win_minmax.h>
 #include <net/sock.h>
 #include <net/inet_connection_sock.h>
 #include <net/inet_timewait_sock.h>
@@ -234,9 +235,7 @@ struct tcp_sock {
 	u32	mdev_max_us;	/* maximal mdev for the last rtt period	*/
 	u32	rttvar_us;	/* smoothed mdev_max			*/
 	u32	rtt_seq;	/* sequence number to update rttvar	*/
-	struct rtt_meas {
-		u32 rtt, ts;	/* RTT in usec and sampling time in jiffies. */
-	} rtt_min[3];
+	struct  minmax rtt_min;
 
 	u32	packets_out;	/* Packets which are "in flight"	*/
 	u32	retrans_out;	/* Retransmitted packets out		*/
