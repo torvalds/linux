@@ -37,7 +37,7 @@ do {					\
 } while (0)
 
 static
-void MichaelInitializeFunction(struct michel_mic_t *Mic, uint8_t * key)
+void MichaelInitializeFunction(struct michel_mic_t *Mic, uint8_t *key)
 {
 	// Set the key
 	Mic->K0 = getUInt32(key, 0);
@@ -60,7 +60,7 @@ do{								\
 }while(0)
 
 static
-void MichaelAppend(struct michel_mic_t *Mic, uint8_t * src, int nBytes)
+void MichaelAppend(struct michel_mic_t *Mic, uint8_t *src, int nBytes)
 {
 	int addlen;
 	if (Mic->nBytesInM) {
@@ -94,7 +94,7 @@ void MichaelAppend(struct michel_mic_t *Mic, uint8_t * src, int nBytes)
 }
 
 static
-void MichaelGetMIC(struct michel_mic_t *Mic, uint8_t * dst)
+void MichaelGetMIC(struct michel_mic_t *Mic, uint8_t *dst)
 {
 	uint8_t *data = Mic->M;
 	switch (Mic->nBytesInM) {
@@ -122,9 +122,9 @@ void MichaelGetMIC(struct michel_mic_t *Mic, uint8_t * dst)
 	MichaelClear(Mic);
 }
 
-void MichaelMICFunction(struct michel_mic_t *Mic, uint8_t * Key,
-			uint8_t * Data, int Len, uint8_t priority,
-			uint8_t * Result)
+void MichaelMICFunction(struct michel_mic_t *Mic, uint8_t *Key,
+			uint8_t *Data, int Len, uint8_t priority,
+			uint8_t *Result)
 {
 	uint8_t pad_data[4] = { priority, 0, 0, 0 };
 	// Compute the MIC value
