@@ -293,7 +293,7 @@ static inline void fill_node_footer_blkaddr(struct page *page, block_t blkaddr)
 	size_t crc_offset = le32_to_cpu(ckpt->checksum_offset);
 	__u64 cp_ver = le64_to_cpu(ckpt->checkpoint_ver);
 
-	if (is_set_ckpt_flags(ckpt, CP_CRC_RECOVERY_FLAG)) {
+	if (__is_set_ckpt_flags(ckpt, CP_CRC_RECOVERY_FLAG)) {
 		__u64 crc = le32_to_cpu(*((__le32 *)
 				((unsigned char *)ckpt + crc_offset)));
 		cp_ver |= (crc << 32);
@@ -308,7 +308,7 @@ static inline bool is_recoverable_dnode(struct page *page)
 	size_t crc_offset = le32_to_cpu(ckpt->checksum_offset);
 	__u64 cp_ver = cur_cp_version(ckpt);
 
-	if (is_set_ckpt_flags(ckpt, CP_CRC_RECOVERY_FLAG)) {
+	if (__is_set_ckpt_flags(ckpt, CP_CRC_RECOVERY_FLAG)) {
 		__u64 crc = le32_to_cpu(*((__le32 *)
 				((unsigned char *)ckpt + crc_offset)));
 		cp_ver |= (crc << 32);

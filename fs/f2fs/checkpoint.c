@@ -28,7 +28,7 @@ struct kmem_cache *inode_entry_slab;
 
 void f2fs_stop_checkpoint(struct f2fs_sb_info *sbi, bool end_io)
 {
-	set_ckpt_flags(sbi->ckpt, CP_ERROR_FLAG);
+	set_ckpt_flags(sbi, CP_ERROR_FLAG);
 	sbi->sb->s_flags |= MS_RDONLY;
 	if (!end_io)
 		f2fs_flush_merged_bios(sbi);
@@ -571,7 +571,7 @@ int recover_orphan_inodes(struct f2fs_sb_info *sbi)
 	block_t start_blk, orphan_blocks, i, j;
 	int err;
 
-	if (!is_set_ckpt_flags(F2FS_CKPT(sbi), CP_ORPHAN_PRESENT_FLAG))
+	if (!is_set_ckpt_flags(sbi, CP_ORPHAN_PRESENT_FLAG))
 		return 0;
 
 	start_blk = __start_cp_addr(sbi) + 1 + __cp_payload(sbi);
@@ -595,7 +595,7 @@ int recover_orphan_inodes(struct f2fs_sb_info *sbi)
 		f2fs_put_page(page, 1);
 	}
 	/* clear Orphan Flag */
-	clear_ckpt_flags(F2FS_CKPT(sbi), CP_ORPHAN_PRESENT_FLAG);
+	clear_ckpt_flags(sbi, CP_ORPHAN_PRESENT_FLAG);
 	return 0;
 }
 
@@ -1043,10 +1043,12 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	/* 2 cp  + n data seg summary + orphan inode blocks */
 	data_sum_blocks = npages_for_summary_flush(sbi, false);
+	spin_lock(&sbi->cp_lock);
 	if (data_sum_blocks < NR_CURSEG_DATA_TYPE)
-		set_ckpt_flags(ckpt, CP_COMPACT_SUM_FLAG);
+		__set_ckpt_flags(ckpt, CP_COMPACT_SUM_FLAG);
 	else
-		clear_ckpt_flags(ckpt, CP_COMPACT_SUM_FLAG);
+		__clear_ckpt_flags(ckpt, CP_COMPACT_SUM_FLAG);
+	spin_unlock(&sbi->cp_lock);
 
 	orphan_blocks = GET_ORPHAN_BLOCKS(orphan_num);
 	ckpt->cp_pack_start_sum = cpu_to_le32(1 + cp_payload_blks +
@@ -1061,26 +1063,29 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 				cp_payload_blks + data_sum_blocks +
 				orphan_blocks);
 
+	spin_lock(&sbi->cp_lock);
 	if (cpc->reason == CP_UMOUNT)
-		set_ckpt_flags(ckpt, CP_UMOUNT_FLAG);
+		__set_ckpt_flags(ckpt, CP_UMOUNT_FLAG);
 	else
-		clear_ckpt_flags(ckpt, CP_UMOUNT_FLAG);
+		__clear_ckpt_flags(ckpt, CP_UMOUNT_FLAG);
 
 	if (cpc->reason == CP_FASTBOOT)
-		set_ckpt_flags(ckpt, CP_FASTBOOT_FLAG);
+		__set_ckpt_flags(ckpt, CP_FASTBOOT_FLAG);
 	else
-		clear_ckpt_flags(ckpt, CP_FASTBOOT_FLAG);
+		__clear_ckpt_flags(ckpt, CP_FASTBOOT_FLAG);
 
 	if (orphan_num)
-		set_ckpt_flags(ckpt, CP_ORPHAN_PRESENT_FLAG);
+		__set_ckpt_flags(ckpt, CP_ORPHAN_PRESENT_FLAG);
 	else
-		clear_ckpt_flags(ckpt, CP_ORPHAN_PRESENT_FLAG);
+		__clear_ckpt_flags(ckpt, CP_ORPHAN_PRESENT_FLAG);
 
 	if (is_sbi_flag_set(sbi, SBI_NEED_FSCK))
-		set_ckpt_flags(ckpt, CP_FSCK_FLAG);
+		__set_ckpt_flags(ckpt, CP_FSCK_FLAG);
 
 	/* set this flag to activate crc|cp_ver for recovery */
-	set_ckpt_flags(ckpt, CP_CRC_RECOVERY_FLAG);
+	__set_ckpt_flags(ckpt, CP_CRC_RECOVERY_FLAG);
+
+	spin_unlock(&sbi->cp_lock);
 
 	/* update SIT/NAT bitmap */
 	get_sit_bitmap(sbi, __bitmap_ptr(sbi, SIT_BITMAP));
