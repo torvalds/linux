@@ -212,16 +212,6 @@ static int dasd_state_known_to_new(struct dasd_device *device)
 {
 	/* Disable extended error reporting for this device. */
 	dasd_eer_disable(device);
-	/* Forget the discipline information. */
-	if (device->discipline) {
-		if (device->discipline->uncheck_device)
-			device->discipline->uncheck_device(device);
-		module_put(device->discipline->owner);
-	}
-	device->discipline = NULL;
-	if (device->base_discipline)
-		module_put(device->base_discipline->owner);
-	device->base_discipline = NULL;
 	device->state = DASD_STATE_NEW;
 
 	if (device->block)
@@ -3376,6 +3366,22 @@ int dasd_generic_probe(struct ccw_device *cdev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dasd_generic_probe);
+
+void dasd_generic_free_discipline(struct dasd_device *device)
+{
+	/* Forget the discipline information. */
+	if (device->discipline) {
+		if (device->discipline->uncheck_device)
+			device->discipline->uncheck_device(device);
+		module_put(device->discipline->owner);
+		device->discipline = NULL;
+	}
+	if (device->base_discipline) {
+		module_put(device->base_discipline->owner);
+		device->base_discipline = NULL;
+	}
+}
+EXPORT_SYMBOL_GPL(dasd_generic_free_discipline);
 
 /*
  * This will one day be called from a global not_oper handler.
