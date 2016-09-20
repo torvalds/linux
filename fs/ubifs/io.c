@@ -452,11 +452,11 @@ static enum hrtimer_restart wbuf_timer_callback_nolock(struct hrtimer *timer)
  */
 static void new_wbuf_timer_nolock(struct ubifs_wbuf *wbuf)
 {
-	ktime_t softlimit = ktime_set(WBUF_TIMEOUT_SOFTLIMIT, 0);
-	unsigned long long delta;
+	ktime_t softlimit = ms_to_ktime(dirty_writeback_interval * 10);
+	unsigned long long delta = dirty_writeback_interval;
 
-	delta = WBUF_TIMEOUT_HARDLIMIT - WBUF_TIMEOUT_SOFTLIMIT;
-	delta *= 1000000000ULL;
+	/* centi to milli, milli to nano, then 10% */
+	delta *= 10ULL * NSEC_PER_MSEC / 10ULL;
 
 	ubifs_assert(!hrtimer_active(&wbuf->timer));
 	ubifs_assert(delta <= ULONG_MAX);
