@@ -94,6 +94,7 @@ struct fq_sched_data {
 	u32		flow_max_rate;	/* optional max rate per flow */
 	u32		flow_plimit;	/* max packets per flow */
 	u32		orphan_mask;	/* mask for orphaned skb */
+	u32		low_rate_threshold;
 	struct rb_root	*fq_root;
 	u8		rate_enable;
 	u8		fq_trees_log;
@@ -433,7 +434,7 @@ static struct sk_buff *fq_dequeue(struct Qdisc *sch)
 	struct fq_flow_head *head;
 	struct sk_buff *skb;
 	struct fq_flow *f;
-	u32 rate;
+	u32 rate, plen;
 
 	skb = fq_dequeue_head(sch, &q->internal);
 	if (skb)
@@ -482,7 +483,7 @@ begin:
 	prefetch(&skb->end);
 	f->credit -= qdisc_pkt_len(skb);
 
-	if (f->credit > 0 || !q->rate_enable)
+	if (!q->rate_enable)
 		goto out;
 
 	/* Do not pace locally generated ack packets */
@@ -493,8 +494,15 @@ begin:
 	if (skb->sk)
 		rate = min(skb->sk->sk_pacing_rate, rate);
 
+	if (rate <= q->low_rate_threshold) {
+		f->credit = 0;
+		plen = qdisc_pkt_len(skb);
+	} else {
+		plen = max(qdisc_pkt_len(skb), q->quantum);
+		if (f->credit > 0)
+			goto out;
+	}
 	if (rate != ~0U) {
-		u32 plen = max(qdisc_pkt_len(skb), q->quantum);
 		u64 len = (u64)plen * NSEC_PER_SEC;
 
 		if (likely(rate))
@@ -662,6 +670,7 @@ static const struct nla_policy fq_policy[TCA_FQ_MAX + 1] = {
 	[TCA_FQ_FLOW_MAX_RATE]		= { .type = NLA_U32 },
 	[TCA_FQ_BUCKETS_LOG]		= { .type = NLA_U32 },
 	[TCA_FQ_FLOW_REFILL_DELAY]	= { .type = NLA_U32 },
+	[TCA_FQ_LOW_RATE_THRESHOLD]	= { .type = NLA_U32 },
 };
 
 static int fq_change(struct Qdisc *sch, struct nlattr *opt)
@@ -715,6 +724,10 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt)
 
 	if (tb[TCA_FQ_FLOW_MAX_RATE])
 		q->flow_max_rate = nla_get_u32(tb[TCA_FQ_FLOW_MAX_RATE]);
+
+	if (tb[TCA_FQ_LOW_RATE_THRESHOLD])
+		q->low_rate_threshold =
+			nla_get_u32(tb[TCA_FQ_LOW_RATE_THRESHOLD]);
 
 	if (tb[TCA_FQ_RATE_ENABLE]) {
 		u32 enable = nla_get_u32(tb[TCA_FQ_RATE_ENABLE]);
@@ -781,6 +794,7 @@ static int fq_init(struct Qdisc *sch, struct nlattr *opt)
 	q->fq_root		= NULL;
 	q->fq_trees_log		= ilog2(1024);
 	q->orphan_mask		= 1024 - 1;
+	q->low_rate_threshold	= 550000 / 8;
 	qdisc_watchdog_init(&q->watchdog, sch);
 
 	if (opt)
@@ -811,6 +825,8 @@ static int fq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	    nla_put_u32(skb, TCA_FQ_FLOW_REFILL_DELAY,
 			jiffies_to_usecs(q->flow_refill_delay)) ||
 	    nla_put_u32(skb, TCA_FQ_ORPHAN_MASK, q->orphan_mask) ||
+	    nla_put_u32(skb, TCA_FQ_LOW_RATE_THRESHOLD,
+			q->low_rate_threshold) ||
 	    nla_put_u32(skb, TCA_FQ_BUCKETS_LOG, q->fq_trees_log))
 		goto nla_put_failure;
 
