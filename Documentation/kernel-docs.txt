@@ -476,6 +476,14 @@ Published books
       :Pages: 648
       :ISBN: 978-1430261964
 
+    * Title: **Embedded Linux Primer: A practical Real-World Approach, 2nd Edition**
+
+      :Author: Christopher Hallinan
+      :Publisher: Pearson
+      :Date: November, 2010
+      :Pages: 656
+      :ISBN: 978-0137017836
+
     * Title: **Linux Kernel Development, 3rd Edition**
 
       :Author: Robert Love
@@ -483,6 +491,14 @@ Published books
       :Date: July, 2010
       :Pages: 440
       :ISBN: 978-0672329463
+
+    * Title: **Essential Linux Device Drivers**
+
+      :Author: Sreekrishnan Venkateswaran
+      :Published: Prentice Hall
+      :Date: April, 2008
+      :Pages: 744
+      :ISBN: 978-0132396554
 
 .. _ldd3_published:
 
