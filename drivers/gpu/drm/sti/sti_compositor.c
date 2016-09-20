@@ -39,22 +39,6 @@ static const struct sti_compositor_data stih407_compositor_data = {
 	},
 };
 
-/*
- * stiH416 compositor properties
- * Note:
- * on stih416 MIXER_AUX has a different base address from MIXER_MAIN
- * Moreover, GDPx is different for Main and Aux Mixer. So this subdev map does
- * not fit for stiH416 if we want to enable the MIXER_AUX.
- */
-static const struct sti_compositor_data stih416_compositor_data = {
-	.nb_subdev = 3,
-	.subdev_desc = {
-			{STI_GPD_SUBDEV, (int)STI_GDP_0, 0x100},
-			{STI_GPD_SUBDEV, (int)STI_GDP_1, 0x200},
-			{STI_MIXER_MAIN_SUBDEV, STI_MIXER_MAIN, 0xC00}
-	},
-};
-
 int sti_compositor_debugfs_init(struct sti_compositor *compo,
 				struct drm_minor *minor)
 {
@@ -179,9 +163,6 @@ static const struct component_ops sti_compositor_ops = {
 
 static const struct of_device_id compositor_of_match[] = {
 	{
-		.compatible = "st,stih416-compositor",
-		.data = &stih416_compositor_data,
-	}, {
 		.compatible = "st,stih407-compositor",
 		.data = &stih407_compositor_data,
 	}, {
