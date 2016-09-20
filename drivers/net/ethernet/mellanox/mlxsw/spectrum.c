@@ -823,7 +823,7 @@ err_span_port_mtu_update:
 	return err;
 }
 
-int
+static int
 mlxsw_sp_port_get_sw_stats64(const struct net_device *dev,
 			     struct rtnl_link_stats64 *stats)
 {
@@ -855,7 +855,7 @@ mlxsw_sp_port_get_sw_stats64(const struct net_device *dev,
 	return 0;
 }
 
-bool mlxsw_sp_port_has_offload_stats(int attr_id)
+static bool mlxsw_sp_port_has_offload_stats(int attr_id)
 {
 	switch (attr_id) {
 	case IFLA_OFFLOAD_XSTATS_CPU_HIT:
@@ -865,8 +865,8 @@ bool mlxsw_sp_port_has_offload_stats(int attr_id)
 	return false;
 }
 
-int mlxsw_sp_port_get_offload_stats(int attr_id, const struct net_device *dev,
-				    void *sp)
+static int mlxsw_sp_port_get_offload_stats(int attr_id, const struct net_device *dev,
+					   void *sp)
 {
 	switch (attr_id) {
 	case IFLA_OFFLOAD_XSTATS_CPU_HIT:
