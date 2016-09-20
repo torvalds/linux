@@ -573,11 +573,17 @@ ENDPROC(copy_page_asm)
 	.endm
 
 	/*
-	 * We can't do this since copy_user_page is used to bring in
-	 * file data that might have instructions. Since the data would
-	 * then need to be flushed out so the i-fetch can see it, it
-	 * makes more sense to just copy through the kernel translation
-	 * and flush it.
+	 * copy_user_page_asm() performs a page copy using mappings
+	 * equivalent to the user page mappings.  It can be used to
+	 * implement copy_user_page() but unfortunately both the `from'
+	 * and `to' pages need to be flushed through mappings equivalent
+	 * to the user mappings after the copy because the kernel accesses
+	 * the `from' page through the kmap kernel mapping and the `to'
+	 * page needs to be flushed since code can be copied.  As a
+	 * result, this implementation is less efficient than the simpler
+	 * copy using the kernel mapping.  It only needs the `from' page
+	 * to flushed via the user mapping.  The kunmap routines handle
+	 * the flushes needed for the kernel mapping.
 	 *
 	 * I'm still keeping this around because it may be possible to
 	 * use it if more information is passed into copy_user_page().
