@@ -36,20 +36,6 @@
 #define MAX_BUF 163840
 #define NAPI_WEIGHT 64
 
-/* DEBUGFS declarations */
-static ssize_t info_debugfs_read(struct file *file, char __user *buf,
-				 size_t len, loff_t *offset);
-static ssize_t enable_ints_write(struct file *file, const char __user *buf,
-				 size_t len, loff_t *ppos);
-static struct dentry *visornic_debugfs_dir;
-static const struct file_operations debugfs_info_fops = {
-	.read = info_debugfs_read,
-};
-
-static const struct file_operations debugfs_enable_ints_fops = {
-	.write = enable_ints_write,
-};
-
 /* GUIDS for director channel type supported by this driver.  */
 static struct visor_channeltype_descriptor visornic_channel_types[] = {
 	/* Note that the only channel type we expect to be reported by the
@@ -262,6 +248,10 @@ static ssize_t enable_ints_write(struct file *file,
 	 */
 	return count;
 }
+
+static const struct file_operations debugfs_enable_ints_fops = {
+	.write = enable_ints_write,
+};
 
 /**
  *	visornic_serverdown_complete - IOPART went down, pause device
@@ -1495,6 +1485,11 @@ static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 	kfree(vbuf);
 	return bytes_read;
 }
+
+static struct dentry *visornic_debugfs_dir;
+static const struct file_operations debugfs_info_fops = {
+	.read = info_debugfs_read,
+};
 
 /**
  *	send_rcv_posts_if_needed
