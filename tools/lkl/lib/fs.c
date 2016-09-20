@@ -29,6 +29,11 @@ int lkl_mount_fs(char *fstype)
 	return 0;
 }
 
+static uint32_t new_encode_dev(unsigned int major, unsigned int minor)
+{
+	return (minor & 0xff) | (major << 8) | ((minor & ~0xff) << 12);
+}
+
 static long get_virtio_blkdev(int disk_id)
 {
 	char sysfs_path[] = "/sysfs/block/vda/dev";
@@ -62,7 +67,7 @@ static long get_virtio_blkdev(int disk_id)
 		goto out_close;
 	}
 
-	ret = LKL_MKDEV(major, minor);
+	ret = new_encode_dev(major, minor);
 
 out_close:
 	lkl_sys_close(fd);
