@@ -84,6 +84,7 @@ build_path_from_dentry(struct dentry *direntry)
 	struct dentry *temp;
 	int namelen;
 	int dfsplen;
+	int pplen = 0;
 	char *full_path;
 	char dirsep;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(direntry->d_sb);
@@ -95,8 +96,12 @@ build_path_from_dentry(struct dentry *direntry)
 		dfsplen = strnlen(tcon->treeName, MAX_TREE_SIZE + 1);
 	else
 		dfsplen = 0;
+
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_USE_PREFIX_PATH)
+		pplen = cifs_sb->prepath ? strlen(cifs_sb->prepath) + 1 : 0;
+
 cifs_bp_rename_retry:
-	namelen = dfsplen;
+	namelen = dfsplen + pplen;
 	seq = read_seqbegin(&rename_lock);
 	rcu_read_lock();
 	for (temp = direntry; !IS_ROOT(temp);) {
@@ -137,7 +142,7 @@ cifs_bp_rename_retry:
 		}
 	}
 	rcu_read_unlock();
-	if (namelen != dfsplen || read_seqretry(&rename_lock, seq)) {
+	if (namelen != dfsplen + pplen || read_seqretry(&rename_lock, seq)) {
 		cifs_dbg(FYI, "did not end path lookup where expected. namelen=%ddfsplen=%d\n",
 			 namelen, dfsplen);
 		/* presumably this is only possible if racing with a rename
@@ -152,6 +157,17 @@ cifs_bp_rename_retry:
 	   since the '\' is a valid posix character so we can not switch
 	   those safely to '/' if any are found in the middle of the prepath */
 	/* BB test paths to Windows with '/' in the midst of prepath */
+
+	if (pplen) {
+		int i;
+
+		cifs_dbg(FYI, "using cifs_sb prepath <%s>\n", cifs_sb->prepath);
+		memcpy(full_path+dfsplen+1, cifs_sb->prepath, pplen-1);
+		full_path[dfsplen] = '\\';
+		for (i = 0; i < pplen-1; i++)
+			if (full_path[dfsplen+1+i] == '/')
+				full_path[dfsplen+1+i] = CIFS_DIR_SEP(cifs_sb);
+	}
 
 	if (dfsplen) {
 		strncpy(full_path, tcon->treeName, dfsplen);
@@ -227,6 +243,13 @@ cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
 			if (newinode == NULL) {
 				/* query inode info */
 				goto cifs_create_get_file_info;
+			}
+
+			if (S_ISDIR(newinode->i_mode)) {
+				CIFSSMBClose(xid, tcon, fid->netfid);
+				iput(newinode);
+				rc = -EISDIR;
+				goto out;
 			}
 
 			if (!S_ISREG(newinode->i_mode)) {
@@ -399,10 +422,14 @@ cifs_create_set_dentry:
 	if (rc != 0) {
 		cifs_dbg(FYI, "Create worked, get_inode_info failed rc = %d\n",
 			 rc);
-		if (server->ops->close)
-			server->ops->close(xid, tcon, fid);
-		goto out;
+		goto out_err;
 	}
+
+	if (S_ISDIR(newinode->i_mode)) {
+		rc = -EISDIR;
+		goto out_err;
+	}
+
 	d_drop(direntry);
 	d_add(direntry, newinode);
 
@@ -410,6 +437,13 @@ out:
 	kfree(buf);
 	kfree(full_path);
 	return rc;
+
+out_err:
+	if (server->ops->close)
+		server->ops->close(xid, tcon, fid);
+	if (newinode)
+		iput(newinode);
+	goto out;
 }
 
 int

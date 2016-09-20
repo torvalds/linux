@@ -383,7 +383,10 @@ static __always_inline u64 __ktime_get_fast_ns(struct tk_fast *tkf)
 	do {
 		seq = raw_read_seqcount_latch(&tkf->seq);
 		tkr = tkf->base + (seq & 0x01);
-		now = ktime_to_ns(tkr->base) + timekeeping_get_ns(tkr);
+		now = ktime_to_ns(tkr->base);
+
+		now += clocksource_delta(tkr->read(tkr->clock),
+					 tkr->cycle_last, tkr->mask);
 	} while (read_seqcount_retry(&tkf->seq, seq));
 
 	return now;
@@ -958,7 +961,7 @@ int timekeeping_inject_offset(struct timespec *ts)
 	struct timespec64 ts64, tmp;
 	int ret = 0;
 
-	if ((unsigned long)ts->tv_nsec >= NSEC_PER_SEC)
+	if (!timespec_inject_offset_valid(ts))
 		return -EINVAL;
 
 	ts64 = timespec_to_timespec64(*ts);

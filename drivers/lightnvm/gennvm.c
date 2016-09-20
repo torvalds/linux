@@ -89,6 +89,7 @@ static int gennvm_block_bb(struct ppa_addr ppa, int nr_blocks, u8 *blks,
 
 		list_move_tail(&blk->list, &lun->bb_list);
 		lun->vlun.nr_bad_blocks++;
+		lun->vlun.nr_free_blocks--;
 	}
 
 	return 0;
@@ -345,7 +346,7 @@ static void gennvm_generic_to_addr_mode(struct nvm_dev *dev, struct nvm_rq *rqd)
 static int gennvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 {
 	if (!dev->ops->submit_io)
-		return 0;
+		return -ENODEV;
 
 	/* Convert address space */
 	gennvm_generic_to_addr_mode(dev, rqd);

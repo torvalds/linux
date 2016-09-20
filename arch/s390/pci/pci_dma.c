@@ -458,7 +458,19 @@ int zpci_dma_init_device(struct zpci_dev *zdev)
 		goto out_clean;
 	}
 
-	zdev->iommu_size = (unsigned long) high_memory - PAGE_OFFSET;
+	/*
+	 * Restrict the iommu bitmap size to the minimum of the following:
+	 * - main memory size
+	 * - 3-level pagetable address limit minus start_dma offset
+	 * - DMA address range allowed by the hardware (clp query pci fn)
+	 *
+	 * Also set zdev->end_dma to the actual end address of the usable
+	 * range, instead of the theoretical maximum as reported by hardware.
+	 */
+	zdev->iommu_size = min3((u64) high_memory,
+				ZPCI_TABLE_SIZE_RT - zdev->start_dma,
+				zdev->end_dma - zdev->start_dma + 1);
+	zdev->end_dma = zdev->start_dma + zdev->iommu_size - 1;
 	zdev->iommu_pages = zdev->iommu_size >> PAGE_SHIFT;
 	zdev->iommu_bitmap = vzalloc(zdev->iommu_pages / 8);
 	if (!zdev->iommu_bitmap) {
@@ -466,10 +478,7 @@ int zpci_dma_init_device(struct zpci_dev *zdev)
 		goto out_reg;
 	}
 
-	rc = zpci_register_ioat(zdev,
-				0,
-				zdev->start_dma + PAGE_OFFSET,
-				zdev->start_dma + zdev->iommu_size - 1,
+	rc = zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
 				(u64) zdev->dma_table);
 	if (rc)
 		goto out_reg;
