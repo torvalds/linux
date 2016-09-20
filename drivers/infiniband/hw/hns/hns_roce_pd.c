@@ -110,6 +110,10 @@ int hns_roce_uar_alloc(struct hns_roce_dev *hr_dev, struct hns_roce_uar *uar)
 			     (hr_dev->caps.phy_num_uars - 1) + 1;
 
 	res = platform_get_resource(hr_dev->pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(&hr_dev->pdev->dev, "memory resource not found!\n");
+		return -EINVAL;
+	}
 	uar->pfn = ((res->start) >> PAGE_SHIFT) + uar->index;
 
 	return 0;
