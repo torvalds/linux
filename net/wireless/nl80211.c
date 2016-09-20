@@ -56,6 +56,7 @@ enum nl80211_multicast_groups {
 	NL80211_MCGRP_REGULATORY,
 	NL80211_MCGRP_MLME,
 	NL80211_MCGRP_VENDOR,
+	NL80211_MCGRP_NAN,
 	NL80211_MCGRP_TESTMODE /* keep last - ifdef! */
 };
 
@@ -65,6 +66,7 @@ static const struct genl_multicast_group nl80211_mcgrps[] = {
 	[NL80211_MCGRP_REGULATORY] = { .name = NL80211_MULTICAST_GROUP_REG },
 	[NL80211_MCGRP_MLME] = { .name = NL80211_MULTICAST_GROUP_MLME },
 	[NL80211_MCGRP_VENDOR] = { .name = NL80211_MULTICAST_GROUP_VENDOR },
+	[NL80211_MCGRP_NAN] = { .name = NL80211_MULTICAST_GROUP_NAN },
 #ifdef CONFIG_NL80211_TESTMODE
 	[NL80211_MCGRP_TESTMODE] = { .name = NL80211_MULTICAST_GROUP_TESTMODE }
 #endif
@@ -10952,6 +10954,84 @@ static int nl80211_nan_change_config(struct sk_buff *skb,
 
 	return rdev_nan_change_conf(rdev, wdev, &conf, changed);
 }
+
+void cfg80211_nan_match(struct wireless_dev *wdev,
+			struct cfg80211_nan_match_params *match, gfp_t gfp)
+{
+	struct wiphy *wiphy = wdev->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
+	struct nlattr *match_attr, *local_func_attr, *peer_func_attr;
+	struct sk_buff *msg;
+	void *hdr;
+
+	if (WARN_ON(!match->inst_id || !match->peer_inst_id || !match->addr))
+		return;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, gfp);
+	if (!msg)
+		return;
+
+	hdr = nl80211hdr_put(msg, 0, 0, 0, NL80211_CMD_NAN_MATCH);
+	if (!hdr) {
+		nlmsg_free(msg);
+		return;
+	}
+
+	if (nla_put_u32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx) ||
+	    (wdev->netdev && nla_put_u32(msg, NL80211_ATTR_IFINDEX,
+					 wdev->netdev->ifindex)) ||
+	    nla_put_u64_64bit(msg, NL80211_ATTR_WDEV, wdev_id(wdev),
+			      NL80211_ATTR_PAD))
+		goto nla_put_failure;
+
+	if (nla_put_u64_64bit(msg, NL80211_ATTR_COOKIE, match->cookie,
+			      NL80211_ATTR_PAD) ||
+	    nla_put(msg, NL80211_ATTR_MAC, ETH_ALEN, match->addr))
+		goto nla_put_failure;
+
+	match_attr = nla_nest_start(msg, NL80211_ATTR_NAN_MATCH);
+	if (!match_attr)
+		goto nla_put_failure;
+
+	local_func_attr = nla_nest_start(msg, NL80211_NAN_MATCH_FUNC_LOCAL);
+	if (!local_func_attr)
+		goto nla_put_failure;
+
+	if (nla_put_u8(msg, NL80211_NAN_FUNC_INSTANCE_ID, match->inst_id))
+		goto nla_put_failure;
+
+	nla_nest_end(msg, local_func_attr);
+
+	peer_func_attr = nla_nest_start(msg, NL80211_NAN_MATCH_FUNC_PEER);
+	if (!peer_func_attr)
+		goto nla_put_failure;
+
+	if (nla_put_u8(msg, NL80211_NAN_FUNC_TYPE, match->type) ||
+	    nla_put_u8(msg, NL80211_NAN_FUNC_INSTANCE_ID, match->peer_inst_id))
+		goto nla_put_failure;
+
+	if (match->info && match->info_len &&
+	    nla_put(msg, NL80211_NAN_FUNC_SERVICE_INFO, match->info_len,
+		    match->info))
+		goto nla_put_failure;
+
+	nla_nest_end(msg, peer_func_attr);
+	nla_nest_end(msg, match_attr);
+	genlmsg_end(msg, hdr);
+
+	if (!wdev->owner_nlportid)
+		genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy),
+					msg, 0, NL80211_MCGRP_NAN, gfp);
+	else
+		genlmsg_unicast(wiphy_net(&rdev->wiphy), msg,
+				wdev->owner_nlportid);
+
+	return;
+
+nla_put_failure:
+	nlmsg_free(msg);
+}
+EXPORT_SYMBOL(cfg80211_nan_match);
 
 static int nl80211_get_protocol_features(struct sk_buff *skb,
 					 struct genl_info *info)
