@@ -951,7 +951,6 @@ static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 	struct device *dev = &hr_dev->pdev->dev;
 
 	spin_lock_init(&hr_dev->sm_lock);
-	spin_lock_init(&hr_dev->cq_db_lock);
 	spin_lock_init(&hr_dev->bt_cmd_lock);
 
 	ret = hns_roce_init_uar_table(hr_dev);

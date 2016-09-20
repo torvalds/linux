@@ -1189,9 +1189,7 @@ static struct hns_roce_cqe *next_cqe_sw(struct hns_roce_cq *hr_cq)
 	return get_sw_cqe(hr_cq, hr_cq->cons_index);
 }
 
-void hns_roce_v1_cq_set_ci(struct hns_roce_cq *hr_cq, u32 cons_index,
-			   spinlock_t *doorbell_lock)
-
+void hns_roce_v1_cq_set_ci(struct hns_roce_cq *hr_cq, u32 cons_index)
 {
 	u32 doorbell[2];
 
@@ -1251,8 +1249,7 @@ static void __hns_roce_v1_cq_clean(struct hns_roce_cq *hr_cq, u32 qpn,
 		*/
 		wmb();
 
-		hns_roce_v1_cq_set_ci(hr_cq, hr_cq->cons_index,
-				   &to_hr_dev(hr_cq->ib_cq.device)->cq_db_lock);
+		hns_roce_v1_cq_set_ci(hr_cq, hr_cq->cons_index);
 	}
 }
 
@@ -1588,10 +1585,8 @@ int hns_roce_v1_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 			break;
 	}
 
-	if (npolled) {
-		hns_roce_v1_cq_set_ci(hr_cq, hr_cq->cons_index,
-				      &to_hr_dev(ibcq->device)->cq_db_lock);
-	}
+	if (npolled)
+		hns_roce_v1_cq_set_ci(hr_cq, hr_cq->cons_index);
 
 	spin_unlock_irqrestore(&hr_cq->lock, flags);
 

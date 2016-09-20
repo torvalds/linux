@@ -83,8 +83,7 @@ static int hns_roce_sw2hw_cq(struct hns_roce_dev *dev,
 static int hns_roce_cq_alloc(struct hns_roce_dev *hr_dev, int nent,
 			     struct hns_roce_mtt *hr_mtt,
 			     struct hns_roce_uar *hr_uar,
-			     struct hns_roce_cq *hr_cq, int vector,
-			     int collapsed)
+			     struct hns_roce_cq *hr_cq, int vector)
 {
 	struct hns_roce_cmd_mailbox *mailbox = NULL;
 	struct hns_roce_cq_table *cq_table = NULL;
@@ -338,8 +337,8 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 	}
 
 	/* Allocate cq index, fill cq_context */
-	ret = hns_roce_cq_alloc(hr_dev, cq_entries, &hr_cq->hr_buf.hr_mtt,
-				uar, hr_cq, vector, 0);
+	ret = hns_roce_cq_alloc(hr_dev, cq_entries, &hr_cq->hr_buf.hr_mtt, uar,
+				hr_cq, vector);
 	if (ret) {
 		dev_err(dev, "Creat CQ .Failed to cq_alloc.\n");
 		goto err_mtt;
