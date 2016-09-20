@@ -368,6 +368,7 @@ static inline bool perf_hpp__should_skip(struct perf_hpp_fmt *format,
 void perf_hpp__reset_width(struct perf_hpp_fmt *fmt, struct hists *hists);
 void perf_hpp__reset_sort_width(struct perf_hpp_fmt *fmt, struct hists *hists);
 void perf_hpp__set_user_width(const char *width_list_str);
+void hists__reset_column_width(struct hists *hists);
 
 typedef u64 (*hpp_field_fn)(struct hist_entry *he);
 typedef int (*hpp_callback_fn)(struct perf_hpp *hpp, bool front);

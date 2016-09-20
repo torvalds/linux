@@ -2067,7 +2067,6 @@ void hist_browser__init(struct hist_browser *browser,
 			struct hists *hists)
 {
 	struct perf_hpp_fmt *fmt;
-	struct perf_hpp_list_node *node;
 
 	browser->hists			= hists;
 	browser->b.refresh		= hist_browser__refresh;
@@ -2076,15 +2075,10 @@ void hist_browser__init(struct hist_browser *browser,
 	browser->b.use_navkeypressed	= true;
 	browser->show_headers		= symbol_conf.show_hist_headers;
 
-	hists__for_each_format(hists, fmt) {
-		perf_hpp__reset_width(fmt, hists);
+	hists__for_each_format(hists, fmt)
 		++browser->b.columns;
-	}
-	/* hierarchy entries have their own hpp list */
-	list_for_each_entry(node, &hists->hpp_formats, list) {
-		perf_hpp_list__for_each_format(&node->hpp, fmt)
-			perf_hpp__reset_width(fmt, hists);
-	}
+
+	hists__reset_column_width(hists);
 }
 
 struct hist_browser *hist_browser__new(struct hists *hists)

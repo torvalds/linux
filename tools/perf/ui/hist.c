@@ -699,6 +699,21 @@ void perf_hpp__reset_width(struct perf_hpp_fmt *fmt, struct hists *hists)
 	}
 }
 
+void hists__reset_column_width(struct hists *hists)
+{
+	struct perf_hpp_fmt *fmt;
+	struct perf_hpp_list_node *node;
+
+	hists__for_each_format(hists, fmt)
+		perf_hpp__reset_width(fmt, hists);
+
+	/* hierarchy entries have their own hpp list */
+	list_for_each_entry(node, &hists->hpp_formats, list) {
+		perf_hpp_list__for_each_format(&node->hpp, fmt)
+			perf_hpp__reset_width(fmt, hists);
+	}
+}
+
 void perf_hpp__set_user_width(const char *width_list_str)
 {
 	struct perf_hpp_fmt *fmt;

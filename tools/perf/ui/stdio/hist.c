@@ -717,8 +717,6 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		      int max_cols, float min_pcnt, FILE *fp,
 		      bool use_callchain)
 {
-	struct perf_hpp_fmt *fmt;
-	struct perf_hpp_list_node *node;
 	struct rb_node *nd;
 	size_t ret = 0;
 	const char *sep = symbol_conf.field_sep;
@@ -729,13 +727,7 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 
 	init_rem_hits();
 
-	hists__for_each_format(hists, fmt)
-		perf_hpp__reset_width(fmt, hists);
-	/* hierarchy entries have their own hpp list */
-	list_for_each_entry(node, &hists->hpp_formats, list) {
-		perf_hpp_list__for_each_format(&node->hpp, fmt)
-			perf_hpp__reset_width(fmt, hists);
-	}
+	hists__reset_column_width(hists);
 
 	if (symbol_conf.col_width_list_str)
 		perf_hpp__set_user_width(symbol_conf.col_width_list_str);
