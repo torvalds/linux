@@ -784,29 +784,11 @@ static void *get_wqe(struct hns_roce_qp *hr_qp, int offset)
 
 void *get_recv_wqe(struct hns_roce_qp *hr_qp, int n)
 {
-	struct ib_qp *ibqp = &hr_qp->ibqp;
-	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
-
-	if ((n < 0) || (n > hr_qp->rq.wqe_cnt)) {
-		dev_err(&hr_dev->pdev->dev, "rq wqe index:%d,rq wqe cnt:%d\r\n",
-			n, hr_qp->rq.wqe_cnt);
-		return NULL;
-	}
-
 	return get_wqe(hr_qp, hr_qp->rq.offset + (n << hr_qp->rq.wqe_shift));
 }
 
 void *get_send_wqe(struct hns_roce_qp *hr_qp, int n)
 {
-	struct ib_qp *ibqp = &hr_qp->ibqp;
-	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
-
-	if ((n < 0) || (n > hr_qp->sq.wqe_cnt)) {
-		dev_err(&hr_dev->pdev->dev, "sq wqe index:%d,sq wqe cnt:%d\r\n",
-			n, hr_qp->sq.wqe_cnt);
-		return NULL;
-	}
-
 	return get_wqe(hr_qp, hr_qp->sq.offset + (n << hr_qp->sq.wqe_shift));
 }
 
