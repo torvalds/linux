@@ -70,10 +70,10 @@
 #define rtsx_write_config_byte(chip, where, val) \
 	pci_write_config_byte((chip)->rtsx->pci, where, val)
 
-#define wait_timeout_x(task_state, msecs)		\
-do {							\
-		set_current_state((task_state));	\
-		schedule_timeout((msecs) * HZ / 1000);	\
+#define wait_timeout_x(task_state, msecs)	\
+do {						\
+	set_current_state((task_state));	\
+	schedule_timeout((msecs) * HZ / 1000);	\
 } while (0)
 #define wait_timeout(msecs)	wait_timeout_x(TASK_INTERRUPTIBLE, (msecs))
 
