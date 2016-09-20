@@ -224,7 +224,6 @@ static bool is_same_inode(struct inode *inode, struct page *ipage)
 
 static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 {
-	unsigned long long cp_ver = cur_cp_version(F2FS_CKPT(sbi));
 	struct curseg_info *curseg;
 	struct page *page = NULL;
 	block_t blkaddr;
@@ -242,7 +241,7 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 
 		page = get_tmp_page(sbi, blkaddr);
 
-		if (cp_ver != cpver_of_node(page))
+		if (!is_recoverable_dnode(page))
 			break;
 
 		if (!is_fsync_dnode(page))
@@ -516,7 +515,6 @@ out:
 static int recover_data(struct f2fs_sb_info *sbi, struct list_head *inode_list,
 						struct list_head *dir_list)
 {
-	unsigned long long cp_ver = cur_cp_version(F2FS_CKPT(sbi));
 	struct curseg_info *curseg;
 	struct page *page = NULL;
 	int err = 0;
@@ -536,7 +534,7 @@ static int recover_data(struct f2fs_sb_info *sbi, struct list_head *inode_list,
 
 		page = get_tmp_page(sbi, blkaddr);
 
-		if (cp_ver != cpver_of_node(page)) {
+		if (!is_recoverable_dnode(page)) {
 			f2fs_put_page(page, 1);
 			break;
 		}
@@ -628,37 +626,15 @@ out:
 	}
 
 	clear_sbi_flag(sbi, SBI_POR_DOING);
-	if (err) {
-		bool invalidate = false;
-
-		if (test_opt(sbi, LFS)) {
-			update_meta_page(sbi, NULL, blkaddr);
-			invalidate = true;
-		} else if (discard_next_dnode(sbi, blkaddr)) {
-			invalidate = true;
-		}
-
-		f2fs_wait_all_discard_bio(sbi);
-
-		/* Flush all the NAT/SIT pages */
-		while (get_pages(sbi, F2FS_DIRTY_META))
-			sync_meta_pages(sbi, META, LONG_MAX);
-
-		/* invalidate temporary meta page */
-		if (invalidate)
-			invalidate_mapping_pages(META_MAPPING(sbi),
-							blkaddr, blkaddr);
-
+	if (err)
 		set_ckpt_flags(sbi->ckpt, CP_ERROR_FLAG);
-		mutex_unlock(&sbi->cp_mutex);
-	} else if (need_writecp) {
+	mutex_unlock(&sbi->cp_mutex);
+
+	if (!err && need_writecp) {
 		struct cp_control cpc = {
 			.reason = CP_RECOVERY,
 		};
-		mutex_unlock(&sbi->cp_mutex);
 		err = write_checkpoint(sbi, &cpc);
-	} else {
-		mutex_unlock(&sbi->cp_mutex);
 	}
 
 	destroy_fsync_dnodes(&dir_list);
