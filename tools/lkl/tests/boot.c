@@ -673,9 +673,10 @@ static int test_lo_ifup(char *str, int len)
 static int test_mutex(char *str, int len)
 {
 	long ret = TEST_SUCCESS;
-	/* Can't do much to verify that this works, so we'll just let
-	 * Valgrind warn us on CI if we've made bad memory
-	 * accesses. */
+	/*
+	 * Can't do much to verify that this works, so we'll just let Valgrind
+	 * warn us on CI if we've made bad memory accesses.
+	 */
 
 	struct lkl_mutex *mutex = lkl_host_ops.mutex_alloc();
 	lkl_host_ops.mutex_lock(mutex);
@@ -690,9 +691,10 @@ static int test_mutex(char *str, int len)
 static int test_semaphore(char *str, int len)
 {
 	long ret = TEST_SUCCESS;
-	/* Can't do much to verify that this works, so we'll just let
-	 * Valgrind warn us on CI if we've made bad memory
-	 * accesses. */
+	/*
+	 * Can't do much to verify that this works, so we'll just let Valgrind
+	 * warn us on CI if we've made bad memory accesses.
+	 */
 
 	struct lkl_sem *sem = lkl_host_ops.sem_alloc(1);
 	lkl_host_ops.sem_down(sem);
@@ -893,6 +895,10 @@ int main(int argc, char **argv)
 
 	lkl_host_ops.print = printk;
 
+	TEST(mutex);
+	TEST(semaphore);
+	TEST(join);
+
 	if (cla.disk_filename)
 		TEST(disk_add);
 #ifndef __MINGW32__
@@ -934,11 +940,8 @@ int main(int argc, char **argv)
 		TEST(umount_dev);
 	}
 	TEST(lo_ifup);
-	TEST(mutex);
-	TEST(semaphore);
 	TEST(gettid);
 	TEST(syscall_thread);
-	TEST(join);
 	/*
 	 * Wine has an issue where the FlsCallback is not called when the thread
 	 * terminates which makes testing the automatic syscall threads cleanup
