@@ -18,6 +18,7 @@ static void *idle_sem;
 static void *init_sem;
 static void *halt_sem;
 static bool halt;
+static int is_running;
 void (*pm_power_off)(void) = NULL;
 static unsigned long mem_size;
 
@@ -84,6 +85,7 @@ int __init lkl_start_kernel(struct lkl_host_operations *ops,
 
 	lkl_ops->sem_down(init_sem);
 
+	is_running = 1;
 	return 0;
 
 out_free_idle_sem:
@@ -93,6 +95,11 @@ out_free_init_sem:
 	lkl_ops->sem_free(init_sem);
 
 	return ret;
+}
+
+int lkl_is_running(void)
+{
+	return is_running;
 }
 
 void machine_halt(void)
@@ -146,6 +153,7 @@ void arch_cpu_idle(void)
 		/* Shutdown the clockevents source. */
 		tick_suspend_local();
 
+		is_running = false;
 		lkl_ops->sem_up(halt_sem);
 		lkl_ops->thread_exit();
 	}
