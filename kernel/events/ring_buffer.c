@@ -330,15 +330,22 @@ void *perf_aux_output_begin(struct perf_output_handle *handle,
 	if (!rb)
 		return NULL;
 
-	if (!rb_has_aux(rb) || !atomic_inc_not_zero(&rb->aux_refcount))
+	if (!rb_has_aux(rb))
 		goto err;
 
 	/*
-	 * If rb::aux_mmap_count is zero (and rb_has_aux() above went through),
-	 * the aux buffer is in perf_mmap_close(), about to get freed.
+	 * If aux_mmap_count is zero, the aux buffer is in perf_mmap_close(),
+	 * about to get freed, so we leave immediately.
+	 *
+	 * Checking rb::aux_mmap_count and rb::refcount has to be done in
+	 * the same order, see perf_mmap_close. Otherwise we end up freeing
+	 * aux pages in this path, which is a bug, because in_atomic().
 	 */
 	if (!atomic_read(&rb->aux_mmap_count))
-		goto err_put;
+		goto err;
+
+	if (!atomic_inc_not_zero(&rb->aux_refcount))
+		goto err;
 
 	/*
 	 * Nesting is not supported for AUX area, make sure nested

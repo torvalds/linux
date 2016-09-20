@@ -1525,7 +1525,7 @@ static void ath10k_htt_rx_h_filter(struct ath10k *ar,
 static int ath10k_htt_rx_handle_amsdu(struct ath10k_htt *htt)
 {
 	struct ath10k *ar = htt->ar;
-	static struct ieee80211_rx_status rx_status;
+	struct ieee80211_rx_status *rx_status = &htt->rx_status;
 	struct sk_buff_head amsdu;
 	int ret;
 
@@ -1549,11 +1549,11 @@ static int ath10k_htt_rx_handle_amsdu(struct ath10k_htt *htt)
 		return ret;
 	}
 
-	ath10k_htt_rx_h_ppdu(ar, &amsdu, &rx_status, 0xffff);
+	ath10k_htt_rx_h_ppdu(ar, &amsdu, rx_status, 0xffff);
 	ath10k_htt_rx_h_unchain(ar, &amsdu, ret > 0);
-	ath10k_htt_rx_h_filter(ar, &amsdu, &rx_status);
-	ath10k_htt_rx_h_mpdu(ar, &amsdu, &rx_status);
-	ath10k_htt_rx_h_deliver(ar, &amsdu, &rx_status);
+	ath10k_htt_rx_h_filter(ar, &amsdu, rx_status);
+	ath10k_htt_rx_h_mpdu(ar, &amsdu, rx_status);
+	ath10k_htt_rx_h_deliver(ar, &amsdu, rx_status);
 
 	return 0;
 }

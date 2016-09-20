@@ -333,6 +333,8 @@ static void remove_ep_tid(struct c4iw_ep *ep)
 
 	spin_lock_irqsave(&ep->com.dev->lock, flags);
 	_remove_handle(ep->com.dev, &ep->com.dev->hwtid_idr, ep->hwtid, 0);
+	if (idr_is_empty(&ep->com.dev->hwtid_idr))
+		wake_up(&ep->com.dev->wait);
 	spin_unlock_irqrestore(&ep->com.dev->lock, flags);
 }
 
@@ -2117,8 +2119,10 @@ static int import_ep(struct c4iw_ep *ep, int iptype, __u8 *peer_ip,
 		}
 		ep->l2t = cxgb4_l2t_get(cdev->rdev.lldi.l2t,
 					n, pdev, rt_tos2priority(tos));
-		if (!ep->l2t)
+		if (!ep->l2t) {
+			dev_put(pdev);
 			goto out;
+		}
 		ep->mtu = pdev->mtu;
 		ep->tx_chan = cxgb4_port_chan(pdev);
 		ep->smac_idx = cxgb4_tp_smt_idx(adapter_type,

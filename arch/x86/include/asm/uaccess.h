@@ -433,7 +433,11 @@ do {									\
 #define __get_user_asm_ex(x, addr, itype, rtype, ltype)			\
 	asm volatile("1:	mov"itype" %1,%"rtype"0\n"		\
 		     "2:\n"						\
-		     _ASM_EXTABLE_EX(1b, 2b)				\
+		     ".section .fixup,\"ax\"\n"				\
+                     "3:xor"itype" %"rtype"0,%"rtype"0\n"		\
+		     "  jmp 2b\n"					\
+		     ".previous\n"					\
+		     _ASM_EXTABLE_EX(1b, 3b)				\
 		     : ltype(x) : "m" (__m(addr)))
 
 #define __put_user_nocheck(x, ptr, size)			\
@@ -705,7 +709,7 @@ static inline void copy_user_overflow(int size, unsigned long count)
 	WARN(1, "Buffer overflow detected (%d < %lu)!\n", size, count);
 }
 
-static inline unsigned long __must_check
+static __always_inline unsigned long __must_check
 copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	int sz = __compiletime_object_size(to);
@@ -725,7 +729,7 @@ copy_from_user(void *to, const void __user *from, unsigned long n)
 	return n;
 }
 
-static inline unsigned long __must_check
+static __always_inline unsigned long __must_check
 copy_to_user(void __user *to, const void *from, unsigned long n)
 {
 	int sz = __compiletime_object_size(from);
