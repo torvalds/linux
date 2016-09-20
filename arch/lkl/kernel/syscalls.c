@@ -9,12 +9,15 @@
 #include <linux/task_work.h>
 #include <linux/syscalls.h>
 #include <linux/kthread.h>
+#include <linux/platform_device.h>
 #include <asm/host_ops.h>
 #include <asm/syscalls.h>
 #include <asm/syscalls_32.h>
 
 struct syscall_thread_data;
 static asmlinkage long sys_create_syscall_thread(struct syscall_thread_data *);
+static asmlinkage long sys_virtio_mmio_device_add(long base, long size,
+						  unsigned int irq);
 
 typedef long (*syscall_handler_t)(long arg1, ...);
 
@@ -361,4 +364,51 @@ void free_initial_syscall_thread(void)
 	/* NB: .completion is freed in lkl_sys_halt, because it is
 	 * allocated in the LKL init routine. */
 	lkl_ops->sem_free(default_syscall_thread_data.mutex);
+}
+
+SYSCALL_DEFINE3(virtio_mmio_device_add, long, base, long, size, unsigned int,
+		irq)
+{
+	struct platform_device *pdev;
+	int ret;
+
+	struct resource res[] = {
+		[0] = {
+		       .start = base,
+		       .end = base + size - 1,
+		       .flags = IORESOURCE_MEM,
+		       },
+		[1] = {
+		       .start = irq,
+		       .end = irq,
+		       .flags = IORESOURCE_IRQ,
+		       },
+	};
+
+	pdev = platform_device_alloc("virtio-mmio", PLATFORM_DEVID_AUTO);
+	if (!pdev) {
+		dev_err(&pdev->dev, "%s: Unable to device alloc for virtio-mmio\n", __func__);
+		return -ENOMEM;
+	}
+
+	ret = platform_device_add_resources(pdev, res, ARRAY_SIZE(res));
+	if (ret) {
+		dev_err(&pdev->dev, "%s: Unable to add resources for %s%d\n", __func__, pdev->name, pdev->id);
+		goto exit_device_put;
+	}
+
+	ret = platform_device_add(pdev);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "%s: Unable to add %s%d\n", __func__, pdev->name, pdev->id);
+		goto exit_release_pdev;
+	}
+
+	return pdev->id;
+
+exit_release_pdev:
+	platform_device_del(pdev);
+exit_device_put:
+	platform_device_put(pdev);
+
+	return ret;
 }

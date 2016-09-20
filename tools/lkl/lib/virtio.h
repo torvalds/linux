@@ -70,10 +70,12 @@ struct virtio_dev {
 	void *config_data;
 	int config_len;
 	void *base;
+	uint32_t virtio_mmio_id;
 };
 
 int virtio_dev_setup(struct virtio_dev *dev, int queues, int num_max);
-void virtio_dev_cleanup(struct virtio_dev *dev);
+int virtio_dev_cleanup(struct virtio_dev *dev);
+uint32_t virtio_get_num_bootdevs(void);
 /**
  * virtio_req_complete - complete a virtio request
  *
