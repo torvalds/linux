@@ -260,6 +260,7 @@ struct mwifiex_ds_encrypt_key {
 	u8 is_igtk_key;
 	u8 is_current_wep_key;
 	u8 is_rx_seq_valid;
+	u8 is_igtk_def_key;
 };
 
 struct mwifiex_power_cfg {
