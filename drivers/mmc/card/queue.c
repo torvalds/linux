@@ -19,7 +19,9 @@
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
+
 #include "queue.h"
+#include "block.h"
 
 #define MMC_QUEUE_BOUNCESZ	65536
 
@@ -68,7 +70,7 @@ static int mmc_queue_thread(void *d)
 			bool req_is_special = mmc_req_is_special(req);
 
 			set_current_state(TASK_RUNNING);
-			mq->issue_fn(mq, req);
+			mmc_blk_issue_rq(mq, req);
 			cond_resched();
 			if (mq->flags & MMC_QUEUE_NEW_REQUEST) {
 				mq->flags &= ~MMC_QUEUE_NEW_REQUEST;
