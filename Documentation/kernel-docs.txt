@@ -156,6 +156,33 @@ ON-LINE DOCS
          device driver. It describes the code for module initialization and
          cleanup, as well as the open() and close() system calls*.
 
+     * Title: **On submitting kernel Patches**
+
+       :Author: Andi Kleen
+       :URL: http://halobates.de/on-submitting-kernel-patches.pdf
+       :Keywords: patches, review process, types of submissions, basic rules, case studies
+       :Description: This paper gives several experience values on what types of patches
+         there are and how likley they get merged.
+       :Abstract:
+         [...]. This paper examines some common problems for
+          submitting larger changes and some strategies to avoid problems.
+
+     * Title: **Tracing the Way of Data in a TCP Connection through the Linux Kernel**
+       :Author: Richard Sailer
+       :URL: https://archive.org/details/linux_kernel_data_flow_short_paper
+       :Keywords: Linux Kernel Networking, TCP, tracing, ftrace
+       :Description: A seminar paper explaining ftrace and how to use it for
+         understanding linux kernel internals,
+         illustrated at tracing the way of a TCP packet through the kernel.
+       :Abstract: *This short paper outlines the usage of ftrace a tracing framework
+         as a tool to understand a running Linux system.
+         Having obtained a trace-log a kernel hacker can read and understand
+         source code more determined and with context.
+         In a detailed example this approach is demonstrated in tracing
+         and the way of data in a TCP Connection through the kernel.
+         Finally this trace-log is used as base for more a exact conceptual
+         exploration and description of the Linux TCP/IP implementation.*
+
      * Title: **The Devil's in the Details**
 
        :Author: Georg v. Zezschwitz and Alessandro Rubini.
@@ -546,6 +573,24 @@ BOOKS: (Not on-line)
        :Date: July, 2010
        :Pages: 440
        :ISBN: 978-0672329463
+
+     * Title: **Linux Kernel Networking: Implementation and Theory**
+
+       :Author: Rami Rosen
+       :Publisher: Apress
+       :Date: December 22, 2013
+       :Pages: 648
+       :ISBN: 978-1430261964
+
+     * Title: **Linux Treiber entwickeln**
+
+       :Author: Jürgen Quade, Eva-Katharina Kunst
+       :Publisher: dpunkt.verlag
+       :Date: Oct 2015 (4th edition)
+       :Pages: 688
+       :ISBN: 978-3-86490-288-8
+       :Note: German. The third edition from 2011 is
+          much cheaper and still quite up-to-date.
 
 MISCELLANEOUS
 -------------
