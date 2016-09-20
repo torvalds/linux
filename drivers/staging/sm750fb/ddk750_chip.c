@@ -349,7 +349,7 @@ unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 		fl_quo = (rem * 10000 / input);
 
 		for (d = max_d; d >= 0; d--) {
-			X = (1 << d);
+			X = BIT(d);
 			M = quo * X;
 			M += fl_quo * X / 10000;
 			/* round step */
