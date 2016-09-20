@@ -34,7 +34,7 @@ struct nvmf_host {
 	struct kref		ref;
 	struct list_head	list;
 	char			nqn[NVMF_NQN_SIZE];
-	uuid_le			id;
+	uuid_be			id;
 };
 
 /**

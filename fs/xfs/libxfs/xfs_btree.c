@@ -1814,6 +1814,10 @@ xfs_btree_lookup(
 
 	XFS_BTREE_STATS_INC(cur, lookup);
 
+	/* No such thing as a zero-level tree. */
+	if (cur->bc_nlevels == 0)
+		return -EFSCORRUPTED;
+
 	block = NULL;
 	keyno = 0;
 
@@ -4554,15 +4558,22 @@ xfs_btree_simple_query_range(
 	if (error)
 		goto out;
 
+	/* Nothing?  See if there's anything to the right. */
+	if (!stat) {
+		error = xfs_btree_increment(cur, 0, &stat);
+		if (error)
+			goto out;
+	}
+
 	while (stat) {
 		/* Find the record. */
 		error = xfs_btree_get_rec(cur, &recp, &stat);
 		if (error || !stat)
 			break;
-		cur->bc_ops->init_high_key_from_rec(&rec_key, recp);
 
 		/* Skip if high_key(rec) < low_key. */
 		if (firstrec) {
+			cur->bc_ops->init_high_key_from_rec(&rec_key, recp);
 			firstrec = false;
 			diff = cur->bc_ops->diff_two_keys(cur, low_key,
 					&rec_key);
@@ -4571,6 +4582,7 @@ xfs_btree_simple_query_range(
 		}
 
 		/* Stop if high_key < low_key(rec). */
+		cur->bc_ops->init_key_from_rec(&rec_key, recp);
 		diff = cur->bc_ops->diff_two_keys(cur, &rec_key, high_key);
 		if (diff > 0)
 			break;

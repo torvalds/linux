@@ -134,21 +134,18 @@ static void omap8250_set_mctrl(struct uart_port *port, unsigned int mctrl)
 
 	serial8250_do_set_mctrl(port, mctrl);
 
-	if (IS_ERR_OR_NULL(mctrl_gpio_to_gpiod(up->gpios,
-						UART_GPIO_RTS))) {
-		/*
-		 * Turn off autoRTS if RTS is lowered and restore autoRTS
-		 * setting if RTS is raised
-		 */
-		lcr = serial_in(up, UART_LCR);
-		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
-		if ((mctrl & TIOCM_RTS) && (port->status & UPSTAT_AUTORTS))
-			priv->efr |= UART_EFR_RTS;
-		else
-			priv->efr &= ~UART_EFR_RTS;
-		serial_out(up, UART_EFR, priv->efr);
-		serial_out(up, UART_LCR, lcr);
-	}
+	/*
+	 * Turn off autoRTS if RTS is lowered and restore autoRTS setting
+	 * if RTS is raised
+	 */
+	lcr = serial_in(up, UART_LCR);
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
+	if ((mctrl & TIOCM_RTS) && (port->status & UPSTAT_AUTORTS))
+		priv->efr |= UART_EFR_RTS;
+	else
+		priv->efr &= ~UART_EFR_RTS;
+	serial_out(up, UART_EFR, priv->efr);
+	serial_out(up, UART_LCR, lcr);
 }
 
 /*
@@ -449,9 +446,7 @@ static void omap_8250_set_termios(struct uart_port *port,
 	priv->efr = 0;
 	up->port.status &= ~(UPSTAT_AUTOCTS | UPSTAT_AUTORTS | UPSTAT_AUTOXOFF);
 
-	if (termios->c_cflag & CRTSCTS && up->port.flags & UPF_HARD_FLOW
-		&& IS_ERR_OR_NULL(mctrl_gpio_to_gpiod(up->gpios,
-							UART_GPIO_RTS))) {
+	if (termios->c_cflag & CRTSCTS && up->port.flags & UPF_HARD_FLOW) {
 		/* Enable AUTOCTS (autoRTS is enabled when RTS is raised) */
 		up->port.status |= UPSTAT_AUTOCTS | UPSTAT_AUTORTS;
 		priv->efr |= UART_EFR_CTS;

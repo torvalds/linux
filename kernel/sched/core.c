@@ -74,6 +74,7 @@
 #include <linux/context_tracking.h>
 #include <linux/compiler.h>
 #include <linux/frame.h>
+#include <linux/prefetch.h>
 
 #include <asm/switch_to.h>
 #include <asm/tlb.h>
@@ -2015,6 +2016,28 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 	success = 1; /* we're going to change ->state */
 	cpu = task_cpu(p);
 
+	/*
+	 * Ensure we load p->on_rq _after_ p->state, otherwise it would
+	 * be possible to, falsely, observe p->on_rq == 0 and get stuck
+	 * in smp_cond_load_acquire() below.
+	 *
+	 * sched_ttwu_pending()                 try_to_wake_up()
+	 *   [S] p->on_rq = 1;                  [L] P->state
+	 *       UNLOCK rq->lock  -----.
+	 *                              \
+	 *				 +---   RMB
+	 * schedule()                   /
+	 *       LOCK rq->lock    -----'
+	 *       UNLOCK rq->lock
+	 *
+	 * [task p]
+	 *   [S] p->state = UNINTERRUPTIBLE     [L] p->on_rq
+	 *
+	 * Pairs with the UNLOCK+LOCK on rq->lock from the
+	 * last wakeup of our task and the schedule that got our task
+	 * current.
+	 */
+	smp_rmb();
 	if (p->on_rq && ttwu_remote(p, wake_flags))
 		goto stat;
 
@@ -2972,6 +2995,23 @@ EXPORT_PER_CPU_SYMBOL(kstat);
 EXPORT_PER_CPU_SYMBOL(kernel_cpustat);
 
 /*
+ * The function fair_sched_class.update_curr accesses the struct curr
+ * and its field curr->exec_start; when called from task_sched_runtime(),
+ * we observe a high rate of cache misses in practice.
+ * Prefetching this data results in improved performance.
+ */
+static inline void prefetch_curr_exec_start(struct task_struct *p)
+{
+#ifdef CONFIG_FAIR_GROUP_SCHED
+	struct sched_entity *curr = (&p->se)->cfs_rq->curr;
+#else
+	struct sched_entity *curr = (&task_rq(p)->cfs)->curr;
+#endif
+	prefetch(curr);
+	prefetch(&curr->exec_start);
+}
+
+/*
  * Return accounted runtime for the task.
  * In case the task is currently running, return the runtime plus current's
  * pending runtime that have not been accounted yet.
@@ -3005,6 +3045,7 @@ unsigned long long task_sched_runtime(struct task_struct *p)
 	 * thread, breaking clock_gettime().
 	 */
 	if (task_current(rq, p) && task_on_rq_queued(p)) {
+		prefetch_curr_exec_start(p);
 		update_rq_clock(rq);
 		p->sched_class->update_curr(rq);
 	}

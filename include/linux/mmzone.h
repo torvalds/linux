@@ -68,8 +68,10 @@ extern char * const migratetype_names[MIGRATE_TYPES];
 
 #ifdef CONFIG_CMA
 #  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)
+#  define is_migrate_cma_page(_page) (get_pageblock_migratetype(_page) == MIGRATE_CMA)
 #else
 #  define is_migrate_cma(migratetype) false
+#  define is_migrate_cma_page(_page) false
 #endif
 
 #define for_each_migratetype_order(order, type) \
@@ -826,9 +828,21 @@ unsigned long __init node_memmap_size_bytes(int, unsigned long, unsigned long);
  */
 #define zone_idx(zone)		((zone) - (zone)->zone_pgdat->node_zones)
 
-static inline int populated_zone(struct zone *zone)
+/*
+ * Returns true if a zone has pages managed by the buddy allocator.
+ * All the reclaim decisions have to use this function rather than
+ * populated_zone(). If the whole zone is reserved then we can easily
+ * end up with populated_zone() && !managed_zone().
+ */
+static inline bool managed_zone(struct zone *zone)
 {
-	return (!!zone->present_pages);
+	return zone->managed_pages;
+}
+
+/* Returns true if a zone has memory */
+static inline bool populated_zone(struct zone *zone)
+{
+	return zone->present_pages;
 }
 
 extern int movable_zone;

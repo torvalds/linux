@@ -63,49 +63,8 @@ static int tcf_act_police_walker(struct net *net, struct sk_buff *skb,
 				 const struct tc_action_ops *ops)
 {
 	struct tc_action_net *tn = net_generic(net, police_net_id);
-	struct tcf_hashinfo *hinfo = tn->hinfo;
-	int err = 0, index = -1, i = 0, s_i = 0, n_i = 0;
-	struct nlattr *nest;
 
-	spin_lock_bh(&hinfo->lock);
-
-	s_i = cb->args[0];
-
-	for (i = 0; i < (POL_TAB_MASK + 1); i++) {
-		struct hlist_head *head;
-		struct tc_action *p;
-
-		head = &hinfo->htab[tcf_hash(i, POL_TAB_MASK)];
-
-		hlist_for_each_entry_rcu(p, head, tcfa_head) {
-			index++;
-			if (index < s_i)
-				continue;
-			nest = nla_nest_start(skb, index);
-			if (nest == NULL)
-				goto nla_put_failure;
-			if (type == RTM_DELACTION)
-				err = tcf_action_dump_1(skb, p, 0, 1);
-			else
-				err = tcf_action_dump_1(skb, p, 0, 0);
-			if (err < 0) {
-				index--;
-				nla_nest_cancel(skb, nest);
-				goto done;
-			}
-			nla_nest_end(skb, nest);
-			n_i++;
-		}
-	}
-done:
-	spin_unlock_bh(&hinfo->lock);
-	if (n_i)
-		cb->args[0] += n_i;
-	return n_i;
-
-nla_put_failure:
-	nla_nest_cancel(skb, nest);
-	goto done;
+	return tcf_generic_walker(tn, skb, cb, type, ops);
 }
 
 static const struct nla_policy police_policy[TCA_POLICE_MAX + 1] = {
@@ -125,6 +84,7 @@ static int tcf_act_police_init(struct net *net, struct nlattr *nla,
 	struct tcf_police *police;
 	struct qdisc_rate_table *R_tab = NULL, *P_tab = NULL;
 	struct tc_action_net *tn = net_generic(net, police_net_id);
+	bool exists = false;
 	int size;
 
 	if (nla == NULL)
@@ -139,24 +99,24 @@ static int tcf_act_police_init(struct net *net, struct nlattr *nla,
 	size = nla_len(tb[TCA_POLICE_TBF]);
 	if (size != sizeof(*parm) && size != sizeof(struct tc_police_compat))
 		return -EINVAL;
-	parm = nla_data(tb[TCA_POLICE_TBF]);
 
-	if (parm->index) {
-		if (tcf_hash_check(tn, parm->index, a, bind)) {
-			if (ovr)
-				goto override;
-			/* not replacing */
-			return -EEXIST;
-		}
-	} else {
+	parm = nla_data(tb[TCA_POLICE_TBF]);
+	exists = tcf_hash_check(tn, parm->index, a, bind);
+	if (exists && bind)
+		return 0;
+
+	if (!exists) {
 		ret = tcf_hash_create(tn, parm->index, NULL, a,
 				      &act_police_ops, bind, false);
 		if (ret)
 			return ret;
 		ret = ACT_P_CREATED;
+	} else {
+		tcf_hash_release(*a, bind);
+		if (!ovr)
+			return -EEXIST;
 	}
 
-override:
 	police = to_police(*a);
 	if (parm->rate.rate) {
 		err = -ENOMEM;

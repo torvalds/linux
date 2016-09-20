@@ -295,6 +295,7 @@ __und_svc_fault:
 	bl	__und_fault
 
 __und_svc_finish:
+	get_thread_info tsk
 	ldr	r5, [sp, #S_PSR]		@ Get SVC cpsr
 	svc_exit r5				@ return from exception
  UNWIND(.fnend		)

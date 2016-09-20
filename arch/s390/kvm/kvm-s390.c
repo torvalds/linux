@@ -1672,6 +1672,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 				    KVM_SYNC_CRS |
 				    KVM_SYNC_ARCH0 |
 				    KVM_SYNC_PFAULT;
+	kvm_s390_set_prefix(vcpu, 0);
 	if (test_kvm_facility(vcpu->kvm, 64))
 		vcpu->run->kvm_valid_regs |= KVM_SYNC_RICCB;
 	/* fprs can be synchronized via vrs, even if the guest has no vx. With
@@ -2230,9 +2231,10 @@ int kvm_arch_vcpu_ioctl_set_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 		return -EINVAL;
 	current->thread.fpu.fpc = fpu->fpc;
 	if (MACHINE_HAS_VX)
-		convert_fp_to_vx(current->thread.fpu.vxrs, (freg_t *)fpu->fprs);
+		convert_fp_to_vx((__vector128 *) vcpu->run->s.regs.vrs,
+				 (freg_t *) fpu->fprs);
 	else
-		memcpy(current->thread.fpu.fprs, &fpu->fprs, sizeof(fpu->fprs));
+		memcpy(vcpu->run->s.regs.fprs, &fpu->fprs, sizeof(fpu->fprs));
 	return 0;
 }
 
@@ -2241,9 +2243,10 @@ int kvm_arch_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 	/* make sure we have the latest values */
 	save_fpu_regs();
 	if (MACHINE_HAS_VX)
-		convert_vx_to_fp((freg_t *)fpu->fprs, current->thread.fpu.vxrs);
+		convert_vx_to_fp((freg_t *) fpu->fprs,
+				 (__vector128 *) vcpu->run->s.regs.vrs);
 	else
-		memcpy(fpu->fprs, current->thread.fpu.fprs, sizeof(fpu->fprs));
+		memcpy(fpu->fprs, vcpu->run->s.regs.fprs, sizeof(fpu->fprs));
 	fpu->fpc = current->thread.fpu.fpc;
 	return 0;
 }
@@ -2361,8 +2364,10 @@ retry:
 		rc = gmap_mprotect_notify(vcpu->arch.gmap,
 					  kvm_s390_get_prefix(vcpu),
 					  PAGE_SIZE * 2, PROT_WRITE);
-		if (rc)
+		if (rc) {
+			kvm_make_request(KVM_REQ_MMU_RELOAD, vcpu);
 			return rc;
+		}
 		goto retry;
 	}
 

@@ -667,18 +667,19 @@ struct bio *bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
 	bio->bi_iter.bi_sector	= bio_src->bi_iter.bi_sector;
 	bio->bi_iter.bi_size	= bio_src->bi_iter.bi_size;
 
-	if (bio_op(bio) == REQ_OP_DISCARD)
-		goto integrity_clone;
-
-	if (bio_op(bio) == REQ_OP_WRITE_SAME) {
+	switch (bio_op(bio)) {
+	case REQ_OP_DISCARD:
+	case REQ_OP_SECURE_ERASE:
+		break;
+	case REQ_OP_WRITE_SAME:
 		bio->bi_io_vec[bio->bi_vcnt++] = bio_src->bi_io_vec[0];
-		goto integrity_clone;
+		break;
+	default:
+		bio_for_each_segment(bv, bio_src, iter)
+			bio->bi_io_vec[bio->bi_vcnt++] = bv;
+		break;
 	}
 
-	bio_for_each_segment(bv, bio_src, iter)
-		bio->bi_io_vec[bio->bi_vcnt++] = bv;
-
-integrity_clone:
 	if (bio_integrity(bio_src)) {
 		int ret;
 
@@ -1788,7 +1789,7 @@ struct bio *bio_split(struct bio *bio, int sectors,
 	 * Discards need a mutable bio_vec to accommodate the payload
 	 * required by the DSM TRIM and UNMAP commands.
 	 */
-	if (bio_op(bio) == REQ_OP_DISCARD)
+	if (bio_op(bio) == REQ_OP_DISCARD || bio_op(bio) == REQ_OP_SECURE_ERASE)
 		split = bio_clone_bioset(bio, gfp, bs);
 	else
 		split = bio_clone_fast(bio, gfp, bs);

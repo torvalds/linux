@@ -46,7 +46,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 		cached = 0;
 
 	for (lru = LRU_BASE; lru < NR_LRU_LISTS; lru++)
-		pages[lru] = global_page_state(NR_LRU_BASE + lru);
+		pages[lru] = global_node_page_state(NR_LRU_BASE + lru);
 
 	available = si_mem_available();
 

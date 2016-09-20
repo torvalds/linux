@@ -18,6 +18,7 @@
 #include <linux/bitmap.h>
 #include <linux/cpu.h>
 #include <linux/delay.h>
+#include <linux/dma-iommu.h>
 #include <linux/interrupt.h>
 #include <linux/log2.h>
 #include <linux/mm.h>
@@ -655,6 +656,8 @@ static void its_irq_compose_msi_msg(struct irq_data *d, struct msi_msg *msg)
 	msg->address_lo		= addr & ((1UL << 32) - 1);
 	msg->address_hi		= addr >> 32;
 	msg->data		= its_get_event_id(d);
+
+	iommu_dma_map_msi_msg(d->irq, msg);
 }
 
 static struct irq_chip its_irq_chip = {
@@ -1545,7 +1548,12 @@ static int its_force_quiescent(void __iomem *base)
 	u32 val;
 
 	val = readl_relaxed(base + GITS_CTLR);
-	if (val & GITS_CTLR_QUIESCENT)
+	/*
+	 * GIC architecture specification requires the ITS to be both
+	 * disabled and quiescent for writes to GITS_BASER<n> or
+	 * GITS_CBASER to not have UNPREDICTABLE results.
+	 */
+	if ((val & GITS_CTLR_QUIESCENT) && !(val & GITS_CTLR_ENABLE))
 		return 0;
 
 	/* Disable the generation of all interrupts to this ITS */

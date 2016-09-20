@@ -64,16 +64,13 @@ static int afs_deliver_vl_get_entry_by_xxx(struct afs_call *call,
 	struct afs_cache_vlocation *entry;
 	__be32 *bp;
 	u32 tmp;
-	int loop;
+	int loop, ret;
 
 	_enter(",,%u", last);
 
-	afs_transfer_reply(call, skb);
-	if (!last)
-		return 0;
-
-	if (call->reply_size != call->reply_max)
-		return -EBADMSG;
+	ret = afs_transfer_reply(call, skb, last);
+	if (ret < 0)
+		return ret;
 
 	/* unmarshall the reply once we've received all of it */
 	entry = call->reply;

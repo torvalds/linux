@@ -760,7 +760,8 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size,
 	if (!d->nr_stripes ||
 	    d->nr_stripes > INT_MAX ||
 	    d->nr_stripes > SIZE_MAX / sizeof(atomic_t)) {
-		pr_err("nr_stripes too large");
+		pr_err("nr_stripes too large or invalid: %u (start sector beyond end of disk?)",
+			(unsigned)d->nr_stripes);
 		return -ENOMEM;
 	}
 
@@ -1820,7 +1821,7 @@ static int cache_alloc(struct cache *ca)
 	free = roundup_pow_of_two(ca->sb.nbuckets) >> 10;
 
 	if (!init_fifo(&ca->free[RESERVE_BTREE], 8, GFP_KERNEL) ||
-	    !init_fifo(&ca->free[RESERVE_PRIO], prio_buckets(ca), GFP_KERNEL) ||
+	    !init_fifo_exact(&ca->free[RESERVE_PRIO], prio_buckets(ca), GFP_KERNEL) ||
 	    !init_fifo(&ca->free[RESERVE_MOVINGGC], free, GFP_KERNEL) ||
 	    !init_fifo(&ca->free[RESERVE_NONE], free, GFP_KERNEL) ||
 	    !init_fifo(&ca->free_inc,	free << 2, GFP_KERNEL) ||
@@ -1844,7 +1845,7 @@ static int register_cache(struct cache_sb *sb, struct page *sb_page,
 				struct block_device *bdev, struct cache *ca)
 {
 	char name[BDEVNAME_SIZE];
-	const char *err = NULL;
+	const char *err = NULL; /* must be set for any error case */
 	int ret = 0;
 
 	memcpy(&ca->sb, sb, sizeof(struct cache_sb));
@@ -1861,8 +1862,13 @@ static int register_cache(struct cache_sb *sb, struct page *sb_page,
 		ca->discard = CACHE_DISCARD(&ca->sb);
 
 	ret = cache_alloc(ca);
-	if (ret != 0)
+	if (ret != 0) {
+		if (ret == -ENOMEM)
+			err = "cache_alloc(): -ENOMEM";
+		else
+			err = "cache_alloc(): unknown error";
 		goto err;
+	}
 
 	if (kobject_add(&ca->kobj, &part_to_dev(bdev->bd_part)->kobj, "bcache")) {
 		err = "error calling kobject_add";

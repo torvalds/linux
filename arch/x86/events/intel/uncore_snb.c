@@ -100,6 +100,12 @@ static void snb_uncore_msr_init_box(struct intel_uncore_box *box)
 	}
 }
 
+static void snb_uncore_msr_enable_box(struct intel_uncore_box *box)
+{
+	wrmsrl(SNB_UNC_PERF_GLOBAL_CTL,
+		SNB_UNC_GLOBAL_CTL_EN | SNB_UNC_GLOBAL_CTL_CORE_ALL);
+}
+
 static void snb_uncore_msr_exit_box(struct intel_uncore_box *box)
 {
 	if (box->pmu->pmu_idx == 0)
@@ -127,6 +133,7 @@ static struct attribute_group snb_uncore_format_group = {
 
 static struct intel_uncore_ops snb_uncore_msr_ops = {
 	.init_box	= snb_uncore_msr_init_box,
+	.enable_box	= snb_uncore_msr_enable_box,
 	.exit_box	= snb_uncore_msr_exit_box,
 	.disable_event	= snb_uncore_msr_disable_event,
 	.enable_event	= snb_uncore_msr_enable_event,
@@ -192,6 +199,12 @@ static void skl_uncore_msr_init_box(struct intel_uncore_box *box)
 	}
 }
 
+static void skl_uncore_msr_enable_box(struct intel_uncore_box *box)
+{
+	wrmsrl(SKL_UNC_PERF_GLOBAL_CTL,
+		SNB_UNC_GLOBAL_CTL_EN | SKL_UNC_GLOBAL_CTL_CORE_ALL);
+}
+
 static void skl_uncore_msr_exit_box(struct intel_uncore_box *box)
 {
 	if (box->pmu->pmu_idx == 0)
@@ -200,6 +213,7 @@ static void skl_uncore_msr_exit_box(struct intel_uncore_box *box)
 
 static struct intel_uncore_ops skl_uncore_msr_ops = {
 	.init_box	= skl_uncore_msr_init_box,
+	.enable_box	= skl_uncore_msr_enable_box,
 	.exit_box	= skl_uncore_msr_exit_box,
 	.disable_event	= snb_uncore_msr_disable_event,
 	.enable_event	= snb_uncore_msr_enable_event,

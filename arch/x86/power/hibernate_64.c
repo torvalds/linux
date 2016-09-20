@@ -87,7 +87,7 @@ static int set_up_temporary_mappings(void)
 	struct x86_mapping_info info = {
 		.alloc_pgt_page	= alloc_pgt_page,
 		.pmd_flag	= __PAGE_KERNEL_LARGE_EXEC,
-		.kernel_mapping = true,
+		.offset		= __PAGE_OFFSET,
 	};
 	unsigned long mstart, mend;
 	pgd_t *pgd;
@@ -113,7 +113,7 @@ static int set_up_temporary_mappings(void)
 			return result;
 	}
 
-	temp_level4_pgt = (unsigned long)pgd - __PAGE_OFFSET;
+	temp_level4_pgt = __pa(pgd);
 	return 0;
 }
 
