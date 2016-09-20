@@ -248,6 +248,8 @@ struct intel_encoder {
 	void (*suspend)(struct intel_encoder *);
 	int crtc_mask;
 	enum hpd_pin hpd_pin;
+	/* for communication with audio component; protected by av_mutex */
+	const struct drm_connector *audio_connector;
 };
 
 struct intel_panel {
@@ -960,8 +962,6 @@ struct intel_digital_port {
 	enum irqreturn (*hpd_pulse)(struct intel_digital_port *, bool);
 	bool release_cl2_override;
 	uint8_t max_lanes;
-	/* for communication with audio component; protected by av_mutex */
-	const struct drm_connector *audio_connector;
 };
 
 struct intel_dp_mst_encoder {
