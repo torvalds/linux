@@ -2327,6 +2327,18 @@ struct cfg80211_nan_conf {
 };
 
 /**
+ * enum cfg80211_nan_conf_changes - indicates changed fields in NAN
+ * configuration
+ *
+ * @CFG80211_NAN_CONF_CHANGED_PREF: master preference
+ * @CFG80211_NAN_CONF_CHANGED_DUAL: dual band operation
+ */
+enum cfg80211_nan_conf_changes {
+	CFG80211_NAN_CONF_CHANGED_PREF = BIT(0),
+	CFG80211_NAN_CONF_CHANGED_DUAL = BIT(1),
+};
+
+/**
  * struct cfg80211_nan_func_filter - a NAN function Rx / Tx filter
  *
  * @filter: the content of the filter
@@ -2691,6 +2703,9 @@ struct cfg80211_nan_func {
  *	On success the driver should assign an instance_id in the
  *	provided @nan_func.
  * @del_nan_func: Delete a NAN function.
+ * @nan_change_conf: changes NAN configuration. The changed parameters must
+ *	be specified in @changes (using &enum cfg80211_nan_conf_changes);
+ *	All other parameters must be ignored.
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
@@ -2963,6 +2978,10 @@ struct cfg80211_ops {
 				struct cfg80211_nan_func *nan_func);
 	void	(*del_nan_func)(struct wiphy *wiphy, struct wireless_dev *wdev,
 			       u64 cookie);
+	int	(*nan_change_conf)(struct wiphy *wiphy,
+				   struct wireless_dev *wdev,
+				   struct cfg80211_nan_conf *conf,
+				   u32 changes);
 };
 
 /*
