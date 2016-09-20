@@ -1267,8 +1267,8 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 				  ep_desc->bEndpointAddress * 16,
 				  1);
 		if (err < 0)
-			pr_warn("DCI Sync for EP %02x failed",
-				ep_desc->bEndpointAddress);
+			dev_warn(dev, "DCI Sync for EP %02x failed",
+				 ep_desc->bEndpointAddress);
 	}
 	dev_notice(dev, "claimed gadget: Vendor=%4.4x ProdID=%4.4x Bus=%02x Device=%02x\n",
 		   le16_to_cpu(usb_dev->descriptor.idVendor),
