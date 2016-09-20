@@ -1362,6 +1362,7 @@ int tcp_mss_to_mtu(struct sock *sk, int mss)
 	}
 	return mtu;
 }
+EXPORT_SYMBOL(tcp_mss_to_mtu);
 
 /* MTU probing init per socket */
 void tcp_mtup_init(struct sock *sk)
