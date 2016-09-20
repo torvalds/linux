@@ -229,25 +229,6 @@ ON-LINE DOCS
          the current interface (version 1.0) as well as improvements we
          envisage".
 
-     * Title: **Programming PCI-Devices under Linux**
-
-       :Author: Claus Schroeter.
-       :URL: ftp://ftp.llp.fu-berlin.de/pub/linux/LINUX-LAB/whitepapers/pcip.ps.gz
-       :Keywords: PCI, device, busmastering.
-       :Description: 6 pages tutorial on PCI programming under Linux.
-         Gives the basic concepts on the architecture of the PCI subsystem,
-         as long as basic functions and macros to read/write the devices
-         and perform busmastering.
-
-     * Title: **Writing Character Device Driver for Linux**
-
-       :Author: R. Baruch and C. Schroeter.
-       :URL: ftp://ftp.llp.fu-berlin.de/pub/linux/LINUX-LAB/whitepapers/drivers.ps.gz
-       :Keywords: character device drivers, I/O, signals, DMA, accessing
-         ports in user space, kernel environment.
-       :Description: 68 pages paper on writing character drivers. A little
-         bit old (1.993, 1.994) although still useful.
-
      * Title: **Design and Implementation of the Second Extended Filesystem**
 
        :Author: Rémy Card, Theodore Ts'o, Stephen Tweedie.
@@ -269,31 +250,6 @@ ON-LINE DOCS
        :Keywords: ext2, filesystem, ext2fs.
        :Description: Description of ext2's blocks, directories, inodes,
          bitmaps, invariants...
-
-     * Title: **Journaling the Linux ext2fs Filesystem**
-
-       :Author: Stephen C. Tweedie.
-       :URL: ftp://ftp.uk.linux.org/pub/linux/sct/fs/jfs/journal-design.ps.gz
-       :Keywords: ext3, journaling.
-       :Description: Excellent 8-pages paper explaining the journaling
-         capabilities added to ext2 by the author, showing different
-         problems faced and the alternatives chosen.
-
-     * Title: **Kernel API changes from 2.0 to 2.2**
-
-       :Author: Richard Gooch.
-       :URL: http://www.safe-mbox.com/~rgooch/linux/docs/porting-to-2.2.html
-       :Keywords: 2.2, changes.
-       :Description: Kernel functions/structures/variables which changed
-         from 2.0.x to 2.2.x.
-
-     * Title: **Kernel API changes from 2.2 to 2.4**
-
-       :Author: Richard Gooch.
-       :URL: http://www.safe-mbox.com/~rgooch/linux/docs/porting-to-2.4.html
-       :Keywords: 2.4, changes.
-       :Description: Kernel functions/structures/variables which changed
-         from 2.2.x to 2.4.x.
 
      * Title: **Linux Kernel Module Programming Guide**
 
@@ -344,25 +300,6 @@ ON-LINE DOCS
          both at kernel and user-level sides. ALSA is the Linux kernel
          sound architecture in the 2.6 kernel version.
 
-     * Title: **Programming Guide for Linux USB Device Drivers**
-
-       :Author: Detlef Fliegl.
-       :URL: http://usb.in.tum.de/usbdoc/
-       :Keywords: USB, universal serial bus.
-       :Description: A must-read. From the Preface: "This document should
-         give detailed information about the current state of the USB
-         subsystem and its API for USB device drivers. The first section
-         will deal with the basics of USB devices. You will learn about
-         different types of devices and their properties. Going into detail
-         you will see how USB devices communicate on the bus. The second
-         section gives an overview of the Linux USB subsystem [2] and the
-         device driver framework. Then the API and its data structures will
-         be explained step by step. The last section of this document
-         contains a reference of all API calls and their return codes".
-       :Notes: Beware: the main page states: "This document may not be
-         published, printed or used in excerpts without explicit permission
-         of the author". Fortunately, it may still be read...
-
      * Title: **Linux Kernel Mailing List Glossary**
 
        :Author: various
@@ -397,21 +334,6 @@ ON-LINE DOCS
          list of spinlocks showing when they are used, which functions
          access them, how each lock is acquired, under what conditions it
          is held, whether interrupts can occur or not while it is held...
-
-     * Title: **Porting Linux 2.0 Drivers To Linux 2.2: Changes and New Features**
-
-       :Author: Alan Cox.
-       :URL: http://www.linux-mag.com/1999-05/gear_01.html
-       :Keywords: ports, porting.
-       :Description: Article from Linux Magazine on porting from 2.0 to
-         2.2 kernels.
-
-     * Title: **Porting Device Drivers To Linux 2.2: part II**
-
-       :Author: Alan Cox.
-       :URL: http://www.linux-mag.com/id/238
-       :Keywords: ports, porting.
-       :Description: Second part on porting from 2.0 to 2.2 kernels.
 
      * Title: **How To Make Sure Your Driver Will Work On The Power Macintosh**
 
@@ -471,22 +393,6 @@ ON-LINE DOCS
          camera driver, control, query capabilities, capability, facility.
        :Description: The title says it all.
 
-     * Title: **PCI Management in Linux 2.2**
-
-       :Author: Alan Cox.
-       :URL: http://www.linux-mag.com/id/452
-       :Keywords: PCI, bus, bus-mastering.
-       :Description: The title says it all.
-
-     * Title: **Linux 2.4 Kernel Internals**
-
-       :Author: Tigran Aivazian and Christoph Hellwig.
-       :URL: http://www.moses.uklinux.net/patches/lki.html
-       :Keywords: Linux, kernel, booting, SMB boot, VFS, page cache.
-       :Description: A little book used for a short training course.
-         Covers building the kernel image, booting (including SMP bootup),
-         process management, VFS and more.
-
      * Title: **Linux IP Networking. A Guide to the Implementation and Modification of the Linux Protocol Stack.**
 
        :Author: Glenn Herrin.
@@ -503,19 +409,6 @@ ON-LINE DOCS
          code is from 2.2.14 version. Provides code for a working packet
          dropper example.
 
-     * Title: **Get those boards talking under Linux.**
-
-       :Author: Alex Ivchenko.
-       :URL: http://www.edn.com/article/CA46968.html
-       :Keywords: data-acquisition boards, drivers, modules, interrupts,
-         memory allocation.
-       :Description: Article written for people wishing to make their data
-         acquisition boards work on their GNU/Linux machines. Gives a basic
-         overview on writing drivers, from the naming of functions to
-         interrupt handling.
-       :Notes: Two-parts article. Part II is at
-       :URL: http://www.edn.com/article/CA46998.html
-
      * Title: **Linux PCMCIA Programmer's Guide**
 
        :Author: David Hinds.
@@ -525,14 +418,6 @@ ON-LINE DOCS
          drivers for the Linux PCMCIA Card Services interface. It also
          describes how to write user-mode utilities for communicating with
          Card Services.
-
-     * Title: **The Linux Kernel NFSD Implementation**
-
-       :Author: Neil Brown.
-       :URL: http://www.cse.unsw.edu.au/~neilb/oss/linux-commentary/nfsd.html
-       :Keywords: knfsd, nfsd, NFS, RPC, lockd, mountd, statd.
-       :Description: The title says it all.
-       :Notes: Covers knfsd's version 1.4.7 (patch against 2.2.7 kernel).
 
      * Title: **A Linux vm README**
 
@@ -702,33 +587,6 @@ MISCELLANEOUS
          summarizing developers' work, bug fixes, new features and versions
          produced during the week. Published every Thursday.
 
-     * Name: **Kernel Traffic**
-
-       :URL: http://kt.earth.li/kernel-traffic/index.html
-       :Keywords: linux-kernel mailing list, weekly kernel news.
-       :Description: Weekly newsletter covering the most relevant
-         discussions of the linux-kernel mailing list.
-
-     * Name: **CuTTiNG.eDGe.LiNuX**
-
-       :URL: http://edge.kernelnotes.org
-       :Keywords: changelist.
-       :Description: Site which provides the changelist for every kernel
-         release. What's new, what's better, what's changed. Myrdraal reads
-         the patches and describes them. Pointers to the patches are there,
-         too.
-
-     * Name: **New linux-kernel Mailing List FAQ**
-
-       :URL: http://www.tux.org/lkml/
-       :Keywords: linux-kernel mailing list FAQ.
-       :Description: linux-kernel is a mailing list for developers to
-         communicate. This FAQ builds on the previous linux-kernel mailing
-         list FAQ maintained by Frohwalt Egerer, who no longer maintains
-         it. Read it to see how to join the mailing list. Dozens of
-         interesting questions regarding the list, Linux, developers (who
-         is ...?), terms (what is...?) are answered here too. Just read it.
-
      * Name: **Linux Virtual File System**
 
        :Author: Peter J. Braam.
@@ -737,18 +595,6 @@ MISCELLANEOUS
        :Description: Set of slides, presumably from a presentation on the
          Linux VFS layer. Covers version 2.1.x, with dentries and the
          dcache.
-
-     * Name: **Gary's Encyclopedia - The Linux Kernel**
-
-       :Author: Gary (I suppose...).
-       :URL: http://slencyclopedia.berlios.de/index.html
-       :Keywords: linux, community, everything!
-       :Description: Gary's Encyclopedia exists to allow the rapid finding
-         of documentation and other information of interest to GNU/Linux
-         users. It has about 4000 links to external pages in 150 major
-         categories. This link is for kernel-specific links, documents,
-         sites...  This list is now hosted by developer.Berlios.de,
-         but seems not to have been updated since sometime in 1999.
 
      * Name: **The home page of Linux-MM**
 
@@ -778,14 +624,11 @@ MISCELLANEOUS
 
        :URL: http://vger.kernel.org/vger-lists.html
        :URL: http://www.uwsg.indiana.edu/hypermail/linux/kernel/index.html
-       :URL: http://marc.theaimsgroup.com/?l=linux-kernel
        :URL: http://groups.google.com/group/mlist.linux.kernel
-       :URL: http://www.cs.helsinki.fi/linux/linux-kernel/
-       :URL: http://www.lib.uaa.alaska.edu/linux-kernel/
        :Keywords: linux-kernel, archives, search.
        :Description: Some of the linux-kernel mailing list archivers. If
          you have a better/another one, please let me know.
 
 -------
 
-Document last updated on Sat 2005-NOV-19
+Document last updated on Mon 2016-Sep-19
