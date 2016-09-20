@@ -2711,7 +2711,7 @@ static int ms_build_l2p_tbl(struct rtsx_chip *chip, int seg_no)
 		us2 = extra[0] & 0x10;
 
 		(void)ms_arbitrate_l2p(chip, phy_blk,
-				log_blk-ms_start_idx[seg_no], us1, us2);
+				log_blk - ms_start_idx[seg_no], us1, us2);
 		continue;
 	}
 
@@ -3986,7 +3986,7 @@ static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 
 		for (seg_no = 0; seg_no < ARRAY_SIZE(ms_start_idx) - 1;
 				seg_no++) {
-			if (log_blk < ms_start_idx[seg_no+1])
+			if (log_blk < ms_start_idx[seg_no + 1])
 				break;
 		}
 
@@ -4648,8 +4648,8 @@ int mg_set_ICV(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 		rtsx_send_cmd_no_wait(chip);
 
-		retval = rtsx_transfer_data(chip, MS_CARD, buf + 4 + i*512,
-					512, 0, DMA_TO_DEVICE, 3000);
+		retval = rtsx_transfer_data(chip, MS_CARD, buf + 4 + i * 512,
+					    512, 0, DMA_TO_DEVICE, 3000);
 		if ((retval < 0) || check_ms_err(chip)) {
 			rtsx_clear_ms_error(chip);
 			if (ms_card->mg_auth == 0) {
