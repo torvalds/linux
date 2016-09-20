@@ -480,8 +480,7 @@ static void line6_destruct(struct snd_card *card)
 	/* Free buffer memory first. We cannot depend on the existence of private
 	 * data from the (podhd) module, it may be gone already during this call
 	 */
-	if (line6->buffer_message)
-		kfree(line6->buffer_message);
+	kfree(line6->buffer_message);
 
 	kfree(line6->buffer_listen);
 
