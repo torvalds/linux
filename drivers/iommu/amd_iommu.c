@@ -3634,7 +3634,7 @@ static struct irq_remap_table *get_irq_table(u16 devid, bool ioapic)
 
 	table = irq_lookup_table[devid];
 	if (table)
-		goto out;
+		goto out_unlock;
 
 	alias = amd_iommu_alias_table[devid];
 	table = irq_lookup_table[alias];
@@ -3648,7 +3648,7 @@ static struct irq_remap_table *get_irq_table(u16 devid, bool ioapic)
 	/* Nothing there yet, allocate new irq remapping table */
 	table = kzalloc(sizeof(*table), GFP_ATOMIC);
 	if (!table)
-		goto out;
+		goto out_unlock;
 
 	/* Initialize table spin-lock */
 	spin_lock_init(&table->lock);
@@ -3661,7 +3661,7 @@ static struct irq_remap_table *get_irq_table(u16 devid, bool ioapic)
 	if (!table->table) {
 		kfree(table);
 		table = NULL;
-		goto out;
+		goto out_unlock;
 	}
 
 	if (!AMD_IOMMU_GUEST_IR_GA(amd_iommu_guest_ir))
