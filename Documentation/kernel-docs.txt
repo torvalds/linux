@@ -453,8 +453,36 @@ On-line docs
       :Notes: For 2.0.x kernels. Gives guidances to port it to 2.2.x
         kernels.
 
+.. Please keep the published books in reverse publication date
+
 Published books
 ---------------
+
+    * Title: **Linux Treiber entwickeln**
+
+      :Author: Jürgen Quade, Eva-Katharina Kunst
+      :Publisher: dpunkt.verlag
+      :Date: Oct 2015 (4th edition)
+      :Pages: 688
+      :ISBN: 978-3-86490-288-8
+      :Note: German. The third edition from 2011 is
+         much cheaper and still quite up-to-date.
+
+    * Title: **Linux Kernel Networking: Implementation and Theory**
+
+      :Author: Rami Rosen
+      :Publisher: Apress
+      :Date: December 22, 2013
+      :Pages: 648
+      :ISBN: 978-1430261964
+
+    * Title: **Linux Kernel Development, 3rd Edition**
+
+      :Author: Robert Love
+      :Publisher: Addison-Wesley
+      :Date: July, 2010
+      :Pages: 440
+      :ISBN: 978-0672329463
 
 .. _ldd3_published:
 
@@ -476,30 +504,6 @@ Published books
       :Date: 1997
       :ISBN: 0-201-33143-8 (second edition)
 
-    * Title: **The Design of the UNIX Operating System**
-
-      :Author: Maurice J. Bach
-      :Publisher: Prentice Hall
-      :Date: 1986
-      :Pages: 471
-      :ISBN: 0-13-201757-1
-
-    * Title: **The Design and Implementation of the 4.3 BSD UNIX Operating System**
-
-      :Author: Samuel J. Leffler, Marshall Kirk McKusick, Michael J
-        Karels, John S. Quarterman
-      :Publisher: Addison-Wesley
-      :Date: 1989 (reprinted with corrections on October, 1990)
-      :ISBN: 0-201-06196-1
-
-    * Title: **The Design and Implementation of the 4.4 BSD UNIX Operating System**
-
-      :Author: Marshall Kirk McKusick, Keith Bostic, Michael J. Karels,
-        John S. Quarterman
-      :Publisher: Addison-Wesley
-      :Date: 1996
-      :ISBN: 0-201-54979-4
-
     * Title: **Programmation Linux 2.0 API systeme et fonctionnement du noyau**
 
       :Author: Remy Card, Eric Dumas, Franck Mevel
@@ -508,6 +512,14 @@ Published books
       :Pages: 520
       :ISBN: 2-212-08932-5
       :Notes: French
+
+    * Title: **The Design and Implementation of the 4.4 BSD UNIX Operating System**
+
+      :Author: Marshall Kirk McKusick, Keith Bostic, Michael J. Karels,
+        John S. Quarterman
+      :Publisher: Addison-Wesley
+      :Date: 1996
+      :ISBN: 0-201-54979-4
 
     * Title: **Unix internals -- the new frontiers**
 
@@ -535,31 +547,21 @@ Published books
       :Pages: 432
       :ISBN: 0-201-63338-8
 
-    * Title: **Linux Kernel Development, 3rd Edition**
+    * Title: **The Design and Implementation of the 4.3 BSD UNIX Operating System**
 
-      :Author: Robert Love
+      :Author: Samuel J. Leffler, Marshall Kirk McKusick, Michael J
+        Karels, John S. Quarterman
       :Publisher: Addison-Wesley
-      :Date: July, 2010
-      :Pages: 440
-      :ISBN: 978-0672329463
+      :Date: 1989 (reprinted with corrections on October, 1990)
+      :ISBN: 0-201-06196-1
 
-    * Title: **Linux Kernel Networking: Implementation and Theory**
+    * Title: **The Design of the UNIX Operating System**
 
-      :Author: Rami Rosen
-      :Publisher: Apress
-      :Date: December 22, 2013
-      :Pages: 648
-      :ISBN: 978-1430261964
-
-    * Title: **Linux Treiber entwickeln**
-
-      :Author: Jürgen Quade, Eva-Katharina Kunst
-      :Publisher: dpunkt.verlag
-      :Date: Oct 2015 (4th edition)
-      :Pages: 688
-      :ISBN: 978-3-86490-288-8
-      :Note: German. The third edition from 2011 is
-         much cheaper and still quite up-to-date.
+      :Author: Maurice J. Bach
+      :Publisher: Prentice Hall
+      :Date: 1986
+      :Pages: 471
+      :ISBN: 0-13-201757-1
 
 Miscellaneous
 -------------
