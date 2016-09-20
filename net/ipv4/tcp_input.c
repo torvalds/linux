@@ -1112,6 +1112,7 @@ struct tcp_sacktag_state {
 	 */
 	struct skb_mstamp first_sackt;
 	struct skb_mstamp last_sackt;
+	struct rate_sample *rate;
 	int	flag;
 };
 
@@ -1279,6 +1280,7 @@ static bool tcp_shifted_skb(struct sock *sk, struct sk_buff *skb,
 	tcp_sacktag_one(sk, state, TCP_SKB_CB(skb)->sacked,
 			start_seq, end_seq, dup_sack, pcount,
 			&skb->skb_mstamp);
+	tcp_rate_skb_delivered(sk, skb, state->rate);
 
 	if (skb == tp->lost_skb_hint)
 		tp->lost_cnt_hint += pcount;
@@ -1329,6 +1331,9 @@ static bool tcp_shifted_skb(struct sock *sk, struct sk_buff *skb,
 		tcp_advance_highest_sack(sk, skb);
 
 	tcp_skb_collapse_tstamp(prev, skb);
+	if (unlikely(TCP_SKB_CB(prev)->tx.delivered_mstamp.v64))
+		TCP_SKB_CB(prev)->tx.delivered_mstamp.v64 = 0;
+
 	tcp_unlink_write_queue(skb, sk);
 	sk_wmem_free_skb(sk, skb);
 
@@ -1558,6 +1563,7 @@ static struct sk_buff *tcp_sacktag_walk(struct sk_buff *skb, struct sock *sk,
 						dup_sack,
 						tcp_skb_pcount(skb),
 						&skb->skb_mstamp);
+			tcp_rate_skb_delivered(sk, skb, state->rate);
 
 			if (!before(TCP_SKB_CB(skb)->seq,
 				    tcp_highest_sack_seq(tp)))
@@ -1640,8 +1646,10 @@ tcp_sacktag_write_queue(struct sock *sk, const struct sk_buff *ack_skb,
 
 	found_dup_sack = tcp_check_dsack(sk, ack_skb, sp_wire,
 					 num_sacks, prior_snd_una);
-	if (found_dup_sack)
+	if (found_dup_sack) {
 		state->flag |= FLAG_DSACKING_ACK;
+		tp->delivered++; /* A spurious retransmission is delivered */
+	}
 
 	/* Eliminate too old ACKs, but take into
 	 * account more or less fresh ones, they can
@@ -3071,10 +3079,11 @@ static void tcp_ack_tstamp(struct sock *sk, struct sk_buff *skb,
  */
 static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 			       u32 prior_snd_una, int *acked,
-			       struct tcp_sacktag_state *sack)
+			       struct tcp_sacktag_state *sack,
+			       struct skb_mstamp *now)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
-	struct skb_mstamp first_ackt, last_ackt, now;
+	struct skb_mstamp first_ackt, last_ackt;
 	struct tcp_sock *tp = tcp_sk(sk);
 	u32 prior_sacked = tp->sacked_out;
 	u32 reord = tp->packets_out;
@@ -3106,7 +3115,6 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 			acked_pcount = tcp_tso_acked(sk, skb);
 			if (!acked_pcount)
 				break;
-
 			fully_acked = false;
 		} else {
 			/* Speedup tcp_unlink_write_queue() and next loop */
@@ -3142,6 +3150,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 
 		tp->packets_out -= acked_pcount;
 		pkts_acked += acked_pcount;
+		tcp_rate_skb_delivered(sk, skb, sack->rate);
 
 		/* Initial outgoing SYN's get put onto the write_queue
 		 * just like anything else we transmit.  It is not
@@ -3174,16 +3183,15 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 	if (skb && (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED))
 		flag |= FLAG_SACK_RENEGING;
 
-	skb_mstamp_get(&now);
 	if (likely(first_ackt.v64) && !(flag & FLAG_RETRANS_DATA_ACKED)) {
-		seq_rtt_us = skb_mstamp_us_delta(&now, &first_ackt);
-		ca_rtt_us = skb_mstamp_us_delta(&now, &last_ackt);
+		seq_rtt_us = skb_mstamp_us_delta(now, &first_ackt);
+		ca_rtt_us = skb_mstamp_us_delta(now, &last_ackt);
 	}
 	if (sack->first_sackt.v64) {
-		sack_rtt_us = skb_mstamp_us_delta(&now, &sack->first_sackt);
-		ca_rtt_us = skb_mstamp_us_delta(&now, &sack->last_sackt);
+		sack_rtt_us = skb_mstamp_us_delta(now, &sack->first_sackt);
+		ca_rtt_us = skb_mstamp_us_delta(now, &sack->last_sackt);
 	}
-
+	sack->rate->rtt_us = ca_rtt_us; /* RTT of last (S)ACKed packet, or -1 */
 	rtt_update = tcp_ack_update_rtt(sk, flag, seq_rtt_us, sack_rtt_us,
 					ca_rtt_us);
 
@@ -3211,7 +3219,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 		tp->fackets_out -= min(pkts_acked, tp->fackets_out);
 
 	} else if (skb && rtt_update && sack_rtt_us >= 0 &&
-		   sack_rtt_us > skb_mstamp_us_delta(&now, &skb->skb_mstamp)) {
+		   sack_rtt_us > skb_mstamp_us_delta(now, &skb->skb_mstamp)) {
 		/* Do not re-arm RTO if the sack RTT is measured from data sent
 		 * after when the head was last (re)transmitted. Otherwise the
 		 * timeout may continue to extend in loss recovery.
@@ -3548,17 +3556,21 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_sacktag_state sack_state;
+	struct rate_sample rs = { .prior_delivered = 0 };
 	u32 prior_snd_una = tp->snd_una;
 	u32 ack_seq = TCP_SKB_CB(skb)->seq;
 	u32 ack = TCP_SKB_CB(skb)->ack_seq;
 	bool is_dupack = false;
 	u32 prior_fackets;
 	int prior_packets = tp->packets_out;
-	u32 prior_delivered = tp->delivered;
+	u32 delivered = tp->delivered;
+	u32 lost = tp->lost;
 	int acked = 0; /* Number of packets newly acked */
 	int rexmit = REXMIT_NONE; /* Flag to (re)transmit to recover losses */
+	struct skb_mstamp now;
 
 	sack_state.first_sackt.v64 = 0;
+	sack_state.rate = &rs;
 
 	/* We very likely will need to access write queue head. */
 	prefetchw(sk->sk_write_queue.next);
@@ -3581,6 +3593,8 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 	if (after(ack, tp->snd_nxt))
 		goto invalid_ack;
 
+	skb_mstamp_get(&now);
+
 	if (icsk->icsk_pending == ICSK_TIME_EARLY_RETRANS ||
 	    icsk->icsk_pending == ICSK_TIME_LOSS_PROBE)
 		tcp_rearm_rto(sk);
@@ -3591,6 +3605,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 	}
 
 	prior_fackets = tp->fackets_out;
+	rs.prior_in_flight = tcp_packets_in_flight(tp);
 
 	/* ts_recent update must be made after we are sure that the packet
 	 * is in window.
@@ -3646,7 +3661,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 
 	/* See if we can take anything off of the retransmit queue. */
 	flag |= tcp_clean_rtx_queue(sk, prior_fackets, prior_snd_una, &acked,
-				    &sack_state);
+				    &sack_state, &now);
 
 	if (tcp_ack_is_dubious(sk, flag)) {
 		is_dupack = !(flag & (FLAG_SND_UNA_ADVANCED | FLAG_NOT_DUP));
@@ -3663,7 +3678,10 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 
 	if (icsk->icsk_pending == ICSK_TIME_RETRANS)
 		tcp_schedule_loss_probe(sk);
-	tcp_cong_control(sk, ack, tp->delivered - prior_delivered, flag);
+	delivered = tp->delivered - delivered;	/* freshly ACKed or SACKed */
+	lost = tp->lost - lost;			/* freshly marked lost */
+	tcp_rate_gen(sk, delivered, lost, &now, &rs);
+	tcp_cong_control(sk, ack, delivered, flag);
 	tcp_xmit_recovery(sk, rexmit);
 	return 1;
 
