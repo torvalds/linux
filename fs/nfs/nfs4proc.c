@@ -8801,7 +8801,6 @@ nfs4_proc_layoutget(struct nfs4_layoutget *lgp, long *timeout, gfp_t gfp_flags)
 	lgp->args.layout.pglen = max_pages * PAGE_SIZE;
 
 	lgp->res.layoutp = &lgp->args.layout;
-	lgp->res.seq_res.sr_slot = NULL;
 	nfs4_init_sequence(&lgp->args.seq_args, &lgp->res.seq_res, 0, 0);
 
 	task = rpc_run_task(&task_setup_data);
