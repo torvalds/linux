@@ -5739,6 +5739,8 @@ static void sched_domain_debug(struct sched_domain *sd, int cpu)
 	}
 }
 #else /* !CONFIG_SCHED_DEBUG */
+
+# define sched_debug_enabled 0
 # define sched_domain_debug(sd, cpu) do { } while (0)
 static inline bool sched_debug(void)
 {
@@ -7006,7 +7008,7 @@ static int build_sched_domains(const struct cpumask *cpu_map,
 	}
 	rcu_read_unlock();
 
-	if (rq) {
+	if (rq && sched_debug_enabled) {
 		pr_info("span: %*pbl (max cpu_capacity = %lu)\n",
 			cpumask_pr_args(cpu_map), rq->rd->max_cpu_capacity);
 	}
