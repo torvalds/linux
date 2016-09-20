@@ -151,12 +151,11 @@ void __btrfs_handle_fs_error(struct btrfs_fs_info *fs_info, const char *function
 		vaf.fmt = fmt;
 		vaf.va = &args;
 
-		printk(KERN_CRIT
-			"BTRFS: error (device %s) in %s:%d: errno=%d %s (%pV)\n",
+		pr_crit("BTRFS: error (device %s) in %s:%d: errno=%d %s (%pV)\n",
 			sb->s_id, function, line, errno, errstr, &vaf);
 		va_end(args);
 	} else {
-		printk(KERN_CRIT "BTRFS: error (device %s) in %s:%d: errno=%d %s\n",
+		pr_crit("BTRFS: error (device %s) in %s:%d: errno=%d %s\n",
 			sb->s_id, function, line, errno, errstr);
 	}
 #endif
@@ -925,8 +924,7 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 			}
 			break;
 		case Opt_subvolrootid:
-			printk(KERN_WARNING
-				"BTRFS: 'subvolrootid' mount option is deprecated and has no effect\n");
+			pr_warn("BTRFS: 'subvolrootid' mount option is deprecated and has no effect\n");
 			break;
 		case Opt_device:
 			device_name = match_strdup(&args[0]);
@@ -1150,7 +1148,7 @@ static int btrfs_fill_super(struct super_block *sb,
 	sb->s_iflags |= SB_I_CGROUPWB;
 	err = open_ctree(sb, fs_devices, (char *)data);
 	if (err) {
-		printk(KERN_ERR "BTRFS: open_ctree failed\n");
+		pr_err("BTRFS: open_ctree failed\n");
 		return err;
 	}
 
@@ -2356,7 +2354,7 @@ static void btrfs_interface_exit(void)
 
 static void btrfs_print_mod_info(void)
 {
-	printk(KERN_INFO "Btrfs loaded, crc32c=%s"
+	pr_info("Btrfs loaded, crc32c=%s"
 #ifdef CONFIG_BTRFS_DEBUG
 			", debug=on"
 #endif

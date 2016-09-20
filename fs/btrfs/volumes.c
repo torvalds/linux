@@ -1140,12 +1140,12 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 	ret = device_list_add(path, disk_super, devid, fs_devices_ret);
 	if (ret > 0) {
 		if (disk_super->label[0]) {
-			printk(KERN_INFO "BTRFS: device label %s ", disk_super->label);
+			pr_info("BTRFS: device label %s ", disk_super->label);
 		} else {
-			printk(KERN_INFO "BTRFS: device fsid %pU ", disk_super->fsid);
+			pr_info("BTRFS: device fsid %pU ", disk_super->fsid);
 		}
 
-		printk(KERN_CONT "devid %llu transid %llu %s\n", devid, transid, path);
+		pr_cont("devid %llu transid %llu %s\n", devid, transid, path);
 		ret = 0;
 	}
 	if (!ret && fs_devices_ret)
@@ -5907,13 +5907,13 @@ int btrfs_rmap_block(struct btrfs_mapping_tree *map_tree,
 	read_unlock(&em_tree->lock);
 
 	if (!em) {
-		printk(KERN_ERR "BTRFS: couldn't find em for chunk %Lu\n",
+		pr_err("BTRFS: couldn't find em for chunk %Lu\n",
 		       chunk_start);
 		return -EIO;
 	}
 
 	if (em->start != chunk_start) {
-		printk(KERN_ERR "BTRFS: bad chunk start, em=%Lu, wanted=%Lu\n",
+		pr_err("BTRFS: bad chunk start, em=%Lu, wanted=%Lu\n",
 		       em->start, chunk_start);
 		free_extent_map(em);
 		return -EIO;
@@ -6715,8 +6715,7 @@ int btrfs_read_sys_array(struct btrfs_root *root)
 
 			num_stripes = btrfs_chunk_num_stripes(sb, chunk);
 			if (!num_stripes) {
-				printk(KERN_ERR
-	    "BTRFS: invalid number of stripes %u in sys_array at offset %u\n",
+				pr_err("BTRFS: invalid number of stripes %u in sys_array at offset %u\n",
 					num_stripes, cur_offset);
 				ret = -EIO;
 				break;
@@ -6739,8 +6738,7 @@ int btrfs_read_sys_array(struct btrfs_root *root)
 			if (ret)
 				break;
 		} else {
-			printk(KERN_ERR
-		"BTRFS: unexpected item type %u in sys_array at offset %u\n",
+			pr_err("BTRFS: unexpected item type %u in sys_array at offset %u\n",
 				(u32)key.type, cur_offset);
 			ret = -EIO;
 			break;
@@ -6754,7 +6752,7 @@ int btrfs_read_sys_array(struct btrfs_root *root)
 	return ret;
 
 out_short_read:
-	printk(KERN_ERR "BTRFS: sys_array too short to read %u bytes at offset %u\n",
+	pr_err("BTRFS: sys_array too short to read %u bytes at offset %u\n",
 			len, cur_offset);
 	clear_extent_buffer_uptodate(sb);
 	free_extent_buffer_stale(sb);

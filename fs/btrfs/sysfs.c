@@ -77,7 +77,7 @@ static int can_modify_feature(struct btrfs_feature_attr *fa)
 		clear = BTRFS_FEATURE_INCOMPAT_SAFE_CLEAR;
 		break;
 	default:
-		printk(KERN_WARNING "btrfs: sysfs: unknown feature set %d\n",
+		pr_warn("btrfs: sysfs: unknown feature set %d\n",
 				fa->feature_set);
 		return 0;
 	}
