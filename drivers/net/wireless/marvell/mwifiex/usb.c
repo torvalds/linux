@@ -897,6 +897,13 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 	else
 		atomic_inc(&port->tx_data_urb_pending);
 
+	if (ep != card->tx_cmd_ep &&
+	    atomic_read(&port->tx_data_urb_pending) ==
+					MWIFIEX_TX_DATA_URB) {
+		port->block_status = true;
+		adapter->data_sent = mwifiex_usb_data_sent(adapter);
+	}
+
 	if (usb_submit_urb(tx_urb, GFP_ATOMIC)) {
 		mwifiex_dbg(adapter, ERROR,
 			    "%s: usb_submit_urb failed\n", __func__);
@@ -905,6 +912,7 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 		} else {
 			atomic_dec(&port->tx_data_urb_pending);
 			port->block_status = false;
+			adapter->data_sent = false;
 			if (port->tx_data_ix)
 				port->tx_data_ix--;
 			else
@@ -916,9 +924,7 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 		if (ep != card->tx_cmd_ep &&
 		    atomic_read(&port->tx_data_urb_pending) ==
 							MWIFIEX_TX_DATA_URB) {
-			port->block_status = true;
-			ret = -ENOSR;
-			goto done;
+			return -ENOSR;
 		}
 	}
 
