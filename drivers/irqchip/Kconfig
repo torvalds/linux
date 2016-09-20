@@ -265,3 +265,7 @@ config EZNPS_GIC
 	select IRQ_DOMAIN
 	help
 	  Support the EZchip NPS400 global interrupt controller
+
+config STM32_EXTI
+	bool
+	select IRQ_DOMAIN
