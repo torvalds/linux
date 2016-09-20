@@ -132,22 +132,6 @@ ULTRA_CHANNELCLI_STRING(u32 state)
 /* throttling invalid boot channel statetransition error due to busy channel */
 #define ULTRA_CLIERRORBOOT_THROTTLEMSG_BUSY        0x04
 
-/* Values for ULTRA_CHANNEL_PROTOCOL.CliErrorOS: */
-/* throttling invalid guest OS channel statetransition error due to
- * client disabled
- */
-#define ULTRA_CLIERROROS_THROTTLEMSG_DISABLED      0x01
-
-/* throttling invalid guest OS channel statetransition error due to
- * client not attached
- */
-#define ULTRA_CLIERROROS_THROTTLEMSG_NOTATTACHED   0x02
-
-/* throttling invalid guest OS channel statetransition error due to
- * busy channel
- */
-#define ULTRA_CLIERROROS_THROTTLEMSG_BUSY          0x04
-
 /* Values for ULTRA_CHANNEL_PROTOCOL.Features: This define exists so
  * that windows guest can look at the FeatureFlags in the io channel,
  * and configure the windows driver to use interrupts or not based on
@@ -344,94 +328,6 @@ static inline int spar_check_channel_server(uuid_le typeuuid, char *name,
 			       actual_bytes);
 			return 0;
 		}
-	return 1;
-}
-
-static inline int
-spar_channel_client_acquire_os(void __iomem *ch, u8 *id)
-{
-	struct channel_header __iomem *hdr = ch;
-
-	if (readl(&hdr->cli_state_os) == CHANNELCLI_DISABLED) {
-		if ((readb(&hdr->cli_error_os)
-		     & ULTRA_CLIERROROS_THROTTLEMSG_DISABLED) == 0) {
-			/* we are NOT throttling this message */
-			writeb(readb(&hdr->cli_error_os) |
-			       ULTRA_CLIERROROS_THROTTLEMSG_DISABLED,
-			       &hdr->cli_error_os);
-			/* throttle until acquire successful */
-
-			pr_info("%s Channel StateTransition INVALID! - acquire failed because OS client DISABLED\n",
-				id);
-		}
-		return 0;
-	}
-	if ((readl(&hdr->cli_state_os) != CHANNELCLI_OWNED) &&
-	    (readl(&hdr->cli_state_boot) == CHANNELCLI_DISABLED)) {
-		/* Our competitor is DISABLED, so we can transition to OWNED */
-		pr_info("%s Channel StateTransition (%s) %s(%d)-->%s(%d)\n",
-			id, "cli_state_os",
-			ULTRA_CHANNELCLI_STRING(readl(&hdr->cli_state_os)),
-			readl(&hdr->cli_state_os),
-			ULTRA_CHANNELCLI_STRING(CHANNELCLI_OWNED),
-			CHANNELCLI_OWNED);
-		writel(CHANNELCLI_OWNED, &hdr->cli_state_os);
-		mb(); /* required for channel synch */
-	}
-	if (readl(&hdr->cli_state_os) == CHANNELCLI_OWNED) {
-		if (readb(&hdr->cli_error_os)) {
-			/* we are in an error msg throttling state;
-			 * come out of it
-			 */
-			pr_info("%s Channel OS client acquire now successful\n",
-				id);
-			writeb(0, &hdr->cli_error_os);
-		}
-		return 1;
-	}
-
-	/* We have to do it the "hard way".  We transition to BUSY,
-	 * and can use the channel iff our competitor has not also
-	 * transitioned to BUSY.
-	 */
-	if (readl(&hdr->cli_state_os) != CHANNELCLI_ATTACHED) {
-		if ((readb(&hdr->cli_error_os)
-		     & ULTRA_CLIERROROS_THROTTLEMSG_NOTATTACHED) == 0) {
-			/* we are NOT throttling this message */
-			writeb(readb(&hdr->cli_error_os) |
-			       ULTRA_CLIERROROS_THROTTLEMSG_NOTATTACHED,
-			       &hdr->cli_error_os);
-			/* throttle until acquire successful */
-			pr_info("%s Channel StateTransition INVALID! - acquire failed because OS client NOT ATTACHED (state=%s(%d))\n",
-				id, ULTRA_CHANNELCLI_STRING(
-						readl(&hdr->cli_state_os)),
-				readl(&hdr->cli_state_os));
-		}
-		return 0;
-	}
-	writel(CHANNELCLI_BUSY, &hdr->cli_state_os);
-	mb(); /* required for channel synch */
-	if (readl(&hdr->cli_state_boot) == CHANNELCLI_BUSY) {
-		if ((readb(&hdr->cli_error_os)
-		     & ULTRA_CLIERROROS_THROTTLEMSG_BUSY) == 0) {
-			/* we are NOT throttling this message */
-			writeb(readb(&hdr->cli_error_os) |
-			       ULTRA_CLIERROROS_THROTTLEMSG_BUSY,
-			       &hdr->cli_error_os);
-			/* throttle until acquire successful */
-			pr_info("%s Channel StateTransition failed - host OS acquire failed because boot BUSY\n",
-				id);
-		}
-		/* reset busy */
-		writel(CHANNELCLI_ATTACHED, &hdr->cli_state_os);
-		mb(); /* required for channel synch */
-		return 0;
-	}
-	if (readb(&hdr->cli_error_os)) {
-		/* we are in an error msg throttling state; come out of it */
-		pr_info("%s Channel OS client acquire now successful\n", id);
-		writeb(0, &hdr->cli_error_os);
-	}
 	return 1;
 }
 
