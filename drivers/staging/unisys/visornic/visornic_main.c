@@ -141,7 +141,6 @@ struct visornic_devdata {
 	struct uiscmdrsp cmdrsp[SIZEOF_CMDRSP];
 };
 
-static int visornic_poll(struct napi_struct *napi, int budget);
 static void poll_for_irq(unsigned long v);
 
 /**
