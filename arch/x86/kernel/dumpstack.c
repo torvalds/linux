@@ -164,7 +164,7 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	if (!sp && task == current)
 		sp = get_stack_pointer(current, NULL);
 
-	show_stack_log_lvl(current, NULL, sp, "");
+	show_stack_log_lvl(task, NULL, sp, "");
 }
 
 void show_stack_regs(struct pt_regs *regs)
