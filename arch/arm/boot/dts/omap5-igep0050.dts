@@ -20,7 +20,7 @@
 	};
 
 	gpio_keys {
-                compatible = "gpio-keys";
+		compatible = "gpio-keys";
 		pinctrl-0 = <&power_button_pin>;
 		pinctrl-names = "default";
 
