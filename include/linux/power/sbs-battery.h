@@ -31,8 +31,8 @@
  *				external change notification
  */
 struct sbs_platform_data {
-	int i2c_retry_count;
-	int poll_retry_count;
+	u32 i2c_retry_count;
+	u32 poll_retry_count;
 };
 
 #endif

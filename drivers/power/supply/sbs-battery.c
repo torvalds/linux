@@ -163,14 +163,13 @@ static enum power_supply_property sbs_properties[] = {
 struct sbs_info {
 	struct i2c_client		*client;
 	struct power_supply		*power_supply;
-	struct sbs_platform_data	*pdata;
 	bool				is_present;
 	struct gpio_desc		*gpio_detect;
 	bool				enable_detection;
 	int				last_state;
 	int				poll_time;
-	int				i2c_retry_count;
-	int				poll_retry_count;
+	u32				i2c_retry_count;
+	u32				poll_retry_count;
 	struct delayed_work		work;
 	int				ignore_changes;
 };
@@ -185,8 +184,7 @@ static int sbs_read_word_data(struct i2c_client *client, u8 address)
 	s32 ret = 0;
 	int retries = 1;
 
-	if (chip->pdata)
-		retries = max(chip->i2c_retry_count + 1, 1);
+	retries = chip->i2c_retry_count;
 
 	while (retries > 0) {
 		ret = i2c_smbus_read_word_data(client, address);
@@ -213,10 +211,8 @@ static int sbs_read_string_data(struct i2c_client *client, u8 address,
 	int retries_length = 1, retries_block = 1;
 	u8 block_buffer[I2C_SMBUS_BLOCK_MAX + 1];
 
-	if (chip->pdata) {
-		retries_length = max(chip->i2c_retry_count + 1, 1);
-		retries_block = max(chip->i2c_retry_count + 1, 1);
-	}
+	retries_length = chip->i2c_retry_count;
+	retries_block = chip->i2c_retry_count;
 
 	/* Adapter needs to support these two functions */
 	if (!i2c_check_functionality(client->adapter,
@@ -280,8 +276,7 @@ static int sbs_write_word_data(struct i2c_client *client, u8 address,
 	s32 ret = 0;
 	int retries = 1;
 
-	if (chip->pdata)
-		retries = max(chip->i2c_retry_count + 1, 1);
+	retries = chip->i2c_retry_count;
 
 	while (retries > 0) {
 		ret = i2c_smbus_write_word_data(client, address,
@@ -708,7 +703,7 @@ static void sbs_external_power_changed(struct power_supply *psy)
 	cancel_delayed_work_sync(&chip->work);
 
 	schedule_delayed_work(&chip->work, HZ);
-	chip->poll_time = chip->pdata->poll_retry_count;
+	chip->poll_time = chip->poll_retry_count;
 }
 
 static void sbs_delayed_work(struct work_struct *work)
@@ -792,7 +787,7 @@ static int sbs_probe(struct i2c_client *client,
 	rc = of_property_read_u32(client->dev.of_node, "sbs,i2c-retry-count",
 				  &chip->i2c_retry_count);
 	if (rc)
-		chip->i2c_retry_count = 1;
+		chip->i2c_retry_count = 0;
 
 	rc = of_property_read_u32(client->dev.of_node, "sbs,poll-retry-count",
 				  &chip->poll_retry_count);
@@ -803,6 +798,7 @@ static int sbs_probe(struct i2c_client *client,
 		chip->poll_retry_count = pdata->poll_retry_count;
 		chip->i2c_retry_count  = pdata->i2c_retry_count;
 	}
+	chip->i2c_retry_count = chip->i2c_retry_count + 1;
 
 	chip->gpio_detect = devm_gpiod_get_optional(&client->dev,
 			"sbs,battery-detect", GPIOD_IN);
