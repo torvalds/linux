@@ -27,7 +27,7 @@
 		power-button {
 			label = "Power Button";
 			linux,code = <KEY_POWER>;
-			gpios = <&gpio4 22 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio4 22 GPIO_ACTIVE_LOW>;
 		};
 	};
 
