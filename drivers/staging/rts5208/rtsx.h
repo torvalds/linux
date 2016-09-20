@@ -135,12 +135,12 @@ typedef struct rtsx_dev rtsx_dev_t;
 /* Convert between rtsx_dev and the corresponding Scsi_Host */
 static inline struct Scsi_Host *rtsx_to_host(struct rtsx_dev *dev)
 {
-	return container_of((void *) dev, struct Scsi_Host, hostdata);
+	return container_of((void *)dev, struct Scsi_Host, hostdata);
 }
 
 static inline struct rtsx_dev *host_to_rtsx(struct Scsi_Host *host)
 {
-	return (struct rtsx_dev *) host->hostdata;
+	return (struct rtsx_dev *)host->hostdata;
 }
 
 static inline void get_current_time(u8 *timeval_buf, int buf_len)

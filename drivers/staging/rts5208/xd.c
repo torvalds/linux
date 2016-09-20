@@ -937,7 +937,7 @@ static void xd_set_unused_block(struct rtsx_chip *chip, u32 phy_blk)
 	dev_dbg(rtsx_dev(chip), "Set unused block to index %d\n",
 		zone->set_index);
 
-	zone->free_table[zone->set_index++] = (u16) (phy_blk & 0x3ff);
+	zone->free_table[zone->set_index++] = (u16)(phy_blk & 0x3ff);
 	if (zone->set_index >= XD_FREE_TABLE_CNT)
 		zone->set_index = 0;
 	zone->unused_blk_cnt++;
