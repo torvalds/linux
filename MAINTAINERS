@@ -1625,6 +1625,7 @@ N:	rockchip
 ARM/SAMSUNG EXYNOS ARM ARCHITECTURES
 M:	Kukjin Kim <kgene@kernel.org>
 M:	Krzysztof Kozlowski <krzk@kernel.org>
+R:	Javier Martinez Canillas <javier@osg.samsung.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-samsung-soc@vger.kernel.org (moderated for non-subscribers)
 S:	Maintained
@@ -2485,7 +2486,7 @@ F:	include/net/bluetooth/
 BONDING DRIVER
 M:	Jay Vosburgh <j.vosburgh@gmail.com>
 M:	Veaceslav Falico <vfalico@gmail.com>
-M:	Andy Gospodarek <gospo@cumulusnetworks.com>
+M:	Andy Gospodarek <andy@greyhouse.net>
 L:	netdev@vger.kernel.org
 W:	http://sourceforge.net/projects/bonding/
 S:	Supported
@@ -3269,7 +3270,7 @@ S:	Maintained
 F:	drivers/net/wan/cosa*
 
 CPMAC ETHERNET DRIVER
-M:	Florian Fainelli <florian@openwrt.org>
+M:	Florian Fainelli <f.fainelli@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/ti/cpmac.c

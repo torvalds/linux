@@ -2,7 +2,6 @@
 #include <dt-bindings/clock/bcm2835.h>
 #include <dt-bindings/clock/bcm2835-aux.h>
 #include <dt-bindings/gpio/gpio.h>
-#include "skeleton.dtsi"
 
 /* This include file covers the common peripherals and configuration between
  * bcm2835 and bcm2836 implementations, leaving the CPU configuration to
@@ -13,6 +12,8 @@
 	compatible = "brcm,bcm2835";
 	model = "BCM2835";
 	interrupt-parent = <&intc>;
+	#address-cells = <1>;
+	#size-cells = <1>;
 
 	chosen {
 		bootargs = "earlyprintk console=ttyAMA0";

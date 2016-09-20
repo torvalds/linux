@@ -137,7 +137,7 @@ void __init init_default_cache_policy(unsigned long pmd)
 
 	initial_pmd_value = pmd;
 
-	pmd &= PMD_SECT_TEX(1) | PMD_SECT_BUFFERABLE | PMD_SECT_CACHEABLE;
+	pmd &= PMD_SECT_CACHE_MASK;
 
 	for (i = 0; i < ARRAY_SIZE(cache_policies); i++)
 		if (cache_policies[i].pmd == pmd) {

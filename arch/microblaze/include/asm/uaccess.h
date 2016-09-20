@@ -227,7 +227,7 @@ extern long __user_bad(void);
 
 #define __get_user(x, ptr)						\
 ({									\
-	unsigned long __gu_val;						\
+	unsigned long __gu_val = 0;					\
 	/*unsigned long __gu_ptr = (unsigned long)(ptr);*/		\
 	long __gu_err;							\
 	switch (sizeof(*(ptr))) {					\
@@ -373,10 +373,13 @@ extern long __user_bad(void);
 static inline long copy_from_user(void *to,
 		const void __user *from, unsigned long n)
 {
+	unsigned long res = n;
 	might_fault();
-	if (access_ok(VERIFY_READ, from, n))
-		return __copy_from_user(to, from, n);
-	return n;
+	if (likely(access_ok(VERIFY_READ, from, n)))
+		res = __copy_from_user(to, from, n);
+	if (unlikely(res))
+		memset(to + (n - res), 0, res);
+	return res;
 }
 
 #define __copy_to_user(to, from, n)	\
