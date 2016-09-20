@@ -1158,6 +1158,9 @@ mlxsw_pci_config_profile_swid_config(struct mlxsw_pci *mlxsw_pci,
 #define MLXSW_MAX_SPAN_ID 0x2420
 #define MLXSW_MAX_LAG_ID 0x2520
 #define MLXSW_MAX_PORTS_IN_LAG_ID 0x2521
+#define MLXSW_KVD_SIZE_ID 0x1001
+#define MLXSW_KVD_SINGLE_MIN_SIZE_ID 0x1002
+#define MLXSW_KVD_DOUBLE_MIN_SIZE_ID 0x1003
 #define MLXSW_RESOURCES_QUERY_MAX_QUERIES 100
 #define MLXSW_RESOURCES_PER_QUERY 32
 
@@ -1176,6 +1179,18 @@ static void mlxsw_pci_resources_query_parse(int id, u64 val,
 	case MLXSW_MAX_PORTS_IN_LAG_ID:
 		resources->max_ports_in_lag = val;
 		resources->max_ports_in_lag_valid = 1;
+		break;
+	case MLXSW_KVD_SIZE_ID:
+		resources->kvd_size = val;
+		resources->kvd_size_valid = 1;
+		break;
+	case MLXSW_KVD_SINGLE_MIN_SIZE_ID:
+		resources->kvd_single_min_size = val;
+		resources->kvd_single_min_size_valid = 1;
+		break;
+	case MLXSW_KVD_DOUBLE_MIN_SIZE_ID:
+		resources->kvd_double_min_size = val;
+		resources->kvd_double_min_size_valid = 1;
 		break;
 	default:
 		break;
