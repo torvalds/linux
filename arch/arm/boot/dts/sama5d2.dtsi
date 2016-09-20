@@ -1089,30 +1089,12 @@
 				status = "disabled";
 			};
 
-			sckc@f8048050 {
-				compatible = "atmel,at91sam9x5-sckc";
+			clk32k: sckc@f8048050 {
+				compatible = "atmel,sama5d4-sckc";
 				reg = <0xf8048050 0x4>;
 
-				slow_rc_osc: slow_rc_osc {
-					compatible = "atmel,at91sam9x5-clk-slow-rc-osc";
-					#clock-cells = <0>;
-					clock-frequency = <32768>;
-					clock-accuracy = <250000000>;
-					atmel,startup-time-usec = <75>;
-				};
-
-				slow_osc: slow_osc {
-					compatible = "atmel,at91sam9x5-clk-slow-osc";
-					#clock-cells = <0>;
-					clocks = <&slow_xtal>;
-					atmel,startup-time-usec = <1200000>;
-				};
-
-				clk32k: slowck {
-					compatible = "atmel,at91sam9x5-clk-slow";
-					#clock-cells = <0>;
-					clocks = <&slow_rc_osc &slow_osc>;
-				};
+				clocks = <&slow_xtal>;
+				#clock-cells = <0>;
 			};
 
 			rtc@f80480b0 {
