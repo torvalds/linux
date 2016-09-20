@@ -299,10 +299,7 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 
 	cq_entries = roundup_pow_of_two((unsigned int)cq_entries);
 	hr_cq->ib_cq.cqe = cq_entries - 1;
-	mutex_init(&hr_cq->resize_mutex);
 	spin_lock_init(&hr_cq->lock);
-	hr_cq->hr_resize_buf = NULL;
-	hr_cq->resize_umem = NULL;
 
 	if (context) {
 		if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd))) {

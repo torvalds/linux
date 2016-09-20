@@ -284,20 +284,11 @@ struct hns_roce_cq_buf {
 	struct hns_roce_mtt hr_mtt;
 };
 
-struct hns_roce_cq_resize {
-	struct hns_roce_cq_buf	hr_buf;
-	int			cqe;
-};
-
 struct hns_roce_cq {
 	struct ib_cq			ib_cq;
 	struct hns_roce_cq_buf		hr_buf;
-	/* pointer to store information after resize*/
-	struct hns_roce_cq_resize	*hr_resize_buf;
 	spinlock_t			lock;
-	struct mutex			resize_mutex;
 	struct ib_umem			*umem;
-	struct ib_umem			*resize_umem;
 	void (*comp)(struct hns_roce_cq *);
 	void (*event)(struct hns_roce_cq *, enum hns_roce_event);
 
