@@ -152,6 +152,9 @@ static int hns_roce_cq_alloc(struct hns_roce_dev *hr_dev, int nent,
 	hr_cq->cons_index = 0;
 	hr_cq->uar = hr_uar;
 
+	atomic_set(&hr_cq->refcount, 1);
+	init_completion(&hr_cq->free);
+
 	return 0;
 
 err_radix:
@@ -190,6 +193,11 @@ static void hns_roce_free_cq(struct hns_roce_dev *hr_dev,
 
 	/* Waiting interrupt process procedure carried out */
 	synchronize_irq(hr_dev->eq_table.eq[hr_cq->vector].irq);
+
+	/* wait for all interrupt processed */
+	if (atomic_dec_and_test(&hr_cq->refcount))
+		complete(&hr_cq->free);
+	wait_for_completion(&hr_cq->free);
 
 	spin_lock_irq(&cq_table->lock);
 	radix_tree_delete(&cq_table->tree, hr_cq->cqn);
