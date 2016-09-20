@@ -1719,7 +1719,7 @@ static int sctp_acked(struct sctp_sackhdr *sack, __u32 tsn)
 {
 	int i;
 	sctp_sack_variable_t *frags;
-	__u16 gap;
+	__u16 tsn_offset, blocks;
 	__u32 ctsn = ntohl(sack->cum_tsn_ack);
 
 	if (TSN_lte(tsn, ctsn))
@@ -1738,10 +1738,11 @@ static int sctp_acked(struct sctp_sackhdr *sack, __u32 tsn)
 	 */
 
 	frags = sack->variable;
-	gap = tsn - ctsn;
-	for (i = 0; i < ntohs(sack->num_gap_ack_blocks); ++i) {
-		if (TSN_lte(ntohs(frags[i].gab.start), gap) &&
-		    TSN_lte(gap, ntohs(frags[i].gab.end)))
+	blocks = ntohs(sack->num_gap_ack_blocks);
+	tsn_offset = tsn - ctsn;
+	for (i = 0; i < blocks; ++i) {
+		if (tsn_offset >= ntohs(frags[i].gab.start) &&
+		    tsn_offset <= ntohs(frags[i].gab.end))
 			goto pass;
 	}
 
