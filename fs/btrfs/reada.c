@@ -820,7 +820,7 @@ static void dump_devs(struct btrfs_fs_info *fs_info, int all)
 
 	spin_lock(&fs_info->reada_lock);
 	list_for_each_entry(device, &fs_devices->devices, dev_list) {
-		pr_debug("dev %lld has %d in flight\n", device->devid,
+		btrfs_debug(fs_info, "dev %lld has %d in flight", device->devid,
 			atomic_read(&device->reada_in_flight));
 		index = 0;
 		while (1) {
@@ -830,8 +830,8 @@ static void dump_devs(struct btrfs_fs_info *fs_info, int all)
 			if (ret == 0)
 				break;
 			pr_debug("  zone %llu-%llu elems %llu locked %d devs",
-			       zone->start, zone->end, zone->elems,
-			       zone->locked);
+				    zone->start, zone->end, zone->elems,
+				    zone->locked);
 			for (j = 0; j < zone->ndevs; ++j) {
 				pr_cont(" %lld",
 					zone->devs[j]->devid);

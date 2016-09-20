@@ -385,7 +385,7 @@ int btrfs_dev_replace_start(struct btrfs_root *root, char *tgtdev_name,
 
 	ret = btrfs_sysfs_add_device_link(tgt_device->fs_devices, tgt_device);
 	if (ret)
-		btrfs_err(fs_info, "kobj add dev failed %d\n", ret);
+		btrfs_err(fs_info, "kobj add dev failed %d", ret);
 
 	btrfs_wait_ordered_roots(root->fs_info, -1, 0, (u64)-1);
 

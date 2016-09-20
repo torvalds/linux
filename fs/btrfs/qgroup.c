@@ -2257,10 +2257,11 @@ qgroup_rescan_leaf(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
 					 &fs_info->qgroup_rescan_progress,
 					 path, 1, 0);
 
-	pr_debug("current progress key (%llu %u %llu), search_slot ret %d\n",
-		 fs_info->qgroup_rescan_progress.objectid,
-		 fs_info->qgroup_rescan_progress.type,
-		 fs_info->qgroup_rescan_progress.offset, ret);
+	btrfs_debug(fs_info,
+		"current progress key (%llu %u %llu), search_slot ret %d",
+		fs_info->qgroup_rescan_progress.objectid,
+		fs_info->qgroup_rescan_progress.type,
+		fs_info->qgroup_rescan_progress.offset, ret);
 
 	if (ret) {
 		/*
@@ -2390,7 +2391,7 @@ out:
 	ret = update_qgroup_status_item(trans, fs_info, fs_info->quota_root);
 	if (ret < 0) {
 		err = ret;
-		btrfs_err(fs_info, "fail to update qgroup status: %d\n", err);
+		btrfs_err(fs_info, "fail to update qgroup status: %d", err);
 	}
 	btrfs_end_transaction(trans, fs_info->quota_root);
 

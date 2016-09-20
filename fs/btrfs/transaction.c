@@ -65,8 +65,9 @@ void btrfs_put_transaction(struct btrfs_transaction *transaction)
 		BUG_ON(!list_empty(&transaction->list));
 		WARN_ON(!RB_EMPTY_ROOT(&transaction->delayed_refs.href_root));
 		if (transaction->delayed_refs.pending_csums)
-			pr_err("pending csums is %llu\n",
-			       transaction->delayed_refs.pending_csums);
+			btrfs_err(transaction->fs_info,
+				  "pending csums is %llu",
+				  transaction->delayed_refs.pending_csums);
 		while (!list_empty(&transaction->pending_chunks)) {
 			struct extent_map *em;
 
@@ -245,6 +246,7 @@ loop:
 		return -EROFS;
 	}
 
+	cur_trans->fs_info = fs_info;
 	atomic_set(&cur_trans->num_writers, 1);
 	extwriter_counter_init(cur_trans, type);
 	init_waitqueue_head(&cur_trans->writer_wait);
@@ -1294,11 +1296,11 @@ int btrfs_defrag_root(struct btrfs_root *root)
 		btrfs_btree_balance_dirty(info->tree_root);
 		cond_resched();
 
-		if (btrfs_fs_closing(root->fs_info) || ret != -EAGAIN)
+		if (btrfs_fs_closing(info) || ret != -EAGAIN)
 			break;
 
-		if (btrfs_defrag_cancelled(root->fs_info)) {
-			pr_debug("BTRFS: defrag_root cancelled\n");
+		if (btrfs_defrag_cancelled(info)) {
+			btrfs_debug(info, "defrag_root cancelled");
 			ret = -EAGAIN;
 			break;
 		}
@@ -2321,7 +2323,7 @@ int btrfs_clean_one_deleted_snapshot(struct btrfs_root *root)
 	list_del_init(&root->root_list);
 	spin_unlock(&fs_info->trans_lock);
 
-	pr_debug("BTRFS: cleaner removing %llu\n", root->objectid);
+	btrfs_debug(fs_info, "cleaner removing %llu", root->objectid);
 
 	btrfs_kill_all_delayed_nodes(root);
 

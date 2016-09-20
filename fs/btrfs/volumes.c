@@ -5888,10 +5888,11 @@ int btrfs_map_sblock(struct btrfs_fs_info *fs_info, int op,
 				 mirror_num, need_raid_map);
 }
 
-int btrfs_rmap_block(struct btrfs_mapping_tree *map_tree,
+int btrfs_rmap_block(struct btrfs_fs_info *fs_info,
 		     u64 chunk_start, u64 physical, u64 devid,
 		     u64 **logical, int *naddrs, int *stripe_len)
 {
+	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
 	struct extent_map_tree *em_tree = &map_tree->map_tree;
 	struct extent_map *em;
 	struct map_lookup *map;
@@ -5907,13 +5908,13 @@ int btrfs_rmap_block(struct btrfs_mapping_tree *map_tree,
 	read_unlock(&em_tree->lock);
 
 	if (!em) {
-		pr_err("BTRFS: couldn't find em for chunk %Lu\n",
-		       chunk_start);
+		btrfs_err(fs_info, "couldn't find em for chunk %Lu",
+			chunk_start);
 		return -EIO;
 	}
 
 	if (em->start != chunk_start) {
-		pr_err("BTRFS: bad chunk start, em=%Lu, wanted=%Lu\n",
+		btrfs_err(fs_info, "bad chunk start, em=%Lu, wanted=%Lu",
 		       em->start, chunk_start);
 		free_extent_map(em);
 		return -EIO;
@@ -6118,10 +6119,12 @@ static void submit_stripe_bio(struct btrfs_root *root, struct btrfs_bio *bbio,
 
 		rcu_read_lock();
 		name = rcu_dereference(dev->name);
-		pr_debug("btrfs_map_bio: rw %d 0x%x, sector=%llu, dev=%lu (%s id %llu), size=%u\n",
-			 bio_op(bio), bio->bi_opf, (u64)bio->bi_iter.bi_sector,
-			 (u_long)dev->bdev->bd_dev, name->str, dev->devid,
-			 bio->bi_iter.bi_size);
+		btrfs_debug(fs_info,
+			"btrfs_map_bio: rw %d 0x%x, sector=%llu, dev=%lu (%s id %llu), size=%u",
+			bio_op(bio), bio->bi_opf,
+			(u64)bio->bi_iter.bi_sector,
+			(u_long)dev->bdev->bd_dev, name->str, dev->devid,
+			bio->bi_iter.bi_size);
 		rcu_read_unlock();
 	}
 #endif
@@ -6644,7 +6647,8 @@ static int read_one_dev(struct btrfs_root *root,
 
 int btrfs_read_sys_array(struct btrfs_root *root)
 {
-	struct btrfs_super_block *super_copy = root->fs_info->super_copy;
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_super_block *super_copy = fs_info->super_copy;
 	struct extent_buffer *sb;
 	struct btrfs_disk_key *disk_key;
 	struct btrfs_chunk *chunk;
@@ -6715,7 +6719,8 @@ int btrfs_read_sys_array(struct btrfs_root *root)
 
 			num_stripes = btrfs_chunk_num_stripes(sb, chunk);
 			if (!num_stripes) {
-				pr_err("BTRFS: invalid number of stripes %u in sys_array at offset %u\n",
+				btrfs_err(fs_info,
+					"invalid number of stripes %u in sys_array at offset %u",
 					num_stripes, cur_offset);
 				ret = -EIO;
 				break;
@@ -6723,7 +6728,7 @@ int btrfs_read_sys_array(struct btrfs_root *root)
 
 			type = btrfs_chunk_type(sb, chunk);
 			if ((type & BTRFS_BLOCK_GROUP_SYSTEM) == 0) {
-				btrfs_err(root->fs_info,
+				btrfs_err(fs_info,
 			    "invalid chunk type %llu in sys_array at offset %u",
 					type, cur_offset);
 				ret = -EIO;
@@ -6738,8 +6743,9 @@ int btrfs_read_sys_array(struct btrfs_root *root)
 			if (ret)
 				break;
 		} else {
-			pr_err("BTRFS: unexpected item type %u in sys_array at offset %u\n",
-				(u32)key.type, cur_offset);
+			btrfs_err(fs_info,
+			    "unexpected item type %u in sys_array at offset %u",
+				  (u32)key.type, cur_offset);
 			ret = -EIO;
 			break;
 		}
@@ -6752,7 +6758,7 @@ int btrfs_read_sys_array(struct btrfs_root *root)
 	return ret;
 
 out_short_read:
-	pr_err("BTRFS: sys_array too short to read %u bytes at offset %u\n",
+	btrfs_err(fs_info, "sys_array too short to read %u bytes at offset %u",
 			len, cur_offset);
 	clear_extent_buffer_uptodate(sb);
 	free_extent_buffer_stale(sb);

@@ -401,7 +401,8 @@ out:
  * Return 0 if the superblock checksum type matches the checksum value of that
  * algorithm. Pass the raw disk superblock data.
  */
-static int btrfs_check_super_csum(char *raw_disk_sb)
+static int btrfs_check_super_csum(struct btrfs_fs_info *fs_info,
+				  char *raw_disk_sb)
 {
 	struct btrfs_super_block *disk_sb =
 		(struct btrfs_super_block *)raw_disk_sb;
@@ -427,7 +428,7 @@ static int btrfs_check_super_csum(char *raw_disk_sb)
 	}
 
 	if (csum_type >= ARRAY_SIZE(btrfs_csum_sizes)) {
-		pr_err("BTRFS: unsupported checksum algorithm %u\n",
+		btrfs_err(fs_info, "unsupported checksum algorithm %u",
 				csum_type);
 		ret = 1;
 	}
@@ -2780,7 +2781,7 @@ int open_ctree(struct super_block *sb,
 	 * We want to check superblock checksum, the type is stored inside.
 	 * Pass the whole disk block of size BTRFS_SUPER_INFO_SIZE (4k).
 	 */
-	if (btrfs_check_super_csum(bh->b_data)) {
+	if (btrfs_check_super_csum(fs_info, bh->b_data)) {
 		btrfs_err(fs_info, "superblock checksum mismatch");
 		err = -EINVAL;
 		brelse(bh);
@@ -3624,7 +3625,7 @@ int btrfs_get_num_tolerated_disk_barrier_failures(u64 flags)
 	}
 
 	if (min_tolerated == INT_MAX) {
-		pr_warn("BTRFS: unknown raid flag: %llu\n", flags);
+		pr_warn("BTRFS: unknown raid flag: %llu", flags);
 		min_tolerated = 0;
 	}
 
@@ -4114,24 +4115,24 @@ static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
 	int ret = 0;
 
 	if (btrfs_super_magic(sb) != BTRFS_MAGIC) {
-		pr_err("BTRFS: no valid FS found\n");
+		btrfs_err(fs_info, "no valid FS found");
 		ret = -EINVAL;
 	}
 	if (btrfs_super_flags(sb) & ~BTRFS_SUPER_FLAG_SUPP)
-		pr_warn("BTRFS: unrecognized super flag: %llu\n",
+		btrfs_warn(fs_info, "unrecognized super flag: %llu",
 				btrfs_super_flags(sb) & ~BTRFS_SUPER_FLAG_SUPP);
 	if (btrfs_super_root_level(sb) >= BTRFS_MAX_LEVEL) {
-		pr_err("BTRFS: tree_root level too big: %d >= %d\n",
+		btrfs_err(fs_info, "tree_root level too big: %d >= %d",
 				btrfs_super_root_level(sb), BTRFS_MAX_LEVEL);
 		ret = -EINVAL;
 	}
 	if (btrfs_super_chunk_root_level(sb) >= BTRFS_MAX_LEVEL) {
-		pr_err("BTRFS: chunk_root level too big: %d >= %d\n",
+		btrfs_err(fs_info, "chunk_root level too big: %d >= %d",
 				btrfs_super_chunk_root_level(sb), BTRFS_MAX_LEVEL);
 		ret = -EINVAL;
 	}
 	if (btrfs_super_log_root_level(sb) >= BTRFS_MAX_LEVEL) {
-		pr_err("BTRFS: log_root level too big: %d >= %d\n",
+		btrfs_err(fs_info, "log_root level too big: %d >= %d",
 				btrfs_super_log_root_level(sb), BTRFS_MAX_LEVEL);
 		ret = -EINVAL;
 	}
@@ -4142,47 +4143,48 @@ static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
 	 */
 	if (!is_power_of_2(sectorsize) || sectorsize < 4096 ||
 	    sectorsize > BTRFS_MAX_METADATA_BLOCKSIZE) {
-		pr_err("BTRFS: invalid sectorsize %llu\n", sectorsize);
+		btrfs_err(fs_info, "invalid sectorsize %llu", sectorsize);
 		ret = -EINVAL;
 	}
 	/* Only PAGE SIZE is supported yet */
 	if (sectorsize != PAGE_SIZE) {
-		pr_err("BTRFS: sectorsize %llu not supported yet, only support %lu\n",
-				sectorsize, PAGE_SIZE);
+		btrfs_err(fs_info,
+			"sectorsize %llu not supported yet, only support %lu",
+			sectorsize, PAGE_SIZE);
 		ret = -EINVAL;
 	}
 	if (!is_power_of_2(nodesize) || nodesize < sectorsize ||
 	    nodesize > BTRFS_MAX_METADATA_BLOCKSIZE) {
-		pr_err("BTRFS: invalid nodesize %llu\n", nodesize);
+		btrfs_err(fs_info, "invalid nodesize %llu", nodesize);
 		ret = -EINVAL;
 	}
 	if (nodesize != le32_to_cpu(sb->__unused_leafsize)) {
-		pr_err("BTRFS: invalid leafsize %u, should be %llu\n",
-				le32_to_cpu(sb->__unused_leafsize),
-				nodesize);
+		btrfs_err(fs_info, "invalid leafsize %u, should be %llu",
+			  le32_to_cpu(sb->__unused_leafsize), nodesize);
 		ret = -EINVAL;
 	}
 
 	/* Root alignment check */
 	if (!IS_ALIGNED(btrfs_super_root(sb), sectorsize)) {
-		pr_warn("BTRFS: tree_root block unaligned: %llu\n",
-				btrfs_super_root(sb));
+		btrfs_warn(fs_info, "tree_root block unaligned: %llu",
+			   btrfs_super_root(sb));
 		ret = -EINVAL;
 	}
 	if (!IS_ALIGNED(btrfs_super_chunk_root(sb), sectorsize)) {
-		pr_warn("BTRFS: chunk_root block unaligned: %llu\n",
-				btrfs_super_chunk_root(sb));
+		btrfs_warn(fs_info, "chunk_root block unaligned: %llu",
+			   btrfs_super_chunk_root(sb));
 		ret = -EINVAL;
 	}
 	if (!IS_ALIGNED(btrfs_super_log_root(sb), sectorsize)) {
-		pr_warn("BTRFS: log_root block unaligned: %llu\n",
-				btrfs_super_log_root(sb));
+		btrfs_warn(fs_info, "log_root block unaligned: %llu",
+			   btrfs_super_log_root(sb));
 		ret = -EINVAL;
 	}
 
 	if (memcmp(fs_info->fsid, sb->dev_item.fsid, BTRFS_UUID_SIZE) != 0) {
-		pr_err("BTRFS: dev_item UUID does not match fsid: %pU != %pU\n",
-				fs_info->fsid, sb->dev_item.fsid);
+		btrfs_err(fs_info,
+			   "dev_item UUID does not match fsid: %pU != %pU",
+			   fs_info->fsid, sb->dev_item.fsid);
 		ret = -EINVAL;
 	}
 
@@ -4192,25 +4194,25 @@ static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
 	 */
 	if (btrfs_super_bytes_used(sb) < 6 * btrfs_super_nodesize(sb)) {
 		btrfs_err(fs_info, "bytes_used is too small %llu",
-		       btrfs_super_bytes_used(sb));
+			  btrfs_super_bytes_used(sb));
 		ret = -EINVAL;
 	}
 	if (!is_power_of_2(btrfs_super_stripesize(sb))) {
 		btrfs_err(fs_info, "invalid stripesize %u",
-		       btrfs_super_stripesize(sb));
+			  btrfs_super_stripesize(sb));
 		ret = -EINVAL;
 	}
 	if (btrfs_super_num_devices(sb) > (1UL << 31))
-		pr_warn("BTRFS: suspicious number of devices: %llu\n",
-				btrfs_super_num_devices(sb));
+		btrfs_warn(fs_info, "suspicious number of devices: %llu",
+			   btrfs_super_num_devices(sb));
 	if (btrfs_super_num_devices(sb) == 0) {
-		pr_err("BTRFS: number of devices is 0\n");
+		btrfs_err(fs_info, "number of devices is 0");
 		ret = -EINVAL;
 	}
 
 	if (btrfs_super_bytenr(sb) != BTRFS_SUPER_INFO_OFFSET) {
-		pr_err("BTRFS: super offset mismatch %llu != %u\n",
-				btrfs_super_bytenr(sb), BTRFS_SUPER_INFO_OFFSET);
+		btrfs_err(fs_info, "super offset mismatch %llu != %u",
+			  btrfs_super_bytenr(sb), BTRFS_SUPER_INFO_OFFSET);
 		ret = -EINVAL;
 	}
 
@@ -4219,17 +4221,17 @@ static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
 	 * and one chunk
 	 */
 	if (btrfs_super_sys_array_size(sb) > BTRFS_SYSTEM_CHUNK_ARRAY_SIZE) {
-		pr_err("BTRFS: system chunk array too big %u > %u\n",
-				btrfs_super_sys_array_size(sb),
-				BTRFS_SYSTEM_CHUNK_ARRAY_SIZE);
+		btrfs_err(fs_info, "system chunk array too big %u > %u",
+			  btrfs_super_sys_array_size(sb),
+			  BTRFS_SYSTEM_CHUNK_ARRAY_SIZE);
 		ret = -EINVAL;
 	}
 	if (btrfs_super_sys_array_size(sb) < sizeof(struct btrfs_disk_key)
 			+ sizeof(struct btrfs_chunk)) {
-		pr_err("BTRFS: system chunk array too small %u < %zu\n",
-				btrfs_super_sys_array_size(sb),
-				sizeof(struct btrfs_disk_key)
-				+ sizeof(struct btrfs_chunk));
+		btrfs_err(fs_info, "system chunk array too small %u < %zu",
+			  btrfs_super_sys_array_size(sb),
+			  sizeof(struct btrfs_disk_key)
+			  + sizeof(struct btrfs_chunk));
 		ret = -EINVAL;
 	}
 
@@ -4238,12 +4240,16 @@ static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
 	 * but it's still possible that it's the one that's wrong.
 	 */
 	if (btrfs_super_generation(sb) < btrfs_super_chunk_root_generation(sb))
-		pr_warn("BTRFS: suspicious: generation < chunk_root_generation: %llu < %llu\n",
-			btrfs_super_generation(sb), btrfs_super_chunk_root_generation(sb));
+		btrfs_warn(fs_info,
+			"suspicious: generation < chunk_root_generation: %llu < %llu",
+			btrfs_super_generation(sb),
+			btrfs_super_chunk_root_generation(sb));
 	if (btrfs_super_generation(sb) < btrfs_super_cache_generation(sb)
 	    && btrfs_super_cache_generation(sb) != (u64)-1)
-		pr_warn("BTRFS: suspicious: generation < cache_generation: %llu < %llu\n",
-			btrfs_super_generation(sb), btrfs_super_cache_generation(sb));
+		btrfs_warn(fs_info,
+			"suspicious: generation < cache_generation: %llu < %llu",
+			btrfs_super_generation(sb),
+			btrfs_super_cache_generation(sb));
 
 	return ret;
 }

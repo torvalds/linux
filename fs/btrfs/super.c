@@ -1148,7 +1148,7 @@ static int btrfs_fill_super(struct super_block *sb,
 	sb->s_iflags |= SB_I_CGROUPWB;
 	err = open_ctree(sb, fs_devices, (char *)data);
 	if (err) {
-		pr_err("BTRFS: open_ctree failed\n");
+		btrfs_err(fs_info, "open_ctree failed");
 		return err;
 	}
 
@@ -1446,12 +1446,13 @@ static struct dentry *mount_subvol(const char *subvol_name, u64 subvol_objectid,
 
 	if (!IS_ERR(root)) {
 		struct super_block *s = root->d_sb;
+		struct btrfs_fs_info *fs_info = btrfs_sb(s);
 		struct inode *root_inode = d_inode(root);
 		u64 root_objectid = BTRFS_I(root_inode)->root->root_key.objectid;
 
 		ret = 0;
 		if (!is_subvolume_inode(root_inode)) {
-			pr_err("BTRFS: '%s' is not a valid subvolume\n",
+			btrfs_err(fs_info, "'%s' is not a valid subvolume",
 			       subvol_name);
 			ret = -EINVAL;
 		}
@@ -1461,8 +1462,9 @@ static struct dentry *mount_subvol(const char *subvol_name, u64 subvol_objectid,
 			 * subvolume which was passed by ID is renamed and
 			 * another subvolume is renamed over the old location.
 			 */
-			pr_err("BTRFS: subvol '%s' does not match subvolid %llu\n",
-			       subvol_name, subvol_objectid);
+			btrfs_err(fs_info,
+				  "subvol '%s' does not match subvolid %llu",
+				  subvol_name, subvol_objectid);
 			ret = -EINVAL;
 		}
 		if (ret) {

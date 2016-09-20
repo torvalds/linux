@@ -650,7 +650,8 @@ static int __resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 	/* root node has been locked, we can release @subvol_srcu safely here */
 	srcu_read_unlock(&fs_info->subvol_srcu, index);
 
-	pr_debug("search slot in root %llu (level %d, ref count %d) returned %d for key (%llu %u %llu)\n",
+	btrfs_debug(fs_info,
+		"search slot in root %llu (level %d, ref count %d) returned %d for key (%llu %u %llu)",
 		 ref->root_id, level, ref->count, ret,
 		 ref->key_for_search.objectid, ref->key_for_search.type,
 		 ref->key_for_search.offset);
@@ -1834,7 +1835,8 @@ int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
 
 	if (found_key->objectid > logical ||
 	    found_key->objectid + size <= logical) {
-		pr_debug("logical %llu is not within any extent\n", logical);
+		btrfs_debug(fs_info,
+			"logical %llu is not within any extent", logical);
 		return -ENOENT;
 	}
 
@@ -1845,7 +1847,8 @@ int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
 	ei = btrfs_item_ptr(eb, path->slots[0], struct btrfs_extent_item);
 	flags = btrfs_extent_flags(eb, ei);
 
-	pr_debug("logical %llu is at position %llu within the extent (%llu EXTENT_ITEM %llu) flags %#llx size %u\n",
+	btrfs_debug(fs_info,
+		"logical %llu is at position %llu within the extent (%llu EXTENT_ITEM %llu) flags %#llx size %u",
 		 logical, logical - found_key->objectid, found_key->objectid,
 		 found_key->offset, flags, item_size);
 
@@ -1966,20 +1969,24 @@ int tree_backref_for_extent(unsigned long *ptr, struct extent_buffer *eb,
 	return 0;
 }
 
-static int iterate_leaf_refs(struct extent_inode_elem *inode_list,
-				u64 root, u64 extent_item_objectid,
-				iterate_extent_inodes_t *iterate, void *ctx)
+static int iterate_leaf_refs(struct btrfs_fs_info *fs_info,
+			     struct extent_inode_elem *inode_list,
+			     u64 root, u64 extent_item_objectid,
+			     iterate_extent_inodes_t *iterate, void *ctx)
 {
 	struct extent_inode_elem *eie;
 	int ret = 0;
 
 	for (eie = inode_list; eie; eie = eie->next) {
-		pr_debug("ref for %llu resolved, key (%llu EXTEND_DATA %llu), root %llu\n", extent_item_objectid,
-			 eie->inum, eie->offset, root);
+		btrfs_debug(fs_info,
+			    "ref for %llu resolved, key (%llu EXTEND_DATA %llu), root %llu",
+			    extent_item_objectid, eie->inum,
+			    eie->offset, root);
 		ret = iterate(eie->inum, eie->offset, root, ctx);
 		if (ret) {
-			pr_debug("stopping iteration for %llu due to ret=%d\n",
-				 extent_item_objectid, ret);
+			btrfs_debug(fs_info,
+				    "stopping iteration for %llu due to ret=%d",
+				    extent_item_objectid, ret);
 			break;
 		}
 	}
@@ -2007,7 +2014,7 @@ int iterate_extent_inodes(struct btrfs_fs_info *fs_info,
 	struct ulist_iterator ref_uiter;
 	struct ulist_iterator root_uiter;
 
-	pr_debug("resolving all inodes for extent %llu\n",
+	btrfs_debug(fs_info, "resolving all inodes for extent %llu",
 			extent_item_objectid);
 
 	if (!search_commit_root) {
@@ -2033,9 +2040,12 @@ int iterate_extent_inodes(struct btrfs_fs_info *fs_info,
 			break;
 		ULIST_ITER_INIT(&root_uiter);
 		while (!ret && (root_node = ulist_next(roots, &root_uiter))) {
-			pr_debug("root %llu references leaf %llu, data list %#llx\n", root_node->val, ref_node->val,
-				 ref_node->aux);
-			ret = iterate_leaf_refs((struct extent_inode_elem *)
+			btrfs_debug(fs_info,
+				    "root %llu references leaf %llu, data list %#llx",
+				    root_node->val, ref_node->val,
+				    ref_node->aux);
+			ret = iterate_leaf_refs(fs_info,
+						(struct extent_inode_elem *)
 						(uintptr_t)ref_node->aux,
 						root_node->val,
 						extent_item_objectid,
@@ -2131,8 +2141,9 @@ static int iterate_inode_refs(u64 inum, struct btrfs_root *fs_root,
 		for (cur = 0; cur < btrfs_item_size(eb, item); cur += len) {
 			name_len = btrfs_inode_ref_name_len(eb, iref);
 			/* path must be released before calling iterate()! */
-			pr_debug("following ref at offset %u for inode %llu in tree %llu\n", cur, found_key.objectid,
-				 fs_root->objectid);
+			btrfs_debug(fs_root->fs_info,
+				"following ref at offset %u for inode %llu in tree %llu",
+				cur, found_key.objectid, fs_root->objectid);
 			ret = iterate(parent, name_len,
 				      (unsigned long)(iref + 1), eb, ctx);
 			if (ret)

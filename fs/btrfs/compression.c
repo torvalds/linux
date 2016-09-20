@@ -853,7 +853,7 @@ again:
 					/* no burst */ 1);
 
 			if (__ratelimit(&_rs)) {
-				pr_warn("no compression workspaces, low memory, retrying\n");
+				pr_warn("BTRFS: no compression workspaces, low memory, retrying\n");
 			}
 		}
 		goto again;

@@ -107,7 +107,7 @@ search_free_space_info(struct btrfs_trans_handle *trans,
 	if (ret < 0)
 		return ERR_PTR(ret);
 	if (ret != 0) {
-		btrfs_warn(fs_info, "missing free space info for %llu\n",
+		btrfs_warn(fs_info, "missing free space info for %llu",
 			   block_group->key.objectid);
 		ASSERT(0);
 		return ERR_PTR(-ENOENT);

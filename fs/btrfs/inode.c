@@ -2321,7 +2321,7 @@ static noinline int record_one_backref(u64 inum, u64 offset, u64 root_id,
 		if (PTR_ERR(root) == -ENOENT)
 			return 0;
 		WARN_ON(1);
-		pr_debug("inum=%llu, offset=%llu, root_id=%llu\n",
+		btrfs_debug(fs_info, "inum=%llu, offset=%llu, root_id=%llu",
 			 inum, offset, root_id);
 		return PTR_ERR(root);
 	}
@@ -7878,18 +7878,19 @@ static int btrfs_check_dio_repairable(struct inode *inode,
 				      struct io_failure_record *failrec,
 				      int failed_mirror)
 {
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	int num_copies;
 
-	num_copies = btrfs_num_copies(BTRFS_I(inode)->root->fs_info,
-				      failrec->logical, failrec->len);
+	num_copies = btrfs_num_copies(fs_info, failrec->logical, failrec->len);
 	if (num_copies == 1) {
 		/*
 		 * we only have a single copy of the data, so don't bother with
 		 * all the retry and error correction code that follows. no
 		 * matter what the error is, it is very likely to persist.
 		 */
-		pr_debug("Check DIO Repairable: cannot repair, num_copies=%d, next_mirror %d, failed_mirror %d\n",
-			 num_copies, failrec->this_mirror, failed_mirror);
+		btrfs_debug(fs_info,
+			"Check DIO Repairable: cannot repair, num_copies=%d, next_mirror %d, failed_mirror %d",
+			num_copies, failrec->this_mirror, failed_mirror);
 		return 0;
 	}
 
@@ -7899,8 +7900,9 @@ static int btrfs_check_dio_repairable(struct inode *inode,
 		failrec->this_mirror++;
 
 	if (failrec->this_mirror > num_copies) {
-		pr_debug("Check DIO Repairable: (fail) num_copies=%d, next_mirror %d, failed_mirror %d\n",
-			 num_copies, failrec->this_mirror, failed_mirror);
+		btrfs_debug(fs_info,
+			"Check DIO Repairable: (fail) num_copies=%d, next_mirror %d, failed_mirror %d",
+			num_copies, failrec->this_mirror, failed_mirror);
 		return 0;
 	}
 

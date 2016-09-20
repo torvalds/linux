@@ -3395,7 +3395,7 @@ do {								\
 __cold
 static inline void assfail(char *expr, char *file, int line)
 {
-	pr_err("BTRFS: assertion failed: %s, file: %s, line: %d",
+	pr_err("assertion failed: %s, file: %s, line: %d\n",
 	       expr, file, line);
 	BUG();
 }

@@ -2120,8 +2120,9 @@ int clean_io_failure(struct inode *inode, u64 start, struct page *page,
 
 	if (failrec->in_validation) {
 		/* there was no real error, just free the record */
-		pr_debug("clean_io_failure: freeing dummy error at %llu\n",
-			 failrec->start);
+		btrfs_debug(fs_info,
+			"clean_io_failure: freeing dummy error at %llu",
+			failrec->start);
 		goto out;
 	}
 	if (fs_info->sb->s_flags & MS_RDONLY)
@@ -2187,6 +2188,7 @@ void btrfs_free_io_failure_record(struct inode *inode, u64 start, u64 end)
 int btrfs_get_io_failure_record(struct inode *inode, u64 start, u64 end,
 		struct io_failure_record **failrec_ret)
 {
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct io_failure_record *failrec;
 	struct extent_map *em;
 	struct extent_io_tree *failure_tree = &BTRFS_I(inode)->io_failure_tree;
@@ -2234,8 +2236,9 @@ int btrfs_get_io_failure_record(struct inode *inode, u64 start, u64 end,
 						 em->compress_type);
 		}
 
-		pr_debug("Get IO Failure Record: (new) logical=%llu, start=%llu, len=%llu\n",
-			 logical, start, failrec->len);
+		btrfs_debug(fs_info,
+			"Get IO Failure Record: (new) logical=%llu, start=%llu, len=%llu",
+			logical, start, failrec->len);
 
 		failrec->logical = logical;
 		free_extent_map(em);
@@ -2253,9 +2256,10 @@ int btrfs_get_io_failure_record(struct inode *inode, u64 start, u64 end,
 			return ret;
 		}
 	} else {
-		pr_debug("Get IO Failure Record: (found) logical=%llu, start=%llu, len=%llu, validation=%d\n",
-			 failrec->logical, failrec->start, failrec->len,
-			 failrec->in_validation);
+		btrfs_debug(fs_info,
+			"Get IO Failure Record: (found) logical=%llu, start=%llu, len=%llu, validation=%d",
+			failrec->logical, failrec->start, failrec->len,
+			failrec->in_validation);
 		/*
 		 * when data can be on disk more than twice, add to failrec here
 		 * (e.g. with a list for failed_mirror) to make
@@ -2271,18 +2275,19 @@ int btrfs_get_io_failure_record(struct inode *inode, u64 start, u64 end,
 int btrfs_check_repairable(struct inode *inode, struct bio *failed_bio,
 			   struct io_failure_record *failrec, int failed_mirror)
 {
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	int num_copies;
 
-	num_copies = btrfs_num_copies(BTRFS_I(inode)->root->fs_info,
-				      failrec->logical, failrec->len);
+	num_copies = btrfs_num_copies(fs_info, failrec->logical, failrec->len);
 	if (num_copies == 1) {
 		/*
 		 * we only have a single copy of the data, so don't bother with
 		 * all the retry and error correction code that follows. no
 		 * matter what the error is, it is very likely to persist.
 		 */
-		pr_debug("Check Repairable: cannot repair, num_copies=%d, next_mirror %d, failed_mirror %d\n",
-			 num_copies, failrec->this_mirror, failed_mirror);
+		btrfs_debug(fs_info,
+			"Check Repairable: cannot repair, num_copies=%d, next_mirror %d, failed_mirror %d",
+			num_copies, failrec->this_mirror, failed_mirror);
 		return 0;
 	}
 
@@ -2321,8 +2326,9 @@ int btrfs_check_repairable(struct inode *inode, struct bio *failed_bio,
 	}
 
 	if (failrec->this_mirror > num_copies) {
-		pr_debug("Check Repairable: (fail) num_copies=%d, next_mirror %d, failed_mirror %d\n",
-			 num_copies, failrec->this_mirror, failed_mirror);
+		btrfs_debug(fs_info,
+			"Check Repairable: (fail) num_copies=%d, next_mirror %d, failed_mirror %d",
+			num_copies, failrec->this_mirror, failed_mirror);
 		return 0;
 	}
 
@@ -2413,8 +2419,9 @@ static int bio_readpage_error(struct bio *failed_bio, u64 phy_offset,
 	}
 	bio_set_op_attrs(bio, REQ_OP_READ, read_mode);
 
-	pr_debug("Repair Read Error: submitting new read[%#x] to this_mirror=%d, in_validation=%d\n",
-		 read_mode, failrec->this_mirror, failrec->in_validation);
+	btrfs_debug(btrfs_sb(inode->i_sb),
+		"Repair Read Error: submitting new read[%#x] to this_mirror=%d, in_validation=%d",
+		read_mode, failrec->this_mirror, failrec->in_validation);
 
 	ret = tree->ops->submit_bio_hook(inode, bio, failrec->this_mirror,
 					 failrec->bio_flags, 0);
@@ -2538,10 +2545,12 @@ static void end_bio_extent_readpage(struct bio *bio)
 	bio_for_each_segment_all(bvec, bio, i) {
 		struct page *page = bvec->bv_page;
 		struct inode *inode = page->mapping->host;
+		struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 
-		pr_debug("end_bio_extent_readpage: bi_sector=%llu, err=%d, mirror=%u\n",
-			 (u64)bio->bi_iter.bi_sector,
-			 bio->bi_error, io_bio->mirror_num);
+		btrfs_debug(fs_info,
+			"end_bio_extent_readpage: bi_sector=%llu, err=%d, mirror=%u",
+			(u64)bio->bi_iter.bi_sector, bio->bi_error,
+			io_bio->mirror_num);
 		tree = &BTRFS_I(inode)->io_tree;
 
 		/* We always issue full-page reads, but if some block
@@ -2551,12 +2560,12 @@ static void end_bio_extent_readpage(struct bio *bio)
 		 * if they don't add up to a full page.  */
 		if (bvec->bv_offset || bvec->bv_len != PAGE_SIZE) {
 			if (bvec->bv_offset + bvec->bv_len != PAGE_SIZE)
-				btrfs_err(BTRFS_I(page->mapping->host)->root->fs_info,
-				   "partial page read in btrfs with offset %u and length %u",
+				btrfs_err(fs_info,
+					"partial page read in btrfs with offset %u and length %u",
 					bvec->bv_offset, bvec->bv_len);
 			else
-				btrfs_info(BTRFS_I(page->mapping->host)->root->fs_info,
-				   "incomplete page read in btrfs with offset %u and length %u",
+				btrfs_info(fs_info,
+					"incomplete page read in btrfs with offset %u and length %u",
 					bvec->bv_offset, bvec->bv_len);
 		}
 
