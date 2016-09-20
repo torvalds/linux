@@ -5,10 +5,6 @@ Index of Documentation for People Interested in Writing and/or Understanding the
 
           Juan-Mariano de Goyeneche <jmseyas@dit.upm.es>
 
-.. note::
- The latest version of this document may be found at:
- :http://www.dit.upm.es/~jmseyas/linux/kernel/hackers-docs.html
-
 The need for a document like this one became apparent in the
 linux-kernel mailing list as the same questions, asking for pointers
 to information, appeared again and again.
@@ -36,7 +32,7 @@ Document.
 
 Enjoy!
 
-ON-LINE DOCS
+On-line docs
 ------------
 
     * Title: **Linux Device Drivers, Third Edition**
@@ -468,8 +464,8 @@ ON-LINE DOCS
       :Notes: For 2.0.x kernels. Gives guidances to port it to 2.2.x
         kernels.
 
-BOOKS: (Not on-line)
---------------------
+Published books
+---------------
 
     * Title: **Linux Device Drivers**
 
@@ -592,7 +588,7 @@ BOOKS: (Not on-line)
       :Note: German. The third edition from 2011 is
          much cheaper and still quite up-to-date.
 
-MISCELLANEOUS
+Miscellaneous
 -------------
 
     * Name: **linux/Documentation**
@@ -677,3 +673,6 @@ MISCELLANEOUS
 -------
 
 Document last updated on Mon 2016-Sep-19
+
+This document is based on:
+ http://www.dit.upm.es/~jmseyas/linux/kernel/hackers-docs.html
