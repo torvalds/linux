@@ -1112,7 +1112,7 @@ void do_set_cpus_allowed(struct task_struct *p, const struct cpumask *new_mask)
 	if (queued)
 		enqueue_task(rq, p, ENQUEUE_RESTORE);
 	if (running)
-		p->sched_class->set_curr_task(rq);
+		set_curr_task(rq, p);
 }
 
 /*
@@ -3710,7 +3710,7 @@ void rt_mutex_setprio(struct task_struct *p, int prio)
 	if (queued)
 		enqueue_task(rq, p, queue_flag);
 	if (running)
-		p->sched_class->set_curr_task(rq);
+		set_curr_task(rq, p);
 
 	check_class_changed(rq, p, prev_class, oldprio);
 out_unlock:
@@ -4274,7 +4274,7 @@ change:
 		enqueue_task(rq, p, queue_flags);
 	}
 	if (running)
-		p->sched_class->set_curr_task(rq);
+		set_curr_task(rq, p);
 
 	check_class_changed(rq, p, prev_class, oldprio);
 	preempt_disable(); /* avoid rq from going away on us */
@@ -5442,7 +5442,7 @@ void sched_setnuma(struct task_struct *p, int nid)
 	if (queued)
 		enqueue_task(rq, p, ENQUEUE_RESTORE);
 	if (running)
-		p->sched_class->set_curr_task(rq);
+		set_curr_task(rq, p);
 	task_rq_unlock(rq, p, &rf);
 }
 #endif /* CONFIG_NUMA_BALANCING */
@@ -7952,7 +7952,7 @@ void sched_move_task(struct task_struct *tsk)
 	if (queued)
 		enqueue_task(rq, tsk, ENQUEUE_RESTORE | ENQUEUE_MOVE);
 	if (unlikely(running))
-		tsk->sched_class->set_curr_task(rq);
+		set_curr_task(rq, tsk);
 
 	task_rq_unlock(rq, tsk, &rf);
 }
