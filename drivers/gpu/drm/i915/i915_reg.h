@@ -1708,6 +1708,11 @@ enum skl_disp_power_wells {
 #define GEN7_SC_INSTDONE	_MMIO(0x7100)
 #define GEN7_SAMPLER_INSTDONE	_MMIO(0xe160)
 #define GEN7_ROW_INSTDONE	_MMIO(0xe164)
+#define GEN8_MCR_SELECTOR		_MMIO(0xfdc)
+#define   GEN8_MCR_SLICE(slice)		(((slice) & 3) << 26)
+#define   GEN8_MCR_SLICE_MASK		GEN8_MCR_SLICE(3)
+#define   GEN8_MCR_SUBSLICE(subslice)	(((subslice) & 3) << 24)
+#define   GEN8_MCR_SUBSLICE_MASK	GEN8_MCR_SUBSLICE(3)
 #define RING_IPEIR(base)	_MMIO((base)+0x64)
 #define RING_IPEHR(base)	_MMIO((base)+0x68)
 /*

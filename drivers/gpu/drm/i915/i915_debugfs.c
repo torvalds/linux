@@ -1281,6 +1281,9 @@ static void i915_instdone_info(struct drm_i915_private *dev_priv,
 			       struct seq_file *m,
 			       struct intel_instdone *instdone)
 {
+	int slice;
+	int subslice;
+
 	seq_printf(m, "\t\tINSTDONE: 0x%08x\n",
 		   instdone->instdone);
 
@@ -1293,10 +1296,13 @@ static void i915_instdone_info(struct drm_i915_private *dev_priv,
 	if (INTEL_GEN(dev_priv) <= 6)
 		return;
 
-	seq_printf(m, "\t\tSAMPLER_INSTDONE: 0x%08x\n",
-		   instdone->sampler);
-	seq_printf(m, "\t\tROW_INSTDONE: 0x%08x\n",
-		   instdone->row);
+	for_each_instdone_slice_subslice(dev_priv, slice, subslice)
+		seq_printf(m, "\t\tSAMPLER_INSTDONE[%d][%d]: 0x%08x\n",
+			   slice, subslice, instdone->sampler[slice][subslice]);
+
+	for_each_instdone_slice_subslice(dev_priv, slice, subslice)
+		seq_printf(m, "\t\tROW_INSTDONE[%d][%d]: 0x%08x\n",
+			   slice, subslice, instdone->row[slice][subslice]);
 }
 
 static int i915_hangcheck_info(struct seq_file *m, void *unused)

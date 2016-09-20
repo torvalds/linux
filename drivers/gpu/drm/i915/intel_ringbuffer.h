@@ -73,12 +73,31 @@ enum intel_engine_hangcheck_action {
 
 #define HANGCHECK_SCORE_RING_HUNG 31
 
+#define I915_MAX_SLICES	3
+#define I915_MAX_SUBSLICES 3
+
+#define instdone_slice_mask(dev_priv__) \
+	(INTEL_GEN(dev_priv__) == 7 ? \
+	 1 : INTEL_INFO(dev_priv__)->sseu.slice_mask)
+
+#define instdone_subslice_mask(dev_priv__) \
+	(INTEL_GEN(dev_priv__) == 7 ? \
+	 1 : INTEL_INFO(dev_priv__)->sseu.subslice_mask)
+
+#define for_each_instdone_slice_subslice(dev_priv__, slice__, subslice__) \
+	for ((slice__) = 0, (subslice__) = 0; \
+	     (slice__) < I915_MAX_SLICES; \
+	     (subslice__) = ((subslice__) + 1) < I915_MAX_SUBSLICES ? (subslice__) + 1 : 0, \
+	       (slice__) += ((subslice__) == 0)) \
+		for_each_if((BIT(slice__) & instdone_slice_mask(dev_priv__)) && \
+			    (BIT(subslice__) & instdone_subslice_mask(dev_priv__)))
+
 struct intel_instdone {
 	u32 instdone;
 	/* The following exist only in the RCS engine */
 	u32 slice_common;
-	u32 sampler;
-	u32 row;
+	u32 sampler[I915_MAX_SLICES][I915_MAX_SUBSLICES];
+	u32 row[I915_MAX_SLICES][I915_MAX_SUBSLICES];
 };
 
 struct intel_engine_hangcheck {

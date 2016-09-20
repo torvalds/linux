@@ -231,6 +231,9 @@ static const char *hangcheck_action_to_str(enum intel_engine_hangcheck_action a)
 static void error_print_instdone(struct drm_i915_error_state_buf *m,
 				 struct drm_i915_error_engine *ee)
 {
+	int slice;
+	int subslice;
+
 	err_printf(m, "  INSTDONE: 0x%08x\n",
 		   ee->instdone.instdone);
 
@@ -243,10 +246,15 @@ static void error_print_instdone(struct drm_i915_error_state_buf *m,
 	if (INTEL_GEN(m->i915) <= 6)
 		return;
 
-	err_printf(m, "  SAMPLER_INSTDONE: 0x%08x\n",
-		   ee->instdone.sampler);
-	err_printf(m, "  ROW_INSTDONE: 0x%08x\n",
-		   ee->instdone.row);
+	for_each_instdone_slice_subslice(m->i915, slice, subslice)
+		err_printf(m, "  SAMPLER_INSTDONE[%d][%d]: 0x%08x\n",
+			   slice, subslice,
+			   ee->instdone.sampler[slice][subslice]);
+
+	for_each_instdone_slice_subslice(m->i915, slice, subslice)
+		err_printf(m, "  ROW_INSTDONE[%d][%d]: 0x%08x\n",
+			   slice, subslice,
+			   ee->instdone.row[slice][subslice]);
 }
 
 static void error_print_engine(struct drm_i915_error_state_buf *m,
@@ -1549,12 +1557,52 @@ const char *i915_cache_level_str(struct drm_i915_private *i915, int type)
 	}
 }
 
+static inline uint32_t
+read_subslice_reg(struct drm_i915_private *dev_priv, int slice,
+		  int subslice, i915_reg_t reg)
+{
+	uint32_t mcr;
+	uint32_t ret;
+	enum forcewake_domains fw_domains;
+
+	fw_domains = intel_uncore_forcewake_for_reg(dev_priv, reg,
+						    FW_REG_READ);
+	fw_domains |= intel_uncore_forcewake_for_reg(dev_priv,
+						     GEN8_MCR_SELECTOR,
+						     FW_REG_READ | FW_REG_WRITE);
+
+	spin_lock_irq(&dev_priv->uncore.lock);
+	intel_uncore_forcewake_get__locked(dev_priv, fw_domains);
+
+	mcr = I915_READ_FW(GEN8_MCR_SELECTOR);
+	/*
+	 * The HW expects the slice and sublice selectors to be reset to 0
+	 * after reading out the registers.
+	 */
+	WARN_ON_ONCE(mcr & (GEN8_MCR_SLICE_MASK | GEN8_MCR_SUBSLICE_MASK));
+	mcr &= ~(GEN8_MCR_SLICE_MASK | GEN8_MCR_SUBSLICE_MASK);
+	mcr |= GEN8_MCR_SLICE(slice) | GEN8_MCR_SUBSLICE(subslice);
+	I915_WRITE_FW(GEN8_MCR_SELECTOR, mcr);
+
+	ret = I915_READ_FW(reg);
+
+	mcr &= ~(GEN8_MCR_SLICE_MASK | GEN8_MCR_SUBSLICE_MASK);
+	I915_WRITE_FW(GEN8_MCR_SELECTOR, mcr);
+
+	intel_uncore_forcewake_put__locked(dev_priv, fw_domains);
+	spin_unlock_irq(&dev_priv->uncore.lock);
+
+	return ret;
+}
+
 /* NB: please notice the memset */
 void i915_get_engine_instdone(struct drm_i915_private *dev_priv,
 			      enum intel_engine_id engine_id,
 			      struct intel_instdone *instdone)
 {
 	u32 mmio_base = dev_priv->engine[engine_id].mmio_base;
+	int slice;
+	int subslice;
 
 	memset(instdone, 0, sizeof(*instdone));
 
@@ -1566,8 +1614,24 @@ void i915_get_engine_instdone(struct drm_i915_private *dev_priv,
 			break;
 
 		instdone->slice_common = I915_READ(GEN7_SC_INSTDONE);
-		instdone->sampler = I915_READ(GEN7_SAMPLER_INSTDONE);
-		instdone->row = I915_READ(GEN7_ROW_INSTDONE);
+		for_each_instdone_slice_subslice(dev_priv, slice, subslice) {
+			instdone->sampler[slice][subslice] =
+				read_subslice_reg(dev_priv, slice, subslice,
+						  GEN7_SAMPLER_INSTDONE);
+			instdone->row[slice][subslice] =
+				read_subslice_reg(dev_priv, slice, subslice,
+						  GEN7_ROW_INSTDONE);
+		}
+		break;
+	case 7:
+		instdone->instdone = I915_READ(RING_INSTDONE(mmio_base));
+
+		if (engine_id != RCS)
+			break;
+
+		instdone->slice_common = I915_READ(GEN7_SC_INSTDONE);
+		instdone->sampler[0][0] = I915_READ(GEN7_SAMPLER_INSTDONE);
+		instdone->row[0][0] = I915_READ(GEN7_ROW_INSTDONE);
 
 		break;
 	case 6:

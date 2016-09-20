@@ -2549,6 +2549,9 @@ static inline void
 i915_err_print_instdone(struct drm_i915_private *dev_priv,
 			struct intel_instdone *instdone)
 {
+	int slice;
+	int subslice;
+
 	pr_err("  INSTDONE: 0x%08x\n", instdone->instdone);
 
 	if (INTEL_GEN(dev_priv) <= 3)
@@ -2559,8 +2562,13 @@ i915_err_print_instdone(struct drm_i915_private *dev_priv,
 	if (INTEL_GEN(dev_priv) <= 6)
 		return;
 
-	pr_err("  SAMPLER_INSTDONE: 0x%08x\n", instdone->sampler);
-	pr_err("  ROW_INSTDONE: 0x%08x\n", instdone->row);
+	for_each_instdone_slice_subslice(dev_priv, slice, subslice)
+		pr_err("  SAMPLER_INSTDONE[%d][%d]: 0x%08x\n",
+		       slice, subslice, instdone->sampler[slice][subslice]);
+
+	for_each_instdone_slice_subslice(dev_priv, slice, subslice)
+		pr_err("  ROW_INSTDONE[%d][%d]: 0x%08x\n",
+		       slice, subslice, instdone->row[slice][subslice]);
 }
 
 static void i915_report_and_clear_eir(struct drm_i915_private *dev_priv)
@@ -2981,6 +2989,8 @@ static bool subunits_stuck(struct intel_engine_cs *engine)
 	struct intel_instdone instdone;
 	struct intel_instdone *accu_instdone = &engine->hangcheck.instdone;
 	bool stuck;
+	int slice;
+	int subslice;
 
 	if (engine->id != RCS)
 		return true;
@@ -2996,10 +3006,13 @@ static bool subunits_stuck(struct intel_engine_cs *engine)
 				   &accu_instdone->instdone);
 	stuck &= instdone_unchanged(instdone.slice_common,
 				    &accu_instdone->slice_common);
-	stuck &= instdone_unchanged(instdone.sampler,
-				    &accu_instdone->sampler);
-	stuck &= instdone_unchanged(instdone.row,
-				    &accu_instdone->row);
+
+	for_each_instdone_slice_subslice(dev_priv, slice, subslice) {
+		stuck &= instdone_unchanged(instdone.sampler[slice][subslice],
+					    &accu_instdone->sampler[slice][subslice]);
+		stuck &= instdone_unchanged(instdone.row[slice][subslice],
+					    &accu_instdone->row[slice][subslice]);
+	}
 
 	return stuck;
 }
