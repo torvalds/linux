@@ -273,6 +273,8 @@ static void mwifiex_usb_tx_complete(struct urb *urb)
 	} else {
 		mwifiex_dbg(adapter, DATA,
 			    "%s: DATA\n", __func__);
+		mwifiex_write_data_complete(adapter, context->skb, 0,
+					    urb->status ? -1 : 0);
 		for (i = 0; i < MWIFIEX_TX_DATA_PORT; i++) {
 			port = &card->port[i];
 			if (context->ep == port->tx_data_ep) {
@@ -282,8 +284,6 @@ static void mwifiex_usb_tx_complete(struct urb *urb)
 			}
 		}
 		adapter->data_sent = false;
-		mwifiex_write_data_complete(adapter, context->skb, 0,
-					    urb->status ? -1 : 0);
 	}
 
 	if (card->mc_resync_flag)
