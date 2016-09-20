@@ -190,7 +190,8 @@ struct mlxsw_config_profile {
 		used_max_pkey:1,
 		used_ar_sec:1,
 		used_adaptive_routing_group_cap:1,
-		used_kvd_sizes:1;
+		used_kvd_split_data:1; /* indicate for the kvd's values */
+
 	u8	max_vepa_channels;
 	u16	max_mid;
 	u16	max_pgt;
@@ -210,8 +211,9 @@ struct mlxsw_config_profile {
 	u16	adaptive_routing_group_cap;
 	u8	arn;
 	u32	kvd_linear_size;
-	u32	kvd_hash_single_size;
-	u32	kvd_hash_double_size;
+	u16	kvd_hash_granularity;
+	u8	kvd_hash_single_parts;
+	u8	kvd_hash_double_parts;
 	u8	resource_query_enable;
 	struct mlxsw_swid_config swid_config[MLXSW_CONFIG_PROFILE_SWID_COUNT];
 };
@@ -277,6 +279,13 @@ struct mlxsw_resources {
 	u32	kvd_size;
 	u32	kvd_single_min_size;
 	u32	kvd_double_min_size;
+
+	/* Internal resources.
+	 * Determined by the SW, not queried from the HW.
+	 */
+	u32	kvd_single_size;
+	u32	kvd_double_size;
+	u32	kvd_linear_size;
 };
 
 struct mlxsw_resources *mlxsw_core_resources_get(struct mlxsw_core *mlxsw_core);

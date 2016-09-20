@@ -1234,10 +1234,52 @@ static int mlxsw_pci_resources_query(struct mlxsw_pci *mlxsw_pci, char *mbox,
 	return -EIO;
 }
 
+static int mlxsw_pci_profile_get_kvd_sizes(const struct mlxsw_config_profile *profile,
+					   struct mlxsw_resources *resources)
+{
+	u32 singles_size, doubles_size, linear_size;
+
+	if (!resources->kvd_single_min_size_valid ||
+	    !resources->kvd_double_min_size_valid ||
+	    !profile->used_kvd_split_data)
+		return -EIO;
+
+	linear_size = profile->kvd_linear_size;
+
+	/* The hash part is what left of the kvd without the
+	 * linear part. It is split to the single size and
+	 * double size by the parts ratio from the profile.
+	 * Both sizes must be a multiplications of the
+	 * granularity from the profile.
+	 */
+	doubles_size = (resources->kvd_size - linear_size);
+	doubles_size *= profile->kvd_hash_double_parts;
+	doubles_size /= (profile->kvd_hash_double_parts +
+			 profile->kvd_hash_single_parts);
+	doubles_size /= profile->kvd_hash_granularity;
+	doubles_size *= profile->kvd_hash_granularity;
+	singles_size = resources->kvd_size - doubles_size -
+		       linear_size;
+
+	/* Check results are legal. */
+	if (singles_size < resources->kvd_single_min_size ||
+	    doubles_size < resources->kvd_double_min_size ||
+	    resources->kvd_size < linear_size)
+		return -EIO;
+
+	resources->kvd_single_size = singles_size;
+	resources->kvd_double_size = doubles_size;
+	resources->kvd_linear_size = linear_size;
+
+	return 0;
+}
+
 static int mlxsw_pci_config_profile(struct mlxsw_pci *mlxsw_pci, char *mbox,
-				    const struct mlxsw_config_profile *profile)
+				    const struct mlxsw_config_profile *profile,
+				    struct mlxsw_resources *resources)
 {
 	int i;
+	int err;
 
 	mlxsw_cmd_mbox_zero(mbox);
 
@@ -1323,19 +1365,22 @@ static int mlxsw_pci_config_profile(struct mlxsw_pci *mlxsw_pci, char *mbox,
 		mlxsw_cmd_mbox_config_profile_adaptive_routing_group_cap_set(
 			mbox, profile->adaptive_routing_group_cap);
 	}
-	if (profile->used_kvd_sizes) {
-		mlxsw_cmd_mbox_config_profile_set_kvd_linear_size_set(
-			mbox, 1);
-		mlxsw_cmd_mbox_config_profile_kvd_linear_size_set(
-			mbox, profile->kvd_linear_size);
-		mlxsw_cmd_mbox_config_profile_set_kvd_hash_single_size_set(
-			mbox, 1);
-		mlxsw_cmd_mbox_config_profile_kvd_hash_single_size_set(
-			mbox, profile->kvd_hash_single_size);
+	if (resources->kvd_size_valid) {
+		err = mlxsw_pci_profile_get_kvd_sizes(profile, resources);
+		if (err)
+			return err;
+
+		mlxsw_cmd_mbox_config_profile_set_kvd_linear_size_set(mbox, 1);
+		mlxsw_cmd_mbox_config_profile_kvd_linear_size_set(mbox,
+						resources->kvd_linear_size);
+		mlxsw_cmd_mbox_config_profile_set_kvd_hash_single_size_set(mbox,
+									   1);
+		mlxsw_cmd_mbox_config_profile_kvd_hash_single_size_set(mbox,
+						resources->kvd_single_size);
 		mlxsw_cmd_mbox_config_profile_set_kvd_hash_double_size_set(
-			mbox, 1);
-		mlxsw_cmd_mbox_config_profile_kvd_hash_double_size_set(
-			mbox, profile->kvd_hash_double_size);
+								mbox, 1);
+		mlxsw_cmd_mbox_config_profile_kvd_hash_double_size_set(mbox,
+						resources->kvd_double_size);
 	}
 
 	for (i = 0; i < MLXSW_CONFIG_PROFILE_SWID_COUNT; i++)
@@ -1537,7 +1582,7 @@ static int mlxsw_pci_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 	if (err)
 		goto err_query_resources;
 
-	err = mlxsw_pci_config_profile(mlxsw_pci, mbox, profile);
+	err = mlxsw_pci_config_profile(mlxsw_pci, mbox, profile, resources);
 	if (err)
 		goto err_config_profile;
 
