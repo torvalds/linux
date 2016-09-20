@@ -1846,7 +1846,6 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path, u64 devid)
 	u64 num_devices;
 	int ret = 0;
 	bool clear_super = false;
-	char *dev_name = NULL;
 
 	mutex_lock(&uuid_mutex);
 
@@ -1882,11 +1881,6 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path, u64 devid)
 		list_del_init(&device->dev_alloc_list);
 		device->fs_devices->rw_devices--;
 		unlock_chunks(root);
-		dev_name = kstrdup(device->name->str, GFP_KERNEL);
-		if (!dev_name) {
-			ret = -ENOMEM;
-			goto error_undo;
-		}
 		clear_super = true;
 	}
 
@@ -1936,13 +1930,20 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path, u64 devid)
 		btrfs_sysfs_rm_device_link(root->fs_info->fs_devices, device);
 	}
 
-	btrfs_close_bdev(device);
-
-	call_rcu(&device->rcu, free_device);
-
 	num_devices = btrfs_super_num_devices(root->fs_info->super_copy) - 1;
 	btrfs_set_super_num_devices(root->fs_info->super_copy, num_devices);
 	mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
+
+	/*
+	 * at this point, the device is zero sized and detached from
+	 * the devices list.  All that's left is to zero out the old
+	 * supers and free the device.
+	 */
+	if (device->writeable)
+		btrfs_scratch_superblocks(device->bdev, device->name->str);
+
+	btrfs_close_bdev(device);
+	call_rcu(&device->rcu, free_device);
 
 	if (cur_devices->open_devices == 0) {
 		struct btrfs_fs_devices *fs_devices;
@@ -1962,24 +1963,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path, u64 devid)
 	root->fs_info->num_tolerated_disk_barrier_failures =
 		btrfs_calc_num_tolerated_disk_barrier_failures(root->fs_info);
 
-	/*
-	 * at this point, the device is zero sized.  We want to
-	 * remove it from the devices list and zero out the old super
-	 */
-	if (clear_super) {
-		struct block_device *bdev;
-
-		bdev = blkdev_get_by_path(dev_name, FMODE_READ | FMODE_EXCL,
-						root->fs_info->bdev_holder);
-		if (!IS_ERR(bdev)) {
-			btrfs_scratch_superblocks(bdev, dev_name);
-			blkdev_put(bdev, FMODE_READ | FMODE_EXCL);
-		}
-	}
-
 out:
-	kfree(dev_name);
-
 	mutex_unlock(&uuid_mutex);
 	return ret;
 
