@@ -777,7 +777,7 @@ struct f2fs_sb_info {
 	struct proc_dir_entry *s_proc;		/* proc entry */
 	struct f2fs_super_block *raw_super;	/* raw super block pointer */
 	int valid_super_block;			/* valid super block no */
-	int s_flag;				/* flags for sbi */
+	unsigned long s_flag;				/* flags for sbi */
 
 #ifdef CONFIG_F2FS_FS_ENCRYPTION
 	u8 key_prefix[F2FS_KEY_DESC_PREFIX_SIZE];
@@ -1046,17 +1046,17 @@ static inline struct address_space *NODE_MAPPING(struct f2fs_sb_info *sbi)
 
 static inline bool is_sbi_flag_set(struct f2fs_sb_info *sbi, unsigned int type)
 {
-	return sbi->s_flag & (0x01 << type);
+	return test_bit(type, &sbi->s_flag);
 }
 
 static inline void set_sbi_flag(struct f2fs_sb_info *sbi, unsigned int type)
 {
-	sbi->s_flag |= (0x01 << type);
+	set_bit(type, &sbi->s_flag);
 }
 
 static inline void clear_sbi_flag(struct f2fs_sb_info *sbi, unsigned int type)
 {
-	sbi->s_flag &= ~(0x01 << type);
+	clear_bit(type, &sbi->s_flag);
 }
 
 static inline unsigned long long cur_cp_version(struct f2fs_checkpoint *cp)
