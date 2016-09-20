@@ -12266,7 +12266,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 		work->flip_queued_req = i915_gem_active_get(&obj->last_write,
 							    &obj->base.dev->struct_mutex);
-		schedule_work(&work->mmio_work);
+		queue_work(system_unbound_wq, &work->mmio_work);
 	} else {
 		request = i915_gem_request_alloc(engine, engine->last_context);
 		if (IS_ERR(request)) {
