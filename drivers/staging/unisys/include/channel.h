@@ -331,28 +331,6 @@ static inline int spar_check_channel_server(uuid_le typeuuid, char *name,
 	return 1;
 }
 
-static inline void
-spar_channel_client_release_os(void __iomem *ch, u8 *id)
-{
-	struct channel_header __iomem *hdr = ch;
-
-	if (readb(&hdr->cli_error_os)) {
-		/* we are in an error msg throttling state; come out of it */
-		pr_info("%s Channel OS client error state cleared\n", id);
-		writeb(0, &hdr->cli_error_os);
-	}
-	if (readl(&hdr->cli_state_os) == CHANNELCLI_OWNED)
-		return;
-	if (readl(&hdr->cli_state_os) != CHANNELCLI_BUSY) {
-		pr_info("%s Channel StateTransition INVALID! - release failed because OS client NOT BUSY (state=%s(%d))\n",
-			id, ULTRA_CHANNELCLI_STRING(
-					readl(&hdr->cli_state_os)),
-			readl(&hdr->cli_state_os));
-		/* return; */
-	}
-	writel(CHANNELCLI_ATTACHED, &hdr->cli_state_os); /* release busy */
-}
-
 /*
 * Routine Description:
 * Tries to insert the prebuilt signal pointed to by pSignal into the nth
