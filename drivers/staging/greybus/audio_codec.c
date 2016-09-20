@@ -46,7 +46,7 @@ static int gbaudio_module_enable_tx(struct gbaudio_codec_info *codec,
 				    struct gbaudio_module_info *module, int id)
 {
 	int module_state, ret = 0;
-	uint16_t data_cport, i2s_port, cportid;
+	u16 data_cport, i2s_port, cportid;
 	u8 sig_bits, channels;
 	uint32_t format, rate;
 	struct gbaudio_data_connection *data;
@@ -131,7 +131,7 @@ static int gbaudio_module_enable_tx(struct gbaudio_codec_info *codec,
 static int gbaudio_module_disable_tx(struct gbaudio_module_info *module, int id)
 {
 	int ret;
-	uint16_t data_cport, cportid, i2s_port;
+	u16 data_cport, cportid, i2s_port;
 	int module_state;
 	struct gbaudio_data_connection *data;
 
@@ -181,7 +181,7 @@ static int gbaudio_module_enable_rx(struct gbaudio_codec_info *codec,
 				    struct gbaudio_module_info *module, int id)
 {
 	int module_state, ret = 0;
-	uint16_t data_cport, i2s_port, cportid;
+	u16 data_cport, i2s_port, cportid;
 	u8 sig_bits, channels;
 	uint32_t format, rate;
 	struct gbaudio_data_connection *data;
@@ -266,7 +266,7 @@ static int gbaudio_module_enable_rx(struct gbaudio_codec_info *codec,
 static int gbaudio_module_disable_rx(struct gbaudio_module_info *module, int id)
 {
 	int ret;
-	uint16_t data_cport, cportid, i2s_port;
+	u16 data_cport, cportid, i2s_port;
 	int module_state;
 	struct gbaudio_data_connection *data;
 
@@ -855,7 +855,7 @@ EXPORT_SYMBOL(gbaudio_register_module);
 
 static void gbaudio_codec_clean_data_tx(struct gbaudio_data_connection *data)
 {
-	uint16_t i2s_port, cportid;
+	u16 i2s_port, cportid;
 	int ret;
 
 	if (list_is_singular(&gbcodec->module_list)) {
@@ -877,7 +877,7 @@ static void gbaudio_codec_clean_data_tx(struct gbaudio_data_connection *data)
 
 static void gbaudio_codec_clean_data_rx(struct gbaudio_data_connection *data)
 {
-	uint16_t i2s_port, cportid;
+	u16 i2s_port, cportid;
 	int ret;
 
 	if (list_is_singular(&gbcodec->module_list)) {

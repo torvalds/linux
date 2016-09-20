@@ -231,25 +231,25 @@ extern int gb_audio_gb_enable_widget(struct gb_connection *connection,
 extern int gb_audio_gb_disable_widget(struct gb_connection *connection,
 				      u8 widget_id);
 extern int gb_audio_gb_get_pcm(struct gb_connection *connection,
-			       uint16_t data_cport, uint32_t *format,
+			       u16 data_cport, uint32_t *format,
 			       uint32_t *rate, u8 *channels,
 			       u8 *sig_bits);
 extern int gb_audio_gb_set_pcm(struct gb_connection *connection,
-			       uint16_t data_cport, uint32_t format,
+			       u16 data_cport, uint32_t format,
 			       uint32_t rate, u8 channels,
 			       u8 sig_bits);
 extern int gb_audio_gb_set_tx_data_size(struct gb_connection *connection,
-					uint16_t data_cport, uint16_t size);
+					u16 data_cport, u16 size);
 extern int gb_audio_gb_activate_tx(struct gb_connection *connection,
-				   uint16_t data_cport);
+				   u16 data_cport);
 extern int gb_audio_gb_deactivate_tx(struct gb_connection *connection,
-				     uint16_t data_cport);
+				     u16 data_cport);
 extern int gb_audio_gb_set_rx_data_size(struct gb_connection *connection,
-					uint16_t data_cport, uint16_t size);
+					u16 data_cport, u16 size);
 extern int gb_audio_gb_activate_rx(struct gb_connection *connection,
-				   uint16_t data_cport);
+				   u16 data_cport);
 extern int gb_audio_gb_deactivate_rx(struct gb_connection *connection,
-				     uint16_t data_cport);
+				     u16 data_cport);
 extern int gb_audio_apbridgea_set_config(struct gb_connection *connection,
 					 __u16 i2s_port, __u32 format,
 					 __u32 rate, __u32 mclk_freq);

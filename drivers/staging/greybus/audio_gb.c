@@ -17,7 +17,7 @@ int gb_audio_gb_get_topology(struct gb_connection *connection,
 {
 	struct gb_audio_get_topology_size_response size_resp;
 	struct gb_audio_topology *topo;
-	uint16_t size;
+	u16 size;
 	int ret;
 
 	ret = gb_operation_sync(connection, GB_AUDIO_TYPE_GET_TOPOLOGY_SIZE,
@@ -107,7 +107,7 @@ int gb_audio_gb_disable_widget(struct gb_connection *connection,
 }
 EXPORT_SYMBOL_GPL(gb_audio_gb_disable_widget);
 
-int gb_audio_gb_get_pcm(struct gb_connection *connection, uint16_t data_cport,
+int gb_audio_gb_get_pcm(struct gb_connection *connection, u16 data_cport,
 			uint32_t *format, uint32_t *rate, u8 *channels,
 			u8 *sig_bits)
 {
@@ -131,7 +131,7 @@ int gb_audio_gb_get_pcm(struct gb_connection *connection, uint16_t data_cport,
 }
 EXPORT_SYMBOL_GPL(gb_audio_gb_get_pcm);
 
-int gb_audio_gb_set_pcm(struct gb_connection *connection, uint16_t data_cport,
+int gb_audio_gb_set_pcm(struct gb_connection *connection, u16 data_cport,
 			uint32_t format, uint32_t rate, u8 channels,
 			u8 sig_bits)
 {
@@ -149,7 +149,7 @@ int gb_audio_gb_set_pcm(struct gb_connection *connection, uint16_t data_cport,
 EXPORT_SYMBOL_GPL(gb_audio_gb_set_pcm);
 
 int gb_audio_gb_set_tx_data_size(struct gb_connection *connection,
-				 uint16_t data_cport, uint16_t size)
+				 u16 data_cport, u16 size)
 {
 	struct gb_audio_set_tx_data_size_request req;
 
@@ -162,7 +162,7 @@ int gb_audio_gb_set_tx_data_size(struct gb_connection *connection,
 EXPORT_SYMBOL_GPL(gb_audio_gb_set_tx_data_size);
 
 int gb_audio_gb_activate_tx(struct gb_connection *connection,
-			    uint16_t data_cport)
+			    u16 data_cport)
 {
 	struct gb_audio_activate_tx_request req;
 
@@ -174,7 +174,7 @@ int gb_audio_gb_activate_tx(struct gb_connection *connection,
 EXPORT_SYMBOL_GPL(gb_audio_gb_activate_tx);
 
 int gb_audio_gb_deactivate_tx(struct gb_connection *connection,
-			      uint16_t data_cport)
+			      u16 data_cport)
 {
 	struct gb_audio_deactivate_tx_request req;
 
@@ -186,7 +186,7 @@ int gb_audio_gb_deactivate_tx(struct gb_connection *connection,
 EXPORT_SYMBOL_GPL(gb_audio_gb_deactivate_tx);
 
 int gb_audio_gb_set_rx_data_size(struct gb_connection *connection,
-				 uint16_t data_cport, uint16_t size)
+				 u16 data_cport, u16 size)
 {
 	struct gb_audio_set_rx_data_size_request req;
 
@@ -199,7 +199,7 @@ int gb_audio_gb_set_rx_data_size(struct gb_connection *connection,
 EXPORT_SYMBOL_GPL(gb_audio_gb_set_rx_data_size);
 
 int gb_audio_gb_activate_rx(struct gb_connection *connection,
-			    uint16_t data_cport)
+			    u16 data_cport)
 {
 	struct gb_audio_activate_rx_request req;
 
@@ -211,7 +211,7 @@ int gb_audio_gb_activate_rx(struct gb_connection *connection,
 EXPORT_SYMBOL_GPL(gb_audio_gb_activate_rx);
 
 int gb_audio_gb_deactivate_rx(struct gb_connection *connection,
-			      uint16_t data_cport)
+			      u16 data_cport)
 {
 	struct gb_audio_deactivate_rx_request req;
 
