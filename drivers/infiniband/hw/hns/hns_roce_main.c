@@ -602,6 +602,7 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	struct device *dev = &hr_dev->pdev->dev;
 
 	iboe = &hr_dev->iboe;
+	spin_lock_init(&iboe->lock);
 
 	ib_dev = &hr_dev->ib_dev;
 	strlcpy(ib_dev->name, "hisi_%d", IB_DEVICE_NAME_MAX);
@@ -685,8 +686,6 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 		dev_err(dev, "roce_setup_mtu_gids failed!\n");
 		goto error_failed_setup_mtu_gids;
 	}
-
-	spin_lock_init(&iboe->lock);
 
 	iboe->nb.notifier_call = hns_roce_netdev_event;
 	ret = register_netdevice_notifier(&iboe->nb);
