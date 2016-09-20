@@ -225,6 +225,17 @@ void __init efi_memmap_insert(struct efi_memory_map *old_memmap, void *buf,
 	m_end = mem->range.end;
 	m_attr = mem->attribute;
 
+	/*
+	 * The EFI memory map deals with regions in EFI_PAGE_SIZE
+	 * units. Ensure that the region described by 'mem' is aligned
+	 * correctly.
+	 */
+	if (!IS_ALIGNED(m_start, EFI_PAGE_SIZE) ||
+	    !IS_ALIGNED(m_end + 1, EFI_PAGE_SIZE)) {
+		WARN_ON(1);
+		return;
+	}
+
 	for (old = old_memmap->map, new = buf;
 	     old < old_memmap->map_end;
 	     old += old_memmap->desc_size, new += old_memmap->desc_size) {
