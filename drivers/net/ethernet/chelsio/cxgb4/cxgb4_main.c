@@ -1324,19 +1324,22 @@ EXPORT_SYMBOL(cxgb4_remove_tid);
  */
 static int tid_init(struct tid_info *t)
 {
-	size_t size;
-	unsigned int stid_bmap_size;
-	unsigned int natids = t->natids;
 	struct adapter *adap = container_of(t, struct adapter, tids);
+	unsigned int max_ftids = t->nftids + t->nsftids;
+	unsigned int natids = t->natids;
+	unsigned int stid_bmap_size;
+	unsigned int ftid_bmap_size;
+	size_t size;
 
 	stid_bmap_size = BITS_TO_LONGS(t->nstids + t->nsftids);
+	ftid_bmap_size = BITS_TO_LONGS(t->nftids);
 	size = t->ntids * sizeof(*t->tid_tab) +
 	       natids * sizeof(*t->atid_tab) +
 	       t->nstids * sizeof(*t->stid_tab) +
 	       t->nsftids * sizeof(*t->stid_tab) +
 	       stid_bmap_size * sizeof(long) +
-	       t->nftids * sizeof(*t->ftid_tab) +
-	       t->nsftids * sizeof(*t->ftid_tab);
+	       max_ftids * sizeof(*t->ftid_tab) +
+	       ftid_bmap_size * sizeof(long);
 
 	t->tid_tab = t4_alloc_mem(size);
 	if (!t->tid_tab)
@@ -1346,8 +1349,10 @@ static int tid_init(struct tid_info *t)
 	t->stid_tab = (struct serv_entry *)&t->atid_tab[natids];
 	t->stid_bmap = (unsigned long *)&t->stid_tab[t->nstids + t->nsftids];
 	t->ftid_tab = (struct filter_entry *)&t->stid_bmap[stid_bmap_size];
+	t->ftid_bmap = (unsigned long *)&t->ftid_tab[max_ftids];
 	spin_lock_init(&t->stid_lock);
 	spin_lock_init(&t->atid_lock);
+	spin_lock_init(&t->ftid_lock);
 
 	t->stids_in_use = 0;
 	t->sftids_in_use = 0;
@@ -1362,12 +1367,16 @@ static int tid_init(struct tid_info *t)
 			t->atid_tab[natids - 1].next = &t->atid_tab[natids];
 		t->afree = t->atid_tab;
 	}
-	bitmap_zero(t->stid_bmap, t->nstids + t->nsftids);
-	/* Reserve stid 0 for T4/T5 adapters */
-	if (!t->stid_base &&
-	    (CHELSIO_CHIP_VERSION(adap->params.chip) <= CHELSIO_T5))
-		__set_bit(0, t->stid_bmap);
 
+	if (is_offload(adap)) {
+		bitmap_zero(t->stid_bmap, t->nstids + t->nsftids);
+		/* Reserve stid 0 for T4/T5 adapters */
+		if (!t->stid_base &&
+		    CHELSIO_CHIP_VERSION(adap->params.chip) <= CHELSIO_T5)
+			__set_bit(0, t->stid_bmap);
+	}
+
+	bitmap_zero(t->ftid_bmap, t->nftids);
 	return 0;
 }
 
@@ -4825,7 +4834,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 				 i);
 	}
 
-	if (is_offload(adapter) && tid_init(&adapter->tids) < 0) {
+	if (tid_init(&adapter->tids) < 0) {
 		dev_warn(&pdev->dev, "could not allocate TID table, "
 			 "continuing\n");
 		adapter->params.offload = 0;
@@ -5012,13 +5021,7 @@ static void remove_one(struct pci_dev *pdev)
 		/* If we allocated filters, free up state associated with any
 		 * valid filters ...
 		 */
-		if (adapter->tids.ftid_tab) {
-			struct filter_entry *f = &adapter->tids.ftid_tab[0];
-			for (i = 0; i < (adapter->tids.nftids +
-					adapter->tids.nsftids); i++, f++)
-				if (f->valid)
-					clear_filter(adapter, f);
-		}
+		clear_all_filters(adapter);
 
 		if (adapter->flags & FULL_INIT_DONE)
 			cxgb_down(adapter);

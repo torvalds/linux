@@ -1,7 +1,7 @@
 /*
  * This file is part of the Chelsio T4 Ethernet driver for Linux.
  *
- * Copyright (c) 2003-2014 Chelsio Communications, Inc. All rights reserved.
+ * Copyright (c) 2003-2016 Chelsio Communications, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -106,6 +106,7 @@ struct tid_info {
 	unsigned int atid_base;
 
 	struct filter_entry *ftid_tab;
+	unsigned long *ftid_bmap;
 	unsigned int nftids;
 	unsigned int ftid_base;
 	unsigned int aftid_base;
@@ -126,6 +127,8 @@ struct tid_info {
 	atomic_t tids_in_use;
 	/* TIDs in the HASH */
 	atomic_t hash_tids_in_use;
+	/* lock for setting/clearing filter bitmap */
+	spinlock_t ftid_lock;
 };
 
 static inline void *lookup_tid(const struct tid_info *t, unsigned int tid)
@@ -184,6 +187,27 @@ int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
 			       unsigned char port, unsigned char mask);
 int cxgb4_remove_server_filter(const struct net_device *dev, unsigned int stid,
 			       unsigned int queue, bool ipv6);
+
+/* Filter operation context to allow callers of cxgb4_set_filter() and
+ * cxgb4_del_filter() to wait for an asynchronous completion.
+ */
+struct filter_ctx {
+	struct completion completion;	/* completion rendezvous */
+	void *closure;			/* caller's opaque information */
+	int result;			/* result of operation */
+	u32 tid;			/* to store tid */
+};
+
+struct ch_filter_specification;
+
+int __cxgb4_set_filter(struct net_device *dev, int filter_id,
+		       struct ch_filter_specification *fs,
+		       struct filter_ctx *ctx);
+int __cxgb4_del_filter(struct net_device *dev, int filter_id,
+		       struct filter_ctx *ctx);
+int cxgb4_set_filter(struct net_device *dev, int filter_id,
+		     struct ch_filter_specification *fs);
+int cxgb4_del_filter(struct net_device *dev, int filter_id);
 
 static inline void set_wr_txq(struct sk_buff *skb, int prio, int queue)
 {

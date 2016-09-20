@@ -1038,7 +1038,10 @@ struct filter_entry {
 
 	u32 pending:1;          /* filter action is pending firmware reply */
 	u32 smtidx:8;           /* Source MAC Table index for smac */
+	struct filter_ctx *ctx; /* Caller's completion hook */
 	struct l2t_entry *l2t;  /* Layer Two Table entry for dmac */
+	struct net_device *dev; /* Associated net device */
+	u32 tid;                /* This will store the actual tid */
 
 	/* The filter itself.  Most of this is a straight copy of information
 	 * provided by the extended ioctl().  Some fields are translated to

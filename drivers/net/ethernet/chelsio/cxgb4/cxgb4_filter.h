@@ -44,4 +44,5 @@ int set_filter_wr(struct adapter *adapter, int fidx);
 int delete_filter(struct adapter *adapter, unsigned int fidx);
 
 int writable_filter(struct filter_entry *f);
+void clear_all_filters(struct adapter *adapter);
 #endif /* __CXGB4_FILTER_H */
