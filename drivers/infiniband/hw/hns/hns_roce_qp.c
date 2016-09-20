@@ -32,6 +32,7 @@
  */
 
 #include <linux/platform_device.h>
+#include <rdma/ib_addr.h>
 #include <rdma/ib_umem.h>
 #include "hns_roce_common.h"
 #include "hns_roce_device.h"
@@ -657,6 +658,7 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	struct device *dev = &hr_dev->pdev->dev;
 	int ret = -EINVAL;
 	int p;
+	enum ib_mtu active_mtu;
 
 	mutex_lock(&hr_qp->mutex);
 
@@ -683,6 +685,19 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		if (attr->pkey_index >= hr_dev->caps.pkey_table_len[p]) {
 			dev_err(dev, "attr pkey_index invalid.attr->pkey_index=%d\n",
 				attr->pkey_index);
+			goto out;
+		}
+	}
+
+	if (attr_mask & IB_QP_PATH_MTU) {
+		p = attr_mask & IB_QP_PORT ? (attr->port_num - 1) : hr_qp->port;
+		active_mtu = iboe_get_mtu(hr_dev->iboe.netdevs[p]->mtu);
+
+		if (attr->path_mtu > IB_MTU_2048 ||
+		    attr->path_mtu < IB_MTU_256 ||
+		    attr->path_mtu > active_mtu) {
+			dev_err(dev, "attr path_mtu(%d)invalid while modify qp",
+				attr->path_mtu);
 			goto out;
 		}
 	}
