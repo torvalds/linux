@@ -310,11 +310,11 @@
 };
 
 &dfi {
-	status = "okay";
+//	status = "okay";
 };
 
 &dmc {
-	status = "okay";
+//	status = "okay";
 	center-supply = <&vdd_center>;
 	upthreshold = <60>;
 	downdifferential = <40>;
