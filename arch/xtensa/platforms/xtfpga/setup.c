@@ -64,6 +64,27 @@ void __init platform_setup(char **cmdline)
 {
 }
 
+/* early initialization */
+
+void __init platform_init(bp_tag_t *first)
+{
+}
+
+/* Heartbeat. */
+
+void platform_heartbeat(void)
+{
+}
+
+#ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
+
+void __init platform_calibrate_ccount(void)
+{
+	ccount_freq = *(long *)XTFPGA_CLKFRQ_VADDR;
+}
+
+#endif
+
 #ifdef CONFIG_OF
 
 static void __init xtfpga_clk_setup(struct device_node *np)
@@ -131,30 +152,7 @@ static int __init machine_setup(void)
 }
 arch_initcall(machine_setup);
 
-#endif
-
-/* early initialization */
-
-void __init platform_init(bp_tag_t *first)
-{
-}
-
-/* Heartbeat. */
-
-void platform_heartbeat(void)
-{
-}
-
-#ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
-
-void __init platform_calibrate_ccount(void)
-{
-	ccount_freq = *(long *)XTFPGA_CLKFRQ_VADDR;
-}
-
-#endif
-
-#ifndef CONFIG_OF
+#else
 
 #include <linux/serial_8250.h>
 #include <linux/if.h>
