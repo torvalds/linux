@@ -2545,18 +2545,36 @@ static void i915_reset_and_wakeup(struct drm_i915_private *dev_priv)
 	wake_up_all(&dev_priv->gpu_error.reset_queue);
 }
 
+static inline void
+i915_err_print_instdone(struct drm_i915_private *dev_priv,
+			struct intel_instdone *instdone)
+{
+	pr_err("  INSTDONE: 0x%08x\n", instdone->instdone);
+
+	if (INTEL_GEN(dev_priv) <= 3)
+		return;
+
+	pr_err("  SC_INSTDONE: 0x%08x\n", instdone->slice_common);
+
+	if (INTEL_GEN(dev_priv) <= 6)
+		return;
+
+	pr_err("  SAMPLER_INSTDONE: 0x%08x\n", instdone->sampler);
+	pr_err("  ROW_INSTDONE: 0x%08x\n", instdone->row);
+}
+
 static void i915_report_and_clear_eir(struct drm_i915_private *dev_priv)
 {
-	uint32_t instdone[I915_NUM_INSTDONE_REG];
+	struct intel_instdone instdone;
 	u32 eir = I915_READ(EIR);
-	int pipe, i;
+	int pipe;
 
 	if (!eir)
 		return;
 
 	pr_err("render error detected, EIR: 0x%08x\n", eir);
 
-	i915_get_extra_instdone(dev_priv, instdone);
+	i915_get_engine_instdone(dev_priv, RCS, &instdone);
 
 	if (IS_G4X(dev_priv)) {
 		if (eir & (GM45_ERROR_MEM_PRIV | GM45_ERROR_CP_PRIV)) {
@@ -2564,8 +2582,7 @@ static void i915_report_and_clear_eir(struct drm_i915_private *dev_priv)
 
 			pr_err("  IPEIR: 0x%08x\n", I915_READ(IPEIR_I965));
 			pr_err("  IPEHR: 0x%08x\n", I915_READ(IPEHR_I965));
-			for (i = 0; i < ARRAY_SIZE(instdone); i++)
-				pr_err("  INSTDONE_%d: 0x%08x\n", i, instdone[i]);
+			i915_err_print_instdone(dev_priv, &instdone);
 			pr_err("  INSTPS: 0x%08x\n", I915_READ(INSTPS));
 			pr_err("  ACTHD: 0x%08x\n", I915_READ(ACTHD_I965));
 			I915_WRITE(IPEIR_I965, ipeir);
@@ -2600,8 +2617,7 @@ static void i915_report_and_clear_eir(struct drm_i915_private *dev_priv)
 	if (eir & I915_ERROR_INSTRUCTION) {
 		pr_err("instruction error\n");
 		pr_err("  INSTPM: 0x%08x\n", I915_READ(INSTPM));
-		for (i = 0; i < ARRAY_SIZE(instdone); i++)
-			pr_err("  INSTDONE_%d: 0x%08x\n", i, instdone[i]);
+		i915_err_print_instdone(dev_priv, &instdone);
 		if (INTEL_GEN(dev_priv) < 4) {
 			u32 ipeir = I915_READ(IPEIR);
 
@@ -2948,31 +2964,42 @@ static void semaphore_clear_deadlocks(struct drm_i915_private *dev_priv)
 		engine->hangcheck.deadlock = 0;
 }
 
+static bool instdone_unchanged(u32 current_instdone, u32 *old_instdone)
+{
+	u32 tmp = current_instdone | *old_instdone;
+	bool unchanged;
+
+	unchanged = tmp == *old_instdone;
+	*old_instdone |= tmp;
+
+	return unchanged;
+}
+
 static bool subunits_stuck(struct intel_engine_cs *engine)
 {
-	u32 instdone[I915_NUM_INSTDONE_REG];
+	struct drm_i915_private *dev_priv = engine->i915;
+	struct intel_instdone instdone;
+	struct intel_instdone *accu_instdone = &engine->hangcheck.instdone;
 	bool stuck;
-	int i;
 
 	if (engine->id != RCS)
 		return true;
 
-	i915_get_extra_instdone(engine->i915, instdone);
+	i915_get_engine_instdone(dev_priv, RCS, &instdone);
 
 	/* There might be unstable subunit states even when
 	 * actual head is not moving. Filter out the unstable ones by
 	 * accumulating the undone -> done transitions and only
 	 * consider those as progress.
 	 */
-	stuck = true;
-	for (i = 0; i < I915_NUM_INSTDONE_REG; i++) {
-		const u32 tmp = instdone[i] | engine->hangcheck.instdone[i];
-
-		if (tmp != engine->hangcheck.instdone[i])
-			stuck = false;
-
-		engine->hangcheck.instdone[i] |= tmp;
-	}
+	stuck = instdone_unchanged(instdone.instdone,
+				   &accu_instdone->instdone);
+	stuck &= instdone_unchanged(instdone.slice_common,
+				    &accu_instdone->slice_common);
+	stuck &= instdone_unchanged(instdone.sampler,
+				    &accu_instdone->sampler);
+	stuck &= instdone_unchanged(instdone.row,
+				    &accu_instdone->row);
 
 	return stuck;
 }
@@ -2983,7 +3010,7 @@ head_stuck(struct intel_engine_cs *engine, u64 acthd)
 	if (acthd != engine->hangcheck.acthd) {
 
 		/* Clear subunit states on head movement */
-		memset(engine->hangcheck.instdone, 0,
+		memset(&engine->hangcheck.instdone, 0,
 		       sizeof(engine->hangcheck.instdone));
 
 		return HANGCHECK_ACTIVE;
@@ -3153,7 +3180,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 			/* Clear head and subunit states on seqno movement */
 			acthd = 0;
 
-			memset(engine->hangcheck.instdone, 0,
+			memset(&engine->hangcheck.instdone, 0,
 			       sizeof(engine->hangcheck.instdone));
 		}
 

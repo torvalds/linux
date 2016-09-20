@@ -73,13 +73,21 @@ enum intel_engine_hangcheck_action {
 
 #define HANGCHECK_SCORE_RING_HUNG 31
 
+struct intel_instdone {
+	u32 instdone;
+	/* The following exist only in the RCS engine */
+	u32 slice_common;
+	u32 sampler;
+	u32 row;
+};
+
 struct intel_engine_hangcheck {
 	u64 acthd;
 	u32 seqno;
 	int score;
 	enum intel_engine_hangcheck_action action;
 	int deadlock;
-	u32 instdone[I915_NUM_INSTDONE_REG];
+	struct intel_instdone instdone;
 };
 
 struct intel_ring {

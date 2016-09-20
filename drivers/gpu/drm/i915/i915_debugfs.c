@@ -1277,15 +1277,36 @@ out:
 	return ret;
 }
 
+static void i915_instdone_info(struct drm_i915_private *dev_priv,
+			       struct seq_file *m,
+			       struct intel_instdone *instdone)
+{
+	seq_printf(m, "\t\tINSTDONE: 0x%08x\n",
+		   instdone->instdone);
+
+	if (INTEL_GEN(dev_priv) <= 3)
+		return;
+
+	seq_printf(m, "\t\tSC_INSTDONE: 0x%08x\n",
+		   instdone->slice_common);
+
+	if (INTEL_GEN(dev_priv) <= 6)
+		return;
+
+	seq_printf(m, "\t\tSAMPLER_INSTDONE: 0x%08x\n",
+		   instdone->sampler);
+	seq_printf(m, "\t\tROW_INSTDONE: 0x%08x\n",
+		   instdone->row);
+}
+
 static int i915_hangcheck_info(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct intel_engine_cs *engine;
 	u64 acthd[I915_NUM_ENGINES];
 	u32 seqno[I915_NUM_ENGINES];
-	u32 instdone[I915_NUM_INSTDONE_REG];
+	struct intel_instdone instdone;
 	enum intel_engine_id id;
-	int j;
 
 	if (test_bit(I915_WEDGED, &dev_priv->gpu_error.flags))
 		seq_printf(m, "Wedged\n");
@@ -1308,7 +1329,7 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 		seqno[id] = intel_engine_get_seqno(engine);
 	}
 
-	i915_get_extra_instdone(dev_priv, instdone);
+	i915_get_engine_instdone(dev_priv, RCS, &instdone);
 
 	intel_runtime_pm_put(dev_priv);
 
@@ -1336,18 +1357,14 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 		seq_printf(m, "\taction = %d\n", engine->hangcheck.action);
 
 		if (engine->id == RCS) {
-			seq_puts(m, "\tinstdone read =");
+			seq_puts(m, "\tinstdone read =\n");
 
-			for (j = 0; j < I915_NUM_INSTDONE_REG; j++)
-				seq_printf(m, " 0x%08x", instdone[j]);
+			i915_instdone_info(dev_priv, m, &instdone);
 
-			seq_puts(m, "\n\tinstdone accu =");
+			seq_puts(m, "\tinstdone accu =\n");
 
-			for (j = 0; j < I915_NUM_INSTDONE_REG; j++)
-				seq_printf(m, " 0x%08x",
-					   engine->hangcheck.instdone[j]);
-
-			seq_puts(m, "\n");
+			i915_instdone_info(dev_priv, m,
+					   &engine->hangcheck.instdone);
 		}
 	}
 

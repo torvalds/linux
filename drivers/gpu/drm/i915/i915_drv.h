@@ -759,7 +759,7 @@ struct drm_i915_error_state {
 	u32 gam_ecochk;
 	u32 gab_ctl;
 	u32 gfx_mode;
-	u32 extra_instdone[I915_NUM_INSTDONE_REG];
+
 	u64 fence[I915_MAX_NUM_FENCES];
 	struct intel_overlay_error_state *overlay;
 	struct intel_display_error_state *display;
@@ -791,7 +791,6 @@ struct drm_i915_error_state {
 		u32 hws;
 		u32 ipeir;
 		u32 ipehr;
-		u32 instdone;
 		u32 bbstate;
 		u32 instpm;
 		u32 instps;
@@ -802,6 +801,7 @@ struct drm_i915_error_state {
 		u64 faddr;
 		u32 rc_psmi; /* sleep state */
 		u32 semaphore_mboxes[I915_NUM_ENGINES - 1];
+		struct intel_instdone instdone;
 
 		struct drm_i915_error_object {
 			int page_count;
@@ -3542,7 +3542,9 @@ void i915_error_state_get(struct drm_device *dev,
 void i915_error_state_put(struct i915_error_state_file_priv *error_priv);
 void i915_destroy_error_state(struct drm_device *dev);
 
-void i915_get_extra_instdone(struct drm_i915_private *dev_priv, uint32_t *instdone);
+void i915_get_engine_instdone(struct drm_i915_private *dev_priv,
+			      enum intel_engine_id engine_id,
+			      struct intel_instdone *instdone);
 const char *i915_cache_level_str(struct drm_i915_private *i915, int type);
 
 /* i915_cmd_parser.c */

@@ -1708,7 +1708,6 @@ enum skl_disp_power_wells {
 #define GEN7_SC_INSTDONE	_MMIO(0x7100)
 #define GEN7_SAMPLER_INSTDONE	_MMIO(0xe160)
 #define GEN7_ROW_INSTDONE	_MMIO(0xe164)
-#define I915_NUM_INSTDONE_REG	4
 #define RING_IPEIR(base)	_MMIO((base)+0x64)
 #define RING_IPEHR(base)	_MMIO((base)+0x68)
 /*
