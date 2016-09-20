@@ -54,7 +54,7 @@
 #define MLXSW_SP_VFID_MAX 6656	/* Bridged VLAN interfaces */
 
 #define MLXSW_SP_RFID_BASE 15360
-#define MLXSW_SP_RIF_MAX 800
+#define MLXSW_SP_INVALID_RIF 0xffff
 
 #define MLXSW_SP_MID_MAX 7000
 
@@ -269,7 +269,7 @@ struct mlxsw_sp {
 		DECLARE_BITMAP(mapped, MLXSW_SP_MID_MAX);
 	} br_mids;
 	struct list_head fids;	/* VLAN-aware bridge FIDs */
-	struct mlxsw_sp_rif *rifs[MLXSW_SP_RIF_MAX];
+	struct mlxsw_sp_rif **rifs;
 	struct mlxsw_sp_port **ports;
 	struct mlxsw_core *core;
 	const struct mlxsw_bus_info *bus_info;
@@ -477,9 +477,12 @@ static inline struct mlxsw_sp_rif *
 mlxsw_sp_rif_find_by_dev(const struct mlxsw_sp *mlxsw_sp,
 			 const struct net_device *dev)
 {
+	struct mlxsw_resources *resources;
 	int i;
 
-	for (i = 0; i < MLXSW_SP_RIF_MAX; i++)
+	resources = mlxsw_core_resources_get(mlxsw_sp->core);
+
+	for (i = 0; i < resources->max_rif; i++)
 		if (mlxsw_sp->rifs[i] && mlxsw_sp->rifs[i]->dev == dev)
 			return mlxsw_sp->rifs[i];
 
