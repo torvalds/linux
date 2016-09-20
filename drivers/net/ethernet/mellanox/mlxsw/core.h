@@ -267,13 +267,16 @@ struct mlxsw_driver {
 };
 
 struct mlxsw_resources {
-	u8	max_span_valid:1,
+	u32	max_span_valid:1,
 		max_lag_valid:1,
 		max_ports_in_lag_valid:1,
 		kvd_size_valid:1,
 		kvd_single_min_size_valid:1,
 		kvd_double_min_size_valid:1,
-		max_virtual_routers_valid:1;
+		max_virtual_routers_valid:1,
+		max_system_ports_valid:1,
+		max_vlan_groups_valid:1,
+		max_regions_valid:1;
 	u8      max_span;
 	u8	max_lag;
 	u8	max_ports_in_lag;
@@ -281,6 +284,9 @@ struct mlxsw_resources {
 	u32	kvd_single_min_size;
 	u32	kvd_double_min_size;
 	u16     max_virtual_routers;
+	u16	max_system_ports;
+	u16	max_vlan_groups;
+	u16	max_regions;
 
 	/* Internal resources.
 	 * Determined by the SW, not queried from the HW.
