@@ -378,9 +378,11 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 	if (ret < 0)
 		goto out;
 
-	ret = ops->set_addr(ds, dst->master_netdev->dev_addr);
-	if (ret < 0)
-		goto out;
+	if (ops->set_addr) {
+		ret = ops->set_addr(ds, dst->master_netdev->dev_addr);
+		if (ret < 0)
+			goto out;
+	}
 
 	if (!ds->slave_mii_bus && ops->phy_read) {
 		ds->slave_mii_bus = devm_mdiobus_alloc(parent);
