@@ -141,8 +141,6 @@ struct visornic_devdata {
 	struct uiscmdrsp cmdrsp[SIZEOF_CMDRSP];
 };
 
-static void poll_for_irq(unsigned long v);
-
 /**
  *	visor_copy_fragsinfo_from_skb(
  *	@skb_in: skbuff that we are pulling the frags from
