@@ -1165,6 +1165,7 @@ mlxsw_pci_config_profile_swid_config(struct mlxsw_pci *mlxsw_pci,
 #define MLXSW_MAX_SYSTEM_PORT_ID 0x2502
 #define MLXSW_MAX_VLAN_GROUPS_ID 0x2906
 #define MLXSW_MAX_REGIONS_ID 0x2901
+#define MLXSW_MAX_RIF_ID 0x2C02
 #define MLXSW_RESOURCES_QUERY_MAX_QUERIES 100
 #define MLXSW_RESOURCES_PER_QUERY 32
 
@@ -1211,6 +1212,10 @@ static void mlxsw_pci_resources_query_parse(int id, u64 val,
 	case MLXSW_MAX_REGIONS_ID:
 		resources->max_regions = val;
 		resources->max_regions_valid = 1;
+		break;
+	case MLXSW_MAX_RIF_ID:
+		resources->max_rif = val;
+		resources->max_rif_valid = 1;
 		break;
 	default:
 		break;

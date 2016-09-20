@@ -276,7 +276,8 @@ struct mlxsw_resources {
 		max_virtual_routers_valid:1,
 		max_system_ports_valid:1,
 		max_vlan_groups_valid:1,
-		max_regions_valid:1;
+		max_regions_valid:1,
+		max_rif_valid:1;
 	u8      max_span;
 	u8	max_lag;
 	u8	max_ports_in_lag;
@@ -287,6 +288,7 @@ struct mlxsw_resources {
 	u16	max_system_ports;
 	u16	max_vlan_groups;
 	u16	max_regions;
+	u16	max_rif;
 
 	/* Internal resources.
 	 * Determined by the SW, not queried from the HW.
