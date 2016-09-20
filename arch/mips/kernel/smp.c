@@ -231,7 +231,7 @@ static struct irqaction irq_call = {
 	.name		= "IPI call"
 };
 
-static __init void smp_ipi_init_one(unsigned int virq,
+static void smp_ipi_init_one(unsigned int virq,
 				    struct irqaction *action)
 {
 	int ret;
@@ -241,9 +241,11 @@ static __init void smp_ipi_init_one(unsigned int virq,
 	BUG_ON(ret);
 }
 
-static int __init mips_smp_ipi_init(void)
+static unsigned int call_virq, sched_virq;
+
+int mips_smp_ipi_allocate(const struct cpumask *mask)
 {
-	unsigned int call_virq, sched_virq;
+	int virq;
 	struct irq_domain *ipidomain;
 	struct device_node *node;
 
@@ -270,16 +272,20 @@ static int __init mips_smp_ipi_init(void)
 	if (!ipidomain)
 		return 0;
 
-	call_virq = irq_reserve_ipi(ipidomain, cpu_possible_mask);
-	BUG_ON(!call_virq);
+	virq = irq_reserve_ipi(ipidomain, mask);
+	BUG_ON(!virq);
+	if (!call_virq)
+		call_virq = virq;
 
-	sched_virq = irq_reserve_ipi(ipidomain, cpu_possible_mask);
-	BUG_ON(!sched_virq);
+	virq = irq_reserve_ipi(ipidomain, mask);
+	BUG_ON(!virq);
+	if (!sched_virq)
+		sched_virq = virq;
 
 	if (irq_domain_is_ipi_per_cpu(ipidomain)) {
 		int cpu;
 
-		for_each_cpu(cpu, cpu_possible_mask) {
+		for_each_cpu(cpu, mask) {
 			smp_ipi_init_one(call_virq + cpu, &irq_call);
 			smp_ipi_init_one(sched_virq + cpu, &irq_resched);
 		}
@@ -287,6 +293,45 @@ static int __init mips_smp_ipi_init(void)
 		smp_ipi_init_one(call_virq, &irq_call);
 		smp_ipi_init_one(sched_virq, &irq_resched);
 	}
+
+	return 0;
+}
+
+int mips_smp_ipi_free(const struct cpumask *mask)
+{
+	struct irq_domain *ipidomain;
+	struct device_node *node;
+
+	node = of_irq_find_parent(of_root);
+	ipidomain = irq_find_matching_host(node, DOMAIN_BUS_IPI);
+
+	/*
+	 * Some platforms have half DT setup. So if we found irq node but
+	 * didn't find an ipidomain, try to search for one that is not in the
+	 * DT.
+	 */
+	if (node && !ipidomain)
+		ipidomain = irq_find_matching_host(NULL, DOMAIN_BUS_IPI);
+
+	BUG_ON(!ipidomain);
+
+	if (irq_domain_is_ipi_per_cpu(ipidomain)) {
+		int cpu;
+
+		for_each_cpu(cpu, mask) {
+			remove_irq(call_virq + cpu, &irq_call);
+			remove_irq(sched_virq + cpu, &irq_resched);
+		}
+	}
+	irq_destroy_ipi(call_virq, mask);
+	irq_destroy_ipi(sched_virq, mask);
+	return 0;
+}
+
+
+static int __init mips_smp_ipi_init(void)
+{
+	mips_smp_ipi_allocate(cpu_possible_mask);
 
 	call_desc = irq_to_desc(call_virq);
 	sched_desc = irq_to_desc(sched_virq);
