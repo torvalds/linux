@@ -798,6 +798,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	struct ps_data *ps;
 	struct cfg80211_chan_def chandef;
 	bool cancel_scan;
+	struct cfg80211_nan_func *func;
 
 	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 
@@ -950,11 +951,22 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 
 		ieee80211_adjust_monitor_flags(sdata, -1);
 		break;
+	case NL80211_IFTYPE_NAN:
+		/* clean all the functions */
+		spin_lock_bh(&sdata->u.nan.func_lock);
+
+		idr_for_each_entry(&sdata->u.nan.function_inst_ids, func, i) {
+			idr_remove(&sdata->u.nan.function_inst_ids, i);
+			cfg80211_free_nan_func(func);
+		}
+		idr_destroy(&sdata->u.nan.function_inst_ids);
+
+		spin_unlock_bh(&sdata->u.nan.func_lock);
+		break;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		/* relies on synchronize_rcu() below */
 		RCU_INIT_POINTER(local->p2p_sdata, NULL);
 		/* fall through */
-	case NL80211_IFTYPE_NAN:
 	default:
 		cancel_work_sync(&sdata->work);
 		/*
@@ -1462,9 +1474,13 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	case NL80211_IFTYPE_WDS:
 		sdata->vif.bss_conf.bssid = NULL;
 		break;
+	case NL80211_IFTYPE_NAN:
+		idr_init(&sdata->u.nan.function_inst_ids);
+		spin_lock_init(&sdata->u.nan.func_lock);
+		sdata->vif.bss_conf.bssid = sdata->vif.addr;
+		break;
 	case NL80211_IFTYPE_AP_VLAN:
 	case NL80211_IFTYPE_P2P_DEVICE:
-	case NL80211_IFTYPE_NAN:
 		sdata->vif.bss_conf.bssid = sdata->vif.addr;
 		break;
 	case NL80211_IFTYPE_UNSPECIFIED:

@@ -1063,6 +1063,9 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	local->dynamic_ps_forced_timeout = -1;
 
+	if (!local->hw.max_nan_de_entries)
+		local->hw.max_nan_de_entries = IEEE80211_MAX_NAN_INSTANCE_ID;
+
 	result = ieee80211_wep_init(local);
 	if (result < 0)
 		wiphy_debug(local->hw.wiphy, "Failed to initialize wep: %d\n",

@@ -174,6 +174,8 @@ static int ieee80211_start_nan(struct wiphy *wiphy,
 	if (ret)
 		ieee80211_sdata_stop(sdata);
 
+	sdata->u.nan.conf = *conf;
+
 	return ret;
 }
 
@@ -214,6 +216,84 @@ static int ieee80211_nan_change_conf(struct wiphy *wiphy,
 		sdata->u.nan.conf = new_conf;
 
 	return ret;
+}
+
+static int ieee80211_add_nan_func(struct wiphy *wiphy,
+				  struct wireless_dev *wdev,
+				  struct cfg80211_nan_func *nan_func)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
+	int ret;
+
+	if (sdata->vif.type != NL80211_IFTYPE_NAN)
+		return -EOPNOTSUPP;
+
+	if (!ieee80211_sdata_running(sdata))
+		return -ENETDOWN;
+
+	spin_lock_bh(&sdata->u.nan.func_lock);
+
+	ret = idr_alloc(&sdata->u.nan.function_inst_ids,
+			nan_func, 1, sdata->local->hw.max_nan_de_entries + 1,
+			GFP_ATOMIC);
+	spin_unlock_bh(&sdata->u.nan.func_lock);
+
+	if (ret < 0)
+		return ret;
+
+	nan_func->instance_id = ret;
+
+	WARN_ON(nan_func->instance_id == 0);
+
+	ret = drv_add_nan_func(sdata->local, sdata, nan_func);
+	if (ret) {
+		spin_lock_bh(&sdata->u.nan.func_lock);
+		idr_remove(&sdata->u.nan.function_inst_ids,
+			   nan_func->instance_id);
+		spin_unlock_bh(&sdata->u.nan.func_lock);
+	}
+
+	return ret;
+}
+
+static struct cfg80211_nan_func *
+ieee80211_find_nan_func_by_cookie(struct ieee80211_sub_if_data *sdata,
+				  u64 cookie)
+{
+	struct cfg80211_nan_func *func;
+	int id;
+
+	lockdep_assert_held(&sdata->u.nan.func_lock);
+
+	idr_for_each_entry(&sdata->u.nan.function_inst_ids, func, id) {
+		if (func->cookie == cookie)
+			return func;
+	}
+
+	return NULL;
+}
+
+static void ieee80211_del_nan_func(struct wiphy *wiphy,
+				  struct wireless_dev *wdev, u64 cookie)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
+	struct cfg80211_nan_func *func;
+	u8 instance_id = 0;
+
+	if (sdata->vif.type != NL80211_IFTYPE_NAN ||
+	    !ieee80211_sdata_running(sdata))
+		return;
+
+	spin_lock_bh(&sdata->u.nan.func_lock);
+
+	func = ieee80211_find_nan_func_by_cookie(sdata, cookie);
+	if (func)
+		instance_id = func->instance_id;
+
+	spin_unlock_bh(&sdata->u.nan.func_lock);
+
+	if (instance_id)
+		drv_del_nan_func(sdata->local, sdata, instance_id);
 }
 
 static int ieee80211_set_noack_map(struct wiphy *wiphy,
@@ -3443,6 +3523,38 @@ static int ieee80211_del_tx_ts(struct wiphy *wiphy, struct net_device *dev,
 	return -ENOENT;
 }
 
+void ieee80211_nan_func_terminated(struct ieee80211_vif *vif,
+				   u8 inst_id,
+				   enum nl80211_nan_func_term_reason reason,
+				   gfp_t gfp)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct cfg80211_nan_func *func;
+	u64 cookie;
+
+	if (WARN_ON(vif->type != NL80211_IFTYPE_NAN))
+		return;
+
+	spin_lock_bh(&sdata->u.nan.func_lock);
+
+	func = idr_find(&sdata->u.nan.function_inst_ids, inst_id);
+	if (WARN_ON(!func)) {
+		spin_unlock_bh(&sdata->u.nan.func_lock);
+		return;
+	}
+
+	cookie = func->cookie;
+	idr_remove(&sdata->u.nan.function_inst_ids, inst_id);
+
+	spin_unlock_bh(&sdata->u.nan.func_lock);
+
+	cfg80211_free_nan_func(func);
+
+	cfg80211_nan_func_terminated(ieee80211_vif_to_wdev(vif), inst_id,
+				     reason, cookie, gfp);
+}
+EXPORT_SYMBOL(ieee80211_nan_func_terminated);
+
 const struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
@@ -3531,4 +3643,6 @@ const struct cfg80211_ops mac80211_config_ops = {
 	.start_nan = ieee80211_start_nan,
 	.stop_nan = ieee80211_stop_nan,
 	.nan_change_conf = ieee80211_nan_change_conf,
+	.add_nan_func = ieee80211_add_nan_func,
+	.del_nan_func = ieee80211_del_nan_func,
 };

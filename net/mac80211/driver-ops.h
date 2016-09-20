@@ -1213,4 +1213,36 @@ static inline int drv_nan_change_conf(struct ieee80211_local *local,
 	return ret;
 }
 
+static inline int drv_add_nan_func(struct ieee80211_local *local,
+				   struct ieee80211_sub_if_data *sdata,
+				   const struct cfg80211_nan_func *nan_func)
+{
+	int ret;
+
+	might_sleep();
+	check_sdata_in_driver(sdata);
+
+	if (!local->ops->add_nan_func)
+		return -EOPNOTSUPP;
+
+	trace_drv_add_nan_func(local, sdata, nan_func);
+	ret = local->ops->add_nan_func(&local->hw, &sdata->vif, nan_func);
+	trace_drv_return_int(local, ret);
+
+	return ret;
+}
+
+static inline void drv_del_nan_func(struct ieee80211_local *local,
+				   struct ieee80211_sub_if_data *sdata,
+				   u8 instance_id)
+{
+	might_sleep();
+	check_sdata_in_driver(sdata);
+
+	trace_drv_del_nan_func(local, sdata, instance_id);
+	if (local->ops->del_nan_func)
+		local->ops->del_nan_func(&local->hw, &sdata->vif, instance_id);
+	trace_drv_return_void(local);
+}
+
 #endif /* __MAC80211_DRIVER_OPS */

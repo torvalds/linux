@@ -86,6 +86,8 @@ struct ieee80211_local;
 
 #define IEEE80211_DEAUTH_FRAME_LEN	(24 /* hdr */ + 2 /* reason */)
 
+#define IEEE80211_MAX_NAN_INSTANCE_ID 255
+
 struct ieee80211_fragment_entry {
 	struct sk_buff_head skb_list;
 	unsigned long first_frag_time;
@@ -834,9 +836,14 @@ struct ieee80211_if_mntr {
  * struct ieee80211_if_nan - NAN state
  *
  * @conf: current NAN configuration
+ * @func_ids: a bitmap of available instance_id's
  */
 struct ieee80211_if_nan {
 	struct cfg80211_nan_conf conf;
+
+	/* protects function_inst_ids */
+	spinlock_t func_lock;
+	struct idr function_inst_ids;
 };
 
 struct ieee80211_sub_if_data {

@@ -2177,6 +2177,8 @@ enum ieee80211_hw_flags {
  * @n_cipher_schemes: a size of an array of cipher schemes definitions.
  * @cipher_schemes: a pointer to an array of cipher scheme definitions
  *	supported by HW.
+ * @max_nan_de_entries: maximum number of NAN DE functions supported by the
+ *	device.
  */
 struct ieee80211_hw {
 	struct ieee80211_conf conf;
@@ -2211,6 +2213,7 @@ struct ieee80211_hw {
 	u8 uapsd_max_sp_len;
 	u8 n_cipher_schemes;
 	const struct ieee80211_cipher_scheme *cipher_schemes;
+	u8 max_nan_de_entries;
 };
 
 static inline bool _ieee80211_hw_check(struct ieee80211_hw *hw,
@@ -3429,6 +3432,12 @@ enum ieee80211_reconfig_type {
  *	The driver gets both full configuration and the changed parameters since
  *	some devices may need the full configuration while others need only the
  *	changed parameters.
+ * @add_nan_func: Add a NAN function. Returns 0 on success. The data in
+ *	cfg80211_nan_func must not be referenced outside the scope of
+ *	this call.
+ * @del_nan_func: Remove a NAN function. The driver must call
+ *	ieee80211_nan_func_terminated() with
+ *	NL80211_NAN_FUNC_TERM_REASON_USER_REQUEST reason code upon removal.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw,
@@ -3673,6 +3682,12 @@ struct ieee80211_ops {
 	int (*nan_change_conf)(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
 			       struct cfg80211_nan_conf *conf, u32 changes);
+	int (*add_nan_func)(struct ieee80211_hw *hw,
+			    struct ieee80211_vif *vif,
+			    const struct cfg80211_nan_func *nan_func);
+	void (*del_nan_func)(struct ieee80211_hw *hw,
+			    struct ieee80211_vif *vif,
+			    u8 instance_id);
 };
 
 /**
@@ -5746,4 +5761,20 @@ struct sk_buff *ieee80211_tx_dequeue(struct ieee80211_hw *hw,
 void ieee80211_txq_get_depth(struct ieee80211_txq *txq,
 			     unsigned long *frame_cnt,
 			     unsigned long *byte_cnt);
+
+/**
+ * ieee80211_nan_func_terminated - notify about NAN function termination.
+ *
+ * This function is used to notify mac80211 about NAN function termination.
+ * Note that this function can't be called from hard irq.
+ *
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @inst_id: the local instance id
+ * @reason: termination reason (one of the NL80211_NAN_FUNC_TERM_REASON_*)
+ * @gfp: allocation flags
+ */
+void ieee80211_nan_func_terminated(struct ieee80211_vif *vif,
+				   u8 inst_id,
+				   enum nl80211_nan_func_term_reason reason,
+				   gfp_t gfp);
 #endif /* MAC80211_H */

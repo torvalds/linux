@@ -1781,6 +1781,58 @@ TRACE_EVENT(drv_nan_change_conf,
 	)
 );
 
+TRACE_EVENT(drv_add_nan_func,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 const struct cfg80211_nan_func *func),
+
+	TP_ARGS(local, sdata, func),
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__field(u8, type)
+		__field(u8, inst_id)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		__entry->type = func->type;
+		__entry->inst_id = func->instance_id;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT  VIF_PR_FMT
+		", type: %u, inst_id: %u",
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->type, __entry->inst_id
+	)
+);
+
+TRACE_EVENT(drv_del_nan_func,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 u8 instance_id),
+
+	TP_ARGS(local, sdata, instance_id),
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__field(u8, instance_id)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		__entry->instance_id = instance_id;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT  VIF_PR_FMT
+		", instance_id: %u",
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->instance_id
+	)
+);
+
 /*
  * Tracing for API calls that drivers call.
  */
