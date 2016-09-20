@@ -91,37 +91,6 @@ On-line docs
         Creative Commons Attribution-ShareAlike 2.0 license.
       :note: You can also :ref:`purchase a copy from O'Reilly or elsewhere  <ldd3_published>`.
 
-    * Title: **Conceptual Architecture of the Linux Kernel**
-
-      :Author: Ivan T. Bowman.
-      :URL: http://plg.uwaterloo.ca/
-      :Keywords: conceptual software architecture, extracted design,
-        reverse engineering, system structure.
-      :Description: Conceptual software architecture of the Linux kernel,
-        automatically extracted from the source code. Very detailed. Good
-        figures. Gives good overall kernel understanding.
-
-    * Title: **Concrete Architecture of the Linux Kernel**
-
-      :Author: Ivan T. Bowman, Saheem Siddiqi, and Meyer C. Tanuan.
-      :URL: http://plg.uwaterloo.ca/
-      :Keywords: concrete architecture, extracted design, reverse
-        engineering, system structure, dependencies.
-      :Description: Concrete architecture of the Linux kernel,
-        automatically extracted from the source code. Very detailed. Good
-        figures. Gives good overall kernel understanding. This papers
-        focus on lower details than its predecessor (files, variables...).
-
-    * Title: **Linux as a Case Study: Its Extracted Software Architecture**
-
-      :Author: Ivan T. Bowman, Richard C. Holt and Neil V. Brewster.
-      :URL: http://plg.uwaterloo.ca/
-      :Keywords: software architecture, architecture recovery,
-        redocumentation.
-      :Description: Paper appeared at ICSE'99, Los Angeles, May 16-22,
-        1999. A mixture of the previous two documents from the same
-        author.
-
     * Title: **Overview of the Virtual File System**
 
       :Author: Richard Gooch.
@@ -578,16 +547,6 @@ Published books
 
 Miscellaneous
 -------------
-
-
-      :Author: Thomas Graichen.
-      :URL: http://marc.info/?l=linux-kernel&m=96446640102205&w=4
-      :Keywords: CVS, web, cvsweb, browsing source code.
-      :Description: Web interface to a CVS server with the kernel
-        sources. "Here you can have a look at any file of the Linux kernel
-        sources of any version starting from 1.0 up to the (daily updated)
-        current version available. Also you can check the differences
-        between two versions of a file".
 
     * Name: **Cross-Referencing Linux**
 
