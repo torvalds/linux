@@ -795,6 +795,7 @@ enum {
 	/* string args above */
 	Opt_read_only,
 	Opt_read_write,
+	Opt_lock_on_read,
 	Opt_err
 };
 
@@ -806,16 +807,19 @@ static match_table_t rbd_opts_tokens = {
 	{Opt_read_only, "ro"},		/* Alternate spelling */
 	{Opt_read_write, "read_write"},
 	{Opt_read_write, "rw"},		/* Alternate spelling */
+	{Opt_lock_on_read, "lock_on_read"},
 	{Opt_err, NULL}
 };
 
 struct rbd_options {
 	int	queue_depth;
 	bool	read_only;
+	bool	lock_on_read;
 };
 
 #define RBD_QUEUE_DEPTH_DEFAULT	BLKDEV_MAX_RQ
 #define RBD_READ_ONLY_DEFAULT	false
+#define RBD_LOCK_ON_READ_DEFAULT false
 
 static int parse_rbd_opts_token(char *c, void *private)
 {
@@ -850,6 +854,9 @@ static int parse_rbd_opts_token(char *c, void *private)
 		break;
 	case Opt_read_write:
 		rbd_opts->read_only = false;
+		break;
+	case Opt_lock_on_read:
+		rbd_opts->lock_on_read = true;
 		break;
 	default:
 		/* libceph prints "bad option" msg */
@@ -4105,7 +4112,7 @@ static void rbd_queue_workfn(struct work_struct *work)
 	u64 length = blk_rq_bytes(rq);
 	enum obj_operation_type op_type;
 	u64 mapping_size;
-	bool must_be_locked = false;
+	bool must_be_locked;
 	int result;
 
 	if (rq->cmd_type != REQ_TYPE_FS) {
@@ -4168,6 +4175,9 @@ static void rbd_queue_workfn(struct work_struct *work)
 		snapc = rbd_dev->header.snapc;
 		ceph_get_snap_context(snapc);
 		must_be_locked = rbd_is_lock_supported(rbd_dev);
+	} else {
+		must_be_locked = rbd_dev->opts->lock_on_read &&
+					rbd_is_lock_supported(rbd_dev);
 	}
 	up_read(&rbd_dev->header_rwsem);
 
@@ -5757,6 +5767,7 @@ static int rbd_add_parse_args(const char *buf,
 
 	rbd_opts->read_only = RBD_READ_ONLY_DEFAULT;
 	rbd_opts->queue_depth = RBD_QUEUE_DEPTH_DEFAULT;
+	rbd_opts->lock_on_read = RBD_LOCK_ON_READ_DEFAULT;
 
 	copts = ceph_parse_options(options, mon_addrs,
 					mon_addrs + mon_addrs_size - 1,
