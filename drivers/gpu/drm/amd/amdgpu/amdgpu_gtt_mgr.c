@@ -128,8 +128,9 @@ int amdgpu_gtt_mgr_alloc(struct ttm_mem_type_manager *man,
 
 	if (!r) {
 		mem->start = node->start;
-		tbo->offset = (tbo->mem.start << PAGE_SHIFT) +
-		    tbo->bdev->man[tbo->mem.mem_type].gpu_offset;
+		if (&tbo->mem == mem)
+			tbo->offset = (tbo->mem.start << PAGE_SHIFT) +
+			    tbo->bdev->man[tbo->mem.mem_type].gpu_offset;
 	}
 
 	return r;
