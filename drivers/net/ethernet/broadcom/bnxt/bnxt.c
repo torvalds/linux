@@ -4323,6 +4323,7 @@ hwrm_ver_get_exit:
 
 int bnxt_hwrm_fw_set_time(struct bnxt *bp)
 {
+#if IS_ENABLED(CONFIG_RTC_LIB)
 	struct hwrm_fw_set_time_input req = {0};
 	struct rtc_time tm;
 	struct timeval tv;
@@ -4340,6 +4341,9 @@ int bnxt_hwrm_fw_set_time(struct bnxt *bp)
 	req.minute = tm.tm_min;
 	req.second = tm.tm_sec;
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+#else
+	return -EOPNOTSUPP;
+#endif
 }
 
 static int bnxt_hwrm_port_qstats(struct bnxt *bp)
