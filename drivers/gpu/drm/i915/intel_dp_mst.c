@@ -37,6 +37,8 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
 	struct intel_digital_port *intel_dig_port = intel_mst->primary;
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
+	struct intel_connector *connector =
+		to_intel_connector(conn_state->connector);
 	struct drm_atomic_state *state;
 	int bpp;
 	int lane_count, slots;
@@ -59,6 +61,8 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 
 	state = pipe_config->base.state;
 
+	if (drm_dp_mst_port_has_audio(&intel_dp->mst_mgr, connector->port))
+		pipe_config->has_audio = true;
 	mst_pbn = drm_dp_calc_pbn_mode(adjusted_mode->crtc_clock, bpp);
 
 	pipe_config->pbn = mst_pbn;
@@ -84,6 +88,7 @@ static void intel_mst_disable_dp(struct intel_encoder *encoder,
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 	struct intel_connector *connector =
 		to_intel_connector(old_conn_state->connector);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	int ret;
 
 	DRM_DEBUG_KMS("%d\n", intel_dp->active_mst_links);
@@ -93,6 +98,10 @@ static void intel_mst_disable_dp(struct intel_encoder *encoder,
 	ret = drm_dp_update_payload_part1(&intel_dp->mst_mgr);
 	if (ret) {
 		DRM_ERROR("failed to update payload %d\n", ret);
+	}
+	if (old_crtc_state->has_audio) {
+		intel_audio_codec_disable(encoder);
+		intel_display_power_put(dev_priv, POWER_DOMAIN_AUDIO);
 	}
 }
 
@@ -206,6 +215,12 @@ static void intel_mst_enable_dp(struct intel_encoder *encoder,
 	ret = drm_dp_check_act_status(&intel_dp->mst_mgr);
 
 	ret = drm_dp_update_payload_part2(&intel_dp->mst_mgr);
+	if (pipe_config->has_audio) {
+		DRM_DEBUG_DRIVER("Enabling DP audio on pipe %c\n",
+				 pipe_name(intel_mst->pipe));
+		intel_display_power_get(dev_priv, POWER_DOMAIN_AUDIO);
+		intel_audio_codec_enable(encoder);
+	}
 }
 
 static bool intel_dp_mst_enc_get_hw_state(struct intel_encoder *encoder,
@@ -227,6 +242,9 @@ static void intel_dp_mst_enc_get_config(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
 	u32 temp, flags = 0;
+
+	pipe_config->has_audio =
+		intel_ddi_is_audio_enabled(dev_priv, crtc);
 
 	temp = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
 	if (temp & TRANS_DDI_PHSYNC)

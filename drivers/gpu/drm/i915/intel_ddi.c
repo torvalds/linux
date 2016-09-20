@@ -2227,6 +2227,19 @@ void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp)
 	udelay(600);
 }
 
+bool intel_ddi_is_audio_enabled(struct drm_i915_private *dev_priv,
+				 struct intel_crtc *intel_crtc)
+{
+	u32 temp;
+
+	if (intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_AUDIO)) {
+		temp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
+		if (temp & AUDIO_OUTPUT_ENABLE(intel_crtc->pipe))
+			return true;
+	}
+	return false;
+}
+
 void intel_ddi_get_config(struct intel_encoder *encoder,
 			  struct intel_crtc_state *pipe_config)
 {
@@ -2292,11 +2305,8 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 		break;
 	}
 
-	if (intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_AUDIO)) {
-		temp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
-		if (temp & AUDIO_OUTPUT_ENABLE(intel_crtc->pipe))
-			pipe_config->has_audio = true;
-	}
+	pipe_config->has_audio =
+		intel_ddi_is_audio_enabled(dev_priv, intel_crtc);
 
 	if (encoder->type == INTEL_OUTPUT_EDP && dev_priv->vbt.edp.bpp &&
 	    pipe_config->pipe_bpp > dev_priv->vbt.edp.bpp) {
