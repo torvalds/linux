@@ -48,11 +48,12 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 				struct mlx5_flow_spec *spec,
 				struct mlx5_esw_flow_attr *attr)
 {
-	struct mlx5_flow_destination dest = { 0 };
+	struct mlx5_flow_destination dest[2] = {};
 	struct mlx5_fc *counter = NULL;
 	struct mlx5_flow_handle *rule;
 	void *misc;
 	int action;
+	int i = 0;
 
 	if (esw->mode != SRIOV_OFFLOADS)
 		return ERR_PTR(-EOPNOTSUPP);
@@ -60,15 +61,17 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 	action = attr->action;
 
 	if (action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
-		dest.type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
-		dest.vport_num = attr->out_rep->vport;
-		action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
-	} else if (action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
+		dest[i].type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
+		dest[i].vport_num = attr->out_rep->vport;
+		i++;
+	}
+	if (action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
 		counter = mlx5_fc_create(esw->dev, true);
 		if (IS_ERR(counter))
 			return ERR_CAST(counter);
-		dest.type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
-		dest.counter = counter;
+		dest[i].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
+		dest[i].counter = counter;
+		i++;
 	}
 
 	misc = MLX5_ADDR_OF(fte_match_param, spec->match_value, misc_parameters);
@@ -81,8 +84,7 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 				      MLX5_MATCH_MISC_PARAMETERS;
 
 	rule = mlx5_add_flow_rules((struct mlx5_flow_table *)esw->fdb_table.fdb,
-				   spec, action, 0, &dest, 1);
-
+				   spec, action, 0, dest, i);
 	if (IS_ERR(rule))
 		mlx5_fc_destroy(esw->dev, counter);
 
