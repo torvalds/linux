@@ -374,6 +374,7 @@ static void del_rule(struct fs_node *node)
 	struct mlx5_core_dev *dev = get_dev(node);
 	int match_len = MLX5_ST_SZ_BYTES(fte_match_param);
 	int err;
+	bool update_fte = false;
 
 	match_value = mlx5_vzalloc(match_len);
 	if (!match_value) {
@@ -392,13 +393,23 @@ static void del_rule(struct fs_node *node)
 		list_del(&rule->next_ft);
 		mutex_unlock(&rule->dest_attr.ft->lock);
 	}
+
+	if (rule->dest_attr.type == MLX5_FLOW_DESTINATION_TYPE_COUNTER  &&
+	    --fte->dests_size) {
+		modify_mask = BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_ACTION);
+		fte->action &= ~MLX5_FLOW_CONTEXT_ACTION_COUNT;
+		update_fte = true;
+		goto out;
+	}
+
 	if ((fte->action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) &&
 	    --fte->dests_size) {
 		modify_mask = BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_DESTINATION_LIST),
-		err = mlx5_cmd_update_fte(dev, ft,
-					  fg->id,
-					  modify_mask,
-					  fte);
+		update_fte = true;
+	}
+out:
+	if (update_fte && fte->dests_size) {
+		err = mlx5_cmd_update_fte(dev, ft, fg->id, modify_mask, fte);
 		if (err)
 			mlx5_core_warn(dev,
 				       "%s can't del rule fg id=%d fte_index=%d\n",
@@ -1287,8 +1298,9 @@ static bool counter_is_valid(struct mlx5_fc *counter, u32 action)
 	if (!counter)
 		return false;
 
-	/* Hardware support counter for a drop action only */
-	return action == (MLX5_FLOW_CONTEXT_ACTION_DROP | MLX5_FLOW_CONTEXT_ACTION_COUNT);
+	return (action & (MLX5_FLOW_CONTEXT_ACTION_DROP |
+			  MLX5_FLOW_CONTEXT_ACTION_FWD_DEST)) &&
+		(action & MLX5_FLOW_CONTEXT_ACTION_COUNT);
 }
 
 static bool dest_is_valid(struct mlx5_flow_destination *dest,
