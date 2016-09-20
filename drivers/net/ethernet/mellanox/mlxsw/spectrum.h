@@ -64,8 +64,6 @@
 #define MLXSW_SP_LPM_TREE_MAX 22
 #define MLXSW_SP_LPM_TREE_COUNT (MLXSW_SP_LPM_TREE_MAX - MLXSW_SP_LPM_TREE_MIN)
 
-#define MLXSW_SP_VIRTUAL_ROUTER_MAX 256
-
 #define MLXSW_SP_PORT_BASE_SPEED 25000	/* Mb/s */
 
 #define MLXSW_SP_BYTES_PER_CELL 96
@@ -249,7 +247,7 @@ struct mlxsw_sp_port_mall_tc_entry {
 
 struct mlxsw_sp_router {
 	struct mlxsw_sp_lpm_tree lpm_trees[MLXSW_SP_LPM_TREE_COUNT];
-	struct mlxsw_sp_vr vrs[MLXSW_SP_VIRTUAL_ROUTER_MAX];
+	struct mlxsw_sp_vr *vrs;
 	struct rhashtable neigh_ht;
 	struct {
 		struct delayed_work dw;

@@ -372,10 +372,12 @@ static void mlxsw_sp_lpm_init(struct mlxsw_sp *mlxsw_sp)
 
 static struct mlxsw_sp_vr *mlxsw_sp_vr_find_unused(struct mlxsw_sp *mlxsw_sp)
 {
+	struct mlxsw_resources *resources;
 	struct mlxsw_sp_vr *vr;
 	int i;
 
-	for (i = 0; i < MLXSW_SP_VIRTUAL_ROUTER_MAX; i++) {
+	resources = mlxsw_core_resources_get(mlxsw_sp->core);
+	for (i = 0; i < resources->max_virtual_routers; i++) {
 		vr = &mlxsw_sp->router.vrs[i];
 		if (!vr->used)
 			return vr;
@@ -417,11 +419,14 @@ static struct mlxsw_sp_vr *mlxsw_sp_vr_find(struct mlxsw_sp *mlxsw_sp,
 					    u32 tb_id,
 					    enum mlxsw_sp_l3proto proto)
 {
+	struct mlxsw_resources *resources;
 	struct mlxsw_sp_vr *vr;
 	int i;
 
 	tb_id = mlxsw_sp_fix_tb_id(tb_id);
-	for (i = 0; i < MLXSW_SP_VIRTUAL_ROUTER_MAX; i++) {
+
+	resources = mlxsw_core_resources_get(mlxsw_sp->core);
+	for (i = 0; i < resources->max_virtual_routers; i++) {
 		vr = &mlxsw_sp->router.vrs[i];
 		if (vr->used && vr->proto == proto && vr->tb_id == tb_id)
 			return vr;
@@ -555,15 +560,33 @@ static void mlxsw_sp_vr_put(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_vr *vr)
 					   &vr->fib->prefix_usage);
 }
 
-static void mlxsw_sp_vrs_init(struct mlxsw_sp *mlxsw_sp)
+static int mlxsw_sp_vrs_init(struct mlxsw_sp *mlxsw_sp)
 {
+	struct mlxsw_resources *resources;
 	struct mlxsw_sp_vr *vr;
 	int i;
 
-	for (i = 0; i < MLXSW_SP_VIRTUAL_ROUTER_MAX; i++) {
+	resources = mlxsw_core_resources_get(mlxsw_sp->core);
+	if (!resources->max_virtual_routers_valid)
+		return -EIO;
+
+	mlxsw_sp->router.vrs = kcalloc(resources->max_virtual_routers,
+				       sizeof(struct mlxsw_sp_vr),
+				       GFP_KERNEL);
+	if (!mlxsw_sp->router.vrs)
+		return -ENOMEM;
+
+	for (i = 0; i < resources->max_virtual_routers; i++) {
 		vr = &mlxsw_sp->router.vrs[i];
 		vr->id = i;
 	}
+
+	return 0;
+}
+
+static void mlxsw_sp_vrs_fini(struct mlxsw_sp *mlxsw_sp)
+{
+	kfree(mlxsw_sp->router.vrs);
 }
 
 struct mlxsw_sp_neigh_key {
@@ -1523,14 +1546,21 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 	err = __mlxsw_sp_router_init(mlxsw_sp);
 	if (err)
 		return err;
+
 	mlxsw_sp_lpm_init(mlxsw_sp);
-	mlxsw_sp_vrs_init(mlxsw_sp);
-	err = mlxsw_sp_neigh_init(mlxsw_sp);
+	err = mlxsw_sp_vrs_init(mlxsw_sp);
+	if (err)
+		goto err_vrs_init;
+
+	err =  mlxsw_sp_neigh_init(mlxsw_sp);
 	if (err)
 		goto err_neigh_init;
+
 	return 0;
 
 err_neigh_init:
+	mlxsw_sp_vrs_fini(mlxsw_sp);
+err_vrs_init:
 	__mlxsw_sp_router_fini(mlxsw_sp);
 	return err;
 }
@@ -1538,6 +1568,7 @@ err_neigh_init:
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	mlxsw_sp_neigh_fini(mlxsw_sp);
+	mlxsw_sp_vrs_fini(mlxsw_sp);
 	__mlxsw_sp_router_fini(mlxsw_sp);
 }
 
