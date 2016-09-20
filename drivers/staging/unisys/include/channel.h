@@ -347,38 +347,6 @@ static inline int spar_check_channel_server(uuid_le typeuuid, char *name,
 	return 1;
 }
 
-/* Given a file pathname <s> (with '/' or '\' separating directory nodes),
- * returns a pointer to the beginning of a node within that pathname such
- * that the number of nodes from that pointer to the end of the string is
- * NOT more than <n>.  Note that if the pathname has less than <n> nodes
- * in it, the return pointer will be to the beginning of the string.
- */
-static inline u8 *
-pathname_last_n_nodes(u8 *s, unsigned int n)
-{
-	u8 *p = s;
-	unsigned int node_count = 0;
-
-	while (*p != '\0') {
-		if ((*p == '/') || (*p == '\\'))
-			node_count++;
-		p++;
-	}
-	if (node_count <= n)
-		return s;
-	while (n > 0) {
-		p--;
-		if (p == s)
-			break;	/* should never happen, unless someone
-				 * is changing the string while we are
-				 * looking at it!!
-				 */
-		if ((*p == '/') || (*p == '\\'))
-			n--;
-	}
-	return p + 1;
-}
-
 static inline int
 spar_channel_client_acquire_os(void __iomem *ch, u8 *id)
 {
