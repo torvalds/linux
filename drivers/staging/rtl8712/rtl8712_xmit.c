@@ -629,7 +629,7 @@ int r8712_xmitframe_complete(struct _adapter *padapter,
 
 	phwxmits = pxmitpriv->hwxmits;
 	hwentry = pxmitpriv->hwxmit_entry;
-	if (pxmitbuf == NULL) {
+	if (!pxmitbuf) {
 		pxmitbuf = r8712_alloc_xmitbuf(pxmitpriv);
 		if (!pxmitbuf)
 			return false;
