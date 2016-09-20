@@ -110,6 +110,7 @@ enum layoutdriver_policy_flags {
 	PNFS_LAYOUTRET_ON_SETATTR	= 1 << 0,
 	PNFS_LAYOUTRET_ON_ERROR		= 1 << 1,
 	PNFS_READ_WHOLE_PAGE		= 1 << 2,
+	PNFS_LAYOUTGET_ON_OPEN		= 1 << 3,
 };
 
 struct nfs4_deviceid_node;
