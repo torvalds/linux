@@ -42,6 +42,7 @@ On-line docs
       :Description: A 600-page book covering the (2.6.10) driver
         programming API and kernel hacking in general.  Available under the
         Creative Commons Attribution-ShareAlike 2.0 license.
+      :note: You can also :ref:`purchase a copy from O'Reilly or elsewhere  <ldd3_published>`.
 
     * Title: **The Linux Kernel**
 
@@ -59,18 +60,6 @@ On-line docs
         13.-The Linux Kernel Sources, A.-Linux Data Structures, B.-The
         Alpha AXP Processor, C.-Useful Web and FTP Sites, D.-The GNU
         General Public License, Glossary". In short: a must have.
-
-    * Title: **Linux Device Drivers, 2nd Edition**
-
-      :Author: Alessandro Rubini and Jonathan Corbet.
-      :URL: http://www.xml.com/ldd/chapter/book/index.html
-      :Keywords: device drivers, modules, debugging, memory, hardware,
-        interrupt handling, char drivers, block drivers, kmod, mmap, DMA,
-        buses.
-      :Description: O'Reilly's popular book, now also on-line under the
-        GNU Free Documentation License.
-      :Notes: You can also buy it in paper-form from O'Reilly. See below
-        under BOOKS (Not on-line).
 
     * Title: **Conceptual Architecture of the Linux Kernel**
 
@@ -467,23 +456,7 @@ On-line docs
 Published books
 ---------------
 
-    * Title: **Linux Device Drivers**
-
-      :Author: Alessandro Rubini
-      :Publisher: O'Reilly & Associates
-      :Date: 1998
-      :Pages: 439
-      :ISBN: 1-56592-292-1
-
-    * Title: **Linux Device Drivers, 2nd Edition**
-
-      :Author: Alessandro Rubini and Jonathan Corbet
-      :Publisher: O'Reilly & Associates
-      :Date: 2001
-      :Pages: 586
-      :ISBN: 0-59600-008-1
-      :Notes: Further information in
-        http://www.oreilly.com/catalog/linuxdrive2/
+.. _ldd3_published:
 
     * Title: **Linux Device Drivers, 3rd Edition**
 
