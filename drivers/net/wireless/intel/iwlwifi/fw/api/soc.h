@@ -8,7 +8,6 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +30,6 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,37 +60,24 @@
  *
  *****************************************************************************/
 
-#ifndef __fw_api_h__
-#define __fw_api_h__
+#ifndef __iwl_fw_api_soc_h__
+#define __iwl_fw_api_soc_h__
 
-#include "fw/api/tdls.h"
-#include "fw/api/mac-cfg.h"
-#include "fw/api/offload.h"
-#include "fw/api/context.h"
-#include "fw/api/time-event.h"
-#include "fw/api/datapath.h"
-#include "fw/api/phy.h"
-#include "fw/api/config.h"
-#include "fw/api/soc.h"
-#include "fw/api/alive.h"
-#include "fw/api/binding.h"
-#include "fw/api/cmdhdr.h"
-#include "fw/api/coex.h"
-#include "fw/api/commands.h"
-#include "fw/api/d3.h"
-#include "fw/api/filter.h"
-#include "fw/api/led.h"
-#include "fw/api/mac.h"
-#include "fw/api/nvm-reg.h"
-#include "fw/api/phy-ctxt.h"
-#include "fw/api/power.h"
-#include "fw/api/rs.h"
-#include "fw/api/rx.h"
-#include "fw/api/scan.h"
-#include "fw/api/sf.h"
-#include "fw/api/sta.h"
-#include "fw/api/stats.h"
-#include "fw/api/location.h"
-#include "fw/api/tx.h"
+/* type of devices for defining SOC latency */
+enum iwl_soc_device_types {
+	SOC_CONFIG_CMD_INTEGRATED   = 0x0,
+	SOC_CONFIG_CMD_DISCRETE     = 0x1,
+};
 
-#endif /* __fw_api_h__ */
+/**
+ * struct iwl_soc_configuration_cmd - Set device stabilization latency
+ *
+ * @device_type: the device type as defined in &enum iwl_soc_device_types
+ * @soc_latency: time for SOC to ensure stable power & XTAL
+ */
+struct iwl_soc_configuration_cmd {
+	__le32 device_type;
+	__le32 soc_latency;
+} __packed; /* SOC_CONFIGURATION_CMD_S_VER_1 */
+
+#endif /* __iwl_fw_api_soc_h__ */

@@ -5,10 +5,9 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019        Intel Corporation
+ * Copyright(c) 2012 - 2014, 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,10 +27,9 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019       Intel Corporation
+ * Copyright(c) 2012 - 2014, 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -88,6 +86,25 @@ struct iwl_mvm_alive_data {
 	bool valid;
 	u32 scd_base_addr;
 };
+
+/* set device type and latency */
+static int iwl_set_soc_latency(struct iwl_mvm *mvm)
+{
+	struct iwl_soc_configuration_cmd cmd;
+	int ret;
+
+	cmd.device_type = (mvm->trans->cfg->integrated) ?
+		cpu_to_le32(SOC_CONFIG_CMD_INTEGRATED) :
+		cpu_to_le32(SOC_CONFIG_CMD_DISCRETE);
+	cmd.soc_latency = cpu_to_le32(mvm->trans->cfg->soc_latency);
+
+	ret = iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(SOC_CONFIGURATION_CMD,
+						   SYSTEM_GROUP, 0), 0,
+				   sizeof(cmd), &cmd);
+	if (ret)
+		IWL_ERR(mvm, "Failed to set soc latency: %d\n", ret);
+	return ret;
+}
 
 static int iwl_send_tx_ant_cfg(struct iwl_mvm *mvm, u8 valid_tx_ant)
 {
@@ -1102,6 +1119,13 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	ret = iwl_mvm_send_bt_init_conf(mvm);
 	if (ret)
 		goto error;
+
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_SOC_LATENCY_SUPPORT)) {
+		ret = iwl_set_soc_latency(mvm);
+		if (ret)
+			goto error;
+	}
 
 	/* Init RSS configuration */
 	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_22000) {
