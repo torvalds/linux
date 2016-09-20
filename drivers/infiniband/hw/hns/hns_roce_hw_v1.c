@@ -2387,11 +2387,6 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 		roce_set_bit(context->qpc_bytes_140,
 			     QP_CONTEXT_QPC_BYTES_140_RNR_RETRY_FLG_S, 0);
 
-		roce_set_field(context->qpc_bytes_144,
-			       QP_CONTEXT_QPC_BYTES_144_QP_STATE_M,
-			       QP_CONTEXT_QPC_BYTES_144_QP_STATE_S,
-			       attr->qp_state);
-
 		roce_set_field(context->qpc_bytes_148,
 			       QP_CONTEXT_QPC_BYTES_148_CHECK_FLAG_M,
 			       QP_CONTEXT_QPC_BYTES_148_CHECK_FLAG_S, 0);
@@ -2498,21 +2493,15 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 			       QP_CONTEXT_QPC_BYTES_188_TX_RETRY_CUR_INDEX_M,
 			       QP_CONTEXT_QPC_BYTES_188_TX_RETRY_CUR_INDEX_S,
 			       0);
-	} else if ((cur_state == IB_QPS_INIT && new_state == IB_QPS_RESET) ||
+	} else if (!((cur_state == IB_QPS_INIT && new_state == IB_QPS_RESET) ||
 		   (cur_state == IB_QPS_INIT && new_state == IB_QPS_ERR) ||
 		   (cur_state == IB_QPS_RTR && new_state == IB_QPS_RESET) ||
 		   (cur_state == IB_QPS_RTR && new_state == IB_QPS_ERR) ||
 		   (cur_state == IB_QPS_RTS && new_state == IB_QPS_RESET) ||
 		   (cur_state == IB_QPS_RTS && new_state == IB_QPS_ERR) ||
 		   (cur_state == IB_QPS_ERR && new_state == IB_QPS_RESET) ||
-		   (cur_state == IB_QPS_ERR && new_state == IB_QPS_ERR)) {
-		roce_set_field(context->qpc_bytes_144,
-			       QP_CONTEXT_QPC_BYTES_144_QP_STATE_M,
-			       QP_CONTEXT_QPC_BYTES_144_QP_STATE_S,
-			       attr->qp_state);
-
-	} else {
-		dev_err(dev, "not support this modify\n");
+		   (cur_state == IB_QPS_ERR && new_state == IB_QPS_ERR))) {
+		dev_err(dev, "not support this status migration\n");
 		goto out;
 	}
 
