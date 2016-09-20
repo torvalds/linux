@@ -455,7 +455,7 @@ int intel_bts_interrupt(void)
 	 * The only surefire way of knowing if this NMI is ours is by checking
 	 * the write ptr against the PMI threshold.
 	 */
-	if (ds->bts_index >= ds->bts_interrupt_threshold)
+	if (ds && (ds->bts_index >= ds->bts_interrupt_threshold))
 		handled = 1;
 
 	/*
