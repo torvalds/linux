@@ -86,6 +86,7 @@ On-line docs
 
       :Author: Jonathan Corbet, Alessandro Rubini, Greg Kroah-Hartman
       :URL: http://lwn.net/Kernel/LDD3/
+      :Date: 2005
       :Description: A 600-page book covering the (2.6.10) driver
         programming API and kernel hacking in general.  Available under the
         Creative Commons Attribution-ShareAlike 2.0 license.
@@ -95,6 +96,7 @@ On-line docs
 
       :Author: Richard Gooch.
       :URL: http://www.mjmwired.net/kernel/Documentation/filesystems/vfs.txt
+      :Date: 2007
       :Keywords: VFS, File System, mounting filesystems, opening files,
         dentries, dcache.
       :Description: Brief introduction to the Linux Virtual File System.
@@ -106,6 +108,7 @@ On-line docs
 
       :Author: Ingo Molnar, Gadi Oxman and Miguel de Icaza.
       :URL: http://www.linuxjournal.com/article.php?sid=2391
+      :Date: 1997
       :Keywords: RAID, MD driver.
       :Description: Linux Journal Kernel Korner article. Here is its
       :Abstract: *A description of the implementation of the RAID-1,
@@ -117,6 +120,7 @@ On-line docs
 
       :Author: Alessandro Rubini.
       :URL: http://www.linuxjournal.com/article.php?sid=1219
+      :Date: 1996
       :Keywords: device driver, module, loading/unloading modules,
         allocating resources.
       :Description: Linux Journal Kernel Korner article. Here is its
@@ -131,6 +135,7 @@ On-line docs
 
       :Author: Alessandro Rubini.
       :URL: http://www.linuxjournal.com/article.php?sid=1220
+      :Date: 1996
       :Keywords: character driver, init_module, clean_up module,
         autodetection, mayor number, minor number, file operations,
         open(), close().
@@ -144,6 +149,7 @@ On-line docs
 
       :Author: Andi Kleen
       :URL: http://halobates.de/on-submitting-kernel-patches.pdf
+      :Date: 2008
       :Keywords: patches, review process, types of submissions, basic rules, case studies
       :Description: This paper gives several experience values on what types of patches
         there are and how likley they get merged.
@@ -154,6 +160,7 @@ On-line docs
     * Title: **Tracing the Way of Data in a TCP Connection through the Linux Kernel**
       :Author: Richard Sailer
       :URL: https://archive.org/details/linux_kernel_data_flow_short_paper
+      :Date: 2016
       :Keywords: Linux Kernel Networking, TCP, tracing, ftrace
       :Description: A seminar paper explaining ftrace and how to use it for
         understanding linux kernel internals,
@@ -171,6 +178,7 @@ On-line docs
 
       :Author: Georg v. Zezschwitz and Alessandro Rubini.
       :URL: http://www.linuxjournal.com/article.php?sid=1221
+      :Date: 1996
       :Keywords: read(), write(), select(), ioctl(), blocking/non
         blocking mode, interrupt handler.
       :Description: Linux Journal Kernel Korner article. Here is its
@@ -182,6 +190,7 @@ On-line docs
 
       :Author: Alessandro Rubini and Georg v. Zezschwitz.
       :URL: http://www.linuxjournal.com/article.php?sid=1222
+      :Date: 1996
       :Keywords: interrupts, irqs, DMA, bottom halves, task queues.
       :Description: Linux Journal Kernel Korner article. Here is its
       :Abstract: *This is the fourth in a series of articles about
@@ -197,6 +206,7 @@ On-line docs
 
       :Author: Georg v. Zezschwitz.
       :URL: http://www.linuxjournal.com/article.php?sid=1287
+      :Date: 1996
       :Keywords: address spaces, pages, pagination, page management,
         demand loading, swapping, memory protection, memory mapping, mmap,
         virtual memory areas (VMAs), vremap, PCI.
@@ -210,6 +220,7 @@ On-line docs
 
       :Author: Alan Cox.
       :URL: http://www.linuxjournal.com/article.php?sid=1312
+      :Date: 1996
       :Keywords: sk_buffs, network devices, protocol/link layer
         variables, network devices flags, transmit, receive,
         configuration, multicast.
@@ -222,6 +233,7 @@ On-line docs
 
       :Author: Michael K. Johnson.
       :URL: http://www.tldp.org/LDP/khg/HyperNews/get/khg.html
+      :Date: 1997
       :Keywords: device drivers, files, VFS, kernel interface, character vs
         block devices, hardware interrupts, scsi, DMA, access to user memory,
         memory allocation, timers.
@@ -233,6 +245,7 @@ On-line docs
 
       :Author: Peter J. Braam.
       :URL: http://www.coda.cs.cmu.edu/doc/html/kernel-venus-protocol.html
+      :Date: 1998
       :Keywords: coda, filesystem, venus, cache manager.
       :Description: "This document describes the communication between
         Venus and kernel level file system code needed for the operation
@@ -244,6 +257,7 @@ On-line docs
 
       :Author: Rémy Card, Theodore Ts'o, Stephen Tweedie.
       :URL: http://web.mit.edu/tytso/www/linux/ext2intro.html
+      :Date: 1998
       :Keywords: ext2, linux fs history, inode, directory, link, devices,
         VFS, physical structure, performance, benchmarks, ext2fs library,
         ext2fs tools, e2fsck.
@@ -258,6 +272,7 @@ On-line docs
 
       :Author: Louis-Dominique Dubeau.
       :URL: http://teaching.csse.uwa.edu.au/units/CITS2002/fs-ext2/
+      :Date: 1994
       :Keywords: ext2, filesystem, ext2fs.
       :Description: Description of ext2's blocks, directories, inodes,
         bitmaps, invariants...
@@ -266,6 +281,7 @@ On-line docs
 
       :Author: Ori Pomerantz.
       :URL: http://tldp.org/LDP/lkmpg/2.6/html/index.html
+      :Date: 2001
       :Keywords: modules, GPL book, /proc, ioctls, system calls,
         interrupt handlers .
       :Description: Very nice 92 pages GPL book on the topic of modules
@@ -274,6 +290,8 @@ On-line docs
     * Title: **I/O Event Handling Under Linux**
 
       :Author: Richard Gooch.
+      :URL: http://web.mit.edu/~yandros/doc/io-events.html
+      :Date: 1999
       :Keywords: IO, I/O, select(2), poll(2), FDs, aio_read(2), readiness
         event queues.
       :Description: From the Introduction: "I/O Event handling is about
@@ -288,6 +306,7 @@ On-line docs
 
       :Author: Takashi Iwai <tiwai@suse.de>
       :URL: http://www.alsa-project.org/~iwai/writing-an-alsa-driver/index.html
+      :Date: 2005
       :Keywords: ALSA, sound, soundcard, driver, lowlevel, hardware.
       :Description: Advanced Linux Sound Architecture for developers,
         both at kernel and user-level sides. ALSA is the Linux kernel
@@ -297,6 +316,7 @@ On-line docs
 
       :Author: various
       :URL: http://kernelnewbies.org/glossary/
+      :Date: rolling version
       :Keywords: glossary, terms, linux-kernel.
       :Description: From the introduction: "This glossary is intended as
         a brief description of some of the acronyms and terms you may hear
@@ -306,6 +326,7 @@ On-line docs
 
       :Author: Rick Lindsley.
       :URL: http://lse.sourceforge.net/lockhier/global-spin-lock
+      :Date: 2001
       :Keywords: spinlock.
       :Description: This is an attempt to document both the existence and
         usage of the spinlocks in the Linux 2.4.5 kernel. Comprehensive
@@ -317,6 +338,7 @@ On-line docs
 
       :Author: Paul Mackerras.
       :URL: http://www.linux-mag.com/id/261
+      :Date: 1999
       :Keywords: Mac, Power Macintosh, porting, drivers, compatibility.
       :Description: The title says it all.
 
@@ -324,6 +346,7 @@ On-line docs
 
       :Author: Alan Cox.
       :URL: http://www.linux-mag.com/id/284
+      :Date: 1999
       :Keywords: SCSI, device, driver.
       :Description: The title says it all.
 
@@ -331,6 +354,7 @@ On-line docs
 
       :Author: Alan Cox.
       :URL: http://www.linux-mag.com/id/307
+      :Date: 1999
       :Keywords: SCSI, device, driver, advanced.
       :Description: The title says it all.
 
@@ -338,6 +362,7 @@ On-line docs
 
       :Author: Alan Cox.
       :URL: http://www.linux-mag.com/id/330
+      :Date: 1999
       :Keywords: mouse, driver, gpm.
       :Description: The title says it all.
 
@@ -345,6 +370,7 @@ On-line docs
 
       :Author: Alan Cox.
       :URL: http://www.linux-mag.com/id/356
+      :Date: 1999
       :Keywords: mouse, driver, gpm, races, asynchronous I/O.
       :Description: The title still says it all.
 
@@ -352,6 +378,7 @@ On-line docs
 
       :Author: Alan Cox.
       :URL: http://www.linux-mag.com/id/381
+      :Date: 1999
       :Keywords: video4linux, driver, radio, radio devices.
       :Description: The title says it all.
 
@@ -359,6 +386,7 @@ On-line docs
 
       :Author: Alan Cox.
       :URL: http://www.linux-mag.com/id/406
+      :Date: 2000
       :Keywords: video4linux, driver, video capture, capture devices,
         camera driver.
       :Description: The title says it all.
@@ -367,6 +395,7 @@ On-line docs
 
       :Author: Alan Cox.
       :URL: http://www.linux-mag.com/id/429
+      :Date: 2000
       :Keywords: video4linux, driver, video capture, capture devices,
         camera driver, control, query capabilities, capability, facility.
       :Description: The title says it all.
@@ -375,6 +404,7 @@ On-line docs
 
       :Author: Glenn Herrin.
       :URL: http://www.cs.unh.edu/cnrg/gherrin
+      :Date: 2000
       :Keywords: network, networking, protocol, IP, UDP, TCP, connection,
         socket, receiving, transmitting, forwarding, routing, packets,
         modules, /proc, sk_buff, FIB, tags.
@@ -391,6 +421,7 @@ On-line docs
 
       :Author: David Hinds.
       :URL: http://pcmcia-cs.sourceforge.net/ftp/doc/PCMCIA-PROG.html
+      :Date: 2003
       :Keywords: PCMCIA.
       :Description: "This document describes how to write kernel device
         drivers for the Linux PCMCIA Card Services interface. It also
@@ -401,6 +432,7 @@ On-line docs
 
       :Author: Kanoj Sarcar.
       :URL: http://kos.enix.org/pub/linux-vmm.html
+      :Date: 2001
       :Keywords: virtual memory, mm, pgd, vma, page, page flags, page
         cache, swap cache, kswapd.
       :Description: Telegraphic, short descriptions and definitions
@@ -410,6 +442,7 @@ On-line docs
 
       :Author: pragmatic/THC.
       :URL: http://packetstormsecurity.org/docs/hack/LKM_HACKING.html
+      :Date: 1999
       :Keywords: syscalls, intercept, hide, abuse, symbol table.
       :Description: Interesting paper on how to abuse the Linux kernel in
         order to intercept and modify syscalls, make
@@ -418,6 +451,16 @@ On-line docs
         avoid all those abuses.
       :Notes: For 2.0.x kernels. Gives guidances to port it to 2.2.x
         kernels.
+
+    * Name: **Linux Virtual File System**
+
+      :Author: Peter J. Braam.
+      :URL: http://www.coda.cs.cmu.edu/doc/talks/linuxvfs/
+      :Date: 1998
+      :Keywords: slides, VFS, inode, superblock, dentry, dcache.
+      :Description: Set of slides, presumably from a presentation on the
+        Linux VFS layer. Covers version 2.1.x, with dentries and the
+        dcache.
 
 .. Please keep the published books in reverse publication date
 
@@ -563,15 +606,6 @@ Miscellaneous
       :Description: The title says it all. There's a fixed kernel section
         summarizing developers' work, bug fixes, new features and versions
         produced during the week. Published every Thursday.
-
-    * Name: **Linux Virtual File System**
-
-      :Author: Peter J. Braam.
-      :URL: http://www.coda.cs.cmu.edu/doc/talks/linuxvfs/
-      :Keywords: slides, VFS, inode, superblock, dentry, dcache.
-      :Description: Set of slides, presumably from a presentation on the
-        Linux VFS layer. Covers version 2.1.x, with dentries and the
-        dcache.
 
     * Name: **The home page of Linux-MM**
 
