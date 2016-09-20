@@ -1436,9 +1436,9 @@ static int sd_switch_function(struct rtsx_chip *chip, u8 bus_width)
 		func_to_switch);
 
 #ifdef SUPPORT_SD_LOCK
-	if ((sd_card->sd_lock_status & SD_SDR_RST)
-			&& (DDR50_SUPPORT == func_to_switch)
-			&& (sd_card->func_group1_mask & SDR50_SUPPORT_MASK)) {
+	if ((sd_card->sd_lock_status & SD_SDR_RST) &&
+	    (func_to_switch == DDR50_SUPPORT) &&
+	    (sd_card->func_group1_mask & SDR50_SUPPORT_MASK)) {
 		func_to_switch = SDR50_SUPPORT;
 		dev_dbg(rtsx_dev(chip), "Using SDR50 instead of DDR50 for SD Lock\n");
 	}
