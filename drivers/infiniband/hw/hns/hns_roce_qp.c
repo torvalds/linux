@@ -336,12 +336,10 @@ static int hns_roce_set_user_sq_size(struct hns_roce_dev *hr_dev,
 
 static int hns_roce_set_kernel_sq_size(struct hns_roce_dev *hr_dev,
 				       struct ib_qp_cap *cap,
-				       enum ib_qp_type type,
 				       struct hns_roce_qp *hr_qp)
 {
 	struct device *dev = &hr_dev->pdev->dev;
 	u32 max_cnt;
-	(void)type;
 
 	if (cap->max_send_wr  > hr_dev->caps.max_wqes  ||
 	    cap->max_send_sge > hr_dev->caps.max_sq_sg ||
@@ -467,7 +465,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 
 		/* Set SQ size */
 		ret = hns_roce_set_kernel_sq_size(hr_dev, &init_attr->cap,
-						  init_attr->qp_type, hr_qp);
+						  hr_qp);
 		if (ret) {
 			dev_err(dev, "hns_roce_set_kernel_sq_size error!\n");
 			goto err_out;
