@@ -487,6 +487,9 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 		newtp->snd_cwnd = TCP_INIT_CWND;
 		newtp->snd_cwnd_cnt = 0;
 
+		/* There's a bubble in the pipe until at least the first ACK. */
+		newtp->app_limited = ~0U;
+
 		tcp_init_xmit_timers(newsk);
 		newtp->write_seq = newtp->pushed_seq = treq->snt_isn + 1;
 

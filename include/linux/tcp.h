@@ -268,6 +268,7 @@ struct tcp_sock {
 	u32	prr_out;	/* Total number of pkts sent during Recovery. */
 	u32	delivered;	/* Total data packets delivered incl. rexmits */
 	u32	lost;		/* Total data packets lost incl. rexmits */
+	u32	app_limited;	/* limited until "delivered" reaches this val */
 	struct skb_mstamp first_tx_mstamp;  /* start of window send phase */
 	struct skb_mstamp delivered_mstamp; /* time we reached "delivered" */
 

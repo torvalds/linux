@@ -26,8 +26,12 @@
  * other factors like applications or receiver window limits.  The estimator
  * deliberately avoids using the inter-packet spacing approach because that
  * approach requires a large number of samples and sophisticated filtering.
+ *
+ * TCP flows can often be application-limited in request/response workloads.
+ * The estimator marks a bandwidth sample as application-limited if there
+ * was some moment during the sampled window of packets when there was no data
+ * ready to send in the write queue.
  */
-
 
 /* Snapshot the current delivery information in the skb, to generate
  * a rate sample later when the skb is (s)acked in tcp_rate_skb_delivered().
@@ -58,6 +62,7 @@ void tcp_rate_skb_sent(struct sock *sk, struct sk_buff *skb)
 	TCP_SKB_CB(skb)->tx.first_tx_mstamp	= tp->first_tx_mstamp;
 	TCP_SKB_CB(skb)->tx.delivered_mstamp	= tp->delivered_mstamp;
 	TCP_SKB_CB(skb)->tx.delivered		= tp->delivered;
+	TCP_SKB_CB(skb)->tx.is_app_limited	= tp->app_limited ? 1 : 0;
 }
 
 /* When an skb is sacked or acked, we fill in the rate sample with the (prior)
@@ -80,6 +85,7 @@ void tcp_rate_skb_delivered(struct sock *sk, struct sk_buff *skb,
 	    after(scb->tx.delivered, rs->prior_delivered)) {
 		rs->prior_delivered  = scb->tx.delivered;
 		rs->prior_mstamp     = scb->tx.delivered_mstamp;
+		rs->is_app_limited   = scb->tx.is_app_limited;
 		rs->is_retrans	     = scb->sacked & TCPCB_RETRANS;
 
 		/* Find the duration of the "send phase" of this window: */
@@ -104,6 +110,10 @@ void tcp_rate_gen(struct sock *sk, u32 delivered, u32 lost,
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	u32 snd_us, ack_us;
+
+	/* Clear app limited if bubble is acked and gone. */
+	if (tp->app_limited && after(tp->delivered, tp->app_limited))
+		tp->app_limited = 0;
 
 	/* TODO: there are multiple places throughout tcp_ack() to get
 	 * current time. Refactor the code using a new "tcp_acktag_state"
@@ -146,4 +156,21 @@ void tcp_rate_gen(struct sock *sk, u32 delivered, u32 lost,
 				 inet_csk(sk)->icsk_ca_state,
 				 tp->rx_opt.sack_ok, tcp_min_rtt(tp));
 	}
+}
+
+/* If a gap is detected between sends, mark the socket application-limited. */
+void tcp_rate_check_app_limited(struct sock *sk)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	if (/* We have less than one packet to send. */
+	    tp->write_seq - tp->snd_nxt < tp->mss_cache &&
+	    /* Nothing in sending host's qdisc queues or NIC tx queue. */
+	    sk_wmem_alloc_get(sk) < SKB_TRUESIZE(1) &&
+	    /* We are not limited by CWND. */
+	    tcp_packets_in_flight(tp) < tp->snd_cwnd &&
+	    /* All lost packets have been retransmitted. */
+	    tp->lost_out <= tp->retrans_out)
+		tp->app_limited =
+			(tp->delivered + tcp_packets_in_flight(tp)) ? : 1;
 }
