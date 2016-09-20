@@ -1181,8 +1181,9 @@ static const char * const snstext[] = {
 
 /* Get sense key string or NULL if not available */
 const char *
-scsi_sense_key_string(unsigned char key) {
-	if (key <= 0xE)
+scsi_sense_key_string(unsigned char key)
+{
+	if (key < ARRAY_SIZE(snstext))
 		return snstext[key];
 	return NULL;
 }

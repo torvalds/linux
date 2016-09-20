@@ -2030,6 +2030,9 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	enum port port = intel_dig_port->port;
 	uint8_t alternate_ddc_pin;
 
+	DRM_DEBUG_KMS("Adding HDMI connector on port %c\n",
+		      port_name(port));
+
 	drm_connector_init(dev, connector, &intel_hdmi_connector_funcs,
 			   DRM_MODE_CONNECTOR_HDMIA);
 	drm_connector_helper_add(connector, &intel_hdmi_connector_helper_funcs);

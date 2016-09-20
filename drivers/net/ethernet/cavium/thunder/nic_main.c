@@ -309,6 +309,7 @@ static void nic_set_lmac_vf_mapping(struct nicpf *nic)
 static void nic_init_hw(struct nicpf *nic)
 {
 	int i;
+	u64 cqm_cfg;
 
 	/* Enable NIC HW block */
 	nic_reg_write(nic, NIC_PF_CFG, 0x3);
@@ -345,6 +346,11 @@ static void nic_init_hw(struct nicpf *nic)
 	/* Enable VLAN ethertype matching and stripping */
 	nic_reg_write(nic, NIC_PF_RX_ETYPE_0_7,
 		      (2 << 19) | (ETYPE_ALG_VLAN_STRIP << 16) | ETH_P_8021Q);
+
+	/* Check if HW expected value is higher (could be in future chips) */
+	cqm_cfg = nic_reg_read(nic, NIC_PF_CQM_CFG);
+	if (cqm_cfg < NICPF_CQM_MIN_DROP_LEVEL)
+		nic_reg_write(nic, NIC_PF_CQM_CFG, NICPF_CQM_MIN_DROP_LEVEL);
 }
 
 /* Channel parse index configuration */

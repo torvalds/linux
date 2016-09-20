@@ -631,8 +631,6 @@ struct ll_file_data {
 
 struct lov_stripe_md;
 
-extern spinlock_t inode_lock;
-
 extern struct dentry *llite_root;
 extern struct kset *llite_kset;
 

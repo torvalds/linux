@@ -662,7 +662,7 @@ static int core_get_max_pstate(void)
 			if (err)
 				goto skip_tar;
 
-			tdp_msr = MSR_CONFIG_TDP_NOMINAL + tdp_ctrl;
+			tdp_msr = MSR_CONFIG_TDP_NOMINAL + (tdp_ctrl & 0x3);
 			err = rdmsrl_safe(tdp_msr, &tdp_ratio);
 			if (err)
 				goto skip_tar;

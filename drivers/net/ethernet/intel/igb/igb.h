@@ -389,6 +389,8 @@ struct igb_adapter {
 	u16 link_speed;
 	u16 link_duplex;
 
+	u8 __iomem *io_addr; /* Mainly for iounmap use */
+
 	struct work_struct reset_task;
 	struct work_struct watchdog_task;
 	bool fc_autoneg;
