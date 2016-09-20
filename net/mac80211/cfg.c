@@ -186,6 +186,36 @@ static void ieee80211_stop_nan(struct wiphy *wiphy,
 	ieee80211_sdata_stop(sdata);
 }
 
+static int ieee80211_nan_change_conf(struct wiphy *wiphy,
+				     struct wireless_dev *wdev,
+				     struct cfg80211_nan_conf *conf,
+				     u32 changes)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
+	struct cfg80211_nan_conf new_conf;
+	int ret = 0;
+
+	if (sdata->vif.type != NL80211_IFTYPE_NAN)
+		return -EOPNOTSUPP;
+
+	if (!ieee80211_sdata_running(sdata))
+		return -ENETDOWN;
+
+	new_conf = sdata->u.nan.conf;
+
+	if (changes & CFG80211_NAN_CONF_CHANGED_PREF)
+		new_conf.master_pref = conf->master_pref;
+
+	if (changes & CFG80211_NAN_CONF_CHANGED_DUAL)
+		new_conf.dual = conf->dual;
+
+	ret = drv_nan_change_conf(sdata->local, sdata, &new_conf, changes);
+	if (!ret)
+		sdata->u.nan.conf = new_conf;
+
+	return ret;
+}
+
 static int ieee80211_set_noack_map(struct wiphy *wiphy,
 				  struct net_device *dev,
 				  u16 noack_map)
@@ -3500,4 +3530,5 @@ const struct cfg80211_ops mac80211_config_ops = {
 	.del_tx_ts = ieee80211_del_tx_ts,
 	.start_nan = ieee80211_start_nan,
 	.stop_nan = ieee80211_stop_nan,
+	.nan_change_conf = ieee80211_nan_change_conf,
 };

@@ -3423,6 +3423,12 @@ enum ieee80211_reconfig_type {
  *
  * @start_nan: join an existing NAN cluster, or create a new one.
  * @stop_nan: leave the NAN cluster.
+ * @nan_change_conf: change NAN configuration. The data in cfg80211_nan_conf
+ *	contains full new configuration and changes specify which parameters
+ *	are changed with respect to the last NAN config.
+ *	The driver gets both full configuration and the changed parameters since
+ *	some devices may need the full configuration while others need only the
+ *	changed parameters.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw,
@@ -3664,6 +3670,9 @@ struct ieee80211_ops {
 			 struct cfg80211_nan_conf *conf);
 	int (*stop_nan)(struct ieee80211_hw *hw,
 			struct ieee80211_vif *vif);
+	int (*nan_change_conf)(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       struct cfg80211_nan_conf *conf, u32 changes);
 };
 
 /**

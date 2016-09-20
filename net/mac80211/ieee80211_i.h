@@ -830,6 +830,15 @@ struct ieee80211_if_mntr {
 	u8 mu_follow_addr[ETH_ALEN] __aligned(2);
 };
 
+/**
+ * struct ieee80211_if_nan - NAN state
+ *
+ * @conf: current NAN configuration
+ */
+struct ieee80211_if_nan {
+	struct cfg80211_nan_conf conf;
+};
+
 struct ieee80211_sub_if_data {
 	struct list_head list;
 
@@ -929,6 +938,7 @@ struct ieee80211_sub_if_data {
 		struct ieee80211_if_mesh mesh;
 		struct ieee80211_if_ocb ocb;
 		struct ieee80211_if_mntr mntr;
+		struct ieee80211_if_nan nan;
 	} u;
 
 #ifdef CONFIG_MAC80211_DEBUGFS

@@ -1750,6 +1750,37 @@ TRACE_EVENT(drv_stop_nan,
 	)
 );
 
+TRACE_EVENT(drv_nan_change_conf,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct cfg80211_nan_conf *conf,
+		 u32 changes),
+
+	TP_ARGS(local, sdata, conf, changes),
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__field(u8, master_pref)
+		__field(u8, dual)
+		__field(u32, changes)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		__entry->master_pref = conf->master_pref;
+		__entry->dual = conf->dual;
+		__entry->changes = changes;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT  VIF_PR_FMT
+		", master preference: %u, dual: %d, changes: 0x%x",
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->master_pref,
+		__entry->dual, __entry->changes
+	)
+);
+
 /*
  * Tracing for API calls that drivers call.
  */

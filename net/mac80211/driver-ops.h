@@ -1192,4 +1192,25 @@ static inline void drv_stop_nan(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 
+static inline int drv_nan_change_conf(struct ieee80211_local *local,
+				       struct ieee80211_sub_if_data *sdata,
+				       struct cfg80211_nan_conf *conf,
+				       u32 changes)
+{
+	int ret;
+
+	might_sleep();
+	check_sdata_in_driver(sdata);
+
+	if (!local->ops->nan_change_conf)
+		return -EOPNOTSUPP;
+
+	trace_drv_nan_change_conf(local, sdata, conf, changes);
+	ret = local->ops->nan_change_conf(&local->hw, &sdata->vif, conf,
+					  changes);
+	trace_drv_return_int(local, ret);
+
+	return ret;
+}
+
 #endif /* __MAC80211_DRIVER_OPS */
