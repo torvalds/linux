@@ -803,25 +803,6 @@ unsigned long arizona_of_get_type(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(arizona_of_get_type);
 
-int arizona_of_get_named_gpio(struct arizona *arizona, const char *prop,
-			      bool mandatory)
-{
-	int gpio;
-
-	gpio = of_get_named_gpio(arizona->dev->of_node, prop, 0);
-	if (gpio < 0) {
-		if (mandatory)
-			dev_err(arizona->dev,
-				"Mandatory DT gpio %s missing/malformed: %d\n",
-				prop, gpio);
-
-		gpio = 0;
-	}
-
-	return gpio;
-}
-EXPORT_SYMBOL_GPL(arizona_of_get_named_gpio);
-
 static int arizona_of_get_core_pdata(struct arizona *arizona)
 {
 	struct arizona_pdata *pdata = &arizona->pdata;
@@ -832,7 +813,13 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 	int ret, i;
 	int count = 0;
 
-	pdata->reset = arizona_of_get_named_gpio(arizona, "wlf,reset", true);
+	pdata->reset = of_get_named_gpio(arizona->dev->of_node, "wlf,reset", 0);
+	if (pdata->reset < 0) {
+		dev_err(arizona->dev, "Reset GPIO missing/malformed: %d\n",
+			pdata->reset);
+
+		pdata->reset = 0;
+	}
 
 	ret = of_property_read_u32_array(arizona->dev->of_node,
 					 "wlf,gpio-defaults",
