@@ -168,6 +168,7 @@ static int i2c_acpi_do_lookup(struct acpi_device *adev,
 
 static int i2c_acpi_get_info(struct acpi_device *adev,
 			     struct i2c_board_info *info,
+			     struct i2c_adapter *adapter,
 			     acpi_handle *adapter_handle)
 {
 	struct list_head resource_list;
@@ -182,8 +183,24 @@ static int i2c_acpi_get_info(struct acpi_device *adev,
 	if (ret)
 		return ret;
 
+	if (adapter) {
+		/* The adapter must match the one in I2cSerialBus() connector */
+		if (ACPI_HANDLE(&adapter->dev) != lookup.adapter_handle)
+			return -ENODEV;
+	} else {
+		struct acpi_device *adapter_adev;
+
+		/* The adapter must be present */
+		if (acpi_bus_get_device(lookup.adapter_handle, &adapter_adev))
+			return -ENODEV;
+		if (acpi_bus_get_status(adapter_adev) ||
+		    !adapter_adev->status.present)
+			return -ENODEV;
+	}
+
 	info->fwnode = acpi_fwnode_handle(adev);
-	*adapter_handle = lookup.adapter_handle;
+	if (adapter_handle)
+		*adapter_handle = lookup.adapter_handle;
 
 	/* Then fill IRQ number if any */
 	INIT_LIST_HEAD(&resource_list);
@@ -225,16 +242,12 @@ static acpi_status i2c_acpi_add_device(acpi_handle handle, u32 level,
 {
 	struct i2c_adapter *adapter = data;
 	struct acpi_device *adev;
-	acpi_handle adapter_handle;
 	struct i2c_board_info info;
 
 	if (acpi_bus_get_device(handle, &adev))
 		return AE_OK;
 
-	if (i2c_acpi_get_info(adev, &info, &adapter_handle))
-		return AE_OK;
-
-	if (adapter_handle != ACPI_HANDLE(&adapter->dev))
+	if (i2c_acpi_get_info(adev, &info, adapter, NULL))
 		return AE_OK;
 
 	i2c_acpi_register_device(adapter, adev, &info);
@@ -368,7 +381,7 @@ static int i2c_acpi_notify(struct notifier_block *nb, unsigned long value,
 
 	switch (value) {
 	case ACPI_RECONFIG_DEVICE_ADD:
-		if (i2c_acpi_get_info(adev, &info, &adapter_handle))
+		if (i2c_acpi_get_info(adev, &info, NULL, &adapter_handle))
 			break;
 
 		adapter = i2c_acpi_find_adapter_by_handle(adapter_handle);
