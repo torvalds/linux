@@ -814,7 +814,6 @@ static const struct snd_soc_dapm_route cs47l24_dapm_routes[] = {
 	{ "AIF3 Capture", NULL, "SYSCLK" },
 
 	{ "Voice Control DSP", NULL, "DSP3" },
-	{ "Voice Control DSP", NULL, "SYSCLK" },
 
 	{ "IN1L PGA", NULL, "IN1L" },
 	{ "IN1R PGA", NULL, "IN1R" },
@@ -823,7 +822,6 @@ static const struct snd_soc_dapm_route cs47l24_dapm_routes[] = {
 	{ "IN2R PGA", NULL, "IN2R" },
 
 	{ "Audio Trace DSP", NULL, "DSP2" },
-	{ "Audio Trace DSP", NULL, "SYSCLK" },
 
 	ARIZONA_MIXER_ROUTES("OUT1L", "HPOUT1L"),
 	ARIZONA_MIXER_ROUTES("OUT1R", "HPOUT1R"),
