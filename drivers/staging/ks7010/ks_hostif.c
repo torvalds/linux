@@ -1766,7 +1766,7 @@ void hostif_sleep_request(struct ks_wlan_private *priv, unsigned long mode)
 
 static
 void hostif_bss_scan_request(struct ks_wlan_private *priv,
-			     unsigned long scan_type, uint8_t * scan_ssid,
+			     unsigned long scan_type, uint8_t *scan_ssid,
 			     uint8_t scan_ssid_len)
 {
 	struct hostif_bss_scan_request_t *pp;
