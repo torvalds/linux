@@ -22,6 +22,9 @@ st_pressure-y := st_pressure_core.o
 st_pressure-$(CONFIG_IIO_BUFFER) += st_pressure_buffer.o
 obj-$(CONFIG_T5403) += t5403.o
 obj-$(CONFIG_HP206C) += hp206c.o
+obj-$(CONFIG_ZPA2326) += zpa2326.o
+obj-$(CONFIG_ZPA2326_I2C) += zpa2326_i2c.o
+obj-$(CONFIG_ZPA2326_SPI) += zpa2326_spi.o
 
 obj-$(CONFIG_IIO_ST_PRESS_I2C) += st_pressure_i2c.o
 obj-$(CONFIG_IIO_ST_PRESS_SPI) += st_pressure_spi.o
