@@ -149,12 +149,22 @@ void tcp_rate_gen(struct sock *sk, u32 delivered, u32 lost,
 	 * for connections suffer heavy or prolonged losses.
 	 */
 	if (unlikely(rs->interval_us < tcp_min_rtt(tp))) {
-		rs->interval_us = -1;
 		if (!rs->is_retrans)
 			pr_debug("tcp rate: %ld %d %u %u %u\n",
 				 rs->interval_us, rs->delivered,
 				 inet_csk(sk)->icsk_ca_state,
 				 tp->rx_opt.sack_ok, tcp_min_rtt(tp));
+		rs->interval_us = -1;
+		return;
+	}
+
+	/* Record the last non-app-limited or the highest app-limited bw */
+	if (!rs->is_app_limited ||
+	    ((u64)rs->delivered * tp->rate_interval_us >=
+	     (u64)tp->rate_delivered * rs->interval_us)) {
+		tp->rate_delivered = rs->delivered;
+		tp->rate_interval_us = rs->interval_us;
+		tp->rate_app_limited = rs->is_app_limited;
 	}
 }
 
