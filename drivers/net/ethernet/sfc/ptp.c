@@ -1269,13 +1269,13 @@ int efx_ptp_probe(struct efx_nic *efx, struct efx_channel *channel)
 		if (IS_ERR(ptp->phc_clock)) {
 			rc = PTR_ERR(ptp->phc_clock);
 			goto fail3;
-		}
-
-		INIT_WORK(&ptp->pps_work, efx_ptp_pps_worker);
-		ptp->pps_workwq = create_singlethread_workqueue("sfc_pps");
-		if (!ptp->pps_workwq) {
-			rc = -ENOMEM;
-			goto fail4;
+		} else if (ptp->phc_clock) {
+			INIT_WORK(&ptp->pps_work, efx_ptp_pps_worker);
+			ptp->pps_workwq = create_singlethread_workqueue("sfc_pps");
+			if (!ptp->pps_workwq) {
+				rc = -ENOMEM;
+				goto fail4;
+			}
 		}
 	}
 	ptp->nic_ts_enabled = false;

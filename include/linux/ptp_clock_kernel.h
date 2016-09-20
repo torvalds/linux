@@ -127,6 +127,11 @@ struct ptp_clock;
  *
  * @info:   Structure describing the new clock.
  * @parent: Pointer to the parent device of the new clock.
+ *
+ * Returns a valid pointer on success or PTR_ERR on failure.  If PHC
+ * support is missing at the configuration level, this function
+ * returns NULL, and drivers are expected to gracefully handle that
+ * case separately.
  */
 
 extern struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,

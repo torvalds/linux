@@ -669,7 +669,7 @@ void i40e_ptp_init(struct i40e_pf *pf)
 		pf->ptp_clock = NULL;
 		dev_err(&pf->pdev->dev, "%s: ptp_clock_register failed\n",
 			__func__);
-	} else {
+	} else if (pf->ptp_clock) {
 		struct timespec64 ts;
 		u32 regval;
 
