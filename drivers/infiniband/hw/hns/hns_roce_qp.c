@@ -38,7 +38,7 @@
 #include "hns_roce_hem.h"
 #include "hns_roce_user.h"
 
-#define SQP_NUM				12
+#define SQP_NUM				(2 * HNS_ROCE_MAX_PORTS)
 
 void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type)
 {
@@ -246,7 +246,7 @@ void hns_roce_release_range_qp(struct hns_roce_dev *hr_dev, int base_qpn,
 {
 	struct hns_roce_qp_table *qp_table = &hr_dev->qp_table;
 
-	if (base_qpn < (hr_dev->caps.sqp_start + 2 * hr_dev->caps.num_ports))
+	if (base_qpn < SQP_NUM)
 		return;
 
 	hns_roce_bitmap_free_range(&qp_table->bitmap, base_qpn, cnt);
@@ -608,8 +608,7 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 		hr_qp = &hr_sqp->hr_qp;
 		hr_qp->port = init_attr->port_num - 1;
 		hr_qp->phy_port = hr_dev->iboe.phy_port[hr_qp->port];
-		hr_qp->ibqp.qp_num = hr_dev->caps.sqp_start +
-				     HNS_ROCE_MAX_PORTS +
+		hr_qp->ibqp.qp_num = HNS_ROCE_MAX_PORTS +
 				     hr_dev->iboe.phy_port[hr_qp->port];
 
 		ret = hns_roce_create_qp_common(hr_dev, pd, init_attr, udata,
@@ -825,8 +824,7 @@ int hns_roce_init_qp_table(struct hns_roce_dev *hr_dev)
 
 	/* A port include two SQP, six port total 12 */
 	ret = hns_roce_bitmap_init(&qp_table->bitmap, hr_dev->caps.num_qps,
-				   hr_dev->caps.num_qps - 1,
-				   hr_dev->caps.sqp_start + SQP_NUM,
+				   hr_dev->caps.num_qps - 1, SQP_NUM,
 				   reserved_from_top);
 	if (ret) {
 		dev_err(&hr_dev->pdev->dev, "qp bitmap init failed!error=%d\n",

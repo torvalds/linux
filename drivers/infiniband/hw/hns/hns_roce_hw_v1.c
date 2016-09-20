@@ -936,7 +936,6 @@ void hns_roce_v1_profile(struct hns_roce_dev *hr_dev)
 	caps->mtt_entry_sz	= HNS_ROCE_V1_MTT_ENTRY_SIZE;
 	caps->cq_entry_sz	= HNS_ROCE_V1_CQE_ENTRY_SIZE;
 	caps->page_size_cap	= HNS_ROCE_V1_PAGE_SIZE_SUPPORT;
-	caps->sqp_start		= 0;
 	caps->reserved_lkey	= 0;
 	caps->reserved_pds	= 0;
 	caps->reserved_mrws	= 1;
