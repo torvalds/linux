@@ -1972,6 +1972,7 @@ void intel_hdmi_init(struct drm_device *dev,
 	}
 
 	intel_encoder->type = INTEL_OUTPUT_HDMI;
+	intel_encoder->port = port;
 	if (IS_CHERRYVIEW(dev)) {
 		if (port == PORT_D)
 			intel_encoder->crtc_mask = 1 << 2;

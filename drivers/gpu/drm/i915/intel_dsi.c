@@ -1488,6 +1488,7 @@ void intel_dsi_init(struct drm_device *dev)
 
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
 
+	intel_encoder->port = port;
 	/*
 	 * On BYT/CHV, pipe A maps to MIPI DSI port A, pipe B maps to MIPI DSI
 	 * port C. BXT isn't limited like this.

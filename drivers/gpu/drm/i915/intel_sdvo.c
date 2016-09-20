@@ -2981,6 +2981,7 @@ bool intel_sdvo_init(struct drm_device *dev,
 	/* encoder type will be decided later */
 	intel_encoder = &intel_sdvo->base;
 	intel_encoder->type = INTEL_OUTPUT_SDVO;
+	intel_encoder->port = port;
 	drm_encoder_init(dev, &intel_encoder->base, &intel_sdvo_enc_funcs, 0,
 			 "SDVO %c", port_name(port));
 
