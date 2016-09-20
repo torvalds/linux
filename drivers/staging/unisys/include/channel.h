@@ -75,28 +75,6 @@ enum channel_clientstate {
 				/* access channel anytime */
 };
 
-static inline const u8 *
-ULTRA_CHANNELCLI_STRING(u32 state)
-{
-	switch (state) {
-	case CHANNELCLI_DETACHED:
-		return (const u8 *)("DETACHED");
-	case CHANNELCLI_DISABLED:
-		return (const u8 *)("DISABLED");
-	case CHANNELCLI_ATTACHING:
-		return (const u8 *)("ATTACHING");
-	case CHANNELCLI_ATTACHED:
-		return (const u8 *)("ATTACHED");
-	case CHANNELCLI_BUSY:
-		return (const u8 *)("BUSY");
-	case CHANNELCLI_OWNED:
-		return (const u8 *)("OWNED");
-	default:
-		break;
-	}
-	return (const u8 *)("?");
-}
-
 #define SPAR_CHANNEL_SERVER_READY(ch) \
 	(readl(&(ch)->srv_state) == CHANNELSRV_READY)
 
