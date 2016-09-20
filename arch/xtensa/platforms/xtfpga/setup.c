@@ -66,29 +66,6 @@ void __init platform_setup(char **cmdline)
 
 #ifdef CONFIG_OF
 
-static void __init update_clock_frequency(struct device_node *node)
-{
-	struct property *newfreq;
-	u32 freq;
-
-	if (!of_property_read_u32(node, "clock-frequency", &freq) && freq != 0)
-		return;
-
-	newfreq = kzalloc(sizeof(*newfreq) + sizeof(u32), GFP_KERNEL);
-	if (!newfreq)
-		return;
-	newfreq->value = newfreq + 1;
-	newfreq->length = sizeof(freq);
-	newfreq->name = kstrdup("clock-frequency", GFP_KERNEL);
-	if (!newfreq->name) {
-		kfree(newfreq);
-		return;
-	}
-
-	*(u32 *)newfreq->value = cpu_to_be32(*(u32 *)XTFPGA_CLKFRQ_VADDR);
-	of_update_property(node, newfreq);
-}
-
 static void __init xtfpga_clk_setup(struct device_node *np)
 {
 	void __iomem *base = of_iomap(np, 0);
@@ -172,21 +149,7 @@ void platform_heartbeat(void)
 
 void __init platform_calibrate_ccount(void)
 {
-	long clk_freq = 0;
-#ifdef CONFIG_OF
-	struct device_node *cpu =
-		of_find_compatible_node(NULL, NULL, "cdns,xtensa-cpu");
-	if (cpu) {
-		u32 freq;
-		update_clock_frequency(cpu);
-		if (!of_property_read_u32(cpu, "clock-frequency", &freq))
-			clk_freq = freq;
-	}
-#endif
-	if (!clk_freq)
-		clk_freq = *(long *)XTFPGA_CLKFRQ_VADDR;
-
-	ccount_freq = clk_freq;
+	ccount_freq = *(long *)XTFPGA_CLKFRQ_VADDR;
 }
 
 #endif
