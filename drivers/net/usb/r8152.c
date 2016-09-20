@@ -2632,6 +2632,10 @@ static void rtl8152_disable(struct r8152 *tp)
 
 static void r8152b_hw_phy_cfg(struct r8152 *tp)
 {
+	r8152b_enable_eee(tp);
+	r8152_aldps_en(tp, true);
+	r8152b_enable_fc(tp);
+
 	set_bit(PHY_RESET, &tp->flags);
 }
 
@@ -2838,6 +2842,10 @@ static void r8153_hw_phy_cfg(struct r8152 *tp)
 	/* Adjust 10M Amplitude */
 	sram_write(tp, SRAM_10M_AMP1, 0x00af);
 	sram_write(tp, SRAM_10M_AMP2, 0x0208);
+
+	r8153_enable_eee(tp);
+	r8153_aldps_en(tp, true);
+	r8152b_enable_fc(tp);
 
 	set_bit(PHY_RESET, &tp->flags);
 }
@@ -3369,9 +3377,6 @@ static void r8152b_init(struct r8152 *tp)
 		   SPDWN_RXDV_MSK | SPDWN_LINKCHG_MSK;
 	ocp_write_word(tp, MCU_TYPE_PLA, PLA_GPHY_INTR_IMR, ocp_data);
 
-	r8152b_enable_eee(tp);
-	r8152_aldps_en(tp, true);
-	r8152b_enable_fc(tp);
 	rtl_tally_reset(tp);
 
 	/* enable rx aggregation */
@@ -3490,9 +3495,6 @@ static void r8153_init(struct r8152 *tp)
 	ocp_write_word(tp, MCU_TYPE_PLA, PLA_MAC_PWR_CTRL3, 0);
 	ocp_write_word(tp, MCU_TYPE_PLA, PLA_MAC_PWR_CTRL4, 0);
 
-	r8153_enable_eee(tp);
-	r8153_aldps_en(tp, true);
-	r8152b_enable_fc(tp);
 	rtl_tally_reset(tp);
 	r8153_u2p3en(tp, true);
 }
