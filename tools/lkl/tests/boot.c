@@ -729,7 +729,6 @@ static void test_thread(void *data)
 		fprintf(stderr, "%s: %s\n", __func__, lkl_strerror(ret));
 	}
 
-	lkl_stop_syscall_thread();
 }
 
 static int test_syscall_thread(char *str, int len)
@@ -775,7 +774,36 @@ static int test_syscall_thread(char *str, int len)
 	return TEST_SUCCESS;
 }
 
-void thread_quit_immediately(void *unused)
+#ifndef __MINGW32__
+static void thread_get_pid(void *unused)
+{
+	lkl_sys_getpid();
+}
+
+static int test_many_syscall_threads(char *str, int len)
+{
+	lkl_thread_t tid;
+	int count = 65, ret;
+
+	while (--count > 0) {
+		tid = lkl_host_ops.thread_create(thread_get_pid, NULL);
+		if (!tid) {
+			snprintf(str, len, "failed to create thread");
+			return TEST_FAILURE;
+		}
+
+		ret = lkl_host_ops.thread_join(tid);
+		if (ret) {
+			snprintf(str, len, "failed to join thread");
+			return TEST_FAILURE;
+		}
+	}
+
+	return TEST_SUCCESS;
+}
+#endif
+
+static void thread_quit_immediately(void *unused)
 {
 }
 
@@ -911,6 +939,14 @@ int main(int argc, char **argv)
 	TEST(gettid);
 	TEST(syscall_thread);
 	TEST(join);
+	/*
+	 * Wine has an issue where the FlsCallback is not called when the thread
+	 * terminates which makes testing the automatic syscall threads cleanup
+	 * impossible under wine.
+	 */
+#ifndef __MINGW32__
+	TEST(many_syscall_threads);
+#endif
 
 	lkl_sys_halt();
 

@@ -88,25 +88,28 @@ static int thread_join(lkl_thread_t tid)
 	return 0;
 }
 
-static int tls_alloc(unsigned int *key)
+static int tls_alloc(unsigned int *key, void (*destructor)(void *))
 {
-	*key = TlsAlloc();
+	*key = FlsAlloc((PFLS_CALLBACK_FUNCTION)destructor);
 	return *key == TLS_OUT_OF_INDEXES ? -1 : 0;
 }
 
 static int tls_free(unsigned int key)
 {
-	return TlsFree(key) ? 0 : -1;
+	/* setting to NULL first to prevent the callback from being called */
+	if (!FlsSetValue(key, NULL))
+		return -1;
+	return FlsFree(key) ? 0 : -1;
 }
 
 static int tls_set(unsigned int key, void *data)
 {
-	return TlsSetValue(key, data) ? 0 : -1;
+	return FlsSetValue(key, data) ? 0 : -1;
 }
 
 static void *tls_get(unsigned int key)
 {
-	return TlsGetValue(key);
+	return FlsGetValue(key);
 }
 
 

@@ -38,10 +38,12 @@ typedef unsigned long lkl_thread_t;
  * @thread_join - wait for the given thread to terminate. Returns 0
  * for success, -1 otherwise
  *
- * @tls_alloc - allocate a thread local storage key; returns 0 if succesful
+ * @tls_alloc - allocate a thread local storage key; returns 0 if successful; if
+ * destructor is not NULL it will be called when a thread terminates with its
+ * argument set to the current thread local storage value
  * @tls_free - frees a thread local storage key; returns 0 if succesful
  * @tls_set - associate data to the thread local storage key; returns 0 if
- * succesful
+ * successful
  * @tls_get - return data associated with the thread local storage key or NULL
  * on error
  *
@@ -85,7 +87,7 @@ struct lkl_host_operations {
 	void (*thread_exit)(void);
 	int (*thread_join)(lkl_thread_t tid);
 
-	int (*tls_alloc)(unsigned int *key);
+	int (*tls_alloc)(unsigned int *key, void (*destructor)(void *));
 	int (*tls_free)(unsigned int key);
 	int (*tls_set)(unsigned int key, void *data);
 	void *(*tls_get)(unsigned int key);
