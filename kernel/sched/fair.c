@@ -262,9 +262,7 @@ static inline struct rq *rq_of(struct cfs_rq *cfs_rq)
 
 static inline struct task_struct *task_of(struct sched_entity *se)
 {
-#ifdef CONFIG_SCHED_DEBUG
-	WARN_ON_ONCE(!entity_is_task(se));
-#endif
+	SCHED_WARN_ON(!entity_is_task(se));
 	return container_of(se, struct task_struct, se);
 }
 
@@ -2369,7 +2367,7 @@ void task_numa_work(struct callback_head *work)
 	unsigned long nr_pte_updates = 0;
 	long pages, virtpages;
 
-	WARN_ON_ONCE(p != container_of(work, struct task_struct, numa_work));
+	SCHED_WARN_ON(p != container_of(work, struct task_struct, numa_work));
 
 	work->next = work; /* protect against double add */
 	/*
@@ -4474,7 +4472,7 @@ static void hrtick_start_fair(struct rq *rq, struct task_struct *p)
 	struct sched_entity *se = &p->se;
 	struct cfs_rq *cfs_rq = cfs_rq_of(se);
 
-	WARN_ON(task_rq(p) != rq);
+	SCHED_WARN_ON(task_rq(p) != rq);
 
 	if (rq->cfs.h_nr_running > 1) {
 		u64 slice = sched_slice(cfs_rq, se);

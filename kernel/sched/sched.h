@@ -15,6 +15,12 @@
 #include "cpudeadline.h"
 #include "cpuacct.h"
 
+#ifdef CONFIG_SCHED_DEBUG
+#define SCHED_WARN_ON(x)	WARN_ONCE(x, #x)
+#else
+#define SCHED_WARN_ON(x)	((void)(x))
+#endif
+
 struct rq;
 struct cpuidle_state;
 
@@ -1309,7 +1315,7 @@ static inline void idle_set_state(struct rq *rq,
 
 static inline struct cpuidle_state *idle_get_state(struct rq *rq)
 {
-	WARN_ON(!rcu_read_lock_held());
+	SCHED_WARN_ON(!rcu_read_lock_held());
 	return rq->idle_state;
 }
 #else
