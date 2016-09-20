@@ -1023,7 +1023,7 @@ xdp_drop:
 			goto next;
 		}
 
-                if (unlikely(priv->validate_loopback)) {
+		if (unlikely(priv->validate_loopback)) {
 			validate_loopback(priv, skb);
 			goto next;
 		}
