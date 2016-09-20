@@ -851,6 +851,9 @@ struct adapter {
 
 	spinlock_t stats_lock;
 	spinlock_t win0_lock ____cacheline_aligned_in_smp;
+
+	/* TC u32 offload */
+	struct cxgb4_tc_u32_table *tc_u32;
 };
 
 /* Support for "sched-class" command to allow a TX Scheduling Class to be

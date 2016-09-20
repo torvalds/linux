@@ -279,4 +279,16 @@ static const struct cxgb4_next_header cxgb4_ipv6_jumps[] = {
 	  .jump = cxgb4_udp_fields },
 	{ .jump = NULL }
 };
+
+struct cxgb4_link {
+	const struct cxgb4_match_field *match_field;  /* Next header */
+	struct ch_filter_specification fs; /* Match spec associated with link */
+	u32 link_handle;         /* Knode handle associated with the link */
+	unsigned long *tid_map;  /* Bitmap for filter tids */
+};
+
+struct cxgb4_tc_u32_table {
+	unsigned int size;          /* number of entries in table */
+	struct cxgb4_link table[0]; /* Jump table */
+};
 #endif /* __CXGB4_TC_U32_PARSE_H */
