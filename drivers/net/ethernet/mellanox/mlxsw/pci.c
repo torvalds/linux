@@ -1156,6 +1156,8 @@ mlxsw_pci_config_profile_swid_config(struct mlxsw_pci *mlxsw_pci,
 
 #define MLXSW_RESOURCES_TABLE_END_ID 0xffff
 #define MLXSW_MAX_SPAN_ID 0x2420
+#define MLXSW_MAX_LAG_ID 0x2520
+#define MLXSW_MAX_PORTS_IN_LAG_ID 0x2521
 #define MLXSW_RESOURCES_QUERY_MAX_QUERIES 100
 #define MLXSW_RESOURCES_PER_QUERY 32
 
@@ -1166,6 +1168,14 @@ static void mlxsw_pci_resources_query_parse(int id, u64 val,
 	case MLXSW_MAX_SPAN_ID:
 		resources->max_span = val;
 		resources->max_span_valid = 1;
+		break;
+	case MLXSW_MAX_LAG_ID:
+		resources->max_lag = val;
+		resources->max_lag_valid = 1;
+		break;
+	case MLXSW_MAX_PORTS_IN_LAG_ID:
+		resources->max_ports_in_lag = val;
+		resources->max_ports_in_lag_valid = 1;
 		break;
 	default:
 		break;

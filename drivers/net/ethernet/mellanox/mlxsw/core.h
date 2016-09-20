@@ -269,8 +269,12 @@ struct mlxsw_driver {
 };
 
 struct mlxsw_resources {
-	u8	max_span_valid:1;
+	u8	max_span_valid:1,
+		max_lag_valid:1,
+		max_ports_in_lag_valid:1;
 	u8      max_span;
+	u8	max_lag;
+	u8	max_ports_in_lag;
 };
 
 struct mlxsw_resources *mlxsw_core_resources_get(struct mlxsw_core *mlxsw_core);
