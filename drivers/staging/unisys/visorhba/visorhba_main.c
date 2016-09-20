@@ -36,21 +36,6 @@
 #define MAX_PENDING_REQUESTS	(MIN_NUMSIGNALS * 2)
 #define VISORHBA_ERROR_COUNT	30
 
-static int visorhba_queue_command_lck(struct scsi_cmnd *scsicmd,
-				      void (*visorhba_cmnd_done)
-					    (struct scsi_cmnd *));
-#ifdef DEF_SCSI_QCMD
-static DEF_SCSI_QCMD(visorhba_queue_command)
-#else
-#define visorhba_queue_command visorhba_queue_command_lck
-#endif
-static int visorhba_probe(struct visor_device *dev);
-static void visorhba_remove(struct visor_device *dev);
-static int visorhba_pause(struct visor_device *dev,
-			  visorbus_state_complete_func complete_func);
-static int visorhba_resume(struct visor_device *dev,
-			   visorbus_state_complete_func complete_func);
-
 static struct dentry *visorhba_debugfs_dir;
 
 /* GUIDS for HBA channel type supported by this driver */
@@ -62,20 +47,6 @@ static struct visor_channeltype_descriptor visorhba_channel_types[] = {
 	{ NULL_UUID_LE, NULL }
 };
 
-/* This is used to tell the visor bus driver which types of visor devices
- * we support, and what functions to call when a visor device that we support
- * is attached or removed.
- */
-static struct visor_driver visorhba_driver = {
-	.name = "visorhba",
-	.owner = THIS_MODULE,
-	.channel_types = visorhba_channel_types,
-	.probe = visorhba_probe,
-	.remove = visorhba_remove,
-	.pause = visorhba_pause,
-	.resume = visorhba_resume,
-	.channel_interrupt = NULL,
-};
 MODULE_DEVICE_TABLE(visorbus, visorhba_channel_types);
 MODULE_ALIAS("visorbus:" SPAR_VHBA_CHANNEL_PROTOCOL_UUID_STR);
 
@@ -579,6 +550,12 @@ err_del_scsipending_ent:
 	del_scsipending_ent(devdata, insert_location);
 	return SCSI_MLQUEUE_DEVICE_BUSY;
 }
+
+#ifdef DEF_SCSI_QCMD
+static DEF_SCSI_QCMD(visorhba_queue_command)
+#else
+#define visorhba_queue_command visorhba_queue_command_lck
+#endif
 
 /**
  *	visorhba_slave_alloc - called when new disk is discovered
@@ -1185,6 +1162,21 @@ static void visorhba_remove(struct visor_device *dev)
 	debugfs_remove(devdata->debugfs_info);
 	debugfs_remove_recursive(devdata->debugfs_dir);
 }
+
+/* This is used to tell the visor bus driver which types of visor devices
+ * we support, and what functions to call when a visor device that we support
+ * is attached or removed.
+ */
+static struct visor_driver visorhba_driver = {
+	.name = "visorhba",
+	.owner = THIS_MODULE,
+	.channel_types = visorhba_channel_types,
+	.probe = visorhba_probe,
+	.remove = visorhba_remove,
+	.pause = visorhba_pause,
+	.resume = visorhba_resume,
+	.channel_interrupt = NULL,
+};
 
 /**
  *	visorhba_init		- driver init routine
