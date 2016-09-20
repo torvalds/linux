@@ -2248,7 +2248,8 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 
 		roce_set_field(context->qpc_bytes_68,
 			       QP_CONTEXT_QPC_BYTES_68_RQ_HEAD_M,
-			       QP_CONTEXT_QPC_BYTES_68_RQ_HEAD_S, 0);
+			       QP_CONTEXT_QPC_BYTES_68_RQ_HEAD_S,
+			       hr_qp->rq.head);
 		roce_set_field(context->qpc_bytes_68,
 			       QP_CONTEXT_QPC_BYTES_68_RQ_CUR_INDEX_M,
 			       QP_CONTEXT_QPC_BYTES_68_RQ_CUR_INDEX_S, 0);
