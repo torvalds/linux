@@ -44,23 +44,6 @@ On-line docs
         Creative Commons Attribution-ShareAlike 2.0 license.
       :note: You can also :ref:`purchase a copy from O'Reilly or elsewhere  <ldd3_published>`.
 
-    * Title: **The Linux Kernel**
-
-      :Author: David A. Rusling.
-      :URL: http://www.tldp.org/LDP/tlk/tlk.html
-      :Keywords: everything!, book.
-      :Description: On line, 200 pages book describing most aspects of
-        the Linux Kernel. Probably, the first reference for beginners.
-        Lots of illustrations explaining data structures use and
-        relationships in the purest Richard W. Stevens' style. Contents:
-        "1.-Hardware Basics, 2.-Software Basics, 3.-Memory Management,
-        4.-Processes, 5.-Interprocess Communication Mechanisms, 6.-PCI,
-        7.-Interrupts and Interrupt Handling, 8.-Device Drivers, 9.-The
-        File system, 10.-Networks, 11.-Kernel Mechanisms, 12.-Modules,
-        13.-The Linux Kernel Sources, A.-Linux Data Structures, B.-The
-        Alpha AXP Processor, C.-Useful Web and FTP Sites, D.-The GNU
-        General Public License, Glossary". In short: a must have.
-
     * Title: **Conceptual Architecture of the Linux Kernel**
 
       :Author: Ivan T. Bowman.
