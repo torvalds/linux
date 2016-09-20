@@ -342,9 +342,11 @@ void __kvm_apic_update_irr(u32 *pir, void *regs)
 	u32 i, pir_val;
 
 	for (i = 0; i <= 7; i++) {
-		pir_val = xchg(&pir[i], 0);
-		if (pir_val)
+		pir_val = READ_ONCE(pir[i]);
+		if (pir_val) {
+			pir_val = xchg(&pir[i], 0);
 			*((u32 *)(regs + APIC_IRR + i * 0x10)) |= pir_val;
+		}
 	}
 }
 EXPORT_SYMBOL_GPL(__kvm_apic_update_irr);
