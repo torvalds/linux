@@ -2278,6 +2278,15 @@ static int _dasd_sleep_on(struct dasd_ccw_req *maincqr, int interruptible)
 			continue;
 		}
 		/*
+		 * Don't try to start requests if device is in
+		 * offline processing, it might wait forever
+		 */
+		if (test_bit(DASD_FLAG_OFFLINE, &device->flags)) {
+			cqr->status = DASD_CQR_FAILED;
+			cqr->intrc = -ENODEV;
+			continue;
+		}
+		/*
 		 * Don't try to start requests if device is stopped
 		 * except path verification requests
 		 */
