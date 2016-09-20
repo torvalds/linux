@@ -73,8 +73,14 @@ int hns_roce_v1_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	u32 ind = 0;
 	int ret = 0;
 
-	spin_lock_irqsave(&qp->sq.lock, flags);
+	if (unlikely(ibqp->qp_type != IB_QPT_GSI &&
+		ibqp->qp_type != IB_QPT_RC)) {
+		dev_err(dev, "un-supported QP type\n");
+		*bad_wr = NULL;
+		return -EOPNOTSUPP;
+	}
 
+	spin_lock_irqsave(&qp->sq.lock, flags);
 	ind = qp->sq_next_wqe;
 	for (nreq = 0; wr; ++nreq, wr = wr->next) {
 		if (hns_roce_wq_overflow(&qp->sq, nreq, qp->ibqp.send_cq)) {
@@ -263,9 +269,6 @@ int hns_roce_v1_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 					      HNS_ROCE_WQE_SGE_NUM_BIT);
 			}
 			ind++;
-		} else {
-			dev_dbg(dev, "unSupported QP type\n");
-			break;
 		}
 	}
 
