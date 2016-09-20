@@ -24,8 +24,7 @@ static void print_chunk(struct extent_buffer *eb, struct btrfs_chunk *chunk)
 {
 	int num_stripes = btrfs_chunk_num_stripes(eb, chunk);
 	int i;
-	printk(KERN_INFO "\t\tchunk length %llu owner %llu type %llu "
-	       "num_stripes %d\n",
+	printk(KERN_INFO "\t\tchunk length %llu owner %llu type %llu num_stripes %d\n",
 	       btrfs_chunk_length(eb, chunk), btrfs_chunk_owner(eb, chunk),
 	       btrfs_chunk_type(eb, chunk), num_stripes);
 	for (i = 0 ; i < num_stripes ; i++) {
@@ -37,8 +36,7 @@ static void print_chunk(struct extent_buffer *eb, struct btrfs_chunk *chunk)
 static void print_dev_item(struct extent_buffer *eb,
 			   struct btrfs_dev_item *dev_item)
 {
-	printk(KERN_INFO "\t\tdev item devid %llu "
-	       "total_bytes %llu bytes used %llu\n",
+	printk(KERN_INFO "\t\tdev item devid %llu total_bytes %llu bytes used %llu\n",
 	       btrfs_device_id(eb, dev_item),
 	       btrfs_device_total_bytes(eb, dev_item),
 	       btrfs_device_bytes_used(eb, dev_item));
@@ -46,8 +44,7 @@ static void print_dev_item(struct extent_buffer *eb,
 static void print_extent_data_ref(struct extent_buffer *eb,
 				  struct btrfs_extent_data_ref *ref)
 {
-	printk(KERN_INFO "\t\textent data backref root %llu "
-	       "objectid %llu offset %llu count %u\n",
+	printk(KERN_INFO "\t\textent data backref root %llu objectid %llu offset %llu count %u\n",
 	       btrfs_extent_data_ref_root(eb, ref),
 	       btrfs_extent_data_ref_objectid(eb, ref),
 	       btrfs_extent_data_ref_offset(eb, ref),
@@ -92,8 +89,7 @@ static void print_extent_item(struct extent_buffer *eb, int slot, int type)
 		struct btrfs_tree_block_info *info;
 		info = (struct btrfs_tree_block_info *)(ei + 1);
 		btrfs_tree_block_key(eb, info, &key);
-		printk(KERN_INFO "\t\ttree block key (%llu %u %llu) "
-		       "level %d\n",
+		printk(KERN_INFO "\t\ttree block key (%llu %u %llu) level %d\n",
 		       btrfs_disk_key_objectid(&key), key.type,
 		       btrfs_disk_key_offset(&key),
 		       btrfs_tree_block_level(eb, info));
@@ -110,12 +106,10 @@ static void print_extent_item(struct extent_buffer *eb, int slot, int type)
 		offset = btrfs_extent_inline_ref_offset(eb, iref);
 		switch (type) {
 		case BTRFS_TREE_BLOCK_REF_KEY:
-			printk(KERN_INFO "\t\ttree block backref "
-				"root %llu\n", offset);
+			printk(KERN_INFO "\t\ttree block backref root %llu\n", offset);
 			break;
 		case BTRFS_SHARED_BLOCK_REF_KEY:
-			printk(KERN_INFO "\t\tshared block backref "
-				"parent %llu\n", offset);
+			printk(KERN_INFO "\t\tshared block backref parent %llu\n", offset);
 			break;
 		case BTRFS_EXTENT_DATA_REF_KEY:
 			dref = (struct btrfs_extent_data_ref *)(&iref->offset);
@@ -123,8 +117,7 @@ static void print_extent_item(struct extent_buffer *eb, int slot, int type)
 			break;
 		case BTRFS_SHARED_DATA_REF_KEY:
 			sref = (struct btrfs_shared_data_ref *)(iref + 1);
-			printk(KERN_INFO "\t\tshared data backref "
-			       "parent %llu count %u\n",
+			printk(KERN_INFO "\t\tshared data backref parent %llu count %u\n",
 			       offset, btrfs_shared_data_ref_count(eb, sref));
 			break;
 		default:
@@ -141,8 +134,7 @@ static void print_extent_ref_v0(struct extent_buffer *eb, int slot)
 	struct btrfs_extent_ref_v0 *ref0;
 
 	ref0 = btrfs_item_ptr(eb, slot, struct btrfs_extent_ref_v0);
-	printk("\t\textent back ref root %llu gen %llu "
-		"owner %llu num_refs %lu\n",
+	printk("\t\textent back ref root %llu gen %llu owner %llu num_refs %lu\n",
 		btrfs_ref_root_v0(eb, ref0),
 		btrfs_ref_generation_v0(eb, ref0),
 		btrfs_ref_objectid_v0(eb, ref0),
@@ -196,15 +188,13 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 		item = btrfs_item_nr(i);
 		btrfs_item_key_to_cpu(l, &key, i);
 		type = key.type;
-		printk(KERN_INFO "\titem %d key (%llu %u %llu) itemoff %d "
-		       "itemsize %d\n",
+		printk(KERN_INFO "\titem %d key (%llu %u %llu) itemoff %d itemsize %d\n",
 			i, key.objectid, type, key.offset,
 			btrfs_item_offset(l, item), btrfs_item_size(l, item));
 		switch (type) {
 		case BTRFS_INODE_ITEM_KEY:
 			ii = btrfs_item_ptr(l, i, struct btrfs_inode_item);
-			printk(KERN_INFO "\t\tinode generation %llu size %llu "
-			       "mode %o\n",
+			printk(KERN_INFO "\t\tinode generation %llu size %llu mode %o\n",
 			       btrfs_inode_generation(l, ii),
 			       btrfs_inode_size(l, ii),
 			       btrfs_inode_mode(l, ii));
@@ -248,17 +238,14 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 					    struct btrfs_file_extent_item);
 			if (btrfs_file_extent_type(l, fi) ==
 			    BTRFS_FILE_EXTENT_INLINE) {
-				printk(KERN_INFO "\t\tinline extent data "
-				       "size %u\n",
+				printk(KERN_INFO "\t\tinline extent data size %u\n",
 				       btrfs_file_extent_inline_len(l, i, fi));
 				break;
 			}
-			printk(KERN_INFO "\t\textent data disk bytenr %llu "
-			       "nr %llu\n",
+			printk(KERN_INFO "\t\textent data disk bytenr %llu nr %llu\n",
 			       btrfs_file_extent_disk_bytenr(l, fi),
 			       btrfs_file_extent_disk_num_bytes(l, fi));
-			printk(KERN_INFO "\t\textent data offset %llu "
-			       "nr %llu ram %llu\n",
+			printk(KERN_INFO "\t\textent data offset %llu nr %llu ram %llu\n",
 			       btrfs_file_extent_offset(l, fi),
 			       btrfs_file_extent_num_bytes(l, fi),
 			       btrfs_file_extent_ram_bytes(l, fi));
@@ -287,9 +274,7 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 		case BTRFS_DEV_EXTENT_KEY:
 			dev_extent = btrfs_item_ptr(l, i,
 						    struct btrfs_dev_extent);
-			printk(KERN_INFO "\t\tdev extent chunk_tree %llu\n"
-			       "\t\tchunk objectid %llu chunk offset %llu "
-			       "length %llu\n",
+			printk(KERN_INFO "\t\tdev extent chunk_tree %llu\n\t\tchunk objectid %llu chunk offset %llu length %llu\n",
 			       btrfs_dev_extent_chunk_tree(l, dev_extent),
 			       btrfs_dev_extent_chunk_objectid(l, dev_extent),
 			       btrfs_dev_extent_chunk_offset(l, dev_extent),
@@ -343,9 +328,10 @@ void btrfs_print_tree(struct btrfs_root *root, struct extent_buffer *c)
 		btrfs_print_leaf(root, c);
 		return;
 	}
-	btrfs_info(root->fs_info, "node %llu level %d total ptrs %d free spc %u",
-		btrfs_header_bytenr(c), level, nr,
-		(u32)BTRFS_NODEPTRS_PER_BLOCK(root) - nr);
+	btrfs_info(root->fs_info,
+		   "node %llu level %d total ptrs %d free spc %u",
+		   btrfs_header_bytenr(c), level, nr,
+		   (u32)BTRFS_NODEPTRS_PER_BLOCK(root) - nr);
 	for (i = 0; i < nr; i++) {
 		btrfs_node_key_to_cpu(c, &key, i);
 		printk(KERN_INFO "\tkey %d (%llu %u %llu) block %llu\n",

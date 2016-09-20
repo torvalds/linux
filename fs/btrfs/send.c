@@ -1439,16 +1439,13 @@ static int find_extent_clone(struct send_ctx *sctx,
 	if (!backref_ctx->found_itself) {
 		/* found a bug in backref code? */
 		ret = -EIO;
-		btrfs_err(sctx->send_root->fs_info, "did not find backref in "
-				"send_root. inode=%llu, offset=%llu, "
-				"disk_byte=%llu found extent=%llu",
+		btrfs_err(sctx->send_root->fs_info,
+			  "did not find backref in send_root. inode=%llu, offset=%llu, disk_byte=%llu found extent=%llu",
 				ino, data_offset, disk_byte, found_key.objectid);
 		goto out;
 	}
 
-verbose_printk(KERN_DEBUG "btrfs: find_extent_clone: data_offset=%llu, "
-		"ino=%llu, "
-		"num_bytes=%llu, logical=%llu\n",
+verbose_printk(KERN_DEBUG "btrfs: find_extent_clone: data_offset=%llu, ino=%llu, num_bytes=%llu, logical=%llu\n",
 		data_offset, ino, num_bytes, logical);
 
 	if (!backref_ctx->found)
@@ -4710,9 +4707,8 @@ static int send_clone(struct send_ctx *sctx,
 	struct fs_path *p;
 	u64 gen;
 
-verbose_printk("btrfs: send_clone offset=%llu, len=%d, clone_root=%llu, "
-	       "clone_inode=%llu, clone_offset=%llu\n", offset, len,
-		clone_root->root->objectid, clone_root->ino,
+verbose_printk("btrfs: send_clone offset=%llu, len=%d, clone_root=%llu, clone_inode=%llu, clone_offset=%llu\n",
+		offset, len, clone_root->root->objectid, clone_root->ino,
 		clone_root->offset);
 
 	p = fs_path_alloc();

@@ -326,8 +326,7 @@ static int csum_tree_block(struct btrfs_fs_info *fs_info,
 
 			read_extent_buffer(buf, &val, 0, csum_size);
 			btrfs_warn_rl(fs_info,
-				"%s checksum verify failed on %llu wanted %X found %X "
-				"level %d",
+				"%s checksum verify failed on %llu wanted %X found %X level %d",
 				fs_info->sb->s_id, buf->start,
 				val, found, btrfs_header_level(buf));
 			if (result != (char *)&inline_result)
@@ -4052,8 +4051,7 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 	root = BTRFS_I(buf->pages[0]->mapping->host)->root;
 	btrfs_assert_tree_locked(buf);
 	if (transid != root->fs_info->generation)
-		WARN(1, KERN_CRIT "btrfs transid mismatch buffer %llu, "
-		       "found %llu running %llu\n",
+		WARN(1, KERN_CRIT "btrfs transid mismatch buffer %llu, found %llu running %llu\n",
 			buf->start, transid, root->fs_info->generation);
 	was_dirty = set_extent_buffer_dirty(buf);
 	if (!was_dirty)

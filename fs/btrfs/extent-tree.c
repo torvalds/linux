@@ -2588,7 +2588,9 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 					if (must_insert_reserved)
 						locked_ref->must_insert_reserved = 1;
 					locked_ref->processing = 0;
-					btrfs_debug(fs_info, "run_delayed_extent_op returned %d", ret);
+					btrfs_debug(fs_info,
+						    "run_delayed_extent_op returned %d",
+						    ret);
 					btrfs_delayed_ref_unlock(locked_ref);
 					return ret;
 				}
@@ -2648,7 +2650,8 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 			locked_ref->processing = 0;
 			btrfs_delayed_ref_unlock(locked_ref);
 			btrfs_put_delayed_ref(ref);
-			btrfs_debug(fs_info, "run_one_delayed_ref returned %d", ret);
+			btrfs_debug(fs_info, "run_one_delayed_ref returned %d",
+				    ret);
 			return ret;
 		}
 
@@ -6930,8 +6933,9 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			}
 
 			if (ret) {
-				btrfs_err(info, "umm, got %d back from search, was looking for %llu",
-					ret, bytenr);
+				btrfs_err(info,
+					  "umm, got %d back from search, was looking for %llu",
+					  ret, bytenr);
 				if (ret > 0)
 					btrfs_print_leaf(extent_root,
 							 path->nodes[0]);
@@ -6977,7 +6981,8 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 		ret = btrfs_search_slot(trans, extent_root, &key, path,
 					-1, 1);
 		if (ret) {
-			btrfs_err(info, "umm, got %d back from search, was looking for %llu",
+			btrfs_err(info,
+				  "umm, got %d back from search, was looking for %llu",
 				ret, bytenr);
 			btrfs_print_leaf(extent_root, path->nodes[0]);
 		}
@@ -7004,8 +7009,9 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 
 	refs = btrfs_extent_refs(leaf, ei);
 	if (refs < refs_to_drop) {
-		btrfs_err(info, "trying to drop %d refs but we only have %Lu "
-			  "for bytenr %Lu", refs_to_drop, refs, bytenr);
+		btrfs_err(info,
+			  "trying to drop %d refs but we only have %Lu for bytenr %Lu",
+			  refs_to_drop, refs, bytenr);
 		ret = -EINVAL;
 		btrfs_abort_transaction(trans, ret);
 		goto out;
@@ -7913,8 +7919,7 @@ static void dump_space_info(struct btrfs_space_info *info, u64 bytes,
 	       info->total_bytes - info->bytes_used - info->bytes_pinned -
 	       info->bytes_reserved - info->bytes_readonly -
 	       info->bytes_may_use, (info->full) ? "" : "not ");
-	printk(KERN_INFO "BTRFS: space_info total=%llu, used=%llu, pinned=%llu, "
-	       "reserved=%llu, may_use=%llu, readonly=%llu\n",
+	printk(KERN_INFO "BTRFS: space_info total=%llu, used=%llu, pinned=%llu, reserved=%llu, may_use=%llu, readonly=%llu\n",
 	       info->total_bytes, info->bytes_used, info->bytes_pinned,
 	       info->bytes_reserved, info->bytes_may_use,
 	       info->bytes_readonly);
@@ -7927,9 +7932,7 @@ static void dump_space_info(struct btrfs_space_info *info, u64 bytes,
 again:
 	list_for_each_entry(cache, &info->block_groups[index], list) {
 		spin_lock(&cache->lock);
-		printk(KERN_INFO "BTRFS: "
-			   "block group %llu has %llu bytes, "
-			   "%llu used %llu pinned %llu reserved %s\n",
+		printk(KERN_INFO "BTRFS: block group %llu has %llu bytes, %llu used %llu pinned %llu reserved %s\n",
 		       cache->key.objectid, cache->key.offset,
 		       btrfs_block_group_used(&cache->item), cache->pinned,
 		       cache->reserved, cache->ro ? "[readonly]" : "");
@@ -7971,8 +7974,9 @@ again:
 			struct btrfs_space_info *sinfo;
 
 			sinfo = __find_space_info(root->fs_info, flags);
-			btrfs_err(root->fs_info, "allocation failed flags %llu, wanted %llu",
-				flags, num_bytes);
+			btrfs_err(root->fs_info,
+				  "allocation failed flags %llu, wanted %llu",
+				  flags, num_bytes);
 			if (sinfo)
 				dump_space_info(sinfo, num_bytes, 1);
 		}
@@ -8966,10 +8970,8 @@ skip:
 						     generation, level - 1);
 			if (ret) {
 				btrfs_err_rl(root->fs_info,
-					"Error "
-					"%d accounting shared subtree. Quota "
-					"is out of sync, rescan required.",
-					ret);
+					     "Error %d accounting shared subtree. Quota is out of sync, rescan required.",
+					     ret);
 			}
 		}
 		ret = btrfs_free_extent(trans, root, bytenr, blocksize, parent,
@@ -9059,10 +9061,8 @@ static noinline int walk_up_proc(struct btrfs_trans_handle *trans,
 			ret = account_leaf_items(trans, root, eb);
 			if (ret) {
 				btrfs_err_rl(root->fs_info,
-					"error "
-					"%d accounting leaf items. Quota "
-					"is out of sync, rescan required.",
-					ret);
+					     "error %d accounting leaf items. Quota is out of sync, rescan required.",
+					     ret);
 			}
 		}
 		/* make block locked assertion in clean_tree_block happy */

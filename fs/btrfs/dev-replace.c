@@ -218,8 +218,9 @@ int btrfs_run_dev_replace(struct btrfs_trans_handle *trans,
 	}
 	ret = btrfs_search_slot(trans, dev_root, &key, path, -1, 1);
 	if (ret < 0) {
-		btrfs_warn(fs_info, "error %d while searching for dev_replace item!",
-			ret);
+		btrfs_warn(fs_info,
+			   "error %d while searching for dev_replace item!",
+			   ret);
 		goto out;
 	}
 
@@ -238,8 +239,9 @@ int btrfs_run_dev_replace(struct btrfs_trans_handle *trans,
 		 */
 		ret = btrfs_del_item(trans, dev_root, path);
 		if (ret != 0) {
-			btrfs_warn(fs_info, "delete too small dev_replace item failed %d!",
-				ret);
+			btrfs_warn(fs_info,
+				   "delete too small dev_replace item failed %d!",
+				   ret);
 			goto out;
 		}
 		ret = 1;
@@ -251,8 +253,8 @@ int btrfs_run_dev_replace(struct btrfs_trans_handle *trans,
 		ret = btrfs_insert_empty_item(trans, dev_root, path,
 					      &key, sizeof(*ptr));
 		if (ret < 0) {
-			btrfs_warn(fs_info, "insert dev_replace item failed %d!",
-				ret);
+			btrfs_warn(fs_info,
+				   "insert dev_replace item failed %d!", ret);
 			goto out;
 		}
 	}
@@ -772,9 +774,10 @@ int btrfs_resume_dev_replace_async(struct btrfs_fs_info *fs_info)
 		break;
 	}
 	if (!dev_replace->tgtdev || !dev_replace->tgtdev->bdev) {
-		btrfs_info(fs_info, "cannot continue dev_replace, tgtdev is missing");
 		btrfs_info(fs_info,
-			"you may cancel the operation after 'mount -o degraded'");
+			   "cannot continue dev_replace, tgtdev is missing");
+		btrfs_info(fs_info,
+			   "you may cancel the operation after 'mount -o degraded'");
 		btrfs_dev_replace_unlock(dev_replace, 1);
 		return 0;
 	}

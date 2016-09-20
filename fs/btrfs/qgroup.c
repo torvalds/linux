@@ -360,8 +360,7 @@ int btrfs_read_qgroup_config(struct btrfs_fs_info *fs_info)
 			    fs_info->generation) {
 				flags |= BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
 				btrfs_err(fs_info,
-					"qgroup generation mismatch, "
-					"marked as inconsistent");
+					"qgroup generation mismatch, marked as inconsistent");
 			}
 			fs_info->qgroup_flags = btrfs_qgroup_status_flags(l,
 									  ptr);
@@ -1994,8 +1993,9 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 		ret = update_qgroup_limit_item(trans, quota_root, dstgroup);
 		if (ret) {
 			fs_info->qgroup_flags |= BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
-			btrfs_info(fs_info, "unable to update quota limit for %llu",
-			       dstgroup->qgroupid);
+			btrfs_info(fs_info,
+				   "unable to update quota limit for %llu",
+				   dstgroup->qgroupid);
 			goto unlock;
 		}
 	}
@@ -2229,8 +2229,7 @@ void assert_qgroups_uptodate(struct btrfs_trans_handle *trans)
 	if (list_empty(&trans->qgroup_ref_list) && !trans->delayed_ref_elem.seq)
 		return;
 	btrfs_err(trans->fs_info,
-		"qgroups not uptodate in trans handle %p:  list is%s empty, "
-		"seq is %#x.%x",
+		"qgroups not uptodate in trans handle %p:  list is%s empty, seq is %#x.%x",
 		trans, list_empty(&trans->qgroup_ref_list) ? "" : " not",
 		(u32)(trans->delayed_ref_elem.seq >> 32),
 		(u32)trans->delayed_ref_elem.seq);

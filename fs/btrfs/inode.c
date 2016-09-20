@@ -7024,8 +7024,9 @@ not_found_em:
 insert:
 	btrfs_release_path(path);
 	if (em->start > start || extent_map_end(em) <= start) {
-		btrfs_err(root->fs_info, "bad extent! em: [%llu %llu] passed [%llu %llu]",
-			em->start, em->len, start, len);
+		btrfs_err(root->fs_info,
+			  "bad extent! em: [%llu %llu] passed [%llu %llu]",
+			  em->start, em->len, start, len);
 		err = -EIO;
 		goto out;
 	}
@@ -9388,8 +9389,9 @@ void btrfs_destroy_inode(struct inode *inode)
 		if (!ordered)
 			break;
 		else {
-			btrfs_err(root->fs_info, "found ordered extent %llu %llu on inode cleanup",
-				ordered->file_offset, ordered->len);
+			btrfs_err(root->fs_info,
+				  "found ordered extent %llu %llu on inode cleanup",
+				  ordered->file_offset, ordered->len);
 			btrfs_remove_ordered_extent(inode, ordered);
 			btrfs_put_ordered_extent(ordered);
 			btrfs_put_ordered_extent(ordered);

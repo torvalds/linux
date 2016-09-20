@@ -716,8 +716,7 @@ static int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 
 	if (BTRFS_I(inode)->generation != generation) {
 		btrfs_err(root->fs_info,
-			"free space inode generation (%llu) "
-			"did not match free space cache generation (%llu)",
+			"free space inode generation (%llu) did not match free space cache generation (%llu)",
 			BTRFS_I(inode)->generation, generation);
 		return 0;
 	}
@@ -879,8 +878,9 @@ int load_free_space_cache(struct btrfs_fs_info *fs_info,
 
 	if (!matched) {
 		__btrfs_remove_free_space_cache(ctl);
-		btrfs_warn(fs_info, "block group %llu has wrong amount of free space",
-			block_group->key.objectid);
+		btrfs_warn(fs_info,
+			   "block group %llu has wrong amount of free space",
+			   block_group->key.objectid);
 		ret = -1;
 	}
 out:
@@ -891,8 +891,9 @@ out:
 		spin_unlock(&block_group->lock);
 		ret = 0;
 
-		btrfs_warn(fs_info, "failed to load free space cache for block group %llu, rebuilding it now",
-			block_group->key.objectid);
+		btrfs_warn(fs_info,
+			   "failed to load free space cache for block group %llu, rebuilding it now",
+			   block_group->key.objectid);
 	}
 
 	iput(inode);

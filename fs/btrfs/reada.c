@@ -829,9 +829,9 @@ static void dump_devs(struct btrfs_fs_info *fs_info, int all)
 						     (void **)&zone, index, 1);
 			if (ret == 0)
 				break;
-			printk(KERN_DEBUG "  zone %llu-%llu elems %llu locked "
-				"%d devs", zone->start, zone->end, zone->elems,
-				zone->locked);
+			printk(KERN_DEBUG "  zone %llu-%llu elems %llu locked %d devs",
+			       zone->start, zone->end, zone->elems,
+			       zone->locked);
 			for (j = 0; j < zone->ndevs; ++j) {
 				printk(KERN_CONT " %lld",
 					zone->devs[j]->devid);
