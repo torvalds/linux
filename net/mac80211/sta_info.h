@@ -455,7 +455,7 @@ struct sta_info {
 	/* General information, mostly static */
 	struct list_head list, free_list;
 	struct rcu_head rcu_head;
-	struct rhash_head hash_node;
+	struct rhlist_head hash_node;
 	u8 addr[ETH_ALEN];
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
@@ -638,6 +638,9 @@ rcu_dereference_protected_tid_tx(struct sta_info *sta, int tid)
  */
 #define STA_INFO_CLEANUP_INTERVAL (10 * HZ)
 
+struct rhlist_head *sta_info_hash_lookup(struct ieee80211_local *local,
+					 const u8 *addr);
+
 /*
  * Get a STA info, must be under RCU read lock.
  */
@@ -647,17 +650,9 @@ struct sta_info *sta_info_get(struct ieee80211_sub_if_data *sdata,
 struct sta_info *sta_info_get_bss(struct ieee80211_sub_if_data *sdata,
 				  const u8 *addr);
 
-u32 sta_addr_hash(const void *key, u32 length, u32 seed);
-
-#define _sta_bucket_idx(_tbl, _a)					\
-	rht_bucket_index(_tbl, sta_addr_hash(_a, ETH_ALEN, (_tbl)->hash_rnd))
-
-#define for_each_sta_info(local, tbl, _addr, _sta, _tmp)		\
-	rht_for_each_entry_rcu(_sta, _tmp, tbl, 			\
-			       _sta_bucket_idx(tbl, _addr),		\
-			       hash_node)				\
-	/* compare address and run code only if it matches */		\
-	if (ether_addr_equal(_sta->addr, (_addr)))
+#define for_each_sta_info(local, _addr, _sta, _tmp)			\
+	rhl_for_each_entry_rcu(_sta, _tmp,				\
+			       sta_info_hash_lookup(local, _addr), hash_node)
 
 /*
  * Get STA info by index, BROKEN!
