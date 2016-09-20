@@ -2396,10 +2396,12 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 			       QP_CONTEXT_QPC_BYTES_148_CHECK_FLAG_S, 0);
 		roce_set_field(context->qpc_bytes_148,
 			       QP_CONTEXT_QPC_BYTES_148_RETRY_COUNT_M,
-			       QP_CONTEXT_QPC_BYTES_148_RETRY_COUNT_S, 0);
+			       QP_CONTEXT_QPC_BYTES_148_RETRY_COUNT_S,
+			       attr->retry_cnt);
 		roce_set_field(context->qpc_bytes_148,
 			       QP_CONTEXT_QPC_BYTES_148_RNR_RETRY_COUNT_M,
-			       QP_CONTEXT_QPC_BYTES_148_RNR_RETRY_COUNT_S, 0);
+			       QP_CONTEXT_QPC_BYTES_148_RNR_RETRY_COUNT_S,
+			       attr->rnr_retry);
 		roce_set_field(context->qpc_bytes_148,
 			       QP_CONTEXT_QPC_BYTES_148_LSN_M,
 			       QP_CONTEXT_QPC_BYTES_148_LSN_S, 0x100);
