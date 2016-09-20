@@ -47,7 +47,7 @@ int gb_audio_gb_get_topology(struct gb_connection *connection,
 EXPORT_SYMBOL_GPL(gb_audio_gb_get_topology);
 
 int gb_audio_gb_get_control(struct gb_connection *connection,
-			    uint8_t control_id, uint8_t index,
+			    u8 control_id, u8 index,
 			    struct gb_audio_ctl_elem_value *value)
 {
 	struct gb_audio_get_control_request req;
@@ -69,7 +69,7 @@ int gb_audio_gb_get_control(struct gb_connection *connection,
 EXPORT_SYMBOL_GPL(gb_audio_gb_get_control);
 
 int gb_audio_gb_set_control(struct gb_connection *connection,
-			    uint8_t control_id, uint8_t index,
+			    u8 control_id, u8 index,
 			    struct gb_audio_ctl_elem_value *value)
 {
 	struct gb_audio_set_control_request req;
@@ -84,7 +84,7 @@ int gb_audio_gb_set_control(struct gb_connection *connection,
 EXPORT_SYMBOL_GPL(gb_audio_gb_set_control);
 
 int gb_audio_gb_enable_widget(struct gb_connection *connection,
-			      uint8_t widget_id)
+			      u8 widget_id)
 {
 	struct gb_audio_enable_widget_request req;
 
@@ -96,7 +96,7 @@ int gb_audio_gb_enable_widget(struct gb_connection *connection,
 EXPORT_SYMBOL_GPL(gb_audio_gb_enable_widget);
 
 int gb_audio_gb_disable_widget(struct gb_connection *connection,
-			       uint8_t widget_id)
+			       u8 widget_id)
 {
 	struct gb_audio_disable_widget_request req;
 
@@ -108,8 +108,8 @@ int gb_audio_gb_disable_widget(struct gb_connection *connection,
 EXPORT_SYMBOL_GPL(gb_audio_gb_disable_widget);
 
 int gb_audio_gb_get_pcm(struct gb_connection *connection, uint16_t data_cport,
-			uint32_t *format, uint32_t *rate, uint8_t *channels,
-			uint8_t *sig_bits)
+			uint32_t *format, uint32_t *rate, u8 *channels,
+			u8 *sig_bits)
 {
 	struct gb_audio_get_pcm_request req;
 	struct gb_audio_get_pcm_response resp;
@@ -132,8 +132,8 @@ int gb_audio_gb_get_pcm(struct gb_connection *connection, uint16_t data_cport,
 EXPORT_SYMBOL_GPL(gb_audio_gb_get_pcm);
 
 int gb_audio_gb_set_pcm(struct gb_connection *connection, uint16_t data_cport,
-			uint32_t format, uint32_t rate, uint8_t channels,
-			uint8_t sig_bits)
+			uint32_t format, uint32_t rate, u8 channels,
+			u8 sig_bits)
 {
 	struct gb_audio_set_pcm_request req;
 

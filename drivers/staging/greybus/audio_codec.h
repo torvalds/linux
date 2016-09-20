@@ -98,7 +98,7 @@ enum gbaudio_codec_state {
 
 struct gbaudio_stream_params {
 	int state;
-	uint8_t sig_bits, channels;
+	u8 sig_bits, channels;
 	uint32_t format, rate;
 };
 
@@ -221,23 +221,23 @@ void gbaudio_unregister_module(struct gbaudio_module_info *module);
 extern int gb_audio_gb_get_topology(struct gb_connection *connection,
 				    struct gb_audio_topology **topology);
 extern int gb_audio_gb_get_control(struct gb_connection *connection,
-				   uint8_t control_id, uint8_t index,
+				   u8 control_id, u8 index,
 				   struct gb_audio_ctl_elem_value *value);
 extern int gb_audio_gb_set_control(struct gb_connection *connection,
-				   uint8_t control_id, uint8_t index,
+				   u8 control_id, u8 index,
 				   struct gb_audio_ctl_elem_value *value);
 extern int gb_audio_gb_enable_widget(struct gb_connection *connection,
-				     uint8_t widget_id);
+				     u8 widget_id);
 extern int gb_audio_gb_disable_widget(struct gb_connection *connection,
-				      uint8_t widget_id);
+				      u8 widget_id);
 extern int gb_audio_gb_get_pcm(struct gb_connection *connection,
 			       uint16_t data_cport, uint32_t *format,
-			       uint32_t *rate, uint8_t *channels,
-			       uint8_t *sig_bits);
+			       uint32_t *rate, u8 *channels,
+			       u8 *sig_bits);
 extern int gb_audio_gb_set_pcm(struct gb_connection *connection,
 			       uint16_t data_cport, uint32_t format,
-			       uint32_t rate, uint8_t channels,
-			       uint8_t sig_bits);
+			       uint32_t rate, u8 channels,
+			       u8 sig_bits);
 extern int gb_audio_gb_set_tx_data_size(struct gb_connection *connection,
 					uint16_t data_cport, uint16_t size);
 extern int gb_audio_gb_activate_tx(struct gb_connection *connection,
