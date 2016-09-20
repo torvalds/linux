@@ -36,13 +36,6 @@
 #define MAX_BUF 163840
 #define NAPI_WEIGHT 64
 
-static int visornic_probe(struct visor_device *dev);
-static void visornic_remove(struct visor_device *dev);
-static int visornic_pause(struct visor_device *dev,
-			  visorbus_state_complete_func complete_func);
-static int visornic_resume(struct visor_device *dev,
-			   visorbus_state_complete_func complete_func);
-
 /* DEBUGFS declarations */
 static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 				 size_t len, loff_t *offset);
@@ -74,23 +67,6 @@ MODULE_DEVICE_TABLE(visorbus, visornic_channel_types);
  * properly.
  */
 MODULE_ALIAS("visorbus:" SPAR_VNIC_CHANNEL_PROTOCOL_UUID_STR);
-
-/* This is used to tell the visor bus driver which types of visor devices
- * we support, and what functions to call when a visor device that we support
- * is attached or removed.
- */
-static struct visor_driver visornic_driver = {
-	.name = "visornic",
-	.version = "1.0.0.0",
-	.vertag = NULL,
-	.owner = THIS_MODULE,
-	.channel_types = visornic_channel_types,
-	.probe = visornic_probe,
-	.remove = visornic_remove,
-	.pause = visornic_pause,
-	.resume = visornic_resume,
-	.channel_interrupt = NULL,
-};
 
 struct chanstat {
 	unsigned long got_rcv;
@@ -2058,6 +2034,23 @@ static int visornic_resume(struct visor_device *dev,
 	complete_func(dev, 0);
 	return 0;
 }
+
+/* This is used to tell the visor bus driver which types of visor devices
+ * we support, and what functions to call when a visor device that we support
+ * is attached or removed.
+ */
+static struct visor_driver visornic_driver = {
+	.name = "visornic",
+	.version = "1.0.0.0",
+	.vertag = NULL,
+	.owner = THIS_MODULE,
+	.channel_types = visornic_channel_types,
+	.probe = visornic_probe,
+	.remove = visornic_remove,
+	.pause = visornic_pause,
+	.resume = visornic_resume,
+	.channel_interrupt = NULL,
+};
 
 /**
  *	visornic_init	- Init function
