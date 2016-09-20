@@ -767,7 +767,7 @@ static void xdr_set_next_page(struct xdr_stream *xdr)
 	newbase -= xdr->buf->page_base;
 
 	if (xdr_set_page_base(xdr, newbase, PAGE_SIZE) < 0)
-		xdr_set_iov(xdr, xdr->buf->tail, xdr->buf->len);
+		xdr_set_iov(xdr, xdr->buf->tail, xdr->nwords << 2);
 }
 
 static bool xdr_set_next_buffer(struct xdr_stream *xdr)
@@ -776,7 +776,7 @@ static bool xdr_set_next_buffer(struct xdr_stream *xdr)
 		xdr_set_next_page(xdr);
 	else if (xdr->iov == xdr->buf->head) {
 		if (xdr_set_page_base(xdr, 0, PAGE_SIZE) < 0)
-			xdr_set_iov(xdr, xdr->buf->tail, xdr->buf->len);
+			xdr_set_iov(xdr, xdr->buf->tail, xdr->nwords << 2);
 	}
 	return xdr->p != xdr->end;
 }
