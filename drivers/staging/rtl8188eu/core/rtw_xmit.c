@@ -142,9 +142,8 @@ s32	_rtw_init_xmit_priv(struct xmit_priv *pxmitpriv, struct adapter *padapter)
 		if (res == _FAIL) {
 			msleep(10);
 			res = rtw_os_xmit_resource_alloc(padapter, pxmitbuf, (MAX_XMITBUF_SZ + XMITBUF_ALIGN_SZ));
-			if (res == _FAIL) {
+			if (res == _FAIL)
 				goto exit;
-			}
 		}
 
 		pxmitbuf->flags = XMIT_VO_QUEUE;
@@ -248,9 +247,8 @@ void _rtw_free_xmit_priv(struct xmit_priv *pxmitpriv)
 		pxmitbuf++;
 	}
 
-	if (pxmitpriv->pallocated_xmit_extbuf) {
+	if (pxmitpriv->pallocated_xmit_extbuf)
 		vfree(pxmitpriv->pallocated_xmit_extbuf);
-	}
 
 	rtw_free_hwxmits(padapter);
 
@@ -779,11 +777,10 @@ s32 rtw_make_wlanhdr(struct adapter *padapter, u8 *hdr, struct pkt_attrib *pattr
 	if (pattrib->psta) {
 		psta = pattrib->psta;
 	} else {
-		if (bmcst) {
+		if (bmcst)
 			psta = rtw_get_bcmc_stainfo(padapter);
-		} else {
+		else
 			psta = rtw_get_stainfo(&padapter->stapriv, pattrib->ra);
-		}
 	}
 
 	memset(hdr, 0, WLANHDR_OFFSET);
@@ -1048,9 +1045,8 @@ s32 rtw_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, struct
 			mpdu_len -= llc_sz;
 		}
 
-		if ((pattrib->icv_len > 0) && (pattrib->bswenc)) {
+		if ((pattrib->icv_len > 0) && (pattrib->bswenc))
 			mpdu_len -= pattrib->icv_len;
-		}
 
 		if (bmcst) {
 			/*  don't do fragment to broadcat/multicast packets */
@@ -1554,11 +1550,10 @@ s32 rtw_xmit_classifier(struct adapter *padapter, struct xmit_frame *pxmitframe)
 	int res = _SUCCESS;
 
 
-	if (pattrib->psta) {
+	if (pattrib->psta)
 		psta = pattrib->psta;
-	} else {
+	else
 		psta = rtw_get_stainfo(pstapriv, pattrib->ra);
-	}
 
 	if (psta == NULL) {
 		res = _FAIL;
