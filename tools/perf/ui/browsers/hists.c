@@ -1097,7 +1097,6 @@ static int __hpp__slsmg_color_printf(struct perf_hpp *hpp, const char *fmt, ...)
 	ret = scnprintf(hpp->buf, hpp->size, fmt, len, percent);
 	ui_browser__printf(arg->b, "%s", hpp->buf);
 
-	advance_hpp(hpp, ret);
 	return ret;
 }
 
@@ -2076,10 +2075,10 @@ void hist_browser__init(struct hist_browser *browser,
 	browser->b.use_navkeypressed	= true;
 	browser->show_headers		= symbol_conf.show_hist_headers;
 
-	hists__for_each_format(hists, fmt) {
-		perf_hpp__reset_width(fmt, hists);
+	hists__for_each_format(hists, fmt)
 		++browser->b.columns;
-	}
+
+	hists__reset_column_width(hists);
 }
 
 struct hist_browser *hist_browser__new(struct hists *hists)

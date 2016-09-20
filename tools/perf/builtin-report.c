@@ -935,7 +935,6 @@ repeat:
 
 	if (symbol_conf.report_hierarchy) {
 		/* disable incompatible options */
-		symbol_conf.event_group = false;
 		symbol_conf.cumulate_callchain = false;
 
 		if (field_order) {

@@ -6,7 +6,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <sys/mman.h>
+#include <uapi/linux/mman.h> /* To get things like MAP_HUGETLB even on older libc headers */
 #include "map.h"
 #include "thread.h"
 #include "strlist.h"
@@ -27,12 +27,7 @@ const char *map_type__name[MAP__NR_TYPES] = {
 
 static inline int is_anon_memory(const char *filename, u32 flags)
 {
-	u32 anon_flags = 0;
-
-#ifdef MAP_HUGETLB
-	anon_flags |= MAP_HUGETLB;
-#endif
-	return flags & anon_flags ||
+	return flags & MAP_HUGETLB ||
 	       !strcmp(filename, "//anon") ||
 	       !strncmp(filename, "/dev/zero", sizeof("/dev/zero") - 1) ||
 	       !strncmp(filename, "/anon_hugepage", sizeof("/anon_hugepage") - 1);
