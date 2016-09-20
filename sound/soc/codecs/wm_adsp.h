@@ -61,6 +61,8 @@ struct wm_adsp {
 
 	int fw;
 	int fw_ver;
+
+	bool booted;
 	bool running;
 
 	struct list_head ctl_list;
