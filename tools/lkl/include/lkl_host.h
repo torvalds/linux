@@ -17,7 +17,7 @@ extern struct lkl_host_operations lkl_host_ops;
  */
 int lkl_printf(const char *fmt, ...);
 
-extern char lkl_virtio_devs[256];
+extern char lkl_virtio_devs[4096];
 
 #ifdef CONFIG_AUTO_LKL_POSIX_HOST
 #include <sys/uio.h>

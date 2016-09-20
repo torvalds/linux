@@ -508,7 +508,7 @@ static const struct lkl_iomem_ops virtio_ops = {
 	.write = virtio_write,
 };
 
-char lkl_virtio_devs[256];
+char lkl_virtio_devs[4096];
 static char *devs = lkl_virtio_devs;
 
 void virtio_set_queue_max_merge_len(struct virtio_dev *dev, int q, int len)
