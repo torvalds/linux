@@ -103,7 +103,21 @@ smb2_hdr_assemble(struct smb2_hdr *hdr, __le16 smb2_cmd /* command */ ,
 	hdr->ProtocolId[3] = 'B';
 	hdr->StructureSize = cpu_to_le16(64);
 	hdr->Command = smb2_cmd;
-	hdr->CreditRequest = cpu_to_le16(2); /* BB make this dynamic */
+	if (tcon && tcon->ses && tcon->ses->server) {
+		struct TCP_Server_Info *server = tcon->ses->server;
+
+		spin_lock(&server->req_lock);
+		/* Request up to 2 credits but don't go over the limit. */
+		if (server->credits >= SMB2_MAX_CREDITS_AVAILABLE)
+			hdr->CreditRequest = cpu_to_le16(0);
+		else
+			hdr->CreditRequest = cpu_to_le16(
+				min_t(int, SMB2_MAX_CREDITS_AVAILABLE -
+						server->credits, 2));
+		spin_unlock(&server->req_lock);
+	} else {
+		hdr->CreditRequest = cpu_to_le16(2);
+	}
 	hdr->ProcessId = cpu_to_le32((__u16)current->tgid);
 
 	if (!tcon)
@@ -2059,6 +2073,7 @@ smb2_async_readv(struct cifs_readdata *rdata)
 	if (rdata->credits) {
 		buf->CreditCharge = cpu_to_le16(DIV_ROUND_UP(rdata->bytes,
 						SMB2_MAX_BUFFER_SIZE));
+		buf->CreditRequest = buf->CreditCharge;
 		spin_lock(&server->req_lock);
 		server->credits += rdata->credits -
 						le16_to_cpu(buf->CreditCharge);
@@ -2245,6 +2260,7 @@ smb2_async_writev(struct cifs_writedata *wdata,
 	if (wdata->credits) {
 		req->hdr.CreditCharge = cpu_to_le16(DIV_ROUND_UP(wdata->bytes,
 						    SMB2_MAX_BUFFER_SIZE));
+		req->hdr.CreditRequest = req->hdr.CreditCharge;
 		spin_lock(&server->req_lock);
 		server->credits += wdata->credits -
 					le16_to_cpu(req->hdr.CreditCharge);
