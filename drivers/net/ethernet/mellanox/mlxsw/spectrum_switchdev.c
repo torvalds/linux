@@ -1205,9 +1205,11 @@ static struct mlxsw_sp_port *mlxsw_sp_lag_rep_port(struct mlxsw_sp *mlxsw_sp,
 						   u16 lag_id)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port;
+	struct mlxsw_resources *resources;
 	int i;
 
-	for (i = 0; i < MLXSW_SP_PORT_PER_LAG_MAX; i++) {
+	resources = mlxsw_core_resources_get(mlxsw_sp->core);
+	for (i = 0; i < resources->max_ports_in_lag; i++) {
 		mlxsw_sp_port = mlxsw_sp_port_lagged_get(mlxsw_sp, lag_id, i);
 		if (mlxsw_sp_port)
 			return mlxsw_sp_port;

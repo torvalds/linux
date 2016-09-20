@@ -179,8 +179,6 @@ struct mlxsw_swid_config {
 
 struct mlxsw_config_profile {
 	u16	used_max_vepa_channels:1,
-		used_max_lag:1,
-		used_max_port_per_lag:1,
 		used_max_mid:1,
 		used_max_pgt:1,
 		used_max_system_port:1,
@@ -194,8 +192,6 @@ struct mlxsw_config_profile {
 		used_adaptive_routing_group_cap:1,
 		used_kvd_sizes:1;
 	u8	max_vepa_channels;
-	u16	max_lag;
-	u16	max_port_per_lag;
 	u16	max_mid;
 	u16	max_pgt;
 	u16	max_system_port;

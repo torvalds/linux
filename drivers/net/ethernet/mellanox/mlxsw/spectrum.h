@@ -56,9 +56,6 @@
 #define MLXSW_SP_RFID_BASE 15360
 #define MLXSW_SP_RIF_MAX 800
 
-#define MLXSW_SP_LAG_MAX 64
-#define MLXSW_SP_PORT_PER_LAG_MAX 16
-
 #define MLXSW_SP_MID_MAX 7000
 
 #define MLXSW_SP_PORTS_PER_CLUSTER_MAX 4
@@ -290,7 +287,7 @@ struct mlxsw_sp {
 #define MLXSW_SP_DEFAULT_AGEING_TIME 300
 	u32 ageing_time;
 	struct mlxsw_sp_upper master_bridge;
-	struct mlxsw_sp_upper lags[MLXSW_SP_LAG_MAX];
+	struct mlxsw_sp_upper *lags;
 	u8 port_to_module[MLXSW_PORT_MAX_PORTS];
 	struct mlxsw_sp_sb sb;
 	struct mlxsw_sp_router router;
