@@ -446,18 +446,18 @@ BOOKS: (Not on-line)
 
      * Title: **Linux Device Drivers**
 
-       :Author: Alessandro Rubini.
-       :Publisher: O'Reilly & Associates.
-       :Date: 1998.
-       :Pages: 439.
+       :Author: Alessandro Rubini
+       :Publisher: O'Reilly & Associates
+       :Date: 1998
+       :Pages: 439
        :ISBN: 1-56592-292-1
 
      * Title: **Linux Device Drivers, 2nd Edition**
 
-       :Author: Alessandro Rubini and Jonathan Corbet.
-       :Publisher: O'Reilly & Associates.
-       :Date: 2001.
-       :Pages: 586.
+       :Author: Alessandro Rubini and Jonathan Corbet
+       :Publisher: O'Reilly & Associates
+       :Date: 2001
+       :Pages: 586
        :ISBN: 0-59600-008-1
        :Notes: Further information in
          http://www.oreilly.com/catalog/linuxdrive2/
@@ -465,9 +465,9 @@ BOOKS: (Not on-line)
      * Title: **Linux Device Drivers, 3rd Edition**
 
        :Authors: Jonathan Corbet, Alessandro Rubini, and Greg Kroah-Hartman
-       :Publisher: O'Reilly & Associates.
-       :Date: 2005.
-       :Pages: 636.
+       :Publisher: O'Reilly & Associates
+       :Date: 2005
+       :Pages: 636
        :ISBN: 0-596-00590-3
        :Notes: Further information in
          http://www.oreilly.com/catalog/linuxdrive3/
@@ -475,74 +475,74 @@ BOOKS: (Not on-line)
 
      * Title: **Linux Kernel Internals**
 
-       :Author: Michael Beck.
-       :Publisher: Addison-Wesley.
-       :Date: 1997.
+       :Author: Michael Beck
+       :Publisher: Addison-Wesley
+       :Date: 1997
        :ISBN: 0-201-33143-8 (second edition)
 
      * Title: **The Design of the UNIX Operating System**
 
-       :Author: Maurice J. Bach.
-       :Publisher: Prentice Hall.
-       :Date: 1986.
-       :Pages: 471.
+       :Author: Maurice J. Bach
+       :Publisher: Prentice Hall
+       :Date: 1986
+       :Pages: 471
        :ISBN: 0-13-201757-1
 
      * Title: **The Design and Implementation of the 4.3 BSD UNIX Operating System**
 
-       :Author: Samuel J. Leffler, Marshall Kirk McKusick, Michael J.
-         Karels, John S. Quarterman.
-       :Publisher: Addison-Wesley.
-       :Date: 1989 (reprinted with corrections on October, 1990).
+       :Author: Samuel J. Leffler, Marshall Kirk McKusick, Michael J
+         Karels, John S. Quarterman
+       :Publisher: Addison-Wesley
+       :Date: 1989 (reprinted with corrections on October, 1990)
        :ISBN: 0-201-06196-1
 
      * Title: **The Design and Implementation of the 4.4 BSD UNIX Operating System**
 
        :Author: Marshall Kirk McKusick, Keith Bostic, Michael J. Karels,
-         John S. Quarterman.
-       :Publisher: Addison-Wesley.
-       :Date: 1996.
+         John S. Quarterman
+       :Publisher: Addison-Wesley
+       :Date: 1996
        :ISBN: 0-201-54979-4
 
      * Title: **Programmation Linux 2.0 API systeme et fonctionnement du noyau**
 
-       :Author: Remy Card, Eric Dumas, Franck Mevel.
-       :Publisher: Eyrolles.
-       :Date: 1997.
-       :Pages: 520.
+       :Author: Remy Card, Eric Dumas, Franck Mevel
+       :Publisher: Eyrolles
+       :Date: 1997
+       :Pages: 520
        :ISBN: 2-212-08932-5
-       :Notes: French.
+       :Notes: French
 
      * Title: **Unix internals -- the new frontiers**
 
-       :Author: Uresh Vahalia.
-       :Publisher: Prentice Hall.
-       :Date: 1996.
-       :Pages: 600.
+       :Author: Uresh Vahalia
+       :Publisher: Prentice Hall
+       :Date: 1996
+       :Pages: 600
        :ISBN: 0-13-101908-2
 
      * Title: **Programming for the real world - POSIX.4**
 
-       :Author: Bill O. Gallmeister.
-       :Publisher: O'Reilly & Associates, Inc..
-       :Date: 1995.
-       :Pages: ???.
+       :Author: Bill O. Gallmeister
+       :Publisher: O'Reilly & Associates, Inc
+       :Date: 1995
+       :Pages: ???
        :ISBN: I-56592-074-0
        :Notes: Though not being directly about Linux, Linux aims to be
          POSIX. Good reference.
 
      * Title:  **UNIX  Systems  for  Modern Architectures: Symmetric Multiprocessing and Caching for Kernel Programmers**
 
-       :Author: Curt Schimmel.
-       :Publisher: Addison Wesley.
-       :Date: June, 1994.
-       :Pages: 432.
+       :Author: Curt Schimmel
+       :Publisher: Addison Wesley
+       :Date: June, 1994
+       :Pages: 432
        :ISBN: 0-201-63338-8
 
      * Title: **Linux Kernel Development, 3rd Edition**
 
        :Author: Robert Love
-       :Publisher: Addison-Wesley.
+       :Publisher: Addison-Wesley
        :Date: July, 2010
        :Pages: 440
        :ISBN: 978-0672329463
