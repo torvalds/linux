@@ -821,6 +821,11 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	     !local->ops->tdls_recv_channel_switch))
 		return -EOPNOTSUPP;
 
+	if (WARN_ON(local->hw.wiphy->interface_modes &
+			BIT(NL80211_IFTYPE_NAN) &&
+		    (!local->ops->start_nan || !local->ops->stop_nan)))
+		return -EINVAL;
+
 #ifdef CONFIG_PM
 	if (hw->wiphy->wowlan && (!local->ops->suspend || !local->ops->resume))
 		return -EINVAL;
