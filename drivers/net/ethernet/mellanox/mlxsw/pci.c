@@ -1161,6 +1161,7 @@ mlxsw_pci_config_profile_swid_config(struct mlxsw_pci *mlxsw_pci,
 #define MLXSW_KVD_SIZE_ID 0x1001
 #define MLXSW_KVD_SINGLE_MIN_SIZE_ID 0x1002
 #define MLXSW_KVD_DOUBLE_MIN_SIZE_ID 0x1003
+#define MLXSW_MAX_VIRTUAL_ROUTERS_ID 0x2C01
 #define MLXSW_RESOURCES_QUERY_MAX_QUERIES 100
 #define MLXSW_RESOURCES_PER_QUERY 32
 
@@ -1191,6 +1192,10 @@ static void mlxsw_pci_resources_query_parse(int id, u64 val,
 	case MLXSW_KVD_DOUBLE_MIN_SIZE_ID:
 		resources->kvd_double_min_size = val;
 		resources->kvd_double_min_size_valid = 1;
+		break;
+	case MLXSW_MAX_VIRTUAL_ROUTERS_ID:
+		resources->max_virtual_routers = val;
+		resources->max_virtual_routers_valid = 1;
 		break;
 	default:
 		break;
