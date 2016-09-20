@@ -357,11 +357,14 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 	if (context) {
 		if (ib_copy_to_udata(udata, &hr_cq->cqn, sizeof(u64))) {
 			ret = -EFAULT;
-			goto err_mtt;
+			goto err_cqc;
 		}
 	}
 
 	return &hr_cq->ib_cq;
+
+err_cqc:
+	hns_roce_free_cq(hr_dev, hr_cq);
 
 err_mtt:
 	hns_roce_mtt_cleanup(hr_dev, &hr_cq->hr_buf.hr_mtt);
