@@ -2080,7 +2080,8 @@ struct drm_i915_private {
 	/* perform PHY state sanity checks? */
 	bool chv_phy_assert[2];
 
-	struct intel_encoder *dig_port_map[I915_MAX_PORTS];
+	/* Used to save the pipe-to-encoder mapping for audio */
+	struct intel_encoder *av_enc_map[I915_MAX_PIPES];
 
 	/*
 	 * NOTE: This is the dri1/ums dungeon, don't add stuff here. Your patch

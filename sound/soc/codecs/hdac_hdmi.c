@@ -1368,7 +1368,7 @@ static int hdac_hdmi_parse_and_map_nid(struct hdac_ext_device *edev,
 	return hdac_hdmi_init_dai_map(edev);
 }
 
-static void hdac_hdmi_eld_notify_cb(void *aptr, int port)
+static void hdac_hdmi_eld_notify_cb(void *aptr, int port, int pipe)
 {
 	struct hdac_ext_device *edev = aptr;
 	struct hdac_hdmi_priv *hdmi = edev->private_data;
