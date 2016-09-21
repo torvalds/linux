@@ -462,4 +462,3 @@ the kernel.
 Thank you's to Randy Dunlap, Rolf Eike Beer, Linus Torvalds, Bodo Eggert,
 Johannes Stezenbach, Grant Coady, Pavel Machek and others that I may have
 forgotten for their reviews and contributions to this document.
-

@@ -838,4 +838,3 @@ Andi Kleen, "On submitting kernel patches"
   Some strategies to get difficult or controversial changes in.
 
   http://halobates.de/on-submitting-patches.pdf
-
