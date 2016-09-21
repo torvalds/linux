@@ -1003,6 +1003,16 @@ EXC_COMMON_ASYNC(hmi_exception_common, 0xe60, handle_hmi_exception)
 
 
 __EXC_REAL_OOL_MASKABLE_HV(h_doorbell, 0xe80, 0xea0)
+__TRAMP_REAL_REAL_OOL_MASKABLE_HV(h_doorbell, 0xe80)
+__EXC_VIRT_OOL_MASKABLE_HV(h_doorbell, 0x4e80, 0x4ea0)
+__TRAMP_REAL_VIRT_OOL_MASKABLE_HV(h_doorbell, 0xe80)
+TRAMP_KVM_HV(PACA_EXGEN, 0xe80)
+#ifdef CONFIG_PPC_DOORBELL
+EXC_COMMON_ASYNC(h_doorbell_common, 0xe80, doorbell_exception)
+#else
+EXC_COMMON_ASYNC(h_doorbell_common, 0xe80, unknown_exception)
+#endif
+
 
 __EXC_REAL_OOL_MASKABLE_HV(h_virt_irq, 0xea0, 0xec0)
 
@@ -1144,9 +1154,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 #endif
 
 	/* moved from 0xe00 */
-__TRAMP_REAL_REAL_OOL_MASKABLE_HV(h_doorbell, 0xe80)
-TRAMP_KVM_HV(PACA_EXGEN, 0xe80)
-
 __TRAMP_REAL_REAL_OOL_MASKABLE_HV(h_virt_irq, 0xea0)
 TRAMP_KVM_HV(PACA_EXGEN, 0xea0)
 
@@ -1286,11 +1293,6 @@ TRAMP_REAL_BEGIN(kvmppc_skip_Hinterrupt)
 /*** Common interrupt handlers ***/
 
 
-#ifdef CONFIG_PPC_DOORBELL
-EXC_COMMON_ASYNC(h_doorbell_common, 0xe80, doorbell_exception)
-#else
-EXC_COMMON_ASYNC(h_doorbell_common, 0xe80, unknown_exception)
-#endif
 EXC_COMMON_ASYNC(h_virt_irq_common, 0xea0, do_IRQ)
 EXC_COMMON_ASYNC(performance_monitor_common, 0xf00, performance_monitor_exception)
 EXC_COMMON(instruction_breakpoint_common, 0x1300, instruction_breakpoint_exception)
@@ -1316,8 +1318,6 @@ EXC_COMMON(altivec_assist_common, 0x1700, unknown_exception)
 	 * only has extra guff for STAB-based processors -- which never
 	 * come here.
 	 */
-
-__EXC_VIRT_OOL_MASKABLE_HV(h_doorbell, 0x4e80, 0x4ea0)
 
 __EXC_VIRT_OOL_MASKABLE_HV(h_virt_irq, 0x4ea0, 0x4ec0)
 
@@ -1422,7 +1422,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	b	ret_from_except
 
 	/* Equivalents to the above handlers for relocation-on interrupt vectors */
-__TRAMP_REAL_VIRT_OOL_MASKABLE_HV(h_doorbell, 0xe80)
 __TRAMP_REAL_VIRT_OOL_MASKABLE_HV(h_virt_irq, 0xea0)
 __TRAMP_REAL_VIRT_OOL(performance_monitor, 0xf00)
 __TRAMP_REAL_VIRT_OOL(altivec_unavailable, 0xf20)
