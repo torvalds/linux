@@ -34,8 +34,6 @@
 static DEFINE_MUTEX(all_q_mutex);
 static LIST_HEAD(all_q_list);
 
-static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx);
-
 /*
  * Check if any of the ctx's have pending work in this hardware queue
  */
@@ -228,19 +226,9 @@ struct request *blk_mq_alloc_request(struct request_queue *q, int rw,
 	ctx = blk_mq_get_ctx(q);
 	hctx = q->mq_ops->map_queue(q, ctx->cpu);
 	blk_mq_set_alloc_data(&alloc_data, q, flags, ctx, hctx);
-
 	rq = __blk_mq_alloc_request(&alloc_data, rw, 0);
-	if (!rq && !(flags & BLK_MQ_REQ_NOWAIT)) {
-		__blk_mq_run_hw_queue(hctx);
-		blk_mq_put_ctx(ctx);
-
-		ctx = blk_mq_get_ctx(q);
-		hctx = q->mq_ops->map_queue(q, ctx->cpu);
-		blk_mq_set_alloc_data(&alloc_data, q, flags, ctx, hctx);
-		rq =  __blk_mq_alloc_request(&alloc_data, rw, 0);
-		ctx = alloc_data.ctx;
-	}
 	blk_mq_put_ctx(ctx);
+
 	if (!rq) {
 		blk_queue_exit(q);
 		return ERR_PTR(-EWOULDBLOCK);
@@ -1225,7 +1213,7 @@ static struct request *blk_mq_map_request(struct request_queue *q,
 	blk_mq_set_alloc_data(&alloc_data, q, BLK_MQ_REQ_NOWAIT, ctx, hctx);
 	rq = __blk_mq_alloc_request(&alloc_data, op, op_flags);
 	if (unlikely(!rq)) {
-		__blk_mq_run_hw_queue(hctx);
+		blk_mq_run_hw_queue(hctx, false);
 		blk_mq_put_ctx(ctx);
 		trace_block_sleeprq(q, bio, op);
 
