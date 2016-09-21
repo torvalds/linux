@@ -337,8 +337,8 @@ static inline void mlx5e_post_umr_wqe(struct mlx5e_rq *rq, u16 ix)
 
 	/* fill sq edge with nops to avoid wqe wrap around */
 	while ((pi = (sq->pc & wq->sz_m1)) > sq->edge) {
-		sq->ico_wqe_info[pi].opcode = MLX5_OPCODE_NOP;
-		sq->ico_wqe_info[pi].num_wqebbs = 1;
+		sq->db.ico_wqe[pi].opcode = MLX5_OPCODE_NOP;
+		sq->db.ico_wqe[pi].num_wqebbs = 1;
 		mlx5e_send_nop(sq, true);
 	}
 
@@ -348,8 +348,8 @@ static inline void mlx5e_post_umr_wqe(struct mlx5e_rq *rq, u16 ix)
 		cpu_to_be32((sq->pc << MLX5_WQE_CTRL_WQE_INDEX_SHIFT) |
 			    MLX5_OPCODE_UMR);
 
-	sq->ico_wqe_info[pi].opcode = MLX5_OPCODE_UMR;
-	sq->ico_wqe_info[pi].num_wqebbs = num_wqebbs;
+	sq->db.ico_wqe[pi].opcode = MLX5_OPCODE_UMR;
+	sq->db.ico_wqe[pi].num_wqebbs = num_wqebbs;
 	sq->pc += num_wqebbs;
 	mlx5e_tx_notify_hw(sq, &wqe->ctrl, 0);
 }

@@ -101,6 +101,9 @@
 #define MLX5E_UPDATE_STATS_INTERVAL    200 /* msecs */
 #define MLX5E_SQ_BF_BUDGET             16
 
+#define MLX5E_ICOSQ_MAX_WQEBBS \
+	(DIV_ROUND_UP(sizeof(struct mlx5e_umr_wqe), MLX5_SEND_WQE_BB))
+
 #define MLX5E_NUM_MAIN_GROUPS 9
 
 static inline u16 mlx5_min_rx_wqes(int wq_type, u32 wq_size)
@@ -386,6 +389,11 @@ struct mlx5e_ico_wqe_info {
 	u8  num_wqebbs;
 };
 
+enum mlx5e_sq_type {
+	MLX5E_SQ_TXQ,
+	MLX5E_SQ_ICO
+};
+
 struct mlx5e_sq {
 	/* data path */
 
@@ -403,10 +411,15 @@ struct mlx5e_sq {
 
 	struct mlx5e_cq            cq;
 
-	/* pointers to per packet info: write@xmit, read@completion */
-	struct sk_buff           **skb;
-	struct mlx5e_sq_dma       *dma_fifo;
-	struct mlx5e_tx_wqe_info  *wqe_info;
+	/* pointers to per tx element info: write@xmit, read@completion */
+	union {
+		struct {
+			struct sk_buff           **skb;
+			struct mlx5e_sq_dma       *dma_fifo;
+			struct mlx5e_tx_wqe_info  *wqe_info;
+		} txq;
+		struct mlx5e_ico_wqe_info *ico_wqe;
+	} db;
 
 	/* read only */
 	struct mlx5_wq_cyc         wq;
@@ -428,8 +441,8 @@ struct mlx5e_sq {
 	struct mlx5_uar            uar;
 	struct mlx5e_channel      *channel;
 	int                        tc;
-	struct mlx5e_ico_wqe_info *ico_wqe_info;
 	u32                        rate_limit;
+	u8                         type;
 } ____cacheline_aligned_in_smp;
 
 static inline bool mlx5e_sq_has_room_for(struct mlx5e_sq *sq, u16 n)

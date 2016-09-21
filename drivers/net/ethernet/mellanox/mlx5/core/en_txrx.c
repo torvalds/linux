@@ -72,7 +72,7 @@ static void mlx5e_poll_ico_cq(struct mlx5e_cq *cq)
 
 	do {
 		u16 ci = be16_to_cpu(cqe->wqe_counter) & wq->sz_m1;
-		struct mlx5e_ico_wqe_info *icowi = &sq->ico_wqe_info[ci];
+		struct mlx5e_ico_wqe_info *icowi = &sq->db.ico_wqe[ci];
 
 		mlx5_cqwq_pop(&cq->wq);
 		sqcc += icowi->num_wqebbs;
