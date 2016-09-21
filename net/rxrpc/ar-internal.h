@@ -255,6 +255,7 @@ struct rxrpc_peer {
 
 	/* calculated RTT cache */
 #define RXRPC_RTT_CACHE_SIZE 32
+	ktime_t			rtt_last_req;	/* Time of last RTT request */
 	u64			rtt;		/* Current RTT estimate (in nS) */
 	u64			rtt_sum;	/* Sum of cache contents */
 	u64			rtt_cache[RXRPC_RTT_CACHE_SIZE]; /* Determined RTT cache */

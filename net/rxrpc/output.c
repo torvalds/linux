@@ -270,6 +270,12 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb)
 	msg.msg_controllen = 0;
 	msg.msg_flags = 0;
 
+	/* If our RTT cache needs working on, request an ACK. */
+	if ((call->peer->rtt_usage < 3 && sp->hdr.seq & 1) ||
+	    ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000),
+			 ktime_get_real()))
+		whdr.flags |= RXRPC_REQUEST_ACK;
+
 	if (IS_ENABLED(CONFIG_AF_RXRPC_INJECT_LOSS)) {
 		static int lose;
 		if ((lose++ & 7) == 7) {
@@ -301,11 +307,14 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb)
 
 done:
 	if (ret >= 0) {
-		skb->tstamp = ktime_get_real();
+		ktime_t now = ktime_get_real();
+		skb->tstamp = now;
 		smp_wmb();
 		sp->hdr.serial = serial;
-		if (whdr.flags & RXRPC_REQUEST_ACK)
+		if (whdr.flags & RXRPC_REQUEST_ACK) {
+			call->peer->rtt_last_req = now;
 			trace_rxrpc_rtt_tx(call, rxrpc_rtt_tx_data, serial);
+		}
 	}
 	_leave(" = %d [%u]", ret, call->peer->maxdata);
 	return ret;

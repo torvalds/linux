@@ -299,8 +299,6 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			else if (call->tx_top - call->tx_hard_ack <
 				 call->tx_winsize)
 				sp->hdr.flags |= RXRPC_MORE_PACKETS;
-			if (seq & 1)
-				sp->hdr.flags |= RXRPC_REQUEST_ACK;
 
 			ret = conn->security->secure_packet(
 				call, skb, skb->mark, skb->head);
