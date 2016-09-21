@@ -36,6 +36,17 @@ static struct bau_operations uv123_bau_ops = {
 	.write_payload_last      = write_mmr_payload_last,
 };
 
+static struct bau_operations uv4_bau_ops = {
+	.bau_gpa_to_offset       = uv_gpa_to_soc_phys_ram,
+	.read_l_sw_ack           = read_mmr_proc_sw_ack,
+	.read_g_sw_ack           = read_gmmr_proc_sw_ack,
+	.write_l_sw_ack          = write_mmr_proc_sw_ack,
+	.write_g_sw_ack          = write_gmmr_proc_sw_ack,
+	.write_payload_first     = write_mmr_proc_payload_first,
+	.write_payload_last      = write_mmr_proc_payload_last,
+};
+
+
 /* timeouts in nanoseconds (indexed by UVH_AGING_PRESCALE_SEL urgency7 30:28) */
 static int timeout_base_ns[] = {
 		20,
@@ -2158,7 +2169,9 @@ static int __init uv_bau_init(void)
 	if (!is_uv_system())
 		return 0;
 
-	if (is_uv3_hub())
+	if (is_uv4_hub())
+		ops = uv4_bau_ops;
+	else if (is_uv3_hub())
 		ops = uv123_bau_ops;
 	else if (is_uv2_hub())
 		ops = uv123_bau_ops;

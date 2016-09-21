@@ -664,6 +664,16 @@ static inline void write_gmmr_activation(int pnode, unsigned long mmr_image)
 	write_gmmr(pnode, UVH_LB_BAU_SB_ACTIVATION_CONTROL, mmr_image);
 }
 
+static inline void write_mmr_proc_payload_first(int pnode, unsigned long mmr_image)
+{
+	write_gmmr(pnode, UV4H_LB_PROC_INTD_QUEUE_FIRST, mmr_image);
+}
+
+static inline void write_mmr_proc_payload_last(int pnode, unsigned long mmr_image)
+{
+	write_gmmr(pnode, UV4H_LB_PROC_INTD_QUEUE_LAST, mmr_image);
+}
+
 static inline void write_mmr_payload_first(int pnode, unsigned long mmr_image)
 {
 	write_gmmr(pnode, UVH_LB_BAU_INTD_PAYLOAD_QUEUE_FIRST, mmr_image);
@@ -707,6 +717,26 @@ static inline unsigned long read_mmr_sw_ack(void)
 static inline unsigned long read_gmmr_sw_ack(int pnode)
 {
 	return read_gmmr(pnode, UVH_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE);
+}
+
+static inline void write_mmr_proc_sw_ack(unsigned long mr)
+{
+	uv_write_local_mmr(UV4H_LB_PROC_INTD_SOFT_ACK_CLEAR, mr);
+}
+
+static inline void write_gmmr_proc_sw_ack(int pnode, unsigned long mr)
+{
+	write_gmmr(pnode, UV4H_LB_PROC_INTD_SOFT_ACK_CLEAR, mr);
+}
+
+static inline unsigned long read_mmr_proc_sw_ack(void)
+{
+	return read_lmmr(UV4H_LB_PROC_INTD_SOFT_ACK_PENDING);
+}
+
+static inline unsigned long read_gmmr_proc_sw_ack(int pnode)
+{
+	return read_gmmr(pnode, UV4H_LB_PROC_INTD_SOFT_ACK_PENDING);
 }
 
 static inline void write_mmr_data_config(int pnode, unsigned long mr)
