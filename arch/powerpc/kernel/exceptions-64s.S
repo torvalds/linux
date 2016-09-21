@@ -77,59 +77,6 @@ OPEN_TEXT_SECTION(0x7000)
 
 USE_FIXED_SECTION(real_vectors)
 
-#define LOAD_SYSCALL_HANDLER(reg)				\
-	ld	reg,PACAKBASE(r13);				\
-	ori	reg,reg,(ABS_ADDR(system_call_common))@l;
-
-	/* Syscall routine is used twice, in reloc-off and reloc-on paths */
-#define SYSCALL_PSERIES_1 					\
-BEGIN_FTR_SECTION						\
-	cmpdi	r0,0x1ebe ; 					\
-	beq-	1f ;						\
-END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
-	mr	r9,r13 ;					\
-	GET_PACA(r13) ;						\
-	mfspr	r11,SPRN_SRR0 ;					\
-0:
-
-#define SYSCALL_PSERIES_2_RFID 					\
-	mfspr	r12,SPRN_SRR1 ;					\
-	LOAD_SYSCALL_HANDLER(r10) ; 				\
-	mtspr	SPRN_SRR0,r10 ; 				\
-	ld	r10,PACAKMSR(r13) ;				\
-	mtspr	SPRN_SRR1,r10 ; 				\
-	rfid ; 							\
-	b	. ;	/* prevent speculative execution */
-
-#define SYSCALL_PSERIES_3					\
-	/* Fast LE/BE switch system call */			\
-1:	mfspr	r12,SPRN_SRR1 ;					\
-	xori	r12,r12,MSR_LE ;				\
-	mtspr	SPRN_SRR1,r12 ;					\
-	rfid ;		/* return to userspace */		\
-	b	. ;	/* prevent speculative execution */
-
-#if defined(CONFIG_RELOCATABLE)
-	/*
-	 * We can't branch directly so we do it via the CTR which
-	 * is volatile across system calls.
-	 */
-#define SYSCALL_PSERIES_2_DIRECT				\
-	LOAD_SYSCALL_HANDLER(r12) ;				\
-	mtctr	r12 ;						\
-	mfspr	r12,SPRN_SRR1 ;					\
-	li	r10,MSR_RI ;					\
-	mtmsrd 	r10,1 ;						\
-	bctr ;
-#else
-	/* We can branch directly */
-#define SYSCALL_PSERIES_2_DIRECT				\
-	mfspr	r12,SPRN_SRR1 ;					\
-	li	r10,MSR_RI ;					\
-	mtmsrd 	r10,1 ;			/* Set RI (EE=0) */	\
-	b	system_call_common ;
-#endif
-
 /*
  * This is the start of the interrupt handlers for pSeries
  * This code runs with relocation off.
@@ -864,6 +811,59 @@ TRAMP_KVM(PACA_EXGEN, 0xb00)
 EXC_COMMON(trap_0b_common, 0xb00, unknown_exception)
 
 
+#define LOAD_SYSCALL_HANDLER(reg)				\
+	ld	reg,PACAKBASE(r13);				\
+	ori	reg,reg,(ABS_ADDR(system_call_common))@l;
+
+/* Syscall routine is used twice, in reloc-off and reloc-on paths */
+#define SYSCALL_PSERIES_1 					\
+BEGIN_FTR_SECTION						\
+	cmpdi	r0,0x1ebe ; 					\
+	beq-	1f ;						\
+END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
+	mr	r9,r13 ;					\
+	GET_PACA(r13) ;						\
+	mfspr	r11,SPRN_SRR0 ;					\
+0:
+
+#define SYSCALL_PSERIES_2_RFID 					\
+	mfspr	r12,SPRN_SRR1 ;					\
+	LOAD_SYSCALL_HANDLER(r10) ; 				\
+	mtspr	SPRN_SRR0,r10 ; 				\
+	ld	r10,PACAKMSR(r13) ;				\
+	mtspr	SPRN_SRR1,r10 ; 				\
+	rfid ; 							\
+	b	. ;	/* prevent speculative execution */
+
+#define SYSCALL_PSERIES_3					\
+	/* Fast LE/BE switch system call */			\
+1:	mfspr	r12,SPRN_SRR1 ;					\
+	xori	r12,r12,MSR_LE ;				\
+	mtspr	SPRN_SRR1,r12 ;					\
+	rfid ;		/* return to userspace */		\
+	b	. ;	/* prevent speculative execution */
+
+#if defined(CONFIG_RELOCATABLE)
+	/*
+	 * We can't branch directly so we do it via the CTR which
+	 * is volatile across system calls.
+	 */
+#define SYSCALL_PSERIES_2_DIRECT				\
+	LOAD_SYSCALL_HANDLER(r12) ;				\
+	mtctr	r12 ;						\
+	mfspr	r12,SPRN_SRR1 ;					\
+	li	r10,MSR_RI ;					\
+	mtmsrd 	r10,1 ;						\
+	bctr ;
+#else
+	/* We can branch directly */
+#define SYSCALL_PSERIES_2_DIRECT				\
+	mfspr	r12,SPRN_SRR1 ;					\
+	li	r10,MSR_RI ;					\
+	mtmsrd 	r10,1 ;			/* Set RI (EE=0) */	\
+	b	system_call_common ;
+#endif
+
 EXC_REAL_BEGIN(system_call, 0xc00, 0xd00)
 	 /*
 	  * If CONFIG_KVM_BOOK3S_64_HANDLER is set, save the PPR (on systems
@@ -891,7 +891,15 @@ EXC_REAL_BEGIN(system_call, 0xc00, 0xd00)
 	SYSCALL_PSERIES_3
 EXC_REAL_END(system_call, 0xc00, 0xd00)
 
+EXC_VIRT_BEGIN(system_call, 0x4c00, 0x4d00)
+	HMT_MEDIUM
+	SYSCALL_PSERIES_1
+	SYSCALL_PSERIES_2_DIRECT
+	SYSCALL_PSERIES_3
+EXC_VIRT_END(system_call, 0x4c00, 0x4d00)
+
 TRAMP_KVM(PACA_EXGEN, 0xc00)
+
 
 EXC_REAL(single_step, 0xd00, 0xe00)
 
@@ -1239,13 +1247,6 @@ EXC_COMMON(altivec_assist_common, 0x1700, unknown_exception)
 	 * only has extra guff for STAB-based processors -- which never
 	 * come here.
 	 */
-
-EXC_VIRT_BEGIN(system_call, 0x4c00, 0x4d00)
-	HMT_MEDIUM
-	SYSCALL_PSERIES_1
-	SYSCALL_PSERIES_2_DIRECT
-	SYSCALL_PSERIES_3
-EXC_VIRT_END(system_call, 0x4c00, 0x4d00)
 
 EXC_VIRT(single_step, 0x4d00, 0x4e00, 0xd00)
 
