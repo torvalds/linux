@@ -1132,12 +1132,13 @@ EXC_VIRT_NONE(0x4fa0, 0x5200)
 
 #ifdef CONFIG_CBE_RAS
 EXC_REAL_HV(cbe_system_error, 0x1200, 0x1300)
-
+EXC_VIRT_NONE(0x5200, 0x5300)
 TRAMP_KVM_HV_SKIP(PACA_EXGEN, 0x1200)
-
+EXC_COMMON(cbe_system_error_common, 0x1200, cbe_system_error_exception)
 #else /* CONFIG_CBE_RAS */
 EXC_REAL_NONE(0x1200, 0x1300)
 #endif
+
 
 EXC_REAL(instruction_breakpoint, 0x1300, 0x1400)
 
@@ -1397,8 +1398,6 @@ EXC_COMMON(altivec_assist_common, 0x1700, unknown_exception)
 	 * come here.
 	 */
 
-EXC_VIRT_NONE(0x5200, 0x5300)
-
 EXC_VIRT(instruction_breakpoint, 0x5300, 0x5400, 0x1300)
 
 #ifdef CONFIG_PPC_DENORMALISATION
@@ -1433,7 +1432,6 @@ __end_interrupts:
 DEFINE_FIXED_SYMBOL(__end_interrupts)
 
 #ifdef CONFIG_CBE_RAS
-EXC_COMMON(cbe_system_error_common, 0x1200, cbe_system_error_exception)
 EXC_COMMON(cbe_maintenance_common, 0x1600, cbe_maintenance_exception)
 EXC_COMMON(cbe_thermal_common, 0x1800, cbe_thermal_exception)
 #endif /* CONFIG_CBE_RAS */
