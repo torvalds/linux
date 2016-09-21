@@ -5297,6 +5297,13 @@ M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 S:	Maintained
 F:	drivers/staging/greybus/
 
+GREYBUS AUDIO PROTOCOLS DRIVERS
+M:	Vaibhav Agarwal <vaibhav.sr@gmail.com>
+S:	Maintained
+F:	drivers/staging/greybus/audio_codec.c
+F:	drivers/staging/greybus/audio_module.c
+F:	drivers/staging/greybus/audio_topology.c
+
 GREYBUS PROTOCOLS DRIVERS
 M:	Rui Miguel Silva <rmfrfs@gmail.com>
 S:	Maintained
