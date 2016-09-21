@@ -77,6 +77,35 @@ static int axp20x_gpio_get(struct gpio_chip *chip, unsigned offset)
 	return !!(val & BIT(offset + 4));
 }
 
+static int axp20x_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
+{
+	struct axp20x_gpio *gpio = gpiochip_get_data(chip);
+	unsigned int val;
+	int reg, ret;
+
+	reg = axp20x_gpio_get_reg(offset);
+	if (reg < 0)
+		return reg;
+
+	ret = regmap_read(gpio->regmap, reg, &val);
+	if (ret)
+		return ret;
+
+	/*
+	 * This shouldn't really happen if the pin is in use already,
+	 * or if it's not in use yet, it doesn't matter since we're
+	 * going to change the value soon anyway. Default to output.
+	 */
+	if ((val & AXP20X_GPIO_FUNCTIONS) > 2)
+		return 0;
+
+	/*
+	 * The GPIO directions are the three lowest values.
+	 * 2 is input, 0 and 1 are output
+	 */
+	return val & 2;
+}
+
 static int axp20x_gpio_output(struct gpio_chip *chip, unsigned offset,
 			      int value)
 {
@@ -123,6 +152,7 @@ static int axp20x_gpio_probe(struct platform_device *pdev)
 	gpio->chip.label		= dev_name(&pdev->dev);
 	gpio->chip.owner		= THIS_MODULE;
 	gpio->chip.get			= axp20x_gpio_get;
+	gpio->chip.get_direction	= axp20x_gpio_get_direction;
 	gpio->chip.set			= axp20x_gpio_set;
 	gpio->chip.direction_input	= axp20x_gpio_input;
 	gpio->chip.direction_output	= axp20x_gpio_output;
