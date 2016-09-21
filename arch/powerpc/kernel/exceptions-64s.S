@@ -928,6 +928,13 @@ EXC_COMMON(trap_0e_common, 0xe00, unknown_exception)
 
 
 __EXC_REAL_OOL_HV(h_instr_storage, 0xe20, 0xe40)
+__TRAMP_REAL_REAL_OOL_HV(h_instr_storage, 0xe20)
+EXC_VIRT_BEGIN(unused, 0x4e20, 0x4e40)
+	b       .       /* Can't happen, see v2.07 Book III-S section 6.5 */
+EXC_VIRT_END(unused, 0x4e20, 0x4e40)
+TRAMP_KVM_HV(PACA_EXGEN, 0xe20)
+EXC_COMMON(h_instr_storage_common, 0xe20, unknown_exception)
+
 
 __EXC_REAL_OOL_HV(emulation_assist, 0xe40, 0xe60)
 
@@ -1075,9 +1082,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 #endif
 
 	/* moved from 0xe00 */
-__TRAMP_REAL_REAL_OOL_HV(h_instr_storage, 0xe20)
-TRAMP_KVM_HV(PACA_EXGEN, 0xe20)
-
 __TRAMP_REAL_REAL_OOL_HV(emulation_assist, 0xe40)
 TRAMP_KVM_HV(PACA_EXGEN, 0xe40)
 
@@ -1259,10 +1263,6 @@ EXC_COMMON(altivec_assist_common, 0x1700, unknown_exception)
 	 * come here.
 	 */
 
-EXC_VIRT_BEGIN(unused, 0x4e20, 0x4e40)
-	b       .       /* Can't happen, see v2.07 Book III-S section 6.5 */
-EXC_VIRT_END(unused, 0x4e20, 0x4e40)
-
 __EXC_VIRT_OOL_HV(emulation_assist, 0x4e40, 0x4e60)
 
 EXC_VIRT_BEGIN(unused, 0x4e60, 0x4e80)
@@ -1307,8 +1307,6 @@ EXC_VIRT_NONE(0x5800, 0x5900)
 
 EXC_COMMON_BEGIN(ppc64_runlatch_on_trampoline)
 	b	__ppc64_runlatch_on
-
-EXC_COMMON(h_instr_storage_common, 0xe20, unknown_exception)
 
 EXC_COMMON_BEGIN(altivec_unavailable_common)
 	EXCEPTION_PROLOG_COMMON(0xf20, PACA_EXGEN)
