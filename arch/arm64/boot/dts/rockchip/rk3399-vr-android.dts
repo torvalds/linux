@@ -870,11 +870,18 @@
 		rockchip,adc_value = <620>;
 	};
 
-	home-key {
+	n-key {
 		linux,code = <102>;
-		label = "home";
+		label = "n";
 		rockchip,adc_value = <700>;
 	};
+
+	menu-key {
+		linux,code = <59>;
+		label = "menu";
+		rockchip,adc_value = <780>;
+	};
+
 };
 
 &u2phy0 {
