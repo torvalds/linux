@@ -212,9 +212,7 @@ Intel IA32 microcode
 
 A driver has been added to allow updating of Intel IA32 microcode,
 accessible as a normal (misc) character device.  If you are not using
-udev you may need to:
-
-::
+udev you may need to::
 
   mkdir /dev/cpu
   mknod /dev/cpu/microcode c 10 184
@@ -260,9 +258,7 @@ enable it to operate over diverse media layers.  If you use PPP,
 upgrade pppd to at least 2.4.0.
 
 If you are not using udev, you must have the device file /dev/ppp
-which can be made by:
-
-::
+which can be made by::
 
   mknod /dev/ppp c 108 0
 
@@ -294,9 +290,7 @@ appropriate export information to the kernel.  This removes the
 dependency on ``rmtab`` and means that the kernel only needs to know about
 currently active clients.
 
-To enable this new functionality, you need to:
-
-::
+To enable this new functionality, you need to::
 
   mount -t nfsd nfsd /proc/fs/nfsd
 

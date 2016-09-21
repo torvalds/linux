@@ -167,9 +167,7 @@ ReStructuredText markups (ReST), like this one. This includes a
 full description of the in-kernel API, and rules on how to handle
 locking properly.
 
-All such documents can be generated as PDF or HTML by running:
-
-::
+All such documents can be generated as PDF or HTML by running::
 
 	make pdfdocs
 	make htmldocs
@@ -177,9 +175,7 @@ All such documents can be generated as PDF or HTML by running:
 respectively from the main kernel source directory.
 
 The documents that uses ReST markup will be generated at Documentation/output.
-They can also be generated on LaTeX and ePub formats with:
-
-::
+They can also be generated on LaTeX and ePub formats with::
 
 	make latexdocs
 	make epubdocs
@@ -187,9 +183,7 @@ They can also be generated on LaTeX and ePub formats with:
 Currently, there are some documents written on DocBook that are in
 the process of conversion to ReST. Such documents will be created in the
 Documentation/DocBook/ directory and can be generated also as
-Postscript or man pages by running:
-
-::
+Postscript or man pages by running::
 
 	make psdocs
 	make mandocs

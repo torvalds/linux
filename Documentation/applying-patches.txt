@@ -54,15 +54,11 @@ in the patch file when applying it (the ``-p1`` argument to ``patch`` does
 this).
 
 To revert a previously applied patch, use the -R argument to patch.
-So, if you applied a patch like this:
-
-::
+So, if you applied a patch like this::
 
 	patch -p1 < ../patch-x.y.z
 
-You can revert (undo) it like this:
-
-::
+You can revert (undo) it like this::
 
 	patch -R -p1 < ../patch-x.y.z
 
@@ -74,9 +70,7 @@ This (as usual with Linux and other UNIX like operating systems) can be
 done in several different ways.
 
 In all the examples below I feed the file (in uncompressed form) to patch
-via stdin using the following syntax:
-
-::
+via stdin using the following syntax::
 
 	patch -p1 < path/to/patch-x.y.z
 
@@ -85,26 +79,20 @@ know of more than one way to use patch, then you can stop reading this
 section here.
 
 Patch can also get the name of the file to use via the -i argument, like
-this:
-
-::
+this::
 
 	patch -p1 -i path/to/patch-x.y.z
 
 If your patch file is compressed with gzip or xz and you don't want to
 uncompress it before applying it, then you can feed it to patch like this
-instead:
-
-::
+instead::
 
 	xzcat path/to/patch-x.y.z.xz | patch -p1
 	bzcat path/to/patch-x.y.z.gz | patch -p1
 
 If you wish to uncompress the patch file by hand first before applying it
 (what I assume you've done in the examples below), then you simply run
-gunzip or xz on the file -- like this:
-
-::
+gunzip or xz on the file -- like this::
 
 	gunzip patch-x.y.z.gz
 	xz -d patch-x.y.z.xz
@@ -232,9 +220,7 @@ step. The -z flag to interdiff will even let you feed it patches in gzip or
 bzip2 compressed form directly without the use of zcat or bzcat or manual
 decompression.
 
-Here's how you'd go from 4.7.2 to 4.7.3 in a single step:
-
-::
+Here's how you'd go from 4.7.2 to 4.7.3 in a single step::
 
 	interdiff -z ../patch-4.7.2.gz ../patch-4.7.3.gz | patch -p1
 
@@ -289,9 +275,7 @@ that such patches do **NOT** apply on top of 4.x.y kernels but on top of the
 base 4.x kernel -- if you need to move from 4.x.y to 4.x+1 you need to
 first revert the 4.x.y patch).
 
-Here are some examples:
-
-::
+Here are some examples::
 
 	# moving from 4.6 to 4.7
 
@@ -339,9 +323,7 @@ So, in order to apply the 4.7.3 patch to your existing 4.7.2 kernel
 source you have to first back out the 4.7.2 patch (so you are left with a
 base 4.7 kernel source) and then apply the new 4.7.3 patch.
 
-Here's a small example:
-
-::
+Here's a small example::
 
 	$ cd ~/linux-4.7.2		# change to the kernel source dir
 	$ patch -p1 -R < ../patch-4.7.2	# revert the 4.7.2 patch
@@ -374,9 +356,7 @@ turn into.
 So, 4.8-rc5 means that this is the fifth release candidate for the 4.8
 kernel and the patch should be applied on top of the 4.7 kernel source.
 
-Here are 3 examples of how to apply these patches:
-
-::
+Here are 3 examples of how to apply these patches::
 
 	# first an example of moving from 4.7 to 4.8-rc3
 
@@ -418,9 +398,7 @@ a base 4.x-rc kernel -- you can see which from their name.
 A patch named 4.7-git1 applies to the 4.7 kernel source and a patch
 named 4.8-rc3-git2 applies to the source of the 4.8-rc3 kernel.
 
-Here are some examples of how to apply these patches:
-
-::
+Here are some examples of how to apply these patches::
 
 	# moving from 4.7 to 4.7-git1
 
