@@ -734,9 +734,16 @@ static void tcp_tsq_handler(struct sock *sk)
 {
 	if ((1 << sk->sk_state) &
 	    (TCPF_ESTABLISHED | TCPF_FIN_WAIT1 | TCPF_CLOSING |
-	     TCPF_CLOSE_WAIT  | TCPF_LAST_ACK))
-		tcp_write_xmit(sk, tcp_current_mss(sk), tcp_sk(sk)->nonagle,
+	     TCPF_CLOSE_WAIT  | TCPF_LAST_ACK)) {
+		struct tcp_sock *tp = tcp_sk(sk);
+
+		if (tp->lost_out > tp->retrans_out &&
+		    tp->snd_cwnd > tcp_packets_in_flight(tp))
+			tcp_xmit_retransmit_queue(sk);
+
+		tcp_write_xmit(sk, tcp_current_mss(sk), tp->nonagle,
 			       0, GFP_ATOMIC);
+	}
 }
 /*
  * One tasklet per cpu tries to send more skbs.
@@ -2039,6 +2046,39 @@ static int tcp_mtu_probe(struct sock *sk)
 	return -1;
 }
 
+/* TCP Small Queues :
+ * Control number of packets in qdisc/devices to two packets / or ~1 ms.
+ * (These limits are doubled for retransmits)
+ * This allows for :
+ *  - better RTT estimation and ACK scheduling
+ *  - faster recovery
+ *  - high rates
+ * Alas, some drivers / subsystems require a fair amount
+ * of queued bytes to ensure line rate.
+ * One example is wifi aggregation (802.11 AMPDU)
+ */
+static bool tcp_small_queue_check(struct sock *sk, const struct sk_buff *skb,
+				  unsigned int factor)
+{
+	unsigned int limit;
+
+	limit = max(2 * skb->truesize, sk->sk_pacing_rate >> 10);
+	limit = min_t(u32, limit, sysctl_tcp_limit_output_bytes);
+	limit <<= factor;
+
+	if (atomic_read(&sk->sk_wmem_alloc) > limit) {
+		set_bit(TSQ_THROTTLED, &tcp_sk(sk)->tsq_flags);
+		/* It is possible TX completion already happened
+		 * before we set TSQ_THROTTLED, so we must
+		 * test again the condition.
+		 */
+		smp_mb__after_atomic();
+		if (atomic_read(&sk->sk_wmem_alloc) > limit)
+			return true;
+	}
+	return false;
+}
+
 /* This routine writes packets to the network.  It advances the
  * send_head.  This happens as incoming acks open up the remote
  * window for us.
@@ -2125,29 +2165,8 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 		    unlikely(tso_fragment(sk, skb, limit, mss_now, gfp)))
 			break;
 
-		/* TCP Small Queues :
-		 * Control number of packets in qdisc/devices to two packets / or ~1 ms.
-		 * This allows for :
-		 *  - better RTT estimation and ACK scheduling
-		 *  - faster recovery
-		 *  - high rates
-		 * Alas, some drivers / subsystems require a fair amount
-		 * of queued bytes to ensure line rate.
-		 * One example is wifi aggregation (802.11 AMPDU)
-		 */
-		limit = max(2 * skb->truesize, sk->sk_pacing_rate >> 10);
-		limit = min_t(u32, limit, sysctl_tcp_limit_output_bytes);
-
-		if (atomic_read(&sk->sk_wmem_alloc) > limit) {
-			set_bit(TSQ_THROTTLED, &tp->tsq_flags);
-			/* It is possible TX completion already happened
-			 * before we set TSQ_THROTTLED, so we must
-			 * test again the condition.
-			 */
-			smp_mb__after_atomic();
-			if (atomic_read(&sk->sk_wmem_alloc) > limit)
-				break;
-		}
+		if (tcp_small_queue_check(sk, skb, 0))
+			break;
 
 		if (unlikely(tcp_transmit_skb(sk, skb, 1, gfp)))
 			break;
@@ -2846,6 +2865,9 @@ begin_fwd:
 
 		if (sacked & (TCPCB_SACKED_ACKED|TCPCB_SACKED_RETRANS))
 			continue;
+
+		if (tcp_small_queue_check(sk, skb, 1))
+			return;
 
 		if (tcp_retransmit_skb(sk, skb, segs))
 			return;
