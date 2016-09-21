@@ -3424,7 +3424,7 @@ static inline unsigned long cfs_rq_load_avg(struct cfs_rq *cfs_rq)
 	return cfs_rq->avg.load_avg;
 }
 
-static int idle_balance(struct rq *this_rq);
+static int idle_balance(struct rq *this_rq, struct rq_flags *rf);
 
 #else /* CONFIG_SMP */
 
@@ -3453,7 +3453,7 @@ attach_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *se) {}
 static inline void
 detach_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *se) {}
 
-static inline int idle_balance(struct rq *rq)
+static inline int idle_balance(struct rq *rq, struct rq_flags *rf)
 {
 	return 0;
 }
@@ -6320,15 +6320,8 @@ simple:
 	return p;
 
 idle:
-	/*
-	 * This is OK, because current is on_cpu, which avoids it being picked
-	 * for load-balance and preemption/IRQs are still disabled avoiding
-	 * further scheduler activity on it and we're being very careful to
-	 * re-start the picking loop.
-	 */
-	rq_unpin_lock(rq, rf);
-	new_tasks = idle_balance(rq);
-	rq_repin_lock(rq, rf);
+	new_tasks = idle_balance(rq, rf);
+
 	/*
 	 * Because idle_balance() releases (and re-acquires) rq->lock, it is
 	 * possible for any higher priority task to appear. In that case we
@@ -8297,7 +8290,7 @@ update_next_balance(struct sched_domain *sd, unsigned long *next_balance)
  * idle_balance is called by schedule() if this_cpu is about to become
  * idle. Attempts to pull tasks from other CPUs.
  */
-static int idle_balance(struct rq *this_rq)
+static int idle_balance(struct rq *this_rq, struct rq_flags *rf)
 {
 	unsigned long next_balance = jiffies + HZ;
 	int this_cpu = this_rq->cpu;
@@ -8310,6 +8303,14 @@ static int idle_balance(struct rq *this_rq)
 	 * measure the duration of idle_balance() as idle time.
 	 */
 	this_rq->idle_stamp = rq_clock(this_rq);
+
+	/*
+	 * This is OK, because current is on_cpu, which avoids it being picked
+	 * for load-balance and preemption/IRQs are still disabled avoiding
+	 * further scheduler activity on it and we're being very careful to
+	 * re-start the picking loop.
+	 */
+	rq_unpin_lock(this_rq, rf);
 
 	if (this_rq->avg_idle < sysctl_sched_migration_cost ||
 	    !this_rq->rd->overload) {
@@ -8387,6 +8388,8 @@ out:
 
 	if (pulled_task)
 		this_rq->idle_stamp = 0;
+
+	rq_repin_lock(this_rq, rf);
 
 	return pulled_task;
 }
