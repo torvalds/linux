@@ -1008,7 +1008,7 @@ static int gbcodec_probe(struct snd_soc_codec *codec)
 	snd_soc_codec_set_drvdata(codec, info);
 	gbcodec = info;
 
-        device_init_wakeup(codec->dev, 1);
+	device_init_wakeup(codec->dev, 1);
 	return 0;
 }
 
