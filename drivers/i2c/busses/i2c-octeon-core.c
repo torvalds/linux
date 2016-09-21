@@ -783,13 +783,14 @@ static void octeon_i2c_prepare_recovery(struct i2c_adapter *adap)
 {
 	struct octeon_i2c *i2c = i2c_get_adapdata(adap);
 
-	/*
-	 * The stop resets the state machine, does not _transmit_ STOP unless
-	 * engine was active.
-	 */
-	octeon_i2c_stop(i2c);
-
 	octeon_i2c_hlc_disable(i2c);
+
+	/*
+	 * Bring control register to a good state regardless
+	 * of HLC state.
+	 */
+	octeon_i2c_ctl_write(i2c, TWSI_CTL_ENAB);
+
 	octeon_i2c_write_int(i2c, 0);
 }
 
@@ -797,6 +798,15 @@ static void octeon_i2c_unprepare_recovery(struct i2c_adapter *adap)
 {
 	struct octeon_i2c *i2c = i2c_get_adapdata(adap);
 
+	/*
+	 * Generate STOP to finish the unfinished transaction.
+	 * Can't generate STOP via the TWSI CTL register
+	 * since it could bring the TWSI controller into an inoperable state.
+	 */
+	octeon_i2c_write_int(i2c, TWSI_INT_SDA_OVR | TWSI_INT_SCL_OVR);
+	udelay(5);
+	octeon_i2c_write_int(i2c, TWSI_INT_SDA_OVR);
+	udelay(5);
 	octeon_i2c_write_int(i2c, 0);
 }
 
