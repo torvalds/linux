@@ -489,6 +489,8 @@ struct drm_amdgpu_cs_chunk_data {
 #define AMDGPU_INFO_NUM_EVICTIONS		0x18
 /* Query the total size of VRAM and GTT domains */
 #define AMDGPU_INFO_VRAM_GTT_TOTAL		0x19
+/* Query the max allocation size of VRAM and GTT domains */
+#define AMDGPU_INFO_VRAM_GTT_MAX		0x1a
 
 #define AMDGPU_INFO_MMR_SE_INDEX_SHIFT	0
 #define AMDGPU_INFO_MMR_SE_INDEX_MASK	0xff
@@ -578,6 +580,12 @@ struct drm_amdgpu_info_vram_gtt_total {
 	__u64 vram_total_size;
 	__u64 vram_cpu_accessible_total_size;
 	__u64 gtt_total_size;
+};
+
+struct drm_amdgpu_info_vram_gtt_max {
+	__u64 vram_max_size;
+	__u64 vram_cpu_accessible_max_size;
+	__u64 gtt_max_size;
 };
 
 struct drm_amdgpu_info_firmware {

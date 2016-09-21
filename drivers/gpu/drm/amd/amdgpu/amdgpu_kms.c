@@ -421,6 +421,24 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 				    min((size_t)size, sizeof(vram_gtt_total)))
 				    ? -EFAULT : 0;
 	}
+	case AMDGPU_INFO_VRAM_GTT_MAX: {
+		struct drm_amdgpu_info_vram_gtt_max vram_gtt_max;
+		u64 max_size;
+
+		max_size = adev->mc.real_vram_size - adev->vram_pin_size;
+		vram_gtt_max.vram_max_size = max_size * 3 / 4;
+
+		max_size = adev->mc.visible_vram_size - (adev->vram_pin_size -
+				adev->invisible_pin_size);
+		vram_gtt_max.vram_cpu_accessible_max_size = max_size * 3 / 4;
+
+		max_size = adev->mc.gtt_size - adev->gart_pin_size;
+		vram_gtt_max.gtt_max_size = max_size * 3 / 4;
+
+		return copy_to_user(out, &vram_gtt_max,
+				    min((size_t)size, sizeof(vram_gtt_max)))
+				    ? -EFAULT : 0;
+	}
 	case AMDGPU_INFO_READ_MMR_REG: {
 		unsigned n, alloc_size;
 		uint32_t *regs;
