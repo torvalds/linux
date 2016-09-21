@@ -321,6 +321,16 @@ __emit_br(struct nfp_prog *nfp_prog, enum br_mask mask, enum br_ev_pip ev_pip,
 	nfp_prog_push(nfp_prog, insn);
 }
 
+static void emit_br_def(struct nfp_prog *nfp_prog, u16 addr, u8 defer)
+{
+	if (defer > 2) {
+		pr_err("BUG: branch defer out of bounds %d\n", defer);
+		nfp_prog->error = -EFAULT;
+		return;
+	}
+	__emit_br(nfp_prog, BR_UNC, BR_EV_PIP_UNCOND, BR_CSS_NONE, addr, defer);
+}
+
 static void
 emit_br(struct nfp_prog *nfp_prog, enum br_mask mask, u16 addr, u8 defer)
 {
@@ -1465,9 +1475,65 @@ static void nfp_outro_tc_legacy(struct nfp_prog *nfp_prog)
 		      SHF_SC_L_SHF, 16);
 }
 
+static void nfp_outro_tc_da(struct nfp_prog *nfp_prog)
+{
+	/* TC direct-action mode:
+	 *   0,1   ok        NOT SUPPORTED[1]
+	 *   2   drop  0x22 -> drop,  count as stat1
+	 *   4,5 nuke  0x02 -> drop
+	 *   7  redir  0x44 -> redir, count as stat2
+	 *   * unspec  0x11 -> pass,  count as stat0
+	 *
+	 * [1] We can't support OK and RECLASSIFY because we can't tell TC
+	 *     the exact decision made.  We are forced to support UNSPEC
+	 *     to handle aborts so that's the only one we handle for passing
+	 *     packets up the stack.
+	 */
+	/* Target for aborts */
+	nfp_prog->tgt_abort = nfp_prog_current_offset(nfp_prog);
+
+	emit_br_def(nfp_prog, nfp_prog->tgt_done, 2);
+
+	emit_alu(nfp_prog, reg_a(0),
+		 reg_none(), ALU_OP_NONE, NFP_BPF_ABI_FLAGS);
+	emit_ld_field(nfp_prog, reg_a(0), 0xc, reg_imm(0x11), SHF_SC_L_SHF, 16);
+
+	/* Target for normal exits */
+	nfp_prog->tgt_out = nfp_prog_current_offset(nfp_prog);
+
+	/* if R0 > 7 jump to abort */
+	emit_alu(nfp_prog, reg_none(), reg_imm(7), ALU_OP_SUB, reg_b(0));
+	emit_br(nfp_prog, BR_BLO, nfp_prog->tgt_abort, 0);
+	emit_alu(nfp_prog, reg_a(0),
+		 reg_none(), ALU_OP_NONE, NFP_BPF_ABI_FLAGS);
+
+	wrp_immed(nfp_prog, reg_b(2), 0x41221211);
+	wrp_immed(nfp_prog, reg_b(3), 0x41001211);
+
+	emit_shf(nfp_prog, reg_a(1),
+		 reg_none(), SHF_OP_NONE, reg_b(0), SHF_SC_L_SHF, 2);
+
+	emit_alu(nfp_prog, reg_none(), reg_a(1), ALU_OP_OR, reg_imm(0));
+	emit_shf(nfp_prog, reg_a(2),
+		 reg_imm(0xf), SHF_OP_AND, reg_b(2), SHF_SC_R_SHF, 0);
+
+	emit_alu(nfp_prog, reg_none(), reg_a(1), ALU_OP_OR, reg_imm(0));
+	emit_shf(nfp_prog, reg_b(2),
+		 reg_imm(0xf), SHF_OP_AND, reg_b(3), SHF_SC_R_SHF, 0);
+
+	emit_br_def(nfp_prog, nfp_prog->tgt_done, 2);
+
+	emit_shf(nfp_prog, reg_b(2),
+		 reg_a(2), SHF_OP_OR, reg_b(2), SHF_SC_L_SHF, 4);
+	emit_ld_field(nfp_prog, reg_a(0), 0xc, reg_b(2), SHF_SC_L_SHF, 16);
+}
+
 static void nfp_outro(struct nfp_prog *nfp_prog)
 {
 	switch (nfp_prog->act) {
+	case NN_ACT_DIRECT:
+		nfp_outro_tc_da(nfp_prog);
+		break;
 	case NN_ACT_TC_DROP:
 	case NN_ACT_TC_REDIR:
 		nfp_outro_tc_legacy(nfp_prog);

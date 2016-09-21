@@ -86,7 +86,16 @@ nfp_bpf_check_exit(struct nfp_prog *nfp_prog,
 		return -EINVAL;
 	}
 
-	if (reg0->imm != 0 && (reg0->imm & ~0U) != ~0U) {
+	if (nfp_prog->act != NN_ACT_DIRECT &&
+	    reg0->imm != 0 && (reg0->imm & ~0U) != ~0U) {
+		pr_info("unsupported exit state: %d, imm: %llx\n",
+			reg0->type, reg0->imm);
+		return -EINVAL;
+	}
+
+	if (nfp_prog->act == NN_ACT_DIRECT && reg0->imm <= TC_ACT_REDIRECT &&
+	    reg0->imm != TC_ACT_SHOT && reg0->imm != TC_ACT_STOLEN &&
+	    reg0->imm != TC_ACT_QUEUED) {
 		pr_info("unsupported exit state: %d, imm: %llx\n",
 			reg0->type, reg0->imm);
 		return -EINVAL;

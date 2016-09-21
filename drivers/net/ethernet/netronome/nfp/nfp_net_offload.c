@@ -112,8 +112,12 @@ nfp_net_bpf_get_act(struct nfp_net *nn, struct tc_cls_bpf_offload *cls_bpf)
 	LIST_HEAD(actions);
 
 	/* TC direct action */
-	if (cls_bpf->exts_integrated)
+	if (cls_bpf->exts_integrated) {
+		if (tc_no_actions(cls_bpf->exts))
+			return NN_ACT_DIRECT;
+
 		return -ENOTSUPP;
+	}
 
 	/* TC legacy mode */
 	if (!tc_single_action(cls_bpf->exts))
