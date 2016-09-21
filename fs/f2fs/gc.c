@@ -925,10 +925,14 @@ gc_more:
 		 */
 		if (__get_victim(sbi, &segno, gc_type) ||
 						prefree_segments(sbi)) {
-			write_checkpoint(sbi, &cpc);
+			ret = write_checkpoint(sbi, &cpc);
+			if (ret)
+				goto stop;
 			segno = NULL_SEGNO;
 		} else if (has_not_enough_free_secs(sbi, 0, 0)) {
-			write_checkpoint(sbi, &cpc);
+			ret = write_checkpoint(sbi, &cpc);
+			if (ret)
+				goto stop;
 		}
 	}
 
@@ -948,7 +952,7 @@ gc_more:
 			goto gc_more;
 
 		if (gc_type == FG_GC)
-			write_checkpoint(sbi, &cpc);
+			ret = write_checkpoint(sbi, &cpc);
 	}
 stop:
 	mutex_unlock(&sbi->gc_mutex);
