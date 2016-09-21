@@ -338,6 +338,9 @@ void drm_minor_release(struct drm_minor *minor)
 
 static int drm_dev_set_unique(struct drm_device *dev, const char *name)
 {
+	if (!name)
+		return -EINVAL;
+
 	kfree(dev->unique);
 	dev->unique = kstrdup(name, GFP_KERNEL);
 
