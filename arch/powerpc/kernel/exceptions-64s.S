@@ -1141,8 +1141,10 @@ EXC_REAL_NONE(0x1200, 0x1300)
 
 
 EXC_REAL(instruction_breakpoint, 0x1300, 0x1400)
-
+EXC_VIRT(instruction_breakpoint, 0x5300, 0x5400, 0x1300)
 TRAMP_KVM_SKIP(PACA_EXGEN, 0x1300)
+EXC_COMMON(instruction_breakpoint_common, 0x1300, instruction_breakpoint_exception)
+
 
 EXC_REAL_BEGIN(denorm_exception_hv, 0x1500, 0x1600)
 	mtspr	SPRN_SPRG_HSCRATCH0,r13
@@ -1374,7 +1376,6 @@ TRAMP_REAL_BEGIN(kvmppc_skip_Hinterrupt)
 /*** Common interrupt handlers ***/
 
 
-EXC_COMMON(instruction_breakpoint_common, 0x1300, instruction_breakpoint_exception)
 EXC_COMMON_HV(denorm_common, 0x1500, unknown_exception)
 #ifdef CONFIG_ALTIVEC
 EXC_COMMON(altivec_assist_common, 0x1700, altivec_assist_exception)
@@ -1397,8 +1398,6 @@ EXC_COMMON(altivec_assist_common, 0x1700, unknown_exception)
 	 * only has extra guff for STAB-based processors -- which never
 	 * come here.
 	 */
-
-EXC_VIRT(instruction_breakpoint, 0x5300, 0x5400, 0x1300)
 
 #ifdef CONFIG_PPC_DENORMALISATION
 EXC_VIRT_BEGIN(denorm_exception, 0x5500, 0x5600)
