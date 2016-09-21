@@ -2703,10 +2703,13 @@ struct nfp_net *nfp_net_netdev_alloc(struct pci_dev *pdev,
 	nn->rxd_cnt = NFP_NET_RX_DESCS_DEFAULT;
 
 	spin_lock_init(&nn->reconfig_lock);
+	spin_lock_init(&nn->rx_filter_lock);
 	spin_lock_init(&nn->link_status_lock);
 
 	setup_timer(&nn->reconfig_timer,
 		    nfp_net_reconfig_timer, (unsigned long)nn);
+	setup_timer(&nn->rx_filter_stats_timer,
+		    nfp_net_filter_stats_timer, (unsigned long)nn);
 
 	return nn;
 }
