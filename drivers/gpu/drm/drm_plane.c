@@ -45,6 +45,9 @@
  * &drm_plane_type for a more in-depth discussion of these special uapi-relevant
  * plane types. Special planes are associated with their CRTC by calling
  * drm_crtc_init_with_planes().
+ *
+ * The type of a plane is exposed in the immutable "type" enumeration property,
+ * which has one of the following values: "Overlay", "Primary", "Cursor".
  */
 
 static unsigned int drm_num_planes(struct drm_device *dev)

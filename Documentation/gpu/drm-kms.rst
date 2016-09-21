@@ -287,8 +287,11 @@ Property Types and Blob Property Support
 .. kernel-doc:: drivers/gpu/drm/drm_property.c
    :export:
 
-Blending and Z-Position properties
-----------------------------------
+Plane Composition Properties
+----------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_blend.c
+   :doc: overview
 
 .. kernel-doc:: drivers/gpu/drm/drm_blend.c
    :export:

@@ -1,23 +1,10 @@
 Owner Module/Drivers,Group,Property Name,Type,Property Values,Object attached,Description/Restrictions
-DRM,Generic,“rotation”,BITMASK,"{ 0, ""rotate-0"" }, { 1, ""rotate-90"" }, { 2, ""rotate-180"" }, { 3, ""rotate-270"" }, { 4, ""reflect-x"" }, { 5, ""reflect-y"" }","CRTC, Plane",rotate-(degrees) rotates the image by the specified amount in degrees in counter clockwise direction. reflect-x and reflect-y reflects the image along the specified axis prior to rotation
 ,,“scaling mode”,ENUM,"{ ""None"", ""Full"", ""Center"", ""Full aspect"" }",Connector,"Supported by: amdgpu, gma500, i915, nouveau and radeon."
 ,Connector,“EDID”,BLOB | IMMUTABLE,0,Connector,Contains id of edid blob ptr object.
 ,,“DPMS”,ENUM,"{ “On”, “Standby”, “Suspend”, “Off” }",Connector,Contains DPMS operation mode value.
 ,,“PATH”,BLOB | IMMUTABLE,0,Connector,Contains topology path to a connector.
 ,,“TILE”,BLOB | IMMUTABLE,0,Connector,Contains tiling information for a connector.
 ,,“CRTC_ID”,OBJECT,DRM_MODE_OBJECT_CRTC,Connector,CRTC that connector is attached to (atomic)
-,Plane,“type”,ENUM | IMMUTABLE,"{ ""Overlay"", ""Primary"", ""Cursor"" }",Plane,Plane type
-,,“SRC_X”,RANGE,"Min=0, Max=UINT_MAX",Plane,Scanout source x coordinate in 16.16 fixed point (atomic)
-,,“SRC_Y”,RANGE,"Min=0, Max=UINT_MAX",Plane,Scanout source y coordinate in 16.16 fixed point (atomic)
-,,“SRC_W”,RANGE,"Min=0, Max=UINT_MAX",Plane,Scanout source width in 16.16 fixed point (atomic)
-,,“SRC_H”,RANGE,"Min=0, Max=UINT_MAX",Plane,Scanout source height in 16.16 fixed point (atomic)
-,,“CRTC_X”,SIGNED_RANGE,"Min=INT_MIN, Max=INT_MAX",Plane,Scanout CRTC (destination) x coordinate (atomic)
-,,“CRTC_Y”,SIGNED_RANGE,"Min=INT_MIN, Max=INT_MAX",Plane,Scanout CRTC (destination) y coordinate (atomic)
-,,“CRTC_W”,RANGE,"Min=0, Max=UINT_MAX",Plane,Scanout CRTC (destination) width (atomic)
-,,“CRTC_H”,RANGE,"Min=0, Max=UINT_MAX",Plane,Scanout CRTC (destination) height (atomic)
-,,“FB_ID”,OBJECT,DRM_MODE_OBJECT_FB,Plane,Scanout framebuffer (atomic)
-,,“CRTC_ID”,OBJECT,DRM_MODE_OBJECT_CRTC,Plane,CRTC that plane is attached to (atomic)
-,,“zpos”,RANGE,"Min=0, Max=UINT_MAX","Plane,Z-order of the plane.Planes with higher Z-order values are displayed on top, planes with identical Z-order values are display in an undefined order"
 ,DVI-I,“subconnector”,ENUM,"{ “Unknown”, “DVI-D”, “DVI-A” }",Connector,TBD
 ,,“select subconnector”,ENUM,"{ “Automatic”, “DVI-D”, “DVI-A” }",Connector,TBD
 ,TV,“subconnector”,ENUM,"{ ""Unknown"", ""Composite"", ""SVIDEO"", ""Component"", ""SCART"" }",Connector,TBD
@@ -95,7 +82,6 @@ armada,CRTC,"""CSC_YUV""",ENUM,"{ ""Auto"" , ""CCIR601"", ""CCIR709"" }",CRTC,TB
 ,,"""contrast""",RANGE,"Min=0, Max=0x7fff",Plane,TBD
 ,,"""saturation""",RANGE,"Min=0, Max=0x7fff",Plane,TBD
 exynos,CRTC,“mode”,ENUM,"{ ""normal"", ""blank"" }",CRTC,TBD
-,Overlay,“zpos”,RANGE,"Min=0, Max=MAX_PLANE-1",Plane,TBD
 i2c/ch7006_drv,Generic,“scale”,RANGE,"Min=0, Max=2",Connector,TBD
 ,TV,“mode”,ENUM,"{ ""PAL"", ""PAL-M"",""PAL-N""}, ”PAL-Nc"" , ""PAL-60"", ""NTSC-M"", ""NTSC-J"" }",Connector,TBD
 nouveau,NV10 Overlay,"""colorkey""",RANGE,"Min=0, Max=0x01ffffff",Plane,TBD
@@ -126,4 +112,3 @@ radeon,DVI-I,“coherent”,RANGE,"Min=0, Max=1",Connector,TBD
 ,FMT Dithering,“dither”,ENUM,"{ ""off"", ""on"" }",Connector,TBD
 rcar-du,Generic,"""alpha""",RANGE,"Min=0, Max=255",Plane,TBD
 ,,"""colorkey""",RANGE,"Min=0, Max=0x01ffffff",Plane,TBD
-,,"""zpos""",RANGE,"Min=1, Max=7",Plane,TBD
