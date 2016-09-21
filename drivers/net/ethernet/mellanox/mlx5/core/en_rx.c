@@ -632,8 +632,20 @@ static inline void mlx5e_complete_rx_cqe(struct mlx5e_rq *rq,
 	napi_gro_receive(rq->cq.napi, skb);
 }
 
+static inline enum xdp_action mlx5e_xdp_handle(struct mlx5e_rq *rq,
+					       const struct bpf_prog *prog,
+					       void *data, u32 len)
+{
+	struct xdp_buff xdp;
+
+	xdp.data = data;
+	xdp.data_end = xdp.data + len;
+	return bpf_prog_run_xdp(prog, &xdp);
+}
+
 void mlx5e_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 {
+	struct bpf_prog *xdp_prog = READ_ONCE(rq->xdp_prog);
 	struct mlx5e_dma_info *di;
 	struct mlx5e_rx_wqe *wqe;
 	__be16 wqe_counter_be;
@@ -654,11 +666,24 @@ void mlx5e_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 				      rq->buff.wqe_sz,
 				      DMA_FROM_DEVICE);
 	prefetch(va + MLX5_RX_HEADROOM);
+	cqe_bcnt = be32_to_cpu(cqe->byte_cnt);
 
 	if (unlikely((cqe->op_own >> 4) != MLX5_CQE_RESP_SEND)) {
 		rq->stats.wqe_err++;
 		mlx5e_page_release(rq, di, true);
 		goto wq_ll_pop;
+	}
+
+	if (xdp_prog) {
+		enum xdp_action act =
+			mlx5e_xdp_handle(rq, xdp_prog, va + MLX5_RX_HEADROOM,
+					 cqe_bcnt);
+
+		if (act != XDP_PASS) {
+			rq->stats.xdp_drop++;
+			mlx5e_page_release(rq, di, true);
+			goto wq_ll_pop;
+		}
 	}
 
 	skb = build_skb(va, RQ_PAGE_SIZE(rq));
@@ -672,7 +697,6 @@ void mlx5e_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 	page_ref_inc(di->page);
 	mlx5e_page_release(rq, di, true);
 
-	cqe_bcnt = be32_to_cpu(cqe->byte_cnt);
 	skb_reserve(skb, MLX5_RX_HEADROOM);
 	skb_put(skb, cqe_bcnt);
 
