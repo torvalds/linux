@@ -367,7 +367,7 @@ static int gmc_v6_0_gart_set_pte_pde(struct amdgpu_device *adev,
 				     void *cpu_pt_addr,
 				     uint32_t gpu_page_idx,
 				     uint64_t addr,
-				     uint32_t flags)
+				     uint64_t flags)
 {
 	void __iomem *ptr = (void *)cpu_pt_addr;
 	uint64_t value;

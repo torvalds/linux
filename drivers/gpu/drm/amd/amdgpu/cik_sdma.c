@@ -749,7 +749,7 @@ static void cik_sdma_vm_write_pte(struct amdgpu_ib *ib, uint64_t pe,
  */
 static void cik_sdma_vm_set_pte_pde(struct amdgpu_ib *ib, uint64_t pe,
 				    uint64_t addr, unsigned count,
-				    uint32_t incr, uint32_t flags)
+				    uint32_t incr, uint64_t flags)
 {
 	/* for physically contiguous pages (vram) */
 	ib->ptr[ib->length_dw++] = SDMA_PACKET(SDMA_OPCODE_GENERATE_PTE_PDE, 0, 0);

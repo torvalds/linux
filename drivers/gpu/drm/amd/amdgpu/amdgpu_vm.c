@@ -64,7 +64,7 @@ struct amdgpu_pte_update_params {
 	/* Function which actually does the update */
 	void (*func)(struct amdgpu_pte_update_params *params, uint64_t pe,
 		     uint64_t addr, unsigned count, uint32_t incr,
-		     uint32_t flags);
+		     uint64_t flags);
 	/* indicate update pt or its shadow */
 	bool shadow;
 };
@@ -496,7 +496,7 @@ struct amdgpu_bo_va *amdgpu_vm_bo_find(struct amdgpu_vm *vm,
 static void amdgpu_vm_do_set_ptes(struct amdgpu_pte_update_params *params,
 				  uint64_t pe, uint64_t addr,
 				  unsigned count, uint32_t incr,
-				  uint32_t flags)
+				  uint64_t flags)
 {
 	trace_amdgpu_vm_set_ptes(pe, addr, count, incr, flags);
 
@@ -525,7 +525,7 @@ static void amdgpu_vm_do_set_ptes(struct amdgpu_pte_update_params *params,
 static void amdgpu_vm_do_copy_ptes(struct amdgpu_pte_update_params *params,
 				   uint64_t pe, uint64_t addr,
 				   unsigned count, uint32_t incr,
-				   uint32_t flags)
+				   uint64_t flags)
 {
 	uint64_t src = (params->src + (addr >> 12) * 8);
 
@@ -718,7 +718,7 @@ error_free:
 static void amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 				  struct amdgpu_vm *vm,
 				  uint64_t start, uint64_t end,
-				  uint64_t dst, uint32_t flags)
+				  uint64_t dst, uint64_t flags)
 {
 	const uint64_t mask = AMDGPU_VM_PTE_COUNT - 1;
 
@@ -808,7 +808,7 @@ static void amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 static void amdgpu_vm_frag_ptes(struct amdgpu_pte_update_params	*params,
 				struct amdgpu_vm *vm,
 				uint64_t start, uint64_t end,
-				uint64_t dst, uint32_t flags)
+				uint64_t dst, uint64_t flags)
 {
 	/**
 	 * The MC L1 TLB supports variable sized pages, based on a fragment
@@ -885,7 +885,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 				       dma_addr_t *pages_addr,
 				       struct amdgpu_vm *vm,
 				       uint64_t start, uint64_t last,
-				       uint32_t flags, uint64_t addr,
+				       uint64_t flags, uint64_t addr,
 				       struct dma_fence **fence)
 {
 	struct amdgpu_ring *ring;
@@ -1023,11 +1023,11 @@ error_free:
  */
 static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 				      struct dma_fence *exclusive,
-				      uint32_t gtt_flags,
+				      uint64_t gtt_flags,
 				      dma_addr_t *pages_addr,
 				      struct amdgpu_vm *vm,
 				      struct amdgpu_bo_va_mapping *mapping,
-				      uint32_t flags,
+				      uint64_t flags,
 				      struct drm_mm_node *nodes,
 				      struct dma_fence **fence)
 {
@@ -1114,7 +1114,7 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 	struct amdgpu_vm *vm = bo_va->vm;
 	struct amdgpu_bo_va_mapping *mapping;
 	dma_addr_t *pages_addr = NULL;
-	uint32_t gtt_flags, flags;
+	uint64_t gtt_flags, flags;
 	struct ttm_mem_reg *mem;
 	struct drm_mm_node *nodes;
 	struct dma_fence *exclusive;

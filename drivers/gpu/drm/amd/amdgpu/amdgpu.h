@@ -280,7 +280,7 @@ struct amdgpu_vm_pte_funcs {
 	void (*set_pte_pde)(struct amdgpu_ib *ib,
 			    uint64_t pe,
 			    uint64_t addr, unsigned count,
-			    uint32_t incr, uint32_t flags);
+			    uint32_t incr, uint64_t flags);
 };
 
 /* provided by the gmc block */
@@ -293,7 +293,7 @@ struct amdgpu_gart_funcs {
 			   void *cpu_pt_addr, /* cpu addr of page table */
 			   uint32_t gpu_page_idx, /* pte/pde to update */
 			   uint64_t addr, /* addr to write into pte/pde */
-			   uint32_t flags); /* access flags */
+			   uint64_t flags); /* access flags */
 	/* enable/disable PRT support */
 	void (*set_prt)(struct amdgpu_device *adev, bool enable);
 };
@@ -539,7 +539,7 @@ void amdgpu_gart_unbind(struct amdgpu_device *adev, uint64_t offset,
 			int pages);
 int amdgpu_gart_bind(struct amdgpu_device *adev, uint64_t offset,
 		     int pages, struct page **pagelist,
-		     dma_addr_t *dma_addr, uint32_t flags);
+		     dma_addr_t *dma_addr, uint64_t flags);
 int amdgpu_ttm_recover_gart(struct amdgpu_device *adev);
 
 /*
@@ -1746,7 +1746,7 @@ bool amdgpu_ttm_tt_affect_userptr(struct ttm_tt *ttm, unsigned long start,
 bool amdgpu_ttm_tt_userptr_invalidated(struct ttm_tt *ttm,
 				       int *last_invalidated);
 bool amdgpu_ttm_tt_is_readonly(struct ttm_tt *ttm);
-uint32_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
+uint64_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
 				 struct ttm_mem_reg *mem);
 void amdgpu_vram_location(struct amdgpu_device *adev, struct amdgpu_mc *mc, u64 base);
 void amdgpu_gtt_location(struct amdgpu_device *adev, struct amdgpu_mc *mc);
