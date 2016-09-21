@@ -2,6 +2,7 @@ config SND_USB_LINE6
 	tristate
 	select SND_RAWMIDI
 	select SND_PCM
+	select SND_HWDEP
 
 config SND_USB_POD
 	tristate "Line 6 POD USB support"
