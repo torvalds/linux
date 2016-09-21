@@ -24,6 +24,18 @@
 #include <asm/irq_vectors.h>
 #include <asm/timer.h>
 
+static struct bau_operations ops;
+
+static struct bau_operations uv123_bau_ops = {
+	.bau_gpa_to_offset       = uv_gpa_to_offset,
+	.read_l_sw_ack           = read_mmr_sw_ack,
+	.read_g_sw_ack           = read_gmmr_sw_ack,
+	.write_l_sw_ack          = write_mmr_sw_ack,
+	.write_g_sw_ack          = write_gmmr_sw_ack,
+	.write_payload_first     = write_mmr_payload_first,
+	.write_payload_last      = write_mmr_payload_last,
+};
+
 /* timeouts in nanoseconds (indexed by UVH_AGING_PRESCALE_SEL urgency7 30:28) */
 static int timeout_base_ns[] = {
 		20,
@@ -2134,6 +2146,13 @@ static int __init uv_bau_init(void)
 
 	if (!is_uv_system())
 		return 0;
+
+	if (is_uv3_hub())
+		ops = uv123_bau_ops;
+	else if (is_uv2_hub())
+		ops = uv123_bau_ops;
+	else if (is_uv1_hub())
+		ops = uv123_bau_ops;
 
 	for_each_possible_cpu(cur_cpu) {
 		mask = &per_cpu(uv_flush_tlb_mask, cur_cpu);

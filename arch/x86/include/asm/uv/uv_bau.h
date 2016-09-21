@@ -385,6 +385,17 @@ struct uv2_3_bau_msg_header {
 	/* bits 127:120 */
 };
 
+/* Abstracted BAU functions */
+struct bau_operations {
+	unsigned long (*read_l_sw_ack)(void);
+	unsigned long (*read_g_sw_ack)(int pnode);
+	unsigned long (*bau_gpa_to_offset)(unsigned long vaddr);
+	void (*write_l_sw_ack)(unsigned long mmr);
+	void (*write_g_sw_ack)(int pnode, unsigned long mmr);
+	void (*write_payload_first)(int pnode, unsigned long mmr);
+	void (*write_payload_last)(int pnode, unsigned long mmr);
+};
+
 /*
  * The activation descriptor:
  * The format of the message to send, plus all accompanying control
