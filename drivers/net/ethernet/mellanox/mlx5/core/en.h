@@ -433,6 +433,7 @@ struct mlx5e_sq {
 		struct {
 			struct mlx5e_sq_wqe_info  *wqe_info;
 			struct mlx5e_dma_info     *di;
+			bool                       doorbell;
 		} xdp;
 	} db;
 

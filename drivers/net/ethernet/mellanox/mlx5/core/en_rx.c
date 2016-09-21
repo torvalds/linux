@@ -632,6 +632,18 @@ static inline void mlx5e_complete_rx_cqe(struct mlx5e_rq *rq,
 	napi_gro_receive(rq->cq.napi, skb);
 }
 
+static inline void mlx5e_xmit_xdp_doorbell(struct mlx5e_sq *sq)
+{
+	struct mlx5_wq_cyc *wq = &sq->wq;
+	struct mlx5e_tx_wqe *wqe;
+	u16 pi = (sq->pc - MLX5E_XDP_TX_WQEBBS) & wq->sz_m1; /* last pi */
+
+	wqe  = mlx5_wq_cyc_get_wqe(wq, pi);
+
+	wqe->ctrl.fm_ce_se = MLX5_WQE_CTRL_CQ_UPDATE;
+	mlx5e_tx_notify_hw(sq, &wqe->ctrl, 0);
+}
+
 static inline void mlx5e_xmit_xdp_frame(struct mlx5e_rq *rq,
 					struct mlx5e_dma_info *di,
 					unsigned int data_offset,
@@ -652,6 +664,11 @@ static inline void mlx5e_xmit_xdp_frame(struct mlx5e_rq *rq,
 	void *data           = page_address(di->page) + data_offset;
 
 	if (unlikely(!mlx5e_sq_has_room_for(sq, MLX5E_XDP_TX_WQEBBS))) {
+		if (sq->db.xdp.doorbell) {
+			/* SQ is full, ring doorbell */
+			mlx5e_xmit_xdp_doorbell(sq);
+			sq->db.xdp.doorbell = false;
+		}
 		rq->stats.xdp_tx_full++;
 		mlx5e_page_release(rq, di, true);
 		return;
@@ -681,14 +698,7 @@ static inline void mlx5e_xmit_xdp_frame(struct mlx5e_rq *rq,
 	wi->num_wqebbs = MLX5E_XDP_TX_WQEBBS;
 	sq->pc += MLX5E_XDP_TX_WQEBBS;
 
-	wqe->ctrl.fm_ce_se = MLX5_WQE_CTRL_CQ_UPDATE;
-	mlx5e_tx_notify_hw(sq, &wqe->ctrl, 0);
-
-	/* fill sq edge with nops to avoid wqe wrap around */
-	while ((pi = (sq->pc & wq->sz_m1)) > sq->edge) {
-		sq->db.xdp.wqe_info[pi].opcode = MLX5_OPCODE_NOP;
-		mlx5e_send_nop(sq, false);
-	}
+	sq->db.xdp.doorbell = true;
 	rq->stats.xdp_tx++;
 }
 
@@ -863,6 +873,7 @@ mpwrq_cqe_out:
 int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 {
 	struct mlx5e_rq *rq = container_of(cq, struct mlx5e_rq, cq);
+	struct mlx5e_sq *xdp_sq = &rq->channel->xdp_sq;
 	int work_done = 0;
 
 	if (unlikely(test_bit(MLX5E_RQ_STATE_FLUSH, &rq->state)))
@@ -887,6 +898,11 @@ int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 		mlx5_cqwq_pop(&cq->wq);
 
 		rq->handle_rx_cqe(rq, cqe);
+	}
+
+	if (xdp_sq->db.xdp.doorbell) {
+		mlx5e_xmit_xdp_doorbell(xdp_sq);
+		xdp_sq->db.xdp.doorbell = false;
 	}
 
 	mlx5_cqwq_update_db_record(&cq->wq);
