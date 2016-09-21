@@ -1790,10 +1790,7 @@ static void pq_init(int node, int pnode)
 	size_t plsize;
 	char *cp;
 	void *vp;
-	unsigned long pn;
-	unsigned long first;
-	unsigned long pn_first;
-	unsigned long last;
+	unsigned long gnode, first, last, tail;
 	struct bau_pq_entry *pqp;
 	struct bau_control *bcp;
 
@@ -1814,16 +1811,16 @@ static void pq_init(int node, int pnode)
 		bcp->bau_msg_head	= pqp;
 		bcp->queue_last		= pqp + (DEST_Q_SIZE - 1);
 	}
-	/*
-	 * need the gnode of where the memory was really allocated
-	 */
-	pn = uv_gpa_to_gnode(uv_gpa(pqp));
+
 	first = uv_physnodeaddr(pqp);
-	pn_first = ((unsigned long)pn << UV_PAYLOADQ_PNODE_SHIFT) | first;
 	last = uv_physnodeaddr(pqp + (DEST_Q_SIZE - 1));
-	write_mmr_payload_first(pnode, pn_first);
-	write_mmr_payload_tail(pnode, first);
+	tail = first;
+	gnode = uv_gpa_to_gnode(uv_gpa(pqp));
+	first = (gnode << UV_PAYLOADQ_GNODE_SHIFT) | tail;
+
+	write_mmr_payload_first(pnode, first);
 	write_mmr_payload_last(pnode, last);
+	write_mmr_payload_tail(pnode, tail);
 	write_gmmr_sw_ack(pnode, 0xffffUL);
 
 	/* in effect, all msg_type's are set to MSG_NOOP */
