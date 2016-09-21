@@ -254,7 +254,7 @@ struct lkl_dir {
 	int len;
 };
 
-struct lkl_dir *lkl_opendir(const char *path, int *err)
+static struct lkl_dir *lkl_dir_alloc(int *err)
 {
 	struct lkl_dir *dir = lkl_host_ops.mem_alloc(sizeof(struct lkl_dir));
 
@@ -263,6 +263,19 @@ struct lkl_dir *lkl_opendir(const char *path, int *err)
 		return NULL;
 	}
 
+	dir->len = 0;
+	dir->pos = NULL;
+
+	return dir;
+}
+
+struct lkl_dir *lkl_opendir(const char *path, int *err)
+{
+	struct lkl_dir *dir = lkl_dir_alloc(err);
+
+	if (!dir)
+		return NULL;
+
 	dir->fd = lkl_sys_open(path, LKL_O_RDONLY | LKL_O_DIRECTORY, 0);
 	if (dir->fd < 0) {
 		*err = dir->fd;
@@ -270,10 +283,26 @@ struct lkl_dir *lkl_opendir(const char *path, int *err)
 		return NULL;
 	}
 
-	dir->len = 0;
-	dir->pos = NULL;
+	return dir;
+}
+
+struct lkl_dir *lkl_fdopendir(int fd, int *err)
+{
+	struct lkl_dir *dir = lkl_dir_alloc(err);
+
+	if (!dir)
+		return NULL;
+
+	dir->fd = fd;
 
 	return dir;
+}
+
+void lkl_rewinddir(struct lkl_dir *dir)
+{
+	lkl_sys_lseek(dir->fd, 0, SEEK_SET);
+	dir->len = 0;
+	dir->pos = NULL;
 }
 
 int lkl_closedir(struct lkl_dir *dir)
