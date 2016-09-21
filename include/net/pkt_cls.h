@@ -498,6 +498,7 @@ struct tc_cls_bpf_offload {
 	struct bpf_prog *prog;
 	const char *name;
 	bool exts_integrated;
+	u32 gen_flags;
 };
 
 #endif
