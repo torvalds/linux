@@ -837,6 +837,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_TM)
 
 
 EXC_REAL_MASKABLE(decrementer, 0x900, 0x980)
+EXC_VIRT_MASKABLE(decrementer, 0x4900, 0x4980, 0x900)
+TRAMP_KVM(PACA_EXGEN, 0x900)
+EXC_COMMON_ASYNC(decrementer_common, 0x900, timer_interrupt)
+
 
 EXC_REAL_HV(hdecrementer, 0x980, 0xa00)
 
@@ -969,7 +973,6 @@ EXC_REAL_NONE(0x1800, 0x1900)
 /*** Out of line interrupts support ***/
 
 	/* moved from 0x200 */
-TRAMP_KVM(PACA_EXGEN, 0x900)
 TRAMP_KVM_HV(PACA_EXGEN, 0x980)
 
 #ifdef CONFIG_PPC_DENORMALISATION
@@ -1190,7 +1193,6 @@ TRAMP_REAL_BEGIN(kvmppc_skip_Hinterrupt)
 
 /*** Common interrupt handlers ***/
 
-EXC_COMMON_ASYNC(decrementer_common, 0x900, timer_interrupt)
 EXC_COMMON(hdecrementer_common, 0x980, hdec_interrupt)
 
 #ifdef CONFIG_PPC_DOORBELL
@@ -1234,7 +1236,6 @@ EXC_COMMON(altivec_assist_common, 0x1700, unknown_exception)
 	 * come here.
 	 */
 
-EXC_VIRT_MASKABLE(decrementer, 0x4900, 0x4980, 0x900)
 EXC_VIRT_HV(hdecrementer, 0x4980, 0x4a00, 0x980)
 EXC_VIRT_MASKABLE(doorbell_super, 0x4a00, 0x4b00, 0xa00)
 EXC_VIRT(trap_0b, 0x4b00, 0x4c00, 0xb00)
