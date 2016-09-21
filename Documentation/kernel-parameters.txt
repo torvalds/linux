@@ -1,5 +1,5 @@
-                          Kernel Parameters
-                          ~~~~~~~~~~~~~~~~~
+Kernel Parameters
+~~~~~~~~~~~~~~~~~
 
 The following is a consolidated list of the kernel parameters as
 implemented by the __setup(), core_param() and module_param() macros
@@ -14,7 +14,7 @@ environment, others are passed as command line arguments to init.
 Everything after "--" is passed as an argument to init.
 
 Module parameters can be specified in two ways: via the kernel command
-line with a module name prefix, or via modprobe, e.g.:
+line with a module name prefix, or via modprobe, e.g.::
 
 	(kernel command line) usbcore.blinkenlights=1
 	(modprobe command line) modprobe usbcore blinkenlights=1
@@ -25,12 +25,16 @@ kernel command line (/proc/cmdline) and collects module parameters
 when it loads a module, so the kernel command line can be used for
 loadable modules too.
 
-Hyphens (dashes) and underscores are equivalent in parameter names, so
+Hyphens (dashes) and underscores are equivalent in parameter names, so::
+
 	log_buf_len=1M print-fatal-signals=1
-can also be entered as
+
+can also be entered as::
+
 	log-buf-len=1M print_fatal_signals=1
 
-Double-quotes can be used to protect spaces in values, e.g.:
+Double-quotes can be used to protect spaces in values, e.g.::
+
 	param="spaces in here"
 
 cpu lists:
@@ -69,12 +73,12 @@ This document may not be entirely up to date and comprehensive. The command
 module. Loadable modules, after being loaded into the running kernel, also
 reveal their parameters in /sys/module/${modulename}/parameters/. Some of these
 parameters may be changed at runtime by the command
-"echo -n ${value} > /sys/module/${modulename}/parameters/${parm}".
+``echo -n ${value} > /sys/module/${modulename}/parameters/${parm}``.
 
 The parameters listed below are only valid if certain kernel build options were
 enabled and if respective hardware is present. The text in square brackets at
 the beginning of each description states the restrictions within which a
-parameter is applicable:
+parameter is applicable::
 
 	ACPI	ACPI support is enabled.
 	AGP	AGP (Accelerated Graphics Port) is enabled.
@@ -165,7 +169,7 @@ parameter is applicable:
 	X86_UV	SGI UV support is enabled.
 	XEN	Xen support is enabled
 
-In addition, the following text indicates that the option:
+In addition, the following text indicates that the option::
 
 	BUGS=	Relates to possible processor bugs on the said processor.
 	KNL	Is a kernel start-up parameter.
@@ -194,7 +198,7 @@ and is between 256 and 4096 characters. It is defined in the file
 Finally, the [KMG] suffix is commonly described after a number of kernel
 parameter values. These 'K', 'M', and 'G' letters represent the _binary_
 multipliers 'Kilo', 'Mega', and 'Giga', equalling 2^10, 2^20, and 2^30
-bytes respectively. Such letter suffixes can also be entirely omitted.
+bytes respectively. Such letter suffixes can also be entirely omitted::
 
 
 	acpi=		[HW,ACPI,X86,ARM64]
@@ -2545,7 +2549,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			will be sent.
 			The default is to send the implementation identification
 			information.
-	
+
 	nfs.recover_lost_locks =
 			[NFSv4] Attempt to recover locks that were lost due
 			to a lease timeout on the server. Please note that
@@ -4197,7 +4201,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			See also Documentation/input/joystick-parport.txt
 
 	udbg-immortal	[PPC] When debugging early kernel crashes that
-			happen after console_init() and before a proper 
+			happen after console_init() and before a proper
 			console driver takes over, this boot options might
 			help "seeing" what's going on.
 
@@ -4565,8 +4569,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Format:
 			<irq>,<irq_mask>,<io>,<full_duplex>,<do_sound>,<lockup_hack>[,<irq2>[,<irq3>[,<irq4>]]]
 
-______________________________________________________________________
+------------------------
 
-TODO:
+Todo
+----
 
 	Add more DRM drivers.
