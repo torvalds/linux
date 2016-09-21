@@ -289,7 +289,8 @@ num_subarch_entries = (. - subarch_entries) / 4
 ENTRY(start_cpu0)
 	movl initial_stack, %ecx
 	movl %ecx, %esp
-	jmp  *(initial_code)
+	call *(initial_code)
+1:	jmp 1b
 ENDPROC(start_cpu0)
 #endif
 
@@ -470,8 +471,9 @@ ENTRY(startup_32_smp)
 	xorl %eax,%eax			# Clear LDT
 	lldt %ax
 
-	pushl $0		# fake return address for unwinder
-	jmp *(initial_code)
+	call *(initial_code)
+1:	jmp 1b
+ENDPROC(startup_32_smp)
 
 #include "verify_cpu.S"
 
