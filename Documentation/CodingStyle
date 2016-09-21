@@ -451,9 +451,6 @@ Avoid using GW-BASIC names like ``err1:`` and ``err2:``, as you would have to
 renumber them if you ever add or remove exit paths, and they make correctness
 difficult to verify anyway.
 
-It is advised to indent labels with a single space (not tab), so that
-``diff -p`` does not confuse labels with functions.
-
 The rationale for using gotos is:
 
 - unconditional statements are easier to understand and follow
@@ -481,7 +478,7 @@ The rationale for using gotos is:
 			goto out_buffer;
 		}
 		...
-	 out_free_buffer:
+	out_free_buffer:
 		kfree(buffer);
 		return result;
 	}
@@ -490,7 +487,7 @@ A common type of bug to be aware of is ``one err bugs`` which look like this:
 
 .. code-block:: c
 
-	 err:
+	err:
 		kfree(foo->bar);
 		kfree(foo);
 		return ret;
