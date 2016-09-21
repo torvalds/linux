@@ -848,7 +848,7 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi,
 	for (segno = start_segno; segno < end_segno; segno++) {
 
 		if (get_valid_blocks(sbi, segno, 1) == 0)
-			continue;
+			goto next;
 
 		/* find segment summary of victim */
 		sum_page = find_get_page(META_MAPPING(sbi),
@@ -874,7 +874,7 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi,
 								gc_type);
 
 		stat_inc_seg_count(sbi, type, gc_type);
-
+next:
 		f2fs_put_page(sum_page, 0);
 	}
 
