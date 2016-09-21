@@ -632,6 +632,10 @@ static int check_packet_access(struct bpf_verifier_env *env, u32 regno, int off,
 static int check_ctx_access(struct bpf_verifier_env *env, int off, int size,
 			    enum bpf_access_type t, enum bpf_reg_type *reg_type)
 {
+	/* for analyzer ctx accesses are already validated and converted */
+	if (env->analyzer_ops)
+		return 0;
+
 	if (env->prog->aux->ops->is_valid_access &&
 	    env->prog->aux->ops->is_valid_access(off, size, t, reg_type)) {
 		/* remember the offset of last byte accessed in ctx */
@@ -2225,6 +2229,15 @@ static int is_state_visited(struct bpf_verifier_env *env, int insn_idx)
 	return 0;
 }
 
+static int ext_analyzer_insn_hook(struct bpf_verifier_env *env,
+				  int insn_idx, int prev_insn_idx)
+{
+	if (!env->analyzer_ops || !env->analyzer_ops->insn_hook)
+		return 0;
+
+	return env->analyzer_ops->insn_hook(env, insn_idx, prev_insn_idx);
+}
+
 static int do_check(struct bpf_verifier_env *env)
 {
 	struct bpf_verifier_state *state = &env->cur_state;
@@ -2282,6 +2295,10 @@ static int do_check(struct bpf_verifier_env *env)
 			verbose("%d: ", insn_idx);
 			print_bpf_insn(insn);
 		}
+
+		err = ext_analyzer_insn_hook(env, insn_idx, prev_insn_idx);
+		if (err)
+			return err;
 
 		if (class == BPF_ALU || class == BPF_ALU64) {
 			err = check_alu_op(env, insn);
@@ -2845,3 +2862,54 @@ err_free_env:
 	kfree(env);
 	return ret;
 }
+
+int bpf_analyzer(struct bpf_prog *prog, const struct bpf_ext_analyzer_ops *ops,
+		 void *priv)
+{
+	struct bpf_verifier_env *env;
+	int ret;
+
+	env = kzalloc(sizeof(struct bpf_verifier_env), GFP_KERNEL);
+	if (!env)
+		return -ENOMEM;
+
+	env->insn_aux_data = vzalloc(sizeof(struct bpf_insn_aux_data) *
+				     prog->len);
+	ret = -ENOMEM;
+	if (!env->insn_aux_data)
+		goto err_free_env;
+	env->prog = prog;
+	env->analyzer_ops = ops;
+	env->analyzer_priv = priv;
+
+	/* grab the mutex to protect few globals used by verifier */
+	mutex_lock(&bpf_verifier_lock);
+
+	log_level = 0;
+
+	env->explored_states = kcalloc(env->prog->len,
+				       sizeof(struct bpf_verifier_state_list *),
+				       GFP_KERNEL);
+	ret = -ENOMEM;
+	if (!env->explored_states)
+		goto skip_full_check;
+
+	ret = check_cfg(env);
+	if (ret < 0)
+		goto skip_full_check;
+
+	env->allow_ptr_leaks = capable(CAP_SYS_ADMIN);
+
+	ret = do_check(env);
+
+skip_full_check:
+	while (pop_stack(env, NULL) >= 0);
+	free_states(env);
+
+	mutex_unlock(&bpf_verifier_lock);
+	vfree(env->insn_aux_data);
+err_free_env:
+	kfree(env);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(bpf_analyzer);

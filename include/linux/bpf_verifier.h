@@ -59,6 +59,12 @@ struct bpf_insn_aux_data {
 
 #define MAX_USED_MAPS 64 /* max number of maps accessed by one eBPF program */
 
+struct bpf_verifier_env;
+struct bpf_ext_analyzer_ops {
+	int (*insn_hook)(struct bpf_verifier_env *env,
+			 int insn_idx, int prev_insn_idx);
+};
+
 /* single container for all structs
  * one verifier_env per bpf_check() call
  */
@@ -68,6 +74,8 @@ struct bpf_verifier_env {
 	int stack_size;			/* number of states to be processed */
 	struct bpf_verifier_state cur_state; /* current verifier state */
 	struct bpf_verifier_state_list **explored_states; /* search pruning optimization */
+	const struct bpf_ext_analyzer_ops *analyzer_ops; /* external analyzer ops */
+	void *analyzer_priv; /* pointer to external analyzer's private data */
 	struct bpf_map *used_maps[MAX_USED_MAPS]; /* array of map's used by eBPF program */
 	u32 used_map_cnt;		/* number of used maps */
 	u32 id_gen;			/* used to generate unique reg IDs */
@@ -75,5 +83,8 @@ struct bpf_verifier_env {
 	bool seen_direct_write;
 	struct bpf_insn_aux_data *insn_aux_data; /* array of per-insn state */
 };
+
+int bpf_analyzer(struct bpf_prog *prog, const struct bpf_ext_analyzer_ops *ops,
+		 void *priv);
 
 #endif /* _LINUX_BPF_VERIFIER_H */
