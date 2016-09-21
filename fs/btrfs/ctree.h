@@ -3244,6 +3244,12 @@ int btrfs_sync_fs(struct super_block *sb, int wait);
 #ifdef CONFIG_PRINTK
 __printf(2, 3)
 void btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...);
+__printf(2, 3)
+static inline int btrfs_no_printk(const struct btrfs_fs_info *fs_info,
+				   const char *fmt, ...)
+{
+	return 0;
+}
 #else
 static inline __printf(2, 3)
 void btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
@@ -3358,13 +3364,13 @@ do {									\
 	btrfs_printk_ratelimited(fs_info, KERN_DEBUG fmt, ##args)
 #else
 #define btrfs_debug(fs_info, fmt, args...) \
-	no_printk(KERN_DEBUG fmt, ##args)
+	btrfs_no_printk(fs_info, KERN_DEBUG fmt, ##args)
 #define btrfs_debug_in_rcu(fs_info, fmt, args...) \
-	no_printk(KERN_DEBUG fmt, ##args)
+	btrfs_no_printk(fs_info, KERN_DEBUG fmt, ##args)
 #define btrfs_debug_rl_in_rcu(fs_info, fmt, args...) \
-	no_printk(KERN_DEBUG fmt, ##args)
+	btrfs_no_printk(fs_info, KERN_DEBUG fmt, ##args)
 #define btrfs_debug_rl(fs_info, fmt, args...) \
-	no_printk(KERN_DEBUG fmt, ##args)
+	btrfs_no_printk(fs_info, KERN_DEBUG fmt, ##args)
 #endif
 
 #define btrfs_printk_in_rcu(fs_info, fmt, args...)	\
