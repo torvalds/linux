@@ -66,13 +66,8 @@ startup_64:
 	 * tables and then reload them.
 	 */
 
-	/*
-	 * Setup stack for verify_cpu(). "-8" because initial_stack is defined
-	 * this way, see below. Our best guess is a NULL ptr for stack
-	 * termination heuristics and we don't want to break anything which
-	 * might depend on it (kgdb, ...).
-	 */
-	leaq	(__end_init_task - 8)(%rip), %rsp
+	/* Set up the stack for verify_cpu(), similar to initial_stack below */
+	leaq	(__end_init_task - SIZEOF_PTREGS)(%rip), %rsp
 
 	/* Sanitize CPU configuration */
 	call verify_cpu
@@ -329,7 +324,11 @@ ENDPROC(start_cpu0)
 	GLOBAL(initial_gs)
 	.quad	INIT_PER_CPU_VAR(irq_stack_union)
 	GLOBAL(initial_stack)
-	.quad  init_thread_union+THREAD_SIZE-8
+	/*
+	 * The SIZEOF_PTREGS gap is a convention which helps the in-kernel
+	 * unwinder reliably detect the end of the stack.
+	 */
+	.quad  init_thread_union + THREAD_SIZE - SIZEOF_PTREGS
 	__FINITDATA
 
 bad_address:

@@ -63,6 +63,8 @@
 #define PAGE_TABLE_SIZE(pages) ((pages) / PTRS_PER_PGD)
 #endif
 
+#define SIZEOF_PTREGS 17*4
+
 /*
  * Number of possible pages in the lowmem region.
  *
@@ -708,7 +710,12 @@ ENTRY(initial_page_table)
 .data
 .balign 4
 ENTRY(initial_stack)
-	.long init_thread_union+THREAD_SIZE
+	/*
+	 * The SIZEOF_PTREGS gap is a convention which helps the in-kernel
+	 * unwinder reliably detect the end of the stack.
+	 */
+	.long init_thread_union + THREAD_SIZE - SIZEOF_PTREGS - \
+	      TOP_OF_KERNEL_STACK_PADDING;
 
 __INITRODATA
 int_msg:
