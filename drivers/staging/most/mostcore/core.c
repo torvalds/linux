@@ -265,7 +265,7 @@ static ssize_t show_available_directions(struct most_c_obj *c,
 	if (c->iface->channel_vector[i].direction & MOST_CH_TX)
 		strcat(buf, "dir_tx ");
 	strcat(buf, "\n");
-	return strlen(buf) + 1;
+	return strlen(buf);
 }
 
 static ssize_t show_available_datatypes(struct most_c_obj *c,
@@ -284,7 +284,7 @@ static ssize_t show_available_datatypes(struct most_c_obj *c,
 	if (c->iface->channel_vector[i].data_type & MOST_CH_ISOC_AVP)
 		strcat(buf, "isoc_avp ");
 	strcat(buf, "\n");
-	return strlen(buf) + 1;
+	return strlen(buf);
 }
 
 static
