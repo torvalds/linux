@@ -505,6 +505,8 @@ struct rxrpc_call {
 #define RXRPC_TX_ANNO_UNACK	1
 #define RXRPC_TX_ANNO_NAK	2
 #define RXRPC_TX_ANNO_RETRANS	3
+#define RXRPC_TX_ANNO_MASK	0x03
+#define RXRPC_TX_ANNO_RESENT	0x04
 #define RXRPC_RX_ANNO_JUMBO	0x3f		/* Jumbo subpacket number + 1 if not zero */
 #define RXRPC_RX_ANNO_JLAST	0x40		/* Set if last element of a jumbo packet */
 #define RXRPC_RX_ANNO_VERIFIED	0x80		/* Set if verified and decrypted */

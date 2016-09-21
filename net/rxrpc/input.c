@@ -388,17 +388,25 @@ static void rxrpc_input_soft_acks(struct rxrpc_call *call, u8 *acks,
 {
 	bool resend = false;
 	int ix;
+	u8 annotation, anno_type;
 
 	for (; nr_acks > 0; nr_acks--, seq++) {
 		ix = seq & RXRPC_RXTX_BUFF_MASK;
+		annotation = call->rxtx_annotations[ix];
+		anno_type = annotation & RXRPC_TX_ANNO_MASK;
+		annotation &= ~RXRPC_TX_ANNO_MASK;
 		switch (*acks++) {
 		case RXRPC_ACK_TYPE_ACK:
-			call->rxtx_annotations[ix] = RXRPC_TX_ANNO_ACK;
+			if (anno_type == RXRPC_TX_ANNO_ACK)
+				continue;
+			call->rxtx_annotations[ix] =
+				RXRPC_TX_ANNO_ACK | annotation;
 			break;
 		case RXRPC_ACK_TYPE_NACK:
-			if (call->rxtx_annotations[ix] == RXRPC_TX_ANNO_NAK)
+			if (anno_type == RXRPC_TX_ANNO_NAK)
 				continue;
-			call->rxtx_annotations[ix] = RXRPC_TX_ANNO_NAK;
+			call->rxtx_annotations[ix] =
+				RXRPC_TX_ANNO_NAK | annotation;
 			resend = true;
 			break;
 		default:

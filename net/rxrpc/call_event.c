@@ -144,7 +144,7 @@ static void rxrpc_resend(struct rxrpc_call *call)
 	rxrpc_seq_t cursor, seq, top;
 	unsigned long resend_at, now;
 	int ix;
-	u8 annotation;
+	u8 annotation, anno_type;
 
 	_enter("{%d,%d}", call->tx_hard_ack, call->tx_top);
 
@@ -165,14 +165,16 @@ static void rxrpc_resend(struct rxrpc_call *call)
 	for (seq = cursor + 1; before_eq(seq, top); seq++) {
 		ix = seq & RXRPC_RXTX_BUFF_MASK;
 		annotation = call->rxtx_annotations[ix];
-		if (annotation == RXRPC_TX_ANNO_ACK)
+		anno_type = annotation & RXRPC_TX_ANNO_MASK;
+		annotation &= ~RXRPC_TX_ANNO_MASK;
+		if (anno_type == RXRPC_TX_ANNO_ACK)
 			continue;
 
 		skb = call->rxtx_buffer[ix];
 		rxrpc_see_skb(skb, rxrpc_skb_tx_seen);
 		sp = rxrpc_skb(skb);
 
-		if (annotation == RXRPC_TX_ANNO_UNACK) {
+		if (anno_type == RXRPC_TX_ANNO_UNACK) {
 			if (time_after(sp->resend_at, now)) {
 				if (time_before(sp->resend_at, resend_at))
 					resend_at = sp->resend_at;
@@ -181,7 +183,7 @@ static void rxrpc_resend(struct rxrpc_call *call)
 		}
 
 		/* Okay, we need to retransmit a packet. */
-		call->rxtx_annotations[ix] = RXRPC_TX_ANNO_RETRANS;
+		call->rxtx_annotations[ix] = RXRPC_TX_ANNO_RETRANS | annotation;
 	}
 
 	call->resend_at = resend_at;
@@ -194,7 +196,8 @@ static void rxrpc_resend(struct rxrpc_call *call)
 	for (seq = cursor + 1; before_eq(seq, top); seq++) {
 		ix = seq & RXRPC_RXTX_BUFF_MASK;
 		annotation = call->rxtx_annotations[ix];
-		if (annotation != RXRPC_TX_ANNO_RETRANS)
+		anno_type = annotation & RXRPC_TX_ANNO_MASK;
+		if (anno_type != RXRPC_TX_ANNO_RETRANS)
 			continue;
 
 		skb = call->rxtx_buffer[ix];
@@ -220,10 +223,17 @@ static void rxrpc_resend(struct rxrpc_call *call)
 		 * received and the packet might have been hard-ACK'd (in which
 		 * case it will no longer be in the buffer).
 		 */
-		if (after(seq, call->tx_hard_ack) &&
-		    (call->rxtx_annotations[ix] == RXRPC_TX_ANNO_RETRANS ||
-		     call->rxtx_annotations[ix] == RXRPC_TX_ANNO_NAK))
-			call->rxtx_annotations[ix] = RXRPC_TX_ANNO_UNACK;
+		if (after(seq, call->tx_hard_ack)) {
+			annotation = call->rxtx_annotations[ix];
+			anno_type = annotation & RXRPC_TX_ANNO_MASK;
+			if (anno_type == RXRPC_TX_ANNO_RETRANS ||
+			    anno_type == RXRPC_TX_ANNO_NAK) {
+				annotation &= ~RXRPC_TX_ANNO_MASK;
+				annotation |= RXRPC_TX_ANNO_UNACK;
+			}
+			annotation |= RXRPC_TX_ANNO_RESENT;
+			call->rxtx_annotations[ix] = annotation;
+		}
 
 		if (after(call->tx_hard_ack, seq))
 			seq = call->tx_hard_ack;
