@@ -24,6 +24,8 @@
  * @RC_TYPE_SONY15: Sony 15 bit protocol
  * @RC_TYPE_SONY20: Sony 20 bit protocol
  * @RC_TYPE_NEC: NEC protocol
+ * @RC_TYPE_NECX: Extended NEC protocol
+ * @RC_TYPE_NEC32: NEC 32 bit protocol
  * @RC_TYPE_SANYO: Sanyo protocol
  * @RC_TYPE_MCE_KBD: RC6-ish MCE keyboard/mouse
  * @RC_TYPE_RC6_0: Philips RC6-0-16 protocol
@@ -46,16 +48,18 @@ enum rc_type {
 	RC_TYPE_SONY15		= 7,
 	RC_TYPE_SONY20		= 8,
 	RC_TYPE_NEC		= 9,
-	RC_TYPE_SANYO		= 10,
-	RC_TYPE_MCE_KBD		= 11,
-	RC_TYPE_RC6_0		= 12,
-	RC_TYPE_RC6_6A_20	= 13,
-	RC_TYPE_RC6_6A_24	= 14,
-	RC_TYPE_RC6_6A_32	= 15,
-	RC_TYPE_RC6_MCE		= 16,
-	RC_TYPE_SHARP		= 17,
-	RC_TYPE_XMP		= 18,
-	RC_TYPE_CEC		= 19,
+	RC_TYPE_NECX		= 10,
+	RC_TYPE_NEC32		= 11,
+	RC_TYPE_SANYO		= 12,
+	RC_TYPE_MCE_KBD		= 13,
+	RC_TYPE_RC6_0		= 14,
+	RC_TYPE_RC6_6A_20	= 15,
+	RC_TYPE_RC6_6A_24	= 16,
+	RC_TYPE_RC6_6A_32	= 17,
+	RC_TYPE_RC6_MCE		= 18,
+	RC_TYPE_SHARP		= 19,
+	RC_TYPE_XMP		= 20,
+	RC_TYPE_CEC		= 21,
 };
 
 #define RC_BIT_NONE		0ULL
@@ -69,6 +73,8 @@ enum rc_type {
 #define RC_BIT_SONY15		(1ULL << RC_TYPE_SONY15)
 #define RC_BIT_SONY20		(1ULL << RC_TYPE_SONY20)
 #define RC_BIT_NEC		(1ULL << RC_TYPE_NEC)
+#define RC_BIT_NECX		(1ULL << RC_TYPE_NECX)
+#define RC_BIT_NEC32		(1ULL << RC_TYPE_NEC32)
 #define RC_BIT_SANYO		(1ULL << RC_TYPE_SANYO)
 #define RC_BIT_MCE_KBD		(1ULL << RC_TYPE_MCE_KBD)
 #define RC_BIT_RC6_0		(1ULL << RC_TYPE_RC6_0)
@@ -84,8 +90,9 @@ enum rc_type {
 			 RC_BIT_RC5 | RC_BIT_RC5X | RC_BIT_RC5_SZ | \
 			 RC_BIT_JVC | \
 			 RC_BIT_SONY12 | RC_BIT_SONY15 | RC_BIT_SONY20 | \
-			 RC_BIT_NEC | RC_BIT_SANYO | RC_BIT_MCE_KBD | \
-			 RC_BIT_RC6_0 | RC_BIT_RC6_6A_20 | RC_BIT_RC6_6A_24 | \
+			 RC_BIT_NEC | RC_BIT_NECX | RC_BIT_NEC32 | \
+			 RC_BIT_SANYO | RC_BIT_MCE_KBD | RC_BIT_RC6_0 | \
+			 RC_BIT_RC6_6A_20 | RC_BIT_RC6_6A_24 | \
 			 RC_BIT_RC6_6A_32 | RC_BIT_RC6_MCE | RC_BIT_SHARP | \
 			 RC_BIT_XMP | RC_BIT_CEC)
 
