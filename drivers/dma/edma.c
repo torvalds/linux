@@ -274,11 +274,13 @@ static const struct of_device_id edma_of_ids[] = {
 	},
 	{}
 };
+MODULE_DEVICE_TABLE(of, edma_of_ids);
 
 static const struct of_device_id edma_tptc_of_ids[] = {
 	{ .compatible = "ti,edma3-tptc", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, edma_tptc_of_ids);
 
 static inline unsigned int edma_read(struct edma_cc *ecc, int offset)
 {
