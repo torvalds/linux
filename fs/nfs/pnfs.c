@@ -915,18 +915,12 @@ pnfs_layoutgets_blocked(const struct pnfs_layout_hdr *lo)
 		test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags);
 }
 
-/*
- * Get layout from server.
- *    for now, assume that whole file layouts are requested.
- *    arg->offset: 0
- *    arg->length: all ones
- */
-static struct pnfs_layout_segment *
-send_layoutget(struct pnfs_layout_hdr *lo,
+static struct nfs4_layoutget *
+pnfs_alloc_init_layoutget_args(struct pnfs_layout_hdr *lo,
 	   struct nfs_open_context *ctx,
 	   nfs4_stateid *stateid,
 	   const struct pnfs_layout_range *range,
-	   long *timeout, gfp_t gfp_flags)
+	   gfp_t gfp_flags)
 {
 	struct inode *ino = lo->plh_inode;
 	struct nfs_server *server = NFS_SERVER(ino);
@@ -935,14 +929,9 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 
 	dprintk("--> %s\n", __func__);
 
-	/*
-	 * Synchronously retrieve layout information from server and
-	 * store in lseg. If we race with a concurrent seqid morphing
-	 * op, then re-send the LAYOUTGET.
-	 */
 	lgp = kzalloc(sizeof(*lgp), gfp_flags);
 	if (lgp == NULL)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	i_size = i_size_read(ino);
 
@@ -963,8 +952,7 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 	nfs4_stateid_copy(&lgp->args.stateid, stateid);
 	lgp->gfp_flags = gfp_flags;
 	lgp->cred = lo->plh_lc_cred;
-
-	return nfs4_proc_layoutget(lgp, timeout, gfp_flags);
+	return lgp;
 }
 
 static void pnfs_clear_layoutcommit(struct inode *inode,
@@ -1694,6 +1682,7 @@ pnfs_update_layout(struct inode *ino,
 	struct nfs_client *clp = server->nfs_client;
 	struct pnfs_layout_hdr *lo = NULL;
 	struct pnfs_layout_segment *lseg = NULL;
+	struct nfs4_layoutget *lgp;
 	nfs4_stateid stateid;
 	long timeout = 0;
 	unsigned long giveup = jiffies + (clp->cl_lease_time << 1);
@@ -1838,7 +1827,15 @@ lookup_again:
 	if (arg.length != NFS4_MAX_UINT64)
 		arg.length = PAGE_ALIGN(arg.length);
 
-	lseg = send_layoutget(lo, ctx, &stateid, &arg, &timeout, gfp_flags);
+	lgp = pnfs_alloc_init_layoutget_args(lo, ctx, &stateid, &arg, gfp_flags);
+	if (!lgp) {
+		trace_pnfs_update_layout(ino, pos, count, iomode, lo, NULL,
+					 PNFS_UPDATE_LAYOUT_NOMEM);
+		atomic_dec(&lo->plh_outstanding);
+		goto out_put_layout_hdr;
+	}
+
+	lseg = nfs4_proc_layoutget(lgp, &timeout, gfp_flags);
 	trace_pnfs_update_layout(ino, pos, count, iomode, lo, lseg,
 				 PNFS_UPDATE_LAYOUT_SEND_LAYOUTGET);
 	atomic_dec(&lo->plh_outstanding);
