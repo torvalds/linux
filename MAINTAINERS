@@ -2500,7 +2500,7 @@ S:	Supported
 F:	kernel/bpf/
 
 BROADCOM B44 10/100 ETHERNET DRIVER
-M:	Gary Zambrano <zambrano@broadcom.com>
+M:	Michael Chan <michael.chan@broadcom.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/broadcom/b44.*
