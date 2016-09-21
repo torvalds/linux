@@ -48,4 +48,3 @@ With the numbers of the example above::
 or::
 
 	memmap=0x10000$0x18690000
-

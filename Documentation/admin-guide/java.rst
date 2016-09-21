@@ -415,4 +415,3 @@ originally by Brian A. Lantz, brian@lantz.com
 heavily edited for binfmt_misc by Richard Günther
 new scripts by Colin J. Watson <cjw44@cam.ac.uk>
 added executable Jar file support by Kurt Huwig <kurt@iku-netz.de>
-

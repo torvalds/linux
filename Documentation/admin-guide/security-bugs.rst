@@ -8,8 +8,8 @@ like to know when a security bug is found so that it can be fixed and
 disclosed as quickly as possible.  Please report security bugs to the
 Linux kernel security team.
 
-1) Contact
-----------
+Contact
+-------
 
 The Linux kernel security team can be contacted by email at
 <security@kernel.org>.  This is a private list of security officers
@@ -23,8 +23,8 @@ REPORTING-BUGS if you are unclear about what information is helpful.
 Any exploit code is very helpful and will not be released without
 consent from the reporter unless it has already been made public.
 
-2) Disclosure
--------------
+Disclosure
+----------
 
 The goal of the Linux kernel security team is to work with the
 bug submitter to bug resolution as well as disclosure.  We prefer
@@ -39,8 +39,8 @@ disclosure is from immediate (esp. if it's already publicly known)
 to a few weeks.  As a basic default policy, we expect report date to
 disclosure date to be on the order of 7 days.
 
-3) Non-disclosure agreements
-----------------------------
+Non-disclosure agreements
+-------------------------
 
 The Linux kernel security team is not a formal body and therefore unable
 to enter any non-disclosure agreements.

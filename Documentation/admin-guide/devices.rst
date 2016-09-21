@@ -3348,4 +3348,3 @@ for the slaves; the slaves are named with decimal integers (``/dev/pts/#``
 in our notation).  This removes the problem of exhausting the
 namespace and enables the kernel to automatically create the device
 nodes for the slaves on demand using the "devpts" filesystem.
-

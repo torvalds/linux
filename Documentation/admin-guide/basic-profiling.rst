@@ -66,4 +66,3 @@ Some ``opcontrol`` commands::
 To only report on the kernel, run ``opreport -l /boot/vmlinux > output_file``
 
 A reset is needed to clear old statistics, which survive a reboot.
-
