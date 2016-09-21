@@ -2527,7 +2527,7 @@ static void brcmf_fill_bss_param(struct brcmf_if *ifp, struct station_info *si)
 				     WL_BSS_INFO_MAX);
 	if (err) {
 		brcmf_err("Failed to get bss info (%d)\n", err);
-		return;
+		goto out_kfree;
 	}
 	si->filled |= BIT(NL80211_STA_INFO_BSS_PARAM);
 	si->bss_param.beacon_interval = le16_to_cpu(buf->bss_le.beacon_period);
@@ -2539,6 +2539,9 @@ static void brcmf_fill_bss_param(struct brcmf_if *ifp, struct station_info *si)
 		si->bss_param.flags |= BSS_PARAM_FLAGS_SHORT_PREAMBLE;
 	if (capability & WLAN_CAPABILITY_SHORT_SLOT_TIME)
 		si->bss_param.flags |= BSS_PARAM_FLAGS_SHORT_SLOT_TIME;
+
+out_kfree:
+	kfree(buf);
 }
 
 static s32
