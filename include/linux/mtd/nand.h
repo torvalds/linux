@@ -38,7 +38,7 @@ int nand_scan_ident(struct mtd_info *mtd, int max_chips,
 			   struct nand_flash_dev *table);
 int nand_scan_tail(struct mtd_info *mtd);
 
-/* Free resources held by the NAND device */
+/* Unregister the MTD device and free resources held by the NAND device */
 void nand_release(struct mtd_info *mtd);
 
 /* Internal helper for board drivers which need to override command function */
@@ -1185,5 +1185,8 @@ int nand_read_oob_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
 
 /* Reset and initialize a NAND device */
 int nand_reset(struct nand_chip *chip);
+
+/* Free resources held by the NAND device */
+void nand_cleanup(struct nand_chip *chip);
 
 #endif /* __LINUX_MTD_NAND_H */
