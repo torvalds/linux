@@ -110,7 +110,7 @@ static inline u32 eth2fc_speed(u32 eth_port_speed)
 {
 	int i;
 
-	for (i = 0; i <= ARRAY_SIZE(fcoe_port_speed_mapping); i++) {
+	for (i = 0; i < ARRAY_SIZE(fcoe_port_speed_mapping); i++) {
 		if (fcoe_port_speed_mapping[i].eth_port_speed == eth_port_speed)
 			return fcoe_port_speed_mapping[i].fc_port_speed;
 	}
