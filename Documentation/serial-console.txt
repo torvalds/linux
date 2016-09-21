@@ -1,3 +1,5 @@
+.. _serial_console:
+
 Linux Serial Console
 ====================
 
