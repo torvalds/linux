@@ -236,7 +236,7 @@ static inline int mlx5e_page_alloc_mapped(struct mlx5e_rq *rq,
 
 	dma_info->page = page;
 	dma_info->addr = dma_map_page(rq->pdev, page, 0,
-				      RQ_PAGE_SIZE(rq), DMA_FROM_DEVICE);
+				      RQ_PAGE_SIZE(rq), rq->buff.map_dir);
 	if (unlikely(dma_mapping_error(rq->pdev, dma_info->addr))) {
 		put_page(page);
 		return -ENOMEM;
@@ -252,7 +252,7 @@ void mlx5e_page_release(struct mlx5e_rq *rq, struct mlx5e_dma_info *dma_info,
 		return;
 
 	dma_unmap_page(rq->pdev, dma_info->addr, RQ_PAGE_SIZE(rq),
-		       DMA_FROM_DEVICE);
+		       rq->buff.map_dir);
 	put_page(dma_info->page);
 }
 
@@ -632,15 +632,95 @@ static inline void mlx5e_complete_rx_cqe(struct mlx5e_rq *rq,
 	napi_gro_receive(rq->cq.napi, skb);
 }
 
-static inline enum xdp_action mlx5e_xdp_handle(struct mlx5e_rq *rq,
-					       const struct bpf_prog *prog,
-					       void *data, u32 len)
+static inline void mlx5e_xmit_xdp_frame(struct mlx5e_rq *rq,
+					struct mlx5e_dma_info *di,
+					unsigned int data_offset,
+					int len)
+{
+	struct mlx5e_sq          *sq   = &rq->channel->xdp_sq;
+	struct mlx5_wq_cyc       *wq   = &sq->wq;
+	u16                      pi    = sq->pc & wq->sz_m1;
+	struct mlx5e_tx_wqe      *wqe  = mlx5_wq_cyc_get_wqe(wq, pi);
+	struct mlx5e_sq_wqe_info *wi   = &sq->db.xdp.wqe_info[pi];
+
+	struct mlx5_wqe_ctrl_seg *cseg = &wqe->ctrl;
+	struct mlx5_wqe_eth_seg  *eseg = &wqe->eth;
+	struct mlx5_wqe_data_seg *dseg;
+
+	dma_addr_t dma_addr  = di->addr + data_offset + MLX5E_XDP_MIN_INLINE;
+	unsigned int dma_len = len - MLX5E_XDP_MIN_INLINE;
+	void *data           = page_address(di->page) + data_offset;
+
+	if (unlikely(!mlx5e_sq_has_room_for(sq, MLX5E_XDP_TX_WQEBBS))) {
+		rq->stats.xdp_tx_full++;
+		mlx5e_page_release(rq, di, true);
+		return;
+	}
+
+	dma_sync_single_for_device(sq->pdev, dma_addr, dma_len,
+				   PCI_DMA_TODEVICE);
+
+	memset(wqe, 0, sizeof(*wqe));
+
+	/* copy the inline part */
+	memcpy(eseg->inline_hdr_start, data, MLX5E_XDP_MIN_INLINE);
+	eseg->inline_hdr_sz = cpu_to_be16(MLX5E_XDP_MIN_INLINE);
+
+	dseg = (struct mlx5_wqe_data_seg *)cseg + (MLX5E_XDP_TX_DS_COUNT - 1);
+
+	/* write the dma part */
+	dseg->addr       = cpu_to_be64(dma_addr);
+	dseg->byte_count = cpu_to_be32(dma_len);
+	dseg->lkey       = sq->mkey_be;
+
+	cseg->opmod_idx_opcode = cpu_to_be32((sq->pc << 8) | MLX5_OPCODE_SEND);
+	cseg->qpn_ds = cpu_to_be32((sq->sqn << 8) | MLX5E_XDP_TX_DS_COUNT);
+
+	sq->db.xdp.di[pi] = *di;
+	wi->opcode     = MLX5_OPCODE_SEND;
+	wi->num_wqebbs = MLX5E_XDP_TX_WQEBBS;
+	sq->pc += MLX5E_XDP_TX_WQEBBS;
+
+	wqe->ctrl.fm_ce_se = MLX5_WQE_CTRL_CQ_UPDATE;
+	mlx5e_tx_notify_hw(sq, &wqe->ctrl, 0);
+
+	/* fill sq edge with nops to avoid wqe wrap around */
+	while ((pi = (sq->pc & wq->sz_m1)) > sq->edge) {
+		sq->db.xdp.wqe_info[pi].opcode = MLX5_OPCODE_NOP;
+		mlx5e_send_nop(sq, false);
+	}
+	rq->stats.xdp_tx++;
+}
+
+/* returns true if packet was consumed by xdp */
+static inline bool mlx5e_xdp_handle(struct mlx5e_rq *rq,
+				    const struct bpf_prog *prog,
+				    struct mlx5e_dma_info *di,
+				    void *data, u16 len)
 {
 	struct xdp_buff xdp;
+	u32 act;
+
+	if (!prog)
+		return false;
 
 	xdp.data = data;
 	xdp.data_end = xdp.data + len;
-	return bpf_prog_run_xdp(prog, &xdp);
+	act = bpf_prog_run_xdp(prog, &xdp);
+	switch (act) {
+	case XDP_PASS:
+		return false;
+	case XDP_TX:
+		mlx5e_xmit_xdp_frame(rq, di, MLX5_RX_HEADROOM, len);
+		return true;
+	default:
+		bpf_warn_invalid_xdp_action(act);
+	case XDP_ABORTED:
+	case XDP_DROP:
+		rq->stats.xdp_drop++;
+		mlx5e_page_release(rq, di, true);
+		return true;
+	}
 }
 
 void mlx5e_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
@@ -651,21 +731,22 @@ void mlx5e_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 	__be16 wqe_counter_be;
 	struct sk_buff *skb;
 	u16 wqe_counter;
+	void *va, *data;
 	u32 cqe_bcnt;
-	void *va;
 
 	wqe_counter_be = cqe->wqe_counter;
 	wqe_counter    = be16_to_cpu(wqe_counter_be);
 	wqe            = mlx5_wq_ll_get_wqe(&rq->wq, wqe_counter);
 	di             = &rq->dma_info[wqe_counter];
 	va             = page_address(di->page);
+	data           = va + MLX5_RX_HEADROOM;
 
 	dma_sync_single_range_for_cpu(rq->pdev,
 				      di->addr,
 				      MLX5_RX_HEADROOM,
 				      rq->buff.wqe_sz,
 				      DMA_FROM_DEVICE);
-	prefetch(va + MLX5_RX_HEADROOM);
+	prefetch(data);
 	cqe_bcnt = be32_to_cpu(cqe->byte_cnt);
 
 	if (unlikely((cqe->op_own >> 4) != MLX5_CQE_RESP_SEND)) {
@@ -674,17 +755,8 @@ void mlx5e_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 		goto wq_ll_pop;
 	}
 
-	if (xdp_prog) {
-		enum xdp_action act =
-			mlx5e_xdp_handle(rq, xdp_prog, va + MLX5_RX_HEADROOM,
-					 cqe_bcnt);
-
-		if (act != XDP_PASS) {
-			rq->stats.xdp_drop++;
-			mlx5e_page_release(rq, di, true);
-			goto wq_ll_pop;
-		}
-	}
+	if (mlx5e_xdp_handle(rq, xdp_prog, di, data, cqe_bcnt))
+		goto wq_ll_pop; /* page/packet was consumed by XDP */
 
 	skb = build_skb(va, RQ_PAGE_SIZE(rq));
 	if (unlikely(!skb)) {

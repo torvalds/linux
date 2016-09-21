@@ -495,15 +495,12 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 	return (i == MLX5E_TX_CQ_POLL_BUDGET);
 }
 
-void mlx5e_free_tx_descs(struct mlx5e_sq *sq)
+static void mlx5e_free_txq_sq_descs(struct mlx5e_sq *sq)
 {
 	struct mlx5e_tx_wqe_info *wi;
 	struct sk_buff *skb;
 	u16 ci;
 	int i;
-
-	if (sq->type != MLX5E_SQ_TXQ)
-		return;
 
 	while (sq->cc != sq->pc) {
 		ci = sq->cc & sq->wq.sz_m1;
@@ -524,5 +521,39 @@ void mlx5e_free_tx_descs(struct mlx5e_sq *sq)
 
 		dev_kfree_skb_any(skb);
 		sq->cc += wi->num_wqebbs;
+	}
+}
+
+static void mlx5e_free_xdp_sq_descs(struct mlx5e_sq *sq)
+{
+	struct mlx5e_sq_wqe_info *wi;
+	struct mlx5e_dma_info *di;
+	u16 ci;
+
+	while (sq->cc != sq->pc) {
+		ci = sq->cc & sq->wq.sz_m1;
+		di = &sq->db.xdp.di[ci];
+		wi = &sq->db.xdp.wqe_info[ci];
+
+		if (wi->opcode == MLX5_OPCODE_NOP) {
+			sq->cc++;
+			continue;
+		}
+
+		sq->cc += wi->num_wqebbs;
+
+		mlx5e_page_release(&sq->channel->rq, di, false);
+	}
+}
+
+void mlx5e_free_sq_descs(struct mlx5e_sq *sq)
+{
+	switch (sq->type) {
+	case MLX5E_SQ_TXQ:
+		mlx5e_free_txq_sq_descs(sq);
+		break;
+	case MLX5E_SQ_XDP:
+		mlx5e_free_xdp_sq_descs(sq);
+		break;
 	}
 }

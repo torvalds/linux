@@ -104,6 +104,15 @@
 #define MLX5E_ICOSQ_MAX_WQEBBS \
 	(DIV_ROUND_UP(sizeof(struct mlx5e_umr_wqe), MLX5_SEND_WQE_BB))
 
+#define MLX5E_XDP_MIN_INLINE (ETH_HLEN + VLAN_HLEN)
+#define MLX5E_XDP_IHS_DS_COUNT \
+	DIV_ROUND_UP(MLX5E_XDP_MIN_INLINE - 2, MLX5_SEND_WQE_DS)
+#define MLX5E_XDP_TX_DS_COUNT \
+	(MLX5E_XDP_IHS_DS_COUNT + \
+	 (sizeof(struct mlx5e_tx_wqe) / MLX5_SEND_WQE_DS) + 1 /* SG DS */)
+#define MLX5E_XDP_TX_WQEBBS \
+	DIV_ROUND_UP(MLX5E_XDP_TX_DS_COUNT, MLX5_SEND_WQEBB_NUM_DS)
+
 #define MLX5E_NUM_MAIN_GROUPS 9
 
 static inline u16 mlx5_min_rx_wqes(int wq_type, u32 wq_size)
@@ -319,6 +328,7 @@ struct mlx5e_rq {
 	struct {
 		u8             page_order;
 		u32            wqe_sz;    /* wqe data buffer size */
+		u8             map_dir;   /* dma map direction */
 	} buff;
 	__be32                 mkey_be;
 
@@ -384,14 +394,15 @@ enum {
 	MLX5E_SQ_STATE_BF_ENABLE,
 };
 
-struct mlx5e_ico_wqe_info {
+struct mlx5e_sq_wqe_info {
 	u8  opcode;
 	u8  num_wqebbs;
 };
 
 enum mlx5e_sq_type {
 	MLX5E_SQ_TXQ,
-	MLX5E_SQ_ICO
+	MLX5E_SQ_ICO,
+	MLX5E_SQ_XDP
 };
 
 struct mlx5e_sq {
@@ -418,7 +429,11 @@ struct mlx5e_sq {
 			struct mlx5e_sq_dma       *dma_fifo;
 			struct mlx5e_tx_wqe_info  *wqe_info;
 		} txq;
-		struct mlx5e_ico_wqe_info *ico_wqe;
+		struct mlx5e_sq_wqe_info *ico_wqe;
+		struct {
+			struct mlx5e_sq_wqe_info  *wqe_info;
+			struct mlx5e_dma_info     *di;
+		} xdp;
 	} db;
 
 	/* read only */
@@ -458,8 +473,10 @@ enum channel_flags {
 struct mlx5e_channel {
 	/* data path */
 	struct mlx5e_rq            rq;
+	struct mlx5e_sq            xdp_sq;
 	struct mlx5e_sq            sq[MLX5E_MAX_NUM_TC];
 	struct mlx5e_sq            icosq;   /* internal control operations */
+	bool                       xdp;
 	struct napi_struct         napi;
 	struct device             *pdev;
 	struct net_device         *netdev;
@@ -688,7 +705,7 @@ void mlx5e_cq_error_event(struct mlx5_core_cq *mcq, enum mlx5_event event);
 int mlx5e_napi_poll(struct napi_struct *napi, int budget);
 bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget);
 int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget);
-void mlx5e_free_tx_descs(struct mlx5e_sq *sq);
+void mlx5e_free_sq_descs(struct mlx5e_sq *sq);
 
 void mlx5e_page_release(struct mlx5e_rq *rq, struct mlx5e_dma_info *dma_info,
 			bool recycle);
