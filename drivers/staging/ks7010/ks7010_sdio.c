@@ -171,12 +171,11 @@ void ks_wlan_hw_wakeup_request(struct ks_wlan_private *priv)
 
 int _ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 {
-	int rc = 0;
 	unsigned char rw_data;
 	int retval;
 
 	if (priv->reg.powermgt == POWMGT_ACTIVE_MODE)
-		return rc;
+		return 0;
 
 	if (priv->reg.operation_mode == MODE_INFRASTRUCTURE &&
 	    (priv->connect_status & CONNECT_STATUS_MASK) == CONNECT_STATUS) {
@@ -244,7 +243,7 @@ int _ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 		}
 	}
 
-	return rc;
+	return 0;
 }
 
 int ks_wlan_hw_power_save(struct ks_wlan_private *priv)
