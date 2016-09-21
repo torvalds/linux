@@ -907,10 +907,25 @@ TRAMP_KVM(PACA_EXGEN, 0xd00)
 EXC_COMMON(single_step_common, 0xd00, single_step_exception)
 
 
-	/* At 0xe??? we have a bunch of hypervisor exceptions, we branch
-	 * out of line to handle them
-	 */
 __EXC_REAL_OOL_HV(h_data_storage, 0xe00, 0xe20)
+__TRAMP_REAL_REAL_OOL_HV(h_data_storage, 0xe00)
+EXC_VIRT_BEGIN(unused, 0x4e00, 0x4e20)
+	b       .       /* Can't happen, see v2.07 Book III-S section 6.5 */
+EXC_VIRT_END(unused, 0x4e00, 0x4e20)
+TRAMP_KVM_HV_SKIP(PACA_EXGEN, 0xe00)
+EXC_COMMON_BEGIN(h_data_storage_common)
+	mfspr   r10,SPRN_HDAR
+	std     r10,PACA_EXGEN+EX_DAR(r13)
+	mfspr   r10,SPRN_HDSISR
+	stw     r10,PACA_EXGEN+EX_DSISR(r13)
+	EXCEPTION_PROLOG_COMMON(0xe00, PACA_EXGEN)
+	bl      save_nvgprs
+	RECONCILE_IRQ_STATE(r10, r11)
+	addi    r3,r1,STACK_FRAME_OVERHEAD
+	bl      unknown_exception
+	b       ret_from_except
+EXC_COMMON(trap_0e_common, 0xe00, unknown_exception)
+
 
 __EXC_REAL_OOL_HV(h_instr_storage, 0xe20, 0xe40)
 
@@ -1060,9 +1075,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 #endif
 
 	/* moved from 0xe00 */
-__TRAMP_REAL_REAL_OOL_HV(h_data_storage, 0xe00)
-TRAMP_KVM_HV_SKIP(PACA_EXGEN, 0xe00)
-
 __TRAMP_REAL_REAL_OOL_HV(h_instr_storage, 0xe20)
 TRAMP_KVM_HV(PACA_EXGEN, 0xe20)
 
@@ -1214,7 +1226,6 @@ TRAMP_REAL_BEGIN(kvmppc_skip_Hinterrupt)
 /*** Common interrupt handlers ***/
 
 
-EXC_COMMON(trap_0e_common, 0xe00, unknown_exception)
 EXC_COMMON(emulation_assist_common, 0xe40, emulation_assist_interrupt)
 EXC_COMMON_ASYNC(hmi_exception_common, 0xe60, handle_hmi_exception)
 #ifdef CONFIG_PPC_DOORBELL
@@ -1247,10 +1258,6 @@ EXC_COMMON(altivec_assist_common, 0x1700, unknown_exception)
 	 * only has extra guff for STAB-based processors -- which never
 	 * come here.
 	 */
-
-EXC_VIRT_BEGIN(unused, 0x4e00, 0x4e20)
-	b       .       /* Can't happen, see v2.07 Book III-S section 6.5 */
-EXC_VIRT_END(unused, 0x4e00, 0x4e20)
 
 EXC_VIRT_BEGIN(unused, 0x4e20, 0x4e40)
 	b       .       /* Can't happen, see v2.07 Book III-S section 6.5 */
@@ -1300,19 +1307,6 @@ EXC_VIRT_NONE(0x5800, 0x5900)
 
 EXC_COMMON_BEGIN(ppc64_runlatch_on_trampoline)
 	b	__ppc64_runlatch_on
-
-EXC_COMMON_BEGIN(h_data_storage_common)
-	mfspr   r10,SPRN_HDAR
-	std     r10,PACA_EXGEN+EX_DAR(r13)
-	mfspr   r10,SPRN_HDSISR
-	stw     r10,PACA_EXGEN+EX_DSISR(r13)
-	EXCEPTION_PROLOG_COMMON(0xe00, PACA_EXGEN)
-	bl      save_nvgprs
-	RECONCILE_IRQ_STATE(r10, r11)
-	addi    r3,r1,STACK_FRAME_OVERHEAD
-	bl      unknown_exception
-	b       ret_from_except
-
 
 EXC_COMMON(h_instr_storage_common, 0xe20, unknown_exception)
 
