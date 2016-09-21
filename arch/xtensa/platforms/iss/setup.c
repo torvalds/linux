@@ -32,6 +32,8 @@
 #include <asm/platform.h>
 #include <asm/bootparam.h>
 
+#include <platform/simcall.h>
+
 
 void __init platform_init(bp_tag_t* bootparam)
 {
@@ -41,13 +43,13 @@ void __init platform_init(bp_tag_t* bootparam)
 void platform_halt(void)
 {
 	pr_info(" ** Called platform_halt() **\n");
-	__asm__ __volatile__("movi a2, 1\nsimcall\n");
+	simc_exit(0);
 }
 
 void platform_power_off(void)
 {
 	pr_info(" ** Called platform_power_off() **\n");
-	__asm__ __volatile__("movi a2, 1\nsimcall\n");
+	simc_exit(0);
 }
 void platform_restart(void)
 {
@@ -80,7 +82,7 @@ void platform_heartbeat(void)
 static int
 iss_panic_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
-	__asm__ __volatile__("movi a2, -1; simcall\n");
+	simc_exit(1);
 	return NOTIFY_DONE;
 }
 

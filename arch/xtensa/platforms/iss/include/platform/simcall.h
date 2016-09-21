@@ -76,6 +76,11 @@ static inline int __simc(int a, int b, int c, int d)
 	return ret;
 }
 
+static inline int simc_exit(int exit_code)
+{
+	return __simc(SYS_exit, exit_code, 0, 0);
+}
+
 static inline int simc_open(const char *file, int flags, int mode)
 {
 	return __simc(SYS_open, (int) file, flags, mode);
