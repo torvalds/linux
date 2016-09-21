@@ -55,16 +55,16 @@ static int congested_reps	= CONGESTED_REPS;
 static int disabled_period	= DISABLED_PERIOD;
 
 static struct tunables tunables[] = {
-	{&max_concurr, MAX_BAU_CONCURRENT}, /* must be [0] */
-	{&plugged_delay, PLUGGED_DELAY},
-	{&plugsb4reset, PLUGSB4RESET},
-	{&timeoutsb4reset, TIMEOUTSB4RESET},
-	{&ipi_reset_limit, IPI_RESET_LIMIT},
-	{&complete_threshold, COMPLETE_THRESHOLD},
-	{&congested_respns_us, CONGESTED_RESPONSE_US},
-	{&congested_reps, CONGESTED_REPS},
-	{&disabled_period, DISABLED_PERIOD},
-	{&giveup_limit, GIVEUP_LIMIT}
+	{&max_concurr,           MAX_BAU_CONCURRENT}, /* must be [0] */
+	{&plugged_delay,         PLUGGED_DELAY},
+	{&plugsb4reset,          PLUGSB4RESET},
+	{&timeoutsb4reset,       TIMEOUTSB4RESET},
+	{&ipi_reset_limit,       IPI_RESET_LIMIT},
+	{&complete_threshold,    COMPLETE_THRESHOLD},
+	{&congested_respns_us,   CONGESTED_RESPONSE_US},
+	{&congested_reps,        CONGESTED_REPS},
+	{&disabled_period,       DISABLED_PERIOD},
+	{&giveup_limit,          GIVEUP_LIMIT}
 };
 
 static struct dentry *tunables_dir;
@@ -1619,17 +1619,17 @@ static ssize_t tunables_write(struct file *file, const char __user *user,
 
 	for_each_present_cpu(cpu) {
 		bcp = &per_cpu(bau_control, cpu);
-		bcp->max_concurr =		max_concurr;
-		bcp->max_concurr_const =	max_concurr;
-		bcp->plugged_delay =		plugged_delay;
-		bcp->plugsb4reset =		plugsb4reset;
-		bcp->timeoutsb4reset =		timeoutsb4reset;
-		bcp->ipi_reset_limit =		ipi_reset_limit;
-		bcp->complete_threshold =	complete_threshold;
-		bcp->cong_response_us =		congested_respns_us;
-		bcp->cong_reps =		congested_reps;
-		bcp->disabled_period =		sec_2_cycles(disabled_period);
-		bcp->giveup_limit =		giveup_limit;
+		bcp->max_concurr         = max_concurr;
+		bcp->max_concurr_const   = max_concurr;
+		bcp->plugged_delay       = plugged_delay;
+		bcp->plugsb4reset        = plugsb4reset;
+		bcp->timeoutsb4reset     = timeoutsb4reset;
+		bcp->ipi_reset_limit     = ipi_reset_limit;
+		bcp->complete_threshold  = complete_threshold;
+		bcp->cong_response_us    = congested_respns_us;
+		bcp->cong_reps           = congested_reps;
+		bcp->disabled_period     = sec_2_cycles(disabled_period);
+		bcp->giveup_limit        = giveup_limit;
 	}
 	return count;
 }
@@ -1740,7 +1740,7 @@ static void activation_descriptor_init(int node, int pnode, int base_pnode)
 		memset(bd2, 0, sizeof(struct bau_desc));
 		if (uv1) {
 			uv1_hdr = &bd2->header.uv1_hdr;
-			uv1_hdr->swack_flag =	1;
+			uv1_hdr->swack_flag = 1;
 			/*
 			 * The base_dest_nasid set in the message header
 			 * is the nasid of the first uvhub in the partition.
@@ -1749,10 +1749,10 @@ static void activation_descriptor_init(int node, int pnode, int base_pnode)
 			 * if nasid striding is being used.
 			 */
 			uv1_hdr->base_dest_nasid =
-						UV_PNODE_TO_NASID(base_pnode);
-			uv1_hdr->dest_subnodeid =	UV_LB_SUBNODEID;
-			uv1_hdr->command =		UV_NET_ENDPOINT_INTD;
-			uv1_hdr->int_both =		1;
+			                          UV_PNODE_TO_NASID(base_pnode);
+			uv1_hdr->dest_subnodeid  = UV_LB_SUBNODEID;
+			uv1_hdr->command         = UV_NET_ENDPOINT_INTD;
+			uv1_hdr->int_both        = 1;
 			/*
 			 * all others need to be set to zero:
 			 *   fairness chaining multilevel count replied_to
@@ -1763,11 +1763,11 @@ static void activation_descriptor_init(int node, int pnode, int base_pnode)
 			 * uses native mode for selective broadcasts.
 			 */
 			uv2_3_hdr = &bd2->header.uv2_3_hdr;
-			uv2_3_hdr->swack_flag =	1;
+			uv2_3_hdr->swack_flag      = 1;
 			uv2_3_hdr->base_dest_nasid =
-						UV_PNODE_TO_NASID(base_pnode);
-			uv2_3_hdr->dest_subnodeid =	UV_LB_SUBNODEID;
-			uv2_3_hdr->command =		UV_NET_ENDPOINT_INTD;
+			                          UV_PNODE_TO_NASID(base_pnode);
+			uv2_3_hdr->dest_subnodeid  = UV_LB_SUBNODEID;
+			uv2_3_hdr->command         = UV_NET_ENDPOINT_INTD;
 		}
 	}
 	for_each_present_cpu(cpu) {
@@ -1914,8 +1914,8 @@ static void __init init_per_cpu_tunables(void)
 		bcp->complete_threshold		= complete_threshold;
 		bcp->cong_response_us		= congested_respns_us;
 		bcp->cong_reps			= congested_reps;
-		bcp->disabled_period =		sec_2_cycles(disabled_period);
-		bcp->giveup_limit =		giveup_limit;
+		bcp->disabled_period		= sec_2_cycles(disabled_period);
+		bcp->giveup_limit		= giveup_limit;
 		spin_lock_init(&bcp->queue_lock);
 		spin_lock_init(&bcp->uvhub_lock);
 		spin_lock_init(&bcp->disable_lock);
