@@ -221,6 +221,15 @@ static void cls_bpf_stop_offload(struct tcf_proto *tp,
 	prog->offloaded = false;
 }
 
+static void cls_bpf_offload_update_stats(struct tcf_proto *tp,
+					 struct cls_bpf_prog *prog)
+{
+	if (!prog->offloaded)
+		return;
+
+	cls_bpf_offload_cmd(tp, prog, TC_CLSBPF_STATS);
+}
+
 static int cls_bpf_init(struct tcf_proto *tp)
 {
 	struct cls_bpf_head *head;
@@ -576,6 +585,8 @@ static int cls_bpf_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 		return skb->len;
 
 	tm->tcm_handle = prog->handle;
+
+	cls_bpf_offload_update_stats(tp, prog);
 
 	nest = nla_nest_start(skb, TCA_OPTIONS);
 	if (nest == NULL)
