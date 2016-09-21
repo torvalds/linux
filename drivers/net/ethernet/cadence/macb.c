@@ -1323,6 +1323,24 @@ dma_error:
 	return 0;
 }
 
+static inline int macb_clear_csum(struct sk_buff *skb)
+{
+	/* no change for packets without checksum offloading */
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
+		return 0;
+
+	/* make sure we can modify the header */
+	if (unlikely(skb_cow_head(skb, 0)))
+		return -1;
+
+	/* initialize checksum field
+	 * This is required - at least for Zynq, which otherwise calculates
+	 * wrong UDP header checksums for UDP packets with UDP data len <=2
+	 */
+	*(__sum16 *)(skb_checksum_start(skb) + skb->csum_offset) = 0;
+	return 0;
+}
+
 static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	u16 queue_index = skb_get_queue_mapping(skb);
@@ -1360,6 +1378,11 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		netdev_dbg(bp->dev, "tx_head = %u, tx_tail = %u\n",
 			   queue->tx_head, queue->tx_tail);
 		return NETDEV_TX_BUSY;
+	}
+
+	if (macb_clear_csum(skb)) {
+		dev_kfree_skb_any(skb);
+		return NETDEV_TX_OK;
 	}
 
 	/* Map socket buffer for DMA transfer */

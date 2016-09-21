@@ -303,6 +303,7 @@ config MDIO_HISI_FEMAC
 
 config MDIO_XGENE
 	tristate "APM X-Gene SoC MDIO bus controller"
+	depends on ARCH_XGENE || COMPILE_TEST
 	help
 	  This module provides a driver for the MDIO busses found in the
 	  APM X-Gene SoC's.
