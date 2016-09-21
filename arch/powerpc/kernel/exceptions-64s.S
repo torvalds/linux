@@ -1163,34 +1163,15 @@ EXC_REAL_BEGIN(denorm_exception_hv, 0x1500, 0x1600)
 	EXCEPTION_PROLOG_PSERIES_1(denorm_common, EXC_HV)
 EXC_REAL_END(denorm_exception_hv, 0x1500, 0x1600)
 
+#ifdef CONFIG_PPC_DENORMALISATION
+EXC_VIRT_BEGIN(denorm_exception, 0x5500, 0x5600)
+	b	exc_real_0x1500_denorm_exception_hv
+EXC_VIRT_END(denorm_exception, 0x5500, 0x5600)
+#else
+EXC_VIRT_NONE(0x5500, 0x5600)
+#endif
+
 TRAMP_KVM_SKIP(PACA_EXGEN, 0x1500)
-
-#ifdef CONFIG_CBE_RAS
-EXC_REAL_HV(cbe_maintenance, 0x1600, 0x1700)
-
-TRAMP_KVM_HV_SKIP(PACA_EXGEN, 0x1600)
-
-#else /* CONFIG_CBE_RAS */
-EXC_REAL_NONE(0x1600, 0x1700)
-#endif
-
-EXC_REAL(altivec_assist, 0x1700, 0x1800)
-
-TRAMP_KVM(PACA_EXGEN, 0x1700)
-
-#ifdef CONFIG_CBE_RAS
-EXC_REAL_HV(cbe_thermal, 0x1800, 0x1900)
-
-TRAMP_KVM_HV_SKIP(PACA_EXGEN, 0x1800)
-
-#else /* CONFIG_CBE_RAS */
-EXC_REAL_NONE(0x1800, 0x1900)
-#endif
-
-
-/*** Out of line interrupts support ***/
-
-	/* moved from 0x200 */
 
 #ifdef CONFIG_PPC_DENORMALISATION
 TRAMP_REAL_BEGIN(denorm_assist)
@@ -1255,6 +1236,36 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 	HRFID
 	b	.
 #endif
+
+EXC_COMMON_HV(denorm_common, 0x1500, unknown_exception)
+
+
+#ifdef CONFIG_CBE_RAS
+EXC_REAL_HV(cbe_maintenance, 0x1600, 0x1700)
+
+TRAMP_KVM_HV_SKIP(PACA_EXGEN, 0x1600)
+
+#else /* CONFIG_CBE_RAS */
+EXC_REAL_NONE(0x1600, 0x1700)
+#endif
+
+EXC_REAL(altivec_assist, 0x1700, 0x1800)
+
+TRAMP_KVM(PACA_EXGEN, 0x1700)
+
+#ifdef CONFIG_CBE_RAS
+EXC_REAL_HV(cbe_thermal, 0x1800, 0x1900)
+
+TRAMP_KVM_HV_SKIP(PACA_EXGEN, 0x1800)
+
+#else /* CONFIG_CBE_RAS */
+EXC_REAL_NONE(0x1800, 0x1900)
+#endif
+
+
+/*** Out of line interrupts support ***/
+
+	/* moved from 0x200 */
 
 /*
  * An interrupt came in while soft-disabled. We set paca->irq_happened, then:
@@ -1376,7 +1387,6 @@ TRAMP_REAL_BEGIN(kvmppc_skip_Hinterrupt)
 /*** Common interrupt handlers ***/
 
 
-EXC_COMMON_HV(denorm_common, 0x1500, unknown_exception)
 #ifdef CONFIG_ALTIVEC
 EXC_COMMON(altivec_assist_common, 0x1700, altivec_assist_exception)
 #else
@@ -1398,14 +1408,6 @@ EXC_COMMON(altivec_assist_common, 0x1700, unknown_exception)
 	 * only has extra guff for STAB-based processors -- which never
 	 * come here.
 	 */
-
-#ifdef CONFIG_PPC_DENORMALISATION
-EXC_VIRT_BEGIN(denorm_exception, 0x5500, 0x5600)
-	b	exc_real_0x1500_denorm_exception_hv
-EXC_VIRT_END(denorm_exception, 0x5500, 0x5600)
-#else
-EXC_VIRT_NONE(0x5500, 0x5600)
-#endif
 
 EXC_VIRT_NONE(0x5600, 0x5700)
 
