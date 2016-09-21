@@ -397,6 +397,20 @@ out_unlock:
 	return err;
 }
 
+static bool xattr_visible(const char *name)
+{
+	/* File encryption related xattrs are for internal use only */
+	if (strcmp(name, UBIFS_XATTR_NAME_ENCRYPTION_CONTEXT) == 0)
+		return false;
+
+	/* Show trusted namespace only for "power" users */
+	if (strncmp(name, XATTR_TRUSTED_PREFIX,
+		    XATTR_TRUSTED_PREFIX_LEN) == 0 && !capable(CAP_SYS_ADMIN))
+		return false;
+
+	return true;
+}
+
 ssize_t ubifs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
 	union ubifs_key key;
@@ -432,10 +446,7 @@ ssize_t ubifs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		nm.name = xent->name;
 		nm.len = le16_to_cpu(xent->nlen);
 
-		/* Show trusted namespace only for "power" users */
-		if (strncmp(xent->name, XATTR_TRUSTED_PREFIX,
-			    XATTR_TRUSTED_PREFIX_LEN) ||
-		    capable(CAP_SYS_ADMIN)) {
+		if (xattr_visible(xent->name)) {
 			memcpy(buffer + written, nm.name, nm.len + 1);
 			written += nm.len + 1;
 		}
