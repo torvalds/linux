@@ -272,8 +272,6 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 
 	adev = amdgpu_get_adev(bo->bdev);
 	ring = adev->mman.buffer_funcs_ring;
-	old_start = (u64)old_mem->start << PAGE_SHIFT;
-	new_start = (u64)new_mem->start << PAGE_SHIFT;
 
 	switch (old_mem->mem_type) {
 	case TTM_PL_TT:
@@ -282,6 +280,7 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 			return r;
 
 	case TTM_PL_VRAM:
+		old_start = (u64)old_mem->start << PAGE_SHIFT;
 		old_start += bo->bdev->man[old_mem->mem_type].gpu_offset;
 		break;
 	default:
@@ -295,6 +294,7 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 			return r;
 
 	case TTM_PL_VRAM:
+		new_start = (u64)new_mem->start << PAGE_SHIFT;
 		new_start += bo->bdev->man[new_mem->mem_type].gpu_offset;
 		break;
 	default:
