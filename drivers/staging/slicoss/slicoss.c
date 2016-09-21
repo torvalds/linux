@@ -2617,14 +2617,14 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 					       sizeof(struct slic_eeprom),
 					       &phys_config);
 
-		phys_configl = SLIC_GET_ADDR_LOW(phys_config);
-		phys_configh = SLIC_GET_ADDR_HIGH(phys_config);
-
 		if (!peeprom) {
 			dev_err(&adapter->pcidev->dev,
 				"Failed to allocate DMA memory for EEPROM.\n");
 			return -ENOMEM;
 		}
+
+		phys_configl = SLIC_GET_ADDR_LOW(phys_config);
+		phys_configh = SLIC_GET_ADDR_HIGH(phys_config);
 
 		memset(peeprom, 0, sizeof(struct slic_eeprom));
 
