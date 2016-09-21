@@ -58,6 +58,10 @@ int drm_mode_getcrtc(struct drm_device *dev,
 		     void *data, struct drm_file *file_priv);
 int drm_mode_setcrtc(struct drm_device *dev,
 		     void *data, struct drm_file *file_priv);
+
+/* drm_color_mgmt.c */
+
+/* IOCTLs */
 int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 			     void *data, struct drm_file *file_priv);
 int drm_mode_gamma_set_ioctl(struct drm_device *dev,
