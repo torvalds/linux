@@ -99,8 +99,11 @@ static struct nvdimm_map *alloc_nvdimm_map(struct device *dev,
 	nvdimm_map->size = size;
 	kref_init(&nvdimm_map->kref);
 
-	if (!request_mem_region(offset, size, dev_name(&nvdimm_bus->dev)))
+	if (!request_mem_region(offset, size, dev_name(&nvdimm_bus->dev))) {
+		dev_err(&nvdimm_bus->dev, "failed to request %pa + %zd for %s\n",
+				&offset, size, dev_name(dev));
 		goto err_request_region;
+	}
 
 	if (flags)
 		nvdimm_map->mem = memremap(offset, size, flags);
@@ -170,6 +173,9 @@ void *devm_nvdimm_memremap(struct device *dev, resource_size_t offset,
 	else
 		kref_get(&nvdimm_map->kref);
 	nvdimm_bus_unlock(dev);
+
+	if (!nvdimm_map)
+		return NULL;
 
 	if (devm_add_action_or_reset(dev, nvdimm_map_put, nvdimm_map))
 		return NULL;
