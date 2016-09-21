@@ -36,8 +36,6 @@
 int drm_mode_crtc_set_obj_prop(struct drm_mode_object *obj,
 			       struct drm_property *property,
 			       uint64_t value);
-int drm_plane_check_pixel_format(const struct drm_plane *plane,
-				 u32 format);
 int drm_crtc_check_viewport(const struct drm_crtc *crtc,
 			    int x, int y,
 			    const struct drm_display_mode *mode,
@@ -56,26 +54,13 @@ int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,
 /* IOCTLs */
 int drm_mode_getresources(struct drm_device *dev,
 			  void *data, struct drm_file *file_priv);
-int drm_mode_getplane_res(struct drm_device *dev, void *data,
-			  struct drm_file *file_priv);
 int drm_mode_getcrtc(struct drm_device *dev,
 		     void *data, struct drm_file *file_priv);
 int drm_mode_setcrtc(struct drm_device *dev,
 		     void *data, struct drm_file *file_priv);
-int drm_mode_getplane(struct drm_device *dev,
-		      void *data, struct drm_file *file_priv);
-int drm_mode_setplane(struct drm_device *dev,
-		      void *data, struct drm_file *file_priv);
-int drm_mode_cursor_ioctl(struct drm_device *dev,
-			  void *data, struct drm_file *file_priv);
-int drm_mode_cursor2_ioctl(struct drm_device *dev,
-			   void *data, struct drm_file *file_priv);
 int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 			     void *data, struct drm_file *file_priv);
 int drm_mode_gamma_set_ioctl(struct drm_device *dev,
-			     void *data, struct drm_file *file_priv);
-
-int drm_mode_page_flip_ioctl(struct drm_device *dev,
 			     void *data, struct drm_file *file_priv);
 
 /* drm_property.c */
@@ -155,6 +140,9 @@ drm_internal_framebuffer_create(struct drm_device *dev,
 				const struct drm_mode_fb_cmd2 *r,
 				struct drm_file *file_priv);
 void drm_framebuffer_free(struct kref *kref);
+int drm_framebuffer_check_src_coords(uint32_t src_x, uint32_t src_y,
+				     uint32_t src_w, uint32_t src_h,
+				     const struct drm_framebuffer *fb);
 
 /* IOCTL */
 int drm_mode_addfb(struct drm_device *dev,
@@ -180,3 +168,23 @@ void drm_modeset_unregister_all(struct drm_device *dev);
 /* drm_blend.c */
 int drm_atomic_normalize_zpos(struct drm_device *dev,
 			      struct drm_atomic_state *state);
+
+/* drm_plane.c */
+int drm_plane_register_all(struct drm_device *dev);
+void drm_plane_unregister_all(struct drm_device *dev);
+int drm_plane_check_pixel_format(const struct drm_plane *plane,
+				 u32 format);
+
+/* IOCTL */
+int drm_mode_getplane_res(struct drm_device *dev, void *data,
+			  struct drm_file *file_priv);
+int drm_mode_getplane(struct drm_device *dev,
+		      void *data, struct drm_file *file_priv);
+int drm_mode_setplane(struct drm_device *dev,
+		      void *data, struct drm_file *file_priv);
+int drm_mode_cursor_ioctl(struct drm_device *dev,
+			  void *data, struct drm_file *file_priv);
+int drm_mode_cursor2_ioctl(struct drm_device *dev,
+			   void *data, struct drm_file *file_priv);
+int drm_mode_page_flip_ioctl(struct drm_device *dev,
+			     void *data, struct drm_file *file_priv);

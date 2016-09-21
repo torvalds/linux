@@ -110,6 +110,18 @@ Note that dumb objects may not be used for gpu acceleration, as has been
 attempted on some ARM embedded platforms. Such drivers really must have
 a hardware-specific ioctl to allocate suitable buffer objects.
 
+Plane Abstraction
+=================
+
+Plane Functions Reference
+-------------------------
+
+.. kernel-doc:: include/drm/drm_plane.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_plane.c
+   :export:
+
 Display Modes Function Reference
 ================================
 
