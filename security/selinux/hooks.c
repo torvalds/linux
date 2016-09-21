@@ -1761,8 +1761,8 @@ static inline int file_path_has_perm(const struct cred *cred,
 {
 	struct common_audit_data ad;
 
-	ad.type = LSM_AUDIT_DATA_PATH;
-	ad.u.path = file->f_path;
+	ad.type = LSM_AUDIT_DATA_FILE;
+	ad.u.file = file;
 	return inode_has_perm(cred, file_inode(file), av, &ad);
 }
 
@@ -1784,8 +1784,8 @@ static int file_has_perm(const struct cred *cred,
 	u32 sid = cred_sid(cred);
 	int rc;
 
-	ad.type = LSM_AUDIT_DATA_PATH;
-	ad.u.path = file->f_path;
+	ad.type = LSM_AUDIT_DATA_FILE;
+	ad.u.file = file;
 
 	if (sid != fsec->sid) {
 		rc = avc_has_perm(sid, fsec->sid,
@@ -2365,8 +2365,8 @@ static int selinux_bprm_set_creds(struct linux_binprm *bprm)
 			new_tsec->sid = old_tsec->sid;
 	}
 
-	ad.type = LSM_AUDIT_DATA_PATH;
-	ad.u.path = bprm->file->f_path;
+	ad.type = LSM_AUDIT_DATA_FILE;
+	ad.u.file = bprm->file;
 
 	if (new_tsec->sid == old_tsec->sid) {
 		rc = avc_has_perm(old_tsec->sid, isec->sid,
@@ -3833,8 +3833,8 @@ static int selinux_kernel_module_from_file(struct file *file)
 
 	/* finit_module */
 
-	ad.type = LSM_AUDIT_DATA_PATH;
-	ad.u.path = file->f_path;
+	ad.type = LSM_AUDIT_DATA_FILE;
+	ad.u.file = file;
 
 	fsec = file->f_security;
 	if (sid != fsec->sid) {
