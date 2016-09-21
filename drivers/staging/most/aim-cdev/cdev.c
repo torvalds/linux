@@ -214,10 +214,7 @@ static ssize_t aim_write(struct file *filp, const char __user *buf,
 		goto put_mbo;
 	}
 
-	ret = most_submit_mbo(mbo);
-	if (ret)
-		goto put_mbo;
-
+	most_submit_mbo(mbo);
 	mutex_unlock(&c->io_mutex);
 	return actual_len;
 put_mbo:

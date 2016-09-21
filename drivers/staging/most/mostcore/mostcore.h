@@ -287,7 +287,7 @@ struct kobject *most_register_interface(struct most_interface *iface);
  * @intf_instance Pointer to the interface instance description.
  */
 void most_deregister_interface(struct most_interface *iface);
-int most_submit_mbo(struct mbo *mbo);
+void most_submit_mbo(struct mbo *mbo);
 
 /**
  * most_stop_enqueue - prevents core from enqueing MBOs

@@ -1323,17 +1323,14 @@ _exit:
 /**
  * most_submit_mbo - submits an MBO to fifo
  * @mbo: pointer to the MBO
- *
  */
-int most_submit_mbo(struct mbo *mbo)
+void most_submit_mbo(struct mbo *mbo)
 {
-	if (unlikely((!mbo) || (!mbo->context))) {
-		pr_err("Bad MBO or missing channel reference\n");
-		return -EINVAL;
-	}
+	if (WARN_ONCE(!mbo || !mbo->context,
+		      "bad mbo or missing channel reference\n"))
+		return;
 
 	nq_hdm_mbo(mbo);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(most_submit_mbo);
 
