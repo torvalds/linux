@@ -48,6 +48,7 @@
 #include <linux/crypto.h>
 
 #include "ap_bus.h"
+#include "ap_asm.h"
 
 /*
  * Module description.
@@ -130,26 +131,6 @@ static inline int ap_using_interrupts(void)
 }
 
 /**
- * ap_intructions_available() - Test if AP instructions are available.
- *
- * Returns 0 if the AP instructions are installed.
- */
-static inline int ap_instructions_available(void)
-{
-	register unsigned long reg0 asm ("0") = AP_MKQID(0,0);
-	register unsigned long reg1 asm ("1") = -ENODEV;
-	register unsigned long reg2 asm ("2") = 0UL;
-
-	asm volatile(
-		"   .long 0xb2af0000\n"		/* PQAP(TAPQ) */
-		"0: la    %1,0\n"
-		"1:\n"
-		EX_TABLE(0b, 1b)
-		: "+d" (reg0), "+d" (reg1), "+d" (reg2) : : "cc" );
-	return reg1;
-}
-
-/**
  * ap_interrupts_available(): Test if AP interrupts are available.
  *
  * Returns 1 if AP interrupts are available.
@@ -170,19 +151,6 @@ static int ap_configuration_available(void)
 	return test_facility(12);
 }
 
-static inline struct ap_queue_status
-__pqap_tapq(ap_qid_t qid, unsigned long *info)
-{
-	register unsigned long reg0 asm ("0") = qid;
-	register struct ap_queue_status reg1 asm ("1");
-	register unsigned long reg2 asm ("2") = 0UL;
-
-	asm volatile(".long 0xb2af0000"		/* PQAP(TAPQ) */
-		     : "+d" (reg0), "=d" (reg1), "+d" (reg2) : : "cc");
-	*info = reg2;
-	return reg1;
-}
-
 /**
  * ap_test_queue(): Test adjunct processor queue.
  * @qid: The AP queue number
@@ -193,85 +161,16 @@ __pqap_tapq(ap_qid_t qid, unsigned long *info)
 static inline struct ap_queue_status
 ap_test_queue(ap_qid_t qid, unsigned long *info)
 {
-	struct ap_queue_status aqs;
-	unsigned long _info;
-
 	if (test_facility(15))
 		qid |= 1UL << 23;		/* set APFT T bit*/
-	aqs = __pqap_tapq(qid, &_info);
-	if (info)
-		*info = _info;
-	return aqs;
-}
-
-/**
- * ap_reset_queue(): Reset adjunct processor queue.
- * @qid: The AP queue number
- *
- * Returns AP queue status structure.
- */
-static inline struct ap_queue_status ap_reset_queue(ap_qid_t qid)
-{
-	register unsigned long reg0 asm ("0") = qid | 0x01000000UL;
-	register struct ap_queue_status reg1 asm ("1");
-	register unsigned long reg2 asm ("2") = 0UL;
-
-	asm volatile(
-		".long 0xb2af0000"		/* PQAP(RAPQ) */
-		: "+d" (reg0), "=d" (reg1), "+d" (reg2) : : "cc");
-	return reg1;
-}
-
-/**
- * ap_queue_interruption_control(): Enable interruption for a specific AP.
- * @qid: The AP queue number
- * @ind: The notification indicator byte
- *
- * Returns AP queue status.
- */
-static inline struct ap_queue_status
-ap_queue_interruption_control(ap_qid_t qid, void *ind)
-{
-	register unsigned long reg0 asm ("0") = qid | 0x03000000UL;
-	register unsigned long reg1_in asm ("1") = 0x0000800000000000UL | AP_ISC;
-	register struct ap_queue_status reg1_out asm ("1");
-	register void *reg2 asm ("2") = ind;
-	asm volatile(
-		".long 0xb2af0000"		/* PQAP(AQIC) */
-		: "+d" (reg0), "+d" (reg1_in), "=d" (reg1_out), "+d" (reg2)
-		:
-		: "cc" );
-	return reg1_out;
-}
-
-/**
- * ap_query_configuration(): Get AP configuration data
- *
- * Returns 0 on success, or -EOPNOTSUPP.
- */
-static inline int __ap_query_configuration(void)
-{
-	register unsigned long reg0 asm ("0") = 0x04000000UL;
-	register unsigned long reg1 asm ("1") = -EINVAL;
-	register void *reg2 asm ("2") = (void *) ap_configuration;
-
-	asm volatile(
-		".long 0xb2af0000\n"		/* PQAP(QCI) */
-		"0: la    %1,0\n"
-		"1:\n"
-		EX_TABLE(0b, 1b)
-		: "+d" (reg0), "+d" (reg1), "+d" (reg2)
-		:
-		: "cc");
-
-	return reg1;
+	return ap_tapq(qid, info);
 }
 
 static inline int ap_query_configuration(void)
 {
 	if (!ap_configuration)
 		return -EOPNOTSUPP;
-	return __ap_query_configuration();
+	return ap_qci(ap_configuration);
 }
 
 /**
@@ -336,15 +235,15 @@ static inline int ap_test_config_domain(unsigned int domain)
  * @qid: The AP queue number
  * @ind: the notification indicator byte
  *
- * Enables interruption on AP queue via ap_queue_interruption_control(). Based
- * on the return value it waits a while and tests the AP queue if interrupts
+ * Enables interruption on AP queue via ap_aqic(). Based on the return
+ * value it waits a while and tests the AP queue if interrupts
  * have been switched on using ap_test_queue().
  */
 static int ap_queue_enable_interruption(struct ap_device *ap_dev, void *ind)
 {
 	struct ap_queue_status status;
 
-	status = ap_queue_interruption_control(ap_dev->qid, ind);
+	status = ap_aqic(ap_dev->qid, ind);
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 	case AP_RESPONSE_OTHERWISE_CHANGED:
@@ -361,26 +260,6 @@ static int ap_queue_enable_interruption(struct ap_device *ap_dev, void *ind)
 	default:
 		return -EBUSY;
 	}
-}
-
-static inline struct ap_queue_status
-__nqap(ap_qid_t qid, unsigned long long psmid, void *msg, size_t length)
-{
-	typedef struct { char _[length]; } msgblock;
-	register unsigned long reg0 asm ("0") = qid | 0x40000000UL;
-	register struct ap_queue_status reg1 asm ("1");
-	register unsigned long reg2 asm ("2") = (unsigned long) msg;
-	register unsigned long reg3 asm ("3") = (unsigned long) length;
-	register unsigned long reg4 asm ("4") = (unsigned int) (psmid >> 32);
-	register unsigned long reg5 asm ("5") = psmid & 0xffffffff;
-
-	asm volatile (
-		"0: .long 0xb2ad0042\n"		/* NQAP */
-		"   brc   2,0b"
-		: "+d" (reg0), "=d" (reg1), "+d" (reg2), "+d" (reg3)
-		: "d" (reg4), "d" (reg5), "m" (*(msgblock *) msg)
-		: "cc");
-	return reg1;
 }
 
 /**
@@ -402,7 +281,7 @@ __ap_send(ap_qid_t qid, unsigned long long psmid, void *msg, size_t length,
 {
 	if (special == 1)
 		qid |= 0x400000UL;
-	return __nqap(qid, psmid, msg, length);
+	return ap_nqap(qid, psmid, msg, length);
 }
 
 int ap_send(ap_qid_t qid, unsigned long long psmid, void *msg, size_t length)
@@ -424,54 +303,13 @@ int ap_send(ap_qid_t qid, unsigned long long psmid, void *msg, size_t length)
 }
 EXPORT_SYMBOL(ap_send);
 
-/**
- * __ap_recv(): Receive message from adjunct processor queue.
- * @qid: The AP queue number
- * @psmid: Pointer to program supplied message identifier
- * @msg: The message text
- * @length: The message length
- *
- * Returns AP queue status structure.
- * Condition code 1 on DQAP means the receive has taken place
- * but only partially.	The response is incomplete, hence the
- * DQAP is repeated.
- * Condition code 2 on DQAP also means the receive is incomplete,
- * this time because a segment boundary was reached. Again, the
- * DQAP is repeated.
- * Note that gpr2 is used by the DQAP instruction to keep track of
- * any 'residual' length, in case the instruction gets interrupted.
- * Hence it gets zeroed before the instruction.
- */
-static inline struct ap_queue_status
-__ap_recv(ap_qid_t qid, unsigned long long *psmid, void *msg, size_t length)
-{
-	typedef struct { char _[length]; } msgblock;
-	register unsigned long reg0 asm("0") = qid | 0x80000000UL;
-	register struct ap_queue_status reg1 asm ("1");
-	register unsigned long reg2 asm("2") = 0UL;
-	register unsigned long reg4 asm("4") = (unsigned long) msg;
-	register unsigned long reg5 asm("5") = (unsigned long) length;
-	register unsigned long reg6 asm("6") = 0UL;
-	register unsigned long reg7 asm("7") = 0UL;
-
-
-	asm volatile(
-		"0: .long 0xb2ae0064\n"		/* DQAP */
-		"   brc   6,0b\n"
-		: "+d" (reg0), "=d" (reg1), "+d" (reg2),
-		"+d" (reg4), "+d" (reg5), "+d" (reg6), "+d" (reg7),
-		"=m" (*(msgblock *) msg) : : "cc" );
-	*psmid = (((unsigned long long) reg6) << 32) + reg7;
-	return reg1;
-}
-
 int ap_recv(ap_qid_t qid, unsigned long long *psmid, void *msg, size_t length)
 {
 	struct ap_queue_status status;
 
 	if (msg == NULL)
 		return -EINVAL;
-	status = __ap_recv(qid, psmid, msg, length);
+	status = ap_dqap(qid, psmid, msg, length);
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		return 0;
@@ -577,8 +415,8 @@ static struct ap_queue_status ap_sm_recv(struct ap_device *ap_dev)
 	struct ap_queue_status status;
 	struct ap_message *ap_msg;
 
-	status = __ap_recv(ap_dev->qid, &ap_dev->reply->psmid,
-			   ap_dev->reply->message, ap_dev->reply->length);
+	status = ap_dqap(ap_dev->qid, &ap_dev->reply->psmid,
+			 ap_dev->reply->message, ap_dev->reply->length);
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		atomic_dec(&ap_poll_requests);
@@ -739,7 +577,7 @@ static enum ap_wait ap_sm_reset(struct ap_device *ap_dev)
 {
 	struct ap_queue_status status;
 
-	status = ap_reset_queue(ap_dev->qid);
+	status = ap_rapq(ap_dev->qid);
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 	case AP_RESPONSE_RESET_IN_PROGRESS:
@@ -1794,7 +1632,7 @@ static void ap_reset_domain(void)
 	if (ap_domain_index == -1 || !ap_test_config_domain(ap_domain_index))
 		return;
 	for (i = 0; i < AP_DEVICES; i++)
-		ap_reset_queue(AP_MKQID(i, ap_domain_index));
+		ap_rapq(AP_MKQID(i, ap_domain_index));
 }
 
 static void ap_reset_all(void)
@@ -1807,7 +1645,7 @@ static void ap_reset_all(void)
 		for (j = 0; j < AP_DEVICES; j++) {
 			if (!ap_test_config_card_id(j))
 				continue;
-			ap_reset_queue(AP_MKQID(j, i));
+			ap_rapq(AP_MKQID(j, i));
 		}
 	}
 }
