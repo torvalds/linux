@@ -1262,17 +1262,13 @@ EXC_COMMON(altivec_assist_common, 0x1700, unknown_exception)
 
 #ifdef CONFIG_CBE_RAS
 EXC_REAL_HV(cbe_thermal, 0x1800, 0x1900)
-
+EXC_VIRT_NONE(0x5800, 0x5900)
 TRAMP_KVM_HV_SKIP(PACA_EXGEN, 0x1800)
-
+EXC_COMMON(cbe_thermal_common, 0x1800, cbe_thermal_exception)
 #else /* CONFIG_CBE_RAS */
 EXC_REAL_NONE(0x1800, 0x1900)
 #endif
 
-
-/*** Out of line interrupts support ***/
-
-	/* moved from 0x200 */
 
 /*
  * An interrupt came in while soft-disabled. We set paca->irq_happened, then:
@@ -1410,8 +1406,6 @@ TRAMP_REAL_BEGIN(kvmppc_skip_Hinterrupt)
 	 * come here.
 	 */
 
-EXC_VIRT_NONE(0x5800, 0x5900)
-
 EXC_COMMON_BEGIN(ppc64_runlatch_on_trampoline)
 	b	__ppc64_runlatch_on
 
@@ -1428,11 +1422,6 @@ USE_FIXED_SECTION(virt_trampolines)
 	.globl	__end_interrupts
 __end_interrupts:
 DEFINE_FIXED_SYMBOL(__end_interrupts)
-
-#ifdef CONFIG_CBE_RAS
-EXC_COMMON(cbe_thermal_common, 0x1800, cbe_thermal_exception)
-#endif /* CONFIG_CBE_RAS */
-
 
 #ifdef CONFIG_PPC_970_NAP
 TRAMP_REAL_BEGIN(power4_fixup_nap)
