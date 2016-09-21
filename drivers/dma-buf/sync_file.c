@@ -150,6 +150,7 @@ static int sync_file_set_fence(struct sync_file *sync_file,
 	 */
 	if (num_fences == 1) {
 		sync_file->fence = fences[0];
+		kfree(fences);
 	} else {
 		array = fence_array_create(num_fences, fences,
 					   fence_context_alloc(1), 1, false);
