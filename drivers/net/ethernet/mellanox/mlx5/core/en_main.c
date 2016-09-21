@@ -69,6 +69,47 @@ struct mlx5e_channel_param {
 	struct mlx5e_cq_param      icosq_cq;
 };
 
+static bool mlx5e_check_fragmented_striding_rq_cap(struct mlx5_core_dev *mdev)
+{
+	return MLX5_CAP_GEN(mdev, striding_rq) &&
+		MLX5_CAP_GEN(mdev, umr_ptr_rlky) &&
+		MLX5_CAP_ETH(mdev, reg_umr_sq);
+}
+
+static void mlx5e_set_rq_type_params(struct mlx5e_priv *priv, u8 rq_type)
+{
+	priv->params.rq_wq_type = rq_type;
+	switch (priv->params.rq_wq_type) {
+	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
+		priv->params.log_rq_size = MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE_MPW;
+		priv->params.mpwqe_log_stride_sz = priv->params.rx_cqe_compress ?
+			MLX5_MPWRQ_LOG_STRIDE_SIZE_CQE_COMPRESS :
+			MLX5_MPWRQ_LOG_STRIDE_SIZE;
+		priv->params.mpwqe_log_num_strides = MLX5_MPWRQ_LOG_WQE_SZ -
+			priv->params.mpwqe_log_stride_sz;
+		break;
+	default: /* MLX5_WQ_TYPE_LINKED_LIST */
+		priv->params.log_rq_size = MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE;
+	}
+	priv->params.min_rx_wqes = mlx5_min_rx_wqes(priv->params.rq_wq_type,
+					       BIT(priv->params.log_rq_size));
+
+	mlx5_core_info(priv->mdev,
+		       "MLX5E: StrdRq(%d) RqSz(%ld) StrdSz(%ld) RxCqeCmprss(%d)\n",
+		       priv->params.rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ,
+		       BIT(priv->params.log_rq_size),
+		       BIT(priv->params.mpwqe_log_stride_sz),
+		       priv->params.rx_cqe_compress_admin);
+}
+
+static void mlx5e_set_rq_priv_params(struct mlx5e_priv *priv)
+{
+	u8 rq_type = mlx5e_check_fragmented_striding_rq_cap(priv->mdev) ?
+		    MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ :
+		    MLX5_WQ_TYPE_LINKED_LIST;
+	mlx5e_set_rq_type_params(priv, rq_type);
+}
+
 static void mlx5e_update_carrier(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
@@ -3038,13 +3079,6 @@ void mlx5e_build_default_indir_rqt(struct mlx5_core_dev *mdev,
 		indirection_rqt[i] = i % num_channels;
 }
 
-static bool mlx5e_check_fragmented_striding_rq_cap(struct mlx5_core_dev *mdev)
-{
-	return MLX5_CAP_GEN(mdev, striding_rq) &&
-		MLX5_CAP_GEN(mdev, umr_ptr_rlky) &&
-		MLX5_CAP_ETH(mdev, reg_umr_sq);
-}
-
 static int mlx5e_get_pci_bw(struct mlx5_core_dev *mdev, u32 *pci_bw)
 {
 	enum pcie_link_width width;
@@ -3124,11 +3158,13 @@ static void mlx5e_build_nic_netdev_priv(struct mlx5_core_dev *mdev,
 					 MLX5_CQ_PERIOD_MODE_START_FROM_CQE :
 					 MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
 
-	priv->params.log_sq_size           =
-		MLX5E_PARAMS_DEFAULT_LOG_SQ_SIZE;
-	priv->params.rq_wq_type = mlx5e_check_fragmented_striding_rq_cap(mdev) ?
-		MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ :
-		MLX5_WQ_TYPE_LINKED_LIST;
+	priv->mdev                         = mdev;
+	priv->netdev                       = netdev;
+	priv->params.num_channels          = profile->max_nch(mdev);
+	priv->profile                      = profile;
+	priv->ppriv                        = ppriv;
+
+	priv->params.log_sq_size = MLX5E_PARAMS_DEFAULT_LOG_SQ_SIZE;
 
 	/* set CQE compression */
 	priv->params.rx_cqe_compress_admin = false;
@@ -3141,33 +3177,11 @@ static void mlx5e_build_nic_netdev_priv(struct mlx5_core_dev *mdev,
 		priv->params.rx_cqe_compress_admin =
 			cqe_compress_heuristic(link_speed, pci_bw);
 	}
-
 	priv->params.rx_cqe_compress = priv->params.rx_cqe_compress_admin;
 
-	switch (priv->params.rq_wq_type) {
-	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
-		priv->params.log_rq_size = MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE_MPW;
-		priv->params.mpwqe_log_stride_sz =
-			priv->params.rx_cqe_compress ?
-			MLX5_MPWRQ_LOG_STRIDE_SIZE_CQE_COMPRESS :
-			MLX5_MPWRQ_LOG_STRIDE_SIZE;
-		priv->params.mpwqe_log_num_strides = MLX5_MPWRQ_LOG_WQE_SZ -
-			priv->params.mpwqe_log_stride_sz;
+	mlx5e_set_rq_priv_params(priv);
+	if (priv->params.rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ)
 		priv->params.lro_en = true;
-		break;
-	default: /* MLX5_WQ_TYPE_LINKED_LIST */
-		priv->params.log_rq_size = MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE;
-	}
-
-	mlx5_core_info(mdev,
-		       "MLX5E: StrdRq(%d) RqSz(%ld) StrdSz(%ld) RxCqeCmprss(%d)\n",
-		       priv->params.rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ,
-		       BIT(priv->params.log_rq_size),
-		       BIT(priv->params.mpwqe_log_stride_sz),
-		       priv->params.rx_cqe_compress_admin);
-
-	priv->params.min_rx_wqes = mlx5_min_rx_wqes(priv->params.rq_wq_type,
-					    BIT(priv->params.log_rq_size));
 
 	priv->params.rx_am_enabled = MLX5_CAP_GEN(mdev, cq_moderation);
 	mlx5e_set_rx_cq_mode_params(&priv->params, cq_period_mode);
@@ -3196,12 +3210,6 @@ static void mlx5e_build_nic_netdev_priv(struct mlx5_core_dev *mdev,
 	/* Initialize pflags */
 	MLX5E_SET_PRIV_FLAG(priv, MLX5E_PFLAG_RX_CQE_BASED_MODER,
 			    priv->params.rx_cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE);
-
-	priv->mdev                         = mdev;
-	priv->netdev                       = netdev;
-	priv->params.num_channels          = profile->max_nch(mdev);
-	priv->profile                      = profile;
-	priv->ppriv                        = ppriv;
 
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 	mlx5e_ets_init(priv);
