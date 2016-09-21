@@ -566,6 +566,31 @@ EXC_REAL_BEGIN(data_access_slb, 0x380, 0x400)
 #endif
 EXC_REAL_END(data_access_slb, 0x380, 0x400)
 
+EXC_VIRT_BEGIN(data_access_slb, 0x4380, 0x4400)
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXSLB)
+	EXCEPTION_PROLOG_1(PACA_EXSLB, NOTEST, 0x380)
+	std	r3,PACA_EXSLB+EX_R3(r13)
+	mfspr	r3,SPRN_DAR
+	mfspr	r12,SPRN_SRR1
+	crset	4*cr6+eq
+#ifndef CONFIG_RELOCATABLE
+	b	slb_miss_realmode
+#else
+	/*
+	 * We can't just use a direct branch to slb_miss_realmode
+	 * because the distance from here to there depends on where
+	 * the kernel ends up being put.
+	 */
+	mfctr	r11
+	LOAD_HANDLER(r10, slb_miss_realmode)
+	mtctr	r10
+	bctr
+#endif
+EXC_VIRT_END(data_access_slb, 0x4380, 0x4400)
+TRAMP_KVM_SKIP(PACA_EXSLB, 0x380)
+
+
 EXC_REAL(instruction_access, 0x400, 0x480)
 
 EXC_REAL_BEGIN(instruction_access_slb, 0x480, 0x500)
@@ -747,7 +772,6 @@ EXC_REAL_NONE(0x1800, 0x1900)
 /*** Out of line interrupts support ***/
 
 	/* moved from 0x200 */
-TRAMP_KVM_SKIP(PACA_EXSLB, 0x380)
 TRAMP_KVM(PACA_EXGEN, 0x400)
 TRAMP_KVM(PACA_EXSLB, 0x480)
 TRAMP_KVM(PACA_EXGEN, 0x900)
@@ -1015,30 +1039,6 @@ EXC_COMMON(altivec_assist_common, 0x1700, unknown_exception)
 	 * only has extra guff for STAB-based processors -- which never
 	 * come here.
 	 */
-
-
-EXC_VIRT_BEGIN(data_access_slb, 0x4380, 0x4400)
-	SET_SCRATCH0(r13)
-	EXCEPTION_PROLOG_0(PACA_EXSLB)
-	EXCEPTION_PROLOG_1(PACA_EXSLB, NOTEST, 0x380)
-	std	r3,PACA_EXSLB+EX_R3(r13)
-	mfspr	r3,SPRN_DAR
-	mfspr	r12,SPRN_SRR1
-	crset	4*cr6+eq
-#ifndef CONFIG_RELOCATABLE
-	b	slb_miss_realmode
-#else
-	/*
-	 * We can't just use a direct branch to slb_miss_realmode
-	 * because the distance from here to there depends on where
-	 * the kernel ends up being put.
-	 */
-	mfctr	r11
-	LOAD_HANDLER(r10, slb_miss_realmode)
-	mtctr	r10
-	bctr
-#endif
-EXC_VIRT_END(data_access_slb, 0x4380, 0x4400)
 
 EXC_VIRT(instruction_access, 0x4400, 0x4480, 0x400)
 
