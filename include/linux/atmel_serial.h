@@ -119,6 +119,7 @@
 #define ATMEL_US_BRGR		0x20	/* Baud Rate Generator Register */
 #define	ATMEL_US_CD		GENMASK(15, 0)	/* Clock Divider */
 #define ATMEL_US_FP_OFFSET	16	/* Fractional Part */
+#define ATMEL_US_FP_MASK	0x7
 
 #define ATMEL_US_RTOR		0x24	/* Receiver Time-out Register for USART */
 #define ATMEL_UA_RTOR		0x28	/* Receiver Time-out Register for UART */
