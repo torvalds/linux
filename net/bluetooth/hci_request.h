@@ -73,8 +73,9 @@ void __hci_req_update_scan_rsp_data(struct hci_request *req, u8 instance);
 
 int __hci_req_schedule_adv_instance(struct hci_request *req, u8 instance,
 				    bool force);
-void hci_req_clear_adv_instance(struct hci_dev *hdev, struct hci_request *req,
-				u8 instance, bool force);
+void hci_req_clear_adv_instance(struct hci_dev *hdev, struct sock *sk,
+				struct hci_request *req, u8 instance,
+				bool force);
 
 void __hci_req_update_class(struct hci_request *req);
 
