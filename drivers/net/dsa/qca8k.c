@@ -1032,19 +1032,7 @@ static struct mdio_driver qca8kmdio_driver = {
 	},
 };
 
-static int __init
-qca8kmdio_driver_register(void)
-{
-	return mdio_driver_register(&qca8kmdio_driver);
-}
-module_init(qca8kmdio_driver_register);
-
-static void __exit
-qca8kmdio_driver_unregister(void)
-{
-	mdio_driver_unregister(&qca8kmdio_driver);
-}
-module_exit(qca8kmdio_driver_unregister);
+mdio_module_driver(qca8kmdio_driver);
 
 MODULE_AUTHOR("Mathieu Olivari, John Crispin <john@phrozen.org>");
 MODULE_DESCRIPTION("Driver for QCA8K ethernet switch family");
