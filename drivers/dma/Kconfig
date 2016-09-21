@@ -130,7 +130,7 @@ config DMA_JZ4780
 
 config DMA_OMAP
 	tristate "OMAP DMA support"
-	depends on ARCH_OMAP
+	depends on ARCH_OMAP || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	select TI_DMA_CROSSBAR if SOC_DRA7XX
