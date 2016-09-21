@@ -3304,9 +3304,10 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 		goto out;
 	/* cases below refer to rfc 3530 section 14.2.34: */
 	if (!unconf || !same_verf(&confirm, &unconf->cl_confirm)) {
-		if (conf && !unconf) /* case 2: probable retransmit */
+		if (conf && same_verf(&confirm, &conf->cl_confirm)) {
+			/* case 2: probable retransmit */
 			status = nfs_ok;
-		else /* case 4: client hasn't noticed we rebooted yet? */
+		} else /* case 4: client hasn't noticed we rebooted yet? */
 			status = nfserr_stale_clientid;
 		goto out;
 	}
