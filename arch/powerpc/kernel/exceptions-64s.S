@@ -1251,8 +1251,14 @@ EXC_REAL_NONE(0x1600, 0x1700)
 
 
 EXC_REAL(altivec_assist, 0x1700, 0x1800)
-
+EXC_VIRT(altivec_assist, 0x5700, 0x5800, 0x1700)
 TRAMP_KVM(PACA_EXGEN, 0x1700)
+#ifdef CONFIG_ALTIVEC
+EXC_COMMON(altivec_assist_common, 0x1700, altivec_assist_exception)
+#else
+EXC_COMMON(altivec_assist_common, 0x1700, unknown_exception)
+#endif
+
 
 #ifdef CONFIG_CBE_RAS
 EXC_REAL_HV(cbe_thermal, 0x1800, 0x1900)
@@ -1388,12 +1394,6 @@ TRAMP_REAL_BEGIN(kvmppc_skip_Hinterrupt)
 /*** Common interrupt handlers ***/
 
 
-#ifdef CONFIG_ALTIVEC
-EXC_COMMON(altivec_assist_common, 0x1700, altivec_assist_exception)
-#else
-EXC_COMMON(altivec_assist_common, 0x1700, unknown_exception)
-#endif
-
 	/*
 	 * Relocation-on interrupts: A subset of the interrupts can be delivered
 	 * with IR=1/DR=1, if AIL==2 and MSR.HV won't be changed by delivering
@@ -1409,8 +1409,6 @@ EXC_COMMON(altivec_assist_common, 0x1700, unknown_exception)
 	 * only has extra guff for STAB-based processors -- which never
 	 * come here.
 	 */
-
-EXC_VIRT(altivec_assist, 0x5700, 0x5800, 0x1700)
 
 EXC_VIRT_NONE(0x5800, 0x5900)
 
