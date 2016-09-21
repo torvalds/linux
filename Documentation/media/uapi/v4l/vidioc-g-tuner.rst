@@ -277,7 +277,7 @@ To change the radio frequency the
 
        -  1
 
-       - Tuner supports radio
+       -  Tuner supports radio
 
     -  .. row 2
 
@@ -285,7 +285,7 @@ To change the radio frequency the
 
        -  2
 
-       - Tuner supports analog TV
+       -  Tuner supports analog TV
 
     -  .. row 3
 
@@ -293,8 +293,8 @@ To change the radio frequency the
 
        -  4
 
-       - Tuner controls the A/D and/or D/A block of a
-	 Sofware Digital Radio (SDR)
+       -  Tuner controls the A/D and/or D/A block of a
+	  Sofware Digital Radio (SDR)
 
     -  .. row 4
 
@@ -302,7 +302,7 @@ To change the radio frequency the
 
        -  5
 
-       - Tuner controls the RF part of a Sofware Digital Radio (SDR)
+       -  Tuner controls the RF part of a Sofware Digital Radio (SDR)
 
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|

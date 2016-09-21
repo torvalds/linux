@@ -234,7 +234,7 @@ EBUSY
        -  ``reserved[14]``
 
        -  Reserved for future extensions. Drivers and applications must set
-          the array to zero.
+	  the array to zero.
 
 
 .. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{7.0cm}|p{3.5cm}|

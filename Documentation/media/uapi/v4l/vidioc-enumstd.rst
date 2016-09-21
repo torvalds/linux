@@ -335,7 +335,7 @@ support digital TV. See also the Linux DVB API at
 
        -  4433618.75 ± 5
 
-          (3582056.25 ± 5)
+	  (3582056.25 ± 5)
 
        -  :cspan:`3` 4433618.75 ± 5
 
