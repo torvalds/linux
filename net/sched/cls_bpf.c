@@ -39,6 +39,7 @@ struct cls_bpf_prog {
 	struct list_head link;
 	struct tcf_result res;
 	bool exts_integrated;
+	bool offloaded;
 	struct tcf_exts exts;
 	u32 handle;
 	union {
@@ -138,6 +139,71 @@ static bool cls_bpf_is_ebpf(const struct cls_bpf_prog *prog)
 	return !prog->bpf_ops;
 }
 
+static int cls_bpf_offload_cmd(struct tcf_proto *tp, struct cls_bpf_prog *prog,
+			       enum tc_clsbpf_command cmd)
+{
+	struct net_device *dev = tp->q->dev_queue->dev;
+	struct tc_cls_bpf_offload bpf_offload = {};
+	struct tc_to_netdev offload;
+
+	offload.type = TC_SETUP_CLSBPF;
+	offload.cls_bpf = &bpf_offload;
+
+	bpf_offload.command = cmd;
+	bpf_offload.exts = &prog->exts;
+	bpf_offload.prog = prog->filter;
+	bpf_offload.name = prog->bpf_name;
+	bpf_offload.exts_integrated = prog->exts_integrated;
+
+	return dev->netdev_ops->ndo_setup_tc(dev, tp->q->handle,
+					     tp->protocol, &offload);
+}
+
+static void cls_bpf_offload(struct tcf_proto *tp, struct cls_bpf_prog *prog,
+			    struct cls_bpf_prog *oldprog)
+{
+	struct net_device *dev = tp->q->dev_queue->dev;
+	struct cls_bpf_prog *obj = prog;
+	enum tc_clsbpf_command cmd;
+
+	if (oldprog && oldprog->offloaded) {
+		if (tc_should_offload(dev, tp, 0)) {
+			cmd = TC_CLSBPF_REPLACE;
+		} else {
+			obj = oldprog;
+			cmd = TC_CLSBPF_DESTROY;
+		}
+	} else {
+		if (!tc_should_offload(dev, tp, 0))
+			return;
+		cmd = TC_CLSBPF_ADD;
+	}
+
+	if (cls_bpf_offload_cmd(tp, obj, cmd))
+		return;
+
+	obj->offloaded = true;
+	if (oldprog)
+		oldprog->offloaded = false;
+}
+
+static void cls_bpf_stop_offload(struct tcf_proto *tp,
+				 struct cls_bpf_prog *prog)
+{
+	int err;
+
+	if (!prog->offloaded)
+		return;
+
+	err = cls_bpf_offload_cmd(tp, prog, TC_CLSBPF_DESTROY);
+	if (err) {
+		pr_err("Stopping hardware offload failed: %d\n", err);
+		return;
+	}
+
+	prog->offloaded = false;
+}
+
 static int cls_bpf_init(struct tcf_proto *tp)
 {
 	struct cls_bpf_head *head;
@@ -177,6 +243,7 @@ static int cls_bpf_delete(struct tcf_proto *tp, unsigned long arg)
 {
 	struct cls_bpf_prog *prog = (struct cls_bpf_prog *) arg;
 
+	cls_bpf_stop_offload(tp, prog);
 	list_del_rcu(&prog->link);
 	tcf_unbind_filter(tp, &prog->res);
 	call_rcu(&prog->rcu, __cls_bpf_delete_prog);
@@ -193,6 +260,7 @@ static bool cls_bpf_destroy(struct tcf_proto *tp, bool force)
 		return false;
 
 	list_for_each_entry_safe(prog, tmp, &head->plist, link) {
+		cls_bpf_stop_offload(tp, prog);
 		list_del_rcu(&prog->link);
 		tcf_unbind_filter(tp, &prog->res);
 		call_rcu(&prog->rcu, __cls_bpf_delete_prog);
@@ -414,6 +482,8 @@ static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
 				      ovr);
 	if (ret < 0)
 		goto errout;
+
+	cls_bpf_offload(tp, prog, oldprog);
 
 	if (oldprog) {
 		list_replace_rcu(&oldprog->link, &prog->link);
