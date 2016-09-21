@@ -21,7 +21,7 @@
 #include <asm/byteorder.h>
 #include <linux/types.h>
 
-#define batadv_tp_is_error(n) ((u8)n > 127 ? 1 : 0)
+#define batadv_tp_is_error(n) ((u8)(n) > 127 ? 1 : 0)
 
 /**
  * enum batadv_packettype - types for batman-adv encapsulated packets
