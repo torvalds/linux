@@ -83,9 +83,9 @@
 #endif
 
 /* Round an int up to the next multiple of 4.  */
-#define WORD_ROUND(s) (((s)+3)&~3)
+#define SCTP_PAD4(s) (((s)+3)&~3)
 /* Truncate to the previous multiple of 4.  */
-#define WORD_TRUNC(s) ((s)&~3)
+#define SCTP_TRUNC4(s) ((s)&~3)
 
 /*
  * Function declarations.
@@ -433,7 +433,7 @@ static inline int sctp_frag_point(const struct sctp_association *asoc, int pmtu)
 	if (asoc->user_frag)
 		frag = min_t(int, frag, asoc->user_frag);
 
-	frag = WORD_TRUNC(min_t(int, frag, SCTP_MAX_CHUNK_LEN));
+	frag = SCTP_TRUNC4(min_t(int, frag, SCTP_MAX_CHUNK_LEN));
 
 	return frag;
 }
@@ -462,7 +462,7 @@ _sctp_walk_params((pos), (chunk), ntohs((chunk)->chunk_hdr.length), member)
 for (pos.v = chunk->member;\
      pos.v <= (void *)chunk + end - ntohs(pos.p->length) &&\
      ntohs(pos.p->length) >= sizeof(sctp_paramhdr_t);\
-     pos.v += WORD_ROUND(ntohs(pos.p->length)))
+     pos.v += SCTP_PAD4(ntohs(pos.p->length)))
 
 #define sctp_walk_errors(err, chunk_hdr)\
 _sctp_walk_errors((err), (chunk_hdr), ntohs((chunk_hdr)->length))
@@ -472,7 +472,7 @@ for (err = (sctp_errhdr_t *)((void *)chunk_hdr + \
 	    sizeof(sctp_chunkhdr_t));\
      (void *)err <= (void *)chunk_hdr + end - ntohs(err->length) &&\
      ntohs(err->length) >= sizeof(sctp_errhdr_t); \
-     err = (sctp_errhdr_t *)((void *)err + WORD_ROUND(ntohs(err->length))))
+     err = (sctp_errhdr_t *)((void *)err + SCTP_PAD4(ntohs(err->length))))
 
 #define sctp_walk_fwdtsn(pos, chunk)\
 _sctp_walk_fwdtsn((pos), (chunk), ntohs((chunk)->chunk_hdr->length) - sizeof(struct sctp_fwdtsn_chunk))

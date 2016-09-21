@@ -208,8 +208,8 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 		struct sctp_hmac *hmac_desc = sctp_auth_asoc_get_hmac(asoc);
 
 		if (hmac_desc)
-			max_data -= WORD_ROUND(sizeof(sctp_auth_chunk_t) +
-					    hmac_desc->hmac_len);
+			max_data -= SCTP_PAD4(sizeof(sctp_auth_chunk_t) +
+					      hmac_desc->hmac_len);
 	}
 
 	/* Now, check if we need to reduce our max */
@@ -229,7 +229,7 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	    asoc->outqueue.out_qlen == 0 &&
 	    list_empty(&asoc->outqueue.retransmit) &&
 	    msg_len > max)
-		max_data -= WORD_ROUND(sizeof(sctp_sack_chunk_t));
+		max_data -= SCTP_PAD4(sizeof(sctp_sack_chunk_t));
 
 	/* Encourage Cookie-ECHO bundling. */
 	if (asoc->state < SCTP_STATE_COOKIE_ECHOED)
