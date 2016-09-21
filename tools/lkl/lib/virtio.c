@@ -1,6 +1,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <inttypes.h>
 #include <lkl_host.h>
 #include <lkl/linux/virtio_ring.h>
 #include "iomem.h"
@@ -548,7 +549,7 @@ int virtio_dev_setup(struct virtio_dev *dev, int queues, int num_max)
 
 	if (!lkl_is_running()) {
 		avail = sizeof(lkl_virtio_devs) - (devs - lkl_virtio_devs);
-		num_bytes = snprintf(devs, avail, " virtio_mmio.device=%d@0x%lx:%d",
+		num_bytes = snprintf(devs, avail, " virtio_mmio.device=%d@0x%"PRIxPTR":%d",
 				     mmio_size, (uintptr_t) dev->base, dev->irq);
 		if (num_bytes < 0 || num_bytes >= avail) {
 			lkl_put_irq(dev->irq, "virtio");
