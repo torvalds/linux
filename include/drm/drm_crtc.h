@@ -45,6 +45,7 @@
 #include <drm/drm_bridge.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_plane.h>
+#include <drm/drm_blend.h>
 
 struct drm_device;
 struct drm_mode_set;
@@ -62,21 +63,6 @@ static inline uint64_t I642U64(int64_t val)
 {
 	return (uint64_t)*((uint64_t *)&val);
 }
-
-/*
- * Rotation property bits. DRM_ROTATE_<degrees> rotates the image by the
- * specified amount in degrees in counter clockwise direction. DRM_REFLECT_X and
- * DRM_REFLECT_Y reflects the image along the specified axis prior to rotation
- */
-#define DRM_ROTATE_0	BIT(0)
-#define DRM_ROTATE_90	BIT(1)
-#define DRM_ROTATE_180	BIT(2)
-#define DRM_ROTATE_270	BIT(3)
-#define DRM_ROTATE_MASK (DRM_ROTATE_0   | DRM_ROTATE_90 | \
-			 DRM_ROTATE_180 | DRM_ROTATE_270)
-#define DRM_REFLECT_X	BIT(4)
-#define DRM_REFLECT_Y	BIT(5)
-#define DRM_REFLECT_MASK (DRM_REFLECT_X | DRM_REFLECT_Y)
 
 /* data corresponds to displayid vend/prod/serial */
 struct drm_tile_group {
@@ -1363,21 +1349,10 @@ extern struct drm_tile_group *drm_mode_get_tile_group(struct drm_device *dev,
 extern void drm_mode_put_tile_group(struct drm_device *dev,
 				   struct drm_tile_group *tg);
 
-extern struct drm_property *drm_mode_create_rotation_property(struct drm_device *dev,
-							      unsigned int supported_rotations);
-extern unsigned int drm_rotation_simplify(unsigned int rotation,
-					  unsigned int supported_rotations);
 extern void drm_crtc_enable_color_mgmt(struct drm_crtc *crtc,
 				       uint degamma_lut_size,
 				       bool has_ctm,
 				       uint gamma_lut_size);
-
-int drm_plane_create_zpos_property(struct drm_plane *plane,
-				   unsigned int zpos,
-				   unsigned int min, unsigned int max);
-
-int drm_plane_create_zpos_immutable_property(struct drm_plane *plane,
-					     unsigned int zpos);
 
 /* Helpers */
 static inline struct drm_crtc *drm_crtc_find(struct drm_device *dev,
