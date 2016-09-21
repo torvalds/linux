@@ -1027,6 +1027,12 @@ EXC_VIRT_NONE(0x4ec0, 0x4f00)
 
 
 __EXC_REAL_OOL(performance_monitor, 0xf00, 0xf20)
+__TRAMP_REAL_REAL_OOL(performance_monitor, 0xf00)
+__EXC_VIRT_OOL(performance_monitor, 0x4f00, 0x4f20)
+__TRAMP_REAL_VIRT_OOL(performance_monitor, 0xf00)
+TRAMP_KVM(PACA_EXGEN, 0xf00)
+EXC_COMMON_ASYNC(performance_monitor_common, 0xf00, performance_monitor_exception)
+
 
 __EXC_REAL_OOL(altivec_unavailable, 0xf20, 0xf40)
 
@@ -1162,9 +1168,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 #endif
 
 	/* moved from 0xf00 */
-__TRAMP_REAL_REAL_OOL(performance_monitor, 0xf00)
-TRAMP_KVM(PACA_EXGEN, 0xf00)
-
 __TRAMP_REAL_REAL_OOL(altivec_unavailable, 0xf20)
 TRAMP_KVM(PACA_EXGEN, 0xf20)
 
@@ -1297,7 +1300,6 @@ TRAMP_REAL_BEGIN(kvmppc_skip_Hinterrupt)
 /*** Common interrupt handlers ***/
 
 
-EXC_COMMON_ASYNC(performance_monitor_common, 0xf00, performance_monitor_exception)
 EXC_COMMON(instruction_breakpoint_common, 0x1300, instruction_breakpoint_exception)
 EXC_COMMON_HV(denorm_common, 0x1500, unknown_exception)
 #ifdef CONFIG_ALTIVEC
@@ -1321,8 +1323,6 @@ EXC_COMMON(altivec_assist_common, 0x1700, unknown_exception)
 	 * only has extra guff for STAB-based processors -- which never
 	 * come here.
 	 */
-
-__EXC_VIRT_OOL(performance_monitor, 0x4f00, 0x4f20)
 
 __EXC_VIRT_OOL(altivec_unavailable, 0x4f20, 0x4f40)
 
@@ -1421,7 +1421,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	b	ret_from_except
 
 	/* Equivalents to the above handlers for relocation-on interrupt vectors */
-__TRAMP_REAL_VIRT_OOL(performance_monitor, 0xf00)
 __TRAMP_REAL_VIRT_OOL(altivec_unavailable, 0xf20)
 __TRAMP_REAL_VIRT_OOL(vsx_unavailable, 0xf40)
 __TRAMP_REAL_VIRT_OOL(facility_unavailable, 0xf60)
