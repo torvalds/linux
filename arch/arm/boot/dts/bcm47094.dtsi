@@ -6,6 +6,12 @@
 
 #include "bcm4708.dtsi"
 
+/ {
+	usb3_phy: usb3-phy {
+		compatible = "brcm,ns-bx-usb3-phy";
+	};
+};
+
 &uart0 {
 	clock-frequency = <125000000>;
 };

@@ -149,6 +149,13 @@
 		clock-names = "phy-ref-clk";
 	};
 
+	usb3_phy: usb3-phy {
+		compatible = "brcm,ns-ax-usb3-phy";
+		reg = <0x18105000 0x1000>, <0x18003000 0x1000>;
+		reg-names = "dmp", "ccb-mii";
+		#phy-cells = <0>;
+	};
+
 	axi@18000000 {
 		compatible = "brcm,bus-axi";
 		reg = <0x18000000 0x1000>;
