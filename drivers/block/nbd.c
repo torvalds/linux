@@ -941,7 +941,7 @@ static int __init nbd_init(void)
 		nbd_dev[i].tag_set.numa_node = NUMA_NO_NODE;
 		nbd_dev[i].tag_set.cmd_size = sizeof(struct nbd_cmd);
 		nbd_dev[i].tag_set.flags = BLK_MQ_F_SHOULD_MERGE |
-			BLK_MQ_F_SG_MERGE;
+			BLK_MQ_F_SG_MERGE | BLK_MQ_F_BLOCKING;
 		nbd_dev[i].tag_set.driver_data = &nbd_dev[i];
 
 		err = blk_mq_alloc_tag_set(&nbd_dev[i].tag_set);
