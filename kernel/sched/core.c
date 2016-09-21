@@ -185,7 +185,7 @@ struct rq *__task_rq_lock(struct task_struct *p, struct rq_flags *rf)
 		rq = task_rq(p);
 		raw_spin_lock(&rq->lock);
 		if (likely(rq == task_rq(p) && !task_on_rq_migrating(p))) {
-			rf->cookie = lockdep_pin_lock(&rq->lock);
+			rq_pin_lock(rq, rf);
 			return rq;
 		}
 		raw_spin_unlock(&rq->lock);
@@ -225,7 +225,7 @@ struct rq *task_rq_lock(struct task_struct *p, struct rq_flags *rf)
 		 * pair with the WMB to ensure we must then also see migrating.
 		 */
 		if (likely(rq == task_rq(p) && !task_on_rq_migrating(p))) {
-			rf->cookie = lockdep_pin_lock(&rq->lock);
+			rq_pin_lock(rq, rf);
 			return rq;
 		}
 		raw_spin_unlock(&rq->lock);
@@ -1195,9 +1195,9 @@ static int __set_cpus_allowed_ptr(struct task_struct *p,
 		 * OK, since we're going to drop the lock immediately
 		 * afterwards anyway.
 		 */
-		lockdep_unpin_lock(&rq->lock, rf.cookie);
+		rq_unpin_lock(rq, &rf);
 		rq = move_queued_task(rq, p, dest_cpu);
-		lockdep_repin_lock(&rq->lock, rf.cookie);
+		rq_repin_lock(rq, &rf);
 	}
 out:
 	task_rq_unlock(rq, p, &rf);
@@ -1690,7 +1690,7 @@ static inline void ttwu_activate(struct rq *rq, struct task_struct *p, int en_fl
  * Mark the task runnable and perform wakeup-preemption.
  */
 static void ttwu_do_wakeup(struct rq *rq, struct task_struct *p, int wake_flags,
-			   struct pin_cookie cookie)
+			   struct rq_flags *rf)
 {
 	check_preempt_curr(rq, p, wake_flags);
 	p->state = TASK_RUNNING;
@@ -1702,9 +1702,9 @@ static void ttwu_do_wakeup(struct rq *rq, struct task_struct *p, int wake_flags,
 		 * Our task @p is fully woken up and running; so its safe to
 		 * drop the rq->lock, hereafter rq is only used for statistics.
 		 */
-		lockdep_unpin_lock(&rq->lock, cookie);
+		rq_unpin_lock(rq, rf);
 		p->sched_class->task_woken(rq, p);
-		lockdep_repin_lock(&rq->lock, cookie);
+		rq_repin_lock(rq, rf);
 	}
 
 	if (rq->idle_stamp) {
@@ -1723,7 +1723,7 @@ static void ttwu_do_wakeup(struct rq *rq, struct task_struct *p, int wake_flags,
 
 static void
 ttwu_do_activate(struct rq *rq, struct task_struct *p, int wake_flags,
-		 struct pin_cookie cookie)
+		 struct rq_flags *rf)
 {
 	int en_flags = ENQUEUE_WAKEUP;
 
@@ -1738,7 +1738,7 @@ ttwu_do_activate(struct rq *rq, struct task_struct *p, int wake_flags,
 #endif
 
 	ttwu_activate(rq, p, en_flags);
-	ttwu_do_wakeup(rq, p, wake_flags, cookie);
+	ttwu_do_wakeup(rq, p, wake_flags, rf);
 }
 
 /*
@@ -1757,7 +1757,7 @@ static int ttwu_remote(struct task_struct *p, int wake_flags)
 	if (task_on_rq_queued(p)) {
 		/* check_preempt_curr() may use rq clock */
 		update_rq_clock(rq);
-		ttwu_do_wakeup(rq, p, wake_flags, rf.cookie);
+		ttwu_do_wakeup(rq, p, wake_flags, &rf);
 		ret = 1;
 	}
 	__task_rq_unlock(rq, &rf);
@@ -1770,15 +1770,15 @@ void sched_ttwu_pending(void)
 {
 	struct rq *rq = this_rq();
 	struct llist_node *llist = llist_del_all(&rq->wake_list);
-	struct pin_cookie cookie;
 	struct task_struct *p;
 	unsigned long flags;
+	struct rq_flags rf;
 
 	if (!llist)
 		return;
 
 	raw_spin_lock_irqsave(&rq->lock, flags);
-	cookie = lockdep_pin_lock(&rq->lock);
+	rq_pin_lock(rq, &rf);
 
 	while (llist) {
 		int wake_flags = 0;
@@ -1789,10 +1789,10 @@ void sched_ttwu_pending(void)
 		if (p->sched_remote_wakeup)
 			wake_flags = WF_MIGRATED;
 
-		ttwu_do_activate(rq, p, wake_flags, cookie);
+		ttwu_do_activate(rq, p, wake_flags, &rf);
 	}
 
-	lockdep_unpin_lock(&rq->lock, cookie);
+	rq_unpin_lock(rq, &rf);
 	raw_spin_unlock_irqrestore(&rq->lock, flags);
 }
 
@@ -1881,7 +1881,7 @@ bool cpus_share_cache(int this_cpu, int that_cpu)
 static void ttwu_queue(struct task_struct *p, int cpu, int wake_flags)
 {
 	struct rq *rq = cpu_rq(cpu);
-	struct pin_cookie cookie;
+	struct rq_flags rf;
 
 #if defined(CONFIG_SMP)
 	if (sched_feat(TTWU_QUEUE) && !cpus_share_cache(smp_processor_id(), cpu)) {
@@ -1892,9 +1892,9 @@ static void ttwu_queue(struct task_struct *p, int cpu, int wake_flags)
 #endif
 
 	raw_spin_lock(&rq->lock);
-	cookie = lockdep_pin_lock(&rq->lock);
-	ttwu_do_activate(rq, p, wake_flags, cookie);
-	lockdep_unpin_lock(&rq->lock, cookie);
+	rq_pin_lock(rq, &rf);
+	ttwu_do_activate(rq, p, wake_flags, &rf);
+	rq_unpin_lock(rq, &rf);
 	raw_spin_unlock(&rq->lock);
 }
 
@@ -2111,7 +2111,7 @@ out:
  * ensure that this_rq() is locked, @p is bound to this_rq() and not
  * the current task.
  */
-static void try_to_wake_up_local(struct task_struct *p, struct pin_cookie cookie)
+static void try_to_wake_up_local(struct task_struct *p, struct rq_flags *rf)
 {
 	struct rq *rq = task_rq(p);
 
@@ -2128,11 +2128,11 @@ static void try_to_wake_up_local(struct task_struct *p, struct pin_cookie cookie
 		 * disabled avoiding further scheduler activity on it and we've
 		 * not yet picked a replacement task.
 		 */
-		lockdep_unpin_lock(&rq->lock, cookie);
+		rq_unpin_lock(rq, rf);
 		raw_spin_unlock(&rq->lock);
 		raw_spin_lock(&p->pi_lock);
 		raw_spin_lock(&rq->lock);
-		lockdep_repin_lock(&rq->lock, cookie);
+		rq_repin_lock(rq, rf);
 	}
 
 	if (!(p->state & TASK_NORMAL))
@@ -2143,7 +2143,7 @@ static void try_to_wake_up_local(struct task_struct *p, struct pin_cookie cookie
 	if (!task_on_rq_queued(p))
 		ttwu_activate(rq, p, ENQUEUE_WAKEUP);
 
-	ttwu_do_wakeup(rq, p, 0, cookie);
+	ttwu_do_wakeup(rq, p, 0, rf);
 	ttwu_stat(p, smp_processor_id(), 0);
 out:
 	raw_spin_unlock(&p->pi_lock);
@@ -2590,9 +2590,9 @@ void wake_up_new_task(struct task_struct *p)
 		 * Nothing relies on rq->lock after this, so its fine to
 		 * drop it.
 		 */
-		lockdep_unpin_lock(&rq->lock, rf.cookie);
+		rq_unpin_lock(rq, &rf);
 		p->sched_class->task_woken(rq, p);
-		lockdep_repin_lock(&rq->lock, rf.cookie);
+		rq_repin_lock(rq, &rf);
 	}
 #endif
 	task_rq_unlock(rq, p, &rf);
@@ -2861,7 +2861,7 @@ asmlinkage __visible void schedule_tail(struct task_struct *prev)
  */
 static __always_inline struct rq *
 context_switch(struct rq *rq, struct task_struct *prev,
-	       struct task_struct *next, struct pin_cookie cookie)
+	       struct task_struct *next, struct rq_flags *rf)
 {
 	struct mm_struct *mm, *oldmm;
 
@@ -2893,7 +2893,7 @@ context_switch(struct rq *rq, struct task_struct *prev,
 	 * of the scheduler it's an obvious special-case), so we
 	 * do an early lockdep release here:
 	 */
-	lockdep_unpin_lock(&rq->lock, cookie);
+	rq_unpin_lock(rq, rf);
 	spin_release(&rq->lock.dep_map, 1, _THIS_IP_);
 
 	/* Here we just switch the register state and the stack. */
@@ -3257,7 +3257,7 @@ static inline void schedule_debug(struct task_struct *prev)
  * Pick up the highest-prio task:
  */
 static inline struct task_struct *
-pick_next_task(struct rq *rq, struct task_struct *prev, struct pin_cookie cookie)
+pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 {
 	const struct sched_class *class = &fair_sched_class;
 	struct task_struct *p;
@@ -3268,20 +3268,20 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct pin_cookie cookie
 	 */
 	if (likely(prev->sched_class == class &&
 		   rq->nr_running == rq->cfs.h_nr_running)) {
-		p = fair_sched_class.pick_next_task(rq, prev, cookie);
+		p = fair_sched_class.pick_next_task(rq, prev, rf);
 		if (unlikely(p == RETRY_TASK))
 			goto again;
 
 		/* assumes fair_sched_class->next == idle_sched_class */
 		if (unlikely(!p))
-			p = idle_sched_class.pick_next_task(rq, prev, cookie);
+			p = idle_sched_class.pick_next_task(rq, prev, rf);
 
 		return p;
 	}
 
 again:
 	for_each_class(class) {
-		p = class->pick_next_task(rq, prev, cookie);
+		p = class->pick_next_task(rq, prev, rf);
 		if (p) {
 			if (unlikely(p == RETRY_TASK))
 				goto again;
@@ -3335,7 +3335,7 @@ static void __sched notrace __schedule(bool preempt)
 {
 	struct task_struct *prev, *next;
 	unsigned long *switch_count;
-	struct pin_cookie cookie;
+	struct rq_flags rf;
 	struct rq *rq;
 	int cpu;
 
@@ -3358,7 +3358,7 @@ static void __sched notrace __schedule(bool preempt)
 	 */
 	smp_mb__before_spinlock();
 	raw_spin_lock(&rq->lock);
-	cookie = lockdep_pin_lock(&rq->lock);
+	rq_pin_lock(rq, &rf);
 
 	rq->clock_skip_update <<= 1; /* promote REQ to ACT */
 
@@ -3380,7 +3380,7 @@ static void __sched notrace __schedule(bool preempt)
 
 				to_wakeup = wq_worker_sleeping(prev);
 				if (to_wakeup)
-					try_to_wake_up_local(to_wakeup, cookie);
+					try_to_wake_up_local(to_wakeup, &rf);
 			}
 		}
 		switch_count = &prev->nvcsw;
@@ -3389,7 +3389,7 @@ static void __sched notrace __schedule(bool preempt)
 	if (task_on_rq_queued(prev))
 		update_rq_clock(rq);
 
-	next = pick_next_task(rq, prev, cookie);
+	next = pick_next_task(rq, prev, &rf);
 	clear_tsk_need_resched(prev);
 	clear_preempt_need_resched();
 	rq->clock_skip_update = 0;
@@ -3400,9 +3400,9 @@ static void __sched notrace __schedule(bool preempt)
 		++*switch_count;
 
 		trace_sched_switch(preempt, prev, next);
-		rq = context_switch(rq, prev, next, cookie); /* unlocks the rq */
+		rq = context_switch(rq, prev, next, &rf); /* unlocks the rq */
 	} else {
-		lockdep_unpin_lock(&rq->lock, cookie);
+		rq_unpin_lock(rq, &rf);
 		raw_spin_unlock_irq(&rq->lock);
 	}
 
@@ -5521,7 +5521,7 @@ static void migrate_tasks(struct rq *dead_rq)
 {
 	struct rq *rq = dead_rq;
 	struct task_struct *next, *stop = rq->stop;
-	struct pin_cookie cookie;
+	struct rq_flags rf;
 	int dest_cpu;
 
 	/*
@@ -5553,8 +5553,8 @@ static void migrate_tasks(struct rq *dead_rq)
 		/*
 		 * pick_next_task assumes pinned rq->lock.
 		 */
-		cookie = lockdep_pin_lock(&rq->lock);
-		next = pick_next_task(rq, &fake_task, cookie);
+		rq_pin_lock(rq, &rf);
+		next = pick_next_task(rq, &fake_task, &rf);
 		BUG_ON(!next);
 		next->sched_class->put_prev_task(rq, next);
 
@@ -5567,7 +5567,7 @@ static void migrate_tasks(struct rq *dead_rq)
 		 * because !cpu_active at this point, which means load-balance
 		 * will not interfere. Also, stop-machine.
 		 */
-		lockdep_unpin_lock(&rq->lock, cookie);
+		rq_unpin_lock(rq, &rf);
 		raw_spin_unlock(&rq->lock);
 		raw_spin_lock(&next->pi_lock);
 		raw_spin_lock(&rq->lock);

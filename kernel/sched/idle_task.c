@@ -24,7 +24,7 @@ static void check_preempt_curr_idle(struct rq *rq, struct task_struct *p, int fl
 }
 
 static struct task_struct *
-pick_next_task_idle(struct rq *rq, struct task_struct *prev, struct pin_cookie cookie)
+pick_next_task_idle(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 {
 	put_prev_task(rq, prev);
 	update_idle_core(rq);
