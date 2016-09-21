@@ -122,4 +122,9 @@ int lkl_start_kernel(struct lkl_host_operations *lkl_ops,
 		    unsigned long mem_size,
 		    const char *cmd_line, ...);
 
+/**
+ * lkl_is_running - returns 1 if the kernel is currently running
+ */
+int lkl_is_running(void);
+
 #endif

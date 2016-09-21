@@ -96,8 +96,6 @@ struct lkl_disk {
 /**
  * lkl_disk_add - add a new disk
  *
- * Must be called before calling lkl_start_kernel.
- *
  * @disk - the host disk handle
  * @returns a disk id (0 is valid) or a strictly negative value in case of error
  */
@@ -111,7 +109,7 @@ int lkl_disk_add(struct lkl_disk *disk);
  *
  * @disk - the host disk handle
  */
-void lkl_disk_remove(struct lkl_disk disk);
+int lkl_disk_remove(struct lkl_disk disk);
 
 /**
  * lkl_mount_dev - mount a disk

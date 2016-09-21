@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <lkl_host.h>
+
+#include "virtio.h"
 
 #define MAX_FSTYPE_LEN 50
 int lkl_mount_fs(char *fstype)
@@ -29,19 +32,90 @@ int lkl_mount_fs(char *fstype)
 	return 0;
 }
 
+static uint32_t new_encode_dev(unsigned int major, unsigned int minor)
+{
+	return (minor & 0xff) | (major << 8) | ((minor & ~0xff) << 12);
+}
+
+static int startswith(const char *str, const char *pre)
+{
+	return strncmp(pre, str, strlen(pre)) == 0;
+}
+
+static char *get_node_with_prefix(const char *path, const char *prefix,
+				  int *ret)
+{
+	struct lkl_dir *dir = NULL;
+	struct lkl_linux_dirent64 *dirent;
+	char *result = NULL;
+
+	dir = lkl_opendir(path, ret);
+	if (!dir)
+		return NULL;
+
+	while ((dirent = lkl_readdir(dir))) {
+		if (startswith(dirent->d_name, prefix)) {
+			result = strdup(dirent->d_name);
+			break;
+		}
+	}
+	lkl_closedir(dir);
+
+	if (!result)
+		*ret = -LKL_ENOENT;
+
+	return result;
+}
+
 static long get_virtio_blkdev(int disk_id)
 {
-	char sysfs_path[] = "/sysfs/block/vda/dev";
+	char sysfs_path[LKL_PATH_MAX];
+	int sysfs_path_len = 0;
 	char buf[16] = { 0, };
 	long fd, ret;
 	int major, minor;
+	int opendir_ret;
+	char *virtio_name = NULL;
+	char *disk_name = NULL;
 
+	if (disk_id < 0)
+		return -LKL_EINVAL;
 
 	ret = lkl_mount_fs("sysfs");
 	if (ret < 0)
 		return ret;
 
-	sysfs_path[strlen("/sysfs/block/vd")] += disk_id;
+	if ((uint32_t) disk_id >= virtio_get_num_bootdevs())
+		ret = snprintf(sysfs_path, sizeof(sysfs_path), "/sysfs/devices/platform/virtio-mmio.%d.auto",
+			       disk_id - virtio_get_num_bootdevs());
+	else
+		ret = snprintf(sysfs_path, sizeof(sysfs_path), "/sysfs/devices/virtio-mmio-cmdline/virtio-mmio.%d",
+			       disk_id);
+	if (ret < 0 || (size_t) ret >= sizeof(sysfs_path))
+		return -LKL_ENOMEM;
+	sysfs_path_len += ret;
+
+	virtio_name = get_node_with_prefix(sysfs_path, "virtio", &opendir_ret);
+	if (!virtio_name)
+		return (long)opendir_ret;
+
+	ret = snprintf(sysfs_path + sysfs_path_len, sizeof(sysfs_path) - sysfs_path_len, "/%s/block",
+		       virtio_name);
+	free(virtio_name);
+	if (ret < 0 || (size_t) ret >= sizeof(sysfs_path) - sysfs_path_len)
+		return -LKL_ENOMEM;
+	sysfs_path_len += ret;
+
+	disk_name = get_node_with_prefix(sysfs_path, "vd", &opendir_ret);
+	if (!disk_name)
+		return (long)opendir_ret;
+
+	ret = snprintf(sysfs_path + sysfs_path_len, sizeof(sysfs_path) - sysfs_path_len, "/%s/dev",
+		       disk_name);
+	free(disk_name);
+	if (ret < 0 || (size_t) ret >= sizeof(sysfs_path) - sysfs_path_len)
+		return -LKL_ENOMEM;
+	sysfs_path_len += ret;
 
 	fd = lkl_sys_open(sysfs_path, LKL_O_RDONLY, 0);
 	if (fd < 0)
@@ -62,7 +136,7 @@ static long get_virtio_blkdev(int disk_id)
 		goto out_close;
 	}
 
-	ret = LKL_MKDEV(major, minor);
+	ret = new_encode_dev(major, minor);
 
 out_close:
 	lkl_sys_close(fd);
