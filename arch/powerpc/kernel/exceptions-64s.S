@@ -1023,6 +1023,8 @@ EXC_COMMON_ASYNC(h_virt_irq_common, 0xea0, do_IRQ)
 
 
 EXC_REAL_NONE(0xec0, 0xf00)
+EXC_VIRT_NONE(0x4ec0, 0x4f00)
+
 
 __EXC_REAL_OOL(performance_monitor, 0xf00, 0xf20)
 
@@ -1319,8 +1321,6 @@ EXC_COMMON(altivec_assist_common, 0x1700, unknown_exception)
 	 * only has extra guff for STAB-based processors -- which never
 	 * come here.
 	 */
-
-EXC_VIRT_NONE(0x4ec0, 0x4f00)
 
 __EXC_VIRT_OOL(performance_monitor, 0x4f00, 0x4f20)
 
