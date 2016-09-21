@@ -311,7 +311,7 @@ static int ti_dra7_xbar_probe(struct platform_device *pdev)
 	struct property *prop;
 	struct resource *res;
 	u32 safe_val;
-	size_t sz;
+	int sz;
 	void __iomem *iomem;
 	int i, ret;
 
