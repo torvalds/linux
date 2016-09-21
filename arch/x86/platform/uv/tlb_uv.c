@@ -2044,8 +2044,10 @@ static int scan_sock(struct socket_desc *sdp, struct uvhub_desc *bdp,
 			bcp->uvhub_version = 2;
 		else if (is_uv3_hub())
 			bcp->uvhub_version = 3;
+		else if (is_uv4_hub())
+			bcp->uvhub_version = 4;
 		else {
-			pr_emerg("uvhub version not 1, 2, or 3\n");
+			pr_emerg("uvhub version not 1, 2, 3, or 4\n");
 			return 1;
 		}
 		bcp->uvhub_master = *hmasterp;
