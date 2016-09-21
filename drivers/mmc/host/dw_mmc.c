@@ -939,11 +939,8 @@ static void dw_mci_adjust_fifoth(struct dw_mci *host, struct mmc_data *data)
 	 * MSIZE is '1',
 	 * if blksz is not a multiple of the FIFO width
 	 */
-	if (blksz % fifo_width) {
-		msize = 0;
-		rx_wmark = 1;
+	if (blksz % fifo_width)
 		goto done;
-	}
 
 	do {
 		if (!((blksz_depth % mszs[idx]) ||
