@@ -3187,8 +3187,11 @@ static void mlx5e_build_nic_netdev_priv(struct mlx5_core_dev *mdev,
 	mlx5e_build_default_indir_rqt(mdev, priv->params.indirection_rqt,
 				      MLX5E_INDIR_RQT_SIZE, profile->max_nch(mdev));
 
-	priv->params.lro_wqe_sz            =
-		MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ;
+	priv->params.lro_wqe_sz =
+		MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ -
+		/* Extra room needed for build_skb */
+		MLX5_RX_HEADROOM -
+		SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
 	/* Initialize pflags */
 	MLX5E_SET_PRIV_FLAG(priv, MLX5E_PFLAG_RX_CQE_BASED_MODER,
