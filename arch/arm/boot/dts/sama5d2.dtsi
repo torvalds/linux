@@ -1244,6 +1244,11 @@
 				clocks = <&pioA_clk>;
 			};
 
+			secumod@fc040000 {
+				compatible = "atmel,sama5d2-secumod", "syscon";
+				reg = <0xfc040000 0x100>;
+			};
+
 			tdes@fc044000 {
 				compatible = "atmel,at91sam9g46-tdes";
 				reg = <0xfc044000 0x100>;
