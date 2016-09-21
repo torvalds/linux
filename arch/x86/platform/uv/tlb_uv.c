@@ -2109,7 +2109,8 @@ static int __init init_per_cpu(int nuvhubs, int base_part_pnode)
 	void *vp;
 	struct uvhub_desc *uvhub_descs;
 
-	timeout_us = calculate_destination_timeout();
+	if (is_uv3_hub() || is_uv2_hub() || is_uv1_hub())
+		timeout_us = calculate_destination_timeout();
 
 	vp = kmalloc(nuvhubs * sizeof(struct uvhub_desc), GFP_KERNEL);
 	uvhub_descs = (struct uvhub_desc *)vp;
@@ -2171,7 +2172,9 @@ static int __init uv_bau_init(void)
 			uv_base_pnode = uv_blade_to_pnode(uvhub);
 	}
 
-	enable_timeouts();
+	/* software timeouts are not supported on UV4 */
+	if (is_uv3_hub() || is_uv2_hub() || is_uv1_hub())
+		enable_timeouts();
 
 	if (init_per_cpu(nuvhubs, uv_base_pnode)) {
 		set_bau_off();
