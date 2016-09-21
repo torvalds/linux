@@ -56,9 +56,10 @@
  * - 3.4.0 - Add AMDGPU_INFO_NUM_EVICTIONS.
  * - 3.5.0 - Add support for new UVD_NO_OP register.
  * - 3.6.0 - kmd involves use CONTEXT_CONTROL in ring buffer.
+ * - 3.7.0 - Add support for VCE clock list packet
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	6
+#define KMS_DRIVER_MINOR	7
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
