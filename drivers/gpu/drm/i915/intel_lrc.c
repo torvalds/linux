@@ -2152,30 +2152,42 @@ error_deref_obj:
 
 void intel_lr_context_resume(struct drm_i915_private *dev_priv)
 {
-	struct i915_gem_context *ctx = dev_priv->kernel_context;
 	struct intel_engine_cs *engine;
+	struct i915_gem_context *ctx;
 
-	for_each_engine(engine, dev_priv) {
-		struct intel_context *ce = &ctx->engine[engine->id];
-		void *vaddr;
-		uint32_t *reg_state;
+	/* Because we emit WA_TAIL_DWORDS there may be a disparity
+	 * between our bookkeeping in ce->ring->head and ce->ring->tail and
+	 * that stored in context. As we only write new commands from
+	 * ce->ring->tail onwards, everything before that is junk. If the GPU
+	 * starts reading from its RING_HEAD from the context, it may try to
+	 * execute that junk and die.
+	 *
+	 * So to avoid that we reset the context images upon resume. For
+	 * simplicity, we just zero everything out.
+	 */
+	list_for_each_entry(ctx, &dev_priv->context_list, link) {
+		for_each_engine(engine, dev_priv) {
+			struct intel_context *ce = &ctx->engine[engine->id];
+			u32 *reg;
 
-		if (!ce->state)
-			continue;
+			if (!ce->state)
+				continue;
 
-		vaddr = i915_gem_object_pin_map(ce->state->obj, I915_MAP_WB);
-		if (WARN_ON(IS_ERR(vaddr)))
-			continue;
+			reg = i915_gem_object_pin_map(ce->state->obj,
+						      I915_MAP_WB);
+			if (WARN_ON(IS_ERR(reg)))
+				continue;
 
-		reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
+			reg += LRC_STATE_PN * PAGE_SIZE / sizeof(*reg);
+			reg[CTX_RING_HEAD+1] = 0;
+			reg[CTX_RING_TAIL+1] = 0;
 
-		reg_state[CTX_RING_HEAD+1] = 0;
-		reg_state[CTX_RING_TAIL+1] = 0;
+			ce->state->obj->dirty = true;
+			i915_gem_object_unpin_map(ce->state->obj);
 
-		ce->state->obj->dirty = true;
-		i915_gem_object_unpin_map(ce->state->obj);
-
-		ce->ring->head = 0;
-		ce->ring->tail = 0;
+			ce->ring->head = ce->ring->tail = 0;
+			ce->ring->last_retired_head = -1;
+			intel_ring_update_space(ce->ring);
+		}
 	}
 }
