@@ -239,43 +239,9 @@ static int bcma_hcd_usb20_old_arm_init(struct bcma_hcd_device *usb_dev)
 	return 0;
 }
 
-static void bcma_hcd_init_chip_arm_phy(struct bcma_device *dev)
-{
-	struct bcma_device *arm_core;
-	void __iomem *dmu;
-
-	arm_core = bcma_find_core(dev->bus, BCMA_CORE_ARMCA9);
-	if (!arm_core) {
-		dev_err(&dev->dev, "can not find ARM Cortex A9 ihost core\n");
-		return;
-	}
-
-	dmu = ioremap_nocache(arm_core->addr_s[0], 0x1000);
-	if (!dmu) {
-		dev_err(&dev->dev, "can not map ARM Cortex A9 ihost core\n");
-		return;
-	}
-
-	/* Unlock DMU PLL settings */
-	iowrite32(0x0000ea68, dmu + 0x180);
-
-	/* Write USB 2.0 PLL control setting */
-	iowrite32(0x00dd10c3, dmu + 0x164);
-
-	/* Lock DMU PLL settings */
-	iowrite32(0x00000000, dmu + 0x180);
-
-	iounmap(dmu);
-}
-
-static void bcma_hcd_init_chip_arm_hc(struct bcma_device *dev)
+static void bcma_hcd_usb20_ns_init_hc(struct bcma_device *dev)
 {
 	u32 val;
-
-	/*
-	 * Delay after PHY initialized to ensure HC is ready to be configured
-	 */
-	usleep_range(1000, 2000);
 
 	/* Set packet buffer OUT threshold */
 	val = bcma_read32(dev, 0x94);
@@ -287,20 +253,33 @@ static void bcma_hcd_init_chip_arm_hc(struct bcma_device *dev)
 	val = bcma_read32(dev, 0x9c);
 	val |= 1;
 	bcma_write32(dev, 0x9c, val);
+
+	/*
+	 * Broadcom initializes PHY and then waits to ensure HC is ready to be
+	 * configured. In our case the order is reversed. We just initialized
+	 * controller and we let HCD initialize PHY, so let's wait (sleep) now.
+	 */
+	usleep_range(1000, 2000);
 }
 
-static void bcma_hcd_init_chip_arm(struct bcma_device *dev)
+/**
+ * bcma_hcd_usb20_ns_init - Initialize Northstar USB 2.0 controller
+ */
+static int bcma_hcd_usb20_ns_init(struct bcma_hcd_device *bcma_hcd)
 {
-	bcma_core_enable(dev, 0);
+	struct bcma_device *core = bcma_hcd->core;
+	struct bcma_chipinfo *ci = &core->bus->chipinfo;
+	struct device *dev = &core->dev;
 
-	if (dev->bus->chipinfo.id == BCMA_CHIP_ID_BCM4707 ||
-	    dev->bus->chipinfo.id == BCMA_CHIP_ID_BCM53018) {
-		if (dev->bus->chipinfo.pkg == BCMA_PKG_ID_BCM4707 ||
-		    dev->bus->chipinfo.pkg == BCMA_PKG_ID_BCM4708)
-			bcma_hcd_init_chip_arm_phy(dev);
+	bcma_core_enable(core, 0);
 
-		bcma_hcd_init_chip_arm_hc(dev);
-	}
+	if (ci->id == BCMA_CHIP_ID_BCM4707 ||
+	    ci->id == BCMA_CHIP_ID_BCM53018)
+		bcma_hcd_usb20_ns_init_hc(core);
+
+	of_platform_default_populate(dev->of_node, NULL, dev);
+
+	return 0;
 }
 
 static void bcma_hci_platform_power_gpio(struct bcma_device *dev, bool val)
@@ -373,16 +352,7 @@ static int bcma_hcd_usb20_init(struct bcma_hcd_device *usb_dev)
 	if (dma_set_mask_and_coherent(dev->dma_dev, DMA_BIT_MASK(32)))
 		return -EOPNOTSUPP;
 
-	switch (dev->id.id) {
-	case BCMA_CORE_NS_USB20:
-		bcma_hcd_init_chip_arm(dev);
-		break;
-	case BCMA_CORE_USB20_HOST:
-		bcma_hcd_init_chip_mips(dev);
-		break;
-	default:
-		return -ENODEV;
-	}
+	bcma_hcd_init_chip_mips(dev);
 
 	/* In AI chips EHCI is addrspace 0, OHCI is 1 */
 	ohci_addr = dev->addr_s[0];
@@ -451,7 +421,7 @@ static int bcma_hcd_probe(struct bcma_device *core)
 			err = -ENOTSUPP;
 		break;
 	case BCMA_CORE_NS_USB20:
-		err = bcma_hcd_usb20_init(usb_dev);
+		err = bcma_hcd_usb20_ns_init(usb_dev);
 		break;
 	case BCMA_CORE_NS_USB30:
 		err = bcma_hcd_usb30_init(usb_dev);
