@@ -1080,6 +1080,7 @@ struct nfs4_opendata {
 	struct nfs4_state_owner *owner;
 	struct nfs4_state *state;
 	struct iattr attrs;
+	struct nfs4_layoutget *lgp;
 	unsigned long timestamp;
 	bool rpc_done;
 	bool file_created;

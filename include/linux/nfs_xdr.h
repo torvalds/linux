@@ -436,6 +436,7 @@ struct nfs_openargs {
 	enum createmode4	createmode;
 	const struct nfs4_label *label;
 	umode_t			umask;
+	struct nfs4_layoutget_args *lg_args;
 };
 
 struct nfs_openres {
@@ -458,6 +459,7 @@ struct nfs_openres {
 	__u32			access_request;
 	__u32			access_supported;
 	__u32			access_result;
+	struct nfs4_layoutget_res *lg_res;
 };
 
 /*
