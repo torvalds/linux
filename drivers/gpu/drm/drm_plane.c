@@ -25,6 +25,28 @@
 
 #include "drm_crtc_internal.h"
 
+/**
+ * DOC: overview
+ *
+ * A plane represents an image source that can be blended with or overlayed on
+ * top of a CRTC during the scanout process. Planes take their input data from a
+ * &drm_framebuffer object. The plane itself specifies the cropping and scaling
+ * of that image, and where it is placed on the visible are of a display
+ * pipeline, represented by &drm_crtc. A plane can also have additional
+ * properties that specify how the pixels are positioned and blended, like
+ * rotation or Z-position. All these properties are stored in &drm_plane_state.
+ *
+ * To create a plane, a KMS drivers allocates and zeroes an instances of
+ * struct &drm_plane (possibly as part of a larger structure) and registers it
+ * with a call to drm_universal_plane_init().
+ *
+ * Cursor and overlay planes are optional. All drivers should provide one
+ * primary plane per CRTC to avoid surprising userspace too much. See enum
+ * &drm_plane_type for a more in-depth discussion of these special uapi-relevant
+ * plane types. Special planes are associated with their CRTC by calling
+ * drm_crtc_init_with_planes().
+ */
+
 static unsigned int drm_num_planes(struct drm_device *dev)
 {
 	unsigned int num = 0;
@@ -303,19 +325,6 @@ int drm_mode_plane_set_obj_prop(struct drm_plane *plane,
 }
 EXPORT_SYMBOL(drm_mode_plane_set_obj_prop);
 
-/**
- * drm_mode_getplane_res - enumerate all plane resources
- * @dev: DRM device
- * @data: ioctl data
- * @file_priv: DRM file info
- *
- * Construct a list of plane ids to return to the user.
- *
- * Called by the user via ioctl.
- *
- * Returns:
- * Zero on success, negative errno on failure.
- */
 int drm_mode_getplane_res(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv)
 {
@@ -364,19 +373,6 @@ int drm_mode_getplane_res(struct drm_device *dev, void *data,
 	return 0;
 }
 
-/**
- * drm_mode_getplane - get plane configuration
- * @dev: DRM device
- * @data: ioctl data
- * @file_priv: DRM file info
- *
- * Construct a plane configuration structure to return to the user.
- *
- * Called by the user via ioctl.
- *
- * Returns:
- * Zero on success, negative errno on failure.
- */
 int drm_mode_getplane(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv)
 {
@@ -425,15 +421,6 @@ int drm_mode_getplane(struct drm_device *dev, void *data,
 	return 0;
 }
 
-/**
- * drm_plane_check_pixel_format - Check if the plane supports the pixel format
- * @plane: plane to check for format support
- * @format: the pixel format
- *
- * Returns:
- * Zero of @plane has @format in its list of supported pixel formats, -EINVAL
- * otherwise.
- */
 int drm_plane_check_pixel_format(const struct drm_plane *plane, u32 format)
 {
 	unsigned int i;
@@ -552,19 +539,6 @@ static int setplane_internal(struct drm_plane *plane,
 	return ret;
 }
 
-/**
- * drm_mode_setplane - configure a plane's configuration
- * @dev: DRM device
- * @data: ioctl data*
- * @file_priv: DRM file info
- *
- * Set plane configuration, including placement, fb, scaling, and other factors.
- * Or pass a NULL fb to disable (planes may be disabled without providing a
- * valid crtc).
- *
- * Returns:
- * Zero on success, negative errno on failure.
- */
 int drm_mode_setplane(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv)
 {
@@ -614,25 +588,6 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 				 plane_req->src_w, plane_req->src_h);
 }
 
-/**
- * drm_mode_cursor_universal - translate legacy cursor ioctl call into a
- *     universal plane handler call
- * @crtc: crtc to update cursor for
- * @req: data pointer for the ioctl
- * @file_priv: drm file for the ioctl call
- *
- * Legacy cursor ioctl's work directly with driver buffer handles.  To
- * translate legacy ioctl calls into universal plane handler calls, we need to
- * wrap the native buffer handle in a drm_framebuffer.
- *
- * Note that we assume any handle passed to the legacy ioctls was a 32-bit ARGB
- * buffer with a pitch of 4*width; the universal plane interface should be used
- * directly in cases where the hardware can support other buffer settings and
- * userspace wants to make use of these capabilities.
- *
- * Returns:
- * Zero on success, negative errno on failure.
- */
 static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 				     struct drm_mode_cursor2 *req,
 				     struct drm_file *file_priv)
@@ -768,19 +723,6 @@ out:
 }
 
 
-/**
- * drm_mode_cursor_ioctl - set CRTC's cursor configuration
- * @dev: drm device for the ioctl
- * @data: data pointer for the ioctl
- * @file_priv: drm file for the ioctl call
- *
- * Set the cursor configuration based on user request.
- *
- * Called by the user via ioctl.
- *
- * Returns:
- * Zero on success, negative errno on failure.
- */
 int drm_mode_cursor_ioctl(struct drm_device *dev,
 			  void *data, struct drm_file *file_priv)
 {
@@ -793,20 +735,10 @@ int drm_mode_cursor_ioctl(struct drm_device *dev,
 	return drm_mode_cursor_common(dev, &new_req, file_priv);
 }
 
-/**
- * drm_mode_cursor2_ioctl - set CRTC's cursor configuration
- * @dev: drm device for the ioctl
- * @data: data pointer for the ioctl
- * @file_priv: drm file for the ioctl call
- *
+/*
  * Set the cursor configuration based on user request. This implements the 2nd
  * version of the cursor ioctl, which allows userspace to additionally specify
  * the hotspot of the pointer.
- *
- * Called by the user via ioctl.
- *
- * Returns:
- * Zero on success, negative errno on failure.
  */
 int drm_mode_cursor2_ioctl(struct drm_device *dev,
 			   void *data, struct drm_file *file_priv)
@@ -816,24 +748,6 @@ int drm_mode_cursor2_ioctl(struct drm_device *dev,
 	return drm_mode_cursor_common(dev, req, file_priv);
 }
 
-/**
- * drm_mode_page_flip_ioctl - schedule an asynchronous fb update
- * @dev: DRM device
- * @data: ioctl data
- * @file_priv: DRM file info
- *
- * This schedules an asynchronous update on a given CRTC, called page flip.
- * Optionally a drm event is generated to signal the completion of the event.
- * Generic drivers cannot assume that a pageflip with changed framebuffer
- * properties (including driver specific metadata like tiling layout) will work,
- * but some drivers support e.g. pixel format changes through the pageflip
- * ioctl.
- *
- * Called by the user via ioctl.
- *
- * Returns:
- * Zero on success, negative errno on failure.
- */
 int drm_mode_page_flip_ioctl(struct drm_device *dev,
 			     void *data, struct drm_file *file_priv)
 {

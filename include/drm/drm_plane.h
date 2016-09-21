@@ -319,10 +319,48 @@ struct drm_plane_funcs {
 	void (*early_unregister)(struct drm_plane *plane);
 };
 
+/**
+ * enum drm_plane_type - uapi plane type enumeration
+ *
+ * For historical reasons not all planes are made the same. This enumeration is
+ * used to tell the different types of planes apart to implement the different
+ * uapi semantics for them. For userspace which is universal plane aware and
+ * which is using that atomic IOCTL there's no difference between these planes
+ * (beyong what the driver and hardware can support of course).
+ *
+ * For compatibility with legacy userspace, only overlay planes are made
+ * available to userspace by default. Userspace clients may set the
+ * DRM_CLIENT_CAP_UNIVERSAL_PLANES client capability bit to indicate that they
+ * wish to receive a universal plane list containing all plane types. See also
+ * drm_for_each_legacy_plane().
+ */
 enum drm_plane_type {
-	DRM_PLANE_TYPE_OVERLAY,
+	/**
+	 * @DRM_PLANE_TYPE_PRIMARY:
+	 *
+	 * Primary planes represent a "main" plane for a CRTC.  Primary planes
+	 * are the planes operated upon by CRTC modesetting and flipping
+	 * operations described in the page_flip and set_config hooks in struct
+	 * &drm_crtc_funcs.
+	 */
 	DRM_PLANE_TYPE_PRIMARY,
+
+	/**
+	 * @DRM_PLANE_TYPE_CURSOR:
+	 *
+	 * Cursor planes represent a "cursor" plane for a CRTC.  Cursor planes
+	 * are the planes operated upon by the DRM_IOCTL_MODE_CURSOR and
+	 * DRM_IOCTL_MODE_CURSOR2 IOCTLs.
+	 */
 	DRM_PLANE_TYPE_CURSOR,
+
+	/**
+	 * @DRM_PLANE_TYPE_OVERLAY:
+	 *
+	 * Overlay planes represent all non-primary, non-cursor planes. Some
+	 * drivers refer to these types of planes as "sprites" internally.
+	 */
+	DRM_PLANE_TYPE_OVERLAY,
 };
 
 
@@ -458,11 +496,26 @@ static inline struct drm_plane *drm_plane_find(struct drm_device *dev,
 	list_for_each_entry((plane), &(dev)->mode_config.plane_list, head) \
 		for_each_if ((plane_mask) & (1 << drm_plane_index(plane)))
 
-/* Plane list iterator for legacy (overlay only) planes. */
+/**
+ * drm_for_each_legacy_plane - iterate over all planes for legacy userspace
+ * @plane: the loop cursor
+ * @dev: the DRM device
+ *
+ * Iterate over all legacy planes of @dev, excluding primary and cursor planes.
+ * This is useful for implementing userspace apis when userspace is not
+ * universal plane aware. See also enum &drm_plane_type.
+ */
 #define drm_for_each_legacy_plane(plane, dev) \
 	list_for_each_entry(plane, &(dev)->mode_config.plane_list, head) \
 		for_each_if (plane->type == DRM_PLANE_TYPE_OVERLAY)
 
+/**
+ * drm_for_each_plane - iterate over all planes
+ * @plane: the loop cursor
+ * @dev: the DRM device
+ *
+ * Iterate over all planes of @dev, include primary and cursor planes.
+ */
 #define drm_for_each_plane(plane, dev) \
 	list_for_each_entry(plane, &(dev)->mode_config.plane_list, head)
 

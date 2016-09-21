@@ -151,7 +151,11 @@ static void drm_crtc_unregister_all(struct drm_device *dev)
  * @funcs: callbacks for the new CRTC
  * @name: printf style format string for the CRTC name, or NULL for default name
  *
- * Inits a new object created as base part of a driver crtc object.
+ * Inits a new object created as base part of a driver crtc object. Drivers
+ * should use this function instead of drm_crtc_init(), which is only provided
+ * for backwards compatibility with drivers which do not yet support universal
+ * planes). For really simple hardware which has only 1 plane look at
+ * drm_simple_display_pipe_init() instead.
  *
  * Returns:
  * Zero on success, error code on failure.
