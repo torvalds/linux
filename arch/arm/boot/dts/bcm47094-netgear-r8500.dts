@@ -6,7 +6,7 @@
 
 /dts-v1/;
 
-#include "bcm4708.dtsi"
+#include "bcm47094.dtsi"
 #include "bcm5301x-nand-cs0-bch8.dtsi"
 
 / {
@@ -100,5 +100,4 @@
 
 &uart0 {
 	status = "okay";
-	clock-frequency = <125000000>;
 };
