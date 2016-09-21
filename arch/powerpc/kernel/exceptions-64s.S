@@ -902,8 +902,9 @@ TRAMP_KVM(PACA_EXGEN, 0xc00)
 
 
 EXC_REAL(single_step, 0xd00, 0xe00)
-
+EXC_VIRT(single_step, 0x4d00, 0x4e00, 0xd00)
 TRAMP_KVM(PACA_EXGEN, 0xd00)
+EXC_COMMON(single_step_common, 0xd00, single_step_exception)
 
 
 	/* At 0xe??? we have a bunch of hypervisor exceptions, we branch
@@ -1213,7 +1214,6 @@ TRAMP_REAL_BEGIN(kvmppc_skip_Hinterrupt)
 /*** Common interrupt handlers ***/
 
 
-EXC_COMMON(single_step_common, 0xd00, single_step_exception)
 EXC_COMMON(trap_0e_common, 0xe00, unknown_exception)
 EXC_COMMON(emulation_assist_common, 0xe40, emulation_assist_interrupt)
 EXC_COMMON_ASYNC(hmi_exception_common, 0xe60, handle_hmi_exception)
@@ -1247,8 +1247,6 @@ EXC_COMMON(altivec_assist_common, 0x1700, unknown_exception)
 	 * only has extra guff for STAB-based processors -- which never
 	 * come here.
 	 */
-
-EXC_VIRT(single_step, 0x4d00, 0x4e00, 0xd00)
 
 EXC_VIRT_BEGIN(unused, 0x4e00, 0x4e20)
 	b       .       /* Can't happen, see v2.07 Book III-S section 6.5 */
