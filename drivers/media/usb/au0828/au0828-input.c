@@ -344,7 +344,8 @@ int au0828_rc_register(struct au0828_dev *dev)
 	rc->dev.parent = &dev->usbdev->dev;
 	rc->driver_name = "au0828-input";
 	rc->driver_type = RC_DRIVER_IR_RAW;
-	rc->allowed_protocols = RC_BIT_NEC | RC_BIT_RC5;
+	rc->allowed_protocols = RC_BIT_NEC | RC_BIT_NECX | RC_BIT_NEC32 |
+								RC_BIT_RC5;
 
 	/* all done */
 	err = rc_register_device(rc);
