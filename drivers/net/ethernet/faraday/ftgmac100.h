@@ -134,6 +134,11 @@
 #define FTGMAC100_DMAFIFOS_TXDMA_REQ		(1 << 31)
 
 /*
+ * Feature Register
+ */
+#define FTGMAC100_REVR_NEW_MDIO_INTERFACE	BIT(31)
+
+/*
  * Receive buffer size register
  */
 #define FTGMAC100_RBSR_SIZE(x)		((x) & 0x3fff)
