@@ -1128,6 +1128,7 @@ EXC_COMMON(h_facility_unavailable_common, 0xf80, facility_unavailable_exception)
 
 
 EXC_REAL_NONE(0xfa0, 0x1200)
+EXC_VIRT_NONE(0x4fa0, 0x5200)
 
 #ifdef CONFIG_CBE_RAS
 EXC_REAL_HV(cbe_system_error, 0x1200, 0x1300)
@@ -1395,8 +1396,6 @@ EXC_COMMON(altivec_assist_common, 0x1700, unknown_exception)
 	 * only has extra guff for STAB-based processors -- which never
 	 * come here.
 	 */
-
-EXC_VIRT_NONE(0x4fa0, 0x5200)
 
 EXC_VIRT_NONE(0x5200, 0x5300)
 
