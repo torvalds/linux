@@ -58,6 +58,7 @@ static void nvmet_execute_rw(struct nvmet_req *req)
 
 	if (req->cmd->rw.opcode == nvme_cmd_write) {
 		op = REQ_OP_WRITE;
+		op_flags = WRITE_ODIRECT;
 		if (req->cmd->rw.control & cpu_to_le16(NVME_RW_FUA))
 			op_flags |= REQ_FUA;
 	} else {
