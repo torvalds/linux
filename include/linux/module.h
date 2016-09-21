@@ -399,7 +399,7 @@ struct module {
 	/* Arch-specific module values */
 	struct mod_arch_specific arch;
 
-	unsigned int taints;	/* same bits as kernel:tainted */
+	unsigned long taints;	/* same bits as kernel:taint_flags */
 
 #ifdef CONFIG_GENERIC_BUG
 	/* Support for BUG */
