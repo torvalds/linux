@@ -2026,8 +2026,7 @@ static struct edma_soc_info *edma_setup_info_from_dt(struct device *dev,
 {
 	struct edma_soc_info *info;
 	struct property *prop;
-	size_t sz;
-	int ret;
+	int sz, ret;
 
 	info = devm_kzalloc(dev, sizeof(struct edma_soc_info), GFP_KERNEL);
 	if (!info)
