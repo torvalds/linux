@@ -792,8 +792,16 @@ EXC_COMMON_BEGIN(alignment_common)
 
 
 EXC_REAL(program_check, 0x700, 0x800)
-
+EXC_VIRT(program_check, 0x4700, 0x4800, 0x700)
 TRAMP_KVM(PACA_EXGEN, 0x700)
+EXC_COMMON_BEGIN(program_check_common)
+	EXCEPTION_PROLOG_COMMON(0x700, PACA_EXGEN)
+	bl	save_nvgprs
+	RECONCILE_IRQ_STATE(r10, r11)
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	program_check_exception
+	b	ret_from_except
+
 
 EXC_REAL(fp_unavailable, 0x800, 0x900)
 
@@ -1197,7 +1205,6 @@ EXC_COMMON(altivec_assist_common, 0x1700, unknown_exception)
 	 * come here.
 	 */
 
-EXC_VIRT(program_check, 0x4700, 0x4800, 0x700)
 EXC_VIRT(fp_unavailable, 0x4800, 0x4900, 0x800)
 EXC_VIRT_MASKABLE(decrementer, 0x4900, 0x4980, 0x900)
 EXC_VIRT_HV(hdecrementer, 0x4980, 0x4a00, 0x980)
@@ -1280,14 +1287,6 @@ EXC_COMMON_BEGIN(h_data_storage_common)
 
 
 EXC_COMMON(h_instr_storage_common, 0xe20, unknown_exception)
-
-EXC_COMMON_BEGIN(program_check_common)
-	EXCEPTION_PROLOG_COMMON(0x700, PACA_EXGEN)
-	bl	save_nvgprs
-	RECONCILE_IRQ_STATE(r10, r11)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	program_check_exception
-	b	ret_from_except
 
 EXC_COMMON_BEGIN(fp_unavailable_common)
 	EXCEPTION_PROLOG_COMMON(0x800, PACA_EXGEN)
