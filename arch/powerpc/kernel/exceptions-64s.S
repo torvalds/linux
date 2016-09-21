@@ -1120,6 +1120,12 @@ EXC_COMMON(facility_unavailable_common, 0xf60, facility_unavailable_exception)
 
 
 __EXC_REAL_OOL_HV(h_facility_unavailable, 0xf80, 0xfa0)
+__TRAMP_REAL_REAL_OOL_HV(h_facility_unavailable, 0xf80)
+__EXC_VIRT_OOL_HV(h_facility_unavailable, 0x4f80, 0x4fa0)
+__TRAMP_REAL_VIRT_OOL_HV(h_facility_unavailable, 0xf80)
+TRAMP_KVM_HV(PACA_EXGEN, 0xf80)
+EXC_COMMON(h_facility_unavailable_common, 0xf80, facility_unavailable_exception)
+
 
 EXC_REAL_NONE(0xfa0, 0x1200)
 
@@ -1245,10 +1251,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 	HRFID
 	b	.
 #endif
-
-	/* moved from 0xf00 */
-__TRAMP_REAL_REAL_OOL_HV(h_facility_unavailable, 0xf80)
-TRAMP_KVM_HV(PACA_EXGEN, 0xf80)
 
 /*
  * An interrupt came in while soft-disabled. We set paca->irq_happened, then:
@@ -1394,8 +1396,6 @@ EXC_COMMON(altivec_assist_common, 0x1700, unknown_exception)
 	 * come here.
 	 */
 
-__EXC_VIRT_OOL_HV(h_facility_unavailable, 0x4f80, 0x4fa0)
-
 EXC_VIRT_NONE(0x4fa0, 0x5200)
 
 EXC_VIRT_NONE(0x5200, 0x5300)
@@ -1420,8 +1420,6 @@ EXC_COMMON_BEGIN(ppc64_runlatch_on_trampoline)
 	b	__ppc64_runlatch_on
 
 	/* Equivalents to the above handlers for relocation-on interrupt vectors */
-__TRAMP_REAL_VIRT_OOL_HV(h_facility_unavailable, 0xf80)
-
 USE_FIXED_SECTION(virt_trampolines)
 	/*
 	 * The __end_interrupts marker must be past the out-of-line (OOL)
@@ -1434,8 +1432,6 @@ USE_FIXED_SECTION(virt_trampolines)
 	.globl	__end_interrupts
 __end_interrupts:
 DEFINE_FIXED_SYMBOL(__end_interrupts)
-
-EXC_COMMON(h_facility_unavailable_common, 0xf80, facility_unavailable_exception)
 
 #ifdef CONFIG_CBE_RAS
 EXC_COMMON(cbe_system_error_common, 0x1200, cbe_system_error_exception)
