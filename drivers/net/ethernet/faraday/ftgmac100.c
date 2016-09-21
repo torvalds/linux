@@ -1112,6 +1112,7 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 static int ftgmac100_open(struct net_device *netdev)
 {
 	struct ftgmac100 *priv = netdev_priv(netdev);
+	unsigned int status;
 	int err;
 
 	err = ftgmac100_alloc_buffers(priv);
@@ -1137,6 +1138,11 @@ static int ftgmac100_open(struct net_device *netdev)
 
 	ftgmac100_init_hw(priv);
 	ftgmac100_start_hw(priv, priv->use_ncsi ? 100 : 10);
+
+	/* Clear stale interrupts */
+	status = ioread32(priv->base + FTGMAC100_OFFSET_ISR);
+	iowrite32(status, priv->base + FTGMAC100_OFFSET_ISR);
+
 	if (netdev->phydev)
 		phy_start(netdev->phydev);
 	else if (priv->use_ncsi)
