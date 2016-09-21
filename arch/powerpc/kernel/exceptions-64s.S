@@ -849,8 +849,14 @@ EXC_COMMON(hdecrementer_common, 0x980, hdec_interrupt)
 
 
 EXC_REAL_MASKABLE(doorbell_super, 0xa00, 0xb00)
-
+EXC_VIRT_MASKABLE(doorbell_super, 0x4a00, 0x4b00, 0xa00)
 TRAMP_KVM(PACA_EXGEN, 0xa00)
+#ifdef CONFIG_PPC_DOORBELL
+EXC_COMMON_ASYNC(doorbell_super_common, 0xa00, doorbell_exception)
+#else
+EXC_COMMON_ASYNC(doorbell_super_common, 0xa00, unknown_exception)
+#endif
+
 
 EXC_REAL(trap_0b, 0xb00, 0xc00)
 
@@ -1197,11 +1203,6 @@ TRAMP_REAL_BEGIN(kvmppc_skip_Hinterrupt)
 /*** Common interrupt handlers ***/
 
 
-#ifdef CONFIG_PPC_DOORBELL
-EXC_COMMON_ASYNC(doorbell_super_common, 0xa00, doorbell_exception)
-#else
-EXC_COMMON_ASYNC(doorbell_super_common, 0xa00, unknown_exception)
-#endif
 EXC_COMMON(trap_0b_common, 0xb00, unknown_exception)
 EXC_COMMON(single_step_common, 0xd00, single_step_exception)
 EXC_COMMON(trap_0e_common, 0xe00, unknown_exception)
@@ -1238,7 +1239,6 @@ EXC_COMMON(altivec_assist_common, 0x1700, unknown_exception)
 	 * come here.
 	 */
 
-EXC_VIRT_MASKABLE(doorbell_super, 0x4a00, 0x4b00, 0xa00)
 EXC_VIRT(trap_0b, 0x4b00, 0x4c00, 0xb00)
 
 EXC_VIRT_BEGIN(system_call, 0x4c00, 0x4d00)
