@@ -1075,14 +1075,12 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 	}
 
 	if (status & priv->int_mask_all & (FTGMAC100_INT_NO_RXBUF |
-			FTGMAC100_INT_RPKT_LOST | FTGMAC100_INT_AHB_ERR |
-			FTGMAC100_INT_PHYSTS_CHG)) {
+			FTGMAC100_INT_RPKT_LOST | FTGMAC100_INT_AHB_ERR)) {
 		if (net_ratelimit())
-			netdev_info(netdev, "[ISR] = 0x%x: %s%s%s%s\n", status,
+			netdev_info(netdev, "[ISR] = 0x%x: %s%s%s\n", status,
 				    status & FTGMAC100_INT_NO_RXBUF ? "NO_RXBUF " : "",
 				    status & FTGMAC100_INT_RPKT_LOST ? "RPKT_LOST " : "",
-				    status & FTGMAC100_INT_AHB_ERR ? "AHB_ERR " : "",
-				    status & FTGMAC100_INT_PHYSTS_CHG ? "PHYSTS_CHG" : "");
+				    status & FTGMAC100_INT_AHB_ERR ? "AHB_ERR " : "");
 
 		if (status & FTGMAC100_INT_NO_RXBUF) {
 			/* RX buffer unavailable */
@@ -1390,7 +1388,6 @@ static int ftgmac100_probe(struct platform_device *pdev)
 			      FTGMAC100_INT_XPKT_ETH |
 			      FTGMAC100_INT_XPKT_LOST |
 			      FTGMAC100_INT_AHB_ERR |
-			      FTGMAC100_INT_PHYSTS_CHG |
 			      FTGMAC100_INT_RPKT_BUF |
 			      FTGMAC100_INT_NO_RXBUF);
 
@@ -1412,7 +1409,6 @@ static int ftgmac100_probe(struct platform_device *pdev)
 
 		dev_info(&pdev->dev, "Using NCSI interface\n");
 		priv->use_ncsi = true;
-		priv->int_mask_all &= ~FTGMAC100_INT_PHYSTS_CHG;
 		priv->ndev = ncsi_register_dev(netdev, ftgmac100_ncsi_handler);
 		if (!priv->ndev)
 			goto err_ncsi_dev;
