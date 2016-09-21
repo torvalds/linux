@@ -767,7 +767,7 @@ static void octeon_i2c_set_scl(struct i2c_adapter *adap, int val)
 {
 	struct octeon_i2c *i2c = i2c_get_adapdata(adap);
 
-	octeon_i2c_write_int(i2c, TWSI_INT_SCL_OVR);
+	octeon_i2c_write_int(i2c, val ? 0 : TWSI_INT_SCL_OVR);
 }
 
 static int octeon_i2c_get_sda(struct i2c_adapter *adap)
