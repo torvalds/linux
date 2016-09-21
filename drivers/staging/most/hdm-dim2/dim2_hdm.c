@@ -561,7 +561,7 @@ static int configure_channel(struct most_interface *most_iface, int ch_idx,
 		hal_ret = dim_init_async(&hdm_ch->ch, is_tx, ch_addr,
 					 is_tx ? new_size * 2 : new_size);
 		break;
-	case MOST_CH_ISOC_AVP:
+	case MOST_CH_ISOC:
 		new_size = dim_norm_isoc_buffer_size(buf_size, sub_size);
 		if (new_size == 0) {
 			pr_err("%s: invalid sub-buffer size or too small buffer size\n",
@@ -797,7 +797,7 @@ static int dim2_probe(struct platform_device *pdev)
 		cap->name_suffix = hdm_ch->name;
 		cap->direction = MOST_CH_RX | MOST_CH_TX;
 		cap->data_type = MOST_CH_CONTROL | MOST_CH_ASYNC |
-				 MOST_CH_ISOC_AVP | MOST_CH_SYNC;
+				 MOST_CH_ISOC | MOST_CH_SYNC;
 		cap->num_buffers_packet = MAX_BUFFERS_PACKET;
 		cap->buffer_size_packet = MAX_BUF_SIZE_PACKET;
 		cap->num_buffers_streaming = MAX_BUFFERS_STREAMING;

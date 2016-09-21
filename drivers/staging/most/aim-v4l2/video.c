@@ -505,7 +505,7 @@ static int aim_probe_channel(struct most_interface *iface, int channel_idx,
 	}
 
 	if (ccfg->data_type != MOST_CH_SYNC &&
-	    ccfg->data_type != MOST_CH_ISOC_AVP) {
+	    ccfg->data_type != MOST_CH_ISOC) {
 		pr_err("wrong channel type, expect sync or isoc\n");
 		return -EINVAL;
 	}

@@ -224,7 +224,7 @@ static unsigned int get_stream_frame_size(struct most_channel_config *cfg)
 		return frame_size;
 	}
 	switch (cfg->data_type) {
-	case MOST_CH_ISOC_AVP:
+	case MOST_CH_ISOC:
 		frame_size = AV_PACKETS_PER_XACT * sub_size;
 		break;
 	case MOST_CH_SYNC:
@@ -634,7 +634,7 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 				  length,
 				  hdm_write_completion,
 				  mbo);
-		if (conf->data_type != MOST_CH_ISOC_AVP)
+		if (conf->data_type != MOST_CH_ISOC)
 			urb->transfer_flags |= URB_ZERO_PACKET;
 	} else {
 		usb_fill_bulk_urb(urb, mdev->usb_device,
@@ -698,7 +698,7 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 	}
 
 	if (conf->data_type != MOST_CH_SYNC &&
-	    !(conf->data_type == MOST_CH_ISOC_AVP &&
+	    !(conf->data_type == MOST_CH_ISOC &&
 	      conf->packets_per_xact != 0xFF)) {
 		mdev->padding_active[channel] = false;
 		goto exit;
@@ -1254,7 +1254,7 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 		tmp_cap->num_buffers_packet = BUF_CHAIN_SIZE;
 		tmp_cap->num_buffers_streaming = BUF_CHAIN_SIZE;
 		tmp_cap->data_type = MOST_CH_CONTROL | MOST_CH_ASYNC |
-				     MOST_CH_ISOC_AVP | MOST_CH_SYNC;
+				     MOST_CH_ISOC | MOST_CH_SYNC;
 		if (usb_endpoint_dir_in(ep_desc))
 			tmp_cap->direction = MOST_CH_RX;
 		else

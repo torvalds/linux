@@ -56,7 +56,7 @@ enum most_channel_direction {
 enum most_channel_data_type {
 	MOST_CH_CONTROL = 1 << 0,
 	MOST_CH_ASYNC = 1 << 1,
-	MOST_CH_ISOC_AVP = 1 << 2,
+	MOST_CH_ISOC = 1 << 2,
 	MOST_CH_SYNC = 1 << 5,
 };
 

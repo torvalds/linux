@@ -87,8 +87,8 @@ static const struct {
 	{ MOST_CH_CONTROL, "control\n" },
 	{ MOST_CH_ASYNC, "async\n" },
 	{ MOST_CH_SYNC, "sync\n" },
-	{ MOST_CH_ISOC_AVP, "isoc\n"},
-	{ MOST_CH_ISOC_AVP, "isoc_avp\n"},
+	{ MOST_CH_ISOC, "isoc\n"},
+	{ MOST_CH_ISOC, "isoc_avp\n"},
 };
 
 #define to_inst_obj(d) container_of(d, struct most_inst_obj, kobj)
@@ -284,7 +284,7 @@ static ssize_t show_available_datatypes(struct most_c_obj *c,
 		strcat(buf, "async ");
 	if (c->iface->channel_vector[i].data_type & MOST_CH_SYNC)
 		strcat(buf, "sync ");
-	if (c->iface->channel_vector[i].data_type & MOST_CH_ISOC_AVP)
+	if (c->iface->channel_vector[i].data_type & MOST_CH_ISOC)
 		strcat(buf, "isoc ");
 	strcat(buf, "\n");
 	return strlen(buf);
