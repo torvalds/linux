@@ -356,6 +356,38 @@ ack:
 }
 
 /*
+ * Process a requested ACK.
+ */
+static void rxrpc_input_requested_ack(struct rxrpc_call *call,
+				      ktime_t resp_time,
+				      rxrpc_serial_t orig_serial,
+				      rxrpc_serial_t ack_serial)
+{
+	struct rxrpc_skb_priv *sp;
+	struct sk_buff *skb;
+	ktime_t sent_at;
+	int ix;
+
+	for (ix = 0; ix < RXRPC_RXTX_BUFF_SIZE; ix++) {
+		skb = call->rxtx_buffer[ix];
+		if (!skb)
+			continue;
+
+		sp = rxrpc_skb(skb);
+		if (sp->hdr.serial != orig_serial)
+			continue;
+		smp_rmb();
+		sent_at = skb->tstamp;
+		goto found;
+	}
+	return;
+
+found:
+	rxrpc_peer_add_rtt(call, rxrpc_rtt_rx_requested_ack,
+			   orig_serial, ack_serial, sent_at, resp_time);
+}
+
+/*
  * Process a ping response.
  */
 static void rxrpc_input_ping_response(struct rxrpc_call *call,
@@ -507,6 +539,9 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 
 	if (buf.ack.reason == RXRPC_ACK_PING_RESPONSE)
 		rxrpc_input_ping_response(call, skb->tstamp, acked_serial,
+					  sp->hdr.serial);
+	if (buf.ack.reason == RXRPC_ACK_REQUESTED)
+		rxrpc_input_requested_ack(call, skb->tstamp, acked_serial,
 					  sp->hdr.serial);
 
 	if (buf.ack.reason == RXRPC_ACK_PING) {

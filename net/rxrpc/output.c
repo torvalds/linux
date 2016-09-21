@@ -300,9 +300,12 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb)
 		goto send_fragmentable;
 
 done:
-	if (ret == 0) {
-		sp->resend_at = jiffies + rxrpc_resend_timeout;
+	if (ret >= 0) {
+		skb->tstamp = ktime_get_real();
+		smp_wmb();
 		sp->hdr.serial = serial;
+		if (whdr.flags & RXRPC_REQUEST_ACK)
+			trace_rxrpc_rtt_tx(call, rxrpc_rtt_tx_data, serial);
 	}
 	_leave(" = %d [%u]", ret, call->peer->maxdata);
 	return ret;

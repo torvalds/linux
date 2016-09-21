@@ -137,7 +137,6 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	if (seq == 1 && rxrpc_is_client_call(call))
 		rxrpc_expose_client_call(call);
 
-	sp->resend_at = jiffies + rxrpc_resend_timeout;
 	ret = rxrpc_send_data_packet(call, skb);
 	if (ret < 0) {
 		_debug("need instant resend %d", ret);

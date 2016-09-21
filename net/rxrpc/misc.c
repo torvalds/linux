@@ -68,9 +68,9 @@ unsigned int rxrpc_rx_mtu = 5692;
 unsigned int rxrpc_rx_jumbo_max = 4;
 
 /*
- * Time till packet resend (in jiffies).
+ * Time till packet resend (in milliseconds).
  */
-unsigned int rxrpc_resend_timeout = 4 * HZ;
+unsigned int rxrpc_resend_timeout = 4 * 1000;
 
 const char *const rxrpc_pkts[] = {
 	"?00",
@@ -186,8 +186,10 @@ const char rxrpc_recvmsg_traces[rxrpc_recvmsg__nr_trace][5] = {
 
 const char rxrpc_rtt_tx_traces[rxrpc_rtt_tx__nr_trace][5] = {
 	[rxrpc_rtt_tx_ping]		= "PING",
+	[rxrpc_rtt_tx_data]		= "DATA",
 };
 
 const char rxrpc_rtt_rx_traces[rxrpc_rtt_rx__nr_trace][5] = {
 	[rxrpc_rtt_rx_ping_response]	= "PONG",
+	[rxrpc_rtt_rx_requested_ack]	= "RACK",
 };

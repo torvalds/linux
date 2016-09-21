@@ -142,10 +142,7 @@ struct rxrpc_host_header {
  */
 struct rxrpc_skb_priv {
 	union {
-		unsigned long	resend_at;	/* time in jiffies at which to resend */
-		struct {
-			u8	nr_jumbo;	/* Number of jumbo subpackets */
-		};
+		u8		nr_jumbo;	/* Number of jumbo subpackets */
 	};
 	union {
 		unsigned int	offset;		/* offset into buffer of next read */
@@ -663,6 +660,7 @@ extern const char rxrpc_recvmsg_traces[rxrpc_recvmsg__nr_trace][5];
 
 enum rxrpc_rtt_tx_trace {
 	rxrpc_rtt_tx_ping,
+	rxrpc_rtt_tx_data,
 	rxrpc_rtt_tx__nr_trace
 };
 
@@ -670,6 +668,7 @@ extern const char rxrpc_rtt_tx_traces[rxrpc_rtt_tx__nr_trace][5];
 
 enum rxrpc_rtt_rx_trace {
 	rxrpc_rtt_rx_ping_response,
+	rxrpc_rtt_rx_requested_ack,
 	rxrpc_rtt_rx__nr_trace
 };
 

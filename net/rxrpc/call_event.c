@@ -142,11 +142,13 @@ static void rxrpc_resend(struct rxrpc_call *call)
 	struct rxrpc_skb_priv *sp;
 	struct sk_buff *skb;
 	rxrpc_seq_t cursor, seq, top;
-	unsigned long resend_at, now;
+	ktime_t now = ktime_get_real(), max_age, oldest, resend_at;
 	int ix;
 	u8 annotation, anno_type;
 
 	_enter("{%d,%d}", call->tx_hard_ack, call->tx_top);
+
+	max_age = ktime_sub_ms(now, rxrpc_resend_timeout);
 
 	spin_lock_bh(&call->lock);
 
@@ -160,8 +162,7 @@ static void rxrpc_resend(struct rxrpc_call *call)
 	 * the packets in the Tx buffer we're going to resend and what the new
 	 * resend timeout will be.
 	 */
-	now = jiffies;
-	resend_at = now + rxrpc_resend_timeout;
+	oldest = now;
 	for (seq = cursor + 1; before_eq(seq, top); seq++) {
 		ix = seq & RXRPC_RXTX_BUFF_MASK;
 		annotation = call->rxtx_annotations[ix];
@@ -175,9 +176,9 @@ static void rxrpc_resend(struct rxrpc_call *call)
 		sp = rxrpc_skb(skb);
 
 		if (anno_type == RXRPC_TX_ANNO_UNACK) {
-			if (time_after(sp->resend_at, now)) {
-				if (time_before(sp->resend_at, resend_at))
-					resend_at = sp->resend_at;
+			if (ktime_after(skb->tstamp, max_age)) {
+				if (ktime_before(skb->tstamp, oldest))
+					oldest = skb->tstamp;
 				continue;
 			}
 		}
@@ -186,7 +187,8 @@ static void rxrpc_resend(struct rxrpc_call *call)
 		call->rxtx_annotations[ix] = RXRPC_TX_ANNO_RETRANS | annotation;
 	}
 
-	call->resend_at = resend_at;
+	resend_at = ktime_sub(ktime_add_ns(oldest, rxrpc_resend_timeout), now);
+	call->resend_at = jiffies + nsecs_to_jiffies(ktime_to_ns(resend_at));
 
 	/* Now go through the Tx window and perform the retransmissions.  We
 	 * have to drop the lock for each send.  If an ACK comes in whilst the
@@ -205,15 +207,12 @@ static void rxrpc_resend(struct rxrpc_call *call)
 		spin_unlock_bh(&call->lock);
 
 		if (rxrpc_send_data_packet(call, skb) < 0) {
-			call->resend_at = now + 2;
 			rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
 			return;
 		}
 
 		if (rxrpc_is_client_call(call))
 			rxrpc_expose_client_call(call);
-		sp = rxrpc_skb(skb);
-		sp->resend_at = now + rxrpc_resend_timeout;
 
 		rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
 		spin_lock_bh(&call->lock);
