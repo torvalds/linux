@@ -1812,8 +1812,8 @@ static void pq_init(int node, int pnode)
 		bcp->queue_last		= pqp + (DEST_Q_SIZE - 1);
 	}
 
-	first = uv_physnodeaddr(pqp);
-	last = uv_physnodeaddr(pqp + (DEST_Q_SIZE - 1));
+	first = uv_gpa_to_offset(uv_gpa(pqp));
+	last = uv_gpa_to_offset(uv_gpa(pqp + (DEST_Q_SIZE - 1)));
 	tail = first;
 	gnode = uv_gpa_to_gnode(uv_gpa(pqp));
 	first = (gnode << UV_PAYLOADQ_GNODE_SHIFT) | tail;
