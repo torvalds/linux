@@ -263,14 +263,19 @@ static const struct edmacc_param dummy_paramset = {
 
 #define EDMA_BINDING_LEGACY	0
 #define EDMA_BINDING_TPCC	1
+static const u32 edma_binding_type[] = {
+	[EDMA_BINDING_LEGACY] = EDMA_BINDING_LEGACY,
+	[EDMA_BINDING_TPCC] = EDMA_BINDING_TPCC,
+};
+
 static const struct of_device_id edma_of_ids[] = {
 	{
 		.compatible = "ti,edma3",
-		.data = (void *)EDMA_BINDING_LEGACY,
+		.data = &edma_binding_type[EDMA_BINDING_LEGACY],
 	},
 	{
 		.compatible = "ti,edma3-tpcc",
-		.data = (void *)EDMA_BINDING_TPCC,
+		.data = &edma_binding_type[EDMA_BINDING_TPCC],
 	},
 	{}
 };
@@ -2184,7 +2189,7 @@ static int edma_probe(struct platform_device *pdev)
 		const struct of_device_id *match;
 
 		match = of_match_node(edma_of_ids, node);
-		if (match && (u32)match->data == EDMA_BINDING_TPCC)
+		if (match && (*(u32 *)match->data) == EDMA_BINDING_TPCC)
 			legacy_mode = false;
 
 		info = edma_setup_info_from_dt(dev, legacy_mode);
