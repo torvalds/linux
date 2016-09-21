@@ -182,3 +182,11 @@ const char rxrpc_recvmsg_traces[rxrpc_recvmsg__nr_trace][5] = {
 	[rxrpc_recvmsg_to_be_accepted]	= "TBAC",
 	[rxrpc_recvmsg_return]		= "RETN",
 };
+
+const char rxrpc_rtt_tx_traces[rxrpc_rtt_tx__nr_trace][5] = {
+	[rxrpc_rtt_tx_ping]		= "PING",
+};
+
+const char rxrpc_rtt_rx_traces[rxrpc_rtt_rx__nr_trace][5] = {
+	[rxrpc_rtt_rx_ping_response]	= "PONG",
+};

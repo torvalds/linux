@@ -258,10 +258,11 @@ struct rxrpc_peer {
 
 	/* calculated RTT cache */
 #define RXRPC_RTT_CACHE_SIZE 32
-	suseconds_t		rtt;		/* current RTT estimate (in uS) */
-	unsigned int		rtt_point;	/* next entry at which to insert */
-	unsigned int		rtt_usage;	/* amount of cache actually used */
-	suseconds_t		rtt_cache[RXRPC_RTT_CACHE_SIZE]; /* calculated RTT cache */
+	u64			rtt;		/* Current RTT estimate (in nS) */
+	u64			rtt_sum;	/* Sum of cache contents */
+	u64			rtt_cache[RXRPC_RTT_CACHE_SIZE]; /* Determined RTT cache */
+	u8			rtt_cursor;	/* next entry at which to insert */
+	u8			rtt_usage;	/* amount of cache actually used */
 };
 
 /*
@@ -657,6 +658,20 @@ enum rxrpc_recvmsg_trace {
 
 extern const char rxrpc_recvmsg_traces[rxrpc_recvmsg__nr_trace][5];
 
+enum rxrpc_rtt_tx_trace {
+	rxrpc_rtt_tx_ping,
+	rxrpc_rtt_tx__nr_trace
+};
+
+extern const char rxrpc_rtt_tx_traces[rxrpc_rtt_tx__nr_trace][5];
+
+enum rxrpc_rtt_rx_trace {
+	rxrpc_rtt_rx_ping_response,
+	rxrpc_rtt_rx__nr_trace
+};
+
+extern const char rxrpc_rtt_rx_traces[rxrpc_rtt_rx__nr_trace][5];
+
 extern const char *const rxrpc_pkts[];
 extern const char *rxrpc_acks(u8 reason);
 
@@ -955,6 +970,8 @@ void rxrpc_reject_packets(struct rxrpc_local *);
  */
 void rxrpc_error_report(struct sock *);
 void rxrpc_peer_error_distributor(struct work_struct *);
+void rxrpc_peer_add_rtt(struct rxrpc_call *, enum rxrpc_rtt_rx_trace,
+			rxrpc_serial_t, rxrpc_serial_t, ktime_t, ktime_t);
 
 /*
  * peer_object.c
