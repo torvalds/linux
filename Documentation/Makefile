@@ -1,2 +1,1 @@
-subdir-y := blackfin \
-	pcmcia
+subdir-y := blackfin
