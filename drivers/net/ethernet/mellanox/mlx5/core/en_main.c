@@ -408,6 +408,8 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
 	void *rqc = param->rqc;
 	void *rqc_wq = MLX5_ADDR_OF(rqc, rqc, wq);
 	u32 byte_count;
+	u32 frag_sz;
+	int npages;
 	int wq_sz;
 	int err;
 	int i;
@@ -442,29 +444,40 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
 
 		rq->mpwqe_stride_sz = BIT(priv->params.mpwqe_log_stride_sz);
 		rq->mpwqe_num_strides = BIT(priv->params.mpwqe_log_num_strides);
-		rq->wqe_sz = rq->mpwqe_stride_sz * rq->mpwqe_num_strides;
-		byte_count = rq->wqe_sz;
+
+		rq->buff.wqe_sz = rq->mpwqe_stride_sz * rq->mpwqe_num_strides;
+		byte_count = rq->buff.wqe_sz;
 		rq->mkey_be = cpu_to_be32(c->priv->umr_mkey.key);
 		err = mlx5e_rq_alloc_mpwqe_info(rq, c);
 		if (err)
 			goto err_rq_wq_destroy;
 		break;
 	default: /* MLX5_WQ_TYPE_LINKED_LIST */
-		rq->skb = kzalloc_node(wq_sz * sizeof(*rq->skb), GFP_KERNEL,
-				       cpu_to_node(c->cpu));
-		if (!rq->skb) {
+		rq->dma_info = kzalloc_node(wq_sz * sizeof(*rq->dma_info),
+					    GFP_KERNEL, cpu_to_node(c->cpu));
+		if (!rq->dma_info) {
 			err = -ENOMEM;
 			goto err_rq_wq_destroy;
 		}
+
 		rq->handle_rx_cqe = mlx5e_handle_rx_cqe;
 		rq->alloc_wqe = mlx5e_alloc_rx_wqe;
 		rq->dealloc_wqe = mlx5e_dealloc_rx_wqe;
 
-		rq->wqe_sz = (priv->params.lro_en) ?
+		rq->buff.wqe_sz = (priv->params.lro_en) ?
 				priv->params.lro_wqe_sz :
 				MLX5E_SW2HW_MTU(priv->netdev->mtu);
-		rq->wqe_sz = SKB_DATA_ALIGN(rq->wqe_sz);
-		byte_count = rq->wqe_sz;
+		byte_count = rq->buff.wqe_sz;
+
+		/* calc the required page order */
+		frag_sz = MLX5_RX_HEADROOM +
+			  byte_count /* packet data */ +
+			  SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+		frag_sz = SKB_DATA_ALIGN(frag_sz);
+
+		npages = DIV_ROUND_UP(frag_sz, PAGE_SIZE);
+		rq->buff.page_order = order_base_2(npages);
+
 		byte_count |= MLX5_HW_START_PADDING;
 		rq->mkey_be = c->mkey_be;
 	}
@@ -499,7 +512,7 @@ static void mlx5e_destroy_rq(struct mlx5e_rq *rq)
 		mlx5e_rq_free_mpwqe_info(rq);
 		break;
 	default: /* MLX5_WQ_TYPE_LINKED_LIST */
-		kfree(rq->skb);
+		kfree(rq->dma_info);
 	}
 
 	for (i = rq->page_cache.head; i != rq->page_cache.tail;

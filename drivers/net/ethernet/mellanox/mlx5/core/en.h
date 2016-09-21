@@ -65,6 +65,8 @@
 #define MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE_MPW            0x3
 #define MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE_MPW            0x6
 
+#define MLX5_RX_HEADROOM NET_SKB_PAD
+
 #define MLX5_MPWRQ_LOG_STRIDE_SIZE		6  /* >= 6, HW restriction */
 #define MLX5_MPWRQ_LOG_STRIDE_SIZE_CQE_COMPRESS	8  /* >= 6, HW restriction */
 #define MLX5_MPWRQ_LOG_WQE_SZ			18
@@ -302,10 +304,14 @@ struct mlx5e_page_cache {
 struct mlx5e_rq {
 	/* data path */
 	struct mlx5_wq_ll      wq;
-	u32                    wqe_sz;
-	struct sk_buff       **skb;
+
+	struct mlx5e_dma_info *dma_info;
 	struct mlx5e_mpw_info *wqe_info;
 	void                  *mtt_no_align;
+	struct {
+		u8             page_order;
+		u32            wqe_sz;    /* wqe data buffer size */
+	} buff;
 	__be32                 mkey_be;
 
 	struct device         *pdev;
