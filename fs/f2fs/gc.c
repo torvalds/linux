@@ -847,7 +847,8 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi,
 
 	for (segno = start_segno; segno < end_segno; segno++) {
 
-		if (get_valid_blocks(sbi, segno, 1) == 0)
+		if (get_valid_blocks(sbi, segno, 1) == 0 ||
+					unlikely(f2fs_cp_error(sbi)))
 			goto next;
 
 		/* find segment summary of victim */
