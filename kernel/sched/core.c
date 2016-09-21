@@ -102,9 +102,12 @@ void update_rq_clock(struct rq *rq)
 
 	lockdep_assert_held(&rq->lock);
 
-	if (rq->clock_skip_update & RQCF_ACT_SKIP)
+	if (rq->clock_update_flags & RQCF_ACT_SKIP)
 		return;
 
+#ifdef CONFIG_SCHED_DEBUG
+	rq->clock_update_flags |= RQCF_UPDATED;
+#endif
 	delta = sched_clock_cpu(cpu_of(rq)) - rq->clock;
 	if (delta < 0)
 		return;
@@ -2889,7 +2892,7 @@ context_switch(struct rq *rq, struct task_struct *prev,
 		rq->prev_mm = oldmm;
 	}
 
-	rq->clock_skip_update = 0;
+	rq->clock_update_flags &= ~(RQCF_ACT_SKIP|RQCF_REQ_SKIP);
 
 	/*
 	 * Since the runqueue lock will be released by the next
@@ -3364,7 +3367,7 @@ static void __sched notrace __schedule(bool preempt)
 	raw_spin_lock(&rq->lock);
 	rq_pin_lock(rq, &rf);
 
-	rq->clock_skip_update <<= 1; /* promote REQ to ACT */
+	rq->clock_update_flags <<= 1; /* promote REQ to ACT */
 
 	switch_count = &prev->nivcsw;
 	if (!preempt && prev->state) {
@@ -3405,7 +3408,7 @@ static void __sched notrace __schedule(bool preempt)
 		trace_sched_switch(preempt, prev, next);
 		rq = context_switch(rq, prev, next, &rf); /* unlocks the rq */
 	} else {
-		rq->clock_skip_update = 0;
+		rq->clock_update_flags &= ~(RQCF_ACT_SKIP|RQCF_REQ_SKIP);
 		rq_unpin_lock(rq, &rf);
 		raw_spin_unlock_irq(&rq->lock);
 	}
