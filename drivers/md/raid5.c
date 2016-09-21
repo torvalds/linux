@@ -6372,7 +6372,7 @@ static void free_conf(struct r5conf *conf)
 {
 	if (conf->log)
 		r5l_exit_log(conf->log);
-	if (conf->shrinker.seeks)
+	if (conf->shrinker.nr_deferred)
 		unregister_shrinker(&conf->shrinker);
 
 	free_thread_groups(conf);
