@@ -2887,7 +2887,9 @@ static int mlxsw_sp_flood_init(struct mlxsw_sp *mlxsw_sp)
 
 static int mlxsw_sp_lag_init(struct mlxsw_sp *mlxsw_sp)
 {
+	struct mlxsw_resources *resources;
 	char slcr_pl[MLXSW_REG_SLCR_LEN];
+	int err;
 
 	mlxsw_reg_slcr_pack(slcr_pl, MLXSW_REG_SLCR_LAG_HASH_SMAC |
 				     MLXSW_REG_SLCR_LAG_HASH_DMAC |
@@ -2898,7 +2900,26 @@ static int mlxsw_sp_lag_init(struct mlxsw_sp *mlxsw_sp)
 				     MLXSW_REG_SLCR_LAG_HASH_SPORT |
 				     MLXSW_REG_SLCR_LAG_HASH_DPORT |
 				     MLXSW_REG_SLCR_LAG_HASH_IPPROTO);
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(slcr), slcr_pl);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(slcr), slcr_pl);
+	if (err)
+		return err;
+
+	resources = mlxsw_core_resources_get(mlxsw_sp->core);
+	if (!(resources->max_lag_valid && resources->max_ports_in_lag_valid))
+		return -EIO;
+
+	mlxsw_sp->lags = kcalloc(resources->max_lag,
+				 sizeof(struct mlxsw_sp_upper),
+				 GFP_KERNEL);
+	if (!mlxsw_sp->lags)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static void mlxsw_sp_lag_fini(struct mlxsw_sp *mlxsw_sp)
+{
+	kfree(mlxsw_sp->lags);
 }
 
 static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
@@ -2982,6 +3003,7 @@ err_span_init:
 err_router_init:
 	mlxsw_sp_switchdev_fini(mlxsw_sp);
 err_switchdev_init:
+	mlxsw_sp_lag_fini(mlxsw_sp);
 err_lag_init:
 	mlxsw_sp_buffers_fini(mlxsw_sp);
 err_buffers_init:
@@ -2995,38 +3017,26 @@ err_rx_listener_register:
 static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
-	int i;
 
 	mlxsw_sp_ports_remove(mlxsw_sp);
 	mlxsw_sp_span_fini(mlxsw_sp);
 	mlxsw_sp_router_fini(mlxsw_sp);
 	mlxsw_sp_switchdev_fini(mlxsw_sp);
+	mlxsw_sp_lag_fini(mlxsw_sp);
 	mlxsw_sp_buffers_fini(mlxsw_sp);
 	mlxsw_sp_traps_fini(mlxsw_sp);
 	mlxsw_sp_event_unregister(mlxsw_sp, MLXSW_TRAP_ID_PUDE);
 	WARN_ON(!list_empty(&mlxsw_sp->vfids.list));
 	WARN_ON(!list_empty(&mlxsw_sp->fids));
-	for (i = 0; i < MLXSW_SP_RIF_MAX; i++)
-		WARN_ON_ONCE(mlxsw_sp->rifs[i]);
 }
 
 static struct mlxsw_config_profile mlxsw_sp_config_profile = {
 	.used_max_vepa_channels		= 1,
 	.max_vepa_channels		= 0,
-	.used_max_lag			= 1,
-	.max_lag			= MLXSW_SP_LAG_MAX,
-	.used_max_port_per_lag		= 1,
-	.max_port_per_lag		= MLXSW_SP_PORT_PER_LAG_MAX,
 	.used_max_mid			= 1,
 	.max_mid			= MLXSW_SP_MID_MAX,
 	.used_max_pgt			= 1,
 	.max_pgt			= 0,
-	.used_max_system_port		= 1,
-	.max_system_port		= 64,
-	.used_max_vlan_groups		= 1,
-	.max_vlan_groups		= 127,
-	.used_max_regions		= 1,
-	.max_regions			= 400,
 	.used_flood_tables		= 1,
 	.used_flood_mode		= 1,
 	.flood_mode			= 3,
@@ -3038,10 +3048,11 @@ static struct mlxsw_config_profile mlxsw_sp_config_profile = {
 	.max_ib_mc			= 0,
 	.used_max_pkey			= 1,
 	.max_pkey			= 0,
-	.used_kvd_sizes			= 1,
+	.used_kvd_split_data		= 1,
+	.kvd_hash_granularity		= MLXSW_SP_KVD_GRANULARITY,
+	.kvd_hash_single_parts		= 2,
+	.kvd_hash_double_parts		= 1,
 	.kvd_linear_size		= MLXSW_SP_KVD_LINEAR_SIZE,
-	.kvd_hash_single_size		= MLXSW_SP_KVD_HASH_SINGLE_SIZE,
-	.kvd_hash_double_size		= MLXSW_SP_KVD_HASH_DOUBLE_SIZE,
 	.swid_config			= {
 		{
 			.used_type	= 1,
@@ -3158,13 +3169,15 @@ static bool mlxsw_sp_rif_should_config(struct mlxsw_sp_rif *r,
 
 static int mlxsw_sp_avail_rif_get(struct mlxsw_sp *mlxsw_sp)
 {
+	struct mlxsw_resources *resources;
 	int i;
 
-	for (i = 0; i < MLXSW_SP_RIF_MAX; i++)
+	resources = mlxsw_core_resources_get(mlxsw_sp->core);
+	for (i = 0; i < resources->max_rif; i++)
 		if (!mlxsw_sp->rifs[i])
 			return i;
 
-	return MLXSW_SP_RIF_MAX;
+	return MLXSW_SP_INVALID_RIF;
 }
 
 static void mlxsw_sp_vport_rif_sp_attr_get(struct mlxsw_sp_port *mlxsw_sp_vport,
@@ -3244,7 +3257,7 @@ mlxsw_sp_vport_rif_sp_create(struct mlxsw_sp_port *mlxsw_sp_vport,
 	int err;
 
 	rif = mlxsw_sp_avail_rif_get(mlxsw_sp);
-	if (rif == MLXSW_SP_RIF_MAX)
+	if (rif == MLXSW_SP_INVALID_RIF)
 		return ERR_PTR(-ERANGE);
 
 	err = mlxsw_sp_vport_rif_sp_op(mlxsw_sp_vport, l3_dev, rif, true);
@@ -3476,7 +3489,7 @@ static int mlxsw_sp_rif_bridge_create(struct mlxsw_sp *mlxsw_sp,
 	int err;
 
 	rif = mlxsw_sp_avail_rif_get(mlxsw_sp);
-	if (rif == MLXSW_SP_RIF_MAX)
+	if (rif == MLXSW_SP_INVALID_RIF)
 		return -ERANGE;
 
 	err = mlxsw_sp_router_port_flood_set(mlxsw_sp, f->fid, true);
@@ -3683,12 +3696,14 @@ static bool mlxsw_sp_port_fdb_should_flush(struct mlxsw_sp_port *mlxsw_sp_port,
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	u8 local_port = mlxsw_sp_port->local_port;
 	u16 lag_id = mlxsw_sp_port->lag_id;
+	struct mlxsw_resources *resources;
 	int i, count = 0;
 
 	if (!mlxsw_sp_port->lagged)
 		return true;
 
-	for (i = 0; i < MLXSW_SP_PORT_PER_LAG_MAX; i++) {
+	resources = mlxsw_core_resources_get(mlxsw_sp->core);
+	for (i = 0; i < resources->max_ports_in_lag; i++) {
 		struct mlxsw_sp_port *lag_port;
 
 		lag_port = mlxsw_sp_port_lagged_get(mlxsw_sp, lag_id, i);
@@ -3894,11 +3909,13 @@ static int mlxsw_sp_lag_index_get(struct mlxsw_sp *mlxsw_sp,
 				  struct net_device *lag_dev,
 				  u16 *p_lag_id)
 {
+	struct mlxsw_resources *resources;
 	struct mlxsw_sp_upper *lag;
 	int free_lag_id = -1;
 	int i;
 
-	for (i = 0; i < MLXSW_SP_LAG_MAX; i++) {
+	resources = mlxsw_core_resources_get(mlxsw_sp->core);
+	for (i = 0; i < resources->max_lag; i++) {
 		lag = mlxsw_sp_lag_get(mlxsw_sp, i);
 		if (lag->ref_count) {
 			if (lag->dev == lag_dev) {
@@ -3932,9 +3949,11 @@ mlxsw_sp_master_lag_check(struct mlxsw_sp *mlxsw_sp,
 static int mlxsw_sp_port_lag_index_get(struct mlxsw_sp *mlxsw_sp,
 				       u16 lag_id, u8 *p_port_index)
 {
+	struct mlxsw_resources *resources;
 	int i;
 
-	for (i = 0; i < MLXSW_SP_PORT_PER_LAG_MAX; i++) {
+	resources = mlxsw_core_resources_get(mlxsw_sp->core);
+	for (i = 0; i < resources->max_ports_in_lag; i++) {
 		if (!mlxsw_sp_port_lagged_get(mlxsw_sp, lag_id, i)) {
 			*p_port_index = i;
 			return 0;

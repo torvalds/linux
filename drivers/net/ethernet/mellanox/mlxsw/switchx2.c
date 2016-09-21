@@ -1512,10 +1512,6 @@ static void mlxsw_sx_fini(struct mlxsw_core *mlxsw_core)
 static struct mlxsw_config_profile mlxsw_sx_config_profile = {
 	.used_max_vepa_channels		= 1,
 	.max_vepa_channels		= 0,
-	.used_max_lag			= 1,
-	.max_lag			= 64,
-	.used_max_port_per_lag		= 1,
-	.max_port_per_lag		= 16,
 	.used_max_mid			= 1,
 	.max_mid			= 7000,
 	.used_max_pgt			= 1,

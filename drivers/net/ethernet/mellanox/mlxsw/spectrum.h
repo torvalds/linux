@@ -54,10 +54,7 @@
 #define MLXSW_SP_VFID_MAX 6656	/* Bridged VLAN interfaces */
 
 #define MLXSW_SP_RFID_BASE 15360
-#define MLXSW_SP_RIF_MAX 800
-
-#define MLXSW_SP_LAG_MAX 64
-#define MLXSW_SP_PORT_PER_LAG_MAX 16
+#define MLXSW_SP_INVALID_RIF 0xffff
 
 #define MLXSW_SP_MID_MAX 7000
 
@@ -67,8 +64,6 @@
 #define MLXSW_SP_LPM_TREE_MAX 22
 #define MLXSW_SP_LPM_TREE_COUNT (MLXSW_SP_LPM_TREE_MAX - MLXSW_SP_LPM_TREE_MIN)
 
-#define MLXSW_SP_VIRTUAL_ROUTER_MAX 256
-
 #define MLXSW_SP_PORT_BASE_SPEED 25000	/* Mb/s */
 
 #define MLXSW_SP_BYTES_PER_CELL 96
@@ -77,8 +72,7 @@
 #define MLXSW_SP_CELLS_TO_BYTES(c) (c * MLXSW_SP_BYTES_PER_CELL)
 
 #define MLXSW_SP_KVD_LINEAR_SIZE 65536 /* entries */
-#define MLXSW_SP_KVD_HASH_SINGLE_SIZE 163840 /* entries */
-#define MLXSW_SP_KVD_HASH_DOUBLE_SIZE 32768 /* entries */
+#define MLXSW_SP_KVD_GRANULARITY 128
 
 /* Maximum delay buffer needed in case of PAUSE frames, in cells.
  * Assumes 100m cable and maximum MTU.
@@ -253,7 +247,7 @@ struct mlxsw_sp_port_mall_tc_entry {
 
 struct mlxsw_sp_router {
 	struct mlxsw_sp_lpm_tree lpm_trees[MLXSW_SP_LPM_TREE_COUNT];
-	struct mlxsw_sp_vr vrs[MLXSW_SP_VIRTUAL_ROUTER_MAX];
+	struct mlxsw_sp_vr *vrs;
 	struct rhashtable neigh_ht;
 	struct {
 		struct delayed_work dw;
@@ -275,7 +269,7 @@ struct mlxsw_sp {
 		DECLARE_BITMAP(mapped, MLXSW_SP_MID_MAX);
 	} br_mids;
 	struct list_head fids;	/* VLAN-aware bridge FIDs */
-	struct mlxsw_sp_rif *rifs[MLXSW_SP_RIF_MAX];
+	struct mlxsw_sp_rif **rifs;
 	struct mlxsw_sp_port **ports;
 	struct mlxsw_core *core;
 	const struct mlxsw_bus_info *bus_info;
@@ -290,7 +284,7 @@ struct mlxsw_sp {
 #define MLXSW_SP_DEFAULT_AGEING_TIME 300
 	u32 ageing_time;
 	struct mlxsw_sp_upper master_bridge;
-	struct mlxsw_sp_upper lags[MLXSW_SP_LAG_MAX];
+	struct mlxsw_sp_upper *lags;
 	u8 port_to_module[MLXSW_PORT_MAX_PORTS];
 	struct mlxsw_sp_sb sb;
 	struct mlxsw_sp_router router;
@@ -483,9 +477,12 @@ static inline struct mlxsw_sp_rif *
 mlxsw_sp_rif_find_by_dev(const struct mlxsw_sp *mlxsw_sp,
 			 const struct net_device *dev)
 {
+	struct mlxsw_resources *resources;
 	int i;
 
-	for (i = 0; i < MLXSW_SP_RIF_MAX; i++)
+	resources = mlxsw_core_resources_get(mlxsw_sp->core);
+
+	for (i = 0; i < resources->max_rif; i++)
 		if (mlxsw_sp->rifs[i] && mlxsw_sp->rifs[i]->dev == dev)
 			return mlxsw_sp->rifs[i];
 
