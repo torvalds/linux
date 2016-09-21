@@ -265,13 +265,17 @@ ENTRY(secondary_startup_64)
 	movl	$MSR_GS_BASE,%ecx
 	movl	initial_gs(%rip),%eax
 	movl	initial_gs+4(%rip),%edx
-	wrmsr	
+	wrmsr
 
 	/* rsi is pointer to real mode structure with interesting info.
 	   pass it to C */
 	movq	%rsi, %rdi
-	
-	/* Finally jump to run C code and to be on real kernel address
+	jmp	start_cpu
+ENDPROC(secondary_startup_64)
+
+ENTRY(start_cpu)
+	/*
+	 * Jump to run C code and to be on a real kernel address.
 	 * Since we are running on identity-mapped space we have to jump
 	 * to the full 64bit address, this is only possible as indirect
 	 * jump.  In addition we need to ensure %cs is set so we make this
@@ -300,7 +304,7 @@ ENTRY(secondary_startup_64)
 	pushq	$__KERNEL_CS	# set correct cs
 	pushq	%rax		# target address in negative space
 	lretq
-ENDPROC(secondary_startup_64)
+ENDPROC(start_cpu)
 
 #include "verify_cpu.S"
 
@@ -308,15 +312,11 @@ ENDPROC(secondary_startup_64)
 /*
  * Boot CPU0 entry point. It's called from play_dead(). Everything has been set
  * up already except stack. We just set up stack here. Then call
- * start_secondary().
+ * start_secondary() via start_cpu().
  */
 ENTRY(start_cpu0)
-	movq initial_stack(%rip),%rsp
-	movq	initial_code(%rip),%rax
-	pushq	$0		# fake return address to stop unwinder
-	pushq	$__KERNEL_CS	# set correct cs
-	pushq	%rax		# target address in negative space
-	lretq
+	movq	initial_stack(%rip), %rsp
+	jmp	start_cpu
 ENDPROC(start_cpu0)
 #endif
 
