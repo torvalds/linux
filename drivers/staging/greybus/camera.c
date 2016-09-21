@@ -1121,7 +1121,7 @@ static ssize_t gb_camera_debugfs_write(struct file *file,
 	       return -EINVAL;
 
 	kbuf = kmalloc(len + 1, GFP_KERNEL);
-	if (kbuf == NULL)
+	if (!kbuf)
 		return -ENOMEM;
 
 	if (copy_from_user(kbuf, buf, len)) {
