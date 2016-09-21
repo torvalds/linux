@@ -1982,6 +1982,7 @@ static void wait_for_xmitr(struct uart_8250_port *up, int bits)
 		if (--tmout == 0)
 			break;
 		udelay(1);
+		touch_nmi_watchdog();
 	}
 
 	/* Wait up to 1s for flow control if necessary */
