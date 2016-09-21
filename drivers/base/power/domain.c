@@ -1121,13 +1121,8 @@ int __pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 }
 EXPORT_SYMBOL_GPL(__pm_genpd_add_device);
 
-/**
- * pm_genpd_remove_device - Remove a device from an I/O PM domain.
- * @genpd: PM domain to remove the device from.
- * @dev: Device to be removed.
- */
-int pm_genpd_remove_device(struct generic_pm_domain *genpd,
-			   struct device *dev)
+static int genpd_remove_device(struct generic_pm_domain *genpd,
+			       struct device *dev)
 {
 	struct generic_pm_domain_data *gpd_data;
 	struct pm_domain_data *pdd;
@@ -1135,10 +1130,6 @@ int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 
 	dev_dbg(dev, "%s()\n", __func__);
 
-	if (!genpd || genpd != genpd_lookup_dev(dev))
-		return -EINVAL;
-
-	/* The above validation also means we have existing domain_data. */
 	pdd = dev->power.subsys_data->domain_data;
 	gpd_data = to_gpd_data(pdd);
 	dev_pm_qos_remove_notifier(dev, &gpd_data->nb);
@@ -1169,6 +1160,20 @@ int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 	dev_pm_qos_add_notifier(dev, &gpd_data->nb);
 
 	return ret;
+}
+
+/**
+ * pm_genpd_remove_device - Remove a device from an I/O PM domain.
+ * @genpd: PM domain to remove the device from.
+ * @dev: Device to be removed.
+ */
+int pm_genpd_remove_device(struct generic_pm_domain *genpd,
+			   struct device *dev)
+{
+	if (!genpd || genpd != genpd_lookup_dev(dev))
+		return -EINVAL;
+
+	return genpd_remove_device(genpd, dev);
 }
 EXPORT_SYMBOL_GPL(pm_genpd_remove_device);
 
@@ -1797,14 +1802,14 @@ static void genpd_dev_pm_detach(struct device *dev, bool power_off)
 	unsigned int i;
 	int ret = 0;
 
-	pd = genpd_lookup_dev(dev);
-	if (!pd)
+	pd = dev_to_genpd(dev);
+	if (IS_ERR(pd))
 		return;
 
 	dev_dbg(dev, "removing from PM domain %s\n", pd->name);
 
 	for (i = 1; i < GENPD_RETRY_MAX_MS; i <<= 1) {
-		ret = pm_genpd_remove_device(pd, dev);
+		ret = genpd_remove_device(pd, dev);
 		if (ret != -EAGAIN)
 			break;
 
