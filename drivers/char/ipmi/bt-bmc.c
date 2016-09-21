@@ -438,8 +438,8 @@ static int bt_bmc_probe(struct platform_device *pdev)
 	}
 
 	bt_bmc->base = devm_ioremap_resource(&pdev->dev, res);
-	if (!bt_bmc->base)
-		return -ENOMEM;
+	if (IS_ERR(bt_bmc->base))
+		return PTR_ERR(bt_bmc->base);
 
 	mutex_init(&bt_bmc->mutex);
 	init_waitqueue_head(&bt_bmc->queue);
