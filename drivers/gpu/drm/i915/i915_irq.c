@@ -350,6 +350,9 @@ void gen6_reset_rps_interrupts(struct drm_i915_private *dev_priv)
 
 void gen6_enable_rps_interrupts(struct drm_i915_private *dev_priv)
 {
+	if (READ_ONCE(dev_priv->rps.interrupts_enabled))
+		return;
+
 	spin_lock_irq(&dev_priv->irq_lock);
 	WARN_ON_ONCE(dev_priv->rps.pm_iir);
 	WARN_ON_ONCE(I915_READ(gen6_pm_iir(dev_priv)) & dev_priv->pm_rps_events);
@@ -368,6 +371,9 @@ u32 gen6_sanitize_rps_pm_mask(struct drm_i915_private *dev_priv, u32 mask)
 
 void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv)
 {
+	if (!READ_ONCE(dev_priv->rps.interrupts_enabled))
+		return;
+
 	spin_lock_irq(&dev_priv->irq_lock);
 	dev_priv->rps.interrupts_enabled = false;
 
