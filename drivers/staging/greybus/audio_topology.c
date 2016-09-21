@@ -459,7 +459,7 @@ static int gbcodec_mixer_dapm_ctl_put(struct snd_kcontrol *kcontrol,
 
 	max = info->value.integer.max;
 	mask = (1 << fls(max)) - 1;
-	val = (ucontrol->value.integer.value[0] & mask);
+	val = ucontrol->value.integer.value[0] & mask;
 	connect = !!val;
 
 	/* update ucontrol */
