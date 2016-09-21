@@ -174,10 +174,16 @@ static inline int nf_hook_thresh(u_int8_t pf, unsigned int hook,
 
 	if (!list_empty(hook_list)) {
 		struct nf_hook_state state;
+		int ret;
 
+		/* We may already have this, but read-locks nest anyway */
+		rcu_read_lock();
 		nf_hook_state_init(&state, hook_list, hook, thresh,
 				   pf, indev, outdev, sk, net, okfn);
-		return nf_hook_slow(skb, &state);
+
+		ret = nf_hook_slow(skb, &state);
+		rcu_read_unlock();
+		return ret;
 	}
 	return 1;
 }
