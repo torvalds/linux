@@ -328,7 +328,7 @@ mlx5e_copy_skb_header_mpwqe(struct device *pdev,
 
 static inline void mlx5e_post_umr_wqe(struct mlx5e_rq *rq, u16 ix)
 {
-	struct mlx5e_mpw_info *wi = &rq->wqe_info[ix];
+	struct mlx5e_mpw_info *wi = &rq->mpwqe.info[ix];
 	struct mlx5e_sq *sq = &rq->channel->icosq;
 	struct mlx5_wq_cyc *wq = &sq->wq;
 	struct mlx5e_umr_wqe *wqe;
@@ -358,7 +358,7 @@ static int mlx5e_alloc_rx_umr_mpwqe(struct mlx5e_rq *rq,
 				    struct mlx5e_rx_wqe *wqe,
 				    u16 ix)
 {
-	struct mlx5e_mpw_info *wi = &rq->wqe_info[ix];
+	struct mlx5e_mpw_info *wi = &rq->mpwqe.info[ix];
 	u64 dma_offset = (u64)mlx5e_get_wqe_mtt_offset(rq, ix) << PAGE_SHIFT;
 	int pg_strides = mlx5e_mpwqe_strides_per_page(rq);
 	int err;
@@ -412,7 +412,7 @@ void mlx5e_post_rx_mpwqe(struct mlx5e_rq *rq)
 	clear_bit(MLX5E_RQ_STATE_UMR_WQE_IN_PROGRESS, &rq->state);
 
 	if (unlikely(test_bit(MLX5E_RQ_STATE_FLUSH, &rq->state))) {
-		mlx5e_free_rx_mpwqe(rq, &rq->wqe_info[wq->head]);
+		mlx5e_free_rx_mpwqe(rq, &rq->mpwqe.info[wq->head]);
 		return;
 	}
 
@@ -438,7 +438,7 @@ int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_rx_wqe *wqe, u16 ix)
 
 void mlx5e_dealloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 {
-	struct mlx5e_mpw_info *wi = &rq->wqe_info[ix];
+	struct mlx5e_mpw_info *wi = &rq->mpwqe.info[ix];
 
 	mlx5e_free_rx_mpwqe(rq, wi);
 }
@@ -725,7 +725,7 @@ void mlx5e_handle_rx_cqe_mpwrq(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 {
 	u16 cstrides       = mpwrq_get_cqe_consumed_strides(cqe);
 	u16 wqe_id         = be16_to_cpu(cqe->wqe_id);
-	struct mlx5e_mpw_info *wi = &rq->wqe_info[wqe_id];
+	struct mlx5e_mpw_info *wi = &rq->mpwqe.info[wqe_id];
 	struct mlx5e_rx_wqe  *wqe = mlx5_wq_ll_get_wqe(&rq->wq, wqe_id);
 	struct sk_buff *skb;
 	u16 cqe_bcnt;

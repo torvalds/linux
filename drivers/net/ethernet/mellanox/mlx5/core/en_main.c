@@ -314,7 +314,7 @@ static inline void mlx5e_build_umr_wqe(struct mlx5e_rq *rq, struct mlx5e_sq *sq,
 	struct mlx5_wqe_ctrl_seg      *cseg = &wqe->ctrl;
 	struct mlx5_wqe_umr_ctrl_seg *ucseg = &wqe->uctrl;
 	struct mlx5_wqe_data_seg      *dseg = &wqe->data;
-	struct mlx5e_mpw_info *wi = &rq->wqe_info[ix];
+	struct mlx5e_mpw_info *wi = &rq->mpwqe.info[ix];
 	u8 ds_cnt = DIV_ROUND_UP(sizeof(*wqe), MLX5_SEND_WQE_DS);
 	u32 umr_wqe_mtt_offset = mlx5e_get_wqe_mtt_offset(rq, ix);
 
@@ -342,21 +342,21 @@ static int mlx5e_rq_alloc_mpwqe_info(struct mlx5e_rq *rq,
 	int mtt_alloc = mtt_sz + MLX5_UMR_ALIGN - 1;
 	int i;
 
-	rq->wqe_info = kzalloc_node(wq_sz * sizeof(*rq->wqe_info),
-				    GFP_KERNEL, cpu_to_node(c->cpu));
-	if (!rq->wqe_info)
+	rq->mpwqe.info = kzalloc_node(wq_sz * sizeof(*rq->mpwqe.info),
+				      GFP_KERNEL, cpu_to_node(c->cpu));
+	if (!rq->mpwqe.info)
 		goto err_out;
 
 	/* We allocate more than mtt_sz as we will align the pointer */
-	rq->mtt_no_align = kzalloc_node(mtt_alloc * wq_sz, GFP_KERNEL,
+	rq->mpwqe.mtt_no_align = kzalloc_node(mtt_alloc * wq_sz, GFP_KERNEL,
 					cpu_to_node(c->cpu));
-	if (unlikely(!rq->mtt_no_align))
+	if (unlikely(!rq->mpwqe.mtt_no_align))
 		goto err_free_wqe_info;
 
 	for (i = 0; i < wq_sz; i++) {
-		struct mlx5e_mpw_info *wi = &rq->wqe_info[i];
+		struct mlx5e_mpw_info *wi = &rq->mpwqe.info[i];
 
-		wi->umr.mtt = PTR_ALIGN(rq->mtt_no_align + i * mtt_alloc,
+		wi->umr.mtt = PTR_ALIGN(rq->mpwqe.mtt_no_align + i * mtt_alloc,
 					MLX5_UMR_ALIGN);
 		wi->umr.mtt_addr = dma_map_single(c->pdev, wi->umr.mtt, mtt_sz,
 						  PCI_DMA_TODEVICE);
@@ -370,14 +370,14 @@ static int mlx5e_rq_alloc_mpwqe_info(struct mlx5e_rq *rq,
 
 err_unmap_mtts:
 	while (--i >= 0) {
-		struct mlx5e_mpw_info *wi = &rq->wqe_info[i];
+		struct mlx5e_mpw_info *wi = &rq->mpwqe.info[i];
 
 		dma_unmap_single(c->pdev, wi->umr.mtt_addr, mtt_sz,
 				 PCI_DMA_TODEVICE);
 	}
-	kfree(rq->mtt_no_align);
+	kfree(rq->mpwqe.mtt_no_align);
 err_free_wqe_info:
-	kfree(rq->wqe_info);
+	kfree(rq->mpwqe.info);
 
 err_out:
 	return -ENOMEM;
@@ -390,13 +390,13 @@ static void mlx5e_rq_free_mpwqe_info(struct mlx5e_rq *rq)
 	int i;
 
 	for (i = 0; i < wq_sz; i++) {
-		struct mlx5e_mpw_info *wi = &rq->wqe_info[i];
+		struct mlx5e_mpw_info *wi = &rq->mpwqe.info[i];
 
 		dma_unmap_single(rq->pdev, wi->umr.mtt_addr, mtt_sz,
 				 PCI_DMA_TODEVICE);
 	}
-	kfree(rq->mtt_no_align);
-	kfree(rq->wqe_info);
+	kfree(rq->mpwqe.mtt_no_align);
+	kfree(rq->mpwqe.info);
 }
 
 static int mlx5e_create_rq(struct mlx5e_channel *c,
@@ -439,7 +439,7 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
 		rq->alloc_wqe = mlx5e_alloc_rx_mpwqe;
 		rq->dealloc_wqe = mlx5e_dealloc_rx_mpwqe;
 
-		rq->mpwqe_mtt_offset = c->ix *
+		rq->mpwqe.mtt_offset = c->ix *
 			MLX5E_REQUIRED_MTTS(1, BIT(priv->params.log_rq_size));
 
 		rq->mpwqe_stride_sz = BIT(priv->params.mpwqe_log_stride_sz);
@@ -654,7 +654,7 @@ static void mlx5e_free_rx_descs(struct mlx5e_rq *rq)
 
 	/* UMR WQE (if in progress) is always at wq->head */
 	if (test_bit(MLX5E_RQ_STATE_UMR_WQE_IN_PROGRESS, &rq->state))
-		mlx5e_free_rx_mpwqe(rq, &rq->wqe_info[wq->head]);
+		mlx5e_free_rx_mpwqe(rq, &rq->mpwqe.info[wq->head]);
 
 	while (!mlx5_wq_ll_is_empty(wq)) {
 		wqe_ix_be = *wq->tail_next;

@@ -305,9 +305,14 @@ struct mlx5e_rq {
 	/* data path */
 	struct mlx5_wq_ll      wq;
 
-	struct mlx5e_dma_info *dma_info;
-	struct mlx5e_mpw_info *wqe_info;
-	void                  *mtt_no_align;
+	union {
+		struct mlx5e_dma_info *dma_info;
+		struct {
+			struct mlx5e_mpw_info *info;
+			void                  *mtt_no_align;
+			u32                    mtt_offset;
+		} mpwqe;
+	};
 	struct {
 		u8             page_order;
 		u32            wqe_sz;    /* wqe data buffer size */
@@ -327,7 +332,6 @@ struct mlx5e_rq {
 
 	unsigned long          state;
 	int                    ix;
-	u32                    mpwqe_mtt_offset;
 
 	struct mlx5e_rx_am     am; /* Adaptive Moderation */
 
@@ -770,7 +774,7 @@ static inline void mlx5e_cq_arm(struct mlx5e_cq *cq)
 
 static inline u32 mlx5e_get_wqe_mtt_offset(struct mlx5e_rq *rq, u16 wqe_ix)
 {
-	return rq->mpwqe_mtt_offset +
+	return rq->mpwqe.mtt_offset +
 		wqe_ix * ALIGN(MLX5_MPWRQ_PAGES_PER_WQE, 8);
 }
 
