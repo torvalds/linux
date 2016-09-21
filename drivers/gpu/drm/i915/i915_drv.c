@@ -1863,7 +1863,17 @@ static int i915_pm_resume(struct device *kdev)
 /* freeze: before creating the hibernation_image */
 static int i915_pm_freeze(struct device *kdev)
 {
-	return i915_pm_suspend(kdev);
+	int ret;
+
+	ret = i915_pm_suspend(kdev);
+	if (ret)
+		return ret;
+
+	ret = i915_gem_freeze(kdev_to_i915(kdev));
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 static int i915_pm_freeze_late(struct device *kdev)
