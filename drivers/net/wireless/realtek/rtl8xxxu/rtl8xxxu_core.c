@@ -3869,7 +3869,7 @@ static void rtl8xxxu_init_queue_reserved_page(struct rtl8xxxu_priv *priv)
 	val32 = (nq << RQPN_NPQ_SHIFT) | (eq << RQPN_EPQ_SHIFT);
 	rtl8xxxu_write32(priv, REG_RQPN_NPQ, val32);
 
-	pubq = fops->total_page_num - hq - lq - nq;
+	pubq = fops->total_page_num - hq - lq - nq - 1;
 
 	val32 = RQPN_LOAD;
 	val32 |= (hq << RQPN_HI_PQ_SHIFT);
