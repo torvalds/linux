@@ -62,6 +62,13 @@
 	};
 };
 
+&i2c1 {
+	mma7660: accelerometer@4c {
+		reg = <0x4c>;
+		compatible = "fsl,mma7660";
+	};
+};
+
 &mmc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins_a>;
@@ -89,4 +96,23 @@
 		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
+};
+
+&reg_ldo_io1 {
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+	regulator-name = "vcc-touchscreen";
+	status = "okay";
+};
+
+&touchscreen {
+	reg = <0x40>;
+	compatible = "silead,gsl1680";
+	firmware-name = "gsl1680-polaroid-mid2407pxe03.fw";
+	touchscreen-size-x = <960>;
+	touchscreen-size-y = <640>;
+	touchscreen-inverted-x;
+	touchscreen-inverted-y;
+	vddio-supply = <&reg_ldo_io1>;
+	status = "okay";
 };
