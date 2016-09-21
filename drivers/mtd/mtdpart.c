@@ -317,6 +317,18 @@ static int part_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	return res;
 }
 
+static int part_get_device(struct mtd_info *mtd)
+{
+	struct mtd_part *part = mtd_to_part(mtd);
+	return part->master->_get_device(part->master);
+}
+
+static void part_put_device(struct mtd_info *mtd)
+{
+	struct mtd_part *part = mtd_to_part(mtd);
+	part->master->_put_device(part->master);
+}
+
 static int part_ooblayout_ecc(struct mtd_info *mtd, int section,
 			      struct mtd_oob_region *oobregion)
 {
@@ -463,6 +475,12 @@ static struct mtd_part *allocate_partition(struct mtd_info *master,
 		slave->mtd._block_isbad = part_block_isbad;
 	if (master->_block_markbad)
 		slave->mtd._block_markbad = part_block_markbad;
+
+	if (master->_get_device)
+		slave->mtd._get_device = part_get_device;
+	if (master->_put_device)
+		slave->mtd._put_device = part_put_device;
+
 	slave->mtd._erase = part_erase;
 	slave->master = master;
 	slave->offset = part->offset;
