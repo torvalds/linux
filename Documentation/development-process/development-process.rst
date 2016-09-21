@@ -1,3 +1,5 @@
+.. _development_process_main:
+
 A guide to the Kernel Development Process
 =========================================
 

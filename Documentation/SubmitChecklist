@@ -1,3 +1,5 @@
+.. _submitchecklist:
+
 Linux Kernel patch submission checklist
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -5,7 +7,7 @@ Here are some basic things that developers should do if they want to see their
 kernel patch submissions accepted more quickly.
 
 These are all above and beyond the documentation that is provided in
-Documentation/SubmittingPatches
+:ref:`Documentation/SubmittingPatches <submittingpatches>`
 and elsewhere regarding submitting Linux kernel patches.
 
 
@@ -28,8 +30,8 @@ and elsewhere regarding submitting Linux kernel patches.
 4) ppc64 is a good architecture for cross-compilation checking because it
    tends to use ``unsigned long`` for 64-bit quantities.
 
-5: Check your patch for general style as detailed in
-   Documentation/CodingStyle.
+5) Check your patch for general style as detailed in
+   :ref:`Documentation/CodingStyle <codingstyle>`.
    Check for trivial violations with the patch style checker prior to
    submission (``scripts/checkpatch.pl``).
    You should be able to justify all violations that remain in
@@ -54,7 +56,7 @@ and elsewhere regarding submitting Linux kernel patches.
        but any one function that uses more than 512 bytes on the stack is a
        candidate for change.
 
-11: Include :ref:`kernel-doc <kernel_doc>` to document global  kernel APIs.
+11) Include :ref:`kernel-doc <kernel_doc>` to document global  kernel APIs.
     (Not required for static functions, but OK there also.) Use
     ``make htmldocs`` or ``make pdfdocs`` to check the
     :ref:`kernel-doc <kernel_doc>` and fix any issues.

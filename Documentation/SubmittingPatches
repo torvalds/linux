@@ -10,10 +10,12 @@ can greatly increase the chances of your change being accepted.
 
 This document contains a large number of suggestions in a relatively terse
 format.  For detailed information on how the kernel development process
-works, see Documentation/development-process.  Also, read
-Documentation/SubmitChecklist for a list of items to check before
+works, see :ref:`Documentation/development-process <development_process_main>`.
+Also, read :ref:`Documentation/SubmitChecklist <submitchecklist>`
+for a list of items to check before
 submitting code.  If you are submitting a driver, also read
-Documentation/SubmittingDrivers; for device tree binding patches, read
+:ref:`Documentation/SubmittingDrivers <submittingdrivers>`;
+for device tree binding patches, read
 Documentation/devicetree/bindings/submitting-patches.txt.
 
 Many of these steps describe the default behavior of the ``git`` version
@@ -235,7 +237,9 @@ then only post say 15 or so at a time and wait for review and integration.
 ---------------------------
 
 Check your patch for basic style violations, details of which can be
-found in Documentation/CodingStyle.  Failure to do so simply wastes
+found in
+:ref:`Documentation/CodingStyle <codingstyle>`.
+Failure to do so simply wastes
 the reviewers time and will get your patch rejected, probably
 without even being read.
 
@@ -300,8 +304,9 @@ toward the stable maintainers by putting a line like this::
   Cc: stable@vger.kernel.org
 
 into the sign-off area of your patch (note, NOT an email recipient).  You
-should also read Documentation/stable_kernel_rules.txt in addition to this
-file.
+should also read
+:ref:`Documentation/stable_kernel_rules.txt <stable_kernel_rules>`
+in addition to this file.
 
 Note, however, that some subsystem maintainers want to come to their own
 conclusions on which patches should go to the stable trees.  The networking
@@ -358,8 +363,9 @@ decreasing the likelihood of your MIME-attached change being accepted.
 Exception:  If your mailer is mangling patches then someone may ask
 you to re-send them using MIME.
 
-See Documentation/email-clients.txt for hints about configuring
-your e-mail client so that it sends your patches untouched.
+See :ref:`Documentation/email-clients.txt <email_clients>`
+for hints about configuring your e-mail client so that it sends your patches
+untouched.
 
 7) E-mail size
 --------------
@@ -823,7 +829,7 @@ NO!!!! No more huge patch bombs to linux-kernel@vger.kernel.org people!
   <https://lkml.org/lkml/2005/7/11/336>
 
 Kernel Documentation/CodingStyle:
-  <Documentation/CodingStyle>
+  :ref:`Documentation/CodingStyle <codingstyle>`
 
 Linus Torvalds's mail on the canonical patch format:
   <http://lkml.org/lkml/2005/4/7/183>
