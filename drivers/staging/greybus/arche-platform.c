@@ -634,8 +634,7 @@ static int arche_platform_probe(struct platform_device *pdev)
 	arche_pdata->wake_detect_gpio = of_get_named_gpio(np, "svc,wake-detect-gpio", 0);
 	if (arche_pdata->wake_detect_gpio < 0) {
 		dev_err(dev, "failed to get wake detect gpio\n");
-		ret = arche_pdata->wake_detect_gpio;
-		return ret;
+		return arche_pdata->wake_detect_gpio;
 	}
 
 	ret = devm_gpio_request(dev, arche_pdata->wake_detect_gpio, "wake detect");
