@@ -183,6 +183,19 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common, EXC_STD,
 				 NOTEST, 0x100)
 EXC_REAL_END(system_reset, 0x100, 0x200)
+EXC_VIRT_NONE(0x4100, 0x4200)
+EXC_COMMON(system_reset_common, 0x100, system_reset_exception)
+
+#ifdef CONFIG_PPC_PSERIES
+/*
+ * Vectors for the FWNMI option.  Share common code.
+ */
+TRAMP_REAL_BEGIN(system_reset_fwnmi)
+	SET_SCRATCH0(r13)		/* save r13 */
+	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common, EXC_STD,
+				 NOTEST, 0x100)
+#endif /* CONFIG_PPC_PSERIES */
+
 
 EXC_REAL_BEGIN(machine_check, 0x200, 0x300)
 	/* This is moved out of line as it can be patched by FW, but
@@ -699,17 +712,6 @@ FTR_SECTION_ELSE
 ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE)
 	blr
 
-#ifdef CONFIG_PPC_PSERIES
-/*
- * Vectors for the FWNMI option.  Share common code.
- */
-TRAMP_REAL_BEGIN(system_reset_fwnmi)
-	SET_SCRATCH0(r13)		/* save r13 */
-	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common, EXC_STD,
-				 NOTEST, 0x100)
-
-#endif /* CONFIG_PPC_PSERIES */
-
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
 TRAMP_REAL_BEGIN(kvmppc_skip_interrupt)
 	/*
@@ -745,7 +747,6 @@ TRAMP_REAL_BEGIN(kvmppc_skip_Hinterrupt)
 
 /*** Common interrupt handlers ***/
 
-EXC_COMMON(system_reset_common, 0x100, system_reset_exception)
 EXC_COMMON_ASYNC(hardware_interrupt_common, 0x500, do_IRQ)
 EXC_COMMON_ASYNC(decrementer_common, 0x900, timer_interrupt)
 EXC_COMMON(hdecrementer_common, 0x980, hdec_interrupt)
@@ -790,7 +791,6 @@ EXC_COMMON(altivec_assist_common, 0x1700, unknown_exception)
 	 * only has extra guff for STAB-based processors -- which never
 	 * come here.
 	 */
-EXC_VIRT_NONE(0x4100, 0x4200)
 EXC_VIRT_NONE(0x4200, 0x4300)
 
 EXC_VIRT(data_access, 0x4300, 0x4380, 0x300)
