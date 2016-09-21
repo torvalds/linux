@@ -2631,6 +2631,13 @@ void i915_gem_reset(struct drm_i915_private *dev_priv)
 	mod_delayed_work(dev_priv->wq, &dev_priv->gt.idle_work, 0);
 
 	i915_gem_restore_fences(&dev_priv->drm);
+
+	if (dev_priv->gt.awake) {
+		intel_sanitize_gt_powersave(dev_priv);
+		intel_enable_gt_powersave(dev_priv);
+		if (INTEL_GEN(dev_priv) >= 6)
+			gen6_rps_busy(dev_priv);
+	}
 }
 
 static void nop_submit_request(struct drm_i915_gem_request *request)
