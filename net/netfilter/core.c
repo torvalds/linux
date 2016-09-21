@@ -291,15 +291,12 @@ repeat:
 
 
 /* Returns 1 if okfn() needs to be executed by the caller,
- * -EPERM for NF_DROP, 0 otherwise. */
+ * -EPERM for NF_DROP, 0 otherwise.  Caller must hold rcu_read_lock. */
 int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state)
 {
 	struct nf_hook_ops *elem;
 	unsigned int verdict;
 	int ret = 0;
-
-	/* We may already have this, but read-locks nest anyway */
-	rcu_read_lock();
 
 	elem = list_entry_rcu(state->hook_list, struct nf_hook_ops, list);
 next_hook:
@@ -321,7 +318,6 @@ next_hook:
 			kfree_skb(skb);
 		}
 	}
-	rcu_read_unlock();
 	return ret;
 }
 EXPORT_SYMBOL(nf_hook_slow);

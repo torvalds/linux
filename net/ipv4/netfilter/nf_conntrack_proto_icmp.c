@@ -149,7 +149,7 @@ icmp_error_message(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 		return -NF_ACCEPT;
 	}
 
-	/* rcu_read_lock()ed by nf_hook_slow */
+	/* rcu_read_lock()ed by nf_hook_thresh */
 	innerproto = __nf_ct_l4proto_find(PF_INET, origtuple.dst.protonum);
 
 	/* Ordinarily, we'd expect the inverted tupleproto, but it's

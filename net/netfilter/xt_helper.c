@@ -41,7 +41,7 @@ helper_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	if (!master_help)
 		return ret;
 
-	/* rcu_read_lock()ed by nf_hook_slow */
+	/* rcu_read_lock()ed by nf_hook_thresh */
 	helper = rcu_dereference(master_help->helper);
 	if (!helper)
 		return ret;

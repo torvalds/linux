@@ -740,7 +740,7 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 	struct net *net = entry->state.net;
 	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
 
-	/* rcu_read_lock()ed by nf_hook_slow() */
+	/* rcu_read_lock()ed by nf_hook_thresh */
 	queue = instance_lookup(q, queuenum);
 	if (!queue)
 		return -ESRCH;
