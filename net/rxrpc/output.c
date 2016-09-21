@@ -208,19 +208,42 @@ out:
 /*
  * send a packet through the transport endpoint
  */
-int rxrpc_send_data_packet(struct rxrpc_connection *conn, struct sk_buff *skb)
+int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb)
 {
-	struct kvec iov[1];
+	struct rxrpc_connection *conn = call->conn;
+	struct rxrpc_wire_header whdr;
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct msghdr msg;
+	struct kvec iov[2];
+	rxrpc_serial_t serial;
+	size_t len;
 	int ret, opt;
 
 	_enter(",{%d}", skb->len);
 
-	iov[0].iov_base = skb->head;
-	iov[0].iov_len = skb->len;
+	/* Each transmission of a Tx packet needs a new serial number */
+	serial = atomic_inc_return(&conn->serial);
 
-	msg.msg_name = &conn->params.peer->srx.transport;
-	msg.msg_namelen = conn->params.peer->srx.transport_len;
+	whdr.epoch	= htonl(conn->proto.epoch);
+	whdr.cid	= htonl(call->cid);
+	whdr.callNumber	= htonl(call->call_id);
+	whdr.seq	= htonl(sp->hdr.seq);
+	whdr.serial	= htonl(serial);
+	whdr.type	= RXRPC_PACKET_TYPE_DATA;
+	whdr.flags	= sp->hdr.flags;
+	whdr.userStatus	= 0;
+	whdr.securityIndex = call->security_ix;
+	whdr._rsvd	= htons(sp->hdr._rsvd);
+	whdr.serviceId	= htons(call->service_id);
+
+	iov[0].iov_base = &whdr;
+	iov[0].iov_len = sizeof(whdr);
+	iov[1].iov_base = skb->head;
+	iov[1].iov_len = skb->len;
+	len = iov[0].iov_len + iov[1].iov_len;
+
+	msg.msg_name = &call->peer->srx.transport;
+	msg.msg_namelen = call->peer->srx.transport_len;
 	msg.msg_control = NULL;
 	msg.msg_controllen = 0;
 	msg.msg_flags = 0;
@@ -234,26 +257,33 @@ int rxrpc_send_data_packet(struct rxrpc_connection *conn, struct sk_buff *skb)
 		}
 	}
 
+	_proto("Tx DATA %%%u { #%u }", serial, sp->hdr.seq);
+
 	/* send the packet with the don't fragment bit set if we currently
 	 * think it's small enough */
-	if (skb->len - sizeof(struct rxrpc_wire_header) < conn->params.peer->maxdata) {
-		down_read(&conn->params.local->defrag_sem);
-		/* send the packet by UDP
-		 * - returns -EMSGSIZE if UDP would have to fragment the packet
-		 *   to go out of the interface
-		 *   - in which case, we'll have processed the ICMP error
-		 *     message and update the peer record
-		 */
-		ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 1,
-				     iov[0].iov_len);
+	if (iov[1].iov_len >= call->peer->maxdata)
+		goto send_fragmentable;
 
-		up_read(&conn->params.local->defrag_sem);
-		if (ret == -EMSGSIZE)
-			goto send_fragmentable;
+	down_read(&conn->params.local->defrag_sem);
+	/* send the packet by UDP
+	 * - returns -EMSGSIZE if UDP would have to fragment the packet
+	 *   to go out of the interface
+	 *   - in which case, we'll have processed the ICMP error
+	 *     message and update the peer record
+	 */
+	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 2, len);
 
-		_leave(" = %d [%u]", ret, conn->params.peer->maxdata);
-		return ret;
+	up_read(&conn->params.local->defrag_sem);
+	if (ret == -EMSGSIZE)
+		goto send_fragmentable;
+
+done:
+	if (ret == 0) {
+		sp->resend_at = jiffies + rxrpc_resend_timeout;
+		sp->hdr.serial = serial;
 	}
+	_leave(" = %d [%u]", ret, call->peer->maxdata);
+	return ret;
 
 send_fragmentable:
 	/* attempt to send this message with fragmentation enabled */
@@ -268,8 +298,8 @@ send_fragmentable:
 					SOL_IP, IP_MTU_DISCOVER,
 					(char *)&opt, sizeof(opt));
 		if (ret == 0) {
-			ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 1,
-					     iov[0].iov_len);
+			ret = kernel_sendmsg(conn->params.local->socket, &msg,
+					     iov, 2, len);
 
 			opt = IP_PMTUDISC_DO;
 			kernel_setsockopt(conn->params.local->socket, SOL_IP,
@@ -298,8 +328,7 @@ send_fragmentable:
 	}
 
 	up_write(&conn->params.local->defrag_sem);
-	_leave(" = %d [frag %u]", ret, conn->params.peer->maxdata);
-	return ret;
+	goto done;
 }
 
 /*

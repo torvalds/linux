@@ -385,10 +385,9 @@ struct rxrpc_connection {
 	int			debug_id;	/* debug ID for printks */
 	atomic_t		serial;		/* packet serial number counter */
 	unsigned int		hi_serial;	/* highest serial number received */
-	u8			size_align;	/* data size alignment (for security) */
-	u8			header_size;	/* rxrpc + security header size */
-	u8			security_size;	/* security header size */
 	u32			security_nonce;	/* response re-use preventer */
+	u8			size_align;	/* data size alignment (for security) */
+	u8			security_size;	/* security header size */
 	u8			security_ix;	/* security type */
 	u8			out_clientflag;	/* RXRPC_CLIENT_INITIATED if we are client */
 };
@@ -946,7 +945,7 @@ extern const s8 rxrpc_ack_priority[];
  * output.c
  */
 int rxrpc_send_call_packet(struct rxrpc_call *, u8);
-int rxrpc_send_data_packet(struct rxrpc_connection *, struct sk_buff *);
+int rxrpc_send_data_packet(struct rxrpc_call *, struct sk_buff *);
 void rxrpc_reject_packets(struct rxrpc_local *);
 
 /*
