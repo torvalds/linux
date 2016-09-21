@@ -1826,11 +1826,19 @@ static void pq_init(int node, int pnode)
 
 	first = ops.bau_gpa_to_offset(uv_gpa(pqp));
 	last = ops.bau_gpa_to_offset(uv_gpa(pqp + (DEST_Q_SIZE - 1)));
-	tail = first;
-	gnode = uv_gpa_to_gnode(uv_gpa(pqp));
-	first = (gnode << UV_PAYLOADQ_GNODE_SHIFT) | tail;
 
-	write_mmr_payload_tail(pnode, tail);
+	/*
+	 * Pre UV4, the gnode is required to locate the payload queue
+	 * and the payload queue tail must be maintained by the kernel.
+	 */
+	bcp = &per_cpu(bau_control, smp_processor_id());
+	if (bcp->uvhub_version <= 3) {
+		tail = first;
+		gnode = uv_gpa_to_gnode(uv_gpa(pqp));
+		first = (gnode << UV_PAYLOADQ_GNODE_SHIFT) | tail;
+		write_mmr_payload_tail(pnode, tail);
+	}
+
 	ops.write_payload_first(pnode, first);
 	ops.write_payload_last(pnode, last);
 	ops.write_g_sw_ack(pnode, 0xffffUL);
