@@ -1769,7 +1769,6 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 	if (err)
 		goto fail_core;
 
-	err = -ENODEV;
 	for (i = 1; i <= core->board.num_frontends; i++) {
 		struct vb2_queue *q;
 
@@ -1777,6 +1776,7 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 		if (fe == NULL) {
 			printk(KERN_ERR "%s() failed to get frontend(%d)\n",
 					__func__, i);
+			err = -ENODEV;
 			goto fail_probe;
 		}
 		q = &fe->dvb.dvbq;
