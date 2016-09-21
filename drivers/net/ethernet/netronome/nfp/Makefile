@@ -3,6 +3,7 @@ obj-$(CONFIG_NFP_NETVF)	+= nfp_netvf.o
 nfp_netvf-objs := \
 	    nfp_net_common.o \
 	    nfp_net_ethtool.o \
+	    nfp_net_offload.o \
 	    nfp_netvf_main.o
 
 ifeq ($(CONFIG_BPF_SYSCALL),y)

@@ -220,7 +220,7 @@ struct nfp_net_tx_ring {
 #define PCIE_DESC_RX_I_TCP_CSUM_OK	cpu_to_le16(BIT(11))
 #define PCIE_DESC_RX_I_UDP_CSUM		cpu_to_le16(BIT(10))
 #define PCIE_DESC_RX_I_UDP_CSUM_OK	cpu_to_le16(BIT(9))
-#define PCIE_DESC_RX_SPARE		cpu_to_le16(BIT(8))
+#define PCIE_DESC_RX_BPF		cpu_to_le16(BIT(8))
 #define PCIE_DESC_RX_EOP		cpu_to_le16(BIT(7))
 #define PCIE_DESC_RX_IP4_CSUM		cpu_to_le16(BIT(6))
 #define PCIE_DESC_RX_IP4_CSUM_OK	cpu_to_le16(BIT(5))
@@ -413,6 +413,7 @@ static inline bool nfp_net_fw_ver_eq(struct nfp_net_fw_version *fw_ver,
  * @is_vf:              Is the driver attached to a VF?
  * @is_nfp3200:         Is the driver for a NFP-3200 card?
  * @fw_loaded:          Is the firmware loaded?
+ * @bpf_offload_skip_sw:  Offloaded BPF program will not be rerun by cls_bpf
  * @ctrl:               Local copy of the control register/word.
  * @fl_bufsz:           Currently configured size of the freelist buffers
  * @rx_offset:		Offset in the RX buffers where packet data starts
@@ -473,6 +474,7 @@ struct nfp_net {
 	unsigned is_vf:1;
 	unsigned is_nfp3200:1;
 	unsigned fw_loaded:1;
+	unsigned bpf_offload_skip_sw:1;
 
 	u32 ctrl;
 	u32 fl_bufsz;
@@ -561,12 +563,28 @@ struct nfp_net {
 /* Functions to read/write from/to a BAR
  * Performs any endian conversion necessary.
  */
+static inline u16 nn_readb(struct nfp_net *nn, int off)
+{
+	return readb(nn->ctrl_bar + off);
+}
+
 static inline void nn_writeb(struct nfp_net *nn, int off, u8 val)
 {
 	writeb(val, nn->ctrl_bar + off);
 }
 
-/* NFP-3200 can't handle 16-bit accesses too well - hence no readw/writew */
+/* NFP-3200 can't handle 16-bit accesses too well */
+static inline u16 nn_readw(struct nfp_net *nn, int off)
+{
+	WARN_ON_ONCE(nn->is_nfp3200);
+	return readw(nn->ctrl_bar + off);
+}
+
+static inline void nn_writew(struct nfp_net *nn, int off, u16 val)
+{
+	WARN_ON_ONCE(nn->is_nfp3200);
+	writew(val, nn->ctrl_bar + off);
+}
 
 static inline u32 nn_readl(struct nfp_net *nn, int off)
 {
@@ -756,5 +774,9 @@ static inline void nfp_net_debugfs_adapter_del(struct nfp_net *nn)
 {
 }
 #endif /* CONFIG_NFP_NET_DEBUG */
+
+int
+nfp_net_bpf_offload(struct nfp_net *nn, u32 handle, __be16 proto,
+		    struct tc_cls_bpf_offload *cls_bpf);
 
 #endif /* _NFP_NET_H_ */

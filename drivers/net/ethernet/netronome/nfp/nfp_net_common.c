@@ -60,6 +60,7 @@
 
 #include <linux/ktime.h>
 
+#include <net/pkt_cls.h>
 #include <net/vxlan.h>
 
 #include "nfp_net_ctrl.h"
@@ -2382,6 +2383,31 @@ static struct rtnl_link_stats64 *nfp_net_stat64(struct net_device *netdev,
 	return stats;
 }
 
+static bool nfp_net_ebpf_capable(struct nfp_net *nn)
+{
+	if (nn->cap & NFP_NET_CFG_CTRL_BPF &&
+	    nn_readb(nn, NFP_NET_CFG_BPF_ABI) == NFP_NET_BPF_ABI)
+		return true;
+	return false;
+}
+
+static int
+nfp_net_setup_tc(struct net_device *netdev, u32 handle, __be16 proto,
+		 struct tc_to_netdev *tc)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+
+	if (TC_H_MAJ(handle) != TC_H_MAJ(TC_H_INGRESS))
+		return -ENOTSUPP;
+	if (proto != htons(ETH_P_ALL))
+		return -ENOTSUPP;
+
+	if (tc->type == TC_SETUP_CLSBPF && nfp_net_ebpf_capable(nn))
+		return nfp_net_bpf_offload(nn, handle, proto, tc->cls_bpf);
+
+	return -EINVAL;
+}
+
 static int nfp_net_set_features(struct net_device *netdev,
 				netdev_features_t features)
 {
@@ -2434,6 +2460,11 @@ static int nfp_net_set_features(struct net_device *netdev,
 			new_ctrl |= NFP_NET_CFG_CTRL_GATHER;
 		else
 			new_ctrl &= ~NFP_NET_CFG_CTRL_GATHER;
+	}
+
+	if (changed & NETIF_F_HW_TC && nn->ctrl & NFP_NET_CFG_CTRL_BPF) {
+		nn_err(nn, "Cannot disable HW TC offload while in use\n");
+		return -EBUSY;
 	}
 
 	nn_dbg(nn, "Feature change 0x%llx -> 0x%llx (changed=0x%llx)\n",
@@ -2585,6 +2616,7 @@ static const struct net_device_ops nfp_net_netdev_ops = {
 	.ndo_stop		= nfp_net_netdev_close,
 	.ndo_start_xmit		= nfp_net_tx,
 	.ndo_get_stats64	= nfp_net_stat64,
+	.ndo_setup_tc		= nfp_net_setup_tc,
 	.ndo_tx_timeout		= nfp_net_tx_timeout,
 	.ndo_set_rx_mode	= nfp_net_set_rx_mode,
 	.ndo_change_mtu		= nfp_net_change_mtu,
@@ -2610,7 +2642,7 @@ void nfp_net_info(struct nfp_net *nn)
 		nn->fw_ver.resv, nn->fw_ver.class,
 		nn->fw_ver.major, nn->fw_ver.minor,
 		nn->max_mtu);
-	nn_info(nn, "CAP: %#x %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+	nn_info(nn, "CAP: %#x %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		nn->cap,
 		nn->cap & NFP_NET_CFG_CTRL_PROMISC  ? "PROMISC "  : "",
 		nn->cap & NFP_NET_CFG_CTRL_L2BC     ? "L2BCFILT " : "",
@@ -2627,7 +2659,8 @@ void nfp_net_info(struct nfp_net *nn)
 		nn->cap & NFP_NET_CFG_CTRL_MSIXAUTO ? "AUTOMASK " : "",
 		nn->cap & NFP_NET_CFG_CTRL_IRQMOD   ? "IRQMOD "   : "",
 		nn->cap & NFP_NET_CFG_CTRL_VXLAN    ? "VXLAN "    : "",
-		nn->cap & NFP_NET_CFG_CTRL_NVGRE    ? "NVGRE "	  : "");
+		nn->cap & NFP_NET_CFG_CTRL_NVGRE    ? "NVGRE "	  : "",
+		nfp_net_ebpf_capable(nn)            ? "BPF "	  : "");
 }
 
 /**
@@ -2794,6 +2827,9 @@ int nfp_net_netdev_init(struct net_device *netdev)
 	}
 
 	netdev->features = netdev->hw_features;
+
+	if (nfp_net_ebpf_capable(nn))
+		netdev->hw_features |= NETIF_F_HW_TC;
 
 	/* Advertise but disable TSO by default. */
 	netdev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
