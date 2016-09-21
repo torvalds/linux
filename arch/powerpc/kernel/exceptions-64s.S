@@ -772,8 +772,24 @@ EXC_COMMON_ASYNC(hardware_interrupt_common, 0x500, do_IRQ)
 
 
 EXC_REAL(alignment, 0x600, 0x700)
-
+EXC_VIRT(alignment, 0x4600, 0x4700, 0x600)
 TRAMP_KVM(PACA_EXGEN, 0x600)
+EXC_COMMON_BEGIN(alignment_common)
+	mfspr	r10,SPRN_DAR
+	std	r10,PACA_EXGEN+EX_DAR(r13)
+	mfspr	r10,SPRN_DSISR
+	stw	r10,PACA_EXGEN+EX_DSISR(r13)
+	EXCEPTION_PROLOG_COMMON(0x600, PACA_EXGEN)
+	ld	r3,PACA_EXGEN+EX_DAR(r13)
+	lwz	r4,PACA_EXGEN+EX_DSISR(r13)
+	std	r3,_DAR(r1)
+	std	r4,_DSISR(r1)
+	bl	save_nvgprs
+	RECONCILE_IRQ_STATE(r10, r11)
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	alignment_exception
+	b	ret_from_except
+
 
 EXC_REAL(program_check, 0x700, 0x800)
 
@@ -1181,7 +1197,6 @@ EXC_COMMON(altivec_assist_common, 0x1700, unknown_exception)
 	 * come here.
 	 */
 
-EXC_VIRT(alignment, 0x4600, 0x4700, 0x600)
 EXC_VIRT(program_check, 0x4700, 0x4800, 0x700)
 EXC_VIRT(fp_unavailable, 0x4800, 0x4900, 0x800)
 EXC_VIRT_MASKABLE(decrementer, 0x4900, 0x4980, 0x900)
@@ -1265,22 +1280,6 @@ EXC_COMMON_BEGIN(h_data_storage_common)
 
 
 EXC_COMMON(h_instr_storage_common, 0xe20, unknown_exception)
-
-EXC_COMMON_BEGIN(alignment_common)
-	mfspr	r10,SPRN_DAR
-	std	r10,PACA_EXGEN+EX_DAR(r13)
-	mfspr	r10,SPRN_DSISR
-	stw	r10,PACA_EXGEN+EX_DSISR(r13)
-	EXCEPTION_PROLOG_COMMON(0x600, PACA_EXGEN)
-	ld	r3,PACA_EXGEN+EX_DAR(r13)
-	lwz	r4,PACA_EXGEN+EX_DSISR(r13)
-	std	r3,_DAR(r1)
-	std	r4,_DSISR(r1)
-	bl	save_nvgprs
-	RECONCILE_IRQ_STATE(r10, r11)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	alignment_exception
-	b	ret_from_except
 
 EXC_COMMON_BEGIN(program_check_common)
 	EXCEPTION_PROLOG_COMMON(0x700, PACA_EXGEN)
