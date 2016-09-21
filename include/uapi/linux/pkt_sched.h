@@ -792,6 +792,8 @@ enum {
 
 	TCA_FQ_ORPHAN_MASK,	/* mask applied to orphaned skb hashes */
 
+	TCA_FQ_LOW_RATE_THRESHOLD, /* per packet delay under this rate */
+
 	__TCA_FQ_MAX
 };
 

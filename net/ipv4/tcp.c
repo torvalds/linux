@@ -387,7 +387,7 @@ void tcp_init_sock(struct sock *sk)
 
 	icsk->icsk_rto = TCP_TIMEOUT_INIT;
 	tp->mdev_us = jiffies_to_usecs(TCP_TIMEOUT_INIT);
-	tp->rtt_min[0].rtt = ~0U;
+	minmax_reset(&tp->rtt_min, tcp_time_stamp, ~0U);
 
 	/* So many TCP implementations out there (incorrectly) count the
 	 * initial SYN frame in their delayed-ACK and congestion control
@@ -395,6 +395,9 @@ void tcp_init_sock(struct sock *sk)
 	 * efficiently to them.  -DaveM
 	 */
 	tp->snd_cwnd = TCP_INIT_CWND;
+
+	/* There's a bubble in the pipe until at least the first ACK. */
+	tp->app_limited = ~0U;
 
 	/* See draft-stevens-tcpca-spec-01 for discussion of the
 	 * initialization of these values.
@@ -1014,6 +1017,9 @@ int tcp_sendpage(struct sock *sk, struct page *page, int offset,
 					flags);
 
 	lock_sock(sk);
+
+	tcp_rate_check_app_limited(sk);  /* is sending application-limited? */
+
 	res = do_tcp_sendpages(sk, page, offset, size, flags);
 	release_sock(sk);
 	return res;
@@ -1114,6 +1120,8 @@ int tcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	}
 
 	timeo = sock_sndtimeo(sk, flags & MSG_DONTWAIT);
+
+	tcp_rate_check_app_limited(sk);  /* is sending application-limited? */
 
 	/* Wait for a connection to finish. One exception is TCP Fast Open
 	 * (passive side) where data is allowed to be sent before a connection
@@ -2704,7 +2712,7 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 {
 	const struct tcp_sock *tp = tcp_sk(sk); /* iff sk_type == SOCK_STREAM */
 	const struct inet_connection_sock *icsk = inet_csk(sk);
-	u32 now = tcp_time_stamp;
+	u32 now = tcp_time_stamp, intv;
 	unsigned int start;
 	int notsent_bytes;
 	u64 rate64;
@@ -2794,6 +2802,15 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	info->tcpi_min_rtt = tcp_min_rtt(tp);
 	info->tcpi_data_segs_in = tp->data_segs_in;
 	info->tcpi_data_segs_out = tp->data_segs_out;
+
+	info->tcpi_delivery_rate_app_limited = tp->rate_app_limited ? 1 : 0;
+	rate = READ_ONCE(tp->rate_delivered);
+	intv = READ_ONCE(tp->rate_interval_us);
+	if (rate && intv) {
+		rate64 = (u64)rate * tp->mss_cache * USEC_PER_SEC;
+		do_div(rate64, intv);
+		put_unaligned(rate64, &info->tcpi_delivery_rate);
+	}
 }
 EXPORT_SYMBOL_GPL(tcp_get_info);
 
@@ -3261,11 +3278,12 @@ static void __init tcp_init_mem(void)
 
 void __init tcp_init(void)
 {
-	unsigned long limit;
 	int max_rshare, max_wshare, cnt;
+	unsigned long limit;
 	unsigned int i;
 
-	sock_skb_cb_check_size(sizeof(struct tcp_skb_cb));
+	BUILD_BUG_ON(sizeof(struct tcp_skb_cb) >
+		     FIELD_SIZEOF(struct sk_buff, cb));
 
 	percpu_counter_init(&tcp_sockets_allocated, 0, GFP_KERNEL);
 	percpu_counter_init(&tcp_orphan_count, 0, GFP_KERNEL);
