@@ -37,6 +37,7 @@
 #include "nfs4trace.h"
 #include "delegation.h"
 #include "nfs42.h"
+#include "nfs4_fs.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PNFS
 #define PNFS_LAYOUTGET_RETRY_TIMEOUT (120*HZ)

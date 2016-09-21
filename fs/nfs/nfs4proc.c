@@ -1064,31 +1064,6 @@ static void update_changeattr(struct inode *dir, struct nfs4_change_info *cinfo,
 	spin_unlock(&dir->i_lock);
 }
 
-struct nfs4_opendata {
-	struct kref kref;
-	struct nfs_openargs o_arg;
-	struct nfs_openres o_res;
-	struct nfs_open_confirmargs c_arg;
-	struct nfs_open_confirmres c_res;
-	struct nfs4_string owner_name;
-	struct nfs4_string group_name;
-	struct nfs4_label *a_label;
-	struct nfs_fattr f_attr;
-	struct nfs4_label *f_label;
-	struct dentry *dir;
-	struct dentry *dentry;
-	struct nfs4_state_owner *owner;
-	struct nfs4_state *state;
-	struct iattr attrs;
-	struct nfs4_layoutget *lgp;
-	unsigned long timestamp;
-	bool rpc_done;
-	bool file_created;
-	bool is_recover;
-	bool cancelled;
-	int rpc_status;
-};
-
 struct nfs4_open_createattrs {
 	struct nfs4_label *label;
 	struct iattr *sattr;
