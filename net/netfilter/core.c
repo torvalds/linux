@@ -22,6 +22,7 @@
 #include <linux/proc_fs.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/rcupdate.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
 
@@ -61,33 +62,50 @@ EXPORT_SYMBOL(nf_hooks_needed);
 #endif
 
 static DEFINE_MUTEX(nf_hook_mutex);
+#define nf_entry_dereference(e) \
+	rcu_dereference_protected(e, lockdep_is_held(&nf_hook_mutex))
 
-static struct list_head *nf_find_hook_list(struct net *net,
-					   const struct nf_hook_ops *reg)
+static struct nf_hook_entry *nf_hook_entry_head(struct net *net,
+						const struct nf_hook_ops *reg)
 {
-	struct list_head *hook_list = NULL;
+	struct nf_hook_entry *hook_head = NULL;
 
 	if (reg->pf != NFPROTO_NETDEV)
-		hook_list = &net->nf.hooks[reg->pf][reg->hooknum];
+		hook_head = nf_entry_dereference(net->nf.hooks[reg->pf]
+						 [reg->hooknum]);
 	else if (reg->hooknum == NF_NETDEV_INGRESS) {
 #ifdef CONFIG_NETFILTER_INGRESS
 		if (reg->dev && dev_net(reg->dev) == net)
-			hook_list = &reg->dev->nf_hooks_ingress;
+			hook_head =
+				nf_entry_dereference(
+					reg->dev->nf_hooks_ingress);
 #endif
 	}
-	return hook_list;
+	return hook_head;
 }
 
-struct nf_hook_entry {
-	const struct nf_hook_ops	*orig_ops;
-	struct nf_hook_ops		ops;
-};
+/* must hold nf_hook_mutex */
+static void nf_set_hooks_head(struct net *net, const struct nf_hook_ops *reg,
+			      struct nf_hook_entry *entry)
+{
+	switch (reg->pf) {
+	case NFPROTO_NETDEV:
+		/* We already checked in nf_register_net_hook() that this is
+		 * used from ingress.
+		 */
+		rcu_assign_pointer(reg->dev->nf_hooks_ingress, entry);
+		break;
+	default:
+		rcu_assign_pointer(net->nf.hooks[reg->pf][reg->hooknum],
+				   entry);
+		break;
+	}
+}
 
 int nf_register_net_hook(struct net *net, const struct nf_hook_ops *reg)
 {
-	struct list_head *hook_list;
+	struct nf_hook_entry *hooks_entry;
 	struct nf_hook_entry *entry;
-	struct nf_hook_ops *elem;
 
 	if (reg->pf == NFPROTO_NETDEV &&
 	    (reg->hooknum != NF_NETDEV_INGRESS ||
@@ -100,19 +118,30 @@ int nf_register_net_hook(struct net *net, const struct nf_hook_ops *reg)
 
 	entry->orig_ops	= reg;
 	entry->ops	= *reg;
-
-	hook_list = nf_find_hook_list(net, reg);
-	if (!hook_list) {
-		kfree(entry);
-		return -ENOENT;
-	}
+	entry->next	= NULL;
 
 	mutex_lock(&nf_hook_mutex);
-	list_for_each_entry(elem, hook_list, list) {
-		if (reg->priority < elem->priority)
-			break;
+	hooks_entry = nf_hook_entry_head(net, reg);
+
+	if (hooks_entry && hooks_entry->orig_ops->priority > reg->priority) {
+		/* This is the case where we need to insert at the head */
+		entry->next = hooks_entry;
+		hooks_entry = NULL;
 	}
-	list_add_rcu(&entry->ops.list, elem->list.prev);
+
+	while (hooks_entry &&
+		reg->priority >= hooks_entry->orig_ops->priority &&
+		nf_entry_dereference(hooks_entry->next)) {
+		hooks_entry = nf_entry_dereference(hooks_entry->next);
+	}
+
+	if (hooks_entry) {
+		entry->next = nf_entry_dereference(hooks_entry->next);
+		rcu_assign_pointer(hooks_entry->next, entry);
+	} else {
+		nf_set_hooks_head(net, reg, entry);
+	}
+
 	mutex_unlock(&nf_hook_mutex);
 #ifdef CONFIG_NETFILTER_INGRESS
 	if (reg->pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_INGRESS)
@@ -127,24 +156,33 @@ EXPORT_SYMBOL(nf_register_net_hook);
 
 void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
 {
-	struct list_head *hook_list;
-	struct nf_hook_entry *entry;
-	struct nf_hook_ops *elem;
-
-	hook_list = nf_find_hook_list(net, reg);
-	if (!hook_list)
-		return;
+	struct nf_hook_entry *hooks_entry;
 
 	mutex_lock(&nf_hook_mutex);
-	list_for_each_entry(elem, hook_list, list) {
-		entry = container_of(elem, struct nf_hook_entry, ops);
-		if (entry->orig_ops == reg) {
-			list_del_rcu(&entry->ops.list);
-			break;
-		}
+	hooks_entry = nf_hook_entry_head(net, reg);
+	if (hooks_entry->orig_ops == reg) {
+		nf_set_hooks_head(net, reg,
+				  nf_entry_dereference(hooks_entry->next));
+		goto unlock;
 	}
+	while (hooks_entry && nf_entry_dereference(hooks_entry->next)) {
+		struct nf_hook_entry *next =
+			nf_entry_dereference(hooks_entry->next);
+		struct nf_hook_entry *nnext;
+
+		if (next->orig_ops != reg) {
+			hooks_entry = next;
+			continue;
+		}
+		nnext = nf_entry_dereference(next->next);
+		rcu_assign_pointer(hooks_entry->next, nnext);
+		hooks_entry = next;
+		break;
+	}
+
+unlock:
 	mutex_unlock(&nf_hook_mutex);
-	if (&elem->list == hook_list) {
+	if (!hooks_entry) {
 		WARN(1, "nf_unregister_net_hook: hook not found!\n");
 		return;
 	}
@@ -156,10 +194,10 @@ void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
 	static_key_slow_dec(&nf_hooks_needed[reg->pf][reg->hooknum]);
 #endif
 	synchronize_net();
-	nf_queue_nf_hook_drop(net, &entry->ops);
+	nf_queue_nf_hook_drop(net, hooks_entry);
 	/* other cpu might still process nfqueue verdict that used reg */
 	synchronize_net();
-	kfree(entry);
+	kfree(hooks_entry);
 }
 EXPORT_SYMBOL(nf_unregister_net_hook);
 
@@ -258,10 +296,9 @@ void nf_unregister_hooks(struct nf_hook_ops *reg, unsigned int n)
 }
 EXPORT_SYMBOL(nf_unregister_hooks);
 
-unsigned int nf_iterate(struct list_head *head,
-			struct sk_buff *skb,
+unsigned int nf_iterate(struct sk_buff *skb,
 			struct nf_hook_state *state,
-			struct nf_hook_ops **elemp)
+			struct nf_hook_entry **entryp)
 {
 	unsigned int verdict;
 
@@ -269,20 +306,23 @@ unsigned int nf_iterate(struct list_head *head,
 	 * The caller must not block between calls to this
 	 * function because of risk of continuing from deleted element.
 	 */
-	list_for_each_entry_continue_rcu((*elemp), head, list) {
-		if (state->thresh > (*elemp)->priority)
+	while (*entryp) {
+		if (state->thresh > (*entryp)->ops.priority) {
+			*entryp = rcu_dereference((*entryp)->next);
 			continue;
+		}
 
 		/* Optimization: we don't need to hold module
 		   reference here, since function can't sleep. --RR */
 repeat:
-		verdict = (*elemp)->hook((*elemp)->priv, skb, state);
+		verdict = (*entryp)->ops.hook((*entryp)->ops.priv, skb, state);
 		if (verdict != NF_ACCEPT) {
 #ifdef CONFIG_NETFILTER_DEBUG
 			if (unlikely((verdict & NF_VERDICT_MASK)
 							> NF_MAX_VERDICT)) {
 				NFDEBUG("Evil return from %p(%u).\n",
-					(*elemp)->hook, state->hook);
+					(*entryp)->ops.hook, state->hook);
+				*entryp = rcu_dereference((*entryp)->next);
 				continue;
 			}
 #endif
@@ -290,6 +330,7 @@ repeat:
 				return verdict;
 			goto repeat;
 		}
+		*entryp = rcu_dereference((*entryp)->next);
 	}
 	return NF_ACCEPT;
 }
@@ -299,13 +340,13 @@ repeat:
  * -EPERM for NF_DROP, 0 otherwise.  Caller must hold rcu_read_lock. */
 int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state)
 {
-	struct nf_hook_ops *elem;
+	struct nf_hook_entry *entry;
 	unsigned int verdict;
 	int ret = 0;
 
-	elem = list_entry_rcu(state->hook_list, struct nf_hook_ops, list);
+	entry = rcu_dereference(state->hook_entries);
 next_hook:
-	verdict = nf_iterate(state->hook_list, skb, state, &elem);
+	verdict = nf_iterate(skb, state, &entry);
 	if (verdict == NF_ACCEPT || verdict == NF_STOP) {
 		ret = 1;
 	} else if ((verdict & NF_VERDICT_MASK) == NF_DROP) {
@@ -314,8 +355,10 @@ next_hook:
 		if (ret == 0)
 			ret = -EPERM;
 	} else if ((verdict & NF_VERDICT_MASK) == NF_QUEUE) {
-		int err = nf_queue(skb, elem, state,
-				   verdict >> NF_VERDICT_QBITS);
+		int err;
+
+		RCU_INIT_POINTER(state->hook_entries, entry);
+		err = nf_queue(skb, state, verdict >> NF_VERDICT_QBITS);
 		if (err < 0) {
 			if (err == -ESRCH &&
 			   (verdict & NF_VERDICT_FLAG_QUEUE_BYPASS))
@@ -442,7 +485,7 @@ static int __net_init netfilter_net_init(struct net *net)
 
 	for (i = 0; i < ARRAY_SIZE(net->nf.hooks); i++) {
 		for (h = 0; h < NF_MAX_HOOKS; h++)
-			INIT_LIST_HEAD(&net->nf.hooks[i][h]);
+			RCU_INIT_POINTER(net->nf.hooks[i][h], NULL);
 	}
 
 #ifdef CONFIG_PROC_FS

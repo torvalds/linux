@@ -1002,28 +1002,21 @@ int br_nf_hook_thresh(unsigned int hook, struct net *net,
 		      int (*okfn)(struct net *, struct sock *,
 				  struct sk_buff *))
 {
-	struct nf_hook_ops *elem;
+	struct nf_hook_entry *elem;
 	struct nf_hook_state state;
-	struct list_head *head;
 	int ret;
 
-	head = &net->nf.hooks[NFPROTO_BRIDGE][hook];
+	elem = rcu_dereference(net->nf.hooks[NFPROTO_BRIDGE][hook]);
 
-	list_for_each_entry_rcu(elem, head, list) {
-		struct nf_hook_ops *next;
+	while (elem && (elem->ops.priority <= NF_BR_PRI_BRNF))
+		elem = rcu_dereference(elem->next);
 
-		next = list_entry_rcu(list_next_rcu(&elem->list),
-				      struct nf_hook_ops, list);
-		if (next->priority <= NF_BR_PRI_BRNF)
-			continue;
-	}
-
-	if (&elem->list == head)
+	if (!elem)
 		return okfn(net, sk, skb);
 
 	/* We may already have this, but read-locks nest anyway */
 	rcu_read_lock();
-	nf_hook_state_init(&state, head, hook, NF_BR_PRI_BRNF + 1,
+	nf_hook_state_init(&state, elem, hook, NF_BR_PRI_BRNF + 1,
 			   NFPROTO_BRIDGE, indev, outdev, sk, net, okfn);
 
 	ret = nf_hook_slow(skb, &state);
