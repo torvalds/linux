@@ -691,6 +691,7 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 		case 0x04000008: /* rdo */
 		case 0x04000009: /* vui */
 		case 0x05000002: /* auxiliary buffer */
+		case 0x05000009: /* clock table */
 			break;
 
 		case 0x03000001: /* encode */
