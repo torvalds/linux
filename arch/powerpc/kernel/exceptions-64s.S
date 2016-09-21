@@ -1317,43 +1317,6 @@ USE_FIXED_SECTION(virt_trampolines)
 	MASKED_INTERRUPT()
 	MASKED_INTERRUPT(H)
 
-/*
- * Called from arch_local_irq_enable when an interrupt needs
- * to be resent. r3 contains 0x500, 0x900, 0xa00 or 0xe80 to indicate
- * which kind of interrupt. MSR:EE is already off. We generate a
- * stackframe like if a real interrupt had happened.
- *
- * Note: While MSR:EE is off, we need to make sure that _MSR
- * in the generated frame has EE set to 1 or the exception
- * handler will not properly re-enable them.
- */
-USE_TEXT_SECTION()
-_GLOBAL(__replay_interrupt)
-	/* We are going to jump to the exception common code which
-	 * will retrieve various register values from the PACA which
-	 * we don't give a damn about, so we don't bother storing them.
-	 */
-	mfmsr	r12
-	mflr	r11
-	mfcr	r9
-	ori	r12,r12,MSR_EE
-	cmpwi	r3,0x900
-	beq	decrementer_common
-	cmpwi	r3,0x500
-	beq	hardware_interrupt_common
-BEGIN_FTR_SECTION
-	cmpwi	r3,0xe80
-	beq	h_doorbell_common
-	cmpwi	r3,0xea0
-	beq	h_virt_irq_common
-	cmpwi	r3,0xe60
-	beq	hmi_exception_common
-FTR_SECTION_ELSE
-	cmpwi	r3,0xa00
-	beq	doorbell_super_common
-ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE)
-	blr
-
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
 TRAMP_REAL_BEGIN(kvmppc_skip_interrupt)
 	/*
@@ -1409,7 +1372,6 @@ TRAMP_REAL_BEGIN(kvmppc_skip_Hinterrupt)
 EXC_COMMON_BEGIN(ppc64_runlatch_on_trampoline)
 	b	__ppc64_runlatch_on
 
-	/* Equivalents to the above handlers for relocation-on interrupt vectors */
 USE_FIXED_SECTION(virt_trampolines)
 	/*
 	 * The __end_interrupts marker must be past the out-of-line (OOL)
@@ -1584,3 +1546,39 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 1:	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	kernel_bad_stack
 	b	1b
+
+/*
+ * Called from arch_local_irq_enable when an interrupt needs
+ * to be resent. r3 contains 0x500, 0x900, 0xa00 or 0xe80 to indicate
+ * which kind of interrupt. MSR:EE is already off. We generate a
+ * stackframe like if a real interrupt had happened.
+ *
+ * Note: While MSR:EE is off, we need to make sure that _MSR
+ * in the generated frame has EE set to 1 or the exception
+ * handler will not properly re-enable them.
+ */
+_GLOBAL(__replay_interrupt)
+	/* We are going to jump to the exception common code which
+	 * will retrieve various register values from the PACA which
+	 * we don't give a damn about, so we don't bother storing them.
+	 */
+	mfmsr	r12
+	mflr	r11
+	mfcr	r9
+	ori	r12,r12,MSR_EE
+	cmpwi	r3,0x900
+	beq	decrementer_common
+	cmpwi	r3,0x500
+	beq	hardware_interrupt_common
+BEGIN_FTR_SECTION
+	cmpwi	r3,0xe80
+	beq	h_doorbell_common
+	cmpwi	r3,0xea0
+	beq	h_virt_irq_common
+	cmpwi	r3,0xe60
+	beq	hmi_exception_common
+FTR_SECTION_ELSE
+	cmpwi	r3,0xa00
+	beq	doorbell_super_common
+ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE)
+	blr
