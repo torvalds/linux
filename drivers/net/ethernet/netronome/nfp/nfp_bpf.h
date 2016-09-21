@@ -60,6 +60,7 @@ enum static_regs {
 
 enum nfp_bpf_action_type {
 	NN_ACT_TC_DROP,
+	NN_ACT_TC_REDIR,
 };
 
 /* Software register representation, hardware encoding in asm.h */

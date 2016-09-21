@@ -1440,6 +1440,7 @@ static void nfp_outro_tc_legacy(struct nfp_prog *nfp_prog)
 {
 	const u8 act2code[] = {
 		[NN_ACT_TC_DROP]  = 0x22,
+		[NN_ACT_TC_REDIR] = 0x24
 	};
 	/* Target for aborts */
 	nfp_prog->tgt_abort = nfp_prog_current_offset(nfp_prog);
@@ -1468,6 +1469,7 @@ static void nfp_outro(struct nfp_prog *nfp_prog)
 {
 	switch (nfp_prog->act) {
 	case NN_ACT_TC_DROP:
+	case NN_ACT_TC_REDIR:
 		nfp_outro_tc_legacy(nfp_prog);
 		break;
 	}
