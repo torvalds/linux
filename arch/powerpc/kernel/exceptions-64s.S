@@ -758,6 +758,19 @@ do_kvm_0x500:
 	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
 EXC_REAL_END(hardware_interrupt, 0x500, 0x600)
 
+EXC_VIRT_BEGIN(hardware_interrupt, 0x4500, 0x4600)
+	.globl hardware_interrupt_relon_hv;
+hardware_interrupt_relon_hv:
+	BEGIN_FTR_SECTION
+		_MASKABLE_RELON_EXCEPTION_PSERIES(0x500, hardware_interrupt_common, EXC_HV, SOFTEN_TEST_HV)
+	FTR_SECTION_ELSE
+		_MASKABLE_RELON_EXCEPTION_PSERIES(0x500, hardware_interrupt_common, EXC_STD, SOFTEN_TEST_PR)
+	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE)
+EXC_VIRT_END(hardware_interrupt, 0x4500, 0x4600)
+
+EXC_COMMON_ASYNC(hardware_interrupt_common, 0x500, do_IRQ)
+
+
 EXC_REAL(alignment, 0x600, 0x700)
 
 TRAMP_KVM(PACA_EXGEN, 0x600)
@@ -1124,7 +1137,6 @@ TRAMP_REAL_BEGIN(kvmppc_skip_Hinterrupt)
 
 /*** Common interrupt handlers ***/
 
-EXC_COMMON_ASYNC(hardware_interrupt_common, 0x500, do_IRQ)
 EXC_COMMON_ASYNC(decrementer_common, 0x900, timer_interrupt)
 EXC_COMMON(hdecrementer_common, 0x980, hdec_interrupt)
 
@@ -1168,16 +1180,6 @@ EXC_COMMON(altivec_assist_common, 0x1700, unknown_exception)
 	 * only has extra guff for STAB-based processors -- which never
 	 * come here.
 	 */
-
-EXC_VIRT_BEGIN(hardware_interrupt, 0x4500, 0x4600)
-	.globl hardware_interrupt_relon_hv;
-hardware_interrupt_relon_hv:
-	BEGIN_FTR_SECTION
-		_MASKABLE_RELON_EXCEPTION_PSERIES(0x500, hardware_interrupt_common, EXC_HV, SOFTEN_TEST_HV)
-	FTR_SECTION_ELSE
-		_MASKABLE_RELON_EXCEPTION_PSERIES(0x500, hardware_interrupt_common, EXC_STD, SOFTEN_TEST_PR)
-	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE)
-EXC_VIRT_END(hardware_interrupt, 0x4500, 0x4600)
 
 EXC_VIRT(alignment, 0x4600, 0x4700, 0x600)
 EXC_VIRT(program_check, 0x4700, 0x4800, 0x700)
