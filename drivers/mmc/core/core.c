@@ -2576,7 +2576,8 @@ int mmc_set_blocklen(struct mmc_card *card, unsigned int blocklen)
 {
 	struct mmc_command cmd = {0};
 
-	if (mmc_card_blockaddr(card) || mmc_card_ddr52(card))
+	if (mmc_card_blockaddr(card) || mmc_card_ddr52(card) ||
+	    mmc_card_hs400(card) || mmc_card_hs400es(card))
 		return 0;
 
 	cmd.opcode = MMC_SET_BLOCKLEN;
