@@ -411,6 +411,16 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		return copy_to_user(out, &vram_gtt,
 				    min((size_t)size, sizeof(vram_gtt))) ? -EFAULT : 0;
 	}
+	case AMDGPU_INFO_VRAM_GTT_TOTAL: {
+		struct drm_amdgpu_info_vram_gtt_total vram_gtt_total;
+
+		vram_gtt_total.vram_total_size = adev->mc.real_vram_size;
+		vram_gtt_total.vram_cpu_accessible_total_size = adev->mc.visible_vram_size;
+		vram_gtt_total.gtt_total_size = adev->mc.gtt_size;
+		return copy_to_user(out, &vram_gtt_total,
+				    min((size_t)size, sizeof(vram_gtt_total)))
+				    ? -EFAULT : 0;
+	}
 	case AMDGPU_INFO_READ_MMR_REG: {
 		unsigned n, alloc_size;
 		uint32_t *regs;

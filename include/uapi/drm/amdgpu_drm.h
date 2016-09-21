@@ -487,6 +487,8 @@ struct drm_amdgpu_cs_chunk_data {
 #define AMDGPU_INFO_VIS_VRAM_USAGE		0x17
 /* number of TTM buffer evictions */
 #define AMDGPU_INFO_NUM_EVICTIONS		0x18
+/* Query the total size of VRAM and GTT domains */
+#define AMDGPU_INFO_VRAM_GTT_TOTAL		0x19
 
 #define AMDGPU_INFO_MMR_SE_INDEX_SHIFT	0
 #define AMDGPU_INFO_MMR_SE_INDEX_MASK	0xff
@@ -570,6 +572,12 @@ struct drm_amdgpu_info_vram_gtt {
 	__u64 vram_size;
 	__u64 vram_cpu_accessible_size;
 	__u64 gtt_size;
+};
+
+struct drm_amdgpu_info_vram_gtt_total {
+	__u64 vram_total_size;
+	__u64 vram_cpu_accessible_total_size;
+	__u64 gtt_total_size;
 };
 
 struct drm_amdgpu_info_firmware {
