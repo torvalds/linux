@@ -44,9 +44,12 @@ static void rxrpc_send_ping(struct rxrpc_call *call, struct sk_buff *skb,
 			    int skew)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+	ktime_t now = skb->tstamp;
 
-	rxrpc_propose_ACK(call, RXRPC_ACK_PING, skew, sp->hdr.serial,
-			  true, true);
+	if (call->peer->rtt_usage < 3 ||
+	    ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000), now))
+		rxrpc_propose_ACK(call, RXRPC_ACK_PING, skew, sp->hdr.serial,
+				  true, true);
 }
 
 /*

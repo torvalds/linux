@@ -142,7 +142,7 @@ static void rxrpc_resend(struct rxrpc_call *call)
 	struct rxrpc_skb_priv *sp;
 	struct sk_buff *skb;
 	rxrpc_seq_t cursor, seq, top;
-	ktime_t now = ktime_get_real(), max_age, oldest, resend_at;
+	ktime_t now = ktime_get_real(), max_age, oldest,  resend_at;
 	int ix;
 	u8 annotation, anno_type;
 
