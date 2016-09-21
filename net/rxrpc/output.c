@@ -57,6 +57,9 @@ static size_t rxrpc_fill_out_ack(struct rxrpc_call *call,
 	pkt->ack.reason		= call->ackr_reason;
 	pkt->ack.nAcks		= top - hard_ack;
 
+	if (pkt->ack.reason == RXRPC_ACK_PING)
+		pkt->whdr.flags |= RXRPC_REQUEST_ACK;
+
 	if (after(top, hard_ack)) {
 		seq = hard_ack + 1;
 		do {
@@ -97,6 +100,7 @@ int rxrpc_send_call_packet(struct rxrpc_call *call, u8 type)
 	struct kvec iov[2];
 	rxrpc_serial_t serial;
 	size_t len, n;
+	bool ping = false;
 	int ioc, ret;
 	u32 abort_code;
 
@@ -147,6 +151,7 @@ int rxrpc_send_call_packet(struct rxrpc_call *call, u8 type)
 			ret = 0;
 			goto out;
 		}
+		ping = (call->ackr_reason == RXRPC_ACK_PING);
 		n = rxrpc_fill_out_ack(call, pkt);
 		call->ackr_reason = 0;
 
@@ -183,12 +188,29 @@ int rxrpc_send_call_packet(struct rxrpc_call *call, u8 type)
 		goto out;
 	}
 
+	if (ping) {
+		call->ackr_ping = serial;
+		smp_wmb();
+		/* We need to stick a time in before we send the packet in case
+		 * the reply gets back before kernel_sendmsg() completes - but
+		 * asking UDP to send the packet can take a relatively long
+		 * time, so we update the time after, on the assumption that
+		 * the packet transmission is more likely to happen towards the
+		 * end of the kernel_sendmsg() call.
+		 */
+		call->ackr_ping_time = ktime_get_real();
+		set_bit(RXRPC_CALL_PINGING, &call->flags);
+		trace_rxrpc_rtt_tx(call, rxrpc_rtt_tx_ping, serial);
+	}
 	ret = kernel_sendmsg(conn->params.local->socket,
 			     &msg, iov, ioc, len);
+	if (ping)
+		call->ackr_ping_time = ktime_get_real();
 
 	if (ret < 0 && call->state < RXRPC_CALL_COMPLETE) {
 		switch (type) {
 		case RXRPC_PACKET_TYPE_ACK:
+			clear_bit(RXRPC_CALL_PINGING, &call->flags);
 			rxrpc_propose_ACK(call, pkt->ack.reason,
 					  ntohs(pkt->ack.maxSkew),
 					  ntohl(pkt->ack.serial),
