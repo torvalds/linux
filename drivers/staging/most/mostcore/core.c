@@ -83,10 +83,13 @@ struct most_inst_obj {
 static const struct {
 	int most_ch_data_type;
 	char *name;
-} ch_data_type[] = { { MOST_CH_CONTROL, "control\n" },
+} ch_data_type[] = {
+	{ MOST_CH_CONTROL, "control\n" },
 	{ MOST_CH_ASYNC, "async\n" },
 	{ MOST_CH_SYNC, "sync\n" },
-	{ MOST_CH_ISOC_AVP, "isoc_avp\n"} };
+	{ MOST_CH_ISOC_AVP, "isoc\n"},
+	{ MOST_CH_ISOC_AVP, "isoc_avp\n"},
+};
 
 #define to_inst_obj(d) container_of(d, struct most_inst_obj, kobj)
 
@@ -261,9 +264,9 @@ static ssize_t show_available_directions(struct most_c_obj *c,
 
 	strcpy(buf, "");
 	if (c->iface->channel_vector[i].direction & MOST_CH_RX)
-		strcat(buf, "dir_rx ");
+		strcat(buf, "rx ");
 	if (c->iface->channel_vector[i].direction & MOST_CH_TX)
-		strcat(buf, "dir_tx ");
+		strcat(buf, "tx ");
 	strcat(buf, "\n");
 	return strlen(buf);
 }
@@ -282,7 +285,7 @@ static ssize_t show_available_datatypes(struct most_c_obj *c,
 	if (c->iface->channel_vector[i].data_type & MOST_CH_SYNC)
 		strcat(buf, "sync ");
 	if (c->iface->channel_vector[i].data_type & MOST_CH_ISOC_AVP)
-		strcat(buf, "isoc_avp ");
+		strcat(buf, "isoc ");
 	strcat(buf, "\n");
 	return strlen(buf);
 }
@@ -392,9 +395,9 @@ static ssize_t show_set_direction(struct most_c_obj *c,
 				  char *buf)
 {
 	if (c->cfg.direction & MOST_CH_TX)
-		return snprintf(buf, PAGE_SIZE, "dir_tx\n");
+		return snprintf(buf, PAGE_SIZE, "tx\n");
 	else if (c->cfg.direction & MOST_CH_RX)
-		return snprintf(buf, PAGE_SIZE, "dir_rx\n");
+		return snprintf(buf, PAGE_SIZE, "rx\n");
 	return snprintf(buf, PAGE_SIZE, "unconfigured\n");
 }
 
@@ -405,7 +408,11 @@ static ssize_t store_set_direction(struct most_c_obj *c,
 {
 	if (!strcmp(buf, "dir_rx\n")) {
 		c->cfg.direction = MOST_CH_RX;
+	} else if (!strcmp(buf, "rx\n")) {
+		c->cfg.direction = MOST_CH_RX;
 	} else if (!strcmp(buf, "dir_tx\n")) {
+		c->cfg.direction = MOST_CH_TX;
+	} else if (!strcmp(buf, "tx\n")) {
 		c->cfg.direction = MOST_CH_TX;
 	} else {
 		pr_info("WARN: invalid attribute settings\n");
