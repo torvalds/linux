@@ -130,8 +130,21 @@ MODULE_PARM_DESC(rx_timeout, "Rx timeout, 1-255");
 #define CDNS_UART_IXR_RXEMPTY	0x00000002 /* RX FIFO empty interrupt. */
 #define CDNS_UART_IXR_MASK	0x00001FFF /* Valid bit mask */
 
-#define CDNS_UART_RX_IRQS	(CDNS_UART_IXR_PARITY | CDNS_UART_IXR_FRAMING | \
-				 CDNS_UART_IXR_OVERRUN | CDNS_UART_IXR_RXTRIG | \
+	/*
+	 * Do not enable parity error interrupt for the following
+	 * reason: When parity error interrupt is enabled, each Rx
+	 * parity error always results in 2 events. The first one
+	 * being parity error interrupt and the second one with a
+	 * proper Rx interrupt with the incoming data.  Disabling
+	 * parity error interrupt ensures better handling of parity
+	 * error events. With this change, for a parity error case, we
+	 * get a Rx interrupt with parity error set in ISR register
+	 * and we still handle parity errors in the desired way.
+	 */
+
+#define CDNS_UART_RX_IRQS	(CDNS_UART_IXR_FRAMING | \
+				 CDNS_UART_IXR_OVERRUN | \
+				 CDNS_UART_IXR_RXTRIG |	 \
 				 CDNS_UART_IXR_TOUT)
 
 /* Goes in read_status_mask for break detection as the HW doesn't do it*/
