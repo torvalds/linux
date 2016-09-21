@@ -529,8 +529,8 @@ static int etnaviv_bind(struct device *dev)
 	int ret;
 
 	drm = drm_dev_alloc(&etnaviv_drm_driver, dev);
-	if (!drm)
-		return -ENOMEM;
+	if (IS_ERR(drm))
+		return PTR_ERR(drm);
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {

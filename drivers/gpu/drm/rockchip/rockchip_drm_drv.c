@@ -143,8 +143,8 @@ static int rockchip_drm_bind(struct device *dev)
 	int ret;
 
 	drm_dev = drm_dev_alloc(&rockchip_drm_driver, dev);
-	if (!drm_dev)
-		return -ENOMEM;
+	if (IS_ERR(drm_dev))
+		return PTR_ERR(drm_dev);
 
 	dev_set_drvdata(dev, drm_dev);
 

@@ -316,8 +316,8 @@ static int rcar_du_probe(struct platform_device *pdev)
 	rcdu->info = of_match_device(rcar_du_of_table, rcdu->dev)->data;
 
 	ddev = drm_dev_alloc(&rcar_du_driver, &pdev->dev);
-	if (!ddev)
-		return -ENOMEM;
+	if (IS_ERR(ddev))
+		return PTR_ERR(ddev);
 
 	rcdu->ddev = ddev;
 	ddev->dev_private = rcdu;

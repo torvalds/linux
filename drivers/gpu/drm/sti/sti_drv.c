@@ -365,8 +365,8 @@ static int sti_bind(struct device *dev)
 	int ret;
 
 	ddev = drm_dev_alloc(&sti_driver, dev);
-	if (!ddev)
-		return -ENOMEM;
+	if (IS_ERR(ddev))
+		return PTR_ERR(ddev);
 
 	ddev->platformdev = to_platform_device(dev);
 

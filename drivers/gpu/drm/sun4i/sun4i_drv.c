@@ -121,8 +121,8 @@ static int sun4i_drv_bind(struct device *dev)
 	int ret;
 
 	drm = drm_dev_alloc(&sun4i_drv_driver, dev);
-	if (!drm)
-		return -ENOMEM;
+	if (IS_ERR(drm))
+		return PTR_ERR(drm);
 
 	drv = devm_kzalloc(dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv) {

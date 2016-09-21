@@ -294,8 +294,8 @@ static int mtk_drm_bind(struct device *dev)
 	int ret;
 
 	drm = drm_dev_alloc(&mtk_drm_driver, dev);
-	if (!drm)
-		return -ENOMEM;
+	if (IS_ERR(drm))
+		return PTR_ERR(drm);
 
 	drm->dev_private = private;
 	private->drm = drm;

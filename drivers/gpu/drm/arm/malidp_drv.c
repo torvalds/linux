@@ -311,8 +311,8 @@ static int malidp_bind(struct device *dev)
 		return ret;
 
 	drm = drm_dev_alloc(&malidp_driver, dev);
-	if (!drm) {
-		ret = -ENOMEM;
+	if (IS_ERR(drm)) {
+		ret = PTR_ERR(drm);
 		goto alloc_fail;
 	}
 
