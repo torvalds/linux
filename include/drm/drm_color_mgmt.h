@@ -33,9 +33,14 @@ void drm_crtc_enable_color_mgmt(struct drm_crtc *crtc,
 int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 				 int gamma_size);
 
-/*
- * Extract a degamma/gamma LUT value provided by user and round it to the
- * precision supported by the hardware.
+/**
+ * drm_color_lut_extract - clamp&round LUT entries
+ * @user_input: input value
+ * @bit_precision: number of bits the hw LUT supports
+ *
+ * Extract a degamma/gamma LUT value provided by user (in the form of
+ * &drm_color_lut entries) and round it to the precision supported by the
+ * hardware.
  */
 static inline uint32_t drm_color_lut_extract(uint32_t user_input,
 					     uint32_t bit_precision)

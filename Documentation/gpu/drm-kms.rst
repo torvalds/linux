@@ -296,6 +296,18 @@ Plane Composition Properties
 .. kernel-doc:: drivers/gpu/drm/drm_blend.c
    :export:
 
+Color Management Properties
+---------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_color_mgmt.c
+   :doc: overview
+
+.. kernel-doc:: include/drm/drm_color_mgmt.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_color_mgmt.c
+   :export:
+
 Existing KMS Properties
 -----------------------
 
