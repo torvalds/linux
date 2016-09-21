@@ -859,8 +859,10 @@ EXC_COMMON_ASYNC(doorbell_super_common, 0xa00, unknown_exception)
 
 
 EXC_REAL(trap_0b, 0xb00, 0xc00)
-
+EXC_VIRT(trap_0b, 0x4b00, 0x4c00, 0xb00)
 TRAMP_KVM(PACA_EXGEN, 0xb00)
+EXC_COMMON(trap_0b_common, 0xb00, unknown_exception)
+
 
 EXC_REAL_BEGIN(system_call, 0xc00, 0xd00)
 	 /*
@@ -1203,7 +1205,6 @@ TRAMP_REAL_BEGIN(kvmppc_skip_Hinterrupt)
 /*** Common interrupt handlers ***/
 
 
-EXC_COMMON(trap_0b_common, 0xb00, unknown_exception)
 EXC_COMMON(single_step_common, 0xd00, single_step_exception)
 EXC_COMMON(trap_0e_common, 0xe00, unknown_exception)
 EXC_COMMON(emulation_assist_common, 0xe40, emulation_assist_interrupt)
@@ -1238,8 +1239,6 @@ EXC_COMMON(altivec_assist_common, 0x1700, unknown_exception)
 	 * only has extra guff for STAB-based processors -- which never
 	 * come here.
 	 */
-
-EXC_VIRT(trap_0b, 0x4b00, 0x4c00, 0xb00)
 
 EXC_VIRT_BEGIN(system_call, 0x4c00, 0x4d00)
 	HMT_MEDIUM
