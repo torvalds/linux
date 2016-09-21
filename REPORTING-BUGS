@@ -1,3 +1,8 @@
+.. _reportingbugs:
+
+Reporting bugs
+++++++++++++++
+
 Background
 ==========
 
@@ -50,12 +55,13 @@ maintainer replies to you, make sure to 'Reply-all' in order to keep the
 public mailing list(s) in the email thread.
 
 If you know which driver is causing issues, you can pass one of the driver
-files to the get_maintainer.pl script:
+files to the get_maintainer.pl script::
+
      perl scripts/get_maintainer.pl -f <filename>
 
 If it is a security bug, please copy the Security Contact listed in the
 MAINTAINERS file.  They can help coordinate bugfix and disclosure.  See
-Documentation/SecurityBugs for more information.
+:ref:`Documentation/SecurityBugs <securitybugs>` for more information.
 
 If you can't figure out which subsystem caused the issue, you should file
 a bug in kernel.org bugzilla and send email to
@@ -69,8 +75,9 @@ Tips for reporting bugs
 
 If you haven't reported a bug before, please read:
 
-http://www.chiark.greenend.org.uk/~sgtatham/bugs.html
-http://www.catb.org/esr/faqs/smart-questions.html
+	http://www.chiark.greenend.org.uk/~sgtatham/bugs.html
+
+	http://www.catb.org/esr/faqs/smart-questions.html
 
 It's REALLY important to report bugs that seem unrelated as separate email
 threads or separate bugzilla entries.  If you report several unrelated
@@ -99,34 +106,34 @@ relevant to your bug, feel free to exclude it.
 
 First run the ver_linux script included as scripts/ver_linux, which
 reports the version of some important subsystems.  Run this script with
-the command "sh scripts/ver_linux".
+the command ``sh scripts/ver_linux``.
 
 Use that information to fill in all fields of the bug report form, and
 post it to the mailing list with a subject of "PROBLEM: <one line
-summary from [1.]>" for easy identification by the developers.
+summary from [1.]>" for easy identification by the developers::
 
-[1.] One line summary of the problem:
-[2.] Full description of the problem/report:
-[3.] Keywords (i.e., modules, networking, kernel):
-[4.] Kernel information
-[4.1.] Kernel version (from /proc/version):
-[4.2.] Kernel .config file:
-[5.] Most recent kernel version which did not have the bug:
-[6.] Output of Oops.. message (if applicable) with symbolic information
-     resolved (see Documentation/oops-tracing.txt)
-[7.] A small shell script or example program which triggers the
-     problem (if possible)
-[8.] Environment
-[8.1.] Software (add the output of the ver_linux script here)
-[8.2.] Processor information (from /proc/cpuinfo):
-[8.3.] Module information (from /proc/modules):
-[8.4.] Loaded driver and hardware information (/proc/ioports, /proc/iomem)
-[8.5.] PCI information ('lspci -vvv' as root)
-[8.6.] SCSI information (from /proc/scsi/scsi)
-[8.7.] Other information that might be relevant to the problem
-       (please look in /proc and include all information that you
-       think to be relevant):
-[X.] Other notes, patches, fixes, workarounds:
+  [1.] One line summary of the problem:
+  [2.] Full description of the problem/report:
+  [3.] Keywords (i.e., modules, networking, kernel):
+  [4.] Kernel information
+  [4.1.] Kernel version (from /proc/version):
+  [4.2.] Kernel .config file:
+  [5.] Most recent kernel version which did not have the bug:
+  [6.] Output of Oops.. message (if applicable) with symbolic information
+       resolved (see Documentation/oops-tracing.txt)
+  [7.] A small shell script or example program which triggers the
+       problem (if possible)
+  [8.] Environment
+  [8.1.] Software (add the output of the ver_linux script here)
+  [8.2.] Processor information (from /proc/cpuinfo):
+  [8.3.] Module information (from /proc/modules):
+  [8.4.] Loaded driver and hardware information (/proc/ioports, /proc/iomem)
+  [8.5.] PCI information ('lspci -vvv' as root)
+  [8.6.] SCSI information (from /proc/scsi/scsi)
+  [8.7.] Other information that might be relevant to the problem
+         (please look in /proc and include all information that you
+         think to be relevant):
+  [X.] Other notes, patches, fixes, workarounds:
 
 
 Follow up
@@ -153,7 +160,8 @@ Expectations for kernel maintainers
 Linux kernel maintainers are busy, overworked human beings.  Some times
 they may not be able to address your bug in a day, a week, or two weeks.
 If they don't answer your email, they may be on vacation, or at a Linux
-conference.  Check the conference schedule at LWN.net for more info:
+conference.  Check the conference schedule at https://LWN.net for more info:
+
 	https://lwn.net/Calendar/
 
 In general, kernel maintainers take 1 to 5 business days to respond to
