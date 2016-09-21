@@ -5338,6 +5338,13 @@ F:	drivers/staging/greybus/spi.c
 F:	drivers/staging/greybus/spilib.c
 F:	drivers/staging/greybus/spilib.h
 
+GREYBUS PLATFORM DRIVERS
+M:	Vaibhav Hiremath <hvaibhav.linux@gmail.com>
+S:	Maintained
+F:	drivers/staging/greybus/arche-platform.c
+F:	drivers/staging/greybus/arche-apb-ctrl.c
+F:	drivers/staging/greybus/arche_platform.h
+
 GSPCA FINEPIX SUBDRIVER
 M:	Frank Zago <frank@zago.net>
 L:	linux-media@vger.kernel.org
