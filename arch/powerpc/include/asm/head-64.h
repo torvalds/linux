@@ -18,6 +18,7 @@ exc_virt_##start##_##name:
 #define EXC_VIRT_END(name, start, end)
 
 #define EXC_COMMON_BEGIN(name)					\
+	.align	7;							\
 	.global name;							\
 name:
 
