@@ -2472,10 +2472,13 @@ static int rtl8xxxu_llt_write(struct rtl8xxxu_priv *priv, u8 address, u8 data)
 	return ret;
 }
 
-int rtl8xxxu_init_llt_table(struct rtl8xxxu_priv *priv, u8 last_tx_page)
+int rtl8xxxu_init_llt_table(struct rtl8xxxu_priv *priv)
 {
 	int ret;
 	int i;
+	u8 last_tx_page;
+
+	last_tx_page = priv->fops->total_page_num;
 
 	for (i = 0; i < last_tx_page; i++) {
 		ret = rtl8xxxu_llt_write(priv, i, i + 1);
@@ -2503,7 +2506,7 @@ exit:
 	return ret;
 }
 
-int rtl8xxxu_auto_llt_table(struct rtl8xxxu_priv *priv, u8 last_tx_page)
+int rtl8xxxu_auto_llt_table(struct rtl8xxxu_priv *priv)
 {
 	u32 val32;
 	int ret = 0;
@@ -3988,7 +3991,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 
 	dev_dbg(dev, "%s: macpower %i\n", __func__, macpower);
 	if (!macpower) {
-		ret = priv->fops->llt_init(priv, TX_TOTAL_PAGE_NUM);
+		ret = priv->fops->llt_init(priv);
 		if (ret) {
 			dev_warn(dev, "%s: LLT table init failed\n", __func__);
 			goto exit;
