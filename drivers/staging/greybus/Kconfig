@@ -48,7 +48,7 @@ config GREYBUS_BOOTROM
 
 config GREYBUS_CAMERA
 	tristate "Greybus Camera Class driver"
-	depends on MEDIA && LEDS_CLASS_FLASH && BROKEN
+	depends on MEDIA_SUPPORT && LEDS_CLASS_FLASH && BROKEN
 	---help---
 	  Select this option if you have a device that follows the
 	  Greybus Camera Class specification.
