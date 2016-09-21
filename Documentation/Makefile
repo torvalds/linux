@@ -1,2 +1,2 @@
 subdir-y := blackfin \
-	laptops pcmcia
+	pcmcia
