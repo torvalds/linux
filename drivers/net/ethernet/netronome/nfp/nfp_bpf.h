@@ -91,6 +91,8 @@ enum nfp_bpf_reg_type {
 #define imm_both(np)	reg_both((np)->regs_per_thread - STATIC_REG_IMM)
 
 #define NFP_BPF_ABI_FLAGS	reg_nnr(0)
+#define   NFP_BPF_ABI_FLAG_MARK	1
+#define NFP_BPF_ABI_MARK	reg_nnr(1)
 #define NFP_BPF_ABI_PKT		reg_nnr(2)
 #define NFP_BPF_ABI_LEN		reg_nnr(3)
 

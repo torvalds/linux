@@ -66,6 +66,13 @@
 #define NFP_NET_LSO_MAX_HDR_SZ		255
 
 /**
+ * Prepend field types
+ */
+#define NFP_NET_META_FIELD_SIZE		4
+#define NFP_NET_META_HASH		1 /* next field carries hash type */
+#define NFP_NET_META_MARK		2
+
+/**
  * Hash type pre-pended when a RSS hash was computed
  */
 #define NFP_NET_RSS_NONE                0

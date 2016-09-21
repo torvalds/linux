@@ -1293,36 +1293,70 @@ static void nfp_net_rx_csum(struct nfp_net *nn, struct nfp_net_r_vector *r_vec,
 	}
 }
 
-/**
- * nfp_net_set_hash() - Set SKB hash data
- * @netdev: adapter's net_device structure
- * @skb:   SKB to set the hash data on
- * @rxd:   RX descriptor
- *
- * The RSS hash and hash-type are pre-pended to the packet data.
- * Extract and decode it and set the skb fields.
- */
 static void nfp_net_set_hash(struct net_device *netdev, struct sk_buff *skb,
-			     struct nfp_net_rx_desc *rxd)
+			     unsigned int type, __be32 *hash)
+{
+	if (!(netdev->features & NETIF_F_RXHASH))
+		return;
+
+	switch (type) {
+	case NFP_NET_RSS_IPV4:
+	case NFP_NET_RSS_IPV6:
+	case NFP_NET_RSS_IPV6_EX:
+		skb_set_hash(skb, get_unaligned_be32(hash), PKT_HASH_TYPE_L3);
+		break;
+	default:
+		skb_set_hash(skb, get_unaligned_be32(hash), PKT_HASH_TYPE_L4);
+		break;
+	}
+}
+
+static void
+nfp_net_set_hash_desc(struct net_device *netdev, struct sk_buff *skb,
+		      struct nfp_net_rx_desc *rxd)
 {
 	struct nfp_net_rx_hash *rx_hash;
 
-	if (!(rxd->rxd.flags & PCIE_DESC_RX_RSS) ||
-	    !(netdev->features & NETIF_F_RXHASH))
+	if (!(rxd->rxd.flags & PCIE_DESC_RX_RSS))
 		return;
 
 	rx_hash = (struct nfp_net_rx_hash *)(skb->data - sizeof(*rx_hash));
 
-	switch (be32_to_cpu(rx_hash->hash_type)) {
-	case NFP_NET_RSS_IPV4:
-	case NFP_NET_RSS_IPV6:
-	case NFP_NET_RSS_IPV6_EX:
-		skb_set_hash(skb, be32_to_cpu(rx_hash->hash), PKT_HASH_TYPE_L3);
-		break;
-	default:
-		skb_set_hash(skb, be32_to_cpu(rx_hash->hash), PKT_HASH_TYPE_L4);
-		break;
+	nfp_net_set_hash(netdev, skb, get_unaligned_be32(&rx_hash->hash_type),
+			 &rx_hash->hash);
+}
+
+static void *
+nfp_net_parse_meta(struct net_device *netdev, struct sk_buff *skb,
+		   int meta_len)
+{
+	u8 *data = skb->data - meta_len;
+	u32 meta_info;
+
+	meta_info = get_unaligned_be32(data);
+	data += 4;
+
+	while (meta_info) {
+		switch (meta_info & NFP_NET_META_FIELD_MASK) {
+		case NFP_NET_META_HASH:
+			meta_info >>= NFP_NET_META_FIELD_SIZE;
+			nfp_net_set_hash(netdev, skb,
+					 meta_info & NFP_NET_META_FIELD_MASK,
+					 (__be32 *)data);
+			data += 4;
+			break;
+		case NFP_NET_META_MARK:
+			skb->mark = get_unaligned_be32(data);
+			data += 4;
+			break;
+		default:
+			return NULL;
+		}
+
+		meta_info >>= NFP_NET_META_FIELD_SIZE;
 	}
+
+	return data;
 }
 
 /**
@@ -1439,13 +1473,28 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 			skb_reserve(skb, nn->rx_offset);
 		skb_put(skb, data_len - meta_len);
 
-		nfp_net_set_hash(nn->netdev, skb, rxd);
-
 		/* Stats update */
 		u64_stats_update_begin(&r_vec->rx_sync);
 		r_vec->rx_pkts++;
 		r_vec->rx_bytes += skb->len;
 		u64_stats_update_end(&r_vec->rx_sync);
+
+		if (nn->fw_ver.major <= 3) {
+			nfp_net_set_hash_desc(nn->netdev, skb, rxd);
+		} else if (meta_len) {
+			void *end;
+
+			end = nfp_net_parse_meta(nn->netdev, skb, meta_len);
+			if (unlikely(end != skb->data)) {
+				u64_stats_update_begin(&r_vec->rx_sync);
+				r_vec->rx_drops++;
+				u64_stats_update_end(&r_vec->rx_sync);
+
+				dev_kfree_skb_any(skb);
+				nn_warn_ratelimit(nn, "invalid RX packet metadata\n");
+				continue;
+			}
+		}
 
 		skb_record_rx_queue(skb, rx_ring->idx);
 		skb->protocol = eth_type_trans(skb, nn->netdev);
