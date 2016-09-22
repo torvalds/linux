@@ -149,13 +149,10 @@ static inline void pcistub_device_put(struct pcistub_device *psdev)
 	kref_put(&psdev->kref, pcistub_device_release);
 }
 
-static struct pcistub_device *pcistub_device_find(int domain, int bus,
-						  int slot, int func)
+static struct pcistub_device *pcistub_device_find_locked(int domain, int bus,
+							 int slot, int func)
 {
-	struct pcistub_device *psdev = NULL;
-	unsigned long flags;
-
-	spin_lock_irqsave(&pcistub_devices_lock, flags);
+	struct pcistub_device *psdev;
 
 	list_for_each_entry(psdev, &pcistub_devices, dev_list) {
 		if (psdev->dev != NULL
@@ -163,15 +160,25 @@ static struct pcistub_device *pcistub_device_find(int domain, int bus,
 		    && bus == psdev->dev->bus->number
 		    && slot == PCI_SLOT(psdev->dev->devfn)
 		    && func == PCI_FUNC(psdev->dev->devfn)) {
-			pcistub_device_get(psdev);
-			goto out;
+			return psdev;
 		}
 	}
 
-	/* didn't find it */
-	psdev = NULL;
+	return NULL;
+}
 
-out:
+static struct pcistub_device *pcistub_device_find(int domain, int bus,
+						  int slot, int func)
+{
+	struct pcistub_device *psdev;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pcistub_devices_lock, flags);
+
+	psdev = pcistub_device_find_locked(domain, bus, slot, func);
+	if (psdev)
+		pcistub_device_get(psdev);
+
 	spin_unlock_irqrestore(&pcistub_devices_lock, flags);
 	return psdev;
 }
@@ -207,16 +214,9 @@ struct pci_dev *pcistub_get_pci_dev_by_slot(struct xen_pcibk_device *pdev,
 
 	spin_lock_irqsave(&pcistub_devices_lock, flags);
 
-	list_for_each_entry(psdev, &pcistub_devices, dev_list) {
-		if (psdev->dev != NULL
-		    && domain == pci_domain_nr(psdev->dev->bus)
-		    && bus == psdev->dev->bus->number
-		    && slot == PCI_SLOT(psdev->dev->devfn)
-		    && func == PCI_FUNC(psdev->dev->devfn)) {
-			found_dev = pcistub_device_get_pci_dev(pdev, psdev);
-			break;
-		}
-	}
+	psdev = pcistub_device_find_locked(domain, bus, slot, func);
+	if (psdev)
+		found_dev = pcistub_device_get_pci_dev(pdev, psdev);
 
 	spin_unlock_irqrestore(&pcistub_devices_lock, flags);
 	return found_dev;
