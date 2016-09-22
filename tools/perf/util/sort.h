@@ -270,4 +270,8 @@ bool is_strict_order(const char *order);
 
 int hpp_dimension__add_output(unsigned col);
 void reset_dimensions(void);
+int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
+			struct perf_evlist *evlist,
+			int level);
+int output_field_add(struct perf_hpp_list *list, char *tok);
 #endif	/* __PERF_SORT_H */

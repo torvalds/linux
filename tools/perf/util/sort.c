@@ -2308,9 +2308,9 @@ int hpp_dimension__add_output(unsigned col)
 	return __hpp_dimension__add_output(&perf_hpp_list, &hpp_sort_dimensions[col]);
 }
 
-static int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
-			       struct perf_evlist *evlist,
-			       int level)
+int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
+			struct perf_evlist *evlist,
+			int level)
 {
 	unsigned int i;
 
@@ -2685,7 +2685,7 @@ void sort__setup_elide(FILE *output)
 	}
 }
 
-static int output_field_add(struct perf_hpp_list *list, char *tok)
+int output_field_add(struct perf_hpp_list *list, char *tok)
 {
 	unsigned int i;
 
