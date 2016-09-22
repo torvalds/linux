@@ -31,8 +31,8 @@
  * SOFTWARE.
  */
 
-#ifndef MLX4_IB_USER_H
-#define MLX4_IB_USER_H
+#ifndef MLX4_ABI_USER_H
+#define MLX4_ABI_USER_H
 
 #include <linux/types.h>
 
@@ -104,4 +104,4 @@ struct mlx4_ib_create_qp {
 	__u8	reserved[5];
 };
 
-#endif /* MLX4_IB_USER_H */
+#endif /* MLX4_ABI_USER_H */
