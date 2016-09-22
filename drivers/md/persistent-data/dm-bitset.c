@@ -39,6 +39,48 @@ int dm_bitset_empty(struct dm_disk_bitset *info, dm_block_t *root)
 }
 EXPORT_SYMBOL_GPL(dm_bitset_empty);
 
+struct packer_context {
+	bit_value_fn fn;
+	unsigned nr_bits;
+	void *context;
+};
+
+static int pack_bits(uint32_t index, void *value, void *context)
+{
+	int r;
+	struct packer_context *p = context;
+	unsigned bit, nr = min(64u, p->nr_bits - (index * 64));
+	uint64_t word = 0;
+	bool bv;
+
+	for (bit = 0; bit < nr; bit++) {
+		r = p->fn(index * 64 + bit, &bv, p->context);
+		if (r)
+			return r;
+
+		if (bv)
+			set_bit(bit, (unsigned long *) &word);
+		else
+			clear_bit(bit, (unsigned long *) &word);
+	}
+
+	*((__le64 *) value) = cpu_to_le64(word);
+
+	return 0;
+}
+
+int dm_bitset_new(struct dm_disk_bitset *info, dm_block_t *root,
+		  uint32_t size, bit_value_fn fn, void *context)
+{
+	struct packer_context p;
+	p.fn = fn;
+	p.nr_bits = size;
+	p.context = context;
+
+	return dm_array_new(&info->array_info, root, dm_div_up(size, 64), pack_bits, &p);
+}
+EXPORT_SYMBOL_GPL(dm_bitset_new);
+
 int dm_bitset_resize(struct dm_disk_bitset *info, dm_block_t root,
 		     uint32_t old_nr_entries, uint32_t new_nr_entries,
 		     bool default_value, dm_block_t *new_root)

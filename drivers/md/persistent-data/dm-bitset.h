@@ -93,6 +93,22 @@ void dm_disk_bitset_init(struct dm_transaction_manager *tm,
 int dm_bitset_empty(struct dm_disk_bitset *info, dm_block_t *new_root);
 
 /*
+ * Creates a new bitset populated with values provided by a callback
+ * function.  This is more efficient than creating an empty bitset,
+ * resizing, and then setting values since that process incurs a lot of
+ * copying.
+ *
+ * info - describes the array
+ * root - the root block of the array on disk
+ * size - the number of entries in the array
+ * fn - the callback
+ * context - passed to the callback
+ */
+typedef int (*bit_value_fn)(uint32_t index, bool *value, void *context);
+int dm_bitset_new(struct dm_disk_bitset *info, dm_block_t *root,
+		  uint32_t size, bit_value_fn fn, void *context);
+
+/*
  * Resize the bitset.
  *
  * info - describes the bitset
