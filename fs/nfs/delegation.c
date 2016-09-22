@@ -656,6 +656,7 @@ static void nfs_mark_delegation_revoked(struct nfs_server *server,
 		struct nfs_delegation *delegation)
 {
 	set_bit(NFS_DELEGATION_REVOKED, &delegation->flags);
+	delegation->stateid.type = NFS4_INVALID_STATEID_TYPE;
 	nfs_mark_return_delegation(server, delegation);
 }
 
@@ -894,6 +895,8 @@ static inline bool nfs4_server_rebooted(const struct nfs_client *clp)
 static void nfs_mark_test_expired_delegation(struct nfs_server *server,
 	    struct nfs_delegation *delegation)
 {
+	if (delegation->stateid.type == NFS4_INVALID_STATEID_TYPE)
+		return;
 	clear_bit(NFS_DELEGATION_NEED_RECLAIM, &delegation->flags);
 	set_bit(NFS_DELEGATION_TEST_EXPIRED, &delegation->flags);
 	set_bit(NFS4CLNT_DELEGATION_EXPIRED, &server->nfs_client->cl_state);
