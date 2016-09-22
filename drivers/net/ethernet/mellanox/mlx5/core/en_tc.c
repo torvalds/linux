@@ -164,6 +164,7 @@ static int parse_cls_flower(struct mlx5e_priv *priv, struct mlx5_flow_spec *spec
 	    ~(BIT(FLOW_DISSECTOR_KEY_CONTROL) |
 	      BIT(FLOW_DISSECTOR_KEY_BASIC) |
 	      BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
+	      BIT(FLOW_DISSECTOR_KEY_VLAN) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_PORTS))) {
@@ -225,6 +226,24 @@ static int parse_cls_flower(struct mlx5e_priv *priv, struct mlx5_flow_spec *spec
 		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
 					     smac_47_16),
 				key->src);
+	}
+
+	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_VLAN)) {
+		struct flow_dissector_key_vlan *key =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_VLAN,
+						  f->key);
+		struct flow_dissector_key_vlan *mask =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_VLAN,
+						  f->mask);
+		if (mask->vlan_id) {
+			MLX5_SET(fte_match_set_lyr_2_4, headers_c, vlan_tag, 1);
+			MLX5_SET(fte_match_set_lyr_2_4, headers_v, vlan_tag, 1);
+
+			MLX5_SET(fte_match_set_lyr_2_4, headers_c, first_vid, mask->vlan_id);
+			MLX5_SET(fte_match_set_lyr_2_4, headers_v, first_vid, key->vlan_id);
+		}
 	}
 
 	if (addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
