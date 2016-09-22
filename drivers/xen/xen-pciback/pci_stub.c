@@ -478,6 +478,36 @@ static int __init pcistub_init_devices_late(void)
 	return 0;
 }
 
+static void pcistub_device_id_add_list(struct pcistub_device_id *new,
+				       int domain, int bus, unsigned int devfn)
+{
+	struct pcistub_device_id *pci_dev_id;
+	unsigned long flags;
+	int found = 0;
+
+	spin_lock_irqsave(&device_ids_lock, flags);
+
+	list_for_each_entry(pci_dev_id, &pcistub_device_ids, slot_list) {
+		if (pci_dev_id->domain == domain && pci_dev_id->bus == bus &&
+		    pci_dev_id->devfn == devfn) {
+			found = 1;
+			break;
+		}
+	}
+
+	if (!found) {
+		new->domain = domain;
+		new->bus = bus;
+		new->devfn = devfn;
+		list_add_tail(&new->slot_list, &pcistub_device_ids);
+	}
+
+	spin_unlock_irqrestore(&device_ids_lock, flags);
+
+	if (found)
+		kfree(new);
+}
+
 static int pcistub_seize(struct pci_dev *dev)
 {
 	struct pcistub_device *psdev;
@@ -1012,7 +1042,6 @@ static inline int str_to_quirk(const char *buf, int *domain, int *bus, int
 static int pcistub_device_id_add(int domain, int bus, int slot, int func)
 {
 	struct pcistub_device_id *pci_dev_id;
-	unsigned long flags;
 	int rc = 0, devfn = PCI_DEVFN(slot, func);
 
 	if (slot < 0) {
@@ -1042,16 +1071,10 @@ static int pcistub_device_id_add(int domain, int bus, int slot, int func)
 	if (!pci_dev_id)
 		return -ENOMEM;
 
-	pci_dev_id->domain = domain;
-	pci_dev_id->bus = bus;
-	pci_dev_id->devfn = devfn;
-
 	pr_debug("wants to seize %04x:%02x:%02x.%d\n",
 		 domain, bus, slot, func);
 
-	spin_lock_irqsave(&device_ids_lock, flags);
-	list_add_tail(&pci_dev_id->slot_list, &pcistub_device_ids);
-	spin_unlock_irqrestore(&device_ids_lock, flags);
+	pcistub_device_id_add_list(pci_dev_id, domain, bus, devfn);
 
 	return 0;
 }
