@@ -1,5 +1,6 @@
 #include <linux/compiler.h>
 #include <linux/kernel.h>
+#include <linux/stringify.h>
 #include "util.h"
 #include "debug.h"
 #include "builtin.h"
@@ -7,6 +8,7 @@
 #include "mem-events.h"
 #include "session.h"
 #include "hist.h"
+#include "sort.h"
 #include "tool.h"
 #include "data.h"
 #include "sort.h"
@@ -273,6 +275,32 @@ static int c2c_header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	return scnprintf(hpp->buf, hpp->size, "%*s", width, text);
 }
 
+#define HEX_STR(__s, __v)				\
+({							\
+	scnprintf(__s, sizeof(__s), "0x%" PRIx64, __v);	\
+	__s;						\
+})
+
+static int64_t
+dcacheline_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
+	       struct hist_entry *left, struct hist_entry *right)
+{
+	return sort__dcacheline_cmp(left, right);
+}
+
+static int dcacheline_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+			    struct hist_entry *he)
+{
+	uint64_t addr = 0;
+	int width = c2c_width(fmt, hpp, he->hists);
+	char buf[20];
+
+	if (he->mem_info)
+		addr = cl_address(he->mem_info->daddr.addr);
+
+	return scnprintf(hpp->buf, hpp->size, "%*s", width, HEX_STR(buf, addr));
+}
+
 #define HEADER_LOW(__h)			\
 	{				\
 		.line[1] = {		\
@@ -308,7 +336,16 @@ static int c2c_header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		},			\
 	}
 
+static struct c2c_dimension dim_dcacheline = {
+	.header		= HEADER_LOW("Cacheline"),
+	.name		= "dcacheline",
+	.cmp		= dcacheline_cmp,
+	.entry		= dcacheline_entry,
+	.width		= 18,
+};
+
 static struct c2c_dimension *dimensions[] = {
+	&dim_dcacheline,
 	NULL,
 };
 
