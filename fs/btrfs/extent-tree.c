@@ -6112,8 +6112,6 @@ void btrfs_delalloc_release_metadata(struct inode *inode, u64 num_bytes)
  * @start: start range we are writing to
  * @len: how long the range we are writing to
  *
- * TODO: This function will finally replace old btrfs_delalloc_reserve_space()
- *
  * This will do the following things
  *
  * o reserve space in data space info for num bytes
