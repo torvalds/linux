@@ -213,8 +213,10 @@ static int c2c_hists__init_output(struct perf_hpp_list *hpp_list, char *name)
 {
 	struct c2c_fmt *c2c_fmt = get_format(name);
 
-	if (!c2c_fmt)
-		return -1;
+	if (!c2c_fmt) {
+		reset_dimensions();
+		return output_field_add(hpp_list, name);
+	}
 
 	perf_hpp_list__column_register(hpp_list, &c2c_fmt->fmt);
 	return 0;
@@ -224,8 +226,10 @@ static int c2c_hists__init_sort(struct perf_hpp_list *hpp_list, char *name)
 {
 	struct c2c_fmt *c2c_fmt = get_format(name);
 
-	if (!c2c_fmt)
-		return -1;
+	if (!c2c_fmt) {
+		reset_dimensions();
+		return sort_dimension__add(hpp_list, name, NULL, 0);
+	}
 
 	perf_hpp_list__register_sort_field(hpp_list, &c2c_fmt->fmt);
 	return 0;
