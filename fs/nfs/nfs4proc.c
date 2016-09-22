@@ -2486,6 +2486,45 @@ static void nfs41_check_delegation_stateid(struct nfs4_state *state)
 }
 
 /**
+ * nfs41_check_expired_locks - possibly free a lock stateid
+ *
+ * @state: NFSv4 state for an inode
+ *
+ * Returns NFS_OK if recovery for this stateid is now finished.
+ * Otherwise a negative NFS4ERR value is returned.
+ */
+static int nfs41_check_expired_locks(struct nfs4_state *state)
+{
+	int status, ret = NFS_OK;
+	struct nfs4_lock_state *lsp;
+	struct nfs_server *server = NFS_SERVER(state->inode);
+
+	if (!test_bit(LK_STATE_IN_USE, &state->flags))
+		goto out;
+	list_for_each_entry(lsp, &state->lock_states, ls_locks) {
+		if (test_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags)) {
+			struct rpc_cred *cred = lsp->ls_state->owner->so_cred;
+
+			status = nfs41_test_and_free_expired_stateid(server,
+					&lsp->ls_stateid,
+					cred);
+			trace_nfs4_test_lock_stateid(state, lsp, status);
+			if (status == -NFS4ERR_EXPIRED ||
+			    status == -NFS4ERR_BAD_STATEID) {
+				clear_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags);
+				if (!recover_lost_locks)
+					set_bit(NFS_LOCK_LOST, &lsp->ls_flags);
+			} else if (status != NFS_OK) {
+				ret = status;
+				break;
+			}
+		}
+	};
+out:
+	return ret;
+}
+
+/**
  * nfs41_check_open_stateid - possibly free an open stateid
  *
  * @state: NFSv4 state for an inode
@@ -2522,6 +2561,9 @@ static int nfs41_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *st
 	int status;
 
 	nfs41_check_delegation_stateid(state);
+	status = nfs41_check_expired_locks(state);
+	if (status != NFS_OK)
+		return status;
 	status = nfs41_check_open_stateid(state);
 	if (status != NFS_OK)
 		status = nfs4_open_expired(sp, state);
@@ -6106,49 +6148,19 @@ out:
 }
 
 #if defined(CONFIG_NFS_V4_1)
-/**
- * nfs41_check_expired_locks - possibly free a lock stateid
- *
- * @state: NFSv4 state for an inode
- *
- * Returns NFS_OK if recovery for this stateid is now finished.
- * Otherwise a negative NFS4ERR value is returned.
- */
-static int nfs41_check_expired_locks(struct nfs4_state *state)
-{
-	int status, ret = NFS_OK;
-	struct nfs4_lock_state *lsp;
-	struct nfs_server *server = NFS_SERVER(state->inode);
-
-	list_for_each_entry(lsp, &state->lock_states, ls_locks) {
-		if (test_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags)) {
-			struct rpc_cred *cred = lsp->ls_state->owner->so_cred;
-
-			status = nfs41_test_and_free_expired_stateid(server,
-					&lsp->ls_stateid,
-					cred);
-			trace_nfs4_test_lock_stateid(state, lsp, status);
-			if (status == -NFS4ERR_EXPIRED ||
-			    status == -NFS4ERR_BAD_STATEID)
-				clear_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags);
-			else if (status != NFS_OK) {
-				ret = status;
-				break;
-			}
-		}
-	};
-
-	return ret;
-}
-
 static int nfs41_lock_expired(struct nfs4_state *state, struct file_lock *request)
 {
-	int status = NFS_OK;
+	struct nfs4_lock_state *lsp;
+	int status;
 
-	if (test_bit(LK_STATE_IN_USE, &state->flags))
-		status = nfs41_check_expired_locks(state);
-	if (status != NFS_OK)
-		status = nfs4_lock_expired(state, request);
+	status = nfs4_set_lock_state(state, request);
+	if (status != 0)
+		return status;
+	lsp = request->fl_u.nfs4_fl.owner;
+	if (test_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags) ||
+	    test_bit(NFS_LOCK_LOST, &lsp->ls_flags))
+		return 0;
+	status = nfs4_lock_expired(state, request);
 	return status;
 }
 #endif
