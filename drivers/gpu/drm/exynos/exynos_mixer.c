@@ -698,10 +698,10 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 static void vp_win_reset(struct mixer_context *ctx)
 {
 	struct mixer_resources *res = &ctx->mixer_res;
-	int tries = 100;
+	unsigned int tries = 100;
 
 	vp_reg_write(res, VP_SRESET, VP_SRESET_PROCESSING);
-	for (tries = 100; tries; --tries) {
+	while (tries--) {
 		/* waiting until VP_SRESET_PROCESSING is 0 */
 		if (~vp_reg_read(res, VP_SRESET) & VP_SRESET_PROCESSING)
 			break;
