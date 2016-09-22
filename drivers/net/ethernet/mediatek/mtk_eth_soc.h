@@ -313,6 +313,30 @@
 				 MAC_MCR_FORCE_TX_FC | MAC_MCR_SPEED_1000 | \
 				 MAC_MCR_FORCE_DPX | MAC_MCR_FORCE_LINK)
 
+/* TRGMII RXC control register */
+#define TRGMII_RCK_CTRL		0x10300
+#define DQSI0(x)		((x << 0) & GENMASK(6, 0))
+#define DQSI1(x)		((x << 8) & GENMASK(14, 8))
+#define RXCTL_DMWTLAT(x)	((x << 16) & GENMASK(18, 16))
+#define RXC_DQSISEL		BIT(30)
+#define RCK_CTRL_RGMII_1000	(RXC_DQSISEL | RXCTL_DMWTLAT(2) | DQSI1(16))
+#define RCK_CTRL_RGMII_10_100	RXCTL_DMWTLAT(2)
+
+/* TRGMII RXC control register */
+#define TRGMII_TCK_CTRL		0x10340
+#define TXCTL_DMWTLAT(x)	((x << 16) & GENMASK(18, 16))
+#define TXC_INV			BIT(30)
+#define TCK_CTRL_RGMII_1000	TXCTL_DMWTLAT(2)
+#define TCK_CTRL_RGMII_10_100	(TXC_INV | TXCTL_DMWTLAT(2))
+
+/* TRGMII Interface mode register */
+#define INTF_MODE		0x10390
+#define TRGMII_INTF_DIS		BIT(0)
+#define TRGMII_MODE		BIT(1)
+#define TRGMII_CENTRAL_ALIGNED	BIT(2)
+#define INTF_MODE_RGMII_1000    (TRGMII_MODE | TRGMII_CENTRAL_ALIGNED)
+#define INTF_MODE_RGMII_10_100  0
+
 /* GPIO port control registers for GMAC 2*/
 #define GPIO_OD33_CTRL8		0x4c0
 #define GPIO_BIAS_CTRL		0xed0
@@ -323,7 +347,11 @@
 #define SYSCFG0_GE_MASK		0x3
 #define SYSCFG0_GE_MODE(x, y)	(x << (12 + (y * 2)))
 
-/*ethernet reset control register*/
+/* ethernet subsystem clock register */
+#define ETHSYS_CLKCFG0		0x2c
+#define ETHSYS_TRGMII_CLK_SEL362_5	BIT(11)
+
+/* ethernet reset control register */
 #define ETHSYS_RSTCTRL		0x34
 #define RSTCTRL_FE		BIT(6)
 #define RSTCTRL_PPE		BIT(31)
@@ -389,6 +417,7 @@ enum mtk_clks_map {
 	MTK_CLK_ESW,
 	MTK_CLK_GP1,
 	MTK_CLK_GP2,
+	MTK_CLK_TRGPLL,
 	MTK_CLK_MAX
 };
 
