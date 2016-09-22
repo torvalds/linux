@@ -436,9 +436,11 @@ static int imx_drm_bind(struct device *dev)
 
 err_fbhelper:
 	drm_kms_helper_poll_fini(drm);
+#if IS_ENABLED(CONFIG_DRM_FBDEV_EMULATION)
 	if (imxdrm->fbhelper)
 		drm_fbdev_cma_fini(imxdrm->fbhelper);
 err_unbind:
+#endif
 	component_unbind_all(drm->dev, drm);
 err_vblank:
 	drm_vblank_cleanup(drm);
