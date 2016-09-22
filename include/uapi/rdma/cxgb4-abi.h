@@ -29,8 +29,10 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef __C4IW_USER_H__
-#define __C4IW_USER_H__
+#ifndef CXGB4_ABI_USER_H
+#define CXGB4_ABI_USER_H
+
+#include <linux/types.h>
 
 #define C4IW_UVERBS_ABI_VERSION	3
 
@@ -51,9 +53,8 @@ struct c4iw_create_cq_resp {
 	__u32 reserved; /* explicit padding (optional for i386) */
 };
 
-
 enum {
-	C4IW_QPF_ONCHIP = (1<<0)
+	C4IW_QPF_ONCHIP = (1 << 0)
 };
 
 struct c4iw_create_qp_resp {
@@ -77,4 +78,4 @@ struct c4iw_alloc_ucontext_resp {
 	__u32 status_page_size;
 	__u32 reserved; /* explicit padding (optional for i386) */
 };
-#endif
+#endif /* CXGB4_ABI_USER_H */

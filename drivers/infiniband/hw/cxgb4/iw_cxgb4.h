@@ -58,7 +58,7 @@
 #include "cxgb4.h"
 #include "cxgb4_uld.h"
 #include "l2t.h"
-#include "user.h"
+#include <rdma/cxgb4-abi.h>
 
 #define DRV_NAME "iw_cxgb4"
 #define MOD DRV_NAME ":"
