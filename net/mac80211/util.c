@@ -3441,11 +3441,18 @@ void ieee80211_txq_get_depth(struct ieee80211_txq *txq,
 			     unsigned long *byte_cnt)
 {
 	struct txq_info *txqi = to_txq_info(txq);
+	u32 frag_cnt = 0, frag_bytes = 0;
+	struct sk_buff *skb;
+
+	skb_queue_walk(&txqi->frags, skb) {
+		frag_cnt++;
+		frag_bytes += skb->len;
+	}
 
 	if (frame_cnt)
-		*frame_cnt = txqi->tin.backlog_packets;
+		*frame_cnt = txqi->tin.backlog_packets + frag_cnt;
 
 	if (byte_cnt)
-		*byte_cnt = txqi->tin.backlog_bytes;
+		*byte_cnt = txqi->tin.backlog_bytes + frag_bytes;
 }
 EXPORT_SYMBOL(ieee80211_txq_get_depth);

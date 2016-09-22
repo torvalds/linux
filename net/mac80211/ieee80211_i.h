@@ -815,12 +815,14 @@ enum txq_info_flags {
  * @def_flow: used as a fallback flow when a packet destined to @tin hashes to
  *	a fq_flow which is already owned by a different tin
  * @def_cvars: codel vars for @def_flow
+ * @frags: used to keep fragments created after dequeue
  */
 struct txq_info {
 	struct fq_tin tin;
 	struct fq_flow def_flow;
 	struct codel_vars def_cvars;
 	struct codel_stats cstats;
+	struct sk_buff_head frags;
 	unsigned long flags;
 
 	/* keep last! */
@@ -1496,6 +1498,13 @@ static inline struct ieee80211_local *hw_to_local(
 static inline struct txq_info *to_txq_info(struct ieee80211_txq *txq)
 {
 	return container_of(txq, struct txq_info, txq);
+}
+
+static inline bool txq_has_queue(struct ieee80211_txq *txq)
+{
+	struct txq_info *txqi = to_txq_info(txq);
+
+	return !(skb_queue_empty(&txqi->frags) && !txqi->tin.backlog_packets);
 }
 
 static inline int ieee80211_bssid_match(const u8 *raddr, const u8 *addr)

@@ -1212,12 +1212,10 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 
 	if (sta->sta.txq[0]) {
 		for (i = 0; i < ARRAY_SIZE(sta->sta.txq); i++) {
-			struct txq_info *txqi = to_txq_info(sta->sta.txq[i]);
-
-			if (!txqi->tin.backlog_packets)
+			if (!txq_has_queue(sta->sta.txq[i]))
 				continue;
 
-			drv_wake_tx_queue(local, txqi);
+			drv_wake_tx_queue(local, to_txq_info(sta->sta.txq[i]));
 		}
 	}
 
@@ -1649,9 +1647,7 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 			return;
 
 		for (tid = 0; tid < ARRAY_SIZE(sta->sta.txq); tid++) {
-			struct txq_info *txqi = to_txq_info(sta->sta.txq[tid]);
-
-			if (!(tids & BIT(tid)) || txqi->tin.backlog_packets)
+			if (!(tids & BIT(tid)) || txq_has_queue(sta->sta.txq[tid]))
 				continue;
 
 			sta_info_recalc_tim(sta);
