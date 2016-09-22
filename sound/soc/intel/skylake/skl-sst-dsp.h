@@ -219,6 +219,8 @@ int skl_get_pvt_id(struct skl_sst *ctx,
 				struct skl_module_cfg *mconfig);
 int skl_put_pvt_id(struct skl_sst *ctx,
 				struct skl_module_cfg *mconfig);
+int skl_get_pvt_instance_id_map(struct skl_sst *ctx,
+				int module_id, int instance_id);
 void skl_freeup_uuid_list(struct skl_sst *ctx);
 
 int skl_dsp_strip_extended_manifest(struct firmware *fw);

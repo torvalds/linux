@@ -102,6 +102,7 @@ struct uuid_module {
 	int is_loadable;
 	int max_instance;
 	u64 pvt_id[MAX_INSTANCE_BUFF];
+	int *instance_id;
 
 	struct list_head list;
 };
@@ -134,6 +135,31 @@ int snd_skl_get_module_info(struct skl_sst *ctx,
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(snd_skl_get_module_info);
+
+static int skl_get_pvtid_map(struct uuid_module *module, int instance_id)
+{
+	int pvt_id;
+
+	for (pvt_id = 0; pvt_id < module->max_instance; pvt_id++) {
+		if (module->instance_id[pvt_id] == instance_id)
+			return pvt_id;
+	}
+	return -EINVAL;
+}
+
+int skl_get_pvt_instance_id_map(struct skl_sst *ctx,
+				int module_id, int instance_id)
+{
+	struct uuid_module *module;
+
+	list_for_each_entry(module, &ctx->uuid_list, list) {
+		if (module->id == module_id)
+			return skl_get_pvtid_map(module, instance_id);
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(skl_get_pvt_instance_id_map);
 
 static inline int skl_getid_32(struct uuid_module *module, u64 *val,
 				int word1_mask, int word2_mask)
@@ -203,8 +229,11 @@ int skl_get_pvt_id(struct skl_sst *ctx, struct skl_module_cfg *mconfig)
 		if (uuid_le_cmp(*uuid_mod, module->uuid) == 0) {
 
 			pvt_id = skl_pvtid_128(module);
-			if (pvt_id >= 0)
+			if (pvt_id >= 0) {
+				module->instance_id[pvt_id] =
+						mconfig->id.instance_id;
 				return pvt_id;
+			}
 		}
 	}
 
@@ -254,7 +283,7 @@ int snd_skl_parse_uuids(struct sst_dsp *ctx, const struct firmware *fw,
 {
 	struct adsp_fw_hdr *adsp_hdr;
 	struct adsp_module_entry *mod_entry;
-	int i, num_entry;
+	int i, num_entry, size;
 	uuid_le *uuid_bin;
 	const char *buf;
 	struct skl_sst *skl = ctx->thread_context;
@@ -318,6 +347,10 @@ int snd_skl_parse_uuids(struct sst_dsp *ctx, const struct firmware *fw,
 		module->id = (i | (index << 12));
 		module->is_loadable = mod_entry->type.load_type;
 		module->max_instance = mod_entry->instance_max_count;
+		size = sizeof(int) * mod_entry->instance_max_count;
+		module->instance_id = devm_kzalloc(ctx->dev, size, GFP_KERNEL);
+		if (!module->instance_id)
+			return -ENOMEM;
 
 		list_add_tail(&module->list, &skl->uuid_list);
 
