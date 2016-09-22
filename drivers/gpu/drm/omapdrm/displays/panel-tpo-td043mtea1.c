@@ -84,7 +84,7 @@ static const struct omap_video_timings tpo_td043_timings = {
 
 	.vsync_len	= 1,
 	.vfront_porch	= 39,
-	.vbp		= 34,
+	.vback_porch	= 34,
 
 	.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
 	.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,

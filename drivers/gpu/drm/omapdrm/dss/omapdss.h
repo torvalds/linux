@@ -317,7 +317,7 @@ struct omap_video_timings {
 	/* Unit: line clocks */
 	u16 vfront_porch;	/* Vertical front porch */
 	/* Unit: line clocks */
-	u16 vbp;	/* Vertical back porch */
+	u16 vback_porch;	/* Vertical back porch */
 
 	/* Vsync logic level */
 	enum omap_dss_signal_level vsync_level;

@@ -299,8 +299,8 @@ static void hdmi_core_init(struct hdmi_core_vid_config *video_cfg,
 	video_cfg->hblank = cfg->timings.hfront_porch +
 			    cfg->timings.hback_porch + cfg->timings.hsync_len;
 	video_cfg->vblank_osc = 0;
-	video_cfg->vblank = cfg->timings.vsync_len +
-				cfg->timings.vfront_porch + cfg->timings.vbp;
+	video_cfg->vblank = cfg->timings.vsync_len + cfg->timings.vfront_porch +
+			    cfg->timings.vback_porch;
 	video_cfg->v_fc_config.hdmi_dvi_mode = cfg->hdmi_dvi_mode;
 
 	if (cfg->timings.interlace) {
@@ -312,7 +312,7 @@ static void hdmi_core_init(struct hdmi_core_vid_config *video_cfg,
 		video_cfg->vblank /= 2;
 		video_cfg->v_fc_config.timings.vfront_porch /= 2;
 		video_cfg->v_fc_config.timings.vsync_len /= 2;
-		video_cfg->v_fc_config.timings.vbp /= 2;
+		video_cfg->v_fc_config.timings.vback_porch /= 2;
 	}
 
 	if (cfg->timings.double_pixel) {

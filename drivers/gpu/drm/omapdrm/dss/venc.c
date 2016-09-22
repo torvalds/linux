@@ -271,7 +271,7 @@ const struct omap_video_timings omap_dss_pal_timings = {
 	.hback_porch	= 68,
 	.vsync_len	= 5,
 	.vfront_porch	= 5,
-	.vbp		= 41,
+	.vback_porch	= 41,
 
 	.interlace	= true,
 
@@ -292,7 +292,7 @@ const struct omap_video_timings omap_dss_ntsc_timings = {
 	.hback_porch	= 58,
 	.vsync_len	= 6,
 	.vfront_porch	= 6,
-	.vbp		= 31,
+	.vback_porch	= 31,
 
 	.interlace	= true,
 

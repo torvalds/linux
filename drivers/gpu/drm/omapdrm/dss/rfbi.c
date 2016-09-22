@@ -863,7 +863,7 @@ static void rfbi_config_lcd_manager(struct omap_dss_device *dssdev)
 	rfbi.timings.hback_porch = 1;
 	rfbi.timings.vsync_len = 1;
 	rfbi.timings.vfront_porch = 0;
-	rfbi.timings.vbp = 0;
+	rfbi.timings.vback_porch = 0;
 
 	rfbi.timings.interlace = false;
 	rfbi.timings.hsync_level = OMAPDSS_SIG_ACTIVE_HIGH;
