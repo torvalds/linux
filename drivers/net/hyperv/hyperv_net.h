@@ -649,6 +649,8 @@ struct multi_recv_comp {
 struct netvsc_stats {
 	u64 packets;
 	u64 bytes;
+	u64 broadcast;
+	u64 multicast;
 	struct u64_stats_sync syncp;
 };
 
