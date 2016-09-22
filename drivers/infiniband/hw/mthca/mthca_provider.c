@@ -46,7 +46,7 @@
 
 #include "mthca_dev.h"
 #include "mthca_cmd.h"
-#include "mthca_user.h"
+#include <rdma/mthca-abi.h>
 #include "mthca_memfree.h"
 
 static void init_query_mad(struct ib_smp *mad)
