@@ -1238,10 +1238,6 @@ static int netvsc_register_vf(struct net_device *vf_netdev)
 	struct net_device *ndev;
 	struct net_device_context *net_device_ctx;
 	struct netvsc_device *netvsc_dev;
-	const struct ethtool_ops *eth_ops = vf_netdev->ethtool_ops;
-
-	if (eth_ops == NULL || eth_ops == &ethtool_ops)
-		return NOTIFY_DONE;
 
 	/*
 	 * We will use the MAC address to locate the synthetic interface to
@@ -1286,11 +1282,7 @@ static int netvsc_vf_up(struct net_device *vf_netdev)
 {
 	struct net_device *ndev;
 	struct netvsc_device *netvsc_dev;
-	const struct ethtool_ops *eth_ops = vf_netdev->ethtool_ops;
 	struct net_device_context *net_device_ctx;
-
-	if (eth_ops == &ethtool_ops)
-		return NOTIFY_DONE;
 
 	ndev = get_netvsc_net_device(vf_netdev->dev_addr);
 	if (!ndev)
@@ -1329,10 +1321,6 @@ static int netvsc_vf_down(struct net_device *vf_netdev)
 	struct net_device *ndev;
 	struct netvsc_device *netvsc_dev;
 	struct net_device_context *net_device_ctx;
-	const struct ethtool_ops *eth_ops = vf_netdev->ethtool_ops;
-
-	if (eth_ops == &ethtool_ops)
-		return NOTIFY_DONE;
 
 	ndev = get_netvsc_net_device(vf_netdev->dev_addr);
 	if (!ndev)
@@ -1361,11 +1349,7 @@ static int netvsc_unregister_vf(struct net_device *vf_netdev)
 {
 	struct net_device *ndev;
 	struct netvsc_device *netvsc_dev;
-	const struct ethtool_ops *eth_ops = vf_netdev->ethtool_ops;
 	struct net_device_context *net_device_ctx;
-
-	if (eth_ops == &ethtool_ops)
-		return NOTIFY_DONE;
 
 	ndev = get_netvsc_net_device(vf_netdev->dev_addr);
 	if (!ndev)
@@ -1542,13 +1526,21 @@ static int netvsc_netdev_event(struct notifier_block *this,
 {
 	struct net_device *event_dev = netdev_notifier_info_to_dev(ptr);
 
+	/* Skip our own events */
+	if (event_dev->netdev_ops == &device_ops)
+		return NOTIFY_DONE;
+
+	/* Avoid non-Ethernet type devices */
+	if (event_dev->type != ARPHRD_ETHER)
+		return NOTIFY_DONE;
+
 	/* Avoid Vlan dev with same MAC registering as VF */
 	if (event_dev->priv_flags & IFF_802_1Q_VLAN)
 		return NOTIFY_DONE;
 
 	/* Avoid Bonding master dev with same MAC registering as VF */
-	if (event_dev->priv_flags & IFF_BONDING &&
-	    event_dev->flags & IFF_MASTER)
+	if ((event_dev->priv_flags & IFF_BONDING) &&
+	    (event_dev->flags & IFF_MASTER))
 		return NOTIFY_DONE;
 
 	switch (event) {
