@@ -33,6 +33,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/platform_data/dma-s3c24xx.h>
+#include <linux/dmaengine.h>
 
 #include <mach/hardware.h>
 #include <mach/regs-clock.h>
@@ -439,10 +440,44 @@ static struct s3c24xx_dma_channel s3c2440_dma_channels[DMACH_MAX] = {
 	[DMACH_USB_EP4] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(4, 3), },
 };
 
+static const struct dma_slave_map s3c2440_dma_slave_map[] = {
+	/* TODO: DMACH_XD0 */
+	/* TODO: DMACH_XD1 */
+	{ "s3c2440-sdi", "rx-tx", (void *)DMACH_SDI },
+	{ "s3c2410-spi.0", "rx", (void *)DMACH_SPI0 },
+	{ "s3c2410-spi.0", "tx", (void *)DMACH_SPI0 },
+	{ "s3c2410-spi.1", "rx", (void *)DMACH_SPI1 },
+	{ "s3c2410-spi.1", "tx", (void *)DMACH_SPI1 },
+	{ "s3c2440-uart.0", "rx", (void *)DMACH_UART0 },
+	{ "s3c2440-uart.0", "tx", (void *)DMACH_UART0 },
+	{ "s3c2440-uart.1", "rx", (void *)DMACH_UART1 },
+	{ "s3c2440-uart.1", "tx", (void *)DMACH_UART1 },
+	{ "s3c2440-uart.2", "rx", (void *)DMACH_UART2 },
+	{ "s3c2440-uart.2", "tx", (void *)DMACH_UART2 },
+	{ "s3c2440-uart.3", "rx", (void *)DMACH_UART3 },
+	{ "s3c2440-uart.3", "tx", (void *)DMACH_UART3 },
+	/* TODO: DMACH_TIMER */
+	{ "s3c24xx-iis", "rx", (void *)DMACH_I2S_IN },
+	{ "s3c24xx-iis", "tx", (void *)DMACH_I2S_OUT },
+	{ "samsung-ac97", "rx", (void *)DMACH_PCM_IN },
+	{ "samsung-ac97", "tx", (void *)DMACH_PCM_OUT },
+	{ "samsung-ac97", "rx", (void *)DMACH_MIC_IN },
+	{ "s3c-hsudc", "rx0", (void *)DMACH_USB_EP1 },
+	{ "s3c-hsudc", "rx1", (void *)DMACH_USB_EP2 },
+	{ "s3c-hsudc", "rx2", (void *)DMACH_USB_EP3 },
+	{ "s3c-hsudc", "rx3", (void *)DMACH_USB_EP4 },
+	{ "s3c-hsudc", "tx0", (void *)DMACH_USB_EP1 },
+	{ "s3c-hsudc", "tx1", (void *)DMACH_USB_EP2 },
+	{ "s3c-hsudc", "tx2", (void *)DMACH_USB_EP3 },
+	{ "s3c-hsudc", "tx3", (void *)DMACH_USB_EP4 }
+};
+
 static struct s3c24xx_dma_platdata s3c2440_dma_platdata = {
 	.num_phy_channels = 4,
 	.channels = s3c2440_dma_channels,
 	.num_channels = DMACH_MAX,
+	.slave_map = s3c2440_dma_slave_map,
+	.slavecnt = ARRAY_SIZE(s3c2440_dma_slave_map),
 };
 
 struct platform_device s3c2440_device_dma = {
