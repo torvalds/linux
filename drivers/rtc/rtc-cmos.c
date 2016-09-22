@@ -848,8 +848,6 @@ static int cmos_aie_poweroff(struct device *dev)
 	return retval;
 }
 
-#ifdef CONFIG_PM
-
 static int cmos_suspend(struct device *dev)
 {
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
@@ -898,10 +896,11 @@ static int cmos_suspend(struct device *dev)
  */
 static inline int cmos_poweroff(struct device *dev)
 {
+	if (!IS_ENABLED(CONFIG_PM))
+		return -ENOSYS;
+
 	return cmos_suspend(dev);
 }
-
-#ifdef	CONFIG_PM_SLEEP
 
 static void cmos_check_wkalrm(struct device *dev)
 {
@@ -922,7 +921,7 @@ static void cmos_check_wkalrm(struct device *dev)
 static void cmos_check_acpi_rtc_status(struct device *dev,
 				       unsigned char *rtc_control);
 
-static int cmos_resume(struct device *dev)
+static int __maybe_unused cmos_resume(struct device *dev)
 {
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
 	unsigned char tmp;
@@ -974,16 +973,6 @@ static int cmos_resume(struct device *dev)
 
 	return 0;
 }
-
-#endif
-#else
-
-static inline int cmos_poweroff(struct device *dev)
-{
-	return -ENOSYS;
-}
-
-#endif
 
 static SIMPLE_DEV_PM_OPS(cmos_pm_ops, cmos_suspend, cmos_resume);
 
@@ -1278,9 +1267,7 @@ static struct platform_driver cmos_platform_driver = {
 	.shutdown	= cmos_platform_shutdown,
 	.driver = {
 		.name		= driver_name,
-#ifdef CONFIG_PM
 		.pm		= &cmos_pm_ops,
-#endif
 		.of_match_table = of_match_ptr(of_cmos_match),
 	}
 };
