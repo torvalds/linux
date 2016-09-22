@@ -495,7 +495,7 @@ static void arche_apb_ctrl_shutdown(struct platform_device *pdev)
 static SIMPLE_DEV_PM_OPS(arche_apb_ctrl_pm_ops, arche_apb_ctrl_suspend,
 			 arche_apb_ctrl_resume);
 
-static struct of_device_id arche_apb_ctrl_of_match[] = {
+static const struct of_device_id arche_apb_ctrl_of_match[] = {
 	{ .compatible = "usbffff,2", },
 	{ },
 };
