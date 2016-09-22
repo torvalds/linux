@@ -435,11 +435,11 @@ int nfs_same_file(struct dentry *dentry, struct nfs_entry *entry)
 		return 0;
 
 	nfsi = NFS_I(inode);
-	if (entry->fattr->fileid == nfsi->fileid)
-		return 1;
-	if (nfs_compare_fh(entry->fh, &nfsi->fh) == 0)
-		return 1;
-	return 0;
+	if (entry->fattr->fileid != nfsi->fileid)
+		return 0;
+	if (entry->fh->size && nfs_compare_fh(entry->fh, &nfsi->fh) != 0)
+		return 0;
+	return 1;
 }
 
 static
@@ -525,6 +525,8 @@ again:
 					&entry->fattr->fsid))
 			goto out;
 		if (nfs_same_file(dentry, entry)) {
+			if (!entry->fh->size)
+				goto out;
 			nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 			status = nfs_refresh_inode(d_inode(dentry), entry->fattr);
 			if (!status)
@@ -536,6 +538,10 @@ again:
 			dentry = NULL;
 			goto again;
 		}
+	}
+	if (!entry->fh->size) {
+		d_lookup_done(dentry);
+		goto out;
 	}
 
 	inode = nfs_fhget(dentry->d_sb, entry->fh, entry->fattr, entry->label);
