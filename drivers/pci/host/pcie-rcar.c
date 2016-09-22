@@ -84,8 +84,18 @@
 #define IDSETR1			0x011004
 #define TLCTLR			0x011048
 #define MACSR			0x011054
+#define  SPCHGFIN		(1 << 4)
+#define  SPCHGFAIL		(1 << 6)
+#define  SPCHGSUC		(1 << 7)
+#define  LINK_SPEED		(0xf << 16)
+#define  LINK_SPEED_2_5GTS	(1 << 16)
+#define  LINK_SPEED_5_0GTS	(2 << 16)
 #define MACCTLR			0x011058
+#define  SPEED_CHANGE		(1 << 24)
 #define  SCRAMBLE_DISABLE	(1 << 27)
+#define MACS2R			0x011078
+#define MACCGSPSETR		0x011084
+#define  SPCNGRSN		(1 << 31)
 
 /* R-Car H1 PHY */
 #define H1_PCIEPHYADRR		0x04000c
@@ -385,10 +395,66 @@ static int rcar_pcie_setup(struct list_head *resource, struct rcar_pcie *pci)
 	return 1;
 }
 
+static void rcar_pcie_force_speedup(struct rcar_pcie *pcie)
+{
+	unsigned int timeout = 1000;
+	u32 macsr;
+
+	if ((rcar_pci_read_reg(pcie, MACS2R) & LINK_SPEED) != LINK_SPEED_5_0GTS)
+		return;
+
+	if (rcar_pci_read_reg(pcie, MACCTLR) & SPEED_CHANGE) {
+		dev_err(pcie->dev, "Speed change already in progress\n");
+		return;
+	}
+
+	macsr = rcar_pci_read_reg(pcie, MACSR);
+	if ((macsr & LINK_SPEED) == LINK_SPEED_5_0GTS)
+		goto done;
+
+	/* Set target link speed to 5.0 GT/s */
+	rcar_rmw32(pcie, EXPCAP(12), PCI_EXP_LNKSTA_CLS,
+		   PCI_EXP_LNKSTA_CLS_5_0GB);
+
+	/* Set speed change reason as intentional factor */
+	rcar_rmw32(pcie, MACCGSPSETR, SPCNGRSN, 0);
+
+	/* Clear SPCHGFIN, SPCHGSUC, and SPCHGFAIL */
+	if (macsr & (SPCHGFIN | SPCHGSUC | SPCHGFAIL))
+		rcar_pci_write_reg(pcie, macsr, MACSR);
+
+	/* Start link speed change */
+	rcar_rmw32(pcie, MACCTLR, SPEED_CHANGE, SPEED_CHANGE);
+
+	while (timeout--) {
+		macsr = rcar_pci_read_reg(pcie, MACSR);
+		if (macsr & SPCHGFIN) {
+			/* Clear the interrupt bits */
+			rcar_pci_write_reg(pcie, macsr, MACSR);
+
+			if (macsr & SPCHGFAIL)
+				dev_err(pcie->dev, "Speed change failed\n");
+
+			goto done;
+		}
+
+		msleep(1);
+	};
+
+	dev_err(pcie->dev, "Speed change timed out\n");
+
+done:
+	dev_info(pcie->dev, "Current link speed is %s GT/s\n",
+		 (macsr & LINK_SPEED) == LINK_SPEED_5_0GTS ? "5" : "2.5");
+}
+
 static int rcar_pcie_enable(struct rcar_pcie *pcie)
 {
 	struct pci_bus *bus, *child;
 	LIST_HEAD(res);
+
+	/* Try setting 5 GT/s link speed */
+	rcar_pcie_force_speedup(pcie);
 
 	rcar_pcie_setup(&res, pcie);
 
