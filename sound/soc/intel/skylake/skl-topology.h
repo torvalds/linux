@@ -218,6 +218,7 @@ struct skl_module_cfg;
 struct skl_module_inst_id {
 	int module_id;
 	u32 instance_id;
+	int pvt_id;
 };
 
 enum skl_module_pin_state {

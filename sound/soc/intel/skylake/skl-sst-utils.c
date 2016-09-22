@@ -94,10 +94,14 @@ struct adsp_fw_hdr {
 	u32 load_offset;
 } __packed;
 
+#define MAX_INSTANCE_BUFF 2
+
 struct uuid_module {
 	uuid_le uuid;
 	int id;
 	int is_loadable;
+	int max_instance;
+	u64 pvt_id[MAX_INSTANCE_BUFF];
 
 	struct list_head list;
 };
@@ -130,6 +134,116 @@ int snd_skl_get_module_info(struct skl_sst *ctx,
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(snd_skl_get_module_info);
+
+static inline int skl_getid_32(struct uuid_module *module, u64 *val,
+					int word1_mask, int word2_mask)
+{
+	int index, max_inst, pvt_id;
+	u32 mask_val;
+
+	max_inst =  module->max_instance;
+	mask_val = (u32)(*val >> word1_mask);
+
+	if (mask_val != 0xffffffff) {
+		index = ffz(mask_val);
+		pvt_id = index + word1_mask + word2_mask;
+		if (pvt_id <= (max_inst - 1)) {
+			*val |= 1 << (index + word1_mask);
+			return pvt_id;
+		}
+	}
+
+	return -EINVAL;
+}
+
+static inline int skl_pvtid_128(struct uuid_module *module)
+{
+	int j, i, word1_mask, word2_mask = 0, pvt_id;
+
+	for (j = 0; j < MAX_INSTANCE_BUFF; j++) {
+		word1_mask = 0;
+
+		for (i = 0; i < 2; i++) {
+			pvt_id = skl_getid_32(module, &module->pvt_id[j],
+						word1_mask, word2_mask);
+			if (pvt_id >= 0)
+				return pvt_id;
+
+			word1_mask += 32;
+			if ((word1_mask + word2_mask) >= module->max_instance)
+				return -EINVAL;
+		}
+
+		word2_mask += 64;
+		if (word2_mask >= module->max_instance)
+			return -EINVAL;
+	}
+
+	return -EINVAL;
+}
+
+/**
+ * skl_get_pvt_id: generate a private id for use as module id
+ *
+ * @ctx: driver context
+ * @mconfig: module configuration data
+ *
+ * This generates a 128 bit private unique id for a module TYPE so that
+ * module instance is unique
+ */
+int skl_get_pvt_id(struct skl_sst *ctx, struct skl_module_cfg *mconfig)
+{
+	struct uuid_module *module;
+	uuid_le *uuid_mod;
+	int pvt_id;
+
+	uuid_mod = (uuid_le *)mconfig->guid;
+
+	list_for_each_entry(module, &ctx->uuid_list, list) {
+		if (uuid_le_cmp(*uuid_mod, module->uuid) == 0) {
+
+			pvt_id = skl_pvtid_128(module);
+			if (pvt_id >= 0)
+				return pvt_id;
+		}
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(skl_get_pvt_id);
+
+/**
+ * skl_put_pvt_id: free up the private id allocated
+ *
+ * @ctx: driver context
+ * @mconfig: module configuration data
+ *
+ * This frees a 128 bit private unique id previously generated
+ */
+int skl_put_pvt_id(struct skl_sst *ctx, struct skl_module_cfg *mconfig)
+{
+	int i;
+	uuid_le *uuid_mod;
+	struct uuid_module *module;
+
+	uuid_mod = (uuid_le *)mconfig->guid;
+	list_for_each_entry(module, &ctx->uuid_list, list) {
+		if (uuid_le_cmp(*uuid_mod, module->uuid) == 0) {
+
+			if (mconfig->id.pvt_id != 0)
+				i = (mconfig->id.pvt_id) / 64;
+			else
+				i = 0;
+
+			module->pvt_id[i] &= ~(1 << (mconfig->id.pvt_id));
+			mconfig->id.pvt_id = -1;
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(skl_put_pvt_id);
 
 /*
  * Parse the firmware binary to get the UUID, module id
@@ -203,6 +317,7 @@ int snd_skl_parse_uuids(struct sst_dsp *ctx, const struct firmware *fw,
 
 		module->id = (i | (index << 12));
 		module->is_loadable = mod_entry->type.load_type;
+		module->max_instance = mod_entry->instance_max_count;
 
 		list_add_tail(&module->list, &skl->uuid_list);
 
