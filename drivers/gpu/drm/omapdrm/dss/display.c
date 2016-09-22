@@ -234,11 +234,9 @@ void videomode_to_omap_video_timings(const struct videomode *vm,
 	ovt->vsync_len = vm->vsync_len;
 	ovt->flags = vm->flags;
 
-	ovt->data_pclk_edge = vm->flags & DISPLAY_FLAGS_PIXDATA_POSEDGE ?
+	ovt->sync_pclk_edge = ovt->flags & DISPLAY_FLAGS_PIXDATA_POSEDGE ?
 		OMAPDSS_DRIVE_SIG_RISING_EDGE :
 		OMAPDSS_DRIVE_SIG_FALLING_EDGE;
-
-	ovt->sync_pclk_edge = ovt->data_pclk_edge;
 }
 EXPORT_SYMBOL(videomode_to_omap_video_timings);
 
@@ -258,10 +256,5 @@ void omap_video_timings_to_videomode(const struct omap_video_timings *ovt,
 	vm->vfront_porch = ovt->vfront_porch;
 	vm->vsync_len = ovt->vsync_len;
 	vm->flags = ovt->flags;
-
-	if (ovt->data_pclk_edge == OMAPDSS_DRIVE_SIG_RISING_EDGE)
-		vm->flags |= DISPLAY_FLAGS_PIXDATA_POSEDGE;
-	else
-		vm->flags |= DISPLAY_FLAGS_PIXDATA_NEGEDGE;
 }
 EXPORT_SYMBOL(omap_video_timings_to_videomode);

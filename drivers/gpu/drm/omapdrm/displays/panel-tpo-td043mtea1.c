@@ -86,11 +86,10 @@ static const struct omap_video_timings tpo_td043_timings = {
 	.vfront_porch	= 39,
 	.vback_porch	= 34,
 
-	.data_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
 	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
 
 	.flags		= DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
-			  DISPLAY_FLAGS_DE_HIGH,
+			  DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_PIXDATA_NEGEDGE,
 };
 
 #define to_panel_data(p) container_of(p, struct panel_drv_data, dssdev)

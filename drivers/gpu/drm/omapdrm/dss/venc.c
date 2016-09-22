@@ -273,11 +273,11 @@ const struct omap_video_timings omap_dss_pal_timings = {
 	.vfront_porch	= 5,
 	.vback_porch	= 41,
 
-	.data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE,
 	.sync_pclk_edge = OMAPDSS_DRIVE_SIG_FALLING_EDGE,
 
 	.flags		= DISPLAY_FLAGS_INTERLACED | DISPLAY_FLAGS_HSYNC_LOW |
-			  DISPLAY_FLAGS_VSYNC_LOW | DISPLAY_FLAGS_DE_HIGH,
+			  DISPLAY_FLAGS_VSYNC_LOW | DISPLAY_FLAGS_DE_HIGH |
+			  DISPLAY_FLAGS_PIXDATA_POSEDGE,
 };
 EXPORT_SYMBOL(omap_dss_pal_timings);
 
@@ -292,11 +292,11 @@ const struct omap_video_timings omap_dss_ntsc_timings = {
 	.vfront_porch	= 6,
 	.vback_porch	= 31,
 
-	.data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE,
 	.sync_pclk_edge = OMAPDSS_DRIVE_SIG_FALLING_EDGE,
 
 	.flags		= DISPLAY_FLAGS_INTERLACED | DISPLAY_FLAGS_HSYNC_LOW |
-			  DISPLAY_FLAGS_VSYNC_LOW | DISPLAY_FLAGS_DE_HIGH,
+			  DISPLAY_FLAGS_VSYNC_LOW | DISPLAY_FLAGS_DE_HIGH |
+			  DISPLAY_FLAGS_PIXDATA_POSEDGE,
 };
 EXPORT_SYMBOL(omap_dss_ntsc_timings);
 

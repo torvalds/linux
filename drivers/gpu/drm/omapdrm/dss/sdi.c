@@ -151,7 +151,7 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 		goto err_get_dispc;
 
 	/* 15.5.9.1.2 */
-	t->data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
+	t->flags |= DISPLAY_FLAGS_PIXDATA_POSEDGE;
 	t->sync_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
 
 	r = sdi_calc_clock_div(t->pixelclock, &fck, &dispc_cinfo);
