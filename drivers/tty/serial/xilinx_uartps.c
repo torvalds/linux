@@ -248,48 +248,46 @@ static void cdns_uart_handle_rx(void *dev_id, unsigned int isrstatus)
 		status_mask = port->read_status_mask;
 		status_mask &= ~port->ignore_status_mask;
 
-		if ((isrstatus & CDNS_UART_IXR_TOUT) ||
-		    (isrstatus & CDNS_UART_IXR_RXTRIG)) {
-			if (data &&
-			    (port->read_status_mask & CDNS_UART_IXR_BRK)) {
-				port->read_status_mask &= ~CDNS_UART_IXR_BRK;
-				port->icount.brk++;
-				if (uart_handle_break(port))
-					continue;
-			}
-
-			if (uart_handle_sysrq_char(port, data))
+		if (data &&
+		    (port->read_status_mask & CDNS_UART_IXR_BRK)) {
+			port->read_status_mask &= ~CDNS_UART_IXR_BRK;
+			port->icount.brk++;
+			if (uart_handle_break(port))
 				continue;
-
-			if (is_rxbs_support) {
-				if ((rxbs_status & CDNS_UART_RXBS_PARITY)
-				    && (status_mask & CDNS_UART_IXR_PARITY)) {
-					port->icount.parity++;
-					status = TTY_PARITY;
-				}
-				if ((rxbs_status & CDNS_UART_RXBS_FRAMING)
-				    && (status_mask & CDNS_UART_IXR_PARITY)) {
-					port->icount.frame++;
-					status = TTY_FRAME;
-				}
-			} else {
-				if (isrstatus & CDNS_UART_IXR_PARITY) {
-					port->icount.parity++;
-					status = TTY_PARITY;
-				}
-				if ((isrstatus & CDNS_UART_IXR_FRAMING) &&
-				    !framerrprocessed) {
-					port->icount.frame++;
-					status = TTY_FRAME;
-				}
-			}
-			if (isrstatus & CDNS_UART_IXR_OVERRUN) {
-				port->icount.overrun++;
-				tty_insert_flip_char(&port->state->port, 0,
-						     TTY_OVERRUN);
-			}
-			tty_insert_flip_char(&port->state->port, data, status);
 		}
+
+		if (uart_handle_sysrq_char(port, data))
+			continue;
+
+		if (is_rxbs_support) {
+			if ((rxbs_status & CDNS_UART_RXBS_PARITY)
+			    && (status_mask & CDNS_UART_IXR_PARITY)) {
+				port->icount.parity++;
+				status = TTY_PARITY;
+			}
+			if ((rxbs_status & CDNS_UART_RXBS_FRAMING)
+			    && (status_mask & CDNS_UART_IXR_PARITY)) {
+				port->icount.frame++;
+				status = TTY_FRAME;
+			}
+		} else {
+			if (isrstatus & CDNS_UART_IXR_PARITY) {
+				port->icount.parity++;
+				status = TTY_PARITY;
+			}
+			if ((isrstatus & CDNS_UART_IXR_FRAMING) &&
+			    !framerrprocessed) {
+				port->icount.frame++;
+				status = TTY_FRAME;
+			}
+		}
+		if (isrstatus & CDNS_UART_IXR_OVERRUN) {
+			port->icount.overrun++;
+			tty_insert_flip_char(&port->state->port, 0,
+					     TTY_OVERRUN);
+		}
+		tty_insert_flip_char(&port->state->port, data, status);
+		isrstatus = 0;
 	}
 	spin_unlock(&port->lock);
 	tty_flip_buffer_push(&port->state->port);
