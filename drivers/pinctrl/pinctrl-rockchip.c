@@ -3021,7 +3021,7 @@ static int rockchip_interrupts_register(struct platform_device *pdev,
 		}
 
 		ret = irq_alloc_domain_generic_chips(bank->domain, 32, 1,
-					 "rockchip_gpio_irq", handle_level_irq,
+					 bank->name, handle_level_irq,
 					 clr, 0, IRQ_GC_INIT_MASK_CACHE);
 		if (ret) {
 			dev_err(&pdev->dev, "could not alloc generic chips for bank %s\n",
