@@ -207,7 +207,7 @@ static void __init tilcdc_convert_slave_node(void)
 	int ret;
 
 	if (kfree_table_init(&kft))
-		goto out;
+		return;
 
 	lcdc = of_find_matching_node(NULL, tilcdc_of_match);
 	slave = of_find_matching_node(NULL, tilcdc_slave_of_match);
