@@ -86,6 +86,7 @@ struct fq_sched_data {
 
 	struct rb_root	delayed;	/* for rate limited flows */
 	u64		time_next_delayed_flow;
+	unsigned long	unthrottle_latency_ns;
 
 	struct fq_flow	internal;	/* for non classified or high prio packets */
 	u32		quantum;
@@ -408,10 +409,18 @@ static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 
 static void fq_check_throttled(struct fq_sched_data *q, u64 now)
 {
+	unsigned long sample;
 	struct rb_node *p;
 
 	if (q->time_next_delayed_flow > now)
 		return;
+
+	/* Update unthrottle latency EWMA.
+	 * This is cheap and can help diagnosing timer/latency problems.
+	 */
+	sample = (unsigned long)(now - q->time_next_delayed_flow);
+	q->unthrottle_latency_ns -= q->unthrottle_latency_ns >> 3;
+	q->unthrottle_latency_ns += sample >> 3;
 
 	q->time_next_delayed_flow = ~0ULL;
 	while ((p = rb_first(&q->delayed)) != NULL) {
@@ -515,7 +524,12 @@ begin:
 			len = NSEC_PER_SEC;
 			q->stat_pkts_too_long++;
 		}
-
+		/* Account for schedule/timers drifts.
+		 * f->time_next_packet was set when prior packet was sent,
+		 * and current time (@now) can be too late by tens of us.
+		 */
+		if (f->time_next_packet)
+			len -= min(len/2, now - f->time_next_packet);
 		f->time_next_packet = now + len;
 	}
 out:
@@ -787,6 +801,7 @@ static int fq_init(struct Qdisc *sch, struct nlattr *opt)
 	q->initial_quantum	= 10 * psched_mtu(qdisc_dev(sch));
 	q->flow_refill_delay	= msecs_to_jiffies(40);
 	q->flow_max_rate	= ~0U;
+	q->time_next_delayed_flow = ~0ULL;
 	q->rate_enable		= 1;
 	q->new_flows.first	= NULL;
 	q->old_flows.first	= NULL;
@@ -854,8 +869,8 @@ static int fq_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 	st.flows		  = q->flows;
 	st.inactive_flows	  = q->inactive_flows;
 	st.throttled_flows	  = q->throttled_flows;
-	st.pad			  = 0;
-
+	st.unthrottle_latency_ns  = min_t(unsigned long,
+					  q->unthrottle_latency_ns, ~0U);
 	sch_tree_unlock(sch);
 
 	return gnet_stats_copy_app(d, &st, sizeof(st));

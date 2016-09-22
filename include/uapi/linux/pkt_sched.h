@@ -811,7 +811,7 @@ struct tc_fq_qd_stats {
 	__u32	flows;
 	__u32	inactive_flows;
 	__u32	throttled_flows;
-	__u32	pad;
+	__u32	unthrottle_latency_ns;
 };
 
 /* Heavy-Hitter Filter */
