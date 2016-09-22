@@ -351,7 +351,7 @@ static int dpi_set_mode(struct dpi_data *dpi)
 	pck = fck / lck_div / pck_div;
 
 	if (pck != t->pixelclock) {
-		DSSWARN("Could not find exact pixel clock. Requested %d Hz, got %lu Hz\n",
+		DSSWARN("Could not find exact pixel clock. Requested %lu Hz, got %lu Hz\n",
 			t->pixelclock, pck);
 
 		t->pixelclock = pck;

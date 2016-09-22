@@ -1023,7 +1023,7 @@ static int dsicm_memory_read(struct omap_dss_device *dssdev,
 		goto err1;
 	}
 
-	size = min(w * h * 3,
+	size = min((u32)w * h * 3,
 			dssdev->panel.timings.hactive *
 			dssdev->panel.timings.vactive * 3);
 

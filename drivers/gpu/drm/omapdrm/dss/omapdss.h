@@ -301,23 +301,23 @@ struct omap_dss_dsi_config {
 
 struct omap_video_timings {
 	/* Unit: pixels */
-	u16 hactive;
+	u32 hactive;
 	/* Unit: pixels */
-	u16 vactive;
+	u32 vactive;
 	/* Unit: Hz */
-	u32 pixelclock;
+	unsigned long pixelclock;
 	/* Unit: pixel clocks */
-	u16 hsync_len;		/* Horizontal synchronization pulse width */
+	u32 hsync_len;		/* Horizontal synchronization pulse width */
 	/* Unit: pixel clocks */
-	u16 hfront_porch;	/* Horizontal front porch */
+	u32 hfront_porch;	/* Horizontal front porch */
 	/* Unit: pixel clocks */
-	u16 hback_porch;	/* Horizontal back porch */
+	u32 hback_porch;	/* Horizontal back porch */
 	/* Unit: line clocks */
-	u16 vsync_len;		/* Vertical synchronization pulse width */
+	u32 vsync_len;		/* Vertical synchronization pulse width */
 	/* Unit: line clocks */
-	u16 vfront_porch;	/* Vertical front porch */
+	u32 vfront_porch;	/* Vertical front porch */
 	/* Unit: line clocks */
-	u16 vback_porch;	/* Vertical back porch */
+	u32 vback_porch;	/* Vertical back porch */
 
 	enum display_flags flags;
 };

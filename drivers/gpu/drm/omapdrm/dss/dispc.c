@@ -2870,7 +2870,8 @@ int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
 		int wbdelay;
 
 		wbdelay = min(mgr_timings->vfront_porch +
-			      mgr_timings->vsync_len + mgr_timings->vback_porch, 255);
+			      mgr_timings->vsync_len + mgr_timings->vback_porch,
+			      (u32)255);
 
 		/* WBDELAYCOUNT */
 		REG_FLD_MOD(DISPC_OVL_ATTRIBUTES2(plane), wbdelay, 7, 0);
@@ -3242,7 +3243,7 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 		ht = timings->pixelclock / xtot;
 		vt = timings->pixelclock / xtot / ytot;
 
-		DSSDBG("pck %u\n", timings->pixelclock);
+		DSSDBG("pck %lu\n", timings->pixelclock);
 		DSSDBG("hsync_len %d hfp %d hbp %d vsw %d vfp %d vbp %d\n",
 			t.hsync_len, t.hfront_porch, t.hback_porch,
 			t.vsync_len, t.vfront_porch, t.vback_porch);

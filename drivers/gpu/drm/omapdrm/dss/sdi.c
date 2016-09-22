@@ -162,7 +162,7 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 	pck = fck / dispc_cinfo.lck_div / dispc_cinfo.pck_div;
 
 	if (pck != t->pixelclock) {
-		DSSWARN("Could not find exact pixel clock. Requested %d Hz, got %lu Hz\n",
+		DSSWARN("Could not find exact pixel clock. Requested %lu Hz, got %lu Hz\n",
 			t->pixelclock, pck);
 
 		t->pixelclock = pck;
