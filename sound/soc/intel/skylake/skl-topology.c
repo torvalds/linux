@@ -607,6 +607,26 @@ static int skl_tplg_mixer_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int skl_fill_sink_instance_id(struct skl_sst *ctx,
+				struct skl_algo_data *alg_data)
+{
+	struct skl_kpb_params *params = (struct skl_kpb_params *)alg_data->params;
+	struct skl_mod_inst_map *inst;
+	int i, pvt_id;
+
+	inst = params->map;
+
+	for (i = 0; i < params->num_modules; i++) {
+		pvt_id = skl_get_pvt_instance_id_map(ctx,
+					inst->mod_id, inst->inst_id);
+		if (pvt_id < 0)
+			return -EINVAL;
+		inst->inst_id = pvt_id;
+		inst++;
+	}
+	return 0;
+}
+
 /*
  * Some modules require params to be set after the module is bound to
  * all pins connected.
@@ -655,6 +675,8 @@ static int skl_tplg_set_module_bind_params(struct snd_soc_dapm_widget *w,
 			bc = (struct skl_algo_data *)sb->dobj.private;
 
 			if (bc->set_params == SKL_PARAM_BIND) {
+				if (mconfig->m_type == SKL_MODULE_TYPE_KPB)
+					skl_fill_sink_instance_id(ctx, bc);
 				ret = skl_set_module_params(ctx,
 						(u32 *)bc->params, bc->max,
 						bc->param_id, mconfig);

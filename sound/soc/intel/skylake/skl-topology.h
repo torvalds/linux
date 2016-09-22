@@ -215,6 +215,16 @@ struct skl_module_fmt {
 
 struct skl_module_cfg;
 
+struct skl_mod_inst_map {
+	u16 mod_id;
+	u16 inst_id;
+};
+
+struct skl_kpb_params {
+	u32 num_modules;
+	struct skl_mod_inst_map map[0];
+};
+
 struct skl_module_inst_id {
 	int module_id;
 	u32 instance_id;
