@@ -89,6 +89,10 @@ static const struct videomode tpo_td043_vm = {
 	.flags		= DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
 			  DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_SYNC_POSEDGE |
 			  DISPLAY_FLAGS_PIXDATA_NEGEDGE,
+	/*
+	 * Note: According to the panel documentation:
+	 * SYNC needs to be driven on the FALLING edge
+	 */
 };
 
 #define to_panel_data(p) container_of(p, struct panel_drv_data, dssdev)
