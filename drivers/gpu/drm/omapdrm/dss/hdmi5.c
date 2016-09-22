@@ -187,7 +187,7 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 	       p->vactive);
 
 	pc = p->pixelclock;
-	if (p->double_pixel)
+	if (p->flags & DISPLAY_FLAGS_DOUBLECLK)
 		pc *= 2;
 
 	/* DSS_HDMI_TCLK is bitclk / 10 */

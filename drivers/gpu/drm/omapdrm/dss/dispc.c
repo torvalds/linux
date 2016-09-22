@@ -3270,8 +3270,9 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 			t.vactive /= 2;
 
 		if (dispc.feat->supports_double_pixel)
-			REG_FLD_MOD(DISPC_CONTROL, t.double_pixel ? 1 : 0,
-				19, 17);
+			REG_FLD_MOD(DISPC_CONTROL,
+				    !!(t.flags & DISPLAY_FLAGS_DOUBLECLK),
+				    19, 17);
 	}
 
 	dispc_mgr_set_size(channel, t.hactive, t.vactive);
@@ -4206,7 +4207,6 @@ static const struct dispc_errata_i734_data {
 		.vsync_len = 1, .vfront_porch = 1, .vback_porch = 1,
 		.data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE,
 		.sync_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE,
-		.double_pixel = false,
 
 		.flags = DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
 			 DISPLAY_FLAGS_DE_HIGH,

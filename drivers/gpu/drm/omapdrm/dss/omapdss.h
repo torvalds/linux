@@ -324,8 +324,6 @@ struct omap_video_timings {
 	/* Pixel clock edges to drive HSYNC and VSYNC signals */
 	enum omap_dss_signal_edge sync_pclk_edge;
 
-	bool double_pixel;
-
 	enum display_flags flags;
 };
 

@@ -208,7 +208,6 @@ void hdmi_wp_init_vid_fmt_timings(struct hdmi_video_format *video_fmt,
 	timings->vfront_porch = param->timings.vfront_porch;
 	timings->vsync_len = param->timings.vsync_len;
 
-	timings->double_pixel = param->timings.double_pixel;
 	timings->flags = param->timings.flags;
 
 	if (param->timings.flags & DISPLAY_FLAGS_INTERLACED) {
@@ -218,7 +217,7 @@ void hdmi_wp_init_vid_fmt_timings(struct hdmi_video_format *video_fmt,
 		timings->vsync_len /= 2;
 	}
 
-	if (param->timings.double_pixel) {
+	if (param->timings.flags & DISPLAY_FLAGS_DOUBLECLK) {
 		video_fmt->x_res *= 2;
 		timings->hfront_porch *= 2;
 		timings->hsync_len *= 2;

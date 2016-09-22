@@ -315,7 +315,7 @@ static void hdmi_core_init(struct hdmi_core_vid_config *video_cfg,
 		video_cfg->v_fc_config.timings.vback_porch /= 2;
 	}
 
-	if (cfg->timings.double_pixel) {
+	if (cfg->timings.flags & DISPLAY_FLAGS_DOUBLECLK) {
 		video_cfg->v_fc_config.timings.hactive *= 2;
 		video_cfg->hblank *= 2;
 		video_cfg->v_fc_config.timings.hfront_porch *= 2;
@@ -382,7 +382,7 @@ static void hdmi_core_video_config(struct hdmi_core_data *core,
 	REG_FLD_MOD(base, HDMI_CORE_FC_INVIDCONF,
 		    cfg->v_fc_config.hdmi_dvi_mode, 3, 3);
 
-	if (ovt->double_pixel)
+	if (ovt->flags & DISPLAY_FLAGS_DOUBLECLK)
 		REG_FLD_MOD(base, HDMI_CORE_FC_PRCONF, 2, 7, 4);
 	else
 		REG_FLD_MOD(base, HDMI_CORE_FC_PRCONF, 1, 7, 4);
