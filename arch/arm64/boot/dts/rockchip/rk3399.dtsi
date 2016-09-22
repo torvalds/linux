@@ -328,15 +328,6 @@
 		status = "disabled";
 	};
 
-	emmc_phy: phy {
-		compatible = "rockchip,rk3399-emmc-phy";
-		reg-offset = <0xf780>;
-		#phy-cells = <0>;
-		rockchip,grf = <&grf>;
-		ctrl-base = <0xfe330000>;
-		status = "disabled";
-	};
-
 	sdio0: dwmmc@fe310000 {
 		compatible = "rockchip,rk3399-dw-mshc",
 			     "rockchip,rk3288-dw-mshc";
@@ -369,11 +360,13 @@
 		compatible = "rockchip,rk3399-sdhci-5.1", "arasan,sdhci-5.1";
 		reg = <0x0 0xfe330000 0x0 0x10000>;
 		interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH 0>;
+		arasan,soc-ctl-syscon = <&grf>;
+		assigned-clocks = <&cru SCLK_EMMC>;
+		assigned-clock-rates = <200000000>;
 		clocks = <&cru SCLK_EMMC>, <&cru ACLK_EMMC>;
 		clock-names = "clk_xin", "clk_ahb";
-		assigned-clocks = <&cru SCLK_EMMC>;
-		assigned-clock-parents = <&cru PLL_CPLL>;
-		assigned-clock-rates = <200000000>;
+		clock-output-names = "emmc_cardclock";
+		#clock-cells = <0>;
 		phys = <&emmc_phy>;
 		phy-names = "phy_arasan";
 		power-domains = <&power RK3399_PD_EMMC>;
@@ -1360,6 +1353,15 @@
 		reg = <0x0 0xff770000 0x0 0x10000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
+
+		emmc_phy: phy@f780 {
+			compatible = "rockchip,rk3399-emmc-phy";
+			reg = <0xf780 0x24>;
+			clocks = <&sdhci>;
+			clock-names = "emmcclk";
+			#phy-cells = <0>;
+			status = "disabled";
+		};
 
 		u2phy0: usb2-phy@e450 {
 			compatible = "rockchip,rk3399-usb2phy";
