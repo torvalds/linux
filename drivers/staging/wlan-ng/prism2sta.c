@@ -1031,7 +1031,6 @@ static void prism2sta_inf_tallies(struct wlandevice *wlandev,
 static void prism2sta_inf_scanresults(struct wlandevice *wlandev,
 				      hfa384x_InfFrame_t *inf)
 {
-
 	hfa384x_t *hw = wlandev->priv;
 	int nbss;
 	hfa384x_ScanResult_t *sr = &(inf->info.scanresult);
