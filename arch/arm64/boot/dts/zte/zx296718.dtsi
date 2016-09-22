@@ -366,6 +366,40 @@
 			#clock-cells = <1>;
 		};
 
+		vou: vou@1440000 {
+			compatible = "zte,zx296718-vou";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x1440000 0x10000>;
+
+			dpc: dpc@0 {
+				compatible = "zte,zx296718-dpc";
+				reg = <0x0000 0x1000>, <0x1000 0x1000>,
+				      <0x5000 0x1000>, <0x6000 0x1000>,
+				      <0xa000 0x1000>;
+				reg-names = "osd", "timing_ctrl",
+					    "dtrc", "vou_ctrl",
+					    "otfppu";
+				interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&topcrm VOU_ACLK>, <&topcrm VOU_PPU_WCLK>,
+					 <&topcrm VOU_MAIN_WCLK>, <&topcrm VOU_AUX_WCLK>;
+				clock-names = "aclk", "ppu_wclk",
+					      "main_wclk", "aux_wclk";
+			};
+
+			hdmi: hdmi@c000 {
+				compatible = "zte,zx296718-hdmi";
+				reg = <0xc000 0x4000>;
+				interrupts = <GIC_SPI 82 IRQ_TYPE_EDGE_RISING>;
+				clocks = <&topcrm HDMI_OSC_CEC>,
+					 <&topcrm HDMI_OSC_CLK>,
+					 <&topcrm HDMI_XCLK>;
+				clock-names = "osc_cec", "osc_clk", "xclk";
+				#sound-dai-cells = <0>;
+				status = "disabled";
+			};
+		};
+
 		topcrm: clock-controller@1461000 {
 			compatible = "zte,zx296718-topcrm";
 			reg = <0x01461000 0x1000>;
@@ -402,6 +436,18 @@
 			compatible = "zte,zx296718-audiocrm";
 			reg = <0x01480000 0x1000>;
 			#clock-cells = <1>;
+		};
+
+		spdif0: spdif@1488000 {
+			compatible = "zte,zx296702-spdif";
+			reg = <0x1488000 0x1000>;
+			clocks = <&audiocrm AUDIO_SPDIF0_WCLK>;
+			clock-names = "tx";
+			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+			#sound-dai-cells = <0>;
+			dmas = <&dma 30>;
+			dma-names = "tx";
+			status = "disabled";
 		};
 	};
 };
