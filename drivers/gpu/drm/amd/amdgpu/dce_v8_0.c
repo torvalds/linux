@@ -170,7 +170,7 @@ static bool dce_v8_0_is_counter_moving(struct amdgpu_device *adev, int crtc)
  */
 static void dce_v8_0_vblank_wait(struct amdgpu_device *adev, int crtc)
 {
-	unsigned i = 0;
+	unsigned i = 100;
 
 	if (crtc >= adev->mode_info.num_crtc)
 		return;
@@ -182,14 +182,16 @@ static void dce_v8_0_vblank_wait(struct amdgpu_device *adev, int crtc)
 	 * wait for another frame.
 	 */
 	while (dce_v8_0_is_in_vblank(adev, crtc)) {
-		if (i++ % 100 == 0) {
+		if (i++ == 100) {
+			i = 0;
 			if (!dce_v8_0_is_counter_moving(adev, crtc))
 				break;
 		}
 	}
 
 	while (!dce_v8_0_is_in_vblank(adev, crtc)) {
-		if (i++ % 100 == 0) {
+		if (i++ == 100) {
+			i = 0;
 			if (!dce_v8_0_is_counter_moving(adev, crtc))
 				break;
 		}
