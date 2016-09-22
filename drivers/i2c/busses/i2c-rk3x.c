@@ -742,7 +742,7 @@ static int rk3x_i2c_v1_calc_timings(unsigned long clk_rate,
 				    struct i2c_timings *t,
 				    struct rk3x_i2c_calced_timings *t_calc)
 {
-	unsigned long min_low_ns, min_high_ns, min_total_ns;
+	unsigned long min_low_ns, min_high_ns;
 	unsigned long min_setup_start_ns, min_setup_data_ns;
 	unsigned long min_setup_stop_ns, max_hold_data_ns;
 
@@ -793,7 +793,6 @@ static int rk3x_i2c_v1_calc_timings(unsigned long clk_rate,
 
 	/* These are the min dividers needed for min hold times. */
 	min_div_for_hold = (min_low_div + min_high_div);
-	min_total_ns = min_low_ns + min_high_ns;
 
 	/*
 	 * This is the maximum divider so we don't go over the maximum.
