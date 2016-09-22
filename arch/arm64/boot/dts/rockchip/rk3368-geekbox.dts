@@ -258,8 +258,6 @@
 			};
 
 			vcc_sd: SWITCH_REG1 {
-				regulator-always-on;
-				regulator-boot-on;
 				regulator-name = "vcc_sd";
 			};
 

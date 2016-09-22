@@ -152,8 +152,6 @@
 		gpio = <&gpio3 11 GPIO_ACTIVE_LOW>;
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
-		regulator-boot-on;
 		vin-supply = <&vcc_io>;
 	};
 
