@@ -350,7 +350,7 @@ static int gb_uart_flush(struct gb_tty *gb_tty, u8 flags)
 				 &request, sizeof(request), NULL, 0);
 }
 
-static struct gb_tty *get_gb_by_minor(unsigned minor)
+static struct gb_tty *get_gb_by_minor(unsigned int minor)
 {
 	struct gb_tty *gb_tty;
 
