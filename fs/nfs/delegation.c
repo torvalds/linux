@@ -51,6 +51,7 @@ nfs4_do_check_delegation(struct inode *inode, fmode_t flags, bool mark)
 	rcu_read_lock();
 	delegation = rcu_dereference(NFS_I(inode)->delegation);
 	if (delegation != NULL && (delegation->type & flags) == flags &&
+	    !test_bit(NFS_DELEGATION_REVOKED, &delegation->flags) &&
 	    !test_bit(NFS_DELEGATION_RETURNING, &delegation->flags)) {
 		if (mark)
 			nfs_mark_delegation_referenced(delegation);
