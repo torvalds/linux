@@ -373,8 +373,8 @@ static size_t hist_entry_callchain__fprintf(struct hist_entry *he,
 	return 0;
 }
 
-static int __hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp,
-				  struct perf_hpp_list *hpp_list)
+int __hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp,
+			   struct perf_hpp_list *hpp_list)
 {
 	const char *sep = symbol_conf.field_sep;
 	struct perf_hpp_fmt *fmt;
