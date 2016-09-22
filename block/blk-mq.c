@@ -1593,11 +1593,13 @@ fail:
  * software queue to the hw queue dispatch list, and ensure that it
  * gets run.
  */
-static int blk_mq_hctx_cpu_offline(struct blk_mq_hw_ctx *hctx, int cpu)
+static int blk_mq_hctx_notify_dead(unsigned int cpu, struct hlist_node *node)
 {
+	struct blk_mq_hw_ctx *hctx;
 	struct blk_mq_ctx *ctx;
 	LIST_HEAD(tmp);
 
+	hctx = hlist_entry_safe(node, struct blk_mq_hw_ctx, cpuhp_dead);
 	ctx = __blk_mq_get_ctx(hctx->queue, cpu);
 
 	spin_lock(&ctx->lock);
@@ -1608,30 +1610,20 @@ static int blk_mq_hctx_cpu_offline(struct blk_mq_hw_ctx *hctx, int cpu)
 	spin_unlock(&ctx->lock);
 
 	if (list_empty(&tmp))
-		return NOTIFY_OK;
+		return 0;
 
 	spin_lock(&hctx->lock);
 	list_splice_tail_init(&tmp, &hctx->dispatch);
 	spin_unlock(&hctx->lock);
 
 	blk_mq_run_hw_queue(hctx, true);
-	return NOTIFY_OK;
+	return 0;
 }
 
-static int blk_mq_hctx_notify(void *data, unsigned long action,
-			      unsigned int cpu)
+static void blk_mq_remove_cpuhp(struct blk_mq_hw_ctx *hctx)
 {
-	struct blk_mq_hw_ctx *hctx = data;
-
-	if (action == CPU_DEAD || action == CPU_DEAD_FROZEN)
-		return blk_mq_hctx_cpu_offline(hctx, cpu);
-
-	/*
-	 * In case of CPU online, tags may be reallocated
-	 * in blk_mq_map_swqueue() after mapping is updated.
-	 */
-
-	return NOTIFY_OK;
+	cpuhp_state_remove_instance_nocalls(CPUHP_BLK_MQ_DEAD,
+					    &hctx->cpuhp_dead);
 }
 
 /* hctx->ctxs will be freed in queue's release handler */
@@ -1651,7 +1643,7 @@ static void blk_mq_exit_hctx(struct request_queue *q,
 	if (set->ops->exit_hctx)
 		set->ops->exit_hctx(hctx, hctx_idx);
 
-	blk_mq_unregister_cpu_notifier(&hctx->cpu_notifier);
+	blk_mq_remove_cpuhp(hctx);
 	blk_free_flush_queue(hctx->fq);
 	sbitmap_free(&hctx->ctx_map);
 }
@@ -1698,9 +1690,7 @@ static int blk_mq_init_hctx(struct request_queue *q,
 	hctx->queue_num = hctx_idx;
 	hctx->flags = set->flags & ~BLK_MQ_F_TAG_SHARED;
 
-	blk_mq_init_cpu_notifier(&hctx->cpu_notifier,
-					blk_mq_hctx_notify, hctx);
-	blk_mq_register_cpu_notifier(&hctx->cpu_notifier);
+	cpuhp_state_add_instance_nocalls(CPUHP_BLK_MQ_DEAD, &hctx->cpuhp_dead);
 
 	hctx->tags = set->tags[hctx_idx];
 
@@ -1745,8 +1735,7 @@ static int blk_mq_init_hctx(struct request_queue *q,
  free_ctxs:
 	kfree(hctx->ctxs);
  unregister_cpu_notifier:
-	blk_mq_unregister_cpu_notifier(&hctx->cpu_notifier);
-
+	blk_mq_remove_cpuhp(hctx);
 	return -1;
 }
 
@@ -2399,7 +2388,8 @@ void blk_mq_enable_hotplug(void)
 
 static int __init blk_mq_init(void)
 {
-	blk_mq_cpu_init();
+	cpuhp_setup_state_multi(CPUHP_BLK_MQ_DEAD, "block/mq:dead", NULL,
+				blk_mq_hctx_notify_dead);
 
 	hotcpu_notifier(blk_mq_queue_reinit_notify, 0);
 
