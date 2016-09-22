@@ -1870,6 +1870,30 @@ static int exar_handle_irq(struct uart_port *port)
 	return ret;
 }
 
+/*
+ * Newer 16550 compatible parts such as the SC16C650 & Altera 16550 Soft IP
+ * have a programmable TX threshold that triggers the THRE interrupt in
+ * the IIR register. In this case, the THRE interrupt indicates the FIFO
+ * has space available. Load it up with tx_loadsz bytes.
+ */
+static int serial8250_tx_threshold_handle_irq(struct uart_port *port)
+{
+	unsigned long flags;
+	unsigned int iir = serial_port_in(port, UART_IIR);
+
+	/* TX Threshold IRQ triggered so load up FIFO */
+	if ((iir & UART_IIR_ID) == UART_IIR_THRI) {
+		struct uart_8250_port *up = up_to_u8250p(port);
+
+		spin_lock_irqsave(&port->lock, flags);
+		serial8250_tx_chars(up);
+		spin_unlock_irqrestore(&port->lock, flags);
+	}
+
+	iir = serial_port_in(port, UART_IIR);
+	return serial8250_handle_irq(port, iir);
+}
+
 static unsigned int serial8250_tx_empty(struct uart_port *port)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
@@ -2157,6 +2181,25 @@ int serial8250_do_startup(struct uart_port *port)
 		serial_port_out(port, UART_TRG, UART_TRG_96);
 
 		serial_port_out(port, UART_LCR, 0);
+	}
+
+	/*
+	 * For the Altera 16550 variants, set TX threshold trigger level.
+	 */
+	if (((port->type == PORT_ALTR_16550_F32) ||
+	     (port->type == PORT_ALTR_16550_F64) ||
+	     (port->type == PORT_ALTR_16550_F128)) && (port->fifosize > 1)) {
+		/* Bounds checking of TX threshold (valid 0 to fifosize-2) */
+		if ((up->tx_loadsz < 2) || (up->tx_loadsz > port->fifosize)) {
+			pr_err("ttyS%d TX FIFO Threshold errors, skipping\n",
+			       serial_index(port));
+		} else {
+			serial_port_out(port, UART_ALTR_AFR,
+					UART_ALTR_EN_TXFIFO_LW);
+			serial_port_out(port, UART_ALTR_TX_LOW,
+					port->fifosize - up->tx_loadsz);
+			port->handle_irq = serial8250_tx_threshold_handle_irq;
+		}
 	}
 
 	if (port->irq) {
