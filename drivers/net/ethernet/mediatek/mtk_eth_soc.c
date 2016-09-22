@@ -52,7 +52,7 @@ static const struct mtk_ethtool_stats {
 };
 
 static const char * const mtk_clks_source_name[] = {
-	"ethif", "esw", "gp1", "gp2"
+	"ethif", "esw", "gp1", "gp2", "trgpll"
 };
 
 void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg)
@@ -135,6 +135,33 @@ static int mtk_mdio_read(struct mii_bus *bus, int phy_addr, int phy_reg)
 	return _mtk_mdio_read(eth, phy_addr, phy_reg);
 }
 
+static void mtk_gmac0_rgmii_adjust(struct mtk_eth *eth, int speed)
+{
+	u32 val;
+	int ret;
+
+	val = (speed == SPEED_1000) ?
+		INTF_MODE_RGMII_1000 : INTF_MODE_RGMII_10_100;
+	mtk_w32(eth, val, INTF_MODE);
+
+	regmap_update_bits(eth->ethsys, ETHSYS_CLKCFG0,
+			   ETHSYS_TRGMII_CLK_SEL362_5,
+			   ETHSYS_TRGMII_CLK_SEL362_5);
+
+	val = (speed == SPEED_1000) ? 250000000 : 500000000;
+	ret = clk_set_rate(eth->clks[MTK_CLK_TRGPLL], val);
+	if (ret)
+		dev_err(eth->dev, "Failed to set trgmii pll: %d\n", ret);
+
+	val = (speed == SPEED_1000) ?
+		RCK_CTRL_RGMII_1000 : RCK_CTRL_RGMII_10_100;
+	mtk_w32(eth, val, TRGMII_RCK_CTRL);
+
+	val = (speed == SPEED_1000) ?
+		TCK_CTRL_RGMII_1000 : TCK_CTRL_RGMII_10_100;
+	mtk_w32(eth, val, TRGMII_TCK_CTRL);
+}
+
 static void mtk_phy_link_adjust(struct net_device *dev)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
@@ -156,6 +183,9 @@ static void mtk_phy_link_adjust(struct net_device *dev)
 		mcr |= MAC_MCR_SPEED_100;
 		break;
 	};
+
+	if (mac->id == 0 && !mac->trgmii)
+		mtk_gmac0_rgmii_adjust(mac->hw, mac->phy_dev->speed);
 
 	if (mac->phy_dev->link)
 		mcr |= MAC_MCR_FORCE_LINK;
@@ -244,6 +274,8 @@ static int mtk_phy_connect(struct mtk_mac *mac)
 		return -ENODEV;
 
 	switch (of_get_phy_mode(np)) {
+	case PHY_INTERFACE_MODE_TRGMII:
+		mac->trgmii = true;
 	case PHY_INTERFACE_MODE_RGMII_TXID:
 	case PHY_INTERFACE_MODE_RGMII_RXID:
 	case PHY_INTERFACE_MODE_RGMII_ID:
