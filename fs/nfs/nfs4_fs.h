@@ -448,7 +448,7 @@ extern void nfs4_schedule_path_down_recovery(struct nfs_client *clp);
 extern int nfs4_schedule_stateid_recovery(const struct nfs_server *, struct nfs4_state *);
 extern int nfs4_schedule_migration_recovery(const struct nfs_server *);
 extern void nfs4_schedule_lease_moved_recovery(struct nfs_client *);
-extern void nfs41_handle_sequence_flag_errors(struct nfs_client *clp, u32 flags);
+extern void nfs41_handle_sequence_flag_errors(struct nfs_client *clp, u32 flags, bool);
 extern void nfs41_handle_server_scope(struct nfs_client *,
 				      struct nfs41_server_scope **);
 extern void nfs4_put_lock_state(struct nfs4_lock_state *lsp);

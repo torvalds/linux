@@ -616,6 +616,7 @@ int nfs40_setup_sequence(struct nfs4_slot_table *tbl,
 	}
 	spin_unlock(&tbl->slot_tbl_lock);
 
+	slot->privileged = args->sa_privileged ? 1 : 0;
 	args->sa_slot = slot;
 	res->sr_slot = slot;
 
@@ -728,7 +729,8 @@ static int nfs41_sequence_process(struct rpc_task *task,
 		clp = session->clp;
 		do_renew_lease(clp, res->sr_timestamp);
 		/* Check sequence flags */
-		nfs41_handle_sequence_flag_errors(clp, res->sr_status_flags);
+		nfs41_handle_sequence_flag_errors(clp, res->sr_status_flags,
+				!!slot->privileged);
 		nfs41_update_target_slotid(slot->table, slot, res);
 		break;
 	case 1:
@@ -875,6 +877,7 @@ int nfs41_setup_sequence(struct nfs4_session *session,
 	}
 	spin_unlock(&tbl->slot_tbl_lock);
 
+	slot->privileged = args->sa_privileged ? 1 : 0;
 	args->sa_slot = slot;
 
 	dprintk("<-- %s slotid=%u seqid=%u\n", __func__,

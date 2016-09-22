@@ -23,6 +23,7 @@ struct nfs4_slot {
 	u32			slot_nr;
 	u32		 	seq_nr;
 	unsigned int		interrupted : 1,
+				privileged : 1,
 				seq_done : 1;
 };
 

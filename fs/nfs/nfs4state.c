@@ -2227,13 +2227,22 @@ static void nfs41_handle_cb_path_down(struct nfs_client *clp)
 		nfs4_schedule_state_manager(clp);
 }
 
-void nfs41_handle_sequence_flag_errors(struct nfs_client *clp, u32 flags)
+void nfs41_handle_sequence_flag_errors(struct nfs_client *clp, u32 flags,
+		bool recovery)
 {
 	if (!flags)
 		return;
 
 	dprintk("%s: \"%s\" (client ID %llx) flags=0x%08x\n",
 		__func__, clp->cl_hostname, clp->cl_clientid, flags);
+	/*
+	 * If we're called from the state manager thread, then assume we're
+	 * already handling the RECLAIM_NEEDED and/or STATE_REVOKED.
+	 * Those flags are expected to remain set until we're done
+	 * recovering (see RFC5661, section 18.46.3).
+	 */
+	if (recovery)
+		goto out_recovery;
 
 	if (flags & SEQ4_STATUS_RESTART_RECLAIM_NEEDED)
 		nfs41_handle_server_reboot(clp);
@@ -2246,6 +2255,7 @@ void nfs41_handle_sequence_flag_errors(struct nfs_client *clp, u32 flags)
 		nfs4_schedule_lease_moved_recovery(clp);
 	if (flags & SEQ4_STATUS_RECALLABLE_STATE_REVOKED)
 		nfs41_handle_recallable_state_revoked(clp);
+out_recovery:
 	if (flags & SEQ4_STATUS_BACKCHANNEL_FAULT)
 		nfs41_handle_backchannel_fault(clp);
 	else if (flags & (SEQ4_STATUS_CB_PATH_DOWN |
