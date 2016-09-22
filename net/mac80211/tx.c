@@ -1476,51 +1476,6 @@ void ieee80211_txq_teardown_flows(struct ieee80211_local *local)
 	spin_unlock_bh(&fq->lock);
 }
 
-struct sk_buff *ieee80211_tx_dequeue(struct ieee80211_hw *hw,
-				     struct ieee80211_txq *txq)
-{
-	struct ieee80211_local *local = hw_to_local(hw);
-	struct txq_info *txqi = container_of(txq, struct txq_info, txq);
-	struct ieee80211_hdr *hdr;
-	struct sk_buff *skb = NULL;
-	struct fq *fq = &local->fq;
-	struct fq_tin *tin = &txqi->tin;
-
-	spin_lock_bh(&fq->lock);
-
-	if (test_bit(IEEE80211_TXQ_STOP, &txqi->flags))
-		goto out;
-
-	skb = fq_tin_dequeue(fq, tin, fq_tin_dequeue_func);
-	if (!skb)
-		goto out;
-
-	ieee80211_set_skb_vif(skb, txqi);
-
-	hdr = (struct ieee80211_hdr *)skb->data;
-	if (txq->sta && ieee80211_is_data_qos(hdr->frame_control)) {
-		struct sta_info *sta = container_of(txq->sta, struct sta_info,
-						    sta);
-		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-
-		hdr->seq_ctrl = ieee80211_tx_next_seq(sta, txq->tid);
-		if (test_bit(IEEE80211_TXQ_AMPDU, &txqi->flags))
-			info->flags |= IEEE80211_TX_CTL_AMPDU;
-		else
-			info->flags &= ~IEEE80211_TX_CTL_AMPDU;
-	}
-
-out:
-	spin_unlock_bh(&fq->lock);
-
-	if (skb && skb_has_frag_list(skb) &&
-	    !ieee80211_hw_check(&local->hw, TX_FRAG_LIST))
-		skb_linearize(skb);
-
-	return skb;
-}
-EXPORT_SYMBOL(ieee80211_tx_dequeue);
-
 static bool ieee80211_tx_frags(struct ieee80211_local *local,
 			       struct ieee80211_vif *vif,
 			       struct ieee80211_sta *sta,
@@ -3310,6 +3265,51 @@ static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 	ieee80211_tx_frags(local, &sdata->vif, &sta->sta, &tx.skbs, false);
 	return true;
 }
+
+struct sk_buff *ieee80211_tx_dequeue(struct ieee80211_hw *hw,
+				     struct ieee80211_txq *txq)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct txq_info *txqi = container_of(txq, struct txq_info, txq);
+	struct ieee80211_hdr *hdr;
+	struct sk_buff *skb = NULL;
+	struct fq *fq = &local->fq;
+	struct fq_tin *tin = &txqi->tin;
+
+	spin_lock_bh(&fq->lock);
+
+	if (test_bit(IEEE80211_TXQ_STOP, &txqi->flags))
+		goto out;
+
+	skb = fq_tin_dequeue(fq, tin, fq_tin_dequeue_func);
+	if (!skb)
+		goto out;
+
+	ieee80211_set_skb_vif(skb, txqi);
+
+	hdr = (struct ieee80211_hdr *)skb->data;
+	if (txq->sta && ieee80211_is_data_qos(hdr->frame_control)) {
+		struct sta_info *sta = container_of(txq->sta, struct sta_info,
+						    sta);
+		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+
+		hdr->seq_ctrl = ieee80211_tx_next_seq(sta, txq->tid);
+		if (test_bit(IEEE80211_TXQ_AMPDU, &txqi->flags))
+			info->flags |= IEEE80211_TX_CTL_AMPDU;
+		else
+			info->flags &= ~IEEE80211_TX_CTL_AMPDU;
+	}
+
+out:
+	spin_unlock_bh(&fq->lock);
+
+	if (skb && skb_has_frag_list(skb) &&
+	    !ieee80211_hw_check(&local->hw, TX_FRAG_LIST))
+		skb_linearize(skb);
+
+	return skb;
+}
+EXPORT_SYMBOL(ieee80211_tx_dequeue);
 
 void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 				  struct net_device *dev,
