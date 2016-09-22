@@ -370,7 +370,7 @@ struct net *copy_net_ns(unsigned long flags,
 
 	ucounts = inc_net_namespaces(user_ns);
 	if (!ucounts)
-		return ERR_PTR(-ENFILE);
+		return ERR_PTR(-ENOSPC);
 
 	net = net_alloc();
 	if (!net) {

@@ -49,7 +49,7 @@ static struct uts_namespace *clone_uts_ns(struct user_namespace *user_ns,
 	struct ucounts *ucounts;
 	int err;
 
-	err = -ENFILE;
+	err = -ENOSPC;
 	ucounts = inc_uts_namespaces(user_ns);
 	if (!ucounts)
 		goto fail;

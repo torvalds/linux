@@ -6354,7 +6354,7 @@ struct cgroup_namespace *copy_cgroup_ns(unsigned long flags,
 
 	ucounts = inc_cgroup_namespaces(user_ns);
 	if (!ucounts)
-		return ERR_PTR(-ENFILE);
+		return ERR_PTR(-ENOSPC);
 
 	/* It is not safe to take cgroup_mutex here */
 	spin_lock_irq(&css_set_lock);

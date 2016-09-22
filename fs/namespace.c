@@ -2754,7 +2754,7 @@ static struct mnt_namespace *alloc_mnt_ns(struct user_namespace *user_ns)
 
 	ucounts = inc_mnt_namespaces(user_ns);
 	if (!ucounts)
-		return ERR_PTR(-ENFILE);
+		return ERR_PTR(-ENOSPC);
 
 	new_ns = kmalloc(sizeof(struct mnt_namespace), GFP_KERNEL);
 	if (!new_ns) {

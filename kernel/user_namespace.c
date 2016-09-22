@@ -76,7 +76,7 @@ int create_user_ns(struct cred *new)
 	struct ucounts *ucounts;
 	int ret, i;
 
-	ret = -EUSERS;
+	ret = -ENOSPC;
 	if (parent_ns->level > 32)
 		goto fail;
 

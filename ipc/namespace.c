@@ -33,7 +33,7 @@ static struct ipc_namespace *create_ipc_ns(struct user_namespace *user_ns,
 	struct ucounts *ucounts;
 	int err;
 
-	err = -ENFILE;
+	err = -ENOSPC;
 	ucounts = inc_ipc_namespaces(user_ns);
 	if (!ucounts)
 		goto fail;
