@@ -238,17 +238,25 @@ int mlx5_eswitch_get_vport_stats(struct mlx5_eswitch *esw,
 				 struct ifla_vf_stats *vf_stats);
 
 struct mlx5_flow_spec;
+struct mlx5_esw_flow_attr;
 
 struct mlx5_flow_rule *
 mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 				struct mlx5_flow_spec *spec,
-				u32 action, u32 src_vport, u32 dst_vport);
+				struct mlx5_esw_flow_attr *attr);
 struct mlx5_flow_rule *
 mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport, u32 tirn);
 
 enum {
 	SET_VLAN_STRIP	= BIT(0),
 	SET_VLAN_INSERT	= BIT(1)
+};
+
+struct mlx5_esw_flow_attr {
+	struct mlx5_eswitch_rep *in_rep;
+	struct mlx5_eswitch_rep *out_rep;
+
+	int	action;
 };
 
 int mlx5_eswitch_sqs2vport_start(struct mlx5_eswitch *esw,
