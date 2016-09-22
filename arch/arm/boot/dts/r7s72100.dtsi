@@ -149,6 +149,14 @@
 			>;
 			clock-output-names = "spi0", "spi1", "spi2", "spi3", "spi4";
 		};
+		mstp12_clks: mstp12_clks@fcfe0444 {
+			#clock-cells = <1>;
+			compatible = "renesas,r7s72100-mstp-clocks", "renesas,cpg-mstp-clocks";
+			reg = <0xfcfe0444 4>;
+			clocks = <&p1_clk>, <&p1_clk>;
+			clock-indices = <R7S72100_CLK_SDHI1 R7S72100_CLK_SDHI0>;
+			clock-output-names = "sdhi1", "sdhi0";
+		};
 	};
 
 	cpus {
