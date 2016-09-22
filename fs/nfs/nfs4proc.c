@@ -2587,6 +2587,11 @@ static int nfs41_check_open_stateid(struct nfs4_state *state)
 	struct rpc_cred *cred = state->owner->so_cred;
 	int status;
 
+	if (test_bit(NFS_OPEN_STATE, &state->flags) == 0) {
+		if (test_bit(NFS_DELEGATED_STATE, &state->flags) == 0)
+			return NFS_OK;
+		return -NFS4ERR_BAD_STATEID;
+	}
 	/* If a state reset has been done, test_stateid is unneeded */
 	if ((test_bit(NFS_O_RDONLY_STATE, &state->flags) == 0) &&
 	    (test_bit(NFS_O_WRONLY_STATE, &state->flags) == 0) &&
