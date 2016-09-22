@@ -164,6 +164,22 @@ long lkl_umount_timeout(char *path, int flags, long timeout_ms);
 struct lkl_dir *lkl_opendir(const char *path, int *err);
 
 /**
+ * lkl_fdopendir - open a directory
+ *
+ * @fd - file descriptor
+ * @err - pointer to store the error in case of failure
+ * @returns - a handle to be used when calling lkl_readdir
+ */
+struct lkl_dir *lkl_fdopendir(int fd, int *err);
+
+/**
+ * lkl_rewinddir - reset directory stream
+ *
+ * @dir - the directory handler as returned by lkl_opendir
+ */
+void lkl_rewinddir(struct lkl_dir *dir);
+
+/**
  * lkl_closedir - close the directory
  *
  * @dir - the directory handler as returned by lkl_opendir
