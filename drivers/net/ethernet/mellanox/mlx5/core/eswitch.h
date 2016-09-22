@@ -157,6 +157,7 @@ struct mlx5_eswitch_fdb {
 			struct mlx5_flow_group *send_to_vport_grp;
 			struct mlx5_flow_group *miss_grp;
 			struct mlx5_flow_rule  *miss_rule;
+			int vlan_push_pop_refcount;
 		} offloads;
 	};
 };
@@ -183,6 +184,8 @@ struct mlx5_eswitch_rep {
 
 	struct mlx5_flow_rule *vport_rx_rule;
 	struct list_head       vport_sqs_list;
+	u16		       vlan;
+	u32		       vlan_refcount;
 	bool		       valid;
 };
 
@@ -252,11 +255,16 @@ enum {
 	SET_VLAN_INSERT	= BIT(1)
 };
 
+#define MLX5_FLOW_CONTEXT_ACTION_VLAN_POP  0x40
+#define MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH 0x80
+
 struct mlx5_esw_flow_attr {
 	struct mlx5_eswitch_rep *in_rep;
 	struct mlx5_eswitch_rep *out_rep;
 
 	int	action;
+	u16	vlan;
+	bool	vlan_handled;
 };
 
 int mlx5_eswitch_sqs2vport_start(struct mlx5_eswitch *esw,
@@ -272,6 +280,13 @@ void mlx5_eswitch_register_vport_rep(struct mlx5_eswitch *esw,
 				     struct mlx5_eswitch_rep *rep);
 void mlx5_eswitch_unregister_vport_rep(struct mlx5_eswitch *esw,
 				       int vport_index);
+
+int mlx5_eswitch_add_vlan_action(struct mlx5_eswitch *esw,
+				 struct mlx5_esw_flow_attr *attr);
+int mlx5_eswitch_del_vlan_action(struct mlx5_eswitch *esw,
+				 struct mlx5_esw_flow_attr *attr);
+int __mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
+				  int vport, u16 vlan, u8 qos, u8 set_flags);
 
 #define MLX5_DEBUG_ESWITCH_MASK BIT(3)
 

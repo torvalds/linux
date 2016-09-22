@@ -89,6 +89,186 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 	return rule;
 }
 
+static int esw_set_global_vlan_pop(struct mlx5_eswitch *esw, u8 val)
+{
+	struct mlx5_eswitch_rep *rep;
+	int vf_vport, err = 0;
+
+	esw_debug(esw->dev, "%s applying global %s policy\n", __func__, val ? "pop" : "none");
+	for (vf_vport = 1; vf_vport < esw->enabled_vports; vf_vport++) {
+		rep = &esw->offloads.vport_reps[vf_vport];
+		if (!rep->valid)
+			continue;
+
+		err = __mlx5_eswitch_set_vport_vlan(esw, rep->vport, 0, 0, val);
+		if (err)
+			goto out;
+	}
+
+out:
+	return err;
+}
+
+static struct mlx5_eswitch_rep *
+esw_vlan_action_get_vport(struct mlx5_esw_flow_attr *attr, bool push, bool pop)
+{
+	struct mlx5_eswitch_rep *in_rep, *out_rep, *vport = NULL;
+
+	in_rep  = attr->in_rep;
+	out_rep = attr->out_rep;
+
+	if (push)
+		vport = in_rep;
+	else if (pop)
+		vport = out_rep;
+	else
+		vport = in_rep;
+
+	return vport;
+}
+
+static int esw_add_vlan_action_check(struct mlx5_esw_flow_attr *attr,
+				     bool push, bool pop, bool fwd)
+{
+	struct mlx5_eswitch_rep *in_rep, *out_rep;
+
+	if ((push || pop) && !fwd)
+		goto out_notsupp;
+
+	in_rep  = attr->in_rep;
+	out_rep = attr->out_rep;
+
+	if (push && in_rep->vport == FDB_UPLINK_VPORT)
+		goto out_notsupp;
+
+	if (pop && out_rep->vport == FDB_UPLINK_VPORT)
+		goto out_notsupp;
+
+	/* vport has vlan push configured, can't offload VF --> wire rules w.o it */
+	if (!push && !pop && fwd)
+		if (in_rep->vlan && out_rep->vport == FDB_UPLINK_VPORT)
+			goto out_notsupp;
+
+	/* protects against (1) setting rules with different vlans to push and
+	 * (2) setting rules w.o vlans (attr->vlan = 0) && w. vlans to push (!= 0)
+	 */
+	if (push && in_rep->vlan_refcount && (in_rep->vlan != attr->vlan))
+		goto out_notsupp;
+
+	return 0;
+
+out_notsupp:
+	return -ENOTSUPP;
+}
+
+int mlx5_eswitch_add_vlan_action(struct mlx5_eswitch *esw,
+				 struct mlx5_esw_flow_attr *attr)
+{
+	struct offloads_fdb *offloads = &esw->fdb_table.offloads;
+	struct mlx5_eswitch_rep *vport = NULL;
+	bool push, pop, fwd;
+	int err = 0;
+
+	push = !!(attr->action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH);
+	pop  = !!(attr->action & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP);
+	fwd  = !!(attr->action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST);
+
+	err = esw_add_vlan_action_check(attr, push, pop, fwd);
+	if (err)
+		return err;
+
+	attr->vlan_handled = false;
+
+	vport = esw_vlan_action_get_vport(attr, push, pop);
+
+	if (!push && !pop && fwd) {
+		/* tracks VF --> wire rules without vlan push action */
+		if (attr->out_rep->vport == FDB_UPLINK_VPORT) {
+			vport->vlan_refcount++;
+			attr->vlan_handled = true;
+		}
+
+		return 0;
+	}
+
+	if (!push && !pop)
+		return 0;
+
+	if (!(offloads->vlan_push_pop_refcount)) {
+		/* it's the 1st vlan rule, apply global vlan pop policy */
+		err = esw_set_global_vlan_pop(esw, SET_VLAN_STRIP);
+		if (err)
+			goto out;
+	}
+	offloads->vlan_push_pop_refcount++;
+
+	if (push) {
+		if (vport->vlan_refcount)
+			goto skip_set_push;
+
+		err = __mlx5_eswitch_set_vport_vlan(esw, vport->vport, attr->vlan, 0,
+						    SET_VLAN_INSERT | SET_VLAN_STRIP);
+		if (err)
+			goto out;
+		vport->vlan = attr->vlan;
+skip_set_push:
+		vport->vlan_refcount++;
+	}
+out:
+	if (!err)
+		attr->vlan_handled = true;
+	return err;
+}
+
+int mlx5_eswitch_del_vlan_action(struct mlx5_eswitch *esw,
+				 struct mlx5_esw_flow_attr *attr)
+{
+	struct offloads_fdb *offloads = &esw->fdb_table.offloads;
+	struct mlx5_eswitch_rep *vport = NULL;
+	bool push, pop, fwd;
+	int err = 0;
+
+	if (!attr->vlan_handled)
+		return 0;
+
+	push = !!(attr->action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH);
+	pop  = !!(attr->action & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP);
+	fwd  = !!(attr->action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST);
+
+	vport = esw_vlan_action_get_vport(attr, push, pop);
+
+	if (!push && !pop && fwd) {
+		/* tracks VF --> wire rules without vlan push action */
+		if (attr->out_rep->vport == FDB_UPLINK_VPORT)
+			vport->vlan_refcount--;
+
+		return 0;
+	}
+
+	if (push) {
+		vport->vlan_refcount--;
+		if (vport->vlan_refcount)
+			goto skip_unset_push;
+
+		vport->vlan = 0;
+		err = __mlx5_eswitch_set_vport_vlan(esw, vport->vport,
+						    0, 0, SET_VLAN_STRIP);
+		if (err)
+			goto out;
+	}
+
+skip_unset_push:
+	offloads->vlan_push_pop_refcount--;
+	if (offloads->vlan_push_pop_refcount)
+		return 0;
+
+	/* no more vlan rules, stop global vlan pop policy */
+	err = esw_set_global_vlan_pop(esw, 0);
+
+out:
+	return err;
+}
+
 static struct mlx5_flow_rule *
 mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *esw, int vport, u32 sqn)
 {

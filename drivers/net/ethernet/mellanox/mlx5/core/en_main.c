@@ -446,6 +446,16 @@ static void mlx5e_rq_free_mpwqe_info(struct mlx5e_rq *rq)
 	kfree(rq->mpwqe.info);
 }
 
+static bool mlx5e_is_vf_vport_rep(struct mlx5e_priv *priv)
+{
+	struct mlx5_eswitch_rep *rep = (struct mlx5_eswitch_rep *)priv->ppriv;
+
+	if (rep && rep->vport != FDB_UPLINK_VPORT)
+		return true;
+
+	return false;
+}
+
 static int mlx5e_create_rq(struct mlx5e_channel *c,
 			   struct mlx5e_rq_param *param,
 			   struct mlx5e_rq *rq)
@@ -487,6 +497,11 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
 
 	switch (priv->params.rq_wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
+		if (mlx5e_is_vf_vport_rep(priv)) {
+			err = -EINVAL;
+			goto err_rq_wq_destroy;
+		}
+
 		rq->handle_rx_cqe = mlx5e_handle_rx_cqe_mpwrq;
 		rq->alloc_wqe = mlx5e_alloc_rx_mpwqe;
 		rq->dealloc_wqe = mlx5e_dealloc_rx_mpwqe;
@@ -512,7 +527,11 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
 			goto err_rq_wq_destroy;
 		}
 
-		rq->handle_rx_cqe = mlx5e_handle_rx_cqe;
+		if (mlx5e_is_vf_vport_rep(priv))
+			rq->handle_rx_cqe = mlx5e_handle_rx_cqe_rep;
+		else
+			rq->handle_rx_cqe = mlx5e_handle_rx_cqe;
+
 		rq->alloc_wqe = mlx5e_alloc_rx_wqe;
 		rq->dealloc_wqe = mlx5e_dealloc_rx_wqe;
 
