@@ -1777,6 +1777,22 @@ static const struct bpf_func_proto bpf_get_hash_recalc_proto = {
 	.arg1_type	= ARG_PTR_TO_CTX,
 };
 
+BPF_CALL_1(bpf_set_hash_invalid, struct sk_buff *, skb)
+{
+	/* After all direct packet write, this can be used once for
+	 * triggering a lazy recalc on next skb_get_hash() invocation.
+	 */
+	skb_clear_hash(skb);
+	return 0;
+}
+
+static const struct bpf_func_proto bpf_set_hash_invalid_proto = {
+	.func		= bpf_set_hash_invalid,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+};
+
 BPF_CALL_3(bpf_skb_vlan_push, struct sk_buff *, skb, __be16, vlan_proto,
 	   u16, vlan_tci)
 {
@@ -2534,6 +2550,8 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 		return &bpf_get_route_realm_proto;
 	case BPF_FUNC_get_hash_recalc:
 		return &bpf_get_hash_recalc_proto;
+	case BPF_FUNC_set_hash_invalid:
+		return &bpf_set_hash_invalid_proto;
 	case BPF_FUNC_perf_event_output:
 		return &bpf_skb_event_output_proto;
 	case BPF_FUNC_get_smp_processor_id:
