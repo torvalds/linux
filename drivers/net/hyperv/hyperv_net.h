@@ -696,8 +696,7 @@ struct net_device_context {
 
 	/* State to manage the associated VF interface. */
 	struct net_device __rcu *vf_netdev;
-	bool vf_inject;
-	atomic_t vf_use_cnt;
+
 	/* 1: allocated, serial number is valid. 0: not allocated */
 	u32 vf_alloc;
 	/* Serial number of the VF to team with */
