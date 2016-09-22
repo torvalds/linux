@@ -1749,7 +1749,7 @@ static int altr_edac_a10_device_add(struct altr_arria10_edac *edac,
 			      prv->ecc_irq_handler,
 			      IRQF_SHARED, ecc_name, altdev);
 	if (rc) {
-		edac_printk(KERN_ERR, EDAC_DEVICE, "No DBERR IRQ resource\n");
+		edac_printk(KERN_ERR, EDAC_DEVICE, "No SBERR IRQ resource\n");
 		goto err_release_group1;
 	}
 
