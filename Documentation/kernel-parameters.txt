@@ -698,6 +698,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			loops can be debugged more effectively on production
 			systems.
 
+	clocksource.arm_arch_timer.fsl-a008585=
+			[ARM64]
+			Format: <bool>
+			Enable/disable the workaround of Freescale/NXP
+			erratum A-008585.  This can be useful for KVM
+			guests, if the guest device tree doesn't show the
+			erratum.  If unspecified, the workaround is
+			enabled based on the device tree.
+
 	clearcpuid=BITNUM [X86]
 			Disable CPUID feature X for the kernel. See
 			arch/x86/include/asm/cpufeatures.h for the valid bit
