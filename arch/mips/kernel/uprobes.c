@@ -257,7 +257,7 @@ unsigned long arch_uretprobe_hijack_return_addr(
 	ra = regs->regs[31];
 
 	/* Replace the return address with the trampoline address */
-	regs->regs[31] = ra;
+	regs->regs[31] = trampoline_vaddr;
 
 	return ra;
 }
