@@ -107,9 +107,8 @@ void bch_data_verify(struct cached_dev *dc, struct bio *bio)
 {
 	char name[BDEVNAME_SIZE];
 	struct bio *check;
-	struct bio_vec bv, *bv2;
+	struct bio_vec bv;
 	struct bvec_iter iter;
-	int i;
 
 	check = bio_clone(bio, GFP_NOIO);
 	if (!check)
@@ -136,8 +135,7 @@ void bch_data_verify(struct cached_dev *dc, struct bio *bio)
 		kunmap_atomic(p1);
 	}
 
-	bio_for_each_segment_all(bv2, check, i)
-		__free_page(bv2->bv_page);
+	bio_free_pages(check);
 out_put:
 	bio_put(check);
 }
