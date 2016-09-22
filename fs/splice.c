@@ -524,7 +524,7 @@ ssize_t generic_file_splice_read(struct file *in, loff_t *ppos,
 }
 EXPORT_SYMBOL(generic_file_splice_read);
 
-static const struct pipe_buf_operations default_pipe_buf_ops = {
+const struct pipe_buf_operations default_pipe_buf_ops = {
 	.can_merge = 0,
 	.confirm = generic_pipe_buf_confirm,
 	.release = generic_pipe_buf_release,

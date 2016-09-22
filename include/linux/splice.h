@@ -85,4 +85,5 @@ extern void splice_shrink_spd(struct splice_pipe_desc *);
 extern void spd_release_page(struct splice_pipe_desc *, unsigned int);
 
 extern const struct pipe_buf_operations page_cache_pipe_buf_ops;
+extern const struct pipe_buf_operations default_pipe_buf_ops;
 #endif
