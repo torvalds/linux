@@ -4331,7 +4331,7 @@ static void print_dsi_vm(const char *str,
 
 	wc = DIV_ROUND_UP(t->hact * t->bitspp, 8);
 	pps = DIV_ROUND_UP(wc + 6, t->ndl); /* pixel packet size */
-	bl = t->hss + t->hsa + t->hse + t->hbp + t->hfp;
+	bl = t->hss + t->hsa + t->hse + t->hbp + t->hfront_porch;
 	tot = bl + pps;
 
 #define TO_DSI_T(x) ((u32)div64_u64((u64)x * 1000000000llu, byteclk))
@@ -4340,14 +4340,14 @@ static void print_dsi_vm(const char *str,
 			"%u/%u/%u/%u/%u/%u = %u + %u = %u\n",
 			str,
 			byteclk,
-			t->hss, t->hsa, t->hse, t->hbp, pps, t->hfp,
+			t->hss, t->hsa, t->hse, t->hbp, pps, t->hfront_porch,
 			bl, pps, tot,
 			TO_DSI_T(t->hss),
 			TO_DSI_T(t->hsa),
 			TO_DSI_T(t->hse),
 			TO_DSI_T(t->hbp),
 			TO_DSI_T(pps),
-			TO_DSI_T(t->hfp),
+			TO_DSI_T(t->hfront_porch),
 
 			TO_DSI_T(bl),
 			TO_DSI_T(pps),
@@ -4362,7 +4362,7 @@ static void print_dispc_vm(const char *str, const struct omap_video_timings *t)
 	int hact, bl, tot;
 
 	hact = t->hactive;
-	bl = t->hsync_len + t->hbp + t->hfp;
+	bl = t->hsync_len + t->hbp + t->hfront_porch;
 	tot = hact + bl;
 
 #define TO_DISPC_T(x) ((u32)div64_u64((u64)x * 1000000000llu, pck))
@@ -4371,12 +4371,12 @@ static void print_dispc_vm(const char *str, const struct omap_video_timings *t)
 			"%u/%u/%u/%u = %u + %u = %u\n",
 			str,
 			pck,
-			t->hsync_len, t->hbp, hact, t->hfp,
+			t->hsync_len, t->hbp, hact, t->hfront_porch,
 			bl, hact, tot,
 			TO_DISPC_T(t->hsync_len),
 			TO_DISPC_T(t->hbp),
 			TO_DISPC_T(hact),
-			TO_DISPC_T(t->hfp),
+			TO_DISPC_T(t->hfront_porch),
 			TO_DISPC_T(bl),
 			TO_DISPC_T(hact),
 			TO_DISPC_T(tot));
@@ -4396,12 +4396,12 @@ static void print_dsi_dispc_vm(const char *str,
 	dsi_tput = (u64)byteclk * t->ndl * 8;
 	pck = (u32)div64_u64(dsi_tput, t->bitspp);
 	dsi_hact = DIV_ROUND_UP(DIV_ROUND_UP(t->hact * t->bitspp, 8) + 6, t->ndl);
-	dsi_htot = t->hss + t->hsa + t->hse + t->hbp + dsi_hact + t->hfp;
+	dsi_htot = t->hss + t->hsa + t->hse + t->hbp + dsi_hact + t->hfront_porch;
 
 	vm.pixelclock = pck;
 	vm.hsync_len = div64_u64((u64)(t->hsa + t->hse) * pck, byteclk);
 	vm.hbp = div64_u64((u64)t->hbp * pck, byteclk);
-	vm.hfp = div64_u64((u64)t->hfp * pck, byteclk);
+	vm.hfront_porch = div64_u64((u64)t->hfront_porch * pck, byteclk);
 	vm.hactive = t->hact;
 
 	print_dispc_vm(str, &vm);
@@ -4423,7 +4423,7 @@ static bool dsi_cm_calc_dispc_cb(int lckd, int pckd, unsigned long lck,
 	t->pixelclock = pck;
 	t->hactive = ctx->config->timings->hactive;
 	t->vactive = ctx->config->timings->vactive;
-	t->hsync_len = t->hfp = t->hbp = t->vsw = 1;
+	t->hsync_len = t->hfront_porch = t->hbp = t->vsw = 1;
 	t->vfp = t->vbp = 0;
 
 	return true;
@@ -4527,7 +4527,7 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 
 	xres = req_vm->hactive;
 
-	panel_hbl = req_vm->hfp + req_vm->hbp + req_vm->hsync_len;
+	panel_hbl = req_vm->hfront_porch + req_vm->hbp + req_vm->hsync_len;
 	panel_htot = xres + panel_hbl;
 
 	dsi_hact = DIV_ROUND_UP(DIV_ROUND_UP(xres * bitspp, 8) + 6, ndl);
@@ -4685,7 +4685,7 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 	if (hfp < 1)
 		return false;
 
-	dispc_vm->hfp = hfp;
+	dispc_vm->hfront_porch = hfp;
 	dispc_vm->hsync_len = hsa;
 	dispc_vm->hbp = hbp;
 
