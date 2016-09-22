@@ -8268,6 +8268,8 @@ nfs4_layoutget_handle_exception(struct rpc_task *task,
 	case -NFS4ERR_RECALLCONFLICT:
 		status = -ERECALLCONFLICT;
 		break;
+	case -NFS4ERR_DELEG_REVOKED:
+	case -NFS4ERR_ADMIN_REVOKED:
 	case -NFS4ERR_EXPIRED:
 	case -NFS4ERR_BAD_STATEID:
 		exception->timeout = 0;
@@ -8279,6 +8281,7 @@ nfs4_layoutget_handle_exception(struct rpc_task *task,
 					&lgp->args.ctx->state->stateid)) {
 			spin_unlock(&inode->i_lock);
 			exception->state = lgp->args.ctx->state;
+			exception->stateid = &lgp->args.stateid;
 			break;
 		}
 
