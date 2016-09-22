@@ -240,9 +240,9 @@ static void fusb302_flush_rx_fifo(struct fusb30x_chip *chip)
 
 static int tcpm_get_cc(struct fusb30x_chip *chip, int *CC1, int *CC2)
 {
-	u8 val;
+	u32 val;
 	int *CC_MEASURE;
-	u8 store;
+	u32 store;
 
 	*CC1 = TYPEC_CC_VOLT_OPEN;
 	*CC2 = TYPEC_CC_VOLT_OPEN;
@@ -253,7 +253,7 @@ static int tcpm_get_cc(struct fusb30x_chip *chip, int *CC1, int *CC2)
 		CC_MEASURE = CC2;
 
 	if (chip->cc_state & 0x04) {
-		regmap_read(chip->regmap, FUSB_REG_SWITCHES0, (u32 *)(&store));
+		regmap_read(chip->regmap, FUSB_REG_SWITCHES0, &store);
 
 		/* measure cc1 first */
 		regmap_update_bits(chip->regmap, FUSB_REG_SWITCHES0,
@@ -264,7 +264,7 @@ static int tcpm_get_cc(struct fusb30x_chip *chip, int *CC1, int *CC2)
 				   SWITCHES0_MEAS_CC1);
 		usleep_range(250, 300);
 
-		regmap_read(chip->regmap, FUSB_REG_STATUS0, (u32 *)(&val));
+		regmap_read(chip->regmap, FUSB_REG_STATUS0, &val);
 		val &= STATUS0_BC_LVL;
 		if (val)
 			*CC1 = val;
@@ -277,7 +277,7 @@ static int tcpm_get_cc(struct fusb30x_chip *chip, int *CC1, int *CC2)
 				   SWITCHES0_MEAS_CC2);
 		usleep_range(250, 300);
 
-		regmap_read(chip->regmap, FUSB_REG_STATUS0, (u32 *)(&val));
+		regmap_read(chip->regmap, FUSB_REG_STATUS0, &val);
 		val &= STATUS0_BC_LVL;
 		if (val)
 			*CC2 = val;
@@ -311,7 +311,7 @@ static int tcpm_get_cc(struct fusb30x_chip *chip, int *CC1, int *CC2)
 		regmap_write(chip->regmap, FUSB_REG_MEASURE, 0x26 << 2);
 		usleep_range(250, 300);
 
-		regmap_read(chip->regmap, FUSB_REG_STATUS0, (u32 *)(&val));
+		regmap_read(chip->regmap, FUSB_REG_STATUS0, &val);
 
 		if (val & STATUS0_COMP) {
 			*CC_MEASURE = TYPEC_CC_VOLT_OPEN;
@@ -319,8 +319,7 @@ static int tcpm_get_cc(struct fusb30x_chip *chip, int *CC1, int *CC2)
 			regmap_write(chip->regmap, FUSB_REG_MEASURE, 0x05 << 2);
 			usleep_range(250, 300);
 
-			regmap_read(chip->regmap, FUSB_REG_STATUS0,
-				    (u32 *)(&val));
+			regmap_read(chip->regmap, FUSB_REG_STATUS0, &val);
 
 			if (val & STATUS0_COMP)
 				*CC_MEASURE = TYPEC_CC_VOLT_RA;
@@ -475,8 +474,10 @@ static void fusb302_pd_reset(struct fusb30x_chip *chip)
 static void tcpm_init(struct fusb30x_chip *chip)
 {
 	u8 val;
+	u32 tmp;
 
-	regmap_read(chip->regmap, FUSB_REG_DEVICEID, (u32 *)(&chip->chip_id));
+	regmap_read(chip->regmap, FUSB_REG_DEVICEID, &tmp);
+	chip->chip_id = (u8)tmp;
 	platform_set_vbus_lvl_enable(chip, 0, 0);
 	chip->notify.is_cc_connected = 0;
 	chip->cc_state = 0;
@@ -638,10 +639,10 @@ static void set_state_unattached(struct fusb30x_chip *chip)
 
 static int tcpm_check_vbus(struct fusb30x_chip *chip)
 {
-	u8 val;
+	u32 val;
 
 	/* Read status register */
-	regmap_read(chip->regmap, FUSB_REG_STATUS0, (u32 *)&val);
+	regmap_read(chip->regmap, FUSB_REG_STATUS0, &val);
 
 	return (val & STATUS0_VBUSOK) ? 1 : 0;
 }
