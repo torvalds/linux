@@ -1111,9 +1111,8 @@ static inline bool iwl_mvm_is_d0i3_supported(struct iwl_mvm *mvm)
 
 static inline bool iwl_mvm_is_dqa_supported(struct iwl_mvm *mvm)
 {
-	/* Make sure DQA isn't allowed in driver until feature is complete */
-	return false && fw_has_capa(&mvm->fw->ucode_capa,
-				    IWL_UCODE_TLV_CAPA_DQA_SUPPORT);
+	return fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_DQA_SUPPORT);
 }
 
 static inline bool iwl_mvm_enter_d0i3_on_suspend(struct iwl_mvm *mvm)
