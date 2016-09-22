@@ -14,8 +14,8 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/io.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -40,11 +40,7 @@
 #define GRF_EMMCPHY_CON5		0x14
 #define GRF_EMMCPHY_CON6		0x18
 #define GRF_EMMCPHY_STATUS		0x20
-#define CTRL_OFFSET			0x2c
 
-#define CTRL_INTER_CLKEN		0x1
-#define CTRL_INTER_CLKRDY		0x2
-#define CTRL_INTER_CLKOUT		0x4
 #define PHYCTRL_PDB_MASK		0x1
 #define PHYCTRL_PDB_SHIFT		0x0
 #define PHYCTRL_PDB_PWR_ON		0x1
@@ -76,28 +72,23 @@
 #define PHYCTRL_DR_40OHM		0x4
 #define PHYCTRL_OTAPDLYENA		0x1
 #define PHYCTRL_OTAPDLYENA_MASK		0x1
-#define PHYCTRL_OTAPDLYENA_SHIFT	11
+#define PHYCTRL_OTAPDLYENA_SHIFT	0xb
 #define PHYCTRL_OTAPDLYSEL_MASK		0xf
-#define PHYCTRL_OTAPDLYSEL_SHIFT	7
-#define PHYCTRL_REN_STRB_ENABLE		0x1
-#define PHYCTRL_REN_STRB_MASK		0x1
-#define PHYCTRL_REN_STRB_SHIFT		9
+#define PHYCTRL_OTAPDLYSEL_SHIFT	0x7
 
 struct rockchip_emmc_phy {
 	unsigned int	reg_offset;
 	struct regmap	*reg_base;
-	void __iomem *ctrl_base;
-	u32	freq_sel;
-	u32	dr_sel;
-	u32	opdelay;
+	struct clk	*emmcclk;
 };
 
-static int rockchip_emmc_phy_power(struct rockchip_emmc_phy *rk_phy,
-				   bool on_off)
+static int rockchip_emmc_phy_power(struct phy *phy, bool on_off)
 {
+	struct rockchip_emmc_phy *rk_phy = phy_get_drvdata(phy);
 	unsigned int caldone;
 	unsigned int dllrdy;
-	u16 ctrl_val;
+	unsigned int freqsel = PHYCTRL_FREQSEL_200M;
+	unsigned long rate;
 	unsigned long timeout;
 
 	/*
@@ -119,21 +110,42 @@ static int rockchip_emmc_phy_power(struct rockchip_emmc_phy *rk_phy,
 	if (on_off == PHYCTRL_PDB_PWR_OFF)
 		return 0;
 
-	ctrl_val = readw(rk_phy->ctrl_base + CTRL_OFFSET);
-	ctrl_val |= CTRL_INTER_CLKEN;
-	writew(ctrl_val, rk_phy->ctrl_base + CTRL_OFFSET);
-	/* Wait max 20 ms */
-	while (!((ctrl_val = readw(rk_phy->ctrl_base + CTRL_OFFSET))
-		& CTRL_INTER_CLKRDY)) {
-		if (timeout == 0) {
-			pr_err("rockchip_emmc_phy_power_on: inter_clk not rdy\n");
-			return -EINVAL;
-		}
-		timeout--;
-		mdelay(1);
+	rate = clk_get_rate(rk_phy->emmcclk);
+
+	if (rate != 0) {
+		unsigned long ideal_rate;
+		unsigned long diff;
+
+		switch (rate) {
+		case 1 ... 74999999:
+			ideal_rate = 50000000;
+			freqsel = PHYCTRL_FREQSEL_50M;
+			break;
+		case 75000000 ... 124999999:
+			ideal_rate = 100000000;
+			freqsel = PHYCTRL_FREQSEL_100M;
+			break;
+		case 125000000 ... 174999999:
+			ideal_rate = 150000000;
+			freqsel = PHYCTRL_FREQSEL_150M;
+			break;
+		default:
+			ideal_rate = 200000000;
+			break;
+		};
+
+		diff = (rate > ideal_rate) ?
+			rate - ideal_rate : ideal_rate - rate;
+
+		/*
+		 * In order for tuning delays to be accurate we need to be
+		 * pretty spot on for the DLL range, so warn if we're too
+		 * far off.  Also warn if we're above the 200 MHz max.  Don't
+		 * warn for really slow rates since we won't be tuning then.
+		 */
+		if ((rate > 50000000 && diff > 15000000) || (rate > 200000000))
+			dev_warn(&phy->dev, "Unsupported rate: %lu\n", rate);
 	}
-	ctrl_val |= CTRL_INTER_CLKOUT;
-	writew(ctrl_val, rk_phy->ctrl_base + CTRL_OFFSET);
 
 	/*
 	 * According to the user manual, calpad calibration
@@ -161,21 +173,62 @@ static int rockchip_emmc_phy_power(struct rockchip_emmc_phy *rk_phy,
 		return -ETIMEDOUT;
 	}
 
+	/* Set the frequency of the DLL operation */
+	regmap_write(rk_phy->reg_base,
+		     rk_phy->reg_offset + GRF_EMMCPHY_CON0,
+		     HIWORD_UPDATE(freqsel, PHYCTRL_FREQSEL_MASK,
+				   PHYCTRL_FREQSEL_SHIFT));
+
+	/* Turn on the DLL */
 	regmap_write(rk_phy->reg_base,
 		     rk_phy->reg_offset + GRF_EMMCPHY_CON6,
 		     HIWORD_UPDATE(PHYCTRL_ENDLL_ENABLE,
 				   PHYCTRL_ENDLL_MASK,
 				   PHYCTRL_ENDLL_SHIFT));
+
 	/*
-	 * After enable analog DLL circuits, we need extra 10.2us
-	 * for dll to be ready for work. But according to the test, we
-	 * find some chips need more than 25us.
+	 * We turned on the DLL even though the rate was 0 because we the
+	 * clock might be turned on later.  ...but we can't wait for the DLL
+	 * to lock when the rate is 0 because it will never lock with no
+	 * input clock.
+	 *
+	 * Technically we should be checking the lock later when the clock
+	 * is turned on, but for now we won't.
 	 */
-	udelay(30);
-	regmap_read(rk_phy->reg_base,
-		    rk_phy->reg_offset + GRF_EMMCPHY_STATUS,
-		    &dllrdy);
-	dllrdy = (dllrdy >> PHYCTRL_DLLRDY_SHIFT) & PHYCTRL_DLLRDY_MASK;
+	if (rate == 0)
+		return 0;
+
+	/*
+	 * After enabling analog DLL circuits docs say that we need 10.2 us if
+	 * our source clock is at 50 MHz and that lock time scales linearly
+	 * with clock speed.  If we are powering on the PHY and the card clock
+	 * is super slow (like 100 kHZ) this could take as long as 5.1 ms as
+	 * per the math: 10.2 us * (50000000 Hz / 100000 Hz) => 5.1 ms
+	 * Hopefully we won't be running at 100 kHz, but we should still make
+	 * sure we wait long enough.
+	 *
+	 * NOTE: There appear to be corner cases where the DLL seems to take
+	 * extra long to lock for reasons that aren't understood.  In some
+	 * extreme cases we've seen it take up to over 10ms (!).  We'll be
+	 * generous and give it 50ms.  We still busy wait here because:
+	 * - In most cases it should be super fast.
+	 * - This is not called lots during normal operation so it shouldn't
+	 *   be a power or performance problem to busy wait.  We expect it
+	 *   only at boot / resume.  In both cases, eMMC is probably on the
+	 *   critical path so busy waiting a little extra time should be OK.
+	 */
+	timeout = jiffies + msecs_to_jiffies(50);
+	do {
+		udelay(1);
+
+		regmap_read(rk_phy->reg_base,
+			rk_phy->reg_offset + GRF_EMMCPHY_STATUS,
+			&dllrdy);
+		dllrdy = (dllrdy >> PHYCTRL_DLLRDY_SHIFT) & PHYCTRL_DLLRDY_MASK;
+		if (dllrdy == PHYCTRL_DLLRDY_DONE)
+			break;
+	} while (!time_after(jiffies, timeout));
+
 	if (dllrdy != PHYCTRL_DLLRDY_DONE) {
 		pr_err("rockchip_emmc_phy_power: dllrdy timeout.\n");
 		return -ETIMEDOUT;
@@ -187,68 +240,79 @@ static int rockchip_emmc_phy_power(struct rockchip_emmc_phy *rk_phy,
 static int rockchip_emmc_phy_init(struct phy *phy)
 {
 	struct rockchip_emmc_phy *rk_phy = phy_get_drvdata(phy);
+	int ret = 0;
 
-	regmap_write(rk_phy->reg_base,
-		     rk_phy->reg_offset + GRF_EMMCPHY_CON0,
-		     HIWORD_UPDATE(rk_phy->freq_sel,
-				   PHYCTRL_FREQSEL_MASK,
-				   PHYCTRL_FREQSEL_SHIFT));
+	/*
+	 * We purposely get the clock here and not in probe to avoid the
+	 * circular dependency problem.  We expect:
+	 * - PHY driver to probe
+	 * - SDHCI driver to start probe
+	 * - SDHCI driver to register it's clock
+	 * - SDHCI driver to get the PHY
+	 * - SDHCI driver to init the PHY
+	 *
+	 * The clock is optional, so upon any error we just set to NULL.
+	 *
+	 * NOTE: we don't do anything special for EPROBE_DEFER here.  Given the
+	 * above expected use case, EPROBE_DEFER isn't sensible to expect, so
+	 * it's just like any other error.
+	 */
+	rk_phy->emmcclk = clk_get(&phy->dev, "emmcclk");
+	if (IS_ERR(rk_phy->emmcclk)) {
+		dev_dbg(&phy->dev, "Error getting emmcclk: %d\n", ret);
+		rk_phy->emmcclk = NULL;
+	}
 
-	regmap_write(rk_phy->reg_base,
-		     rk_phy->reg_offset + GRF_EMMCPHY_CON6,
-		     HIWORD_UPDATE(rk_phy->dr_sel,
-				   PHYCTRL_DR_MASK,
-				   PHYCTRL_DR_SHIFT));
+	return ret;
+}
 
-	regmap_write(rk_phy->reg_base,
-		     rk_phy->reg_offset + GRF_EMMCPHY_CON0,
-		     HIWORD_UPDATE(PHYCTRL_OTAPDLYENA,
-				   PHYCTRL_OTAPDLYENA_MASK,
-				   PHYCTRL_OTAPDLYENA_SHIFT));
+static int rockchip_emmc_phy_exit(struct phy *phy)
+{
+	struct rockchip_emmc_phy *rk_phy = phy_get_drvdata(phy);
 
-	regmap_write(rk_phy->reg_base,
-		     rk_phy->reg_offset + GRF_EMMCPHY_CON2,
-		     HIWORD_UPDATE(PHYCTRL_REN_STRB_ENABLE,
-				   PHYCTRL_REN_STRB_MASK,
-				   PHYCTRL_REN_STRB_SHIFT));
-
-	regmap_write(rk_phy->reg_base,
-		     rk_phy->reg_offset + GRF_EMMCPHY_CON0,
-		     HIWORD_UPDATE(rk_phy->opdelay,
-				   PHYCTRL_OTAPDLYSEL_MASK,
-				   PHYCTRL_OTAPDLYSEL_SHIFT));
+	clk_put(rk_phy->emmcclk);
 
 	return 0;
 }
 
 static int rockchip_emmc_phy_power_off(struct phy *phy)
 {
-	struct rockchip_emmc_phy *rk_phy = phy_get_drvdata(phy);
-	int ret = 0;
-
 	/* Power down emmc phy analog blocks */
-	ret = rockchip_emmc_phy_power(rk_phy, PHYCTRL_PDB_PWR_OFF);
-	if (ret)
-		return ret;
-
-	return 0;
+	return rockchip_emmc_phy_power(phy, PHYCTRL_PDB_PWR_OFF);
 }
 
 static int rockchip_emmc_phy_power_on(struct phy *phy)
 {
 	struct rockchip_emmc_phy *rk_phy = phy_get_drvdata(phy);
-	int ret = 0;
+
+	/* Drive impedance: 50 Ohm */
+	regmap_write(rk_phy->reg_base,
+		     rk_phy->reg_offset + GRF_EMMCPHY_CON6,
+		     HIWORD_UPDATE(PHYCTRL_DR_50OHM,
+				   PHYCTRL_DR_MASK,
+				   PHYCTRL_DR_SHIFT));
+
+	/* Output tap delay: enable */
+	regmap_write(rk_phy->reg_base,
+		     rk_phy->reg_offset + GRF_EMMCPHY_CON0,
+		     HIWORD_UPDATE(PHYCTRL_OTAPDLYENA,
+				   PHYCTRL_OTAPDLYENA_MASK,
+				   PHYCTRL_OTAPDLYENA_SHIFT));
+
+	/* Output tap delay */
+	regmap_write(rk_phy->reg_base,
+		     rk_phy->reg_offset + GRF_EMMCPHY_CON0,
+		     HIWORD_UPDATE(4,
+				   PHYCTRL_OTAPDLYSEL_MASK,
+				   PHYCTRL_OTAPDLYSEL_SHIFT));
 
 	/* Power up emmc phy analog blocks */
-	ret = rockchip_emmc_phy_power(rk_phy, PHYCTRL_PDB_PWR_ON);
-	if (ret)
-		return ret;
-
-	return 0;
+	return rockchip_emmc_phy_power(phy, PHYCTRL_PDB_PWR_ON);
 }
 
 static const struct phy_ops ops = {
 	.init		= rockchip_emmc_phy_init,
+	.exit		= rockchip_emmc_phy_exit,
 	.power_on	= rockchip_emmc_phy_power_on,
 	.power_off	= rockchip_emmc_phy_power_off,
 	.owner		= THIS_MODULE,
@@ -262,12 +326,11 @@ static int rockchip_emmc_phy_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 	struct regmap *grf;
 	unsigned int reg_offset;
-	u32 freq_sel;
-	u32 dr_sel;
-	u32 opdelay;
-	u32 ctrl_base;
 
-	grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,grf");
+	if (!dev->parent || !dev->parent->of_node)
+		return -ENODEV;
+
+	grf = syscon_node_to_regmap(dev->parent->of_node);
 	if (IS_ERR(grf)) {
 		dev_err(dev, "Missing rockchip,grf property\n");
 		return PTR_ERR(grf);
@@ -277,75 +340,10 @@ static int rockchip_emmc_phy_probe(struct platform_device *pdev)
 	if (!rk_phy)
 		return -ENOMEM;
 
-	if (of_property_read_u32(dev->of_node, "reg-offset", &reg_offset)) {
+	if (of_property_read_u32(dev->of_node, "reg", &reg_offset)) {
 		dev_err(dev, "missing reg property in node %s\n",
 			dev->of_node->name);
 		return -EINVAL;
-	}
-
-	if (of_property_read_u32(dev->of_node, "ctrl-base", &ctrl_base)) {
-		dev_err(dev, "missing ctrl-base property in node %s\n",
-			dev->of_node->name);
-		return -EINVAL;
-	}
-
-	rk_phy->ctrl_base = ioremap(ctrl_base, SZ_1K);
-	if (!rk_phy->ctrl_base) {
-		dev_err(dev, "failed to remap ctrl_base!\n");
-		return -ENOMEM;
-	}
-
-	rk_phy->freq_sel = 0x0;
-	if (!of_property_read_u32(dev->of_node, "freq-sel", &freq_sel)) {
-		switch (freq_sel) {
-		case 50000000:
-			rk_phy->freq_sel = PHYCTRL_FREQSEL_50M;
-			break;
-		case 100000000:
-			rk_phy->freq_sel = PHYCTRL_FREQSEL_100M;
-			break;
-		case 150000000:
-			rk_phy->freq_sel = PHYCTRL_FREQSEL_150M;
-			break;
-		case 200000000:
-			rk_phy->freq_sel = PHYCTRL_FREQSEL_200M;
-			break;
-		default:
-			dev_info(dev, "Not support freq_sel, default 200M\n");
-			break;
-		}
-	}
-
-	rk_phy->dr_sel = 0x0;
-	if (!of_property_read_u32(dev->of_node, "dr-sel", &dr_sel)) {
-		switch (dr_sel) {
-		case 50:
-			rk_phy->dr_sel = PHYCTRL_DR_50OHM;
-			break;
-		case 33:
-			rk_phy->dr_sel = PHYCTRL_DR_33OHM;
-			break;
-		case 66:
-			rk_phy->dr_sel = PHYCTRL_DR_66OHM;
-			break;
-		case 100:
-			rk_phy->dr_sel = PHYCTRL_DR_100OHM;
-			break;
-		case 40:
-			rk_phy->dr_sel = PHYCTRL_DR_40OHM;
-			break;
-		default:
-			dev_info(dev, "Not support dr_sel, default 50OHM\n");
-			break;
-		}
-	}
-
-	rk_phy->opdelay = 0x4;
-	if (!of_property_read_u32(dev->of_node, "opdelay", &opdelay)) {
-		if (opdelay > 15)
-			dev_info(dev, "opdelay shouldn't larger than 15\n");
-		else
-			rk_phy->opdelay = opdelay;
 	}
 
 	rk_phy->reg_offset = reg_offset;
@@ -354,7 +352,6 @@ static int rockchip_emmc_phy_probe(struct platform_device *pdev)
 	generic_phy = devm_phy_create(dev, dev->of_node, &ops);
 	if (IS_ERR(generic_phy)) {
 		dev_err(dev, "failed to create PHY\n");
-		iounmap(rk_phy->ctrl_base);
 		return PTR_ERR(generic_phy);
 	}
 
