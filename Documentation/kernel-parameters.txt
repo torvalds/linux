@@ -1045,11 +1045,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			determined by the stdout-path property in device
 			tree's chosen node.
 
-		cdns,<addr>
-			Start an early, polled-mode console on a cadence serial
-			port at the specified address. The cadence serial port
-			must already be setup and configured. Options are not
-			yet supported.
+		cdns,<addr>[,options]
+			Start an early, polled-mode console on a Cadence
+			(xuartps) serial port at the specified address. Only
+			supported option is baud rate. If baud rate is not
+			specified, the serial port must already be setup and
+			configured.
 
 		uart[8250],io,<addr>[,options]
 		uart[8250],mmio,<addr>[,options]
