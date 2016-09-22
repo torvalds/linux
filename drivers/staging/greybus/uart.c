@@ -93,8 +93,8 @@ static int gb_uart_receive_data_handler(struct gb_operation *op)
 
 	if (request->payload_size < sizeof(*receive_data)) {
 		dev_err(&gb_tty->gbphy_dev->dev,
-				"short receive-data request received (%zu < %zu)\n",
-				request->payload_size, sizeof(*receive_data));
+			"short receive-data request received (%zu < %zu)\n",
+			request->payload_size, sizeof(*receive_data));
 		return -EINVAL;
 	}
 
@@ -103,9 +103,9 @@ static int gb_uart_receive_data_handler(struct gb_operation *op)
 
 	if (recv_data_size != request->payload_size - sizeof(*receive_data)) {
 		dev_err(&gb_tty->gbphy_dev->dev,
-				"malformed receive-data request received (%u != %zu)\n",
-				recv_data_size,
-				request->payload_size - sizeof(*receive_data));
+			"malformed receive-data request received (%u != %zu)\n",
+			recv_data_size,
+			request->payload_size - sizeof(*receive_data));
 		return -EINVAL;
 	}
 
@@ -145,8 +145,8 @@ static int gb_uart_serial_state_handler(struct gb_operation *op)
 
 	if (request->payload_size < sizeof(*serial_state)) {
 		dev_err(&gb_tty->gbphy_dev->dev,
-				"short serial-state event received (%zu < %zu)\n",
-				request->payload_size, sizeof(*serial_state));
+			"short serial-state event received (%zu < %zu)\n",
+			request->payload_size, sizeof(*serial_state));
 		return -EINVAL;
 	}
 
@@ -168,9 +168,9 @@ static int gb_uart_receive_credits_handler(struct gb_operation *op)
 
 	if (request->payload_size < sizeof(*credit_request)) {
 		dev_err(&gb_tty->gbphy_dev->dev,
-				"short receive_credits event received (%zu < %zu)\n",
-				request->payload_size,
-				sizeof(*credit_request));
+			"short receive_credits event received (%zu < %zu)\n",
+			request->payload_size,
+			sizeof(*credit_request));
 		return -EINVAL;
 	}
 
@@ -253,8 +253,8 @@ static void  gb_uart_tx_write_work(struct work_struct *work)
 			send_size = gb_tty->credits;
 
 		send_size = kfifo_out_peek(&gb_tty->write_fifo,
-					&request->data[0],
-					send_size);
+					   &request->data[0],
+					   send_size);
 		if (!send_size) {
 			spin_unlock_irqrestore(&gb_tty->write_lock, flags);
 			break;
@@ -446,7 +446,7 @@ static int gb_tty_write(struct tty_struct *tty, const unsigned char *buf,
 	struct gb_tty *gb_tty = tty->driver_data;
 
 	count =  kfifo_in_spinlocked(&gb_tty->write_fifo, buf, count,
-					&gb_tty->write_lock);
+				     &gb_tty->write_lock);
 	if (count && !gb_tty->close_pending)
 		schedule_work(&gb_tty->tx_work);
 
@@ -878,7 +878,7 @@ static int gb_uart_probe(struct gbphy_device *gbphy_dev,
 	INIT_WORK(&gb_tty->tx_work, gb_uart_tx_write_work);
 
 	retval = kfifo_alloc(&gb_tty->write_fifo, GB_UART_WRITE_FIFO_SIZE,
-				GFP_KERNEL);
+			     GFP_KERNEL);
 	if (retval)
 		goto exit_buf_free;
 
