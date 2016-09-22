@@ -991,6 +991,8 @@ int nfs4_select_rw_stateid(struct nfs4_state *state,
 {
 	int ret;
 
+	if (!nfs4_valid_open_stateid(state))
+		return -EIO;
 	if (cred != NULL)
 		*cred = NULL;
 	ret = nfs4_copy_lock_stateid(dst, state, lockowner);
@@ -1303,6 +1305,8 @@ void nfs4_schedule_path_down_recovery(struct nfs_client *clp)
 static int nfs4_state_mark_reclaim_reboot(struct nfs_client *clp, struct nfs4_state *state)
 {
 
+	if (!nfs4_valid_open_stateid(state))
+		return 0;
 	set_bit(NFS_STATE_RECLAIM_REBOOT, &state->flags);
 	/* Don't recover state that expired before the reboot */
 	if (test_bit(NFS_STATE_RECLAIM_NOGRACE, &state->flags)) {
@@ -1316,6 +1320,8 @@ static int nfs4_state_mark_reclaim_reboot(struct nfs_client *clp, struct nfs4_st
 
 int nfs4_state_mark_reclaim_nograce(struct nfs_client *clp, struct nfs4_state *state)
 {
+	if (!nfs4_valid_open_stateid(state))
+		return 0;
 	set_bit(NFS_STATE_RECLAIM_NOGRACE, &state->flags);
 	clear_bit(NFS_STATE_RECLAIM_REBOOT, &state->flags);
 	set_bit(NFS_OWNER_RECLAIM_NOGRACE, &state->owner->so_flags);
@@ -1327,9 +1333,8 @@ int nfs4_schedule_stateid_recovery(const struct nfs_server *server, struct nfs4_
 {
 	struct nfs_client *clp = server->nfs_client;
 
-	if (!nfs4_valid_open_stateid(state))
+	if (!nfs4_state_mark_reclaim_nograce(clp, state))
 		return -EBADF;
-	nfs4_state_mark_reclaim_nograce(clp, state);
 	dprintk("%s: scheduling stateid recovery for server %s\n", __func__,
 			clp->cl_hostname);
 	nfs4_schedule_state_manager(clp);
@@ -1380,15 +1385,14 @@ void nfs_inode_find_state_and_recover(struct inode *inode,
 		state = ctx->state;
 		if (state == NULL)
 			continue;
-		if (nfs4_stateid_match_other(&state->stateid, stateid)) {
-			nfs4_state_mark_reclaim_nograce(clp, state);
+		if (nfs4_stateid_match_other(&state->stateid, stateid) &&
+		    nfs4_state_mark_reclaim_nograce(clp, state)) {
 			found = true;
 			continue;
 		}
-		if (nfs_state_lock_state_matches_stateid(state, stateid)) {
-			nfs4_state_mark_reclaim_nograce(clp, state);
+		if (nfs_state_lock_state_matches_stateid(state, stateid) &&
+		    nfs4_state_mark_reclaim_nograce(clp, state))
 			found = true;
-		}
 	}
 	spin_unlock(&inode->i_lock);
 
