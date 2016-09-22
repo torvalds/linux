@@ -518,8 +518,7 @@ static void store_pwrindex_offset(struct adapter *adapter,
 		power_level_offset[4] = data;
 	if (regaddr == rTxAGC_A_Mcs15_Mcs12) {
 		power_level_offset[5] = data;
-		if (hal_data->rf_type == RF_1T1R)
-			hal_data->pwrGroupCnt++;
+		hal_data->pwrGroupCnt++;
 	}
 	if (regaddr == rTxAGC_B_Rate18_06)
 		power_level_offset[8] = data;
@@ -537,8 +536,6 @@ static void store_pwrindex_offset(struct adapter *adapter,
 		power_level_offset[12] = data;
 	if (regaddr == rTxAGC_B_Mcs15_Mcs12) {
 		power_level_offset[13] = data;
-		if (hal_data->rf_type != RF_1T1R)
-			hal_data->pwrGroupCnt++;
 	}
 }
 

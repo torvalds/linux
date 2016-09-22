@@ -135,10 +135,7 @@ void rtw_hal_read_chip_version(struct adapter *padapter)
 	dump_chip_info(ChipVersion);
 
 	pHalData->VersionID = ChipVersion;
-	pHalData->rf_type = RF_1T1R;
 	pHalData->NumTotalRFPath = 1;
-
-	MSG_88E("RF_Type is %x!!\n", pHalData->rf_type);
 }
 
 void rtw_hal_set_odm_var(struct adapter *Adapter, enum hal_odm_variable eVariable, void *pValue1, bool bSet)

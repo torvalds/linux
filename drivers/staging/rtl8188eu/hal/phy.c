@@ -149,10 +149,7 @@ static void get_tx_power_index(struct adapter *adapt, u8 channel, u8 *cck_pwr,
 	u8 index = (channel - 1);
 	u8 TxCount = 0, path_nums;
 
-	if ((RF_1T2R == hal_data->rf_type) || (RF_1T1R == hal_data->rf_type))
-		path_nums = 1;
-	else
-		path_nums = 2;
+	path_nums = 1;
 
 	for (TxCount = 0; TxCount < path_nums; TxCount++) {
 		if (TxCount == RF_PATH_A) {

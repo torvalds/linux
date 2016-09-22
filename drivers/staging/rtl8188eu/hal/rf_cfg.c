@@ -301,10 +301,7 @@ static bool rtl88e_phy_rf6052_config(struct adapter *adapt)
 {
 	struct hal_data_8188e *hal_data = adapt->HalData;
 
-	if (hal_data->rf_type == RF_1T1R)
-		hal_data->NumTotalRFPath = 1;
-	else
-		hal_data->NumTotalRFPath = 2;
+	hal_data->NumTotalRFPath = 1;
 
 	return rf6052_conf_para(adapt);
 }

@@ -57,12 +57,7 @@ static void Init_ODM_ComInfo_88E(struct adapter *Adapter)
 	dm_odm->PatchID = hal_data->CustomerID;
 	dm_odm->bWIFITest = Adapter->registrypriv.wifi_spec;
 
-	if (hal_data->rf_type == RF_1T1R)
-		dm_odm->RFType = ODM_1T1R;
-	else if (hal_data->rf_type == RF_2T2R)
-		dm_odm->RFType = ODM_2T2R;
-	else if (hal_data->rf_type == RF_1T2R)
-		dm_odm->RFType = ODM_1T2R;
+	dm_odm->RFType = ODM_1T1R;
 
 	dm_odm->AntDivType = hal_data->TRxAntDivType;
 
