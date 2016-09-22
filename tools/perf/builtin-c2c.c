@@ -16,12 +16,101 @@ struct c2c_hists {
 	struct perf_hpp_list	list;
 };
 
+struct c2c_hist_entry {
+	struct c2c_hists	*hists;
+	/*
+	 * must be at the end,
+	 * because of its callchain dynamic entry
+	 */
+	struct hist_entry	he;
+};
+
 struct perf_c2c {
 	struct perf_tool	tool;
 	struct c2c_hists	hists;
 };
 
 static struct perf_c2c c2c;
+
+static void *c2c_he_zalloc(size_t size)
+{
+	struct c2c_hist_entry *c2c_he;
+
+	c2c_he = zalloc(size + sizeof(*c2c_he));
+	if (!c2c_he)
+		return NULL;
+
+	return &c2c_he->he;
+}
+
+static void c2c_he_free(void *he)
+{
+	struct c2c_hist_entry *c2c_he;
+
+	c2c_he = container_of(he, struct c2c_hist_entry, he);
+	if (c2c_he->hists) {
+		hists__delete_entries(&c2c_he->hists->hists);
+		free(c2c_he->hists);
+	}
+
+	free(c2c_he);
+}
+
+static struct hist_entry_ops c2c_entry_ops = {
+	.new	= c2c_he_zalloc,
+	.free	= c2c_he_free,
+};
+
+static int process_sample_event(struct perf_tool *tool __maybe_unused,
+				union perf_event *event,
+				struct perf_sample *sample,
+				struct perf_evsel *evsel __maybe_unused,
+				struct machine *machine)
+{
+	struct hists *hists = &c2c.hists.hists;
+	struct hist_entry *he;
+	struct addr_location al;
+	struct mem_info *mi;
+	int ret;
+
+	if (machine__resolve(machine, &al, sample) < 0) {
+		pr_debug("problem processing %d event, skipping it.\n",
+			 event->header.type);
+		return -1;
+	}
+
+	mi = sample__resolve_mem(sample, &al);
+	if (mi == NULL)
+		return -ENOMEM;
+
+	he = hists__add_entry_ops(hists, &c2c_entry_ops,
+				  &al, NULL, NULL, mi,
+				  sample, true);
+	if (he == NULL) {
+		free(mi);
+		return -ENOMEM;
+	}
+
+	hists__inc_nr_samples(hists, he->filtered);
+	ret = hist_entry__append_callchain(he, sample);
+
+	addr_location__put(&al);
+	return ret;
+}
+
+static struct perf_c2c c2c = {
+	.tool = {
+		.sample		= process_sample_event,
+		.mmap		= perf_event__process_mmap,
+		.mmap2		= perf_event__process_mmap2,
+		.comm		= perf_event__process_comm,
+		.exit		= perf_event__process_exit,
+		.fork		= perf_event__process_fork,
+		.lost		= perf_event__process_lost,
+		.ordered_events	= true,
+		.ordering_requires_timestamps = true,
+	},
+};
 
 static const char * const c2c_usage[] = {
 	"perf c2c {record|report}",
@@ -314,6 +403,7 @@ static int c2c_hists__reinit(struct c2c_hists *c2c_hists,
 static int perf_c2c__report(int argc, const char **argv)
 {
 	struct perf_session *session;
+	struct ui_progress prog;
 	struct perf_data_file file = {
 		.mode = PERF_DATA_MODE_READ,
 	};
@@ -330,8 +420,11 @@ static int perf_c2c__report(int argc, const char **argv)
 
 	argc = parse_options(argc, argv, c2c_options, report_c2c_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
-	if (!argc)
+	if (argc)
 		usage_with_options(report_c2c_usage, c2c_options);
+
+	if (!input_name || !strlen(input_name))
+		input_name = "perf.data";
 
 	file.path = input_name;
 
@@ -355,6 +448,19 @@ static int perf_c2c__report(int argc, const char **argv)
 		pr_debug("No pipe support at the moment.\n");
 		goto out_session;
 	}
+
+	err = perf_session__process_events(session);
+	if (err) {
+		pr_err("failed to process sample\n");
+		goto out_session;
+	}
+
+	ui_progress__init(&prog, c2c.hists.hists.nr_entries, "Sorting...");
+
+	hists__collapse_resort(&c2c.hists.hists, NULL);
+	hists__output_resort(&c2c.hists.hists, &prog);
+
+	ui_progress__finish();
 
 out_session:
 	perf_session__delete(session);
