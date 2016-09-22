@@ -1215,22 +1215,44 @@ static void netvsc_free_netdev(struct net_device *netdev)
 	free_netdev(netdev);
 }
 
-static struct net_device *get_netvsc_net_device(char *mac)
+static struct net_device *get_netvsc_bymac(const u8 *mac)
 {
-	struct net_device *dev, *found = NULL;
+	struct net_device *dev;
 
 	ASSERT_RTNL();
 
 	for_each_netdev(&init_net, dev) {
-		if (memcmp(dev->dev_addr, mac, ETH_ALEN) == 0) {
-			if (dev->netdev_ops != &device_ops)
-				continue;
-			found = dev;
-			break;
-		}
+		if (dev->netdev_ops != &device_ops)
+			continue;	/* not a netvsc device */
+
+		if (ether_addr_equal(mac, dev->perm_addr))
+			return dev;
 	}
 
-	return found;
+	return NULL;
+}
+
+static struct net_device *get_netvsc_byref(const struct net_device *vf_netdev)
+{
+	struct net_device *dev;
+
+	ASSERT_RTNL();
+
+	for_each_netdev(&init_net, dev) {
+		struct net_device_context *net_device_ctx;
+
+		if (dev->netdev_ops != &device_ops)
+			continue;	/* not a netvsc device */
+
+		net_device_ctx = netdev_priv(dev);
+		if (net_device_ctx->nvdev == NULL)
+			continue;	/* device is removed */
+
+		if (net_device_ctx->vf_netdev == vf_netdev)
+			return dev;	/* a match */
+	}
+
+	return NULL;
 }
 
 static int netvsc_register_vf(struct net_device *vf_netdev)
@@ -1239,12 +1261,15 @@ static int netvsc_register_vf(struct net_device *vf_netdev)
 	struct net_device_context *net_device_ctx;
 	struct netvsc_device *netvsc_dev;
 
+	if (vf_netdev->addr_len != ETH_ALEN)
+		return NOTIFY_DONE;
+
 	/*
 	 * We will use the MAC address to locate the synthetic interface to
 	 * associate with the VF interface. If we don't find a matching
 	 * synthetic interface, move on.
 	 */
-	ndev = get_netvsc_net_device(vf_netdev->dev_addr);
+	ndev = get_netvsc_bymac(vf_netdev->perm_addr);
 	if (!ndev)
 		return NOTIFY_DONE;
 
@@ -1284,15 +1309,12 @@ static int netvsc_vf_up(struct net_device *vf_netdev)
 	struct netvsc_device *netvsc_dev;
 	struct net_device_context *net_device_ctx;
 
-	ndev = get_netvsc_net_device(vf_netdev->dev_addr);
+	ndev = get_netvsc_byref(vf_netdev);
 	if (!ndev)
 		return NOTIFY_DONE;
 
 	net_device_ctx = netdev_priv(ndev);
 	netvsc_dev = net_device_ctx->nvdev;
-
-	if (!netvsc_dev || !net_device_ctx->vf_netdev)
-		return NOTIFY_DONE;
 
 	netdev_info(ndev, "VF up: %s\n", vf_netdev->name);
 	netvsc_inject_enable(net_device_ctx);
@@ -1322,15 +1344,12 @@ static int netvsc_vf_down(struct net_device *vf_netdev)
 	struct netvsc_device *netvsc_dev;
 	struct net_device_context *net_device_ctx;
 
-	ndev = get_netvsc_net_device(vf_netdev->dev_addr);
+	ndev = get_netvsc_byref(vf_netdev);
 	if (!ndev)
 		return NOTIFY_DONE;
 
 	net_device_ctx = netdev_priv(ndev);
 	netvsc_dev = net_device_ctx->nvdev;
-
-	if (!netvsc_dev || !net_device_ctx->vf_netdev)
-		return NOTIFY_DONE;
 
 	netdev_info(ndev, "VF down: %s\n", vf_netdev->name);
 	netvsc_inject_disable(net_device_ctx);
@@ -1351,14 +1370,13 @@ static int netvsc_unregister_vf(struct net_device *vf_netdev)
 	struct netvsc_device *netvsc_dev;
 	struct net_device_context *net_device_ctx;
 
-	ndev = get_netvsc_net_device(vf_netdev->dev_addr);
+	ndev = get_netvsc_byref(vf_netdev);
 	if (!ndev)
 		return NOTIFY_DONE;
 
 	net_device_ctx = netdev_priv(ndev);
 	netvsc_dev = net_device_ctx->nvdev;
-	if (!netvsc_dev || !net_device_ctx->vf_netdev)
-		return NOTIFY_DONE;
+
 	netdev_info(ndev, "VF unregistering: %s\n", vf_netdev->name);
 	netvsc_inject_disable(net_device_ctx);
 	net_device_ctx->vf_netdev = NULL;
