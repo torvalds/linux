@@ -296,7 +296,9 @@ static int mtk_phy_connect(struct net_device *dev)
 	regmap_write(eth->ethsys, ETHSYS_SYSCFG0, val);
 
 	/* couple phydev to net_device */
-	mtk_phy_connect_node(eth, mac, np);
+	if (mtk_phy_connect_node(eth, mac, np))
+		goto err_phy;
+
 	dev->phydev->autoneg = AUTONEG_ENABLE;
 	dev->phydev->speed = 0;
 	dev->phydev->duplex = 0;
@@ -317,7 +319,7 @@ static int mtk_phy_connect(struct net_device *dev)
 
 err_phy:
 	of_node_put(np);
-	dev_err(eth->dev, "invalid phy_mode\n");
+	dev_err(eth->dev, "%s: invalid phy\n", __func__);
 	return -EINVAL;
 }
 
