@@ -412,16 +412,10 @@ static inline void edma_param_or(struct edma_cc *ecc, int offset, int param_no,
 	edma_or(ecc, EDMA_PARM + offset + (param_no << 5), or);
 }
 
-static inline void set_bits(int offset, int len, unsigned long *p)
+static inline void edma_set_bits(int offset, int len, unsigned long *p)
 {
 	for (; len > 0; len--)
 		set_bit(offset + (len - 1), p);
-}
-
-static inline void clear_bits(int offset, int len, unsigned long *p)
-{
-	for (; len > 0; len--)
-		clear_bit(offset + (len - 1), p);
 }
 
 static void edma_assign_priority_to_queue(struct edma_cc *ecc, int queue_no,
@@ -2266,7 +2260,7 @@ static int edma_probe(struct platform_device *pdev)
 			for (i = 0; rsv_slots[i][0] != -1; i++) {
 				off = rsv_slots[i][0];
 				ln = rsv_slots[i][1];
-				set_bits(off, ln, ecc->slot_inuse);
+				edma_set_bits(off, ln, ecc->slot_inuse);
 			}
 		}
 	}
