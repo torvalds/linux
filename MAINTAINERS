@@ -5338,6 +5338,12 @@ F:	drivers/staging/greybus/spi.c
 F:	drivers/staging/greybus/spilib.c
 F:	drivers/staging/greybus/spilib.h
 
+GREYBUS PROTOCOLS DRIVERS
+M:	David Lin <dtwlin@gmail.com>
+S:	Maintained
+F:	drivers/staging/greybus/uart.c
+F:	drivers/staging/greybus/log.c
+
 GREYBUS PLATFORM DRIVERS
 M:	Vaibhav Hiremath <hvaibhav.linux@gmail.com>
 S:	Maintained
