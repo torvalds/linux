@@ -603,7 +603,6 @@ static int gb_loopback_async_operation(struct gb_loopback *gb, int type,
 		return -ENOMEM;
 
 	INIT_WORK(&op_async->work, gb_loopback_async_operation_work);
-	init_timer(&op_async->timer);
 	kref_init(&op_async->kref);
 
 	operation = gb_operation_create(gb->connection, type, request_size,
@@ -634,9 +633,9 @@ static int gb_loopback_async_operation(struct gb_loopback *gb, int type,
 	if (ret)
 		goto error;
 
-	op_async->timer.function = gb_loopback_async_operation_timeout;
+	setup_timer(&op_async->timer, gb_loopback_async_operation_timeout,
+			(unsigned long)operation->id);
 	op_async->timer.expires = jiffies + gb->jiffy_timeout;
-	op_async->timer.data = (unsigned long)operation->id;
 	add_timer(&op_async->timer);
 
 	goto done;
