@@ -367,7 +367,7 @@ int request_msix_queue_irqs_uld(struct adapter *adap, unsigned int uld_type)
 	}
 	return 0;
 unwind:
-	while (--idx >= 0) {
+	while (idx-- > 0) {
 		bmap_idx = rxq_info->msix_tbl[idx];
 		free_msix_idx_in_bmap(adap, bmap_idx);
 		free_irq(adap->msix_info_ulds[bmap_idx].vec,
