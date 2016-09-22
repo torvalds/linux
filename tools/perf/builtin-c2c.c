@@ -5,11 +5,73 @@
 #include "builtin.h"
 #include <subcmd/parse-options.h>
 #include "mem-events.h"
+#include "session.h"
+#include "hist.h"
+#include "tool.h"
+#include "data.h"
+
+struct perf_c2c {
+	struct perf_tool tool;
+};
+
+static struct perf_c2c c2c;
 
 static const char * const c2c_usage[] = {
-	"perf c2c",
+	"perf c2c {record|report}",
 	NULL
 };
+
+static const char * const __usage_report[] = {
+	"perf c2c report",
+	NULL
+};
+
+static const char * const *report_c2c_usage = __usage_report;
+
+static int perf_c2c__report(int argc, const char **argv)
+{
+	struct perf_session *session;
+	struct perf_data_file file = {
+		.mode = PERF_DATA_MODE_READ,
+	};
+	const struct option c2c_options[] = {
+	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
+		   "file", "vmlinux pathname"),
+	OPT_INCR('v', "verbose", &verbose,
+		 "be more verbose (show counter open errors, etc)"),
+	OPT_STRING('i', "input", &input_name, "file",
+		   "the input file to process"),
+	OPT_END()
+	};
+	int err = 0;
+
+	argc = parse_options(argc, argv, c2c_options, report_c2c_usage,
+			     PARSE_OPT_STOP_AT_NON_OPTION);
+	if (!argc)
+		usage_with_options(report_c2c_usage, c2c_options);
+
+	file.path = input_name;
+
+	session = perf_session__new(&file, 0, &c2c.tool);
+	if (session == NULL) {
+		pr_debug("No memory for session\n");
+		goto out;
+	}
+
+	if (symbol__init(&session->header.env) < 0)
+		goto out_session;
+
+	/* No pipe support at the moment. */
+	if (perf_data_file__is_pipe(session->file)) {
+		pr_debug("No pipe support at the moment.\n");
+		goto out_session;
+	}
+
+out_session:
+	perf_session__delete(session);
+out:
+	return err;
+}
 
 static int parse_record_events(const struct option *opt __maybe_unused,
 			       const char *str, int unset __maybe_unused)
@@ -129,6 +191,8 @@ int cmd_c2c(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	if (!strncmp(argv[0], "rec", 3)) {
 		return perf_c2c__record(argc, argv);
+	} else if (!strncmp(argv[0], "rep", 3)) {
+		return perf_c2c__report(argc, argv);
 	} else {
 		usage_with_options(c2c_usage, c2c_options);
 	}
