@@ -316,7 +316,7 @@ static void hdmi_core_init(struct hdmi_core_vid_config *video_cfg,
 	}
 
 	if (cfg->timings.double_pixel) {
-		video_cfg->v_fc_config.timings.x_res *= 2;
+		video_cfg->v_fc_config.timings.hactive *= 2;
 		video_cfg->hblank *= 2;
 		video_cfg->v_fc_config.timings.hfp *= 2;
 		video_cfg->v_fc_config.timings.hsw *= 2;
@@ -348,9 +348,9 @@ static void hdmi_core_video_config(struct hdmi_core_data *core,
 
 	/* set x resolution */
 	REG_FLD_MOD(base, HDMI_CORE_FC_INHACTIV1,
-			cfg->v_fc_config.timings.x_res >> 8, 4, 0);
+			cfg->v_fc_config.timings.hactive >> 8, 4, 0);
 	REG_FLD_MOD(base, HDMI_CORE_FC_INHACTIV0,
-			cfg->v_fc_config.timings.x_res & 0xFF, 7, 0);
+			cfg->v_fc_config.timings.hactive & 0xFF, 7, 0);
 
 	/* set y resolution */
 	REG_FLD_MOD(base, HDMI_CORE_FC_INVACTIV1,

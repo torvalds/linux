@@ -183,7 +183,7 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 
 	p = &hdmi.cfg.timings;
 
-	DSSDBG("hdmi_power_on x_res= %d y_res = %d\n", p->x_res, p->y_res);
+	DSSDBG("hdmi_power_on hactive= %d y_res = %d\n", p->hactive, p->y_res);
 
 	pc = p->pixelclock;
 	if (p->double_pixel)

@@ -301,7 +301,7 @@ struct omap_dss_dsi_config {
 
 struct omap_video_timings {
 	/* Unit: pixels */
-	u16 x_res;
+	u16 hactive;
 	/* Unit: pixels */
 	u16 y_res;
 	/* Unit: Hz */

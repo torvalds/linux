@@ -43,7 +43,7 @@ struct panel_drv_data {
 };
 
 static struct omap_video_timings td028ttec1_panel_timings = {
-	.x_res		= 480,
+	.hactive	= 480,
 	.y_res		= 640,
 	.pixelclock	= 22153000,
 	.hfp		= 24,

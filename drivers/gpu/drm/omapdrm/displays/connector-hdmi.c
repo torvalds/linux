@@ -22,7 +22,7 @@
 #include "../dss/omapdss.h"
 
 static const struct omap_video_timings hdmic_default_timings = {
-	.x_res		= 640,
+	.hactive	= 640,
 	.y_res		= 480,
 	.pixelclock	= 25175000,
 	.hsw		= 96,

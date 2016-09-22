@@ -2189,7 +2189,7 @@ static int check_horiz_timing_omap3(unsigned long pclk, unsigned long lclk,
 	u64 val, blank;
 	int i;
 
-	nonactive = t->x_res + t->hfp + t->hsw + t->hbp - out_width;
+	nonactive = t->hactive + t->hfp + t->hsw + t->hbp - out_width;
 
 	i = 0;
 	if (out_height < height)
@@ -2242,7 +2242,7 @@ static unsigned long calc_core_clk_five_taps(unsigned long pclk,
 		return (unsigned long) pclk;
 
 	if (height > out_height) {
-		unsigned int ppl = mgr_timings->x_res;
+		unsigned int ppl = mgr_timings->hactive;
 
 		tmp = (u64)pclk * height * out_width;
 		do_div(tmp, 2 * out_height * ppl);
@@ -2819,7 +2819,7 @@ int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
 	const u8 zorder = 0, global_alpha = 0;
 	const bool replication = false;
 	bool truncation;
-	int in_width = mgr_timings->x_res;
+	int in_width = mgr_timings->hactive;
 	int in_height = mgr_timings->y_res;
 	enum omap_overlay_caps caps =
 		OMAP_DSS_OVL_CAP_SCALE | OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA;
@@ -3118,7 +3118,7 @@ static bool _dispc_mgr_pclk_ok(enum omap_channel channel,
 bool dispc_mgr_timings_ok(enum omap_channel channel,
 		const struct omap_video_timings *timings)
 {
-	if (!_dispc_mgr_size_ok(timings->x_res, timings->y_res))
+	if (!_dispc_mgr_size_ok(timings->hactive, timings->y_res))
 		return false;
 
 	if (!_dispc_mgr_pclk_ok(channel, timings->pixelclock))
@@ -3259,7 +3259,7 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 	unsigned long ht, vt;
 	struct omap_video_timings t = *timings;
 
-	DSSDBG("channel %d xres %u yres %u\n", channel, t.x_res, t.y_res);
+	DSSDBG("channel %d xres %u yres %u\n", channel, t.hactive, t.y_res);
 
 	if (!dispc_mgr_timings_ok(channel, &t)) {
 		BUG();
@@ -3271,7 +3271,7 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 				t.vfp, t.vbp, t.vsync_level, t.hsync_level,
 				t.data_pclk_edge, t.de_level, t.sync_pclk_edge);
 
-		xtot = t.x_res + t.hfp + t.hsw + t.hbp;
+		xtot = t.hactive + t.hfp + t.hsw + t.hbp;
 		ytot = t.y_res + t.vfp + t.vsw + t.vbp;
 
 		ht = timings->pixelclock / xtot;
@@ -3294,7 +3294,7 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 				19, 17);
 	}
 
-	dispc_mgr_set_size(channel, t.x_res, t.y_res);
+	dispc_mgr_set_size(channel, t.hactive, t.y_res);
 }
 EXPORT_SYMBOL(dispc_mgr_set_timings);
 
@@ -4220,7 +4220,7 @@ static const struct dispc_errata_i734_data {
 	struct dss_lcd_mgr_config lcd_conf;
 } i734 = {
 	.timings = {
-		.x_res = 8, .y_res = 1,
+		.hactive = 8, .y_res = 1,
 		.pixelclock = 16000000,
 		.hsw = 8, .hfp = 4, .hbp = 4,
 		.vsw = 1, .vfp = 1, .vbp = 1,

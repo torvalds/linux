@@ -512,7 +512,7 @@ static int dpi_check_timings(struct omap_dss_device *dssdev,
 	struct dpi_clk_calc_ctx ctx;
 	bool ok;
 
-	if (timings->x_res % 8 != 0)
+	if (timings->hactive % 8 != 0)
 		return -EINVAL;
 
 	if (!dispc_mgr_timings_ok(channel, timings))

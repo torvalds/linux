@@ -3326,7 +3326,7 @@ static void dsi_config_vp_num_line_buffers(struct platform_device *dsidev)
 		 * Don't use line buffers if width is greater than the video
 		 * port's line buffer size
 		 */
-		if (dsi->line_buffer_size <= timings->x_res * bpp / 8)
+		if (dsi->line_buffer_size <= timings->hactive * bpp / 8)
 			num_line_buffers = 0;
 		else
 			num_line_buffers = 2;
@@ -3494,7 +3494,7 @@ static void dsi_config_cmd_mode_interleaving(struct platform_device *dsidev)
 
 	exiths_clk = ths_exit + tclk_trail;
 
-	width_bytes = DIV_ROUND_UP(timings->x_res * bpp, 8);
+	width_bytes = DIV_ROUND_UP(timings->hactive * bpp, 8);
 	bllp = hbp + hfp + hsa + DIV_ROUND_UP(width_bytes + 6, ndl);
 
 	if (!hsa_blanking_mode) {
@@ -3713,7 +3713,7 @@ static void dsi_proto_timings(struct platform_device *dsidev)
 		t_he = hsync_end ?
 			((hsa == 0 && ndl == 3) ? 1 : DIV_ROUND_UP(4, ndl)) : 0;
 
-		width_bytes = DIV_ROUND_UP(timings->x_res * bpp, 8);
+		width_bytes = DIV_ROUND_UP(timings->hactive * bpp, 8);
 
 		/* TL = t_HS + HSA + t_HE + HFP + ceil((WC + 6) / NDL) + HBP */
 		tl = DIV_ROUND_UP(4, ndl) + (hsync_end ? hsa : 0) + t_he + hfp +
@@ -3856,7 +3856,7 @@ static int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel)
 		/* MODE, 1 = video mode */
 		REG_FLD_MOD(dsidev, DSI_VC_CTRL(channel), 1, 4, 4);
 
-		word_count = DIV_ROUND_UP(dsi->timings.x_res * bpp, 8);
+		word_count = DIV_ROUND_UP(dsi->timings.hactive * bpp, 8);
 
 		dsi_vc_write_long_header(dsidev, channel, data_type,
 				word_count, 0);
@@ -3918,7 +3918,7 @@ static void dsi_update_screen_dispc(struct platform_device *dsidev)
 	int r;
 	const unsigned channel = dsi->update_channel;
 	const unsigned line_buf_size = dsi->line_buffer_size;
-	u16 w = dsi->timings.x_res;
+	u16 w = dsi->timings.hactive;
 	u16 h = dsi->timings.y_res;
 
 	DSSDBG("dsi_update_screen_dispc(%dx%d)\n", w, h);
@@ -4056,7 +4056,7 @@ static int dsi_update(struct omap_dss_device *dssdev, int channel,
 	dsi->framedone_callback = callback;
 	dsi->framedone_data = data;
 
-	dw = dsi->timings.x_res;
+	dw = dsi->timings.hactive;
 	dh = dsi->timings.y_res;
 
 #ifdef DSI_PERF_MEASURE
@@ -4361,7 +4361,7 @@ static void print_dispc_vm(const char *str, const struct omap_video_timings *t)
 	unsigned long pck = t->pixelclock;
 	int hact, bl, tot;
 
-	hact = t->x_res;
+	hact = t->hactive;
 	bl = t->hsw + t->hbp + t->hfp;
 	tot = hact + bl;
 
@@ -4402,7 +4402,7 @@ static void print_dsi_dispc_vm(const char *str,
 	vm.hsw = div64_u64((u64)(t->hsa + t->hse) * pck, byteclk);
 	vm.hbp = div64_u64((u64)t->hbp * pck, byteclk);
 	vm.hfp = div64_u64((u64)t->hfp * pck, byteclk);
-	vm.x_res = t->hact;
+	vm.hactive = t->hact;
 
 	print_dispc_vm(str, &vm);
 }
@@ -4421,7 +4421,7 @@ static bool dsi_cm_calc_dispc_cb(int lckd, int pckd, unsigned long lck,
 
 	*t = *ctx->config->timings;
 	t->pixelclock = pck;
-	t->x_res = ctx->config->timings->x_res;
+	t->hactive = ctx->config->timings->hactive;
 	t->y_res = ctx->config->timings->y_res;
 	t->hsw = t->hfp = t->hbp = t->vsw = 1;
 	t->vfp = t->vbp = 0;
@@ -4525,7 +4525,7 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 	dispc_pck = ctx->dispc_cinfo.pck;
 	dispc_tput = (u64)dispc_pck * bitspp;
 
-	xres = req_vm->x_res;
+	xres = req_vm->hactive;
 
 	panel_hbl = req_vm->hfp + req_vm->hbp + req_vm->hsw;
 	panel_htot = xres + panel_hbl;

@@ -35,7 +35,7 @@
 void omapdss_default_get_resolution(struct omap_dss_device *dssdev,
 			u16 *xres, u16 *yres)
 {
-	*xres = dssdev->panel.timings.x_res;
+	*xres = dssdev->panel.timings.hactive;
 	*yres = dssdev->panel.timings.y_res;
 }
 EXPORT_SYMBOL(omapdss_default_get_resolution);
@@ -224,7 +224,7 @@ void videomode_to_omap_video_timings(const struct videomode *vm,
 	memset(ovt, 0, sizeof(*ovt));
 
 	ovt->pixelclock = vm->pixelclock;
-	ovt->x_res = vm->hactive;
+	ovt->hactive = vm->hactive;
 	ovt->hbp = vm->hback_porch;
 	ovt->hfp = vm->hfront_porch;
 	ovt->hsw = vm->hsync_len;
@@ -257,7 +257,7 @@ void omap_video_timings_to_videomode(const struct omap_video_timings *ovt,
 
 	vm->pixelclock = ovt->pixelclock;
 
-	vm->hactive = ovt->x_res;
+	vm->hactive = ovt->hactive;
 	vm->hback_porch = ovt->hbp;
 	vm->hfront_porch = ovt->hfp;
 	vm->hsync_len = ovt->hsw;

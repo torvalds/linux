@@ -36,7 +36,7 @@ struct panel_drv_data {
 };
 
 static const struct omap_video_timings sharp_ls_timings = {
-	.x_res = 480,
+	.hactive = 480,
 	.y_res = 640,
 
 	.pixelclock	= 19200000,

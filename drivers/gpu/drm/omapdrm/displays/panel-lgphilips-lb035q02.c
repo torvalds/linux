@@ -20,7 +20,7 @@
 #include "../dss/omapdss.h"
 
 static struct omap_video_timings lb035q02_timings = {
-	.x_res = 320,
+	.hactive = 320,
 	.y_res = 240,
 
 	.pixelclock	= 6500000,

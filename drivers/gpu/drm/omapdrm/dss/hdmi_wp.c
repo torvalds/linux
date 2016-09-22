@@ -199,7 +199,7 @@ void hdmi_wp_init_vid_fmt_timings(struct hdmi_video_format *video_fmt,
 
 	video_fmt->packing_mode = HDMI_PACK_10b_RGB_YUV444;
 	video_fmt->y_res = param->timings.y_res;
-	video_fmt->x_res = param->timings.x_res;
+	video_fmt->x_res = param->timings.hactive;
 
 	timings->hbp = param->timings.hbp;
 	timings->hfp = param->timings.hfp;
