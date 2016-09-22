@@ -8929,6 +8929,7 @@ static void nfs4_handle_delay_or_session_error(struct nfs_server *server,
 	exception->retry = 0;
 	switch(err) {
 	case -NFS4ERR_DELAY:
+	case -NFS4ERR_RETRY_UNCACHED_REP:
 		nfs4_handle_exception(server, err, exception);
 		break;
 	case -NFS4ERR_BADSESSION:
@@ -9034,7 +9035,7 @@ static struct rpc_task *_nfs41_free_stateid(struct nfs_server *server,
 
 	msg.rpc_argp = &data->args;
 	msg.rpc_resp = &data->res;
-	nfs4_init_sequence(&data->args.seq_args, &data->res.seq_res, 0);
+	nfs4_init_sequence(&data->args.seq_args, &data->res.seq_res, 1);
 	if (privileged)
 		nfs4_set_sequence_privileged(&data->args.seq_args);
 
