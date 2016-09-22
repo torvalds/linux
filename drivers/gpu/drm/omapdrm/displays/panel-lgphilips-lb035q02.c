@@ -19,7 +19,7 @@
 
 #include "../dss/omapdss.h"
 
-static struct omap_video_timings lb035q02_timings = {
+static struct videomode lb035q02_timings = {
 	.hactive = 320,
 	.vactive = 240,
 
@@ -46,7 +46,7 @@ struct panel_drv_data {
 
 	int data_lines;
 
-	struct omap_video_timings videomode;
+	struct videomode videomode;
 
 	struct gpio_desc *enable_gpio;
 };
@@ -187,7 +187,7 @@ static void lb035q02_disable(struct omap_dss_device *dssdev)
 }
 
 static void lb035q02_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
@@ -199,7 +199,7 @@ static void lb035q02_set_timings(struct omap_dss_device *dssdev,
 }
 
 static void lb035q02_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
@@ -207,7 +207,7 @@ static void lb035q02_get_timings(struct omap_dss_device *dssdev,
 }
 
 static int lb035q02_check_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;

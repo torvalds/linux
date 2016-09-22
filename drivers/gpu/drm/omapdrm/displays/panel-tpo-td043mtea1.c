@@ -56,7 +56,7 @@ struct panel_drv_data {
 	struct omap_dss_device	dssdev;
 	struct omap_dss_device *in;
 
-	struct omap_video_timings videomode;
+	struct videomode videomode;
 
 	int data_lines;
 
@@ -72,7 +72,7 @@ struct panel_drv_data {
 	u32 power_on_resume:1;
 };
 
-static const struct omap_video_timings tpo_td043_timings = {
+static const struct videomode tpo_td043_timings = {
 	.hactive	= 800,
 	.vactive	= 480,
 
@@ -416,7 +416,7 @@ static void tpo_td043_disable(struct omap_dss_device *dssdev)
 }
 
 static void tpo_td043_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
@@ -428,7 +428,7 @@ static void tpo_td043_set_timings(struct omap_dss_device *dssdev,
 }
 
 static void tpo_td043_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
@@ -436,7 +436,7 @@ static void tpo_td043_get_timings(struct omap_dss_device *dssdev,
 }
 
 static int tpo_td043_check_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;

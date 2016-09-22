@@ -21,7 +21,7 @@
 
 #include "../dss/omapdss.h"
 
-static const struct omap_video_timings hdmic_default_timings = {
+static const struct videomode hdmic_default_timings = {
 	.hactive	= 640,
 	.vactive	= 480,
 	.pixelclock	= 25175000,
@@ -41,7 +41,7 @@ struct panel_drv_data {
 
 	struct device *dev;
 
-	struct omap_video_timings timings;
+	struct videomode timings;
 
 	int hpd_gpio;
 };
@@ -120,7 +120,7 @@ static void hdmic_disable(struct omap_dss_device *dssdev)
 }
 
 static void hdmic_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
@@ -132,7 +132,7 @@ static void hdmic_set_timings(struct omap_dss_device *dssdev,
 }
 
 static void hdmic_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
@@ -140,7 +140,7 @@ static void hdmic_get_timings(struct omap_dss_device *dssdev,
 }
 
 static int hdmic_check_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;

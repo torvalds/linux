@@ -71,7 +71,7 @@ struct panel_drv_data {
 	int reset_gpio;
 	int datapairs;
 
-	struct omap_video_timings videomode;
+	struct videomode videomode;
 
 	char		*name;
 	int		enabled;
@@ -92,7 +92,7 @@ struct panel_drv_data {
 	struct backlight_device *bl_dev;
 };
 
-static const struct omap_video_timings acx565akm_panel_timings = {
+static const struct videomode acx565akm_panel_timings = {
 	.hactive	= 800,
 	.vactive	= 480,
 	.pixelclock	= 24000000,
@@ -659,7 +659,7 @@ static void acx565akm_disable(struct omap_dss_device *dssdev)
 }
 
 static void acx565akm_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
@@ -671,7 +671,7 @@ static void acx565akm_set_timings(struct omap_dss_device *dssdev,
 }
 
 static void acx565akm_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
@@ -679,7 +679,7 @@ static void acx565akm_get_timings(struct omap_dss_device *dssdev,
 }
 
 static int acx565akm_check_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;

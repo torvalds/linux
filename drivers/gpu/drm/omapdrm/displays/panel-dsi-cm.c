@@ -42,7 +42,7 @@ struct panel_drv_data {
 	struct omap_dss_device dssdev;
 	struct omap_dss_device *in;
 
-	struct omap_video_timings timings;
+	struct videomode timings;
 
 	struct platform_device *pdev;
 

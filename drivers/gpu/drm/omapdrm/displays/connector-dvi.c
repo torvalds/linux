@@ -19,7 +19,7 @@
 
 #include "../dss/omapdss.h"
 
-static const struct omap_video_timings dvic_default_timings = {
+static const struct videomode dvic_default_timings = {
 	.hactive	= 640,
 	.vactive	= 480,
 
@@ -42,7 +42,7 @@ struct panel_drv_data {
 	struct omap_dss_device dssdev;
 	struct omap_dss_device *in;
 
-	struct omap_video_timings timings;
+	struct videomode timings;
 
 	struct i2c_adapter *i2c_adapter;
 };
@@ -113,7 +113,7 @@ static void dvic_disable(struct omap_dss_device *dssdev)
 }
 
 static void dvic_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
@@ -125,7 +125,7 @@ static void dvic_set_timings(struct omap_dss_device *dssdev,
 }
 
 static void dvic_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
@@ -133,7 +133,7 @@ static void dvic_get_timings(struct omap_dss_device *dssdev,
 }
 
 static int dvic_check_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;

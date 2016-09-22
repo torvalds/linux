@@ -27,7 +27,7 @@ struct panel_drv_data {
 
 	struct gpio_desc *enable_gpio;
 
-	struct omap_video_timings timings;
+	struct videomode timings;
 };
 
 #define to_panel_data(x) container_of(x, struct panel_drv_data, dssdev)
@@ -123,7 +123,7 @@ static void opa362_disable(struct omap_dss_device *dssdev)
 }
 
 static void opa362_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
@@ -137,7 +137,7 @@ static void opa362_set_timings(struct omap_dss_device *dssdev,
 }
 
 static void opa362_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
@@ -147,7 +147,7 @@ static void opa362_get_timings(struct omap_dss_device *dssdev,
 }
 
 static int opa362_check_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;

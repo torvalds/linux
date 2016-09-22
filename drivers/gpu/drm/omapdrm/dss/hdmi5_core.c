@@ -329,7 +329,7 @@ static void hdmi_core_video_config(struct hdmi_core_data *core,
 			struct hdmi_core_vid_config *cfg)
 {
 	void __iomem *base = core->base;
-	struct omap_video_timings *ovt = &cfg->v_fc_config.timings;
+	struct videomode *ovt = &cfg->v_fc_config.timings;
 	unsigned char r = 0;
 	bool vsync_pol, hsync_pol;
 
@@ -609,7 +609,7 @@ int hdmi5_core_handle_irqs(struct hdmi_core_data *core)
 void hdmi5_configure(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 		struct hdmi_config *cfg)
 {
-	struct omap_video_timings video_timing;
+	struct videomode video_timing;
 	struct hdmi_video_format video_format;
 	struct hdmi_core_vid_config v_core_cfg;
 

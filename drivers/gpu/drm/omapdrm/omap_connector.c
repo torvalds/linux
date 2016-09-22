@@ -42,76 +42,6 @@ bool omap_connector_get_hdmi_mode(struct drm_connector *connector)
 	return omap_connector->hdmi_mode;
 }
 
-void copy_timings_omap_to_drm(struct drm_display_mode *mode,
-		struct omap_video_timings *timings)
-{
-	mode->clock = timings->pixelclock / 1000;
-
-	mode->hdisplay = timings->hactive;
-	mode->hsync_start = mode->hdisplay + timings->hfront_porch;
-	mode->hsync_end = mode->hsync_start + timings->hsync_len;
-	mode->htotal = mode->hsync_end + timings->hback_porch;
-
-	mode->vdisplay = timings->vactive;
-	mode->vsync_start = mode->vdisplay + timings->vfront_porch;
-	mode->vsync_end = mode->vsync_start + timings->vsync_len;
-	mode->vtotal = mode->vsync_end + timings->vback_porch;
-
-	mode->flags = 0;
-
-	if (timings->flags & DISPLAY_FLAGS_INTERLACED)
-		mode->flags |= DRM_MODE_FLAG_INTERLACE;
-
-	if (timings->flags & DISPLAY_FLAGS_DOUBLECLK)
-		mode->flags |= DRM_MODE_FLAG_DBLCLK;
-
-	if (timings->flags & DISPLAY_FLAGS_HSYNC_HIGH)
-		mode->flags |= DRM_MODE_FLAG_PHSYNC;
-	else
-		mode->flags |= DRM_MODE_FLAG_NHSYNC;
-
-	if (timings->flags & DISPLAY_FLAGS_VSYNC_HIGH)
-		mode->flags |= DRM_MODE_FLAG_PVSYNC;
-	else
-		mode->flags |= DRM_MODE_FLAG_NVSYNC;
-}
-
-void copy_timings_drm_to_omap(struct omap_video_timings *timings,
-		struct drm_display_mode *mode)
-{
-	timings->pixelclock = mode->clock * 1000;
-
-	timings->hactive = mode->hdisplay;
-	timings->hfront_porch = mode->hsync_start - mode->hdisplay;
-	timings->hsync_len = mode->hsync_end - mode->hsync_start;
-	timings->hback_porch = mode->htotal - mode->hsync_end;
-
-	timings->vactive = mode->vdisplay;
-	timings->vfront_porch = mode->vsync_start - mode->vdisplay;
-	timings->vsync_len = mode->vsync_end - mode->vsync_start;
-	timings->vback_porch = mode->vtotal - mode->vsync_end;
-
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		timings->flags |= DISPLAY_FLAGS_INTERLACED;
-
-	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
-		timings->flags |= DISPLAY_FLAGS_DOUBLECLK;
-
-	if (mode->flags & DRM_MODE_FLAG_PHSYNC)
-		timings->flags |= DISPLAY_FLAGS_HSYNC_HIGH;
-	else
-		timings->flags |= DISPLAY_FLAGS_HSYNC_LOW;
-
-	if (mode->flags & DRM_MODE_FLAG_PVSYNC)
-		timings->flags |= DISPLAY_FLAGS_VSYNC_HIGH;
-	else
-		timings->flags |= DISPLAY_FLAGS_VSYNC_LOW;
-
-	timings->flags |= DISPLAY_FLAGS_DE_HIGH |
-			  DISPLAY_FLAGS_PIXDATA_POSEDGE |
-			  DISPLAY_FLAGS_SYNC_NEGEDGE;
-}
-
 static enum drm_connector_status omap_connector_detect(
 		struct drm_connector *connector, bool force)
 {
@@ -188,11 +118,11 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 		kfree(edid);
 	} else {
 		struct drm_display_mode *mode = drm_mode_create(dev);
-		struct omap_video_timings timings = {0};
+		struct videomode timings = {0};
 
 		dssdrv->get_timings(dssdev, &timings);
 
-		copy_timings_omap_to_drm(mode, &timings);
+		drm_display_mode_from_videomode(&timings, mode);
 
 		mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
 		drm_mode_set_name(mode);
@@ -210,12 +140,14 @@ static int omap_connector_mode_valid(struct drm_connector *connector,
 	struct omap_connector *omap_connector = to_omap_connector(connector);
 	struct omap_dss_device *dssdev = omap_connector->dssdev;
 	struct omap_dss_driver *dssdrv = dssdev->driver;
-	struct omap_video_timings timings = {0};
+	struct videomode timings = {0};
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *new_mode;
 	int r, ret = MODE_BAD;
 
-	copy_timings_drm_to_omap(&timings, mode);
+	drm_display_mode_to_videomode(mode, &timings);
+	timings.flags |= DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_PIXDATA_POSEDGE |
+			 DISPLAY_FLAGS_SYNC_NEGEDGE;
 	mode->vrefresh = drm_mode_vrefresh(mode);
 
 	/*
@@ -226,11 +158,11 @@ static int omap_connector_mode_valid(struct drm_connector *connector,
 	if (dssdrv->check_timings) {
 		r = dssdrv->check_timings(dssdev, &timings);
 	} else {
-		struct omap_video_timings t = {0};
+		struct videomode t = {0};
 
 		dssdrv->get_timings(dssdev, &t);
 
-		if (memcmp(&timings, &t, sizeof(struct omap_video_timings)))
+		if (memcmp(&timings, &t, sizeof(struct videomode)))
 			r = -EINVAL;
 		else
 			r = 0;

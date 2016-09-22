@@ -39,7 +39,7 @@ static struct {
 	struct regulator *vdds_sdi_reg;
 
 	struct dss_lcd_mgr_config mgr_config;
-	struct omap_video_timings timings;
+	struct videomode timings;
 	int datapairs;
 
 	struct omap_dss_device output;
@@ -131,7 +131,7 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 {
 	struct omap_dss_device *out = &sdi.output;
 	enum omap_channel channel = dssdev->dispc_channel;
-	struct omap_video_timings *t = &sdi.timings;
+	struct videomode *t = &sdi.timings;
 	unsigned long fck;
 	struct dispc_clock_info dispc_cinfo;
 	unsigned long pck;
@@ -228,19 +228,19 @@ static void sdi_display_disable(struct omap_dss_device *dssdev)
 }
 
 static void sdi_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	sdi.timings = *timings;
 }
 
 static void sdi_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	*timings = sdi.timings;
 }
 
 static int sdi_check_timings(struct omap_dss_device *dssdev,
-			struct omap_video_timings *timings)
+			struct videomode *timings)
 {
 	enum omap_channel channel = dssdev->dispc_channel;
 

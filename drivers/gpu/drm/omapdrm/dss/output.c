@@ -202,7 +202,7 @@ void dss_mgr_disconnect(enum omap_channel channel,
 EXPORT_SYMBOL(dss_mgr_disconnect);
 
 void dss_mgr_set_timings(enum omap_channel channel,
-		const struct omap_video_timings *timings)
+		const struct videomode *timings)
 {
 	dss_mgr_ops->set_timings(channel, timings);
 }

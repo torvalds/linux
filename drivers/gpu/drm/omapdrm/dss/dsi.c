@@ -289,7 +289,7 @@ struct dsi_clk_calc_ctx {
 	struct dss_pll_clock_info dsi_cinfo;
 	struct dispc_clock_info dispc_cinfo;
 
-	struct omap_video_timings dispc_vm;
+	struct videomode dispc_vm;
 	struct omap_dss_dsi_videomode_timings dsi_vm;
 };
 
@@ -383,7 +383,7 @@ struct dsi_data {
 	unsigned scp_clk_refcount;
 
 	struct dss_lcd_mgr_config mgr_config;
-	struct omap_video_timings timings;
+	struct videomode timings;
 	enum omap_dss_dsi_pixel_format pix_fmt;
 	enum omap_dss_dsi_mode mode;
 	struct omap_dss_dsi_videomode_timings vm_timings;
@@ -3321,7 +3321,7 @@ static void dsi_config_vp_num_line_buffers(struct platform_device *dsidev)
 
 	if (dsi->mode == OMAP_DSS_DSI_VIDEO_MODE) {
 		int bpp = dsi_get_pixel_size(dsi->pix_fmt);
-		struct omap_video_timings *timings = &dsi->timings;
+		struct videomode *timings = &dsi->timings;
 		/*
 		 * Don't use line buffers if width is greater than the video
 		 * port's line buffer size
@@ -3453,7 +3453,7 @@ static void dsi_config_cmd_mode_interleaving(struct platform_device *dsidev)
 	int ddr_clk_pre, ddr_clk_post, enter_hs_mode_lat, exit_hs_mode_lat;
 	int tclk_trail, ths_exit, exiths_clk;
 	bool ddr_alwon;
-	struct omap_video_timings *timings = &dsi->timings;
+	struct videomode *timings = &dsi->timings;
 	int bpp = dsi_get_pixel_size(dsi->pix_fmt);
 	int ndl = dsi->num_lanes_used - 1;
 	int dsi_fclk_hsdiv = dsi->user_dsi_cinfo.mX[HSDIV_DSI] + 1;
@@ -3705,7 +3705,7 @@ static void dsi_proto_timings(struct platform_device *dsidev)
 		int vbp = dsi->vm_timings.vbp;
 		int window_sync = dsi->vm_timings.window_sync;
 		bool hsync_end;
-		struct omap_video_timings *timings = &dsi->timings;
+		struct videomode *timings = &dsi->timings;
 		int bpp = dsi_get_pixel_size(dsi->pix_fmt);
 		int tl, t_he, width_bytes;
 
@@ -4120,7 +4120,7 @@ static int dsi_display_init_dispc(struct platform_device *dsidev,
 
 	/*
 	 * override interlace, logic level and edge related parameters in
-	 * omap_video_timings with default values
+	 * videomode with default values
 	 */
 	dsi->timings.flags &= ~DISPLAY_FLAGS_INTERLACED;
 	dsi->timings.flags &= ~DISPLAY_FLAGS_HSYNC_LOW;
@@ -4361,7 +4361,7 @@ static void print_dsi_vm(const char *str,
 #undef TO_DSI_T
 }
 
-static void print_dispc_vm(const char *str, const struct omap_video_timings *t)
+static void print_dispc_vm(const char *str, const struct videomode *t)
 {
 	unsigned long pck = t->pixelclock;
 	int hact, bl, tot;
@@ -4392,7 +4392,7 @@ static void print_dispc_vm(const char *str, const struct omap_video_timings *t)
 static void print_dsi_dispc_vm(const char *str,
 		const struct omap_dss_dsi_videomode_timings *t)
 {
-	struct omap_video_timings vm = { 0 };
+	struct videomode vm = { 0 };
 	unsigned long byteclk = t->hsclk / 4;
 	unsigned long pck;
 	u64 dsi_tput;
@@ -4417,7 +4417,7 @@ static bool dsi_cm_calc_dispc_cb(int lckd, int pckd, unsigned long lck,
 		unsigned long pck, void *data)
 {
 	struct dsi_clk_calc_ctx *ctx = data;
-	struct omap_video_timings *t = &ctx->dispc_vm;
+	struct videomode *t = &ctx->dispc_vm;
 
 	ctx->dispc_cinfo.lck_div = lckd;
 	ctx->dispc_cinfo.pck_div = pckd;
@@ -4515,8 +4515,8 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 	int dispc_htot, dispc_hbl; /* pixels */
 	int dsi_htot, dsi_hact, dsi_hbl, hss, hse; /* byteclks */
 	int hfp, hsa, hbp;
-	const struct omap_video_timings *req_vm;
-	struct omap_video_timings *dispc_vm;
+	const struct videomode *req_vm;
+	struct videomode *dispc_vm;
 	struct omap_dss_dsi_videomode_timings *dsi_vm;
 	u64 dsi_tput, dispc_tput;
 
@@ -4764,7 +4764,7 @@ static bool dsi_vm_calc(struct dsi_data *dsi,
 		const struct omap_dss_dsi_config *cfg,
 		struct dsi_clk_calc_ctx *ctx)
 {
-	const struct omap_video_timings *t = cfg->timings;
+	const struct videomode *t = cfg->timings;
 	unsigned long clkin;
 	unsigned long pll_min;
 	unsigned long pll_max;

@@ -72,7 +72,7 @@ int omapdss_default_get_recommended_bpp(struct omap_dss_device *dssdev)
 EXPORT_SYMBOL(omapdss_default_get_recommended_bpp);
 
 void omapdss_default_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	*timings = dssdev->panel.timings;
 }
@@ -217,40 +217,3 @@ struct omap_dss_device *omap_dss_find_device(void *data,
 	return NULL;
 }
 EXPORT_SYMBOL(omap_dss_find_device);
-
-void videomode_to_omap_video_timings(const struct videomode *vm,
-		struct omap_video_timings *ovt)
-{
-	memset(ovt, 0, sizeof(*ovt));
-
-	ovt->pixelclock = vm->pixelclock;
-	ovt->hactive = vm->hactive;
-	ovt->hback_porch = vm->hback_porch;
-	ovt->hfront_porch = vm->hfront_porch;
-	ovt->hsync_len = vm->hsync_len;
-	ovt->vactive = vm->vactive;
-	ovt->vback_porch = vm->vback_porch;
-	ovt->vfront_porch = vm->vfront_porch;
-	ovt->vsync_len = vm->vsync_len;
-	ovt->flags = vm->flags;
-}
-EXPORT_SYMBOL(videomode_to_omap_video_timings);
-
-void omap_video_timings_to_videomode(const struct omap_video_timings *ovt,
-		struct videomode *vm)
-{
-	memset(vm, 0, sizeof(*vm));
-
-	vm->pixelclock = ovt->pixelclock;
-
-	vm->hactive = ovt->hactive;
-	vm->hback_porch = ovt->hback_porch;
-	vm->hfront_porch = ovt->hfront_porch;
-	vm->hsync_len = ovt->hsync_len;
-	vm->vactive = ovt->vactive;
-	vm->vback_porch = ovt->vback_porch;
-	vm->vfront_porch = ovt->vfront_porch;
-	vm->vsync_len = ovt->vsync_len;
-	vm->flags = ovt->flags;
-}
-EXPORT_SYMBOL(omap_video_timings_to_videomode);

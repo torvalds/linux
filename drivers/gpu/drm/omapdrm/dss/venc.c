@@ -262,7 +262,7 @@ static const struct venc_config venc_config_pal_bdghi = {
 	.fid_ext_start_y__fid_ext_offset_y	= 0x01380005,
 };
 
-const struct omap_video_timings omap_dss_pal_timings = {
+const struct videomode omap_dss_pal_timings = {
 	.hactive	= 720,
 	.vactive	= 574,
 	.pixelclock	= 13500000,
@@ -280,7 +280,7 @@ const struct omap_video_timings omap_dss_pal_timings = {
 };
 EXPORT_SYMBOL(omap_dss_pal_timings);
 
-const struct omap_video_timings omap_dss_ntsc_timings = {
+const struct videomode omap_dss_ntsc_timings = {
 	.hactive	= 720,
 	.vactive	= 482,
 	.pixelclock	= 13500000,
@@ -307,7 +307,7 @@ static struct {
 
 	struct clk	*tv_dac_clk;
 
-	struct omap_video_timings timings;
+	struct videomode timings;
 	enum omap_dss_venc_type type;
 	bool invert_polarity;
 
@@ -422,7 +422,7 @@ static void venc_runtime_put(void)
 }
 
 static const struct venc_config *venc_timings_to_config(
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	if (memcmp(&omap_dss_pal_timings, timings, sizeof(*timings)) == 0)
 		return &venc_config_pal_trm;
@@ -540,7 +540,7 @@ static void venc_display_disable(struct omap_dss_device *dssdev)
 }
 
 static void venc_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	DSSDBG("venc_set_timings\n");
 
@@ -558,7 +558,7 @@ static void venc_set_timings(struct omap_dss_device *dssdev,
 }
 
 static int venc_check_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	DSSDBG("venc_check_timings\n");
 
@@ -572,7 +572,7 @@ static int venc_check_timings(struct omap_dss_device *dssdev,
 }
 
 static void venc_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	mutex_lock(&venc.venc_lock);
 

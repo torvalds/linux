@@ -34,7 +34,7 @@ struct omap_crtc {
 	const char *name;
 	enum omap_channel channel;
 
-	struct omap_video_timings timings;
+	struct videomode timings;
 
 	struct omap_drm_irq vblank_irq;
 	struct omap_drm_irq error_irq;
@@ -56,7 +56,7 @@ uint32_t pipe2vbl(struct drm_crtc *crtc)
 	return dispc_mgr_get_vsync_irq(omap_crtc->channel);
 }
 
-struct omap_video_timings *omap_crtc_timings(struct drm_crtc *crtc)
+struct videomode *omap_crtc_timings(struct drm_crtc *crtc)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	return &omap_crtc->timings;
@@ -215,7 +215,7 @@ static void omap_crtc_dss_disable(enum omap_channel channel)
 }
 
 static void omap_crtc_dss_set_timings(enum omap_channel channel,
-		const struct omap_video_timings *timings)
+		const struct videomode *timings)
 {
 	struct omap_crtc *omap_crtc = omap_crtcs[channel];
 	DBG("%s", omap_crtc->name);
@@ -369,7 +369,10 @@ static void omap_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	    mode->vdisplay, mode->vsync_start, mode->vsync_end, mode->vtotal,
 	    mode->type, mode->flags);
 
-	copy_timings_drm_to_omap(&omap_crtc->timings, mode);
+	drm_display_mode_to_videomode(mode, &omap_crtc->timings);
+	omap_crtc->timings.flags |= DISPLAY_FLAGS_DE_HIGH |
+				    DISPLAY_FLAGS_PIXDATA_POSEDGE |
+				    DISPLAY_FLAGS_SYNC_NEGEDGE;
 }
 
 static int omap_crtc_atomic_check(struct drm_crtc *crtc,

@@ -310,7 +310,7 @@ void hdmi4_configure(struct hdmi_core_data *core,
 	struct hdmi_wp_data *wp, struct hdmi_config *cfg)
 {
 	/* HDMI */
-	struct omap_video_timings video_timing;
+	struct videomode video_timing;
 	struct hdmi_video_format video_format;
 	/* HDMI core */
 	struct hdmi_core_video_config v_core_cfg;

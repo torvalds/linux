@@ -24,12 +24,12 @@ struct panel_drv_data {
 
 	struct device *dev;
 
-	struct omap_video_timings timings;
+	struct videomode timings;
 
 	bool invert_polarity;
 };
 
-static const struct omap_video_timings tvc_pal_timings = {
+static const struct videomode tvc_pal_timings = {
 	.hactive	= 720,
 	.vactive	= 574,
 	.pixelclock	= 13500000,
@@ -127,7 +127,7 @@ static void tvc_disable(struct omap_dss_device *dssdev)
 }
 
 static void tvc_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
@@ -139,7 +139,7 @@ static void tvc_set_timings(struct omap_dss_device *dssdev,
 }
 
 static void tvc_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
@@ -147,7 +147,7 @@ static void tvc_get_timings(struct omap_dss_device *dssdev,
 }
 
 static int tvc_check_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;

@@ -47,7 +47,7 @@ struct dpi_data {
 
 	struct mutex lock;
 
-	struct omap_video_timings timings;
+	struct videomode timings;
 	struct dss_lcd_mgr_config mgr_config;
 	int data_lines;
 
@@ -333,7 +333,7 @@ static int dpi_set_mode(struct dpi_data *dpi)
 {
 	struct omap_dss_device *out = &dpi->output;
 	enum omap_channel channel = out->dispc_channel;
-	struct omap_video_timings *t = &dpi->timings;
+	struct videomode *t = &dpi->timings;
 	int lck_div = 0, pck_div = 0;
 	unsigned long fck = 0;
 	unsigned long pck;
@@ -476,7 +476,7 @@ static void dpi_display_disable(struct omap_dss_device *dssdev)
 }
 
 static void dpi_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
 
@@ -490,7 +490,7 @@ static void dpi_set_timings(struct omap_dss_device *dssdev,
 }
 
 static void dpi_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
 
@@ -502,7 +502,7 @@ static void dpi_get_timings(struct omap_dss_device *dssdev,
 }
 
 static int dpi_check_timings(struct omap_dss_device *dssdev,
-			struct omap_video_timings *timings)
+			struct videomode *timings)
 {
 	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
 	enum omap_channel channel = dpi->output.dispc_channel;

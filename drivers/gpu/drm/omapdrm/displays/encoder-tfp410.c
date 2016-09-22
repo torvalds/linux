@@ -24,7 +24,7 @@ struct panel_drv_data {
 	int pd_gpio;
 	int data_lines;
 
-	struct omap_video_timings timings;
+	struct videomode timings;
 };
 
 #define to_panel_data(x) container_of(x, struct panel_drv_data, dssdev)
@@ -113,7 +113,7 @@ static void tfp410_disable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static void tfp410_fix_timings(struct omap_video_timings *timings)
+static void tfp410_fix_timings(struct videomode *timings)
 {
 	timings->flags |= DISPLAY_FLAGS_DE_HIGH |
 			  DISPLAY_FLAGS_PIXDATA_POSEDGE |
@@ -121,7 +121,7 @@ static void tfp410_fix_timings(struct omap_video_timings *timings)
 }
 
 static void tfp410_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
@@ -135,7 +135,7 @@ static void tfp410_set_timings(struct omap_dss_device *dssdev,
 }
 
 static void tfp410_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
@@ -143,7 +143,7 @@ static void tfp410_get_timings(struct omap_dss_device *dssdev,
 }
 
 static int tfp410_check_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;

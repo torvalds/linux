@@ -113,7 +113,7 @@ static struct {
 
 	struct semaphore bus_lock;
 
-	struct omap_video_timings timings;
+	struct videomode timings;
 	int pixel_size;
 	int data_lines;
 	struct rfbi_timings intf_timings;

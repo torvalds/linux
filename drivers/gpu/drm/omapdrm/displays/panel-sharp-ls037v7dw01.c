@@ -26,7 +26,7 @@ struct panel_drv_data {
 
 	int data_lines;
 
-	struct omap_video_timings videomode;
+	struct videomode videomode;
 
 	struct gpio_desc *resb_gpio;	/* low = reset active min 20 us */
 	struct gpio_desc *ini_gpio;	/* high = power on */
@@ -35,7 +35,7 @@ struct panel_drv_data {
 	struct gpio_desc *ud_gpio;	/* high = conventional vertical scanning */
 };
 
-static const struct omap_video_timings sharp_ls_timings = {
+static const struct videomode sharp_ls_timings = {
 	.hactive = 480,
 	.vactive = 640,
 
@@ -152,7 +152,7 @@ static void sharp_ls_disable(struct omap_dss_device *dssdev)
 }
 
 static void sharp_ls_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
@@ -164,7 +164,7 @@ static void sharp_ls_set_timings(struct omap_dss_device *dssdev,
 }
 
 static void sharp_ls_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
@@ -172,7 +172,7 @@ static void sharp_ls_get_timings(struct omap_dss_device *dssdev,
 }
 
 static int sharp_ls_check_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;

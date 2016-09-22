@@ -172,7 +172,7 @@ static void hdmi_power_off_core(struct omap_dss_device *dssdev)
 static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 {
 	int r;
-	struct omap_video_timings *p;
+	struct videomode *p;
 	enum omap_channel channel = dssdev->dispc_channel;
 	struct dss_pll_clock_info hdmi_cinfo = { 0 };
 	unsigned pc;
@@ -273,7 +273,7 @@ static void hdmi_power_off_full(struct omap_dss_device *dssdev)
 }
 
 static int hdmi_display_check_timing(struct omap_dss_device *dssdev,
-					struct omap_video_timings *timings)
+					struct videomode *timings)
 {
 	if (!dispc_mgr_timings_ok(dssdev->dispc_channel, timings))
 		return -EINVAL;
@@ -282,7 +282,7 @@ static int hdmi_display_check_timing(struct omap_dss_device *dssdev,
 }
 
 static void hdmi_display_set_timing(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	mutex_lock(&hdmi.lock);
 
@@ -294,7 +294,7 @@ static void hdmi_display_set_timing(struct omap_dss_device *dssdev,
 }
 
 static void hdmi_display_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	*timings = hdmi.cfg.timings;
 }

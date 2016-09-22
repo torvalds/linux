@@ -37,12 +37,12 @@ struct panel_drv_data {
 
 	int data_lines;
 
-	struct omap_video_timings videomode;
+	struct videomode videomode;
 
 	struct spi_device *spi_dev;
 };
 
-static struct omap_video_timings td028ttec1_panel_timings = {
+static struct videomode td028ttec1_panel_timings = {
 	.hactive	= 480,
 	.vactive	= 640,
 	.pixelclock	= 22153000,
@@ -322,7 +322,7 @@ static void td028ttec1_panel_disable(struct omap_dss_device *dssdev)
 }
 
 static void td028ttec1_panel_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
@@ -334,7 +334,7 @@ static void td028ttec1_panel_set_timings(struct omap_dss_device *dssdev,
 }
 
 static void td028ttec1_panel_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
@@ -342,7 +342,7 @@ static void td028ttec1_panel_get_timings(struct omap_dss_device *dssdev,
 }
 
 static int td028ttec1_panel_check_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;

@@ -23,7 +23,7 @@ struct panel_drv_data {
 	struct omap_dss_device	dssdev;
 	struct omap_dss_device *in;
 
-	struct omap_video_timings videomode;
+	struct videomode videomode;
 
 	int data_lines;
 
@@ -65,7 +65,7 @@ static const struct {
 	{ 156, 0x00 }, { 157, 0x00 }, { 2, 0x00 },
 };
 
-static const struct omap_video_timings nec_8048_panel_timings = {
+static const struct videomode nec_8048_panel_timings = {
 	.hactive	= LCD_XRES,
 	.vactive	= LCD_YRES,
 	.pixelclock	= LCD_PIXEL_CLOCK,
@@ -186,7 +186,7 @@ static void nec_8048_disable(struct omap_dss_device *dssdev)
 }
 
 static void nec_8048_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
@@ -198,7 +198,7 @@ static void nec_8048_set_timings(struct omap_dss_device *dssdev,
 }
 
 static void nec_8048_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
@@ -206,7 +206,7 @@ static void nec_8048_get_timings(struct omap_dss_device *dssdev,
 }
 
 static int nec_8048_check_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+		struct videomode *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;

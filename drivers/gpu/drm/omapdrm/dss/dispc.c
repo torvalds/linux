@@ -75,7 +75,7 @@ struct dispc_features {
 	unsigned long max_lcd_pclk;
 	unsigned long max_tv_pclk;
 	int (*calc_scaling) (unsigned long pclk, unsigned long lclk,
-		const struct omap_video_timings *mgr_timings,
+		const struct videomode *mgr_timings,
 		u16 width, u16 height, u16 out_width, u16 out_height,
 		enum omap_color_mode color_mode, bool *five_taps,
 		int *x_predecim, int *y_predecim, int *decim_x, int *decim_y,
@@ -2179,7 +2179,7 @@ static void calc_tiler_rotation_offset(u16 screen_width, u16 width,
  * undocumented horizontal position and timing related limitations.
  */
 static int check_horiz_timing_omap3(unsigned long pclk, unsigned long lclk,
-		const struct omap_video_timings *t, u16 pos_x,
+		const struct videomode *t, u16 pos_x,
 		u16 width, u16 height, u16 out_width, u16 out_height,
 		bool five_taps)
 {
@@ -2233,7 +2233,7 @@ static int check_horiz_timing_omap3(unsigned long pclk, unsigned long lclk,
 }
 
 static unsigned long calc_core_clk_five_taps(unsigned long pclk,
-		const struct omap_video_timings *mgr_timings, u16 width,
+		const struct videomode *mgr_timings, u16 width,
 		u16 height, u16 out_width, u16 out_height,
 		enum omap_color_mode color_mode)
 {
@@ -2326,7 +2326,7 @@ static unsigned long calc_core_clk_44xx(unsigned long pclk, u16 width,
 }
 
 static int dispc_ovl_calc_scaling_24xx(unsigned long pclk, unsigned long lclk,
-		const struct omap_video_timings *mgr_timings,
+		const struct videomode *mgr_timings,
 		u16 width, u16 height, u16 out_width, u16 out_height,
 		enum omap_color_mode color_mode, bool *five_taps,
 		int *x_predecim, int *y_predecim, int *decim_x, int *decim_y,
@@ -2372,7 +2372,7 @@ static int dispc_ovl_calc_scaling_24xx(unsigned long pclk, unsigned long lclk,
 }
 
 static int dispc_ovl_calc_scaling_34xx(unsigned long pclk, unsigned long lclk,
-		const struct omap_video_timings *mgr_timings,
+		const struct videomode *mgr_timings,
 		u16 width, u16 height, u16 out_width, u16 out_height,
 		enum omap_color_mode color_mode, bool *five_taps,
 		int *x_predecim, int *y_predecim, int *decim_x, int *decim_y,
@@ -2457,7 +2457,7 @@ again:
 }
 
 static int dispc_ovl_calc_scaling_44xx(unsigned long pclk, unsigned long lclk,
-		const struct omap_video_timings *mgr_timings,
+		const struct videomode *mgr_timings,
 		u16 width, u16 height, u16 out_width, u16 out_height,
 		enum omap_color_mode color_mode, bool *five_taps,
 		int *x_predecim, int *y_predecim, int *decim_x, int *decim_y,
@@ -2503,7 +2503,7 @@ static int dispc_ovl_calc_scaling_44xx(unsigned long pclk, unsigned long lclk,
 
 static int dispc_ovl_calc_scaling(unsigned long pclk, unsigned long lclk,
 		enum omap_overlay_caps caps,
-		const struct omap_video_timings *mgr_timings,
+		const struct videomode *mgr_timings,
 		u16 width, u16 height, u16 out_width, u16 out_height,
 		enum omap_color_mode color_mode, bool *five_taps,
 		int *x_predecim, int *y_predecim, u16 pos_x,
@@ -2593,7 +2593,7 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 		u16 out_width, u16 out_height, enum omap_color_mode color_mode,
 		u8 rotation, bool mirror, u8 zorder, u8 pre_mult_alpha,
 		u8 global_alpha, enum omap_dss_rotation_type rotation_type,
-		bool replication, const struct omap_video_timings *mgr_timings,
+		bool replication, const struct videomode *mgr_timings,
 		bool mem_to_mem)
 {
 	bool five_taps = true;
@@ -2786,7 +2786,7 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 }
 
 int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
-		bool replication, const struct omap_video_timings *mgr_timings,
+		bool replication, const struct videomode *mgr_timings,
 		bool mem_to_mem)
 {
 	int r;
@@ -2812,7 +2812,7 @@ int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
 EXPORT_SYMBOL(dispc_ovl_setup);
 
 int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
-		bool mem_to_mem, const struct omap_video_timings *mgr_timings)
+		bool mem_to_mem, const struct videomode *mgr_timings)
 {
 	int r;
 	u32 l;
@@ -3119,7 +3119,7 @@ static bool _dispc_mgr_pclk_ok(enum omap_channel channel,
 }
 
 bool dispc_mgr_timings_ok(enum omap_channel channel,
-		const struct omap_video_timings *timings)
+		const struct videomode *timings)
 {
 	if (!_dispc_mgr_size_ok(timings->hactive, timings->vactive))
 		return false;
@@ -3143,7 +3143,7 @@ bool dispc_mgr_timings_ok(enum omap_channel channel,
 }
 
 static void _dispc_mgr_set_lcd_timings(enum omap_channel channel,
-				       const struct omap_video_timings *ovt)
+				       const struct videomode *ovt)
 {
 	u32 timing_h, timing_v, l;
 	bool onoff, rf, ipc, vs, hs, de;
@@ -3221,11 +3221,11 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel,
 
 /* change name to mode? */
 void dispc_mgr_set_timings(enum omap_channel channel,
-		const struct omap_video_timings *timings)
+		const struct videomode *timings)
 {
 	unsigned xtot, ytot;
 	unsigned long ht, vt;
-	struct omap_video_timings t = *timings;
+	struct videomode t = *timings;
 
 	DSSDBG("channel %d xres %u yres %u\n", channel, t.hactive, t.vactive);
 
@@ -4185,7 +4185,7 @@ EXPORT_SYMBOL(dispc_free_irq);
  */
 
 static const struct dispc_errata_i734_data {
-	struct omap_video_timings timings;
+	struct videomode timings;
 	struct omap_overlay_info ovli;
 	struct omap_overlay_manager_info mgri;
 	struct dss_lcd_mgr_config lcd_conf;
