@@ -2880,8 +2880,14 @@ skl_wm_plane_id(const struct intel_plane *plane)
 static bool
 intel_has_sagv(struct drm_i915_private *dev_priv)
 {
-	return IS_SKYLAKE(dev_priv) &&
-	       dev_priv->sagv_status != I915_SAGV_NOT_CONTROLLED;
+	if (IS_KABYLAKE(dev_priv))
+		return true;
+
+	if (IS_SKYLAKE(dev_priv) &&
+	    dev_priv->sagv_status != I915_SAGV_NOT_CONTROLLED)
+		return true;
+
+	return false;
 }
 
 /*
@@ -2919,7 +2925,7 @@ intel_enable_sagv(struct drm_i915_private *dev_priv)
 	 * Some skl systems, pre-release machines in particular,
 	 * don't actually have an SAGV.
 	 */
-	if (ret == -ENXIO) {
+	if (IS_SKYLAKE(dev_priv) && ret == -ENXIO) {
 		DRM_DEBUG_DRIVER("No SAGV found on system, ignoring\n");
 		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
 		return 0;
@@ -2973,7 +2979,7 @@ intel_disable_sagv(struct drm_i915_private *dev_priv)
 	 * Some skl systems, pre-release machines in particular,
 	 * don't actually have an SAGV.
 	 */
-	if (result == -ENXIO) {
+	if (IS_SKYLAKE(dev_priv) && result == -ENXIO) {
 		DRM_DEBUG_DRIVER("No SAGV found on system, ignoring\n");
 		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
 		return 0;
