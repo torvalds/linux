@@ -273,6 +273,24 @@
 	};
 };
 
+&sdmmc {
+	status = "okay";
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	card-detect-delay = <200>;
+	no-emmc;
+	no-sdio;
+	num-slots = <1>;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc_clk>, <&sdmmc_cmd>, <&sdmmc_bus4>, <&sdmmc_cd>;
+	rockchip,default-sample-phase = <90>;
+	vmmc-supply = <&vcc_sd>;
+	vqmmc-supply = <&vccio_sd>;
+};
+
 &tsadc {
 	status = "okay";
 	rockchip,hw-tshut-mode = <0>; /* CRU */
