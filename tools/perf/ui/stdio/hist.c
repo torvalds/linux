@@ -702,7 +702,7 @@ hists__fprintf_standard_headers(struct hists *hists,
 	return hpp_list->nr_header_lines + 2;
 }
 
-static int hists__fprintf_headers(struct hists *hists, FILE *fp)
+int hists__fprintf_headers(struct hists *hists, FILE *fp)
 {
 	char bf[1024];
 	struct perf_hpp dummy_hpp = {
