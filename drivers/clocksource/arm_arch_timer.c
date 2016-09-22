@@ -602,23 +602,18 @@ static void __init arch_counter_register(unsigned type)
 		else
 			arch_timer_read_counter = arch_counter_get_cntpct;
 
+		clocksource_counter.archdata.vdso_direct = true;
+
 #ifdef CONFIG_FSL_ERRATUM_A008585
 		/*
 		 * Don't use the vdso fastpath if errata require using
 		 * the out-of-line counter accessor.
 		 */
 		if (static_branch_unlikely(&arch_timer_read_ool_enabled))
-			clocksource_counter.name = "arch_sys_counter_ool";
+			clocksource_counter.archdata.vdso_direct = false;
 #endif
 	} else {
 		arch_timer_read_counter = arch_counter_get_cntvct_mem;
-
-		/* If the clocksource name is "arch_sys_counter" the
-		 * VDSO will attempt to read the CP15-based counter.
-		 * Ensure this does not happen when CP15-based
-		 * counter is not available.
-		 */
-		clocksource_counter.name = "arch_mem_counter";
 	}
 
 	start_count = arch_timer_read_counter();

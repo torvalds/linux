@@ -201,7 +201,7 @@ up_fail:
  */
 void update_vsyscall(struct timekeeper *tk)
 {
-	u32 use_syscall = strcmp(tk->tkr_mono.clock->name, "arch_sys_counter");
+	u32 use_syscall = !tk->tkr_mono.clock->archdata.vdso_direct;
 
 	++vdso_data->tb_seq_count;
 	smp_wmb();
