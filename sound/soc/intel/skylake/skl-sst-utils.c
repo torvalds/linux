@@ -136,7 +136,7 @@ int snd_skl_get_module_info(struct skl_sst *ctx,
 EXPORT_SYMBOL_GPL(snd_skl_get_module_info);
 
 static inline int skl_getid_32(struct uuid_module *module, u64 *val,
-					int word1_mask, int word2_mask)
+				int word1_mask, int word2_mask)
 {
 	int index, max_inst, pvt_id;
 	u32 mask_val;

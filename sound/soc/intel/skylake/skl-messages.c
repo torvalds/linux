@@ -787,6 +787,7 @@ static int skl_alloc_queue(struct skl_module_pin *mpin,
 				mpin[i].in_use = true;
 				mpin[i].id.module_id = id.module_id;
 				mpin[i].id.instance_id = id.instance_id;
+				mpin[i].id.pvt_id = id.pvt_id;
 				mpin[i].tgt_mcfg = tgt_cfg;
 				return i;
 			}
@@ -810,6 +811,7 @@ static void skl_free_queue(struct skl_module_pin *mpin, int q_index)
 		mpin[q_index].in_use = false;
 		mpin[q_index].id.module_id = 0;
 		mpin[q_index].id.instance_id = 0;
+		mpin[q_index].id.pvt_id = 0;
 	}
 	mpin[q_index].pin_state = SKL_PIN_UNBIND;
 	mpin[q_index].tgt_mcfg = NULL;
@@ -850,7 +852,7 @@ int skl_init_module(struct skl_sst *ctx,
 	struct skl_ipc_init_instance_msg msg;
 
 	dev_dbg(ctx->dev, "%s: module_id = %d instance=%d\n", __func__,
-		 mconfig->id.module_id, mconfig->id.instance_id);
+		 mconfig->id.module_id, mconfig->id.pvt_id);
 
 	if (mconfig->pipe->state != SKL_PIPE_CREATED) {
 		dev_err(ctx->dev, "Pipe not created state= %d pipe_id= %d\n",
@@ -866,7 +868,7 @@ int skl_init_module(struct skl_sst *ctx,
 	}
 
 	msg.module_id = mconfig->id.module_id;
-	msg.instance_id = mconfig->id.instance_id;
+	msg.instance_id = mconfig->id.pvt_id;
 	msg.ppl_instance_id = mconfig->pipe->ppl_id;
 	msg.param_data_size = module_config_size;
 	msg.core_id = mconfig->core_id;
@@ -887,9 +889,9 @@ static void skl_dump_bind_info(struct skl_sst *ctx, struct skl_module_cfg
 	*src_module, struct skl_module_cfg *dst_module)
 {
 	dev_dbg(ctx->dev, "%s: src module_id = %d  src_instance=%d\n",
-		__func__, src_module->id.module_id, src_module->id.instance_id);
+		__func__, src_module->id.module_id, src_module->id.pvt_id);
 	dev_dbg(ctx->dev, "%s: dst_module=%d dst_instacne=%d\n", __func__,
-		 dst_module->id.module_id, dst_module->id.instance_id);
+		 dst_module->id.module_id, dst_module->id.pvt_id);
 
 	dev_dbg(ctx->dev, "src_module state = %d dst module state = %d\n",
 		src_module->m_state, dst_module->m_state);
@@ -936,9 +938,9 @@ int skl_unbind_modules(struct skl_sst *ctx,
 		return 0;
 
 	msg.module_id = src_mcfg->id.module_id;
-	msg.instance_id = src_mcfg->id.instance_id;
+	msg.instance_id = src_mcfg->id.pvt_id;
 	msg.dst_module_id = dst_mcfg->id.module_id;
-	msg.dst_instance_id = dst_mcfg->id.instance_id;
+	msg.dst_instance_id = dst_mcfg->id.pvt_id;
 	msg.bind = false;
 
 	ret = skl_ipc_bind_unbind(&ctx->ipc, &msg);
@@ -997,9 +999,9 @@ int skl_bind_modules(struct skl_sst *ctx,
 			 msg.src_queue, msg.dst_queue);
 
 	msg.module_id = src_mcfg->id.module_id;
-	msg.instance_id = src_mcfg->id.instance_id;
+	msg.instance_id = src_mcfg->id.pvt_id;
 	msg.dst_module_id = dst_mcfg->id.module_id;
-	msg.dst_instance_id = dst_mcfg->id.instance_id;
+	msg.dst_instance_id = dst_mcfg->id.pvt_id;
 	msg.bind = true;
 
 	ret = skl_ipc_bind_unbind(&ctx->ipc, &msg);
@@ -1177,7 +1179,7 @@ int skl_set_module_params(struct skl_sst *ctx, u32 *params, int size,
 	struct skl_ipc_large_config_msg msg;
 
 	msg.module_id = mcfg->id.module_id;
-	msg.instance_id = mcfg->id.instance_id;
+	msg.instance_id = mcfg->id.pvt_id;
 	msg.param_data_size = size;
 	msg.large_param_id = param_id;
 
@@ -1190,7 +1192,7 @@ int skl_get_module_params(struct skl_sst *ctx, u32 *params, int size,
 	struct skl_ipc_large_config_msg msg;
 
 	msg.module_id = mcfg->id.module_id;
-	msg.instance_id = mcfg->id.instance_id;
+	msg.instance_id = mcfg->id.pvt_id;
 	msg.param_data_size = size;
 	msg.large_param_id = param_id;
 

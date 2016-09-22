@@ -505,12 +505,15 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 		 * FE/BE params
 		 */
 		skl_tplg_update_module_params(w, ctx);
-
+		mconfig->id.pvt_id = skl_get_pvt_id(ctx, mconfig);
+		if (mconfig->id.pvt_id < 0)
+			return ret;
 		skl_tplg_set_module_init_data(w);
 		ret = skl_init_module(ctx, mconfig);
-		if (ret < 0)
+		if (ret < 0) {
+			skl_put_pvt_id(ctx, mconfig);
 			return ret;
-
+		}
 		skl_tplg_alloc_pipe_mcps(skl, mconfig);
 		ret = skl_tplg_set_module_params(w, ctx);
 		if (ret < 0)
@@ -537,6 +540,7 @@ static int skl_tplg_unload_pipe_modules(struct skl_sst *ctx,
 			if (ret < 0)
 				return -EIO;
 		}
+		skl_put_pvt_id(ctx, mconfig);
 	}
 
 	/* no modules to unload in this path, so return */
