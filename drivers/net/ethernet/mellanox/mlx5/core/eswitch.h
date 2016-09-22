@@ -178,11 +178,12 @@ struct mlx5_eswitch_rep {
 	void		       (*unload)(struct mlx5_eswitch *esw,
 					 struct mlx5_eswitch_rep *rep);
 	u16		       vport;
-	struct mlx5_flow_rule *vport_rx_rule;
+	u8		       hw_id[ETH_ALEN];
 	void		      *priv_data;
+
+	struct mlx5_flow_rule *vport_rx_rule;
 	struct list_head       vport_sqs_list;
 	bool		       valid;
-	u8		       hw_id[ETH_ALEN];
 };
 
 struct mlx5_esw_offload {

@@ -624,7 +624,13 @@ void mlx5_eswitch_register_vport_rep(struct mlx5_eswitch *esw,
 
 	rep = &offloads->vport_reps[vport_index];
 
-	memcpy(rep, __rep, sizeof(struct mlx5_eswitch_rep));
+	memset(rep, 0, sizeof(*rep));
+
+	rep->load   = __rep->load;
+	rep->unload = __rep->unload;
+	rep->vport  = __rep->vport;
+	rep->priv_data = __rep->priv_data;
+	ether_addr_copy(rep->hw_id, __rep->hw_id);
 
 	INIT_LIST_HEAD(&rep->vport_sqs_list);
 	rep->valid = true;
