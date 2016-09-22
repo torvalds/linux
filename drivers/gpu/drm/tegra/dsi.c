@@ -840,6 +840,21 @@ static const struct drm_encoder_funcs tegra_dsi_encoder_funcs = {
 	.destroy = tegra_output_encoder_destroy,
 };
 
+static void tegra_dsi_unprepare(struct tegra_dsi *dsi)
+{
+	int err;
+
+	if (dsi->slave)
+		tegra_dsi_unprepare(dsi->slave);
+
+	err = tegra_mipi_disable(dsi->mipi);
+	if (err < 0)
+		dev_err(dsi->dev, "failed to disable MIPI calibration: %d\n",
+			err);
+
+	pm_runtime_put(dsi->dev);
+}
+
 static void tegra_dsi_encoder_disable(struct drm_encoder *encoder)
 {
 	struct tegra_output *output = encoder_to_output(encoder);
@@ -876,7 +891,26 @@ static void tegra_dsi_encoder_disable(struct drm_encoder *encoder)
 
 	tegra_dsi_disable(dsi);
 
-	pm_runtime_put(dsi->dev);
+	tegra_dsi_unprepare(dsi);
+}
+
+static void tegra_dsi_prepare(struct tegra_dsi *dsi)
+{
+	int err;
+
+	pm_runtime_get_sync(dsi->dev);
+
+	err = tegra_mipi_enable(dsi->mipi);
+	if (err < 0)
+		dev_err(dsi->dev, "failed to enable MIPI calibration: %d\n",
+			err);
+
+	err = tegra_dsi_pad_calibrate(dsi);
+	if (err < 0)
+		dev_err(dsi->dev, "MIPI calibration failed: %d\n", err);
+
+	if (dsi->slave)
+		tegra_dsi_prepare(dsi->slave);
 }
 
 static void tegra_dsi_encoder_enable(struct drm_encoder *encoder)
@@ -887,13 +921,8 @@ static void tegra_dsi_encoder_enable(struct drm_encoder *encoder)
 	struct tegra_dsi *dsi = to_dsi(output);
 	struct tegra_dsi_state *state;
 	u32 value;
-	int err;
 
-	pm_runtime_get_sync(dsi->dev);
-
-	err = tegra_dsi_pad_calibrate(dsi);
-	if (err < 0)
-		dev_err(dsi->dev, "MIPI calibration failed: %d\n", err);
+	tegra_dsi_prepare(dsi);
 
 	state = tegra_dsi_get_state(dsi);
 

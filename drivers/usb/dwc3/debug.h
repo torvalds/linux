@@ -192,7 +192,7 @@ dwc3_ep_event_string(const struct dwc3_event_depevt *event)
 	int ret;
 
 	ret = sprintf(str, "ep%d%s: ", epnum >> 1,
-			(epnum & 1) ? "in" : "in");
+			(epnum & 1) ? "in" : "out");
 	if (ret < 0)
 		return "UNKNOWN";
 

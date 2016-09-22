@@ -42,11 +42,12 @@
     caption a.headerlink { opacity: 0; }
     caption a.headerlink:hover { opacity: 1; }
 
-    /* inline literal: drop the borderbox and red color */
+    /* inline literal: drop the borderbox, padding and red color */
 
     code, .rst-content tt, .rst-content code {
         color: inherit;
         border: none;
+        padding: unset;
         background: inherit;
         font-size: 85%;
     }

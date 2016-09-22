@@ -94,7 +94,7 @@ static u8 mlx4_en_dcbnl_getcap(struct net_device *dev, int capid, u8 *cap)
 		*cap = true;
 		break;
 	case DCB_CAP_ATTR_DCBX:
-		*cap = priv->cee_params.dcbx_cap;
+		*cap = priv->dcbx_cap;
 		break;
 	case DCB_CAP_ATTR_PFC_TCS:
 		*cap = 1 <<  mlx4_max_tc(priv->mdev->dev);
@@ -111,14 +111,14 @@ static u8 mlx4_en_dcbnl_getpfcstate(struct net_device *netdev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(netdev);
 
-	return priv->cee_params.dcb_cfg.pfc_state;
+	return priv->cee_config.pfc_state;
 }
 
 static void mlx4_en_dcbnl_setpfcstate(struct net_device *netdev, u8 state)
 {
 	struct mlx4_en_priv *priv = netdev_priv(netdev);
 
-	priv->cee_params.dcb_cfg.pfc_state = state;
+	priv->cee_config.pfc_state = state;
 }
 
 static void mlx4_en_dcbnl_get_pfc_cfg(struct net_device *netdev, int priority,
@@ -126,7 +126,7 @@ static void mlx4_en_dcbnl_get_pfc_cfg(struct net_device *netdev, int priority,
 {
 	struct mlx4_en_priv *priv = netdev_priv(netdev);
 
-	*setting = priv->cee_params.dcb_cfg.tc_config[priority].dcb_pfc;
+	*setting = priv->cee_config.dcb_pfc[priority];
 }
 
 static void mlx4_en_dcbnl_set_pfc_cfg(struct net_device *netdev, int priority,
@@ -134,8 +134,8 @@ static void mlx4_en_dcbnl_set_pfc_cfg(struct net_device *netdev, int priority,
 {
 	struct mlx4_en_priv *priv = netdev_priv(netdev);
 
-	priv->cee_params.dcb_cfg.tc_config[priority].dcb_pfc = setting;
-	priv->cee_params.dcb_cfg.pfc_state = true;
+	priv->cee_config.dcb_pfc[priority] = setting;
+	priv->cee_config.pfc_state = true;
 }
 
 static int mlx4_en_dcbnl_getnumtcs(struct net_device *netdev, int tcid, u8 *num)
@@ -157,13 +157,11 @@ static u8 mlx4_en_dcbnl_set_all(struct net_device *netdev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(netdev);
 	struct mlx4_en_dev *mdev = priv->mdev;
-	struct mlx4_en_cee_config *dcb_cfg = &priv->cee_params.dcb_cfg;
-	int err = 0;
 
-	if (!(priv->cee_params.dcbx_cap & DCB_CAP_DCBX_VER_CEE))
-		return -EINVAL;
+	if (!(priv->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
+		return 1;
 
-	if (dcb_cfg->pfc_state) {
+	if (priv->cee_config.pfc_state) {
 		int tc;
 
 		priv->prof->rx_pause = 0;
@@ -171,7 +169,7 @@ static u8 mlx4_en_dcbnl_set_all(struct net_device *netdev)
 		for (tc = 0; tc < CEE_DCBX_MAX_PRIO; tc++) {
 			u8 tc_mask = 1 << tc;
 
-			switch (dcb_cfg->tc_config[tc].dcb_pfc) {
+			switch (priv->cee_config.dcb_pfc[tc]) {
 			case pfc_disabled:
 				priv->prof->tx_ppp &= ~tc_mask;
 				priv->prof->rx_ppp &= ~tc_mask;
@@ -199,15 +197,17 @@ static u8 mlx4_en_dcbnl_set_all(struct net_device *netdev)
 		en_dbg(DRV, priv, "Set pfc off\n");
 	}
 
-	err = mlx4_SET_PORT_general(mdev->dev, priv->port,
-				    priv->rx_skb_size + ETH_FCS_LEN,
-				    priv->prof->tx_pause,
-				    priv->prof->tx_ppp,
-				    priv->prof->rx_pause,
-				    priv->prof->rx_ppp);
-	if (err)
+	if (mlx4_SET_PORT_general(mdev->dev, priv->port,
+				  priv->rx_skb_size + ETH_FCS_LEN,
+				  priv->prof->tx_pause,
+				  priv->prof->tx_ppp,
+				  priv->prof->rx_pause,
+				  priv->prof->rx_ppp)) {
 		en_err(priv, "Failed setting pause params\n");
-	return err;
+		return 1;
+	}
+
+	return 0;
 }
 
 static u8 mlx4_en_dcbnl_get_state(struct net_device *dev)
@@ -225,7 +225,7 @@ static u8 mlx4_en_dcbnl_set_state(struct net_device *dev, u8 state)
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	int num_tcs = 0;
 
-	if (!(priv->cee_params.dcbx_cap & DCB_CAP_DCBX_VER_CEE))
+	if (!(priv->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
 		return 1;
 
 	if (!!(state) == !!(priv->flags & MLX4_EN_FLAG_DCB_ENABLED))
@@ -238,7 +238,10 @@ static u8 mlx4_en_dcbnl_set_state(struct net_device *dev, u8 state)
 		priv->flags &= ~MLX4_EN_FLAG_DCB_ENABLED;
 	}
 
-	return mlx4_en_setup_tc(dev, num_tcs);
+	if (mlx4_en_setup_tc(dev, num_tcs))
+		return 1;
+
+	return 0;
 }
 
 /* On success returns a non-zero 802.1p user priority bitmap
@@ -252,7 +255,7 @@ static int mlx4_en_dcbnl_getapp(struct net_device *netdev, u8 idtype, u16 id)
 				.selector = idtype,
 				.protocol = id,
 			     };
-	if (!(priv->cee_params.dcbx_cap & DCB_CAP_DCBX_VER_CEE))
+	if (!(priv->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
 		return 0;
 
 	return dcb_getapp(netdev, &app);
@@ -264,7 +267,7 @@ static int mlx4_en_dcbnl_setapp(struct net_device *netdev, u8 idtype,
 	struct mlx4_en_priv *priv = netdev_priv(netdev);
 	struct dcb_app app;
 
-	if (!(priv->cee_params.dcbx_cap & DCB_CAP_DCBX_VER_CEE))
+	if (!(priv->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
 		return -EINVAL;
 
 	memset(&app, 0, sizeof(struct dcb_app));
@@ -433,7 +436,7 @@ static u8 mlx4_en_dcbnl_getdcbx(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 
-	return priv->cee_params.dcbx_cap;
+	return priv->dcbx_cap;
 }
 
 static u8 mlx4_en_dcbnl_setdcbx(struct net_device *dev, u8 mode)
@@ -442,7 +445,7 @@ static u8 mlx4_en_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 	struct ieee_ets ets = {0};
 	struct ieee_pfc pfc = {0};
 
-	if (mode == priv->cee_params.dcbx_cap)
+	if (mode == priv->dcbx_cap)
 		return 0;
 
 	if ((mode & DCB_CAP_DCBX_LLD_MANAGED) ||
@@ -451,7 +454,7 @@ static u8 mlx4_en_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 	    !(mode & DCB_CAP_DCBX_HOST))
 		goto err;
 
-	priv->cee_params.dcbx_cap = mode;
+	priv->dcbx_cap = mode;
 
 	ets.ets_cap = IEEE_8021QAZ_MAX_TCS;
 	pfc.pfc_cap = IEEE_8021QAZ_MAX_TCS;

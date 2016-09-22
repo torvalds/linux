@@ -189,11 +189,8 @@ static int afs_deliver_cb_callback(struct afs_call *call, struct sk_buff *skb,
 	case 1:
 		_debug("extract FID count");
 		ret = afs_extract_data(call, skb, last, &call->tmp, 4);
-		switch (ret) {
-		case 0:		break;
-		case -EAGAIN:	return 0;
-		default:	return ret;
-		}
+		if (ret < 0)
+			return ret;
 
 		call->count = ntohl(call->tmp);
 		_debug("FID count: %u", call->count);
@@ -210,11 +207,8 @@ static int afs_deliver_cb_callback(struct afs_call *call, struct sk_buff *skb,
 		_debug("extract FID array");
 		ret = afs_extract_data(call, skb, last, call->buffer,
 				       call->count * 3 * 4);
-		switch (ret) {
-		case 0:		break;
-		case -EAGAIN:	return 0;
-		default:	return ret;
-		}
+		if (ret < 0)
+			return ret;
 
 		_debug("unmarshall FID array");
 		call->request = kcalloc(call->count,
@@ -239,11 +233,8 @@ static int afs_deliver_cb_callback(struct afs_call *call, struct sk_buff *skb,
 	case 3:
 		_debug("extract CB count");
 		ret = afs_extract_data(call, skb, last, &call->tmp, 4);
-		switch (ret) {
-		case 0:		break;
-		case -EAGAIN:	return 0;
-		default:	return ret;
-		}
+		if (ret < 0)
+			return ret;
 
 		tmp = ntohl(call->tmp);
 		_debug("CB count: %u", tmp);
@@ -258,11 +249,8 @@ static int afs_deliver_cb_callback(struct afs_call *call, struct sk_buff *skb,
 		_debug("extract CB array");
 		ret = afs_extract_data(call, skb, last, call->request,
 				       call->count * 3 * 4);
-		switch (ret) {
-		case 0:		break;
-		case -EAGAIN:	return 0;
-		default:	return ret;
-		}
+		if (ret < 0)
+			return ret;
 
 		_debug("unmarshall CB array");
 		cb = call->request;
@@ -278,9 +266,9 @@ static int afs_deliver_cb_callback(struct afs_call *call, struct sk_buff *skb,
 		call->unmarshall++;
 
 	case 5:
-		_debug("trailer");
-		if (skb->len != 0)
-			return -EBADMSG;
+		ret = afs_data_complete(call, skb, last);
+		if (ret < 0)
+			return ret;
 
 		/* Record that the message was unmarshalled successfully so
 		 * that the call destructor can know do the callback breaking
@@ -294,8 +282,6 @@ static int afs_deliver_cb_callback(struct afs_call *call, struct sk_buff *skb,
 		break;
 	}
 
-	if (!last)
-		return 0;
 
 	call->state = AFS_CALL_REPLYING;
 
@@ -335,13 +321,13 @@ static int afs_deliver_cb_init_call_back_state(struct afs_call *call,
 {
 	struct afs_server *server;
 	struct in_addr addr;
+	int ret;
 
 	_enter(",{%u},%d", skb->len, last);
 
-	if (skb->len > 0)
-		return -EBADMSG;
-	if (!last)
-		return 0;
+	ret = afs_data_complete(call, skb, last);
+	if (ret < 0)
+		return ret;
 
 	/* no unmarshalling required */
 	call->state = AFS_CALL_REPLYING;
@@ -371,8 +357,10 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call,
 
 	_enter(",{%u},%d", skb->len, last);
 
+	/* There are some arguments that we ignore */
+	afs_data_consumed(call, skb);
 	if (!last)
-		return 0;
+		return -EAGAIN;
 
 	/* no unmarshalling required */
 	call->state = AFS_CALL_REPLYING;
@@ -408,12 +396,13 @@ static void SRXAFSCB_Probe(struct work_struct *work)
 static int afs_deliver_cb_probe(struct afs_call *call, struct sk_buff *skb,
 				bool last)
 {
+	int ret;
+
 	_enter(",{%u},%d", skb->len, last);
 
-	if (skb->len > 0)
-		return -EBADMSG;
-	if (!last)
-		return 0;
+	ret = afs_data_complete(call, skb, last);
+	if (ret < 0)
+		return ret;
 
 	/* no unmarshalling required */
 	call->state = AFS_CALL_REPLYING;
@@ -460,10 +449,9 @@ static int afs_deliver_cb_probe_uuid(struct afs_call *call, struct sk_buff *skb,
 
 	_enter("{%u},{%u},%d", call->unmarshall, skb->len, last);
 
-	if (skb->len > 0)
-		return -EBADMSG;
-	if (!last)
-		return 0;
+	ret = afs_data_complete(call, skb, last);
+	if (ret < 0)
+		return ret;
 
 	switch (call->unmarshall) {
 	case 0:
@@ -509,8 +497,9 @@ static int afs_deliver_cb_probe_uuid(struct afs_call *call, struct sk_buff *skb,
 		break;
 	}
 
-	if (!last)
-		return 0;
+	ret = afs_data_complete(call, skb, last);
+	if (ret < 0)
+		return ret;
 
 	call->state = AFS_CALL_REPLYING;
 
@@ -588,12 +577,13 @@ static void SRXAFSCB_TellMeAboutYourself(struct work_struct *work)
 static int afs_deliver_cb_tell_me_about_yourself(struct afs_call *call,
 						 struct sk_buff *skb, bool last)
 {
+	int ret;
+
 	_enter(",{%u},%d", skb->len, last);
 
-	if (skb->len > 0)
-		return -EBADMSG;
-	if (!last)
-		return 0;
+	ret = afs_data_complete(call, skb, last);
+	if (ret < 0)
+		return ret;
 
 	/* no unmarshalling required */
 	call->state = AFS_CALL_REPLYING;

@@ -19,7 +19,7 @@
 #include <asm/cpufeature.h>
 #include <asm/setup.h>
 
-#define debug_putstr(v) early_printk(v)
+#define debug_putstr(v) early_printk("%s", v)
 #define has_cpuflag(f) boot_cpu_has(f)
 #define get_boot_seed() kaslr_offset()
 #endif

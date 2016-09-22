@@ -665,7 +665,7 @@ static ssize_t ftdi_elan_read(struct file *file, char __user *buffer,
 {
 	char data[30 *3 + 4];
 	char *d = data;
-	int m = (sizeof(data) - 1) / 3;
+	int m = (sizeof(data) - 1) / 3 - 1;
 	int bytes_read = 0;
 	int retry_on_empty = 10;
 	int retry_on_timeout = 5;
@@ -1684,7 +1684,7 @@ wait:if (ftdi->disconnected > 0) {
 			int i = 0;
 			char data[30 *3 + 4];
 			char *d = data;
-			int m = (sizeof(data) - 1) / 3;
+			int m = (sizeof(data) - 1) / 3 - 1;
 			int l = 0;
 			struct u132_target *target = &ftdi->target[ed];
 			struct u132_command *command = &ftdi->command[
@@ -1876,7 +1876,7 @@ more:{
 		if (packet_bytes > 2) {
 			char diag[30 *3 + 4];
 			char *d = diag;
-			int m = (sizeof(diag) - 1) / 3;
+			int m = (sizeof(diag) - 1) / 3 - 1;
 			char *b = ftdi->bulk_in_buffer;
 			int bytes_read = 0;
 			diag[0] = 0;
@@ -2053,7 +2053,7 @@ static int ftdi_elan_synchronize(struct usb_ftdi *ftdi)
 			if (packet_bytes > 2) {
 				char diag[30 *3 + 4];
 				char *d = diag;
-				int m = (sizeof(diag) - 1) / 3;
+				int m = (sizeof(diag) - 1) / 3 - 1;
 				char *b = ftdi->bulk_in_buffer;
 				int bytes_read = 0;
 				unsigned char c = 0;
@@ -2155,7 +2155,7 @@ more:{
 		if (packet_bytes > 2) {
 			char diag[30 *3 + 4];
 			char *d = diag;
-			int m = (sizeof(diag) - 1) / 3;
+			int m = (sizeof(diag) - 1) / 3 - 1;
 			char *b = ftdi->bulk_in_buffer;
 			int bytes_read = 0;
 			diag[0] = 0;

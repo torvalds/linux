@@ -31,7 +31,7 @@ void ccu_helper_wait_for_lock(struct ccu_common *common, u32 lock)
 		return;
 
 	WARN_ON(readl_relaxed_poll_timeout(common->base + common->reg, reg,
-					   !(reg & lock), 100, 70000));
+					   reg & lock, 100, 70000));
 }
 
 int sunxi_ccu_probe(struct device_node *node, void __iomem *reg,

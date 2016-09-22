@@ -111,10 +111,17 @@ static int __init iommu_setup(char *str)
 }
 early_param("iommu", iommu_setup);
 
-static inline bool pnv_pci_is_mem_pref_64(unsigned long flags)
+static inline bool pnv_pci_is_m64(struct pnv_phb *phb, struct resource *r)
 {
-	return ((flags & (IORESOURCE_MEM_64 | IORESOURCE_PREFETCH)) ==
-		(IORESOURCE_MEM_64 | IORESOURCE_PREFETCH));
+	/*
+	 * WARNING: We cannot rely on the resource flags. The Linux PCI
+	 * allocation code sometimes decides to put a 64-bit prefetchable
+	 * BAR in the 32-bit window, so we have to compare the addresses.
+	 *
+	 * For simplicity we only test resource start.
+	 */
+	return (r->start >= phb->ioda.m64_base &&
+		r->start < (phb->ioda.m64_base + phb->ioda.m64_size));
 }
 
 static struct pnv_ioda_pe *pnv_ioda_init_pe(struct pnv_phb *phb, int pe_no)
@@ -142,7 +149,7 @@ static void pnv_ioda_reserve_pe(struct pnv_phb *phb, int pe_no)
 
 static struct pnv_ioda_pe *pnv_ioda_alloc_pe(struct pnv_phb *phb)
 {
-	unsigned long pe = phb->ioda.total_pe_num - 1;
+	long pe;
 
 	for (pe = phb->ioda.total_pe_num - 1; pe >= 0; pe--) {
 		if (!test_and_set_bit(pe, phb->ioda.pe_alloc))
@@ -155,11 +162,12 @@ static struct pnv_ioda_pe *pnv_ioda_alloc_pe(struct pnv_phb *phb)
 static void pnv_ioda_free_pe(struct pnv_ioda_pe *pe)
 {
 	struct pnv_phb *phb = pe->phb;
+	unsigned int pe_num = pe->pe_number;
 
 	WARN_ON(pe->pdev);
 
 	memset(pe, 0, sizeof(struct pnv_ioda_pe));
-	clear_bit(pe->pe_number, phb->ioda.pe_alloc);
+	clear_bit(pe_num, phb->ioda.pe_alloc);
 }
 
 /* The default M64 BAR is shared by all PEs */
@@ -229,7 +237,7 @@ static void pnv_ioda_reserve_dev_m64_pe(struct pci_dev *pdev,
 	sgsz = phb->ioda.m64_segsize;
 	for (i = 0; i <= PCI_ROM_RESOURCE; i++) {
 		r = &pdev->resource[i];
-		if (!r->parent || !pnv_pci_is_mem_pref_64(r->flags))
+		if (!r->parent || !pnv_pci_is_m64(phb, r))
 			continue;
 
 		start = _ALIGN_DOWN(r->start - base, sgsz);
@@ -1877,7 +1885,7 @@ static void pnv_pci_phb3_tce_invalidate(struct pnv_ioda_pe *pe, bool rm,
 					unsigned shift, unsigned long index,
 					unsigned long npages)
 {
-	__be64 __iomem *invalidate = pnv_ioda_get_inval_reg(pe->phb, false);
+	__be64 __iomem *invalidate = pnv_ioda_get_inval_reg(pe->phb, rm);
 	unsigned long start, end, inc;
 
 	/* We'll invalidate DMA address in PE scope */
@@ -2209,7 +2217,7 @@ static long pnv_pci_ioda2_set_window(struct iommu_table_group *table_group,
 
 	pnv_pci_link_table_and_group(phb->hose->node, num,
 			tbl, &pe->table_group);
-	pnv_pci_phb3_tce_invalidate_pe(pe);
+	pnv_pci_ioda2_tce_invalidate_pe(pe);
 
 	return 0;
 }
@@ -2347,7 +2355,7 @@ static long pnv_pci_ioda2_unset_window(struct iommu_table_group *table_group,
 	if (ret)
 		pe_warn(pe, "Unmapping failed, ret = %ld\n", ret);
 	else
-		pnv_pci_phb3_tce_invalidate_pe(pe);
+		pnv_pci_ioda2_tce_invalidate_pe(pe);
 
 	pnv_pci_unlink_table_and_group(table_group->tables[num], table_group);
 
@@ -2863,7 +2871,7 @@ static void pnv_pci_ioda_fixup_iov_resources(struct pci_dev *pdev)
 		res = &pdev->resource[i + PCI_IOV_RESOURCES];
 		if (!res->flags || res->parent)
 			continue;
-		if (!pnv_pci_is_mem_pref_64(res->flags)) {
+		if (!pnv_pci_is_m64(phb, res)) {
 			dev_warn(&pdev->dev, "Don't support SR-IOV with"
 					" non M64 VF BAR%d: %pR. \n",
 				 i, res);
@@ -2958,7 +2966,7 @@ static void pnv_ioda_setup_pe_res(struct pnv_ioda_pe *pe,
 			index++;
 		}
 	} else if ((res->flags & IORESOURCE_MEM) &&
-		   !pnv_pci_is_mem_pref_64(res->flags)) {
+		   !pnv_pci_is_m64(phb, res)) {
 		region.start = res->start -
 			       phb->hose->mem_offset[0] -
 			       phb->ioda.m32_pci_base;
@@ -3083,9 +3091,12 @@ static resource_size_t pnv_pci_window_alignment(struct pci_bus *bus,
 		bridge = bridge->bus->self;
 	}
 
-	/* We fail back to M32 if M64 isn't supported */
-	if (phb->ioda.m64_segsize &&
-	    pnv_pci_is_mem_pref_64(type))
+	/*
+	 * We fall back to M32 if M64 isn't supported. We enforce the M64
+	 * alignment for any 64-bit resource, PCIe doesn't care and
+	 * bridges only do 64-bit prefetchable anyway.
+	 */
+	if (phb->ioda.m64_segsize && (type & IORESOURCE_MEM_64))
 		return phb->ioda.m64_segsize;
 	if (type & IORESOURCE_MEM)
 		return phb->ioda.m32_segsize;
@@ -3125,7 +3136,7 @@ static void pnv_pci_fixup_bridge_resources(struct pci_bus *bus,
 		w = NULL;
 		if (r->flags & type & IORESOURCE_IO)
 			w = &hose->io_resource;
-		else if (pnv_pci_is_mem_pref_64(r->flags) &&
+		else if (pnv_pci_is_m64(phb, r) &&
 			 (type & IORESOURCE_PREFETCH) &&
 			 phb->ioda.m64_segsize)
 			w = &hose->mem_resources[1];
@@ -3392,12 +3403,6 @@ static void pnv_ioda_release_pe(struct pnv_ioda_pe *pe)
 	struct pnv_phb *phb = pe->phb;
 	struct pnv_ioda_pe *slave, *tmp;
 
-	/* Release slave PEs in compound PE */
-	if (pe->flags & PNV_IODA_PE_MASTER) {
-		list_for_each_entry_safe(slave, tmp, &pe->slaves, list)
-			pnv_ioda_release_pe(slave);
-	}
-
 	list_del(&pe->list);
 	switch (phb->type) {
 	case PNV_PHB_IODA1:
@@ -3412,7 +3417,26 @@ static void pnv_ioda_release_pe(struct pnv_ioda_pe *pe)
 
 	pnv_ioda_release_pe_seg(pe);
 	pnv_ioda_deconfigure_pe(pe->phb, pe);
-	pnv_ioda_free_pe(pe);
+
+	/* Release slave PEs in the compound PE */
+	if (pe->flags & PNV_IODA_PE_MASTER) {
+		list_for_each_entry_safe(slave, tmp, &pe->slaves, list) {
+			list_del(&slave->list);
+			pnv_ioda_free_pe(slave);
+		}
+	}
+
+	/*
+	 * The PE for root bus can be removed because of hotplug in EEH
+	 * recovery for fenced PHB error. We need to mark the PE dead so
+	 * that it can be populated again in PCI hot add path. The PE
+	 * shouldn't be destroyed as it's the global reserved resource.
+	 */
+	if (phb->ioda.root_pe_populated &&
+	    phb->ioda.root_pe_idx == pe->pe_number)
+		phb->ioda.root_pe_populated = false;
+	else
+		pnv_ioda_free_pe(pe);
 }
 
 static void pnv_pci_release_device(struct pci_dev *pdev)
@@ -3428,7 +3452,17 @@ static void pnv_pci_release_device(struct pci_dev *pdev)
 	if (!pdn || pdn->pe_number == IODA_INVALID_PE)
 		return;
 
+	/*
+	 * PCI hotplug can happen as part of EEH error recovery. The @pdn
+	 * isn't removed and added afterwards in this scenario. We should
+	 * set the PE number in @pdn to an invalid one. Otherwise, the PE's
+	 * device count is decreased on removing devices while failing to
+	 * be increased on adding devices. It leads to unbalanced PE's device
+	 * count and eventually make normal PCI hotplug path broken.
+	 */
 	pe = &phb->ioda.pe_array[pdn->pe_number];
+	pdn->pe_number = IODA_INVALID_PE;
+
 	WARN_ON(--pe->device_count < 0);
 	if (pe->device_count == 0)
 		pnv_ioda_release_pe(pe);

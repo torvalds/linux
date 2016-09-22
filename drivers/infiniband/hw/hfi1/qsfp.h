@@ -74,6 +74,9 @@
 /* Defined fields that Intel requires of qualified cables */
 /* Byte 0 is Identifier, not checked */
 /* Byte 1 is reserved "status MSB" */
+#define QSFP_MONITOR_VAL_START 22
+#define QSFP_MONITOR_VAL_END 81
+#define QSFP_MONITOR_RANGE (QSFP_MONITOR_VAL_END - QSFP_MONITOR_VAL_START + 1)
 #define QSFP_TX_CTRL_BYTE_OFFS 86
 #define QSFP_PWR_CTRL_BYTE_OFFS 93
 #define QSFP_CDR_CTRL_BYTE_OFFS 98

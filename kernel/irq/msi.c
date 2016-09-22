@@ -359,6 +359,17 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 		else
 			dev_dbg(dev, "irq [%d-%d] for MSI\n",
 				virq, virq + desc->nvec_used - 1);
+		/*
+		 * This flag is set by the PCI layer as we need to activate
+		 * the MSI entries before the PCI layer enables MSI in the
+		 * card. Otherwise the card latches a random msi message.
+		 */
+		if (info->flags & MSI_FLAG_ACTIVATE_EARLY) {
+			struct irq_data *irq_data;
+
+			irq_data = irq_domain_get_irq_data(domain, desc->irq);
+			irq_domain_activate_irq(irq_data);
+		}
 	}
 
 	return 0;
