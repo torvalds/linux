@@ -246,6 +246,11 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 struct mlx5_flow_rule *
 mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport, u32 tirn);
 
+enum {
+	SET_VLAN_STRIP	= BIT(0),
+	SET_VLAN_INSERT	= BIT(1)
+};
+
 int mlx5_eswitch_sqs2vport_start(struct mlx5_eswitch *esw,
 				 struct mlx5_eswitch_rep *rep,
 				 u16 *sqns_array, int sqns_num);
