@@ -1010,6 +1010,8 @@ static int mmc_select_hs(struct mmc_card *card)
 			   true, false, true);
 	if (!err) {
 		mmc_set_timing(card->host, MMC_TIMING_MMC_HS);
+
+		mmc_set_clock(card->host, card->ext_csd.hs_max_dtr);
 		err = mmc_switch_status(card);
 	}
 
@@ -1378,6 +1380,7 @@ static int mmc_select_hs200(struct mmc_card *card)
 		old_timing = host->ios.timing;
 		mmc_set_timing(host, MMC_TIMING_MMC_HS200);
 
+		mmc_set_clock(host, card->ext_csd.hs200_max_dtr);
 		err = mmc_switch_status(card);
 		/*
 		 * mmc_select_timing() assumes timing has not changed if
