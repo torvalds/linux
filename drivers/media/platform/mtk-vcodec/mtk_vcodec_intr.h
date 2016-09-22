@@ -16,7 +16,6 @@
 #define _MTK_VCODEC_INTR_H_
 
 #define MTK_INST_IRQ_RECEIVED		0x1
-#define MTK_INST_WORK_THREAD_ABORT_DONE	0x2
 
 struct mtk_vcodec_ctx;
 
