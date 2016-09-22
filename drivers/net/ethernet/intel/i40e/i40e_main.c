@@ -7684,6 +7684,7 @@ static int i40e_init_msix(struct i40e_pf *pf)
 		pf->flags &= ~I40E_FLAG_MSIX_ENABLED;
 		kfree(pf->msix_entries);
 		pf->msix_entries = NULL;
+		pci_disable_msix(pf->pdev);
 		return -ENODEV;
 
 	} else if (v_actual == I40E_MIN_MSIX) {
