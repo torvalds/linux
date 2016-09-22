@@ -462,7 +462,6 @@ static int da8xx_probe(struct platform_device *pdev)
 {
 	struct resource musb_resources[2];
 	struct musb_hdrc_platform_data	*pdata = dev_get_platdata(&pdev->dev);
-	struct platform_device		*musb;
 	struct da8xx_glue		*glue;
 	struct platform_device_info	pinfo;
 	struct clk			*clk;
@@ -490,9 +489,10 @@ static int da8xx_probe(struct platform_device *pdev)
 	pdata->platform_ops		= &da8xx_ops;
 
 	glue->usb_phy = usb_phy_generic_register();
-	if (IS_ERR(glue->usb_phy)) {
+	ret = PTR_ERR_OR_ZERO(glue->usb_phy);
+	if (ret) {
 		dev_err(&pdev->dev, "failed to register usb_phy\n");
-		return PTR_ERR(glue->usb_phy);
+		return ret;
 	}
 	platform_set_drvdata(pdev, glue);
 
@@ -516,14 +516,14 @@ static int da8xx_probe(struct platform_device *pdev)
 	pinfo.data = pdata;
 	pinfo.size_data = sizeof(*pdata);
 
-	glue->musb = musb = platform_device_register_full(&pinfo);
-	if (IS_ERR(musb)) {
+	glue->musb = platform_device_register_full(&pinfo);
+	ret = PTR_ERR_OR_ZERO(glue->musb);
+	if (ret) {
 		dev_err(&pdev->dev, "failed to register musb device: %d\n", ret);
 		usb_phy_generic_unregister(glue->usb_phy);
-		return PTR_ERR(musb);
 	}
 
-	return 0;
+	return ret;
 }
 
 static int da8xx_remove(struct platform_device *pdev)
