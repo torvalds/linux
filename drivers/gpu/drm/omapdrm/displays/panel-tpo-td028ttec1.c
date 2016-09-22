@@ -56,6 +56,10 @@ static struct videomode td028ttec1_panel_vm = {
 	.flags		= DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
 			  DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_SYNC_POSEDGE |
 			  DISPLAY_FLAGS_PIXDATA_NEGEDGE,
+	/*
+	 * Note: According to the panel documentation:
+	 * SYNC needs to be driven on the FALLING edge
+	 */
 };
 
 #define JBT_COMMAND	0x000
