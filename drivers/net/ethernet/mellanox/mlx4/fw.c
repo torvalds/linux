@@ -158,7 +158,8 @@ static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
 		[31] = "Modifying loopback source checks using UPDATE_QP support",
 		[32] = "Loopback source checks support",
 		[33] = "RoCEv2 support",
-		[34] = "DMFS Sniffer support (UC & MC)"
+		[34] = "DMFS Sniffer support (UC & MC)",
+		[35] = "QinQ VST mode support",
 	};
 	int i;
 
@@ -313,12 +314,15 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 #define QUERY_FUNC_CAP_FLAGS0_FORCE_PHY_WQE_GID 0x80
 #define QUERY_FUNC_CAP_SUPPORTS_NON_POWER_OF_2_NUM_EQS (1 << 31)
 #define QUERY_FUNC_CAP_PHV_BIT			0x40
+#define QUERY_FUNC_CAP_VLAN_OFFLOAD_DISABLE	0x20
 
 	if (vhcr->op_modifier == 1) {
 		struct mlx4_active_ports actv_ports =
 			mlx4_get_active_ports(dev, slave);
 		int converted_port = mlx4_slave_convert_port(
 				dev, slave, vhcr->in_modifier);
+		struct mlx4_vport_oper_state *vp_oper =
+			&priv->mfunc.master.vf_oper[slave].vport[vhcr->in_modifier];
 
 		if (converted_port < 0)
 			return -EINVAL;
@@ -357,11 +361,12 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 		MLX4_PUT(outbox->buf, dev->caps.phys_port_id[vhcr->in_modifier],
 			 QUERY_FUNC_CAP_PHYS_PORT_ID);
 
-		if (dev->caps.phv_bit[port]) {
-			field = QUERY_FUNC_CAP_PHV_BIT;
-			MLX4_PUT(outbox->buf, field,
-				 QUERY_FUNC_CAP_FLAGS0_OFFSET);
-		}
+		field = 0;
+		if (dev->caps.phv_bit[port])
+			field |= QUERY_FUNC_CAP_PHV_BIT;
+		if (vp_oper->state.vlan_proto == htons(ETH_P_8021AD))
+			field |= QUERY_FUNC_CAP_VLAN_OFFLOAD_DISABLE;
+		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_FLAGS0_OFFSET);
 
 	} else if (vhcr->op_modifier == 0) {
 		struct mlx4_active_ports actv_ports =
@@ -689,6 +694,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_MAX_DESC_SZ_SQ_OFFSET	0x52
 #define QUERY_DEV_CAP_MAX_SG_RQ_OFFSET		0x55
 #define QUERY_DEV_CAP_MAX_DESC_SZ_RQ_OFFSET	0x56
+#define QUERY_DEV_CAP_SVLAN_BY_QP_OFFSET	0x5D
 #define QUERY_DEV_CAP_MAX_QP_MCG_OFFSET		0x61
 #define QUERY_DEV_CAP_RSVD_MCG_OFFSET		0x62
 #define QUERY_DEV_CAP_MAX_MCG_OFFSET		0x63
@@ -856,6 +862,9 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	MLX4_GET(size, outbox, QUERY_DEV_CAP_MAX_DESC_SZ_SQ_OFFSET);
 	dev_cap->max_sq_desc_sz = size;
 
+	MLX4_GET(field, outbox, QUERY_DEV_CAP_SVLAN_BY_QP_OFFSET);
+	if (field & 0x1)
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_SVLAN_BY_QP;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_QP_MCG_OFFSET);
 	dev_cap->max_qp_per_mcg = 1 << field;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_RSVD_MCG_OFFSET);
@@ -2936,6 +2945,22 @@ int set_phv_bit(struct mlx4_dev *dev, u8 port, int new_val)
 	return -EOPNOTSUPP;
 }
 EXPORT_SYMBOL(set_phv_bit);
+
+int mlx4_get_is_vlan_offload_disabled(struct mlx4_dev *dev, u8 port,
+				      bool *vlan_offload_disabled)
+{
+	struct mlx4_func_cap func_cap;
+	int err;
+
+	memset(&func_cap, 0, sizeof(func_cap));
+	err = mlx4_QUERY_FUNC_CAP(dev, port, &func_cap);
+	if (!err)
+		*vlan_offload_disabled =
+			!!(func_cap.flags0 &
+			   QUERY_FUNC_CAP_VLAN_OFFLOAD_DISABLE);
+	return err;
+}
+EXPORT_SYMBOL(mlx4_get_is_vlan_offload_disabled);
 
 void mlx4_replace_zero_macs(struct mlx4_dev *dev)
 {
