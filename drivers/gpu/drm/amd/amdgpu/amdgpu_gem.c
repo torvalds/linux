@@ -528,7 +528,7 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 		goto error_unreserve;
 
 	if (operation == AMDGPU_VA_OP_MAP)
-		r = amdgpu_vm_bo_update(adev, bo_va, &bo_va->bo->tbo.mem);
+		r = amdgpu_vm_bo_update(adev, bo_va, false);
 
 error_unreserve:
 	ttm_eu_backoff_reservation(&ticket, &list);
