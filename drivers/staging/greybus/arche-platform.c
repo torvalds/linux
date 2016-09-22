@@ -776,12 +776,12 @@ static SIMPLE_DEV_PM_OPS(arche_platform_pm_ops,
 			arche_platform_suspend,
 			arche_platform_resume);
 
-static struct of_device_id arche_platform_of_match[] = {
+static const struct of_device_id arche_platform_of_match[] = {
 	{ .compatible = "google,arche-platform", }, /* Use PID/VID of SVC device */
 	{ },
 };
 
-static struct of_device_id arche_combined_id[] = {
+static const struct of_device_id arche_combined_id[] = {
 	{ .compatible = "google,arche-platform", }, /* Use PID/VID of SVC device */
 	{ .compatible = "usbffff,2", },
 	{ },
