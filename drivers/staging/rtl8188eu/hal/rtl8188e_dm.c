@@ -57,8 +57,6 @@ static void Init_ODM_ComInfo_88E(struct adapter *Adapter)
 	dm_odm->PatchID = hal_data->CustomerID;
 	dm_odm->bWIFITest = Adapter->registrypriv.wifi_spec;
 
-	dm_odm->RFType = ODM_1T1R;
-
 	dm_odm->AntDivType = hal_data->TRxAntDivType;
 
 	/*  Tx power tracking BB swing table. */

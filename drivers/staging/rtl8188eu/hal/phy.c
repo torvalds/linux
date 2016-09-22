@@ -944,16 +944,11 @@ static bool simularity_compare(struct adapter *adapt, s32 resulta[][8],
 			       u8 c1, u8 c2)
 {
 	u32 i, j, diff, sim_bitmap = 0, bound;
-	struct odm_dm_struct *dm_odm = &adapt->HalData->odmpriv;
 	u8 final_candidate[2] = {0xFF, 0xFF};	/* for path A and path B */
 	bool result = true;
 	s32 tmp1 = 0, tmp2 = 0;
 
-	if ((dm_odm->RFType == ODM_2T2R) || (dm_odm->RFType == ODM_2T3R) ||
-	    (dm_odm->RFType == ODM_2T4R))
-		bound = 8;
-	else
-		bound = 4;
+	bound = 4;
 
 	for (i = 0; i < bound; i++) {
 		if ((i == 1) || (i == 3) || (i == 5) || (i == 7)) {
@@ -1282,7 +1277,7 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 		rOFDM0_RxIQExtAnta};
 	bool is2t;
 
-	is2t = (dm_odm->RFType == ODM_2T2R) ? true : false;
+	is2t = false;
 
 	if (!(dm_odm->SupportAbility & ODM_RF_CALIBRATION))
 		return;
@@ -1408,12 +1403,7 @@ void rtl88eu_phy_lc_calibrate(struct adapter *adapt)
 
 	dm_odm->RFCalibrateInfo.bLCKInProgress = true;
 
-	if (dm_odm->RFType == ODM_2T2R) {
-		phy_lc_calibrate(adapt, true);
-	} else {
-		/* For 88C 1T1R */
-		phy_lc_calibrate(adapt, false);
-	}
+	phy_lc_calibrate(adapt, false);
 
 	dm_odm->RFCalibrateInfo.bLCKInProgress = false;
 }

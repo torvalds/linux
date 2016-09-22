@@ -724,8 +724,6 @@ struct odm_dm_struct {
 	u32	SupportICType;
 	/*  Cut Version TestChip/A-cut/B-cut... = 0/1/2/3/... */
 	u8	CutVersion;
-	/*  RF Type 4T4R/3T3R/2T2R/1T2R/1T1R/... */
-	u8	RFType;
 	/*  Board Type Normal/HighPower/MiniCard/SLIM/Combo/. = 0/1/2/3/4/. */
 	u8	BoardType;
 	/*  with external LNA  NO/Yes = 0/1 */

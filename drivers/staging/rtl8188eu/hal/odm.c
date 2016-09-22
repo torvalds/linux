@@ -285,7 +285,6 @@ void odm_CmnInfoInit_Debug(struct odm_dm_struct *pDM_Odm)
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("SupportInterface=%d\n", pDM_Odm->SupportInterface));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("SupportICType=0x%x\n", pDM_Odm->SupportICType));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("CutVersion=%d\n", pDM_Odm->CutVersion));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("RFType=%d\n", pDM_Odm->RFType));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("BoardType=%d\n", pDM_Odm->BoardType));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("ExtLNA=%d\n", pDM_Odm->ExtLNA));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("ExtPA=%d\n", pDM_Odm->ExtPA));
@@ -763,37 +762,21 @@ u32 ODM_Get_Rate_Bitmap(struct odm_dm_struct *pDM_Odm, u32 macid, u32 ra_mask, u
 		break;
 	case (ODM_WM_B|ODM_WM_G|ODM_WM_N24G):
 	case (ODM_WM_A|ODM_WM_B|ODM_WM_G|ODM_WM_N24G):
-		if (pDM_Odm->RFType == ODM_1T2R || pDM_Odm->RFType == ODM_1T1R) {
-			if (rssi_level == DM_RATR_STA_HIGH) {
-				rate_bitmap = 0x000f0000;
-			} else if (rssi_level == DM_RATR_STA_MIDDLE) {
-				rate_bitmap = 0x000ff000;
-			} else {
-				if (*(pDM_Odm->pBandWidth) == ODM_BW40M)
-					rate_bitmap = 0x000ff015;
-				else
-					rate_bitmap = 0x000ff005;
-			}
+		if (rssi_level == DM_RATR_STA_HIGH) {
+			rate_bitmap = 0x000f0000;
+		} else if (rssi_level == DM_RATR_STA_MIDDLE) {
+			rate_bitmap = 0x000ff000;
 		} else {
-			if (rssi_level == DM_RATR_STA_HIGH) {
-				rate_bitmap = 0x0f8f0000;
-			} else if (rssi_level == DM_RATR_STA_MIDDLE) {
-				rate_bitmap = 0x0f8ff000;
-			} else {
-				if (*(pDM_Odm->pBandWidth) == ODM_BW40M)
-					rate_bitmap = 0x0f8ff015;
-				else
-					rate_bitmap = 0x0f8ff005;
-			}
+			if (*(pDM_Odm->pBandWidth) == ODM_BW40M)
+				rate_bitmap = 0x000ff015;
+			else
+				rate_bitmap = 0x000ff005;
 		}
 		break;
 	default:
 		/* case WIRELESS_11_24N: */
 		/* case WIRELESS_11_5N: */
-		if (pDM_Odm->RFType == RF_1T2R)
-			rate_bitmap = 0x000fffff;
-		else
-			rate_bitmap = 0x0fffffff;
+		rate_bitmap = 0x0fffffff;
 		break;
 	}
 
