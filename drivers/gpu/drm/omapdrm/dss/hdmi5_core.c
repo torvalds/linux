@@ -303,7 +303,7 @@ static void hdmi_core_init(struct hdmi_core_vid_config *video_cfg,
 			    cfg->timings.vback_porch;
 	video_cfg->v_fc_config.hdmi_dvi_mode = cfg->hdmi_dvi_mode;
 
-	if (cfg->timings.interlace) {
+	if (cfg->timings.flags & DISPLAY_FLAGS_INTERLACED) {
 		/* set vblank_osc if vblank is fractional */
 		if (video_cfg->vblank % 2 != 0)
 			video_cfg->vblank_osc = 1;
@@ -342,7 +342,7 @@ static void hdmi_core_video_config(struct hdmi_core_data *core,
 	r = FLD_MOD(r, hsync_pol, 5, 5);
 	r = FLD_MOD(r, cfg->data_enable_pol, 4, 4);
 	r = FLD_MOD(r, cfg->vblank_osc, 1, 1);
-	r = FLD_MOD(r, ovt->interlace, 0, 0);
+	r = FLD_MOD(r, !!(ovt->flags & DISPLAY_FLAGS_INTERLACED), 0, 0);
 	hdmi_write_reg(base, HDMI_CORE_FC_INVIDCONF, r);
 
 	/* set x resolution */

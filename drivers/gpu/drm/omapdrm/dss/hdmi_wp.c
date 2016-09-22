@@ -156,7 +156,7 @@ void hdmi_wp_video_config_interface(struct hdmi_wp_data *wp,
 	r = hdmi_read_reg(wp->base, HDMI_WP_VIDEO_CFG);
 	r = FLD_MOD(r, vsync_pol, 7, 7);
 	r = FLD_MOD(r, hsync_pol, 6, 6);
-	r = FLD_MOD(r, timings->interlace, 3, 3);
+	r = FLD_MOD(r, !!(timings->flags & DISPLAY_FLAGS_INTERLACED), 3, 3);
 	r = FLD_MOD(r, 1, 1, 0); /* HDMI_TIMING_MASTER_24BIT */
 	hdmi_write_reg(wp->base, HDMI_WP_VIDEO_CFG, r);
 }
@@ -210,10 +210,10 @@ void hdmi_wp_init_vid_fmt_timings(struct hdmi_video_format *video_fmt,
 
 	timings->vsync_level = param->timings.vsync_level;
 	timings->hsync_level = param->timings.hsync_level;
-	timings->interlace = param->timings.interlace;
 	timings->double_pixel = param->timings.double_pixel;
+	timings->flags = param->timings.flags;
 
-	if (param->timings.interlace) {
+	if (param->timings.flags & DISPLAY_FLAGS_INTERLACED) {
 		video_fmt->y_res /= 2;
 		timings->vback_porch /= 2;
 		timings->vfront_porch /= 2;

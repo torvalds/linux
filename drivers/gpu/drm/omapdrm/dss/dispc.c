@@ -2607,7 +2607,7 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 	u16 in_height = height;
 	u16 in_width = width;
 	int x_predecim = 1, y_predecim = 1;
-	bool ilace = mgr_timings->interlace;
+	bool ilace = !!(mgr_timings->flags & DISPLAY_FLAGS_INTERLACED);
 	unsigned long pclk = dispc_plane_pclk_rate(plane);
 	unsigned long lclk = dispc_plane_lclk_rate(plane);
 
@@ -3128,7 +3128,7 @@ bool dispc_mgr_timings_ok(enum omap_channel channel,
 
 	if (dss_mgr_is_lcd(channel)) {
 		/* TODO: OMAP4+ supports interlace for LCD outputs */
-		if (timings->interlace)
+		if (timings->flags & DISPLAY_FLAGS_INTERLACED)
 			return false;
 
 		if (!_dispc_lcd_timings_ok(timings->hsync_len,
@@ -3292,7 +3292,7 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 
 		DSSDBG("hsync %luHz, vsync %luHz\n", ht, vt);
 	} else {
-		if (t.interlace)
+		if (t.flags & DISPLAY_FLAGS_INTERLACED)
 			t.vactive /= 2;
 
 		if (dispc.feat->supports_double_pixel)
@@ -4232,7 +4232,6 @@ static const struct dispc_errata_i734_data {
 		.vsync_len = 1, .vfront_porch = 1, .vback_porch = 1,
 		.vsync_level = OMAPDSS_SIG_ACTIVE_LOW,
 		.hsync_level = OMAPDSS_SIG_ACTIVE_LOW,
-		.interlace = false,
 		.data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE,
 		.de_level = OMAPDSS_SIG_ACTIVE_HIGH,
 		.sync_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE,

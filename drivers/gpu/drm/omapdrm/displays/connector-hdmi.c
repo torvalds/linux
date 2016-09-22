@@ -34,8 +34,6 @@ static const struct omap_video_timings hdmic_default_timings = {
 
 	.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
 	.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
-
-	.interlace	= false,
 };
 
 struct panel_drv_data {

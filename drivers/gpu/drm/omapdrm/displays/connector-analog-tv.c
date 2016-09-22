@@ -40,7 +40,7 @@ static const struct omap_video_timings tvc_pal_timings = {
 	.vfront_porch	= 5,
 	.vback_porch	= 41,
 
-	.interlace	= true,
+	.flags		= DISPLAY_FLAGS_INTERLACED,
 };
 
 static const struct of_device_id tvc_of_match[];
