@@ -150,8 +150,8 @@ void hdmi_wp_video_config_interface(struct hdmi_wp_data *wp,
 	bool vsync_pol, hsync_pol;
 	DSSDBG("Enter hdmi_wp_video_config_interface\n");
 
-	vsync_pol = timings->vsync_level == OMAPDSS_SIG_ACTIVE_HIGH;
-	hsync_pol = timings->hsync_level == OMAPDSS_SIG_ACTIVE_HIGH;
+	vsync_pol = !!(timings->flags & DISPLAY_FLAGS_VSYNC_HIGH);
+	hsync_pol = !!(timings->flags & DISPLAY_FLAGS_HSYNC_HIGH);
 
 	r = hdmi_read_reg(wp->base, HDMI_WP_VIDEO_CFG);
 	r = FLD_MOD(r, vsync_pol, 7, 7);
@@ -208,8 +208,6 @@ void hdmi_wp_init_vid_fmt_timings(struct hdmi_video_format *video_fmt,
 	timings->vfront_porch = param->timings.vfront_porch;
 	timings->vsync_len = param->timings.vsync_len;
 
-	timings->vsync_level = param->timings.vsync_level;
-	timings->hsync_level = param->timings.hsync_level;
 	timings->double_pixel = param->timings.double_pixel;
 	timings->flags = param->timings.flags;
 

@@ -4123,8 +4123,10 @@ static int dsi_display_init_dispc(struct platform_device *dsidev,
 	 * omap_video_timings with default values
 	 */
 	dsi->timings.flags &= ~DISPLAY_FLAGS_INTERLACED;
-	dsi->timings.hsync_level = OMAPDSS_SIG_ACTIVE_HIGH;
-	dsi->timings.vsync_level = OMAPDSS_SIG_ACTIVE_HIGH;
+	dsi->timings.flags &= ~DISPLAY_FLAGS_HSYNC_LOW;
+	dsi->timings.flags |= DISPLAY_FLAGS_HSYNC_HIGH;
+	dsi->timings.flags &= ~DISPLAY_FLAGS_VSYNC_LOW;
+	dsi->timings.flags |= DISPLAY_FLAGS_VSYNC_HIGH;
 	dsi->timings.data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
 	dsi->timings.de_level = OMAPDSS_SIG_ACTIVE_HIGH;
 	dsi->timings.sync_pclk_edge = OMAPDSS_DRIVE_SIG_FALLING_EDGE;

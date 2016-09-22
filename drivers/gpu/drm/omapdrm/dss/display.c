@@ -232,13 +232,8 @@ void videomode_to_omap_video_timings(const struct videomode *vm,
 	ovt->vback_porch = vm->vback_porch;
 	ovt->vfront_porch = vm->vfront_porch;
 	ovt->vsync_len = vm->vsync_len;
+	ovt->flags = vm->flags;
 
-	ovt->vsync_level = vm->flags & DISPLAY_FLAGS_VSYNC_HIGH ?
-		OMAPDSS_SIG_ACTIVE_HIGH :
-		OMAPDSS_SIG_ACTIVE_LOW;
-	ovt->hsync_level = vm->flags & DISPLAY_FLAGS_HSYNC_HIGH ?
-		OMAPDSS_SIG_ACTIVE_HIGH :
-		OMAPDSS_SIG_ACTIVE_LOW;
 	ovt->de_level = vm->flags & DISPLAY_FLAGS_DE_HIGH ?
 		OMAPDSS_SIG_ACTIVE_HIGH :
 		OMAPDSS_SIG_ACTIVE_LOW;
@@ -265,16 +260,7 @@ void omap_video_timings_to_videomode(const struct omap_video_timings *ovt,
 	vm->vback_porch = ovt->vback_porch;
 	vm->vfront_porch = ovt->vfront_porch;
 	vm->vsync_len = ovt->vsync_len;
-
-	if (ovt->hsync_level == OMAPDSS_SIG_ACTIVE_HIGH)
-		vm->flags |= DISPLAY_FLAGS_HSYNC_HIGH;
-	else
-		vm->flags |= DISPLAY_FLAGS_HSYNC_LOW;
-
-	if (ovt->vsync_level == OMAPDSS_SIG_ACTIVE_HIGH)
-		vm->flags |= DISPLAY_FLAGS_VSYNC_HIGH;
-	else
-		vm->flags |= DISPLAY_FLAGS_VSYNC_LOW;
+	vm->flags = ovt->flags;
 
 	if (ovt->de_level == OMAPDSS_SIG_ACTIVE_HIGH)
 		vm->flags |= DISPLAY_FLAGS_DE_HIGH;

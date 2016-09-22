@@ -333,8 +333,8 @@ static void hdmi_core_video_config(struct hdmi_core_data *core,
 	unsigned char r = 0;
 	bool vsync_pol, hsync_pol;
 
-	vsync_pol = ovt->vsync_level == OMAPDSS_SIG_ACTIVE_HIGH;
-	hsync_pol = ovt->hsync_level == OMAPDSS_SIG_ACTIVE_HIGH;
+	vsync_pol = !!(ovt->flags & DISPLAY_FLAGS_VSYNC_HIGH);
+	hsync_pol = !!(ovt->flags & DISPLAY_FLAGS_HSYNC_HIGH);
 
 	/* Set hsync, vsync and data-enable polarity  */
 	r = hdmi_read_reg(base, HDMI_CORE_FC_INVIDCONF);

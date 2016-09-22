@@ -3157,27 +3157,15 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel,
 	dispc_write_reg(DISPC_TIMING_H(channel), timing_h);
 	dispc_write_reg(DISPC_TIMING_V(channel), timing_v);
 
-	switch (ovt->vsync_level) {
-	case OMAPDSS_SIG_ACTIVE_LOW:
-		vs = true;
-		break;
-	case OMAPDSS_SIG_ACTIVE_HIGH:
+	if (ovt->flags & DISPLAY_FLAGS_VSYNC_HIGH)
 		vs = false;
-		break;
-	default:
-		BUG();
-	}
+	else
+		vs = true;
 
-	switch (ovt->hsync_level) {
-	case OMAPDSS_SIG_ACTIVE_LOW:
-		hs = true;
-		break;
-	case OMAPDSS_SIG_ACTIVE_HIGH:
+	if (ovt->flags & DISPLAY_FLAGS_HSYNC_HIGH)
 		hs = false;
-		break;
-	default:
-		BUG();
-	}
+	else
+		hs = true;
 
 	switch (ovt->de_level) {
 	case OMAPDSS_SIG_ACTIVE_LOW:
@@ -3277,8 +3265,9 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 			t.hsync_len, t.hfront_porch, t.hback_porch,
 			t.vsync_len, t.vfront_porch, t.vback_porch);
 		DSSDBG("vsync_level %d hsync_level %d data_pclk_edge %d de_level %d sync_pclk_edge %d\n",
-			t.vsync_level, t.hsync_level, t.data_pclk_edge,
-			t.de_level, t.sync_pclk_edge);
+			!!(t.flags & DISPLAY_FLAGS_VSYNC_HIGH),
+			!!(t.flags & DISPLAY_FLAGS_HSYNC_HIGH),
+			t.data_pclk_edge, t.de_level, t.sync_pclk_edge);
 
 		DSSDBG("hsync %luHz, vsync %luHz\n", ht, vt);
 	} else {
@@ -4220,12 +4209,12 @@ static const struct dispc_errata_i734_data {
 		.pixelclock = 16000000,
 		.hsync_len = 8, .hfront_porch = 4, .hback_porch = 4,
 		.vsync_len = 1, .vfront_porch = 1, .vback_porch = 1,
-		.vsync_level = OMAPDSS_SIG_ACTIVE_LOW,
-		.hsync_level = OMAPDSS_SIG_ACTIVE_LOW,
 		.data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE,
 		.de_level = OMAPDSS_SIG_ACTIVE_HIGH,
 		.sync_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE,
 		.double_pixel = false,
+
+		.flags = DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW,
 	},
 	.ovli = {
 		.screen_width = 1,

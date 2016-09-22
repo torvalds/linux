@@ -103,12 +103,11 @@ static const struct omap_video_timings acx565akm_panel_timings = {
 	.vsync_len	= 3,
 	.vback_porch	= 4,
 
-	.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
-	.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
-
 	.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
 	.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
 	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
+
+	.flags		= DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW,
 };
 
 #define to_panel_data(p) container_of(p, struct panel_drv_data, dssdev)

@@ -319,10 +319,6 @@ struct omap_video_timings {
 	/* Unit: line clocks */
 	u16 vback_porch;	/* Vertical back porch */
 
-	/* Vsync logic level */
-	enum omap_dss_signal_level vsync_level;
-	/* Hsync logic level */
-	enum omap_dss_signal_level hsync_level;
 	/* Pixel clock edge to drive LCD data */
 	enum omap_dss_signal_edge data_pclk_edge;
 	/* Data enable logic level */
