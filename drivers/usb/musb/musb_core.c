@@ -1855,11 +1855,13 @@ static void musb_pm_runtime_check_session(struct musb *musb)
 		MUSB_DEVCTL_HR;
 	switch (devctl & ~s) {
 	case MUSB_QUIRK_B_INVALID_VBUS_91:
-		if (musb->session)
-			break;
-		musb_dbg(musb, "Allow PM as device with invalid vbus: %02x",
-			devctl);
-		return;
+		if (!musb->session && !musb->quirk_invalid_vbus) {
+			musb->quirk_invalid_vbus = true;
+			musb_dbg(musb,
+				 "First invalid vbus, assume no session");
+			return;
+		}
+		break;
 	case MUSB_QUIRK_A_DISCONNECT_19:
 		if (!musb->session)
 			break;
@@ -1886,6 +1888,7 @@ static void musb_pm_runtime_check_session(struct musb *musb)
 				error);
 	} else {
 		musb_dbg(musb, "Allow PM with no session: %02x", devctl);
+		musb->quirk_invalid_vbus = false;
 		pm_runtime_mark_last_busy(musb->controller);
 		pm_runtime_put_autosuspend(musb->controller);
 	}

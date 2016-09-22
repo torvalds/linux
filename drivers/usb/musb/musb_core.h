@@ -379,6 +379,7 @@ struct musb {
 
 	int			port_mode;	/* MUSB_PORT_MODE_* */
 	bool			session;
+	bool			quirk_invalid_vbus;
 	bool			is_host;
 
 	int			a_wait_bcon;	/* VBUS timeout in msecs */
