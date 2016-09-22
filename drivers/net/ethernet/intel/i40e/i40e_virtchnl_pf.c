@@ -2747,11 +2747,12 @@ error_param:
  * @vf_id: VF identifier
  * @vlan_id: mac address
  * @qos: priority setting
+ * @vlan_proto: vlan protocol
  *
  * program VF vlan id and/or qos
  **/
-int i40e_ndo_set_vf_port_vlan(struct net_device *netdev,
-			      int vf_id, u16 vlan_id, u8 qos)
+int i40e_ndo_set_vf_port_vlan(struct net_device *netdev, int vf_id,
+			      u16 vlan_id, u8 qos, __be16 vlan_proto)
 {
 	u16 vlanprio = vlan_id | (qos << I40E_VLAN_PRIORITY_SHIFT);
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
@@ -2771,6 +2772,12 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev,
 	if ((vlan_id > I40E_MAX_VLANID) || (qos > 7)) {
 		dev_err(&pf->pdev->dev, "Invalid VF Parameters\n");
 		ret = -EINVAL;
+		goto error_pvid;
+	}
+
+	if (vlan_proto != htons(ETH_P_8021Q)) {
+		dev_err(&pf->pdev->dev, "VF VLAN protocol is not supported\n");
+		ret = -EPROTONOSUPPORT;
 		goto error_pvid;
 	}
 

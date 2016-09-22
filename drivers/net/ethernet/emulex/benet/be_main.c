@@ -1895,7 +1895,8 @@ static int be_clear_vf_tvt(struct be_adapter *adapter, int vf)
 	return 0;
 }
 
-static int be_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos)
+static int be_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos,
+			  __be16 vlan_proto)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 	struct be_vf_cfg *vf_cfg = &adapter->vf_cfg[vf];
@@ -1906,6 +1907,9 @@ static int be_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos)
 
 	if (vf >= adapter->num_vfs || vlan > 4095 || qos > 7)
 		return -EINVAL;
+
+	if (vlan_proto != htons(ETH_P_8021Q))
+		return -EPROTONOSUPPORT;
 
 	if (vlan || qos) {
 		vlan |= qos << VLAN_PRIO_SHIFT;
