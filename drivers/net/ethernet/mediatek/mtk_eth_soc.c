@@ -244,6 +244,8 @@ static int mtk_phy_connect(struct mtk_mac *mac)
 		return -ENODEV;
 
 	switch (of_get_phy_mode(np)) {
+	case PHY_INTERFACE_MODE_TRGMII:
+		mac->trgmii = true;
 	case PHY_INTERFACE_MODE_RGMII_TXID:
 	case PHY_INTERFACE_MODE_RGMII_RXID:
 	case PHY_INTERFACE_MODE_RGMII_ID:

@@ -529,6 +529,8 @@ struct mtk_eth {
  * @hw:			Backpointer to our main datastruture
  * @hw_stats:		Packet statistics counter
  * @phy_dev:		The attached PHY if available
+ * @trgmii		Indicate if the MAC uses TRGMII connected to internal
+			switch
  */
 struct mtk_mac {
 	int				id;
@@ -539,6 +541,7 @@ struct mtk_mac {
 	struct phy_device		*phy_dev;
 	__be32				hwlro_ip[MTK_MAX_LRO_IP_CNT];
 	int				hwlro_ip_cnt;
+	bool				trgmii;
 };
 
 /* the struct describing the SoC. these are declared in the soc_xyz.c files */
