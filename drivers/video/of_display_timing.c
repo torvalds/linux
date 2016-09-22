@@ -88,6 +88,15 @@ static int of_parse_display_timing(const struct device_node *np,
 		dt->flags |= val ? DISPLAY_FLAGS_PIXDATA_POSEDGE :
 				DISPLAY_FLAGS_PIXDATA_NEGEDGE;
 
+	if (!of_property_read_u32(np, "syncclk-active", &val))
+		dt->flags |= val ? DISPLAY_FLAGS_SYNC_POSEDGE :
+				DISPLAY_FLAGS_SYNC_NEGEDGE;
+	else if (dt->flags & (DISPLAY_FLAGS_PIXDATA_POSEDGE |
+			      DISPLAY_FLAGS_PIXDATA_NEGEDGE))
+		dt->flags |= dt->flags & DISPLAY_FLAGS_PIXDATA_POSEDGE ?
+				DISPLAY_FLAGS_SYNC_POSEDGE :
+				DISPLAY_FLAGS_SYNC_NEGEDGE;
+
 	if (of_property_read_bool(np, "interlaced"))
 		dt->flags |= DISPLAY_FLAGS_INTERLACED;
 	if (of_property_read_bool(np, "doublescan"))
