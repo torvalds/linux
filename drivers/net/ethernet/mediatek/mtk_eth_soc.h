@@ -557,7 +557,6 @@ struct mtk_eth {
  * @of_node:		Our devicetree node
  * @hw:			Backpointer to our main datastruture
  * @hw_stats:		Packet statistics counter
- * @phy_dev:		The attached PHY if available
  * @trgmii		Indicate if the MAC uses TRGMII connected to internal
 			switch
  */
@@ -567,7 +566,6 @@ struct mtk_mac {
 	struct device_node		*of_node;
 	struct mtk_eth			*hw;
 	struct mtk_hw_stats		*hw_stats;
-	struct phy_device		*phy_dev;
 	__be32				hwlro_ip[MTK_MAX_LRO_IP_CNT];
 	int				hwlro_ip_cnt;
 	bool				trgmii;
