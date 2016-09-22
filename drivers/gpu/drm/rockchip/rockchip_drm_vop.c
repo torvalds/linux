@@ -464,6 +464,8 @@ static void scl_vop_cal_scl_fac(struct vop *vop, struct vop_win *win,
 	VOP_SCL_SET_EXT(vop, win, yrgb_vsd_mode, SCALE_DOWN_BIL);
 	VOP_SCL_SET_EXT(vop, win, yrgb_vsu_mode, vsu_mode);
 	if (is_yuv) {
+		vskiplines = 0;
+
 		val = scl_vop_cal_scale(cbcr_hor_scl_mode, cbcr_src_w,
 					dst_w, true, 0, NULL);
 		VOP_SCL_SET(vop, win, scale_cbcr_x, val);
