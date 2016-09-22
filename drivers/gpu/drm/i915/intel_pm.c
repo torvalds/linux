@@ -3552,7 +3552,7 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	uint8_t cpp;
 	uint32_t width = 0, height = 0;
 	uint32_t plane_pixel_rate;
-	uint32_t y_min_scanlines;
+	uint32_t y_tile_minimum, y_min_scanlines;
 
 	if (latency == 0 || !cstate->base.active || !intel_pstate->base.visible) {
 		*enabled = false;
@@ -3609,10 +3609,10 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 				 latency,
 				 plane_blocks_per_line);
 
+	y_tile_minimum = plane_blocks_per_line * y_min_scanlines;
+
 	if (fb->modifier[0] == I915_FORMAT_MOD_Y_TILED ||
 	    fb->modifier[0] == I915_FORMAT_MOD_Yf_TILED) {
-		uint32_t y_tile_minimum = plane_blocks_per_line *
-					  y_min_scanlines;
 		selected_result = max(method2, y_tile_minimum);
 	} else {
 		if ((ddb_allocation / plane_blocks_per_line) >= 1)
@@ -3626,10 +3626,12 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 
 	if (level >= 1 && level <= 7) {
 		if (fb->modifier[0] == I915_FORMAT_MOD_Y_TILED ||
-		    fb->modifier[0] == I915_FORMAT_MOD_Yf_TILED)
+		    fb->modifier[0] == I915_FORMAT_MOD_Yf_TILED) {
+			res_blocks += y_tile_minimum;
 			res_lines += y_min_scanlines;
-		else
+		} else {
 			res_blocks++;
+		}
 	}
 
 	if (res_blocks >= ddb_allocation || res_lines > 31) {
