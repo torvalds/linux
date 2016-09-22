@@ -637,15 +637,26 @@ CPU_LE(	movk	x0, #0x30d0, lsl #16	)	// Clear EE and E0E on LE systems
 #endif
 
 	/* EL2 debug */
-	mrs	x0, id_aa64dfr0_el1		// Check ID_AA64DFR0_EL1 PMUVer
-	sbfx	x0, x0, #8, #4
+	mrs	x1, id_aa64dfr0_el1		// Check ID_AA64DFR0_EL1 PMUVer
+	sbfx	x0, x1, #8, #4
 	cmp	x0, #1
 	b.lt	4f				// Skip if no PMU present
 	mrs	x0, pmcr_el0			// Disable debug access traps
 	ubfx	x0, x0, #11, #5			// to EL2 and allow access to
 4:
-	csel	x0, xzr, x0, lt			// all PMU counters from EL1
-	msr	mdcr_el2, x0			// (if they exist)
+	csel	x3, xzr, x0, lt			// all PMU counters from EL1
+
+	/* Statistical profiling */
+	ubfx	x0, x1, #32, #4			// Check ID_AA64DFR0_EL1 PMSVer
+	cbz	x0, 6f				// Skip if SPE not present
+	cbnz	x2, 5f				// VHE?
+	mov	x1, #(MDCR_EL2_E2PB_MASK << MDCR_EL2_E2PB_SHIFT)
+	orr	x3, x3, x1			// If we don't have VHE, then
+	b	6f				// use EL1&0 translation.
+5:						// For VHE, use EL2 translation
+	orr	x3, x3, #MDCR_EL2_TPMS		// and disable access from EL1
+6:
+	msr	mdcr_el2, x3			// Configure debug traps
 
 	/* Stage-2 translation */
 	msr	vttbr_el2, xzr
