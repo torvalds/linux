@@ -1746,9 +1746,9 @@ void ilk_wm_get_hw_state(struct drm_device *dev);
 void skl_wm_get_hw_state(struct drm_device *dev);
 void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
 			  struct skl_ddb_allocation *ddb /* out */);
-bool skl_can_enable_sagv(struct drm_atomic_state *state);
-int skl_enable_sagv(struct drm_i915_private *dev_priv);
-int skl_disable_sagv(struct drm_i915_private *dev_priv);
+bool intel_can_enable_sagv(struct drm_atomic_state *state);
+int intel_enable_sagv(struct drm_i915_private *dev_priv);
+int intel_disable_sagv(struct drm_i915_private *dev_priv);
 bool skl_ddb_allocation_equals(const struct skl_ddb_allocation *old,
 			       const struct skl_ddb_allocation *new,
 			       enum pipe pipe);

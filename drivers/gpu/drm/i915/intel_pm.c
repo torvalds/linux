@@ -2889,12 +2889,12 @@ skl_wm_plane_id(const struct intel_plane *plane)
  *  - We're not using an interlaced display configuration
  */
 int
-skl_enable_sagv(struct drm_i915_private *dev_priv)
+intel_enable_sagv(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
-	if (dev_priv->skl_sagv_status == I915_SKL_SAGV_NOT_CONTROLLED ||
-	    dev_priv->skl_sagv_status == I915_SKL_SAGV_ENABLED)
+	if (dev_priv->sagv_status == I915_SAGV_NOT_CONTROLLED ||
+	    dev_priv->sagv_status == I915_SAGV_ENABLED)
 		return 0;
 
 	DRM_DEBUG_KMS("Enabling the SAGV\n");
@@ -2912,19 +2912,19 @@ skl_enable_sagv(struct drm_i915_private *dev_priv)
 	 */
 	if (ret == -ENXIO) {
 		DRM_DEBUG_DRIVER("No SAGV found on system, ignoring\n");
-		dev_priv->skl_sagv_status = I915_SKL_SAGV_NOT_CONTROLLED;
+		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
 		return 0;
 	} else if (ret < 0) {
 		DRM_ERROR("Failed to enable the SAGV\n");
 		return ret;
 	}
 
-	dev_priv->skl_sagv_status = I915_SKL_SAGV_ENABLED;
+	dev_priv->sagv_status = I915_SAGV_ENABLED;
 	return 0;
 }
 
 static int
-skl_do_sagv_disable(struct drm_i915_private *dev_priv)
+intel_do_sagv_disable(struct drm_i915_private *dev_priv)
 {
 	int ret;
 	uint32_t temp = GEN9_SAGV_DISABLE;
@@ -2938,19 +2938,19 @@ skl_do_sagv_disable(struct drm_i915_private *dev_priv)
 }
 
 int
-skl_disable_sagv(struct drm_i915_private *dev_priv)
+intel_disable_sagv(struct drm_i915_private *dev_priv)
 {
 	int ret, result;
 
-	if (dev_priv->skl_sagv_status == I915_SKL_SAGV_NOT_CONTROLLED ||
-	    dev_priv->skl_sagv_status == I915_SKL_SAGV_DISABLED)
+	if (dev_priv->sagv_status == I915_SAGV_NOT_CONTROLLED ||
+	    dev_priv->sagv_status == I915_SAGV_DISABLED)
 		return 0;
 
 	DRM_DEBUG_KMS("Disabling the SAGV\n");
 	mutex_lock(&dev_priv->rps.hw_lock);
 
 	/* bspec says to keep retrying for at least 1 ms */
-	ret = wait_for(result = skl_do_sagv_disable(dev_priv), 1);
+	ret = wait_for(result = intel_do_sagv_disable(dev_priv), 1);
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	if (ret == -ETIMEDOUT) {
@@ -2964,18 +2964,18 @@ skl_disable_sagv(struct drm_i915_private *dev_priv)
 	 */
 	if (result == -ENXIO) {
 		DRM_DEBUG_DRIVER("No SAGV found on system, ignoring\n");
-		dev_priv->skl_sagv_status = I915_SKL_SAGV_NOT_CONTROLLED;
+		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
 		return 0;
 	} else if (result < 0) {
 		DRM_ERROR("Failed to disable the SAGV\n");
 		return result;
 	}
 
-	dev_priv->skl_sagv_status = I915_SKL_SAGV_DISABLED;
+	dev_priv->sagv_status = I915_SAGV_DISABLED;
 	return 0;
 }
 
-bool skl_can_enable_sagv(struct drm_atomic_state *state)
+bool intel_can_enable_sagv(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);

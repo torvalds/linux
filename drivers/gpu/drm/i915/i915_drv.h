@@ -1988,11 +1988,11 @@ struct drm_i915_private {
 	struct vlv_s0ix_state vlv_s0ix_state;
 
 	enum {
-		I915_SKL_SAGV_UNKNOWN = 0,
-		I915_SKL_SAGV_DISABLED,
-		I915_SKL_SAGV_ENABLED,
-		I915_SKL_SAGV_NOT_CONTROLLED
-	} skl_sagv_status;
+		I915_SAGV_UNKNOWN = 0,
+		I915_SAGV_DISABLED,
+		I915_SAGV_ENABLED,
+		I915_SAGV_NOT_CONTROLLED
+	} sagv_status;
 
 	struct {
 		/*
