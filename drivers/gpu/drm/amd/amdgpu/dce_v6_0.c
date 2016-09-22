@@ -1505,10 +1505,7 @@ static void dce_v6_0_vga_enable(struct drm_crtc *crtc, bool enable)
 	u32 vga_control;
 
 	vga_control = RREG32(vga_control_regs[amdgpu_crtc->crtc_id]) & ~1;
-	if (enable)
-		WREG32(vga_control_regs[amdgpu_crtc->crtc_id], vga_control | 1);
-	else
-		WREG32(vga_control_regs[amdgpu_crtc->crtc_id], vga_control);
+	WREG32(vga_control_regs[amdgpu_crtc->crtc_id], vga_control | (enable ? 1 : 0));
 }
 
 static void dce_v6_0_grph_enable(struct drm_crtc *crtc, bool enable)
@@ -1517,10 +1514,7 @@ static void dce_v6_0_grph_enable(struct drm_crtc *crtc, bool enable)
 	struct drm_device *dev = crtc->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 
-	if (enable)
-		WREG32(EVERGREEN_GRPH_ENABLE + amdgpu_crtc->crtc_offset, 1);
-	else
-		WREG32(EVERGREEN_GRPH_ENABLE + amdgpu_crtc->crtc_offset, 0);
+	WREG32(EVERGREEN_GRPH_ENABLE + amdgpu_crtc->crtc_offset, enable ? 1 : 0);
 }
 
 static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
@@ -1550,8 +1544,7 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 	if (atomic) {
 		amdgpu_fb = to_amdgpu_framebuffer(fb);
 		target_fb = fb;
-	}
-	else {
+	} else {
 		amdgpu_fb = to_amdgpu_framebuffer(crtc->primary->fb);
 		target_fb = crtc->primary->fb;
 	}
@@ -1565,9 +1558,9 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 	if (unlikely(r != 0))
 		return r;
 
-	if (atomic)
+	if (atomic) {
 		fb_location = amdgpu_bo_gpu_offset(abo);
-	else {
+	} else {
 		r = amdgpu_bo_pin(abo, AMDGPU_GEM_DOMAIN_VRAM, &fb_location);
 		if (unlikely(r != 0)) {
 			amdgpu_bo_unreserve(abo);
@@ -1663,8 +1656,9 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 		fb_format |= EVERGREEN_GRPH_BANK_WIDTH(bankw);
 		fb_format |= EVERGREEN_GRPH_BANK_HEIGHT(bankh);
 		fb_format |= EVERGREEN_GRPH_MACRO_TILE_ASPECT(mtaspect);
-	} else if (AMDGPU_TILING_GET(tiling_flags, ARRAY_MODE) == ARRAY_1D_TILED_THIN1)
+	} else if (AMDGPU_TILING_GET(tiling_flags, ARRAY_MODE) == ARRAY_1D_TILED_THIN1) {
 		fb_format |= EVERGREEN_GRPH_ARRAY_MODE(EVERGREEN_GRPH_ARRAY_1D_TILED_THIN1);
+	}
 
 	pipe_config = AMDGPU_TILING_GET(tiling_flags, PIPE_CONFIG);
 	fb_format |= SI_GRPH_PIPE_CONFIG(pipe_config);
@@ -1828,26 +1822,13 @@ static int dce_v6_0_pick_dig_encoder(struct drm_encoder *encoder)
 
 	switch (amdgpu_encoder->encoder_id) {
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
-		if (dig->linkb)
-			return 1;
-		else
-			return 0;
-		break;
+		return dig->linkb ? 1 : 0;
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
-		if (dig->linkb)
-			return 3;
-		else
-			return 2;
-		break;
+		return dig->linkb ? 3 : 2;
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
-		if (dig->linkb)
-			return 5;
-		else
-			return 4;
-		break;
+		return dig->linkb ? 5 : 4;
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY3:
 		return 6;
-		break;
 	default:
 		DRM_ERROR("invalid encoder_id: 0x%x\n", amdgpu_encoder->encoder_id);
 		return 0;
@@ -2082,7 +2063,6 @@ static void dce_v6_0_cursor_reset(struct drm_crtc *crtc)
 					    amdgpu_crtc->cursor_y);
 
 		dce_v6_0_show_cursor(crtc);
-
 		dce_v6_0_lock_cursor(crtc, false);
 	}
 }
@@ -2405,15 +2385,11 @@ static int dce_v6_0_sw_init(void *handle)
 	adev->mode_info.mode_config_initialized = true;
 
 	adev->ddev->mode_config.funcs = &amdgpu_mode_funcs;
-
 	adev->ddev->mode_config.async_page_flip = true;
-
 	adev->ddev->mode_config.max_width = 16384;
 	adev->ddev->mode_config.max_height = 16384;
-
 	adev->ddev->mode_config.preferred_depth = 24;
 	adev->ddev->mode_config.prefer_shadow = 1;
-
 	adev->ddev->mode_config.fb_base = adev->mc.aper_base;
 
 	r = amdgpu_modeset_create_props(adev);
@@ -2459,7 +2435,6 @@ static int dce_v6_0_sw_fini(void *handle)
 	drm_kms_helper_poll_fini(adev->ddev);
 
 	dce_v6_0_audio_fini(adev);
-
 	dce_v6_0_afmt_fini(adev);
 
 	drm_mode_config_cleanup(adev->ddev);
@@ -3087,7 +3062,6 @@ static void dce_v6_0_encoder_add(struct amdgpu_device *adev,
 	}
 
 	amdgpu_encoder->enc_priv = NULL;
-
 	amdgpu_encoder->encoder_enum = encoder_enum;
 	amdgpu_encoder->encoder_id = (encoder_enum & OBJECT_ID_MASK) >> OBJECT_ID_SHIFT;
 	amdgpu_encoder->devices = supported_device;
