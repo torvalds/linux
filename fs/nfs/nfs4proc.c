@@ -1387,6 +1387,19 @@ static void update_open_stateflags(struct nfs4_state *state, fmode_t fmode)
 	nfs4_state_set_mode_locked(state, state->state | fmode);
 }
 
+#ifdef CONFIG_NFS_V4_1
+static bool nfs_open_stateid_recover_openmode(struct nfs4_state *state)
+{
+	if (state->n_rdonly && !test_bit(NFS_O_RDONLY_STATE, &state->flags))
+		return true;
+	if (state->n_wronly && !test_bit(NFS_O_WRONLY_STATE, &state->flags))
+		return true;
+	if (state->n_rdwr && !test_bit(NFS_O_RDWR_STATE, &state->flags))
+		return true;
+	return false;
+}
+#endif /* CONFIG_NFS_V4_1 */
+
 static void nfs_test_and_clear_all_open_stateid(struct nfs4_state *state)
 {
 	struct nfs_client *clp = state->owner->so_server->nfs_client;
@@ -2589,16 +2602,13 @@ static int nfs41_check_open_stateid(struct nfs4_state *state)
 	int status;
 
 	if (test_bit(NFS_OPEN_STATE, &state->flags) == 0) {
-		if (test_bit(NFS_DELEGATED_STATE, &state->flags) == 0)
-			return NFS_OK;
+		if (test_bit(NFS_DELEGATED_STATE, &state->flags) == 0)  {
+			if (nfs4_have_delegation(state->inode, state->state))
+				return NFS_OK;
+			return -NFS4ERR_OPENMODE;
+		}
 		return -NFS4ERR_BAD_STATEID;
 	}
-	/* If a state reset has been done, test_stateid is unneeded */
-	if ((test_bit(NFS_O_RDONLY_STATE, &state->flags) == 0) &&
-	    (test_bit(NFS_O_WRONLY_STATE, &state->flags) == 0) &&
-	    (test_bit(NFS_O_RDWR_STATE, &state->flags) == 0))
-		return -NFS4ERR_BAD_STATEID;
-
 	status = nfs41_test_and_free_expired_stateid(server, stateid, cred);
 	trace_nfs4_test_open_stateid(state, NULL, status);
 	if (status == -NFS4ERR_EXPIRED || status == -NFS4ERR_BAD_STATEID) {
@@ -2608,7 +2618,11 @@ static int nfs41_check_open_stateid(struct nfs4_state *state)
 		clear_bit(NFS_OPEN_STATE, &state->flags);
 		stateid->type = NFS4_INVALID_STATEID_TYPE;
 	}
-	return status;
+	if (status != NFS_OK)
+		return status;
+	if (nfs_open_stateid_recover_openmode(state))
+		return -NFS4ERR_OPENMODE;
+	return NFS_OK;
 }
 
 static int nfs41_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *state)
