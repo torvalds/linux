@@ -525,19 +525,19 @@ smb2_is_valid_lease_break(char *buffer)
 		list_for_each(tmp1, &server->smb_ses_list) {
 			ses = list_entry(tmp1, struct cifs_ses, smb_ses_list);
 
-			spin_lock(&cifs_file_list_lock);
 			list_for_each(tmp2, &ses->tcon_list) {
 				tcon = list_entry(tmp2, struct cifs_tcon,
 						  tcon_list);
+				spin_lock(&tcon->open_file_lock);
 				cifs_stats_inc(
 				    &tcon->stats.cifs_stats.num_oplock_brks);
 				if (smb2_tcon_has_lease(tcon, rsp, lw)) {
-					spin_unlock(&cifs_file_list_lock);
+					spin_unlock(&tcon->open_file_lock);
 					spin_unlock(&cifs_tcp_ses_lock);
 					return true;
 				}
+				spin_unlock(&tcon->open_file_lock);
 			}
-			spin_unlock(&cifs_file_list_lock);
 		}
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
@@ -579,7 +579,7 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 			tcon = list_entry(tmp1, struct cifs_tcon, tcon_list);
 
 			cifs_stats_inc(&tcon->stats.cifs_stats.num_oplock_brks);
-			spin_lock(&cifs_file_list_lock);
+			spin_lock(&tcon->open_file_lock);
 			list_for_each(tmp2, &tcon->openFileList) {
 				cfile = list_entry(tmp2, struct cifsFileInfo,
 						     tlist);
@@ -591,7 +591,7 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 
 				cifs_dbg(FYI, "file id match, oplock break\n");
 				cinode = CIFS_I(d_inode(cfile->dentry));
-
+				spin_lock(&cfile->file_info_lock);
 				if (!CIFS_CACHE_WRITE(cinode) &&
 				    rsp->OplockLevel == SMB2_OPLOCK_LEVEL_NONE)
 					cfile->oplock_break_cancelled = true;
@@ -613,14 +613,14 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 					clear_bit(
 					   CIFS_INODE_DOWNGRADE_OPLOCK_TO_L2,
 					   &cinode->flags);
-
+				spin_unlock(&cfile->file_info_lock);
 				queue_work(cifsiod_wq, &cfile->oplock_break);
 
-				spin_unlock(&cifs_file_list_lock);
+				spin_unlock(&tcon->open_file_lock);
 				spin_unlock(&cifs_tcp_ses_lock);
 				return true;
 			}
-			spin_unlock(&cifs_file_list_lock);
+			spin_unlock(&tcon->open_file_lock);
 			spin_unlock(&cifs_tcp_ses_lock);
 			cifs_dbg(FYI, "No matching file for oplock break\n");
 			return true;
