@@ -763,14 +763,16 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	memcpy(srf->mip_levels, req->mip_levels, sizeof(srf->mip_levels));
 	srf->num_sizes = num_sizes;
 	user_srf->size = size;
-
-	srf->sizes = kmalloc(srf->num_sizes * sizeof(*srf->sizes), GFP_KERNEL);
+	srf->sizes = kmalloc_array(srf->num_sizes,
+				   sizeof(*srf->sizes),
+				   GFP_KERNEL);
 	if (unlikely(srf->sizes == NULL)) {
 		ret = -ENOMEM;
 		goto out_no_sizes;
 	}
-	srf->offsets = kmalloc(srf->num_sizes * sizeof(*srf->offsets),
-			       GFP_KERNEL);
+	srf->offsets = kmalloc_array(srf->num_sizes,
+				     sizeof(*srf->offsets),
+				     GFP_KERNEL);
 	if (unlikely(srf->offsets == NULL)) {
 		ret = -ENOMEM;
 		goto out_no_offsets;
