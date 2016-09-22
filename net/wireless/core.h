@@ -249,8 +249,8 @@ struct cfg80211_event {
 };
 
 struct cfg80211_cached_keys {
-	struct key_params params[4];
-	u8 data[4][WLAN_KEY_LEN_WEP104];
+	struct key_params params[CFG80211_MAX_WEP_KEYS];
+	u8 data[CFG80211_MAX_WEP_KEYS][WLAN_KEY_LEN_WEP104];
 	int def;
 };
 
