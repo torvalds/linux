@@ -1547,10 +1547,16 @@ static int __set_dirty_bits_v1(struct dm_cache_metadata *cmd, unsigned nr_bits, 
 	return 0;
 }
 
+static int is_dirty_callback(uint32_t index, bool *value, void *context)
+{
+	unsigned long *bits = context;
+	*value = test_bit(index, bits);
+	return 0;
+}
+
 static int __set_dirty_bits_v2(struct dm_cache_metadata *cmd, unsigned nr_bits, unsigned long *bits)
 {
 	int r = 0;
-	unsigned i;
 
 	/* nr_bits is really just a sanity check */
 	if (nr_bits != from_cblock(cmd->cache_blocks)) {
@@ -1558,18 +1564,12 @@ static int __set_dirty_bits_v2(struct dm_cache_metadata *cmd, unsigned nr_bits, 
 		return -EINVAL;
 	}
 
-	for (i = 0; i < nr_bits; i++) {
-		if (test_bit(i, bits))
-			r = dm_bitset_set_bit(&cmd->dirty_info, cmd->dirty_root, i, &cmd->dirty_root);
-		else
-			r = dm_bitset_clear_bit(&cmd->dirty_info, cmd->dirty_root, i, &cmd->dirty_root);
-
-		if (r)
-			return r;
-	}
+	r = dm_bitset_del(&cmd->dirty_info, cmd->dirty_root);
+	if (r)
+		return r;
 
 	cmd->changed = true;
-	return dm_bitset_flush(&cmd->dirty_info, cmd->dirty_root, &cmd->dirty_root);
+	return dm_bitset_new(&cmd->dirty_info, &cmd->dirty_root, nr_bits, is_dirty_callback, bits);
 }
 
 int dm_cache_set_dirty_bits(struct dm_cache_metadata *cmd,
