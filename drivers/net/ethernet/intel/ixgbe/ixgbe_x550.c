@@ -1128,46 +1128,16 @@ out:
 	return ret;
 }
 
-/** ixgbe_setup_ixfi_x550em - Configure the KR PHY for iXFI mode.
+/**
+ *  ixgbe_setup_ixfi_x550em_x - MAC specific iXFI configuration
  *  @hw: pointer to hardware structure
- *  @speed: the link speed to force
  *
- *  Configures the integrated KR PHY to use iXFI mode. Used to connect an
- *  internal and external PHY at a specific speed, without autonegotiation.
+ *  iXfI configuration needed for ixgbe_mac_X550EM_x devices.
  **/
-static s32 ixgbe_setup_ixfi_x550em(struct ixgbe_hw *hw, ixgbe_link_speed *speed)
+static s32 ixgbe_setup_ixfi_x550em_x(struct ixgbe_hw *hw)
 {
 	s32 status;
 	u32 reg_val;
-
-	/* Disable AN and force speed to 10G Serial. */
-	status = ixgbe_read_iosf_sb_reg_x550(hw,
-					IXGBE_KRM_LINK_CTRL_1(hw->bus.lan_id),
-					IXGBE_SB_IOSF_TARGET_KR_PHY, &reg_val);
-	if (status)
-		return status;
-
-	reg_val &= ~IXGBE_KRM_LINK_CTRL_1_TETH_AN_ENABLE;
-	reg_val &= ~IXGBE_KRM_LINK_CTRL_1_TETH_FORCE_SPEED_MASK;
-
-	/* Select forced link speed for internal PHY. */
-	switch (*speed) {
-	case IXGBE_LINK_SPEED_10GB_FULL:
-		reg_val |= IXGBE_KRM_LINK_CTRL_1_TETH_FORCE_SPEED_10G;
-		break;
-	case IXGBE_LINK_SPEED_1GB_FULL:
-		reg_val |= IXGBE_KRM_LINK_CTRL_1_TETH_FORCE_SPEED_1G;
-		break;
-	default:
-		/* Other link speeds are not supported by internal KR PHY. */
-		return IXGBE_ERR_LINK_SETUP;
-	}
-
-	status = ixgbe_write_iosf_sb_reg_x550(hw,
-				IXGBE_KRM_LINK_CTRL_1(hw->bus.lan_id),
-				IXGBE_SB_IOSF_TARGET_KR_PHY, reg_val);
-	if (status)
-		return status;
 
 	/* Disable training protocol FSM. */
 	status = ixgbe_read_iosf_sb_reg_x550(hw,
@@ -1228,8 +1198,56 @@ static s32 ixgbe_setup_ixfi_x550em(struct ixgbe_hw *hw, ixgbe_link_speed *speed)
 	status = ixgbe_write_iosf_sb_reg_x550(hw,
 				IXGBE_KRM_TX_COEFF_CTRL_1(hw->bus.lan_id),
 				IXGBE_SB_IOSF_TARGET_KR_PHY, reg_val);
+	return status;
+}
+
+/** ixgbe_setup_ixfi_x550em - Configure the KR PHY for iXFI mode.
+ *  @hw: pointer to hardware structure
+ *  @speed: the link speed to force
+ *
+ *  Configures the integrated KR PHY to use iXFI mode. Used to connect an
+ *  internal and external PHY at a specific speed, without autonegotiation.
+ **/
+static s32 ixgbe_setup_ixfi_x550em(struct ixgbe_hw *hw, ixgbe_link_speed *speed)
+{
+	s32 status;
+	u32 reg_val;
+
+	/* Disable AN and force speed to 10G Serial. */
+	status = ixgbe_read_iosf_sb_reg_x550(hw,
+					IXGBE_KRM_LINK_CTRL_1(hw->bus.lan_id),
+					IXGBE_SB_IOSF_TARGET_KR_PHY, &reg_val);
 	if (status)
 		return status;
+
+	reg_val &= ~IXGBE_KRM_LINK_CTRL_1_TETH_AN_ENABLE;
+	reg_val &= ~IXGBE_KRM_LINK_CTRL_1_TETH_FORCE_SPEED_MASK;
+
+	/* Select forced link speed for internal PHY. */
+	switch (*speed) {
+	case IXGBE_LINK_SPEED_10GB_FULL:
+		reg_val |= IXGBE_KRM_LINK_CTRL_1_TETH_FORCE_SPEED_10G;
+		break;
+	case IXGBE_LINK_SPEED_1GB_FULL:
+		reg_val |= IXGBE_KRM_LINK_CTRL_1_TETH_FORCE_SPEED_1G;
+		break;
+	default:
+		/* Other link speeds are not supported by internal KR PHY. */
+		return IXGBE_ERR_LINK_SETUP;
+	}
+
+	status = ixgbe_write_iosf_sb_reg_x550(hw,
+				IXGBE_KRM_LINK_CTRL_1(hw->bus.lan_id),
+				IXGBE_SB_IOSF_TARGET_KR_PHY, reg_val);
+	if (status)
+		return status;
+
+	/* Additional configuration needed for x550em_x */
+	if (hw->mac.type == ixgbe_mac_X550EM_x) {
+		status = ixgbe_setup_ixfi_x550em_x(hw);
+		if (status)
+			return status;
+	}
 
 	/* Toggle port SW reset by AN reset. */
 	status = ixgbe_read_iosf_sb_reg_x550(hw,
