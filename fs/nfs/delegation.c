@@ -195,15 +195,13 @@ void nfs_inode_reclaim_delegation(struct inode *inode, struct rpc_cred *cred,
 			rcu_read_unlock();
 			put_rpccred(oldcred);
 			trace_nfs4_reclaim_delegation(inode, res->delegation_type);
-		} else {
-			/* We appear to have raced with a delegation return. */
-			spin_unlock(&delegation->lock);
-			rcu_read_unlock();
-			nfs_inode_set_delegation(inode, cred, res);
+			return;
 		}
-	} else {
-		rcu_read_unlock();
+		/* We appear to have raced with a delegation return. */
+		spin_unlock(&delegation->lock);
 	}
+	rcu_read_unlock();
+	nfs_inode_set_delegation(inode, cred, res);
 }
 
 static int nfs_do_return_delegation(struct inode *inode, struct nfs_delegation *delegation, int issync)
