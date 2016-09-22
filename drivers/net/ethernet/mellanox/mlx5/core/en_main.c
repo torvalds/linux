@@ -3726,9 +3726,9 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 		mlx5_query_nic_vport_mac_address(mdev, 0, rep.hw_id);
 		rep.load = mlx5e_nic_rep_load;
 		rep.unload = mlx5e_nic_rep_unload;
-		rep.vport = 0;
+		rep.vport = FDB_UPLINK_VPORT;
 		rep.priv_data = priv;
-		mlx5_eswitch_register_vport_rep(esw, &rep);
+		mlx5_eswitch_register_vport_rep(esw, 0, &rep);
 	}
 }
 
@@ -3867,7 +3867,7 @@ static void mlx5e_register_vport_rep(struct mlx5_core_dev *mdev)
 		rep.unload = mlx5e_vport_rep_unload;
 		rep.vport = vport;
 		ether_addr_copy(rep.hw_id, mac);
-		mlx5_eswitch_register_vport_rep(esw, &rep);
+		mlx5_eswitch_register_vport_rep(esw, vport, &rep);
 	}
 }
 

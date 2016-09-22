@@ -254,9 +254,10 @@ void mlx5_eswitch_sqs2vport_stop(struct mlx5_eswitch *esw,
 int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode);
 int mlx5_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode);
 void mlx5_eswitch_register_vport_rep(struct mlx5_eswitch *esw,
+				     int vport_index,
 				     struct mlx5_eswitch_rep *rep);
 void mlx5_eswitch_unregister_vport_rep(struct mlx5_eswitch *esw,
-				       int vport);
+				       int vport_index);
 
 #define MLX5_DEBUG_ESWITCH_MASK BIT(3)
 

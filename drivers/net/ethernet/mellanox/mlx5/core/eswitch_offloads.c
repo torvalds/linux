@@ -144,15 +144,11 @@ int mlx5_eswitch_sqs2vport_start(struct mlx5_eswitch *esw,
 {
 	struct mlx5_flow_rule *flow_rule;
 	struct mlx5_esw_sq *esw_sq;
-	int vport;
 	int err;
 	int i;
 
 	if (esw->mode != SRIOV_OFFLOADS)
 		return 0;
-
-	vport = rep->vport == 0 ?
-		FDB_UPLINK_VPORT : rep->vport;
 
 	for (i = 0; i < sqns_num; i++) {
 		esw_sq = kzalloc(sizeof(*esw_sq), GFP_KERNEL);
@@ -163,7 +159,7 @@ int mlx5_eswitch_sqs2vport_start(struct mlx5_eswitch *esw,
 
 		/* Add re-inject rule to the PF/representor sqs */
 		flow_rule = mlx5_eswitch_add_send_to_vport_rule(esw,
-								vport,
+								rep->vport,
 								sqns_array[i]);
 		if (IS_ERR(flow_rule)) {
 			err = PTR_ERR(flow_rule);
@@ -620,27 +616,30 @@ int mlx5_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode)
 }
 
 void mlx5_eswitch_register_vport_rep(struct mlx5_eswitch *esw,
-				     struct mlx5_eswitch_rep *rep)
-{
-	struct mlx5_esw_offload *offloads = &esw->offloads;
-
-	memcpy(&offloads->vport_reps[rep->vport], rep,
-	       sizeof(struct mlx5_eswitch_rep));
-
-	INIT_LIST_HEAD(&offloads->vport_reps[rep->vport].vport_sqs_list);
-	offloads->vport_reps[rep->vport].valid = true;
-}
-
-void mlx5_eswitch_unregister_vport_rep(struct mlx5_eswitch *esw,
-				       int vport)
+				     int vport_index,
+				     struct mlx5_eswitch_rep *__rep)
 {
 	struct mlx5_esw_offload *offloads = &esw->offloads;
 	struct mlx5_eswitch_rep *rep;
 
-	rep = &offloads->vport_reps[vport];
+	rep = &offloads->vport_reps[vport_index];
 
-	if (esw->mode == SRIOV_OFFLOADS && esw->vports[vport].enabled)
+	memcpy(rep, __rep, sizeof(struct mlx5_eswitch_rep));
+
+	INIT_LIST_HEAD(&rep->vport_sqs_list);
+	rep->valid = true;
+}
+
+void mlx5_eswitch_unregister_vport_rep(struct mlx5_eswitch *esw,
+				       int vport_index)
+{
+	struct mlx5_esw_offload *offloads = &esw->offloads;
+	struct mlx5_eswitch_rep *rep;
+
+	rep = &offloads->vport_reps[vport_index];
+
+	if (esw->mode == SRIOV_OFFLOADS && esw->vports[vport_index].enabled)
 		rep->unload(esw, rep);
 
-	offloads->vport_reps[vport].valid = false;
+	rep->valid = false;
 }

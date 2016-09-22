@@ -120,10 +120,7 @@ static struct mlx5_flow_rule *mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	struct mlx5_eswitch_rep *rep = priv->ppriv;
 	u32 src_vport;
 
-	if (rep->vport) /* set source vport for the flow */
-		src_vport = rep->vport;
-	else
-		src_vport = FDB_UPLINK_VPORT;
+	src_vport = rep->vport;
 
 	return mlx5_eswitch_add_offloaded_rule(esw, spec, action, src_vport, dst_vport);
 }
@@ -399,10 +396,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 
 			out_priv = netdev_priv(out_dev);
 			out_rep  = out_priv->ppriv;
-			if (out_rep->vport == 0)
-				*dest_vport = FDB_UPLINK_VPORT;
-			else
-				*dest_vport = out_rep->vport;
+			*dest_vport = out_rep->vport;
 			*action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 			continue;
 		}
