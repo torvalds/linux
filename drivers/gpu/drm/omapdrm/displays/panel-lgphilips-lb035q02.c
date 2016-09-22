@@ -27,7 +27,7 @@ static struct omap_video_timings lb035q02_timings = {
 
 	.hsync_len	= 2,
 	.hfront_porch	= 20,
-	.hbp		= 68,
+	.hback_porch	= 68,
 
 	.vsw		= 2,
 	.vfp		= 4,

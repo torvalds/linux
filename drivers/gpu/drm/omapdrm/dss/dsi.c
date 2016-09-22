@@ -4423,7 +4423,7 @@ static bool dsi_cm_calc_dispc_cb(int lckd, int pckd, unsigned long lck,
 	t->pixelclock = pck;
 	t->hactive = ctx->config->timings->hactive;
 	t->vactive = ctx->config->timings->vactive;
-	t->hsync_len = t->hfront_porch = t->hbp = t->vsw = 1;
+	t->hsync_len = t->hfront_porch = t->hback_porch = t->vsw = 1;
 	t->vfp = t->vbp = 0;
 
 	return true;
@@ -4527,7 +4527,8 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 
 	xres = req_vm->hactive;
 
-	panel_hbl = req_vm->hfront_porch + req_vm->hbp + req_vm->hsync_len;
+	panel_hbl = req_vm->hfront_porch + req_vm->hback_porch +
+		    req_vm->hsync_len;
 	panel_htot = xres + panel_hbl;
 
 	dsi_hact = DIV_ROUND_UP(DIV_ROUND_UP(xres * bitspp, 8) + 6, ndl);
@@ -4603,7 +4604,7 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 		hsa = max(hsa - hse, 1);
 	}
 
-	hbp = div64_u64((u64)req_vm->hbp * byteclk, req_pck_nom);
+	hbp = div64_u64((u64)req_vm->hback_porch * byteclk, req_pck_nom);
 	hbp = max(hbp, 1);
 
 	hfp = dsi_hbl - (hss + hsa + hse + hbp);
@@ -4662,7 +4663,7 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 		hsa = 1;
 	}
 
-	hbp = div64_u64((u64)req_vm->hbp * dispc_pck, req_pck_nom);
+	hbp = div64_u64((u64)req_vm->hback_porch * dispc_pck, req_pck_nom);
 	hbp = max(hbp, 1);
 
 	hfp = dispc_hbl - hsa - hbp;
@@ -4687,7 +4688,7 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 
 	dispc_vm->hfront_porch = hfp;
 	dispc_vm->hsync_len = hsa;
-	dispc_vm->hbp = hbp;
+	dispc_vm->hback_porch = hbp;
 
 	return true;
 }

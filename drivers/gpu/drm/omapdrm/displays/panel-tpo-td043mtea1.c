@@ -80,7 +80,7 @@ static const struct omap_video_timings tpo_td043_timings = {
 
 	.hsync_len	= 1,
 	.hfront_porch	= 68,
-	.hbp		= 214,
+	.hback_porch	= 214,
 
 	.vsw		= 1,
 	.vfp		= 39,

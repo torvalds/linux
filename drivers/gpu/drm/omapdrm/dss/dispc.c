@@ -2190,14 +2190,14 @@ static int check_horiz_timing_omap3(unsigned long pclk, unsigned long lclk,
 	int i;
 
 	nonactive = t->hactive + t->hfront_porch + t->hsync_len +
-		    t->hbp - out_width;
+		    t->hback_porch - out_width;
 
 	i = 0;
 	if (out_height < height)
 		i++;
 	if (out_width < width)
 		i++;
-	blank = div_u64((u64)(t->hbp + t->hsync_len + t->hfront_porch) *
+	blank = div_u64((u64)(t->hback_porch + t->hsync_len + t->hfront_porch) *
 			lclk, pclk);
 	DSSDBG("blanking period + ppl = %llu (limit = %u)\n", blank, limits[i]);
 	if (blank <= limits[i])
@@ -3132,7 +3132,7 @@ bool dispc_mgr_timings_ok(enum omap_channel channel,
 			return false;
 
 		if (!_dispc_lcd_timings_ok(timings->hsync_len,
-				timings->hfront_porch, timings->hbp,
+				timings->hfront_porch, timings->hback_porch,
 				timings->vsw, timings->vfp, timings->vbp))
 			return false;
 	}
@@ -3270,11 +3270,11 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 
 	if (dss_mgr_is_lcd(channel)) {
 		_dispc_mgr_set_lcd_timings(channel, t.hsync_len, t.hfront_porch,
-				t.hbp, t.vsw, t.vfp, t.vbp, t.vsync_level,
-				t.hsync_level, t.data_pclk_edge, t.de_level,
-				t.sync_pclk_edge);
+				t.hback_porch, t.vsw, t.vfp, t.vbp,
+				t.vsync_level, t.hsync_level, t.data_pclk_edge,
+				t.de_level, t.sync_pclk_edge);
 
-		xtot = t.hactive + t.hfront_porch + t.hsync_len + t.hbp;
+		xtot = t.hactive + t.hfront_porch + t.hsync_len + t.hback_porch;
 		ytot = t.vactive + t.vfp + t.vsw + t.vbp;
 
 		ht = timings->pixelclock / xtot;
@@ -3282,7 +3282,8 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 
 		DSSDBG("pck %u\n", timings->pixelclock);
 		DSSDBG("hsync_len %d hfp %d hbp %d vsw %d vfp %d vbp %d\n",
-			t.hsync_len, t.hfront_porch, t.hbp, t.vsw, t.vfp, t.vbp);
+			t.hsync_len, t.hfront_porch, t.hback_porch,
+			t.vsw, t.vfp, t.vbp);
 		DSSDBG("vsync_level %d hsync_level %d data_pclk_edge %d de_level %d sync_pclk_edge %d\n",
 			t.vsync_level, t.hsync_level, t.data_pclk_edge,
 			t.de_level, t.sync_pclk_edge);
@@ -4225,7 +4226,7 @@ static const struct dispc_errata_i734_data {
 	.timings = {
 		.hactive = 8, .vactive = 1,
 		.pixelclock = 16000000,
-		.hsync_len = 8, .hfront_porch = 4, .hbp = 4,
+		.hsync_len = 8, .hfront_porch = 4, .hback_porch = 4,
 		.vsw = 1, .vfp = 1, .vbp = 1,
 		.vsync_level = OMAPDSS_SIG_ACTIVE_LOW,
 		.hsync_level = OMAPDSS_SIG_ACTIVE_LOW,

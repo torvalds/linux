@@ -297,7 +297,7 @@ static void hdmi_core_init(struct hdmi_core_vid_config *video_cfg,
 	/* video core */
 	video_cfg->data_enable_pol = 1; /* It is always 1*/
 	video_cfg->hblank = cfg->timings.hfront_porch +
-				cfg->timings.hbp + cfg->timings.hsync_len;
+			    cfg->timings.hback_porch + cfg->timings.hsync_len;
 	video_cfg->vblank_osc = 0;
 	video_cfg->vblank = cfg->timings.vsw +
 				cfg->timings.vfp + cfg->timings.vbp;
@@ -320,7 +320,7 @@ static void hdmi_core_init(struct hdmi_core_vid_config *video_cfg,
 		video_cfg->hblank *= 2;
 		video_cfg->v_fc_config.timings.hfront_porch *= 2;
 		video_cfg->v_fc_config.timings.hsync_len *= 2;
-		video_cfg->v_fc_config.timings.hbp *= 2;
+		video_cfg->v_fc_config.timings.hback_porch *= 2;
 	}
 }
 
