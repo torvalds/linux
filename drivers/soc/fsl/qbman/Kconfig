@@ -25,4 +25,20 @@ config FSL_DPAA_CHECKING
 	  Compiles in additional checks, to sanity-check the drivers and
 	  any use of the exported API. Not recommended for performance.
 
+config FSL_BMAN_TEST
+	tristate "BMan self-tests"
+	help
+	  Compile the BMan self-test code. These tests will
+	  exercise the BMan APIs to confirm functionality
+	  of both the software drivers and hardware device.
+
+config FSL_BMAN_TEST_API
+	bool "High-level API self-test"
+	depends on FSL_BMAN_TEST
+	default y
+	help
+	  This requires the presence of cpu-affine portals, and performs
+	  high-level API testing with them (whichever portal(s) are affine
+	  to the cpu(s) the test executes on).
+
 endif # FSL_DPAA
