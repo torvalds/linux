@@ -74,6 +74,7 @@ config PPC_BOOK3S_64
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	select ARCH_SUPPORTS_NUMA_BALANCING
 	select IRQ_WORK
+	select HAVE_KERNEL_XZ
 
 config PPC_BOOK3E_64
 	bool "Embedded processors"

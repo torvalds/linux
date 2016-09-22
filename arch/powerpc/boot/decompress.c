@@ -37,6 +37,11 @@
 #	include "decompress_inflate.c"
 #endif
 
+#ifdef CONFIG_KERNEL_XZ
+#	include "xz_config.h"
+#	include "../../../lib/decompress_unxz.c"
+#endif
+
 /* globals for tracking the state of the decompression */
 static unsigned long decompressed_bytes;
 static unsigned long limit;
