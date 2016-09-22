@@ -695,7 +695,7 @@ struct net_device_context {
 	bool start_remove;
 
 	/* State to manage the associated VF interface. */
-	struct net_device *vf_netdev;
+	struct net_device __rcu *vf_netdev;
 	bool vf_inject;
 	atomic_t vf_use_cnt;
 	/* 1: allocated, serial number is valid. 0: not allocated */
