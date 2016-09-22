@@ -1422,21 +1422,29 @@ static void dce_v6_0_afmt_enable(struct drm_encoder *encoder, bool enable)
 		  enable ? "En" : "Dis", dig->afmt->offset, amdgpu_encoder->encoder_id);
 }
 
-static void dce_v6_0_afmt_init(struct amdgpu_device *adev)
+static int dce_v6_0_afmt_init(struct amdgpu_device *adev)
 {
-	int i;
+	int i, j;
 
 	for (i = 0; i < adev->mode_info.num_dig; i++)
 		adev->mode_info.afmt[i] = NULL;
 
-	/* DCE8 has audio blocks tied to DIG encoders */
+	/* DCE6 has audio blocks tied to DIG encoders */
 	for (i = 0; i < adev->mode_info.num_dig; i++) {
 		adev->mode_info.afmt[i] = kzalloc(sizeof(struct amdgpu_afmt), GFP_KERNEL);
 		if (adev->mode_info.afmt[i]) {
 			adev->mode_info.afmt[i]->offset = dig_offsets[i];
 			adev->mode_info.afmt[i]->id = i;
+		} else {
+			for (j = 0; j < i; j++) {
+				kfree(adev->mode_info.afmt[j]);
+				adev->mode_info.afmt[j] = NULL;
+			}
+			DRM_ERROR("Out of memory allocating afmt table\n");
+			return -ENOMEM;
 		}
 	}
+	return 0;
 }
 
 static void dce_v6_0_afmt_fini(struct amdgpu_device *adev)
@@ -2399,7 +2407,9 @@ static int dce_v6_0_sw_init(void *handle)
 		return -EINVAL;
 
 	/* setup afmt */
-	dce_v6_0_afmt_init(adev);
+	r = dce_v6_0_afmt_init(adev);
+	if (r)
+		return r;
 
 	r = dce_v6_0_audio_init(adev);
 	if (r)
