@@ -337,7 +337,7 @@ static int prism2sta_mlmerequest(struct wlandevice *wlandev, struct p80211msg *m
 			struct p80211msg_lnxreq_ifstate *ifstatemsg;
 
 			pr_debug("Received mlme ifstate request\n");
-			ifstatemsg = (struct p80211msg_lnxreq_ifstate *) msg;
+			ifstatemsg = (struct p80211msg_lnxreq_ifstate *)msg;
 			result =
 			    prism2sta_ifstate(wlandev,
 					      ifstatemsg->ifstate.data);
@@ -360,7 +360,7 @@ static int prism2sta_mlmerequest(struct wlandevice *wlandev, struct p80211msg *m
 
 			pr_debug("Received commsquality request\n");
 
-			qualmsg = (struct p80211msg_lnxreq_commsquality *) msg;
+			qualmsg = (struct p80211msg_lnxreq_commsquality *)msg;
 
 			qualmsg->link.status =
 			    P80211ENUM_msgitem_status_data_ok;
@@ -651,7 +651,7 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 
 	/* strip out the 'special' variant bits */
 	hw->mm_mods = hw->ident_sta_fw.variant & (BIT(14) | BIT(15));
-	hw->ident_sta_fw.variant &= ~((u16) (BIT(14) | BIT(15)));
+	hw->ident_sta_fw.variant &= ~((u16)(BIT(14) | BIT(15)));
 
 	if (hw->ident_sta_fw.id == 0x1f) {
 		netdev_info(wlandev->netdev,
@@ -999,13 +999,13 @@ static void prism2sta_inf_tallies(struct wlandevice *wlandev,
 
 	cnt = sizeof(hfa384x_CommTallies32_t) / sizeof(u32);
 	if (inf->framelen > 22) {
-		dst = (u32 *) &hw->tallies;
-		src32 = (u32 *) &inf->info.commtallies32;
+		dst = (u32 *)&hw->tallies;
+		src32 = (u32 *)&inf->info.commtallies32;
 		for (i = 0; i < cnt; i++, dst++, src32++)
 			*dst += le32_to_cpu(*src32);
 	} else {
-		dst = (u32 *) &hw->tallies;
-		src16 = (u16 *) &inf->info.commtallies16;
+		dst = (u32 *)&hw->tallies;
+		src16 = (u16 *)&inf->info.commtallies16;
 		for (i = 0; i < cnt; i++, dst++, src16++)
 			*dst += le16_to_cpu(*src16);
 	}
@@ -1180,7 +1180,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 		hfa384x_InfFrame_t *inf;
 
 		while ((skb = skb_dequeue(&hw->authq))) {
-			inf = (hfa384x_InfFrame_t *) skb->data;
+			inf = (hfa384x_InfFrame_t *)skb->data;
 			prism2sta_inf_authreq_defer(wlandev, inf);
 		}
 
@@ -1255,8 +1255,8 @@ void prism2sta_processing_defer(struct work_struct *data)
 				return;
 			}
 			prism2mgmt_bytestr2pstr(
-					(struct hfa384x_bytestr *) &ssid,
-					(p80211pstrd_t *) &wlandev->ssid);
+					(struct hfa384x_bytestr *)&ssid,
+					(p80211pstrd_t *)&wlandev->ssid);
 
 			/* Collect the port status */
 			result = hfa384x_drvr_getconfig16(hw,
@@ -1336,8 +1336,8 @@ void prism2sta_processing_defer(struct work_struct *data)
 				 HFA384x_RID_CURRENTSSID, result);
 			return;
 		}
-		prism2mgmt_bytestr2pstr((struct hfa384x_bytestr *) &ssid,
-					(p80211pstrd_t *) &wlandev->ssid);
+		prism2mgmt_bytestr2pstr((struct hfa384x_bytestr *)&ssid,
+					(p80211pstrd_t *)&wlandev->ssid);
 
 		hw->link_status = HFA384x_LINK_CONNECTED;
 		netif_carrier_on(wlandev->netdev);
@@ -1949,7 +1949,7 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 	/* Get the signal rate */
 	msg.msgcode = DIDmsg_dot11req_mibget;
 	mibitem->did = DIDmib_p2_p2MAC_p2CurrentTxRate;
-	result = p80211req_dorequest(wlandev, (u8 *) &msg);
+	result = p80211req_dorequest(wlandev, (u8 *)&msg);
 
 	if (result) {
 		pr_debug("get signal rate failed, result = %d\n",
@@ -1992,8 +1992,8 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 			 HFA384x_RID_CURRENTSSID, result);
 		return;
 	}
-	prism2mgmt_bytestr2pstr((struct hfa384x_bytestr *) &ssid,
-				(p80211pstrd_t *) &wlandev->ssid);
+	prism2mgmt_bytestr2pstr((struct hfa384x_bytestr *)&ssid,
+				(p80211pstrd_t *)&wlandev->ssid);
 
 	/* Reschedule timer */
 	mod_timer(&hw->commsqual_timer, jiffies + HZ);
@@ -2001,7 +2001,7 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 
 void prism2sta_commsqual_timer(unsigned long data)
 {
-	hfa384x_t *hw = (hfa384x_t *) data;
+	hfa384x_t *hw = (hfa384x_t *)data;
 
 	schedule_work(&hw->commsqual_bh);
 }

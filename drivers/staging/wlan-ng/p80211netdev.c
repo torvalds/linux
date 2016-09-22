@@ -231,7 +231,7 @@ static int p80211_convert_to_ether(struct wlandevice *wlandev, struct sk_buff *s
 {
 	struct p80211_hdr_a3 *hdr;
 
-	hdr = (struct p80211_hdr_a3 *) skb->data;
+	hdr = (struct p80211_hdr_a3 *)skb->data;
 	if (p80211_rx_typedrop(wlandev, hdr->fc))
 		return CONV_TO_ETHER_SKIPPED;
 
@@ -265,7 +265,7 @@ static int p80211_convert_to_ether(struct wlandevice *wlandev, struct sk_buff *s
  */
 static void p80211netdev_rx_bh(unsigned long arg)
 {
-	struct wlandevice *wlandev = (struct wlandevice *) arg;
+	struct wlandevice *wlandev = (struct wlandevice *)arg;
 	struct sk_buff *skb = NULL;
 	netdevice_t *dev = wlandev->netdev;
 
@@ -534,7 +534,7 @@ static int p80211netdev_ethtool(struct wlandevice *wlandev, void __user *useradd
 static int p80211knetdev_do_ioctl(netdevice_t *dev, struct ifreq *ifr, int cmd)
 {
 	int result = 0;
-	struct p80211ioctl_req *req = (struct p80211ioctl_req *) ifr;
+	struct p80211ioctl_req *req = (struct p80211ioctl_req *)ifr;
 	struct wlandevice *wlandev = dev->ml_priv;
 	u8 *msgbuf;
 
@@ -625,7 +625,7 @@ static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr)
 
 	/* Set up some convenience pointers. */
 	mibattr = &dot11req.mibattribute;
-	macaddr = (p80211item_pstr6_t *) &mibattr->data;
+	macaddr = (p80211item_pstr6_t *)&mibattr->data;
 	resultcode = &dot11req.resultcode;
 
 	/* Set up a dot11req_mibset */
@@ -633,7 +633,7 @@ static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr)
 	dot11req.msgcode = DIDmsg_dot11req_mibset;
 	dot11req.msglen = sizeof(struct p80211msg_dot11req_mibset);
 	memcpy(dot11req.devname,
-	       ((struct wlandevice *) dev->ml_priv)->name, WLAN_DEVNAMELEN_MAX - 1);
+	       ((struct wlandevice *)dev->ml_priv)->name, WLAN_DEVNAMELEN_MAX - 1);
 
 	/* Set up the mibattribute argument */
 	mibattr->did = DIDmsg_dot11req_mibset_mibattribute;
@@ -653,7 +653,7 @@ static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr)
 	resultcode->data = 0;
 
 	/* now fire the request */
-	result = p80211req_dorequest(dev->ml_priv, (u8 *) &dot11req);
+	result = p80211req_dorequest(dev->ml_priv, (u8 *)&dot11req);
 
 	/* If the request wasn't successful, report an error and don't
 	 * change the netdev address

@@ -256,7 +256,7 @@ Information RID Lengths:  MAC Information
   include the len or code fields)
 --------------------------------------------------------------------*/
 #define		HFA384x_RID_DBMCOMMSQUALITY_LEN	 \
-	((u16) sizeof(hfa384x_dbmcommsquality_t))
+	((u16)sizeof(hfa384x_dbmcommsquality_t))
 #define		HFA384x_RID_JOINREQUEST_LEN \
 	((u16)sizeof(hfa384x_JoinRequest_data_t))
 
@@ -1380,7 +1380,7 @@ static inline int hfa384x_drvr_getconfig16(hfa384x_t *hw, u16 rid, void *val)
 
 	result = hfa384x_drvr_getconfig(hw, rid, val, sizeof(u16));
 	if (result == 0)
-		*((u16 *) val) = le16_to_cpu(*((u16 *) val));
+		*((u16 *)val) = le16_to_cpu(*((u16 *)val));
 	return result;
 }
 

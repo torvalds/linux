@@ -266,7 +266,7 @@ static int prism2_fwapply(const struct ihex_binrec *rfptr,
 
 	/* clear the pda and add an initial END record */
 	memset(&pda, 0, sizeof(pda));
-	pda.rec[0] = (hfa384x_pdrec_t *) pda.buf;
+	pda.rec[0] = (hfa384x_pdrec_t *)pda.buf;
 	pda.rec[0]->len = cpu_to_le16(2);	/* len in words */
 	pda.rec[0]->code = cpu_to_le16(HFA384x_PDR_END_OF_PDA);
 	pda.nrec = 1;
@@ -293,11 +293,11 @@ static int prism2_fwapply(const struct ihex_binrec *rfptr,
 	getmsg.resultcode.did = DIDmsg_dot11req_mibget_resultcode;
 	getmsg.resultcode.status = P80211ENUM_msgitem_status_no_value;
 
-	item = (p80211itemd_t *) getmsg.mibattribute.data;
+	item = (p80211itemd_t *)getmsg.mibattribute.data;
 	item->did = DIDmib_p2_p2NIC_p2PRISupRange;
 	item->status = P80211ENUM_msgitem_status_no_value;
 
-	data = (u32 *) item->data;
+	data = (u32 *)item->data;
 
 	/* DIDmsg_dot11req_mibget */
 	prism2mgmt_mibset_mibget(wlandev, &getmsg);
@@ -592,14 +592,14 @@ static int mkimage(struct imgchunk *clist, unsigned int *ccnt)
 ----------------------------------------------------------------*/
 static int mkpdrlist(struct pda *pda)
 {
-	u16 *pda16 = (u16 *) pda->buf;
+	u16 *pda16 = (u16 *)pda->buf;
 	int curroff;		/* in 'words' */
 
 	pda->nrec = 0;
 	curroff = 0;
 	while (curroff < (HFA384x_PDA_LEN_MAX / 2 - 1) &&
 	       le16_to_cpu(pda16[curroff + 1]) != HFA384x_PDR_END_OF_PDA) {
-		pda->rec[pda->nrec] = (hfa384x_pdrec_t *) &(pda16[curroff]);
+		pda->rec[pda->nrec] = (hfa384x_pdrec_t *)&(pda16[curroff]);
 
 		if (le16_to_cpu(pda->rec[pda->nrec]->code) ==
 		    HFA384x_PDR_NICID) {
@@ -638,7 +638,7 @@ static int mkpdrlist(struct pda *pda)
 		       curroff, pda->nrec);
 		return 1;
 	}
-	pda->rec[pda->nrec] = (hfa384x_pdrec_t *) &(pda16[curroff]);
+	pda->rec[pda->nrec] = (hfa384x_pdrec_t *)&(pda16[curroff]);
 	(pda->nrec)++;
 	return 0;
 }
@@ -879,8 +879,8 @@ static int read_fwfile(const struct ihex_binrec *record)
 		addr = be32_to_cpu(record->addr);
 
 		/* Point into data for different word lengths */
-		ptr32 = (u32 *) record->data;
-		ptr16 = (u16 *) record->data;
+		ptr32 = (u32 *)record->data;
+		ptr16 = (u16 *)record->data;
 
 		/* parse what was an S3 srec and put it in the right array */
 		switch (addr) {
@@ -954,7 +954,7 @@ static int read_fwfile(const struct ihex_binrec *record)
 		default:	/* Data record */
 			s3data[ns3data].addr = addr;
 			s3data[ns3data].len = len;
-			s3data[ns3data].data = (uint8_t *) record->data;
+			s3data[ns3data].data = (uint8_t *)record->data;
 			ns3data++;
 			if (ns3data == S3DATA_MAX) {
 				pr_err("S3 datarec limit reached - aborting\n");
