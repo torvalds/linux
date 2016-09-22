@@ -245,13 +245,13 @@ static int alps_raw_event(struct hid_device *hdev,
 static int alps_post_reset(struct hid_device *hdev)
 {
 	return u1_read_write_register(hdev, ADDRESS_U1_DEV_CTRL_1,
-				NULL, U1_TP_ABS_MODE, false);
+				NULL, U1_TP_ABS_MODE | U1_SP_ABS_MODE, false);
 }
 
 static int alps_post_resume(struct hid_device *hdev)
 {
 	return u1_read_write_register(hdev, ADDRESS_U1_DEV_CTRL_1,
-				NULL, U1_TP_ABS_MODE, false);
+				NULL, U1_TP_ABS_MODE | U1_SP_ABS_MODE, false);
 }
 #endif /* CONFIG_PM */
 
