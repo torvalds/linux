@@ -4362,7 +4362,7 @@ static void print_dispc_vm(const char *str, const struct omap_video_timings *t)
 	int hact, bl, tot;
 
 	hact = t->hactive;
-	bl = t->hsw + t->hbp + t->hfp;
+	bl = t->hsync_len + t->hbp + t->hfp;
 	tot = hact + bl;
 
 #define TO_DISPC_T(x) ((u32)div64_u64((u64)x * 1000000000llu, pck))
@@ -4371,9 +4371,9 @@ static void print_dispc_vm(const char *str, const struct omap_video_timings *t)
 			"%u/%u/%u/%u = %u + %u = %u\n",
 			str,
 			pck,
-			t->hsw, t->hbp, hact, t->hfp,
+			t->hsync_len, t->hbp, hact, t->hfp,
 			bl, hact, tot,
-			TO_DISPC_T(t->hsw),
+			TO_DISPC_T(t->hsync_len),
 			TO_DISPC_T(t->hbp),
 			TO_DISPC_T(hact),
 			TO_DISPC_T(t->hfp),
@@ -4399,7 +4399,7 @@ static void print_dsi_dispc_vm(const char *str,
 	dsi_htot = t->hss + t->hsa + t->hse + t->hbp + dsi_hact + t->hfp;
 
 	vm.pixelclock = pck;
-	vm.hsw = div64_u64((u64)(t->hsa + t->hse) * pck, byteclk);
+	vm.hsync_len = div64_u64((u64)(t->hsa + t->hse) * pck, byteclk);
 	vm.hbp = div64_u64((u64)t->hbp * pck, byteclk);
 	vm.hfp = div64_u64((u64)t->hfp * pck, byteclk);
 	vm.hactive = t->hact;
@@ -4423,7 +4423,7 @@ static bool dsi_cm_calc_dispc_cb(int lckd, int pckd, unsigned long lck,
 	t->pixelclock = pck;
 	t->hactive = ctx->config->timings->hactive;
 	t->vactive = ctx->config->timings->vactive;
-	t->hsw = t->hfp = t->hbp = t->vsw = 1;
+	t->hsync_len = t->hfp = t->hbp = t->vsw = 1;
 	t->vfp = t->vbp = 0;
 
 	return true;
@@ -4527,7 +4527,7 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 
 	xres = req_vm->hactive;
 
-	panel_hbl = req_vm->hfp + req_vm->hbp + req_vm->hsw;
+	panel_hbl = req_vm->hfp + req_vm->hbp + req_vm->hsync_len;
 	panel_htot = xres + panel_hbl;
 
 	dsi_hact = DIV_ROUND_UP(DIV_ROUND_UP(xres * bitspp, 8) + 6, ndl);
@@ -4557,7 +4557,7 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 	hss = DIV_ROUND_UP(4, ndl);
 
 	if (cfg->trans_mode == OMAP_DSS_DSI_PULSE_MODE) {
-		if (ndl == 3 && req_vm->hsw == 0)
+		if (ndl == 3 && req_vm->hsync_len == 0)
 			hse = 1;
 		else
 			hse = DIV_ROUND_UP(4, ndl);
@@ -4596,10 +4596,10 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 
 	if (cfg->trans_mode != OMAP_DSS_DSI_PULSE_MODE) {
 		hsa = 0;
-	} else if (ndl == 3 && req_vm->hsw == 0) {
+	} else if (ndl == 3 && req_vm->hsync_len == 0) {
 		hsa = 0;
 	} else {
-		hsa = div64_u64((u64)req_vm->hsw * byteclk, req_pck_nom);
+		hsa = div64_u64((u64)req_vm->hsync_len * byteclk, req_pck_nom);
 		hsa = max(hsa - hse, 1);
 	}
 
@@ -4655,7 +4655,7 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 	dispc_vm->pixelclock = dispc_pck;
 
 	if (cfg->trans_mode == OMAP_DSS_DSI_PULSE_MODE) {
-		hsa = div64_u64((u64)req_vm->hsw * dispc_pck,
+		hsa = div64_u64((u64)req_vm->hsync_len * dispc_pck,
 				req_pck_nom);
 		hsa = max(hsa, 1);
 	} else {
@@ -4686,7 +4686,7 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 		return false;
 
 	dispc_vm->hfp = hfp;
-	dispc_vm->hsw = hsa;
+	dispc_vm->hsync_len = hsa;
 	dispc_vm->hbp = hbp;
 
 	return true;

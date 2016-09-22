@@ -297,7 +297,7 @@ static void hdmi_core_init(struct hdmi_core_vid_config *video_cfg,
 	/* video core */
 	video_cfg->data_enable_pol = 1; /* It is always 1*/
 	video_cfg->hblank = cfg->timings.hfp +
-				cfg->timings.hbp + cfg->timings.hsw;
+				cfg->timings.hbp + cfg->timings.hsync_len;
 	video_cfg->vblank_osc = 0;
 	video_cfg->vblank = cfg->timings.vsw +
 				cfg->timings.vfp + cfg->timings.vbp;
@@ -319,7 +319,7 @@ static void hdmi_core_init(struct hdmi_core_vid_config *video_cfg,
 		video_cfg->v_fc_config.timings.hactive *= 2;
 		video_cfg->hblank *= 2;
 		video_cfg->v_fc_config.timings.hfp *= 2;
-		video_cfg->v_fc_config.timings.hsw *= 2;
+		video_cfg->v_fc_config.timings.hsync_len *= 2;
 		video_cfg->v_fc_config.timings.hbp *= 2;
 	}
 }
@@ -377,9 +377,9 @@ static void hdmi_core_video_config(struct hdmi_core_data *core,
 
 	/* set horizontal sync pulse width */
 	REG_FLD_MOD(base, HDMI_CORE_FC_HSYNCINWIDTH1,
-			(cfg->v_fc_config.timings.hsw >> 8), 1, 0);
+			(cfg->v_fc_config.timings.hsync_len >> 8), 1, 0);
 	REG_FLD_MOD(base, HDMI_CORE_FC_HSYNCINWIDTH0,
-			cfg->v_fc_config.timings.hsw & 0xFF, 7, 0);
+			cfg->v_fc_config.timings.hsync_len & 0xFF, 7, 0);
 
 	/*  set vertical sync pulse width */
 	REG_FLD_MOD(base, HDMI_CORE_FC_VSYNCINWIDTH,

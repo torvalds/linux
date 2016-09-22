@@ -49,7 +49,7 @@ void copy_timings_omap_to_drm(struct drm_display_mode *mode,
 
 	mode->hdisplay = timings->hactive;
 	mode->hsync_start = mode->hdisplay + timings->hfp;
-	mode->hsync_end = mode->hsync_start + timings->hsw;
+	mode->hsync_end = mode->hsync_start + timings->hsync_len;
 	mode->htotal = mode->hsync_end + timings->hbp;
 
 	mode->vdisplay = timings->vactive;
@@ -83,7 +83,7 @@ void copy_timings_drm_to_omap(struct omap_video_timings *timings,
 
 	timings->hactive = mode->hdisplay;
 	timings->hfp = mode->hsync_start - mode->hdisplay;
-	timings->hsw = mode->hsync_end - mode->hsync_start;
+	timings->hsync_len = mode->hsync_end - mode->hsync_start;
 	timings->hbp = mode->htotal - mode->hsync_end;
 
 	timings->vactive = mode->vdisplay;

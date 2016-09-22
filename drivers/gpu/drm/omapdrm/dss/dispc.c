@@ -2189,14 +2189,14 @@ static int check_horiz_timing_omap3(unsigned long pclk, unsigned long lclk,
 	u64 val, blank;
 	int i;
 
-	nonactive = t->hactive + t->hfp + t->hsw + t->hbp - out_width;
+	nonactive = t->hactive + t->hfp + t->hsync_len + t->hbp - out_width;
 
 	i = 0;
 	if (out_height < height)
 		i++;
 	if (out_width < width)
 		i++;
-	blank = div_u64((u64)(t->hbp + t->hsw + t->hfp) * lclk, pclk);
+	blank = div_u64((u64)(t->hbp + t->hsync_len + t->hfp) * lclk, pclk);
 	DSSDBG("blanking period + ppl = %llu (limit = %u)\n", blank, limits[i]);
 	if (blank <= limits[i])
 		return -EINVAL;
@@ -3093,10 +3093,10 @@ static bool _dispc_mgr_size_ok(u16 width, u16 height)
 		height <= dispc.feat->mgr_height_max;
 }
 
-static bool _dispc_lcd_timings_ok(int hsw, int hfp, int hbp,
+static bool _dispc_lcd_timings_ok(int hsync_len, int hfp, int hbp,
 		int vsw, int vfp, int vbp)
 {
-	if (hsw < 1 || hsw > dispc.feat->sw_max ||
+	if (hsync_len < 1 || hsync_len > dispc.feat->sw_max ||
 			hfp < 1 || hfp > dispc.feat->hp_max ||
 			hbp < 1 || hbp > dispc.feat->hp_max ||
 			vsw < 1 || vsw > dispc.feat->sw_max ||
@@ -3129,7 +3129,7 @@ bool dispc_mgr_timings_ok(enum omap_channel channel,
 		if (timings->interlace)
 			return false;
 
-		if (!_dispc_lcd_timings_ok(timings->hsw, timings->hfp,
+		if (!_dispc_lcd_timings_ok(timings->hsync_len, timings->hfp,
 				timings->hbp, timings->vsw, timings->vfp,
 				timings->vbp))
 			return false;
@@ -3138,7 +3138,7 @@ bool dispc_mgr_timings_ok(enum omap_channel channel,
 	return true;
 }
 
-static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
+static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsync_len,
 		int hfp, int hbp, int vsw, int vfp, int vbp,
 		enum omap_dss_signal_level vsync_level,
 		enum omap_dss_signal_level hsync_level,
@@ -3150,7 +3150,7 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
 	u32 timing_h, timing_v, l;
 	bool onoff, rf, ipc, vs, hs, de;
 
-	timing_h = FLD_VAL(hsw-1, dispc.feat->sw_start, 0) |
+	timing_h = FLD_VAL(hsync_len-1, dispc.feat->sw_start, 0) |
 			FLD_VAL(hfp-1, dispc.feat->fp_start, 8) |
 			FLD_VAL(hbp-1, dispc.feat->bp_start, 20);
 	timing_v = FLD_VAL(vsw-1, dispc.feat->sw_start, 0) |
@@ -3267,19 +3267,20 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 	}
 
 	if (dss_mgr_is_lcd(channel)) {
-		_dispc_mgr_set_lcd_timings(channel, t.hsw, t.hfp, t.hbp, t.vsw,
-				t.vfp, t.vbp, t.vsync_level, t.hsync_level,
-				t.data_pclk_edge, t.de_level, t.sync_pclk_edge);
+		_dispc_mgr_set_lcd_timings(channel, t.hsync_len, t.hfp, t.hbp,
+				t.vsw, t.vfp, t.vbp, t.vsync_level,
+				t.hsync_level, t.data_pclk_edge, t.de_level,
+				t.sync_pclk_edge);
 
-		xtot = t.hactive + t.hfp + t.hsw + t.hbp;
+		xtot = t.hactive + t.hfp + t.hsync_len + t.hbp;
 		ytot = t.vactive + t.vfp + t.vsw + t.vbp;
 
 		ht = timings->pixelclock / xtot;
 		vt = timings->pixelclock / xtot / ytot;
 
 		DSSDBG("pck %u\n", timings->pixelclock);
-		DSSDBG("hsw %d hfp %d hbp %d vsw %d vfp %d vbp %d\n",
-			t.hsw, t.hfp, t.hbp, t.vsw, t.vfp, t.vbp);
+		DSSDBG("hsync_len %d hfp %d hbp %d vsw %d vfp %d vbp %d\n",
+			t.hsync_len, t.hfp, t.hbp, t.vsw, t.vfp, t.vbp);
 		DSSDBG("vsync_level %d hsync_level %d data_pclk_edge %d de_level %d sync_pclk_edge %d\n",
 			t.vsync_level, t.hsync_level, t.data_pclk_edge,
 			t.de_level, t.sync_pclk_edge);
@@ -4222,7 +4223,7 @@ static const struct dispc_errata_i734_data {
 	.timings = {
 		.hactive = 8, .vactive = 1,
 		.pixelclock = 16000000,
-		.hsw = 8, .hfp = 4, .hbp = 4,
+		.hsync_len = 8, .hfp = 4, .hbp = 4,
 		.vsw = 1, .vfp = 1, .vbp = 1,
 		.vsync_level = OMAPDSS_SIG_ACTIVE_LOW,
 		.hsync_level = OMAPDSS_SIG_ACTIVE_LOW,

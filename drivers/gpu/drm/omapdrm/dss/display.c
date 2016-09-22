@@ -227,7 +227,7 @@ void videomode_to_omap_video_timings(const struct videomode *vm,
 	ovt->hactive = vm->hactive;
 	ovt->hbp = vm->hback_porch;
 	ovt->hfp = vm->hfront_porch;
-	ovt->hsw = vm->hsync_len;
+	ovt->hsync_len = vm->hsync_len;
 	ovt->vactive = vm->vactive;
 	ovt->vbp = vm->vback_porch;
 	ovt->vfp = vm->vfront_porch;
@@ -260,7 +260,7 @@ void omap_video_timings_to_videomode(const struct omap_video_timings *ovt,
 	vm->hactive = ovt->hactive;
 	vm->hback_porch = ovt->hbp;
 	vm->hfront_porch = ovt->hfp;
-	vm->hsync_len = ovt->hsw;
+	vm->hsync_len = ovt->hsync_len;
 	vm->vactive = ovt->vactive;
 	vm->vback_porch = ovt->vbp;
 	vm->vfront_porch = ovt->vfp;
