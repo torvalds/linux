@@ -99,8 +99,8 @@ static int nfs4_do_setattr(struct inode *inode, struct rpc_cred *cred,
 #ifdef CONFIG_NFS_V4_1
 static int nfs41_test_stateid(struct nfs_server *, nfs4_stateid *,
 		struct rpc_cred *);
-static int nfs41_free_stateid(struct nfs_server *, nfs4_stateid *,
-		struct rpc_cred *);
+static int nfs41_free_stateid(struct nfs_server *, const nfs4_stateid *,
+		struct rpc_cred *, bool);
 #endif
 
 #ifdef CONFIG_NFS_V4_SECURITY_LABEL
@@ -2443,7 +2443,7 @@ static int nfs41_test_and_free_expired_stateid(struct nfs_server *server,
 	}
 out_free:
 	/* Ack the revoked state to the server */
-	nfs41_free_stateid(server, stateid, cred);
+	nfs41_free_stateid(server, stateid, cred, true);
 	return -NFS4ERR_EXPIRED;
 }
 
@@ -8921,7 +8921,7 @@ static const struct rpc_call_ops nfs41_free_stateid_ops = {
 };
 
 static struct rpc_task *_nfs41_free_stateid(struct nfs_server *server,
-		nfs4_stateid *stateid,
+		const nfs4_stateid *stateid,
 		struct rpc_cred *cred,
 		bool privileged)
 {
@@ -8964,38 +8964,31 @@ static struct rpc_task *_nfs41_free_stateid(struct nfs_server *server,
  * @server: server / transport on which to perform the operation
  * @stateid: state ID to release
  * @cred: credential
+ * @is_recovery: set to true if this call needs to be privileged
  *
- * Returns NFS_OK if the server freed "stateid".  Otherwise a
- * negative NFS4ERR value is returned.
+ * Note: this function is always asynchronous.
  */
 static int nfs41_free_stateid(struct nfs_server *server,
-		nfs4_stateid *stateid,
-		struct rpc_cred *cred)
+		const nfs4_stateid *stateid,
+		struct rpc_cred *cred,
+		bool is_recovery)
 {
 	struct rpc_task *task;
-	int ret;
 
-	task = _nfs41_free_stateid(server, stateid, cred, true);
+	task = _nfs41_free_stateid(server, stateid, cred, is_recovery);
 	if (IS_ERR(task))
 		return PTR_ERR(task);
-	ret = rpc_wait_for_completion_task(task);
-	if (!ret)
-		ret = task->tk_status;
 	rpc_put_task(task);
-	return ret;
+	return 0;
 }
 
 static void
 nfs41_free_lock_state(struct nfs_server *server, struct nfs4_lock_state *lsp)
 {
-	struct rpc_task *task;
 	struct rpc_cred *cred = lsp->ls_state->owner->so_cred;
 
-	task = _nfs41_free_stateid(server, &lsp->ls_stateid, cred, false);
+	nfs41_free_stateid(server, &lsp->ls_stateid, cred, false);
 	nfs4_free_lock_state(server, lsp);
-	if (IS_ERR(task))
-		return;
-	rpc_put_task(task);
 }
 
 static bool nfs41_match_stateid(const nfs4_stateid *s1,
