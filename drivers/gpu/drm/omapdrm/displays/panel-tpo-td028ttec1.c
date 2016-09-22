@@ -49,7 +49,7 @@ static struct omap_video_timings td028ttec1_panel_timings = {
 	.hfront_porch	= 24,
 	.hsync_len	= 8,
 	.hback_porch	= 8,
-	.vfp		= 4,
+	.vfront_porch	= 4,
 	.vsync_len	= 2,
 	.vbp		= 2,
 

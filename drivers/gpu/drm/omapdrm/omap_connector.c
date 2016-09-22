@@ -53,7 +53,7 @@ void copy_timings_omap_to_drm(struct drm_display_mode *mode,
 	mode->htotal = mode->hsync_end + timings->hback_porch;
 
 	mode->vdisplay = timings->vactive;
-	mode->vsync_start = mode->vdisplay + timings->vfp;
+	mode->vsync_start = mode->vdisplay + timings->vfront_porch;
 	mode->vsync_end = mode->vsync_start + timings->vsync_len;
 	mode->vtotal = mode->vsync_end + timings->vbp;
 
@@ -87,7 +87,7 @@ void copy_timings_drm_to_omap(struct omap_video_timings *timings,
 	timings->hback_porch = mode->htotal - mode->hsync_end;
 
 	timings->vactive = mode->vdisplay;
-	timings->vfp = mode->vsync_start - mode->vdisplay;
+	timings->vfront_porch = mode->vsync_start - mode->vdisplay;
 	timings->vsync_len = mode->vsync_end - mode->vsync_start;
 	timings->vbp = mode->vtotal - mode->vsync_end;
 

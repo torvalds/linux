@@ -300,7 +300,7 @@ static void hdmi_core_init(struct hdmi_core_vid_config *video_cfg,
 			    cfg->timings.hback_porch + cfg->timings.hsync_len;
 	video_cfg->vblank_osc = 0;
 	video_cfg->vblank = cfg->timings.vsync_len +
-				cfg->timings.vfp + cfg->timings.vbp;
+				cfg->timings.vfront_porch + cfg->timings.vbp;
 	video_cfg->v_fc_config.hdmi_dvi_mode = cfg->hdmi_dvi_mode;
 
 	if (cfg->timings.interlace) {
@@ -310,7 +310,7 @@ static void hdmi_core_init(struct hdmi_core_vid_config *video_cfg,
 
 		video_cfg->v_fc_config.timings.vactive /= 2;
 		video_cfg->vblank /= 2;
-		video_cfg->v_fc_config.timings.vfp /= 2;
+		video_cfg->v_fc_config.timings.vfront_porch /= 2;
 		video_cfg->v_fc_config.timings.vsync_len /= 2;
 		video_cfg->v_fc_config.timings.vbp /= 2;
 	}
@@ -373,7 +373,7 @@ static void hdmi_core_video_config(struct hdmi_core_data *core,
 
 	/* set vertical sync offset */
 	REG_FLD_MOD(base, HDMI_CORE_FC_VSYNCINDELAY,
-			cfg->v_fc_config.timings.vfp, 7, 0);
+			cfg->v_fc_config.timings.vfront_porch, 7, 0);
 
 	/* set horizontal sync pulse width */
 	REG_FLD_MOD(base, HDMI_CORE_FC_HSYNCINWIDTH1,

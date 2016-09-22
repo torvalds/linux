@@ -187,7 +187,7 @@ void hdmi_wp_video_config_timing(struct hdmi_wp_data *wp,
 	hdmi_write_reg(wp->base, HDMI_WP_VIDEO_TIMING_H, timing_h);
 
 	timing_v |= FLD_VAL(timings->vbp, 31, 20);
-	timing_v |= FLD_VAL(timings->vfp, 19, 8);
+	timing_v |= FLD_VAL(timings->vfront_porch, 19, 8);
 	timing_v |= FLD_VAL(timings->vsync_len, 7, 0);
 	hdmi_write_reg(wp->base, HDMI_WP_VIDEO_TIMING_V, timing_v);
 }
@@ -205,7 +205,7 @@ void hdmi_wp_init_vid_fmt_timings(struct hdmi_video_format *video_fmt,
 	timings->hfront_porch = param->timings.hfront_porch;
 	timings->hsync_len = param->timings.hsync_len;
 	timings->vbp = param->timings.vbp;
-	timings->vfp = param->timings.vfp;
+	timings->vfront_porch = param->timings.vfront_porch;
 	timings->vsync_len = param->timings.vsync_len;
 
 	timings->vsync_level = param->timings.vsync_level;
@@ -216,7 +216,7 @@ void hdmi_wp_init_vid_fmt_timings(struct hdmi_video_format *video_fmt,
 	if (param->timings.interlace) {
 		video_fmt->y_res /= 2;
 		timings->vbp /= 2;
-		timings->vfp /= 2;
+		timings->vfront_porch /= 2;
 		timings->vsync_len /= 2;
 	}
 

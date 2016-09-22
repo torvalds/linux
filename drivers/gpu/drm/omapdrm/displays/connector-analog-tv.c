@@ -37,7 +37,7 @@ static const struct omap_video_timings tvc_pal_timings = {
 	.hfront_porch	= 12,
 	.hback_porch	= 68,
 	.vsync_len	= 5,
-	.vfp		= 5,
+	.vfront_porch	= 5,
 	.vbp		= 41,
 
 	.interlace	= true,
