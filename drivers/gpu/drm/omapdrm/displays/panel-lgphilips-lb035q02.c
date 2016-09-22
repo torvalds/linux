@@ -36,6 +36,11 @@ static struct videomode lb035q02_vm = {
 	.flags		= DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
 			  DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_SYNC_NEGEDGE |
 			  DISPLAY_FLAGS_PIXDATA_POSEDGE,
+	/*
+	 * Note: According to the panel documentation:
+	 * DE is active LOW
+	 * DATA needs to be driven on the FALLING edge
+	 */
 };
 
 struct panel_drv_data {
