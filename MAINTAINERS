@@ -10601,6 +10601,7 @@ L:	linux-rdma@vger.kernel.org
 W:	http://www.emulex.com
 S:	Supported
 F:	drivers/infiniband/hw/ocrdma/
+F:	include/uapi/rdma/ocrdma-abi.h
 
 SFC NETWORK DRIVER
 M:	Solarflare linux maintainers <linux-net-drivers@solarflare.com>
