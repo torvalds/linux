@@ -2408,7 +2408,7 @@ BPF_CALL_3(bpf_skb_under_cgroup, struct sk_buff *, skb, struct bpf_map *, map,
 	struct cgroup *cgrp;
 	struct sock *sk;
 
-	sk = skb->sk;
+	sk = skb_to_full_sk(skb);
 	if (!sk || !sk_fullsock(sk))
 		return -ENOENT;
 	if (unlikely(idx >= array->map.max_entries))
