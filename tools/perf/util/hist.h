@@ -485,5 +485,7 @@ static inline struct rb_node *rb_hierarchy_next(struct rb_node *node)
 #define HIERARCHY_INDENT  3
 
 bool hist_entry__has_hierarchy_children(struct hist_entry *he, float limit);
+int hpp_color_scnprintf(struct perf_hpp *hpp, const char *fmt, ...);
+int __hpp__slsmg_color_printf(struct perf_hpp *hpp, const char *fmt, ...);
 
 #endif	/* __PERF_HIST_H */

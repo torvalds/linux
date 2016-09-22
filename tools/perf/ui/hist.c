@@ -237,7 +237,7 @@ static int hpp__header_fn(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	return scnprintf(hpp->buf, hpp->size, "%*s", len, fmt->name);
 }
 
-static int hpp_color_scnprintf(struct perf_hpp *hpp, const char *fmt, ...)
+int hpp_color_scnprintf(struct perf_hpp *hpp, const char *fmt, ...)
 {
 	va_list args;
 	ssize_t ssize = hpp->size;

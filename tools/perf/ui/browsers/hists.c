@@ -1080,7 +1080,7 @@ struct hpp_arg {
 	bool current_entry;
 };
 
-static int __hpp__slsmg_color_printf(struct perf_hpp *hpp, const char *fmt, ...)
+int __hpp__slsmg_color_printf(struct perf_hpp *hpp, const char *fmt, ...)
 {
 	struct hpp_arg *arg = hpp->ptr;
 	int ret, len;
