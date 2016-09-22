@@ -157,7 +157,6 @@ bool is_trap_insn(uprobe_opcode_t *insn)
 int arch_uprobe_pre_xol(struct arch_uprobe *aup, struct pt_regs *regs)
 {
 	struct uprobe_task *utask = current->utask;
-	union mips_instruction insn;
 
 	/*
 	 * Now find the EPC where to resume after the breakpoint has been
@@ -168,10 +167,10 @@ int arch_uprobe_pre_xol(struct arch_uprobe *aup, struct pt_regs *regs)
 		unsigned long epc;
 
 		epc = regs->cp0_epc;
-		__compute_return_epc_for_insn(regs, insn);
+		__compute_return_epc_for_insn(regs,
+			(union mips_instruction) aup->insn[0]);
 		aup->resume_epc = regs->cp0_epc;
 	}
-
 	utask->autask.saved_trap_nr = current->thread.trap_nr;
 	current->thread.trap_nr = UPROBE_TRAP_NR;
 	regs->cp0_epc = current->utask->xol_vaddr;
