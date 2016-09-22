@@ -3141,29 +3141,23 @@ bool dispc_mgr_timings_ok(enum omap_channel channel,
 	return true;
 }
 
-static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsync_len,
-		int hfp, int hbp, int vsw, int vfp, int vbp,
-		enum omap_dss_signal_level vsync_level,
-		enum omap_dss_signal_level hsync_level,
-		enum omap_dss_signal_edge data_pclk_edge,
-		enum omap_dss_signal_level de_level,
-		enum omap_dss_signal_edge sync_pclk_edge)
-
+static void _dispc_mgr_set_lcd_timings(enum omap_channel channel,
+				       const struct omap_video_timings *ovt)
 {
 	u32 timing_h, timing_v, l;
 	bool onoff, rf, ipc, vs, hs, de;
 
-	timing_h = FLD_VAL(hsync_len-1, dispc.feat->sw_start, 0) |
-			FLD_VAL(hfp-1, dispc.feat->fp_start, 8) |
-			FLD_VAL(hbp-1, dispc.feat->bp_start, 20);
-	timing_v = FLD_VAL(vsw-1, dispc.feat->sw_start, 0) |
-			FLD_VAL(vfp, dispc.feat->fp_start, 8) |
-			FLD_VAL(vbp, dispc.feat->bp_start, 20);
+	timing_h = FLD_VAL(ovt->hsync_len - 1, dispc.feat->sw_start, 0) |
+		   FLD_VAL(ovt->hfront_porch - 1, dispc.feat->fp_start, 8) |
+		   FLD_VAL(ovt->hback_porch - 1, dispc.feat->bp_start, 20);
+	timing_v = FLD_VAL(ovt->vsync_len - 1, dispc.feat->sw_start, 0) |
+		   FLD_VAL(ovt->vfront_porch, dispc.feat->fp_start, 8) |
+		   FLD_VAL(ovt->vback_porch, dispc.feat->bp_start, 20);
 
 	dispc_write_reg(DISPC_TIMING_H(channel), timing_h);
 	dispc_write_reg(DISPC_TIMING_V(channel), timing_v);
 
-	switch (vsync_level) {
+	switch (ovt->vsync_level) {
 	case OMAPDSS_SIG_ACTIVE_LOW:
 		vs = true;
 		break;
@@ -3174,7 +3168,7 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsync_len,
 		BUG();
 	}
 
-	switch (hsync_level) {
+	switch (ovt->hsync_level) {
 	case OMAPDSS_SIG_ACTIVE_LOW:
 		hs = true;
 		break;
@@ -3185,7 +3179,7 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsync_len,
 		BUG();
 	}
 
-	switch (de_level) {
+	switch (ovt->de_level) {
 	case OMAPDSS_SIG_ACTIVE_LOW:
 		de = true;
 		break;
@@ -3196,7 +3190,7 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsync_len,
 		BUG();
 	}
 
-	switch (data_pclk_edge) {
+	switch (ovt->data_pclk_edge) {
 	case OMAPDSS_DRIVE_SIG_RISING_EDGE:
 		ipc = false;
 		break;
@@ -3210,7 +3204,7 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsync_len,
 	/* always use the 'rf' setting */
 	onoff = true;
 
-	switch (sync_pclk_edge) {
+	switch (ovt->sync_pclk_edge) {
 	case OMAPDSS_DRIVE_SIG_FALLING_EDGE:
 		rf = false;
 		break;
@@ -3270,11 +3264,7 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 	}
 
 	if (dss_mgr_is_lcd(channel)) {
-		_dispc_mgr_set_lcd_timings(channel,
-				t.hsync_len, t.hfront_porch, t.hback_porch,
-				t.vsync_len, t.vfront_porch, t.vback_porch,
-				t.vsync_level, t.hsync_level, t.data_pclk_edge,
-				t.de_level, t.sync_pclk_edge);
+		_dispc_mgr_set_lcd_timings(channel, &t);
 
 		xtot = t.hactive + t.hfront_porch + t.hsync_len + t.hback_porch;
 		ytot = t.vactive + t.vfront_porch + t.vsync_len + t.vback_porch;
