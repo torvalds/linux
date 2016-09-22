@@ -874,7 +874,8 @@ static void rfbi_config_lcd_manager(struct omap_dss_device *dssdev)
 	rfbi.timings.flags |= DISPLAY_FLAGS_PIXDATA_POSEDGE;
 	rfbi.timings.flags &= ~DISPLAY_FLAGS_DE_LOW;
 	rfbi.timings.flags |= DISPLAY_FLAGS_DE_HIGH;
-	rfbi.timings.sync_pclk_edge = OMAPDSS_DRIVE_SIG_FALLING_EDGE;
+	rfbi.timings.flags &= ~DISPLAY_FLAGS_SYNC_POSEDGE;
+	rfbi.timings.flags |= DISPLAY_FLAGS_SYNC_NEGEDGE;
 
 	dss_mgr_set_timings(mgr, &rfbi.timings);
 }

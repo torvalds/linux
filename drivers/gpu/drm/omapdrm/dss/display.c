@@ -233,10 +233,6 @@ void videomode_to_omap_video_timings(const struct videomode *vm,
 	ovt->vfront_porch = vm->vfront_porch;
 	ovt->vsync_len = vm->vsync_len;
 	ovt->flags = vm->flags;
-
-	ovt->sync_pclk_edge = ovt->flags & DISPLAY_FLAGS_PIXDATA_POSEDGE ?
-		OMAPDSS_DRIVE_SIG_RISING_EDGE :
-		OMAPDSS_DRIVE_SIG_FALLING_EDGE;
 }
 EXPORT_SYMBOL(videomode_to_omap_video_timings);
 

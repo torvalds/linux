@@ -3180,16 +3180,10 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel,
 	/* always use the 'rf' setting */
 	onoff = true;
 
-	switch (ovt->sync_pclk_edge) {
-	case OMAPDSS_DRIVE_SIG_FALLING_EDGE:
-		rf = false;
-		break;
-	case OMAPDSS_DRIVE_SIG_RISING_EDGE:
+	if (ovt->flags & DISPLAY_FLAGS_SYNC_POSEDGE)
 		rf = true;
-		break;
-	default:
-		BUG();
-	}
+	else
+		rf = false;
 
 	l = FLD_VAL(onoff, 17, 17) |
 		FLD_VAL(rf, 16, 16) |
@@ -3257,7 +3251,7 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 			!!(t.flags & DISPLAY_FLAGS_HSYNC_HIGH),
 			!!(t.flags & DISPLAY_FLAGS_PIXDATA_POSEDGE),
 			!!(t.flags & DISPLAY_FLAGS_DE_HIGH),
-			t.sync_pclk_edge);
+			!!(t.flags & DISPLAY_FLAGS_SYNC_POSEDGE));
 
 		DSSDBG("hsync %luHz, vsync %luHz\n", ht, vt);
 	} else {
@@ -4200,10 +4194,10 @@ static const struct dispc_errata_i734_data {
 		.pixelclock = 16000000,
 		.hsync_len = 8, .hfront_porch = 4, .hback_porch = 4,
 		.vsync_len = 1, .vfront_porch = 1, .vback_porch = 1,
-		.sync_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE,
 
 		.flags = DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
-			 DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_PIXDATA_POSEDGE,
+			 DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_SYNC_POSEDGE |
+			 DISPLAY_FLAGS_PIXDATA_POSEDGE,
 	},
 	.ovli = {
 		.screen_width = 1,

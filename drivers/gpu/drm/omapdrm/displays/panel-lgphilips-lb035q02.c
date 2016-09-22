@@ -33,10 +33,9 @@ static struct omap_video_timings lb035q02_timings = {
 	.vfront_porch	= 4,
 	.vback_porch	= 18,
 
-	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
-
 	.flags		= DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
-			  DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_PIXDATA_POSEDGE,
+			  DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_SYNC_NEGEDGE |
+			  DISPLAY_FLAGS_PIXDATA_POSEDGE,
 };
 
 struct panel_drv_data {

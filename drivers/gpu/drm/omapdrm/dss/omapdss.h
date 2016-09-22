@@ -319,9 +319,6 @@ struct omap_video_timings {
 	/* Unit: line clocks */
 	u16 vback_porch;	/* Vertical back porch */
 
-	/* Pixel clock edges to drive HSYNC and VSYNC signals */
-	enum omap_dss_signal_edge sync_pclk_edge;
-
 	enum display_flags flags;
 };
 

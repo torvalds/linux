@@ -107,8 +107,9 @@ void copy_timings_drm_to_omap(struct omap_video_timings *timings,
 	else
 		timings->flags |= DISPLAY_FLAGS_VSYNC_LOW;
 
-	timings->flags |= DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_PIXDATA_POSEDGE;
-	timings->sync_pclk_edge = OMAPDSS_DRIVE_SIG_FALLING_EDGE;
+	timings->flags |= DISPLAY_FLAGS_DE_HIGH |
+			  DISPLAY_FLAGS_PIXDATA_POSEDGE |
+			  DISPLAY_FLAGS_SYNC_NEGEDGE;
 }
 
 static enum drm_connector_status omap_connector_detect(
