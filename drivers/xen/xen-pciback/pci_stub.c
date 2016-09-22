@@ -25,6 +25,8 @@
 #include "conf_space.h"
 #include "conf_space_quirks.h"
 
+#define PCISTUB_DRIVER_NAME "pciback"
+
 static char *pci_devs_to_hide;
 wait_queue_head_t xen_pcibk_aer_wait_queue;
 /*Add sem for sync AER handling and xen_pcibk remove/reconfigue ops,
@@ -508,15 +510,18 @@ static void pcistub_device_id_add_list(struct pcistub_device_id *new,
 		kfree(new);
 }
 
-static int pcistub_seize(struct pci_dev *dev)
+static int pcistub_seize(struct pci_dev *dev,
+			 struct pcistub_device_id *pci_dev_id)
 {
 	struct pcistub_device *psdev;
 	unsigned long flags;
 	int err = 0;
 
 	psdev = pcistub_device_alloc(dev);
-	if (!psdev)
+	if (!psdev) {
+		kfree(pci_dev_id);
 		return -ENOMEM;
+	}
 
 	spin_lock_irqsave(&pcistub_devices_lock, flags);
 
@@ -537,8 +542,12 @@ static int pcistub_seize(struct pci_dev *dev)
 
 	spin_unlock_irqrestore(&pcistub_devices_lock, flags);
 
-	if (err)
+	if (err) {
+		kfree(pci_dev_id);
 		pcistub_device_put(psdev);
+	} else if (pci_dev_id)
+		pcistub_device_id_add_list(pci_dev_id, pci_domain_nr(dev->bus),
+					   dev->bus->number, dev->devfn);
 
 	return err;
 }
@@ -547,11 +556,16 @@ static int pcistub_seize(struct pci_dev *dev)
  * other functions that take the sysfs lock. */
 static int pcistub_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	int err = 0;
+	int err = 0, match;
+	struct pcistub_device_id *pci_dev_id = NULL;
 
 	dev_dbg(&dev->dev, "probing...\n");
 
-	if (pcistub_match(dev)) {
+	match = pcistub_match(dev);
+
+	if ((dev->driver_override &&
+	     !strcmp(dev->driver_override, PCISTUB_DRIVER_NAME)) ||
+	    match) {
 
 		if (dev->hdr_type != PCI_HEADER_TYPE_NORMAL
 		    && dev->hdr_type != PCI_HEADER_TYPE_BRIDGE) {
@@ -562,8 +576,16 @@ static int pcistub_probe(struct pci_dev *dev, const struct pci_device_id *id)
 			goto out;
 		}
 
+		if (!match) {
+			pci_dev_id = kmalloc(sizeof(*pci_dev_id), GFP_ATOMIC);
+			if (!pci_dev_id) {
+				err = -ENOMEM;
+				goto out;
+			}
+		}
+
 		dev_info(&dev->dev, "seizing device\n");
-		err = pcistub_seize(dev);
+		err = pcistub_seize(dev, pci_dev_id);
 	} else
 		/* Didn't find the device */
 		err = -ENODEV;
@@ -975,7 +997,7 @@ static const struct pci_error_handlers xen_pcibk_error_handler = {
 static struct pci_driver xen_pcibk_pci_driver = {
 	/* The name should be xen_pciback, but until the tools are updated
 	 * we will keep it as pciback. */
-	.name = "pciback",
+	.name = PCISTUB_DRIVER_NAME,
 	.id_table = pcistub_ids,
 	.probe = pcistub_probe,
 	.remove = pcistub_remove,
