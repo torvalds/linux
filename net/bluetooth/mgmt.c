@@ -2541,6 +2541,8 @@ static int send_pin_code_neg_reply(struct sock *sk, struct hci_dev *hdev,
 	if (!cmd)
 		return -ENOMEM;
 
+	cmd->cmd_complete = addr_cmd_complete;
+
 	err = hci_send_cmd(hdev, HCI_OP_PIN_CODE_NEG_REPLY,
 			   sizeof(cp->addr.bdaddr), &cp->addr.bdaddr);
 	if (err < 0)
