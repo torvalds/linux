@@ -157,6 +157,13 @@ config PIC32_EVIC
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
 
+config JCORE_AIC
+	bool "J-Core integrated AIC"
+	depends on OF && (SUPERH || COMPILE_TEST)
+	select IRQ_DOMAIN
+	help
+	  Support for the J-Core integrated AIC.
+
 config RENESAS_INTC_IRQPIN
 	bool
 	select IRQ_DOMAIN
@@ -250,6 +257,9 @@ config IRQ_MXS
 	select STMP_DEVICE
 
 config MVEBU_ODMI
+	bool
+
+config MVEBU_PIC
 	bool
 
 config LS_SCFG_MSI
