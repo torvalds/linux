@@ -29,8 +29,10 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef __IWCH_USER_H__
-#define __IWCH_USER_H__
+#ifndef CXGB3_ABI_USER_H
+#define CXBG3_ABI_USER_H
+
+#include <linux/types.h>
 
 #define IWCH_UVERBS_ABI_VERSION	1
 
@@ -71,4 +73,4 @@ struct iwch_create_qp_resp {
 struct iwch_reg_user_mr_resp {
 	__u32 pbl_addr;
 };
-#endif
+#endif /* CXGB3_ABI_USER_H */

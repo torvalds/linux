@@ -7,4 +7,5 @@ header-y += rdma_netlink.h
 header-y += rdma_user_cm.h
 header-y += hfi/
 header-y += rdma_user_rxe.h
+header-y += cxgb3-abi.h
 header-y += mlx5-abi.h
