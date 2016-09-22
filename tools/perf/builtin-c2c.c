@@ -9,6 +9,7 @@
 #include "hist.h"
 #include "tool.h"
 #include "data.h"
+#include "sort.h"
 
 struct c2c_hists {
 	struct hists		hists;
@@ -47,6 +48,7 @@ struct c2c_dimension {
 	struct c2c_header	 header;
 	const char		*name;
 	int			 width;
+	struct sort_entry	*se;
 
 	int64_t (*cmp)(struct perf_hpp_fmt *fmt,
 		       struct hist_entry *, struct hist_entry *);
@@ -66,34 +68,47 @@ static int c2c_width(struct perf_hpp_fmt *fmt,
 		     struct hists *hists __maybe_unused)
 {
 	struct c2c_fmt *c2c_fmt;
-
-	c2c_fmt = container_of(fmt, struct c2c_fmt, fmt);
-	return c2c_fmt->dim->width;
-}
-
-static int c2c_header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
-		      struct hists *hists __maybe_unused, int line, int *span)
-{
-	struct c2c_fmt *c2c_fmt;
 	struct c2c_dimension *dim;
-	int len = c2c_width(fmt, hpp, hists);
-	const char *text;
 
 	c2c_fmt = container_of(fmt, struct c2c_fmt, fmt);
 	dim = c2c_fmt->dim;
 
-	text = dim->header.line[line].text;
+	return dim->se ? hists__col_len(hists, dim->se->se_width_idx) :
+			 c2c_fmt->dim->width;
+}
+
+static int c2c_header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+		      struct hists *hists, int line, int *span)
+{
+	struct perf_hpp_list *hpp_list = hists->hpp_list;
+	struct c2c_fmt *c2c_fmt;
+	struct c2c_dimension *dim;
+	const char *text = NULL;
+	int width = c2c_width(fmt, hpp, hists);
+
+	c2c_fmt = container_of(fmt, struct c2c_fmt, fmt);
+	dim = c2c_fmt->dim;
+
+	if (dim->se) {
+		text = dim->header.line[line].text;
+		/* Use the last line from sort_entry if not defined. */
+		if (!text && (line == hpp_list->nr_header_lines - 1))
+			text = dim->se->se_header;
+	} else {
+		text = dim->header.line[line].text;
+
+		if (*span) {
+			(*span)--;
+			return 0;
+		} else {
+			*span = dim->header.line[line].span;
+		}
+	}
+
 	if (text == NULL)
 		text = "";
 
-	if (*span) {
-		(*span)--;
-		return 0;
-	} else {
-		*span = dim->header.line[line].span;
-	}
-
-	return scnprintf(hpp->buf, hpp->size, "%*s", len, text);
+	return scnprintf(hpp->buf, hpp->size, "%*s", width, text);
 }
 
 static struct c2c_dimension *dimensions[] = {
@@ -130,6 +145,39 @@ static struct c2c_dimension *get_dimension(const char *name)
 	return NULL;
 }
 
+static int c2c_se_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+			struct hist_entry *he)
+{
+	struct c2c_fmt *c2c_fmt = container_of(fmt, struct c2c_fmt, fmt);
+	struct c2c_dimension *dim = c2c_fmt->dim;
+	size_t len = fmt->user_len;
+
+	if (!len)
+		len = hists__col_len(he->hists, dim->se->se_width_idx);
+
+	return dim->se->se_snprintf(he, hpp->buf, hpp->size, len);
+}
+
+static int64_t c2c_se_cmp(struct perf_hpp_fmt *fmt,
+			  struct hist_entry *a, struct hist_entry *b)
+{
+	struct c2c_fmt *c2c_fmt = container_of(fmt, struct c2c_fmt, fmt);
+	struct c2c_dimension *dim = c2c_fmt->dim;
+
+	return dim->se->se_cmp(a, b);
+}
+
+static int64_t c2c_se_collapse(struct perf_hpp_fmt *fmt,
+			       struct hist_entry *a, struct hist_entry *b)
+{
+	struct c2c_fmt *c2c_fmt = container_of(fmt, struct c2c_fmt, fmt);
+	struct c2c_dimension *dim = c2c_fmt->dim;
+	int64_t (*collapse_fn)(struct hist_entry *, struct hist_entry *);
+
+	collapse_fn = dim->se->se_collapse ?: dim->se->se_cmp;
+	return collapse_fn(a, b);
+}
+
 static struct c2c_fmt *get_format(const char *name)
 {
 	struct c2c_dimension *dim = get_dimension(name);
@@ -149,12 +197,12 @@ static struct c2c_fmt *get_format(const char *name)
 	INIT_LIST_HEAD(&fmt->list);
 	INIT_LIST_HEAD(&fmt->sort_list);
 
-	fmt->cmp	= dim->cmp;
-	fmt->sort	= dim->cmp;
-	fmt->entry	= dim->entry;
+	fmt->cmp	= dim->se ? c2c_se_cmp   : dim->cmp;
+	fmt->sort	= dim->se ? c2c_se_cmp   : dim->cmp;
+	fmt->entry	= dim->se ? c2c_se_entry : dim->entry;
 	fmt->header	= c2c_header;
 	fmt->width	= c2c_width;
-	fmt->collapse	= dim->cmp;
+	fmt->collapse	= dim->se ? c2c_se_collapse : dim->cmp;
 	fmt->equal	= fmt_equal;
 	fmt->free	= fmt_free;
 
