@@ -383,7 +383,7 @@ sctp_ulpevent_make_remote_error(const struct sctp_association *asoc,
 
 	ch = (sctp_errhdr_t *)(chunk->skb->data);
 	cause = ch->cause;
-	elen = WORD_ROUND(ntohs(ch->length)) - sizeof(sctp_errhdr_t);
+	elen = SCTP_PAD4(ntohs(ch->length)) - sizeof(sctp_errhdr_t);
 
 	/* Pull off the ERROR header.  */
 	skb_pull(chunk->skb, sizeof(sctp_errhdr_t));
@@ -688,7 +688,7 @@ struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
 	 * MUST ignore the padding bytes.
 	 */
 	len = ntohs(chunk->chunk_hdr->length);
-	padding = WORD_ROUND(len) - len;
+	padding = SCTP_PAD4(len) - len;
 
 	/* Fixup cloned skb with just this chunks data.  */
 	skb_trim(skb, chunk->chunk_end - padding - skb->data);
