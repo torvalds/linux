@@ -14361,7 +14361,7 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 		 * SKL workaround: bspec recommends we disable the SAGV when we
 		 * have more then one pipe enabled
 		 */
-		if (IS_SKYLAKE(dev_priv) && !intel_can_enable_sagv(state))
+		if (!intel_can_enable_sagv(state))
 			intel_disable_sagv(dev_priv);
 
 		intel_modeset_verify_disabled(dev);
@@ -14419,8 +14419,7 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 		intel_modeset_verify_crtc(crtc, old_crtc_state, crtc->state);
 	}
 
-	if (IS_SKYLAKE(dev_priv) && intel_state->modeset &&
-	    intel_can_enable_sagv(state))
+	if (intel_state->modeset && intel_can_enable_sagv(state))
 		intel_enable_sagv(dev_priv);
 
 	drm_atomic_helper_commit_hw_done(state);
