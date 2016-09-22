@@ -757,15 +757,15 @@ static int amdgpu_ttm_backend_unbind(struct ttm_tt *ttm)
 {
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
 
+	if (gtt->userptr)
+		amdgpu_ttm_tt_unpin_userptr(ttm);
+
 	if (!amdgpu_ttm_is_bound(ttm))
 		return 0;
 
 	/* unbind shouldn't be done for GDS/GWS/OA in ttm_bo_clean_mm */
 	if (gtt->adev->gart.ready)
 		amdgpu_gart_unbind(gtt->adev, gtt->offset, ttm->num_pages);
-
-	if (gtt->userptr)
-		amdgpu_ttm_tt_unpin_userptr(ttm);
 
 	spin_lock(&gtt->adev->gtt_list_lock);
 	list_del_init(&gtt->list);
