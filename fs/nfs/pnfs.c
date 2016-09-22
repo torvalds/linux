@@ -921,9 +921,9 @@ pnfs_find_server(struct inode *inode, struct nfs_open_context *ctx)
 {
 	struct nfs_server *server;
 
-	if (inode)
+	if (inode) {
 		server = NFS_SERVER(inode);
-	else {
+	} else {
 		struct dentry *parent_dir = dget_parent(ctx->dentry);
 		server = NFS_SERVER(parent_dir->d_inode);
 		dput(parent_dir);
@@ -1736,6 +1736,22 @@ static void pnfs_clear_first_layoutget(struct pnfs_layout_hdr *lo)
 	wake_up_bit(bitlock, NFS_LAYOUT_FIRST_LAYOUTGET);
 }
 
+static void _add_to_server_list(struct pnfs_layout_hdr *lo,
+				struct nfs_server *server)
+{
+	if (list_empty(&lo->plh_layouts)) {
+		struct nfs_client *clp = server->nfs_client;
+
+		/* The lo must be on the clp list if there is any
+		 * chance of a CB_LAYOUTRECALL(FILE) coming in.
+		 */
+		spin_lock(&clp->cl_lock);
+		if (list_empty(&lo->plh_layouts))
+			list_add_tail(&lo->plh_layouts, &server->layouts);
+		spin_unlock(&clp->cl_lock);
+	}
+}
+
 /*
  * Layout segment is retreived from the server if not cached.
  * The appropriate layout segment is referenced and returned to the caller.
@@ -1886,15 +1902,7 @@ lookup_again:
 	atomic_inc(&lo->plh_outstanding);
 	spin_unlock(&ino->i_lock);
 
-	if (list_empty(&lo->plh_layouts)) {
-		/* The lo must be on the clp list if there is any
-		 * chance of a CB_LAYOUTRECALL(FILE) coming in.
-		 */
-		spin_lock(&clp->cl_lock);
-		if (list_empty(&lo->plh_layouts))
-			list_add_tail(&lo->plh_layouts, &server->layouts);
-		spin_unlock(&clp->cl_lock);
-	}
+	_add_to_server_list(lo, server);
 
 	pg_offset = arg.offset & ~PAGE_MASK;
 	if (pg_offset) {
@@ -1993,12 +2001,62 @@ pnfs_sanity_check_layout_range(struct pnfs_layout_range *range)
 	return true;
 }
 
+static struct pnfs_layout_hdr *
+_pnfs_grab_empty_layout(struct inode *ino, struct nfs_open_context *ctx)
+{
+	struct pnfs_layout_hdr *lo;
+
+	spin_lock(&ino->i_lock);
+	lo = pnfs_find_alloc_layout(ino, ctx, GFP_KERNEL);
+	if (!lo)
+		goto out_unlock;
+	if (!test_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags))
+		goto out_unlock;
+	if (test_bit(NFS_LAYOUT_RETURN, &lo->plh_flags))
+		goto out_unlock;
+	if (pnfs_layoutgets_blocked(lo))
+		goto out_unlock;
+	if (test_and_set_bit(NFS_LAYOUT_FIRST_LAYOUTGET, &lo->plh_flags))
+		goto out_unlock;
+	atomic_inc(&lo->plh_outstanding);
+	spin_unlock(&ino->i_lock);
+	_add_to_server_list(lo, NFS_SERVER(ino));
+	return lo;
+
+out_unlock:
+	spin_unlock(&ino->i_lock);
+	pnfs_put_layout_hdr(lo);
+	return NULL;
+}
+
 extern const nfs4_stateid current_stateid;
 
 static void _lgopen_prepare_attached(struct nfs4_opendata *data,
 				     struct nfs_open_context *ctx)
 {
-	/* STUB */
+	struct inode *ino = data->dentry->d_inode;
+	struct pnfs_layout_range rng = {
+		.iomode = (data->o_arg.fmode & FMODE_WRITE) ?
+			  IOMODE_RW: IOMODE_READ,
+		.offset = 0,
+		.length = NFS4_MAX_UINT64,
+	};
+	struct nfs4_layoutget *lgp;
+	struct pnfs_layout_hdr *lo;
+
+	lo = _pnfs_grab_empty_layout(ino, ctx);
+	if (!lo)
+		return;
+	lgp = pnfs_alloc_init_layoutget_args(ino, ctx, &current_stateid,
+					     &rng, GFP_KERNEL);
+	if (!lgp) {
+		pnfs_clear_first_layoutget(lo);
+		pnfs_put_layout_hdr(lo);
+		return;
+	}
+	data->lgp = lgp;
+	data->o_arg.lg_args = &lgp->args;
+	data->o_res.lg_res = &lgp->res;
 }
 
 static void _lgopen_prepare_floating(struct nfs4_opendata *data,
@@ -2046,11 +2104,9 @@ void pnfs_parse_lgopen(struct inode *ino, struct nfs4_layoutget *lgp,
 	if (!lgp || lgp->res.layoutp->len == 0)
 		return;
 	if (!lgp->args.inode) {
-		/* Need to grab lo */
-		spin_lock(&ino->i_lock);
-		lo = pnfs_find_alloc_layout(ino, ctx, GFP_KERNEL);
-		atomic_inc(&lo->plh_outstanding);
-		spin_unlock(&ino->i_lock);
+		lo = _pnfs_grab_empty_layout(ino, ctx);
+		if (!lo)
+			return;
 		lgp->args.inode = ino;
 	} else
 		lo = NFS_I(lgp->args.inode)->layout;
