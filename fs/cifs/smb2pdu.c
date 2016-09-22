@@ -1186,7 +1186,7 @@ create_durable_v2_buf(struct cifs_fid *pfid)
 
 	buf->dcontext.Timeout = 0; /* Should this be configurable by workload */
 	buf->dcontext.Flags = cpu_to_le32(SMB2_DHANDLE_FLAG_PERSISTENT);
-	get_random_bytes(buf->dcontext.CreateGuid, 16);
+	generate_random_uuid(buf->dcontext.CreateGuid);
 	memcpy(pfid->create_guid, buf->dcontext.CreateGuid, 16);
 
 	/* SMB2_CREATE_DURABLE_HANDLE_REQUEST is "DH2Q" */
