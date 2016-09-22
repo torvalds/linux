@@ -2034,35 +2034,26 @@ static int mtk_cleanup(struct mtk_eth *eth)
 	return 0;
 }
 
-static int mtk_get_settings(struct net_device *dev,
-			    struct ethtool_cmd *cmd)
+int mtk_get_link_ksettings(struct net_device *ndev,
+			   struct ethtool_link_ksettings *cmd)
 {
-	struct mtk_mac *mac = netdev_priv(dev);
-	int err;
+	struct mtk_mac *mac = netdev_priv(ndev);
 
 	if (unlikely(test_bit(MTK_RESETTING, &mac->hw->state)))
 		return -EBUSY;
 
-	err = phy_read_status(dev->phydev);
-	if (err)
-		return -ENODEV;
-
-	return phy_ethtool_gset(dev->phydev, cmd);
+	return phy_ethtool_ksettings_get(ndev->phydev, cmd);
 }
 
-static int mtk_set_settings(struct net_device *dev,
-			    struct ethtool_cmd *cmd)
+int mtk_set_link_ksettings(struct net_device *ndev,
+			   const struct ethtool_link_ksettings *cmd)
 {
-	struct mtk_mac *mac = netdev_priv(dev);
+	struct mtk_mac *mac = netdev_priv(ndev);
 
-	if (cmd->phy_address != dev->phydev->mdio.addr) {
-		dev->phydev = mdiobus_get_phy(mac->hw->mii_bus,
-					       cmd->phy_address);
-		if (!dev->phydev)
-			return -ENODEV;
-	}
+	if (unlikely(test_bit(MTK_RESETTING, &mac->hw->state)))
+		return -EBUSY;
 
-	return phy_ethtool_sset(dev->phydev, cmd);
+	return phy_ethtool_ksettings_set(ndev->phydev, cmd);
 }
 
 static void mtk_get_drvinfo(struct net_device *dev,
@@ -2225,8 +2216,8 @@ static int mtk_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 }
 
 static const struct ethtool_ops mtk_ethtool_ops = {
-	.get_settings		= mtk_get_settings,
-	.set_settings		= mtk_set_settings,
+	.get_link_ksettings	= mtk_get_link_ksettings,
+	.set_link_ksettings	= mtk_set_link_ksettings,
 	.get_drvinfo		= mtk_get_drvinfo,
 	.get_msglevel		= mtk_get_msglevel,
 	.set_msglevel		= mtk_set_msglevel,
