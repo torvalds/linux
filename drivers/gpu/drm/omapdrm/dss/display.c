@@ -231,7 +231,7 @@ void videomode_to_omap_video_timings(const struct videomode *vm,
 	ovt->vactive = vm->vactive;
 	ovt->vbp = vm->vback_porch;
 	ovt->vfp = vm->vfront_porch;
-	ovt->vsw = vm->vsync_len;
+	ovt->vsync_len = vm->vsync_len;
 
 	ovt->vsync_level = vm->flags & DISPLAY_FLAGS_VSYNC_HIGH ?
 		OMAPDSS_SIG_ACTIVE_HIGH :
@@ -264,7 +264,7 @@ void omap_video_timings_to_videomode(const struct omap_video_timings *ovt,
 	vm->vactive = ovt->vactive;
 	vm->vback_porch = ovt->vbp;
 	vm->vfront_porch = ovt->vfp;
-	vm->vsync_len = ovt->vsw;
+	vm->vsync_len = ovt->vsync_len;
 
 	if (ovt->hsync_level == OMAPDSS_SIG_ACTIVE_HIGH)
 		vm->flags |= DISPLAY_FLAGS_HSYNC_HIGH;

@@ -4423,7 +4423,7 @@ static bool dsi_cm_calc_dispc_cb(int lckd, int pckd, unsigned long lck,
 	t->pixelclock = pck;
 	t->hactive = ctx->config->timings->hactive;
 	t->vactive = ctx->config->timings->vactive;
-	t->hsync_len = t->hfront_porch = t->hback_porch = t->vsw = 1;
+	t->hsync_len = t->hfront_porch = t->hback_porch = t->vsync_len = 1;
 	t->vfp = t->vbp = 0;
 
 	return true;
@@ -4634,7 +4634,7 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 	dsi_vm->hact = xres;
 	dsi_vm->hfp = hfp;
 
-	dsi_vm->vsa = req_vm->vsw;
+	dsi_vm->vsa = req_vm->vsync_len;
 	dsi_vm->vbp = req_vm->vbp;
 	dsi_vm->vact = req_vm->vactive;
 	dsi_vm->vfp = req_vm->vfp;

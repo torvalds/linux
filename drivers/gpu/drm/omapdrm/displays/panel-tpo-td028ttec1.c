@@ -50,7 +50,7 @@ static struct omap_video_timings td028ttec1_panel_timings = {
 	.hsync_len	= 8,
 	.hback_porch	= 8,
 	.vfp		= 4,
-	.vsw		= 2,
+	.vsync_len	= 2,
 	.vbp		= 2,
 
 	.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,

@@ -28,7 +28,7 @@ static const struct omap_video_timings hdmic_default_timings = {
 	.hsync_len	= 96,
 	.hfront_porch	= 16,
 	.hback_porch	= 48,
-	.vsw		= 2,
+	.vsync_len	= 2,
 	.vfp		= 11,
 	.vbp		= 31,
 

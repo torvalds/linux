@@ -100,7 +100,7 @@ static const struct omap_video_timings acx565akm_panel_timings = {
 	.hsync_len	= 4,
 	.hback_porch	= 24,
 	.vfp		= 3,
-	.vsw		= 3,
+	.vsync_len	= 3,
 	.vbp		= 4,
 
 	.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,

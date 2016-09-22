@@ -45,7 +45,7 @@ static const struct omap_video_timings sharp_ls_timings = {
 	.hfront_porch	= 1,
 	.hback_porch	= 28,
 
-	.vsw		= 1,
+	.vsync_len	= 1,
 	.vfp		= 1,
 	.vbp		= 1,
 

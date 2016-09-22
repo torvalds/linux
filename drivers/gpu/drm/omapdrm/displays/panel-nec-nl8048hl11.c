@@ -73,7 +73,7 @@ static const struct omap_video_timings nec_8048_panel_timings = {
 	.hsync_len	= 1,
 	.hback_porch	= 4,
 	.vfp		= 3,
-	.vsw		= 1,
+	.vsync_len	= 1,
 	.vbp		= 4,
 
 	.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,

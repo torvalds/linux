@@ -30,7 +30,7 @@ static const struct omap_video_timings dvic_default_timings = {
 	.hback_porch	= 80,
 
 	.vfp		= 3,
-	.vsw		= 4,
+	.vsync_len	= 4,
 	.vbp		= 7,
 
 	.vsync_level	= OMAPDSS_SIG_ACTIVE_HIGH,

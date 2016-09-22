@@ -313,7 +313,7 @@ struct omap_video_timings {
 	/* Unit: pixel clocks */
 	u16 hback_porch;	/* Horizontal back porch */
 	/* Unit: line clocks */
-	u16 vsw;	/* Vertical synchronization pulse width */
+	u16 vsync_len;		/* Vertical synchronization pulse width */
 	/* Unit: line clocks */
 	u16 vfp;	/* Vertical front porch */
 	/* Unit: line clocks */
