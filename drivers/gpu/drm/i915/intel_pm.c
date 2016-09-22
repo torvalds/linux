@@ -3615,7 +3615,10 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	    fb->modifier[0] == I915_FORMAT_MOD_Yf_TILED) {
 		selected_result = max(method2, y_tile_minimum);
 	} else {
-		if ((ddb_allocation / plane_blocks_per_line) >= 1)
+		if ((cpp * cstate->base.adjusted_mode.crtc_htotal / 512 < 1) &&
+		    (plane_bytes_per_line / 512 < 1))
+			selected_result = method2;
+		else if ((ddb_allocation / plane_blocks_per_line) >= 1)
 			selected_result = min(method1, method2);
 		else
 			selected_result = method1;
