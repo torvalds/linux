@@ -1,0 +1,28 @@
+menuconfig FSL_DPAA
+	bool "Freescale DPAA 1.x support"
+	depends on FSL_SOC_BOOKE
+	select GENERIC_ALLOCATOR
+	help
+	  The Freescale Data Path Acceleration Architecture (DPAA) is a set of
+	  hardware components on specific QorIQ multicore processors.
+	  This architecture provides the infrastructure to support simplified
+	  sharing of networking interfaces and accelerators by multiple CPUs.
+	  The major h/w blocks composing DPAA are BMan and QMan.
+
+	  The Buffer Manager (BMan) is a hardware buffer pool management block
+	  that allows software and accelerators on the datapath to acquire and
+	  release buffers in order to build frames.
+
+	  The Queue Manager (QMan) is a hardware queue management block
+	  that allows software and accelerators on the datapath to enqueue and
+	  dequeue frames in order to communicate.
+
+if FSL_DPAA
+
+config FSL_DPAA_CHECKING
+	bool "Additional driver checking"
+	help
+	  Compiles in additional checks, to sanity-check the drivers and
+	  any use of the exported API. Not recommended for performance.
+
+endif # FSL_DPAA
