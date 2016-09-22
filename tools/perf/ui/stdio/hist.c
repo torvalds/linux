@@ -373,7 +373,8 @@ static size_t hist_entry_callchain__fprintf(struct hist_entry *he,
 	return 0;
 }
 
-static int hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp)
+static int __hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp,
+				  struct perf_hpp_list *hpp_list)
 {
 	const char *sep = symbol_conf.field_sep;
 	struct perf_hpp_fmt *fmt;
@@ -384,7 +385,7 @@ static int hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp)
 	if (symbol_conf.exclude_other && !he->parent)
 		return 0;
 
-	hists__for_each_format(he->hists, fmt) {
+	perf_hpp_list__for_each_format(hpp_list, fmt) {
 		if (perf_hpp__should_skip(fmt, he->hists))
 			continue;
 
@@ -408,6 +409,11 @@ static int hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp)
 	}
 
 	return hpp->buf - start;
+}
+
+static int hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp)
+{
+	return __hist_entry__snprintf(he, hpp, he->hists->hpp_list);
 }
 
 static int hist_entry__hierarchy_fprintf(struct hist_entry *he,
