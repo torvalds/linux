@@ -1720,6 +1720,9 @@ static int dvb_register(struct cx23885_tsport *port)
 		}
 		break;
 	case CX23885_BOARD_NETUP_DUAL_DVB_T_C_CI_RF:
+		if (port->nr > 2)
+			return 0;
+
 		i2c_bus = &dev->i2c_bus[0];
 		mfe_shared = 1;/* MFE */
 		port->frontends.gate = 0;/* not clear for me yet */

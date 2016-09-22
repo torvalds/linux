@@ -257,7 +257,7 @@ struct cx23885_dmaqueue {
 struct cx23885_tsport {
 	struct cx23885_dev *dev;
 
-	int                        nr;
+	unsigned                   nr;
 	int                        sram_chno;
 
 	struct vb2_dvb_frontends   frontends;
