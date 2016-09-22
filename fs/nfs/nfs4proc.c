@@ -2408,6 +2408,13 @@ static int nfs40_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *st
 	return nfs4_open_expired(sp, state);
 }
 
+static int nfs40_test_and_free_expired_stateid(struct nfs_server *server,
+		nfs4_stateid *stateid,
+		struct rpc_cred *cred)
+{
+	return -NFS4ERR_BAD_STATEID;
+}
+
 #if defined(CONFIG_NFS_V4_1)
 static int nfs41_test_and_free_expired_stateid(struct nfs_server *server,
 		nfs4_stateid *stateid,
@@ -9061,6 +9068,7 @@ static const struct nfs4_minor_version_ops nfs_v4_0_minor_ops = {
 	.match_stateid = nfs4_match_stateid,
 	.find_root_sec = nfs4_find_root_sec,
 	.free_lock_state = nfs4_release_lockowner,
+	.test_and_free_expired = nfs40_test_and_free_expired_stateid,
 	.alloc_seqid = nfs_alloc_seqid,
 	.call_sync_ops = &nfs40_call_sync_ops,
 	.reboot_recovery_ops = &nfs40_reboot_recovery_ops,
@@ -9088,6 +9096,7 @@ static const struct nfs4_minor_version_ops nfs_v4_1_minor_ops = {
 	.match_stateid = nfs41_match_stateid,
 	.find_root_sec = nfs41_find_root_sec,
 	.free_lock_state = nfs41_free_lock_state,
+	.test_and_free_expired = nfs41_test_and_free_expired_stateid,
 	.alloc_seqid = nfs_alloc_no_seqid,
 	.session_trunk = nfs4_test_session_trunk,
 	.call_sync_ops = &nfs41_call_sync_ops,
@@ -9118,6 +9127,7 @@ static const struct nfs4_minor_version_ops nfs_v4_2_minor_ops = {
 	.find_root_sec = nfs41_find_root_sec,
 	.free_lock_state = nfs41_free_lock_state,
 	.call_sync_ops = &nfs41_call_sync_ops,
+	.test_and_free_expired = nfs41_test_and_free_expired_stateid,
 	.alloc_seqid = nfs_alloc_no_seqid,
 	.session_trunk = nfs4_test_session_trunk,
 	.reboot_recovery_ops = &nfs41_reboot_recovery_ops,

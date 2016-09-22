@@ -1656,15 +1656,9 @@ static void nfs4_state_end_reclaim_reboot(struct nfs_client *clp)
 	put_rpccred(cred);
 }
 
-static void nfs_delegation_clear_all(struct nfs_client *clp)
-{
-	nfs_delegation_mark_reclaim(clp);
-	nfs_delegation_reap_unclaimed(clp);
-}
-
 static void nfs4_state_start_reclaim_nograce(struct nfs_client *clp)
 {
-	nfs_delegation_clear_all(clp);
+	nfs_mark_test_expired_all_delegations(clp);
 	nfs4_state_mark_reclaim_helper(clp, nfs4_state_mark_reclaim_nograce);
 }
 
@@ -2195,7 +2189,7 @@ static void nfs41_handle_all_state_revoked(struct nfs_client *clp)
 
 static void nfs41_handle_some_state_revoked(struct nfs_client *clp)
 {
-	nfs4_state_mark_reclaim_helper(clp, nfs4_state_mark_reclaim_nograce);
+	nfs4_state_start_reclaim_nograce(clp);
 	nfs4_schedule_state_manager(clp);
 
 	dprintk("%s: state revoked on server %s\n", __func__, clp->cl_hostname);
@@ -2418,6 +2412,13 @@ static void nfs4_state_manager(struct nfs_client *clp)
 			if (status < 0)
 				goto out_error;
 			nfs4_state_end_reclaim_reboot(clp);
+		}
+
+		/* Detect expired delegations... */
+		if (test_and_clear_bit(NFS4CLNT_DELEGATION_EXPIRED, &clp->cl_state)) {
+			section = "detect expired delegations";
+			nfs_reap_expired_delegations(clp);
+			continue;
 		}
 
 		/* Now recover expired state... */

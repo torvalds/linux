@@ -39,6 +39,7 @@ enum nfs4_client_state {
 	NFS4CLNT_BIND_CONN_TO_SESSION,
 	NFS4CLNT_MOVED,
 	NFS4CLNT_LEASE_MOVED,
+	NFS4CLNT_DELEGATION_EXPIRED,
 };
 
 #define NFS4_RENEW_TIMEOUT		0x01
@@ -57,6 +58,8 @@ struct nfs4_minor_version_ops {
 			struct nfs_fsinfo *);
 	void	(*free_lock_state)(struct nfs_server *,
 			struct nfs4_lock_state *);
+	int	(*test_and_free_expired)(struct nfs_server *,
+			nfs4_stateid *, struct rpc_cred *);
 	struct nfs_seqid *
 		(*alloc_seqid)(struct nfs_seqid_counter *, gfp_t);
 	int	(*session_trunk)(struct rpc_clnt *, struct rpc_xprt *, void *);

@@ -32,6 +32,7 @@ enum {
 	NFS_DELEGATION_REFERENCED,
 	NFS_DELEGATION_RETURNING,
 	NFS_DELEGATION_REVOKED,
+	NFS_DELEGATION_TEST_EXPIRED,
 };
 
 int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct nfs_openres *res);
@@ -51,6 +52,9 @@ void nfs_remove_bad_delegation(struct inode *inode, const nfs4_stateid *stateid)
 
 void nfs_delegation_mark_reclaim(struct nfs_client *clp);
 void nfs_delegation_reap_unclaimed(struct nfs_client *clp);
+
+void nfs_mark_test_expired_all_delegations(struct nfs_client *clp);
+void nfs_reap_expired_delegations(struct nfs_client *clp);
 
 /* NFSv4 delegation-related procedures */
 int nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, const nfs4_stateid *stateid, int issync);

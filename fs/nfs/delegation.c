@@ -812,8 +812,15 @@ static void nfs_delegation_mark_reclaim_server(struct nfs_server *server)
 {
 	struct nfs_delegation *delegation;
 
-	list_for_each_entry_rcu(delegation, &server->delegations, super_list)
+	list_for_each_entry_rcu(delegation, &server->delegations, super_list) {
+		/*
+		 * If the delegation may have been admin revoked, then we
+		 * cannot reclaim it.
+		 */
+		if (test_bit(NFS_DELEGATION_TEST_EXPIRED, &delegation->flags))
+			continue;
 		set_bit(NFS_DELEGATION_NEED_RECLAIM, &delegation->flags);
+	}
 }
 
 /**
@@ -869,6 +876,94 @@ restart:
 				if (delegation != NULL)
 					nfs_free_delegation(delegation);
 			}
+			iput(inode);
+			nfs_sb_deactive(server->super);
+			goto restart;
+		}
+	}
+	rcu_read_unlock();
+}
+
+static void nfs_mark_test_expired_delegation(struct nfs_server *server,
+	    struct nfs_delegation *delegation)
+{
+	clear_bit(NFS_DELEGATION_NEED_RECLAIM, &delegation->flags);
+	set_bit(NFS_DELEGATION_TEST_EXPIRED, &delegation->flags);
+	set_bit(NFS4CLNT_DELEGATION_EXPIRED, &server->nfs_client->cl_state);
+}
+
+static void nfs_delegation_mark_test_expired_server(struct nfs_server *server)
+{
+	struct nfs_delegation *delegation;
+
+	list_for_each_entry_rcu(delegation, &server->delegations, super_list)
+		nfs_mark_test_expired_delegation(server, delegation);
+}
+
+/**
+ * nfs_mark_test_expired_all_delegations - mark all delegations for testing
+ * @clp: nfs_client to process
+ *
+ * Iterates through all the delegations associated with this server and
+ * marks them as needing to be checked for validity.
+ */
+void nfs_mark_test_expired_all_delegations(struct nfs_client *clp)
+{
+	struct nfs_server *server;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link)
+		nfs_delegation_mark_test_expired_server(server);
+	rcu_read_unlock();
+}
+
+/**
+ * nfs_reap_expired_delegations - reap expired delegations
+ * @clp: nfs_client to process
+ *
+ * Iterates through all the delegations associated with this server and
+ * checks if they have may have been revoked. This function is usually
+ * expected to be called in cases where the server may have lost its
+ * lease.
+ */
+void nfs_reap_expired_delegations(struct nfs_client *clp)
+{
+	const struct nfs4_minor_version_ops *ops = clp->cl_mvops;
+	struct nfs_delegation *delegation;
+	struct nfs_server *server;
+	struct inode *inode;
+	struct rpc_cred *cred;
+	nfs4_stateid stateid;
+
+restart:
+	rcu_read_lock();
+	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link) {
+		list_for_each_entry_rcu(delegation, &server->delegations,
+								super_list) {
+			if (test_bit(NFS_DELEGATION_RETURNING,
+						&delegation->flags))
+				continue;
+			if (test_bit(NFS_DELEGATION_TEST_EXPIRED,
+						&delegation->flags) == 0)
+				continue;
+			if (!nfs_sb_active(server->super))
+				continue;
+			inode = nfs_delegation_grab_inode(delegation);
+			if (inode == NULL) {
+				rcu_read_unlock();
+				nfs_sb_deactive(server->super);
+				goto restart;
+			}
+			cred = get_rpccred_rcu(delegation->cred);
+			nfs4_stateid_copy(&stateid, &delegation->stateid);
+			clear_bit(NFS_DELEGATION_TEST_EXPIRED, &delegation->flags);
+			rcu_read_unlock();
+			if (cred != NULL &&
+			    ops->test_and_free_expired(server, &stateid, cred) < 0) {
+				nfs_revoke_delegation(inode, &stateid);
+				nfs_inode_find_state_and_recover(inode, &stateid);
+			}
+			put_rpccred(cred);
 			iput(inode);
 			nfs_sb_deactive(server->super);
 			goto restart;
