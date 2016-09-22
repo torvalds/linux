@@ -1337,6 +1337,35 @@ int nfs4_schedule_stateid_recovery(const struct nfs_server *server, struct nfs4_
 }
 EXPORT_SYMBOL_GPL(nfs4_schedule_stateid_recovery);
 
+static struct nfs4_lock_state *
+nfs_state_find_lock_state_by_stateid(struct nfs4_state *state,
+		const nfs4_stateid *stateid)
+{
+	struct nfs4_lock_state *pos;
+
+	list_for_each_entry(pos, &state->lock_states, ls_locks) {
+		if (!test_bit(NFS_LOCK_INITIALIZED, &pos->ls_flags))
+			continue;
+		if (nfs4_stateid_match_other(&pos->ls_stateid, stateid))
+			return pos;
+	}
+	return NULL;
+}
+
+static bool nfs_state_lock_state_matches_stateid(struct nfs4_state *state,
+		const nfs4_stateid *stateid)
+{
+	bool found = false;
+
+	if (test_bit(LK_STATE_IN_USE, &state->flags)) {
+		spin_lock(&state->state_lock);
+		if (nfs_state_find_lock_state_by_stateid(state, stateid))
+			found = true;
+		spin_unlock(&state->state_lock);
+	}
+	return found;
+}
+
 void nfs_inode_find_state_and_recover(struct inode *inode,
 		const nfs4_stateid *stateid)
 {
@@ -1351,14 +1380,19 @@ void nfs_inode_find_state_and_recover(struct inode *inode,
 		state = ctx->state;
 		if (state == NULL)
 			continue;
-		if (!test_bit(NFS_DELEGATED_STATE, &state->flags))
+		if (nfs4_stateid_match_other(&state->stateid, stateid)) {
+			nfs4_state_mark_reclaim_nograce(clp, state);
+			found = true;
 			continue;
-		if (!nfs4_stateid_match(&state->stateid, stateid))
-			continue;
-		nfs4_state_mark_reclaim_nograce(clp, state);
-		found = true;
+		}
+		if (nfs_state_lock_state_matches_stateid(state, stateid)) {
+			nfs4_state_mark_reclaim_nograce(clp, state);
+			found = true;
+		}
 	}
 	spin_unlock(&inode->i_lock);
+
+	nfs_inode_find_delegation_state_and_recover(inode, stateid);
 	if (found)
 		nfs4_schedule_state_manager(clp);
 }

@@ -1001,6 +1001,25 @@ restart:
 	rcu_read_unlock();
 }
 
+void nfs_inode_find_delegation_state_and_recover(struct inode *inode,
+		const nfs4_stateid *stateid)
+{
+	struct nfs_client *clp = NFS_SERVER(inode)->nfs_client;
+	struct nfs_delegation *delegation;
+	bool found = false;
+
+	rcu_read_lock();
+	delegation = rcu_dereference(NFS_I(inode)->delegation);
+	if (delegation &&
+	    nfs4_stateid_match_other(&delegation->stateid, stateid)) {
+		nfs_mark_test_expired_delegation(NFS_SERVER(inode), delegation);
+		found = true;
+	}
+	rcu_read_unlock();
+	if (found)
+		nfs4_schedule_state_manager(clp);
+}
+
 /**
  * nfs_delegations_present - check for existence of delegations
  * @clp: client state handle
