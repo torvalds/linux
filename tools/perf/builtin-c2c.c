@@ -273,6 +273,41 @@ static int c2c_header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	return scnprintf(hpp->buf, hpp->size, "%*s", width, text);
 }
 
+#define HEADER_LOW(__h)			\
+	{				\
+		.line[1] = {		\
+			.text = __h,	\
+		},			\
+	}
+
+#define HEADER_BOTH(__h0, __h1)		\
+	{				\
+		.line[0] = {		\
+			.text = __h0,	\
+		},			\
+		.line[1] = {		\
+			.text = __h1,	\
+		},			\
+	}
+
+#define HEADER_SPAN(__h0, __h1, __s)	\
+	{				\
+		.line[0] = {		\
+			.text = __h0,	\
+			.span = __s,	\
+		},			\
+		.line[1] = {		\
+			.text = __h1,	\
+		},			\
+	}
+
+#define HEADER_SPAN_LOW(__h)		\
+	{				\
+		.line[1] = {		\
+			.text = __h,	\
+		},			\
+	}
+
 static struct c2c_dimension *dimensions[] = {
 	NULL,
 };
