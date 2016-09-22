@@ -366,3 +366,33 @@ int c2c_decode_stats(struct c2c_stats *stats, struct mem_info *mi)
 #undef P
 	return err;
 }
+
+void c2c_add_stats(struct c2c_stats *stats, struct c2c_stats *add)
+{
+	stats->nr_entries	+= add->nr_entries;
+
+	stats->locks		+= add->locks;
+	stats->store		+= add->store;
+	stats->st_uncache	+= add->st_uncache;
+	stats->st_noadrs	+= add->st_noadrs;
+	stats->st_l1hit		+= add->st_l1hit;
+	stats->st_l1miss	+= add->st_l1miss;
+	stats->load		+= add->load;
+	stats->ld_excl		+= add->ld_excl;
+	stats->ld_shared	+= add->ld_shared;
+	stats->ld_uncache	+= add->ld_uncache;
+	stats->ld_io		+= add->ld_io;
+	stats->ld_miss		+= add->ld_miss;
+	stats->ld_noadrs	+= add->ld_noadrs;
+	stats->ld_fbhit		+= add->ld_fbhit;
+	stats->ld_l1hit		+= add->ld_l1hit;
+	stats->ld_l2hit		+= add->ld_l2hit;
+	stats->ld_llchit	+= add->ld_llchit;
+	stats->lcl_hitm		+= add->lcl_hitm;
+	stats->rmt_hitm		+= add->rmt_hitm;
+	stats->rmt_hit		+= add->rmt_hit;
+	stats->lcl_dram		+= add->lcl_dram;
+	stats->rmt_dram		+= add->rmt_dram;
+	stats->nomap		+= add->nomap;
+	stats->noparse		+= add->noparse;
+}
