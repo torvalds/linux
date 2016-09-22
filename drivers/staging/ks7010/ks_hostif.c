@@ -35,6 +35,7 @@ static
 inline u8 get_BYTE(struct ks_wlan_private *priv)
 {
 	u8 data;
+
 	data = *(priv->rxp)++;
 	/* length check in advance ! */
 	--(priv->rx_size);
@@ -45,6 +46,7 @@ static
 inline u16 get_WORD(struct ks_wlan_private *priv)
 {
 	u16 data;
+
 	data = (get_BYTE(priv) & 0xff);
 	data |= ((get_BYTE(priv) << 8) & 0xff00);
 	return data;
@@ -54,6 +56,7 @@ static
 inline u32 get_DWORD(struct ks_wlan_private *priv)
 {
 	u32 data;
+
 	data = (get_BYTE(priv) & 0xff);
 	data |= ((get_BYTE(priv) << 8) & 0x0000ff00);
 	data |= ((get_BYTE(priv) << 16) & 0x00ff0000);
