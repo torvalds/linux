@@ -627,7 +627,9 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 			if (radeon_crtc->ss.refdiv) {
 				radeon_crtc->pll_flags |= RADEON_PLL_USE_REF_DIV;
 				radeon_crtc->pll_reference_div = radeon_crtc->ss.refdiv;
-				if (rdev->family >= CHIP_RV770)
+				if (ASIC_IS_AVIVO(rdev) &&
+				    rdev->family != CHIP_RS780 &&
+				    rdev->family != CHIP_RS880)
 					radeon_crtc->pll_flags |= RADEON_PLL_USE_FRAC_FB_DIV;
 			}
 		}

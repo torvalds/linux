@@ -7,6 +7,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/module.h>
 #include <linux/of.h>
 #include <sound/simple_card_utils.h>
 
@@ -95,3 +96,8 @@ int asoc_simple_card_parse_card_name(struct snd_soc_card *card,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_parse_card_name);
+
+/* Module information */
+MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
+MODULE_DESCRIPTION("ALSA SoC Simple Card Utils");
+MODULE_LICENSE("GPL v2");

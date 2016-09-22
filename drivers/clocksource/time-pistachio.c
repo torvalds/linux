@@ -202,10 +202,10 @@ static int __init pistachio_clksrc_of_init(struct device_node *node)
 	rate = clk_get_rate(fast_clk);
 
 	/* Disable irq's for clocksource usage */
-	gpt_writel(&pcs_gpt.base, 0, TIMER_IRQ_MASK, 0);
-	gpt_writel(&pcs_gpt.base, 0, TIMER_IRQ_MASK, 1);
-	gpt_writel(&pcs_gpt.base, 0, TIMER_IRQ_MASK, 2);
-	gpt_writel(&pcs_gpt.base, 0, TIMER_IRQ_MASK, 3);
+	gpt_writel(pcs_gpt.base, 0, TIMER_IRQ_MASK, 0);
+	gpt_writel(pcs_gpt.base, 0, TIMER_IRQ_MASK, 1);
+	gpt_writel(pcs_gpt.base, 0, TIMER_IRQ_MASK, 2);
+	gpt_writel(pcs_gpt.base, 0, TIMER_IRQ_MASK, 3);
 
 	/* Enable timer block */
 	writel(TIMER_ME_GLOBAL, pcs_gpt.base);

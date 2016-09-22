@@ -240,15 +240,13 @@ static int afs_deliver_fs_fetch_status(struct afs_call *call,
 {
 	struct afs_vnode *vnode = call->reply;
 	const __be32 *bp;
+	int ret;
 
 	_enter(",,%u", last);
 
-	afs_transfer_reply(call, skb);
-	if (!last)
-		return 0;
-
-	if (call->reply_size != call->reply_max)
-		return -EBADMSG;
+	ret = afs_transfer_reply(call, skb, last);
+	if (ret < 0)
+		return ret;
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
@@ -335,11 +333,8 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call,
 	case 1:
 		_debug("extract data length (MSW)");
 		ret = afs_extract_data(call, skb, last, &call->tmp, 4);
-		switch (ret) {
-		case 0:		break;
-		case -EAGAIN:	return 0;
-		default:	return ret;
-		}
+		if (ret < 0)
+			return ret;
 
 		call->count = ntohl(call->tmp);
 		_debug("DATA length MSW: %u", call->count);
@@ -353,11 +348,8 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call,
 	case 2:
 		_debug("extract data length");
 		ret = afs_extract_data(call, skb, last, &call->tmp, 4);
-		switch (ret) {
-		case 0:		break;
-		case -EAGAIN:	return 0;
-		default:	return ret;
-		}
+		if (ret < 0)
+			return ret;
 
 		call->count = ntohl(call->tmp);
 		_debug("DATA length: %u", call->count);
@@ -375,11 +367,8 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call,
 			ret = afs_extract_data(call, skb, last, buffer,
 					       call->count);
 			kunmap_atomic(buffer);
-			switch (ret) {
-			case 0:		break;
-			case -EAGAIN:	return 0;
-			default:	return ret;
-			}
+			if (ret < 0)
+				return ret;
 		}
 
 		call->offset = 0;
@@ -389,11 +378,8 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call,
 	case 4:
 		ret = afs_extract_data(call, skb, last, call->buffer,
 				       (21 + 3 + 6) * 4);
-		switch (ret) {
-		case 0:		break;
-		case -EAGAIN:	return 0;
-		default:	return ret;
-		}
+		if (ret < 0)
+			return ret;
 
 		bp = call->buffer;
 		xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode, NULL);
@@ -405,14 +391,11 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call,
 		call->unmarshall++;
 
 	case 5:
-		_debug("trailer");
-		if (skb->len != 0)
-			return -EBADMSG;
+		ret = afs_data_complete(call, skb, last);
+		if (ret < 0)
+			return ret;
 		break;
 	}
-
-	if (!last)
-		return 0;
 
 	if (call->count < PAGE_SIZE) {
 		_debug("clear");
@@ -537,9 +520,8 @@ static int afs_deliver_fs_give_up_callbacks(struct afs_call *call,
 {
 	_enter(",{%u},%d", skb->len, last);
 
-	if (skb->len > 0)
-		return -EBADMSG; /* shouldn't be any reply data */
-	return 0;
+	/* shouldn't be any reply data */
+	return afs_data_complete(call, skb, last);
 }
 
 /*
@@ -622,15 +604,13 @@ static int afs_deliver_fs_create_vnode(struct afs_call *call,
 {
 	struct afs_vnode *vnode = call->reply;
 	const __be32 *bp;
+	int ret;
 
 	_enter("{%u},{%u},%d", call->unmarshall, skb->len, last);
 
-	afs_transfer_reply(call, skb);
-	if (!last)
-		return 0;
-
-	if (call->reply_size != call->reply_max)
-		return -EBADMSG;
+	ret = afs_transfer_reply(call, skb, last);
+	if (ret < 0)
+		return ret;
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
@@ -721,15 +701,13 @@ static int afs_deliver_fs_remove(struct afs_call *call,
 {
 	struct afs_vnode *vnode = call->reply;
 	const __be32 *bp;
+	int ret;
 
 	_enter("{%u},{%u},%d", call->unmarshall, skb->len, last);
 
-	afs_transfer_reply(call, skb);
-	if (!last)
-		return 0;
-
-	if (call->reply_size != call->reply_max)
-		return -EBADMSG;
+	ret = afs_transfer_reply(call, skb, last);
+	if (ret < 0)
+		return ret;
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
@@ -804,15 +782,13 @@ static int afs_deliver_fs_link(struct afs_call *call,
 {
 	struct afs_vnode *dvnode = call->reply, *vnode = call->reply2;
 	const __be32 *bp;
+	int ret;
 
 	_enter("{%u},{%u},%d", call->unmarshall, skb->len, last);
 
-	afs_transfer_reply(call, skb);
-	if (!last)
-		return 0;
-
-	if (call->reply_size != call->reply_max)
-		return -EBADMSG;
+	ret = afs_transfer_reply(call, skb, last);
+	if (ret < 0)
+		return ret;
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
@@ -892,15 +868,13 @@ static int afs_deliver_fs_symlink(struct afs_call *call,
 {
 	struct afs_vnode *vnode = call->reply;
 	const __be32 *bp;
+	int ret;
 
 	_enter("{%u},{%u},%d", call->unmarshall, skb->len, last);
 
-	afs_transfer_reply(call, skb);
-	if (!last)
-		return 0;
-
-	if (call->reply_size != call->reply_max)
-		return -EBADMSG;
+	ret = afs_transfer_reply(call, skb, last);
+	if (ret < 0)
+		return ret;
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
@@ -999,15 +973,13 @@ static int afs_deliver_fs_rename(struct afs_call *call,
 {
 	struct afs_vnode *orig_dvnode = call->reply, *new_dvnode = call->reply2;
 	const __be32 *bp;
+	int ret;
 
 	_enter("{%u},{%u},%d", call->unmarshall, skb->len, last);
 
-	afs_transfer_reply(call, skb);
-	if (!last)
-		return 0;
-
-	if (call->reply_size != call->reply_max)
-		return -EBADMSG;
+	ret = afs_transfer_reply(call, skb, last);
+	if (ret < 0)
+		return ret;
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
@@ -1105,20 +1077,13 @@ static int afs_deliver_fs_store_data(struct afs_call *call,
 {
 	struct afs_vnode *vnode = call->reply;
 	const __be32 *bp;
+	int ret;
 
 	_enter(",,%u", last);
 
-	afs_transfer_reply(call, skb);
-	if (!last) {
-		_leave(" = 0 [more]");
-		return 0;
-	}
-
-	if (call->reply_size != call->reply_max) {
-		_leave(" = -EBADMSG [%u != %u]",
-		       call->reply_size, call->reply_max);
-		return -EBADMSG;
-	}
+	ret = afs_transfer_reply(call, skb, last);
+	if (ret < 0)
+		return ret;
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
@@ -1292,20 +1257,13 @@ static int afs_deliver_fs_store_status(struct afs_call *call,
 	afs_dataversion_t *store_version;
 	struct afs_vnode *vnode = call->reply;
 	const __be32 *bp;
+	int ret;
 
 	_enter(",,%u", last);
 
-	afs_transfer_reply(call, skb);
-	if (!last) {
-		_leave(" = 0 [more]");
-		return 0;
-	}
-
-	if (call->reply_size != call->reply_max) {
-		_leave(" = -EBADMSG [%u != %u]",
-		       call->reply_size, call->reply_max);
-		return -EBADMSG;
-	}
+	ret = afs_transfer_reply(call, skb, last);
+	if (ret < 0)
+		return ret;
 
 	/* unmarshall the reply once we've received all of it */
 	store_version = NULL;
@@ -1504,11 +1462,8 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call,
 		_debug("extract status");
 		ret = afs_extract_data(call, skb, last, call->buffer,
 				       12 * 4);
-		switch (ret) {
-		case 0:		break;
-		case -EAGAIN:	return 0;
-		default:	return ret;
-		}
+		if (ret < 0)
+			return ret;
 
 		bp = call->buffer;
 		xdr_decode_AFSFetchVolumeStatus(&bp, call->reply2);
@@ -1518,11 +1473,8 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call,
 		/* extract the volume name length */
 	case 2:
 		ret = afs_extract_data(call, skb, last, &call->tmp, 4);
-		switch (ret) {
-		case 0:		break;
-		case -EAGAIN:	return 0;
-		default:	return ret;
-		}
+		if (ret < 0)
+			return ret;
 
 		call->count = ntohl(call->tmp);
 		_debug("volname length: %u", call->count);
@@ -1537,11 +1489,8 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call,
 		if (call->count > 0) {
 			ret = afs_extract_data(call, skb, last, call->reply3,
 					       call->count);
-			switch (ret) {
-			case 0:		break;
-			case -EAGAIN:	return 0;
-			default:	return ret;
-			}
+			if (ret < 0)
+				return ret;
 		}
 
 		p = call->reply3;
@@ -1561,11 +1510,8 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call,
 	case 4:
 		ret = afs_extract_data(call, skb, last, call->buffer,
 				       call->count);
-		switch (ret) {
-		case 0:		break;
-		case -EAGAIN:	return 0;
-		default:	return ret;
-		}
+		if (ret < 0)
+			return ret;
 
 		call->offset = 0;
 		call->unmarshall++;
@@ -1574,11 +1520,8 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call,
 		/* extract the offline message length */
 	case 5:
 		ret = afs_extract_data(call, skb, last, &call->tmp, 4);
-		switch (ret) {
-		case 0:		break;
-		case -EAGAIN:	return 0;
-		default:	return ret;
-		}
+		if (ret < 0)
+			return ret;
 
 		call->count = ntohl(call->tmp);
 		_debug("offline msg length: %u", call->count);
@@ -1593,11 +1536,8 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call,
 		if (call->count > 0) {
 			ret = afs_extract_data(call, skb, last, call->reply3,
 					       call->count);
-			switch (ret) {
-			case 0:		break;
-			case -EAGAIN:	return 0;
-			default:	return ret;
-			}
+			if (ret < 0)
+				return ret;
 		}
 
 		p = call->reply3;
@@ -1617,11 +1557,8 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call,
 	case 7:
 		ret = afs_extract_data(call, skb, last, call->buffer,
 				       call->count);
-		switch (ret) {
-		case 0:		break;
-		case -EAGAIN:	return 0;
-		default:	return ret;
-		}
+		if (ret < 0)
+			return ret;
 
 		call->offset = 0;
 		call->unmarshall++;
@@ -1630,11 +1567,8 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call,
 		/* extract the message of the day length */
 	case 8:
 		ret = afs_extract_data(call, skb, last, &call->tmp, 4);
-		switch (ret) {
-		case 0:		break;
-		case -EAGAIN:	return 0;
-		default:	return ret;
-		}
+		if (ret < 0)
+			return ret;
 
 		call->count = ntohl(call->tmp);
 		_debug("motd length: %u", call->count);
@@ -1649,11 +1583,8 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call,
 		if (call->count > 0) {
 			ret = afs_extract_data(call, skb, last, call->reply3,
 					       call->count);
-			switch (ret) {
-			case 0:		break;
-			case -EAGAIN:	return 0;
-			default:	return ret;
-			}
+			if (ret < 0)
+				return ret;
 		}
 
 		p = call->reply3;
@@ -1673,25 +1604,19 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call,
 	case 10:
 		ret = afs_extract_data(call, skb, last, call->buffer,
 				       call->count);
-		switch (ret) {
-		case 0:		break;
-		case -EAGAIN:	return 0;
-		default:	return ret;
-		}
+		if (ret < 0)
+			return ret;
 
 		call->offset = 0;
 		call->unmarshall++;
 	no_motd_padding:
 
 	case 11:
-		_debug("trailer %d", skb->len);
-		if (skb->len != 0)
-			return -EBADMSG;
+		ret = afs_data_complete(call, skb, last);
+		if (ret < 0)
+			return ret;
 		break;
 	}
-
-	if (!last)
-		return 0;
 
 	_leave(" = 0 [done]");
 	return 0;
@@ -1764,15 +1689,13 @@ static int afs_deliver_fs_xxxx_lock(struct afs_call *call,
 				    struct sk_buff *skb, bool last)
 {
 	const __be32 *bp;
+	int ret;
 
 	_enter("{%u},{%u},%d", call->unmarshall, skb->len, last);
 
-	afs_transfer_reply(call, skb);
-	if (!last)
-		return 0;
-
-	if (call->reply_size != call->reply_max)
-		return -EBADMSG;
+	ret = afs_transfer_reply(call, skb, last);
+	if (ret < 0)
+		return ret;
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
