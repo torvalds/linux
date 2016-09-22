@@ -394,7 +394,8 @@ int v4l2_ctrl_handler_init_class(struct v4l2_ctrl_handler *hdl,
 #ifdef CONFIG_LOCKDEP
 
 /**
- * v4l2_ctrl_handler_init -
+ * v4l2_ctrl_handler_init - helper function to create a static struct
+ *	 &lock_class_key and calls v4l2_ctrl_handler_init_class()
  *
  * @hdl:	The control handler.
  * @nr_of_controls_hint: A hint of how many controls this handler is

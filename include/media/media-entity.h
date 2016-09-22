@@ -129,7 +129,7 @@ struct media_pipeline {
  *		an interface.
  * @gobj1:	Part of a union. Used to get the pointer for the second
  *		graph_object of the link.
- * @source:	Part of a union. Used only if the second object (gobj1) is
+ * @sink:	Part of a union. Used only if the second object (gobj1) is
  *		a pad. In that case, it represents the sink pad.
  * @entity:	Part of a union. Used only if the second object (gobj1) is
  *		an entity.
@@ -474,7 +474,8 @@ static inline bool media_entity_enum_test(struct media_entity_enum *ent_enum,
 }
 
 /**
- * media_entity_enum_test - Test whether the entity is marked, and mark it
+ * media_entity_enum_test_and_set - Test whether the entity is marked,
+ *	and mark it
  *
  * @ent_enum: Entity enumeration
  * @entity: Entity to be tested
@@ -532,7 +533,7 @@ static inline bool media_entity_enum_intersects(
 		container_of(gobj, struct media_entity, graph_obj)
 
 /**
- * gobj_to_entity - returns the struct &media_pad pointer from the
+ * gobj_to_pad - returns the struct &media_pad pointer from the
  *	@gobj contained on it.
  *
  * @gobj: Pointer to the struct &media_gobj graph object
@@ -541,7 +542,7 @@ static inline bool media_entity_enum_intersects(
 		container_of(gobj, struct media_pad, graph_obj)
 
 /**
- * gobj_to_entity - returns the struct &media_link pointer from the
+ * gobj_to_link - returns the struct &media_link pointer from the
  *	@gobj contained on it.
  *
  * @gobj: Pointer to the struct &media_gobj graph object
@@ -550,7 +551,7 @@ static inline bool media_entity_enum_intersects(
 		container_of(gobj, struct media_link, graph_obj)
 
 /**
- * gobj_to_entity - returns the struct &media_interface pointer from the
+ * gobj_to_intf - returns the struct &media_interface pointer from the
  *	@gobj contained on it.
  *
  * @gobj: Pointer to the struct &media_gobj graph object
@@ -559,7 +560,7 @@ static inline bool media_entity_enum_intersects(
 		container_of(gobj, struct media_interface, graph_obj)
 
 /**
- * gobj_to_entity - returns the struct media_intf_devnode pointer from the
+ * intf_to_devnode - returns the struct media_intf_devnode pointer from the
  *	@intf contained on it.
  *
  * @intf: Pointer to struct &media_intf_devnode

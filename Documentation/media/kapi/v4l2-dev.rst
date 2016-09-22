@@ -173,7 +173,7 @@ The implementation of a hotplug disconnect should also take the lock from
 using :c:type:`video_device`->queue->lock, then you have to first lock
 :c:type:`video_device`->queue->lock followed by :c:type:`video_device`->lock.
 That way you can be sure no ioctl is running when you call
-:c:type:`v4l2_device_disconnect`.
+:c:func:`v4l2_device_disconnect`.
 
 Video device registration
 -------------------------

@@ -212,7 +212,8 @@ struct v4l2_subdev_core_ops {
 };
 
 /**
- * struct s_radio - Callbacks used when v4l device was opened in radio mode.
+ * struct v4l2_subdev_tuner_ops - Callbacks used when v4l device was opened
+ *	in radio mode.
  *
  * @s_radio: callback for %VIDIOC_S_RADIO ioctl handler code.
  *
@@ -887,7 +888,7 @@ static inline void *v4l2_get_subdevdata(const struct v4l2_subdev *sd)
 }
 
 /**
- * v4l2_set_subdevdata - Sets V4L2 dev private host data
+ * v4l2_set_subdev_hostdata - Sets V4L2 dev private host data
  *
  * @sd: pointer to &struct v4l2_subdev
  * @p: pointer to the private data to be stored.
@@ -898,7 +899,7 @@ static inline void v4l2_set_subdev_hostdata(struct v4l2_subdev *sd, void *p)
 }
 
 /**
- * v4l2_get_subdevdata - Gets V4L2 dev private data
+ * v4l2_get_subdev_hostdata - Gets V4L2 dev private data
  *
  * @sd: pointer to &struct v4l2_subdev
  *

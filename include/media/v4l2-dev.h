@@ -115,7 +115,7 @@ void v4l2_prio_close(struct v4l2_prio_state *global, enum v4l2_priority local);
 enum v4l2_priority v4l2_prio_max(struct v4l2_prio_state *global);
 
 /**
- * v4l2_prio_close - Implements the priority logic for a file handler close
+ * v4l2_prio_check - Implements the priority logic for a file handler close
  *
  * @global: pointer to the &struct v4l2_prio_state of the device node.
  * @local: desired priority, as defined by enum &v4l2_priority local

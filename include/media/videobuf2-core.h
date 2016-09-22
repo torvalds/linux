@@ -396,7 +396,7 @@ struct vb2_ops {
 };
 
 /**
- * struct vb2_ops - driver-specific callbacks
+ * struct vb2_buf_ops - driver-specific callbacks
  *
  * @verify_planes_array: Verify that a given user space structure contains
  *			enough planes for the buffer. This is called

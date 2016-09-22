@@ -393,7 +393,7 @@ unsigned int v4l2_m2m_num_src_bufs_ready(struct v4l2_m2m_ctx *m2m_ctx)
 }
 
 /**
- * v4l2_m2m_num_src_bufs_ready() - return the number of destination buffers
+ * v4l2_m2m_num_dst_bufs_ready() - return the number of destination buffers
  * ready for use
  *
  * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
