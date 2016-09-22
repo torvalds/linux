@@ -236,7 +236,6 @@
 		allwinner,pins = "PH2";
 		allwinner,function = "gpio_out";
 		allwinner,drive = <SUN4I_PINCTRL_20_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	usb0_id_detect_pin: usb0_id_detect_pin@0 {

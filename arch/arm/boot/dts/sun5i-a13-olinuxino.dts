@@ -215,7 +215,6 @@
 		allwinner,pins = "PG9";
 		allwinner,function = "gpio_out";
 		allwinner,drive = <SUN4I_PINCTRL_20_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	usb0_id_detect_pin: usb0_id_detect_pin@0 {
@@ -233,7 +232,6 @@
 	usb1_vbus_pin_olinuxino: usb1_vbus_pin@0 {
 		allwinner,pins = "PG11";
 		allwinner,function = "gpio_out";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
 

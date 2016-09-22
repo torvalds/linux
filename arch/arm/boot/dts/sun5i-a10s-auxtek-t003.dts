@@ -118,7 +118,6 @@
 		allwinner,pins = "PB2";
 		allwinner,function = "gpio_out";
 		allwinner,drive = <SUN4I_PINCTRL_20_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
 

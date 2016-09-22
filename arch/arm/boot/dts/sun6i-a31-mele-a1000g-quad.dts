@@ -130,7 +130,6 @@
 	led_pins_m9: led_pins@0 {
 		allwinner,pins = "PH13";
 		allwinner,function = "gpio_out";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	mmc0_cd_pin_m9: mmc0_cd_pin@0 {
@@ -142,7 +141,6 @@
 	usb1_vbus_pin_m9: usb1_vbus_pin@0 {
 		allwinner,pins = "PC27";
 		allwinner,function = "gpio_out";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
 

@@ -59,7 +59,6 @@
 	mmc2_pins_nrst: mmc2@0 {
 		allwinner,pins = "PC16";
 		allwinner,function = "gpio_out";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
 

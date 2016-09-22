@@ -171,19 +171,16 @@
 						 "PF3", "PF4", "PF5";
 				allwinner,function = "mmc0";
 				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			uart0_pins_a: uart0@0 {
 				allwinner,pins = "PF2", "PF4";
 				allwinner,function = "uart0";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			uart0_pins_b: uart0@1 {
 				allwinner,pins = "PB9", "PB10";
 				allwinner,function = "uart0";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 		};
 

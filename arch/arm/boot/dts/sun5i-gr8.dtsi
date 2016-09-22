@@ -766,37 +766,31 @@
 			i2c0_pins_a: i2c0@0 {
 				allwinner,pins = "PB0", "PB1";
 				allwinner,function = "i2c0";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			i2c1_pins_a: i2c1@0 {
 				allwinner,pins = "PB15", "PB16";
 				allwinner,function = "i2c1";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			i2c2_pins_a: i2c2@0 {
 				allwinner,pins = "PB17", "PB18";
 				allwinner,function = "i2c2";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			i2s0_data_pins_a: i2s0-data@0 {
 				allwinner,pins = "PB6", "PB7", "PB8", "PB9";
 				allwinner,function = "i2s0";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			i2s0_mclk_pins_a: i2s0-mclk@0 {
 				allwinner,pins = "PB5";
 				allwinner,function = "i2s0";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			ir0_rx_pins_a: ir0@0 {
 				allwinner,pins = "PB4";
 				allwinner,function = "ir0";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			lcd_rgb666_pins: lcd-rgb666@0 {
@@ -805,7 +799,6 @@
 						 "PD18", "PD19", "PD20", "PD21", "PD22", "PD23",
 						 "PD24", "PD25", "PD26", "PD27";
 				allwinner,function = "lcd0";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			mmc0_pins_a: mmc0@0 {
@@ -813,7 +806,6 @@
 						 "PF4", "PF5";
 				allwinner,function = "mmc0";
 				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			nand_pins_a: nand-base0@0 {
@@ -822,31 +814,26 @@
 						"PC11", "PC12", "PC13", "PC14",
 						"PC15";
 				allwinner,function = "nand0";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			nand_cs0_pins_a: nand-cs@0 {
 				allwinner,pins = "PC4";
 				allwinner,function = "nand0";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			nand_rb0_pins_a: nand-rb@0 {
 				allwinner,pins = "PC6";
 				allwinner,function = "nand0";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			pwm0_pins_a: pwm0@0 {
 				allwinner,pins = "PB2";
 				allwinner,function = "pwm0";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			pwm1_pins: pwm1 {
 				allwinner,pins = "PG13";
 				allwinner,function = "pwm1";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			spdif_tx_pins_a: spdif@0 {
@@ -858,37 +845,31 @@
 			uart1_pins_a: uart1@1 {
 				allwinner,pins = "PG3", "PG4";
 				allwinner,function = "uart1";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			uart1_cts_rts_pins_a: uart1-cts-rts@0 {
 				allwinner,pins = "PG5", "PG6";
 				allwinner,function = "uart1";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			uart2_pins_a: uart2@1 {
 				allwinner,pins = "PD2", "PD3";
 				allwinner,function = "uart2";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			uart2_cts_rts_pins_a: uart2-cts-rts@0 {
 				allwinner,pins = "PD4", "PD5";
 				allwinner,function = "uart2";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			uart3_pins_a: uart3@1 {
 				allwinner,pins = "PG9", "PG10";
 				allwinner,function = "uart3";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			uart3_cts_rts_pins_a: uart3-cts-rts@0 {
 				allwinner,pins = "PG11", "PG12";
 				allwinner,function = "uart3";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 		};
 

@@ -188,13 +188,11 @@
 	emac_power_pin_a1000: emac_power_pin@0 {
 		allwinner,pins = "PH15";
 		allwinner,function = "gpio_out";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	led_pins_a1000: led_pins@0 {
 		allwinner,pins = "PH10", "PH20";
 		allwinner,function = "gpio_out";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
 

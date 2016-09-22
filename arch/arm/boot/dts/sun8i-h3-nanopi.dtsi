@@ -112,7 +112,6 @@
 	leds_npi: led_pins@0 {
 		allwinner,pins = "PA10";
 		allwinner,function = "gpio_out";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
 
@@ -120,13 +119,11 @@
 	leds_r_npi: led_pins@0 {
 		allwinner,pins = "PL10";
 		allwinner,function = "gpio_out";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	sw_r_npi: key_pins@0 {
 		allwinner,pins = "PL3";
 		allwinner,function = "gpio_in";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
 

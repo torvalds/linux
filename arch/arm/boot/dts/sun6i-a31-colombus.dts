@@ -137,7 +137,6 @@
 	usb2_vbus_pin_colombus: usb2_vbus_pin@0 {
 		allwinner,pins = "PH24";
 		allwinner,function = "gpio_out";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	i2c_lcd_pins: i2c_lcd_pin@0 {

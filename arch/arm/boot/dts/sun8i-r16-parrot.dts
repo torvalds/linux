@@ -167,7 +167,6 @@
 	led_pins_parrot: led_pins@0 {
 		allwinner,pins = "PE16", "PE17";
 		allwinner,function = "gpio_out";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	usb0_id_det: usb0_id_detect_pin@0 {
@@ -179,7 +178,6 @@
 	usb1_vbus_pin_parrot: usb1_vbus_pin@0 {
 		allwinner,pins = "PD12";
 		allwinner,function = "gpio_out";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
 
@@ -187,7 +185,6 @@
 	wifi_reset_pin_parrot: wifi_reset_pin@0 {
 		allwinner,pins = "PL6";
 		allwinner,function = "gpio_out";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
 

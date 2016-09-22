@@ -144,14 +144,12 @@
 	mmc1_vcc_en_pin_t004: mmc1_vcc_en_pin@0 {
 		allwinner,pins = "PB18";
 		allwinner,function = "gpio_out";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	led_pins_t004: led_pins@0 {
 		allwinner,pins = "PB2";
 		allwinner,function = "gpio_out";
 		allwinner,drive = <SUN4I_PINCTRL_20_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
 

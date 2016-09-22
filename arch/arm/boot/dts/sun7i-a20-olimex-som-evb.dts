@@ -210,14 +210,12 @@
 	ahci_pwr_pin_olimex_som_evb: ahci_pwr_pin@1 {
 		allwinner,pins = "PC3";
 		allwinner,function = "gpio_out";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	led_pins_olimex_som_evb: led_pins@0 {
 		allwinner,pins = "PH2";
 		allwinner,function = "gpio_out";
 		allwinner,drive = <SUN4I_PINCTRL_20_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	mmc3_cd_pin_olimex_som_evb: mmc3_cd_pin@0 {
@@ -229,13 +227,11 @@
 	usb0_id_detect_pin: usb0_id_detect_pin@0 {
 		allwinner,pins = "PH4";
 		allwinner,function = "gpio_in";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	usb0_vbus_detect_pin: usb0_vbus_detect_pin@0 {
 		allwinner,pins = "PH5";
 		allwinner,function = "gpio_in";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
 

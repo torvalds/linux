@@ -147,7 +147,6 @@
 	leds_opc: led_pins@0 {
 		allwinner,pins = "PA15";
 		allwinner,function = "gpio_out";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
 
@@ -155,19 +154,16 @@
 	leds_r_opc: led_pins@0 {
 		allwinner,pins = "PL10";
 		allwinner,function = "gpio_out";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	sw_r_opc: key_pins@0 {
 		allwinner,pins = "PL3", "PL4";
 		allwinner,function = "gpio_in";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	wifi_pwrseq_pin_orangepi: wifi_pwrseq_pin@0 {
 		allwinner,pins = "PL7";
 		allwinner,function = "gpio_out";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
 

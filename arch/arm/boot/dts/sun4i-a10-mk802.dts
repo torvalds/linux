@@ -93,19 +93,16 @@
 	usb0_id_detect_pin: usb0_id_detect_pin@0 {
 		allwinner,pins = "PH4";
 		allwinner,function = "gpio_in";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	usb0_vbus_detect_pin: usb0_vbus_detect_pin@0 {
 		allwinner,pins = "PH5";
 		allwinner,function = "gpio_in";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	usb2_vbus_pin_mk802: usb2_vbus_pin@0 {
 		allwinner,pins = "PH12";
 		allwinner,function = "gpio_out";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
 

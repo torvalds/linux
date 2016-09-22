@@ -276,19 +276,16 @@
 			uart0_pins_a: uart0@0 {
 				allwinner,pins = "PF2", "PF4";
 				allwinner,function = "uart0";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			uart1_pins_a: uart1@0 {
 				allwinner,pins = "PG6", "PG7";
 				allwinner,function = "uart1";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			uart1_pins_cts_rts_a: uart1-cts-rts@0 {
 				allwinner,pins = "PG8", "PG9";
 				allwinner,function = "uart1";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			mmc0_pins_a: mmc0@0 {
@@ -296,7 +293,6 @@
 						 "PF3", "PF4", "PF5";
 				allwinner,function = "mmc0";
 				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			mmc1_pins_a: mmc1@0 {
@@ -304,7 +300,6 @@
 						 "PG3", "PG4", "PG5";
 				allwinner,function = "mmc1";
 				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			mmc2_8bit_pins: mmc2_8bit {
@@ -314,31 +309,26 @@
 						 "PC15", "PC16";
 				allwinner,function = "mmc2";
 				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			pwm0_pins: pwm0 {
 				allwinner,pins = "PH0";
 				allwinner,function = "pwm0";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			i2c0_pins_a: i2c0@0 {
 				allwinner,pins = "PH2", "PH3";
 				allwinner,function = "i2c0";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			i2c1_pins_a: i2c1@0 {
 				allwinner,pins = "PH4", "PH5";
 				allwinner,function = "i2c1";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			i2c2_pins_a: i2c2@0 {
 				allwinner,pins = "PE12", "PE13";
 				allwinner,function = "i2c2";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			lcd_rgb666_pins: lcd-rgb666@0 {
@@ -347,7 +337,6 @@
 			                         "PD18", "PD19", "PD20", "PD21", "PD22", "PD23",
 			                         "PD24", "PD25", "PD26", "PD27";
 				allwinner,function = "lcd0";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 		};
 
@@ -588,7 +577,6 @@
 			r_uart_pins_a: r_uart@0 {
 				allwinner,pins = "PL2", "PL3";
 				allwinner,function = "s_uart";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 		};
 

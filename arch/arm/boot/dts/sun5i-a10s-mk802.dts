@@ -118,7 +118,6 @@
 	led_pins_mk802: led_pins@0 {
 		allwinner,pins = "PB2";
 		allwinner,function = "gpio_out";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	mmc0_cd_pin_mk802: mmc0_cd_pin@0 {
@@ -130,7 +129,6 @@
 	usb1_vbus_pin_mk802: usb1_vbus_pin@0 {
 		allwinner,pins = "PB10";
 		allwinner,function = "gpio_out";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
 

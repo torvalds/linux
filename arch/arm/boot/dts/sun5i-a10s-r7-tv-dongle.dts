@@ -110,13 +110,11 @@
 		allwinner,pins = "PB2";
 		allwinner,function = "gpio_out";
 		allwinner,drive = <SUN4I_PINCTRL_20_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	usb1_vbus_pin_r7: usb1_vbus_pin@0 {
 		allwinner,pins = "PG13";
 		allwinner,function = "gpio_out";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
 

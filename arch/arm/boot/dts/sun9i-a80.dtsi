@@ -689,7 +689,6 @@
 			i2c3_pins_a: i2c3@0 {
 				allwinner,pins = "PG10", "PG11";
 				allwinner,function = "i2c3";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			mmc0_pins: mmc0 {
@@ -697,7 +696,6 @@
 						 "PF4", "PF5";
 				allwinner,function = "mmc0";
 				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			mmc1_pins: mmc1 {
@@ -705,7 +703,6 @@
 						 "PG4", "PG5";
 				allwinner,function = "mmc1";
 				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			mmc2_8bit_pins: mmc2_8bit {
@@ -715,19 +712,16 @@
 						 "PC16";
 				allwinner,function = "mmc2";
 				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			uart0_pins_a: uart0@0 {
 				allwinner,pins = "PH12", "PH13";
 				allwinner,function = "uart0";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			uart4_pins_a: uart4@0 {
 				allwinner,pins = "PG12", "PG13", "PG14", "PG15";
 				allwinner,function = "uart4";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 		};
 
@@ -911,7 +905,6 @@
 			r_ir_pins: r_ir {
 				allwinner,pins = "PL6";
 				allwinner,function = "s_cir_rx";
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			r_rsb_pins: r_rsb {

@@ -132,7 +132,6 @@
 	codec_pa_pin: codec_pa_pin@0 {
 		allwinner,pins = "PG10";
 		allwinner,function = "gpio_out";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	mmc0_cd_pin: mmc0_cd_pin@0 {
@@ -163,7 +162,6 @@
 	usb0_vbus_pin_a: usb0_vbus_pin@0 {
 		allwinner,pins = "PG12";
 		allwinner,function = "gpio_out";
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
 
