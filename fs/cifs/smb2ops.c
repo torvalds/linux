@@ -536,6 +536,7 @@ smb2_set_fid(struct cifsFileInfo *cfile, struct cifs_fid *fid, __u32 oplock)
 	server->ops->set_oplock_level(cinode, oplock, fid->epoch,
 				      &fid->purge_cache);
 	cinode->can_cache_brlcks = CIFS_CACHE_WRITE(cinode);
+	memcpy(cfile->fid.create_guid, fid->create_guid, 16);
 }
 
 static void
