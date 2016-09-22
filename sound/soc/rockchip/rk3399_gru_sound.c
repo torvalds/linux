@@ -38,6 +38,8 @@
 
 #define SOUND_FS	256
 
+unsigned int rt5514_dmic_delay;
+
 static struct snd_soc_jack rockchip_sound_jack;
 
 static const struct snd_soc_dapm_widget rockchip_dapm_widgets[] = {
@@ -122,6 +124,9 @@ static int rockchip_sound_rt5514_hw_params(struct snd_pcm_substream *substream,
 				__func__, params_rate(params) * 512, ret);
 		return ret;
 	}
+
+	/* Wait for DMIC stable */
+	msleep(rt5514_dmic_delay);
 
 	return 0;
 }
@@ -341,6 +346,15 @@ static int rockchip_sound_probe(struct platform_device *pdev)
 	if (!dev) {
 		dev_err(&pdev->dev, "Can not find the rt5514 device\n");
 		return -ENODEV;
+	}
+
+	/* Set DMIC delay */
+	ret = device_property_read_u32(&pdev->dev, "dmic-delay",
+					&rt5514_dmic_delay);
+	if (ret) {
+		rt5514_dmic_delay = 0;
+		dev_dbg(&pdev->dev,
+			"no optional property 'dmic-delay' found, default: no delay\n");
 	}
 
 	rockchip_dailinks[DAILINK_RT5514_DSP].cpu_name = kstrdup_const(dev_name(dev), GFP_KERNEL);
