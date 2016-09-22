@@ -274,4 +274,10 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 			struct perf_evlist *evlist,
 			int level);
 int output_field_add(struct perf_hpp_list *list, char *tok);
+int64_t
+sort__iaddr_cmp(struct hist_entry *left, struct hist_entry *right);
+int64_t
+sort__daddr_cmp(struct hist_entry *left, struct hist_entry *right);
+int64_t
+sort__dcacheline_cmp(struct hist_entry *left, struct hist_entry *right);
 #endif	/* __PERF_SORT_H */
