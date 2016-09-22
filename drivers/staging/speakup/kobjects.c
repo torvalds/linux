@@ -251,7 +251,7 @@ static ssize_t keymap_show(struct kobject *kobj, struct kobj_attribute *attr,
 	}
 	cp += sprintf(cp, "0, %d\n", KEY_MAP_VER);
 	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
-	return (int)(cp-buf);
+	return (int)(cp - buf);
 }
 
 /*
@@ -288,8 +288,8 @@ static ssize_t keymap_store(struct kobject *kobj, struct kobj_attribute *attr,
 		cp = spk_s2uchar(cp, cp1);
 		cp1++;
 	}
-	i = (int)cp1[-2]+1;
-	i *= (int)cp1[-1]+1;
+	i = (int)cp1[-2] + 1;
+	i *= (int)cp1[-1] + 1;
 	i += 2; /* 0 and last map ver */
 	if (cp1[-3] != KEY_MAP_VER || cp1[-1] > 10 ||
 			i+SHIFT_TBL_SIZE+4 >= sizeof(spk_key_buf)) {
@@ -350,9 +350,9 @@ static ssize_t silent_store(struct kobject *kobj, struct kobj_attribute *attr,
 	} else {
 		shut = 0;
 	}
-	if (ch&4)
+	if (ch & 4)
 		shut |= 0x40;
-	if (ch&1)
+	if (ch & 1)
 		spk_shut_up |= shut;
 	else
 		spk_shut_up &= ~shut;
