@@ -1262,6 +1262,8 @@ static int netvsc_register_vf(struct net_device *vf_netdev)
 	 * Take a reference on the module.
 	 */
 	try_module_get(THIS_MODULE);
+
+	dev_hold(vf_netdev);
 	net_device_ctx->vf_netdev = vf_netdev;
 	return NOTIFY_OK;
 }
@@ -1376,6 +1378,7 @@ static int netvsc_unregister_vf(struct net_device *vf_netdev)
 	netdev_info(ndev, "VF unregistering: %s\n", vf_netdev->name);
 	netvsc_inject_disable(net_device_ctx);
 	net_device_ctx->vf_netdev = NULL;
+	dev_put(vf_netdev);
 	module_put(THIS_MODULE);
 	return NOTIFY_OK;
 }
