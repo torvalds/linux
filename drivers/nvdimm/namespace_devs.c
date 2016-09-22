@@ -1032,22 +1032,27 @@ static ssize_t size_show(struct device *dev,
 }
 static DEVICE_ATTR(size, S_IRUGO, size_show, size_store);
 
-static ssize_t uuid_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static u8 *namespace_to_uuid(struct device *dev)
 {
-	u8 *uuid;
-
 	if (is_namespace_pmem(dev)) {
 		struct nd_namespace_pmem *nspm = to_nd_namespace_pmem(dev);
 
-		uuid = nspm->uuid;
+		return nspm->uuid;
 	} else if (is_namespace_blk(dev)) {
 		struct nd_namespace_blk *nsblk = to_nd_namespace_blk(dev);
 
-		uuid = nsblk->uuid;
+		return nsblk->uuid;
 	} else
-		return -ENXIO;
+		return ERR_PTR(-ENXIO);
+}
 
+static ssize_t uuid_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	u8 *uuid = namespace_to_uuid(dev);
+
+	if (IS_ERR(uuid))
+		return PTR_ERR(uuid);
 	if (uuid)
 		return sprintf(buf, "%pUb\n", uuid);
 	return sprintf(buf, "\n");
