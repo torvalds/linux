@@ -1494,11 +1494,14 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		ret = iwl_mvm_drain_sta(mvm, mvm_sta, false);
 
 		/* If DQA is supported - the queues can be disabled now */
-		if (iwl_mvm_is_dqa_supported(mvm)) {
+		if (iwl_mvm_is_dqa_supported(mvm))
+			iwl_mvm_disable_sta_queues(mvm, vif, mvm_sta);
+
+		/* If there is a TXQ still marked as reserved - free it */
+		if (iwl_mvm_is_dqa_supported(mvm) &&
+		    mvm_sta->reserved_queue != IEEE80211_INVAL_HW_QUEUE) {
 			u8 reserved_txq = mvm_sta->reserved_queue;
 			enum iwl_mvm_queue_status *status;
-
-			iwl_mvm_disable_sta_queues(mvm, vif, mvm_sta);
 
 			/*
 			 * If no traffic has gone through the reserved TXQ - it
