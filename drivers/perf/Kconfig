@@ -43,4 +43,12 @@ config XGENE_PMU
         help
           Say y if you want to use APM X-Gene SoC performance monitors.
 
+config ARM_SPE_PMU
+	tristate "Enable support for the ARMv8.2 Statistical Profiling Extension"
+	depends on PERF_EVENTS && ARM64
+	help
+	  Enable perf support for the ARMv8.2 Statistical Profiling
+	  Extension, which provides periodic sampling of operations in
+	  the CPU pipeline and reports this via the perf AUX interface.
+
 endmenu
