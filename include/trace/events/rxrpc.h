@@ -353,6 +353,67 @@ TRACE_EVENT(rxrpc_recvmsg,
 		      __entry->ret)
 	    );
 
+TRACE_EVENT(rxrpc_rtt_tx,
+	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_rtt_tx_trace why,
+		     rxrpc_serial_t send_serial),
+
+	    TP_ARGS(call, why, send_serial),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_call *,	call		)
+		    __field(enum rxrpc_rtt_tx_trace,	why		)
+		    __field(rxrpc_serial_t,		send_serial	)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->why = why;
+		    __entry->send_serial = send_serial;
+			   ),
+
+	    TP_printk("c=%p %s sr=%08x",
+		      __entry->call,
+		      rxrpc_rtt_tx_traces[__entry->why],
+		      __entry->send_serial)
+	    );
+
+TRACE_EVENT(rxrpc_rtt_rx,
+	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_rtt_rx_trace why,
+		     rxrpc_serial_t send_serial, rxrpc_serial_t resp_serial,
+		     s64 rtt, u8 nr, s64 avg),
+
+	    TP_ARGS(call, why, send_serial, resp_serial, rtt, nr, avg),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_call *,	call		)
+		    __field(enum rxrpc_rtt_rx_trace,	why		)
+		    __field(u8,				nr		)
+		    __field(rxrpc_serial_t,		send_serial	)
+		    __field(rxrpc_serial_t,		resp_serial	)
+		    __field(s64,			rtt		)
+		    __field(u64,			avg		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->why = why;
+		    __entry->send_serial = send_serial;
+		    __entry->resp_serial = resp_serial;
+		    __entry->rtt = rtt;
+		    __entry->nr = nr;
+		    __entry->avg = avg;
+			   ),
+
+	    TP_printk("c=%p %s sr=%08x rr=%08x rtt=%lld nr=%u avg=%lld",
+		      __entry->call,
+		      rxrpc_rtt_rx_traces[__entry->why],
+		      __entry->send_serial,
+		      __entry->resp_serial,
+		      __entry->rtt,
+		      __entry->nr,
+		      __entry->avg)
+	    );
+
 #endif /* _TRACE_RXRPC_H */
 
 /* This part must be outside protection */

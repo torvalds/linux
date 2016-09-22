@@ -37,6 +37,22 @@ static void rxrpc_proto_abort(const char *why,
 }
 
 /*
+ * Ping the other end to fill our RTT cache and to retrieve the rwind
+ * and MTU parameters.
+ */
+static void rxrpc_send_ping(struct rxrpc_call *call, struct sk_buff *skb,
+			    int skew)
+{
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+	ktime_t now = skb->tstamp;
+
+	if (call->peer->rtt_usage < 3 ||
+	    ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000), now))
+		rxrpc_propose_ACK(call, RXRPC_ACK_PING, skew, sp->hdr.serial,
+				  true, true);
+}
+
+/*
  * Apply a hard ACK by advancing the Tx window.
  */
 static void rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to)
@@ -343,6 +359,64 @@ ack:
 }
 
 /*
+ * Process a requested ACK.
+ */
+static void rxrpc_input_requested_ack(struct rxrpc_call *call,
+				      ktime_t resp_time,
+				      rxrpc_serial_t orig_serial,
+				      rxrpc_serial_t ack_serial)
+{
+	struct rxrpc_skb_priv *sp;
+	struct sk_buff *skb;
+	ktime_t sent_at;
+	int ix;
+
+	for (ix = 0; ix < RXRPC_RXTX_BUFF_SIZE; ix++) {
+		skb = call->rxtx_buffer[ix];
+		if (!skb)
+			continue;
+
+		sp = rxrpc_skb(skb);
+		if (sp->hdr.serial != orig_serial)
+			continue;
+		smp_rmb();
+		sent_at = skb->tstamp;
+		goto found;
+	}
+	return;
+
+found:
+	rxrpc_peer_add_rtt(call, rxrpc_rtt_rx_requested_ack,
+			   orig_serial, ack_serial, sent_at, resp_time);
+}
+
+/*
+ * Process a ping response.
+ */
+static void rxrpc_input_ping_response(struct rxrpc_call *call,
+				      ktime_t resp_time,
+				      rxrpc_serial_t orig_serial,
+				      rxrpc_serial_t ack_serial)
+{
+	rxrpc_serial_t ping_serial;
+	ktime_t ping_time;
+
+	ping_time = call->ackr_ping_time;
+	smp_rmb();
+	ping_serial = call->ackr_ping;
+
+	if (!test_bit(RXRPC_CALL_PINGING, &call->flags) ||
+	    before(orig_serial, ping_serial))
+		return;
+	clear_bit(RXRPC_CALL_PINGING, &call->flags);
+	if (after(orig_serial, ping_serial))
+		return;
+
+	rxrpc_peer_add_rtt(call, rxrpc_rtt_rx_ping_response,
+			   orig_serial, ack_serial, ping_time, resp_time);
+}
+
+/*
  * Process the extra information that may be appended to an ACK packet
  */
 static void rxrpc_input_ackinfo(struct rxrpc_call *call, struct sk_buff *skb,
@@ -388,17 +462,25 @@ static void rxrpc_input_soft_acks(struct rxrpc_call *call, u8 *acks,
 {
 	bool resend = false;
 	int ix;
+	u8 annotation, anno_type;
 
 	for (; nr_acks > 0; nr_acks--, seq++) {
 		ix = seq & RXRPC_RXTX_BUFF_MASK;
+		annotation = call->rxtx_annotations[ix];
+		anno_type = annotation & RXRPC_TX_ANNO_MASK;
+		annotation &= ~RXRPC_TX_ANNO_MASK;
 		switch (*acks++) {
 		case RXRPC_ACK_TYPE_ACK:
-			call->rxtx_annotations[ix] = RXRPC_TX_ANNO_ACK;
+			if (anno_type == RXRPC_TX_ANNO_ACK)
+				continue;
+			call->rxtx_annotations[ix] =
+				RXRPC_TX_ANNO_ACK | annotation;
 			break;
 		case RXRPC_ACK_TYPE_NACK:
-			if (call->rxtx_annotations[ix] == RXRPC_TX_ANNO_NAK)
+			if (anno_type == RXRPC_TX_ANNO_NAK)
 				continue;
-			call->rxtx_annotations[ix] = RXRPC_TX_ANNO_NAK;
+			call->rxtx_annotations[ix] =
+				RXRPC_TX_ANNO_NAK | annotation;
 			resend = true;
 			break;
 		default:
@@ -430,6 +512,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 		struct rxrpc_ackinfo info;
 		u8 acks[RXRPC_MAXACKS];
 	} buf;
+	rxrpc_serial_t acked_serial;
 	rxrpc_seq_t first_soft_ack, hard_ack;
 	int nr_acks, offset;
 
@@ -441,6 +524,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 	}
 	sp->offset += sizeof(buf.ack);
 
+	acked_serial = ntohl(buf.ack.serial);
 	first_soft_ack = ntohl(buf.ack.firstPacket);
 	hard_ack = first_soft_ack - 1;
 	nr_acks = buf.ack.nAcks;
@@ -452,9 +536,16 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 	       ntohs(buf.ack.maxSkew),
 	       first_soft_ack,
 	       ntohl(buf.ack.previousPacket),
-	       ntohl(buf.ack.serial),
+	       acked_serial,
 	       rxrpc_acks(buf.ack.reason),
 	       buf.ack.nAcks);
+
+	if (buf.ack.reason == RXRPC_ACK_PING_RESPONSE)
+		rxrpc_input_ping_response(call, skb->tstamp, acked_serial,
+					  sp->hdr.serial);
+	if (buf.ack.reason == RXRPC_ACK_REQUESTED)
+		rxrpc_input_requested_ack(call, skb->tstamp, acked_serial,
+					  sp->hdr.serial);
 
 	if (buf.ack.reason == RXRPC_ACK_PING) {
 		_proto("Rx ACK %%%u PING Request", sp->hdr.serial);
@@ -822,6 +913,7 @@ void rxrpc_data_ready(struct sock *udp_sk)
 			rcu_read_unlock();
 			goto reject_packet;
 		}
+		rxrpc_send_ping(call, skb, skew);
 	}
 
 	rxrpc_input_call_packet(call, skb, skew);

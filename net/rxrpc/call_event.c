@@ -139,15 +139,16 @@ void rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
  */
 static void rxrpc_resend(struct rxrpc_call *call)
 {
-	struct rxrpc_wire_header *whdr;
 	struct rxrpc_skb_priv *sp;
 	struct sk_buff *skb;
 	rxrpc_seq_t cursor, seq, top;
-	unsigned long resend_at, now;
+	ktime_t now = ktime_get_real(), max_age, oldest,  resend_at;
 	int ix;
-	u8 annotation;
+	u8 annotation, anno_type;
 
 	_enter("{%d,%d}", call->tx_hard_ack, call->tx_top);
+
+	max_age = ktime_sub_ms(now, rxrpc_resend_timeout);
 
 	spin_lock_bh(&call->lock);
 
@@ -161,31 +162,33 @@ static void rxrpc_resend(struct rxrpc_call *call)
 	 * the packets in the Tx buffer we're going to resend and what the new
 	 * resend timeout will be.
 	 */
-	now = jiffies;
-	resend_at = now + rxrpc_resend_timeout;
+	oldest = now;
 	for (seq = cursor + 1; before_eq(seq, top); seq++) {
 		ix = seq & RXRPC_RXTX_BUFF_MASK;
 		annotation = call->rxtx_annotations[ix];
-		if (annotation == RXRPC_TX_ANNO_ACK)
+		anno_type = annotation & RXRPC_TX_ANNO_MASK;
+		annotation &= ~RXRPC_TX_ANNO_MASK;
+		if (anno_type == RXRPC_TX_ANNO_ACK)
 			continue;
 
 		skb = call->rxtx_buffer[ix];
 		rxrpc_see_skb(skb, rxrpc_skb_tx_seen);
 		sp = rxrpc_skb(skb);
 
-		if (annotation == RXRPC_TX_ANNO_UNACK) {
-			if (time_after(sp->resend_at, now)) {
-				if (time_before(sp->resend_at, resend_at))
-					resend_at = sp->resend_at;
+		if (anno_type == RXRPC_TX_ANNO_UNACK) {
+			if (ktime_after(skb->tstamp, max_age)) {
+				if (ktime_before(skb->tstamp, oldest))
+					oldest = skb->tstamp;
 				continue;
 			}
 		}
 
 		/* Okay, we need to retransmit a packet. */
-		call->rxtx_annotations[ix] = RXRPC_TX_ANNO_RETRANS;
+		call->rxtx_annotations[ix] = RXRPC_TX_ANNO_RETRANS | annotation;
 	}
 
-	call->resend_at = resend_at;
+	resend_at = ktime_sub(ktime_add_ns(oldest, rxrpc_resend_timeout), now);
+	call->resend_at = jiffies + nsecs_to_jiffies(ktime_to_ns(resend_at));
 
 	/* Now go through the Tx window and perform the retransmissions.  We
 	 * have to drop the lock for each send.  If an ACK comes in whilst the
@@ -195,29 +198,21 @@ static void rxrpc_resend(struct rxrpc_call *call)
 	for (seq = cursor + 1; before_eq(seq, top); seq++) {
 		ix = seq & RXRPC_RXTX_BUFF_MASK;
 		annotation = call->rxtx_annotations[ix];
-		if (annotation != RXRPC_TX_ANNO_RETRANS)
+		anno_type = annotation & RXRPC_TX_ANNO_MASK;
+		if (anno_type != RXRPC_TX_ANNO_RETRANS)
 			continue;
 
 		skb = call->rxtx_buffer[ix];
 		rxrpc_get_skb(skb, rxrpc_skb_tx_got);
 		spin_unlock_bh(&call->lock);
-		sp = rxrpc_skb(skb);
 
-		/* Each Tx packet needs a new serial number */
-		sp->hdr.serial = atomic_inc_return(&call->conn->serial);
-
-		whdr = (struct rxrpc_wire_header *)skb->head;
-		whdr->serial = htonl(sp->hdr.serial);
-
-		if (rxrpc_send_data_packet(call->conn, skb) < 0) {
-			call->resend_at = now + 2;
+		if (rxrpc_send_data_packet(call, skb) < 0) {
 			rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
 			return;
 		}
 
 		if (rxrpc_is_client_call(call))
 			rxrpc_expose_client_call(call);
-		sp->resend_at = now + rxrpc_resend_timeout;
 
 		rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
 		spin_lock_bh(&call->lock);
@@ -227,10 +222,17 @@ static void rxrpc_resend(struct rxrpc_call *call)
 		 * received and the packet might have been hard-ACK'd (in which
 		 * case it will no longer be in the buffer).
 		 */
-		if (after(seq, call->tx_hard_ack) &&
-		    (call->rxtx_annotations[ix] == RXRPC_TX_ANNO_RETRANS ||
-		     call->rxtx_annotations[ix] == RXRPC_TX_ANNO_NAK))
-			call->rxtx_annotations[ix] = RXRPC_TX_ANNO_UNACK;
+		if (after(seq, call->tx_hard_ack)) {
+			annotation = call->rxtx_annotations[ix];
+			anno_type = annotation & RXRPC_TX_ANNO_MASK;
+			if (anno_type == RXRPC_TX_ANNO_RETRANS ||
+			    anno_type == RXRPC_TX_ANNO_NAK) {
+				annotation &= ~RXRPC_TX_ANNO_MASK;
+				annotation |= RXRPC_TX_ANNO_UNACK;
+			}
+			annotation |= RXRPC_TX_ANNO_RESENT;
+			call->rxtx_annotations[ix] = annotation;
+		}
 
 		if (after(call->tx_hard_ack, seq))
 			seq = call->tx_hard_ack;

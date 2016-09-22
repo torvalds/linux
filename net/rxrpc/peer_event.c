@@ -305,3 +305,44 @@ void rxrpc_peer_error_distributor(struct work_struct *work)
 	rxrpc_put_peer(peer);
 	_leave("");
 }
+
+/*
+ * Add RTT information to cache.  This is called in softirq mode and has
+ * exclusive access to the peer RTT data.
+ */
+void rxrpc_peer_add_rtt(struct rxrpc_call *call, enum rxrpc_rtt_rx_trace why,
+			rxrpc_serial_t send_serial, rxrpc_serial_t resp_serial,
+			ktime_t send_time, ktime_t resp_time)
+{
+	struct rxrpc_peer *peer = call->peer;
+	s64 rtt;
+	u64 sum = peer->rtt_sum, avg;
+	u8 cursor = peer->rtt_cursor, usage = peer->rtt_usage;
+
+	rtt = ktime_to_ns(ktime_sub(resp_time, send_time));
+	if (rtt < 0)
+		return;
+
+	/* Replace the oldest datum in the RTT buffer */
+	sum -= peer->rtt_cache[cursor];
+	sum += rtt;
+	peer->rtt_cache[cursor] = rtt;
+	peer->rtt_cursor = (cursor + 1) & (RXRPC_RTT_CACHE_SIZE - 1);
+	peer->rtt_sum = sum;
+	if (usage < RXRPC_RTT_CACHE_SIZE) {
+		usage++;
+		peer->rtt_usage = usage;
+	}
+
+	/* Now recalculate the average */
+	if (usage == RXRPC_RTT_CACHE_SIZE) {
+		avg = sum / RXRPC_RTT_CACHE_SIZE;
+	} else {
+		avg = sum;
+		do_div(avg, usage);
+	}
+
+	peer->rtt = avg;
+	trace_rxrpc_rtt_rx(call, why, send_serial, resp_serial, rtt,
+			   usage, avg);
+}

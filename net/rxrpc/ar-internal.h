@@ -142,10 +142,7 @@ struct rxrpc_host_header {
  */
 struct rxrpc_skb_priv {
 	union {
-		unsigned long	resend_at;	/* time in jiffies at which to resend */
-		struct {
-			u8	nr_jumbo;	/* Number of jumbo subpackets */
-		};
+		u8		nr_jumbo;	/* Number of jumbo subpackets */
 	};
 	union {
 		unsigned int	offset;		/* offset into buffer of next read */
@@ -258,10 +255,12 @@ struct rxrpc_peer {
 
 	/* calculated RTT cache */
 #define RXRPC_RTT_CACHE_SIZE 32
-	suseconds_t		rtt;		/* current RTT estimate (in uS) */
-	unsigned int		rtt_point;	/* next entry at which to insert */
-	unsigned int		rtt_usage;	/* amount of cache actually used */
-	suseconds_t		rtt_cache[RXRPC_RTT_CACHE_SIZE]; /* calculated RTT cache */
+	ktime_t			rtt_last_req;	/* Time of last RTT request */
+	u64			rtt;		/* Current RTT estimate (in nS) */
+	u64			rtt_sum;	/* Sum of cache contents */
+	u64			rtt_cache[RXRPC_RTT_CACHE_SIZE]; /* Determined RTT cache */
+	u8			rtt_cursor;	/* next entry at which to insert */
+	u8			rtt_usage;	/* amount of cache actually used */
 };
 
 /*
@@ -385,10 +384,9 @@ struct rxrpc_connection {
 	int			debug_id;	/* debug ID for printks */
 	atomic_t		serial;		/* packet serial number counter */
 	unsigned int		hi_serial;	/* highest serial number received */
-	u8			size_align;	/* data size alignment (for security) */
-	u8			header_size;	/* rxrpc + security header size */
-	u8			security_size;	/* security header size */
 	u32			security_nonce;	/* response re-use preventer */
+	u8			size_align;	/* data size alignment (for security) */
+	u8			security_size;	/* security header size */
 	u8			security_ix;	/* security type */
 	u8			out_clientflag;	/* RXRPC_CLIENT_INITIATED if we are client */
 };
@@ -403,6 +401,7 @@ enum rxrpc_call_flag {
 	RXRPC_CALL_EXPOSED,		/* The call was exposed to the world */
 	RXRPC_CALL_RX_LAST,		/* Received the last packet (at rxtx_top) */
 	RXRPC_CALL_TX_LAST,		/* Last packet in Tx buffer (at rxtx_top) */
+	RXRPC_CALL_PINGING,		/* Ping in process */
 };
 
 /*
@@ -487,6 +486,8 @@ struct rxrpc_call {
 	u32			call_id;	/* call ID on connection  */
 	u32			cid;		/* connection ID plus channel index */
 	int			debug_id;	/* debug ID for printks */
+	unsigned short		rx_pkt_offset;	/* Current recvmsg packet offset */
+	unsigned short		rx_pkt_len;	/* Current recvmsg packet len */
 
 	/* Rx/Tx circular buffer, depending on phase.
 	 *
@@ -506,6 +507,8 @@ struct rxrpc_call {
 #define RXRPC_TX_ANNO_UNACK	1
 #define RXRPC_TX_ANNO_NAK	2
 #define RXRPC_TX_ANNO_RETRANS	3
+#define RXRPC_TX_ANNO_MASK	0x03
+#define RXRPC_TX_ANNO_RESENT	0x04
 #define RXRPC_RX_ANNO_JUMBO	0x3f		/* Jumbo subpacket number + 1 if not zero */
 #define RXRPC_RX_ANNO_JLAST	0x40		/* Set if last element of a jumbo packet */
 #define RXRPC_RX_ANNO_VERIFIED	0x80		/* Set if verified and decrypted */
@@ -528,8 +531,8 @@ struct rxrpc_call {
 	u16			ackr_skew;	/* skew on packet being ACK'd */
 	rxrpc_serial_t		ackr_serial;	/* serial of packet being ACK'd */
 	rxrpc_seq_t		ackr_prev_seq;	/* previous sequence number received */
-	unsigned short		rx_pkt_offset;	/* Current recvmsg packet offset */
-	unsigned short		rx_pkt_len;	/* Current recvmsg packet len */
+	rxrpc_serial_t		ackr_ping;	/* Last ping sent */
+	ktime_t			ackr_ping_time;	/* Time last ping sent */
 
 	/* transmission-phase ACK management */
 	rxrpc_serial_t		acks_latest;	/* serial number of latest ACK received */
@@ -655,6 +658,22 @@ enum rxrpc_recvmsg_trace {
 };
 
 extern const char rxrpc_recvmsg_traces[rxrpc_recvmsg__nr_trace][5];
+
+enum rxrpc_rtt_tx_trace {
+	rxrpc_rtt_tx_ping,
+	rxrpc_rtt_tx_data,
+	rxrpc_rtt_tx__nr_trace
+};
+
+extern const char rxrpc_rtt_tx_traces[rxrpc_rtt_tx__nr_trace][5];
+
+enum rxrpc_rtt_rx_trace {
+	rxrpc_rtt_rx_ping_response,
+	rxrpc_rtt_rx_requested_ack,
+	rxrpc_rtt_rx__nr_trace
+};
+
+extern const char rxrpc_rtt_rx_traces[rxrpc_rtt_rx__nr_trace][5];
 
 extern const char *const rxrpc_pkts[];
 extern const char *rxrpc_acks(u8 reason);
@@ -946,7 +965,7 @@ extern const s8 rxrpc_ack_priority[];
  * output.c
  */
 int rxrpc_send_call_packet(struct rxrpc_call *, u8);
-int rxrpc_send_data_packet(struct rxrpc_connection *, struct sk_buff *);
+int rxrpc_send_data_packet(struct rxrpc_call *, struct sk_buff *);
 void rxrpc_reject_packets(struct rxrpc_local *);
 
 /*
@@ -954,6 +973,8 @@ void rxrpc_reject_packets(struct rxrpc_local *);
  */
 void rxrpc_error_report(struct sock *);
 void rxrpc_peer_error_distributor(struct work_struct *);
+void rxrpc_peer_add_rtt(struct rxrpc_call *, enum rxrpc_rtt_rx_trace,
+			rxrpc_serial_t, rxrpc_serial_t, ktime_t, ktime_t);
 
 /*
  * peer_object.c

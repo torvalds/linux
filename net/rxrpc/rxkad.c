@@ -80,12 +80,10 @@ static int rxkad_init_connection_security(struct rxrpc_connection *conn)
 	case RXRPC_SECURITY_AUTH:
 		conn->size_align = 8;
 		conn->security_size = sizeof(struct rxkad_level1_hdr);
-		conn->header_size += sizeof(struct rxkad_level1_hdr);
 		break;
 	case RXRPC_SECURITY_ENCRYPT:
 		conn->size_align = 8;
 		conn->security_size = sizeof(struct rxkad_level2_hdr);
-		conn->header_size += sizeof(struct rxkad_level2_hdr);
 		break;
 	default:
 		ret = -EKEYREJECTED;
@@ -161,7 +159,7 @@ static int rxkad_secure_packet_auth(const struct rxrpc_call *call,
 
 	_enter("");
 
-	check = sp->hdr.seq ^ sp->hdr.callNumber;
+	check = sp->hdr.seq ^ call->call_id;
 	data_size |= (u32)check << 16;
 
 	hdr.data_size = htonl(data_size);
@@ -205,7 +203,7 @@ static int rxkad_secure_packet_encrypt(const struct rxrpc_call *call,
 
 	_enter("");
 
-	check = sp->hdr.seq ^ sp->hdr.callNumber;
+	check = sp->hdr.seq ^ call->call_id;
 
 	rxkhdr.data_size = htonl(data_size | (u32)check << 16);
 	rxkhdr.checksum = 0;
@@ -277,7 +275,7 @@ static int rxkad_secure_packet(struct rxrpc_call *call,
 	/* calculate the security checksum */
 	x = (call->cid & RXRPC_CHANNELMASK) << (32 - RXRPC_CIDSHIFT);
 	x |= sp->hdr.seq & 0x3fffffff;
-	call->crypto_buf[0] = htonl(sp->hdr.callNumber);
+	call->crypto_buf[0] = htonl(call->call_id);
 	call->crypto_buf[1] = htonl(x);
 
 	sg_init_one(&sg, call->crypto_buf, 8);

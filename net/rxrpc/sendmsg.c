@@ -134,13 +134,10 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 		write_unlock_bh(&call->state_lock);
 	}
 
-	_proto("Tx DATA %%%u { #%u }", sp->hdr.serial, sp->hdr.seq);
-
 	if (seq == 1 && rxrpc_is_client_call(call))
 		rxrpc_expose_client_call(call);
 
-	sp->resend_at = jiffies + rxrpc_resend_timeout;
-	ret = rxrpc_send_data_packet(call->conn, skb);
+	ret = rxrpc_send_data_packet(call, skb);
 	if (ret < 0) {
 		_debug("need instant resend %d", ret);
 		rxrpc_instant_resend(call, ix);
@@ -148,29 +145,6 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 
 	rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
 	_leave("");
-}
-
-/*
- * Convert a host-endian header into a network-endian header.
- */
-static void rxrpc_insert_header(struct sk_buff *skb)
-{
-	struct rxrpc_wire_header whdr;
-	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-
-	whdr.epoch	= htonl(sp->hdr.epoch);
-	whdr.cid	= htonl(sp->hdr.cid);
-	whdr.callNumber	= htonl(sp->hdr.callNumber);
-	whdr.seq	= htonl(sp->hdr.seq);
-	whdr.serial	= htonl(sp->hdr.serial);
-	whdr.type	= sp->hdr.type;
-	whdr.flags	= sp->hdr.flags;
-	whdr.userStatus	= sp->hdr.userStatus;
-	whdr.securityIndex = sp->hdr.securityIndex;
-	whdr._rsvd	= htons(sp->hdr._rsvd);
-	whdr.serviceId	= htons(sp->hdr.serviceId);
-
-	memcpy(skb->head, &whdr, sizeof(whdr));
 }
 
 /*
@@ -205,6 +179,10 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 
 	copied = 0;
 	do {
+		/* Check to see if there's a ping ACK to reply to. */
+		if (call->ackr_reason == RXRPC_ACK_PING_RESPONSE)
+			rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ACK);
+
 		if (!skb) {
 			size_t size, chunk, max, space;
 
@@ -232,7 +210,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			space = chunk + call->conn->size_align;
 			space &= ~(call->conn->size_align - 1UL);
 
-			size = space + call->conn->header_size;
+			size = space + call->conn->security_size;
 
 			_debug("SIZE: %zu/%zu/%zu", chunk, space, size);
 
@@ -248,9 +226,9 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 
 			ASSERTCMP(skb->mark, ==, 0);
 
-			_debug("HS: %u", call->conn->header_size);
-			skb_reserve(skb, call->conn->header_size);
-			skb->len += call->conn->header_size;
+			_debug("HS: %u", call->conn->security_size);
+			skb_reserve(skb, call->conn->security_size);
+			skb->len += call->conn->security_size;
 
 			sp = rxrpc_skb(skb);
 			sp->remain = chunk;
@@ -312,33 +290,21 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 
 			seq = call->tx_top + 1;
 
-			sp->hdr.epoch	= conn->proto.epoch;
-			sp->hdr.cid	= call->cid;
-			sp->hdr.callNumber = call->call_id;
 			sp->hdr.seq	= seq;
-			sp->hdr.serial	= atomic_inc_return(&conn->serial);
-			sp->hdr.type	= RXRPC_PACKET_TYPE_DATA;
-			sp->hdr.userStatus = 0;
-			sp->hdr.securityIndex = call->security_ix;
 			sp->hdr._rsvd	= 0;
-			sp->hdr.serviceId = call->service_id;
+			sp->hdr.flags	= conn->out_clientflag;
 
-			sp->hdr.flags = conn->out_clientflag;
 			if (msg_data_left(msg) == 0 && !more)
 				sp->hdr.flags |= RXRPC_LAST_PACKET;
 			else if (call->tx_top - call->tx_hard_ack <
 				 call->tx_winsize)
 				sp->hdr.flags |= RXRPC_MORE_PACKETS;
-			if (more && seq & 1)
-				sp->hdr.flags |= RXRPC_REQUEST_ACK;
 
 			ret = conn->security->secure_packet(
-				call, skb, skb->mark,
-				skb->head + sizeof(struct rxrpc_wire_header));
+				call, skb, skb->mark, skb->head);
 			if (ret < 0)
 				goto out;
 
-			rxrpc_insert_header(skb);
 			rxrpc_queue_packet(call, skb, !msg_data_left(msg) && !more);
 			skb = NULL;
 		}

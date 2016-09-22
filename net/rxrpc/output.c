@@ -57,6 +57,9 @@ static size_t rxrpc_fill_out_ack(struct rxrpc_call *call,
 	pkt->ack.reason		= call->ackr_reason;
 	pkt->ack.nAcks		= top - hard_ack;
 
+	if (pkt->ack.reason == RXRPC_ACK_PING)
+		pkt->whdr.flags |= RXRPC_REQUEST_ACK;
+
 	if (after(top, hard_ack)) {
 		seq = hard_ack + 1;
 		do {
@@ -97,6 +100,7 @@ int rxrpc_send_call_packet(struct rxrpc_call *call, u8 type)
 	struct kvec iov[2];
 	rxrpc_serial_t serial;
 	size_t len, n;
+	bool ping = false;
 	int ioc, ret;
 	u32 abort_code;
 
@@ -147,6 +151,7 @@ int rxrpc_send_call_packet(struct rxrpc_call *call, u8 type)
 			ret = 0;
 			goto out;
 		}
+		ping = (call->ackr_reason == RXRPC_ACK_PING);
 		n = rxrpc_fill_out_ack(call, pkt);
 		call->ackr_reason = 0;
 
@@ -183,12 +188,29 @@ int rxrpc_send_call_packet(struct rxrpc_call *call, u8 type)
 		goto out;
 	}
 
+	if (ping) {
+		call->ackr_ping = serial;
+		smp_wmb();
+		/* We need to stick a time in before we send the packet in case
+		 * the reply gets back before kernel_sendmsg() completes - but
+		 * asking UDP to send the packet can take a relatively long
+		 * time, so we update the time after, on the assumption that
+		 * the packet transmission is more likely to happen towards the
+		 * end of the kernel_sendmsg() call.
+		 */
+		call->ackr_ping_time = ktime_get_real();
+		set_bit(RXRPC_CALL_PINGING, &call->flags);
+		trace_rxrpc_rtt_tx(call, rxrpc_rtt_tx_ping, serial);
+	}
 	ret = kernel_sendmsg(conn->params.local->socket,
 			     &msg, iov, ioc, len);
+	if (ping)
+		call->ackr_ping_time = ktime_get_real();
 
 	if (ret < 0 && call->state < RXRPC_CALL_COMPLETE) {
 		switch (type) {
 		case RXRPC_PACKET_TYPE_ACK:
+			clear_bit(RXRPC_CALL_PINGING, &call->flags);
 			rxrpc_propose_ACK(call, pkt->ack.reason,
 					  ntohs(pkt->ack.maxSkew),
 					  ntohl(pkt->ack.serial),
@@ -208,22 +230,51 @@ out:
 /*
  * send a packet through the transport endpoint
  */
-int rxrpc_send_data_packet(struct rxrpc_connection *conn, struct sk_buff *skb)
+int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb)
 {
-	struct kvec iov[1];
+	struct rxrpc_connection *conn = call->conn;
+	struct rxrpc_wire_header whdr;
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct msghdr msg;
+	struct kvec iov[2];
+	rxrpc_serial_t serial;
+	size_t len;
 	int ret, opt;
 
 	_enter(",{%d}", skb->len);
 
-	iov[0].iov_base = skb->head;
-	iov[0].iov_len = skb->len;
+	/* Each transmission of a Tx packet needs a new serial number */
+	serial = atomic_inc_return(&conn->serial);
 
-	msg.msg_name = &conn->params.peer->srx.transport;
-	msg.msg_namelen = conn->params.peer->srx.transport_len;
+	whdr.epoch	= htonl(conn->proto.epoch);
+	whdr.cid	= htonl(call->cid);
+	whdr.callNumber	= htonl(call->call_id);
+	whdr.seq	= htonl(sp->hdr.seq);
+	whdr.serial	= htonl(serial);
+	whdr.type	= RXRPC_PACKET_TYPE_DATA;
+	whdr.flags	= sp->hdr.flags;
+	whdr.userStatus	= 0;
+	whdr.securityIndex = call->security_ix;
+	whdr._rsvd	= htons(sp->hdr._rsvd);
+	whdr.serviceId	= htons(call->service_id);
+
+	iov[0].iov_base = &whdr;
+	iov[0].iov_len = sizeof(whdr);
+	iov[1].iov_base = skb->head;
+	iov[1].iov_len = skb->len;
+	len = iov[0].iov_len + iov[1].iov_len;
+
+	msg.msg_name = &call->peer->srx.transport;
+	msg.msg_namelen = call->peer->srx.transport_len;
 	msg.msg_control = NULL;
 	msg.msg_controllen = 0;
 	msg.msg_flags = 0;
+
+	/* If our RTT cache needs working on, request an ACK. */
+	if ((call->peer->rtt_usage < 3 && sp->hdr.seq & 1) ||
+	    ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000),
+			 ktime_get_real()))
+		whdr.flags |= RXRPC_REQUEST_ACK;
 
 	if (IS_ENABLED(CONFIG_AF_RXRPC_INJECT_LOSS)) {
 		static int lose;
@@ -234,26 +285,39 @@ int rxrpc_send_data_packet(struct rxrpc_connection *conn, struct sk_buff *skb)
 		}
 	}
 
+	_proto("Tx DATA %%%u { #%u }", serial, sp->hdr.seq);
+
 	/* send the packet with the don't fragment bit set if we currently
 	 * think it's small enough */
-	if (skb->len - sizeof(struct rxrpc_wire_header) < conn->params.peer->maxdata) {
-		down_read(&conn->params.local->defrag_sem);
-		/* send the packet by UDP
-		 * - returns -EMSGSIZE if UDP would have to fragment the packet
-		 *   to go out of the interface
-		 *   - in which case, we'll have processed the ICMP error
-		 *     message and update the peer record
-		 */
-		ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 1,
-				     iov[0].iov_len);
+	if (iov[1].iov_len >= call->peer->maxdata)
+		goto send_fragmentable;
 
-		up_read(&conn->params.local->defrag_sem);
-		if (ret == -EMSGSIZE)
-			goto send_fragmentable;
+	down_read(&conn->params.local->defrag_sem);
+	/* send the packet by UDP
+	 * - returns -EMSGSIZE if UDP would have to fragment the packet
+	 *   to go out of the interface
+	 *   - in which case, we'll have processed the ICMP error
+	 *     message and update the peer record
+	 */
+	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 2, len);
 
-		_leave(" = %d [%u]", ret, conn->params.peer->maxdata);
-		return ret;
+	up_read(&conn->params.local->defrag_sem);
+	if (ret == -EMSGSIZE)
+		goto send_fragmentable;
+
+done:
+	if (ret >= 0) {
+		ktime_t now = ktime_get_real();
+		skb->tstamp = now;
+		smp_wmb();
+		sp->hdr.serial = serial;
+		if (whdr.flags & RXRPC_REQUEST_ACK) {
+			call->peer->rtt_last_req = now;
+			trace_rxrpc_rtt_tx(call, rxrpc_rtt_tx_data, serial);
+		}
 	}
+	_leave(" = %d [%u]", ret, call->peer->maxdata);
+	return ret;
 
 send_fragmentable:
 	/* attempt to send this message with fragmentation enabled */
@@ -268,8 +332,8 @@ send_fragmentable:
 					SOL_IP, IP_MTU_DISCOVER,
 					(char *)&opt, sizeof(opt));
 		if (ret == 0) {
-			ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 1,
-					     iov[0].iov_len);
+			ret = kernel_sendmsg(conn->params.local->socket, &msg,
+					     iov, 2, len);
 
 			opt = IP_PMTUDISC_DO;
 			kernel_setsockopt(conn->params.local->socket, SOL_IP,
@@ -298,8 +362,7 @@ send_fragmentable:
 	}
 
 	up_write(&conn->params.local->defrag_sem);
-	_leave(" = %d [frag %u]", ret, conn->params.peer->maxdata);
-	return ret;
+	goto done;
 }
 
 /*

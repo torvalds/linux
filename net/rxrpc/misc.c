@@ -68,9 +68,9 @@ unsigned int rxrpc_rx_mtu = 5692;
 unsigned int rxrpc_rx_jumbo_max = 4;
 
 /*
- * Time till packet resend (in jiffies).
+ * Time till packet resend (in milliseconds).
  */
-unsigned int rxrpc_resend_timeout = 4 * HZ;
+unsigned int rxrpc_resend_timeout = 4 * 1000;
 
 const char *const rxrpc_pkts[] = {
 	"?00",
@@ -83,11 +83,12 @@ const s8 rxrpc_ack_priority[] = {
 	[RXRPC_ACK_DELAY]		= 1,
 	[RXRPC_ACK_REQUESTED]		= 2,
 	[RXRPC_ACK_IDLE]		= 3,
-	[RXRPC_ACK_PING_RESPONSE]	= 4,
-	[RXRPC_ACK_DUPLICATE]		= 5,
-	[RXRPC_ACK_OUT_OF_SEQUENCE]	= 6,
-	[RXRPC_ACK_EXCEEDS_WINDOW]	= 7,
-	[RXRPC_ACK_NOSPACE]		= 8,
+	[RXRPC_ACK_DUPLICATE]		= 4,
+	[RXRPC_ACK_OUT_OF_SEQUENCE]	= 5,
+	[RXRPC_ACK_EXCEEDS_WINDOW]	= 6,
+	[RXRPC_ACK_NOSPACE]		= 7,
+	[RXRPC_ACK_PING_RESPONSE]	= 8,
+	[RXRPC_ACK_PING]		= 9,
 };
 
 const char *rxrpc_acks(u8 reason)
@@ -181,4 +182,14 @@ const char rxrpc_recvmsg_traces[rxrpc_recvmsg__nr_trace][5] = {
 	[rxrpc_recvmsg_terminal]	= "TERM",
 	[rxrpc_recvmsg_to_be_accepted]	= "TBAC",
 	[rxrpc_recvmsg_return]		= "RETN",
+};
+
+const char rxrpc_rtt_tx_traces[rxrpc_rtt_tx__nr_trace][5] = {
+	[rxrpc_rtt_tx_ping]		= "PING",
+	[rxrpc_rtt_tx_data]		= "DATA",
+};
+
+const char rxrpc_rtt_rx_traces[rxrpc_rtt_rx__nr_trace][5] = {
+	[rxrpc_rtt_rx_ping_response]	= "PONG",
+	[rxrpc_rtt_rx_requested_ack]	= "RACK",
 };
