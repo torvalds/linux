@@ -383,7 +383,7 @@ static void dsicm_get_resolution(struct omap_dss_device *dssdev,
 		u16 *xres, u16 *yres)
 {
 	*xres = dssdev->panel.timings.hactive;
-	*yres = dssdev->panel.timings.y_res;
+	*yres = dssdev->panel.timings.vactive;
 }
 
 static ssize_t dsicm_num_errors_show(struct device *dev,
@@ -893,7 +893,7 @@ static int dsicm_update(struct omap_dss_device *dssdev,
 	/* XXX no need to send this every frame, but dsi break if not done */
 	r = dsicm_set_update_window(ddata, 0, 0,
 			dssdev->panel.timings.hactive,
-			dssdev->panel.timings.y_res);
+			dssdev->panel.timings.vactive);
 	if (r)
 		goto err;
 
@@ -1025,7 +1025,7 @@ static int dsicm_memory_read(struct omap_dss_device *dssdev,
 
 	size = min(w * h * 3,
 			dssdev->panel.timings.hactive *
-			dssdev->panel.timings.y_res * 3);
+			dssdev->panel.timings.vactive * 3);
 
 	in->ops.dsi->bus_lock(in);
 
@@ -1187,7 +1187,7 @@ static int dsicm_probe(struct platform_device *pdev)
 		return r;
 
 	ddata->timings.hactive = 864;
-	ddata->timings.y_res = 480;
+	ddata->timings.vactive = 480;
 	ddata->timings.pixelclock = 864 * 480 * 60;
 
 	dssdev = &ddata->dssdev;

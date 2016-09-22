@@ -303,7 +303,7 @@ struct omap_video_timings {
 	/* Unit: pixels */
 	u16 hactive;
 	/* Unit: pixels */
-	u16 y_res;
+	u16 vactive;
 	/* Unit: Hz */
 	u32 pixelclock;
 	/* Unit: pixel clocks */

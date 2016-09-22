@@ -309,7 +309,7 @@ static int rfbi_transfer_area(struct omap_dss_device *dssdev,
 	int r;
 	struct omap_overlay_manager *mgr = rfbi.output.manager;
 	u16 width = rfbi.timings.hactive;
-	u16 height = rfbi.timings.y_res;
+	u16 height = rfbi.timings.vactive;
 
 	/*BUG_ON(callback == 0);*/
 	BUG_ON(rfbi.framedone_callback != NULL);
@@ -778,7 +778,7 @@ static int rfbi_update(struct omap_dss_device *dssdev, void (*callback)(void *),
 static void rfbi_set_size(struct omap_dss_device *dssdev, u16 w, u16 h)
 {
 	rfbi.timings.hactive = w;
-	rfbi.timings.y_res = h;
+	rfbi.timings.vactive = h;
 }
 
 static void rfbi_set_pixel_size(struct omap_dss_device *dssdev, int pixel_size)
@@ -854,7 +854,7 @@ static void rfbi_config_lcd_manager(struct omap_dss_device *dssdev)
 	dss_mgr_set_lcd_config(mgr, &mgr_config);
 
 	/*
-	 * Set rfbi.timings with default values, the hactive and y_res fields
+	 * Set rfbi.timings with default values, the hactive and vactive fields
 	 * are expected to be already configured by the panel driver via
 	 * omapdss_rfbi_set_size()
 	 */

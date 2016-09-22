@@ -2820,7 +2820,7 @@ int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
 	const bool replication = false;
 	bool truncation;
 	int in_width = mgr_timings->hactive;
-	int in_height = mgr_timings->y_res;
+	int in_height = mgr_timings->vactive;
 	enum omap_overlay_caps caps =
 		OMAP_DSS_OVL_CAP_SCALE | OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA;
 
@@ -3118,7 +3118,7 @@ static bool _dispc_mgr_pclk_ok(enum omap_channel channel,
 bool dispc_mgr_timings_ok(enum omap_channel channel,
 		const struct omap_video_timings *timings)
 {
-	if (!_dispc_mgr_size_ok(timings->hactive, timings->y_res))
+	if (!_dispc_mgr_size_ok(timings->hactive, timings->vactive))
 		return false;
 
 	if (!_dispc_mgr_pclk_ok(channel, timings->pixelclock))
@@ -3259,7 +3259,7 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 	unsigned long ht, vt;
 	struct omap_video_timings t = *timings;
 
-	DSSDBG("channel %d xres %u yres %u\n", channel, t.hactive, t.y_res);
+	DSSDBG("channel %d xres %u yres %u\n", channel, t.hactive, t.vactive);
 
 	if (!dispc_mgr_timings_ok(channel, &t)) {
 		BUG();
@@ -3272,7 +3272,7 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 				t.data_pclk_edge, t.de_level, t.sync_pclk_edge);
 
 		xtot = t.hactive + t.hfp + t.hsw + t.hbp;
-		ytot = t.y_res + t.vfp + t.vsw + t.vbp;
+		ytot = t.vactive + t.vfp + t.vsw + t.vbp;
 
 		ht = timings->pixelclock / xtot;
 		vt = timings->pixelclock / xtot / ytot;
@@ -3287,14 +3287,14 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 		DSSDBG("hsync %luHz, vsync %luHz\n", ht, vt);
 	} else {
 		if (t.interlace)
-			t.y_res /= 2;
+			t.vactive /= 2;
 
 		if (dispc.feat->supports_double_pixel)
 			REG_FLD_MOD(DISPC_CONTROL, t.double_pixel ? 1 : 0,
 				19, 17);
 	}
 
-	dispc_mgr_set_size(channel, t.hactive, t.y_res);
+	dispc_mgr_set_size(channel, t.hactive, t.vactive);
 }
 EXPORT_SYMBOL(dispc_mgr_set_timings);
 
@@ -4220,7 +4220,7 @@ static const struct dispc_errata_i734_data {
 	struct dss_lcd_mgr_config lcd_conf;
 } i734 = {
 	.timings = {
-		.hactive = 8, .y_res = 1,
+		.hactive = 8, .vactive = 1,
 		.pixelclock = 16000000,
 		.hsw = 8, .hfp = 4, .hbp = 4,
 		.vsw = 1, .vfp = 1, .vbp = 1,

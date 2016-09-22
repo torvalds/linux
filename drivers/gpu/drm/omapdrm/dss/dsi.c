@@ -3722,7 +3722,7 @@ static void dsi_proto_timings(struct platform_device *dsidev)
 		DSSDBG("HBP: %d, HFP: %d, HSA: %d, TL: %d TXBYTECLKHS\n", hbp,
 			hfp, hsync_end ? hsa : 0, tl);
 		DSSDBG("VBP: %d, VFP: %d, VSA: %d, VACT: %d lines\n", vbp, vfp,
-			vsa, timings->y_res);
+			vsa, timings->vactive);
 
 		r = dsi_read_reg(dsidev, DSI_VM_TIMING1);
 		r = FLD_MOD(r, hbp, 11, 0);	/* HBP */
@@ -3738,7 +3738,7 @@ static void dsi_proto_timings(struct platform_device *dsidev)
 		dsi_write_reg(dsidev, DSI_VM_TIMING2, r);
 
 		r = dsi_read_reg(dsidev, DSI_VM_TIMING3);
-		r = FLD_MOD(r, timings->y_res, 14, 0);	/* VACT */
+		r = FLD_MOD(r, timings->vactive, 14, 0);	/* VACT */
 		r = FLD_MOD(r, tl, 31, 16);		/* TL */
 		dsi_write_reg(dsidev, DSI_VM_TIMING3, r);
 	}
@@ -3919,7 +3919,7 @@ static void dsi_update_screen_dispc(struct platform_device *dsidev)
 	const unsigned channel = dsi->update_channel;
 	const unsigned line_buf_size = dsi->line_buffer_size;
 	u16 w = dsi->timings.hactive;
-	u16 h = dsi->timings.y_res;
+	u16 h = dsi->timings.vactive;
 
 	DSSDBG("dsi_update_screen_dispc(%dx%d)\n", w, h);
 
@@ -4057,7 +4057,7 @@ static int dsi_update(struct omap_dss_device *dssdev, int channel,
 	dsi->framedone_data = data;
 
 	dw = dsi->timings.hactive;
-	dh = dsi->timings.y_res;
+	dh = dsi->timings.vactive;
 
 #ifdef DSI_PERF_MEASURE
 	dsi->update_bytes = dw * dh *
@@ -4422,7 +4422,7 @@ static bool dsi_cm_calc_dispc_cb(int lckd, int pckd, unsigned long lck,
 	*t = *ctx->config->timings;
 	t->pixelclock = pck;
 	t->hactive = ctx->config->timings->hactive;
-	t->y_res = ctx->config->timings->y_res;
+	t->vactive = ctx->config->timings->vactive;
 	t->hsw = t->hfp = t->hbp = t->vsw = 1;
 	t->vfp = t->vbp = 0;
 
@@ -4635,7 +4635,7 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 
 	dsi_vm->vsa = req_vm->vsw;
 	dsi_vm->vbp = req_vm->vbp;
-	dsi_vm->vact = req_vm->y_res;
+	dsi_vm->vact = req_vm->vactive;
 	dsi_vm->vfp = req_vm->vfp;
 
 	dsi_vm->trans_mode = cfg->trans_mode;

@@ -67,7 +67,7 @@ static const struct {
 
 static const struct omap_video_timings nec_8048_panel_timings = {
 	.hactive	= LCD_XRES,
-	.y_res		= LCD_YRES,
+	.vactive	= LCD_YRES,
 	.pixelclock	= LCD_PIXEL_CLOCK,
 	.hfp		= 6,
 	.hsw		= 1,

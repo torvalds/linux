@@ -74,7 +74,7 @@ struct panel_drv_data {
 
 static const struct omap_video_timings tpo_td043_timings = {
 	.hactive	= 800,
-	.y_res		= 480,
+	.vactive	= 480,
 
 	.pixelclock	= 36000000,
 

@@ -308,7 +308,7 @@ static void hdmi_core_init(struct hdmi_core_vid_config *video_cfg,
 		if (video_cfg->vblank % 2 != 0)
 			video_cfg->vblank_osc = 1;
 
-		video_cfg->v_fc_config.timings.y_res /= 2;
+		video_cfg->v_fc_config.timings.vactive /= 2;
 		video_cfg->vblank /= 2;
 		video_cfg->v_fc_config.timings.vfp /= 2;
 		video_cfg->v_fc_config.timings.vsw /= 2;
@@ -354,9 +354,9 @@ static void hdmi_core_video_config(struct hdmi_core_data *core,
 
 	/* set y resolution */
 	REG_FLD_MOD(base, HDMI_CORE_FC_INVACTIV1,
-			cfg->v_fc_config.timings.y_res >> 8, 4, 0);
+			cfg->v_fc_config.timings.vactive >> 8, 4, 0);
 	REG_FLD_MOD(base, HDMI_CORE_FC_INVACTIV0,
-			cfg->v_fc_config.timings.y_res & 0xFF, 7, 0);
+			cfg->v_fc_config.timings.vactive & 0xFF, 7, 0);
 
 	/* set horizontal blanking pixels */
 	REG_FLD_MOD(base, HDMI_CORE_FC_INHBLANK1, cfg->hblank >> 8, 4, 0);
