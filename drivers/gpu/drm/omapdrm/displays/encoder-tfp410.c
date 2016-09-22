@@ -117,7 +117,7 @@ static void tfp410_fix_timings(struct omap_video_timings *timings)
 {
 	timings->data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
 	timings->sync_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
-	timings->de_level = OMAPDSS_SIG_ACTIVE_HIGH;
+	timings->flags |= DISPLAY_FLAGS_DE_HIGH;
 }
 
 static void tfp410_set_timings(struct omap_dss_device *dssdev,

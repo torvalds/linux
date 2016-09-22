@@ -3167,16 +3167,10 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel,
 	else
 		hs = true;
 
-	switch (ovt->de_level) {
-	case OMAPDSS_SIG_ACTIVE_LOW:
-		de = true;
-		break;
-	case OMAPDSS_SIG_ACTIVE_HIGH:
+	if (ovt->flags & DISPLAY_FLAGS_DE_HIGH)
 		de = false;
-		break;
-	default:
-		BUG();
-	}
+	else
+		de = true;
 
 	switch (ovt->data_pclk_edge) {
 	case OMAPDSS_DRIVE_SIG_RISING_EDGE:
@@ -3267,7 +3261,8 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 		DSSDBG("vsync_level %d hsync_level %d data_pclk_edge %d de_level %d sync_pclk_edge %d\n",
 			!!(t.flags & DISPLAY_FLAGS_VSYNC_HIGH),
 			!!(t.flags & DISPLAY_FLAGS_HSYNC_HIGH),
-			t.data_pclk_edge, t.de_level, t.sync_pclk_edge);
+			t.data_pclk_edge, !!(t.flags & DISPLAY_FLAGS_DE_HIGH),
+			t.sync_pclk_edge);
 
 		DSSDBG("hsync %luHz, vsync %luHz\n", ht, vt);
 	} else {
@@ -4210,11 +4205,11 @@ static const struct dispc_errata_i734_data {
 		.hsync_len = 8, .hfront_porch = 4, .hback_porch = 4,
 		.vsync_len = 1, .vfront_porch = 1, .vback_porch = 1,
 		.data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE,
-		.de_level = OMAPDSS_SIG_ACTIVE_HIGH,
 		.sync_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE,
 		.double_pixel = false,
 
-		.flags = DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW,
+		.flags = DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
+			 DISPLAY_FLAGS_DE_HIGH,
 	},
 	.ovli = {
 		.screen_width = 1,

@@ -321,8 +321,6 @@ struct omap_video_timings {
 
 	/* Pixel clock edge to drive LCD data */
 	enum omap_dss_signal_edge data_pclk_edge;
-	/* Data enable logic level */
-	enum omap_dss_signal_level de_level;
 	/* Pixel clock edges to drive HSYNC and VSYNC signals */
 	enum omap_dss_signal_edge sync_pclk_edge;
 

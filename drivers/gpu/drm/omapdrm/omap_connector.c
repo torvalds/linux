@@ -107,7 +107,7 @@ void copy_timings_drm_to_omap(struct omap_video_timings *timings,
 		timings->flags |= DISPLAY_FLAGS_VSYNC_LOW;
 
 	timings->data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
-	timings->de_level = OMAPDSS_SIG_ACTIVE_HIGH;
+	timings->flags |= DISPLAY_FLAGS_DE_HIGH;
 	timings->sync_pclk_edge = OMAPDSS_DRIVE_SIG_FALLING_EDGE;
 }
 
