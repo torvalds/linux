@@ -198,58 +198,43 @@ struct cdns_platform_data {
 #define to_cdns_uart(_nb) container_of(_nb, struct cdns_uart, \
 		clk_rate_change_nb);
 
-static void cdns_uart_handle_rx(struct uart_port *port, unsigned int isrstatus)
+/**
+ * cdns_uart_handle_rx - Handle the received bytes along with Rx errors.
+ * @dev_id: Id of the UART port
+ * @isrstatus: The interrupt status register value as read
+ * Return: None
+ */
+static void cdns_uart_handle_rx(void *dev_id, unsigned int isrstatus)
 {
+	struct uart_port *port = (struct uart_port *)dev_id;
 	struct cdns_uart *cdns_uart = port->private_data;
-	bool is_rxbs_support;
+	unsigned int data;
 	unsigned int rxbs_status = 0;
 	unsigned int status_mask;
+	unsigned int framerrprocessed = 0;
+	char status = TTY_NORMAL;
+	bool is_rxbs_support;
 
 	is_rxbs_support = cdns_uart->quirks & CDNS_UART_RXBS_SUPPORT;
 
-	/*
-	 * There is no hardware break detection, so we interpret framing
-	 * error with all-zeros data as a break sequence. Most of the time,
-	 * there's another non-zero byte at the end of the sequence.
-	 */
-	if (!is_rxbs_support && (isrstatus & CDNS_UART_IXR_FRAMING)) {
-		while (!(readl(port->membase + CDNS_UART_SR) &
-					CDNS_UART_SR_RXEMPTY)) {
-			if (!readl(port->membase + CDNS_UART_FIFO)) {
-				port->read_status_mask |= CDNS_UART_IXR_BRK;
-				isrstatus &= ~CDNS_UART_IXR_FRAMING;
-			}
-		}
-		writel(CDNS_UART_IXR_FRAMING, port->membase + CDNS_UART_ISR);
-	}
-
-	/* drop byte with parity error if IGNPAR specified */
-	if (isrstatus & port->ignore_status_mask & CDNS_UART_IXR_PARITY)
-		isrstatus &= ~(CDNS_UART_IXR_RXTRIG | CDNS_UART_IXR_TOUT);
-
-	isrstatus &= port->read_status_mask;
-	isrstatus &= ~port->ignore_status_mask;
-	status_mask = port->read_status_mask;
-	status_mask &= ~port->ignore_status_mask;
-
-	if (!(isrstatus & (CDNS_UART_IXR_TOUT | CDNS_UART_IXR_RXTRIG)))
-		return;
-
-	while (!(readl(port->membase + CDNS_UART_SR) & CDNS_UART_SR_RXEMPTY)) {
-		u32 data;
-		char status = TTY_NORMAL;
-
+	while ((readl(port->membase + CDNS_UART_SR) &
+		CDNS_UART_SR_RXEMPTY) != CDNS_UART_SR_RXEMPTY) {
 		if (is_rxbs_support)
 			rxbs_status = readl(port->membase + CDNS_UART_RXBS);
-
 		data = readl(port->membase + CDNS_UART_FIFO);
-
-		/* Non-NULL byte after BREAK is garbage (99%) */
-		if (data && (port->read_status_mask & CDNS_UART_IXR_BRK)) {
-			port->read_status_mask &= ~CDNS_UART_IXR_BRK;
-			port->icount.brk++;
-			if (uart_handle_break(port))
+		port->icount.rx++;
+		/*
+		 * There is no hardware break detection in Zynq, so we interpret
+		 * framing error with all-zeros data as a break sequence.
+		 * Most of the time, there's another non-zero byte at the
+		 * end of the sequence.
+		 */
+		if (!is_rxbs_support && (isrstatus & CDNS_UART_IXR_FRAMING)) {
+			if (!data) {
+				port->read_status_mask |= CDNS_UART_IXR_BRK;
+				framerrprocessed = 1;
 				continue;
+			}
 		}
 		if (is_rxbs_support && (rxbs_status & CDNS_UART_RXBS_BRK)) {
 			port->icount.brk++;
@@ -258,74 +243,101 @@ static void cdns_uart_handle_rx(struct uart_port *port, unsigned int isrstatus)
 				continue;
 		}
 
-		if (uart_handle_sysrq_char(port, data))
-			continue;
+		isrstatus &= port->read_status_mask;
+		isrstatus &= ~port->ignore_status_mask;
+		status_mask = port->read_status_mask;
+		status_mask &= ~port->ignore_status_mask;
 
-		port->icount.rx++;
+		if ((isrstatus & CDNS_UART_IXR_TOUT) ||
+		    (isrstatus & CDNS_UART_IXR_RXTRIG)) {
+			if (data &&
+			    (port->read_status_mask & CDNS_UART_IXR_BRK)) {
+				port->read_status_mask &= ~CDNS_UART_IXR_BRK;
+				port->icount.brk++;
+				if (uart_handle_break(port))
+					continue;
+			}
 
-		if (is_rxbs_support) {
-			if ((rxbs_status & CDNS_UART_RXBS_PARITY)
-				&& (status_mask & CDNS_UART_IXR_PARITY)) {
-				port->icount.parity++;
-				status = TTY_PARITY;
+			if (uart_handle_sysrq_char(port, data))
+				continue;
+
+			if (is_rxbs_support) {
+				if ((rxbs_status & CDNS_UART_RXBS_PARITY)
+				    && (status_mask & CDNS_UART_IXR_PARITY)) {
+					port->icount.parity++;
+					status = TTY_PARITY;
+				}
+				if ((rxbs_status & CDNS_UART_RXBS_FRAMING)
+				    && (status_mask & CDNS_UART_IXR_PARITY)) {
+					port->icount.frame++;
+					status = TTY_FRAME;
+				}
+			} else {
+				if (isrstatus & CDNS_UART_IXR_PARITY) {
+					port->icount.parity++;
+					status = TTY_PARITY;
+				}
+				if ((isrstatus & CDNS_UART_IXR_FRAMING) &&
+				    !framerrprocessed) {
+					port->icount.frame++;
+					status = TTY_FRAME;
+				}
 			}
-			if ((rxbs_status & CDNS_UART_RXBS_FRAMING)
-				&& (status_mask & CDNS_UART_IXR_PARITY)) {
-				port->icount.frame++;
-				status = TTY_FRAME;
+			if (isrstatus & CDNS_UART_IXR_OVERRUN) {
+				port->icount.overrun++;
+				tty_insert_flip_char(&port->state->port, 0,
+						     TTY_OVERRUN);
 			}
-		} else {
-			if (isrstatus & CDNS_UART_IXR_PARITY) {
-				port->icount.parity++;
-				status = TTY_PARITY;
-			}
-			if (isrstatus & CDNS_UART_IXR_FRAMING) {
-				port->icount.frame++;
-				status = TTY_FRAME;
-			}
+			tty_insert_flip_char(&port->state->port, data, status);
 		}
-		if (isrstatus & CDNS_UART_IXR_OVERRUN)
-			port->icount.overrun++;
-
-		uart_insert_char(port, isrstatus, CDNS_UART_IXR_OVERRUN,
-				 data, status);
 	}
+	spin_unlock(&port->lock);
 	tty_flip_buffer_push(&port->state->port);
+	spin_lock(&port->lock);
 }
 
-static void cdns_uart_handle_tx(struct uart_port *port)
+/**
+ * cdns_uart_handle_tx - Handle the bytes to be Txed.
+ * @dev_id: Id of the UART port
+ * Return: None
+ */
+static void cdns_uart_handle_tx(void *dev_id)
 {
+	struct uart_port *port = (struct uart_port *)dev_id;
 	unsigned int numbytes;
 
 	if (uart_circ_empty(&port->state->xmit)) {
 		writel(CDNS_UART_IXR_TXEMPTY, port->membase + CDNS_UART_IDR);
-		return;
+	} else {
+		numbytes = port->fifosize;
+		while (numbytes && !uart_circ_empty(&port->state->xmit) &&
+		       !(readl(port->membase + CDNS_UART_SR) & CDNS_UART_SR_TXFULL)) {
+			/*
+			 * Get the data from the UART circular buffer
+			 * and write it to the cdns_uart's TX_FIFO
+			 * register.
+			 */
+			writel(
+				port->state->xmit.buf[port->state->xmit.
+				tail], port->membase + CDNS_UART_FIFO);
+
+			port->icount.tx++;
+
+			/*
+			 * Adjust the tail of the UART buffer and wrap
+			 * the buffer if it reaches limit.
+			 */
+			port->state->xmit.tail =
+				(port->state->xmit.tail + 1) &
+					(UART_XMIT_SIZE - 1);
+
+			numbytes--;
+		}
+
+		if (uart_circ_chars_pending(
+				&port->state->xmit) < WAKEUP_CHARS)
+			uart_write_wakeup(port);
 	}
-
-	numbytes = port->fifosize;
-	while (numbytes && !uart_circ_empty(&port->state->xmit) &&
-	       !(readl(port->membase + CDNS_UART_SR) & CDNS_UART_SR_TXFULL)) {
-		/*
-		 * Get the data from the UART circular buffer
-		 * and write it to the cdns_uart's TX_FIFO
-		 * register.
-		 */
-		writel(port->state->xmit.buf[port->state->xmit.tail],
-			port->membase + CDNS_UART_FIFO);
-		port->icount.tx++;
-
-		/*
-		 * Adjust the tail of the UART buffer and wrap
-		 * the buffer if it reaches limit.
-		 */
-		port->state->xmit.tail =
-			(port->state->xmit.tail + 1) & (UART_XMIT_SIZE - 1);
-
-		numbytes--;
-	}
-
-	if (uart_circ_chars_pending(&port->state->xmit) < WAKEUP_CHARS)
-		uart_write_wakeup(port);
 }
 
 /**
@@ -338,27 +350,24 @@ static void cdns_uart_handle_tx(struct uart_port *port)
 static irqreturn_t cdns_uart_isr(int irq, void *dev_id)
 {
 	struct uart_port *port = (struct uart_port *)dev_id;
-	unsigned long flags;
 	unsigned int isrstatus;
 
-	spin_lock_irqsave(&port->lock, flags);
+	spin_lock(&port->lock);
 
 	/* Read the interrupt status register to determine which
-	 * interrupt(s) is/are active.
+	 * interrupt(s) is/are active and clear them.
 	 */
 	isrstatus = readl(port->membase + CDNS_UART_ISR);
-
-	if (isrstatus & CDNS_UART_RX_IRQS)
-		cdns_uart_handle_rx(port, isrstatus);
-
-	if ((isrstatus & CDNS_UART_IXR_TXEMPTY) == CDNS_UART_IXR_TXEMPTY)
-		cdns_uart_handle_tx(port);
-
 	writel(isrstatus, port->membase + CDNS_UART_ISR);
 
-	/* be sure to release the lock and tty before leaving */
-	spin_unlock_irqrestore(&port->lock, flags);
+	if (isrstatus & CDNS_UART_IXR_TXEMPTY) {
+		cdns_uart_handle_tx(dev_id);
+		isrstatus &= ~CDNS_UART_IXR_TXEMPTY;
+	}
+	if (isrstatus & CDNS_UART_IXR_MASK)
+		cdns_uart_handle_rx(dev_id, isrstatus);
 
+	spin_unlock(&port->lock);
 	return IRQ_HANDLED;
 }
 
