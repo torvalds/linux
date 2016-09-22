@@ -115,6 +115,7 @@
 		regulator-min-microvolt = <850000>;
 		regulator-max-microvolt = <1350000>;
 		regulator-always-on;
+		regulator-ramp-delay = <6000>;
 		vin-supply = <&vcc_sys>;
 	};
 
