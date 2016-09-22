@@ -31,7 +31,7 @@
 
 static uint32_t DIDTBlock_Info = SQ_IR_MASK | TCP_IR_MASK | TD_PCC_MASK;
 
-static struct gpu_pt_config_reg GCCACConfig_Polaris10[] = {
+static const struct gpu_pt_config_reg GCCACConfig_Polaris10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                Shift                                               Value       Type
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -62,7 +62,7 @@ static struct gpu_pt_config_reg GCCACConfig_Polaris10[] = {
 	{   0xFFFFFFFF  }
 };
 
-static struct gpu_pt_config_reg GCCACConfig_Polaris11[] = {
+static const struct gpu_pt_config_reg GCCACConfig_Polaris11[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                Shift                                               Value       Type
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -93,7 +93,7 @@ static struct gpu_pt_config_reg GCCACConfig_Polaris11[] = {
 	{   0xFFFFFFFF  }
 };
 
-static struct gpu_pt_config_reg DIDTConfig_Polaris10[] = {
+static const struct gpu_pt_config_reg DIDTConfig_Polaris10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                Shift                                               Value       Type
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -235,7 +235,7 @@ static struct gpu_pt_config_reg DIDTConfig_Polaris10[] = {
 	{   0xFFFFFFFF  }
 };
 
-static struct gpu_pt_config_reg DIDTConfig_Polaris11[] = {
+static const struct gpu_pt_config_reg DIDTConfig_Polaris11[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                Shift                                               Value       Type
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -427,9 +427,9 @@ static int smu7_enable_didt(struct pp_hwmgr *hwmgr, const bool enable)
 }
 
 static int smu7_program_pt_config_registers(struct pp_hwmgr *hwmgr,
-				struct gpu_pt_config_reg *cac_config_regs)
+				const struct gpu_pt_config_reg *cac_config_regs)
 {
-	struct gpu_pt_config_reg *config_regs = cac_config_regs;
+	const struct gpu_pt_config_reg *config_regs = cac_config_regs;
 	uint32_t cache = 0;
 	uint32_t data = 0;
 

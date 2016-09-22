@@ -4278,7 +4278,7 @@ static int smu7_get_clock_by_type(struct pp_hwmgr *hwmgr, enum amd_pp_clock_type
 	return 0;
 }
 
-static struct pp_hwmgr_func smu7_hwmgr_funcs = {
+static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.backend_init = &smu7_hwmgr_backend_init,
 	.backend_fini = &phm_hwmgr_backend_fini,
 	.asic_setup = &smu7_setup_asic_task,
