@@ -397,13 +397,23 @@ static int nfs4_do_handle_exception(struct nfs_server *server,
 	exception->delay = 0;
 	exception->recovering = 0;
 	exception->retry = 0;
+
+	if (stateid == NULL && state != NULL)
+		stateid = &state->stateid;
+
 	switch(errorcode) {
 		case 0:
 			return 0;
-		case -NFS4ERR_OPENMODE:
 		case -NFS4ERR_DELEG_REVOKED:
 		case -NFS4ERR_ADMIN_REVOKED:
+		case -NFS4ERR_EXPIRED:
 		case -NFS4ERR_BAD_STATEID:
+			if (inode != NULL && stateid != NULL) {
+				nfs_inode_find_state_and_recover(inode,
+						stateid);
+				goto wait_on_recovery;
+			}
+		case -NFS4ERR_OPENMODE:
 			if (inode) {
 				int err;
 
@@ -422,12 +432,6 @@ static int nfs4_do_handle_exception(struct nfs_server *server,
 			if (ret < 0)
 				break;
 			goto wait_on_recovery;
-		case -NFS4ERR_EXPIRED:
-			if (state != NULL) {
-				ret = nfs4_schedule_stateid_recovery(server, state);
-				if (ret < 0)
-					break;
-			}
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_STALE_CLIENTID:
 			nfs4_schedule_lease_recovery(clp);
