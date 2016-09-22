@@ -190,28 +190,24 @@
 	ahci_pwr_pin_a20_hummingbird: ahci_pwr_pin@0 {
 		allwinner,pins = "PH15";
 		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	usb1_vbus_pin_a20_hummingbird: usb1_vbus_pin@0 {
 		allwinner,pins = "PH2";
 		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	mmc3_vdd_pin_a20_hummingbird: mmc3_vdd_pin@0 {
 		allwinner,pins = "PH9";
 		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	gmac_vdd_pin_a20_hummingbird: gmac_vdd_pin@0 {
 		allwinner,pins = "PH16";
 		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };

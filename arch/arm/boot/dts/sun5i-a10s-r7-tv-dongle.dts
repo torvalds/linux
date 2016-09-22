@@ -103,7 +103,6 @@
 	mmc0_cd_pin_r7: mmc0_cd_pin@0 {
 		allwinner,pins = "PG1";
 		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 	};
 
@@ -117,7 +116,6 @@
 	usb1_vbus_pin_r7: usb1_vbus_pin@0 {
 		allwinner,pins = "PG13";
 		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };

@@ -689,7 +689,6 @@
 			i2c3_pins_a: i2c3@0 {
 				allwinner,pins = "PG10", "PG11";
 				allwinner,function = "i2c3";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
@@ -722,14 +721,12 @@
 			uart0_pins_a: uart0@0 {
 				allwinner,pins = "PH12", "PH13";
 				allwinner,function = "uart0";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			uart4_pins_a: uart4@0 {
 				allwinner,pins = "PG12", "PG13", "PG14", "PG15";
 				allwinner,function = "uart4";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 		};
@@ -914,7 +911,6 @@
 			r_ir_pins: r_ir {
 				allwinner,pins = "PL6";
 				allwinner,function = "s_cir_rx";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 

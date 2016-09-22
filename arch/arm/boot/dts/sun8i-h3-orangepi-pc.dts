@@ -134,7 +134,6 @@
 	leds_opc: led_pins@0 {
 		allwinner,pins = "PA15";
 		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
@@ -143,14 +142,12 @@
 	leds_r_opc: led_pins@0 {
 		allwinner,pins = "PL10";
 		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	sw_r_opc: key_pins@0 {
 		allwinner,pins = "PL3";
 		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };

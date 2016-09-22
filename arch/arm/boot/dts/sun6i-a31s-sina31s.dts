@@ -138,14 +138,12 @@
 	led_pin_sina31s: led_pin@0 {
 		allwinner,pins = "PH13";
 		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	mmc0_cd_pin_sina31s: mmc0_cd_pin@0 {
 		allwinner,pins = "PA4";
 		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 	};
 };

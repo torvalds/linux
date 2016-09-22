@@ -204,14 +204,12 @@
 	mmc0_cd_pin_olinuxino_micro: mmc0_cd_pin@0 {
 		allwinner,pins = "PG1";
 		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 	};
 
 	mmc1_cd_pin_olinuxino_micro: mmc1_cd_pin@0 {
 		allwinner,pins = "PG13";
 		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 	};
 
@@ -225,14 +223,12 @@
 	usb1_vbus_pin_olinuxino_m: usb1_vbus_pin@0 {
 		allwinner,pins = "PB10";
 		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	usb0_id_detect_pin: usb0_id_detect_pin@0 {
 		allwinner,pins = "PG12";
 		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 	};
 };

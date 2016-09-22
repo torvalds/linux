@@ -355,21 +355,18 @@
 				 "PD18", "PD19", "PD20", "PD21", "PD22", "PD23",
 				 "PD24", "PD25", "PD26", "PD27";
 		allwinner,function = "lcd0";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	uart1_pins_a: uart1@0 {
 		allwinner,pins = "PE10", "PE11";
 		allwinner,function = "uart1";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
 	uart1_pins_b: uart1@1 {
 		allwinner,pins = "PG3", "PG4";
 		allwinner,function = "uart1";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
