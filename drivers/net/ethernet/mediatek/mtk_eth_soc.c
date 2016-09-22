@@ -226,17 +226,9 @@ static void mtk_phy_link_adjust(struct net_device *dev)
 static int mtk_phy_connect_node(struct mtk_eth *eth, struct mtk_mac *mac,
 				struct device_node *phy_node)
 {
-	const __be32 *_addr = NULL;
 	struct phy_device *phydev;
-	int phy_mode, addr;
+	int phy_mode;
 
-	_addr = of_get_property(phy_node, "reg", NULL);
-
-	if (!_addr || (be32_to_cpu(*_addr) >= 0x20)) {
-		pr_err("%s: invalid phy address\n", phy_node->name);
-		return -EINVAL;
-	}
-	addr = be32_to_cpu(*_addr);
 	phy_mode = of_get_phy_mode(phy_node);
 	if (phy_mode < 0) {
 		dev_err(eth->dev, "incorrect phy-mode %d\n", phy_mode);
