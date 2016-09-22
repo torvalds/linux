@@ -41,4 +41,27 @@ config FSL_BMAN_TEST_API
 	  high-level API testing with them (whichever portal(s) are affine
 	  to the cpu(s) the test executes on).
 
+config FSL_QMAN_TEST
+	tristate "QMan self-tests"
+	help
+	  Compile self-test code for QMan.
+
+config FSL_QMAN_TEST_API
+	bool "QMan high-level self-test"
+	depends on FSL_QMAN_TEST
+	default y
+	help
+	  This requires the presence of cpu-affine portals, and performs
+	  high-level API testing with them (whichever portal(s) are affine to
+	  the cpu(s) the test executes on).
+
+config FSL_QMAN_TEST_STASH
+	bool "QMan 'hot potato' data-stashing self-test"
+	depends on FSL_QMAN_TEST
+	default y
+	help
+	  This performs a "hot potato" style test enqueuing/dequeuing a frame
+	  across a series of FQs scheduled to different portals (and cpus), with
+	  DQRR, data and context stashing always on.
+
 endif # FSL_DPAA
