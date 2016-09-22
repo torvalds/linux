@@ -37,12 +37,12 @@ struct panel_drv_data {
 
 	int data_lines;
 
-	struct videomode videomode;
+	struct videomode vm;
 
 	struct spi_device *spi_dev;
 };
 
-static struct videomode td028ttec1_panel_timings = {
+static struct videomode td028ttec1_panel_vm = {
 	.hactive	= 480,
 	.vactive	= 640,
 	.pixelclock	= 22153000,
@@ -205,7 +205,7 @@ static int td028ttec1_panel_enable(struct omap_dss_device *dssdev)
 
 	if (ddata->data_lines)
 		in->ops.dpi->set_data_lines(in, ddata->data_lines);
-	in->ops.dpi->set_timings(in, &ddata->videomode);
+	in->ops.dpi->set_timings(in, &ddata->vm);
 
 	r = in->ops.dpi->enable(in);
 	if (r)
@@ -322,32 +322,32 @@ static void td028ttec1_panel_disable(struct omap_dss_device *dssdev)
 }
 
 static void td028ttec1_panel_set_timings(struct omap_dss_device *dssdev,
-		struct videomode *timings)
+					 struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	ddata->videomode = *timings;
-	dssdev->panel.timings = *timings;
+	ddata->vm = *vm;
+	dssdev->panel.vm = *vm;
 
-	in->ops.dpi->set_timings(in, timings);
+	in->ops.dpi->set_timings(in, vm);
 }
 
 static void td028ttec1_panel_get_timings(struct omap_dss_device *dssdev,
-		struct videomode *timings)
+					 struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	*timings = ddata->videomode;
+	*vm = ddata->vm;
 }
 
 static int td028ttec1_panel_check_timings(struct omap_dss_device *dssdev,
-		struct videomode *timings)
+					  struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	return in->ops.dpi->check_timings(in, timings);
+	return in->ops.dpi->check_timings(in, vm);
 }
 
 static struct omap_dss_driver td028ttec1_ops = {
@@ -411,14 +411,14 @@ static int td028ttec1_panel_probe(struct spi_device *spi)
 	if (r)
 		return r;
 
-	ddata->videomode = td028ttec1_panel_timings;
+	ddata->vm = td028ttec1_panel_vm;
 
 	dssdev = &ddata->dssdev;
 	dssdev->dev = &spi->dev;
 	dssdev->driver = &td028ttec1_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
-	dssdev->panel.timings = ddata->videomode;
+	dssdev->panel.vm = ddata->vm;
 	dssdev->phy.dpi.data_lines = ddata->data_lines;
 
 	r = omapdss_register_display(dssdev);

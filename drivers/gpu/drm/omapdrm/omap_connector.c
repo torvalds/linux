@@ -118,11 +118,11 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 		kfree(edid);
 	} else {
 		struct drm_display_mode *mode = drm_mode_create(dev);
-		struct videomode timings = {0};
+		struct videomode vm = {0};
 
-		dssdrv->get_timings(dssdev, &timings);
+		dssdrv->get_timings(dssdev, &vm);
 
-		drm_display_mode_from_videomode(&timings, mode);
+		drm_display_mode_from_videomode(&vm, mode);
 
 		mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
 		drm_mode_set_name(mode);
@@ -140,14 +140,14 @@ static int omap_connector_mode_valid(struct drm_connector *connector,
 	struct omap_connector *omap_connector = to_omap_connector(connector);
 	struct omap_dss_device *dssdev = omap_connector->dssdev;
 	struct omap_dss_driver *dssdrv = dssdev->driver;
-	struct videomode timings = {0};
+	struct videomode vm = {0};
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *new_mode;
 	int r, ret = MODE_BAD;
 
-	drm_display_mode_to_videomode(mode, &timings);
-	timings.flags |= DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_PIXDATA_POSEDGE |
-			 DISPLAY_FLAGS_SYNC_NEGEDGE;
+	drm_display_mode_to_videomode(mode, &vm);
+	vm.flags |= DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_PIXDATA_POSEDGE |
+		    DISPLAY_FLAGS_SYNC_NEGEDGE;
 	mode->vrefresh = drm_mode_vrefresh(mode);
 
 	/*
@@ -156,13 +156,13 @@ static int omap_connector_mode_valid(struct drm_connector *connector,
 	 * panel's timings
 	 */
 	if (dssdrv->check_timings) {
-		r = dssdrv->check_timings(dssdev, &timings);
+		r = dssdrv->check_timings(dssdev, &vm);
 	} else {
 		struct videomode t = {0};
 
 		dssdrv->get_timings(dssdev, &t);
 
-		if (memcmp(&timings, &t, sizeof(struct videomode)))
+		if (memcmp(&vm, &t, sizeof(struct videomode)))
 			r = -EINVAL;
 		else
 			r = 0;
@@ -171,7 +171,7 @@ static int omap_connector_mode_valid(struct drm_connector *connector,
 	if (!r) {
 		/* check if vrefresh is still valid */
 		new_mode = drm_mode_duplicate(dev, mode);
-		new_mode->clock = timings.pixelclock / 1000;
+		new_mode->clock = vm.pixelclock / 1000;
 		new_mode->vrefresh = 0;
 		if (mode->vrefresh == drm_mode_vrefresh(new_mode))
 			ret = MODE_OK;

@@ -113,7 +113,7 @@ static struct {
 
 	struct semaphore bus_lock;
 
-	struct videomode timings;
+	struct videomode vm;
 	int pixel_size;
 	int data_lines;
 	struct rfbi_timings intf_timings;
@@ -308,15 +308,15 @@ static int rfbi_transfer_area(struct omap_dss_device *dssdev,
 	u32 l;
 	int r;
 	struct omap_overlay_manager *mgr = rfbi.output.manager;
-	u16 width = rfbi.timings.hactive;
-	u16 height = rfbi.timings.vactive;
+	u16 width = rfbi.vm.hactive;
+	u16 height = rfbi.vm.vactive;
 
 	/*BUG_ON(callback == 0);*/
 	BUG_ON(rfbi.framedone_callback != NULL);
 
 	DSSDBG("rfbi_transfer_area %dx%d\n", width, height);
 
-	dss_mgr_set_timings(mgr, &rfbi.timings);
+	dss_mgr_set_timings(mgr, &rfbi.vm);
 
 	r = dss_mgr_enable(mgr);
 	if (r)
@@ -777,8 +777,8 @@ static int rfbi_update(struct omap_dss_device *dssdev, void (*callback)(void *),
 
 static void rfbi_set_size(struct omap_dss_device *dssdev, u16 w, u16 h)
 {
-	rfbi.timings.hactive = w;
-	rfbi.timings.vactive = h;
+	rfbi.vm.hactive = w;
+	rfbi.vm.vactive = h;
 }
 
 static void rfbi_set_pixel_size(struct omap_dss_device *dssdev, int pixel_size)
@@ -858,26 +858,26 @@ static void rfbi_config_lcd_manager(struct omap_dss_device *dssdev)
 	 * are expected to be already configured by the panel driver via
 	 * omapdss_rfbi_set_size()
 	 */
-	rfbi.timings.hsync_len = 1;
-	rfbi.timings.hfront_porch = 1;
-	rfbi.timings.hback_porch = 1;
-	rfbi.timings.vsync_len = 1;
-	rfbi.timings.vfront_porch = 0;
-	rfbi.timings.vback_porch = 0;
+	rfbi.vm.hsync_len = 1;
+	rfbi.vm.hfront_porch = 1;
+	rfbi.vm.hback_porch = 1;
+	rfbi.vm.vsync_len = 1;
+	rfbi.vm.vfront_porch = 0;
+	rfbi.vm.vback_porch = 0;
 
-	rfbi.timings.flags &= ~DISPLAY_FLAGS_INTERLACED;
-	rfbi.timings.flags &= ~DISPLAY_FLAGS_HSYNC_LOW;
-	rfbi.timings.flags |= DISPLAY_FLAGS_HSYNC_HIGH;
-	rfbi.timings.flags &= ~DISPLAY_FLAGS_VSYNC_LOW;
-	rfbi.timings.flags |= DISPLAY_FLAGS_VSYNC_HIGH;
-	rfbi.timings.flags &= ~DISPLAY_FLAGS_PIXDATA_NEGEDGE;
-	rfbi.timings.flags |= DISPLAY_FLAGS_PIXDATA_POSEDGE;
-	rfbi.timings.flags &= ~DISPLAY_FLAGS_DE_LOW;
-	rfbi.timings.flags |= DISPLAY_FLAGS_DE_HIGH;
-	rfbi.timings.flags &= ~DISPLAY_FLAGS_SYNC_POSEDGE;
-	rfbi.timings.flags |= DISPLAY_FLAGS_SYNC_NEGEDGE;
+	rfbi.vm.flags &= ~DISPLAY_FLAGS_INTERLACED;
+	rfbi.vm.flags &= ~DISPLAY_FLAGS_HSYNC_LOW;
+	rfbi.vm.flags |= DISPLAY_FLAGS_HSYNC_HIGH;
+	rfbi.vm.flags &= ~DISPLAY_FLAGS_VSYNC_LOW;
+	rfbi.vm.flags |= DISPLAY_FLAGS_VSYNC_HIGH;
+	rfbi.vm.flags &= ~DISPLAY_FLAGS_PIXDATA_NEGEDGE;
+	rfbi.vm.flags |= DISPLAY_FLAGS_PIXDATA_POSEDGE;
+	rfbi.vm.flags &= ~DISPLAY_FLAGS_DE_LOW;
+	rfbi.vm.flags |= DISPLAY_FLAGS_DE_HIGH;
+	rfbi.vm.flags &= ~DISPLAY_FLAGS_SYNC_POSEDGE;
+	rfbi.vm.flags |= DISPLAY_FLAGS_SYNC_NEGEDGE;
 
-	dss_mgr_set_timings(mgr, &rfbi.timings);
+	dss_mgr_set_timings(mgr, &rfbi.vm);
 }
 
 static int rfbi_display_enable(struct omap_dss_device *dssdev)

@@ -262,7 +262,7 @@ static const struct venc_config venc_config_pal_bdghi = {
 	.fid_ext_start_y__fid_ext_offset_y	= 0x01380005,
 };
 
-const struct videomode omap_dss_pal_timings = {
+const struct videomode omap_dss_pal_vm = {
 	.hactive	= 720,
 	.vactive	= 574,
 	.pixelclock	= 13500000,
@@ -278,9 +278,9 @@ const struct videomode omap_dss_pal_timings = {
 			  DISPLAY_FLAGS_PIXDATA_POSEDGE |
 			  DISPLAY_FLAGS_SYNC_NEGEDGE,
 };
-EXPORT_SYMBOL(omap_dss_pal_timings);
+EXPORT_SYMBOL(omap_dss_pal_vm);
 
-const struct videomode omap_dss_ntsc_timings = {
+const struct videomode omap_dss_ntsc_vm = {
 	.hactive	= 720,
 	.vactive	= 482,
 	.pixelclock	= 13500000,
@@ -296,7 +296,7 @@ const struct videomode omap_dss_ntsc_timings = {
 			  DISPLAY_FLAGS_PIXDATA_POSEDGE |
 			  DISPLAY_FLAGS_SYNC_NEGEDGE,
 };
-EXPORT_SYMBOL(omap_dss_ntsc_timings);
+EXPORT_SYMBOL(omap_dss_ntsc_vm);
 
 static struct {
 	struct platform_device *pdev;
@@ -307,7 +307,7 @@ static struct {
 
 	struct clk	*tv_dac_clk;
 
-	struct videomode timings;
+	struct videomode vm;
 	enum omap_dss_venc_type type;
 	bool invert_polarity;
 
@@ -421,13 +421,12 @@ static void venc_runtime_put(void)
 	WARN_ON(r < 0 && r != -ENOSYS);
 }
 
-static const struct venc_config *venc_timings_to_config(
-		struct videomode *timings)
+static const struct venc_config *venc_timings_to_config(struct videomode *vm)
 {
-	if (memcmp(&omap_dss_pal_timings, timings, sizeof(*timings)) == 0)
+	if (memcmp(&omap_dss_pal_vm, vm, sizeof(*vm)) == 0)
 		return &venc_config_pal_trm;
 
-	if (memcmp(&omap_dss_ntsc_timings, timings, sizeof(*timings)) == 0)
+	if (memcmp(&omap_dss_ntsc_vm, vm, sizeof(*vm)) == 0)
 		return &venc_config_ntsc_trm;
 
 	BUG();
@@ -445,7 +444,7 @@ static int venc_power_on(struct omap_dss_device *dssdev)
 		goto err0;
 
 	venc_reset();
-	venc_write_config(venc_timings_to_config(&venc.timings));
+	venc_write_config(venc_timings_to_config(&venc.vm));
 
 	dss_set_venc_output(venc.type);
 	dss_set_dac_pwrdn_bgz(1);
@@ -462,7 +461,7 @@ static int venc_power_on(struct omap_dss_device *dssdev)
 
 	venc_write_reg(VENC_OUTPUT_CONTROL, l);
 
-	dss_mgr_set_timings(channel, &venc.timings);
+	dss_mgr_set_timings(channel, &venc.vm);
 
 	r = regulator_enable(venc.vdda_dac_reg);
 	if (r)
@@ -540,17 +539,17 @@ static void venc_display_disable(struct omap_dss_device *dssdev)
 }
 
 static void venc_set_timings(struct omap_dss_device *dssdev,
-		struct videomode *timings)
+			     struct videomode *vm)
 {
 	DSSDBG("venc_set_timings\n");
 
 	mutex_lock(&venc.venc_lock);
 
 	/* Reset WSS data when the TV standard changes. */
-	if (memcmp(&venc.timings, timings, sizeof(*timings)))
+	if (memcmp(&venc.vm, vm, sizeof(*vm)))
 		venc.wss_data = 0;
 
-	venc.timings = *timings;
+	venc.vm = *vm;
 
 	dispc_set_tv_pclk(13500000);
 
@@ -558,25 +557,25 @@ static void venc_set_timings(struct omap_dss_device *dssdev,
 }
 
 static int venc_check_timings(struct omap_dss_device *dssdev,
-		struct videomode *timings)
+			      struct videomode *vm)
 {
 	DSSDBG("venc_check_timings\n");
 
-	if (memcmp(&omap_dss_pal_timings, timings, sizeof(*timings)) == 0)
+	if (memcmp(&omap_dss_pal_vm, vm, sizeof(*vm)) == 0)
 		return 0;
 
-	if (memcmp(&omap_dss_ntsc_timings, timings, sizeof(*timings)) == 0)
+	if (memcmp(&omap_dss_ntsc_vm, vm, sizeof(*vm)) == 0)
 		return 0;
 
 	return -EINVAL;
 }
 
 static void venc_get_timings(struct omap_dss_device *dssdev,
-		struct videomode *timings)
+			     struct videomode *vm)
 {
 	mutex_lock(&venc.venc_lock);
 
-	*timings = venc.timings;
+	*vm = venc.vm;
 
 	mutex_unlock(&venc.venc_lock);
 }
@@ -596,7 +595,7 @@ static int venc_set_wss(struct omap_dss_device *dssdev, u32 wss)
 
 	mutex_lock(&venc.venc_lock);
 
-	config = venc_timings_to_config(&venc.timings);
+	config = venc_timings_to_config(&venc.vm);
 
 	/* Invert due to VENC_L21_WC_CTL:INV=1 */
 	venc.wss_data = (wss ^ 0xfffff) << 8;

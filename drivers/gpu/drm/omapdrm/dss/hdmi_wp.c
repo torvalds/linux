@@ -144,25 +144,25 @@ void hdmi_wp_video_config_format(struct hdmi_wp_data *wp,
 }
 
 void hdmi_wp_video_config_interface(struct hdmi_wp_data *wp,
-		struct videomode *timings)
+				    struct videomode *vm)
 {
 	u32 r;
 	bool vsync_pol, hsync_pol;
 	DSSDBG("Enter hdmi_wp_video_config_interface\n");
 
-	vsync_pol = !!(timings->flags & DISPLAY_FLAGS_VSYNC_HIGH);
-	hsync_pol = !!(timings->flags & DISPLAY_FLAGS_HSYNC_HIGH);
+	vsync_pol = !!(vm->flags & DISPLAY_FLAGS_VSYNC_HIGH);
+	hsync_pol = !!(vm->flags & DISPLAY_FLAGS_HSYNC_HIGH);
 
 	r = hdmi_read_reg(wp->base, HDMI_WP_VIDEO_CFG);
 	r = FLD_MOD(r, vsync_pol, 7, 7);
 	r = FLD_MOD(r, hsync_pol, 6, 6);
-	r = FLD_MOD(r, !!(timings->flags & DISPLAY_FLAGS_INTERLACED), 3, 3);
+	r = FLD_MOD(r, !!(vm->flags & DISPLAY_FLAGS_INTERLACED), 3, 3);
 	r = FLD_MOD(r, 1, 1, 0); /* HDMI_TIMING_MASTER_24BIT */
 	hdmi_write_reg(wp->base, HDMI_WP_VIDEO_CFG, r);
 }
 
 void hdmi_wp_video_config_timing(struct hdmi_wp_data *wp,
-		struct videomode *timings)
+				 struct videomode *vm)
 {
 	u32 timing_h = 0;
 	u32 timing_v = 0;
@@ -181,47 +181,47 @@ void hdmi_wp_video_config_timing(struct hdmi_wp_data *wp,
 	    omapdss_get_version() == OMAPDSS_VER_OMAP4)
 		hsync_len_offset = 0;
 
-	timing_h |= FLD_VAL(timings->hback_porch, 31, 20);
-	timing_h |= FLD_VAL(timings->hfront_porch, 19, 8);
-	timing_h |= FLD_VAL(timings->hsync_len - hsync_len_offset, 7, 0);
+	timing_h |= FLD_VAL(vm->hback_porch, 31, 20);
+	timing_h |= FLD_VAL(vm->hfront_porch, 19, 8);
+	timing_h |= FLD_VAL(vm->hsync_len - hsync_len_offset, 7, 0);
 	hdmi_write_reg(wp->base, HDMI_WP_VIDEO_TIMING_H, timing_h);
 
-	timing_v |= FLD_VAL(timings->vback_porch, 31, 20);
-	timing_v |= FLD_VAL(timings->vfront_porch, 19, 8);
-	timing_v |= FLD_VAL(timings->vsync_len, 7, 0);
+	timing_v |= FLD_VAL(vm->vback_porch, 31, 20);
+	timing_v |= FLD_VAL(vm->vfront_porch, 19, 8);
+	timing_v |= FLD_VAL(vm->vsync_len, 7, 0);
 	hdmi_write_reg(wp->base, HDMI_WP_VIDEO_TIMING_V, timing_v);
 }
 
 void hdmi_wp_init_vid_fmt_timings(struct hdmi_video_format *video_fmt,
-		struct videomode *timings, struct hdmi_config *param)
+		struct videomode *vm, struct hdmi_config *param)
 {
 	DSSDBG("Enter hdmi_wp_video_init_format\n");
 
 	video_fmt->packing_mode = HDMI_PACK_10b_RGB_YUV444;
-	video_fmt->y_res = param->timings.vactive;
-	video_fmt->x_res = param->timings.hactive;
+	video_fmt->y_res = param->vm.vactive;
+	video_fmt->x_res = param->vm.hactive;
 
-	timings->hback_porch = param->timings.hback_porch;
-	timings->hfront_porch = param->timings.hfront_porch;
-	timings->hsync_len = param->timings.hsync_len;
-	timings->vback_porch = param->timings.vback_porch;
-	timings->vfront_porch = param->timings.vfront_porch;
-	timings->vsync_len = param->timings.vsync_len;
+	vm->hback_porch = param->vm.hback_porch;
+	vm->hfront_porch = param->vm.hfront_porch;
+	vm->hsync_len = param->vm.hsync_len;
+	vm->vback_porch = param->vm.vback_porch;
+	vm->vfront_porch = param->vm.vfront_porch;
+	vm->vsync_len = param->vm.vsync_len;
 
-	timings->flags = param->timings.flags;
+	vm->flags = param->vm.flags;
 
-	if (param->timings.flags & DISPLAY_FLAGS_INTERLACED) {
+	if (param->vm.flags & DISPLAY_FLAGS_INTERLACED) {
 		video_fmt->y_res /= 2;
-		timings->vback_porch /= 2;
-		timings->vfront_porch /= 2;
-		timings->vsync_len /= 2;
+		vm->vback_porch /= 2;
+		vm->vfront_porch /= 2;
+		vm->vsync_len /= 2;
 	}
 
-	if (param->timings.flags & DISPLAY_FLAGS_DOUBLECLK) {
+	if (param->vm.flags & DISPLAY_FLAGS_DOUBLECLK) {
 		video_fmt->x_res *= 2;
-		timings->hfront_porch *= 2;
-		timings->hsync_len *= 2;
-		timings->hback_porch *= 2;
+		vm->hfront_porch *= 2;
+		vm->hsync_len *= 2;
+		vm->hback_porch *= 2;
 	}
 }
 

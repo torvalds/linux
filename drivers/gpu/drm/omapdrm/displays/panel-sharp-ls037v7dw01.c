@@ -26,7 +26,7 @@ struct panel_drv_data {
 
 	int data_lines;
 
-	struct videomode videomode;
+	struct videomode vm;
 
 	struct gpio_desc *resb_gpio;	/* low = reset active min 20 us */
 	struct gpio_desc *ini_gpio;	/* high = power on */
@@ -35,7 +35,7 @@ struct panel_drv_data {
 	struct gpio_desc *ud_gpio;	/* high = conventional vertical scanning */
 };
 
-static const struct videomode sharp_ls_timings = {
+static const struct videomode sharp_ls_vm = {
 	.hactive = 480,
 	.vactive = 640,
 
@@ -97,7 +97,7 @@ static int sharp_ls_enable(struct omap_dss_device *dssdev)
 
 	if (ddata->data_lines)
 		in->ops.dpi->set_data_lines(in, ddata->data_lines);
-	in->ops.dpi->set_timings(in, &ddata->videomode);
+	in->ops.dpi->set_timings(in, &ddata->vm);
 
 	if (ddata->vcc) {
 		r = regulator_enable(ddata->vcc);
@@ -152,32 +152,32 @@ static void sharp_ls_disable(struct omap_dss_device *dssdev)
 }
 
 static void sharp_ls_set_timings(struct omap_dss_device *dssdev,
-		struct videomode *timings)
+				 struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	ddata->videomode = *timings;
-	dssdev->panel.timings = *timings;
+	ddata->vm = *vm;
+	dssdev->panel.vm = *vm;
 
-	in->ops.dpi->set_timings(in, timings);
+	in->ops.dpi->set_timings(in, vm);
 }
 
 static void sharp_ls_get_timings(struct omap_dss_device *dssdev,
-		struct videomode *timings)
+				 struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	*timings = ddata->videomode;
+	*vm = ddata->vm;
 }
 
 static int sharp_ls_check_timings(struct omap_dss_device *dssdev,
-		struct videomode *timings)
+				  struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	return in->ops.dpi->check_timings(in, timings);
+	return in->ops.dpi->check_timings(in, vm);
 }
 
 static struct omap_dss_driver sharp_ls_ops = {
@@ -277,14 +277,14 @@ static int sharp_ls_probe(struct platform_device *pdev)
 	if (r)
 		return r;
 
-	ddata->videomode = sharp_ls_timings;
+	ddata->vm = sharp_ls_vm;
 
 	dssdev = &ddata->dssdev;
 	dssdev->dev = &pdev->dev;
 	dssdev->driver = &sharp_ls_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
-	dssdev->panel.timings = ddata->videomode;
+	dssdev->panel.vm = ddata->vm;
 	dssdev->phy.dpi.data_lines = ddata->data_lines;
 
 	r = omapdss_register_display(dssdev);

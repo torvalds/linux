@@ -71,7 +71,7 @@ struct panel_drv_data {
 	int reset_gpio;
 	int datapairs;
 
-	struct videomode videomode;
+	struct videomode vm;
 
 	char		*name;
 	int		enabled;
@@ -92,7 +92,7 @@ struct panel_drv_data {
 	struct backlight_device *bl_dev;
 };
 
-static const struct videomode acx565akm_panel_timings = {
+static const struct videomode acx565akm_panel_vm = {
 	.hactive	= 800,
 	.vactive	= 480,
 	.pixelclock	= 24000000,
@@ -545,7 +545,7 @@ static int acx565akm_panel_power_on(struct omap_dss_device *dssdev)
 
 	dev_dbg(&ddata->spi->dev, "%s\n", __func__);
 
-	in->ops.sdi->set_timings(in, &ddata->videomode);
+	in->ops.sdi->set_timings(in, &ddata->vm);
 
 	if (ddata->datapairs > 0)
 		in->ops.sdi->set_datapairs(in, ddata->datapairs);
@@ -659,32 +659,32 @@ static void acx565akm_disable(struct omap_dss_device *dssdev)
 }
 
 static void acx565akm_set_timings(struct omap_dss_device *dssdev,
-		struct videomode *timings)
+				  struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	ddata->videomode = *timings;
-	dssdev->panel.timings = *timings;
+	ddata->vm = *vm;
+	dssdev->panel.vm = *vm;
 
-	in->ops.sdi->set_timings(in, timings);
+	in->ops.sdi->set_timings(in, vm);
 }
 
 static void acx565akm_get_timings(struct omap_dss_device *dssdev,
-		struct videomode *timings)
+				  struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	*timings = ddata->videomode;
+	*vm = ddata->vm;
 }
 
 static int acx565akm_check_timings(struct omap_dss_device *dssdev,
-		struct videomode *timings)
+				   struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	return in->ops.sdi->check_timings(in, timings);
+	return in->ops.sdi->check_timings(in, vm);
 }
 
 static struct omap_dss_driver acx565akm_ops = {
@@ -842,14 +842,14 @@ static int acx565akm_probe(struct spi_device *spi)
 	acx565akm_bl_update_status(bldev);
 
 
-	ddata->videomode = acx565akm_panel_timings;
+	ddata->vm = acx565akm_panel_vm;
 
 	dssdev = &ddata->dssdev;
 	dssdev->dev = &spi->dev;
 	dssdev->driver = &acx565akm_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_SDI;
 	dssdev->owner = THIS_MODULE;
-	dssdev->panel.timings = ddata->videomode;
+	dssdev->panel.vm = ddata->vm;
 
 	r = omapdss_register_display(dssdev);
 	if (r) {

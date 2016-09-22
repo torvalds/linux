@@ -23,7 +23,7 @@ struct panel_drv_data {
 	struct omap_dss_device	dssdev;
 	struct omap_dss_device *in;
 
-	struct videomode videomode;
+	struct videomode vm;
 
 	int data_lines;
 
@@ -65,7 +65,7 @@ static const struct {
 	{ 156, 0x00 }, { 157, 0x00 }, { 2, 0x00 },
 };
 
-static const struct videomode nec_8048_panel_timings = {
+static const struct videomode nec_8048_panel_vm = {
 	.hactive	= LCD_XRES,
 	.vactive	= LCD_YRES,
 	.pixelclock	= LCD_PIXEL_CLOCK,
@@ -155,7 +155,7 @@ static int nec_8048_enable(struct omap_dss_device *dssdev)
 
 	if (ddata->data_lines)
 		in->ops.dpi->set_data_lines(in, ddata->data_lines);
-	in->ops.dpi->set_timings(in, &ddata->videomode);
+	in->ops.dpi->set_timings(in, &ddata->vm);
 
 	r = in->ops.dpi->enable(in);
 	if (r)
@@ -186,32 +186,32 @@ static void nec_8048_disable(struct omap_dss_device *dssdev)
 }
 
 static void nec_8048_set_timings(struct omap_dss_device *dssdev,
-		struct videomode *timings)
+				 struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	ddata->videomode = *timings;
-	dssdev->panel.timings = *timings;
+	ddata->vm = *vm;
+	dssdev->panel.vm = *vm;
 
-	in->ops.dpi->set_timings(in, timings);
+	in->ops.dpi->set_timings(in, vm);
 }
 
 static void nec_8048_get_timings(struct omap_dss_device *dssdev,
-		struct videomode *timings)
+				 struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	*timings = ddata->videomode;
+	*vm = ddata->vm;
 }
 
 static int nec_8048_check_timings(struct omap_dss_device *dssdev,
-		struct videomode *timings)
+				  struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	return in->ops.dpi->check_timings(in, timings);
+	return in->ops.dpi->check_timings(in, vm);
 }
 
 static struct omap_dss_driver nec_8048_ops = {
@@ -304,14 +304,14 @@ static int nec_8048_probe(struct spi_device *spi)
 			goto err_gpio;
 	}
 
-	ddata->videomode = nec_8048_panel_timings;
+	ddata->vm = nec_8048_panel_vm;
 
 	dssdev = &ddata->dssdev;
 	dssdev->dev = &spi->dev;
 	dssdev->driver = &nec_8048_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
-	dssdev->panel.timings = ddata->videomode;
+	dssdev->panel.vm = ddata->vm;
 
 	r = omapdss_register_display(dssdev);
 	if (r) {

@@ -28,7 +28,7 @@ struct panel_drv_data {
 
 	int data_lines;
 
-	struct videomode videomode;
+	struct videomode vm;
 
 	/* used for non-DT boot, to be removed */
 	int backlight_gpio;
@@ -80,7 +80,7 @@ static int panel_dpi_enable(struct omap_dss_device *dssdev)
 
 	if (ddata->data_lines)
 		in->ops.dpi->set_data_lines(in, ddata->data_lines);
-	in->ops.dpi->set_timings(in, &ddata->videomode);
+	in->ops.dpi->set_timings(in, &ddata->vm);
 
 	r = in->ops.dpi->enable(in);
 	if (r)
@@ -122,32 +122,32 @@ static void panel_dpi_disable(struct omap_dss_device *dssdev)
 }
 
 static void panel_dpi_set_timings(struct omap_dss_device *dssdev,
-		struct videomode *timings)
+				  struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	ddata->videomode = *timings;
-	dssdev->panel.timings = *timings;
+	ddata->vm = *vm;
+	dssdev->panel.vm = *vm;
 
-	in->ops.dpi->set_timings(in, timings);
+	in->ops.dpi->set_timings(in, vm);
 }
 
 static void panel_dpi_get_timings(struct omap_dss_device *dssdev,
-		struct videomode *timings)
+				  struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	*timings = ddata->videomode;
+	*vm = ddata->vm;
 }
 
 static int panel_dpi_check_timings(struct omap_dss_device *dssdev,
-		struct videomode *timings)
+				   struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	return in->ops.dpi->check_timings(in, timings);
+	return in->ops.dpi->check_timings(in, vm);
 }
 
 static struct omap_dss_driver panel_dpi_ops = {
@@ -184,7 +184,7 @@ static int panel_dpi_probe_pdata(struct platform_device *pdev)
 
 	ddata->data_lines = pdata->data_lines;
 
-	videomode_from_timing(pdata->display_timing, &ddata->videomode);
+	videomode_from_timing(pdata->display_timing, &ddata->vm);
 
 	dssdev = &ddata->dssdev;
 	dssdev->name = pdata->name;
@@ -242,7 +242,7 @@ static int panel_dpi_probe_of(struct platform_device *pdev)
 		return r;
 	}
 
-	videomode_from_timing(&timing, &ddata->videomode);
+	videomode_from_timing(&timing, &ddata->vm);
 
 	in = omapdss_of_find_source_for_first_ep(node);
 	if (IS_ERR(in)) {
@@ -291,7 +291,7 @@ static int panel_dpi_probe(struct platform_device *pdev)
 	dssdev->driver = &panel_dpi_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
-	dssdev->panel.timings = ddata->videomode;
+	dssdev->panel.vm = ddata->vm;
 	dssdev->phy.dpi.data_lines = ddata->data_lines;
 
 	r = omapdss_register_display(dssdev);

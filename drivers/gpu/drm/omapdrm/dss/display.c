@@ -35,8 +35,8 @@
 void omapdss_default_get_resolution(struct omap_dss_device *dssdev,
 			u16 *xres, u16 *yres)
 {
-	*xres = dssdev->panel.timings.hactive;
-	*yres = dssdev->panel.timings.vactive;
+	*xres = dssdev->panel.vm.hactive;
+	*yres = dssdev->panel.vm.vactive;
 }
 EXPORT_SYMBOL(omapdss_default_get_resolution);
 
@@ -72,9 +72,9 @@ int omapdss_default_get_recommended_bpp(struct omap_dss_device *dssdev)
 EXPORT_SYMBOL(omapdss_default_get_recommended_bpp);
 
 void omapdss_default_get_timings(struct omap_dss_device *dssdev,
-		struct videomode *timings)
+				 struct videomode *vm)
 {
-	*timings = dssdev->panel.timings;
+	*vm = dssdev->panel.vm;
 }
 EXPORT_SYMBOL(omapdss_default_get_timings);
 

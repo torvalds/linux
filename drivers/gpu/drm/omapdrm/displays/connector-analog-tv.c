@@ -24,12 +24,12 @@ struct panel_drv_data {
 
 	struct device *dev;
 
-	struct videomode timings;
+	struct videomode vm;
 
 	bool invert_polarity;
 };
 
-static const struct videomode tvc_pal_timings = {
+static const struct videomode tvc_pal_vm = {
 	.hactive	= 720,
 	.vactive	= 574,
 	.pixelclock	= 13500000,
@@ -93,7 +93,7 @@ static int tvc_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	in->ops.atv->set_timings(in, &ddata->timings);
+	in->ops.atv->set_timings(in, &ddata->vm);
 
 	if (!ddata->dev->of_node) {
 		in->ops.atv->set_type(in, OMAP_DSS_VENC_TYPE_COMPOSITE);
@@ -127,32 +127,32 @@ static void tvc_disable(struct omap_dss_device *dssdev)
 }
 
 static void tvc_set_timings(struct omap_dss_device *dssdev,
-		struct videomode *timings)
+			    struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	ddata->timings = *timings;
-	dssdev->panel.timings = *timings;
+	ddata->vm = *vm;
+	dssdev->panel.vm = *vm;
 
-	in->ops.atv->set_timings(in, timings);
+	in->ops.atv->set_timings(in, vm);
 }
 
 static void tvc_get_timings(struct omap_dss_device *dssdev,
-		struct videomode *timings)
+			    struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	*timings = ddata->timings;
+	*vm = ddata->vm;
 }
 
 static int tvc_check_timings(struct omap_dss_device *dssdev,
-		struct videomode *timings)
+			     struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	return in->ops.atv->check_timings(in, timings);
+	return in->ops.atv->check_timings(in, vm);
 }
 
 static u32 tvc_get_wss(struct omap_dss_device *dssdev)
@@ -254,14 +254,14 @@ static int tvc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	ddata->timings = tvc_pal_timings;
+	ddata->vm = tvc_pal_vm;
 
 	dssdev = &ddata->dssdev;
 	dssdev->driver = &tvc_driver;
 	dssdev->dev = &pdev->dev;
 	dssdev->type = OMAP_DISPLAY_TYPE_VENC;
 	dssdev->owner = THIS_MODULE;
-	dssdev->panel.timings = tvc_pal_timings;
+	dssdev->panel.vm = tvc_pal_vm;
 
 	r = omapdss_register_display(dssdev);
 	if (r) {
