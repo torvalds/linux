@@ -1440,7 +1440,7 @@ static int g2d_probe(struct platform_device *pdev)
 		goto err_put_clk;
 	}
 
-	dev_info(dev, "The exynos g2d(ver %d.%d) successfully probed\n",
+	dev_info(dev, "The Exynos G2D (ver %d.%d) successfully probed.\n",
 			G2D_HW_MAJOR_VER, G2D_HW_MINOR_VER);
 
 	return 0;
