@@ -329,13 +329,12 @@ static void hdmi_core_video_config(struct hdmi_core_data *core,
 			struct hdmi_core_vid_config *cfg)
 {
 	void __iomem *base = core->base;
+	struct omap_video_timings *ovt = &cfg->v_fc_config.timings;
 	unsigned char r = 0;
 	bool vsync_pol, hsync_pol;
 
-	vsync_pol =
-		cfg->v_fc_config.timings.vsync_level == OMAPDSS_SIG_ACTIVE_HIGH;
-	hsync_pol =
-		cfg->v_fc_config.timings.hsync_level == OMAPDSS_SIG_ACTIVE_HIGH;
+	vsync_pol = ovt->vsync_level == OMAPDSS_SIG_ACTIVE_HIGH;
+	hsync_pol = ovt->hsync_level == OMAPDSS_SIG_ACTIVE_HIGH;
 
 	/* Set hsync, vsync and data-enable polarity  */
 	r = hdmi_read_reg(base, HDMI_CORE_FC_INVIDCONF);
@@ -343,20 +342,16 @@ static void hdmi_core_video_config(struct hdmi_core_data *core,
 	r = FLD_MOD(r, hsync_pol, 5, 5);
 	r = FLD_MOD(r, cfg->data_enable_pol, 4, 4);
 	r = FLD_MOD(r, cfg->vblank_osc, 1, 1);
-	r = FLD_MOD(r, cfg->v_fc_config.timings.interlace, 0, 0);
+	r = FLD_MOD(r, ovt->interlace, 0, 0);
 	hdmi_write_reg(base, HDMI_CORE_FC_INVIDCONF, r);
 
 	/* set x resolution */
-	REG_FLD_MOD(base, HDMI_CORE_FC_INHACTIV1,
-			cfg->v_fc_config.timings.hactive >> 8, 4, 0);
-	REG_FLD_MOD(base, HDMI_CORE_FC_INHACTIV0,
-			cfg->v_fc_config.timings.hactive & 0xFF, 7, 0);
+	REG_FLD_MOD(base, HDMI_CORE_FC_INHACTIV1, ovt->hactive >> 8, 4, 0);
+	REG_FLD_MOD(base, HDMI_CORE_FC_INHACTIV0, ovt->hactive & 0xFF, 7, 0);
 
 	/* set y resolution */
-	REG_FLD_MOD(base, HDMI_CORE_FC_INVACTIV1,
-			cfg->v_fc_config.timings.vactive >> 8, 4, 0);
-	REG_FLD_MOD(base, HDMI_CORE_FC_INVACTIV0,
-			cfg->v_fc_config.timings.vactive & 0xFF, 7, 0);
+	REG_FLD_MOD(base, HDMI_CORE_FC_INVACTIV1, ovt->vactive >> 8, 4, 0);
+	REG_FLD_MOD(base, HDMI_CORE_FC_INVACTIV0, ovt->vactive & 0xFF, 7, 0);
 
 	/* set horizontal blanking pixels */
 	REG_FLD_MOD(base, HDMI_CORE_FC_INHBLANK1, cfg->hblank >> 8, 4, 0);
@@ -366,30 +361,28 @@ static void hdmi_core_video_config(struct hdmi_core_data *core,
 	REG_FLD_MOD(base, HDMI_CORE_FC_INVBLANK, cfg->vblank, 7, 0);
 
 	/* set horizontal sync offset */
-	REG_FLD_MOD(base, HDMI_CORE_FC_HSYNCINDELAY1,
-			cfg->v_fc_config.timings.hfront_porch >> 8, 4, 0);
-	REG_FLD_MOD(base, HDMI_CORE_FC_HSYNCINDELAY0,
-			cfg->v_fc_config.timings.hfront_porch & 0xFF, 7, 0);
+	REG_FLD_MOD(base, HDMI_CORE_FC_HSYNCINDELAY1, ovt->hfront_porch >> 8,
+		    4, 0);
+	REG_FLD_MOD(base, HDMI_CORE_FC_HSYNCINDELAY0, ovt->hfront_porch & 0xFF,
+		    7, 0);
 
 	/* set vertical sync offset */
-	REG_FLD_MOD(base, HDMI_CORE_FC_VSYNCINDELAY,
-			cfg->v_fc_config.timings.vfront_porch, 7, 0);
+	REG_FLD_MOD(base, HDMI_CORE_FC_VSYNCINDELAY, ovt->vfront_porch, 7, 0);
 
 	/* set horizontal sync pulse width */
-	REG_FLD_MOD(base, HDMI_CORE_FC_HSYNCINWIDTH1,
-			(cfg->v_fc_config.timings.hsync_len >> 8), 1, 0);
-	REG_FLD_MOD(base, HDMI_CORE_FC_HSYNCINWIDTH0,
-			cfg->v_fc_config.timings.hsync_len & 0xFF, 7, 0);
+	REG_FLD_MOD(base, HDMI_CORE_FC_HSYNCINWIDTH1, (ovt->hsync_len >> 8),
+		    1, 0);
+	REG_FLD_MOD(base, HDMI_CORE_FC_HSYNCINWIDTH0, ovt->hsync_len & 0xFF,
+		    7, 0);
 
 	/*  set vertical sync pulse width */
-	REG_FLD_MOD(base, HDMI_CORE_FC_VSYNCINWIDTH,
-			cfg->v_fc_config.timings.vsync_len, 5, 0);
+	REG_FLD_MOD(base, HDMI_CORE_FC_VSYNCINWIDTH, ovt->vsync_len, 5, 0);
 
 	/* select DVI mode */
 	REG_FLD_MOD(base, HDMI_CORE_FC_INVIDCONF,
-			cfg->v_fc_config.hdmi_dvi_mode, 3, 3);
+		    cfg->v_fc_config.hdmi_dvi_mode, 3, 3);
 
-	if (cfg->v_fc_config.timings.double_pixel)
+	if (ovt->double_pixel)
 		REG_FLD_MOD(base, HDMI_CORE_FC_PRCONF, 2, 7, 4);
 	else
 		REG_FLD_MOD(base, HDMI_CORE_FC_PRCONF, 1, 7, 4);
