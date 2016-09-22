@@ -9,16 +9,47 @@
 #include <asm/irqflags.h>
 #include <asm/host_ops.h>
 
-static unsigned long irq_status;
-static bool irqs_enabled;
+/*
+ * To avoid much overhead we use an indirect approach: the irqs are marked using
+ * a bitmap (array of longs) and a summary of the modified bits is kept in a
+ * separate "index" long - one bit for each sizeof(long). Thus we can support
+ * 4096 irqs on 64bit platforms and 1024 irqs on 32bit platforms.
+ *
+ * Whenever an irq is trigger both the array and the index is updated. To find
+ * which irqs were triggered we first search the index and then the
+ * corresponding part of the arrary.
+ */
+static unsigned long irq_status[NR_IRQS/IRQ_STATUS_BITS];
+static unsigned long irq_index_status;
 
-#define TEST_AND_CLEAR_IRQ_STATUS(x)	__sync_fetch_and_and(&irq_status, 0)
-#define IRQ_BIT(x)			BIT(x-1)
-#define SET_IRQ_STATUS(x)		__sync_fetch_and_or(&irq_status, BIT(x - 1))
+static inline unsigned long test_and_clear_irq_index_status(void)
+{
+	if (!irq_index_status)
+		return 0;
+	return __sync_fetch_and_and(&irq_index_status, 0);
+}
+
+static inline unsigned long test_and_clear_irq_status(int index)
+{
+	if (!&irq_status[index])
+		return 0;
+	return __sync_fetch_and_and(&irq_status[index], 0);
+}
+
+static inline void set_irq_status(int irq)
+{
+	int index = irq / IRQ_STATUS_BITS;
+	int bit = irq % IRQ_STATUS_BITS;
+
+	__sync_fetch_and_or(&irq_status[index], BIT(bit));
+	__sync_fetch_and_or(&irq_index_status, BIT(index));
+}
+
 
 static struct irq_info {
 	const char *user;
 } irqs[NR_IRQS];
+
 
 /**
  * DO NOT run any linux calls (e.g. printk) here as they may race with the
@@ -29,32 +60,40 @@ int lkl_trigger_irq(int irq)
 	if (!irq || irq > NR_IRQS)
 		return -EINVAL;
 
-	SET_IRQ_STATUS(irq);
+	set_irq_status(irq);
 
 	wakeup_cpu();
 
 	return 0;
 }
 
-static void run_irqs(void)
+static inline void for_each_bit(unsigned long word, void (*f)(int, int), int j)
 {
-	int i = 1;
-	unsigned long status;
+	int i = 0;
 
-	if (!irq_status)
-		return;
-
-	status = TEST_AND_CLEAR_IRQ_STATUS(IRQS_MASK);
-
-	while (status) {
-		if (status & 1) {
-			irq_enter();
-			generic_handle_irq(i);
-			irq_exit();
-		}
-		status = status >> 1;
+	while (word) {
+		if (word & 1)
+			f(i, j);
+		word >>= 1;
 		i++;
 	}
+}
+
+static inline void deliver_irq(int bit, int index)
+{
+	irq_enter();
+	generic_handle_irq(index * IRQ_STATUS_BITS + bit);
+	irq_exit();
+}
+
+static inline void check_irq_status(int i, int unused)
+{
+	for_each_bit(test_and_clear_irq_status(i), deliver_irq, i);
+}
+
+static void run_irqs(void)
+{
+	for_each_bit(test_and_clear_irq_index_status(), check_irq_status, 0);
 }
 
 int show_interrupts(struct seq_file *p, void *v)
@@ -88,6 +127,8 @@ void lkl_put_irq(int i, const char *user)
 
 	irqs[i].user = NULL;
 }
+
+static bool irqs_enabled;
 
 unsigned long arch_local_save_flags(void)
 {
