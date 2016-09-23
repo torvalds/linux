@@ -143,6 +143,7 @@ struct dsa_port {
 	struct net_device	*netdev;
 	struct device_node	*dn;
 	unsigned int		ageing_time;
+	u8			stp_state;
 };
 
 struct dsa_switch {
@@ -339,6 +340,7 @@ struct dsa_switch_ops {
 	void	(*port_bridge_leave)(struct dsa_switch *ds, int port);
 	void	(*port_stp_state_set)(struct dsa_switch *ds, int port,
 				      u8 state);
+	void	(*port_fast_age)(struct dsa_switch *ds, int port);
 
 	/*
 	 * VLAN support

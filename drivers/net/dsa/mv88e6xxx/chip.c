@@ -1133,31 +1133,18 @@ static int _mv88e6xxx_port_state(struct mv88e6xxx_chip *chip, int port,
 
 	oldstate = reg & PORT_CONTROL_STATE_MASK;
 
-	if (oldstate != state) {
-		/* Flush forwarding database if we're moving a port
-		 * from Learning or Forwarding state to Disabled or
-		 * Blocking or Listening state.
-		 */
-		if ((oldstate == PORT_CONTROL_STATE_LEARNING ||
-		     oldstate == PORT_CONTROL_STATE_FORWARDING) &&
-		    (state == PORT_CONTROL_STATE_DISABLED ||
-		     state == PORT_CONTROL_STATE_BLOCKING)) {
-			err = _mv88e6xxx_atu_remove(chip, 0, port, false);
-			if (err)
-				return err;
-		}
+	reg &= ~PORT_CONTROL_STATE_MASK;
+	reg |= state;
 
-		reg = (reg & ~PORT_CONTROL_STATE_MASK) | state;
-		err = mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
-		if (err)
-			return err;
+	err = mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
+	if (err)
+		return err;
 
-		netdev_dbg(ds->ports[port].netdev, "PortState %s (was %s)\n",
-			   mv88e6xxx_port_state_names[state],
-			   mv88e6xxx_port_state_names[oldstate]);
-	}
+	netdev_dbg(ds->ports[port].netdev, "PortState %s (was %s)\n",
+		   mv88e6xxx_port_state_names[state],
+		   mv88e6xxx_port_state_names[oldstate]);
 
-	return err;
+	return 0;
 }
 
 static int _mv88e6xxx_port_based_vlan_map(struct mv88e6xxx_chip *chip, int port)
@@ -1230,6 +1217,19 @@ static void mv88e6xxx_port_stp_state_set(struct dsa_switch *ds, int port,
 		netdev_err(ds->ports[port].netdev,
 			   "failed to update state to %s\n",
 			   mv88e6xxx_port_state_names[stp_state]);
+}
+
+static void mv88e6xxx_port_fast_age(struct dsa_switch *ds, int port)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int err;
+
+	mutex_lock(&chip->reg_lock);
+	err = _mv88e6xxx_atu_remove(chip, 0, port, false);
+	mutex_unlock(&chip->reg_lock);
+
+	if (err)
+		netdev_err(ds->ports[port].netdev, "failed to flush ATU\n");
 }
 
 static int _mv88e6xxx_port_pvid(struct mv88e6xxx_chip *chip, int port,
@@ -3684,6 +3684,7 @@ static struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.port_bridge_join	= mv88e6xxx_port_bridge_join,
 	.port_bridge_leave	= mv88e6xxx_port_bridge_leave,
 	.port_stp_state_set	= mv88e6xxx_port_stp_state_set,
+	.port_fast_age		= mv88e6xxx_port_fast_age,
 	.port_vlan_filtering	= mv88e6xxx_port_vlan_filtering,
 	.port_vlan_prepare	= mv88e6xxx_port_vlan_prepare,
 	.port_vlan_add		= mv88e6xxx_port_vlan_add,
