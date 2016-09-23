@@ -251,7 +251,7 @@ TRACE_EVENT(rxrpc_rx_ack,
 
 	    TP_printk("c=%p %s f=%08x n=%u",
 		      __entry->call,
-		      rxrpc_acks(__entry->reason),
+		      rxrpc_ack_names[__entry->reason],
 		      __entry->first,
 		      __entry->n_acks)
 	    );
@@ -314,7 +314,7 @@ TRACE_EVENT(rxrpc_tx_ack,
 	    TP_printk(" c=%p ACK  %08x %s f=%08x r=%08x n=%u",
 		      __entry->call,
 		      __entry->serial,
-		      rxrpc_acks(__entry->reason),
+		      rxrpc_ack_names[__entry->reason],
 		      __entry->ack_first,
 		      __entry->ack_serial,
 		      __entry->n_acks)
@@ -503,6 +503,44 @@ TRACE_EVENT(rxrpc_rx_lose,
 		      __entry->hdr.serial, __entry->hdr.seq,
 		      __entry->hdr.type, __entry->hdr.flags,
 		      __entry->hdr.type <= 15 ? rxrpc_pkts[__entry->hdr.type] : "?UNK")
+	    );
+
+TRACE_EVENT(rxrpc_propose_ack,
+	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_propose_ack_trace why,
+		     u8 ack_reason, rxrpc_serial_t serial, bool immediate,
+		     bool background, enum rxrpc_propose_ack_outcome outcome),
+
+	    TP_ARGS(call, why, ack_reason, serial, immediate, background,
+		    outcome),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_call *,		call		)
+		    __field(enum rxrpc_propose_ack_trace,	why		)
+		    __field(rxrpc_serial_t,			serial		)
+		    __field(u8,					ack_reason	)
+		    __field(bool,				immediate	)
+		    __field(bool,				background	)
+		    __field(enum rxrpc_propose_ack_outcome,	outcome		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call	= call;
+		    __entry->why	= why;
+		    __entry->serial	= serial;
+		    __entry->ack_reason	= ack_reason;
+		    __entry->immediate	= immediate;
+		    __entry->background	= background;
+		    __entry->outcome	= outcome;
+			   ),
+
+	    TP_printk("c=%p %s %s r=%08x i=%u b=%u%s",
+		      __entry->call,
+		      rxrpc_propose_ack_traces[__entry->why],
+		      rxrpc_ack_names[__entry->ack_reason],
+		      __entry->serial,
+		      __entry->immediate,
+		      __entry->background,
+		      rxrpc_propose_ack_outcomes[__entry->outcome])
 	    );
 
 #endif /* _TRACE_RXRPC_H */

@@ -210,7 +210,8 @@ int rxrpc_send_call_packet(struct rxrpc_call *call, u8 type)
 			rxrpc_propose_ACK(call, pkt->ack.reason,
 					  ntohs(pkt->ack.maxSkew),
 					  ntohl(pkt->ack.serial),
-					  true, true);
+					  true, true,
+					  rxrpc_propose_ack_retry_tx);
 			break;
 		case RXRPC_PACKET_TYPE_ABORT:
 			break;

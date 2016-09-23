@@ -49,7 +49,8 @@ static void rxrpc_send_ping(struct rxrpc_call *call, struct sk_buff *skb,
 	if (call->peer->rtt_usage < 3 ||
 	    ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000), now))
 		rxrpc_propose_ACK(call, RXRPC_ACK_PING, skew, sp->hdr.serial,
-				  true, true);
+				  true, true,
+				  rxrpc_propose_ack_ping_for_params);
 }
 
 /*
@@ -382,7 +383,8 @@ skip:
 ack:
 	if (ack)
 		rxrpc_propose_ACK(call, ack, skew, ack_serial,
-				  immediate_ack, true);
+				  immediate_ack, true,
+				  rxrpc_propose_ack_input_data);
 
 	if (sp->hdr.seq == READ_ONCE(call->rx_hard_ack) + 1)
 		rxrpc_notify_socket(call);
@@ -539,6 +541,7 @@ static void rxrpc_input_soft_acks(struct rxrpc_call *call, u8 *acks,
 static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 			    u16 skew)
 {
+	u8 ack_reason;
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	union {
 		struct rxrpc_ackpacket ack;
@@ -561,8 +564,10 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 	first_soft_ack = ntohl(buf.ack.firstPacket);
 	hard_ack = first_soft_ack - 1;
 	nr_acks = buf.ack.nAcks;
+	ack_reason = (buf.ack.reason < RXRPC_ACK__INVALID ?
+		      buf.ack.reason : RXRPC_ACK__INVALID);
 
-	trace_rxrpc_rx_ack(call, first_soft_ack, buf.ack.reason, nr_acks);
+	trace_rxrpc_rx_ack(call, first_soft_ack, ack_reason, nr_acks);
 
 	_proto("Rx ACK %%%u { m=%hu f=#%u p=#%u s=%%%u r=%s n=%u }",
 	       sp->hdr.serial,
@@ -570,7 +575,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 	       first_soft_ack,
 	       ntohl(buf.ack.previousPacket),
 	       acked_serial,
-	       rxrpc_acks(buf.ack.reason),
+	       rxrpc_ack_names[ack_reason],
 	       buf.ack.nAcks);
 
 	if (buf.ack.reason == RXRPC_ACK_PING_RESPONSE)
@@ -583,10 +588,12 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 	if (buf.ack.reason == RXRPC_ACK_PING) {
 		_proto("Rx ACK %%%u PING Request", sp->hdr.serial);
 		rxrpc_propose_ACK(call, RXRPC_ACK_PING_RESPONSE,
-				  skew, sp->hdr.serial, true, true);
+				  skew, sp->hdr.serial, true, true,
+				  rxrpc_propose_ack_respond_to_ping);
 	} else if (sp->hdr.flags & RXRPC_REQUEST_ACK) {
 		rxrpc_propose_ACK(call, RXRPC_ACK_REQUESTED,
-				  skew, sp->hdr.serial, true, true);
+				  skew, sp->hdr.serial, true, true,
+				  rxrpc_propose_ack_respond_to_ack);
 	}
 
 	offset = sp->offset + nr_acks + 3;

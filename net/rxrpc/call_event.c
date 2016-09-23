@@ -58,13 +58,12 @@ out:
  */
 static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 				u16 skew, u32 serial, bool immediate,
-				bool background)
+				bool background,
+				enum rxrpc_propose_ack_trace why)
 {
+	enum rxrpc_propose_ack_outcome outcome = rxrpc_propose_ack_use;
 	unsigned long now, ack_at, expiry = rxrpc_soft_ack_delay;
 	s8 prior = rxrpc_ack_priority[ack_reason];
-
-	_enter("{%d},%s,%%%x,%u",
-	       call->debug_id, rxrpc_acks(ack_reason), serial, immediate);
 
 	/* Update DELAY, IDLE, REQUESTED and PING_RESPONSE ACK serial
 	 * numbers, but we don't alter the timeout.
@@ -74,15 +73,18 @@ static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 	       call->ackr_reason, rxrpc_ack_priority[call->ackr_reason]);
 	if (ack_reason == call->ackr_reason) {
 		if (RXRPC_ACK_UPDATEABLE & (1 << ack_reason)) {
+			outcome = rxrpc_propose_ack_update;
 			call->ackr_serial = serial;
 			call->ackr_skew = skew;
 		}
 		if (!immediate)
-			return;
+			goto trace;
 	} else if (prior > rxrpc_ack_priority[call->ackr_reason]) {
 		call->ackr_reason = ack_reason;
 		call->ackr_serial = serial;
 		call->ackr_skew = skew;
+	} else {
+		outcome = rxrpc_propose_ack_subsume;
 	}
 
 	switch (ack_reason) {
@@ -124,17 +126,22 @@ static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 			rxrpc_set_timer(call, rxrpc_timer_set_for_ack);
 		}
 	}
+
+trace:
+	trace_rxrpc_propose_ack(call, why, ack_reason, serial, immediate,
+				background, outcome);
 }
 
 /*
  * propose an ACK be sent, locking the call structure
  */
 void rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
-		       u16 skew, u32 serial, bool immediate, bool background)
+		       u16 skew, u32 serial, bool immediate, bool background,
+		       enum rxrpc_propose_ack_trace why)
 {
 	spin_lock_bh(&call->lock);
 	__rxrpc_propose_ACK(call, ack_reason, skew, serial,
-			    immediate, background);
+			    immediate, background, why);
 	spin_unlock_bh(&call->lock);
 }
 

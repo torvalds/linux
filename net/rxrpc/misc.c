@@ -91,17 +91,10 @@ const s8 rxrpc_ack_priority[] = {
 	[RXRPC_ACK_PING]		= 9,
 };
 
-const char *rxrpc_acks(u8 reason)
-{
-	static const char *const str[] = {
-		"---", "REQ", "DUP", "OOS", "WIN", "MEM", "PNG", "PNR", "DLY",
-		"IDL", "-?-"
-	};
-
-	if (reason >= ARRAY_SIZE(str))
-		reason = ARRAY_SIZE(str) - 1;
-	return str[reason];
-}
+const char const rxrpc_ack_names[RXRPC_ACK__INVALID + 1][4] = {
+	"---", "REQ", "DUP", "OOS", "WIN", "MEM", "PNG", "PNR", "DLY",
+	"IDL", "-?-"
+};
 
 const char rxrpc_skb_traces[rxrpc_skb__nr_trace][7] = {
 	[rxrpc_skb_rx_cleaned]		= "Rx CLN",
@@ -201,4 +194,19 @@ const char rxrpc_timer_traces[rxrpc_timer__nr_trace][8] = {
 	[rxrpc_timer_set_for_ack]		= "SetAck",
 	[rxrpc_timer_set_for_send]		= "SetTx ",
 	[rxrpc_timer_set_for_resend]		= "SetRTx",
+};
+
+const char rxrpc_propose_ack_traces[rxrpc_propose_ack__nr_trace][8] = {
+	[rxrpc_propose_ack_input_data]		= "DataIn ",
+	[rxrpc_propose_ack_ping_for_params]	= "Params ",
+	[rxrpc_propose_ack_respond_to_ack]	= "Rsp2Ack",
+	[rxrpc_propose_ack_respond_to_ping]	= "Rsp2Png",
+	[rxrpc_propose_ack_retry_tx]		= "RetryTx",
+	[rxrpc_propose_ack_terminal_ack]	= "ClTerm ",
+};
+
+const char *const rxrpc_propose_ack_outcomes[rxrpc_propose_ack__nr_outcomes] = {
+	[rxrpc_propose_ack_use]			= "",
+	[rxrpc_propose_ack_update]		= " Update",
+	[rxrpc_propose_ack_subsume]		= " Subsume",
 };

@@ -141,7 +141,8 @@ static void rxrpc_end_rx_phase(struct rxrpc_call *call)
 	ASSERTCMP(call->rx_hard_ack, ==, call->rx_top);
 
 	if (call->state == RXRPC_CALL_CLIENT_RECV_REPLY) {
-		rxrpc_propose_ACK(call, RXRPC_ACK_IDLE, 0, 0, true, false);
+		rxrpc_propose_ACK(call, RXRPC_ACK_IDLE, 0, 0, true, false,
+				  rxrpc_propose_ack_terminal_ack);
 		rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ACK);
 	}
 
