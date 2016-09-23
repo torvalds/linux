@@ -4492,8 +4492,8 @@ pm8001_chip_phy_start_req(struct pm8001_hba_info *pm8001_ha, u8 phy_id)
  * @num: the inbound queue number
  * @phy_id: the phy id which we wanted to start up.
  */
-int pm8001_chip_phy_stop_req(struct pm8001_hba_info *pm8001_ha,
-	u8 phy_id)
+static int pm8001_chip_phy_stop_req(struct pm8001_hba_info *pm8001_ha,
+				    u8 phy_id)
 {
 	struct phy_stop_req payload;
 	struct inbound_queue_table *circularQ;
