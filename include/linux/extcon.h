@@ -37,6 +37,7 @@
 /* USB external connector */
 #define EXTCON_USB		1
 #define EXTCON_USB_HOST		2
+#define EXTCON_USB_VBUS_EN	3
 
 /*
  * Charging external connector
