@@ -1433,6 +1433,8 @@ int ieee80211_txq_setup_flows(struct ieee80211_local *local)
 	struct fq *fq = &local->fq;
 	int ret;
 	int i;
+	bool supp_vht = false;
+	enum nl80211_band band;
 
 	if (!local->ops->wake_tx_queue)
 		return 0;
@@ -1440,6 +1442,23 @@ int ieee80211_txq_setup_flows(struct ieee80211_local *local)
 	ret = fq_init(fq, 4096);
 	if (ret)
 		return ret;
+
+	/*
+	 * If the hardware doesn't support VHT, it is safe to limit the maximum
+	 * queue size. 4 Mbytes is 64 max-size aggregates in 802.11n.
+	 */
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
+		struct ieee80211_supported_band *sband;
+
+		sband = local->hw.wiphy->bands[band];
+		if (!sband)
+			continue;
+
+		supp_vht = supp_vht || sband->vht_cap.vht_supported;
+	}
+
+	if (!supp_vht)
+		fq->memory_limit = 4 << 20; /* 4 Mbytes */
 
 	codel_params_init(&local->cparams);
 	local->cparams.interval = MS2TIME(100);
