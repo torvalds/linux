@@ -974,21 +974,37 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	int pass;
 	int flen;
 	struct bpf_binary_header *bpf_hdr;
+	struct bpf_prog *org_fp = fp;
+	struct bpf_prog *tmp_fp;
+	bool bpf_blinded = false;
 
 	if (!bpf_jit_enable)
-		return fp;
+		return org_fp;
+
+	tmp_fp = bpf_jit_blind_constants(org_fp);
+	if (IS_ERR(tmp_fp))
+		return org_fp;
+
+	if (tmp_fp != org_fp) {
+		bpf_blinded = true;
+		fp = tmp_fp;
+	}
 
 	flen = fp->len;
 	addrs = kzalloc((flen+1) * sizeof(*addrs), GFP_KERNEL);
-	if (addrs == NULL)
-		return fp;
-
-	cgctx.idx = 0;
-	cgctx.seen = 0;
-	/* Scouting faux-generate pass 0 */
-	if (bpf_jit_build_body(fp, 0, &cgctx, addrs))
-		/* We hit something illegal or unsupported. */
+	if (addrs == NULL) {
+		fp = org_fp;
 		goto out;
+	}
+
+	memset(&cgctx, 0, sizeof(struct codegen_context));
+
+	/* Scouting faux-generate pass 0 */
+	if (bpf_jit_build_body(fp, 0, &cgctx, addrs)) {
+		/* We hit something illegal or unsupported. */
+		fp = org_fp;
+		goto out;
+	}
 
 	/*
 	 * Pretend to build prologue, given the features we've seen.  This will
@@ -1003,8 +1019,10 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 
 	bpf_hdr = bpf_jit_binary_alloc(alloclen, &image, 4,
 			bpf_jit_fill_ill_insns);
-	if (!bpf_hdr)
+	if (!bpf_hdr) {
+		fp = org_fp;
 		goto out;
+	}
 
 	code_base = (u32 *)(image + FUNCTION_DESCR_SIZE);
 
@@ -1041,6 +1059,10 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 
 out:
 	kfree(addrs);
+
+	if (bpf_blinded)
+		bpf_jit_prog_release_other(fp, fp == org_fp ? tmp_fp : org_fp);
+
 	return fp;
 }
 

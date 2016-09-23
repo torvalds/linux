@@ -39,10 +39,10 @@
 #ifndef __ASSEMBLY__
 
 /* BPF register usage */
-#define SKB_HLEN_REG	(MAX_BPF_REG + 0)
-#define SKB_DATA_REG	(MAX_BPF_REG + 1)
-#define TMP_REG_1	(MAX_BPF_REG + 2)
-#define TMP_REG_2	(MAX_BPF_REG + 3)
+#define SKB_HLEN_REG	(MAX_BPF_JIT_REG + 0)
+#define SKB_DATA_REG	(MAX_BPF_JIT_REG + 1)
+#define TMP_REG_1	(MAX_BPF_JIT_REG + 2)
+#define TMP_REG_2	(MAX_BPF_JIT_REG + 3)
 
 /* BPF to ppc register mappings */
 static const int b2p[] = {
@@ -62,6 +62,7 @@ static const int b2p[] = {
 	/* frame pointer aka BPF_REG_10 */
 	[BPF_REG_FP] = 31,
 	/* eBPF jit internal registers */
+	[BPF_REG_AX] = 2,
 	[SKB_HLEN_REG] = 25,
 	[SKB_DATA_REG] = 26,
 	[TMP_REG_1] = 9,
