@@ -15,7 +15,7 @@ struct compat_timespec;
 
 #ifdef CONFIG_THREAD_INFO_IN_TASK
 struct thread_info {
-	u32			flags;		/* low level flags */
+	unsigned long		flags;		/* low level flags */
 };
 
 #define INIT_THREAD_INFO(tsk)			\
