@@ -1573,23 +1573,23 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (!rec->itr) {
 		rec->itr = auxtrace_record__init(rec->evlist, &err);
 		if (err)
-			return err;
+			goto out;
 	}
 
 	err = auxtrace_parse_snapshot_options(rec->itr, &rec->opts,
 					      rec->opts.auxtrace_snapshot_opts);
 	if (err)
-		return err;
+		goto out;
 
 	if (dry_run)
-		return 0;
+		goto out;
 
 	err = bpf__setup_stdout(rec->evlist);
 	if (err) {
 		bpf__strerror_setup_stdout(rec->evlist, err, errbuf, sizeof(errbuf));
 		pr_err("ERROR: Setup BPF stdout failed: %s\n",
 			 errbuf);
-		return err;
+		goto out;
 	}
 
 	err = -ENOMEM;
