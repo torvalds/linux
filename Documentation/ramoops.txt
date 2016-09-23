@@ -5,34 +5,37 @@ Sergiu Iordache <sergiu@chromium.org>
 
 Updated: 17 November 2011
 
-0. Introduction
+Introduction
+------------
 
 Ramoops is an oops/panic logger that writes its logs to RAM before the system
 crashes. It works by logging oopses and panics in a circular buffer. Ramoops
 needs a system with persistent RAM so that the content of that area can
 survive after a restart.
 
-1. Ramoops concepts
+Ramoops concepts
+----------------
 
 Ramoops uses a predefined memory area to store the dump. The start and size
 and type of the memory area are set using three variables:
-  * "mem_address" for the start
-  * "mem_size" for the size. The memory size will be rounded down to a
-  power of two.
-  * "mem_type" to specifiy if the memory type (default is pgprot_writecombine).
 
-Typically the default value of mem_type=0 should be used as that sets the pstore
-mapping to pgprot_writecombine. Setting mem_type=1 attempts to use
-pgprot_noncached, which only works on some platforms. This is because pstore
+  * ``mem_address`` for the start
+  * ``mem_size`` for the size. The memory size will be rounded down to a
+    power of two.
+  * ``mem_type`` to specifiy if the memory type (default is pgprot_writecombine).
+
+Typically the default value of ``mem_type=0`` should be used as that sets the pstore
+mapping to pgprot_writecombine. Setting ``mem_type=1`` attempts to use
+``pgprot_noncached``, which only works on some platforms. This is because pstore
 depends on atomic operations. At least on ARM, pgprot_noncached causes the
 memory to be mapped strongly ordered, and atomic operations on strongly ordered
 memory are implementation defined, and won't work on many ARMs such as omaps.
 
-The memory area is divided into "record_size" chunks (also rounded down to
-power of two) and each oops/panic writes a "record_size" chunk of
+The memory area is divided into ``record_size`` chunks (also rounded down to
+power of two) and each oops/panic writes a ``record_size`` chunk of
 information.
 
-Dumping both oopses and panics can be done by setting 1 in the "dump_oops"
+Dumping both oopses and panics can be done by setting 1 in the ``dump_oops``
 variable while setting 0 in that variable dumps only the panics.
 
 The module uses a counter to record multiple dumps but the counter gets reset
@@ -43,7 +46,8 @@ This might be useful when a hardware reset was used to bring the machine back
 to life (i.e. a watchdog triggered). In such cases, RAM may be somewhat
 corrupt, but usually it is restorable.
 
-2. Setting the parameters
+Setting the parameters
+----------------------
 
 Setting the ramoops parameters can be done in several different manners:
 
@@ -52,12 +56,13 @@ Setting the ramoops parameters can be done in several different manners:
  boot and then use the reserved memory for ramoops. For example, assuming a
  machine with > 128 MB of memory, the following kernel command line will tell
  the kernel to use only the first 128 MB of memory, and place ECC-protected
- ramoops region at 128 MB boundary:
- "mem=128M ramoops.mem_address=0x8000000 ramoops.ecc=1"
+ ramoops region at 128 MB boundary::
+
+	mem=128M ramoops.mem_address=0x8000000 ramoops.ecc=1
 
  B. Use Device Tree bindings, as described in
- Documentation/device-tree/bindings/reserved-memory/ramoops.txt.
- For example:
+ ``Documentation/device-tree/bindings/reserved-memory/ramoops.txt``.
+ For example::
 
 	reserved-memory {
 		#address-cells = <2>;
@@ -73,60 +78,63 @@ Setting the ramoops parameters can be done in several different manners:
 	};
 
  C. Use a platform device and set the platform data. The parameters can then
- be set through that platform data. An example of doing that is:
+ be set through that platform data. An example of doing that is::
 
-#include <linux/pstore_ram.h>
-[...]
+  #include <linux/pstore_ram.h>
+  [...]
 
-static struct ramoops_platform_data ramoops_data = {
+  static struct ramoops_platform_data ramoops_data = {
         .mem_size               = <...>,
         .mem_address            = <...>,
         .mem_type               = <...>,
         .record_size            = <...>,
         .dump_oops              = <...>,
         .ecc                    = <...>,
-};
+  };
 
-static struct platform_device ramoops_dev = {
+  static struct platform_device ramoops_dev = {
         .name = "ramoops",
         .dev = {
                 .platform_data = &ramoops_data,
         },
-};
+  };
 
-[... inside a function ...]
-int ret;
+  [... inside a function ...]
+  int ret;
 
-ret = platform_device_register(&ramoops_dev);
-if (ret) {
+  ret = platform_device_register(&ramoops_dev);
+  if (ret) {
 	printk(KERN_ERR "unable to register platform device\n");
 	return ret;
-}
+  }
 
 You can specify either RAM memory or peripheral devices' memory. However, when
 specifying RAM, be sure to reserve the memory by issuing memblock_reserve()
-very early in the architecture code, e.g.:
+very early in the architecture code, e.g.::
 
-#include <linux/memblock.h>
+	#include <linux/memblock.h>
 
-memblock_reserve(ramoops_data.mem_address, ramoops_data.mem_size);
+	memblock_reserve(ramoops_data.mem_address, ramoops_data.mem_size);
 
-3. Dump format
+Dump format
+-----------
 
-The data dump begins with a header, currently defined as "====" followed by a
+The data dump begins with a header, currently defined as ``====`` followed by a
 timestamp and a new line. The dump then continues with the actual data.
 
-4. Reading the data
+Reading the data
+----------------
 
 The dump data can be read from the pstore filesystem. The format for these
-files is "dmesg-ramoops-N", where N is the record number in memory. To delete
+files is ``dmesg-ramoops-N``, where N is the record number in memory. To delete
 a stored record from RAM, simply unlink the respective pstore file.
 
-5. Persistent function tracing
+Persistent function tracing
+---------------------------
 
 Persistent function tracing might be useful for debugging software or hardware
-related hangs. The functions call chain log is stored in a "ftrace-ramoops"
-file. Here is an example of usage:
+related hangs. The functions call chain log is stored in a ``ftrace-ramoops``
+file. Here is an example of usage::
 
  # mount -t debugfs debugfs /sys/kernel/debug/
  # echo 1 > /sys/kernel/debug/pstore/record_ftrace
