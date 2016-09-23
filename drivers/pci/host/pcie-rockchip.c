@@ -95,6 +95,11 @@
 #define   PCIE_CORE_PL_CONF_SPEED_MASK		0x00000018
 #define   PCIE_CORE_PL_CONF_LANE_MASK		0x00000006
 #define   PCIE_CORE_PL_CONF_LANE_SHIFT		1
+#define PCIE_CORE_TXCREDIT_CFG1		(PCIE_CORE_CTRL_MGMT_BASE + 0x020)
+#define   PCIE_CORE_TXCREDIT_CFG1_MUI_MASK	0xFFFF0000
+#define   PCIE_CORE_TXCREDIT_CFG1_MUI_SHIFT	16
+#define   PCIE_CORE_TXCREDIT_CFG1_MUI_ENCODE(x) \
+		(((x) >> 3) << PCIE_CORE_TXCREDIT_CFG1_MUI_SHIFT)
 #define PCIE_CORE_INT_STATUS		(PCIE_CORE_CTRL_MGMT_BASE + 0x20c)
 #define   PCIE_CORE_INT_PRFPE			BIT(0)
 #define   PCIE_CORE_INT_CRFPE			BIT(1)
@@ -222,6 +227,17 @@ static void rockchip_pcie_clr_bw_int(struct rockchip_pcie *rockchip)
 	status = rockchip_pcie_read(rockchip, PCIE_RC_CONFIG_LCS);
 	status |= (PCIE_RC_CONFIG_LCS_LBMS | PCIE_RC_CONFIG_LCS_LAMS);
 	rockchip_pcie_write(rockchip, status, PCIE_RC_CONFIG_LCS);
+}
+
+static void rockchip_pcie_update_txcredit_mui(struct rockchip_pcie *rockchip)
+{
+	u32 val;
+
+	/* Update Tx credit maximum update interval */
+	val = rockchip_pcie_read(rockchip, PCIE_CORE_TXCREDIT_CFG1);
+	val &= ~PCIE_CORE_TXCREDIT_CFG1_MUI_MASK;
+	val |= PCIE_CORE_TXCREDIT_CFG1_MUI_ENCODE(24000);	/* ns */
+	rockchip_pcie_write(rockchip, val, PCIE_CORE_TXCREDIT_CFG1);
 }
 
 static int rockchip_pcie_valid_device(struct rockchip_pcie *rockchip,
@@ -597,6 +613,7 @@ static irqreturn_t rockchip_pcie_subsys_irq_handler(int irq, void *arg)
 		rockchip_pcie_write(rockchip, sub_reg, PCIE_CORE_INT_STATUS);
 	} else if (reg & PCIE_CLIENT_INT_PHY) {
 		dev_dbg(dev, "phy link changes\n");
+		rockchip_pcie_update_txcredit_mui(rockchip);
 		rockchip_pcie_clr_bw_int(rockchip);
 	}
 
