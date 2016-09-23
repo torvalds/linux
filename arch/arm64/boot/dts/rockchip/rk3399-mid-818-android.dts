@@ -1178,6 +1178,17 @@
 	#include <dt-bindings/display/screen-timing/lcd-LP097Qx2.dtsi>
 };
 
+&cdn_dp_sound {
+	status = "okay";
+};
+
+&cdn_dp_fb {
+	status = "okay";
+	extcon = <&fusb0>;
+	phys = <&tcphy0 0>;
+	dp_vop_sel = <DISPLAY_SOURCE_LCDC1>;
+};
+
 &vopb_rk_fb {
 	status = "okay";
 	rockchip,cabc_mode = <1>;
