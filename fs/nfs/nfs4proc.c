@@ -755,6 +755,13 @@ static int nfs41_sequence_process(struct rpc_task *task,
 	/* Check the SEQUENCE operation status */
 	switch (res->sr_status) {
 	case 0:
+		/* If previous op on slot was interrupted and we reused
+		 * the seq# and got a reply from the cache, then retry
+		 */
+		if (task->tk_status == -EREMOTEIO && interrupted) {
+			++slot->seq_nr;
+			goto retry_nowait;
+		}
 		/* Update the slot's sequence and clientid lease timer */
 		slot->seq_done = 1;
 		clp = session->clp;
