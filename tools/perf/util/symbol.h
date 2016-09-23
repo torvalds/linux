@@ -259,6 +259,7 @@ struct symbol *dso__find_symbol_by_name(struct dso *dso, enum map_type type,
 struct symbol *symbol__next_by_name(struct symbol *sym);
 
 struct symbol *dso__first_symbol(struct dso *dso, enum map_type type);
+struct symbol *dso__last_symbol(struct dso *dso, enum map_type type);
 struct symbol *dso__next_symbol(struct symbol *sym);
 
 enum dso_type dso__type_fd(int fd);
