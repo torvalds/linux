@@ -205,12 +205,23 @@ EXPORT_SYMBOL_GPL(flush_fp_to_thread);
 
 void enable_kernel_fp(void)
 {
+	unsigned long cpumsr;
+
 	WARN_ON(preemptible());
 
-	msr_check_and_set(MSR_FP);
+	cpumsr = msr_check_and_set(MSR_FP);
 
 	if (current->thread.regs && (current->thread.regs->msr & MSR_FP)) {
 		check_if_tm_restore_required(current);
+		/*
+		 * If a thread has already been reclaimed then the
+		 * checkpointed registers are on the CPU but have definitely
+		 * been saved by the reclaim code. Don't need to and *cannot*
+		 * giveup as this would save  to the 'live' structure not the
+		 * checkpointed structure.
+		 */
+		if(!msr_tm_active(cpumsr) && msr_tm_active(current->thread.regs->msr))
+			return;
 		__giveup_fpu(current);
 	}
 }
@@ -257,12 +268,23 @@ EXPORT_SYMBOL(giveup_altivec);
 
 void enable_kernel_altivec(void)
 {
+	unsigned long cpumsr;
+
 	WARN_ON(preemptible());
 
-	msr_check_and_set(MSR_VEC);
+	cpumsr = msr_check_and_set(MSR_VEC);
 
 	if (current->thread.regs && (current->thread.regs->msr & MSR_VEC)) {
 		check_if_tm_restore_required(current);
+		/*
+		 * If a thread has already been reclaimed then the
+		 * checkpointed registers are on the CPU but have definitely
+		 * been saved by the reclaim code. Don't need to and *cannot*
+		 * giveup as this would save  to the 'live' structure not the
+		 * checkpointed structure.
+		 */
+		if(!msr_tm_active(cpumsr) && msr_tm_active(current->thread.regs->msr))
+			return;
 		__giveup_altivec(current);
 	}
 }
@@ -331,12 +353,23 @@ static void save_vsx(struct task_struct *tsk)
 
 void enable_kernel_vsx(void)
 {
+	unsigned long cpumsr;
+
 	WARN_ON(preemptible());
 
-	msr_check_and_set(MSR_FP|MSR_VEC|MSR_VSX);
+	cpumsr = msr_check_and_set(MSR_FP|MSR_VEC|MSR_VSX);
 
 	if (current->thread.regs && (current->thread.regs->msr & MSR_VSX)) {
 		check_if_tm_restore_required(current);
+		/*
+		 * If a thread has already been reclaimed then the
+		 * checkpointed registers are on the CPU but have definitely
+		 * been saved by the reclaim code. Don't need to and *cannot*
+		 * giveup as this would save  to the 'live' structure not the
+		 * checkpointed structure.
+		 */
+		if(!msr_tm_active(cpumsr) && msr_tm_active(current->thread.regs->msr))
+			return;
 		if (current->thread.regs->msr & MSR_FP)
 			__giveup_fpu(current);
 		if (current->thread.regs->msr & MSR_VEC)
