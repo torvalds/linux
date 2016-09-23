@@ -262,9 +262,7 @@ int ceph_build_auth(struct ceph_auth_client *ac,
 	int ret = 0;
 
 	mutex_lock(&ac->mutex);
-	if (!ac->protocol)
-		ret = ceph_auth_build_hello(ac, msg_buf, msg_len);
-	else if (ac->ops->should_authenticate(ac))
+	if (ac->ops->should_authenticate(ac))
 		ret = ceph_build_auth_request(ac, msg_buf, msg_len);
 	mutex_unlock(&ac->mutex);
 	return ret;
