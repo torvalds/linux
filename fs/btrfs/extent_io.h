@@ -59,6 +59,28 @@
  */
 #define EXTENT_PAGE_PRIVATE 1
 
+/*
+ * The extent buffer bitmap operations are done with byte granularity instead of
+ * word granularity for two reasons:
+ * 1. The bitmaps must be little-endian on disk.
+ * 2. Bitmap items are not guaranteed to be aligned to a word and therefore a
+ *    single word in a bitmap may straddle two pages in the extent buffer.
+ */
+#define BIT_BYTE(nr) ((nr) / BITS_PER_BYTE)
+#define BYTE_MASK ((1 << BITS_PER_BYTE) - 1)
+#define BITMAP_FIRST_BYTE_MASK(start) \
+	((BYTE_MASK << ((start) & (BITS_PER_BYTE - 1))) & BYTE_MASK)
+#define BITMAP_LAST_BYTE_MASK(nbits) \
+	(BYTE_MASK >> (-(nbits) & (BITS_PER_BYTE - 1)))
+
+static inline int le_test_bit(int nr, const u8 *addr)
+{
+	return 1U & (addr[BIT_BYTE(nr)] >> (nr & (BITS_PER_BYTE-1)));
+}
+
+extern void le_bitmap_set(u8 *map, unsigned int start, int len);
+extern void le_bitmap_clear(u8 *map, unsigned int start, int len);
+
 struct extent_state;
 struct btrfs_root;
 struct btrfs_io_bio;
