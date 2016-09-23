@@ -105,6 +105,7 @@ struct intel_pt {
 	unsigned long num_events;
 
 	char *filter;
+	struct addr_filters filts;
 };
 
 enum switch_state {
@@ -550,6 +551,76 @@ out_no_cache:
 	return 0;
 }
 
+static bool intel_pt_match_pgd_ip(struct intel_pt *pt, uint64_t ip,
+				  uint64_t offset, const char *filename)
+{
+	struct addr_filter *filt;
+	bool have_filter   = false;
+	bool hit_tracestop = false;
+	bool hit_filter    = false;
+
+	list_for_each_entry(filt, &pt->filts.head, list) {
+		if (filt->start)
+			have_filter = true;
+
+		if ((filename && !filt->filename) ||
+		    (!filename && filt->filename) ||
+		    (filename && strcmp(filename, filt->filename)))
+			continue;
+
+		if (!(offset >= filt->addr && offset < filt->addr + filt->size))
+			continue;
+
+		intel_pt_log("TIP.PGD ip %#"PRIx64" offset %#"PRIx64" in %s hit filter: %s offset %#"PRIx64" size %#"PRIx64"\n",
+			     ip, offset, filename ? filename : "[kernel]",
+			     filt->start ? "filter" : "stop",
+			     filt->addr, filt->size);
+
+		if (filt->start)
+			hit_filter = true;
+		else
+			hit_tracestop = true;
+	}
+
+	if (!hit_tracestop && !hit_filter)
+		intel_pt_log("TIP.PGD ip %#"PRIx64" offset %#"PRIx64" in %s is not in a filter region\n",
+			     ip, offset, filename ? filename : "[kernel]");
+
+	return hit_tracestop || (have_filter && !hit_filter);
+}
+
+static int __intel_pt_pgd_ip(uint64_t ip, void *data)
+{
+	struct intel_pt_queue *ptq = data;
+	struct thread *thread;
+	struct addr_location al;
+	u8 cpumode;
+	u64 offset;
+
+	if (ip >= ptq->pt->kernel_start)
+		return intel_pt_match_pgd_ip(ptq->pt, ip, ip, NULL);
+
+	cpumode = PERF_RECORD_MISC_USER;
+
+	thread = ptq->thread;
+	if (!thread)
+		return -EINVAL;
+
+	thread__find_addr_map(thread, cpumode, MAP__FUNCTION, ip, &al);
+	if (!al.map || !al.map->dso)
+		return -EINVAL;
+
+	offset = al.map->map_ip(al.map, ip);
+
+	return intel_pt_match_pgd_ip(ptq->pt, ip, offset,
+				     al.map->dso->long_name);
+}
+
+static bool intel_pt_pgd_ip(uint64_t ip, void *data)
+{
+	return __intel_pt_pgd_ip(ip, data) > 0;
+}
+
 static bool intel_pt_get_config(struct intel_pt *pt,
 				struct perf_event_attr *attr, u64 *config)
 {
@@ -725,6 +796,9 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 	params.mtc_period = intel_pt_mtc_period(pt);
 	params.tsc_ctc_ratio_n = pt->tsc_ctc_ratio_n;
 	params.tsc_ctc_ratio_d = pt->tsc_ctc_ratio_d;
+
+	if (pt->filts.cnt > 0)
+		params.pgd_ip = intel_pt_pgd_ip;
 
 	if (pt->synth_opts.instructions) {
 		if (pt->synth_opts.period) {
@@ -1776,6 +1850,7 @@ static void intel_pt_free(struct perf_session *session)
 	intel_pt_free_events(session);
 	session->auxtrace = NULL;
 	thread__put(pt->unknown_thread);
+	addr_filters__exit(&pt->filts);
 	zfree(&pt->filter);
 	free(pt);
 }
@@ -2073,6 +2148,8 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	if (!pt)
 		return -ENOMEM;
 
+	addr_filters__init(&pt->filts);
+
 	perf_config(intel_pt_perf_config, pt);
 
 	err = auxtrace_queues__init(&pt->queues);
@@ -2147,6 +2224,10 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 				err = -EINVAL;
 				goto err_free_queues;
 			}
+			err = addr_filters__parse_bare_filter(&pt->filts,
+							      filter);
+			if (err)
+				goto err_free_queues;
 		}
 		intel_pt_print_info_str("Filter string", pt->filter);
 	}
@@ -2268,6 +2349,7 @@ err_free_queues:
 	auxtrace_queues__free(&pt->queues);
 	session->auxtrace = NULL;
 err_free:
+	addr_filters__exit(&pt->filts);
 	zfree(&pt->filter);
 	free(pt);
 	return err;
