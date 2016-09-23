@@ -994,7 +994,7 @@ static int amdgpu_atombios_init(struct amdgpu_device *adev)
 
 	mutex_init(&adev->mode_info.atom_context->mutex);
 	amdgpu_atombios_scratch_regs_init(adev);
-	amdgpu_atom_allocate_fb_scratch(adev->mode_info.atom_context);
+	amdgpu_atombios_allocate_fb_scratch(adev);
 	return 0;
 }
 

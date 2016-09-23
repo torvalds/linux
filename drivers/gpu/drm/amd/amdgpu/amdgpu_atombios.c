@@ -1748,3 +1748,31 @@ void amdgpu_atombios_copy_swap(u8 *dst, u8 *src, u8 num_bytes, bool to_le)
 	memcpy(dst, src, num_bytes);
 #endif
 }
+
+int amdgpu_atombios_allocate_fb_scratch(struct amdgpu_device *adev)
+{
+	struct atom_context *ctx = adev->mode_info.atom_context;
+	int index = GetIndexIntoMasterTable(DATA, VRAM_UsageByFirmware);
+	uint16_t data_offset;
+	int usage_bytes = 0;
+	struct _ATOM_VRAM_USAGE_BY_FIRMWARE *firmware_usage;
+
+	if (amdgpu_atom_parse_data_header(ctx, index, NULL, NULL, NULL, &data_offset)) {
+		firmware_usage = (struct _ATOM_VRAM_USAGE_BY_FIRMWARE *)(ctx->bios + data_offset);
+
+		DRM_DEBUG("atom firmware requested %08x %dkb\n",
+			  le32_to_cpu(firmware_usage->asFirmwareVramReserveInfo[0].ulStartAddrUsedByFirmware),
+			  le16_to_cpu(firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb));
+
+		usage_bytes = le16_to_cpu(firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb) * 1024;
+	}
+	ctx->scratch_size_bytes = 0;
+	if (usage_bytes == 0)
+		usage_bytes = 20 * 1024;
+	/* allocate some scratch memory */
+	ctx->scratch = kzalloc(usage_bytes, GFP_KERNEL);
+	if (!ctx->scratch)
+		return -ENOMEM;
+	ctx->scratch_size_bytes = usage_bytes;
+	return 0;
+}

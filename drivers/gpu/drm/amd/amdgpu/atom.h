@@ -152,7 +152,6 @@ bool amdgpu_atom_parse_data_header(struct atom_context *ctx, int index, uint16_t
 			    uint8_t *frev, uint8_t *crev, uint16_t *data_start);
 bool amdgpu_atom_parse_cmd_header(struct atom_context *ctx, int index,
 			   uint8_t *frev, uint8_t *crev);
-int amdgpu_atom_allocate_fb_scratch(struct atom_context *ctx);
 #include "atom-types.h"
 #include "atombios.h"
 #include "ObjectID.h"
