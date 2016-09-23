@@ -179,7 +179,8 @@ static void _rtl_pci_update_default_setting(struct ieee80211_hw *hw)
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case not processed\n");
+			 "switch case %#x not processed\n",
+			 rtlpci->const_support_pciaspm);
 		break;
 	}
 
