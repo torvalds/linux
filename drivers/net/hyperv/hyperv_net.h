@@ -649,6 +649,8 @@ struct multi_recv_comp {
 struct netvsc_stats {
 	u64 packets;
 	u64 bytes;
+	u64 broadcast;
+	u64 multicast;
 	struct u64_stats_sync syncp;
 };
 
@@ -695,9 +697,8 @@ struct net_device_context {
 	bool start_remove;
 
 	/* State to manage the associated VF interface. */
-	struct net_device *vf_netdev;
-	bool vf_inject;
-	atomic_t vf_use_cnt;
+	struct net_device __rcu *vf_netdev;
+
 	/* 1: allocated, serial number is valid. 0: not allocated */
 	u32 vf_alloc;
 	/* Serial number of the VF to team with */
