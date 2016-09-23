@@ -754,7 +754,6 @@ static irqreturn_t mixer_irq_handler(int irq, void *arg)
 	struct mixer_context *ctx = arg;
 	struct mixer_resources *res = &ctx->mixer_res;
 	u32 val, base, shadow;
-	int win;
 
 	spin_lock(&res->reg_slock);
 
@@ -781,14 +780,6 @@ static irqreturn_t mixer_irq_handler(int irq, void *arg)
 		}
 
 		drm_crtc_handle_vblank(&ctx->crtc->base);
-		for (win = 0 ; win < MIXER_WIN_NR ; win++) {
-			struct exynos_drm_plane *plane = &ctx->planes[win];
-
-			if (!plane->pending_fb)
-				continue;
-
-			exynos_drm_crtc_finish_update(ctx->crtc, plane);
-		}
 	}
 
 out:

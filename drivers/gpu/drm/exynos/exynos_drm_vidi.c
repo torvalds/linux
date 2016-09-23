@@ -175,7 +175,6 @@ static const struct exynos_drm_crtc_ops vidi_crtc_ops = {
 static void vidi_fake_vblank_timer(unsigned long arg)
 {
 	struct vidi_context *ctx = (void *)arg;
-	int win;
 
 	if (ctx->pipe < 0)
 		return;
@@ -183,15 +182,6 @@ static void vidi_fake_vblank_timer(unsigned long arg)
 	if (drm_crtc_handle_vblank(&ctx->crtc->base))
 		mod_timer(&ctx->timer,
 			jiffies + msecs_to_jiffies(VIDI_REFRESH_TIME) - 1);
-
-	for (win = 0 ; win < WINDOWS_NR ; win++) {
-		struct exynos_drm_plane *plane = &ctx->planes[win];
-
-		if (!plane->pending_fb)
-			continue;
-
-		exynos_drm_crtc_finish_update(ctx->crtc, plane);
-	}
 }
 
 static ssize_t vidi_show_connection(struct device *dev,

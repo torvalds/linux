@@ -962,8 +962,7 @@ static const struct exynos_drm_crtc_ops fimd_crtc_ops = {
 static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 {
 	struct fimd_context *ctx = (struct fimd_context *)dev_id;
-	u32 val, clear_bit, start, start_s;
-	int win;
+	u32 val, clear_bit;
 
 	val = readl(ctx->regs + VIDINTCON1);
 
@@ -977,18 +976,6 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 
 	if (!ctx->i80_if)
 		drm_crtc_handle_vblank(&ctx->crtc->base);
-
-	for (win = 0 ; win < WINDOWS_NR ; win++) {
-		struct exynos_drm_plane *plane = &ctx->planes[win];
-
-		if (!plane->pending_fb)
-			continue;
-
-		start = readl(ctx->regs + VIDWx_BUF_START(win, 0));
-		start_s = readl(ctx->regs + VIDWx_BUF_START_S(win, 0));
-		if (start == start_s)
-			exynos_drm_crtc_finish_update(ctx->crtc, plane);
-	}
 
 	if (ctx->i80_if) {
 		/* Exits triggering mode */
