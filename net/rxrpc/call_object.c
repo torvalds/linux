@@ -199,8 +199,8 @@ static void rxrpc_start_call_timer(struct rxrpc_call *call)
 	call->expire_at = expire_at;
 	call->ack_at = expire_at;
 	call->resend_at = expire_at;
-	call->timer.expires = expire_at;
-	add_timer(&call->timer);
+	call->timer.expires = expire_at + 1;
+	rxrpc_set_timer(call);
 }
 
 /*

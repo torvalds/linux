@@ -28,24 +28,27 @@ void rxrpc_set_timer(struct rxrpc_call *call)
 {
 	unsigned long t, now = jiffies;
 
-	_enter("{%ld,%ld,%ld:%ld}",
-	       call->ack_at - now, call->resend_at - now, call->expire_at - now,
-	       call->timer.expires - now);
-
 	read_lock_bh(&call->state_lock);
 
 	if (call->state < RXRPC_CALL_COMPLETE) {
-		t = call->ack_at;
-		if (time_before(call->resend_at, t))
+		t = call->expire_at;
+		if (time_before_eq(t, now))
+			goto out;
+
+		if (time_after(call->resend_at, now) &&
+		    time_before(call->resend_at, t))
 			t = call->resend_at;
-		if (time_before(call->expire_at, t))
-			t = call->expire_at;
-		if (!timer_pending(&call->timer) ||
-		    time_before(t, call->timer.expires)) {
-			_debug("set timer %ld", t - now);
+
+		if (time_after(call->ack_at, now) &&
+		    time_before(call->ack_at, t))
+			t = call->ack_at;
+
+		if (call->timer.expires != t || !timer_pending(&call->timer)) {
 			mod_timer(&call->timer, t);
 		}
 	}
+
+out:
 	read_unlock_bh(&call->state_lock);
 }
 
