@@ -32,10 +32,17 @@ static inline bool have_hwcap(unsigned long ftr)
 	return ((unsigned long)get_auxv_entry(AT_HWCAP) & ftr) == ftr;
 }
 
+#ifdef AT_HWCAP2
 static inline bool have_hwcap2(unsigned long ftr2)
 {
 	return ((unsigned long)get_auxv_entry(AT_HWCAP2) & ftr2) == ftr2;
 }
+#else
+static inline bool have_hwcap2(unsigned long ftr2)
+{
+	return false;
+}
+#endif
 
 /* Yes, this is evil */
 #define FAIL_IF(x)						\
