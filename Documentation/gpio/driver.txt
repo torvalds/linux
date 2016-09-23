@@ -262,6 +262,12 @@ symbol:
   to the container using container_of().
   (See Documentation/driver-model/design-patterns.txt)
 
+  If there is a need to exclude certain GPIOs from the IRQ domain, one can
+  set .irq_need_valid_mask of the gpiochip before gpiochip_add_data() is
+  called. This allocates .irq_valid_mask with as many bits set as there are
+  GPIOs in the chip. Drivers can exclude GPIOs by clearing bits from this
+  mask. The mask must be filled in before gpiochip_irqchip_add() is called.
+
 * gpiochip_set_chained_irqchip(): sets up a chained irq handler for a
   gpio_chip from a parent IRQ and passes the struct gpio_chip* as handler
   data. (Notice handler data, since the irqchip data is likely used by the
