@@ -103,6 +103,7 @@ static void dump_notify_info(struct fusb30x_chip *chip)
 static const unsigned int fusb302_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
+	EXTCON_USB_VBUS_EN,
 	EXTCON_CHG_USB_SDP,
 	EXTCON_CHG_USB_CDP,
 	EXTCON_CHG_USB_DCP,
@@ -199,8 +200,13 @@ static void fusb_timer_start(struct hrtimer *timer, int ms)
 static void platform_set_vbus_lvl_enable(struct fusb30x_chip *chip, int vbus_5v,
 					 int vbus_other)
 {
-	if (chip->gpio_vbus_5v)
+	if (chip->gpio_vbus_5v) {
 		gpiod_set_raw_value(chip->gpio_vbus_5v, vbus_5v);
+	} else {
+		extcon_set_state(chip->extcon, EXTCON_USB_VBUS_EN, vbus_5v);
+		extcon_sync(chip->extcon, EXTCON_USB_VBUS_EN);
+		dev_info(chip->dev, "fusb302 send extcon to enable vbus 5v\n");
+	}
 
 	if (chip->gpio_vbus_other)
 		gpiod_set_raw_value(chip->gpio_vbus_5v, vbus_other);
