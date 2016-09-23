@@ -772,7 +772,7 @@ struct clk_onecell_data {
 };
 
 struct clk_hw_onecell_data {
-	size_t num;
+	unsigned int num;
 	struct clk_hw *hws[];
 };
 
