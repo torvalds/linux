@@ -1347,20 +1347,9 @@ static int mma8452_data_rdy_trigger_set_state(struct iio_trigger *trig,
 	return mma8452_change_config(data, MMA8452_CTRL_REG4, reg);
 }
 
-static int mma8452_validate_device(struct iio_trigger *trig,
-				   struct iio_dev *indio_dev)
-{
-	struct iio_dev *indio = iio_trigger_get_drvdata(trig);
-
-	if (indio != indio_dev)
-		return -EINVAL;
-
-	return 0;
-}
-
 static const struct iio_trigger_ops mma8452_trigger_ops = {
 	.set_trigger_state = mma8452_data_rdy_trigger_set_state,
-	.validate_device = mma8452_validate_device,
+	.validate_device = iio_trigger_validate_own_device,
 	.owner = THIS_MODULE,
 };
 
