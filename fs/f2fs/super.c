@@ -954,7 +954,7 @@ static int segment_bits_seq_show(struct seq_file *seq, void *offset)
 		seq_printf(seq, "%d|%-3u|", se->type,
 					get_valid_blocks(sbi, i, 1));
 		for (j = 0; j < SIT_VBLOCK_MAP_SIZE; j++)
-			seq_printf(seq, "%x ", se->cur_valid_map[j]);
+			seq_printf(seq, " %.2x", se->cur_valid_map[j]);
 		seq_putc(seq, '\n');
 	}
 	return 0;
