@@ -488,13 +488,28 @@ static inline void bcsp_unslip_one_byte(struct bcsp_struct *bcsp, unsigned char 
 static void bcsp_complete_rx_pkt(struct hci_uart *hu)
 {
 	struct bcsp_struct *bcsp = hu->priv;
-	int pass_up;
+	int pass_up = 0;
 
 	if (bcsp->rx_skb->data[0] & 0x80) {	/* reliable pkt */
 		BT_DBG("Received seqno %u from card", bcsp->rxseq_txack);
-		bcsp->rxseq_txack++;
-		bcsp->rxseq_txack %= 0x8;
-		bcsp->txack_req    = 1;
+
+		/* check the rx sequence number is as expected */
+		if ((bcsp->rx_skb->data[0] & 0x07) == bcsp->rxseq_txack) {
+			bcsp->rxseq_txack++;
+			bcsp->rxseq_txack %= 0x8;
+		} else {
+			/* handle re-transmitted packet or
+			 * when packet was missed
+			 */
+			BT_ERR("Out-of-order packet arrived, got %u expected %u",
+			       bcsp->rx_skb->data[0] & 0x07, bcsp->rxseq_txack);
+
+			/* do not process out-of-order packet payload */
+			pass_up = 2;
+		}
+
+		/* send current txack value to all received reliable packets */
+		bcsp->txack_req = 1;
 
 		/* If needed, transmit an ack pkt */
 		hci_uart_tx_wakeup(hu);
@@ -503,26 +518,33 @@ static void bcsp_complete_rx_pkt(struct hci_uart *hu)
 	bcsp->rxack = (bcsp->rx_skb->data[0] >> 3) & 0x07;
 	BT_DBG("Request for pkt %u from card", bcsp->rxack);
 
+	/* handle received ACK indications,
+	 * including those from out-of-order packets
+	 */
 	bcsp_pkt_cull(bcsp);
-	if ((bcsp->rx_skb->data[1] & 0x0f) == 6 &&
-	    bcsp->rx_skb->data[0] & 0x80) {
-		hci_skb_pkt_type(bcsp->rx_skb) = HCI_ACLDATA_PKT;
-		pass_up = 1;
-	} else if ((bcsp->rx_skb->data[1] & 0x0f) == 5 &&
-		   bcsp->rx_skb->data[0] & 0x80) {
-		hci_skb_pkt_type(bcsp->rx_skb) = HCI_EVENT_PKT;
-		pass_up = 1;
-	} else if ((bcsp->rx_skb->data[1] & 0x0f) == 7) {
-		hci_skb_pkt_type(bcsp->rx_skb) = HCI_SCODATA_PKT;
-		pass_up = 1;
-	} else if ((bcsp->rx_skb->data[1] & 0x0f) == 1 &&
-		   !(bcsp->rx_skb->data[0] & 0x80)) {
-		bcsp_handle_le_pkt(hu);
-		pass_up = 0;
-	} else
-		pass_up = 0;
 
-	if (!pass_up) {
+	if (pass_up != 2) {
+		if ((bcsp->rx_skb->data[1] & 0x0f) == 6 &&
+		    (bcsp->rx_skb->data[0] & 0x80)) {
+			hci_skb_pkt_type(bcsp->rx_skb) = HCI_ACLDATA_PKT;
+			pass_up = 1;
+		} else if ((bcsp->rx_skb->data[1] & 0x0f) == 5 &&
+			   (bcsp->rx_skb->data[0] & 0x80)) {
+			hci_skb_pkt_type(bcsp->rx_skb) = HCI_EVENT_PKT;
+			pass_up = 1;
+		} else if ((bcsp->rx_skb->data[1] & 0x0f) == 7) {
+			hci_skb_pkt_type(bcsp->rx_skb) = HCI_SCODATA_PKT;
+			pass_up = 1;
+		} else if ((bcsp->rx_skb->data[1] & 0x0f) == 1 &&
+			   !(bcsp->rx_skb->data[0] & 0x80)) {
+			bcsp_handle_le_pkt(hu);
+			pass_up = 0;
+		} else {
+			pass_up = 0;
+		}
+	}
+
+	if (pass_up == 0) {
 		struct hci_event_hdr hdr;
 		u8 desc = (bcsp->rx_skb->data[1] & 0x0f);
 
@@ -547,11 +569,16 @@ static void bcsp_complete_rx_pkt(struct hci_uart *hu)
 			}
 		} else
 			kfree_skb(bcsp->rx_skb);
-	} else {
+	} else if (pass_up == 1) {
 		/* Pull out BCSP hdr */
 		skb_pull(bcsp->rx_skb, 4);
 
 		hci_recv_frame(hu->hdev, bcsp->rx_skb);
+	} else {
+		/* ignore packet payload of already ACKed re-transmitted
+		 * packets or when a packet was missed in the BCSP window
+		 */
+		kfree_skb(bcsp->rx_skb);
 	}
 
 	bcsp->rx_state = BCSP_W4_PKT_DELIMITER;
@@ -592,16 +619,6 @@ static int bcsp_recv(struct hci_uart *hu, const void *data, int count)
 			if ((0xff & (u8)~(bcsp->rx_skb->data[0] + bcsp->rx_skb->data[1] +
 			    bcsp->rx_skb->data[2])) != bcsp->rx_skb->data[3]) {
 				BT_ERR("Error in BCSP hdr checksum");
-				kfree_skb(bcsp->rx_skb);
-				bcsp->rx_state = BCSP_W4_PKT_DELIMITER;
-				bcsp->rx_count = 0;
-				continue;
-			}
-			if (bcsp->rx_skb->data[0] & 0x80 &&	/* reliable pkt */
-			    (bcsp->rx_skb->data[0] & 0x07) != bcsp->rxseq_txack) {
-				BT_ERR("Out-of-order packet arrived, got %u expected %u",
-				       bcsp->rx_skb->data[0] & 0x07, bcsp->rxseq_txack);
-
 				kfree_skb(bcsp->rx_skb);
 				bcsp->rx_state = BCSP_W4_PKT_DELIMITER;
 				bcsp->rx_count = 0;
