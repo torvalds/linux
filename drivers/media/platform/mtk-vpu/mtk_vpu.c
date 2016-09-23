@@ -689,7 +689,7 @@ static int vpu_alloc_ext_mem(struct mtk_vpu *vpu, u32 fw_type)
 					       GFP_KERNEL);
 	if (!vpu->extmem[fw_type].va) {
 		dev_err(dev, "Failed to allocate the extended program memory\n");
-		return PTR_ERR(vpu->extmem[fw_type].va);
+		return -ENOMEM;
 	}
 
 	/* Disable extend0. Enable extend1 */
