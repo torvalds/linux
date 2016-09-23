@@ -988,7 +988,8 @@ static int probe_point_search_cb(Dwarf_Die *sp_die, void *data)
 	if (pp->file && strtailcmp(pp->file, dwarf_decl_file(sp_die)))
 		return DWARF_CB_OK;
 
-	pr_debug("Matched function: %s\n", dwarf_diename(sp_die));
+	pr_debug("Matched function: %s [%lx]\n", dwarf_diename(sp_die),
+		 (unsigned long)dwarf_dieoffset(sp_die));
 	pf->fname = dwarf_decl_file(sp_die);
 	if (pp->line) { /* Function relative line */
 		dwarf_decl_line(sp_die, &pf->lno);
@@ -1011,7 +1012,7 @@ static int probe_point_search_cb(Dwarf_Die *sp_die, void *data)
 		param->retval = die_walk_instances(sp_die,
 					probe_point_inline_cb, (void *)pf);
 		/* This could be a non-existed inline definition */
-		if (param->retval == -ENOENT && strisglob(pp->function))
+		if (param->retval == -ENOENT)
 			param->retval = 0;
 	}
 
