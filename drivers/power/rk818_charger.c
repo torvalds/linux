@@ -151,8 +151,10 @@ struct rk818_charger {
 	u8 chrg_input;
 	u8 chrg_current;
 	u8 res_div;
-	u8 plug_in_irq;
-	u8 plug_out_irq;
+	u8 plugin_trigger;
+	u8 plugout_trigger;
+	int plugin_irq;
+	int plugout_irq;
 };
 
 static int rk818_reg_read(struct rk818_charger *cg, u8 reg)
@@ -520,17 +522,28 @@ static void rk818_cg_set_otg_state(struct rk818_charger *cg, int state)
 {
 	switch (state) {
 	case USB_OTG_POWER_ON:
-		rk818_reg_set_bits(cg, RK818_INT_STS_MSK_REG2,
-				   PLUG_IN_MSK, PLUG_IN_MSK);
-		rk818_reg_set_bits(cg, RK818_INT_STS_MSK_REG2,
-				   PLUG_OUT_MSK, PLUG_OUT_MSK);
-		rk818_reg_set_bits(cg, RK818_DCDC_EN_REG,
-				   OTG_EN_MASK, OTG_EN_MASK);
+		if (cg->otg_in) {
+			CG_INFO("otg5v is on yet, ignore..\n");
+		} else {
+			cg->otg_in = 1;
+			disable_irq(cg->plugin_irq);
+			disable_irq(cg->plugout_irq);
+			rk818_reg_set_bits(cg, RK818_DCDC_EN_REG,
+					   OTG_EN_MASK, OTG_EN_MASK);
+			CG_INFO("enable otg5v\n");
+		}
 		break;
 	case USB_OTG_POWER_OFF:
-		rk818_reg_clear_bits(cg, RK818_INT_STS_MSK_REG2, PLUG_IN_MSK);
-		rk818_reg_clear_bits(cg, RK818_INT_STS_MSK_REG2, PLUG_OUT_MSK);
-		rk818_reg_clear_bits(cg, RK818_DCDC_EN_REG, OTG_EN_MASK);
+		if (!cg->otg_in) {
+			CG_INFO("otg5v is off yet, ignore..\n");
+		} else {
+			cg->otg_in = 0;
+			enable_irq(cg->plugin_irq);
+			enable_irq(cg->plugout_irq);
+			rk818_reg_clear_bits(cg, RK818_DCDC_EN_REG,
+					     OTG_EN_MASK);
+			CG_INFO("disable otg5v\n");
+		}
 		break;
 	default:
 		dev_err(cg->dev, "error otg type\n");
@@ -570,10 +583,8 @@ static void rk818_cg_dc_det_worker(struct work_struct *work)
 		CG_INFO("detect dc charger out..\n");
 		rk818_cg_set_chrg_param(cg, DC_TYPE_NONE_CHARGER);
 		/* check otg supply, power on anyway */
-		if (cg->otg_in) {
-			CG_INFO("disable charge, enable otg\n");
+		if (cg->otg_in)
 			rk818_cg_set_otg_state(cg, USB_OTG_POWER_ON);
-		}
 	}
 
 	rk_send_wakeup_key();
@@ -730,18 +741,13 @@ static void rk818_cg_bc_evt_worker(struct work_struct *work)
 		rk818_cg_set_chrg_param(cg, USB_TYPE_CDP_CHARGER);
 		break;
 	case USB_OTG_POWER_ON:
-		cg->otg_in = 1;
-		if (cg->pdata->power_dc2otg && cg->dc_in) {
+		if (cg->pdata->power_dc2otg && cg->dc_in)
 			CG_INFO("otg power from dc adapter\n");
-		} else {
+		else
 			rk818_cg_set_otg_state(cg, USB_OTG_POWER_ON);
-			CG_INFO("disable charge, enable otg\n");
-		}
 		break;
 	case USB_OTG_POWER_OFF:
-		cg->otg_in = 0;
 		rk818_cg_set_otg_state(cg, USB_OTG_POWER_OFF);
-		CG_INFO("enable charge, disable otg\n");
 		break;
 	default:
 		break;
@@ -757,13 +763,13 @@ static void rk818_cg_irq_delay_work(struct work_struct *work)
 	struct rk818_charger *cg = container_of(work,
 			struct rk818_charger, irq_work.work);
 
-	if (cg->plug_in_irq) {
+	if (cg->plugin_trigger) {
 		CG_INFO("pmic: plug in\n");
-		cg->plug_in_irq = 0;
+		cg->plugin_trigger = 0;
 		rk_send_wakeup_key();
-	} else if (cg->plug_out_irq) {
+	} else if (cg->plugout_trigger) {
 		CG_INFO("pmic: plug out\n");
-		cg->plug_out_irq = 0;
+		cg->plugout_trigger = 0;
 		rk818_cg_set_chrg_param(cg, USB_TYPE_NONE_CHARGER);
 		rk818_cg_set_chrg_param(cg, DC_TYPE_NONE_CHARGER);
 		rk_send_wakeup_key();
@@ -778,7 +784,7 @@ static irqreturn_t rk818_plug_in_isr(int irq, void *cg)
 	struct rk818_charger *icg;
 
 	icg = (struct rk818_charger *)cg;
-	icg->plug_in_irq = 1;
+	icg->plugin_trigger = 1;
 	queue_delayed_work(icg->usb_charger_wq, &icg->irq_work,
 			   msecs_to_jiffies(10));
 
@@ -790,7 +796,7 @@ static irqreturn_t rk818_plug_out_isr(int irq, void *cg)
 	struct rk818_charger *icg;
 
 	icg = (struct rk818_charger *)cg;
-	icg->plug_out_irq = 1;
+	icg->plugout_trigger = 1;
 	queue_delayed_work(icg->usb_charger_wq, &icg->irq_work,
 			   msecs_to_jiffies(10));
 
@@ -847,6 +853,9 @@ static int rk818_cg_init_irqs(struct rk818_charger *cg)
 		dev_err(&pdev->dev, "plug_out_irq request failed!\n");
 		return ret;
 	}
+
+	cg->plugin_irq = plug_in_irq;
+	cg->plugout_irq = plug_out_irq;
 
 	INIT_DELAYED_WORK(&cg->irq_work, rk818_cg_irq_delay_work);
 
@@ -926,18 +935,13 @@ static void rk818_cg_host_evt_worker(struct work_struct *work)
 	/* Determine cable/charger type */
 	if (extcon_get_cable_state_(edev, EXTCON_USB_HOST) > 0) {
 		CG_INFO("receive type-c notifier event: OTG ON...\n");
-		cg->otg_in = 1;
-		if (cg->dc_in && cg->pdata->power_dc2otg) {
+		if (cg->dc_in && cg->pdata->power_dc2otg)
 			CG_INFO("otg power from dc adapter\n");
-		} else {
+		else
 			rk818_cg_set_otg_state(cg, USB_OTG_POWER_ON);
-			CG_INFO("disable charge, enable otg\n");
-		}
 	} else if (extcon_get_cable_state_(edev, EXTCON_USB_HOST) == 0) {
 		CG_INFO("receive type-c notifier event: OTG OFF...\n");
-		cg->otg_in = 0;
 		rk818_cg_set_otg_state(cg, USB_OTG_POWER_OFF);
-		CG_INFO("enble charge, disable otg\n");
 	}
 
 	rk818_cg_pr_info(cg);
