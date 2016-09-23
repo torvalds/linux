@@ -484,6 +484,27 @@ TRACE_EVENT(rxrpc_timer,
 		      __entry->timer - __entry->now)
 	    );
 
+TRACE_EVENT(rxrpc_rx_lose,
+	    TP_PROTO(struct rxrpc_skb_priv *sp),
+
+	    TP_ARGS(sp),
+
+	    TP_STRUCT__entry(
+		    __field_struct(struct rxrpc_host_header,	hdr		)
+			     ),
+
+	    TP_fast_assign(
+		    memcpy(&__entry->hdr, &sp->hdr, sizeof(__entry->hdr));
+			   ),
+
+	    TP_printk("%08x:%08x:%08x:%04x %08x %08x %02x %02x %s *LOSE*",
+		      __entry->hdr.epoch, __entry->hdr.cid,
+		      __entry->hdr.callNumber, __entry->hdr.serviceId,
+		      __entry->hdr.serial, __entry->hdr.seq,
+		      __entry->hdr.type, __entry->hdr.flags,
+		      __entry->hdr.type <= 15 ? rxrpc_pkts[__entry->hdr.type] : "?UNK")
+	    );
+
 #endif /* _TRACE_RXRPC_H */
 
 /* This part must be outside protection */

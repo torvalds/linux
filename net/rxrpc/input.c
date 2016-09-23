@@ -837,20 +837,19 @@ void rxrpc_data_ready(struct sock *udp_sk)
 	skb_orphan(skb);
 	sp = rxrpc_skb(skb);
 
+	/* dig out the RxRPC connection details */
+	if (rxrpc_extract_header(sp, skb) < 0)
+		goto bad_message;
+
 	if (IS_ENABLED(CONFIG_AF_RXRPC_INJECT_LOSS)) {
 		static int lose;
 		if ((lose++ & 7) == 7) {
+			trace_rxrpc_rx_lose(sp);
 			rxrpc_lose_skb(skb, rxrpc_skb_rx_lost);
 			return;
 		}
 	}
 
-	_net("Rx UDP packet from %08x:%04hu",
-	     ntohl(ip_hdr(skb)->saddr), ntohs(udp_hdr(skb)->source));
-
-	/* dig out the RxRPC connection details */
-	if (rxrpc_extract_header(sp, skb) < 0)
-		goto bad_message;
 	trace_rxrpc_rx_packet(sp);
 
 	_net("Rx RxRPC %s ep=%x call=%x:%x",
