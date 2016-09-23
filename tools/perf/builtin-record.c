@@ -1643,7 +1643,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (rec->evlist->nr_entries == 0 &&
 	    perf_evlist__add_default(rec->evlist) < 0) {
 		pr_err("Not enough memory for event selector list\n");
-		goto out_symbol_exit;
+		goto out;
 	}
 
 	if (rec->opts.target.tid && !rec->opts.no_inherit_set)
@@ -1663,7 +1663,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 		ui__error("%s", errbuf);
 
 		err = -saved_errno;
-		goto out_symbol_exit;
+		goto out;
 	}
 
 	err = -ENOMEM;
@@ -1672,7 +1672,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	err = auxtrace_record__options(rec->itr, rec->evlist, &rec->opts);
 	if (err)
-		goto out_symbol_exit;
+		goto out;
 
 	/*
 	 * We take all buildids when the file contains
@@ -1684,11 +1684,11 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	if (record_opts__config(&rec->opts)) {
 		err = -EINVAL;
-		goto out_symbol_exit;
+		goto out;
 	}
 
 	err = __cmd_record(&record, argc, argv);
-out_symbol_exit:
+out:
 	perf_evlist__delete(rec->evlist);
 	symbol__exit();
 	auxtrace_record__free(rec->itr);
