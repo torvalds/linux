@@ -76,8 +76,10 @@ static void rxrpc_call_timer_expired(unsigned long _call)
 
 	_enter("%d", call->debug_id);
 
-	if (call->state < RXRPC_CALL_COMPLETE)
+	if (call->state < RXRPC_CALL_COMPLETE) {
+		trace_rxrpc_timer(call, rxrpc_timer_expired, jiffies);
 		rxrpc_queue_call(call);
+	}
 }
 
 /*
@@ -200,7 +202,7 @@ static void rxrpc_start_call_timer(struct rxrpc_call *call)
 	call->ack_at = expire_at;
 	call->resend_at = expire_at;
 	call->timer.expires = expire_at + 1;
-	rxrpc_set_timer(call);
+	rxrpc_set_timer(call, rxrpc_timer_begin);
 }
 
 /*

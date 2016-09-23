@@ -24,7 +24,7 @@
 /*
  * Set the timer
  */
-void rxrpc_set_timer(struct rxrpc_call *call)
+void rxrpc_set_timer(struct rxrpc_call *call, enum rxrpc_timer_trace why)
 {
 	unsigned long t, now = jiffies;
 
@@ -45,6 +45,7 @@ void rxrpc_set_timer(struct rxrpc_call *call)
 
 		if (call->timer.expires != t || !timer_pending(&call->timer)) {
 			mod_timer(&call->timer, t);
+			trace_rxrpc_timer(call, why, now);
 		}
 	}
 
@@ -120,7 +121,7 @@ static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 		_debug("deferred ACK %ld < %ld", expiry, call->ack_at - now);
 		if (time_before(ack_at, call->ack_at)) {
 			call->ack_at = ack_at;
-			rxrpc_set_timer(call);
+			rxrpc_set_timer(call, rxrpc_timer_set_for_ack);
 		}
 	}
 }
@@ -293,7 +294,7 @@ recheck_state:
 		goto recheck_state;
 	}
 
-	rxrpc_set_timer(call);
+	rxrpc_set_timer(call, rxrpc_timer_set_for_resend);
 
 	/* other events may have been raised since we started checking */
 	if (call->events && call->state < RXRPC_CALL_COMPLETE) {

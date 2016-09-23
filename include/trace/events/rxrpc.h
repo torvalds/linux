@@ -414,6 +414,42 @@ TRACE_EVENT(rxrpc_rtt_rx,
 		      __entry->avg)
 	    );
 
+TRACE_EVENT(rxrpc_timer,
+	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_timer_trace why,
+		     unsigned long now),
+
+	    TP_ARGS(call, why, now),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_call *,		call		)
+		    __field(enum rxrpc_timer_trace,		why		)
+		    __field(unsigned long,			now		)
+		    __field(unsigned long,			expire_at	)
+		    __field(unsigned long,			ack_at		)
+		    __field(unsigned long,			resend_at	)
+		    __field(unsigned long,			timer		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call	= call;
+		    __entry->why	= why;
+		    __entry->now	= now;
+		    __entry->expire_at	= call->expire_at;
+		    __entry->ack_at	= call->ack_at;
+		    __entry->resend_at	= call->resend_at;
+		    __entry->timer	= call->timer.expires;
+			   ),
+
+	    TP_printk("c=%p %s now=%lx x=%ld a=%ld r=%ld t=%ld",
+		      __entry->call,
+		      rxrpc_timer_traces[__entry->why],
+		      __entry->now,
+		      __entry->expire_at - __entry->now,
+		      __entry->ack_at - __entry->now,
+		      __entry->resend_at - __entry->now,
+		      __entry->timer - __entry->now)
+	    );
+
 #endif /* _TRACE_RXRPC_H */
 
 /* This part must be outside protection */

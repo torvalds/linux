@@ -153,7 +153,7 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 
 		if (time_before(resend_at, call->resend_at)) {
 			call->resend_at = resend_at;
-			rxrpc_set_timer(call);
+			rxrpc_set_timer(call, rxrpc_timer_set_for_send);
 		}
 	}
 

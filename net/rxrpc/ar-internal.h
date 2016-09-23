@@ -678,6 +678,17 @@ enum rxrpc_rtt_rx_trace {
 
 extern const char rxrpc_rtt_rx_traces[rxrpc_rtt_rx__nr_trace][5];
 
+enum rxrpc_timer_trace {
+	rxrpc_timer_begin,
+	rxrpc_timer_expired,
+	rxrpc_timer_set_for_ack,
+	rxrpc_timer_set_for_resend,
+	rxrpc_timer_set_for_send,
+	rxrpc_timer__nr_trace
+};
+
+extern const char rxrpc_timer_traces[rxrpc_timer__nr_trace][8];
+
 extern const char *const rxrpc_pkts[];
 extern const char *rxrpc_acks(u8 reason);
 
@@ -707,7 +718,7 @@ int rxrpc_reject_call(struct rxrpc_sock *);
 /*
  * call_event.c
  */
-void rxrpc_set_timer(struct rxrpc_call *);
+void rxrpc_set_timer(struct rxrpc_call *, enum rxrpc_timer_trace);
 void rxrpc_propose_ACK(struct rxrpc_call *, u8, u16, u32, bool, bool);
 void rxrpc_process_call(struct work_struct *);
 
