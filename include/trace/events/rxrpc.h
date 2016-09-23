@@ -543,6 +543,33 @@ TRACE_EVENT(rxrpc_propose_ack,
 		      rxrpc_propose_ack_outcomes[__entry->outcome])
 	    );
 
+TRACE_EVENT(rxrpc_retransmit,
+	    TP_PROTO(struct rxrpc_call *call, rxrpc_seq_t seq, u8 annotation,
+		     s64 expiry),
+
+	    TP_ARGS(call, seq, annotation, expiry),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_call *,	call		)
+		    __field(rxrpc_seq_t,		seq		)
+		    __field(u8,				annotation	)
+		    __field(s64,			expiry		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->seq = seq;
+		    __entry->annotation = annotation;
+		    __entry->expiry = expiry;
+			   ),
+
+	    TP_printk("c=%p q=%x a=%02x xp=%lld",
+		      __entry->call,
+		      __entry->seq,
+		      __entry->annotation,
+		      __entry->expiry)
+	    );
+
 #endif /* _TRACE_RXRPC_H */
 
 /* This part must be outside protection */

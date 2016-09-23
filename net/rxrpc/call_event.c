@@ -196,6 +196,8 @@ static void rxrpc_resend(struct rxrpc_call *call)
 
 		/* Okay, we need to retransmit a packet. */
 		call->rxtx_annotations[ix] = RXRPC_TX_ANNO_RETRANS | annotation;
+		trace_rxrpc_retransmit(call, seq, annotation | anno_type,
+				       ktime_to_ns(ktime_sub(skb->tstamp, max_age)));
 	}
 
 	resend_at = ktime_sub(ktime_add_ms(oldest, rxrpc_resend_timeout), now);
