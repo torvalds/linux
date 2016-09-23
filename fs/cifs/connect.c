@@ -75,7 +75,7 @@ enum {
 	Opt_noposixpaths, Opt_nounix,
 	Opt_nocase,
 	Opt_brl, Opt_nobrl,
-	Opt_forcemandatorylock, Opt_setuids,
+	Opt_forcemandatorylock, Opt_setuidfromacl, Opt_setuids,
 	Opt_nosetuids, Opt_dynperm, Opt_nodynperm,
 	Opt_nohard, Opt_nosoft,
 	Opt_nointr, Opt_intr,
@@ -147,6 +147,7 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_forcemandatorylock, "forcemand" },
 	{ Opt_setuids, "setuids" },
 	{ Opt_nosetuids, "nosetuids" },
+	{ Opt_setuidfromacl, "idsfromsid" },
 	{ Opt_dynperm, "dynperm" },
 	{ Opt_nodynperm, "nodynperm" },
 	{ Opt_nohard, "nohard" },
@@ -1375,6 +1376,9 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			break;
 		case Opt_nosetuids:
 			vol->setuids = 0;
+			break;
+		case Opt_setuidfromacl:
+			vol->setuidfromacl = 1;
 			break;
 		case Opt_dynperm:
 			vol->dynperm = true;
@@ -3279,6 +3283,8 @@ int cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_PERM;
 	if (pvolume_info->setuids)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_SET_UID;
+	if (pvolume_info->setuidfromacl)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_UID_FROM_ACL;
 	if (pvolume_info->server_ino)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_SERVER_INUM;
 	if (pvolume_info->remap)

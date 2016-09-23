@@ -478,6 +478,7 @@ struct smb_vol {
 	bool retry:1;
 	bool intr:1;
 	bool setuids:1;
+	bool setuidfromacl:1;
 	bool override_uid:1;
 	bool override_gid:1;
 	bool dynperm:1;
