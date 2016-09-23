@@ -68,10 +68,6 @@
 	status = "okay";
 };
 
-&dw_hdmi_audio {
-	status = "okay";
-};
-
 &edp_rk_fb {
 	status = "okay";
 };
