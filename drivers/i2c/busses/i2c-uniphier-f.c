@@ -14,6 +14,7 @@
 
 #include <linux/clk.h>
 #include <linux/i2c.h>
+#include <linux/iopoll.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -348,14 +349,19 @@ static int uniphier_fi2c_master_xfer_one(struct i2c_adapter *adap,
 	dev_dbg(&adap->dev, "complete\n");
 
 	if (unlikely(priv->flags & UNIPHIER_FI2C_DEFER_STOP_COMP)) {
-		u32 status = readl(priv->membase + UNIPHIER_FI2C_SR);
+		u32 status;
+		int ret;
 
-		if (!(status & UNIPHIER_FI2C_SR_STS) ||
-		    status & UNIPHIER_FI2C_SR_BB) {
+		ret = readl_poll_timeout(priv->membase + UNIPHIER_FI2C_SR,
+					 status,
+					 (status & UNIPHIER_FI2C_SR_STS) &&
+					 !(status & UNIPHIER_FI2C_SR_BB),
+					 1, 20);
+		if (ret) {
 			dev_err(&adap->dev,
 				"stop condition was not completed.\n");
 			uniphier_fi2c_recover(priv);
-			return -EBUSY;
+			return ret;
 		}
 	}
 
