@@ -955,6 +955,11 @@ static int probe_point_inline_cb(Dwarf_Die *in_die, void *data)
 				   dwarf_diename(in_die));
 			return -ENOENT;
 		}
+		if (addr == 0) {
+			pr_debug("%s has no valid entry address. skipped.\n",
+				 dwarf_diename(in_die));
+			return -ENOENT;
+		}
 		pf->addr = addr;
 		pf->addr += pp->offset;
 		pr_debug("found inline addr: 0x%jx\n",
@@ -998,8 +1003,13 @@ static int probe_point_search_cb(Dwarf_Die *sp_die, void *data)
 	} else if (die_is_func_instance(sp_die)) {
 		/* Instances always have the entry address */
 		dwarf_entrypc(sp_die, &pf->addr);
+		/* But in some case the entry address is 0 */
+		if (pf->addr == 0) {
+			pr_debug("%s has no entry PC. Skipped\n",
+				 dwarf_diename(sp_die));
+			param->retval = 0;
 		/* Real function */
-		if (pp->lazy_line)
+		} else if (pp->lazy_line)
 			param->retval = find_probe_point_lazy(sp_die, pf);
 		else {
 			skip_prologue(sp_die, pf);
