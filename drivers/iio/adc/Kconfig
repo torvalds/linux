@@ -58,6 +58,18 @@ config AD7476
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7476.
 
+config AD7766
+	tristate "Analog Devices AD7766/AD7767 ADC driver"
+	depends on SPI_MASTER
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Analog Devices AD7766, AD7766-1,
+	  AD7766-2, AD7767, AD7767-1, AD7767-2 SPI analog to digital converters.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ad7766.
+
 config AD7791
 	tristate "Analog Devices AD7791 ADC driver"
 	depends on SPI
