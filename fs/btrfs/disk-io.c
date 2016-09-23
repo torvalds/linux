@@ -2566,6 +2566,7 @@ int open_ctree(struct super_block *sb,
 	int num_backups_tried = 0;
 	int backup_index = 0;
 	int max_active;
+	int clear_free_space_tree = 0;
 
 	tree_root = fs_info->tree_root = btrfs_alloc_root(fs_info, GFP_KERNEL);
 	chunk_root = fs_info->chunk_root = btrfs_alloc_root(fs_info, GFP_KERNEL);
@@ -3131,6 +3132,14 @@ retry_root_backup:
 
 	if (btrfs_test_opt(fs_info, CLEAR_CACHE) &&
 	    btrfs_fs_compat_ro(fs_info, FREE_SPACE_TREE)) {
+		clear_free_space_tree = 1;
+	} else if (btrfs_fs_compat_ro(fs_info, FREE_SPACE_TREE) &&
+		   !btrfs_fs_compat_ro(fs_info, FREE_SPACE_TREE_VALID)) {
+		btrfs_warn(fs_info, "free space tree is invalid");
+		clear_free_space_tree = 1;
+	}
+
+	if (clear_free_space_tree) {
 		btrfs_info(fs_info, "clearing free space tree");
 		ret = btrfs_clear_free_space_tree(fs_info);
 		if (ret) {
