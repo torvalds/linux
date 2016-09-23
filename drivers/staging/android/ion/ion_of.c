@@ -25,9 +25,9 @@
 #include "ion_priv.h"
 #include "ion_of.h"
 
-int ion_parse_dt_heap_common(struct device_node *heap_node,
-			struct ion_platform_heap *heap,
-			struct ion_of_heap *compatible)
+static int ion_parse_dt_heap_common(struct device_node *heap_node,
+				    struct ion_platform_heap *heap,
+				    struct ion_of_heap *compatible)
 {
 	int i;
 
@@ -51,9 +51,9 @@ int ion_parse_dt_heap_common(struct device_node *heap_node,
 	return 0;
 }
 
-int ion_setup_heap_common(struct platform_device *parent,
-			struct device_node *heap_node,
-			struct ion_platform_heap *heap)
+static int ion_setup_heap_common(struct platform_device *parent,
+				 struct device_node *heap_node,
+				 struct ion_platform_heap *heap)
 {
 	int ret = 0;
 
