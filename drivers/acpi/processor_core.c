@@ -284,7 +284,7 @@ EXPORT_SYMBOL_GPL(acpi_get_cpuid);
 static bool __init
 map_processor(acpi_handle handle, phys_cpuid_t *phys_id, int *cpuid)
 {
-	int type;
+	int type, id;
 	u32 acpi_id;
 	acpi_status status;
 	acpi_object_type acpi_type;
@@ -320,10 +320,11 @@ map_processor(acpi_handle handle, phys_cpuid_t *phys_id, int *cpuid)
 	type = (acpi_type == ACPI_TYPE_DEVICE) ? 1 : 0;
 
 	*phys_id = __acpi_get_phys_id(handle, type, acpi_id, false);
-	*cpuid = acpi_map_cpuid(*phys_id, acpi_id);
-	if (*cpuid == -1)
-		return false;
+	id = acpi_map_cpuid(*phys_id, acpi_id);
 
+	if (id < 0)
+		return false;
+	*cpuid = id;
 	return true;
 }
 
