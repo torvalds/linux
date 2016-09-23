@@ -1655,8 +1655,12 @@ int vfs_clone_file_range(struct file *file_in, loff_t pos_in,
 	struct inode *inode_out = file_inode(file_out);
 	int ret;
 
-	if (inode_in->i_sb != inode_out->i_sb ||
-	    file_in->f_path.mnt != file_out->f_path.mnt)
+	/*
+	 * FICLONE/FICLONERANGE ioctls enforce that src and dest files are on
+	 * the same mount. Practically, they only need to be on the same file
+	 * system.
+	 */
+	if (inode_in->i_sb != inode_out->i_sb)
 		return -EXDEV;
 
 	if (S_ISDIR(inode_in->i_mode) || S_ISDIR(inode_out->i_mode))
