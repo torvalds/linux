@@ -200,14 +200,14 @@
 /* The following structure types are used for the representation */
 /*  of ENUMint type metadata. */
 
-typedef struct p80211enumpair {
+struct p80211enumpair {
 	u32 val;
 	char *name;
-} p80211enumpair_t;
+};
 
 typedef struct p80211enum {
 	int nitems;
-	p80211enumpair_t *list;
+	struct p80211enumpair *list;
 } p80211enum_t;
 
 /*----------------------------------------------------------------*/
