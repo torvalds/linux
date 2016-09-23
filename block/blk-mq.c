@@ -2158,7 +2158,7 @@ static void blk_mq_queue_reinit_work(void)
 
 static int blk_mq_queue_reinit_dead(unsigned int cpu)
 {
-	cpumask_clear_cpu(cpu, &cpuhp_online_new);
+	cpumask_copy(&cpuhp_online_new, cpu_online_mask);
 	blk_mq_queue_reinit_work();
 	return 0;
 }
