@@ -3516,8 +3516,3 @@ int ks_wlan_net_stop(struct net_device *dev)
 
 	return ret;
 }
-
-int ks_wlan_reset(struct net_device *dev)
-{
-	return 0;
-}
