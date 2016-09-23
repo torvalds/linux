@@ -205,10 +205,10 @@ struct p80211enumpair {
 	char *name;
 };
 
-typedef struct p80211enum {
+struct p80211enum {
 	int nitems;
 	struct p80211enumpair *list;
-} p80211enum_t;
+};
 
 /*----------------------------------------------------------------*/
 /* The following structure types are used to store data items in */
@@ -351,25 +351,25 @@ typedef u32(*p80211_valid_t) (struct catlistitem *, u32 did, u8 *itembuf);
 /*  The following are the external declarations */
 /*  for all enumerations  */
 
-extern p80211enum_t MKENUMNAME(truth);
-extern p80211enum_t MKENUMNAME(ifstate);
-extern p80211enum_t MKENUMNAME(powermgmt);
-extern p80211enum_t MKENUMNAME(bsstype);
-extern p80211enum_t MKENUMNAME(authalg);
-extern p80211enum_t MKENUMNAME(phytype);
-extern p80211enum_t MKENUMNAME(temptype);
-extern p80211enum_t MKENUMNAME(regdomain);
-extern p80211enum_t MKENUMNAME(ccamode);
-extern p80211enum_t MKENUMNAME(diversity);
-extern p80211enum_t MKENUMNAME(scantype);
-extern p80211enum_t MKENUMNAME(resultcode);
-extern p80211enum_t MKENUMNAME(reason);
-extern p80211enum_t MKENUMNAME(status);
-extern p80211enum_t MKENUMNAME(msgcode);
-extern p80211enum_t MKENUMNAME(msgitem_status);
+extern struct p80211enum MKENUMNAME(truth);
+extern struct p80211enum MKENUMNAME(ifstate);
+extern struct p80211enum MKENUMNAME(powermgmt);
+extern struct p80211enum MKENUMNAME(bsstype);
+extern struct p80211enum MKENUMNAME(authalg);
+extern struct p80211enum MKENUMNAME(phytype);
+extern struct p80211enum MKENUMNAME(temptype);
+extern struct p80211enum MKENUMNAME(regdomain);
+extern struct p80211enum MKENUMNAME(ccamode);
+extern struct p80211enum MKENUMNAME(diversity);
+extern struct p80211enum MKENUMNAME(scantype);
+extern struct p80211enum MKENUMNAME(resultcode);
+extern struct p80211enum MKENUMNAME(reason);
+extern struct p80211enum MKENUMNAME(status);
+extern struct p80211enum MKENUMNAME(msgcode);
+extern struct p80211enum MKENUMNAME(msgitem_status);
 
-extern p80211enum_t MKENUMNAME(lnxroam_reason);
+extern struct p80211enum MKENUMNAME(lnxroam_reason);
 
-extern p80211enum_t MKENUMNAME(p2preamble);
+extern struct p80211enum MKENUMNAME(p2preamble);
 
 #endif /* _P80211TYPES_H */
