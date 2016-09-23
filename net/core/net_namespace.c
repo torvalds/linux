@@ -266,16 +266,6 @@ struct net *get_net_ns_by_id(struct net *net, int id)
 	return peer;
 }
 
-static struct ucounts *inc_net_namespaces(struct user_namespace *ns)
-{
-	return inc_ucount(ns, current_euid(), UCOUNT_NET_NAMESPACES);
-}
-
-static void dec_net_namespaces(struct ucounts *ucounts)
-{
-	dec_ucount(ucounts, UCOUNT_NET_NAMESPACES);
-}
-
 /*
  * setup_net runs the initializers for the network namespace object.
  */
@@ -320,6 +310,16 @@ out_undo:
 
 
 #ifdef CONFIG_NET_NS
+static struct ucounts *inc_net_namespaces(struct user_namespace *ns)
+{
+	return inc_ucount(ns, current_euid(), UCOUNT_NET_NAMESPACES);
+}
+
+static void dec_net_namespaces(struct ucounts *ucounts)
+{
+	dec_ucount(ucounts, UCOUNT_NET_NAMESPACES);
+}
+
 static struct kmem_cache *net_cachep;
 static struct workqueue_struct *netns_wq;
 
