@@ -103,6 +103,8 @@ struct intel_pt {
 	unsigned max_non_turbo_ratio;
 
 	unsigned long num_events;
+
+	char *filter;
 };
 
 enum switch_state {
@@ -1774,6 +1776,7 @@ static void intel_pt_free(struct perf_session *session)
 	intel_pt_free_events(session);
 	session->auxtrace = NULL;
 	thread__put(pt->unknown_thread);
+	zfree(&pt->filter);
 	free(pt);
 }
 
@@ -2024,6 +2027,7 @@ static const char * const intel_pt_info_fmts[] = {
 	[INTEL_PT_TSC_CTC_D]		= "  TSC:CTC denominator %"PRIu64"\n",
 	[INTEL_PT_CYC_BIT]		= "  CYC bit             %#"PRIx64"\n",
 	[INTEL_PT_MAX_NONTURBO_RATIO]	= "  Max non-turbo ratio %"PRIu64"\n",
+	[INTEL_PT_FILTER_STR_LEN]	= "  Filter string len.  %"PRIu64"\n",
 };
 
 static void intel_pt_print_info(u64 *arr, int start, int finish)
@@ -2035,6 +2039,14 @@ static void intel_pt_print_info(u64 *arr, int start, int finish)
 
 	for (i = start; i <= finish; i++)
 		fprintf(stdout, intel_pt_info_fmts[i], arr[i]);
+}
+
+static void intel_pt_print_info_str(const char *name, const char *str)
+{
+	if (!dump_trace)
+		return;
+
+	fprintf(stdout, "  %-20s%s\n", name, str ? str : "");
 }
 
 static bool intel_pt_has(struct auxtrace_info_event *auxtrace_info, int pos)
@@ -2049,6 +2061,8 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	struct auxtrace_info_event *auxtrace_info = &event->auxtrace_info;
 	size_t min_sz = sizeof(u64) * INTEL_PT_PER_CPU_MMAPS;
 	struct intel_pt *pt;
+	void *info_end;
+	u64 *info;
 	int err;
 
 	if (auxtrace_info->header.size < sizeof(struct auxtrace_info_event) +
@@ -2099,6 +2113,42 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 		intel_pt_print_info(&auxtrace_info->priv[0],
 				    INTEL_PT_MAX_NONTURBO_RATIO,
 				    INTEL_PT_MAX_NONTURBO_RATIO);
+	}
+
+	info = &auxtrace_info->priv[INTEL_PT_FILTER_STR_LEN] + 1;
+	info_end = (void *)info + auxtrace_info->header.size;
+
+	if (intel_pt_has(auxtrace_info, INTEL_PT_FILTER_STR_LEN)) {
+		size_t len;
+
+		len = auxtrace_info->priv[INTEL_PT_FILTER_STR_LEN];
+		intel_pt_print_info(&auxtrace_info->priv[0],
+				    INTEL_PT_FILTER_STR_LEN,
+				    INTEL_PT_FILTER_STR_LEN);
+		if (len) {
+			const char *filter = (const char *)info;
+
+			len = roundup(len + 1, 8);
+			info += len >> 3;
+			if ((void *)info > info_end) {
+				pr_err("%s: bad filter string length\n", __func__);
+				err = -EINVAL;
+				goto err_free_queues;
+			}
+			pt->filter = memdup(filter, len);
+			if (!pt->filter) {
+				err = -ENOMEM;
+				goto err_free_queues;
+			}
+			if (session->header.needs_swap)
+				mem_bswap_64(pt->filter, len);
+			if (pt->filter[len - 1]) {
+				pr_err("%s: filter string not null terminated\n", __func__);
+				err = -EINVAL;
+				goto err_free_queues;
+			}
+		}
+		intel_pt_print_info_str("Filter string", pt->filter);
 	}
 
 	pt->timeless_decoding = intel_pt_timeless_decoding(pt);
@@ -2218,6 +2268,7 @@ err_free_queues:
 	auxtrace_queues__free(&pt->queues);
 	session->auxtrace = NULL;
 err_free:
+	zfree(&pt->filter);
 	free(pt);
 	return err;
 }
