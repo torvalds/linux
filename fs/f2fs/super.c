@@ -1892,6 +1892,7 @@ free_root_inode:
 	dput(sb->s_root);
 	sb->s_root = NULL;
 free_node_inode:
+	truncate_inode_pages_final(NODE_MAPPING(sbi));
 	mutex_lock(&sbi->umount_mutex);
 	release_ino_entry(sbi, true);
 	f2fs_leave_shrinker(sbi);
