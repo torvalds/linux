@@ -1664,7 +1664,7 @@ static void __mlxsw_sp_port_get_stats(struct net_device *dev,
 		return;
 	mlxsw_sp_port_get_stats_raw(dev, grp, prio, ppcnt_pl);
 	for (i = 0; i < len; i++)
-		data[data_index + i] = !err ? hw_stats[i].getter(ppcnt_pl) : 0;
+		data[data_index + i] = hw_stats[i].getter(ppcnt_pl);
 }
 
 static void mlxsw_sp_port_get_stats(struct net_device *dev,
