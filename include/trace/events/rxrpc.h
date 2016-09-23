@@ -256,33 +256,67 @@ TRACE_EVENT(rxrpc_rx_ack,
 		      __entry->n_acks)
 	    );
 
-TRACE_EVENT(rxrpc_tx_ack,
-	    TP_PROTO(struct rxrpc_call *call, rxrpc_seq_t first,
-		     rxrpc_serial_t serial, u8 reason, u8 n_acks),
+TRACE_EVENT(rxrpc_tx_data,
+	    TP_PROTO(struct rxrpc_call *call, rxrpc_seq_t seq,
+		     rxrpc_serial_t serial, u8 flags, bool lose),
 
-	    TP_ARGS(call, first, serial, reason, n_acks),
+	    TP_ARGS(call, seq, serial, flags, lose),
 
 	    TP_STRUCT__entry(
 		    __field(struct rxrpc_call *,	call		)
-		    __field(rxrpc_seq_t,		first		)
+		    __field(rxrpc_seq_t,		seq		)
 		    __field(rxrpc_serial_t,		serial		)
+		    __field(u8,				flags		)
+		    __field(bool,			lose		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->seq = seq;
+		    __entry->serial = serial;
+		    __entry->flags = flags;
+		    __entry->lose = lose;
+			   ),
+
+	    TP_printk("c=%p DATA %08x q=%08x fl=%02x%s",
+		      __entry->call,
+		      __entry->serial,
+		      __entry->seq,
+		      __entry->flags,
+		      __entry->lose ? " *LOSE*" : "")
+	    );
+
+TRACE_EVENT(rxrpc_tx_ack,
+	    TP_PROTO(struct rxrpc_call *call, rxrpc_serial_t serial,
+		     rxrpc_seq_t ack_first, rxrpc_serial_t ack_serial,
+		     u8 reason, u8 n_acks),
+
+	    TP_ARGS(call, serial, ack_first, ack_serial, reason, n_acks),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_call *,	call		)
+		    __field(rxrpc_serial_t,		serial		)
+		    __field(rxrpc_seq_t,		ack_first	)
+		    __field(rxrpc_serial_t,		ack_serial	)
 		    __field(u8,				reason		)
 		    __field(u8,				n_acks		)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->call = call;
-		    __entry->first = first;
 		    __entry->serial = serial;
+		    __entry->ack_first = ack_first;
+		    __entry->ack_serial = ack_serial;
 		    __entry->reason = reason;
 		    __entry->n_acks = n_acks;
 			   ),
 
-	    TP_printk("c=%p %s f=%08x r=%08x n=%u",
+	    TP_printk(" c=%p ACK  %08x %s f=%08x r=%08x n=%u",
 		      __entry->call,
-		      rxrpc_acks(__entry->reason),
-		      __entry->first,
 		      __entry->serial,
+		      rxrpc_acks(__entry->reason),
+		      __entry->ack_first,
+		      __entry->ack_serial,
 		      __entry->n_acks)
 	    );
 

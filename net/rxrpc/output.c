@@ -177,7 +177,7 @@ int rxrpc_send_call_packet(struct rxrpc_call *call, u8 type)
 	pkt->whdr.serial = htonl(serial);
 	switch (type) {
 	case RXRPC_PACKET_TYPE_ACK:
-		trace_rxrpc_tx_ack(call,
+		trace_rxrpc_tx_ack(call, serial,
 				   ntohl(pkt->ack.firstPacket),
 				   ntohl(pkt->ack.serial),
 				   pkt->ack.reason, pkt->ack.nAcks);
@@ -275,6 +275,8 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb)
 	if (IS_ENABLED(CONFIG_AF_RXRPC_INJECT_LOSS)) {
 		static int lose;
 		if ((lose++ & 7) == 7) {
+			trace_rxrpc_tx_data(call, sp->hdr.seq, serial,
+					    whdr.flags, true);
 			rxrpc_lose_skb(skb, rxrpc_skb_tx_lost);
 			_leave(" = 0 [lose]");
 			return 0;
@@ -302,6 +304,7 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb)
 		goto send_fragmentable;
 
 done:
+	trace_rxrpc_tx_data(call, sp->hdr.seq, serial, whdr.flags, false);
 	if (ret >= 0) {
 		ktime_t now = ktime_get_real();
 		skb->tstamp = now;
