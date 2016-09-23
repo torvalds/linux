@@ -2300,18 +2300,20 @@ static int arcmsr_iop_message_xfer(struct AdapterControlBlock *acb,
 		uint32_t user_len;
 		int32_t cnt2end;
 		uint8_t *pQbuffer, *ptmpuserbuffer;
+
+		user_len = pcmdmessagefld->cmdmessage.Length;
+		if (user_len > ARCMSR_API_DATA_BUFLEN) {
+			retvalue = ARCMSR_MESSAGE_FAIL;
+			goto message_out;
+		}
+
 		ver_addr = kmalloc(ARCMSR_API_DATA_BUFLEN, GFP_ATOMIC);
 		if (!ver_addr) {
 			retvalue = ARCMSR_MESSAGE_FAIL;
 			goto message_out;
 		}
 		ptmpuserbuffer = ver_addr;
-		user_len = pcmdmessagefld->cmdmessage.Length;
-		if (user_len > ARCMSR_API_DATA_BUFLEN) {
-			retvalue = ARCMSR_MESSAGE_FAIL;
-			kfree(ver_addr);
-			goto message_out;
-		}
+
 		memcpy(ptmpuserbuffer,
 			pcmdmessagefld->messagedatabuffer, user_len);
 		spin_lock_irqsave(&acb->wqbuffer_lock, flags);
