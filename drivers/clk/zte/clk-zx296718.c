@@ -917,4 +917,8 @@ static struct platform_driver zx_clk_driver = {
 	},
 };
 
-builtin_platform_driver(zx_clk_driver);
+static int __init zx_clk_init(void)
+{
+	return platform_driver_register(&zx_clk_driver);
+}
+core_initcall(zx_clk_init);
