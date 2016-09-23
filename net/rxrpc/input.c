@@ -479,6 +479,8 @@ static void rxrpc_input_soft_acks(struct rxrpc_call *call, u8 *acks,
 		case RXRPC_ACK_TYPE_NACK:
 			if (anno_type == RXRPC_TX_ANNO_NAK)
 				continue;
+			if (anno_type == RXRPC_TX_ANNO_RETRANS)
+				continue;
 			call->rxtx_annotations[ix] =
 				RXRPC_TX_ANNO_NAK | annotation;
 			resend = true;
