@@ -330,7 +330,7 @@ frwr_wc_localinv_wake(struct ib_cq *cq, struct ib_wc *wc)
 	frmr = container_of(cqe, struct rpcrdma_frmr, fr_cqe);
 	if (wc->status != IB_WC_SUCCESS)
 		__frwr_sendcompletion_flush(wc, frmr, "localinv");
-	complete_all(&frmr->fr_linv_done);
+	complete(&frmr->fr_linv_done);
 }
 
 /* Post a REG_MR Work Request to register a memory region
