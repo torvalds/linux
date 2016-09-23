@@ -151,7 +151,6 @@ struct rk818_charger {
 	u8 chrg_input;
 	u8 chrg_current;
 	u8 res_div;
-	u8 int_msk_reg2;
 	u8 plug_in_irq;
 	u8 plug_out_irq;
 };
@@ -1264,30 +1263,6 @@ static int rk818_charger_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int rk818_charger_suspend(struct platform_device *pdev,
-				 pm_message_t state)
-{
-	struct rk818_charger *cg = platform_get_drvdata(pdev);
-
-	if (cg->otg_in && cg->dc_in) {
-		cg->int_msk_reg2 = rk818_reg_read(cg, RK818_INT_STS_MSK_REG2);
-		rk818_reg_set_bits(cg, RK818_INT_STS_MSK_REG2,
-				   CHRG_CVTLMT_INT_MSK, CHRG_CVTLMT_INT_MSK);
-	}
-
-	return 0;
-}
-
-static int rk818_charger_resume(struct platform_device *pdev)
-{
-	struct rk818_charger *cg = platform_get_drvdata(pdev);
-
-	if (cg->otg_in && cg->dc_in)
-		rk818_reg_write(cg, RK818_INT_STS_MSK_REG2, cg->int_msk_reg2);
-
-	return 0;
-}
-
 static void rk818_charger_shutdown(struct platform_device *pdev)
 {
 	struct rk818_charger *cg = platform_get_drvdata(pdev);
@@ -1326,8 +1301,6 @@ static void rk818_charger_shutdown(struct platform_device *pdev)
 
 static struct platform_driver rk818_charger_driver = {
 	.probe = rk818_charger_probe,
-	.suspend = rk818_charger_suspend,
-	.resume = rk818_charger_resume,
 	.shutdown = rk818_charger_shutdown,
 	.driver = {
 		.name	= "rk818-charger",
