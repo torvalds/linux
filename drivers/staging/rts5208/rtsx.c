@@ -34,27 +34,27 @@ MODULE_DESCRIPTION("Realtek PCI-Express card reader rts5208/rts5288 driver");
 MODULE_LICENSE("GPL");
 
 static unsigned int delay_use = 1;
-module_param(delay_use, uint, S_IRUGO | S_IWUSR);
+module_param(delay_use, uint, 0644);
 MODULE_PARM_DESC(delay_use, "seconds to delay before using a new device");
 
 static int ss_en;
-module_param(ss_en, int, S_IRUGO | S_IWUSR);
+module_param(ss_en, int, 0644);
 MODULE_PARM_DESC(ss_en, "enable selective suspend");
 
 static int ss_interval = 50;
-module_param(ss_interval, int, S_IRUGO | S_IWUSR);
+module_param(ss_interval, int, 0644);
 MODULE_PARM_DESC(ss_interval, "Interval to enter ss state in seconds");
 
 static int auto_delink_en;
-module_param(auto_delink_en, int, S_IRUGO | S_IWUSR);
+module_param(auto_delink_en, int, 0644);
 MODULE_PARM_DESC(auto_delink_en, "enable auto delink");
 
 static unsigned char aspm_l0s_l1_en;
-module_param(aspm_l0s_l1_en, byte, S_IRUGO | S_IWUSR);
+module_param(aspm_l0s_l1_en, byte, 0644);
 MODULE_PARM_DESC(aspm_l0s_l1_en, "enable device aspm");
 
 static int msi_en;
-module_param(msi_en, int, S_IRUGO | S_IWUSR);
+module_param(msi_en, int, 0644);
 MODULE_PARM_DESC(msi_en, "enable msi");
 
 static irqreturn_t rtsx_interrupt(int irq, void *dev_id);
