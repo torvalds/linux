@@ -578,7 +578,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 	}
 
 	/* Discard any out-of-order or duplicate ACKs. */
-	if ((int)sp->hdr.serial - (int)call->acks_latest <= 0) {
+	if (before_eq(sp->hdr.serial, call->acks_latest)) {
 		_debug("discard ACK %d <= %d",
 		       sp->hdr.serial, call->acks_latest);
 		return;
