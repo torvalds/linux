@@ -305,6 +305,17 @@ acpi_status acpi_ps_execute_table(struct acpi_evaluate_info *info)
 		walk_state->parse_flags |= ACPI_PARSE_MODULE_LEVEL;
 	}
 
+	/* Info->Node is the default location to load the table  */
+
+	if (info->node && info->node != acpi_gbl_root_node) {
+		status =
+		    acpi_ds_scope_stack_push(info->node, ACPI_TYPE_METHOD,
+					     walk_state);
+		if (ACPI_FAILURE(status)) {
+			goto cleanup;
+		}
+	}
+
 	/*
 	 * Parse the AML, walk_state will be deleted by parse_aml
 	 */
