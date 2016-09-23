@@ -238,7 +238,9 @@ static int max1027_read_single_value(struct iio_dev *indio_dev,
 
 	/* Configure conversion register with the requested chan */
 	st->reg = MAX1027_CONV_REG | MAX1027_CHAN(chan->channel) |
-		  MAX1027_NOSCAN | !!(chan->type == IIO_TEMP);
+		  MAX1027_NOSCAN;
+	if (chan->type == IIO_TEMP)
+		st->reg |= MAX1027_TEMP;
 	ret = spi_write(st->spi, &st->reg, 1);
 	if (ret < 0) {
 		dev_err(&indio_dev->dev,
