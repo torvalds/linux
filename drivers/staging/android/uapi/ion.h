@@ -52,18 +52,18 @@ enum ion_heap_type {
  * allocation flags - the lower 16 bits are used by core ion, the upper 16
  * bits are reserved for use by the heaps themselves.
  */
-#define ION_FLAG_CACHED 1		/*
-					 * mappings of this buffer should be
-					 * cached, ion will do cache
-					 * maintenance when the buffer is
-					 * mapped for dma
-					*/
-#define ION_FLAG_CACHED_NEEDS_SYNC 2	/*
-					 * mappings of this buffer will created
-					 * at mmap time, if this is set
-					 * caches must be managed
-					 * manually
-					 */
+
+/*
+ * mappings of this buffer should be cached, ion will do cache maintenance
+ * when the buffer is mapped for dma
+ */
+#define ION_FLAG_CACHED 1
+
+/*
+ * mappings of this buffer will created at mmap time, if this is set
+ * caches must be managed manually
+ */
+#define ION_FLAG_CACHED_NEEDS_SYNC 2
 
 /**
  * DOC: Ion Userspace API
