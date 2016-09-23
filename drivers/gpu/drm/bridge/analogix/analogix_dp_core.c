@@ -98,6 +98,14 @@ static int analogix_dp_detect_hpd(struct analogix_dp_device *dp)
 	return 0;
 }
 
+int analogix_dp_psr_supported(struct device *dev)
+{
+	struct analogix_dp_device *dp = dev_get_drvdata(dev);
+
+	return dp->psr_support;
+}
+EXPORT_SYMBOL_GPL(analogix_dp_psr_supported);
+
 int analogix_dp_enable_psr(struct device *dev)
 {
 	struct analogix_dp_device *dp = dev_get_drvdata(dev);
