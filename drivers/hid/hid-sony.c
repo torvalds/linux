@@ -8,7 +8,7 @@
  *  Copyright (c) 2012 David Dillow <dave@thedillows.org>
  *  Copyright (c) 2006-2013 Jiri Kosina
  *  Copyright (c) 2013 Colin Leitner <colin.leitner@gmail.com>
- *  Copyright (c) 2014 Frank Praznik <frank.praznik@gmail.com>
+ *  Copyright (c) 2014-2016 Frank Praznik <frank.praznik@gmail.com>
  */
 
 /*
@@ -1879,6 +1879,17 @@ static void dualshock4_send_output_report(struct sony_sc *sc)
 	u8 *buf = sc->output_report_dmabuf;
 	int offset;
 
+	/*
+	 * NOTE: The buf[1] field of the Bluetooth report controls
+	 * the Dualshock 4 reporting rate.
+	 *
+	 * Known values include:
+	 *
+	 * 0x80 - 1000hz (full speed)
+	 * 0xA0 - 31hz
+	 * 0xB0 - 20hz
+	 * 0xD0 - 66hz
+	 */
 	if (sc->quirks & DUALSHOCK4_CONTROLLER_USB) {
 		memset(buf, 0, DS4_REPORT_0x05_SIZE);
 		buf[0] = 0x05;
