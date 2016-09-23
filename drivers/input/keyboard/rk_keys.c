@@ -36,11 +36,11 @@
 #include <linux/of_gpio.h>
 #include <linux/of_platform.h>
 
-#define EMPTY_ADVALUE			950
-#define DRIFT_ADVALUE			70
+#define EMPTY_DEFAULT_ADVALUE		1024
+#define DRIFT_DEFAULT_ADVALUE		70
 #define INVALID_ADVALUE			-1
-#define EV_ENCALL                       KEY_F4
-#define EV_MENU                         KEY_F1
+#define EV_ENCALL			KEY_F4
+#define EV_MENU				KEY_F1
 
 #if 0
 #define key_dbg(bdata, format, arg...)		\
@@ -78,6 +78,7 @@ struct rk_keys_drvdata {
 	bool in_suspend;
 	int result;
 	int rep;
+	int drift_advalue;
 	struct wake_lock wake_lock;
 	struct input_dev *input;
 	struct delayed_work adc_poll_work;
@@ -204,15 +205,16 @@ static void adc_key_poll(struct work_struct *work)
 	ddata = container_of(work, struct rk_keys_drvdata, adc_poll_work.work);
 	if (!ddata->in_suspend) {
 		result = rk_key_adc_iio_read(ddata);
-		if (result > INVALID_ADVALUE && result < EMPTY_ADVALUE)
+		if (result > INVALID_ADVALUE &&
+		    result < (EMPTY_DEFAULT_ADVALUE - ddata->drift_advalue))
 			ddata->result = result;
 		for (i = 0; i < ddata->nbuttons; i++) {
 			struct rk_keys_button *button = &ddata->button[i];
 
 			if (!button->adc_value)
 				continue;
-			if (result < button->adc_value + DRIFT_ADVALUE &&
-			    result > button->adc_value - DRIFT_ADVALUE)
+			if (result < button->adc_value + ddata->drift_advalue &&
+			    result > button->adc_value - ddata->drift_advalue)
 				button->adc_state = 1;
 			else
 				button->adc_state = 0;
@@ -245,7 +247,12 @@ static int rk_keys_parse_dt(struct rk_keys_drvdata *pdata,
 	struct device_node *child_node;
 	struct iio_channel *chan;
 	int ret, gpio, i = 0;
-	u32 code, adc_value, flags;
+	u32 code, adc_value, flags, drift;
+
+	if (of_property_read_u32(node, "adc-drift", &drift))
+		pdata->drift_advalue = DRIFT_DEFAULT_ADVALUE;
+	else
+		pdata->drift_advalue = (int)drift;
 
 	chan = iio_channel_get(&pdev->dev, NULL);
 	if (IS_ERR(chan)) {
