@@ -412,12 +412,12 @@ fail_irq_uninstall:
 fail_vblank_cleanup:
 	drm_vblank_cleanup(dev);
 
-fail_mode_config_cleanup:
-	drm_mode_config_cleanup(dev);
-
 fail_component_cleanup:
 	if (priv->is_componentized)
 		component_unbind_all(dev->dev, dev);
+
+fail_mode_config_cleanup:
+	drm_mode_config_cleanup(dev);
 
 fail_external_cleanup:
 	tilcdc_remove_external_encoders(dev);
