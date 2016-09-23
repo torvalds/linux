@@ -978,7 +978,7 @@ int copy_siginfo_from_user32(siginfo_t *to, struct compat_siginfo __user *from)
  * (one which gets siginfo).
  */
 int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
-		       struct pt_regs *regs)
+		       struct task_struct *tsk)
 {
 	struct rt_sigframe __user *rt_sf;
 	struct mcontext __user *frame;
@@ -987,10 +987,13 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 	unsigned long newsp = 0;
 	int sigret;
 	unsigned long tramp;
+	struct pt_regs *regs = tsk->thread.regs;
+
+	BUG_ON(tsk != current);
 
 	/* Set up Signal Frame */
 	/* Put a Real Time Context onto stack */
-	rt_sf = get_sigframe(ksig, get_tm_stackpointer(regs), sizeof(*rt_sf), 1);
+	rt_sf = get_sigframe(ksig, get_tm_stackpointer(tsk), sizeof(*rt_sf), 1);
 	addr = rt_sf;
 	if (unlikely(rt_sf == NULL))
 		goto badframe;
@@ -1007,9 +1010,9 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 	/* Save user registers on the stack */
 	frame = &rt_sf->uc.uc_mcontext;
 	addr = frame;
-	if (vdso32_rt_sigtramp && current->mm->context.vdso_base) {
+	if (vdso32_rt_sigtramp && tsk->mm->context.vdso_base) {
 		sigret = 0;
-		tramp = current->mm->context.vdso_base + vdso32_rt_sigtramp;
+		tramp = tsk->mm->context.vdso_base + vdso32_rt_sigtramp;
 	} else {
 		sigret = __NR_rt_sigreturn;
 		tramp = (unsigned long) frame->tramp;
@@ -1036,7 +1039,7 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 	}
 	regs->link = tramp;
 
-	current->thread.fp_state.fpscr = 0;	/* turn off all fp exceptions */
+	tsk->thread.fp_state.fpscr = 0;	/* turn off all fp exceptions */
 
 	/* create a stack frame for the caller of the handler */
 	newsp = ((unsigned long)rt_sf) - (__SIGNAL_FRAMESIZE + 16);
@@ -1061,7 +1064,7 @@ badframe:
 		printk_ratelimited(KERN_INFO
 				   "%s[%d]: bad frame in handle_rt_signal32: "
 				   "%p nip %08lx lr %08lx\n",
-				   current->comm, current->pid,
+				   tsk->comm, tsk->pid,
 				   addr, regs->nip, regs->link);
 
 	return 1;
@@ -1417,7 +1420,8 @@ int sys_debug_setcontext(struct ucontext __user *ctx,
 /*
  * OK, we're invoking a handler
  */
-int handle_signal32(struct ksignal *ksig, sigset_t *oldset, struct pt_regs *regs)
+int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
+		struct task_struct *tsk)
 {
 	struct sigcontext __user *sc;
 	struct sigframe __user *frame;
@@ -1425,9 +1429,12 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset, struct pt_regs *regs
 	unsigned long newsp = 0;
 	int sigret;
 	unsigned long tramp;
+	struct pt_regs *regs = tsk->thread.regs;
+
+	BUG_ON(tsk != current);
 
 	/* Set up Signal Frame */
-	frame = get_sigframe(ksig, get_tm_stackpointer(regs), sizeof(*frame), 1);
+	frame = get_sigframe(ksig, get_tm_stackpointer(tsk), sizeof(*frame), 1);
 	if (unlikely(frame == NULL))
 		goto badframe;
 	sc = (struct sigcontext __user *) &frame->sctx;
@@ -1446,9 +1453,9 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset, struct pt_regs *regs
 	    || __put_user(ksig->sig, &sc->signal))
 		goto badframe;
 
-	if (vdso32_sigtramp && current->mm->context.vdso_base) {
+	if (vdso32_sigtramp && tsk->mm->context.vdso_base) {
 		sigret = 0;
-		tramp = current->mm->context.vdso_base + vdso32_sigtramp;
+		tramp = tsk->mm->context.vdso_base + vdso32_sigtramp;
 	} else {
 		sigret = __NR_sigreturn;
 		tramp = (unsigned long) frame->mctx.tramp;
@@ -1470,7 +1477,7 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset, struct pt_regs *regs
 
 	regs->link = tramp;
 
-	current->thread.fp_state.fpscr = 0;	/* turn off all fp exceptions */
+	tsk->thread.fp_state.fpscr = 0;	/* turn off all fp exceptions */
 
 	/* create a stack frame for the caller of the handler */
 	newsp = ((unsigned long)frame) - __SIGNAL_FRAMESIZE;
@@ -1490,7 +1497,7 @@ badframe:
 		printk_ratelimited(KERN_INFO
 				   "%s[%d]: bad frame in handle_signal32: "
 				   "%p nip %08lx lr %08lx\n",
-				   current->comm, current->pid,
+				   tsk->comm, tsk->pid,
 				   frame, regs->nip, regs->link);
 
 	return 1;

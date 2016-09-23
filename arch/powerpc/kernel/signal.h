@@ -16,10 +16,10 @@ extern void __user *get_sigframe(struct ksignal *ksig, unsigned long sp,
 				  size_t frame_size, int is_32);
 
 extern int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
-			   struct pt_regs *regs);
+			   struct task_struct *tsk);
 
 extern int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
-			      struct pt_regs *regs);
+			      struct task_struct *tsk);
 
 extern unsigned long copy_fpr_to_user(void __user *to,
 				      struct task_struct *task);
@@ -29,6 +29,8 @@ extern unsigned long copy_fpr_from_user(struct task_struct *task,
 					void __user *from);
 extern unsigned long copy_transact_fpr_from_user(struct task_struct *task,
 						 void __user *from);
+extern unsigned long get_tm_stackpointer(struct task_struct *tsk);
+
 #ifdef CONFIG_VSX
 extern unsigned long copy_vsx_to_user(void __user *to,
 				      struct task_struct *task);
@@ -43,12 +45,12 @@ extern unsigned long copy_transact_vsx_from_user(struct task_struct *task,
 #ifdef CONFIG_PPC64
 
 extern int handle_rt_signal64(struct ksignal *ksig, sigset_t *set,
-			      struct pt_regs *regs);
+			      struct task_struct *tsk);
 
 #else /* CONFIG_PPC64 */
 
 static inline int handle_rt_signal64(struct ksignal *ksig, sigset_t *set,
-				     struct pt_regs *regs)
+				     struct task_struct *tsk)
 {
 	return -EFAULT;
 }
