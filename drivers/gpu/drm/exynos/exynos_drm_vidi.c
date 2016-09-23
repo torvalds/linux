@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/component.h>
+#include <linux/timer.h>
 
 #include <drm/exynos_drm.h>
 
@@ -27,6 +28,9 @@
 #include "exynos_drm_fb.h"
 #include "exynos_drm_plane.h"
 #include "exynos_drm_vidi.h"
+
+/* VIDI uses fixed refresh rate of 50Hz */
+#define VIDI_REFRESH_TIME (1000 / 50)
 
 /* vidi has totally three virtual windows. */
 #define WINDOWS_NR		3
@@ -43,12 +47,9 @@ struct vidi_context {
 	struct exynos_drm_plane		planes[WINDOWS_NR];
 	struct edid			*raw_edid;
 	unsigned int			clkdiv;
-	unsigned long			irq_flags;
 	unsigned int			connected;
-	bool				vblank_on;
 	bool				suspended;
-	bool				direct_vblank;
-	struct work_struct		work;
+	struct timer_list		timer;
 	struct mutex			lock;
 	int				pipe;
 };
@@ -102,30 +103,14 @@ static int vidi_enable_vblank(struct exynos_drm_crtc *crtc)
 	if (ctx->suspended)
 		return -EPERM;
 
-	if (!test_and_set_bit(0, &ctx->irq_flags))
-		ctx->vblank_on = true;
-
-	ctx->direct_vblank = true;
-
-	/*
-	 * in case of page flip request, vidi_finish_pageflip function
-	 * will not be called because direct_vblank is true and then
-	 * that function will be called by crtc_ops->update_plane callback
-	 */
-	schedule_work(&ctx->work);
+	mod_timer(&ctx->timer,
+		jiffies + msecs_to_jiffies(VIDI_REFRESH_TIME) - 1);
 
 	return 0;
 }
 
 static void vidi_disable_vblank(struct exynos_drm_crtc *crtc)
 {
-	struct vidi_context *ctx = crtc->ctx;
-
-	if (ctx->suspended)
-		return;
-
-	if (test_and_clear_bit(0, &ctx->irq_flags))
-		ctx->vblank_on = false;
 }
 
 static void vidi_update_plane(struct exynos_drm_crtc *crtc,
@@ -140,9 +125,6 @@ static void vidi_update_plane(struct exynos_drm_crtc *crtc,
 
 	addr = exynos_drm_fb_dma_addr(state->fb, 0);
 	DRM_DEBUG_KMS("dma_addr = %pad\n", &addr);
-
-	if (ctx->vblank_on)
-		schedule_work(&ctx->work);
 }
 
 static void vidi_enable(struct exynos_drm_crtc *crtc)
@@ -153,16 +135,16 @@ static void vidi_enable(struct exynos_drm_crtc *crtc)
 
 	ctx->suspended = false;
 
-	/* if vblank was enabled status, enable it again. */
-	if (test_and_clear_bit(0, &ctx->irq_flags))
-		vidi_enable_vblank(ctx->crtc);
-
 	mutex_unlock(&ctx->lock);
+
+	drm_crtc_vblank_on(&crtc->base);
 }
 
 static void vidi_disable(struct exynos_drm_crtc *crtc)
 {
 	struct vidi_context *ctx = crtc->ctx;
+
+	drm_crtc_vblank_off(&crtc->base);
 
 	mutex_lock(&ctx->lock);
 
@@ -190,28 +172,17 @@ static const struct exynos_drm_crtc_ops vidi_crtc_ops = {
 	.update_plane = vidi_update_plane,
 };
 
-static void vidi_fake_vblank_handler(struct work_struct *work)
+static void vidi_fake_vblank_timer(unsigned long arg)
 {
-	struct vidi_context *ctx = container_of(work, struct vidi_context,
-					work);
+	struct vidi_context *ctx = (void *)arg;
 	int win;
 
 	if (ctx->pipe < 0)
 		return;
 
-	/* refresh rate is about 50Hz. */
-	usleep_range(16000, 20000);
-
-	mutex_lock(&ctx->lock);
-
-	if (ctx->direct_vblank) {
-		drm_crtc_handle_vblank(&ctx->crtc->base);
-		ctx->direct_vblank = false;
-		mutex_unlock(&ctx->lock);
-		return;
-	}
-
-	mutex_unlock(&ctx->lock);
+	if (drm_crtc_handle_vblank(&ctx->crtc->base))
+		mod_timer(&ctx->timer,
+			jiffies + msecs_to_jiffies(VIDI_REFRESH_TIME) - 1);
 
 	for (win = 0 ; win < WINDOWS_NR ; win++) {
 		struct exynos_drm_plane *plane = &ctx->planes[win];
@@ -489,6 +460,9 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 
 static void vidi_unbind(struct device *dev, struct device *master, void *data)
 {
+	struct vidi_context *ctx = dev_get_drvdata(dev);
+
+	del_timer_sync(&ctx->timer);
 }
 
 static const struct component_ops vidi_component_ops = {
@@ -507,7 +481,7 @@ static int vidi_probe(struct platform_device *pdev)
 
 	ctx->pdev = pdev;
 
-	INIT_WORK(&ctx->work, vidi_fake_vblank_handler);
+	setup_timer(&ctx->timer, vidi_fake_vblank_timer, (unsigned long)ctx);
 
 	mutex_init(&ctx->lock);
 
