@@ -99,6 +99,11 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 
 	ASSERTCMP(seq, ==, call->tx_top + 1);
 
+	/* We have to set the timestamp before queueing as the retransmit
+	 * algorithm can see the packet as soon as we queue it.
+	 */
+	skb->tstamp = ktime_get_real();
+
 	ix = seq & RXRPC_RXTX_BUFF_MASK;
 	rxrpc_get_skb(skb, rxrpc_skb_tx_got);
 	call->rxtx_annotations[ix] = RXRPC_TX_ANNO_UNACK;
