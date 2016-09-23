@@ -216,6 +216,15 @@ static inline void gic_write_sre(u32 val)
 	isb();
 }
 
+static inline void gic_write_bpr1(u32 val)
+{
+#if defined(__write_sysreg) && defined(ICC_BPR1)
+	write_sysreg(val, ICC_BPR1);
+#else
+	asm volatile("mcr " __stringify(ICC_BPR1) : : "r" (val));
+#endif
+}
+
 /*
  * Even in 32bit systems that use LPAE, there is no guarantee that the I/O
  * interface provides true 64bit atomic accesses, so using strd/ldrd doesn't
