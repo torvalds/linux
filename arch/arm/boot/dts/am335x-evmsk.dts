@@ -170,29 +170,29 @@
 		pinctrl-1 = <&lcd_pins_sleep>;
 		status = "okay";
 		panel-info {
-			ac-bias           = <255>;
-			ac-bias-intrpt    = <0>;
-			dma-burst-sz      = <16>;
-			bpp               = <32>;
-			fdd               = <0x80>;
-			sync-edge         = <0>;
-			sync-ctrl         = <1>;
-			raster-order      = <0>;
-			fifo-th           = <0>;
+			ac-bias		= <255>;
+			ac-bias-intrpt	= <0>;
+			dma-burst-sz	= <16>;
+			bpp		= <32>;
+			fdd		= <0x80>;
+			sync-edge	= <0>;
+			sync-ctrl	= <1>;
+			raster-order	= <0>;
+			fifo-th		= <0>;
 		};
 		display-timings {
 			480x272 {
-				hactive         = <480>;
-				vactive         = <272>;
-				hback-porch     = <43>;
-				hfront-porch    = <8>;
-				hsync-len       = <4>;
-				vback-porch     = <12>;
-				vfront-porch    = <4>;
-				vsync-len       = <10>;
+				hactive		= <480>;
+				vactive		= <272>;
+				hback-porch	= <43>;
+				hfront-porch	= <8>;
+				hsync-len	= <4>;
+				vback-porch	= <12>;
+				vfront-porch	= <4>;
+				vsync-len	= <10>;
 				clock-frequency = <9000000>;
-				hsync-active    = <0>;
-				vsync-active    = <0>;
+				hsync-active	= <0>;
+				vsync-active	= <0>;
 			};
 		};
 	};
@@ -711,5 +711,7 @@
 };
 
 &lcdc {
-      status = "okay";
+	status = "okay";
+
+	blue-and-red-wiring = "crossed";
 };
