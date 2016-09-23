@@ -2023,6 +2023,7 @@ static const char * const intel_pt_info_fmts[] = {
 	[INTEL_PT_TSC_CTC_N]		= "  TSC:CTC numerator   %"PRIu64"\n",
 	[INTEL_PT_TSC_CTC_D]		= "  TSC:CTC denominator %"PRIu64"\n",
 	[INTEL_PT_CYC_BIT]		= "  CYC bit             %#"PRIx64"\n",
+	[INTEL_PT_MAX_NONTURBO_RATIO]	= "  Max non-turbo ratio %"PRIu64"\n",
 };
 
 static void intel_pt_print_info(u64 *arr, int start, int finish)
@@ -2085,6 +2086,15 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 		pt->cyc_bit = auxtrace_info->priv[INTEL_PT_CYC_BIT];
 		intel_pt_print_info(&auxtrace_info->priv[0], INTEL_PT_MTC_BIT,
 				    INTEL_PT_CYC_BIT);
+	}
+
+	if (auxtrace_info->header.size >= sizeof(struct auxtrace_info_event) +
+				(sizeof(u64) * INTEL_PT_MAX_NONTURBO_RATIO)) {
+		pt->max_non_turbo_ratio =
+			auxtrace_info->priv[INTEL_PT_MAX_NONTURBO_RATIO];
+		intel_pt_print_info(&auxtrace_info->priv[0],
+				    INTEL_PT_MAX_NONTURBO_RATIO,
+				    INTEL_PT_MAX_NONTURBO_RATIO);
 	}
 
 	pt->timeless_decoding = intel_pt_timeless_decoding(pt);
@@ -2156,7 +2166,9 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	if (pt->tc.time_mult) {
 		u64 tsc_freq = intel_pt_ns_to_ticks(pt, 1000000000);
 
-		pt->max_non_turbo_ratio = (tsc_freq + 50000000) / 100000000;
+		if (!pt->max_non_turbo_ratio)
+			pt->max_non_turbo_ratio =
+					(tsc_freq + 50000000) / 100000000;
 		intel_pt_log("TSC frequency %"PRIu64"\n", tsc_freq);
 		intel_pt_log("Maximum non-turbo ratio %u\n",
 			     pt->max_non_turbo_ratio);

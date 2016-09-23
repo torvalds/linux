@@ -302,6 +302,7 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 	bool cap_user_time_zero = false, per_cpu_mmaps;
 	u64 tsc_bit, mtc_bit, mtc_freq_bits, cyc_bit, noretcomp_bit;
 	u32 tsc_ctc_ratio_n, tsc_ctc_ratio_d;
+	unsigned long max_non_turbo_ratio;
 	int err;
 
 	if (priv_size != INTEL_PT_AUXTRACE_PRIV_SIZE)
@@ -316,6 +317,10 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 	intel_pt_parse_terms(&intel_pt_pmu->format, "cyc", &cyc_bit);
 
 	intel_pt_tsc_ctc_ratio(&tsc_ctc_ratio_n, &tsc_ctc_ratio_d);
+
+	if (perf_pmu__scan_file(intel_pt_pmu, "max_nonturbo_ratio",
+				"%lu", &max_non_turbo_ratio) != 1)
+		max_non_turbo_ratio = 0;
 
 	if (!session->evlist->nr_mmaps)
 		return -EINVAL;
@@ -351,6 +356,7 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 	auxtrace_info->priv[INTEL_PT_TSC_CTC_N] = tsc_ctc_ratio_n;
 	auxtrace_info->priv[INTEL_PT_TSC_CTC_D] = tsc_ctc_ratio_d;
 	auxtrace_info->priv[INTEL_PT_CYC_BIT] = cyc_bit;
+	auxtrace_info->priv[INTEL_PT_MAX_NONTURBO_RATIO] = max_non_turbo_ratio;
 
 	return 0;
 }
