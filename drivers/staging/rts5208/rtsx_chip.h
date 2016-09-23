@@ -44,8 +44,10 @@
 	#define MG_SET_ICV_SLOW
 	/* HW may miss ERR/CMDNK signal when sampling INT status. */
 	#define MS_SAMPLE_INT_ERR
-	/* HW DO NOT support Wait_INT function during READ_BYTES
-	 * transfer mode */
+	/*
+	 * HW DO NOT support Wait_INT function
+	 * during READ_BYTES transfer mode
+	 */
 	#define READ_BYTES_WAIT_INT
 #endif
 
@@ -101,17 +103,17 @@
 #define TRANSPORT_NO_SENSE	2  /* Command failed, no auto-sense    */
 #define TRANSPORT_ERROR		3   /* Transport bad (i.e. device dead) */
 
-/*-----------------------------------
-    Start-Stop-Unit
------------------------------------*/
+/*
+ * Start-Stop-Unit
+ */
 #define STOP_MEDIUM			0x00    /* access disable         */
 #define MAKE_MEDIUM_READY		0x01    /* access enable          */
 #define UNLOAD_MEDIUM			0x02    /* unload                 */
 #define LOAD_MEDIUM			0x03    /* load                   */
 
-/*-----------------------------------
-    STANDARD_INQUIRY
------------------------------------*/
+/*
+ * STANDARD_INQUIRY
+ */
 #define QULIFIRE                0x00
 #define AENC_FNC                0x00
 #define TRML_IOP                0x00
@@ -128,17 +130,15 @@
 #define PRDCT_REV_LEN           4               /* Product LOT Length       */
 
 /* Dynamic flag definitions: used in set_bit() etc. */
-#define RTSX_FLIDX_TRANS_ACTIVE		18  /* 0x00040000  transfer is active */
-#define RTSX_FLIDX_ABORTING		20  /* 0x00100000 abort is in
-					     * progress */
-#define RTSX_FLIDX_DISCONNECTING	21  /* 0x00200000 disconnect
-					     * in progress */
+#define RTSX_FLIDX_TRANS_ACTIVE		18  /* 0x00040000 transfer is active	 */
+#define RTSX_FLIDX_ABORTING		20  /* 0x00100000 abort is in progress	 */
+#define RTSX_FLIDX_DISCONNECTING	21  /* 0x00200000 disconnect in progress */
+
 #define ABORTING_OR_DISCONNECTING	((1UL << US_FLIDX_ABORTING) | \
 					 (1UL << US_FLIDX_DISCONNECTING))
-#define RTSX_FLIDX_RESETTING		22  /* 0x00400000 device reset
-					     * in progress */
-#define RTSX_FLIDX_TIMED_OUT		23  /* 0x00800000 SCSI
-					     * midlayer timed out */
+
+#define RTSX_FLIDX_RESETTING		22  /* 0x00400000 device reset in progress */
+#define RTSX_FLIDX_TIMED_OUT		23  /* 0x00800000 SCSI midlayer timed out  */
 
 #define DRCT_ACCESS_DEV         0x00    /* Direct Access Device      */
 #define RMB_DISC                0x80    /* The Device is Removable   */
@@ -173,9 +173,9 @@
 #define	FIRST_RESET		0x01
 #define	USED_EXIST		0x02
 
-/*-----------------------------------
-    SENSE_DATA
------------------------------------*/
+/*
+ * SENSE_DATA
+ */
 /*---- valid ----*/
 #define SENSE_VALID             0x80    /* Sense data is valid as SCSI2     */
 #define SENSE_INVALID           0x00    /* Sense data is invalid as SCSI2   */
@@ -706,9 +706,9 @@ struct rtsx_chip {
 	int			cur_card;
 
 	unsigned long	need_release;		/* need release bit map */
-	unsigned long	need_reset;		/* need reset
-						 * bit map */
-	/* Flag to indicate that this card is just resumed from SS state,
+	unsigned long	need_reset;		/* need reset bit map */
+	/*
+	 * Flag to indicate that this card is just resumed from SS state,
 	 * and need released before being resetted
 	 */
 	unsigned long		need_reinit;
@@ -726,8 +726,10 @@ struct rtsx_chip {
 	u8	card_ejected;	/* card ejected bit map */
 	u8	card_wp;	/* card write protected bit map */
 
-	u8	lun_mc;		/* flag to indicate whether to answer
-				 * MediaChange */
+	u8	lun_mc;		/*
+				 * flag to indicate whether to answer
+				 * MediaChange
+				 */
 
 #ifndef LED_AUTO_BLINK
 	int			led_toggle_counter;
