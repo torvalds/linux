@@ -112,14 +112,10 @@ struct brcmf_pub {
 
 	/* Internal brcmf items */
 	uint hdrlen;		/* Total BRCMF header length (proto + bus) */
-	uint rxsz;		/* Rx buffer size bus module should use */
 
 	/* Dongle media info */
 	char fwver[BRCMF_DRIVER_FIRMWARE_VERSION_LEN];
 	u8 mac[ETH_ALEN];		/* MAC address obtained from dongle */
-
-	/* Multicast data packets sent to dongle */
-	unsigned long tx_multicast;
 
 	struct mac_address addresses[BRCMF_MAX_IFS];
 
