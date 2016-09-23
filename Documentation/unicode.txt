@@ -1,3 +1,6 @@
+Unicode support
+===============
+
 		 Last update: 2005-01-17, version 1.4
 
 This file is maintained by H. Peter Anvin <unicode@lanana.org> as part
@@ -6,7 +9,8 @@ The current version can be found at:
 
 	    http://www.lanana.org/docs/unicode/unicode.txt
 
-		       ------------------------
+Introdution
+-----------
 
 The Linux kernel code has been rewritten to use Unicode to map
 characters to fonts.  By downloading a single Unicode-to-font table,
@@ -16,12 +20,14 @@ the font as indicated.
 This changes the semantics of the eight-bit character tables subtly.
 The four character tables are now:
 
+=============== =============================== ================
 Map symbol	Map name			Escape code (G0)
-
+=============== =============================== ================
 LAT1_MAP	Latin-1 (ISO 8859-1)		ESC ( B
 GRAF_MAP	DEC VT100 pseudographics	ESC ( 0
 IBMPC_MAP	IBM code page 437		ESC ( U
 USER_MAP	User defined			ESC ( K
+=============== =============================== ================
 
 In particular, ESC ( U is no longer "straight to font", since the font
 might be completely different than the IBM character set.  This
@@ -55,10 +61,12 @@ In addition, the following characters not present in Unicode 1.1.4
 have been defined; these are used by the DEC VT graphics map.  [v1.2]
 THIS USE IS OBSOLETE AND SHOULD NO LONGER BE USED; PLEASE SEE BELOW.
 
+====== ======================================
 U+F800 DEC VT GRAPHICS HORIZONTAL LINE SCAN 1
 U+F801 DEC VT GRAPHICS HORIZONTAL LINE SCAN 3
 U+F803 DEC VT GRAPHICS HORIZONTAL LINE SCAN 7
 U+F804 DEC VT GRAPHICS HORIZONTAL LINE SCAN 9
+====== ======================================
 
 The DEC VT220 uses a 6x10 character matrix, and these characters form
 a smooth progression in the DEC VT graphics character set.  I have
@@ -74,10 +82,12 @@ keyboard symbols that are unlikely to ever be added to Unicode proper
 since they are horribly vendor-specific.  This, of course, is an
 excellent example of horrible design.
 
+====== ======================================
 U+F810 KEYBOARD SYMBOL FLYING FLAG
 U+F811 KEYBOARD SYMBOL PULLDOWN MENU
 U+F812 KEYBOARD SYMBOL OPEN APPLE
 U+F813 KEYBOARD SYMBOL SOLID APPLE
+====== ======================================
 
 Klingon language support
 ------------------------
@@ -99,8 +109,10 @@ of the dingbats/symbols/forms type and this is a language, I have
 located it at the end, on a 16-cell boundary in keeping with standard
 Unicode practice.
 
-NOTE: This range is now officially managed by the ConScript Unicode
-Registry.  The normative reference is at:
+.. note::
+
+  This range is now officially managed by the ConScript Unicode
+  Registry.  The normative reference is at:
 
 	http://www.evertype.com/standards/csur/klingon.html
 
@@ -112,6 +124,7 @@ However, since the set of symbols appear to be consistent throughout,
 with only the actual shapes being different, in keeping with standard
 Unicode practice these differences are considered font variants.
 
+======	=======================================================
 U+F8D0	KLINGON LETTER A
 U+F8D1	KLINGON LETTER B
 U+F8D2	KLINGON LETTER CH
@@ -155,6 +168,7 @@ U+F8F9	KLINGON DIGIT NINE
 U+F8FD	KLINGON COMMA
 U+F8FE	KLINGON FULL STOP
 U+F8FF	KLINGON SYMBOL FOR EMPIRE
+======	=======================================================
 
 Other Fictional and Artificial Scripts
 --------------------------------------
