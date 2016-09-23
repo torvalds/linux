@@ -22,7 +22,7 @@ need to use volatile as well.  If volatile is still necessary, there is
 almost certainly a bug in the code somewhere.  In properly-written kernel
 code, volatile can only serve to slow things down.
 
-Consider a typical block of kernel code:
+Consider a typical block of kernel code::
 
     spin_lock(&the_lock);
     do_something_on(&shared_data);
@@ -57,7 +57,7 @@ optimization, so, once again, volatile is unnecessary.
 
 Another situation where one might be tempted to use volatile is
 when the processor is busy-waiting on the value of a variable.  The right
-way to perform a busy wait is:
+way to perform a busy wait is::
 
     while (my_variable != what_i_want)
         cpu_relax();
@@ -103,17 +103,20 @@ they come with a justification which shows that the concurrency issues have
 been properly thought through.
 
 
-NOTES
------
+References
+==========
 
 [1] http://lwn.net/Articles/233481/
+
 [2] http://lwn.net/Articles/233482/
 
-CREDITS
--------
+Credits
+=======
 
 Original impetus and research by Randy Dunlap
+
 Written by Jonathan Corbet
+
 Improvements via comments from Satyam Sharma, Johannes Stezenbach, Jesper
-	Juhl, Heikki Orsila, H. Peter Anvin, Philipp Hahn, and Stefan
-	Richter.
+Juhl, Heikki Orsila, H. Peter Anvin, Philipp Hahn, and Stefan
+Richter.
