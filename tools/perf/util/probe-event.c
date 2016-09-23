@@ -213,9 +213,13 @@ static int convert_exec_to_group(const char *exec, char **result)
 		goto out;
 	}
 
-	ptr2 = strpbrk(ptr1, "-._");
-	if (ptr2)
-		*ptr2 = '\0';
+	for (ptr2 = ptr1; ptr2 != '\0'; ptr2++) {
+		if (!isalnum(*ptr2) && *ptr2 != '_') {
+			*ptr2 = '\0';
+			break;
+		}
+	}
+
 	ret = e_snprintf(buf, 64, "%s_%s", PERFPROBE_GROUP, ptr1);
 	if (ret < 0)
 		goto out;
