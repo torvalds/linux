@@ -889,7 +889,6 @@ static int ll_lease_close(struct obd_client_handle *och, struct inode *inode,
 {
 	struct ldlm_lock *lock;
 	bool cancelled = true;
-	int rc;
 
 	lock = ldlm_handle2lock(&och->och_lease_handle);
 	if (lock) {
@@ -907,9 +906,8 @@ static int ll_lease_close(struct obd_client_handle *och, struct inode *inode,
 	if (lease_broken)
 		*lease_broken = cancelled;
 
-	rc = ll_close_inode_openhandle(ll_i2sbi(inode)->ll_md_exp, inode, och,
-				       NULL);
-	return rc;
+	return ll_close_inode_openhandle(ll_i2sbi(inode)->ll_md_exp,
+					 inode, och, NULL);
 }
 
 /* Fills the obdo with the attributes for the lsm */
@@ -2489,9 +2487,8 @@ static loff_t ll_file_seek(struct file *file, loff_t offset, int origin)
 		eof = i_size_read(inode);
 	}
 
-	retval = generic_file_llseek_size(file, offset, origin,
-					  ll_file_maxbytes(inode), eof);
-	return retval;
+	return generic_file_llseek_size(file, offset, origin,
+					ll_file_maxbytes(inode), eof);
 }
 
 static int ll_flush(struct file *file, fl_owner_t id)
@@ -2922,15 +2919,12 @@ enum ldlm_mode ll_take_md_lock(struct inode *inode, __u64 bits,
 {
 	ldlm_policy_data_t policy = { .l_inodebits = {bits} };
 	struct lu_fid *fid;
-	enum ldlm_mode rc;
 
 	fid = &ll_i2info(inode)->lli_fid;
 	CDEBUG(D_INFO, "trying to match res "DFID"\n", PFID(fid));
 
-	rc = md_lock_match(ll_i2mdexp(inode), flags | LDLM_FL_BLOCK_GRANTED,
-			   fid, LDLM_IBITS, &policy, mode, lockh);
-
-	return rc;
+	return md_lock_match(ll_i2mdexp(inode), flags | LDLM_FL_BLOCK_GRANTED,
+			     fid, LDLM_IBITS, &policy, mode, lockh);
 }
 
 static int ll_inode_revalidate_fini(struct inode *inode, int rc)
@@ -3031,10 +3025,8 @@ static int __ll_inode_revalidate(struct dentry *dentry, __u64 ibits)
 		op_data->op_valid = valid;
 		rc = md_getattr(sbi->ll_md_exp, op_data, &req);
 		ll_finish_md_op_data(op_data);
-		if (rc) {
-			rc = ll_inode_revalidate_fini(inode, rc);
-			return rc;
-		}
+		if (rc)
+			return ll_inode_revalidate_fini(inode, rc);
 
 		rc = ll_prep_inode(&inode, req, NULL, NULL);
 	}
