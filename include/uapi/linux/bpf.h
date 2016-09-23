@@ -419,6 +419,13 @@ enum bpf_func_id {
 	 */
 	BPF_FUNC_csum_update,
 
+	/**
+	 * bpf_set_hash_invalid(skb)
+	 * Invalidate current skb>hash.
+	 * @skb: pointer to skb
+	 */
+	BPF_FUNC_set_hash_invalid,
+
 	__BPF_FUNC_MAX_ID,
 };
 
