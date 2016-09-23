@@ -130,6 +130,22 @@ int cu_walk_functions_at(Dwarf_Die *cu_die, Dwarf_Addr addr,
 }
 
 /**
+ * die_get_linkage_name - Get the linkage name of the object
+ * @dw_die: A DIE of the object
+ *
+ * Get the linkage name attiribute of given @dw_die.
+ * For C++ binary, the linkage name will be the mangled symbol.
+ */
+const char *die_get_linkage_name(Dwarf_Die *dw_die)
+{
+	Dwarf_Attribute attr;
+
+	if (dwarf_attr_integrate(dw_die, DW_AT_linkage_name, &attr) == NULL)
+		return NULL;
+	return dwarf_formstring(&attr);
+}
+
+/**
  * die_compare_name - Compare diename and tname
  * @dw_die: a DIE
  * @tname: a string of target name
@@ -145,18 +161,26 @@ bool die_compare_name(Dwarf_Die *dw_die, const char *tname)
 }
 
 /**
- * die_match_name - Match diename and glob
+ * die_match_name - Match diename/linkage name and glob
  * @dw_die: a DIE
  * @glob: a string of target glob pattern
  *
  * Glob matching the name of @dw_die and @glob. Return false if matching fail.
+ * This also match linkage name.
  */
 bool die_match_name(Dwarf_Die *dw_die, const char *glob)
 {
 	const char *name;
 
 	name = dwarf_diename(dw_die);
-	return name ? strglobmatch(name, glob) : false;
+	if (name && strglobmatch(name, glob))
+		return true;
+	/* fall back to check linkage name */
+	name = die_get_linkage_name(dw_die);
+	if (name && strglobmatch(name, glob))
+		return true;
+
+	return false;
 }
 
 /**
