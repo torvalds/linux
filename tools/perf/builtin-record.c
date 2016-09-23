@@ -1581,6 +1581,18 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (err)
 		goto out;
 
+	/*
+	 * Allow aliases to facilitate the lookup of symbols for address
+	 * filters. Refer to auxtrace_parse_filters().
+	 */
+	symbol_conf.allow_aliases = true;
+
+	symbol__init(NULL);
+
+	err = auxtrace_parse_filters(rec->evlist);
+	if (err)
+		goto out;
+
 	if (dry_run)
 		goto out;
 
@@ -1593,8 +1605,6 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 	}
 
 	err = -ENOMEM;
-
-	symbol__init(NULL);
 
 	if (symbol_conf.kptr_restrict)
 		pr_warning(
