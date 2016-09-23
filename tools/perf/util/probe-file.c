@@ -699,7 +699,7 @@ int probe_cache__scan_sdt(struct probe_cache *pcache, const char *pathname)
 	INIT_LIST_HEAD(&sdtlist);
 	ret = get_sdt_note_list(&sdtlist, pathname);
 	if (ret < 0) {
-		pr_debug("Failed to get sdt note: %d\n", ret);
+		pr_debug4("Failed to get sdt note: %d\n", ret);
 		return ret;
 	}
 	list_for_each_entry(note, &sdtlist, note_list) {

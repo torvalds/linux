@@ -620,7 +620,7 @@ static int build_id_cache__add_sdt_cache(const char *sbuild_id,
 
 	ret = probe_cache__scan_sdt(cache, realname);
 	if (ret >= 0) {
-		pr_debug("Found %d SDTs in %s\n", ret, realname);
+		pr_debug4("Found %d SDTs in %s\n", ret, realname);
 		if (probe_cache__commit(cache) < 0)
 			ret = -1;
 	}
@@ -691,7 +691,7 @@ int build_id_cache__add_s(const char *sbuild_id, const char *name,
 
 	/* Update SDT cache : error is just warned */
 	if (build_id_cache__add_sdt_cache(sbuild_id, realname) < 0)
-		pr_debug("Failed to update/scan SDT cache for %s\n", realname);
+		pr_debug4("Failed to update/scan SDT cache for %s\n", realname);
 
 out_free:
 	if (!is_kallsyms)
