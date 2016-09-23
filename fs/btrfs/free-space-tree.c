@@ -151,7 +151,7 @@ static inline u32 free_space_bitmap_size(u64 size, u32 sectorsize)
 	return DIV_ROUND_UP((u32)div_u64(size, sectorsize), BITS_PER_BYTE);
 }
 
-static unsigned long *alloc_bitmap(u32 bitmap_size)
+static u8 *alloc_bitmap(u32 bitmap_size)
 {
 	void *mem;
 
@@ -180,8 +180,7 @@ int convert_free_space_to_bitmaps(struct btrfs_trans_handle *trans,
 	struct btrfs_free_space_info *info;
 	struct btrfs_key key, found_key;
 	struct extent_buffer *leaf;
-	unsigned long *bitmap;
-	char *bitmap_cursor;
+	u8 *bitmap, *bitmap_cursor;
 	u64 start, end;
 	u64 bitmap_range, i;
 	u32 bitmap_size, flags, expected_extent_count;
@@ -231,7 +230,7 @@ int convert_free_space_to_bitmaps(struct btrfs_trans_handle *trans,
 						block_group->sectorsize);
 				last = div_u64(found_key.objectid + found_key.offset - start,
 					       block_group->sectorsize);
-				bitmap_set(bitmap, first, last - first);
+				le_bitmap_set(bitmap, first, last - first);
 
 				extent_count++;
 				nr++;
@@ -269,7 +268,7 @@ int convert_free_space_to_bitmaps(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
-	bitmap_cursor = (char *)bitmap;
+	bitmap_cursor = bitmap;
 	bitmap_range = block_group->sectorsize * BTRFS_FREE_SPACE_BITMAP_BITS;
 	i = start;
 	while (i < end) {
@@ -318,7 +317,7 @@ int convert_free_space_to_extents(struct btrfs_trans_handle *trans,
 	struct btrfs_free_space_info *info;
 	struct btrfs_key key, found_key;
 	struct extent_buffer *leaf;
-	unsigned long *bitmap;
+	u8 *bitmap;
 	u64 start, end;
 	/* Initialize to silence GCC. */
 	u64 extent_start = 0;
@@ -362,7 +361,7 @@ int convert_free_space_to_extents(struct btrfs_trans_handle *trans,
 				break;
 			} else if (found_key.type == BTRFS_FREE_SPACE_BITMAP_KEY) {
 				unsigned long ptr;
-				char *bitmap_cursor;
+				u8 *bitmap_cursor;
 				u32 bitmap_pos, data_size;
 
 				ASSERT(found_key.objectid >= start);
@@ -372,7 +371,7 @@ int convert_free_space_to_extents(struct btrfs_trans_handle *trans,
 				bitmap_pos = div_u64(found_key.objectid - start,
 						     block_group->sectorsize *
 						     BITS_PER_BYTE);
-				bitmap_cursor = ((char *)bitmap) + bitmap_pos;
+				bitmap_cursor = bitmap + bitmap_pos;
 				data_size = free_space_bitmap_size(found_key.offset,
 								   block_group->sectorsize);
 
@@ -409,7 +408,7 @@ int convert_free_space_to_extents(struct btrfs_trans_handle *trans,
 	offset = start;
 	bitnr = 0;
 	while (offset < end) {
-		bit = !!test_bit(bitnr, bitmap);
+		bit = !!le_test_bit(bitnr, bitmap);
 		if (prev_bit == 0 && bit == 1) {
 			extent_start = offset;
 		} else if (prev_bit == 1 && bit == 0) {
