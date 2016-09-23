@@ -122,7 +122,7 @@ int udl_handle_damage(struct udl_framebuffer *fb, int x, int y,
 		return 0;
 	cmd = urb->transfer_buffer;
 
-	for (i = y; i < height ; i++) {
+	for (i = y; i < y + height ; i++) {
 		const int line_offset = fb->base.pitches[0] * i;
 		const int byte_offset = line_offset + (x * bpp);
 		const int dev_byte_offset = (fb->base.width * bpp * i) + (x * bpp);
