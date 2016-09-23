@@ -7,31 +7,6 @@
 #include <asm/page.h>
 #include <asm/ptrace.h>
 
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-/* void do_load_up_transact_altivec(struct thread_struct *thread)
- *
- * This is similar to load_up_altivec but for the transactional version of the
- * vector regs.  It doesn't mess with the task MSR or valid flags.
- * Furthermore, VEC laziness is not supported with TM currently.
- */
-_GLOBAL(do_load_up_transact_altivec)
-	mfmsr	r6
-	oris	r5,r6,MSR_VEC@h
-	MTMSRD(r5)
-	isync
-
-	li	r4,1
-	stw	r4,THREAD_USED_VR(r3)
-
-	li	r10,THREAD_CKVRSTATE+VRSTATE_VSCR
-	lvx	v0,r10,r3
-	mtvscr	v0
-	addi	r10,r3,THREAD_CKVRSTATE
-	REST_32VRS(0,r4,r10)
-
-	blr
-#endif
-
 /*
  * Load state from memory into VMX registers including VSCR.
  * Assumes the caller has enabled VMX in the MSR.

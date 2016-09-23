@@ -50,32 +50,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX);					\
 #define REST_32FPVSRS(n,c,base) __REST_32FPVSRS(n,__REG_##c,__REG_##base)
 #define SAVE_32FPVSRS(n,c,base) __SAVE_32FPVSRS(n,__REG_##c,__REG_##base)
 
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-/* void do_load_up_transact_fpu(struct thread_struct *thread)
- *
- * This is similar to load_up_fpu but for the transactional version of the FP
- * register set.  It doesn't mess with the task MSR or valid flags.
- * Furthermore, we don't do lazy FP with TM currently.
- */
-_GLOBAL(do_load_up_transact_fpu)
-	mfmsr	r6
-	ori	r5,r6,MSR_FP
-#ifdef CONFIG_VSX
-BEGIN_FTR_SECTION
-	oris	r5,r5,MSR_VSX@h
-END_FTR_SECTION_IFSET(CPU_FTR_VSX)
-#endif
-	SYNC
-	MTMSRD(r5)
-
-	addi	r7,r3,THREAD_CKFPSTATE
-	lfd	fr0,FPSTATE_FPSCR(r7)
-	MTFSF_L(fr0)
-	REST_32FPVSRS(0, R4, R7)
-
-	blr
-#endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
-
 /*
  * Load state from memory into FP registers including FPSCR.
  * Assumes the caller has enabled FP in the MSR.
