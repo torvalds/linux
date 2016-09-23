@@ -449,6 +449,16 @@ static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 		return err;
 	}
 
+	/*
+	 * Please don't reorder the deassert sequence of the following
+	 * four reset pins.
+	 */
+	err = reset_control_deassert(rockchip->mgmt_sticky_rst);
+	if (err) {
+		dev_err(dev, "deassert mgmt_sticky_rst err %d\n", err);
+		return err;
+	}
+
 	err = reset_control_deassert(rockchip->core_rst);
 	if (err) {
 		dev_err(dev, "deassert core_rst err %d\n", err);
@@ -458,12 +468,6 @@ static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 	err = reset_control_deassert(rockchip->mgmt_rst);
 	if (err) {
 		dev_err(dev, "deassert mgmt_rst err %d\n", err);
-		return err;
-	}
-
-	err = reset_control_deassert(rockchip->mgmt_sticky_rst);
-	if (err) {
-		dev_err(dev, "deassert mgmt_sticky_rst err %d\n", err);
 		return err;
 	}
 
