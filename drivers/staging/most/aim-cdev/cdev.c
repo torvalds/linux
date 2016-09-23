@@ -57,7 +57,11 @@ static inline bool ch_has_mbo(struct aim_channel *c)
 
 static inline bool ch_get_mbo(struct aim_channel *c, struct mbo **mbo)
 {
-	*mbo = most_get_mbo(c->iface, c->channel_id, &cdev_aim);
+	if (!kfifo_peek(&c->fifo, mbo)) {
+		*mbo = most_get_mbo(c->iface, c->channel_id, &cdev_aim);
+		if (*mbo)
+			kfifo_in(&c->fifo, mbo, 1);
+	}
 	return *mbo;
 }
 
@@ -184,8 +188,7 @@ static ssize_t aim_write(struct file *filp, const char __user *buf,
 			 size_t count, loff_t *offset)
 {
 	int ret;
-	size_t actual_len;
-	size_t max_len;
+	size_t to_copy, left;
 	struct mbo *mbo = NULL;
 	struct aim_channel *c = filp->private_data;
 
@@ -205,20 +208,24 @@ static ssize_t aim_write(struct file *filp, const char __user *buf,
 		goto unlock;
 	}
 
-	max_len = c->cfg->buffer_size;
-	actual_len = min(count, max_len);
-	mbo->buffer_length = actual_len;
-
-	if (copy_from_user(mbo->virt_address, buf, mbo->buffer_length)) {
+	to_copy = min(count, c->cfg->buffer_size - c->mbo_offs);
+	left = copy_from_user(mbo->virt_address + c->mbo_offs, buf, to_copy);
+	if (left == to_copy) {
 		ret = -EFAULT;
-		goto put_mbo;
+		goto unlock;
 	}
 
-	most_submit_mbo(mbo);
-	mutex_unlock(&c->io_mutex);
-	return actual_len;
-put_mbo:
-	most_put_mbo(mbo);
+	c->mbo_offs += to_copy - left;
+	if (c->mbo_offs >= c->cfg->buffer_size ||
+	    c->cfg->data_type == MOST_CH_CONTROL ||
+	    c->cfg->data_type == MOST_CH_ASYNC) {
+		kfifo_skip(&c->fifo);
+		mbo->buffer_length = c->mbo_offs;
+		c->mbo_offs = 0;
+		most_submit_mbo(mbo);
+	}
+
+	ret = to_copy - left;
 unlock:
 	mutex_unlock(&c->io_mutex);
 	return ret;
@@ -287,7 +294,7 @@ static unsigned int aim_poll(struct file *filp, poll_table *wait)
 		if (!kfifo_is_empty(&c->fifo))
 			mask |= POLLIN | POLLRDNORM;
 	} else {
-		if (ch_has_mbo(c))
+		if (!kfifo_is_empty(&c->fifo) || ch_has_mbo(c))
 			mask |= POLLOUT | POLLWRNORM;
 	}
 	return mask;
