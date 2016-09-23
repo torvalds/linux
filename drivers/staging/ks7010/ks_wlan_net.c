@@ -3507,12 +3507,11 @@ int ks_wlan_net_stop(struct net_device *dev)
 {
 	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	int ret = 0;
 	priv->device_open_status = 0;
 	del_timer_sync(&update_phyinfo_timer);
 
 	if (netif_running(dev))
 		netif_stop_queue(dev);
 
-	return ret;
+	return 0;
 }
