@@ -40,6 +40,7 @@
 #include "amdgpu_i2c.h"
 #include "atom.h"
 #include "amdgpu_atombios.h"
+#include "amdgpu_atomfirmware.h"
 #include "amd_pcie.h"
 #ifdef CONFIG_DRM_AMDGPU_SI
 #include "si.h"
@@ -993,8 +994,13 @@ static int amdgpu_atombios_init(struct amdgpu_device *adev)
 	}
 
 	mutex_init(&adev->mode_info.atom_context->mutex);
-	amdgpu_atombios_scratch_regs_init(adev);
-	amdgpu_atombios_allocate_fb_scratch(adev);
+	if (adev->is_atom_fw) {
+		amdgpu_atomfirmware_scratch_regs_init(adev);
+		amdgpu_atomfirmware_allocate_fb_scratch(adev);
+	} else {
+		amdgpu_atombios_scratch_regs_init(adev);
+		amdgpu_atombios_allocate_fb_scratch(adev);
+	}
 	return 0;
 }
 
@@ -1759,8 +1765,13 @@ static int amdgpu_resume(struct amdgpu_device *adev)
 
 static void amdgpu_device_detect_sriov_bios(struct amdgpu_device *adev)
 {
-	if (amdgpu_atombios_has_gpu_virtualization_table(adev))
-		adev->virt.caps |= AMDGPU_SRIOV_CAPS_SRIOV_VBIOS;
+	if (adev->is_atom_fw) {
+		if (amdgpu_atomfirmware_gpu_supports_virtualization(adev))
+			adev->virt.caps |= AMDGPU_SRIOV_CAPS_SRIOV_VBIOS;
+	} else {
+		if (amdgpu_atombios_has_gpu_virtualization_table(adev))
+			adev->virt.caps |= AMDGPU_SRIOV_CAPS_SRIOV_VBIOS;
+	}
 }
 
 /**
@@ -1931,14 +1942,16 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		DRM_INFO("GPU post is not needed\n");
 	}
 
-	/* Initialize clocks */
-	r = amdgpu_atombios_get_clock_info(adev);
-	if (r) {
-		dev_err(adev->dev, "amdgpu_atombios_get_clock_info failed\n");
-		goto failed;
+	if (!adev->is_atom_fw) {
+		/* Initialize clocks */
+		r = amdgpu_atombios_get_clock_info(adev);
+		if (r) {
+			dev_err(adev->dev, "amdgpu_atombios_get_clock_info failed\n");
+			return r;
+		}
+		/* init i2c buses */
+		amdgpu_atombios_i2c_init(adev);
 	}
-	/* init i2c buses */
-	amdgpu_atombios_i2c_init(adev);
 
 	/* Fence driver */
 	r = amdgpu_fence_driver_init(adev);

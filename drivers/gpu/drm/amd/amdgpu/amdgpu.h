@@ -111,7 +111,7 @@ extern int amdgpu_vram_page_split;
 #define AMDGPU_IB_POOL_SIZE			16
 #define AMDGPU_DEBUGFS_MAX_COMPONENTS		32
 #define AMDGPUFB_CONN_LIMIT			4
-#define AMDGPU_BIOS_NUM_SCRATCH			8
+#define AMDGPU_BIOS_NUM_SCRATCH			16
 
 /* max number of IP instances */
 #define AMDGPU_MAX_SDMA_INSTANCES		2
@@ -1312,6 +1312,7 @@ struct amdgpu_device {
 	uint8_t				*bios;
 	uint32_t			bios_size;
 	struct amdgpu_bo		*stollen_vga_memory;
+	uint32_t			bios_scratch_reg_offset;
 	uint32_t			bios_scratch[AMDGPU_BIOS_NUM_SCRATCH];
 
 	/* Register/doorbell mmio */
