@@ -264,6 +264,7 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
 	int ret;
 	struct swap_info_struct *sis = page_swap_info(page);
 
+	BUG_ON(!PageSwapCache(page));
 	if (sis->flags & SWP_FILE) {
 		struct kiocb kiocb;
 		struct file *swap_file = sis->swap_file;
@@ -337,6 +338,7 @@ int swap_readpage(struct page *page)
 	int ret = 0;
 	struct swap_info_struct *sis = page_swap_info(page);
 
+	BUG_ON(!PageSwapCache(page));
 	VM_BUG_ON_PAGE(!PageLocked(page), page);
 	VM_BUG_ON_PAGE(PageUptodate(page), page);
 	if (frontswap_load(page) == 0) {
@@ -386,6 +388,7 @@ int swap_set_page_dirty(struct page *page)
 
 	if (sis->flags & SWP_FILE) {
 		struct address_space *mapping = sis->swap_file->f_mapping;
+		BUG_ON(!PageSwapCache(page));
 		return mapping->a_ops->set_page_dirty(page);
 	} else {
 		return __set_page_dirty_no_writeback(page);
