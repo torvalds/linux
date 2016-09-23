@@ -445,8 +445,8 @@ static int f2fs_move_rehashed_dirents(struct inode *dir, struct page *ipage,
 	struct f2fs_inline_dentry *backup_dentry;
 	int err;
 
-	backup_dentry = f2fs_kmalloc(sizeof(struct f2fs_inline_dentry),
-							GFP_F2FS_ZERO);
+	backup_dentry = f2fs_kmalloc(F2FS_I_SB(dir),
+			sizeof(struct f2fs_inline_dentry), GFP_F2FS_ZERO);
 	if (!backup_dentry) {
 		f2fs_put_page(ipage, 1);
 		return -ENOMEM;

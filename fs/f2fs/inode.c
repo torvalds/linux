@@ -369,7 +369,7 @@ void f2fs_evict_inode(struct inode *inode)
 		goto no_delete;
 
 #ifdef CONFIG_F2FS_FAULT_INJECTION
-	if (time_to_inject(FAULT_EVICT_INODE))
+	if (time_to_inject(sbi, FAULT_EVICT_INODE))
 		goto no_delete;
 #endif
 

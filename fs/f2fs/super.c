@@ -40,7 +40,6 @@ static struct kmem_cache *f2fs_inode_cachep;
 static struct kset *f2fs_kset;
 
 #ifdef CONFIG_F2FS_FAULT_INJECTION
-struct f2fs_fault_info f2fs_fault;
 
 char *fault_name[FAULT_MAX] = {
 	[FAULT_KMALLOC]		= "kmalloc",
@@ -53,14 +52,17 @@ char *fault_name[FAULT_MAX] = {
 	[FAULT_IO]		= "IO error",
 };
 
-static void f2fs_build_fault_attr(unsigned int rate)
+static void f2fs_build_fault_attr(struct f2fs_sb_info *sbi,
+						unsigned int rate)
 {
+	struct f2fs_fault_info *ffi = &sbi->fault_info;
+
 	if (rate) {
-		atomic_set(&f2fs_fault.inject_ops, 0);
-		f2fs_fault.inject_rate = rate;
-		f2fs_fault.inject_type = (1 << FAULT_MAX) - 1;
+		atomic_set(&ffi->inject_ops, 0);
+		ffi->inject_rate = rate;
+		ffi->inject_type = (1 << FAULT_MAX) - 1;
 	} else {
-		memset(&f2fs_fault, 0, sizeof(struct f2fs_fault_info));
+		memset(ffi, 0, sizeof(struct f2fs_fault_info));
 	}
 }
 #endif
@@ -170,7 +172,7 @@ static unsigned char *__struct_ptr(struct f2fs_sb_info *sbi, int struct_type)
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 	else if (struct_type == FAULT_INFO_RATE ||
 					struct_type == FAULT_INFO_TYPE)
-		return (unsigned char *)&f2fs_fault;
+		return (unsigned char *)&sbi->fault_info;
 #endif
 	return NULL;
 }
@@ -315,6 +317,10 @@ static struct attribute *f2fs_attrs[] = {
 	ATTR_LIST(dirty_nats_ratio),
 	ATTR_LIST(cp_interval),
 	ATTR_LIST(idle_interval),
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+	ATTR_LIST(inject_rate),
+	ATTR_LIST(inject_type),
+#endif
 	ATTR_LIST(lifetime_write_kbytes),
 	NULL,
 };
@@ -329,22 +335,6 @@ static struct kobj_type f2fs_ktype = {
 	.sysfs_ops	= &f2fs_attr_ops,
 	.release	= f2fs_sb_release,
 };
-
-#ifdef CONFIG_F2FS_FAULT_INJECTION
-/* sysfs for f2fs fault injection */
-static struct kobject f2fs_fault_inject;
-
-static struct attribute *f2fs_fault_attrs[] = {
-	ATTR_LIST(inject_rate),
-	ATTR_LIST(inject_type),
-	NULL
-};
-
-static struct kobj_type f2fs_fault_ktype = {
-	.default_attrs	= f2fs_fault_attrs,
-	.sysfs_ops	= &f2fs_attr_ops,
-};
-#endif
 
 void f2fs_msg(struct super_block *sb, const char *level, const char *fmt, ...)
 {
@@ -374,7 +364,7 @@ static int parse_options(struct super_block *sb, char *options)
 	int arg = 0;
 
 #ifdef CONFIG_F2FS_FAULT_INJECTION
-	f2fs_build_fault_attr(0);
+	f2fs_build_fault_attr(sbi, 0);
 #endif
 
 	if (!options)
@@ -539,7 +529,7 @@ static int parse_options(struct super_block *sb, char *options)
 			if (args->from && match_int(args, &arg))
 				return -EINVAL;
 #ifdef CONFIG_F2FS_FAULT_INJECTION
-			f2fs_build_fault_attr(arg);
+			f2fs_build_fault_attr(sbi, arg);
 #else
 			f2fs_msg(sb, KERN_INFO,
 				"FAULT_INJECTION was not selected");
@@ -1993,16 +1983,6 @@ static int __init init_f2fs_fs(void)
 		err = -ENOMEM;
 		goto free_extent_cache;
 	}
-#ifdef CONFIG_F2FS_FAULT_INJECTION
-	f2fs_fault_inject.kset = f2fs_kset;
-	f2fs_build_fault_attr(0);
-	err = kobject_init_and_add(&f2fs_fault_inject, &f2fs_fault_ktype,
-				NULL, "fault_injection");
-	if (err) {
-		f2fs_fault_inject.kset = NULL;
-		goto free_kset;
-	}
-#endif
 	err = register_shrinker(&f2fs_shrinker_info);
 	if (err)
 		goto free_kset;
@@ -2021,10 +2001,6 @@ free_filesystem:
 free_shrinker:
 	unregister_shrinker(&f2fs_shrinker_info);
 free_kset:
-#ifdef CONFIG_F2FS_FAULT_INJECTION
-	if (f2fs_fault_inject.kset)
-		kobject_put(&f2fs_fault_inject);
-#endif
 	kset_unregister(f2fs_kset);
 free_extent_cache:
 	destroy_extent_cache();
@@ -2046,9 +2022,6 @@ static void __exit exit_f2fs_fs(void)
 	f2fs_destroy_root_stats();
 	unregister_filesystem(&f2fs_fs_type);
 	unregister_shrinker(&f2fs_shrinker_info);
-#ifdef CONFIG_F2FS_FAULT_INJECTION
-	kobject_put(&f2fs_fault_inject);
-#endif
 	kset_unregister(f2fs_kset);
 	destroy_extent_cache();
 	destroy_checkpoint_caches();

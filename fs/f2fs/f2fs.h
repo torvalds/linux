@@ -56,42 +56,8 @@ struct f2fs_fault_info {
 	unsigned int inject_type;
 };
 
-extern struct f2fs_fault_info f2fs_fault;
 extern char *fault_name[FAULT_MAX];
-#define IS_FAULT_SET(type) (f2fs_fault.inject_type & (1 << (type)))
-
-static inline bool time_to_inject(int type)
-{
-	if (!f2fs_fault.inject_rate)
-		return false;
-	if (type == FAULT_KMALLOC && !IS_FAULT_SET(type))
-		return false;
-	else if (type == FAULT_PAGE_ALLOC && !IS_FAULT_SET(type))
-		return false;
-	else if (type == FAULT_ALLOC_NID && !IS_FAULT_SET(type))
-		return false;
-	else if (type == FAULT_ORPHAN && !IS_FAULT_SET(type))
-		return false;
-	else if (type == FAULT_BLOCK && !IS_FAULT_SET(type))
-		return false;
-	else if (type == FAULT_DIR_DEPTH && !IS_FAULT_SET(type))
-		return false;
-	else if (type == FAULT_EVICT_INODE && !IS_FAULT_SET(type))
-		return false;
-	else if (type == FAULT_IO && !IS_FAULT_SET(type))
-		return false;
-
-	atomic_inc(&f2fs_fault.inject_ops);
-	if (atomic_read(&f2fs_fault.inject_ops) >= f2fs_fault.inject_rate) {
-		atomic_set(&f2fs_fault.inject_ops, 0);
-		printk("%sF2FS-fs : inject %s in %pF\n",
-				KERN_INFO,
-				fault_name[type],
-				__builtin_return_address(0));
-		return true;
-	}
-	return false;
-}
+#define IS_FAULT_SET(fi, type) (fi->inject_type & (1 << (type)))
 #endif
 
 /*
@@ -905,7 +871,36 @@ struct f2fs_sb_info {
 
 	/* Reference to checksum algorithm driver via cryptoapi */
 	struct crypto_shash *s_chksum_driver;
+
+	/* For fault injection */
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+	struct f2fs_fault_info fault_info;
+#endif
 };
+
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+static inline bool time_to_inject(struct f2fs_sb_info *sbi, int type)
+{
+	struct f2fs_fault_info *ffi = &sbi->fault_info;
+
+	if (!ffi->inject_rate)
+		return false;
+
+	if (!IS_FAULT_SET(ffi, type))
+		return false;
+
+	atomic_inc(&ffi->inject_ops);
+	if (atomic_read(&ffi->inject_ops) >= ffi->inject_rate) {
+		atomic_set(&ffi->inject_ops, 0);
+		printk("%sF2FS-fs : inject %s in %pF\n",
+				KERN_INFO,
+				fault_name[type],
+				__builtin_return_address(0));
+		return true;
+	}
+	return false;
+}
+#endif
 
 /* For write statistics. Suppose sector size is 512 bytes,
  * and the return value is in kbytes. s is of struct f2fs_sb_info.
@@ -1195,7 +1190,7 @@ static inline bool inc_valid_block_count(struct f2fs_sb_info *sbi,
 	blkcnt_t diff;
 
 #ifdef CONFIG_F2FS_FAULT_INJECTION
-	if (time_to_inject(FAULT_BLOCK))
+	if (time_to_inject(sbi, FAULT_BLOCK))
 		return false;
 #endif
 	/*
@@ -1429,7 +1424,7 @@ static inline struct page *f2fs_grab_cache_page(struct address_space *mapping,
 	if (page)
 		return page;
 
-	if (time_to_inject(FAULT_PAGE_ALLOC))
+	if (time_to_inject(F2FS_M_SB(mapping), FAULT_PAGE_ALLOC))
 		return NULL;
 #endif
 	if (!for_write)
@@ -1880,10 +1875,11 @@ static inline bool f2fs_may_extent_tree(struct inode *inode)
 	return S_ISREG(inode->i_mode);
 }
 
-static inline void *f2fs_kmalloc(size_t size, gfp_t flags)
+static inline void *f2fs_kmalloc(struct f2fs_sb_info *sbi,
+					size_t size, gfp_t flags)
 {
 #ifdef CONFIG_F2FS_FAULT_INJECTION
-	if (time_to_inject(FAULT_KMALLOC))
+	if (time_to_inject(sbi, FAULT_KMALLOC))
 		return NULL;
 #endif
 	return kmalloc(size, flags);
