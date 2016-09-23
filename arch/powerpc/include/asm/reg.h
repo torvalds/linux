@@ -1250,7 +1250,7 @@ static inline void mtmsr_isync(unsigned long val)
 				     : "memory")
 #endif
 
-extern void msr_check_and_set(unsigned long bits);
+extern unsigned long msr_check_and_set(unsigned long bits);
 extern bool strict_msr_control;
 extern void __msr_check_and_clear(unsigned long bits);
 static inline void msr_check_and_clear(unsigned long bits)
