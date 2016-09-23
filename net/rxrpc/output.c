@@ -80,9 +80,6 @@ static size_t rxrpc_fill_out_ack(struct rxrpc_call *call,
 	pkt->ackinfo.rwind	= htonl(call->rx_winsize);
 	pkt->ackinfo.jumbo_max	= htonl(jmax);
 
-	trace_rxrpc_tx_ack(call, hard_ack + 1, serial, call->ackr_reason,
-			   top - hard_ack);
-
 	*ackp++ = 0;
 	*ackp++ = 0;
 	*ackp++ = 0;
@@ -119,8 +116,6 @@ int rxrpc_send_call_packet(struct rxrpc_call *call, u8 type)
 		return -ENOMEM;
 	}
 
-	serial = atomic_inc_return(&conn->serial);
-
 	msg.msg_name	= &call->peer->srx.transport;
 	msg.msg_namelen	= call->peer->srx.transport_len;
 	msg.msg_control	= NULL;
@@ -131,7 +126,6 @@ int rxrpc_send_call_packet(struct rxrpc_call *call, u8 type)
 	pkt->whdr.cid		= htonl(call->cid);
 	pkt->whdr.callNumber	= htonl(call->call_id);
 	pkt->whdr.seq		= 0;
-	pkt->whdr.serial	= htonl(serial);
 	pkt->whdr.type		= type;
 	pkt->whdr.flags		= conn->out_clientflag;
 	pkt->whdr.userStatus	= 0;
@@ -157,14 +151,6 @@ int rxrpc_send_call_packet(struct rxrpc_call *call, u8 type)
 
 		spin_unlock_bh(&call->lock);
 
-		_proto("Tx ACK %%%u { m=%hu f=#%u p=#%u s=%%%u r=%s n=%u }",
-		       serial,
-		       ntohs(pkt->ack.maxSkew),
-		       ntohl(pkt->ack.firstPacket),
-		       ntohl(pkt->ack.previousPacket),
-		       ntohl(pkt->ack.serial),
-		       rxrpc_acks(pkt->ack.reason),
-		       pkt->ack.nAcks);
 
 		iov[0].iov_len += sizeof(pkt->ack) + n;
 		iov[1].iov_base = &pkt->ackinfo;
@@ -176,7 +162,6 @@ int rxrpc_send_call_packet(struct rxrpc_call *call, u8 type)
 	case RXRPC_PACKET_TYPE_ABORT:
 		abort_code = call->abort_code;
 		pkt->abort_code = htonl(abort_code);
-		_proto("Tx ABORT %%%u { %d }", serial, abort_code);
 		iov[0].iov_len += sizeof(pkt->abort_code);
 		len += sizeof(pkt->abort_code);
 		ioc = 1;
@@ -186,6 +171,17 @@ int rxrpc_send_call_packet(struct rxrpc_call *call, u8 type)
 		BUG();
 		ret = -ENOANO;
 		goto out;
+	}
+
+	serial = atomic_inc_return(&conn->serial);
+	pkt->whdr.serial = htonl(serial);
+	switch (type) {
+	case RXRPC_PACKET_TYPE_ACK:
+		trace_rxrpc_tx_ack(call,
+				   ntohl(pkt->ack.firstPacket),
+				   ntohl(pkt->ack.serial),
+				   pkt->ack.reason, pkt->ack.nAcks);
+		break;
 	}
 
 	if (ping) {
