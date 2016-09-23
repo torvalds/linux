@@ -547,9 +547,6 @@
 };
 
 &emmc_phy {
-	freq-sel = <200000000>;
-	dr-sel = <50>;
-	opdelay = <4>;
 	status = "okay";
 };
 
@@ -558,6 +555,7 @@
 	mmc-hs400-1_8v;
 	supports-emmc;
 	non-removable;
+	keep-power-in-suspend;
 	mmc-hs400-enhanced-strobe;
 	status = "okay";
 };
