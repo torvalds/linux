@@ -70,6 +70,10 @@ smb2_add_credits(struct TCP_Server_Info *server, const unsigned int add,
 	spin_lock(&server->req_lock);
 	val = server->ops->get_credits_field(server, optype);
 	*val += add;
+	if (*val > 65000) {
+		*val = 65000; /* Don't get near 64K credits, avoid srv bugs */
+		printk_once(KERN_WARNING "server overflowed SMB3 credits\n");
+	}
 	server->in_flight--;
 	if (server->in_flight == 0 && (optype & CIFS_OP_MASK) != CIFS_NEG_OP)
 		rc = change_conf(server);

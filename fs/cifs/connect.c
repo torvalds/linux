@@ -63,7 +63,6 @@ extern mempool_t *cifs_req_poolp;
 #define TLINK_IDLE_EXPIRE	(600 * HZ)
 
 enum {
-
 	/* Mount options that take no arguments */
 	Opt_user_xattr, Opt_nouser_xattr,
 	Opt_forceuid, Opt_noforceuid,
@@ -95,7 +94,7 @@ enum {
 	Opt_cruid, Opt_gid, Opt_file_mode,
 	Opt_dirmode, Opt_port,
 	Opt_rsize, Opt_wsize, Opt_actimeo,
-	Opt_echo_interval,
+	Opt_echo_interval, Opt_max_credits,
 
 	/* Mount options which take string value */
 	Opt_user, Opt_pass, Opt_ip,
@@ -190,6 +189,7 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_wsize, "wsize=%s" },
 	{ Opt_actimeo, "actimeo=%s" },
 	{ Opt_echo_interval, "echo_interval=%s" },
+	{ Opt_max_credits, "max_credits=%s" },
 
 	{ Opt_blank_user, "user=" },
 	{ Opt_blank_user, "username=" },
@@ -1585,6 +1585,15 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 				goto cifs_parse_mount_err;
 			}
 			vol->echo_interval = option;
+			break;
+		case Opt_max_credits:
+			if (get_option_ul(args, &option) || (option < 20) ||
+			    (option > 60000)) {
+				cifs_dbg(VFS, "%s: Invalid max_credits value\n",
+					 __func__);
+				goto cifs_parse_mount_err;
+			}
+			vol->max_credits = option;
 			break;
 
 		/* String Arguments */
@@ -3598,7 +3607,11 @@ try_mount_again:
 		bdi_destroy(&cifs_sb->bdi);
 		goto out;
 	}
-
+	if ((volume_info->max_credits < 20) ||
+	     (volume_info->max_credits > 60000))
+		server->max_credits = SMB2_MAX_CREDITS_AVAILABLE;
+	else
+		server->max_credits = volume_info->max_credits;
 	/* get a reference to a SMB session */
 	ses = cifs_get_smb_ses(server, volume_info);
 	if (IS_ERR(ses)) {
