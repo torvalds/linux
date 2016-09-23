@@ -187,7 +187,7 @@ static void rxrpc_resend(struct rxrpc_call *call)
 		call->rxtx_annotations[ix] = RXRPC_TX_ANNO_RETRANS | annotation;
 	}
 
-	resend_at = ktime_sub(ktime_add_ns(oldest, rxrpc_resend_timeout), now);
+	resend_at = ktime_sub(ktime_add_ms(oldest, rxrpc_resend_timeout), now);
 	call->resend_at = jiffies + nsecs_to_jiffies(ktime_to_ns(resend_at));
 
 	/* Now go through the Tx window and perform the retransmissions.  We
