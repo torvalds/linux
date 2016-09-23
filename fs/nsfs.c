@@ -51,7 +51,7 @@ static void nsfs_evict(struct inode *inode)
 
 static void *__ns_get_path(struct path *path, struct ns_common *ns)
 {
-	struct vfsmount *mnt = mntget(nsfs_mnt);
+	struct vfsmount *mnt = nsfs_mnt;
 	struct qstr qname = { .name = "", };
 	struct dentry *dentry;
 	struct inode *inode;
@@ -67,7 +67,7 @@ static void *__ns_get_path(struct path *path, struct ns_common *ns)
 	rcu_read_unlock();
 	ns->ops->put(ns);
 got_it:
-	path->mnt = mnt;
+	path->mnt = mntget(mnt);
 	path->dentry = dentry;
 	return NULL;
 slow:
@@ -75,7 +75,6 @@ slow:
 	inode = new_inode_pseudo(mnt->mnt_sb);
 	if (!inode) {
 		ns->ops->put(ns);
-		mntput(mnt);
 		return ERR_PTR(-ENOMEM);
 	}
 	inode->i_ino = ns->inum;
@@ -88,7 +87,6 @@ slow:
 	dentry = d_alloc_pseudo(mnt->mnt_sb, &qname);
 	if (!dentry) {
 		iput(inode);
-		mntput(mnt);
 		return ERR_PTR(-ENOMEM);
 	}
 	d_instantiate(dentry, inode);
@@ -97,7 +95,6 @@ slow:
 	if (d) {
 		d_delete(dentry);	/* make sure ->d_prune() does nothing */
 		dput(dentry);
-		mntput(mnt);
 		cpu_relax();
 		return ERR_PTR(-EAGAIN);
 	}
