@@ -922,47 +922,6 @@ void rtl8192_rtx_disable(struct net_device *dev)
 	skb_queue_purge(&priv->skb_queue);
 }
 
-inline u16 ieeerate2rtlrate(int rate)
-{
-	switch (rate) {
-	case 10:
-		return 0;
-	case 20:
-		return 1;
-	case 55:
-		return 2;
-	case 110:
-		return 3;
-	case 60:
-		return 4;
-	case 90:
-		return 5;
-	case 120:
-		return 6;
-	case 180:
-		return 7;
-	case 240:
-		return 8;
-	case 360:
-		return 9;
-	case 480:
-		return 10;
-	case 540:
-		return 11;
-	default:
-		return 3;
-	}
-}
-
-static u16 rtl_rate[] = {10, 20, 55, 110, 60, 90, 120, 180, 240, 360, 480, 540};
-inline u16 rtl8192_rate2rate(short rate)
-{
-	if (rate > 11)
-		return 0;
-	return rtl_rate[rate];
-}
-
-
 /* The prototype of rx_isr has changed since one version of Linux Kernel */
 static void rtl8192_rx_isr(struct urb *urb)
 {
@@ -1317,14 +1276,6 @@ static void rtl8192_net_update(struct net_device *dev)
 void rtl819xusb_beacon_tx(struct net_device *dev, u16  tx_rate)
 {
 
-}
-
-inline u8 rtl8192_IsWirelessBMode(u16 rate)
-{
-	if (((rate <= 110) && (rate != 60) && (rate != 90)) || (rate == 220))
-		return 1;
-	else
-		return 0;
 }
 
 short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb)
