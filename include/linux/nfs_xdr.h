@@ -320,6 +320,7 @@ struct nfs4_layoutreturn_args {
 	struct pnfs_layout_range range;
 	nfs4_stateid stateid;
 	__u32   layout_type;
+	struct nfs4_xdr_opaque_data *ld_private;
 };
 
 struct nfs4_layoutreturn_res {
@@ -335,6 +336,7 @@ struct nfs4_layoutreturn {
 	struct nfs_client *clp;
 	struct inode *inode;
 	int rpc_status;
+	struct nfs4_xdr_opaque_data ld_private;
 };
 
 #define PNFS_LAYOUTSTATS_MAXSIZE 256

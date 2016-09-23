@@ -2035,7 +2035,9 @@ encode_layoutreturn(struct xdr_stream *xdr,
 	spin_lock(&args->inode->i_lock);
 	encode_nfs4_stateid(xdr, &args->stateid);
 	spin_unlock(&args->inode->i_lock);
-	if (lr_ops->encode_layoutreturn)
+	if (args->ld_private->ops && args->ld_private->ops->encode)
+		args->ld_private->ops->encode(xdr, args, args->ld_private);
+	else if (lr_ops->encode_layoutreturn)
 		lr_ops->encode_layoutreturn(xdr, args);
 	else
 		encode_uint32(xdr, 0);
