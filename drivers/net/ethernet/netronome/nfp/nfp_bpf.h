@@ -192,20 +192,10 @@ struct nfp_bpf_result {
 	bool dense_mode;
 };
 
-#ifdef CONFIG_BPF_SYSCALL
 int
 nfp_bpf_jit(struct bpf_prog *filter, void *prog, enum nfp_bpf_action_type act,
 	    unsigned int prog_start, unsigned int prog_done,
 	    unsigned int prog_sz, struct nfp_bpf_result *res);
-#else
-int
-nfp_bpf_jit(struct bpf_prog *filter, void *prog, enum nfp_bpf_action_type act,
-	    unsigned int prog_start, unsigned int prog_done,
-	    unsigned int prog_sz, struct nfp_bpf_result *res)
-{
-	return -ENOTSUPP;
-}
-#endif
 
 int nfp_prog_verify(struct nfp_prog *nfp_prog, struct bpf_prog *prog);
 
