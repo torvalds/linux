@@ -508,7 +508,9 @@ struct rxrpc_call {
 #define RXRPC_TX_ANNO_NAK	2
 #define RXRPC_TX_ANNO_RETRANS	3
 #define RXRPC_TX_ANNO_MASK	0x03
-#define RXRPC_TX_ANNO_RESENT	0x04
+#define RXRPC_TX_ANNO_LAST	0x04
+#define RXRPC_TX_ANNO_RESENT	0x08
+
 #define RXRPC_RX_ANNO_JUMBO	0x3f		/* Jumbo subpacket number + 1 if not zero */
 #define RXRPC_RX_ANNO_JLAST	0x40		/* Set if last element of a jumbo packet */
 #define RXRPC_RX_ANNO_VERIFIED	0x80		/* Set if verified and decrypted */
@@ -621,9 +623,10 @@ extern const char rxrpc_call_traces[rxrpc_call__nr_trace][4];
 enum rxrpc_transmit_trace {
 	rxrpc_transmit_wait,
 	rxrpc_transmit_queue,
-	rxrpc_transmit_queue_reqack,
 	rxrpc_transmit_queue_last,
 	rxrpc_transmit_rotate,
+	rxrpc_transmit_rotate_last,
+	rxrpc_transmit_await_reply,
 	rxrpc_transmit_end,
 	rxrpc_transmit__nr_trace
 };

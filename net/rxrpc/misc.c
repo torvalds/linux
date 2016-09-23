@@ -155,9 +155,10 @@ const char rxrpc_client_traces[rxrpc_client__nr_trace][7] = {
 const char rxrpc_transmit_traces[rxrpc_transmit__nr_trace][4] = {
 	[rxrpc_transmit_wait]		= "WAI",
 	[rxrpc_transmit_queue]		= "QUE",
-	[rxrpc_transmit_queue_reqack]	= "QRA",
 	[rxrpc_transmit_queue_last]	= "QLS",
 	[rxrpc_transmit_rotate]		= "ROT",
+	[rxrpc_transmit_rotate_last]	= "RLS",
+	[rxrpc_transmit_await_reply]	= "AWR",
 	[rxrpc_transmit_end]		= "END",
 };
 
