@@ -373,7 +373,8 @@ static size_t hist_entry_callchain__fprintf(struct hist_entry *he,
 	return 0;
 }
 
-static int hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp)
+int __hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp,
+			   struct perf_hpp_list *hpp_list)
 {
 	const char *sep = symbol_conf.field_sep;
 	struct perf_hpp_fmt *fmt;
@@ -384,7 +385,7 @@ static int hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp)
 	if (symbol_conf.exclude_other && !he->parent)
 		return 0;
 
-	hists__for_each_format(he->hists, fmt) {
+	perf_hpp_list__for_each_format(hpp_list, fmt) {
 		if (perf_hpp__should_skip(fmt, he->hists))
 			continue;
 
@@ -408,6 +409,11 @@ static int hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp)
 	}
 
 	return hpp->buf - start;
+}
+
+static int hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp)
+{
+	return __hist_entry__snprintf(he, hpp, he->hists->hpp_list);
 }
 
 static int hist_entry__hierarchy_fprintf(struct hist_entry *he,
@@ -696,9 +702,9 @@ hists__fprintf_standard_headers(struct hists *hists,
 	return hpp_list->nr_header_lines + 2;
 }
 
-static int hists__fprintf_headers(struct hists *hists, FILE *fp)
+int hists__fprintf_headers(struct hists *hists, FILE *fp)
 {
-	char bf[96];
+	char bf[1024];
 	struct perf_hpp dummy_hpp = {
 		.buf	= bf,
 		.size	= sizeof(bf),

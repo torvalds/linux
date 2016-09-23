@@ -867,7 +867,7 @@ struct sort_entry sort_cycles = {
 };
 
 /* --sort daddr_sym */
-static int64_t
+int64_t
 sort__daddr_cmp(struct hist_entry *left, struct hist_entry *right)
 {
 	uint64_t l = 0, r = 0;
@@ -896,7 +896,7 @@ static int hist_entry__daddr_snprintf(struct hist_entry *he, char *bf,
 					 width);
 }
 
-static int64_t
+int64_t
 sort__iaddr_cmp(struct hist_entry *left, struct hist_entry *right)
 {
 	uint64_t l = 0, r = 0;
@@ -1062,7 +1062,7 @@ static int hist_entry__snoop_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "%-*s", width, out);
 }
 
-static int64_t
+int64_t
 sort__dcacheline_cmp(struct hist_entry *left, struct hist_entry *right)
 {
 	u64 l, r;
@@ -2308,9 +2308,9 @@ int hpp_dimension__add_output(unsigned col)
 	return __hpp_dimension__add_output(&perf_hpp_list, &hpp_sort_dimensions[col]);
 }
 
-static int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
-			       struct perf_evlist *evlist,
-			       int level)
+int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
+			struct perf_evlist *evlist,
+			int level)
 {
 	unsigned int i;
 
@@ -2685,7 +2685,7 @@ void sort__setup_elide(FILE *output)
 	}
 }
 
-static int output_field_add(struct perf_hpp_list *list, char *tok)
+int output_field_add(struct perf_hpp_list *list, char *tok)
 {
 	unsigned int i;
 
@@ -2748,7 +2748,7 @@ static int setup_output_list(struct perf_hpp_list *list, char *str)
 	return ret;
 }
 
-static void reset_dimensions(void)
+void reset_dimensions(void)
 {
 	unsigned int i;
 

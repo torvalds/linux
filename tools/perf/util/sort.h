@@ -269,4 +269,15 @@ int report_parse_ignore_callees_opt(const struct option *opt, const char *arg, i
 bool is_strict_order(const char *order);
 
 int hpp_dimension__add_output(unsigned col);
+void reset_dimensions(void);
+int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
+			struct perf_evlist *evlist,
+			int level);
+int output_field_add(struct perf_hpp_list *list, char *tok);
+int64_t
+sort__iaddr_cmp(struct hist_entry *left, struct hist_entry *right);
+int64_t
+sort__daddr_cmp(struct hist_entry *left, struct hist_entry *right);
+int64_t
+sort__dcacheline_cmp(struct hist_entry *left, struct hist_entry *right);
 #endif	/* __PERF_SORT_H */
