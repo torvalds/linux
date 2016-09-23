@@ -300,6 +300,10 @@ static const struct regmap_irq rk818_irqs[] = {
 		.mask = TS2_MASK,
 		.reg_offset = 1,
 	},
+	[RK818_IRQ_CHG_CVTLIM] = {
+		.mask = CHG_CVTLIM_MASK,
+		.reg_offset = 1,
+	},
 	[RK818_IRQ_DISCHG_ILIM] = {
 		.mask = DISCHG_ILIM_MASK,
 		.reg_offset = 1,
