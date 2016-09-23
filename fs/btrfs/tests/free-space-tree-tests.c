@@ -24,7 +24,8 @@
 #include "../transaction.h"
 
 struct free_space_extent {
-	u64 start, length;
+	u64 start;
+	u64 length;
 };
 
 static int __check_free_space_extents(struct btrfs_trans_handle *trans,
