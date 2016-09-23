@@ -1681,8 +1681,10 @@ int request_threaded_irq(unsigned int irq, irq_handler_t handler,
 	action->dev_id = dev_id;
 
 	retval = irq_chip_pm_get(&desc->irq_data);
-	if (retval < 0)
+	if (retval < 0) {
+		kfree(action);
 		return retval;
+	}
 
 	chip_bus_lock(desc);
 	retval = __setup_irq(irq, desc, action);
@@ -1985,8 +1987,10 @@ int request_percpu_irq(unsigned int irq, irq_handler_t handler,
 	action->percpu_dev_id = dev_id;
 
 	retval = irq_chip_pm_get(&desc->irq_data);
-	if (retval < 0)
+	if (retval < 0) {
+		kfree(action);
 		return retval;
+	}
 
 	chip_bus_lock(desc);
 	retval = __setup_irq(irq, desc, action);

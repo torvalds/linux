@@ -1496,6 +1496,7 @@ u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
 	struct timer_base *base = this_cpu_ptr(&timer_bases[BASE_STD]);
 	u64 expires = KTIME_MAX;
 	unsigned long nextevt;
+	bool is_max_delta;
 
 	/*
 	 * Pretend that there is no timer pending if the cpu is offline.
@@ -1506,6 +1507,7 @@ u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
 
 	spin_lock(&base->lock);
 	nextevt = __next_timer_interrupt(base);
+	is_max_delta = (nextevt == base->clk + NEXT_TIMER_MAX_DELTA);
 	base->next_expiry = nextevt;
 	/*
 	 * We have a fresh next event. Check whether we can forward the base:
@@ -1519,7 +1521,8 @@ u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
 		expires = basem;
 		base->is_idle = false;
 	} else {
-		expires = basem + (nextevt - basej) * TICK_NSEC;
+		if (!is_max_delta)
+			expires = basem + (nextevt - basej) * TICK_NSEC;
 		/*
 		 * If we expect to sleep more than a tick, mark the base idle:
 		 */

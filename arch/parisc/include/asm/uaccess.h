@@ -208,13 +208,13 @@ unsigned long copy_in_user(void __user *dst, const void __user *src, unsigned lo
 #define __copy_to_user_inatomic __copy_to_user
 #define __copy_from_user_inatomic __copy_from_user
 
-extern void copy_from_user_overflow(void)
-#ifdef CONFIG_DEBUG_STRICT_USER_COPY_CHECKS
-        __compiletime_error("copy_from_user() buffer size is not provably correct")
-#else
-        __compiletime_warning("copy_from_user() buffer size is not provably correct")
-#endif
-;
+extern void __compiletime_error("usercopy buffer size is too small")
+__bad_copy_user(void);
+
+static inline void copy_user_overflow(int size, unsigned long count)
+{
+	WARN(1, "Buffer overflow detected (%d < %lu)!\n", size, count);
+}
 
 static inline unsigned long __must_check copy_from_user(void *to,
                                           const void __user *from,
@@ -223,10 +223,12 @@ static inline unsigned long __must_check copy_from_user(void *to,
         int sz = __compiletime_object_size(to);
         int ret = -EFAULT;
 
-        if (likely(sz == -1 || !__builtin_constant_p(n) || sz >= n))
+        if (likely(sz == -1 || sz >= n))
                 ret = __copy_from_user(to, from, n);
-        else
-                copy_from_user_overflow();
+        else if (!__builtin_constant_p(n))
+		copy_user_overflow(sz, n);
+	else
+                __bad_copy_user();
 
         return ret;
 }

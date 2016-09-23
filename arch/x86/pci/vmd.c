@@ -41,6 +41,7 @@ static DEFINE_RAW_SPINLOCK(list_lock);
  * @node:	list item for parent traversal.
  * @rcu:	RCU callback item for freeing.
  * @irq:	back pointer to parent.
+ * @enabled:	true if driver enabled IRQ
  * @virq:	the virtual IRQ value provided to the requesting driver.
  *
  * Every MSI/MSI-X IRQ requested for a device in a VMD domain will be mapped to
@@ -50,6 +51,7 @@ struct vmd_irq {
 	struct list_head	node;
 	struct rcu_head		rcu;
 	struct vmd_irq_list	*irq;
+	bool			enabled;
 	unsigned int		virq;
 };
 
@@ -122,7 +124,9 @@ static void vmd_irq_enable(struct irq_data *data)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&list_lock, flags);
+	WARN_ON(vmdirq->enabled);
 	list_add_tail_rcu(&vmdirq->node, &vmdirq->irq->irq_list);
+	vmdirq->enabled = true;
 	raw_spin_unlock_irqrestore(&list_lock, flags);
 
 	data->chip->irq_unmask(data);
@@ -136,8 +140,10 @@ static void vmd_irq_disable(struct irq_data *data)
 	data->chip->irq_mask(data);
 
 	raw_spin_lock_irqsave(&list_lock, flags);
-	list_del_rcu(&vmdirq->node);
-	INIT_LIST_HEAD_RCU(&vmdirq->node);
+	if (vmdirq->enabled) {
+		list_del_rcu(&vmdirq->node);
+		vmdirq->enabled = false;
+	}
 	raw_spin_unlock_irqrestore(&list_lock, flags);
 }
 

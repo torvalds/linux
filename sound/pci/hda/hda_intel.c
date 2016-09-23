@@ -906,20 +906,23 @@ static int azx_resume(struct device *dev)
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip;
 	struct hda_intel *hda;
+	struct hdac_bus *bus;
 
 	if (!card)
 		return 0;
 
 	chip = card->private_data;
 	hda = container_of(chip, struct hda_intel, chip);
+	bus = azx_bus(chip);
 	if (chip->disabled || hda->init_failed || !chip->running)
 		return 0;
 
-	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL
-		&& hda->need_i915_power) {
-		snd_hdac_display_power(azx_bus(chip), true);
-		snd_hdac_i915_set_bclk(azx_bus(chip));
+	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
+		snd_hdac_display_power(bus, true);
+		if (hda->need_i915_power)
+			snd_hdac_i915_set_bclk(bus);
 	}
+
 	if (chip->msi)
 		if (pci_enable_msi(pci) < 0)
 			chip->msi = 0;
@@ -928,6 +931,11 @@ static int azx_resume(struct device *dev)
 	azx_init_pci(chip);
 
 	hda_intel_init_chip(chip, true);
+
+	/* power down again for link-controlled chips */
+	if ((chip->driver_caps & AZX_DCAPS_I915_POWERWELL) &&
+	    !hda->need_i915_power)
+		snd_hdac_display_power(bus, false);
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 
@@ -1008,6 +1016,7 @@ static int azx_runtime_resume(struct device *dev)
 
 	chip = card->private_data;
 	hda = container_of(chip, struct hda_intel, chip);
+	bus = azx_bus(chip);
 	if (chip->disabled || hda->init_failed)
 		return 0;
 
@@ -1015,15 +1024,9 @@ static int azx_runtime_resume(struct device *dev)
 		return 0;
 
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
-		bus = azx_bus(chip);
-		if (hda->need_i915_power) {
-			snd_hdac_display_power(bus, true);
+		snd_hdac_display_power(bus, true);
+		if (hda->need_i915_power)
 			snd_hdac_i915_set_bclk(bus);
-		} else {
-			/* toggle codec wakeup bit for STATESTS read */
-			snd_hdac_set_codec_wakeup(bus, true);
-			snd_hdac_set_codec_wakeup(bus, false);
-		}
 	}
 
 	/* Read STATESTS before controller reset */
@@ -1042,6 +1045,11 @@ static int azx_runtime_resume(struct device *dev)
 	/* disable controller Wake Up event*/
 	azx_writew(chip, WAKEEN, azx_readw(chip, WAKEEN) &
 			~STATESTS_INT_MASK);
+
+	/* power down again for link-controlled chips */
+	if ((chip->driver_caps & AZX_DCAPS_I915_POWERWELL) &&
+	    !hda->need_i915_power)
+		snd_hdac_display_power(bus, false);
 
 	trace_azx_runtime_resume(chip);
 	return 0;

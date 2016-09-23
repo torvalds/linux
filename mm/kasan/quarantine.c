@@ -217,11 +217,8 @@ void quarantine_reduce(void)
 	new_quarantine_size = (READ_ONCE(totalram_pages) << PAGE_SHIFT) /
 		QUARANTINE_FRACTION;
 	percpu_quarantines = QUARANTINE_PERCPU_SIZE * num_online_cpus();
-	if (WARN_ONCE(new_quarantine_size < percpu_quarantines,
-		"Too little memory, disabling global KASAN quarantine.\n"))
-		new_quarantine_size = 0;
-	else
-		new_quarantine_size -= percpu_quarantines;
+	new_quarantine_size = (new_quarantine_size < percpu_quarantines) ?
+		0 : new_quarantine_size - percpu_quarantines;
 	WRITE_ONCE(quarantine_size, new_quarantine_size);
 
 	last = global_quarantine.head;

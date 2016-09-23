@@ -191,7 +191,6 @@ struct raid_dev {
 #define RT_FLAG_RS_BITMAP_LOADED	2
 #define RT_FLAG_UPDATE_SBS		3
 #define RT_FLAG_RESHAPE_RS		4
-#define RT_FLAG_KEEP_RS_FROZEN		5
 
 /* Array elements of 64 bit needed for rebuild/failed disk bits */
 #define DISKS_ARRAY_ELEMS ((MAX_RAID_DEVICES + (sizeof(uint64_t) * 8 - 1)) / sizeof(uint64_t) / 8)
@@ -861,6 +860,9 @@ static int validate_region_size(struct raid_set *rs, unsigned long region_size)
 {
 	unsigned long min_region_size = rs->ti->len / (1 << 21);
 
+	if (rs_is_raid0(rs))
+		return 0;
+
 	if (!region_size) {
 		/*
 		 * Choose a reasonable default.	 All figures in sectors.
@@ -930,6 +932,8 @@ static int validate_raid_redundancy(struct raid_set *rs)
 			rebuild_cnt++;
 
 	switch (rs->raid_type->level) {
+	case 0:
+		break;
 	case 1:
 		if (rebuild_cnt >= rs->md.raid_disks)
 			goto too_many;
@@ -2335,6 +2339,13 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 		case 0:
 			break;
 		default:
+			/*
+			 * We have to keep any raid0 data/metadata device pairs or
+			 * the MD raid0 personality will fail to start the array.
+			 */
+			if (rs_is_raid0(rs))
+				continue;
+
 			dev = container_of(rdev, struct raid_dev, rdev);
 			if (dev->meta_dev)
 				dm_put_device(ti, dev->meta_dev);
@@ -2579,7 +2590,6 @@ static int rs_prepare_reshape(struct raid_set *rs)
 		} else {
 			/* Process raid1 without delta_disks */
 			mddev->raid_disks = rs->raid_disks;
-			set_bit(RT_FLAG_KEEP_RS_FROZEN, &rs->runtime_flags);
 			reshape = false;
 		}
 	} else {
@@ -2590,7 +2600,6 @@ static int rs_prepare_reshape(struct raid_set *rs)
 	if (reshape) {
 		set_bit(RT_FLAG_RESHAPE_RS, &rs->runtime_flags);
 		set_bit(RT_FLAG_UPDATE_SBS, &rs->runtime_flags);
-		set_bit(RT_FLAG_KEEP_RS_FROZEN, &rs->runtime_flags);
 	} else if (mddev->raid_disks < rs->raid_disks)
 		/* Create new superblocks and bitmaps, if any new disks */
 		set_bit(RT_FLAG_UPDATE_SBS, &rs->runtime_flags);
@@ -2902,7 +2911,6 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 			goto bad;
 
 		set_bit(RT_FLAG_UPDATE_SBS, &rs->runtime_flags);
-		set_bit(RT_FLAG_KEEP_RS_FROZEN, &rs->runtime_flags);
 		/* Takeover ain't recovery, so disable recovery */
 		rs_setup_recovery(rs, MaxSector);
 		rs_set_new(rs);
@@ -3386,20 +3394,27 @@ static void raid_postsuspend(struct dm_target *ti)
 {
 	struct raid_set *rs = ti->private;
 
-	if (test_and_clear_bit(RT_FLAG_RS_RESUMED, &rs->runtime_flags)) {
-		if (!rs->md.suspended)
-			mddev_suspend(&rs->md);
-		rs->md.ro = 1;
-	}
+	if (!rs->md.suspended)
+		mddev_suspend(&rs->md);
+
+	rs->md.ro = 1;
 }
 
 static void attempt_restore_of_faulty_devices(struct raid_set *rs)
 {
 	int i;
-	uint64_t failed_devices, cleared_failed_devices = 0;
+	uint64_t cleared_failed_devices[DISKS_ARRAY_ELEMS];
 	unsigned long flags;
+	bool cleared = false;
 	struct dm_raid_superblock *sb;
+	struct mddev *mddev = &rs->md;
 	struct md_rdev *r;
+
+	/* RAID personalities have to provide hot add/remove methods or we need to bail out. */
+	if (!mddev->pers || !mddev->pers->hot_add_disk || !mddev->pers->hot_remove_disk)
+		return;
+
+	memset(cleared_failed_devices, 0, sizeof(cleared_failed_devices));
 
 	for (i = 0; i < rs->md.raid_disks; i++) {
 		r = &rs->dev[i].rdev;
@@ -3420,7 +3435,7 @@ static void attempt_restore_of_faulty_devices(struct raid_set *rs)
 			 * ourselves.
 			 */
 			if ((r->raid_disk >= 0) &&
-			    (r->mddev->pers->hot_remove_disk(r->mddev, r) != 0))
+			    (mddev->pers->hot_remove_disk(mddev, r) != 0))
 				/* Failed to revive this device, try next */
 				continue;
 
@@ -3430,22 +3445,30 @@ static void attempt_restore_of_faulty_devices(struct raid_set *rs)
 			clear_bit(Faulty, &r->flags);
 			clear_bit(WriteErrorSeen, &r->flags);
 			clear_bit(In_sync, &r->flags);
-			if (r->mddev->pers->hot_add_disk(r->mddev, r)) {
+			if (mddev->pers->hot_add_disk(mddev, r)) {
 				r->raid_disk = -1;
 				r->saved_raid_disk = -1;
 				r->flags = flags;
 			} else {
 				r->recovery_offset = 0;
-				cleared_failed_devices |= 1 << i;
+				set_bit(i, (void *) cleared_failed_devices);
+				cleared = true;
 			}
 		}
 	}
-	if (cleared_failed_devices) {
+
+	/* If any failed devices could be cleared, update all sbs failed_devices bits */
+	if (cleared) {
+		uint64_t failed_devices[DISKS_ARRAY_ELEMS];
+
 		rdev_for_each(r, &rs->md) {
 			sb = page_address(r->sb_page);
-			failed_devices = le64_to_cpu(sb->failed_devices);
-			failed_devices &= ~cleared_failed_devices;
-			sb->failed_devices = cpu_to_le64(failed_devices);
+			sb_retrieve_failed_devices(sb, failed_devices);
+
+			for (i = 0; i < DISKS_ARRAY_ELEMS; i++)
+				failed_devices[i] &= ~cleared_failed_devices[i];
+
+			sb_update_failed_devices(sb, failed_devices);
 		}
 	}
 }
@@ -3610,26 +3633,15 @@ static void raid_resume(struct dm_target *ti)
 		 * devices are reachable again.
 		 */
 		attempt_restore_of_faulty_devices(rs);
-	} else {
-		mddev->ro = 0;
-		mddev->in_sync = 0;
-
-		/*
-		 * When passing in flags to the ctr, we expect userspace
-		 * to reset them because they made it to the superblocks
-		 * and reload the mapping anyway.
-		 *
-		 * -> only unfreeze recovery in case of a table reload or
-		 *    we'll have a bogus recovery/reshape position
-		 *    retrieved from the superblock by the ctr because
-		 *    the ongoing recovery/reshape will change it after read.
-		 */
-		if (!test_bit(RT_FLAG_KEEP_RS_FROZEN, &rs->runtime_flags))
-			clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
-
-		if (mddev->suspended)
-			mddev_resume(mddev);
 	}
+
+	mddev->ro = 0;
+	mddev->in_sync = 0;
+
+	clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
+
+	if (mddev->suspended)
+		mddev_resume(mddev);
 }
 
 static struct target_type raid_target = {

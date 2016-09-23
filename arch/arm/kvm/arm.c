@@ -1009,9 +1009,13 @@ long kvm_arch_vm_ioctl(struct file *filp,
 
 	switch (ioctl) {
 	case KVM_CREATE_IRQCHIP: {
+		int ret;
 		if (!vgic_present)
 			return -ENXIO;
-		return kvm_vgic_create(kvm, KVM_DEV_TYPE_ARM_VGIC_V2);
+		mutex_lock(&kvm->lock);
+		ret = kvm_vgic_create(kvm, KVM_DEV_TYPE_ARM_VGIC_V2);
+		mutex_unlock(&kvm->lock);
+		return ret;
 	}
 	case KVM_ARM_SET_DEVICE_ADDR: {
 		struct kvm_arm_device_addr dev_addr;

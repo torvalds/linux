@@ -1298,7 +1298,6 @@ DEFINE_IOMAP_EVENT(xfs_get_blocks_alloc);
 DEFINE_IOMAP_EVENT(xfs_get_blocks_map_direct);
 DEFINE_IOMAP_EVENT(xfs_iomap_alloc);
 DEFINE_IOMAP_EVENT(xfs_iomap_found);
-DEFINE_IOMAP_EVENT(xfs_iomap_not_found);
 
 DECLARE_EVENT_CLASS(xfs_simple_io_class,
 	TP_PROTO(struct xfs_inode *ip, xfs_off_t offset, ssize_t count),
@@ -2296,7 +2295,7 @@ DECLARE_EVENT_CLASS(xfs_defer_pending_class,
 		__entry->dev = mp ? mp->m_super->s_dev : 0;
 		__entry->type = dfp->dfp_type->type;
 		__entry->intent = dfp->dfp_intent;
-		__entry->committed = dfp->dfp_committed;
+		__entry->committed = dfp->dfp_done != NULL;
 		__entry->nr = dfp->dfp_count;
 	),
 	TP_printk("dev %d:%d optype %d intent %p committed %d nr %d\n",
