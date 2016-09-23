@@ -39,6 +39,7 @@
 #include <linux/rhashtable.h>
 #include <net/switchdev.h>
 #include <net/tc_act/tc_mirred.h>
+#include <net/tc_act/tc_vlan.h>
 #include "en.h"
 #include "en_tc.h"
 #include "eswitch.h"
@@ -47,6 +48,7 @@ struct mlx5e_tc_flow {
 	struct rhash_head	node;
 	u64			cookie;
 	struct mlx5_flow_rule	*rule;
+	struct mlx5_esw_flow_attr *attr;
 };
 
 #define MLX5E_TC_TABLE_NUM_ENTRIES 1024
@@ -114,26 +116,29 @@ err_create_ft:
 
 static struct mlx5_flow_rule *mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 						    struct mlx5_flow_spec *spec,
-						    u32 action, u32 dst_vport)
+						    struct mlx5_esw_flow_attr *attr)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	struct mlx5_eswitch_rep *rep = priv->ppriv;
-	u32 src_vport;
+	int err;
 
-	if (rep->vport) /* set source vport for the flow */
-		src_vport = rep->vport;
-	else
-		src_vport = FDB_UPLINK_VPORT;
+	err = mlx5_eswitch_add_vlan_action(esw, attr);
+	if (err)
+		return ERR_PTR(err);
 
-	return mlx5_eswitch_add_offloaded_rule(esw, spec, action, src_vport, dst_vport);
+	return mlx5_eswitch_add_offloaded_rule(esw, spec, attr);
 }
 
 static void mlx5e_tc_del_flow(struct mlx5e_priv *priv,
-			      struct mlx5_flow_rule *rule)
+			      struct mlx5_flow_rule *rule,
+			      struct mlx5_esw_flow_attr *attr)
 {
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_fc *counter = NULL;
 
 	counter = mlx5_flow_rule_counter(rule);
+
+	if (esw && esw->mode == SRIOV_OFFLOADS)
+		mlx5_eswitch_del_vlan_action(esw, attr);
 
 	mlx5_del_flow_rule(rule);
 
@@ -159,6 +164,7 @@ static int parse_cls_flower(struct mlx5e_priv *priv, struct mlx5_flow_spec *spec
 	    ~(BIT(FLOW_DISSECTOR_KEY_CONTROL) |
 	      BIT(FLOW_DISSECTOR_KEY_BASIC) |
 	      BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
+	      BIT(FLOW_DISSECTOR_KEY_VLAN) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_PORTS))) {
@@ -220,6 +226,24 @@ static int parse_cls_flower(struct mlx5e_priv *priv, struct mlx5_flow_spec *spec
 		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
 					     smac_47_16),
 				key->src);
+	}
+
+	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_VLAN)) {
+		struct flow_dissector_key_vlan *key =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_VLAN,
+						  f->key);
+		struct flow_dissector_key_vlan *mask =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_VLAN,
+						  f->mask);
+		if (mask->vlan_id) {
+			MLX5_SET(fte_match_set_lyr_2_4, headers_c, vlan_tag, 1);
+			MLX5_SET(fte_match_set_lyr_2_4, headers_v, vlan_tag, 1);
+
+			MLX5_SET(fte_match_set_lyr_2_4, headers_c, first_vid, mask->vlan_id);
+			MLX5_SET(fte_match_set_lyr_2_4, headers_v, first_vid, key->vlan_id);
+		}
 	}
 
 	if (addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
@@ -361,7 +385,7 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 }
 
 static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
-				u32 *action, u32 *dest_vport)
+				struct mlx5_esw_flow_attr *attr)
 {
 	const struct tc_action *a;
 	LIST_HEAD(actions);
@@ -369,17 +393,14 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 	if (tc_no_actions(exts))
 		return -EINVAL;
 
-	*action = 0;
+	memset(attr, 0, sizeof(*attr));
+	attr->in_rep = priv->ppriv;
 
 	tcf_exts_to_list(exts, &actions);
 	list_for_each_entry(a, &actions, list) {
-		/* Only support a single action per rule */
-		if (*action)
-			return -EINVAL;
-
 		if (is_tcf_gact_shot(a)) {
-			*action = MLX5_FLOW_CONTEXT_ACTION_DROP |
-				  MLX5_FLOW_CONTEXT_ACTION_COUNT;
+			attr->action |= MLX5_FLOW_CONTEXT_ACTION_DROP |
+					MLX5_FLOW_CONTEXT_ACTION_COUNT;
 			continue;
 		}
 
@@ -387,7 +408,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 			int ifindex = tcf_mirred_ifindex(a);
 			struct net_device *out_dev;
 			struct mlx5e_priv *out_priv;
-			struct mlx5_eswitch_rep *out_rep;
 
 			out_dev = __dev_get_by_index(dev_net(priv->netdev), ifindex);
 
@@ -397,13 +417,22 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				return -EINVAL;
 			}
 
+			attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 			out_priv = netdev_priv(out_dev);
-			out_rep  = out_priv->ppriv;
-			if (out_rep->vport == 0)
-				*dest_vport = FDB_UPLINK_VPORT;
-			else
-				*dest_vport = out_rep->vport;
-			*action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+			attr->out_rep = out_priv->ppriv;
+			continue;
+		}
+
+		if (is_tcf_vlan(a)) {
+			if (tcf_vlan_action(a) == VLAN_F_POP) {
+				attr->action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_POP;
+			} else if (tcf_vlan_action(a) == VLAN_F_PUSH) {
+				if (tcf_vlan_push_proto(a) != htons(ETH_P_8021Q))
+					return -EOPNOTSUPP;
+
+				attr->action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH;
+				attr->vlan = tcf_vlan_push_vid(a);
+			}
 			continue;
 		}
 
@@ -417,18 +446,29 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv, __be16 protocol,
 {
 	struct mlx5e_tc_table *tc = &priv->fs.tc;
 	int err = 0;
-	u32 flow_tag, action, dest_vport = 0;
+	bool fdb_flow = false;
+	u32 flow_tag, action;
 	struct mlx5e_tc_flow *flow;
 	struct mlx5_flow_spec *spec;
 	struct mlx5_flow_rule *old = NULL;
+	struct mlx5_esw_flow_attr *old_attr;
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+
+	if (esw && esw->mode == SRIOV_OFFLOADS)
+		fdb_flow = true;
 
 	flow = rhashtable_lookup_fast(&tc->ht, &f->cookie,
 				      tc->ht_params);
-	if (flow)
+	if (flow) {
 		old = flow->rule;
-	else
-		flow = kzalloc(sizeof(*flow), GFP_KERNEL);
+		old_attr = flow->attr;
+	} else {
+		if (fdb_flow)
+			flow = kzalloc(sizeof(*flow) + sizeof(struct mlx5_esw_flow_attr),
+				       GFP_KERNEL);
+		else
+			flow = kzalloc(sizeof(*flow), GFP_KERNEL);
+	}
 
 	spec = mlx5_vzalloc(sizeof(*spec));
 	if (!spec || !flow) {
@@ -442,11 +482,12 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv, __be16 protocol,
 	if (err < 0)
 		goto err_free;
 
-	if (esw && esw->mode == SRIOV_OFFLOADS) {
-		err = parse_tc_fdb_actions(priv, f->exts, &action, &dest_vport);
+	if (fdb_flow) {
+		flow->attr  = (struct mlx5_esw_flow_attr *)(flow + 1);
+		err = parse_tc_fdb_actions(priv, f->exts, flow->attr);
 		if (err < 0)
 			goto err_free;
-		flow->rule = mlx5e_tc_add_fdb_flow(priv, spec, action, dest_vport);
+		flow->rule = mlx5e_tc_add_fdb_flow(priv, spec, flow->attr);
 	} else {
 		err = parse_tc_nic_actions(priv, f->exts, &action, &flow_tag);
 		if (err < 0)
@@ -465,7 +506,7 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv, __be16 protocol,
 		goto err_del_rule;
 
 	if (old)
-		mlx5e_tc_del_flow(priv, old);
+		mlx5e_tc_del_flow(priv, old, old_attr);
 
 	goto out;
 
@@ -493,7 +534,7 @@ int mlx5e_delete_flower(struct mlx5e_priv *priv,
 
 	rhashtable_remove_fast(&tc->ht, &flow->node, tc->ht_params);
 
-	mlx5e_tc_del_flow(priv, flow->rule);
+	mlx5e_tc_del_flow(priv, flow->rule, flow->attr);
 
 	kfree(flow);
 
@@ -550,7 +591,7 @@ static void _mlx5e_tc_del_flow(void *ptr, void *arg)
 	struct mlx5e_tc_flow *flow = ptr;
 	struct mlx5e_priv *priv = arg;
 
-	mlx5e_tc_del_flow(priv, flow->rule);
+	mlx5e_tc_del_flow(priv, flow->rule, flow->attr);
 	kfree(flow);
 }
 
