@@ -3256,20 +3256,17 @@ int btrfs_parse_options(struct btrfs_root *root, char *options,
 			unsigned long new_flags);
 int btrfs_sync_fs(struct super_block *sb, int wait);
 
+static inline __printf(2, 3)
+void btrfs_no_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
+{
+}
+
 #ifdef CONFIG_PRINTK
 __printf(2, 3)
 void btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...);
-__printf(2, 3)
-static inline int btrfs_no_printk(const struct btrfs_fs_info *fs_info,
-				   const char *fmt, ...)
-{
-	return 0;
-}
 #else
-static inline __printf(2, 3)
-void btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
-{
-}
+#define btrfs_printk(fs_info, fmt, args...) \
+	btrfs_no_printk(fs_info, fmt, ##args)
 #endif
 
 #define btrfs_emerg(fs_info, fmt, args...) \
