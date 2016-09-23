@@ -381,8 +381,8 @@ static int fake_master_get(struct vme_master_resource *image, int *enabled,
 }
 
 
-void fake_lm_check(struct fake_driver *bridge, unsigned long long addr,
-		u32 aspace, u32 cycle)
+static void fake_lm_check(struct fake_driver *bridge, unsigned long long addr,
+			  u32 aspace, u32 cycle)
 {
 	struct vme_bridge *fake_bridge;
 	unsigned long long lm_base;
@@ -616,8 +616,8 @@ out:
 	return retval;
 }
 
-void fake_vmewrite8(struct fake_driver *bridge, u8 *buf,
-		 unsigned long long addr, u32 aspace, u32 cycle)
+static void fake_vmewrite8(struct fake_driver *bridge, u8 *buf,
+			   unsigned long long addr, u32 aspace, u32 cycle)
 {
 	int i;
 	unsigned long long start, end, offset;
@@ -646,8 +646,8 @@ void fake_vmewrite8(struct fake_driver *bridge, u8 *buf,
 
 }
 
-void fake_vmewrite16(struct fake_driver *bridge, u16 *buf,
-		unsigned long long addr, u32 aspace, u32 cycle)
+static void fake_vmewrite16(struct fake_driver *bridge, u16 *buf,
+			    unsigned long long addr, u32 aspace, u32 cycle)
 {
 	int i;
 	unsigned long long start, end, offset;
@@ -676,8 +676,8 @@ void fake_vmewrite16(struct fake_driver *bridge, u16 *buf,
 
 }
 
-void fake_vmewrite32(struct fake_driver *bridge, u32 *buf,
-		unsigned long long addr, u32 aspace, u32 cycle)
+static void fake_vmewrite32(struct fake_driver *bridge, u32 *buf,
+			    unsigned long long addr, u32 aspace, u32 cycle)
 {
 	int i;
 	unsigned long long start, end, offset;
