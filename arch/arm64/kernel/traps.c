@@ -142,6 +142,11 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 	unsigned long irq_stack_ptr;
 	int skip;
 
+	pr_debug("%s(regs = %p tsk = %p)\n", __func__, regs, tsk);
+
+	if (!tsk)
+		tsk = current;
+
 	/*
 	 * Switching between stacks is valid when tracing current and in
 	 * non-preemptible context.
@@ -150,11 +155,6 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 		irq_stack_ptr = IRQ_STACK_PTR(smp_processor_id());
 	else
 		irq_stack_ptr = 0;
-
-	pr_debug("%s(regs = %p tsk = %p)\n", __func__, regs, tsk);
-
-	if (!tsk)
-		tsk = current;
 
 	if (tsk == current) {
 		frame.fp = (unsigned long)__builtin_frame_address(0);
