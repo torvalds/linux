@@ -1,5 +1,5 @@
-               Java(tm) Binary Kernel Support for Linux v1.03
-               ----------------------------------------------
+Java(tm) Binary Kernel Support for Linux v1.03
+----------------------------------------------
 
 Linux beats them ALL! While all other OS's are TALKING about direct
 support of Java Binaries in the OS, Linux is doing it!
@@ -19,70 +19,80 @@ other program after you have done the following:
    as the application itself).
 
 2) You have to compile BINFMT_MISC either as a module or into
-   the kernel (CONFIG_BINFMT_MISC) and set it up properly.
+   the kernel (``CONFIG_BINFMT_MISC``) and set it up properly.
    If you choose to compile it as a module, you will have
    to insert it manually with modprobe/insmod, as kmod
-   cannot easily be supported with binfmt_misc. 
+   cannot easily be supported with binfmt_misc.
    Read the file 'binfmt_misc.txt' in this directory to know
    more about the configuration process.
 
 3) Add the following configuration items to binfmt_misc
-   (you should really have read binfmt_misc.txt now):
-   support for Java applications:
+   (you should really have read ``binfmt_misc.txt`` now):
+   support for Java applications::
+
      ':Java:M::\xca\xfe\xba\xbe::/usr/local/bin/javawrapper:'
-   support for executable Jar files:
+
+   support for executable Jar files::
+
      ':ExecutableJAR:E::jar::/usr/local/bin/jarwrapper:'
-   support for Java Applets:
+
+   support for Java Applets::
+
      ':Applet:E::html::/usr/bin/appletviewer:'
-   or the following, if you want to be more selective:
+
+   or the following, if you want to be more selective::
+
      ':Applet:M::<!--applet::/usr/bin/appletviewer:'
 
    Of course you have to fix the path names. The path/file names given in this
-   document match the Debian 2.1 system. (i.e. jdk installed in /usr,
-   custom wrappers from this document in /usr/local)
+   document match the Debian 2.1 system. (i.e. jdk installed in ``/usr``,
+   custom wrappers from this document in ``/usr/local``)
 
    Note, that for the more selective applet support you have to modify
-   existing html-files to contain <!--applet--> in the first line
-   ('<' has to be the first character!) to let this work!
+   existing html-files to contain ``<!--applet-->`` in the first line
+   (``<`` has to be the first character!) to let this work!
 
    For the compiled Java programs you need a wrapper script like the
    following (this is because Java is broken in case of the filename
    handling), again fix the path names, both in the script and in the
    above given configuration string.
 
-   You, too, need the little program after the script. Compile like
-   gcc -O2 -o javaclassname javaclassname.c
-   and stick it to /usr/local/bin.
+   You, too, need the little program after the script. Compile like::
+
+	gcc -O2 -o javaclassname javaclassname.c
+
+   and stick it to ``/usr/local/bin``.
 
    Both the javawrapper shellscript and the javaclassname program
    were supplied by Colin J. Watson <cjw44@cam.ac.uk>.
 
-====================== Cut here ===================
-#!/bin/bash
-# /usr/local/bin/javawrapper - the wrapper for binfmt_misc/java
+Javawrapper shell script::
 
-if [ -z "$1" ]; then
+  #!/bin/bash
+  # /usr/local/bin/javawrapper - the wrapper for binfmt_misc/java
+
+  if [ -z "$1" ]; then
 	exec 1>&2
 	echo Usage: $0 class-file
 	exit 1
-fi
+  fi
 
-CLASS=$1
-FQCLASS=`/usr/local/bin/javaclassname $1`
-FQCLASSN=`echo $FQCLASS | sed -e 's/^.*\.\([^.]*\)$/\1/'`
-FQCLASSP=`echo $FQCLASS | sed -e 's-\.-/-g' -e 's-^[^/]*$--' -e 's-/[^/]*$--'`
+  CLASS=$1
+  FQCLASS=`/usr/local/bin/javaclassname $1`
+  FQCLASSN=`echo $FQCLASS | sed -e 's/^.*\.\([^.]*\)$/\1/'`
+  FQCLASSP=`echo $FQCLASS | sed -e 's-\.-/-g' -e 's-^[^/]*$--' -e 's-/[^/]*$--'`
 
-# for example:
-# CLASS=Test.class
-# FQCLASS=foo.bar.Test
-# FQCLASSN=Test
-# FQCLASSP=foo/bar
+  # for example:
+  # CLASS=Test.class
+  # FQCLASS=foo.bar.Test
+  # FQCLASSN=Test
+  # FQCLASSP=foo/bar
 
-unset CLASSBASE
+  unset CLASSBASE
 
-declare -i LINKLEVEL=0
+  declare -i LINKLEVEL=0
 
-while :; do
+  while :; do
 	if [ "`basename $CLASS .class`" == "$FQCLASSN" ]; then
 		# See if this directory works straight off
 		cd -L `dirname $CLASS`
@@ -119,9 +129,9 @@ while :; do
 		exit 1
 	fi
 	CLASS=`ls --color=no -l $CLASS | sed -e 's/^.* \([^ ]*\)$/\1/'`
-done
+  done
 
-if [ -z "$CLASSBASE" ]; then
+  if [ -z "$CLASSBASE" ]; then
 	if [ -z "$FQCLASSP" ]; then
 		GOODNAME=$FQCLASSN.class
 	else
@@ -131,24 +141,23 @@ if [ -z "$CLASSBASE" ]; then
 	echo $0:
 	echo "  $FQCLASS should be in a file called $GOODNAME"
 	exit 1
-fi
+  fi
 
-if ! echo $CLASSPATH | grep -q "^\(.*:\)*$CLASSBASE\(:.*\)*"; then
+  if ! echo $CLASSPATH | grep -q "^\(.*:\)*$CLASSBASE\(:.*\)*"; then
 	# class is not in CLASSPATH, so prepend dir of class to CLASSPATH
 	if [ -z "${CLASSPATH}" ] ; then
 		export CLASSPATH=$CLASSBASE
 	else
 		export CLASSPATH=$CLASSBASE:$CLASSPATH
 	fi
-fi
+  fi
 
-shift
-/usr/bin/java $FQCLASS "$@"
-====================== Cut here ===================
+  shift
+  /usr/bin/java $FQCLASS "$@"
 
+javaclassname.c::
 
-====================== Cut here ===================
-/* javaclassname.c
+  /* javaclassname.c
  *
  * Extracts the class name from a Java class file; intended for use in a Java
  * wrapper of the type supported by the binfmt_misc option in the Linux kernel.
@@ -170,57 +179,57 @@ shift
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <sys/types.h>
+  #include <stdlib.h>
+  #include <stdio.h>
+  #include <stdarg.h>
+  #include <sys/types.h>
 
-/* From Sun's Java VM Specification, as tag entries in the constant pool. */
+  /* From Sun's Java VM Specification, as tag entries in the constant pool. */
 
-#define CP_UTF8 1
-#define CP_INTEGER 3
-#define CP_FLOAT 4
-#define CP_LONG 5
-#define CP_DOUBLE 6
-#define CP_CLASS 7
-#define CP_STRING 8
-#define CP_FIELDREF 9
-#define CP_METHODREF 10
-#define CP_INTERFACEMETHODREF 11
-#define CP_NAMEANDTYPE 12
-#define CP_METHODHANDLE 15
-#define CP_METHODTYPE 16
-#define CP_INVOKEDYNAMIC 18
+  #define CP_UTF8 1
+  #define CP_INTEGER 3
+  #define CP_FLOAT 4
+  #define CP_LONG 5
+  #define CP_DOUBLE 6
+  #define CP_CLASS 7
+  #define CP_STRING 8
+  #define CP_FIELDREF 9
+  #define CP_METHODREF 10
+  #define CP_INTERFACEMETHODREF 11
+  #define CP_NAMEANDTYPE 12
+  #define CP_METHODHANDLE 15
+  #define CP_METHODTYPE 16
+  #define CP_INVOKEDYNAMIC 18
 
-/* Define some commonly used error messages */
+  /* Define some commonly used error messages */
 
-#define seek_error() error("%s: Cannot seek\n", program)
-#define corrupt_error() error("%s: Class file corrupt\n", program)
-#define eof_error() error("%s: Unexpected end of file\n", program)
-#define utf8_error() error("%s: Only ASCII 1-255 supported\n", program);
+  #define seek_error() error("%s: Cannot seek\n", program)
+  #define corrupt_error() error("%s: Class file corrupt\n", program)
+  #define eof_error() error("%s: Unexpected end of file\n", program)
+  #define utf8_error() error("%s: Only ASCII 1-255 supported\n", program);
 
-char *program;
+  char *program;
 
-long *pool;
+  long *pool;
 
-u_int8_t read_8(FILE *classfile);
-u_int16_t read_16(FILE *classfile);
-void skip_constant(FILE *classfile, u_int16_t *cur);
-void error(const char *format, ...);
-int main(int argc, char **argv);
+  u_int8_t read_8(FILE *classfile);
+  u_int16_t read_16(FILE *classfile);
+  void skip_constant(FILE *classfile, u_int16_t *cur);
+  void error(const char *format, ...);
+  int main(int argc, char **argv);
 
-/* Reads in an unsigned 8-bit integer. */
-u_int8_t read_8(FILE *classfile)
-{
+  /* Reads in an unsigned 8-bit integer. */
+  u_int8_t read_8(FILE *classfile)
+  {
 	int b = fgetc(classfile);
 	if(b == EOF)
 		eof_error();
 	return (u_int8_t)b;
-}
+  }
 
-/* Reads in an unsigned 16-bit integer. */
-u_int16_t read_16(FILE *classfile)
-{
+  /* Reads in an unsigned 16-bit integer. */
+  u_int16_t read_16(FILE *classfile)
+  {
 	int b1, b2;
 	b1 = fgetc(classfile);
 	if(b1 == EOF)
@@ -229,11 +238,11 @@ u_int16_t read_16(FILE *classfile)
 	if(b2 == EOF)
 		eof_error();
 	return (u_int16_t)((b1 << 8) | b2);
-}
+  }
 
-/* Reads in a value from the constant pool. */
-void skip_constant(FILE *classfile, u_int16_t *cur)
-{
+  /* Reads in a value from the constant pool. */
+  void skip_constant(FILE *classfile, u_int16_t *cur)
+  {
 	u_int16_t len;
 	int seekerr = 1;
 	pool[*cur] = ftell(classfile);
@@ -270,19 +279,19 @@ void skip_constant(FILE *classfile, u_int16_t *cur)
 	}
 	if(seekerr)
 		seek_error();
-}
+  }
 
-void error(const char *format, ...)
-{
+  void error(const char *format, ...)
+  {
 	va_list ap;
 	va_start(ap, format);
 	vfprintf(stderr, format, ap);
 	va_end(ap);
 	exit(1);
-}
+  }
 
-int main(int argc, char **argv)
-{
+  int main(int argc, char **argv)
+  {
 	FILE *classfile;
 	u_int16_t cp_count, i, this_class, classinfo_ptr;
 	u_int8_t length;
@@ -349,19 +358,19 @@ int main(int argc, char **argv)
 	free(pool);
 	fclose(classfile);
 	return 0;
-}
-====================== Cut here ===================
+  }
+
+jarwrapper::
+
+  #!/bin/bash
+  # /usr/local/java/bin/jarwrapper - the wrapper for binfmt_misc/jar
+
+  java -jar $1
 
 
-====================== Cut here ===================
-#!/bin/bash
-# /usr/local/java/bin/jarwrapper - the wrapper for binfmt_misc/jar
+Now simply ``chmod +x`` the ``.class``, ``.jar`` and/or ``.html`` files you
+want to execute.
 
-java -jar $1
-====================== Cut here ===================
-
-
-Now simply chmod +x the .class, .jar and/or .html files you want to execute.
 To add a Java program to your path best put a symbolic link to the main
 .class file into /usr/bin (or another place you like) omitting the .class
 extension. The directory containing the original .class file will be
@@ -369,7 +378,7 @@ added to your CLASSPATH during execution.
 
 
 To test your new setup, enter in the following simple Java app, and name
-it "HelloWorld.java":
+it "HelloWorld.java"::
 
 	class HelloWorld {
 		public static void main(String args[]) {
@@ -377,23 +386,28 @@ it "HelloWorld.java":
 		}
 	}
 
-Now compile the application with:
+Now compile the application with::
+
 	javac HelloWorld.java
 
-Set the executable permissions of the binary file, with:
+Set the executable permissions of the binary file, with::
+
 	chmod 755 HelloWorld.class
 
-And then execute it:
+And then execute it::
+
 	./HelloWorld.class
 
 
-To execute Java Jar files, simple chmod the *.jar files to include
-the execution bit, then just do
+To execute Java Jar files, simple chmod the ``*.jar`` files to include
+the execution bit, then just do::
+
        ./Application.jar
 
 
-To execute Java Applets, simple chmod the *.html files to include
-the execution bit, then just do
+To execute Java Applets, simple chmod the ``*.html`` files to include
+the execution bit, then just do::
+
 	./Applet.html
 
 
