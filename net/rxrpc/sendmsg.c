@@ -146,6 +146,15 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	if (ret < 0) {
 		_debug("need instant resend %d", ret);
 		rxrpc_instant_resend(call, ix);
+	} else {
+		unsigned long resend_at;
+
+		resend_at = jiffies + msecs_to_jiffies(rxrpc_resend_timeout);
+
+		if (time_before(resend_at, call->resend_at)) {
+			call->resend_at = resend_at;
+			rxrpc_set_timer(call);
+		}
 	}
 
 	rxrpc_free_skb(skb, rxrpc_skb_tx_freed);

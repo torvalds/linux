@@ -24,7 +24,7 @@
 /*
  * Set the timer
  */
-static void rxrpc_set_timer(struct rxrpc_call *call)
+void rxrpc_set_timer(struct rxrpc_call *call)
 {
 	unsigned long t, now = jiffies;
 
