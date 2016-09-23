@@ -188,10 +188,16 @@ static int ipcns_install(struct nsproxy *nsproxy, struct ns_common *new)
 	return 0;
 }
 
+static struct user_namespace *ipcns_owner(struct ns_common *ns)
+{
+	return to_ipc_ns(ns)->user_ns;
+}
+
 const struct proc_ns_operations ipcns_operations = {
 	.name		= "ipc",
 	.type		= CLONE_NEWIPC,
 	.get		= ipcns_get,
 	.put		= ipcns_put,
 	.install	= ipcns_install,
+	.owner		= ipcns_owner,
 };
