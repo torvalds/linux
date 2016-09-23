@@ -167,20 +167,20 @@
 			#gpio-cells = <3>;
 
 			mmc0_pins_a: mmc0@0 {
-				allwinner,pins = "PF0", "PF1", "PF2",
-						 "PF3", "PF4", "PF5";
-				allwinner,function = "mmc0";
-				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
+				pins = "PF0", "PF1", "PF2",
+				       "PF3", "PF4", "PF5";
+				function = "mmc0";
+				drive-strength = <30>;
 			};
 
 			uart0_pins_a: uart0@0 {
-				allwinner,pins = "PF2", "PF4";
-				allwinner,function = "uart0";
+				pins = "PF2", "PF4";
+				function = "uart0";
 			};
 
 			uart0_pins_b: uart0@1 {
-				allwinner,pins = "PB9", "PB10";
-				allwinner,function = "uart0";
+				pins = "PB9", "PB10";
+				function = "uart0";
 			};
 		};
 

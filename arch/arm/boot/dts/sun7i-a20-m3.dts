@@ -145,8 +145,8 @@
 
 &pio {
 	led_pins_m3: led_pins@0 {
-		allwinner,pins = "PH20";
-		allwinner,function = "gpio_out";
+		pins = "PH20";
+		function = "gpio_out";
 	};
 };
 

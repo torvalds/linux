@@ -186,13 +186,13 @@
 
 &pio {
 	emac_power_pin_a1000: emac_power_pin@0 {
-		allwinner,pins = "PH15";
-		allwinner,function = "gpio_out";
+		pins = "PH15";
+		function = "gpio_out";
 	};
 
 	led_pins_a1000: led_pins@0 {
-		allwinner,pins = "PH10", "PH20";
-		allwinner,function = "gpio_out";
+		pins = "PH10", "PH20";
+		function = "gpio_out";
 	};
 };
 

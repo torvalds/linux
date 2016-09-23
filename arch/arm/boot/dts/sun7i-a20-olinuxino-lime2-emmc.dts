@@ -57,8 +57,8 @@
 
 &pio {
 	mmc2_pins_nrst: mmc2@0 {
-		allwinner,pins = "PC16";
-		allwinner,function = "gpio_out";
+		pins = "PC16";
+		function = "gpio_out";
 	};
 };
 

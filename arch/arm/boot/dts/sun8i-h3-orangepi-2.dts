@@ -145,25 +145,25 @@
 
 &pio {
 	leds_opc: led_pins@0 {
-		allwinner,pins = "PA15";
-		allwinner,function = "gpio_out";
+		pins = "PA15";
+		function = "gpio_out";
 	};
 };
 
 &r_pio {
 	leds_r_opc: led_pins@0 {
-		allwinner,pins = "PL10";
-		allwinner,function = "gpio_out";
+		pins = "PL10";
+		function = "gpio_out";
 	};
 
 	sw_r_opc: key_pins@0 {
-		allwinner,pins = "PL3", "PL4";
-		allwinner,function = "gpio_in";
+		pins = "PL3", "PL4";
+		function = "gpio_in";
 	};
 
 	wifi_pwrseq_pin_orangepi: wifi_pwrseq_pin@0 {
-		allwinner,pins = "PL7";
-		allwinner,function = "gpio_out";
+		pins = "PL7";
+		function = "gpio_out";
 	};
 };
 
@@ -197,7 +197,7 @@
 };
 
 &usb1_vbus_pin_a {
-	allwinner,pins = "PG13";
+	pins = "PG13";
 };
 
 &usbphy {

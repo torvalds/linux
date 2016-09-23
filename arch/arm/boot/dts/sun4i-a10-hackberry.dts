@@ -129,13 +129,13 @@
 	pinctrl-0 = <&hackberry_hogs>;
 
 	hackberry_hogs: hogs@0 {
-		allwinner,pins = "PH19";
-		allwinner,function = "gpio_out";
+		pins = "PH19";
+		function = "gpio_out";
 	};
 
 	usb2_vbus_pin_hackberry: usb2_vbus_pin@0 {
-		allwinner,pins = "PH12";
-		allwinner,function = "gpio_out";
+		pins = "PH12";
+		function = "gpio_out";
 	};
 };
 

@@ -238,8 +238,8 @@
 		     <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 
 	uart0_pins_b: uart0@1 {
-		allwinner,pins = "PB0", "PB1";
-		allwinner,function = "uart0";
+		pins = "PB0", "PB1";
+		function = "uart0";
 	};
 
 };

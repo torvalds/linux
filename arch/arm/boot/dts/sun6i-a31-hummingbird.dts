@@ -201,7 +201,7 @@
 
 &mmc0_pins_a {
 	/* external pull-ups missing for some pins */
-	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	bias-pull-up;
 };
 
 &mmc1 {
@@ -220,19 +220,19 @@
 
 &pio {
 	gmac_phy_reset_pin_hummingbird: gmac_phy_reset_pin@0 {
-		allwinner,pins = "PA21";
-		allwinner,function = "gpio_out";
+		pins = "PA21";
+		function = "gpio_out";
 	};
 
 	mmc0_cd_pin_hummingbird: mmc0_cd_pin@0 {
-		allwinner,pins = "PA8";
-		allwinner,function = "gpio_in";
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PA8";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 
 	wifi_reset_pin_hummingbird: wifi_reset_pin@0 {
-		allwinner,pins = "PG10";
-		allwinner,function = "gpio_out";
+		pins = "PG10";
+		function = "gpio_out";
 	};
 };
 
@@ -328,7 +328,7 @@
 
 &usb1_vbus_pin_a {
 	/* different pin from sunxi-common-regulators */
-	allwinner,pins = "PH24";
+	pins = "PH24";
 };
 
 &usbphy {

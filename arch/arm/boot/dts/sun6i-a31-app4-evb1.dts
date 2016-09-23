@@ -68,8 +68,8 @@
 
 &pio {
 	usb1_vbus_pin_a: usb1_vbus_pin@0 {
-		allwinner,pins = "PH27";
-		allwinner,function = "gpio_out";
+		pins = "PH27";
+		function = "gpio_out";
 	};
 };
 
