@@ -700,7 +700,6 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	struct drm_vmw_surface_create_req *req = &arg->req;
 	struct drm_vmw_surface_arg *rep = &arg->rep;
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
-	struct drm_vmw_size __user *user_sizes;
 	int ret;
 	int i, j;
 	uint32_t cur_bo_offset;
@@ -763,11 +762,11 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	memcpy(srf->mip_levels, req->mip_levels, sizeof(srf->mip_levels));
 	srf->num_sizes = num_sizes;
 	user_srf->size = size;
-	srf->sizes = kmalloc_array(srf->num_sizes,
-				   sizeof(*srf->sizes),
-				   GFP_KERNEL);
-	if (unlikely(srf->sizes == NULL)) {
-		ret = -ENOMEM;
+	srf->sizes = memdup_user((struct drm_vmw_size __user *)(unsigned long)
+				 req->size_addr,
+				 sizeof(*srf->sizes) * srf->num_sizes);
+	if (IS_ERR(srf->sizes)) {
+		ret = PTR_ERR(srf->sizes);
 		goto out_no_sizes;
 	}
 	srf->offsets = kmalloc_array(srf->num_sizes,
@@ -776,16 +775,6 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	if (unlikely(srf->offsets == NULL)) {
 		ret = -ENOMEM;
 		goto out_no_offsets;
-	}
-
-	user_sizes = (struct drm_vmw_size __user *)(unsigned long)
-	    req->size_addr;
-
-	ret = copy_from_user(srf->sizes, user_sizes,
-			     srf->num_sizes * sizeof(*srf->sizes));
-	if (unlikely(ret != 0)) {
-		ret = -EFAULT;
-		goto out_no_copy;
 	}
 
 	srf->base_size = *srf->sizes;
