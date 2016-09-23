@@ -1522,7 +1522,8 @@ void fp_unavailable_tm(struct pt_regs *regs)
 
 	/* If VMX is in use, get the transactional values back */
 	if (regs->msr & MSR_VEC) {
-		do_load_up_transact_altivec(&current->thread);
+		msr_check_and_set(MSR_VEC);
+		load_vr_state(&current->thread.vr_state);
 		/* At this point all the VSX state is loaded, so enable it */
 		regs->msr |= MSR_VSX;
 	}
@@ -1543,7 +1544,8 @@ void altivec_unavailable_tm(struct pt_regs *regs)
 	current->thread.used_vr = 1;
 
 	if (regs->msr & MSR_FP) {
-		do_load_up_transact_fpu(&current->thread);
+		msr_check_and_set(MSR_FP);
+		load_fp_state(&current->thread.fp_state);
 		regs->msr |= MSR_VSX;
 	}
 }
@@ -1582,10 +1584,12 @@ void vsx_unavailable_tm(struct pt_regs *regs)
 	 */
 	tm_recheckpoint(&current->thread, regs->msr & ~orig_msr);
 
+	msr_check_and_set(orig_msr & (MSR_FP | MSR_VEC));
+
 	if (orig_msr & MSR_FP)
-		do_load_up_transact_fpu(&current->thread);
+		load_fp_state(&current->thread.fp_state);
 	if (orig_msr & MSR_VEC)
-		do_load_up_transact_altivec(&current->thread);
+		load_vr_state(&current->thread.vr_state);
 }
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 

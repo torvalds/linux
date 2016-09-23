@@ -267,16 +267,13 @@ struct thread_struct {
 	unsigned long	tm_dscr;
 
 	/*
-	 * Transactional FP and VSX 0-31 register set.
-	 * NOTE: the sense of these is the opposite of the integer ckpt_regs!
+	 * Checkpointed FP and VSX 0-31 register set.
 	 *
 	 * When a transaction is active/signalled/scheduled etc., *regs is the
 	 * most recent set of/speculated GPRs with ckpt_regs being the older
 	 * checkpointed regs to which we roll back if transaction aborts.
 	 *
-	 * However, fpr[] is the checkpointed 'base state' of FP regs, and
-	 * transact_fpr[] is the new set of transactional values.
-	 * VRs work the same way.
+	 * These are analogous to how ckpt_regs and pt_regs work
 	 */
 	struct thread_fp_state transact_fp;
 	struct thread_vr_state transact_vr;

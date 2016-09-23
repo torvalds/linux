@@ -526,9 +526,6 @@ static int save_tm_user_regs(struct pt_regs *regs,
 	 */
 	regs->msr &= ~MSR_TS_MASK;
 
-	/* Make sure floating point registers are stored in regs */
-	flush_fp_to_thread(current);
-
 	/* Save both sets of general registers */
 	if (save_general_regs(&current->thread.ckpt_regs, frame)
 	    || save_general_regs(regs, tm_frame))
@@ -546,18 +543,17 @@ static int save_tm_user_regs(struct pt_regs *regs,
 #ifdef CONFIG_ALTIVEC
 	/* save altivec registers */
 	if (current->thread.used_vr) {
-		flush_altivec_to_thread(current);
-		if (__copy_to_user(&frame->mc_vregs, &current->thread.vr_state,
+		if (__copy_to_user(&frame->mc_vregs, &current->thread.transact_vr,
 				   ELF_NVRREG * sizeof(vector128)))
 			return 1;
 		if (msr & MSR_VEC) {
 			if (__copy_to_user(&tm_frame->mc_vregs,
-					   &current->thread.transact_vr,
+					   &current->thread.vr_state,
 					   ELF_NVRREG * sizeof(vector128)))
 				return 1;
 		} else {
 			if (__copy_to_user(&tm_frame->mc_vregs,
-					   &current->thread.vr_state,
+					   &current->thread.transact_vr,
 					   ELF_NVRREG * sizeof(vector128)))
 				return 1;
 		}
@@ -574,28 +570,28 @@ static int save_tm_user_regs(struct pt_regs *regs,
 	 * most significant bits of that same vector. --BenH
 	 */
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
-		current->thread.vrsave = mfspr(SPRN_VRSAVE);
-	if (__put_user(current->thread.vrsave,
+		current->thread.transact_vrsave = mfspr(SPRN_VRSAVE);
+	if (__put_user(current->thread.transact_vrsave,
 		       (u32 __user *)&frame->mc_vregs[32]))
 		return 1;
 	if (msr & MSR_VEC) {
-		if (__put_user(current->thread.transact_vrsave,
+		if (__put_user(current->thread.vrsave,
 			       (u32 __user *)&tm_frame->mc_vregs[32]))
 			return 1;
 	} else {
-		if (__put_user(current->thread.vrsave,
+		if (__put_user(current->thread.transact_vrsave,
 			       (u32 __user *)&tm_frame->mc_vregs[32]))
 			return 1;
 	}
 #endif /* CONFIG_ALTIVEC */
 
-	if (copy_fpr_to_user(&frame->mc_fregs, current))
+	if (copy_transact_fpr_to_user(&frame->mc_fregs, current))
 		return 1;
 	if (msr & MSR_FP) {
-		if (copy_transact_fpr_to_user(&tm_frame->mc_fregs, current))
+		if (copy_fpr_to_user(&tm_frame->mc_fregs, current))
 			return 1;
 	} else {
-		if (copy_fpr_to_user(&tm_frame->mc_fregs, current))
+		if (copy_transact_fpr_to_user(&tm_frame->mc_fregs, current))
 			return 1;
 	}
 
@@ -607,15 +603,14 @@ static int save_tm_user_regs(struct pt_regs *regs,
 	 * contains valid data
 	 */
 	if (current->thread.used_vsr) {
-		flush_vsx_to_thread(current);
-		if (copy_vsx_to_user(&frame->mc_vsregs, current))
+		if (copy_transact_vsx_to_user(&frame->mc_vsregs, current))
 			return 1;
 		if (msr & MSR_VSX) {
-			if (copy_transact_vsx_to_user(&tm_frame->mc_vsregs,
+			if (copy_vsx_to_user(&tm_frame->mc_vsregs,
 						      current))
 				return 1;
 		} else {
-			if (copy_vsx_to_user(&tm_frame->mc_vsregs, current))
+			if (copy_transact_vsx_to_user(&tm_frame->mc_vsregs, current))
 				return 1;
 		}
 
@@ -797,9 +792,9 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 	regs->msr &= ~MSR_VEC;
 	if (msr & MSR_VEC) {
 		/* restore altivec registers from the stack */
-		if (__copy_from_user(&current->thread.vr_state, &sr->mc_vregs,
+		if (__copy_from_user(&current->thread.transact_vr, &sr->mc_vregs,
 				     sizeof(sr->mc_vregs)) ||
-		    __copy_from_user(&current->thread.transact_vr,
+		    __copy_from_user(&current->thread.vr_state,
 				     &tm_sr->mc_vregs,
 				     sizeof(sr->mc_vregs)))
 			return 1;
@@ -812,13 +807,13 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 	}
 
 	/* Always get VRSAVE back */
-	if (__get_user(current->thread.vrsave,
+	if (__get_user(current->thread.transact_vrsave,
 		       (u32 __user *)&sr->mc_vregs[32]) ||
-	    __get_user(current->thread.transact_vrsave,
+	    __get_user(current->thread.vrsave,
 		       (u32 __user *)&tm_sr->mc_vregs[32]))
 		return 1;
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
-		mtspr(SPRN_VRSAVE, current->thread.vrsave);
+		mtspr(SPRN_VRSAVE, current->thread.transact_vrsave);
 #endif /* CONFIG_ALTIVEC */
 
 	regs->msr &= ~(MSR_FP | MSR_FE0 | MSR_FE1);
@@ -834,8 +829,8 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 		 * Restore altivec registers from the stack to a local
 		 * buffer, then write this out to the thread_struct
 		 */
-		if (copy_vsx_from_user(current, &sr->mc_vsregs) ||
-		    copy_transact_vsx_from_user(current, &tm_sr->mc_vsregs))
+		if (copy_vsx_from_user(current, &tm_sr->mc_vsregs) ||
+		    copy_transact_vsx_from_user(current, &sr->mc_vsregs))
 			return 1;
 		current->thread.used_vsr = true;
 	} else if (current->thread.used_vsr)
@@ -884,13 +879,14 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 	tm_recheckpoint(&current->thread, msr);
 
 	/* This loads the speculative FP/VEC state, if used */
+	msr_check_and_set(msr & (MSR_FP | MSR_VEC));
 	if (msr & MSR_FP) {
-		do_load_up_transact_fpu(&current->thread);
+		load_fp_state(&current->thread.fp_state);
 		regs->msr |= (MSR_FP | current->thread.fpexc_mode);
 	}
 #ifdef CONFIG_ALTIVEC
 	if (msr & MSR_VEC) {
-		do_load_up_transact_altivec(&current->thread);
+		load_vr_state(&current->thread.vr_state);
 		regs->msr |= MSR_VEC;
 	}
 #endif
