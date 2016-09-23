@@ -17,6 +17,7 @@
 #include <linux/filter.h>
 #include <linux/if_vlan.h>
 #include <asm/kprobes.h>
+#include <linux/bpf.h>
 
 #include "bpf_jit64.h"
 
@@ -77,6 +78,11 @@ static int bpf_jit_stack_local(struct codegen_context *ctx)
 		return -(BPF_PPC_STACK_SAVE + 16);
 }
 
+static int bpf_jit_stack_tailcallcnt(struct codegen_context *ctx)
+{
+	return bpf_jit_stack_local(ctx) + 8;
+}
+
 static int bpf_jit_stack_offsetof(struct codegen_context *ctx, int reg)
 {
 	if (reg >= BPF_PPC_NVR_MIN && reg < 32)
@@ -102,33 +108,25 @@ static void bpf_jit_emit_skb_loads(u32 *image, struct codegen_context *ctx)
 	PPC_BPF_LL(b2p[SKB_DATA_REG], 3, offsetof(struct sk_buff, data));
 }
 
-static void bpf_jit_emit_func_call(u32 *image, struct codegen_context *ctx, u64 func)
-{
-#ifdef PPC64_ELF_ABI_v1
-	/* func points to the function descriptor */
-	PPC_LI64(b2p[TMP_REG_2], func);
-	/* Load actual entry point from function descriptor */
-	PPC_BPF_LL(b2p[TMP_REG_1], b2p[TMP_REG_2], 0);
-	/* ... and move it to LR */
-	PPC_MTLR(b2p[TMP_REG_1]);
-	/*
-	 * Load TOC from function descriptor at offset 8.
-	 * We can clobber r2 since we get called through a
-	 * function pointer (so caller will save/restore r2)
-	 * and since we don't use a TOC ourself.
-	 */
-	PPC_BPF_LL(2, b2p[TMP_REG_2], 8);
-#else
-	/* We can clobber r12 */
-	PPC_FUNC_ADDR(12, func);
-	PPC_MTLR(12);
-#endif
-	PPC_BLRL();
-}
-
 static void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 {
 	int i;
+
+	/*
+	 * Initialize tail_call_cnt if we do tail calls.
+	 * Otherwise, put in NOPs so that it can be skipped when we are
+	 * invoked through a tail call.
+	 */
+	if (ctx->seen & SEEN_TAILCALL) {
+		PPC_LI(b2p[TMP_REG_1], 0);
+		/* this goes in the redzone */
+		PPC_BPF_STL(b2p[TMP_REG_1], 1, -(BPF_PPC_STACK_SAVE + 8));
+	} else {
+		PPC_NOP();
+		PPC_NOP();
+	}
+
+#define BPF_TAILCALL_PROLOGUE_SIZE	8
 
 	if (bpf_has_stack_frame(ctx)) {
 		/*
@@ -170,12 +168,9 @@ static void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 				STACK_FRAME_MIN_SIZE + MAX_BPF_STACK);
 }
 
-static void bpf_jit_build_epilogue(u32 *image, struct codegen_context *ctx)
+static void bpf_jit_emit_common_epilogue(u32 *image, struct codegen_context *ctx)
 {
 	int i;
-
-	/* Move result to r3 */
-	PPC_MR(3, b2p[BPF_REG_0]);
 
 	/* Restore NVRs */
 	for (i = BPF_REG_6; i <= BPF_REG_10; i++)
@@ -198,8 +193,103 @@ static void bpf_jit_build_epilogue(u32 *image, struct codegen_context *ctx)
 			PPC_MTLR(0);
 		}
 	}
+}
+
+static void bpf_jit_build_epilogue(u32 *image, struct codegen_context *ctx)
+{
+	bpf_jit_emit_common_epilogue(image, ctx);
+
+	/* Move result to r3 */
+	PPC_MR(3, b2p[BPF_REG_0]);
 
 	PPC_BLR();
+}
+
+static void bpf_jit_emit_func_call(u32 *image, struct codegen_context *ctx, u64 func)
+{
+#ifdef PPC64_ELF_ABI_v1
+	/* func points to the function descriptor */
+	PPC_LI64(b2p[TMP_REG_2], func);
+	/* Load actual entry point from function descriptor */
+	PPC_BPF_LL(b2p[TMP_REG_1], b2p[TMP_REG_2], 0);
+	/* ... and move it to LR */
+	PPC_MTLR(b2p[TMP_REG_1]);
+	/*
+	 * Load TOC from function descriptor at offset 8.
+	 * We can clobber r2 since we get called through a
+	 * function pointer (so caller will save/restore r2)
+	 * and since we don't use a TOC ourself.
+	 */
+	PPC_BPF_LL(2, b2p[TMP_REG_2], 8);
+#else
+	/* We can clobber r12 */
+	PPC_FUNC_ADDR(12, func);
+	PPC_MTLR(12);
+#endif
+	PPC_BLRL();
+}
+
+static void bpf_jit_emit_tail_call(u32 *image, struct codegen_context *ctx, u32 out)
+{
+	/*
+	 * By now, the eBPF program has already setup parameters in r3, r4 and r5
+	 * r3/BPF_REG_1 - pointer to ctx -- passed as is to the next bpf program
+	 * r4/BPF_REG_2 - pointer to bpf_array
+	 * r5/BPF_REG_3 - index in bpf_array
+	 */
+	int b2p_bpf_array = b2p[BPF_REG_2];
+	int b2p_index = b2p[BPF_REG_3];
+
+	/*
+	 * if (index >= array->map.max_entries)
+	 *   goto out;
+	 */
+	PPC_LWZ(b2p[TMP_REG_1], b2p_bpf_array, offsetof(struct bpf_array, map.max_entries));
+	PPC_CMPLW(b2p_index, b2p[TMP_REG_1]);
+	PPC_BCC(COND_GE, out);
+
+	/*
+	 * if (tail_call_cnt > MAX_TAIL_CALL_CNT)
+	 *   goto out;
+	 */
+	PPC_LD(b2p[TMP_REG_1], 1, bpf_jit_stack_tailcallcnt(ctx));
+	PPC_CMPLWI(b2p[TMP_REG_1], MAX_TAIL_CALL_CNT);
+	PPC_BCC(COND_GT, out);
+
+	/*
+	 * tail_call_cnt++;
+	 */
+	PPC_ADDI(b2p[TMP_REG_1], b2p[TMP_REG_1], 1);
+	PPC_BPF_STL(b2p[TMP_REG_1], 1, bpf_jit_stack_tailcallcnt(ctx));
+
+	/* prog = array->ptrs[index]; */
+	PPC_MULI(b2p[TMP_REG_1], b2p_index, 8);
+	PPC_ADD(b2p[TMP_REG_1], b2p[TMP_REG_1], b2p_bpf_array);
+	PPC_LD(b2p[TMP_REG_1], b2p[TMP_REG_1], offsetof(struct bpf_array, ptrs));
+
+	/*
+	 * if (prog == NULL)
+	 *   goto out;
+	 */
+	PPC_CMPLDI(b2p[TMP_REG_1], 0);
+	PPC_BCC(COND_EQ, out);
+
+	/* goto *(prog->bpf_func + prologue_size); */
+	PPC_LD(b2p[TMP_REG_1], b2p[TMP_REG_1], offsetof(struct bpf_prog, bpf_func));
+#ifdef PPC64_ELF_ABI_v1
+	/* skip past the function descriptor */
+	PPC_ADDI(b2p[TMP_REG_1], b2p[TMP_REG_1],
+			FUNCTION_DESCR_SIZE + BPF_TAILCALL_PROLOGUE_SIZE);
+#else
+	PPC_ADDI(b2p[TMP_REG_1], b2p[TMP_REG_1], BPF_TAILCALL_PROLOGUE_SIZE);
+#endif
+	PPC_MTCTR(b2p[TMP_REG_1]);
+
+	/* tear down stack, restore NVRs, ... */
+	bpf_jit_emit_common_epilogue(image, ctx);
+
+	PPC_BCTR();
+	/* out: */
 }
 
 /* Assemble the body code between the prologue & epilogue */
@@ -846,9 +936,12 @@ common_load:
 			break;
 
 		/*
-		 * TODO: Tail call
+		 * Tail call
 		 */
 		case BPF_JMP | BPF_CALL | BPF_X:
+			ctx->seen |= SEEN_TAILCALL;
+			bpf_jit_emit_tail_call(image, ctx, addrs[i + 1]);
+			break;
 
 		default:
 			/*

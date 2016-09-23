@@ -88,6 +88,7 @@ DECLARE_LOAD_FUNC(sk_load_byte);
 #define SEEN_FUNC	0x1000 /* might call external helpers */
 #define SEEN_STACK	0x2000 /* uses BPF stack */
 #define SEEN_SKB	0x4000 /* uses sk_buff */
+#define SEEN_TAILCALL	0x8000 /* uses tail calls */
 
 struct codegen_context {
 	/*
