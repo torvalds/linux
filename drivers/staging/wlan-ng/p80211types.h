@@ -215,9 +215,9 @@ struct p80211enum {
 /*  messages. */
 
 /* Template pascal string */
-typedef struct p80211pstr {
+struct p80211pstr {
 	u8 len;
-} __packed p80211pstr_t;
+} __packed;
 
 typedef struct p80211pstrd {
 	u8 len;
