@@ -362,17 +362,6 @@ static int max1027_set_trigger_state(struct iio_trigger *trig, bool state)
 	return 0;
 }
 
-static int max1027_validate_device(struct iio_trigger *trig,
-				   struct iio_dev *indio_dev)
-{
-	struct iio_dev *indio = iio_trigger_get_drvdata(trig);
-
-	if (indio != indio_dev)
-		return -EINVAL;
-
-	return 0;
-}
-
 static irqreturn_t max1027_trigger_handler(int irq, void *private)
 {
 	struct iio_poll_func *pf = (struct iio_poll_func *)private;
@@ -393,7 +382,7 @@ static irqreturn_t max1027_trigger_handler(int irq, void *private)
 
 static const struct iio_trigger_ops max1027_trigger_ops = {
 	.owner = THIS_MODULE,
-	.validate_device = &max1027_validate_device,
+	.validate_device = &iio_trigger_validate_own_device,
 	.set_trigger_state = &max1027_set_trigger_state,
 };
 
