@@ -743,7 +743,7 @@ static int stm32_of_dma_rx_probe(struct stm32_port *stm32port,
 
 	/* Configure DMA channel */
 	memset(&config, 0, sizeof(config));
-	config.src_addr = (dma_addr_t)port->membase + ofs->rdr;
+	config.src_addr = port->mapbase + ofs->rdr;
 	config.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
 
 	ret = dmaengine_slave_config(stm32port->rx_ch, &config);
@@ -815,7 +815,7 @@ static int stm32_of_dma_tx_probe(struct stm32_port *stm32port,
 
 	/* Configure DMA channel */
 	memset(&config, 0, sizeof(config));
-	config.dst_addr = (dma_addr_t)port->membase + ofs->tdr;
+	config.dst_addr = port->mapbase + ofs->tdr;
 	config.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
 
 	ret = dmaengine_slave_config(stm32port->tx_ch, &config);
