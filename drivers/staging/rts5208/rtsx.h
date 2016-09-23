@@ -88,8 +88,6 @@ do {						\
 
 #define SCSI_LUN(srb)		((srb)->device->lun)
 
-typedef unsigned long DELAY_PARA_T;
-
 struct rtsx_chip;
 
 struct rtsx_dev {
@@ -129,8 +127,6 @@ struct rtsx_dev {
 
 	struct rtsx_chip	*chip;
 };
-
-typedef struct rtsx_dev rtsx_dev_t;
 
 /* Convert between rtsx_dev and the corresponding Scsi_Host */
 static inline struct Scsi_Host *rtsx_to_host(struct rtsx_dev *dev)

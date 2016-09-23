@@ -683,7 +683,7 @@ struct trace_msg_t {
 #define CLR_SDIO_IGNORED(chip)		((chip)->sdio_func_exist &= ~SDIO_IGNORED)
 
 struct rtsx_chip {
-	rtsx_dev_t	*rtsx;
+	struct rtsx_dev	*rtsx;
 
 	u32		int_reg; /* Bus interrupt pending register */
 	char		max_lun;
