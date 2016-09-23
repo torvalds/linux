@@ -55,18 +55,6 @@ static struct vvp_io *cl2vvp_io(const struct lu_env *env,
 }
 
 /**
- * True, if \a io is a normal io, False for splice_{read,write}
- */
-static int cl_is_normalio(const struct lu_env *env, const struct cl_io *io)
-{
-	struct vvp_io *vio = vvp_env_io(env);
-
-	LASSERT(io->ci_type == CIT_READ || io->ci_type == CIT_WRITE);
-
-	return vio->vui_io_subtype == IO_NORMAL;
-}
-
-/**
  * For swapping layout. The file's layout may have changed.
  * To avoid populating pages to a wrong stripe, we have to verify the
  * correctness of layout. It works because swapping layout processes
@@ -391,9 +379,6 @@ static int vvp_mmap_locks(const struct lu_env *env,
 
 	LASSERT(io->ci_type == CIT_READ || io->ci_type == CIT_WRITE);
 
-	if (!cl_is_normalio(env, io))
-		return 0;
-
 	if (!vio->vui_iter) /* nfs or loop back device write */
 		return 0;
 
@@ -462,14 +447,9 @@ static void vvp_io_advance(const struct lu_env *env,
 			   const struct cl_io_slice *ios,
 			   size_t nob)
 {
-	struct vvp_io    *vio = cl2vvp_io(env, ios);
-	struct cl_io     *io  = ios->cis_io;
 	struct cl_object *obj = ios->cis_io->ci_obj;
-
+	struct vvp_io	 *vio = cl2vvp_io(env, ios);
 	CLOBINVRNT(env, obj, vvp_object_invariant(obj));
-
-	if (!cl_is_normalio(env, io))
-		return;
 
 	iov_iter_reexpand(vio->vui_iter, vio->vui_tot_count  -= nob);
 }
@@ -479,7 +459,7 @@ static void vvp_io_update_iov(const struct lu_env *env,
 {
 	size_t size = io->u.ci_rw.crw_count;
 
-	if (!cl_is_normalio(env, io) || !vio->vui_iter)
+	if (!vio->vui_iter)
 		return;
 
 	iov_iter_truncate(vio->vui_iter, size);
@@ -716,25 +696,8 @@ static int vvp_io_read_start(const struct lu_env *env,
 
 	/* BUG: 5972 */
 	file_accessed(file);
-	switch (vio->vui_io_subtype) {
-	case IO_NORMAL:
-		LASSERT(vio->vui_iocb->ki_pos == pos);
-		result = generic_file_read_iter(vio->vui_iocb, vio->vui_iter);
-		break;
-	case IO_SPLICE:
-		result = generic_file_splice_read(file, &pos,
-						  vio->u.splice.vui_pipe, cnt,
-						  vio->u.splice.vui_flags);
-		/* LU-1109: do splice read stripe by stripe otherwise if it
-		 * may make nfsd stuck if this read occupied all internal pipe
-		 * buffers.
-		 */
-		io->ci_continue = 0;
-		break;
-	default:
-		CERROR("Wrong IO type %u\n", vio->vui_io_subtype);
-		LBUG();
-	}
+	LASSERT(vio->vui_iocb->ki_pos == pos);
+	result = generic_file_read_iter(vio->vui_iocb, vio->vui_iter);
 
 out:
 	if (result >= 0) {

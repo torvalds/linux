@@ -399,45 +399,6 @@ xfs_file_read_iter(
 	return ret;
 }
 
-STATIC ssize_t
-xfs_file_splice_read(
-	struct file		*infilp,
-	loff_t			*ppos,
-	struct pipe_inode_info	*pipe,
-	size_t			count,
-	unsigned int		flags)
-{
-	struct xfs_inode	*ip = XFS_I(infilp->f_mapping->host);
-	ssize_t			ret;
-
-	XFS_STATS_INC(ip->i_mount, xs_read_calls);
-
-	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
-		return -EIO;
-
-	trace_xfs_file_splice_read(ip, count, *ppos);
-
-	/*
-	 * DAX inodes cannot ues the page cache for splice, so we have to push
-	 * them through the VFS IO path. This means it goes through
-	 * ->read_iter, which for us takes the XFS_IOLOCK_SHARED. Hence we
-	 * cannot lock the splice operation at this level for DAX inodes.
-	 */
-	if (IS_DAX(VFS_I(ip))) {
-		ret = default_file_splice_read(infilp, ppos, pipe, count,
-					       flags);
-		goto out;
-	}
-
-	xfs_rw_ilock(ip, XFS_IOLOCK_SHARED);
-	ret = generic_file_splice_read(infilp, ppos, pipe, count, flags);
-	xfs_rw_iunlock(ip, XFS_IOLOCK_SHARED);
-out:
-	if (ret > 0)
-		XFS_STATS_ADD(ip->i_mount, xs_read_bytes, ret);
-	return ret;
-}
-
 /*
  * Zero any on disk space between the current EOF and the new, larger EOF.
  *
@@ -1652,7 +1613,7 @@ const struct file_operations xfs_file_operations = {
 	.llseek		= xfs_file_llseek,
 	.read_iter	= xfs_file_read_iter,
 	.write_iter	= xfs_file_write_iter,
-	.splice_read	= xfs_file_splice_read,
+	.splice_read	= generic_file_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.unlocked_ioctl	= xfs_file_ioctl,
 #ifdef CONFIG_COMPAT
