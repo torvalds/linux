@@ -147,7 +147,7 @@ typedef struct {
 } mm_segment_t;
 
 #define TS_FPR(i) fp_state.fpr[i][TS_FPROFFSET]
-#define TS_TRANS_FPR(i) transact_fp.fpr[i][TS_FPROFFSET]
+#define TS_CKFPR(i) ckfp_state.fpr[i][TS_FPROFFSET]
 
 /* FP and VSX 0-31 register set */
 struct thread_fp_state {
@@ -275,9 +275,9 @@ struct thread_struct {
 	 *
 	 * These are analogous to how ckpt_regs and pt_regs work
 	 */
-	struct thread_fp_state transact_fp;
-	struct thread_vr_state transact_vr;
-	unsigned long	transact_vrsave;
+	struct thread_fp_state ckfp_state; /* Checkpointed FP state */
+	struct thread_vr_state ckvr_state; /* Checkpointed VR state */
+	unsigned long	ckvrsave; /* Checkpointed VRSAVE */
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 #ifdef CONFIG_KVM_BOOK3S_32_HANDLER
 	void*		kvm_shadow_vcpu; /* KVM internal data */

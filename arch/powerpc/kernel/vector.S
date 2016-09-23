@@ -23,10 +23,10 @@ _GLOBAL(do_load_up_transact_altivec)
 	li	r4,1
 	stw	r4,THREAD_USED_VR(r3)
 
-	li	r10,THREAD_TRANSACT_VRSTATE+VRSTATE_VSCR
+	li	r10,THREAD_CKVRSTATE+VRSTATE_VSCR
 	lvx	v0,r10,r3
 	mtvscr	v0
-	addi	r10,r3,THREAD_TRANSACT_VRSTATE
+	addi	r10,r3,THREAD_CKVRSTATE
 	REST_32VRS(0,r4,r10)
 
 	blr

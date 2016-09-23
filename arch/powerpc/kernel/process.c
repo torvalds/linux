@@ -851,8 +851,8 @@ static inline void tm_reclaim_task(struct task_struct *tsk)
 	 *
 	 * In switching we need to maintain a 2nd register state as
 	 * oldtask->thread.ckpt_regs.  We tm_reclaim(oldproc); this saves the
-	 * checkpointed (tbegin) state in ckpt_regs and saves the transactional
-	 * (current) FPRs into oldtask->thread.transact_fpr[].
+	 * checkpointed (tbegin) state in ckpt_regs, ckfp_state and
+	 * ckvr_state
 	 *
 	 * We also context switch (save) TFHAR/TEXASR/TFIAR in here.
 	 */

@@ -228,7 +228,7 @@ static long setup_tm_sigcontexts(struct sigcontext __user *sc,
 	/* save altivec registers */
 	if (tsk->thread.used_vr) {
 		/* Copy 33 vec registers (vr0..31 and vscr) to the stack */
-		err |= __copy_to_user(v_regs, &tsk->thread.transact_vr,
+		err |= __copy_to_user(v_regs, &tsk->thread.ckvr_state,
 				      33 * sizeof(vector128));
 		/* If VEC was enabled there are transactional VRs valid too,
 		 * else they're a copy of the checkpointed VRs.
@@ -239,7 +239,7 @@ static long setup_tm_sigcontexts(struct sigcontext __user *sc,
 					      33 * sizeof(vector128));
 		else
 			err |= __copy_to_user(tm_v_regs,
-					      &tsk->thread.transact_vr,
+					      &tsk->thread.ckvr_state,
 					      33 * sizeof(vector128));
 
 		/* set MSR_VEC in the MSR value in the frame to indicate
@@ -251,13 +251,13 @@ static long setup_tm_sigcontexts(struct sigcontext __user *sc,
 	 * use altivec.
 	 */
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
-		tsk->thread.transact_vrsave = mfspr(SPRN_VRSAVE);
-	err |= __put_user(tsk->thread.transact_vrsave, (u32 __user *)&v_regs[33]);
+		tsk->thread.ckvrsave = mfspr(SPRN_VRSAVE);
+	err |= __put_user(tsk->thread.ckvrsave, (u32 __user *)&v_regs[33]);
 	if (msr & MSR_VEC)
 		err |= __put_user(tsk->thread.vrsave,
 				  (u32 __user *)&tm_v_regs[33]);
 	else
-		err |= __put_user(tsk->thread.transact_vrsave,
+		err |= __put_user(tsk->thread.ckvrsave,
 				  (u32 __user *)&tm_v_regs[33]);
 
 #else /* CONFIG_ALTIVEC */
@@ -266,11 +266,11 @@ static long setup_tm_sigcontexts(struct sigcontext __user *sc,
 #endif /* CONFIG_ALTIVEC */
 
 	/* copy fpr regs and fpscr */
-	err |= copy_transact_fpr_to_user(&sc->fp_regs, tsk);
+	err |= copy_ckfpr_to_user(&sc->fp_regs, tsk);
 	if (msr & MSR_FP)
 		err |= copy_fpr_to_user(&tm_sc->fp_regs, tsk);
 	else
-		err |= copy_transact_fpr_to_user(&tm_sc->fp_regs, tsk);
+		err |= copy_ckfpr_to_user(&tm_sc->fp_regs, tsk);
 
 #ifdef CONFIG_VSX
 	/*
@@ -282,12 +282,12 @@ static long setup_tm_sigcontexts(struct sigcontext __user *sc,
 		v_regs += ELF_NVRREG;
 		tm_v_regs += ELF_NVRREG;
 
-		err |= copy_transact_vsx_to_user(v_regs, tsk);
+		err |= copy_ckvsx_to_user(v_regs, tsk);
 
 		if (msr & MSR_VSX)
 			err |= copy_vsx_to_user(tm_v_regs, tsk);
 		else
-			err |= copy_transact_vsx_to_user(tm_v_regs, tsk);
+			err |= copy_ckvsx_to_user(tm_v_regs, tsk);
 
 		/* set MSR_VSX in the MSR value in the frame to
 		 * indicate that sc->vs_reg) contains valid data.
@@ -497,7 +497,7 @@ static long restore_tm_sigcontexts(struct task_struct *tsk,
 		return -EFAULT;
 	/* Copy 33 vec registers (vr0..31 and vscr) from the stack */
 	if (v_regs != NULL && tm_v_regs != NULL && (msr & MSR_VEC) != 0) {
-		err |= __copy_from_user(&tsk->thread.transact_vr, v_regs,
+		err |= __copy_from_user(&tsk->thread.ckvr_state, v_regs,
 					33 * sizeof(vector128));
 		err |= __copy_from_user(&tsk->thread.vr_state, tm_v_regs,
 					33 * sizeof(vector128));
@@ -505,25 +505,25 @@ static long restore_tm_sigcontexts(struct task_struct *tsk,
 	}
 	else if (tsk->thread.used_vr) {
 		memset(&tsk->thread.vr_state, 0, 33 * sizeof(vector128));
-		memset(&tsk->thread.transact_vr, 0, 33 * sizeof(vector128));
+		memset(&tsk->thread.ckvr_state, 0, 33 * sizeof(vector128));
 	}
 	/* Always get VRSAVE back */
 	if (v_regs != NULL && tm_v_regs != NULL) {
-		err |= __get_user(tsk->thread.transact_vrsave,
+		err |= __get_user(tsk->thread.ckvrsave,
 				  (u32 __user *)&v_regs[33]);
 		err |= __get_user(tsk->thread.vrsave,
 				  (u32 __user *)&tm_v_regs[33]);
 	}
 	else {
 		tsk->thread.vrsave = 0;
-		tsk->thread.transact_vrsave = 0;
+		tsk->thread.ckvrsave = 0;
 	}
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
 		mtspr(SPRN_VRSAVE, tsk->thread.vrsave);
 #endif /* CONFIG_ALTIVEC */
 	/* restore floating point */
 	err |= copy_fpr_from_user(tsk, &tm_sc->fp_regs);
-	err |= copy_transact_fpr_from_user(tsk, &sc->fp_regs);
+	err |= copy_ckfpr_from_user(tsk, &sc->fp_regs);
 #ifdef CONFIG_VSX
 	/*
 	 * Get additional VSX data. Update v_regs to point after the
@@ -534,12 +534,12 @@ static long restore_tm_sigcontexts(struct task_struct *tsk,
 		v_regs += ELF_NVRREG;
 		tm_v_regs += ELF_NVRREG;
 		err |= copy_vsx_from_user(tsk, tm_v_regs);
-		err |= copy_transact_vsx_from_user(tsk, v_regs);
+		err |= copy_ckvsx_from_user(tsk, v_regs);
 		tsk->thread.used_vsr = true;
 	} else {
 		for (i = 0; i < 32 ; i++) {
 			tsk->thread.fp_state.fpr[i][TS_VSRLOWOFFSET] = 0;
-			tsk->thread.transact_fp.fpr[i][TS_VSRLOWOFFSET] = 0;
+			tsk->thread.ckfp_state.fpr[i][TS_VSRLOWOFFSET] = 0;
 		}
 	}
 #endif

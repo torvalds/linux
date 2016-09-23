@@ -316,7 +316,7 @@ unsigned long copy_vsx_from_user(struct task_struct *task,
 }
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-unsigned long copy_transact_fpr_to_user(void __user *to,
+unsigned long copy_ckfpr_to_user(void __user *to,
 				  struct task_struct *task)
 {
 	u64 buf[ELF_NFPREG];
@@ -324,12 +324,12 @@ unsigned long copy_transact_fpr_to_user(void __user *to,
 
 	/* save FPR copy to local buffer then write to the thread_struct */
 	for (i = 0; i < (ELF_NFPREG - 1) ; i++)
-		buf[i] = task->thread.TS_TRANS_FPR(i);
-	buf[i] = task->thread.transact_fp.fpscr;
+		buf[i] = task->thread.TS_CKFPR(i);
+	buf[i] = task->thread.ckfp_state.fpscr;
 	return __copy_to_user(to, buf, ELF_NFPREG * sizeof(double));
 }
 
-unsigned long copy_transact_fpr_from_user(struct task_struct *task,
+unsigned long copy_ckfpr_from_user(struct task_struct *task,
 					  void __user *from)
 {
 	u64 buf[ELF_NFPREG];
@@ -338,13 +338,13 @@ unsigned long copy_transact_fpr_from_user(struct task_struct *task,
 	if (__copy_from_user(buf, from, ELF_NFPREG * sizeof(double)))
 		return 1;
 	for (i = 0; i < (ELF_NFPREG - 1) ; i++)
-		task->thread.TS_TRANS_FPR(i) = buf[i];
-	task->thread.transact_fp.fpscr = buf[i];
+		task->thread.TS_CKFPR(i) = buf[i];
+	task->thread.ckfp_state.fpscr = buf[i];
 
 	return 0;
 }
 
-unsigned long copy_transact_vsx_to_user(void __user *to,
+unsigned long copy_ckvsx_to_user(void __user *to,
 				  struct task_struct *task)
 {
 	u64 buf[ELF_NVSRHALFREG];
@@ -352,11 +352,11 @@ unsigned long copy_transact_vsx_to_user(void __user *to,
 
 	/* save FPR copy to local buffer then write to the thread_struct */
 	for (i = 0; i < ELF_NVSRHALFREG; i++)
-		buf[i] = task->thread.transact_fp.fpr[i][TS_VSRLOWOFFSET];
+		buf[i] = task->thread.ckfp_state.fpr[i][TS_VSRLOWOFFSET];
 	return __copy_to_user(to, buf, ELF_NVSRHALFREG * sizeof(double));
 }
 
-unsigned long copy_transact_vsx_from_user(struct task_struct *task,
+unsigned long copy_ckvsx_from_user(struct task_struct *task,
 					  void __user *from)
 {
 	u64 buf[ELF_NVSRHALFREG];
@@ -365,7 +365,7 @@ unsigned long copy_transact_vsx_from_user(struct task_struct *task,
 	if (__copy_from_user(buf, from, ELF_NVSRHALFREG * sizeof(double)))
 		return 1;
 	for (i = 0; i < ELF_NVSRHALFREG ; i++)
-		task->thread.transact_fp.fpr[i][TS_VSRLOWOFFSET] = buf[i];
+		task->thread.ckfp_state.fpr[i][TS_VSRLOWOFFSET] = buf[i];
 	return 0;
 }
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
@@ -385,17 +385,17 @@ inline unsigned long copy_fpr_from_user(struct task_struct *task,
 }
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-inline unsigned long copy_transact_fpr_to_user(void __user *to,
+inline unsigned long copy_ckfpr_to_user(void __user *to,
 					 struct task_struct *task)
 {
-	return __copy_to_user(to, task->thread.transact_fp.fpr,
+	return __copy_to_user(to, task->thread.ckfp_state.fpr,
 			      ELF_NFPREG * sizeof(double));
 }
 
-inline unsigned long copy_transact_fpr_from_user(struct task_struct *task,
+inline unsigned long copy_ckfpr_from_user(struct task_struct *task,
 						 void __user *from)
 {
-	return __copy_from_user(task->thread.transact_fp.fpr, from,
+	return __copy_from_user(task->thread.ckfp_state.fpr, from,
 				ELF_NFPREG * sizeof(double));
 }
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
@@ -543,7 +543,7 @@ static int save_tm_user_regs(struct pt_regs *regs,
 #ifdef CONFIG_ALTIVEC
 	/* save altivec registers */
 	if (current->thread.used_vr) {
-		if (__copy_to_user(&frame->mc_vregs, &current->thread.transact_vr,
+		if (__copy_to_user(&frame->mc_vregs, &current->thread.ckvr_state,
 				   ELF_NVRREG * sizeof(vector128)))
 			return 1;
 		if (msr & MSR_VEC) {
@@ -553,7 +553,7 @@ static int save_tm_user_regs(struct pt_regs *regs,
 				return 1;
 		} else {
 			if (__copy_to_user(&tm_frame->mc_vregs,
-					   &current->thread.transact_vr,
+					   &current->thread.ckvr_state,
 					   ELF_NVRREG * sizeof(vector128)))
 				return 1;
 		}
@@ -570,8 +570,8 @@ static int save_tm_user_regs(struct pt_regs *regs,
 	 * most significant bits of that same vector. --BenH
 	 */
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
-		current->thread.transact_vrsave = mfspr(SPRN_VRSAVE);
-	if (__put_user(current->thread.transact_vrsave,
+		current->thread.ckvrsave = mfspr(SPRN_VRSAVE);
+	if (__put_user(current->thread.ckvrsave,
 		       (u32 __user *)&frame->mc_vregs[32]))
 		return 1;
 	if (msr & MSR_VEC) {
@@ -579,19 +579,19 @@ static int save_tm_user_regs(struct pt_regs *regs,
 			       (u32 __user *)&tm_frame->mc_vregs[32]))
 			return 1;
 	} else {
-		if (__put_user(current->thread.transact_vrsave,
+		if (__put_user(current->thread.ckvrsave,
 			       (u32 __user *)&tm_frame->mc_vregs[32]))
 			return 1;
 	}
 #endif /* CONFIG_ALTIVEC */
 
-	if (copy_transact_fpr_to_user(&frame->mc_fregs, current))
+	if (copy_ckfpr_to_user(&frame->mc_fregs, current))
 		return 1;
 	if (msr & MSR_FP) {
 		if (copy_fpr_to_user(&tm_frame->mc_fregs, current))
 			return 1;
 	} else {
-		if (copy_transact_fpr_to_user(&tm_frame->mc_fregs, current))
+		if (copy_ckfpr_to_user(&tm_frame->mc_fregs, current))
 			return 1;
 	}
 
@@ -603,14 +603,14 @@ static int save_tm_user_regs(struct pt_regs *regs,
 	 * contains valid data
 	 */
 	if (current->thread.used_vsr) {
-		if (copy_transact_vsx_to_user(&frame->mc_vsregs, current))
+		if (copy_ckvsx_to_user(&frame->mc_vsregs, current))
 			return 1;
 		if (msr & MSR_VSX) {
 			if (copy_vsx_to_user(&tm_frame->mc_vsregs,
 						      current))
 				return 1;
 		} else {
-			if (copy_transact_vsx_to_user(&tm_frame->mc_vsregs, current))
+			if (copy_ckvsx_to_user(&tm_frame->mc_vsregs, current))
 				return 1;
 		}
 
@@ -792,7 +792,7 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 	regs->msr &= ~MSR_VEC;
 	if (msr & MSR_VEC) {
 		/* restore altivec registers from the stack */
-		if (__copy_from_user(&current->thread.transact_vr, &sr->mc_vregs,
+		if (__copy_from_user(&current->thread.ckvr_state, &sr->mc_vregs,
 				     sizeof(sr->mc_vregs)) ||
 		    __copy_from_user(&current->thread.vr_state,
 				     &tm_sr->mc_vregs,
@@ -802,24 +802,24 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 	} else if (current->thread.used_vr) {
 		memset(&current->thread.vr_state, 0,
 		       ELF_NVRREG * sizeof(vector128));
-		memset(&current->thread.transact_vr, 0,
+		memset(&current->thread.ckvr_state, 0,
 		       ELF_NVRREG * sizeof(vector128));
 	}
 
 	/* Always get VRSAVE back */
-	if (__get_user(current->thread.transact_vrsave,
+	if (__get_user(current->thread.ckvrsave,
 		       (u32 __user *)&sr->mc_vregs[32]) ||
 	    __get_user(current->thread.vrsave,
 		       (u32 __user *)&tm_sr->mc_vregs[32]))
 		return 1;
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
-		mtspr(SPRN_VRSAVE, current->thread.transact_vrsave);
+		mtspr(SPRN_VRSAVE, current->thread.ckvrsave);
 #endif /* CONFIG_ALTIVEC */
 
 	regs->msr &= ~(MSR_FP | MSR_FE0 | MSR_FE1);
 
 	if (copy_fpr_from_user(current, &sr->mc_fregs) ||
-	    copy_transact_fpr_from_user(current, &tm_sr->mc_fregs))
+	    copy_ckfpr_from_user(current, &tm_sr->mc_fregs))
 		return 1;
 
 #ifdef CONFIG_VSX
@@ -830,13 +830,13 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 		 * buffer, then write this out to the thread_struct
 		 */
 		if (copy_vsx_from_user(current, &tm_sr->mc_vsregs) ||
-		    copy_transact_vsx_from_user(current, &sr->mc_vsregs))
+		    copy_ckvsx_from_user(current, &sr->mc_vsregs))
 			return 1;
 		current->thread.used_vsr = true;
 	} else if (current->thread.used_vsr)
 		for (i = 0; i < 32 ; i++) {
 			current->thread.fp_state.fpr[i][TS_VSRLOWOFFSET] = 0;
-			current->thread.transact_fp.fpr[i][TS_VSRLOWOFFSET] = 0;
+			current->thread.ckfp_state.fpr[i][TS_VSRLOWOFFSET] = 0;
 		}
 #endif /* CONFIG_VSX */
 

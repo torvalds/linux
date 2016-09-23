@@ -257,19 +257,19 @@ _GLOBAL(tm_reclaim)
 	andis.		r0, r4, MSR_VEC@h
 	beq	dont_backup_vec
 
-	addi	r7, r3, THREAD_TRANSACT_VRSTATE
+	addi	r7, r3, THREAD_CKVRSTATE
 	SAVE_32VRS(0, r6, r7)	/* r6 scratch, r7 transact vr state */
 	mfvscr	v0
 	li	r6, VRSTATE_VSCR
 	stvx	v0, r7, r6
 dont_backup_vec:
 	mfspr	r0, SPRN_VRSAVE
-	std	r0, THREAD_TRANSACT_VRSAVE(r3)
+	std	r0, THREAD_CKVRSAVE(r3)
 
 	andi.	r0, r4, MSR_FP
 	beq	dont_backup_fp
 
-	addi	r7, r3, THREAD_TRANSACT_FPSTATE
+	addi	r7, r3, THREAD_CKFPSTATE
 	SAVE_32FPRS_VSRS(0, R6, R7)	/* r6 scratch, r7 transact fp state */
 
 	mffs    fr0
@@ -370,20 +370,20 @@ _GLOBAL(__tm_recheckpoint)
 	andis.	r0, r4, MSR_VEC@h
 	beq	dont_restore_vec
 
-	addi	r8, r3, THREAD_TRANSACT_VRSTATE
+	addi	r8, r3, THREAD_CKVRSTATE
 	li	r5, VRSTATE_VSCR
 	lvx	v0, r8, r5
 	mtvscr	v0
 	REST_32VRS(0, r5, r8)			/* r5 scratch, r8 ptr */
 dont_restore_vec:
-	ld	r5, THREAD_TRANSACT_VRSAVE(r3)
+	ld	r5, THREAD_CKVRSAVE(r3)
 	mtspr	SPRN_VRSAVE, r5
 #endif
 
 	andi.	r0, r4, MSR_FP
 	beq	dont_restore_fp
 
-	addi	r8, r3, THREAD_TRANSACT_FPSTATE
+	addi	r8, r3, THREAD_CKFPSTATE
 	lfd	fr0, FPSTATE_FPSCR(r8)
 	MTFSF_L(fr0)
 	REST_32FPRS_VSRS(0, R4, R8)
