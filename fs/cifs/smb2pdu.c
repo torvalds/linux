@@ -250,8 +250,13 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon)
 	}
 
 	cifs_mark_open_files_invalid(tcon);
+
 	rc = SMB2_tcon(0, tcon->ses, tcon->treeName, tcon, nls_codepage);
 	mutex_unlock(&tcon->ses->session_mutex);
+
+	if (tcon->use_persistent)
+		cifs_reopen_persistent_handles(tcon);
+
 	cifs_dbg(FYI, "reconnect tcon rc = %d\n", rc);
 	if (rc)
 		goto out;
