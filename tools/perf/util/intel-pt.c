@@ -2037,6 +2037,12 @@ static void intel_pt_print_info(u64 *arr, int start, int finish)
 		fprintf(stdout, intel_pt_info_fmts[i], arr[i]);
 }
 
+static bool intel_pt_has(struct auxtrace_info_event *auxtrace_info, int pos)
+{
+	return auxtrace_info->header.size >=
+		sizeof(struct auxtrace_info_event) + (sizeof(u64) * (pos + 1));
+}
+
 int intel_pt_process_auxtrace_info(union perf_event *event,
 				   struct perf_session *session)
 {
@@ -2077,8 +2083,7 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	intel_pt_print_info(&auxtrace_info->priv[0], INTEL_PT_PMU_TYPE,
 			    INTEL_PT_PER_CPU_MMAPS);
 
-	if (auxtrace_info->header.size >= sizeof(struct auxtrace_info_event) +
-					(sizeof(u64) * INTEL_PT_CYC_BIT)) {
+	if (intel_pt_has(auxtrace_info, INTEL_PT_CYC_BIT)) {
 		pt->mtc_bit = auxtrace_info->priv[INTEL_PT_MTC_BIT];
 		pt->mtc_freq_bits = auxtrace_info->priv[INTEL_PT_MTC_FREQ_BITS];
 		pt->tsc_ctc_ratio_n = auxtrace_info->priv[INTEL_PT_TSC_CTC_N];
@@ -2088,8 +2093,7 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 				    INTEL_PT_CYC_BIT);
 	}
 
-	if (auxtrace_info->header.size >= sizeof(struct auxtrace_info_event) +
-				(sizeof(u64) * INTEL_PT_MAX_NONTURBO_RATIO)) {
+	if (intel_pt_has(auxtrace_info, INTEL_PT_MAX_NONTURBO_RATIO)) {
 		pt->max_non_turbo_ratio =
 			auxtrace_info->priv[INTEL_PT_MAX_NONTURBO_RATIO];
 		intel_pt_print_info(&auxtrace_info->priv[0],
