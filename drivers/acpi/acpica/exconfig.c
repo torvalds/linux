@@ -532,10 +532,17 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 
 	table_index = table_desc->reference.value;
 
+	/*
+	 * Release the interpreter lock so that the table lock won't have
+	 * strict order requirement against it.
+	 */
+	acpi_ex_exit_interpreter();
+
 	/* Ensure the table is still loaded */
 
 	if (!acpi_tb_is_table_loaded(table_index)) {
-		return_ACPI_STATUS(AE_NOT_EXIST);
+		status = AE_NOT_EXIST;
+		goto lock_and_exit;
 	}
 
 	/* Invoke table handler if present */
@@ -553,16 +560,24 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 
 	status = acpi_tb_delete_namespace_by_owner(table_index);
 	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
+		goto lock_and_exit;
 	}
 
 	(void)acpi_tb_release_owner_id(table_index);
 	acpi_tb_set_table_loaded_flag(table_index, FALSE);
 
+lock_and_exit:
+
+	/* Re-acquire the interpreter lock */
+
+	acpi_ex_enter_interpreter();
+
 	/*
 	 * Invalidate the handle. We do this because the handle may be stored
 	 * in a named object and may not be actually deleted until much later.
 	 */
-	ddb_handle->common.flags &= ~AOPOBJ_DATA_VALID;
-	return_ACPI_STATUS(AE_OK);
+	if (ACPI_SUCCESS(status)) {
+		ddb_handle->common.flags &= ~AOPOBJ_DATA_VALID;
+	}
+	return_ACPI_STATUS(status);
 }

@@ -378,9 +378,9 @@ acpi_status acpi_unload_parent_table(acpi_handle object)
 		return_ACPI_STATUS(AE_TYPE);
 	}
 
-	/* Must acquire the interpreter lock during this operation */
+	/* Must acquire the table lock during this operation */
 
-	status = acpi_ut_acquire_mutex(ACPI_MTX_INTERPRETER);
+	status = acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -407,8 +407,10 @@ acpi_status acpi_unload_parent_table(acpi_handle object)
 
 		/* Ensure the table is actually loaded */
 
+		(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 		if (!acpi_tb_is_table_loaded(i)) {
 			status = AE_NOT_EXIST;
+			(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 			break;
 		}
 
@@ -434,10 +436,11 @@ acpi_status acpi_unload_parent_table(acpi_handle object)
 
 		status = acpi_tb_release_owner_id(i);
 		acpi_tb_set_table_loaded_flag(i, FALSE);
+		(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 		break;
 	}
 
-	(void)acpi_ut_release_mutex(ACPI_MTX_INTERPRETER);
+	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 	return_ACPI_STATUS(status);
 }
 

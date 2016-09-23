@@ -614,17 +614,12 @@ acpi_status acpi_tb_delete_namespace_by_owner(u32 table_index)
 	 * lock may block, and also since the execution of a namespace walk
 	 * must be allowed to use the interpreter.
 	 */
-	(void)acpi_ut_release_mutex(ACPI_MTX_INTERPRETER);
 	status = acpi_ut_acquire_write_lock(&acpi_gbl_namespace_rw_lock);
-
-	acpi_ns_delete_namespace_by_owner(owner_id);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
-
+	acpi_ns_delete_namespace_by_owner(owner_id);
 	acpi_ut_release_write_lock(&acpi_gbl_namespace_rw_lock);
-
-	status = acpi_ut_acquire_mutex(ACPI_MTX_INTERPRETER);
 	return_ACPI_STATUS(status);
 }
 
