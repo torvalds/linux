@@ -132,6 +132,8 @@ The ``/proc/sys/dev/parport`` directory tree looks like::
 	|-- modes
 	`-- spintime
 
+.. tabularcolumns:: |p{4.0cm}|p{13.5cm}|
+
 =======================	=======================================================
 File			Contents
 =======================	=======================================================
@@ -154,17 +156,26 @@ File			Contents
 ``modes``		Parallel port's hardware modes, comma-separated,
 			meaning:
 
-			=============== =======================================
-			PCSPP		PC-style SPP registers are available.
-			TRISTATE	Port is bidirectional.
-			COMPAT		Hardware acceleration for printers is
-					available and will be used.
-			EPP		Hardware acceleration for EPP protocol
-					is available and will be used.
-			ECP		Hardware acceleration for ECP protocol
-					is available and will be used.
-			DMA		DMA is available and will be used.
-			=============== =======================================
+			- PCSPP
+				PC-style SPP registers are available.
+
+			- TRISTATE
+				Port is bidirectional.
+
+			- COMPAT
+				Hardware acceleration for printers is
+				available and will be used.
+
+			- EPP
+				Hardware acceleration for EPP protocol
+				is available and will be used.
+
+			- ECP
+				Hardware acceleration for ECP protocol
+				is available and will be used.
+
+			- DMA
+				DMA is available and will be used.
 
 			Note that the current implementation will only take
 			advantage of COMPAT and ECP modes if it has an IRQ
