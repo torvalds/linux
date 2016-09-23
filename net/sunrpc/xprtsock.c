@@ -1074,7 +1074,7 @@ static void xs_udp_data_receive(struct sock_xprt *transport)
 		skb = skb_recv_datagram(sk, 0, 1, &err);
 		if (skb != NULL) {
 			xs_udp_data_read_skb(&transport->xprt, sk, skb);
-			skb_free_datagram(sk, skb);
+			skb_free_datagram_locked(sk, skb);
 			continue;
 		}
 		if (!test_and_clear_bit(XPRT_SOCK_DATA_READY, &transport->sock_state))

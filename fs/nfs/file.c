@@ -657,7 +657,10 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
 	if (result <= 0)
 		goto out;
 
-	written = generic_write_sync(iocb, result);
+	result = generic_write_sync(iocb, result);
+	if (result < 0)
+		goto out;
+	written = result;
 	iocb->ki_pos += written;
 
 	/* Return error values */

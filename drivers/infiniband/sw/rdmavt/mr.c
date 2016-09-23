@@ -294,7 +294,7 @@ static void __rvt_free_mr(struct rvt_mr *mr)
 {
 	rvt_deinit_mregion(&mr->mr);
 	rvt_free_lkey(&mr->mr);
-	vfree(mr);
+	kfree(mr);
 }
 
 /**

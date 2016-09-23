@@ -469,7 +469,7 @@ static const struct file_operations pdc_debugfs_stats = {
  * this directory for a SPU.
  * @pdcs: PDC state structure
  */
-void pdc_setup_debugfs(struct pdc_state *pdcs)
+static void pdc_setup_debugfs(struct pdc_state *pdcs)
 {
 	char spu_stats_name[16];
 
@@ -485,7 +485,7 @@ void pdc_setup_debugfs(struct pdc_state *pdcs)
 						  &pdc_debugfs_stats);
 }
 
-void pdc_free_debugfs(void)
+static void pdc_free_debugfs(void)
 {
 	if (debugfs_dir && simple_empty(debugfs_dir)) {
 		debugfs_remove_recursive(debugfs_dir);
@@ -1191,10 +1191,11 @@ static void pdc_shutdown(struct mbox_chan *chan)
 {
 	struct pdc_state *pdcs = chan->con_priv;
 
-	if (pdcs)
-		dev_dbg(&pdcs->pdev->dev,
-			"Shutdown mailbox channel for PDC %u", pdcs->pdc_idx);
+	if (!pdcs)
+		return;
 
+	dev_dbg(&pdcs->pdev->dev,
+		"Shutdown mailbox channel for PDC %u", pdcs->pdc_idx);
 	pdc_ring_free(pdcs);
 }
 

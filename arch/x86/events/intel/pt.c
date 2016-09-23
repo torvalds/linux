@@ -1096,6 +1096,11 @@ static void pt_addr_filters_fini(struct perf_event *event)
 	event->hw.addr_filters = NULL;
 }
 
+static inline bool valid_kernel_ip(unsigned long ip)
+{
+	return virt_addr_valid(ip) && kernel_ip(ip);
+}
+
 static int pt_event_addr_filters_validate(struct list_head *filters)
 {
 	struct perf_addr_filter *filter;
@@ -1103,11 +1108,16 @@ static int pt_event_addr_filters_validate(struct list_head *filters)
 
 	list_for_each_entry(filter, filters, entry) {
 		/* PT doesn't support single address triggers */
-		if (!filter->range)
+		if (!filter->range || !filter->size)
 			return -EOPNOTSUPP;
 
-		if (!filter->inode && !kernel_ip(filter->offset))
-			return -EINVAL;
+		if (!filter->inode) {
+			if (!valid_kernel_ip(filter->offset))
+				return -EINVAL;
+
+			if (!valid_kernel_ip(filter->offset + filter->size))
+				return -EINVAL;
+		}
 
 		if (++range > pt_cap_get(PT_CAP_num_address_ranges))
 			return -EOPNOTSUPP;
@@ -1133,7 +1143,7 @@ static void pt_event_addr_filters_sync(struct perf_event *event)
 		} else {
 			/* apply the offset */
 			msr_a = filter->offset + offs[range];
-			msr_b = filter->size + msr_a;
+			msr_b = filter->size + msr_a - 1;
 		}
 
 		filters->filter[range].msr_a  = msr_a;
