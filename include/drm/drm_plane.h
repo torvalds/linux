@@ -333,8 +333,19 @@ struct drm_plane_funcs {
  * DRM_CLIENT_CAP_UNIVERSAL_PLANES client capability bit to indicate that they
  * wish to receive a universal plane list containing all plane types. See also
  * drm_for_each_legacy_plane().
+ *
+ * WARNING: The values of this enum is UABI since they're exposed in the "type"
+ * property.
  */
 enum drm_plane_type {
+	/**
+	 * @DRM_PLANE_TYPE_OVERLAY:
+	 *
+	 * Overlay planes represent all non-primary, non-cursor planes. Some
+	 * drivers refer to these types of planes as "sprites" internally.
+	 */
+	DRM_PLANE_TYPE_OVERLAY,
+
 	/**
 	 * @DRM_PLANE_TYPE_PRIMARY:
 	 *
@@ -353,14 +364,6 @@ enum drm_plane_type {
 	 * DRM_IOCTL_MODE_CURSOR2 IOCTLs.
 	 */
 	DRM_PLANE_TYPE_CURSOR,
-
-	/**
-	 * @DRM_PLANE_TYPE_OVERLAY:
-	 *
-	 * Overlay planes represent all non-primary, non-cursor planes. Some
-	 * drivers refer to these types of planes as "sprites" internally.
-	 */
-	DRM_PLANE_TYPE_OVERLAY,
 };
 
 

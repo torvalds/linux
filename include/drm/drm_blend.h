@@ -33,6 +33,9 @@ struct drm_atomic_state;
  * Rotation property bits. DRM_ROTATE_<degrees> rotates the image by the
  * specified amount in degrees in counter clockwise direction. DRM_REFLECT_X and
  * DRM_REFLECT_Y reflects the image along the specified axis prior to rotation
+ *
+ * WARNING: These defines are UABI since they're exposed in the rotation
+ * property.
  */
 #define DRM_ROTATE_0	BIT(0)
 #define DRM_ROTATE_90	BIT(1)
