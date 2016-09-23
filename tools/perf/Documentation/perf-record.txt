@@ -35,15 +35,15 @@ OPTIONS
 
 	- a symbolically formed PMU event like 'pmu/param1=0x3,param2/' where
 	  'param1', 'param2', etc are defined as formats for the PMU in
-	  /sys/bus/event_sources/devices/<pmu>/format/*.
+	  /sys/bus/event_source/devices/<pmu>/format/*.
 
 	- a symbolically formed event like 'pmu/config=M,config1=N,config3=K/'
 
           where M, N, K are numbers (in decimal, hex, octal format). Acceptable
           values for each of 'config', 'config1' and 'config2' are defined by
-          corresponding entries in /sys/bus/event_sources/devices/<pmu>/format/*
+          corresponding entries in /sys/bus/event_source/devices/<pmu>/format/*
           param1 and param2 are defined as formats for the PMU in:
-          /sys/bus/event_sources/devices/<pmu>/format/*
+          /sys/bus/event_source/devices/<pmu>/format/*
 
 	  There are also some params which are not defined in .../<pmu>/format/*.
 	  These params can be used to overload default config values per event.
