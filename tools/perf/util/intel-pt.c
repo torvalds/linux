@@ -2138,11 +2138,13 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 		pt->switch_evsel = intel_pt_find_sched_switch(session->evlist);
 		if (!pt->switch_evsel) {
 			pr_err("%s: missing sched_switch event\n", __func__);
+			err = -EINVAL;
 			goto err_delete_thread;
 		}
 	} else if (pt->have_sched_switch == 2 &&
 		   !intel_pt_find_switch(session->evlist)) {
 		pr_err("%s: missing context_switch attribute flag\n", __func__);
+		err = -EINVAL;
 		goto err_delete_thread;
 	}
 
