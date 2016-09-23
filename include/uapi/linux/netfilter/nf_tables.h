@@ -546,6 +546,35 @@ enum nft_cmp_attributes {
 };
 #define NFTA_CMP_MAX		(__NFTA_CMP_MAX - 1)
 
+/**
+ * enum nft_range_ops - nf_tables range operator
+ *
+ * @NFT_RANGE_EQ: equal
+ * @NFT_RANGE_NEQ: not equal
+ */
+enum nft_range_ops {
+	NFT_RANGE_EQ,
+	NFT_RANGE_NEQ,
+};
+
+/**
+ * enum nft_range_attributes - nf_tables range expression netlink attributes
+ *
+ * @NFTA_RANGE_SREG: source register of data to compare (NLA_U32: nft_registers)
+ * @NFTA_RANGE_OP: cmp operation (NLA_U32: nft_cmp_ops)
+ * @NFTA_RANGE_FROM_DATA: data range from (NLA_NESTED: nft_data_attributes)
+ * @NFTA_RANGE_TO_DATA: data range to (NLA_NESTED: nft_data_attributes)
+ */
+enum nft_range_attributes {
+	NFTA_RANGE_UNSPEC,
+	NFTA_RANGE_SREG,
+	NFTA_RANGE_OP,
+	NFTA_RANGE_FROM_DATA,
+	NFTA_RANGE_TO_DATA,
+	__NFTA_RANGE_MAX
+};
+#define NFTA_RANGE_MAX		(__NFTA_RANGE_MAX - 1)
+
 enum nft_lookup_flags {
 	NFT_LOOKUP_F_INV = (1 << 0),
 };

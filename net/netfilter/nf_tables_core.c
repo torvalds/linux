@@ -263,8 +263,13 @@ int __init nf_tables_core_module_init(void)
 	if (err < 0)
 		goto err7;
 
-	return 0;
+	err = nft_range_module_init();
+	if (err < 0)
+		goto err8;
 
+	return 0;
+err8:
+	nft_dynset_module_exit();
 err7:
 	nft_payload_module_exit();
 err6:
