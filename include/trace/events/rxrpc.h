@@ -251,38 +251,72 @@ TRACE_EVENT(rxrpc_rx_ack,
 
 	    TP_printk("c=%p %s f=%08x n=%u",
 		      __entry->call,
-		      rxrpc_acks(__entry->reason),
+		      rxrpc_ack_names[__entry->reason],
 		      __entry->first,
 		      __entry->n_acks)
 	    );
 
-TRACE_EVENT(rxrpc_tx_ack,
-	    TP_PROTO(struct rxrpc_call *call, rxrpc_seq_t first,
-		     rxrpc_serial_t serial, u8 reason, u8 n_acks),
+TRACE_EVENT(rxrpc_tx_data,
+	    TP_PROTO(struct rxrpc_call *call, rxrpc_seq_t seq,
+		     rxrpc_serial_t serial, u8 flags, bool lose),
 
-	    TP_ARGS(call, first, serial, reason, n_acks),
+	    TP_ARGS(call, seq, serial, flags, lose),
 
 	    TP_STRUCT__entry(
 		    __field(struct rxrpc_call *,	call		)
-		    __field(rxrpc_seq_t,		first		)
+		    __field(rxrpc_seq_t,		seq		)
 		    __field(rxrpc_serial_t,		serial		)
+		    __field(u8,				flags		)
+		    __field(bool,			lose		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->seq = seq;
+		    __entry->serial = serial;
+		    __entry->flags = flags;
+		    __entry->lose = lose;
+			   ),
+
+	    TP_printk("c=%p DATA %08x q=%08x fl=%02x%s",
+		      __entry->call,
+		      __entry->serial,
+		      __entry->seq,
+		      __entry->flags,
+		      __entry->lose ? " *LOSE*" : "")
+	    );
+
+TRACE_EVENT(rxrpc_tx_ack,
+	    TP_PROTO(struct rxrpc_call *call, rxrpc_serial_t serial,
+		     rxrpc_seq_t ack_first, rxrpc_serial_t ack_serial,
+		     u8 reason, u8 n_acks),
+
+	    TP_ARGS(call, serial, ack_first, ack_serial, reason, n_acks),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_call *,	call		)
+		    __field(rxrpc_serial_t,		serial		)
+		    __field(rxrpc_seq_t,		ack_first	)
+		    __field(rxrpc_serial_t,		ack_serial	)
 		    __field(u8,				reason		)
 		    __field(u8,				n_acks		)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->call = call;
-		    __entry->first = first;
 		    __entry->serial = serial;
+		    __entry->ack_first = ack_first;
+		    __entry->ack_serial = ack_serial;
 		    __entry->reason = reason;
 		    __entry->n_acks = n_acks;
 			   ),
 
-	    TP_printk("c=%p %s f=%08x r=%08x n=%u",
+	    TP_printk(" c=%p ACK  %08x %s f=%08x r=%08x n=%u",
 		      __entry->call,
-		      rxrpc_acks(__entry->reason),
-		      __entry->first,
 		      __entry->serial,
+		      rxrpc_ack_names[__entry->reason],
+		      __entry->ack_first,
+		      __entry->ack_serial,
 		      __entry->n_acks)
 	    );
 
@@ -412,6 +446,128 @@ TRACE_EVENT(rxrpc_rtt_rx,
 		      __entry->rtt,
 		      __entry->nr,
 		      __entry->avg)
+	    );
+
+TRACE_EVENT(rxrpc_timer,
+	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_timer_trace why,
+		     unsigned long now),
+
+	    TP_ARGS(call, why, now),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_call *,		call		)
+		    __field(enum rxrpc_timer_trace,		why		)
+		    __field(unsigned long,			now		)
+		    __field(unsigned long,			expire_at	)
+		    __field(unsigned long,			ack_at		)
+		    __field(unsigned long,			resend_at	)
+		    __field(unsigned long,			timer		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call	= call;
+		    __entry->why	= why;
+		    __entry->now	= now;
+		    __entry->expire_at	= call->expire_at;
+		    __entry->ack_at	= call->ack_at;
+		    __entry->resend_at	= call->resend_at;
+		    __entry->timer	= call->timer.expires;
+			   ),
+
+	    TP_printk("c=%p %s now=%lx x=%ld a=%ld r=%ld t=%ld",
+		      __entry->call,
+		      rxrpc_timer_traces[__entry->why],
+		      __entry->now,
+		      __entry->expire_at - __entry->now,
+		      __entry->ack_at - __entry->now,
+		      __entry->resend_at - __entry->now,
+		      __entry->timer - __entry->now)
+	    );
+
+TRACE_EVENT(rxrpc_rx_lose,
+	    TP_PROTO(struct rxrpc_skb_priv *sp),
+
+	    TP_ARGS(sp),
+
+	    TP_STRUCT__entry(
+		    __field_struct(struct rxrpc_host_header,	hdr		)
+			     ),
+
+	    TP_fast_assign(
+		    memcpy(&__entry->hdr, &sp->hdr, sizeof(__entry->hdr));
+			   ),
+
+	    TP_printk("%08x:%08x:%08x:%04x %08x %08x %02x %02x %s *LOSE*",
+		      __entry->hdr.epoch, __entry->hdr.cid,
+		      __entry->hdr.callNumber, __entry->hdr.serviceId,
+		      __entry->hdr.serial, __entry->hdr.seq,
+		      __entry->hdr.type, __entry->hdr.flags,
+		      __entry->hdr.type <= 15 ? rxrpc_pkts[__entry->hdr.type] : "?UNK")
+	    );
+
+TRACE_EVENT(rxrpc_propose_ack,
+	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_propose_ack_trace why,
+		     u8 ack_reason, rxrpc_serial_t serial, bool immediate,
+		     bool background, enum rxrpc_propose_ack_outcome outcome),
+
+	    TP_ARGS(call, why, ack_reason, serial, immediate, background,
+		    outcome),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_call *,		call		)
+		    __field(enum rxrpc_propose_ack_trace,	why		)
+		    __field(rxrpc_serial_t,			serial		)
+		    __field(u8,					ack_reason	)
+		    __field(bool,				immediate	)
+		    __field(bool,				background	)
+		    __field(enum rxrpc_propose_ack_outcome,	outcome		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call	= call;
+		    __entry->why	= why;
+		    __entry->serial	= serial;
+		    __entry->ack_reason	= ack_reason;
+		    __entry->immediate	= immediate;
+		    __entry->background	= background;
+		    __entry->outcome	= outcome;
+			   ),
+
+	    TP_printk("c=%p %s %s r=%08x i=%u b=%u%s",
+		      __entry->call,
+		      rxrpc_propose_ack_traces[__entry->why],
+		      rxrpc_ack_names[__entry->ack_reason],
+		      __entry->serial,
+		      __entry->immediate,
+		      __entry->background,
+		      rxrpc_propose_ack_outcomes[__entry->outcome])
+	    );
+
+TRACE_EVENT(rxrpc_retransmit,
+	    TP_PROTO(struct rxrpc_call *call, rxrpc_seq_t seq, u8 annotation,
+		     s64 expiry),
+
+	    TP_ARGS(call, seq, annotation, expiry),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_call *,	call		)
+		    __field(rxrpc_seq_t,		seq		)
+		    __field(u8,				annotation	)
+		    __field(s64,			expiry		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->seq = seq;
+		    __entry->annotation = annotation;
+		    __entry->expiry = expiry;
+			   ),
+
+	    TP_printk("c=%p q=%x a=%02x xp=%lld",
+		      __entry->call,
+		      __entry->seq,
+		      __entry->annotation,
+		      __entry->expiry)
 	    );
 
 #endif /* _TRACE_RXRPC_H */

@@ -94,25 +94,30 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	rxrpc_seq_t seq = sp->hdr.seq;
 	int ret, ix;
+	u8 annotation = RXRPC_TX_ANNO_UNACK;
 
 	_net("queue skb %p [%d]", skb, seq);
 
 	ASSERTCMP(seq, ==, call->tx_top + 1);
 
+	if (last)
+		annotation |= RXRPC_TX_ANNO_LAST;
+
+	/* We have to set the timestamp before queueing as the retransmit
+	 * algorithm can see the packet as soon as we queue it.
+	 */
+	skb->tstamp = ktime_get_real();
+
 	ix = seq & RXRPC_RXTX_BUFF_MASK;
 	rxrpc_get_skb(skb, rxrpc_skb_tx_got);
-	call->rxtx_annotations[ix] = RXRPC_TX_ANNO_UNACK;
+	call->rxtx_annotations[ix] = annotation;
 	smp_wmb();
 	call->rxtx_buffer[ix] = skb;
 	call->tx_top = seq;
-	if (last) {
-		set_bit(RXRPC_CALL_TX_LAST, &call->flags);
+	if (last)
 		trace_rxrpc_transmit(call, rxrpc_transmit_queue_last);
-	} else if (sp->hdr.flags & RXRPC_REQUEST_ACK) {
-		trace_rxrpc_transmit(call, rxrpc_transmit_queue_reqack);
-	} else {
+	else
 		trace_rxrpc_transmit(call, rxrpc_transmit_queue);
-	}
 
 	if (last || call->state == RXRPC_CALL_SERVER_ACK_REQUEST) {
 		_debug("________awaiting reply/ACK__________");
@@ -141,6 +146,15 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	if (ret < 0) {
 		_debug("need instant resend %d", ret);
 		rxrpc_instant_resend(call, ix);
+	} else {
+		unsigned long resend_at;
+
+		resend_at = jiffies + msecs_to_jiffies(rxrpc_resend_timeout);
+
+		if (time_before(resend_at, call->resend_at)) {
+			call->resend_at = resend_at;
+			rxrpc_set_timer(call, rxrpc_timer_set_for_send);
+		}
 	}
 
 	rxrpc_free_skb(skb, rxrpc_skb_tx_freed);

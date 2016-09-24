@@ -49,7 +49,8 @@ static void rxrpc_send_ping(struct rxrpc_call *call, struct sk_buff *skb,
 	if (call->peer->rtt_usage < 3 ||
 	    ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000), now))
 		rxrpc_propose_ACK(call, RXRPC_ACK_PING, skew, sp->hdr.serial,
-				  true, true);
+				  true, true,
+				  rxrpc_propose_ack_ping_for_params);
 }
 
 /*
@@ -59,6 +60,7 @@ static void rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to)
 {
 	struct sk_buff *skb, *list = NULL;
 	int ix;
+	u8 annotation;
 
 	spin_lock(&call->lock);
 
@@ -66,16 +68,22 @@ static void rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to)
 		call->tx_hard_ack++;
 		ix = call->tx_hard_ack & RXRPC_RXTX_BUFF_MASK;
 		skb = call->rxtx_buffer[ix];
+		annotation = call->rxtx_annotations[ix];
 		rxrpc_see_skb(skb, rxrpc_skb_tx_rotated);
 		call->rxtx_buffer[ix] = NULL;
 		call->rxtx_annotations[ix] = 0;
 		skb->next = list;
 		list = skb;
+
+		if (annotation & RXRPC_TX_ANNO_LAST)
+			set_bit(RXRPC_CALL_TX_LAST, &call->flags);
 	}
 
 	spin_unlock(&call->lock);
 
-	trace_rxrpc_transmit(call, rxrpc_transmit_rotate);
+	trace_rxrpc_transmit(call, (test_bit(RXRPC_CALL_TX_LAST, &call->flags) ?
+				    rxrpc_transmit_rotate_last :
+				    rxrpc_transmit_rotate));
 	wake_up(&call->waitq);
 
 	while (list) {
@@ -92,41 +100,64 @@ static void rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to)
  * This occurs when we get an ACKALL packet, the first DATA packet of a reply,
  * or a final ACK packet.
  */
-static bool rxrpc_end_tx_phase(struct rxrpc_call *call, const char *abort_why)
+static bool rxrpc_end_tx_phase(struct rxrpc_call *call, bool reply_begun,
+			       const char *abort_why)
 {
-	_enter("");
 
-	switch (call->state) {
-	case RXRPC_CALL_CLIENT_RECV_REPLY:
-		return true;
-	case RXRPC_CALL_CLIENT_AWAIT_REPLY:
-	case RXRPC_CALL_SERVER_AWAIT_ACK:
-		break;
-	default:
-		rxrpc_proto_abort(abort_why, call, call->tx_top);
-		return false;
-	}
-
-	rxrpc_rotate_tx_window(call, call->tx_top);
+	ASSERT(test_bit(RXRPC_CALL_TX_LAST, &call->flags));
 
 	write_lock(&call->state_lock);
 
 	switch (call->state) {
-	default:
-		break;
+	case RXRPC_CALL_CLIENT_SEND_REQUEST:
 	case RXRPC_CALL_CLIENT_AWAIT_REPLY:
-		call->tx_phase = false;
-		call->state = RXRPC_CALL_CLIENT_RECV_REPLY;
+		if (reply_begun)
+			call->state = RXRPC_CALL_CLIENT_RECV_REPLY;
+		else
+			call->state = RXRPC_CALL_CLIENT_AWAIT_REPLY;
 		break;
+
 	case RXRPC_CALL_SERVER_AWAIT_ACK:
 		__rxrpc_call_completed(call);
 		rxrpc_notify_socket(call);
 		break;
+
+	default:
+		goto bad_state;
 	}
 
 	write_unlock(&call->state_lock);
-	trace_rxrpc_transmit(call, rxrpc_transmit_end);
+	if (call->state == RXRPC_CALL_CLIENT_AWAIT_REPLY) {
+		trace_rxrpc_transmit(call, rxrpc_transmit_await_reply);
+	} else {
+		trace_rxrpc_transmit(call, rxrpc_transmit_end);
+	}
 	_leave(" = ok");
+	return true;
+
+bad_state:
+	write_unlock(&call->state_lock);
+	kdebug("end_tx %s", rxrpc_call_states[call->state]);
+	rxrpc_proto_abort(abort_why, call, call->tx_top);
+	return false;
+}
+
+/*
+ * Begin the reply reception phase of a call.
+ */
+static bool rxrpc_receiving_reply(struct rxrpc_call *call)
+{
+	rxrpc_seq_t top = READ_ONCE(call->tx_top);
+
+	if (!test_bit(RXRPC_CALL_TX_LAST, &call->flags))
+		rxrpc_rotate_tx_window(call, top);
+	if (!test_bit(RXRPC_CALL_TX_LAST, &call->flags)) {
+		rxrpc_proto_abort("TXL", call, top);
+		return false;
+	}
+	if (!rxrpc_end_tx_phase(call, true, "ETD"))
+		return false;
+	call->tx_phase = false;
 	return true;
 }
 
@@ -226,8 +257,9 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb,
 	/* Received data implicitly ACKs all of the request packets we sent
 	 * when we're acting as a client.
 	 */
-	if (call->state == RXRPC_CALL_CLIENT_AWAIT_REPLY &&
-	    !rxrpc_end_tx_phase(call, "ETD"))
+	if ((call->state == RXRPC_CALL_CLIENT_SEND_REQUEST ||
+	     call->state == RXRPC_CALL_CLIENT_AWAIT_REPLY) &&
+	    !rxrpc_receiving_reply(call))
 		return;
 
 	call->ackr_prev_seq = seq;
@@ -351,7 +383,8 @@ skip:
 ack:
 	if (ack)
 		rxrpc_propose_ACK(call, ack, skew, ack_serial,
-				  immediate_ack, true);
+				  immediate_ack, true,
+				  rxrpc_propose_ack_input_data);
 
 	if (sp->hdr.seq == READ_ONCE(call->rx_hard_ack) + 1)
 		rxrpc_notify_socket(call);
@@ -479,6 +512,8 @@ static void rxrpc_input_soft_acks(struct rxrpc_call *call, u8 *acks,
 		case RXRPC_ACK_TYPE_NACK:
 			if (anno_type == RXRPC_TX_ANNO_NAK)
 				continue;
+			if (anno_type == RXRPC_TX_ANNO_RETRANS)
+				continue;
 			call->rxtx_annotations[ix] =
 				RXRPC_TX_ANNO_NAK | annotation;
 			resend = true;
@@ -506,6 +541,7 @@ static void rxrpc_input_soft_acks(struct rxrpc_call *call, u8 *acks,
 static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 			    u16 skew)
 {
+	u8 ack_reason;
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	union {
 		struct rxrpc_ackpacket ack;
@@ -528,8 +564,10 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 	first_soft_ack = ntohl(buf.ack.firstPacket);
 	hard_ack = first_soft_ack - 1;
 	nr_acks = buf.ack.nAcks;
+	ack_reason = (buf.ack.reason < RXRPC_ACK__INVALID ?
+		      buf.ack.reason : RXRPC_ACK__INVALID);
 
-	trace_rxrpc_rx_ack(call, first_soft_ack, buf.ack.reason, nr_acks);
+	trace_rxrpc_rx_ack(call, first_soft_ack, ack_reason, nr_acks);
 
 	_proto("Rx ACK %%%u { m=%hu f=#%u p=#%u s=%%%u r=%s n=%u }",
 	       sp->hdr.serial,
@@ -537,7 +575,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 	       first_soft_ack,
 	       ntohl(buf.ack.previousPacket),
 	       acked_serial,
-	       rxrpc_acks(buf.ack.reason),
+	       rxrpc_ack_names[ack_reason],
 	       buf.ack.nAcks);
 
 	if (buf.ack.reason == RXRPC_ACK_PING_RESPONSE)
@@ -550,10 +588,12 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 	if (buf.ack.reason == RXRPC_ACK_PING) {
 		_proto("Rx ACK %%%u PING Request", sp->hdr.serial);
 		rxrpc_propose_ACK(call, RXRPC_ACK_PING_RESPONSE,
-				  skew, sp->hdr.serial, true, true);
+				  skew, sp->hdr.serial, true, true,
+				  rxrpc_propose_ack_respond_to_ping);
 	} else if (sp->hdr.flags & RXRPC_REQUEST_ACK) {
 		rxrpc_propose_ACK(call, RXRPC_ACK_REQUESTED,
-				  skew, sp->hdr.serial, true, true);
+				  skew, sp->hdr.serial, true, true,
+				  rxrpc_propose_ack_respond_to_ack);
 	}
 
 	offset = sp->offset + nr_acks + 3;
@@ -578,34 +618,33 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 	}
 
 	/* Discard any out-of-order or duplicate ACKs. */
-	if ((int)sp->hdr.serial - (int)call->acks_latest <= 0) {
+	if (before_eq(sp->hdr.serial, call->acks_latest)) {
 		_debug("discard ACK %d <= %d",
 		       sp->hdr.serial, call->acks_latest);
 		return;
 	}
 	call->acks_latest = sp->hdr.serial;
 
-	if (test_bit(RXRPC_CALL_TX_LAST, &call->flags) &&
-	    hard_ack == call->tx_top) {
-		rxrpc_end_tx_phase(call, "ETA");
-		return;
-	}
-
 	if (before(hard_ack, call->tx_hard_ack) ||
 	    after(hard_ack, call->tx_top))
 		return rxrpc_proto_abort("AKW", call, 0);
+	if (nr_acks > call->tx_top - hard_ack)
+		return rxrpc_proto_abort("AKN", call, 0);
 
 	if (after(hard_ack, call->tx_hard_ack))
 		rxrpc_rotate_tx_window(call, hard_ack);
 
-	if (after(first_soft_ack, call->tx_top))
-		return;
+	if (nr_acks > 0) {
+		if (skb_copy_bits(skb, sp->offset, buf.acks, nr_acks) < 0)
+			return rxrpc_proto_abort("XSA", call, 0);
+		rxrpc_input_soft_acks(call, buf.acks, first_soft_ack, nr_acks);
+	}
 
-	if (nr_acks > call->tx_top - first_soft_ack + 1)
-		nr_acks = first_soft_ack - call->tx_top + 1;
-	if (skb_copy_bits(skb, sp->offset, buf.acks, nr_acks) < 0)
-		return rxrpc_proto_abort("XSA", call, 0);
-	rxrpc_input_soft_acks(call, buf.acks, first_soft_ack, nr_acks);
+	if (test_bit(RXRPC_CALL_TX_LAST, &call->flags)) {
+		rxrpc_end_tx_phase(call, false, "ETA");
+		return;
+	}
+
 }
 
 /*
@@ -617,7 +656,9 @@ static void rxrpc_input_ackall(struct rxrpc_call *call, struct sk_buff *skb)
 
 	_proto("Rx ACKALL %%%u", sp->hdr.serial);
 
-	rxrpc_end_tx_phase(call, "ETL");
+	rxrpc_rotate_tx_window(call, call->tx_top);
+	if (test_bit(RXRPC_CALL_TX_LAST, &call->flags))
+		rxrpc_end_tx_phase(call, false, "ETL");
 }
 
 /*
@@ -803,20 +844,19 @@ void rxrpc_data_ready(struct sock *udp_sk)
 	skb_orphan(skb);
 	sp = rxrpc_skb(skb);
 
+	/* dig out the RxRPC connection details */
+	if (rxrpc_extract_header(sp, skb) < 0)
+		goto bad_message;
+
 	if (IS_ENABLED(CONFIG_AF_RXRPC_INJECT_LOSS)) {
 		static int lose;
 		if ((lose++ & 7) == 7) {
+			trace_rxrpc_rx_lose(sp);
 			rxrpc_lose_skb(skb, rxrpc_skb_rx_lost);
 			return;
 		}
 	}
 
-	_net("Rx UDP packet from %08x:%04hu",
-	     ntohl(ip_hdr(skb)->saddr), ntohs(udp_hdr(skb)->source));
-
-	/* dig out the RxRPC connection details */
-	if (rxrpc_extract_header(sp, skb) < 0)
-		goto bad_message;
 	trace_rxrpc_rx_packet(sp);
 
 	_net("Rx RxRPC %s ep=%x call=%x:%x",

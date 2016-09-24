@@ -508,7 +508,9 @@ struct rxrpc_call {
 #define RXRPC_TX_ANNO_NAK	2
 #define RXRPC_TX_ANNO_RETRANS	3
 #define RXRPC_TX_ANNO_MASK	0x03
-#define RXRPC_TX_ANNO_RESENT	0x04
+#define RXRPC_TX_ANNO_LAST	0x04
+#define RXRPC_TX_ANNO_RESENT	0x08
+
 #define RXRPC_RX_ANNO_JUMBO	0x3f		/* Jumbo subpacket number + 1 if not zero */
 #define RXRPC_RX_ANNO_JLAST	0x40		/* Set if last element of a jumbo packet */
 #define RXRPC_RX_ANNO_VERIFIED	0x80		/* Set if verified and decrypted */
@@ -621,9 +623,10 @@ extern const char rxrpc_call_traces[rxrpc_call__nr_trace][4];
 enum rxrpc_transmit_trace {
 	rxrpc_transmit_wait,
 	rxrpc_transmit_queue,
-	rxrpc_transmit_queue_reqack,
 	rxrpc_transmit_queue_last,
 	rxrpc_transmit_rotate,
+	rxrpc_transmit_rotate_last,
+	rxrpc_transmit_await_reply,
 	rxrpc_transmit_end,
 	rxrpc_transmit__nr_trace
 };
@@ -675,8 +678,39 @@ enum rxrpc_rtt_rx_trace {
 
 extern const char rxrpc_rtt_rx_traces[rxrpc_rtt_rx__nr_trace][5];
 
+enum rxrpc_timer_trace {
+	rxrpc_timer_begin,
+	rxrpc_timer_expired,
+	rxrpc_timer_set_for_ack,
+	rxrpc_timer_set_for_resend,
+	rxrpc_timer_set_for_send,
+	rxrpc_timer__nr_trace
+};
+
+extern const char rxrpc_timer_traces[rxrpc_timer__nr_trace][8];
+
+enum rxrpc_propose_ack_trace {
+	rxrpc_propose_ack_input_data,
+	rxrpc_propose_ack_ping_for_params,
+	rxrpc_propose_ack_respond_to_ack,
+	rxrpc_propose_ack_respond_to_ping,
+	rxrpc_propose_ack_retry_tx,
+	rxrpc_propose_ack_terminal_ack,
+	rxrpc_propose_ack__nr_trace
+};
+
+enum rxrpc_propose_ack_outcome {
+	rxrpc_propose_ack_use,
+	rxrpc_propose_ack_update,
+	rxrpc_propose_ack_subsume,
+	rxrpc_propose_ack__nr_outcomes
+};
+
+extern const char rxrpc_propose_ack_traces[rxrpc_propose_ack__nr_trace][8];
+extern const char *const rxrpc_propose_ack_outcomes[rxrpc_propose_ack__nr_outcomes];
+
 extern const char *const rxrpc_pkts[];
-extern const char *rxrpc_acks(u8 reason);
+extern const char const rxrpc_ack_names[RXRPC_ACK__INVALID + 1][4];
 
 #include <trace/events/rxrpc.h>
 
@@ -704,7 +738,9 @@ int rxrpc_reject_call(struct rxrpc_sock *);
 /*
  * call_event.c
  */
-void rxrpc_propose_ACK(struct rxrpc_call *, u8, u16, u32, bool, bool);
+void rxrpc_set_timer(struct rxrpc_call *, enum rxrpc_timer_trace);
+void rxrpc_propose_ACK(struct rxrpc_call *, u8, u16, u32, bool, bool,
+		       enum rxrpc_propose_ack_trace);
 void rxrpc_process_call(struct work_struct *);
 
 /*
@@ -758,6 +794,7 @@ static inline bool __rxrpc_set_call_completion(struct rxrpc_call *call,
 		call->error = error;
 		call->completion = compl,
 		call->state = RXRPC_CALL_COMPLETE;
+		wake_up(&call->waitq);
 		return true;
 	}
 	return false;
