@@ -138,6 +138,8 @@ static bool rxrpc_end_tx_phase(struct rxrpc_call *call, bool reply_begun,
 
 	write_unlock(&call->state_lock);
 	if (call->state == RXRPC_CALL_CLIENT_AWAIT_REPLY) {
+		rxrpc_propose_ACK(call, RXRPC_ACK_IDLE, 0, 0, false, true,
+				  rxrpc_propose_ack_client_tx_end);
 		trace_rxrpc_transmit(call, rxrpc_transmit_await_reply);
 	} else {
 		trace_rxrpc_transmit(call, rxrpc_transmit_end);
@@ -684,6 +686,12 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 		return;
 	}
 
+	if (call->rxtx_annotations[call->tx_top & RXRPC_RXTX_BUFF_MASK] &
+	    RXRPC_TX_ANNO_LAST &&
+	    summary.nr_acks == call->tx_top - hard_ack)
+		rxrpc_propose_ACK(call, RXRPC_ACK_PING, skew, sp->hdr.serial,
+				  false, true,
+				  rxrpc_propose_ack_ping_for_lost_reply);
 }
 
 /*

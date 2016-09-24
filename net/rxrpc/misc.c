@@ -198,7 +198,9 @@ const char rxrpc_timer_traces[rxrpc_timer__nr_trace][8] = {
 };
 
 const char rxrpc_propose_ack_traces[rxrpc_propose_ack__nr_trace][8] = {
+	[rxrpc_propose_ack_client_tx_end]	= "ClTxEnd",
 	[rxrpc_propose_ack_input_data]		= "DataIn ",
+	[rxrpc_propose_ack_ping_for_lost_reply]	= "LostRpl",
 	[rxrpc_propose_ack_ping_for_params]	= "Params ",
 	[rxrpc_propose_ack_respond_to_ack]	= "Rsp2Ack",
 	[rxrpc_propose_ack_respond_to_ping]	= "Rsp2Png",

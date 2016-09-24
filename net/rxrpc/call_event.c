@@ -100,6 +100,7 @@ static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 			expiry = rxrpc_soft_ack_delay;
 		break;
 
+	case RXRPC_ACK_PING:
 	case RXRPC_ACK_IDLE:
 		if (rxrpc_idle_ack_delay < expiry)
 			expiry = rxrpc_idle_ack_delay;

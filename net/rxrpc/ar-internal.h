@@ -707,7 +707,9 @@ enum rxrpc_timer_trace {
 extern const char rxrpc_timer_traces[rxrpc_timer__nr_trace][8];
 
 enum rxrpc_propose_ack_trace {
+	rxrpc_propose_ack_client_tx_end,
 	rxrpc_propose_ack_input_data,
+	rxrpc_propose_ack_ping_for_lost_reply,
 	rxrpc_propose_ack_ping_for_params,
 	rxrpc_propose_ack_respond_to_ack,
 	rxrpc_propose_ack_respond_to_ping,
