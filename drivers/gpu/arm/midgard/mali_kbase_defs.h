@@ -912,6 +912,17 @@ struct kbase_device {
 	} irqs[3];
 
 	struct clk *clock;
+
+	/*
+	 * current freq of clk_gpu, in Hz.
+	 */
+	unsigned long freq;
+	/*
+	 * mutex for setting freq of clk_gpu.
+	 */
+	struct mutex mutex_for_clk;
+	bool is_power_off;
+
 #ifdef CONFIG_REGULATOR
 	struct regulator *regulator;
 #endif

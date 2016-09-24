@@ -3026,6 +3026,9 @@ static int power_control_init(struct platform_device *pdev)
 			goto fail;
 		}
 	}
+	kbdev->freq = 0;
+	mutex_init(&kbdev->mutex_for_clk);
+	kbdev->is_power_off = false;
 
 #if defined(CONFIG_OF) && defined(CONFIG_PM_OPP)
 	/* Register the OPPs if they are available in device tree */
