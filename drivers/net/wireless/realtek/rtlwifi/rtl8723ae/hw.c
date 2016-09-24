@@ -141,6 +141,8 @@ void rtl8723e_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 
 			break;
 		}
+	case HAL_DEF_WOWLAN:
+		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
 			 "switch case %#x not processed\n", variable);
