@@ -433,7 +433,7 @@ struct nvsp_1_message_revoke_send_buffer {
  */
 struct nvsp_1_message_send_rndis_packet {
 	/*
-	 * This field is specified by RNIDS. They assume there's two different
+	 * This field is specified by RNDIS. They assume there's two different
 	 * channels of communication. However, the Network VSP only has one.
 	 * Therefore, the channel travels with the RNDIS packet.
 	 */
@@ -578,7 +578,7 @@ struct nvsp_5_send_indirect_table {
 	/* The number of entries in the send indirection table */
 	u32 count;
 
-	/* The offset of the send indireciton table from top of this struct.
+	/* The offset of the send indirection table from top of this struct.
 	 * The send indirection table tells which channel to put the send
 	 * traffic on. Each entry is a channel number.
 	 */
@@ -734,7 +734,6 @@ struct netvsc_device {
 	struct nvsp_message channel_init_pkt;
 
 	struct nvsp_message revoke_packet;
-	/* unsigned char HwMacAddr[HW_MACADDR_LEN]; */
 
 	struct vmbus_channel *chn_table[VRSS_CHANNEL_MAX];
 	u32 send_table[VRSS_SEND_TAB_SIZE];
@@ -1239,7 +1238,7 @@ struct rndis_message {
 	u32 ndis_msg_type;
 
 	/* Total length of this message, from the beginning */
-	/* of the sruct rndis_message, in bytes. */
+	/* of the struct rndis_message, in bytes. */
 	u32 msg_len;
 
 	/* Actual message */
