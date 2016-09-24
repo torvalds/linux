@@ -185,7 +185,7 @@ static int atir_init_start(void)
 
 static void cycle_delay(int cycle)
 {
-	udelay(WAIT_CYCLE*cycle);
+	udelay(WAIT_CYCLE * cycle);
 }
 
 static int poll_main(void)
