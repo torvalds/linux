@@ -658,6 +658,31 @@ err_unlock:
 }
 EXPORT_SYMBOL_GPL(iio_convert_raw_to_processed);
 
+static int iio_read_channel_attribute(struct iio_channel *chan,
+				      int *val, int *val2,
+				      enum iio_chan_info_enum attribute)
+{
+	int ret;
+
+	mutex_lock(&chan->indio_dev->info_exist_lock);
+	if (chan->indio_dev->info == NULL) {
+		ret = -ENODEV;
+		goto err_unlock;
+	}
+
+	ret = iio_channel_read(chan, val, val2, attribute);
+err_unlock:
+	mutex_unlock(&chan->indio_dev->info_exist_lock);
+
+	return ret;
+}
+
+int iio_read_channel_offset(struct iio_channel *chan, int *val, int *val2)
+{
+	return iio_read_channel_attribute(chan, val, val2, IIO_CHAN_INFO_OFFSET);
+}
+EXPORT_SYMBOL_GPL(iio_read_channel_offset);
+
 int iio_read_channel_processed(struct iio_channel *chan, int *val)
 {
 	int ret;
@@ -687,19 +712,7 @@ EXPORT_SYMBOL_GPL(iio_read_channel_processed);
 
 int iio_read_channel_scale(struct iio_channel *chan, int *val, int *val2)
 {
-	int ret;
-
-	mutex_lock(&chan->indio_dev->info_exist_lock);
-	if (chan->indio_dev->info == NULL) {
-		ret = -ENODEV;
-		goto err_unlock;
-	}
-
-	ret = iio_channel_read(chan, val, val2, IIO_CHAN_INFO_SCALE);
-err_unlock:
-	mutex_unlock(&chan->indio_dev->info_exist_lock);
-
-	return ret;
+	return iio_read_channel_attribute(chan, val, val2, IIO_CHAN_INFO_SCALE);
 }
 EXPORT_SYMBOL_GPL(iio_read_channel_scale);
 
