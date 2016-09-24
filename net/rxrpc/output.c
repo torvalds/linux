@@ -157,6 +157,8 @@ int rxrpc_send_call_packet(struct rxrpc_call *call, u8 type)
 		spin_unlock_bh(&call->lock);
 
 
+		pkt->whdr.flags |= RXRPC_SLOW_START_OK;
+
 		iov[0].iov_len += sizeof(pkt->ack) + n;
 		iov[1].iov_base = &pkt->ackinfo;
 		iov[1].iov_len	= sizeof(pkt->ackinfo);
@@ -276,8 +278,11 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb)
 	msg.msg_controllen = 0;
 	msg.msg_flags = 0;
 
-	/* If our RTT cache needs working on, request an ACK. */
-	if ((call->peer->rtt_usage < 3 && sp->hdr.seq & 1) ||
+	/* If our RTT cache needs working on, request an ACK.  Also request
+	 * ACKs if a DATA packet appears to have been lost.
+	 */
+	if (call->cong_mode == RXRPC_CALL_FAST_RETRANSMIT ||
+	    (call->peer->rtt_usage < 3 && sp->hdr.seq & 1) ||
 	    ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000),
 			 ktime_get_real()))
 		whdr.flags |= RXRPC_REQUEST_ACK;

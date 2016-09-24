@@ -97,6 +97,7 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 		pkt.info.maxMTU		= htonl(mtu);
 		pkt.info.rwind		= htonl(rxrpc_rx_window_size);
 		pkt.info.jumbo_max	= htonl(rxrpc_rx_jumbo_max);
+		pkt.whdr.flags		|= RXRPC_SLOW_START_OK;
 		len += sizeof(pkt.ack) + sizeof(pkt.info);
 		break;
 	}

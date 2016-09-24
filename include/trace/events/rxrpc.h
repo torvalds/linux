@@ -570,6 +570,51 @@ TRACE_EVENT(rxrpc_retransmit,
 		      __entry->expiry)
 	    );
 
+TRACE_EVENT(rxrpc_congest,
+	    TP_PROTO(struct rxrpc_call *call, struct rxrpc_ack_summary *summary,
+		     rxrpc_serial_t ack_serial, enum rxrpc_congest_change change),
+
+	    TP_ARGS(call, summary, ack_serial, change),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_call *,		call		)
+		    __field(enum rxrpc_congest_change,		change		)
+		    __field(rxrpc_seq_t,			hard_ack	)
+		    __field(rxrpc_seq_t,			top		)
+		    __field(rxrpc_seq_t,			lowest_nak	)
+		    __field(rxrpc_serial_t,			ack_serial	)
+		    __field_struct(struct rxrpc_ack_summary,	sum		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call	= call;
+		    __entry->change	= change;
+		    __entry->hard_ack	= call->tx_hard_ack;
+		    __entry->top	= call->tx_top;
+		    __entry->lowest_nak	= call->acks_lowest_nak;
+		    __entry->ack_serial	= ack_serial;
+		    memcpy(&__entry->sum, summary, sizeof(__entry->sum));
+			   ),
+
+	    TP_printk("c=%p %08x %s %08x %s cw=%u ss=%u nr=%u,%u nw=%u,%u r=%u b=%u u=%u d=%u l=%x%s%s%s",
+		      __entry->call,
+		      __entry->ack_serial,
+		      rxrpc_ack_names[__entry->sum.ack_reason],
+		      __entry->hard_ack,
+		      rxrpc_congest_modes[__entry->sum.mode],
+		      __entry->sum.cwnd,
+		      __entry->sum.ssthresh,
+		      __entry->sum.nr_acks, __entry->sum.nr_nacks,
+		      __entry->sum.nr_new_acks, __entry->sum.nr_new_nacks,
+		      __entry->sum.nr_rot_new_acks,
+		      __entry->top - __entry->hard_ack,
+		      __entry->sum.cumulative_acks,
+		      __entry->sum.dup_acks,
+		      __entry->lowest_nak, __entry->sum.new_low_nack ? "!" : "",
+		      rxrpc_congest_changes[__entry->change],
+		      __entry->sum.retrans_timeo ? " rTxTo" : "")
+	    );
+
 #endif /* _TRACE_RXRPC_H */
 
 /* This part must be outside protection */

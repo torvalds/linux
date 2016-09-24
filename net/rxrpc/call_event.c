@@ -147,6 +147,14 @@ void rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 }
 
 /*
+ * Handle congestion being detected by the retransmit timeout.
+ */
+static void rxrpc_congestion_timeout(struct rxrpc_call *call)
+{
+	set_bit(RXRPC_CALL_RETRANS_TIMEOUT, &call->flags);
+}
+
+/*
  * Perform retransmission of NAK'd and unack'd packets.
  */
 static void rxrpc_resend(struct rxrpc_call *call)
@@ -154,9 +162,9 @@ static void rxrpc_resend(struct rxrpc_call *call)
 	struct rxrpc_skb_priv *sp;
 	struct sk_buff *skb;
 	rxrpc_seq_t cursor, seq, top;
-	ktime_t now = ktime_get_real(), max_age, oldest,  resend_at;
+	ktime_t now = ktime_get_real(), max_age, oldest, resend_at, ack_ts;
 	int ix;
-	u8 annotation, anno_type;
+	u8 annotation, anno_type, retrans = 0, unacked = 0;
 
 	_enter("{%d,%d}", call->tx_hard_ack, call->tx_top);
 
@@ -193,10 +201,13 @@ static void rxrpc_resend(struct rxrpc_call *call)
 					oldest = skb->tstamp;
 				continue;
 			}
+			if (!(annotation & RXRPC_TX_ANNO_RESENT))
+				unacked++;
 		}
 
 		/* Okay, we need to retransmit a packet. */
 		call->rxtx_annotations[ix] = RXRPC_TX_ANNO_RETRANS | annotation;
+		retrans++;
 		trace_rxrpc_retransmit(call, seq, annotation | anno_type,
 				       ktime_to_ns(ktime_sub(skb->tstamp, max_age)));
 	}
@@ -209,6 +220,25 @@ static void rxrpc_resend(struct rxrpc_call *call)
 		    * ceaselessly because the timer times out, but we haven't
 		    * reached the nsec timeout yet.
 		    */
+
+	if (unacked)
+		rxrpc_congestion_timeout(call);
+
+	/* If there was nothing that needed retransmission then it's likely
+	 * that an ACK got lost somewhere.  Send a ping to find out instead of
+	 * retransmitting data.
+	 */
+	if (!retrans) {
+		rxrpc_set_timer(call, rxrpc_timer_set_for_resend);
+		spin_unlock_bh(&call->lock);
+		ack_ts = ktime_sub(now, call->acks_latest_ts);
+		if (ktime_to_ns(ack_ts) < call->peer->rtt)
+			goto out;
+		rxrpc_propose_ACK(call, RXRPC_ACK_PING, 0, 0, true, false,
+				  rxrpc_propose_ack_ping_for_lost_ack);
+		rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ACK);
+		goto out;
+	}
 
 	/* Now go through the Tx window and perform the retransmissions.  We
 	 * have to drop the lock for each send.  If an ACK comes in whilst the
@@ -260,6 +290,7 @@ static void rxrpc_resend(struct rxrpc_call *call)
 
 out_unlock:
 	spin_unlock_bh(&call->lock);
+out:
 	_leave("");
 }
 
@@ -293,6 +324,7 @@ recheck_state:
 	if (time_after_eq(now, call->expire_at)) {
 		rxrpc_abort_call("EXP", call, 0, RX_CALL_TIMEOUT, ETIME);
 		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
+		goto recheck_state;
 	}
 
 	if (test_and_clear_bit(RXRPC_CALL_EV_ACK, &call->events) ||

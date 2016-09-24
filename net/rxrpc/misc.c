@@ -200,6 +200,7 @@ const char rxrpc_timer_traces[rxrpc_timer__nr_trace][8] = {
 const char rxrpc_propose_ack_traces[rxrpc_propose_ack__nr_trace][8] = {
 	[rxrpc_propose_ack_client_tx_end]	= "ClTxEnd",
 	[rxrpc_propose_ack_input_data]		= "DataIn ",
+	[rxrpc_propose_ack_ping_for_lost_ack]	= "LostAck",
 	[rxrpc_propose_ack_ping_for_lost_reply]	= "LostRpl",
 	[rxrpc_propose_ack_ping_for_params]	= "Params ",
 	[rxrpc_propose_ack_respond_to_ack]	= "Rsp2Ack",
@@ -213,4 +214,22 @@ const char *const rxrpc_propose_ack_outcomes[rxrpc_propose_ack__nr_outcomes] = {
 	[rxrpc_propose_ack_use]			= "",
 	[rxrpc_propose_ack_update]		= " Update",
 	[rxrpc_propose_ack_subsume]		= " Subsume",
+};
+
+const char rxrpc_congest_modes[NR__RXRPC_CONGEST_MODES][10] = {
+	[RXRPC_CALL_SLOW_START]		= "SlowStart",
+	[RXRPC_CALL_CONGEST_AVOIDANCE]	= "CongAvoid",
+	[RXRPC_CALL_PACKET_LOSS]	= "PktLoss  ",
+	[RXRPC_CALL_FAST_RETRANSMIT]	= "FastReTx ",
+};
+
+const char rxrpc_congest_changes[rxrpc_congest__nr_change][9] = {
+	[rxrpc_cong_begin_retransmission]	= " Retrans",
+	[rxrpc_cong_cleared_nacks]		= " Cleared",
+	[rxrpc_cong_new_low_nack]		= " NewLowN",
+	[rxrpc_cong_no_change]			= "",
+	[rxrpc_cong_progress]			= " Progres",
+	[rxrpc_cong_retransmit_again]		= " ReTxAgn",
+	[rxrpc_cong_rtt_window_end]		= " RttWinE",
+	[rxrpc_cong_saw_nack]			= " SawNack",
 };

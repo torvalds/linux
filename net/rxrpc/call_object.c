@@ -160,6 +160,14 @@ struct rxrpc_call *rxrpc_alloc_call(gfp_t gfp)
 	call->rx_winsize = rxrpc_rx_window_size;
 	call->tx_winsize = 16;
 	call->rx_expect_next = 1;
+
+	if (RXRPC_TX_SMSS > 2190)
+		call->cong_cwnd = 2;
+	else if (RXRPC_TX_SMSS > 1095)
+		call->cong_cwnd = 3;
+	else
+		call->cong_cwnd = 4;
+	call->cong_ssthresh = RXRPC_RXTX_BUFF_SIZE - 1;
 	return call;
 
 nomem_2:
@@ -176,6 +184,7 @@ static struct rxrpc_call *rxrpc_alloc_client_call(struct sockaddr_rxrpc *srx,
 						  gfp_t gfp)
 {
 	struct rxrpc_call *call;
+	ktime_t now;
 
 	_enter("");
 
@@ -185,6 +194,9 @@ static struct rxrpc_call *rxrpc_alloc_client_call(struct sockaddr_rxrpc *srx,
 	call->state = RXRPC_CALL_CLIENT_AWAIT_CONN;
 	call->service_id = srx->srx_service;
 	call->tx_phase = true;
+	now = ktime_get_real();
+	call->acks_latest_ts = now;
+	call->cong_tstamp = now;
 
 	_leave(" = %p", call);
 	return call;
@@ -325,6 +337,7 @@ void rxrpc_incoming_call(struct rxrpc_sock *rx,
 	call->state		= RXRPC_CALL_SERVER_ACCEPTING;
 	if (sp->hdr.securityIndex > 0)
 		call->state	= RXRPC_CALL_SERVER_SECURING;
+	call->cong_tstamp	= skb->tstamp;
 
 	/* Set the channel for this call.  We don't get channel_lock as we're
 	 * only defending against the data_ready handler (which we're called
