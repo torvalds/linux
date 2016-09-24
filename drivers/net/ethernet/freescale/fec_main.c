@@ -89,7 +89,7 @@ static struct platform_device_id fec_devtype[] = {
 		.driver_data = 0,
 	}, {
 		.name = "imx25-fec",
-		.driver_data = FEC_QUIRK_USE_GASKET | FEC_QUIRK_HAS_RACC,
+		.driver_data = FEC_QUIRK_USE_GASKET,
 	}, {
 		.name = "imx27-fec",
 		.driver_data = FEC_QUIRK_HAS_RACC,
