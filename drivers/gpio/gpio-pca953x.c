@@ -739,7 +739,7 @@ out:
 static const struct of_device_id pca953x_dt_ids[];
 
 static int pca953x_probe(struct i2c_client *client,
-				   const struct i2c_device_id *id)
+				   const struct i2c_device_id *i2c_id)
 {
 	struct pca953x_platform_data *pdata;
 	struct pca953x_chip *chip;
@@ -765,21 +765,21 @@ static int pca953x_probe(struct i2c_client *client,
 
 	chip->client = client;
 
-	if (id) {
-		chip->driver_data = id->driver_data;
+	if (i2c_id) {
+		chip->driver_data = i2c_id->driver_data;
 	} else {
-		const struct acpi_device_id *id;
+		const struct acpi_device_id *acpi_id;
 		const struct of_device_id *match;
 
 		match = of_match_device(pca953x_dt_ids, &client->dev);
 		if (match) {
 			chip->driver_data = (int)(uintptr_t)match->data;
 		} else {
-			id = acpi_match_device(pca953x_acpi_ids, &client->dev);
-			if (!id)
+			acpi_id = acpi_match_device(pca953x_acpi_ids, &client->dev);
+			if (!acpi_id)
 				return -ENODEV;
 
-			chip->driver_data = id->driver_data;
+			chip->driver_data = acpi_id->driver_data;
 		}
 	}
 
