@@ -1082,6 +1082,24 @@ static inline void nicvf_sq_add_cqe_subdesc(struct snd_queue *sq, int qentry,
 	imm->len = 1;
 }
 
+static inline void nicvf_sq_doorbell(struct nicvf *nic, struct sk_buff *skb,
+				     int sq_num, int desc_cnt)
+{
+	struct netdev_queue *txq;
+
+	txq = netdev_get_tx_queue(nic->pnicvf->netdev,
+				  skb_get_queue_mapping(skb));
+
+	netdev_tx_sent_queue(txq, skb->len);
+
+	/* make sure all memory stores are done before ringing doorbell */
+	smp_wmb();
+
+	/* Inform HW to xmit all TSO segments */
+	nicvf_queue_reg_write(nic, NIC_QSET_SQ_0_7_DOOR,
+			      sq_num, desc_cnt);
+}
+
 /* Segment a TSO packet into 'gso_size' segments and append
  * them to SQ for transfer
  */
@@ -1141,12 +1159,8 @@ static int nicvf_sq_append_tso(struct nicvf *nic, struct snd_queue *sq,
 	/* Save SKB in the last segment for freeing */
 	sq->skbuff[hdr_qentry] = (u64)skb;
 
-	/* make sure all memory stores are done before ringing doorbell */
-	smp_wmb();
+	nicvf_sq_doorbell(nic, skb, sq_num, desc_cnt);
 
-	/* Inform HW to xmit all TSO segments */
-	nicvf_queue_reg_write(nic, NIC_QSET_SQ_0_7_DOOR,
-			      sq_num, desc_cnt);
 	nic->drv_stats.tx_tso++;
 	return 1;
 }
@@ -1219,12 +1233,8 @@ doorbell:
 		nicvf_sq_add_cqe_subdesc(sq, qentry, tso_sqe, skb);
 	}
 
-	/* make sure all memory stores are done before ringing doorbell */
-	smp_wmb();
+	nicvf_sq_doorbell(nic, skb, sq_num, subdesc_cnt);
 
-	/* Inform HW to xmit new packet */
-	nicvf_queue_reg_write(nic, NIC_QSET_SQ_0_7_DOOR,
-			      sq_num, subdesc_cnt);
 	return 1;
 
 append_fail:
