@@ -483,6 +483,7 @@ struct mlx4_slave_state {
 	u8 init_port_mask;
 	bool active;
 	bool old_vlan_api;
+	bool vst_qinq_supported;
 	u8 function;
 	dma_addr_t vhcr_dma;
 	u16 mtu[MLX4_MAX_PORTS + 1];
@@ -508,6 +509,7 @@ struct mlx4_vport_state {
 	u64 mac;
 	u16 default_vlan;
 	u8  default_qos;
+	__be16 vlan_proto;
 	u32 tx_rate;
 	bool spoofchk;
 	u32 link_state;
@@ -657,6 +659,7 @@ struct mlx4_vf_immed_vlan_work {
 	u8                      qos_vport;
 	u16			vlan_id;
 	u16			orig_vlan_id;
+	__be16			vlan_proto;
 };
 
 
