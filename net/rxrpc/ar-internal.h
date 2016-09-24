@@ -682,6 +682,7 @@ extern const char rxrpc_rtt_rx_traces[rxrpc_rtt_rx__nr_trace][5];
 
 enum rxrpc_timer_trace {
 	rxrpc_timer_begin,
+	rxrpc_timer_init_for_reply,
 	rxrpc_timer_expired,
 	rxrpc_timer_set_for_ack,
 	rxrpc_timer_set_for_resend,

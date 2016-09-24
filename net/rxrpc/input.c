@@ -149,6 +149,15 @@ static bool rxrpc_receiving_reply(struct rxrpc_call *call)
 {
 	rxrpc_seq_t top = READ_ONCE(call->tx_top);
 
+	if (call->ackr_reason) {
+		spin_lock_bh(&call->lock);
+		call->ackr_reason = 0;
+		call->resend_at = call->expire_at;
+		call->ack_at = call->expire_at;
+		spin_unlock_bh(&call->lock);
+		rxrpc_set_timer(call, rxrpc_timer_init_for_reply);
+	}
+
 	if (!test_bit(RXRPC_CALL_TX_LAST, &call->flags))
 		rxrpc_rotate_tx_window(call, top);
 	if (!test_bit(RXRPC_CALL_TX_LAST, &call->flags)) {

@@ -191,6 +191,7 @@ const char rxrpc_rtt_rx_traces[rxrpc_rtt_rx__nr_trace][5] = {
 const char rxrpc_timer_traces[rxrpc_timer__nr_trace][8] = {
 	[rxrpc_timer_begin]			= "Begin ",
 	[rxrpc_timer_expired]			= "*EXPR*",
+	[rxrpc_timer_init_for_reply]		= "IniRpl",
 	[rxrpc_timer_set_for_ack]		= "SetAck",
 	[rxrpc_timer_set_for_send]		= "SetTx ",
 	[rxrpc_timer_set_for_resend]		= "SetRTx",
