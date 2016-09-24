@@ -73,7 +73,7 @@ static void usb_tx_callback(struct urb *urb);
 
 /* VFD file_operations function prototypes */
 static int vfd_open(struct inode *inode, struct file *file);
-static long vfd_ioctl(struct file *file, unsigned cmd, unsigned long arg);
+static long vfd_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 static int vfd_close(struct inode *inode, struct file *file);
 static ssize_t vfd_write(struct file *file, const char __user *buf,
 				size_t n_bytes, loff_t *pos);
@@ -243,7 +243,7 @@ exit:
  * Called when the VFD device (e.g. /dev/usb/lcd)
  * is closed by the application.
  */
-static long vfd_ioctl(struct file *file, unsigned cmd, unsigned long arg)
+static long vfd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct sasem_context *context;
 
