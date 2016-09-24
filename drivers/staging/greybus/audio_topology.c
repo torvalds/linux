@@ -172,7 +172,7 @@ static int gbcodec_mixer_ctl_info(struct snd_kcontrol *kcontrol,
 	info = (struct gb_audio_ctl_elem_info *)data->info;
 
 	if (!info) {
-		dev_err(module->dev, "NULL info for %s\n", uinfo->id.name);
+		dev_err(codec->dev, "NULL info for %s\n", uinfo->id.name);
 		return -EINVAL;
 	}
 
@@ -489,10 +489,11 @@ static int gbcodec_mixer_dapm_ctl_put(struct snd_kcontrol *kcontrol,
 			dev_err_ratelimited(codec->dev,
 					    "%d:Error in %s for %s\n", ret,
 					    __func__, kcontrol->id.name);
+			return ret;
 		}
 	}
 
-	return ret;
+	return 0;
 }
 
 #define SOC_DAPM_MIXER_GB(xname, kcount, data) \
