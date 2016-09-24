@@ -98,6 +98,9 @@ config OPENRISC_HAVE_INST_DIV
 	  Select this if your implementation has a hardware divide instruction
 endmenu
 
+config NR_CPUS
+	int
+	default "1"
 
 source kernel/Kconfig.hz
 source kernel/Kconfig.preempt
