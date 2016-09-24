@@ -241,7 +241,6 @@ static int wlcore_probe_of(struct device *dev, int *irq,
 	*irq = irq_of_parse_and_map(np, 0);
 	if (!*irq) {
 		dev_err(dev, "No irq in platform data\n");
-		kfree(pdev_data);
 		return -EINVAL;
 	}
 

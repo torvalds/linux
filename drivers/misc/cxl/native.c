@@ -21,10 +21,10 @@
 #include "cxl.h"
 #include "trace.h"
 
-static int afu_control(struct cxl_afu *afu, u64 command,
+static int afu_control(struct cxl_afu *afu, u64 command, u64 clear,
 		       u64 result, u64 mask, bool enabled)
 {
-	u64 AFU_Cntl = cxl_p2n_read(afu, CXL_AFU_Cntl_An);
+	u64 AFU_Cntl;
 	unsigned long timeout = jiffies + (HZ * CXL_TIMEOUT);
 	int rc = 0;
 
@@ -33,7 +33,8 @@ static int afu_control(struct cxl_afu *afu, u64 command,
 
 	trace_cxl_afu_ctrl(afu, command);
 
-	cxl_p2n_write(afu, CXL_AFU_Cntl_An, AFU_Cntl | command);
+	AFU_Cntl = cxl_p2n_read(afu, CXL_AFU_Cntl_An);
+	cxl_p2n_write(afu, CXL_AFU_Cntl_An, (AFU_Cntl & ~clear) | command);
 
 	AFU_Cntl = cxl_p2n_read(afu, CXL_AFU_Cntl_An);
 	while ((AFU_Cntl & mask) != result) {
@@ -54,6 +55,16 @@ static int afu_control(struct cxl_afu *afu, u64 command,
 		cpu_relax();
 		AFU_Cntl = cxl_p2n_read(afu, CXL_AFU_Cntl_An);
 	};
+
+	if (AFU_Cntl & CXL_AFU_Cntl_An_RA) {
+		/*
+		 * Workaround for a bug in the XSL used in the Mellanox CX4
+		 * that fails to clear the RA bit after an AFU reset,
+		 * preventing subsequent AFU resets from working.
+		 */
+		cxl_p2n_write(afu, CXL_AFU_Cntl_An, AFU_Cntl & ~CXL_AFU_Cntl_An_RA);
+	}
+
 	pr_devel("AFU command complete: %llx\n", command);
 	afu->enabled = enabled;
 out:
@@ -67,7 +78,7 @@ static int afu_enable(struct cxl_afu *afu)
 {
 	pr_devel("AFU enable request\n");
 
-	return afu_control(afu, CXL_AFU_Cntl_An_E,
+	return afu_control(afu, CXL_AFU_Cntl_An_E, 0,
 			   CXL_AFU_Cntl_An_ES_Enabled,
 			   CXL_AFU_Cntl_An_ES_MASK, true);
 }
@@ -76,7 +87,8 @@ int cxl_afu_disable(struct cxl_afu *afu)
 {
 	pr_devel("AFU disable request\n");
 
-	return afu_control(afu, 0, CXL_AFU_Cntl_An_ES_Disabled,
+	return afu_control(afu, 0, CXL_AFU_Cntl_An_E,
+			   CXL_AFU_Cntl_An_ES_Disabled,
 			   CXL_AFU_Cntl_An_ES_MASK, false);
 }
 
@@ -85,7 +97,7 @@ static int native_afu_reset(struct cxl_afu *afu)
 {
 	pr_devel("AFU reset request\n");
 
-	return afu_control(afu, CXL_AFU_Cntl_An_RA,
+	return afu_control(afu, CXL_AFU_Cntl_An_RA, 0,
 			   CXL_AFU_Cntl_An_RS_Complete | CXL_AFU_Cntl_An_ES_Disabled,
 			   CXL_AFU_Cntl_An_RS_MASK | CXL_AFU_Cntl_An_ES_MASK,
 			   false);
@@ -189,7 +201,7 @@ int cxl_alloc_spa(struct cxl_afu *afu)
 	unsigned spa_size;
 
 	/* Work out how many pages to allocate */
-	afu->native->spa_order = 0;
+	afu->native->spa_order = -1;
 	do {
 		afu->native->spa_order++;
 		spa_size = (1 << afu->native->spa_order) * PAGE_SIZE;
@@ -430,7 +442,6 @@ static int remove_process_element(struct cxl_context *ctx)
 	return rc;
 }
 
-
 void cxl_assign_psn_space(struct cxl_context *ctx)
 {
 	if (!ctx->afu->pp_size || ctx->master) {
@@ -507,10 +518,39 @@ static u64 calculate_sr(struct cxl_context *ctx)
 	return sr;
 }
 
+static void update_ivtes_directed(struct cxl_context *ctx)
+{
+	bool need_update = (ctx->status == STARTED);
+	int r;
+
+	if (need_update) {
+		WARN_ON(terminate_process_element(ctx));
+		WARN_ON(remove_process_element(ctx));
+	}
+
+	for (r = 0; r < CXL_IRQ_RANGES; r++) {
+		ctx->elem->ivte_offsets[r] = cpu_to_be16(ctx->irqs.offset[r]);
+		ctx->elem->ivte_ranges[r] = cpu_to_be16(ctx->irqs.range[r]);
+	}
+
+	/*
+	 * Theoretically we could use the update llcmd, instead of a
+	 * terminate/remove/add (or if an atomic update was required we could
+	 * do a suspend/update/resume), however it seems there might be issues
+	 * with the update llcmd on some cards (including those using an XSL on
+	 * an ASIC) so for now it's safest to go with the commands that are
+	 * known to work. In the future if we come across a situation where the
+	 * card may be performing transactions using the same PE while we are
+	 * doing this update we might need to revisit this.
+	 */
+	if (need_update)
+		WARN_ON(add_process_element(ctx));
+}
+
 static int attach_afu_directed(struct cxl_context *ctx, u64 wed, u64 amr)
 {
 	u32 pid;
-	int r, result;
+	int result;
 
 	cxl_assign_psn_space(ctx);
 
@@ -545,10 +585,7 @@ static int attach_afu_directed(struct cxl_context *ctx, u64 wed, u64 amr)
 		ctx->irqs.range[0] = 1;
 	}
 
-	for (r = 0; r < CXL_IRQ_RANGES; r++) {
-		ctx->elem->ivte_offsets[r] = cpu_to_be16(ctx->irqs.offset[r]);
-		ctx->elem->ivte_ranges[r] = cpu_to_be16(ctx->irqs.range[r]);
-	}
+	update_ivtes_directed(ctx);
 
 	ctx->elem->common.amr = cpu_to_be64(amr);
 	ctx->elem->common.wed = cpu_to_be64(wed);
@@ -570,7 +607,33 @@ static int deactivate_afu_directed(struct cxl_afu *afu)
 	cxl_sysfs_afu_m_remove(afu);
 	cxl_chardev_afu_remove(afu);
 
-	cxl_ops->afu_reset(afu);
+	/*
+	 * The CAIA section 2.2.1 indicates that the procedure for starting and
+	 * stopping an AFU in AFU directed mode is AFU specific, which is not
+	 * ideal since this code is generic and with one exception has no
+	 * knowledge of the AFU. This is in contrast to the procedure for
+	 * disabling a dedicated process AFU, which is documented to just
+	 * require a reset. The architecture does indicate that both an AFU
+	 * reset and an AFU disable should result in the AFU being disabled and
+	 * we do both followed by a PSL purge for safety.
+	 *
+	 * Notably we used to have some issues with the disable sequence on PSL
+	 * cards, which is why we ended up using this heavy weight procedure in
+	 * the first place, however a bug was discovered that had rendered the
+	 * disable operation ineffective, so it is conceivable that was the
+	 * sole explanation for those difficulties. Careful regression testing
+	 * is recommended if anyone attempts to remove or reorder these
+	 * operations.
+	 *
+	 * The XSL on the Mellanox CX4 behaves a little differently from the
+	 * PSL based cards and will time out an AFU reset if the AFU is still
+	 * enabled. That card is special in that we do have a means to identify
+	 * it from this code, so in that case we skip the reset and just use a
+	 * disable/purge to avoid the timeout and corresponding noise in the
+	 * kernel log.
+	 */
+	if (afu->adapter->native->sl_ops->needs_reset_before_disable)
+		cxl_ops->afu_reset(afu);
 	cxl_afu_disable(afu);
 	cxl_psl_purge(afu);
 
@@ -600,6 +663,22 @@ static int activate_dedicated_process(struct cxl_afu *afu)
 	return cxl_chardev_d_afu_add(afu);
 }
 
+static void update_ivtes_dedicated(struct cxl_context *ctx)
+{
+	struct cxl_afu *afu = ctx->afu;
+
+	cxl_p1n_write(afu, CXL_PSL_IVTE_Offset_An,
+		       (((u64)ctx->irqs.offset[0] & 0xffff) << 48) |
+		       (((u64)ctx->irqs.offset[1] & 0xffff) << 32) |
+		       (((u64)ctx->irqs.offset[2] & 0xffff) << 16) |
+			((u64)ctx->irqs.offset[3] & 0xffff));
+	cxl_p1n_write(afu, CXL_PSL_IVTE_Limit_An, (u64)
+		       (((u64)ctx->irqs.range[0] & 0xffff) << 48) |
+		       (((u64)ctx->irqs.range[1] & 0xffff) << 32) |
+		       (((u64)ctx->irqs.range[2] & 0xffff) << 16) |
+			((u64)ctx->irqs.range[3] & 0xffff));
+}
+
 static int attach_dedicated(struct cxl_context *ctx, u64 wed, u64 amr)
 {
 	struct cxl_afu *afu = ctx->afu;
@@ -618,16 +697,7 @@ static int attach_dedicated(struct cxl_context *ctx, u64 wed, u64 amr)
 
 	cxl_prefault(ctx, wed);
 
-	cxl_p1n_write(afu, CXL_PSL_IVTE_Offset_An,
-		       (((u64)ctx->irqs.offset[0] & 0xffff) << 48) |
-		       (((u64)ctx->irqs.offset[1] & 0xffff) << 32) |
-		       (((u64)ctx->irqs.offset[2] & 0xffff) << 16) |
-			((u64)ctx->irqs.offset[3] & 0xffff));
-	cxl_p1n_write(afu, CXL_PSL_IVTE_Limit_An, (u64)
-		       (((u64)ctx->irqs.range[0] & 0xffff) << 48) |
-		       (((u64)ctx->irqs.range[1] & 0xffff) << 32) |
-		       (((u64)ctx->irqs.range[2] & 0xffff) << 16) |
-			((u64)ctx->irqs.range[3] & 0xffff));
+	update_ivtes_dedicated(ctx);
 
 	cxl_p2n_write(afu, CXL_PSL_AMR_An, amr);
 
@@ -703,10 +773,35 @@ static int native_attach_process(struct cxl_context *ctx, bool kernel,
 
 static inline int detach_process_native_dedicated(struct cxl_context *ctx)
 {
+	/*
+	 * The CAIA section 2.1.1 indicates that we need to do an AFU reset to
+	 * stop the AFU in dedicated mode (we therefore do not make that
+	 * optional like we do in the afu directed path). It does not indicate
+	 * that we need to do an explicit disable (which should occur
+	 * implicitly as part of the reset) or purge, but we do these as well
+	 * to be on the safe side.
+	 *
+	 * Notably we used to have some issues with the disable sequence
+	 * (before the sequence was spelled out in the architecture) which is
+	 * why we were so heavy weight in the first place, however a bug was
+	 * discovered that had rendered the disable operation ineffective, so
+	 * it is conceivable that was the sole explanation for those
+	 * difficulties. Point is, we should be careful and do some regression
+	 * testing if we ever attempt to remove any part of this procedure.
+	 */
 	cxl_ops->afu_reset(ctx->afu);
 	cxl_afu_disable(ctx->afu);
 	cxl_psl_purge(ctx->afu);
 	return 0;
+}
+
+static void native_update_ivtes(struct cxl_context *ctx)
+{
+	if (ctx->afu->current_mode == CXL_MODE_DIRECTED)
+		return update_ivtes_directed(ctx);
+	if (ctx->afu->current_mode == CXL_MODE_DEDICATED)
+		return update_ivtes_dedicated(ctx);
+	WARN(1, "native_update_ivtes: Bad mode\n");
 }
 
 static inline int detach_process_native_afu_directed(struct cxl_context *ctx)
@@ -754,26 +849,38 @@ static int native_get_irq_info(struct cxl_afu *afu, struct cxl_irq_info *info)
 	return 0;
 }
 
-static irqreturn_t native_handle_psl_slice_error(struct cxl_context *ctx,
-						u64 dsisr, u64 errstat)
+void cxl_native_psl_irq_dump_regs(struct cxl_context *ctx)
 {
 	u64 fir1, fir2, fir_slice, serr, afu_debug;
 
 	fir1 = cxl_p1_read(ctx->afu->adapter, CXL_PSL_FIR1);
 	fir2 = cxl_p1_read(ctx->afu->adapter, CXL_PSL_FIR2);
 	fir_slice = cxl_p1n_read(ctx->afu, CXL_PSL_FIR_SLICE_An);
-	serr = cxl_p1n_read(ctx->afu, CXL_PSL_SERR_An);
 	afu_debug = cxl_p1n_read(ctx->afu, CXL_AFU_DEBUG_An);
 
-	dev_crit(&ctx->afu->dev, "PSL ERROR STATUS: 0x%016llx\n", errstat);
 	dev_crit(&ctx->afu->dev, "PSL_FIR1: 0x%016llx\n", fir1);
 	dev_crit(&ctx->afu->dev, "PSL_FIR2: 0x%016llx\n", fir2);
-	dev_crit(&ctx->afu->dev, "PSL_SERR_An: 0x%016llx\n", serr);
+	if (ctx->afu->adapter->native->sl_ops->register_serr_irq) {
+		serr = cxl_p1n_read(ctx->afu, CXL_PSL_SERR_An);
+		cxl_afu_decode_psl_serr(ctx->afu, serr);
+	}
 	dev_crit(&ctx->afu->dev, "PSL_FIR_SLICE_An: 0x%016llx\n", fir_slice);
 	dev_crit(&ctx->afu->dev, "CXL_PSL_AFU_DEBUG_An: 0x%016llx\n", afu_debug);
+}
 
-	dev_crit(&ctx->afu->dev, "STOPPING CXL TRACE\n");
-	cxl_stop_trace(ctx->afu->adapter);
+static irqreturn_t native_handle_psl_slice_error(struct cxl_context *ctx,
+						u64 dsisr, u64 errstat)
+{
+
+	dev_crit(&ctx->afu->dev, "PSL ERROR STATUS: 0x%016llx\n", errstat);
+
+	if (ctx->afu->adapter->native->sl_ops->psl_irq_dump_registers)
+		ctx->afu->adapter->native->sl_ops->psl_irq_dump_registers(ctx);
+
+	if (ctx->afu->adapter->native->sl_ops->debugfs_stop_trace) {
+		dev_crit(&ctx->afu->dev, "STOPPING CXL TRACE\n");
+		ctx->afu->adapter->native->sl_ops->debugfs_stop_trace(ctx->afu->adapter);
+	}
 
 	return cxl_ops->ack_irq(ctx, 0, errstat);
 }
@@ -817,7 +924,7 @@ static irqreturn_t native_irq_multiplexed(int irq, void *data)
 	return fail_psl_irq(afu, &irq_info);
 }
 
-void native_irq_wait(struct cxl_context *ctx)
+static void native_irq_wait(struct cxl_context *ctx)
 {
 	u64 dsisr;
 	int timeout = 1000;
@@ -849,41 +956,56 @@ void native_irq_wait(struct cxl_context *ctx)
 static irqreturn_t native_slice_irq_err(int irq, void *data)
 {
 	struct cxl_afu *afu = data;
-	u64 fir_slice, errstat, serr, afu_debug;
+	u64 fir_slice, errstat, serr, afu_debug, afu_error, dsisr;
 
-	WARN(irq, "CXL SLICE ERROR interrupt %i\n", irq);
-
+	/*
+	 * slice err interrupt is only used with full PSL (no XSL)
+	 */
 	serr = cxl_p1n_read(afu, CXL_PSL_SERR_An);
 	fir_slice = cxl_p1n_read(afu, CXL_PSL_FIR_SLICE_An);
 	errstat = cxl_p2n_read(afu, CXL_PSL_ErrStat_An);
 	afu_debug = cxl_p1n_read(afu, CXL_AFU_DEBUG_An);
-	dev_crit(&afu->dev, "PSL_SERR_An: 0x%016llx\n", serr);
+	afu_error = cxl_p2n_read(afu, CXL_AFU_ERR_An);
+	dsisr = cxl_p2n_read(afu, CXL_PSL_DSISR_An);
+	cxl_afu_decode_psl_serr(afu, serr);
 	dev_crit(&afu->dev, "PSL_FIR_SLICE_An: 0x%016llx\n", fir_slice);
 	dev_crit(&afu->dev, "CXL_PSL_ErrStat_An: 0x%016llx\n", errstat);
 	dev_crit(&afu->dev, "CXL_PSL_AFU_DEBUG_An: 0x%016llx\n", afu_debug);
+	dev_crit(&afu->dev, "AFU_ERR_An: 0x%.16llx\n", afu_error);
+	dev_crit(&afu->dev, "PSL_DSISR_An: 0x%.16llx\n", dsisr);
 
 	cxl_p1n_write(afu, CXL_PSL_SERR_An, serr);
 
 	return IRQ_HANDLED;
 }
 
+void cxl_native_err_irq_dump_regs(struct cxl *adapter)
+{
+	u64 fir1, fir2;
+
+	fir1 = cxl_p1_read(adapter, CXL_PSL_FIR1);
+	fir2 = cxl_p1_read(adapter, CXL_PSL_FIR2);
+
+	dev_crit(&adapter->dev, "PSL_FIR1: 0x%016llx\nPSL_FIR2: 0x%016llx\n", fir1, fir2);
+}
+
 static irqreturn_t native_irq_err(int irq, void *data)
 {
 	struct cxl *adapter = data;
-	u64 fir1, fir2, err_ivte;
+	u64 err_ivte;
 
 	WARN(1, "CXL ERROR interrupt %i\n", irq);
 
 	err_ivte = cxl_p1_read(adapter, CXL_PSL_ErrIVTE);
 	dev_crit(&adapter->dev, "PSL_ErrIVTE: 0x%016llx\n", err_ivte);
 
-	dev_crit(&adapter->dev, "STOPPING CXL TRACE\n");
-	cxl_stop_trace(adapter);
+	if (adapter->native->sl_ops->debugfs_stop_trace) {
+		dev_crit(&adapter->dev, "STOPPING CXL TRACE\n");
+		adapter->native->sl_ops->debugfs_stop_trace(adapter);
+	}
 
-	fir1 = cxl_p1_read(adapter, CXL_PSL_FIR1);
-	fir2 = cxl_p1_read(adapter, CXL_PSL_FIR2);
-
-	dev_crit(&adapter->dev, "PSL_FIR1: 0x%016llx\nPSL_FIR2: 0x%016llx\n", fir1, fir2);
+	if (adapter->native->sl_ops->err_irq_dump_registers)
+		adapter->native->sl_ops->err_irq_dump_registers(adapter);
 
 	return IRQ_HANDLED;
 }
@@ -1128,6 +1250,7 @@ const struct cxl_backend_ops cxl_native_ops = {
 	.irq_wait = native_irq_wait,
 	.attach_process = native_attach_process,
 	.detach_process = native_detach_process,
+	.update_ivtes = native_update_ivtes,
 	.support_attributes = native_support_attributes,
 	.link_ok = cxl_adapter_link_ok,
 	.release_afu = cxl_pci_release_afu,

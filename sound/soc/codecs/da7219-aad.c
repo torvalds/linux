@@ -13,8 +13,8 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
+#include <linux/i2c.h>
+#include <linux/property.h>
 #include <linux/pm_wakeirq.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -382,11 +382,11 @@ static irqreturn_t da7219_aad_irq_thread(int irq, void *data)
 }
 
 /*
- * DT to pdata conversion
+ * DT/ACPI to pdata conversion
  */
 
 static enum da7219_aad_micbias_pulse_lvl
-	da7219_aad_of_micbias_pulse_lvl(struct snd_soc_codec *codec, u32 val)
+	da7219_aad_fw_micbias_pulse_lvl(struct snd_soc_codec *codec, u32 val)
 {
 	switch (val) {
 	case 2800:
@@ -400,7 +400,7 @@ static enum da7219_aad_micbias_pulse_lvl
 }
 
 static enum da7219_aad_btn_cfg
-	da7219_aad_of_btn_cfg(struct snd_soc_codec *codec, u32 val)
+	da7219_aad_fw_btn_cfg(struct snd_soc_codec *codec, u32 val)
 {
 	switch (val) {
 	case 2:
@@ -424,7 +424,7 @@ static enum da7219_aad_btn_cfg
 }
 
 static enum da7219_aad_mic_det_thr
-	da7219_aad_of_mic_det_thr(struct snd_soc_codec *codec, u32 val)
+	da7219_aad_fw_mic_det_thr(struct snd_soc_codec *codec, u32 val)
 {
 	switch (val) {
 	case 200:
@@ -442,7 +442,7 @@ static enum da7219_aad_mic_det_thr
 }
 
 static enum da7219_aad_jack_ins_deb
-	da7219_aad_of_jack_ins_deb(struct snd_soc_codec *codec, u32 val)
+	da7219_aad_fw_jack_ins_deb(struct snd_soc_codec *codec, u32 val)
 {
 	switch (val) {
 	case 5:
@@ -468,7 +468,7 @@ static enum da7219_aad_jack_ins_deb
 }
 
 static enum da7219_aad_jack_det_rate
-	da7219_aad_of_jack_det_rate(struct snd_soc_codec *codec, const char *str)
+	da7219_aad_fw_jack_det_rate(struct snd_soc_codec *codec, const char *str)
 {
 	if (!strcmp(str, "32ms_64ms")) {
 		return DA7219_AAD_JACK_DET_RATE_32_64MS;
@@ -485,7 +485,7 @@ static enum da7219_aad_jack_det_rate
 }
 
 static enum da7219_aad_jack_rem_deb
-	da7219_aad_of_jack_rem_deb(struct snd_soc_codec *codec, u32 val)
+	da7219_aad_fw_jack_rem_deb(struct snd_soc_codec *codec, u32 val)
 {
 	switch (val) {
 	case 1:
@@ -503,7 +503,7 @@ static enum da7219_aad_jack_rem_deb
 }
 
 static enum da7219_aad_btn_avg
-	da7219_aad_of_btn_avg(struct snd_soc_codec *codec, u32 val)
+	da7219_aad_fw_btn_avg(struct snd_soc_codec *codec, u32 val)
 {
 	switch (val) {
 	case 1:
@@ -521,7 +521,7 @@ static enum da7219_aad_btn_avg
 }
 
 static enum da7219_aad_adc_1bit_rpt
-	da7219_aad_of_adc_1bit_rpt(struct snd_soc_codec *codec, u32 val)
+	da7219_aad_fw_adc_1bit_rpt(struct snd_soc_codec *codec, u32 val)
 {
 	switch (val) {
 	case 1:
@@ -538,96 +538,95 @@ static enum da7219_aad_adc_1bit_rpt
 	}
 }
 
-static struct da7219_aad_pdata *da7219_aad_of_to_pdata(struct snd_soc_codec *codec)
+static struct da7219_aad_pdata *da7219_aad_fw_to_pdata(struct snd_soc_codec *codec)
 {
-	struct device_node *np = codec->dev->of_node;
-	struct device_node *aad_np = of_find_node_by_name(np, "da7219_aad");
+	struct device *dev = codec->dev;
+	struct i2c_client *i2c = to_i2c_client(dev);
+	struct fwnode_handle *aad_np;
 	struct da7219_aad_pdata *aad_pdata;
-	const char *of_str;
-	u32 of_val32;
+	const char *fw_str;
+	u32 fw_val32;
 
+	aad_np = device_get_named_child_node(dev, "da7219_aad");
 	if (!aad_np)
 		return NULL;
 
 	aad_pdata = devm_kzalloc(codec->dev, sizeof(*aad_pdata), GFP_KERNEL);
 	if (!aad_pdata)
-		goto out;
+		return NULL;
 
-	aad_pdata->irq = irq_of_parse_and_map(np, 0);
+	aad_pdata->irq = i2c->irq;
 
-	if (of_property_read_u32(aad_np, "dlg,micbias-pulse-lvl",
-				 &of_val32) >= 0)
+	if (fwnode_property_read_u32(aad_np, "dlg,micbias-pulse-lvl",
+				     &fw_val32) >= 0)
 		aad_pdata->micbias_pulse_lvl =
-			da7219_aad_of_micbias_pulse_lvl(codec, of_val32);
+			da7219_aad_fw_micbias_pulse_lvl(codec, fw_val32);
 	else
 		aad_pdata->micbias_pulse_lvl = DA7219_AAD_MICBIAS_PULSE_LVL_OFF;
 
-	if (of_property_read_u32(aad_np, "dlg,micbias-pulse-time",
-				 &of_val32) >= 0)
-		aad_pdata->micbias_pulse_time = of_val32;
+	if (fwnode_property_read_u32(aad_np, "dlg,micbias-pulse-time",
+				     &fw_val32) >= 0)
+		aad_pdata->micbias_pulse_time = fw_val32;
 
-	if (of_property_read_u32(aad_np, "dlg,btn-cfg", &of_val32) >= 0)
-		aad_pdata->btn_cfg = da7219_aad_of_btn_cfg(codec, of_val32);
+	if (fwnode_property_read_u32(aad_np, "dlg,btn-cfg", &fw_val32) >= 0)
+		aad_pdata->btn_cfg = da7219_aad_fw_btn_cfg(codec, fw_val32);
 	else
 		aad_pdata->btn_cfg = DA7219_AAD_BTN_CFG_10MS;
 
-	if (of_property_read_u32(aad_np, "dlg,mic-det-thr", &of_val32) >= 0)
+	if (fwnode_property_read_u32(aad_np, "dlg,mic-det-thr", &fw_val32) >= 0)
 		aad_pdata->mic_det_thr =
-			da7219_aad_of_mic_det_thr(codec, of_val32);
+			da7219_aad_fw_mic_det_thr(codec, fw_val32);
 	else
 		aad_pdata->mic_det_thr = DA7219_AAD_MIC_DET_THR_500_OHMS;
 
-	if (of_property_read_u32(aad_np, "dlg,jack-ins-deb", &of_val32) >= 0)
+	if (fwnode_property_read_u32(aad_np, "dlg,jack-ins-deb", &fw_val32) >= 0)
 		aad_pdata->jack_ins_deb =
-			da7219_aad_of_jack_ins_deb(codec, of_val32);
+			da7219_aad_fw_jack_ins_deb(codec, fw_val32);
 	else
 		aad_pdata->jack_ins_deb = DA7219_AAD_JACK_INS_DEB_20MS;
 
-	if (!of_property_read_string(aad_np, "dlg,jack-det-rate", &of_str))
+	if (!fwnode_property_read_string(aad_np, "dlg,jack-det-rate", &fw_str))
 		aad_pdata->jack_det_rate =
-			da7219_aad_of_jack_det_rate(codec, of_str);
+			da7219_aad_fw_jack_det_rate(codec, fw_str);
 	else
 		aad_pdata->jack_det_rate = DA7219_AAD_JACK_DET_RATE_256_512MS;
 
-	if (of_property_read_u32(aad_np, "dlg,jack-rem-deb", &of_val32) >= 0)
+	if (fwnode_property_read_u32(aad_np, "dlg,jack-rem-deb", &fw_val32) >= 0)
 		aad_pdata->jack_rem_deb =
-			da7219_aad_of_jack_rem_deb(codec, of_val32);
+			da7219_aad_fw_jack_rem_deb(codec, fw_val32);
 	else
 		aad_pdata->jack_rem_deb = DA7219_AAD_JACK_REM_DEB_1MS;
 
-	if (of_property_read_u32(aad_np, "dlg,a-d-btn-thr", &of_val32) >= 0)
-		aad_pdata->a_d_btn_thr = (u8) of_val32;
+	if (fwnode_property_read_u32(aad_np, "dlg,a-d-btn-thr", &fw_val32) >= 0)
+		aad_pdata->a_d_btn_thr = (u8) fw_val32;
 	else
 		aad_pdata->a_d_btn_thr = 0xA;
 
-	if (of_property_read_u32(aad_np, "dlg,d-b-btn-thr", &of_val32) >= 0)
-		aad_pdata->d_b_btn_thr = (u8) of_val32;
+	if (fwnode_property_read_u32(aad_np, "dlg,d-b-btn-thr", &fw_val32) >= 0)
+		aad_pdata->d_b_btn_thr = (u8) fw_val32;
 	else
 		aad_pdata->d_b_btn_thr = 0x16;
 
-	if (of_property_read_u32(aad_np, "dlg,b-c-btn-thr", &of_val32) >= 0)
-		aad_pdata->b_c_btn_thr = (u8) of_val32;
+	if (fwnode_property_read_u32(aad_np, "dlg,b-c-btn-thr", &fw_val32) >= 0)
+		aad_pdata->b_c_btn_thr = (u8) fw_val32;
 	else
 		aad_pdata->b_c_btn_thr = 0x21;
 
-	if (of_property_read_u32(aad_np, "dlg,c-mic-btn-thr", &of_val32) >= 0)
-		aad_pdata->c_mic_btn_thr = (u8) of_val32;
+	if (fwnode_property_read_u32(aad_np, "dlg,c-mic-btn-thr", &fw_val32) >= 0)
+		aad_pdata->c_mic_btn_thr = (u8) fw_val32;
 	else
 		aad_pdata->c_mic_btn_thr = 0x3E;
 
-	if (of_property_read_u32(aad_np, "dlg,btn-avg", &of_val32) >= 0)
-		aad_pdata->btn_avg = da7219_aad_of_btn_avg(codec, of_val32);
+	if (fwnode_property_read_u32(aad_np, "dlg,btn-avg", &fw_val32) >= 0)
+		aad_pdata->btn_avg = da7219_aad_fw_btn_avg(codec, fw_val32);
 	else
 		aad_pdata->btn_avg = DA7219_AAD_BTN_AVG_2;
 
-	if (of_property_read_u32(aad_np, "dlg,adc-1bit-rpt", &of_val32) >= 0)
+	if (fwnode_property_read_u32(aad_np, "dlg,adc-1bit-rpt", &fw_val32) >= 0)
 		aad_pdata->adc_1bit_rpt =
-			da7219_aad_of_adc_1bit_rpt(codec, of_val32);
+			da7219_aad_fw_adc_1bit_rpt(codec, fw_val32);
 	else
 		aad_pdata->adc_1bit_rpt = DA7219_AAD_ADC_1BIT_RPT_1;
-
-out:
-	of_node_put(aad_np);
 
 	return aad_pdata;
 }
@@ -769,9 +768,9 @@ int da7219_aad_init(struct snd_soc_codec *codec)
 	da7219->aad = da7219_aad;
 	da7219_aad->codec = codec;
 
-	/* Handle any DT/platform data */
-	if ((codec->dev->of_node) && (da7219->pdata))
-		da7219->pdata->aad_pdata = da7219_aad_of_to_pdata(codec);
+	/* Handle any DT/ACPI/platform data */
+	if (da7219->pdata && !da7219->pdata->aad_pdata)
+		da7219->pdata->aad_pdata = da7219_aad_fw_to_pdata(codec);
 
 	da7219_aad_handle_pdata(codec);
 

@@ -15,20 +15,22 @@
  */
 
 #include <linux/crc32.h>
+#include <linux/bitmap.h>
 #include "ubi.h"
 
 /**
  * init_seen - allocate memory for used for debugging.
  * @ubi: UBI device description object
  */
-static inline int *init_seen(struct ubi_device *ubi)
+static inline unsigned long *init_seen(struct ubi_device *ubi)
 {
-	int *ret;
+	unsigned long *ret;
 
 	if (!ubi_dbg_chk_fastmap(ubi))
 		return NULL;
 
-	ret = kcalloc(ubi->peb_count, sizeof(int), GFP_KERNEL);
+	ret = kcalloc(BITS_TO_LONGS(ubi->peb_count), sizeof(unsigned long),
+		      GFP_KERNEL);
 	if (!ret)
 		return ERR_PTR(-ENOMEM);
 
@@ -39,7 +41,7 @@ static inline int *init_seen(struct ubi_device *ubi)
  * free_seen - free the seen logic integer array.
  * @seen: integer array of @ubi->peb_count size
  */
-static inline void free_seen(int *seen)
+static inline void free_seen(unsigned long *seen)
 {
 	kfree(seen);
 }
@@ -50,12 +52,12 @@ static inline void free_seen(int *seen)
  * @pnum: The PEB to be makred as seen
  * @seen: integer array of @ubi->peb_count size
  */
-static inline void set_seen(struct ubi_device *ubi, int pnum, int *seen)
+static inline void set_seen(struct ubi_device *ubi, int pnum, unsigned long *seen)
 {
 	if (!ubi_dbg_chk_fastmap(ubi) || !seen)
 		return;
 
-	seen[pnum] = 1;
+	set_bit(pnum, seen);
 }
 
 /**
@@ -63,7 +65,7 @@ static inline void set_seen(struct ubi_device *ubi, int pnum, int *seen)
  * @ubi: UBI device description object
  * @seen: integer array of @ubi->peb_count size
  */
-static int self_check_seen(struct ubi_device *ubi, int *seen)
+static int self_check_seen(struct ubi_device *ubi, unsigned long *seen)
 {
 	int pnum, ret = 0;
 
@@ -71,7 +73,7 @@ static int self_check_seen(struct ubi_device *ubi, int *seen)
 		return 0;
 
 	for (pnum = 0; pnum < ubi->peb_count; pnum++) {
-		if (!seen[pnum] && ubi->lookuptbl[pnum]) {
+		if (test_bit(pnum, seen) && ubi->lookuptbl[pnum]) {
 			ubi_err(ubi, "self-check failed for PEB %d, fastmap didn't see it", pnum);
 			ret = -EINVAL;
 		}
@@ -578,7 +580,7 @@ static int count_fastmap_pebs(struct ubi_attach_info *ai)
 	list_for_each_entry(aeb, &ai->free, u.list)
 		n++;
 
-	 ubi_rb_for_each_entry(rb1, av, &ai->volumes, rb)
+	ubi_rb_for_each_entry(rb1, av, &ai->volumes, rb)
 		ubi_rb_for_each_entry(rb2, aeb, &av->root, u.rb)
 			n++;
 
@@ -850,26 +852,56 @@ fail:
 }
 
 /**
+ * find_fm_anchor - find the most recent Fastmap superblock (anchor)
+ * @ai: UBI attach info to be filled
+ */
+static int find_fm_anchor(struct ubi_attach_info *ai)
+{
+	int ret = -1;
+	struct ubi_ainf_peb *aeb;
+	unsigned long long max_sqnum = 0;
+
+	list_for_each_entry(aeb, &ai->fastmap, u.list) {
+		if (aeb->vol_id == UBI_FM_SB_VOLUME_ID && aeb->sqnum > max_sqnum) {
+			max_sqnum = aeb->sqnum;
+			ret = aeb->pnum;
+		}
+	}
+
+	return ret;
+}
+
+/**
  * ubi_scan_fastmap - scan the fastmap.
  * @ubi: UBI device object
  * @ai: UBI attach info to be filled
- * @fm_anchor: The fastmap starts at this PEB
+ * @scan_ai: UBI attach info from the first 64 PEBs,
+ *           used to find the most recent Fastmap data structure
  *
  * Returns 0 on success, UBI_NO_FASTMAP if no fastmap was found,
  * UBI_BAD_FASTMAP if one was found but is not usable.
  * < 0 indicates an internal error.
  */
 int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
-		     int fm_anchor)
+		     struct ubi_attach_info *scan_ai)
 {
 	struct ubi_fm_sb *fmsb, *fmsb2;
 	struct ubi_vid_hdr *vh;
 	struct ubi_ec_hdr *ech;
 	struct ubi_fastmap_layout *fm;
-	int i, used_blocks, pnum, ret = 0;
+	struct ubi_ainf_peb *tmp_aeb, *aeb;
+	int i, used_blocks, pnum, fm_anchor, ret = 0;
 	size_t fm_size;
 	__be32 crc, tmp_crc;
 	unsigned long long sqnum = 0;
+
+	fm_anchor = find_fm_anchor(scan_ai);
+	if (fm_anchor < 0)
+		return UBI_NO_FASTMAP;
+
+	/* Move all (possible) fastmap blocks into our new attach structure. */
+	list_for_each_entry_safe(aeb, tmp_aeb, &scan_ai->fastmap, u.list)
+		list_move_tail(&aeb->u.list, &ai->fastmap);
 
 	down_write(&ubi->fm_protect);
 	memset(ubi->fm_buf, 0, ubi->fm_size);
@@ -941,6 +973,13 @@ int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		pnum = be32_to_cpu(fmsb->block_loc[i]);
 
 		if (ubi_io_is_bad(ubi, pnum)) {
+			ret = UBI_BAD_FASTMAP;
+			goto free_hdr;
+		}
+
+		if (i == 0 && pnum != fm_anchor) {
+			ubi_err(ubi, "Fastmap anchor PEB mismatch: PEB: %i vs. %i",
+				pnum, fm_anchor);
 			ret = UBI_BAD_FASTMAP;
 			goto free_hdr;
 		}
@@ -1102,7 +1141,7 @@ static int ubi_write_fastmap(struct ubi_device *ubi,
 	struct rb_node *tmp_rb;
 	int ret, i, j, free_peb_count, used_peb_count, vol_count;
 	int scrub_peb_count, erase_peb_count;
-	int *seen_pebs = NULL;
+	unsigned long *seen_pebs = NULL;
 
 	fm_raw = ubi->fm_buf;
 	memset(ubi->fm_buf, 0, ubi->fm_size);

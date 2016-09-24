@@ -469,7 +469,9 @@ static int mwifiex_ret_rf_antenna(struct mwifiex_private *priv,
 	struct host_cmd_ds_rf_ant_siso *ant_siso = &resp->params.ant_siso;
 	struct mwifiex_adapter *adapter = priv->adapter;
 
-	if (adapter->hw_dev_mcs_support == HT_STREAM_2X2)
+	if (adapter->hw_dev_mcs_support == HT_STREAM_2X2) {
+		priv->tx_ant = le16_to_cpu(ant_mimo->tx_ant_mode);
+		priv->rx_ant = le16_to_cpu(ant_mimo->rx_ant_mode);
 		mwifiex_dbg(adapter, INFO,
 			    "RF_ANT_RESP: Tx action = 0x%x, Tx Mode = 0x%04x\t"
 			    "Rx action = 0x%x, Rx Mode = 0x%04x\n",
@@ -477,12 +479,14 @@ static int mwifiex_ret_rf_antenna(struct mwifiex_private *priv,
 			    le16_to_cpu(ant_mimo->tx_ant_mode),
 			    le16_to_cpu(ant_mimo->action_rx),
 			    le16_to_cpu(ant_mimo->rx_ant_mode));
-	else
+	} else {
+		priv->tx_ant = le16_to_cpu(ant_siso->ant_mode);
+		priv->rx_ant = le16_to_cpu(ant_siso->ant_mode);
 		mwifiex_dbg(adapter, INFO,
 			    "RF_ANT_RESP: action = 0x%x, Mode = 0x%04x\n",
 			    le16_to_cpu(ant_siso->action),
 			    le16_to_cpu(ant_siso->ant_mode));
-
+	}
 	return 0;
 }
 
@@ -553,7 +557,8 @@ static int mwifiex_ret_802_11_deauthenticate(struct mwifiex_private *priv,
 	if (!memcmp(resp->params.deauth.mac_addr,
 		    &priv->curr_bss_params.bss_descriptor.mac_address,
 		    sizeof(resp->params.deauth.mac_addr)))
-		mwifiex_reset_connect_state(priv, WLAN_REASON_DEAUTH_LEAVING);
+		mwifiex_reset_connect_state(priv, WLAN_REASON_DEAUTH_LEAVING,
+					    false);
 
 	return 0;
 }
@@ -566,7 +571,7 @@ static int mwifiex_ret_802_11_deauthenticate(struct mwifiex_private *priv,
 static int mwifiex_ret_802_11_ad_hoc_stop(struct mwifiex_private *priv,
 					  struct host_cmd_ds_command *resp)
 {
-	mwifiex_reset_connect_state(priv, WLAN_REASON_DEAUTH_LEAVING);
+	mwifiex_reset_connect_state(priv, WLAN_REASON_DEAUTH_LEAVING, false);
 	return 0;
 }
 
@@ -781,45 +786,44 @@ static int mwifiex_ret_reg_access(u16 type, struct host_cmd_ds_command *resp,
 	switch (type) {
 	case HostCmd_CMD_MAC_REG_ACCESS:
 		r.mac = &resp->params.mac_reg;
-		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.mac->offset));
-		reg_rw->value = r.mac->value;
+		reg_rw->offset = (u32) le16_to_cpu(r.mac->offset);
+		reg_rw->value = le32_to_cpu(r.mac->value);
 		break;
 	case HostCmd_CMD_BBP_REG_ACCESS:
 		r.bbp = &resp->params.bbp_reg;
-		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.bbp->offset));
-		reg_rw->value = cpu_to_le32((u32) r.bbp->value);
+		reg_rw->offset = (u32) le16_to_cpu(r.bbp->offset);
+		reg_rw->value = (u32) r.bbp->value;
 		break;
 
 	case HostCmd_CMD_RF_REG_ACCESS:
 		r.rf = &resp->params.rf_reg;
-		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.rf->offset));
-		reg_rw->value = cpu_to_le32((u32) r.bbp->value);
+		reg_rw->offset = (u32) le16_to_cpu(r.rf->offset);
+		reg_rw->value = (u32) r.bbp->value;
 		break;
 	case HostCmd_CMD_PMIC_REG_ACCESS:
 		r.pmic = &resp->params.pmic_reg;
-		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.pmic->offset));
-		reg_rw->value = cpu_to_le32((u32) r.pmic->value);
+		reg_rw->offset = (u32) le16_to_cpu(r.pmic->offset);
+		reg_rw->value = (u32) r.pmic->value;
 		break;
 	case HostCmd_CMD_CAU_REG_ACCESS:
 		r.rf = &resp->params.rf_reg;
-		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.rf->offset));
-		reg_rw->value = cpu_to_le32((u32) r.rf->value);
+		reg_rw->offset = (u32) le16_to_cpu(r.rf->offset);
+		reg_rw->value = (u32) r.rf->value;
 		break;
 	case HostCmd_CMD_802_11_EEPROM_ACCESS:
 		r.eeprom = &resp->params.eeprom;
-		pr_debug("info: EEPROM read len=%x\n", r.eeprom->byte_count);
-		if (le16_to_cpu(eeprom->byte_count) <
-		    le16_to_cpu(r.eeprom->byte_count)) {
-			eeprom->byte_count = cpu_to_le16(0);
+		pr_debug("info: EEPROM read len=%x\n",
+				le16_to_cpu(r.eeprom->byte_count));
+		if (eeprom->byte_count < le16_to_cpu(r.eeprom->byte_count)) {
+			eeprom->byte_count = 0;
 			pr_debug("info: EEPROM read length is too big\n");
 			return -1;
 		}
-		eeprom->offset = r.eeprom->offset;
-		eeprom->byte_count = r.eeprom->byte_count;
-		if (le16_to_cpu(eeprom->byte_count) > 0)
+		eeprom->offset = le16_to_cpu(r.eeprom->offset);
+		eeprom->byte_count = le16_to_cpu(r.eeprom->byte_count);
+		if (eeprom->byte_count > 0)
 			memcpy(&eeprom->value, &r.eeprom->value,
-			       le16_to_cpu(r.eeprom->byte_count));
-
+			       min((u16)MAX_EEPROM_DATA, eeprom->byte_count));
 		break;
 	default:
 		return -1;

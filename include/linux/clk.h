@@ -20,8 +20,6 @@ struct device;
 
 struct clk;
 
-#ifdef CONFIG_COMMON_CLK
-
 /**
  * DOC: clk notifier callback types
  *
@@ -77,6 +75,8 @@ struct clk_notifier_data {
 	unsigned long		old_rate;
 	unsigned long		new_rate;
 };
+
+#ifdef CONFIG_COMMON_CLK
 
 /**
  * clk_notifier_register: register a clock rate-change notifier callback
@@ -139,6 +139,18 @@ int clk_get_phase(struct clk *clk);
 bool clk_is_match(const struct clk *p, const struct clk *q);
 
 #else
+
+static inline int clk_notifier_register(struct clk *clk,
+					struct notifier_block *nb)
+{
+	return -ENOTSUPP;
+}
+
+static inline int clk_notifier_unregister(struct clk *clk,
+					  struct notifier_block *nb)
+{
+	return -ENOTSUPP;
+}
 
 static inline long clk_get_accuracy(struct clk *clk)
 {
@@ -461,6 +473,10 @@ static inline struct clk *clk_get_parent(struct clk *clk)
 	return NULL;
 }
 
+static inline struct clk *clk_get_sys(const char *dev_id, const char *con_id)
+{
+	return NULL;
+}
 #endif
 
 /* clk_prepare_enable helps cases using clk_enable in non-atomic context. */

@@ -241,6 +241,31 @@ static void toggle_nb_mca_mst_cpu(u16 nid)
 		       __func__, PCI_FUNC(F3->devfn), NBCFG);
 }
 
+static void prepare_msrs(void *info)
+{
+	struct mce i_mce = *(struct mce *)info;
+	u8 b = i_mce.bank;
+
+	wrmsrl(MSR_IA32_MCG_STATUS, i_mce.mcgstatus);
+
+	if (boot_cpu_has(X86_FEATURE_SMCA)) {
+		if (i_mce.inject_flags == DFR_INT_INJ) {
+			wrmsrl(MSR_AMD64_SMCA_MCx_DESTAT(b), i_mce.status);
+			wrmsrl(MSR_AMD64_SMCA_MCx_DEADDR(b), i_mce.addr);
+		} else {
+			wrmsrl(MSR_AMD64_SMCA_MCx_STATUS(b), i_mce.status);
+			wrmsrl(MSR_AMD64_SMCA_MCx_ADDR(b), i_mce.addr);
+		}
+
+		wrmsrl(MSR_AMD64_SMCA_MCx_MISC(b), i_mce.misc);
+	} else {
+		wrmsrl(MSR_IA32_MCx_STATUS(b), i_mce.status);
+		wrmsrl(MSR_IA32_MCx_ADDR(b), i_mce.addr);
+		wrmsrl(MSR_IA32_MCx_MISC(b), i_mce.misc);
+	}
+
+}
+
 static void do_inject(void)
 {
 	u64 mcg_status = 0;
@@ -287,36 +312,9 @@ static void do_inject(void)
 
 	toggle_hw_mce_inject(cpu, true);
 
-	wrmsr_on_cpu(cpu, MSR_IA32_MCG_STATUS,
-		     (u32)mcg_status, (u32)(mcg_status >> 32));
-
-	if (boot_cpu_has(X86_FEATURE_SMCA)) {
-		if (inj_type == DFR_INT_INJ) {
-			wrmsr_on_cpu(cpu, MSR_AMD64_SMCA_MCx_DESTAT(b),
-				     (u32)i_mce.status, (u32)(i_mce.status >> 32));
-
-			wrmsr_on_cpu(cpu, MSR_AMD64_SMCA_MCx_DEADDR(b),
-				     (u32)i_mce.addr, (u32)(i_mce.addr >> 32));
-		} else {
-			wrmsr_on_cpu(cpu, MSR_AMD64_SMCA_MCx_STATUS(b),
-				     (u32)i_mce.status, (u32)(i_mce.status >> 32));
-
-			wrmsr_on_cpu(cpu, MSR_AMD64_SMCA_MCx_ADDR(b),
-				     (u32)i_mce.addr, (u32)(i_mce.addr >> 32));
-		}
-
-		wrmsr_on_cpu(cpu, MSR_AMD64_SMCA_MCx_MISC(b),
-			     (u32)i_mce.misc, (u32)(i_mce.misc >> 32));
-	} else {
-		wrmsr_on_cpu(cpu, MSR_IA32_MCx_STATUS(b),
-			     (u32)i_mce.status, (u32)(i_mce.status >> 32));
-
-		wrmsr_on_cpu(cpu, MSR_IA32_MCx_ADDR(b),
-			     (u32)i_mce.addr, (u32)(i_mce.addr >> 32));
-
-		wrmsr_on_cpu(cpu, MSR_IA32_MCx_MISC(b),
-			     (u32)i_mce.misc, (u32)(i_mce.misc >> 32));
-	}
+	i_mce.mcgstatus = mcg_status;
+	i_mce.inject_flags = inj_type;
+	smp_call_function_single(cpu, prepare_msrs, &i_mce, 0);
 
 	toggle_hw_mce_inject(cpu, false);
 

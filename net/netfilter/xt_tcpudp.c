@@ -83,8 +83,6 @@ static bool tcp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		return false;
 	}
 
-#define FWINVTCP(bool, invflg) ((bool) ^ !!(tcpinfo->invflags & (invflg)))
-
 	th = skb_header_pointer(skb, par->thoff, sizeof(_tcph), &_tcph);
 	if (th == NULL) {
 		/* We've been asked to examine this packet, and we
@@ -102,9 +100,8 @@ static bool tcp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 			ntohs(th->dest),
 			!!(tcpinfo->invflags & XT_TCP_INV_DSTPT)))
 		return false;
-	if (!FWINVTCP((((unsigned char *)th)[13] & tcpinfo->flg_mask)
-		      == tcpinfo->flg_cmp,
-		      XT_TCP_INV_FLAGS))
+	if (!NF_INVF(tcpinfo, XT_TCP_INV_FLAGS,
+		     (((unsigned char *)th)[13] & tcpinfo->flg_mask) == tcpinfo->flg_cmp))
 		return false;
 	if (tcpinfo->option) {
 		if (th->doff * 4 < sizeof(_tcph)) {

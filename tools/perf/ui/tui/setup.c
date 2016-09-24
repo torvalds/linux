@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <signal.h>
 #include <stdbool.h>
 #ifdef HAVE_BACKTRACE_SUPPORT
@@ -6,6 +7,7 @@
 
 #include "../../util/cache.h"
 #include "../../util/debug.h"
+#include "../../util/util.h"
 #include "../browser.h"
 #include "../helpline.h"
 #include "../ui.h"

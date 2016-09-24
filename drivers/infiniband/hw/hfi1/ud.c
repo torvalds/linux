@@ -184,8 +184,12 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	}
 
 	if (ah_attr->ah_flags & IB_AH_GRH) {
-		hfi1_copy_sge(&qp->r_sge, &ah_attr->grh,
-			      sizeof(struct ib_grh), 1, 0);
+		struct ib_grh grh;
+		struct ib_global_route grd = ah_attr->grh;
+
+		hfi1_make_grh(ibp, &grh, &grd, 0, 0);
+		hfi1_copy_sge(&qp->r_sge, &grh,
+			      sizeof(grh), 1, 0);
 		wc.wc_flags |= IB_WC_GRH;
 	} else {
 		hfi1_skip_sge(&qp->r_sge, sizeof(struct ib_grh), 1);
@@ -430,10 +434,9 @@ int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 					 qp->qkey : wqe->ud_wr.remote_qkey);
 	ohdr->u.ud.deth[1] = cpu_to_be32(qp->ibqp.qp_num);
 	/* disarm any ahg */
-	priv->s_hdr->ahgcount = 0;
-	priv->s_hdr->ahgidx = 0;
-	priv->s_hdr->tx_flags = 0;
-	priv->s_hdr->sde = NULL;
+	priv->s_ahg->ahgcount = 0;
+	priv->s_ahg->ahgidx = 0;
+	priv->s_ahg->tx_flags = 0;
 	/* pbc */
 	ps->s_txreq->hdr_dwords = qp->s_hdrwords + 2;
 
@@ -665,74 +668,48 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 	struct hfi1_other_headers *ohdr = packet->ohdr;
 	int opcode;
 	u32 hdrsize = packet->hlen;
-	u32 pad;
 	struct ib_wc wc;
 	u32 qkey;
 	u32 src_qp;
 	u16 dlid, pkey;
 	int mgmt_pkey_idx = -1;
 	struct hfi1_ibport *ibp = &packet->rcd->ppd->ibport_data;
+	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 	struct hfi1_ib_header *hdr = packet->hdr;
 	u32 rcv_flags = packet->rcv_flags;
 	void *data = packet->ebuf;
 	u32 tlen = packet->tlen;
 	struct rvt_qp *qp = packet->qp;
 	bool has_grh = rcv_flags & HFI1_HAS_GRH;
-	bool sc4_bit = has_sc4_bit(packet);
-	u8 sc;
+	u8 sc5 = hdr2sc((struct hfi1_message_header *)hdr, packet->rhf);
 	u32 bth1;
-	int is_mcast;
-	struct ib_grh *grh = NULL;
+	u8 sl_from_sc, sl;
+	u16 slid;
+	u8 extra_bytes;
 
 	qkey = be32_to_cpu(ohdr->u.ud.deth[0]);
 	src_qp = be32_to_cpu(ohdr->u.ud.deth[1]) & RVT_QPN_MASK;
 	dlid = be16_to_cpu(hdr->lrh[1]);
-	is_mcast = (dlid > be16_to_cpu(IB_MULTICAST_LID_BASE)) &&
-			(dlid != be16_to_cpu(IB_LID_PERMISSIVE));
 	bth1 = be32_to_cpu(ohdr->bth[1]);
-	if (unlikely(bth1 & HFI1_BECN_SMASK)) {
-		/*
-		 * In pre-B0 h/w the CNP_OPCODE is handled via an
-		 * error path.
-		 */
-		struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
-		u32 lqpn =  be32_to_cpu(ohdr->bth[1]) & RVT_QPN_MASK;
-		u8 sl, sc5;
+	slid = be16_to_cpu(hdr->lrh[3]);
+	pkey = (u16)be32_to_cpu(ohdr->bth[0]);
+	sl = (be16_to_cpu(hdr->lrh[0]) >> 4) & 0xf;
+	extra_bytes = (be32_to_cpu(ohdr->bth[0]) >> 20) & 3;
+	extra_bytes += (SIZE_OF_CRC << 2);
+	sl_from_sc = ibp->sc_to_sl[sc5];
 
-		sc5 = (be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf;
-		sc5 |= sc4_bit;
-		sl = ibp->sc_to_sl[sc5];
-
-		process_becn(ppd, sl, 0, lqpn, 0, IB_CC_SVCTYPE_UD);
-	}
-
-	/*
-	 * The opcode is in the low byte when its in network order
-	 * (top byte when in host order).
-	 */
 	opcode = be32_to_cpu(ohdr->bth[0]) >> 24;
 	opcode &= 0xff;
 
-	pkey = (u16)be32_to_cpu(ohdr->bth[0]);
-
-	if (!is_mcast && (opcode != IB_OPCODE_CNP) && bth1 & HFI1_FECN_SMASK) {
-		u16 slid = be16_to_cpu(hdr->lrh[3]);
-		u8 sc5;
-
-		sc5 = (be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf;
-		sc5 |= sc4_bit;
-
-		return_cnp(ibp, qp, src_qp, pkey, dlid, slid, sc5, grh);
-	}
+	process_ecn(qp, packet, (opcode != IB_OPCODE_CNP));
 	/*
 	 * Get the number of bytes the message was padded by
 	 * and drop incomplete packets.
 	 */
-	pad = (be32_to_cpu(ohdr->bth[0]) >> 20) & 3;
-	if (unlikely(tlen < (hdrsize + pad + 4)))
+	if (unlikely(tlen < (hdrsize + extra_bytes)))
 		goto drop;
 
-	tlen -= hdrsize + pad + 4;
+	tlen -= hdrsize + extra_bytes;
 
 	/*
 	 * Check that the permissive LID is only used on QP0
@@ -743,14 +720,6 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 			     hdr->lrh[3] == IB_LID_PERMISSIVE))
 			goto drop;
 		if (qp->ibqp.qp_num > 1) {
-			struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
-			u16 slid;
-			u8 sc5;
-
-			sc5 = (be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf;
-			sc5 |= sc4_bit;
-
-			slid = be16_to_cpu(hdr->lrh[3]);
 			if (unlikely(rcv_pkey_check(ppd, pkey, sc5, slid))) {
 				/*
 				 * Traps will not be sent for packets dropped
@@ -759,12 +728,9 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 				 * IB spec (release 1.3, section 10.9.4)
 				 */
 				hfi1_bad_pqkey(ibp, OPA_TRAP_BAD_P_KEY,
-					       pkey,
-					       (be16_to_cpu(hdr->lrh[0]) >> 4) &
-						0xF,
+					       pkey, sl,
 					       src_qp, qp->ibqp.qp_num,
-					       be16_to_cpu(hdr->lrh[3]),
-					       be16_to_cpu(hdr->lrh[1]));
+					       slid, dlid);
 				return;
 			}
 		} else {
@@ -774,26 +740,18 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 				goto drop;
 		}
 		if (unlikely(qkey != qp->qkey)) {
-			hfi1_bad_pqkey(ibp, OPA_TRAP_BAD_Q_KEY, qkey,
-				       (be16_to_cpu(hdr->lrh[0]) >> 4) & 0xF,
+			hfi1_bad_pqkey(ibp, OPA_TRAP_BAD_Q_KEY, qkey, sl,
 				       src_qp, qp->ibqp.qp_num,
-				       be16_to_cpu(hdr->lrh[3]),
-				       be16_to_cpu(hdr->lrh[1]));
+				       slid, dlid);
 			return;
 		}
 		/* Drop invalid MAD packets (see 13.5.3.1). */
 		if (unlikely(qp->ibqp.qp_num == 1 &&
-			     (tlen > 2048 ||
-			      (be16_to_cpu(hdr->lrh[0]) >> 12) == 15)))
+			     (tlen > 2048 || (sc5 == 0xF))))
 			goto drop;
 	} else {
 		/* Received on QP0, and so by definition, this is an SMP */
 		struct opa_smp *smp = (struct opa_smp *)data;
-		u16 slid = be16_to_cpu(hdr->lrh[3]);
-		u8 sc5;
-
-		sc5 = (be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf;
-		sc5 |= sc4_bit;
 
 		if (opa_smp_check(ibp, pkey, sc5, qp, slid, smp))
 			goto drop;
@@ -876,7 +834,6 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 	    qp->ibqp.qp_type == IB_QPT_SMI) {
 		if (mgmt_pkey_idx < 0) {
 			if (net_ratelimit()) {
-				struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 				struct hfi1_devdata *dd = ppd->dd;
 
 				dd_dev_err(dd, "QP type %d mgmt_pkey_idx < 0 and packet not dropped???\n",
@@ -889,10 +846,8 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 		wc.pkey_index = 0;
 	}
 
-	wc.slid = be16_to_cpu(hdr->lrh[3]);
-	sc = (be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf;
-	sc |= sc4_bit;
-	wc.sl = ibp->sc_to_sl[sc];
+	wc.slid = slid;
+	wc.sl = sl_from_sc;
 
 	/*
 	 * Save the LMC lower bits if the destination LID is a unicast LID.

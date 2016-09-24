@@ -1566,17 +1566,8 @@ static int exynos_dsi_get_modes(struct drm_connector *connector)
 	return 0;
 }
 
-static struct drm_encoder *
-exynos_dsi_best_encoder(struct drm_connector *connector)
-{
-	struct exynos_dsi *dsi = connector_to_dsi(connector);
-
-	return &dsi->encoder;
-}
-
 static const struct drm_connector_helper_funcs exynos_dsi_connector_helper_funcs = {
 	.get_modes = exynos_dsi_get_modes,
-	.best_encoder = exynos_dsi_best_encoder,
 };
 
 static int exynos_dsi_create_connector(struct drm_encoder *encoder)

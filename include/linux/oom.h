@@ -23,6 +23,9 @@ struct oom_control {
 	/* Used to determine mempolicy */
 	nodemask_t *nodemask;
 
+	/* Memory cgroup in which oom is invoked, or NULL for global oom */
+	struct mem_cgroup *memcg;
+
 	/* Used to determine cpuset and node locality requirement */
 	const gfp_t gfp_mask;
 
@@ -70,9 +73,9 @@ static inline bool oom_task_origin(const struct task_struct *p)
 extern void mark_oom_victim(struct task_struct *tsk);
 
 #ifdef CONFIG_MMU
-extern void try_oom_reaper(struct task_struct *tsk);
+extern void wake_oom_reaper(struct task_struct *tsk);
 #else
-static inline void try_oom_reaper(struct task_struct *tsk)
+static inline void wake_oom_reaper(struct task_struct *tsk)
 {
 }
 #endif
@@ -83,14 +86,13 @@ extern unsigned long oom_badness(struct task_struct *p,
 
 extern void oom_kill_process(struct oom_control *oc, struct task_struct *p,
 			     unsigned int points, unsigned long totalpages,
-			     struct mem_cgroup *memcg, const char *message);
+			     const char *message);
 
 extern void check_panic_on_oom(struct oom_control *oc,
-			       enum oom_constraint constraint,
-			       struct mem_cgroup *memcg);
+			       enum oom_constraint constraint);
 
 extern enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
-		struct task_struct *task, unsigned long totalpages);
+					       struct task_struct *task);
 
 extern bool out_of_memory(struct oom_control *oc);
 
@@ -105,27 +107,7 @@ extern void oom_killer_enable(void);
 
 extern struct task_struct *find_lock_task_mm(struct task_struct *p);
 
-static inline bool task_will_free_mem(struct task_struct *task)
-{
-	struct signal_struct *sig = task->signal;
-
-	/*
-	 * A coredumping process may sleep for an extended period in exit_mm(),
-	 * so the oom killer cannot assume that the process will promptly exit
-	 * and release memory.
-	 */
-	if (sig->flags & SIGNAL_GROUP_COREDUMP)
-		return false;
-
-	if (!(task->flags & PF_EXITING))
-		return false;
-
-	/* Make sure that the whole thread group is going down */
-	if (!thread_group_empty(task) && !(sig->flags & SIGNAL_GROUP_EXIT))
-		return false;
-
-	return true;
-}
+bool task_will_free_mem(struct task_struct *task);
 
 /* sysctls */
 extern int sysctl_oom_dump_tasks;

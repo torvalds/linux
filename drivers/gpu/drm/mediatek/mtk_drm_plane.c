@@ -170,6 +170,7 @@ static int mtk_plane_atomic_check(struct drm_plane *plane,
 
 	return drm_plane_helper_check_update(plane, state->crtc, fb,
 					     &src, &dest, &clip,
+					     state->rotation,
 					     DRM_PLANE_HELPER_NO_SCALING,
 					     DRM_PLANE_HELPER_NO_SCALING,
 					     true, true, &visible);

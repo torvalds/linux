@@ -2018,6 +2018,9 @@
 
 
 /* Codec Private Register definition */
+/* DAC ADC Digital Volume (0x00) */
+#define RT5645_DA1_ZDET_SFT			6
+
 /* 3D Speaker Control (0x63) */
 #define RT5645_3D_SPK_MASK			(0x1 << 15)
 #define RT5645_3D_SPK_SFT			15

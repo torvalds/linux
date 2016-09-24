@@ -20,6 +20,7 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/buffer.h>
+#include <linux/iio/sysfs.h>
 
 #include "bmi160.h"
 
@@ -410,7 +411,8 @@ static irqreturn_t bmi160_trigger_handler(int irq, void *p)
 		buf[j++] = sample;
 	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, buf, iio_get_time_ns());
+	iio_push_to_buffers_with_timestamp(indio_dev, buf,
+					   iio_get_time_ns(indio_dev));
 done:
 	iio_trigger_notify_done(indio_dev->trig);
 	return IRQ_HANDLED;
@@ -466,10 +468,36 @@ static int bmi160_write_raw(struct iio_dev *indio_dev,
 	return 0;
 }
 
+static
+IIO_CONST_ATTR(in_accel_sampling_frequency_available,
+	       "0.78125 1.5625 3.125 6.25 12.5 25 50 100 200 400 800 1600");
+static
+IIO_CONST_ATTR(in_anglvel_sampling_frequency_available,
+	       "25 50 100 200 400 800 1600 3200");
+static
+IIO_CONST_ATTR(in_accel_scale_available,
+	       "0.000598 0.001197 0.002394 0.004788");
+static
+IIO_CONST_ATTR(in_anglvel_scale_available,
+	       "0.001065 0.000532 0.000266 0.000133 0.000066");
+
+static struct attribute *bmi160_attrs[] = {
+	&iio_const_attr_in_accel_sampling_frequency_available.dev_attr.attr,
+	&iio_const_attr_in_anglvel_sampling_frequency_available.dev_attr.attr,
+	&iio_const_attr_in_accel_scale_available.dev_attr.attr,
+	&iio_const_attr_in_anglvel_scale_available.dev_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group bmi160_attrs_group = {
+	.attrs = bmi160_attrs,
+};
+
 static const struct iio_info bmi160_info = {
 	.driver_module = THIS_MODULE,
 	.read_raw = bmi160_read_raw,
 	.write_raw = bmi160_write_raw,
+	.attrs = &bmi160_attrs_group,
 };
 
 static const char *bmi160_match_acpi_device(struct device *dev)

@@ -274,6 +274,8 @@ static int bpa10x_setup(struct hci_dev *hdev)
 
 	BT_INFO("%s: %s", hdev->name, (char *)(skb->data + 1));
 
+	hci_set_fw_info(hdev, "%s", skb->data + 1);
+
 	kfree_skb(skb);
 	return 0;
 }

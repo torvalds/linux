@@ -43,7 +43,6 @@
 #include <linux/err.h>
 #include <linux/filter.h>
 #include <linux/audit.h>
-#include <sys/ptrace.h>
 #include <linux/random.h>
 #include <linux/stringify.h>
 
@@ -333,6 +332,10 @@ static size_t syscall_arg__scnprintf_fd(char *bf, size_t size,
 					struct syscall_arg *arg);
 
 #define SCA_FD syscall_arg__scnprintf_fd
+
+#ifndef AT_FDCWD
+#define AT_FDCWD	-100
+#endif
 
 static size_t syscall_arg__scnprintf_fd_at(char *bf, size_t size,
 					   struct syscall_arg *arg)
@@ -1247,7 +1250,7 @@ static int trace__validate_ev_qualifier(struct trace *trace)
 
 	i = 0;
 
-	strlist__for_each(pos, trace->ev_qualifier) {
+	strlist__for_each_entry(pos, trace->ev_qualifier) {
 		const char *sc = pos->s;
 		int id = syscalltbl__id(trace->sctbl, sc);
 
@@ -1601,7 +1604,7 @@ signed_print:
 		fprintf(trace->output, ") = %ld", ret);
 	} else if (ret < 0 && (sc->fmt->errmsg || sc->fmt->errpid)) {
 		char bf[STRERR_BUFSIZE];
-		const char *emsg = strerror_r(-ret, bf, sizeof(bf)),
+		const char *emsg = str_error_r(-ret, bf, sizeof(bf)),
 			   *e = audit_errno_to_name(-ret);
 
 		fprintf(trace->output, ") = -1 %s %s", e, emsg);
@@ -2402,7 +2405,7 @@ out_error_apply_filters:
 	fprintf(trace->output,
 		"Failed to set filter \"%s\" on event %s with %d (%s)\n",
 		evsel->filter, perf_evsel__name(evsel), errno,
-		strerror_r(errno, errbuf, sizeof(errbuf)));
+		str_error_r(errno, errbuf, sizeof(errbuf)));
 	goto out_delete_evlist;
 }
 out_error_mem:
@@ -2483,7 +2486,7 @@ static int trace__replay(struct trace *trace)
 		goto out;
 	}
 
-	evlist__for_each(session->evlist, evsel) {
+	evlist__for_each_entry(session->evlist, evsel) {
 		if (evsel->attr.type == PERF_TYPE_SOFTWARE &&
 		    (evsel->attr.config == PERF_COUNT_SW_PAGE_FAULTS_MAJ ||
 		     evsel->attr.config == PERF_COUNT_SW_PAGE_FAULTS_MIN ||
@@ -2550,7 +2553,7 @@ static size_t thread__dump_stats(struct thread_trace *ttrace,
 	printed += fprintf(fp, "                               (msec)    (msec)    (msec)    (msec)        (%%)\n");
 	printed += fprintf(fp, "   --------------- -------- --------- --------- --------- ---------     ------\n");
 
-	resort_rb__for_each(nd, syscall_stats) {
+	resort_rb__for_each_entry(nd, syscall_stats) {
 		struct stats *stats = syscall_stats_entry->stats;
 		if (stats) {
 			double min = (double)(stats->min) / NSEC_PER_MSEC;
@@ -2627,7 +2630,7 @@ static size_t trace__fprintf_thread_summary(struct trace *trace, FILE *fp)
 		return 0;
 	}
 
-	resort_rb__for_each(nd, threads)
+	resort_rb__for_each_entry(nd, threads)
 		printed += trace__fprintf_thread(fp, threads_entry->thread, trace);
 
 	resort_rb__delete(threads);
@@ -2714,7 +2717,7 @@ static void evlist__set_evsel_handler(struct perf_evlist *evlist, void *handler)
 {
 	struct perf_evsel *evsel;
 
-	evlist__for_each(evlist, evsel)
+	evlist__for_each_entry(evlist, evsel)
 		evsel->handler = handler;
 }
 

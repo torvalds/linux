@@ -11,7 +11,7 @@
  */
 
 #include <linux/io.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
@@ -91,17 +91,17 @@ static int exynos_srom_configure_bank(struct exynos_srom *srom,
 	if (width == 2)
 		cs |= 1 << EXYNOS_SROM_BW__DATAWIDTH__SHIFT;
 
-	bw = __raw_readl(srom->reg_base + EXYNOS_SROM_BW);
+	bw = readl_relaxed(srom->reg_base + EXYNOS_SROM_BW);
 	bw = (bw & ~(EXYNOS_SROM_BW__CS_MASK << bank)) | (cs << bank);
-	__raw_writel(bw, srom->reg_base + EXYNOS_SROM_BW);
+	writel_relaxed(bw, srom->reg_base + EXYNOS_SROM_BW);
 
-	__raw_writel(pmc | (timing[0] << EXYNOS_SROM_BCX__TACP__SHIFT) |
-		    (timing[1] << EXYNOS_SROM_BCX__TCAH__SHIFT) |
-		    (timing[2] << EXYNOS_SROM_BCX__TCOH__SHIFT) |
-		    (timing[3] << EXYNOS_SROM_BCX__TACC__SHIFT) |
-		    (timing[4] << EXYNOS_SROM_BCX__TCOS__SHIFT) |
-		    (timing[5] << EXYNOS_SROM_BCX__TACS__SHIFT),
-		    srom->reg_base + EXYNOS_SROM_BC0 + bank);
+	writel_relaxed(pmc | (timing[0] << EXYNOS_SROM_BCX__TACP__SHIFT) |
+		       (timing[1] << EXYNOS_SROM_BCX__TCAH__SHIFT) |
+		       (timing[2] << EXYNOS_SROM_BCX__TCOH__SHIFT) |
+		       (timing[3] << EXYNOS_SROM_BCX__TACC__SHIFT) |
+		       (timing[4] << EXYNOS_SROM_BCX__TCOS__SHIFT) |
+		       (timing[5] << EXYNOS_SROM_BCX__TACS__SHIFT),
+		       srom->reg_base + EXYNOS_SROM_BC0 + bank);
 
 	return 0;
 }
@@ -134,7 +134,7 @@ static int exynos_srom_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, srom);
 
 	srom->reg_offset = exynos_srom_alloc_reg_dump(exynos_srom_offsets,
-			sizeof(exynos_srom_offsets));
+			ARRAY_SIZE(exynos_srom_offsets));
 	if (!srom->reg_offset) {
 		iounmap(srom->reg_base);
 		return -ENOMEM;
@@ -157,16 +157,6 @@ static int exynos_srom_probe(struct platform_device *pdev)
 		return 0;
 
 	return of_platform_populate(np, NULL, NULL, dev);
-}
-
-static int exynos_srom_remove(struct platform_device *pdev)
-{
-	struct exynos_srom *srom = platform_get_drvdata(pdev);
-
-	kfree(srom->reg_offset);
-	iounmap(srom->reg_base);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -211,21 +201,16 @@ static const struct of_device_id of_exynos_srom_ids[] = {
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(of, of_exynos_srom_ids);
 
 static SIMPLE_DEV_PM_OPS(exynos_srom_pm_ops, exynos_srom_suspend, exynos_srom_resume);
 
 static struct platform_driver exynos_srom_driver = {
 	.probe = exynos_srom_probe,
-	.remove = exynos_srom_remove,
 	.driver = {
 		.name = "exynos-srom",
 		.of_match_table = of_exynos_srom_ids,
 		.pm = &exynos_srom_pm_ops,
+		.suppress_bind_attrs = true,
 	},
 };
-module_platform_driver(exynos_srom_driver);
-
-MODULE_AUTHOR("Pankaj Dubey <pankaj.dubey@samsung.com>");
-MODULE_DESCRIPTION("Exynos SROM Controller Driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(exynos_srom_driver);

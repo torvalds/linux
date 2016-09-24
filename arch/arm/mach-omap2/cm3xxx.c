@@ -649,7 +649,7 @@ void omap3_cm_save_scratchpad_contents(u32 *ptr)
 	/*
 	 * As per erratum i671, ROM code does not respect the PER DPLL
 	 * programming scheme if CM_AUTOIDLE_PLL..AUTO_PERIPH_DPLL == 1.
-	 * Then,  in anycase, clear these bits to avoid extra latencies.
+	 * Then,  in any case, clear these bits to avoid extra latencies.
 	 */
 	*ptr++ = omap2_cm_read_mod_reg(PLL_MOD, CM_AUTOIDLE) &
 		~OMAP3430_AUTO_PERIPH_DPLL_MASK;

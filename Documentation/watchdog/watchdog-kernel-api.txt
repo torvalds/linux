@@ -82,8 +82,9 @@ It contains following fields:
 * max_timeout: the watchdog timer's maximum timeout value (in seconds),
   as seen from userspace. If set, the maximum configurable value for
   'timeout'. Not used if max_hw_heartbeat_ms is non-zero.
-* min_hw_heartbeat_ms: Minimum time between heartbeats sent to the chip,
-  in milli-seconds.
+* min_hw_heartbeat_ms: Hardware limit for minimum time between heartbeats,
+  in milli-seconds. This value is normally 0; it should only be provided
+  if the hardware can not tolerate lower intervals between heartbeats.
 * max_hw_heartbeat_ms: Maximum hardware heartbeat, in milli-seconds.
   If set, the infrastructure will send heartbeats to the watchdog driver
   if 'timeout' is larger than max_hw_heartbeat_ms, unless WDOG_ACTIVE
@@ -166,6 +167,10 @@ they are supported. These optional routines/operations are:
   info structure).
 * status: this routine checks the status of the watchdog timer device. The
   status of the device is reported with watchdog WDIOF_* status flags/bits.
+  WDIOF_MAGICCLOSE and WDIOF_KEEPALIVEPING are reported by the watchdog core;
+  it is not necessary to report those bits from the driver. Also, if no status
+  function is provided by the driver, the watchdog core reports the status bits
+  provided in the bootstatus variable of struct watchdog_device.
 * set_timeout: this routine checks and changes the timeout of the watchdog
   timer device. It returns 0 on success, -EINVAL for "parameter out of range"
   and -EIO for "could not write value to the watchdog". On success this

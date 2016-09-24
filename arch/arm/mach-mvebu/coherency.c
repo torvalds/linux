@@ -111,19 +111,11 @@ static struct notifier_block mvebu_hwcc_pci_nb __maybe_unused = {
 	.notifier_call = mvebu_hwcc_notifier,
 };
 
-static int armada_xp_clear_shared_l2_notifier_func(struct notifier_block *nfb,
-					unsigned long action, void *hcpu)
+static int armada_xp_clear_l2_starting(unsigned int cpu)
 {
-	if (action == CPU_STARTING || action == CPU_STARTING_FROZEN)
-		armada_xp_clear_shared_l2();
-
-	return NOTIFY_OK;
+	armada_xp_clear_shared_l2();
+	return 0;
 }
-
-static struct notifier_block armada_xp_clear_shared_l2_notifier = {
-	.notifier_call = armada_xp_clear_shared_l2_notifier_func,
-	.priority = 100,
-};
 
 static void __init armada_370_coherency_init(struct device_node *np)
 {
@@ -155,29 +147,24 @@ static void __init armada_370_coherency_init(struct device_node *np)
 
 	of_node_put(cpu_config_np);
 
-	register_cpu_notifier(&armada_xp_clear_shared_l2_notifier);
-
+	cpuhp_setup_state_nocalls(CPUHP_AP_ARM_MVEBU_COHERENCY,
+				  "AP_ARM_MVEBU_COHERENCY",
+				  armada_xp_clear_l2_starting, NULL);
 exit:
 	set_cpu_coherent();
 }
 
 /*
- * This ioremap hook is used on Armada 375/38x to ensure that PCIe
- * memory areas are mapped as MT_UNCACHED instead of MT_DEVICE. This
- * is needed as a workaround for a deadlock issue between the PCIe
- * interface and the cache controller.
+ * This ioremap hook is used on Armada 375/38x to ensure that all MMIO
+ * areas are mapped as MT_UNCACHED instead of MT_DEVICE. This is
+ * needed for the HW I/O coherency mechanism to work properly without
+ * deadlock.
  */
 static void __iomem *
-armada_pcie_wa_ioremap_caller(phys_addr_t phys_addr, size_t size,
-			      unsigned int mtype, void *caller)
+armada_wa_ioremap_caller(phys_addr_t phys_addr, size_t size,
+			 unsigned int mtype, void *caller)
 {
-	struct resource pcie_mem;
-
-	mvebu_mbus_get_pcie_mem_aperture(&pcie_mem);
-
-	if (pcie_mem.start <= phys_addr && (phys_addr + size) <= pcie_mem.end)
-		mtype = MT_UNCACHED;
-
+	mtype = MT_UNCACHED;
 	return __arm_ioremap_caller(phys_addr, size, mtype, caller);
 }
 
@@ -186,7 +173,8 @@ static void __init armada_375_380_coherency_init(struct device_node *np)
 	struct device_node *cache_dn;
 
 	coherency_cpu_base = of_iomap(np, 0);
-	arch_ioremap_caller = armada_pcie_wa_ioremap_caller;
+	arch_ioremap_caller = armada_wa_ioremap_caller;
+	pci_ioremap_set_mem_type(MT_UNCACHED);
 
 	/*
 	 * We should switch the PL310 to I/O coherency mode only if

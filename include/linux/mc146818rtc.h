@@ -14,6 +14,8 @@
 #include <asm/io.h>
 #include <linux/rtc.h>			/* get the user-level API */
 #include <asm/mc146818rtc.h>		/* register access macros */
+#include <linux/bcd.h>
+#include <linux/delay.h>
 
 #ifdef __KERNEL__
 #include <linux/spinlock.h>		/* spinlock_t */
@@ -119,5 +121,8 @@ struct cmos_rtc_board_info {
 #else
 #define RTC_IO_EXTENT_USED      RTC_IO_EXTENT
 #endif /* ARCH_RTC_LOCATION */
+
+unsigned int mc146818_get_time(struct rtc_time *time);
+int mc146818_set_time(struct rtc_time *time);
 
 #endif /* _MC146818RTC_H */

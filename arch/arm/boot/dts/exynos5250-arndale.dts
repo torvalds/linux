@@ -14,6 +14,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/input/input.h>
 #include "exynos5250.dtsi"
+#include "exynos-mfc-reserved-memory.dtsi"
 
 / {
 	model = "Insignal Arndale evaluation board based on EXYNOS5250";
@@ -513,11 +514,6 @@
 
 &i2s0 {
 	status = "okay";
-};
-
-&mfc {
-	samsung,mfc-r = <0x43000000 0x800000>;
-	samsung,mfc-l = <0x51000000 0x800000>;
 };
 
 &mmc_0 {

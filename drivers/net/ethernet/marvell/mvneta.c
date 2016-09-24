@@ -244,7 +244,7 @@
 /* Various constants */
 
 /* Coalescing */
-#define MVNETA_TXDONE_COAL_PKTS		1
+#define MVNETA_TXDONE_COAL_PKTS		0	/* interrupt per packet */
 #define MVNETA_RX_COAL_PKTS		32
 #define MVNETA_RX_COAL_USEC		100
 
@@ -4118,6 +4118,7 @@ static int mvneta_probe(struct platform_device *pdev)
 			pp->bm_priv = NULL;
 		}
 	}
+	of_node_put(bm_node);
 
 	err = mvneta_init(&pdev->dev, pp);
 	if (err < 0)

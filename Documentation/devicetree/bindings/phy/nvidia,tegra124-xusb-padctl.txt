@@ -124,7 +124,7 @@ For Tegra124 and Tegra132, the list of valid PHY nodes is given below:
   - functions: "usb3-ss", "sata"
 
 For Tegra210, the list of valid PHY nodes is given below:
-- utmi: utmi-0, utmi-1, utmi-2, utmi-3
+- usb2: usb2-0, usb2-1, usb2-2, usb2-3
   - functions: "snps", "xusb", "uart"
 - hsic: hsic-0, hsic-1
   - functions: "snps", "xusb"

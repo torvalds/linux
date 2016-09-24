@@ -16,7 +16,7 @@
 #include <linux/module.h>
 #include <linux/rtc.h>
 #include <linux/platform_device.h>
-#include <linux/m48t86.h>
+#include <linux/platform_data/rtc-m48t86.h>
 #include <linux/bcd.h>
 
 #define M48T86_REG_SEC		0x00

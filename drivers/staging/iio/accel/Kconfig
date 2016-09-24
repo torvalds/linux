@@ -51,20 +51,6 @@ config ADIS16240
 	  To compile this driver as a module, say M here: the module will be
 	  called adis16240.
 
-config LIS3L02DQ
-	tristate "ST Microelectronics LIS3L02DQ Accelerometer Driver"
-	depends on SPI
-	select IIO_TRIGGER if IIO_BUFFER
-	depends on !IIO_BUFFER || IIO_KFIFO_BUF
-	depends on GPIOLIB || COMPILE_TEST
-	help
-	  Say Y here to build SPI support for the ST microelectronics
-	  accelerometer. The driver supplies direct access via sysfs files
-	  and an event interface via a character device.
-
-	  To compile this driver as a module, say M here: the module will be
-	  called lis3l02dq.
-
 config SCA3000
 	depends on IIO_BUFFER
 	depends on SPI

@@ -327,6 +327,42 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 			ucc_fast_free(uccf);
 			return -EINVAL;
 		}
+	} else {
+		/* tdm Rx clock routing */
+		if ((uf_info->rx_clock != QE_CLK_NONE) &&
+		    ucc_set_tdm_rxtx_clk(uf_info->tdm_num, uf_info->rx_clock,
+					 COMM_DIR_RX)) {
+			pr_err("%s: illegal value for RX clock", __func__);
+			ucc_fast_free(uccf);
+			return -EINVAL;
+		}
+
+		/* tdm Tx clock routing */
+		if ((uf_info->tx_clock != QE_CLK_NONE) &&
+		    ucc_set_tdm_rxtx_clk(uf_info->tdm_num, uf_info->tx_clock,
+					 COMM_DIR_TX)) {
+			pr_err("%s: illegal value for TX clock", __func__);
+			ucc_fast_free(uccf);
+			return -EINVAL;
+		}
+
+		/* tdm Rx sync clock routing */
+		if ((uf_info->rx_sync != QE_CLK_NONE) &&
+		    ucc_set_tdm_rxtx_sync(uf_info->tdm_num, uf_info->rx_sync,
+					  COMM_DIR_RX)) {
+			pr_err("%s: illegal value for RX clock", __func__);
+			ucc_fast_free(uccf);
+			return -EINVAL;
+		}
+
+		/* tdm Tx sync clock routing */
+		if ((uf_info->tx_sync != QE_CLK_NONE) &&
+		    ucc_set_tdm_rxtx_sync(uf_info->tdm_num, uf_info->tx_sync,
+					  COMM_DIR_TX)) {
+			pr_err("%s: illegal value for TX clock", __func__);
+			ucc_fast_free(uccf);
+			return -EINVAL;
+		}
 	}
 
 	/* Set interrupt mask register at UCC level. */

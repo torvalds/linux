@@ -1443,8 +1443,6 @@ static struct dma_async_tx_descriptor *pl08x_prep_dma_memcpy(
 	dsg = kzalloc(sizeof(struct pl08x_sg), GFP_NOWAIT);
 	if (!dsg) {
 		pl08x_free_txd(pl08x, txd);
-		dev_err(&pl08x->adev->dev, "%s no memory for pl080 sg\n",
-				__func__);
 		return NULL;
 	}
 	list_add_tail(&dsg->node, &txd->dsg_list);
@@ -1901,11 +1899,8 @@ static int pl08x_dma_init_virtual_channels(struct pl08x_driver_data *pl08x,
 	 */
 	for (i = 0; i < channels; i++) {
 		chan = kzalloc(sizeof(*chan), GFP_KERNEL);
-		if (!chan) {
-			dev_err(&pl08x->adev->dev,
-				"%s no memory for channel\n", __func__);
+		if (!chan)
 			return -ENOMEM;
-		}
 
 		chan->host = pl08x;
 		chan->state = PL08X_CHAN_IDLE;
@@ -2360,9 +2355,6 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	pl08x->phy_chans = kzalloc((vd->channels * sizeof(*pl08x->phy_chans)),
 			GFP_KERNEL);
 	if (!pl08x->phy_chans) {
-		dev_err(&adev->dev, "%s failed to allocate "
-			"physical channel holders\n",
-			__func__);
 		ret = -ENOMEM;
 		goto out_no_phychans;
 	}

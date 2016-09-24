@@ -82,3 +82,7 @@
 		};
 	};
 };
+
+&spi_nor {
+	status = "okay";
+};

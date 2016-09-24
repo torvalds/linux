@@ -47,6 +47,14 @@ enum mlx5_module_id {
 	MLX5_MODULE_ID_QSFP28           = 0x11,
 };
 
+enum mlx5_an_status {
+	MLX5_AN_UNAVAILABLE = 0,
+	MLX5_AN_COMPLETE    = 1,
+	MLX5_AN_FAILED      = 2,
+	MLX5_AN_LINK_UP     = 3,
+	MLX5_AN_LINK_DOWN   = 4,
+};
+
 #define MLX5_EEPROM_MAX_BYTES			32
 #define MLX5_EEPROM_IDENTIFIER_BYTE_MASK	0x000000ff
 #define MLX5_I2C_ADDR_LOW		0x50
@@ -65,13 +73,17 @@ int mlx5_query_port_link_width_oper(struct mlx5_core_dev *dev,
 int mlx5_query_port_proto_oper(struct mlx5_core_dev *dev,
 			       u8 *proto_oper, int proto_mask,
 			       u8 local_port);
-int mlx5_set_port_proto(struct mlx5_core_dev *dev, u32 proto_admin,
-			int proto_mask);
+int mlx5_set_port_ptys(struct mlx5_core_dev *dev, bool an_disable,
+		       u32 proto_admin, int proto_mask);
+void mlx5_toggle_port_link(struct mlx5_core_dev *dev);
 int mlx5_set_port_admin_status(struct mlx5_core_dev *dev,
 			       enum mlx5_port_status status);
 int mlx5_query_port_admin_status(struct mlx5_core_dev *dev,
 				 enum mlx5_port_status *status);
 int mlx5_set_port_beacon(struct mlx5_core_dev *dev, u16 beacon_duration);
+void mlx5_query_port_autoneg(struct mlx5_core_dev *dev, int proto_mask,
+			     u8 *an_status,
+			     u8 *an_disable_cap, u8 *an_disable_admin);
 
 int mlx5_set_port_mtu(struct mlx5_core_dev *dev, u16 mtu, u8 port);
 void mlx5_query_port_max_mtu(struct mlx5_core_dev *dev, u16 *max_mtu, u8 port);

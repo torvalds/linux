@@ -64,7 +64,6 @@ struct exynos_drm_plane_state {
 	struct exynos_drm_rect src;
 	unsigned int h_ratio;
 	unsigned int v_ratio;
-	unsigned int zpos;
 };
 
 static inline struct exynos_drm_plane_state *
@@ -221,11 +220,8 @@ struct exynos_drm_private {
 	 * this array is used to be aware of which crtc did it request vblank.
 	 */
 	struct drm_crtc *crtc[MAX_CRTC];
-	struct drm_property *plane_zpos_property;
 
 	struct device *dma_dev;
-	unsigned long da_start;
-	unsigned long da_space_size;
 	void *mapping;
 
 	unsigned int pipe;

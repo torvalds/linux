@@ -67,6 +67,7 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 	OPT_CALLBACK('e', "event", &mem, "event",
 		     "event selector. use 'perf mem record -e list' to list available events",
 		     parse_record_events),
+	OPT_UINTEGER(0, "ldlat", &perf_mem_events__loads_ldlat, "mem-loads latency"),
 	OPT_INCR('v', "verbose", &verbose,
 		 "be more verbose (show counter open errors, etc)"),
 	OPT_BOOLEAN('U', "--all-user", &all_user, "collect only user level data"),
@@ -86,6 +87,9 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 
 	if (mem->operation & MEM_OPERATION_LOAD)
 		perf_mem_events[PERF_MEM_EVENTS__LOAD].record = true;
+
+	if (mem->operation & MEM_OPERATION_STORE)
+		perf_mem_events[PERF_MEM_EVENTS__STORE].record = true;
 
 	if (perf_mem_events[PERF_MEM_EVENTS__LOAD].record)
 		rec_argv[i++] = "-W";

@@ -70,3 +70,47 @@ void amdgpu_gfx_scratch_free(struct amdgpu_device *adev, uint32_t reg)
 		}
 	}
 }
+
+/**
+ * amdgpu_gfx_parse_disable_cu - Parse the disable_cu module parameter
+ *
+ * @mask: array in which the per-shader array disable masks will be stored
+ * @max_se: number of SEs
+ * @max_sh: number of SHs
+ *
+ * The bitmask of CUs to be disabled in the shader array determined by se and
+ * sh is stored in mask[se * max_sh + sh].
+ */
+void amdgpu_gfx_parse_disable_cu(unsigned *mask, unsigned max_se, unsigned max_sh)
+{
+	unsigned se, sh, cu;
+	const char *p;
+
+	memset(mask, 0, sizeof(*mask) * max_se * max_sh);
+
+	if (!amdgpu_disable_cu || !*amdgpu_disable_cu)
+		return;
+
+	p = amdgpu_disable_cu;
+	for (;;) {
+		char *next;
+		int ret = sscanf(p, "%u.%u.%u", &se, &sh, &cu);
+		if (ret < 3) {
+			DRM_ERROR("amdgpu: could not parse disable_cu\n");
+			return;
+		}
+
+		if (se < max_se && sh < max_sh && cu < 16) {
+			DRM_INFO("amdgpu: disabling CU %u.%u.%u\n", se, sh, cu);
+			mask[se * max_sh + sh] |= 1u << cu;
+		} else {
+			DRM_ERROR("amdgpu: disable_cu %u.%u.%u is out of range\n",
+				  se, sh, cu);
+		}
+
+		next = strchr(p, ',');
+		if (!next)
+			break;
+		p = next + 1;
+	}
+}

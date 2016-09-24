@@ -33,69 +33,54 @@ static DEFINE_PER_CPU_SHARED_ALIGNED(struct llist_head, call_single_queue);
 
 static void flush_smp_call_function_queue(bool warn_cpu_offline);
 
-static int
-hotplug_cfd(struct notifier_block *nfb, unsigned long action, void *hcpu)
+int smpcfd_prepare_cpu(unsigned int cpu)
 {
-	long cpu = (long)hcpu;
 	struct call_function_data *cfd = &per_cpu(cfd_data, cpu);
 
-	switch (action) {
-	case CPU_UP_PREPARE:
-	case CPU_UP_PREPARE_FROZEN:
-		if (!zalloc_cpumask_var_node(&cfd->cpumask, GFP_KERNEL,
-				cpu_to_node(cpu)))
-			return notifier_from_errno(-ENOMEM);
-		cfd->csd = alloc_percpu(struct call_single_data);
-		if (!cfd->csd) {
-			free_cpumask_var(cfd->cpumask);
-			return notifier_from_errno(-ENOMEM);
-		}
-		break;
-
-#ifdef CONFIG_HOTPLUG_CPU
-	case CPU_UP_CANCELED:
-	case CPU_UP_CANCELED_FROZEN:
-		/* Fall-through to the CPU_DEAD[_FROZEN] case. */
-
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
+	if (!zalloc_cpumask_var_node(&cfd->cpumask, GFP_KERNEL,
+				     cpu_to_node(cpu)))
+		return -ENOMEM;
+	cfd->csd = alloc_percpu(struct call_single_data);
+	if (!cfd->csd) {
 		free_cpumask_var(cfd->cpumask);
-		free_percpu(cfd->csd);
-		break;
+		return -ENOMEM;
+	}
 
-	case CPU_DYING:
-	case CPU_DYING_FROZEN:
-		/*
-		 * The IPIs for the smp-call-function callbacks queued by other
-		 * CPUs might arrive late, either due to hardware latencies or
-		 * because this CPU disabled interrupts (inside stop-machine)
-		 * before the IPIs were sent. So flush out any pending callbacks
-		 * explicitly (without waiting for the IPIs to arrive), to
-		 * ensure that the outgoing CPU doesn't go offline with work
-		 * still pending.
-		 */
-		flush_smp_call_function_queue(false);
-		break;
-#endif
-	};
-
-	return NOTIFY_OK;
+	return 0;
 }
 
-static struct notifier_block hotplug_cfd_notifier = {
-	.notifier_call		= hotplug_cfd,
-};
+int smpcfd_dead_cpu(unsigned int cpu)
+{
+	struct call_function_data *cfd = &per_cpu(cfd_data, cpu);
+
+	free_cpumask_var(cfd->cpumask);
+	free_percpu(cfd->csd);
+	return 0;
+}
+
+int smpcfd_dying_cpu(unsigned int cpu)
+{
+	/*
+	 * The IPIs for the smp-call-function callbacks queued by other
+	 * CPUs might arrive late, either due to hardware latencies or
+	 * because this CPU disabled interrupts (inside stop-machine)
+	 * before the IPIs were sent. So flush out any pending callbacks
+	 * explicitly (without waiting for the IPIs to arrive), to
+	 * ensure that the outgoing CPU doesn't go offline with work
+	 * still pending.
+	 */
+	flush_smp_call_function_queue(false);
+	return 0;
+}
 
 void __init call_function_init(void)
 {
-	void *cpu = (void *)(long)smp_processor_id();
 	int i;
 
 	for_each_possible_cpu(i)
 		init_llist_head(&per_cpu(call_single_queue, i));
 
-	hotplug_cfd(&hotplug_cfd_notifier, CPU_UP_PREPARE, cpu);
-	register_cpu_notifier(&hotplug_cfd_notifier);
+	smpcfd_prepare_cpu(smp_processor_id());
 }
 
 /*
@@ -107,7 +92,7 @@ void __init call_function_init(void)
  */
 static __always_inline void csd_lock_wait(struct call_single_data *csd)
 {
-	smp_cond_acquire(!(csd->flags & CSD_FLAG_LOCK));
+	smp_cond_load_acquire(&csd->flags, !(VAL & CSD_FLAG_LOCK));
 }
 
 static __always_inline void csd_lock(struct call_single_data *csd)

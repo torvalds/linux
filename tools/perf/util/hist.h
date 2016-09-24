@@ -10,6 +10,7 @@
 #include "ui/progress.h"
 
 struct hist_entry;
+struct hist_entry_ops;
 struct addr_location;
 struct symbol;
 
@@ -120,13 +121,23 @@ extern const struct hist_iter_ops hist_iter_branch;
 extern const struct hist_iter_ops hist_iter_mem;
 extern const struct hist_iter_ops hist_iter_cumulative;
 
-struct hist_entry *__hists__add_entry(struct hists *hists,
-				      struct addr_location *al,
-				      struct symbol *parent,
-				      struct branch_info *bi,
-				      struct mem_info *mi,
-				      struct perf_sample *sample,
-				      bool sample_self);
+struct hist_entry *hists__add_entry(struct hists *hists,
+				    struct addr_location *al,
+				    struct symbol *parent,
+				    struct branch_info *bi,
+				    struct mem_info *mi,
+				    struct perf_sample *sample,
+				    bool sample_self);
+
+struct hist_entry *hists__add_entry_ops(struct hists *hists,
+					struct hist_entry_ops *ops,
+					struct addr_location *al,
+					struct symbol *sym_parent,
+					struct branch_info *bi,
+					struct mem_info *mi,
+					struct perf_sample *sample,
+					bool sample_self);
+
 int hist_entry_iter__add(struct hist_entry_iter *iter, struct addr_location *al,
 			 int max_stack_depth, void *arg);
 
@@ -142,8 +153,12 @@ int hist_entry__snprintf_alignment(struct hist_entry *he, struct perf_hpp *hpp,
 				   struct perf_hpp_fmt *fmt, int printed);
 void hist_entry__delete(struct hist_entry *he);
 
+typedef int (*hists__resort_cb_t)(struct hist_entry *he);
+
 void perf_evsel__output_resort(struct perf_evsel *evsel, struct ui_progress *prog);
 void hists__output_resort(struct hists *hists, struct ui_progress *prog);
+void hists__output_resort_cb(struct hists *hists, struct ui_progress *prog,
+			     hists__resort_cb_t cb);
 int hists__collapse_resort(struct hists *hists, struct ui_progress *prog);
 
 void hists__decay_entries(struct hists *hists, bool zap_user, bool zap_kernel);
@@ -159,7 +174,8 @@ void events_stats__inc(struct events_stats *stats, u32 type);
 size_t events_stats__fprintf(struct events_stats *stats, FILE *fp);
 
 size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
-		      int max_cols, float min_pcnt, FILE *fp);
+		      int max_cols, float min_pcnt, FILE *fp,
+		      bool use_callchain);
 size_t perf_evlist__fprintf_nr_events(struct perf_evlist *evlist, FILE *fp);
 
 void hists__filter_by_dso(struct hists *hists);
@@ -214,9 +230,9 @@ struct perf_hpp {
 struct perf_hpp_fmt {
 	const char *name;
 	int (*header)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
-		      struct perf_evsel *evsel);
+		      struct hists *hists);
 	int (*width)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
-		     struct perf_evsel *evsel);
+		     struct hists *hists);
 	int (*color)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		     struct hist_entry *he);
 	int (*entry)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,

@@ -93,6 +93,15 @@ config CRYPTO_AKCIPHER
 	select CRYPTO_AKCIPHER2
 	select CRYPTO_ALGAPI
 
+config CRYPTO_KPP2
+	tristate
+	select CRYPTO_ALGAPI2
+
+config CRYPTO_KPP
+	tristate
+	select CRYPTO_ALGAPI
+	select CRYPTO_KPP2
+
 config CRYPTO_RSA
 	tristate "RSA algorithm"
 	select CRYPTO_AKCIPHER
@@ -101,6 +110,19 @@ config CRYPTO_RSA
 	select ASN1
 	help
 	  Generic implementation of the RSA public key algorithm.
+
+config CRYPTO_DH
+	tristate "Diffie-Hellman algorithm"
+	select CRYPTO_KPP
+	select MPILIB
+	help
+	  Generic implementation of the Diffie-Hellman algorithm.
+
+config CRYPTO_ECDH
+	tristate "ECDH algorithm"
+	select CRYTPO_KPP
+	help
+	  Generic implementation of the ECDH algorithm
 
 config CRYPTO_MANAGER
 	tristate "Cryptographic algorithm manager"
@@ -115,6 +137,7 @@ config CRYPTO_MANAGER2
 	select CRYPTO_HASH2
 	select CRYPTO_BLKCIPHER2
 	select CRYPTO_AKCIPHER2
+	select CRYPTO_KPP2
 
 config CRYPTO_USER
 	tristate "Userspace cryptographic algorithm configuration"
@@ -414,6 +437,17 @@ config CRYPTO_CRC32C_INTEL
 	  gain performance compared with software implementation.
 	  Module will be crc32c-intel.
 
+config CRYPT_CRC32C_VPMSUM
+	tristate "CRC32c CRC algorithm (powerpc64)"
+	depends on PPC64 && ALTIVEC
+	select CRYPTO_HASH
+	select CRC32
+	help
+	  CRC32c algorithm implemented using vector polynomial multiply-sum
+	  (vpmsum) instructions, introduced in POWER8. Enable on POWER8
+	  and newer processors for improved performance.
+
+
 config CRYPTO_CRC32C_SPARC64
 	tristate "CRC32c CRC algorithm (SPARC64)"
 	depends on SPARC64
@@ -681,6 +715,38 @@ config CRYPTO_SHA1_MB
 	  lanes remain unfilled, a flush operation will be initiated to
 	  process the crypto jobs, adding a slight latency.
 
+config CRYPTO_SHA256_MB
+	tristate "SHA256 digest algorithm (x86_64 Multi-Buffer, Experimental)"
+	depends on X86 && 64BIT
+	select CRYPTO_SHA256
+	select CRYPTO_HASH
+	select CRYPTO_MCRYPTD
+	help
+	  SHA-256 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
+	  using multi-buffer technique.  This algorithm computes on
+	  multiple data lanes concurrently with SIMD instructions for
+	  better throughput.  It should not be enabled by default but
+	  used when there is significant amount of work to keep the keep
+	  the data lanes filled to get performance benefit.  If the data
+	  lanes remain unfilled, a flush operation will be initiated to
+	  process the crypto jobs, adding a slight latency.
+
+config CRYPTO_SHA512_MB
+        tristate "SHA512 digest algorithm (x86_64 Multi-Buffer, Experimental)"
+        depends on X86 && 64BIT
+        select CRYPTO_SHA512
+        select CRYPTO_HASH
+        select CRYPTO_MCRYPTD
+        help
+          SHA-512 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
+          using multi-buffer technique.  This algorithm computes on
+          multiple data lanes concurrently with SIMD instructions for
+          better throughput.  It should not be enabled by default but
+          used when there is significant amount of work to keep the keep
+          the data lanes filled to get performance benefit.  If the data
+          lanes remain unfilled, a flush operation will be initiated to
+          process the crypto jobs, adding a slight latency.
+
 config CRYPTO_SHA256
 	tristate "SHA224 and SHA256 digest algorithm"
 	select CRYPTO_HASH
@@ -749,6 +815,16 @@ config CRYPTO_SHA512_SPARC64
 	help
 	  SHA-512 secure hash standard (DFIPS 180-2) implemented
 	  using sparc64 crypto instructions, when available.
+
+config CRYPTO_SHA3
+	tristate "SHA3 digest algorithm"
+	select CRYPTO_HASH
+	help
+	  SHA-3 secure hash standard (DFIPS 202). It's based on
+	  cryptographic sponge function family called Keccak.
+
+	  References:
+	  http://keccak.noekeon.org/
 
 config CRYPTO_TGR192
 	tristate "Tiger digest algorithms"
@@ -1567,6 +1643,7 @@ config CRYPTO_DRBG_HASH
 config CRYPTO_DRBG_CTR
 	bool "Enable CTR DRBG"
 	select CRYPTO_AES
+	depends on CRYPTO_CTR
 	help
 	  Enable the CTR DRBG variant as defined in NIST SP800-90A.
 

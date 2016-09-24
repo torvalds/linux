@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stdlib.h>
 #include "tests.h"
 #include "dso.h"
 #include "debug.h"

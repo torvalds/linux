@@ -25,7 +25,7 @@ config PCI_MSI
 	   If you don't know what to do here, say Y.
 
 config PCI_MSI_IRQ_DOMAIN
-	bool
+	def_bool ARM || ARM64 || X86
 	depends on PCI_MSI
 	select GENERIC_MSI_IRQ_DOMAIN
 

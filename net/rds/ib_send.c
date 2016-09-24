@@ -36,6 +36,7 @@
 #include <linux/dmapool.h>
 #include <linux/ratelimit.h>
 
+#include "rds_single_path.h"
 #include "rds.h"
 #include "ib.h"
 
@@ -979,8 +980,9 @@ out:
 	return ret;
 }
 
-void rds_ib_xmit_complete(struct rds_connection *conn)
+void rds_ib_xmit_path_complete(struct rds_conn_path *cp)
 {
+	struct rds_connection *conn = cp->cp_conn;
 	struct rds_ib_connection *ic = conn->c_transport_data;
 
 	/* We may have a pending ACK or window update we were unable

@@ -242,7 +242,7 @@ unsigned int irq_alloc(unsigned int dev_handle, unsigned int dev_ino)
 {
 	int irq;
 
-	irq = __irq_alloc_descs(-1, 1, 1, numa_node_id(), NULL);
+	irq = __irq_alloc_descs(-1, 1, 1, numa_node_id(), NULL, NULL);
 	if (irq <= 0)
 		goto out;
 

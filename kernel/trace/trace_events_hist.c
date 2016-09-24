@@ -1441,15 +1441,15 @@ static int hist_register_trigger(char *glob, struct event_trigger_ops *ops,
 		goto out;
 	}
 
+	if (hist_data->attrs->pause)
+		data->paused = true;
+
 	if (named_data) {
 		destroy_hist_data(data->private_data);
 		data->private_data = named_data->private_data;
 		set_named_trigger_data(data, named_data);
 		data->ops = &event_hist_trigger_named_ops;
 	}
-
-	if (hist_data->attrs->pause)
-		data->paused = true;
 
 	if (data->ops->init) {
 		ret = data->ops->init(data->ops, data);
@@ -1500,9 +1500,9 @@ static void hist_unregister_trigger(char *glob, struct event_trigger_ops *ops,
 
 static void hist_unreg_all(struct trace_event_file *file)
 {
-	struct event_trigger_data *test;
+	struct event_trigger_data *test, *n;
 
-	list_for_each_entry_rcu(test, &file->triggers, list) {
+	list_for_each_entry_safe(test, n, &file->triggers, list) {
 		if (test->cmd_ops->trigger_type == ETT_EVENT_HIST) {
 			list_del_rcu(&test->list);
 			trace_event_trigger_enable_disable(file, 0);
@@ -1699,9 +1699,9 @@ hist_enable_get_trigger_ops(char *cmd, char *param)
 
 static void hist_enable_unreg_all(struct trace_event_file *file)
 {
-	struct event_trigger_data *test;
+	struct event_trigger_data *test, *n;
 
-	list_for_each_entry_rcu(test, &file->triggers, list) {
+	list_for_each_entry_safe(test, n, &file->triggers, list) {
 		if (test->cmd_ops->trigger_type == ETT_HIST_ENABLE) {
 			list_del_rcu(&test->list);
 			update_cond_flag(file);

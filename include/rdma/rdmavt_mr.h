@@ -81,6 +81,7 @@ struct rvt_mregion {
 	u32 mapsz;              /* size of the map array */
 	u8  page_shift;         /* 0 - non unform/non powerof2 sizes */
 	u8  lkey_published;     /* in global table */
+	atomic_t lkey_invalid;	/* true if current lkey is invalid */
 	struct completion comp; /* complete when refcount goes to zero */
 	atomic_t refcount;
 	struct rvt_segarray *map[0];    /* the segments */

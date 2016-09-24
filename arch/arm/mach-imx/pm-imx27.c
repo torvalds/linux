@@ -37,13 +37,7 @@ static const struct platform_suspend_ops mx27_suspend_ops = {
 	.valid = suspend_valid_only_mem,
 };
 
-static int __init mx27_pm_init(void)
+void __init imx27_pm_init(void)
 {
-	if (!cpu_is_mx27())
-		return 0;
-
 	suspend_set_ops(&mx27_suspend_ops);
-	return 0;
 }
-
-device_initcall(mx27_pm_init);

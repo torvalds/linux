@@ -33,6 +33,9 @@ nflog_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	li.u.ulog.group	     = info->group;
 	li.u.ulog.qthreshold = info->threshold;
 
+	if (info->flags & XT_NFLOG_F_COPY_LEN)
+		li.u.ulog.flags |= NF_LOG_F_COPY_LEN;
+
 	nfulnl_log_packet(net, par->family, par->hooknum, skb, par->in,
 			  par->out, &li, info->prefix);
 	return XT_CONTINUE;

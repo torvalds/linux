@@ -136,7 +136,7 @@ static const u64 stm32f42xx_gate_map[] = { 0x000000f17ef417ffull,
 					   0x0000000000000001ull,
 					   0x04777f33f6fec9ffull };
 
-static struct clk *clks[MAX_CLKS];
+static struct clk_hw *clks[MAX_CLKS];
 static DEFINE_SPINLOCK(stm32f4_clk_lock);
 static void __iomem *base;
 
@@ -281,7 +281,7 @@ static int stm32f4_rcc_lookup_clk_idx(u8 primary, u8 secondary)
 	       (BIT_ULL_WORD(secondary) >= 2 ? hweight64(table[2]) : 0);
 }
 
-static struct clk *
+static struct clk_hw *
 stm32f4_rcc_lookup_clk(struct of_phandle_args *clkspec, void *data)
 {
 	int i = stm32f4_rcc_lookup_clk_idx(clkspec->args[0], clkspec->args[1]);
@@ -346,9 +346,9 @@ static void __init stm32f4_rcc_init(struct device_node *np)
 	clk_register_apb_mul(NULL, "apb2_mul", "apb2_div",
 			     CLK_SET_RATE_PARENT, 15);
 
-	clks[SYSTICK] = clk_register_fixed_factor(NULL, "systick", "ahb_div",
+	clks[SYSTICK] = clk_hw_register_fixed_factor(NULL, "systick", "ahb_div",
 						  0, 1, 8);
-	clks[FCLK] = clk_register_fixed_factor(NULL, "fclk", "ahb_div",
+	clks[FCLK] = clk_hw_register_fixed_factor(NULL, "fclk", "ahb_div",
 					       0, 1, 1);
 
 	for (n = 0; n < ARRAY_SIZE(stm32f4_gates); n++) {
@@ -360,18 +360,18 @@ static void __init stm32f4_rcc_init(struct device_node *np)
 		if (idx < 0)
 			goto fail;
 
-		clks[idx] = clk_register_gate(
+		clks[idx] = clk_hw_register_gate(
 		    NULL, gd->name, gd->parent_name, gd->flags,
 		    base + gd->offset, gd->bit_idx, 0, &stm32f4_clk_lock);
 
-		if (IS_ERR(clks[n])) {
+		if (IS_ERR(clks[idx])) {
 			pr_err("%s: Unable to register leaf clock %s\n",
 			       np->full_name, gd->name);
 			goto fail;
 		}
 	}
 
-	of_clk_add_provider(np, stm32f4_rcc_lookup_clk, NULL);
+	of_clk_add_hw_provider(np, stm32f4_rcc_lookup_clk, NULL);
 	return;
 fail:
 	iounmap(base);

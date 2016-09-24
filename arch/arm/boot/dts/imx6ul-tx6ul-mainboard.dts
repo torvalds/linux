@@ -146,12 +146,12 @@
 
 &uart1 {
 	pinctrl-0 = <&pinctrl_uart1>;
-	/delete-property/ fsl,uart-has-rtscts;
+	/delete-property/ uart-has-rtscts;
 };
 
 &uart2 {
 	pinctrl-0 = <&pinctrl_uart2>;
-	/delete-property/ fsl,uart-has-rtscts;
+	/delete-property/ uart-has-rtscts;
 	status = "okay";
 };
 

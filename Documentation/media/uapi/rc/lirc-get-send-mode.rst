@@ -1,0 +1,45 @@
+.. -*- coding: utf-8; mode: rst -*-
+
+.. _lirc_get_send_mode:
+.. _lirc_set_send_mode:
+
+************************************************
+ioctls LIRC_GET_SEND_MODE and LIRC_SET_SEND_MODE
+************************************************
+
+Name
+====
+
+LIRC_GET_SEND_MODE/LIRC_SET_SEND_MODE - Get/set supported transmit mode.
+
+Synopsis
+========
+
+.. cpp:function:: int ioctl( int fd, int request, __u32 *tx_modes )
+
+Arguments
+=========
+
+``fd``
+    File descriptor returned by open().
+
+``request``
+    LIRC_GET_SEND_MODE
+
+``tx_modes``
+    Bitmask with the supported transmit modes.
+
+
+Description
+===========
+
+Get/set supported transmit mode.
+
+Only :ref:`LIRC_MODE_PULSE <lirc-mode-pulse>` is supported by for IR send.
+
+Return Value
+============
+
+On success 0 is returned, on error -1 and the ``errno`` variable is set
+appropriately. The generic error codes are described at the
+:ref:`Generic Error Codes <gen-errors>` chapter.

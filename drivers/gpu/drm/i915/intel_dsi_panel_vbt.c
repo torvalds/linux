@@ -95,6 +95,24 @@ static struct gpio_map vlv_gpio_table[] = {
 	{ VLV_GPIO_NC_11_PANEL1_BKLTCTL },
 };
 
+#define CHV_GPIO_IDX_START_N		0
+#define CHV_GPIO_IDX_START_E		73
+#define CHV_GPIO_IDX_START_SW		100
+#define CHV_GPIO_IDX_START_SE		198
+
+#define CHV_VBT_MAX_PINS_PER_FMLY	15
+
+#define CHV_GPIO_PAD_CFG0(f, i)		(0x4400 + (f) * 0x400 + (i) * 8)
+#define  CHV_GPIO_GPIOEN		(1 << 15)
+#define  CHV_GPIO_GPIOCFG_GPIO		(0 << 8)
+#define  CHV_GPIO_GPIOCFG_GPO		(1 << 8)
+#define  CHV_GPIO_GPIOCFG_GPI		(2 << 8)
+#define  CHV_GPIO_GPIOCFG_HIZ		(3 << 8)
+#define  CHV_GPIO_GPIOTXSTATE(state)	((!!(state)) << 1)
+
+#define CHV_GPIO_PAD_CFG1(f, i)		(0x4400 + (f) * 0x400 + (i) * 8 + 4)
+#define  CHV_GPIO_CFGLOCK		(1 << 31)
+
 static inline enum port intel_dsi_seq_port_to_port(u8 port)
 {
 	return port ? PORT_C : PORT_A;
@@ -203,13 +221,14 @@ static void vlv_exec_gpio(struct drm_i915_private *dev_priv,
 	map = &vlv_gpio_table[gpio_index];
 
 	if (dev_priv->vbt.dsi.seq_version >= 3) {
-		DRM_DEBUG_KMS("GPIO element v3 not supported\n");
-		return;
+		/* XXX: this assumes vlv_gpio_table only has NC GPIOs. */
+		port = IOSF_PORT_GPIO_NC;
 	} else {
 		if (gpio_source == 0) {
 			port = IOSF_PORT_GPIO_NC;
 		} else if (gpio_source == 1) {
-			port = IOSF_PORT_GPIO_SC;
+			DRM_DEBUG_KMS("SC gpio not supported\n");
+			return;
 		} else {
 			DRM_DEBUG_KMS("unknown gpio source %u\n", gpio_source);
 			return;
@@ -231,10 +250,60 @@ static void vlv_exec_gpio(struct drm_i915_private *dev_priv,
 	mutex_unlock(&dev_priv->sb_lock);
 }
 
+static void chv_exec_gpio(struct drm_i915_private *dev_priv,
+			  u8 gpio_source, u8 gpio_index, bool value)
+{
+	u16 cfg0, cfg1;
+	u16 family_num;
+	u8 port;
+
+	if (dev_priv->vbt.dsi.seq_version >= 3) {
+		if (gpio_index >= CHV_GPIO_IDX_START_SE) {
+			/* XXX: it's unclear whether 255->57 is part of SE. */
+			gpio_index -= CHV_GPIO_IDX_START_SE;
+			port = CHV_IOSF_PORT_GPIO_SE;
+		} else if (gpio_index >= CHV_GPIO_IDX_START_SW) {
+			gpio_index -= CHV_GPIO_IDX_START_SW;
+			port = CHV_IOSF_PORT_GPIO_SW;
+		} else if (gpio_index >= CHV_GPIO_IDX_START_E) {
+			gpio_index -= CHV_GPIO_IDX_START_E;
+			port = CHV_IOSF_PORT_GPIO_E;
+		} else {
+			port = CHV_IOSF_PORT_GPIO_N;
+		}
+	} else {
+		/* XXX: The spec is unclear about CHV GPIO on seq v2 */
+		if (gpio_source != 0) {
+			DRM_DEBUG_KMS("unknown gpio source %u\n", gpio_source);
+			return;
+		}
+
+		if (gpio_index >= CHV_GPIO_IDX_START_E) {
+			DRM_DEBUG_KMS("invalid gpio index %u for GPIO N\n",
+				      gpio_index);
+			return;
+		}
+
+		port = CHV_IOSF_PORT_GPIO_N;
+	}
+
+	family_num = gpio_index / CHV_VBT_MAX_PINS_PER_FMLY;
+	gpio_index = gpio_index % CHV_VBT_MAX_PINS_PER_FMLY;
+
+	cfg0 = CHV_GPIO_PAD_CFG0(family_num, gpio_index);
+	cfg1 = CHV_GPIO_PAD_CFG1(family_num, gpio_index);
+
+	mutex_lock(&dev_priv->sb_lock);
+	vlv_iosf_sb_write(dev_priv, port, cfg1, 0);
+	vlv_iosf_sb_write(dev_priv, port, cfg0,
+			  CHV_GPIO_GPIOCFG_GPO | CHV_GPIO_GPIOTXSTATE(value));
+	mutex_unlock(&dev_priv->sb_lock);
+}
+
 static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 {
 	struct drm_device *dev = intel_dsi->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	u8 gpio_source, gpio_index;
 	bool value;
 
@@ -254,6 +323,8 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 
 	if (IS_VALLEYVIEW(dev_priv))
 		vlv_exec_gpio(dev_priv, gpio_source, gpio_index, value);
+	else if (IS_CHERRYVIEW(dev_priv))
+		chv_exec_gpio(dev_priv, gpio_source, gpio_index, value);
 	else
 		DRM_DEBUG_KMS("GPIO element not supported on this platform\n");
 
@@ -398,7 +469,7 @@ static int vbt_panel_get_modes(struct drm_panel *panel)
 	struct vbt_panel *vbt_panel = to_vbt_panel(panel);
 	struct intel_dsi *intel_dsi = vbt_panel->intel_dsi;
 	struct drm_device *dev = intel_dsi->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_display_mode *mode;
 
 	if (!panel->connector)
@@ -426,7 +497,7 @@ static const struct drm_panel_funcs vbt_panel_funcs = {
 struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 {
 	struct drm_device *dev = intel_dsi->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct mipi_config *mipi_config = dev_priv->vbt.dsi.config;
 	struct mipi_pps_data *pps = dev_priv->vbt.dsi.pps;
 	struct drm_display_mode *mode = dev_priv->vbt.lfp_lvds_vbt_mode;
@@ -578,14 +649,13 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 				);
 
 	/*
-	 * Exit zero  is unified val ths_zero and ths_exit
+	 * Exit zero is unified val ths_zero and ths_exit
 	 * minimum value for ths_exit = 110ns
 	 * min (exit_zero_cnt * 2) = 110/UI
 	 * exit_zero_cnt = 55/UI
 	 */
-	 if (exit_zero_cnt < (55 * ui_den / ui_num))
-		if ((55 * ui_den) % ui_num)
-			exit_zero_cnt += 1;
+	if (exit_zero_cnt < (55 * ui_den / ui_num) && (55 * ui_den) % ui_num)
+		exit_zero_cnt += 1;
 
 	/* clk zero count */
 	clk_zero_cnt = DIV_ROUND_UP(

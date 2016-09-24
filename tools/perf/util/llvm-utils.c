@@ -3,11 +3,14 @@
  * Copyright (C) 2015, Huawei Inc.
  */
 
+#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "debug.h"
 #include "llvm-utils.h"
+#include "config.h"
+#include "util.h"
 
 #define CLANG_BPF_CMD_DEFAULT_TEMPLATE				\
 		"$CLANG_EXEC -D__KERNEL__ -D__NR_CPUS__=$NR_CPUS "\
@@ -42,6 +45,8 @@ int perf_llvm_config(const char *var, const char *value)
 		llvm_param.kbuild_dir = strdup(value);
 	else if (!strcmp(var, "kbuild-opts"))
 		llvm_param.kbuild_opts = strdup(value);
+	else if (!strcmp(var, "dump-obj"))
+		llvm_param.dump_obj = !!perf_config_bool(var, value);
 	else
 		return -1;
 	llvm_param.user_set_param = true;
@@ -103,7 +108,7 @@ read_from_pipe(const char *cmd, void **p_buf, size_t *p_read_sz)
 	file = popen(cmd, "r");
 	if (!file) {
 		pr_err("ERROR: unable to popen cmd: %s\n",
-		       strerror_r(errno, serr, sizeof(serr)));
+		       str_error_r(errno, serr, sizeof(serr)));
 		return -EINVAL;
 	}
 
@@ -137,7 +142,7 @@ read_from_pipe(const char *cmd, void **p_buf, size_t *p_read_sz)
 
 	if (ferror(file)) {
 		pr_err("ERROR: error occurred when reading from pipe: %s\n",
-		       strerror_r(errno, serr, sizeof(serr)));
+		       str_error_r(errno, serr, sizeof(serr)));
 		err = -EIO;
 		goto errout;
 	}
@@ -326,6 +331,42 @@ get_kbuild_opts(char **kbuild_dir, char **kbuild_include_opts)
 	pr_debug("include option is set to %s\n", *kbuild_include_opts);
 }
 
+static void
+dump_obj(const char *path, void *obj_buf, size_t size)
+{
+	char *obj_path = strdup(path);
+	FILE *fp;
+	char *p;
+
+	if (!obj_path) {
+		pr_warning("WARNING: No enough memory, skip object dumping\n");
+		return;
+	}
+
+	p = strrchr(obj_path, '.');
+	if (!p || (strcmp(p, ".c") != 0)) {
+		pr_warning("WARNING: invalid llvm source path: '%s', skip object dumping\n",
+			   obj_path);
+		goto out;
+	}
+
+	p[1] = 'o';
+	fp = fopen(obj_path, "wb");
+	if (!fp) {
+		pr_warning("WARNING: failed to open '%s': %s, skip object dumping\n",
+			   obj_path, strerror(errno));
+		goto out;
+	}
+
+	pr_info("LLVM: dumping %s\n", obj_path);
+	if (fwrite(obj_buf, size, 1, fp) != 1)
+		pr_warning("WARNING: failed to write to file '%s': %s, skip object dumping\n",
+			   obj_path, strerror(errno));
+	fclose(fp);
+out:
+	free(obj_path);
+}
+
 int llvm__compile_bpf(const char *path, void **p_obj_buf,
 		      size_t *p_obj_buf_sz)
 {
@@ -343,7 +384,7 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	if (path[0] != '-' && realpath(path, abspath) == NULL) {
 		err = errno;
 		pr_err("ERROR: problems with path %s: %s\n",
-		       path, strerror_r(err, serr, sizeof(serr)));
+		       path, str_error_r(err, serr, sizeof(serr)));
 		return -err;
 	}
 
@@ -371,7 +412,7 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	if (nr_cpus_avail <= 0) {
 		pr_err(
 "WARNING:\tunable to get available CPUs in this system: %s\n"
-"        \tUse 128 instead.\n", strerror_r(errno, serr, sizeof(serr)));
+"        \tUse 128 instead.\n", str_error_r(errno, serr, sizeof(serr)));
 		nr_cpus_avail = 128;
 	}
 	snprintf(nr_cpus_avail_str, sizeof(nr_cpus_avail_str), "%d",
@@ -411,6 +452,10 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 
 	free(kbuild_dir);
 	free(kbuild_include_opts);
+
+	if (llvm_param.dump_obj)
+		dump_obj(path, obj_buf, obj_buf_sz);
+
 	if (!p_obj_buf)
 		free(obj_buf);
 	else

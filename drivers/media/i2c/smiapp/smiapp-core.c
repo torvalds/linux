@@ -3044,10 +3044,8 @@ static struct smiapp_platform_data *smiapp_get_pdata(struct device *dev)
 	pdata->op_sys_clock = devm_kcalloc(
 		dev, bus_cfg->nr_of_link_frequencies + 1 /* guardian */,
 		sizeof(*pdata->op_sys_clock), GFP_KERNEL);
-	if (!pdata->op_sys_clock) {
-		rval = -ENOMEM;
+	if (!pdata->op_sys_clock)
 		goto out_err;
-	}
 
 	for (i = 0; i < bus_cfg->nr_of_link_frequencies; i++) {
 		pdata->op_sys_clock[i] = bus_cfg->link_frequencies[i];

@@ -98,7 +98,6 @@ int ip6_ra_control(struct sock *sk, int sel)
 	return 0;
 }
 
-static
 struct ipv6_txoptions *ipv6_update_options(struct sock *sk,
 					   struct ipv6_txoptions *opt)
 {

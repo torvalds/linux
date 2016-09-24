@@ -85,6 +85,7 @@ extern const struct nv50_disp_mthd_list gf119_disp_core_mthd_pior;
 extern const struct nv50_disp_chan_mthd gf119_disp_base_chan_mthd;
 
 extern const struct nv50_disp_chan_mthd gk104_disp_core_chan_mthd;
+extern const struct nv50_disp_chan_mthd gk104_disp_ovly_chan_mthd;
 
 struct nv50_disp_pioc_oclass {
 	int (*ctor)(const struct nv50_disp_chan_func *,

@@ -27,12 +27,15 @@
 #include <sound/pcm_params.h>
 #include "../../codecs/nau8825.h"
 #include "../../codecs/hdac_hdmi.h"
+#include "../skylake/skl.h"
 
 #define SKL_NUVOTON_CODEC_DAI	"nau8825-hifi"
 #define SKL_SSM_CODEC_DAI	"ssm4567-hifi"
+#define DMIC_CH(p)     p->list[p->count-1]
 
 static struct snd_soc_jack skylake_headset;
 static struct snd_soc_card skylake_audio_card;
+static const struct snd_pcm_hw_constraint_list *dmic_constraints;
 
 struct skl_hdmi_pcm {
 	struct list_head head;
@@ -367,7 +370,7 @@ static int skylake_dmic_fixup(struct snd_soc_pcm_runtime *rtd,
 {
 	struct snd_interval *channels = hw_param_interval(params,
 						SNDRV_PCM_HW_PARAM_CHANNELS);
-	if (params_channels(params) == 2)
+	if (params_channels(params) == 2 || DMIC_CH(dmic_constraints) == 2)
 		channels->min = channels->max = 2;
 	else
 		channels->min = channels->max = 4;
@@ -405,13 +408,23 @@ static struct snd_pcm_hw_constraint_list constraints_dmic_channels = {
 	.mask = 0,
 };
 
+static const unsigned int dmic_2ch[] = {
+	2,
+};
+
+static const struct snd_pcm_hw_constraint_list constraints_dmic_2ch = {
+	.count = ARRAY_SIZE(dmic_2ch),
+	.list = dmic_2ch,
+	.mask = 0,
+};
+
 static int skylake_dmic_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
-	runtime->hw.channels_max = 4;
+	runtime->hw.channels_max = DMIC_CH(dmic_constraints);
 	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-			&constraints_dmic_channels);
+			dmic_constraints);
 
 	return snd_pcm_hw_constraint_list(substream->runtime, 0,
 			SNDRV_PCM_HW_PARAM_RATE, &constraints_rates);
@@ -430,8 +443,22 @@ static struct snd_pcm_hw_constraint_list constraints_16000 = {
 	.list  = rates_16000,
 };
 
+static const unsigned int ch_mono[] = {
+	1,
+};
+
+static const struct snd_pcm_hw_constraint_list constraints_refcap = {
+	.count = ARRAY_SIZE(ch_mono),
+	.list  = ch_mono,
+};
+
 static int skylake_refcap_startup(struct snd_pcm_substream *substream)
 {
+	substream->runtime->hw.channels_max = 1;
+	snd_pcm_hw_constraint_list(substream->runtime, 0,
+					SNDRV_PCM_HW_PARAM_CHANNELS,
+					&constraints_refcap);
+
 	return snd_pcm_hw_constraint_list(substream->runtime, 0,
 			SNDRV_PCM_HW_PARAM_RATE,
 			&constraints_16000);
@@ -662,6 +689,7 @@ static struct snd_soc_card skylake_audio_card = {
 static int skylake_audio_probe(struct platform_device *pdev)
 {
 	struct skl_nau88125_private *ctx;
+	struct skl_machine_pdata *pdata;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_ATOMIC);
 	if (!ctx)
@@ -672,15 +700,27 @@ static int skylake_audio_probe(struct platform_device *pdev)
 	skylake_audio_card.dev = &pdev->dev;
 	snd_soc_card_set_drvdata(&skylake_audio_card, ctx);
 
+	pdata = dev_get_drvdata(&pdev->dev);
+	if (pdata)
+		dmic_constraints = pdata->dmic_num == 2 ?
+			&constraints_dmic_2ch : &constraints_dmic_channels;
+
 	return devm_snd_soc_register_card(&pdev->dev, &skylake_audio_card);
 }
+
+static const struct platform_device_id skl_board_ids[] = {
+	{ .name = "skl_n88l25_s4567" },
+	{ .name = "kbl_n88l25_s4567" },
+	{ }
+};
 
 static struct platform_driver skylake_audio = {
 	.probe = skylake_audio_probe,
 	.driver = {
-		.name = "skl_nau88l25_ssm4567_i2s",
+		.name = "skl_n88l25_s4567",
 		.pm = &snd_soc_pm_ops,
 	},
+	.id_table = skl_board_ids,
 };
 
 module_platform_driver(skylake_audio)
@@ -693,4 +733,5 @@ MODULE_AUTHOR("Sathya Prakash M R <sathya.prakash.m.r@intel.com>");
 MODULE_AUTHOR("Yong Zhi <yong.zhi@intel.com>");
 MODULE_DESCRIPTION("Intel Audio Machine driver for SKL with NAU88L25 and SSM4567 in I2S Mode");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:skl_nau88l25_ssm4567_i2s");
+MODULE_ALIAS("platform:skl_n88l25_s4567");
+MODULE_ALIAS("platform:kbl_n88l25_s4567");

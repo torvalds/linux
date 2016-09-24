@@ -236,7 +236,7 @@ void rtl8821ae_phy_iq_calibrate(struct ieee80211_hw *hw,
 				bool b_recovery);
 void rtl8812ae_phy_iq_calibrate(struct ieee80211_hw *hw,
 				bool b_recovery);
-void rtl8821ae_phy_ap_calibrate(struct ieee80211_hw *hw, char delta);
+void rtl8821ae_phy_ap_calibrate(struct ieee80211_hw *hw, s8 delta);
 void rtl8821ae_phy_lc_calibrate(struct ieee80211_hw *hw);
 void rtl8821ae_phy_set_rfpath_switch(struct ieee80211_hw *hw, bool bmain);
 bool rtl8812ae_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,

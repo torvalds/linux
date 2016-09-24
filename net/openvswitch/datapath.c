@@ -137,10 +137,12 @@ EXPORT_SYMBOL_GPL(lockdep_ovsl_is_held);
 static struct vport *new_vport(const struct vport_parms *);
 static int queue_gso_packets(struct datapath *dp, struct sk_buff *,
 			     const struct sw_flow_key *,
-			     const struct dp_upcall_info *);
+			     const struct dp_upcall_info *,
+			     uint32_t cutlen);
 static int queue_userspace_packet(struct datapath *dp, struct sk_buff *,
 				  const struct sw_flow_key *,
-				  const struct dp_upcall_info *);
+				  const struct dp_upcall_info *,
+				  uint32_t cutlen);
 
 /* Must be called with rcu_read_lock. */
 static struct datapath *get_dp_rcu(struct net *net, int dp_ifindex)
@@ -275,7 +277,7 @@ void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 		upcall.cmd = OVS_PACKET_CMD_MISS;
 		upcall.portid = ovs_vport_find_upcall_portid(p, skb);
 		upcall.mru = OVS_CB(skb)->mru;
-		error = ovs_dp_upcall(dp, skb, key, &upcall);
+		error = ovs_dp_upcall(dp, skb, key, &upcall, 0);
 		if (unlikely(error))
 			kfree_skb(skb);
 		else
@@ -300,7 +302,8 @@ out:
 
 int ovs_dp_upcall(struct datapath *dp, struct sk_buff *skb,
 		  const struct sw_flow_key *key,
-		  const struct dp_upcall_info *upcall_info)
+		  const struct dp_upcall_info *upcall_info,
+		  uint32_t cutlen)
 {
 	struct dp_stats_percpu *stats;
 	int err;
@@ -311,9 +314,9 @@ int ovs_dp_upcall(struct datapath *dp, struct sk_buff *skb,
 	}
 
 	if (!skb_is_gso(skb))
-		err = queue_userspace_packet(dp, skb, key, upcall_info);
+		err = queue_userspace_packet(dp, skb, key, upcall_info, cutlen);
 	else
-		err = queue_gso_packets(dp, skb, key, upcall_info);
+		err = queue_gso_packets(dp, skb, key, upcall_info, cutlen);
 	if (err)
 		goto err;
 
@@ -331,7 +334,8 @@ err:
 
 static int queue_gso_packets(struct datapath *dp, struct sk_buff *skb,
 			     const struct sw_flow_key *key,
-			     const struct dp_upcall_info *upcall_info)
+			     const struct dp_upcall_info *upcall_info,
+				 uint32_t cutlen)
 {
 	unsigned short gso_type = skb_shinfo(skb)->gso_type;
 	struct sw_flow_key later_key;
@@ -360,7 +364,7 @@ static int queue_gso_packets(struct datapath *dp, struct sk_buff *skb,
 		if (gso_type & SKB_GSO_UDP && skb != segs)
 			key = &later_key;
 
-		err = queue_userspace_packet(dp, skb, key, upcall_info);
+		err = queue_userspace_packet(dp, skb, key, upcall_info, cutlen);
 		if (err)
 			break;
 
@@ -383,7 +387,8 @@ static size_t upcall_msg_size(const struct dp_upcall_info *upcall_info,
 {
 	size_t size = NLMSG_ALIGN(sizeof(struct ovs_header))
 		+ nla_total_size(hdrlen) /* OVS_PACKET_ATTR_PACKET */
-		+ nla_total_size(ovs_key_attr_size()); /* OVS_PACKET_ATTR_KEY */
+		+ nla_total_size(ovs_key_attr_size()) /* OVS_PACKET_ATTR_KEY */
+		+ nla_total_size(sizeof(unsigned int)); /* OVS_PACKET_ATTR_LEN */
 
 	/* OVS_PACKET_ATTR_USERDATA */
 	if (upcall_info->userdata)
@@ -416,7 +421,8 @@ static void pad_packet(struct datapath *dp, struct sk_buff *skb)
 
 static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 				  const struct sw_flow_key *key,
-				  const struct dp_upcall_info *upcall_info)
+				  const struct dp_upcall_info *upcall_info,
+				  uint32_t cutlen)
 {
 	struct ovs_header *upcall;
 	struct sk_buff *nskb = NULL;
@@ -461,7 +467,7 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 	else
 		hlen = skb->len;
 
-	len = upcall_msg_size(upcall_info, hlen);
+	len = upcall_msg_size(upcall_info, hlen - cutlen);
 	user_skb = genlmsg_new(len, GFP_ATOMIC);
 	if (!user_skb) {
 		err = -ENOMEM;
@@ -509,15 +515,25 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 		pad_packet(dp, user_skb);
 	}
 
+	/* Add OVS_PACKET_ATTR_LEN when packet is truncated */
+	if (cutlen > 0) {
+		if (nla_put_u32(user_skb, OVS_PACKET_ATTR_LEN,
+				skb->len)) {
+			err = -ENOBUFS;
+			goto out;
+		}
+		pad_packet(dp, user_skb);
+	}
+
 	/* Only reserve room for attribute header, packet data is added
 	 * in skb_zerocopy() */
 	if (!(nla = nla_reserve(user_skb, OVS_PACKET_ATTR_PACKET, 0))) {
 		err = -ENOBUFS;
 		goto out;
 	}
-	nla->nla_len = nla_attr_size(skb->len);
+	nla->nla_len = nla_attr_size(skb->len - cutlen);
 
-	err = skb_zerocopy(user_skb, skb, skb->len, hlen);
+	err = skb_zerocopy(user_skb, skb, skb->len - cutlen, hlen);
 	if (err)
 		goto out;
 

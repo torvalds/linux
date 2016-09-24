@@ -83,7 +83,7 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
 void intel_prepare_shared_dpll(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_shared_dpll *pll = crtc->config->shared_dpll;
 
 	if (WARN_ON(pll == NULL))
@@ -112,7 +112,7 @@ void intel_prepare_shared_dpll(struct intel_crtc *crtc)
 void intel_enable_shared_dpll(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_shared_dpll *pll = crtc->config->shared_dpll;
 	unsigned crtc_mask = 1 << drm_crtc_index(&crtc->base);
 	unsigned old_mask;
@@ -151,7 +151,7 @@ out:
 void intel_disable_shared_dpll(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_shared_dpll *pll = crtc->config->shared_dpll;
 	unsigned crtc_mask = 1 << drm_crtc_index(&crtc->base);
 
@@ -191,7 +191,7 @@ intel_find_shared_dpll(struct intel_crtc *crtc,
 		       enum intel_dpll_id range_min,
 		       enum intel_dpll_id range_max)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_shared_dpll *pll;
 	struct intel_shared_dpll_config *shared_dpll;
 	enum intel_dpll_id i;
@@ -208,8 +208,8 @@ intel_find_shared_dpll(struct intel_crtc *crtc,
 		if (memcmp(&crtc_state->dpll_hw_state,
 			   &shared_dpll[i].hw_state,
 			   sizeof(crtc_state->dpll_hw_state)) == 0) {
-			DRM_DEBUG_KMS("CRTC:%d sharing existing %s (crtc mask 0x%08x, active %x)\n",
-				      crtc->base.base.id, pll->name,
+			DRM_DEBUG_KMS("[CRTC:%d:%s] sharing existing %s (crtc mask 0x%08x, active %x)\n",
+				      crtc->base.base.id, crtc->base.name, pll->name,
 				      shared_dpll[i].crtc_mask,
 				      pll->active_mask);
 			return pll;
@@ -220,8 +220,8 @@ intel_find_shared_dpll(struct intel_crtc *crtc,
 	for (i = range_min; i <= range_max; i++) {
 		pll = &dev_priv->shared_dplls[i];
 		if (shared_dpll[i].crtc_mask == 0) {
-			DRM_DEBUG_KMS("CRTC:%d allocated %s\n",
-				      crtc->base.base.id, pll->name);
+			DRM_DEBUG_KMS("[CRTC:%d:%s] allocated %s\n",
+				      crtc->base.base.id, crtc->base.name, pll->name);
 			return pll;
 		}
 	}
@@ -331,7 +331,7 @@ static void ibx_pch_dpll_enable(struct drm_i915_private *dev_priv,
 static void ibx_pch_dpll_disable(struct drm_i915_private *dev_priv,
 				 struct intel_shared_dpll *pll)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct intel_crtc *crtc;
 
 	/* Make sure no transcoder isn't still depending on us. */
@@ -358,8 +358,8 @@ ibx_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 		i = (enum intel_dpll_id) crtc->pipe;
 		pll = &dev_priv->shared_dplls[i];
 
-		DRM_DEBUG_KMS("CRTC:%d using pre-allocated %s\n",
-			      crtc->base.base.id, pll->name);
+		DRM_DEBUG_KMS("[CRTC:%d:%s] using pre-allocated %s\n",
+			      crtc->base.base.id, crtc->base.name, pll->name);
 	} else {
 		pll = intel_find_shared_dpll(crtc, crtc_state,
 					     DPLL_ID_PCH_PLL_A,
@@ -713,7 +713,7 @@ hsw_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 		pll = intel_find_shared_dpll(crtc, crtc_state,
 					     DPLL_ID_WRPLL1, DPLL_ID_WRPLL2);
 
-	} else if (encoder->type == INTEL_OUTPUT_DISPLAYPORT ||
+	} else if (encoder->type == INTEL_OUTPUT_DP ||
 		   encoder->type == INTEL_OUTPUT_DP_MST ||
 		   encoder->type == INTEL_OUTPUT_EDP) {
 		enum intel_dpll_id pll_id;
@@ -856,7 +856,11 @@ static void skl_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	I915_WRITE(regs[pll->id].ctl,
 		   I915_READ(regs[pll->id].ctl) | LCPLL_PLL_ENABLE);
 
-	if (wait_for(I915_READ(DPLL_STATUS) & DPLL_LOCK(pll->id), 5))
+	if (intel_wait_for_register(dev_priv,
+				    DPLL_STATUS,
+				    DPLL_LOCK(pll->id),
+				    DPLL_LOCK(pll->id),
+				    5))
 		DRM_ERROR("DPLL %d not locked\n", pll->id);
 }
 
@@ -1222,7 +1226,7 @@ skl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 			 DPLL_CFGCR2_KDIV(wrpll_params.kdiv) |
 			 DPLL_CFGCR2_PDIV(wrpll_params.pdiv) |
 			 wrpll_params.central_freq;
-	} else if (encoder->type == INTEL_OUTPUT_DISPLAYPORT ||
+	} else if (encoder->type == INTEL_OUTPUT_DP ||
 		   encoder->type == INTEL_OUTPUT_DP_MST ||
 		   encoder->type == INTEL_OUTPUT_EDP) {
 		switch (crtc_state->port_clock / 2) {
@@ -1239,9 +1243,6 @@ skl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 		case 162000:
 			ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1620, 0);
 			break;
-		/* TBD: For DP link rates 2.16 GHz and 4.32 GHz, VCO is 8640 which
-		results in CDCLK change. Need to handle the change of CDCLK by
-		disabling pipes and re-enabling them */
 		case 108000:
 			ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1080, 0);
 			break;
@@ -1511,7 +1512,7 @@ bxt_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	int clock = crtc_state->port_clock;
 
 	if (encoder->type == INTEL_OUTPUT_HDMI) {
-		intel_clock_t best_clock;
+		struct dpll best_clock;
 
 		/* Calculate HDMI div */
 		/*
@@ -1533,7 +1534,7 @@ bxt_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 		clk_div.m2_frac_en = clk_div.m2_frac != 0;
 
 		vco = best_clock.vco;
-	} else if (encoder->type == INTEL_OUTPUT_DISPLAYPORT ||
+	} else if (encoder->type == INTEL_OUTPUT_DP ||
 		   encoder->type == INTEL_OUTPUT_EDP) {
 		int i;
 
@@ -1616,8 +1617,8 @@ bxt_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	i = (enum intel_dpll_id) intel_dig_port->port;
 	pll = intel_get_shared_dpll_by_id(dev_priv, i);
 
-	DRM_DEBUG_KMS("CRTC:%d using pre-allocated %s\n",
-		crtc->base.base.id, pll->name);
+	DRM_DEBUG_KMS("[CRTC:%d:%s] using pre-allocated %s\n",
+		      crtc->base.base.id, crtc->base.name, pll->name);
 
 	intel_reference_shared_dpll(pll, crtc_state);
 
@@ -1635,19 +1636,11 @@ static const struct intel_shared_dpll_funcs bxt_ddi_pll_funcs = {
 
 static void intel_ddi_pll_init(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t val = I915_READ(LCPLL_CTL);
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
-		int cdclk_freq;
+	if (INTEL_GEN(dev_priv) < 9) {
+		uint32_t val = I915_READ(LCPLL_CTL);
 
-		cdclk_freq = dev_priv->display.get_display_clock_speed(dev);
-		dev_priv->skl_boot_cdclk = cdclk_freq;
-		if (skl_sanitize_cdclk(dev_priv))
-			DRM_DEBUG_KMS("Sanitized cdclk programmed by pre-os\n");
-		if (!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_ENABLE))
-			DRM_ERROR("LCPLL1 is disabled\n");
-	} else if (!IS_BROXTON(dev_priv)) {
 		/*
 		 * The LCPLL register should be turned on by the BIOS. For now
 		 * let's just check its state and print errors in case
@@ -1730,7 +1723,7 @@ static const struct intel_dpll_mgr bxt_pll_mgr = {
 
 void intel_shared_dpll_init(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	const struct intel_dpll_mgr *dpll_mgr = NULL;
 	const struct dpll_info *dpll_info;
 	int i;

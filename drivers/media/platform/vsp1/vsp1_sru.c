@@ -37,7 +37,7 @@ static inline void vsp1_sru_write(struct vsp1_sru *sru, struct vsp1_dl_list *dl,
  * Controls
  */
 
-#define V4L2_CID_VSP1_SRU_INTENSITY		(V4L2_CID_USER_BASE + 1)
+#define V4L2_CID_VSP1_SRU_INTENSITY		(V4L2_CID_USER_BASE | 0x1001)
 
 struct vsp1_sru_param {
 	u32 ctrl0;
@@ -239,7 +239,7 @@ static int sru_set_format(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static struct v4l2_subdev_pad_ops sru_pad_ops = {
+static const struct v4l2_subdev_pad_ops sru_pad_ops = {
 	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = sru_enum_mbus_code,
 	.enum_frame_size = sru_enum_frame_size,
@@ -247,7 +247,7 @@ static struct v4l2_subdev_pad_ops sru_pad_ops = {
 	.set_fmt = sru_set_format,
 };
 
-static struct v4l2_subdev_ops sru_ops = {
+static const struct v4l2_subdev_ops sru_ops = {
 	.pad    = &sru_pad_ops,
 };
 
@@ -257,13 +257,16 @@ static struct v4l2_subdev_ops sru_ops = {
 
 static void sru_configure(struct vsp1_entity *entity,
 			  struct vsp1_pipeline *pipe,
-			  struct vsp1_dl_list *dl)
+			  struct vsp1_dl_list *dl, bool full)
 {
 	const struct vsp1_sru_param *param;
 	struct vsp1_sru *sru = to_sru(&entity->subdev);
 	struct v4l2_mbus_framefmt *input;
 	struct v4l2_mbus_framefmt *output;
 	u32 ctrl0;
+
+	if (!full)
+		return;
 
 	input = vsp1_entity_get_pad_format(&sru->entity, sru->entity.config,
 					   SRU_PAD_SINK);
@@ -308,7 +311,8 @@ struct vsp1_sru *vsp1_sru_create(struct vsp1_device *vsp1)
 	sru->entity.ops = &sru_entity_ops;
 	sru->entity.type = VSP1_ENTITY_SRU;
 
-	ret = vsp1_entity_init(vsp1, &sru->entity, "sru", 2, &sru_ops);
+	ret = vsp1_entity_init(vsp1, &sru->entity, "sru", 2, &sru_ops,
+			       MEDIA_ENT_F_PROC_VIDEO_SCALER);
 	if (ret < 0)
 		return ERR_PTR(ret);
 

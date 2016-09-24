@@ -359,9 +359,9 @@ typedef struct
 		per_cr_bits    bits;
 	} control_regs;
 	/*
-	 * Use these flags instead of setting em_instruction_fetch
-	 * directly they are used so that single stepping can be
-	 * switched on & off while not affecting other tracing
+	 * The single_step and instruction_fetch bits are obsolete,
+	 * the kernel always sets them to zero. To enable single
+	 * stepping use ptrace(PTRACE_SINGLESTEP) instead.
 	 */
 	unsigned  single_step       : 1;
 	unsigned  instruction_fetch : 1;

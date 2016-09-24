@@ -10,6 +10,8 @@
  * TODO: Code Cleanup
  */
 
+#define DRIVER_NAME "bfin-adv7393"
+
 #define pr_fmt(fmt) DRIVER_NAME ": " fmt
 
 #include <linux/module.h>

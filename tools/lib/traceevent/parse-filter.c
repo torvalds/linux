@@ -28,9 +28,14 @@
 #include "event-utils.h"
 
 #define COMM "COMM"
+#define CPU "CPU"
 
 static struct format_field comm = {
 	.name = "COMM",
+};
+
+static struct format_field cpu = {
+	.name = "CPU",
 };
 
 struct event_list {
@@ -382,14 +387,17 @@ create_arg_item(struct event_format *event, const char *token,
 		/* Consider this a field */
 		field = pevent_find_any_field(event, token);
 		if (!field) {
-			if (strcmp(token, COMM) != 0) {
+			/* If token is 'COMM' or 'CPU' then it is special */
+			if (strcmp(token, COMM) == 0) {
+				field = &comm;
+			} else if (strcmp(token, CPU) == 0) {
+				field = &cpu;
+			} else {
 				/* not a field, Make it false */
 				arg->type = FILTER_ARG_BOOLEAN;
 				arg->boolean.value = FILTER_FALSE;
 				break;
 			}
-			/* If token is 'COMM' then it is special */
-			field = &comm;
 		}
 		arg->type = FILTER_ARG_FIELD;
 		arg->field.field = field;
@@ -1717,6 +1725,10 @@ get_value(struct event_format *event,
 		name = get_comm(event, record);
 		return (unsigned long)name;
 	}
+
+	/* Handle our dummy "cpu" field */
+	if (field == &cpu)
+		return record->cpu;
 
 	pevent_read_number_field(field, record->data, &val);
 

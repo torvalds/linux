@@ -24,7 +24,6 @@
 #include <asm/frame.h>
 
 ENTRY(swsusp_arch_suspend)
-	FRAME_BEGIN
 	movq	$saved_context, %rax
 	movq	%rsp, pt_regs_sp(%rax)
 	movq	%rbp, pt_regs_bp(%rax)
@@ -48,6 +47,7 @@ ENTRY(swsusp_arch_suspend)
 	movq	%cr3, %rax
 	movq	%rax, restore_cr3(%rip)
 
+	FRAME_BEGIN
 	call swsusp_save
 	FRAME_END
 	ret
@@ -72,8 +72,6 @@ ENTRY(restore_image)
 	/* code below has been relocated to a safe page */
 ENTRY(core_restore_code)
 	/* switch to temporary page tables */
-	movq	$__PAGE_OFFSET, %rcx
-	subq	%rcx, %rax
 	movq	%rax, %cr3
 	/* flush TLB */
 	movq	%rbx, %rcx
@@ -104,7 +102,6 @@ ENTRY(core_restore_code)
 	 /* code below belongs to the image kernel */
 	.align PAGE_SIZE
 ENTRY(restore_registers)
-	FRAME_BEGIN
 	/* go back to the original page tables */
 	movq    %r9, %cr3
 
@@ -145,6 +142,5 @@ ENTRY(restore_registers)
 	/* tell the hibernation core that we've just restored the memory */
 	movq	%rax, in_suspend(%rip)
 
-	FRAME_END
 	ret
 ENDPROC(restore_registers)

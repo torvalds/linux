@@ -949,6 +949,37 @@ struct ec_params_pwm_set_fan_duty {
 	uint32_t percent;
 } __packed;
 
+#define EC_CMD_PWM_SET_DUTY 0x25
+/* 16 bit duty cycle, 0xffff = 100% */
+#define EC_PWM_MAX_DUTY 0xffff
+
+enum ec_pwm_type {
+	/* All types, indexed by board-specific enum pwm_channel */
+	EC_PWM_TYPE_GENERIC = 0,
+	/* Keyboard backlight */
+	EC_PWM_TYPE_KB_LIGHT,
+	/* Display backlight */
+	EC_PWM_TYPE_DISPLAY_LIGHT,
+	EC_PWM_TYPE_COUNT,
+};
+
+struct ec_params_pwm_set_duty {
+	uint16_t duty;     /* Duty cycle, EC_PWM_MAX_DUTY = 100% */
+	uint8_t pwm_type;  /* ec_pwm_type */
+	uint8_t index;     /* Type-specific index, or 0 if unique */
+} __packed;
+
+#define EC_CMD_PWM_GET_DUTY 0x26
+
+struct ec_params_pwm_get_duty {
+	uint8_t pwm_type;  /* ec_pwm_type */
+	uint8_t index;     /* Type-specific index, or 0 if unique */
+} __packed;
+
+struct ec_response_pwm_get_duty {
+	uint16_t duty;     /* Duty cycle, EC_PWM_MAX_DUTY = 100% */
+} __packed;
+
 /*****************************************************************************/
 /*
  * Lightbar commands. This looks worse than it is. Since we only use one HOST

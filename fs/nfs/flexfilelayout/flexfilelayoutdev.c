@@ -17,8 +17,8 @@
 
 #define NFSDBG_FACILITY		NFSDBG_PNFS_LD
 
-static unsigned int dataserver_timeo = NFS4_DEF_DS_TIMEO;
-static unsigned int dataserver_retrans = NFS4_DEF_DS_RETRANS;
+static unsigned int dataserver_timeo = NFS_DEF_TCP_RETRANS;
+static unsigned int dataserver_retrans;
 
 void nfs4_ff_layout_put_deviceid(struct nfs4_ff_layout_ds *mirror_ds)
 {
@@ -379,7 +379,7 @@ nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx,
 
 	devid = &mirror->mirror_ds->id_node;
 	if (ff_layout_test_devid_unavailable(devid))
-		goto out;
+		goto out_fail;
 
 	ds = mirror->mirror_ds->ds;
 	/* matching smp_wmb() in _nfs4_pnfs_v3/4_ds_connect */
@@ -405,15 +405,16 @@ nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx,
 			mirror->mirror_ds->ds_versions[0].rsize = max_payload;
 		if (mirror->mirror_ds->ds_versions[0].wsize > max_payload)
 			mirror->mirror_ds->ds_versions[0].wsize = max_payload;
-	} else {
-		ff_layout_track_ds_error(FF_LAYOUT_FROM_HDR(lseg->pls_layout),
-					 mirror, lseg->pls_range.offset,
-					 lseg->pls_range.length, NFS4ERR_NXIO,
-					 OP_ILLEGAL, GFP_NOIO);
-		if (fail_return || !ff_layout_has_available_ds(lseg))
-			pnfs_error_mark_layout_for_return(ino, lseg);
-		ds = NULL;
+		goto out;
 	}
+	ff_layout_track_ds_error(FF_LAYOUT_FROM_HDR(lseg->pls_layout),
+				 mirror, lseg->pls_range.offset,
+				 lseg->pls_range.length, NFS4ERR_NXIO,
+				 OP_ILLEGAL, GFP_NOIO);
+out_fail:
+	if (fail_return || !ff_layout_has_available_ds(lseg))
+		pnfs_error_mark_layout_for_return(ino, lseg);
+	ds = NULL;
 out:
 	return ds;
 }

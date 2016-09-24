@@ -296,7 +296,6 @@ static int wm831x_gpio_probe(struct platform_device *pdev)
 
 static struct platform_driver wm831x_gpio_driver = {
 	.driver.name	= "wm831x-gpio",
-	.driver.owner	= THIS_MODULE,
 	.probe		= wm831x_gpio_probe,
 };
 

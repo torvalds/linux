@@ -20,7 +20,7 @@
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pinctrl/pinconf.h>
@@ -421,8 +421,8 @@ static int atmel_pctl_get_group_pins(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-struct atmel_group *atmel_pctl_find_group_by_pin(struct pinctrl_dev *pctldev,
-						 unsigned pin)
+static struct atmel_group *
+atmel_pctl_find_group_by_pin(struct pinctrl_dev *pctldev, unsigned pin)
 {
 	struct atmel_pioctrl *atmel_pioctrl = pinctrl_dev_get_drvdata(pctldev);
 	int i;
@@ -879,7 +879,6 @@ static const struct of_device_id atmel_pctrl_of_match[] = {
 		/* sentinel */
 	}
 };
-MODULE_DEVICE_TABLE(of, atmel_pctrl_of_match);
 
 static int atmel_pinctrl_probe(struct platform_device *pdev)
 {
@@ -1074,28 +1073,13 @@ clk_prepare_enable_error:
 	return ret;
 }
 
-int atmel_pinctrl_remove(struct platform_device *pdev)
-{
-	struct atmel_pioctrl *atmel_pioctrl = platform_get_drvdata(pdev);
-
-	irq_domain_remove(atmel_pioctrl->irq_domain);
-	clk_disable_unprepare(atmel_pioctrl->clk);
-	gpiochip_remove(atmel_pioctrl->gpio_chip);
-
-	return 0;
-}
-
 static struct platform_driver atmel_pinctrl_driver = {
 	.driver = {
 		.name = "pinctrl-at91-pio4",
 		.of_match_table = atmel_pctrl_of_match,
 		.pm = &atmel_pctrl_pm_ops,
+		.suppress_bind_attrs = true,
 	},
 	.probe = atmel_pinctrl_probe,
-	.remove = atmel_pinctrl_remove,
 };
-module_platform_driver(atmel_pinctrl_driver);
-
-MODULE_AUTHOR(Ludovic Desroches <ludovic.desroches@atmel.com>);
-MODULE_DESCRIPTION("Atmel PIO4 pinctrl driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(atmel_pinctrl_driver);

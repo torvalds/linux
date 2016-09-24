@@ -2,7 +2,6 @@
 #define __PERF_QUOTE_H
 
 #include <stddef.h>
-#include <stdio.h>
 
 /* Help to copy the thing properly quoted for the shell safety.
  * any single quote is replaced with '\'', any exclamation point
@@ -23,6 +22,8 @@
  * Note that the above examples leak memory!  Remember to free result from
  * sq_quote() in a real application.
  */
+
+struct strbuf;
 
 int sq_quote_argv(struct strbuf *, const char **argv, size_t maxlen);
 

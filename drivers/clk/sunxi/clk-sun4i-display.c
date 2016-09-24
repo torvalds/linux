@@ -33,6 +33,8 @@ struct sun4i_a10_display_clk_data {
 
 	u8	width_div;
 	u8	width_mux;
+
+	u32	flags;
 };
 
 struct reset_data {
@@ -166,7 +168,7 @@ static void __init sun4i_a10_display_init(struct device_node *node,
 				     data->has_div ? &div->hw : NULL,
 				     data->has_div ? &clk_divider_ops : NULL,
 				     &gate->hw, &clk_gate_ops,
-				     0);
+				     data->flags);
 	if (IS_ERR(clk)) {
 		pr_err("%s: Couldn't register the clock\n", clk_name);
 		goto free_div;
@@ -232,6 +234,7 @@ static const struct sun4i_a10_display_clk_data sun4i_a10_tcon_ch0_data __initcon
 	.offset_rst	= 29,
 	.offset_mux	= 24,
 	.width_mux	= 2,
+	.flags		= CLK_SET_RATE_PARENT,
 };
 
 static void __init sun4i_a10_tcon_ch0_setup(struct device_node *node)

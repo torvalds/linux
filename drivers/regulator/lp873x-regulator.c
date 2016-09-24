@@ -20,7 +20,7 @@
 #include <linux/mfd/lp873x.h>
 
 #define LP873X_REGULATOR(_name, _id, _of, _ops, _n, _vr, _vm, _er, _em, \
-			 _delay, _lr, _nlr, _cr)			\
+			 _delay, _lr, _cr)				\
 	[_id] = {							\
 		.desc = {						\
 			.name			= _name,		\
@@ -37,7 +37,7 @@
 			.enable_mask		= _em,			\
 			.ramp_delay		= _delay,		\
 			.linear_ranges		= _lr,			\
-			.n_linear_ranges	= _nlr,			\
+			.n_linear_ranges	= ARRAY_SIZE(_lr),	\
 		},							\
 		.ctrl2_reg = _cr,					\
 	}
@@ -175,22 +175,20 @@ static const struct lp873x_regulator regulators[] = {
 			 256, LP873X_REG_BUCK0_VOUT,
 			 LP873X_BUCK0_VOUT_BUCK0_VSET, LP873X_REG_BUCK0_CTRL_1,
 			 LP873X_BUCK0_CTRL_1_BUCK0_EN, 10000,
-			 buck0_buck1_ranges, 4, LP873X_REG_BUCK0_CTRL_2),
+			 buck0_buck1_ranges, LP873X_REG_BUCK0_CTRL_2),
 	LP873X_REGULATOR("BUCK1", LP873X_BUCK_1, "buck1", lp873x_buck01_ops,
 			 256, LP873X_REG_BUCK1_VOUT,
 			 LP873X_BUCK1_VOUT_BUCK1_VSET, LP873X_REG_BUCK1_CTRL_1,
 			 LP873X_BUCK1_CTRL_1_BUCK1_EN, 10000,
-			 buck0_buck1_ranges, 4, LP873X_REG_BUCK1_CTRL_2),
+			 buck0_buck1_ranges, LP873X_REG_BUCK1_CTRL_2),
 	LP873X_REGULATOR("LDO0", LP873X_LDO_0, "ldo0", lp873x_ldo01_ops, 26,
 			 LP873X_REG_LDO0_VOUT, LP873X_LDO0_VOUT_LDO0_VSET,
 			 LP873X_REG_LDO0_CTRL,
-			 LP873X_LDO0_CTRL_LDO0_EN, 0, ldo0_ldo1_ranges, 1,
-			 0xFF),
+			 LP873X_LDO0_CTRL_LDO0_EN, 0, ldo0_ldo1_ranges, 0xFF),
 	LP873X_REGULATOR("LDO1", LP873X_LDO_1, "ldo1", lp873x_ldo01_ops, 26,
 			 LP873X_REG_LDO1_VOUT, LP873X_LDO1_VOUT_LDO1_VSET,
 			 LP873X_REG_LDO1_CTRL,
-			 LP873X_LDO1_CTRL_LDO1_EN, 0, ldo0_ldo1_ranges, 1,
-			 0xFF),
+			 LP873X_LDO1_CTRL_LDO1_EN, 0, ldo0_ldo1_ranges, 0xFF),
 };
 
 static int lp873x_regulator_probe(struct platform_device *pdev)

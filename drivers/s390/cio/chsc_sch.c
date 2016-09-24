@@ -552,7 +552,7 @@ static int chsc_ioctl_info_cu(void __user *user_cd)
 		goto out_free;
 	}
 	scucd_area->request.length = 0x0010;
-	scucd_area->request.code = 0x0028;
+	scucd_area->request.code = 0x0026;
 	scucd_area->m = cd->m;
 	scucd_area->fmt1 = cd->fmt;
 	scucd_area->cssid = cd->cssid;

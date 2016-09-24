@@ -3,6 +3,7 @@
 
 #include <linux/types.h>
 #include <linux/stacktrace.h>
+#include <linux/stackdepot.h>
 
 struct pglist_data;
 struct page_ext_operations {
@@ -44,9 +45,8 @@ struct page_ext {
 #ifdef CONFIG_PAGE_OWNER
 	unsigned int order;
 	gfp_t gfp_mask;
-	unsigned int nr_entries;
 	int last_migrate_reason;
-	unsigned long trace_entries[8];
+	depot_stack_handle_t handle;
 #endif
 };
 

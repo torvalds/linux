@@ -13,7 +13,6 @@
 
 struct od_policy_dbs_info {
 	struct policy_dbs_info policy_dbs;
-	struct cpufreq_frequency_table *freq_table;
 	unsigned int freq_lo;
 	unsigned int freq_lo_delay_us;
 	unsigned int freq_hi_delay_us;

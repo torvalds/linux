@@ -2,15 +2,10 @@
  * AT_SYSINFO entry point
 */
 
+#include <linux/linkage.h>
 #include <asm/dwarf2.h>
 #include <asm/cpufeatures.h>
 #include <asm/alternative-asm.h>
-
-/*
- * First get the common code for the sigreturn entry points.
- * This must come first.
- */
-#include "sigreturn.S"
 
 	.text
 	.globl __kernel_vsyscall

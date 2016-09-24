@@ -13,8 +13,8 @@
 #define SMBUS_PCI_REG64		0x64
 #define SMBUS_PCI_REGB4		0xb4
 
-#define HPET_MIN_CYCLES		64
-#define HPET_MIN_PROG_DELTA	(HPET_MIN_CYCLES + (HPET_MIN_CYCLES >> 1))
+#define HPET_MIN_CYCLES		16
+#define HPET_MIN_PROG_DELTA	(HPET_MIN_CYCLES * 12)
 
 static DEFINE_SPINLOCK(hpet_lock);
 DEFINE_PER_CPU(struct clock_event_device, hpet_clockevent_device);
@@ -157,14 +157,14 @@ static int hpet_tick_resume(struct clock_event_device *evt)
 static int hpet_next_event(unsigned long delta,
 		struct clock_event_device *evt)
 {
-	unsigned int cnt;
-	int res;
+	u32 cnt;
+	s32 res;
 
 	cnt = hpet_read(HPET_COUNTER);
-	cnt += delta;
+	cnt += (u32) delta;
 	hpet_write(HPET_T0_CMP, cnt);
 
-	res = (int)(cnt - hpet_read(HPET_COUNTER));
+	res = (s32)(cnt - hpet_read(HPET_COUNTER));
 
 	return res < HPET_MIN_CYCLES ? -ETIME : 0;
 }
@@ -230,7 +230,7 @@ void __init setup_hpet_timer(void)
 
 	cd = &per_cpu(hpet_clockevent_device, cpu);
 	cd->name = "hpet";
-	cd->rating = 320;
+	cd->rating = 100;
 	cd->features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT;
 	cd->set_state_shutdown = hpet_set_state_shutdown;
 	cd->set_state_periodic = hpet_set_state_periodic;

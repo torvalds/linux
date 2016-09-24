@@ -163,6 +163,7 @@ enum rio_device_state {
  * @dst_ops: Destination operation capabilities
  * @comp_tag: RIO component tag
  * @phys_efptr: RIO device extended features pointer
+ * @phys_rmap: LP-Serial Register Map Type (1 or 2)
  * @em_efptr: RIO Error Management features pointer
  * @dma_mask: Mask of bits of RIO address this device implements
  * @driver: Driver claiming this device
@@ -193,6 +194,7 @@ struct rio_dev {
 	u32 dst_ops;
 	u32 comp_tag;
 	u32 phys_efptr;
+	u32 phys_rmap;
 	u32 em_efptr;
 	u64 dma_mask;
 	struct rio_driver *driver;	/* RIO driver claiming this device */
@@ -237,11 +239,6 @@ struct rio_dbell {
 	void *dev_id;
 };
 
-enum rio_phy_type {
-	RIO_PHY_PARALLEL,
-	RIO_PHY_SERIAL,
-};
-
 /**
  * struct rio_mport - RIO master port info
  * @dbells: List of doorbell events
@@ -259,8 +256,8 @@ enum rio_phy_type {
  * @id: Port ID, unique among all ports
  * @index: Port index, unique among all port interfaces of the same type
  * @sys_size: RapidIO common transport system size
- * @phy_type: RapidIO phy type
  * @phys_efptr: RIO port extended features pointer
+ * @phys_rmap: LP-Serial EFB Register Mapping type (1 or 2).
  * @name: Port name string
  * @dev: device structure associated with an mport
  * @priv: Master port private data
@@ -289,8 +286,8 @@ struct rio_mport {
 				 * 0 - Small size. 256 devices.
 				 * 1 - Large size, 65536 devices.
 				 */
-	enum rio_phy_type phy_type;	/* RapidIO phy type */
 	u32 phys_efptr;
+	u32 phys_rmap;
 	unsigned char name[RIO_MAX_MPORT_NAME];
 	struct device dev;
 	void *priv;		/* Master port private data */
@@ -425,7 +422,7 @@ struct rio_ops {
 	int (*add_inb_buffer)(struct rio_mport *mport, int mbox, void *buf);
 	void *(*get_inb_message)(struct rio_mport *mport, int mbox);
 	int (*map_inb)(struct rio_mport *mport, dma_addr_t lstart,
-			u64 rstart, u32 size, u32 flags);
+			u64 rstart, u64 size, u32 flags);
 	void (*unmap_inb)(struct rio_mport *mport, dma_addr_t lstart);
 	int (*query_mport)(struct rio_mport *mport,
 			   struct rio_mport_attr *attr);

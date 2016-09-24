@@ -244,6 +244,7 @@ config PAGE_OWNER
 	depends on DEBUG_KERNEL && STACKTRACE_SUPPORT
 	select DEBUG_FS
 	select STACKTRACE
+	select STACKDEPOT
 	select PAGE_EXTENSION
 	help
 	  This keeps track of what call chain is the owner of a page, may
@@ -708,6 +709,8 @@ config KCOV
 	bool "Code coverage for fuzzing"
 	depends on ARCH_HAS_KCOV
 	select DEBUG_FS
+	select GCC_PLUGINS if !COMPILE_TEST
+	select GCC_PLUGIN_SANCOV if !COMPILE_TEST
 	help
 	  KCOV exposes kernel code coverage information in a form suitable
 	  for coverage-guided fuzzing (randomized testing).
@@ -717,6 +720,17 @@ config KCOV
 	  disable RANDOMIZE_BASE.
 
 	  For more details, see Documentation/kcov.txt.
+
+config KCOV_INSTRUMENT_ALL
+	bool "Instrument all code by default"
+	depends on KCOV
+	default y if KCOV
+	help
+	  If you are doing generic system call fuzzing (like e.g. syzkaller),
+	  then you will want to instrument the whole kernel and you should
+	  say y here. If you are doing more targeted fuzzing (like e.g.
+	  filesystem fuzzing with AFL) then you will want to enable coverage
+	  for more specific subsets of files, and should say n here.
 
 config DEBUG_SHIRQ
 	bool "Debug shared IRQ handlers"
@@ -1307,22 +1321,6 @@ config RCU_PERF_TEST
 	  Say M if you want the RCU performance tests to build as a module.
 	  Say N if you are unsure.
 
-config RCU_PERF_TEST_RUNNABLE
-	bool "performance tests for RCU runnable by default"
-	depends on RCU_PERF_TEST = y
-	default n
-	help
-	  This option provides a way to build the RCU performance tests
-	  directly into the kernel without them starting up at boot time.
-	  You can use /sys/module to manually override this setting.
-	  This /proc file is available only when the RCU performance
-	  tests have been built into the kernel.
-
-	  Say Y here if you want the RCU performance tests to start during
-	  boot (you probably don't).
-	  Say N here if you want the RCU performance tests to start only
-	  after being manually enabled via /sys/module.
-
 config RCU_TORTURE_TEST
 	tristate "torture tests for RCU"
 	depends on DEBUG_KERNEL
@@ -1339,23 +1337,6 @@ config RCU_TORTURE_TEST
 	  the kernel.
 	  Say M if you want the RCU torture tests to build as a module.
 	  Say N if you are unsure.
-
-config RCU_TORTURE_TEST_RUNNABLE
-	bool "torture tests for RCU runnable by default"
-	depends on RCU_TORTURE_TEST = y
-	default n
-	help
-	  This option provides a way to build the RCU torture tests
-	  directly into the kernel without them starting up at boot
-	  time.  You can use /proc/sys/kernel/rcutorture_runnable
-	  to manually override this setting.  This /proc file is
-	  available only when the RCU torture tests have been built
-	  into the kernel.
-
-	  Say Y here if you want the RCU torture tests to start during
-	  boot (you probably don't).
-	  Say N here if you want the RCU torture tests to start only
-	  after being manually enabled via /proc.
 
 config RCU_TORTURE_TEST_SLOW_PREINIT
 	bool "Slow down RCU grace-period pre-initialization to expose races"
@@ -1704,24 +1685,6 @@ config LATENCYTOP
 	help
 	  Enable this option if you want to use the LatencyTOP tool
 	  to find out which userspace is blocking on what kernel operations.
-
-config ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
-	bool
-
-config DEBUG_STRICT_USER_COPY_CHECKS
-	bool "Strict user copy size checks"
-	depends on ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
-	depends on DEBUG_KERNEL && !TRACE_BRANCH_PROFILING
-	help
-	  Enabling this option turns a certain set of sanity checks for user
-	  copy operations into compile time failures.
-
-	  The copy_from_user() etc checks are there to help test if there
-	  are sufficient security checks on the length argument of
-	  the copy operation, by having gcc prove that the argument is
-	  within bounds.
-
-	  If unsure, say N.
 
 source kernel/trace/Kconfig
 

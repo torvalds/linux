@@ -274,4 +274,13 @@ static inline void efx_device_detach_sync(struct efx_nic *efx)
 	netif_tx_unlock_bh(dev);
 }
 
+static inline bool efx_rwsem_assert_write_locked(struct rw_semaphore *sem)
+{
+	if (WARN_ON(down_read_trylock(sem))) {
+		up_read(sem);
+		return false;
+	}
+	return true;
+}
+
 #endif /* EFX_EFX_H */

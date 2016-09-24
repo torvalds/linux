@@ -721,6 +721,8 @@ __ieee80211_amsdu_copy(struct sk_buff *skb, unsigned int hlen,
 	 * alignment since sizeof(struct ethhdr) is 14.
 	 */
 	frame = dev_alloc_skb(hlen + sizeof(struct ethhdr) + 2 + cur_len);
+	if (!frame)
+		return NULL;
 
 	skb_reserve(frame, hlen + sizeof(struct ethhdr) + 2);
 	skb_copy_bits(skb, offset, skb_put(frame, cur_len), cur_len);

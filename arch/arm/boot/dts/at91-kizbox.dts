@@ -54,7 +54,7 @@
 			};
 		};
 
-		usb0: ohci@00500000 {
+		usb0: ohci@500000 {
 			num-ports = <1>;
 			status = "okay";
 		};
@@ -96,7 +96,7 @@
 		};
 	};
 
-	i2c@0 {
+	i2c-gpio-0 {
 		status = "okay";
 
 		rtc: pcf8563@51 {

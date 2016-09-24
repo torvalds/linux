@@ -25,7 +25,9 @@
 #include <sys/types.h>
 #include <sys/shm.h>
 #include <linux/futex.h>
-
+#ifdef __powerpc__
+#include <altivec.h>
+#endif
 #include "../utils.h"
 
 static unsigned int timeout = 30;
@@ -37,12 +39,15 @@ static int touch_fp = 1;
 double fp;
 
 static int touch_vector = 1;
-typedef int v4si __attribute__ ((vector_size (16)));
-v4si a, b, c;
+vector int a, b, c;
 
 #ifdef __powerpc__
 static int touch_altivec = 1;
 
+/*
+ * Note: LTO (Link Time Optimisation) doesn't play well with this function
+ * attribute. Be very careful enabling LTO for this test.
+ */
 static void __attribute__((__target__("no-vsx"))) altivec_touch_fn(void)
 {
 	c = a + b;
@@ -369,11 +374,11 @@ static void usage(void)
 	fprintf(stderr, "\t\t--process\tUse processes (default threads)\n");
 	fprintf(stderr, "\t\t--timeout=X\tDuration in seconds to run (default 30)\n");
 	fprintf(stderr, "\t\t--vdso\t\ttouch VDSO\n");
-	fprintf(stderr, "\t\t--fp\t\ttouch FP\n");
+	fprintf(stderr, "\t\t--no-fp\t\tDon't touch FP\n");
 #ifdef __powerpc__
-	fprintf(stderr, "\t\t--altivec\ttouch altivec\n");
+	fprintf(stderr, "\t\t--no-altivec\tDon't touch altivec\n");
 #endif
-	fprintf(stderr, "\t\t--vector\ttouch vector\n");
+	fprintf(stderr, "\t\t--no-vector\tDon't touch vector\n");
 }
 
 int main(int argc, char *argv[])

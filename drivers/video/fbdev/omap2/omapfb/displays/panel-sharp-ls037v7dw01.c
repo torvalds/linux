@@ -17,8 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/regulator/consumer.h>
-#include <video/omapdss.h>
-#include <video/omap-panel-data.h>
+#include <video/omapfb_dss.h>
 
 struct panel_drv_data {
 	struct omap_dss_device dssdev;
@@ -197,69 +196,6 @@ static struct omap_dss_driver sharp_ls_ops = {
 	.get_resolution	= omapdss_default_get_resolution,
 };
 
-static int sharp_ls_get_gpio(struct device *dev, int gpio, unsigned long flags,
-		  char *desc, struct gpio_desc **gpiod)
-{
-	int r;
-
-	r = devm_gpio_request_one(dev, gpio, flags, desc);
-	if (r) {
-		*gpiod = NULL;
-		return r == -ENOENT ? 0 : r;
-	}
-
-	*gpiod = gpio_to_desc(gpio);
-
-	return 0;
-}
-
-static int sharp_ls_probe_pdata(struct platform_device *pdev)
-{
-	const struct panel_sharp_ls037v7dw01_platform_data *pdata;
-	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	struct omap_dss_device *dssdev, *in;
-	int r;
-
-	pdata = dev_get_platdata(&pdev->dev);
-
-	in = omap_dss_find_output(pdata->source);
-	if (in == NULL) {
-		dev_err(&pdev->dev, "failed to find video source '%s'\n",
-				pdata->source);
-		return -EPROBE_DEFER;
-	}
-
-	ddata->in = in;
-
-	ddata->data_lines = pdata->data_lines;
-
-	dssdev = &ddata->dssdev;
-	dssdev->name = pdata->name;
-
-	r = sharp_ls_get_gpio(&pdev->dev, pdata->mo_gpio, GPIOF_OUT_INIT_LOW,
-		"lcd MO", &ddata->mo_gpio);
-	if (r)
-		return r;
-	r = sharp_ls_get_gpio(&pdev->dev, pdata->lr_gpio, GPIOF_OUT_INIT_HIGH,
-		"lcd LR", &ddata->lr_gpio);
-	if (r)
-		return r;
-	r = sharp_ls_get_gpio(&pdev->dev, pdata->ud_gpio, GPIOF_OUT_INIT_HIGH,
-		"lcd UD", &ddata->ud_gpio);
-	if (r)
-		return r;
-	r = sharp_ls_get_gpio(&pdev->dev, pdata->resb_gpio, GPIOF_OUT_INIT_LOW,
-		"lcd RESB", &ddata->resb_gpio);
-	if (r)
-		return r;
-	r = sharp_ls_get_gpio(&pdev->dev, pdata->ini_gpio, GPIOF_OUT_INIT_LOW,
-		"lcd INI", &ddata->ini_gpio);
-	if (r)
-		return r;
-
-	return 0;
-}
-
 static  int sharp_ls_get_gpio_of(struct device *dev, int index, int val,
 	const char *desc, struct gpio_desc **gpiod)
 {
@@ -330,23 +266,18 @@ static int sharp_ls_probe(struct platform_device *pdev)
 	struct omap_dss_device *dssdev;
 	int r;
 
+	if (!pdev->dev.of_node)
+		return -ENODEV;
+
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (ddata == NULL)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, ddata);
 
-	if (dev_get_platdata(&pdev->dev)) {
-		r = sharp_ls_probe_pdata(pdev);
-		if (r)
-			return r;
-	} else if (pdev->dev.of_node) {
-		r = sharp_ls_probe_of(pdev);
-		if (r)
-			return r;
-	} else {
-		return -ENODEV;
-	}
+	r = sharp_ls_probe_of(pdev);
+	if (r)
+		return r;
 
 	ddata->videomode = sharp_ls_timings;
 

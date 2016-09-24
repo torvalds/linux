@@ -555,14 +555,8 @@ static int hqvdp_dbg_show(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
 	struct sti_hqvdp *hqvdp = (struct sti_hqvdp *)node->info_ent->data;
-	struct drm_device *dev = node->minor->dev;
 	int cmd, cmd_offset, infoxp70;
 	void *virt;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 
 	seq_printf(s, "%s: (vaddr = 0x%p)",
 		   sti_plane_to_str(&hqvdp->plane), hqvdp->regs);
@@ -630,7 +624,6 @@ static int hqvdp_dbg_show(struct seq_file *s, void *data)
 
 	seq_puts(s, "\n");
 
-	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 
@@ -1241,6 +1234,33 @@ static const struct drm_plane_helper_funcs sti_hqvdp_helpers_funcs = {
 	.atomic_disable = sti_hqvdp_atomic_disable,
 };
 
+static void sti_hqvdp_destroy(struct drm_plane *drm_plane)
+{
+	DRM_DEBUG_DRIVER("\n");
+
+	drm_plane_helper_disable(drm_plane);
+	drm_plane_cleanup(drm_plane);
+}
+
+static int sti_hqvdp_late_register(struct drm_plane *drm_plane)
+{
+	struct sti_plane *plane = to_sti_plane(drm_plane);
+	struct sti_hqvdp *hqvdp = to_sti_hqvdp(plane);
+
+	return hqvdp_debugfs_init(hqvdp, drm_plane->dev->primary);
+}
+
+struct drm_plane_funcs sti_hqvdp_plane_helpers_funcs = {
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.destroy = sti_hqvdp_destroy,
+	.set_property = drm_atomic_helper_plane_set_property,
+	.reset = sti_plane_reset,
+	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
+	.late_register = sti_hqvdp_late_register,
+};
+
 static struct drm_plane *sti_hqvdp_create(struct drm_device *drm_dev,
 					  struct device *dev, int desc)
 {
@@ -1253,7 +1273,7 @@ static struct drm_plane *sti_hqvdp_create(struct drm_device *drm_dev,
 	sti_hqvdp_init(hqvdp);
 
 	res = drm_universal_plane_init(drm_dev, &hqvdp->plane.drm_plane, 1,
-				       &sti_plane_helpers_funcs,
+				       &sti_hqvdp_plane_helpers_funcs,
 				       hqvdp_supported_formats,
 				       ARRAY_SIZE(hqvdp_supported_formats),
 				       DRM_PLANE_TYPE_OVERLAY, NULL);
@@ -1265,9 +1285,6 @@ static struct drm_plane *sti_hqvdp_create(struct drm_device *drm_dev,
 	drm_plane_helper_add(&hqvdp->plane.drm_plane, &sti_hqvdp_helpers_funcs);
 
 	sti_plane_init_property(&hqvdp->plane, DRM_PLANE_TYPE_OVERLAY);
-
-	if (hqvdp_debugfs_init(hqvdp, drm_dev->primary))
-		DRM_ERROR("HQVDP debugfs setup failed\n");
 
 	return &hqvdp->plane.drm_plane;
 }
@@ -1346,6 +1363,7 @@ static int sti_hqvdp_probe(struct platform_device *pdev)
 	vtg_np = of_parse_phandle(pdev->dev.of_node, "st,vtg", 0);
 	if (vtg_np)
 		hqvdp->vtg = of_vtg_find(vtg_np);
+	of_node_put(vtg_np);
 
 	platform_set_drvdata(pdev, hqvdp);
 

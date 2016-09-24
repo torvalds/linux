@@ -504,7 +504,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 
 void (*free_init_pages_eva)(void *begin, void *end) = NULL;
 
-void __init_refok free_initmem(void)
+void __ref free_initmem(void)
 {
 	prom_free_prom_memory();
 	/*

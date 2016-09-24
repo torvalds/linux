@@ -44,7 +44,7 @@
 #endif
 
 #if (defined(CONFIG_SMP_ON_UP) && !defined(CONFIG_DEBUG_SPINLOCK)) || \
-	defined(CONFIG_GENERIC_BUG)
+	defined(CONFIG_GENERIC_BUG) || defined(CONFIG_JUMP_LABEL)
 #define ARM_EXIT_KEEP(x)	x
 #define ARM_EXIT_DISCARD(x)
 #else
@@ -125,6 +125,8 @@ SECTIONS
 #ifdef CONFIG_DEBUG_ALIGN_RODATA
 	. = ALIGN(1<<SECTION_SHIFT);
 #endif
+	_etext = .;			/* End of text section */
+
 	RO_DATA(PAGE_SIZE)
 
 	. = ALIGN(4);
@@ -154,8 +156,6 @@ SECTIONS
 #endif
 
 	NOTES
-
-	_etext = .;			/* End of text and rodata section */
 
 #ifdef CONFIG_DEBUG_RODATA
 	. = ALIGN(1<<SECTION_SHIFT);

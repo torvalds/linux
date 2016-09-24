@@ -24,6 +24,7 @@ struct vsp1_pipeline;
 
 enum vsp1_entity_type {
 	VSP1_ENTITY_BRU,
+	VSP1_ENTITY_CLU,
 	VSP1_ENTITY_HSI,
 	VSP1_ENTITY_HST,
 	VSP1_ENTITY_LIF,
@@ -42,17 +43,21 @@ enum vsp1_entity_type {
  * @index: Entity index this routing entry is associated with
  * @reg: Output routing configuration register
  * @inputs: Target node value for each input
+ * @output: Target node value for entity output
  *
  * Each $vsp1_route entry describes routing configuration for the entity
  * specified by the entry's @type and @index. @reg indicates the register that
  * holds output routing configuration for the entity, and the @inputs array
- * store the target node value for each input of the entity.
+ * store the target node value for each input of the entity. The @output field
+ * stores the target node value of the entity output when used as a source for
+ * histogram generation.
  */
 struct vsp1_route {
 	enum vsp1_entity_type type;
 	unsigned int index;
 	unsigned int reg;
 	unsigned int inputs[VSP1_ENTITY_MAX_INPUTS];
+	unsigned int output;
 };
 
 /**
@@ -68,7 +73,7 @@ struct vsp1_entity_operations {
 	void (*destroy)(struct vsp1_entity *);
 	void (*set_memory)(struct vsp1_entity *, struct vsp1_dl_list *dl);
 	void (*configure)(struct vsp1_entity *, struct vsp1_pipeline *,
-			  struct vsp1_dl_list *);
+			  struct vsp1_dl_list *, bool);
 };
 
 struct vsp1_entity {
@@ -100,7 +105,7 @@ static inline struct vsp1_entity *to_vsp1_entity(struct v4l2_subdev *subdev)
 
 int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 		     const char *name, unsigned int num_pads,
-		     const struct v4l2_subdev_ops *ops);
+		     const struct v4l2_subdev_ops *ops, u32 function);
 void vsp1_entity_destroy(struct vsp1_entity *entity);
 
 extern const struct v4l2_subdev_internal_ops vsp1_subdev_internal_ops;
@@ -118,9 +123,9 @@ vsp1_entity_get_pad_format(struct vsp1_entity *entity,
 			   struct v4l2_subdev_pad_config *cfg,
 			   unsigned int pad);
 struct v4l2_rect *
-vsp1_entity_get_pad_compose(struct vsp1_entity *entity,
-			    struct v4l2_subdev_pad_config *cfg,
-			    unsigned int pad);
+vsp1_entity_get_pad_selection(struct vsp1_entity *entity,
+			      struct v4l2_subdev_pad_config *cfg,
+			      unsigned int pad, unsigned int target);
 int vsp1_entity_init_cfg(struct v4l2_subdev *subdev,
 			 struct v4l2_subdev_pad_config *cfg);
 

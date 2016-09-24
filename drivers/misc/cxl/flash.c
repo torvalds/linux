@@ -24,8 +24,8 @@ struct ai_header {
 };
 
 static struct semaphore sem;
-unsigned long *buffer[CXL_AI_MAX_ENTRIES];
-struct sg_list *le;
+static unsigned long *buffer[CXL_AI_MAX_ENTRIES];
+static struct sg_list *le;
 static u64 continue_token;
 static unsigned int transfer;
 

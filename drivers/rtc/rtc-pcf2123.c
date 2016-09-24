@@ -96,7 +96,7 @@
 #define CD_TMR_TE		BIT(3)	/* Countdown timer enable */
 
 /* PCF2123_REG_OFFSET BITS */
-#define OFFSET_SIGN_BIT		BIT(6)	/* 2's complement sign bit */
+#define OFFSET_SIGN_BIT		6	/* 2's complement sign bit */
 #define OFFSET_COARSE		BIT(7)	/* Coarse mode offset */
 #define OFFSET_STEP		(2170)	/* Offset step in parts per billion */
 
@@ -217,7 +217,7 @@ static int pcf2123_read_offset(struct device *dev, long *offset)
 	if (reg & OFFSET_COARSE)
 		reg <<= 1; /* multiply by 2 and sign extend */
 	else
-		reg |= (reg & OFFSET_SIGN_BIT) << 1; /* sign extend only */
+		reg = sign_extend32(reg, OFFSET_SIGN_BIT);
 
 	*offset = ((long)reg) * OFFSET_STEP;
 

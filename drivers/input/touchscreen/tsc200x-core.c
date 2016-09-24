@@ -450,7 +450,7 @@ static void tsc200x_close(struct input_dev *input)
 	mutex_unlock(&ts->mutex);
 }
 
-int tsc200x_probe(struct device *dev, int irq, __u16 bustype,
+int tsc200x_probe(struct device *dev, int irq, const struct input_id *tsc_id,
 		  struct regmap *regmap,
 		  int (*tsc200x_cmd)(struct device *dev, u8 cmd))
 {
@@ -547,9 +547,18 @@ int tsc200x_probe(struct device *dev, int irq, __u16 bustype,
 	snprintf(ts->phys, sizeof(ts->phys),
 		 "%s/input-ts", dev_name(dev));
 
-	input_dev->name = "TSC200X touchscreen";
+	if (tsc_id->product == 2004) {
+		input_dev->name = "TSC200X touchscreen";
+	} else {
+		input_dev->name = devm_kasprintf(dev, GFP_KERNEL,
+						 "TSC%04d touchscreen",
+						 tsc_id->product);
+		if (!input_dev->name)
+			return -ENOMEM;
+	}
+
 	input_dev->phys = ts->phys;
-	input_dev->id.bustype = bustype;
+	input_dev->id = *tsc_id;
 	input_dev->dev.parent = dev;
 	input_dev->evbit[0] = BIT(EV_ABS) | BIT(EV_KEY);
 	input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
@@ -559,7 +568,7 @@ int tsc200x_probe(struct device *dev, int irq, __u16 bustype,
 	input_set_abs_params(input_dev, ABS_PRESSURE, 0, max_p, fudge_p, 0);
 
 	if (np)
-		touchscreen_parse_properties(input_dev, false);
+		touchscreen_parse_properties(input_dev, false, NULL);
 
 	input_dev->open = tsc200x_open;
 	input_dev->close = tsc200x_close;

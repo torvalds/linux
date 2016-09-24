@@ -7,6 +7,25 @@
 #include <asm/book3s/64/tlbflush-hash.h>
 #include <asm/book3s/64/tlbflush-radix.h>
 
+#define __HAVE_ARCH_FLUSH_PMD_TLB_RANGE
+static inline void flush_pmd_tlb_range(struct vm_area_struct *vma,
+				       unsigned long start, unsigned long end)
+{
+	if (radix_enabled())
+		return radix__flush_pmd_tlb_range(vma, start, end);
+	return hash__flush_tlb_range(vma, start, end);
+}
+
+#define __HAVE_ARCH_FLUSH_HUGETLB_TLB_RANGE
+static inline void flush_hugetlb_tlb_range(struct vm_area_struct *vma,
+					   unsigned long start,
+					   unsigned long end)
+{
+	if (radix_enabled())
+		return radix__flush_hugetlb_tlb_range(vma, start, end);
+	return hash__flush_tlb_range(vma, start, end);
+}
+
 static inline void flush_tlb_range(struct vm_area_struct *vma,
 				   unsigned long start, unsigned long end)
 {
@@ -36,14 +55,6 @@ static inline void local_flush_tlb_page(struct vm_area_struct *vma,
 	if (radix_enabled())
 		return radix__local_flush_tlb_page(vma, vmaddr);
 	return hash__local_flush_tlb_page(vma, vmaddr);
-}
-
-static inline void flush_tlb_page_nohash(struct vm_area_struct *vma,
-					 unsigned long vmaddr)
-{
-	if (radix_enabled())
-		return radix__flush_tlb_page(vma, vmaddr);
-	return hash__flush_tlb_page_nohash(vma, vmaddr);
 }
 
 static inline void tlb_flush(struct mmu_gather *tlb)

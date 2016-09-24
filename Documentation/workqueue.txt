@@ -169,7 +169,7 @@ resources, scheduled and executed.
   WQ_UNBOUND
 
 	Work items queued to an unbound wq are served by the special
-	woker-pools which host workers which are not bound to any
+	worker-pools which host workers which are not bound to any
 	specific CPU.  This makes the wq behave as a simple execution
 	context provider without concurrency management.  The unbound
 	worker-pools try to start execution of work items as soon as

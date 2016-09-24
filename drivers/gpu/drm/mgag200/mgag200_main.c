@@ -17,8 +17,8 @@
 static void mga_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct mga_framebuffer *mga_fb = to_mga_framebuffer(fb);
-	if (mga_fb->obj)
-		drm_gem_object_unreference_unlocked(mga_fb->obj);
+
+	drm_gem_object_unreference_unlocked(mga_fb->obj);
 	drm_framebuffer_cleanup(fb);
 	kfree(fb);
 }

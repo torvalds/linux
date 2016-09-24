@@ -14,6 +14,11 @@ Required properties:
   - interrupts: VSP interrupt specifier.
   - clocks: A phandle + clock-specifier pair for the VSP functional clock.
 
+Optional properties:
+
+  - renesas,fcp: A phandle referencing the FCP that handles memory accesses
+                 for the VSP. Not needed on Gen2, mandatory on Gen3.
+
 
 Example: R8A7790 (R-Car H2) VSP1-S node
 

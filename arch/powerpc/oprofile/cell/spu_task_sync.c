@@ -51,7 +51,7 @@ static void spu_buff_add(unsigned long int value, int spu)
 	 * That way we can tell the difference between the
 	 * buffer being full versus empty.
 	 *
-	 *  ASSUPTION: the buffer_lock is held when this function
+	 *  ASSUMPTION: the buffer_lock is held when this function
 	 *             is called to lock the buffer, head and tail.
 	 */
 	int full = 1;

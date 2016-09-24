@@ -947,13 +947,13 @@ static int qat_alg_ablkcipher_setkey(struct crypto_ablkcipher *tfm,
 	return 0;
 
 out_free_all:
-	memset(ctx->dec_cd, 0, sizeof(*ctx->enc_cd));
-	dma_free_coherent(dev, sizeof(*ctx->enc_cd),
+	memset(ctx->dec_cd, 0, sizeof(*ctx->dec_cd));
+	dma_free_coherent(dev, sizeof(*ctx->dec_cd),
 			  ctx->dec_cd, ctx->dec_cd_paddr);
 	ctx->dec_cd = NULL;
 out_free_enc:
-	memset(ctx->enc_cd, 0, sizeof(*ctx->dec_cd));
-	dma_free_coherent(dev, sizeof(*ctx->dec_cd),
+	memset(ctx->enc_cd, 0, sizeof(*ctx->enc_cd));
+	dma_free_coherent(dev, sizeof(*ctx->enc_cd),
 			  ctx->enc_cd, ctx->enc_cd_paddr);
 	ctx->enc_cd = NULL;
 	return -ENOMEM;
@@ -1260,8 +1260,8 @@ static struct crypto_alg qat_algs[] = { {
 			.setkey = qat_alg_ablkcipher_xts_setkey,
 			.decrypt = qat_alg_ablkcipher_decrypt,
 			.encrypt = qat_alg_ablkcipher_encrypt,
-			.min_keysize = AES_MIN_KEY_SIZE,
-			.max_keysize = AES_MAX_KEY_SIZE,
+			.min_keysize = 2 * AES_MIN_KEY_SIZE,
+			.max_keysize = 2 * AES_MAX_KEY_SIZE,
 			.ivsize = AES_BLOCK_SIZE,
 		},
 	},

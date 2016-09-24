@@ -4,7 +4,7 @@
  */
 
 #ifndef S390_IDSET_H
-#define S390_IDSET_H S390_IDSET_H
+#define S390_IDSET_H
 
 #include <asm/schid.h>
 

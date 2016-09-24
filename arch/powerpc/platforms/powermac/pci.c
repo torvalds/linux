@@ -878,6 +878,29 @@ void pmac_pci_irq_fixup(struct pci_dev *dev)
 #endif /* CONFIG_PPC32 */
 }
 
+#ifdef CONFIG_PPC64
+static int pmac_pci_root_bridge_prepare(struct pci_host_bridge *bridge)
+{
+	struct pci_controller *hose = pci_bus_to_host(bridge->bus);
+	struct device_node *np, *child;
+
+	if (hose != u3_agp)
+		return 0;
+
+	/* Fixup the PCI<->OF mapping for U3 AGP due to bus renumbering. We
+	 * assume there is no P2P bridge on the AGP bus, which should be a
+	 * safe assumptions for now. We should do something better in the
+	 * future though
+	 */
+	np = hose->dn;
+	PCI_DN(np)->busno = 0xf0;
+	for_each_child_of_node(np, child)
+		PCI_DN(child)->busno = 0xf0;
+
+	return 0;
+}
+#endif /* CONFIG_PPC64 */
+
 void __init pmac_pci_init(void)
 {
 	struct device_node *np, *root;
@@ -914,20 +937,7 @@ void __init pmac_pci_init(void)
 	if (ht && pmac_add_bridge(ht) != 0)
 		of_node_put(ht);
 
-	/* Setup the linkage between OF nodes and PHBs */
-	pci_devs_phb_init();
-
-	/* Fixup the PCI<->OF mapping for U3 AGP due to bus renumbering. We
-	 * assume there is no P2P bridge on the AGP bus, which should be a
-	 * safe assumptions for now. We should do something better in the
-	 * future though
-	 */
-	if (u3_agp) {
-		struct device_node *np = u3_agp->dn;
-		PCI_DN(np)->busno = 0xf0;
-		for (np = np->child; np; np = np->sibling)
-			PCI_DN(np)->busno = 0xf0;
-	}
+	ppc_md.pcibios_root_bridge_prepare = pmac_pci_root_bridge_prepare;
 	/* pmac_check_ht_link(); */
 
 #else /* CONFIG_PPC64 */

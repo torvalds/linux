@@ -69,8 +69,12 @@ static int stm32_rng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 		}
 
 		/* If error detected or data not ready... */
-		if (sr != RNG_SR_DRDY)
+		if (sr != RNG_SR_DRDY) {
+			if (WARN_ONCE(sr & (RNG_SR_SEIS | RNG_SR_CEIS),
+					"bad RNG status - %x\n", sr))
+				writel_relaxed(0, priv->base + RNG_SR);
 			break;
+		}
 
 		*(u32 *)data = readl_relaxed(priv->base + RNG_DR);
 
@@ -78,10 +82,6 @@ static int stm32_rng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 		data += sizeof(u32);
 		max -= sizeof(u32);
 	}
-
-	if (WARN_ONCE(sr & (RNG_SR_SEIS | RNG_SR_CEIS),
-		      "bad RNG status - %x\n", sr))
-		writel_relaxed(0, priv->base + RNG_SR);
 
 	pm_runtime_mark_last_busy((struct device *) priv->rng.priv);
 	pm_runtime_put_sync_autosuspend((struct device *) priv->rng.priv);

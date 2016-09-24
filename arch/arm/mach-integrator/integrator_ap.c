@@ -240,8 +240,7 @@ static void __init ap_init_of(void)
 	if (!ebi_base)
 		return;
 
-	of_platform_populate(NULL, of_default_bus_match_table,
-			ap_auxdata_lookup, NULL);
+	of_platform_default_populate(NULL, ap_auxdata_lookup, NULL);
 
 	sc_dec = readl(ap_syscon_base + INTEGRATOR_SC_DEC_OFFSET);
 	for (i = 0; i < 4; i++) {

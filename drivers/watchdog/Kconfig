@@ -48,7 +48,6 @@ config WATCHDOG_NOWAYOUT
 
 config WATCHDOG_SYSFS
 	bool "Read different watchdog information through sysfs"
-	default n
 	help
 	  Say Y here if you want to enable watchdog device status read through
 	  sysfs attributes.
@@ -516,6 +515,15 @@ config MAX63XX_WATCHDOG
 	help
 	  Support for memory mapped max63{69,70,71,72,73,74} watchdog timer.
 
+config MAX77620_WATCHDOG
+	tristate "Maxim Max77620 Watchdog Timer"
+	depends on MFD_MAX77620
+	help
+	 This is the driver for the Max77620 watchdog timer.
+	 Say 'Y' here to enable the watchdog timer support for
+	 MAX77620 chips. To compile this driver as a module,
+	 choose M here: the module will be called max77620_wdt.
+
 config IMX2_WDT
 	tristate "IMX2+ Watchdog"
 	depends on ARCH_MXC || ARCH_LAYERSCAPE
@@ -609,6 +617,16 @@ config QCOM_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called qcom_wdt.
 
+config MESON_GXBB_WATCHDOG
+	tristate "Amlogic Meson GXBB SoCs watchdog support"
+	depends on ARCH_MESON
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include support for the watchdog timer
+	  in Amlogic Meson GXBB SoCs.
+	  To compile this driver as a module, choose M here: the
+	  module will be called meson_gxbb_wdt.
+
 config MESON_WATCHDOG
 	tristate "Amlogic Meson SoCs watchdog support"
 	depends on ARCH_MESON
@@ -668,6 +686,19 @@ config RENESAS_WDT
 	help
 	  This driver adds watchdog support for the integrated watchdogs in the
 	  Renesas R-Car and other SH-Mobile SoCs (usually named RWDT or SWDT).
+
+config ASPEED_WATCHDOG
+	tristate "Aspeed 2400 watchdog support"
+	depends on ARCH_ASPEED || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include support for the watchdog timer
+	  in Apseed BMC SoCs.
+
+	  This driver is required to reboot the SoC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called aspeed_wdt.
 
 # AVR32 Architecture
 

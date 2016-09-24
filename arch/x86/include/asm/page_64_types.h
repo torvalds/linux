@@ -1,6 +1,10 @@
 #ifndef _ASM_X86_PAGE_64_DEFS_H
 #define _ASM_X86_PAGE_64_DEFS_H
 
+#ifndef __ASSEMBLY__
+#include <asm/kaslr.h>
+#endif
+
 #ifdef CONFIG_KASAN
 #define KASAN_STACK_ORDER 1
 #else
@@ -32,7 +36,12 @@
  * hypervisor to fit.  Choosing 16 slots here is arbitrary, but it's
  * what Xen requires.
  */
-#define __PAGE_OFFSET           _AC(0xffff880000000000, UL)
+#define __PAGE_OFFSET_BASE      _AC(0xffff880000000000, UL)
+#ifdef CONFIG_RANDOMIZE_MEMORY
+#define __PAGE_OFFSET           page_offset_base
+#else
+#define __PAGE_OFFSET           __PAGE_OFFSET_BASE
+#endif /* CONFIG_RANDOMIZE_MEMORY */
 
 #define __START_KERNEL_map	_AC(0xffffffff80000000, UL)
 

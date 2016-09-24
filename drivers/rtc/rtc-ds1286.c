@@ -16,7 +16,7 @@
 #include <linux/rtc.h>
 #include <linux/platform_device.h>
 #include <linux/bcd.h>
-#include <linux/ds1286.h>
+#include <linux/rtc/ds1286.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 

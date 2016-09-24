@@ -33,7 +33,7 @@
 #include <linux/list.h>
 #include <linux/completion.h>
 #include <linux/interrupt.h>
-#include "viosrp.h"
+#include <scsi/viosrp.h>
 
 struct scsi_cmnd;
 struct Scsi_Host;

@@ -74,6 +74,11 @@ static int __verify_planes_array(struct vb2_buffer *vb, const struct v4l2_buffer
 	return 0;
 }
 
+static int __verify_planes_array_core(struct vb2_buffer *vb, const void *pb)
+{
+	return __verify_planes_array(vb, pb);
+}
+
 /**
  * __verify_length() - Verify that the bytesused value for each plane fits in
  * the plane length and that the data offset doesn't exceed the bytesused value.
@@ -422,7 +427,7 @@ static int __fill_vb2_buffer(struct vb2_buffer *vb,
 	if (V4L2_TYPE_IS_OUTPUT(b->type)) {
 		/*
 		 * For output buffers mask out the timecode flag:
-		 * this will be handled later in vb2_internal_qbuf().
+		 * this will be handled later in vb2_qbuf().
 		 * The 'field' is valid metadata for this output buffer
 		 * and so that needs to be copied here.
 		 */
@@ -437,6 +442,7 @@ static int __fill_vb2_buffer(struct vb2_buffer *vb,
 }
 
 static const struct vb2_buf_ops v4l2_buf_ops = {
+	.verify_planes_array	= __verify_planes_array_core,
 	.fill_user_buffer	= __fill_v4l2_buffer,
 	.fill_vb2_buffer	= __fill_vb2_buffer,
 	.copy_timestamp		= __copy_timestamp,
@@ -580,13 +586,6 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
 }
 EXPORT_SYMBOL_GPL(vb2_create_bufs);
 
-static int vb2_internal_qbuf(struct vb2_queue *q, struct v4l2_buffer *b)
-{
-	int ret = vb2_queue_or_prepare_buf(q, b, "qbuf");
-
-	return ret ? ret : vb2_core_qbuf(q, b->index, b);
-}
-
 /**
  * vb2_qbuf() - Queue a buffer from userspace
  * @q:		videobuf2 queue
@@ -606,29 +605,17 @@ static int vb2_internal_qbuf(struct vb2_queue *q, struct v4l2_buffer *b)
  */
 int vb2_qbuf(struct vb2_queue *q, struct v4l2_buffer *b)
 {
+	int ret;
+
 	if (vb2_fileio_is_active(q)) {
 		dprintk(1, "file io in progress\n");
 		return -EBUSY;
 	}
 
-	return vb2_internal_qbuf(q, b);
+	ret = vb2_queue_or_prepare_buf(q, b, "qbuf");
+	return ret ? ret : vb2_core_qbuf(q, b->index, b);
 }
 EXPORT_SYMBOL_GPL(vb2_qbuf);
-
-static int vb2_internal_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b,
-		bool nonblocking)
-{
-	int ret;
-
-	if (b->type != q->type) {
-		dprintk(1, "invalid buffer type\n");
-		return -EINVAL;
-	}
-
-	ret = vb2_core_dqbuf(q, NULL, b, nonblocking);
-
-	return ret;
-}
 
 /**
  * vb2_dqbuf() - Dequeue a buffer to the userspace
@@ -653,11 +640,27 @@ static int vb2_internal_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b,
  */
 int vb2_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool nonblocking)
 {
+	int ret;
+
 	if (vb2_fileio_is_active(q)) {
 		dprintk(1, "file io in progress\n");
 		return -EBUSY;
 	}
-	return vb2_internal_dqbuf(q, b, nonblocking);
+
+	if (b->type != q->type) {
+		dprintk(1, "invalid buffer type\n");
+		return -EINVAL;
+	}
+
+	ret = vb2_core_dqbuf(q, NULL, b, nonblocking);
+
+	/*
+	 *  After calling the VIDIOC_DQBUF V4L2_BUF_FLAG_DONE must be
+	 *  cleared.
+	 */
+	b->flags &= ~V4L2_BUF_FLAG_DONE;
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(vb2_dqbuf);
 

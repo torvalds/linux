@@ -40,16 +40,28 @@
 
 	aliases {
 		serial0 = &uart3;
+		serial1 = &uart0;
+		serial2 = &uart1;
+		serial3 = &uart2;
 	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+		bootargs = "earlycon=uart8250,mmio32,0x66130000";
 	};
 
 	memory {
 		device_type = "memory";
 		reg = <0x000000000 0x80000000 0x00000000 0x40000000>;
 	};
+};
+
+&pci_phy0 {
+	status = "ok";
+};
+
+&pci_phy1 {
+	status = "ok";
 };
 
 &pcie0 {
@@ -65,6 +77,18 @@
 };
 
 &i2c1 {
+	status = "ok";
+};
+
+&uart0 {
+	status = "ok";
+};
+
+&uart1 {
+	status = "ok";
+};
+
+&uart2 {
 	status = "ok";
 };
 
@@ -117,6 +141,18 @@
 	};
 };
 
+&sata_phy0 {
+	status = "ok";
+};
+
+&sata_phy1 {
+	status = "ok";
+};
+
+&sata {
+	status = "ok";
+};
+
 &sdio0 {
 	status = "ok";
 };
@@ -130,5 +166,22 @@
 		nand-ecc-step-size = <512>;
 		#address-cells = <1>;
 		#size-cells = <1>;
+	};
+};
+
+&mdio_mux_iproc {
+	mdio@10 {
+		gphy0: eth-phy@10 {
+			reg = <0x10>;
+		};
+	};
+};
+
+&pinctrl {
+	pinctrl-names = "default";
+	pinctrl-0 = <&nand_sel>;
+	nand_sel: nand_sel {
+		function = "nand";
+		groups = "nand_grp";
 	};
 };

@@ -3188,13 +3188,13 @@ static int onenand_otp_walk(struct mtd_info *mtd, loff_t from, size_t len,
 			size_t tmp_retlen;
 
 			ret = action(mtd, from, len, &tmp_retlen, buf);
+			if (ret)
+				break;
 
 			buf += tmp_retlen;
 			len -= tmp_retlen;
 			*retlen += tmp_retlen;
 
-			if (ret)
-				break;
 		}
 		otp_pages--;
 	}

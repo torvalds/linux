@@ -40,7 +40,6 @@
  *          Brad Petrus <brad.petrus@netronome.com>
  */
 
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -605,6 +604,7 @@ static int nfp_net_set_coalesce(struct net_device *netdev,
 
 static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.get_drvinfo		= nfp_net_get_drvinfo,
+	.get_link		= ethtool_op_get_link,
 	.get_ringparam		= nfp_net_get_ringparam,
 	.set_ringparam		= nfp_net_set_ringparam,
 	.get_strings		= nfp_net_get_strings,

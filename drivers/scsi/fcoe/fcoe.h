@@ -80,6 +80,7 @@ struct fcoe_interface {
 	struct net_device  *realdev;
 	struct packet_type fcoe_packet_type;
 	struct packet_type fip_packet_type;
+	struct packet_type fip_vlan_packet_type;
 	struct fc_exch_mgr *oem;
 	u8	removed;
 	u8	priority;

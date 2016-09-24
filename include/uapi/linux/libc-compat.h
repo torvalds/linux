@@ -139,6 +139,25 @@
 
 #endif /* _NETINET_IN_H */
 
+/* Coordinate with glibc netipx/ipx.h header. */
+#if defined(__NETIPX_IPX_H)
+
+#define __UAPI_DEF_SOCKADDR_IPX			0
+#define __UAPI_DEF_IPX_ROUTE_DEFINITION		0
+#define __UAPI_DEF_IPX_INTERFACE_DEFINITION	0
+#define __UAPI_DEF_IPX_CONFIG_DATA		0
+#define __UAPI_DEF_IPX_ROUTE_DEF		0
+
+#else /* defined(__NETIPX_IPX_H) */
+
+#define __UAPI_DEF_SOCKADDR_IPX			1
+#define __UAPI_DEF_IPX_ROUTE_DEFINITION		1
+#define __UAPI_DEF_IPX_INTERFACE_DEFINITION	1
+#define __UAPI_DEF_IPX_CONFIG_DATA		1
+#define __UAPI_DEF_IPX_ROUTE_DEF		1
+
+#endif /* defined(__NETIPX_IPX_H) */
+
 /* Definitions for xattr.h */
 #if defined(_SYS_XATTR_H)
 #define __UAPI_DEF_XATTR		0
@@ -178,6 +197,13 @@
 #define __UAPI_DEF_IPV6_OPTIONS		1
 #define __UAPI_DEF_IN6_PKTINFO		1
 #define __UAPI_DEF_IP6_MTUINFO		1
+
+/* Definitions for ipx.h */
+#define __UAPI_DEF_SOCKADDR_IPX			1
+#define __UAPI_DEF_IPX_ROUTE_DEFINITION		1
+#define __UAPI_DEF_IPX_INTERFACE_DEFINITION	1
+#define __UAPI_DEF_IPX_CONFIG_DATA		1
+#define __UAPI_DEF_IPX_ROUTE_DEF		1
 
 /* Definitions for xattr.h */
 #define __UAPI_DEF_XATTR		1

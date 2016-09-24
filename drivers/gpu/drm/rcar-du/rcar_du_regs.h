@@ -195,9 +195,10 @@
 #define DEFR6_ODPM12_DISP	(2 << 8)
 #define DEFR6_ODPM12_CDE	(3 << 8)
 #define DEFR6_ODPM12_MASK	(3 << 8)
-#define DEFR6_TCNE2		(1 << 6)
+#define DEFR6_TCNE1		(1 << 6)
+#define DEFR6_TCNE0		(1 << 4)
 #define DEFR6_MLOS1		(1 << 2)
-#define DEFR6_DEFAULT		(DEFR6_CODE | DEFR6_TCNE2)
+#define DEFR6_DEFAULT		(DEFR6_CODE | DEFR6_TCNE1)
 
 /* -----------------------------------------------------------------------------
  * R8A7790-only Control Registers

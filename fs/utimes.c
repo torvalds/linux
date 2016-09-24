@@ -92,10 +92,11 @@ static int utimes_common(struct path *path, struct timespec *times)
 		 * then we need to check permissions, because
 		 * inode_change_ok() won't do it.
 		 */
-		error = -EACCES;
+		error = -EPERM;
                 if (IS_IMMUTABLE(inode))
 			goto mnt_drop_write_and_out;
 
+		error = -EACCES;
 		if (!inode_owner_or_capable(inode)) {
 			error = inode_permission(inode, MAY_WRITE);
 			if (error)

@@ -33,6 +33,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_crtc_helper.h>
 #include <ttm/ttm_bo_api.h>
 #include <ttm/ttm_bo_driver.h>
@@ -48,7 +49,6 @@
 #define DRIVER_PATCHLEVEL 1
 
 /* virtgpu_drm_bus.c */
-int drm_virtio_set_busid(struct drm_device *dev, struct drm_master *master);
 int drm_virtio_init(struct drm_driver *driver, struct virtio_device *vdev);
 
 struct virtio_gpu_object {
@@ -335,6 +335,7 @@ void virtio_gpu_modeset_fini(struct virtio_gpu_device *vgdev);
 
 /* virtio_gpu_plane.c */
 struct drm_plane *virtio_gpu_plane_init(struct virtio_gpu_device *vgdev,
+					enum drm_plane_type type,
 					int index);
 
 /* virtio_gpu_ttm.c */

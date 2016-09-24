@@ -232,7 +232,7 @@ static void stamp_send_wqe(struct mlx4_ib_qp *qp, int n, int size)
 		}
 	} else {
 		ctrl = buf = get_send_wqe(qp, n & (qp->sq.wqe_cnt - 1));
-		s = (ctrl->fence_size & 0x3f) << 4;
+		s = (ctrl->qpn_vlan.fence_size & 0x3f) << 4;
 		for (i = 64; i < s; i += 64) {
 			wqe = buf + i;
 			*wqe = cpu_to_be32(0xffffffff);
@@ -264,7 +264,7 @@ static void post_nop_wqe(struct mlx4_ib_qp *qp, int n, int size)
 		inl->byte_count = cpu_to_be32(1 << 31 | (size - s - sizeof *inl));
 	}
 	ctrl->srcrb_flags = 0;
-	ctrl->fence_size = size / 16;
+	ctrl->qpn_vlan.fence_size = size / 16;
 	/*
 	 * Make sure descriptor is fully written before setting ownership bit
 	 * (because HW can start executing as soon as we do).
@@ -1992,7 +1992,8 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 			ctrl = get_send_wqe(qp, i);
 			ctrl->owner_opcode = cpu_to_be32(1 << 31);
 			if (qp->sq_max_wqes_per_wr == 1)
-				ctrl->fence_size = 1 << (qp->sq.wqe_shift - 4);
+				ctrl->qpn_vlan.fence_size =
+						1 << (qp->sq.wqe_shift - 4);
 
 			stamp_send_wqe(qp, i, 1 << qp->sq.wqe_shift);
 		}
@@ -2492,24 +2493,27 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_ud_wr *wr,
 		sqp->ud_header.grh.flow_label    =
 			ah->av.ib.sl_tclass_flowlabel & cpu_to_be32(0xfffff);
 		sqp->ud_header.grh.hop_limit     = ah->av.ib.hop_limit;
-		if (is_eth)
+		if (is_eth) {
 			memcpy(sqp->ud_header.grh.source_gid.raw, sgid.raw, 16);
-		else {
-		if (mlx4_is_mfunc(to_mdev(ib_dev)->dev)) {
-			/* When multi-function is enabled, the ib_core gid
-			 * indexes don't necessarily match the hw ones, so
-			 * we must use our own cache */
-			sqp->ud_header.grh.source_gid.global.subnet_prefix =
-				to_mdev(ib_dev)->sriov.demux[sqp->qp.port - 1].
-						       subnet_prefix;
-			sqp->ud_header.grh.source_gid.global.interface_id =
-				to_mdev(ib_dev)->sriov.demux[sqp->qp.port - 1].
-					       guid_cache[ah->av.ib.gid_index];
-		} else
-			ib_get_cached_gid(ib_dev,
-					  be32_to_cpu(ah->av.ib.port_pd) >> 24,
-					  ah->av.ib.gid_index,
-					  &sqp->ud_header.grh.source_gid, NULL);
+		} else {
+			if (mlx4_is_mfunc(to_mdev(ib_dev)->dev)) {
+				/* When multi-function is enabled, the ib_core gid
+				 * indexes don't necessarily match the hw ones, so
+				 * we must use our own cache
+				 */
+				sqp->ud_header.grh.source_gid.global.subnet_prefix =
+					cpu_to_be64(atomic64_read(&(to_mdev(ib_dev)->sriov.
+								    demux[sqp->qp.port - 1].
+								    subnet_prefix)));
+				sqp->ud_header.grh.source_gid.global.interface_id =
+					to_mdev(ib_dev)->sriov.demux[sqp->qp.port - 1].
+						       guid_cache[ah->av.ib.gid_index];
+			} else {
+				ib_get_cached_gid(ib_dev,
+						  be32_to_cpu(ah->av.ib.port_pd) >> 24,
+						  ah->av.ib.gid_index,
+						  &sqp->ud_header.grh.source_gid, NULL);
+			}
 		}
 		memcpy(sqp->ud_header.grh.destination_gid.raw,
 		       ah->av.ib.dgid, 16);
@@ -3169,8 +3173,8 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		wmb();
 		*lso_wqe = lso_hdr_sz;
 
-		ctrl->fence_size = (wr->send_flags & IB_SEND_FENCE ?
-				    MLX4_WQE_CTRL_FENCE : 0) | size;
+		ctrl->qpn_vlan.fence_size = (wr->send_flags & IB_SEND_FENCE ?
+					     MLX4_WQE_CTRL_FENCE : 0) | size;
 
 		/*
 		 * Make sure descriptor is fully written before

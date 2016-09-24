@@ -73,17 +73,18 @@ void fiji_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 
 	if (!tmp) {
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-				PHM_PlatformCaps_PowerContainment);
-
-		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_CAC);
 
 		fiji_hwmgr->fast_watermark_threshold = 100;
 
-		tmp = 1;
-		fiji_hwmgr->enable_dte_feature = tmp ? false : true;
-		fiji_hwmgr->enable_tdc_limit_feature = tmp ? true : false;
-		fiji_hwmgr->enable_pkg_pwr_tracking_feature = tmp ? true : false;
+		if (hwmgr->powercontainment_enabled) {
+			phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+				    PHM_PlatformCaps_PowerContainment);
+			tmp = 1;
+			fiji_hwmgr->enable_dte_feature = tmp ? false : true;
+			fiji_hwmgr->enable_tdc_limit_feature = tmp ? true : false;
+			fiji_hwmgr->enable_pkg_pwr_tracking_feature = tmp ? true : false;
+		}
 	}
 }
 
@@ -459,6 +460,23 @@ int fiji_enable_smc_cac(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
+int fiji_disable_smc_cac(struct pp_hwmgr *hwmgr)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+	int result = 0;
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_CAC) && data->cac_enabled) {
+		int smc_result = smum_send_msg_to_smc(hwmgr->smumgr,
+				(uint16_t)(PPSMC_MSG_DisableCac));
+		PP_ASSERT_WITH_CODE((smc_result == 0),
+				"Failed to disable CAC in SMC.", result = -1);
+
+		data->cac_enabled = false;
+	}
+	return result;
+}
+
 int fiji_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n)
 {
 	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
@@ -525,6 +543,48 @@ int fiji_enable_power_containment(struct pp_hwmgr *hwmgr)
 			}
 		}
 	}
+	return result;
+}
+
+int fiji_disable_power_containment(struct pp_hwmgr *hwmgr)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+	int result = 0;
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_PowerContainment) &&
+			data->power_containment_features) {
+		int smc_result;
+
+		if (data->power_containment_features &
+				POWERCONTAINMENT_FEATURE_TDCLimit) {
+			smc_result = smum_send_msg_to_smc(hwmgr->smumgr,
+					(uint16_t)(PPSMC_MSG_TDCLimitDisable));
+			PP_ASSERT_WITH_CODE((smc_result == 0),
+					"Failed to disable TDCLimit in SMC.",
+					result = smc_result);
+		}
+
+		if (data->power_containment_features &
+				POWERCONTAINMENT_FEATURE_DTE) {
+			smc_result = smum_send_msg_to_smc(hwmgr->smumgr,
+					(uint16_t)(PPSMC_MSG_DisableDTE));
+			PP_ASSERT_WITH_CODE((smc_result == 0),
+					"Failed to disable DTE in SMC.",
+					result = smc_result);
+		}
+
+		if (data->power_containment_features &
+				POWERCONTAINMENT_FEATURE_PkgPwrLimit) {
+			smc_result = smum_send_msg_to_smc(hwmgr->smumgr,
+					(uint16_t)(PPSMC_MSG_PkgPwrLimitDisable));
+			PP_ASSERT_WITH_CODE((smc_result == 0),
+					"Failed to disable PkgPwrTracking in SMC.",
+					result = smc_result);
+		}
+		data->power_containment_features = 0;
+	}
+
 	return result;
 }
 

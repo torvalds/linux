@@ -41,7 +41,6 @@
  *          Chris Telfer <chris.telfer@netronome.com>
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -1441,10 +1440,6 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 
 		nfp_net_set_hash(nn->netdev, skb, rxd);
 
-		/* Pad small frames to minimum */
-		if (skb_put_padto(skb, 60))
-			break;
-
 		/* Stats update */
 		u64_stats_update_begin(&r_vec->rx_sync);
 		r_vec->rx_pkts++;
@@ -1845,13 +1840,14 @@ void nfp_net_coalesce_write_cfg(struct nfp_net *nn)
 }
 
 /**
- * nfp_net_write_mac_addr() - Write mac address to device registers
+ * nfp_net_write_mac_addr() - Write mac address to the device control BAR
  * @nn:      NFP Net device to reconfigure
- * @mac:     Six-byte MAC address to be written
  *
- * We do a bit of byte swapping dance because firmware is LE.
+ * Writes the MAC address from the netdev to the device control BAR.  Does not
+ * perform the required reconfig.  We do a bit of byte swapping dance because
+ * firmware is LE.
  */
-static void nfp_net_write_mac_addr(struct nfp_net *nn, const u8 *mac)
+static void nfp_net_write_mac_addr(struct nfp_net *nn)
 {
 	nn_writel(nn, NFP_NET_CFG_MACADDR + 0,
 		  get_unaligned_be32(nn->netdev->dev_addr));
@@ -1952,7 +1948,7 @@ static int __nfp_net_set_config_and_enable(struct nfp_net *nn)
 	nn_writeq(nn, NFP_NET_CFG_RXRS_ENABLE, nn->num_rx_rings == 64 ?
 		  0xffffffffffffffffULL : ((u64)1 << nn->num_rx_rings) - 1);
 
-	nfp_net_write_mac_addr(nn, nn->netdev->dev_addr);
+	nfp_net_write_mac_addr(nn);
 
 	nn_writel(nn, NFP_NET_CFG_MTU, nn->netdev->mtu);
 	nn_writel(nn, NFP_NET_CFG_FLBUFSZ, nn->fl_bufsz);
@@ -1979,7 +1975,7 @@ static int __nfp_net_set_config_and_enable(struct nfp_net *nn)
 	if (nn->ctrl & NFP_NET_CFG_CTRL_VXLAN) {
 		memset(&nn->vxlan_ports, 0, sizeof(nn->vxlan_ports));
 		memset(&nn->vxlan_usecnt, 0, sizeof(nn->vxlan_usecnt));
-		vxlan_get_rx_port(nn->netdev);
+		udp_tunnel_get_rx_info(nn->netdev);
 	}
 
 	return err;
@@ -2048,12 +2044,16 @@ static int nfp_net_netdev_open(struct net_device *netdev)
 
 	nn->rx_rings = kcalloc(nn->num_rx_rings, sizeof(*nn->rx_rings),
 			       GFP_KERNEL);
-	if (!nn->rx_rings)
+	if (!nn->rx_rings) {
+		err = -ENOMEM;
 		goto err_free_lsc;
+	}
 	nn->tx_rings = kcalloc(nn->num_tx_rings, sizeof(*nn->tx_rings),
 			       GFP_KERNEL);
-	if (!nn->tx_rings)
+	if (!nn->tx_rings) {
+		err = -ENOMEM;
 		goto err_free_rx_rings;
+	}
 
 	for (r = 0; r < nn->num_r_vecs; r++) {
 		err = nfp_net_prepare_vector(nn, &nn->r_vecs[r], r);
@@ -2551,27 +2551,33 @@ static int nfp_net_find_vxlan_idx(struct nfp_net *nn, __be16 port)
 }
 
 static void nfp_net_add_vxlan_port(struct net_device *netdev,
-				   sa_family_t sa_family, __be16 port)
+				   struct udp_tunnel_info *ti)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 	int idx;
 
-	idx = nfp_net_find_vxlan_idx(nn, port);
+	if (ti->type != UDP_TUNNEL_TYPE_VXLAN)
+		return;
+
+	idx = nfp_net_find_vxlan_idx(nn, ti->port);
 	if (idx == -ENOSPC)
 		return;
 
 	if (!nn->vxlan_usecnt[idx]++)
-		nfp_net_set_vxlan_port(nn, idx, port);
+		nfp_net_set_vxlan_port(nn, idx, ti->port);
 }
 
 static void nfp_net_del_vxlan_port(struct net_device *netdev,
-				   sa_family_t sa_family, __be16 port)
+				   struct udp_tunnel_info *ti)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 	int idx;
 
-	idx = nfp_net_find_vxlan_idx(nn, port);
-	if (!nn->vxlan_usecnt[idx] || idx == -ENOSPC)
+	if (ti->type != UDP_TUNNEL_TYPE_VXLAN)
+		return;
+
+	idx = nfp_net_find_vxlan_idx(nn, ti->port);
+	if (idx == -ENOSPC || !nn->vxlan_usecnt[idx])
 		return;
 
 	if (!--nn->vxlan_usecnt[idx])
@@ -2589,8 +2595,8 @@ static const struct net_device_ops nfp_net_netdev_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_set_features	= nfp_net_set_features,
 	.ndo_features_check	= nfp_net_features_check,
-	.ndo_add_vxlan_port     = nfp_net_add_vxlan_port,
-	.ndo_del_vxlan_port     = nfp_net_del_vxlan_port,
+	.ndo_udp_tunnel_add	= nfp_net_add_vxlan_port,
+	.ndo_udp_tunnel_del	= nfp_net_del_vxlan_port,
 };
 
 /**
@@ -2733,7 +2739,7 @@ int nfp_net_netdev_init(struct net_device *netdev)
 	nn->cap = nn_readl(nn, NFP_NET_CFG_CAP);
 	nn->max_mtu = nn_readl(nn, NFP_NET_CFG_MAX_MTU);
 
-	nfp_net_write_mac_addr(nn, nn->netdev->dev_addr);
+	nfp_net_write_mac_addr(nn);
 
 	/* Set default MTU and Freelist buffer size */
 	if (nn->max_mtu < NFP_NET_DEFAULT_MTU)

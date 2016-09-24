@@ -24,7 +24,7 @@
 #include <linux/input.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/notifier.h>
 #include <linux/mmc/core.h>
 #include <linux/mmc/card.h>
@@ -407,6 +407,32 @@ static void __init sfi_handle_i2c_dev(struct sfi_device_table_entry *pentry,
 		i2c_register_board_info(pentry->host_num, &i2c_info, 1);
 }
 
+static void __init sfi_handle_sd_dev(struct sfi_device_table_entry *pentry,
+					struct devs_id *dev)
+{
+	struct mid_sd_board_info sd_info;
+	void *pdata;
+
+	memset(&sd_info, 0, sizeof(sd_info));
+	strncpy(sd_info.name, pentry->name, SFI_NAME_LEN);
+	sd_info.bus_num = pentry->host_num;
+	sd_info.max_clk = pentry->max_freq;
+	sd_info.addr = pentry->addr;
+	pr_debug("SD bus = %d, name = %16.16s, max_clk = %d, addr = 0x%x\n",
+		 sd_info.bus_num,
+		 sd_info.name,
+		 sd_info.max_clk,
+		 sd_info.addr);
+	pdata = intel_mid_sfi_get_pdata(dev, &sd_info);
+	if (IS_ERR(pdata))
+		return;
+
+	/* Nothing we can do with this for now */
+	sd_info.platform_data = pdata;
+
+	pr_debug("Successfully registered %16.16s", sd_info.name);
+}
+
 extern struct devs_id *const __x86_intel_mid_dev_start[],
 		      *const __x86_intel_mid_dev_end[];
 
@@ -489,6 +515,9 @@ static int __init sfi_parse_devs(struct sfi_table_header *table)
 				break;
 			case SFI_DEV_TYPE_I2C:
 				sfi_handle_i2c_dev(pentry, dev);
+				break;
+			case SFI_DEV_TYPE_SD:
+				sfi_handle_sd_dev(pentry, dev);
 				break;
 			case SFI_DEV_TYPE_UART:
 			case SFI_DEV_TYPE_HSI:

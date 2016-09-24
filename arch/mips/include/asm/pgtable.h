@@ -159,7 +159,7 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 		 * it better already be global)
 		 */
 		if (pte_none(*buddy)) {
-			if (!config_enabled(CONFIG_XPA))
+			if (!IS_ENABLED(CONFIG_XPA))
 				buddy->pte_low |= _PAGE_GLOBAL;
 			buddy->pte_high |= _PAGE_GLOBAL;
 		}
@@ -172,7 +172,7 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 
 	htw_stop();
 	/* Preserve global status for the pair */
-	if (config_enabled(CONFIG_XPA)) {
+	if (IS_ENABLED(CONFIG_XPA)) {
 		if (ptep_buddy(ptep)->pte_high & _PAGE_GLOBAL)
 			null.pte_high = _PAGE_GLOBAL;
 	} else {
@@ -319,7 +319,7 @@ static inline int pte_young(pte_t pte)	{ return pte.pte_low & _PAGE_ACCESSED; }
 static inline pte_t pte_wrprotect(pte_t pte)
 {
 	pte.pte_low  &= ~_PAGE_WRITE;
-	if (!config_enabled(CONFIG_XPA))
+	if (!IS_ENABLED(CONFIG_XPA))
 		pte.pte_low &= ~_PAGE_SILENT_WRITE;
 	pte.pte_high &= ~_PAGE_SILENT_WRITE;
 	return pte;
@@ -328,7 +328,7 @@ static inline pte_t pte_wrprotect(pte_t pte)
 static inline pte_t pte_mkclean(pte_t pte)
 {
 	pte.pte_low  &= ~_PAGE_MODIFIED;
-	if (!config_enabled(CONFIG_XPA))
+	if (!IS_ENABLED(CONFIG_XPA))
 		pte.pte_low &= ~_PAGE_SILENT_WRITE;
 	pte.pte_high &= ~_PAGE_SILENT_WRITE;
 	return pte;
@@ -337,7 +337,7 @@ static inline pte_t pte_mkclean(pte_t pte)
 static inline pte_t pte_mkold(pte_t pte)
 {
 	pte.pte_low  &= ~_PAGE_ACCESSED;
-	if (!config_enabled(CONFIG_XPA))
+	if (!IS_ENABLED(CONFIG_XPA))
 		pte.pte_low &= ~_PAGE_SILENT_READ;
 	pte.pte_high &= ~_PAGE_SILENT_READ;
 	return pte;
@@ -347,7 +347,7 @@ static inline pte_t pte_mkwrite(pte_t pte)
 {
 	pte.pte_low |= _PAGE_WRITE;
 	if (pte.pte_low & _PAGE_MODIFIED) {
-		if (!config_enabled(CONFIG_XPA))
+		if (!IS_ENABLED(CONFIG_XPA))
 			pte.pte_low |= _PAGE_SILENT_WRITE;
 		pte.pte_high |= _PAGE_SILENT_WRITE;
 	}
@@ -358,7 +358,7 @@ static inline pte_t pte_mkdirty(pte_t pte)
 {
 	pte.pte_low |= _PAGE_MODIFIED;
 	if (pte.pte_low & _PAGE_WRITE) {
-		if (!config_enabled(CONFIG_XPA))
+		if (!IS_ENABLED(CONFIG_XPA))
 			pte.pte_low |= _PAGE_SILENT_WRITE;
 		pte.pte_high |= _PAGE_SILENT_WRITE;
 	}
@@ -369,7 +369,7 @@ static inline pte_t pte_mkyoung(pte_t pte)
 {
 	pte.pte_low |= _PAGE_ACCESSED;
 	if (!(pte.pte_low & _PAGE_NO_READ)) {
-		if (!config_enabled(CONFIG_XPA))
+		if (!IS_ENABLED(CONFIG_XPA))
 			pte.pte_low |= _PAGE_SILENT_READ;
 		pte.pte_high |= _PAGE_SILENT_READ;
 	}

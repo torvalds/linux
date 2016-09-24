@@ -66,6 +66,8 @@ extern void __kvm_tlb_flush_vmid(struct kvm *kvm);
 extern int __kvm_vcpu_run(struct kvm_vcpu *vcpu);
 
 extern void __init_stage2_translation(void);
+
+extern void __kvm_hyp_reset(unsigned long);
 #endif
 
 #endif /* __ARM_KVM_ASM_H__ */

@@ -27,15 +27,13 @@
 #define TYPE_SECOND_GEN		0x10
 #define TW686X_DEF_PHASE_REF	0x1518
 
-#define TW686X_FIELD_MODE	0x3
-#define TW686X_FRAME_MODE	0x2
-/* 0x1 is reserved */
-#define TW686X_SG_MODE		0x0
-
-#define TW686X_AUDIO_PAGE_SZ		4096
 #define TW686X_AUDIO_PAGE_MAX		16
 #define TW686X_AUDIO_PERIODS_MIN	2
 #define TW686X_AUDIO_PERIODS_MAX	TW686X_AUDIO_PAGE_MAX
+
+#define TW686X_DMA_MODE_MEMCPY		0
+#define TW686X_DMA_MODE_CONTIG		1
+#define TW686X_DMA_MODE_SG		2
 
 struct tw686x_format {
 	char *name;
@@ -48,6 +46,12 @@ struct tw686x_dma_desc {
 	dma_addr_t phys;
 	void *virt;
 	unsigned int size;
+};
+
+struct tw686x_sg_desc {
+	/* 3 MSBits for flags, 13 LSBits for length */
+	__le32 flags_length;
+	__le32 phys;
 };
 
 struct tw686x_audio_buf {
@@ -82,6 +86,7 @@ struct tw686x_video_channel {
 	struct video_device *device;
 	struct tw686x_v4l2_buf *curr_bufs[2];
 	struct tw686x_dma_desc dma_descs[2];
+	struct tw686x_sg_desc *sg_descs[2];
 
 	struct v4l2_ctrl_handler ctrl_handler;
 	const struct tw686x_format *format;
@@ -99,6 +104,16 @@ struct tw686x_video_channel {
 	bool no_signal;
 };
 
+struct tw686x_dma_ops {
+	int (*setup)(struct tw686x_dev *dev);
+	int (*alloc)(struct tw686x_video_channel *vc, unsigned int pb);
+	void (*free)(struct tw686x_video_channel *vc, unsigned int pb);
+	void (*buf_refill)(struct tw686x_video_channel *vc, unsigned int pb);
+	const struct vb2_mem_ops *mem_ops;
+	enum v4l2_field field;
+	u32 hw_dma_mode;
+};
+
 /**
  * struct tw686x_dev - global device status
  * @lock: spinlock controlling access to the
@@ -112,15 +127,18 @@ struct tw686x_dev {
 
 	char name[32];
 	unsigned int type;
+	unsigned int dma_mode;
 	struct pci_dev *pci_dev;
 	__u32 __iomem *mmio;
 
-	void *alloc_ctx;
-
+	const struct tw686x_dma_ops *dma_ops;
 	struct tw686x_video_channel *video_channels;
 	struct tw686x_audio_channel *audio_channels;
 
-	int audio_rate; /* per-device value */
+	/* Per-device audio parameters */
+	int audio_rate;
+	int period_size;
+	int audio_enabled;
 
 	struct timer_list dma_delay_timer;
 	u32 pending_dma_en; /* must be protected by lock */
@@ -141,6 +159,12 @@ static inline void reg_write(struct tw686x_dev *dev, unsigned int reg,
 static inline unsigned int max_channels(struct tw686x_dev *dev)
 {
 	return dev->type & TYPE_MAX_CHANNELS; /* 4 or 8 channels */
+}
+
+static inline unsigned is_second_gen(struct tw686x_dev *dev)
+{
+	/* each channel has its own DMA SG table */
+	return dev->type & TYPE_SECOND_GEN;
 }
 
 void tw686x_enable_channel(struct tw686x_dev *dev, unsigned int channel);

@@ -171,7 +171,6 @@ enum chips { lm90, adm1032, lm99, lm86, max6657, max6659, adt7461, max6680,
 
 #define SA56004_REG_R_LOCAL_TEMPL 0x22
 
-#define LM90_DEF_CONVRATE_RVAL	6	/* Def conversion rate register value */
 #define LM90_MAX_CONVRATE_MS	16000	/* Maximum conversion rate in ms */
 
 /* TMP451 registers */
@@ -366,11 +365,9 @@ enum lm90_temp11_reg_index {
 
 struct lm90_data {
 	struct i2c_client *client;
-	struct device *hwmon_dev;
 	const struct attribute_group *groups[6];
 	struct mutex update_lock;
-	struct regulator *regulator;
-	char valid; /* zero until following fields are valid */
+	bool valid;		/* true if register values are valid */
 	unsigned long last_updated; /* in jiffies */
 	int kind;
 	u32 flags;
@@ -412,7 +409,7 @@ static inline s32 adm1032_write_byte(struct i2c_client *client, u8 value)
  * because we don't want the address pointer to change between the write
  * byte and the read byte transactions.
  */
-static int lm90_read_reg(struct i2c_client *client, u8 reg, u8 *value)
+static int lm90_read_reg(struct i2c_client *client, u8 reg)
 {
 	int err;
 
@@ -423,20 +420,12 @@ static int lm90_read_reg(struct i2c_client *client, u8 reg, u8 *value)
 	} else
 		err = i2c_smbus_read_byte_data(client, reg);
 
-	if (err < 0) {
-		dev_warn(&client->dev, "Register %#02x read failed (%d)\n",
-			 reg, err);
-		return err;
-	}
-	*value = err;
-
-	return 0;
+	return err;
 }
 
-static int lm90_read16(struct i2c_client *client, u8 regh, u8 regl, u16 *value)
+static int lm90_read16(struct i2c_client *client, u8 regh, u8 regl)
 {
-	int err;
-	u8 oldh, newh, l;
+	int oldh, newh, l;
 
 	/*
 	 * There is a trick here. We have to read two registers to have the
@@ -451,18 +440,21 @@ static int lm90_read16(struct i2c_client *client, u8 regh, u8 regl, u16 *value)
 	 * we have to read the low byte again, and now we believe we have a
 	 * correct reading.
 	 */
-	if ((err = lm90_read_reg(client, regh, &oldh))
-	 || (err = lm90_read_reg(client, regl, &l))
-	 || (err = lm90_read_reg(client, regh, &newh)))
-		return err;
+	oldh = lm90_read_reg(client, regh);
+	if (oldh < 0)
+		return oldh;
+	l = lm90_read_reg(client, regl);
+	if (l < 0)
+		return l;
+	newh = lm90_read_reg(client, regh);
+	if (newh < 0)
+		return newh;
 	if (oldh != newh) {
-		err = lm90_read_reg(client, regl, &l);
-		if (err)
-			return err;
+		l = lm90_read_reg(client, regl);
+		if (l < 0)
+			return l;
 	}
-	*value = (newh << 8) | l;
-
-	return 0;
+	return (newh << 8) | l;
 }
 
 /*
@@ -473,20 +465,23 @@ static int lm90_read16(struct i2c_client *client, u8 regh, u8 regl, u16 *value)
  * various registers have different meanings as a result of selecting a
  * non-default remote channel.
  */
-static inline void lm90_select_remote_channel(struct i2c_client *client,
-					      struct lm90_data *data,
-					      int channel)
+static inline int lm90_select_remote_channel(struct i2c_client *client,
+					     struct lm90_data *data,
+					     int channel)
 {
-	u8 config;
+	int config;
 
 	if (data->kind == max6696) {
-		lm90_read_reg(client, LM90_REG_R_CONFIG1, &config);
+		config = lm90_read_reg(client, LM90_REG_R_CONFIG1);
+		if (config < 0)
+			return config;
 		config &= ~0x08;
 		if (channel)
 			config |= 0x08;
 		i2c_smbus_write_byte_data(client, LM90_REG_W_CONFIG1,
 					  config);
 	}
+	return 0;
 }
 
 /*
@@ -513,117 +508,203 @@ static void lm90_set_convrate(struct i2c_client *client, struct lm90_data *data,
 	data->update_interval = DIV_ROUND_CLOSEST(update_interval, 64);
 }
 
+static int lm90_update_limits(struct device *dev)
+{
+	struct lm90_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
+	int val;
+
+	val = lm90_read_reg(client, LM90_REG_R_LOCAL_CRIT);
+	if (val < 0)
+		return val;
+	data->temp8[LOCAL_CRIT] = val;
+
+	val = lm90_read_reg(client, LM90_REG_R_REMOTE_CRIT);
+	if (val < 0)
+		return val;
+	data->temp8[REMOTE_CRIT] = val;
+
+	val = lm90_read_reg(client, LM90_REG_R_TCRIT_HYST);
+	if (val < 0)
+		return val;
+	data->temp_hyst = val;
+
+	val = lm90_read_reg(client, LM90_REG_R_REMOTE_LOWH);
+	if (val < 0)
+		return val;
+	data->temp11[REMOTE_LOW] = val << 8;
+
+	if (data->flags & LM90_HAVE_REM_LIMIT_EXT) {
+		val = lm90_read_reg(client, LM90_REG_R_REMOTE_LOWL);
+		if (val < 0)
+			return val;
+		data->temp11[REMOTE_LOW] |= val;
+	}
+
+	val = lm90_read_reg(client, LM90_REG_R_REMOTE_HIGHH);
+	if (val < 0)
+		return val;
+	data->temp11[REMOTE_HIGH] = val << 8;
+
+	if (data->flags & LM90_HAVE_REM_LIMIT_EXT) {
+		val = lm90_read_reg(client, LM90_REG_R_REMOTE_HIGHL);
+		if (val < 0)
+			return val;
+		data->temp11[REMOTE_HIGH] |= val;
+	}
+
+	if (data->flags & LM90_HAVE_OFFSET) {
+		val = lm90_read16(client, LM90_REG_R_REMOTE_OFFSH,
+				  LM90_REG_R_REMOTE_OFFSL);
+		if (val < 0)
+			return val;
+		data->temp11[REMOTE_OFFSET] = val;
+	}
+
+	if (data->flags & LM90_HAVE_EMERGENCY) {
+		val = lm90_read_reg(client, MAX6659_REG_R_LOCAL_EMERG);
+		if (val < 0)
+			return val;
+		data->temp8[LOCAL_EMERG] = val;
+
+		val = lm90_read_reg(client, MAX6659_REG_R_REMOTE_EMERG);
+		if (val < 0)
+			return val;
+		data->temp8[REMOTE_EMERG] = val;
+	}
+
+	if (data->kind == max6696) {
+		val = lm90_select_remote_channel(client, data, 1);
+		if (val < 0)
+			return val;
+
+		val = lm90_read_reg(client, LM90_REG_R_REMOTE_CRIT);
+		if (val < 0)
+			return val;
+		data->temp8[REMOTE2_CRIT] = val;
+
+		val = lm90_read_reg(client, MAX6659_REG_R_REMOTE_EMERG);
+		if (val < 0)
+			return val;
+		data->temp8[REMOTE2_EMERG] = val;
+
+		val = lm90_read_reg(client, LM90_REG_R_REMOTE_LOWH);
+		if (val < 0)
+			return val;
+		data->temp11[REMOTE2_LOW] = val << 8;
+
+		val = lm90_read_reg(client, LM90_REG_R_REMOTE_HIGHH);
+		if (val < 0)
+			return val;
+		data->temp11[REMOTE2_HIGH] = val << 8;
+
+		lm90_select_remote_channel(client, data, 0);
+	}
+
+	return 0;
+}
+
 static struct lm90_data *lm90_update_device(struct device *dev)
 {
 	struct lm90_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
 	unsigned long next_update;
+	int val = 0;
 
 	mutex_lock(&data->update_lock);
+
+	if (!data->valid) {
+		val = lm90_update_limits(dev);
+		if (val < 0)
+			goto error;
+	}
 
 	next_update = data->last_updated +
 		      msecs_to_jiffies(data->update_interval);
 	if (time_after(jiffies, next_update) || !data->valid) {
-		u8 h, l;
-		u8 alarms;
-
 		dev_dbg(&client->dev, "Updating lm90 data.\n");
-		lm90_read_reg(client, LM90_REG_R_LOCAL_LOW,
-			      &data->temp8[LOCAL_LOW]);
-		lm90_read_reg(client, LM90_REG_R_LOCAL_HIGH,
-			      &data->temp8[LOCAL_HIGH]);
-		lm90_read_reg(client, LM90_REG_R_LOCAL_CRIT,
-			      &data->temp8[LOCAL_CRIT]);
-		lm90_read_reg(client, LM90_REG_R_REMOTE_CRIT,
-			      &data->temp8[REMOTE_CRIT]);
-		lm90_read_reg(client, LM90_REG_R_TCRIT_HYST, &data->temp_hyst);
+
+		data->valid = false;
+
+		val = lm90_read_reg(client, LM90_REG_R_LOCAL_LOW);
+		if (val < 0)
+			goto error;
+		data->temp8[LOCAL_LOW] = val;
+
+		val = lm90_read_reg(client, LM90_REG_R_LOCAL_HIGH);
+		if (val < 0)
+			goto error;
+		data->temp8[LOCAL_HIGH] = val;
 
 		if (data->reg_local_ext) {
-			lm90_read16(client, LM90_REG_R_LOCAL_TEMP,
-				    data->reg_local_ext,
-				    &data->temp11[LOCAL_TEMP]);
+			val = lm90_read16(client, LM90_REG_R_LOCAL_TEMP,
+					  data->reg_local_ext);
+			if (val < 0)
+				goto error;
+			data->temp11[LOCAL_TEMP] = val;
 		} else {
-			if (lm90_read_reg(client, LM90_REG_R_LOCAL_TEMP,
-					  &h) == 0)
-				data->temp11[LOCAL_TEMP] = h << 8;
+			val = lm90_read_reg(client, LM90_REG_R_LOCAL_TEMP);
+			if (val < 0)
+				goto error;
+			data->temp11[LOCAL_TEMP] = val << 8;
 		}
-		lm90_read16(client, LM90_REG_R_REMOTE_TEMPH,
-			    LM90_REG_R_REMOTE_TEMPL,
-			    &data->temp11[REMOTE_TEMP]);
+		val = lm90_read16(client, LM90_REG_R_REMOTE_TEMPH,
+				  LM90_REG_R_REMOTE_TEMPL);
+		if (val < 0)
+			goto error;
+		data->temp11[REMOTE_TEMP] = val;
 
-		if (lm90_read_reg(client, LM90_REG_R_REMOTE_LOWH, &h) == 0) {
-			data->temp11[REMOTE_LOW] = h << 8;
-			if ((data->flags & LM90_HAVE_REM_LIMIT_EXT)
-			 && lm90_read_reg(client, LM90_REG_R_REMOTE_LOWL,
-					  &l) == 0)
-				data->temp11[REMOTE_LOW] |= l;
-		}
-		if (lm90_read_reg(client, LM90_REG_R_REMOTE_HIGHH, &h) == 0) {
-			data->temp11[REMOTE_HIGH] = h << 8;
-			if ((data->flags & LM90_HAVE_REM_LIMIT_EXT)
-			 && lm90_read_reg(client, LM90_REG_R_REMOTE_HIGHL,
-					  &l) == 0)
-				data->temp11[REMOTE_HIGH] |= l;
-		}
-
-		if (data->flags & LM90_HAVE_OFFSET) {
-			if (lm90_read_reg(client, LM90_REG_R_REMOTE_OFFSH,
-					  &h) == 0
-			 && lm90_read_reg(client, LM90_REG_R_REMOTE_OFFSL,
-					  &l) == 0)
-				data->temp11[REMOTE_OFFSET] = (h << 8) | l;
-		}
-		if (data->flags & LM90_HAVE_EMERGENCY) {
-			lm90_read_reg(client, MAX6659_REG_R_LOCAL_EMERG,
-				      &data->temp8[LOCAL_EMERG]);
-			lm90_read_reg(client, MAX6659_REG_R_REMOTE_EMERG,
-				      &data->temp8[REMOTE_EMERG]);
-		}
-		lm90_read_reg(client, LM90_REG_R_STATUS, &alarms);
-		data->alarms = alarms;	/* save as 16 bit value */
+		val = lm90_read_reg(client, LM90_REG_R_STATUS);
+		if (val < 0)
+			goto error;
+		data->alarms = val;	/* lower 8 bit of alarms */
 
 		if (data->kind == max6696) {
-			lm90_select_remote_channel(client, data, 1);
-			lm90_read_reg(client, LM90_REG_R_REMOTE_CRIT,
-				      &data->temp8[REMOTE2_CRIT]);
-			lm90_read_reg(client, MAX6659_REG_R_REMOTE_EMERG,
-				      &data->temp8[REMOTE2_EMERG]);
-			lm90_read16(client, LM90_REG_R_REMOTE_TEMPH,
-				    LM90_REG_R_REMOTE_TEMPL,
-				    &data->temp11[REMOTE2_TEMP]);
-			if (!lm90_read_reg(client, LM90_REG_R_REMOTE_LOWH, &h))
-				data->temp11[REMOTE2_LOW] = h << 8;
-			if (!lm90_read_reg(client, LM90_REG_R_REMOTE_HIGHH, &h))
-				data->temp11[REMOTE2_HIGH] = h << 8;
+			val = lm90_select_remote_channel(client, data, 1);
+			if (val < 0)
+				goto error;
+
+			val = lm90_read16(client, LM90_REG_R_REMOTE_TEMPH,
+					  LM90_REG_R_REMOTE_TEMPL);
+			if (val < 0)
+				goto error;
+			data->temp11[REMOTE2_TEMP] = val;
+
 			lm90_select_remote_channel(client, data, 0);
 
-			if (!lm90_read_reg(client, MAX6696_REG_R_STATUS2,
-					   &alarms))
-				data->alarms |= alarms << 8;
+			val = lm90_read_reg(client, MAX6696_REG_R_STATUS2);
+			if (val < 0)
+				goto error;
+			data->alarms |= val << 8;
 		}
 
 		/*
 		 * Re-enable ALERT# output if it was originally enabled and
 		 * relevant alarms are all clear
 		 */
-		if ((data->config_orig & 0x80) == 0
-		 && (data->alarms & data->alert_alarms) == 0) {
-			u8 config;
+		if (!(data->config_orig & 0x80) &&
+		    !(data->alarms & data->alert_alarms)) {
+			val = lm90_read_reg(client, LM90_REG_R_CONFIG1);
+			if (val < 0)
+				goto error;
 
-			lm90_read_reg(client, LM90_REG_R_CONFIG1, &config);
-			if (config & 0x80) {
+			if (val & 0x80) {
 				dev_dbg(&client->dev, "Re-enabling ALERT#\n");
 				i2c_smbus_write_byte_data(client,
 							  LM90_REG_W_CONFIG1,
-							  config & ~0x80);
+							  val & ~0x80);
 			}
 		}
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
+error:
 	mutex_unlock(&data->update_lock);
+
+	if (val < 0)
+		return ERR_PTR(val);
 
 	return data;
 }
@@ -709,16 +790,14 @@ static inline int temp_from_u8_adt7461(struct lm90_data *data, u8 val)
 {
 	if (data->flags & LM90_FLAG_ADT7461_EXT)
 		return (val - 64) * 1000;
-	else
-		return temp_from_s8(val);
+	return temp_from_s8(val);
 }
 
 static inline int temp_from_u16_adt7461(struct lm90_data *data, u16 val)
 {
 	if (data->flags & LM90_FLAG_ADT7461_EXT)
 		return (val - 0x4000) / 64 * 250;
-	else
-		return temp_from_s16(val);
+	return temp_from_s16(val);
 }
 
 static u8 temp_to_u8_adt7461(struct lm90_data *data, long val)
@@ -729,13 +808,12 @@ static u8 temp_to_u8_adt7461(struct lm90_data *data, long val)
 		if (val >= 191000)
 			return 0xFF;
 		return (val + 500 + 64000) / 1000;
-	} else {
-		if (val <= 0)
-			return 0;
-		if (val >= 127000)
-			return 127;
-		return (val + 500) / 1000;
 	}
+	if (val <= 0)
+		return 0;
+	if (val >= 127000)
+		return 127;
+	return (val + 500) / 1000;
 }
 
 static u16 temp_to_u16_adt7461(struct lm90_data *data, long val)
@@ -746,13 +824,12 @@ static u16 temp_to_u16_adt7461(struct lm90_data *data, long val)
 		if (val >= 191750)
 			return 0xFFC0;
 		return (val + 64000 + 125) / 250 * 64;
-	} else {
-		if (val <= 0)
-			return 0;
-		if (val >= 127750)
-			return 0x7FC0;
-		return (val + 125) / 250 * 64;
 	}
+	if (val <= 0)
+		return 0;
+	if (val >= 127750)
+		return 0x7FC0;
+	return (val + 125) / 250 * 64;
 }
 
 /*
@@ -765,6 +842,9 @@ static ssize_t show_temp8(struct device *dev, struct device_attribute *devattr,
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct lm90_data *data = lm90_update_device(dev);
 	int temp;
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 
 	if (data->kind == adt7461 || data->kind == tmp451)
 		temp = temp_from_u8_adt7461(data, data->temp8[attr->index]);
@@ -831,6 +911,9 @@ static ssize_t show_temp11(struct device *dev, struct device_attribute *devattr,
 	struct sensor_device_attribute_2 *attr = to_sensor_dev_attr_2(devattr);
 	struct lm90_data *data = lm90_update_device(dev);
 	int temp;
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 
 	if (data->kind == adt7461 || data->kind == tmp451)
 		temp = temp_from_u16_adt7461(data, data->temp11[attr->index]);
@@ -907,6 +990,9 @@ static ssize_t show_temphyst(struct device *dev,
 	struct lm90_data *data = lm90_update_device(dev);
 	int temp;
 
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	if (data->kind == adt7461 || data->kind == tmp451)
 		temp = temp_from_u8_adt7461(data, data->temp8[attr->index]);
 	else if (data->kind == max6646)
@@ -953,6 +1039,10 @@ static ssize_t show_alarms(struct device *dev, struct device_attribute *dummy,
 			   char *buf)
 {
 	struct lm90_data *data = lm90_update_device(dev);
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	return sprintf(buf, "%d\n", data->alarms);
 }
 
@@ -962,6 +1052,9 @@ static ssize_t show_alarm(struct device *dev, struct device_attribute
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct lm90_data *data = lm90_update_device(dev);
 	int bitnr = attr->index;
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 
 	return sprintf(buf, "%d\n", (data->alarms >> bitnr) & 1);
 }
@@ -1404,8 +1497,11 @@ static int lm90_detect(struct i2c_client *client,
 	return 0;
 }
 
-static void lm90_restore_conf(struct i2c_client *client, struct lm90_data *data)
+static void lm90_restore_conf(void *_data)
 {
+	struct lm90_data *data = _data;
+	struct i2c_client *client = data->client;
+
 	/* Restore initial configuration */
 	i2c_smbus_write_byte_data(client, LM90_REG_W_CONVRATE,
 				  data->convrate_orig);
@@ -1413,24 +1509,22 @@ static void lm90_restore_conf(struct i2c_client *client, struct lm90_data *data)
 				  data->config_orig);
 }
 
-static void lm90_init_client(struct i2c_client *client, struct lm90_data *data)
+static int lm90_init_client(struct i2c_client *client, struct lm90_data *data)
 {
-	u8 config, convrate;
+	int config, convrate;
 
-	if (lm90_read_reg(client, LM90_REG_R_CONVRATE, &convrate) < 0) {
-		dev_warn(&client->dev, "Failed to read convrate register!\n");
-		convrate = LM90_DEF_CONVRATE_RVAL;
-	}
+	convrate = lm90_read_reg(client, LM90_REG_R_CONVRATE);
+	if (convrate < 0)
+		return convrate;
 	data->convrate_orig = convrate;
 
 	/*
 	 * Start the conversions.
 	 */
 	lm90_set_convrate(client, data, 500);	/* 500ms; 2Hz conversion rate */
-	if (lm90_read_reg(client, LM90_REG_R_CONFIG1, &config) < 0) {
-		dev_warn(&client->dev, "Initialization failed!\n");
-		return;
-	}
+	config = lm90_read_reg(client, LM90_REG_R_CONFIG1);
+	if (config < 0)
+		return config;
 	data->config_orig = config;
 
 	/* Check Temperature Range Select */
@@ -1456,17 +1550,24 @@ static void lm90_init_client(struct i2c_client *client, struct lm90_data *data)
 	config &= 0xBF;	/* run */
 	if (config != data->config_orig) /* Only write if changed */
 		i2c_smbus_write_byte_data(client, LM90_REG_W_CONFIG1, config);
+
+	return devm_add_action_or_reset(&client->dev, lm90_restore_conf, data);
 }
 
 static bool lm90_is_tripped(struct i2c_client *client, u16 *status)
 {
 	struct lm90_data *data = i2c_get_clientdata(client);
-	u8 st, st2 = 0;
+	int st, st2 = 0;
 
-	lm90_read_reg(client, LM90_REG_R_STATUS, &st);
+	st = lm90_read_reg(client, LM90_REG_R_STATUS);
+	if (st < 0)
+		return false;
 
-	if (data->kind == max6696)
-		lm90_read_reg(client, MAX6696_REG_R_STATUS2, &st2);
+	if (data->kind == max6696) {
+		st2 = lm90_read_reg(client, MAX6696_REG_R_STATUS2);
+		if (st2 < 0)
+			return false;
+	}
 
 	*status = st | (st2 << 8);
 
@@ -1506,6 +1607,16 @@ static irqreturn_t lm90_irq_thread(int irq, void *dev_id)
 		return IRQ_NONE;
 }
 
+static void lm90_remove_pec(void *dev)
+{
+	device_remove_file(dev, &dev_attr_pec);
+}
+
+static void lm90_regulator_disable(void *regulator)
+{
+	regulator_disable(regulator);
+}
+
 static int lm90_probe(struct i2c_client *client,
 		      const struct i2c_device_id *id)
 {
@@ -1513,6 +1624,7 @@ static int lm90_probe(struct i2c_client *client,
 	struct i2c_adapter *adapter = to_i2c_adapter(dev->parent);
 	struct lm90_data *data;
 	struct regulator *regulator;
+	struct device *hwmon_dev;
 	int groups = 0;
 	int err;
 
@@ -1526,6 +1638,10 @@ static int lm90_probe(struct i2c_client *client,
 		return err;
 	}
 
+	err = devm_add_action_or_reset(dev, lm90_regulator_disable, regulator);
+	if (err)
+		return err;
+
 	data = devm_kzalloc(dev, sizeof(struct lm90_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
@@ -1533,8 +1649,6 @@ static int lm90_probe(struct i2c_client *client,
 	data->client = client;
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
-
-	data->regulator = regulator;
 
 	/* Set the device type */
 	data->kind = id->driver_data;
@@ -1557,7 +1671,11 @@ static int lm90_probe(struct i2c_client *client,
 	data->max_convrate = lm90_params[data->kind].max_convrate;
 
 	/* Initialize the LM90 chip */
-	lm90_init_client(client, data);
+	err = lm90_init_client(client, data);
+	if (err < 0) {
+		dev_err(dev, "Failed to initialize device\n");
+		return err;
+	}
 
 	/* Register sysfs hooks */
 	data->groups[groups++] = &lm90_group;
@@ -1577,15 +1695,16 @@ static int lm90_probe(struct i2c_client *client,
 	if (client->flags & I2C_CLIENT_PEC) {
 		err = device_create_file(dev, &dev_attr_pec);
 		if (err)
-			goto exit_restore;
+			return err;
+		err = devm_add_action_or_reset(dev, lm90_remove_pec, dev);
+		if (err)
+			return err;
 	}
 
-	data->hwmon_dev = hwmon_device_register_with_groups(dev, client->name,
-							    data, data->groups);
-	if (IS_ERR(data->hwmon_dev)) {
-		err = PTR_ERR(data->hwmon_dev);
-		goto exit_remove_pec;
-	}
+	hwmon_dev = devm_hwmon_device_register_with_groups(dev, client->name,
+							   data, data->groups);
+	if (IS_ERR(hwmon_dev))
+		return PTR_ERR(hwmon_dev);
 
 	if (client->irq) {
 		dev_dbg(dev, "IRQ: %d\n", client->irq);
@@ -1595,38 +1714,20 @@ static int lm90_probe(struct i2c_client *client,
 						"lm90", client);
 		if (err < 0) {
 			dev_err(dev, "cannot request IRQ %d\n", client->irq);
-			goto exit_unregister;
+			return err;
 		}
 	}
 
 	return 0;
-
-exit_unregister:
-	hwmon_device_unregister(data->hwmon_dev);
-exit_remove_pec:
-	device_remove_file(dev, &dev_attr_pec);
-exit_restore:
-	lm90_restore_conf(client, data);
-	regulator_disable(data->regulator);
-
-	return err;
 }
 
-static int lm90_remove(struct i2c_client *client)
-{
-	struct lm90_data *data = i2c_get_clientdata(client);
-
-	hwmon_device_unregister(data->hwmon_dev);
-	device_remove_file(&client->dev, &dev_attr_pec);
-	lm90_restore_conf(client, data);
-	regulator_disable(data->regulator);
-
-	return 0;
-}
-
-static void lm90_alert(struct i2c_client *client, unsigned int flag)
+static void lm90_alert(struct i2c_client *client, enum i2c_alert_protocol type,
+		       unsigned int flag)
 {
 	u16 alarms;
+
+	if (type != I2C_PROTOCOL_SMBUS_ALERT)
+		return;
 
 	if (lm90_is_tripped(client, &alarms)) {
 		/*
@@ -1636,13 +1737,16 @@ static void lm90_alert(struct i2c_client *client, unsigned int flag)
 		 */
 		struct lm90_data *data = i2c_get_clientdata(client);
 
-		if ((data->flags & LM90_HAVE_BROKEN_ALERT)
-		 && (alarms & data->alert_alarms)) {
-			u8 config;
+		if ((data->flags & LM90_HAVE_BROKEN_ALERT) &&
+		    (alarms & data->alert_alarms)) {
+			int config;
+
 			dev_dbg(&client->dev, "Disabling ALERT#\n");
-			lm90_read_reg(client, LM90_REG_R_CONFIG1, &config);
-			i2c_smbus_write_byte_data(client, LM90_REG_W_CONFIG1,
-						  config | 0x80);
+			config = lm90_read_reg(client, LM90_REG_R_CONFIG1);
+			if (config >= 0)
+				i2c_smbus_write_byte_data(client,
+							  LM90_REG_W_CONFIG1,
+							  config | 0x80);
 		}
 	} else {
 		dev_info(&client->dev, "Everything OK\n");
@@ -1655,7 +1759,6 @@ static struct i2c_driver lm90_driver = {
 		.name	= "lm90",
 	},
 	.probe		= lm90_probe,
-	.remove		= lm90_remove,
 	.alert		= lm90_alert,
 	.id_table	= lm90_id,
 	.detect		= lm90_detect,

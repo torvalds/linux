@@ -3,6 +3,8 @@
 
 #include <linux/kernel.h>
 #include <asm/current.h>
+#include <asm/barrier.h>
+#include <asm/processor.h>
 
 /*
  * Simple spin lock operations.  There are two variants, one clears IRQ's
@@ -13,8 +15,11 @@
 
 #define arch_spin_lock_flags(lock, flags) arch_spin_lock(lock)
 #define arch_spin_is_locked(x)	((x)->lock != 0)
-#define arch_spin_unlock_wait(x) \
-		do { cpu_relax(); } while ((x)->lock)
+
+static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
+{
+	smp_cond_load_acquire(&lock->lock, !VAL);
+}
 
 static inline int arch_spin_value_unlocked(arch_spinlock_t lock)
 {

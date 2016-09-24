@@ -122,8 +122,8 @@ static int intel_hid_input_setup(struct platform_device *device)
 	return 0;
 
 err_free_device:
-		input_free_device(priv->input_dev);
-		return ret;
+	input_free_device(priv->input_dev);
+	return ret;
 }
 
 static void intel_hid_input_destroy(struct platform_device *device)
@@ -224,7 +224,6 @@ static int intel_hid_remove(struct platform_device *device)
 	acpi_remove_notify_handler(handle, ACPI_DEVICE_NOTIFY, notify_handler);
 	intel_hid_input_destroy(device);
 	intel_hid_set_enable(&device->dev, 0);
-	acpi_remove_notify_handler(handle, ACPI_DEVICE_NOTIFY, notify_handler);
 
 	/*
 	 * Even if we failed to shut off the event stream, we can still

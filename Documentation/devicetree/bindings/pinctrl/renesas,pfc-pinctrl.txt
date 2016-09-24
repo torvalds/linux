@@ -72,7 +72,7 @@ Pin Configuration Node Properties:
 
 The pin configuration parameters use the generic pinconf bindings defined in
 pinctrl-bindings.txt in this directory. The supported parameters are
-bias-disable, bias-pull-up, bias-pull-down, drive strength and power-source. For
+bias-disable, bias-pull-up, bias-pull-down, drive-strength and power-source. For
 pins that have a configurable I/O voltage, the power-source value should be the
 nominal I/O voltage in millivolts.
 

@@ -75,9 +75,9 @@
 #define RTC_PORT(x)		0xd8600000
 #define RTC_ALWAYS_BCD		1	/* RTC operates in binary mode */
 
-#define CMOS_READ(addr)		__SYSREG(0xd8600000 + (addr), u8)
+#define CMOS_READ(addr)		__SYSREG(0xd8600000 + (u32)(addr), u8)
 #define CMOS_WRITE(val, addr)	\
-	do { __SYSREG(0xd8600000 + (addr), u8) = val; } while (0)
+	do { __SYSREG(0xd8600000 + (u32)(addr), u8) = val; } while (0)
 
 #define RTC_IRQ			RTIRQ
 

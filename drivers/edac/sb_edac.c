@@ -552,9 +552,9 @@ static const struct pci_id_table pci_dev_descr_haswell_table[] = {
 /* Knight's Landing Support */
 /*
  * KNL's memory channels are swizzled between memory controllers.
- * MC0 is mapped to CH3,5,6 and MC1 is mapped to CH0,1,2
+ * MC0 is mapped to CH3,4,5 and MC1 is mapped to CH0,1,2
  */
-#define knl_channel_remap(channel) ((channel + 3) % 6)
+#define knl_channel_remap(mc, chan) ((mc) ? (chan) : (chan) + 3)
 
 /* Memory controller, TAD tables, error injection - 2-8-0, 2-9-0 (2 of these) */
 #define PCI_DEVICE_ID_INTEL_KNL_IMC_MC       0x7840
@@ -1286,7 +1286,7 @@ static u32 knl_get_mc_route(int entry, u32 reg)
 	mc = GET_BITFIELD(reg, entry*3, (entry*3)+2);
 	chan = GET_BITFIELD(reg, (entry*2) + 18, (entry*2) + 18 + 1);
 
-	return knl_channel_remap(mc*3 + chan);
+	return knl_channel_remap(mc, chan);
 }
 
 /*
@@ -2378,22 +2378,19 @@ static int sbridge_get_onedevice(struct pci_dev **prev,
  * @num_mc: pointer to the memory controllers count, to be incremented in case
  *	    of success.
  * @table: model specific table
- * @allow_dups: allow for multiple devices to exist with the same device id
- *              (as implemented, this isn't expected to work correctly in the
- *              multi-socket case).
- * @multi_bus: don't assume devices on different buses belong to different
- *             memory controllers.
  *
  * returns 0 in case of success or error code
  */
-static int sbridge_get_all_devices_full(u8 *num_mc,
-					const struct pci_id_table *table,
-					int allow_dups,
-					int multi_bus)
+static int sbridge_get_all_devices(u8 *num_mc,
+					const struct pci_id_table *table)
 {
 	int i, rc;
 	struct pci_dev *pdev = NULL;
+	int allow_dups = 0;
+	int multi_bus = 0;
 
+	if (table->type == KNIGHTS_LANDING)
+		allow_dups = multi_bus = 1;
 	while (table && table->descr) {
 		for (i = 0; i < table->n_devs; i++) {
 			if (!allow_dups || i == 0 ||
@@ -2419,11 +2416,6 @@ static int sbridge_get_all_devices_full(u8 *num_mc,
 
 	return 0;
 }
-
-#define sbridge_get_all_devices(num_mc, table) \
-		sbridge_get_all_devices_full(num_mc, table, 0, 0)
-#define sbridge_get_all_devices_knl(num_mc, table) \
-		sbridge_get_all_devices_full(num_mc, table, 1, 1)
 
 static int sbridge_mci_bind_devs(struct mem_ctl_info *mci,
 				 struct sbridge_dev *sbridge_dev)
@@ -3005,8 +2997,15 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 		} else {
 			char A = *("A");
 
-			channel = knl_channel_remap(channel);
+			/*
+			 * Reported channel is in range 0-2, so we can't map it
+			 * back to mc. To figure out mc we check machine check
+			 * bank register that reported this error.
+			 * bank15 means mc0 and bank16 means mc1.
+			 */
+			channel = knl_channel_remap(m->bank == 16, channel);
 			channel_mask = 1 << channel;
+
 			snprintf(msg, sizeof(msg),
 				"%s%s err_code:%04x:%04x channel:%d (DIMM_%c)",
 				overflow ? " OVERFLOW" : "",

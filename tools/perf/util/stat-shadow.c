@@ -36,6 +36,11 @@ static struct stats runtime_dtlb_cache_stats[NUM_CTX][MAX_NR_CPUS];
 static struct stats runtime_cycles_in_tx_stats[NUM_CTX][MAX_NR_CPUS];
 static struct stats runtime_transaction_stats[NUM_CTX][MAX_NR_CPUS];
 static struct stats runtime_elision_stats[NUM_CTX][MAX_NR_CPUS];
+static struct stats runtime_topdown_total_slots[NUM_CTX][MAX_NR_CPUS];
+static struct stats runtime_topdown_slots_issued[NUM_CTX][MAX_NR_CPUS];
+static struct stats runtime_topdown_slots_retired[NUM_CTX][MAX_NR_CPUS];
+static struct stats runtime_topdown_fetch_bubbles[NUM_CTX][MAX_NR_CPUS];
+static struct stats runtime_topdown_recovery_bubbles[NUM_CTX][MAX_NR_CPUS];
 static bool have_frontend_stalled;
 
 struct stats walltime_nsecs_stats;
@@ -82,6 +87,11 @@ void perf_stat__reset_shadow_stats(void)
 		sizeof(runtime_transaction_stats));
 	memset(runtime_elision_stats, 0, sizeof(runtime_elision_stats));
 	memset(&walltime_nsecs_stats, 0, sizeof(walltime_nsecs_stats));
+	memset(runtime_topdown_total_slots, 0, sizeof(runtime_topdown_total_slots));
+	memset(runtime_topdown_slots_retired, 0, sizeof(runtime_topdown_slots_retired));
+	memset(runtime_topdown_slots_issued, 0, sizeof(runtime_topdown_slots_issued));
+	memset(runtime_topdown_fetch_bubbles, 0, sizeof(runtime_topdown_fetch_bubbles));
+	memset(runtime_topdown_recovery_bubbles, 0, sizeof(runtime_topdown_recovery_bubbles));
 }
 
 /*
@@ -105,6 +115,16 @@ void perf_stat__update_shadow_stats(struct perf_evsel *counter, u64 *count,
 		update_stats(&runtime_transaction_stats[ctx][cpu], count[0]);
 	else if (perf_stat_evsel__is(counter, ELISION_START))
 		update_stats(&runtime_elision_stats[ctx][cpu], count[0]);
+	else if (perf_stat_evsel__is(counter, TOPDOWN_TOTAL_SLOTS))
+		update_stats(&runtime_topdown_total_slots[ctx][cpu], count[0]);
+	else if (perf_stat_evsel__is(counter, TOPDOWN_SLOTS_ISSUED))
+		update_stats(&runtime_topdown_slots_issued[ctx][cpu], count[0]);
+	else if (perf_stat_evsel__is(counter, TOPDOWN_SLOTS_RETIRED))
+		update_stats(&runtime_topdown_slots_retired[ctx][cpu], count[0]);
+	else if (perf_stat_evsel__is(counter, TOPDOWN_FETCH_BUBBLES))
+		update_stats(&runtime_topdown_fetch_bubbles[ctx][cpu],count[0]);
+	else if (perf_stat_evsel__is(counter, TOPDOWN_RECOVERY_BUBBLES))
+		update_stats(&runtime_topdown_recovery_bubbles[ctx][cpu], count[0]);
 	else if (perf_evsel__match(counter, HARDWARE, HW_STALLED_CYCLES_FRONTEND))
 		update_stats(&runtime_stalled_cycles_front_stats[ctx][cpu], count[0]);
 	else if (perf_evsel__match(counter, HARDWARE, HW_STALLED_CYCLES_BACKEND))
@@ -302,6 +322,107 @@ static void print_ll_cache_misses(int cpu,
 	out->print_metric(out->ctx, color, "%7.2f%%", "of all LL-cache hits", ratio);
 }
 
+/*
+ * High level "TopDown" CPU core pipe line bottleneck break down.
+ *
+ * Basic concept following
+ * Yasin, A Top Down Method for Performance analysis and Counter architecture
+ * ISPASS14
+ *
+ * The CPU pipeline is divided into 4 areas that can be bottlenecks:
+ *
+ * Frontend -> Backend -> Retiring
+ * BadSpeculation in addition means out of order execution that is thrown away
+ * (for example branch mispredictions)
+ * Frontend is instruction decoding.
+ * Backend is execution, like computation and accessing data in memory
+ * Retiring is good execution that is not directly bottlenecked
+ *
+ * The formulas are computed in slots.
+ * A slot is an entry in the pipeline each for the pipeline width
+ * (for example a 4-wide pipeline has 4 slots for each cycle)
+ *
+ * Formulas:
+ * BadSpeculation = ((SlotsIssued - SlotsRetired) + RecoveryBubbles) /
+ *			TotalSlots
+ * Retiring = SlotsRetired / TotalSlots
+ * FrontendBound = FetchBubbles / TotalSlots
+ * BackendBound = 1.0 - BadSpeculation - Retiring - FrontendBound
+ *
+ * The kernel provides the mapping to the low level CPU events and any scaling
+ * needed for the CPU pipeline width, for example:
+ *
+ * TotalSlots = Cycles * 4
+ *
+ * The scaling factor is communicated in the sysfs unit.
+ *
+ * In some cases the CPU may not be able to measure all the formulas due to
+ * missing events. In this case multiple formulas are combined, as possible.
+ *
+ * Full TopDown supports more levels to sub-divide each area: for example
+ * BackendBound into computing bound and memory bound. For now we only
+ * support Level 1 TopDown.
+ */
+
+static double sanitize_val(double x)
+{
+	if (x < 0 && x >= -0.02)
+		return 0.0;
+	return x;
+}
+
+static double td_total_slots(int ctx, int cpu)
+{
+	return avg_stats(&runtime_topdown_total_slots[ctx][cpu]);
+}
+
+static double td_bad_spec(int ctx, int cpu)
+{
+	double bad_spec = 0;
+	double total_slots;
+	double total;
+
+	total = avg_stats(&runtime_topdown_slots_issued[ctx][cpu]) -
+		avg_stats(&runtime_topdown_slots_retired[ctx][cpu]) +
+		avg_stats(&runtime_topdown_recovery_bubbles[ctx][cpu]);
+	total_slots = td_total_slots(ctx, cpu);
+	if (total_slots)
+		bad_spec = total / total_slots;
+	return sanitize_val(bad_spec);
+}
+
+static double td_retiring(int ctx, int cpu)
+{
+	double retiring = 0;
+	double total_slots = td_total_slots(ctx, cpu);
+	double ret_slots = avg_stats(&runtime_topdown_slots_retired[ctx][cpu]);
+
+	if (total_slots)
+		retiring = ret_slots / total_slots;
+	return retiring;
+}
+
+static double td_fe_bound(int ctx, int cpu)
+{
+	double fe_bound = 0;
+	double total_slots = td_total_slots(ctx, cpu);
+	double fetch_bub = avg_stats(&runtime_topdown_fetch_bubbles[ctx][cpu]);
+
+	if (total_slots)
+		fe_bound = fetch_bub / total_slots;
+	return fe_bound;
+}
+
+static double td_be_bound(int ctx, int cpu)
+{
+	double sum = (td_fe_bound(ctx, cpu) +
+		      td_bad_spec(ctx, cpu) +
+		      td_retiring(ctx, cpu));
+	if (sum == 0)
+		return 0;
+	return sanitize_val(1.0 - sum);
+}
+
 void perf_stat__print_shadow_stats(struct perf_evsel *evsel,
 				   double avg, int cpu,
 				   struct perf_stat_output_ctx *out)
@@ -309,6 +430,7 @@ void perf_stat__print_shadow_stats(struct perf_evsel *evsel,
 	void *ctxp = out->ctx;
 	print_metric_t print_metric = out->print_metric;
 	double total, ratio = 0.0, total2;
+	const char *color = NULL;
 	int ctx = evsel_context(evsel);
 
 	if (perf_evsel__match(evsel, HARDWARE, HW_INSTRUCTIONS)) {
@@ -452,6 +574,46 @@ void perf_stat__print_shadow_stats(struct perf_evsel *evsel,
 				     avg / ratio);
 		else
 			print_metric(ctxp, NULL, NULL, "CPUs utilized", 0);
+	} else if (perf_stat_evsel__is(evsel, TOPDOWN_FETCH_BUBBLES)) {
+		double fe_bound = td_fe_bound(ctx, cpu);
+
+		if (fe_bound > 0.2)
+			color = PERF_COLOR_RED;
+		print_metric(ctxp, color, "%8.1f%%", "frontend bound",
+				fe_bound * 100.);
+	} else if (perf_stat_evsel__is(evsel, TOPDOWN_SLOTS_RETIRED)) {
+		double retiring = td_retiring(ctx, cpu);
+
+		if (retiring > 0.7)
+			color = PERF_COLOR_GREEN;
+		print_metric(ctxp, color, "%8.1f%%", "retiring",
+				retiring * 100.);
+	} else if (perf_stat_evsel__is(evsel, TOPDOWN_RECOVERY_BUBBLES)) {
+		double bad_spec = td_bad_spec(ctx, cpu);
+
+		if (bad_spec > 0.1)
+			color = PERF_COLOR_RED;
+		print_metric(ctxp, color, "%8.1f%%", "bad speculation",
+				bad_spec * 100.);
+	} else if (perf_stat_evsel__is(evsel, TOPDOWN_SLOTS_ISSUED)) {
+		double be_bound = td_be_bound(ctx, cpu);
+		const char *name = "backend bound";
+		static int have_recovery_bubbles = -1;
+
+		/* In case the CPU does not support topdown-recovery-bubbles */
+		if (have_recovery_bubbles < 0)
+			have_recovery_bubbles = pmu_have_event("cpu",
+					"topdown-recovery-bubbles");
+		if (!have_recovery_bubbles)
+			name = "backend bound/bad spec";
+
+		if (be_bound > 0.2)
+			color = PERF_COLOR_RED;
+		if (td_total_slots(ctx, cpu) > 0)
+			print_metric(ctxp, color, "%8.1f%%", name,
+					be_bound * 100.);
+		else
+			print_metric(ctxp, NULL, NULL, name, 0);
 	} else if (runtime_nsecs_stats[cpu].n != 0) {
 		char unit = 'M';
 		char unit_buf[10];

@@ -37,23 +37,16 @@ static int show_config(struct perf_config_set *set)
 {
 	struct perf_config_section *section;
 	struct perf_config_item *item;
-	struct list_head *sections;
 
 	if (set == NULL)
 		return -1;
 
-	sections = &set->sections;
-	if (list_empty(sections))
-		return -1;
+	perf_config_set__for_each_entry(set, section, item) {
+		char *value = item->value;
 
-	list_for_each_entry(section, sections, node) {
-		list_for_each_entry(item, &section->items, node) {
-			char *value = item->value;
-
-			if (value)
-				printf("%s.%s=%s\n", section->name,
-				       item->name, value);
-		}
+		if (value)
+			printf("%s.%s=%s\n", section->name,
+			       item->name, value);
 	}
 
 	return 0;
@@ -80,6 +73,10 @@ int cmd_config(int argc, const char **argv, const char *prefix __maybe_unused)
 	else if (use_user_config)
 		config_exclusive_filename = user_config;
 
+	/*
+	 * At only 'config' sub-command, individually use the config set
+	 * because of reinitializing with options config file location.
+	 */
 	set = perf_config_set__new();
 	if (!set) {
 		ret = -1;

@@ -38,12 +38,13 @@
 #include "xfs_dir2.h"
 #include "xfs_trans_space.h"
 #include "xfs_pnfs.h"
+#include "xfs_iomap.h"
 
 #include <linux/capability.h>
 #include <linux/xattr.h>
 #include <linux/posix_acl.h>
 #include <linux/security.h>
-#include <linux/fiemap.h>
+#include <linux/iomap.h>
 #include <linux/slab.h>
 
 /*
@@ -801,19 +802,29 @@ xfs_setattr_size(
 		return error;
 
 	/*
+	 * Wait for all direct I/O to complete.
+	 */
+	inode_dio_wait(inode);
+
+	/*
 	 * File data changes must be complete before we start the transaction to
 	 * modify the inode.  This needs to be done before joining the inode to
 	 * the transaction because the inode cannot be unlocked once it is a
 	 * part of the transaction.
 	 *
-	 * Start with zeroing any data block beyond EOF that we may expose on
-	 * file extension.
+	 * Start with zeroing any data beyond EOF that we may expose on file
+	 * extension, or zeroing out the rest of the block on a downward
+	 * truncate.
 	 */
 	if (newsize > oldsize) {
 		error = xfs_zero_eof(ip, newsize, oldsize, &did_zeroing);
-		if (error)
-			return error;
+	} else {
+		error = iomap_truncate_page(inode, newsize, &did_zeroing,
+				&xfs_iomap_ops);
 	}
+
+	if (error)
+		return error;
 
 	/*
 	 * We are going to log the inode size change in this transaction so
@@ -823,16 +834,13 @@ xfs_setattr_size(
 	 * problem. Note that this includes any block zeroing we did above;
 	 * otherwise those blocks may not be zeroed after a crash.
 	 */
-	if (newsize > ip->i_d.di_size &&
-	    (oldsize != ip->i_d.di_size || did_zeroing)) {
+	if (did_zeroing ||
+	    (newsize > ip->i_d.di_size && oldsize != ip->i_d.di_size)) {
 		error = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
 						      ip->i_d.di_size, newsize);
 		if (error)
 			return error;
 	}
-
-	/* Now wait for all direct I/O to complete. */
-	inode_dio_wait(inode);
 
 	/*
 	 * We've already locked out new page faults, so now we can safely remove
@@ -851,13 +859,6 @@ xfs_setattr_size(
 	 * to hope that the caller sees ENOMEM and retries the truncate
 	 * operation.
 	 */
-	if (IS_DAX(inode))
-		error = dax_truncate_page(inode, newsize, xfs_get_blocks_direct);
-	else
-		error = block_truncate_page(inode->i_mapping, newsize,
-					    xfs_get_blocks);
-	if (error)
-		return error;
 	truncate_setsize(inode, newsize);
 
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);
@@ -998,51 +999,6 @@ xfs_vn_update_time(
 	return xfs_trans_commit(tp);
 }
 
-#define XFS_FIEMAP_FLAGS	(FIEMAP_FLAG_SYNC|FIEMAP_FLAG_XATTR)
-
-/*
- * Call fiemap helper to fill in user data.
- * Returns positive errors to xfs_getbmap.
- */
-STATIC int
-xfs_fiemap_format(
-	void			**arg,
-	struct getbmapx		*bmv,
-	int			*full)
-{
-	int			error;
-	struct fiemap_extent_info *fieinfo = *arg;
-	u32			fiemap_flags = 0;
-	u64			logical, physical, length;
-
-	/* Do nothing for a hole */
-	if (bmv->bmv_block == -1LL)
-		return 0;
-
-	logical = BBTOB(bmv->bmv_offset);
-	physical = BBTOB(bmv->bmv_block);
-	length = BBTOB(bmv->bmv_length);
-
-	if (bmv->bmv_oflags & BMV_OF_PREALLOC)
-		fiemap_flags |= FIEMAP_EXTENT_UNWRITTEN;
-	else if (bmv->bmv_oflags & BMV_OF_DELALLOC) {
-		fiemap_flags |= (FIEMAP_EXTENT_DELALLOC |
-				 FIEMAP_EXTENT_UNKNOWN);
-		physical = 0;   /* no block yet */
-	}
-	if (bmv->bmv_oflags & BMV_OF_LAST)
-		fiemap_flags |= FIEMAP_EXTENT_LAST;
-
-	error = fiemap_fill_next_extent(fieinfo, logical, physical,
-					length, fiemap_flags);
-	if (error > 0) {
-		error = 0;
-		*full = 1;	/* user array now full */
-	}
-
-	return error;
-}
-
 STATIC int
 xfs_vn_fiemap(
 	struct inode		*inode,
@@ -1050,38 +1006,20 @@ xfs_vn_fiemap(
 	u64			start,
 	u64			length)
 {
-	xfs_inode_t		*ip = XFS_I(inode);
-	struct getbmapx		bm;
 	int			error;
 
-	error = fiemap_check_flags(fieinfo, XFS_FIEMAP_FLAGS);
-	if (error)
-		return error;
+	xfs_ilock(XFS_I(inode), XFS_IOLOCK_SHARED);
+	if (fieinfo->fi_flags & FIEMAP_FLAG_XATTR) {
+		fieinfo->fi_flags &= ~FIEMAP_FLAG_XATTR;
+		error = iomap_fiemap(inode, fieinfo, start, length,
+				&xfs_xattr_iomap_ops);
+	} else {
+		error = iomap_fiemap(inode, fieinfo, start, length,
+				&xfs_iomap_ops);
+	}
+	xfs_iunlock(XFS_I(inode), XFS_IOLOCK_SHARED);
 
-	/* Set up bmap header for xfs internal routine */
-	bm.bmv_offset = BTOBBT(start);
-	/* Special case for whole file */
-	if (length == FIEMAP_MAX_OFFSET)
-		bm.bmv_length = -1LL;
-	else
-		bm.bmv_length = BTOBB(start + length) - bm.bmv_offset;
-
-	/* We add one because in getbmap world count includes the header */
-	bm.bmv_count = !fieinfo->fi_extents_max ? MAXEXTNUM :
-					fieinfo->fi_extents_max + 1;
-	bm.bmv_count = min_t(__s32, bm.bmv_count,
-			     (PAGE_SIZE * 16 / sizeof(struct getbmapx)));
-	bm.bmv_iflags = BMV_IF_PREALLOC | BMV_IF_NO_HOLES;
-	if (fieinfo->fi_flags & FIEMAP_FLAG_XATTR)
-		bm.bmv_iflags |= BMV_IF_ATTRFORK;
-	if (!(fieinfo->fi_flags & FIEMAP_FLAG_SYNC))
-		bm.bmv_iflags |= BMV_IF_DELALLOC;
-
-	error = xfs_getbmap(ip, &bm, xfs_fiemap_format, fieinfo);
-	if (error)
-		return error;
-
-	return 0;
+	return error;
 }
 
 STATIC int

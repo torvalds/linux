@@ -323,7 +323,7 @@ supported.
    * device_resume
      - Resumes a transfer on the channel
      - This command should operate synchronously on the channel,
-       pausing right away the work of the given channel
+       resuming right away the work of the given channel
 
    * device_terminate_all
      - Aborts all the pending and ongoing transfers on the channel

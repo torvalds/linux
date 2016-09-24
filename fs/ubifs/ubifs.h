@@ -1783,8 +1783,8 @@ void ubifs_err(const struct ubifs_info *c, const char *fmt, ...);
 __printf(2, 3)
 void ubifs_warn(const struct ubifs_info *c, const char *fmt, ...);
 /*
- * A variant of 'ubifs_err()' which takes the UBIFS file-sytem description
- * object as an argument.
+ * A conditional variant of 'ubifs_err()' which doesn't output anything
+ * if probing (ie. MS_SILENT set).
  */
 #define ubifs_errc(c, fmt, ...)						\
 do {									\

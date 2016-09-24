@@ -89,7 +89,7 @@ struct iproc_pll {
 	const struct iproc_pll_vco_param *vco_param;
 	unsigned int num_vco_entries;
 
-	struct clk_onecell_data clk_data;
+	struct clk_hw_onecell_data *clk_data;
 	struct iproc_clk *clks;
 };
 
@@ -625,7 +625,6 @@ void __init iproc_pll_clk_setup(struct device_node *node,
 				unsigned int num_clks)
 {
 	int i, ret;
-	struct clk *clk;
 	struct iproc_pll *pll;
 	struct iproc_clk *iclk;
 	struct clk_init_data init;
@@ -638,11 +637,11 @@ void __init iproc_pll_clk_setup(struct device_node *node,
 	if (WARN_ON(!pll))
 		return;
 
-	pll->clk_data.clk_num = num_clks;
-	pll->clk_data.clks = kcalloc(num_clks, sizeof(*pll->clk_data.clks),
-				     GFP_KERNEL);
-	if (WARN_ON(!pll->clk_data.clks))
+	pll->clk_data = kzalloc(sizeof(*pll->clk_data->hws) * num_clks +
+				sizeof(*pll->clk_data), GFP_KERNEL);
+	if (WARN_ON(!pll->clk_data))
 		goto err_clk_data;
+	pll->clk_data->num = num_clks;
 
 	pll->clks = kcalloc(num_clks, sizeof(*pll->clks), GFP_KERNEL);
 	if (WARN_ON(!pll->clks))
@@ -694,11 +693,11 @@ void __init iproc_pll_clk_setup(struct device_node *node,
 
 	iproc_pll_sw_cfg(pll);
 
-	clk = clk_register(NULL, &iclk->hw);
-	if (WARN_ON(IS_ERR(clk)))
+	ret = clk_hw_register(NULL, &iclk->hw);
+	if (WARN_ON(ret))
 		goto err_pll_register;
 
-	pll->clk_data.clks[0] = clk;
+	pll->clk_data->hws[0] = &iclk->hw;
 
 	/* now initialize and register all leaf clocks */
 	for (i = 1; i < num_clks; i++) {
@@ -724,22 +723,23 @@ void __init iproc_pll_clk_setup(struct device_node *node,
 		init.num_parents = (parent_name ? 1 : 0);
 		iclk->hw.init = &init;
 
-		clk = clk_register(NULL, &iclk->hw);
-		if (WARN_ON(IS_ERR(clk)))
+		ret = clk_hw_register(NULL, &iclk->hw);
+		if (WARN_ON(ret))
 			goto err_clk_register;
 
-		pll->clk_data.clks[i] = clk;
+		pll->clk_data->hws[i] = &iclk->hw;
 	}
 
-	ret = of_clk_add_provider(node, of_clk_src_onecell_get, &pll->clk_data);
+	ret = of_clk_add_hw_provider(node, of_clk_hw_onecell_get,
+				     pll->clk_data);
 	if (WARN_ON(ret))
 		goto err_clk_register;
 
 	return;
 
 err_clk_register:
-	for (i = 0; i < num_clks; i++)
-		clk_unregister(pll->clk_data.clks[i]);
+	while (--i >= 0)
+		clk_hw_unregister(pll->clk_data->hws[i]);
 
 err_pll_register:
 	if (pll->status_base != pll->control_base)
@@ -759,7 +759,7 @@ err_pll_iomap:
 	kfree(pll->clks);
 
 err_clks:
-	kfree(pll->clk_data.clks);
+	kfree(pll->clk_data);
 
 err_clk_data:
 	kfree(pll);

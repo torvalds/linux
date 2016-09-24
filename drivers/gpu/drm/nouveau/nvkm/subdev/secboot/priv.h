@@ -30,7 +30,6 @@ struct nvkm_secboot_func {
 	int (*init)(struct nvkm_secboot *);
 	int (*fini)(struct nvkm_secboot *, bool suspend);
 	void *(*dtor)(struct nvkm_secboot *);
-	int (*prepare_blobs)(struct nvkm_secboot *);
 	int (*reset)(struct nvkm_secboot *, enum nvkm_secboot_falcon);
 	int (*start)(struct nvkm_secboot *, enum nvkm_secboot_falcon);
 
@@ -147,10 +146,8 @@ struct hsflcn_acr_desc {
  * @inst:		instance block for HS falcon
  * @pgd:		page directory for the HS falcon
  * @vm:			address space used by the HS falcon
- * @bl_desc_size:	size of the BL descriptor used by this chip.
- * @fixup_bl_desc:	hook that generates the proper BL descriptor format from
- *			the generic GM200 format into a data array of size
- *			bl_desc_size
+ * @falcon_state:	current state of the managed falcons
+ * @firmware_ok:	whether the firmware blobs have been created
  */
 struct gm200_secboot {
 	struct nvkm_secboot base;
@@ -196,9 +193,19 @@ struct gm200_secboot {
 		RUNNING,
 	} falcon_state[NVKM_SECBOOT_FALCON_END];
 
+	bool firmware_ok;
 };
 #define gm200_secboot(sb) container_of(sb, struct gm200_secboot, base)
 
+/**
+ * Contains functions we wish to abstract between GM200-like implementations
+ * @bl_desc_size:	size of the BL descriptor used by this chip.
+ * @fixup_bl_desc:	hook that generates the proper BL descriptor format from
+ *			the generic GM200 format into a data array of size
+ *			bl_desc_size
+ * @fixup_hs_desc:	hook that twiddles the HS descriptor before it is used
+ * @prepare_blobs:	prepares the various blobs needed for secure booting
+ */
 struct gm200_secboot_func {
 	/*
 	 * Size of the bootloader descriptor for this chip. A block of this
@@ -214,6 +221,7 @@ struct gm200_secboot_func {
 	 * we want the HS FW to set up.
 	 */
 	void (*fixup_hs_desc)(struct gm200_secboot *, struct hsflcn_acr_desc *);
+	int (*prepare_blobs)(struct gm200_secboot *);
 };
 
 int gm200_secboot_init(struct nvkm_secboot *);

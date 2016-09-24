@@ -11,6 +11,7 @@ Aaron Durbin <adurbin@google.com>
 Adam Oldham <oldhamca@gmail.com>
 Adam Radford <aradford@gmail.com>
 Adrian Bunk <bunk@stusta.de>
+Adriana Reus <adi.reus@gmail.com> <adriana.reus@intel.com>
 Alan Cox <alan@lxorguk.ukuu.org.uk>
 Alan Cox <root@hraefn.swansea.linux.org.uk>
 Aleksey Gorelov <aleksey_gorelov@phoenix.com>
@@ -87,13 +88,24 @@ Kay Sievers <kay.sievers@vrfy.org>
 Kenneth W Chen <kenneth.w.chen@intel.com>
 Konstantin Khlebnikov <koct9i@gmail.com> <k.khlebnikov@samsung.com>
 Koushik <raghavendra.koushik@neterion.com>
+Krzysztof Kozlowski <krzk@kernel.org> <k.kozlowski@samsung.com>
 Krzysztof Kozlowski <krzk@kernel.org> <k.kozlowski.k@gmail.com>
 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
 Leonid I Ananiev <leonid.i.ananiev@intel.com>
 Linas Vepstas <linas@austin.ibm.com>
+Linus Lüssing <linus.luessing@c0d3.blue> <linus.luessing@web.de>
+Linus Lüssing <linus.luessing@c0d3.blue> <linus.luessing@ascom.ch>
 Mark Brown <broonie@sirena.org.uk>
 Matthieu CASTET <castet.matthieu@free.fr>
-Mauro Carvalho Chehab <mchehab@kernel.org> <maurochehab@gmail.com> <mchehab@infradead.org> <mchehab@redhat.com> <m.chehab@samsung.com> <mchehab@osg.samsung.com> <mchehab@s-opensource.com>
+Mauro Carvalho Chehab <mchehab@kernel.org> <mchehab@brturbo.com.br>
+Mauro Carvalho Chehab <mchehab@kernel.org> <maurochehab@gmail.com>
+Mauro Carvalho Chehab <mchehab@kernel.org> <mchehab@infradead.org>
+Mauro Carvalho Chehab <mchehab@kernel.org> <mchehab@redhat.com>
+Mauro Carvalho Chehab <mchehab@kernel.org> <m.chehab@samsung.com>
+Mauro Carvalho Chehab <mchehab@kernel.org> <mchehab@osg.samsung.com>
+Mauro Carvalho Chehab <mchehab@kernel.org> <mchehab@s-opensource.com>
+Matt Ranostay <mranostay@gmail.com> Matthew Ranostay <mranostay@embeddedalley.com>
+Matt Ranostay <mranostay@gmail.com> <matt.ranostay@intel.com>
 Mayuresh Janorkar <mayur@ti.com>
 Michael Buesch <m@bues.ch>
 Michel Dänzer <michel@tungstengraphics.com>
@@ -127,7 +139,10 @@ Santosh Shilimkar <santosh.shilimkar@oracle.org>
 Sascha Hauer <s.hauer@pengutronix.de>
 S.Çağlar Onur <caglar@pardus.org.tr>
 Shiraz Hashim <shiraz.linux.kernel@gmail.com> <shiraz.hashim@st.com>
-Shuah Khan <shuah@kernel.org> <shuahkhan@gmail.com> <shuah.khan@hp.com> <shuahkh@osg.samsung.com> <shuah.kh@samsung.com>
+Shuah Khan <shuah@kernel.org> <shuahkhan@gmail.com>
+Shuah Khan <shuah@kernel.org> <shuah.khan@hp.com>
+Shuah Khan <shuah@kernel.org> <shuahkh@osg.samsung.com>
+Shuah Khan <shuah@kernel.org> <shuah.kh@samsung.com>
 Simon Kelley <simon@thekelleys.org.uk>
 Stéphane Witzmann <stephane.witzmann@ubpmes.univ-bpclermont.fr>
 Stephen Hemminger <shemminger@osdl.org>
@@ -144,6 +159,8 @@ Valdis Kletnieks <Valdis.Kletnieks@vt.edu>
 Viresh Kumar <vireshk@kernel.org> <viresh.kumar@st.com>
 Viresh Kumar <vireshk@kernel.org> <viresh.linux@gmail.com>
 Viresh Kumar <vireshk@kernel.org> <viresh.kumar2@arm.com>
+Vladimir Davydov <vdavydov.dev@gmail.com> <vdavydov@virtuozzo.com>
+Vladimir Davydov <vdavydov.dev@gmail.com> <vdavydov@parallels.com>
 Takashi YOSHII <takashi.yoshii.zj@renesas.com>
 Yusuke Goda <goda.yusuke@renesas.com>
 Gustavo Padovan <gustavo@las.ic.unicamp.br>

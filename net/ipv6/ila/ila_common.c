@@ -34,12 +34,12 @@ static void ila_csum_do_neutral(struct ila_addr *iaddr,
 	if (p->locator_match.v64) {
 		diff = p->csum_diff;
 	} else {
-		diff = compute_csum_diff8((__be32 *)iaddr,
-					  (__be32 *)&p->locator);
+		diff = compute_csum_diff8((__be32 *)&p->locator,
+					  (__be32 *)iaddr);
 	}
 
 	fval = (__force __wsum)(ila_csum_neutral_set(iaddr->ident) ?
-			~CSUM_NEUTRAL_FLAG : CSUM_NEUTRAL_FLAG);
+			CSUM_NEUTRAL_FLAG : ~CSUM_NEUTRAL_FLAG);
 
 	diff = csum_add(diff, fval);
 
@@ -103,7 +103,8 @@ static void ila_csum_adjust_transport(struct sk_buff *skb,
 	iaddr->loc = p->locator;
 }
 
-void ila_update_ipv6_locator(struct sk_buff *skb, struct ila_params *p)
+void ila_update_ipv6_locator(struct sk_buff *skb, struct ila_params *p,
+			     bool set_csum_neutral)
 {
 	struct ipv6hdr *ip6h = ipv6_hdr(skb);
 	struct ila_addr *iaddr = ila_a2i(&ip6h->daddr);
@@ -114,7 +115,8 @@ void ila_update_ipv6_locator(struct sk_buff *skb, struct ila_params *p)
 		 * is a locator being translated to a SIR address.
 		 * Perform (receiver) checksum-neutral translation.
 		 */
-		ila_csum_do_neutral(iaddr, p);
+		if (!set_csum_neutral)
+			ila_csum_do_neutral(iaddr, p);
 	} else {
 		switch (p->csum_mode) {
 		case ILA_CSUM_ADJUST_TRANSPORT:
@@ -138,8 +140,8 @@ void ila_init_saved_csum(struct ila_params *p)
 		return;
 
 	p->csum_diff = compute_csum_diff8(
-				(__be32 *)&p->locator_match,
-				(__be32 *)&p->locator);
+				(__be32 *)&p->locator,
+				(__be32 *)&p->locator_match);
 }
 
 static int __init ila_init(void)

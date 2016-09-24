@@ -45,6 +45,7 @@
 #include <asm/plpar_wrappers.h>
 #include <asm/kexec.h>
 #include <asm/fadump.h>
+#include <asm/asm-prototypes.h>
 
 #include "pseries.h"
 
@@ -260,24 +261,8 @@ static void pSeries_lpar_hptab_clear(void)
 	 * This is also called on boot when a fadump happens. In that case we
 	 * must not change the exception endian mode.
 	 */
-	if (firmware_has_feature(FW_FEATURE_SET_MODE) && !is_fadump_active()) {
-		long rc;
-
-		rc = pseries_big_endian_exceptions();
-		/*
-		 * At this point it is unlikely panic() will get anything
-		 * out to the user, but at least this will stop us from
-		 * continuing on further and creating an even more
-		 * difficult to debug situation.
-		 *
-		 * There is a known problem when kdump'ing, if cpus are offline
-		 * the above call will fail. Rather than panicking again, keep
-		 * going and hope the kdump kernel is also little endian, which
-		 * it usually is.
-		 */
-		if (rc && !kdump_in_progress())
-			panic("Could not enable big endian exceptions");
-	}
+	if (firmware_has_feature(FW_FEATURE_SET_MODE) && !is_fadump_active())
+		pseries_big_endian_exceptions();
 #endif
 }
 
@@ -604,17 +589,17 @@ static int __init disable_bulk_remove(char *str)
 
 __setup("bulk_remove=", disable_bulk_remove);
 
-void __init hpte_init_lpar(void)
+void __init hpte_init_pseries(void)
 {
-	ppc_md.hpte_invalidate	= pSeries_lpar_hpte_invalidate;
-	ppc_md.hpte_updatepp	= pSeries_lpar_hpte_updatepp;
-	ppc_md.hpte_updateboltedpp = pSeries_lpar_hpte_updateboltedpp;
-	ppc_md.hpte_insert	= pSeries_lpar_hpte_insert;
-	ppc_md.hpte_remove	= pSeries_lpar_hpte_remove;
-	ppc_md.hpte_removebolted = pSeries_lpar_hpte_removebolted;
-	ppc_md.flush_hash_range	= pSeries_lpar_flush_hash_range;
-	ppc_md.hpte_clear_all   = pSeries_lpar_hptab_clear;
-	ppc_md.hugepage_invalidate = pSeries_lpar_hugepage_invalidate;
+	mmu_hash_ops.hpte_invalidate	 = pSeries_lpar_hpte_invalidate;
+	mmu_hash_ops.hpte_updatepp	 = pSeries_lpar_hpte_updatepp;
+	mmu_hash_ops.hpte_updateboltedpp = pSeries_lpar_hpte_updateboltedpp;
+	mmu_hash_ops.hpte_insert	 = pSeries_lpar_hpte_insert;
+	mmu_hash_ops.hpte_remove	 = pSeries_lpar_hpte_remove;
+	mmu_hash_ops.hpte_removebolted   = pSeries_lpar_hpte_removebolted;
+	mmu_hash_ops.flush_hash_range	 = pSeries_lpar_flush_hash_range;
+	mmu_hash_ops.hpte_clear_all      = pSeries_lpar_hptab_clear;
+	mmu_hash_ops.hugepage_invalidate = pSeries_lpar_hugepage_invalidate;
 }
 
 #ifdef CONFIG_PPC_SMLPAR

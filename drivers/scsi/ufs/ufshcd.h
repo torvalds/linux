@@ -264,6 +264,7 @@ struct ufs_pwr_mode_info {
  * @suspend: called during host controller PM callback
  * @resume: called during host controller PM callback
  * @dbg_register_dump: used to dump controller debug information
+ * @phy_initialization: used to initialize phys
  */
 struct ufs_hba_variant_ops {
 	const char *name;
@@ -285,6 +286,7 @@ struct ufs_hba_variant_ops {
 	int     (*suspend)(struct ufs_hba *, enum ufs_pm_op);
 	int     (*resume)(struct ufs_hba *, enum ufs_pm_op);
 	void	(*dbg_register_dump)(struct ufs_hba *hba);
+	int	(*phy_initialization)(struct ufs_hba *);
 };
 
 /* clock gating state  */
@@ -567,11 +569,16 @@ static inline bool ufshcd_can_autobkops_during_suspend(struct ufs_hba *hba)
 
 static inline bool ufshcd_is_intr_aggr_allowed(struct ufs_hba *hba)
 {
+/* DWC UFS Core has the Interrupt aggregation feature but is not detectable*/
+#ifndef CONFIG_SCSI_UFS_DWC
 	if ((hba->caps & UFSHCD_CAP_INTR_AGGR) &&
 	    !(hba->quirks & UFSHCD_QUIRK_BROKEN_INTR_AGGR))
 		return true;
 	else
 		return false;
+#else
+return true;
+#endif
 }
 
 #define ufshcd_writel(hba, val, reg)	\

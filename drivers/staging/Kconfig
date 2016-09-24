@@ -102,4 +102,6 @@ source "drivers/staging/most/Kconfig"
 
 source "drivers/staging/i4l/Kconfig"
 
+source "drivers/staging/ks7010/Kconfig"
+
 endif # STAGING

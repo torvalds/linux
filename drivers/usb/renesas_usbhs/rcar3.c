@@ -23,7 +23,7 @@
 #define UGCTRL2_RESERVED_3	0x00000001	/* bit[3:0] should be B'0001 */
 #define UGCTRL2_USB0SEL_OTG	0x00000030
 
-void usbhs_write32(struct usbhs_priv *priv, u32 reg, u32 data)
+static void usbhs_write32(struct usbhs_priv *priv, u32 reg, u32 data)
 {
 	iowrite32(data, priv->base + reg);
 }

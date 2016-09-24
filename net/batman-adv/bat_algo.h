@@ -18,32 +18,18 @@
 #ifndef _NET_BATMAN_ADV_BAT_ALGO_H_
 #define _NET_BATMAN_ADV_BAT_ALGO_H_
 
-struct batadv_priv;
+#include "main.h"
 
-int batadv_iv_init(void);
+#include <linux/types.h>
 
-#ifdef CONFIG_BATMAN_ADV_BATMAN_V
+struct seq_file;
 
-int batadv_v_init(void);
-int batadv_v_mesh_init(struct batadv_priv *bat_priv);
-void batadv_v_mesh_free(struct batadv_priv *bat_priv);
+extern char batadv_routing_algo[];
+extern struct list_head batadv_hardif_list;
 
-#else
-
-static inline int batadv_v_init(void)
-{
-	return 0;
-}
-
-static inline int batadv_v_mesh_init(struct batadv_priv *bat_priv)
-{
-	return 0;
-}
-
-static inline void batadv_v_mesh_free(struct batadv_priv *bat_priv)
-{
-}
-
-#endif /* CONFIG_BATMAN_ADV_BATMAN_V */
+void batadv_algo_init(void);
+int batadv_algo_register(struct batadv_algo_ops *bat_algo_ops);
+int batadv_algo_select(struct batadv_priv *bat_priv, char *name);
+int batadv_algo_seq_print_text(struct seq_file *seq, void *offset);
 
 #endif /* _NET_BATMAN_ADV_BAT_ALGO_H_ */

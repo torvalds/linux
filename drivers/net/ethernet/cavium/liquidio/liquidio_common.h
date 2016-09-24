@@ -30,10 +30,10 @@
 
 #include "octeon_config.h"
 
-#define LIQUIDIO_VERSION        "1.1.9"
-#define LIQUIDIO_MAJOR_VERSION  1
-#define LIQUIDIO_MINOR_VERSION  1
-#define LIQUIDIO_MICRO_VERSION  9
+#define LIQUIDIO_BASE_VERSION   "1.4"
+#define LIQUIDIO_MICRO_VERSION  ".1"
+#define LIQUIDIO_PACKAGE ""
+#define LIQUIDIO_VERSION  "1.4.1"
 
 #define CONTROL_IQ 0
 /** Tag types used by Octeon cores in its work. */
@@ -174,9 +174,11 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 /*------------------------- End Scatter/Gather ---------------------------*/
 
 #define   OCTNET_FRM_PTP_HEADER_SIZE  8
-#define   OCTNET_FRM_HEADER_SIZE     30 /* PTP timestamp + VLAN + Ethernet */
 
-#define   OCTNET_MIN_FRM_SIZE        (64  + OCTNET_FRM_PTP_HEADER_SIZE)
+#define   OCTNET_FRM_HEADER_SIZE     22 /* VLAN + Ethernet */
+
+#define   OCTNET_MIN_FRM_SIZE        64
+
 #define   OCTNET_MAX_FRM_SIZE        (16000 + OCTNET_FRM_HEADER_SIZE)
 
 #define   OCTNET_DEFAULT_FRM_SIZE    (1500 + OCTNET_FRM_HEADER_SIZE)
@@ -211,6 +213,17 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 #define   OCTNET_CMD_IPSECV2_AH_ESP_CTL 0x13
 #define   OCTNET_CMD_VERBOSE_ENABLE   0x14
 #define   OCTNET_CMD_VERBOSE_DISABLE  0x15
+
+#define   OCTNET_CMD_ENABLE_VLAN_FILTER 0x16
+#define   OCTNET_CMD_ADD_VLAN_FILTER  0x17
+#define   OCTNET_CMD_DEL_VLAN_FILTER  0x18
+#define   OCTNET_CMD_VXLAN_PORT_CONFIG 0x19
+#define   OCTNET_CMD_VXLAN_PORT_ADD    0x0
+#define   OCTNET_CMD_VXLAN_PORT_DEL    0x1
+#define   OCTNET_CMD_RXCSUM_ENABLE     0x0
+#define   OCTNET_CMD_RXCSUM_DISABLE    0x1
+#define   OCTNET_CMD_TXCSUM_ENABLE     0x0
+#define   OCTNET_CMD_TXCSUM_DISABLE    0x1
 
 /* RX(packets coming from wire) Checksum verification flags */
 /* TCP/UDP csum */
@@ -258,19 +271,19 @@ union octnet_cmd {
 
 		u64 more:6; /* How many udd words follow the command */
 
-		u64 param1:29;
+		u64 reserved:29;
 
-		u64 param2:16;
+		u64 param1:16;
 
-		u64 param3:8;
+		u64 param2:8;
 
 #else
 
-		u64 param3:8;
+		u64 param2:8;
 
-		u64 param2:16;
+		u64 param1:16;
 
-		u64 param1:29;
+		u64 reserved:29;
 
 		u64 more:6;
 
@@ -283,8 +296,140 @@ union octnet_cmd {
 
 #define   OCTNET_CMD_SIZE     (sizeof(union octnet_cmd))
 
+/* Instruction Header(DPI) - for OCTEON-III models */
+struct  octeon_instr_ih3 {
+#ifdef __BIG_ENDIAN_BITFIELD
+
+	/** Reserved3 */
+	u64     reserved3:1;
+
+	/** Gather indicator 1=gather*/
+	u64     gather:1;
+
+	/** Data length OR no. of entries in gather list */
+	u64     dlengsz:14;
+
+	/** Front Data size */
+	u64     fsz:6;
+
+	/** Reserved2 */
+	u64     reserved2:4;
+
+	/** PKI port kind - PKIND */
+	u64     pkind:6;
+
+	/** Reserved1 */
+	u64     reserved1:32;
+
+#else
+	/** Reserved1 */
+	u64     reserved1:32;
+
+	/** PKI port kind - PKIND */
+	u64     pkind:6;
+
+	/** Reserved2 */
+	u64     reserved2:4;
+
+	/** Front Data size */
+	u64     fsz:6;
+
+	/** Data length OR no. of entries in gather list */
+	u64     dlengsz:14;
+
+	/** Gather indicator 1=gather*/
+	u64     gather:1;
+
+	/** Reserved3 */
+	u64     reserved3:1;
+
+#endif
+};
+
+/* Optional PKI Instruction Header(PKI IH) - for OCTEON-III models */
+/** BIG ENDIAN format.   */
+struct  octeon_instr_pki_ih3 {
+#ifdef __BIG_ENDIAN_BITFIELD
+
+	/** Wider bit */
+	u64     w:1;
+
+	/** Raw mode indicator 1 = RAW */
+	u64     raw:1;
+
+	/** Use Tag */
+	u64     utag:1;
+
+	/** Use QPG */
+	u64     uqpg:1;
+
+	/** Reserved2 */
+	u64     reserved2:1;
+
+	/** Parse Mode */
+	u64     pm:3;
+
+	/** Skip Length */
+	u64     sl:8;
+
+	/** Use Tag Type */
+	u64     utt:1;
+
+	/** Tag type */
+	u64     tagtype:2;
+
+	/** Reserved1 */
+	u64     reserved1:2;
+
+	/** QPG Value */
+	u64     qpg:11;
+
+	/** Tag Value */
+	u64     tag:32;
+
+#else
+
+	/** Tag Value */
+	u64     tag:32;
+
+	/** QPG Value */
+	u64     qpg:11;
+
+	/** Reserved1 */
+	u64     reserved1:2;
+
+	/** Tag type */
+	u64     tagtype:2;
+
+	/** Use Tag Type */
+	u64     utt:1;
+
+	/** Skip Length */
+	u64     sl:8;
+
+	/** Parse Mode */
+	u64     pm:3;
+
+	/** Reserved2 */
+	u64     reserved2:1;
+
+	/** Use QPG */
+	u64     uqpg:1;
+
+	/** Use Tag */
+	u64     utag:1;
+
+	/** Raw mode indicator 1 = RAW */
+	u64     raw:1;
+
+	/** Wider bit */
+	u64     w:1;
+#endif
+
+};
+
 /** Instruction Header */
-struct octeon_instr_ih {
+struct octeon_instr_ih2 {
 #ifdef __BIG_ENDIAN_BITFIELD
 	/** Raw mode indicator 1 = RAW */
 	u64 raw:1;
@@ -348,15 +493,15 @@ struct octeon_instr_irh {
 	u64 opcode:4;
 	u64 rflag:1;
 	u64 subcode:7;
-	u64 len:3;
-	u64 rid:13;
-	u64 reserved:4;
+	u64 vlan:12;
+	u64 priority:3;
+	u64 reserved:5;
 	u64 ossp:32;             /* opcode/subcode specific parameters */
 #else
 	u64 ossp:32;             /* opcode/subcode specific parameters */
-	u64 reserved:4;
-	u64 rid:13;
-	u64 len:3;
+	u64 reserved:5;
+	u64 priority:3;
+	u64 vlan:12;
 	u64 subcode:7;
 	u64 rflag:1;
 	u64 opcode:4;
@@ -383,75 +528,77 @@ union octeon_rh {
 	struct {
 		u64 opcode:4;
 		u64 subcode:8;
-		u64 len:3;       /** additional 64-bit words */
-		u64 rid:13;      /** request id in response to pkt sent by host */
-		u64 reserved:4;
-		u64 ossp:32;     /** opcode/subcode specific parameters */
+		u64 len:3;     /** additional 64-bit words */
+		u64 reserved:17;
+		u64 ossp:32;   /** opcode/subcode specific parameters */
 	} r;
 	struct {
 		u64 opcode:4;
 		u64 subcode:8;
-		u64 len:3;       /** additional 64-bit words */
-		u64 rid:13;      /** request id in response to pkt sent by host */
-		u64 extra:24;
-		u64 link:8;
+		u64 len:3;     /** additional 64-bit words */
+		u64 extra:28;
+		u64 vlan:12;
+		u64 priority:3;
 		u64 csum_verified:3;     /** checksum verified. */
 		u64 has_hwtstamp:1;      /** Has hardware timestamp. 1 = yes. */
+		u64 encap_on:1;
+		u64 has_hash:1;          /** Has hash (rth or rss). 1 = yes. */
 	} r_dh;
 	struct {
 		u64 opcode:4;
 		u64 subcode:8;
-		u64 len:3;       /** additional 64-bit words */
-		u64 rid:13;      /** request id in response to pkt sent by host */
+		u64 len:3;     /** additional 64-bit words */
+		u64 reserved:11;
 		u64 num_gmx_ports:8;
-		u64 max_nic_ports:8;
+		u64 max_nic_ports:10;
 		u64 app_cap_flags:4;
-		u64 app_mode:16;
+		u64 app_mode:8;
+		u64 pkind:8;
 	} r_core_drv_init;
 	struct {
 		u64 opcode:4;
 		u64 subcode:8;
 		u64 len:3;       /** additional 64-bit words */
-		u64 rid:13;
-		u64 reserved:4;
+		u64 reserved:8;
 		u64 extra:25;
-		u64 ifidx:7;
+		u64 gmxport:16;
 	} r_nic_info;
 #else
 	u64 u64;
 	struct {
 		u64 ossp:32;  /** opcode/subcode specific parameters */
-		u64 reserved:4;
-		u64 rid:13;   /** req id in response to pkt sent by host */
+		u64 reserved:17;
 		u64 len:3;    /** additional 64-bit words */
 		u64 subcode:8;
 		u64 opcode:4;
 	} r;
 	struct {
+		u64 has_hash:1;          /** Has hash (rth or rss). 1 = yes. */
+		u64 encap_on:1;
 		u64 has_hwtstamp:1;      /** 1 = has hwtstamp */
 		u64 csum_verified:3;     /** checksum verified. */
-		u64 link:8;
-		u64 extra:24;
-		u64 rid:13;   /** req id in response to pkt sent by host */
+		u64 priority:3;
+		u64 vlan:12;
+		u64 extra:28;
 		u64 len:3;    /** additional 64-bit words */
 		u64 subcode:8;
 		u64 opcode:4;
 	} r_dh;
 	struct {
-		u64 app_mode:16;
+		u64 pkind:8;
+		u64 app_mode:8;
 		u64 app_cap_flags:4;
-		u64 max_nic_ports:8;
+		u64 max_nic_ports:10;
 		u64 num_gmx_ports:8;
-		u64 rid:13;
+		u64 reserved:11;
 		u64 len:3;       /** additional 64-bit words */
 		u64 subcode:8;
 		u64 opcode:4;
 	} r_core_drv_init;
 	struct {
-		u64 ifidx:7;
+		u64 gmxport:16;
 		u64 extra:25;
-		u64 reserved:4;
-		u64 rid:13;
+		u64 reserved:8;
 		u64 len:3;       /** additional 64-bit words */
 		u64 subcode:8;
 		u64 opcode:4;
@@ -461,30 +608,25 @@ union octeon_rh {
 
 #define  OCT_RH_SIZE   (sizeof(union  octeon_rh))
 
-#define OCT_PKT_PARAM_IPV4OPTS   1
-#define OCT_PKT_PARAM_IPV6EXTHDR 2
-
 union octnic_packet_params {
 	u32 u32;
 	struct {
 #ifdef __BIG_ENDIAN_BITFIELD
-		u32 reserved:6;
+		u32 reserved:24;
+		u32 ip_csum:1;		/* Perform IP header checksum(s) */
+		/* Perform Outer transport header checksum */
+		u32 transport_csum:1;
+		/* Find tunnel, and perform transport csum. */
 		u32 tnl_csum:1;
-		u32 ip_csum:1;
-		u32 ipv4opts_ipv6exthdr:2;
-		u32 ipsec_ops:4;
-		u32 tsflag:1;
-		u32 csoffset:9;
-		u32 ifidx:8;
+		u32 tsflag:1;		/* Timestamp this packet */
+		u32 ipsec_ops:4;	/* IPsec operation */
 #else
-		u32 ifidx:8;
-		u32 csoffset:9;
-		u32 tsflag:1;
 		u32 ipsec_ops:4;
-		u32 ipv4opts_ipv6exthdr:2;
-		u32 ip_csum:1;
+		u32 tsflag:1;
 		u32 tnl_csum:1;
-		u32 reserved:6;
+		u32 transport_csum:1;
+		u32 ip_csum:1;
+		u32 reserved:24;
 #endif
 	} s;
 };
@@ -496,22 +638,64 @@ union oct_link_status {
 	struct {
 #ifdef __BIG_ENDIAN_BITFIELD
 		u64 duplex:8;
-		u64 status:8;
 		u64 mtu:16;
 		u64 speed:16;
+		u64 link_up:1;
 		u64 autoneg:1;
-		u64 interface:4;
+		u64 if_mode:5;
 		u64 pause:1;
-		u64 reserved:10;
+		u64 flashing:1;
+		u64 reserved:15;
 #else
-		u64 reserved:10;
+		u64 reserved:15;
+		u64 flashing:1;
 		u64 pause:1;
-		u64 interface:4;
+		u64 if_mode:5;
 		u64 autoneg:1;
+		u64 link_up:1;
 		u64 speed:16;
 		u64 mtu:16;
-		u64 status:8;
 		u64 duplex:8;
+#endif
+	} s;
+};
+
+/** The txpciq info passed to host from the firmware */
+
+union oct_txpciq {
+	u64 u64;
+
+	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
+		u64 q_no:8;
+		u64 port:8;
+		u64 pkind:6;
+		u64 use_qpg:1;
+		u64 qpg:11;
+		u64 reserved:30;
+#else
+		u64 reserved:30;
+		u64 qpg:11;
+		u64 use_qpg:1;
+		u64 pkind:6;
+		u64 port:8;
+		u64 q_no:8;
+#endif
+	} s;
+};
+
+/** The rxpciq info passed to host from the firmware */
+
+union oct_rxpciq {
+	u64 u64;
+
+	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
+		u64 q_no:8;
+		u64 reserved:56;
+#else
+		u64 reserved:56;
+		u64 q_no:8;
 #endif
 	} s;
 };
@@ -522,30 +706,28 @@ struct oct_link_info {
 	u64 hw_addr;
 
 #ifdef __BIG_ENDIAN_BITFIELD
-	u16 gmxport;
-	u8 rsvd[3];
-	u8 num_txpciq;
-	u8 num_rxpciq;
-	u8 ifidx;
+	u64 gmxport:16;
+	u64 rsvd:32;
+	u64 num_txpciq:8;
+	u64 num_rxpciq:8;
 #else
-	u8 ifidx;
-	u8 num_rxpciq;
-	u8 num_txpciq;
-	u8 rsvd[3];
-	u16 gmxport;
+	u64 num_rxpciq:8;
+	u64 num_txpciq:8;
+	u64 rsvd:32;
+	u64 gmxport:16;
 #endif
 
-	u8 txpciq[MAX_IOQS_PER_NICIF];
-	u8 rxpciq[MAX_IOQS_PER_NICIF];
+	union oct_txpciq txpciq[MAX_IOQS_PER_NICIF];
+	union oct_rxpciq rxpciq[MAX_IOQS_PER_NICIF];
 };
 
 #define OCT_LINK_INFO_SIZE   (sizeof(struct oct_link_info))
 
 struct liquidio_if_cfg_info {
-	u64 ifidx;
 	u64 iqmask; /** mask for IQs enabled for  the port */
 	u64 oqmask; /** mask for OQs enabled for the port */
 	struct oct_link_info linfo; /** initial link information */
+	char   liquidio_firmware_version[32];
 };
 
 /** Stats for each NIC port in RX direction. */
@@ -570,10 +752,18 @@ struct nic_rx_stats {
 	u64 fw_err_pko;
 	u64 fw_err_link;
 	u64 fw_err_drop;
+	u64 fw_rx_vxlan;
+	u64 fw_rx_vxlan_err;
+
+	/* LRO */
 	u64 fw_lro_pkts;   /* Number of packets that are LROed      */
 	u64 fw_lro_octs;   /* Number of octets that are LROed       */
 	u64 fw_total_lro;  /* Number of LRO packets formed          */
 	u64 fw_lro_aborts; /* Number of times lRO of packet aborted */
+	u64 fw_lro_aborts_port;
+	u64 fw_lro_aborts_seq;
+	u64 fw_lro_aborts_tsval;
+	u64 fw_lro_aborts_timer;
 	/* intrmod: packet forward rate */
 	u64 fwd_rate;
 };
@@ -597,9 +787,14 @@ struct nic_tx_stats {
 	/* firmware stats */
 	u64 fw_total_sent;
 	u64 fw_total_fwd;
+	u64 fw_total_fwd_bytes;
 	u64 fw_err_pko;
 	u64 fw_err_link;
 	u64 fw_err_drop;
+	u64 fw_err_tso;
+	u64 fw_tso;		/* number of tso requests */
+	u64 fw_tso_fwd;		/* number of packets segmented in tso */
+	u64 fw_tx_vxlan;
 };
 
 struct oct_link_stats {
@@ -630,23 +825,44 @@ struct oct_mdio_cmd {
 
 #define OCT_LINK_STATS_SIZE   (sizeof(struct oct_link_stats))
 
+/* intrmod: max. packet rate threshold */
+#define LIO_INTRMOD_MAXPKT_RATETHR	196608
+/* intrmod: min. packet rate threshold */
+#define LIO_INTRMOD_MINPKT_RATETHR	9216
+/* intrmod: max. packets to trigger interrupt */
+#define LIO_INTRMOD_RXMAXCNT_TRIGGER	384
+/* intrmod: min. packets to trigger interrupt */
+#define LIO_INTRMOD_RXMINCNT_TRIGGER	1
+/* intrmod: max. time to trigger interrupt */
+#define LIO_INTRMOD_RXMAXTMR_TRIGGER	128
+/* 66xx:intrmod: min. time to trigger interrupt
+ * (value of 1 is optimum for TCP_RR)
+ */
+#define LIO_INTRMOD_RXMINTMR_TRIGGER	1
+
+/* intrmod: max. packets to trigger interrupt */
+#define LIO_INTRMOD_TXMAXCNT_TRIGGER	64
+/* intrmod: min. packets to trigger interrupt */
+#define LIO_INTRMOD_TXMINCNT_TRIGGER	0
+
+/* intrmod: poll interval in seconds */
 #define LIO_INTRMOD_CHECK_INTERVAL  1
-#define LIO_INTRMOD_MAXPKT_RATETHR  196608 /* max pkt rate threshold */
-#define LIO_INTRMOD_MINPKT_RATETHR  9216   /* min pkt rate threshold */
-#define LIO_INTRMOD_MAXCNT_TRIGGER  384    /* max pkts to trigger interrupt */
-#define LIO_INTRMOD_MINCNT_TRIGGER  1      /* min pkts to trigger interrupt */
-#define LIO_INTRMOD_MAXTMR_TRIGGER  128    /* max time to trigger interrupt */
-#define LIO_INTRMOD_MINTMR_TRIGGER  32     /* min time to trigger interrupt */
 
 struct oct_intrmod_cfg {
-	u64 intrmod_enable;
-	u64 intrmod_check_intrvl;
-	u64 intrmod_maxpkt_ratethr;
-	u64 intrmod_minpkt_ratethr;
-	u64 intrmod_maxcnt_trigger;
-	u64 intrmod_maxtmr_trigger;
-	u64 intrmod_mincnt_trigger;
-	u64 intrmod_mintmr_trigger;
+	u64 rx_enable;
+	u64 tx_enable;
+	u64 check_intrvl;
+	u64 maxpkt_ratethr;
+	u64 minpkt_ratethr;
+	u64 rx_maxcnt_trigger;
+	u64 rx_mincnt_trigger;
+	u64 rx_maxtmr_trigger;
+	u64 rx_mintmr_trigger;
+	u64 tx_mincnt_trigger;
+	u64 tx_maxcnt_trigger;
+	u64 rx_frames;
+	u64 tx_frames;
+	u64 rx_usecs;
 };
 
 #define BASE_QUEUE_NOT_REQUESTED 65535
@@ -659,9 +875,9 @@ union oct_nic_if_cfg {
 		u64 num_iqueues:16;
 		u64 num_oqueues:16;
 		u64 gmx_port_id:8;
-		u64 reserved:8;
+		u64 vf_id:8;
 #else
-		u64 reserved:8;
+		u64 vf_id:8;
 		u64 gmx_port_id:8;
 		u64 num_oqueues:16;
 		u64 num_iqueues:16;

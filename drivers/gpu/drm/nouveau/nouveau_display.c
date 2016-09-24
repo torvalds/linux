@@ -47,7 +47,7 @@ nouveau_display_vblank_handler(struct nvif_notify *notify)
 {
 	struct nouveau_crtc *nv_crtc =
 		container_of(notify, typeof(*nv_crtc), vblank);
-	drm_handle_vblank(nv_crtc->base.dev, nv_crtc->index);
+	drm_crtc_handle_vblank(&nv_crtc->base);
 	return NVIF_NOTIFY_KEEP;
 }
 
@@ -495,6 +495,8 @@ nouveau_display_create(struct drm_device *dev)
 
 	if (nouveau_modeset != 2 && drm->vbios.dcb.entries) {
 		static const u16 oclass[] = {
+			GP104_DISP,
+			GP100_DISP,
 			GM200_DISP,
 			GM107_DISP,
 			GK110_DISP,
@@ -554,6 +556,7 @@ nouveau_display_destroy(struct drm_device *dev)
 	nouveau_display_vblank_fini(dev);
 
 	drm_kms_helper_poll_fini(dev);
+	drm_crtc_force_disable_all(dev);
 	drm_mode_config_cleanup(dev);
 
 	if (disp->dtor)
@@ -760,12 +763,11 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 
 	/* Initialize a page flip struct */
 	*s = (struct nouveau_page_flip_state)
-		{ { }, event, nouveau_crtc(crtc)->index,
-		  fb->bits_per_pixel, fb->pitches[0], crtc->x, crtc->y,
+		{ { }, event, crtc, fb->bits_per_pixel, fb->pitches[0],
 		  new_bo->bo.offset };
 
 	/* Keep vblanks on during flip, for the target crtc of this flip */
-	drm_vblank_get(dev, nouveau_crtc(crtc)->index);
+	drm_crtc_vblank_get(crtc);
 
 	/* Emit a page flip */
 	if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
@@ -810,7 +812,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	return 0;
 
 fail_unreserve:
-	drm_vblank_put(dev, nouveau_crtc(crtc)->index);
+	drm_crtc_vblank_put(crtc);
 	ttm_bo_unreserve(&old_bo->bo);
 fail_unpin:
 	mutex_unlock(&cli->mutex);
@@ -842,17 +844,17 @@ nouveau_finish_page_flip(struct nouveau_channel *chan,
 	s = list_first_entry(&fctx->flip, struct nouveau_page_flip_state, head);
 	if (s->event) {
 		if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA) {
-			drm_arm_vblank_event(dev, s->crtc, s->event);
+			drm_crtc_arm_vblank_event(s->crtc, s->event);
 		} else {
-			drm_send_vblank_event(dev, s->crtc, s->event);
+			drm_crtc_send_vblank_event(s->crtc, s->event);
 
 			/* Give up ownership of vblank for page-flipped crtc */
-			drm_vblank_put(dev, s->crtc);
+			drm_crtc_vblank_put(s->crtc);
 		}
 	}
 	else {
 		/* Give up ownership of vblank for page-flipped crtc */
-		drm_vblank_put(dev, s->crtc);
+		drm_crtc_vblank_put(s->crtc);
 	}
 
 	list_del(&s->head);
@@ -873,9 +875,10 @@ nouveau_flip_complete(struct nvif_notify *notify)
 
 	if (!nouveau_finish_page_flip(chan, &state)) {
 		if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA) {
-			nv_set_crtc_base(drm->dev, state.crtc, state.offset +
-					 state.y * state.pitch +
-					 state.x * state.bpp / 8);
+			nv_set_crtc_base(drm->dev, drm_crtc_index(state.crtc),
+					 state.offset + state.crtc->y *
+					 state.pitch + state.crtc->x *
+					 state.bpp / 8);
 		}
 	}
 

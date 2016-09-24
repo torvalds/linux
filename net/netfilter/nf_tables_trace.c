@@ -237,7 +237,7 @@ void nft_trace_notify(struct nft_traceinfo *info)
 		break;
 	case NFT_TRACETYPE_POLICY:
 		if (nla_put_be32(skb, NFTA_TRACE_POLICY,
-				 info->basechain->policy))
+				 htonl(info->basechain->policy)))
 			goto nla_put_failure;
 		break;
 	}

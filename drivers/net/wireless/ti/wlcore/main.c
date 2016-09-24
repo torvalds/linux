@@ -221,6 +221,7 @@ static void wlcore_rc_update_work(struct work_struct *work)
 	struct wl12xx_vif *wlvif = container_of(work, struct wl12xx_vif,
 						rc_update_work);
 	struct wl1271 *wl = wlvif->wl;
+	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 
 	mutex_lock(&wl->mutex);
 
@@ -231,8 +232,16 @@ static void wlcore_rc_update_work(struct work_struct *work)
 	if (ret < 0)
 		goto out;
 
-	wlcore_hw_sta_rc_update(wl, wlvif);
+	if (ieee80211_vif_is_mesh(vif)) {
+		ret = wl1271_acx_set_ht_capabilities(wl, &wlvif->rc_ht_cap,
+						     true, wlvif->sta.hlid);
+		if (ret < 0)
+			goto out_sleep;
+	} else {
+		wlcore_hw_sta_rc_update(wl, wlvif);
+	}
 
+out_sleep:
 	wl1271_ps_elp_sleep(wl);
 out:
 	mutex_unlock(&wl->mutex);
@@ -2153,10 +2162,14 @@ static void wlcore_free_klv_template(struct wl1271 *wl, u8 *idx)
 
 static u8 wl12xx_get_role_type(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
+	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
+
 	switch (wlvif->bss_type) {
 	case BSS_TYPE_AP_BSS:
 		if (wlvif->p2p)
 			return WL1271_ROLE_P2P_GO;
+		else if (ieee80211_vif_is_mesh(vif))
+			return WL1271_ROLE_MESH_POINT;
 		else
 			return WL1271_ROLE_AP;
 
@@ -2198,6 +2211,7 @@ static int wl12xx_init_vif_data(struct wl1271 *wl, struct ieee80211_vif *vif)
 		wlvif->p2p = 1;
 		/* fall-through */
 	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_MESH_POINT:
 		wlvif->bss_type = BSS_TYPE_AP_BSS;
 		break;
 	default:
@@ -2615,6 +2629,10 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 
 	if (wl->scan.state != WL1271_SCAN_STATE_IDLE &&
 	    wl->scan_wlvif == wlvif) {
+		struct cfg80211_scan_info info = {
+			.aborted = true,
+		};
+
 		/*
 		 * Rearm the tx watchdog just before idling scan. This
 		 * prevents just-finished scans from triggering the watchdog
@@ -2625,7 +2643,7 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 		memset(wl->scan.scanned_ch, 0, sizeof(wl->scan.scanned_ch));
 		wl->scan_wlvif = NULL;
 		wl->scan.req = NULL;
-		ieee80211_scan_completed(wl->hw, true);
+		ieee80211_scan_completed(wl->hw, &info);
 	}
 
 	if (wl->sched_vif == wlvif)
@@ -3649,6 +3667,9 @@ static void wl1271_op_cancel_hw_scan(struct ieee80211_hw *hw,
 {
 	struct wl1271 *wl = hw->priv;
 	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
+	struct cfg80211_scan_info info = {
+		.aborted = true,
+	};
 	int ret;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 cancel hw scan");
@@ -3681,7 +3702,7 @@ static void wl1271_op_cancel_hw_scan(struct ieee80211_hw *hw,
 	memset(wl->scan.scanned_ch, 0, sizeof(wl->scan.scanned_ch));
 	wl->scan_wlvif = NULL;
 	wl->scan.req = NULL;
-	ieee80211_scan_completed(wl->hw, true);
+	ieee80211_scan_completed(wl->hw, &info);
 
 out_sleep:
 	wl1271_ps_elp_sleep(wl);
@@ -4124,9 +4145,14 @@ static void wl1271_bss_info_changed_ap(struct wl1271 *wl,
 		if (ret < 0)
 			goto out;
 
-		ret = wl1271_ap_set_probe_resp_tmpl(wl, wlvif->basic_rate, vif);
-		if (ret < 0)
-			goto out;
+		/* No need to set probe resp template for mesh */
+		if (!ieee80211_vif_is_mesh(vif)) {
+			ret = wl1271_ap_set_probe_resp_tmpl(wl,
+							    wlvif->basic_rate,
+							    vif);
+			if (ret < 0)
+				goto out;
+		}
 
 		ret = wlcore_set_beacon_template(wl, vif, true);
 		if (ret < 0)
@@ -4960,6 +4986,7 @@ static int wl12xx_sta_add(struct wl1271 *wl,
 		return ret;
 
 	wl_sta = (struct wl1271_station *)sta->drv_priv;
+	wl_sta->wl = wl;
 	hlid = wl_sta->hlid;
 
 	ret = wl12xx_cmd_add_peer(wl, wlvif, sta, hlid);
@@ -5088,6 +5115,11 @@ static int wl12xx_update_sta_state(struct wl1271 *wl,
 	if (is_ap &&
 	    new_state == IEEE80211_STA_AUTHORIZED) {
 		ret = wl12xx_cmd_set_peer_state(wl, wlvif, wl_sta->hlid);
+		if (ret < 0)
+			return ret;
+
+		/* reconfigure rates */
+		ret = wl12xx_cmd_add_peer(wl, wlvif, sta, wl_sta->hlid);
 		if (ret < 0)
 			return ret;
 
@@ -5629,6 +5661,7 @@ static void wlcore_op_sta_rc_update(struct ieee80211_hw *hw,
 
 	/* this callback is atomic, so schedule a new work */
 	wlvif->rc_update_bw = sta->bandwidth;
+	memcpy(&wlvif->rc_ht_cap, &sta->ht_cap, sizeof(sta->ht_cap));
 	ieee80211_queue_work(hw, &wlvif->rc_update_work);
 }
 
@@ -5665,6 +5698,17 @@ out_sleep:
 
 out:
 	mutex_unlock(&wl->mutex);
+}
+
+static u32 wlcore_op_get_expected_throughput(struct ieee80211_hw *hw,
+					     struct ieee80211_sta *sta)
+{
+	struct wl1271_station *wl_sta = (struct wl1271_station *)sta->drv_priv;
+	struct wl1271 *wl = hw->priv;
+	u8 hlid = wl_sta->hlid;
+
+	/* return in units of Kbps */
+	return (wl->links[hlid].fw_rate_mbps * 1000);
 }
 
 static bool wl1271_tx_frames_pending(struct ieee80211_hw *hw)
@@ -5867,6 +5911,7 @@ static const struct ieee80211_ops wl1271_ops = {
 	.switch_vif_chanctx = wlcore_op_switch_vif_chanctx,
 	.sta_rc_update = wlcore_op_sta_rc_update,
 	.sta_statistics = wlcore_op_sta_statistics,
+	.get_expected_throughput = wlcore_op_get_expected_throughput,
 	CFG80211_TESTMODE_CMD(wl1271_tm_cmd)
 };
 
@@ -6050,7 +6095,11 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 					 BIT(NL80211_IFTYPE_AP) |
 					 BIT(NL80211_IFTYPE_P2P_DEVICE) |
 					 BIT(NL80211_IFTYPE_P2P_CLIENT) |
+#ifdef CONFIG_MAC80211_MESH
+					 BIT(NL80211_IFTYPE_MESH_POINT) |
+#endif
 					 BIT(NL80211_IFTYPE_P2P_GO);
+
 	wl->hw->wiphy->max_scan_ssids = 1;
 	wl->hw->wiphy->max_sched_scan_ssids = 16;
 	wl->hw->wiphy->max_match_sets = 16;

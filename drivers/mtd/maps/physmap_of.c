@@ -186,7 +186,7 @@ static int of_flash_probe(struct platform_device *dev)
 	 * consists internally of 2 non-identical NOR chips on one die.
 	 */
 	p = of_get_property(dp, "reg", &count);
-	if (count % reg_tuple_size != 0) {
+	if (!p || count % reg_tuple_size != 0) {
 		dev_err(&dev->dev, "Malformed reg property on %s\n",
 				dev->dev.of_node->full_name);
 		err = -EINVAL;

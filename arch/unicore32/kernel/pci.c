@@ -265,10 +265,8 @@ static int __init pci_common_init(void)
 
 	pci_fixup_irqs(pci_common_swizzle, pci_puv3_map_irq);
 
-	if (!pci_has_flag(PCI_PROBE_ONLY)) {
-		pci_bus_size_bridges(puv3_bus);
-		pci_bus_assign_resources(puv3_bus);
-	}
+	pci_bus_size_bridges(puv3_bus);
+	pci_bus_assign_resources(puv3_bus);
 	pci_bus_add_devices(puv3_bus);
 	return 0;
 }
@@ -278,9 +276,6 @@ char * __init pcibios_setup(char *str)
 {
 	if (!strcmp(str, "debug")) {
 		debug_pci = 1;
-		return NULL;
-	} else if (!strcmp(str, "firmware")) {
-		pci_add_flags(PCI_PROBE_ONLY);
 		return NULL;
 	}
 	return str;

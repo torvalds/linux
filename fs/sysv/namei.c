@@ -33,7 +33,7 @@ static int sysv_hash(const struct dentry *dentry, struct qstr *qstr)
 	   function. */
 	if (qstr->len > SYSV_NAMELEN) {
 		qstr->len = SYSV_NAMELEN;
-		qstr->hash = full_name_hash(qstr->name, qstr->len);
+		qstr->hash = full_name_hash(dentry, qstr->name, qstr->len);
 	}
 	return 0;
 }

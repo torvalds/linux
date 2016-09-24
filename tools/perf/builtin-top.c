@@ -22,7 +22,7 @@
 #include "perf.h"
 
 #include "util/annotate.h"
-#include "util/cache.h"
+#include "util/config.h"
 #include "util/color.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
@@ -128,10 +128,14 @@ static int perf_top__parse_source(struct perf_top *top, struct hist_entry *he)
 		return err;
 	}
 
-	err = symbol__annotate(sym, map, 0);
+	err = symbol__disassemble(sym, map, 0);
 	if (err == 0) {
 out_assign:
 		top->sym_filter_entry = he;
+	} else {
+		char msg[BUFSIZ];
+		symbol__strerror_disassemble(sym, map, err, msg, sizeof(msg));
+		pr_err("Couldn't annotate %s: %s\n", sym->name, msg);
 	}
 
 	pthread_mutex_unlock(&notes->lock);
@@ -295,7 +299,7 @@ static void perf_top__print_sym_table(struct perf_top *top)
 	hists__output_recalc_col_len(hists, top->print_entries - printed);
 	putchar('\n');
 	hists__fprintf(hists, false, top->print_entries - printed, win_width,
-		       top->min_percent, stdout);
+		       top->min_percent, stdout, symbol_conf.use_callchain);
 }
 
 static void prompt_integer(int *target, const char *msg)
@@ -479,7 +483,7 @@ static bool perf_top__handle_keypress(struct perf_top *top, int c)
 
 				fprintf(stderr, "\nAvailable events:");
 
-				evlist__for_each(top->evlist, top->sym_evsel)
+				evlist__for_each_entry(top->evlist, top->sym_evsel)
 					fprintf(stderr, "\n\t%d %s", top->sym_evsel->idx, perf_evsel__name(top->sym_evsel));
 
 				prompt_integer(&counter, "Enter details event counter");
@@ -490,7 +494,7 @@ static bool perf_top__handle_keypress(struct perf_top *top, int c)
 					sleep(1);
 					break;
 				}
-				evlist__for_each(top->evlist, top->sym_evsel)
+				evlist__for_each_entry(top->evlist, top->sym_evsel)
 					if (top->sym_evsel->idx == counter)
 						break;
 			} else
@@ -583,7 +587,7 @@ static void *display_thread_tui(void *arg)
 	 * Zooming in/out UIDs. For now juse use whatever the user passed
 	 * via --uid.
 	 */
-	evlist__for_each(top->evlist, pos) {
+	evlist__for_each_entry(top->evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
 		hists->uid_filter_str = top->record_opts.target.uid_str;
 	}
@@ -888,7 +892,7 @@ static int perf_top__start_counters(struct perf_top *top)
 
 	perf_evlist__config(evlist, opts, &callchain_param);
 
-	evlist__for_each(evlist, counter) {
+	evlist__for_each_entry(evlist, counter) {
 try_again:
 		if (perf_evsel__open(counter, top->evlist->cpus,
 				     top->evlist->threads) < 0) {
@@ -907,7 +911,7 @@ try_again:
 
 	if (perf_evlist__mmap(evlist, opts->mmap_pages, false) < 0) {
 		ui__error("Failed to mmap with %d (%s)\n",
-			    errno, strerror_r(errno, msg, sizeof(msg)));
+			    errno, str_error_r(errno, msg, sizeof(msg)));
 		goto out_err;
 	}
 
@@ -1028,7 +1032,7 @@ out_delete:
 
 out_err_cpu_topo: {
 	char errbuf[BUFSIZ];
-	const char *err = strerror_r(-ret, errbuf, sizeof(errbuf));
+	const char *err = str_error_r(-ret, errbuf, sizeof(errbuf));
 
 	ui__error("Could not read the CPU topology map: %s\n", err);
 	goto out_delete;
@@ -1295,7 +1299,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	if (perf_evlist__create_maps(top.evlist, target) < 0) {
 		ui__error("Couldn't create thread/CPU maps: %s\n",
-			  errno == ENOENT ? "No such process" : strerror_r(errno, errbuf, sizeof(errbuf)));
+			  errno == ENOENT ? "No such process" : str_error_r(errno, errbuf, sizeof(errbuf)));
 		goto out_delete_evlist;
 	}
 

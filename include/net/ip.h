@@ -47,6 +47,7 @@ struct inet_skb_parm {
 #define IPSKB_REROUTED		BIT(4)
 #define IPSKB_DOREDIRECT	BIT(5)
 #define IPSKB_FRAG_PMTU		BIT(6)
+#define IPSKB_FRAG_SEGS		BIT(7)
 
 	u16			frag_max_size;
 };

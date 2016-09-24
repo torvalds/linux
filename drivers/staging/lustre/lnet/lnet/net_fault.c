@@ -760,9 +760,7 @@ lnet_delay_rule_add(struct lnet_fault_attr *attr)
 		wait_event(delay_dd.dd_ctl_waitq, delay_dd.dd_running);
 	}
 
-	init_timer(&rule->dl_timer);
-	rule->dl_timer.function = delay_timer_cb;
-	rule->dl_timer.data = (unsigned long)rule;
+	setup_timer(&rule->dl_timer, delay_timer_cb, (unsigned long)rule);
 
 	spin_lock_init(&rule->dl_lock);
 	INIT_LIST_HEAD(&rule->dl_msg_list);

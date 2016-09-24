@@ -1,0 +1,47 @@
+* Oxford Semiconductor OXNAS SoC GPIO Controller
+
+Please refer to gpio.txt for generic information regarding GPIO bindings.
+
+Required properties:
+ - compatible: "oxsemi,ox810se-gpio"
+ - reg: Base address and length for the device.
+ - interrupts: The port interrupt shared by all pins.
+ - gpio-controller: Marks the port as GPIO controller.
+ - #gpio-cells: Two. The first cell is the pin number and
+   the second cell is used to specify the gpio polarity as defined in
+   defined in <dt-bindings/gpio/gpio.h>:
+      0 = GPIO_ACTIVE_HIGH
+      1 = GPIO_ACTIVE_LOW
+ - interrupt-controller: Marks the device node as an interrupt controller.
+ - #interrupt-cells: Two. The first cell is the GPIO number and second cell
+   is used to specify the trigger type as defined in
+   <dt-bindings/interrupt-controller/irq.h>:
+      IRQ_TYPE_EDGE_RISING
+      IRQ_TYPE_EDGE_FALLING
+      IRQ_TYPE_EDGE_BOTH
+ - gpio-ranges: Interaction with the PINCTRL subsystem, it also specifies the
+   gpio base and count, should be in the format of numeric-gpio-range as
+   specified in the gpio.txt file.
+
+Example:
+
+gpio0: gpio@0 {
+	compatible = "oxsemi,ox810se-gpio";
+	reg = <0x000000 0x100000>;
+	interrupts = <21>;
+	#gpio-cells = <2>;
+	gpio-controller;
+	interrupt-controller;
+	#interrupt-cells = <2>;
+	gpio-ranges = <&pinctrl 0 0 32>;
+};
+
+keys {
+	...
+
+	button-esc {
+		label = "ESC";
+		linux,code = <1>;
+		gpios = <&gpio0 12 0>;
+	};
+};

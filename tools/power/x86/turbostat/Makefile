@@ -1,7 +1,7 @@
 CC		= $(CROSS_COMPILE)gcc
 BUILD_OUTPUT	:= $(CURDIR)
-PREFIX		:= /usr
-DESTDIR		:=
+PREFIX		?= /usr
+DESTDIR		?=
 
 ifeq ("$(origin O)", "command line")
 	BUILD_OUTPUT := $(O)

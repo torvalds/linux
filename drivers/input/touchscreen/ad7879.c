@@ -595,7 +595,7 @@ struct ad7879 *ad7879_probe(struct device *dev, u8 devid, unsigned int irq,
 	} else {
 		input_set_abs_params(input_dev, ABS_X, 0, MAX_12BIT, 0, 0);
 		input_set_abs_params(input_dev, ABS_Y, 0, MAX_12BIT, 0, 0);
-		touchscreen_parse_properties(input_dev, false);
+		touchscreen_parse_properties(input_dev, false, NULL);
 		if (!input_abs_get_max(input_dev, ABS_PRESSURE)) {
 			dev_err(dev, "Touchscreen pressure is not specified\n");
 			return ERR_PTR(-EINVAL);

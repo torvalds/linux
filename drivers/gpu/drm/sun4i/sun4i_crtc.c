@@ -51,10 +51,22 @@ static void sun4i_crtc_atomic_flush(struct drm_crtc *crtc,
 {
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
 	struct sun4i_drv *drv = scrtc->drv;
+	struct drm_pending_vblank_event *event = crtc->state->event;
 
 	DRM_DEBUG_DRIVER("Committing plane changes\n");
 
 	sun4i_backend_commit(drv->backend);
+
+	if (event) {
+		crtc->state->event = NULL;
+
+		spin_lock_irq(&crtc->dev->event_lock);
+		if (drm_crtc_vblank_get(crtc) == 0)
+			drm_crtc_arm_vblank_event(crtc, event);
+		else
+			drm_crtc_send_vblank_event(crtc, event);
+		spin_unlock_irq(&crtc->dev->event_lock);
+	}
 }
 
 static void sun4i_crtc_disable(struct drm_crtc *crtc)

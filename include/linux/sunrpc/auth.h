@@ -37,7 +37,6 @@ struct rpcsec_gss_info;
 
 /* auth_cred ac_flags bits */
 enum {
-	RPC_CRED_NO_CRKEY_TIMEOUT = 0, /* underlying cred has no key timeout */
 	RPC_CRED_KEY_EXPIRE_SOON = 1, /* underlying cred key will expire soon */
 	RPC_CRED_NOTIFY_TIMEOUT = 2,   /* nofity generic cred when underlying
 					key will expire soon */
@@ -82,6 +81,9 @@ struct rpc_cred {
 
 #define RPCAUTH_CRED_MAGIC	0x0f4aa4f0
 
+/* rpc_auth au_flags */
+#define RPCAUTH_AUTH_NO_CRKEY_TIMEOUT	0x0001 /* underlying cred has no key timeout */
+
 /*
  * Client authentication handle
  */
@@ -106,6 +108,9 @@ struct rpc_auth {
 	struct rpc_cred_cache *	au_credcache;
 	/* per-flavor data */
 };
+
+/* rpc_auth au_flags */
+#define RPCAUTH_AUTH_DATATOUCH	0x00000002
 
 struct rpc_auth_create_args {
 	rpc_authflavor_t pseudoflavor;
@@ -196,7 +201,7 @@ void			rpcauth_destroy_credcache(struct rpc_auth *);
 void			rpcauth_clear_credcache(struct rpc_cred_cache *);
 int			rpcauth_key_timeout_notify(struct rpc_auth *,
 						struct rpc_cred *);
-bool			rpcauth_cred_key_to_expire(struct rpc_cred *);
+bool			rpcauth_cred_key_to_expire(struct rpc_auth *, struct rpc_cred *);
 char *			rpcauth_stringify_acceptor(struct rpc_cred *);
 
 static inline

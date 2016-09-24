@@ -105,6 +105,10 @@
 						  0x2d0, 0x2d1, 0x2d2, 0x2d3 })
 
 #define SYS_MODE_DMA_SHIFT	13
+#define AUDIO_DMA_SIZE_SHIFT	19
+#define AUDIO_DMA_SIZE_MIN	SZ_512
+#define AUDIO_DMA_SIZE_MAX	SZ_4K
+#define AUDIO_DMA_SIZE_MASK	(SZ_8K - 1)
 
 #define DMA_CMD_ENABLE		BIT(31)
 #define INT_STATUS_DMA_TOUT	BIT(17)
@@ -118,5 +122,10 @@
 #define TW686X_STD_PAL_M	4
 #define TW686X_STD_PAL_CN	5
 #define TW686X_STD_PAL_60	6
+
+#define TW686X_FIELD_MODE	0x3
+#define TW686X_FRAME_MODE	0x2
+/* 0x1 is reserved */
+#define TW686X_SG_MODE		0x0
 
 #define TW686X_FIFO_ERROR(x)	(x & ~(0xff))

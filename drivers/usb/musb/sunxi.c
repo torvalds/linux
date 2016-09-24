@@ -256,12 +256,10 @@ static int sunxi_musb_init(struct musb *musb)
 	writeb(SUNXI_MUSB_VEND0_PIO_MODE, musb->mregs + SUNXI_MUSB_VEND0);
 
 	/* Register notifier before calling phy_init() */
-	if (musb->port_mode == MUSB_PORT_MODE_DUAL_ROLE) {
-		ret = extcon_register_notifier(glue->extcon, EXTCON_USB_HOST,
-					       &glue->host_nb);
-		if (ret)
-			goto error_reset_assert;
-	}
+	ret = extcon_register_notifier(glue->extcon, EXTCON_USB_HOST,
+				       &glue->host_nb);
+	if (ret)
+		goto error_reset_assert;
 
 	ret = phy_init(glue->phy);
 	if (ret)
@@ -275,9 +273,8 @@ static int sunxi_musb_init(struct musb *musb)
 	return 0;
 
 error_unregister_notifier:
-	if (musb->port_mode == MUSB_PORT_MODE_DUAL_ROLE)
-		extcon_unregister_notifier(glue->extcon, EXTCON_USB_HOST,
-					   &glue->host_nb);
+	extcon_unregister_notifier(glue->extcon, EXTCON_USB_HOST,
+				   &glue->host_nb);
 error_reset_assert:
 	if (test_bit(SUNXI_MUSB_FL_HAS_RESET, &glue->flags))
 		reset_control_assert(glue->rst);
@@ -301,9 +298,8 @@ static int sunxi_musb_exit(struct musb *musb)
 
 	phy_exit(glue->phy);
 
-	if (musb->port_mode == MUSB_PORT_MODE_DUAL_ROLE)
-		extcon_unregister_notifier(glue->extcon, EXTCON_USB_HOST,
-					   &glue->host_nb);
+	extcon_unregister_notifier(glue->extcon, EXTCON_USB_HOST,
+				   &glue->host_nb);
 
 	if (test_bit(SUNXI_MUSB_FL_HAS_RESET, &glue->flags))
 		reset_control_assert(glue->rst);
@@ -311,25 +307,6 @@ static int sunxi_musb_exit(struct musb *musb)
 	clk_disable_unprepare(glue->clk);
 	if (test_bit(SUNXI_MUSB_FL_HAS_SRAM, &glue->flags))
 		sunxi_sram_release(musb->controller->parent);
-
-	return 0;
-}
-
-static int sunxi_set_mode(struct musb *musb, u8 mode)
-{
-	struct sunxi_glue *glue = dev_get_drvdata(musb->controller->parent);
-	int ret;
-
-	if (mode == MUSB_HOST) {
-		ret = phy_power_on(glue->phy);
-		if (ret)
-			return ret;
-
-		set_bit(SUNXI_MUSB_FL_PHY_ON, &glue->flags);
-		/* Stop musb work from turning vbus off again */
-		set_bit(SUNXI_MUSB_FL_VBUS_ON, &glue->flags);
-		musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
-	}
 
 	return 0;
 }
@@ -354,13 +331,13 @@ static void sunxi_musb_disable(struct musb *musb)
 	clear_bit(SUNXI_MUSB_FL_ENABLED, &glue->flags);
 }
 
-struct dma_controller *sunxi_musb_dma_controller_create(struct musb *musb,
-						    void __iomem *base)
+static struct dma_controller *
+sunxi_musb_dma_controller_create(struct musb *musb, void __iomem *base)
 {
 	return NULL;
 }
 
-void sunxi_musb_dma_controller_destroy(struct dma_controller *c)
+static void sunxi_musb_dma_controller_destroy(struct dma_controller *c)
 {
 }
 
@@ -582,7 +559,6 @@ static const struct musb_platform_ops sunxi_musb_ops = {
 	.exit		= sunxi_musb_exit,
 	.enable		= sunxi_musb_enable,
 	.disable	= sunxi_musb_disable,
-	.set_mode	= sunxi_set_mode,
 	.fifo_offset	= sunxi_musb_fifo_offset,
 	.ep_offset	= sunxi_musb_ep_offset,
 	.busctl_offset	= sunxi_musb_busctl_offset,
@@ -638,10 +614,6 @@ static int sunxi_musb_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
-	if (!glue)
-		return -ENOMEM;
-
 	memset(&pdata, 0, sizeof(pdata));
 	switch (usb_get_dr_mode(&pdev->dev)) {
 #if defined CONFIG_USB_MUSB_DUAL_ROLE || defined CONFIG_USB_MUSB_HOST
@@ -649,15 +621,13 @@ static int sunxi_musb_probe(struct platform_device *pdev)
 		pdata.mode = MUSB_PORT_MODE_HOST;
 		break;
 #endif
+#if defined CONFIG_USB_MUSB_DUAL_ROLE || defined CONFIG_USB_MUSB_GADGET
+	case USB_DR_MODE_PERIPHERAL:
+		pdata.mode = MUSB_PORT_MODE_GADGET;
+		break;
+#endif
 #ifdef CONFIG_USB_MUSB_DUAL_ROLE
 	case USB_DR_MODE_OTG:
-		glue->extcon = extcon_get_edev_by_phandle(&pdev->dev, 0);
-		if (IS_ERR(glue->extcon)) {
-			if (PTR_ERR(glue->extcon) == -EPROBE_DEFER)
-				return -EPROBE_DEFER;
-			dev_err(&pdev->dev, "Invalid or missing extcon\n");
-			return PTR_ERR(glue->extcon);
-		}
 		pdata.mode = MUSB_PORT_MODE_DUAL_ROLE;
 		break;
 #endif
@@ -667,6 +637,10 @@ static int sunxi_musb_probe(struct platform_device *pdev)
 	}
 	pdata.platform_ops	= &sunxi_musb_ops;
 	pdata.config		= &sunxi_musb_hdrc_config;
+
+	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
+	if (!glue)
+		return -ENOMEM;
 
 	glue->dev = &pdev->dev;
 	INIT_WORK(&glue->work, sunxi_musb_work);
@@ -699,6 +673,14 @@ static int sunxi_musb_probe(struct platform_device *pdev)
 				PTR_ERR(glue->rst));
 			return PTR_ERR(glue->rst);
 		}
+	}
+
+	glue->extcon = extcon_get_edev_by_phandle(&pdev->dev, 0);
+	if (IS_ERR(glue->extcon)) {
+		if (PTR_ERR(glue->extcon) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		dev_err(&pdev->dev, "Invalid or missing extcon\n");
+		return PTR_ERR(glue->extcon);
 	}
 
 	glue->phy = devm_phy_get(&pdev->dev, "usb");

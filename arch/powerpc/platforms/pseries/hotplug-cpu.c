@@ -903,8 +903,6 @@ static int parse_cede_parameters(void)
 
 static int __init pseries_cpu_hotplug_init(void)
 {
-	struct device_node *np;
-	const char *typep;
 	int cpu;
 	int qcss_tok;
 
@@ -912,17 +910,6 @@ static int __init pseries_cpu_hotplug_init(void)
 	ppc_md.cpu_probe = dlpar_cpu_probe;
 	ppc_md.cpu_release = dlpar_cpu_release;
 #endif /* CONFIG_ARCH_CPU_PROBE_RELEASE */
-
-	for_each_node_by_name(np, "interrupt-controller") {
-		typep = of_get_property(np, "compatible", NULL);
-		if (strstr(typep, "open-pic")) {
-			of_node_put(np);
-
-			printk(KERN_INFO "CPU Hotplug not supported on "
-				"systems using MPIC\n");
-			return 0;
-		}
-	}
 
 	rtas_stop_self_token = rtas_token("stop-self");
 	qcss_tok = rtas_token("query-cpu-stopped-state");

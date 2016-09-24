@@ -579,7 +579,7 @@ static inline int cpumask_parselist_user(const char __user *buf, int len,
 }
 
 /**
- * cpumask_parse - extract a cpumask from from a string
+ * cpumask_parse - extract a cpumask from a string
  * @buf: the buffer to extract from
  * @dstp: the cpumask to set.
  *

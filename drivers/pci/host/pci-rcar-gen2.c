@@ -4,6 +4,8 @@
  * Copyright (C) 2013 Renesas Solutions Corp.
  * Copyright (C) 2013 Cogent Embedded, Inc.
  *
+ * Author: Valentine Barshak <valentine.barshak@cogentembedded.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -14,7 +16,6 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
 #include <linux/pci.h>
@@ -97,7 +98,6 @@
 struct rcar_pci_priv {
 	struct device *dev;
 	void __iomem *reg;
-	struct resource io_res;
 	struct resource mem_res;
 	struct resource *cfg_res;
 	unsigned busnr;
@@ -194,6 +194,7 @@ static int rcar_pci_setup(int nr, struct pci_sys_data *sys)
 	struct rcar_pci_priv *priv = sys->private_data;
 	void __iomem *reg = priv->reg;
 	u32 val;
+	int ret;
 
 	pm_runtime_enable(priv->dev);
 	pm_runtime_get_sync(priv->dev);
@@ -273,8 +274,10 @@ static int rcar_pci_setup(int nr, struct pci_sys_data *sys)
 		rcar_pci_setup_errirq(priv);
 
 	/* Add PCI resources */
-	pci_add_resource(&sys->resources, &priv->io_res);
 	pci_add_resource(&sys->resources, &priv->mem_res);
+	ret = devm_request_pci_bus_resources(priv->dev, &sys->resources);
+	if (ret < 0)
+		return ret;
 
 	/* Setup bus number based on platform device id / of bus-range */
 	sys->busnr = priv->busnr;
@@ -371,14 +374,6 @@ static int rcar_pci_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	priv->mem_res = *mem_res;
-	/*
-	 * The controller does not support/use port I/O,
-	 * so setup a dummy port I/O region here.
-	 */
-	priv->io_res.start = priv->mem_res.start;
-	priv->io_res.end = priv->mem_res.end;
-	priv->io_res.flags = IORESOURCE_IO;
-
 	priv->cfg_res = cfg_res;
 
 	priv->irq = platform_get_irq(pdev, 0);
@@ -421,6 +416,7 @@ static int rcar_pci_probe(struct platform_device *pdev)
 	hw_private[0] = priv;
 	memset(&hw, 0, sizeof(hw));
 	hw.nr_controllers = ARRAY_SIZE(hw_private);
+	hw.io_optional = 1;
 	hw.private_data = hw_private;
 	hw.map_irq = rcar_pci_map_irq;
 	hw.ops = &rcar_pci_ops;
@@ -437,8 +433,6 @@ static struct of_device_id rcar_pci_of_match[] = {
 	{ },
 };
 
-MODULE_DEVICE_TABLE(of, rcar_pci_of_match);
-
 static struct platform_driver rcar_pci_driver = {
 	.driver = {
 		.name = "pci-rcar-gen2",
@@ -447,9 +441,4 @@ static struct platform_driver rcar_pci_driver = {
 	},
 	.probe = rcar_pci_probe,
 };
-
-module_platform_driver(rcar_pci_driver);
-
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Renesas R-Car Gen2 internal PCI");
-MODULE_AUTHOR("Valentine Barshak <valentine.barshak@cogentembedded.com>");
+builtin_platform_driver(rcar_pci_driver);

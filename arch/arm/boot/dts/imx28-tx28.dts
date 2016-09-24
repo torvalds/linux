@@ -173,7 +173,7 @@
 		default-brightness-level = <50>;
 	};
 
-	matrix_keypad: matrix-keypad@0 {
+	matrix_keypad: matrix-keypad {
 		compatible = "gpio-matrix-keypad";
 		col-gpios = <
 			&gpio5 0 GPIO_ACTIVE_HIGH

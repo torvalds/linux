@@ -57,6 +57,7 @@ static int __net_init tipc_init_net(struct net *net)
 
 	tn->net_id = 4711;
 	tn->own_addr = 0;
+	tn->mon_threshold = TIPC_DEF_MON_THRESHOLD;
 	get_random_bytes(&tn->random, sizeof(int));
 	INIT_LIST_HEAD(&tn->node_list);
 	spin_lock_init(&tn->node_list_lock);

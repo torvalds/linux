@@ -431,14 +431,13 @@ static int restart_video_queue(struct cx8800_dev    *dev,
 
 static int queue_setup(struct vb2_queue *q,
 			   unsigned int *num_buffers, unsigned int *num_planes,
-			   unsigned int sizes[], void *alloc_ctxs[])
+			   unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct cx8800_dev *dev = q->drv_priv;
 	struct cx88_core *core = dev->core;
 
 	*num_planes = 1;
 	sizes[0] = (dev->fmt->depth * core->width * core->height) >> 3;
-	alloc_ctxs[0] = dev->alloc_ctx;
 	return 0;
 }
 
@@ -1319,12 +1318,6 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 		printk("%s/0: Oops: no 32bit PCI DMA ???\n",core->name);
 		goto fail_core;
 	}
-	dev->alloc_ctx = vb2_dma_sg_init_ctx(&pci_dev->dev);
-	if (IS_ERR(dev->alloc_ctx)) {
-		err = PTR_ERR(dev->alloc_ctx);
-		goto fail_core;
-	}
-
 
 	/* initialize driver struct */
 	spin_lock_init(&dev->slock);
@@ -1445,6 +1438,7 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 	q->mem_ops = &vb2_dma_sg_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &core->lock;
+	q->dev = &dev->pci->dev;
 
 	err = vb2_queue_init(q);
 	if (err < 0)
@@ -1461,6 +1455,7 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 	q->mem_ops = &vb2_dma_sg_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &core->lock;
+	q->dev = &dev->pci->dev;
 
 	err = vb2_queue_init(q);
 	if (err < 0)
@@ -1530,7 +1525,6 @@ fail_unreg:
 	free_irq(pci_dev->irq, dev);
 	mutex_unlock(&core->lock);
 fail_core:
-	vb2_dma_sg_cleanup_ctx(dev->alloc_ctx);
 	core->v4ldev = NULL;
 	cx88_core_put(core,dev->pci);
 fail_free:
@@ -1564,7 +1558,6 @@ static void cx8800_finidev(struct pci_dev *pci_dev)
 
 	/* free memory */
 	cx88_core_put(core,dev->pci);
-	vb2_dma_sg_cleanup_ctx(dev->alloc_ctx);
 	kfree(dev);
 }
 

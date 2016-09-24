@@ -1570,10 +1570,12 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 {
 	struct cx231xx_fh  *fh  = file->private_data;
 	struct cx231xx *dev = fh->dev;
+	struct v4l2_subdev *sd;
 
 	dprintk(3, "enter vidioc_s_ctrl()\n");
 	/* Update the A/V core */
-	call_all(dev, core, s_ctrl, ctl);
+	v4l2_device_for_each_subdev(sd, &dev->v4l2_dev)
+		v4l2_s_ctrl(NULL, sd->ctrl_handler, ctl);
 	dprintk(3, "exit vidioc_s_ctrl()\n");
 	return 0;
 }

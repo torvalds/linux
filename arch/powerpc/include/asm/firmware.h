@@ -126,6 +126,12 @@ extern int fwnmi_active;
 
 extern unsigned int __start___fw_ftr_fixup, __stop___fw_ftr_fixup;
 
+#ifdef CONFIG_PPC_PSERIES
+void pseries_probe_fw_features(void);
+#else
+static inline void pseries_probe_fw_features(void) { };
+#endif
+
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* __ASM_POWERPC_FIRMWARE_H */

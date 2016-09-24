@@ -12,7 +12,7 @@
 #include "orb.h"
 #include "cio.h"
 
-int stsch(struct subchannel_id schid, struct schib *addr)
+static inline int __stsch(struct subchannel_id schid, struct schib *addr)
 {
 	register struct subchannel_id reg1 asm ("1") = schid;
 	int ccode = -EIO;
@@ -26,13 +26,21 @@ int stsch(struct subchannel_id schid, struct schib *addr)
 		: "+d" (ccode), "=m" (*addr)
 		: "d" (reg1), "a" (addr)
 		: "cc");
+	return ccode;
+}
+
+int stsch(struct subchannel_id schid, struct schib *addr)
+{
+	int ccode;
+
+	ccode = __stsch(schid, addr);
 	trace_s390_cio_stsch(schid, addr, ccode);
 
 	return ccode;
 }
 EXPORT_SYMBOL(stsch);
 
-int msch(struct subchannel_id schid, struct schib *addr)
+static inline int __msch(struct subchannel_id schid, struct schib *addr)
 {
 	register struct subchannel_id reg1 asm ("1") = schid;
 	int ccode = -EIO;
@@ -46,12 +54,20 @@ int msch(struct subchannel_id schid, struct schib *addr)
 		: "+d" (ccode)
 		: "d" (reg1), "a" (addr), "m" (*addr)
 		: "cc");
+	return ccode;
+}
+
+int msch(struct subchannel_id schid, struct schib *addr)
+{
+	int ccode;
+
+	ccode = __msch(schid, addr);
 	trace_s390_cio_msch(schid, addr, ccode);
 
 	return ccode;
 }
 
-int tsch(struct subchannel_id schid, struct irb *addr)
+static inline int __tsch(struct subchannel_id schid, struct irb *addr)
 {
 	register struct subchannel_id reg1 asm ("1") = schid;
 	int ccode;
@@ -63,12 +79,20 @@ int tsch(struct subchannel_id schid, struct irb *addr)
 		: "=d" (ccode), "=m" (*addr)
 		: "d" (reg1), "a" (addr)
 		: "cc");
+	return ccode;
+}
+
+int tsch(struct subchannel_id schid, struct irb *addr)
+{
+	int ccode;
+
+	ccode = __tsch(schid, addr);
 	trace_s390_cio_tsch(schid, addr, ccode);
 
 	return ccode;
 }
 
-int ssch(struct subchannel_id schid, union orb *addr)
+static inline int __ssch(struct subchannel_id schid, union orb *addr)
 {
 	register struct subchannel_id reg1 asm("1") = schid;
 	int ccode = -EIO;
@@ -82,13 +106,21 @@ int ssch(struct subchannel_id schid, union orb *addr)
 		: "+d" (ccode)
 		: "d" (reg1), "a" (addr), "m" (*addr)
 		: "cc", "memory");
+	return ccode;
+}
+
+int ssch(struct subchannel_id schid, union orb *addr)
+{
+	int ccode;
+
+	ccode = __ssch(schid, addr);
 	trace_s390_cio_ssch(schid, addr, ccode);
 
 	return ccode;
 }
 EXPORT_SYMBOL(ssch);
 
-int csch(struct subchannel_id schid)
+static inline int __csch(struct subchannel_id schid)
 {
 	register struct subchannel_id reg1 asm("1") = schid;
 	int ccode;
@@ -100,6 +132,14 @@ int csch(struct subchannel_id schid)
 		: "=d" (ccode)
 		: "d" (reg1)
 		: "cc");
+	return ccode;
+}
+
+int csch(struct subchannel_id schid)
+{
+	int ccode;
+
+	ccode = __csch(schid);
 	trace_s390_cio_csch(schid, ccode);
 
 	return ccode;
@@ -140,7 +180,7 @@ int chsc(void *chsc_area)
 }
 EXPORT_SYMBOL(chsc);
 
-int rchp(struct chp_id chpid)
+static inline int __rchp(struct chp_id chpid)
 {
 	register struct chp_id reg1 asm ("1") = chpid;
 	int ccode;
@@ -151,12 +191,20 @@ int rchp(struct chp_id chpid)
 		"	ipm	%0\n"
 		"	srl	%0,28"
 		: "=d" (ccode) : "d" (reg1) : "cc");
+	return ccode;
+}
+
+int rchp(struct chp_id chpid)
+{
+	int ccode;
+
+	ccode = __rchp(chpid);
 	trace_s390_cio_rchp(chpid, ccode);
 
 	return ccode;
 }
 
-int rsch(struct subchannel_id schid)
+static inline int __rsch(struct subchannel_id schid)
 {
 	register struct subchannel_id reg1 asm("1") = schid;
 	int ccode;
@@ -168,12 +216,21 @@ int rsch(struct subchannel_id schid)
 		: "=d" (ccode)
 		: "d" (reg1)
 		: "cc", "memory");
+
+	return ccode;
+}
+
+int rsch(struct subchannel_id schid)
+{
+	int ccode;
+
+	ccode = __rsch(schid);
 	trace_s390_cio_rsch(schid, ccode);
 
 	return ccode;
 }
 
-int hsch(struct subchannel_id schid)
+static inline int __hsch(struct subchannel_id schid)
 {
 	register struct subchannel_id reg1 asm("1") = schid;
 	int ccode;
@@ -185,12 +242,20 @@ int hsch(struct subchannel_id schid)
 		: "=d" (ccode)
 		: "d" (reg1)
 		: "cc");
+	return ccode;
+}
+
+int hsch(struct subchannel_id schid)
+{
+	int ccode;
+
+	ccode = __hsch(schid);
 	trace_s390_cio_hsch(schid, ccode);
 
 	return ccode;
 }
 
-int xsch(struct subchannel_id schid)
+static inline int __xsch(struct subchannel_id schid)
 {
 	register struct subchannel_id reg1 asm("1") = schid;
 	int ccode;
@@ -202,6 +267,14 @@ int xsch(struct subchannel_id schid)
 		: "=d" (ccode)
 		: "d" (reg1)
 		: "cc");
+	return ccode;
+}
+
+int xsch(struct subchannel_id schid)
+{
+	int ccode;
+
+	ccode = __xsch(schid);
 	trace_s390_cio_xsch(schid, ccode);
 
 	return ccode;

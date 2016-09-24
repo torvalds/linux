@@ -50,46 +50,285 @@
 #include <linux/vmalloc.h>
 
 #include "hfi.h"
-#include "twsi.h"
+
+/* for the given bus number, return the CSR for reading an i2c line */
+static inline u32 i2c_in_csr(u32 bus_num)
+{
+	return bus_num ? ASIC_QSFP2_IN : ASIC_QSFP1_IN;
+}
+
+/* for the given bus number, return the CSR for writing an i2c line */
+static inline u32 i2c_oe_csr(u32 bus_num)
+{
+	return bus_num ? ASIC_QSFP2_OE : ASIC_QSFP1_OE;
+}
+
+static void hfi1_setsda(void *data, int state)
+{
+	struct hfi1_i2c_bus *bus = (struct hfi1_i2c_bus *)data;
+	struct hfi1_devdata *dd = bus->controlling_dd;
+	u64 reg;
+	u32 target_oe;
+
+	target_oe = i2c_oe_csr(bus->num);
+	reg = read_csr(dd, target_oe);
+	/*
+	 * The OE bit value is inverted and connected to the pin.  When
+	 * OE is 0 the pin is left to be pulled up, when the OE is 1
+	 * the pin is driven low.  This matches the "open drain" or "open
+	 * collector" convention.
+	 */
+	if (state)
+		reg &= ~QSFP_HFI0_I2CDAT;
+	else
+		reg |= QSFP_HFI0_I2CDAT;
+	write_csr(dd, target_oe, reg);
+	/* do a read to force the write into the chip */
+	(void)read_csr(dd, target_oe);
+}
+
+static void hfi1_setscl(void *data, int state)
+{
+	struct hfi1_i2c_bus *bus = (struct hfi1_i2c_bus *)data;
+	struct hfi1_devdata *dd = bus->controlling_dd;
+	u64 reg;
+	u32 target_oe;
+
+	target_oe = i2c_oe_csr(bus->num);
+	reg = read_csr(dd, target_oe);
+	/*
+	 * The OE bit value is inverted and connected to the pin.  When
+	 * OE is 0 the pin is left to be pulled up, when the OE is 1
+	 * the pin is driven low.  This matches the "open drain" or "open
+	 * collector" convention.
+	 */
+	if (state)
+		reg &= ~QSFP_HFI0_I2CCLK;
+	else
+		reg |= QSFP_HFI0_I2CCLK;
+	write_csr(dd, target_oe, reg);
+	/* do a read to force the write into the chip */
+	(void)read_csr(dd, target_oe);
+}
+
+static int hfi1_getsda(void *data)
+{
+	struct hfi1_i2c_bus *bus = (struct hfi1_i2c_bus *)data;
+	u64 reg;
+	u32 target_in;
+
+	hfi1_setsda(data, 1);	/* clear OE so we do not pull line down */
+	udelay(2);		/* 1us pull up + 250ns hold */
+
+	target_in = i2c_in_csr(bus->num);
+	reg = read_csr(bus->controlling_dd, target_in);
+	return !!(reg & QSFP_HFI0_I2CDAT);
+}
+
+static int hfi1_getscl(void *data)
+{
+	struct hfi1_i2c_bus *bus = (struct hfi1_i2c_bus *)data;
+	u64 reg;
+	u32 target_in;
+
+	hfi1_setscl(data, 1);	/* clear OE so we do not pull line down */
+	udelay(2);		/* 1us pull up + 250ns hold */
+
+	target_in = i2c_in_csr(bus->num);
+	reg = read_csr(bus->controlling_dd, target_in);
+	return !!(reg & QSFP_HFI0_I2CCLK);
+}
 
 /*
- * QSFP support for hfi driver, using "Two Wire Serial Interface" driver
- * in twsi.c
+ * Allocate and initialize the given i2c bus number.
+ * Returns NULL on failure.
  */
-#define I2C_MAX_RETRY 4
+static struct hfi1_i2c_bus *init_i2c_bus(struct hfi1_devdata *dd,
+					 struct hfi1_asic_data *ad, int num)
+{
+	struct hfi1_i2c_bus *bus;
+	int ret;
+
+	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
+	if (!bus)
+		return NULL;
+
+	bus->controlling_dd = dd;
+	bus->num = num;	/* our bus number */
+
+	bus->algo.setsda = hfi1_setsda;
+	bus->algo.setscl = hfi1_setscl;
+	bus->algo.getsda = hfi1_getsda;
+	bus->algo.getscl = hfi1_getscl;
+	bus->algo.udelay = 5;
+	bus->algo.timeout = usecs_to_jiffies(50);
+	bus->algo.data = bus;
+
+	bus->adapter.owner = THIS_MODULE;
+	bus->adapter.algo_data = &bus->algo;
+	bus->adapter.dev.parent = &dd->pcidev->dev;
+	snprintf(bus->adapter.name, sizeof(bus->adapter.name),
+		 "hfi1_i2c%d", num);
+
+	ret = i2c_bit_add_bus(&bus->adapter);
+	if (ret) {
+		dd_dev_info(dd, "%s: unable to add i2c bus %d, err %d\n",
+			    __func__, num, ret);
+		kfree(bus);
+		return NULL;
+	}
+
+	return bus;
+}
+
+/*
+ * Initialize i2c buses.
+ * Return 0 on success, -errno on error.
+ */
+int set_up_i2c(struct hfi1_devdata *dd, struct hfi1_asic_data *ad)
+{
+	ad->i2c_bus0 = init_i2c_bus(dd, ad, 0);
+	ad->i2c_bus1 = init_i2c_bus(dd, ad, 1);
+	if (!ad->i2c_bus0 || !ad->i2c_bus1)
+		return -ENOMEM;
+	return 0;
+};
+
+static void clean_i2c_bus(struct hfi1_i2c_bus *bus)
+{
+	if (bus) {
+		i2c_del_adapter(&bus->adapter);
+		kfree(bus);
+	}
+}
+
+void clean_up_i2c(struct hfi1_devdata *dd, struct hfi1_asic_data *ad)
+{
+	clean_i2c_bus(ad->i2c_bus0);
+	ad->i2c_bus0 = NULL;
+	clean_i2c_bus(ad->i2c_bus1);
+	ad->i2c_bus1 = NULL;
+}
+
+static int i2c_bus_write(struct hfi1_devdata *dd, struct hfi1_i2c_bus *i2c,
+			 u8 slave_addr, int offset, int offset_size,
+			 u8 *data, u16 len)
+{
+	int ret;
+	int num_msgs;
+	u8 offset_bytes[2];
+	struct i2c_msg msgs[2];
+
+	switch (offset_size) {
+	case 0:
+		num_msgs = 1;
+		msgs[0].addr = slave_addr;
+		msgs[0].flags = 0;
+		msgs[0].len = len;
+		msgs[0].buf = data;
+		break;
+	case 2:
+		offset_bytes[1] = (offset >> 8) & 0xff;
+		/* fall through */
+	case 1:
+		num_msgs = 2;
+		offset_bytes[0] = offset & 0xff;
+
+		msgs[0].addr = slave_addr;
+		msgs[0].flags = 0;
+		msgs[0].len = offset_size;
+		msgs[0].buf = offset_bytes;
+
+		msgs[1].addr = slave_addr;
+		msgs[1].flags = I2C_M_NOSTART,
+		msgs[1].len = len;
+		msgs[1].buf = data;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	i2c->controlling_dd = dd;
+	ret = i2c_transfer(&i2c->adapter, msgs, num_msgs);
+	if (ret != num_msgs) {
+		dd_dev_err(dd, "%s: bus %d, i2c slave 0x%x, offset 0x%x, len 0x%x; write failed, ret %d\n",
+			   __func__, i2c->num, slave_addr, offset, len, ret);
+		return ret < 0 ? ret : -EIO;
+	}
+	return 0;
+}
+
+static int i2c_bus_read(struct hfi1_devdata *dd, struct hfi1_i2c_bus *bus,
+			u8 slave_addr, int offset, int offset_size,
+			u8 *data, u16 len)
+{
+	int ret;
+	int num_msgs;
+	u8 offset_bytes[2];
+	struct i2c_msg msgs[2];
+
+	switch (offset_size) {
+	case 0:
+		num_msgs = 1;
+		msgs[0].addr = slave_addr;
+		msgs[0].flags = I2C_M_RD;
+		msgs[0].len = len;
+		msgs[0].buf = data;
+		break;
+	case 2:
+		offset_bytes[1] = (offset >> 8) & 0xff;
+		/* fall through */
+	case 1:
+		num_msgs = 2;
+		offset_bytes[0] = offset & 0xff;
+
+		msgs[0].addr = slave_addr;
+		msgs[0].flags = 0;
+		msgs[0].len = offset_size;
+		msgs[0].buf = offset_bytes;
+
+		msgs[1].addr = slave_addr;
+		msgs[1].flags = I2C_M_RD,
+		msgs[1].len = len;
+		msgs[1].buf = data;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	bus->controlling_dd = dd;
+	ret = i2c_transfer(&bus->adapter, msgs, num_msgs);
+	if (ret != num_msgs) {
+		dd_dev_err(dd, "%s: bus %d, i2c slave 0x%x, offset 0x%x, len 0x%x; read failed, ret %d\n",
+			   __func__, bus->num, slave_addr, offset, len, ret);
+		return ret < 0 ? ret : -EIO;
+	}
+	return 0;
+}
 
 /*
  * Raw i2c write.  No set-up or lock checking.
+ *
+ * Return 0 on success, -errno on error.
  */
 static int __i2c_write(struct hfi1_pportdata *ppd, u32 target, int i2c_addr,
 		       int offset, void *bp, int len)
 {
 	struct hfi1_devdata *dd = ppd->dd;
-	int ret, cnt;
-	u8 *buff = bp;
+	struct hfi1_i2c_bus *bus;
+	u8 slave_addr;
+	int offset_size;
 
-	cnt = 0;
-	while (cnt < len) {
-		int wlen = len - cnt;
-
-		ret = hfi1_twsi_blk_wr(dd, target, i2c_addr, offset,
-				       buff + cnt, wlen);
-		if (ret) {
-			/* hfi1_twsi_blk_wr() 1 for error, else 0 */
-			return -EIO;
-		}
-		offset += wlen;
-		cnt += wlen;
-	}
-
-	/* Must wait min 20us between qsfp i2c transactions */
-	udelay(20);
-
-	return cnt;
+	bus = target ? dd->asic_data->i2c_bus1 : dd->asic_data->i2c_bus0;
+	slave_addr = (i2c_addr & 0xff) >> 1; /* convert to 7-bit addr */
+	offset_size = (i2c_addr >> 8) & 0x3;
+	return i2c_bus_write(dd, bus, slave_addr, offset, offset_size, bp, len);
 }
 
 /*
  * Caller must hold the i2c chain resource.
+ *
+ * Return number of bytes written, or -errno.
  */
 int i2c_write(struct hfi1_pportdata *ppd, u32 target, int i2c_addr, int offset,
 	      void *bp, int len)
@@ -99,63 +338,36 @@ int i2c_write(struct hfi1_pportdata *ppd, u32 target, int i2c_addr, int offset,
 	if (!check_chip_resource(ppd->dd, i2c_target(target), __func__))
 		return -EACCES;
 
-	/* make sure the TWSI bus is in a sane state */
-	ret = hfi1_twsi_reset(ppd->dd, target);
-	if (ret) {
-		hfi1_dev_porterr(ppd->dd, ppd->port,
-				 "I2C chain %d write interface reset failed\n",
-				 target);
+	ret = __i2c_write(ppd, target, i2c_addr, offset, bp, len);
+	if (ret)
 		return ret;
-	}
 
-	return __i2c_write(ppd, target, i2c_addr, offset, bp, len);
+	return len;
 }
 
 /*
  * Raw i2c read.  No set-up or lock checking.
+ *
+ * Return 0 on success, -errno on error.
  */
 static int __i2c_read(struct hfi1_pportdata *ppd, u32 target, int i2c_addr,
 		      int offset, void *bp, int len)
 {
 	struct hfi1_devdata *dd = ppd->dd;
-	int ret, cnt, pass = 0;
-	int orig_offset = offset;
+	struct hfi1_i2c_bus *bus;
+	u8 slave_addr;
+	int offset_size;
 
-	cnt = 0;
-	while (cnt < len) {
-		int rlen = len - cnt;
-
-		ret = hfi1_twsi_blk_rd(dd, target, i2c_addr, offset,
-				       bp + cnt, rlen);
-		/* Some QSFP's fail first try. Retry as experiment */
-		if (ret && cnt == 0 && ++pass < I2C_MAX_RETRY)
-			continue;
-		if (ret) {
-			/* hfi1_twsi_blk_rd() 1 for error, else 0 */
-			ret = -EIO;
-			goto exit;
-		}
-		offset += rlen;
-		cnt += rlen;
-	}
-
-	ret = cnt;
-
-exit:
-	if (ret < 0) {
-		hfi1_dev_porterr(dd, ppd->port,
-				 "I2C chain %d read failed, addr 0x%x, offset 0x%x, len %d\n",
-				 target, i2c_addr, orig_offset, len);
-	}
-
-	/* Must wait min 20us between qsfp i2c transactions */
-	udelay(20);
-
-	return ret;
+	bus = target ? dd->asic_data->i2c_bus1 : dd->asic_data->i2c_bus0;
+	slave_addr = (i2c_addr & 0xff) >> 1; /* convert to 7-bit addr */
+	offset_size = (i2c_addr >> 8) & 0x3;
+	return i2c_bus_read(dd, bus, slave_addr, offset, offset_size, bp, len);
 }
 
 /*
  * Caller must hold the i2c chain resource.
+ *
+ * Return number of bytes read, or -errno.
  */
 int i2c_read(struct hfi1_pportdata *ppd, u32 target, int i2c_addr, int offset,
 	     void *bp, int len)
@@ -165,16 +377,11 @@ int i2c_read(struct hfi1_pportdata *ppd, u32 target, int i2c_addr, int offset,
 	if (!check_chip_resource(ppd->dd, i2c_target(target), __func__))
 		return -EACCES;
 
-	/* make sure the TWSI bus is in a sane state */
-	ret = hfi1_twsi_reset(ppd->dd, target);
-	if (ret) {
-		hfi1_dev_porterr(ppd->dd, ppd->port,
-				 "I2C chain %d read interface reset failed\n",
-				 target);
+	ret = __i2c_read(ppd, target, i2c_addr, offset, bp, len);
+	if (ret)
 		return ret;
-	}
 
-	return __i2c_read(ppd, target, i2c_addr, offset, bp, len);
+	return len;
 }
 
 /*
@@ -182,6 +389,8 @@ int i2c_read(struct hfi1_pportdata *ppd, u32 target, int i2c_addr, int offset,
  * by writing @addr = ((256 * n) + m)
  *
  * Caller must hold the i2c chain resource.
+ *
+ * Return number of bytes written or -errno.
  */
 int qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	       int len)
@@ -189,20 +398,11 @@ int qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	int count = 0;
 	int offset;
 	int nwrite;
-	int ret;
+	int ret = 0;
 	u8 page;
 
 	if (!check_chip_resource(ppd->dd, i2c_target(target), __func__))
 		return -EACCES;
-
-	/* make sure the TWSI bus is in a sane state */
-	ret = hfi1_twsi_reset(ppd->dd, target);
-	if (ret) {
-		hfi1_dev_porterr(ppd->dd, ppd->port,
-				 "QSFP chain %d write interface reset failed\n",
-				 target);
-		return ret;
-	}
 
 	while (count < len) {
 		/*
@@ -213,11 +413,12 @@ int qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 
 		ret = __i2c_write(ppd, target, QSFP_DEV | QSFP_OFFSET_SIZE,
 				  QSFP_PAGE_SELECT_BYTE_OFFS, &page, 1);
-		if (ret != 1) {
+		/* QSFPs require a 5-10msec delay after write operations */
+		mdelay(5);
+		if (ret) {
 			hfi1_dev_porterr(ppd->dd, ppd->port,
 					 "QSFP chain %d can't write QSFP_PAGE_SELECT_BYTE: %d\n",
 					 target, ret);
-			ret = -EIO;
 			break;
 		}
 
@@ -229,11 +430,13 @@ int qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 
 		ret = __i2c_write(ppd, target, QSFP_DEV | QSFP_OFFSET_SIZE,
 				  offset, bp + count, nwrite);
-		if (ret <= 0)	/* stop on error or nothing written */
+		/* QSFPs require a 5-10msec delay after write operations */
+		mdelay(5);
+		if (ret)	/* stop on error */
 			break;
 
-		count += ret;
-		addr += ret;
+		count += nwrite;
+		addr += nwrite;
 	}
 
 	if (ret < 0)
@@ -243,7 +446,7 @@ int qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 
 /*
  * Perform a stand-alone single QSFP write.  Acquire the resource, do the
- * read, then release the resource.
+ * write, then release the resource.
  */
 int one_qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 		   int len)
@@ -266,6 +469,8 @@ int one_qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
  * by reading @addr = ((256 * n) + m)
  *
  * Caller must hold the i2c chain resource.
+ *
+ * Return the number of bytes read or -errno.
  */
 int qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	      int len)
@@ -273,20 +478,11 @@ int qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	int count = 0;
 	int offset;
 	int nread;
-	int ret;
+	int ret = 0;
 	u8 page;
 
 	if (!check_chip_resource(ppd->dd, i2c_target(target), __func__))
 		return -EACCES;
-
-	/* make sure the TWSI bus is in a sane state */
-	ret = hfi1_twsi_reset(ppd->dd, target);
-	if (ret) {
-		hfi1_dev_porterr(ppd->dd, ppd->port,
-				 "QSFP chain %d read interface reset failed\n",
-				 target);
-		return ret;
-	}
 
 	while (count < len) {
 		/*
@@ -296,11 +492,12 @@ int qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 		page = (u8)(addr / QSFP_PAGESIZE);
 		ret = __i2c_write(ppd, target, QSFP_DEV | QSFP_OFFSET_SIZE,
 				  QSFP_PAGE_SELECT_BYTE_OFFS, &page, 1);
-		if (ret != 1) {
+		/* QSFPs require a 5-10msec delay after write operations */
+		mdelay(5);
+		if (ret) {
 			hfi1_dev_porterr(ppd->dd, ppd->port,
 					 "QSFP chain %d can't write QSFP_PAGE_SELECT_BYTE: %d\n",
 					 target, ret);
-			ret = -EIO;
 			break;
 		}
 
@@ -310,15 +507,13 @@ int qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 		if (((addr % QSFP_RW_BOUNDARY) + nread) > QSFP_RW_BOUNDARY)
 			nread = QSFP_RW_BOUNDARY - (addr % QSFP_RW_BOUNDARY);
 
-		/* QSFPs require a 5-10msec delay after write operations */
-		mdelay(5);
 		ret = __i2c_read(ppd, target, QSFP_DEV | QSFP_OFFSET_SIZE,
 				 offset, bp + count, nread);
-		if (ret <= 0)	/* stop on error or nothing read */
+		if (ret)	/* stop on error */
 			break;
 
-		count += ret;
-		addr += ret;
+		count += nread;
+		addr += nread;
 	}
 
 	if (ret < 0)
@@ -511,8 +706,8 @@ int get_cable_info(struct hfi1_devdata *dd, u32 port_num, u32 addr, u32 len,
 		   u8 *data)
 {
 	struct hfi1_pportdata *ppd;
-	u32 excess_len = 0;
-	int ret = 0;
+	u32 excess_len = len;
+	int ret = 0, offset = 0;
 
 	if (port_num > dd->num_pports || port_num < 1) {
 		dd_dev_info(dd, "%s: Invalid port number %d\n",
@@ -545,6 +740,34 @@ int get_cable_info(struct hfi1_devdata *dd, u32 port_num, u32 addr, u32 len,
 	}
 
 	memcpy(data, &ppd->qsfp_info.cache[addr], len);
+
+	if (addr <= QSFP_MONITOR_VAL_END &&
+	    (addr + len) >= QSFP_MONITOR_VAL_START) {
+		/* Overlap with the dynamic channel monitor range */
+		if (addr < QSFP_MONITOR_VAL_START) {
+			if (addr + len <= QSFP_MONITOR_VAL_END)
+				len = addr + len - QSFP_MONITOR_VAL_START;
+			else
+				len = QSFP_MONITOR_RANGE;
+			offset = QSFP_MONITOR_VAL_START - addr;
+			addr = QSFP_MONITOR_VAL_START;
+		} else if (addr == QSFP_MONITOR_VAL_START) {
+			offset = 0;
+			if (addr + len > QSFP_MONITOR_VAL_END)
+				len = QSFP_MONITOR_RANGE;
+		} else {
+			offset = 0;
+			if (addr + len > QSFP_MONITOR_VAL_END)
+				len = QSFP_MONITOR_VAL_END - addr + 1;
+		}
+		/* Refresh the values of the dynamic monitors from the cable */
+		ret = one_qsfp_read(ppd, dd->hfi1_id, addr, data + offset, len);
+		if (ret != len) {
+			ret = -EAGAIN;
+			goto set_zeroes;
+		}
+	}
+
 	return 0;
 
 set_zeroes:

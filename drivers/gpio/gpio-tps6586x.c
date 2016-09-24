@@ -131,7 +131,6 @@ static int tps6586x_gpio_probe(struct platform_device *pdev)
 
 static struct platform_driver tps6586x_gpio_driver = {
 	.driver.name	= "tps6586x-gpio",
-	.driver.owner	= THIS_MODULE,
 	.probe		= tps6586x_gpio_probe,
 };
 

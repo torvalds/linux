@@ -14,7 +14,7 @@
 #include <linux/delay.h>
 
 #include <linux/dm9000.h>
-#include <linux/rtc-v3020.h>
+#include <linux/platform_data/rtc-v3020.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>

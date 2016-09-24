@@ -771,7 +771,7 @@ static void __init of_unittest_platform_populate(void)
 	};
 
 	np = of_find_node_by_path("/testcase-data");
-	of_platform_populate(np, of_default_bus_match_table, NULL, NULL);
+	of_platform_default_populate(np, NULL, NULL);
 
 	/* Test that a missing irq domain returns -EPROBE_DEFER */
 	np = of_find_node_by_path("/testcase-data/testcase-device1");
@@ -1871,8 +1871,7 @@ static void __init of_unittest_overlay(void)
 		goto out;
 	}
 
-	ret = of_platform_populate(bus_np, of_default_bus_match_table,
-			NULL, NULL);
+	ret = of_platform_default_populate(bus_np, NULL, NULL);
 	if (ret != 0) {
 		unittest(0, "could not populate bus @ \"%s\"\n", bus_path);
 		goto out;

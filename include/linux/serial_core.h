@@ -352,9 +352,15 @@ struct earlycon_id {
 extern const struct earlycon_id __earlycon_table[];
 extern const struct earlycon_id __earlycon_table_end[];
 
+#if defined(CONFIG_SERIAL_EARLYCON) && !defined(MODULE)
+#define EARLYCON_USED_OR_UNUSED	__used
+#else
+#define EARLYCON_USED_OR_UNUSED	__maybe_unused
+#endif
+
 #define OF_EARLYCON_DECLARE(_name, compat, fn)				\
 	static const struct earlycon_id __UNIQUE_ID(__earlycon_##_name)	\
-	     __used __section(__earlycon_table)				\
+	     EARLYCON_USED_OR_UNUSED __section(__earlycon_table)	\
 		= { .name = __stringify(_name),				\
 		    .compatible = compat,				\
 		    .setup = fn  }

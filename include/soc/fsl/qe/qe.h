@@ -80,6 +80,8 @@ enum qe_clock {
 	QE_CLK22,		/* Clock 22 */
 	QE_CLK23,		/* Clock 23 */
 	QE_CLK24,		/* Clock 24 */
+	QE_RSYNC_PIN,		/* RSYNC from pin */
+	QE_TSYNC_PIN,		/* TSYNC from pin */
 	QE_CLK_DUMMY
 };
 
@@ -241,6 +243,22 @@ static inline int qe_alive_during_sleep(void)
 #define qe_muram_free cpm_muram_free
 #define qe_muram_addr cpm_muram_addr
 #define qe_muram_offset cpm_muram_offset
+
+#define qe_setbits32(_addr, _v) iowrite32be(ioread32be(_addr) |  (_v), (_addr))
+#define qe_clrbits32(_addr, _v) iowrite32be(ioread32be(_addr) & ~(_v), (_addr))
+
+#define qe_setbits16(_addr, _v) iowrite16be(ioread16be(_addr) |  (_v), (_addr))
+#define qe_clrbits16(_addr, _v) iowrite16be(ioread16be(_addr) & ~(_v), (_addr))
+
+#define qe_setbits8(_addr, _v) iowrite8(ioread8(_addr) |  (_v), (_addr))
+#define qe_clrbits8(_addr, _v) iowrite8(ioread8(_addr) & ~(_v), (_addr))
+
+#define qe_clrsetbits32(addr, clear, set) \
+	iowrite32be((ioread32be(addr) & ~(clear)) | (set), (addr))
+#define qe_clrsetbits16(addr, clear, set) \
+	iowrite16be((ioread16be(addr) & ~(clear)) | (set), (addr))
+#define qe_clrsetbits8(addr, clear, set) \
+	iowrite8((ioread8(addr) & ~(clear)) | (set), (addr))
 
 /* Structure that defines QE firmware binary files.
  *
@@ -639,6 +657,7 @@ struct ucc_slow_pram {
 #define UCC_SLOW_GUMR_L_MODE_QMC	0x00000002
 
 /* General UCC FAST Mode Register */
+#define UCC_FAST_GUMR_LOOPBACK	0x40000000
 #define UCC_FAST_GUMR_TCI	0x20000000
 #define UCC_FAST_GUMR_TRX	0x10000000
 #define UCC_FAST_GUMR_TTX	0x08000000

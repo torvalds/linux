@@ -150,6 +150,9 @@ static void dc_write_tmpl(struct ipu_dc *dc, int word, u32 opcode, u32 operand,
 static int ipu_bus_format_to_map(u32 fmt)
 {
 	switch (fmt) {
+	default:
+		WARN_ON(1);
+		/* fall-through */
 	case MEDIA_BUS_FMT_RGB888_1X24:
 		return IPU_DC_MAP_RGB24;
 	case MEDIA_BUS_FMT_RGB565_1X16:
@@ -162,8 +165,6 @@ static int ipu_bus_format_to_map(u32 fmt)
 		return IPU_DC_MAP_LVDS666;
 	case MEDIA_BUS_FMT_BGR888_1X24:
 		return IPU_DC_MAP_BGR24;
-	default:
-		return -EINVAL;
 	}
 }
 
@@ -178,10 +179,6 @@ int ipu_dc_init_sync(struct ipu_dc *dc, struct ipu_di *di, bool interlaced,
 	dc->di = ipu_di_get_num(di);
 
 	map = ipu_bus_format_to_map(bus_format);
-	if (map < 0) {
-		dev_dbg(priv->dev, "IPU_DISP: No MAP\n");
-		return map;
-	}
 
 	/*
 	 * In interlaced mode we need more counters to create the asymmetric
