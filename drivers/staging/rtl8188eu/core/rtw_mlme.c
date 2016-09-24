@@ -259,7 +259,6 @@ void rtw_generate_random_ibss(u8 *pibss)
 	pibss[3] = (u8)(curtime & 0xff);/* p[0]; */
 	pibss[4] = (u8)((curtime>>8) & 0xff);/* p[1]; */
 	pibss[5] = (u8)((curtime>>16) & 0xff);/* p[2]; */
-	return;
 }
 
 u8 *rtw_get_capability_from_ie(u8 *ie)
@@ -557,7 +556,6 @@ static int rtw_is_desired_network(struct adapter *adapter, struct wlan_network *
 void rtw_atimdone_event_callback(struct adapter *adapter, u8 *pbuf)
 {
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("receive atimdone_evet\n"));
-	return;
 }
 
 
