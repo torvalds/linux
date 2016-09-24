@@ -2582,7 +2582,8 @@ static int sbsa_uart_probe(struct platform_device *pdev)
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "cannot obtain irq\n");
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "cannot obtain irq\n");
 		return ret;
 	}
 	uap->port.irq	= ret;
