@@ -163,7 +163,6 @@ err_put_dev:
 	return rc;
 }
 
-
 void cleanup_module(void)
 {
 	struct pci_dev *pdev = to_pci_dev(atir_driver.dev);
@@ -173,7 +172,6 @@ void cleanup_module(void)
 	pci_disable_device(pdev);
 	pci_dev_put(pdev);
 }
-
 
 static int atir_init_start(void)
 {
@@ -189,7 +187,6 @@ static void cycle_delay(int cycle)
 {
 	udelay(WAIT_CYCLE*cycle);
 }
-
 
 static int poll_main(void)
 {
