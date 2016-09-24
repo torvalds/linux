@@ -200,8 +200,8 @@ static int __init mlxplat_init(void)
 					mlxplat_lpc_resources,
 					ARRAY_SIZE(mlxplat_lpc_resources));
 
-	if (!mlxplat_dev)
-		return -ENOMEM;
+	if (IS_ERR(mlxplat_dev))
+		return PTR_ERR(mlxplat_dev);
 
 	priv = devm_kzalloc(&mlxplat_dev->dev, sizeof(struct mlxplat_priv),
 			    GFP_KERNEL);
