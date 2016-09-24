@@ -702,7 +702,7 @@ static int imon_probe(struct usb_interface *interface,
 	/* prevent races probing devices w/multiple interfaces */
 	mutex_lock(&driver_lock);
 
-	context = kzalloc(sizeof(struct imon_context), GFP_KERNEL);
+	context = kzalloc(sizeof(*context), GFP_KERNEL);
 	if (!context)
 		goto driver_unlock;
 
@@ -782,11 +782,11 @@ static int imon_probe(struct usb_interface *interface,
 			__func__, vfd_proto_6p);
 	}
 
-	driver = kzalloc(sizeof(struct lirc_driver), GFP_KERNEL);
+	driver = kzalloc(sizeof(*driver), GFP_KERNEL);
 	if (!driver)
 		goto free_context;
 
-	rbuf = kmalloc(sizeof(struct lirc_buffer), GFP_KERNEL);
+	rbuf = kmalloc(sizeof(*rbuf), GFP_KERNEL);
 	if (!rbuf)
 		goto free_driver;
 
