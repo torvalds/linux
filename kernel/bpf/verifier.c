@@ -749,9 +749,8 @@ static int check_mem_access(struct bpf_verifier_env *env, u32 regno, int off,
 		err = check_ctx_access(env, off, size, t, &reg_type);
 		if (!err && t == BPF_READ && value_regno >= 0) {
 			mark_reg_unknown_value(state->regs, value_regno);
-			if (env->allow_ptr_leaks)
-				/* note that reg.[id|off|range] == 0 */
-				state->regs[value_regno].type = reg_type;
+			/* note that reg.[id|off|range] == 0 */
+			state->regs[value_regno].type = reg_type;
 		}
 
 	} else if (reg->type == FRAME_PTR || reg->type == PTR_TO_STACK) {
