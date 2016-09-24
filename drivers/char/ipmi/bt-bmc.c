@@ -432,11 +432,6 @@ static int bt_bmc_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, bt_bmc);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "Unable to find resources\n");
-		return -ENXIO;
-	}
-
 	bt_bmc->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(bt_bmc->base))
 		return PTR_ERR(bt_bmc->base);
