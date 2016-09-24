@@ -1054,6 +1054,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			struct i40e_dcbx_config *r_cfg =
 						&pf->hw.remote_dcbx_config;
 			int i, ret;
+			u32 switch_id;
 
 			bw_data = kzalloc(sizeof(
 				    struct i40e_aqc_query_port_ets_config_resp),
@@ -1063,8 +1064,12 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 				goto command_write_done;
 			}
 
+			vsi = pf->vsi[pf->lan_vsi];
+			switch_id =
+				vsi->info.switch_id & I40E_AQ_VSI_SW_ID_MASK;
+
 			ret = i40e_aq_query_port_ets_config(&pf->hw,
-							    pf->mac_seid,
+							    switch_id,
 							    bw_data, NULL);
 			if (ret) {
 				dev_info(&pf->pdev->dev,

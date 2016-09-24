@@ -1007,7 +1007,7 @@ static void i40evf_configure(struct i40evf_adapter *adapter)
  * i40evf_up_complete - Finish the last steps of bringing up a connection
  * @adapter: board private structure
  **/
-static int i40evf_up_complete(struct i40evf_adapter *adapter)
+static void i40evf_up_complete(struct i40evf_adapter *adapter)
 {
 	adapter->state = __I40EVF_RUNNING;
 	clear_bit(__I40E_DOWN, &adapter->vsi.state);
@@ -1016,7 +1016,6 @@ static int i40evf_up_complete(struct i40evf_adapter *adapter)
 
 	adapter->aq_required |= I40EVF_FLAG_AQ_ENABLE_QUEUES;
 	mod_timer_pending(&adapter->watchdog_timer, jiffies + 1);
-	return 0;
 }
 
 /**
@@ -1037,6 +1036,7 @@ void i40evf_down(struct i40evf_adapter *adapter)
 
 	netif_carrier_off(netdev);
 	netif_tx_disable(netdev);
+	adapter->link_up = false;
 	i40evf_napi_disable_all(adapter);
 	i40evf_irq_disable(adapter);
 
@@ -1731,6 +1731,7 @@ static void i40evf_reset_task(struct work_struct *work)
 			set_bit(__I40E_DOWN, &adapter->vsi.state);
 			netif_carrier_off(netdev);
 			netif_tx_disable(netdev);
+			adapter->link_up = false;
 			i40evf_napi_disable_all(adapter);
 			i40evf_irq_disable(adapter);
 			i40evf_free_traffic_irqs(adapter);
@@ -1769,6 +1770,7 @@ continue_reset:
 	if (netif_running(adapter->netdev)) {
 		netif_carrier_off(netdev);
 		netif_tx_stop_all_queues(netdev);
+		adapter->link_up = false;
 		i40evf_napi_disable_all(adapter);
 	}
 	i40evf_irq_disable(adapter);
@@ -1783,8 +1785,7 @@ continue_reset:
 	i40evf_free_all_tx_resources(adapter);
 
 	/* kill and reinit the admin queue */
-	if (i40evf_shutdown_adminq(hw))
-		dev_warn(&adapter->pdev->dev, "Failed to shut down adminq\n");
+	i40evf_shutdown_adminq(hw);
 	adapter->current_op = I40E_VIRTCHNL_OP_UNKNOWN;
 	err = i40evf_init_adminq(hw);
 	if (err)
@@ -1824,9 +1825,7 @@ continue_reset:
 
 		i40evf_configure(adapter);
 
-		err = i40evf_up_complete(adapter);
-		if (err)
-			goto reset_err;
+		i40evf_up_complete(adapter);
 
 		i40evf_irq_enable(adapter, true);
 	} else {
@@ -2056,9 +2055,7 @@ static int i40evf_open(struct net_device *netdev)
 	i40evf_add_filter(adapter, adapter->hw.mac.addr);
 	i40evf_configure(adapter);
 
-	err = i40evf_up_complete(adapter);
-	if (err)
-		goto err_req_irq;
+	i40evf_up_complete(adapter);
 
 	i40evf_irq_enable(adapter, true);
 
@@ -2457,6 +2454,7 @@ static void i40evf_init_task(struct work_struct *work)
 		goto err_sw_init;
 
 	netif_carrier_off(netdev);
+	adapter->link_up = false;
 
 	if (!adapter->netdev_registered) {
 		err = register_netdev(netdev);
