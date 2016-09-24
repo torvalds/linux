@@ -201,8 +201,19 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 
 	_debug("%u,%u,%02x", hard_ack, top, flags);
 	trace_rxrpc_receive(call, rxrpc_receive_rotate, serial, hard_ack);
-	if (flags & RXRPC_LAST_PACKET)
+	if (flags & RXRPC_LAST_PACKET) {
 		rxrpc_end_rx_phase(call);
+	} else {
+		/* Check to see if there's an ACK that needs sending. */
+		if (after_eq(hard_ack, call->ackr_consumed + 2) ||
+		    after_eq(top, call->ackr_seen + 2) ||
+		    (hard_ack == top && after(hard_ack, call->ackr_consumed)))
+			rxrpc_propose_ACK(call, RXRPC_ACK_DELAY, 0, serial,
+					  true, false,
+					  rxrpc_propose_ack_rotate_rx);
+		if (call->ackr_reason)
+			rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ACK);
+	}
 }
 
 /*

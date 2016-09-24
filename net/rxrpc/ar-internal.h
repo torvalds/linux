@@ -533,6 +533,8 @@ struct rxrpc_call {
 	u16			ackr_skew;	/* skew on packet being ACK'd */
 	rxrpc_serial_t		ackr_serial;	/* serial of packet being ACK'd */
 	rxrpc_seq_t		ackr_prev_seq;	/* previous sequence number received */
+	rxrpc_seq_t		ackr_consumed;	/* Highest packet shown consumed */
+	rxrpc_seq_t		ackr_seen;	/* Highest packet shown seen */
 	rxrpc_serial_t		ackr_ping;	/* Last ping sent */
 	ktime_t			ackr_ping_time;	/* Time last ping sent */
 
@@ -695,6 +697,7 @@ enum rxrpc_propose_ack_trace {
 	rxrpc_propose_ack_respond_to_ack,
 	rxrpc_propose_ack_respond_to_ping,
 	rxrpc_propose_ack_retry_tx,
+	rxrpc_propose_ack_rotate_rx,
 	rxrpc_propose_ack_terminal_ack,
 	rxrpc_propose_ack__nr_trace
 };

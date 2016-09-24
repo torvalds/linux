@@ -202,6 +202,7 @@ const char rxrpc_propose_ack_traces[rxrpc_propose_ack__nr_trace][8] = {
 	[rxrpc_propose_ack_respond_to_ack]	= "Rsp2Ack",
 	[rxrpc_propose_ack_respond_to_ping]	= "Rsp2Png",
 	[rxrpc_propose_ack_retry_tx]		= "RetryTx",
+	[rxrpc_propose_ack_rotate_rx]		= "RxAck  ",
 	[rxrpc_propose_ack_terminal_ack]	= "ClTerm ",
 };
 
