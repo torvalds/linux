@@ -1239,7 +1239,7 @@ static void ip6gre_netlink_parms(struct nlattr *data[],
 		parms->encap_limit = nla_get_u8(data[IFLA_GRE_ENCAP_LIMIT]);
 
 	if (data[IFLA_GRE_FLOWINFO])
-		parms->flowinfo = nla_get_u32(data[IFLA_GRE_FLOWINFO]);
+		parms->flowinfo = nla_get_be32(data[IFLA_GRE_FLOWINFO]);
 
 	if (data[IFLA_GRE_FLAGS])
 		parms->flags = nla_get_u32(data[IFLA_GRE_FLAGS]);
