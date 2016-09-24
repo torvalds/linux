@@ -167,7 +167,7 @@ int ucc_of_parse_tdm(struct device_node *np, struct ucc_tdm *utdm,
 	}
 
 	if (siram_init_flag == 0) {
-		memset_io(utdm->siram, 0,  res->end - res->start + 1);
+		memset_io(utdm->siram, 0,  resource_size(res));
 		siram_init_flag = 1;
 	}
 
