@@ -58,15 +58,15 @@ static int ion_setup_heap_common(struct platform_device *parent,
 	int ret = 0;
 
 	switch (heap->type) {
-		case ION_HEAP_TYPE_CARVEOUT:
-		case ION_HEAP_TYPE_CHUNK:
-			if (heap->base && heap->size)
-				return 0;
+	case ION_HEAP_TYPE_CARVEOUT:
+	case ION_HEAP_TYPE_CHUNK:
+		if (heap->base && heap->size)
+			return 0;
 
-			ret = of_reserved_mem_device_init(heap->priv);
-			break;
-		default:
-			break;
+		ret = of_reserved_mem_device_init(heap->priv);
+		break;
+	default:
+		break;
 	}
 
 	return ret;
