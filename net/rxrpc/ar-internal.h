@@ -540,6 +540,20 @@ struct rxrpc_call {
 
 	/* transmission-phase ACK management */
 	rxrpc_serial_t		acks_latest;	/* serial number of latest ACK received */
+	rxrpc_seq_t		acks_lowest_nak; /* Lowest NACK in the buffer (or ==tx_hard_ack) */
+};
+
+/*
+ * Summary of a new ACK and the changes it made.
+ */
+struct rxrpc_ack_summary {
+	u8			ack_reason;
+	u8			nr_acks;		/* Number of ACKs in packet */
+	u8			nr_nacks;		/* Number of NACKs in packet */
+	u8			nr_new_acks;		/* Number of new ACKs in packet */
+	u8			nr_new_nacks;		/* Number of new NACKs in packet */
+	u8			nr_rot_new_acks;	/* Number of rotated new ACKs */
+	bool			new_low_nack;		/* T if new low NACK found */
 };
 
 enum rxrpc_skb_trace {
