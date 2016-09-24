@@ -716,7 +716,8 @@ static int vce_v3_0_set_clockgating_state(void *handle,
 	int i;
 
 	if ((adev->asic_type == CHIP_POLARIS10) ||
-	    (adev->asic_type == CHIP_TONGA))
+		(adev->asic_type == CHIP_TONGA) ||
+		(adev->asic_type == CHIP_FIJI))
 		vce_v3_0_set_bypass_mode(adev, enable);
 
 	if (!(adev->cg_flags & AMD_CG_SUPPORT_VCE_MGCG))
