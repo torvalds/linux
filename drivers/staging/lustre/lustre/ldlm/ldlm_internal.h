@@ -103,6 +103,7 @@ int ldlm_cancel_lru_local(struct ldlm_namespace *ns,
 			  struct list_head *cancels, int count, int max,
 			  enum ldlm_cancel_flags cancel_flags, int flags);
 extern unsigned int ldlm_enqueue_min;
+extern unsigned int ldlm_cancel_unused_locks_before_replay;
 
 /* ldlm_resource.c */
 int ldlm_resource_putref_locked(struct ldlm_resource *res);

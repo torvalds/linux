@@ -877,8 +877,6 @@ void ldlm_put_ref(void)
 }
 EXPORT_SYMBOL(ldlm_put_ref);
 
-extern unsigned int ldlm_cancel_unused_locks_before_replay;
-
 static ssize_t cancel_unused_locks_before_replay_show(struct kobject *kobj,
 						      struct attribute *attr,
 						      char *buf)
