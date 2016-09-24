@@ -724,17 +724,17 @@ static int sasem_probe(struct usb_interface *interface,
 	/* Allocate memory */
 	alloc_status = 0;
 
-	context = kzalloc(sizeof(struct sasem_context), GFP_KERNEL);
+	context = kzalloc(sizeof(*context), GFP_KERNEL);
 	if (!context) {
 		alloc_status = 1;
 		goto alloc_status_switch;
 	}
-	driver = kzalloc(sizeof(struct lirc_driver), GFP_KERNEL);
+	driver = kzalloc(sizeof(*driver), GFP_KERNEL);
 	if (!driver) {
 		alloc_status = 2;
 		goto alloc_status_switch;
 	}
-	rbuf = kmalloc(sizeof(struct lirc_buffer), GFP_KERNEL);
+	rbuf = kmalloc(sizeof(*rbuf), GFP_KERNEL);
 	if (!rbuf) {
 		alloc_status = 3;
 		goto alloc_status_switch;
