@@ -15,6 +15,20 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		ramoops@88d00000{
+			compatible = "ramoops";
+			reg = <0x88d00000 0x100000>;
+			record-size     = <0x00020000>;
+			console-size    = <0x00020000>;
+			ftrace-size     = <0x00020000>;
+		};
+	};
+
 	ext_3p3v: regulator-fixed@1 {
 		compatible = "regulator-fixed";
 		regulator-min-microvolt = <3300000>;
