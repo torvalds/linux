@@ -331,8 +331,16 @@ next_subpacket:
 	call->rxtx_annotations[ix] = annotation;
 	smp_wmb();
 	call->rxtx_buffer[ix] = skb;
-	if (after(seq, call->rx_top))
+	if (after(seq, call->rx_top)) {
 		smp_store_release(&call->rx_top, seq);
+	} else if (before(seq, call->rx_top)) {
+		/* Send an immediate ACK if we fill in a hole */
+		if (!ack) {
+			ack = RXRPC_ACK_DELAY;
+			ack_serial = serial;
+		}
+		immediate_ack = true;
+	}
 	if (flags & RXRPC_LAST_PACKET) {
 		set_bit(RXRPC_CALL_RX_LAST, &call->flags);
 		trace_rxrpc_receive(call, rxrpc_receive_queue_last, serial, seq);
