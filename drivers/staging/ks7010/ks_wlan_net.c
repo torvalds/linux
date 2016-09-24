@@ -3349,8 +3349,6 @@ void ks_wlan_tx_timeout(struct net_device *dev)
 	}
 	priv->nstats.tx_errors++;
 	netif_wake_queue(dev);
-
-	return;
 }
 
 static
@@ -3416,8 +3414,6 @@ void ks_wlan_set_multicast_list(struct net_device *dev)
 		return;	/* not finished initialize */
 	}
 	hostif_sme_enqueue(priv, SME_MULTICAST_REQUEST);
-
-	return;
 }
 
 static
