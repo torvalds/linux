@@ -200,8 +200,14 @@ static void rxrpc_resend(struct rxrpc_call *call)
 				       ktime_to_ns(ktime_sub(skb->tstamp, max_age)));
 	}
 
-	resend_at = ktime_sub(ktime_add_ms(oldest, rxrpc_resend_timeout), now);
-	call->resend_at = jiffies + nsecs_to_jiffies(ktime_to_ns(resend_at));
+	resend_at = ktime_add_ms(oldest, rxrpc_resend_timeout);
+	call->resend_at = jiffies +
+		nsecs_to_jiffies(ktime_to_ns(ktime_sub(resend_at, now))) +
+		1; /* We have to make sure that the calculated jiffies value
+		    * falls at or after the nsec value, or we shall loop
+		    * ceaselessly because the timer times out, but we haven't
+		    * reached the nsec timeout yet.
+		    */
 
 	/* Now go through the Tx window and perform the retransmissions.  We
 	 * have to drop the lock for each send.  If an ACK comes in whilst the
