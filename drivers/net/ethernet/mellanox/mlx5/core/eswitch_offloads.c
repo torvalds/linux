@@ -450,8 +450,7 @@ static int esw_create_offloads_fast_fdb_table(struct mlx5_eswitch *esw)
 	esw_size = min_t(int, MLX5_CAP_GEN(dev, max_flow_counter) * ESW_OFFLOADS_NUM_GROUPS,
 			 1 << MLX5_CAP_ESW_FLOWTABLE_FDB(dev, log_max_ft_size));
 
-	if (MLX5_CAP_ESW_FLOWTABLE_FDB(dev, encap) &&
-	    MLX5_CAP_ESW_FLOWTABLE_FDB(dev, decap))
+	if (esw->offloads.encap != DEVLINK_ESWITCH_ENCAP_MODE_NONE)
 		flags |= MLX5_FLOW_TABLE_TUNNEL_EN;
 
 	fdb = mlx5_create_auto_grouped_flow_table(root_ns, FDB_FAST_PATH,
@@ -1042,6 +1041,66 @@ int mlx5_eswitch_inline_mode_get(struct mlx5_eswitch *esw, int nvfs, u8 *mode)
 	}
 
 	*mode = mlx5_mode;
+	return 0;
+}
+
+int mlx5_devlink_eswitch_encap_mode_set(struct devlink *devlink, u8 encap)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	struct mlx5_eswitch *esw = dev->priv.eswitch;
+	int err;
+
+	if (!MLX5_CAP_GEN(dev, vport_group_manager))
+		return -EOPNOTSUPP;
+
+	if (esw->mode == SRIOV_NONE)
+		return -EOPNOTSUPP;
+
+	if (encap != DEVLINK_ESWITCH_ENCAP_MODE_NONE &&
+	    (!MLX5_CAP_ESW_FLOWTABLE_FDB(dev, encap) ||
+	     !MLX5_CAP_ESW_FLOWTABLE_FDB(dev, decap)))
+		return -EOPNOTSUPP;
+
+	if (encap && encap != DEVLINK_ESWITCH_ENCAP_MODE_BASIC)
+		return -EOPNOTSUPP;
+
+	if (esw->mode == SRIOV_LEGACY) {
+		esw->offloads.encap = encap;
+		return 0;
+	}
+
+	if (esw->offloads.encap == encap)
+		return 0;
+
+	if (esw->offloads.num_flows > 0) {
+		esw_warn(dev, "Can't set encapsulation when flows are configured\n");
+		return -EOPNOTSUPP;
+	}
+
+	esw_destroy_offloads_fast_fdb_table(esw);
+
+	esw->offloads.encap = encap;
+	err = esw_create_offloads_fast_fdb_table(esw);
+	if (err) {
+		esw_warn(esw->dev, "Failed re-creating fast FDB table, err %d\n", err);
+		esw->offloads.encap = !encap;
+		(void) esw_create_offloads_fast_fdb_table(esw);
+	}
+	return err;
+}
+
+int mlx5_devlink_eswitch_encap_mode_get(struct devlink *devlink, u8 *encap)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	struct mlx5_eswitch *esw = dev->priv.eswitch;
+
+	if (!MLX5_CAP_GEN(dev, vport_group_manager))
+		return -EOPNOTSUPP;
+
+	if (esw->mode == SRIOV_NONE)
+		return -EOPNOTSUPP;
+
+	*encap = esw->offloads.encap;
 	return 0;
 }
 
