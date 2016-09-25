@@ -75,8 +75,12 @@ int __init lkl_start_kernel(struct lkl_host_operations *ops,
 	}
 
 	lkl_ops->sem_down(init_sem);
+	current_thread_info()->tid = lkl_ops->thread_self();
+	lkl_cpu_change_owner(current_thread_info()->tid);
 
+	lkl_cpu_put();
 	is_running = 1;
+
 	return 0;
 
 out_free_init_sem:
@@ -118,7 +122,7 @@ long lkl_sys_halt(void)
 
 	lkl_cpu_wait_shutdown();
 
-	free_initial_syscall_thread();
+	syscalls_cleanup();
 	threads_cleanup();
 	/* Shutdown the clockevents source. */
 	tick_suspend_local();
@@ -151,9 +155,12 @@ static int lkl_run_init(struct linux_binprm *bprm)
 
 	set_binfmt(&lkl_run_init_binfmt);
 
-	initial_syscall_thread(init_sem);
+	init_pid_ns.child_reaper = 0;
 
-	kernel_halt();
+	syscalls_init();
+
+	lkl_ops->sem_up(init_sem);
+	lkl_ops->thread_exit();
 
 	return 0;
 }
