@@ -548,7 +548,7 @@ int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 	u8 opcode, sc, vl;
 	int req_queued = 0;
 	u16 dlid;
-	u8 selector;
+	u32 selector;
 
 	if (iovec[idx].iov_len < sizeof(info) + sizeof(req->hdr)) {
 		hfi1_cdbg(
@@ -753,12 +753,9 @@ int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 
 	dlid = be16_to_cpu(req->hdr.lrh[1]);
 	selector = dlid_to_selector(dlid);
+	selector += uctxt->ctxt + fd->subctxt;
+	req->sde = sdma_select_user_engine(dd, selector, vl);
 
-	/* Have to select the engine */
-	req->sde = sdma_select_engine_vl(dd,
-					 (u32)(uctxt->ctxt + fd->subctxt +
-					       selector),
-					 vl);
 	if (!req->sde || !sdma_running(req->sde)) {
 		ret = -ECOMM;
 		goto free_req;

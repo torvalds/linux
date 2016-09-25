@@ -413,6 +413,8 @@ struct sdma_engine {
 	spinlock_t flushlist_lock;
 	/* private: */
 	struct list_head flushlist;
+	struct cpumask cpu_mask;
+	struct kobject kobj;
 };
 
 int sdma_init(struct hfi1_devdata *dd, u8 port);
@@ -1059,6 +1061,12 @@ struct sdma_engine *sdma_select_engine_vl(
 	u32 selector,
 	u8 vl);
 
+struct sdma_engine *sdma_select_user_engine(struct hfi1_devdata *dd,
+					    u32 selector, u8 vl);
+ssize_t sdma_get_cpu_to_sde_map(struct sdma_engine *sde, char *buf);
+ssize_t sdma_set_cpu_to_sde_map(struct sdma_engine *sde, const char *buf,
+				size_t count);
+int sdma_engine_get_vl(struct sdma_engine *sde);
 void sdma_seqfile_dump_sde(struct seq_file *s, struct sdma_engine *);
 
 #ifdef CONFIG_SDMA_VERBOSITY

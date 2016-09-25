@@ -65,6 +65,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <rdma/ib_hdrs.h>
+#include <linux/rhashtable.h>
 #include <rdma/rdma_vt.h>
 
 #include "chip_registers.h"
@@ -1174,6 +1175,7 @@ struct hfi1_devdata {
 	atomic_t aspm_disabled_cnt;
 
 	struct hfi1_affinity *affinity;
+	struct rhashtable sdma_rht;
 	struct kobject kobj;
 };
 

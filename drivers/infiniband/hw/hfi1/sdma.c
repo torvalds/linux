@@ -726,6 +726,34 @@ u16 sdma_get_descq_cnt(void)
 }
 
 /**
+ * sdma_engine_get_vl() - return vl for a given sdma engine
+ * @sde: sdma engine
+ *
+ * This function returns the vl mapped to a given engine, or an error if
+ * the mapping can't be found. The mapping fields are protected by RCU.
+ */
+int sdma_engine_get_vl(struct sdma_engine *sde)
+{
+	struct hfi1_devdata *dd = sde->dd;
+	struct sdma_vl_map *m;
+	u8 vl;
+
+	if (sde->this_idx >= TXE_NUM_SDMA_ENGINES)
+		return -EINVAL;
+
+	rcu_read_lock();
+	m = rcu_dereference(dd->sdma_map);
+	if (unlikely(!m)) {
+		rcu_read_unlock();
+		return -EINVAL;
+	}
+	vl = m->engine_to_vl[sde->this_idx];
+	rcu_read_unlock();
+
+	return vl;
+}
+
+/**
  * sdma_select_engine_vl() - select sdma engine
  * @dd: devdata
  * @selector: a spreading factor
@@ -786,6 +814,283 @@ struct sdma_engine *sdma_select_engine_sc(
 	u8 vl = sc_to_vlt(dd, sc5);
 
 	return sdma_select_engine_vl(dd, selector, vl);
+}
+
+struct sdma_rht_map_elem {
+	u32 mask;
+	u8 ctr;
+	struct sdma_engine *sde[0];
+};
+
+struct sdma_rht_node {
+	unsigned long cpu_id;
+	struct sdma_rht_map_elem *map[HFI1_MAX_VLS_SUPPORTED];
+	struct rhash_head node;
+};
+
+#define NR_CPUS_HINT 192
+
+static const struct rhashtable_params sdma_rht_params = {
+	.nelem_hint = NR_CPUS_HINT,
+	.head_offset = offsetof(struct sdma_rht_node, node),
+	.key_offset = offsetof(struct sdma_rht_node, cpu_id),
+	.key_len = FIELD_SIZEOF(struct sdma_rht_node, cpu_id),
+	.max_size = NR_CPUS,
+	.min_size = 8,
+	.automatic_shrinking = true,
+};
+
+/*
+ * sdma_select_user_engine() - select sdma engine based on user setup
+ * @dd: devdata
+ * @selector: a spreading factor
+ * @vl: this vl
+ *
+ * This function returns an sdma engine for a user sdma request.
+ * User defined sdma engine affinity setting is honored when applicable,
+ * otherwise system default sdma engine mapping is used. To ensure correct
+ * ordering, the mapping from <selector, vl> to sde must remain unchanged.
+ */
+struct sdma_engine *sdma_select_user_engine(struct hfi1_devdata *dd,
+					    u32 selector, u8 vl)
+{
+	struct sdma_rht_node *rht_node;
+	struct sdma_engine *sde = NULL;
+	const struct cpumask *current_mask = tsk_cpus_allowed(current);
+	unsigned long cpu_id;
+
+	/*
+	 * To ensure that always the same sdma engine(s) will be
+	 * selected make sure the process is pinned to this CPU only.
+	 */
+	if (cpumask_weight(current_mask) != 1)
+		goto out;
+
+	cpu_id = smp_processor_id();
+	rcu_read_lock();
+	rht_node = rhashtable_lookup_fast(&dd->sdma_rht, &cpu_id,
+					  sdma_rht_params);
+
+	if (rht_node && rht_node->map[vl]) {
+		struct sdma_rht_map_elem *map = rht_node->map[vl];
+
+		sde = map->sde[selector & map->mask];
+	}
+	rcu_read_unlock();
+
+	if (sde)
+		return sde;
+
+out:
+	return sdma_select_engine_vl(dd, selector, vl);
+}
+
+static void sdma_populate_sde_map(struct sdma_rht_map_elem *map)
+{
+	int i;
+
+	for (i = 0; i < roundup_pow_of_two(map->ctr ? : 1) - map->ctr; i++)
+		map->sde[map->ctr + i] = map->sde[i];
+}
+
+static void sdma_cleanup_sde_map(struct sdma_rht_map_elem *map,
+				 struct sdma_engine *sde)
+{
+	unsigned int i, pow;
+
+	/* only need to check the first ctr entries for a match */
+	for (i = 0; i < map->ctr; i++) {
+		if (map->sde[i] == sde) {
+			memmove(&map->sde[i], &map->sde[i + 1],
+				(map->ctr - i - 1) * sizeof(map->sde[0]));
+			map->ctr--;
+			pow = roundup_pow_of_two(map->ctr ? : 1);
+			map->mask = pow - 1;
+			sdma_populate_sde_map(map);
+			break;
+		}
+	}
+}
+
+/*
+ * Prevents concurrent reads and writes of the sdma engine cpu_mask
+ */
+static DEFINE_MUTEX(process_to_sde_mutex);
+
+ssize_t sdma_set_cpu_to_sde_map(struct sdma_engine *sde, const char *buf,
+				size_t count)
+{
+	struct hfi1_devdata *dd = sde->dd;
+	cpumask_var_t mask, new_mask;
+	unsigned long cpu;
+	int ret, vl, sz;
+
+	vl = sdma_engine_get_vl(sde);
+	if (unlikely(vl < 0))
+		return -EINVAL;
+
+	ret = zalloc_cpumask_var(&mask, GFP_KERNEL);
+	if (!ret)
+		return -ENOMEM;
+
+	ret = zalloc_cpumask_var(&new_mask, GFP_KERNEL);
+	if (!ret) {
+		free_cpumask_var(mask);
+		return -ENOMEM;
+	}
+	ret = cpulist_parse(buf, mask);
+	if (ret)
+		goto out_free;
+
+	if (!cpumask_subset(mask, cpu_online_mask)) {
+		dd_dev_warn(sde->dd, "Invalid CPU mask\n");
+		ret = -EINVAL;
+		goto out_free;
+	}
+
+	sz = sizeof(struct sdma_rht_map_elem) +
+			(TXE_NUM_SDMA_ENGINES * sizeof(struct sdma_engine *));
+
+	mutex_lock(&process_to_sde_mutex);
+
+	for_each_cpu(cpu, mask) {
+		struct sdma_rht_node *rht_node;
+
+		/* Check if we have this already mapped */
+		if (cpumask_test_cpu(cpu, &sde->cpu_mask)) {
+			cpumask_set_cpu(cpu, new_mask);
+			continue;
+		}
+
+		rht_node = rhashtable_lookup_fast(&dd->sdma_rht, &cpu,
+						  sdma_rht_params);
+		if (!rht_node) {
+			rht_node = kzalloc(sizeof(*rht_node), GFP_KERNEL);
+			if (!rht_node) {
+				ret = -ENOMEM;
+				goto out;
+			}
+
+			rht_node->map[vl] = kzalloc(sz, GFP_KERNEL);
+			if (!rht_node->map[vl]) {
+				kfree(rht_node);
+				ret = -ENOMEM;
+				goto out;
+			}
+			rht_node->cpu_id = cpu;
+			rht_node->map[vl]->mask = 0;
+			rht_node->map[vl]->ctr = 1;
+			rht_node->map[vl]->sde[0] = sde;
+
+			ret = rhashtable_insert_fast(&dd->sdma_rht,
+						     &rht_node->node,
+						     sdma_rht_params);
+			if (ret) {
+				kfree(rht_node->map[vl]);
+				kfree(rht_node);
+				dd_dev_err(sde->dd, "Failed to set process to sde affinity for cpu %lu\n",
+					   cpu);
+				goto out;
+			}
+
+		} else {
+			int ctr, pow;
+
+			/* Add new user mappings */
+			if (!rht_node->map[vl])
+				rht_node->map[vl] = kzalloc(sz, GFP_KERNEL);
+
+			if (!rht_node->map[vl]) {
+				ret = -ENOMEM;
+				goto out;
+			}
+
+			rht_node->map[vl]->ctr++;
+			ctr = rht_node->map[vl]->ctr;
+			rht_node->map[vl]->sde[ctr - 1] = sde;
+			pow = roundup_pow_of_two(ctr);
+			rht_node->map[vl]->mask = pow - 1;
+
+			/* Populate the sde map table */
+			sdma_populate_sde_map(rht_node->map[vl]);
+		}
+		cpumask_set_cpu(cpu, new_mask);
+	}
+
+	/* Clean up old mappings */
+	for_each_cpu(cpu, cpu_online_mask) {
+		struct sdma_rht_node *rht_node;
+
+		/* Don't cleanup sdes that are set in the new mask */
+		if (cpumask_test_cpu(cpu, mask))
+			continue;
+
+		rht_node = rhashtable_lookup_fast(&dd->sdma_rht, &cpu,
+						  sdma_rht_params);
+		if (rht_node) {
+			bool empty = true;
+			int i;
+
+			/* Remove mappings for old sde */
+			for (i = 0; i < HFI1_MAX_VLS_SUPPORTED; i++)
+				if (rht_node->map[i])
+					sdma_cleanup_sde_map(rht_node->map[i],
+							     sde);
+
+			/* Free empty hash table entries */
+			for (i = 0; i < HFI1_MAX_VLS_SUPPORTED; i++) {
+				if (!rht_node->map[i])
+					continue;
+
+				if (rht_node->map[i]->ctr) {
+					empty = false;
+					break;
+				}
+			}
+
+			if (empty) {
+				ret = rhashtable_remove_fast(&dd->sdma_rht,
+							     &rht_node->node,
+							     sdma_rht_params);
+				WARN_ON(ret);
+
+				for (i = 0; i < HFI1_MAX_VLS_SUPPORTED; i++)
+					kfree(rht_node->map[i]);
+
+				kfree(rht_node);
+			}
+		}
+	}
+
+	cpumask_copy(&sde->cpu_mask, new_mask);
+out:
+	mutex_unlock(&process_to_sde_mutex);
+out_free:
+	free_cpumask_var(mask);
+	free_cpumask_var(new_mask);
+	return ret ? : strnlen(buf, PAGE_SIZE);
+}
+
+ssize_t sdma_get_cpu_to_sde_map(struct sdma_engine *sde, char *buf)
+{
+	mutex_lock(&process_to_sde_mutex);
+	if (cpumask_empty(&sde->cpu_mask))
+		snprintf(buf, PAGE_SIZE, "%s\n", "empty");
+	else
+		cpumap_print_to_pagebuf(true, buf, &sde->cpu_mask);
+	mutex_unlock(&process_to_sde_mutex);
+	return strnlen(buf, PAGE_SIZE);
+}
+
+static void sdma_rht_free(void *ptr, void *arg)
+{
+	struct sdma_rht_node *rht_node = ptr;
+	int i;
+
+	for (i = 0; i < HFI1_MAX_VLS_SUPPORTED; i++)
+		kfree(rht_node->map[i]);
+
+	kfree(rht_node);
 }
 
 /*
@@ -1161,6 +1466,10 @@ int sdma_init(struct hfi1_devdata *dd, u8 port)
 	dd->num_sdma = num_engines;
 	if (sdma_map_init(dd, port, ppd->vls_operational, NULL))
 		goto bail;
+
+	if (rhashtable_init(&dd->sdma_rht, &sdma_rht_params))
+		goto bail;
+
 	dd_dev_info(dd, "SDMA num_sdma: %u\n", dd->num_sdma);
 	return 0;
 
@@ -1252,6 +1561,7 @@ void sdma_exit(struct hfi1_devdata *dd)
 		sdma_finalput(&sde->state);
 	}
 	sdma_clean(dd, dd->num_sdma);
+	rhashtable_free_and_destroy(&dd->sdma_rht, sdma_rht_free, NULL);
 }
 
 /*
