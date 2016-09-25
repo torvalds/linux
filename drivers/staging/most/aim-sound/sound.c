@@ -607,7 +607,8 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 	channel->id = channel_id;
 	init_waitqueue_head(&channel->playback_waitq);
 
-	if (audio_set_hw_params(&channel->pcm_hardware, pcm_format, cfg))
+	ret = audio_set_hw_params(&channel->pcm_hardware, pcm_format, cfg);
+	if (ret)
 		goto err_free_card;
 
 	snprintf(card->driver, sizeof(card->driver), "%s", DRIVER_NAME);
