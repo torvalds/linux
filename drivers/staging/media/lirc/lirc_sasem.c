@@ -47,7 +47,6 @@
 #include <media/lirc.h>
 #include <media/lirc_dev.h>
 
-
 #define MOD_AUTHOR	"Oliver Stabel <oliver.stabel@gmx.de>, " \
 			"Tim Davies <tim@opensystems.net.au>"
 #define MOD_DESC	"USB Driver for Sasem Remote Controller V1.1"
@@ -86,7 +85,6 @@ static void ir_close(void *data);
 #define SASEM_DATA_BUF_SZ	32
 
 struct sasem_context {
-
 	struct usb_device *dev;
 	int vfd_isopen;			/* VFD port has been opened */
 	unsigned int vfd_contrast;	/* VFD contrast */
@@ -156,7 +154,6 @@ static int debug;
 
 
 /*** M O D U L E   C O D E ***/
-
 MODULE_AUTHOR(MOD_AUTHOR);
 MODULE_DESCRIPTION(MOD_DESC);
 MODULE_LICENSE("GPL");
@@ -186,7 +183,6 @@ static void deregister_from_lirc(struct sasem_context *context)
 	else
 		dev_info(&context->dev->dev,
 			 "Deregistered Sasem driver (minor:%d)\n", minor);
-
 }
 
 /**
@@ -297,7 +293,6 @@ static int vfd_close(struct inode *inode, struct file *file)
 		context->vfd_isopen = 0;
 		dev_info(&context->dev->dev, "VFD port closed\n");
 		if (!context->dev_present && !context->ir_isopen) {
-
 			/* Device disconnected before close and IR port is
 			 * not open. If IR port is open, context will be
 			 * deleted by ir_close. */
@@ -546,9 +541,7 @@ static void ir_close(void *data)
 		 * at disconnect time, so do it now.
 		 */
 		deregister_from_lirc(context);
-
 		if (!context->vfd_isopen) {
-
 			mutex_unlock(&context->ctx_lock);
 			delete_context(context);
 			return;
@@ -633,7 +626,6 @@ static void usb_rx_callback(struct urb *urb)
 		return;
 
 	switch (urb->status) {
-
 	case -ENOENT:		/* usbcore unlink successful! */
 		return;
 
@@ -650,8 +642,6 @@ static void usb_rx_callback(struct urb *urb)
 
 	usb_submit_urb(context->rx_urb, GFP_ATOMIC);
 }
-
-
 
 /**
  * Callback function for USB core API: Probe
@@ -709,7 +699,6 @@ static int sasem_probe(struct usb_interface *interface,
 
 		} else if (!vfd_ep_found &&
 			usb_endpoint_is_int_out(ep)) {
-
 			tx_endpoint = ep;
 			vfd_ep_found = 1;
 			if (debug)
