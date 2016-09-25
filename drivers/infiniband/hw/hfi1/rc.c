@@ -926,8 +926,10 @@ void hfi1_send_rc_ack(struct hfi1_ctxtdata *rcd, struct rvt_qp *qp,
 	return;
 
 queue_ack:
-	this_cpu_inc(*ibp->rvp.rc_qacks);
 	spin_lock_irqsave(&qp->s_lock, flags);
+	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK))
+		goto unlock;
+	this_cpu_inc(*ibp->rvp.rc_qacks);
 	qp->s_flags |= RVT_S_ACK_PENDING | RVT_S_RESP_PENDING;
 	qp->s_nak_state = qp->r_nak_state;
 	qp->s_ack_psn = qp->r_ack_psn;
@@ -936,6 +938,7 @@ queue_ack:
 
 	/* Schedule the send tasklet. */
 	hfi1_schedule_send(qp);
+unlock:
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 }
 
