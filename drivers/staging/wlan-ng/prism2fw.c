@@ -243,7 +243,7 @@ static int prism2_fwapply(const struct ihex_binrec *rfptr,
 {
 	signed int result = 0;
 	struct p80211msg_dot11req_mibget getmsg;
-	p80211itemd_t *item;
+	struct p80211itemd *item;
 	u32 *data;
 
 	/* Initialize the data structures */
@@ -293,7 +293,7 @@ static int prism2_fwapply(const struct ihex_binrec *rfptr,
 	getmsg.resultcode.did = DIDmsg_dot11req_mibget_resultcode;
 	getmsg.resultcode.status = P80211ENUM_msgitem_status_no_value;
 
-	item = (p80211itemd_t *)getmsg.mibattribute.data;
+	item = (struct p80211itemd *)getmsg.mibattribute.data;
 	item->did = DIDmib_p2_p2NIC_p2PRISupRange;
 	item->status = P80211ENUM_msgitem_status_no_value;
 

@@ -266,7 +266,7 @@ int prism2mgmt_mibset_mibget(struct wlandevice *wlandev, void *msgp)
 	u16 which;
 
 	struct p80211msg_dot11req_mibset *msg = msgp;
-	p80211itemd_t *mibitem;
+	struct p80211itemd *mibitem;
 
 	msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
 	msg->resultcode.data = P80211ENUM_resultcode_success;
@@ -284,7 +284,7 @@ int prism2mgmt_mibset_mibget(struct wlandevice *wlandev, void *msgp)
 	 ** MIB table.
 	 */
 
-	mibitem = (p80211itemd_t *)msg->mibattribute.data;
+	mibitem = (struct p80211itemd *)msg->mibattribute.data;
 
 	for (mib = mibtab; mib->did != 0; mib++)
 		if (mib->did == mibitem->did && (mib->flag & which))
