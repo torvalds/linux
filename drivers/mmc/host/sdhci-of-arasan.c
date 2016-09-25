@@ -250,7 +250,7 @@ static void sdhci_arasan_hs400_enhanced_strobe(struct mmc_host *mmc,
 	writel(vendor, host->ioaddr + SDHCI_ARASAN_VENDOR_REGISTER);
 }
 
-void sdhci_arasan_reset(struct sdhci_host *host, u8 mask)
+static void sdhci_arasan_reset(struct sdhci_host *host, u8 mask)
 {
 	u8 ctrl;
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
