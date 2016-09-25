@@ -231,10 +231,10 @@ struct p80211pstr255 {
 } __packed;
 
 /* pascal string for macaddress and bssid */
-typedef struct p80211pstr6 {
+struct p80211pstr6 {
 	u8 len;
 	u8 data[MAXLEN_PSTR6];
-} __packed p80211pstr6_t;
+} __packed;
 
 /* pascal string for channel list */
 typedef struct p80211pstr14 {
@@ -282,7 +282,7 @@ typedef struct p80211item_pstr6 {
 	u32 did;
 	u16 status;
 	u16 len;
-	p80211pstr6_t data;
+	struct p80211pstr6 data;
 } __packed p80211item_pstr6_t;
 
 /* message data item for OCTETSTR, DISPLAYSTR */
