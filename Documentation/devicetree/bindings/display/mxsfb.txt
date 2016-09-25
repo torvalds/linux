@@ -1,20 +1,20 @@
 * Freescale MXS LCD Interface (LCDIF)
 
 Required properties:
-- compatible: Should be "fsl,<chip>-lcdif".  Supported chips include
-  imx23 and imx28.
-- reg: Address and length of the register set for lcdif
-- interrupts: Should contain lcdif interrupts
-- display : phandle to display node (see below for details)
+- compatible:	Should be "fsl,imx23-lcdif" for i.MX23.
+		Should be "fsl,imx28-lcdif" for i.MX28.
+- reg:		Address and length of the register set for lcdif
+- interrupts:	Should contain lcdif interrupts
+- display:	phandle to display node (see below for details)
 
 * display node
 
 Required properties:
-- bits-per-pixel : <16> for RGB565, <32> for RGB888/666.
-- bus-width : number of data lines.  Could be <8>, <16>, <18> or <24>.
+- bits-per-pixel:	<16> for RGB565, <32> for RGB888/666.
+- bus-width:		number of data lines.  Could be <8>, <16>, <18> or <24>.
 
 Required sub-node:
-- display-timings : Refer to binding doc display-timing.txt for details.
+- display-timings:	Refer to binding doc display-timing.txt for details.
 
 Examples:
 
