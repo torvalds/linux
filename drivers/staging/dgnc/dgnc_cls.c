@@ -345,7 +345,7 @@ static void cls_copy_data_from_uart_to_queue(struct channel_t *ch)
 
 		/*
 		 * Discard character if we are ignoring the error mask.
-		*/
+		 */
 		if (linestatus & error_mask)  {
 			linestatus = 0;
 			readb(&ch->ch_cls_uart->txrx);
