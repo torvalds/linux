@@ -44,7 +44,7 @@ MODULE_PARM_DESC(rx_frag_size, "Size of a fragment that holds rcvd data.");
 /* Per-module error detection/recovery workq shared across all functions.
  * Each function schedules its own work request on this shared workq.
  */
-struct workqueue_struct *be_err_recovery_workq;
+static struct workqueue_struct *be_err_recovery_workq;
 
 static const struct pci_device_id be_dev_ids[] = {
 	{ PCI_DEVICE(BE_VENDOR_ID, BE_DEVICE_ID1) },
@@ -60,7 +60,7 @@ static const struct pci_device_id be_dev_ids[] = {
 MODULE_DEVICE_TABLE(pci, be_dev_ids);
 
 /* Workqueue used by all functions for defering cmd calls to the adapter */
-struct workqueue_struct *be_wq;
+static struct workqueue_struct *be_wq;
 
 /* UE Status Low CSR */
 static const char * const ue_status_low_desc[] = {
