@@ -2804,6 +2804,7 @@ xlog_recover_buffer_pass2(
 	 */
 	lsn = xlog_recover_get_buf_lsn(mp, bp);
 	if (lsn && lsn != -1 && XFS_LSN_CMP(lsn, current_lsn) >= 0) {
+		trace_xfs_log_recover_buf_skip(log, buf_f);
 		xlog_recover_validate_buf_type(mp, bp, buf_f, NULLCOMMITLSN);
 		goto out_release;
 	}
@@ -4319,6 +4320,7 @@ xlog_recover_process_data(
 	if (xlog_header_check_recover(log->l_mp, rhead))
 		return -EIO;
 
+	trace_xfs_log_recover_record(log, rhead, pass);
 	while ((dp < end) && num_logops) {
 
 		ohead = (struct xlog_op_header *)dp;
