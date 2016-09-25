@@ -46,8 +46,15 @@
 
 #define TLV_DB_RANGE_ITEM		SNDRV_CTL_TLVD_DB_RANGE_ITEM
 #define DECLARE_TLV_DB_RANGE		SNDRV_CTL_TLVD_DECLARE_DB_RANGE
-#define TLV_DB_RANGE_HEAD		SNDRV_CTL_TLVD_DB_RANGE_HEAD
 
 #define TLV_DB_GAIN_MUTE		SNDRV_CTL_TLVD_DB_GAIN_MUTE
+
+/*
+ * The below assumes that each item TLV is 4 words like DB_SCALE or LINEAR.
+ * This is an old fasion and obsoleted by commit bf1d1c9b6179("ALSA: tlv: add
+ * DECLARE_TLV_DB_RANGE()").
+ */
+#define TLV_DB_RANGE_HEAD(num) \
+	SNDRV_CTL_TLVT_DB_RANGE, 6 * (num) * sizeof(unsigned int)
 
 #endif /* __SOUND_TLV_H */

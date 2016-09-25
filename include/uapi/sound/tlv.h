@@ -94,9 +94,6 @@
 	unsigned int name[] = { \
 		SNDRV_CTL_TLVD_DB_RANGE_ITEM(__VA_ARGS__) \
 	}
-/* The below assumes that each item TLV is 4 words like DB_SCALE or LINEAR */
-#define SNDRV_CTL_TLVD_DB_RANGE_HEAD(num) \
-	SNDRV_CTL_TLVT_DB_RANGE, 6 * (num) * sizeof(unsigned int)
 
 #define SNDRV_CTL_TLVD_DB_GAIN_MUTE	-9999999
 
