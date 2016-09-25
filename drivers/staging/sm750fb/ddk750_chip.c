@@ -10,7 +10,7 @@
 #define roundedDiv(num, denom)	((2 * (num) + (denom)) / (2 * (denom)))
 #define MHz(x) ((x) * 1000000)
 
-logical_chip_type_t getChipType(void)
+logical_chip_type_t sm750_get_chip_type(void)
 {
 	unsigned short physicalID;
 	char physicalRev;
@@ -37,7 +37,7 @@ static unsigned int get_mxclk_freq(void)
 	unsigned int pll_reg;
 	unsigned int M, N, OD, POD;
 
-	if (getChipType() == SM750LE)
+	if (sm750_get_chip_type() == SM750LE)
 		return MHz(130);
 
 	pll_reg = PEEK32(MXCLK_PLL_CTRL);
@@ -60,7 +60,7 @@ static void setChipClock(unsigned int frequency)
 	unsigned int ulActualMxClk;
 
 	/* Cheok_0509: For SM750LE, the chip clock is fixed. Nothing to set. */
-	if (getChipType() == SM750LE)
+	if (sm750_get_chip_type() == SM750LE)
 		return;
 
 	if (frequency) {
@@ -90,7 +90,7 @@ static void setMemoryClock(unsigned int frequency)
 	/* Cheok_0509: For SM750LE, the memory clock is fixed.
 	 * Nothing to set.
 	 */
-	if (getChipType() == SM750LE)
+	if (sm750_get_chip_type() == SM750LE)
 		return;
 
 	if (frequency) {
@@ -141,7 +141,7 @@ static void setMasterClock(unsigned int frequency)
 	/* Cheok_0509: For SM750LE, the memory clock is fixed.
 	 * Nothing to set.
 	 */
-	if (getChipType() == SM750LE)
+	if (sm750_get_chip_type() == SM750LE)
 		return;
 
 	if (frequency) {
@@ -182,7 +182,7 @@ unsigned int ddk750_getVMSize(void)
 	unsigned int data;
 
 	/* sm750le only use 64 mb memory*/
-	if (getChipType() == SM750LE)
+	if (sm750_get_chip_type() == SM750LE)
 		return SZ_64M;
 
 	/* for 750,always use power mode0*/
@@ -221,7 +221,7 @@ int ddk750_initHw(initchip_param_t *pInitParam)
 	reg |= (CURRENT_GATE_DISPLAY | CURRENT_GATE_LOCALMEM);
 	setCurrentGate(reg);
 
-	if (getChipType() != SM750LE) {
+	if (sm750_get_chip_type() != SM750LE) {
 		/*	set panel pll and graphic mode via mmio_88 */
 		reg = PEEK32(VGA_CONFIGURATION);
 		reg |= (VGA_CONFIGURATION_PLL | VGA_CONFIGURATION_MODE);
@@ -320,7 +320,7 @@ unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 	const int max_OD = 3;
 	int max_d = 6;
 
-	if (getChipType() == SM750LE) {
+	if (sm750_get_chip_type() == SM750LE) {
 		/* SM750LE don't have
 		 * programmable PLL and M/N values to work on.
 		 * Just return the requested clock.

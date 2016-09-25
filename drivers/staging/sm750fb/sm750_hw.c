@@ -91,7 +91,7 @@ int hw_sm750_inithw(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 
 	parm = &sm750_dev->initParm;
 	if (parm->chip_clk == 0)
-		parm->chip_clk = (getChipType() == SM750LE) ?
+		parm->chip_clk = (sm750_get_chip_type() == SM750LE) ?
 						DEFAULT_SM750LE_CHIP_CLOCK :
 						DEFAULT_SM750_CHIP_CLOCK;
 
@@ -107,7 +107,7 @@ int hw_sm750_inithw(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 		       PEEK32(SYSTEM_CTRL) | SYSTEM_CTRL_PCI_BURST);
 	}
 
-	if (getChipType() != SM750LE) {
+	if (sm750_get_chip_type() != SM750LE) {
 		unsigned int val;
 		/* does user need CRT? */
 		if (sm750_dev->nocrt) {
@@ -183,7 +183,7 @@ int hw_sm750_output_setMode(struct lynxfb_output *output,
 	dispSet = 0;
 	channel = *output->channel;
 
-	if (getChipType() != SM750LE) {
+	if (sm750_get_chip_type() != SM750LE) {
 		if (channel == sm750_primary) {
 			pr_info("primary channel\n");
 			if (output->paths & sm750_panel)
@@ -471,7 +471,7 @@ void hw_sm750_initAccel(struct sm750_dev *sm750_dev)
 
 	enable2DEngine(1);
 
-	if (getChipType() == SM750LE) {
+	if (sm750_get_chip_type() == SM750LE) {
 		reg = PEEK32(DE_STATE1);
 		reg |= DE_STATE1_DE_ABORT;
 		POKE32(DE_STATE1, reg);

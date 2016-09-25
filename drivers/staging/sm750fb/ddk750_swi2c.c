@@ -403,7 +403,7 @@ long sm750_sw_i2c_init(
 	if ((clk_gpio > 31) || (data_gpio > 31))
 		return -1;
 
-	if (getChipType() == SM750LE)
+	if (sm750_get_chip_type() == SM750LE)
 		return sm750le_i2c_init(clk_gpio, data_gpio);
 
 	/* Initialize the GPIO pin for the i2c Clock Register */

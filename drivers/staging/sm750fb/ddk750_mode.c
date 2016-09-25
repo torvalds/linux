@@ -117,7 +117,7 @@ static int programModeRegisters(mode_parameter_t *pModeParam, pll_value_t *pll)
 		if (pModeParam->horizontal_sync_polarity)
 			tmp |= DISPLAY_CTRL_HSYNC_PHASE;
 
-		if (getChipType() == SM750LE) {
+		if (sm750_get_chip_type() == SM750LE) {
 			displayControlAdjust_SM750LE(pModeParam, tmp);
 		} else {
 			reg = PEEK32(CRT_DISPLAY_CTRL) &
@@ -209,7 +209,7 @@ int ddk750_setModeTiming(mode_parameter_t *parm, clock_type_t clock)
 	pll.clockType = clock;
 
 	uiActualPixelClk = calcPllValue(parm->pixel_clock, &pll);
-	if (getChipType() == SM750LE) {
+	if (sm750_get_chip_type() == SM750LE) {
 		/* set graphic mode via IO method */
 		outb_p(0x88, 0x3d4);
 		outb_p(0x06, 0x3d5);
