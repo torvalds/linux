@@ -634,8 +634,9 @@ static void mvneta_mib_counters_clear(struct mvneta_port *pp)
 }
 
 /* Get System Network Statistics */
-struct rtnl_link_stats64 *mvneta_get_stats64(struct net_device *dev,
-					     struct rtnl_link_stats64 *stats)
+static struct rtnl_link_stats64 *
+mvneta_get_stats64(struct net_device *dev,
+		   struct rtnl_link_stats64 *stats)
 {
 	struct mvneta_port *pp = netdev_priv(dev);
 	unsigned int start;
@@ -3506,8 +3507,9 @@ static int mvneta_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 /* Ethtool methods */
 
 /* Set link ksettings (phy address, speed) for ethtools */
-int mvneta_ethtool_set_link_ksettings(struct net_device *ndev,
-				      const struct ethtool_link_ksettings *cmd)
+static int
+mvneta_ethtool_set_link_ksettings(struct net_device *ndev,
+				  const struct ethtool_link_ksettings *cmd)
 {
 	struct mvneta_port *pp = netdev_priv(ndev);
 	struct phy_device *phydev = ndev->phydev;
