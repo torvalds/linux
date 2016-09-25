@@ -196,8 +196,8 @@ static void p80211req_mibset_mibget(struct wlandevice *wlandev,
 				   int isget)
 {
 	p80211itemd_t *mibitem = (p80211itemd_t *)mib_msg->mibattribute.data;
-	p80211pstrd_t *pstr = (p80211pstrd_t *)mibitem->data;
-	u8 *key = mibitem->data + sizeof(p80211pstrd_t);
+	struct p80211pstrd *pstr = (struct p80211pstrd *)mibitem->data;
+	u8 *key = mibitem->data + sizeof(struct p80211pstrd);
 
 	switch (mibitem->did) {
 	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(1):

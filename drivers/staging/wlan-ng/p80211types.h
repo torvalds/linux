@@ -219,10 +219,10 @@ struct p80211pstr {
 	u8 len;
 } __packed;
 
-typedef struct p80211pstrd {
+struct p80211pstrd {
 	u8 len;
 	u8 data[0];
-} __packed p80211pstrd_t;
+} __packed;
 
 /* Maximum pascal string */
 typedef struct p80211pstr255 {

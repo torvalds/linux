@@ -87,18 +87,18 @@ int prism2mgmt_autojoin(struct wlandevice *wlandev, void *msgp);
 * Prism2 data types
 ---------------------------------------------------------------*/
 /* byte area conversion functions*/
-void prism2mgmt_bytearea2pstr(u8 *bytearea, p80211pstrd_t *pstr, int len);
+void prism2mgmt_bytearea2pstr(u8 *bytearea, struct p80211pstrd *pstr, int len);
 
 /* byte string conversion functions*/
 void prism2mgmt_pstr2bytestr(struct hfa384x_bytestr *bytestr,
-			     p80211pstrd_t *pstr);
+			     struct p80211pstrd *pstr);
 void prism2mgmt_bytestr2pstr(struct hfa384x_bytestr *bytestr,
-			     p80211pstrd_t *pstr);
+			     struct p80211pstrd *pstr);
 
 /* functions to convert Group Addresses */
-void prism2mgmt_get_grpaddr(u32 did, p80211pstrd_t *pstr, hfa384x_t *priv);
+void prism2mgmt_get_grpaddr(u32 did, struct p80211pstrd *pstr, hfa384x_t *priv);
 int prism2mgmt_set_grpaddr(u32 did,
-			   u8 *prism2buf, p80211pstrd_t *pstr,
+			   u8 *prism2buf, struct p80211pstrd *pstr,
 			   hfa384x_t *priv);
 int prism2mgmt_get_grpaddr_index(u32 did);
 

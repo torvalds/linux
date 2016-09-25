@@ -531,7 +531,7 @@ int prism2mgmt_start(struct wlandevice *wlandev, void *msgp)
 	hfa384x_t *hw = wlandev->priv;
 	struct p80211msg_dot11req_start *msg = msgp;
 
-	p80211pstrd_t *pstr;
+	struct p80211pstrd *pstr;
 	u8 bytebuf[80];
 	struct hfa384x_bytestr *p2bytestr = (struct hfa384x_bytestr *)bytebuf;
 	u16 word;
@@ -558,7 +558,7 @@ int prism2mgmt_start(struct wlandevice *wlandev, void *msgp)
 	/*** STATION ***/
 	/* Set the REQUIRED config items */
 	/* SSID */
-	pstr = (p80211pstrd_t *)&(msg->ssid.data);
+	pstr = (struct p80211pstrd *)&(msg->ssid.data);
 	prism2mgmt_pstr2bytestr(p2bytestr, pstr);
 	result = hfa384x_drvr_setconfig(hw, HFA384x_RID_CNFOWNSSID,
 					bytebuf, HFA384x_RID_CNFOWNSSID_LEN);
@@ -1026,7 +1026,7 @@ int prism2mgmt_autojoin(struct wlandevice *wlandev, void *msgp)
 	u16 reg;
 	u16 port_type;
 	struct p80211msg_lnxreq_autojoin *msg = msgp;
-	p80211pstrd_t *pstr;
+	struct p80211pstrd *pstr;
 	u8 bytebuf[256];
 	struct hfa384x_bytestr *p2bytestr = (struct hfa384x_bytestr *)bytebuf;
 
@@ -1052,7 +1052,7 @@ int prism2mgmt_autojoin(struct wlandevice *wlandev, void *msgp)
 
 	/* Set the ssid */
 	memset(bytebuf, 0, 256);
-	pstr = (p80211pstrd_t *)&(msg->ssid.data);
+	pstr = (struct p80211pstrd *)&(msg->ssid.data);
 	prism2mgmt_pstr2bytestr(p2bytestr, pstr);
 	result = hfa384x_drvr_setconfig(hw, HFA384x_RID_CNFDESIREDSSID,
 					bytebuf,
