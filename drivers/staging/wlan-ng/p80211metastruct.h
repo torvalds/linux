@@ -51,7 +51,7 @@ struct p80211msg_dot11req_mibget {
 	u32 msgcode;
 	u32 msglen;
 	u8 devname[WLAN_DEVNAMELEN_MAX];
-	p80211item_unk392_t mibattribute;
+	struct p80211item_unk392 mibattribute;
 	struct p80211item_uint32 resultcode;
 } __packed;
 
@@ -59,7 +59,7 @@ struct p80211msg_dot11req_mibset {
 	u32 msgcode;
 	u32 msglen;
 	u8 devname[WLAN_DEVNAMELEN_MAX];
-	p80211item_unk392_t mibattribute;
+	struct p80211item_unk392 mibattribute;
 	struct p80211item_uint32 resultcode;
 } __packed;
 

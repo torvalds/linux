@@ -310,12 +310,12 @@ struct p80211item_pstr255 {
 } __packed;
 
 /* message data item for UNK 392, namely mib items */
-typedef struct p80211item_unk392 {
+struct p80211item_unk392 {
 	u32 did;
 	u16 status;
 	u16 len;
 	u8 data[MAXLEN_MIBATTRIBUTE];
-} __packed p80211item_unk392_t;
+} __packed;
 
 /* message data item for UNK 1025, namely p2 pdas */
 typedef struct p80211item_unk1024 {
