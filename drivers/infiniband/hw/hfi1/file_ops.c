@@ -978,14 +978,16 @@ static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
 	 */
 	uctxt->sc = sc_alloc(dd, SC_USER, uctxt->rcvhdrqentsize,
 			     uctxt->dd->node);
-	if (!uctxt->sc)
-		return -ENOMEM;
-
+	if (!uctxt->sc) {
+		ret = -ENOMEM;
+		goto ctxdata_free;
+	}
 	hfi1_cdbg(PROC, "allocated send context %u(%u)\n", uctxt->sc->sw_index,
 		  uctxt->sc->hw_context);
 	ret = sc_enable(uctxt->sc);
 	if (ret)
-		return ret;
+		goto ctxdata_free;
+
 	/*
 	 * Setup shared context resources if the user-level has requested
 	 * shared contexts and this is the 'master' process.
@@ -999,7 +1001,7 @@ static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
 		 * send context because it will be done during file close
 		 */
 		if (ret)
-			return ret;
+			goto ctxdata_free;
 	}
 	uctxt->userversion = uinfo->userversion;
 	uctxt->flags = hfi1_cap_mask; /* save current flag state */
@@ -1019,6 +1021,11 @@ static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
 	fd->uctxt = uctxt;
 
 	return 0;
+
+ctxdata_free:
+	dd->rcd[ctxt] = NULL;
+	hfi1_free_ctxtdata(dd, uctxt);
+	return ret;
 }
 
 static int init_subctxts(struct hfi1_ctxtdata *uctxt,
