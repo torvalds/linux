@@ -29,7 +29,7 @@ static struct nf_loginfo default_loginfo = {
 	.u = {
 		.log = {
 			.level	  = LOGLEVEL_NOTICE,
-			.logflags = NF_LOG_MASK,
+			.logflags = NF_LOG_DEFAULT_MASK,
 		},
 	},
 };
@@ -46,7 +46,7 @@ static void dump_ipv4_packet(struct nf_log_buf *m,
 	if (info->type == NF_LOG_TYPE_LOG)
 		logflags = info->u.log.logflags;
 	else
-		logflags = NF_LOG_MASK;
+		logflags = NF_LOG_DEFAULT_MASK;
 
 	ih = skb_header_pointer(skb, iphoff, sizeof(_iph), &_iph);
 	if (ih == NULL) {
