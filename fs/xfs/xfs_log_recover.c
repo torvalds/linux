@@ -44,6 +44,7 @@
 #include "xfs_error.h"
 #include "xfs_dir2.h"
 #include "xfs_rmap_item.h"
+#include "xfs_buf_item.h"
 
 #define BLK_AVG(blk1, blk2)	((blk1+blk2) >> 1)
 
@@ -381,6 +382,15 @@ xlog_recover_iodone(
 						SHUTDOWN_META_IO_ERROR);
 		}
 	}
+
+	/*
+	 * On v5 supers, a bli could be attached to update the metadata LSN.
+	 * Clean it up.
+	 */
+	if (bp->b_fspriv)
+		xfs_buf_item_relse(bp);
+	ASSERT(bp->b_fspriv == NULL);
+
 	bp->b_iodone = NULL;
 	xfs_buf_ioend(bp);
 }
@@ -2544,12 +2554,37 @@ xlog_recover_validate_buf_type(
 	}
 
 	/*
-	 * Don't warn in the case of a NULL current LSN as this means the buffer
-	 * is more recent than the change in the log and will be skipped.
+	 * Nothing else to do in the case of a NULL current LSN as this means
+	 * the buffer is more recent than the change in the log and will be
+	 * skipped.
 	 */
-	if (warnmsg && current_lsn != NULLCOMMITLSN) {
+	if (current_lsn == NULLCOMMITLSN)
+		return;
+
+	if (warnmsg) {
 		xfs_warn(mp, warnmsg);
 		ASSERT(0);
+	}
+
+	/*
+	 * We must update the metadata LSN of the buffer as it is written out to
+	 * ensure that older transactions never replay over this one and corrupt
+	 * the buffer. This can occur if log recovery is interrupted at some
+	 * point after the current transaction completes, at which point a
+	 * subsequent mount starts recovery from the beginning.
+	 *
+	 * Write verifiers update the metadata LSN from log items attached to
+	 * the buffer. Therefore, initialize a bli purely to carry the LSN to
+	 * the verifier. We'll clean it up in our ->iodone() callback.
+	 */
+	if (bp->b_ops) {
+		struct xfs_buf_log_item	*bip;
+
+		ASSERT(!bp->b_iodone || bp->b_iodone == xlog_recover_iodone);
+		bp->b_iodone = xlog_recover_iodone;
+		xfs_buf_item_init(bp, mp);
+		bip = bp->b_fspriv;
+		bip->bli_item.li_lsn = current_lsn;
 	}
 }
 
