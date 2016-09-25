@@ -487,7 +487,7 @@ static void amdgpu_vm_do_set_ptes(struct amdgpu_pte_update_params *params,
 				  unsigned count, uint32_t incr,
 				  uint32_t flags)
 {
-	trace_amdgpu_vm_set_page(pe, addr, count, incr, flags);
+	trace_amdgpu_vm_set_ptes(pe, addr, count, incr, flags);
 
 	if (count < 3) {
 		amdgpu_vm_write_pte(params->adev, params->ib, pe,
@@ -516,10 +516,12 @@ static void amdgpu_vm_do_copy_ptes(struct amdgpu_pte_update_params *params,
 				   unsigned count, uint32_t incr,
 				   uint32_t flags)
 {
-	trace_amdgpu_vm_set_page(pe, addr, count, incr, flags);
+	uint64_t src = (params->src + (addr >> 12) * 8);
 
-	amdgpu_vm_copy_pte(params->adev, params->ib, pe,
-			   (params->src + (addr >> 12) * 8), count);
+
+	trace_amdgpu_vm_copy_ptes(pe, src, count);
+
+	amdgpu_vm_copy_pte(params->adev, params->ib, pe, src, count);
 }
 
 /**
