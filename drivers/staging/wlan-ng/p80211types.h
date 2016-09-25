@@ -255,11 +255,11 @@ struct p80211macarray {
 } __packed;
 
 /* prototype template */
-typedef struct p80211item {
+struct p80211item {
 	u32 did;
 	u16 status;
 	u16 len;
-} __packed p80211item_t;
+} __packed;
 
 /* prototype template w/ data item */
 typedef struct p80211itemd {
