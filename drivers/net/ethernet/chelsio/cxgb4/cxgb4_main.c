@@ -279,7 +279,7 @@ static void dcb_tx_queue_prio_enable(struct net_device *dev, int enable)
 }
 #endif /* CONFIG_CHELSIO_T4_DCB */
 
-int cxgb4_dcb_enabled(const struct net_device *dev)
+static int cxgb4_dcb_enabled(const struct net_device *dev)
 {
 #ifdef CONFIG_CHELSIO_T4_DCB
 	struct port_info *pi = netdev_priv(dev);
