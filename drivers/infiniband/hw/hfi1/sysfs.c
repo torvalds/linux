@@ -826,12 +826,25 @@ static ssize_t sde_store_cpu_to_sde_map(struct sdma_engine *sde,
 	return sdma_set_cpu_to_sde_map(sde, buf, count);
 }
 
+static ssize_t sde_show_vl(struct sdma_engine *sde, char *buf)
+{
+	int vl;
+
+	vl = sdma_engine_get_vl(sde);
+	if (vl < 0)
+		return vl;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", vl);
+}
+
 static SDE_ATTR(cpu_list, S_IWUSR | S_IRUGO,
 		sde_show_cpu_to_sde_map,
 		sde_store_cpu_to_sde_map);
+static SDE_ATTR(vl, S_IRUGO, sde_show_vl, NULL);
 
 static struct sde_attribute *sde_attribs[] = {
-	&sde_attr_cpu_list
+	&sde_attr_cpu_list,
+	&sde_attr_vl
 };
 
 /*
