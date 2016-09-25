@@ -309,7 +309,7 @@ static struct drm_driver rockchip_drm_driver = {
 };
 
 #ifdef CONFIG_PM_SLEEP
-void rockchip_drm_fb_suspend(struct drm_device *drm)
+static void rockchip_drm_fb_suspend(struct drm_device *drm)
 {
 	struct rockchip_drm_private *priv = drm->dev_private;
 
@@ -318,7 +318,7 @@ void rockchip_drm_fb_suspend(struct drm_device *drm)
 	console_unlock();
 }
 
-void rockchip_drm_fb_resume(struct drm_device *drm)
+static void rockchip_drm_fb_resume(struct drm_device *drm)
 {
 	struct rockchip_drm_private *priv = drm->dev_private;
 
