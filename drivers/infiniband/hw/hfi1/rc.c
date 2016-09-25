@@ -835,7 +835,7 @@ bail_no_tx:
  *
  * This is called from hfi1_rc_rcv() and handle_receive_interrupt().
  * Note that RDMA reads and atomics are handled in the
- * send side QP state and tasklet.
+ * send side QP state and send engine.
  */
 void hfi1_send_rc_ack(struct hfi1_ctxtdata *rcd, struct rvt_qp *qp,
 		      int is_fecn)
@@ -911,7 +911,7 @@ void hfi1_send_rc_ack(struct hfi1_ctxtdata *rcd, struct rvt_qp *qp,
 	if (!pbuf) {
 		/*
 		 * We have no room to send at the moment.  Pass
-		 * responsibility for sending the ACK to the send tasklet
+		 * responsibility for sending the ACK to the send engine
 		 * so that when enough buffer space becomes available,
 		 * the ACK is sent ahead of other outgoing packets.
 		 */
@@ -936,7 +936,7 @@ queue_ack:
 	if (is_fecn)
 		qp->s_flags |= RVT_S_ECN;
 
-	/* Schedule the send tasklet. */
+	/* Schedule the send engine. */
 	hfi1_schedule_send(qp);
 unlock:
 	spin_unlock_irqrestore(&qp->s_lock, flags);
@@ -1025,7 +1025,7 @@ done:
 	qp->s_psn = psn;
 	/*
 	 * Set RVT_S_WAIT_PSN as rc_complete() may start the timer
-	 * asynchronously before the send tasklet can get scheduled.
+	 * asynchronously before the send engine can get scheduled.
 	 * Doing it in hfi1_make_rc_req() is too late.
 	 */
 	if ((cmp_psn(qp->s_psn, qp->s_sending_hpsn) <= 0) &&
@@ -1946,7 +1946,7 @@ static noinline int rc_rcv_error(struct ib_other_headers *ohdr, void *data,
 	case OP(FETCH_ADD): {
 		/*
 		 * If we didn't find the atomic request in the ack queue
-		 * or the send tasklet is already backed up to send an
+		 * or the send engine is already backed up to send an
 		 * earlier entry, we can ignore this request.
 		 */
 		if (!e || e->opcode != (u8)opcode || old_req)
@@ -2433,7 +2433,7 @@ send_last:
 		qp->r_nak_state = 0;
 		qp->r_head_ack_queue = next;
 
-		/* Schedule the send tasklet. */
+		/* Schedule the send engine. */
 		qp->s_flags |= RVT_S_RESP_PENDING;
 		hfi1_schedule_send(qp);
 
@@ -2499,7 +2499,7 @@ send_last:
 		qp->r_nak_state = 0;
 		qp->r_head_ack_queue = next;
 
-		/* Schedule the send tasklet. */
+		/* Schedule the send engine. */
 		qp->s_flags |= RVT_S_RESP_PENDING;
 		hfi1_schedule_send(qp);
 

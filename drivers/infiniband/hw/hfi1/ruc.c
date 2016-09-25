@@ -352,7 +352,7 @@ err:
  *
  * This is called from hfi1_do_send() to
  * forward a WQE addressed to the same HFI.
- * Note that although we are single threaded due to the tasklet, we still
+ * Note that although we are single threaded due to the send engine, we still
  * have to protect against post_send().  We don't have to worry about
  * receive interrupts since this is a connected protocol and all packets
  * will pass through here.
@@ -846,7 +846,7 @@ void _hfi1_do_send(struct work_struct *work)
  * @work: contains a pointer to the QP
  *
  * Process entries in the send work queue until credit or queue is
- * exhausted.  Only allow one CPU to send a packet per QP (tasklet).
+ * exhausted.  Only allow one CPU to send a packet per QP.
  * Otherwise, two threads could send packets out of order.
  */
 void hfi1_do_send(struct rvt_qp *qp)
@@ -909,7 +909,7 @@ void hfi1_do_send(struct rvt_qp *qp)
 			spin_unlock_irqrestore(&qp->s_lock, ps.flags);
 			/*
 			 * If the packet cannot be sent now, return and
-			 * the send tasklet will be woken up later.
+			 * the send engine will be woken up later.
 			 */
 			if (hfi1_verbs_send(qp, &ps))
 				return;
