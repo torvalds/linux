@@ -60,6 +60,7 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev, struct amdgpu_ctx *ctx)
 			amd_sched_entity_fini(&adev->rings[j]->sched,
 					      &ctx->rings[j].entity);
 		kfree(ctx->fences);
+		ctx->fences = NULL;
 		return r;
 	}
 	return 0;
@@ -77,6 +78,7 @@ static void amdgpu_ctx_fini(struct amdgpu_ctx *ctx)
 		for (j = 0; j < amdgpu_sched_jobs; ++j)
 			fence_put(ctx->rings[i].fences[j]);
 	kfree(ctx->fences);
+	ctx->fences = NULL;
 
 	for (i = 0; i < adev->num_rings; i++)
 		amd_sched_entity_fini(&adev->rings[i]->sched,
