@@ -76,7 +76,7 @@ static unsigned int hfi1_max_ahs = 0xFFFF;
 module_param_named(max_ahs, hfi1_max_ahs, uint, S_IRUGO);
 MODULE_PARM_DESC(max_ahs, "Maximum number of address handles to support");
 
-unsigned int hfi1_max_cqes = 0x2FFFF;
+unsigned int hfi1_max_cqes = 0x2FFFFF;
 module_param_named(max_cqes, hfi1_max_cqes, uint, S_IRUGO);
 MODULE_PARM_DESC(max_cqes,
 		 "Maximum number of completion queue entries to support");
@@ -89,7 +89,7 @@ unsigned int hfi1_max_qp_wrs = 0x3FFF;
 module_param_named(max_qp_wrs, hfi1_max_qp_wrs, uint, S_IRUGO);
 MODULE_PARM_DESC(max_qp_wrs, "Maximum number of QP WRs to support");
 
-unsigned int hfi1_max_qps = 16384;
+unsigned int hfi1_max_qps = 32768;
 module_param_named(max_qps, hfi1_max_qps, uint, S_IRUGO);
 MODULE_PARM_DESC(max_qps, "Maximum number of QPs to support");
 
