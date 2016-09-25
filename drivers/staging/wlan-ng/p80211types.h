@@ -225,10 +225,10 @@ struct p80211pstrd {
 } __packed;
 
 /* Maximum pascal string */
-typedef struct p80211pstr255 {
+struct p80211pstr255 {
 	u8 len;
 	u8 data[MAXLEN_PSTR255];
-} __packed p80211pstr255_t;
+} __packed;
 
 /* pascal string for macaddress and bssid */
 typedef struct p80211pstr6 {
@@ -306,7 +306,7 @@ typedef struct p80211item_pstr255 {
 	u32 did;
 	u16 status;
 	u16 len;
-	p80211pstr255_t data;
+	struct p80211pstr255 data;
 } __packed p80211item_pstr255_t;
 
 /* message data item for UNK 392, namely mib items */
