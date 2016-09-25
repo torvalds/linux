@@ -74,7 +74,7 @@ struct p80211msg_dot11req_scan {
 	u8 pad_1D[3];
 	struct p80211item_uint32 scantype;
 	struct p80211item_uint32 probedelay;
-	p80211item_pstr14_t channellist;
+	struct p80211item_pstr14 channellist;
 	u8 pad_2C[1];
 	struct p80211item_uint32 minchanneltime;
 	struct p80211item_uint32 maxchanneltime;
