@@ -117,11 +117,11 @@ static int validate_filter(struct net_device *dev,
 	return 0;
 }
 
-static unsigned int get_filter_steerq(struct net_device *dev,
-				      struct ch_filter_specification *fs)
+static int get_filter_steerq(struct net_device *dev,
+			     struct ch_filter_specification *fs)
 {
 	struct adapter *adapter = netdev2adap(dev);
-	unsigned int iq;
+	int iq;
 
 	/* If the user has requested steering matching Ingress Packets
 	 * to a specific Queue Set, we need to make sure it's in range
@@ -443,10 +443,10 @@ int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 		       struct filter_ctx *ctx)
 {
 	struct adapter *adapter = netdev2adap(dev);
-	unsigned int max_fidx, fidx, iq;
+	unsigned int max_fidx, fidx;
 	struct filter_entry *f;
 	u32 iconf;
-	int ret;
+	int iq, ret;
 
 	max_fidx = adapter->tids.nftids;
 	if (filter_id != (max_fidx + adapter->tids.nsftids - 1) &&
