@@ -933,6 +933,43 @@ static const struct counter_info port_cntr_ops[] = {
 	DEBUGFS_OPS("asic_flags", asic_flags_read, asic_flags_write),
 };
 
+static void *_sdma_cpu_list_seq_start(struct seq_file *s, loff_t *pos)
+{
+	if (*pos >= num_online_cpus())
+		return NULL;
+
+	return pos;
+}
+
+static void *_sdma_cpu_list_seq_next(struct seq_file *s, void *v, loff_t *pos)
+{
+	++*pos;
+	if (*pos >= num_online_cpus())
+		return NULL;
+
+	return pos;
+}
+
+static void _sdma_cpu_list_seq_stop(struct seq_file *s, void *v)
+{
+	/* nothing allocated */
+}
+
+static int _sdma_cpu_list_seq_show(struct seq_file *s, void *v)
+{
+	struct hfi1_ibdev *ibd = (struct hfi1_ibdev *)s->private;
+	struct hfi1_devdata *dd = dd_from_dev(ibd);
+	loff_t *spos = v;
+	loff_t i = *spos;
+
+	sdma_seqfile_dump_cpu_list(s, dd, (unsigned long)i);
+	return 0;
+}
+
+DEBUGFS_SEQ_FILE_OPS(sdma_cpu_list);
+DEBUGFS_SEQ_FILE_OPEN(sdma_cpu_list)
+DEBUGFS_FILE_OPS(sdma_cpu_list);
+
 void hfi1_dbg_ibdev_init(struct hfi1_ibdev *ibd)
 {
 	char name[sizeof("port0counters") + 1];
@@ -961,6 +998,7 @@ void hfi1_dbg_ibdev_init(struct hfi1_ibdev *ibd)
 	DEBUGFS_SEQ_FILE_CREATE(ctx_stats, ibd->hfi1_ibdev_dbg, ibd);
 	DEBUGFS_SEQ_FILE_CREATE(qp_stats, ibd->hfi1_ibdev_dbg, ibd);
 	DEBUGFS_SEQ_FILE_CREATE(sdes, ibd->hfi1_ibdev_dbg, ibd);
+	DEBUGFS_SEQ_FILE_CREATE(sdma_cpu_list, ibd->hfi1_ibdev_dbg, ibd);
 	/* dev counter files */
 	for (i = 0; i < ARRAY_SIZE(cntr_ops); i++)
 		DEBUGFS_FILE_CREATE(cntr_ops[i].name,

@@ -1068,6 +1068,8 @@ ssize_t sdma_set_cpu_to_sde_map(struct sdma_engine *sde, const char *buf,
 				size_t count);
 int sdma_engine_get_vl(struct sdma_engine *sde);
 void sdma_seqfile_dump_sde(struct seq_file *s, struct sdma_engine *);
+void sdma_seqfile_dump_cpu_list(struct seq_file *s, struct hfi1_devdata *dd,
+				unsigned long cpuid);
 
 #ifdef CONFIG_SDMA_VERBOSITY
 void sdma_dumpstate(struct sdma_engine *);
