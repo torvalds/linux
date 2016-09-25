@@ -82,7 +82,7 @@
  */
 #define CM_VAU 3
 /* HFI link credit count, AKA receive buffer depth (RBUF_DEPTH) */
-#define CM_GLOBAL_CREDITS 0x940
+#define CM_GLOBAL_CREDITS 0x880
 /* Number of PKey entries in the HW */
 #define MAX_PKEY_VALUES 16
 

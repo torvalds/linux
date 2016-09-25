@@ -13385,9 +13385,9 @@ static void init_rbufs(struct hfi1_devdata *dd)
 		/*
 		 * Give up after 1ms - maximum wait time.
 		 *
-		 * RBuf size is 148KiB.  Slowest possible is PCIe Gen1 x1 at
+		 * RBuf size is 136KiB.  Slowest possible is PCIe Gen1 x1 at
 		 * 250MB/s bandwidth.  Lower rate to 66% for overhead to get:
-		 *	148 KB / (66% * 250MB/s) = 920us
+		 *	136 KB / (66% * 250MB/s) = 844us
 		 */
 		if (count++ > 500) {
 			dd_dev_err(dd,
