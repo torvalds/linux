@@ -165,9 +165,6 @@ void pio_copy(struct hfi1_devdata *dd, struct pio_buf *pbuf, u64 pbc,
 	preempt_enable();
 }
 
-/* USE_SHIFTS is faster in user-space tests on a Xeon X5570 @ 2.93GHz */
-#define USE_SHIFTS 1
-#ifdef USE_SHIFTS
 /*
  * Handle carry bytes using shifts and masks.
  *
@@ -187,37 +184,55 @@ void pio_copy(struct hfi1_devdata *dd, struct pio_buf *pbuf, u64 pbc,
 #define mshift(x) (8 * (x))
 
 /*
- * Read nbytes bytes from "from" and return them in the LSB bytes
- * of pbuf->carry.  Other bytes are zeroed.  Any previous value
- * pbuf->carry is lost.
+ * Jump copy - no-loop copy for < 8 bytes.
+ */
+static inline void jcopy(u8 *dest, const u8 *src, u32 n)
+{
+	switch (n) {
+	case 7:
+		*dest++ = *src++;
+		/* fall through */
+	case 6:
+		*dest++ = *src++;
+		/* fall through */
+	case 5:
+		*dest++ = *src++;
+		/* fall through */
+	case 4:
+		*dest++ = *src++;
+		/* fall through */
+	case 3:
+		*dest++ = *src++;
+		/* fall through */
+	case 2:
+		*dest++ = *src++;
+		/* fall through */
+	case 1:
+		*dest++ = *src++;
+		/* fall through */
+	}
+}
+
+/*
+ * Read nbytes from "from" and and place them in the low bytes
+ * of pbuf->carry.  Other bytes are left as-is.  Any previous
+ * value in pbuf->carry is lost.
  *
  * NOTES:
  * o do not read from from if nbytes is zero
- * o from may _not_ be u64 aligned
- * o nbytes must not span a QW boundary
+ * o from may _not_ be u64 aligned.
  */
 static inline void read_low_bytes(struct pio_buf *pbuf, const void *from,
 				  unsigned int nbytes)
 {
-	unsigned long off;
-
-	if (nbytes == 0) {
-		pbuf->carry.val64 = 0;
-	} else {
-		/* align our pointer */
-		off = (unsigned long)from & 0x7;
-		from = (void *)((unsigned long)from & ~0x7l);
-		pbuf->carry.val64 = ((*(u64 *)from)
-				<< zshift(nbytes + off))/* zero upper bytes */
-				>> zshift(nbytes);	/* place at bottom */
-	}
+	pbuf->carry.val64 = 0;
+	jcopy(&pbuf->carry.val8[0], from, nbytes);
 	pbuf->carry_bytes = nbytes;
 }
 
 /*
- * Read nbytes bytes from "from" and put them at the next significant bytes
- * of pbuf->carry.  Unused bytes are zeroed.  It is expected that the extra
- * read does not overfill carry.
+ * Read nbytes bytes from "from" and put them at the end of pbuf->carry.
+ * It is expected that the extra read does not overfill carry.
  *
  * NOTES:
  * o from may _not_ be u64 aligned
@@ -226,31 +241,8 @@ static inline void read_low_bytes(struct pio_buf *pbuf, const void *from,
 static inline void read_extra_bytes(struct pio_buf *pbuf,
 				    const void *from, unsigned int nbytes)
 {
-	unsigned long off = (unsigned long)from & 0x7;
-	unsigned int room, xbytes;
-
-	/* align our pointer */
-	from = (void *)((unsigned long)from & ~0x7l);
-
-	/* check count first - don't read anything if count is zero */
-	while (nbytes) {
-		/* find the number of bytes in this u64 */
-		room = 8 - off;	/* this u64 has room for this many bytes */
-		xbytes = min(room, nbytes);
-
-		/*
-		 * shift down to zero lower bytes, shift up to zero upper
-		 * bytes, shift back down to move into place
-		 */
-		pbuf->carry.val64 |= (((*(u64 *)from)
-					>> mshift(off))
-					<< zshift(xbytes))
-					>> zshift(xbytes + pbuf->carry_bytes);
-		off = 0;
-		pbuf->carry_bytes += xbytes;
-		nbytes -= xbytes;
-		from += sizeof(u64);
-	}
+	jcopy(&pbuf->carry.val8[pbuf->carry_bytes], from, nbytes);
+	pbuf->carry_bytes += nbytes;
 }
 
 /*
@@ -298,112 +290,6 @@ static inline int carry_write8(struct pio_buf *pbuf, void __iomem *dest)
 
 	return 0;
 }
-
-#else /* USE_SHIFTS */
-/*
- * Handle carry bytes using byte copies.
- *
- * NOTE: the value the unused portion of carry is left uninitialized.
- */
-
-/*
- * Jump copy - no-loop copy for < 8 bytes.
- */
-static inline void jcopy(u8 *dest, const u8 *src, u32 n)
-{
-	switch (n) {
-	case 7:
-		*dest++ = *src++;
-	case 6:
-		*dest++ = *src++;
-	case 5:
-		*dest++ = *src++;
-	case 4:
-		*dest++ = *src++;
-	case 3:
-		*dest++ = *src++;
-	case 2:
-		*dest++ = *src++;
-	case 1:
-		*dest++ = *src++;
-	}
-}
-
-/*
- * Read nbytes from "from" and and place them in the low bytes
- * of pbuf->carry.  Other bytes are left as-is.  Any previous
- * value in pbuf->carry is lost.
- *
- * NOTES:
- * o do not read from from if nbytes is zero
- * o from may _not_ be u64 aligned.
- */
-static inline void read_low_bytes(struct pio_buf *pbuf, const void *from,
-				  unsigned int nbytes)
-{
-	jcopy(&pbuf->carry.val8[0], from, nbytes);
-	pbuf->carry_bytes = nbytes;
-}
-
-/*
- * Read nbytes bytes from "from" and put them at the end of pbuf->carry.
- * It is expected that the extra read does not overfill carry.
- *
- * NOTES:
- * o from may _not_ be u64 aligned
- * o nbytes may span a QW boundary
- */
-static inline void read_extra_bytes(struct pio_buf *pbuf,
-				    const void *from, unsigned int nbytes)
-{
-	jcopy(&pbuf->carry.val8[pbuf->carry_bytes], from, nbytes);
-	pbuf->carry_bytes += nbytes;
-}
-
-/*
- * Write a quad word using parts of pbuf->carry and the next 8 bytes of src.
- * Put the unused part of the next 8 bytes of src into the low bytes of
- * pbuf->carry.
- */
-static inline void merge_write8(
-	struct pio_buf *pbuf,
-	void *dest,
-	const void *src)
-{
-	u32 remainder = 8 - pbuf->carry_bytes;
-
-	jcopy(&pbuf->carry.val8[pbuf->carry_bytes], src, remainder);
-	writeq(pbuf->carry.val64, dest);
-	jcopy(&pbuf->carry.val8[0], src + remainder, pbuf->carry_bytes);
-}
-
-/*
- * Write a quad word using all bytes of carry.
- */
-static inline void carry8_write8(union mix carry, void *dest)
-{
-	writeq(carry.val64, dest);
-}
-
-/*
- * Write a quad word using all the valid bytes of carry.  If carry
- * has zero valid bytes, nothing is written.
- * Returns 0 on nothing written, non-zero on quad word written.
- */
-static inline int carry_write8(struct pio_buf *pbuf, void *dest)
-{
-	if (pbuf->carry_bytes) {
-		u64 zero = 0;
-
-		jcopy(&pbuf->carry.val8[pbuf->carry_bytes], (u8 *)&zero,
-		      8 - pbuf->carry_bytes);
-		writeq(pbuf->carry.val64, dest);
-		return 1;
-	}
-
-	return 0;
-}
-#endif /* USE_SHIFTS */
 
 /*
  * Segmented PIO Copy - start
