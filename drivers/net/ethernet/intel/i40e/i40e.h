@@ -74,7 +74,7 @@
 #define I40E_MIN_NUM_DESCRIPTORS	64
 #define I40E_MIN_MSIX			2
 #define I40E_DEFAULT_NUM_VMDQ_VSI	8 /* max 256 VSIs */
-#define I40E_MIN_VSI_ALLOC		51 /* LAN, ATR, FCOE, 32 VF, 16 VMDQ */
+#define I40E_MIN_VSI_ALLOC		83 /* LAN, ATR, FCOE, 64 VF */
 /* max 16 qps */
 #define i40e_default_queues_per_vmdq(pf) \
 		(((pf)->flags & I40E_FLAG_RSS_AQ_CAPABLE) ? 4 : 1)
@@ -710,8 +710,6 @@ struct rtnl_link_stats64 *i40e_get_vsi_stats_struct(struct i40e_vsi *vsi);
 int i40e_fetch_switch_configuration(struct i40e_pf *pf,
 				    bool printconfig);
 
-int i40e_program_fdir_filter(struct i40e_fdir_filter *fdir_data, u8 *raw_packet,
-			     struct i40e_pf *pf, bool add);
 int i40e_add_del_fdir(struct i40e_vsi *vsi,
 		      struct i40e_fdir_filter *input, bool add);
 void i40e_fdir_check_and_reenable(struct i40e_pf *pf);
