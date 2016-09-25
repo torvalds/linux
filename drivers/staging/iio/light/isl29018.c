@@ -356,13 +356,8 @@ static int isl29018_write_raw(struct iio_dev *indio_dev,
 		}
 		break;
 	case IIO_CHAN_INFO_INT_TIME:
-		if (chan->type == IIO_LIGHT) {
-			if (val) {
-				mutex_unlock(&chip->lock);
-				return -EINVAL;
-			}
+		if (chan->type == IIO_LIGHT && !val)
 			ret = isl29018_set_integration_time(chip, val2);
-		}
 		break;
 	case IIO_CHAN_INFO_SCALE:
 		if (chan->type == IIO_LIGHT)
