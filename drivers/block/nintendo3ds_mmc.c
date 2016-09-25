@@ -198,7 +198,6 @@ static int nintendo3ds_mmc_probe(struct platform_device *pdev)
 	mmc->disk->fops = &nintendo3ds_mmc_fops;
 	mmc->disk->private_data = mmc;
 	mmc->disk->queue = mmc->queue;
-	mmc->disk->driverfs_dev = &pdev->dev;
 	sprintf(mmc->disk->disk_name, "nintendo3ds_mmc");
 
 	//mmc->size = pxi_...

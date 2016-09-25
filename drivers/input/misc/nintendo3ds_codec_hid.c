@@ -252,6 +252,7 @@ static int nintendo3ds_codec_hid_probe(struct spi_device *spi)
 	struct nintendo3ds_codec_hid *codec_hid;
 	struct input_polled_dev *polled_dev;
 	struct input_dev *input_dev;
+	struct touchscreen_properties prop;
 	int err;
 
 	spi->bits_per_word = 8;
@@ -308,15 +309,11 @@ static int nintendo3ds_codec_hid_probe(struct spi_device *spi)
 
 	input_set_abs_params(input_dev, ABS_X, 0, MAX_12BIT, 0, 0);
 	input_set_abs_params(input_dev, ABS_Y, 0, MAX_12BIT, 0, 0);
-	touchscreen_parse_properties(input_dev, false);
+	touchscreen_parse_properties(input_dev, false, &prop);
 
-	codec_hid->invert_y = device_property_read_bool(input_dev->dev.parent,
-		"touchscreen-inverted-y");
-
-	codec_hid->swap_xy = device_property_read_bool(input_dev->dev.parent,
-		"touchscreen-swapped-x-y");
-
-	codec_hid->max_y = input_abs_get_max(input_dev, ABS_Y) + 1;
+	codec_hid->invert_y = prop.invert_y;
+	codec_hid->swap_xy = prop.swap_x_y;
+	codec_hid->max_y = prop.max_y;
 
 	codec_hid->spi = spi;
 	codec_hid->polled_dev = polled_dev;
