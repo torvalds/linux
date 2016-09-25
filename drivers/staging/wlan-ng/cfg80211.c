@@ -72,8 +72,8 @@ static int prism2_result2err(int prism2_result)
 static int prism2_domibset_uint32(struct wlandevice *wlandev, u32 did, u32 data)
 {
 	struct p80211msg_dot11req_mibset msg;
-	p80211item_uint32_t *mibitem =
-			(p80211item_uint32_t *)&msg.mibattribute.data;
+	struct p80211item_uint32 *mibitem =
+			(struct p80211item_uint32 *)&msg.mibattribute.data;
 
 	msg.msgcode = DIDmsg_dot11req_mibset;
 	mibitem->did = did;
@@ -626,11 +626,11 @@ static int prism2_get_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
 	struct prism2_wiphy_private *priv = wiphy_priv(wiphy);
 	struct wlandevice *wlandev = priv->wlandev;
 	struct p80211msg_dot11req_mibget msg;
-	p80211item_uint32_t *mibitem;
+	struct p80211item_uint32 *mibitem;
 	int result;
 	int err = 0;
 
-	mibitem = (p80211item_uint32_t *)&msg.mibattribute.data;
+	mibitem = (struct p80211item_uint32 *)&msg.mibattribute.data;
 	msg.msgcode = DIDmsg_dot11req_mibget;
 	mibitem->did =
 	    DIDmib_dot11phy_dot11PhyTxPowerTable_dot11CurrentTxPowerLevel;

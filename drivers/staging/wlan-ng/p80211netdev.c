@@ -616,7 +616,7 @@ static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr)
 	struct p80211msg_dot11req_mibset dot11req;
 	p80211item_unk392_t *mibattr;
 	p80211item_pstr6_t *macaddr;
-	p80211item_uint32_t *resultcode;
+	struct p80211item_uint32 *resultcode;
 	int result;
 
 	/* If we're running, we don't allow MAC address changes */

@@ -270,12 +270,12 @@ struct p80211itemd {
 } __packed;
 
 /* message data item for int, BOUNDEDINT, ENUMINT */
-typedef struct p80211item_uint32 {
+struct p80211item_uint32 {
 	u32 did;
 	u16 status;
 	u16 len;
 	u32 data;
-} __packed p80211item_uint32_t;
+} __packed;
 
 /* message data item for OCTETSTR, DISPLAYSTR */
 typedef struct p80211item_pstr6 {

@@ -1916,7 +1916,7 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 	struct wlandevice *wlandev = hw->wlandev;
 	hfa384x_bytestr32_t ssid;
 	struct p80211msg_dot11req_mibget msg;
-	p80211item_uint32_t *mibitem = (p80211item_uint32_t *)
+	struct p80211item_uint32 *mibitem = (struct p80211item_uint32 *)
 						&msg.mibattribute.data;
 	int result = 0;
 

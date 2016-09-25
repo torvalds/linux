@@ -52,7 +52,7 @@ struct p80211msg_dot11req_mibget {
 	u32 msglen;
 	u8 devname[WLAN_DEVNAMELEN_MAX];
 	p80211item_unk392_t mibattribute;
-	p80211item_uint32_t resultcode;
+	struct p80211item_uint32 resultcode;
 } __packed;
 
 struct p80211msg_dot11req_mibset {
@@ -60,76 +60,76 @@ struct p80211msg_dot11req_mibset {
 	u32 msglen;
 	u8 devname[WLAN_DEVNAMELEN_MAX];
 	p80211item_unk392_t mibattribute;
-	p80211item_uint32_t resultcode;
+	struct p80211item_uint32 resultcode;
 } __packed;
 
 struct p80211msg_dot11req_scan {
 	u32 msgcode;
 	u32 msglen;
 	u8 devname[WLAN_DEVNAMELEN_MAX];
-	p80211item_uint32_t bsstype;
+	struct p80211item_uint32 bsstype;
 	p80211item_pstr6_t bssid;
 	u8 pad_0C[1];
 	p80211item_pstr32_t ssid;
 	u8 pad_1D[3];
-	p80211item_uint32_t scantype;
-	p80211item_uint32_t probedelay;
+	struct p80211item_uint32 scantype;
+	struct p80211item_uint32 probedelay;
 	p80211item_pstr14_t channellist;
 	u8 pad_2C[1];
-	p80211item_uint32_t minchanneltime;
-	p80211item_uint32_t maxchanneltime;
-	p80211item_uint32_t resultcode;
-	p80211item_uint32_t numbss;
-	p80211item_uint32_t append;
+	struct p80211item_uint32 minchanneltime;
+	struct p80211item_uint32 maxchanneltime;
+	struct p80211item_uint32 resultcode;
+	struct p80211item_uint32 numbss;
+	struct p80211item_uint32 append;
 } __packed;
 
 struct p80211msg_dot11req_scan_results {
 	u32 msgcode;
 	u32 msglen;
 	u8 devname[WLAN_DEVNAMELEN_MAX];
-	p80211item_uint32_t bssindex;
-	p80211item_uint32_t resultcode;
-	p80211item_uint32_t signal;
-	p80211item_uint32_t noise;
+	struct p80211item_uint32 bssindex;
+	struct p80211item_uint32 resultcode;
+	struct p80211item_uint32 signal;
+	struct p80211item_uint32 noise;
 	p80211item_pstr6_t bssid;
 	u8 pad_3C[1];
 	p80211item_pstr32_t ssid;
 	u8 pad_4D[3];
-	p80211item_uint32_t bsstype;
-	p80211item_uint32_t beaconperiod;
-	p80211item_uint32_t dtimperiod;
-	p80211item_uint32_t timestamp;
-	p80211item_uint32_t localtime;
-	p80211item_uint32_t fhdwelltime;
-	p80211item_uint32_t fhhopset;
-	p80211item_uint32_t fhhoppattern;
-	p80211item_uint32_t fhhopindex;
-	p80211item_uint32_t dschannel;
-	p80211item_uint32_t cfpcount;
-	p80211item_uint32_t cfpperiod;
-	p80211item_uint32_t cfpmaxduration;
-	p80211item_uint32_t cfpdurremaining;
-	p80211item_uint32_t ibssatimwindow;
-	p80211item_uint32_t cfpollable;
-	p80211item_uint32_t cfpollreq;
-	p80211item_uint32_t privacy;
-	p80211item_uint32_t capinfo;
-	p80211item_uint32_t basicrate1;
-	p80211item_uint32_t basicrate2;
-	p80211item_uint32_t basicrate3;
-	p80211item_uint32_t basicrate4;
-	p80211item_uint32_t basicrate5;
-	p80211item_uint32_t basicrate6;
-	p80211item_uint32_t basicrate7;
-	p80211item_uint32_t basicrate8;
-	p80211item_uint32_t supprate1;
-	p80211item_uint32_t supprate2;
-	p80211item_uint32_t supprate3;
-	p80211item_uint32_t supprate4;
-	p80211item_uint32_t supprate5;
-	p80211item_uint32_t supprate6;
-	p80211item_uint32_t supprate7;
-	p80211item_uint32_t supprate8;
+	struct p80211item_uint32 bsstype;
+	struct p80211item_uint32 beaconperiod;
+	struct p80211item_uint32 dtimperiod;
+	struct p80211item_uint32 timestamp;
+	struct p80211item_uint32 localtime;
+	struct p80211item_uint32 fhdwelltime;
+	struct p80211item_uint32 fhhopset;
+	struct p80211item_uint32 fhhoppattern;
+	struct p80211item_uint32 fhhopindex;
+	struct p80211item_uint32 dschannel;
+	struct p80211item_uint32 cfpcount;
+	struct p80211item_uint32 cfpperiod;
+	struct p80211item_uint32 cfpmaxduration;
+	struct p80211item_uint32 cfpdurremaining;
+	struct p80211item_uint32 ibssatimwindow;
+	struct p80211item_uint32 cfpollable;
+	struct p80211item_uint32 cfpollreq;
+	struct p80211item_uint32 privacy;
+	struct p80211item_uint32 capinfo;
+	struct p80211item_uint32 basicrate1;
+	struct p80211item_uint32 basicrate2;
+	struct p80211item_uint32 basicrate3;
+	struct p80211item_uint32 basicrate4;
+	struct p80211item_uint32 basicrate5;
+	struct p80211item_uint32 basicrate6;
+	struct p80211item_uint32 basicrate7;
+	struct p80211item_uint32 basicrate8;
+	struct p80211item_uint32 supprate1;
+	struct p80211item_uint32 supprate2;
+	struct p80211item_uint32 supprate3;
+	struct p80211item_uint32 supprate4;
+	struct p80211item_uint32 supprate5;
+	struct p80211item_uint32 supprate6;
+	struct p80211item_uint32 supprate7;
+	struct p80211item_uint32 supprate8;
 } __packed;
 
 struct p80211msg_dot11req_start {
@@ -138,79 +138,79 @@ struct p80211msg_dot11req_start {
 	u8 devname[WLAN_DEVNAMELEN_MAX];
 	p80211item_pstr32_t ssid;
 	u8 pad_12D[3];
-	p80211item_uint32_t bsstype;
-	p80211item_uint32_t beaconperiod;
-	p80211item_uint32_t dtimperiod;
-	p80211item_uint32_t cfpperiod;
-	p80211item_uint32_t cfpmaxduration;
-	p80211item_uint32_t fhdwelltime;
-	p80211item_uint32_t fhhopset;
-	p80211item_uint32_t fhhoppattern;
-	p80211item_uint32_t dschannel;
-	p80211item_uint32_t ibssatimwindow;
-	p80211item_uint32_t probedelay;
-	p80211item_uint32_t cfpollable;
-	p80211item_uint32_t cfpollreq;
-	p80211item_uint32_t basicrate1;
-	p80211item_uint32_t basicrate2;
-	p80211item_uint32_t basicrate3;
-	p80211item_uint32_t basicrate4;
-	p80211item_uint32_t basicrate5;
-	p80211item_uint32_t basicrate6;
-	p80211item_uint32_t basicrate7;
-	p80211item_uint32_t basicrate8;
-	p80211item_uint32_t operationalrate1;
-	p80211item_uint32_t operationalrate2;
-	p80211item_uint32_t operationalrate3;
-	p80211item_uint32_t operationalrate4;
-	p80211item_uint32_t operationalrate5;
-	p80211item_uint32_t operationalrate6;
-	p80211item_uint32_t operationalrate7;
-	p80211item_uint32_t operationalrate8;
-	p80211item_uint32_t resultcode;
+	struct p80211item_uint32 bsstype;
+	struct p80211item_uint32 beaconperiod;
+	struct p80211item_uint32 dtimperiod;
+	struct p80211item_uint32 cfpperiod;
+	struct p80211item_uint32 cfpmaxduration;
+	struct p80211item_uint32 fhdwelltime;
+	struct p80211item_uint32 fhhopset;
+	struct p80211item_uint32 fhhoppattern;
+	struct p80211item_uint32 dschannel;
+	struct p80211item_uint32 ibssatimwindow;
+	struct p80211item_uint32 probedelay;
+	struct p80211item_uint32 cfpollable;
+	struct p80211item_uint32 cfpollreq;
+	struct p80211item_uint32 basicrate1;
+	struct p80211item_uint32 basicrate2;
+	struct p80211item_uint32 basicrate3;
+	struct p80211item_uint32 basicrate4;
+	struct p80211item_uint32 basicrate5;
+	struct p80211item_uint32 basicrate6;
+	struct p80211item_uint32 basicrate7;
+	struct p80211item_uint32 basicrate8;
+	struct p80211item_uint32 operationalrate1;
+	struct p80211item_uint32 operationalrate2;
+	struct p80211item_uint32 operationalrate3;
+	struct p80211item_uint32 operationalrate4;
+	struct p80211item_uint32 operationalrate5;
+	struct p80211item_uint32 operationalrate6;
+	struct p80211item_uint32 operationalrate7;
+	struct p80211item_uint32 operationalrate8;
+	struct p80211item_uint32 resultcode;
 } __packed;
 
 struct p80211msg_lnxreq_ifstate {
 	u32 msgcode;
 	u32 msglen;
 	u8 devname[WLAN_DEVNAMELEN_MAX];
-	p80211item_uint32_t ifstate;
-	p80211item_uint32_t resultcode;
+	struct p80211item_uint32 ifstate;
+	struct p80211item_uint32 resultcode;
 } __packed;
 
 struct p80211msg_lnxreq_wlansniff {
 	u32 msgcode;
 	u32 msglen;
 	u8 devname[WLAN_DEVNAMELEN_MAX];
-	p80211item_uint32_t enable;
-	p80211item_uint32_t channel;
-	p80211item_uint32_t prismheader;
-	p80211item_uint32_t wlanheader;
-	p80211item_uint32_t keepwepflags;
-	p80211item_uint32_t stripfcs;
-	p80211item_uint32_t packet_trunc;
-	p80211item_uint32_t resultcode;
+	struct p80211item_uint32 enable;
+	struct p80211item_uint32 channel;
+	struct p80211item_uint32 prismheader;
+	struct p80211item_uint32 wlanheader;
+	struct p80211item_uint32 keepwepflags;
+	struct p80211item_uint32 stripfcs;
+	struct p80211item_uint32 packet_trunc;
+	struct p80211item_uint32 resultcode;
 } __packed;
 
 struct p80211msg_lnxreq_hostwep {
 	u32 msgcode;
 	u32 msglen;
 	u8 devname[WLAN_DEVNAMELEN_MAX];
-	p80211item_uint32_t resultcode;
-	p80211item_uint32_t decrypt;
-	p80211item_uint32_t encrypt;
+	struct p80211item_uint32 resultcode;
+	struct p80211item_uint32 decrypt;
+	struct p80211item_uint32 encrypt;
 } __packed;
 
 struct p80211msg_lnxreq_commsquality {
 	u32 msgcode;
 	u32 msglen;
 	u8 devname[WLAN_DEVNAMELEN_MAX];
-	p80211item_uint32_t resultcode;
-	p80211item_uint32_t dbm;
-	p80211item_uint32_t link;
-	p80211item_uint32_t level;
-	p80211item_uint32_t noise;
-	p80211item_uint32_t txrate;
+	struct p80211item_uint32 resultcode;
+	struct p80211item_uint32 dbm;
+	struct p80211item_uint32 link;
+	struct p80211item_uint32 level;
+	struct p80211item_uint32 noise;
+	struct p80211item_uint32 txrate;
 } __packed;
 
 struct p80211msg_lnxreq_autojoin {
@@ -219,8 +219,8 @@ struct p80211msg_lnxreq_autojoin {
 	u8 devname[WLAN_DEVNAMELEN_MAX];
 	p80211item_pstr32_t ssid;
 	u8 pad_19D[3];
-	p80211item_uint32_t authtype;
-	p80211item_uint32_t resultcode;
+	struct p80211item_uint32 authtype;
+	struct p80211item_uint32 resultcode;
 } __packed;
 
 struct p80211msg_p2req_readpda {
@@ -228,44 +228,44 @@ struct p80211msg_p2req_readpda {
 	u32 msglen;
 	u8 devname[WLAN_DEVNAMELEN_MAX];
 	p80211item_unk1024_t pda;
-	p80211item_uint32_t resultcode;
+	struct p80211item_uint32 resultcode;
 } __packed;
 
 struct p80211msg_p2req_ramdl_state {
 	u32 msgcode;
 	u32 msglen;
 	u8 devname[WLAN_DEVNAMELEN_MAX];
-	p80211item_uint32_t enable;
-	p80211item_uint32_t exeaddr;
-	p80211item_uint32_t resultcode;
+	struct p80211item_uint32 enable;
+	struct p80211item_uint32 exeaddr;
+	struct p80211item_uint32 resultcode;
 } __packed;
 
 struct p80211msg_p2req_ramdl_write {
 	u32 msgcode;
 	u32 msglen;
 	u8 devname[WLAN_DEVNAMELEN_MAX];
-	p80211item_uint32_t addr;
-	p80211item_uint32_t len;
+	struct p80211item_uint32 addr;
+	struct p80211item_uint32 len;
 	p80211item_unk4096_t data;
-	p80211item_uint32_t resultcode;
+	struct p80211item_uint32 resultcode;
 } __packed;
 
 struct p80211msg_p2req_flashdl_state {
 	u32 msgcode;
 	u32 msglen;
 	u8 devname[WLAN_DEVNAMELEN_MAX];
-	p80211item_uint32_t enable;
-	p80211item_uint32_t resultcode;
+	struct p80211item_uint32 enable;
+	struct p80211item_uint32 resultcode;
 } __packed;
 
 struct p80211msg_p2req_flashdl_write {
 	u32 msgcode;
 	u32 msglen;
 	u8 devname[WLAN_DEVNAMELEN_MAX];
-	p80211item_uint32_t addr;
-	p80211item_uint32_t len;
+	struct p80211item_uint32 addr;
+	struct p80211item_uint32 len;
 	p80211item_unk4096_t data;
-	p80211item_uint32_t resultcode;
+	struct p80211item_uint32 resultcode;
 } __packed;
 
 #endif
