@@ -302,12 +302,12 @@ struct p80211item_pstr32 {
 } __packed;
 
 /* message data item for OCTETSTR, DISPLAYSTR */
-typedef struct p80211item_pstr255 {
+struct p80211item_pstr255 {
 	u32 did;
 	u16 status;
 	u16 len;
 	struct p80211pstr255 data;
-} __packed p80211item_pstr255_t;
+} __packed;
 
 /* message data item for UNK 392, namely mib items */
 typedef struct p80211item_unk392 {
