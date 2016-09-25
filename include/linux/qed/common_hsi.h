@@ -143,6 +143,9 @@
 #define GTT_BYTE_SIZE_BITS	(GTT_DWORD_SIZE_BITS + 2)
 #define GTT_DWORD_SIZE		BIT(GTT_DWORD_SIZE_BITS)
 
+/* Tools Version */
+#define TOOLS_VERSION 10
+
 /*****************/
 /* CDU CONSTANTS */
 /*****************/

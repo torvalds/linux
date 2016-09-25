@@ -516,12 +516,14 @@ static int nicvf_init_resources(struct nicvf *nic)
 static void nicvf_snd_pkt_handler(struct net_device *netdev,
 				  struct cmp_queue *cq,
 				  struct cqe_send_t *cqe_tx,
-				  int cqe_type, int budget)
+				  int cqe_type, int budget,
+				  unsigned int *tx_pkts, unsigned int *tx_bytes)
 {
 	struct sk_buff *skb = NULL;
 	struct nicvf *nic = netdev_priv(netdev);
 	struct snd_queue *sq;
 	struct sq_hdr_subdesc *hdr;
+	struct sq_hdr_subdesc *tso_sqe;
 
 	sq = &nic->qs->sq[cqe_tx->sq_idx];
 
@@ -536,17 +538,23 @@ static void nicvf_snd_pkt_handler(struct net_device *netdev,
 
 	nicvf_check_cqe_tx_errs(nic, cq, cqe_tx);
 	skb = (struct sk_buff *)sq->skbuff[cqe_tx->sqe_ptr];
-	/* For TSO offloaded packets only one SQE will have a valid SKB */
 	if (skb) {
+		/* Check for dummy descriptor used for HW TSO offload on 88xx */
+		if (hdr->dont_send) {
+			/* Get actual TSO descriptors and free them */
+			tso_sqe =
+			 (struct sq_hdr_subdesc *)GET_SQ_DESC(sq, hdr->rsvd2);
+			nicvf_put_sq_desc(sq, tso_sqe->subdesc_cnt + 1);
+		}
 		nicvf_put_sq_desc(sq, hdr->subdesc_cnt + 1);
 		prefetch(skb);
+		(*tx_pkts)++;
+		*tx_bytes += skb->len;
 		napi_consume_skb(skb, budget);
 		sq->skbuff[cqe_tx->sqe_ptr] = (u64)NULL;
 	} else {
-		/* In case of HW TSO, HW sends a CQE for each segment of a TSO
-		 * packet instead of a single CQE for the whole TSO packet
-		 * transmitted. Each of this CQE points to the same SQE, so
-		 * avoid freeing same SQE multiple times.
+		/* In case of SW TSO on 88xx, only last segment will have
+		 * a SKB attached, so just free SQEs here.
 		 */
 		if (!nic->hw_tso)
 			nicvf_put_sq_desc(sq, hdr->subdesc_cnt + 1);
@@ -657,6 +665,7 @@ static int nicvf_cq_intr_handler(struct net_device *netdev, u8 cq_idx,
 	struct cmp_queue *cq = &qs->cq[cq_idx];
 	struct cqe_rx_t *cq_desc;
 	struct netdev_queue *txq;
+	unsigned int tx_pkts = 0, tx_bytes = 0;
 
 	spin_lock_bh(&cq->lock);
 loop:
@@ -696,7 +705,7 @@ loop:
 		case CQE_TYPE_SEND:
 			nicvf_snd_pkt_handler(netdev, cq,
 					      (void *)cq_desc, CQE_TYPE_SEND,
-					      budget);
+					      budget, &tx_pkts, &tx_bytes);
 			tx_done++;
 		break;
 		case CQE_TYPE_INVALID:
@@ -725,6 +734,9 @@ done:
 		netdev = nic->pnicvf->netdev;
 		txq = netdev_get_tx_queue(netdev,
 					  nicvf_netdev_qidx(nic, cq_idx));
+		if (tx_pkts)
+			netdev_tx_completed_queue(txq, tx_pkts, tx_bytes);
+
 		nic = nic->pnicvf;
 		if (netif_tx_queue_stopped(txq) && netif_carrier_ok(netdev)) {
 			netif_tx_start_queue(txq);
@@ -1155,6 +1167,9 @@ int nicvf_stop(struct net_device *netdev)
 
 	netif_tx_disable(netdev);
 
+	for (qidx = 0; qidx < netdev->num_tx_queues; qidx++)
+		netdev_tx_reset_queue(netdev_get_tx_queue(netdev, qidx));
+
 	/* Free resources */
 	nicvf_config_data_transfer(nic, false);
 
@@ -1516,6 +1531,7 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct net_device *netdev;
 	struct nicvf *nic;
 	int    err, qcount;
+	u16    sdevid;
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -1587,6 +1603,10 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (!pass1_silicon(nic->pdev))
 		nic->hw_tso = true;
+
+	pci_read_config_word(nic->pdev, PCI_SUBSYSTEM_ID, &sdevid);
+	if (sdevid == 0xA134)
+		nic->t88 = true;
 
 	/* Check if this VF is in QS only mode */
 	if (nic->sqs_mode)

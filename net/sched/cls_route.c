@@ -268,8 +268,7 @@ static int route4_init(struct tcf_proto *tp)
 	return 0;
 }
 
-static void
-route4_delete_filter(struct rcu_head *head)
+static void route4_delete_filter(struct rcu_head *head)
 {
 	struct route4_filter *f = container_of(head, struct route4_filter, rcu);
 
@@ -474,10 +473,8 @@ errout:
 }
 
 static int route4_change(struct net *net, struct sk_buff *in_skb,
-		       struct tcf_proto *tp, unsigned long base,
-		       u32 handle,
-		       struct nlattr **tca,
-		       unsigned long *arg, bool ovr)
+			 struct tcf_proto *tp, unsigned long base, u32 handle,
+			 struct nlattr **tca, unsigned long *arg, bool ovr)
 {
 	struct route4_head *head = rtnl_dereference(tp->root);
 	struct route4_filter __rcu **fp;
@@ -562,7 +559,8 @@ static int route4_change(struct net *net, struct sk_buff *in_skb,
 	return 0;
 
 errout:
-	tcf_exts_destroy(&f->exts);
+	if (f)
+		tcf_exts_destroy(&f->exts);
 	kfree(f);
 	return err;
 }

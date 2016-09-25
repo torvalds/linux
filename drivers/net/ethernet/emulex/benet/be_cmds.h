@@ -58,7 +58,8 @@ enum mcc_base_status {
 	MCC_STATUS_INSUFFICIENT_BUFFER = 4,
 	MCC_STATUS_UNAUTHORIZED_REQUEST = 5,
 	MCC_STATUS_NOT_SUPPORTED = 66,
-	MCC_STATUS_FEATURE_NOT_SUPPORTED = 68
+	MCC_STATUS_FEATURE_NOT_SUPPORTED = 68,
+	MCC_STATUS_INVALID_LENGTH = 116
 };
 
 /* Additional status */
@@ -294,8 +295,8 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_GET_PHY_DETAILS			102
 #define OPCODE_COMMON_SET_DRIVER_FUNCTION_CAP		103
 #define OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES	121
-#define OPCODE_COMMON_GET_EXT_FAT_CAPABILITES		125
-#define OPCODE_COMMON_SET_EXT_FAT_CAPABILITES		126
+#define OPCODE_COMMON_GET_EXT_FAT_CAPABILITIES		125
+#define OPCODE_COMMON_SET_EXT_FAT_CAPABILITIES		126
 #define OPCODE_COMMON_GET_MAC_LIST			147
 #define OPCODE_COMMON_SET_MAC_LIST			148
 #define OPCODE_COMMON_GET_HSW_CONFIG			152
@@ -308,6 +309,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_READ_OBJECT			171
 #define OPCODE_COMMON_WRITE_OBJECT			172
 #define OPCODE_COMMON_DELETE_OBJECT			174
+#define OPCODE_COMMON_SET_FEATURES			191
 #define OPCODE_COMMON_MANAGE_IFACE_FILTERS		193
 #define OPCODE_COMMON_GET_IFACE_LIST			194
 #define OPCODE_COMMON_ENABLE_DISABLE_VF			196
@@ -2315,6 +2317,41 @@ struct be_cmd_resp_get_iface_list {
 	struct be_if_desc if_desc;
 };
 
+/************** Set Features *******************/
+#define	BE_FEATURE_UE_RECOVERY		0x10
+#define	BE_UE_RECOVERY_UER_MASK		0x1
+
+struct be_req_ue_recovery {
+	u32	uer;
+	u32	rsvd;
+};
+
+struct be_cmd_req_set_features {
+	struct be_cmd_req_hdr hdr;
+	u32 features;
+	u32 parameter_len;
+	union {
+		struct be_req_ue_recovery req;
+		u32 rsvd[2];
+	} parameter;
+};
+
+struct be_resp_ue_recovery {
+	u32 uer;
+	u16 ue2rp;
+	u16 ue2sr;
+};
+
+struct be_cmd_resp_set_features {
+	struct be_cmd_resp_hdr hdr;
+	u32 features;
+	u32 parameter_len;
+	union {
+		struct be_resp_ue_recovery resp;
+		u32 rsvd[2];
+	} parameter;
+};
+
 /*************** Set logical link ********************/
 #define PLINK_ENABLE            BIT(0)
 #define PLINK_TRACK             BIT(8)
@@ -2343,6 +2380,7 @@ struct be_cmd_req_manage_iface_filters {
 	u32 cap_control_flags;
 } __packed;
 
+u16 be_POST_stage_get(struct be_adapter *adapter);
 int be_pci_fnum_get(struct be_adapter *adapter);
 int be_fw_wait_ready(struct be_adapter *adapter);
 int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
@@ -2470,3 +2508,4 @@ int be_cmd_manage_iface(struct be_adapter *adapter, u32 iface, u8 op);
 int be_cmd_set_sriov_config(struct be_adapter *adapter,
 			    struct be_resources res, u16 num_vfs,
 			    struct be_resources *vft_res);
+int be_cmd_set_features(struct be_adapter *adapter);

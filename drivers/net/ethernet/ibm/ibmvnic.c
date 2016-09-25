@@ -1424,7 +1424,7 @@ static int init_sub_crq_irqs(struct ibmvnic_adapter *adapter)
 		scrq = adapter->tx_scrq[i];
 		scrq->irq = irq_create_mapping(NULL, scrq->hw_irq);
 
-		if (scrq->irq == NO_IRQ) {
+		if (!scrq->irq) {
 			rc = -EINVAL;
 			dev_err(dev, "Error mapping irq\n");
 			goto req_tx_irq_failed;
@@ -1444,7 +1444,7 @@ static int init_sub_crq_irqs(struct ibmvnic_adapter *adapter)
 	for (i = 0; i < adapter->req_rx_queues; i++) {
 		scrq = adapter->rx_scrq[i];
 		scrq->irq = irq_create_mapping(NULL, scrq->hw_irq);
-		if (scrq->irq == NO_IRQ) {
+		if (!scrq->irq) {
 			rc = -EINVAL;
 			dev_err(dev, "Error mapping irq\n");
 			goto req_rx_irq_failed;

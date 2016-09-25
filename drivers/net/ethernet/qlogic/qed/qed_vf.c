@@ -1186,8 +1186,8 @@ bool qed_vf_check_mac(struct qed_hwfn *p_hwfn, u8 *mac)
 	return false;
 }
 
-bool qed_vf_bulletin_get_forced_mac(struct qed_hwfn *hwfn,
-				    u8 *dst_mac, u8 *p_is_forced)
+static bool qed_vf_bulletin_get_forced_mac(struct qed_hwfn *hwfn,
+					   u8 *dst_mac, u8 *p_is_forced)
 {
 	struct qed_bulletin_content *bulletin;
 

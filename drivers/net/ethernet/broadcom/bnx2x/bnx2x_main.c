@@ -772,6 +772,11 @@ void bnx2x_fw_dump_lvl(struct bnx2x *bp, const char *lvl)
 		(bp->common.bc_ver & 0xff00) >> 8,
 		(bp->common.bc_ver & 0xff));
 
+	if (pci_channel_offline(bp->pdev)) {
+		BNX2X_ERR("Cannot dump MCP info while in PCI error\n");
+		return;
+	}
+
 	val = REG_RD(bp, MCP_REG_MCPR_CPU_PROGRAM_COUNTER);
 	if (val == REG_RD(bp, MCP_REG_MCPR_CPU_PROGRAM_COUNTER))
 		BNX2X_ERR("%s" "MCP PC at 0x%x\n", lvl, val);
@@ -9415,10 +9420,16 @@ unload_error:
 	/* Release IRQs */
 	bnx2x_free_irq(bp);
 
-	/* Reset the chip */
-	rc = bnx2x_reset_hw(bp, reset_code);
-	if (rc)
-		BNX2X_ERR("HW_RESET failed\n");
+	/* Reset the chip, unless PCI function is offline. If we reach this
+	 * point following a PCI error handling, it means device is really
+	 * in a bad state and we're about to remove it, so reset the chip
+	 * is not a good idea.
+	 */
+	if (!pci_channel_offline(bp->pdev)) {
+		rc = bnx2x_reset_hw(bp, reset_code);
+		if (rc)
+			BNX2X_ERR("HW_RESET failed\n");
+	}
 
 	/* Report UNLOAD_DONE to MCP */
 	bnx2x_send_unload_done(bp, keep_link);

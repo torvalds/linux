@@ -231,19 +231,17 @@ EXPORT_SYMBOL(nf_unregister_net_hooks);
 
 static LIST_HEAD(nf_hook_list);
 
-int nf_register_hook(struct nf_hook_ops *reg)
+static int _nf_register_hook(struct nf_hook_ops *reg)
 {
 	struct net *net, *last;
 	int ret;
 
-	rtnl_lock();
 	for_each_net(net) {
 		ret = nf_register_net_hook(net, reg);
 		if (ret && ret != -ENOENT)
 			goto rollback;
 	}
 	list_add_tail(&reg->list, &nf_hook_list);
-	rtnl_unlock();
 
 	return 0;
 rollback:
@@ -253,19 +251,34 @@ rollback:
 			break;
 		nf_unregister_net_hook(net, reg);
 	}
+	return ret;
+}
+
+int nf_register_hook(struct nf_hook_ops *reg)
+{
+	int ret;
+
+	rtnl_lock();
+	ret = _nf_register_hook(reg);
 	rtnl_unlock();
+
 	return ret;
 }
 EXPORT_SYMBOL(nf_register_hook);
 
-void nf_unregister_hook(struct nf_hook_ops *reg)
+static void _nf_unregister_hook(struct nf_hook_ops *reg)
 {
 	struct net *net;
 
-	rtnl_lock();
 	list_del(&reg->list);
 	for_each_net(net)
 		nf_unregister_net_hook(net, reg);
+}
+
+void nf_unregister_hook(struct nf_hook_ops *reg)
+{
+	rtnl_lock();
+	_nf_unregister_hook(reg);
 	rtnl_unlock();
 }
 EXPORT_SYMBOL(nf_unregister_hook);
@@ -289,12 +302,40 @@ err:
 }
 EXPORT_SYMBOL(nf_register_hooks);
 
+/* Caller MUST take rtnl_lock() */
+int _nf_register_hooks(struct nf_hook_ops *reg, unsigned int n)
+{
+	unsigned int i;
+	int err = 0;
+
+	for (i = 0; i < n; i++) {
+		err = _nf_register_hook(&reg[i]);
+		if (err)
+			goto err;
+	}
+	return err;
+
+err:
+	if (i > 0)
+		_nf_unregister_hooks(reg, i);
+	return err;
+}
+EXPORT_SYMBOL(_nf_register_hooks);
+
 void nf_unregister_hooks(struct nf_hook_ops *reg, unsigned int n)
 {
 	while (n-- > 0)
 		nf_unregister_hook(&reg[n]);
 }
 EXPORT_SYMBOL(nf_unregister_hooks);
+
+/* Caller MUST take rtnl_lock */
+void _nf_unregister_hooks(struct nf_hook_ops *reg, unsigned int n)
+{
+	while (n-- > 0)
+		_nf_unregister_hook(&reg[n]);
+}
+EXPORT_SYMBOL(_nf_unregister_hooks);
 
 unsigned int nf_iterate(struct sk_buff *skb,
 			struct nf_hook_state *state,

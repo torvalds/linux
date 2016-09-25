@@ -293,9 +293,15 @@ int nft_meta_get_init(const struct nft_ctx *ctx,
 }
 EXPORT_SYMBOL_GPL(nft_meta_get_init);
 
-static int nft_meta_set_init_pkttype(const struct nft_ctx *ctx)
+int nft_meta_set_validate(const struct nft_ctx *ctx,
+			  const struct nft_expr *expr,
+			  const struct nft_data **data)
 {
+	struct nft_meta *priv = nft_expr_priv(expr);
 	unsigned int hooks;
+
+	if (priv->key != NFT_META_PKTTYPE)
+		return 0;
 
 	switch (ctx->afi->family) {
 	case NFPROTO_BRIDGE:
@@ -310,6 +316,7 @@ static int nft_meta_set_init_pkttype(const struct nft_ctx *ctx)
 
 	return nft_chain_validate_hooks(ctx->chain, hooks);
 }
+EXPORT_SYMBOL_GPL(nft_meta_set_validate);
 
 int nft_meta_set_init(const struct nft_ctx *ctx,
 		      const struct nft_expr *expr,
@@ -329,14 +336,15 @@ int nft_meta_set_init(const struct nft_ctx *ctx,
 		len = sizeof(u8);
 		break;
 	case NFT_META_PKTTYPE:
-		err = nft_meta_set_init_pkttype(ctx);
-		if (err)
-			return err;
 		len = sizeof(u8);
 		break;
 	default:
 		return -EOPNOTSUPP;
 	}
+
+	err = nft_meta_set_validate(ctx, expr, NULL);
+	if (err < 0)
+		return err;
 
 	priv->sreg = nft_parse_register(tb[NFTA_META_SREG]);
 	err = nft_validate_register_load(priv->sreg, len);
@@ -409,6 +417,7 @@ static const struct nft_expr_ops nft_meta_set_ops = {
 	.init		= nft_meta_set_init,
 	.destroy	= nft_meta_set_destroy,
 	.dump		= nft_meta_set_dump,
+	.validate	= nft_meta_set_validate,
 };
 
 static const struct nft_expr_ops *

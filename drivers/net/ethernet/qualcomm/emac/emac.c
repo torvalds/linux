@@ -722,7 +722,6 @@ static int emac_remove(struct platform_device *pdev)
 
 	mdiobus_unregister(adpt->mii_bus);
 	free_netdev(netdev);
-	dev_set_drvdata(&pdev->dev, NULL);
 
 	return 0;
 }
@@ -731,7 +730,6 @@ static struct platform_driver emac_platform_driver = {
 	.probe	= emac_probe,
 	.remove	= emac_remove,
 	.driver = {
-		.owner		= THIS_MODULE,
 		.name		= "qcom-emac",
 		.of_match_table = emac_dt_match,
 	},

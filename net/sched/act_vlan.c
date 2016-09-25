@@ -30,6 +30,7 @@ static int tcf_vlan(struct sk_buff *skb, const struct tc_action *a,
 	struct tcf_vlan *v = to_vlan(a);
 	int action;
 	int err;
+	u16 tci;
 
 	spin_lock(&v->tcf_lock);
 	tcf_lastuse_update(&v->tcf_tm);
@@ -47,6 +48,30 @@ static int tcf_vlan(struct sk_buff *skb, const struct tc_action *a,
 				    (v->tcfv_push_prio << VLAN_PRIO_SHIFT));
 		if (err)
 			goto drop;
+		break;
+	case TCA_VLAN_ACT_MODIFY:
+		/* No-op if no vlan tag (either hw-accel or in-payload) */
+		if (!skb_vlan_tagged(skb))
+			goto unlock;
+		/* extract existing tag (and guarantee no hw-accel tag) */
+		if (skb_vlan_tag_present(skb)) {
+			tci = skb_vlan_tag_get(skb);
+			skb->vlan_tci = 0;
+		} else {
+			/* in-payload vlan tag, pop it */
+			err = __skb_vlan_pop(skb, &tci);
+			if (err)
+				goto drop;
+		}
+		/* replace the vid */
+		tci = (tci & ~VLAN_VID_MASK) | v->tcfv_push_vid;
+		/* replace prio bits, if tcfv_push_prio specified */
+		if (v->tcfv_push_prio) {
+			tci &= ~VLAN_PRIO_MASK;
+			tci |= v->tcfv_push_prio << VLAN_PRIO_SHIFT;
+		}
+		/* put updated tci as hwaccel tag */
+		__vlan_hwaccel_put_tag(skb, v->tcfv_push_proto, tci);
 		break;
 	default:
 		BUG();
@@ -102,6 +127,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	case TCA_VLAN_ACT_POP:
 		break;
 	case TCA_VLAN_ACT_PUSH:
+	case TCA_VLAN_ACT_MODIFY:
 		if (!tb[TCA_VLAN_PUSH_VLAN_ID]) {
 			if (exists)
 				tcf_hash_release(*a, bind);
@@ -185,7 +211,8 @@ static int tcf_vlan_dump(struct sk_buff *skb, struct tc_action *a,
 	if (nla_put(skb, TCA_VLAN_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
 
-	if (v->tcfv_action == TCA_VLAN_ACT_PUSH &&
+	if ((v->tcfv_action == TCA_VLAN_ACT_PUSH ||
+	     v->tcfv_action == TCA_VLAN_ACT_MODIFY) &&
 	    (nla_put_u16(skb, TCA_VLAN_PUSH_VLAN_ID, v->tcfv_push_vid) ||
 	     nla_put_be16(skb, TCA_VLAN_PUSH_VLAN_PROTOCOL,
 			  v->tcfv_push_proto) ||

@@ -111,8 +111,8 @@ int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
 
-int qed_sp_vport_start(struct qed_hwfn *p_hwfn,
-		       struct qed_sp_vport_start_params *p_params)
+static int qed_sp_vport_start(struct qed_hwfn *p_hwfn,
+			      struct qed_sp_vport_start_params *p_params)
 {
 	if (IS_VF(p_hwfn->cdev)) {
 		return qed_vf_pf_vport_start(p_hwfn, p_params->vport_id,

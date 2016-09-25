@@ -15,10 +15,6 @@
 #include <linux/net.h>
 #include <linux/skbuff.h>
 #include <linux/errqueue.h>
-#include <linux/udp.h>
-#include <linux/in.h>
-#include <linux/in6.h>
-#include <linux/icmp.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
 #include <net/ip.h>
@@ -101,6 +97,7 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 		pkt.info.maxMTU		= htonl(mtu);
 		pkt.info.rwind		= htonl(rxrpc_rx_window_size);
 		pkt.info.jumbo_max	= htonl(rxrpc_rx_jumbo_max);
+		pkt.whdr.flags		|= RXRPC_SLOW_START_OK;
 		len += sizeof(pkt.ack) + sizeof(pkt.info);
 		break;
 	}
@@ -123,6 +120,8 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 		_proto("Tx ABORT %%%u { %d } [re]", serial, conn->local_abort);
 		break;
 	case RXRPC_PACKET_TYPE_ACK:
+		trace_rxrpc_tx_ack(NULL, serial, chan->last_seq, 0,
+				   RXRPC_ACK_DUPLICATE, 0);
 		_proto("Tx ACK %%%u [re]", serial);
 		break;
 	}
@@ -140,15 +139,9 @@ static void rxrpc_abort_calls(struct rxrpc_connection *conn,
 			      u32 abort_code, int error)
 {
 	struct rxrpc_call *call;
-	bool queue;
-	int i, bit;
+	int i;
 
 	_enter("{%d},%x", conn->debug_id, abort_code);
-
-	if (compl == RXRPC_CALL_LOCALLY_ABORTED)
-		bit = RXRPC_CALL_EV_CONN_ABORT;
-	else
-		bit = RXRPC_CALL_EV_RCVD_ABORT;
 
 	spin_lock(&conn->channel_lock);
 
@@ -157,16 +150,13 @@ static void rxrpc_abort_calls(struct rxrpc_connection *conn,
 			conn->channels[i].call,
 			lockdep_is_held(&conn->channel_lock));
 		if (call) {
-			rxrpc_see_call(call);
-			write_lock_bh(&call->state_lock);
-			if (rxrpc_set_call_completion(call, compl, abort_code,
-						      error)) {
-				set_bit(bit, &call->events);
-				queue = true;
-			}
-			write_unlock_bh(&call->state_lock);
-			if (queue)
-				rxrpc_queue_call(call);
+			if (compl == RXRPC_CALL_LOCALLY_ABORTED)
+				trace_rxrpc_abort("CON", call->cid,
+						  call->call_id, 0,
+						  abort_code, error);
+			if (rxrpc_set_call_completion(call, compl,
+						      abort_code, error))
+				rxrpc_notify_socket(call);
 		}
 	}
 
@@ -245,17 +235,18 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 
 /*
  * mark a call as being on a now-secured channel
- * - must be called with softirqs disabled
+ * - must be called with BH's disabled.
  */
 static void rxrpc_call_is_secure(struct rxrpc_call *call)
 {
 	_enter("%p", call);
 	if (call) {
-		read_lock(&call->state_lock);
-		if (call->state < RXRPC_CALL_COMPLETE &&
-		    !test_and_set_bit(RXRPC_CALL_EV_SECURED, &call->events))
-			rxrpc_queue_call(call);
-		read_unlock(&call->state_lock);
+		write_lock_bh(&call->state_lock);
+		if (call->state == RXRPC_CALL_SERVER_SECURING) {
+			call->state = RXRPC_CALL_SERVER_ACCEPTING;
+			rxrpc_notify_socket(call);
+		}
+		write_unlock_bh(&call->state_lock);
 	}
 }
 
@@ -272,7 +263,7 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 	int loop, ret;
 
 	if (conn->state >= RXRPC_CONN_REMOTELY_ABORTED) {
-		kleave(" = -ECONNABORTED [%u]", conn->state);
+		_leave(" = -ECONNABORTED [%u]", conn->state);
 		return -ECONNABORTED;
 	}
 
@@ -285,14 +276,14 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 		return 0;
 
 	case RXRPC_PACKET_TYPE_ABORT:
-		if (skb_copy_bits(skb, 0, &wtmp, sizeof(wtmp)) < 0)
+		if (skb_copy_bits(skb, sp->offset, &wtmp, sizeof(wtmp)) < 0)
 			return -EPROTO;
 		abort_code = ntohl(wtmp);
 		_proto("Rx ABORT %%%u { ac=%d }", sp->hdr.serial, abort_code);
 
 		conn->state = RXRPC_CONN_REMOTELY_ABORTED;
-		rxrpc_abort_calls(conn, 0, RXRPC_CALL_REMOTELY_ABORTED,
-				  abort_code);
+		rxrpc_abort_calls(conn, RXRPC_CALL_REMOTELY_ABORTED,
+				  abort_code, ECONNABORTED);
 		return -ECONNABORTED;
 
 	case RXRPC_PACKET_TYPE_CHALLENGE:
@@ -317,14 +308,16 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 
 		if (conn->state == RXRPC_CONN_SERVICE_CHALLENGING) {
 			conn->state = RXRPC_CONN_SERVICE;
+			spin_unlock(&conn->state_lock);
 			for (loop = 0; loop < RXRPC_MAXCALLS; loop++)
 				rxrpc_call_is_secure(
 					rcu_dereference_protected(
 						conn->channels[loop].call,
 						lockdep_is_held(&conn->channel_lock)));
+		} else {
+			spin_unlock(&conn->state_lock);
 		}
 
-		spin_unlock(&conn->state_lock);
 		spin_unlock(&conn->channel_lock);
 		return 0;
 
@@ -387,7 +380,7 @@ void rxrpc_process_connection(struct work_struct *work)
 	u32 abort_code = RX_PROTOCOL_ERROR;
 	int ret;
 
-	_enter("{%d}", conn->debug_id);
+	rxrpc_see_connection(conn);
 
 	if (test_and_clear_bit(RXRPC_CONN_EV_CHALLENGE, &conn->events))
 		rxrpc_secure_connection(conn);
@@ -395,7 +388,7 @@ void rxrpc_process_connection(struct work_struct *work)
 	/* go through the conn-level event packets, releasing the ref on this
 	 * connection that each one has when we've finished with it */
 	while ((skb = skb_dequeue(&conn->rx_queue))) {
-		rxrpc_see_skb(skb);
+		rxrpc_see_skb(skb, rxrpc_skb_rx_seen);
 		ret = rxrpc_process_event(conn, skb, &abort_code);
 		switch (ret) {
 		case -EPROTO:
@@ -406,7 +399,7 @@ void rxrpc_process_connection(struct work_struct *work)
 			goto requeue_and_leave;
 		case -ECONNABORTED:
 		default:
-			rxrpc_free_skb(skb);
+			rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
 			break;
 		}
 	}
@@ -423,92 +416,7 @@ requeue_and_leave:
 protocol_error:
 	if (rxrpc_abort_connection(conn, -ret, abort_code) < 0)
 		goto requeue_and_leave;
-	rxrpc_free_skb(skb);
+	rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
 	_leave(" [EPROTO]");
 	goto out;
-}
-
-/*
- * put a packet up for transport-level abort
- */
-void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb)
-{
-	CHECK_SLAB_OKAY(&local->usage);
-
-	skb_queue_tail(&local->reject_queue, skb);
-	rxrpc_queue_local(local);
-}
-
-/*
- * reject packets through the local endpoint
- */
-void rxrpc_reject_packets(struct rxrpc_local *local)
-{
-	union {
-		struct sockaddr sa;
-		struct sockaddr_in sin;
-	} sa;
-	struct rxrpc_skb_priv *sp;
-	struct rxrpc_wire_header whdr;
-	struct sk_buff *skb;
-	struct msghdr msg;
-	struct kvec iov[2];
-	size_t size;
-	__be32 code;
-
-	_enter("%d", local->debug_id);
-
-	iov[0].iov_base = &whdr;
-	iov[0].iov_len = sizeof(whdr);
-	iov[1].iov_base = &code;
-	iov[1].iov_len = sizeof(code);
-	size = sizeof(whdr) + sizeof(code);
-
-	msg.msg_name = &sa;
-	msg.msg_control = NULL;
-	msg.msg_controllen = 0;
-	msg.msg_flags = 0;
-
-	memset(&sa, 0, sizeof(sa));
-	sa.sa.sa_family = local->srx.transport.family;
-	switch (sa.sa.sa_family) {
-	case AF_INET:
-		msg.msg_namelen = sizeof(sa.sin);
-		break;
-	default:
-		msg.msg_namelen = 0;
-		break;
-	}
-
-	memset(&whdr, 0, sizeof(whdr));
-	whdr.type = RXRPC_PACKET_TYPE_ABORT;
-
-	while ((skb = skb_dequeue(&local->reject_queue))) {
-		rxrpc_see_skb(skb);
-		sp = rxrpc_skb(skb);
-		switch (sa.sa.sa_family) {
-		case AF_INET:
-			sa.sin.sin_port = udp_hdr(skb)->source;
-			sa.sin.sin_addr.s_addr = ip_hdr(skb)->saddr;
-			code = htonl(skb->priority);
-
-			whdr.epoch	= htonl(sp->hdr.epoch);
-			whdr.cid	= htonl(sp->hdr.cid);
-			whdr.callNumber	= htonl(sp->hdr.callNumber);
-			whdr.serviceId	= htons(sp->hdr.serviceId);
-			whdr.flags	= sp->hdr.flags;
-			whdr.flags	^= RXRPC_CLIENT_INITIATED;
-			whdr.flags	&= RXRPC_CLIENT_INITIATED;
-
-			kernel_sendmsg(local->socket, &msg, iov, 2, size);
-			break;
-
-		default:
-			break;
-		}
-
-		rxrpc_free_skb(skb);
-	}
-
-	_leave("");
 }

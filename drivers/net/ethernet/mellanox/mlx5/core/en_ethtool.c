@@ -331,7 +331,7 @@ static void mlx5e_get_ethtool_stats(struct net_device *dev,
 	if (mlx5e_query_global_pause_combined(priv)) {
 		for (i = 0; i < NUM_PPORT_PER_PRIO_PFC_COUNTERS; i++) {
 			data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pport.per_prio_counters[0],
-							  pport_per_prio_pfc_stats_desc, 0);
+							  pport_per_prio_pfc_stats_desc, i);
 		}
 	}
 
@@ -659,9 +659,10 @@ out:
 static void ptys2ethtool_supported_link(unsigned long *supported_modes,
 					u32 eth_proto_cap)
 {
+	unsigned long proto_cap = eth_proto_cap;
 	int proto;
 
-	for_each_set_bit(proto, (unsigned long *)&eth_proto_cap, MLX5E_LINK_MODES_NUMBER)
+	for_each_set_bit(proto, &proto_cap, MLX5E_LINK_MODES_NUMBER)
 		bitmap_or(supported_modes, supported_modes,
 			  ptys2ethtool_table[proto].supported,
 			  __ETHTOOL_LINK_MODE_MASK_NBITS);
@@ -670,9 +671,10 @@ static void ptys2ethtool_supported_link(unsigned long *supported_modes,
 static void ptys2ethtool_adver_link(unsigned long *advertising_modes,
 				    u32 eth_proto_cap)
 {
+	unsigned long proto_cap = eth_proto_cap;
 	int proto;
 
-	for_each_set_bit(proto, (unsigned long *)&eth_proto_cap, MLX5E_LINK_MODES_NUMBER)
+	for_each_set_bit(proto, &proto_cap, MLX5E_LINK_MODES_NUMBER)
 		bitmap_or(advertising_modes, advertising_modes,
 			  ptys2ethtool_table[proto].advertised,
 			  __ETHTOOL_LINK_MODE_MASK_NBITS);

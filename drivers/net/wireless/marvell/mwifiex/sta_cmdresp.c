@@ -962,7 +962,7 @@ static int mwifiex_ret_uap_sta_list(struct mwifiex_private *priv,
 	int i;
 	struct mwifiex_sta_node *sta_node;
 
-	for (i = 0; i < sta_list->sta_count; i++) {
+	for (i = 0; i < (le16_to_cpu(sta_list->sta_count)); i++) {
 		sta_node = mwifiex_get_sta_entry(priv, sta_info->mac);
 		if (unlikely(!sta_node))
 			continue;
@@ -1017,6 +1017,135 @@ static int mwifiex_ret_robust_coex(struct mwifiex_private *priv,
 			*is_timeshare = true;
 		else
 			*is_timeshare = false;
+	}
+
+	return 0;
+}
+
+static struct ieee80211_regdomain *
+mwifiex_create_custom_regdomain(struct mwifiex_private *priv,
+				u8 *buf, u16 buf_len)
+{
+	u16 num_chan = buf_len / 2;
+	struct ieee80211_regdomain *regd;
+	struct ieee80211_reg_rule *rule;
+	bool new_rule;
+	int regd_size, idx, freq, prev_freq = 0;
+	u32 bw, prev_bw = 0;
+	u8 chflags, prev_chflags = 0, valid_rules = 0;
+
+	if (WARN_ON_ONCE(num_chan > NL80211_MAX_SUPP_REG_RULES))
+		return ERR_PTR(-EINVAL);
+
+	regd_size = sizeof(struct ieee80211_regdomain) +
+		    num_chan * sizeof(struct ieee80211_reg_rule);
+
+	regd = kzalloc(regd_size, GFP_KERNEL);
+	if (!regd)
+		return ERR_PTR(-ENOMEM);
+
+	for (idx = 0; idx < num_chan; idx++) {
+		u8 chan;
+		enum nl80211_band band;
+
+		chan = *buf++;
+		if (!chan)
+			return NULL;
+		chflags = *buf++;
+		band = (chan <= 14) ? NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
+		freq = ieee80211_channel_to_frequency(chan, band);
+		new_rule = false;
+
+		if (chflags & MWIFIEX_CHANNEL_DISABLED)
+			continue;
+
+		if (band == NL80211_BAND_5GHZ) {
+			if (!(chflags & MWIFIEX_CHANNEL_NOHT80))
+				bw = MHZ_TO_KHZ(80);
+			else if (!(chflags & MWIFIEX_CHANNEL_NOHT40))
+				bw = MHZ_TO_KHZ(40);
+			else
+				bw = MHZ_TO_KHZ(20);
+		} else {
+			if (!(chflags & MWIFIEX_CHANNEL_NOHT40))
+				bw = MHZ_TO_KHZ(40);
+			else
+				bw = MHZ_TO_KHZ(20);
+		}
+
+		if (idx == 0 || prev_chflags != chflags || prev_bw != bw ||
+		    freq - prev_freq > 20) {
+			valid_rules++;
+			new_rule = true;
+		}
+
+		rule = &regd->reg_rules[valid_rules - 1];
+
+		rule->freq_range.end_freq_khz = MHZ_TO_KHZ(freq + 10);
+
+		prev_chflags = chflags;
+		prev_freq = freq;
+		prev_bw = bw;
+
+		if (!new_rule)
+			continue;
+
+		rule->freq_range.start_freq_khz = MHZ_TO_KHZ(freq - 10);
+		rule->power_rule.max_eirp = DBM_TO_MBM(19);
+
+		if (chflags & MWIFIEX_CHANNEL_PASSIVE)
+			rule->flags = NL80211_RRF_NO_IR;
+
+		if (chflags & MWIFIEX_CHANNEL_DFS)
+			rule->flags = NL80211_RRF_DFS;
+
+		rule->freq_range.max_bandwidth_khz = bw;
+	}
+
+	regd->n_reg_rules = valid_rules;
+	regd->alpha2[0] = '9';
+	regd->alpha2[1] = '9';
+
+	return regd;
+}
+
+static int mwifiex_ret_chan_region_cfg(struct mwifiex_private *priv,
+				       struct host_cmd_ds_command *resp)
+{
+	struct host_cmd_ds_chan_region_cfg *reg = &resp->params.reg_cfg;
+	u16 action = le16_to_cpu(reg->action);
+	u16 tlv, tlv_buf_len, tlv_buf_left;
+	struct mwifiex_ie_types_header *head;
+	u8 *tlv_buf;
+
+	if (action != HostCmd_ACT_GEN_GET)
+		return 0;
+
+	tlv_buf = (u8 *)reg + sizeof(*reg);
+	tlv_buf_left = le16_to_cpu(resp->size) - S_DS_GEN - sizeof(*reg);
+
+	while (tlv_buf_left >= sizeof(*head)) {
+		head = (struct mwifiex_ie_types_header *)tlv_buf;
+		tlv = le16_to_cpu(head->type);
+		tlv_buf_len = le16_to_cpu(head->len);
+
+		if (tlv_buf_left < (sizeof(*head) + tlv_buf_len))
+			break;
+
+		switch (tlv) {
+		case TLV_TYPE_CHAN_ATTR_CFG:
+			mwifiex_dbg_dump(priv->adapter, CMD_D, "CHAN:",
+					 (u8 *)head + sizeof(*head),
+					 tlv_buf_len);
+			priv->adapter->regd =
+				mwifiex_create_custom_regdomain(priv,
+								(u8 *)head +
+						sizeof(*head), tlv_buf_len);
+			break;
+		}
+
+		tlv_buf += (sizeof(*head) + tlv_buf_len);
+		tlv_buf_left -= (sizeof(*head) + tlv_buf_len);
 	}
 
 	return 0;
@@ -1238,6 +1367,9 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		ret = mwifiex_ret_robust_coex(priv, resp, data_buf);
 		break;
 	case HostCmd_CMD_GTK_REKEY_OFFLOAD_CFG:
+		break;
+	case HostCmd_CMD_CHAN_REGION_CFG:
+		ret = mwifiex_ret_chan_region_cfg(priv, resp);
 		break;
 	default:
 		mwifiex_dbg(adapter, ERROR,

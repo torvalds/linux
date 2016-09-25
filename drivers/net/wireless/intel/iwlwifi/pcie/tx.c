@@ -703,6 +703,9 @@ void iwl_pcie_tx_start(struct iwl_trans *trans, u32 scd_base_addr)
 	memset(trans_pcie->queue_stopped, 0, sizeof(trans_pcie->queue_stopped));
 	memset(trans_pcie->queue_used, 0, sizeof(trans_pcie->queue_used));
 
+	if (trans->cfg->use_tfh)
+		return;
+
 	trans_pcie->scd_base_addr =
 		iwl_read_prph(trans, SCD_SRAM_BASE_ADDR);
 
@@ -970,11 +973,13 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 		}
 	}
 
-	if (trans->cfg->use_tfh)
+	if (trans->cfg->use_tfh) {
 		iwl_write_direct32(trans, TFH_TRANSFER_MODE,
 				   TFH_TRANSFER_MAX_PENDING_REQ |
 				   TFH_CHUNK_SIZE_128 |
 				   TFH_CHUNK_SPLIT_MODE);
+		return 0;
+	}
 
 	iwl_set_bits_prph(trans, SCD_GP_CTRL, SCD_GP_CTRL_AUTO_ACTIVE_MODE);
 	if (trans->cfg->base_params->num_of_queues > 20)
@@ -1249,6 +1254,9 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, u16 ssn,
 	if (test_and_set_bit(txq_id, trans_pcie->queue_used))
 		WARN_ONCE(1, "queue %d already used - expect issues", txq_id);
 
+	if (cfg && trans->cfg->use_tfh)
+		WARN_ONCE(1, "Expected no calls to SCD configuration");
+
 	txq->wd_timeout = msecs_to_jiffies(wdg_timeout);
 
 	if (cfg) {
@@ -1365,6 +1373,9 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id,
 			  "queue %d not used", txq_id);
 		return;
 	}
+
+	if (configure_scd && trans->cfg->use_tfh)
+		WARN_ONCE(1, "Expected no calls to SCD configuration");
 
 	if (configure_scd) {
 		iwl_scd_txq_set_inactive(trans, txq_id);

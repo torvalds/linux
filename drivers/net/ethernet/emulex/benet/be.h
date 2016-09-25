@@ -37,7 +37,7 @@
 #include "be_hw.h"
 #include "be_roce.h"
 
-#define DRV_VER			"11.0.0.0"
+#define DRV_VER			"11.1.0.0"
 #define DRV_NAME		"be2net"
 #define BE_NAME			"Emulex BladeEngine2"
 #define BE3_NAME		"Emulex BladeEngine3"
@@ -399,13 +399,13 @@ enum vf_state {
 #define BE_FLAGS_PHY_MISCONFIGURED		BIT(10)
 #define BE_FLAGS_ERR_DETECTION_SCHEDULED	BIT(11)
 #define BE_FLAGS_OS2BMC				BIT(12)
+#define BE_FLAGS_TRY_RECOVERY			BIT(13)
 
 #define BE_UC_PMAC_COUNT			30
 #define BE_VF_UC_PMAC_COUNT			2
 
 #define MAX_ERR_RECOVERY_RETRY_COUNT		3
 #define ERR_DETECTION_DELAY			1000
-#define ERR_RECOVERY_RETRY_DELAY		30000
 
 /* Ethtool set_dump flags */
 #define LANCER_INITIATE_FW_DUMP			0x1
@@ -512,6 +512,66 @@ struct be_eth_addr {
 	unsigned char mac[ETH_ALEN];
 };
 
+#define BE_SEC	1000			/* in msec */
+#define BE_MIN	(60 * BE_SEC)		/* in msec */
+#define BE_HOUR	(60 * BE_MIN)		/* in msec */
+
+#define ERR_RECOVERY_MAX_RETRY_COUNT		3
+#define ERR_RECOVERY_DETECTION_DELAY		BE_SEC
+#define ERR_RECOVERY_RETRY_DELAY		(30 * BE_SEC)
+
+/* UE-detection-duration in BEx/Skyhawk:
+ * All PFs must wait for this duration after they detect UE before reading
+ * SLIPORT_SEMAPHORE register. At the end of this duration, the Firmware
+ * guarantees that the SLIPORT_SEMAPHORE register is updated to indicate
+ * if the UE is recoverable.
+ */
+#define ERR_RECOVERY_UE_DETECT_DURATION			BE_SEC
+
+/* Initial idle time (in msec) to elapse after driver load,
+ * before UE recovery is allowed.
+ */
+#define ERR_IDLE_HR			24
+#define ERR_RECOVERY_IDLE_TIME		(ERR_IDLE_HR * BE_HOUR)
+
+/* Time interval (in msec) after which UE recovery can be repeated */
+#define ERR_INTERVAL_HR			72
+#define ERR_RECOVERY_INTERVAL		(ERR_INTERVAL_HR * BE_HOUR)
+
+/* BEx/SH UE recovery state machine */
+enum {
+	ERR_RECOVERY_ST_NONE = 0,		/* No Recovery */
+	ERR_RECOVERY_ST_DETECT = 1,		/* UE detection duration */
+	ERR_RECOVERY_ST_RESET = 2,		/* Reset Phase (PF0 only) */
+	ERR_RECOVERY_ST_PRE_POLL = 3,		/* Pre-Poll Phase (all PFs) */
+	ERR_RECOVERY_ST_REINIT = 4		/* Re-initialize Phase */
+};
+
+struct be_error_recovery {
+	/* Lancer error recovery variables */
+	u8 recovery_retries;
+
+	/* BEx/Skyhawk error recovery variables */
+	u8 recovery_state;
+	u16 ue_to_reset_time;		/* Time after UE, to soft reset
+					 * the chip - PF0 only
+					 */
+	u16 ue_to_poll_time;		/* Time after UE, to Restart Polling
+					 * of SLIPORT_SEMAPHORE reg
+					 */
+	u16 last_err_code;
+	bool recovery_supported;
+	unsigned long probe_time;
+	unsigned long last_recovery_time;
+
+	/* Common to both Lancer & BEx/SH error recovery */
+	u32 resched_delay;
+	struct delayed_work err_detection_work;
+};
+
+/* Ethtool priv_flags */
+#define	BE_DISABLE_TPE_RECOVERY	0x1
+
 struct be_adapter {
 	struct pci_dev *pdev;
 	struct net_device *netdev;
@@ -560,7 +620,6 @@ struct be_adapter {
 	struct delayed_work work;
 	u16 work_counter;
 
-	struct delayed_work be_err_detection_work;
 	u8 recovery_retries;
 	u8 err_flags;
 	bool pcicfg_mapped;	/* pcicfg obtained via pci_iomap() */
@@ -634,6 +693,9 @@ struct be_adapter {
 	u32 fat_dump_len;
 	u16 serial_num[CNTL_SERIAL_NUM_WORDS];
 	u8 phy_state; /* state of sfp optics (functional, faulted, etc.,) */
+	u8 dev_mac[ETH_ALEN];
+	u32 priv_flags; /* ethtool get/set_priv_flags() */
+	struct be_error_recovery error_recovery;
 };
 
 /* Used for defered FW config cmds. Add fields to this struct as reqd */
@@ -866,6 +928,9 @@ static inline bool is_ipv4_pkt(struct sk_buff *skb)
 {
 	return skb->protocol == htons(ETH_P_IP) && ip_hdr(skb)->version == 4;
 }
+
+#define be_error_recovering(adapter)	\
+		(adapter->flags & BE_FLAGS_TRY_RECOVERY)
 
 #define BE_ERROR_EEH		1
 #define BE_ERROR_UE		BIT(1)

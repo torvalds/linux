@@ -347,7 +347,6 @@ struct wl1271_station {
 	 * Used in both AP and STA mode.
 	 */
 	u64 total_freed_pkts;
-	struct wl1271 *wl;
 };
 
 struct wl12xx_vif {

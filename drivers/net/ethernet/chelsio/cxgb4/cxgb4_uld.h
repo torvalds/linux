@@ -1,7 +1,7 @@
 /*
  * This file is part of the Chelsio T4 Ethernet driver for Linux.
  *
- * Copyright (c) 2003-2014 Chelsio Communications, Inc. All rights reserved.
+ * Copyright (c) 2003-2016 Chelsio Communications, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -41,6 +41,8 @@
 #include <linux/inetdevice.h>
 #include <linux/atomic.h>
 #include "cxgb4.h"
+
+#define MAX_ULD_QSETS 16
 
 /* CPL message priority levels */
 enum {
@@ -104,6 +106,7 @@ struct tid_info {
 	unsigned int atid_base;
 
 	struct filter_entry *ftid_tab;
+	unsigned long *ftid_bmap;
 	unsigned int nftids;
 	unsigned int ftid_base;
 	unsigned int aftid_base;
@@ -124,6 +127,8 @@ struct tid_info {
 	atomic_t tids_in_use;
 	/* TIDs in the HASH */
 	atomic_t hash_tids_in_use;
+	/* lock for setting/clearing filter bitmap */
+	spinlock_t ftid_lock;
 };
 
 static inline void *lookup_tid(const struct tid_info *t, unsigned int tid)
@@ -183,15 +188,38 @@ int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
 int cxgb4_remove_server_filter(const struct net_device *dev, unsigned int stid,
 			       unsigned int queue, bool ipv6);
 
+/* Filter operation context to allow callers of cxgb4_set_filter() and
+ * cxgb4_del_filter() to wait for an asynchronous completion.
+ */
+struct filter_ctx {
+	struct completion completion;	/* completion rendezvous */
+	void *closure;			/* caller's opaque information */
+	int result;			/* result of operation */
+	u32 tid;			/* to store tid */
+};
+
+struct ch_filter_specification;
+
+int __cxgb4_set_filter(struct net_device *dev, int filter_id,
+		       struct ch_filter_specification *fs,
+		       struct filter_ctx *ctx);
+int __cxgb4_del_filter(struct net_device *dev, int filter_id,
+		       struct filter_ctx *ctx);
+int cxgb4_set_filter(struct net_device *dev, int filter_id,
+		     struct ch_filter_specification *fs);
+int cxgb4_del_filter(struct net_device *dev, int filter_id);
+
 static inline void set_wr_txq(struct sk_buff *skb, int prio, int queue)
 {
 	skb_set_queue_mapping(skb, (queue << 1) | prio);
 }
 
 enum cxgb4_uld {
+	CXGB4_ULD_INIT,
 	CXGB4_ULD_RDMA,
 	CXGB4_ULD_ISCSI,
 	CXGB4_ULD_ISCSIT,
+	CXGB4_ULD_CRYPTO,
 	CXGB4_ULD_MAX
 };
 
@@ -284,31 +312,11 @@ struct cxgb4_lld_info {
 
 struct cxgb4_uld_info {
 	const char *name;
-	void *(*add)(const struct cxgb4_lld_info *p);
-	int (*rx_handler)(void *handle, const __be64 *rsp,
-			  const struct pkt_gl *gl);
-	int (*state_change)(void *handle, enum cxgb4_state new_state);
-	int (*control)(void *handle, enum cxgb4_control control, ...);
-	int (*lro_rx_handler)(void *handle, const __be64 *rsp,
-			      const struct pkt_gl *gl,
-			      struct t4_lro_mgr *lro_mgr,
-			      struct napi_struct *napi);
-	void (*lro_flush)(struct t4_lro_mgr *);
-};
-
-enum cxgb4_pci_uld {
-	CXGB4_PCI_ULD1,
-	CXGB4_PCI_ULD_MAX
-};
-
-struct cxgb4_pci_uld_info {
-	const char *name;
-	bool lro;
 	void *handle;
 	unsigned int nrxq;
-	unsigned int nciq;
 	unsigned int rxq_size;
-	unsigned int ciq_size;
+	bool ciq;
+	bool lro;
 	void *(*add)(const struct cxgb4_lld_info *p);
 	int (*rx_handler)(void *handle, const __be64 *rsp,
 			  const struct pkt_gl *gl);
@@ -323,9 +331,6 @@ struct cxgb4_pci_uld_info {
 
 int cxgb4_register_uld(enum cxgb4_uld type, const struct cxgb4_uld_info *p);
 int cxgb4_unregister_uld(enum cxgb4_uld type);
-int cxgb4_register_pci_uld(enum cxgb4_pci_uld type,
-			   struct cxgb4_pci_uld_info *p);
-int cxgb4_unregister_pci_uld(enum cxgb4_pci_uld type);
 int cxgb4_ofld_send(struct net_device *dev, struct sk_buff *skb);
 unsigned int cxgb4_dbfifo_count(const struct net_device *dev, int lpfifo);
 unsigned int cxgb4_port_chan(const struct net_device *dev);

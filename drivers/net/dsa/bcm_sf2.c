@@ -256,7 +256,7 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 	reg = core_readl(priv, CORE_PORT_VLAN_CTL_PORT(port));
 	reg &= ~PORT_VLAN_CTRL_MASK;
 	reg |= (1 << port);
-	reg |= priv->port_sts[port].vlan_ctl_mask;
+	reg |= priv->dev->ports[port].vlan_ctl_mask;
 	core_writel(priv, reg, CORE_PORT_VLAN_CTL_PORT(port));
 
 	bcm_sf2_imp_vlan_setup(ds, cpu_port);
@@ -960,7 +960,7 @@ static int bcm_sf2_core_write64(struct b53_device *dev, u8 page, u8 reg,
 	return 0;
 }
 
-struct b53_io_ops bcm_sf2_io_ops = {
+static struct b53_io_ops bcm_sf2_io_ops = {
 	.read8	= bcm_sf2_core_read8,
 	.read16	= bcm_sf2_core_read16,
 	.read32	= bcm_sf2_core_read32,

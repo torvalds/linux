@@ -258,6 +258,7 @@ struct nicvf {
 	u8			sqs_id;
 	bool                    sqs_mode;
 	bool			hw_tso;
+	bool			t88;
 
 	/* Receive buffer alloc */
 	u32			rb_page_offset;
@@ -304,7 +305,7 @@ struct nicvf {
 	bool			msix_enabled;
 	u8			num_vec;
 	struct msix_entry	msix_entries[NIC_VF_MSIX_VECTORS];
-	char			irq_name[NIC_VF_MSIX_VECTORS][20];
+	char			irq_name[NIC_VF_MSIX_VECTORS][IFNAMSIZ + 15];
 	bool			irq_allocated[NIC_VF_MSIX_VECTORS];
 	cpumask_var_t		affinity_mask[NIC_VF_MSIX_VECTORS];
 

@@ -58,6 +58,17 @@ static long rxrpc_local_cmp_key(const struct rxrpc_local *local,
 			memcmp(&local->srx.transport.sin.sin_addr,
 			       &srx->transport.sin.sin_addr,
 			       sizeof(struct in_addr));
+#ifdef CONFIG_AF_RXRPC_IPV6
+	case AF_INET6:
+		/* If the choice of UDP6 port is left up to the transport, then
+		 * the endpoint record doesn't match.
+		 */
+		return ((u16 __force)local->srx.transport.sin6.sin6_port -
+			(u16 __force)srx->transport.sin6.sin6_port) ?:
+			memcmp(&local->srx.transport.sin6.sin6_addr,
+			       &srx->transport.sin6.sin6_addr,
+			       sizeof(struct in6_addr));
+#endif
 	default:
 		BUG();
 	}
@@ -75,9 +86,8 @@ static struct rxrpc_local *rxrpc_alloc_local(const struct sockaddr_rxrpc *srx)
 		atomic_set(&local->usage, 1);
 		INIT_LIST_HEAD(&local->link);
 		INIT_WORK(&local->processor, rxrpc_local_processor);
-		INIT_LIST_HEAD(&local->services);
+		INIT_HLIST_HEAD(&local->services);
 		init_rwsem(&local->defrag_sem);
-		skb_queue_head_init(&local->accept_queue);
 		skb_queue_head_init(&local->reject_queue);
 		skb_queue_head_init(&local->event_queue);
 		local->client_conns = RB_ROOT;
@@ -101,11 +111,12 @@ static int rxrpc_open_socket(struct rxrpc_local *local)
 	struct sock *sock;
 	int ret, opt;
 
-	_enter("%p{%d}", local, local->srx.transport_type);
+	_enter("%p{%d,%d}",
+	       local, local->srx.transport_type, local->srx.transport.family);
 
 	/* create a socket to represent the local endpoint */
-	ret = sock_create_kern(&init_net, PF_INET, local->srx.transport_type,
-			       IPPROTO_UDP, &local->socket);
+	ret = sock_create_kern(&init_net, local->srx.transport.family,
+			       local->srx.transport_type, 0, &local->socket);
 	if (ret < 0) {
 		_leave(" = %d [socket]", ret);
 		return ret;
@@ -170,18 +181,8 @@ struct rxrpc_local *rxrpc_lookup_local(const struct sockaddr_rxrpc *srx)
 	long diff;
 	int ret;
 
-	if (srx->transport.family == AF_INET) {
-		_enter("{%d,%u,%pI4+%hu}",
-		       srx->transport_type,
-		       srx->transport.family,
-		       &srx->transport.sin.sin_addr,
-		       ntohs(srx->transport.sin.sin_port));
-	} else {
-		_enter("{%d,%u}",
-		       srx->transport_type,
-		       srx->transport.family);
-		return ERR_PTR(-EAFNOSUPPORT);
-	}
+	_enter("{%d,%d,%pISp}",
+	       srx->transport_type, srx->transport.family, &srx->transport);
 
 	mutex_lock(&rxrpc_local_mutex);
 
@@ -234,13 +235,8 @@ struct rxrpc_local *rxrpc_lookup_local(const struct sockaddr_rxrpc *srx)
 found:
 	mutex_unlock(&rxrpc_local_mutex);
 
-	_net("LOCAL %s %d {%d,%u,%pI4+%hu}",
-	     age,
-	     local->debug_id,
-	     local->srx.transport_type,
-	     local->srx.transport.family,
-	     &local->srx.transport.sin.sin_addr,
-	     ntohs(local->srx.transport.sin.sin_port));
+	_net("LOCAL %s %d {%pISp}",
+	     age, local->debug_id, &local->srx.transport);
 
 	_leave(" = %p", local);
 	return local;
@@ -296,7 +292,7 @@ static void rxrpc_local_destroyer(struct rxrpc_local *local)
 	mutex_unlock(&rxrpc_local_mutex);
 
 	ASSERT(RB_EMPTY_ROOT(&local->client_conns));
-	ASSERT(list_empty(&local->services));
+	ASSERT(hlist_empty(&local->services));
 
 	if (socket) {
 		local->socket = NULL;
@@ -308,7 +304,6 @@ static void rxrpc_local_destroyer(struct rxrpc_local *local)
 	/* At this point, there should be no more packets coming in to the
 	 * local endpoint.
 	 */
-	rxrpc_purge_queue(&local->accept_queue);
 	rxrpc_purge_queue(&local->reject_queue);
 	rxrpc_purge_queue(&local->event_queue);
 
@@ -331,11 +326,6 @@ static void rxrpc_local_processor(struct work_struct *work)
 		again = false;
 		if (atomic_read(&local->usage) == 0)
 			return rxrpc_local_destroyer(local);
-
-		if (!skb_queue_empty(&local->accept_queue)) {
-			rxrpc_accept_incoming_calls(local);
-			again = true;
-		}
 
 		if (!skb_queue_empty(&local->reject_queue)) {
 			rxrpc_reject_packets(local);

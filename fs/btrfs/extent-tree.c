@@ -4901,17 +4901,17 @@ btrfs_calc_reclaim_metadata_size(struct btrfs_root *root,
 	u64 expected;
 	u64 to_reclaim = 0;
 
-	to_reclaim = min_t(u64, num_online_cpus() * SZ_1M, SZ_16M);
-	if (can_overcommit(root, space_info, to_reclaim,
-			   BTRFS_RESERVE_FLUSH_ALL))
-		return 0;
-
 	list_for_each_entry(ticket, &space_info->tickets, list)
 		to_reclaim += ticket->bytes;
 	list_for_each_entry(ticket, &space_info->priority_tickets, list)
 		to_reclaim += ticket->bytes;
 	if (to_reclaim)
 		return to_reclaim;
+
+	to_reclaim = min_t(u64, num_online_cpus() * SZ_1M, SZ_16M);
+	if (can_overcommit(root, space_info, to_reclaim,
+			   BTRFS_RESERVE_FLUSH_ALL))
+		return 0;
 
 	used = space_info->bytes_used + space_info->bytes_reserved +
 	       space_info->bytes_pinned + space_info->bytes_readonly +
@@ -4966,12 +4966,12 @@ static void wake_all_tickets(struct list_head *head)
  */
 static void btrfs_async_reclaim_metadata_space(struct work_struct *work)
 {
-	struct reserve_ticket *last_ticket = NULL;
 	struct btrfs_fs_info *fs_info;
 	struct btrfs_space_info *space_info;
 	u64 to_reclaim;
 	int flush_state;
 	int commit_cycles = 0;
+	u64 last_tickets_id;
 
 	fs_info = container_of(work, struct btrfs_fs_info, async_reclaim_work);
 	space_info = __find_space_info(fs_info, BTRFS_BLOCK_GROUP_METADATA);
@@ -4984,8 +4984,7 @@ static void btrfs_async_reclaim_metadata_space(struct work_struct *work)
 		spin_unlock(&space_info->lock);
 		return;
 	}
-	last_ticket = list_first_entry(&space_info->tickets,
-				       struct reserve_ticket, list);
+	last_tickets_id = space_info->tickets_id;
 	spin_unlock(&space_info->lock);
 
 	flush_state = FLUSH_DELAYED_ITEMS_NR;
@@ -5005,10 +5004,10 @@ static void btrfs_async_reclaim_metadata_space(struct work_struct *work)
 							      space_info);
 		ticket = list_first_entry(&space_info->tickets,
 					  struct reserve_ticket, list);
-		if (last_ticket == ticket) {
+		if (last_tickets_id == space_info->tickets_id) {
 			flush_state++;
 		} else {
-			last_ticket = ticket;
+			last_tickets_id = space_info->tickets_id;
 			flush_state = FLUSH_DELAYED_ITEMS_NR;
 			if (commit_cycles)
 				commit_cycles--;
@@ -5384,6 +5383,7 @@ again:
 			list_del_init(&ticket->list);
 			num_bytes -= ticket->bytes;
 			ticket->bytes = 0;
+			space_info->tickets_id++;
 			wake_up(&ticket->wait);
 		} else {
 			ticket->bytes -= num_bytes;
@@ -5426,6 +5426,7 @@ again:
 			num_bytes -= ticket->bytes;
 			space_info->bytes_may_use += ticket->bytes;
 			ticket->bytes = 0;
+			space_info->tickets_id++;
 			wake_up(&ticket->wait);
 		} else {
 			trace_btrfs_space_reservation(fs_info, "space_info",
@@ -8216,6 +8217,7 @@ int btrfs_alloc_logged_file_extent(struct btrfs_trans_handle *trans,
 {
 	int ret;
 	struct btrfs_block_group_cache *block_group;
+	struct btrfs_space_info *space_info;
 
 	/*
 	 * Mixed block groups will exclude before processing the log so we only
@@ -8231,9 +8233,14 @@ int btrfs_alloc_logged_file_extent(struct btrfs_trans_handle *trans,
 	if (!block_group)
 		return -EINVAL;
 
-	ret = btrfs_add_reserved_bytes(block_group, ins->offset,
-				       ins->offset, 0);
-	BUG_ON(ret); /* logic error */
+	space_info = block_group->space_info;
+	spin_lock(&space_info->lock);
+	spin_lock(&block_group->lock);
+	space_info->bytes_reserved += ins->offset;
+	block_group->reserved += ins->offset;
+	spin_unlock(&block_group->lock);
+	spin_unlock(&space_info->lock);
+
 	ret = alloc_reserved_file_extent(trans, root, 0, root_objectid,
 					 0, owner, offset, ins, 1);
 	btrfs_put_block_group(block_group);

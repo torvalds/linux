@@ -455,6 +455,10 @@ struct qed_common_ops {
 	void		(*simd_handler_clean)(struct qed_dev *cdev,
 					      int index);
 
+	int (*dbg_all_data) (struct qed_dev *cdev, void *buffer);
+
+	int (*dbg_all_data_size) (struct qed_dev *cdev);
+
 /**
  * @brief can_link_change - can the instance change the link or not
  *

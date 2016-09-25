@@ -309,8 +309,14 @@ validate_uniform_address_write(struct vc4_validated_shader_info *validated_shade
 	 * of uniforms on each side.  However, this scheme is easy to
 	 * validate so it's all we allow for now.
 	 */
-
-	if (QPU_GET_FIELD(inst, QPU_SIG) != QPU_SIG_NONE) {
+	switch (QPU_GET_FIELD(inst, QPU_SIG)) {
+	case QPU_SIG_NONE:
+	case QPU_SIG_SCOREBOARD_UNLOCK:
+	case QPU_SIG_COLOR_LOAD:
+	case QPU_SIG_LOAD_TMU0:
+	case QPU_SIG_LOAD_TMU1:
+		break;
+	default:
 		DRM_ERROR("uniforms address change must be "
 			  "normal math\n");
 		return false;

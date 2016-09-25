@@ -898,8 +898,14 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 			    vpe->event_data.link_event.link_status) {
 				adapter->link_up =
 					vpe->event_data.link_event.link_status;
+				if (adapter->link_up) {
+					netif_tx_start_all_queues(netdev);
+					netif_carrier_on(netdev);
+				} else {
+					netif_tx_stop_all_queues(netdev);
+					netif_carrier_off(netdev);
+				}
 				i40evf_print_link_message(adapter);
-				netif_tx_stop_all_queues(netdev);
 			}
 			break;
 		case I40E_VIRTCHNL_EVENT_RESET_IMPENDING:
@@ -974,8 +980,6 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 	case I40E_VIRTCHNL_OP_ENABLE_QUEUES:
 		/* enable transmits */
 		i40evf_irq_enable(adapter, true);
-		netif_tx_start_all_queues(adapter->netdev);
-		netif_carrier_on(adapter->netdev);
 		break;
 	case I40E_VIRTCHNL_OP_DISABLE_QUEUES:
 		i40evf_free_all_tx_resources(adapter);

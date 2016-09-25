@@ -23,6 +23,7 @@
 #include <linux/zlib.h>
 #include <linux/hashtable.h>
 #include <linux/qed/qed_if.h>
+#include "qed_debug.h"
 #include "qed_hsi.h"
 
 extern const struct qed_common_ops qed_common_ops_pass;
@@ -395,6 +396,8 @@ struct qed_hwfn {
 	/* Buffer for unzipping firmware data */
 	void				*unzip_buf;
 
+	struct dbg_tools_data		dbg_info;
+
 	struct qed_simd_fp_handler	simd_proto_handler[64];
 
 #ifdef CONFIG_QED_SRIOV
@@ -430,6 +433,19 @@ struct qed_int_params {
 	u8			fp_msix_cnt;
 };
 
+struct qed_dbg_feature {
+	struct dentry *dentry;
+	u8 *dump_buf;
+	u32 buf_size;
+	u32 dumped_dwords;
+};
+
+struct qed_dbg_params {
+	struct qed_dbg_feature features[DBG_FEATURE_NUM];
+	u8 engine_for_debug;
+	bool print_data;
+};
+
 struct qed_dev {
 	u32	dp_module;
 	u8	dp_level;
@@ -444,6 +460,8 @@ struct qed_dev {
 				 CHIP_REV_IS_A0(dev))
 #define QED_IS_BB_B0(dev)       (QED_IS_BB(dev) && \
 				 CHIP_REV_IS_B0(dev))
+#define QED_IS_AH(dev)  ((dev)->type == QED_DEV_TYPE_AH)
+#define QED_IS_K2(dev)  QED_IS_AH(dev)
 
 #define QED_GET_TYPE(dev)       (QED_IS_BB_A0(dev) ? CHIP_BB_A0 : \
 				 QED_IS_BB_B0(dev) ? CHIP_BB_B0 : CHIP_K2)
@@ -543,6 +561,8 @@ struct qed_dev {
 		struct qed_eth_cb_ops		*eth;
 	} protocol_ops;
 	void				*ops_cookie;
+
+	struct qed_dbg_params		dbg_params;
 
 	const struct firmware		*firmware;
 };

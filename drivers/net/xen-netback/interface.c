@@ -128,15 +128,6 @@ irqreturn_t xenvif_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-irqreturn_t xenvif_ctrl_interrupt(int irq, void *dev_id)
-{
-	struct xenvif *vif = dev_id;
-
-	wake_up(&vif->ctrl_wq);
-
-	return IRQ_HANDLED;
-}
-
 int xenvif_queue_stopped(struct xenvif_queue *queue)
 {
 	struct net_device *dev = queue->vif->dev;
@@ -570,8 +561,7 @@ int xenvif_connect_ctrl(struct xenvif *vif, grant_ref_t ring_ref,
 	struct net_device *dev = vif->dev;
 	void *addr;
 	struct xen_netif_ctrl_sring *shared;
-	struct task_struct *task;
-	int err = -ENOMEM;
+	int err;
 
 	err = xenbus_map_ring_valloc(xenvif_to_xenbus_device(vif),
 				     &ring_ref, 1, &addr);
@@ -581,11 +571,7 @@ int xenvif_connect_ctrl(struct xenvif *vif, grant_ref_t ring_ref,
 	shared = (struct xen_netif_ctrl_sring *)addr;
 	BACK_RING_INIT(&vif->ctrl, shared, XEN_PAGE_SIZE);
 
-	init_waitqueue_head(&vif->ctrl_wq);
-
-	err = bind_interdomain_evtchn_to_irqhandler(vif->domid, evtchn,
-						    xenvif_ctrl_interrupt,
-						    0, dev->name, vif);
+	err = bind_interdomain_evtchn_to_irq(vif->domid, evtchn);
 	if (err < 0)
 		goto err_unmap;
 
@@ -593,18 +579,12 @@ int xenvif_connect_ctrl(struct xenvif *vif, grant_ref_t ring_ref,
 
 	xenvif_init_hash(vif);
 
-	task = kthread_create(xenvif_ctrl_kthread, (void *)vif,
-			      "%s-control", dev->name);
-	if (IS_ERR(task)) {
-		pr_warn("Could not allocate kthread for %s\n", dev->name);
-		err = PTR_ERR(task);
+	err = request_threaded_irq(vif->ctrl_irq, NULL, xenvif_ctrl_irq_fn,
+				   IRQF_ONESHOT, "xen-netback-ctrl", vif);
+	if (err) {
+		pr_warn("Could not setup irq handler for %s\n", dev->name);
 		goto err_deinit;
 	}
-
-	get_task_struct(task);
-	vif->ctrl_task = task;
-
-	wake_up_process(vif->ctrl_task);
 
 	return 0;
 
@@ -774,12 +754,6 @@ void xenvif_disconnect_data(struct xenvif *vif)
 
 void xenvif_disconnect_ctrl(struct xenvif *vif)
 {
-	if (vif->ctrl_task) {
-		kthread_stop(vif->ctrl_task);
-		put_task_struct(vif->ctrl_task);
-		vif->ctrl_task = NULL;
-	}
-
 	if (vif->ctrl_irq) {
 		xenvif_deinit_hash(vif);
 		unbind_from_irqhandler(vif->ctrl_irq, vif);

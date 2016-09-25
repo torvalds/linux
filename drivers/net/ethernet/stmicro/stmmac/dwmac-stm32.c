@@ -169,7 +169,8 @@ static int stm32_dwmac_resume(struct device *dev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-SIMPLE_DEV_PM_OPS(stm32_dwmac_pm_ops, stm32_dwmac_suspend, stm32_dwmac_resume);
+static SIMPLE_DEV_PM_OPS(stm32_dwmac_pm_ops,
+	stm32_dwmac_suspend, stm32_dwmac_resume);
 
 static const struct of_device_id stm32_dwmac_match[] = {
 	{ .compatible = "st,stm32-dwmac"},

@@ -1100,21 +1100,21 @@ int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 		goto err_alloc_stats;
 	}
 
-	if (mlxsw_driver->profile->used_max_lag &&
-	    mlxsw_driver->profile->used_max_port_per_lag) {
-		alloc_size = sizeof(u8) * mlxsw_driver->profile->max_lag *
-			     mlxsw_driver->profile->max_port_per_lag;
+	err = mlxsw_bus->init(bus_priv, mlxsw_core, mlxsw_driver->profile,
+			      &mlxsw_core->resources);
+	if (err)
+		goto err_bus_init;
+
+	if (mlxsw_core->resources.max_lag_valid &&
+	    mlxsw_core->resources.max_ports_in_lag_valid) {
+		alloc_size = sizeof(u8) * mlxsw_core->resources.max_lag *
+			mlxsw_core->resources.max_ports_in_lag;
 		mlxsw_core->lag.mapping = kzalloc(alloc_size, GFP_KERNEL);
 		if (!mlxsw_core->lag.mapping) {
 			err = -ENOMEM;
 			goto err_alloc_lag_mapping;
 		}
 	}
-
-	err = mlxsw_bus->init(bus_priv, mlxsw_core, mlxsw_driver->profile,
-			      &mlxsw_core->resources);
-	if (err)
-		goto err_bus_init;
 
 	err = mlxsw_emad_init(mlxsw_core);
 	if (err)
@@ -1146,10 +1146,10 @@ err_hwmon_init:
 err_devlink_register:
 	mlxsw_emad_fini(mlxsw_core);
 err_emad_init:
-	mlxsw_bus->fini(bus_priv);
-err_bus_init:
 	kfree(mlxsw_core->lag.mapping);
 err_alloc_lag_mapping:
+	mlxsw_bus->fini(bus_priv);
+err_bus_init:
 	free_percpu(mlxsw_core->pcpu_stats);
 err_alloc_stats:
 	devlink_free(devlink);
@@ -1615,7 +1615,7 @@ EXPORT_SYMBOL(mlxsw_core_skb_receive);
 static int mlxsw_core_lag_mapping_index(struct mlxsw_core *mlxsw_core,
 					u16 lag_id, u8 port_index)
 {
-	return mlxsw_core->driver->profile->max_port_per_lag * lag_id +
+	return mlxsw_core->resources.max_ports_in_lag * lag_id +
 	       port_index;
 }
 
@@ -1644,7 +1644,7 @@ void mlxsw_core_lag_mapping_clear(struct mlxsw_core *mlxsw_core,
 {
 	int i;
 
-	for (i = 0; i < mlxsw_core->driver->profile->max_port_per_lag; i++) {
+	for (i = 0; i < mlxsw_core->resources.max_ports_in_lag; i++) {
 		int index = mlxsw_core_lag_mapping_index(mlxsw_core,
 							 lag_id, i);
 

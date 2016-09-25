@@ -180,7 +180,6 @@ sctp_xmit_t sctp_packet_transmit_chunk(struct sctp_packet *packet,
 				       int one_packet, gfp_t gfp)
 {
 	sctp_xmit_t retval;
-	int error = 0;
 
 	pr_debug("%s: packet:%p size:%Zu chunk:%p size:%d\n", __func__,
 		 packet, packet->size, chunk, chunk->skb ? chunk->skb->len : -1);
@@ -188,6 +187,8 @@ sctp_xmit_t sctp_packet_transmit_chunk(struct sctp_packet *packet,
 	switch ((retval = (sctp_packet_append_chunk(packet, chunk)))) {
 	case SCTP_XMIT_PMTU_FULL:
 		if (!packet->has_cookie_echo) {
+			int error = 0;
+
 			error = sctp_packet_transmit(packet, gfp);
 			if (error < 0)
 				chunk->skb->sk->sk_err = -error;
@@ -296,7 +297,7 @@ static sctp_xmit_t __sctp_packet_append_chunk(struct sctp_packet *packet,
 					      struct sctp_chunk *chunk)
 {
 	sctp_xmit_t retval = SCTP_XMIT_OK;
-	__u16 chunk_len = WORD_ROUND(ntohs(chunk->chunk_hdr->length));
+	__u16 chunk_len = SCTP_PAD4(ntohs(chunk->chunk_hdr->length));
 
 	/* Check to see if this chunk will fit into the packet */
 	retval = sctp_packet_will_fit(packet, chunk, chunk_len);
@@ -441,14 +442,14 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 			 * time. Application may notice this error.
 			 */
 			pr_err_once("Trying to GSO but underlying device doesn't support it.");
-			goto nomem;
+			goto err;
 		}
 	} else {
 		pkt_size = packet->size;
 	}
 	head = alloc_skb(pkt_size + MAX_HEADER, gfp);
 	if (!head)
-		goto nomem;
+		goto err;
 	if (gso) {
 		NAPI_GRO_CB(head)->last = head;
 		skb_shinfo(head)->gso_type = sk->sk_gso_type;
@@ -469,8 +470,12 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 		}
 	}
 	dst = dst_clone(tp->dst);
-	if (!dst)
-		goto no_route;
+	if (!dst) {
+		if (asoc)
+			IP_INC_STATS(sock_net(asoc->base.sk),
+				     IPSTATS_MIB_OUTNOROUTES);
+		goto nodst;
+	}
 	skb_dst_set(head, dst);
 
 	/* Build the SCTP header.  */
@@ -503,7 +508,7 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 		if (gso) {
 			pkt_size = packet->overhead;
 			list_for_each_entry(chunk, &packet->chunk_list, list) {
-				int padded = WORD_ROUND(chunk->skb->len);
+				int padded = SCTP_PAD4(chunk->skb->len);
 
 				if (pkt_size + padded > tp->pathmtu)
 					break;
@@ -533,7 +538,7 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 		 * included in the chunk length field.  The sender should
 		 * never pad with more than 3 bytes.
 		 *
-		 * [This whole comment explains WORD_ROUND() below.]
+		 * [This whole comment explains SCTP_PAD4() below.]
 		 */
 
 		pkt_size -= packet->overhead;
@@ -555,7 +560,7 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 				has_data = 1;
 			}
 
-			padding = WORD_ROUND(chunk->skb->len) - chunk->skb->len;
+			padding = SCTP_PAD4(chunk->skb->len) - chunk->skb->len;
 			if (padding)
 				memset(skb_put(chunk->skb, padding), 0, padding);
 
@@ -582,7 +587,7 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 			 * acknowledged or have failed.
 			 * Re-queue auth chunks if needed.
 			 */
-			pkt_size -= WORD_ROUND(chunk->skb->len);
+			pkt_size -= SCTP_PAD4(chunk->skb->len);
 
 			if (!sctp_chunk_is_data(chunk) && chunk != packet->auth)
 				sctp_chunk_free(chunk);
@@ -621,8 +626,10 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 		if (!gso)
 			break;
 
-		if (skb_gro_receive(&head, nskb))
+		if (skb_gro_receive(&head, nskb)) {
+			kfree_skb(nskb);
 			goto nomem;
+		}
 		nskb = NULL;
 		if (WARN_ON_ONCE(skb_shinfo(head)->gso_segs >=
 				 sk->sk_gso_max_segs))
@@ -716,18 +723,13 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 	}
 	head->ignore_df = packet->ipfragok;
 	tp->af_specific->sctp_xmit(head, tp);
+	goto out;
 
-out:
-	sctp_packet_reset(packet);
-	return err;
-no_route:
-	kfree_skb(head);
-	if (nskb != head)
-		kfree_skb(nskb);
+nomem:
+	if (packet->auth && list_empty(&packet->auth->list))
+		sctp_chunk_free(packet->auth);
 
-	if (asoc)
-		IP_INC_STATS(sock_net(asoc->base.sk), IPSTATS_MIB_OUTNOROUTES);
-
+nodst:
 	/* FIXME: Returning the 'err' will effect all the associations
 	 * associated with a socket, although only one of the paths of the
 	 * association is unreachable.
@@ -736,22 +738,18 @@ no_route:
 	 * required.
 	 */
 	 /* err = -EHOSTUNREACH; */
-err:
-	/* Control chunks are unreliable so just drop them.  DATA chunks
-	 * will get resent or dropped later.
-	 */
+	kfree_skb(head);
 
+err:
 	list_for_each_entry_safe(chunk, tmp, &packet->chunk_list, list) {
 		list_del_init(&chunk->list);
 		if (!sctp_chunk_is_data(chunk))
 			sctp_chunk_free(chunk);
 	}
-	goto out;
-nomem:
-	if (packet->auth && list_empty(&packet->auth->list))
-		sctp_chunk_free(packet->auth);
-	err = -ENOMEM;
-	goto err;
+
+out:
+	sctp_packet_reset(packet);
+	return err;
 }
 
 /********************************************************************
@@ -878,7 +876,7 @@ static sctp_xmit_t sctp_packet_will_fit(struct sctp_packet *packet,
 					struct sctp_chunk *chunk,
 					u16 chunk_len)
 {
-	size_t psize, pmtu;
+	size_t psize, pmtu, maxsize;
 	sctp_xmit_t retval = SCTP_XMIT_OK;
 
 	psize = packet->size;
@@ -905,6 +903,17 @@ static sctp_xmit_t sctp_packet_will_fit(struct sctp_packet *packet,
 			packet->ipfragok = 1;
 			goto out;
 		}
+
+		/* Similarly, if this chunk was built before a PMTU
+		 * reduction, we have to fragment it at IP level now. So
+		 * if the packet already contains something, we need to
+		 * flush.
+		 */
+		maxsize = pmtu - packet->overhead;
+		if (packet->auth)
+			maxsize -= SCTP_PAD4(packet->auth->skb->len);
+		if (chunk_len > maxsize)
+			retval = SCTP_XMIT_PMTU_FULL;
 
 		/* It is also okay to fragment if the chunk we are
 		 * adding is a control chunk, but only if current packet

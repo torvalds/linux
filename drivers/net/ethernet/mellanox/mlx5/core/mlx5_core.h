@@ -46,9 +46,6 @@
 
 extern int mlx5_core_debug_mask;
 
-extern struct list_head mlx5_dev_list;
-extern struct mutex mlx5_intf_mutex;
-
 #define mlx5_core_dbg(__dev, format, ...)				\
 	dev_dbg(&(__dev)->pdev->dev, "%s:%s:%d:(pid %d): " format,	\
 		 (__dev)->priv.name, __func__, __LINE__, current->pid,	\
@@ -73,9 +70,6 @@ do {									\
 #define mlx5_core_info(__dev, format, ...)				\
 	dev_info(&(__dev)->pdev->dev, format, ##__VA_ARGS__)
 
-#define mlx5_core_for_each_priv(__priv)					\
-	list_for_each_entry(__priv, &mlx5_dev_list, dev_list)
-
 enum {
 	MLX5_CMD_DATA, /* print command payload only */
 	MLX5_CMD_TIME, /* print command execution time */
@@ -89,6 +83,10 @@ void mlx5_core_event(struct mlx5_core_dev *dev, enum mlx5_dev_event event,
 		     unsigned long param);
 void mlx5_enter_error_state(struct mlx5_core_dev *dev);
 void mlx5_disable_device(struct mlx5_core_dev *dev);
+int mlx5_sriov_init(struct mlx5_core_dev *dev);
+void mlx5_sriov_cleanup(struct mlx5_core_dev *dev);
+int mlx5_sriov_attach(struct mlx5_core_dev *dev);
+void mlx5_sriov_detach(struct mlx5_core_dev *dev);
 int mlx5_core_sriov_configure(struct pci_dev *dev, int num_vfs);
 bool mlx5_sriov_is_enabled(struct mlx5_core_dev *dev);
 int mlx5_core_enable_hca(struct mlx5_core_dev *dev, u16 func_id);
@@ -102,8 +100,19 @@ void mlx5_cq_tasklet_cb(unsigned long data);
 void mlx5_lag_add(struct mlx5_core_dev *dev, struct net_device *netdev);
 void mlx5_lag_remove(struct mlx5_core_dev *dev);
 
+void mlx5_add_device(struct mlx5_interface *intf, struct mlx5_priv *priv);
+void mlx5_remove_device(struct mlx5_interface *intf, struct mlx5_priv *priv);
+void mlx5_attach_device(struct mlx5_core_dev *dev);
+void mlx5_detach_device(struct mlx5_core_dev *dev);
+bool mlx5_device_registered(struct mlx5_core_dev *dev);
+int mlx5_register_device(struct mlx5_core_dev *dev);
+void mlx5_unregister_device(struct mlx5_core_dev *dev);
 void mlx5_add_dev_by_protocol(struct mlx5_core_dev *dev, int protocol);
 void mlx5_remove_dev_by_protocol(struct mlx5_core_dev *dev, int protocol);
+struct mlx5_core_dev *mlx5_get_next_phys_dev(struct mlx5_core_dev *dev);
+void mlx5_dev_list_lock(void);
+void mlx5_dev_list_unlock(void);
+int mlx5_dev_list_trylock(void);
 
 bool mlx5_lag_intf_add(struct mlx5_interface *intf, struct mlx5_priv *priv);
 

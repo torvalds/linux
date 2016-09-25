@@ -274,9 +274,9 @@ config MICROCHIP_PHY
 	  Supports the LAN88XX PHYs.
 
 config MICROSEMI_PHY
-    tristate "Microsemi PHYs"
-    ---help---
-      Currently supports the VSC8531 and VSC8541 PHYs
+	tristate "Microsemi PHYs"
+	---help---
+	  Currently supports the VSC8531 and VSC8541 PHYs
 
 config NATIONAL_PHY
 	tristate "National Semiconductor PHYs"
@@ -319,6 +319,13 @@ config XILINX_GMII2RGMII
          This driver support xilinx GMII to RGMII IP core it provides
          the Reduced Gigabit Media Independent Interface(RGMII) between
          Ethernet physical media devices and the Gigabit Ethernet controller.
+
+config MDIO_XGENE
+	tristate "APM X-Gene SoC MDIO bus controller"
+	depends on ARCH_XGENE || COMPILE_TEST
+	help
+	  This module provides a driver for the MDIO busses found in the
+	  APM X-Gene SoC's.
 
 endif # PHYLIB
 

@@ -31,6 +31,7 @@ static unsigned int nf_route_table_hook(void *priv,
 	struct in6_addr saddr, daddr;
 	u_int8_t hop_limit;
 	u32 mark, flowlabel;
+	int err;
 
 	nft_set_pktinfo_ipv6(&pkt, skb, state);
 
@@ -44,13 +45,16 @@ static unsigned int nf_route_table_hook(void *priv,
 	flowlabel = *((u32 *)ipv6_hdr(skb));
 
 	ret = nft_do_chain(&pkt, priv);
-	if (ret != NF_DROP && ret != NF_QUEUE &&
+	if (ret != NF_DROP && ret != NF_STOLEN &&
 	    (memcmp(&ipv6_hdr(skb)->saddr, &saddr, sizeof(saddr)) ||
 	     memcmp(&ipv6_hdr(skb)->daddr, &daddr, sizeof(daddr)) ||
 	     skb->mark != mark ||
 	     ipv6_hdr(skb)->hop_limit != hop_limit ||
-	     flowlabel != *((u_int32_t *)ipv6_hdr(skb))))
-		return ip6_route_me_harder(state->net, skb) == 0 ? ret : NF_DROP;
+	     flowlabel != *((u_int32_t *)ipv6_hdr(skb)))) {
+		err = ip6_route_me_harder(state->net, skb);
+		if (err < 0)
+			ret = NF_DROP_ERR(err);
+	}
 
 	return ret;
 }

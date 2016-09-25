@@ -84,7 +84,10 @@ int putreg(struct task_struct *child, int regno, unsigned long value)
 	case EAX:
 	case EIP:
 	case UESP:
+		break;
 	case ORIG_EAX:
+		/* Update the syscall number. */
+		UPT_SYSCALL_NR(&child->thread.regs.regs) = value;
 		break;
 	case FS:
 		if (value && (value & 3) != 3)

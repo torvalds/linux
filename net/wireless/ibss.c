@@ -114,6 +114,9 @@ static int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 		}
 	}
 
+	if (WARN_ON(connkeys && connkeys->def < 0))
+		return -EINVAL;
+
 	if (WARN_ON(wdev->connect_keys))
 		kzfree(wdev->connect_keys);
 	wdev->connect_keys = connkeys;
@@ -284,18 +287,16 @@ int cfg80211_ibss_wext_join(struct cfg80211_registered_device *rdev,
 	if (!netif_running(wdev->netdev))
 		return 0;
 
-	if (wdev->wext.keys) {
+	if (wdev->wext.keys)
 		wdev->wext.keys->def = wdev->wext.default_key;
-		wdev->wext.keys->defmgmt = wdev->wext.default_mgmt_key;
-	}
 
 	wdev->wext.ibss.privacy = wdev->wext.default_key != -1;
 
-	if (wdev->wext.keys) {
+	if (wdev->wext.keys && wdev->wext.keys->def != -1) {
 		ck = kmemdup(wdev->wext.keys, sizeof(*ck), GFP_KERNEL);
 		if (!ck)
 			return -ENOMEM;
-		for (i = 0; i < 6; i++)
+		for (i = 0; i < 4; i++)
 			ck->params[i].key = ck->data[i];
 	}
 	err = __cfg80211_join_ibss(rdev, wdev->netdev,

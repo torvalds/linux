@@ -611,7 +611,7 @@ static void mwifiex_usb_disconnect(struct usb_interface *intf)
 	if (!adapter->priv_num)
 		return;
 
-	if (user_rmmod) {
+	if (user_rmmod && !adapter->mfg_mode) {
 #ifdef CONFIG_PM
 		if (adapter->is_suspended)
 			mwifiex_usb_resume(intf);
@@ -1025,6 +1025,10 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 			dlen = le32_to_cpu(fwdata->fw_hdr.data_len);
 			dnld_cmd = le32_to_cpu(fwdata->fw_hdr.dnld_cmd);
 			tlen += sizeof(struct fw_header);
+
+			/* Command 7 doesn't have data length field */
+			if (dnld_cmd == FW_CMD_7)
+				dlen = 0;
 
 			memcpy(fwdata->data, &firmware[tlen], dlen);
 

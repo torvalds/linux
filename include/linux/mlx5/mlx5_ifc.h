@@ -6837,9 +6837,10 @@ struct mlx5_ifc_pude_reg_bits {
 };
 
 struct mlx5_ifc_ptys_reg_bits {
-	u8         an_disable_cap[0x1];
+	u8         reserved_at_0[0x1];
 	u8         an_disable_admin[0x1];
-	u8         reserved_at_2[0x6];
+	u8         an_disable_cap[0x1];
+	u8         reserved_at_3[0x5];
 	u8         local_port[0x8];
 	u8         reserved_at_10[0xd];
 	u8         proto_mask[0x3];

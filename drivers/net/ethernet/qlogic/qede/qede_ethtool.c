@@ -695,6 +695,28 @@ static int qede_set_pauseparam(struct net_device *dev,
 	return 0;
 }
 
+static void qede_get_regs(struct net_device *ndev,
+			  struct ethtool_regs *regs, void *buffer)
+{
+	struct qede_dev *edev = netdev_priv(ndev);
+
+	regs->version = 0;
+	memset(buffer, 0, regs->len);
+
+	if (edev->ops && edev->ops->common)
+		edev->ops->common->dbg_all_data(edev->cdev, buffer);
+}
+
+static int qede_get_regs_len(struct net_device *ndev)
+{
+	struct qede_dev *edev = netdev_priv(ndev);
+
+	if (edev->ops && edev->ops->common)
+		return edev->ops->common->dbg_all_data_size(edev->cdev);
+	else
+		return -EINVAL;
+}
+
 static void qede_update_mtu(struct qede_dev *edev, union qede_reload_args *args)
 {
 	edev->ndev->mtu = args->mtu;
@@ -1395,6 +1417,8 @@ static const struct ethtool_ops qede_ethtool_ops = {
 	.get_link_ksettings = qede_get_link_ksettings,
 	.set_link_ksettings = qede_set_link_ksettings,
 	.get_drvinfo = qede_get_drvinfo,
+	.get_regs_len = qede_get_regs_len,
+	.get_regs = qede_get_regs,
 	.get_msglevel = qede_get_msglevel,
 	.set_msglevel = qede_set_msglevel,
 	.nway_reset = qede_nway_reset,

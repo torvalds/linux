@@ -1728,13 +1728,6 @@ enum bin_dbg_buffer_type {
 	MAX_BIN_DBG_BUFFER_TYPE
 };
 
-/* Chip IDs */
-enum chip_ids {
-	CHIP_RESERVED,
-	CHIP_BB_B0,
-	CHIP_RESERVED2,
-	MAX_CHIP_IDS
-};
 
 /* Attention bit mapping */
 struct dbg_attn_bit_mapping {
@@ -1813,6 +1806,371 @@ enum dbg_attn_type {
 	MAX_DBG_ATTN_TYPE
 };
 
+/* condition header for registers dump */
+struct dbg_dump_cond_hdr {
+	struct dbg_mode_hdr mode; /* Mode header */
+	u8 block_id; /* block ID */
+	u8 data_size; /* size in dwords of the data following this header */
+};
+
+/* memory data for registers dump */
+struct dbg_dump_mem {
+	__le32 dword0;
+#define DBG_DUMP_MEM_ADDRESS_MASK       0xFFFFFF
+#define DBG_DUMP_MEM_ADDRESS_SHIFT      0
+#define DBG_DUMP_MEM_MEM_GROUP_ID_MASK  0xFF
+#define DBG_DUMP_MEM_MEM_GROUP_ID_SHIFT 24
+	__le32 dword1;
+#define DBG_DUMP_MEM_LENGTH_MASK        0xFFFFFF
+#define DBG_DUMP_MEM_LENGTH_SHIFT       0
+#define DBG_DUMP_MEM_RESERVED_MASK      0xFF
+#define DBG_DUMP_MEM_RESERVED_SHIFT     24
+};
+
+/* register data for registers dump */
+struct dbg_dump_reg {
+	__le32 data;
+#define DBG_DUMP_REG_ADDRESS_MASK  0xFFFFFF /* register address (in dwords) */
+#define DBG_DUMP_REG_ADDRESS_SHIFT 0
+#define DBG_DUMP_REG_LENGTH_MASK   0xFF /* register size (in dwords) */
+#define DBG_DUMP_REG_LENGTH_SHIFT  24
+};
+
+/* split header for registers dump */
+struct dbg_dump_split_hdr {
+	__le32 hdr;
+#define DBG_DUMP_SPLIT_HDR_DATA_SIZE_MASK      0xFFFFFF
+#define DBG_DUMP_SPLIT_HDR_DATA_SIZE_SHIFT     0
+#define DBG_DUMP_SPLIT_HDR_SPLIT_TYPE_ID_MASK  0xFF
+#define DBG_DUMP_SPLIT_HDR_SPLIT_TYPE_ID_SHIFT 24
+};
+
+/* condition header for idle check */
+struct dbg_idle_chk_cond_hdr {
+	struct dbg_mode_hdr mode; /* Mode header */
+	__le16 data_size; /* size in dwords of the data following this header */
+};
+
+/* Idle Check condition register */
+struct dbg_idle_chk_cond_reg {
+	__le32 data;
+#define DBG_IDLE_CHK_COND_REG_ADDRESS_MASK   0xFFFFFF
+#define DBG_IDLE_CHK_COND_REG_ADDRESS_SHIFT  0
+#define DBG_IDLE_CHK_COND_REG_BLOCK_ID_MASK  0xFF
+#define DBG_IDLE_CHK_COND_REG_BLOCK_ID_SHIFT 24
+	__le16 num_entries; /* number of registers entries to check */
+	u8 entry_size; /* size of registers entry (in dwords) */
+	u8 start_entry; /* index of the first entry to check */
+};
+
+/* Idle Check info register */
+struct dbg_idle_chk_info_reg {
+	__le32 data;
+#define DBG_IDLE_CHK_INFO_REG_ADDRESS_MASK   0xFFFFFF
+#define DBG_IDLE_CHK_INFO_REG_ADDRESS_SHIFT  0
+#define DBG_IDLE_CHK_INFO_REG_BLOCK_ID_MASK  0xFF
+#define DBG_IDLE_CHK_INFO_REG_BLOCK_ID_SHIFT 24
+	__le16 size; /* register size in dwords */
+	struct dbg_mode_hdr mode; /* Mode header */
+};
+
+/* Idle Check register */
+union dbg_idle_chk_reg {
+	struct dbg_idle_chk_cond_reg cond_reg; /* condition register */
+	struct dbg_idle_chk_info_reg info_reg; /* info register */
+};
+
+/* Idle Check result header */
+struct dbg_idle_chk_result_hdr {
+	__le16 rule_id; /* Failing rule index */
+	__le16 mem_entry_id; /* Failing memory entry index */
+	u8 num_dumped_cond_regs; /* number of dumped condition registers */
+	u8 num_dumped_info_regs; /* number of dumped condition registers */
+	u8 severity; /* from dbg_idle_chk_severity_types enum */
+	u8 reserved;
+};
+
+/* Idle Check result register header */
+struct dbg_idle_chk_result_reg_hdr {
+	u8 data;
+#define DBG_IDLE_CHK_RESULT_REG_HDR_IS_MEM_MASK  0x1
+#define DBG_IDLE_CHK_RESULT_REG_HDR_IS_MEM_SHIFT 0
+#define DBG_IDLE_CHK_RESULT_REG_HDR_REG_ID_MASK  0x7F
+#define DBG_IDLE_CHK_RESULT_REG_HDR_REG_ID_SHIFT 1
+	u8 start_entry; /* index of the first checked entry */
+	__le16 size; /* register size in dwords */
+};
+
+/* Idle Check rule */
+struct dbg_idle_chk_rule {
+	__le16 rule_id; /* Idle Check rule ID */
+	u8 severity; /* value from dbg_idle_chk_severity_types enum */
+	u8 cond_id; /* Condition ID */
+	u8 num_cond_regs; /* number of condition registers */
+	u8 num_info_regs; /* number of info registers */
+	u8 num_imms; /* number of immediates in the condition */
+	u8 reserved1;
+	__le16 reg_offset; /* offset of this rules registers in the idle check
+			    * register array (in dbg_idle_chk_reg units).
+			    */
+	__le16 imm_offset; /* offset of this rules immediate values in the
+			    * immediate values array (in dwords).
+			    */
+};
+
+/* Idle Check rule parsing data */
+struct dbg_idle_chk_rule_parsing_data {
+	__le32 data;
+#define DBG_IDLE_CHK_RULE_PARSING_DATA_HAS_FW_MSG_MASK  0x1
+#define DBG_IDLE_CHK_RULE_PARSING_DATA_HAS_FW_MSG_SHIFT 0
+#define DBG_IDLE_CHK_RULE_PARSING_DATA_STR_OFFSET_MASK  0x7FFFFFFF
+#define DBG_IDLE_CHK_RULE_PARSING_DATA_STR_OFFSET_SHIFT 1
+};
+
+/* idle check severity types */
+enum dbg_idle_chk_severity_types {
+	/* idle check failure should cause an error */
+	IDLE_CHK_SEVERITY_ERROR,
+	/* idle check failure should cause an error only if theres no traffic */
+	IDLE_CHK_SEVERITY_ERROR_NO_TRAFFIC,
+	/* idle check failure should cause a warning */
+	IDLE_CHK_SEVERITY_WARNING,
+	MAX_DBG_IDLE_CHK_SEVERITY_TYPES
+};
+
+/* Debug Bus block data */
+struct dbg_bus_block_data {
+	u8 enabled; /* Indicates if the block is enabled for recording (0/1) */
+	u8 hw_id; /* HW ID associated with the block */
+	u8 line_num; /* Debug line number to select */
+	u8 right_shift; /* Number of units to  right the debug data (0-3) */
+	u8 cycle_en; /* 4-bit value: bit i set -> unit i is enabled. */
+	u8 force_valid; /* 4-bit value: bit i set -> unit i is forced valid. */
+	u8 force_frame; /* 4-bit value: bit i set -> unit i frame bit is forced.
+			 */
+	u8 reserved;
+};
+
+/* Debug Bus Clients */
+enum dbg_bus_clients {
+	DBG_BUS_CLIENT_RBCN,
+	DBG_BUS_CLIENT_RBCP,
+	DBG_BUS_CLIENT_RBCR,
+	DBG_BUS_CLIENT_RBCT,
+	DBG_BUS_CLIENT_RBCU,
+	DBG_BUS_CLIENT_RBCF,
+	DBG_BUS_CLIENT_RBCX,
+	DBG_BUS_CLIENT_RBCS,
+	DBG_BUS_CLIENT_RBCH,
+	DBG_BUS_CLIENT_RBCZ,
+	DBG_BUS_CLIENT_OTHER_ENGINE,
+	DBG_BUS_CLIENT_TIMESTAMP,
+	DBG_BUS_CLIENT_CPU,
+	DBG_BUS_CLIENT_RBCY,
+	DBG_BUS_CLIENT_RBCQ,
+	DBG_BUS_CLIENT_RBCM,
+	DBG_BUS_CLIENT_RBCB,
+	DBG_BUS_CLIENT_RBCW,
+	DBG_BUS_CLIENT_RBCV,
+	MAX_DBG_BUS_CLIENTS
+};
+
+/* Debug Bus memory address */
+struct dbg_bus_mem_addr {
+	__le32 lo;
+	__le32 hi;
+};
+
+/* Debug Bus PCI buffer data */
+struct dbg_bus_pci_buf_data {
+	struct dbg_bus_mem_addr phys_addr; /* PCI buffer physical address */
+	struct dbg_bus_mem_addr virt_addr; /* PCI buffer virtual address */
+	__le32 size; /* PCI buffer size in bytes */
+};
+
+/* Debug Bus Storm EID range filter params */
+struct dbg_bus_storm_eid_range_params {
+	u8 min; /* Minimal event ID to filter on */
+	u8 max; /* Maximal event ID to filter on */
+};
+
+/* Debug Bus Storm EID mask filter params */
+struct dbg_bus_storm_eid_mask_params {
+	u8 val; /* Event ID value */
+	u8 mask; /* Event ID mask. 1s in the mask = dont care bits. */
+};
+
+/* Debug Bus Storm EID filter params */
+union dbg_bus_storm_eid_params {
+	struct dbg_bus_storm_eid_range_params range;
+	struct dbg_bus_storm_eid_mask_params mask;
+};
+
+/* Debug Bus Storm data */
+struct dbg_bus_storm_data {
+	u8 fast_enabled;
+	u8 fast_mode;
+	u8 slow_enabled;
+	u8 slow_mode;
+	u8 hw_id;
+	u8 eid_filter_en;
+	u8 eid_range_not_mask;
+	u8 cid_filter_en;
+	union dbg_bus_storm_eid_params eid_filter_params;
+	__le16 reserved;
+	__le32 cid;
+};
+
+/* Debug Bus data */
+struct dbg_bus_data {
+	__le32 app_version; /* The tools version number of the application */
+	u8 state; /* The current debug bus state */
+	u8 hw_dwords; /* HW dwords per cycle */
+	u8 next_hw_id; /* Next HW ID to be associated with an input */
+	u8 num_enabled_blocks; /* Number of blocks enabled for recording */
+	u8 num_enabled_storms; /* Number of Storms enabled for recording */
+	u8 target; /* Output target */
+	u8 next_trigger_state; /* ID of next trigger state to be added */
+	u8 next_constraint_id; /* ID of next filter/trigger constraint to be
+				* added.
+				*/
+	u8 one_shot_en; /* Indicates if one-shot mode is enabled (0/1) */
+	u8 grc_input_en; /* Indicates if GRC recording is enabled (0/1) */
+	u8 timestamp_input_en; /* Indicates if timestamp recording is enabled
+				* (0/1).
+				*/
+	u8 filter_en; /* Indicates if the recording filter is enabled (0/1) */
+	u8 trigger_en; /* Indicates if the recording trigger is enabled (0/1) */
+	u8 adding_filter; /* If true, the next added constraint belong to the
+			   * filter. Otherwise, it belongs to the last added
+			   * trigger state. Valid only if either filter or
+			   * triggers are enabled.
+			   */
+	u8 filter_pre_trigger; /* Indicates if the recording filter should be
+				* applied before the trigger. Valid only if both
+				* filter and trigger are enabled (0/1).
+				*/
+	u8 filter_post_trigger; /* Indicates if the recording filter should be
+				 * applied after the trigger. Valid only if both
+				 * filter and trigger are enabled (0/1).
+				 */
+	u8 unify_inputs; /* If true, all inputs are associated with HW ID 0.
+			  * Otherwise, each input is assigned a different HW ID
+			  * (0/1).
+			  */
+	u8 rcv_from_other_engine; /* Indicates if the other engine sends it NW
+				   * recording to this engine (0/1).
+				   */
+	struct dbg_bus_pci_buf_data pci_buf; /* Debug Bus PCI buffer data. Valid
+					      * only when the target is
+					      * DBG_BUS_TARGET_ID_PCI.
+					      */
+	__le16 reserved;
+	struct dbg_bus_block_data blocks[80];/* Debug Bus data for each block */
+	struct dbg_bus_storm_data storms[6]; /* Debug Bus data for each block */
+};
+
+/* Debug bus frame modes */
+enum dbg_bus_frame_modes {
+	DBG_BUS_FRAME_MODE_0HW_4ST = 0, /* 0 HW dwords, 4 Storm dwords */
+	DBG_BUS_FRAME_MODE_4HW_0ST = 3, /* 4 HW dwords, 0 Storm dwords */
+	DBG_BUS_FRAME_MODE_8HW_0ST = 4, /* 8 HW dwords, 0 Storm dwords */
+	MAX_DBG_BUS_FRAME_MODES
+};
+
+/* Debug bus states */
+enum dbg_bus_states {
+	DBG_BUS_STATE_IDLE, /* debug bus idle state (not recording) */
+	DBG_BUS_STATE_READY, /* debug bus is ready for configuration and
+			      * recording.
+			      */
+	DBG_BUS_STATE_RECORDING, /* debug bus is currently recording */
+	DBG_BUS_STATE_STOPPED, /* debug bus recording has stopped */
+	MAX_DBG_BUS_STATES
+};
+
+/* Debug bus target IDs */
+enum dbg_bus_targets {
+	/* records debug bus to DBG block internal buffer */
+	DBG_BUS_TARGET_ID_INT_BUF,
+	/* records debug bus to the NW */
+	DBG_BUS_TARGET_ID_NIG,
+	/* records debug bus to a PCI buffer */
+	DBG_BUS_TARGET_ID_PCI,
+	MAX_DBG_BUS_TARGETS
+};
+
+/* GRC Dump data */
+struct dbg_grc_data {
+	__le32 param_val[40]; /* Value of each GRC parameter. Array size must
+			       * match the enum dbg_grc_params.
+			       */
+	u8 param_set_by_user[40]; /* Indicates for each GRC parameter if it was
+				   * set by the user (0/1). Array size must
+				   * match the enum dbg_grc_params.
+				   */
+};
+
+/* Debug GRC params */
+enum dbg_grc_params {
+	DBG_GRC_PARAM_DUMP_TSTORM, /* dump Tstorm memories (0/1) */
+	DBG_GRC_PARAM_DUMP_MSTORM, /* dump Mstorm memories (0/1) */
+	DBG_GRC_PARAM_DUMP_USTORM, /* dump Ustorm memories (0/1) */
+	DBG_GRC_PARAM_DUMP_XSTORM, /* dump Xstorm memories (0/1) */
+	DBG_GRC_PARAM_DUMP_YSTORM, /* dump Ystorm memories (0/1) */
+	DBG_GRC_PARAM_DUMP_PSTORM, /* dump Pstorm memories (0/1) */
+	DBG_GRC_PARAM_DUMP_REGS, /* dump non-memory registers (0/1) */
+	DBG_GRC_PARAM_DUMP_RAM, /* dump Storm internal RAMs (0/1) */
+	DBG_GRC_PARAM_DUMP_PBUF, /* dump Storm passive buffer (0/1) */
+	DBG_GRC_PARAM_DUMP_IOR, /* dump Storm IORs (0/1) */
+	DBG_GRC_PARAM_DUMP_VFC, /* dump VFC memories (0/1) */
+	DBG_GRC_PARAM_DUMP_CM_CTX, /* dump CM contexts (0/1) */
+	DBG_GRC_PARAM_DUMP_PXP, /* dump PXP memories (0/1) */
+	DBG_GRC_PARAM_DUMP_RSS, /* dump RSS memories (0/1) */
+	DBG_GRC_PARAM_DUMP_CAU, /* dump CAU memories (0/1) */
+	DBG_GRC_PARAM_DUMP_QM, /* dump QM memories (0/1) */
+	DBG_GRC_PARAM_DUMP_MCP, /* dump MCP memories (0/1) */
+	DBG_GRC_PARAM_RESERVED, /* reserved */
+	DBG_GRC_PARAM_DUMP_CFC, /* dump CFC memories (0/1) */
+	DBG_GRC_PARAM_DUMP_IGU, /* dump IGU memories (0/1) */
+	DBG_GRC_PARAM_DUMP_BRB, /* dump BRB memories (0/1) */
+	DBG_GRC_PARAM_DUMP_BTB, /* dump BTB memories (0/1) */
+	DBG_GRC_PARAM_DUMP_BMB, /* dump BMB memories (0/1) */
+	DBG_GRC_PARAM_DUMP_NIG, /* dump NIG memories (0/1) */
+	DBG_GRC_PARAM_DUMP_MULD, /* dump MULD memories (0/1) */
+	DBG_GRC_PARAM_DUMP_PRS, /* dump PRS memories (0/1) */
+	DBG_GRC_PARAM_DUMP_DMAE, /* dump PRS memories (0/1) */
+	DBG_GRC_PARAM_DUMP_TM, /* dump TM (timers) memories (0/1) */
+	DBG_GRC_PARAM_DUMP_SDM, /* dump SDM memories (0/1) */
+	DBG_GRC_PARAM_DUMP_DIF, /* dump DIF memories (0/1) */
+	DBG_GRC_PARAM_DUMP_STATIC, /* dump static debug data (0/1) */
+	DBG_GRC_PARAM_UNSTALL, /* un-stall Storms after dump (0/1) */
+	DBG_GRC_PARAM_NUM_LCIDS, /* number of LCIDs (0..320) */
+	DBG_GRC_PARAM_NUM_LTIDS, /* number of LTIDs (0..320) */
+	/* preset: exclude all memories from dump (1 only) */
+	DBG_GRC_PARAM_EXCLUDE_ALL,
+	/* preset: include memories for crash dump (1 only) */
+	DBG_GRC_PARAM_CRASH,
+	/* perform dump only if MFW is responding (0/1) */
+	DBG_GRC_PARAM_PARITY_SAFE,
+	DBG_GRC_PARAM_DUMP_CM, /* dump CM memories (0/1) */
+	DBG_GRC_PARAM_DUMP_PHY, /* dump PHY memories (0/1) */
+	MAX_DBG_GRC_PARAMS
+};
+
+/* Debug reset registers */
+enum dbg_reset_regs {
+	DBG_RESET_REG_MISCS_PL_UA,
+	DBG_RESET_REG_MISCS_PL_HV,
+	DBG_RESET_REG_MISCS_PL_HV_2,
+	DBG_RESET_REG_MISC_PL_UA,
+	DBG_RESET_REG_MISC_PL_HV,
+	DBG_RESET_REG_MISC_PL_PDA_VMAIN_1,
+	DBG_RESET_REG_MISC_PL_PDA_VMAIN_2,
+	DBG_RESET_REG_MISC_PL_PDA_VAUX,
+	MAX_DBG_RESET_REGS
+};
+
 /* Debug status codes */
 enum dbg_status {
 	DBG_STATUS_OK,
@@ -1867,6 +2225,41 @@ enum dbg_status {
 	DBG_STATUS_DBG_ARRAY_NOT_SET,
 	DBG_STATUS_MULTI_BLOCKS_WITH_FILTER,
 	MAX_DBG_STATUS
+};
+
+/* Debug Storms IDs */
+enum dbg_storms {
+	DBG_TSTORM_ID,
+	DBG_MSTORM_ID,
+	DBG_USTORM_ID,
+	DBG_XSTORM_ID,
+	DBG_YSTORM_ID,
+	DBG_PSTORM_ID,
+	MAX_DBG_STORMS
+};
+
+/* Idle Check data */
+struct idle_chk_data {
+	__le32 buf_size; /* Idle check buffer size in dwords */
+	u8 buf_size_set; /* Indicates if the idle check buffer size was set
+			  * (0/1).
+			  */
+	u8 reserved1;
+	__le16 reserved2;
+};
+
+/* Debug Tools data (per HW function) */
+struct dbg_tools_data {
+	struct dbg_grc_data grc; /* GRC Dump data */
+	struct dbg_bus_data bus; /* Debug Bus data */
+	struct idle_chk_data idle_chk; /* Idle Check data */
+	u8 mode_enable[40]; /* Indicates if a mode is enabled (0/1) */
+	u8 block_in_reset[80]; /* Indicates if a block is in reset state (0/1).
+				*/
+	u8 chip_id; /* Chip ID (from enum chip_ids) */
+	u8 platform_id; /* Platform ID (from enum platform_ids) */
+	u8 initialized; /* Indicates if the data was initialized */
+	u8 reserved;
 };
 
 /********************************/
@@ -1948,15 +2341,50 @@ struct init_qm_vport_params {
 /* Max size in dwords of a zipped array */
 #define MAX_ZIPPED_SIZE	8192
 
+struct fw_asserts_ram_section {
+	__le16 section_ram_line_offset;
+	__le16 section_ram_line_size;
+	u8 list_dword_offset;
+	u8 list_element_dword_size;
+	u8 list_num_elements;
+	u8 list_next_index_dword_offset;
+};
+
+struct fw_ver_num {
+	u8 major; /* Firmware major version number */
+	u8 minor; /* Firmware minor version number */
+	u8 rev; /* Firmware revision version number */
+	u8 eng; /* Firmware engineering version number (for bootleg versions) */
+};
+
+struct fw_ver_info {
+	__le16 tools_ver; /* Tools version number */
+	u8 image_id; /* FW image ID (e.g. main) */
+	u8 reserved1;
+	struct fw_ver_num num; /* FW version number */
+	__le32 timestamp; /* FW Timestamp in unix time  (sec. since 1970) */
+	__le32 reserved2;
+};
+
+struct fw_info {
+	struct fw_ver_info ver;
+	struct fw_asserts_ram_section fw_asserts_section;
+};
+
+struct fw_info_location {
+	__le32 grc_addr;
+	__le32 size;
+};
+
 enum init_modes {
 	MODE_RESERVED,
 	MODE_BB_B0,
-	MODE_RESERVED2,
+	MODE_K2,
 	MODE_ASIC,
+	MODE_RESERVED2,
 	MODE_RESERVED3,
 	MODE_RESERVED4,
 	MODE_RESERVED5,
-	MODE_RESERVED6,
 	MODE_SF,
 	MODE_MF_SD,
 	MODE_MF_SI,
@@ -1965,7 +2393,7 @@ enum init_modes {
 	MODE_PORTS_PER_ENG_4,
 	MODE_100G,
 	MODE_40G,
-	MODE_RESERVED7,
+	MODE_RESERVED6,
 	MAX_INIT_MODES
 };
 
@@ -2223,8 +2651,276 @@ struct iro {
 	__le16 size;
 };
 
+/***************************** Public Functions *******************************/
 /**
- * @brief qed_dbg_print_attn - Prints attention registers values in the specified results struct.
+ * @brief qed_dbg_set_bin_ptr - Sets a pointer to the binary data with debug
+ *	arrays.
+ *
+ * @param bin_ptr - a pointer to the binary data with debug arrays.
+ */
+enum dbg_status qed_dbg_set_bin_ptr(const u8 * const bin_ptr);
+/**
+ * @brief qed_dbg_grc_get_dump_buf_size - Returns the required buffer size for
+ *	GRC Dump.
+ *
+ * @param p_hwfn - HW device data
+ * @param p_ptt - Ptt window used for writing the registers.
+ * @param buf_size - OUT: required buffer size (in dwords) for the GRC Dump
+ *	data.
+ *
+ * @return error if one of the following holds:
+ *	- the version wasn't set
+ * Otherwise, returns ok.
+ */
+enum dbg_status qed_dbg_grc_get_dump_buf_size(struct qed_hwfn *p_hwfn,
+					      struct qed_ptt *p_ptt,
+					      u32 *buf_size);
+/**
+ * @brief qed_dbg_grc_dump - Dumps GRC data into the specified buffer.
+ *
+ * @param p_hwfn - HW device data
+ * @param p_ptt - Ptt window used for writing the registers.
+ * @param dump_buf - Pointer to write the collected GRC data into.
+ * @param buf_size_in_dwords - Size of the specified buffer in dwords.
+ * @param num_dumped_dwords - OUT: number of dumped dwords.
+ *
+ * @return error if one of the following holds:
+ *	- the version wasn't set
+ *	- the specified dump buffer is too small
+ * Otherwise, returns ok.
+ */
+enum dbg_status qed_dbg_grc_dump(struct qed_hwfn *p_hwfn,
+				 struct qed_ptt *p_ptt,
+				 u32 *dump_buf,
+				 u32 buf_size_in_dwords,
+				 u32 *num_dumped_dwords);
+/**
+ * @brief qed_dbg_idle_chk_get_dump_buf_size - Returns the required buffer size
+ *	for idle check results.
+ *
+ * @param p_hwfn - HW device data
+ * @param p_ptt - Ptt window used for writing the registers.
+ * @param buf_size - OUT: required buffer size (in dwords) for the idle check
+ *	data.
+ *
+ * @return error if one of the following holds:
+ *	- the version wasn't set
+ * Otherwise, returns ok.
+ */
+enum dbg_status qed_dbg_idle_chk_get_dump_buf_size(struct qed_hwfn *p_hwfn,
+						   struct qed_ptt *p_ptt,
+						   u32 *buf_size);
+/**
+ * @brief qed_dbg_idle_chk_dump - Performs idle check and writes the results
+ *	into the specified buffer.
+ *
+ * @param p_hwfn - HW device data
+ * @param p_ptt - Ptt window used for writing the registers.
+ * @param dump_buf - Pointer to write the idle check data into.
+ * @param buf_size_in_dwords - Size of the specified buffer in dwords.
+ * @param num_dumped_dwords - OUT: number of dumped dwords.
+ *
+ * @return error if one of the following holds:
+ *	- the version wasn't set
+ *	- the specified buffer is too small
+ * Otherwise, returns ok.
+ */
+enum dbg_status qed_dbg_idle_chk_dump(struct qed_hwfn *p_hwfn,
+				      struct qed_ptt *p_ptt,
+				      u32 *dump_buf,
+				      u32 buf_size_in_dwords,
+				      u32 *num_dumped_dwords);
+/**
+ * @brief qed_dbg_mcp_trace_get_dump_buf_size - Returns the required buffer size
+ *	for mcp trace results.
+ *
+ * @param p_hwfn - HW device data
+ * @param p_ptt - Ptt window used for writing the registers.
+ * @param buf_size - OUT: required buffer size (in dwords) for mcp trace data.
+ *
+ * @return error if one of the following holds:
+ *	- the version wasn't set
+ *	- the trace data in MCP scratchpad contain an invalid signature
+ *	- the bundle ID in NVRAM is invalid
+ *	- the trace meta data cannot be found (in NVRAM or image file)
+ * Otherwise, returns ok.
+ */
+enum dbg_status qed_dbg_mcp_trace_get_dump_buf_size(struct qed_hwfn *p_hwfn,
+						    struct qed_ptt *p_ptt,
+						    u32 *buf_size);
+/**
+ * @brief qed_dbg_mcp_trace_dump - Performs mcp trace and writes the results
+ *	into the specified buffer.
+ *
+ * @param p_hwfn - HW device data
+ * @param p_ptt - Ptt window used for writing the registers.
+ * @param dump_buf - Pointer to write the mcp trace data into.
+ * @param buf_size_in_dwords - Size of the specified buffer in dwords.
+ * @param num_dumped_dwords - OUT: number of dumped dwords.
+ *
+ * @return error if one of the following holds:
+ *	- the version wasn't set
+ *	- the specified buffer is too small
+ *	- the trace data in MCP scratchpad contain an invalid signature
+ *	- the bundle ID in NVRAM is invalid
+ *	- the trace meta data cannot be found (in NVRAM or image file)
+ *	- the trace meta data cannot be read (from NVRAM or image file)
+ * Otherwise, returns ok.
+ */
+enum dbg_status qed_dbg_mcp_trace_dump(struct qed_hwfn *p_hwfn,
+				       struct qed_ptt *p_ptt,
+				       u32 *dump_buf,
+				       u32 buf_size_in_dwords,
+				       u32 *num_dumped_dwords);
+/**
+ * @brief qed_dbg_reg_fifo_get_dump_buf_size - Returns the required buffer size
+ *	for grc trace fifo results.
+ *
+ * @param p_hwfn - HW device data
+ * @param p_ptt - Ptt window used for writing the registers.
+ * @param buf_size - OUT: required buffer size (in dwords) for reg fifo data.
+ *
+ * @return error if one of the following holds:
+ *	- the version wasn't set
+ * Otherwise, returns ok.
+ */
+enum dbg_status qed_dbg_reg_fifo_get_dump_buf_size(struct qed_hwfn *p_hwfn,
+						   struct qed_ptt *p_ptt,
+						   u32 *buf_size);
+/**
+ * @brief qed_dbg_reg_fifo_dump - Reads the reg fifo and writes the results into
+ *	the specified buffer.
+ *
+ * @param p_hwfn - HW device data
+ * @param p_ptt - Ptt window used for writing the registers.
+ * @param dump_buf - Pointer to write the reg fifo data into.
+ * @param buf_size_in_dwords - Size of the specified buffer in dwords.
+ * @param num_dumped_dwords - OUT: number of dumped dwords.
+ *
+ * @return error if one of the following holds:
+ *	- the version wasn't set
+ *	- the specified buffer is too small
+ *	- DMAE transaction failed
+ * Otherwise, returns ok.
+ */
+enum dbg_status qed_dbg_reg_fifo_dump(struct qed_hwfn *p_hwfn,
+				      struct qed_ptt *p_ptt,
+				      u32 *dump_buf,
+				      u32 buf_size_in_dwords,
+				      u32 *num_dumped_dwords);
+/**
+ * @brief qed_dbg_igu_fifo_get_dump_buf_size - Returns the required buffer size
+ *	for the IGU fifo results.
+ *
+ * @param p_hwfn - HW device data
+ * @param p_ptt - Ptt window used for writing the registers.
+ * @param buf_size - OUT: required buffer size (in dwords) for the IGU fifo
+ *	data.
+ *
+ * @return error if one of the following holds:
+ *	- the version wasn't set
+ * Otherwise, returns ok.
+ */
+enum dbg_status qed_dbg_igu_fifo_get_dump_buf_size(struct qed_hwfn *p_hwfn,
+						   struct qed_ptt *p_ptt,
+						   u32 *buf_size);
+/**
+ * @brief qed_dbg_igu_fifo_dump - Reads the IGU fifo and writes the results into
+ *	the specified buffer.
+ *
+ * @param p_hwfn - HW device data
+ * @param p_ptt - Ptt window used for writing the registers.
+ * @param dump_buf - Pointer to write the IGU fifo data into.
+ * @param buf_size_in_dwords - Size of the specified buffer in dwords.
+ * @param num_dumped_dwords - OUT: number of dumped dwords.
+ *
+ * @return error if one of the following holds:
+ *	- the version wasn't set
+ *	- the specified buffer is too small
+ *	- DMAE transaction failed
+ * Otherwise, returns ok.
+ */
+enum dbg_status qed_dbg_igu_fifo_dump(struct qed_hwfn *p_hwfn,
+				      struct qed_ptt *p_ptt,
+				      u32 *dump_buf,
+				      u32 buf_size_in_dwords,
+				      u32 *num_dumped_dwords);
+/**
+ * @brief qed_dbg_protection_override_get_dump_buf_size - Returns the required
+ *	buffer size for protection override window results.
+ *
+ * @param p_hwfn - HW device data
+ * @param p_ptt - Ptt window used for writing the registers.
+ * @param buf_size - OUT: required buffer size (in dwords) for protection
+ *	override data.
+ *
+ * @return error if one of the following holds:
+ *	- the version wasn't set
+ * Otherwise, returns ok.
+ */
+enum dbg_status
+qed_dbg_protection_override_get_dump_buf_size(struct qed_hwfn *p_hwfn,
+					      struct qed_ptt *p_ptt,
+					      u32 *buf_size);
+/**
+ * @brief qed_dbg_protection_override_dump - Reads protection override window
+ *	entries and writes the results into the specified buffer.
+ *
+ * @param p_hwfn - HW device data
+ * @param p_ptt - Ptt window used for writing the registers.
+ * @param dump_buf - Pointer to write the protection override data into.
+ * @param buf_size_in_dwords - Size of the specified buffer in dwords.
+ * @param num_dumped_dwords - OUT: number of dumped dwords.
+ *
+ * @return error if one of the following holds:
+ *	- the version wasn't set
+ *	- the specified buffer is too small
+ *	- DMAE transaction failed
+ * Otherwise, returns ok.
+ */
+enum dbg_status qed_dbg_protection_override_dump(struct qed_hwfn *p_hwfn,
+						 struct qed_ptt *p_ptt,
+						 u32 *dump_buf,
+						 u32 buf_size_in_dwords,
+						 u32 *num_dumped_dwords);
+/**
+ * @brief qed_dbg_fw_asserts_get_dump_buf_size - Returns the required buffer
+ *	size for FW Asserts results.
+ *
+ * @param p_hwfn - HW device data
+ * @param p_ptt - Ptt window used for writing the registers.
+ * @param buf_size - OUT: required buffer size (in dwords) for FW Asserts data.
+ *
+ * @return error if one of the following holds:
+ *	- the version wasn't set
+ * Otherwise, returns ok.
+ */
+enum dbg_status qed_dbg_fw_asserts_get_dump_buf_size(struct qed_hwfn *p_hwfn,
+						     struct qed_ptt *p_ptt,
+						     u32 *buf_size);
+/**
+ * @brief qed_dbg_fw_asserts_dump - Reads the FW Asserts and writes the results
+ *	into the specified buffer.
+ *
+ * @param p_hwfn - HW device data
+ * @param p_ptt - Ptt window used for writing the registers.
+ * @param dump_buf - Pointer to write the FW Asserts data into.
+ * @param buf_size_in_dwords - Size of the specified buffer in dwords.
+ * @param num_dumped_dwords - OUT: number of dumped dwords.
+ *
+ * @return error if one of the following holds:
+ *	- the version wasn't set
+ *	- the specified buffer is too small
+ * Otherwise, returns ok.
+ */
+enum dbg_status qed_dbg_fw_asserts_dump(struct qed_hwfn *p_hwfn,
+					struct qed_ptt *p_ptt,
+					u32 *dump_buf,
+					u32 buf_size_in_dwords,
+					u32 *num_dumped_dwords);
+/**
+ * @brief qed_dbg_print_attn - Prints attention registers values in the
+ *	specified results struct.
  *
  * @param p_hwfn
  * @param results - Pointer to the attention read results
@@ -2236,8 +2932,212 @@ struct iro {
 enum dbg_status qed_dbg_print_attn(struct qed_hwfn *p_hwfn,
 				   struct dbg_attn_block_result *results);
 
+/******************************** Constants **********************************/
+
 #define MAX_NAME_LEN	16
 
+/***************************** Public Functions *******************************/
+/**
+ * @brief qed_dbg_user_set_bin_ptr - Sets a pointer to the binary data with
+ *	debug arrays.
+ *
+ * @param bin_ptr - a pointer to the binary data with debug arrays.
+ */
+enum dbg_status qed_dbg_user_set_bin_ptr(const u8 * const bin_ptr);
+/**
+ * @brief qed_dbg_get_status_str - Returns a string for the specified status.
+ *
+ * @param status - a debug status code.
+ *
+ * @return a string for the specified status
+ */
+const char *qed_dbg_get_status_str(enum dbg_status status);
+/**
+ * @brief qed_get_idle_chk_results_buf_size - Returns the required buffer size
+ *	for idle check results (in bytes).
+ *
+ * @param p_hwfn - HW device data
+ * @param dump_buf - idle check dump buffer.
+ * @param num_dumped_dwords - number of dwords that were dumped.
+ * @param results_buf_size - OUT: required buffer size (in bytes) for the parsed
+ *	results.
+ *
+ * @return error if the parsing fails, ok otherwise.
+ */
+enum dbg_status qed_get_idle_chk_results_buf_size(struct qed_hwfn *p_hwfn,
+						  u32 *dump_buf,
+						  u32  num_dumped_dwords,
+						  u32 *results_buf_size);
+/**
+ * @brief qed_print_idle_chk_results - Prints idle check results
+ *
+ * @param p_hwfn - HW device data
+ * @param dump_buf - idle check dump buffer.
+ * @param num_dumped_dwords - number of dwords that were dumped.
+ * @param results_buf - buffer for printing the idle check results.
+ * @param num_errors - OUT: number of errors found in idle check.
+ * @param num_warnings - OUT: number of warnings found in idle check.
+ *
+ * @return error if the parsing fails, ok otherwise.
+ */
+enum dbg_status qed_print_idle_chk_results(struct qed_hwfn *p_hwfn,
+					   u32 *dump_buf,
+					   u32 num_dumped_dwords,
+					   char *results_buf,
+					   u32 *num_errors,
+					   u32 *num_warnings);
+/**
+ * @brief qed_get_mcp_trace_results_buf_size - Returns the required buffer size
+ *	for MCP Trace results (in bytes).
+ *
+ * @param p_hwfn - HW device data
+ * @param dump_buf - MCP Trace dump buffer.
+ * @param num_dumped_dwords - number of dwords that were dumped.
+ * @param results_buf_size - OUT: required buffer size (in bytes) for the parsed
+ *	results.
+ *
+ * @return error if the parsing fails, ok otherwise.
+ */
+enum dbg_status qed_get_mcp_trace_results_buf_size(struct qed_hwfn *p_hwfn,
+						   u32 *dump_buf,
+						   u32 num_dumped_dwords,
+						   u32 *results_buf_size);
+/**
+ * @brief qed_print_mcp_trace_results - Prints MCP Trace results
+ *
+ * @param p_hwfn - HW device data
+ * @param dump_buf - mcp trace dump buffer, starting from the header.
+ * @param num_dumped_dwords - number of dwords that were dumped.
+ * @param results_buf - buffer for printing the mcp trace results.
+ *
+ * @return error if the parsing fails, ok otherwise.
+ */
+enum dbg_status qed_print_mcp_trace_results(struct qed_hwfn *p_hwfn,
+					    u32 *dump_buf,
+					    u32 num_dumped_dwords,
+					    char *results_buf);
+/**
+ * @brief qed_get_reg_fifo_results_buf_size - Returns the required buffer size
+ *	for reg_fifo results (in bytes).
+ *
+ * @param p_hwfn - HW device data
+ * @param dump_buf - reg fifo dump buffer.
+ * @param num_dumped_dwords - number of dwords that were dumped.
+ * @param results_buf_size - OUT: required buffer size (in bytes) for the parsed
+ *	results.
+ *
+ * @return error if the parsing fails, ok otherwise.
+ */
+enum dbg_status qed_get_reg_fifo_results_buf_size(struct qed_hwfn *p_hwfn,
+						  u32 *dump_buf,
+						  u32 num_dumped_dwords,
+						  u32 *results_buf_size);
+/**
+ * @brief qed_print_reg_fifo_results - Prints reg fifo results
+ *
+ * @param p_hwfn - HW device data
+ * @param dump_buf - reg fifo dump buffer, starting from the header.
+ * @param num_dumped_dwords - number of dwords that were dumped.
+ * @param results_buf - buffer for printing the reg fifo results.
+ *
+ * @return error if the parsing fails, ok otherwise.
+ */
+enum dbg_status qed_print_reg_fifo_results(struct qed_hwfn *p_hwfn,
+					   u32 *dump_buf,
+					   u32 num_dumped_dwords,
+					   char *results_buf);
+/**
+ * @brief qed_get_igu_fifo_results_buf_size - Returns the required buffer size
+ *	for igu_fifo results (in bytes).
+ *
+ * @param p_hwfn - HW device data
+ * @param dump_buf - IGU fifo dump buffer.
+ * @param num_dumped_dwords - number of dwords that were dumped.
+ * @param results_buf_size - OUT: required buffer size (in bytes) for the parsed
+ *	results.
+ *
+ * @return error if the parsing fails, ok otherwise.
+ */
+enum dbg_status qed_get_igu_fifo_results_buf_size(struct qed_hwfn *p_hwfn,
+						  u32 *dump_buf,
+						  u32 num_dumped_dwords,
+						  u32 *results_buf_size);
+/**
+ * @brief qed_print_igu_fifo_results - Prints IGU fifo results
+ *
+ * @param p_hwfn - HW device data
+ * @param dump_buf - IGU fifo dump buffer, starting from the header.
+ * @param num_dumped_dwords - number of dwords that were dumped.
+ * @param results_buf - buffer for printing the IGU fifo results.
+ *
+ * @return error if the parsing fails, ok otherwise.
+ */
+enum dbg_status qed_print_igu_fifo_results(struct qed_hwfn *p_hwfn,
+					   u32 *dump_buf,
+					   u32 num_dumped_dwords,
+					   char *results_buf);
+/**
+ * @brief qed_get_protection_override_results_buf_size - Returns the required
+ *	buffer size for protection override results (in bytes).
+ *
+ * @param p_hwfn - HW device data
+ * @param dump_buf - protection override dump buffer.
+ * @param num_dumped_dwords - number of dwords that were dumped.
+ * @param results_buf_size - OUT: required buffer size (in bytes) for the parsed
+ *	results.
+ *
+ * @return error if the parsing fails, ok otherwise.
+ */
+enum dbg_status
+qed_get_protection_override_results_buf_size(struct qed_hwfn *p_hwfn,
+					     u32 *dump_buf,
+					     u32 num_dumped_dwords,
+					     u32 *results_buf_size);
+/**
+ * @brief qed_print_protection_override_results - Prints protection override
+ *	results.
+ *
+ * @param p_hwfn - HW device data
+ * @param dump_buf - protection override dump buffer, starting from the header.
+ * @param num_dumped_dwords - number of dwords that were dumped.
+ * @param results_buf - buffer for printing the reg fifo results.
+ *
+ * @return error if the parsing fails, ok otherwise.
+ */
+enum dbg_status qed_print_protection_override_results(struct qed_hwfn *p_hwfn,
+						      u32 *dump_buf,
+						      u32 num_dumped_dwords,
+						      char *results_buf);
+/**
+ * @brief qed_get_fw_asserts_results_buf_size - Returns the required buffer size
+ *	for FW Asserts results (in bytes).
+ *
+ * @param p_hwfn - HW device data
+ * @param dump_buf - FW Asserts dump buffer.
+ * @param num_dumped_dwords - number of dwords that were dumped.
+ * @param results_buf_size - OUT: required buffer size (in bytes) for the parsed
+ *	results.
+ *
+ * @return error if the parsing fails, ok otherwise.
+ */
+enum dbg_status qed_get_fw_asserts_results_buf_size(struct qed_hwfn *p_hwfn,
+						    u32 *dump_buf,
+						    u32 num_dumped_dwords,
+						    u32 *results_buf_size);
+/**
+ * @brief qed_print_fw_asserts_results - Prints FW Asserts results
+ *
+ * @param p_hwfn - HW device data
+ * @param dump_buf - FW Asserts dump buffer, starting from the header.
+ * @param num_dumped_dwords - number of dwords that were dumped.
+ * @param results_buf - buffer for printing the FW Asserts results.
+ *
+ * @return error if the parsing fails, ok otherwise.
+ */
+enum dbg_status qed_print_fw_asserts_results(struct qed_hwfn *p_hwfn,
+					     u32 *dump_buf,
+					     u32 num_dumped_dwords,
+					     char *results_buf);
 /* Win 2 */
 #define GTT_BAR0_MAP_REG_IGU_CMD	0x00f000UL
 
@@ -7039,6 +7939,35 @@ struct ystorm_iscsi_conn_ag_ctx {
 	__le32 reg2;
 	__le32 reg3;
 };
+
+#define MFW_TRACE_SIGNATURE     0x25071946
+
+/* The trace in the buffer */
+#define MFW_TRACE_EVENTID_MASK          0x00ffff
+#define MFW_TRACE_PRM_SIZE_MASK         0x0f0000
+#define MFW_TRACE_PRM_SIZE_SHIFT        16
+#define MFW_TRACE_ENTRY_SIZE            3
+
+struct mcp_trace {
+	u32 signature;		/* Help to identify that the trace is valid */
+	u32 size;		/* the size of the trace buffer in bytes */
+	u32 curr_level;		/* 2 - all will be written to the buffer
+				 * 1 - debug trace will not be written
+				 * 0 - just errors will be written to the buffer
+				 */
+	u32 modules_mask[2];	/* a bit per module, 1 means write it, 0 means
+				 * mask it.
+				 */
+
+	/* Warning: the following pointers are assumed to be 32bits as they are
+	 * used only in the MFW.
+	 */
+	u32 trace_prod; /* The next trace will be written to this offset */
+	u32 trace_oldest; /* The oldest valid trace starts at this offset
+			   * (usually very close after the current producer).
+			   */
+};
+
 #define VF_MAX_STATIC 192
 
 #define MCP_GLOB_PATH_MAX	2
@@ -7046,6 +7975,7 @@ struct ystorm_iscsi_conn_ag_ctx {
 #define MCP_GLOB_PORT_MAX	4
 #define MCP_GLOB_FUNC_MAX	16
 
+typedef u32 offsize_t;		/* In DWORDS !!! */
 /* Offset from the beginning of the MCP scratchpad */
 #define OFFSIZE_OFFSET_SHIFT	0
 #define OFFSIZE_OFFSET_MASK	0x0000ffff
@@ -7636,6 +8566,8 @@ struct public_drv_mb {
 #define DRV_MSG_CODE_NIG_DRAIN			0x30000000
 #define DRV_MSG_CODE_VF_DISABLED_DONE		0xc0000000
 #define DRV_MSG_CODE_CFG_VF_MSIX		0xc0010000
+#define DRV_MSG_CODE_NVM_GET_FILE_ATT		0x00030000
+#define DRV_MSG_CODE_NVM_READ_NVRAM		0x00050000
 #define DRV_MSG_CODE_MCP_RESET			0x00090000
 #define DRV_MSG_CODE_SET_VERSION		0x000f0000
 #define DRV_MSG_CODE_MCP_HALT                   0x00100000
@@ -7657,6 +8589,9 @@ struct public_drv_mb {
 #define DRV_MB_PARAM_UNLOAD_WOL_MCP		0x00000001
 #define DRV_MB_PARAM_DCBX_NOTIFY_MASK		0x000000FF
 #define DRV_MB_PARAM_DCBX_NOTIFY_SHIFT		3
+
+#define DRV_MB_PARAM_NVM_LEN_SHIFT		24
+
 #define DRV_MB_PARAM_CFG_VF_MSIX_VF_ID_SHIFT	0
 #define DRV_MB_PARAM_CFG_VF_MSIX_VF_ID_MASK	0x000000FF
 #define DRV_MB_PARAM_CFG_VF_MSIX_SB_NUM_SHIFT	8
@@ -7694,6 +8629,8 @@ struct public_drv_mb {
 #define FW_MSG_CODE_DRV_UNLOAD_FUNCTION		0x20130000
 #define FW_MSG_CODE_DRV_UNLOAD_DONE		0x21100000
 #define FW_MSG_CODE_DRV_CFG_VF_MSIX_DONE	0xb0010000
+
+#define FW_MSG_CODE_NVM_OK			0x00010000
 #define FW_MSG_CODE_OK				0x00160000
 
 #define FW_MSG_SEQ_NUMBER_MASK			0x0000ffff
@@ -7930,4 +8867,101 @@ struct nvm_cfg1 {
 	struct nvm_cfg1_port port[MCP_GLOB_PORT_MAX];
 	struct nvm_cfg1_func func[MCP_GLOB_FUNC_MAX];
 };
+
+enum spad_sections {
+	SPAD_SECTION_TRACE,
+	SPAD_SECTION_NVM_CFG,
+	SPAD_SECTION_PUBLIC,
+	SPAD_SECTION_PRIVATE,
+	SPAD_SECTION_MAX
+};
+
+#define MCP_TRACE_SIZE          2048	/* 2kb */
+
+/* This section is located at a fixed location in the beginning of the
+ * scratchpad, to ensure that the MCP trace is not run over during MFW upgrade.
+ * All the rest of data has a floating location which differs from version to
+ * version, and is pointed by the mcp_meta_data below.
+ * Moreover, the spad_layout section is part of the MFW firmware, and is loaded
+ * with it from nvram in order to clear this portion.
+ */
+struct static_init {
+	u32 num_sections;
+	offsize_t sections[SPAD_SECTION_MAX];
+#define SECTION(_sec_) (*((offsize_t *)(STRUCT_OFFSET(sections[_sec_]))))
+
+	struct mcp_trace trace;
+#define MCP_TRACE_P ((struct mcp_trace *)(STRUCT_OFFSET(trace)))
+	u8 trace_buffer[MCP_TRACE_SIZE];
+#define MCP_TRACE_BUF ((u8 *)(STRUCT_OFFSET(trace_buffer)))
+	/* running_mfw has the same definition as in nvm_map.h.
+	 * This bit indicate both the running dir, and the running bundle.
+	 * It is set once when the LIM is loaded.
+	 */
+	u32 running_mfw;
+#define RUNNING_MFW (*((u32 *)(STRUCT_OFFSET(running_mfw))))
+	u32 build_time;
+#define MFW_BUILD_TIME (*((u32 *)(STRUCT_OFFSET(build_time))))
+	u32 reset_type;
+#define RESET_TYPE (*((u32 *)(STRUCT_OFFSET(reset_type))))
+	u32 mfw_secure_mode;
+#define MFW_SECURE_MODE (*((u32 *)(STRUCT_OFFSET(mfw_secure_mode))))
+	u16 pme_status_pf_bitmap;
+#define PME_STATUS_PF_BITMAP (*((u16 *)(STRUCT_OFFSET(pme_status_pf_bitmap))))
+	u16 pme_enable_pf_bitmap;
+#define PME_ENABLE_PF_BITMAP (*((u16 *)(STRUCT_OFFSET(pme_enable_pf_bitmap))))
+	u32 mim_nvm_addr;
+	u32 mim_start_addr;
+	u32 ah_pcie_link_params;
+#define AH_PCIE_LINK_PARAMS_LINK_SPEED_MASK     (0x000000ff)
+#define AH_PCIE_LINK_PARAMS_LINK_SPEED_SHIFT    (0)
+#define AH_PCIE_LINK_PARAMS_LINK_WIDTH_MASK     (0x0000ff00)
+#define AH_PCIE_LINK_PARAMS_LINK_WIDTH_SHIFT    (8)
+#define AH_PCIE_LINK_PARAMS_ASPM_MODE_MASK      (0x00ff0000)
+#define AH_PCIE_LINK_PARAMS_ASPM_MODE_SHIFT     (16)
+#define AH_PCIE_LINK_PARAMS_ASPM_CAP_MASK       (0xff000000)
+#define AH_PCIE_LINK_PARAMS_ASPM_CAP_SHIFT      (24)
+#define AH_PCIE_LINK_PARAMS (*((u32 *)(STRUCT_OFFSET(ah_pcie_link_params))))
+
+	u32 rsrv_persist[5];	/* Persist reserved for MFW upgrades */
+};
+
+enum nvm_image_type {
+	NVM_TYPE_TIM1 = 0x01,
+	NVM_TYPE_TIM2 = 0x02,
+	NVM_TYPE_MIM1 = 0x03,
+	NVM_TYPE_MIM2 = 0x04,
+	NVM_TYPE_MBA = 0x05,
+	NVM_TYPE_MODULES_PN = 0x06,
+	NVM_TYPE_VPD = 0x07,
+	NVM_TYPE_MFW_TRACE1 = 0x08,
+	NVM_TYPE_MFW_TRACE2 = 0x09,
+	NVM_TYPE_NVM_CFG1 = 0x0a,
+	NVM_TYPE_L2B = 0x0b,
+	NVM_TYPE_DIR1 = 0x0c,
+	NVM_TYPE_EAGLE_FW1 = 0x0d,
+	NVM_TYPE_FALCON_FW1 = 0x0e,
+	NVM_TYPE_PCIE_FW1 = 0x0f,
+	NVM_TYPE_HW_SET = 0x10,
+	NVM_TYPE_LIM = 0x11,
+	NVM_TYPE_AVS_FW1 = 0x12,
+	NVM_TYPE_DIR2 = 0x13,
+	NVM_TYPE_CCM = 0x14,
+	NVM_TYPE_EAGLE_FW2 = 0x15,
+	NVM_TYPE_FALCON_FW2 = 0x16,
+	NVM_TYPE_PCIE_FW2 = 0x17,
+	NVM_TYPE_AVS_FW2 = 0x18,
+	NVM_TYPE_INIT_HW = 0x19,
+	NVM_TYPE_DEFAULT_CFG = 0x1a,
+	NVM_TYPE_MDUMP = 0x1b,
+	NVM_TYPE_META = 0x1c,
+	NVM_TYPE_ISCSI_CFG = 0x1d,
+	NVM_TYPE_FCOE_CFG = 0x1f,
+	NVM_TYPE_ETH_PHY_FW1 = 0x20,
+	NVM_TYPE_ETH_PHY_FW2 = 0x21,
+	NVM_TYPE_MAX,
+};
+
+#define DIR_ID_1    (0)
+
 #endif

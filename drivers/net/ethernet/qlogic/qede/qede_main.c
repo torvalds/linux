@@ -100,7 +100,8 @@ static int qede_alloc_rx_buffer(struct qede_dev *edev,
 static void qede_link_update(void *dev, struct qed_link_output *link);
 
 #ifdef CONFIG_QED_SRIOV
-static int qede_set_vf_vlan(struct net_device *ndev, int vf, u16 vlan, u8 qos)
+static int qede_set_vf_vlan(struct net_device *ndev, int vf, u16 vlan, u8 qos,
+			    __be16 vlan_proto)
 {
 	struct qede_dev *edev = netdev_priv(ndev);
 
@@ -108,6 +109,9 @@ static int qede_set_vf_vlan(struct net_device *ndev, int vf, u16 vlan, u8 qos)
 		DP_NOTICE(edev, "Illegal vlan value %d\n", vlan);
 		return -EINVAL;
 	}
+
+	if (vlan_proto != htons(ETH_P_8021Q))
+		return -EPROTONOSUPPORT;
 
 	DP_VERBOSE(edev, QED_MSG_IOV, "Setting Vlan 0x%04x to VF [%d]\n",
 		   vlan, vf);
@@ -2116,7 +2120,7 @@ static void qede_vlan_mark_nonconfigured(struct qede_dev *edev)
 	edev->accept_any_vlan = false;
 }
 
-int qede_set_features(struct net_device *dev, netdev_features_t features)
+static int qede_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct qede_dev *edev = netdev_priv(dev);
 	netdev_features_t changes = features ^ dev->features;
@@ -2552,7 +2556,8 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 	edev->ops->register_ops(cdev, &qede_ll_ops, edev);
 
 #ifdef CONFIG_DCB
-	qede_set_dcbnl_ops(edev->ndev);
+	if (!IS_VF(edev))
+		qede_set_dcbnl_ops(edev->ndev);
 #endif
 
 	INIT_DELAYED_WORK(&edev->sp_task, qede_sp_task);

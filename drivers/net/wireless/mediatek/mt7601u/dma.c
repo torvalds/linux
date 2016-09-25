@@ -103,7 +103,7 @@ static void mt7601u_rx_process_seg(struct mt7601u_dev *dev, u8 *data,
 
 	if (unlikely(rxwi->zero[0] || rxwi->zero[1] || rxwi->zero[2]))
 		dev_err_once(dev->dev, "Error: RXWI zero fields are set\n");
-	if (unlikely(MT76_GET(MT_RXD_INFO_TYPE, fce_info)))
+	if (unlikely(FIELD_GET(MT_RXD_INFO_TYPE, fce_info)))
 		dev_err_once(dev->dev, "Error: RX path seen a non-pkt urb\n");
 
 	trace_mt_rx(dev, rxwi, fce_info);

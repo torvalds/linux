@@ -19,6 +19,7 @@
 #include "qed_dcbx.h"
 #include "qed_hsi.h"
 #include "qed_sp.h"
+#include "qed_sriov.h"
 #ifdef CONFIG_DCB
 #include <linux/qed/qed_eth_if.h>
 #endif
@@ -942,6 +943,9 @@ static int qed_dcbx_query_params(struct qed_hwfn *p_hwfn,
 	struct qed_ptt *p_ptt;
 	int rc;
 
+	if (IS_VF(p_hwfn->cdev))
+		return -EINVAL;
+
 	p_ptt = qed_ptt_acquire(p_hwfn);
 	if (!p_ptt)
 		return -EBUSY;
@@ -981,6 +985,7 @@ qed_dcbx_set_pfc_data(struct qed_hwfn *p_hwfn,
 		if (p_params->pfc.prio[i])
 			pfc_map |= BIT(i);
 
+	*pfc &= ~DCBX_PFC_PRI_EN_BITMAP_MASK;
 	*pfc |= (pfc_map << DCBX_PFC_PRI_EN_BITMAP_SHIFT);
 
 	DP_VERBOSE(p_hwfn, QED_MSG_DCB, "pfc = 0x%x\n", *pfc);
@@ -1055,24 +1060,33 @@ qed_dcbx_set_app_data(struct qed_hwfn *p_hwfn,
 
 	for (i = 0; i < DCBX_MAX_APP_PROTOCOL; i++) {
 		entry = &p_app->app_pri_tbl[i].entry;
+		*entry = 0;
 		if (ieee) {
-			*entry &= ~DCBX_APP_SF_IEEE_MASK;
+			*entry &= ~(DCBX_APP_SF_IEEE_MASK | DCBX_APP_SF_MASK);
 			switch (p_params->app_entry[i].sf_ieee) {
 			case QED_DCBX_SF_IEEE_ETHTYPE:
 				*entry |= ((u32)DCBX_APP_SF_IEEE_ETHTYPE <<
 					   DCBX_APP_SF_IEEE_SHIFT);
+				*entry |= ((u32)DCBX_APP_SF_ETHTYPE <<
+					   DCBX_APP_SF_SHIFT);
 				break;
 			case QED_DCBX_SF_IEEE_TCP_PORT:
 				*entry |= ((u32)DCBX_APP_SF_IEEE_TCP_PORT <<
 					   DCBX_APP_SF_IEEE_SHIFT);
+				*entry |= ((u32)DCBX_APP_SF_PORT <<
+					   DCBX_APP_SF_SHIFT);
 				break;
 			case QED_DCBX_SF_IEEE_UDP_PORT:
 				*entry |= ((u32)DCBX_APP_SF_IEEE_UDP_PORT <<
 					   DCBX_APP_SF_IEEE_SHIFT);
+				*entry |= ((u32)DCBX_APP_SF_PORT <<
+					   DCBX_APP_SF_SHIFT);
 				break;
 			case QED_DCBX_SF_IEEE_TCP_UDP_PORT:
 				*entry |= ((u32)DCBX_APP_SF_IEEE_TCP_UDP_PORT <<
 					   DCBX_APP_SF_IEEE_SHIFT);
+				*entry |= ((u32)DCBX_APP_SF_PORT <<
+					   DCBX_APP_SF_SHIFT);
 				break;
 			}
 		} else {
@@ -1172,7 +1186,7 @@ int qed_dcbx_get_config_params(struct qed_hwfn *p_hwfn,
 		return 0;
 	}
 
-	dcbx_info = kmalloc(sizeof(*dcbx_info), GFP_KERNEL);
+	dcbx_info = kzalloc(sizeof(*dcbx_info), GFP_KERNEL);
 	if (!dcbx_info)
 		return -ENOMEM;
 
@@ -1207,7 +1221,7 @@ static struct qed_dcbx_get *qed_dcbnl_get_dcbx(struct qed_hwfn *hwfn,
 {
 	struct qed_dcbx_get *dcbx_info;
 
-	dcbx_info = kmalloc(sizeof(*dcbx_info), GFP_KERNEL);
+	dcbx_info = kzalloc(sizeof(*dcbx_info), GFP_KERNEL);
 	if (!dcbx_info)
 		return NULL;
 
@@ -2130,17 +2144,19 @@ static int qed_dcbnl_ieee_setets(struct qed_dev *cdev, struct ieee_ets *ets)
 	return rc;
 }
 
-int qed_dcbnl_ieee_peer_getets(struct qed_dev *cdev, struct ieee_ets *ets)
+static int
+qed_dcbnl_ieee_peer_getets(struct qed_dev *cdev, struct ieee_ets *ets)
 {
 	return qed_dcbnl_get_ieee_ets(cdev, ets, true);
 }
 
-int qed_dcbnl_ieee_peer_getpfc(struct qed_dev *cdev, struct ieee_pfc *pfc)
+static int
+qed_dcbnl_ieee_peer_getpfc(struct qed_dev *cdev, struct ieee_pfc *pfc)
 {
 	return qed_dcbnl_get_ieee_pfc(cdev, pfc, true);
 }
 
-int qed_dcbnl_ieee_getapp(struct qed_dev *cdev, struct dcb_app *app)
+static int qed_dcbnl_ieee_getapp(struct qed_dev *cdev, struct dcb_app *app)
 {
 	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
 	struct qed_dcbx_get *dcbx_info;
@@ -2184,7 +2200,7 @@ int qed_dcbnl_ieee_getapp(struct qed_dev *cdev, struct dcb_app *app)
 	return 0;
 }
 
-int qed_dcbnl_ieee_setapp(struct qed_dev *cdev, struct dcb_app *app)
+static int qed_dcbnl_ieee_setapp(struct qed_dev *cdev, struct dcb_app *app)
 {
 	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
 	struct qed_dcbx_get *dcbx_info;

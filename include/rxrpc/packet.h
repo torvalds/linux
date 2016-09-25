@@ -34,8 +34,6 @@ struct rxrpc_wire_header {
 #define RXRPC_CID_INC		(1 << RXRPC_CIDSHIFT)	/* connection ID increment */
 
 	__be32		callNumber;	/* call ID (0 for connection-level packets) */
-#define RXRPC_PROCESS_MAXCALLS	(1<<2)	/* maximum number of active calls per conn (power of 2) */
-
 	__be32		seq;		/* sequence number of pkt in call stream */
 	__be32		serial;		/* serial number of pkt sent to network */
 
@@ -93,10 +91,14 @@ struct rxrpc_wire_header {
 struct rxrpc_jumbo_header {
 	uint8_t		flags;		/* packet flags (as per rxrpc_header) */
 	uint8_t		pad;
-	__be16		_rsvd;		/* reserved (used by kerberos security as cksum) */
+	union {
+		__be16	_rsvd;		/* reserved */
+		__be16	cksum;		/* kerberos security checksum */
+	};
 };
 
 #define RXRPC_JUMBO_DATALEN	1412	/* non-terminal jumbo packet data length */
+#define RXRPC_JUMBO_SUBPKTLEN	(RXRPC_JUMBO_DATALEN + sizeof(struct rxrpc_jumbo_header))
 
 /*****************************************************************************/
 /*
@@ -121,6 +123,7 @@ struct rxrpc_ackpacket {
 #define RXRPC_ACK_PING_RESPONSE		7	/* response to RXRPC_ACK_PING */
 #define RXRPC_ACK_DELAY			8	/* nothing happened since received packet */
 #define RXRPC_ACK_IDLE			9	/* ACK due to fully received ACK window */
+#define RXRPC_ACK__INVALID		10	/* Representation of invalid ACK reason */
 
 	uint8_t		nAcks;		/* number of ACKs */
 #define RXRPC_MAXACKS	255
@@ -130,6 +133,13 @@ struct rxrpc_ackpacket {
 #define RXRPC_ACK_TYPE_ACK		1
 
 } __packed;
+
+/* Some ACKs refer to specific packets and some are general and can be updated. */
+#define RXRPC_ACK_UPDATEABLE ((1 << RXRPC_ACK_REQUESTED)	|	\
+			      (1 << RXRPC_ACK_PING_RESPONSE)	|	\
+			      (1 << RXRPC_ACK_DELAY)		|	\
+			      (1 << RXRPC_ACK_IDLE))
+
 
 /*
  * ACK packets can have a further piece of information tagged on the end

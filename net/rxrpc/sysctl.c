@@ -20,7 +20,7 @@ static const unsigned int one = 1;
 static const unsigned int four = 4;
 static const unsigned int thirtytwo = 32;
 static const unsigned int n_65535 = 65535;
-static const unsigned int n_max_acks = RXRPC_MAXACKS;
+static const unsigned int n_max_acks = RXRPC_RXTX_BUFF_SIZE - 1;
 
 /*
  * RxRPC operating parameters.
@@ -59,7 +59,7 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 		.data		= &rxrpc_resend_timeout,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_ms_jiffies,
+		.proc_handler	= proc_dointvec,
 		.extra1		= (void *)&one,
 	},
 	{
@@ -83,14 +83,6 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 	{
 		.procname	= "max_call_lifetime",
 		.data		= &rxrpc_max_call_lifetime,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-		.extra1		= (void *)&one,
-	},
-	{
-		.procname	= "dead_call_expiry",
-		.data		= &rxrpc_dead_call_expiry,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,

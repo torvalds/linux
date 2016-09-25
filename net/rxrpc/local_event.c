@@ -15,8 +15,6 @@
 #include <linux/net.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
-#include <linux/udp.h>
-#include <linux/ip.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
 #include <generated/utsrelease.h>
@@ -33,7 +31,7 @@ static void rxrpc_send_version_request(struct rxrpc_local *local,
 {
 	struct rxrpc_wire_header whdr;
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-	struct sockaddr_in sin;
+	struct sockaddr_rxrpc srx;
 	struct msghdr msg;
 	struct kvec iov[2];
 	size_t len;
@@ -41,12 +39,11 @@ static void rxrpc_send_version_request(struct rxrpc_local *local,
 
 	_enter("");
 
-	sin.sin_family = AF_INET;
-	sin.sin_port = udp_hdr(skb)->source;
-	sin.sin_addr.s_addr = ip_hdr(skb)->saddr;
+	if (rxrpc_extract_addr_from_skb(&srx, skb) < 0)
+		return;
 
-	msg.msg_name	= &sin;
-	msg.msg_namelen	= sizeof(sin);
+	msg.msg_name	= &srx.transport;
+	msg.msg_namelen	= srx.transport_len;
 	msg.msg_control	= NULL;
 	msg.msg_controllen = 0;
 	msg.msg_flags	= 0;
@@ -93,12 +90,12 @@ void rxrpc_process_local_events(struct rxrpc_local *local)
 	if (skb) {
 		struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 
-		rxrpc_see_skb(skb);
+		rxrpc_see_skb(skb, rxrpc_skb_rx_seen);
 		_debug("{%d},{%u}", local->debug_id, sp->hdr.type);
 
 		switch (sp->hdr.type) {
 		case RXRPC_PACKET_TYPE_VERSION:
-			if (skb_copy_bits(skb, 0, &v, 1) < 0)
+			if (skb_copy_bits(skb, sp->offset, &v, 1) < 0)
 				return;
 			_proto("Rx VERSION { %02x }", v);
 			if (v == 0)
@@ -110,7 +107,7 @@ void rxrpc_process_local_events(struct rxrpc_local *local)
 			break;
 		}
 
-		rxrpc_free_skb(skb);
+		rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
 	}
 
 	_leave("");
