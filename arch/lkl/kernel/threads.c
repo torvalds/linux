@@ -2,6 +2,7 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <asm/host_ops.h>
+#include <asm/cpu.h>
 
 static volatile int threads_counter;
 
@@ -86,13 +87,24 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	 * ksoftirqd0 -> swapper: returned prev is swapper
 	 */
 	static struct task_struct *abs_prev = &init_task;
+	unsigned long _prev_flags = _prev->flags;
 
 	_current_thread_info = task_thread_info(next);
 	_next->prev_sched = prev;
 	abs_prev = prev;
 
+	BUG_ON(!_next->tid);
+	lkl_cpu_change_owner(_next->tid);
+
 	lkl_ops->sem_up(_next->sched_sem);
-	lkl_ops->sem_down(_prev->sched_sem);
+	if (test_bit(TIF_SCHED_JB, &_prev_flags)) {
+		clear_ti_thread_flag(_prev, TIF_SCHED_JB);
+		lkl_ops->jmp_buf_longjmp(&_prev->sched_jb, 1);
+	} else if (test_bit(TIF_SCHED_EXIT, &_prev_flags)) {
+		lkl_ops->thread_exit();
+	} else {
+		lkl_ops->sem_down(_prev->sched_sem);
+	}
 
 	if (_prev->dead) {
 		__sync_fetch_and_sub(&threads_counter, 1);

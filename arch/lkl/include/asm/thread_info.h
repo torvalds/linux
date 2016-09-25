@@ -18,6 +18,7 @@ struct thread_info {
 	int preempt_count;
 	mm_segment_t addr_limit;
 	struct lkl_sem *sched_sem;
+	struct lkl_jmp_buf sched_jb;
 	bool dead;
 	lkl_thread_t tid;
 	struct task_struct *prev_sched;
@@ -56,6 +57,21 @@ void threads_cleanup(void);
 #define TIF_RESTORE_SIGMASK		4
 #define TIF_MEMDIE			5
 #define TIF_NOHZ			6
+#define TIF_SCHED_JB			7
+#define TIF_SCHED_EXIT			8
+
+static inline void set_ti_thread_flag(struct thread_info *ti, int flag);
+
+static inline int thread_set_sched_jmp(void)
+{
+	set_ti_thread_flag(current_thread_info(), TIF_SCHED_JB);
+	return lkl_ops->jmp_buf_set(&current_thread_info()->sched_jb);
+}
+
+static inline void thread_set_sched_exit(void)
+{
+	set_ti_thread_flag(current_thread_info(), TIF_SCHED_EXIT);
+}
 
 #define __HAVE_THREAD_FUNCTIONS
 
