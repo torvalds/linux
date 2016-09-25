@@ -2367,6 +2367,7 @@ xlog_recover_validate_buf_type(
 	__uint32_t		magic32;
 	__uint16_t		magic16;
 	__uint16_t		magicda;
+	char			*warnmsg = NULL;
 
 	/*
 	 * We can only do post recovery validation on items on CRC enabled
@@ -2405,31 +2406,27 @@ xlog_recover_validate_buf_type(
 			bp->b_ops = &xfs_rmapbt_buf_ops;
 			break;
 		default:
-			xfs_warn(mp, "Bad btree block magic!");
-			ASSERT(0);
+			warnmsg = "Bad btree block magic!";
 			break;
 		}
 		break;
 	case XFS_BLFT_AGF_BUF:
 		if (magic32 != XFS_AGF_MAGIC) {
-			xfs_warn(mp, "Bad AGF block magic!");
-			ASSERT(0);
+			warnmsg = "Bad AGF block magic!";
 			break;
 		}
 		bp->b_ops = &xfs_agf_buf_ops;
 		break;
 	case XFS_BLFT_AGFL_BUF:
 		if (magic32 != XFS_AGFL_MAGIC) {
-			xfs_warn(mp, "Bad AGFL block magic!");
-			ASSERT(0);
+			warnmsg = "Bad AGFL block magic!";
 			break;
 		}
 		bp->b_ops = &xfs_agfl_buf_ops;
 		break;
 	case XFS_BLFT_AGI_BUF:
 		if (magic32 != XFS_AGI_MAGIC) {
-			xfs_warn(mp, "Bad AGI block magic!");
-			ASSERT(0);
+			warnmsg = "Bad AGI block magic!";
 			break;
 		}
 		bp->b_ops = &xfs_agi_buf_ops;
@@ -2439,8 +2436,7 @@ xlog_recover_validate_buf_type(
 	case XFS_BLFT_GDQUOT_BUF:
 #ifdef CONFIG_XFS_QUOTA
 		if (magic16 != XFS_DQUOT_MAGIC) {
-			xfs_warn(mp, "Bad DQUOT block magic!");
-			ASSERT(0);
+			warnmsg = "Bad DQUOT block magic!";
 			break;
 		}
 		bp->b_ops = &xfs_dquot_buf_ops;
@@ -2452,16 +2448,14 @@ xlog_recover_validate_buf_type(
 		break;
 	case XFS_BLFT_DINO_BUF:
 		if (magic16 != XFS_DINODE_MAGIC) {
-			xfs_warn(mp, "Bad INODE block magic!");
-			ASSERT(0);
+			warnmsg = "Bad INODE block magic!";
 			break;
 		}
 		bp->b_ops = &xfs_inode_buf_ops;
 		break;
 	case XFS_BLFT_SYMLINK_BUF:
 		if (magic32 != XFS_SYMLINK_MAGIC) {
-			xfs_warn(mp, "Bad symlink block magic!");
-			ASSERT(0);
+			warnmsg = "Bad symlink block magic!";
 			break;
 		}
 		bp->b_ops = &xfs_symlink_buf_ops;
@@ -2469,8 +2463,7 @@ xlog_recover_validate_buf_type(
 	case XFS_BLFT_DIR_BLOCK_BUF:
 		if (magic32 != XFS_DIR2_BLOCK_MAGIC &&
 		    magic32 != XFS_DIR3_BLOCK_MAGIC) {
-			xfs_warn(mp, "Bad dir block magic!");
-			ASSERT(0);
+			warnmsg = "Bad dir block magic!";
 			break;
 		}
 		bp->b_ops = &xfs_dir3_block_buf_ops;
@@ -2478,8 +2471,7 @@ xlog_recover_validate_buf_type(
 	case XFS_BLFT_DIR_DATA_BUF:
 		if (magic32 != XFS_DIR2_DATA_MAGIC &&
 		    magic32 != XFS_DIR3_DATA_MAGIC) {
-			xfs_warn(mp, "Bad dir data magic!");
-			ASSERT(0);
+			warnmsg = "Bad dir data magic!";
 			break;
 		}
 		bp->b_ops = &xfs_dir3_data_buf_ops;
@@ -2487,8 +2479,7 @@ xlog_recover_validate_buf_type(
 	case XFS_BLFT_DIR_FREE_BUF:
 		if (magic32 != XFS_DIR2_FREE_MAGIC &&
 		    magic32 != XFS_DIR3_FREE_MAGIC) {
-			xfs_warn(mp, "Bad dir3 free magic!");
-			ASSERT(0);
+			warnmsg = "Bad dir3 free magic!";
 			break;
 		}
 		bp->b_ops = &xfs_dir3_free_buf_ops;
@@ -2496,8 +2487,7 @@ xlog_recover_validate_buf_type(
 	case XFS_BLFT_DIR_LEAF1_BUF:
 		if (magicda != XFS_DIR2_LEAF1_MAGIC &&
 		    magicda != XFS_DIR3_LEAF1_MAGIC) {
-			xfs_warn(mp, "Bad dir leaf1 magic!");
-			ASSERT(0);
+			warnmsg = "Bad dir leaf1 magic!";
 			break;
 		}
 		bp->b_ops = &xfs_dir3_leaf1_buf_ops;
@@ -2505,8 +2495,7 @@ xlog_recover_validate_buf_type(
 	case XFS_BLFT_DIR_LEAFN_BUF:
 		if (magicda != XFS_DIR2_LEAFN_MAGIC &&
 		    magicda != XFS_DIR3_LEAFN_MAGIC) {
-			xfs_warn(mp, "Bad dir leafn magic!");
-			ASSERT(0);
+			warnmsg = "Bad dir leafn magic!";
 			break;
 		}
 		bp->b_ops = &xfs_dir3_leafn_buf_ops;
@@ -2514,8 +2503,7 @@ xlog_recover_validate_buf_type(
 	case XFS_BLFT_DA_NODE_BUF:
 		if (magicda != XFS_DA_NODE_MAGIC &&
 		    magicda != XFS_DA3_NODE_MAGIC) {
-			xfs_warn(mp, "Bad da node magic!");
-			ASSERT(0);
+			warnmsg = "Bad da node magic!";
 			break;
 		}
 		bp->b_ops = &xfs_da3_node_buf_ops;
@@ -2523,24 +2511,21 @@ xlog_recover_validate_buf_type(
 	case XFS_BLFT_ATTR_LEAF_BUF:
 		if (magicda != XFS_ATTR_LEAF_MAGIC &&
 		    magicda != XFS_ATTR3_LEAF_MAGIC) {
-			xfs_warn(mp, "Bad attr leaf magic!");
-			ASSERT(0);
+			warnmsg = "Bad attr leaf magic!";
 			break;
 		}
 		bp->b_ops = &xfs_attr3_leaf_buf_ops;
 		break;
 	case XFS_BLFT_ATTR_RMT_BUF:
 		if (magic32 != XFS_ATTR3_RMT_MAGIC) {
-			xfs_warn(mp, "Bad attr remote magic!");
-			ASSERT(0);
+			warnmsg = "Bad attr remote magic!";
 			break;
 		}
 		bp->b_ops = &xfs_attr3_rmt_buf_ops;
 		break;
 	case XFS_BLFT_SB_BUF:
 		if (magic32 != XFS_SB_MAGIC) {
-			xfs_warn(mp, "Bad SB block magic!");
-			ASSERT(0);
+			warnmsg = "Bad SB block magic!";
 			break;
 		}
 		bp->b_ops = &xfs_sb_buf_ops;
@@ -2556,6 +2541,15 @@ xlog_recover_validate_buf_type(
 		xfs_warn(mp, "Unknown buffer type %d!",
 			 xfs_blft_from_flags(buf_f));
 		break;
+	}
+
+	/*
+	 * Don't warn in the case of a NULL current LSN as this means the buffer
+	 * is more recent than the change in the log and will be skipped.
+	 */
+	if (warnmsg && current_lsn != NULLCOMMITLSN) {
+		xfs_warn(mp, warnmsg);
+		ASSERT(0);
 	}
 }
 
