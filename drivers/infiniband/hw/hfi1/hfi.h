@@ -1061,8 +1061,6 @@ struct hfi1_devdata {
 	u8 psxmitwait_supported;
 	/* cycle length of PS* counters in HW (in picoseconds) */
 	u16 psxmitwait_check_rate;
-	/* high volume overflow errors deferred to tasklet */
-	struct tasklet_struct error_tasklet;
 
 	/* MSI-X information */
 	struct hfi1_msix_entry *msix_entries;
