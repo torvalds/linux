@@ -561,9 +561,8 @@ static void gb_gpio_irqchip_remove(struct gb_gpio_controller *ggc)
 		irq_domain_remove(ggc->irqdomain);
 	}
 
-	if (ggc->irqchip) {
+	if (ggc->irqchip)
 		ggc->irqchip = NULL;
-	}
 }
 
 /**
