@@ -369,7 +369,8 @@ xfs_filestream_new_ag(
 	struct xfs_mount	*mp = ip->i_mount;
 	xfs_extlen_t		minlen = ap->length;
 	xfs_agnumber_t		startag = 0;
-	int			flags, err = 0;
+	int			flags = 0;
+	int			err = 0;
 	struct xfs_mru_cache_elem *mru;
 
 	*agp = NULLAGNUMBER;
@@ -385,8 +386,10 @@ xfs_filestream_new_ag(
 		startag = (item->ag + 1) % mp->m_sb.sb_agcount;
 	}
 
-	flags = (ap->userdata ? XFS_PICK_USERDATA : 0) |
-	        (ap->dfops->dop_low ? XFS_PICK_LOWSPACE : 0);
+	if (xfs_alloc_is_userdata(ap->datatype))
+		flags |= XFS_PICK_USERDATA;
+	if (ap->dfops->dop_low)
+		flags |= XFS_PICK_LOWSPACE;
 
 	err = xfs_filestream_pick_ag(pip, startag, agp, flags, minlen);
 
