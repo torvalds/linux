@@ -277,6 +277,7 @@ void mei_amthif_complete(struct mei_cl *cl, struct mei_cl_cb *cb)
 	case MEI_FOP_WRITE:
 		if (!cb->status) {
 			dev->iamthif_stall_timer = MEI_IAMTHIF_STALL_TIMER;
+			mei_schedule_stall_timer(dev);
 			mei_io_cb_free(cb);
 			return;
 		}

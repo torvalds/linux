@@ -277,6 +277,7 @@ int mei_hbm_start_req(struct mei_device *dev)
 
 	dev->hbm_state = MEI_HBM_STARTING;
 	dev->init_clients_timer = MEI_CLIENTS_INIT_TIMEOUT;
+	mei_schedule_stall_timer(dev);
 	return 0;
 }
 
@@ -312,6 +313,7 @@ static int mei_hbm_enum_clients_req(struct mei_device *dev)
 	}
 	dev->hbm_state = MEI_HBM_ENUM_CLIENTS;
 	dev->init_clients_timer = MEI_CLIENTS_INIT_TIMEOUT;
+	mei_schedule_stall_timer(dev);
 	return 0;
 }
 
@@ -562,6 +564,7 @@ static int mei_hbm_prop_req(struct mei_device *dev, unsigned long start_idx)
 	}
 
 	dev->init_clients_timer = MEI_CLIENTS_INIT_TIMEOUT;
+	mei_schedule_stall_timer(dev);
 
 	return 0;
 }

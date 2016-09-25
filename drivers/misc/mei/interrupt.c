@@ -459,6 +459,19 @@ static void mei_connect_timeout(struct mei_cl *cl)
 	mei_reset(dev);
 }
 
+#define MEI_STALL_TIMER_FREQ (2 * HZ)
+/**
+ * mei_schedule_stall_timer - re-arm stall_timer work
+ *
+ * Schedule stall timer
+ *
+ * @dev: the device structure
+ */
+void mei_schedule_stall_timer(struct mei_device *dev)
+{
+	schedule_delayed_work(&dev->timer_work, MEI_STALL_TIMER_FREQ);
+}
+
 /**
  * mei_timer - timer function.
  *
@@ -468,10 +481,9 @@ static void mei_connect_timeout(struct mei_cl *cl)
 void mei_timer(struct work_struct *work)
 {
 	struct mei_cl *cl;
-
 	struct mei_device *dev = container_of(work,
 					struct mei_device, timer_work.work);
-
+	bool reschedule_timer = false;
 
 	mutex_lock(&dev->device_lock);
 
@@ -486,6 +498,7 @@ void mei_timer(struct work_struct *work)
 				mei_reset(dev);
 				goto out;
 			}
+			reschedule_timer = true;
 		}
 	}
 
@@ -500,6 +513,7 @@ void mei_timer(struct work_struct *work)
 				mei_connect_timeout(cl);
 				goto out;
 			}
+			reschedule_timer = true;
 		}
 	}
 
@@ -512,11 +526,14 @@ void mei_timer(struct work_struct *work)
 			mei_reset(dev);
 
 			mei_amthif_run_next_cmd(dev);
+			goto out;
 		}
+		reschedule_timer = true;
 	}
 
 out:
-	if (dev->dev_state != MEI_DEV_DISABLED)
-		schedule_delayed_work(&dev->timer_work, 2 * HZ);
+	if (dev->dev_state != MEI_DEV_DISABLED && reschedule_timer)
+		mei_schedule_stall_timer(dev);
+
 	mutex_unlock(&dev->device_lock);
 }

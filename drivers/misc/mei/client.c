@@ -826,6 +826,7 @@ static int mei_cl_send_disconnect(struct mei_cl *cl, struct mei_cl_cb *cb)
 
 	list_move_tail(&cb->list, &dev->ctrl_rd_list.list);
 	cl->timer_count = MEI_CONNECT_TIMEOUT;
+	mei_schedule_stall_timer(dev);
 
 	return 0;
 }
@@ -1011,6 +1012,7 @@ static int mei_cl_send_connect(struct mei_cl *cl, struct mei_cl_cb *cb)
 
 	list_move_tail(&cb->list, &dev->ctrl_rd_list.list);
 	cl->timer_count = MEI_CONNECT_TIMEOUT;
+	mei_schedule_stall_timer(dev);
 	return 0;
 }
 

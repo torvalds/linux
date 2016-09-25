@@ -548,6 +548,7 @@ void mei_cancel_work(struct mei_device *dev);
  */
 
 void mei_timer(struct work_struct *work);
+void mei_schedule_stall_timer(struct mei_device *dev);
 int mei_irq_read_handler(struct mei_device *dev,
 		struct mei_cl_cb *cmpl_list, s32 *slots);
 

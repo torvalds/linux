@@ -220,8 +220,6 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, dev);
 
-	schedule_delayed_work(&dev->timer_work, HZ);
-
 	/*
 	* For not wake-able HW runtime pm framework
 	* can't be used on pci device level.
