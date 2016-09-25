@@ -335,7 +335,7 @@ static int dwc3_rockchip_probe(struct platform_device *pdev)
 			if (!hcd) {
 				dev_err(dev, "fail to get drvdata hcd\n");
 				ret = -EPROBE_DEFER;
-				goto err2;
+				goto err3;
 			}
 			if (hcd->state != HC_STATE_HALT) {
 				usb_remove_hcd(hcd->shared_hcd);
@@ -353,6 +353,9 @@ static int dwc3_rockchip_probe(struct platform_device *pdev)
 	}
 
 	return ret;
+
+err3:
+	dwc3_rockchip_extcon_unregister(rockchip);
 
 err2:
 	of_platform_depopulate(dev);
