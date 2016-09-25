@@ -100,7 +100,8 @@ struct isl29018_chip {
 static int isl29018_set_integration_time(struct isl29018_chip *chip,
 					 unsigned int utime)
 {
-	int i, ret;
+	unsigned int i;
+	int ret;
 	unsigned int int_time, new_int_time;
 
 	for (i = 0; i < ARRAY_SIZE(isl29018_int_utimes[chip->type]); ++i) {
@@ -135,7 +136,8 @@ static int isl29018_set_integration_time(struct isl29018_chip *chip,
 
 static int isl29018_set_scale(struct isl29018_chip *chip, int scale, int uscale)
 {
-	int i, ret;
+	unsigned int i;
+	int ret;
 	struct isl29018_scale new_scale;
 
 	for (i = 0; i < ARRAY_SIZE(isl29018_scales[chip->int_time]); ++i) {
@@ -271,7 +273,8 @@ static ssize_t isl29018_show_scale_available(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct isl29018_chip *chip = iio_priv(indio_dev);
-	int i, len = 0;
+	unsigned int i;
+	int len = 0;
 
 	for (i = 0; i < ARRAY_SIZE(isl29018_scales[chip->int_time]); ++i)
 		len += sprintf(buf + len, "%d.%06d ",
@@ -288,7 +291,8 @@ static ssize_t isl29018_show_int_time_available(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct isl29018_chip *chip = iio_priv(indio_dev);
-	int i, len = 0;
+	unsigned int i;
+	int len = 0;
 
 	for (i = 0; i < ARRAY_SIZE(isl29018_int_utimes[chip->type]); ++i)
 		len += sprintf(buf + len, "0.%06d ",
