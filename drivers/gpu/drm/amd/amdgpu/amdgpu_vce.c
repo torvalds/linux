@@ -210,6 +210,8 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
  */
 int amdgpu_vce_sw_fini(struct amdgpu_device *adev)
 {
+	unsigned i;
+
 	if (adev->vce.vcpu_bo == NULL)
 		return 0;
 
@@ -217,8 +219,8 @@ int amdgpu_vce_sw_fini(struct amdgpu_device *adev)
 
 	amdgpu_bo_unref(&adev->vce.vcpu_bo);
 
-	amdgpu_ring_fini(&adev->vce.ring[0]);
-	amdgpu_ring_fini(&adev->vce.ring[1]);
+	for (i = 0; i < adev->vce.num_rings; i++)
+		amdgpu_ring_fini(&adev->vce.ring[i]);
 
 	release_firmware(adev->vce.fw);
 	mutex_destroy(&adev->vce.idle_mutex);
