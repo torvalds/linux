@@ -50,14 +50,7 @@
 #include "qp.h"
 
 /* cut down ridiculously long IB macro names */
-#define OP(x) IB_OPCODE_UC_##x
-
-/* only opcode mask for adaptive pio */
-const u32 uc_only_opcode =
-	BIT(OP(SEND_ONLY) & 0x1f) |
-	BIT(OP(SEND_ONLY_WITH_IMMEDIATE & 0x1f)) |
-	BIT(OP(RDMA_WRITE_ONLY & 0x1f)) |
-	BIT(OP(RDMA_WRITE_ONLY_WITH_IMMEDIATE & 0x1f));
+#define OP(x) UC_OP(x)
 
 /**
  * hfi1_make_uc_req - construct a request packet (SEND, RDMA write)

@@ -55,7 +55,7 @@
 #include "trace.h"
 
 /* cut down ridiculously long IB macro names */
-#define OP(x) IB_OPCODE_RC_##x
+#define OP(x) RC_OP(x)
 
 /**
  * hfi1_add_retry_timer - add/start a retry timer
@@ -183,18 +183,6 @@ void hfi1_del_timers_sync(struct rvt_qp *qp)
 	del_timer_sync(&qp->s_timer);
 	del_timer_sync(&priv->s_rnr_timer);
 }
-
-/* only opcode mask for adaptive pio */
-const u32 rc_only_opcode =
-	BIT(OP(SEND_ONLY) & 0x1f) |
-	BIT(OP(SEND_ONLY_WITH_IMMEDIATE & 0x1f)) |
-	BIT(OP(RDMA_WRITE_ONLY & 0x1f)) |
-	BIT(OP(RDMA_WRITE_ONLY_WITH_IMMEDIATE & 0x1f)) |
-	BIT(OP(RDMA_READ_REQUEST & 0x1f)) |
-	BIT(OP(ACKNOWLEDGE & 0x1f)) |
-	BIT(OP(ATOMIC_ACKNOWLEDGE & 0x1f)) |
-	BIT(OP(COMPARE_SWAP & 0x1f)) |
-	BIT(OP(FETCH_ADD & 0x1f));
 
 static u32 restart_sge(struct rvt_sge_state *ss, struct rvt_swqe *wqe,
 		       u32 psn, u32 pmtu)

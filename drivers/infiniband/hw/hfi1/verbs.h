@@ -97,6 +97,9 @@ struct hfi1_packet;
 
 #define IB_DEFAULT_GID_PREFIX	cpu_to_be64(0xfe80000000000000ULL)
 
+#define RC_OP(x) IB_OPCODE_RC_##x
+#define UC_OP(x) IB_OPCODE_UC_##x
+
 /* flags passed by hfi1_ib_rcv() */
 enum {
 	HFI1_HAS_GRH = (1 << 0),

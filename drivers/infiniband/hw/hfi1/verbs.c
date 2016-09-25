@@ -403,6 +403,28 @@ static const opcode_handler opcode_handler_tbl[256] = {
 	[IB_OPCODE_CNP]				      = &hfi1_cnp_rcv
 };
 
+#define OPMASK 0x1f
+
+static const u32 pio_opmask[BIT(3)] = {
+	/* RC */
+	[IB_OPCODE_RC >> 5] =
+		BIT(RC_OP(SEND_ONLY) & OPMASK) |
+		BIT(RC_OP(SEND_ONLY_WITH_IMMEDIATE) & OPMASK) |
+		BIT(RC_OP(RDMA_WRITE_ONLY) & OPMASK) |
+		BIT(RC_OP(RDMA_WRITE_ONLY_WITH_IMMEDIATE) & OPMASK) |
+		BIT(RC_OP(RDMA_READ_REQUEST) & OPMASK) |
+		BIT(RC_OP(ACKNOWLEDGE) & OPMASK) |
+		BIT(RC_OP(ATOMIC_ACKNOWLEDGE) & OPMASK) |
+		BIT(RC_OP(COMPARE_SWAP) & OPMASK) |
+		BIT(RC_OP(FETCH_ADD) & OPMASK),
+	/* UC */
+	[IB_OPCODE_UC >> 5] =
+		BIT(UC_OP(SEND_ONLY) & OPMASK) |
+		BIT(UC_OP(SEND_ONLY_WITH_IMMEDIATE) & OPMASK) |
+		BIT(UC_OP(RDMA_WRITE_ONLY) & OPMASK) |
+		BIT(UC_OP(RDMA_WRITE_ONLY_WITH_IMMEDIATE) & OPMASK),
+};
+
 /*
  * System image GUID.
  */
@@ -1210,22 +1232,18 @@ static inline send_routine get_send_routine(struct rvt_qp *qp,
 	case IB_QPT_GSI:
 	case IB_QPT_UD:
 		break;
-	case IB_QPT_RC:
-		if (piothreshold &&
-		    qp->s_cur_size <= min(piothreshold, qp->pmtu) &&
-		    (BIT(get_opcode(h) & 0x1f) & rc_only_opcode) &&
-		    iowait_sdma_pending(&priv->s_iowait) == 0 &&
-		    !sdma_txreq_built(&tx->txreq))
-			return dd->process_pio_send;
-		break;
 	case IB_QPT_UC:
+	case IB_QPT_RC: {
+		u8 op = get_opcode(h);
+
 		if (piothreshold &&
 		    qp->s_cur_size <= min(piothreshold, qp->pmtu) &&
-		    (BIT(get_opcode(h) & 0x1f) & uc_only_opcode) &&
+		    (BIT(op & OPMASK) & pio_opmask[op >> 5]) &&
 		    iowait_sdma_pending(&priv->s_iowait) == 0 &&
 		    !sdma_txreq_built(&tx->txreq))
 			return dd->process_pio_send;
 		break;
+	}
 	default:
 		break;
 	}
