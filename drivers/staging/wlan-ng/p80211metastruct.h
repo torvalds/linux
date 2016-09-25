@@ -227,7 +227,7 @@ struct p80211msg_p2req_readpda {
 	u32 msgcode;
 	u32 msglen;
 	u8 devname[WLAN_DEVNAMELEN_MAX];
-	p80211item_unk1024_t pda;
+	struct p80211item_unk1024 pda;
 	struct p80211item_uint32 resultcode;
 } __packed;
 

@@ -318,12 +318,12 @@ struct p80211item_unk392 {
 } __packed;
 
 /* message data item for UNK 1025, namely p2 pdas */
-typedef struct p80211item_unk1024 {
+struct p80211item_unk1024 {
 	u32 did;
 	u16 status;
 	u16 len;
 	u8 data[1024];
-} __packed p80211item_unk1024_t;
+} __packed;
 
 /* message data item for UNK 4096, namely p2 download chunks */
 typedef struct p80211item_unk4096 {
