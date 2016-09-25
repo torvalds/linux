@@ -402,6 +402,7 @@ enum rxrpc_call_flag {
 	RXRPC_CALL_RX_LAST,		/* Received the last packet (at rxtx_top) */
 	RXRPC_CALL_TX_LAST,		/* Last packet in Tx buffer (at rxtx_top) */
 	RXRPC_CALL_PINGING,		/* Ping in process */
+	RXRPC_CALL_RETRANS_TIMEOUT,	/* Retransmission due to timeout occurred */
 };
 
 /*
@@ -444,6 +445,17 @@ enum rxrpc_call_completion {
 	RXRPC_CALL_LOCAL_ERROR,		/* - call failed due to local error */
 	RXRPC_CALL_NETWORK_ERROR,	/* - call terminated by network error */
 	NR__RXRPC_CALL_COMPLETIONS
+};
+
+/*
+ * Call Tx congestion management modes.
+ */
+enum rxrpc_congest_mode {
+	RXRPC_CALL_SLOW_START,
+	RXRPC_CALL_CONGEST_AVOIDANCE,
+	RXRPC_CALL_PACKET_LOSS,
+	RXRPC_CALL_FAST_RETRANSMIT,
+	NR__RXRPC_CONGEST_MODES
 };
 
 /*
@@ -518,6 +530,20 @@ struct rxrpc_call {
 						 * not hard-ACK'd packet follows this.
 						 */
 	rxrpc_seq_t		tx_top;		/* Highest Tx slot allocated. */
+
+	/* TCP-style slow-start congestion control [RFC5681].  Since the SMSS
+	 * is fixed, we keep these numbers in terms of segments (ie. DATA
+	 * packets) rather than bytes.
+	 */
+#define RXRPC_TX_SMSS		RXRPC_JUMBO_DATALEN
+	u8			cong_cwnd;	/* Congestion window size */
+	u8			cong_extra;	/* Extra to send for congestion management */
+	u8			cong_ssthresh;	/* Slow-start threshold */
+	enum rxrpc_congest_mode	cong_mode:8;	/* Congestion management mode */
+	u8			cong_dup_acks;	/* Count of ACKs showing missing packets */
+	u8			cong_cumul_acks; /* Cumulative ACK count */
+	ktime_t			cong_tstamp;	/* Last time cwnd was changed */
+
 	rxrpc_seq_t		rx_hard_ack;	/* Dead slot in buffer; the first received but not
 						 * consumed packet follows this.
 						 */
@@ -533,11 +559,36 @@ struct rxrpc_call {
 	u16			ackr_skew;	/* skew on packet being ACK'd */
 	rxrpc_serial_t		ackr_serial;	/* serial of packet being ACK'd */
 	rxrpc_seq_t		ackr_prev_seq;	/* previous sequence number received */
+	rxrpc_seq_t		ackr_consumed;	/* Highest packet shown consumed */
+	rxrpc_seq_t		ackr_seen;	/* Highest packet shown seen */
 	rxrpc_serial_t		ackr_ping;	/* Last ping sent */
 	ktime_t			ackr_ping_time;	/* Time last ping sent */
 
 	/* transmission-phase ACK management */
+	ktime_t			acks_latest_ts;	/* Timestamp of latest ACK received */
 	rxrpc_serial_t		acks_latest;	/* serial number of latest ACK received */
+	rxrpc_seq_t		acks_lowest_nak; /* Lowest NACK in the buffer (or ==tx_hard_ack) */
+};
+
+/*
+ * Summary of a new ACK and the changes it made to the Tx buffer packet states.
+ */
+struct rxrpc_ack_summary {
+	u8			ack_reason;
+	u8			nr_acks;		/* Number of ACKs in packet */
+	u8			nr_nacks;		/* Number of NACKs in packet */
+	u8			nr_new_acks;		/* Number of new ACKs in packet */
+	u8			nr_new_nacks;		/* Number of new NACKs in packet */
+	u8			nr_rot_new_acks;	/* Number of rotated new ACKs */
+	bool			new_low_nack;		/* T if new low NACK found */
+	bool			retrans_timeo;		/* T if reTx due to timeout happened */
+	u8			flight_size;		/* Number of unreceived transmissions */
+	/* Place to stash values for tracing */
+	enum rxrpc_congest_mode	mode:8;
+	u8			cwnd;
+	u8			ssthresh;
+	u8			dup_acks;
+	u8			cumulative_acks;
 };
 
 enum rxrpc_skb_trace {
@@ -680,6 +731,7 @@ extern const char rxrpc_rtt_rx_traces[rxrpc_rtt_rx__nr_trace][5];
 
 enum rxrpc_timer_trace {
 	rxrpc_timer_begin,
+	rxrpc_timer_init_for_reply,
 	rxrpc_timer_expired,
 	rxrpc_timer_set_for_ack,
 	rxrpc_timer_set_for_resend,
@@ -690,11 +742,15 @@ enum rxrpc_timer_trace {
 extern const char rxrpc_timer_traces[rxrpc_timer__nr_trace][8];
 
 enum rxrpc_propose_ack_trace {
+	rxrpc_propose_ack_client_tx_end,
 	rxrpc_propose_ack_input_data,
+	rxrpc_propose_ack_ping_for_lost_ack,
+	rxrpc_propose_ack_ping_for_lost_reply,
 	rxrpc_propose_ack_ping_for_params,
 	rxrpc_propose_ack_respond_to_ack,
 	rxrpc_propose_ack_respond_to_ping,
 	rxrpc_propose_ack_retry_tx,
+	rxrpc_propose_ack_rotate_rx,
 	rxrpc_propose_ack_terminal_ack,
 	rxrpc_propose_ack__nr_trace
 };
@@ -708,6 +764,21 @@ enum rxrpc_propose_ack_outcome {
 
 extern const char rxrpc_propose_ack_traces[rxrpc_propose_ack__nr_trace][8];
 extern const char *const rxrpc_propose_ack_outcomes[rxrpc_propose_ack__nr_outcomes];
+
+enum rxrpc_congest_change {
+	rxrpc_cong_begin_retransmission,
+	rxrpc_cong_cleared_nacks,
+	rxrpc_cong_new_low_nack,
+	rxrpc_cong_no_change,
+	rxrpc_cong_progress,
+	rxrpc_cong_retransmit_again,
+	rxrpc_cong_rtt_window_end,
+	rxrpc_cong_saw_nack,
+	rxrpc_congest__nr_change
+};
+
+extern const char rxrpc_congest_modes[NR__RXRPC_CONGEST_MODES][10];
+extern const char rxrpc_congest_changes[rxrpc_congest__nr_change][9];
 
 extern const char *const rxrpc_pkts[];
 extern const char const rxrpc_ack_names[RXRPC_ACK__INVALID + 1][4];

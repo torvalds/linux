@@ -36,7 +36,9 @@ struct rxrpc_pkt_buffer {
  * Fill out an ACK packet.
  */
 static size_t rxrpc_fill_out_ack(struct rxrpc_call *call,
-				 struct rxrpc_pkt_buffer *pkt)
+				 struct rxrpc_pkt_buffer *pkt,
+				 rxrpc_seq_t *_hard_ack,
+				 rxrpc_seq_t *_top)
 {
 	rxrpc_serial_t serial;
 	rxrpc_seq_t hard_ack, top, seq;
@@ -48,6 +50,8 @@ static size_t rxrpc_fill_out_ack(struct rxrpc_call *call,
 	serial = call->ackr_serial;
 	hard_ack = READ_ONCE(call->rx_hard_ack);
 	top = smp_load_acquire(&call->rx_top);
+	*_hard_ack = hard_ack;
+	*_top = top;
 
 	pkt->ack.bufferSpace	= htons(8);
 	pkt->ack.maxSkew	= htons(call->ackr_skew);
@@ -96,6 +100,7 @@ int rxrpc_send_call_packet(struct rxrpc_call *call, u8 type)
 	struct msghdr msg;
 	struct kvec iov[2];
 	rxrpc_serial_t serial;
+	rxrpc_seq_t hard_ack, top;
 	size_t len, n;
 	bool ping = false;
 	int ioc, ret;
@@ -146,11 +151,13 @@ int rxrpc_send_call_packet(struct rxrpc_call *call, u8 type)
 			goto out;
 		}
 		ping = (call->ackr_reason == RXRPC_ACK_PING);
-		n = rxrpc_fill_out_ack(call, pkt);
+		n = rxrpc_fill_out_ack(call, pkt, &hard_ack, &top);
 		call->ackr_reason = 0;
 
 		spin_unlock_bh(&call->lock);
 
+
+		pkt->whdr.flags |= RXRPC_SLOW_START_OK;
 
 		iov[0].iov_len += sizeof(pkt->ack) + n;
 		iov[1].iov_base = &pkt->ackinfo;
@@ -203,18 +210,22 @@ int rxrpc_send_call_packet(struct rxrpc_call *call, u8 type)
 	if (ping)
 		call->ackr_ping_time = ktime_get_real();
 
-	if (ret < 0 && call->state < RXRPC_CALL_COMPLETE) {
-		switch (type) {
-		case RXRPC_PACKET_TYPE_ACK:
+	if (type == RXRPC_PACKET_TYPE_ACK &&
+	    call->state < RXRPC_CALL_COMPLETE) {
+		if (ret < 0) {
 			clear_bit(RXRPC_CALL_PINGING, &call->flags);
 			rxrpc_propose_ACK(call, pkt->ack.reason,
 					  ntohs(pkt->ack.maxSkew),
 					  ntohl(pkt->ack.serial),
 					  true, true,
 					  rxrpc_propose_ack_retry_tx);
-			break;
-		case RXRPC_PACKET_TYPE_ABORT:
-			break;
+		} else {
+			spin_lock_bh(&call->lock);
+			if (after(hard_ack, call->ackr_consumed))
+				call->ackr_consumed = hard_ack;
+			if (after(top, call->ackr_seen))
+				call->ackr_seen = top;
+			spin_unlock_bh(&call->lock);
 		}
 	}
 
@@ -267,8 +278,11 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb)
 	msg.msg_controllen = 0;
 	msg.msg_flags = 0;
 
-	/* If our RTT cache needs working on, request an ACK. */
-	if ((call->peer->rtt_usage < 3 && sp->hdr.seq & 1) ||
+	/* If our RTT cache needs working on, request an ACK.  Also request
+	 * ACKs if a DATA packet appears to have been lost.
+	 */
+	if (call->cong_mode == RXRPC_CALL_FAST_RETRANSMIT ||
+	    (call->peer->rtt_usage < 3 && sp->hdr.seq & 1) ||
 	    ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000),
 			 ktime_get_real()))
 		whdr.flags |= RXRPC_REQUEST_ACK;

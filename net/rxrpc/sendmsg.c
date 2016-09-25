@@ -45,7 +45,9 @@ static int rxrpc_wait_for_tx_window(struct rxrpc_sock *rx,
 	for (;;) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		ret = 0;
-		if (call->tx_top - call->tx_hard_ack < call->tx_winsize)
+		if (call->tx_top - call->tx_hard_ack <
+		    min_t(unsigned int, call->tx_winsize,
+			  call->cong_cwnd + call->cong_extra))
 			break;
 		if (call->state >= RXRPC_CALL_COMPLETE) {
 			ret = -call->error;
@@ -203,7 +205,8 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			_debug("alloc");
 
 			if (call->tx_top - call->tx_hard_ack >=
-			    call->tx_winsize) {
+			    min_t(unsigned int, call->tx_winsize,
+				  call->cong_cwnd + call->cong_extra)) {
 				ret = -EAGAIN;
 				if (msg->msg_flags & MSG_DONTWAIT)
 					goto maybe_error;

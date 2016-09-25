@@ -133,7 +133,7 @@ static int rxrpc_recvmsg_new_call(struct rxrpc_sock *rx,
 /*
  * End the packet reception phase.
  */
-static void rxrpc_end_rx_phase(struct rxrpc_call *call)
+static void rxrpc_end_rx_phase(struct rxrpc_call *call, rxrpc_serial_t serial)
 {
 	_enter("%d,%s", call->debug_id, rxrpc_call_states[call->state]);
 
@@ -141,7 +141,7 @@ static void rxrpc_end_rx_phase(struct rxrpc_call *call)
 	ASSERTCMP(call->rx_hard_ack, ==, call->rx_top);
 
 	if (call->state == RXRPC_CALL_CLIENT_RECV_REPLY) {
-		rxrpc_propose_ACK(call, RXRPC_ACK_IDLE, 0, 0, true, false,
+		rxrpc_propose_ACK(call, RXRPC_ACK_IDLE, 0, serial, true, false,
 				  rxrpc_propose_ack_terminal_ack);
 		rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ACK);
 	}
@@ -201,8 +201,19 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 
 	_debug("%u,%u,%02x", hard_ack, top, flags);
 	trace_rxrpc_receive(call, rxrpc_receive_rotate, serial, hard_ack);
-	if (flags & RXRPC_LAST_PACKET)
-		rxrpc_end_rx_phase(call);
+	if (flags & RXRPC_LAST_PACKET) {
+		rxrpc_end_rx_phase(call, serial);
+	} else {
+		/* Check to see if there's an ACK that needs sending. */
+		if (after_eq(hard_ack, call->ackr_consumed + 2) ||
+		    after_eq(top, call->ackr_seen + 2) ||
+		    (hard_ack == top && after(hard_ack, call->ackr_consumed)))
+			rxrpc_propose_ACK(call, RXRPC_ACK_DELAY, 0, serial,
+					  true, false,
+					  rxrpc_propose_ack_rotate_rx);
+		if (call->ackr_reason)
+			rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ACK);
+	}
 }
 
 /*
