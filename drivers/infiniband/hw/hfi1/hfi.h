@@ -531,6 +531,7 @@ struct hfi1_msix_entry {
 	void *arg;
 	char name[MAX_NAME_SIZE];
 	cpumask_t mask;
+	struct irq_affinity_notify notify;
 };
 
 /* per-SL CCA information */

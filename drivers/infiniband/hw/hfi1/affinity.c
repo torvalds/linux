@@ -47,6 +47,7 @@
 #include <linux/topology.h>
 #include <linux/cpumask.h>
 #include <linux/module.h>
+#include <linux/interrupt.h>
 
 #include "hfi.h"
 #include "affinity.h"
@@ -309,6 +310,101 @@ int hfi1_dev_affinity_init(struct hfi1_devdata *dd)
 }
 
 /*
+ * Function updates the irq affinity hint for msix after it has been changed
+ * by the user using the /proc/irq interface. This function only accepts
+ * one cpu in the mask.
+ */
+static void hfi1_update_sdma_affinity(struct hfi1_msix_entry *msix, int cpu)
+{
+	struct sdma_engine *sde = msix->arg;
+	struct hfi1_devdata *dd = sde->dd;
+	struct hfi1_affinity_node *entry;
+	struct cpu_mask_set *set;
+	int i, old_cpu;
+
+	if (cpu > num_online_cpus() || cpu == sde->cpu)
+		return;
+
+	mutex_lock(&node_affinity.lock);
+	entry = node_affinity_lookup(dd->node);
+	if (!entry)
+		goto unlock;
+
+	old_cpu = sde->cpu;
+	sde->cpu = cpu;
+	cpumask_clear(&msix->mask);
+	cpumask_set_cpu(cpu, &msix->mask);
+	dd_dev_dbg(dd, "IRQ vector: %u, type %s engine %u -> cpu: %d\n",
+		   msix->msix.vector, irq_type_names[msix->type],
+		   sde->this_idx, cpu);
+	irq_set_affinity_hint(msix->msix.vector, &msix->mask);
+
+	/*
+	 * Set the new cpu in the hfi1_affinity_node and clean
+	 * the old cpu if it is not used by any other IRQ
+	 */
+	set = &entry->def_intr;
+	cpumask_set_cpu(cpu, &set->mask);
+	cpumask_set_cpu(cpu, &set->used);
+	for (i = 0; i < dd->num_msix_entries; i++) {
+		struct hfi1_msix_entry *other_msix;
+
+		other_msix = &dd->msix_entries[i];
+		if (other_msix->type != IRQ_SDMA || other_msix == msix)
+			continue;
+
+		if (cpumask_test_cpu(old_cpu, &other_msix->mask))
+			goto unlock;
+	}
+	cpumask_clear_cpu(old_cpu, &set->mask);
+	cpumask_clear_cpu(old_cpu, &set->used);
+unlock:
+	mutex_unlock(&node_affinity.lock);
+}
+
+static void hfi1_irq_notifier_notify(struct irq_affinity_notify *notify,
+				     const cpumask_t *mask)
+{
+	int cpu = cpumask_first(mask);
+	struct hfi1_msix_entry *msix = container_of(notify,
+						    struct hfi1_msix_entry,
+						    notify);
+
+	/* Only one CPU configuration supported currently */
+	hfi1_update_sdma_affinity(msix, cpu);
+}
+
+static void hfi1_irq_notifier_release(struct kref *ref)
+{
+	/*
+	 * This is required by affinity notifier. We don't have anything to
+	 * free here.
+	 */
+}
+
+static void hfi1_setup_sdma_notifier(struct hfi1_msix_entry *msix)
+{
+	struct irq_affinity_notify *notify = &msix->notify;
+
+	notify->irq = msix->msix.vector;
+	notify->notify = hfi1_irq_notifier_notify;
+	notify->release = hfi1_irq_notifier_release;
+
+	if (irq_set_affinity_notifier(notify->irq, notify))
+		pr_err("Failed to register sdma irq affinity notifier for irq %d\n",
+		       notify->irq);
+}
+
+static void hfi1_cleanup_sdma_notifier(struct hfi1_msix_entry *msix)
+{
+	struct irq_affinity_notify *notify = &msix->notify;
+
+	if (irq_set_affinity_notifier(notify->irq, NULL))
+		pr_err("Failed to cleanup sdma irq affinity notifier for irq %d\n",
+		       notify->irq);
+}
+
+/*
  * Function sets the irq affinity for msix.
  * It *must* be called with node_affinity.lock held.
  */
@@ -374,21 +470,16 @@ static int get_irq_affinity(struct hfi1_devdata *dd,
 		cpumask_set_cpu(cpu, &set->used);
 	}
 
-	switch (msix->type) {
-	case IRQ_SDMA:
-		sde->cpu = cpu;
-		break;
-	case IRQ_GENERAL:
-	case IRQ_RCVCTXT:
-	case IRQ_OTHER:
-		break;
-	}
-
 	cpumask_set_cpu(cpu, &msix->mask);
 	dd_dev_info(dd, "IRQ vector: %u, type %s %s -> cpu: %d\n",
 		    msix->msix.vector, irq_type_names[msix->type],
 		    extra, cpu);
 	irq_set_affinity_hint(msix->msix.vector, &msix->mask);
+
+	if (msix->type == IRQ_SDMA) {
+		sde->cpu = cpu;
+		hfi1_setup_sdma_notifier(msix);
+	}
 
 	free_cpumask_var(diff);
 	return 0;
@@ -417,6 +508,7 @@ void hfi1_put_irq_affinity(struct hfi1_devdata *dd,
 	switch (msix->type) {
 	case IRQ_SDMA:
 		set = &entry->def_intr;
+		hfi1_cleanup_sdma_notifier(msix);
 		break;
 	case IRQ_GENERAL:
 		/* Don't do accounting for general contexts */
