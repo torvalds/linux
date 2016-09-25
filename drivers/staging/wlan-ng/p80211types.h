@@ -294,12 +294,12 @@ struct p80211item_pstr14 {
 } __packed;
 
 /* message data item for OCTETSTR, DISPLAYSTR */
-typedef struct p80211item_pstr32 {
+struct p80211item_pstr32 {
 	u32 did;
 	u16 status;
 	u16 len;
 	struct p80211pstr32 data;
-} __packed p80211item_pstr32_t;
+} __packed;
 
 /* message data item for OCTETSTR, DISPLAYSTR */
 typedef struct p80211item_pstr255 {

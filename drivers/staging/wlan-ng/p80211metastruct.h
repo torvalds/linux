@@ -70,7 +70,7 @@ struct p80211msg_dot11req_scan {
 	struct p80211item_uint32 bsstype;
 	struct p80211item_pstr6 bssid;
 	u8 pad_0C[1];
-	p80211item_pstr32_t ssid;
+	struct p80211item_pstr32 ssid;
 	u8 pad_1D[3];
 	struct p80211item_uint32 scantype;
 	struct p80211item_uint32 probedelay;
@@ -93,7 +93,7 @@ struct p80211msg_dot11req_scan_results {
 	struct p80211item_uint32 noise;
 	struct p80211item_pstr6 bssid;
 	u8 pad_3C[1];
-	p80211item_pstr32_t ssid;
+	struct p80211item_pstr32 ssid;
 	u8 pad_4D[3];
 	struct p80211item_uint32 bsstype;
 	struct p80211item_uint32 beaconperiod;
@@ -136,7 +136,7 @@ struct p80211msg_dot11req_start {
 	u32 msgcode;
 	u32 msglen;
 	u8 devname[WLAN_DEVNAMELEN_MAX];
-	p80211item_pstr32_t ssid;
+	struct p80211item_pstr32 ssid;
 	u8 pad_12D[3];
 	struct p80211item_uint32 bsstype;
 	struct p80211item_uint32 beaconperiod;
@@ -217,7 +217,7 @@ struct p80211msg_lnxreq_autojoin {
 	u32 msgcode;
 	u32 msglen;
 	u8 devname[WLAN_DEVNAMELEN_MAX];
-	p80211item_pstr32_t ssid;
+	struct p80211item_pstr32 ssid;
 	u8 pad_19D[3];
 	struct p80211item_uint32 authtype;
 	struct p80211item_uint32 resultcode;
