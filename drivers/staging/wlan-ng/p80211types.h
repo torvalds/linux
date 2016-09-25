@@ -249,10 +249,10 @@ struct p80211pstr32 {
 } __packed;
 
 /* MAC address array */
-typedef struct p80211macarray {
+struct p80211macarray {
 	u32 cnt;
 	u8 data[1][MAXLEN_PSTR6];
-} __packed p80211macarray_t;
+} __packed;
 
 /* prototype template */
 typedef struct p80211item {
