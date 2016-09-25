@@ -36,45 +36,6 @@
 #define PXI_SYNC_TRIGGER_PXI_SYNC9	(1 << 30)
 #define PXI_SYNC_IRQ_ENABLE		(1 << 31)
 
-#define PXI_REG_WRITE(reg, word) \
-	iowrite32(word, pxi_base + reg)
-
-#define PXI_REG_READ(reg) \
-	ioread32(pxi_base + reg)
-
-extern u8 __iomem *pxi_base;
-
-static inline int pxi_send_fifo_is_empty(void)
-{
-	return PXI_REG_READ(PXI_REG_CNT11_OFFSET) & PXI_CNT_SEND_FIFO_EMPTY;
-}
-
-static inline int pxi_send_fifo_is_full(void)
-{
-	return PXI_REG_READ(PXI_REG_CNT11_OFFSET) & PXI_CNT_SEND_FIFO_FULL;
-}
-
-static inline int pxi_recv_fifo_is_empty(void)
-{
-	return PXI_REG_READ(PXI_REG_CNT11_OFFSET) & PXI_CNT_RECV_FIFO_EMPTY;
-}
-
-static inline int pxi_recv_fifo_is_full(void)
-{
-	return PXI_REG_READ(PXI_REG_CNT11_OFFSET) & PXI_CNT_RECV_FIFO_FULL;
-}
-
-static inline void pxi_send_fifo_push(uint32_t word)
-{
-	PXI_REG_WRITE(PXI_REG_SEND11_OFFSET, word);
-}
-
-static inline uint32_t pxi_recv_fifo_pop(void)
-{
-	return PXI_REG_READ(PXI_REG_RECV11_OFFSET);
-}
-
-void pxi_init(void);
-void pxi_deinit(void);
+void pxi_send_cmd(struct pxi_cmd_hdr *cmd);
 
 #endif

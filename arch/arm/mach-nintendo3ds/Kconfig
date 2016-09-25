@@ -26,4 +26,16 @@ config MACH_NINTENDO3DS_KTR
 config MACH_NINTENDO3DS_RED
 	bool "New Nintendo 3DS XL/LL (RED)"
 
+menu "Nintendo 3DS Specific Features"
+
+config NINTENDO3DS_PXI
+	bool "Enable the PXI inter-processor protocol"
+	depends on ARCH_NINTENDO3DS
+	default y
+	help
+	  Use the PXI interface to communicate with the ARM9
+	  processor.
+
+endmenu
+
 endmenu

@@ -11,15 +11,22 @@
 #ifndef __NINTENDO3DS_PXI_CMD_H
 #define __NINTENDO3DS_PXI_CMD_H
 
-#define PXI_CMD_PING 1
-#define PXI_CMD_PONG 2
-
-#define PXI_CMD_SDMMC_READ_SECTOR 3
+#define PXI_CMD_NONE			0
+#define PXI_CMD_PING			1
+#define PXI_CMD_SDMMC_READ_SECTOR	2
 
 struct pxi_cmd_hdr {
-	u32 cmd;
-	u32 len;
-	u8 data[0];
+	struct {
+		u16 cmd;
+		u16 len;
+	};
+	u32 data[0];
+} __attribute__((packed));
+
+struct pxi_cmd_sdmmc_read_sector {
+	struct pxi_cmd_hdr header;
+	u32 sector;
+	u32 paddr;
 } __attribute__((packed));
 
 #endif

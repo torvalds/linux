@@ -62,20 +62,16 @@ static void nintendo3ds_pxi_mmc_read_sectors(struct nintendo3ds_mmc *mmc,
 	sector_t sector_off, const u8 *buffer, unsigned int sectors)
 {
 	unsigned int i;
-	size_t j;
-	uint32_t data;
 
 	for (i = 0; i < sectors; i++) {
-		while (pxi_send_fifo_is_full())
-			;
-		pxi_send_fifo_push(sector_off + i);
-		for (j = 0; j < NINTENDO3DS_MMC_BLOCKSIZE; j += 4) {
-			while (pxi_recv_fifo_is_empty())
-				;
+		struct pxi_cmd_sdmmc_read_sector cmd = {
+			.header.cmd = PXI_CMD_SDMMC_READ_SECTOR,
+			.header.len = sizeof(cmd) - sizeof(struct pxi_cmd_hdr),
+			.sector = sector_off + i,
+			.paddr = (u32)virt_to_phys(buffer + i * NINTENDO3DS_MMC_BLOCKSIZE)
+		};
 
-			data = pxi_recv_fifo_pop();
-			*(uint32_t *)&buffer[i * NINTENDO3DS_MMC_BLOCKSIZE + j] = data;
-		}
+		pxi_send_cmd((struct pxi_cmd_hdr *)&cmd);
 	}
 }
 

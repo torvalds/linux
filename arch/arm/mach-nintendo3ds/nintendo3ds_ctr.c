@@ -40,8 +40,6 @@ static void __init nintendo3ds_ctr_dt_init_machine(void)
 {
 	printk("nintendo3ds_ctr_dt_init_machine\n");
 
-	pxi_init();
-
 	nintendo3ds_bottom_setup_fb();
 	nintendo3ds_bottom_lcd_map_fb();
 	nintendo3ds_pdn_set_spi_new();
@@ -54,7 +52,6 @@ static void __init nintendo3ds_ctr_restart(enum reboot_mode mode, const char *cm
 	printk("nintendo3ds_ctr_restart\n");
 
 	nintendo3ds_bottom_lcd_unmap_fb();
-	pxi_deinit();
 }
 
 
