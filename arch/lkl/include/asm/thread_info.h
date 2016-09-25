@@ -59,6 +59,7 @@ void threads_cleanup(void);
 #define TIF_NOHZ			6
 #define TIF_SCHED_JB			7
 #define TIF_SCHED_EXIT			8
+#define TIF_HOST_THREAD			9
 
 static inline void set_ti_thread_flag(struct thread_info *ti, int flag);
 
@@ -72,6 +73,8 @@ static inline void thread_set_sched_exit(void)
 {
 	set_ti_thread_flag(current_thread_info(), TIF_SCHED_EXIT);
 }
+
+void switch_to_host_task(struct task_struct *);
 
 #define __HAVE_THREAD_FUNCTIONS
 

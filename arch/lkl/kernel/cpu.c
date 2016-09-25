@@ -126,8 +126,19 @@ void lkl_cpu_put(void)
 		lkl_ops->mutex_lock(cpu.lock);
 	}
 
-	if (need_resched())
-		lkl_cpu_wakeup();
+	if (need_resched()) {
+		if (test_thread_flag(TIF_HOST_THREAD)) {
+			if (cpu.count == 1 && !in_interrupt()) {
+				lkl_ops->mutex_unlock(cpu.lock);
+				set_current_state(TASK_UNINTERRUPTIBLE);
+				if (!thread_set_sched_jmp())
+					schedule();
+				return;
+			}
+		} else {
+			lkl_cpu_wakeup();
+		}
+	}
 
 	if (--cpu.count > 0) {
 		lkl_ops->mutex_unlock(cpu.lock);
