@@ -1137,7 +1137,7 @@ xfs_restore_resvblks(struct xfs_mount *mp)
  * Note: xfs_log_quiesce() stops background log work - the callers must ensure
  * it is started again when appropriate.
  */
-static void
+void
 xfs_quiesce_attr(
 	struct xfs_mount	*mp)
 {
