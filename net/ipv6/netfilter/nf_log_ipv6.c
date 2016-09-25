@@ -84,7 +84,7 @@ static void dump_ipv6_packet(struct nf_log_buf *m,
 		}
 
 		/* Max length: 48 "OPT (...) " */
-		if (logflags & XT_LOG_IPOPT)
+		if (logflags & NF_LOG_IPOPT)
 			nf_log_buf_add(m, "OPT ( ");
 
 		switch (currenthdr) {
@@ -121,7 +121,7 @@ static void dump_ipv6_packet(struct nf_log_buf *m,
 		case IPPROTO_ROUTING:
 		case IPPROTO_HOPOPTS:
 			if (fragment) {
-				if (logflags & XT_LOG_IPOPT)
+				if (logflags & NF_LOG_IPOPT)
 					nf_log_buf_add(m, ")");
 				return;
 			}
@@ -129,7 +129,7 @@ static void dump_ipv6_packet(struct nf_log_buf *m,
 			break;
 		/* Max Length */
 		case IPPROTO_AH:
-			if (logflags & XT_LOG_IPOPT) {
+			if (logflags & NF_LOG_IPOPT) {
 				struct ip_auth_hdr _ahdr;
 				const struct ip_auth_hdr *ah;
 
@@ -161,7 +161,7 @@ static void dump_ipv6_packet(struct nf_log_buf *m,
 			hdrlen = (hp->hdrlen+2)<<2;
 			break;
 		case IPPROTO_ESP:
-			if (logflags & XT_LOG_IPOPT) {
+			if (logflags & NF_LOG_IPOPT) {
 				struct ip_esp_hdr _esph;
 				const struct ip_esp_hdr *eh;
 
@@ -194,7 +194,7 @@ static void dump_ipv6_packet(struct nf_log_buf *m,
 			nf_log_buf_add(m, "Unknown Ext Hdr %u", currenthdr);
 			return;
 		}
-		if (logflags & XT_LOG_IPOPT)
+		if (logflags & NF_LOG_IPOPT)
 			nf_log_buf_add(m, ") ");
 
 		currenthdr = hp->nexthdr;
@@ -277,7 +277,7 @@ static void dump_ipv6_packet(struct nf_log_buf *m,
 	}
 
 	/* Max length: 15 "UID=4294967295 " */
-	if ((logflags & XT_LOG_UID) && recurse)
+	if ((logflags & NF_LOG_UID) && recurse)
 		nf_log_dump_sk_uid_gid(m, skb->sk);
 
 	/* Max length: 16 "MARK=0xFFFFFFFF " */
@@ -295,7 +295,7 @@ static void dump_ipv6_mac_header(struct nf_log_buf *m,
 	if (info->type == NF_LOG_TYPE_LOG)
 		logflags = info->u.log.logflags;
 
-	if (!(logflags & XT_LOG_MACDECODE))
+	if (!(logflags & NF_LOG_MACDECODE))
 		goto fallback;
 
 	switch (dev->type) {
