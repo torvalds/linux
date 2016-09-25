@@ -243,10 +243,10 @@ struct p80211pstr14 {
 } __packed;
 
 /* pascal string for ssid */
-typedef struct p80211pstr32 {
+struct p80211pstr32 {
 	u8 len;
 	u8 data[MAXLEN_PSTR32];
-} __packed p80211pstr32_t;
+} __packed;
 
 /* MAC address array */
 typedef struct p80211macarray {
@@ -298,7 +298,7 @@ typedef struct p80211item_pstr32 {
 	u32 did;
 	u16 status;
 	u16 len;
-	p80211pstr32_t data;
+	struct p80211pstr32 data;
 } __packed p80211item_pstr32_t;
 
 /* message data item for OCTETSTR, DISPLAYSTR */

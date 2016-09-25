@@ -191,7 +191,7 @@ struct wlandevice {
 
 	/* 802.11 State */
 	u8 bssid[WLAN_BSSID_LEN];
-	p80211pstr32_t ssid;
+	struct p80211pstr32 ssid;
 	u32 macmode;
 	int linkstatus;
 
