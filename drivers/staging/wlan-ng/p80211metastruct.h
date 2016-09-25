@@ -246,7 +246,7 @@ struct p80211msg_p2req_ramdl_write {
 	u8 devname[WLAN_DEVNAMELEN_MAX];
 	struct p80211item_uint32 addr;
 	struct p80211item_uint32 len;
-	p80211item_unk4096_t data;
+	struct p80211item_unk4096 data;
 	struct p80211item_uint32 resultcode;
 } __packed;
 
@@ -264,7 +264,7 @@ struct p80211msg_p2req_flashdl_write {
 	u8 devname[WLAN_DEVNAMELEN_MAX];
 	struct p80211item_uint32 addr;
 	struct p80211item_uint32 len;
-	p80211item_unk4096_t data;
+	struct p80211item_unk4096 data;
 	struct p80211item_uint32 resultcode;
 } __packed;
 

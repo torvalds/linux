@@ -326,12 +326,12 @@ struct p80211item_unk1024 {
 } __packed;
 
 /* message data item for UNK 4096, namely p2 download chunks */
-typedef struct p80211item_unk4096 {
+struct p80211item_unk4096 {
 	u32 did;
 	u16 status;
 	u16 len;
 	u8 data[4096];
-} __packed p80211item_unk4096_t;
+} __packed;
 
 struct catlistitem;
 
