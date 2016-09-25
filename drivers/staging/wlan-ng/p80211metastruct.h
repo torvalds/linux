@@ -68,7 +68,7 @@ struct p80211msg_dot11req_scan {
 	u32 msglen;
 	u8 devname[WLAN_DEVNAMELEN_MAX];
 	struct p80211item_uint32 bsstype;
-	p80211item_pstr6_t bssid;
+	struct p80211item_pstr6 bssid;
 	u8 pad_0C[1];
 	p80211item_pstr32_t ssid;
 	u8 pad_1D[3];
@@ -91,7 +91,7 @@ struct p80211msg_dot11req_scan_results {
 	struct p80211item_uint32 resultcode;
 	struct p80211item_uint32 signal;
 	struct p80211item_uint32 noise;
-	p80211item_pstr6_t bssid;
+	struct p80211item_pstr6 bssid;
 	u8 pad_3C[1];
 	p80211item_pstr32_t ssid;
 	u8 pad_4D[3];
