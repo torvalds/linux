@@ -643,6 +643,24 @@ intel_crt_load_detect(struct intel_crt *crt, uint32_t pipe)
 	return status;
 }
 
+static int intel_spurious_crt_detect_dmi_callback(const struct dmi_system_id *id)
+{
+	DRM_DEBUG_DRIVER("Skipping CRT detection for %s\n", id->ident);
+	return 1;
+}
+
+static const struct dmi_system_id intel_spurious_crt_detect[] = {
+	{
+		.callback = intel_spurious_crt_detect_dmi_callback,
+		.ident = "ACER ZGB",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ACER"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "ZGB"),
+		},
+	},
+	{ }
+};
+
 static enum drm_connector_status
 intel_crt_detect(struct drm_connector *connector, bool force)
 {
@@ -658,6 +676,10 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] force=%d\n",
 		      connector->base.id, connector->name,
 		      force);
+
+	/* Skip machines without VGA that falsely report hotplug events */
+	if (dmi_check_system(intel_spurious_crt_detect))
+		return connector_status_disconnected;
 
 	power_domain = intel_display_port_power_domain(intel_encoder);
 	intel_display_power_get(dev_priv, power_domain);
@@ -808,24 +830,6 @@ static const struct drm_encoder_funcs intel_crt_enc_funcs = {
 	.destroy = intel_encoder_destroy,
 };
 
-static int intel_no_crt_dmi_callback(const struct dmi_system_id *id)
-{
-	DRM_INFO("Skipping CRT initialization for %s\n", id->ident);
-	return 1;
-}
-
-static const struct dmi_system_id intel_no_crt[] = {
-	{
-		.callback = intel_no_crt_dmi_callback,
-		.ident = "ACER ZGB",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "ACER"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "ZGB"),
-		},
-	},
-	{ }
-};
-
 void intel_crt_init(struct drm_device *dev)
 {
 	struct drm_connector *connector;
@@ -834,10 +838,6 @@ void intel_crt_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	i915_reg_t adpa_reg;
 	u32 adpa;
-
-	/* Skip machines without VGA that falsely report hotplug events */
-	if (dmi_check_system(intel_no_crt))
-		return;
 
 	if (HAS_PCH_SPLIT(dev))
 		adpa_reg = PCH_ADPA;
@@ -906,7 +906,8 @@ void intel_crt_init(struct drm_device *dev)
 		crt->base.disable = intel_disable_crt;
 	}
 	crt->base.enable = intel_enable_crt;
-	if (I915_HAS_HOTPLUG(dev))
+	if (I915_HAS_HOTPLUG(dev) &&
+	    !dmi_check_system(intel_spurious_crt_detect))
 		crt->base.hpd_pin = HPD_CRT;
 	if (HAS_DDI(dev)) {
 		crt->base.port = PORT_E;
