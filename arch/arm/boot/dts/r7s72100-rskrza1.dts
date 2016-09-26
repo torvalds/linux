@@ -56,6 +56,11 @@
 	};
 };
 
+&sdhi1 {
+	bus-width = <4>;
+	status = "okay";
+};
+
 &scif2 {
 	status = "okay";
 };
