@@ -202,8 +202,8 @@ enum diag_severity {
 
 int visorchannel_signalremove(struct visorchannel *channel, u32 queue,
 			      void *msg);
-bool visorchannel_signalinsert(struct visorchannel *channel, u32 queue,
-			       void *msg);
+int visorchannel_signalinsert(struct visorchannel *channel, u32 queue,
+			      void *msg);
 bool visorchannel_signalempty(struct visorchannel *channel, u32 queue);
 uuid_le visorchannel_get_uuid(struct visorchannel *channel);
 

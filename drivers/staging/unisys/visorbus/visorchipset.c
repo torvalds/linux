@@ -508,8 +508,8 @@ controlvm_respond_chipset_init(struct controlvm_message_header *msg_hdr,
 
 	controlvm_init_response(&outmsg, msg_hdr, response);
 	outmsg.cmd.init_chipset.features = features;
-	if (!visorchannel_signalinsert(controlvm_channel,
-				       CONTROLVM_QUEUE_REQUEST, &outmsg)) {
+	if (visorchannel_signalinsert(controlvm_channel,
+				      CONTROLVM_QUEUE_REQUEST, &outmsg)) {
 		return;
 	}
 }
@@ -557,8 +557,8 @@ controlvm_respond(struct controlvm_message_header *msg_hdr, int response)
 	if (outmsg.hdr.flags.test_message == 1)
 		return;
 
-	if (!visorchannel_signalinsert(controlvm_channel,
-				       CONTROLVM_QUEUE_REQUEST, &outmsg)) {
+	if (visorchannel_signalinsert(controlvm_channel,
+				      CONTROLVM_QUEUE_REQUEST, &outmsg)) {
 		return;
 	}
 }
@@ -572,8 +572,8 @@ static void controlvm_respond_physdev_changestate(
 	controlvm_init_response(&outmsg, msg_hdr, response);
 	outmsg.cmd.device_change_state.state = state;
 	outmsg.cmd.device_change_state.flags.phys_device = 1;
-	if (!visorchannel_signalinsert(controlvm_channel,
-				       CONTROLVM_QUEUE_REQUEST, &outmsg)) {
+	if (visorchannel_signalinsert(controlvm_channel,
+				      CONTROLVM_QUEUE_REQUEST, &outmsg)) {
 		return;
 	}
 }
@@ -670,8 +670,8 @@ device_changestate_responder(enum controlvm_id cmd_id,
 	outmsg.cmd.device_change_state.dev_no = dev_no;
 	outmsg.cmd.device_change_state.state = response_state;
 
-	if (!visorchannel_signalinsert(controlvm_channel,
-				       CONTROLVM_QUEUE_REQUEST, &outmsg))
+	if (visorchannel_signalinsert(controlvm_channel,
+				      CONTROLVM_QUEUE_REQUEST, &outmsg))
 		return;
 }
 

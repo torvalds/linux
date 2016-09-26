@@ -493,12 +493,12 @@ visorchannel_create_with_lock(u64 physaddr, unsigned long channel_bytes,
  * @queue:   the queue the message will be added to
  * @msg:     the message to insert
  *
- * Return: boolean indicating whether the insertion succeeded or failed
+ * Return: integer error code indicating the status of the insertion
  */
-bool
+int
 visorchannel_signalinsert(struct visorchannel *channel, u32 queue, void *msg)
 {
-	bool rc;
+	int rc;
 	unsigned long flags;
 
 	if (channel->needs_lock) {
@@ -509,6 +509,6 @@ visorchannel_signalinsert(struct visorchannel *channel, u32 queue, void *msg)
 		rc = signalinsert_inner(channel, queue, msg);
 	}
 
-	return !rc;
+	return rc;
 }
 EXPORT_SYMBOL_GPL(visorchannel_signalinsert);

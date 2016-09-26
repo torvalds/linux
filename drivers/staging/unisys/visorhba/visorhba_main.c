@@ -335,9 +335,9 @@ static int forward_taskmgmt_command(enum task_mgmt_types tasktype,
 
 	dev_dbg(&scsidev->sdev_gendev,
 		"visorhba: initiating type=%d taskmgmt command\n", tasktype);
-	if (!visorchannel_signalinsert(devdata->dev->visorchannel,
-				       IOCHAN_TO_IOPART,
-				       cmdrsp))
+	if (visorchannel_signalinsert(devdata->dev->visorchannel,
+				      IOCHAN_TO_IOPART,
+				      cmdrsp))
 		goto err_del_scsipending_ent;
 
 	/* It can take the Service Partition up to 35 seconds to complete
@@ -538,9 +538,9 @@ visorhba_queue_command_lck(struct scsi_cmnd *scsicmd,
 	}
 	cmdrsp->scsi.guest_phys_entries = scsi_sg_count(scsicmd);
 
-	if (!visorchannel_signalinsert(devdata->dev->visorchannel,
-				       IOCHAN_TO_IOPART,
-				       cmdrsp))
+	if (visorchannel_signalinsert(devdata->dev->visorchannel,
+				      IOCHAN_TO_IOPART,
+				      cmdrsp))
 		/* queue must be full and we aren't going to wait */
 		goto err_del_scsipending_ent;
 
