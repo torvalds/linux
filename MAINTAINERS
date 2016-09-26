@@ -6430,10 +6430,10 @@ S:	Maintained
 F:	drivers/firmware/iscsi_ibft*
 
 ISCSI
-M:	Mike Christie <michaelc@cs.wisc.edu>
+M:	Lee Duncan <lduncan@suse.com>
+M:	Chris Leech <cleech@redhat.com>
 L:	open-iscsi@googlegroups.com
-W:	www.open-iscsi.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mnc/linux-2.6-iscsi.git
+W:	www.open-iscsi.com
 S:	Maintained
 F:	drivers/scsi/*iscsi*
 F:	include/scsi/*iscsi*
