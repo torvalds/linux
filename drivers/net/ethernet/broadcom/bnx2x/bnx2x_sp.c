@@ -2714,8 +2714,8 @@ static int bnx2x_mcast_enqueue_cmd(struct bnx2x *bp,
 			elem_group = (struct bnx2x_mcast_elem_group *)
 				     __get_free_page(GFP_ATOMIC | __GFP_ZERO);
 			if (!elem_group) {
-				kfree(new_cmd);
 				bnx2x_free_groups(&new_cmd->group_head);
+				kfree(new_cmd);
 				return -ENOMEM;
 			}
 			total_elems -= MCAST_MAC_ELEMS_PER_PG;
