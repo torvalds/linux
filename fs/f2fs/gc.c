@@ -47,6 +47,11 @@ static int gc_thread_func(void *data)
 			continue;
 		}
 
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+		if (time_to_inject(sbi, FAULT_CHECKPOINT))
+			f2fs_stop_checkpoint(sbi, false);
+#endif
+
 		/*
 		 * [GC triggering condition]
 		 * 0. GC is not conducted currently.
