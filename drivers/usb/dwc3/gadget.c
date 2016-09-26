@@ -797,10 +797,6 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 	struct usb_gadget	*gadget = &dwc->gadget;
 	enum usb_device_speed	speed = gadget->speed;
 
-	dwc3_trace(trace_dwc3_gadget, "%s: req %p dma %08llx length %d%s",
-			dep->name, req, (unsigned long long) dma,
-			length, chain ? " chain" : "");
-
 	trb = &dep->trb_pool[dep->trb_enqueue];
 
 	if (!req->trb) {
@@ -2142,9 +2138,7 @@ static void dwc3_endpoint_interrupt(struct dwc3 *dwc,
 		dep->resource_index = 0;
 
 		if (usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
-			dwc3_trace(trace_dwc3_gadget,
-					"%s is an Isochronous endpoint",
-					dep->name);
+			dev_err(dwc->dev, "XferComplete for Isochronous endpoint\n");
 			return;
 		}
 
@@ -2157,22 +2151,11 @@ static void dwc3_endpoint_interrupt(struct dwc3 *dwc,
 		if (usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
 			dwc3_gadget_start_isoc(dwc, dep, event);
 		} else {
-			int active;
 			int ret;
-
-			active = event->status & DEPEVT_STATUS_TRANSFER_ACTIVE;
-
-			dwc3_trace(trace_dwc3_gadget, "%s: reason %s",
-					dep->name, active ? "Transfer Active"
-					: "Transfer Not Active");
 
 			ret = __dwc3_gadget_kick_transfer(dep, 0);
 			if (!ret || ret == -EBUSY)
 				return;
-
-			dwc3_trace(trace_dwc3_gadget,
-					"%s: failed to kick transfers",
-					dep->name);
 		}
 
 		break;
@@ -2182,26 +2165,9 @@ static void dwc3_endpoint_interrupt(struct dwc3 *dwc,
 					dep->name);
 			return;
 		}
-
-		switch (event->status) {
-		case DEPEVT_STREAMEVT_FOUND:
-			dwc3_trace(trace_dwc3_gadget,
-					"Stream %d found and started",
-					event->parameters);
-
-			break;
-		case DEPEVT_STREAMEVT_NOTFOUND:
-			/* FALLTHROUGH */
-		default:
-			dwc3_trace(trace_dwc3_gadget,
-					"unable to find suitable stream");
-		}
 		break;
 	case DWC3_DEPEVT_RXTXFIFOEVT:
-		dwc3_trace(trace_dwc3_gadget, "%s FIFO Overrun", dep->name);
-		break;
 	case DWC3_DEPEVT_EPCMDCMPLT:
-		dwc3_trace(trace_dwc3_gadget, "Endpoint Command Complete");
 		break;
 	}
 }
@@ -2750,16 +2716,9 @@ static void dwc3_gadget_interrupt(struct dwc3 *dwc,
 		}
 		break;
 	case DWC3_DEVICE_EVENT_SOF:
-		dwc3_trace(trace_dwc3_gadget, "Start of Periodic Frame");
-		break;
 	case DWC3_DEVICE_EVENT_ERRATIC_ERROR:
-		dwc3_trace(trace_dwc3_gadget, "Erratic Error");
-		break;
 	case DWC3_DEVICE_EVENT_CMD_CMPL:
-		dwc3_trace(trace_dwc3_gadget, "Command Complete");
-		break;
 	case DWC3_DEVICE_EVENT_OVERFLOW:
-		dwc3_trace(trace_dwc3_gadget, "Overflow");
 		break;
 	default:
 		dev_WARN(dwc->dev, "UNKNOWN IRQ %d\n", event->type);
