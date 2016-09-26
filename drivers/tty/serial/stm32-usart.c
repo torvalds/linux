@@ -60,8 +60,8 @@ static void stm32_clr_bits(struct uart_port *port, u32 reg, u32 bits)
 	writel_relaxed(val, port->membase + reg);
 }
 
-int stm32_pending_rx(struct uart_port *port, u32 *sr, int *last_res,
-		     bool threaded)
+static int stm32_pending_rx(struct uart_port *port, u32 *sr, int *last_res,
+			    bool threaded)
 {
 	struct stm32_port *stm32_port = to_stm32_port(port);
 	struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
@@ -85,7 +85,8 @@ int stm32_pending_rx(struct uart_port *port, u32 *sr, int *last_res,
 	return 0;
 }
 
-unsigned long stm32_get_char(struct uart_port *port, u32 *sr, int *last_res)
+static unsigned long
+stm32_get_char(struct uart_port *port, u32 *sr, int *last_res)
 {
 	struct stm32_port *stm32_port = to_stm32_port(port);
 	struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
