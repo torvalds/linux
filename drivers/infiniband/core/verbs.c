@@ -1811,13 +1811,13 @@ EXPORT_SYMBOL(ib_set_vf_guid);
  *
  * Constraints:
  * - The first sg element is allowed to have an offset.
- * - Each sg element must be aligned to page_size (or physically
- *   contiguous to the previous element). In case an sg element has a
- *   non contiguous offset, the mapping prefix will not include it.
+ * - Each sg element must either be aligned to page_size or virtually
+ *   contiguous to the previous element. In case an sg element has a
+ *   non-contiguous offset, the mapping prefix will not include it.
  * - The last sg element is allowed to have length less than page_size.
  * - If sg_nents total byte length exceeds the mr max_num_sge * page_size
  *   then only max_num_sg entries will be mapped.
- * - If the MR was allocated with type IB_MR_TYPE_SG_GAPS_REG, non of these
+ * - If the MR was allocated with type IB_MR_TYPE_SG_GAPS, none of these
  *   constraints holds and the page_size argument is ignored.
  *
  * Returns the number of sg elements that were mapped to the memory region.
