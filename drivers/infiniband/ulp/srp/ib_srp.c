@@ -1402,7 +1402,9 @@ static int srp_map_sg_entry(struct srp_map_state *state,
 
 	while (dma_len) {
 		unsigned offset = dma_addr & ~dev->mr_page_mask;
-		if (state->npages == dev->max_pages_per_mr || offset != 0) {
+
+		if (state->npages == dev->max_pages_per_mr ||
+		    (state->npages > 0 && offset != 0)) {
 			ret = srp_map_finish_fmr(state, ch);
 			if (ret)
 				return ret;
@@ -1419,12 +1421,12 @@ static int srp_map_sg_entry(struct srp_map_state *state,
 	}
 
 	/*
-	 * If the last entry of the MR wasn't a full page, then we need to
+	 * If the end of the MR is not on a page boundary then we need to
 	 * close it out and start a new one -- we can only merge at page
 	 * boundaries.
 	 */
 	ret = 0;
-	if (len != dev->mr_page_size)
+	if ((dma_addr & ~dev->mr_page_mask) != 0)
 		ret = srp_map_finish_fmr(state, ch);
 	return ret;
 }
