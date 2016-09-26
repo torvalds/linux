@@ -1226,6 +1226,12 @@ static int inv_proc_event(char *raw_data, size_t raw_len, void *priv)
 	pr_info("in:%s\n", hex);
 }
 #endif
+	if (st->chip_config.is_asleep)
+		return 0;
+
+	if (raw_data[1] == 0)
+		return 0;
+
 	p = raw_data + 6;
 	st->hid_temperature = (p[1] << 8) | p[0];
 	p = raw_data + 8;
