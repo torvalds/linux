@@ -114,13 +114,25 @@ extern const char *acpi_gbl_pt_decode[];
 /*
  * Common error message prefixes
  */
+#ifndef ACPI_MSG_ERROR
 #define ACPI_MSG_ERROR          "ACPI Error: "
+#endif
+#ifndef ACPI_MSG_EXCEPTION
 #define ACPI_MSG_EXCEPTION      "ACPI Exception: "
+#endif
+#ifndef ACPI_MSG_WARNING
 #define ACPI_MSG_WARNING        "ACPI Warning: "
+#endif
+#ifndef ACPI_MSG_INFO
 #define ACPI_MSG_INFO           "ACPI: "
+#endif
 
+#ifndef ACPI_MSG_BIOS_ERROR
 #define ACPI_MSG_BIOS_ERROR     "ACPI BIOS Error (bug): "
+#endif
+#ifndef ACPI_MSG_BIOS_WARNING
 #define ACPI_MSG_BIOS_WARNING   "ACPI BIOS Warning (bug): "
+#endif
 
 /*
  * Common message suffix
@@ -184,14 +196,15 @@ void acpi_ut_strlwr(char *src_string);
 
 int acpi_ut_stricmp(char *string1, char *string2);
 
-acpi_status
-acpi_ut_strtoul64(char *string,
-		  u32 base, u32 max_integer_byte_width, u64 *ret_integer);
+acpi_status acpi_ut_strtoul64(char *string, u32 flags, u64 *ret_integer);
 
-/* Values for max_integer_byte_width above */
-
-#define ACPI_MAX32_BYTE_WIDTH       4
-#define ACPI_MAX64_BYTE_WIDTH       8
+/*
+ * Values for Flags above
+ * Note: LIMIT values correspond to acpi_gbl_integer_byte_width values (4/8)
+ */
+#define ACPI_STRTOUL_32BIT          0x04	/* 4 bytes */
+#define ACPI_STRTOUL_64BIT          0x08	/* 8 bytes */
+#define ACPI_STRTOUL_BASE16         0x10	/* Default: Base10/16 */
 
 /*
  * utglobal - Global data structures and procedures
@@ -220,6 +233,8 @@ const char *acpi_ut_get_region_name(u8 space_id);
 const char *acpi_ut_get_event_name(u32 event_id);
 
 char acpi_ut_hex_to_ascii_char(u64 integer, u32 position);
+
+acpi_status acpi_ut_ascii_to_hex_byte(char *two_ascii_chars, u8 *return_byte);
 
 u8 acpi_ut_ascii_char_to_hex(int hex_char);
 
@@ -316,6 +331,11 @@ void
 acpi_ut_ptr_exit(u32 line_number,
 		 const char *function_name,
 		 const char *module_name, u32 component_id, u8 *ptr);
+
+void
+acpi_ut_str_exit(u32 line_number,
+		 const char *function_name,
+		 const char *module_name, u32 component_id, const char *string);
 
 void
 acpi_ut_debug_dump_buffer(u8 *buffer, u32 count, u32 display, u32 component_id);
@@ -705,25 +725,6 @@ const struct ah_predefined_name *acpi_ah_match_predefined_name(char *nameseg);
 const struct ah_device_id *acpi_ah_match_hardware_id(char *hid);
 
 const char *acpi_ah_match_uuid(u8 *data);
-
-/*
- * utprint - printf/vprintf output functions
- */
-const char *acpi_ut_scan_number(const char *string, u64 *number_ptr);
-
-const char *acpi_ut_print_number(char *string, u64 number);
-
-int
-acpi_ut_vsnprintf(char *string,
-		  acpi_size size, const char *format, va_list args);
-
-int acpi_ut_snprintf(char *string, acpi_size size, const char *format, ...);
-
-#ifdef ACPI_APPLICATION
-int acpi_ut_file_vprintf(ACPI_FILE file, const char *format, va_list args);
-
-int acpi_ut_file_printf(ACPI_FILE file, const char *format, ...);
-#endif
 
 /*
  * utuuid -- UUID support functions

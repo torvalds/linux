@@ -44,7 +44,9 @@
 #ifndef _ACAPPS
 #define _ACAPPS
 
-#include <stdio.h>
+#ifdef ACPI_USE_STANDARD_HEADERS
+#include <sys/stat.h>
+#endif				/* ACPI_USE_STANDARD_HEADERS */
 
 /* Common info for tool signons */
 
@@ -81,13 +83,13 @@
 /* Macros for usage messages */
 
 #define ACPI_USAGE_HEADER(usage) \
-	acpi_os_printf ("Usage: %s\nOptions:\n", usage);
+	printf ("Usage: %s\nOptions:\n", usage);
 
 #define ACPI_USAGE_TEXT(description) \
-	acpi_os_printf (description);
+	printf (description);
 
 #define ACPI_OPTION(name, description) \
-	acpi_os_printf (" %-20s%s\n", name, description);
+	printf ("  %-20s%s\n", name, description);
 
 /* Check for unexpected exceptions */
 
