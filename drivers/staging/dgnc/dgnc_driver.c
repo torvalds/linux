@@ -400,9 +400,6 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 
 	brd->state		= BOARD_FOUND;
 
-	for (i = 0; i < MAXPORTS; i++)
-		brd->channels[i] = NULL;
-
 	/* store which card & revision we have */
 	pci_read_config_word(pdev, PCI_SUBSYSTEM_VENDOR_ID, &brd->subvendor);
 	pci_read_config_word(pdev, PCI_SUBSYSTEM_ID, &brd->subdevice);
