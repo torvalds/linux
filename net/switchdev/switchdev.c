@@ -1216,7 +1216,7 @@ int switchdev_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 	ipv4_fib.obj.orig_dev = dev;
 	err = switchdev_port_obj_add(dev, &ipv4_fib.obj);
 	if (!err)
-		fi->fib_flags |= RTNH_F_OFFLOAD;
+		fib_info_offload_inc(fi);
 
 	return err == -EOPNOTSUPP ? 0 : err;
 }
@@ -1260,7 +1260,7 @@ int switchdev_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
 	ipv4_fib.obj.orig_dev = dev;
 	err = switchdev_port_obj_del(dev, &ipv4_fib.obj);
 	if (!err)
-		fi->fib_flags &= ~RTNH_F_OFFLOAD;
+		fib_info_offload_dec(fi);
 
 	return err == -EOPNOTSUPP ? 0 : err;
 }

@@ -123,6 +123,7 @@ struct fib_info {
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	int			fib_weight;
 #endif
+	unsigned int		fib_offload_cnt;
 	struct rcu_head		rcu;
 	struct fib_nh		fib_nh[0];
 #define fib_dev		fib_nh[0].nh_dev
@@ -173,6 +174,18 @@ struct fib_result_nl {
 #endif
 
 __be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh);
+
+static inline void fib_info_offload_inc(struct fib_info *fi)
+{
+	fi->fib_offload_cnt++;
+	fi->fib_flags |= RTNH_F_OFFLOAD;
+}
+
+static inline void fib_info_offload_dec(struct fib_info *fi)
+{
+	if (--fi->fib_offload_cnt == 0)
+		fi->fib_flags &= ~RTNH_F_OFFLOAD;
+}
 
 #define FIB_RES_SADDR(net, res)				\
 	((FIB_RES_NH(res).nh_saddr_genid ==		\
