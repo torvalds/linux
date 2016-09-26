@@ -111,14 +111,12 @@ static bool wm8991_volatile(struct device *dev, unsigned int reg)
 	}
 }
 
-static const DECLARE_TLV_DB_LINEAR(rec_mix_tlv, -1500, 600);
 static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(in_pga_tlv, -1650, 150, 0);
 static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(out_mix_tlv, -2100, 300, 0);
 static const SNDRV_CTL_TLVD_DECLARE_DB_RANGE(out_pga_tlv,
 	0x00, 0x2f, SNDRV_CTL_TLVD_DB_SCALE_ITEM(SNDRV_CTL_TLVD_DB_GAIN_MUTE, 0, 1),
 	0x30, 0x7f, SNDRV_CTL_TLVD_DB_SCALE_ITEM(-7300, 100, 0),
 );
-static const DECLARE_TLV_DB_LINEAR(out_omix_tlv, -600, 0);
 static const SNDRV_CTL_TLVD_DECLARE_DB_RANGE(out_dac_tlv,
 	0x00, 0xbf, SNDRV_CTL_TLVD_DB_SCALE_ITEM(-71625, 375, 1),
 	0xc0, 0xff, SNDRV_CTL_TLVD_DB_SCALE_ITEM(0, 0, 0),
