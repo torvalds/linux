@@ -4,16 +4,12 @@
 
 menuconfig HALL_DEVICE
 	bool "hall sensor device support"
-	default y	
 
 if HALL_DEVICE
 config HS_OCH165T
-  bool "hall sensor och165t"
-	default y
+	bool "hall sensor och165t"
 
 config HS_MH248
 	bool "hall sensor mh248"
-	  default n
 
 endif
-
