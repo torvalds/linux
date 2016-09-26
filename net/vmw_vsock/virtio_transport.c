@@ -87,9 +87,6 @@ virtio_transport_send_pkt_work(struct work_struct *work)
 
 	vq = vsock->vqs[VSOCK_VQ_TX];
 
-	/* Avoid unnecessary interrupts while we're processing the ring */
-	virtqueue_disable_cb(vq);
-
 	for (;;) {
 		struct virtio_vsock_pkt *pkt;
 		struct scatterlist hdr, buf, *sgs[2];
@@ -99,7 +96,6 @@ virtio_transport_send_pkt_work(struct work_struct *work)
 		spin_lock_bh(&vsock->send_pkt_list_lock);
 		if (list_empty(&vsock->send_pkt_list)) {
 			spin_unlock_bh(&vsock->send_pkt_list_lock);
-			virtqueue_enable_cb(vq);
 			break;
 		}
 
@@ -118,13 +114,13 @@ virtio_transport_send_pkt_work(struct work_struct *work)
 		}
 
 		ret = virtqueue_add_sgs(vq, sgs, out_sg, in_sg, pkt, GFP_KERNEL);
+		/* Usually this means that there is no more space available in
+		 * the vq
+		 */
 		if (ret < 0) {
 			spin_lock_bh(&vsock->send_pkt_list_lock);
 			list_add(&pkt->list, &vsock->send_pkt_list);
 			spin_unlock_bh(&vsock->send_pkt_list_lock);
-
-			if (!virtqueue_enable_cb(vq) && ret == -ENOSPC)
-				continue; /* retry now that we have more space */
 			break;
 		}
 

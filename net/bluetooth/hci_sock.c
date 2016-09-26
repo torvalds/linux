@@ -1091,7 +1091,7 @@ static int hci_sock_recvmsg(struct socket *sock, struct msghdr *msg,
 
 	skb_free_datagram(sk, skb);
 
-	if (msg->msg_flags & MSG_TRUNC)
+	if (flags & MSG_TRUNC)
 		copied = skblen;
 
 	return err ? : copied;

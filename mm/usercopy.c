@@ -83,7 +83,7 @@ static bool overlaps(const void *ptr, unsigned long n, unsigned long low,
 	unsigned long check_high = check_low + n;
 
 	/* Does not overlap if entirely above or entirely below. */
-	if (check_low >= high || check_high < low)
+	if (check_low >= high || check_high <= low)
 		return false;
 
 	return true;
@@ -124,7 +124,7 @@ static inline const char *check_kernel_text_object(const void *ptr,
 static inline const char *check_bogus_address(const void *ptr, unsigned long n)
 {
 	/* Reject if object wraps past end of memory. */
-	if (ptr + n < ptr)
+	if ((unsigned long)ptr + n < (unsigned long)ptr)
 		return "<wrapped address>";
 
 	/* Reject if NULL or ZERO-allocation. */

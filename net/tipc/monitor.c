@@ -728,12 +728,13 @@ int tipc_nl_add_monitor_peer(struct net *net, struct tipc_nl_msg *msg,
 			     u32 bearer_id, u32 *prev_node)
 {
 	struct tipc_monitor *mon = tipc_monitor(net, bearer_id);
-	struct tipc_peer *peer = mon->self;
+	struct tipc_peer *peer;
 
 	if (!mon)
 		return -EINVAL;
 
 	read_lock_bh(&mon->lock);
+	peer = mon->self;
 	do {
 		if (*prev_node) {
 			if (peer->addr == *prev_node)

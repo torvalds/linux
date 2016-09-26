@@ -348,7 +348,7 @@ int main(int argc, char **argv)
 	int notrigger = 0;
 	char *dummy;
 
-	struct iio_channel_info *channels;
+	struct iio_channel_info *channels = NULL;
 
 	register_cleanup();
 

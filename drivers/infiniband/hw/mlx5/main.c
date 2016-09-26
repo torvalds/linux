@@ -37,7 +37,6 @@
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
-#include <linux/io-mapping.h>
 #if defined(CONFIG_X86)
 #include <asm/pat.h>
 #endif

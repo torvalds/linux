@@ -136,6 +136,7 @@ config HAVE_ARCH_HARDENED_USERCOPY
 config HARDENED_USERCOPY
 	bool "Harden memory copies between kernel and userspace"
 	depends on HAVE_ARCH_HARDENED_USERCOPY
+	depends on HAVE_HARDENED_USERCOPY_ALLOCATOR
 	select BUG
 	help
 	  This option checks for obviously wrong memory regions when

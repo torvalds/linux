@@ -1624,6 +1624,9 @@ void __init enable_IR_x2apic(void)
 	unsigned long flags;
 	int ret, ir_stat;
 
+	if (skip_ioapic_setup)
+		return;
+
 	ir_stat = irq_remapping_prepare();
 	if (ir_stat < 0 && !x2apic_supported())
 		return;
@@ -2167,6 +2170,8 @@ int __generic_processor_info(int apicid, int version, bool enabled)
 		disabled_cpus++;
 		return -ENOSPC;
 	}
+
+	num_processors++;
 
 	/*
 	 * Validate version

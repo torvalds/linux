@@ -311,6 +311,14 @@ int __get_user_bad(void) __attribute__((noreturn));
 #define __put_user_unaligned __put_user
 #define __get_user_unaligned __get_user
 
+extern void __compiletime_error("usercopy buffer size is too small")
+__bad_copy_user(void);
+
+static inline void copy_user_overflow(int size, unsigned long count)
+{
+	WARN(1, "Buffer overflow detected (%d < %lu)!\n", size, count);
+}
+
 /**
  * copy_to_user: - Copy a block of data into user space.
  * @to:   Destination address, in user space.
@@ -331,12 +339,6 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
 	might_fault();
 	return __copy_to_user(to, from, n);
 }
-
-void copy_from_user_overflow(void)
-#ifdef CONFIG_DEBUG_STRICT_USER_COPY_CHECKS
-__compiletime_warning("copy_from_user() buffer size is not provably correct")
-#endif
-;
 
 /**
  * copy_from_user: - Copy a block of data from user space.
@@ -362,7 +364,10 @@ copy_from_user(void *to, const void __user *from, unsigned long n)
 
 	might_fault();
 	if (unlikely(sz != -1 && sz < n)) {
-		copy_from_user_overflow();
+		if (!__builtin_constant_p(n))
+			copy_user_overflow(sz, n);
+		else
+			__bad_copy_user();
 		return n;
 	}
 	return __copy_from_user(to, from, n);

@@ -127,29 +127,40 @@ int mlx5e_dcbnl_ieee_setets_core(struct mlx5e_priv *priv, struct ieee_ets *ets)
 	return mlx5_set_port_tc_bw_alloc(mdev, tc_tx_bw);
 }
 
-static int mlx5e_dbcnl_validate_ets(struct ieee_ets *ets)
+static int mlx5e_dbcnl_validate_ets(struct net_device *netdev,
+				    struct ieee_ets *ets)
 {
 	int bw_sum = 0;
 	int i;
 
 	/* Validate Priority */
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
-		if (ets->prio_tc[i] >= MLX5E_MAX_PRIORITY)
+		if (ets->prio_tc[i] >= MLX5E_MAX_PRIORITY) {
+			netdev_err(netdev,
+				   "Failed to validate ETS: priority value greater than max(%d)\n",
+				    MLX5E_MAX_PRIORITY);
 			return -EINVAL;
+		}
 	}
 
 	/* Validate Bandwidth Sum */
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
 		if (ets->tc_tsa[i] == IEEE_8021QAZ_TSA_ETS) {
-			if (!ets->tc_tx_bw[i])
+			if (!ets->tc_tx_bw[i]) {
+				netdev_err(netdev,
+					   "Failed to validate ETS: BW 0 is illegal\n");
 				return -EINVAL;
+			}
 
 			bw_sum += ets->tc_tx_bw[i];
 		}
 	}
 
-	if (bw_sum != 0 && bw_sum != 100)
+	if (bw_sum != 0 && bw_sum != 100) {
+		netdev_err(netdev,
+			   "Failed to validate ETS: BW sum is illegal\n");
 		return -EINVAL;
+	}
 	return 0;
 }
 
@@ -159,7 +170,7 @@ static int mlx5e_dcbnl_ieee_setets(struct net_device *netdev,
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	int err;
 
-	err = mlx5e_dbcnl_validate_ets(ets);
+	err = mlx5e_dbcnl_validate_ets(netdev, ets);
 	if (err)
 		return err;
 

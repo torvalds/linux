@@ -240,6 +240,7 @@ static int __init at91sam926x_pit_common_init(struct pit_data *data)
 static int __init at91sam926x_pit_dt_init(struct device_node *node)
 {
 	struct pit_data *data;
+	int ret;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -259,6 +260,12 @@ static int __init at91sam926x_pit_dt_init(struct device_node *node)
 	if (IS_ERR(data->mck)) {
 		pr_err("Unable to get mck clk\n");
 		return PTR_ERR(data->mck);
+	}
+
+	ret = clk_prepare_enable(data->mck);
+	if (ret) {
+		pr_err("Unable to enable mck\n");
+		return ret;
 	}
 
 	/* Get the interrupts property */

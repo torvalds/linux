@@ -1333,7 +1333,7 @@ static void cleanup_device_data(struct hfi1_devdata *dd)
 		spin_unlock(&ppd->cc_state_lock);
 
 		if (cc_state)
-			call_rcu(&cc_state->rcu, cc_state_reclaim);
+			kfree_rcu(cc_state, rcu);
 	}
 
 	free_credit_return(dd);

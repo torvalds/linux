@@ -129,8 +129,8 @@ static int p8_aes_xts_crypt(struct blkcipher_desc *desc,
 
 		blkcipher_walk_init(&walk, dst, src, nbytes);
 
-		iv = (u8 *)walk.iv;
 		ret = blkcipher_walk_virt(desc, &walk);
+		iv = walk.iv;
 		memset(tweak, 0, AES_BLOCK_SIZE);
 		aes_p8_encrypt(iv, tweak, &ctx->tweak_key);
 
