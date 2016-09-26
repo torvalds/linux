@@ -1925,7 +1925,8 @@ static int da7219_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct da7219_priv *da7219;
-	int ret;
+	unsigned int system_active, system_status;
+	int i, ret;
 
 	da7219 = devm_kzalloc(&i2c->dev, sizeof(struct da7219_priv),
 			      GFP_KERNEL);
@@ -1941,13 +1942,36 @@ static int da7219_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	/* Software reset codec. */
+	regcache_cache_bypass(da7219->regmap, true);
+
+	/* Disable audio paths if still active from previous start */
+	regmap_read(da7219->regmap, DA7219_SYSTEM_ACTIVE, &system_active);
+	if (system_active) {
+		regmap_write(da7219->regmap, DA7219_GAIN_RAMP_CTRL,
+			     DA7219_GAIN_RAMP_RATE_NOMINAL);
+		regmap_write(da7219->regmap, DA7219_SYSTEM_MODES_INPUT, 0x00);
+		regmap_write(da7219->regmap, DA7219_SYSTEM_MODES_OUTPUT, 0x01);
+
+		for (i = 0; i < DA7219_SYS_STAT_CHECK_RETRIES; ++i) {
+			regmap_read(da7219->regmap, DA7219_SYSTEM_STATUS,
+				    &system_status);
+			if (!system_status)
+				break;
+
+			msleep(DA7219_SYS_STAT_CHECK_DELAY);
+		}
+	}
+
+	/* Soft reset codec */
 	regmap_write_bits(da7219->regmap, DA7219_ACCDET_CONFIG_1,
 			  DA7219_ACCDET_EN_MASK, 0);
 	regmap_write_bits(da7219->regmap, DA7219_CIF_CTRL,
-			  DA7219_CIF_REG_SOFT_RESET_MASK, 0);
+			  DA7219_CIF_REG_SOFT_RESET_MASK,
+			  DA7219_CIF_REG_SOFT_RESET_MASK);
 	regmap_write_bits(da7219->regmap, DA7219_SYSTEM_ACTIVE,
 			  DA7219_SYSTEM_ACTIVE_MASK, 0);
+
+	regcache_cache_bypass(da7219->regmap, false);
 
 	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_da7219,
 				     &da7219_dai, 1);
