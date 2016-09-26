@@ -173,8 +173,6 @@ struct exynos_drm_crtc {
 	enum exynos_drm_output_type	type;
 	unsigned int			pipe;
 	struct drm_pending_vblank_event	*event;
-	wait_queue_head_t		wait_update;
-	atomic_t			pending_update;
 	const struct exynos_drm_crtc_ops	*ops;
 	void				*ctx;
 	struct exynos_drm_clk		*pipe_clk;
