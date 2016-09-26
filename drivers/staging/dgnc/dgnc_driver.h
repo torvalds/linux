@@ -203,9 +203,6 @@ struct dgnc_board {
 	struct tty_driver *print_driver;
 	char		print_name[200];
 
-	bool		dgnc_major_serial_registered;
-	bool		dgnc_major_transparent_print_registered;
-
 	u16		dpatype;	/* The board "type",
 					 * as defined by DPA
 					 */
