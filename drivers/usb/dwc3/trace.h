@@ -63,21 +63,23 @@ DEFINE_EVENT(dwc3_log_msg, dwc3_ep0,
 );
 
 DECLARE_EVENT_CLASS(dwc3_log_event,
-	TP_PROTO(u32 event),
-	TP_ARGS(event),
+	TP_PROTO(u32 event, struct dwc3 *dwc),
+	TP_ARGS(event, dwc),
 	TP_STRUCT__entry(
 		__field(u32, event)
+		__field(u32, ep0state)
 	),
 	TP_fast_assign(
 		__entry->event = event;
+		__entry->ep0state = dwc->ep0state;
 	),
 	TP_printk("event (%08x): %s", __entry->event,
-			dwc3_decode_event(__entry->event))
+			dwc3_decode_event(__entry->event, __entry->ep0state))
 );
 
 DEFINE_EVENT(dwc3_log_event, dwc3_event,
-	TP_PROTO(u32 event),
-	TP_ARGS(event)
+	TP_PROTO(u32 event, struct dwc3 *dwc),
+	TP_ARGS(event, dwc)
 );
 
 DECLARE_EVENT_CLASS(dwc3_log_ctrl,

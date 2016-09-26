@@ -1078,10 +1078,6 @@ static void dwc3_ep0_xfernotready(struct dwc3 *dwc,
 void dwc3_ep0_interrupt(struct dwc3 *dwc,
 		const struct dwc3_event_depevt *event)
 {
-	dwc3_trace(trace_dwc3_ep0, "%s: state '%s'",
-			dwc3_ep_event_string(event),
-			dwc3_ep0_state_string(dwc->ep0state));
-
 	switch (event->endpoint_event) {
 	case DWC3_DEPEVT_XFERCOMPLETE:
 		dwc3_ep0_xfer_complete(dwc, event);

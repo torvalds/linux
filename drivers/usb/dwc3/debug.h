@@ -200,10 +200,11 @@ dwc3_gadget_event_string(const struct dwc3_event_devt *event)
  * @event: then event code
  */
 static inline const char *
-dwc3_ep_event_string(const struct dwc3_event_depevt *event)
+dwc3_ep_event_string(const struct dwc3_event_depevt *event, u32 ep0state)
 {
 	u8 epnum = event->endpoint_number;
 	static char str[256];
+	size_t len;
 	int status;
 	int ret;
 
@@ -215,6 +216,10 @@ dwc3_ep_event_string(const struct dwc3_event_depevt *event)
 	switch (event->endpoint_event) {
 	case DWC3_DEPEVT_XFERCOMPLETE:
 		strcat(str, "Transfer Complete");
+		len = strlen(str);
+
+		if (epnum <= 1)
+			sprintf(str + len, " [%s]", dwc3_ep0_state_string(ep0state));
 		break;
 	case DWC3_DEPEVT_XFERINPROGRESS:
 		strcat(str, "Transfer In-Progress");
@@ -299,14 +304,14 @@ static inline const char *dwc3_gadget_event_type_string(u8 event)
 	}
 }
 
-static inline const char *dwc3_decode_event(u32 event)
+static inline const char *dwc3_decode_event(u32 event, u32 ep0state)
 {
 	const union dwc3_event evt = (union dwc3_event) event;
 
 	if (evt.type.is_devspec)
 		return dwc3_gadget_event_string(&evt.devt);
 	else
-		return dwc3_ep_event_string(&evt.depevt);
+		return dwc3_ep_event_string(&evt.depevt, ep0state);
 }
 
 static inline const char *dwc3_ep_cmd_status_string(int status)
