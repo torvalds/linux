@@ -658,6 +658,14 @@ static const struct dmi_system_id intel_spurious_crt_detect[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "ZGB"),
 		},
 	},
+	{
+		.callback = intel_spurious_crt_detect_dmi_callback,
+		.ident = "Intel DZ77BH-55K",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Intel Corporation"),
+			DMI_MATCH(DMI_BOARD_NAME, "DZ77BH-55K"),
+		},
+	},
 	{ }
 };
 
