@@ -697,34 +697,36 @@ static int hci_uart_tty_ioctl(struct tty_struct *tty, struct file *file,
 	case HCIUARTSETPROTO:
 		if (!test_and_set_bit(HCI_UART_PROTO_SET, &hu->flags)) {
 			err = hci_uart_set_proto(hu, arg);
-			if (err) {
+			if (err)
 				clear_bit(HCI_UART_PROTO_SET, &hu->flags);
-				return err;
-			}
 		} else
-			return -EBUSY;
+			err = -EBUSY;
 		break;
 
 	case HCIUARTGETPROTO:
 		if (test_bit(HCI_UART_PROTO_SET, &hu->flags))
-			return hu->proto->id;
-		return -EUNATCH;
+			err = hu->proto->id;
+		else
+			err = -EUNATCH;
+		break;
 
 	case HCIUARTGETDEVICE:
 		if (test_bit(HCI_UART_REGISTERED, &hu->flags))
-			return hu->hdev->id;
-		return -EUNATCH;
+			err = hu->hdev->id;
+		else
+			err = -EUNATCH;
+		break;
 
 	case HCIUARTSETFLAGS:
 		if (test_bit(HCI_UART_PROTO_SET, &hu->flags))
-			return -EBUSY;
-		err = hci_uart_set_flags(hu, arg);
-		if (err)
-			return err;
+			err = -EBUSY;
+		else
+			err = hci_uart_set_flags(hu, arg);
 		break;
 
 	case HCIUARTGETFLAGS:
-		return hu->hdev_flags;
+		err = hu->hdev_flags;
+		break;
 
 	default:
 		err = n_tty_ioctl_helper(tty, file, cmd, arg);

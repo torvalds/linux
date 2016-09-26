@@ -2541,6 +2541,8 @@ static int send_pin_code_neg_reply(struct sock *sk, struct hci_dev *hdev,
 	if (!cmd)
 		return -ENOMEM;
 
+	cmd->cmd_complete = addr_cmd_complete;
+
 	err = hci_send_cmd(hdev, HCI_OP_PIN_CODE_NEG_REPLY,
 			   sizeof(cp->addr.bdaddr), &cp->addr.bdaddr);
 	if (err < 0)
@@ -3157,7 +3159,7 @@ static int set_local_name(struct sock *sk, struct hci_dev *hdev, void *data,
 	/* The name is stored in the scan response data and so
 	 * no need to udpate the advertising data here.
 	 */
-	if (lmp_le_capable(hdev))
+	if (lmp_le_capable(hdev) && hci_dev_test_flag(hdev, HCI_ADVERTISING))
 		__hci_req_update_scan_rsp_data(&req, hdev->cur_adv_instance);
 
 	err = hci_req_run(&req, set_name_complete);
