@@ -14886,6 +14886,7 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 	struct intel_plane *primary = NULL;
 	struct intel_plane_state *state = NULL;
 	const uint32_t *intel_primary_formats;
+	unsigned int supported_rotations;
 	unsigned int num_formats;
 	int ret;
 
@@ -14958,8 +14959,21 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 	if (ret)
 		goto fail;
 
-	if (INTEL_INFO(dev)->gen >= 4)
-		intel_create_rotation_property(dev, primary);
+	if (INTEL_GEN(dev) >= 9) {
+		supported_rotations =
+			DRM_ROTATE_0 | DRM_ROTATE_90 |
+			DRM_ROTATE_180 | DRM_ROTATE_270;
+	} else if (INTEL_GEN(dev) >= 4) {
+		supported_rotations =
+			DRM_ROTATE_0 | DRM_ROTATE_180;
+	} else {
+		supported_rotations = DRM_ROTATE_0;
+	}
+
+	if (INTEL_GEN(dev) >= 4)
+		drm_plane_create_rotation_property(&primary->base,
+						   DRM_ROTATE_0,
+						   supported_rotations);
 
 	drm_plane_helper_add(&primary->base, &intel_plane_helper_funcs);
 
@@ -14970,24 +14984,6 @@ fail:
 	kfree(primary);
 
 	return NULL;
-}
-
-void intel_create_rotation_property(struct drm_device *dev, struct intel_plane *plane)
-{
-	if (!dev->mode_config.rotation_property) {
-		unsigned long flags = DRM_ROTATE_0 |
-			DRM_ROTATE_180;
-
-		if (INTEL_INFO(dev)->gen >= 9)
-			flags |= DRM_ROTATE_90 | DRM_ROTATE_270;
-
-		dev->mode_config.rotation_property =
-			drm_mode_create_rotation_property(dev, flags);
-	}
-	if (dev->mode_config.rotation_property)
-		drm_object_attach_property(&plane->base.base,
-				dev->mode_config.rotation_property,
-				plane->base.state->rotation);
 }
 
 static int
@@ -15116,17 +15112,11 @@ static struct drm_plane *intel_cursor_plane_create(struct drm_device *dev,
 	if (ret)
 		goto fail;
 
-	if (INTEL_INFO(dev)->gen >= 4) {
-		if (!dev->mode_config.rotation_property)
-			dev->mode_config.rotation_property =
-				drm_mode_create_rotation_property(dev,
-							DRM_ROTATE_0 |
-							DRM_ROTATE_180);
-		if (dev->mode_config.rotation_property)
-			drm_object_attach_property(&cursor->base.base,
-				dev->mode_config.rotation_property,
-				state->base.rotation);
-	}
+	if (INTEL_GEN(dev) >= 4)
+		drm_plane_create_rotation_property(&cursor->base,
+						   DRM_ROTATE_0,
+						   DRM_ROTATE_0 |
+						   DRM_ROTATE_180);
 
 	if (INTEL_INFO(dev)->gen >=9)
 		state->scaler_id = -1;
