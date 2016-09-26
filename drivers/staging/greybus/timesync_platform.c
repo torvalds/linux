@@ -20,6 +20,8 @@
 #include "greybus.h"
 #include "arche_platform.h"
 
+#define DEFAULT_FRAMETIME_CLOCK_HZ 19200000
+
 static u32 gb_timesync_clock_frequency;
 int (*arche_platform_change_state_cb)(enum arche_platform_state state,
 				      struct gb_timesync_svc *pdata);
@@ -32,8 +34,11 @@ u64 gb_timesync_platform_get_counter(void)
 
 u32 gb_timesync_platform_get_clock_rate(void)
 {
-	if (unlikely(!gb_timesync_clock_frequency))
-		return cpufreq_get(0);
+	if (unlikely(!gb_timesync_clock_frequency)) {
+		gb_timesync_clock_frequency = cpufreq_get(0);
+		if (!gb_timesync_clock_frequency)
+			gb_timesync_clock_frequency = DEFAULT_FRAMETIME_CLOCK_HZ;
+	}
 
 	return gb_timesync_clock_frequency;
 }
