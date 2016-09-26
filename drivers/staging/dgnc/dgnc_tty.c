@@ -387,12 +387,12 @@ void dgnc_tty_post_uninit(void)
 }
 
 /*
- * dgnc_tty_uninit()
+ * dgnc_cleanup_tty()
  *
  * Uninitialize the TTY portion of this driver.  Free all memory and
  * resources.
  */
-void dgnc_tty_uninit(struct dgnc_board *brd)
+void dgnc_cleanup_tty(struct dgnc_board *brd)
 {
 	int i = 0;
 

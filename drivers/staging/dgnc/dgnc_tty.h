@@ -25,7 +25,7 @@ int	dgnc_tty_preinit(void);
 int     dgnc_tty_init(struct dgnc_board *);
 
 void	dgnc_tty_post_uninit(void);
-void	dgnc_tty_uninit(struct dgnc_board *);
+void	dgnc_cleanup_tty(struct dgnc_board *);
 
 void	dgnc_input(struct channel_t *ch);
 void	dgnc_carrier(struct channel_t *ch);

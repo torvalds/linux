@@ -147,7 +147,7 @@ static void cleanup(bool sysfiles)
 
 	for (i = 0; i < dgnc_num_boards; ++i) {
 		dgnc_remove_ports_sysfiles(dgnc_board[i]);
-		dgnc_tty_uninit(dgnc_board[i]);
+		dgnc_cleanup_tty(dgnc_board[i]);
 		dgnc_cleanup_board(dgnc_board[i]);
 	}
 
