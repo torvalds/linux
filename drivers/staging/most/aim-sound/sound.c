@@ -453,7 +453,7 @@ static snd_pcm_uframes_t pcm_pointer(struct snd_pcm_substream *substream)
 /**
  * Initialization of struct snd_pcm_ops
  */
-static struct snd_pcm_ops pcm_ops = {
+static const struct snd_pcm_ops pcm_ops = {
 	.open       = pcm_open,
 	.close      = pcm_close,
 	.ioctl      = snd_pcm_lib_ioctl,
