@@ -297,6 +297,7 @@
 	bne	13f
 12:
 	resume_iomuxc_gpr
+	reset_read_fifo
 
 	b	17f
 13:
