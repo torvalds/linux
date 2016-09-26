@@ -45,7 +45,6 @@
 /*
  * internal variables
  */
-static struct dgnc_board	*dgnc_BoardsByMajor[256];
 static unsigned char		*dgnc_TmpWriteBuf;
 
 /*
@@ -251,8 +250,6 @@ int dgnc_tty_register(struct dgnc_board *brd)
 		goto free_print_driver;
 	}
 
-	dgnc_BoardsByMajor[brd->serial_driver->major] = brd;
-
 	return 0;
 
 free_print_driver:
@@ -388,7 +385,6 @@ void dgnc_cleanup_tty(struct dgnc_board *brd)
 {
 	int i = 0;
 
-	dgnc_BoardsByMajor[brd->serial_driver->major] = NULL;
 	for (i = 0; i < brd->nasync; i++) {
 		if (brd->channels[i])
 			dgnc_remove_tty_sysfs(brd->channels[i]->
@@ -397,7 +393,6 @@ void dgnc_cleanup_tty(struct dgnc_board *brd)
 	}
 	tty_unregister_driver(brd->serial_driver);
 
-	dgnc_BoardsByMajor[brd->print_driver->major] = NULL;
 	for (i = 0; i < brd->nasync; i++) {
 		if (brd->channels[i])
 			dgnc_remove_tty_sysfs(brd->channels[i]->
@@ -935,6 +930,24 @@ void dgnc_wakeup_writes(struct channel_t *ch)
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
 
+struct dgnc_board *find_board_by_major(unsigned int major)
+{
+	int i;
+
+	for (i = 0; i < MAXBOARDS; i++) {
+		struct dgnc_board *brd = dgnc_board[i];
+
+		if (!brd)
+			return NULL;
+
+		if (major == brd->serial_driver->major ||
+		    major == brd->print_driver->major)
+			return brd;
+	}
+
+	return NULL;
+}
+
 /************************************************************************
  *
  * TTY Entry points and helper functions
@@ -964,7 +977,7 @@ static int dgnc_tty_open(struct tty_struct *tty, struct file *file)
 		return -ENXIO;
 
 	/* Get board pointer from our array of majors we have allocated */
-	brd = dgnc_BoardsByMajor[major];
+	brd = find_board_by_major(major);
 	if (!brd)
 		return -ENXIO;
 
