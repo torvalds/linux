@@ -464,13 +464,13 @@ static int __init init_mce_inject(void)
 	return 0;
 
 err_dfs_add:
-	while (--i >= 0)
+	while (i-- > 0)
 		debugfs_remove(dfs_fls[i].d);
 
 	debugfs_remove(dfs_inj);
 	dfs_inj = NULL;
 
-	return -ENOMEM;
+	return -ENODEV;
 }
 
 static void __exit exit_mce_inject(void)
