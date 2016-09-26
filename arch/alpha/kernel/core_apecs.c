@@ -311,7 +311,7 @@ struct pci_ops apecs_pci_ops =
 	.read =		apecs_read_config,
 	.write =	apecs_write_config,
 };
-
+
 void
 apecs_pci_tbi(struct pci_controller *hose, dma_addr_t start, dma_addr_t end)
 {
@@ -319,7 +319,7 @@ apecs_pci_tbi(struct pci_controller *hose, dma_addr_t start, dma_addr_t end)
 	*(vip)APECS_IOC_TBIA = 0;
 	mb();
 }
-
+
 void __init
 apecs_init_arch(void)
 {
