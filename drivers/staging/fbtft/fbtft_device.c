@@ -909,6 +909,90 @@ static struct fbtft_device_display displays[] = {
 			}
 		}
 	}, {
+		.name = "ra8871_480x272",
+		.spi = &(struct spi_board_info) {
+			.modalias = "fb_ra8871",
+			.max_speed_hz = 48000000,
+			.mode = SPI_MODE_3,
+			.platform_data = &(struct fbtft_platform_data) {
+				.display = {
+					.buswidth = 8,
+					.backlight = 1,
+					.width = 480,
+					.height = 272,
+				},
+				.bgr = true,
+				.gpios = (const struct fbtft_gpio []) {
+					{ "reset", 25 },
+					{ "dc", 24 },
+					{},
+				},
+			}
+		}
+	}, {
+		.name = "ra8873_800x480",
+		.spi = &(struct spi_board_info) {
+			.modalias = "fb_ra8873",
+			.max_speed_hz = 48000000,
+			.mode = SPI_MODE_3,
+			.platform_data = &(struct fbtft_platform_data) {
+				.display = {
+					.buswidth = 8,
+					.backlight = 1,
+					.width = 800,
+					.height = 480,
+				},
+				.bgr = true,
+				.gpios = (const struct fbtft_gpio []) {
+					{ "reset", 25 },
+					{ "dc", 24 },
+					{},
+				},
+			}
+		}
+	}, {
+		.name = "ra8876_800x600",
+		.spi = &(struct spi_board_info) {
+			.modalias = "fb_ra8876",
+			.max_speed_hz = 48000000,
+			.mode = SPI_MODE_3,
+			.platform_data = &(struct fbtft_platform_data) {
+				.display = {
+					.buswidth = 8,
+					.backlight = 1,
+					.width = 800,
+					.height = 600,
+				},
+				.bgr = true,
+				.gpios = (const struct fbtft_gpio []) {
+					{ "reset", 25 },
+					{ "dc", 24 },
+					{},
+				},
+			}
+		}
+	}, {
+		.name = "ra8877_1280x800",
+		.spi = &(struct spi_board_info) {
+			.modalias = "fb_ra8877",
+			.max_speed_hz = 48000000,
+			.mode = SPI_MODE_3,
+			.platform_data = &(struct fbtft_platform_data) {
+				.display = {
+					.buswidth = 8,
+					.backlight = 1,
+					.width = 1280,
+					.height = 800,
+				},
+				.bgr = true,
+				.gpios = (const struct fbtft_gpio []) {
+					{ "reset", 25 },
+					{ "dc", 24 },
+					{},
+				},
+			}
+		}
+	}, {
 		.name = "rpi-display",
 		.spi = &(struct spi_board_info) {
 			.modalias = "fb_ili9341",

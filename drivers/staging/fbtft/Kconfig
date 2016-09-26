@@ -93,12 +93,36 @@ config FB_TFT_PCD8544
 	help
 	  Generic Framebuffer support for PCD8544
 
+config FB_TFT_RA8871
+        tristate "FB driver for the RA8871 LCD Controller"
+        depends on FB_TFT
+	help
+	  Generic Framebuffer support for RA8871
+
+config FB_TFT_RA8873
+        tristate "FB driver for the RA8873 LCD Controller"
+        depends on FB_TFT
+	help
+	  Generic Framebuffer support for RA8873
+	  
 config FB_TFT_RA8875
         tristate "FB driver for the RA8875 LCD Controller"
         depends on FB_TFT
 	help
 	  Generic Framebuffer support for RA8875
 
+config FB_TFT_RA8876
+        tristate "FB driver for the RA8876 LCD Controller"
+        depends on FB_TFT
+	help
+	  Generic Framebuffer support for RA8876
+
+config FB_TFT_RA8877
+        tristate "FB driver for the RA8877 LCD Controller"
+        depends on FB_TFT
+	help
+	  Generic Framebuffer support for RA8877
+	  
 config FB_TFT_S6D02A1
 	tristate "FB driver for the S6D02A1 LCD Controller"
 	depends on FB_TFT
