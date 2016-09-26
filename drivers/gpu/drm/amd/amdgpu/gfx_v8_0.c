@@ -1058,6 +1058,14 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 		adev->firmware.fw_size +=
 			ALIGN(le32_to_cpu(header->ucode_size_bytes), PAGE_SIZE);
 
+		if (amdgpu_sriov_vf(adev)) {
+			info = &adev->firmware.ucode[AMDGPU_UCODE_ID_STORAGE];
+			info->ucode_id = AMDGPU_UCODE_ID_STORAGE;
+			info->fw = adev->gfx.mec_fw;
+			adev->firmware.fw_size +=
+				ALIGN(le32_to_cpu(64 * PAGE_SIZE), PAGE_SIZE);
+		}
+
 		if (adev->gfx.mec2_fw) {
 			info = &adev->firmware.ucode[AMDGPU_UCODE_ID_CP_MEC2];
 			info->ucode_id = AMDGPU_UCODE_ID_CP_MEC2;

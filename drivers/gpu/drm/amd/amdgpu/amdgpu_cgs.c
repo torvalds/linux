@@ -696,6 +696,9 @@ static uint32_t fw_type_convert(struct cgs_device *cgs_device, uint32_t fw_type)
 	case CGS_UCODE_ID_RLC_G:
 		result = AMDGPU_UCODE_ID_RLC_G;
 		break;
+	case CGS_UCODE_ID_STORAGE:
+		result = AMDGPU_UCODE_ID_STORAGE;
+		break;
 	default:
 		DRM_ERROR("Firmware type not supported\n");
 	}

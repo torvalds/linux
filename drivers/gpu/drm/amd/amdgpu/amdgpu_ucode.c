@@ -228,6 +228,9 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_firmware_info *ucode,
 	ucode->mc_addr = mc_addr;
 	ucode->kaddr = kptr;
 
+	if (ucode->ucode_id == AMDGPU_UCODE_ID_STORAGE)
+		return 0;
+
 	header = (const struct common_firmware_header *)ucode->fw->data;
 	memcpy(ucode->kaddr, (void *)((uint8_t *)ucode->fw->data +
 		le32_to_cpu(header->ucode_array_offset_bytes)),

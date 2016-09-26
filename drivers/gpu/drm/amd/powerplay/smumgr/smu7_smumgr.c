@@ -278,6 +278,9 @@ enum cgs_ucode_id smu7_convert_fw_type_to_cgs(uint32_t fw_type)
 	case UCODE_ID_RLC_G:
 		result = CGS_UCODE_ID_RLC_G;
 		break;
+	case UCODE_ID_MEC_STORAGE:
+		result = CGS_UCODE_ID_STORAGE;
+		break;
 	default:
 		break;
 	}
@@ -451,6 +454,10 @@ int smu7_request_smu_load_fw(struct pp_smumgr *smumgr)
 				"Failed to Get Firmware Entry.", return -EINVAL);
 	PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(smumgr,
 				UCODE_ID_SDMA1, &toc->entry[toc->num_entries++]),
+				"Failed to Get Firmware Entry.", return -EINVAL);
+	if (cgs_is_virtualization_enabled(smumgr->device))
+		PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(smumgr,
+				UCODE_ID_MEC_STORAGE, &toc->entry[toc->num_entries++]),
 				"Failed to Get Firmware Entry.", return -EINVAL);
 
 	smu7_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_DRV_DRAM_ADDR_HI, smu_data->header_buffer.mc_addr_high);
