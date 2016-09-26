@@ -2171,8 +2171,6 @@ int __generic_processor_info(int apicid, int version, bool enabled)
 		return -ENOSPC;
 	}
 
-	num_processors++;
-
 	/*
 	 * Validate version
 	 */
