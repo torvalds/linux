@@ -681,6 +681,7 @@ static int rtsx_usb_detect_ms_card(void *__host)
 	int err;
 
 	for (;;) {
+		pm_runtime_get_sync(ms_dev(host));
 		mutex_lock(&ucr->dev_mutex);
 
 		/* Check pending MS card changes */
@@ -703,6 +704,7 @@ static int rtsx_usb_detect_ms_card(void *__host)
 		}
 
 poll_again:
+		pm_runtime_put(ms_dev(host));
 		if (host->eject)
 			break;
 
