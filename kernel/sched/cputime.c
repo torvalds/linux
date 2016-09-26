@@ -70,32 +70,28 @@ void irqtime_account_irq(struct task_struct *curr)
 }
 EXPORT_SYMBOL_GPL(irqtime_account_irq);
 
-static cputime_t irqtime_account_hi_update(cputime_t maxtime)
+static cputime_t irqtime_account_update(u64 irqtime, int idx, cputime_t maxtime)
 {
 	u64 *cpustat = kcpustat_this_cpu->cpustat;
 	cputime_t irq_cputime;
-	u64 nsecs;
 
-	nsecs = __this_cpu_read(cpu_irqtime.hardirq_time);
-	irq_cputime = nsecs_to_cputime64(nsecs) - cpustat[CPUTIME_IRQ];
+	irq_cputime = nsecs_to_cputime64(irqtime) - cpustat[idx];
 	irq_cputime = min(irq_cputime, maxtime);
-	cpustat[CPUTIME_IRQ] += irq_cputime;
+	cpustat[idx] += irq_cputime;
 
 	return irq_cputime;
 }
 
+static cputime_t irqtime_account_hi_update(cputime_t maxtime)
+{
+	return irqtime_account_update(__this_cpu_read(cpu_irqtime.hardirq_time),
+				      CPUTIME_IRQ, maxtime);
+}
+
 static cputime_t irqtime_account_si_update(cputime_t maxtime)
 {
-	u64 *cpustat = kcpustat_this_cpu->cpustat;
-	cputime_t softirq_cputime;
-	u64 nsecs;
-
-	nsecs = __this_cpu_read(cpu_irqtime.softirq_time);
-	softirq_cputime = nsecs_to_cputime64(nsecs) - cpustat[CPUTIME_SOFTIRQ];
-	softirq_cputime = min(softirq_cputime, maxtime);
-	cpustat[CPUTIME_SOFTIRQ] += softirq_cputime;
-
-	return softirq_cputime;
+	return irqtime_account_update(__this_cpu_read(cpu_irqtime.softirq_time),
+				      CPUTIME_SOFTIRQ, maxtime);
 }
 
 #else /* CONFIG_IRQ_TIME_ACCOUNTING */
