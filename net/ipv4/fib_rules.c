@@ -228,7 +228,6 @@ static int fib4_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 	rule4->tos = frh->tos;
 
 	net->ipv4.fib_has_custom_rules = true;
-	fib_flush_external(rule->fr_net);
 	call_fib_rule_notifiers(net, FIB_EVENT_RULE_ADD);
 
 	err = 0;
@@ -251,7 +250,6 @@ static int fib4_rule_delete(struct fib_rule *rule)
 		net->ipv4.fib_num_tclassid_users--;
 #endif
 	net->ipv4.fib_has_custom_rules = true;
-	fib_flush_external(rule->fr_net);
 	call_fib_rule_notifiers(net, FIB_EVENT_RULE_DEL);
 errout:
 	return err;
