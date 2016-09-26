@@ -213,12 +213,6 @@ struct dgnc_board {
 					 * as defined by DPA
 					 */
 
-	/*
-	 *	Mgmt data.
-	 */
-	char		*msgbuf_head;
-	char		*msgbuf;
-
 	uint		bd_dividend;	/* Board/UARTs specific dividend */
 
 	struct board_ops *bd_ops;

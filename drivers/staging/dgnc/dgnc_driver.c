@@ -324,17 +324,6 @@ static void dgnc_cleanup_board(struct dgnc_board *brd)
 		brd->re_map_membase = NULL;
 	}
 
-	if (brd->msgbuf_head) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&dgnc_global_lock, flags);
-		brd->msgbuf = NULL;
-		dev_dbg(&brd->pdev->dev, "%s\n", brd->msgbuf_head);
-		kfree(brd->msgbuf_head);
-		brd->msgbuf_head = NULL;
-		spin_unlock_irqrestore(&dgnc_global_lock, flags);
-	}
-
 	/* Free all allocated channels structs */
 	for (i = 0; i < MAXPORTS ; i++) {
 		if (brd->channels[i]) {
@@ -362,7 +351,6 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	unsigned int pci_irq;
 	int i = 0;
 	int rc = 0;
-	unsigned long flags;
 
 	/* get the board structure and prep it */
 	dgnc_board[dgnc_num_boards] = kzalloc(sizeof(*brd), GFP_KERNEL);
@@ -370,15 +358,6 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 
 	if (!brd)
 		return -ENOMEM;
-
-	/* make a temporary message buffer for the boot messages */
-	brd->msgbuf_head = kcalloc(8192, sizeof(u8), GFP_KERNEL);
-	brd->msgbuf = brd->msgbuf_head;
-
-	if (!brd->msgbuf) {
-		kfree(brd);
-		return -ENOMEM;
-	}
 
 	/* store the info for the board we've found */
 	brd->magic = DGNC_BOARD_MAGIC;
@@ -552,13 +531,6 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	tasklet_init(&brd->helper_tasklet,
 		     brd->bd_ops->tasklet,
 		     (unsigned long)brd);
-
-	spin_lock_irqsave(&dgnc_global_lock, flags);
-	brd->msgbuf = NULL;
-	dev_dbg(&brd->pdev->dev, "%s\n", brd->msgbuf_head);
-	kfree(brd->msgbuf_head);
-	brd->msgbuf_head = NULL;
-	spin_unlock_irqrestore(&dgnc_global_lock, flags);
 
 	wake_up_interruptible(&brd->state_wait);
 
