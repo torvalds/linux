@@ -328,7 +328,8 @@ static bool rxrpc_receiving_reply(struct rxrpc_call *call)
 		call->resend_at = call->expire_at;
 		call->ack_at = call->expire_at;
 		spin_unlock_bh(&call->lock);
-		rxrpc_set_timer(call, rxrpc_timer_init_for_reply);
+		rxrpc_set_timer(call, rxrpc_timer_init_for_reply,
+				ktime_get_real());
 	}
 
 	if (!test_bit(RXRPC_CALL_TX_LAST, &call->flags))

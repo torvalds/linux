@@ -464,9 +464,9 @@ struct rxrpc_call {
 	struct rxrpc_connection	*conn;		/* connection carrying call */
 	struct rxrpc_peer	*peer;		/* Peer record for remote address */
 	struct rxrpc_sock __rcu	*socket;	/* socket responsible */
-	unsigned long		ack_at;		/* When deferred ACK needs to happen */
-	unsigned long		resend_at;	/* When next resend needs to happen */
-	unsigned long		expire_at;	/* When the call times out */
+	ktime_t			ack_at;		/* When deferred ACK needs to happen */
+	ktime_t			resend_at;	/* When next resend needs to happen */
+	ktime_t			expire_at;	/* When the call times out */
 	struct timer_list	timer;		/* Combined event timer */
 	struct work_struct	processor;	/* Event processor */
 	rxrpc_notify_rx_t	notify_rx;	/* kernel service Rx notification function */
@@ -805,7 +805,7 @@ int rxrpc_reject_call(struct rxrpc_sock *);
 /*
  * call_event.c
  */
-void rxrpc_set_timer(struct rxrpc_call *, enum rxrpc_timer_trace);
+void rxrpc_set_timer(struct rxrpc_call *, enum rxrpc_timer_trace, ktime_t);
 void rxrpc_propose_ACK(struct rxrpc_call *, u8, u16, u32, bool, bool,
 		       enum rxrpc_propose_ack_trace);
 void rxrpc_process_call(struct work_struct *);

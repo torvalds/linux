@@ -149,13 +149,13 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 		_debug("need instant resend %d", ret);
 		rxrpc_instant_resend(call, ix);
 	} else {
-		unsigned long resend_at;
+		ktime_t now = ktime_get_real(), resend_at;
 
-		resend_at = jiffies + msecs_to_jiffies(rxrpc_resend_timeout);
+		resend_at = ktime_add_ms(now, rxrpc_resend_timeout);
 
-		if (time_before(resend_at, call->resend_at)) {
+		if (ktime_before(resend_at, call->resend_at)) {
 			call->resend_at = resend_at;
-			rxrpc_set_timer(call, rxrpc_timer_set_for_send);
+			rxrpc_set_timer(call, rxrpc_timer_set_for_send, now);
 		}
 	}
 
