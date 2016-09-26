@@ -36,6 +36,7 @@
 #include <../drivers/staging/android/fiq_debugger/fiq_debugger.h>
 #include <linux/irqchip/arm-gic.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/soc/rockchip/rk_fiq_debugger.h>
 
 #ifdef CONFIG_FIQ_DEBUGGER_EL3_TO_EL1
@@ -48,6 +49,7 @@
 #define UART_USR_TX_FIFO_EMPTY		0x04 /* Transmit FIFO empty */
 #define UART_USR_TX_FIFO_NOT_FULL	0x02 /* Transmit FIFO not full */
 #define UART_USR_BUSY			0x01 /* UART busy indicator */
+#define UART_SRR			0x22 /* software reset register */
 
 struct rk_fiq_debugger {
 	int irq;
@@ -102,6 +104,11 @@ static int debug_port_init(struct platform_device *pdev)
 		dll = 0xd;
 		break;
 	}
+	/* reset uart */
+	rk_fiq_write(t, 0x07, UART_SRR);
+	udelay(10);
+	/* set uart to loop back mode */
+	rk_fiq_write(t, 0x10, UART_MCR);
 
 	rk_fiq_write(t, 0x83, UART_LCR);
 	/* set baud rate */
@@ -118,6 +125,7 @@ static int debug_port_init(struct platform_device *pdev)
 	found unregistered, so it is disable.
 	hhb@rock-chips.com */
 	rk_fiq_write(t, 0xc1, UART_FCR);
+	rk_fiq_write(t, 0x0, UART_MCR);
 
 	return 0;
 }
