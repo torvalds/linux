@@ -762,7 +762,7 @@ MODULE_DEVICE_TABLE(visorbus, visorinput_channel_types);
 
 MODULE_AUTHOR("Unisys");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("s-Par human input driver for guest Linux");
+MODULE_DESCRIPTION("s-Par human input driver for virtual keyboard/mouse");
 
 MODULE_ALIAS("visorbus:" SPAR_MOUSE_CHANNEL_PROTOCOL_UUID_STR);
 MODULE_ALIAS("visorbus:" SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID_STR);

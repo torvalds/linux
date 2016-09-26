@@ -2096,4 +2096,4 @@ module_exit(visornic_cleanup);
 
 MODULE_AUTHOR("Unisys");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("sPAR nic driver for sparlinux");
+MODULE_DESCRIPTION("s-Par NIC driver for virtual network devices");
