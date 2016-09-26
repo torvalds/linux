@@ -1268,6 +1268,11 @@ static int spi_imx_probe(struct platform_device *pdev)
 		goto out_clk_put;
 	}
 
+	if (!master->cs_gpios) {
+		dev_err(&pdev->dev, "No CS GPIOs available\n");
+		goto out_clk_put;
+	}
+
 	for (i = 0; i < master->num_chipselect; i++) {
 		if (!gpio_is_valid(master->cs_gpios[i]))
 			continue;
