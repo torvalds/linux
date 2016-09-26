@@ -2,6 +2,7 @@
 #include <linux/sched.h>
 #include <linux/sched/sysctl.h>
 #include <linux/sched/rt.h>
+#include <linux/u64_stats_sync.h>
 #include <linux/sched/deadline.h>
 #include <linux/binfmts.h>
 #include <linux/mutex.h>
@@ -1735,52 +1736,28 @@ static inline void nohz_balance_exit_idle(unsigned int cpu) { }
 #endif
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
+struct irqtime {
+	u64			hardirq_time;
+	u64			softirq_time;
+	u64			irq_start_time;
+	struct u64_stats_sync	sync;
+};
 
-DECLARE_PER_CPU(u64, cpu_hardirq_time);
-DECLARE_PER_CPU(u64, cpu_softirq_time);
-
-#ifndef CONFIG_64BIT
-DECLARE_PER_CPU(seqcount_t, irq_time_seq);
-
-static inline void irq_time_write_begin(void)
-{
-	__this_cpu_inc(irq_time_seq.sequence);
-	smp_wmb();
-}
-
-static inline void irq_time_write_end(void)
-{
-	smp_wmb();
-	__this_cpu_inc(irq_time_seq.sequence);
-}
+DECLARE_PER_CPU(struct irqtime, cpu_irqtime);
 
 static inline u64 irq_time_read(int cpu)
 {
-	u64 irq_time;
-	unsigned seq;
+	struct irqtime *irqtime = &per_cpu(cpu_irqtime, cpu);
+	unsigned int seq;
+	u64 total;
 
 	do {
-		seq = read_seqcount_begin(&per_cpu(irq_time_seq, cpu));
-		irq_time = per_cpu(cpu_softirq_time, cpu) +
-			   per_cpu(cpu_hardirq_time, cpu);
-	} while (read_seqcount_retry(&per_cpu(irq_time_seq, cpu), seq));
+		seq = __u64_stats_fetch_begin(&irqtime->sync);
+		total = irqtime->softirq_time + irqtime->hardirq_time;
+	} while (__u64_stats_fetch_retry(&irqtime->sync, seq));
 
-	return irq_time;
+	return total;
 }
-#else /* CONFIG_64BIT */
-static inline void irq_time_write_begin(void)
-{
-}
-
-static inline void irq_time_write_end(void)
-{
-}
-
-static inline u64 irq_time_read(int cpu)
-{
-	return per_cpu(cpu_softirq_time, cpu) + per_cpu(cpu_hardirq_time, cpu);
-}
-#endif /* CONFIG_64BIT */
 #endif /* CONFIG_IRQ_TIME_ACCOUNTING */
 
 #ifdef CONFIG_CPU_FREQ
