@@ -1257,13 +1257,14 @@ static const struct snd_soc_codec_driver soc_codec_dev_cs42l73 = {
 	.set_bias_level = cs42l73_set_bias_level,
 	.suspend_bias_off = true,
 
-	.dapm_widgets = cs42l73_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(cs42l73_dapm_widgets),
-	.dapm_routes = cs42l73_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(cs42l73_audio_map),
-
-	.controls = cs42l73_snd_controls,
-	.num_controls = ARRAY_SIZE(cs42l73_snd_controls),
+	.component_driver = {
+		.controls		= cs42l73_snd_controls,
+		.num_controls		= ARRAY_SIZE(cs42l73_snd_controls),
+		.dapm_widgets		= cs42l73_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(cs42l73_dapm_widgets),
+		.dapm_routes		= cs42l73_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(cs42l73_audio_map),
+	},
 };
 
 static const struct regmap_config cs42l73_regmap = {

@@ -523,10 +523,12 @@ static struct snd_soc_codec_driver soc_codec_dev_uda134x = {
 	.set_bias_level = uda134x_set_bias_level,
 	.suspend_bias_off = true,
 
-	.dapm_widgets = uda134x_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(uda134x_dapm_widgets),
-	.dapm_routes = uda134x_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(uda134x_dapm_routes),
+	.component_driver = {
+		.dapm_widgets		= uda134x_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(uda134x_dapm_widgets),
+		.dapm_routes		= uda134x_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(uda134x_dapm_routes),
+	},
 };
 
 static const struct regmap_config uda134x_regmap_config = {

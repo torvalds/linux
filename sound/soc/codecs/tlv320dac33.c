@@ -1453,12 +1453,14 @@ static struct snd_soc_codec_driver soc_codec_dev_tlv320dac33 = {
 	.probe = dac33_soc_probe,
 	.remove = dac33_soc_remove,
 
-	.controls = dac33_snd_controls,
-	.num_controls = ARRAY_SIZE(dac33_snd_controls),
-	.dapm_widgets = dac33_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(dac33_dapm_widgets),
-	.dapm_routes = audio_map,
-	.num_dapm_routes = ARRAY_SIZE(audio_map),
+	.component_driver = {
+		.controls		= dac33_snd_controls,
+		.num_controls		= ARRAY_SIZE(dac33_snd_controls),
+		.dapm_widgets		= dac33_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(dac33_dapm_widgets),
+		.dapm_routes		= audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(audio_map),
+	},
 };
 
 #define DAC33_RATES	(SNDRV_PCM_RATE_44100 | \

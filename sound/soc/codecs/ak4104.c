@@ -245,10 +245,12 @@ static struct snd_soc_codec_driver soc_codec_device_ak4104 = {
 	.suspend = ak4104_soc_suspend,
 	.resume = ak4104_soc_resume,
 
-	.dapm_widgets = ak4104_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(ak4104_dapm_widgets),
-	.dapm_routes = ak4104_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(ak4104_dapm_routes),
+	.component_driver = {
+		.dapm_widgets		= ak4104_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(ak4104_dapm_widgets),
+		.dapm_routes		= ak4104_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(ak4104_dapm_routes),
+	}
 };
 
 static const struct regmap_config ak4104_regmap = {

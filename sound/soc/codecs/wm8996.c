@@ -2684,18 +2684,20 @@ static int wm8996_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8996 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8996 = {
 	.probe =	wm8996_probe,
 	.remove =	wm8996_remove,
 	.set_bias_level = wm8996_set_bias_level,
 	.idle_bias_off	= true,
 	.seq_notifier = wm8996_seq_notifier,
-	.controls = wm8996_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8996_snd_controls),
-	.dapm_widgets = wm8996_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8996_dapm_widgets),
-	.dapm_routes = wm8996_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm8996_dapm_routes),
+	.component_driver = {
+		.controls		= wm8996_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8996_snd_controls),
+		.dapm_widgets		= wm8996_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8996_dapm_widgets),
+		.dapm_routes		= wm8996_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm8996_dapm_routes),
+	},
 	.set_pll = wm8996_set_fll,
 };
 

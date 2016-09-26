@@ -1302,12 +1302,14 @@ static struct snd_soc_codec_driver soc_codec_dev_rt5616 = {
 	.resume = rt5616_resume,
 	.set_bias_level = rt5616_set_bias_level,
 	.idle_bias_off = true,
-	.controls = rt5616_snd_controls,
-	.num_controls = ARRAY_SIZE(rt5616_snd_controls),
-	.dapm_widgets = rt5616_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(rt5616_dapm_widgets),
-	.dapm_routes = rt5616_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(rt5616_dapm_routes),
+	.component_driver = {
+		.controls		= rt5616_snd_controls,
+		.num_controls		= ARRAY_SIZE(rt5616_snd_controls),
+		.dapm_widgets		= rt5616_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(rt5616_dapm_widgets),
+		.dapm_routes		= rt5616_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(rt5616_dapm_routes),
+	},
 };
 
 static const struct regmap_config rt5616_regmap = {

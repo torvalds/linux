@@ -231,13 +231,14 @@ static const struct snd_soc_dapm_route tfa9879_dapm_routes[] = {
 };
 
 static const struct snd_soc_codec_driver tfa9879_codec = {
-	.controls = tfa9879_controls,
-	.num_controls = ARRAY_SIZE(tfa9879_controls),
-
-	.dapm_widgets = tfa9879_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(tfa9879_dapm_widgets),
-	.dapm_routes = tfa9879_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(tfa9879_dapm_routes),
+	.component_driver = {
+		.controls		= tfa9879_controls,
+		.num_controls		= ARRAY_SIZE(tfa9879_controls),
+		.dapm_widgets		= tfa9879_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(tfa9879_dapm_widgets),
+		.dapm_routes		= tfa9879_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(tfa9879_dapm_routes),
+	},
 };
 
 static const struct regmap_config tfa9879_regmap = {

@@ -1990,7 +1990,7 @@ static struct regmap *wm5102_get_regmap(struct device *dev)
 	return priv->core.arizona->regmap;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm5102 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm5102 = {
 	.probe = wm5102_codec_probe,
 	.remove = wm5102_codec_remove,
 	.get_regmap = wm5102_get_regmap,
@@ -2000,12 +2000,14 @@ static struct snd_soc_codec_driver soc_codec_dev_wm5102 = {
 	.set_sysclk = arizona_set_sysclk,
 	.set_pll = wm5102_set_fll,
 
-	.controls = wm5102_snd_controls,
-	.num_controls = ARRAY_SIZE(wm5102_snd_controls),
-	.dapm_widgets = wm5102_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm5102_dapm_widgets),
-	.dapm_routes = wm5102_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm5102_dapm_routes),
+	.component_driver = {
+		.controls		= wm5102_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm5102_snd_controls),
+		.dapm_widgets		= wm5102_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm5102_dapm_widgets),
+		.dapm_routes		= wm5102_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm5102_dapm_routes),
+	},
 };
 
 static struct snd_compr_ops wm5102_compr_ops = {
