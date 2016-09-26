@@ -199,7 +199,7 @@ static const struct snd_soc_dapm_route tpa6130a2_dapm_routes[] = {
 	{ "Right PGA", NULL, "Power" },
 };
 
-struct snd_soc_component_driver tpa6130a2_component_driver = {
+static const struct snd_soc_component_driver tpa6130a2_component_driver = {
 	.name = "tpa6130a2",
 	.probe = tpa6130a2_component_probe,
 	.dapm_widgets = tpa6130a2_dapm_widgets,
