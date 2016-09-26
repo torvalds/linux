@@ -1,0 +1,118 @@
+/*
+ * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/ {
+	regulators {
+		wlreg_on: fixedregulator@100 {
+			compatible = "regulator-fixed";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-name = "wlreg_on";
+			gpio = <&gpio4 8 0>;
+			startup-delay-us = <100>;
+			enable-active-high;
+		};
+		vcc_sd3: regulator@0 {
+			status = "disabled";
+		};
+
+	};
+
+	bcmdhd_wlan_0: bcmdhd_wlan@0 {
+		compatible = "android,bcmdhd_wlan";
+		wlreg_on-supply = <&wlreg_on>;
+	};
+};
+
+&iomuxc {
+	imx6sxscm-evb-murata-v2_rc {
+		pinctrl_bt: btgrp {
+			fsl,pins = <
+				MX6SX_PAD_NAND_DATA05__GPIO4_IO_9	0x13069
+			>;
+		};
+
+		pinctrl_uart6: uart6grp {
+			fsl,pins = <
+				MX6SX_PAD_KEY_COL1__UART6_TX		0x1b0b1
+				MX6SX_PAD_KEY_ROW1__UART6_RX		0x1b0b1
+				MX6SX_PAD_KEY_COL0__UART6_RTS_B		0x1b0b1
+				MX6SX_PAD_KEY_ROW0__UART6_CTS_B		0x1b0b1
+			>;
+		};
+
+		pinctrl_usdhc3_1: usdhc3grp-1 {
+			fsl,pins = <
+				MX6SX_PAD_SD3_CMD__USDHC3_CMD		0x17069
+				MX6SX_PAD_SD3_CLK__USDHC3_CLK		0x10071
+				MX6SX_PAD_SD3_DATA0__USDHC3_DATA0	0x17069
+				MX6SX_PAD_SD3_DATA1__USDHC3_DATA1	0x17069
+				MX6SX_PAD_SD3_DATA2__USDHC3_DATA2	0x17069
+				MX6SX_PAD_SD3_DATA3__USDHC3_DATA3	0x17069
+			>;
+		};
+
+		pinctrl_usdhc3_1_100mhz: usdhc3grp-1-100mhz {
+			fsl,pins = <
+				MX6SX_PAD_SD3_CMD__USDHC3_CMD		0x170b9
+				MX6SX_PAD_SD3_CLK__USDHC3_CLK		0x100b9
+				MX6SX_PAD_SD3_DATA0__USDHC3_DATA0	0x170b9
+				MX6SX_PAD_SD3_DATA1__USDHC3_DATA1	0x170b9
+				MX6SX_PAD_SD3_DATA2__USDHC3_DATA2	0x170b9
+				MX6SX_PAD_SD3_DATA3__USDHC3_DATA3	0x170b9
+			>;
+		};
+
+		pinctrl_usdhc3_1_200mhz: usdhc3grp-1-200mhz {
+			fsl,pins = <
+				MX6SX_PAD_SD3_CMD__USDHC3_CMD		0x170f9
+				MX6SX_PAD_SD3_CLK__USDHC3_CLK		0x100f9
+				MX6SX_PAD_SD3_DATA0__USDHC3_DATA0	0x170f9
+				MX6SX_PAD_SD3_DATA1__USDHC3_DATA1	0x170f9
+				MX6SX_PAD_SD3_DATA2__USDHC3_DATA2	0x170f9
+				MX6SX_PAD_SD3_DATA3__USDHC3_DATA3	0x170f9
+			>;
+		};
+
+		/* For Murata, SD to 4-bit SDIO; use upper 4-bits for UART */
+		pinctrl_wifi: wifigrp {
+			fsl,pins = <
+				MX6SX_PAD_SD2_CMD__USDHC2_CMD		0x17069
+				MX6SX_PAD_SD2_CLK__USDHC2_CLK		0x10071
+				MX6SX_PAD_SD2_DATA0__USDHC2_DATA0	0x17069
+				MX6SX_PAD_SD2_DATA1__USDHC2_DATA1	0x17069
+				MX6SX_PAD_SD2_DATA2__USDHC2_DATA2	0x17069
+				MX6SX_PAD_SD2_DATA3__USDHC2_DATA3	0x17069
+				/* Murata Module control signals */
+				MX6SX_PAD_NAND_DATA04__GPIO4_IO_8	0x13069
+			>;
+		};
+	};
+};
+
+&uart6 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart6
+		     &pinctrl_bt>;
+	fsl,uart-has-rtscts;
+	status = "okay";
+};
+
+&usdhc2 {
+	pinctrl-0 = <&pinctrl_wifi>;
+	bus-width = <4>;
+};
+
+&usdhc3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc3_1>;
+	pinctrl-1 = <&pinctrl_usdhc3_1_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc3_1_200mhz>;
+	bus-width = <4>;
+};
+

@@ -1,0 +1,34 @@
+/*
+ * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx6sxscm-evb.dts"
+
+&cpu0 {
+	operating-points = <
+		/* kHz    uV */
+		996000  1250000
+		792000  1175000
+		396000  1075000
+		198000	975000
+		>;
+	fsl,soc-operating-points = <
+		/* ARM kHz      SOC uV */
+		996000	1175000
+		792000	1175000
+		396000	1175000
+		198000	1175000
+	>;
+	arm-supply = <&reg_arm>;
+	soc-supply = <&reg_soc>;
+	fsl,arm-soc-shared = <0>;
+};
+
+&gpc {
+	/* use ldo-enable, u-boot will check it and configure */
+	fsl,ldo-bypass = <0>;
+};
