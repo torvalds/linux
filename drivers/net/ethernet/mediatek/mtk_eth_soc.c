@@ -1374,6 +1374,7 @@ static void mtk_hwlro_rx_uninit(struct mtk_eth *eth)
 			msleep(20);
 			continue;
 		}
+		break;
 	}
 
 	/* invalidate lro rings */
