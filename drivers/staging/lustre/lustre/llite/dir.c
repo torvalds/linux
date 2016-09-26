@@ -620,6 +620,10 @@ int ll_dir_getstripe(struct inode *inode, void **plmm, int *plmm_size,
 		if (cpu_to_le32(LOV_MAGIC) != LOV_MAGIC)
 			lustre_swab_lov_user_md_v3((struct lov_user_md_v3 *)lmm);
 		break;
+	case LMV_MAGIC_V1:
+		if (cpu_to_le32(LMV_MAGIC) != LMV_MAGIC)
+			lustre_swab_lmv_mds_md((union lmv_mds_md *)lmm);
+		break;
 	case LMV_USER_MAGIC:
 		if (cpu_to_le32(LMV_USER_MAGIC) != LMV_USER_MAGIC)
 			lustre_swab_lmv_user_md((struct lmv_user_md *)lmm);

@@ -1861,6 +1861,7 @@ void lustre_swab_lmv_mds_md(union lmv_mds_md *lmm)
 		break;
 	}
 }
+EXPORT_SYMBOL(lustre_swab_lmv_mds_md);
 
 void lustre_swab_lmv_user_md(struct lmv_user_md *lum)
 {
