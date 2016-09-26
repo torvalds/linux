@@ -233,9 +233,9 @@ static int ks_wlan_set_freq(struct net_device *dev,
 		/* We should do a better check than that,
 		 * based on the card capability !!! */
 		if ((channel < 1) || (channel > 14)) {
-			printk(KERN_DEBUG
-			       "%s: New channel value of %d is invalid!\n",
-			       dev->name, fwrq->m);
+			netdev_dbg(dev,
+				   "%s: New channel value of %d is invalid!\n",
+				   dev->name, fwrq->m);
 			rc = -EINVAL;
 		} else {
 			/* Yes ! We can set it !!! */
@@ -2671,17 +2671,17 @@ static int ks_wlan_set_sleep_mode(struct net_device *dev,
 
 	if (*uwrq == SLP_SLEEP) {
 		priv->sleep_mode = *uwrq;
-		printk("SET_SLEEP_MODE %d\n", priv->sleep_mode);
+		netdev_info(dev, "SET_SLEEP_MODE %d\n", priv->sleep_mode);
 
 		hostif_sme_enqueue(priv, SME_STOP_REQUEST);
 		hostif_sme_enqueue(priv, SME_SLEEP_REQUEST);
 
 	} else if (*uwrq == SLP_ACTIVE) {
 		priv->sleep_mode = *uwrq;
-		printk("SET_SLEEP_MODE %d\n", priv->sleep_mode);
+		netdev_info(dev, "SET_SLEEP_MODE %d\n", priv->sleep_mode);
 		hostif_sme_enqueue(priv, SME_SLEEP_REQUEST);
 	} else {
-		printk("SET_SLEEP_MODE %d errror\n", *uwrq);
+		netdev_err(dev, "SET_SLEEP_MODE %d errror\n", *uwrq);
 		return -EINVAL;
 	}
 
@@ -2783,7 +2783,7 @@ static int ks_wlan_get_wps_enable(struct net_device *dev,
 	}
 	/* for SLEEP MODE */
 	*uwrq = priv->wps.wps_enabled;
-	printk("return=%d\n", *uwrq);
+	netdev_info(dev, "return=%d\n", *uwrq);
 
 	return 0;
 }
@@ -3330,7 +3330,7 @@ int ks_wlan_set_mac_address(struct net_device *dev, void *addr)
 
 	priv->mac_address_valid = 0;
 	hostif_sme_enqueue(priv, SME_MACADDRESS_SET_REQUEST);
-	printk(KERN_INFO
+	netdev_info(dev,
 	       "ks_wlan: MAC ADDRESS = %02x:%02x:%02x:%02x:%02x:%02x\n",
 	       priv->eth_addr[0], priv->eth_addr[1], priv->eth_addr[2],
 	       priv->eth_addr[3], priv->eth_addr[4], priv->eth_addr[5]);
@@ -3360,7 +3360,7 @@ int ks_wlan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	DPRINTK(3, "in_interrupt()=%ld\n", in_interrupt());
 
 	if (!skb) {
-		printk(KERN_ERR "ks_wlan:  skb == NULL!!!\n");
+		netdev_err(dev, "ks_wlan:  skb == NULL!!!\n");
 		return 0;
 	}
 	if (priv->dev_state < DEVICE_STATE_READY) {
@@ -3424,7 +3424,7 @@ int ks_wlan_open(struct net_device *dev)
 	priv->cur_rx = 0;
 
 	if (!priv->mac_address_valid) {
-		printk(KERN_ERR "ks_wlan : %s Not READY !!\n", dev->name);
+		netdev_err(dev, "ks_wlan : %s Not READY !!\n", dev->name);
 		return -EBUSY;
 	} else
 		netif_start_queue(dev);
