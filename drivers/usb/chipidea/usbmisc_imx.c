@@ -53,6 +53,9 @@
 #define MX53_USB_CTRL_1_H3_XCVR_CLK_SEL_ULPI BIT(6)
 #define MX53_USB_UH2_CTRL_OFFSET	0x14
 #define MX53_USB_UH3_CTRL_OFFSET	0x18
+#define MX53_USB_CLKONOFF_CTRL_OFFSET	0x24
+#define MX53_USB_CLKONOFF_CTRL_H2_INT60CKOFF BIT(21)
+#define MX53_USB_CLKONOFF_CTRL_H3_INT60CKOFF BIT(22)
 #define MX53_BM_OVER_CUR_DIS_H1		BIT(5)
 #define MX53_BM_OVER_CUR_DIS_OTG	BIT(8)
 #define MX53_BM_OVER_CUR_DIS_UHx	BIT(30)
@@ -239,6 +242,10 @@ static int usbmisc_imx53_init(struct imx_usbmisc_data *data)
 			val = readl(reg) | MX53_USB_UHx_CTRL_WAKE_UP_EN
 				| MX53_USB_UHx_CTRL_ULPI_INT_EN;
 			writel(val, reg);
+			/* Disable internal 60Mhz clock */
+			reg = usbmisc->base + MX53_USB_CLKONOFF_CTRL_OFFSET;
+			val = readl(reg) | MX53_USB_CLKONOFF_CTRL_H2_INT60CKOFF;
+			writel(val, reg);
 		}
 		if (data->disable_oc) {
 			reg = usbmisc->base + MX53_USB_UH2_CTRL_OFFSET;
@@ -259,6 +266,10 @@ static int usbmisc_imx53_init(struct imx_usbmisc_data *data)
 			reg = usbmisc->base + MX53_USB_UH3_CTRL_OFFSET;
 			val = readl(reg) | MX53_USB_UHx_CTRL_WAKE_UP_EN
 				| MX53_USB_UHx_CTRL_ULPI_INT_EN;
+			writel(val, reg);
+			/* Disable internal 60Mhz clock */
+			reg = usbmisc->base + MX53_USB_CLKONOFF_CTRL_OFFSET;
+			val = readl(reg) | MX53_USB_CLKONOFF_CTRL_H3_INT60CKOFF;
 			writel(val, reg);
 		}
 		if (data->disable_oc) {
