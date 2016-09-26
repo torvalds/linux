@@ -408,6 +408,9 @@ struct ath10k_hw_params {
 	bool sw_decrypt_mcast_mgmt;
 
 	const struct ath10k_hw_ops *hw_ops;
+
+	/* Number of bytes used for alignment in rx_hdr_status of rx desc. */
+	int decap_align_bytes;
 };
 
 struct htt_rx_desc;

@@ -68,6 +68,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_ext_size = QCA988X_BOARD_EXT_DATA_SZ,
 		},
 		.hw_ops = &qca988x_ops,
+		.decap_align_bytes = 4,
 	},
 	{
 		.id = QCA9887_HW_1_0_VERSION,
@@ -87,6 +88,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_ext_size = QCA9887_BOARD_EXT_DATA_SZ,
 		},
 		.hw_ops = &qca988x_ops,
+		.decap_align_bytes = 4,
 	},
 	{
 		.id = QCA6174_HW_2_1_VERSION,
@@ -105,6 +107,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_ext_size = QCA6174_BOARD_EXT_DATA_SZ,
 		},
 		.hw_ops = &qca988x_ops,
+		.decap_align_bytes = 4,
 	},
 	{
 		.id = QCA6174_HW_2_1_VERSION,
@@ -123,6 +126,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_ext_size = QCA6174_BOARD_EXT_DATA_SZ,
 		},
 		.hw_ops = &qca988x_ops,
+		.decap_align_bytes = 4,
 	},
 	{
 		.id = QCA6174_HW_3_0_VERSION,
@@ -141,6 +145,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_ext_size = QCA6174_BOARD_EXT_DATA_SZ,
 		},
 		.hw_ops = &qca988x_ops,
+		.decap_align_bytes = 4,
 	},
 	{
 		.id = QCA6174_HW_3_2_VERSION,
@@ -160,6 +165,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_ext_size = QCA6174_BOARD_EXT_DATA_SZ,
 		},
 		.hw_ops = &qca988x_ops,
+		.decap_align_bytes = 4,
 	},
 	{
 		.id = QCA99X0_HW_2_0_DEV_VERSION,
@@ -184,6 +190,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		},
 		.sw_decrypt_mcast_mgmt = true,
 		.hw_ops = &qca99x0_ops,
+		.decap_align_bytes = 1,
 	},
 	{
 		.id = QCA9984_HW_1_0_DEV_VERSION,
@@ -208,6 +215,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		},
 		.sw_decrypt_mcast_mgmt = true,
 		.hw_ops = &qca99x0_ops,
+		.decap_align_bytes = 1,
 	},
 	{
 		.id = QCA9888_HW_2_0_DEV_VERSION,
@@ -231,6 +239,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		},
 		.sw_decrypt_mcast_mgmt = true,
 		.hw_ops = &qca99x0_ops,
+		.decap_align_bytes = 1,
 	},
 	{
 		.id = QCA9377_HW_1_0_DEV_VERSION,
@@ -249,6 +258,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_ext_size = QCA9377_BOARD_EXT_DATA_SZ,
 		},
 		.hw_ops = &qca988x_ops,
+		.decap_align_bytes = 4,
 	},
 	{
 		.id = QCA9377_HW_1_1_DEV_VERSION,
@@ -267,6 +277,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_ext_size = QCA9377_BOARD_EXT_DATA_SZ,
 		},
 		.hw_ops = &qca988x_ops,
+		.decap_align_bytes = 4,
 	},
 	{
 		.id = QCA4019_HW_1_0_DEV_VERSION,
@@ -292,6 +303,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		},
 		.sw_decrypt_mcast_mgmt = true,
 		.hw_ops = &qca99x0_ops,
+		.decap_align_bytes = 1,
 	},
 };
 
