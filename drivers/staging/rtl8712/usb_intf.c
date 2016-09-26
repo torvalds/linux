@@ -369,7 +369,7 @@ static const struct device_type wlan_type = {
  *
  * notes: drv_init() is called when the bus driver has located a card for us
  * to support. We accept the new device by returning 0.
-*/
+ */
 static int r871xu_drv_init(struct usb_interface *pusb_intf,
 			   const struct usb_device_id *pdid)
 {
