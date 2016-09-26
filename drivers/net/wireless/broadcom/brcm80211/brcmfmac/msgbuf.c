@@ -782,8 +782,8 @@ static int brcmf_msgbuf_schedule_txdata(struct brcmf_msgbuf *msgbuf, u32 flowid,
 }
 
 
-static int brcmf_msgbuf_txdata(struct brcmf_pub *drvr, int ifidx,
-			       u8 offset, struct sk_buff *skb)
+static int brcmf_msgbuf_tx_queue_data(struct brcmf_pub *drvr, int ifidx,
+				      struct sk_buff *skb)
 {
 	struct brcmf_msgbuf *msgbuf = (struct brcmf_msgbuf *)drvr->proto->pd;
 	struct brcmf_flowring *flow = msgbuf->flow;
@@ -1467,7 +1467,7 @@ int brcmf_proto_msgbuf_attach(struct brcmf_pub *drvr)
 	drvr->proto->hdrpull = brcmf_msgbuf_hdrpull;
 	drvr->proto->query_dcmd = brcmf_msgbuf_query_dcmd;
 	drvr->proto->set_dcmd = brcmf_msgbuf_set_dcmd;
-	drvr->proto->txdata = brcmf_msgbuf_txdata;
+	drvr->proto->tx_queue_data = brcmf_msgbuf_tx_queue_data;
 	drvr->proto->configure_addr_mode = brcmf_msgbuf_configure_addr_mode;
 	drvr->proto->delete_peer = brcmf_msgbuf_delete_peer;
 	drvr->proto->add_tdls_peer = brcmf_msgbuf_add_tdls_peer;
