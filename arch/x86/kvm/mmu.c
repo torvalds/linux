@@ -1660,17 +1660,9 @@ int kvm_age_hva(struct kvm *kvm, unsigned long start, unsigned long end)
 	 * This has some overhead, but not as much as the cost of swapping
 	 * out actively used pages or breaking up actively used hugepages.
 	 */
-	if (!shadow_accessed_mask) {
-		/*
-		 * We are holding the kvm->mmu_lock, and we are blowing up
-		 * shadow PTEs. MMU notifier consumers need to be kept at bay.
-		 * This is correct as long as we don't decouple the mmu_lock
-		 * protected regions (like invalidate_range_start|end does).
-		 */
-		kvm->mmu_notifier_seq++;
+	if (!shadow_accessed_mask)
 		return kvm_handle_hva_range(kvm, start, end, 0,
 					    kvm_unmap_rmapp);
-	}
 
 	return kvm_handle_hva_range(kvm, start, end, 0, kvm_age_rmapp);
 }
