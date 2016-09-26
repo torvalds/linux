@@ -438,13 +438,14 @@ static void omap_crtc_atomic_flush(struct drm_crtc *crtc,
 	}
 }
 
-static bool omap_crtc_is_plane_prop(struct drm_device *dev,
+static bool omap_crtc_is_plane_prop(struct drm_crtc *crtc,
 	struct drm_property *property)
 {
+	struct drm_device *dev = crtc->dev;
 	struct omap_drm_private *priv = dev->dev_private;
 
 	return property == priv->zorder_prop ||
-		property == dev->mode_config.rotation_property;
+		property == crtc->primary->rotation_property;
 }
 
 static int omap_crtc_atomic_set_property(struct drm_crtc *crtc,
@@ -452,9 +453,7 @@ static int omap_crtc_atomic_set_property(struct drm_crtc *crtc,
 					 struct drm_property *property,
 					 uint64_t val)
 {
-	struct drm_device *dev = crtc->dev;
-
-	if (omap_crtc_is_plane_prop(dev, property)) {
+	if (omap_crtc_is_plane_prop(crtc, property)) {
 		struct drm_plane_state *plane_state;
 		struct drm_plane *plane = crtc->primary;
 
@@ -479,9 +478,7 @@ static int omap_crtc_atomic_get_property(struct drm_crtc *crtc,
 					 struct drm_property *property,
 					 uint64_t *val)
 {
-	struct drm_device *dev = crtc->dev;
-
-	if (omap_crtc_is_plane_prop(dev, property)) {
+	if (omap_crtc_is_plane_prop(crtc, property)) {
 		/*
 		 * Delegate property get to the primary plane. The
 		 * drm_atomic_plane_get_property() function isn't exported, but

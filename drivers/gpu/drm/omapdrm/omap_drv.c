@@ -293,16 +293,6 @@ static int omap_modeset_init_properties(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 
-	if (priv->has_dmm) {
-		dev->mode_config.rotation_property =
-			drm_mode_create_rotation_property(dev,
-				DRM_ROTATE_0 | DRM_ROTATE_90 |
-				DRM_ROTATE_180 | DRM_ROTATE_270 |
-				DRM_REFLECT_X | DRM_REFLECT_Y);
-		if (!dev->mode_config.rotation_property)
-			return -ENOMEM;
-	}
-
 	priv->zorder_prop = drm_property_create_range(dev, 0, "zorder", 0, 3);
 	if (!priv->zorder_prop)
 		return -ENOMEM;
@@ -753,24 +743,32 @@ static void dev_lastclose(struct drm_device *dev)
 
 	DBG("lastclose: dev=%p", dev);
 
-	if (dev->mode_config.rotation_property) {
-		/* need to restore default rotation state.. not sure
-		 * if there is a cleaner way to restore properties to
-		 * default state?  Maybe a flag that properties should
-		 * automatically be restored to default state on
-		 * lastclose?
-		 */
-		for (i = 0; i < priv->num_crtcs; i++) {
-			drm_object_property_set_value(&priv->crtcs[i]->base,
-					dev->mode_config.rotation_property,
-					DRM_ROTATE_0);
-		}
+	/* need to restore default rotation state.. not sure
+	 * if there is a cleaner way to restore properties to
+	 * default state?  Maybe a flag that properties should
+	 * automatically be restored to default state on
+	 * lastclose?
+	 */
+	for (i = 0; i < priv->num_crtcs; i++) {
+		struct drm_crtc *crtc = priv->crtcs[i];
 
-		for (i = 0; i < priv->num_planes; i++) {
-			drm_object_property_set_value(&priv->planes[i]->base,
-					dev->mode_config.rotation_property,
-					DRM_ROTATE_0);
-		}
+		if (!crtc->primary->rotation_property)
+			continue;
+
+		drm_object_property_set_value(&crtc->base,
+					      crtc->primary->rotation_property,
+					      DRM_ROTATE_0);
+	}
+
+	for (i = 0; i < priv->num_planes; i++) {
+		struct drm_plane *plane = priv->planes[i];
+
+		if (!plane->rotation_property)
+			continue;
+
+		drm_object_property_set_value(&plane->base,
+					      plane->rotation_property,
+					      DRM_ROTATE_0);
 	}
 
 	if (priv->fbdev) {
