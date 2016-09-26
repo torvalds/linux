@@ -9510,6 +9510,24 @@ static void ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 	if (intel_crtc_has_dp_encoder(crtc_state))
 		dpll |= DPLL_SDVO_HIGH_SPEED;
 
+	/*
+	 * The high speed IO clock is only really required for
+	 * SDVO/HDMI/DP, but we also enable it for CRT to make it
+	 * possible to share the DPLL between CRT and HDMI. Enabling
+	 * the clock needlessly does no real harm, except use up a
+	 * bit of power potentially.
+	 *
+	 * We'll limit this to IVB with 3 pipes, since it has only two
+	 * DPLLs and so DPLL sharing is the only way to get three pipes
+	 * driving PCH ports at the same time. On SNB we could do this,
+	 * and potentially avoid enabling the second DPLL, but it's not
+	 * clear if it''s a win or loss power wise. No point in doing
+	 * this on ILK at all since it has a fixed DPLL<->pipe mapping.
+	 */
+	if (INTEL_INFO(dev_priv)->num_pipes == 3 &&
+	    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_ANALOG))
+		dpll |= DPLL_SDVO_HIGH_SPEED;
+
 	/* compute bitmask from p1 value */
 	dpll |= (1 << (crtc_state->dpll.p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
 	/* also FPA1 */
