@@ -73,6 +73,7 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/vmalloc.h>
+#include <linux/notifier.h>
 #include <net/net_namespace.h>
 #include <net/ip.h>
 #include <net/protocol.h>
@@ -83,6 +84,44 @@
 #include <net/switchdev.h>
 #include <trace/events/fib.h>
 #include "fib_lookup.h"
+
+static BLOCKING_NOTIFIER_HEAD(fib_chain);
+
+int register_fib_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&fib_chain, nb);
+}
+EXPORT_SYMBOL(register_fib_notifier);
+
+int unregister_fib_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&fib_chain, nb);
+}
+EXPORT_SYMBOL(unregister_fib_notifier);
+
+int call_fib_notifiers(struct net *net, enum fib_event_type event_type,
+		       struct fib_notifier_info *info)
+{
+	info->net = net;
+	return blocking_notifier_call_chain(&fib_chain, event_type, info);
+}
+
+static int call_fib_entry_notifiers(struct net *net,
+				    enum fib_event_type event_type, u32 dst,
+				    int dst_len, struct fib_info *fi,
+				    u8 tos, u8 type, u32 tb_id, u32 nlflags)
+{
+	struct fib_entry_notifier_info info = {
+		.dst = dst,
+		.dst_len = dst_len,
+		.fi = fi,
+		.tos = tos,
+		.type = type,
+		.tb_id = tb_id,
+		.nlflags = nlflags,
+	};
+	return call_fib_notifiers(net, event_type, &info.info);
+}
 
 #define MAX_STAT_DEPTH 32
 
@@ -1076,7 +1115,8 @@ static int fib_insert_alias(struct trie *t, struct key_vector *tp,
 }
 
 /* Caller must hold RTNL. */
-int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
+int fib_table_insert(struct net *net, struct fib_table *tb,
+		     struct fib_config *cfg)
 {
 	struct trie *t = (struct trie *)tb->tb_data;
 	struct fib_alias *fa, *new_fa;
@@ -1193,6 +1233,11 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 			fib_release_info(fi_drop);
 			if (state & FA_S_ACCESSED)
 				rt_cache_flush(cfg->fc_nlinfo.nl_net);
+
+			call_fib_entry_notifiers(net, FIB_EVENT_ENTRY_ADD,
+						 key, plen, fi,
+						 new_fa->fa_tos, cfg->fc_type,
+						 tb->tb_id, cfg->fc_nlflags);
 			rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen,
 				tb->tb_id, &cfg->fc_nlinfo, nlflags);
 
@@ -1245,6 +1290,8 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 		tb->tb_num_default++;
 
 	rt_cache_flush(cfg->fc_nlinfo.nl_net);
+	call_fib_entry_notifiers(net, FIB_EVENT_ENTRY_ADD, key, plen, fi, tos,
+				 cfg->fc_type, tb->tb_id, cfg->fc_nlflags);
 	rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen, new_fa->tb_id,
 		  &cfg->fc_nlinfo, nlflags);
 succeeded:
@@ -1490,7 +1537,8 @@ static void fib_remove_alias(struct trie *t, struct key_vector *tp,
 }
 
 /* Caller must hold RTNL. */
-int fib_table_delete(struct fib_table *tb, struct fib_config *cfg)
+int fib_table_delete(struct net *net, struct fib_table *tb,
+		     struct fib_config *cfg)
 {
 	struct trie *t = (struct trie *) tb->tb_data;
 	struct fib_alias *fa, *fa_to_delete;
@@ -1546,6 +1594,9 @@ int fib_table_delete(struct fib_table *tb, struct fib_config *cfg)
 	switchdev_fib_ipv4_del(key, plen, fa_to_delete->fa_info, tos,
 			       cfg->fc_type, tb->tb_id);
 
+	call_fib_entry_notifiers(net, FIB_EVENT_ENTRY_DEL, key, plen,
+				 fa_to_delete->fa_info, tos, cfg->fc_type,
+				 tb->tb_id, 0);
 	rtmsg_fib(RTM_DELROUTE, htonl(key), fa_to_delete, plen, tb->tb_id,
 		  &cfg->fc_nlinfo, 0);
 
@@ -1809,7 +1860,7 @@ void fib_table_flush_external(struct fib_table *tb)
 }
 
 /* Caller must hold RTNL. */
-int fib_table_flush(struct fib_table *tb)
+int fib_table_flush(struct net *net, struct fib_table *tb)
 {
 	struct trie *t = (struct trie *)tb->tb_data;
 	struct key_vector *pn = t->kv;
@@ -1861,6 +1912,11 @@ int fib_table_flush(struct fib_table *tb)
 			switchdev_fib_ipv4_del(n->key, KEYLENGTH - fa->fa_slen,
 					       fi, fa->fa_tos, fa->fa_type,
 					       tb->tb_id);
+			call_fib_entry_notifiers(net, FIB_EVENT_ENTRY_DEL,
+						 n->key,
+						 KEYLENGTH - fa->fa_slen,
+						 fi, fa->fa_tos, fa->fa_type,
+						 tb->tb_id, 0);
 			hlist_del_rcu(&fa->fa_list);
 			fib_release_info(fa->fa_info);
 			alias_free_mem_rcu(fa);
