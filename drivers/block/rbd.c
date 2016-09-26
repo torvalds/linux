@@ -1819,6 +1819,22 @@ static void rbd_obj_request_complete(struct rbd_obj_request *obj_request)
 		complete_all(&obj_request->completion);
 }
 
+static void rbd_obj_request_error(struct rbd_obj_request *obj_request, int err)
+{
+	obj_request->result = err;
+	obj_request->xferred = 0;
+	/*
+	 * kludge - mirror rbd_obj_request_submit() to match a put in
+	 * rbd_img_obj_callback()
+	 */
+	if (obj_request_img_data_test(obj_request)) {
+		WARN_ON(obj_request->callback != rbd_img_obj_callback);
+		rbd_img_request_get(obj_request->img_request);
+	}
+	obj_request_done_set(obj_request);
+	rbd_obj_request_complete(obj_request);
+}
+
 static void rbd_osd_read_callback(struct rbd_obj_request *obj_request)
 {
 	struct rbd_img_request *img_request = NULL;
@@ -2722,11 +2738,7 @@ rbd_img_obj_parent_read_full_callback(struct rbd_img_request *img_request)
 
 out_err:
 	ceph_release_page_vector(pages, page_count);
-	orig_request->result = img_result;
-	orig_request->xferred = 0;
-	rbd_img_request_get(orig_request->img_request);
-	obj_request_done_set(orig_request);
-	rbd_obj_request_complete(orig_request);
+	rbd_obj_request_error(orig_request, img_result);
 }
 
 /*
@@ -2877,11 +2889,7 @@ static void rbd_img_obj_exists_callback(struct rbd_obj_request *obj_request)
 	return;
 
 fail_orig_request:
-	orig_request->result = result;
-	orig_request->xferred = 0;
-	rbd_img_request_get(orig_request->img_request);
-	obj_request_done_set(orig_request);
-	rbd_obj_request_complete(orig_request);
+	rbd_obj_request_error(orig_request, result);
 }
 
 static int rbd_img_obj_exists_submit(struct rbd_obj_request *obj_request)
