@@ -821,6 +821,12 @@ struct iwl_mvm {
 	/* UMAC scan tracking */
 	u32 scan_uid_status[IWL_MVM_MAX_UMAC_SCANS];
 
+	/* start time of last scan in TSF of the mac that requested the scan */
+	u64 scan_start;
+
+	/* the vif that requested the current scan */
+	struct iwl_mvm_vif *scan_vif;
+
 	/* rx chain antennas set through debugfs for the scan command */
 	u8 scan_rx_ant;
 
@@ -1262,6 +1268,7 @@ u8 iwl_mvm_mac80211_idx_to_hwrate(int rate_idx);
 void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm);
 u8 first_antenna(u8 mask);
 u8 iwl_mvm_next_antenna(struct iwl_mvm *mvm, u8 valid, u8 last_idx);
+void iwl_mvm_get_sync_time(struct iwl_mvm *mvm, u32 *gp2, u64 *boottime);
 
 /* Tx / Host Commands */
 int __must_check iwl_mvm_send_cmd(struct iwl_mvm *mvm,

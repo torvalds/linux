@@ -1605,24 +1605,22 @@ static int iwl_pcie_init_msix_handler(struct pci_dev *pdev,
 
 	for (i = 0; i < trans_pcie->alloc_vecs; i++) {
 		int ret;
+		struct msix_entry *msix_entry;
 
-		ret = request_threaded_irq(trans_pcie->msix_entries[i].vector,
-					   iwl_pcie_msix_isr,
-					   (i == trans_pcie->def_irq) ?
-					   iwl_pcie_irq_msix_handler :
-					   iwl_pcie_irq_rx_msix_handler,
-					   IRQF_SHARED,
-					   DRV_NAME,
-					   &trans_pcie->msix_entries[i]);
+		msix_entry = &trans_pcie->msix_entries[i];
+		ret = devm_request_threaded_irq(&pdev->dev,
+						msix_entry->vector,
+						iwl_pcie_msix_isr,
+						(i == trans_pcie->def_irq) ?
+						iwl_pcie_irq_msix_handler :
+						iwl_pcie_irq_rx_msix_handler,
+						IRQF_SHARED,
+						DRV_NAME,
+						msix_entry);
 		if (ret) {
-			int j;
-
 			IWL_ERR(trans_pcie->trans,
 				"Error allocating IRQ %d\n", i);
-			for (j = 0; j < i; j++)
-				free_irq(trans_pcie->msix_entries[j].vector,
-					 &trans_pcie->msix_entries[j]);
-			pci_disable_msix(pdev);
+
 			return ret;
 		}
 	}
@@ -1755,7 +1753,6 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 	trans_pcie->rx_page_order =
 		iwl_trans_get_rb_size_order(trans_pcie->rx_buf_size);
 
-	trans_pcie->wide_cmd_header = trans_cfg->wide_cmd_header;
 	trans_pcie->bc_table_dword = trans_cfg->bc_table_dword;
 	trans_pcie->scd_set_active = trans_cfg->scd_set_active;
 	trans_pcie->sw_csum_tx = trans_cfg->sw_csum_tx;
@@ -1790,23 +1787,12 @@ void iwl_trans_pcie_free(struct iwl_trans *trans)
 			irq_set_affinity_hint(
 				trans_pcie->msix_entries[i].vector,
 				NULL);
-
-			free_irq(trans_pcie->msix_entries[i].vector,
-				 &trans_pcie->msix_entries[i]);
 		}
 
-		pci_disable_msix(trans_pcie->pci_dev);
 		trans_pcie->msix_enabled = false;
 	} else {
-		free_irq(trans_pcie->pci_dev->irq, trans);
-
 		iwl_pcie_free_ict(trans);
-
-		pci_disable_msi(trans_pcie->pci_dev);
 	}
-	iounmap(trans_pcie->hw_base);
-	pci_release_regions(trans_pcie->pci_dev);
-	pci_disable_device(trans_pcie->pci_dev);
 
 	iwl_pcie_free_fw_monitor(trans);
 
@@ -2913,6 +2899,10 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	struct iwl_trans *trans;
 	int ret, addr_size;
 
+	ret = pcim_enable_device(pdev);
+	if (ret)
+		return ERR_PTR(ret);
+
 	trans = iwl_trans_alloc(sizeof(struct iwl_trans_pcie),
 				&pdev->dev, cfg, &trans_ops_pcie, 0);
 	if (!trans)
@@ -2931,9 +2921,6 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		goto out_no_pci;
 	}
 
-	ret = pci_enable_device(pdev);
-	if (ret)
-		goto out_no_pci;
 
 	if (!cfg->base_params->pcie_l1_allowed) {
 		/*
@@ -2953,7 +2940,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 	if (cfg->use_tfh) {
 		trans_pcie->max_tbs = IWL_TFH_NUM_TBS;
-		trans_pcie->tfd_size = sizeof(struct iwl_tfh_tb);
+		trans_pcie->tfd_size = sizeof(struct iwl_tfh_tfd);
 
 	} else {
 		trans_pcie->max_tbs = IWL_NUM_OF_TBS;
@@ -2975,21 +2962,21 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		/* both attempts failed: */
 		if (ret) {
 			dev_err(&pdev->dev, "No suitable DMA available\n");
-			goto out_pci_disable_device;
+			goto out_no_pci;
 		}
 	}
 
-	ret = pci_request_regions(pdev, DRV_NAME);
+	ret = pcim_iomap_regions_request_all(pdev, BIT(0), DRV_NAME);
 	if (ret) {
-		dev_err(&pdev->dev, "pci_request_regions failed\n");
-		goto out_pci_disable_device;
+		dev_err(&pdev->dev, "pcim_iomap_regions_request_all failed\n");
+		goto out_no_pci;
 	}
 
-	trans_pcie->hw_base = pci_ioremap_bar(pdev, 0);
+	trans_pcie->hw_base = pcim_iomap_table(pdev)[0];
 	if (!trans_pcie->hw_base) {
-		dev_err(&pdev->dev, "pci_ioremap_bar failed\n");
+		dev_err(&pdev->dev, "pcim_iomap_table failed\n");
 		ret = -ENODEV;
-		goto out_pci_release_regions;
+		goto out_no_pci;
 	}
 
 	/* We disable the RETRY_TIMEOUT register (0x41) to keep
@@ -3016,7 +3003,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		ret = iwl_pcie_prepare_card_hw(trans);
 		if (ret) {
 			IWL_WARN(trans, "Exit HW not ready\n");
-			goto out_pci_disable_msi;
+			goto out_no_pci;
 		}
 
 		/*
@@ -3033,7 +3020,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 				   25000);
 		if (ret < 0) {
 			IWL_DEBUG_INFO(trans, "Failed to wake up the nic\n");
-			goto out_pci_disable_msi;
+			goto out_no_pci;
 		}
 
 		if (iwl_trans_grab_nic_access(trans, &flags)) {
@@ -3065,15 +3052,16 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 	if (trans_pcie->msix_enabled) {
 		if (iwl_pcie_init_msix_handler(pdev, trans_pcie))
-			goto out_pci_release_regions;
+			goto out_no_pci;
 	 } else {
 		ret = iwl_pcie_alloc_ict(trans);
 		if (ret)
-			goto out_pci_disable_msi;
+			goto out_no_pci;
 
-		ret = request_threaded_irq(pdev->irq, iwl_pcie_isr,
-					   iwl_pcie_irq_handler,
-					   IRQF_SHARED, DRV_NAME, trans);
+		ret = devm_request_threaded_irq(&pdev->dev, pdev->irq,
+						iwl_pcie_isr,
+						iwl_pcie_irq_handler,
+						IRQF_SHARED, DRV_NAME, trans);
 		if (ret) {
 			IWL_ERR(trans, "Error allocating IRQ %d\n", pdev->irq);
 			goto out_free_ict;
@@ -3091,12 +3079,6 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 out_free_ict:
 	iwl_pcie_free_ict(trans);
-out_pci_disable_msi:
-	pci_disable_msi(pdev);
-out_pci_release_regions:
-	pci_release_regions(pdev);
-out_pci_disable_device:
-	pci_disable_device(pdev);
 out_no_pci:
 	free_percpu(trans_pcie->tso_hdr_page);
 	iwl_trans_free(trans);

@@ -78,7 +78,7 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 	static struct lock_class_key __key;
 #endif
 
-	trans = kzalloc(sizeof(*trans) + priv_size, GFP_KERNEL);
+	trans = devm_kzalloc(dev, sizeof(*trans) + priv_size, GFP_KERNEL);
 	if (!trans)
 		return NULL;
 
@@ -103,18 +103,14 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 				  SLAB_HWCACHE_ALIGN,
 				  NULL);
 	if (!trans->dev_cmd_pool)
-		goto free;
+		return NULL;
 
 	return trans;
- free:
-	kfree(trans);
-	return NULL;
 }
 
 void iwl_trans_free(struct iwl_trans *trans)
 {
 	kmem_cache_destroy(trans->dev_cmd_pool);
-	kfree(trans);
 }
 
 int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
@@ -139,6 +135,9 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 
 	if (!(cmd->flags & CMD_ASYNC))
 		lock_map_acquire_read(&trans->sync_cmd_lockdep_map);
+
+	if (trans->wide_cmd_header && !iwl_cmd_groupid(cmd->id))
+		cmd->id = DEF_ID(cmd->id);
 
 	ret = trans->ops->send_cmd(trans, cmd);
 
