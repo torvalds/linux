@@ -175,7 +175,7 @@ PNAME(mux_pll_src_cpll_gpll_npll_ppll_upll_24m_p) = { "cpll", "gpll", "npll",
 						    "ppll", "upll", "xin24m" };
 
 PNAME(mux_pll_src_vpll_cpll_gpll_p)		= { "vpll", "cpll", "gpll" };
-
+PNAME(mux_pll_src_dmyvpll_cpll_gpll_p)		= { "dummy_vpll", "cpll", "gpll" };
 /*
  * We hope to be able to HDMI/DP can obtain better signal quality,
  * therefore, we move VOP pwm and aclk clocks to other PLLs, let
@@ -1221,7 +1221,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKGATE_CON(28), 4, GFLAGS),
 
 	/* The VOP1 is sub screen, it is note able to re-set parent rate. */
-	COMPOSITE(DCLK_VOP1_DIV, "dclk_vop1_div", mux_pll_src_vpll_cpll_gpll_p, 0,
+	COMPOSITE(DCLK_VOP1_DIV, "dclk_vop1_div", mux_pll_src_dmyvpll_cpll_gpll_p, 0,
 			RK3399_CLKSEL_CON(50), 8, 2, MFLAGS, 0, 8, DFLAGS,
 			RK3399_CLKGATE_CON(10), 13, GFLAGS),
 
