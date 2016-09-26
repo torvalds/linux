@@ -496,8 +496,10 @@ static void ks7010_rw_function(struct work_struct *work)
 		DPRINTK(4, "wait after WAKEUP\n");
 /*		queue_delayed_work(priv->ks_wlan_hw.ks7010sdio_wq,&priv->ks_wlan_hw.rw_wq,
 		(priv->last_wakeup + ((30*HZ)/1000) - jiffies));*/
-		printk("wake: %lu %lu\n", priv->last_wakeup + (30 * HZ) / 1000,
-		       jiffies);
+		dev_info(&priv->ks_wlan_hw.sdio_card->func->dev,
+			 "wake: %lu %lu\n",
+			 priv->last_wakeup + (30 * HZ) / 1000,
+				jiffies);
 		msleep(30);
 	}
 
@@ -1003,11 +1005,12 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 	/* private memory allocate */
 	netdev = alloc_etherdev(sizeof(*priv));
 	if (!netdev) {
-		printk(KERN_ERR "ks7010 : Unable to alloc new net device\n");
+		dev_err(&card->func->dev, "ks7010 : Unable to alloc new net device\n");
 		goto error_release_irq;
 	}
 	if (dev_alloc_name(netdev, "wlan%d") < 0) {
-		printk(KERN_ERR "ks7010 :  Couldn't get name!\n");
+		dev_err(&card->func->dev,
+			"ks7010 :  Couldn't get name!\n");
 		goto error_free_netdev;
 	}
 
@@ -1047,9 +1050,9 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 	/* Upload firmware */
 	ret = ks7010_upload_firmware(priv, card);	/* firmware load */
 	if (ret) {
-		printk(KERN_ERR
-		       "ks7010: firmware load failed !! retern code = %d\n",
-		       ret);
+		dev_err(&card->func->dev,
+			"ks7010: firmware load failed !! return code = %d\n",
+			 ret);
 		goto error_free_read_buf;
 	}
 
