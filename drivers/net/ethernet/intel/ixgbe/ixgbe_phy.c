@@ -2395,9 +2395,7 @@ s32 ixgbe_set_copper_phy_power(struct ixgbe_hw *hw, bool on)
 	if (!on && ixgbe_mng_present(hw))
 		return 0;
 
-	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_VENDOR_SPECIFIC_1_CONTROL,
-				      IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
-				      &reg);
+	status = hw->phy.ops.read_reg(hw, MDIO_CTRL1, MDIO_MMD_VEND1, &reg);
 	if (status)
 		return status;
 
@@ -2409,8 +2407,6 @@ s32 ixgbe_set_copper_phy_power(struct ixgbe_hw *hw, bool on)
 		reg |= IXGBE_MDIO_PHY_SET_LOW_POWER_MODE;
 	}
 
-	status = hw->phy.ops.write_reg(hw, IXGBE_MDIO_VENDOR_SPECIFIC_1_CONTROL,
-				       IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
-				       reg);
+	status = hw->phy.ops.write_reg(hw, MDIO_CTRL1, MDIO_MMD_VEND1, reg);
 	return status;
 }
