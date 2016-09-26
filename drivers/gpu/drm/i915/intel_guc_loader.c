@@ -381,7 +381,7 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 					      ~GUC_ENABLE_MIA_CLOCK_GATING));
 	}
 
-	/* WaC6DisallowByGfxPause*/
+	/* WaC6DisallowByGfxPause:bxt */
 	if (IS_BXT_REVID(dev, 0, BXT_REVID_B0))
 		I915_WRITE(GEN6_GFXPAUSE, 0x30FFF);
 
