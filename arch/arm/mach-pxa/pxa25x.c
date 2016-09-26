@@ -156,7 +156,7 @@ static int __init __init
 pxa25x_dt_init_irq(struct device_node *node, struct device_node *parent)
 {
 	pxa_dt_irq_init(pxa25x_set_wake);
-	set_handle_irq(ichp_handle_irq);
+	set_handle_irq(icip_handle_irq);
 
 	return 0;
 }
