@@ -70,7 +70,7 @@ static int nvdimm_map_flush(struct device *dev, struct nvdimm *nvdimm, int dimm,
 
 int nd_region_activate(struct nd_region *nd_region)
 {
-	int i, num_flush = 0;
+	int i, j, num_flush = 0;
 	struct nd_region_data *ndrd;
 	struct device *dev = &nd_region->dev;
 	size_t flush_data_size = sizeof(void *);
@@ -105,6 +105,21 @@ int nd_region_activate(struct nd_region *nd_region)
 
 		if (rc)
 			return rc;
+	}
+
+	/*
+	 * Clear out entries that are duplicates. This should prevent the
+	 * extra flushings.
+	 */
+	for (i = 0; i < nd_region->ndr_mappings - 1; i++) {
+		/* ignore if NULL already */
+		if (!ndrd_get_flush_wpq(ndrd, i, 0))
+			continue;
+
+		for (j = i + 1; j < nd_region->ndr_mappings; j++)
+			if (ndrd_get_flush_wpq(ndrd, i, 0) ==
+			    ndrd_get_flush_wpq(ndrd, j, 0))
+				ndrd_set_flush_wpq(ndrd, j, 0, NULL);
 	}
 
 	return 0;
