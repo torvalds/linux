@@ -347,7 +347,9 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6sxscm-1gb-evb-m4-ldo.dtb \
 	imx6sxscm-1gb-evb-mqs-ldo.dtb \
 	imx6sxscm-1gb-evb-sai-ldo.dtb \
-	imx6sxscm-1gb-evb-btwifi-ldo.dtb
+	imx6sxscm-1gb-evb-btwifi-ldo.dtb \
+	imx6sxscm-epop-evb-ldo.dtb \
+	imx6sxscm-epop-evb-m4-ldo.dtb
 dtb-$(CONFIG_SOC_IMX6SL) += \
 	imx6sl-evk.dtb \
 	imx6sl-evk-btwifi.dtb \
