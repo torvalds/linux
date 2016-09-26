@@ -1,0 +1,18 @@
+/*
+ * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx6sxscm-1gb-evb-m4-ldo.dts"
+/{
+	memory {
+		linux,usable-memory = <0x80000000 0x1ff00000> ;
+	};
+};
+
+&rpmsg{
+	reg = <0x9FFF0000 0x8000>;
+};
