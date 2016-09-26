@@ -1388,7 +1388,7 @@ static int srp_map_finish_fr(struct srp_map_state *state,
 
 static int srp_map_sg_entry(struct srp_map_state *state,
 			    struct srp_rdma_ch *ch,
-			    struct scatterlist *sg, int sg_index)
+			    struct scatterlist *sg)
 {
 	struct srp_target_port *target = ch->target;
 	struct srp_device *dev = target->srp_host->srp_dev;
@@ -1441,7 +1441,7 @@ static int srp_map_sg_fmr(struct srp_map_state *state, struct srp_rdma_ch *ch,
 	state->fmr.end = req->fmr_list + ch->target->mr_per_cmd;
 
 	for_each_sg(scat, sg, count, i) {
-		ret = srp_map_sg_entry(state, ch, sg, i);
+		ret = srp_map_sg_entry(state, ch, sg);
 		if (ret)
 			return ret;
 	}
