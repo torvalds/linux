@@ -51,6 +51,7 @@
 #include <linux/platform_device.h>
 #include <linux/poll.h>
 #include <linux/ratelimit.h>
+#include <linux/rbtree.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -371,10 +372,10 @@ struct drm_pending_event {
 		      we deliver the event, for tracing only */
 };
 
-/* initial implementaton using a linked list - todo hashtab */
 struct drm_prime_file_private {
-	struct list_head head;
 	struct mutex lock;
+	struct rb_root dmabufs;
+	struct rb_root handles;
 };
 
 /** File private data */
