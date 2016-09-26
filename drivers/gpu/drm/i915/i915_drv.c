@@ -771,6 +771,19 @@ static void i915_workqueues_cleanup(struct drm_i915_private *dev_priv)
 	destroy_workqueue(dev_priv->wq);
 }
 
+/*
+ * We don't keep the workarounds for pre-production hardware, so we expect our
+ * driver to fail on these machines in one way or another. A little warning on
+ * dmesg may help both the user and the bug triagers.
+ */
+static void intel_detect_preproduction_hw(struct drm_i915_private *dev_priv)
+{
+	if (IS_HSW_EARLY_SDV(dev_priv) ||
+	    IS_SKL_REVID(dev_priv, 0, SKL_REVID_F0))
+		DRM_ERROR("This is a pre-production stepping. "
+			  "It may not be fully functional.\n");
+}
+
 /**
  * i915_driver_init_early - setup state not requiring device access
  * @dev_priv: device private
@@ -838,13 +851,7 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 
 	intel_device_info_dump(dev_priv);
 
-	/* Not all pre-production machines fall into this category, only the
-	 * very first ones. Almost everything should work, except for maybe
-	 * suspend/resume. And we don't implement workarounds that affect only
-	 * pre-production machines. */
-	if (IS_HSW_EARLY_SDV(dev_priv))
-		DRM_INFO("This is an early pre-production Haswell machine. "
-			 "It may not be fully functional.\n");
+	intel_detect_preproduction_hw(dev_priv);
 
 	return 0;
 
