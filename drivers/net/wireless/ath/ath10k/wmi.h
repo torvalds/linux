@@ -4222,10 +4222,10 @@ struct wmi_10_2_stats_event {
  */
 struct wmi_pdev_stats_base {
 	__le32 chan_nf;
-	__le32 tx_frame_count;
-	__le32 rx_frame_count;
-	__le32 rx_clear_count;
-	__le32 cycle_count;
+	__le32 tx_frame_count; /* Cycles spent transmitting frames */
+	__le32 rx_frame_count; /* Cycles spent receiving frames */
+	__le32 rx_clear_count; /* Total channel busy time, evidently */
+	__le32 cycle_count; /* Total on-channel time */
 	__le32 phy_err_count;
 	__le32 chan_tx_pwr;
 } __packed;
