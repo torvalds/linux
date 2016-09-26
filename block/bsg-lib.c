@@ -161,6 +161,8 @@ failjob_rls_job:
  * Drivers/subsys should pass this to the queue init function.
  */
 void bsg_request_fn(struct request_queue *q)
+	__releases(q->queue_lock)
+	__acquires(q->queue_lock)
 {
 	struct device *dev = q->queuedata;
 	struct request *req;
