@@ -353,9 +353,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	int rc = 0;
 
 	/* get the board structure and prep it */
-	dgnc_board[dgnc_num_boards] = kzalloc(sizeof(*brd), GFP_KERNEL);
-	brd = dgnc_board[dgnc_num_boards];
-
+	brd = kzalloc(sizeof(*brd), GFP_KERNEL);
 	if (!brd)
 		return -ENOMEM;
 
@@ -411,7 +409,8 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 		if (!brd->membase) {
 			dev_err(&brd->pdev->dev,
 				"Card has no PCI IO resources, failing.\n");
-			return -ENODEV;
+			rc = -ENODEV;
+			goto failed;
 		}
 
 		brd->membase_end = pci_resource_end(pdev, 4);
@@ -502,7 +501,8 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	default:
 		dev_err(&brd->pdev->dev,
 			"Didn't find any compatible Neo/Classic PCI boards.\n");
-		return -ENXIO;
+		rc = -ENXIO;
+		goto failed;
 	}
 
 	/*
@@ -539,14 +539,15 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 
 	wake_up_interruptible(&brd->state_wait);
 
+	dgnc_board[dgnc_num_boards] = brd;
+
 	return 0;
 
 failed:
 	dgnc_tty_uninit(brd);
-	brd->state = BOARD_FAILED;
-	brd->dpastatus = BD_NOFEP;
+	kfree(brd);
 
-	return -ENXIO;
+	return rc;
 }
 
 static int dgnc_finalize_board_init(struct dgnc_board *brd)
