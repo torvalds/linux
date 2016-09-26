@@ -299,13 +299,13 @@ static int dgnc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = dgnc_finalize_board_init(brd);
 	if (rc < 0) {
 		pr_err(DRVSTR ": Can't finalize board init (%d)\n", rc);
-		goto failed;
+		goto unregister_tty;
 	}
 
 	rc = dgnc_tty_init(brd);
 	if (rc < 0) {
 		pr_err(DRVSTR ": Can't init tty devices (%d)\n", rc);
-		goto failed;
+		goto unregister_tty;
 	}
 
 	brd->state = BOARD_READY;
@@ -316,6 +316,9 @@ static int dgnc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dgnc_board[dgnc_num_boards++] = brd;
 
 	return 0;
+
+unregister_tty:
+	dgnc_tty_unregister(brd);
 
 failed:
 	kfree(brd);

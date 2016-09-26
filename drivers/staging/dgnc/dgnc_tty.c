@@ -273,6 +273,14 @@ free_serial_driver:
 	return rc;
 }
 
+void dgnc_tty_unregister(struct dgnc_board *brd)
+{
+	tty_unregister_driver(brd->print_driver);
+	tty_unregister_driver(brd->serial_driver);
+	put_tty_driver(brd->print_driver);
+	put_tty_driver(brd->serial_driver);
+}
+
 /*
  * dgnc_tty_init()
  *
