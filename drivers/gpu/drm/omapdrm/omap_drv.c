@@ -762,12 +762,14 @@ static void dev_lastclose(struct drm_device *dev)
 		 */
 		for (i = 0; i < priv->num_crtcs; i++) {
 			drm_object_property_set_value(&priv->crtcs[i]->base,
-					dev->mode_config.rotation_property, 0);
+					dev->mode_config.rotation_property,
+					DRM_ROTATE_0);
 		}
 
 		for (i = 0; i < priv->num_planes; i++) {
 			drm_object_property_set_value(&priv->planes[i]->base,
-					dev->mode_config.rotation_property, 0);
+					dev->mode_config.rotation_property,
+					DRM_ROTATE_0);
 		}
 	}
 

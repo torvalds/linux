@@ -213,7 +213,7 @@ void omap_plane_install_properties(struct drm_plane *plane,
 	if (priv->has_dmm) {
 		struct drm_property *prop = dev->mode_config.rotation_property;
 
-		drm_object_attach_property(obj, prop, 0);
+		drm_object_attach_property(obj, prop, DRM_ROTATE_0);
 	}
 
 	drm_object_attach_property(obj, priv->zorder_prop, 0);
