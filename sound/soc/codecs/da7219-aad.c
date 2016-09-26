@@ -797,6 +797,62 @@ static void da7219_aad_handle_pdata(struct snd_soc_codec *codec)
 
 
 /*
+ * Suspend/Resume
+ */
+
+void da7219_aad_suspend(struct snd_soc_codec *codec)
+{
+	struct da7219_priv *da7219 = snd_soc_codec_get_drvdata(codec);
+	struct da7219_aad_priv *da7219_aad = da7219->aad;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	u8 micbias_ctrl;
+
+	if (da7219_aad->jack) {
+		/* Disable jack detection during suspend */
+		snd_soc_update_bits(codec, DA7219_ACCDET_CONFIG_1,
+				    DA7219_ACCDET_EN_MASK, 0);
+
+		/*
+		 * If we have a 4-pole jack inserted, then micbias will be
+		 * enabled. We can disable micbias here, and keep a note to
+		 * re-enable it on resume. If jack removal occurred during
+		 * suspend then this will be dealt with through the IRQ handler.
+		 */
+		if (da7219_aad->jack_inserted) {
+			micbias_ctrl = snd_soc_read(codec, DA7219_MICBIAS_CTRL);
+			if (micbias_ctrl & DA7219_MICBIAS1_EN_MASK) {
+				snd_soc_dapm_disable_pin(dapm, "Mic Bias");
+				snd_soc_dapm_sync(dapm);
+				da7219_aad->micbias_resume_enable = true;
+			}
+		}
+	}
+}
+
+void da7219_aad_resume(struct snd_soc_codec *codec)
+{
+	struct da7219_priv *da7219 = snd_soc_codec_get_drvdata(codec);
+	struct da7219_aad_priv *da7219_aad = da7219->aad;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+
+	if (da7219_aad->jack) {
+		/* Re-enable micbias if previously enabled for 4-pole jack */
+		if (da7219_aad->jack_inserted &&
+		    da7219_aad->micbias_resume_enable) {
+			snd_soc_dapm_force_enable_pin(dapm, "Mic Bias");
+			snd_soc_dapm_sync(dapm);
+			da7219_aad->micbias_resume_enable = false;
+		}
+
+		/* Re-enable jack detection */
+		snd_soc_update_bits(codec, DA7219_ACCDET_CONFIG_1,
+				    DA7219_ACCDET_EN_MASK,
+				    DA7219_ACCDET_EN_MASK);
+	}
+}
+
+
+/*
  * Init/Exit
  */
 

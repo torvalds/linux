@@ -201,11 +201,16 @@ struct da7219_aad_priv {
 	struct work_struct hptest_work;
 
 	struct snd_soc_jack *jack;
+	bool micbias_resume_enable;
 	bool jack_inserted;
 };
 
 /* AAD control */
 void da7219_aad_jack_det(struct snd_soc_codec *codec, struct snd_soc_jack *jack);
+
+/* Suspend/Resume */
+void da7219_aad_suspend(struct snd_soc_codec *codec);
+void da7219_aad_resume(struct snd_soc_codec *codec);
 
 /* Init/Exit */
 int da7219_aad_init(struct snd_soc_codec *codec);

@@ -1482,6 +1482,8 @@ static struct da7219_pdata *da7219_fw_to_pdata(struct snd_soc_codec *codec)
 	if (!pdata)
 		return NULL;
 
+	pdata->wakeup_source = device_property_read_bool(dev, "wakeup-source");
+
 	if (device_property_read_u32(dev, "dlg,micbias-lvl", &of_val32) >= 0)
 		pdata->micbias_lvl = da7219_fw_micbias_lvl(dev, of_val32);
 	else
@@ -1524,20 +1526,21 @@ static int da7219_set_bias_level(struct snd_soc_codec *codec,
 
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF)
 			/* Master bias */
 			snd_soc_update_bits(codec, DA7219_REFERENCES,
 					    DA7219_BIAS_EN_MASK,
 					    DA7219_BIAS_EN_MASK);
-		} else {
+
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_PREPARE) {
 			/* Remove MCLK */
 			if (da7219->mclk)
 				clk_disable_unprepare(da7219->mclk);
 		}
 		break;
 	case SND_SOC_BIAS_OFF:
-		/* Only disable master bias if jack detection not active */
-		if (!da7219->aad->jack)
+		/* Only disable master bias if we're not a wake-up source */
+		if (!da7219->wakeup_source)
 			snd_soc_update_bits(codec, DA7219_REFERENCES,
 					    DA7219_BIAS_EN_MASK, 0);
 
@@ -1602,6 +1605,8 @@ static void da7219_handle_pdata(struct snd_soc_codec *codec)
 
 	if (pdata) {
 		u8 micbias_lvl = 0;
+
+		da7219->wakeup_source = pdata->wakeup_source;
 
 		/* Mic Bias voltages */
 		switch (pdata->micbias_lvl) {
@@ -1737,11 +1742,11 @@ static int da7219_suspend(struct snd_soc_codec *codec)
 {
 	struct da7219_priv *da7219 = snd_soc_codec_get_drvdata(codec);
 
-	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_OFF);
+	/* Suspend AAD if we're not a wake-up source */
+	if (!da7219->wakeup_source)
+		da7219_aad_suspend(codec);
 
-	/* Put device into standby mode if jack detection disabled */
-	if (!da7219->aad->jack)
-		snd_soc_write(codec, DA7219_SYSTEM_ACTIVE, 0);
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;
 }
@@ -1750,12 +1755,11 @@ static int da7219_resume(struct snd_soc_codec *codec)
 {
 	struct da7219_priv *da7219 = snd_soc_codec_get_drvdata(codec);
 
-	/* Put device into active mode if previously pushed to standby */
-	if (!da7219->aad->jack)
-		snd_soc_write(codec, DA7219_SYSTEM_ACTIVE,
-			      DA7219_SYSTEM_ACTIVE_MASK);
-
 	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_STANDBY);
+
+	/* Resume AAD if previously suspended */
+	if (!da7219->wakeup_source)
+		da7219_aad_resume(codec);
 
 	return 0;
 }

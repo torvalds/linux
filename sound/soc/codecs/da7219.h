@@ -803,6 +803,7 @@ struct da7219_priv {
 	struct da7219_aad_priv *aad;
 	struct da7219_pdata *pdata;
 
+	bool wakeup_source;
 	struct regulator_bulk_data supplies[DA7219_NUM_SUPPLIES];
 	struct regmap *regmap;
 	struct mutex lock;
