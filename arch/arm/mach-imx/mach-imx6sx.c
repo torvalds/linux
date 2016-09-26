@@ -14,9 +14,30 @@
 #include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <linux/micrel_phy.h>
 
 #include "common.h"
 #include "cpuidle.h"
+static void mmd_write_reg(struct phy_device *dev, int device, int reg, int val)
+{
+	phy_write(dev, 0x0d, device);
+	phy_write(dev, 0x0e, reg);
+	phy_write(dev, 0x0d, (1 << 14) | device);
+	phy_write(dev, 0x0e, val);
+}
+
+static int ksz9031rn_phy_fixup(struct phy_device *dev)
+{
+	/*
+	 * min rx data delay, max rx/tx clock delay,
+	 * min rx/tx control delay
+	 */
+	mmd_write_reg(dev, 2, 4, 0);
+	mmd_write_reg(dev, 2, 5, 0);
+	mmd_write_reg(dev, 2, 8, 0x003ff);
+
+	return 0;
+}
 
 static int ar8031_phy_fixup(struct phy_device *dev)
 {
@@ -47,6 +68,8 @@ static int ar8031_phy_fixup(struct phy_device *dev)
 static void __init imx6sx_enet_phy_init(void)
 {
 	if (IS_BUILTIN(CONFIG_PHYLIB))
+		phy_register_fixup_for_uid(PHY_ID_KSZ9031, MICREL_PHY_ID_MASK,
+				ksz9031rn_phy_fixup);
 		phy_register_fixup_for_uid(PHY_ID_AR8031, 0xffffffff,
 					   ar8031_phy_fixup);
 }
