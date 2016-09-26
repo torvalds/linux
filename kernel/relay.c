@@ -1121,51 +1121,23 @@ static size_t relay_file_read_end_pos(struct rchan_buf *buf,
 	return end_pos;
 }
 
-/*
- *	subbuf_read_actor - read up to one subbuf's worth of data
- */
-static int subbuf_read_actor(size_t read_start,
-			     struct rchan_buf *buf,
-			     size_t avail,
-			     read_descriptor_t *desc)
-{
-	void *from;
-	int ret = 0;
-
-	from = buf->start + read_start;
-	ret = avail;
-	if (copy_to_user(desc->arg.buf, from, avail)) {
-		desc->error = -EFAULT;
-		ret = 0;
-	}
-	desc->arg.data += ret;
-	desc->written += ret;
-	desc->count -= ret;
-
-	return ret;
-}
-
-typedef int (*subbuf_actor_t) (size_t read_start,
-			       struct rchan_buf *buf,
-			       size_t avail,
-			       read_descriptor_t *desc);
-
-/*
- *	relay_file_read_subbufs - read count bytes, bridging subbuf boundaries
- */
-static ssize_t relay_file_read_subbufs(struct file *filp, loff_t *ppos,
-					subbuf_actor_t subbuf_actor,
-					read_descriptor_t *desc)
+static ssize_t relay_file_read(struct file *filp,
+			       char __user *buffer,
+			       size_t count,
+			       loff_t *ppos)
 {
 	struct rchan_buf *buf = filp->private_data;
 	size_t read_start, avail;
+	size_t written = 0;
 	int ret;
 
-	if (!desc->count)
+	if (!count)
 		return 0;
 
 	inode_lock(file_inode(filp));
 	do {
+		void *from;
+
 		if (!relay_file_read_avail(buf, *ppos))
 			break;
 
@@ -1174,32 +1146,22 @@ static ssize_t relay_file_read_subbufs(struct file *filp, loff_t *ppos,
 		if (!avail)
 			break;
 
-		avail = min(desc->count, avail);
-		ret = subbuf_actor(read_start, buf, avail, desc);
-		if (desc->error < 0)
+		avail = min(count, avail);
+		from = buf->start + read_start;
+		ret = avail;
+		if (copy_to_user(buffer, from, avail))
 			break;
 
-		if (ret) {
-			relay_file_read_consume(buf, read_start, ret);
-			*ppos = relay_file_read_end_pos(buf, read_start, ret);
-		}
-	} while (desc->count && ret);
+		buffer += ret;
+		written += ret;
+		count -= ret;
+
+		relay_file_read_consume(buf, read_start, ret);
+		*ppos = relay_file_read_end_pos(buf, read_start, ret);
+	} while (count);
 	inode_unlock(file_inode(filp));
 
-	return desc->written;
-}
-
-static ssize_t relay_file_read(struct file *filp,
-			       char __user *buffer,
-			       size_t count,
-			       loff_t *ppos)
-{
-	read_descriptor_t desc;
-	desc.written = 0;
-	desc.count = count;
-	desc.arg.buf = buffer;
-	desc.error = 0;
-	return relay_file_read_subbufs(filp, ppos, subbuf_read_actor, &desc);
+	return written;
 }
 
 static void relay_consume_bytes(struct rchan_buf *rbuf, int bytes_consumed)
