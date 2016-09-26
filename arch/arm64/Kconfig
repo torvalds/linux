@@ -103,7 +103,6 @@ config ARM64
 	select NO_BOOTMEM
 	select OF
 	select OF_EARLY_FLATTREE
-	select OF_NUMA if NUMA && OF
 	select OF_RESERVED_MEM
 	select PCI_ECAM if ACPI
 	select POWER_RESET
@@ -581,6 +580,8 @@ config HOTPLUG_CPU
 config NUMA
 	bool "Numa Memory Allocation and Scheduler Support"
 	depends on SMP
+	select ACPI_NUMA if ACPI
+	select OF_NUMA
 	help
 	  Enable NUMA (Non Uniform Memory Access) support.
 
