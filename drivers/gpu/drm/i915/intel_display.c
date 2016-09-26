@@ -2139,7 +2139,7 @@ intel_fill_fb_ggtt_view(struct i915_ggtt_view *view,
 			const struct drm_framebuffer *fb,
 			unsigned int rotation)
 {
-	if (intel_rotation_90_or_270(rotation)) {
+	if (drm_rotation_90_or_270(rotation)) {
 		*view = i915_ggtt_view_rotated;
 		view->params.rotated = to_intel_framebuffer(fb)->rot_info;
 	} else {
@@ -2260,7 +2260,7 @@ void intel_unpin_fb_obj(struct drm_framebuffer *fb, unsigned int rotation)
 static int intel_fb_pitch(const struct drm_framebuffer *fb, int plane,
 			  unsigned int rotation)
 {
-	if (intel_rotation_90_or_270(rotation))
+	if (drm_rotation_90_or_270(rotation))
 		return to_intel_framebuffer(fb)->rotated[plane].pitch;
 	else
 		return fb->pitches[plane];
@@ -2296,7 +2296,7 @@ void intel_add_fb_offsets(int *x, int *y,
 	const struct intel_framebuffer *intel_fb = to_intel_framebuffer(state->base.fb);
 	unsigned int rotation = state->base.rotation;
 
-	if (intel_rotation_90_or_270(rotation)) {
+	if (drm_rotation_90_or_270(rotation)) {
 		*x += intel_fb->rotated[plane].x;
 		*y += intel_fb->rotated[plane].y;
 	} else {
@@ -2360,7 +2360,7 @@ static u32 intel_adjust_tile_offset(int *x, int *y,
 		intel_tile_dims(dev_priv, &tile_width, &tile_height,
 				fb->modifier[plane], cpp);
 
-		if (intel_rotation_90_or_270(rotation)) {
+		if (drm_rotation_90_or_270(rotation)) {
 			pitch_tiles = pitch / tile_height;
 			swap(tile_width, tile_height);
 		} else {
@@ -2416,7 +2416,7 @@ static u32 _intel_compute_tile_offset(const struct drm_i915_private *dev_priv,
 		intel_tile_dims(dev_priv, &tile_width, &tile_height,
 				fb_modifier, cpp);
 
-		if (intel_rotation_90_or_270(rotation)) {
+		if (drm_rotation_90_or_270(rotation)) {
 			pitch_tiles = pitch / tile_height;
 			swap(tile_width, tile_height);
 		} else {
@@ -2976,7 +2976,7 @@ int skl_check_plane_surface(struct intel_plane_state *plane_state)
 	int ret;
 
 	/* Rotate src coordinates to match rotated GTT view */
-	if (intel_rotation_90_or_270(rotation))
+	if (drm_rotation_90_or_270(rotation))
 		drm_rect_rotate(&plane_state->base.src,
 				fb->width, fb->height, DRM_ROTATE_270);
 
@@ -3276,7 +3276,7 @@ u32 skl_plane_stride(const struct drm_framebuffer *fb, int plane,
 	 * The stride is either expressed as a multiple of 64 bytes chunks for
 	 * linear buffers or in number of tiles for tiled buffers.
 	 */
-	if (intel_rotation_90_or_270(rotation)) {
+	if (drm_rotation_90_or_270(rotation)) {
 		int cpp = drm_format_plane_cpp(fb->pixel_format, plane);
 
 		stride /= intel_tile_height(dev_priv, fb->modifier[0], cpp);
@@ -4666,7 +4666,7 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 		to_intel_crtc(crtc_state->base.crtc);
 	int need_scaling;
 
-	need_scaling = intel_rotation_90_or_270(rotation) ?
+	need_scaling = drm_rotation_90_or_270(rotation) ?
 		(src_h != dst_w || src_w != dst_h):
 		(src_w != dst_w || src_h != dst_h);
 

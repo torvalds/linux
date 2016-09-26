@@ -84,7 +84,7 @@ static void intel_fbc_get_plane_source_size(struct intel_fbc_state_cache *cache,
 {
 	int w, h;
 
-	if (intel_rotation_90_or_270(cache->plane.rotation)) {
+	if (drm_rotation_90_or_270(cache->plane.rotation)) {
 		w = cache->plane.src_h;
 		h = cache->plane.src_w;
 	} else {

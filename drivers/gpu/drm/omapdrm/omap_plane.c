@@ -108,16 +108,12 @@ static void omap_plane_atomic_update(struct drm_plane *plane,
 	win.src_x = state->src_x >> 16;
 	win.src_y = state->src_y >> 16;
 
-	switch (state->rotation & DRM_ROTATE_MASK) {
-	case DRM_ROTATE_90:
-	case DRM_ROTATE_270:
+	if (drm_rotation_90_or_270(state->rotation)) {
 		win.src_w = state->src_h >> 16;
 		win.src_h = state->src_w >> 16;
-		break;
-	default:
+	} else {
 		win.src_w = state->src_w >> 16;
 		win.src_h = state->src_h >> 16;
-		break;
 	}
 
 	/* update scanout: */
