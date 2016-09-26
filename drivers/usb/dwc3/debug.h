@@ -207,6 +207,19 @@ dwc3_ep_event_string(const struct dwc3_event_depevt *event)
 		strcat(str, "Transfer Not Ready");
 		status = event->status & DEPEVT_STATUS_TRANSFER_ACTIVE;
 		strcat(str, status ? " (Active)" : " (Not Active)");
+
+		/* Control Endpoints */
+		if (epnum <= 1) {
+			int phase = DEPEVT_STATUS_CONTROL_PHASE(event->status);
+
+			switch (phase) {
+			case DEPEVT_STATUS_CONTROL_DATA:
+				strcat(str, " [Data Phase]");
+				break;
+			case DEPEVT_STATUS_CONTROL_STATUS:
+				strcat(str, " [Status Phase]");
+			}
+		}
 		break;
 	case DWC3_DEPEVT_RXTXFIFOEVT:
 		strcat(str, "FIFO");
