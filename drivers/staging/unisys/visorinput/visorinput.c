@@ -735,7 +735,6 @@ static struct visor_channeltype_descriptor visorinput_channel_types[] = {
 
 static struct visor_driver visorinput_driver = {
 	.name = "visorinput",
-	.vertag = NULL,
 	.owner = THIS_MODULE,
 	.channel_types = visorinput_channel_types,
 	.probe = visorinput_probe,

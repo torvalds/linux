@@ -18,6 +18,7 @@
 #define __VISORBUS_PRIVATE_H__
 
 #include <linux/uuid.h>
+#include <linux/utsname.h>
 
 #include "controlvmchannel.h"
 #include "vbuschannel.h"
@@ -26,12 +27,9 @@
  * command line
  */
 
-#define TARGET_HOSTNAME "linuxguest"
-
 static inline void bus_device_info_init(
 		struct ultra_vbus_deviceinfo *bus_device_info_ptr,
-		const char *dev_type, const char *drv_name,
-		const char *ver, const char *ver_tag)
+		const char *dev_type, const char *drv_name)
 {
 	memset(bus_device_info_ptr, 0, sizeof(struct ultra_vbus_deviceinfo));
 	snprintf(bus_device_info_ptr->devtype,
@@ -41,10 +39,8 @@ static inline void bus_device_info_init(
 		 sizeof(bus_device_info_ptr->drvname),
 		 "%s", (drv_name) ? drv_name : "unknownDriver");
 	snprintf(bus_device_info_ptr->infostrs,
-		 sizeof(bus_device_info_ptr->infostrs), "%s\t%s\t%s",
-		 (ver) ? ver : "unknownVer",
-		 (ver_tag) ? ver_tag : "unknownVerTag",
-		 TARGET_HOSTNAME);
+		 sizeof(bus_device_info_ptr->infostrs), "kernel ver. %s",
+		 utsname()->release);
 }
 
 void chipset_bus_create(struct visor_device *bus_info);

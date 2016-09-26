@@ -66,8 +66,6 @@ struct visor_channeltype_descriptor {
  * struct visor_driver - Information provided by each visor driver when it
  * registers with the visorbus driver.
  * @name:		Name of the visor driver.
- * @version:		The numbered version of the driver (x.x.xxx).
- * @vertag:		A human readable version string.
  * @owner:		The module owner.
  * @channel_types:	Types of channels handled by this driver, ending with
  *			a zero GUID. Our specialized BUS.match() method knows
@@ -94,12 +92,9 @@ struct visor_channeltype_descriptor {
  * @resume:		Behaves similar to pause.
  * @driver:		Private reference to the device driver. For use by bus
  *			driver only.
- * @version_attr:	Private version field. For use by bus driver only.
  */
 struct visor_driver {
 	const char *name;
-	const char *version;
-	const char *vertag;
 	struct module *owner;
 	struct visor_channeltype_descriptor *channel_types;
 	int (*probe)(struct visor_device *dev);
@@ -112,7 +107,6 @@ struct visor_driver {
 
 	/* These fields are for private use by the bus driver only. */
 	struct device_driver driver;
-	struct driver_attribute version_attr;
 };
 
 #define to_visor_driver(x) ((x) ? \

@@ -67,8 +67,7 @@ static const uuid_le spar_vbus_channel_protocol_uuid =
 struct ultra_vbus_deviceinfo {
 	u8 devtype[16];		/* short string identifying the device type */
 	u8 drvname[16];		/* driver .sys file name */
-	u8 infostrs[96];	/* sequence of tab-delimited id strings: */
-	/* <DRIVER_REV> <DRIVER_VERTAG> <DRIVER_COMPILETIME> */
+	u8 infostrs[96];	/* kernel version */
 	u8 reserved[128];	/* pad size to 256 bytes */
 };
 

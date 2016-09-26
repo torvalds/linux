@@ -18,7 +18,6 @@
 
 #include "visorbus.h"
 #include "visorbus_private.h"
-#include "version.h"
 #include "vmcallinterface.h"
 
 #define MYDRVNAME "visorbus"
@@ -34,34 +33,6 @@ static int visorbus_forcenomatch;
 #define POLLJIFFIES_NORMALCHANNEL     10
 
 static int busreg_rc = -ENODEV; /* stores the result from bus registration */
-
-/*
- * BUS type attributes
- *
- * define & implement display of bus attributes under
- * /sys/bus/visorbus.
- */
-
-static ssize_t version_show(struct bus_type *bus, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%s\n", VERSION);
-}
-
-static BUS_ATTR_RO(version);
-
-static struct attribute *visorbus_bus_attrs[] = {
-	&bus_attr_version.attr,
-	NULL,
-};
-
-static const struct attribute_group visorbus_bus_group = {
-	.attrs = visorbus_bus_attrs,
-};
-
-static const struct attribute_group *visorbus_bus_groups[] = {
-	&visorbus_bus_group,
-	NULL,
-};
 
 /*
  * DEVICE type attributes
@@ -167,7 +138,6 @@ struct bus_type visorbus_type = {
 	.match = visorbus_match,
 	.uevent = visorbus_uevent,
 	.dev_groups = visorbus_dev_groups,
-	.bus_groups = visorbus_bus_groups,
 };
 
 /**
@@ -465,36 +435,6 @@ static const struct attribute_group *visorbus_groups[] = {
 		NULL
 };
 
-/*
- *  DRIVER attributes
- *
- *  define & implement display of driver attributes under
- *  /sys/bus/visorbus/drivers/<drivername>.
- */
-
-static ssize_t
-DRIVER_ATTR_version(struct device_driver *xdrv, char *buf)
-{
-	struct visor_driver *drv = to_visor_driver(xdrv);
-
-	return snprintf(buf, PAGE_SIZE, "%s\n", drv->version);
-}
-
-static int
-register_driver_attributes(struct visor_driver *drv)
-{
-	struct driver_attribute version =
-	    __ATTR(version, S_IRUGO, DRIVER_ATTR_version, NULL);
-	drv->version_attr = version;
-	return driver_create_file(&drv->driver, &drv->version_attr);
-}
-
-static void
-unregister_driver_attributes(struct visor_driver *drv)
-{
-	driver_remove_file(&drv->driver, &drv->version_attr);
-}
-
 static void
 dev_periodic_work(unsigned long __opaque)
 {
@@ -567,7 +507,6 @@ visordriver_remove_device(struct device *xdev)
 void
 visorbus_unregister_visor_driver(struct visor_driver *drv)
 {
-	unregister_driver_attributes(drv);
 	driver_unregister(&drv->driver);
 }
 EXPORT_SYMBOL_GPL(visorbus_unregister_visor_driver);
@@ -882,9 +821,7 @@ fix_vbus_dev_info(struct visor_device *visordev)
 		}
 	}
 
-	bus_device_info_init(&dev_info, chan_type_name,
-			     visordrv->name, visordrv->version,
-			     visordrv->vertag);
+	bus_device_info_init(&dev_info, chan_type_name, visordrv->name);
 	write_vbus_dev_info(bdev->visorchannel, hdr_info, &dev_info, dev_no);
 
 	/*
@@ -1014,9 +951,6 @@ int visorbus_register_visor_driver(struct visor_driver *drv)
 	 */
 
 	rc = driver_register(&drv->driver);
-	if (rc < 0)
-		return rc;
-	rc = register_driver_attributes(drv);
 	if (rc < 0)
 		driver_unregister(&drv->driver);
 	return rc;
@@ -1343,9 +1277,7 @@ visorbus_init(void)
 	int err;
 
 	POSTCODE_LINUX_3(DRIVER_ENTRY_PC, 0, POSTCODE_SEVERITY_INFO);
-	bus_device_info_init(&clientbus_driverinfo,
-			     "clientbus", "visorbus",
-			     VERSION, NULL);
+	bus_device_info_init(&clientbus_driverinfo, "clientbus", "visorbus");
 
 	err = create_bus_type();
 	if (err < 0) {
@@ -1353,9 +1285,7 @@ visorbus_init(void)
 		goto error;
 	}
 
-	bus_device_info_init(&chipset_driverinfo,
-			     "chipset", "visorchipset",
-			     VERSION, NULL);
+	bus_device_info_init(&chipset_driverinfo, "chipset", "visorchipset");
 
 	return 0;
 
