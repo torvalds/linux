@@ -1000,6 +1000,9 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	bool need_restart_gc = false;
 	bool need_stop_gc = false;
 	bool no_extent_cache = !test_opt(sbi, EXTENT_CACHE);
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+	struct f2fs_fault_info ffi = sbi->fault_info;
+#endif
 
 	/*
 	 * Save the old mount options in case we
@@ -1095,6 +1098,9 @@ restore_gc:
 restore_opts:
 	sbi->mount_opt = org_mount_opt;
 	sbi->active_logs = active_logs;
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+	sbi->fault_info = ffi;
+#endif
 	return err;
 }
 
