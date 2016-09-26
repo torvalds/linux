@@ -2000,8 +2000,8 @@ handle_command(struct controlvm_message inmsg, u64 channel_addr)
 static bool
 read_controlvm_event(struct controlvm_message *msg)
 {
-	if (visorchannel_signalremove(controlvm_channel,
-				      CONTROLVM_QUEUE_EVENT, msg)) {
+	if (!visorchannel_signalremove(controlvm_channel,
+				       CONTROLVM_QUEUE_EVENT, msg)) {
 		/* got a message */
 		if (msg->hdr.flags.test_message == 1)
 			return false;
@@ -2048,9 +2048,9 @@ controlvm_periodic_work(struct work_struct *work)
 	bool got_command = false;
 	bool handle_command_failed = false;
 
-	while (visorchannel_signalremove(controlvm_channel,
-					 CONTROLVM_QUEUE_RESPONSE,
-					 &inmsg))
+	while (!visorchannel_signalremove(controlvm_channel,
+					  CONTROLVM_QUEUE_RESPONSE,
+					  &inmsg))
 		;
 	if (!got_command) {
 		if (controlvm_pending_msg_valid) {

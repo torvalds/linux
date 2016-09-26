@@ -581,7 +581,7 @@ visorinput_channel_interrupt(struct visor_device *dev)
 
 	visorinput_dev = devdata->visorinput_dev;
 
-	while (visorchannel_signalremove(dev->visorchannel, 0, &r)) {
+	while (!visorchannel_signalremove(dev->visorchannel, 0, &r)) {
 		scancode = r.activity.arg1;
 		keycode = scancode_to_keycode(scancode);
 		switch (r.activity.action) {

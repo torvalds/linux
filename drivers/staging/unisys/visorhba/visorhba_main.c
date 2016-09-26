@@ -927,9 +927,9 @@ drain_queue(struct uiscmdrsp *cmdrsp, struct visorhba_devdata *devdata)
 	struct scsi_cmnd *scsicmd;
 
 	while (1) {
-		if (!visorchannel_signalremove(devdata->dev->visorchannel,
-					       IOCHAN_FROM_IOPART,
-					       cmdrsp))
+		if (visorchannel_signalremove(devdata->dev->visorchannel,
+					      IOCHAN_FROM_IOPART,
+					      cmdrsp))
 			break; /* queue empty */
 
 		if (cmdrsp->cmdtype == CMD_SCSI_TYPE) {

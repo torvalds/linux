@@ -270,12 +270,12 @@ signalremove_inner(struct visorchannel *channel, u32 queue, void *msg)
  * @queue:   the queue the message will be removed from
  * @msg:     the message to remove
  *
- * Return: boolean indicating whether the removal succeeded or failed
+ * Return: integer error code indicating the status of the removal
  */
-bool
+int
 visorchannel_signalremove(struct visorchannel *channel, u32 queue, void *msg)
 {
-	bool rc;
+	int rc;
 	unsigned long flags;
 
 	if (channel->needs_lock) {
@@ -286,7 +286,7 @@ visorchannel_signalremove(struct visorchannel *channel, u32 queue, void *msg)
 		rc = signalremove_inner(channel, queue, msg);
 	}
 
-	return !rc;
+	return rc;
 }
 EXPORT_SYMBOL_GPL(visorchannel_signalremove);
 

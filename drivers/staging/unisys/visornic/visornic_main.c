@@ -1539,9 +1539,9 @@ send_rcv_posts_if_needed(struct visornic_devdata *devdata)
 static void
 drain_resp_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata)
 {
-	while (visorchannel_signalremove(devdata->dev->visorchannel,
-					 IOCHAN_FROM_IOPART,
-					 cmdrsp))
+	while (!visorchannel_signalremove(devdata->dev->visorchannel,
+					  IOCHAN_FROM_IOPART,
+					  cmdrsp))
 		;
 }
 
@@ -1565,9 +1565,9 @@ service_resp_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata,
 	/* TODO: CLIENT ACQUIRE -- Don't really need this at the
 	 * moment
 	 */
-		if (!visorchannel_signalremove(devdata->dev->visorchannel,
-					       IOCHAN_FROM_IOPART,
-					       cmdrsp))
+		if (visorchannel_signalremove(devdata->dev->visorchannel,
+					      IOCHAN_FROM_IOPART,
+					      cmdrsp))
 			break; /* queue empty */
 
 		switch (cmdrsp->net.type) {
