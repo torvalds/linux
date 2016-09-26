@@ -191,91 +191,55 @@ static int ath10k_ahb_rst_ctrl_init(struct ath10k *ar)
 {
 	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
 	struct device *dev;
-	int ret;
 
 	dev = &ar_ahb->pdev->dev;
 
-	ar_ahb->core_cold_rst = reset_control_get(dev, "wifi_core_cold");
+	ar_ahb->core_cold_rst = devm_reset_control_get(dev, "wifi_core_cold");
 	if (IS_ERR_OR_NULL(ar_ahb->core_cold_rst)) {
 		ath10k_err(ar, "failed to get core cold rst ctrl: %ld\n",
 			   PTR_ERR(ar_ahb->core_cold_rst));
-		ret = ar_ahb->core_cold_rst ?
+		return ar_ahb->core_cold_rst ?
 			PTR_ERR(ar_ahb->core_cold_rst) : -ENODEV;
-		goto out;
 	}
 
-	ar_ahb->radio_cold_rst = reset_control_get(dev, "wifi_radio_cold");
+	ar_ahb->radio_cold_rst = devm_reset_control_get(dev, "wifi_radio_cold");
 	if (IS_ERR_OR_NULL(ar_ahb->radio_cold_rst)) {
 		ath10k_err(ar, "failed to get radio cold rst ctrl: %ld\n",
 			   PTR_ERR(ar_ahb->radio_cold_rst));
-		ret = ar_ahb->radio_cold_rst ?
+		return ar_ahb->radio_cold_rst ?
 			PTR_ERR(ar_ahb->radio_cold_rst) : -ENODEV;
-		goto err_core_cold_rst_put;
 	}
 
-	ar_ahb->radio_warm_rst = reset_control_get(dev, "wifi_radio_warm");
+	ar_ahb->radio_warm_rst = devm_reset_control_get(dev, "wifi_radio_warm");
 	if (IS_ERR_OR_NULL(ar_ahb->radio_warm_rst)) {
 		ath10k_err(ar, "failed to get radio warm rst ctrl: %ld\n",
 			   PTR_ERR(ar_ahb->radio_warm_rst));
-		ret = ar_ahb->radio_warm_rst ?
+		return ar_ahb->radio_warm_rst ?
 			PTR_ERR(ar_ahb->radio_warm_rst) : -ENODEV;
-		goto err_radio_cold_rst_put;
 	}
 
-	ar_ahb->radio_srif_rst = reset_control_get(dev, "wifi_radio_srif");
+	ar_ahb->radio_srif_rst = devm_reset_control_get(dev, "wifi_radio_srif");
 	if (IS_ERR_OR_NULL(ar_ahb->radio_srif_rst)) {
 		ath10k_err(ar, "failed to get radio srif rst ctrl: %ld\n",
 			   PTR_ERR(ar_ahb->radio_srif_rst));
-		ret = ar_ahb->radio_srif_rst ?
+		return ar_ahb->radio_srif_rst ?
 			PTR_ERR(ar_ahb->radio_srif_rst) : -ENODEV;
-		goto err_radio_warm_rst_put;
 	}
 
-	ar_ahb->cpu_init_rst = reset_control_get(dev, "wifi_cpu_init");
+	ar_ahb->cpu_init_rst = devm_reset_control_get(dev, "wifi_cpu_init");
 	if (IS_ERR_OR_NULL(ar_ahb->cpu_init_rst)) {
 		ath10k_err(ar, "failed to get cpu init rst ctrl: %ld\n",
 			   PTR_ERR(ar_ahb->cpu_init_rst));
-		ret = ar_ahb->cpu_init_rst ?
+		return ar_ahb->cpu_init_rst ?
 			PTR_ERR(ar_ahb->cpu_init_rst) : -ENODEV;
-		goto err_radio_srif_rst_put;
 	}
 
 	return 0;
-
-err_radio_srif_rst_put:
-	reset_control_put(ar_ahb->radio_srif_rst);
-
-err_radio_warm_rst_put:
-	reset_control_put(ar_ahb->radio_warm_rst);
-
-err_radio_cold_rst_put:
-	reset_control_put(ar_ahb->radio_cold_rst);
-
-err_core_cold_rst_put:
-	reset_control_put(ar_ahb->core_cold_rst);
-
-out:
-	return ret;
 }
 
 static void ath10k_ahb_rst_ctrl_deinit(struct ath10k *ar)
 {
 	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
-
-	if (!IS_ERR_OR_NULL(ar_ahb->core_cold_rst))
-		reset_control_put(ar_ahb->core_cold_rst);
-
-	if (!IS_ERR_OR_NULL(ar_ahb->radio_cold_rst))
-		reset_control_put(ar_ahb->radio_cold_rst);
-
-	if (!IS_ERR_OR_NULL(ar_ahb->radio_warm_rst))
-		reset_control_put(ar_ahb->radio_warm_rst);
-
-	if (!IS_ERR_OR_NULL(ar_ahb->radio_srif_rst))
-		reset_control_put(ar_ahb->radio_srif_rst);
-
-	if (!IS_ERR_OR_NULL(ar_ahb->cpu_init_rst))
-		reset_control_put(ar_ahb->cpu_init_rst);
 
 	ar_ahb->core_cold_rst = NULL;
 	ar_ahb->radio_cold_rst = NULL;
