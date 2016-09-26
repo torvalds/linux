@@ -45,7 +45,7 @@
 #include <linux/list.h>
 #include <linux/dcbnl.h>
 #include <linux/in6.h>
-#include <net/switchdev.h>
+#include <linux/notifier.h>
 
 #include "port.h"
 #include "core.h"
@@ -257,6 +257,7 @@ struct mlxsw_sp_router {
 #define MLXSW_SP_UNRESOLVED_NH_PROBE_INTERVAL 5000 /* ms */
 	struct list_head nexthop_group_list;
 	struct list_head nexthop_neighs_list;
+	bool aborted;
 };
 
 struct mlxsw_sp {
@@ -296,6 +297,7 @@ struct mlxsw_sp {
 		struct mlxsw_sp_span_entry *entries;
 		int entries_count;
 	} span;
+	struct notifier_block fib_nb;
 };
 
 static inline struct mlxsw_sp_upper *
@@ -584,11 +586,6 @@ static inline void mlxsw_sp_port_dcb_fini(struct mlxsw_sp_port *mlxsw_sp_port)
 
 int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp);
-int mlxsw_sp_router_fib4_add(struct mlxsw_sp_port *mlxsw_sp_port,
-			     const struct switchdev_obj_ipv4_fib *fib4,
-			     struct switchdev_trans *trans);
-int mlxsw_sp_router_fib4_del(struct mlxsw_sp_port *mlxsw_sp_port,
-			     const struct switchdev_obj_ipv4_fib *fib4);
 int mlxsw_sp_router_neigh_construct(struct net_device *dev,
 				    struct neighbour *n);
 void mlxsw_sp_router_neigh_destroy(struct net_device *dev,
