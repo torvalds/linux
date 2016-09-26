@@ -190,8 +190,25 @@ static void ipc_tx_msgs(struct kthread_work *work)
 int sst_ipc_tx_message_wait(struct sst_generic_ipc *ipc, u64 header,
 	void *tx_data, size_t tx_bytes, void *rx_data, size_t rx_bytes)
 {
-	return ipc_tx_message(ipc, header, tx_data, tx_bytes,
+	int ret;
+
+	/*
+	 * DSP maybe in lower power active state, so
+	 * check if the DSP supports DSP lp On method
+	 * if so invoke that before sending IPC
+	 */
+	if (ipc->ops.check_dsp_lp_on)
+		if (ipc->ops.check_dsp_lp_on(ipc->dsp, true))
+			return -EIO;
+
+	ret = ipc_tx_message(ipc, header, tx_data, tx_bytes,
 		rx_data, rx_bytes, 1);
+
+	if (ipc->ops.check_dsp_lp_on)
+		if (ipc->ops.check_dsp_lp_on(ipc->dsp, false))
+			return -EIO;
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(sst_ipc_tx_message_wait);
 
