@@ -414,6 +414,13 @@ static void vfio_msi_disable(struct vfio_pci_device *vdev, bool msix)
 	} else
 		pci_disable_msi(pdev);
 
+	/*
+	 * Both disable paths above use pci_intx_for_msi() to clear DisINTx
+	 * via their shutdown paths.  Restore for NoINTx devices.
+	 */
+	if (vdev->nointx)
+		pci_intx(pdev, 0);
+
 	vdev->irq_type = VFIO_PCI_NUM_IRQS;
 	vdev->num_ctx = 0;
 	kfree(vdev->ctx);
