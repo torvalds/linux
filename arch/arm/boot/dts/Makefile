@@ -341,7 +341,13 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dqscm-1gb-evb-interleave-android-ldo.dtb \
 	imx6dqscm-1gb-evb-btwifi-fix-ldo.dtb \
 	imx6dqscm-1gb-evb-enetirq-fix-ldo.dtb \
-	imx6dqscm-1gb-evb-hdcp-fix-ldo.dtb
+	imx6dqscm-1gb-evb-hdcp-fix-ldo.dtb \
+	imx6sxscm-1gb-evb-ldo.dtb \
+	imx6sxscm-1gb-evb-lcdif1-ldo.dtb \
+	imx6sxscm-1gb-evb-m4-ldo.dtb \
+	imx6sxscm-1gb-evb-mqs-ldo.dtb \
+	imx6sxscm-1gb-evb-sai-ldo.dtb \
+	imx6sxscm-1gb-evb-btwifi-ldo.dtb
 dtb-$(CONFIG_SOC_IMX6SL) += \
 	imx6sl-evk.dtb \
 	imx6sl-evk-btwifi.dtb \
