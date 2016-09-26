@@ -475,15 +475,11 @@ err_dfs_add:
 
 static void __exit exit_mce_inject(void)
 {
-	int i;
 
-	for (i = 0; i < ARRAY_SIZE(dfs_fls); i++)
-		debugfs_remove(dfs_fls[i].d);
+	debugfs_remove_recursive(dfs_inj);
+	dfs_inj = NULL;
 
 	memset(&dfs_fls, 0, sizeof(dfs_fls));
-
-	debugfs_remove(dfs_inj);
-	dfs_inj = NULL;
 }
 module_init(init_mce_inject);
 module_exit(exit_mce_inject);
