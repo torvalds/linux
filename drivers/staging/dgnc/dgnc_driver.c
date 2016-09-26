@@ -38,6 +38,7 @@ MODULE_SUPPORTED_DEVICE("dgnc");
  */
 static int		dgnc_start(void);
 static int dgnc_request_irq(struct dgnc_board *brd);
+static void dgnc_free_irq(struct dgnc_board *brd);
 static struct dgnc_board *dgnc_found_board(struct pci_dev *pdev, int id);
 static void		dgnc_cleanup_board(struct dgnc_board *brd);
 static void		dgnc_poll_handler(ulong dummy);
@@ -305,7 +306,7 @@ static int dgnc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = dgnc_tty_init(brd);
 	if (rc < 0) {
 		pr_err(DRVSTR ": Can't init tty devices (%d)\n", rc);
-		goto unregister_tty;
+		goto free_irq;
 	}
 
 	brd->state = BOARD_READY;
@@ -317,6 +318,8 @@ static int dgnc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	return 0;
 
+free_irq:
+	dgnc_free_irq(brd);
 unregister_tty:
 	dgnc_tty_unregister(brd);
 
@@ -575,6 +578,12 @@ static int dgnc_request_irq(struct dgnc_board *brd)
 		}
 	}
 	return rc;
+}
+
+static void dgnc_free_irq(struct dgnc_board *brd)
+{
+	if (brd->irq)
+		free_irq(brd->irq, brd);
 }
 
 /*
