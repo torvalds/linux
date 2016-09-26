@@ -363,10 +363,6 @@ static int parse_options(struct super_block *sb, char *options)
 	char *p, *name;
 	int arg = 0;
 
-#ifdef CONFIG_F2FS_FAULT_INJECTION
-	f2fs_build_fault_attr(sbi, 0);
-#endif
-
 	if (!options)
 		return 0;
 
@@ -989,6 +985,10 @@ static void default_options(struct f2fs_sb_info *sbi)
 #endif
 #ifdef CONFIG_F2FS_FS_POSIX_ACL
 	set_opt(sbi, POSIX_ACL);
+#endif
+
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+	f2fs_build_fault_attr(sbi, 0);
 #endif
 }
 
