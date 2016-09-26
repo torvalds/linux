@@ -25,7 +25,6 @@
 #include <linux/uuid.h>
 #include <linux/crash_dump.h>
 
-#include "version.h"
 #include "visorbus.h"
 #include "visorbus_private.h"
 #include "vmcallinterface.h"
@@ -2264,6 +2263,4 @@ module_exit(exit_unisys);
 
 MODULE_AUTHOR("Unisys");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Supervisor chipset driver for service partition: ver "
-		   VERSION);
-MODULE_VERSION(VERSION);
+MODULE_DESCRIPTION("Supervisor chipset driver for service partition");
