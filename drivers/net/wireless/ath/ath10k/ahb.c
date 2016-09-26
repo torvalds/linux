@@ -91,58 +91,36 @@ static int ath10k_ahb_clock_init(struct ath10k *ar)
 {
 	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
 	struct device *dev;
-	int ret;
 
 	dev = &ar_ahb->pdev->dev;
 
-	ar_ahb->cmd_clk = clk_get(dev, "wifi_wcss_cmd");
+	ar_ahb->cmd_clk = devm_clk_get(dev, "wifi_wcss_cmd");
 	if (IS_ERR_OR_NULL(ar_ahb->cmd_clk)) {
 		ath10k_err(ar, "failed to get cmd clk: %ld\n",
 			   PTR_ERR(ar_ahb->cmd_clk));
-		ret = ar_ahb->cmd_clk ? PTR_ERR(ar_ahb->cmd_clk) : -ENODEV;
-		goto out;
+		return ar_ahb->cmd_clk ? PTR_ERR(ar_ahb->cmd_clk) : -ENODEV;
 	}
 
-	ar_ahb->ref_clk = clk_get(dev, "wifi_wcss_ref");
+	ar_ahb->ref_clk = devm_clk_get(dev, "wifi_wcss_ref");
 	if (IS_ERR_OR_NULL(ar_ahb->ref_clk)) {
 		ath10k_err(ar, "failed to get ref clk: %ld\n",
 			   PTR_ERR(ar_ahb->ref_clk));
-		ret = ar_ahb->ref_clk ? PTR_ERR(ar_ahb->ref_clk) : -ENODEV;
-		goto err_cmd_clk_put;
+		return ar_ahb->ref_clk ? PTR_ERR(ar_ahb->ref_clk) : -ENODEV;
 	}
 
-	ar_ahb->rtc_clk = clk_get(dev, "wifi_wcss_rtc");
+	ar_ahb->rtc_clk = devm_clk_get(dev, "wifi_wcss_rtc");
 	if (IS_ERR_OR_NULL(ar_ahb->rtc_clk)) {
 		ath10k_err(ar, "failed to get rtc clk: %ld\n",
 			   PTR_ERR(ar_ahb->rtc_clk));
-		ret = ar_ahb->rtc_clk ? PTR_ERR(ar_ahb->rtc_clk) : -ENODEV;
-		goto err_ref_clk_put;
+		return ar_ahb->rtc_clk ? PTR_ERR(ar_ahb->rtc_clk) : -ENODEV;
 	}
 
 	return 0;
-
-err_ref_clk_put:
-	clk_put(ar_ahb->ref_clk);
-
-err_cmd_clk_put:
-	clk_put(ar_ahb->cmd_clk);
-
-out:
-	return ret;
 }
 
 static void ath10k_ahb_clock_deinit(struct ath10k *ar)
 {
 	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
-
-	if (!IS_ERR_OR_NULL(ar_ahb->cmd_clk))
-		clk_put(ar_ahb->cmd_clk);
-
-	if (!IS_ERR_OR_NULL(ar_ahb->ref_clk))
-		clk_put(ar_ahb->ref_clk);
-
-	if (!IS_ERR_OR_NULL(ar_ahb->rtc_clk))
-		clk_put(ar_ahb->rtc_clk);
 
 	ar_ahb->cmd_clk = NULL;
 	ar_ahb->ref_clk = NULL;
