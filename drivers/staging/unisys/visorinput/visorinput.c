@@ -29,7 +29,6 @@
 #include <linux/kernel.h>
 #include <linux/uuid.h>
 
-#include "version.h"
 #include "visorbus.h"
 #include "ultrainputreport.h"
 
@@ -764,7 +763,6 @@ MODULE_DEVICE_TABLE(visorbus, visorinput_channel_types);
 MODULE_AUTHOR("Unisys");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("s-Par human input driver for guest Linux");
-MODULE_VERSION(VERSION);
 
 MODULE_ALIAS("visorbus:" SPAR_MOUSE_CHANNEL_PROTOCOL_UUID_STR);
 MODULE_ALIAS("visorbus:" SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID_STR);
