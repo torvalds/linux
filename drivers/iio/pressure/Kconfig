@@ -5,6 +5,16 @@
 
 menu "Pressure sensors"
 
+config ABP060MG
+	tristate "Honeywell ABP pressure sensor driver"
+	depends on I2C
+	help
+	  Say yes here to build support for the Honeywell ABP pressure
+	  sensors.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called abp060mg.
+
 config BMP280
 	tristate "Bosch Sensortec BMP180/BMP280 pressure sensor I2C driver"
 	depends on (I2C || SPI_MASTER)
