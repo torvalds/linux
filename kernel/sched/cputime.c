@@ -78,30 +78,26 @@ EXPORT_SYMBOL_GPL(irqtime_account_irq);
 static cputime_t irqtime_account_hi_update(cputime_t maxtime)
 {
 	u64 *cpustat = kcpustat_this_cpu->cpustat;
-	unsigned long flags;
 	cputime_t irq_cputime;
 
-	local_irq_save(flags);
 	irq_cputime = nsecs_to_cputime64(__this_cpu_read(cpu_hardirq_time)) -
 		      cpustat[CPUTIME_IRQ];
 	irq_cputime = min(irq_cputime, maxtime);
 	cpustat[CPUTIME_IRQ] += irq_cputime;
-	local_irq_restore(flags);
+
 	return irq_cputime;
 }
 
 static cputime_t irqtime_account_si_update(cputime_t maxtime)
 {
 	u64 *cpustat = kcpustat_this_cpu->cpustat;
-	unsigned long flags;
 	cputime_t softirq_cputime;
 
-	local_irq_save(flags);
 	softirq_cputime = nsecs_to_cputime64(__this_cpu_read(cpu_softirq_time)) -
 			  cpustat[CPUTIME_SOFTIRQ];
 	softirq_cputime = min(softirq_cputime, maxtime);
 	cpustat[CPUTIME_SOFTIRQ] += softirq_cputime;
-	local_irq_restore(flags);
+
 	return softirq_cputime;
 }
 
@@ -294,6 +290,9 @@ static __always_inline cputime_t steal_account_process_time(cputime_t maxtime)
 static inline cputime_t account_other_time(cputime_t max)
 {
 	cputime_t accounted;
+
+	/* Shall be converted to a lockdep-enabled lightweight check */
+	WARN_ON_ONCE(!irqs_disabled());
 
 	accounted = steal_account_process_time(max);
 
