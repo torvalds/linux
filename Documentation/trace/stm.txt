@@ -85,6 +85,16 @@ $ echo dummy_stm.0 > /sys/class/stm_source/console/stm_source_link
 For examples on how to use stm_source interface in the kernel, refer
 to stm_console or stm_heartbeat drivers.
 
+Each stm_source device will need to assume a master and a range of
+channels, depending on how many channels it requires. These are
+allocated for the device according to the policy configuration. If
+there's a node in the root of the policy directory that matches the
+stm_source device's name (for example, "console"), this node will be
+used to allocate master and channel numbers. If there's no such policy
+node, the stm core will pick the first contiguous chunk of channels
+within the first available master. Note that the node must exist
+before the stm_source device is connected to its stm device.
+
 stm_console
 ===========
 
