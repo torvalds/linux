@@ -37,7 +37,7 @@ MODULE_SUPPORTED_DEVICE("dgnc");
  *
  */
 static int		dgnc_start(void);
-static int		dgnc_finalize_board_init(struct dgnc_board *brd);
+static int dgnc_request_irq(struct dgnc_board *brd);
 static struct dgnc_board *dgnc_found_board(struct pci_dev *pdev, int id);
 static void		dgnc_cleanup_board(struct dgnc_board *brd);
 static void		dgnc_poll_handler(ulong dummy);
@@ -296,7 +296,7 @@ static int dgnc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto failed;
 	}
 
-	rc = dgnc_finalize_board_init(brd);
+	rc = dgnc_request_irq(brd);
 	if (rc < 0) {
 		pr_err(DRVSTR ": Can't finalize board init (%d)\n", rc);
 		goto unregister_tty;
@@ -558,7 +558,7 @@ failed:
 	return ERR_PTR(rc);
 }
 
-static int dgnc_finalize_board_init(struct dgnc_board *brd)
+static int dgnc_request_irq(struct dgnc_board *brd)
 {
 	int rc = 0;
 
