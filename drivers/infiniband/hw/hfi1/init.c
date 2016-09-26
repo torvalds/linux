@@ -94,7 +94,7 @@ module_param_array(krcvqs, uint, &krcvqsset, S_IRUGO);
 MODULE_PARM_DESC(krcvqs, "Array of the number of non-control kernel receive queues by VL");
 
 /* computed based on above array */
-unsigned n_krcvqs;
+unsigned long n_krcvqs;
 
 static unsigned hfi1_rcvarr_split = 25;
 module_param_named(rcvarr_split, hfi1_rcvarr_split, uint, S_IRUGO);
@@ -500,6 +500,7 @@ void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
 	INIT_WORK(&ppd->link_downgrade_work, handle_link_downgrade);
 	INIT_WORK(&ppd->sma_message_work, handle_sma_message);
 	INIT_WORK(&ppd->link_bounce_work, handle_link_bounce);
+	INIT_DELAYED_WORK(&ppd->start_link_work, handle_start_link);
 	INIT_WORK(&ppd->linkstate_active_work, receive_interrupt_work);
 	INIT_WORK(&ppd->qsfp_info.qsfp_work, qsfp_event);
 

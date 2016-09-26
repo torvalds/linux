@@ -2423,10 +2423,10 @@ static void raid5_end_read_request(struct bio * bi)
 		}
 	}
 	rdev_dec_pending(rdev, conf->mddev);
+	bio_reset(bi);
 	clear_bit(R5_LOCKED, &sh->dev[i].flags);
 	set_bit(STRIPE_HANDLE, &sh->state);
 	raid5_release_stripe(sh);
-	bio_reset(bi);
 }
 
 static void raid5_end_write_request(struct bio *bi)
@@ -2498,6 +2498,7 @@ static void raid5_end_write_request(struct bio *bi)
 	if (sh->batch_head && bi->bi_error && !replacement)
 		set_bit(STRIPE_BATCH_ERR, &sh->batch_head->state);
 
+	bio_reset(bi);
 	if (!test_and_clear_bit(R5_DOUBLE_LOCKED, &sh->dev[i].flags))
 		clear_bit(R5_LOCKED, &sh->dev[i].flags);
 	set_bit(STRIPE_HANDLE, &sh->state);
@@ -2505,7 +2506,6 @@ static void raid5_end_write_request(struct bio *bi)
 
 	if (sh->batch_head && sh != sh->batch_head)
 		raid5_release_stripe(sh->batch_head);
-	bio_reset(bi);
 }
 
 static void raid5_build_block(struct stripe_head *sh, int i, int previous)
@@ -6639,6 +6639,16 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 	}
 
 	conf->min_nr_stripes = NR_STRIPES;
+	if (mddev->reshape_position != MaxSector) {
+		int stripes = max_t(int,
+			((mddev->chunk_sectors << 9) / STRIPE_SIZE) * 4,
+			((mddev->new_chunk_sectors << 9) / STRIPE_SIZE) * 4);
+		conf->min_nr_stripes = max(NR_STRIPES, stripes);
+		if (conf->min_nr_stripes != NR_STRIPES)
+			printk(KERN_INFO
+				"md/raid:%s: force stripe size %d for reshape\n",
+				mdname(mddev), conf->min_nr_stripes);
+	}
 	memory = conf->min_nr_stripes * (sizeof(struct stripe_head) +
 		 max_disks * ((sizeof(struct bio) + PAGE_SIZE))) / 1024;
 	atomic_set(&conf->empty_inactive_list_nr, NR_STRIPE_HASH_LOCKS);

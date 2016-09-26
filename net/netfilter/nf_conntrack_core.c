@@ -1035,9 +1035,9 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	if (IS_ERR(ct))
 		return (struct nf_conntrack_tuple_hash *)ct;
 
-	if (tmpl && nfct_synproxy(tmpl)) {
-		nfct_seqadj_ext_add(ct);
-		nfct_synproxy_ext_add(ct);
+	if (!nf_ct_add_synproxy(ct, tmpl)) {
+		nf_conntrack_free(ct);
+		return ERR_PTR(-ENOMEM);
 	}
 
 	timeout_ext = tmpl ? nf_ct_timeout_find(tmpl) : NULL;

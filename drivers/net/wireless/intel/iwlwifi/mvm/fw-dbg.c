@@ -960,5 +960,6 @@ int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm, u8 conf_id)
 	}
 
 	mvm->fw_dbg_conf = conf_id;
-	return ret;
+
+	return 0;
 }

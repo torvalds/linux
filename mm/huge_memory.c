@@ -1078,7 +1078,7 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
 		goto out;
 
 	page = pmd_page(*pmd);
-	VM_BUG_ON_PAGE(!PageHead(page), page);
+	VM_BUG_ON_PAGE(!PageHead(page) && !is_zone_device_page(page), page);
 	if (flags & FOLL_TOUCH)
 		touch_pmd(vma, addr, pmd);
 	if ((flags & FOLL_MLOCK) && (vma->vm_flags & VM_LOCKED)) {
@@ -1116,7 +1116,7 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
 	}
 skip_mlock:
 	page += (addr & ~HPAGE_PMD_MASK) >> PAGE_SHIFT;
-	VM_BUG_ON_PAGE(!PageCompound(page), page);
+	VM_BUG_ON_PAGE(!PageCompound(page) && !is_zone_device_page(page), page);
 	if (flags & FOLL_GET)
 		get_page(page);
 
@@ -1137,9 +1137,6 @@ int do_huge_pmd_numa_page(struct fault_env *fe, pmd_t pmd)
 	bool migrated = false;
 	bool was_writable;
 	int flags = 0;
-
-	/* A PROT_NONE fault should not end up here */
-	BUG_ON(!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)));
 
 	fe->ptl = pmd_lock(vma->vm_mm, fe->pmd);
 	if (unlikely(!pmd_same(pmd, *fe->pmd)))
