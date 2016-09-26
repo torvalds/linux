@@ -55,12 +55,34 @@ struct nf_hook_state {
 	struct net_device *out;
 	struct sock *sk;
 	struct net *net;
-	struct list_head *hook_list;
+	struct nf_hook_entry __rcu *hook_entries;
 	int (*okfn)(struct net *, struct sock *, struct sk_buff *);
 };
 
+typedef unsigned int nf_hookfn(void *priv,
+			       struct sk_buff *skb,
+			       const struct nf_hook_state *state);
+struct nf_hook_ops {
+	struct list_head	list;
+
+	/* User fills in from here down. */
+	nf_hookfn		*hook;
+	struct net_device	*dev;
+	void			*priv;
+	u_int8_t		pf;
+	unsigned int		hooknum;
+	/* Hooks are ordered in ascending priority. */
+	int			priority;
+};
+
+struct nf_hook_entry {
+	struct nf_hook_entry __rcu	*next;
+	struct nf_hook_ops		ops;
+	const struct nf_hook_ops	*orig_ops;
+};
+
 static inline void nf_hook_state_init(struct nf_hook_state *p,
-				      struct list_head *hook_list,
+				      struct nf_hook_entry *hook_entry,
 				      unsigned int hook,
 				      int thresh, u_int8_t pf,
 				      struct net_device *indev,
@@ -76,26 +98,11 @@ static inline void nf_hook_state_init(struct nf_hook_state *p,
 	p->out = outdev;
 	p->sk = sk;
 	p->net = net;
-	p->hook_list = hook_list;
+	RCU_INIT_POINTER(p->hook_entries, hook_entry);
 	p->okfn = okfn;
 }
 
-typedef unsigned int nf_hookfn(void *priv,
-			       struct sk_buff *skb,
-			       const struct nf_hook_state *state);
 
-struct nf_hook_ops {
-	struct list_head 	list;
-
-	/* User fills in from here down. */
-	nf_hookfn		*hook;
-	struct net_device	*dev;
-	void			*priv;
-	u_int8_t		pf;
-	unsigned int		hooknum;
-	/* Hooks are ordered in ascending priority. */
-	int			priority;
-};
 
 struct nf_sockopt_ops {
 	struct list_head list;
@@ -163,7 +170,8 @@ static inline int nf_hook_thresh(u_int8_t pf, unsigned int hook,
 				 int (*okfn)(struct net *, struct sock *, struct sk_buff *),
 				 int thresh)
 {
-	struct list_head *hook_list;
+	struct nf_hook_entry *hook_head;
+	int ret = 1;
 
 #ifdef HAVE_JUMP_LABEL
 	if (__builtin_constant_p(pf) &&
@@ -172,16 +180,19 @@ static inline int nf_hook_thresh(u_int8_t pf, unsigned int hook,
 		return 1;
 #endif
 
-	hook_list = &net->nf.hooks[pf][hook];
-
-	if (!list_empty(hook_list)) {
+	rcu_read_lock();
+	hook_head = rcu_dereference(net->nf.hooks[pf][hook]);
+	if (hook_head) {
 		struct nf_hook_state state;
 
-		nf_hook_state_init(&state, hook_list, hook, thresh,
+		nf_hook_state_init(&state, hook_head, hook, thresh,
 				   pf, indev, outdev, sk, net, okfn);
-		return nf_hook_slow(skb, &state);
+
+		ret = nf_hook_slow(skb, &state);
 	}
-	return 1;
+	rcu_read_unlock();
+
+	return ret;
 }
 
 static inline int nf_hook(u_int8_t pf, unsigned int hook, struct net *net,

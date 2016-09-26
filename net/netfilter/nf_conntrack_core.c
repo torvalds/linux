@@ -379,7 +379,6 @@ static void
 destroy_conntrack(struct nf_conntrack *nfct)
 {
 	struct nf_conn *ct = (struct nf_conn *)nfct;
-	struct net *net = nf_ct_net(ct);
 	struct nf_conntrack_l4proto *l4proto;
 
 	pr_debug("destroy_conntrack(%p)\n", ct);
@@ -406,7 +405,6 @@ destroy_conntrack(struct nf_conntrack *nfct)
 
 	nf_ct_del_from_dying_or_unconfirmed_list(ct);
 
-	NF_CT_STAT_INC(net, delete);
 	local_bh_enable();
 
 	if (ct->master)
@@ -438,7 +436,6 @@ static void nf_ct_delete_from_lists(struct nf_conn *ct)
 
 	nf_ct_add_to_dying_list(ct);
 
-	NF_CT_STAT_INC(net, delete_list);
 	local_bh_enable();
 }
 
@@ -529,11 +526,8 @@ begin:
 		if (nf_ct_is_dying(ct))
 			continue;
 
-		if (nf_ct_key_equal(h, tuple, zone, net)) {
-			NF_CT_STAT_INC_ATOMIC(net, found);
+		if (nf_ct_key_equal(h, tuple, zone, net))
 			return h;
-		}
-		NF_CT_STAT_INC_ATOMIC(net, searched);
 	}
 	/*
 	 * if the nulls value we got at the end of this lookup is
@@ -798,7 +792,6 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	 */
 	__nf_conntrack_hash_insert(ct, hash, reply_hash);
 	nf_conntrack_double_unlock(hash, reply_hash);
-	NF_CT_STAT_INC(net, insert);
 	local_bh_enable();
 
 	help = nfct_help(ct);
@@ -857,7 +850,6 @@ nf_conntrack_tuple_taken(const struct nf_conntrack_tuple *tuple,
 			rcu_read_unlock();
 			return 1;
 		}
-		NF_CT_STAT_INC_ATOMIC(net, searched);
 	}
 
 	if (get_nulls_value(n) != hash) {
@@ -1177,10 +1169,8 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 		}
 		spin_unlock(&nf_conntrack_expect_lock);
 	}
-	if (!exp) {
+	if (!exp)
 		__nf_ct_try_assign_helper(ct, tmpl, GFP_ATOMIC);
-		NF_CT_STAT_INC(net, new);
-	}
 
 	/* Now it is inserted into the unconfirmed list, bump refcount */
 	nf_conntrack_get(&ct->ct_general);
@@ -1285,7 +1275,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		skb->nfct = NULL;
 	}
 
-	/* rcu_read_lock()ed by nf_hook_slow */
+	/* rcu_read_lock()ed by nf_hook_thresh */
 	l3proto = __nf_ct_l3proto_find(pf);
 	ret = l3proto->get_l4proto(skb, skb_network_offset(skb),
 				   &dataoff, &protonum);

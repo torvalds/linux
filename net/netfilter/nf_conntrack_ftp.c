@@ -301,8 +301,6 @@ static int find_pattern(const char *data, size_t dlen,
 	size_t i = plen;
 
 	pr_debug("find_pattern `%s': dlen = %Zu\n", pattern, dlen);
-	if (dlen == 0)
-		return 0;
 
 	if (dlen <= plen) {
 		/* Short packet: try for partial? */
@@ -311,19 +309,8 @@ static int find_pattern(const char *data, size_t dlen,
 		else return 0;
 	}
 
-	if (strncasecmp(data, pattern, plen) != 0) {
-#if 0
-		size_t i;
-
-		pr_debug("ftp: string mismatch\n");
-		for (i = 0; i < plen; i++) {
-			pr_debug("ftp:char %u `%c'(%u) vs `%c'(%u)\n",
-				 i, data[i], data[i],
-				 pattern[i], pattern[i]);
-		}
-#endif
+	if (strncasecmp(data, pattern, plen) != 0)
 		return 0;
-	}
 
 	pr_debug("Pattern matches!\n");
 	/* Now we've found the constant string, try to skip

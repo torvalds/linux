@@ -19,6 +19,7 @@ struct nft_pktinfo {
 	const struct net_device		*out;
 	u8				pf;
 	u8				hook;
+	bool				tprot_set;
 	u8				tprot;
 	/* for x_tables compatibility */
 	struct xt_action_param		xt;
@@ -34,6 +35,23 @@ static inline void nft_set_pktinfo(struct nft_pktinfo *pkt,
 	pkt->out = pkt->xt.out = state->out;
 	pkt->hook = pkt->xt.hooknum = state->hook;
 	pkt->pf = pkt->xt.family = state->pf;
+}
+
+static inline void nft_set_pktinfo_proto_unspec(struct nft_pktinfo *pkt,
+						struct sk_buff *skb)
+{
+	pkt->tprot_set = false;
+	pkt->tprot = 0;
+	pkt->xt.thoff = 0;
+	pkt->xt.fragoff = 0;
+}
+
+static inline void nft_set_pktinfo_unspec(struct nft_pktinfo *pkt,
+					  struct sk_buff *skb,
+					  const struct nf_hook_state *state)
+{
+	nft_set_pktinfo(pkt, skb, state);
+	nft_set_pktinfo_proto_unspec(pkt, skb);
 }
 
 /**
@@ -127,6 +145,7 @@ static inline enum nft_registers nft_type_to_reg(enum nft_data_types type)
 	return type == NFT_DATA_VERDICT ? NFT_REG_VERDICT : NFT_REG_1 * NFT_REG_SIZE / NFT_REG32_SIZE;
 }
 
+unsigned int nft_parse_u32_check(const struct nlattr *attr, int max, u32 *dest);
 unsigned int nft_parse_register(const struct nlattr *attr);
 int nft_dump_register(struct sk_buff *skb, unsigned int attr, unsigned int reg);
 

@@ -22,9 +22,7 @@ static unsigned int nft_do_chain_ipv6(void *priv,
 {
 	struct nft_pktinfo pkt;
 
-	/* malformed packet, drop it */
-	if (nft_set_pktinfo_ipv6(&pkt, skb, state) < 0)
-		return NF_DROP;
+	nft_set_pktinfo_ipv6(&pkt, skb, state);
 
 	return nft_do_chain(&pkt, priv);
 }
@@ -102,7 +100,10 @@ static int __init nf_tables_ipv6_init(void)
 {
 	int ret;
 
-	nft_register_chain_type(&filter_ipv6);
+	ret = nft_register_chain_type(&filter_ipv6);
+	if (ret < 0)
+		return ret;
+
 	ret = register_pernet_subsys(&nf_tables_ipv6_net_ops);
 	if (ret < 0)
 		nft_unregister_chain_type(&filter_ipv6);

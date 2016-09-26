@@ -192,15 +192,15 @@ static bool gre_invert_tuple(struct nf_conntrack_tuple *tuple,
 static bool gre_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
 			     struct net *net, struct nf_conntrack_tuple *tuple)
 {
-	const struct gre_hdr_pptp *pgrehdr;
-	struct gre_hdr_pptp _pgrehdr;
+	const struct pptp_gre_header *pgrehdr;
+	struct pptp_gre_header _pgrehdr;
 	__be16 srckey;
-	const struct gre_hdr *grehdr;
-	struct gre_hdr _grehdr;
+	const struct gre_base_hdr *grehdr;
+	struct gre_base_hdr _grehdr;
 
 	/* first only delinearize old RFC1701 GRE header */
 	grehdr = skb_header_pointer(skb, dataoff, sizeof(_grehdr), &_grehdr);
-	if (!grehdr || grehdr->version != GRE_VERSION_PPTP) {
+	if (!grehdr || (grehdr->flags & GRE_VERSION) != GRE_VERSION_1) {
 		/* try to behave like "nf_conntrack_proto_generic" */
 		tuple->src.u.all = 0;
 		tuple->dst.u.all = 0;
@@ -212,8 +212,8 @@ static bool gre_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
 	if (!pgrehdr)
 		return true;
 
-	if (ntohs(grehdr->protocol) != GRE_PROTOCOL_PPTP) {
-		pr_debug("GRE_VERSION_PPTP but unknown proto\n");
+	if (grehdr->protocol != GRE_PROTO_PPP) {
+		pr_debug("Unsupported GRE proto(0x%x)\n", ntohs(grehdr->protocol));
 		return false;
 	}
 

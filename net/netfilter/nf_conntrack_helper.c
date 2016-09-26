@@ -189,7 +189,6 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 	struct nf_conntrack_helper *helper = NULL;
 	struct nf_conn_help *help;
 	struct net *net = nf_ct_net(ct);
-	int ret = 0;
 
 	/* We already got a helper explicitly attached. The function
 	 * nf_conntrack_alter_reply - in case NAT is in use - asks for looking
@@ -223,15 +222,13 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 	if (helper == NULL) {
 		if (help)
 			RCU_INIT_POINTER(help->helper, NULL);
-		goto out;
+		return 0;
 	}
 
 	if (help == NULL) {
 		help = nf_ct_helper_ext_add(ct, helper, flags);
-		if (help == NULL) {
-			ret = -ENOMEM;
-			goto out;
-		}
+		if (help == NULL)
+			return -ENOMEM;
 	} else {
 		/* We only allow helper re-assignment of the same sort since
 		 * we cannot reallocate the helper extension area.
@@ -240,13 +237,13 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 
 		if (tmp && tmp->help != helper->help) {
 			RCU_INIT_POINTER(help->helper, NULL);
-			goto out;
+			return 0;
 		}
 	}
 
 	rcu_assign_pointer(help->helper, helper);
-out:
-	return ret;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(__nf_ct_try_assign_helper);
 
@@ -349,7 +346,7 @@ void nf_ct_helper_log(struct sk_buff *skb, const struct nf_conn *ct,
 	/* Called from the helper function, this call never fails */
 	help = nfct_help(ct);
 
-	/* rcu_read_lock()ed by nf_hook_slow */
+	/* rcu_read_lock()ed by nf_hook_thresh */
 	helper = rcu_dereference(help->helper);
 
 	nf_log_packet(nf_ct_net(ct), nf_ct_l3num(ct), 0, skb, NULL, NULL, NULL,

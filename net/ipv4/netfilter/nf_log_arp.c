@@ -30,7 +30,7 @@ static struct nf_loginfo default_loginfo = {
 	.u = {
 		.log = {
 			.level	  = LOGLEVEL_NOTICE,
-			.logflags = NF_LOG_MASK,
+			.logflags = NF_LOG_DEFAULT_MASK,
 		},
 	},
 };
