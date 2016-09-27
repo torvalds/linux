@@ -266,10 +266,7 @@ static inline int validate_fec_header(struct fec_header *header, u64 offset)
 		le32_to_cpu(header->version) != FEC_VERSION ||
 		le32_to_cpu(header->size) != sizeof(struct fec_header) ||
 		le32_to_cpu(header->roots) == 0 ||
-		le32_to_cpu(header->roots) >= FEC_RSM ||
-		offset < le32_to_cpu(header->fec_size) ||
-		offset - le32_to_cpu(header->fec_size) !=
-		le64_to_cpu(header->inp_size))
+		le32_to_cpu(header->roots) >= FEC_RSM)
 		return -EINVAL;
 
 	return 0;
