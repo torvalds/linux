@@ -465,6 +465,8 @@ void vsock_pending_work(struct work_struct *work)
 
 	if (vsock_is_pending(sk)) {
 		vsock_remove_pending(listener, sk);
+
+		listener->sk_ack_backlog--;
 	} else if (!vsk->rejected) {
 		/* We are not on the pending list and accept() did not reject
 		 * us, so we must have been accepted by our user process.  We
@@ -474,8 +476,6 @@ void vsock_pending_work(struct work_struct *work)
 		cleanup = false;
 		goto out;
 	}
-
-	listener->sk_ack_backlog--;
 
 	/* We need to remove ourself from the global connected sockets list so
 	 * incoming packets can't find this socket, and to reduce the reference
@@ -2010,5 +2010,5 @@ EXPORT_SYMBOL_GPL(vsock_core_get_transport);
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Virtual Socket Family");
-MODULE_VERSION("1.0.1.0-k");
+MODULE_VERSION("1.0.2.0-k");
 MODULE_LICENSE("GPL v2");
