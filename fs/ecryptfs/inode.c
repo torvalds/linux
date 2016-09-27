@@ -577,7 +577,8 @@ out:
 
 static int
 ecryptfs_rename(struct inode *old_dir, struct dentry *old_dentry,
-		struct inode *new_dir, struct dentry *new_dentry)
+		struct inode *new_dir, struct dentry *new_dentry,
+		unsigned int flags)
 {
 	int rc;
 	struct dentry *lower_old_dentry;
@@ -586,6 +587,9 @@ ecryptfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct dentry *lower_new_dir_dentry;
 	struct dentry *trap = NULL;
 	struct inode *target_inode;
+
+	if (flags)
+		return -EINVAL;
 
 	lower_old_dentry = ecryptfs_dentry_to_lower(old_dentry);
 	lower_new_dentry = ecryptfs_dentry_to_lower(new_dentry);
@@ -1104,7 +1108,7 @@ const struct inode_operations ecryptfs_dir_iops = {
 	.mkdir = ecryptfs_mkdir,
 	.rmdir = ecryptfs_rmdir,
 	.mknod = ecryptfs_mknod,
-	.rename = ecryptfs_rename,
+	.rename2 = ecryptfs_rename,
 	.permission = ecryptfs_permission,
 	.setattr = ecryptfs_setattr,
 	.setxattr = ecryptfs_setxattr,

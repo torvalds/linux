@@ -1050,12 +1050,16 @@ out:
 }
 
 static int ll_rename(struct inode *src, struct dentry *src_dchild,
-		     struct inode *tgt, struct dentry *tgt_dchild)
+		     struct inode *tgt, struct dentry *tgt_dchild,
+		     unsigned int flags)
 {
 	struct ptlrpc_request *request = NULL;
 	struct ll_sb_info *sbi = ll_i2sbi(src);
 	struct md_op_data *op_data;
 	int err;
+
+	if (flags)
+		return -EINVAL;
 
 	CDEBUG(D_VFSTRACE,
 	       "VFS Op:oldname=%pd, src_dir="DFID"(%p), newname=%pd, tgt_dir="DFID"(%p)\n",
@@ -1102,7 +1106,7 @@ const struct inode_operations ll_dir_inode_operations = {
 	.rmdir	      = ll_rmdir,
 	.symlink	    = ll_symlink,
 	.link	       = ll_link,
-	.rename	     = ll_rename,
+	.rename2	= ll_rename,
 	.setattr	    = ll_setattr,
 	.getattr	    = ll_getattr,
 	.permission	 = ll_inode_permission,

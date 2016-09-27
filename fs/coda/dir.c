@@ -291,13 +291,17 @@ static int coda_rmdir(struct inode *dir, struct dentry *de)
 
 /* rename */
 static int coda_rename(struct inode *old_dir, struct dentry *old_dentry,
-		       struct inode *new_dir, struct dentry *new_dentry)
+		       struct inode *new_dir, struct dentry *new_dentry,
+		       unsigned int flags)
 {
 	const char *old_name = old_dentry->d_name.name;
 	const char *new_name = new_dentry->d_name.name;
 	int old_length = old_dentry->d_name.len;
 	int new_length = new_dentry->d_name.len;
 	int error;
+
+	if (flags)
+		return -EINVAL;
 
 	error = venus_rename(old_dir->i_sb, coda_i2f(old_dir),
 			     coda_i2f(new_dir), old_length, new_length,
@@ -569,7 +573,7 @@ const struct inode_operations coda_dir_inode_operations = {
 	.mkdir		= coda_mkdir,
 	.rmdir		= coda_rmdir,
 	.mknod		= CODA_EIO_ERROR,
-	.rename		= coda_rename,
+	.rename2	= coda_rename,
 	.permission	= coda_permission,
 	.getattr	= coda_getattr,
 	.setattr	= coda_setattr,

@@ -409,10 +409,14 @@ out:
 static int orangefs_rename(struct inode *old_dir,
 			struct dentry *old_dentry,
 			struct inode *new_dir,
-			struct dentry *new_dentry)
+			struct dentry *new_dentry,
+			unsigned int flags)
 {
 	struct orangefs_kernel_op_s *new_op;
 	int ret;
+
+	if (flags)
+		return -EINVAL;
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "orangefs_rename: called (%pd2 => %pd2) ct=%d\n",
@@ -459,7 +463,7 @@ const struct inode_operations orangefs_dir_inode_operations = {
 	.symlink = orangefs_symlink,
 	.mkdir = orangefs_mkdir,
 	.rmdir = orangefs_unlink,
-	.rename = orangefs_rename,
+	.rename2 = orangefs_rename,
 	.setattr = orangefs_setattr,
 	.getattr = orangefs_getattr,
 	.setxattr = generic_setxattr,
