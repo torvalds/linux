@@ -390,8 +390,8 @@ static int isl29018_read_raw(struct iio_dev *indio_dev,
 
 	mutex_lock(&chip->lock);
 	if (chip->suspended) {
-		mutex_unlock(&chip->lock);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto read_done;
 	}
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
@@ -438,6 +438,8 @@ static int isl29018_read_raw(struct iio_dev *indio_dev,
 	default:
 		break;
 	}
+
+read_done:
 	mutex_unlock(&chip->lock);
 	return ret;
 }
