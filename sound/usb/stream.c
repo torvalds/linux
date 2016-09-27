@@ -685,6 +685,9 @@ int snd_usb_parse_audio_interface(struct snd_usb_audio *chip, int iface_no)
 
 		switch (chip->usb_id) {
 		case USB_ID(0x0a92, 0x0053): /* AudioTrak Optoplay */
+#ifdef CONFIG_HID_RKVR
+		case USB_ID(0x071B, 0x3205): /* RockChip NanoC VR */
+#endif
 			/* Optoplay sets the sample rate attribute although
 			 * it seems not supporting it in fact.
 			 */
