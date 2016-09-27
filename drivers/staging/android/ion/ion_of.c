@@ -88,7 +88,7 @@ struct ion_platform_data *ion_parse_dt(struct platform_device *pdev,
 		return ERR_PTR(-EINVAL);
 
 	heaps = devm_kzalloc(&pdev->dev,
-			     sizeof(struct ion_platform_heap)*num_heaps,
+			     sizeof(struct ion_platform_heap) * num_heaps,
 			     GFP_KERNEL);
 	if (!heaps)
 		return ERR_PTR(-ENOMEM);
