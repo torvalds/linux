@@ -22,6 +22,7 @@
 #define AT91_MEMCTRL_DDRSDR	2
 
 #define	AT91_PM_SLOW_CLOCK	0x01
+#define	AT91_PM_BACKUP		0x02
 
 #ifndef __ASSEMBLY__
 struct at91_pm_data {
@@ -30,6 +31,9 @@ struct at91_pm_data {
 	unsigned long uhp_udp_mask;
 	unsigned int memctrl;
 	unsigned int mode;
+	void __iomem *shdwc;
+	void __iomem *sfrbu;
+	unsigned int deepest_state;
 };
 #endif
 
