@@ -592,3 +592,7 @@ in your dentry operations instead.
 	work just as well; if it's something more complicated, use dentry->d_parent.
 	Just be careful not to assume that fetching it more than once will yield
 	the same value - in RCU mode it could change under you.
+--
+[mandatory]
+	->rename() has an added flags argument.  Any flags not handled by the
+        filesystem should result in EINVAL being returned.
