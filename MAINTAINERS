@@ -5299,6 +5299,7 @@ F:	drivers/staging/greybus/
 
 GREYBUS AUDIO PROTOCOLS DRIVERS
 M:	Vaibhav Agarwal <vaibhav.sr@gmail.com>
+M:	Mark Greer <mgreer@animalcreek.com>
 S:	Maintained
 F:	drivers/staging/greybus/audio_codec.c
 F:	drivers/staging/greybus/audio_module.c
