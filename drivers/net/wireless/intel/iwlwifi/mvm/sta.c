@@ -1015,6 +1015,7 @@ static void iwl_mvm_tx_deferred_stream(struct iwl_mvm *mvm,
 	local_bh_disable();
 	spin_lock(&mvmsta->lock);
 	skb_queue_splice_init(&tid_data->deferred_tx_frames, &deferred_tx);
+	mvmsta->deferred_traffic_tid_map &= ~BIT(tid);
 	spin_unlock(&mvmsta->lock);
 
 	while ((skb = __skb_dequeue(&deferred_tx)))
