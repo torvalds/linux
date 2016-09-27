@@ -314,7 +314,7 @@ const struct inode_operations exofs_dir_inode_operations = {
 	.mkdir  	= exofs_mkdir,
 	.rmdir  	= exofs_rmdir,
 	.mknod  	= exofs_mknod,
-	.rename2	= exofs_rename,
+	.rename		= exofs_rename,
 	.setattr	= exofs_setattr,
 };
 

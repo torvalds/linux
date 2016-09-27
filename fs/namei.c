@@ -4369,7 +4369,7 @@ int vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (error)
 		return error;
 
-	if (!old_dir->i_op->rename2)
+	if (!old_dir->i_op->rename)
 		return -EPERM;
 
 	/*
@@ -4425,7 +4425,7 @@ int vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		if (error)
 			goto out;
 	}
-	error = old_dir->i_op->rename2(old_dir, old_dentry,
+	error = old_dir->i_op->rename(old_dir, old_dentry,
 				       new_dir, new_dentry, flags);
 	if (error)
 		goto out;

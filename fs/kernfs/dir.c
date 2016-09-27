@@ -1137,7 +1137,7 @@ const struct inode_operations kernfs_dir_iops = {
 
 	.mkdir		= kernfs_iop_mkdir,
 	.rmdir		= kernfs_iop_rmdir,
-	.rename2	= kernfs_iop_rename,
+	.rename		= kernfs_iop_rename,
 };
 
 static struct kernfs_node *kernfs_leftmost_descendant(struct kernfs_node *pos)

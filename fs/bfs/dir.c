@@ -274,7 +274,7 @@ const struct inode_operations bfs_dir_inops = {
 	.lookup			= bfs_lookup,
 	.link			= bfs_link,
 	.unlink			= bfs_unlink,
-	.rename2		= bfs_rename,
+	.rename			= bfs_rename,
 };
 
 static int bfs_add_entry(struct inode *dir, const unsigned char *name,

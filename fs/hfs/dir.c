@@ -324,6 +324,6 @@ const struct inode_operations hfs_dir_inode_operations = {
 	.unlink		= hfs_remove,
 	.mkdir		= hfs_mkdir,
 	.rmdir		= hfs_remove,
-	.rename2	= hfs_rename,
+	.rename		= hfs_rename,
 	.setattr	= hfs_inode_setattr,
 };

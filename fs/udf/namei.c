@@ -1357,6 +1357,6 @@ const struct inode_operations udf_dir_inode_operations = {
 	.mkdir				= udf_mkdir,
 	.rmdir				= udf_rmdir,
 	.mknod				= udf_mknod,
-	.rename2			= udf_rename,
+	.rename				= udf_rename,
 	.tmpfile			= udf_tmpfile,
 };

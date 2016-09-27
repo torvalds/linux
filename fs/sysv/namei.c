@@ -289,6 +289,6 @@ const struct inode_operations sysv_dir_inode_operations = {
 	.mkdir		= sysv_mkdir,
 	.rmdir		= sysv_rmdir,
 	.mknod		= sysv_mknod,
-	.rename2	= sysv_rename,
+	.rename		= sysv_rename,
 	.getattr	= sysv_getattr,
 };

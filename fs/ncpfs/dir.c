@@ -65,7 +65,7 @@ const struct inode_operations ncp_dir_inode_operations =
 	.mkdir		= ncp_mkdir,
 	.rmdir		= ncp_rmdir,
 	.mknod		= ncp_mknod,
-	.rename2	= ncp_rename,
+	.rename		= ncp_rename,
 	.setattr	= ncp_notify_change,
 };
 

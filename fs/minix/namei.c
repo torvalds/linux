@@ -268,7 +268,7 @@ const struct inode_operations minix_dir_inode_operations = {
 	.mkdir		= minix_mkdir,
 	.rmdir		= minix_rmdir,
 	.mknod		= minix_mknod,
-	.rename2	= minix_rename,
+	.rename		= minix_rename,
 	.getattr	= minix_getattr,
 	.tmpfile	= minix_tmpfile,
 };

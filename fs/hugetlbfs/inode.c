@@ -988,7 +988,7 @@ static const struct inode_operations hugetlbfs_dir_inode_operations = {
 	.mkdir		= hugetlbfs_mkdir,
 	.rmdir		= simple_rmdir,
 	.mknod		= hugetlbfs_mknod,
-	.rename2	= simple_rename,
+	.rename		= simple_rename,
 	.setattr	= hugetlbfs_setattr,
 };
 

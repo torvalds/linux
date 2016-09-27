@@ -337,5 +337,5 @@ const struct inode_operations ufs_dir_inode_operations = {
 	.mkdir		= ufs_mkdir,
 	.rmdir		= ufs_rmdir,
 	.mknod		= ufs_mknod,
-	.rename2	= ufs_rename,
+	.rename		= ufs_rename,
 };

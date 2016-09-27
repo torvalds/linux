@@ -1502,7 +1502,7 @@ const struct inode_operations ceph_dir_iops = {
 	.link = ceph_link,
 	.unlink = ceph_unlink,
 	.rmdir = ceph_unlink,
-	.rename2 = ceph_rename,
+	.rename = ceph_rename,
 	.create = ceph_create,
 	.atomic_open = ceph_atomic_open,
 };
@@ -1513,7 +1513,7 @@ const struct inode_operations ceph_snapdir_iops = {
 	.getattr = ceph_getattr,
 	.mkdir = ceph_mkdir,
 	.rmdir = ceph_unlink,
-	.rename2 = ceph_rename,
+	.rename = ceph_rename,
 };
 
 const struct dentry_operations ceph_dentry_ops = {

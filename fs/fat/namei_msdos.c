@@ -637,7 +637,7 @@ static const struct inode_operations msdos_dir_inode_operations = {
 	.unlink		= msdos_unlink,
 	.mkdir		= msdos_mkdir,
 	.rmdir		= msdos_rmdir,
-	.rename2	= msdos_rename,
+	.rename		= msdos_rename,
 	.setattr	= fat_setattr,
 	.getattr	= fat_getattr,
 };

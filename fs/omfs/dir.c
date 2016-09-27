@@ -448,7 +448,7 @@ static int omfs_readdir(struct file *file, struct dir_context *ctx)
 const struct inode_operations omfs_dir_inops = {
 	.lookup = omfs_lookup,
 	.mkdir = omfs_mkdir,
-	.rename2 = omfs_rename,
+	.rename = omfs_rename,
 	.create = omfs_create,
 	.unlink = omfs_remove,
 	.rmdir = omfs_remove,
