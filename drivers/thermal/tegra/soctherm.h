@@ -15,6 +15,11 @@
 #ifndef __DRIVERS_THERMAL_TEGRA_SOCTHERM_H
 #define __DRIVERS_THERMAL_TEGRA_SOCTHERM_H
 
+#define THERMCTL_LEVEL0_GROUP_CPU               0x0
+#define THERMCTL_LEVEL0_GROUP_GPU		0x4
+#define THERMCTL_LEVEL0_GROUP_MEM		0x8
+#define THERMCTL_LEVEL0_GROUP_TSENSE		0xc
+
 #define SENSOR_CONFIG2                          8
 #define SENSOR_CONFIG2_THERMA_MASK		(0xffff << 16)
 #define SENSOR_CONFIG2_THERMA_SHIFT		16
@@ -65,6 +70,9 @@ struct tegra_tsensor_group {
 	u32 thermtrip_enable_mask;
 	u32 thermtrip_any_en_mask;
 	u32 thermtrip_threshold_mask;
+	u16 thermctl_lvl0_offset;
+	u32 thermctl_lvl0_up_thresh_mask;
+	u32 thermctl_lvl0_dn_thresh_mask;
 };
 
 struct tegra_tsensor_configuration {
@@ -103,6 +111,8 @@ struct tegra_soctherm_soc {
 	const unsigned int num_ttgs;
 	const struct tegra_soctherm_fuse *tfuse;
 	const int thresh_grain;
+	const unsigned int bptt;
+	const bool use_ccroc;
 };
 
 int tegra_calc_shared_calib(const struct tegra_soctherm_fuse *tfuse,

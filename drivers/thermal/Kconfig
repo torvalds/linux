@@ -352,6 +352,16 @@ menu "ACPI INT340X thermal drivers"
 source drivers/thermal/int340x_thermal/Kconfig
 endmenu
 
+config INTEL_BXT_PMIC_THERMAL
+	tristate "Intel Broxton PMIC thermal driver"
+	depends on X86 && INTEL_SOC_PMIC && REGMAP
+	help
+	  Select this driver for Intel Broxton PMIC with ADC channels monitoring
+	  system temperature measurements and alerts.
+	  This driver is used for monitoring the ADC channels of PMIC and handles
+	  the alert trip point interrupts and notifies the thermal framework with
+	  the trip point and temperature details of the zone.
+
 config INTEL_PCH_THERMAL
 	tristate "Intel PCH Thermal Reporting Driver"
 	depends on X86 && PCI
