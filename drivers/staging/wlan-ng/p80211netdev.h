@@ -98,7 +98,7 @@
 #define P80211_NSDCAP_NOSCAN                0x200 /* nsd can scan */
 
 /* Received frame statistics */
-typedef struct p80211_frmrx_t {
+struct p80211_frmrx {
 	u32 mgmt;
 	u32 assocreq;
 	u32 assocresp;
@@ -132,7 +132,7 @@ typedef struct p80211_frmrx_t {
 	u32 data_unknown;
 	u32 decrypt;
 	u32 decrypt_err;
-} p80211_frmrx_t;
+};
 
 /* called by /proc/net/wireless */
 struct iw_statistics *p80211wext_get_wireless_stats(struct net_device *dev);
@@ -211,7 +211,7 @@ struct wlandevice {
 	struct sk_buff_head nsd_rxq;
 
 	/* 802.11 device statistics */
-	struct p80211_frmrx_t rx;
+	struct p80211_frmrx rx;
 
 	struct iw_statistics wstats;
 
