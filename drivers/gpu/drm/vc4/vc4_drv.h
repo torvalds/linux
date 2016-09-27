@@ -122,8 +122,15 @@ to_vc4_dev(struct drm_device *dev)
 struct vc4_bo {
 	struct drm_gem_cma_object base;
 
-	/* seqno of the last job to render to this BO. */
+	/* seqno of the last job to render using this BO. */
 	uint64_t seqno;
+
+	/* seqno of the last job to use the RCL to write to this BO.
+	 *
+	 * Note that this doesn't include binner overflow memory
+	 * writes.
+	 */
+	uint64_t write_seqno;
 
 	/* List entry for the BO's position in either
 	 * vc4_exec_info->unref_list or vc4_dev->bo_cache.time_list
@@ -216,6 +223,9 @@ struct vc4_exec_info {
 	/* Sequence number for this bin/render job. */
 	uint64_t seqno;
 
+	/* Latest write_seqno of any BO that binning depends on. */
+	uint64_t bin_dep_seqno;
+
 	/* Last current addresses the hardware was processing when the
 	 * hangcheck timer checked on us.
 	 */
@@ -229,6 +239,13 @@ struct vc4_exec_info {
 	 */
 	struct drm_gem_cma_object **bo;
 	uint32_t bo_count;
+
+	/* List of BOs that are being written by the RCL.  Other than
+	 * the binner temporary storage, this is all the BOs written
+	 * by the job.
+	 */
+	struct drm_gem_cma_object *rcl_write_bo[4];
+	uint32_t rcl_write_bo_count;
 
 	/* Pointers for our position in vc4->job_list */
 	struct list_head head;
