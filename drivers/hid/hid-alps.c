@@ -190,16 +190,16 @@ static int alps_raw_event(struct hid_device *hdev,
 			if (z != 0) {
 				input_mt_report_slot_state(hdata->input,
 					MT_TOOL_FINGER, 1);
+				input_report_abs(hdata->input,
+					ABS_MT_POSITION_X, x);
+				input_report_abs(hdata->input,
+					ABS_MT_POSITION_Y, y);
+				input_report_abs(hdata->input,
+					ABS_MT_PRESSURE, z);
 			} else {
 				input_mt_report_slot_state(hdata->input,
 					MT_TOOL_FINGER, 0);
-				break;
 			}
-
-			input_report_abs(hdata->input, ABS_MT_POSITION_X, x);
-			input_report_abs(hdata->input, ABS_MT_POSITION_Y, y);
-			input_report_abs(hdata->input, ABS_MT_PRESSURE, z);
-
 		}
 
 		input_mt_sync_frame(hdata->input);
