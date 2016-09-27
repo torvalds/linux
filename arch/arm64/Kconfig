@@ -579,7 +579,6 @@ config HOTPLUG_CPU
 # Common NUMA Features
 config NUMA
 	bool "Numa Memory Allocation and Scheduler Support"
-	depends on SMP
 	select ACPI_NUMA if ACPI
 	select OF_NUMA
 	help
