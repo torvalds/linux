@@ -133,12 +133,11 @@ ncp_hash_dentry(const struct dentry *dentry, struct qstr *this)
 		return 0;
 
 	if (!ncp_case_sensitive(inode)) {
-		struct super_block *sb = dentry->d_sb;
 		struct nls_table *t;
 		unsigned long hash;
 		int i;
 
-		t = NCP_IO_TABLE(sb);
+		t = NCP_IO_TABLE(dentry->d_sb);
 		hash = init_name_hash(dentry);
 		for (i=0; i<this->len ; i++)
 			hash = partial_name_hash(ncp_tolower(t, this->name[i]),
