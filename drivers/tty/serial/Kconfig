@@ -438,17 +438,27 @@ config SERIAL_MPSC_CONSOLE
 	  Say Y here if you want to support a serial console on a Marvell MPSC.
 
 config SERIAL_PXA
-	bool "PXA serial port support"
+	bool "PXA serial port support (DEPRECATED)"
 	depends on ARCH_PXA || ARCH_MMP
 	select SERIAL_CORE
+	select SERIAL_8250_PXA if SERIAL_8250=y
+	select SERIAL_PXA_NON8250 if !SERIAL_8250=y
 	help
 	  If you have a machine based on an Intel XScale PXA2xx CPU you
 	  can enable its onboard serial ports by enabling this option.
 
+	  Unless you have a specific need, you should use SERIAL_8250_PXA
+	  instead of this.
+
+config SERIAL_PXA_NON8250
+	bool
+	depends on !SERIAL_8250
+
 config SERIAL_PXA_CONSOLE
-	bool "Console on PXA serial port"
+	bool "Console on PXA serial port (DEPRECATED)"
 	depends on SERIAL_PXA
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_8250_CONSOLE if SERIAL_8250=y
 	help
 	  If you have enabled the serial port on the Intel XScale PXA
 	  CPU you can make it the console by answering Y to this option.
@@ -459,6 +469,9 @@ config SERIAL_PXA_CONSOLE
 	  "console=ttySA0". (Try "man bootparam" or see the documentation of
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
+
+	  Unless you have a specific need, you should use SERIAL_8250_PXA
+	  and SERIAL_8250_CONSOLE instead of this.
 
 config SERIAL_SA1100
 	bool "SA1100 serial port support"
