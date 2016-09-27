@@ -143,6 +143,7 @@ issi	Integrated Silicon Solutions Inc.
 jdi	Japan Display Inc.
 jedec	JEDEC Solid State Technology Association
 karo	Ka-Ro electronics GmbH
+keithkoep	Keith & Koep GmbH
 keymile	Keymile GmbH
 kinetic Kinetic Technologies
 kosagi	Sutajio Ko-Usagi PTE Ltd.
