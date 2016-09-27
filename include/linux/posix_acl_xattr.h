@@ -18,34 +18,33 @@
 /* An undefined entry e_id value */
 #define ACL_UNDEFINED_ID	(-1)
 
-typedef struct {
+struct posix_acl_xattr_entry {
 	__le16			e_tag;
 	__le16			e_perm;
 	__le32			e_id;
-} posix_acl_xattr_entry;
+};
 
-typedef struct {
+struct posix_acl_xattr_header {
 	__le32			a_version;
-	posix_acl_xattr_entry	a_entries[0];
-} posix_acl_xattr_header;
+};
 
 
 static inline size_t
 posix_acl_xattr_size(int count)
 {
-	return (sizeof(posix_acl_xattr_header) +
-		(count * sizeof(posix_acl_xattr_entry)));
+	return (sizeof(struct posix_acl_xattr_header) +
+		(count * sizeof(struct posix_acl_xattr_entry)));
 }
 
 static inline int
 posix_acl_xattr_count(size_t size)
 {
-	if (size < sizeof(posix_acl_xattr_header))
+	if (size < sizeof(struct posix_acl_xattr_header))
 		return -1;
-	size -= sizeof(posix_acl_xattr_header);
-	if (size % sizeof(posix_acl_xattr_entry))
+	size -= sizeof(struct posix_acl_xattr_header);
+	if (size % sizeof(struct posix_acl_xattr_entry))
 		return -1;
-	return size / sizeof(posix_acl_xattr_entry);
+	return size / sizeof(struct posix_acl_xattr_entry);
 }
 
 #ifdef CONFIG_FS_POSIX_ACL

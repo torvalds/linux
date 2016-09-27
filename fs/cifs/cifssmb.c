@@ -3334,7 +3334,7 @@ CIFSSMB_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
 #ifdef CONFIG_CIFS_POSIX
 
 /*Convert an Access Control Entry from wire format to local POSIX xattr format*/
-static void cifs_convert_ace(posix_acl_xattr_entry *ace,
+static void cifs_convert_ace(struct posix_acl_xattr_entry *ace,
 			     struct cifs_posix_ace *cifs_ace)
 {
 	/* u8 cifs fields do not need le conversion */
@@ -3358,7 +3358,7 @@ static int cifs_copy_posix_acl(char *trgt, char *src, const int buflen,
 	__u16 count;
 	struct cifs_posix_ace *pACE;
 	struct cifs_posix_acl *cifs_acl = (struct cifs_posix_acl *)src;
-	posix_acl_xattr_header *local_acl = (posix_acl_xattr_header *)trgt;
+	struct posix_acl_xattr_header *local_acl = (void *)trgt;
 
 	if (le16_to_cpu(cifs_acl->version) != CIFS_ACL_VERSION)
 		return -EOPNOTSUPP;
@@ -3396,9 +3396,11 @@ static int cifs_copy_posix_acl(char *trgt, char *src, const int buflen,
 	} else if (size > buflen) {
 		return -ERANGE;
 	} else /* buffer big enough */ {
+		struct posix_acl_xattr_entry *ace = (void *)(local_acl + 1);
+
 		local_acl->a_version = cpu_to_le32(POSIX_ACL_XATTR_VERSION);
 		for (i = 0; i < count ; i++) {
-			cifs_convert_ace(&local_acl->a_entries[i], pACE);
+			cifs_convert_ace(&ace[i], pACE);
 			pACE++;
 		}
 	}
@@ -3406,7 +3408,7 @@ static int cifs_copy_posix_acl(char *trgt, char *src, const int buflen,
 }
 
 static __u16 convert_ace_to_cifs_ace(struct cifs_posix_ace *cifs_ace,
-				     const posix_acl_xattr_entry *local_ace)
+				     const struct posix_acl_xattr_entry *local_ace)
 {
 	__u16 rc = 0; /* 0 = ACL converted ok */
 
@@ -3431,7 +3433,7 @@ static __u16 ACL_to_cifs_posix(char *parm_data, const char *pACL,
 {
 	__u16 rc = 0;
 	struct cifs_posix_acl *cifs_acl = (struct cifs_posix_acl *)parm_data;
-	posix_acl_xattr_header *local_acl = (posix_acl_xattr_header *)pACL;
+	struct posix_acl_xattr_header *local_acl = (void *)pACL;
 	int count;
 	int i;
 
@@ -3459,7 +3461,7 @@ static __u16 ACL_to_cifs_posix(char *parm_data, const char *pACL,
 	}
 	for (i = 0; i < count; i++) {
 		rc = convert_ace_to_cifs_ace(&cifs_acl->ace_array[i],
-					&local_acl->a_entries[i]);
+			(struct posix_acl_xattr_entry *)(local_acl + 1));
 		if (rc != 0) {
 			/* ACE not converted */
 			break;
