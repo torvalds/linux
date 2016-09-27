@@ -367,10 +367,17 @@ extern const struct earlycon_id __earlycon_table_end[];
 
 #define EARLYCON_DECLARE(_name, fn)	OF_EARLYCON_DECLARE(_name, "", fn)
 
-extern int setup_earlycon(char *buf);
 extern int of_setup_earlycon(const struct earlycon_id *match,
 			     unsigned long node,
 			     const char *options);
+
+#ifdef CONFIG_SERIAL_EARLYCON
+extern bool earlycon_init_is_deferred __initdata;
+int setup_earlycon(char *buf);
+#else
+static const bool earlycon_init_is_deferred;
+static inline int setup_earlycon(char *buf) { return 0; }
+#endif
 
 struct uart_port *uart_get_console(struct uart_port *ports, int nr,
 				   struct console *c);

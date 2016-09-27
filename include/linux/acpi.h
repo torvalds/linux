@@ -1074,4 +1074,10 @@ void acpi_table_upgrade(void);
 static inline void acpi_table_upgrade(void) { }
 #endif
 
+#ifdef CONFIG_ACPI_SPCR_TABLE
+int parse_spcr(bool earlycon);
+#else
+static inline int parse_spcr(bool earlycon) { return 0; }
+#endif
+
 #endif	/*_LINUX_ACPI_H*/
