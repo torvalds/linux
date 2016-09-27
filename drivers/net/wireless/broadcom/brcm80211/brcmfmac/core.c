@@ -1155,7 +1155,8 @@ int brcmf_netdev_wait_pend8021x(struct brcmf_if *ifp)
 				 !brcmf_get_pend_8021x_cnt(ifp),
 				 MAX_WAIT_FOR_8021X_TX);
 
-	WARN_ON(!err);
+	if (!err)
+		brcmf_err("Timed out waiting for no pending 802.1x packets\n");
 
 	return !err;
 }
