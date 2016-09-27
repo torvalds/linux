@@ -72,6 +72,9 @@ menu "System Type"
 config UNICORE32_OLDABI
 	bool "Allow old ABI binaries to run with this kernel"
 	default y
+	select CLONE_BACKWARDS
+	select OLD_SIGACTION
+	select OLD_SIGSUSPEND3
 	help
 	  This option preserves the old syscall interface instead of the
 	  asm-generic one. It also provides a compatibility layer to
