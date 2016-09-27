@@ -66,15 +66,10 @@ struct pipe_inode_info {
  *
  * ->confirm()
  *	->steal()
- *	...
- *	->map()
- *	...
- *	->unmap()
  *
- * That is, ->map() must be called on a confirmed buffer,
- * same goes for ->steal(). See below for the meaning of each
- * operation. Also see kerneldoc in fs/pipe.c for the pipe
- * and generic variants of these hooks.
+ * That is, ->steal() must be called on a confirmed buffer.
+ * See below for the meaning of each operation. Also see kerneldoc
+ * in fs/pipe.c for the pipe and generic variants of these hooks.
  */
 struct pipe_buf_operations {
 	/*
