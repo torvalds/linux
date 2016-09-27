@@ -355,6 +355,10 @@ static int isl29018_write_raw(struct iio_dev *indio_dev,
 	int ret = -EINVAL;
 
 	mutex_lock(&chip->lock);
+	if (chip->suspended) {
+		ret = -EBUSY;
+		goto write_done;
+	}
 	switch (mask) {
 	case IIO_CHAN_INFO_CALIBSCALE:
 		if (chan->type == IIO_LIGHT) {
@@ -374,8 +378,9 @@ static int isl29018_write_raw(struct iio_dev *indio_dev,
 	default:
 		break;
 	}
-	mutex_unlock(&chip->lock);
 
+write_done:
+	mutex_unlock(&chip->lock);
 	return ret;
 }
 
