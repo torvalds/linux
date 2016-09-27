@@ -841,7 +841,7 @@ static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 	if (cs->len != PAGE_SIZE)
 		goto out_fallback;
 
-	if (buf->ops->steal(cs->pipe, buf) != 0)
+	if (pipe_buf_steal(cs->pipe, buf) != 0)
 		goto out_fallback;
 
 	newpage = buf->page;

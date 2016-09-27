@@ -151,6 +151,17 @@ static inline int pipe_buf_confirm(struct pipe_inode_info *pipe,
 	return buf->ops->confirm(pipe, buf);
 }
 
+/**
+ * pipe_buf_steal - attempt to take ownership of a pipe_buffer
+ * @pipe:	the pipe that the buffer belongs to
+ * @buf:	the buffer to attempt to steal
+ */
+static inline int pipe_buf_steal(struct pipe_inode_info *pipe,
+				 struct pipe_buffer *buf)
+{
+	return buf->ops->steal(pipe, buf);
+}
+
 /* Differs from PIPE_BUF in that PIPE_SIZE is the length of the actual
    memory allocation, whereas PIPE_BUF makes atomicity guarantees.  */
 #define PIPE_SIZE		PAGE_SIZE
