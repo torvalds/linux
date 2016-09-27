@@ -57,9 +57,6 @@
 #include <linux/wireless.h>
 #include <linux/netdevice.h>
 
-#undef netdevice_t
-typedef struct net_device netdevice_t;
-
 #define WLAN_RELEASE	"0.3.0-staging"
 
 #define WLAN_DEVICE_CLOSED	0
@@ -138,7 +135,7 @@ typedef struct p80211_frmrx_t {
 } p80211_frmrx_t;
 
 /* called by /proc/net/wireless */
-struct iw_statistics *p80211wext_get_wireless_stats(netdevice_t *dev);
+struct iw_statistics *p80211wext_get_wireless_stats(struct net_device *dev);
 /* wireless extensions' ioctls */
 extern struct iw_handler_def p80211wext_handler_def;
 
@@ -186,7 +183,7 @@ struct wlandevice {
 			struct p80211_metawep *p80211_wep);
 	int (*mlmerequest)(struct wlandevice *wlandev, struct p80211msg *msg);
 	int (*set_multicast_list)(struct wlandevice *wlandev,
-				   netdevice_t *dev);
+				   struct net_device *dev);
 	void (*tx_timeout)(struct wlandevice *wlandev);
 
 	/* 802.11 State */
@@ -206,7 +203,7 @@ struct wlandevice {
 	/* netlink socket */
 	/* queue for indications waiting for cmd completion */
 	/* Linux netdevice and support */
-	netdevice_t *netdev;	/* ptr to linux netdevice */
+	struct net_device *netdev;	/* ptr to linux netdevice */
 
 	/* Rx bottom half */
 	struct tasklet_struct rx_bh;

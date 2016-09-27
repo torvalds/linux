@@ -107,7 +107,8 @@ static int prism2sta_txframe(struct wlandevice *wlandev, struct sk_buff *skb,
 static int prism2sta_mlmerequest(struct wlandevice *wlandev, struct p80211msg *msg);
 static int prism2sta_getcardinfo(struct wlandevice *wlandev);
 static int prism2sta_globalsetup(struct wlandevice *wlandev);
-static int prism2sta_setmulticast(struct wlandevice *wlandev, netdevice_t *dev);
+static int prism2sta_setmulticast(struct wlandevice *wlandev,
+				  struct net_device *dev);
 
 static void prism2sta_inf_handover(struct wlandevice *wlandev,
 				   hfa384x_InfFrame_t *inf);
@@ -918,7 +919,8 @@ static int prism2sta_globalsetup(struct wlandevice *wlandev)
 					WLAN_DATA_MAXLEN);
 }
 
-static int prism2sta_setmulticast(struct wlandevice *wlandev, netdevice_t *dev)
+static int prism2sta_setmulticast(struct wlandevice *wlandev,
+					struct net_device *dev)
 {
 	int result = 0;
 	hfa384x_t *hw = wlandev->priv;

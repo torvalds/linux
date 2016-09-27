@@ -277,7 +277,7 @@ static void orinoco_spy_gather(struct wlandevice *wlandev, char *mac,
 int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 			struct sk_buff *skb)
 {
-	netdevice_t *netdev = wlandev->netdev;
+	struct net_device *netdev = wlandev->netdev;
 	u16 fc;
 	unsigned int payload_length;
 	unsigned int payload_offset;
