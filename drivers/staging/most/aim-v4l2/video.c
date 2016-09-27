@@ -369,7 +369,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
 	return 0;
 }
 
-static struct v4l2_file_operations aim_fops = {
+static const struct v4l2_file_operations aim_fops = {
 	.owner      = THIS_MODULE,
 	.open       = aim_vdev_open,
 	.release    = aim_vdev_close,
