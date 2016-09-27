@@ -636,7 +636,8 @@ static int vop_pre_init(struct rk_lcdc_driver *dev_drv)
 	vop_writel(vop_dev, FRC_LOWER11_0, 0xdeb77deb);
 	vop_writel(vop_dev, FRC_LOWER11_1, 0xed7bb7de);
 
-	vop_msk_reg(vop_dev, SYS_CTRL, V_AUTO_GATING_EN(1));
+	if (!dev_drv->cabc_mode)
+		vop_msk_reg(vop_dev, SYS_CTRL, V_AUTO_GATING_EN(0));
 	vop_msk_reg(vop_dev, DSP_CTRL1, V_DITHER_UP_EN(1));
 	vop_cfg_done(vop_dev);
 	vop_dev->pre_init = true;
@@ -4478,18 +4479,22 @@ static int vop_set_dsp_cabc(struct rk_lcdc_driver *dev_drv, int mode,
 	}
 
 	if (!mode) {
-		spin_lock(&vop_dev->reg_lock);
-		if (vop_dev->clk_on) {
-			vop_msk_reg(vop_dev, CABC_CTRL0,
-				    V_CABC_EN(0) | V_CABC_HANDLE_EN(0));
-			vop_cfg_done(vop_dev);
-			while (vop_read_bit(vop_dev, CABC_CTRL0, V_CABC_EN(0)))
-				;
-			vop_msk_reg(vop_dev, SYS_CTRL, V_AUTO_GATING_EN(1));
+		if (VOP_CHIP(vop_dev) == VOP_RK3399) {
+			calc = 0;
+			up = 256;
+			down = 255;
+			global = 0;
+		} else {
+			spin_lock(&vop_dev->reg_lock);
+			if (vop_dev->clk_on) {
+				vop_msk_reg(vop_dev, CABC_CTRL0,
+					    V_CABC_EN(0) | V_CABC_HANDLE_EN(0));
+				vop_cfg_done(vop_dev);
+			}
+			pr_info("mode = 0, close cabc\n");
+			spin_unlock(&vop_dev->reg_lock);
+			return 0;
 		}
-		pr_info("mode = 0, close cabc\n");
-		spin_unlock(&vop_dev->reg_lock);
-		return 0;
 	}
 
 	total_pixel = screen->mode.xres * screen->mode.yres;
@@ -4503,10 +4508,6 @@ static int vop_set_dsp_cabc(struct rk_lcdc_driver *dev_drv, int mode,
 
 	spin_lock(&vop_dev->reg_lock);
 	if (vop_dev->clk_on) {
-		vop_msk_reg(vop_dev, SYS_CTRL, V_AUTO_GATING_EN(0));
-		vop_cfg_done(vop_dev);
-		while (vop_read_bit(vop_dev, SYS_CTRL, V_AUTO_GATING_EN(0)))
-			;
 		val = V_PWM_CONFIG_MODE(STAGE_BY_STAGE) |
 			V_CABC_CALC_PIXEL_NUM(calc_pixel);
 		vop_msk_reg(vop_dev, CABC_CTRL0, val);
