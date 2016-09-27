@@ -225,8 +225,8 @@ struct wlandevice {
 int wep_change_key(struct wlandevice *wlandev, int keynum, u8 *key, int keylen);
 int wep_decrypt(struct wlandevice *wlandev, u8 *buf, u32 len, int key_override,
 		u8 *iv, u8 *icv);
-int wep_encrypt(struct wlandevice *wlandev, u8 *buf, u8 *dst, u32 len, int keynum,
-		u8 *iv, u8 *icv);
+int wep_encrypt(struct wlandevice *wlandev, u8 *buf, u8 *dst, u32 len,
+		int keynum, u8 *iv, u8 *icv);
 
 int wlan_setup(struct wlandevice *wlandev, struct device *physdev);
 void wlan_unsetup(struct wlandevice *wlandev);
