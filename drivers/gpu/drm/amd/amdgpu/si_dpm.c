@@ -4593,7 +4593,7 @@ static int si_populate_smc_voltage_tables(struct amdgpu_device *adev,
 							      &adev->pm.dpm.dyn_state.phase_shedding_limits_table)) {
 				si_populate_smc_voltage_table(adev, &si_pi->vddc_phase_shed_table, table);
 
-				table->phaseMaskTable.lowMask[SISLANDS_SMC_VOLTAGEMASK_VDDC] =
+				table->phaseMaskTable.lowMask[SISLANDS_SMC_VOLTAGEMASK_VDDC_PHASE_SHEDDING] =
 					cpu_to_be32(si_pi->vddc_phase_shed_table.mask_low);
 
 				si_write_smc_soft_register(adev, SI_SMC_SOFT_REGISTER_phase_shedding_delay,
