@@ -3357,6 +3357,7 @@ struct ixgbe_mac_operations {
 	/* Flow Control */
 	s32 (*fc_enable)(struct ixgbe_hw *);
 	s32 (*setup_fc)(struct ixgbe_hw *);
+	void (*fc_autoneg)(struct ixgbe_hw *);
 
 	/* Manageability interface */
 	s32 (*set_fw_drv_ver)(struct ixgbe_hw *, u8, u8, u8, u8);
@@ -3579,10 +3580,12 @@ struct ixgbe_info {
 #define IXGBE_FUSES0_REV_MASK		(3u << 6)
 
 #define IXGBE_KRM_PORT_CAR_GEN_CTRL(P)	((P) ? 0x8010 : 0x4010)
+#define IXGBE_KRM_LINK_S1(P)		((P) ? 0x8200 : 0x4200)
 #define IXGBE_KRM_LINK_CTRL_1(P)	((P) ? 0x820C : 0x420C)
 #define IXGBE_KRM_AN_CNTL_1(P)		((P) ? 0x822C : 0x422C)
 #define IXGBE_KRM_AN_CNTL_8(P)		((P) ? 0x8248 : 0x4248)
 #define IXGBE_KRM_SGMII_CTRL(P)		((P) ? 0x82A0 : 0x42A0)
+#define IXGBE_KRM_LP_BASE_PAGE_HIGH(P)	((P) ? 0x836C : 0x436C)
 #define IXGBE_KRM_DSP_TXFFE_STATE_4(P)	((P) ? 0x8634 : 0x4634)
 #define IXGBE_KRM_DSP_TXFFE_STATE_5(P)	((P) ? 0x8638 : 0x4638)
 #define IXGBE_KRM_RX_TRN_LINKUP_CTRL(P)	((P) ? 0x8B00 : 0x4B00)
@@ -3604,6 +3607,7 @@ struct ixgbe_info {
 #define IXGBE_KRM_LINK_CTRL_1_TETH_AN_CAP_KR		BIT(18)
 #define IXGBE_KRM_LINK_CTRL_1_TETH_EEE_CAP_KX		BIT(24)
 #define IXGBE_KRM_LINK_CTRL_1_TETH_EEE_CAP_KR		BIT(26)
+#define IXGBE_KRM_LINK_S1_MAC_AN_COMPLETE		BIT(28)
 #define IXGBE_KRM_LINK_CTRL_1_TETH_AN_ENABLE		BIT(29)
 #define IXGBE_KRM_LINK_CTRL_1_TETH_AN_RESTART		BIT(31)
 
@@ -3613,6 +3617,8 @@ struct ixgbe_info {
 #define IXGBE_KRM_AN_CNTL_8_LINEAR			BIT(0)
 #define IXGBE_KRM_AN_CNTL_8_LIMITING			BIT(1)
 
+#define IXGBE_KRM_LP_BASE_PAGE_HIGH_SYM_PAUSE		BIT(10)
+#define IXGBE_KRM_LP_BASE_PAGE_HIGH_ASM_PAUSE		BIT(11)
 #define IXGBE_KRM_SGMII_CTRL_MAC_TAR_FORCE_100_D	BIT(12)
 #define IXGBE_KRM_SGMII_CTRL_MAC_TAR_FORCE_10_D		BIT(19)
 

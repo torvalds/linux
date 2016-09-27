@@ -298,10 +298,12 @@ s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
 	IXGBE_WRITE_REG(hw, IXGBE_CTRL_EXT, ctrl_ext);
 	IXGBE_WRITE_FLUSH(hw);
 
-	/* Setup flow control */
-	ret_val = hw->mac.ops.setup_fc(hw);
-	if (ret_val)
-		return ret_val;
+	/* Setup flow control if method for doing so */
+	if (hw->mac.ops.setup_fc) {
+		ret_val = hw->mac.ops.setup_fc(hw);
+		if (ret_val)
+			return ret_val;
+	}
 
 	/* Cashe bit indicating need for crosstalk fix */
 	switch (hw->mac.type) {
@@ -2173,7 +2175,7 @@ s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw)
 	}
 
 	/* Negotiate the fc mode to use */
-	ixgbe_fc_autoneg(hw);
+	hw->mac.ops.fc_autoneg(hw);
 
 	/* Disable any previous flow control settings */
 	mflcn_reg = IXGBE_READ_REG(hw, IXGBE_MFLCN);
@@ -2277,8 +2279,8 @@ s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw)
  *  Find the intersection between advertised settings and link partner's
  *  advertised settings
  **/
-static s32 ixgbe_negotiate_fc(struct ixgbe_hw *hw, u32 adv_reg, u32 lp_reg,
-			      u32 adv_sym, u32 adv_asm, u32 lp_sym, u32 lp_asm)
+s32 ixgbe_negotiate_fc(struct ixgbe_hw *hw, u32 adv_reg, u32 lp_reg,
+		       u32 adv_sym, u32 adv_asm, u32 lp_sym, u32 lp_asm)
 {
 	if ((!(adv_reg)) ||  (!(lp_reg)))
 		return IXGBE_ERR_FC_NOT_NEGOTIATED;

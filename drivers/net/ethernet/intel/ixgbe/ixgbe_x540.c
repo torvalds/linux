@@ -867,6 +867,7 @@ static const struct ixgbe_mac_operations mac_ops_X540 = {
 	.set_vfta               = &ixgbe_set_vfta_generic,
 	.fc_enable              = &ixgbe_fc_enable_generic,
 	.setup_fc		= ixgbe_setup_fc_generic,
+	.fc_autoneg		= ixgbe_fc_autoneg,
 	.set_fw_drv_ver         = &ixgbe_set_fw_drv_ver_generic,
 	.init_uta_tables        = &ixgbe_init_uta_tables_generic,
 	.setup_sfp              = NULL,

@@ -367,7 +367,7 @@ static s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw)
 	}
 
 	/* Negotiate the fc mode to use */
-	ixgbe_fc_autoneg(hw);
+	hw->mac.ops.fc_autoneg(hw);
 
 	/* Disable any previous flow control settings */
 	fctrl_reg = IXGBE_READ_REG(hw, IXGBE_FCTRL);
@@ -1194,6 +1194,7 @@ static const struct ixgbe_mac_operations mac_ops_82598 = {
 	.set_vfta		= &ixgbe_set_vfta_82598,
 	.fc_enable		= &ixgbe_fc_enable_82598,
 	.setup_fc		= ixgbe_setup_fc_generic,
+	.fc_autoneg		= ixgbe_fc_autoneg,
 	.set_fw_drv_ver         = NULL,
 	.acquire_swfw_sync      = &ixgbe_acquire_swfw_sync,
 	.release_swfw_sync      = &ixgbe_release_swfw_sync,
