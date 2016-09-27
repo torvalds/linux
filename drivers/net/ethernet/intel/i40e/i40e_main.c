@@ -1287,39 +1287,6 @@ int i40e_del_mac_all_vlan(struct i40e_vsi *vsi, u8 *macaddr,
 }
 
 /**
- * i40e_rm_default_mac_filter - Remove the default MAC filter set by NVM
- * @vsi: the PF Main VSI - inappropriate for any other VSI
- * @macaddr: the MAC address
- *
- * Remove whatever filter the firmware set up so the driver can manage
- * its own filtering intelligently.
- **/
-static void i40e_rm_default_mac_filter(struct i40e_vsi *vsi, u8 *macaddr)
-{
-	struct i40e_aqc_remove_macvlan_element_data element;
-	struct i40e_pf *pf = vsi->back;
-
-	/* Only appropriate for the PF main VSI */
-	if (vsi->type != I40E_VSI_MAIN)
-		return;
-
-	memset(&element, 0, sizeof(element));
-	ether_addr_copy(element.mac_addr, macaddr);
-	element.vlan_tag = 0;
-	/* Ignore error returns, some firmware does it this way... */
-	element.flags = I40E_AQC_MACVLAN_DEL_PERFECT_MATCH;
-	i40e_aq_remove_macvlan(&pf->hw, vsi->seid, &element, 1, NULL);
-
-	memset(&element, 0, sizeof(element));
-	ether_addr_copy(element.mac_addr, macaddr);
-	element.vlan_tag = 0;
-	/* ...and some firmware does it this way. */
-	element.flags = I40E_AQC_MACVLAN_DEL_PERFECT_MATCH |
-			I40E_AQC_MACVLAN_DEL_IGNORE_VLAN;
-	i40e_aq_remove_macvlan(&pf->hw, vsi->seid, &element, 1, NULL);
-}
-
-/**
  * i40e_add_filter - Add a mac/vlan filter to the VSI
  * @vsi: the VSI to be searched
  * @macaddr: the MAC address
@@ -9218,12 +9185,6 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 	if (vsi->type == I40E_VSI_MAIN) {
 		SET_NETDEV_DEV(netdev, &pf->pdev->dev);
 		ether_addr_copy(mac_addr, hw->mac.perm_addr);
-		/* The following steps are necessary to prevent reception
-		 * of tagged packets - some older NVM configurations load a
-		 * default a MAC-VLAN filter that accepts any tagged packet
-		 * which must be replaced by a normal filter.
-		 */
-		i40e_rm_default_mac_filter(vsi, mac_addr);
 		spin_lock_bh(&vsi->mac_filter_list_lock);
 		i40e_add_filter(vsi, mac_addr, I40E_VLAN_ANY, false, true);
 		spin_unlock_bh(&vsi->mac_filter_list_lock);
@@ -9741,8 +9702,6 @@ static struct i40e_vsi *i40e_vsi_reinit_setup(struct i40e_vsi *vsi)
 	pf->vsi[pf->lan_vsi]->tc_config.enabled_tc = 0;
 	pf->vsi[pf->lan_vsi]->seid = pf->main_vsi_seid;
 	i40e_vsi_config_tc(pf->vsi[pf->lan_vsi], enabled_tc);
-	if (vsi->type == I40E_VSI_MAIN)
-		i40e_rm_default_mac_filter(vsi, pf->hw.mac.perm_addr);
 
 	/* assign it some queues */
 	ret = i40e_alloc_rings(vsi);
