@@ -49,7 +49,6 @@ generic-y += signal.h
 generic-y += sizes.h
 generic-y += socket.h
 generic-y += sockios.h
-generic-y += stat.h
 generic-y += statfs.h
 generic-y += swab.h
 generic-y += syscalls.h
