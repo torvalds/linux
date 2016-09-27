@@ -1,6 +1,8 @@
 #ifndef EAP_PACKET_H
 #define EAP_PACKET_H
 
+#include <linux/compiler.h>
+
 #define WBIT(n) (1 << (n))
 
 #ifndef ETH_ALEN
@@ -19,14 +21,14 @@ struct ether_hdr {
 #define ETHER_PROTOCOL_TYPE_IP		0x0800
 #define ETHER_PROTOCOL_TYPE_ARP		0x0806
 	/* followed by length octets of data */
-} __attribute__ ((packed));
+} __packed;
 
 struct ieee802_1x_hdr {
 	unsigned char version;
 	unsigned char type;
 	unsigned short length;
 	/* followed by length octets of data */
-} __attribute__ ((packed));
+} __packed;
 
 #define EAPOL_VERSION 2
 
@@ -69,7 +71,7 @@ struct ieee802_1x_eapol_key {
 	 * represents the number of least significant octets from
 	 * MS-MPPE-Send-Key attribute to be used as the keying material;
 	 * RC4 key used in encryption = Key-IV + MS-MPPE-Recv-Key */
-} __attribute__ ((packed));
+} __packed;
 
 #define WPA_NONCE_LEN 32
 #define WPA_REPLAY_COUNTER_LEN 8
@@ -86,7 +88,7 @@ struct wpa_eapol_key {
 	unsigned char key_mic[16];
 	unsigned short key_data_length;
 	/* followed by key_data_length bytes of key_data */
-} __attribute__ ((packed));
+} __packed;
 
 #define WPA_KEY_INFO_TYPE_MASK (WBIT(0) | WBIT(1) | WBIT(2))
 #define WPA_KEY_INFO_TYPE_HMAC_MD5_RC4 WBIT(0)
