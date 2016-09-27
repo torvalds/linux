@@ -253,9 +253,15 @@ static __u64 crush_ln(unsigned int xin)
 
 	/* normalize input */
 	iexpon = 15;
-	while (!(x & 0x18000)) {
-		x <<= 1;
-		iexpon--;
+
+	/*
+	 * figure out number of bits we need to shift and
+	 * do it in one step instead of iteratively
+	 */
+	if (!(x & 0x18000)) {
+		int bits = __builtin_clz(x & 0x1FFFF) - 16;
+		x <<= bits;
+		iexpon = 15 - bits;
 	}
 
 	index1 = (x >> 8) << 1;
