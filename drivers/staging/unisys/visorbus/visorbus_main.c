@@ -796,14 +796,12 @@ fix_vbus_dev_info(struct visor_device *visordev)
 	if (!visordev->device.driver)
 		return;
 
-	hdr_info = (struct spar_vbus_headerinfo *)visordev->vbus_hdr_info;
-	if (!hdr_info)
-		return;
-
 	bdev = visorbus_get_device_by_id(bus_no, BUS_ROOT_DEVICE, NULL);
 	if (!bdev)
 		return;
-
+	hdr_info = (struct spar_vbus_headerinfo *)bdev->vbus_hdr_info;
+	if (!hdr_info)
+		return;
 	visordrv = to_visor_driver(visordev->device.driver);
 
 	/*
