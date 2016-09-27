@@ -277,10 +277,12 @@ static ssize_t in_illuminance_scale_available_show
 	unsigned int i;
 	int len = 0;
 
+	mutex_lock(&chip->lock);
 	for (i = 0; i < ARRAY_SIZE(isl29018_scales[chip->int_time]); ++i)
 		len += sprintf(buf + len, "%d.%06d ",
 			       isl29018_scales[chip->int_time][i].scale,
 			       isl29018_scales[chip->int_time][i].uscale);
+	mutex_unlock(&chip->lock);
 
 	buf[len - 1] = '\n';
 
