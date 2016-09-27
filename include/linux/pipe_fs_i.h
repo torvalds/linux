@@ -126,6 +126,20 @@ static inline void pipe_buf_get(struct pipe_inode_info *pipe,
 	buf->ops->get(pipe, buf);
 }
 
+/**
+ * pipe_buf_release - put a reference to a pipe_buffer
+ * @pipe:	the pipe that the buffer belongs to
+ * @buf:	the buffer to put a reference to
+ */
+static inline void pipe_buf_release(struct pipe_inode_info *pipe,
+				    struct pipe_buffer *buf)
+{
+	const struct pipe_buf_operations *ops = buf->ops;
+
+	buf->ops = NULL;
+	ops->release(pipe, buf);
+}
+
 /* Differs from PIPE_BUF in that PIPE_SIZE is the length of the actual
    memory allocation, whereas PIPE_BUF makes atomicity guarantees.  */
 #define PIPE_SIZE		PAGE_SIZE

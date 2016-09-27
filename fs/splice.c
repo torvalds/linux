@@ -238,8 +238,7 @@ ssize_t add_to_pipe(struct pipe_inode_info *pipe, struct pipe_buffer *buf)
 		pipe->nrbufs++;
 		return buf->len;
 	}
-	buf->ops->release(pipe, buf);
-	buf->ops = NULL;
+	pipe_buf_release(pipe, buf);
 	return ret;
 }
 EXPORT_SYMBOL(add_to_pipe);
@@ -516,7 +515,6 @@ static int splice_from_pipe_feed(struct pipe_inode_info *pipe, struct splice_des
 
 	while (pipe->nrbufs) {
 		struct pipe_buffer *buf = pipe->bufs + pipe->curbuf;
-		const struct pipe_buf_operations *ops = buf->ops;
 
 		sd->len = buf->len;
 		if (sd->len > sd->total_len)
@@ -542,8 +540,7 @@ static int splice_from_pipe_feed(struct pipe_inode_info *pipe, struct splice_des
 		sd->total_len -= ret;
 
 		if (!buf->len) {
-			buf->ops = NULL;
-			ops->release(pipe, buf);
+			pipe_buf_release(pipe, buf);
 			pipe->curbuf = (pipe->curbuf + 1) & (pipe->buffers - 1);
 			pipe->nrbufs--;
 			if (pipe->files)
@@ -789,11 +786,9 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 		while (ret) {
 			struct pipe_buffer *buf = pipe->bufs + pipe->curbuf;
 			if (ret >= buf->len) {
-				const struct pipe_buf_operations *ops = buf->ops;
 				ret -= buf->len;
 				buf->len = 0;
-				buf->ops = NULL;
-				ops->release(pipe, buf);
+				pipe_buf_release(pipe, buf);
 				pipe->curbuf = (pipe->curbuf + 1) & (pipe->buffers - 1);
 				pipe->nrbufs--;
 				if (pipe->files)
@@ -1032,10 +1027,8 @@ out_release:
 	for (i = 0; i < pipe->buffers; i++) {
 		struct pipe_buffer *buf = pipe->bufs + i;
 
-		if (buf->ops) {
-			buf->ops->release(pipe, buf);
-			buf->ops = NULL;
-		}
+		if (buf->ops)
+			pipe_buf_release(pipe, buf);
 	}
 
 	if (!bytes)

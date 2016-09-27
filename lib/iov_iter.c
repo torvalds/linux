@@ -709,9 +709,7 @@ static void pipe_advance(struct iov_iter *i, size_t size)
 		int unused = (pipe->curbuf + pipe->nrbufs) & (pipe->buffers - 1);
 		/* [curbuf,unused) is in use.  Free [idx,unused) */
 		while (idx != unused) {
-			buf = &pipe->bufs[idx];
-			buf->ops->release(pipe, buf);
-			buf->ops = NULL;
+			pipe_buf_release(pipe, &pipe->bufs[idx]);
 			idx = next_idx(idx, pipe);
 			pipe->nrbufs--;
 		}

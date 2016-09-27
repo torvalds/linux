@@ -299,8 +299,7 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 			}
 
 			if (!buf->len) {
-				buf->ops = NULL;
-				ops->release(pipe, buf);
+				pipe_buf_release(pipe, buf);
 				curbuf = (curbuf + 1) & (pipe->buffers - 1);
 				pipe->curbuf = curbuf;
 				pipe->nrbufs = --bufs;
@@ -664,7 +663,7 @@ void free_pipe_info(struct pipe_inode_info *pipe)
 	for (i = 0; i < pipe->buffers; i++) {
 		struct pipe_buffer *buf = pipe->bufs + i;
 		if (buf->ops)
-			buf->ops->release(pipe, buf);
+			pipe_buf_release(pipe, buf);
 	}
 	if (pipe->tmp_page)
 		__free_page(pipe->tmp_page);
