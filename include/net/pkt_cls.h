@@ -123,7 +123,7 @@ static inline void tcf_exts_to_list(const struct tcf_exts *exts,
 	for (i = 0; i < exts->nr_actions; i++) {
 		struct tc_action *a = exts->actions[i];
 
-		list_add(&a->list, actions);
+		list_add_tail(&a->list, actions);
 	}
 #endif
 }
