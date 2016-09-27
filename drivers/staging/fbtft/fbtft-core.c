@@ -391,10 +391,9 @@ static void fbtft_update_display(struct fbtft_par *par, unsigned start_line,
 
 	if (unlikely(timeit)) {
 		ts_end = ktime_get();
-		if (ktime_to_ns(par->update_time))
+		if (!ktime_to_ns(par->update_time))
 			par->update_time = ts_start;
 
-		par->update_time = ts_start;
 		fps = ktime_us_delta(ts_start, par->update_time);
 		fps = fps ? 1000000 / fps : 0;
 
@@ -406,6 +405,7 @@ static void fbtft_update_display(struct fbtft_par *par, unsigned start_line,
 			"Display update: %ld kB/s, fps=%ld\n",
 			throughput, fps);
 		par->first_update_done = true;
+		par->update_time = ts_start;
 	}
 }
 
