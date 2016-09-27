@@ -855,11 +855,27 @@ static void g2d_free_runqueue_node(struct g2d_data *g2d,
 	kmem_cache_free(g2d->runqueue_slab, runqueue_node);
 }
 
-static void g2d_exec_runqueue(struct g2d_data *g2d)
+/**
+ * g2d_remove_runqueue_nodes - remove items from the list of runqueue nodes
+ * @g2d: G2D state object
+ * @file: if not zero, only remove items with this DRM file
+ *
+ * Has to be called under runqueue lock.
+ */
+static void g2d_remove_runqueue_nodes(struct g2d_data *g2d, struct drm_file* file)
 {
-	g2d->runqueue_node = g2d_get_runqueue_node(g2d);
-	if (g2d->runqueue_node)
-		g2d_dma_start(g2d, g2d->runqueue_node);
+	struct g2d_runqueue_node *node, *n;
+
+	if (list_empty(&g2d->runqueue))
+		return;
+
+	list_for_each_entry_safe(node, n, &g2d->runqueue, list) {
+		if (file && node->filp != file)
+			continue;
+
+		list_del_init(&node->list);
+		g2d_free_runqueue_node(g2d, node);
+	}
 }
 
 static void g2d_runqueue_worker(struct work_struct *work)
@@ -1369,15 +1385,19 @@ static void g2d_close(struct drm_device *drm_dev, struct device *dev,
 	if (!g2d)
 		return;
 
+	/* Remove the runqueue nodes that belong to us. */
+	mutex_lock(&g2d->runqueue_mutex);
+	g2d_remove_runqueue_nodes(g2d, file);
+	mutex_unlock(&g2d->runqueue_mutex);
+
+	/*
+	 * Even after the engine is idle, there might still be stale cmdlists
+	 * (i.e. cmdlisst which we submitted but never executed) around, with
+	 * their corresponding GEM/userptr buffers.
+	 * Properly unmap these buffers here.
+	 */
 	mutex_lock(&g2d->cmdlist_mutex);
 	list_for_each_entry_safe(node, n, &g2d_priv->inuse_cmdlist, list) {
-		/*
-		 * unmap all gem objects not completed.
-		 *
-		 * P.S. if current process was terminated forcely then
-		 * there may be some commands in inuse_cmdlist so unmap
-		 * them.
-		 */
 		g2d_unmap_cmdlist_gem(g2d, node, file);
 		list_move_tail(&node->list, &g2d->free_cmdlist);
 	}
@@ -1496,10 +1516,8 @@ static int g2d_remove(struct platform_device *pdev)
 	cancel_work_sync(&g2d->runqueue_work);
 	exynos_drm_subdrv_unregister(&g2d->subdrv);
 
-	while (g2d->runqueue_node) {
-		g2d_free_runqueue_node(g2d, g2d->runqueue_node);
-		g2d->runqueue_node = g2d_get_runqueue_node(g2d);
-	}
+	/* There should be no locking needed here. */
+	g2d_remove_runqueue_nodes(g2d, NULL);
 
 	pm_runtime_disable(&pdev->dev);
 
