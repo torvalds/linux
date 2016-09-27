@@ -28,6 +28,16 @@ time. More info to come in the future.
 This driver works as a module.
 When included as a module, parameters can be passed on the insmod/modprobe
 command line:
+  irq=xx[,...]	the interrupt(s)
+  base=xx[,...]	the port or base address(es) (for port or memory mapped, resp.)
+  card=xx[,...]	card type(s):
+		0 = NCR5380,
+		1 = NCR53C400,
+		2 = NCR53C400A,
+		3 = Domex Technology Corp 3181E (DTC3181E)
+		4 = Hewlett Packard C2502
+
+These old-style parameters can support only one card:
   ncr_irq=xx   the interrupt
   ncr_addr=xx  the port or base address (for port or memory
                mapped, resp.)
@@ -36,11 +46,19 @@ command line:
   ncr_53c400a=1 to set up for a NCR53C400A board
   dtc_3181e=1  to set up for a Domex Technology Corp 3181E board
   hp_c2502=1   to set up for a Hewlett Packard C2502 board
+
 e.g.
-modprobe g_NCR5380 ncr_irq=5 ncr_addr=0x350 ncr_5380=1
+OLD: modprobe g_NCR5380 ncr_irq=5 ncr_addr=0x350 ncr_5380=1
+NEW: modprobe g_NCR5380 irq=5 base=0x350 card=0
   for a port mapped NCR5380 board or
-modprobe g_NCR5380 ncr_irq=255 ncr_addr=0xc8000 ncr_53c400=1
-  for a memory mapped NCR53C400 board with interrupts disabled.
+
+OLD: modprobe g_NCR5380 ncr_irq=255 ncr_addr=0xc8000 ncr_53c400=1
+NEW: modprobe g_NCR5380 irq=255 base=0xc8000 card=1
+  for a memory mapped NCR53C400 board with interrupts disabled or
+
+NEW: modprobe g_NCR5380 irq=0,7 base=0x240,0x300 card=3,4
+  for two cards: DTC3181 (in non-PnP mode) at 0x240 with no IRQ
+             and HP C2502 at 0x300 with IRQ 7
 
 (255 should be specified for no or DMA interrupt, 254 to autoprobe for an 
      IRQ line if overridden on the command line.)
