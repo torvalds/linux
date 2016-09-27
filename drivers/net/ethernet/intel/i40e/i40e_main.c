@@ -8400,8 +8400,8 @@ int i40e_reconfig_rss_queues(struct i40e_pf *pf, int queue_count)
 
 		i40e_pf_config_rss(pf);
 	}
-	dev_info(&pf->pdev->dev, "RSS count/HW max RSS count:  %d/%d\n",
-		 pf->alloc_rss_size, pf->rss_size_max);
+	dev_info(&pf->pdev->dev, "User requested queue count/HW max RSS count:  %d/%d\n",
+		 vsi->req_queue_pairs, pf->rss_size_max);
 	return pf->alloc_rss_size;
 }
 
