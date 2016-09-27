@@ -42,7 +42,7 @@ $(OUTPUT)fixdep-in.o: FORCE
 	$(Q)$(MAKE) $(build)=fixdep
 
 $(OUTPUT)fixdep: $(OUTPUT)fixdep-in.o
-	$(QUIET_LINK)$(CC) $(LDFLAGS) -o $@ $<
+	$(QUIET_LINK)$(HOSTCC) $(LDFLAGS) -o $@ $<
 
 FORCE:
 
