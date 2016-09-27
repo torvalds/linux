@@ -119,7 +119,6 @@ struct ion_platform_data *ion_parse_dt(struct platform_device *pdev,
 		i++;
 	}
 
-
 	data->heaps = heaps;
 	data->nr = num_heaps;
 	return data;
@@ -181,5 +180,6 @@ static int __init rmem_ion_setup(struct reserved_mem *rmem)
 	rmem->ops = &rmem_dma_ops;
 	return 0;
 }
+
 RESERVEDMEM_OF_DECLARE(ion, "ion-region", rmem_ion_setup);
 #endif
