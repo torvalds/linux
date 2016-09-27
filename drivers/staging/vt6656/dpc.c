@@ -46,7 +46,7 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 	__le64 *tsf_time;
 	u32 frame_size;
 	int ii, r;
-	u8 *rx_sts, *rx_rate, *sq, *sq_3;
+	u8 *rx_rate, *sq, *sq_3;
 	u32 wbk_status;
 	u8 *skb_data;
 	u16 *pay_load_len;
@@ -75,7 +75,6 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 
 	skb_data = (u8 *)skb->data;
 
-	rx_sts = skb_data + 4;
 	rx_rate = skb_data + 5;
 
 	/* real Frame Size = USBframe_size -4WbkStatus - 4RxStatus */
