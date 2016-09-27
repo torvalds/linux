@@ -31,12 +31,12 @@ static int ion_parse_dt_heap_common(struct device_node *heap_node,
 {
 	int i;
 
-	for (i = 0; compatible[i].name != NULL; i++) {
+	for (i = 0; compatible[i].name; i++) {
 		if (of_device_is_compatible(heap_node, compatible[i].compat))
 			break;
 	}
 
-	if (compatible[i].name == NULL)
+	if (!compatible[i].name)
 		return -ENODEV;
 
 	heap->id = compatible[i].heap_id;
