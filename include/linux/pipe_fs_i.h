@@ -140,6 +140,17 @@ static inline void pipe_buf_release(struct pipe_inode_info *pipe,
 	ops->release(pipe, buf);
 }
 
+/**
+ * pipe_buf_confirm - verify contents of the pipe buffer
+ * @pipe:	the pipe that the buffer belongs to
+ * @buf:	the buffer to confirm
+ */
+static inline int pipe_buf_confirm(struct pipe_inode_info *pipe,
+				   struct pipe_buffer *buf)
+{
+	return buf->ops->confirm(pipe, buf);
+}
+
 /* Differs from PIPE_BUF in that PIPE_SIZE is the length of the actual
    memory allocation, whereas PIPE_BUF makes atomicity guarantees.  */
 #define PIPE_SIZE		PAGE_SIZE
@@ -153,7 +164,6 @@ extern unsigned int pipe_max_size, pipe_min_size;
 extern unsigned long pipe_user_pages_hard;
 extern unsigned long pipe_user_pages_soft;
 int pipe_proc_fn(struct ctl_table *, int, void __user *, size_t *, loff_t *);
-
 
 /* Drop the inode semaphore and wait for a pipe event, atomically */
 void pipe_wait(struct pipe_inode_info *pipe);

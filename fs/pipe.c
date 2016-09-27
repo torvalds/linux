@@ -267,7 +267,6 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 		if (bufs) {
 			int curbuf = pipe->curbuf;
 			struct pipe_buffer *buf = pipe->bufs + curbuf;
-			const struct pipe_buf_operations *ops = buf->ops;
 			size_t chars = buf->len;
 			size_t written;
 			int error;
@@ -275,7 +274,7 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 			if (chars > total_len)
 				chars = total_len;
 
-			error = ops->confirm(pipe, buf);
+			error = pipe_buf_confirm(pipe, buf);
 			if (error) {
 				if (!ret)
 					ret = error;
@@ -382,11 +381,10 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 		int lastbuf = (pipe->curbuf + pipe->nrbufs - 1) &
 							(pipe->buffers - 1);
 		struct pipe_buffer *buf = pipe->bufs + lastbuf;
-		const struct pipe_buf_operations *ops = buf->ops;
 		int offset = buf->offset + buf->len;
 
-		if (ops->can_merge && offset + chars <= PAGE_SIZE) {
-			ret = ops->confirm(pipe, buf);
+		if (buf->ops->can_merge && offset + chars <= PAGE_SIZE) {
+			ret = pipe_buf_confirm(pipe, buf);
 			if (ret)
 				goto out;
 

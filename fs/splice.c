@@ -520,7 +520,7 @@ static int splice_from_pipe_feed(struct pipe_inode_info *pipe, struct splice_des
 		if (sd->len > sd->total_len)
 			sd->len = sd->total_len;
 
-		ret = buf->ops->confirm(pipe, buf);
+		ret = pipe_buf_confirm(pipe, buf);
 		if (unlikely(ret)) {
 			if (ret == -ENODATA)
 				ret = 0;
@@ -759,7 +759,7 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 			if (idx == pipe->buffers - 1)
 				idx = -1;
 
-			ret = buf->ops->confirm(pipe, buf);
+			ret = pipe_buf_confirm(pipe, buf);
 			if (unlikely(ret)) {
 				if (ret == -ENODATA)
 					ret = 0;
