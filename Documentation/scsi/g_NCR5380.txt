@@ -21,16 +21,6 @@ NCR53c400 card, the Trantor T130B in its default configuration:
 The NCR53c400 does not support DMA but it does have Pseudo-DMA which is
 supported by the driver.
 
-If the default configuration does not work for you, you can use the kernel
-command lines (eg using the lilo append command):
-	ncr5380=addr,irq
-	ncr53c400=addr,irq
-	ncr53c400a=addr,irq
-	dtc3181e=addr,irq
-
-The driver does not probe for any addresses or ports other than those in
-the OVERRIDE or given to the kernel as above.
-
 This driver provides some information on what it has detected in
 /proc/scsi/g_NCR5380/x where x is the scsi card number as detected at boot
 time. More info to come in the future.
