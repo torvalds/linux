@@ -11,7 +11,7 @@
 
 static const char *get_descriptor_type_string(u8 type)
 {
-	switch(type) {
+	switch (type) {
 	case GREYBUS_TYPE_INVALID:
 		return "invalid";
 	case GREYBUS_TYPE_STRING:
