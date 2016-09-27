@@ -903,7 +903,8 @@ static void g2d_runqueue_worker(struct work_struct *work)
 	g2d->runqueue_node = NULL;
 
 	if (runqueue_node) {
-		pm_runtime_put(g2d->dev);
+		pm_runtime_mark_last_busy(g2d->dev);
+		pm_runtime_put_autosuspend(g2d->dev);
 
 		complete(&runqueue_node->complete);
 		if (runqueue_node->async)
@@ -1022,7 +1023,8 @@ static void g2d_wait_finish(struct g2d_data *g2d, struct drm_file *file)
 	 * the IRQ which triggers the PM runtime put().
 	 * So do this manually here.
 	 */
-	pm_runtime_put(dev);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 
 	complete(&runqueue_node->complete);
 	if (runqueue_node->async)
@@ -1519,6 +1521,8 @@ static int g2d_probe(struct platform_device *pdev)
 		goto err_destroy_workqueue;
 	}
 
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_set_autosuspend_delay(dev, 2000);
 	pm_runtime_enable(dev);
 	clear_bit(G2D_BIT_SUSPEND_RUNQUEUE, &g2d->flags);
 	clear_bit(G2D_BIT_ENGINE_BUSY, &g2d->flags);
@@ -1590,6 +1594,7 @@ static int g2d_remove(struct platform_device *pdev)
 	/* There should be no locking needed here. */
 	g2d_remove_runqueue_nodes(g2d, NULL);
 
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	g2d_fini_cmdlist(g2d);
