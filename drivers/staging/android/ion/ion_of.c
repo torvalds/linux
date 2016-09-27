@@ -47,7 +47,7 @@ static int ion_parse_dt_heap_common(struct device_node *heap_node,
 	/* Some kind of callback function pointer? */
 
 	pr_info("%s: id %d type %d name %s align %lx\n", __func__,
-			heap->id, heap->type, heap->name, heap->align);
+		heap->id, heap->type, heap->name, heap->align);
 	return 0;
 }
 
@@ -73,7 +73,7 @@ static int ion_setup_heap_common(struct platform_device *parent,
 }
 
 struct ion_platform_data *ion_parse_dt(struct platform_device *pdev,
-					struct ion_of_heap *compatible)
+				       struct ion_of_heap *compatible)
 {
 	int num_heaps, ret;
 	const struct device_node *dt_node = pdev->dev.of_node;
@@ -88,13 +88,13 @@ struct ion_platform_data *ion_parse_dt(struct platform_device *pdev,
 		return ERR_PTR(-EINVAL);
 
 	heaps = devm_kzalloc(&pdev->dev,
-				sizeof(struct ion_platform_heap)*num_heaps,
-				GFP_KERNEL);
+			     sizeof(struct ion_platform_heap)*num_heaps,
+			     GFP_KERNEL);
 	if (!heaps)
 		return ERR_PTR(-ENOMEM);
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct ion_platform_data),
-				GFP_KERNEL);
+			    GFP_KERNEL);
 	if (!data)
 		return ERR_PTR(-ENOMEM);
 
@@ -106,7 +106,7 @@ struct ion_platform_data *ion_parse_dt(struct platform_device *pdev,
 			return ERR_PTR(ret);
 
 		heap_pdev = of_platform_device_create(node, heaps[i].name,
-							&pdev->dev);
+						      &pdev->dev);
 		if (!pdev)
 			return ERR_PTR(-ENOMEM);
 		heap_pdev->dev.platform_data = &heaps[i];
@@ -155,12 +155,12 @@ static int rmem_ion_device_init(struct reserved_mem *rmem, struct device *dev)
 	heap->base = rmem->base;
 	heap->base = rmem->size;
 	pr_debug("%s: heap %s base %pa size %pa dev %p\n", __func__,
-			heap->name, &rmem->base, &rmem->size, dev);
+		 heap->name, &rmem->base, &rmem->size, dev);
 	return 0;
 }
 
 static void rmem_ion_device_release(struct reserved_mem *rmem,
-					struct device *dev)
+				    struct device *dev)
 {
 	return;
 }
