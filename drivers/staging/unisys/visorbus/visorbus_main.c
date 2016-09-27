@@ -762,7 +762,7 @@ write_vbus_bus_info(struct visorchannel *chan,
 static void
 write_vbus_dev_info(struct visorchannel *chan,
 		    struct spar_vbus_headerinfo *hdr_info,
-		    struct ultra_vbus_deviceinfo *info, int devix)
+		    struct ultra_vbus_deviceinfo *info, unsigned int devix)
 {
 	int off =
 	    (sizeof(struct channel_header) + hdr_info->dev_info_offset) +
@@ -787,8 +787,8 @@ fix_vbus_dev_info(struct visor_device *visordev)
 	int i;
 	struct visor_device *bdev;
 	struct visor_driver *visordrv;
-	int bus_no = visordev->chipset_bus_no;
-	int dev_no = visordev->chipset_dev_no;
+	u32 bus_no = visordev->chipset_bus_no;
+	u32 dev_no = visordev->chipset_dev_no;
 	struct ultra_vbus_deviceinfo dev_info;
 	const char *chan_type_name = NULL;
 	struct spar_vbus_headerinfo *hdr_info;
