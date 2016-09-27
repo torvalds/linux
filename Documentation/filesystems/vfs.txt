@@ -345,8 +345,6 @@ struct inode_operations {
 	int (*mkdir) (struct inode *,struct dentry *,umode_t);
 	int (*rmdir) (struct inode *,struct dentry *);
 	int (*mknod) (struct inode *,struct dentry *,umode_t,dev_t);
-	int (*rename) (struct inode *, struct dentry *,
-			struct inode *, struct dentry *);
 	int (*rename2) (struct inode *, struct dentry *,
 			struct inode *, struct dentry *, unsigned int);
 	int (*readlink) (struct dentry *, char __user *,int);
@@ -416,11 +414,8 @@ otherwise noted.
   rename: called by the rename(2) system call to rename the object to
 	have the parent and name given by the second inode and dentry.
 
-  rename2: this has an additional flags argument compared to rename.
-	If no flags are supported by the filesystem then this method
-	need not be implemented.  If some flags are supported then the
-	filesystem must return -EINVAL for any unsupported or unknown
-	flags.  Currently the following flags are implemented:
+	The filesystem must return -EINVAL for any unsupported or
+	unknown	flags.  Currently the following flags are implemented:
 	(1) RENAME_NOREPLACE: this flag indicates that if the target
 	of the rename exists the rename should fail with -EEXIST
 	instead of replacing the target.  The VFS already checks for
