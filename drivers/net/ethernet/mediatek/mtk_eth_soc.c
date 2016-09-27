@@ -1374,6 +1374,7 @@ static void mtk_hwlro_rx_uninit(struct mtk_eth *eth)
 			msleep(20);
 			continue;
 		}
+		break;
 	}
 
 	/* invalidate lro rings */
@@ -1784,6 +1785,7 @@ static int mtk_stop(struct net_device *dev)
 	napi_disable(&eth->rx_napi);
 
 	mtk_stop_dma(eth, MTK_QDMA_GLO_CFG);
+	mtk_stop_dma(eth, MTK_PDMA_GLO_CFG);
 
 	mtk_dma_free(eth);
 
