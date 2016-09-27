@@ -891,6 +891,8 @@ int arizona_out_ev(struct snd_soc_dapm_widget *w,
 		case ARIZONA_OUT3R_ENA_SHIFT:
 			priv->out_up_pending--;
 			if (!priv->out_up_pending) {
+				dev_dbg(codec->dev, "Power up delay: %d\n",
+					priv->out_up_delay);
 				msleep(priv->out_up_delay);
 				priv->out_up_delay = 0;
 			}
@@ -925,6 +927,8 @@ int arizona_out_ev(struct snd_soc_dapm_widget *w,
 		case ARIZONA_OUT3R_ENA_SHIFT:
 			priv->out_down_pending--;
 			if (!priv->out_down_pending) {
+				dev_dbg(codec->dev, "Power down delay: %d\n",
+					priv->out_down_delay);
 				msleep(priv->out_down_delay);
 				priv->out_down_delay = 0;
 			}
