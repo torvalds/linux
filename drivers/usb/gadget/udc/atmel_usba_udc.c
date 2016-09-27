@@ -1464,8 +1464,8 @@ restart:
 		pkt_len = USBA_BFEXT(BYTE_COUNT, usba_ep_readl(ep, STA));
 		DBG(DBG_HW, "Packet length: %u\n", pkt_len);
 		if (pkt_len != sizeof(crq)) {
-			pr_warning("udc: Invalid packet length %u "
-				"(expected %zu)\n", pkt_len, sizeof(crq));
+			pr_warn("udc: Invalid packet length %u (expected %zu)\n",
+				pkt_len, sizeof(crq));
 			set_protocol_stall(udc, ep);
 			return;
 		}
