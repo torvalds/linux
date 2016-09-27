@@ -87,7 +87,7 @@ static int ks7010_sdio_write(struct ks_wlan_private *priv, unsigned int address,
 	return rc;
 }
 
-void ks_wlan_hw_sleep_doze_request(struct ks_wlan_private *priv)
+static void ks_wlan_hw_sleep_doze_request(struct ks_wlan_private *priv)
 {
 	unsigned char rw_data;
 	int retval;
@@ -117,7 +117,7 @@ void ks_wlan_hw_sleep_doze_request(struct ks_wlan_private *priv)
 	priv->sleep_mode = atomic_read(&priv->sleepstatus.status);
 }
 
-void ks_wlan_hw_sleep_wakeup_request(struct ks_wlan_private *priv)
+static void ks_wlan_hw_sleep_wakeup_request(struct ks_wlan_private *priv)
 {
 	unsigned char rw_data;
 	int retval;
@@ -169,7 +169,7 @@ void ks_wlan_hw_wakeup_request(struct ks_wlan_private *priv)
 	}
 }
 
-int _ks_wlan_hw_power_save(struct ks_wlan_private *priv)
+static int _ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 {
 	unsigned char rw_data;
 	int retval;
