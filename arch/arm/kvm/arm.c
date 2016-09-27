@@ -515,13 +515,7 @@ static int kvm_vcpu_first_run_init(struct kvm_vcpu *vcpu)
 			return ret;
 	}
 
-	/*
-	 * Enable the arch timers only if we have an in-kernel VGIC
-	 * and it has been properly initialized, since we cannot handle
-	 * interrupts from the virtual timer with a userspace gic.
-	 */
-	if (irqchip_in_kernel(kvm) && vgic_initialized(kvm))
-		ret = kvm_timer_enable(vcpu);
+	ret = kvm_timer_enable(vcpu);
 
 	return ret;
 }
@@ -640,9 +634,12 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		local_irq_disable();
 
 		/*
-		 * Re-check atomic conditions
+		 * If we have a singal pending, or need to notify a userspace
+		 * irqchip about timer level changes, then we exit (and update
+		 * the timer level state in kvm_timer_update_run below).
 		 */
-		if (signal_pending(current)) {
+		if (signal_pending(current) ||
+		    kvm_timer_should_notify_user(vcpu)) {
 			ret = -EINTR;
 			run->exit_reason = KVM_EXIT_INTR;
 		}
@@ -713,6 +710,9 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 
 		ret = handle_exit(vcpu, run, ret);
 	}
+
+	/* Tell userspace about in-kernel device output levels */
+	kvm_timer_update_run(vcpu);
 
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
