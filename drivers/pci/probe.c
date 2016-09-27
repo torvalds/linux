@@ -1666,7 +1666,8 @@ static void pci_init_capabilities(struct pci_dev *dev)
 	/* Enable ACS P2P upstream forwarding */
 	pci_enable_acs(dev);
 
-	pci_cleanup_aer_error_status_regs(dev);
+	/* Advanced Error Reporting */
+	pci_aer_init(dev);
 }
 
 /*
