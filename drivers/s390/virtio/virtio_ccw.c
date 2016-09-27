@@ -454,7 +454,7 @@ static void virtio_ccw_del_vq(struct virtqueue *vq, struct ccw1 *ccw)
 	 * This may happen on device detach.
 	 */
 	if (ret && (ret != -ENODEV))
-		dev_warn(&vq->vdev->dev, "Error %d while deleting queue %d",
+		dev_warn(&vq->vdev->dev, "Error %d while deleting queue %d\n",
 			 ret, index);
 
 	vring_del_virtqueue(vq);
