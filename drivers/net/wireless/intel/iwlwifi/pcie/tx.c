@@ -337,28 +337,32 @@ static inline void *iwl_pcie_get_tfd(struct iwl_trans_pcie *trans_pcie,
 }
 
 static inline dma_addr_t iwl_pcie_tfd_tb_get_addr(struct iwl_trans *trans,
-						  void *tfd, u8 idx)
+						  void *_tfd, u8 idx)
 {
-	struct iwl_tfd *tfd_fh;
-	struct iwl_tfd_tb *tb;
-	dma_addr_t addr;
 
 	if (trans->cfg->use_tfh) {
-		struct iwl_tfh_tfd *tfd_fh = (void *)tfd;
-		struct iwl_tfh_tb *tb = &tfd_fh->tbs[idx];
+		struct iwl_tfh_tfd *tfd = _tfd;
+		struct iwl_tfh_tb *tb = &tfd->tbs[idx];
 
 		return (dma_addr_t)(le64_to_cpu(tb->addr));
+	} else {
+		struct iwl_tfd *tfd = _tfd;
+		struct iwl_tfd_tb *tb = &tfd->tbs[idx];
+		dma_addr_t addr = get_unaligned_le32(&tb->lo);
+		dma_addr_t hi_len;
+
+		if (sizeof(dma_addr_t) <= sizeof(u32))
+			return addr;
+
+		hi_len = le16_to_cpu(tb->hi_n_len) & 0xF;
+
+		/*
+		 * shift by 16 twice to avoid warnings on 32-bit
+		 * (where this code never runs anyway due to the
+		 * if statement above)
+		 */
+		return addr | ((hi_len << 16) << 16);
 	}
-
-	tfd_fh = (void *)tfd;
-	tb = &tfd_fh->tbs[idx];
-	addr = get_unaligned_le32(&tb->lo);
-
-	if (sizeof(dma_addr_t) > sizeof(u32))
-		addr |=
-		((dma_addr_t)(le16_to_cpu(tb->hi_n_len) & 0xF) << 16) << 16;
-
-	return addr;
 }
 
 static inline void iwl_pcie_tfd_set_tb(struct iwl_trans *trans, void *tfd,
@@ -388,18 +392,17 @@ static inline void iwl_pcie_tfd_set_tb(struct iwl_trans *trans, void *tfd,
 	}
 }
 
-static inline u8 iwl_pcie_tfd_get_num_tbs(struct iwl_trans *trans, void *tfd)
+static inline u8 iwl_pcie_tfd_get_num_tbs(struct iwl_trans *trans, void *_tfd)
 {
-	struct iwl_tfd *tfd_fh;
-
 	if (trans->cfg->use_tfh) {
-		struct iwl_tfh_tfd *tfd_fh = (void *)tfd;
+		struct iwl_tfh_tfd *tfd = _tfd;
 
-		return le16_to_cpu(tfd_fh->num_tbs) & 0x1f;
+		return le16_to_cpu(tfd->num_tbs) & 0x1f;
+	} else {
+		struct iwl_tfd *tfd = _tfd;
+
+		return tfd->num_tbs & 0x1f;
 	}
-
-	tfd_fh = (void *)tfd;
-	return tfd_fh->num_tbs & 0x1f;
 }
 
 static void iwl_pcie_tfd_unmap(struct iwl_trans *trans,

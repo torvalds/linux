@@ -933,7 +933,7 @@ static void iwl_mvm_unshare_queue(struct iwl_mvm *mvm, int queue)
 
 	/* If aggs should be turned back on - do it */
 	if (mvmsta->tid_data[tid].state == IWL_AGG_ON) {
-		struct iwl_mvm_add_sta_cmd cmd;
+		struct iwl_mvm_add_sta_cmd cmd = {0};
 
 		mvmsta->tid_disable_agg &= ~BIT(tid);
 

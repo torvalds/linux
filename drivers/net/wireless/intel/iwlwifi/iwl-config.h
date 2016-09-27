@@ -359,7 +359,6 @@ struct iwl_cfg {
 	    high_temp:1,
 	    mac_addr_from_csr:1,
 	    lp_xtal_workaround:1,
-	    no_power_up_nic_in_init:1,
 	    disable_dummy_notification:1,
 	    apmg_not_supported:1,
 	    mq_rx_supported:1,
