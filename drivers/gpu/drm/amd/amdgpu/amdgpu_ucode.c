@@ -239,6 +239,31 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_firmware_info *ucode,
 	return 0;
 }
 
+static int amdgpu_ucode_patch_jt(struct amdgpu_firmware_info *ucode,
+				uint64_t mc_addr, void *kptr)
+{
+	const struct gfx_firmware_header_v1_0 *header = NULL;
+	const struct common_firmware_header *comm_hdr = NULL;
+	uint8_t* src_addr = NULL;
+	uint8_t* dst_addr = NULL;
+
+	if (NULL == ucode->fw)
+		return 0;
+
+	comm_hdr = (const struct common_firmware_header *)ucode->fw->data;
+	header = (const struct gfx_firmware_header_v1_0 *)ucode->fw->data;
+	dst_addr = ucode->kaddr +
+			   ALIGN(le32_to_cpu(comm_hdr->ucode_size_bytes),
+			   PAGE_SIZE);
+	src_addr = (uint8_t *)ucode->fw->data +
+			   le32_to_cpu(comm_hdr->ucode_array_offset_bytes) +
+			   (le32_to_cpu(header->jt_offset) * 4);
+	memcpy(dst_addr, src_addr, le32_to_cpu(header->jt_size) * 4);
+
+	return 0;
+}
+
+
 int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 {
 	struct amdgpu_bo **bo = &adev->firmware.fw_buf;
@@ -284,6 +309,13 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 			header = (const struct common_firmware_header *)ucode->fw->data;
 			amdgpu_ucode_init_single_fw(ucode, fw_mc_addr + fw_offset,
 						    fw_buf_ptr + fw_offset);
+			if (i == AMDGPU_UCODE_ID_CP_MEC1) {
+				const struct gfx_firmware_header_v1_0 *cp_hdr;
+				cp_hdr = (const struct gfx_firmware_header_v1_0 *)ucode->fw->data;
+				amdgpu_ucode_patch_jt(ucode, fw_mc_addr + fw_offset,
+						    fw_buf_ptr + fw_offset);
+				fw_offset += ALIGN(le32_to_cpu(cp_hdr->jt_size) << 2, PAGE_SIZE);
+			}
 			fw_offset += ALIGN(le32_to_cpu(header->ucode_size_bytes), PAGE_SIZE);
 		}
 	}

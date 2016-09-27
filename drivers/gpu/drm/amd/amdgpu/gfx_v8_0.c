@@ -1058,6 +1058,11 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 		adev->firmware.fw_size +=
 			ALIGN(le32_to_cpu(header->ucode_size_bytes), PAGE_SIZE);
 
+		/* we need account JT in */
+		cp_hdr = (const struct gfx_firmware_header_v1_0 *)adev->gfx.mec_fw->data;
+		adev->firmware.fw_size +=
+			ALIGN(le32_to_cpu(cp_hdr->jt_size) << 2, PAGE_SIZE);
+
 		if (amdgpu_sriov_vf(adev)) {
 			info = &adev->firmware.ucode[AMDGPU_UCODE_ID_STORAGE];
 			info->ucode_id = AMDGPU_UCODE_ID_STORAGE;

@@ -687,11 +687,14 @@ static uint32_t fw_type_convert(struct cgs_device *cgs_device, uint32_t fw_type)
 		result = AMDGPU_UCODE_ID_CP_MEC1;
 		break;
 	case CGS_UCODE_ID_CP_MEC_JT2:
-		if (adev->asic_type == CHIP_TONGA || adev->asic_type == CHIP_POLARIS11
-		  || adev->asic_type == CHIP_POLARIS10)
-			result = AMDGPU_UCODE_ID_CP_MEC2;
-		else
+		/* for VI. JT2 should be the same as JT1, because:
+			1, MEC2 and MEC1 use exactly same FW.
+			2, JT2 is not pached but JT1 is.
+		*/
+		if (adev->asic_type >= CHIP_TOPAZ)
 			result = AMDGPU_UCODE_ID_CP_MEC1;
+		else
+			result = AMDGPU_UCODE_ID_CP_MEC2;
 		break;
 	case CGS_UCODE_ID_RLC_G:
 		result = AMDGPU_UCODE_ID_RLC_G;
@@ -781,12 +784,18 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 
 		if ((type == CGS_UCODE_ID_CP_MEC_JT1) ||
 		    (type == CGS_UCODE_ID_CP_MEC_JT2)) {
-			gpu_addr += le32_to_cpu(header->jt_offset) << 2;
+			gpu_addr += ALIGN(le32_to_cpu(header->header.ucode_size_bytes), PAGE_SIZE);
 			data_size = le32_to_cpu(header->jt_size) << 2;
 		}
-		info->mc_addr = gpu_addr;
+
+		info->kptr = ucode->kaddr;
 		info->image_size = data_size;
+		info->mc_addr = gpu_addr;
 		info->version = (uint16_t)le32_to_cpu(header->header.ucode_version);
+
+		if (CGS_UCODE_ID_CP_MEC == type)
+			info->image_size = (header->jt_offset) << 2;
+
 		info->fw_version = amdgpu_get_firmware_version(cgs_device, type);
 		info->feature_version = (uint16_t)le32_to_cpu(header->ucode_feature_version);
 	} else {
