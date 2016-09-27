@@ -622,8 +622,8 @@ static void gs_write_complete(struct usb_ep *ep, struct usb_request *req)
 	switch (req->status) {
 	default:
 		/* presumably a transient fault */
-		pr_warning("%s: unexpected %s status %d\n",
-				__func__, ep->name, req->status);
+		pr_warn("%s: unexpected %s status %d\n",
+			__func__, ep->name, req->status);
 		/* FALL THROUGH */
 	case 0:
 		/* normal completion */
