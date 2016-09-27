@@ -507,7 +507,8 @@ const struct address_space_operations hpfs_symlink_aops = {
 };
 	
 static int hpfs_rename(struct inode *old_dir, struct dentry *old_dentry,
-		struct inode *new_dir, struct dentry *new_dentry)
+		       struct inode *new_dir, struct dentry *new_dentry,
+		       unsigned int flags)
 {
 	const unsigned char *old_name = old_dentry->d_name.name;
 	unsigned old_len = old_dentry->d_name.len;
@@ -523,6 +524,9 @@ static int hpfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct buffer_head *bh;
 	struct fnode *fnode;
 	int err;
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	if ((err = hpfs_chk_name(new_name, &new_len))) return err;
 	err = 0;
@@ -618,6 +622,6 @@ const struct inode_operations hpfs_dir_iops =
 	.mkdir		= hpfs_mkdir,
 	.rmdir		= hpfs_rmdir,
 	.mknod		= hpfs_mknod,
-	.rename		= hpfs_rename,
+	.rename2	= hpfs_rename,
 	.setattr	= hpfs_setattr,
 };

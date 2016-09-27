@@ -35,7 +35,7 @@ const struct inode_operations affs_dir_inode_operations = {
 	.symlink	= affs_symlink,
 	.mkdir		= affs_mkdir,
 	.rmdir		= affs_rmdir,
-	.rename		= affs_rename,
+	.rename2	= affs_rename,
 	.setattr	= affs_notify_change,
 };
 

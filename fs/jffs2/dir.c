@@ -35,7 +35,8 @@ static int jffs2_mkdir (struct inode *,struct dentry *,umode_t);
 static int jffs2_rmdir (struct inode *,struct dentry *);
 static int jffs2_mknod (struct inode *,struct dentry *,umode_t,dev_t);
 static int jffs2_rename (struct inode *, struct dentry *,
-			 struct inode *, struct dentry *);
+			 struct inode *, struct dentry *,
+			 unsigned int);
 
 const struct file_operations jffs2_dir_operations =
 {
@@ -57,7 +58,7 @@ const struct inode_operations jffs2_dir_inode_operations =
 	.mkdir =	jffs2_mkdir,
 	.rmdir =	jffs2_rmdir,
 	.mknod =	jffs2_mknod,
-	.rename =	jffs2_rename,
+	.rename2 =	jffs2_rename,
 	.get_acl =	jffs2_get_acl,
 	.set_acl =	jffs2_set_acl,
 	.setattr =	jffs2_setattr,
@@ -759,13 +760,17 @@ static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, umode_t mode
 }
 
 static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
-			 struct inode *new_dir_i, struct dentry *new_dentry)
+			 struct inode *new_dir_i, struct dentry *new_dentry,
+			 unsigned int flags)
 {
 	int ret;
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(old_dir_i->i_sb);
 	struct jffs2_inode_info *victim_f = NULL;
 	uint8_t type;
 	uint32_t now;
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	/* The VFS will check for us and prevent trying to rename a
 	 * file over a directory and vice versa, but if it's a directory,

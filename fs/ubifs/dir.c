@@ -966,7 +966,8 @@ static void unlock_3_inodes(struct inode *inode1, struct inode *inode2,
 }
 
 static int ubifs_rename(struct inode *old_dir, struct dentry *old_dentry,
-			struct inode *new_dir, struct dentry *new_dentry)
+			struct inode *new_dir, struct dentry *new_dentry,
+			unsigned int flags)
 {
 	struct ubifs_info *c = old_dir->i_sb->s_fs_info;
 	struct inode *old_inode = d_inode(old_dentry);
@@ -983,6 +984,9 @@ static int ubifs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			.dirtied_ino_d = ALIGN(old_inode_ui->data_len, 8) };
 	struct timespec time;
 	unsigned int uninitialized_var(saved_nlink);
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	/*
 	 * Budget request settings: deletion direntry, new direntry, removing
@@ -1179,7 +1183,7 @@ const struct inode_operations ubifs_dir_inode_operations = {
 	.mkdir       = ubifs_mkdir,
 	.rmdir       = ubifs_rmdir,
 	.mknod       = ubifs_mknod,
-	.rename      = ubifs_rename,
+	.rename2     = ubifs_rename,
 	.setattr     = ubifs_setattr,
 	.getattr     = ubifs_getattr,
 	.setxattr    = generic_setxattr,

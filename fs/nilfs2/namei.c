@@ -350,7 +350,8 @@ static int nilfs_rmdir(struct inode *dir, struct dentry *dentry)
 }
 
 static int nilfs_rename(struct inode *old_dir, struct dentry *old_dentry,
-			struct inode *new_dir,	struct dentry *new_dentry)
+			struct inode *new_dir,	struct dentry *new_dentry,
+			unsigned int flags)
 {
 	struct inode *old_inode = d_inode(old_dentry);
 	struct inode *new_inode = d_inode(new_dentry);
@@ -360,6 +361,9 @@ static int nilfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct nilfs_dir_entry *old_de;
 	struct nilfs_transaction_info ti;
 	int err;
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	err = nilfs_transaction_begin(old_dir->i_sb, &ti, 1);
 	if (unlikely(err))
@@ -552,7 +556,7 @@ const struct inode_operations nilfs_dir_inode_operations = {
 	.mkdir		= nilfs_mkdir,
 	.rmdir		= nilfs_rmdir,
 	.mknod		= nilfs_mknod,
-	.rename		= nilfs_rename,
+	.rename2	= nilfs_rename,
 	.setattr	= nilfs_setattr,
 	.permission	= nilfs_permission,
 	.fiemap		= nilfs_fiemap,

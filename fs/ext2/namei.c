@@ -328,7 +328,8 @@ static int ext2_rmdir (struct inode * dir, struct dentry *dentry)
 }
 
 static int ext2_rename (struct inode * old_dir, struct dentry * old_dentry,
-	struct inode * new_dir,	struct dentry * new_dentry )
+			struct inode * new_dir,	struct dentry * new_dentry,
+			unsigned int flags)
 {
 	struct inode * old_inode = d_inode(old_dentry);
 	struct inode * new_inode = d_inode(new_dentry);
@@ -337,6 +338,9 @@ static int ext2_rename (struct inode * old_dir, struct dentry * old_dentry,
 	struct page * old_page;
 	struct ext2_dir_entry_2 * old_de;
 	int err;
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	err = dquot_initialize(old_dir);
 	if (err)
@@ -426,7 +430,7 @@ const struct inode_operations ext2_dir_inode_operations = {
 	.mkdir		= ext2_mkdir,
 	.rmdir		= ext2_rmdir,
 	.mknod		= ext2_mknod,
-	.rename		= ext2_rename,
+	.rename2	= ext2_rename,
 #ifdef CONFIG_EXT2_FS_XATTR
 	.setxattr	= generic_setxattr,
 	.getxattr	= generic_getxattr,

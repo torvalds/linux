@@ -718,8 +718,12 @@ out:
 }
 
 static int logfs_rename(struct inode *old_dir, struct dentry *old_dentry,
-			struct inode *new_dir, struct dentry *new_dentry)
+			struct inode *new_dir, struct dentry *new_dentry,
+			unsigned int flags)
 {
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
+
 	if (d_really_is_positive(new_dentry))
 		return logfs_rename_target(old_dir, old_dentry,
 					   new_dir, new_dentry);
@@ -783,7 +787,7 @@ const struct inode_operations logfs_dir_iops = {
 	.lookup		= logfs_lookup,
 	.mkdir		= logfs_mkdir,
 	.mknod		= logfs_mknod,
-	.rename		= logfs_rename,
+	.rename2	= logfs_rename,
 	.rmdir		= logfs_rmdir,
 	.symlink	= logfs_symlink,
 	.unlink		= logfs_unlink,

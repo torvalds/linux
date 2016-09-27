@@ -185,7 +185,8 @@ static int minix_rmdir(struct inode * dir, struct dentry *dentry)
 }
 
 static int minix_rename(struct inode * old_dir, struct dentry *old_dentry,
-			   struct inode * new_dir, struct dentry *new_dentry)
+			struct inode * new_dir, struct dentry *new_dentry,
+			unsigned int flags)
 {
 	struct inode * old_inode = d_inode(old_dentry);
 	struct inode * new_inode = d_inode(new_dentry);
@@ -194,6 +195,9 @@ static int minix_rename(struct inode * old_dir, struct dentry *old_dentry,
 	struct page * old_page;
 	struct minix_dir_entry * old_de;
 	int err = -ENOENT;
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	old_de = minix_find_entry(old_dentry, &old_page);
 	if (!old_de)
@@ -264,7 +268,7 @@ const struct inode_operations minix_dir_inode_operations = {
 	.mkdir		= minix_mkdir,
 	.rmdir		= minix_rmdir,
 	.mknod		= minix_mknod,
-	.rename		= minix_rename,
+	.rename2	= minix_rename,
 	.getattr	= minix_getattr,
 	.tmpfile	= minix_tmpfile,
 };

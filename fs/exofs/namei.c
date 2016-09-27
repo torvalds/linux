@@ -227,7 +227,8 @@ static int exofs_rmdir(struct inode *dir, struct dentry *dentry)
 }
 
 static int exofs_rename(struct inode *old_dir, struct dentry *old_dentry,
-		struct inode *new_dir, struct dentry *new_dentry)
+			struct inode *new_dir, struct dentry *new_dentry,
+			unsigned int flags)
 {
 	struct inode *old_inode = d_inode(old_dentry);
 	struct inode *new_inode = d_inode(new_dentry);
@@ -236,6 +237,9 @@ static int exofs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct page *old_page;
 	struct exofs_dir_entry *old_de;
 	int err = -ENOENT;
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	old_de = exofs_find_entry(old_dir, old_dentry, &old_page);
 	if (!old_de)
@@ -310,7 +314,7 @@ const struct inode_operations exofs_dir_inode_operations = {
 	.mkdir  	= exofs_mkdir,
 	.rmdir  	= exofs_rmdir,
 	.mknod  	= exofs_mknod,
-	.rename 	= exofs_rename,
+	.rename2	= exofs_rename,
 	.setattr	= exofs_setattr,
 };
 

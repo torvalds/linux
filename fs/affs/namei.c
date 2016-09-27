@@ -414,11 +414,15 @@ affs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
 
 int
 affs_rename(struct inode *old_dir, struct dentry *old_dentry,
-	    struct inode *new_dir, struct dentry *new_dentry)
+	    struct inode *new_dir, struct dentry *new_dentry,
+	    unsigned int flags)
 {
 	struct super_block *sb = old_dir->i_sb;
 	struct buffer_head *bh = NULL;
 	int retval;
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	pr_debug("%s(old=%lu,\"%pd\" to new=%lu,\"%pd\")\n", __func__,
 		 old_dir->i_ino, old_dentry, new_dir->i_ino, new_dentry);

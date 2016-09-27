@@ -596,11 +596,15 @@ error_inode:
 
 /***** Rename, a wrapper for rename_same_dir & rename_diff_dir */
 static int msdos_rename(struct inode *old_dir, struct dentry *old_dentry,
-			struct inode *new_dir, struct dentry *new_dentry)
+			struct inode *new_dir, struct dentry *new_dentry,
+			unsigned int flags)
 {
 	struct super_block *sb = old_dir->i_sb;
 	unsigned char old_msdos_name[MSDOS_NAME], new_msdos_name[MSDOS_NAME];
 	int err, is_hid;
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	mutex_lock(&MSDOS_SB(sb)->s_lock);
 
@@ -633,7 +637,7 @@ static const struct inode_operations msdos_dir_inode_operations = {
 	.unlink		= msdos_unlink,
 	.mkdir		= msdos_mkdir,
 	.rmdir		= msdos_rmdir,
-	.rename		= msdos_rename,
+	.rename2	= msdos_rename,
 	.setattr	= fat_setattr,
 	.getattr	= fat_getattr,
 };

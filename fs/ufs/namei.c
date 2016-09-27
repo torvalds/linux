@@ -245,7 +245,8 @@ static int ufs_rmdir (struct inode * dir, struct dentry *dentry)
 }
 
 static int ufs_rename(struct inode *old_dir, struct dentry *old_dentry,
-		      struct inode *new_dir, struct dentry *new_dentry)
+		      struct inode *new_dir, struct dentry *new_dentry,
+		      unsigned int flags)
 {
 	struct inode *old_inode = d_inode(old_dentry);
 	struct inode *new_inode = d_inode(new_dentry);
@@ -254,6 +255,9 @@ static int ufs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct page *old_page;
 	struct ufs_dir_entry *old_de;
 	int err = -ENOENT;
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	old_de = ufs_find_entry(old_dir, &old_dentry->d_name, &old_page);
 	if (!old_de)
@@ -333,5 +337,5 @@ const struct inode_operations ufs_dir_inode_operations = {
 	.mkdir		= ufs_mkdir,
 	.rmdir		= ufs_rmdir,
 	.mknod		= ufs_mknod,
-	.rename		= ufs_rename,
+	.rename2	= ufs_rename,
 };

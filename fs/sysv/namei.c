@@ -206,7 +206,8 @@ static int sysv_rmdir(struct inode * dir, struct dentry * dentry)
  * higher-level routines.
  */
 static int sysv_rename(struct inode * old_dir, struct dentry * old_dentry,
-		  struct inode * new_dir, struct dentry * new_dentry)
+		       struct inode * new_dir, struct dentry * new_dentry,
+		       unsigned int flags)
 {
 	struct inode * old_inode = d_inode(old_dentry);
 	struct inode * new_inode = d_inode(new_dentry);
@@ -215,6 +216,9 @@ static int sysv_rename(struct inode * old_dir, struct dentry * old_dentry,
 	struct page * old_page;
 	struct sysv_dir_entry * old_de;
 	int err = -ENOENT;
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	old_de = sysv_find_entry(old_dentry, &old_page);
 	if (!old_de)
@@ -285,6 +289,6 @@ const struct inode_operations sysv_dir_inode_operations = {
 	.mkdir		= sysv_mkdir,
 	.rmdir		= sysv_rmdir,
 	.mknod		= sysv_mknod,
-	.rename		= sysv_rename,
+	.rename2	= sysv_rename,
 	.getattr	= sysv_getattr,
 };
