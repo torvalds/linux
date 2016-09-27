@@ -58,6 +58,9 @@ quiet_cmd_mkdir = MKDIR    $(dir $@)
 quiet_cmd_cc_o_c = CC       $@
       cmd_cc_o_c = $(CC) $(c_flags) -c -o $@ $<
 
+quiet_cmd_host_cc_o_c = HOSTCC   $@
+      cmd_host_cc_o_c = $(HOSTCC) $(host_c_flags) -c -o $@ $<
+
 quiet_cmd_cpp_i_c = CPP      $@
       cmd_cpp_i_c = $(CC) $(c_flags) -E -o $@ $<
 
@@ -70,16 +73,24 @@ quiet_cmd_gen = GEN      $@
 # If there's nothing to link, create empty $@ object.
 quiet_cmd_ld_multi = LD       $@
       cmd_ld_multi = $(if $(strip $(obj-y)),\
-		       $(LD) -r -o $@  $(filter $(obj-y),$^),rm -f $@; $(AR) rcs $@)
+                     $(LD) -r -o $@  $(filter $(obj-y),$^),rm -f $@; $(AR) rcs $@)
+
+quiet_cmd_host_ld_multi = HOSTLD   $@
+      cmd_host_ld_multi = $(if $(strip $(obj-y)),\
+                          $(HOSTLD) -r -o $@  $(filter $(obj-y),$^),rm -f $@; $(HOSTAR) rcs $@)
+
+ifneq ($(filter $(obj),$(hostprogs)),)
+  host = host_
+endif
 
 # Build rules
 $(OUTPUT)%.o: %.c FORCE
 	$(call rule_mkdir)
-	$(call if_changed_dep,cc_o_c)
+	$(call if_changed_dep,$(host)cc_o_c)
 
 $(OUTPUT)%.o: %.S FORCE
 	$(call rule_mkdir)
-	$(call if_changed_dep,cc_o_c)
+	$(call if_changed_dep,$(host)cc_o_c)
 
 $(OUTPUT)%.i: %.c FORCE
 	$(call rule_mkdir)
@@ -119,7 +130,7 @@ $(sort $(subdir-obj-y)): $(subdir-y) ;
 
 $(in-target): $(obj-y) FORCE
 	$(call rule_mkdir)
-	$(call if_changed,ld_multi)
+	$(call if_changed,$(host)ld_multi)
 
 __build: $(in-target)
 	@:
