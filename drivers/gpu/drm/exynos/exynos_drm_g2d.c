@@ -845,9 +845,6 @@ static void g2d_free_runqueue_node(struct g2d_data *g2d,
 {
 	struct g2d_cmdlist_node *node;
 
-	if (!runqueue_node)
-		return;
-
 	mutex_lock(&g2d->cmdlist_mutex);
 	/*
 	 * commands in run_cmdlist have been completed so unmap all gem
