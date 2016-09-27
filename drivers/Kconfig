@@ -202,4 +202,6 @@ source "drivers/fpga/Kconfig"
 
 source "drivers/rk_nand/Kconfig"
 
+source "drivers/headset_observe/Kconfig"
+
 endmenu
