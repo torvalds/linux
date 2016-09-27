@@ -265,6 +265,21 @@ static const struct tpm_class_ops tpm_crb = {
 	.req_complete_val = CRB_DRV_STS_COMPLETE,
 };
 
+static int crb_init(struct acpi_device *device, struct crb_priv *priv)
+{
+	struct tpm_chip *chip;
+
+	chip = tpmm_chip_alloc(&device->dev, &tpm_crb);
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
+
+	dev_set_drvdata(&chip->dev, priv);
+	chip->acpi_dev_handle = device->handle;
+	chip->flags = TPM_CHIP_FLAG_TPM2;
+
+	return tpm_chip_register(chip);
+}
+
 static int crb_check_resource(struct acpi_resource *ares, void *data)
 {
 	struct resource *io_res = data;
@@ -386,7 +401,6 @@ static int crb_acpi_add(struct acpi_device *device)
 {
 	struct acpi_table_tpm2 *buf;
 	struct crb_priv *priv;
-	struct tpm_chip *chip;
 	struct device *dev = &device->dev;
 	acpi_status status;
 	u32 sm;
@@ -424,19 +438,11 @@ static int crb_acpi_add(struct acpi_device *device)
 	if (rc)
 		return rc;
 
-	chip = tpmm_chip_alloc(dev, &tpm_crb);
-	if (IS_ERR(chip))
-		return PTR_ERR(chip);
-
-	dev_set_drvdata(&chip->dev, priv);
-	chip->acpi_dev_handle = device->handle;
-	chip->flags = TPM_CHIP_FLAG_TPM2;
-
 	rc  = crb_cmd_ready(dev, priv);
 	if (rc)
 		return rc;
 
-	rc = tpm_chip_register(chip);
+	rc = crb_init(device, priv);
 	if (rc)
 		crb_go_idle(dev, priv);
 
