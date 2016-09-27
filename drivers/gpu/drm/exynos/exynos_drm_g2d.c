@@ -258,6 +258,12 @@ struct g2d_data {
 	unsigned long			max_pool;
 };
 
+static inline void g2d_hw_reset(struct g2d_data *g2d)
+{
+	writel(G2D_R | G2D_SFRCLEAR, g2d->regs + G2D_SOFT_RESET);
+	clear_bit(G2D_BIT_ENGINE_BUSY, &g2d->flags);
+}
+
 static int g2d_init_cmdlist(struct g2d_data *g2d)
 {
 	struct device *dev = g2d->dev;
@@ -969,6 +975,63 @@ static irqreturn_t g2d_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+/**
+ * g2d_wait_finish - wait for the G2D engine to finish the current runqueue node
+ * @g2d: G2D state object
+ * @file: if not zero, only wait if the current runqueue node belongs
+ *        to the DRM file
+ *
+ * Should the engine not become idle after a 100ms timeout, a hardware
+ * reset is issued.
+ */
+static void g2d_wait_finish(struct g2d_data *g2d, struct drm_file *file)
+{
+	struct device *dev = g2d->dev;
+
+	struct g2d_runqueue_node *runqueue_node = NULL;
+	unsigned int tries = 10;
+
+	mutex_lock(&g2d->runqueue_mutex);
+
+	/* If no node is currently processed, we have nothing to do. */
+	if (!g2d->runqueue_node)
+		goto out;
+
+	runqueue_node = g2d->runqueue_node;
+
+	/* Check if the currently processed item belongs to us. */
+	if (file && runqueue_node->filp != file)
+		goto out;
+
+	mutex_unlock(&g2d->runqueue_mutex);
+
+	/* Wait for the G2D engine to finish. */
+	while (tries-- && (g2d->runqueue_node == runqueue_node))
+		mdelay(10);
+
+	mutex_lock(&g2d->runqueue_mutex);
+
+	if (g2d->runqueue_node != runqueue_node)
+		goto out;
+
+	dev_err(dev, "wait timed out, resetting engine...\n");
+	g2d_hw_reset(g2d);
+
+	/*
+	 * After the hardware reset of the engine we are going to loose
+	 * the IRQ which triggers the PM runtime put().
+	 * So do this manually here.
+	 */
+	pm_runtime_put(dev);
+
+	complete(&runqueue_node->complete);
+	if (runqueue_node->async)
+		g2d_free_runqueue_node(g2d, runqueue_node);
+
+out:
+	mutex_unlock(&g2d->runqueue_mutex);
+}
+
 static int g2d_check_reg_offset(struct device *dev,
 				struct g2d_cmdlist_node *node,
 				int nr, bool for_addr)
@@ -1391,6 +1454,13 @@ static void g2d_close(struct drm_device *drm_dev, struct device *dev,
 	mutex_unlock(&g2d->runqueue_mutex);
 
 	/*
+	 * Wait for the runqueue worker to finish its current node.
+	 * After this the engine should no longer be accessing any
+	 * memory belonging to us.
+	 */
+	g2d_wait_finish(g2d, file);
+
+	/*
 	 * Even after the engine is idle, there might still be stale cmdlists
 	 * (i.e. cmdlisst which we submitted but never executed) around, with
 	 * their corresponding GEM/userptr buffers.
@@ -1510,8 +1580,9 @@ static int g2d_remove(struct platform_device *pdev)
 {
 	struct g2d_data *g2d = platform_get_drvdata(pdev);
 
-	/* Suspend runqueue operation. */
+	/* Suspend operation and wait for engine idle. */
 	set_bit(G2D_BIT_SUSPEND_RUNQUEUE, &g2d->flags);
+	g2d_wait_finish(g2d, NULL);
 
 	cancel_work_sync(&g2d->runqueue_work);
 	exynos_drm_subdrv_unregister(&g2d->subdrv);
@@ -1533,13 +1604,12 @@ static int g2d_suspend(struct device *dev)
 {
 	struct g2d_data *g2d = dev_get_drvdata(dev);
 
-	/* Suspend runqueue operation. */
+	/*
+	 * Suspend the runqueue worker operation and wait until the G2D
+	 * engine is idle.
+	 */
 	set_bit(G2D_BIT_SUSPEND_RUNQUEUE, &g2d->flags);
-
-	while (g2d->runqueue_node)
-		/* FIXME: good range? */
-		usleep_range(500, 1000);
-
+	g2d_wait_finish(g2d, NULL);
 	flush_work(&g2d->runqueue_work);
 
 	return 0;
