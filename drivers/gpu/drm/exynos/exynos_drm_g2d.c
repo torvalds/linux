@@ -138,6 +138,18 @@ enum g2d_reg_type {
 	MAX_REG_TYPE_NR
 };
 
+enum g2d_flag_bits {
+	/*
+	 * If set, suspends the runqueue worker after the currently
+	 * processed node is finished.
+	 */
+	G2D_BIT_SUSPEND_RUNQUEUE,
+	/*
+	 * If set, indicates that the engine is currently busy.
+	 */
+	G2D_BIT_ENGINE_BUSY,
+};
+
 /* cmdlist data structure */
 struct g2d_cmdlist {
 	u32		head;
@@ -226,7 +238,7 @@ struct g2d_data {
 	struct workqueue_struct		*g2d_workq;
 	struct work_struct		runqueue_work;
 	struct exynos_drm_subdrv	subdrv;
-	bool				suspended;
+	unsigned long			flags;
 
 	/* cmdlist */
 	struct g2d_cmdlist_node		*cmdlist_node;
@@ -803,12 +815,8 @@ static void g2d_dma_start(struct g2d_data *g2d,
 	struct g2d_cmdlist_node *node =
 				list_first_entry(&runqueue_node->run_cmdlist,
 						struct g2d_cmdlist_node, list);
-	int ret;
 
-	ret = pm_runtime_get_sync(g2d->dev);
-	if (ret < 0)
-		return;
-
+	set_bit(G2D_BIT_ENGINE_BUSY, &g2d->flags);
 	writel_relaxed(node->dma_addr, g2d->regs + G2D_DMA_SFR_BASE_ADDR);
 	writel_relaxed(G2D_DMA_START, g2d->regs + G2D_DMA_COMMAND);
 }
@@ -858,18 +866,37 @@ static void g2d_runqueue_worker(struct work_struct *work)
 {
 	struct g2d_data *g2d = container_of(work, struct g2d_data,
 					    runqueue_work);
+	struct g2d_runqueue_node *runqueue_node;
+
+	/*
+	 * The engine is busy and the completion of the current node is going
+	 * to poke the runqueue worker, so nothing to do here.
+	 */
+	if (test_bit(G2D_BIT_ENGINE_BUSY, &g2d->flags))
+		return;
 
 	mutex_lock(&g2d->runqueue_mutex);
-	pm_runtime_put_sync(g2d->dev);
 
-	complete(&g2d->runqueue_node->complete);
-	if (g2d->runqueue_node->async)
-		g2d_free_runqueue_node(g2d, g2d->runqueue_node);
+	runqueue_node = g2d->runqueue_node;
+	g2d->runqueue_node = NULL;
 
-	if (g2d->suspended)
-		g2d->runqueue_node = NULL;
-	else
-		g2d_exec_runqueue(g2d);
+	if (runqueue_node) {
+		pm_runtime_put(g2d->dev);
+
+		complete(&runqueue_node->complete);
+		if (runqueue_node->async)
+			g2d_free_runqueue_node(g2d, runqueue_node);
+	}
+
+	if (!test_bit(G2D_BIT_SUSPEND_RUNQUEUE, &g2d->flags)) {
+		g2d->runqueue_node = g2d_get_runqueue_node(g2d);
+
+		if (g2d->runqueue_node) {
+			pm_runtime_get_sync(g2d->dev);
+			g2d_dma_start(g2d, g2d->runqueue_node);
+		}
+	}
+
 	mutex_unlock(&g2d->runqueue_mutex);
 }
 
@@ -918,8 +945,10 @@ static irqreturn_t g2d_irq_handler(int irq, void *dev_id)
 		}
 	}
 
-	if (pending & G2D_INTP_ACMD_FIN)
+	if (pending & G2D_INTP_ACMD_FIN) {
+		clear_bit(G2D_BIT_ENGINE_BUSY, &g2d->flags);
 		queue_work(g2d->g2d_workq, &g2d->runqueue_work);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -1259,9 +1288,10 @@ int exynos_g2d_exec_ioctl(struct drm_device *drm_dev, void *data,
 	runqueue_node->pid = current->pid;
 	runqueue_node->filp = file;
 	list_add_tail(&runqueue_node->list, &g2d->runqueue);
-	if (!g2d->runqueue_node)
-		g2d_exec_runqueue(g2d);
 	mutex_unlock(&g2d->runqueue_mutex);
+
+	/* Let the runqueue know that there is work to do. */
+	queue_work(g2d->g2d_workq, &g2d->runqueue_work);
 
 	if (runqueue_node->async)
 		goto out;
@@ -1400,6 +1430,8 @@ static int g2d_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_enable(dev);
+	clear_bit(G2D_BIT_SUSPEND_RUNQUEUE, &g2d->flags);
+	clear_bit(G2D_BIT_ENGINE_BUSY, &g2d->flags);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
@@ -1458,6 +1490,9 @@ static int g2d_remove(struct platform_device *pdev)
 {
 	struct g2d_data *g2d = platform_get_drvdata(pdev);
 
+	/* Suspend runqueue operation. */
+	set_bit(G2D_BIT_SUSPEND_RUNQUEUE, &g2d->flags);
+
 	cancel_work_sync(&g2d->runqueue_work);
 	exynos_drm_subdrv_unregister(&g2d->subdrv);
 
@@ -1480,9 +1515,8 @@ static int g2d_suspend(struct device *dev)
 {
 	struct g2d_data *g2d = dev_get_drvdata(dev);
 
-	mutex_lock(&g2d->runqueue_mutex);
-	g2d->suspended = true;
-	mutex_unlock(&g2d->runqueue_mutex);
+	/* Suspend runqueue operation. */
+	set_bit(G2D_BIT_SUSPEND_RUNQUEUE, &g2d->flags);
 
 	while (g2d->runqueue_node)
 		/* FIXME: good range? */
@@ -1497,8 +1531,8 @@ static int g2d_resume(struct device *dev)
 {
 	struct g2d_data *g2d = dev_get_drvdata(dev);
 
-	g2d->suspended = false;
-	g2d_exec_runqueue(g2d);
+	clear_bit(G2D_BIT_SUSPEND_RUNQUEUE, &g2d->flags);
+	queue_work(g2d->g2d_workq, &g2d->runqueue_work);
 
 	return 0;
 }
