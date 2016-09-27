@@ -13,6 +13,7 @@
 #include <linux/of.h>
 #include <linux/mfd/stmpe.h>
 #include <linux/seq_file.h>
+#include <linux/bitops.h>
 
 /*
  * These registers are modified under the irq bus lock and cached to avoid
@@ -449,6 +450,8 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 
 	of_property_read_u32(np, "st,norequest-mask",
 			&stmpe_gpio->norequest_mask);
+	if (stmpe_gpio->norequest_mask)
+		stmpe_gpio->chip.irq_need_valid_mask = true;
 
 	if (irq < 0)
 		dev_info(&pdev->dev,
@@ -472,6 +475,14 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(&pdev->dev, "unable to get irq: %d\n", ret);
 			goto out_disable;
+		}
+		if (stmpe_gpio->norequest_mask) {
+			int i;
+
+			/* Forbid unused lines to be mapped as IRQs */
+			for (i = 0; i < sizeof(u32); i++)
+				if (stmpe_gpio->norequest_mask & BIT(i))
+					clear_bit(i, stmpe_gpio->chip.irq_valid_mask);
 		}
 		ret =  gpiochip_irqchip_add(&stmpe_gpio->chip,
 					    &stmpe_gpio_irq_chip,
