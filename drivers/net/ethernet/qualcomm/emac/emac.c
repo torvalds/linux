@@ -22,6 +22,7 @@
 #include <linux/of_device.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
+#include <linux/acpi.h>
 #include "emac.h"
 #include "emac-mac.h"
 #include "emac-phy.h"
@@ -575,6 +576,16 @@ static const struct of_device_id emac_dt_match[] = {
 	{}
 };
 
+#if IS_ENABLED(CONFIG_ACPI)
+static const struct acpi_device_id emac_acpi_match[] = {
+	{
+		.id = "QCOM8070",
+	},
+	{}
+};
+MODULE_DEVICE_TABLE(acpi, emac_acpi_match);
+#endif
+
 static int emac_probe(struct platform_device *pdev)
 {
 	struct net_device *netdev;
@@ -734,6 +745,7 @@ static struct platform_driver emac_platform_driver = {
 	.driver = {
 		.name		= "qcom-emac",
 		.of_match_table = emac_dt_match,
+		.acpi_match_table = ACPI_PTR(emac_acpi_match),
 	},
 };
 
