@@ -53,6 +53,7 @@
 #include "amdgpu_ucode.h"
 #include "amdgpu_ttm.h"
 #include "amdgpu_gds.h"
+#include "amdgpu_sync.h"
 #include "amd_powerplay.h"
 #include "amdgpu_acp.h"
 
@@ -561,27 +562,6 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
 int amdgpu_mode_dumb_mmap(struct drm_file *filp,
 			  struct drm_device *dev,
 			  uint32_t handle, uint64_t *offset_p);
-/*
- * Synchronization
- */
-struct amdgpu_sync {
-	DECLARE_HASHTABLE(fences, 4);
-	struct fence	        *last_vm_update;
-};
-
-void amdgpu_sync_create(struct amdgpu_sync *sync);
-int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
-		      struct fence *f);
-int amdgpu_sync_resv(struct amdgpu_device *adev,
-		     struct amdgpu_sync *sync,
-		     struct reservation_object *resv,
-		     void *owner);
-struct fence *amdgpu_sync_peek_fence(struct amdgpu_sync *sync,
-				     struct amdgpu_ring *ring);
-struct fence *amdgpu_sync_get_fence(struct amdgpu_sync *sync);
-void amdgpu_sync_free(struct amdgpu_sync *sync);
-int amdgpu_sync_init(void);
-void amdgpu_sync_fini(void);
 int amdgpu_fence_slab_init(void);
 void amdgpu_fence_slab_fini(void);
 
