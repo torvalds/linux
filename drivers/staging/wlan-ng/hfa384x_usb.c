@@ -213,7 +213,7 @@ static void hfa384x_cb_status(hfa384x_t *hw, const hfa384x_usbctlx_t *ctlx);
 
 static int
 usbctlx_get_status(const struct hfa384x_usb_statusresp *cmdresp,
-		   hfa384x_cmdresult_t *result);
+		   struct hfa384x_cmdresult *result);
 
 static void
 usbctlx_get_rridresult(const struct hfa384x_usb_rridresp *rridresp,
@@ -622,7 +622,7 @@ static hfa384x_usbctlx_t *usbctlx_alloc(void)
 
 static int
 usbctlx_get_status(const struct hfa384x_usb_statusresp *cmdresp,
-		   hfa384x_cmdresult_t *result)
+		   struct hfa384x_cmdresult *result)
 {
 	result->status = le16_to_cpu(cmdresp->status);
 	result->resp0 = le16_to_cpu(cmdresp->resp0);
@@ -647,13 +647,13 @@ usbctlx_get_rridresult(const struct hfa384x_usb_rridresp *rridresp,
 /*----------------------------------------------------------------
 * Completor object:
 * This completor must be passed to hfa384x_usbctlx_complete_sync()
-* when processing a CTLX that returns a hfa384x_cmdresult_t structure.
+* when processing a CTLX that returns a struct hfa384x_cmdresult structure.
 ----------------------------------------------------------------*/
 struct usbctlx_cmd_completor {
 	struct usbctlx_completor head;
 
 	const struct hfa384x_usb_statusresp *cmdresp;
-	hfa384x_cmdresult_t *result;
+	struct hfa384x_cmdresult *result;
 };
 
 static inline int usbctlx_cmd_completor_fn(struct usbctlx_completor *head)
@@ -669,7 +669,7 @@ static inline struct usbctlx_completor *init_cmd_completor(
 							*completor,
 						const struct hfa384x_usb_statusresp
 							*cmdresp,
-						hfa384x_cmdresult_t *result)
+						struct hfa384x_cmdresult *result)
 {
 	completor->head.complete = usbctlx_cmd_completor_fn;
 	completor->cmdresp = cmdresp;
@@ -798,7 +798,7 @@ static inline struct usbctlx_completor *init_rmem_completor(
 static void hfa384x_cb_status(hfa384x_t *hw, const hfa384x_usbctlx_t *ctlx)
 {
 	if (ctlx->usercb) {
-		hfa384x_cmdresult_t cmdresult;
+		struct hfa384x_cmdresult cmdresult;
 
 		if (ctlx->state != CTLX_COMPLETE) {
 			memset(&cmdresult, 0, sizeof(cmdresult));
@@ -1497,7 +1497,7 @@ hfa384x_dowrid(hfa384x_t *hw,
 		kfree(ctlx);
 	} else if (mode == DOWAIT) {
 		struct usbctlx_cmd_completor completor;
-		hfa384x_cmdresult_t wridresult;
+		struct hfa384x_cmdresult wridresult;
 
 		result = hfa384x_usbctlx_complete_sync(hw,
 						       ctlx,
@@ -1679,7 +1679,7 @@ hfa384x_dowmem(hfa384x_t *hw,
 		kfree(ctlx);
 	} else if (mode == DOWAIT) {
 		struct usbctlx_cmd_completor completor;
-		hfa384x_cmdresult_t wmemresult;
+		struct hfa384x_cmdresult wmemresult;
 
 		result = hfa384x_usbctlx_complete_sync(hw,
 						       ctlx,

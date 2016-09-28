@@ -1138,12 +1138,12 @@ struct hfa384x_pdrec {
  * ---  Also, a collection of support types --
  *--------------------------------------------------------------------
  */
-typedef struct hfa384x_statusresult {
+struct hfa384x_cmdresult {
 	u16 status;
 	u16 resp0;
 	u16 resp1;
 	u16 resp2;
-} hfa384x_cmdresult_t;
+};
 
 /* USB Control Exchange (CTLX):
  *  A queue of the structure below is maintained for all of the
@@ -1213,7 +1213,7 @@ typedef struct hfa484x_metacmd {
 	u16 parm1;
 	u16 parm2;
 
-	hfa384x_cmdresult_t result;
+	struct hfa384x_cmdresult result;
 } hfa384x_metacmd_t;
 
 #define	MAX_GRP_ADDR		32
