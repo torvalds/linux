@@ -124,6 +124,9 @@ static int ccp_do_cmd(struct ccp_op *op, u32 *cr, unsigned int cr_count)
 			/* On error delete all related jobs from the queue */
 			cmd = (cmd_q->id << DEL_Q_ID_SHIFT)
 			      | op->jobid;
+			if (cmd_q->cmd_error)
+				ccp_log_error(cmd_q->ccp,
+					      cmd_q->cmd_error);
 
 			iowrite32(cmd, ccp->io_regs + DEL_CMD_Q_JOB);
 

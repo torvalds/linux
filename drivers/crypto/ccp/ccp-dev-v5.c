@@ -243,6 +243,9 @@ static int ccp5_do_cmd(struct ccp5_desc *desc,
 		ret = wait_event_interruptible(cmd_q->int_queue,
 					       cmd_q->int_rcvd);
 		if (ret || cmd_q->cmd_error) {
+			if (cmd_q->cmd_error)
+				ccp_log_error(cmd_q->ccp,
+					      cmd_q->cmd_error);
 			/* A version 5 device doesn't use Job IDs... */
 			if (!ret)
 				ret = -EIO;
