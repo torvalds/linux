@@ -116,6 +116,7 @@ struct eeh_ops *eeh_ops = NULL;
 
 /* Lock to avoid races due to multiple reports of an error */
 DEFINE_RAW_SPINLOCK(confirm_error_lock);
+EXPORT_SYMBOL_GPL(confirm_error_lock);
 
 /* Lock to protect passed flags */
 static DEFINE_MUTEX(eeh_dev_mutex);
