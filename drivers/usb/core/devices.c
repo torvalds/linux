@@ -227,7 +227,7 @@ static char *usb_dump_endpoint_descriptor(int speed, char *start, char *end,
 
 	start += sprintf(start, format_endpt, desc->bEndpointAddress, dir,
 			 desc->bmAttributes, type,
-			 (usb_endpoint_maxp(desc) & 0x07ff) *
+			 usb_endpoint_maxp(desc) *
 			 bandwidth,
 			 interval, unit);
 	return start;
