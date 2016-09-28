@@ -264,7 +264,7 @@
  *--------------------------------------------------------------------
  */
 #define		HFA384x_RID_DBMCOMMSQUALITY_LEN	 \
-	((u16)sizeof(hfa384x_dbmcommsquality_t))
+	((u16)sizeof(struct hfa384x_dbmcommsquality))
 #define		HFA384x_RID_JOINREQUEST_LEN \
 	((u16)sizeof(struct hfa384x_JoinRequest_data))
 
@@ -461,11 +461,11 @@ struct hfa384x_commsquality {
 } __packed;
 
 /*-- Information Record: dmbcommsquality --*/
-typedef struct hfa384x_dbmcommsquality {
+struct hfa384x_dbmcommsquality {
 	u16 CQdbm_currBSS;
 	u16 ASLdbm_currBSS;
 	u16 ANLdbm_currFC;
-} __packed hfa384x_dbmcommsquality_t;
+} __packed;
 
 /*--------------------------------------------------------------------
  * FRAME STRUCTURES: Communication Frames
