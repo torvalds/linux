@@ -44,11 +44,58 @@ SECTIONS
  * Text, read only data and other permanent read-only sections
  */
 
-	/* Text and gots */
+	_text = .;
+	_stext = .;
+
+	/*
+	 * Head text.
+	 * This needs to be in its own output section to avoid ld placing
+	 * branch trampoline stubs randomly throughout the fixed sections,
+	 * which it will do (even if the branch comes from another section)
+	 * in order to optimize stub generation.
+	 */
+	.head.text : AT(ADDR(.head.text) - LOAD_OFFSET) {
+#ifdef CONFIG_PPC64
+		KEEP(*(.head.text.first_256B));
+#ifdef CONFIG_PPC_BOOK3E
+# define END_FIXED	0x100
+#else
+		KEEP(*(.head.text.real_vectors));
+		*(.head.text.real_trampolines);
+		KEEP(*(.head.text.virt_vectors));
+		*(.head.text.virt_trampolines);
+# if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV)
+		KEEP(*(.head.data.fwnmi_page));
+#  define END_FIXED	0x8000
+# else
+#  define END_FIXED	0x7000
+# endif
+#endif
+		ASSERT((. == END_FIXED), "vmlinux.lds.S: fixed section overflow error");
+#else /* !CONFIG_PPC64 */
+		HEAD_TEXT
+#endif
+	} :kernel
+
+	/*
+	 * If the build dies here, it's likely code in head_64.S is referencing
+	 * labels it can't reach, and the linker inserting stubs without the
+	 * assembler's knowledge. To debug, remove the above assert and
+	 * rebuild. Look for branch stubs in the fixed section region.
+	 *
+	 * Linker stub generation could be allowed in "trampoline"
+	 * sections if absolutely necessary, but this would require
+	 * some rework of the fixed sections. Before resorting to this,
+	 * consider references that have sufficient addressing range,
+	 * (e.g., hand coded trampolines) so the linker does not have
+	 * to add stubs.
+	 *
+	 * Linker stubs at the top of the main text section are currently not
+	 * detected, and will result in a crash at boot due to offsets being
+	 * wrong.
+	 */
 	.text : AT(ADDR(.text) - LOAD_OFFSET) {
 		ALIGN_FUNCTION();
-		HEAD_TEXT
-		_text = .;
 		/* careful! __ftr_alt_* sections need to be close to .text */
 		*(.text .fixup __ftr_alt_* .ref.text)
 		SCHED_TEXT

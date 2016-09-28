@@ -19,16 +19,68 @@
 #include <asm/head-64.h>
 
 /*
+ * There are a few constraints to be concerned with.
+ * - Real mode exceptions code/data must be located at their physical location.
+ * - Virtual mode exceptions must be mapped at their 0xc000... location.
+ * - Fixed location code must not call directly beyond the __end_interrupts
+ *   area when built with CONFIG_RELOCATABLE. LOAD_HANDLER / bctr sequence
+ *   must be used.
+ * - LOAD_HANDLER targets must be within first 64K of physical 0 /
+ *   virtual 0xc00...
+ * - Conditional branch targets must be within +/-32K of caller.
+ *
+ * "Virtual exceptions" run with relocation on (MSR_IR=1, MSR_DR=1), and
+ * therefore don't have to run in physically located code or rfid to
+ * virtual mode kernel code. However on relocatable kernels they do have
+ * to branch to KERNELBASE offset because the rest of the kernel (outside
+ * the exception vectors) may be located elsewhere.
+ *
+ * Virtual exceptions correspond with physical, except their entry points
+ * are offset by 0xc000000000000000 and also tend to get an added 0x4000
+ * offset applied. Virtual exceptions are enabled with the Alternate
+ * Interrupt Location (AIL) bit set in the LPCR. However this does not
+ * guarantee they will be delivered virtually. Some conditions (see the ISA)
+ * cause exceptions to be delivered in real mode.
+ *
+ * It's impossible to receive interrupts below 0x300 via AIL.
+ *
+ * KVM: None of the virtual exceptions are from the guest. Anything that
+ * escalated to HV=1 from HV=0 is delivered via real mode handlers.
+ *
+ *
  * We layout physical memory as follows:
  * 0x0000 - 0x00ff : Secondary processor spin code
- * 0x0100 - 0x17ff : pSeries Interrupt prologs
- * 0x1800 - 0x4000 : interrupt support common interrupt prologs
- * 0x4000 - 0x5fff : pSeries interrupts with IR=1,DR=1
- * 0x6000 - 0x6fff : more interrupt support including for IR=1,DR=1
+ * 0x0100 - 0x18ff : Real mode pSeries interrupt vectors
+ * 0x1900 - 0x3fff : Real mode trampolines
+ * 0x4000 - 0x58ff : Relon (IR=1,DR=1) mode pSeries interrupt vectors
+ * 0x5900 - 0x6fff : Relon mode trampolines
  * 0x7000 - 0x7fff : FWNMI data area
- * 0x8000 - 0x8fff : Initial (CPU0) segment table
- * 0x9000 -        : Early init and support code
+ * 0x8000 -   .... : Common interrupt handlers, remaining early
+ *                   setup code, rest of kernel.
  */
+OPEN_FIXED_SECTION(real_vectors,        0x0100, 0x1900)
+OPEN_FIXED_SECTION(real_trampolines,    0x1900, 0x4000)
+OPEN_FIXED_SECTION(virt_vectors,        0x4000, 0x5900)
+OPEN_FIXED_SECTION(virt_trampolines,    0x5900, 0x7000)
+#if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV)
+/*
+ * Data area reserved for FWNMI option.
+ * This address (0x7000) is fixed by the RPA.
+ * pseries and powernv need to keep the whole page from
+ * 0x7000 to 0x8000 free for use by the firmware
+ */
+ZERO_FIXED_SECTION(fwnmi_page,          0x7000, 0x8000)
+OPEN_TEXT_SECTION(0x8000)
+#else
+OPEN_TEXT_SECTION(0x7000)
+#endif
+
+USE_FIXED_SECTION(real_vectors)
+
+#define LOAD_SYSCALL_HANDLER(reg)				\
+	ld	reg,PACAKBASE(r13);				\
+	ori	reg,reg,(ABS_ADDR(system_call_common))@l;
+
 	/* Syscall routine is used twice, in reloc-off and reloc-on paths */
 #define SYSCALL_PSERIES_1 					\
 BEGIN_FTR_SECTION						\
@@ -42,7 +94,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
 
 #define SYSCALL_PSERIES_2_RFID 					\
 	mfspr	r12,SPRN_SRR1 ;					\
-	LOAD_HANDLER(r10, system_call_common) ; 		\
+	LOAD_SYSCALL_HANDLER(r10) ; 				\
 	mtspr	SPRN_SRR0,r10 ; 				\
 	ld	r10,PACAKMSR(r13) ;				\
 	mtspr	SPRN_SRR1,r10 ; 				\
@@ -63,7 +115,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
 	 * is volatile across system calls.
 	 */
 #define SYSCALL_PSERIES_2_DIRECT				\
-	LOAD_HANDLER(r12, system_call_common) ;			\
+	LOAD_SYSCALL_HANDLER(r12) ;				\
 	mtctr	r12 ;						\
 	mfspr	r12,SPRN_SRR1 ;					\
 	li	r10,MSR_RI ;					\
@@ -86,7 +138,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
  * Therefore any relative branches in this section must only
  * branch to labels in this section.
  */
-	. = 0x100
 	.globl __start_interrupts
 __start_interrupts:
 
@@ -200,9 +251,6 @@ EXC_REAL_BEGIN(instruction_access_slb, 0x480, 0x500)
 #endif
 EXC_REAL_END(instruction_access_slb, 0x480, 0x500)
 
-	/* We open code these as we can't have a ". = x" (even with
-	 * x = "." within a feature section
-	 */
 EXC_REAL_BEGIN(hardware_interrupt, 0x500, 0x600)
 	.globl hardware_interrupt_hv;
 hardware_interrupt_hv:
@@ -306,7 +354,6 @@ __EXC_REAL_OOL_HV(h_facility_unavailable, 0xf80, 0xfa0)
 
 EXC_REAL_NONE(0xfa0, 0x1200)
 
-
 #ifdef CONFIG_CBE_RAS
 EXC_REAL_HV(cbe_system_error, 0x1200, 0x1300)
 
@@ -359,7 +406,6 @@ TRAMP_KVM_HV_SKIP(PACA_EXGEN, 0x1800)
 
 #else /* CONFIG_CBE_RAS */
 EXC_REAL_NONE(0x1800, 0x1900)
-	. = 0x1800
 #endif
 
 
@@ -606,7 +652,13 @@ masked_##_H##interrupt:					\
 	GET_SCRATCH0(r13);				\
 	##_H##rfid;					\
 	b	.
-	
+
+/*
+ * Real mode exceptions actually use this too, but alternate
+ * instruction code patches (which end up in the common .text area)
+ * cannot reach these if they are put there.
+ */
+USE_FIXED_SECTION(virt_trampolines)
 	MASKED_INTERRUPT()
 	MASKED_INTERRUPT(H)
 
@@ -620,6 +672,7 @@ masked_##_H##interrupt:					\
  * in the generated frame has EE set to 1 or the exception
  * handler will not properly re-enable them.
  */
+USE_TEXT_SECTION()
 _GLOBAL(__replay_interrupt)
 	/* We are going to jump to the exception common code which
 	 * will retrieve various register values from the PACA which
@@ -862,7 +915,7 @@ EXC_VIRT(altivec_assist, 0x5700, 0x5800, 0x1700)
 
 EXC_VIRT_NONE(0x5800, 0x5900)
 
-TRAMP_REAL_BEGIN(ppc64_runlatch_on_trampoline)
+EXC_COMMON_BEGIN(ppc64_runlatch_on_trampoline)
 	b	__ppc64_runlatch_on
 
 /*
@@ -1070,6 +1123,7 @@ __TRAMP_REAL_VIRT_OOL(vsx_unavailable, 0xf40)
 __TRAMP_REAL_VIRT_OOL(facility_unavailable, 0xf60)
 __TRAMP_REAL_VIRT_OOL_HV(h_facility_unavailable, 0xf80)
 
+USE_FIXED_SECTION(virt_trampolines)
 	/*
 	 * The __end_interrupts marker must be past the out-of-line (OOL)
 	 * handlers, so that they are copied to real address 0x100 when running
@@ -1080,21 +1134,7 @@ __TRAMP_REAL_VIRT_OOL_HV(h_facility_unavailable, 0xf80)
 	.align	7
 	.globl	__end_interrupts
 __end_interrupts:
-
-#if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV)
-/*
- * Data area reserved for FWNMI option.
- * This address (0x7000) is fixed by the RPA.
- */
-	.= 0x7000
-	.globl fwnmi_data_area
-fwnmi_data_area:
-
-	/* pseries and powernv need to keep the whole page from
-	 * 0x7000 to 0x8000 free for use by the firmware
-	 */
-	. = 0x8000
-#endif /* defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV) */
+DEFINE_FIXED_SYMBOL(__end_interrupts)
 
 EXC_COMMON(facility_unavailable_common, 0xf60, facility_unavailable_exception)
 EXC_COMMON(h_facility_unavailable_common, 0xf80, facility_unavailable_exception)
@@ -1106,7 +1146,7 @@ EXC_COMMON(cbe_thermal_common, 0x1800, cbe_thermal_exception)
 #endif /* CONFIG_CBE_RAS */
 
 
-EXC_COMMON_BEGIN(hmi_exception_early)
+TRAMP_REAL_BEGIN(hmi_exception_early)
 	EXCEPTION_PROLOG_1(PACA_EXGEN, KVMTEST_HV, 0xe60)
 	mr	r10,r1			/* Save r1			*/
 	ld	r1,PACAEMERGSP(r13)	/* Use emergency stack		*/
@@ -1429,6 +1469,13 @@ TRAMP_REAL_BEGIN(power4_fixup_nap)
 	std	r10,_NIP(r1)		/* equivalent of a blr */
 	blr
 #endif
+
+CLOSE_FIXED_SECTION(real_vectors);
+CLOSE_FIXED_SECTION(real_trampolines);
+CLOSE_FIXED_SECTION(virt_vectors);
+CLOSE_FIXED_SECTION(virt_trampolines);
+
+USE_TEXT_SECTION()
 
 /*
  * Hash table stuff

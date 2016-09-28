@@ -91,7 +91,7 @@
  */
 #define LOAD_HANDLER(reg, label)					\
 	ld	reg,PACAKBASE(r13);	/* get high part of &label */	\
-	ori	reg,reg,((label)-_stext)@l;	/* virt addr of handler ... */
+	ori	reg,reg,(FIXED_SYMBOL_ABS_ADDR(label))@l;
 
 /* Exception register prefixes */
 #define EXC_HV	H
