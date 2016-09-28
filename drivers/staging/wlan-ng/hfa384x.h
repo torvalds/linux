@@ -984,9 +984,9 @@ struct hfa384x_pdr_nicid {
 	u16 minor;
 } __packed;
 
-typedef struct hfa384x_pdr_refdac_measurements {
+struct hfa384x_pdr_refdac_measurements {
 	u16 value[0];
-} __packed hfa384x_pdr_refdac_measurements_t;
+} __packed;
 
 typedef struct hfa384x_pdr_vgdac_measurements {
 	u16 value[0];
@@ -1102,7 +1102,7 @@ typedef struct hfa384x_pdrec {
 		struct hfa384x_pdr_mfisuprange mfisuprange;
 		struct hfa384x_pdr_cfisuprange cfisuprange;
 		struct hfa384x_pdr_nicid nicid;
-		hfa384x_pdr_refdac_measurements_t refdac_measurements;
+		struct hfa384x_pdr_refdac_measurements refdac_measurements;
 		hfa384x_pdr_vgdac_measurements_t vgdac_measurements;
 		hfa384x_pdr_level_compc_measurements_t level_compc_measurements;
 		hfa384x_pdr_mac_address_t mac_address;
