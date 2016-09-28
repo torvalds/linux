@@ -3358,6 +3358,13 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 
 	memset(eld, 0, sizeof(connector->eld));
 
+	connector->latency_present[0] = false;
+	connector->latency_present[1] = false;
+	connector->video_latency[0] = 0;
+	connector->audio_latency[0] = 0;
+	connector->video_latency[1] = 0;
+	connector->audio_latency[1] = 0;
+
 	cea = drm_find_cea_extension(edid);
 	if (!cea) {
 		DRM_DEBUG_KMS("ELD: no CEA Extension found\n");
