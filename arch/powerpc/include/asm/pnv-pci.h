@@ -60,6 +60,8 @@ struct pnv_php_slot {
 #define PNV_PHP_STATE_POPULATED		2
 #define PNV_PHP_STATE_OFFLINE		3
 	int				state;
+	int				irq;
+	struct workqueue_struct		*wq;
 	struct device_node		*dn;
 	struct pci_dev			*pdev;
 	struct pci_bus			*bus;

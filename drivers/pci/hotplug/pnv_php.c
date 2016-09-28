@@ -22,6 +22,12 @@
 #define DRIVER_AUTHOR	"Gavin Shan, IBM Corporation"
 #define DRIVER_DESC	"PowerPC PowerNV PCI Hotplug Driver"
 
+struct pnv_php_event {
+	bool			added;
+	struct pnv_php_slot	*php_slot;
+	struct work_struct	work;
+};
+
 static LIST_HEAD(pnv_php_slot_list);
 static DEFINE_SPINLOCK(pnv_php_lock);
 
@@ -29,12 +35,40 @@ static void pnv_php_register(struct device_node *dn);
 static void pnv_php_unregister_one(struct device_node *dn);
 static void pnv_php_unregister(struct device_node *dn);
 
+static void pnv_php_disable_irq(struct pnv_php_slot *php_slot)
+{
+	struct pci_dev *pdev = php_slot->pdev;
+	u16 ctrl;
+
+	if (php_slot->irq > 0) {
+		pcie_capability_read_word(pdev, PCI_EXP_SLTCTL, &ctrl);
+		ctrl &= ~(PCI_EXP_SLTCTL_HPIE |
+			  PCI_EXP_SLTCTL_PDCE |
+			  PCI_EXP_SLTCTL_DLLSCE);
+		pcie_capability_write_word(pdev, PCI_EXP_SLTCTL, ctrl);
+
+		free_irq(php_slot->irq, php_slot);
+		php_slot->irq = 0;
+	}
+
+	if (php_slot->wq) {
+		destroy_workqueue(php_slot->wq);
+		php_slot->wq = NULL;
+	}
+
+	if (pdev->msix_enabled)
+		pci_disable_msix(pdev);
+	else if (pdev->msi_enabled)
+		pci_disable_msi(pdev);
+}
+
 static void pnv_php_free_slot(struct kref *kref)
 {
 	struct pnv_php_slot *php_slot = container_of(kref,
 					struct pnv_php_slot, kref);
 
 	WARN_ON(!list_empty(&php_slot->children));
+	pnv_php_disable_irq(php_slot);
 	kfree(php_slot->name);
 	kfree(php_slot);
 }
@@ -609,6 +643,181 @@ static int pnv_php_register_slot(struct pnv_php_slot *php_slot)
 	return 0;
 }
 
+static int pnv_php_enable_msix(struct pnv_php_slot *php_slot)
+{
+	struct pci_dev *pdev = php_slot->pdev;
+	struct msix_entry entry;
+	int nr_entries, ret;
+	u16 pcie_flag;
+
+	/* Get total number of MSIx entries */
+	nr_entries = pci_msix_vec_count(pdev);
+	if (nr_entries < 0)
+		return nr_entries;
+
+	/* Check hotplug MSIx entry is in range */
+	pcie_capability_read_word(pdev, PCI_EXP_FLAGS, &pcie_flag);
+	entry.entry = (pcie_flag & PCI_EXP_FLAGS_IRQ) >> 9;
+	if (entry.entry >= nr_entries)
+		return -ERANGE;
+
+	/* Enable MSIx */
+	ret = pci_enable_msix_exact(pdev, &entry, 1);
+	if (ret) {
+		dev_warn(&pdev->dev, "Error %d enabling MSIx\n", ret);
+		return ret;
+	}
+
+	return entry.vector;
+}
+
+static void pnv_php_event_handler(struct work_struct *work)
+{
+	struct pnv_php_event *event =
+		container_of(work, struct pnv_php_event, work);
+	struct pnv_php_slot *php_slot = event->php_slot;
+
+	if (event->added)
+		pnv_php_enable_slot(&php_slot->slot);
+	else
+		pnv_php_disable_slot(&php_slot->slot);
+
+	kfree(event);
+}
+
+static irqreturn_t pnv_php_interrupt(int irq, void *data)
+{
+	struct pnv_php_slot *php_slot = data;
+	struct pci_dev *pchild, *pdev = php_slot->pdev;
+	struct eeh_dev *edev;
+	struct eeh_pe *pe;
+	struct pnv_php_event *event;
+	u16 sts, lsts;
+	u8 presence;
+	bool added;
+	unsigned long flags;
+	int ret;
+
+	pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &sts);
+	sts &= (PCI_EXP_SLTSTA_PDC | PCI_EXP_SLTSTA_DLLSC);
+	pcie_capability_write_word(pdev, PCI_EXP_SLTSTA, sts);
+	if (sts & PCI_EXP_SLTSTA_DLLSC) {
+		pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &lsts);
+		added = !!(lsts & PCI_EXP_LNKSTA_DLLLA);
+	} else if (sts & PCI_EXP_SLTSTA_PDC) {
+		ret = pnv_pci_get_presence_state(php_slot->id, &presence);
+		if (!ret)
+			return IRQ_HANDLED;
+		added = !!(presence == OPAL_PCI_SLOT_PRESENT);
+	} else {
+		return IRQ_NONE;
+	}
+
+	/* Freeze the removed PE to avoid unexpected error reporting */
+	if (!added) {
+		pchild = list_first_entry_or_null(&php_slot->bus->devices,
+						  struct pci_dev, bus_list);
+		edev = pchild ? pci_dev_to_eeh_dev(pchild) : NULL;
+		pe = edev ? edev->pe : NULL;
+		if (pe) {
+			eeh_serialize_lock(&flags);
+			eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
+			eeh_serialize_unlock(flags);
+			eeh_pe_set_option(pe, EEH_OPT_FREEZE_PE);
+		}
+	}
+
+	/*
+	 * The PE is left in frozen state if the event is missed. It's
+	 * fine as the PCI devices (PE) aren't functional any more.
+	 */
+	event = kzalloc(sizeof(*event), GFP_ATOMIC);
+	if (!event) {
+		dev_warn(&pdev->dev, "PCI slot [%s] missed hotplug event 0x%04x\n",
+			 php_slot->name, sts);
+		return IRQ_HANDLED;
+	}
+
+	dev_info(&pdev->dev, "PCI slot [%s] %s (IRQ: %d)\n",
+		 php_slot->name, added ? "added" : "removed", irq);
+	INIT_WORK(&event->work, pnv_php_event_handler);
+	event->added = added;
+	event->php_slot = php_slot;
+	queue_work(php_slot->wq, &event->work);
+
+	return IRQ_HANDLED;
+}
+
+static void pnv_php_init_irq(struct pnv_php_slot *php_slot, int irq)
+{
+	struct pci_dev *pdev = php_slot->pdev;
+	u16 sts, ctrl;
+	int ret;
+
+	/* Allocate workqueue */
+	php_slot->wq = alloc_workqueue("pciehp-%s", 0, 0, php_slot->name);
+	if (!php_slot->wq) {
+		dev_warn(&pdev->dev, "Cannot alloc workqueue\n");
+		pnv_php_disable_irq(php_slot);
+		return;
+	}
+
+	/* Clear pending interrupts */
+	pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &sts);
+	sts |= (PCI_EXP_SLTSTA_PDC | PCI_EXP_SLTSTA_DLLSC);
+	pcie_capability_write_word(pdev, PCI_EXP_SLTSTA, sts);
+
+	/* Request the interrupt */
+	ret = request_irq(irq, pnv_php_interrupt, IRQF_SHARED,
+			  php_slot->name, php_slot);
+	if (ret) {
+		pnv_php_disable_irq(php_slot);
+		dev_warn(&pdev->dev, "Error %d enabling IRQ %d\n", ret, irq);
+		return;
+	}
+
+	/* Enable the interrupts */
+	pcie_capability_read_word(pdev, PCI_EXP_SLTCTL, &ctrl);
+	ctrl |= (PCI_EXP_SLTCTL_HPIE |
+		 PCI_EXP_SLTCTL_PDCE |
+		 PCI_EXP_SLTCTL_DLLSCE);
+	pcie_capability_write_word(pdev, PCI_EXP_SLTCTL, ctrl);
+
+	/* The interrupt is initialized successfully when @irq is valid */
+	php_slot->irq = irq;
+}
+
+static void pnv_php_enable_irq(struct pnv_php_slot *php_slot)
+{
+	struct pci_dev *pdev = php_slot->pdev;
+	int irq, ret;
+
+	ret = pci_enable_device(pdev);
+	if (ret) {
+		dev_warn(&pdev->dev, "Error %d enabling device\n", ret);
+		return;
+	}
+
+	pci_set_master(pdev);
+
+	/* Enable MSIx interrupt */
+	irq = pnv_php_enable_msix(php_slot);
+	if (irq > 0) {
+		pnv_php_init_irq(php_slot, irq);
+		return;
+	}
+
+	/*
+	 * Use MSI if MSIx doesn't work. Fail back to legacy INTx
+	 * if MSI doesn't work either
+	 */
+	ret = pci_enable_msi(pdev);
+	if (!ret || pdev->irq) {
+		irq = pdev->irq;
+		pnv_php_init_irq(php_slot, irq);
+	}
+}
+
 static int pnv_php_register_one(struct device_node *dn)
 {
 	struct pnv_php_slot *php_slot;
@@ -635,6 +844,11 @@ static int pnv_php_register_one(struct device_node *dn)
 	ret = pnv_php_enable(php_slot, false);
 	if (ret)
 		goto unregister_slot;
+
+	/* Enable interrupt if the slot supports surprise hotplug */
+	prop32 = of_get_property(dn, "ibm,slot-surprise-pluggable", NULL);
+	if (prop32 && of_read_number(prop32, 1))
+		pnv_php_enable_irq(php_slot);
 
 	return 0;
 
