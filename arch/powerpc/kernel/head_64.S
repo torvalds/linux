@@ -628,11 +628,16 @@ __after_prom_start:
 	bctr
 
 .balign 8
-p_end:	.llong	_end - _stext
+p_end: .llong _end - copy_to_here
 
-4:	/* Now copy the rest of the kernel up to _end */
-	addis	r5,r26,(p_end - _stext)@ha
-	ld	r5,(p_end - _stext)@l(r5)	/* get _end */
+4:
+	/*
+	 * Now copy the rest of the kernel up to _end, add
+	 * _end - copy_to_here to the copy limit and run again.
+	 */
+	addis   r8,r26,(p_end - _stext)@ha
+	ld      r8,(p_end - _stext)@l(r8)
+	add	r5,r5,r8
 5:	bl	copy_and_flush		/* copy the rest */
 
 9:	b	start_here_multiplatform
