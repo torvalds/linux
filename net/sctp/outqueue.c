@@ -326,7 +326,7 @@ int sctp_outq_tail(struct sctp_outq *q, struct sctp_chunk *chunk, gfp_t gfp)
 
 			sctp_chunk_hold(chunk);
 			sctp_outq_tail_data(q, chunk);
-			if (chunk->asoc->prsctp_enable &&
+			if (chunk->asoc->peer.prsctp_capable &&
 			    SCTP_PR_PRIO_ENABLED(chunk->sinfo.sinfo_flags))
 				chunk->asoc->sent_cnt_removable++;
 			if (chunk->chunk_hdr->flags & SCTP_DATA_UNORDERED)
@@ -442,7 +442,7 @@ void sctp_prsctp_prune(struct sctp_association *asoc,
 {
 	struct sctp_transport *transport;
 
-	if (!asoc->prsctp_enable || !asoc->sent_cnt_removable)
+	if (!asoc->peer.prsctp_capable || !asoc->sent_cnt_removable)
 		return;
 
 	msg_len = sctp_prsctp_prune_sent(asoc, sinfo,
@@ -1055,7 +1055,7 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 
 				/* Mark as failed send. */
 				sctp_chunk_fail(chunk, SCTP_ERROR_INV_STRM);
-				if (asoc->prsctp_enable &&
+				if (asoc->peer.prsctp_capable &&
 				    SCTP_PR_PRIO_ENABLED(chunk->sinfo.sinfo_flags))
 					asoc->sent_cnt_removable--;
 				sctp_chunk_free(chunk);
@@ -1347,7 +1347,7 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_chunk *chunk)
 		tsn = ntohl(tchunk->subh.data_hdr->tsn);
 		if (TSN_lte(tsn, ctsn)) {
 			list_del_init(&tchunk->transmitted_list);
-			if (asoc->prsctp_enable &&
+			if (asoc->peer.prsctp_capable &&
 			    SCTP_PR_PRIO_ENABLED(chunk->sinfo.sinfo_flags))
 				asoc->sent_cnt_removable--;
 			sctp_chunk_free(tchunk);
