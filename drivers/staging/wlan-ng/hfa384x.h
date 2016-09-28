@@ -959,9 +959,9 @@ struct hfa384x_pdr_mkk_measurements {
 	double rx_spur_l2;
 } __packed;
 
-typedef struct hfa384x_pdr_nic_ramsize {
+struct hfa384x_pdr_nic_ramsize {
 	u8 size[12];		/* units of KB */
-} __packed hfa384x_pdr_nic_ramsize_t;
+} __packed;
 
 typedef struct hfa384x_pdr_mfisuprange {
 	u16 id;
@@ -1098,7 +1098,7 @@ typedef struct hfa384x_pdrec {
 		struct hfa384x_pdr_pcb_tracenum pcb_tracenum;
 		struct hfa384x_pdr_nic_serial nic_serial;
 		struct hfa384x_pdr_mkk_measurements mkk_measurements;
-		hfa384x_pdr_nic_ramsize_t nic_ramsize;
+		struct hfa384x_pdr_nic_ramsize nic_ramsize;
 		hfa384x_pdr_mfisuprange_t mfisuprange;
 		hfa384x_pdr_cfisuprange_t cfisuprange;
 		hfa384x_pdr_nicid_t nicid;
