@@ -262,6 +262,8 @@ static const pem_event_action * const display_config_change_event[] = {
 	unblock_adjust_power_state_tasks,
 	set_cpu_power_state,
 	notify_hw_power_source_tasks,
+	get_2d_performance_state_tasks,
+	set_performance_state_tasks,
 	/* updateDALConfigurationTasks,
 	variBrightDisplayConfigurationChangeTasks, */
 	adjust_power_state_tasks,

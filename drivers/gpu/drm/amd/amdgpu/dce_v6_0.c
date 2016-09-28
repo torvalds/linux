@@ -146,7 +146,7 @@ static bool dce_v6_0_is_counter_moving(struct amdgpu_device *adev, int crtc)
  */
 static void dce_v6_0_vblank_wait(struct amdgpu_device *adev, int crtc)
 {
-	unsigned i = 0;
+	unsigned i = 100;
 
 	if (crtc >= adev->mode_info.num_crtc)
 		return;
@@ -158,14 +158,16 @@ static void dce_v6_0_vblank_wait(struct amdgpu_device *adev, int crtc)
 	 * wait for another frame.
 	 */
 	while (dce_v6_0_is_in_vblank(adev, crtc)) {
-		if (i++ % 100 == 0) {
+		if (i++ == 100) {
+			i = 0;
 			if (!dce_v6_0_is_counter_moving(adev, crtc))
 				break;
 		}
 	}
 
 	while (!dce_v6_0_is_in_vblank(adev, crtc)) {
-		if (i++ % 100 == 0) {
+		if (i++ == 100) {
+			i = 0;
 			if (!dce_v6_0_is_counter_moving(adev, crtc))
 				break;
 		}
@@ -185,7 +187,7 @@ static void dce_v6_0_pageflip_interrupt_init(struct amdgpu_device *adev)
 	unsigned i;
 
 	/* Enable pflip interrupts */
-	for (i = 0; i <= adev->mode_info.num_crtc; i++)
+	for (i = 0; i < adev->mode_info.num_crtc; i++)
 		amdgpu_irq_get(adev, &adev->pageflip_irq, i);
 }
 
@@ -194,7 +196,7 @@ static void dce_v6_0_pageflip_interrupt_fini(struct amdgpu_device *adev)
 	unsigned i;
 
 	/* Disable pflip interrupts */
-	for (i = 0; i <= adev->mode_info.num_crtc; i++)
+	for (i = 0; i < adev->mode_info.num_crtc; i++)
 		amdgpu_irq_put(adev, &adev->pageflip_irq, i);
 }
 
@@ -1420,21 +1422,29 @@ static void dce_v6_0_afmt_enable(struct drm_encoder *encoder, bool enable)
 		  enable ? "En" : "Dis", dig->afmt->offset, amdgpu_encoder->encoder_id);
 }
 
-static void dce_v6_0_afmt_init(struct amdgpu_device *adev)
+static int dce_v6_0_afmt_init(struct amdgpu_device *adev)
 {
-	int i;
+	int i, j;
 
 	for (i = 0; i < adev->mode_info.num_dig; i++)
 		adev->mode_info.afmt[i] = NULL;
 
-	/* DCE8 has audio blocks tied to DIG encoders */
+	/* DCE6 has audio blocks tied to DIG encoders */
 	for (i = 0; i < adev->mode_info.num_dig; i++) {
 		adev->mode_info.afmt[i] = kzalloc(sizeof(struct amdgpu_afmt), GFP_KERNEL);
 		if (adev->mode_info.afmt[i]) {
 			adev->mode_info.afmt[i]->offset = dig_offsets[i];
 			adev->mode_info.afmt[i]->id = i;
+		} else {
+			for (j = 0; j < i; j++) {
+				kfree(adev->mode_info.afmt[j]);
+				adev->mode_info.afmt[j] = NULL;
+			}
+			DRM_ERROR("Out of memory allocating afmt table\n");
+			return -ENOMEM;
 		}
 	}
+	return 0;
 }
 
 static void dce_v6_0_afmt_fini(struct amdgpu_device *adev)
@@ -2397,7 +2407,9 @@ static int dce_v6_0_sw_init(void *handle)
 		return -EINVAL;
 
 	/* setup afmt */
-	dce_v6_0_afmt_init(adev);
+	r = dce_v6_0_afmt_init(adev);
+	if (r)
+		return r;
 
 	r = dce_v6_0_audio_init(adev);
 	if (r)
@@ -2782,7 +2794,7 @@ static int dce_v6_0_hpd_irq(struct amdgpu_device *adev,
 	uint32_t disp_int, mask, int_control, tmp;
 	unsigned hpd;
 
-	if (entry->src_data > 6) {
+	if (entry->src_data >= adev->mode_info.num_hpd) {
 		DRM_DEBUG("Unhandled interrupt: %d %d\n", entry->src_id, entry->src_data);
 		return 0;
 	}

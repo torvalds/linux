@@ -57,6 +57,7 @@
 #include "amdgpu_acp.h"
 
 #include "gpu_scheduler.h"
+#include "amdgpu_virt.h"
 
 /*
  * Modules parameters.
@@ -1827,6 +1828,7 @@ struct amdgpu_asic_funcs {
 	bool (*read_disabled_bios)(struct amdgpu_device *adev);
 	bool (*read_bios_from_rom)(struct amdgpu_device *adev,
 				   u8 *bios, u32 length_bytes);
+	void (*detect_hw_virtualization) (struct amdgpu_device *adev);
 	int (*read_register)(struct amdgpu_device *adev, u32 se_num,
 			     u32 sh_num, u32 reg_offset, u32 *value);
 	void (*set_vga_state)(struct amdgpu_device *adev, bool state);
@@ -1836,8 +1838,6 @@ struct amdgpu_asic_funcs {
 	/* MM block clocks */
 	int (*set_uvd_clocks)(struct amdgpu_device *adev, u32 vclk, u32 dclk);
 	int (*set_vce_clocks)(struct amdgpu_device *adev, u32 evclk, u32 ecclk);
-	/* query virtual capabilities */
-	u32 (*get_virtual_caps)(struct amdgpu_device *adev);
 	/* static power management */
 	int (*get_pcie_lanes)(struct amdgpu_device *adev);
 	void (*set_pcie_lanes)(struct amdgpu_device *adev, int lanes);
@@ -1932,16 +1932,6 @@ struct amdgpu_atcs {
  */
 struct cgs_device *amdgpu_cgs_create_device(struct amdgpu_device *adev);
 void amdgpu_cgs_destroy_device(struct cgs_device *cgs_device);
-
-
-/* GPU virtualization */
-#define AMDGPU_VIRT_CAPS_SRIOV_EN       (1 << 0)
-#define AMDGPU_VIRT_CAPS_IS_VF          (1 << 1)
-struct amdgpu_virtualization {
-	bool supports_sr_iov;
-	bool is_virtual;
-	u32 caps;
-};
 
 /*
  * Core structure, functions and helpers.
@@ -2260,12 +2250,12 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_asic_get_xclk(adev) (adev)->asic_funcs->get_xclk((adev))
 #define amdgpu_asic_set_uvd_clocks(adev, v, d) (adev)->asic_funcs->set_uvd_clocks((adev), (v), (d))
 #define amdgpu_asic_set_vce_clocks(adev, ev, ec) (adev)->asic_funcs->set_vce_clocks((adev), (ev), (ec))
-#define amdgpu_asic_get_virtual_caps(adev) ((adev)->asic_funcs->get_virtual_caps((adev)))
 #define amdgpu_get_pcie_lanes(adev) (adev)->asic_funcs->get_pcie_lanes((adev))
 #define amdgpu_set_pcie_lanes(adev, l) (adev)->asic_funcs->set_pcie_lanes((adev), (l))
 #define amdgpu_asic_get_gpu_clock_counter(adev) (adev)->asic_funcs->get_gpu_clock_counter((adev))
 #define amdgpu_asic_read_disabled_bios(adev) (adev)->asic_funcs->read_disabled_bios((adev))
 #define amdgpu_asic_read_bios_from_rom(adev, b, l) (adev)->asic_funcs->read_bios_from_rom((adev), (b), (l))
+#define amdgpu_asic_detect_hw_virtualization(adev) (adev)->asic_funcs->detect_hw_virtualization((adev))
 #define amdgpu_asic_read_register(adev, se, sh, offset, v)((adev)->asic_funcs->read_register((adev), (se), (sh), (offset), (v)))
 #define amdgpu_gart_flush_gpu_tlb(adev, vmid) (adev)->gart.gart_funcs->flush_gpu_tlb((adev), (vmid))
 #define amdgpu_gart_set_pte_pde(adev, pt, idx, addr, flags) (adev)->gart.gart_funcs->set_pte_pde((adev), (pt), (idx), (addr), (flags))
@@ -2323,6 +2313,11 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_gfx_get_gpu_clock_counter(adev) (adev)->gfx.funcs->get_gpu_clock_counter((adev))
 #define amdgpu_gfx_select_se_sh(adev, se, sh, instance) (adev)->gfx.funcs->select_se_sh((adev), (se), (sh), (instance))
 
+#define amdgpu_dpm_read_sensor(adev, idx, value) \
+	((adev)->pp_enabled ? \
+		(adev)->powerplay.pp_funcs->read_sensor(adev->powerplay.pp_handle, (idx), (value)) : \
+		-EINVAL)
+
 #define amdgpu_dpm_get_temperature(adev) \
 	((adev)->pp_enabled ?						\
 	      (adev)->powerplay.pp_funcs->get_temperature((adev)->powerplay.pp_handle) : \
@@ -2373,11 +2368,6 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 	((adev)->pp_enabled ?						\
 	      (adev)->powerplay.pp_funcs->powergate_vce((adev)->powerplay.pp_handle, (g)) : \
 	      (adev)->pm.funcs->powergate_vce((adev), (g)))
-
-#define amdgpu_dpm_debugfs_print_current_performance_level(adev, m) \
-	((adev)->pp_enabled ?						\
-	      (adev)->powerplay.pp_funcs->print_current_performance_level((adev)->powerplay.pp_handle, (m)) : \
-	      (adev)->pm.funcs->debugfs_print_current_performance_level((adev), (m)))
 
 #define amdgpu_dpm_get_current_power_state(adev) \
 	(adev)->powerplay.pp_funcs->get_current_power_state((adev)->powerplay.pp_handle)
@@ -2460,11 +2450,13 @@ void amdgpu_register_atpx_handler(void);
 void amdgpu_unregister_atpx_handler(void);
 bool amdgpu_has_atpx_dgpu_power_cntl(void);
 bool amdgpu_is_atpx_hybrid(void);
+bool amdgpu_atpx_dgpu_req_power_for_displays(void);
 #else
 static inline void amdgpu_register_atpx_handler(void) {}
 static inline void amdgpu_unregister_atpx_handler(void) {}
 static inline bool amdgpu_has_atpx_dgpu_power_cntl(void) { return false; }
 static inline bool amdgpu_is_atpx_hybrid(void) { return false; }
+static inline bool amdgpu_atpx_dgpu_req_power_for_displays(void) { return false; }
 #endif
 
 /*

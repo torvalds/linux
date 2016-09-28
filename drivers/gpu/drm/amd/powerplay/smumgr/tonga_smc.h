@@ -20,36 +20,17 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#ifndef _TONGA_SMC_H
+#define _TONGA_SMC_H
 
-#ifndef TONGA_POWERTUNE_H
-#define TONGA_POWERTUNE_H
-
-enum _phw_tonga_ptc_config_reg_type {
-	TONGA_CONFIGREG_MMR = 0,
-	TONGA_CONFIGREG_SMC_IND,
-	TONGA_CONFIGREG_DIDT_IND,
-	TONGA_CONFIGREG_CACHE,
-
-	TONGA_CONFIGREG_MAX
-};
-typedef enum _phw_tonga_ptc_config_reg_type phw_tonga_ptc_config_reg_type;
-
-/* PowerContainment Features */
-#define POWERCONTAINMENT_FEATURE_DTE             0x00000001
+#include "smumgr.h"
+#include "smu72.h"
 
 
-/* PowerContainment Features */
-#define POWERCONTAINMENT_FEATURE_BAPM            0x00000001
-#define POWERCONTAINMENT_FEATURE_TDCLimit        0x00000002
-#define POWERCONTAINMENT_FEATURE_PkgPwrLimit     0x00000004
+#define ASICID_IS_TONGA_P(wDID, bRID)	 \
+	(((wDID == 0x6930) && ((bRID == 0xF0) || (bRID == 0xF1) || (bRID == 0xFF))) \
+	|| ((wDID == 0x6920) && ((bRID == 0) || (bRID == 1))))
 
-struct tonga_pt_config_reg {
-	uint32_t                           Offset;
-	uint32_t                           Mask;
-	uint32_t                           Shift;
-	uint32_t                           Value;
-	phw_tonga_ptc_config_reg_type     Type;
-};
 
 struct tonga_pt_defaults {
 	uint8_t   svi_load_line_en;
@@ -64,17 +45,16 @@ struct tonga_pt_defaults {
 	uint16_t  bapmti_rc[SMU72_DTE_ITERATIONS * SMU72_DTE_SOURCES * SMU72_DTE_SINKS];
 };
 
-
-
-void tonga_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr);
-int tonga_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr);
-int tonga_populate_pm_fuses(struct pp_hwmgr *hwmgr);
-int tonga_enable_smc_cac(struct pp_hwmgr *hwmgr);
-int tonga_disable_smc_cac(struct pp_hwmgr *hwmgr);
-int tonga_enable_power_containment(struct pp_hwmgr *hwmgr);
-int tonga_disable_power_containment(struct pp_hwmgr *hwmgr);
-int tonga_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n);
-int tonga_power_control_set_level(struct pp_hwmgr *hwmgr);
-
+int tonga_populate_all_graphic_levels(struct pp_hwmgr *hwmgr);
+int tonga_populate_all_memory_levels(struct pp_hwmgr *hwmgr);
+int tonga_init_smc_table(struct pp_hwmgr *hwmgr);
+int tonga_thermal_setup_fan_table(struct pp_hwmgr *hwmgr);
+int tonga_update_smc_table(struct pp_hwmgr *hwmgr, uint32_t type);
+int tonga_update_sclk_threshold(struct pp_hwmgr *hwmgr);
+uint32_t tonga_get_offsetof(uint32_t type, uint32_t member);
+uint32_t tonga_get_mac_definition(uint32_t value);
+int tonga_process_firmware_header(struct pp_hwmgr *hwmgr);
+int tonga_initialize_mc_reg_table(struct pp_hwmgr *hwmgr);
+bool tonga_is_dpm_running(struct pp_hwmgr *hwmgr);
 #endif
 

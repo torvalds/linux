@@ -36,13 +36,13 @@
 #include "amd_acpi.h"
 
 extern int cz_hwmgr_init(struct pp_hwmgr *hwmgr);
-extern int tonga_hwmgr_init(struct pp_hwmgr *hwmgr);
-extern int fiji_hwmgr_init(struct pp_hwmgr *hwmgr);
-extern int polaris10_hwmgr_init(struct pp_hwmgr *hwmgr);
-extern int iceland_hwmgr_init(struct pp_hwmgr *hwmgr);
 
+static int polaris_set_asic_special_caps(struct pp_hwmgr *hwmgr);
 static void hwmgr_init_default_caps(struct pp_hwmgr *hwmgr);
 static int hwmgr_set_user_specify_caps(struct pp_hwmgr *hwmgr);
+static int fiji_set_asic_special_caps(struct pp_hwmgr *hwmgr);
+static int tonga_set_asic_special_caps(struct pp_hwmgr *hwmgr);
+static int topaz_set_asic_special_caps(struct pp_hwmgr *hwmgr);
 
 uint8_t convert_to_vid(uint16_t vddc)
 {
@@ -79,21 +79,32 @@ int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 	case AMDGPU_FAMILY_VI:
 		switch (hwmgr->chip_id) {
 		case CHIP_TOPAZ:
-			iceland_hwmgr_init(hwmgr);
+			topaz_set_asic_special_caps(hwmgr);
+			hwmgr->feature_mask &= ~(PP_SMC_VOLTAGE_CONTROL_MASK |
+						PP_VBI_TIME_SUPPORT_MASK |
+						PP_ENABLE_GFX_CG_THRU_SMU);
+			hwmgr->pp_table_version = PP_TABLE_V0;
 			break;
 		case CHIP_TONGA:
-			tonga_hwmgr_init(hwmgr);
+			tonga_set_asic_special_caps(hwmgr);
+			hwmgr->feature_mask &= ~(PP_SMC_VOLTAGE_CONTROL_MASK |
+						PP_VBI_TIME_SUPPORT_MASK);
 			break;
 		case CHIP_FIJI:
-			fiji_hwmgr_init(hwmgr);
+			fiji_set_asic_special_caps(hwmgr);
+			hwmgr->feature_mask &= ~(PP_SMC_VOLTAGE_CONTROL_MASK |
+						PP_VBI_TIME_SUPPORT_MASK |
+						PP_ENABLE_GFX_CG_THRU_SMU);
 			break;
 		case CHIP_POLARIS11:
 		case CHIP_POLARIS10:
-			polaris10_hwmgr_init(hwmgr);
+			polaris_set_asic_special_caps(hwmgr);
+			hwmgr->feature_mask &= ~(PP_UVD_HANDSHAKE_MASK);
 			break;
 		default:
 			return -EINVAL;
 		}
+		smu7_hwmgr_init(hwmgr);
 		break;
 	default:
 		return -EINVAL;
@@ -388,12 +399,9 @@ int phm_reset_single_dpm_table(void *table,
 
 	struct vi_dpm_table *dpm_table = (struct vi_dpm_table *)table;
 
-	PP_ASSERT_WITH_CODE(count <= max,
-			"Fatal error, can not set up single DPM table entries to exceed max number!",
-			   );
+	dpm_table->count = count > max ? max : count;
 
-	dpm_table->count = count;
-	for (i = 0; i < max; i++)
+	for (i = 0; i < dpm_table->count; i++)
 		dpm_table->dpm_level[i].enabled = false;
 
 	return 0;
@@ -713,3 +721,95 @@ int phm_get_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 	return ret;
 }
 
+int polaris_set_asic_special_caps(struct pp_hwmgr *hwmgr)
+{
+	/* power tune caps Assume disabled */
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+						PHM_PlatformCaps_SQRamping);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+						PHM_PlatformCaps_DBRamping);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+						PHM_PlatformCaps_TDRamping);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+						PHM_PlatformCaps_TCPRamping);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+							PHM_PlatformCaps_CAC);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+						PHM_PlatformCaps_RegulatorHot);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+					PHM_PlatformCaps_AutomaticDCTransition);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+				PHM_PlatformCaps_TablelessHardwareInterface);
+
+	if (hwmgr->chip_id == CHIP_POLARIS11)
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+					PHM_PlatformCaps_SPLLShutdownSupport);
+	return 0;
+}
+
+int fiji_set_asic_special_caps(struct pp_hwmgr *hwmgr)
+{
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_SQRamping);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_DBRamping);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_TDRamping);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_TCPRamping);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_TablelessHardwareInterface);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_CAC);
+	return 0;
+}
+
+int tonga_set_asic_special_caps(struct pp_hwmgr *hwmgr)
+{
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_SQRamping);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_DBRamping);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_TDRamping);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_TCPRamping);
+
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+		      PHM_PlatformCaps_UVDPowerGating);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+		      PHM_PlatformCaps_VCEPowerGating);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			 PHM_PlatformCaps_TablelessHardwareInterface);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_CAC);
+
+	return 0;
+}
+
+int topaz_set_asic_special_caps(struct pp_hwmgr *hwmgr)
+{
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_SQRamping);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_DBRamping);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_TDRamping);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_TCPRamping);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			 PHM_PlatformCaps_TablelessHardwareInterface);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_CAC);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+		    PHM_PlatformCaps_EVV);
+	return 0;
+}

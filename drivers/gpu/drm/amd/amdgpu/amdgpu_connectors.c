@@ -1545,7 +1545,8 @@ static int amdgpu_connector_virtual_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-int amdgpu_connector_virtual_dpms(struct drm_connector *connector, int mode)
+static int
+amdgpu_connector_virtual_dpms(struct drm_connector *connector, int mode)
 {
 	return 0;
 }
@@ -1557,7 +1558,8 @@ amdgpu_connector_virtual_detect(struct drm_connector *connector, bool force)
 	return connector_status_connected;
 }
 
-int amdgpu_connector_virtual_set_property(struct drm_connector *connector,
+static int
+amdgpu_connector_virtual_set_property(struct drm_connector *connector,
 				  struct drm_property *property,
 				  uint64_t val)
 {

@@ -101,11 +101,12 @@ int psm_adjust_power_state_dynamic(struct pp_eventmgr *eventmgr, bool skip)
 	if (requested == NULL)
 		return 0;
 
+	phm_apply_state_adjust_rules(hwmgr, requested, pcurrent);
+
 	if (pcurrent == NULL || (0 != phm_check_states_equal(hwmgr, &pcurrent->hardware, &requested->hardware, &equal)))
 		equal = false;
 
 	if (!equal || phm_check_smc_update_required_for_display_configuration(hwmgr)) {
-		phm_apply_state_adjust_rules(hwmgr, requested, pcurrent);
 		phm_set_power_state(hwmgr, &pcurrent->hardware, &requested->hardware);
 		memcpy(hwmgr->current_ps, hwmgr->request_ps, hwmgr->ps_size);
 	}

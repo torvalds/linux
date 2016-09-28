@@ -952,12 +952,6 @@ static void si_smc_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 	spin_unlock_irqrestore(&adev->smc_idx_lock, flags);
 }
 
-static u32 si_get_virtual_caps(struct amdgpu_device *adev)
-{
-	/* SI does not support SR-IOV */
-	return 0;
-}
-
 static struct amdgpu_allowed_register_entry si_allowed_read_registers[] = {
 	{GRBM_STATUS, false},
 	{GB_ADDR_CONFIG, false},
@@ -1124,16 +1118,22 @@ static int si_set_uvd_clocks(struct amdgpu_device *adev, u32 vclk, u32 dclk)
 	return 0;
 }
 
+static void si_detect_hw_virtualization(struct amdgpu_device *adev)
+{
+	if (is_virtual_machine()) /* passthrough mode */
+		adev->virtualization.virtual_caps |= AMDGPU_PASSTHROUGH_MODE;
+}
+
 static const struct amdgpu_asic_funcs si_asic_funcs =
 {
 	.read_disabled_bios = &si_read_disabled_bios,
+	.detect_hw_virtualization = si_detect_hw_virtualization,
 	.read_register = &si_read_register,
 	.reset = &si_asic_reset,
 	.set_vga_state = &si_vga_set_state,
 	.get_xclk = &si_get_xclk,
 	.set_uvd_clocks = &si_set_uvd_clocks,
 	.set_vce_clocks = NULL,
-	.get_virtual_caps = &si_get_virtual_caps,
 };
 
 static uint32_t si_get_rev_id(struct amdgpu_device *adev)

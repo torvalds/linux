@@ -161,6 +161,7 @@ struct cgs_clock_limits {
  */
 struct cgs_firmware_info {
 	uint16_t		version;
+	uint16_t		fw_version;
 	uint16_t		feature_version;
 	uint32_t		image_size;
 	uint64_t		mc_addr;

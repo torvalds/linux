@@ -661,8 +661,9 @@ bool radeon_card_posted(struct radeon_device *rdev)
 {
 	uint32_t reg;
 
-	/* for pass through, always force asic_init */
-	if (radeon_device_is_virtual())
+	/* for pass through, always force asic_init for CI */
+	if (rdev->family >= CHIP_BONAIRE &&
+	    radeon_device_is_virtual())
 		return false;
 
 	/* required for EFI mode on macbook2,1 which uses an r5xx asic */
@@ -1594,8 +1595,7 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend,
 
 	rdev = dev->dev_private;
 
-	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF ||
-	    dev->switch_power_state == DRM_SWITCH_POWER_DYNAMIC_OFF)
+	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
 	drm_kms_helper_poll_disable(dev);
@@ -1690,8 +1690,7 @@ int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 	struct drm_crtc *crtc;
 	int r;
 
-	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF ||
-	    dev->switch_power_state == DRM_SWITCH_POWER_DYNAMIC_OFF)
+	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
 	if (fbcon) {

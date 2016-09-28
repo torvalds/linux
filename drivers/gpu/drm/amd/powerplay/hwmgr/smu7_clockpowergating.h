@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2016 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,22 +21,20 @@
  *
  */
 
-#ifndef TONGA_SMUMGR_H
-#define TONGA_SMUMGR_H
+#ifndef _SMU7_CLOCK_POWER_GATING_H_
+#define _SMU7_CLOCK__POWER_GATING_H_
 
-#include "tonga_ppsmc.h"
+#include "smu7_hwmgr.h"
+#include "pp_asicblocks.h"
 
-int tonga_smu_init(struct amdgpu_device *adev);
-int tonga_smu_fini(struct amdgpu_device *adev);
-int tonga_smu_start(struct amdgpu_device *adev);
-
-struct tonga_smu_private_data
-{
-	uint8_t *header;
-	uint32_t smu_buffer_addr_high;
-	uint32_t smu_buffer_addr_low;
-	uint32_t header_addr_high;
-	uint32_t header_addr_low;
-};
+int smu7_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate);
+int smu7_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate);
+int smu7_powerdown_uvd(struct pp_hwmgr *hwmgr);
+int smu7_powergate_samu(struct pp_hwmgr *hwmgr, bool bgate);
+int smu7_powergate_acp(struct pp_hwmgr *hwmgr, bool bgate);
+int smu7_disable_clock_power_gating(struct pp_hwmgr *hwmgr);
+int smu7_update_clock_gatings(struct pp_hwmgr *hwmgr,
+					const uint32_t *msg_id);
+int smu7_enable_per_cu_power_gating(struct pp_hwmgr *hwmgr, bool enable);
 
 #endif

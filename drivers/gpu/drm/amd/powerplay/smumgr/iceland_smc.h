@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2015 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,23 +20,21 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#ifndef _ICELAND_SMC_H
+#define _ICELAND_SMC_H
 
-#ifndef FIJI_SMUMGR_H
-#define FIJI_SMUMGR_H
+#include "smumgr.h"
 
-#include "fiji_ppsmc.h"
 
-int fiji_smu_init(struct amdgpu_device *adev);
-int fiji_smu_fini(struct amdgpu_device *adev);
-int fiji_smu_start(struct amdgpu_device *adev);
-
-struct fiji_smu_private_data
-{
-	uint8_t *header;
-	uint32_t smu_buffer_addr_high;
-	uint32_t smu_buffer_addr_low;
-	uint32_t header_addr_high;
-	uint32_t header_addr_low;
-};
-
+int iceland_populate_all_graphic_levels(struct pp_hwmgr *hwmgr);
+int iceland_populate_all_memory_levels(struct pp_hwmgr *hwmgr);
+int iceland_init_smc_table(struct pp_hwmgr *hwmgr);
+int iceland_thermal_setup_fan_table(struct pp_hwmgr *hwmgr);
+int iceland_update_sclk_threshold(struct pp_hwmgr *hwmgr);
+uint32_t iceland_get_offsetof(uint32_t type, uint32_t member);
+uint32_t iceland_get_mac_definition(uint32_t value);
+int iceland_process_firmware_header(struct pp_hwmgr *hwmgr);
+int iceland_initialize_mc_reg_table(struct pp_hwmgr *hwmgr);
+bool iceland_is_dpm_running(struct pp_hwmgr *hwmgr);
 #endif
+

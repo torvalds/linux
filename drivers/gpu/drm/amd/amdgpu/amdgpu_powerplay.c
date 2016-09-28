@@ -80,15 +80,6 @@ static int amdgpu_powerplay_init(struct amdgpu_device *adev)
 			amd_pp->ip_funcs = &kv_dpm_ip_funcs;
 			break;
 #endif
-		case CHIP_TOPAZ:
-			amd_pp->ip_funcs = &iceland_dpm_ip_funcs;
-			break;
-		case CHIP_TONGA:
-			amd_pp->ip_funcs = &tonga_dpm_ip_funcs;
-			break;
-		case CHIP_FIJI:
-			amd_pp->ip_funcs = &fiji_dpm_ip_funcs;
-			break;
 		case CHIP_CARRIZO:
 		case CHIP_STONEY:
 			amd_pp->ip_funcs = &cz_dpm_ip_funcs;
@@ -110,11 +101,11 @@ static int amdgpu_pp_early_init(void *handle)
 	switch (adev->asic_type) {
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS10:
-		adev->pp_enabled = true;
-		break;
 	case CHIP_TONGA:
 	case CHIP_FIJI:
 	case CHIP_TOPAZ:
+		adev->pp_enabled = true;
+		break;
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
 		adev->pp_enabled = (amdgpu_powerplay == 0) ? false : true;

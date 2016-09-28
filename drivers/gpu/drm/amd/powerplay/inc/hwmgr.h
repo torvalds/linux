@@ -311,8 +311,6 @@ struct pp_hwmgr_func {
 	int (*get_sclk)(struct pp_hwmgr *hwmgr, bool low);
 	int (*power_state_set)(struct pp_hwmgr *hwmgr,
 						const void *state);
-	void (*print_current_perforce_level)(struct pp_hwmgr *hwmgr,
-							struct seq_file *m);
 	int (*enable_clock_power_gating)(struct pp_hwmgr *hwmgr);
 	int (*notify_smc_display_config_after_ps_adjustment)(struct pp_hwmgr *hwmgr);
 	int (*display_config_changed)(struct pp_hwmgr *hwmgr);
@@ -359,6 +357,7 @@ struct pp_hwmgr_func {
 	int (*set_sclk_od)(struct pp_hwmgr *hwmgr, uint32_t value);
 	int (*get_mclk_od)(struct pp_hwmgr *hwmgr);
 	int (*set_mclk_od)(struct pp_hwmgr *hwmgr, uint32_t value);
+	int (*read_sensor)(struct pp_hwmgr *hwmgr, int idx, int32_t *value);
 };
 
 struct pp_table_func {
@@ -709,6 +708,7 @@ extern int phm_hwmgr_backend_fini(struct pp_hwmgr *hwmgr);
 extern uint32_t phm_get_lowest_enabled_level(struct pp_hwmgr *hwmgr, uint32_t mask);
 extern void phm_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr);
 
+extern int smu7_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int phm_get_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 				uint32_t sclk, uint16_t id, uint16_t *voltage);
 

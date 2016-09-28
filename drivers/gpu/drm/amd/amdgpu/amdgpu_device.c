@@ -50,6 +50,7 @@
 #include "vi.h"
 #include "bif/bif_4_1_d.h"
 #include <linux/pci.h>
+#include <linux/firmware.h>
 
 static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev);
 static void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev);
@@ -110,7 +111,7 @@ void amdgpu_mm_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v,
 		    bool always_indirect)
 {
 	trace_amdgpu_mm_wreg(adev->pdev->device, reg, v);
-	
+
 	if ((reg * 4) < adev->rmmio_size && !always_indirect)
 		writel(v, ((void __iomem *)adev->rmmio) + (reg * 4));
 	else {
@@ -649,6 +650,46 @@ bool amdgpu_card_posted(struct amdgpu_device *adev)
 
 	return false;
 
+}
+
+static bool amdgpu_vpost_needed(struct amdgpu_device *adev)
+{
+	if (amdgpu_sriov_vf(adev))
+		return false;
+
+	if (amdgpu_passthrough(adev)) {
+		/* for FIJI: In whole GPU pass-through virtualization case
+		 * old smc fw won't clear some registers (e.g. MEM_SIZE, BIOS_SCRATCH)
+		 * so amdgpu_card_posted return false and driver will incorrectly skip vPost.
+		 * but if we force vPost do in pass-through case, the driver reload will hang.
+		 * whether doing vPost depends on amdgpu_card_posted if smc version is above
+		 * 00160e00 for FIJI.
+		 */
+		if (adev->asic_type == CHIP_FIJI) {
+			int err;
+			uint32_t fw_ver;
+			err = request_firmware(&adev->pm.fw, "amdgpu/fiji_smc.bin", adev->dev);
+			/* force vPost if error occured */
+			if (err)
+				return true;
+
+			fw_ver = *((uint32_t *)adev->pm.fw->data + 69);
+			if (fw_ver >= 0x00160e00)
+				return !amdgpu_card_posted(adev);
+		}
+	} else {
+		/* in bare-metal case, amdgpu_card_posted return false
+		 * after system reboot/boot, and return true if driver
+		 * reloaded.
+		 * we shouldn't do vPost after driver reload otherwise GPU
+		 * could hang.
+		 */
+		if (amdgpu_card_posted(adev))
+			return false;
+	}
+
+	/* we assume vPost is neede for all other cases */
+	return true;
 }
 
 /**
@@ -1485,13 +1526,10 @@ static int amdgpu_resume(struct amdgpu_device *adev)
 	return 0;
 }
 
-static bool amdgpu_device_is_virtual(void)
+static void amdgpu_device_detect_sriov_bios(struct amdgpu_device *adev)
 {
-#ifdef CONFIG_X86
-	return boot_cpu_has(X86_FEATURE_HYPERVISOR);
-#else
-	return false;
-#endif
+	if (amdgpu_atombios_has_gpu_virtualization_table(adev))
+		adev->virtualization.virtual_caps |= AMDGPU_SRIOV_CAPS_SRIOV_VBIOS;
 }
 
 /**
@@ -1648,25 +1686,24 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		goto failed;
 	}
 
-	/* See if the asic supports SR-IOV */
-	adev->virtualization.supports_sr_iov =
-		amdgpu_atombios_has_gpu_virtualization_table(adev);
-
-	/* Check if we are executing in a virtualized environment */
-	adev->virtualization.is_virtual = amdgpu_device_is_virtual();
-	adev->virtualization.caps = amdgpu_asic_get_virtual_caps(adev);
+	/* detect if we are with an SRIOV vbios */
+	amdgpu_device_detect_sriov_bios(adev);
 
 	/* Post card if necessary */
-	if (!amdgpu_card_posted(adev) ||
-	    (adev->virtualization.is_virtual &&
-	     !(adev->virtualization.caps & AMDGPU_VIRT_CAPS_SRIOV_EN))) {
+	if (amdgpu_vpost_needed(adev)) {
 		if (!adev->bios) {
-			dev_err(adev->dev, "Card not posted and no BIOS - ignoring\n");
+			dev_err(adev->dev, "no vBIOS found\n");
 			r = -EINVAL;
 			goto failed;
 		}
-		DRM_INFO("GPU not posted. posting now...\n");
-		amdgpu_atom_asic_init(adev->mode_info.atom_context);
+		DRM_INFO("GPU posting now...\n");
+		r = amdgpu_atom_asic_init(adev->mode_info.atom_context);
+		if (r) {
+			dev_err(adev->dev, "gpu post error!\n");
+			goto failed;
+		}
+	} else {
+		DRM_INFO("GPU post is not needed\n");
 	}
 
 	/* Initialize clocks */
@@ -1842,8 +1879,7 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 
 	adev = dev->dev_private;
 
-	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF ||
-	    dev->switch_power_state == DRM_SWITCH_POWER_DYNAMIC_OFF)
+	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
 	drm_kms_helper_poll_disable(dev);
@@ -1928,8 +1964,7 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 	struct drm_crtc *crtc;
 	int r;
 
-	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF ||
-	    dev->switch_power_state == DRM_SWITCH_POWER_DYNAMIC_OFF)
+	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
 	if (fbcon)
@@ -2043,7 +2078,7 @@ static bool amdgpu_check_soft_reset(struct amdgpu_device *adev)
 	return asic_hang;
 }
 
-int amdgpu_pre_soft_reset(struct amdgpu_device *adev)
+static int amdgpu_pre_soft_reset(struct amdgpu_device *adev)
 {
 	int i, r = 0;
 
@@ -2714,7 +2749,7 @@ static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
 	if (size & 0x3 || *pos & 0x3)
 		return -EINVAL;
 
-	config = kmalloc(256 * sizeof(*config), GFP_KERNEL);
+	config = kmalloc_array(256, sizeof(*config), GFP_KERNEL);
 	if (!config)
 		return -ENOMEM;
 
@@ -2773,6 +2808,29 @@ static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
 	return result;
 }
 
+static ssize_t amdgpu_debugfs_sensor_read(struct file *f, char __user *buf,
+					size_t size, loff_t *pos)
+{
+	struct amdgpu_device *adev = f->f_inode->i_private;
+	int idx, r;
+	int32_t value;
+
+	if (size != 4 || *pos & 0x3)
+		return -EINVAL;
+
+	/* convert offset to sensor number */
+	idx = *pos >> 2;
+
+	if (adev->powerplay.pp_funcs && adev->powerplay.pp_funcs->read_sensor)
+		r = adev->powerplay.pp_funcs->read_sensor(adev->powerplay.pp_handle, idx, &value);
+	else
+		return -EINVAL;
+
+	if (!r)
+		r = put_user(value, (int32_t *)buf);
+
+	return !r ? 4 : r;
+}
 
 static const struct file_operations amdgpu_debugfs_regs_fops = {
 	.owner = THIS_MODULE,
@@ -2805,12 +2863,19 @@ static const struct file_operations amdgpu_debugfs_gca_config_fops = {
 	.llseek = default_llseek
 };
 
+static const struct file_operations amdgpu_debugfs_sensors_fops = {
+	.owner = THIS_MODULE,
+	.read = amdgpu_debugfs_sensor_read,
+	.llseek = default_llseek
+};
+
 static const struct file_operations *debugfs_regs[] = {
 	&amdgpu_debugfs_regs_fops,
 	&amdgpu_debugfs_regs_didt_fops,
 	&amdgpu_debugfs_regs_pcie_fops,
 	&amdgpu_debugfs_regs_smc_fops,
 	&amdgpu_debugfs_gca_config_fops,
+	&amdgpu_debugfs_sensors_fops,
 };
 
 static const char *debugfs_regs_names[] = {
@@ -2819,6 +2884,7 @@ static const char *debugfs_regs_names[] = {
 	"amdgpu_regs_pcie",
 	"amdgpu_regs_smc",
 	"amdgpu_gca_config",
+	"amdgpu_sensors",
 };
 
 static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2015 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,22 +20,23 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#ifndef POLARIS10_SMC_H
+#define POLARIS10_SMC_H
 
-#ifndef ICELAND_SMUM_H
-#define ICELAND_SMUM_H
+#include "smumgr.h"
 
-#include "ppsmc.h"
 
-extern int iceland_smu_init(struct amdgpu_device *adev);
-extern int iceland_smu_fini(struct amdgpu_device *adev);
-extern int iceland_smu_start(struct amdgpu_device *adev);
-
-struct iceland_smu_private_data
-{
-	uint8_t *header;
-	uint8_t *mec_image;
-	uint32_t header_addr_high;
-	uint32_t header_addr_low;
-};
+int polaris10_populate_all_graphic_levels(struct pp_hwmgr *hwmgr);
+int polaris10_populate_all_memory_levels(struct pp_hwmgr *hwmgr);
+int polaris10_init_smc_table(struct pp_hwmgr *hwmgr);
+int polaris10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr);
+int polaris10_thermal_avfs_enable(struct pp_hwmgr *hwmgr);
+int polaris10_update_smc_table(struct pp_hwmgr *hwmgr, uint32_t type);
+int polaris10_update_sclk_threshold(struct pp_hwmgr *hwmgr);
+uint32_t polaris10_get_offsetof(uint32_t type, uint32_t member);
+uint32_t polaris10_get_mac_definition(uint32_t value);
+int polaris10_process_firmware_header(struct pp_hwmgr *hwmgr);
+bool polaris10_is_dpm_running(struct pp_hwmgr *hwmgr);
 
 #endif
+

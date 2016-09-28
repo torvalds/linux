@@ -20,17 +20,32 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#ifndef FIJI_SMC_H
+#define FIJI_SMC_H
 
-#ifndef _TONGA_CLOCK_POWER_GATING_H_
-#define _TONGA_CLOCK_POWER_GATING_H_
+#include "smumgr.h"
+#include "smu73.h"
 
-#include "tonga_hwmgr.h"
-#include "pp_asicblocks.h"
+struct fiji_pt_defaults {
+	uint8_t   SviLoadLineEn;
+	uint8_t   SviLoadLineVddC;
+	uint8_t   TDC_VDDC_ThrottleReleaseLimitPerc;
+	uint8_t   TDC_MAWt;
+	uint8_t   TdcWaterfallCtl;
+	uint8_t   DTEAmbientTempBase;
+};
 
-extern int tonga_phm_set_asic_block_gating(struct pp_hwmgr *hwmgr, enum PHM_AsicBlock block, enum PHM_ClockGateSetting gating);
-extern int tonga_phm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate);
-extern int tonga_phm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate);
-extern int tonga_phm_powerdown_uvd(struct pp_hwmgr *hwmgr);
-extern int tonga_phm_disable_clock_power_gating(struct pp_hwmgr *hwmgr);
-extern int tonga_phm_update_clock_gatings(struct pp_hwmgr *hwmgr, const uint32_t *msg_id);
-#endif /* _TONGA_CLOCK_POWER_GATING_H_ */
+int fiji_populate_all_graphic_levels(struct pp_hwmgr *hwmgr);
+int fiji_populate_all_memory_levels(struct pp_hwmgr *hwmgr);
+int fiji_init_smc_table(struct pp_hwmgr *hwmgr);
+int fiji_thermal_setup_fan_table(struct pp_hwmgr *hwmgr);
+int fiji_update_smc_table(struct pp_hwmgr *hwmgr, uint32_t type);
+int fiji_update_sclk_threshold(struct pp_hwmgr *hwmgr);
+uint32_t fiji_get_offsetof(uint32_t type, uint32_t member);
+uint32_t fiji_get_mac_definition(uint32_t value);
+int fiji_process_firmware_header(struct pp_hwmgr *hwmgr);
+int fiji_initialize_mc_reg_table(struct pp_hwmgr *hwmgr);
+bool fiji_is_dpm_running(struct pp_hwmgr *hwmgr);
+
+#endif
+

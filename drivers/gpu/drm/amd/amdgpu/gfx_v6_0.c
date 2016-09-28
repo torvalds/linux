@@ -931,6 +931,123 @@ static u32 gfx_v6_0_get_rb_disabled(struct amdgpu_device *adev,
 	return data & mask;
 }
 
+static void gfx_v6_0_raster_config(struct amdgpu_device *adev, u32 *rconf)
+{
+	switch (adev->asic_type) {
+	case CHIP_TAHITI:
+	case CHIP_PITCAIRN:
+		*rconf |= RB_XSEL2(2) | RB_XSEL | PKR_MAP(2) | PKR_YSEL(1) |
+			  SE_MAP(2) | SE_XSEL(2) | SE_YSEL(2);
+		break;
+	case CHIP_VERDE:
+		*rconf |= RB_XSEL | PKR_MAP(2) | PKR_YSEL(1);
+		break;
+	case CHIP_OLAND:
+		*rconf |= RB_YSEL;
+		break;
+	case CHIP_HAINAN:
+		*rconf |= 0x0;
+		break;
+	default:
+		DRM_ERROR("unknown asic: 0x%x\n", adev->asic_type);
+		break;
+	}
+}
+
+static void gfx_v6_0_write_harvested_raster_configs(struct amdgpu_device *adev,
+						    u32 raster_config, unsigned rb_mask,
+						    unsigned num_rb)
+{
+	unsigned sh_per_se = max_t(unsigned, adev->gfx.config.max_sh_per_se, 1);
+	unsigned num_se = max_t(unsigned, adev->gfx.config.max_shader_engines, 1);
+	unsigned rb_per_pkr = min_t(unsigned, num_rb / num_se / sh_per_se, 2);
+	unsigned rb_per_se = num_rb / num_se;
+	unsigned se_mask[4];
+	unsigned se;
+
+	se_mask[0] = ((1 << rb_per_se) - 1) & rb_mask;
+	se_mask[1] = (se_mask[0] << rb_per_se) & rb_mask;
+	se_mask[2] = (se_mask[1] << rb_per_se) & rb_mask;
+	se_mask[3] = (se_mask[2] << rb_per_se) & rb_mask;
+
+	WARN_ON(!(num_se == 1 || num_se == 2 || num_se == 4));
+	WARN_ON(!(sh_per_se == 1 || sh_per_se == 2));
+	WARN_ON(!(rb_per_pkr == 1 || rb_per_pkr == 2));
+
+	for (se = 0; se < num_se; se++) {
+		unsigned raster_config_se = raster_config;
+		unsigned pkr0_mask = ((1 << rb_per_pkr) - 1) << (se * rb_per_se);
+		unsigned pkr1_mask = pkr0_mask << rb_per_pkr;
+		int idx = (se / 2) * 2;
+
+		if ((num_se > 1) && (!se_mask[idx] || !se_mask[idx + 1])) {
+			raster_config_se &= ~SE_MAP_MASK;
+
+			if (!se_mask[idx]) {
+				raster_config_se |= SE_MAP(RASTER_CONFIG_SE_MAP_3);
+			} else {
+				raster_config_se |= SE_MAP(RASTER_CONFIG_SE_MAP_0);
+			}
+		}
+
+		pkr0_mask &= rb_mask;
+		pkr1_mask &= rb_mask;
+		if (rb_per_se > 2 && (!pkr0_mask || !pkr1_mask)) {
+			raster_config_se &= ~PKR_MAP_MASK;
+
+			if (!pkr0_mask) {
+				raster_config_se |= PKR_MAP(RASTER_CONFIG_PKR_MAP_3);
+			} else {
+				raster_config_se |= PKR_MAP(RASTER_CONFIG_PKR_MAP_0);
+			}
+		}
+
+		if (rb_per_se >= 2) {
+			unsigned rb0_mask = 1 << (se * rb_per_se);
+			unsigned rb1_mask = rb0_mask << 1;
+
+			rb0_mask &= rb_mask;
+			rb1_mask &= rb_mask;
+			if (!rb0_mask || !rb1_mask) {
+				raster_config_se &= ~RB_MAP_PKR0_MASK;
+
+				if (!rb0_mask) {
+					raster_config_se |=
+						RB_MAP_PKR0(RASTER_CONFIG_RB_MAP_3);
+				} else {
+					raster_config_se |=
+						RB_MAP_PKR0(RASTER_CONFIG_RB_MAP_0);
+				}
+			}
+
+			if (rb_per_se > 2) {
+				rb0_mask = 1 << (se * rb_per_se + rb_per_pkr);
+				rb1_mask = rb0_mask << 1;
+				rb0_mask &= rb_mask;
+				rb1_mask &= rb_mask;
+				if (!rb0_mask || !rb1_mask) {
+					raster_config_se &= ~RB_MAP_PKR1_MASK;
+
+					if (!rb0_mask) {
+						raster_config_se |=
+							RB_MAP_PKR1(RASTER_CONFIG_RB_MAP_3);
+					} else {
+						raster_config_se |=
+							RB_MAP_PKR1(RASTER_CONFIG_RB_MAP_0);
+					}
+				}
+			}
+		}
+
+		/* GRBM_GFX_INDEX has a different offset on SI */
+		gfx_v6_0_select_se_sh(adev, se, 0xffffffff, 0xffffffff);
+		WREG32(PA_SC_RASTER_CONFIG, raster_config_se);
+	}
+
+	/* GRBM_GFX_INDEX has a different offset on SI */
+	gfx_v6_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+}
+
 static void gfx_v6_0_setup_rb(struct amdgpu_device *adev,
 			      u32 se_num, u32 sh_per_se,
 			      u32 max_rb_num_per_se)
@@ -939,6 +1056,7 @@ static void gfx_v6_0_setup_rb(struct amdgpu_device *adev,
 	u32 data, mask;
 	u32 disabled_rbs = 0;
 	u32 enabled_rbs = 0;
+	unsigned num_rb_pipes;
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (i = 0; i < se_num; i++) {
@@ -961,6 +1079,9 @@ static void gfx_v6_0_setup_rb(struct amdgpu_device *adev,
 	adev->gfx.config.backend_enable_mask = enabled_rbs;
 	adev->gfx.config.num_rbs = hweight32(enabled_rbs);
 
+	num_rb_pipes = min_t(unsigned, adev->gfx.config.max_backends_per_se *
+			     adev->gfx.config.max_shader_engines, 16);
+
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (i = 0; i < se_num; i++) {
 		gfx_v6_0_select_se_sh(adev, i, 0xffffffff, 0xffffffff);
@@ -980,7 +1101,15 @@ static void gfx_v6_0_setup_rb(struct amdgpu_device *adev,
 			}
 			enabled_rbs >>= 2;
 		}
-		WREG32(PA_SC_RASTER_CONFIG, data);
+		gfx_v6_0_raster_config(adev, &data);
+
+		if (!adev->gfx.config.backend_enable_mask ||
+				adev->gfx.config.num_rbs >= num_rb_pipes)
+			WREG32(PA_SC_RASTER_CONFIG, data);
+		else
+			gfx_v6_0_write_harvested_raster_configs(adev, data,
+								adev->gfx.config.backend_enable_mask,
+								num_rb_pipes);
 	}
 	gfx_v6_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
 	mutex_unlock(&adev->grbm_idx_mutex);

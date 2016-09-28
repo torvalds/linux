@@ -3492,13 +3492,163 @@ static u32 gfx_v8_0_get_rb_active_bitmap(struct amdgpu_device *adev)
 	return (~data) & mask;
 }
 
+static void
+gfx_v8_0_raster_config(struct amdgpu_device *adev, u32 *rconf, u32 *rconf1)
+{
+	switch (adev->asic_type) {
+	case CHIP_FIJI:
+		*rconf |= RB_MAP_PKR0(2) | RB_MAP_PKR1(2) |
+			  RB_XSEL2(1) | PKR_MAP(2) |
+			  PKR_XSEL(1) | PKR_YSEL(1) |
+			  SE_MAP(2) | SE_XSEL(2) | SE_YSEL(3);
+		*rconf1 |= SE_PAIR_MAP(2) | SE_PAIR_XSEL(3) |
+			   SE_PAIR_YSEL(2);
+		break;
+	case CHIP_TONGA:
+	case CHIP_POLARIS10:
+		*rconf |= RB_MAP_PKR0(2) | RB_XSEL2(1) | SE_MAP(2) |
+			  SE_XSEL(1) | SE_YSEL(1);
+		*rconf1 |= SE_PAIR_MAP(2) | SE_PAIR_XSEL(2) |
+			   SE_PAIR_YSEL(2);
+		break;
+	case CHIP_TOPAZ:
+	case CHIP_CARRIZO:
+		*rconf |= RB_MAP_PKR0(2);
+		*rconf1 |= 0x0;
+		break;
+	case CHIP_POLARIS11:
+		*rconf |= RB_MAP_PKR0(2) | RB_XSEL2(1) | SE_MAP(2) |
+			  SE_XSEL(1) | SE_YSEL(1);
+		*rconf1 |= 0x0;
+		break;
+	case CHIP_STONEY:
+		*rconf |= 0x0;
+		*rconf1 |= 0x0;
+		break;
+	default:
+		DRM_ERROR("unknown asic: 0x%x\n", adev->asic_type);
+		break;
+	}
+}
+
+static void
+gfx_v8_0_write_harvested_raster_configs(struct amdgpu_device *adev,
+					u32 raster_config, u32 raster_config_1,
+					unsigned rb_mask, unsigned num_rb)
+{
+	unsigned sh_per_se = max_t(unsigned, adev->gfx.config.max_sh_per_se, 1);
+	unsigned num_se = max_t(unsigned, adev->gfx.config.max_shader_engines, 1);
+	unsigned rb_per_pkr = min_t(unsigned, num_rb / num_se / sh_per_se, 2);
+	unsigned rb_per_se = num_rb / num_se;
+	unsigned se_mask[4];
+	unsigned se;
+
+	se_mask[0] = ((1 << rb_per_se) - 1) & rb_mask;
+	se_mask[1] = (se_mask[0] << rb_per_se) & rb_mask;
+	se_mask[2] = (se_mask[1] << rb_per_se) & rb_mask;
+	se_mask[3] = (se_mask[2] << rb_per_se) & rb_mask;
+
+	WARN_ON(!(num_se == 1 || num_se == 2 || num_se == 4));
+	WARN_ON(!(sh_per_se == 1 || sh_per_se == 2));
+	WARN_ON(!(rb_per_pkr == 1 || rb_per_pkr == 2));
+
+	if ((num_se > 2) && ((!se_mask[0] && !se_mask[1]) ||
+			     (!se_mask[2] && !se_mask[3]))) {
+		raster_config_1 &= ~SE_PAIR_MAP_MASK;
+
+		if (!se_mask[0] && !se_mask[1]) {
+			raster_config_1 |=
+				SE_PAIR_MAP(RASTER_CONFIG_SE_PAIR_MAP_3);
+		} else {
+			raster_config_1 |=
+				SE_PAIR_MAP(RASTER_CONFIG_SE_PAIR_MAP_0);
+		}
+	}
+
+	for (se = 0; se < num_se; se++) {
+		unsigned raster_config_se = raster_config;
+		unsigned pkr0_mask = ((1 << rb_per_pkr) - 1) << (se * rb_per_se);
+		unsigned pkr1_mask = pkr0_mask << rb_per_pkr;
+		int idx = (se / 2) * 2;
+
+		if ((num_se > 1) && (!se_mask[idx] || !se_mask[idx + 1])) {
+			raster_config_se &= ~SE_MAP_MASK;
+
+			if (!se_mask[idx]) {
+				raster_config_se |= SE_MAP(RASTER_CONFIG_SE_MAP_3);
+			} else {
+				raster_config_se |= SE_MAP(RASTER_CONFIG_SE_MAP_0);
+			}
+		}
+
+		pkr0_mask &= rb_mask;
+		pkr1_mask &= rb_mask;
+		if (rb_per_se > 2 && (!pkr0_mask || !pkr1_mask)) {
+			raster_config_se &= ~PKR_MAP_MASK;
+
+			if (!pkr0_mask) {
+				raster_config_se |= PKR_MAP(RASTER_CONFIG_PKR_MAP_3);
+			} else {
+				raster_config_se |= PKR_MAP(RASTER_CONFIG_PKR_MAP_0);
+			}
+		}
+
+		if (rb_per_se >= 2) {
+			unsigned rb0_mask = 1 << (se * rb_per_se);
+			unsigned rb1_mask = rb0_mask << 1;
+
+			rb0_mask &= rb_mask;
+			rb1_mask &= rb_mask;
+			if (!rb0_mask || !rb1_mask) {
+				raster_config_se &= ~RB_MAP_PKR0_MASK;
+
+				if (!rb0_mask) {
+					raster_config_se |=
+						RB_MAP_PKR0(RASTER_CONFIG_RB_MAP_3);
+				} else {
+					raster_config_se |=
+						RB_MAP_PKR0(RASTER_CONFIG_RB_MAP_0);
+				}
+			}
+
+			if (rb_per_se > 2) {
+				rb0_mask = 1 << (se * rb_per_se + rb_per_pkr);
+				rb1_mask = rb0_mask << 1;
+				rb0_mask &= rb_mask;
+				rb1_mask &= rb_mask;
+				if (!rb0_mask || !rb1_mask) {
+					raster_config_se &= ~RB_MAP_PKR1_MASK;
+
+					if (!rb0_mask) {
+						raster_config_se |=
+							RB_MAP_PKR1(RASTER_CONFIG_RB_MAP_3);
+					} else {
+						raster_config_se |=
+							RB_MAP_PKR1(RASTER_CONFIG_RB_MAP_0);
+					}
+				}
+			}
+		}
+
+		/* GRBM_GFX_INDEX has a different offset on VI */
+		gfx_v8_0_select_se_sh(adev, se, 0xffffffff, 0xffffffff);
+		WREG32(mmPA_SC_RASTER_CONFIG, raster_config_se);
+		WREG32(mmPA_SC_RASTER_CONFIG_1, raster_config_1);
+	}
+
+	/* GRBM_GFX_INDEX has a different offset on VI */
+	gfx_v8_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+}
+
 static void gfx_v8_0_setup_rb(struct amdgpu_device *adev)
 {
 	int i, j;
 	u32 data;
+	u32 raster_config = 0, raster_config_1 = 0;
 	u32 active_rbs = 0;
 	u32 rb_bitmap_width_per_sh = adev->gfx.config.max_backends_per_se /
 					adev->gfx.config.max_sh_per_se;
+	unsigned num_rb_pipes;
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
@@ -3510,10 +3660,26 @@ static void gfx_v8_0_setup_rb(struct amdgpu_device *adev)
 		}
 	}
 	gfx_v8_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
-	mutex_unlock(&adev->grbm_idx_mutex);
 
 	adev->gfx.config.backend_enable_mask = active_rbs;
 	adev->gfx.config.num_rbs = hweight32(active_rbs);
+
+	num_rb_pipes = min_t(unsigned, adev->gfx.config.max_backends_per_se *
+			     adev->gfx.config.max_shader_engines, 16);
+
+	gfx_v8_0_raster_config(adev, &raster_config, &raster_config_1);
+
+	if (!adev->gfx.config.backend_enable_mask ||
+			adev->gfx.config.num_rbs >= num_rb_pipes) {
+		WREG32(mmPA_SC_RASTER_CONFIG, raster_config);
+		WREG32(mmPA_SC_RASTER_CONFIG_1, raster_config_1);
+	} else {
+		gfx_v8_0_write_harvested_raster_configs(adev, raster_config, raster_config_1,
+							adev->gfx.config.backend_enable_mask,
+							num_rb_pipes);
+	}
+
+	mutex_unlock(&adev->grbm_idx_mutex);
 }
 
 /**
@@ -5817,6 +5983,76 @@ static int gfx_v8_0_update_gfx_clock_gating(struct amdgpu_device *adev,
 	return 0;
 }
 
+static int gfx_v8_0_tonga_update_gfx_clock_gating(struct amdgpu_device *adev,
+					  enum amd_clockgating_state state)
+{
+	uint32_t msg_id, pp_state;
+	void *pp_handle = adev->powerplay.pp_handle;
+
+	if (state == AMD_CG_STATE_UNGATE)
+		pp_state = 0;
+	else
+		pp_state = PP_STATE_CG | PP_STATE_LS;
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+			PP_BLOCK_GFX_CG,
+			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
+			pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+			PP_BLOCK_GFX_MG,
+			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
+			pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	return 0;
+}
+
+static int gfx_v8_0_polaris_update_gfx_clock_gating(struct amdgpu_device *adev,
+					  enum amd_clockgating_state state)
+{
+	uint32_t msg_id, pp_state;
+	void *pp_handle = adev->powerplay.pp_handle;
+
+	if (state == AMD_CG_STATE_UNGATE)
+		pp_state = 0;
+	else
+		pp_state = PP_STATE_CG | PP_STATE_LS;
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+			PP_BLOCK_GFX_CG,
+			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
+			pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+			PP_BLOCK_GFX_3D,
+			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
+			pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+			PP_BLOCK_GFX_MG,
+			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
+			pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+			PP_BLOCK_GFX_RLC,
+			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
+			pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+			PP_BLOCK_GFX_CP,
+			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
+			pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	return 0;
+}
+
 static int gfx_v8_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
@@ -5828,6 +6064,13 @@ static int gfx_v8_0_set_clockgating_state(void *handle,
 	case CHIP_STONEY:
 		gfx_v8_0_update_gfx_clock_gating(adev,
 						 state == AMD_CG_STATE_GATE ? true : false);
+		break;
+	case CHIP_TONGA:
+		gfx_v8_0_tonga_update_gfx_clock_gating(adev, state);
+		break;
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
+		gfx_v8_0_polaris_update_gfx_clock_gating(adev, state);
 		break;
 	default:
 		break;

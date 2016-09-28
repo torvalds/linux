@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Advanced Micro Devices, Inc.
+ * Copyright 2014 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,20 +21,38 @@
  *
  */
 
-#ifndef _POLARIS10_CLOCK_POWER_GATING_H_
-#define _POLARIS10_CLOCK_POWER_GATING_H_
+#ifndef _PP_COMMON_H
+#define _PP_COMMON_H
 
-#include "polaris10_hwmgr.h"
-#include "pp_asicblocks.h"
+#include "smu7_ppsmc.h"
+#include "cgs_common.h"
 
-int polaris10_phm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate);
-int polaris10_phm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate);
-int polaris10_phm_powerdown_uvd(struct pp_hwmgr *hwmgr);
-int polaris10_phm_powergate_samu(struct pp_hwmgr *hwmgr, bool bgate);
-int polaris10_phm_powergate_acp(struct pp_hwmgr *hwmgr, bool bgate);
-int polaris10_phm_disable_clock_power_gating(struct pp_hwmgr *hwmgr);
-int polaris10_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
-					const uint32_t *msg_id);
-int polaris10_phm_enable_per_cu_power_gating(struct pp_hwmgr *hwmgr, bool enable);
+#include "smu/smu_7_1_3_d.h"
+#include "smu/smu_7_1_3_sh_mask.h"
 
-#endif /* _POLARIS10_CLOCK_POWER_GATING_H_ */
+
+#include "smu74.h"
+#include "smu74_discrete.h"
+
+#include "gmc/gmc_8_1_d.h"
+#include "gmc/gmc_8_1_sh_mask.h"
+
+#include "bif/bif_5_0_d.h"
+#include "bif/bif_5_0_sh_mask.h"
+
+
+#include "bif/bif_5_0_d.h"
+#include "bif/bif_5_0_sh_mask.h"
+
+#include "dce/dce_10_0_d.h"
+#include "dce/dce_10_0_sh_mask.h"
+
+#include "gca/gfx_8_0_d.h"
+#include "gca/gfx_8_0_sh_mask.h"
+
+#include "oss/oss_3_0_d.h"
+#include "oss/oss_3_0_sh_mask.h"
+
+
+#endif
+

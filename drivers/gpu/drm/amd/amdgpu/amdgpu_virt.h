@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Advanced Micro Devices, Inc.
+ * Copyright 2016 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,17 +19,39 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
+ * Author: Monk.liu@amd.com
  */
+#ifndef AMDGPU_VIRT_H
+#define AMDGPU_VIRT_H
 
-#ifndef _FIJI_CLOCK_POWER_GATING_H_
-#define _FIJI_CLOCK_POWER_GATING_H_
+#define AMDGPU_SRIOV_CAPS_SRIOV_VBIOS  (1 << 0) /* vBIOS is sr-iov ready */
+#define AMDGPU_SRIOV_CAPS_ENABLE_IOV   (1 << 1) /* sr-iov is enabled on this GPU */
+#define AMDGPU_SRIOV_CAPS_IS_VF        (1 << 2) /* this GPU is a virtual function */
+#define AMDGPU_PASSTHROUGH_MODE        (1 << 3) /* thw whole GPU is pass through for VM */
+/* GPU virtualization */
+struct amdgpu_virtualization {
+	uint32_t virtual_caps;
+};
 
-#include "fiji_hwmgr.h"
-#include "pp_asicblocks.h"
+#define amdgpu_sriov_enabled(adev) \
+((adev)->virtualization.virtual_caps & AMDGPU_SRIOV_CAPS_ENABLE_IOV)
 
-extern int fiji_phm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate);
-extern int fiji_phm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate);
-extern int fiji_phm_powergate_samu(struct pp_hwmgr *hwmgr, bool bgate);
-extern int fiji_phm_powergate_acp(struct pp_hwmgr *hwmgr, bool bgate);
-extern int fiji_phm_disable_clock_power_gating(struct pp_hwmgr *hwmgr);
-#endif /* _TONGA_CLOCK_POWER_GATING_H_ */
+#define amdgpu_sriov_vf(adev) \
+((adev)->virtualization.virtual_caps & AMDGPU_SRIOV_CAPS_IS_VF)
+
+#define amdgpu_sriov_bios(adev) \
+((adev)->virtualization.virtual_caps & AMDGPU_SRIOV_CAPS_SRIOV_VBIOS)
+
+#define amdgpu_passthrough(adev) \
+((adev)->virtualization.virtual_caps & AMDGPU_PASSTHROUGH_MODE)
+
+static inline bool is_virtual_machine(void)
+{
+#ifdef CONFIG_X86
+	return boot_cpu_has(X86_FEATURE_HYPERVISOR);
+#else
+	return false;
+#endif
+}
+
+#endif

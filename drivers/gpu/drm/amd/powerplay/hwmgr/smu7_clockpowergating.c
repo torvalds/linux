@@ -21,9 +21,53 @@
  *
  */
 
-#include "polaris10_clockpowergating.h"
+#include "smu7_hwmgr.h"
+#include "smu7_clockpowergating.h"
+#include "smu7_common.h"
 
-int polaris10_phm_powerdown_uvd(struct pp_hwmgr *hwmgr)
+static int smu7_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable)
+{
+	return smum_send_msg_to_smc(hwmgr->smumgr, enable ?
+			PPSMC_MSG_UVDDPM_Enable :
+			PPSMC_MSG_UVDDPM_Disable);
+}
+
+static int smu7_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
+{
+	return smum_send_msg_to_smc(hwmgr->smumgr, enable ?
+			PPSMC_MSG_VCEDPM_Enable :
+			PPSMC_MSG_VCEDPM_Disable);
+}
+
+static int smu7_enable_disable_samu_dpm(struct pp_hwmgr *hwmgr, bool enable)
+{
+	return smum_send_msg_to_smc(hwmgr->smumgr, enable ?
+			PPSMC_MSG_SAMUDPM_Enable :
+			PPSMC_MSG_SAMUDPM_Disable);
+}
+
+static int smu7_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate)
+{
+	if (!bgate)
+		smum_update_smc_table(hwmgr, SMU_UVD_TABLE);
+	return smu7_enable_disable_uvd_dpm(hwmgr, !bgate);
+}
+
+static int smu7_update_vce_dpm(struct pp_hwmgr *hwmgr, bool bgate)
+{
+	if (!bgate)
+		smum_update_smc_table(hwmgr, SMU_VCE_TABLE);
+	return smu7_enable_disable_vce_dpm(hwmgr, !bgate);
+}
+
+static int smu7_update_samu_dpm(struct pp_hwmgr *hwmgr, bool bgate)
+{
+	if (!bgate)
+		smum_update_smc_table(hwmgr, SMU_SAMU_TABLE);
+	return smu7_enable_disable_samu_dpm(hwmgr, !bgate);
+}
+
+int smu7_powerdown_uvd(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cf_want_uvd_power_gating(hwmgr))
 		return smum_send_msg_to_smc(hwmgr->smumgr,
@@ -31,7 +75,7 @@ int polaris10_phm_powerdown_uvd(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int polaris10_phm_powerup_uvd(struct pp_hwmgr *hwmgr)
+int smu7_powerup_uvd(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cf_want_uvd_power_gating(hwmgr)) {
 		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
@@ -47,7 +91,7 @@ static int polaris10_phm_powerup_uvd(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int polaris10_phm_powerdown_vce(struct pp_hwmgr *hwmgr)
+int smu7_powerdown_vce(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cf_want_vce_power_gating(hwmgr))
 		return smum_send_msg_to_smc(hwmgr->smumgr,
@@ -55,7 +99,7 @@ static int polaris10_phm_powerdown_vce(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int polaris10_phm_powerup_vce(struct pp_hwmgr *hwmgr)
+int smu7_powerup_vce(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cf_want_vce_power_gating(hwmgr))
 		return smum_send_msg_to_smc(hwmgr->smumgr,
@@ -63,7 +107,7 @@ static int polaris10_phm_powerup_vce(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int polaris10_phm_powerdown_samu(struct pp_hwmgr *hwmgr)
+int smu7_powerdown_samu(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SamuPowerGating))
@@ -72,7 +116,7 @@ static int polaris10_phm_powerdown_samu(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int polaris10_phm_powerup_samu(struct pp_hwmgr *hwmgr)
+int smu7_powerup_samu(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SamuPowerGating))
@@ -81,27 +125,24 @@ static int polaris10_phm_powerup_samu(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int polaris10_phm_disable_clock_power_gating(struct pp_hwmgr *hwmgr)
+int smu7_disable_clock_power_gating(struct pp_hwmgr *hwmgr)
 {
-	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
 	data->uvd_power_gated = false;
 	data->vce_power_gated = false;
 	data->samu_power_gated = false;
 
-	polaris10_phm_powerup_uvd(hwmgr);
-	polaris10_phm_powerup_vce(hwmgr);
-	polaris10_phm_powerup_samu(hwmgr);
+	smu7_powerup_uvd(hwmgr);
+	smu7_powerup_vce(hwmgr);
+	smu7_powerup_samu(hwmgr);
 
 	return 0;
 }
 
-int polaris10_phm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
+int smu7_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 {
-	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
-
-	if (data->uvd_power_gated == bgate)
-		return 0;
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
 	data->uvd_power_gated = bgate;
 
@@ -109,11 +150,11 @@ int polaris10_phm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 		cgs_set_clockgating_state(hwmgr->device,
 				AMD_IP_BLOCK_TYPE_UVD,
 				AMD_CG_STATE_GATE);
-		polaris10_update_uvd_dpm(hwmgr, true);
-		polaris10_phm_powerdown_uvd(hwmgr);
+		smu7_update_uvd_dpm(hwmgr, true);
+		smu7_powerdown_uvd(hwmgr);
 	} else {
-		polaris10_phm_powerup_uvd(hwmgr);
-		polaris10_update_uvd_dpm(hwmgr, false);
+		smu7_powerup_uvd(hwmgr);
+		smu7_update_uvd_dpm(hwmgr, false);
 		cgs_set_clockgating_state(hwmgr->device,
 				AMD_IP_BLOCK_TYPE_UVD,
 				AMD_CG_STATE_UNGATE);
@@ -122,9 +163,9 @@ int polaris10_phm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 	return 0;
 }
 
-int polaris10_phm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
+int smu7_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 {
-	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
 	if (data->vce_power_gated == bgate)
 		return 0;
@@ -135,11 +176,11 @@ int polaris10_phm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 		cgs_set_clockgating_state(hwmgr->device,
 				AMD_IP_BLOCK_TYPE_VCE,
 				AMD_CG_STATE_GATE);
-		polaris10_update_vce_dpm(hwmgr, true);
-		polaris10_phm_powerdown_vce(hwmgr);
+		smu7_update_vce_dpm(hwmgr, true);
+		smu7_powerdown_vce(hwmgr);
 	} else {
-		polaris10_phm_powerup_vce(hwmgr);
-		polaris10_update_vce_dpm(hwmgr, false);
+		smu7_powerup_vce(hwmgr);
+		smu7_update_vce_dpm(hwmgr, false);
 		cgs_set_clockgating_state(hwmgr->device,
 				AMD_IP_BLOCK_TYPE_VCE,
 				AMD_CG_STATE_UNGATE);
@@ -147,9 +188,9 @@ int polaris10_phm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 	return 0;
 }
 
-int polaris10_phm_powergate_samu(struct pp_hwmgr *hwmgr, bool bgate)
+int smu7_powergate_samu(struct pp_hwmgr *hwmgr, bool bgate)
 {
-	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
 	if (data->samu_power_gated == bgate)
 		return 0;
@@ -157,21 +198,24 @@ int polaris10_phm_powergate_samu(struct pp_hwmgr *hwmgr, bool bgate)
 	data->samu_power_gated = bgate;
 
 	if (bgate) {
-		polaris10_update_samu_dpm(hwmgr, true);
-		polaris10_phm_powerdown_samu(hwmgr);
+		smu7_update_samu_dpm(hwmgr, true);
+		smu7_powerdown_samu(hwmgr);
 	} else {
-		polaris10_phm_powerup_samu(hwmgr);
-		polaris10_update_samu_dpm(hwmgr, false);
+		smu7_powerup_samu(hwmgr);
+		smu7_update_samu_dpm(hwmgr, false);
 	}
 
 	return 0;
 }
 
-int polaris10_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
+int smu7_update_clock_gatings(struct pp_hwmgr *hwmgr,
 					const uint32_t *msg_id)
 {
 	PPSMC_Msg msg;
 	uint32_t value;
+
+	if (!(hwmgr->feature_mask & PP_ENABLE_GFX_CG_THRU_SMU))
+		return 0;
 
 	switch ((*msg_id & PP_GROUP_MASK) >> PP_GROUP_SHIFT) {
 	case PP_GROUP_GFX:
@@ -185,7 +229,7 @@ int polaris10_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
 
 				if (smum_send_msg_to_smc_with_parameter(
 						hwmgr->smumgr, msg, value))
-					return -1;
+					return -EINVAL;
 			}
 			if (PP_STATE_SUPPORT_LS & *msg_id) {
 				msg = (*msg_id & PP_STATE_MASK) & PP_STATE_LS
@@ -195,7 +239,7 @@ int polaris10_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
 
 				if (smum_send_msg_to_smc_with_parameter(
 						hwmgr->smumgr, msg, value))
-					return -1;
+					return -EINVAL;
 			}
 			break;
 
@@ -208,7 +252,7 @@ int polaris10_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
 
 				if (smum_send_msg_to_smc_with_parameter(
 						hwmgr->smumgr, msg, value))
-					return -1;
+					return -EINVAL;
 			}
 
 			if  (PP_STATE_SUPPORT_LS & *msg_id) {
@@ -219,7 +263,7 @@ int polaris10_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
 
 				if (smum_send_msg_to_smc_with_parameter(
 						hwmgr->smumgr, msg, value))
-					return -1;
+					return -EINVAL;
 			}
 			break;
 
@@ -232,7 +276,7 @@ int polaris10_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
 
 				if (smum_send_msg_to_smc_with_parameter(
 						hwmgr->smumgr, msg, value))
-					return -1;
+					return -EINVAL;
 			}
 			break;
 
@@ -245,7 +289,7 @@ int polaris10_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
 
 				if (smum_send_msg_to_smc_with_parameter(
 						hwmgr->smumgr, msg, value))
-					return -1;
+					return -EINVAL;
 			}
 			break;
 
@@ -259,12 +303,12 @@ int polaris10_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
 
 				if (smum_send_msg_to_smc_with_parameter(
 						hwmgr->smumgr, msg, value))
-					return -1;
+					return -EINVAL;
 			}
 			break;
 
 		default:
-			return -1;
+			return -EINVAL;
 		}
 		break;
 
@@ -279,7 +323,7 @@ int polaris10_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
 
 				if (smum_send_msg_to_smc_with_parameter(
 						hwmgr->smumgr, msg, value))
-					return -1;
+					return -EINVAL;
 			}
 			if  (PP_STATE_SUPPORT_LS & *msg_id) {
 				msg = (*msg_id & PP_STATE_MASK) & PP_STATE_LS ?
@@ -289,7 +333,7 @@ int polaris10_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
 
 				if (smum_send_msg_to_smc_with_parameter(
 						hwmgr->smumgr, msg, value))
-					return -1;
+					return -EINVAL;
 			}
 			break;
 
@@ -302,7 +346,7 @@ int polaris10_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
 
 				if (smum_send_msg_to_smc_with_parameter(
 						hwmgr->smumgr, msg, value))
-					return -1;
+					return -EINVAL;
 			}
 
 			if (PP_STATE_SUPPORT_LS & *msg_id) {
@@ -313,7 +357,7 @@ int polaris10_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
 
 				if (smum_send_msg_to_smc_with_parameter(
 						hwmgr->smumgr, msg, value))
-					return -1;
+					return -EINVAL;
 			}
 			break;
 
@@ -326,7 +370,7 @@ int polaris10_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
 
 				if (smum_send_msg_to_smc_with_parameter(
 						hwmgr->smumgr, msg, value))
-					return -1;
+					return -EINVAL;
 			}
 			if (PP_STATE_SUPPORT_LS & *msg_id) {
 				msg = (*msg_id & PP_STATE_MASK) & PP_STATE_LS ?
@@ -336,7 +380,7 @@ int polaris10_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
 
 				if (smum_send_msg_to_smc_with_parameter(
 						hwmgr->smumgr, msg, value))
-					return -1;
+					return -EINVAL;
 			}
 			break;
 
@@ -349,7 +393,7 @@ int polaris10_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
 
 				if (smum_send_msg_to_smc_with_parameter(
 						hwmgr->smumgr, msg, value))
-					return -1;
+					return -EINVAL;
 			}
 
 			if (PP_STATE_SUPPORT_LS & *msg_id) {
@@ -360,7 +404,7 @@ int polaris10_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
 
 				if (smum_send_msg_to_smc_with_parameter(
 						hwmgr->smumgr, msg, value))
-					return -1;
+					return -EINVAL;
 			}
 			break;
 
@@ -373,7 +417,7 @@ int polaris10_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
 
 				if (smum_send_msg_to_smc_with_parameter(
 						hwmgr->smumgr, msg, value))
-					return -1;
+					return -EINVAL;
 			}
 
 			if (PP_STATE_SUPPORT_LS & *msg_id) {
@@ -384,7 +428,7 @@ int polaris10_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
 
 				if (smum_send_msg_to_smc_with_parameter(
 						hwmgr->smumgr, msg, value))
-					return -1;
+					return -EINVAL;
 			}
 			break;
 
@@ -397,18 +441,18 @@ int polaris10_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
 
 				if (smum_send_msg_to_smc_with_parameter(
 						hwmgr->smumgr, msg, value))
-					return -1;
+					return -EINVAL;
 			}
 			break;
 
 		default:
-			return -1;
+			return -EINVAL;
 
 		}
 		break;
 
 	default:
-		return -1;
+		return -EINVAL;
 
 	}
 
@@ -419,7 +463,7 @@ int polaris10_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
  * Powerplay will only control the static per CU Power Gating.
  * Dynamic per CU Power Gating will be done in gfx.
  */
-int polaris10_phm_enable_per_cu_power_gating(struct pp_hwmgr *hwmgr, bool enable)
+int smu7_enable_per_cu_power_gating(struct pp_hwmgr *hwmgr, bool enable)
 {
 	struct cgs_system_info sys_info = {0};
 	uint32_t active_cus;
@@ -432,8 +476,8 @@ int polaris10_phm_enable_per_cu_power_gating(struct pp_hwmgr *hwmgr, bool enable
 
 	if (result)
 		return -EINVAL;
-	else
-		active_cus = sys_info.value;
+
+	active_cus = sys_info.value;
 
 	if (enable)
 		return smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,

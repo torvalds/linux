@@ -20,17 +20,8 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef POLARIS10_POWERTUNE_H
-#define POLARIS10_POWERTUNE_H
-
-enum polaris10_pt_config_reg_type {
-	POLARIS10_CONFIGREG_MMR = 0,
-	POLARIS10_CONFIGREG_SMC_IND,
-	POLARIS10_CONFIGREG_DIDT_IND,
-	POLARIS10_CONFIGREG_GC_CAC_IND,
-	POLARIS10_CONFIGREG_CACHE,
-	POLARIS10_CONFIGREG_MAX
-};
+#ifndef _SMU7_POWERTUNE_H
+#define _SMU7_POWERTUNE_H
 
 #define DIDT_SQ_CTRL0__UNUSED_0_MASK    0xfffc0000
 #define DIDT_SQ_CTRL0__UNUSED_0__SHIFT  0x12
@@ -52,30 +43,20 @@ enum polaris10_pt_config_reg_type {
 
 #define ixGC_CAC_CNTL 0x0000
 #define ixDIDT_SQ_STALL_CTRL 0x0004
-#define  ixDIDT_SQ_TUNING_CTRL 0x0005
+#define ixDIDT_SQ_TUNING_CTRL 0x0005
 #define ixDIDT_TD_STALL_CTRL 0x0044
 #define ixDIDT_TD_TUNING_CTRL 0x0045
 #define ixDIDT_TCP_STALL_CTRL 0x0064
 #define ixDIDT_TCP_TUNING_CTRL 0x0065
 
-struct polaris10_pt_config_reg {
-	uint32_t                           offset;
-	uint32_t                           mask;
-	uint32_t                           shift;
-	uint32_t                           value;
-	enum polaris10_pt_config_reg_type       type;
-};
 
-
-void polaris10_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr);
-int polaris10_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr);
-int polaris10_populate_pm_fuses(struct pp_hwmgr *hwmgr);
-int polaris10_enable_smc_cac(struct pp_hwmgr *hwmgr);
-int polaris10_disable_smc_cac(struct pp_hwmgr *hwmgr);
-int polaris10_enable_power_containment(struct pp_hwmgr *hwmgr);
-int polaris10_disable_power_containment(struct pp_hwmgr *hwmgr);
-int polaris10_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n);
-int polaris10_power_control_set_level(struct pp_hwmgr *hwmgr);
-int polaris10_enable_didt_config(struct pp_hwmgr *hwmgr);
-#endif  /* POLARIS10_POWERTUNE_H */
+int smu7_enable_smc_cac(struct pp_hwmgr *hwmgr);
+int smu7_disable_smc_cac(struct pp_hwmgr *hwmgr);
+int smu7_enable_power_containment(struct pp_hwmgr *hwmgr);
+int smu7_disable_power_containment(struct pp_hwmgr *hwmgr);
+int smu7_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n);
+int smu7_power_control_set_level(struct pp_hwmgr *hwmgr);
+int smu7_enable_didt_config(struct pp_hwmgr *hwmgr);
+int smu7_disable_didt_config(struct pp_hwmgr *hwmgr);
+#endif  /* DGPU_POWERTUNE_H */
 

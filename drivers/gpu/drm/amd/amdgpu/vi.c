@@ -79,6 +79,9 @@
 #endif
 #include "dce_virtual.h"
 
+MODULE_FIRMWARE("amdgpu/topaz_smc.bin");
+MODULE_FIRMWARE("amdgpu/tonga_smc.bin");
+MODULE_FIRMWARE("amdgpu/fiji_smc.bin");
 MODULE_FIRMWARE("amdgpu/polaris10_smc.bin");
 MODULE_FIRMWARE("amdgpu/polaris10_smc_sk.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_smc.bin");
@@ -445,18 +448,21 @@ static bool vi_read_bios_from_rom(struct amdgpu_device *adev,
 	return true;
 }
 
-static u32 vi_get_virtual_caps(struct amdgpu_device *adev)
+static void vi_detect_hw_virtualization(struct amdgpu_device *adev)
 {
-	u32 caps = 0;
-	u32 reg = RREG32(mmBIF_IOV_FUNC_IDENTIFIER);
+	uint32_t reg = RREG32(mmBIF_IOV_FUNC_IDENTIFIER);
+	/* bit0: 0 means pf and 1 means vf */
+	/* bit31: 0 means disable IOV and 1 means enable */
+	if (reg & 1)
+		adev->virtualization.virtual_caps |= AMDGPU_SRIOV_CAPS_IS_VF;
 
-	if (REG_GET_FIELD(reg, BIF_IOV_FUNC_IDENTIFIER, IOV_ENABLE))
-		caps |= AMDGPU_VIRT_CAPS_SRIOV_EN;
+	if (reg & 0x80000000)
+		adev->virtualization.virtual_caps |= AMDGPU_SRIOV_CAPS_ENABLE_IOV;
 
-	if (REG_GET_FIELD(reg, BIF_IOV_FUNC_IDENTIFIER, FUNC_IDENTIFIER))
-		caps |= AMDGPU_VIRT_CAPS_IS_VF;
-
-	return caps;
+	if (reg == 0) {
+		if (is_virtual_machine()) /* passthrough mode exclus sr-iov mode */
+			adev->virtualization.virtual_caps |= AMDGPU_PASSTHROUGH_MODE;
+	}
 }
 
 static const struct amdgpu_allowed_register_entry tonga_allowed_read_registers[] = {
@@ -1521,13 +1527,13 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 {
 	.read_disabled_bios = &vi_read_disabled_bios,
 	.read_bios_from_rom = &vi_read_bios_from_rom,
+	.detect_hw_virtualization = vi_detect_hw_virtualization,
 	.read_register = &vi_read_register,
 	.reset = &vi_asic_reset,
 	.set_vga_state = &vi_vga_set_state,
 	.get_xclk = &vi_get_xclk,
 	.set_uvd_clocks = &vi_set_uvd_clocks,
 	.set_vce_clocks = &vi_set_vce_clocks,
-	.get_virtual_caps = &vi_get_virtual_caps,
 };
 
 static int vi_common_early_init(void *handle)
@@ -1656,6 +1662,10 @@ static int vi_common_early_init(void *handle)
 		/* FIXME: not supported yet */
 		return -EINVAL;
 	}
+
+	/* in early init stage, vbios code won't work */
+	if (adev->asic_funcs->detect_hw_virtualization)
+		amdgpu_asic_detect_hw_virtualization(adev);
 
 	if (amdgpu_smc_load_fw && smc_enabled)
 		adev->firmware.smu_load = true;
@@ -1800,6 +1810,63 @@ static void vi_update_rom_medium_grain_clock_gating(struct amdgpu_device *adev,
 		WREG32_SMC(ixCGTT_ROM_CLK_CTRL0, data);
 }
 
+static int vi_common_set_clockgating_state_by_smu(void *handle,
+					   enum amd_clockgating_state state)
+{
+	uint32_t msg_id, pp_state;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	void *pp_handle = adev->powerplay.pp_handle;
+
+	if (state == AMD_CG_STATE_UNGATE)
+		pp_state = 0;
+	else
+		pp_state = PP_STATE_CG | PP_STATE_LS;
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_SYS,
+		       PP_BLOCK_SYS_MC,
+		       PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
+		       pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_SYS,
+		       PP_BLOCK_SYS_SDMA,
+		       PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
+		       pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_SYS,
+		       PP_BLOCK_SYS_HDP,
+		       PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
+		       pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_SYS,
+		       PP_BLOCK_SYS_BIF,
+		       PP_STATE_SUPPORT_LS,
+		       pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_SYS,
+		       PP_BLOCK_SYS_BIF,
+		       PP_STATE_SUPPORT_CG,
+		       pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_SYS,
+		       PP_BLOCK_SYS_DRM,
+		       PP_STATE_SUPPORT_LS,
+		       pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	msg_id = PP_CG_MSG_ID(PP_GROUP_SYS,
+		       PP_BLOCK_SYS_ROM,
+		       PP_STATE_SUPPORT_CG,
+		       pp_state);
+	amd_set_clockgating_by_smu(pp_handle, msg_id);
+
+	return 0;
+}
+
 static int vi_common_set_clockgating_state(void *handle,
 					   enum amd_clockgating_state state)
 {
@@ -1825,6 +1892,10 @@ static int vi_common_set_clockgating_state(void *handle,
 		vi_update_hdp_light_sleep(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		break;
+	case CHIP_TONGA:
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
+		vi_common_set_clockgating_state_by_smu(adev, state);
 	default:
 		break;
 	}

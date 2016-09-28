@@ -143,14 +143,6 @@ int amdgpu_amdkfd_resume(struct amdgpu_device *rdev)
 	return r;
 }
 
-u32 pool_to_domain(enum kgd_memory_pool p)
-{
-	switch (p) {
-	case KGD_POOL_FRAMEBUFFER: return AMDGPU_GEM_DOMAIN_VRAM;
-	default: return AMDGPU_GEM_DOMAIN_GTT;
-	}
-}
-
 int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 			void **mem_obj, uint64_t *gpu_addr,
 			void **cpu_ptr)

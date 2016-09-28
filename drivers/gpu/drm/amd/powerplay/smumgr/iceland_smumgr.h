@@ -26,39 +26,46 @@
 #ifndef _ICELAND_SMUMGR_H_
 #define _ICELAND_SMUMGR_H_
 
-struct iceland_buffer_entry {
-	uint32_t data_size;
-	uint32_t mc_addr_low;
-	uint32_t mc_addr_high;
-	void *kaddr;
-	unsigned long  handle;
+
+#include "smu7_smumgr.h"
+#include "pp_endian.h"
+#include "smu71_discrete.h"
+
+struct iceland_pt_defaults {
+	uint8_t   svi_load_line_en;
+	uint8_t   svi_load_line_vddc;
+	uint8_t   tdc_vddc_throttle_release_limit_perc;
+	uint8_t   tdc_mawt;
+	uint8_t   tdc_waterfall_ctl;
+	uint8_t   dte_ambient_temp_base;
+	uint32_t  display_cac;
+	uint32_t  bamp_temp_gradient;
+	uint16_t  bapmti_r[SMU71_DTE_ITERATIONS * SMU71_DTE_SOURCES * SMU71_DTE_SINKS];
+	uint16_t  bapmti_rc[SMU71_DTE_ITERATIONS * SMU71_DTE_SOURCES * SMU71_DTE_SINKS];
 };
 
-/* Iceland only has header_buffer, don't have smu buffer. */
+struct iceland_mc_reg_entry {
+	uint32_t mclk_max;
+	uint32_t mc_data[SMU71_DISCRETE_MC_REGISTER_ARRAY_SIZE];
+};
+
+struct iceland_mc_reg_table {
+	uint8_t   last;               /* number of registers*/
+	uint8_t   num_entries;        /* number of entries in mc_reg_table_entry used*/
+	uint16_t  validflag;          /* indicate the corresponding register is valid or not. 1: valid, 0: invalid. bit0->address[0], bit1->address[1], etc.*/
+	struct iceland_mc_reg_entry    mc_reg_table_entry[MAX_AC_TIMING_ENTRIES];
+	SMU71_Discrete_MCRegisterAddress mc_reg_address[SMU71_DISCRETE_MC_REGISTER_ARRAY_SIZE];
+};
+
 struct iceland_smumgr {
-	uint8_t *pHeader;
-	uint8_t *pMecImage;
-	uint32_t ulSoftRegsStart;
-
-	struct iceland_buffer_entry header_buffer;
+	struct smu7_smumgr smu7_data;
+	struct SMU71_Discrete_DpmTable       smc_state_table;
+	struct SMU71_Discrete_PmFuses  power_tune_table;
+	struct SMU71_Discrete_Ulv            ulv_setting;
+	struct iceland_pt_defaults  *power_tune_defaults;
+	SMU71_Discrete_MCRegisters      mc_regs;
+	struct iceland_mc_reg_table mc_reg_table;
+	uint32_t        activity_target[SMU71_MAX_LEVELS_GRAPHICS];
 };
-
-extern int iceland_smum_init(struct pp_smumgr *smumgr);
-extern int iceland_copy_bytes_to_smc(struct pp_smumgr *smumgr,
-				     uint32_t smcStartAddress,
-				     const uint8_t *src,
-				     uint32_t byteCount, uint32_t limit);
-
-extern int iceland_smu_start_smc(struct pp_smumgr *smumgr);
-
-extern int iceland_read_smc_sram_dword(struct pp_smumgr *smumgr,
-				       uint32_t smcAddress,
-				       uint32_t *value, uint32_t limit);
-extern int iceland_write_smc_sram_dword(struct pp_smumgr *smumgr,
-					uint32_t smcAddress,
-					uint32_t value, uint32_t limit);
-
-extern bool iceland_is_smc_ram_running(struct pp_smumgr *smumgr);
-extern int iceland_smu_upload_firmware_image(struct pp_smumgr *smumgr);
 
 #endif
