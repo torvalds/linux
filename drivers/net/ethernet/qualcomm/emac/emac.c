@@ -531,18 +531,16 @@ static void emac_clks_teardown(struct emac_adapter *adpt)
 static int emac_probe_resources(struct platform_device *pdev,
 				struct emac_adapter *adpt)
 {
-	struct device_node *node = pdev->dev.of_node;
 	struct net_device *netdev = adpt->netdev;
 	struct resource *res;
-	const void *maddr;
+	char maddr[ETH_ALEN];
 	int ret = 0;
 
 	/* get mac address */
-	maddr = of_get_mac_address(node);
-	if (!maddr)
-		eth_hw_addr_random(netdev);
-	else
+	if (device_get_mac_address(&pdev->dev, maddr, ETH_ALEN))
 		ether_addr_copy(netdev->dev_addr, maddr);
+	else
+		eth_hw_addr_random(netdev);
 
 	/* Core 0 interrupt */
 	ret = platform_get_irq(pdev, 0);
