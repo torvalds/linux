@@ -678,19 +678,19 @@ struct hfa384x_ScanResult {
 } __packed;
 
 /*--  Inquiry Frame, Diagnose: ChInfo Results & Subfields--*/
-typedef struct hfa384x_ChInfoResultSub {
+struct hfa384x_ChInfoResultSub {
 	u16 chid;
 	u16 anl;
 	u16 pnl;
 	u16 active;
-} __packed hfa384x_ChInfoResultSub_t;
+} __packed;
 
 #define HFA384x_CHINFORESULT_BSSACTIVE	BIT(0)
 #define HFA384x_CHINFORESULT_PCFACTIVE	BIT(1)
 
 typedef struct hfa384x_ChInfoResult {
 	u16 scanchannels;
-	hfa384x_ChInfoResultSub_t result[HFA384x_CHINFORESULT_MAX];
+	struct hfa384x_ChInfoResultSub result[HFA384x_CHINFORESULT_MAX];
 } __packed hfa384x_ChInfoResult_t;
 
 /*--  Inquiry Frame, Diagnose: Host Scan Results & Subfields--*/
