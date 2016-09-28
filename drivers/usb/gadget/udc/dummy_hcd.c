@@ -503,7 +503,7 @@ static int dummy_enable(struct usb_ep *_ep,
 	 * maximum packet size.
 	 * For SS devices the wMaxPacketSize is limited by 1024.
 	 */
-	max = usb_endpoint_maxp(desc) & 0x7ff;
+	max = usb_endpoint_maxp(desc);
 
 	/* drivers must not request bad settings, since lower levels
 	 * (hardware or its drivers) may not check.  some endpoints
