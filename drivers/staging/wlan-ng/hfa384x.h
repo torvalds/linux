@@ -937,9 +937,9 @@ struct hfa384x_pdr_pcb_tracenum {
 	u8 num[8];
 } __packed;
 
-typedef struct hfa384x_pdr_nic_serial {
+struct hfa384x_pdr_nic_serial {
 	u8 num[12];
-} __packed hfa384x_pdr_nic_serial_t;
+} __packed;
 
 typedef struct hfa384x_pdr_mkk_measurements {
 	double carrier_freq;
@@ -1096,7 +1096,7 @@ typedef struct hfa384x_pdrec {
 	union pdr {
 		struct hfa384x_pdr_pcb_partnum pcb_partnum;
 		struct hfa384x_pdr_pcb_tracenum pcb_tracenum;
-		hfa384x_pdr_nic_serial_t nic_serial;
+		struct hfa384x_pdr_nic_serial nic_serial;
 		hfa384x_pdr_mkk_measurements_t mkk_measurements;
 		hfa384x_pdr_nic_ramsize_t nic_ramsize;
 		hfa384x_pdr_mfisuprange_t mfisuprange;
