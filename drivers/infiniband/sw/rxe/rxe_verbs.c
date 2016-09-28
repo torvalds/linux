@@ -100,10 +100,12 @@ static int rxe_query_port(struct ib_device *dev,
 		rxe->ndev->ethtool_ops->get_settings(rxe->ndev, &cmd);
 		speed = cmd.speed;
 	} else {
-		pr_warn("%s speed is unknown, defaulting to 1000\n", rxe->ndev->name);
+		pr_warn("%s speed is unknown, defaulting to 1000\n",
+			rxe->ndev->name);
 		speed = 1000;
 	}
-	rxe_eth_speed_to_ib_speed(speed, &attr->active_speed, &attr->active_width);
+	rxe_eth_speed_to_ib_speed(speed, &attr->active_speed,
+				  &attr->active_width);
 	mutex_unlock(&rxe->usdev_lock);
 
 	return 0;
@@ -761,7 +763,7 @@ static int init_send_wqe(struct rxe_qp *qp, struct ib_send_wr *ibwr,
 }
 
 static int post_one_send(struct rxe_qp *qp, struct ib_send_wr *ibwr,
-			 unsigned mask, u32 length)
+			 unsigned int mask, u32 length)
 {
 	int err;
 	struct rxe_sq *sq = &qp->sq;
@@ -1145,8 +1147,8 @@ static int rxe_set_page(struct ib_mr *ibmr, u64 addr)
 	return 0;
 }
 
-static int rxe_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
-			 unsigned int *sg_offset)
+static int rxe_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
+			 int sg_nents, unsigned int *sg_offset)
 {
 	struct rxe_mem *mr = to_rmr(ibmr);
 	int n;

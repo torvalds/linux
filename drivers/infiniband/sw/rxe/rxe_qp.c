@@ -298,8 +298,8 @@ static int rxe_qp_init_resp(struct rxe_dev *rxe, struct rxe_qp *qp,
 
 		wqe_size = rcv_wqe_size(qp->rq.max_sge);
 
-		pr_debug("max_wr = %d, max_sge = %d, wqe_size = %d\n",
-			 qp->rq.max_wr, qp->rq.max_sge, wqe_size);
+		pr_debug("qp#%d max_wr = %d, max_sge = %d, wqe_size = %d\n",
+			 qp_num(qp), qp->rq.max_wr, qp->rq.max_sge, wqe_size);
 
 		qp->rq.queue = rxe_queue_init(rxe,
 					      &qp->rq.max_wr,
@@ -680,24 +680,27 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 	if (mask & IB_QP_RETRY_CNT) {
 		qp->attr.retry_cnt = attr->retry_cnt;
 		qp->comp.retry_cnt = attr->retry_cnt;
-		pr_debug("set retry count = %d\n", attr->retry_cnt);
+		pr_debug("qp#%d set retry count = %d\n", qp_num(qp),
+			 attr->retry_cnt);
 	}
 
 	if (mask & IB_QP_RNR_RETRY) {
 		qp->attr.rnr_retry = attr->rnr_retry;
 		qp->comp.rnr_retry = attr->rnr_retry;
-		pr_debug("set rnr retry count = %d\n", attr->rnr_retry);
+		pr_debug("qp#%d set rnr retry count = %d\n", qp_num(qp),
+			 attr->rnr_retry);
 	}
 
 	if (mask & IB_QP_RQ_PSN) {
 		qp->attr.rq_psn = (attr->rq_psn & BTH_PSN_MASK);
 		qp->resp.psn = qp->attr.rq_psn;
-		pr_debug("set resp psn = 0x%x\n", qp->resp.psn);
+		pr_debug("qp#%d set resp psn = 0x%x\n", qp_num(qp),
+			 qp->resp.psn);
 	}
 
 	if (mask & IB_QP_MIN_RNR_TIMER) {
 		qp->attr.min_rnr_timer = attr->min_rnr_timer;
-		pr_debug("set min rnr timer = 0x%x\n",
+		pr_debug("qp#%d set min rnr timer = 0x%x\n", qp_num(qp),
 			 attr->min_rnr_timer);
 	}
 
@@ -705,7 +708,7 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 		qp->attr.sq_psn = (attr->sq_psn & BTH_PSN_MASK);
 		qp->req.psn = qp->attr.sq_psn;
 		qp->comp.psn = qp->attr.sq_psn;
-		pr_debug("set req psn = 0x%x\n", qp->req.psn);
+		pr_debug("qp#%d set req psn = 0x%x\n", qp_num(qp), qp->req.psn);
 	}
 
 	if (mask & IB_QP_PATH_MIG_STATE)
@@ -719,38 +722,38 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 
 		switch (attr->qp_state) {
 		case IB_QPS_RESET:
-			pr_debug("qp state -> RESET\n");
+			pr_debug("qp#%d state -> RESET\n", qp_num(qp));
 			rxe_qp_reset(qp);
 			break;
 
 		case IB_QPS_INIT:
-			pr_debug("qp state -> INIT\n");
+			pr_debug("qp#%d state -> INIT\n", qp_num(qp));
 			qp->req.state = QP_STATE_INIT;
 			qp->resp.state = QP_STATE_INIT;
 			break;
 
 		case IB_QPS_RTR:
-			pr_debug("qp state -> RTR\n");
+			pr_debug("qp#%d state -> RTR\n", qp_num(qp));
 			qp->resp.state = QP_STATE_READY;
 			break;
 
 		case IB_QPS_RTS:
-			pr_debug("qp state -> RTS\n");
+			pr_debug("qp#%d state -> RTS\n", qp_num(qp));
 			qp->req.state = QP_STATE_READY;
 			break;
 
 		case IB_QPS_SQD:
-			pr_debug("qp state -> SQD\n");
+			pr_debug("qp#%d state -> SQD\n", qp_num(qp));
 			rxe_qp_drain(qp);
 			break;
 
 		case IB_QPS_SQE:
-			pr_warn("qp state -> SQE !!?\n");
+			pr_warn("qp#%d state -> SQE !!?\n", qp_num(qp));
 			/* Not possible from modify_qp. */
 			break;
 
 		case IB_QPS_ERR:
-			pr_debug("qp state -> ERR\n");
+			pr_debug("qp#%d state -> ERR\n", qp_num(qp));
 			rxe_qp_error(qp);
 			break;
 		}
