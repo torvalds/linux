@@ -504,7 +504,7 @@ s_uFillDataHead(
 )
 {
 
-	if (pTxDataHead == NULL)
+	if (!pTxDataHead)
 		return 0;
 
 
@@ -648,7 +648,7 @@ s_vFillRTSHead(
 {
 	unsigned int uRTSFrameLen = 20;
 
-	if (pvRTS == NULL)
+	if (!pvRTS)
 		return;
 
 	if (bDisCRC) {
@@ -843,7 +843,7 @@ s_vFillCTSHead(
 {
 	unsigned int uCTSFrameLen = 14;
 
-	if (pvCTS == NULL)
+	if (!pvCTS)
 		return;
 
 	if (bDisCRC) {
@@ -1009,7 +1009,7 @@ s_vGenerateTxParameter(
 
 			/* Fill RTS */
 			s_vFillRTSHead(pDevice, byPktType, pvRTS, cbFrameSize, bNeedACK, bDisCRC, psEthHeader, wCurrentRate, byFBOption);
-		} else if (pvRTS == NULL) {/* RTS_needless, non PCF mode */
+		} else if (!pvRTS) {/* RTS_needless, non PCF mode */
 			struct vnt_rrv_time_ab *buf = pvRrvTime;
 
 			buf->rrv_time = vnt_rxtx_rsvtime_le16(pDevice, PK_TYPE_11A, cbFrameSize, wCurrentRate, bNeedACK);
