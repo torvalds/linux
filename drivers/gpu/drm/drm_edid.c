@@ -3738,9 +3738,9 @@ EXPORT_SYMBOL(drm_rgb_quant_range_selectable);
  * Return true if HDMI deep color supported, false if not or unknown.
  */
 static bool drm_assign_hdmi_deep_color_info(struct edid *edid,
-                                            struct drm_display_info *info,
                                             struct drm_connector *connector)
 {
+	struct drm_display_info *info = &connector->display_info;
 	u8 *edid_ext, *hdmi;
 	int i;
 	int start_offset, end_offset;
@@ -3828,9 +3828,9 @@ static bool drm_assign_hdmi_deep_color_info(struct edid *edid,
 }
 
 static void drm_add_display_info(struct edid *edid,
-                                 struct drm_display_info *info,
                                  struct drm_connector *connector)
 {
+	struct drm_display_info *info = &connector->display_info;
 	u8 *edid_ext;
 
 	info->width_mm = edid->width_cm * 10;
@@ -3860,7 +3860,7 @@ static void drm_add_display_info(struct edid *edid,
 	}
 
 	/* HDMI deep color modes supported? Assign to info, if so */
-	drm_assign_hdmi_deep_color_info(edid, info, connector);
+	drm_assign_hdmi_deep_color_info(edid, connector);
 
 	/*
 	 * Digital sink with "DFP 1.x compliant TMDS" according to EDID 1.3?
@@ -4096,7 +4096,7 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 	if (quirks & (EDID_QUIRK_PREFER_LARGE_60 | EDID_QUIRK_PREFER_LARGE_75))
 		edid_fixup_preferred(connector, quirks);
 
-	drm_add_display_info(edid, &connector->display_info, connector);
+	drm_add_display_info(edid, connector);
 
 	if (quirks & EDID_QUIRK_FORCE_6BPC)
 		connector->display_info.bpc = 6;
