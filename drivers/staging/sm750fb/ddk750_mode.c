@@ -4,15 +4,14 @@
 #include "ddk750_mode.h"
 #include "ddk750_chip.h"
 
-/*
-	SM750LE only:
-    This function takes care extra registers and bit fields required to set
-    up a mode in SM750LE
-
-	Explanation about Display Control register:
-    HW only supports 7 predefined pixel clocks, and clock select is
-    in bit 29:27 of	Display Control register.
-*/
+/* SM750LE only:
+ * This function takes care extra registers and bit fields required to set
+ * up a mode in SM750LE
+ *
+ * Explanation about Display Control register:
+ * HW only supports 7 predefined pixel clocks, and clock select is
+ * in bit 29:27 of Display Control register.
+ */
 static unsigned long displayControlAdjust_SM750LE(mode_parameter_t *pModeParam, unsigned long dispControl)
 {
 	unsigned long x, y;
@@ -21,9 +20,9 @@ static unsigned long displayControlAdjust_SM750LE(mode_parameter_t *pModeParam, 
 	y = pModeParam->vertical_display_end;
 
 	/* SM750LE has to set up the top-left and bottom-right
-	   registers as well.
-	   Note that normal SM750/SM718 only use those two register for
-	   auto-centering mode.
+	 * registers as well.
+	 * Note that normal SM750/SM718 only use those two register for
+	 * auto-centering mode.
 	 */
 	POKE32(CRT_AUTO_CENTERING_TL, 0);
 
@@ -33,8 +32,8 @@ static unsigned long displayControlAdjust_SM750LE(mode_parameter_t *pModeParam, 
 		((x - 1) & CRT_AUTO_CENTERING_BR_RIGHT_MASK));
 
 	/* Assume common fields in dispControl have been properly set before
-	   calling this function.
-	   This function only sets the extra fields in dispControl.
+	 * calling this function.
+	 * This function only sets the extra fields in dispControl.
 	 */
 
 	/* Clear bit 29:27 of display control register */
