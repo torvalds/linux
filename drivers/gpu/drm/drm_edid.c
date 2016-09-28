@@ -3733,105 +3733,110 @@ bool drm_rgb_quant_range_selectable(struct edid *edid)
 }
 EXPORT_SYMBOL(drm_rgb_quant_range_selectable);
 
-/*
- * Parse the CEA extension according to CEA-861-B.
- * Return true if HDMI deep color supported, false if not or unknown.
- */
-static bool drm_assign_hdmi_deep_color_info(struct edid *edid,
-                                            struct drm_connector *connector)
+static void drm_parse_hdmi_deep_color_info(struct drm_connector *connector,
+					   const u8 *hdmi)
 {
 	struct drm_display_info *info = &connector->display_info;
-	u8 *edid_ext, *hdmi;
-	int i;
-	int start_offset, end_offset;
 	unsigned int dc_bpc = 0;
+
+	/* HDMI supports at least 8 bpc */
+	info->bpc = 8;
+
+	if (cea_db_payload_len(hdmi) < 6)
+		return;
+
+	if (hdmi[6] & DRM_EDID_HDMI_DC_30) {
+		dc_bpc = 10;
+		info->edid_hdmi_dc_modes |= DRM_EDID_HDMI_DC_30;
+		DRM_DEBUG("%s: HDMI sink does deep color 30.\n",
+			  connector->name);
+	}
+
+	if (hdmi[6] & DRM_EDID_HDMI_DC_36) {
+		dc_bpc = 12;
+		info->edid_hdmi_dc_modes |= DRM_EDID_HDMI_DC_36;
+		DRM_DEBUG("%s: HDMI sink does deep color 36.\n",
+			  connector->name);
+	}
+
+	if (hdmi[6] & DRM_EDID_HDMI_DC_48) {
+		dc_bpc = 16;
+		info->edid_hdmi_dc_modes |= DRM_EDID_HDMI_DC_48;
+		DRM_DEBUG("%s: HDMI sink does deep color 48.\n",
+			  connector->name);
+	}
+
+	if (dc_bpc == 0) {
+		DRM_DEBUG("%s: No deep color support on this HDMI sink.\n",
+			  connector->name);
+		return;
+	}
+
+	DRM_DEBUG("%s: Assigning HDMI sink color depth as %d bpc.\n",
+		  connector->name, dc_bpc);
+	info->bpc = dc_bpc;
+
+	/*
+	 * Deep color support mandates RGB444 support for all video
+	 * modes and forbids YCRCB422 support for all video modes per
+	 * HDMI 1.3 spec.
+	 */
+	info->color_formats = DRM_COLOR_FORMAT_RGB444;
+
+	/* YCRCB444 is optional according to spec. */
+	if (hdmi[6] & DRM_EDID_HDMI_DC_Y444) {
+		info->color_formats |= DRM_COLOR_FORMAT_YCRCB444;
+		DRM_DEBUG("%s: HDMI sink does YCRCB444 in deep color.\n",
+			  connector->name);
+	}
+
+	/*
+	 * Spec says that if any deep color mode is supported at all,
+	 * then deep color 36 bit must be supported.
+	 */
+	if (!(hdmi[6] & DRM_EDID_HDMI_DC_36)) {
+		DRM_DEBUG("%s: HDMI sink should do DC_36, but does not!\n",
+			  connector->name);
+	}
+}
+
+static void drm_parse_cea_ext(struct drm_connector *connector,
+			      struct edid *edid)
+{
+	struct drm_display_info *info = &connector->display_info;
+	const u8 *edid_ext;
+	int i, start, end;
 
 	edid_ext = drm_find_cea_extension(edid);
 	if (!edid_ext)
-		return false;
+		return;
 
-	if (cea_db_offsets(edid_ext, &start_offset, &end_offset))
-		return false;
+	info->cea_rev = edid_ext[1];
 
-	/*
-	 * Because HDMI identifier is in Vendor Specific Block,
-	 * search it from all data blocks of CEA extension.
-	 */
-	for_each_cea_db(edid_ext, i, start_offset, end_offset) {
-		if (cea_db_is_hdmi_vsdb(&edid_ext[i])) {
-			/* HDMI supports at least 8 bpc */
-			info->bpc = 8;
+	/* The existence of a CEA block should imply RGB support */
+	info->color_formats = DRM_COLOR_FORMAT_RGB444;
+	if (edid_ext[3] & EDID_CEA_YCRCB444)
+		info->color_formats |= DRM_COLOR_FORMAT_YCRCB444;
+	if (edid_ext[3] & EDID_CEA_YCRCB422)
+		info->color_formats |= DRM_COLOR_FORMAT_YCRCB422;
 
-			hdmi = &edid_ext[i];
-			if (cea_db_payload_len(hdmi) < 6)
-				return false;
+	if (cea_db_offsets(edid_ext, &start, &end))
+		return;
 
-			if (hdmi[6] & DRM_EDID_HDMI_DC_30) {
-				dc_bpc = 10;
-				info->edid_hdmi_dc_modes |= DRM_EDID_HDMI_DC_30;
-				DRM_DEBUG("%s: HDMI sink does deep color 30.\n",
-						  connector->name);
-			}
+	for_each_cea_db(edid_ext, i, start, end) {
+		const u8 *db = &edid_ext[i];
 
-			if (hdmi[6] & DRM_EDID_HDMI_DC_36) {
-				dc_bpc = 12;
-				info->edid_hdmi_dc_modes |= DRM_EDID_HDMI_DC_36;
-				DRM_DEBUG("%s: HDMI sink does deep color 36.\n",
-						  connector->name);
-			}
+		if (!cea_db_is_hdmi_vsdb(db))
+			continue;
 
-			if (hdmi[6] & DRM_EDID_HDMI_DC_48) {
-				dc_bpc = 16;
-				info->edid_hdmi_dc_modes |= DRM_EDID_HDMI_DC_48;
-				DRM_DEBUG("%s: HDMI sink does deep color 48.\n",
-						  connector->name);
-			}
-
-			if (dc_bpc > 0) {
-				DRM_DEBUG("%s: Assigning HDMI sink color depth as %d bpc.\n",
-						  connector->name, dc_bpc);
-				info->bpc = dc_bpc;
-
-				/*
-				 * Deep color support mandates RGB444 support for all video
-				 * modes and forbids YCRCB422 support for all video modes per
-				 * HDMI 1.3 spec.
-				 */
-				info->color_formats = DRM_COLOR_FORMAT_RGB444;
-
-				/* YCRCB444 is optional according to spec. */
-				if (hdmi[6] & DRM_EDID_HDMI_DC_Y444) {
-					info->color_formats |= DRM_COLOR_FORMAT_YCRCB444;
-					DRM_DEBUG("%s: HDMI sink does YCRCB444 in deep color.\n",
-							  connector->name);
-				}
-
-				/*
-				 * Spec says that if any deep color mode is supported at all,
-				 * then deep color 36 bit must be supported.
-				 */
-				if (!(hdmi[6] & DRM_EDID_HDMI_DC_36)) {
-					DRM_DEBUG("%s: HDMI sink should do DC_36, but does not!\n",
-							  connector->name);
-				}
-
-				return true;
-			}
-			else {
-				DRM_DEBUG("%s: No deep color support on this HDMI sink.\n",
-						  connector->name);
-			}
-		}
+		drm_parse_hdmi_deep_color_info(connector, db);
 	}
-
-	return false;
 }
 
-static void drm_add_display_info(struct edid *edid,
-                                 struct drm_connector *connector)
+static void drm_add_display_info(struct drm_connector *connector,
+				 struct edid *edid)
 {
 	struct drm_display_info *info = &connector->display_info;
-	u8 *edid_ext;
 
 	info->width_mm = edid->width_cm * 10;
 	info->height_mm = edid->height_cm * 10;
@@ -3846,21 +3851,7 @@ static void drm_add_display_info(struct edid *edid,
 	if (!(edid->input & DRM_EDID_INPUT_DIGITAL))
 		return;
 
-	/* Get data from CEA blocks if present */
-	edid_ext = drm_find_cea_extension(edid);
-	if (edid_ext) {
-		info->cea_rev = edid_ext[1];
-
-		/* The existence of a CEA block should imply RGB support */
-		info->color_formats = DRM_COLOR_FORMAT_RGB444;
-		if (edid_ext[3] & EDID_CEA_YCRCB444)
-			info->color_formats |= DRM_COLOR_FORMAT_YCRCB444;
-		if (edid_ext[3] & EDID_CEA_YCRCB422)
-			info->color_formats |= DRM_COLOR_FORMAT_YCRCB422;
-	}
-
-	/* HDMI deep color modes supported? Assign to info, if so */
-	drm_assign_hdmi_deep_color_info(edid, connector);
+	drm_parse_cea_ext(connector, edid);
 
 	/*
 	 * Digital sink with "DFP 1.x compliant TMDS" according to EDID 1.3?
@@ -4096,7 +4087,7 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 	if (quirks & (EDID_QUIRK_PREFER_LARGE_60 | EDID_QUIRK_PREFER_LARGE_75))
 		edid_fixup_preferred(connector, quirks);
 
-	drm_add_display_info(edid, connector);
+	drm_add_display_info(connector, edid);
 
 	if (quirks & EDID_QUIRK_FORCE_6BPC)
 		connector->display_info.bpc = 6;
