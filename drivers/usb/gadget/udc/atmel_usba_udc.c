@@ -573,7 +573,7 @@ usba_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 		 * Bits 11:12 specify number of _additional_
 		 * transactions per microframe.
 		 */
-		nr_trans = ((usb_endpoint_maxp(desc) >> 11) & 3) + 1;
+		nr_trans = usb_endpoint_maxp_mult(desc);
 		if (nr_trans > 3)
 			return -EINVAL;
 
