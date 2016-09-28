@@ -742,6 +742,8 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [1] = SCA_SIGNUM, /* sig */ }, },
 	{ .name	    = "rt_tgsigqueueinfo", .errmsg = true,
 	  .arg_scnprintf = { [2] = SCA_SIGNUM, /* sig */ }, },
+	{ .name	    = "sched_getattr",	      .errmsg = true, },
+	{ .name	    = "sched_setattr",	      .errmsg = true, },
 	{ .name	    = "sched_setscheduler",   .errmsg = true,
 	  .arg_scnprintf = { [1] = SCA_SCHED_POLICY, /* policy */ }, },
 	{ .name	    = "seccomp", .errmsg = true,
