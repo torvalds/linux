@@ -89,10 +89,16 @@ static void virtio_gpu_unref_list(struct list_head *head)
 	}
 }
 
-static int virtio_gpu_execbuffer(struct drm_device *dev,
-				 struct drm_virtgpu_execbuffer *exbuf,
+/*
+ * Usage of execbuffer:
+ * Relocations need to take into account the full VIRTIO_GPUDrawable size.
+ * However, the command as passed from user space must *not* contain the initial
+ * VIRTIO_GPUReleaseInfo struct (first XXX bytes)
+ */
+static int virtio_gpu_execbuffer_ioctl(struct drm_device *dev, void *data,
 				 struct drm_file *drm_file)
 {
+	struct drm_virtgpu_execbuffer *exbuf = data;
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 	struct virtio_gpu_fpriv *vfpriv = drm_file->driver_priv;
 	struct drm_gem_object *gobj;
@@ -176,20 +182,6 @@ out_free:
 	drm_free_large(buflist);
 	return ret;
 }
-
-/*
- * Usage of execbuffer:
- * Relocations need to take into account the full VIRTIO_GPUDrawable size.
- * However, the command as passed from user space must *not* contain the initial
- * VIRTIO_GPUReleaseInfo struct (first XXX bytes)
- */
-static int virtio_gpu_execbuffer_ioctl(struct drm_device *dev, void *data,
-				       struct drm_file *file_priv)
-{
-	struct drm_virtgpu_execbuffer *execbuffer = data;
-	return virtio_gpu_execbuffer(dev, execbuffer, file_priv);
-}
-
 
 static int virtio_gpu_getparam_ioctl(struct drm_device *dev, void *data,
 				     struct drm_file *file_priv)
