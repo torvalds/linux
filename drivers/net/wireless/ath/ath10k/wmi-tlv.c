@@ -3464,7 +3464,6 @@ static struct wmi_vdev_param_map wmi_tlv_vdev_param_map = {
 	.meru_vc = WMI_VDEV_PARAM_UNSUPPORTED,
 	.rx_decap_type = WMI_VDEV_PARAM_UNSUPPORTED,
 	.bw_nss_ratemask = WMI_VDEV_PARAM_UNSUPPORTED,
-	.set_tsf = WMI_VDEV_PARAM_UNSUPPORTED,
 };
 
 static const struct wmi_ops wmi_tlv_ops = {

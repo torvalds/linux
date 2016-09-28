@@ -4676,7 +4676,6 @@ struct wmi_vdev_param_map {
 	u32 meru_vc;
 	u32 rx_decap_type;
 	u32 bw_nss_ratemask;
-	u32 set_tsf;
 	u32 inc_tsf;
 	u32 dec_tsf;
 };
