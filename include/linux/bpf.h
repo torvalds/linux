@@ -139,6 +139,13 @@ enum bpf_reg_type {
 	 */
 	PTR_TO_PACKET,
 	PTR_TO_PACKET_END,	 /* skb->data + headlen */
+
+	/* PTR_TO_MAP_VALUE_ADJ is used for doing pointer math inside of a map
+	 * elem value.  We only allow this if we can statically verify that
+	 * access from this register are going to fall within the size of the
+	 * map element.
+	 */
+	PTR_TO_MAP_VALUE_ADJ,
 };
 
 struct bpf_prog;
