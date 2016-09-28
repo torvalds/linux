@@ -2,7 +2,7 @@
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -612,18 +612,6 @@ static int iwl_pcie_txq_init(struct iwl_trans *trans, struct iwl_txq *txq,
 
 	__skb_queue_head_init(&txq->overflow_q);
 
-	/*
-	 * Tell nic where to find circular buffer of Tx Frame Descriptors for
-	 * given Tx queue, and enable the DMA channel used for that queue.
-	 * Circular buffer (TFD queue in DRAM) physical base address */
-	if (trans->cfg->use_tfh)
-		iwl_write_direct64(trans,
-				   FH_MEM_CBBC_QUEUE(trans, txq_id),
-				   txq->dma_addr);
-	else
-		iwl_write_direct32(trans, FH_MEM_CBBC_QUEUE(trans, txq_id),
-				   txq->dma_addr >> 8);
-
 	return 0;
 }
 
@@ -774,9 +762,6 @@ void iwl_pcie_tx_start(struct iwl_trans *trans, u32 scd_base_addr)
 	/* make sure all queue are not stopped/used */
 	memset(trans_pcie->queue_stopped, 0, sizeof(trans_pcie->queue_stopped));
 	memset(trans_pcie->queue_used, 0, sizeof(trans_pcie->queue_used));
-
-	if (trans->cfg->use_tfh)
-		return;
 
 	trans_pcie->scd_base_addr =
 		iwl_read_prph(trans, SCD_SRAM_BASE_ADDR);
@@ -1009,6 +994,7 @@ error:
 
 	return ret;
 }
+
 int iwl_pcie_tx_init(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -1045,14 +1031,15 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 			IWL_ERR(trans, "Tx %d queue init failed\n", txq_id);
 			goto error;
 		}
-	}
 
-	if (trans->cfg->use_tfh) {
-		iwl_write_direct32(trans, TFH_TRANSFER_MODE,
-				   TFH_TRANSFER_MAX_PENDING_REQ |
-				   TFH_CHUNK_SIZE_128 |
-				   TFH_CHUNK_SPLIT_MODE);
-		return 0;
+		/*
+		 * Tell nic where to find circular buffer of TFDs for a
+		 * given Tx queue, and enable the DMA channel used for that
+		 * queue.
+		 * Circular buffer (TFD queue in DRAM) physical base address
+		 */
+		iwl_write_direct32(trans, FH_MEM_CBBC_QUEUE(trans, txq_id),
+				   trans_pcie->txq[txq_id].dma_addr >> 8);
 	}
 
 	iwl_set_bits_prph(trans, SCD_GP_CTRL, SCD_GP_CTRL_AUTO_ACTIVE_MODE);
@@ -1063,6 +1050,51 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 	return 0;
 error:
 	/*Upon error, free only if we allocated something */
+	if (alloc)
+		iwl_pcie_tx_free(trans);
+	return ret;
+}
+
+int iwl_pcie_gen2_tx_init(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	int ret;
+	int txq_id, slots_num;
+	bool alloc = false;
+
+	if (!trans_pcie->txq) {
+		/* TODO: change this when moving to new TX alloc model */
+		ret = iwl_pcie_tx_alloc(trans);
+		if (ret)
+			goto error;
+		alloc = true;
+	}
+
+	spin_lock(&trans_pcie->irq_lock);
+
+	/* Tell NIC where to find the "keep warm" buffer */
+	iwl_write_direct32(trans, FH_KW_MEM_ADDR_REG,
+			   trans_pcie->kw.dma >> 4);
+
+	spin_unlock(&trans_pcie->irq_lock);
+
+	/* TODO: remove this when moving to new TX alloc model */
+	for (txq_id = 0; txq_id < trans->cfg->base_params->num_of_queues;
+	     txq_id++) {
+		slots_num = (txq_id == trans_pcie->cmd_queue) ?
+					TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
+		ret = iwl_pcie_txq_init(trans, &trans_pcie->txq[txq_id],
+					slots_num, txq_id);
+		if (ret) {
+			IWL_ERR(trans, "Tx %d queue init failed\n", txq_id);
+			goto error;
+		}
+	}
+
+	return 0;
+
+error:
+	/* Upon error, free only if we allocated something */
 	if (alloc)
 		iwl_pcie_tx_free(trans);
 	return ret;

@@ -80,6 +80,7 @@
 #include "iwl-prph.h"
 #include "iwl-scd.h"
 #include "iwl-agn-hw.h"
+#include "iwl-context-info.h"
 #include "iwl-fw-error-dump.h"
 #include "internal.h"
 #include "iwl-fh.h"
@@ -201,7 +202,7 @@ static void iwl_pcie_set_pwr(struct iwl_trans *trans, bool vaux)
 /* PCI registers */
 #define PCI_CFG_RETRY_TIMEOUT	0x041
 
-static void iwl_pcie_apm_config(struct iwl_trans *trans)
+void iwl_pcie_apm_config(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u16 lctl;
@@ -567,7 +568,7 @@ static int iwl_pcie_set_hw_ready(struct iwl_trans *trans)
 }
 
 /* Note: returns standard 0/-ERROR code */
-static int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
+int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 {
 	int ret;
 	int t = 0;
@@ -636,29 +637,6 @@ static void iwl_pcie_load_firmware_chunk_fh(struct iwl_trans *trans,
 		    FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_ENDTFD);
 }
 
-static void iwl_pcie_load_firmware_chunk_tfh(struct iwl_trans *trans,
-					     u32 dst_addr, dma_addr_t phy_addr,
-					     u32 byte_cnt)
-{
-	/* Stop DMA channel */
-	iwl_write32(trans, TFH_SRV_DMA_CHNL0_CTRL, 0);
-
-	/* Configure SRAM address */
-	iwl_write32(trans, TFH_SRV_DMA_CHNL0_SRAM_ADDR,
-		    dst_addr);
-
-	/* Configure DRAM address - 64 bit */
-	iwl_write64(trans, TFH_SRV_DMA_CHNL0_DRAM_ADDR, phy_addr);
-
-	/* Configure byte count to transfer */
-	iwl_write32(trans, TFH_SRV_DMA_CHNL0_BC, byte_cnt);
-
-	/* Enable the DRAM2SRAM to start */
-	iwl_write32(trans, TFH_SRV_DMA_CHNL0_CTRL, TFH_SRV_DMA_SNOOP |
-						   TFH_SRV_DMA_TO_DRIVER |
-						   TFH_SRV_DMA_START);
-}
-
 static int iwl_pcie_load_firmware_chunk(struct iwl_trans *trans,
 					u32 dst_addr, dma_addr_t phy_addr,
 					u32 byte_cnt)
@@ -672,12 +650,8 @@ static int iwl_pcie_load_firmware_chunk(struct iwl_trans *trans,
 	if (!iwl_trans_grab_nic_access(trans, &flags))
 		return -EIO;
 
-	if (trans->cfg->use_tfh)
-		iwl_pcie_load_firmware_chunk_tfh(trans, dst_addr, phy_addr,
-						 byte_cnt);
-	else
-		iwl_pcie_load_firmware_chunk_fh(trans, dst_addr, phy_addr,
-						byte_cnt);
+	iwl_pcie_load_firmware_chunk_fh(trans, dst_addr, phy_addr,
+					byte_cnt);
 	iwl_trans_release_nic_access(trans, &flags);
 
 	ret = wait_event_timeout(trans_pcie->ucode_write_waitq,
@@ -828,15 +802,10 @@ static int iwl_pcie_load_cpu_sections_8000(struct iwl_trans *trans,
 			return ret;
 
 		/* Notify ucode of loaded section number and status */
-		if (trans->cfg->use_tfh) {
-			val = iwl_read_prph(trans, UREG_UCODE_LOAD_STATUS);
-			val = val | (sec_num << shift_param);
-			iwl_write_prph(trans, UREG_UCODE_LOAD_STATUS, val);
-		} else {
-			val = iwl_read_direct32(trans, FH_UCODE_LOAD_STATUS);
-			val = val | (sec_num << shift_param);
-			iwl_write_direct32(trans, FH_UCODE_LOAD_STATUS, val);
-		}
+		val = iwl_read_direct32(trans, FH_UCODE_LOAD_STATUS);
+		val = val | (sec_num << shift_param);
+		iwl_write_direct32(trans, FH_UCODE_LOAD_STATUS, val);
+
 		sec_num = (sec_num << 1) | 0x1;
 	}
 
@@ -1072,7 +1041,7 @@ static int iwl_pcie_load_given_ucode_8000(struct iwl_trans *trans,
 					       &first_ucode_section);
 }
 
-static bool iwl_trans_check_hw_rf_kill(struct iwl_trans *trans)
+bool iwl_trans_check_hw_rf_kill(struct iwl_trans *trans)
 {
 	bool hw_rfkill = iwl_is_rfkill_set(trans);
 
@@ -1244,6 +1213,9 @@ static void _iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool low_power)
 		}
 	}
 
+	iwl_pcie_ctxt_info_free_paging(trans);
+	iwl_pcie_ctxt_info_free(trans);
+
 	/* Make sure (redundant) we've released our request to stay awake */
 	iwl_clear_bit(trans, CSR_GP_CNTRL,
 		      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
@@ -1309,7 +1281,7 @@ static void _iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool low_power)
 	iwl_pcie_prepare_card_hw(trans);
 }
 
-static void iwl_pcie_synchronize_irqs(struct iwl_trans *trans)
+void iwl_pcie_synchronize_irqs(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
@@ -2942,8 +2914,8 @@ static const struct iwl_trans_ops trans_ops_pcie_gen2 = {
 	IWL_TRANS_COMMON_OPS,
 	IWL_TRANS_PM_OPS
 	.start_hw = iwl_trans_pcie_start_hw,
-	.fw_alive = iwl_trans_pcie_fw_alive,
-	.start_fw = iwl_trans_pcie_start_fw,
+	.fw_alive = iwl_trans_pcie_gen2_fw_alive,
+	.start_fw = iwl_trans_pcie_gen2_start_fw,
 	.stop_device = iwl_trans_pcie_stop_device,
 
 	.send_cmd = iwl_trans_pcie_send_hcmd,

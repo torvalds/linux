@@ -309,6 +309,7 @@
  * Note this address is cleared after MAC reset.
  */
 #define UREG_UCODE_LOAD_STATUS		(0xa05c40)
+#define UREG_CPU_INIT_RUN		(0xa05c44)
 
 #define LMPM_SECURE_UCODE_LOAD_CPU1_HDR_ADDR	(0x1E78)
 #define LMPM_SECURE_UCODE_LOAD_CPU2_HDR_ADDR	(0x1E7C)
