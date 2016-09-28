@@ -409,16 +409,6 @@ static void dce_v11_0_hpd_init(struct amdgpu_device *adev)
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 
-		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP ||
-		    connector->connector_type == DRM_MODE_CONNECTOR_LVDS) {
-			/* don't try to enable hpd on eDP or LVDS avoid breaking the
-			 * aux dp channel on imac and help (but not completely fix)
-			 * https://bugzilla.redhat.com/show_bug.cgi?id=726143
-			 * also avoid interrupt storms during dpms.
-			 */
-			continue;
-		}
-
 		switch (amdgpu_connector->hpd.hpd) {
 		case AMDGPU_HPD_1:
 			idx = 0;
@@ -439,6 +429,19 @@ static void dce_v11_0_hpd_init(struct amdgpu_device *adev)
 			idx = 5;
 			break;
 		default:
+			continue;
+		}
+
+		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP ||
+		    connector->connector_type == DRM_MODE_CONNECTOR_LVDS) {
+			/* don't try to enable hpd on eDP or LVDS avoid breaking the
+			 * aux dp channel on imac and help (but not completely fix)
+			 * https://bugzilla.redhat.com/show_bug.cgi?id=726143
+			 * also avoid interrupt storms during dpms.
+			 */
+			tmp = RREG32(mmDC_HPD_INT_CONTROL + hpd_offsets[idx]);
+			tmp = REG_SET_FIELD(tmp, DC_HPD_INT_CONTROL, DC_HPD_INT_EN, 0);
+			WREG32(mmDC_HPD_INT_CONTROL + hpd_offsets[idx], tmp);
 			continue;
 		}
 
