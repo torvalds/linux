@@ -454,11 +454,11 @@ struct hfa384x_downloadbuffer {
 #define HFA384x_PSTATUS_CONN_IBSS	((u16)3)
 
 /*-- Information Record: commsquality --*/
-typedef struct hfa384x_commsquality {
+struct hfa384x_commsquality {
 	u16 CQ_currBSS;
 	u16 ASL_currBSS;
 	u16 ANL_currFC;
-} __packed hfa384x_commsquality_t;
+} __packed;
 
 /*-- Information Record: dmbcommsquality --*/
 typedef struct hfa384x_dbmcommsquality {
@@ -1305,7 +1305,7 @@ typedef struct hfa384x {
 	struct work_struct link_bh;
 
 	struct work_struct commsqual_bh;
-	hfa384x_commsquality_t qual;
+	struct hfa384x_commsquality qual;
 	struct timer_list commsqual_timer;
 
 	u16 link_status;
