@@ -52,8 +52,8 @@
 #define SUN4I_BACKEND_LAYFB_L32ADD_REG(l)	(0x850 + (0x4 * (l)))
 
 #define SUN4I_BACKEND_LAYFB_H4ADD_REG		0x860
-#define SUN4I_BACKEND_LAYFB_H4ADD_MSK(l)		GENMASK(3 + ((l) * 8), 0)
-#define SUN4I_BACKEND_LAYFB_H4ADD(l, val)			((val) << ((l) * 8))
+#define SUN4I_BACKEND_LAYFB_H4ADD_MSK(l)		GENMASK(3 + ((l) * 8), (l) * 8)
+#define SUN4I_BACKEND_LAYFB_H4ADD(l, val)		((val) << ((l) * 8))
 
 #define SUN4I_BACKEND_REGBUFFCTL_REG		0x870
 #define SUN4I_BACKEND_REGBUFFCTL_AUTOLOAD_DIS		BIT(1)

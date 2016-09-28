@@ -62,7 +62,7 @@ static unsigned long sun4i_dclk_recalc_rate(struct clk_hw *hw,
 	regmap_read(dclk->regmap, SUN4I_TCON0_DCLK_REG, &val);
 
 	val >>= SUN4I_TCON0_DCLK_DIV_SHIFT;
-	val &= SUN4I_TCON0_DCLK_DIV_WIDTH;
+	val &= (1 << SUN4I_TCON0_DCLK_DIV_WIDTH) - 1;
 
 	if (!val)
 		val = 1;
@@ -77,7 +77,7 @@ static long sun4i_dclk_round_rate(struct clk_hw *hw, unsigned long rate,
 	u8 best_div = 1;
 	int i;
 
-	for (i = 6; i < 127; i++) {
+	for (i = 6; i <= 127; i++) {
 		unsigned long ideal = rate * i;
 		unsigned long rounded;
 
@@ -90,7 +90,8 @@ static long sun4i_dclk_round_rate(struct clk_hw *hw, unsigned long rate,
 			goto out;
 		}
 
-		if ((rounded < ideal) && (rounded > best_parent)) {
+		if (abs(rate - rounded / i) <
+		    abs(rate - best_parent / best_div)) {
 			best_parent = rounded;
 			best_div = i;
 		}

@@ -83,8 +83,13 @@ void sun4i_backend_layer_enable(struct sun4i_backend *backend,
 }
 EXPORT_SYMBOL(sun4i_backend_layer_enable);
 
-static int sun4i_backend_drm_format_to_layer(u32 format, u32 *mode)
+static int sun4i_backend_drm_format_to_layer(struct drm_plane *plane,
+					     u32 format, u32 *mode)
 {
+	if ((plane->type == DRM_PLANE_TYPE_PRIMARY) &&
+	    (format == DRM_FORMAT_ARGB8888))
+		format = DRM_FORMAT_XRGB8888;
+
 	switch (format) {
 	case DRM_FORMAT_ARGB8888:
 		*mode = SUN4I_BACKEND_LAY_FBFMT_ARGB8888;
@@ -164,7 +169,7 @@ int sun4i_backend_update_layer_formats(struct sun4i_backend *backend,
 	DRM_DEBUG_DRIVER("Switching display backend interlaced mode %s\n",
 			 interlaced ? "on" : "off");
 
-	ret = sun4i_backend_drm_format_to_layer(fb->pixel_format, &val);
+	ret = sun4i_backend_drm_format_to_layer(plane, fb->pixel_format, &val);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Invalid format\n");
 		return val;
@@ -288,10 +293,8 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(regs)) {
-		dev_err(dev, "Couldn't map the backend registers\n");
+	if (IS_ERR(regs))
 		return PTR_ERR(regs);
-	}
 
 	backend->regs = devm_regmap_init_mmio(dev, regs,
 					      &sun4i_backend_regmap_config);
