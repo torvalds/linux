@@ -216,7 +216,7 @@ usbctlx_get_status(const struct hfa384x_usb_statusresp *cmdresp,
 		   hfa384x_cmdresult_t *result);
 
 static void
-usbctlx_get_rridresult(const hfa384x_usb_rridresp_t *rridresp,
+usbctlx_get_rridresult(const struct hfa384x_usb_rridresp *rridresp,
 		       hfa384x_rridresult_t *result);
 
 /*---------------------------------------------------*/
@@ -636,7 +636,7 @@ usbctlx_get_status(const struct hfa384x_usb_statusresp *cmdresp,
 }
 
 static void
-usbctlx_get_rridresult(const hfa384x_usb_rridresp_t *rridresp,
+usbctlx_get_rridresult(const struct hfa384x_usb_rridresp *rridresp,
 		       hfa384x_rridresult_t *result)
 {
 	result->rid = le16_to_cpu(rridresp->rid);
@@ -685,7 +685,7 @@ static inline struct usbctlx_completor *init_cmd_completor(
 struct usbctlx_rrid_completor {
 	struct usbctlx_completor head;
 
-	const hfa384x_usb_rridresp_t *rridresp;
+	const struct hfa384x_usb_rridresp *rridresp;
 	void *riddata;
 	unsigned int riddatalen;
 };
@@ -713,7 +713,7 @@ static int usbctlx_rrid_completor_fn(struct usbctlx_completor *head)
 static inline struct usbctlx_completor *init_rrid_completor(
 						struct usbctlx_rrid_completor
 							*completor,
-						const hfa384x_usb_rridresp_t
+						const struct hfa384x_usb_rridresp
 							*rridresp,
 						void *riddata,
 						unsigned int riddatalen)

@@ -873,12 +873,12 @@ struct hfa384x_usb_statusresp {
 	u16 resp2;
 } __packed;
 
-typedef struct hfa384x_usb_rridresp {
+struct hfa384x_usb_rridresp {
 	u16 type;
 	u16 frmlen;
 	u16 rid;
 	u8 data[HFA384x_RIDDATA_MAXLEN];
-} __packed hfa384x_usb_rridresp_t;
+} __packed;
 
 typedef struct hfa384x_usb_statusresp hfa384x_usb_wmemresp_t;
 
@@ -918,7 +918,7 @@ typedef union hfa384x_usbin {
 	struct hfa384x_usb_infofrm infofrm;
 	struct hfa384x_usb_statusresp cmdresp;
 	struct hfa384x_usb_statusresp wridresp;
-	hfa384x_usb_rridresp_t rridresp;
+	struct hfa384x_usb_rridresp rridresp;
 	hfa384x_usb_wmemresp_t wmemresp;
 	hfa384x_usb_rmemresp_t rmemresp;
 	hfa384x_usb_bufavail_t bufavail;
