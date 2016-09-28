@@ -2566,7 +2566,7 @@ int hfa384x_drvr_txframe(hfa384x_t *hw, struct sk_buff *skb,
 			 union p80211_hdr *p80211_hdr,
 			 struct p80211_metawep *p80211_wep)
 {
-	int usbpktlen = sizeof(hfa384x_tx_frame_t);
+	int usbpktlen = sizeof(struct hfa384x_tx_frame);
 	int result;
 	int ret;
 	char *ptr;

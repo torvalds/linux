@@ -474,7 +474,7 @@ struct hfa384x_dbmcommsquality {
  *--------------------------------------------------------------------
  */
 /*-- Communication Frame: Transmit Frame Structure --*/
-typedef struct hfa384x_tx_frame {
+struct hfa384x_tx_frame {
 	u16 status;
 	u16 reserved1;
 	u16 reserved2;
@@ -499,7 +499,7 @@ typedef struct hfa384x_tx_frame {
 	u8 dest_addr[6];
 	u8 src_addr[6];
 	u16 data_length;	/* big endian format */
-} __packed hfa384x_tx_frame_t;
+} __packed;
 /*--------------------------------------------------------------------
  * Communication Frames: Field Masks for Transmit Frames
  *--------------------------------------------------------------------
@@ -809,7 +809,7 @@ typedef struct hfa384x_InfFrame {
 /* Request (bulk OUT) packet contents */
 
 typedef struct hfa384x_usb_txfrm {
-	hfa384x_tx_frame_t desc;
+	struct hfa384x_tx_frame desc;
 	u8 data[WLAN_DATA_MAXLEN];
 } __packed hfa384x_usb_txfrm_t;
 
