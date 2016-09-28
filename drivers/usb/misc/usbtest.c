@@ -2001,7 +2001,7 @@ test_queue(struct usbtest_dev *dev, struct usbtest_param_32 *param,
 			"iso period %d %sframes, wMaxPacket %d, transactions: %d\n",
 			1 << (desc->bInterval - 1),
 			(udev->speed == USB_SPEED_HIGH) ? "micro" : "",
-			usb_endpoint_maxp(desc) & 0x7ff,
+			usb_endpoint_maxp(desc),
 			usb_endpoint_maxp_mult(desc));
 
 		dev_info(&dev->intf->dev,
