@@ -356,10 +356,10 @@ struct hfa384x_bytestr {
 	u8 data[0];
 } __packed;
 
-typedef struct hfa384x_bytestr32 {
+struct hfa384x_bytestr32 {
 	u16 len;
 	u8 data[32];
-} __packed hfa384x_bytestr32_t;
+} __packed;
 
 /*--------------------------------------------------------------------
 Configuration Record Structures:
@@ -398,7 +398,7 @@ Configuration Record Structures:
 typedef struct hfa384x_HostScanRequest_data {
 	u16 channelList;
 	u16 txRate;
-	hfa384x_bytestr32_t ssid;
+	struct hfa384x_bytestr32 ssid;
 } __packed hfa384x_HostScanRequest_data_t;
 
 /*-- Configuration Record: JoinRequest (data portion only) --*/
@@ -643,7 +643,7 @@ typedef struct hfa384x_ScanResultSub {
 	u8 bssid[WLAN_BSSID_LEN];
 	u16 bcnint;
 	u16 capinfo;
-	hfa384x_bytestr32_t ssid;
+	struct hfa384x_bytestr32 ssid;
 	u8 supprates[10];	/* 802.11 info element */
 	u16 proberesp_rate;
 } __packed hfa384x_ScanResultSub_t;
@@ -678,7 +678,7 @@ typedef struct hfa384x_HScanResultSub {
 	u8 bssid[WLAN_BSSID_LEN];
 	u16 bcnint;
 	u16 capinfo;
-	hfa384x_bytestr32_t ssid;
+	struct hfa384x_bytestr32 ssid;
 	u8 supprates[10];	/* 802.11 info element */
 	u16 proberesp_rate;
 	u16 atim;

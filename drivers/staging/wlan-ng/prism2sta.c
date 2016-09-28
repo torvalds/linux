@@ -1173,7 +1173,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 {
 	hfa384x_t *hw = container_of(data, struct hfa384x, link_bh);
 	struct wlandevice *wlandev = hw->wlandev;
-	hfa384x_bytestr32_t ssid;
+	struct hfa384x_bytestr32 ssid;
 	int result;
 
 	/* First let's process the auth frames */
@@ -1916,7 +1916,7 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 {
 	hfa384x_t *hw = container_of(data, struct hfa384x, commsqual_bh);
 	struct wlandevice *wlandev = hw->wlandev;
-	hfa384x_bytestr32_t ssid;
+	struct hfa384x_bytestr32 ssid;
 	struct p80211msg_dot11req_mibget msg;
 	struct p80211item_uint32 *mibitem = (struct p80211item_uint32 *)
 						&msg.mibattribute.data;
