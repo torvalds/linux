@@ -381,7 +381,7 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		return ret;
 	}
 
-	mmu = gpu->mmu;
+	mmu = gpu->aspace->mmu;
 	if (mmu) {
 		ret = mmu->funcs->attach(mmu, iommu_ports,
 				ARRAY_SIZE(iommu_ports));

@@ -39,7 +39,7 @@ struct mdp5_kms {
 
 	/* mapper-id used to request GEM buffer mapped for scanout: */
 	int id;
-	struct msm_mmu *mmu;
+	struct msm_gem_address_space *aspace;
 
 	struct mdp5_smp *smp;
 	struct mdp5_ctl_manager *ctlm;

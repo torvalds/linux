@@ -19,6 +19,7 @@
 #include <linux/of_irq.h>
 
 #include "msm_drv.h"
+#include "msm_gem.h"
 #include "msm_mmu.h"
 #include "mdp5_kms.h"
 
@@ -117,11 +118,12 @@ static int mdp5_set_split_display(struct msm_kms *kms,
 static void mdp5_kms_destroy(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
-	struct msm_mmu *mmu = mdp5_kms->mmu;
+	struct msm_gem_address_space *aspace = mdp5_kms->aspace;
 
-	if (mmu) {
-		mmu->funcs->detach(mmu, iommu_ports, ARRAY_SIZE(iommu_ports));
-		mmu->funcs->destroy(mmu);
+	if (aspace) {
+		aspace->mmu->funcs->detach(aspace->mmu,
+				iommu_ports, ARRAY_SIZE(iommu_ports));
+		msm_gem_address_space_destroy(aspace);
 	}
 }
 
@@ -564,7 +566,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	struct mdp5_kms *mdp5_kms;
 	struct mdp5_cfg *config;
 	struct msm_kms *kms;
-	struct msm_mmu *mmu;
+	struct msm_gem_address_space *aspace;
 	int irq, i, ret;
 
 	/* priv->kms would have been populated by the MDP5 driver */
@@ -606,30 +608,29 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	mdelay(16);
 
 	if (config->platform.iommu) {
-		mmu = msm_iommu_new(&pdev->dev, config->platform.iommu);
-		if (IS_ERR(mmu)) {
-			ret = PTR_ERR(mmu);
-			dev_err(&pdev->dev, "failed to init iommu: %d\n", ret);
-			iommu_domain_free(config->platform.iommu);
+		aspace = msm_gem_address_space_create(&pdev->dev,
+				config->platform.iommu, "mdp5");
+		if (IS_ERR(aspace)) {
+			ret = PTR_ERR(aspace);
 			goto fail;
 		}
 
-		ret = mmu->funcs->attach(mmu, iommu_ports,
+		mdp5_kms->aspace = aspace;
+
+		ret = aspace->mmu->funcs->attach(aspace->mmu, iommu_ports,
 				ARRAY_SIZE(iommu_ports));
 		if (ret) {
 			dev_err(&pdev->dev, "failed to attach iommu: %d\n",
 				ret);
-			mmu->funcs->destroy(mmu);
 			goto fail;
 		}
 	} else {
 		dev_info(&pdev->dev,
 			 "no iommu, fallback to phys contig buffers for scanout\n");
-		mmu = NULL;
+		aspace = NULL;;
 	}
-	mdp5_kms->mmu = mmu;
 
-	mdp5_kms->id = msm_register_mmu(dev, mmu);
+	mdp5_kms->id = msm_register_address_space(dev, aspace);
 	if (mdp5_kms->id < 0) {
 		ret = mdp5_kms->id;
 		dev_err(&pdev->dev, "failed to register mdp5 iommu: %d\n", ret);

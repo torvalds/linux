@@ -296,12 +296,8 @@ put_iova(struct drm_gem_object *obj)
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
 	for (id = 0; id < ARRAY_SIZE(msm_obj->domain); id++) {
-		struct msm_mmu *mmu = priv->mmus[id];
-		if (mmu && msm_obj->domain[id].iova) {
-			uint32_t offset = msm_obj->domain[id].iova;
-			mmu->funcs->unmap(mmu, offset, msm_obj->sgt, obj->size);
-			msm_obj->domain[id].iova = 0;
-		}
+		msm_gem_unmap_vma(priv->aspace[id],
+				&msm_obj->domain[id], msm_obj->sgt);
 	}
 }
 
@@ -326,16 +322,8 @@ int msm_gem_get_iova_locked(struct drm_gem_object *obj, int id,
 			return PTR_ERR(pages);
 
 		if (iommu_present(&platform_bus_type)) {
-			struct msm_mmu *mmu = priv->mmus[id];
-			uint32_t offset;
-
-			if (WARN_ON(!mmu))
-				return -EINVAL;
-
-			offset = (uint32_t)mmap_offset(obj);
-			ret = mmu->funcs->map(mmu, offset, msm_obj->sgt,
-					obj->size, IOMMU_READ | IOMMU_WRITE);
-			msm_obj->domain[id].iova = offset;
+			ret = msm_gem_map_vma(priv->aspace[id], &msm_obj->domain[id],
+					msm_obj->sgt, obj->size >> PAGE_SHIFT);
 		} else {
 			msm_obj->domain[id].iova = physaddr(obj);
 		}
@@ -631,9 +619,11 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	struct reservation_object *robj = msm_obj->resv;
 	struct reservation_object_list *fobj;
+	struct msm_drm_private *priv = obj->dev->dev_private;
 	struct dma_fence *fence;
 	uint64_t off = drm_vma_node_start(&obj->vma_node);
 	const char *madv;
+	unsigned id;
 
 	WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
 
@@ -650,10 +640,15 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 		break;
 	}
 
-	seq_printf(m, "%08x: %c %2d (%2d) %08llx %p %zu%s\n",
+	seq_printf(m, "%08x: %c %2d (%2d) %08llx %p\t",
 			msm_obj->flags, is_active(msm_obj) ? 'A' : 'I',
 			obj->name, obj->refcount.refcount.counter,
-			off, msm_obj->vaddr, obj->size, madv);
+			off, msm_obj->vaddr);
+
+	for (id = 0; id < priv->num_aspaces; id++)
+		seq_printf(m, " %08llx", msm_obj->domain[id].iova);
+
+	seq_printf(m, " %zu%s\n", obj->size, madv);
 
 	rcu_read_lock();
 	fobj = rcu_dereference(robj->fence);
@@ -761,7 +756,6 @@ static int msm_gem_new_impl(struct drm_device *dev,
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_gem_object *msm_obj;
-	unsigned sz;
 	bool use_vram = false;
 
 	switch (flags & MSM_BO_CACHE_MASK) {
@@ -783,16 +777,12 @@ static int msm_gem_new_impl(struct drm_device *dev,
 	if (WARN_ON(use_vram && !priv->vram.size))
 		return -EINVAL;
 
-	sz = sizeof(*msm_obj);
-	if (use_vram)
-		sz += sizeof(struct drm_mm_node);
-
-	msm_obj = kzalloc(sz, GFP_KERNEL);
+	msm_obj = kzalloc(sizeof(*msm_obj), GFP_KERNEL);
 	if (!msm_obj)
 		return -ENOMEM;
 
 	if (use_vram)
-		msm_obj->vram_node = (void *)&msm_obj[1];
+		msm_obj->vram_node = &msm_obj->domain[0].node;
 
 	msm_obj->flags = flags;
 	msm_obj->madv = MSM_MADV_WILLNEED;

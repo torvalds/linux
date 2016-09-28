@@ -52,6 +52,8 @@ struct msm_perf_state;
 struct msm_gem_submit;
 struct msm_fence_context;
 struct msm_fence_cb;
+struct msm_gem_address_space;
+struct msm_gem_vma;
 
 #define NUM_DOMAINS 2    /* one for KMS, then one per gpu core (?) */
 
@@ -121,9 +123,13 @@ struct msm_drm_private {
 	uint32_t pending_crtcs;
 	wait_queue_head_t pending_crtcs_event;
 
-	/* registered MMUs: */
-	unsigned int num_mmus;
-	struct msm_mmu *mmus[NUM_DOMAINS];
+	/* Registered address spaces.. currently this is fixed per # of
+	 * iommu's.  Ie. one for display block and one for gpu block.
+	 * Eventually, to do per-process gpu pagetables, we'll want one
+	 * of these per-process.
+	 */
+	unsigned int num_aspaces;
+	struct msm_gem_address_space *aspace[NUM_DOMAINS];
 
 	unsigned int num_planes;
 	struct drm_plane *planes[8];
@@ -174,7 +180,18 @@ int msm_atomic_check(struct drm_device *dev,
 int msm_atomic_commit(struct drm_device *dev,
 		struct drm_atomic_state *state, bool nonblock);
 
-int msm_register_mmu(struct drm_device *dev, struct msm_mmu *mmu);
+int msm_register_address_space(struct drm_device *dev,
+		struct msm_gem_address_space *aspace);
+
+void msm_gem_unmap_vma(struct msm_gem_address_space *aspace,
+		struct msm_gem_vma *vma, struct sg_table *sgt);
+int msm_gem_map_vma(struct msm_gem_address_space *aspace,
+		struct msm_gem_vma *vma, struct sg_table *sgt, int npages);
+
+void msm_gem_address_space_destroy(struct msm_gem_address_space *aspace);
+struct msm_gem_address_space *
+msm_gem_address_space_create(struct device *dev, struct iommu_domain *domain,
+		const char *name);
 
 void msm_gem_submit_free(struct msm_gem_submit *submit);
 int msm_ioctl_gem_submit(struct drm_device *dev, void *data,

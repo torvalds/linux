@@ -583,7 +583,7 @@ struct msm_gpu *a3xx_gpu_init(struct drm_device *dev)
 #endif
 	}
 
-	if (!gpu->mmu) {
+	if (!gpu->aspace) {
 		/* TODO we think it is possible to configure the GPU to
 		 * restrict access to VRAM carveout.  But the required
 		 * registers are unknown.  For now just bail out and

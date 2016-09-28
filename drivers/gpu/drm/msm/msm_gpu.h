@@ -98,7 +98,7 @@ struct msm_gpu {
 	void __iomem *mmio;
 	int irq;
 
-	struct msm_mmu *mmu;
+	struct msm_gem_address_space *aspace;
 	int id;
 
 	/* Power Control: */

@@ -656,12 +656,17 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	 */
 	iommu = iommu_domain_alloc(&platform_bus_type);
 	if (iommu) {
+		/* TODO 32b vs 64b address space.. */
+		iommu->geometry.aperture_start = 0x1000;
+		iommu->geometry.aperture_end = 0xffffffff;
+
 		dev_info(drm->dev, "%s: using IOMMU\n", name);
-		gpu->mmu = msm_iommu_new(&pdev->dev, iommu);
-		if (IS_ERR(gpu->mmu)) {
-			ret = PTR_ERR(gpu->mmu);
+		gpu->aspace = msm_gem_address_space_create(&pdev->dev,
+				iommu, "gpu");
+		if (IS_ERR(gpu->aspace)) {
+			ret = PTR_ERR(gpu->aspace);
 			dev_err(drm->dev, "failed to init iommu: %d\n", ret);
-			gpu->mmu = NULL;
+			gpu->aspace = NULL;
 			iommu_domain_free(iommu);
 			goto fail;
 		}
@@ -669,7 +674,7 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	} else {
 		dev_info(drm->dev, "%s: no IOMMU, fallback to VRAM carveout!\n", name);
 	}
-	gpu->id = msm_register_mmu(drm, gpu->mmu);
+	gpu->id = msm_register_address_space(drm, gpu->aspace);
 
 
 	/* Create ringbuffer: */
@@ -705,8 +710,8 @@ void msm_gpu_cleanup(struct msm_gpu *gpu)
 		msm_ringbuffer_destroy(gpu->rb);
 	}
 
-	if (gpu->mmu)
-		gpu->mmu->funcs->destroy(gpu->mmu);
+	if (gpu->aspace)
+		msm_gem_address_space_destroy(gpu->aspace);
 
 	if (gpu->fctx)
 		msm_fence_context_free(gpu->fctx);
