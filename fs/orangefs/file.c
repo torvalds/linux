@@ -624,11 +624,14 @@ static int orangefs_file_release(struct inode *inode, struct file *file)
 	if (file->f_path.dentry->d_inode &&
 	    file->f_path.dentry->d_inode->i_mapping &&
 	    mapping_nrpages(&file->f_path.dentry->d_inode->i_data)) {
-		gossip_debug(GOSSIP_INODE_DEBUG,
-		    "calling flush_racache on %pU\n",
-		    get_khandle_from_ino(inode));
-		flush_racache(inode);
-		gossip_debug(GOSSIP_INODE_DEBUG, "flush_racache finished\n");
+		if (orangefs_features & ORANGEFS_FEATURE_READAHEAD) {
+			gossip_debug(GOSSIP_INODE_DEBUG,
+			    "calling flush_racache on %pU\n",
+			    get_khandle_from_ino(inode));
+			flush_racache(inode);
+			gossip_debug(GOSSIP_INODE_DEBUG,
+			    "flush_racache finished\n");
+		}
 		truncate_inode_pages(file->f_path.dentry->d_inode->i_mapping,
 				     0);
 	}

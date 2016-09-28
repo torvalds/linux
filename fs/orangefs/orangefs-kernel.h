@@ -447,6 +447,8 @@ void purge_waiting_ops(void);
 /*
  * defined in super.c
  */
+extern uint64_t orangefs_features;
+
 struct dentry *orangefs_mount(struct file_system_type *fst,
 			   int flags,
 			   const char *devname,
@@ -506,6 +508,8 @@ ssize_t orangefs_inode_read(struct inode *inode,
 /*
  * defined in devorangefs-req.c
  */
+extern uint32_t orangefs_userspace_version;
+
 int orangefs_dev_init(void);
 void orangefs_dev_cleanup(void);
 int is_daemon_in_service(void);
