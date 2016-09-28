@@ -659,7 +659,7 @@ struct hfa384x_CommTallies32 {
 } __packed;
 
 /*--  Inquiry Frame, Diagnose: Scan Results & Subfields--*/
-typedef struct hfa384x_ScanResultSub {
+struct hfa384x_ScanResultSub {
 	u16 chid;
 	u16 anl;
 	u16 sl;
@@ -669,12 +669,12 @@ typedef struct hfa384x_ScanResultSub {
 	struct hfa384x_bytestr32 ssid;
 	u8 supprates[10];	/* 802.11 info element */
 	u16 proberesp_rate;
-} __packed hfa384x_ScanResultSub_t;
+} __packed;
 
 typedef struct hfa384x_ScanResult {
 	u16 rsvd;
 	u16 scanreason;
-	hfa384x_ScanResultSub_t result[HFA384x_SCANRESULT_MAX];
+	struct hfa384x_ScanResultSub result[HFA384x_SCANRESULT_MAX];
 } __packed hfa384x_ScanResult_t;
 
 /*--  Inquiry Frame, Diagnose: ChInfo Results & Subfields--*/
