@@ -3844,6 +3844,7 @@ static void drm_add_display_info(struct drm_connector *connector,
 	/* driver figures it out in this case */
 	info->bpc = 0;
 	info->color_formats = 0;
+	info->cea_rev = 0;
 
 	if (edid->revision < 3)
 		return;
