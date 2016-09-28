@@ -723,9 +723,9 @@ struct hfa384x_HScanResult {
 #define HFA384x_LINK_AP_INRANGE		((u16)5)
 #define HFA384x_LINK_ASSOCFAIL		((u16)6)
 
-typedef struct hfa384x_LinkStatus {
+struct hfa384x_LinkStatus {
 	u16 linkstatus;
-} __packed hfa384x_LinkStatus_t;
+} __packed;
 
 /*--  Unsolicited Frame, MAC Mgmt: AssociationStatus (--*/
 
@@ -767,7 +767,7 @@ typedef union hfa384x_infodata {
 	struct hfa384x_ScanResult scanresult;
 	struct hfa384x_ChInfoResult chinforesult;
 	struct hfa384x_HScanResult hscanresult;
-	hfa384x_LinkStatus_t linkstatus;
+	struct hfa384x_LinkStatus linkstatus;
 	hfa384x_AssocStatus_t assocstatus;
 	hfa384x_AuthReq_t authreq;
 	hfa384x_PSUserCount_t psusercnt;
