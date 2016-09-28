@@ -972,11 +972,13 @@ static int send_atomic_ack(struct rxe_qp *qp, struct rxe_pkt_info *pkt,
 	free_rd_atomic_resource(qp, res);
 	rxe_advance_resp_resource(qp);
 
+	memcpy(SKB_TO_PKT(skb), &ack_pkt, sizeof(skb->cb));
+
 	res->type = RXE_ATOMIC_MASK;
 	res->atomic.skb = skb;
-	res->first_psn = qp->resp.psn;
-	res->last_psn = qp->resp.psn;
-	res->cur_psn = qp->resp.psn;
+	res->first_psn = ack_pkt.psn;
+	res->last_psn  = ack_pkt.psn;
+	res->cur_psn   = ack_pkt.psn;
 
 	rc = rxe_xmit_packet(rxe, qp, &ack_pkt, skb_copy);
 	if (rc) {
@@ -1116,8 +1118,7 @@ static enum resp_states duplicate_request(struct rxe_qp *qp,
 				rc = RESPST_CLEANUP;
 				goto out;
 			}
-			bth_set_psn(SKB_TO_PKT(skb_copy),
-				    qp->resp.psn - 1);
+
 			/* Resend the result. */
 			rc = rxe_xmit_packet(to_rdev(qp->ibqp.device), qp,
 					     pkt, skb_copy);

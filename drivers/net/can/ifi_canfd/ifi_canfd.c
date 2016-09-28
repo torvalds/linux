@@ -81,6 +81,10 @@
 #define IFI_CANFD_TIME_SET_TIMEA_4_12_6_6	BIT(15)
 
 #define IFI_CANFD_TDELAY			0x1c
+#define IFI_CANFD_TDELAY_DEFAULT		0xb
+#define IFI_CANFD_TDELAY_MASK			0x3fff
+#define IFI_CANFD_TDELAY_ABS			BIT(14)
+#define IFI_CANFD_TDELAY_EN			BIT(15)
 
 #define IFI_CANFD_ERROR				0x20
 #define IFI_CANFD_ERROR_TX_OFFSET		0
@@ -641,7 +645,7 @@ static void ifi_canfd_set_bittiming(struct net_device *ndev)
 	struct ifi_canfd_priv *priv = netdev_priv(ndev);
 	const struct can_bittiming *bt = &priv->can.bittiming;
 	const struct can_bittiming *dbt = &priv->can.data_bittiming;
-	u16 brp, sjw, tseg1, tseg2;
+	u16 brp, sjw, tseg1, tseg2, tdc;
 
 	/* Configure bit timing */
 	brp = bt->brp - 2;
@@ -664,6 +668,11 @@ static void ifi_canfd_set_bittiming(struct net_device *ndev)
 	       (brp << IFI_CANFD_TIME_PRESCALE_OFF) |
 	       (sjw << IFI_CANFD_TIME_SJW_OFF_7_9_8_8),
 	       priv->base + IFI_CANFD_FTIME);
+
+	/* Configure transmitter delay */
+	tdc = (dbt->brp * (dbt->phase_seg1 + 1)) & IFI_CANFD_TDELAY_MASK;
+	writel(IFI_CANFD_TDELAY_EN | IFI_CANFD_TDELAY_ABS | tdc,
+	       priv->base + IFI_CANFD_TDELAY);
 }
 
 static void ifi_canfd_set_filter(struct net_device *ndev, const u32 id,
