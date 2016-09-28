@@ -855,10 +855,10 @@ struct hfa384x_usb_rmemreq {
 /*------------------------------------*/
 /* Response (bulk IN) packet contents */
 
-typedef struct hfa384x_usb_rxfrm {
+struct hfa384x_usb_rxfrm {
 	struct hfa384x_rx_frame desc;
 	u8 data[WLAN_DATA_MAXLEN];
-} __packed hfa384x_usb_rxfrm_t;
+} __packed;
 
 typedef struct hfa384x_usb_infofrm {
 	u16 type;
@@ -915,7 +915,7 @@ typedef union hfa384x_usbout {
 
 typedef union hfa384x_usbin {
 	__le16 type;
-	hfa384x_usb_rxfrm_t rxfrm;
+	struct hfa384x_usb_rxfrm rxfrm;
 	struct hfa384x_usb_txfrm txfrm;
 	hfa384x_usb_infofrm_t infofrm;
 	hfa384x_usb_cmdresp_t cmdresp;

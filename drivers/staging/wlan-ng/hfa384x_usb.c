@@ -154,7 +154,7 @@ static void dbprint_urb(struct urb *urb);
 #endif
 
 static void
-hfa384x_int_rxmonitor(struct wlandevice *wlandev, hfa384x_usb_rxfrm_t *rxfrm);
+hfa384x_int_rxmonitor(struct wlandevice *wlandev, struct hfa384x_usb_rxfrm *rxfrm);
 
 static void hfa384x_usb_defer(struct work_struct *data);
 
@@ -3417,7 +3417,7 @@ static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb)
 *	interrupt
 ----------------------------------------------------------------*/
 static void hfa384x_int_rxmonitor(struct wlandevice *wlandev,
-				  hfa384x_usb_rxfrm_t *rxfrm)
+				  struct hfa384x_usb_rxfrm *rxfrm)
 {
 	struct hfa384x_rx_frame *rxdesc = &(rxfrm->desc);
 	unsigned int hdrlen = 0;
