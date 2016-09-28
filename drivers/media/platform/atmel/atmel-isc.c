@@ -617,7 +617,13 @@ static void isc_buffer_queue(struct vb2_buffer *vb)
 	unsigned long flags;
 
 	spin_lock_irqsave(&isc->dma_queue_lock, flags);
-	list_add_tail(&buf->list, &isc->dma_queue);
+	if (!isc->cur_frm && list_empty(&isc->dma_queue) &&
+		vb2_is_streaming(vb->vb2_queue)) {
+		isc->cur_frm = buf;
+		isc_start_dma(isc->regmap, isc->cur_frm,
+			isc->current_fmt->reg_dctrl_dview);
+	} else
+		list_add_tail(&buf->list, &isc->dma_queue);
 	spin_unlock_irqrestore(&isc->dma_queue_lock, flags);
 }
 
