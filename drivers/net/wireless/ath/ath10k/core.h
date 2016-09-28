@@ -713,6 +713,7 @@ struct ath10k {
 	u32 phy_capability;
 	u32 hw_min_tx_power;
 	u32 hw_max_tx_power;
+	u32 hw_eeprom_rd;
 	u32 ht_cap_info;
 	u32 vht_cap_info;
 	u32 num_rf_chains;

@@ -4676,7 +4676,7 @@ static void ath10k_wmi_event_service_ready_work(struct work_struct *work)
 	ar->fw_version_build = (__le32_to_cpu(arg.sw_ver1) & 0x0000ffff);
 	ar->phy_capability = __le32_to_cpu(arg.phy_capab);
 	ar->num_rf_chains = __le32_to_cpu(arg.num_rf_chains);
-	ar->ath_common.regulatory.current_rd = __le32_to_cpu(arg.eeprom_rd);
+	ar->hw_eeprom_rd = __le32_to_cpu(arg.eeprom_rd);
 
 	ath10k_dbg_dump(ar, ATH10K_DBG_WMI, NULL, "wmi svc: ",
 			arg.service_map, arg.service_map_len);
