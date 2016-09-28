@@ -1270,6 +1270,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 
 	if (!master->cs_gpios) {
 		dev_err(&pdev->dev, "No CS GPIOs available\n");
+		ret = -EINVAL;
 		goto out_clk_put;
 	}
 
