@@ -46,6 +46,16 @@ static const u32 crtc_offsets[6] =
 	SI_CRTC5_REGISTER_OFFSET
 };
 
+static const u32 hpd_offsets[] =
+{
+	DC_HPD1_INT_STATUS - DC_HPD1_INT_STATUS,
+	DC_HPD2_INT_STATUS - DC_HPD1_INT_STATUS,
+	DC_HPD3_INT_STATUS - DC_HPD1_INT_STATUS,
+	DC_HPD4_INT_STATUS - DC_HPD1_INT_STATUS,
+	DC_HPD5_INT_STATUS - DC_HPD1_INT_STATUS,
+	DC_HPD6_INT_STATUS - DC_HPD1_INT_STATUS,
+};
+
 static const uint32_t dig_offsets[] = {
 	SI_CRTC0_REGISTER_OFFSET,
 	SI_CRTC1_REGISTER_OFFSET,
@@ -93,15 +103,6 @@ static const struct {
 	.vline = DISP_INTERRUPT_STATUS_CONTINUE5__LB_D6_VLINE_INTERRUPT_MASK,
 	.hpd = DISP_INTERRUPT_STATUS_CONTINUE5__DC_HPD6_INTERRUPT_MASK
 } };
-
-static const uint32_t hpd_int_control_offsets[6] = {
-	DC_HPD1_INT_CONTROL,
-	DC_HPD2_INT_CONTROL,
-	DC_HPD3_INT_CONTROL,
-	DC_HPD4_INT_CONTROL,
-	DC_HPD5_INT_CONTROL,
-	DC_HPD6_INT_CONTROL,
-};
 
 static u32 dce_v6_0_audio_endpt_rreg(struct amdgpu_device *adev,
 				     u32 block_offset, u32 reg)
@@ -257,34 +258,11 @@ static bool dce_v6_0_hpd_sense(struct amdgpu_device *adev,
 {
 	bool connected = false;
 
-	switch (hpd) {
-	case AMDGPU_HPD_1:
-		if (RREG32(DC_HPD1_INT_STATUS) & DC_HPDx_SENSE)
-			connected = true;
-		break;
-	case AMDGPU_HPD_2:
-		if (RREG32(DC_HPD2_INT_STATUS) & DC_HPDx_SENSE)
-			connected = true;
-		break;
-	case AMDGPU_HPD_3:
-		if (RREG32(DC_HPD3_INT_STATUS) & DC_HPDx_SENSE)
-			connected = true;
-		break;
-	case AMDGPU_HPD_4:
-		if (RREG32(DC_HPD4_INT_STATUS) & DC_HPDx_SENSE)
-			connected = true;
-		break;
-	case AMDGPU_HPD_5:
-		if (RREG32(DC_HPD5_INT_STATUS) & DC_HPDx_SENSE)
-			connected = true;
-		break;
-	case AMDGPU_HPD_6:
-		if (RREG32(DC_HPD6_INT_STATUS) & DC_HPDx_SENSE)
-			connected = true;
-		break;
-	default:
-		break;
-	}
+	if (hpd >= adev->mode_info.num_hpd)
+		return connected;
+
+	if (RREG32(DC_HPD1_INT_STATUS + hpd_offsets[hpd]) & DC_HPDx_SENSE)
+		connected = true;
 
 	return connected;
 }
@@ -303,58 +281,15 @@ static void dce_v6_0_hpd_set_polarity(struct amdgpu_device *adev,
 	u32 tmp;
 	bool connected = dce_v6_0_hpd_sense(adev, hpd);
 
-	switch (hpd) {
-	case AMDGPU_HPD_1:
-		tmp = RREG32(DC_HPD1_INT_CONTROL);
-		if (connected)
-			tmp &= ~DC_HPDx_INT_POLARITY;
-		else
-			tmp |= DC_HPDx_INT_POLARITY;
-		WREG32(DC_HPD1_INT_CONTROL, tmp);
-		break;
-	case AMDGPU_HPD_2:
-		tmp = RREG32(DC_HPD2_INT_CONTROL);
-		if (connected)
-			tmp &= ~DC_HPDx_INT_POLARITY;
-		else
-			tmp |= DC_HPDx_INT_POLARITY;
-		WREG32(DC_HPD2_INT_CONTROL, tmp);
-		break;
-	case AMDGPU_HPD_3:
-		tmp = RREG32(DC_HPD3_INT_CONTROL);
-		if (connected)
-			tmp &= ~DC_HPDx_INT_POLARITY;
-		else
-			tmp |= DC_HPDx_INT_POLARITY;
-		WREG32(DC_HPD3_INT_CONTROL, tmp);
-		break;
-	case AMDGPU_HPD_4:
-		tmp = RREG32(DC_HPD4_INT_CONTROL);
-		if (connected)
-			tmp &= ~DC_HPDx_INT_POLARITY;
-		else
-			tmp |= DC_HPDx_INT_POLARITY;
-		WREG32(DC_HPD4_INT_CONTROL, tmp);
-		break;
-	case AMDGPU_HPD_5:
-		tmp = RREG32(DC_HPD5_INT_CONTROL);
-		if (connected)
-			tmp &= ~DC_HPDx_INT_POLARITY;
-		else
-			tmp |= DC_HPDx_INT_POLARITY;
-		WREG32(DC_HPD5_INT_CONTROL, tmp);
-			break;
-	case AMDGPU_HPD_6:
-		tmp = RREG32(DC_HPD6_INT_CONTROL);
-		if (connected)
-			tmp &= ~DC_HPDx_INT_POLARITY;
-		else
-			tmp |= DC_HPDx_INT_POLARITY;
-		WREG32(DC_HPD6_INT_CONTROL, tmp);
-		break;
-	default:
-		break;
-	}
+	if (hpd >= adev->mode_info.num_hpd)
+		return;
+
+	tmp = RREG32(DC_HPD1_INT_CONTROL + hpd_offsets[hpd]);
+	if (connected)
+		tmp &= ~DC_HPDx_INT_POLARITY;
+	else
+		tmp |= DC_HPDx_INT_POLARITY;
+	WREG32(DC_HPD1_INT_CONTROL + hpd_offsets[hpd], tmp);
 }
 
 /**
@@ -375,28 +310,10 @@ static void dce_v6_0_hpd_init(struct amdgpu_device *adev)
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 
-		switch (amdgpu_connector->hpd.hpd) {
-		case AMDGPU_HPD_1:
-			WREG32(DC_HPD1_CONTROL, tmp);
-			break;
-		case AMDGPU_HPD_2:
-			WREG32(DC_HPD2_CONTROL, tmp);
-			break;
-		case AMDGPU_HPD_3:
-			WREG32(DC_HPD3_CONTROL, tmp);
-			break;
-		case AMDGPU_HPD_4:
-			WREG32(DC_HPD4_CONTROL, tmp);
-			break;
-		case AMDGPU_HPD_5:
-			WREG32(DC_HPD5_CONTROL, tmp);
-			break;
-		case AMDGPU_HPD_6:
-			WREG32(DC_HPD6_CONTROL, tmp);
-			break;
-		default:
-			break;
-		}
+		if (amdgpu_connector->hpd.hpd >= adev->mode_info.num_hpd)
+			continue;
+
+		WREG32(DC_HPD1_CONTROL + hpd_offsets[amdgpu_connector->hpd.hpd], tmp);
 
 		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP ||
 		    connector->connector_type == DRM_MODE_CONNECTOR_LVDS) {
@@ -405,34 +322,9 @@ static void dce_v6_0_hpd_init(struct amdgpu_device *adev)
 			 * https://bugzilla.redhat.com/show_bug.cgi?id=726143
 			 * also avoid interrupt storms during dpms.
 			 */
-			u32 dc_hpd_int_cntl_reg, dc_hpd_int_cntl;
-
-			switch (amdgpu_connector->hpd.hpd) {
-			case AMDGPU_HPD_1:
-				dc_hpd_int_cntl_reg = DC_HPD1_INT_CONTROL;
-				break;
-			case AMDGPU_HPD_2:
-				dc_hpd_int_cntl_reg = DC_HPD2_INT_CONTROL;
-				break;
-			case AMDGPU_HPD_3:
-				dc_hpd_int_cntl_reg = DC_HPD3_INT_CONTROL;
-				break;
-			case AMDGPU_HPD_4:
-				dc_hpd_int_cntl_reg = DC_HPD4_INT_CONTROL;
-				break;
-			case AMDGPU_HPD_5:
-				dc_hpd_int_cntl_reg = DC_HPD5_INT_CONTROL;
-				break;
-			case AMDGPU_HPD_6:
-				dc_hpd_int_cntl_reg = DC_HPD6_INT_CONTROL;
-				break;
-			default:
-				continue;
-			}
-
-			dc_hpd_int_cntl = RREG32(dc_hpd_int_cntl_reg);
-			dc_hpd_int_cntl &= ~DC_HPDx_INT_EN;
-			WREG32(dc_hpd_int_cntl_reg, dc_hpd_int_cntl);
+			tmp = RREG32(DC_HPD1_INT_CONTROL + hpd_offsets[amdgpu_connector->hpd.hpd]);
+			tmp &= ~DC_HPDx_INT_EN;
+			WREG32(DC_HPD1_INT_CONTROL + hpd_offsets[amdgpu_connector->hpd.hpd], tmp);
 			continue;
 		}
 
@@ -458,28 +350,11 @@ static void dce_v6_0_hpd_fini(struct amdgpu_device *adev)
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 
-		switch (amdgpu_connector->hpd.hpd) {
-		case AMDGPU_HPD_1:
-			WREG32(DC_HPD1_CONTROL, 0);
-			break;
-		case AMDGPU_HPD_2:
-			WREG32(DC_HPD2_CONTROL, 0);
-			break;
-		case AMDGPU_HPD_3:
-			WREG32(DC_HPD3_CONTROL, 0);
-			break;
-		case AMDGPU_HPD_4:
-			WREG32(DC_HPD4_CONTROL, 0);
-			break;
-		case AMDGPU_HPD_5:
-			WREG32(DC_HPD5_CONTROL, 0);
-			break;
-		case AMDGPU_HPD_6:
-			WREG32(DC_HPD6_CONTROL, 0);
-			break;
-		default:
-			break;
-		}
+		if (amdgpu_connector->hpd.hpd >= adev->mode_info.num_hpd)
+			continue;
+
+		WREG32(DC_HPD1_CONTROL + hpd_offsets[amdgpu_connector->hpd.hpd], 0);
+
 		amdgpu_irq_put(adev, &adev->hpd_irq, amdgpu_connector->hpd.hpd);
 	}
 }
@@ -2630,42 +2505,23 @@ static int dce_v6_0_set_hpd_interrupt_state(struct amdgpu_device *adev,
 					    unsigned type,
 					    enum amdgpu_interrupt_state state)
 {
-	u32 dc_hpd_int_cntl_reg, dc_hpd_int_cntl;
+	u32 dc_hpd_int_cntl;
 
-	switch (type) {
-	case AMDGPU_HPD_1:
-		dc_hpd_int_cntl_reg = DC_HPD1_INT_CONTROL;
-		break;
-	case AMDGPU_HPD_2:
-		dc_hpd_int_cntl_reg = DC_HPD2_INT_CONTROL;
-		break;
-	case AMDGPU_HPD_3:
-		dc_hpd_int_cntl_reg = DC_HPD3_INT_CONTROL;
-		break;
-	case AMDGPU_HPD_4:
-		dc_hpd_int_cntl_reg = DC_HPD4_INT_CONTROL;
-		break;
-	case AMDGPU_HPD_5:
-		dc_hpd_int_cntl_reg = DC_HPD5_INT_CONTROL;
-		break;
-	case AMDGPU_HPD_6:
-		dc_hpd_int_cntl_reg = DC_HPD6_INT_CONTROL;
-		break;
-	default:
+	if (type >= adev->mode_info.num_hpd) {
 		DRM_DEBUG("invalid hdp %d\n", type);
 		return 0;
 	}
 
 	switch (state) {
 	case AMDGPU_IRQ_STATE_DISABLE:
-		dc_hpd_int_cntl = RREG32(dc_hpd_int_cntl_reg);
+		dc_hpd_int_cntl = RREG32(DC_HPD1_INT_CONTROL + hpd_offsets[type]);
 		dc_hpd_int_cntl &= ~(DC_HPDx_INT_EN | DC_HPDx_RX_INT_EN);
-		WREG32(dc_hpd_int_cntl_reg, dc_hpd_int_cntl);
+		WREG32(DC_HPD1_INT_CONTROL + hpd_offsets[type], dc_hpd_int_cntl);
 		break;
 	case AMDGPU_IRQ_STATE_ENABLE:
-		dc_hpd_int_cntl = RREG32(dc_hpd_int_cntl_reg);
+		dc_hpd_int_cntl = RREG32(DC_HPD1_INT_CONTROL + hpd_offsets[type]);
 		dc_hpd_int_cntl |= (DC_HPDx_INT_EN | DC_HPDx_RX_INT_EN);
-		WREG32(dc_hpd_int_cntl_reg, dc_hpd_int_cntl);
+		WREG32(DC_HPD1_INT_CONTROL + hpd_offsets[type], dc_hpd_int_cntl);
 		break;
 	default:
 		break;
@@ -2838,7 +2694,7 @@ static int dce_v6_0_hpd_irq(struct amdgpu_device *adev,
 			    struct amdgpu_irq_src *source,
 			    struct amdgpu_iv_entry *entry)
 {
-	uint32_t disp_int, mask, int_control, tmp;
+	uint32_t disp_int, mask, tmp;
 	unsigned hpd;
 
 	if (entry->src_data >= adev->mode_info.num_hpd) {
@@ -2849,12 +2705,11 @@ static int dce_v6_0_hpd_irq(struct amdgpu_device *adev,
 	hpd = entry->src_data;
 	disp_int = RREG32(interrupt_status_offsets[hpd].reg);
 	mask = interrupt_status_offsets[hpd].hpd;
-	int_control = hpd_int_control_offsets[hpd];
 
 	if (disp_int & mask) {
-		tmp = RREG32(int_control);
+		tmp = RREG32(DC_HPD1_INT_CONTROL + hpd_offsets[hpd]);
 		tmp |= DC_HPD1_INT_CONTROL__DC_HPD1_INT_ACK_MASK;
-		WREG32(int_control, tmp);
+		WREG32(DC_HPD1_INT_CONTROL + hpd_offsets[hpd], tmp);
 		schedule_work(&adev->hotplug_work);
 		DRM_INFO("IH: HPD%d\n", hpd + 1);
 	}
