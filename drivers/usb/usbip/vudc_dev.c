@@ -259,7 +259,7 @@ static int vep_enable(struct usb_ep *_ep,
 
 	spin_lock_irqsave(&udc->lock, flags);
 
-	maxp = usb_endpoint_maxp(desc) & 0x7ff;
+	maxp = usb_endpoint_maxp(desc);
 	_ep->maxpacket = maxp;
 	ep->desc = desc;
 	ep->type = usb_endpoint_type(desc);
