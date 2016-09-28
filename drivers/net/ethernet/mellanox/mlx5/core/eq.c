@@ -469,7 +469,7 @@ void mlx5_eq_cleanup(struct mlx5_core_dev *dev)
 int mlx5_start_eqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = &dev->priv.eq_table;
-	u32 async_event_mask = MLX5_ASYNC_EVENT_MASK;
+	u64 async_event_mask = MLX5_ASYNC_EVENT_MASK;
 	int err;
 
 	if (MLX5_CAP_GEN(dev, pg))
