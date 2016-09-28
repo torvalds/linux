@@ -28,7 +28,7 @@
  * could be, for instance, in case a neighbor is restarted and its TSF counter
  * reset.
  */
-#define TOFFSET_MAXIMUM_ADJUSTMENT 30000		/* 30 ms */
+#define TOFFSET_MAXIMUM_ADJUSTMENT 800		/* 0.8 ms */
 
 struct sync_method {
 	u8 method;
