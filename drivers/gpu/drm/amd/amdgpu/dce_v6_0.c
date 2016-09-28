@@ -2519,12 +2519,12 @@ static int dce_v6_0_set_hpd_interrupt_state(struct amdgpu_device *adev,
 	switch (state) {
 	case AMDGPU_IRQ_STATE_DISABLE:
 		dc_hpd_int_cntl = RREG32(DC_HPD1_INT_CONTROL + hpd_offsets[type]);
-		dc_hpd_int_cntl &= ~(DC_HPDx_INT_EN | DC_HPDx_RX_INT_EN);
+		dc_hpd_int_cntl &= ~DC_HPDx_INT_EN;
 		WREG32(DC_HPD1_INT_CONTROL + hpd_offsets[type], dc_hpd_int_cntl);
 		break;
 	case AMDGPU_IRQ_STATE_ENABLE:
 		dc_hpd_int_cntl = RREG32(DC_HPD1_INT_CONTROL + hpd_offsets[type]);
-		dc_hpd_int_cntl |= (DC_HPDx_INT_EN | DC_HPDx_RX_INT_EN);
+		dc_hpd_int_cntl |= DC_HPDx_INT_EN;
 		WREG32(DC_HPD1_INT_CONTROL + hpd_offsets[type], dc_hpd_int_cntl);
 		break;
 	default:
