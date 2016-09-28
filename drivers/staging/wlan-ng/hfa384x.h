@@ -428,10 +428,10 @@ struct hfa384x_authenticateStation_data {
 } __packed;
 
 /*-- Configuration Record: WPAData       (data portion only) --*/
-typedef struct hfa384x_WPAData {
+struct hfa384x_WPAData {
 	u16 datalen;
 	u8 data[0];		/* max 80 */
-} __packed hfa384x_WPAData_t;
+} __packed;
 
 /*--------------------------------------------------------------------
  * Information Record Structures: NIC Information
