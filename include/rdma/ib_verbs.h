@@ -1739,6 +1739,14 @@ struct ib_dma_mapping_ops {
 	void		(*unmap_sg)(struct ib_device *dev,
 				    struct scatterlist *sg, int nents,
 				    enum dma_data_direction direction);
+	int		(*map_sg_attrs)(struct ib_device *dev,
+					struct scatterlist *sg, int nents,
+					enum dma_data_direction direction,
+					unsigned long attrs);
+	void		(*unmap_sg_attrs)(struct ib_device *dev,
+					  struct scatterlist *sg, int nents,
+					  enum dma_data_direction direction,
+					  unsigned long attrs);
 	void		(*sync_single_for_cpu)(struct ib_device *dev,
 					       u64 dma_handle,
 					       size_t size,
@@ -3000,8 +3008,12 @@ static inline int ib_dma_map_sg_attrs(struct ib_device *dev,
 				      enum dma_data_direction direction,
 				      unsigned long dma_attrs)
 {
-	return dma_map_sg_attrs(dev->dma_device, sg, nents, direction,
-				dma_attrs);
+	if (dev->dma_ops)
+		return dev->dma_ops->map_sg_attrs(dev, sg, nents, direction,
+						  dma_attrs);
+	else
+		return dma_map_sg_attrs(dev->dma_device, sg, nents, direction,
+					dma_attrs);
 }
 
 static inline void ib_dma_unmap_sg_attrs(struct ib_device *dev,
@@ -3009,7 +3021,12 @@ static inline void ib_dma_unmap_sg_attrs(struct ib_device *dev,
 					 enum dma_data_direction direction,
 					 unsigned long dma_attrs)
 {
-	dma_unmap_sg_attrs(dev->dma_device, sg, nents, direction, dma_attrs);
+	if (dev->dma_ops)
+		return dev->dma_ops->unmap_sg_attrs(dev, sg, nents, direction,
+						  dma_attrs);
+	else
+		dma_unmap_sg_attrs(dev->dma_device, sg, nents, direction,
+				   dma_attrs);
 }
 /**
  * ib_sg_dma_address - Return the DMA address from a scatter/gather entry
