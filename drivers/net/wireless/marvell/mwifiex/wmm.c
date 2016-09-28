@@ -1105,6 +1105,7 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 				    &adapter->bss_prio_tbl[j].bss_prio_head,
 				    list) {
 
+try_again:
 			priv_tmp = adapter->bss_prio_tbl[j].bss_prio_cur->priv;
 
 			if (((priv_tmp->bss_mode != NL80211_IFTYPE_ADHOC) &&
@@ -1140,8 +1141,18 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 						       ra_list_spinlock,
 						       flags_ra);
 			}
-		}
 
+			if (atomic_read(&priv_tmp->wmm.tx_pkts_queued) != 0) {
+				atomic_set(&priv_tmp->wmm.highest_queued_prio,
+					   HIGH_PRIO_TID);
+				/* Iterate current private once more, since
+				 * there still exist packets in data queue
+				 */
+				goto try_again;
+			} else
+				atomic_set(&priv_tmp->wmm.highest_queued_prio,
+					   NO_PKT_PRIO_TID);
+		}
 	}
 
 	return NULL;
