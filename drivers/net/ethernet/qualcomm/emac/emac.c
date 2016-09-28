@@ -723,6 +723,10 @@ static int emac_remove(struct platform_device *pdev)
 	mdiobus_unregister(adpt->mii_bus);
 	free_netdev(netdev);
 
+	if (adpt->phy.digital)
+		iounmap(adpt->phy.digital);
+	iounmap(adpt->phy.base);
+
 	return 0;
 }
 

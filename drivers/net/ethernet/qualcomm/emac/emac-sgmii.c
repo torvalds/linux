@@ -681,6 +681,7 @@ int emac_sgmii_config(struct platform_device *pdev, struct emac_adapter *adpt)
 	struct resource *res;
 	const struct of_device_id *match;
 	struct device_node *np;
+	int ret;
 
 	np = of_parse_phandle(pdev->dev.of_node, "internal-phy", 0);
 	if (!np) {
@@ -697,25 +698,48 @@ int emac_sgmii_config(struct platform_device *pdev, struct emac_adapter *adpt)
 	match = of_match_device(emac_sgmii_dt_match, &sgmii_pdev->dev);
 	if (!match) {
 		dev_err(&pdev->dev, "unrecognized internal phy node\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto error_put_device;
 	}
 
 	phy->initialize = (emac_sgmii_initialize)match->data;
 
 	/* Base address is the first address */
 	res = platform_get_resource(sgmii_pdev, IORESOURCE_MEM, 0);
-	phy->base = devm_ioremap_resource(&sgmii_pdev->dev, res);
-	if (IS_ERR(phy->base))
-		return PTR_ERR(phy->base);
+	phy->base = ioremap(res->start, resource_size(res));
+	if (IS_ERR(phy->base)) {
+		ret = PTR_ERR(phy->base);
+		goto error_put_device;
+	}
 
 	/* v2 SGMII has a per-lane digital digital, so parse it if it exists */
 	res = platform_get_resource(sgmii_pdev, IORESOURCE_MEM, 1);
 	if (res) {
-		phy->digital = devm_ioremap_resource(&sgmii_pdev->dev, res);
-		if (IS_ERR(phy->base))
-			return PTR_ERR(phy->base);
-
+		phy->digital = ioremap(res->start, resource_size(res));
+		if (IS_ERR(phy->digital)) {
+			ret = PTR_ERR(phy->digital);
+			goto error_unmap_base;
+		}
 	}
 
-	return phy->initialize(adpt);
+	ret = phy->initialize(adpt);
+	if (ret)
+		goto error;
+
+	/* We've remapped the addresses, so we don't need the device any
+	 * more.  of_find_device_by_node() says we should release it.
+	 */
+	put_device(&sgmii_pdev->dev);
+
+	return 0;
+
+error:
+	if (phy->digital)
+		iounmap(phy->digital);
+error_unmap_base:
+	iounmap(phy->base);
+error_put_device:
+	put_device(&sgmii_pdev->dev);
+
+	return ret;
 }
