@@ -529,7 +529,7 @@ usba_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 
 	DBG(DBG_GADGET, "%s: ep_enable: desc=%p\n", ep->ep.name, desc);
 
-	maxpacket = usb_endpoint_maxp(desc) & 0x7ff;
+	maxpacket = usb_endpoint_maxp(desc);
 
 	if (((desc->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK) != ep->index)
 			|| ep->index == 0
