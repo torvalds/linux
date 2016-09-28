@@ -1323,6 +1323,8 @@ static void intel_pt_calc_cyc_timestamp(struct intel_pt_decoder *decoder)
 			     timestamp, decoder->timestamp);
 	else
 		decoder->timestamp = timestamp;
+
+	decoder->timestamp_insn_cnt = 0;
 }
 
 /* Walk PSB+ packets when already in sync. */
