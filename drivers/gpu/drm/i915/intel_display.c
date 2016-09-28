@@ -3601,6 +3601,8 @@ void intel_finish_reset(struct drm_i915_private *dev_priv)
 
 	dev_priv->modeset_restore_state = NULL;
 
+	dev_priv->modeset_restore_state = NULL;
+
 	/* reset doesn't touch the display */
 	if (!gpu_reset_clobbers_display(dev_priv)) {
 		if (!state) {

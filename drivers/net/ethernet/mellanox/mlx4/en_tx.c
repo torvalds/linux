@@ -818,7 +818,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	real_size = get_real_size(skb, shinfo, dev, &lso_header_size,
 				  &inline_ok, &fragptr);
 	if (unlikely(!real_size))
-		goto tx_drop;
+		goto tx_drop_count;
 
 	/* Align descriptor to TXBB size */
 	desc_size = ALIGN(real_size, TXBB_SIZE);
@@ -826,7 +826,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(nr_txbb > MAX_DESC_TXBBS)) {
 		if (netif_msg_tx_err(priv))
 			en_warn(priv, "Oversized header or SG list\n");
-		goto tx_drop;
+		goto tx_drop_count;
 	}
 
 	bf_ok = ring->bf_enabled;
@@ -1071,9 +1071,10 @@ tx_drop_unmap:
 			       PCI_DMA_TODEVICE);
 	}
 
+tx_drop_count:
+	ring->tx_dropped++;
 tx_drop:
 	dev_kfree_skb_any(skb);
-	ring->tx_dropped++;
 	return NETDEV_TX_OK;
 }
 
@@ -1106,7 +1107,7 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_alloc *frame,
 		goto tx_drop;
 
 	if (mlx4_en_is_tx_ring_full(ring))
-		goto tx_drop;
+		goto tx_drop_count;
 
 	/* fetch ring->cons far ahead before needing it to avoid stall */
 	ring_cons = READ_ONCE(ring->cons);
@@ -1176,7 +1177,8 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_alloc *frame,
 
 	return NETDEV_TX_OK;
 
-tx_drop:
+tx_drop_count:
 	ring->tx_dropped++;
+tx_drop:
 	return NETDEV_TX_BUSY;
 }

@@ -722,11 +722,14 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 	txq->tx_db.data.bd_prod =
 		cpu_to_le16(qed_chain_get_prod_idx(&txq->tx_pbl));
 
-	if (!skb->xmit_more || netif_tx_queue_stopped(netdev_txq))
+	if (!skb->xmit_more || netif_xmit_stopped(netdev_txq))
 		qede_update_tx_producer(txq);
 
 	if (unlikely(qed_chain_get_elem_left(&txq->tx_pbl)
 		      < (MAX_SKB_FRAGS + 1))) {
+		if (skb->xmit_more)
+			qede_update_tx_producer(txq);
+
 		netif_tx_stop_queue(netdev_txq);
 		DP_VERBOSE(edev, NETIF_MSG_TX_QUEUED,
 			   "Stop queue was called\n");
@@ -2517,7 +2520,8 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 	edev->ops->register_ops(cdev, &qede_ll_ops, edev);
 
 #ifdef CONFIG_DCB
-	qede_set_dcbnl_ops(edev->ndev);
+	if (!IS_VF(edev))
+		qede_set_dcbnl_ops(edev->ndev);
 #endif
 
 	INIT_DELAYED_WORK(&edev->sp_task, qede_sp_task);

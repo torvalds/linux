@@ -407,7 +407,6 @@ unsigned amdgpu_fence_count_emitted(struct amdgpu_ring *ring);
 /*
  * BO.
  */
-
 struct amdgpu_bo_list_entry {
 	struct amdgpu_bo		*robj;
 	struct ttm_validate_buffer	tv;
@@ -620,9 +619,9 @@ int amdgpu_gart_table_vram_pin(struct amdgpu_device *adev);
 void amdgpu_gart_table_vram_unpin(struct amdgpu_device *adev);
 int amdgpu_gart_init(struct amdgpu_device *adev);
 void amdgpu_gart_fini(struct amdgpu_device *adev);
-void amdgpu_gart_unbind(struct amdgpu_device *adev, unsigned offset,
+void amdgpu_gart_unbind(struct amdgpu_device *adev, uint64_t offset,
 			int pages);
-int amdgpu_gart_bind(struct amdgpu_device *adev, unsigned offset,
+int amdgpu_gart_bind(struct amdgpu_device *adev, uint64_t offset,
 		     int pages, struct page **pagelist,
 		     dma_addr_t *dma_addr, uint32_t flags);
 int amdgpu_ttm_recover_gart(struct amdgpu_device *adev);

@@ -497,6 +497,7 @@ int of_platform_default_populate(struct device_node *root,
 }
 EXPORT_SYMBOL_GPL(of_platform_default_populate);
 
+#ifndef CONFIG_PPC
 static int __init of_platform_default_populate_init(void)
 {
 	struct device_node *node;
@@ -521,6 +522,7 @@ static int __init of_platform_default_populate_init(void)
 	return 0;
 }
 arch_initcall_sync(of_platform_default_populate_init);
+#endif
 
 static int of_platform_device_destroy(struct device *dev, void *data)
 {

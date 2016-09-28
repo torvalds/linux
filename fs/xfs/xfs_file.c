@@ -741,9 +741,20 @@ xfs_file_dax_write(
 	 * page is inserted into the pagecache when we have to serve a write
 	 * fault on a hole.  It should never be dirtied and can simply be
 	 * dropped from the pagecache once we get real data for the page.
+	 *
+	 * XXX: This is racy against mmap, and there's nothing we can do about
+	 * it. dax_do_io() should really do this invalidation internally as
+	 * it will know if we've allocated over a holei for this specific IO and
+	 * if so it needs to update the mapping tree and invalidate existing
+	 * PTEs over the newly allocated range. Remove this invalidation when
+	 * dax_do_io() is fixed up.
 	 */
 	if (mapping->nrpages) {
-		ret = invalidate_inode_pages2(mapping);
+		loff_t end = iocb->ki_pos + iov_iter_count(from) - 1;
+
+		ret = invalidate_inode_pages2_range(mapping,
+						    iocb->ki_pos >> PAGE_SHIFT,
+						    end >> PAGE_SHIFT);
 		WARN_ON_ONCE(ret);
 	}
 

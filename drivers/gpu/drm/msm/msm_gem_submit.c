@@ -66,6 +66,14 @@ void msm_gem_submit_free(struct msm_gem_submit *submit)
 	kfree(submit);
 }
 
+static inline unsigned long __must_check
+copy_from_user_inatomic(void *to, const void __user *from, unsigned long n)
+{
+	if (access_ok(VERIFY_READ, from, n))
+		return __copy_from_user_inatomic(to, from, n);
+	return -EFAULT;
+}
+
 static int submit_lookup_objects(struct msm_gem_submit *submit,
 		struct drm_msm_gem_submit *args, struct drm_file *file)
 {
@@ -73,6 +81,7 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 	int ret = 0;
 
 	spin_lock(&file->table_lock);
+	pagefault_disable();
 
 	for (i = 0; i < args->nr_bos; i++) {
 		struct drm_msm_gem_submit_bo submit_bo;
@@ -86,10 +95,15 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 		 */
 		submit->bos[i].flags = 0;
 
-		ret = copy_from_user(&submit_bo, userptr, sizeof(submit_bo));
-		if (ret) {
-			ret = -EFAULT;
-			goto out_unlock;
+		ret = copy_from_user_inatomic(&submit_bo, userptr, sizeof(submit_bo));
+		if (unlikely(ret)) {
+			pagefault_enable();
+			spin_unlock(&file->table_lock);
+			ret = copy_from_user(&submit_bo, userptr, sizeof(submit_bo));
+			if (ret)
+				goto out;
+			spin_lock(&file->table_lock);
+			pagefault_disable();
 		}
 
 		if (submit_bo.flags & ~MSM_SUBMIT_BO_FLAGS) {
@@ -129,8 +143,11 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 	}
 
 out_unlock:
-	submit->nr_bos = i;
+	pagefault_enable();
 	spin_unlock(&file->table_lock);
+
+out:
+	submit->nr_bos = i;
 
 	return ret;
 }
@@ -392,6 +409,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 			goto out_unlock;
 		}
 	}
+	priv->struct_mutex_task = current;
 
 	submit = submit_create(dev, gpu, args->nr_bos, args->nr_cmds);
 	if (!submit) {
@@ -531,6 +549,7 @@ out:
 out_unlock:
 	if (ret && (out_fence_fd >= 0))
 		put_unused_fd(out_fence_fd);
+	priv->struct_mutex_task = NULL;
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }

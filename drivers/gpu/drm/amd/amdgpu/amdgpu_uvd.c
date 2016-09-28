@@ -1154,7 +1154,8 @@ int amdgpu_uvd_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 		r = 0;
 	}
 
-error:
 	fence_put(fence);
+
+error:
 	return r;
 }

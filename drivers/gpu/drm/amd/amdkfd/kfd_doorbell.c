@@ -186,7 +186,7 @@ u32 __iomem *kfd_get_kernel_doorbell(struct kfd_dev *kfd,
 							sizeof(u32)) + inx;
 
 	pr_debug("kfd: get kernel queue doorbell\n"
-			 "     doorbell offset   == 0x%08d\n"
+			 "     doorbell offset   == 0x%08X\n"
 			 "     kernel address    == 0x%08lX\n",
 		*doorbell_off, (uintptr_t)(kfd->doorbell_kernel_ptr + inx));
 

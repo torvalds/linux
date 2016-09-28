@@ -222,7 +222,7 @@ int arch_uprobe_exception_notify(struct notifier_block *self,
 		return NOTIFY_DONE;
 
 	switch (val) {
-	case DIE_BREAK:
+	case DIE_UPROBE:
 		if (uprobe_pre_sstep_notifier(regs))
 			return NOTIFY_STOP;
 		break;

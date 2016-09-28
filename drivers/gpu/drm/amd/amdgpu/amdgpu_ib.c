@@ -295,7 +295,7 @@ void amdgpu_ib_pool_fini(struct amdgpu_device *adev)
 int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 {
 	unsigned i;
-	int r;
+	int r, ret = 0;
 
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 		struct amdgpu_ring *ring = adev->rings[i];
@@ -316,10 +316,11 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 			} else {
 				/* still not good, but we can live with it */
 				DRM_ERROR("amdgpu: failed testing IB on ring %d (%d).\n", i, r);
+				ret = r;
 			}
 		}
 	}
-	return 0;
+	return ret;
 }
 
 /*

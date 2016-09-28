@@ -2616,6 +2616,8 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 	list_for_each_entry_continue(request, &engine->request_list, link)
 		if (request->ctx == incomplete_ctx)
 			reset_request(request);
+
+	engine->i915->gt.active_engines &= ~intel_engine_flag(engine);
 }
 
 void i915_gem_reset(struct drm_i915_private *dev_priv)
@@ -2626,6 +2628,7 @@ void i915_gem_reset(struct drm_i915_private *dev_priv)
 
 	for_each_engine(engine, dev_priv)
 		i915_gem_reset_engine(engine);
+	mod_delayed_work(dev_priv->wq, &dev_priv->gt.idle_work, 0);
 
 	i915_gem_restore_fences(&dev_priv->drm);
 }
