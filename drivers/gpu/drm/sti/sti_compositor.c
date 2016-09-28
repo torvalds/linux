@@ -25,7 +25,7 @@
 /*
  * stiH407 compositor properties
  */
-struct sti_compositor_data stih407_compositor_data = {
+static const struct sti_compositor_data stih407_compositor_data = {
 	.nb_subdev = 8,
 	.subdev_desc = {
 			{STI_CURSOR_SUBDEV, (int)STI_CURSOR, 0x000},
@@ -39,38 +39,18 @@ struct sti_compositor_data stih407_compositor_data = {
 	},
 };
 
-/*
- * stiH416 compositor properties
- * Note:
- * on stih416 MIXER_AUX has a different base address from MIXER_MAIN
- * Moreover, GDPx is different for Main and Aux Mixer. So this subdev map does
- * not fit for stiH416 if we want to enable the MIXER_AUX.
- */
-struct sti_compositor_data stih416_compositor_data = {
-	.nb_subdev = 3,
-	.subdev_desc = {
-			{STI_GPD_SUBDEV, (int)STI_GDP_0, 0x100},
-			{STI_GPD_SUBDEV, (int)STI_GDP_1, 0x200},
-			{STI_MIXER_MAIN_SUBDEV, STI_MIXER_MAIN, 0xC00}
-	},
-};
-
-int sti_compositor_debufs_init(struct sti_compositor *compo,
-			       struct drm_minor *minor)
+int sti_compositor_debugfs_init(struct sti_compositor *compo,
+				struct drm_minor *minor)
 {
-	int ret = 0, i;
+	unsigned int i;
 
-	for (i = 0; compo->vid[i]; i++) {
-		ret = vid_debugfs_init(compo->vid[i], minor);
-		if (ret)
-			return ret;
-	}
+	for (i = 0; i < STI_MAX_VID; i++)
+		if (compo->vid[i])
+			vid_debugfs_init(compo->vid[i], minor);
 
-	for (i = 0; compo->mixer[i]; i++) {
-		ret = sti_mixer_debugfs_init(compo->mixer[i], minor);
-		if (ret)
-			return ret;
-	}
+	for (i = 0; i < STI_MAX_MIXER; i++)
+		if (compo->mixer[i])
+			sti_mixer_debugfs_init(compo->mixer[i], minor);
 
 	return 0;
 }
@@ -183,9 +163,6 @@ static const struct component_ops sti_compositor_ops = {
 
 static const struct of_device_id compositor_of_match[] = {
 	{
-		.compatible = "st,stih416-compositor",
-		.data = &stih416_compositor_data,
-	}, {
 		.compatible = "st,stih407-compositor",
 		.data = &stih407_compositor_data,
 	}, {
@@ -201,6 +178,7 @@ static int sti_compositor_probe(struct platform_device *pdev)
 	struct device_node *vtg_np;
 	struct sti_compositor *compo;
 	struct resource *res;
+	unsigned int i;
 
 	compo = devm_kzalloc(dev, sizeof(*compo), GFP_KERNEL);
 	if (!compo) {
@@ -208,7 +186,8 @@ static int sti_compositor_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	compo->dev = dev;
-	compo->vtg_vblank_nb.notifier_call = sti_crtc_vblank_cb;
+	for (i = 0; i < STI_MAX_MIXER; i++)
+		compo->vtg_vblank_nb[i].notifier_call = sti_crtc_vblank_cb;
 
 	/* populate data structure depending on compatibility */
 	BUG_ON(!of_match_node(compositor_of_match, np)->data);
@@ -266,12 +245,12 @@ static int sti_compositor_probe(struct platform_device *pdev)
 
 	vtg_np = of_parse_phandle(pdev->dev.of_node, "st,vtg", 0);
 	if (vtg_np)
-		compo->vtg_main = of_vtg_find(vtg_np);
+		compo->vtg[STI_MIXER_MAIN] = of_vtg_find(vtg_np);
 	of_node_put(vtg_np);
 
 	vtg_np = of_parse_phandle(pdev->dev.of_node, "st,vtg", 1);
 	if (vtg_np)
-		compo->vtg_aux = of_vtg_find(vtg_np);
+		compo->vtg[STI_MIXER_AUX] = of_vtg_find(vtg_np);
 	of_node_put(vtg_np);
 
 	platform_set_drvdata(pdev, compo);
