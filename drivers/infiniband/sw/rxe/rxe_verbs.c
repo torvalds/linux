@@ -801,25 +801,14 @@ err1:
 	return err;
 }
 
-static int rxe_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-			 struct ib_send_wr **bad_wr)
+static int rxe_post_send_kernel(struct rxe_qp *qp, struct ib_send_wr *wr,
+				struct ib_send_wr **bad_wr)
 {
 	int err = 0;
-	struct rxe_qp *qp = to_rqp(ibqp);
 	unsigned int mask;
 	unsigned int length = 0;
 	int i;
 	int must_sched;
-
-	if (unlikely(!qp->valid)) {
-		*bad_wr = wr;
-		return -EINVAL;
-	}
-
-	if (unlikely(qp->req.state < QP_STATE_READY)) {
-		*bad_wr = wr;
-		return -EINVAL;
-	}
 
 	while (wr) {
 		mask = wr_opcode_mask(wr->opcode, qp);
@@ -859,6 +848,29 @@ static int rxe_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	rxe_run_task(&qp->req.task, must_sched);
 
 	return err;
+}
+
+static int rxe_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
+			 struct ib_send_wr **bad_wr)
+{
+	struct rxe_qp *qp = to_rqp(ibqp);
+
+	if (unlikely(!qp->valid)) {
+		*bad_wr = wr;
+		return -EINVAL;
+	}
+
+	if (unlikely(qp->req.state < QP_STATE_READY)) {
+		*bad_wr = wr;
+		return -EINVAL;
+	}
+
+	if (qp->is_user) {
+		/* Utilize process context to do protocol processing */
+		rxe_run_task(&qp->req.task, 0);
+		return 0;
+	} else
+		return rxe_post_send_kernel(qp, wr, bad_wr);
 }
 
 static int rxe_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
