@@ -1134,6 +1134,8 @@ static int mem_ldx4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	else
 		return -ENOTSUPP;
 
+	wrp_immed(nfp_prog, reg_both(meta->insn.dst_reg * 2 + 1), 0);
+
 	return 0;
 }
 
