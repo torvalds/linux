@@ -671,11 +671,11 @@ struct hfa384x_ScanResultSub {
 	u16 proberesp_rate;
 } __packed;
 
-typedef struct hfa384x_ScanResult {
+struct hfa384x_ScanResult {
 	u16 rsvd;
 	u16 scanreason;
 	struct hfa384x_ScanResultSub result[HFA384x_SCANRESULT_MAX];
-} __packed hfa384x_ScanResult_t;
+} __packed;
 
 /*--  Inquiry Frame, Diagnose: ChInfo Results & Subfields--*/
 typedef struct hfa384x_ChInfoResultSub {
@@ -764,7 +764,7 @@ typedef struct hfa384x_KeyIDChanged {
 typedef union hfa384x_infodata {
 	struct hfa384x_CommTallies16 commtallies16;
 	struct hfa384x_CommTallies32 commtallies32;
-	hfa384x_ScanResult_t scanresult;
+	struct hfa384x_ScanResult scanresult;
 	hfa384x_ChInfoResult_t chinforesult;
 	hfa384x_HScanResult_t hscanresult;
 	hfa384x_LinkStatus_t linkstatus;
