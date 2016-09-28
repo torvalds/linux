@@ -731,17 +731,19 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		if (qos_actived) {
 			hdr_len = RTLLIB_3ADDR_LEN + 2;
 
-		/* in case we are a client verify acm is not set for this ac */
-		while (unlikely(ieee->wmm_acm & (0x01 << skb->priority))) {
-			netdev_info(ieee->dev, "skb->priority = %x\n",
-				    skb->priority);
-			if (wme_downgrade_ac(skb))
-				break;
-			netdev_info(ieee->dev, "converted skb->priority = %x\n",
-			       skb->priority);
-		 }
+			/* in case we are a client verify acm is not set for this ac */
+			while (unlikely(ieee->wmm_acm & (0x01 << skb->priority))) {
+				netdev_info(ieee->dev, "skb->priority = %x\n",
+						skb->priority);
+				if (wme_downgrade_ac(skb))
+					break;
+				netdev_info(ieee->dev, "converted skb->priority = %x\n",
+					   skb->priority);
+			}
+
 			qos_ctl |= skb->priority;
 			header.qos_ctl = cpu_to_le16(qos_ctl & RTLLIB_QOS_TID);
+
 		} else {
 			hdr_len = RTLLIB_3ADDR_LEN;
 		}
