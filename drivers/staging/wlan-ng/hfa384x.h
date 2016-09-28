@@ -891,10 +891,10 @@ struct hfa384x_usb_bufavail {
 	u16 frmlen;
 } __packed;
 
-typedef struct hfa384x_usb_error {
+struct hfa384x_usb_error {
 	u16 type;
 	u16 errortype;
-} __packed hfa384x_usb_error_t;
+} __packed;
 
 /*----------------------------------------------------------*/
 /* Unions for packaging all the known packet types together */
@@ -920,7 +920,7 @@ typedef union hfa384x_usbin {
 	struct hfa384x_usb_statusresp wmemresp;
 	struct hfa384x_usb_rmemresp rmemresp;
 	struct hfa384x_usb_bufavail bufavail;
-	hfa384x_usb_error_t usberror;
+	struct hfa384x_usb_error usberror;
 	u8 boguspad[3000];
 } __packed hfa384x_usbin_t;
 
