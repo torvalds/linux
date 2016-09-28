@@ -1424,14 +1424,6 @@ void iwl_trans_pcie_txq_set_shared_mode(struct iwl_trans *trans, u32 txq_id,
 	txq->ampdu = !shared_mode;
 }
 
-dma_addr_t iwl_trans_pcie_get_txq_byte_table(struct iwl_trans *trans, int txq)
-{
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-
-	return trans_pcie->scd_bc_tbls.dma +
-	       txq * sizeof(struct iwlagn_scd_bc_tbl);
-}
-
 void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id,
 				bool configure_scd)
 {
