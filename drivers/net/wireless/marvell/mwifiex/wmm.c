@@ -503,8 +503,10 @@ mwifiex_wmm_del_pkts_in_ralist_node(struct mwifiex_private *priv,
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct sk_buff *skb, *tmp;
 
-	skb_queue_walk_safe(&ra_list->skb_head, skb, tmp)
+	skb_queue_walk_safe(&ra_list->skb_head, skb, tmp) {
+		skb_unlink(skb, &ra_list->skb_head);
 		mwifiex_write_data_complete(adapter, skb, 0, -1);
+	}
 }
 
 /*
@@ -600,11 +602,15 @@ mwifiex_clean_txrx(struct mwifiex_private *priv)
 		priv->adapter->if_ops.clean_pcie_ring(priv->adapter);
 	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, flags);
 
-	skb_queue_walk_safe(&priv->tdls_txq, skb, tmp)
+	skb_queue_walk_safe(&priv->tdls_txq, skb, tmp) {
+		skb_unlink(skb, &priv->tdls_txq);
 		mwifiex_write_data_complete(priv->adapter, skb, 0, -1);
+	}
 
-	skb_queue_walk_safe(&priv->bypass_txq, skb, tmp)
+	skb_queue_walk_safe(&priv->bypass_txq, skb, tmp) {
+		skb_unlink(skb, &priv->bypass_txq);
 		mwifiex_write_data_complete(priv->adapter, skb, 0, -1);
+	}
 	atomic_set(&priv->adapter->bypass_tx_pending, 0);
 
 	idr_for_each(&priv->ack_status_frames, mwifiex_free_ack_frame, NULL);
