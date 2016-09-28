@@ -1471,7 +1471,7 @@ static void prism2sta_inf_assocstatus(struct wlandevice *wlandev,
 				      hfa384x_InfFrame_t *inf)
 {
 	hfa384x_t *hw = wlandev->priv;
-	hfa384x_AssocStatus_t rec;
+	struct hfa384x_AssocStatus rec;
 	int i;
 
 	memcpy(&rec, &inf->info.assocstatus, sizeof(rec));

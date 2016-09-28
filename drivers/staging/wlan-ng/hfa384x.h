@@ -733,14 +733,14 @@ struct hfa384x_LinkStatus {
 #define HFA384x_ASSOCSTATUS_REASSOC	((u16)2)
 #define HFA384x_ASSOCSTATUS_AUTHFAIL	((u16)5)
 
-typedef struct hfa384x_AssocStatus {
+struct hfa384x_AssocStatus {
 	u16 assocstatus;
 	u8 sta_addr[ETH_ALEN];
 	/* old_ap_addr is only valid if assocstatus == 2 */
 	u8 old_ap_addr[ETH_ALEN];
 	u16 reason;
 	u16 reserved;
-} __packed hfa384x_AssocStatus_t;
+} __packed;
 
 /*--  Unsolicited Frame, MAC Mgmt: AuthRequest (AP Only) --*/
 
@@ -768,7 +768,7 @@ typedef union hfa384x_infodata {
 	struct hfa384x_ChInfoResult chinforesult;
 	struct hfa384x_HScanResult hscanresult;
 	struct hfa384x_LinkStatus linkstatus;
-	hfa384x_AssocStatus_t assocstatus;
+	struct hfa384x_AssocStatus assocstatus;
 	hfa384x_AuthReq_t authreq;
 	hfa384x_PSUserCount_t psusercnt;
 	hfa384x_KeyIDChanged_t keyidchanged;
