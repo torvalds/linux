@@ -1000,9 +1000,9 @@ struct hfa384x_pdr_mac_address {
 	u8 addr[6];
 } __packed;
 
-typedef struct hfa384x_pdr_mkk_callname {
+struct hfa384x_pdr_mkk_callname {
 	u8 callname[8];
-} __packed hfa384x_pdr_mkk_callname_t;
+} __packed;
 
 typedef struct hfa384x_pdr_regdomain {
 	u16 numdomains;
@@ -1106,7 +1106,7 @@ typedef struct hfa384x_pdrec {
 		struct hfa384x_pdr_vgdac_measurements vgdac_measurements;
 		struct hfa384x_pdr_level_comp_measurements level_compc_measurements;
 		struct hfa384x_pdr_mac_address mac_address;
-		hfa384x_pdr_mkk_callname_t mkk_callname;
+		struct hfa384x_pdr_mkk_callname mkk_callname;
 		hfa384x_pdr_regdomain_t regdomain;
 		hfa384x_pdr_allowed_channel_t allowed_channel;
 		hfa384x_pdr_default_channel_t default_channel;
