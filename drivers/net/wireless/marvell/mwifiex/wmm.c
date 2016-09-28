@@ -1334,9 +1334,11 @@ mwifiex_send_processed_packet(struct mwifiex_private *priv,
 	skb = skb_dequeue(&ptr->skb_head);
 
 	if (adapter->data_sent || adapter->tx_lock_flag) {
+		ptr->total_pkt_count--;
 		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
 				       ra_list_flags);
 		skb_queue_tail(&adapter->tx_data_q, skb);
+		atomic_dec(&priv->wmm.tx_pkts_queued);
 		atomic_inc(&adapter->tx_queued);
 		return;
 	}
@@ -1394,6 +1396,10 @@ mwifiex_send_processed_packet(struct mwifiex_private *priv,
 	if (ret != -EBUSY) {
 		mwifiex_rotate_priolists(priv, ptr, ptr_index);
 		atomic_dec(&priv->wmm.tx_pkts_queued);
+		spin_lock_irqsave(&priv->wmm.ra_list_spinlock, ra_list_flags);
+		ptr->total_pkt_count--;
+		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
+				       ra_list_flags);
 	}
 }
 
