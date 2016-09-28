@@ -446,7 +446,7 @@ static int setup_bd_list_xfr(struct bdc *bdc, struct bdc_req *req, int num_bds)
 	bd_xfr->start_bdi = bd_list->eqp_bdi;
 	bd = bdi_to_bd(ep, bd_list->eqp_bdi);
 	req_len = req->usb_req.length;
-	maxp = usb_endpoint_maxp(ep->desc) & 0x7ff;
+	maxp = usb_endpoint_maxp(ep->desc);
 	tfs = roundup(req->usb_req.length, maxp);
 	tfs = tfs/maxp;
 	dev_vdbg(bdc->dev, "%s ep:%s num_bds:%d tfs:%d r_len:%d bd:%p\n",
