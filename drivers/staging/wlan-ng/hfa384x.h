@@ -707,11 +707,11 @@ struct hfa384x_HScanResultSub {
 	u16 atim;
 } __packed;
 
-typedef struct hfa384x_HScanResult {
+struct hfa384x_HScanResult {
 	u16 nresult;
 	u16 rsvd;
 	struct hfa384x_HScanResultSub result[HFA384x_HSCANRESULT_MAX];
-} __packed hfa384x_HScanResult_t;
+} __packed;
 
 /*--  Unsolicited Frame, MAC Mgmt: LinkStatus --*/
 
@@ -766,7 +766,7 @@ typedef union hfa384x_infodata {
 	struct hfa384x_CommTallies32 commtallies32;
 	struct hfa384x_ScanResult scanresult;
 	struct hfa384x_ChInfoResult chinforesult;
-	hfa384x_HScanResult_t hscanresult;
+	struct hfa384x_HScanResult hscanresult;
 	hfa384x_LinkStatus_t linkstatus;
 	hfa384x_AssocStatus_t assocstatus;
 	hfa384x_AuthReq_t authreq;
