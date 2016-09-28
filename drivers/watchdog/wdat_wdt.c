@@ -351,15 +351,16 @@ static int wdat_wdt_probe(struct platform_device *pdev)
 		res = &pdev->resource[i];
 		if (resource_type(res) == IORESOURCE_MEM) {
 			reg = devm_ioremap_resource(&pdev->dev, res);
+			if (IS_ERR(reg))
+				return PTR_ERR(reg);
 		} else if (resource_type(res) == IORESOURCE_IO) {
 			reg = devm_ioport_map(&pdev->dev, res->start, 1);
+			if (!reg)
+				return -ENOMEM;
 		} else {
 			dev_err(&pdev->dev, "Unsupported resource\n");
 			return -EINVAL;
 		}
-
-		if (!reg)
-			return -ENOMEM;
 
 		regs[i] = reg;
 	}
