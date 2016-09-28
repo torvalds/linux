@@ -13,4 +13,4 @@ config SND_SIMPLE_SCU_CARD
 	select SND_SIMPLE_CARD_UTILS
 	help
 	  This option enables generic simple SCU sound card support.
-	  It supports DPCM of multi CPU single Codec ststem.
+	  It supports DPCM of multi CPU single Codec system.
