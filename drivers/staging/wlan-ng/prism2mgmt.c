@@ -116,7 +116,7 @@
 int prism2mgmt_scan(struct wlandevice *wlandev, void *msgp)
 {
 	int result = 0;
-	hfa384x_t *hw = wlandev->priv;
+	struct hfa384x *hw = wlandev->priv;
 	struct p80211msg_dot11req_scan *msg = msgp;
 	u16 roamingmode, word;
 	int i, timeout;
@@ -370,7 +370,7 @@ int prism2mgmt_scan_results(struct wlandevice *wlandev, void *msgp)
 {
 	int result = 0;
 	struct p80211msg_dot11req_scan_results *req;
-	hfa384x_t *hw = wlandev->priv;
+	struct hfa384x *hw = wlandev->priv;
 	struct hfa384x_HScanResultSub *item = NULL;
 
 	int count;
@@ -528,7 +528,7 @@ exit:
 int prism2mgmt_start(struct wlandevice *wlandev, void *msgp)
 {
 	int result = 0;
-	hfa384x_t *hw = wlandev->priv;
+	struct hfa384x *hw = wlandev->priv;
 	struct p80211msg_dot11req_start *msg = msgp;
 
 	struct p80211pstrd *pstr;
@@ -708,7 +708,7 @@ done:
 ----------------------------------------------------------------*/
 int prism2mgmt_readpda(struct wlandevice *wlandev, void *msgp)
 {
-	hfa384x_t *hw = wlandev->priv;
+	struct hfa384x *hw = wlandev->priv;
 	struct p80211msg_p2req_readpda *msg = msgp;
 	int result;
 
@@ -774,7 +774,7 @@ int prism2mgmt_readpda(struct wlandevice *wlandev, void *msgp)
 ----------------------------------------------------------------*/
 int prism2mgmt_ramdl_state(struct wlandevice *wlandev, void *msgp)
 {
-	hfa384x_t *hw = wlandev->priv;
+	struct hfa384x *hw = wlandev->priv;
 	struct p80211msg_p2req_ramdl_state *msg = msgp;
 
 	if (wlandev->msdstate != WLAN_MSD_FWLOAD) {
@@ -829,7 +829,7 @@ int prism2mgmt_ramdl_state(struct wlandevice *wlandev, void *msgp)
 ----------------------------------------------------------------*/
 int prism2mgmt_ramdl_write(struct wlandevice *wlandev, void *msgp)
 {
-	hfa384x_t *hw = wlandev->priv;
+	struct hfa384x *hw = wlandev->priv;
 	struct p80211msg_p2req_ramdl_write *msg = msgp;
 	u32 addr;
 	u32 len;
@@ -891,7 +891,7 @@ int prism2mgmt_ramdl_write(struct wlandevice *wlandev, void *msgp)
 int prism2mgmt_flashdl_state(struct wlandevice *wlandev, void *msgp)
 {
 	int result = 0;
-	hfa384x_t *hw = wlandev->priv;
+	struct hfa384x *hw = wlandev->priv;
 	struct p80211msg_p2req_flashdl_state *msg = msgp;
 
 	if (wlandev->msdstate != WLAN_MSD_FWLOAD) {
@@ -961,7 +961,7 @@ int prism2mgmt_flashdl_state(struct wlandevice *wlandev, void *msgp)
 ----------------------------------------------------------------*/
 int prism2mgmt_flashdl_write(struct wlandevice *wlandev, void *msgp)
 {
-	hfa384x_t *hw = wlandev->priv;
+	struct hfa384x *hw = wlandev->priv;
 	struct p80211msg_p2req_flashdl_write *msg = msgp;
 	u32 addr;
 	u32 len;
@@ -1021,7 +1021,7 @@ int prism2mgmt_flashdl_write(struct wlandevice *wlandev, void *msgp)
 ----------------------------------------------------------------*/
 int prism2mgmt_autojoin(struct wlandevice *wlandev, void *msgp)
 {
-	hfa384x_t *hw = wlandev->priv;
+	struct hfa384x *hw = wlandev->priv;
 	int result = 0;
 	u16 reg;
 	u16 port_type;
@@ -1095,7 +1095,7 @@ int prism2mgmt_wlansniff(struct wlandevice *wlandev, void *msgp)
 	int result = 0;
 	struct p80211msg_lnxreq_wlansniff *msg = msgp;
 
-	hfa384x_t *hw = wlandev->priv;
+	struct hfa384x *hw = wlandev->priv;
 	u16 word;
 
 	msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;

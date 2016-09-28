@@ -88,61 +88,61 @@ struct mibrec {
 	int (*func)(struct mibrec *mib,
 		     int isget,
 		     struct wlandevice *wlandev,
-		     hfa384x_t *hw,
+		     struct hfa384x *hw,
 		     struct p80211msg_dot11req_mibset *msg, void *data);
 };
 
 static int prism2mib_bytearea2pstr(struct mibrec *mib,
 				   int isget,
 				   struct wlandevice *wlandev,
-				   hfa384x_t *hw,
+				   struct hfa384x *hw,
 				   struct p80211msg_dot11req_mibset *msg,
 				   void *data);
 
 static int prism2mib_uint32(struct mibrec *mib,
 			    int isget,
 			    struct wlandevice *wlandev,
-			    hfa384x_t *hw,
+			    struct hfa384x *hw,
 			    struct p80211msg_dot11req_mibset *msg, void *data);
 
 static int prism2mib_flag(struct mibrec *mib,
 			  int isget,
 			  struct wlandevice *wlandev,
-			  hfa384x_t *hw,
+			  struct hfa384x *hw,
 			  struct p80211msg_dot11req_mibset *msg, void *data);
 
 static int prism2mib_wepdefaultkey(struct mibrec *mib,
 				   int isget,
 				   struct wlandevice *wlandev,
-				   hfa384x_t *hw,
+				   struct hfa384x *hw,
 				   struct p80211msg_dot11req_mibset *msg,
 				   void *data);
 
 static int prism2mib_privacyinvoked(struct mibrec *mib,
 				    int isget,
 				    struct wlandevice *wlandev,
-				    hfa384x_t *hw,
+				    struct hfa384x *hw,
 				    struct p80211msg_dot11req_mibset *msg,
 				    void *data);
 
 static int prism2mib_excludeunencrypted(struct mibrec *mib,
 					int isget,
 					struct wlandevice *wlandev,
-					hfa384x_t *hw,
+					struct hfa384x *hw,
 					struct p80211msg_dot11req_mibset *msg,
 					void *data);
 
 static int prism2mib_fragmentationthreshold(struct mibrec *mib,
 					    int isget,
 					    struct wlandevice *wlandev,
-					    hfa384x_t *hw,
+					    struct hfa384x *hw,
 					    struct p80211msg_dot11req_mibset *msg,
 					    void *data);
 
 static int prism2mib_priv(struct mibrec *mib,
 			  int isget,
 			  struct wlandevice *wlandev,
-			  hfa384x_t *hw,
+			  struct hfa384x *hw,
 			  struct p80211msg_dot11req_mibset *msg, void *data);
 
 static struct mibrec mibtab[] = {
@@ -259,7 +259,7 @@ static struct mibrec mibtab[] = {
 
 int prism2mgmt_mibset_mibget(struct wlandevice *wlandev, void *msgp)
 {
-	hfa384x_t *hw = wlandev->priv;
+	struct hfa384x *hw = wlandev->priv;
 	int result, isget;
 	struct mibrec *mib;
 
@@ -374,7 +374,7 @@ done:
 static int prism2mib_bytearea2pstr(struct mibrec *mib,
 				   int isget,
 				   struct wlandevice *wlandev,
-				   hfa384x_t *hw,
+				   struct hfa384x *hw,
 				   struct p80211msg_dot11req_mibset *msg,
 				   void *data)
 {
@@ -424,7 +424,7 @@ static int prism2mib_bytearea2pstr(struct mibrec *mib,
 static int prism2mib_uint32(struct mibrec *mib,
 			    int isget,
 			    struct wlandevice *wlandev,
-			    hfa384x_t *hw,
+			    struct hfa384x *hw,
 			    struct p80211msg_dot11req_mibset *msg, void *data)
 {
 	int result;
@@ -471,7 +471,7 @@ static int prism2mib_uint32(struct mibrec *mib,
 static int prism2mib_flag(struct mibrec *mib,
 			  int isget,
 			  struct wlandevice *wlandev,
-			  hfa384x_t *hw,
+			  struct hfa384x *hw,
 			  struct p80211msg_dot11req_mibset *msg, void *data)
 {
 	int result;
@@ -528,7 +528,7 @@ static int prism2mib_flag(struct mibrec *mib,
 static int prism2mib_wepdefaultkey(struct mibrec *mib,
 				   int isget,
 				   struct wlandevice *wlandev,
-				   hfa384x_t *hw,
+				   struct hfa384x *hw,
 				   struct p80211msg_dot11req_mibset *msg,
 				   void *data)
 {
@@ -578,7 +578,7 @@ static int prism2mib_wepdefaultkey(struct mibrec *mib,
 static int prism2mib_privacyinvoked(struct mibrec *mib,
 				    int isget,
 				    struct wlandevice *wlandev,
-				    hfa384x_t *hw,
+				    struct hfa384x *hw,
 				    struct p80211msg_dot11req_mibset *msg,
 				    void *data)
 {
@@ -620,7 +620,7 @@ static int prism2mib_privacyinvoked(struct mibrec *mib,
 static int prism2mib_excludeunencrypted(struct mibrec *mib,
 					int isget,
 					struct wlandevice *wlandev,
-					hfa384x_t *hw,
+					struct hfa384x *hw,
 					struct p80211msg_dot11req_mibset *msg,
 					void *data)
 {
@@ -656,7 +656,7 @@ static int prism2mib_excludeunencrypted(struct mibrec *mib,
 static int prism2mib_fragmentationthreshold(struct mibrec *mib,
 					    int isget,
 					    struct wlandevice *wlandev,
-					    hfa384x_t *hw,
+					    struct hfa384x *hw,
 					    struct p80211msg_dot11req_mibset *msg,
 					    void *data)
 {
@@ -702,7 +702,7 @@ static int prism2mib_fragmentationthreshold(struct mibrec *mib,
 static int prism2mib_priv(struct mibrec *mib,
 			  int isget,
 			  struct wlandevice *wlandev,
-			  hfa384x_t *hw,
+			  struct hfa384x *hw,
 			  struct p80211msg_dot11req_mibset *msg, void *data)
 {
 	struct p80211pstrd *pstr = data;

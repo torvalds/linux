@@ -1241,7 +1241,7 @@ struct prism2sta_accesslist {
 	u8 addr1[WLAN_ACCESS_MAX][ETH_ALEN];
 };
 
-typedef struct hfa384x {
+struct hfa384x {
 	/* USB support data */
 	struct usb_device *usb;
 	struct urb rx_urb;
@@ -1377,26 +1377,26 @@ typedef struct hfa384x {
 	struct prism2sta_accesslist allow;	/* Allowed station list. */
 	struct prism2sta_accesslist deny;	/* Denied station list. */
 
-} hfa384x_t;
+};
 
-void hfa384x_create(hfa384x_t *hw, struct usb_device *usb);
-void hfa384x_destroy(hfa384x_t *hw);
+void hfa384x_create(struct hfa384x *hw, struct usb_device *usb);
+void hfa384x_destroy(struct hfa384x *hw);
 
 int
-hfa384x_corereset(hfa384x_t *hw, int holdtime, int settletime, int genesis);
-int hfa384x_drvr_disable(hfa384x_t *hw, u16 macport);
-int hfa384x_drvr_enable(hfa384x_t *hw, u16 macport);
-int hfa384x_drvr_flashdl_enable(hfa384x_t *hw);
-int hfa384x_drvr_flashdl_disable(hfa384x_t *hw);
-int hfa384x_drvr_flashdl_write(hfa384x_t *hw, u32 daddr, void *buf, u32 len);
-int hfa384x_drvr_getconfig(hfa384x_t *hw, u16 rid, void *buf, u16 len);
-int hfa384x_drvr_ramdl_enable(hfa384x_t *hw, u32 exeaddr);
-int hfa384x_drvr_ramdl_disable(hfa384x_t *hw);
-int hfa384x_drvr_ramdl_write(hfa384x_t *hw, u32 daddr, void *buf, u32 len);
-int hfa384x_drvr_readpda(hfa384x_t *hw, void *buf, unsigned int len);
-int hfa384x_drvr_setconfig(hfa384x_t *hw, u16 rid, void *buf, u16 len);
+hfa384x_corereset(struct hfa384x *hw, int holdtime, int settletime, int genesis);
+int hfa384x_drvr_disable(struct hfa384x *hw, u16 macport);
+int hfa384x_drvr_enable(struct hfa384x *hw, u16 macport);
+int hfa384x_drvr_flashdl_enable(struct hfa384x *hw);
+int hfa384x_drvr_flashdl_disable(struct hfa384x *hw);
+int hfa384x_drvr_flashdl_write(struct hfa384x *hw, u32 daddr, void *buf, u32 len);
+int hfa384x_drvr_getconfig(struct hfa384x *hw, u16 rid, void *buf, u16 len);
+int hfa384x_drvr_ramdl_enable(struct hfa384x *hw, u32 exeaddr);
+int hfa384x_drvr_ramdl_disable(struct hfa384x *hw);
+int hfa384x_drvr_ramdl_write(struct hfa384x *hw, u32 daddr, void *buf, u32 len);
+int hfa384x_drvr_readpda(struct hfa384x *hw, void *buf, unsigned int len);
+int hfa384x_drvr_setconfig(struct hfa384x *hw, u16 rid, void *buf, u16 len);
 
-static inline int hfa384x_drvr_getconfig16(hfa384x_t *hw, u16 rid, void *val)
+static inline int hfa384x_drvr_getconfig16(struct hfa384x *hw, u16 rid, void *val)
 {
 	int result = 0;
 
@@ -1406,7 +1406,7 @@ static inline int hfa384x_drvr_getconfig16(hfa384x_t *hw, u16 rid, void *val)
 	return result;
 }
 
-static inline int hfa384x_drvr_setconfig16(hfa384x_t *hw, u16 rid, u16 val)
+static inline int hfa384x_drvr_setconfig16(struct hfa384x *hw, u16 rid, u16 val)
 {
 	u16 value = cpu_to_le16(val);
 
@@ -1414,13 +1414,13 @@ static inline int hfa384x_drvr_setconfig16(hfa384x_t *hw, u16 rid, u16 val)
 }
 
 int
-hfa384x_drvr_setconfig_async(hfa384x_t *hw,
+hfa384x_drvr_setconfig_async(struct hfa384x *hw,
 			     u16 rid,
 			     void *buf,
 			     u16 len, ctlx_usercb_t usercb, void *usercb_data);
 
 static inline int
-hfa384x_drvr_setconfig16_async(hfa384x_t *hw, u16 rid, u16 val)
+hfa384x_drvr_setconfig16_async(struct hfa384x *hw, u16 rid, u16 val)
 {
 	u16 value = cpu_to_le16(val);
 
@@ -1428,21 +1428,21 @@ hfa384x_drvr_setconfig16_async(hfa384x_t *hw, u16 rid, u16 val)
 					    NULL, NULL);
 }
 
-int hfa384x_drvr_start(hfa384x_t *hw);
-int hfa384x_drvr_stop(hfa384x_t *hw);
+int hfa384x_drvr_start(struct hfa384x *hw);
+int hfa384x_drvr_stop(struct hfa384x *hw);
 int
-hfa384x_drvr_txframe(hfa384x_t *hw, struct sk_buff *skb,
+hfa384x_drvr_txframe(struct hfa384x *hw, struct sk_buff *skb,
 		     union p80211_hdr *p80211_hdr,
 		     struct p80211_metawep *p80211_wep);
 void hfa384x_tx_timeout(struct wlandevice *wlandev);
 
-int hfa384x_cmd_initialize(hfa384x_t *hw);
-int hfa384x_cmd_enable(hfa384x_t *hw, u16 macport);
-int hfa384x_cmd_disable(hfa384x_t *hw, u16 macport);
-int hfa384x_cmd_allocate(hfa384x_t *hw, u16 len);
-int hfa384x_cmd_monitor(hfa384x_t *hw, u16 enable);
+int hfa384x_cmd_initialize(struct hfa384x *hw);
+int hfa384x_cmd_enable(struct hfa384x *hw, u16 macport);
+int hfa384x_cmd_disable(struct hfa384x *hw, u16 macport);
+int hfa384x_cmd_allocate(struct hfa384x *hw, u16 len);
+int hfa384x_cmd_monitor(struct hfa384x *hw, u16 enable);
 int
-hfa384x_cmd_download(hfa384x_t *hw,
+hfa384x_cmd_download(struct hfa384x *hw,
 		     u16 mode, u16 lowaddr, u16 highaddr, u16 codelen);
 
 #endif /*__KERNEL__ */
