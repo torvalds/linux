@@ -822,12 +822,12 @@ struct hfa384x_usb_cmdreq {
 	u8 pad[54];
 } __packed;
 
-typedef struct hfa384x_usb_wridreq {
+struct hfa384x_usb_wridreq {
 	u16 type;
 	u16 frmlen;
 	u16 rid;
 	u8 data[HFA384x_RIDDATA_MAXLEN];
-} __packed hfa384x_usb_wridreq_t;
+} __packed;
 
 typedef struct hfa384x_usb_rridreq {
 	u16 type;
@@ -907,7 +907,7 @@ typedef union hfa384x_usbout {
 	__le16 type;
 	struct hfa384x_usb_txfrm txfrm;
 	struct hfa384x_usb_cmdreq cmdreq;
-	hfa384x_usb_wridreq_t wridreq;
+	struct hfa384x_usb_wridreq wridreq;
 	hfa384x_usb_rridreq_t rridreq;
 	hfa384x_usb_wmemreq_t wmemreq;
 	hfa384x_usb_rmemreq_t rmemreq;
