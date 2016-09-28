@@ -744,7 +744,7 @@ static inline struct usbctlx_completor *init_rrid_completor(
 struct usbctlx_rmem_completor {
 	struct usbctlx_completor head;
 
-	const hfa384x_usb_rmemresp_t *rmemresp;
+	const struct hfa384x_usb_rmemresp *rmemresp;
 	void *data;
 	unsigned int len;
 };
@@ -762,7 +762,7 @@ static int usbctlx_rmem_completor_fn(struct usbctlx_completor *head)
 static inline struct usbctlx_completor *init_rmem_completor(
 						struct usbctlx_rmem_completor
 							*completor,
-						hfa384x_usb_rmemresp_t
+						struct hfa384x_usb_rmemresp
 							*rmemresp,
 						void *data,
 						unsigned int len)
