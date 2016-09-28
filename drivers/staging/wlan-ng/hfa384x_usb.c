@@ -3346,7 +3346,7 @@ static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb)
 		hdrlen = p80211_headerlen(fc);
 
 		/* Pull off the descriptor */
-		skb_pull(skb, sizeof(hfa384x_rx_frame_t));
+		skb_pull(skb, sizeof(struct hfa384x_rx_frame));
 
 		/* Now shunt the header block up against the data block
 		 * with an "overlapping" copy
@@ -3419,7 +3419,7 @@ static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb)
 static void hfa384x_int_rxmonitor(struct wlandevice *wlandev,
 				  hfa384x_usb_rxfrm_t *rxfrm)
 {
-	hfa384x_rx_frame_t *rxdesc = &(rxfrm->desc);
+	struct hfa384x_rx_frame *rxdesc = &(rxfrm->desc);
 	unsigned int hdrlen = 0;
 	unsigned int datalen = 0;
 	unsigned int skblen = 0;

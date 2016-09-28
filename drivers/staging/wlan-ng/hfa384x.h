@@ -539,7 +539,7 @@ struct hfa384x_tx_frame {
  *--------------------------------------------------------------------
  */
 /*-- Communication Frame: Receive Frame Structure --*/
-typedef struct hfa384x_rx_frame {
+struct hfa384x_rx_frame {
 	/*-- MAC rx descriptor (hfa384x byte order) --*/
 	u16 status;
 	u32 time;
@@ -564,7 +564,7 @@ typedef struct hfa384x_rx_frame {
 	u8 dest_addr[6];
 	u8 src_addr[6];
 	u16 data_length;	/* IEEE? (big endian) format */
-} __packed hfa384x_rx_frame_t;
+} __packed;
 /*--------------------------------------------------------------------
  * Communication Frames: Field Masks for Receive Frames
  *--------------------------------------------------------------------
@@ -856,7 +856,7 @@ typedef struct hfa384x_usb_rmemreq {
 /* Response (bulk IN) packet contents */
 
 typedef struct hfa384x_usb_rxfrm {
-	hfa384x_rx_frame_t desc;
+	struct hfa384x_rx_frame desc;
 	u8 data[WLAN_DATA_MAXLEN];
 } __packed hfa384x_usb_rxfrm_t;
 
