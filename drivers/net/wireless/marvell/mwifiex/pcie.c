@@ -101,7 +101,6 @@ static int mwifiex_pcie_suspend(struct device *dev)
 {
 	struct mwifiex_adapter *adapter;
 	struct pcie_service_card *card;
-	int hs_actived;
 	struct pci_dev *pdev = to_pci_dev(dev);
 
 	if (pdev) {
@@ -117,7 +116,14 @@ static int mwifiex_pcie_suspend(struct device *dev)
 
 	adapter = card->adapter;
 
-	hs_actived = mwifiex_enable_hs(adapter);
+	/* Enable the Host Sleep */
+	if (!mwifiex_enable_hs(adapter)) {
+		mwifiex_dbg(adapter, ERROR,
+			    "cmd: failed to suspend\n");
+		adapter->hs_enabling = false;
+		return -EFAULT;
+	}
+
 	flush_workqueue(adapter->workqueue);
 
 	/* Indicate device suspended */
