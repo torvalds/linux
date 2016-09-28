@@ -209,17 +209,14 @@ void squashfs_cache_put(struct squashfs_cache_entry *entry)
  */
 void squashfs_cache_delete(struct squashfs_cache *cache)
 {
-	int i, j;
+	int i;
 
 	if (cache == NULL)
 		return;
 
 	for (i = 0; i < cache->entries; i++) {
-		if (cache->entry[i].data) {
-			for (j = 0; j < cache->pages; j++)
-				kfree(cache->entry[i].data[j]);
-			kfree(cache->entry[i].data);
-		}
+		if (cache->entry[i].page)
+			free_page_array(cache->entry[i].page, cache->pages);
 		kfree(cache->entry[i].actor);
 	}
 
@@ -236,7 +233,7 @@ void squashfs_cache_delete(struct squashfs_cache *cache)
 struct squashfs_cache *squashfs_cache_init(char *name, int entries,
 	int block_size)
 {
-	int i, j;
+	int i;
 	struct squashfs_cache *cache = kzalloc(sizeof(*cache), GFP_KERNEL);
 
 	if (cache == NULL) {
@@ -268,22 +265,13 @@ struct squashfs_cache *squashfs_cache_init(char *name, int entries,
 		init_waitqueue_head(&cache->entry[i].wait_queue);
 		entry->cache = cache;
 		entry->block = SQUASHFS_INVALID_BLK;
-		entry->data = kcalloc(cache->pages, sizeof(void *), GFP_KERNEL);
-		if (entry->data == NULL) {
+		entry->page = alloc_page_array(cache->pages, GFP_KERNEL);
+		if (!entry->page) {
 			ERROR("Failed to allocate %s cache entry\n", name);
 			goto cleanup;
 		}
-
-		for (j = 0; j < cache->pages; j++) {
-			entry->data[j] = kmalloc(PAGE_CACHE_SIZE, GFP_KERNEL);
-			if (entry->data[j] == NULL) {
-				ERROR("Failed to allocate %s buffer\n", name);
-				goto cleanup;
-			}
-		}
-
-		entry->actor = squashfs_page_actor_init(entry->data,
-						cache->pages, 0);
+		entry->actor = squashfs_page_actor_init(entry->page,
+			cache->pages, 0, NULL);
 		if (entry->actor == NULL) {
 			ERROR("Failed to allocate %s cache entry\n", name);
 			goto cleanup;
@@ -314,18 +302,20 @@ int squashfs_copy_data(void *buffer, struct squashfs_cache_entry *entry,
 		return min(length, entry->length - offset);
 
 	while (offset < entry->length) {
-		void *buff = entry->data[offset / PAGE_CACHE_SIZE]
-				+ (offset % PAGE_CACHE_SIZE);
+		void *buff = kmap_atomic(entry->page[offset / PAGE_CACHE_SIZE])
+			     + (offset % PAGE_CACHE_SIZE);
 		int bytes = min_t(int, entry->length - offset,
 				PAGE_CACHE_SIZE - (offset % PAGE_CACHE_SIZE));
 
 		if (bytes >= remaining) {
 			memcpy(buffer, buff, remaining);
+			kunmap_atomic(buff);
 			remaining = 0;
 			break;
 		}
 
 		memcpy(buffer, buff, bytes);
+		kunmap_atomic(buff);
 		buffer += bytes;
 		remaining -= bytes;
 		offset += bytes;
@@ -416,43 +406,38 @@ struct squashfs_cache_entry *squashfs_get_datablock(struct super_block *sb,
 void *squashfs_read_table(struct super_block *sb, u64 block, int length)
 {
 	int pages = (length + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-	int i, res;
-	void *table, *buffer, **data;
+	struct page **page;
+	void *buff;
+	int res;
 	struct squashfs_page_actor *actor;
 
-	table = buffer = kmalloc(length, GFP_KERNEL);
-	if (table == NULL)
+	page = alloc_page_array(pages, GFP_KERNEL);
+	if (!page)
 		return ERR_PTR(-ENOMEM);
 
-	data = kcalloc(pages, sizeof(void *), GFP_KERNEL);
-	if (data == NULL) {
+	actor = squashfs_page_actor_init(page, pages, length, NULL);
+	if (actor == NULL) {
 		res = -ENOMEM;
 		goto failed;
 	}
-
-	actor = squashfs_page_actor_init(data, pages, length);
-	if (actor == NULL) {
-		res = -ENOMEM;
-		goto failed2;
-	}
-
-	for (i = 0; i < pages; i++, buffer += PAGE_CACHE_SIZE)
-		data[i] = buffer;
 
 	res = squashfs_read_data(sb, block, length |
 		SQUASHFS_COMPRESSED_BIT_BLOCK, NULL, actor);
 
-	kfree(data);
-	kfree(actor);
-
 	if (res < 0)
-		goto failed;
+		goto failed2;
 
-	return table;
+	buff = kmalloc(length, GFP_KERNEL);
+	if (!buff)
+		goto failed2;
+	squashfs_actor_to_buf(actor, buff, length);
+	squashfs_page_actor_free(actor, 0);
+	free_page_array(page, pages);
+	return buff;
 
 failed2:
-	kfree(data);
+	squashfs_page_actor_free(actor, 0);
 failed:
-	kfree(table);
+	free_page_array(page, pages);
 	return ERR_PTR(res);
 }

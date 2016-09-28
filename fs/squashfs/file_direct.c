@@ -52,7 +52,7 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize)
 	 * Create a "page actor" which will kmap and kunmap the
 	 * page cache pages appropriately within the decompressor
 	 */
-	actor = squashfs_page_actor_init_special(page, pages, 0);
+	actor = squashfs_page_actor_init(page, pages, 0, NULL);
 	if (actor == NULL)
 		goto out;
 
@@ -131,7 +131,7 @@ mark_errored:
 	}
 
 out:
-	kfree(actor);
+	squashfs_page_actor_free(actor, 0);
 	kfree(page);
 	return res;
 }
