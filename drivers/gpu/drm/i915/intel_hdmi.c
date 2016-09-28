@@ -1220,10 +1220,17 @@ static int hdmi_port_clock_limit(struct intel_hdmi *hdmi,
 	int max_tmds_clock = intel_hdmi_source_max_tmds_clock(to_i915(dev));
 
 	if (respect_downstream_limits) {
+		struct intel_connector *connector = hdmi->attached_connector;
+		const struct drm_display_info *info = &connector->base.display_info;
+
 		if (hdmi->dp_dual_mode.max_tmds_clock)
 			max_tmds_clock = min(max_tmds_clock,
 					     hdmi->dp_dual_mode.max_tmds_clock);
-		if (!hdmi->has_hdmi_sink)
+
+		if (info->max_tmds_clock)
+			max_tmds_clock = min(max_tmds_clock,
+					     info->max_tmds_clock);
+		else if (!hdmi->has_hdmi_sink)
 			max_tmds_clock = min(max_tmds_clock, 165000);
 	}
 
