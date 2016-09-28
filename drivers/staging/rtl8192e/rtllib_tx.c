@@ -983,6 +983,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 	return 1;
 
 }
+
 int rtllib_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	memset(skb->cb, 0, sizeof(skb->cb));
