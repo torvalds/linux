@@ -209,16 +209,19 @@ static int ahash_partial_update(struct ahash_request **preq,
 	char *state;
 	struct ahash_request *req;
 	int statesize, ret = -EINVAL;
+	const char guard[] = { 0x00, 0xba, 0xad, 0x00 };
 
 	req = *preq;
 	statesize = crypto_ahash_statesize(
 			crypto_ahash_reqtfm(req));
-	state = kmalloc(statesize, GFP_KERNEL);
+	state = kmalloc(statesize + sizeof(guard), GFP_KERNEL);
 	if (!state) {
 		pr_err("alt: hash: Failed to alloc state for %s\n", algo);
 		goto out_nostate;
 	}
+	memcpy(state + statesize, guard, sizeof(guard));
 	ret = crypto_ahash_export(req, state);
+	WARN_ON(memcmp(state + statesize, guard, sizeof(guard)));
 	if (ret) {
 		pr_err("alt: hash: Failed to export() for %s\n", algo);
 		goto out;
