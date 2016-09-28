@@ -292,24 +292,26 @@ disp_timings: display-timings {
 	native-mode = <&timing0>;
 	compatible = "rockchip,display-timings";
 	timing0: timing0 {
-		 screen-type = <SCREEN_DUAL_MIPI>;
-		 lvds-format = <LVDS_8BIT_2>;
-		 out-face    = <OUT_P888>;
-		 clock-frequency = <278154000>;
-		 hactive = <2160>; //1080
-		 vactive = <1200>;
-		 hback-porch = <180>;
-		 hfront-porch = <200>;
-		 vback-porch = <3>;
-		 vfront-porch = <6>;
-		 hsync-len = <10>;
-		 vsync-len = <3>;
-		 hsync-active = <0>;
-		 vsync-active = <0>;
-		 de-active = <0>;
-		 pixelclk-active = <0>;
-		 swap-rb = <0>;
-		 swap-rg = <0>;
-		 swap-gb = <0>;
+		screen-type = <SCREEN_DUAL_MIPI>;
+		lvds-format = <LVDS_8BIT_2>;
+		out-face    = <OUT_P888>;
+		clock-frequency = <231795000>; /* 185436000 60fps, 231795000 75fps, 278154000  90fps */
+		hactive = <2160>; //1080
+		vactive = <1200>;
+		hback-porch = <180>;
+		hfront-porch = <200>;
+		vback-porch = <3>;
+		vfront-porch = <6>;
+		hsync-len = <10>;
+		vsync-len = <3>;
+		hsync-active = <0>;
+		vsync-active = <0>;
+		de-active = <0>;
+		pixelclk-active = <0>;
+		swap-rb = <0>;
+		swap-rg = <0>;
+		swap-gb = <0>;
+		screen-width = <130>;
+		screen-hight = <72>;
 	};
 };
