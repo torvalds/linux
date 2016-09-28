@@ -755,10 +755,10 @@ struct hfa384x_PSUserCount {
 	u16 usercnt;
 } __packed;
 
-typedef struct hfa384x_KeyIDChanged {
+struct hfa384x_KeyIDChanged {
 	u8 sta_addr[ETH_ALEN];
 	u16 keyid;
-} __packed hfa384x_KeyIDChanged_t;
+} __packed;
 
 /*--  Collection of all Inf frames ---------------*/
 typedef union hfa384x_infodata {
@@ -771,7 +771,7 @@ typedef union hfa384x_infodata {
 	struct hfa384x_AssocStatus assocstatus;
 	struct hfa384x_AuthRequest authreq;
 	struct hfa384x_PSUserCount psusercnt;
-	hfa384x_KeyIDChanged_t keyidchanged;
+	struct hfa384x_KeyIDChanged keyidchanged;
 } __packed hfa384x_infodata_t;
 
 typedef struct hfa384x_InfFrame {
