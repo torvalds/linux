@@ -405,7 +405,7 @@ Fw Mode/SubMode Mask
  * 1. target firmware would check magic number and if it's a match, firmware
  *    would consider the bits[0:15] are valid and base on that to calculate
  *    the end of DRAM. Early allocation would be located at that area and
- *    may be reclaimed when necesary
+ *    may be reclaimed when necessary
  * 2. if no magic number is found, early allocation would happen at "_end"
  *    symbol of ROM which is located before the app-data and might NOT be
  *    re-claimable. If this is adopted, link script should keep this in

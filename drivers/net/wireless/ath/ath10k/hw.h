@@ -284,7 +284,7 @@ void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 #define QCA_REV_9377(ar) ((ar)->hw_rev == ATH10K_HW_QCA9377)
 #define QCA_REV_40XX(ar) ((ar)->hw_rev == ATH10K_HW_QCA4019)
 
-/* Known pecularities:
+/* Known peculiarities:
  *  - raw appears in nwifi decap, raw and nwifi appear in ethernet decap
  *  - raw have FCS, nwifi doesn't
  *  - ethernet frames have 802.11 header decapped and parts (base hdr, cipher
@@ -408,6 +408,9 @@ struct ath10k_hw_params {
 	bool sw_decrypt_mcast_mgmt;
 
 	const struct ath10k_hw_ops *hw_ops;
+
+	/* Number of bytes used for alignment in rx_hdr_status of rx desc. */
+	int decap_align_bytes;
 };
 
 struct htt_rx_desc;
