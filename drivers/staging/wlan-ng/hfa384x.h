@@ -408,11 +408,11 @@ struct hfa384x_caplevel {
 #define HFA384x_CREATEIBSS_JOINCREATEIBSS          0
 
 /*-- Configuration Record: HostScanRequest (data portion only) --*/
-typedef struct hfa384x_HostScanRequest_data {
+struct hfa384x_HostScanRequest_data {
 	u16 channelList;
 	u16 txRate;
 	struct hfa384x_bytestr32 ssid;
-} __packed hfa384x_HostScanRequest_data_t;
+} __packed;
 
 /*-- Configuration Record: JoinRequest (data portion only) --*/
 typedef struct hfa384x_JoinRequest_data {

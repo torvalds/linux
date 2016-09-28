@@ -122,7 +122,7 @@ int prism2mgmt_scan(struct wlandevice *wlandev, void *msgp)
 	int i, timeout;
 	int istmpenable = 0;
 
-	hfa384x_HostScanRequest_data_t scanreq;
+	struct hfa384x_HostScanRequest_data scanreq;
 
 	/* gatekeeper check */
 	if (HFA384x_FIRMWARE_VERSION(hw->ident_sta_fw.major,
@@ -292,7 +292,7 @@ int prism2mgmt_scan(struct wlandevice *wlandev, void *msgp)
 
 	result = hfa384x_drvr_setconfig(hw,
 					HFA384x_RID_HOSTSCAN, &scanreq,
-					sizeof(hfa384x_HostScanRequest_data_t));
+					sizeof(struct hfa384x_HostScanRequest_data));
 	if (result) {
 		netdev_err(wlandev->netdev,
 			   "setconfig(SCANREQUEST) failed. result=%d\n",
