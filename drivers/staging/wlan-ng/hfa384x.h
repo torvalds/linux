@@ -1198,13 +1198,13 @@ struct hfa384x_usbctlx {
 	int variant;		/* Identifies cmd variant */
 };
 
-typedef struct hfa384x_usbctlxq {
+struct hfa384x_usbctlxq {
 	spinlock_t lock;
 	struct list_head pending;
 	struct list_head active;
 	struct list_head completing;
 	struct list_head reapable;
-} hfa384x_usbctlxq_t;
+};
 
 typedef struct hfa484x_metacmd {
 	u16 cmd;
@@ -1249,7 +1249,7 @@ typedef struct hfa384x {
 	struct urb tx_urb;
 	struct urb ctlx_urb;
 	union hfa384x_usbout txbuff;
-	hfa384x_usbctlxq_t ctlxq;
+	struct hfa384x_usbctlxq ctlxq;
 	struct timer_list reqtimer;
 	struct timer_list resptimer;
 
