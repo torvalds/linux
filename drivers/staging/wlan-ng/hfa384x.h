@@ -694,7 +694,7 @@ struct hfa384x_ChInfoResult {
 } __packed;
 
 /*--  Inquiry Frame, Diagnose: Host Scan Results & Subfields--*/
-typedef struct hfa384x_HScanResultSub {
+struct hfa384x_HScanResultSub {
 	u16 chid;
 	u16 anl;
 	u16 sl;
@@ -705,12 +705,12 @@ typedef struct hfa384x_HScanResultSub {
 	u8 supprates[10];	/* 802.11 info element */
 	u16 proberesp_rate;
 	u16 atim;
-} __packed hfa384x_HScanResultSub_t;
+} __packed;
 
 typedef struct hfa384x_HScanResult {
 	u16 nresult;
 	u16 rsvd;
-	hfa384x_HScanResultSub_t result[HFA384x_HSCANRESULT_MAX];
+	struct hfa384x_HScanResultSub result[HFA384x_HSCANRESULT_MAX];
 } __packed hfa384x_HScanResult_t;
 
 /*--  Unsolicited Frame, MAC Mgmt: LinkStatus --*/
