@@ -1483,8 +1483,7 @@ static int periodic_bytes(struct dummy *dum, struct dummy_ep *ep)
 		int	tmp;
 
 		/* high bandwidth mode */
-		tmp = usb_endpoint_maxp(ep->desc);
-		tmp = (tmp >> 11) & 0x03;
+		tmp = usb_endpoint_maxp_mult(ep->desc);
 		tmp *= 8 /* applies to entire frame */;
 		limit += limit * tmp;
 	}
