@@ -78,6 +78,10 @@ static long iommu_batch_flush(struct iommu_batch *p)
 	u64 *pglist = p->pglist;
 	unsigned long npages = p->npages;
 
+	/* VPCI maj=1, min=[0,1] only supports read and write */
+	if (vpci_major < 2)
+		prot &= (HV_PCI_MAP_ATTR_READ | HV_PCI_MAP_ATTR_WRITE);
+
 	while (npages != 0) {
 		long num;
 
@@ -144,6 +148,7 @@ static void *dma_4v_alloc_coherent(struct device *dev, size_t size,
 				   unsigned long attrs)
 {
 	unsigned long flags, order, first_page, npages, n;
+	unsigned long prot = 0;
 	struct iommu *iommu;
 	struct page *page;
 	void *ret;
@@ -156,6 +161,9 @@ static void *dma_4v_alloc_coherent(struct device *dev, size_t size,
 		return NULL;
 
 	npages = size >> IO_PAGE_SHIFT;
+
+	if (attrs & DMA_ATTR_WEAK_ORDERING)
+		prot = HV_PCI_MAP_ATTR_RELAXED_ORDER;
 
 	nid = dev->archdata.numa_node;
 	page = alloc_pages_node(nid, gfp, order);
@@ -180,7 +188,7 @@ static void *dma_4v_alloc_coherent(struct device *dev, size_t size,
 	local_irq_save(flags);
 
 	iommu_batch_start(dev,
-			  (HV_PCI_MAP_ATTR_READ |
+			  (HV_PCI_MAP_ATTR_READ | prot |
 			   HV_PCI_MAP_ATTR_WRITE),
 			  entry);
 
@@ -277,6 +285,9 @@ static dma_addr_t dma_4v_map_page(struct device *dev, struct page *page,
 	if (direction != DMA_TO_DEVICE)
 		prot |= HV_PCI_MAP_ATTR_WRITE;
 
+	if (attrs & DMA_ATTR_WEAK_ORDERING)
+		prot |= HV_PCI_MAP_ATTR_RELAXED_ORDER;
+
 	local_irq_save(flags);
 
 	iommu_batch_start(dev, prot, entry);
@@ -354,6 +365,9 @@ static int dma_4v_map_sg(struct device *dev, struct scatterlist *sglist,
 	prot = HV_PCI_MAP_ATTR_READ;
 	if (direction != DMA_TO_DEVICE)
 		prot |= HV_PCI_MAP_ATTR_WRITE;
+
+	if (attrs & DMA_ATTR_WEAK_ORDERING)
+		prot |= HV_PCI_MAP_ATTR_RELAXED_ORDER;
 
 	outs = s = segstart = &sglist[0];
 	outcount = 1;
