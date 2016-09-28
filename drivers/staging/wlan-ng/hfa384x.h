@@ -1021,9 +1021,9 @@ struct hfa384x_pdr_privacy_option {
 	u16 available;
 } __packed;
 
-typedef struct hfa384x_pdr_temptype {
+struct hfa384x_pdr_temptype {
 	u16 type;
-} __packed hfa384x_pdr_temptype_t;
+} __packed;
 
 typedef struct hfa384x_pdr_refdac_setup {
 	u16 ch_value[14];
@@ -1111,7 +1111,7 @@ typedef struct hfa384x_pdrec {
 		struct hfa384x_pdr_allowed_channel allowed_channel;
 		struct hfa384x_pdr_default_channel default_channel;
 		struct hfa384x_pdr_privacy_option privacy_option;
-		hfa384x_pdr_temptype_t temptype;
+		struct hfa384x_pdr_temptype temptype;
 		hfa384x_pdr_refdac_setup_t refdac_setup;
 		hfa384x_pdr_vgdac_setup_t vgdac_setup;
 		hfa384x_pdr_level_comp_setup_t level_comp_setup;
