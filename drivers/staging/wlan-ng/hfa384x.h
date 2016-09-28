@@ -909,7 +909,7 @@ union hfa384x_usbout {
 	struct hfa384x_usb_rmemreq rmemreq;
 } __packed;
 
-typedef union hfa384x_usbin {
+union hfa384x_usbin {
 	__le16 type;
 	struct hfa384x_usb_rxfrm rxfrm;
 	struct hfa384x_usb_txfrm txfrm;
@@ -922,7 +922,7 @@ typedef union hfa384x_usbin {
 	struct hfa384x_usb_bufavail bufavail;
 	struct hfa384x_usb_error usberror;
 	u8 boguspad[3000];
-} __packed hfa384x_usbin_t;
+} __packed;
 
 /*--------------------------------------------------------------------
  * PD record structures.
@@ -1184,7 +1184,7 @@ typedef struct hfa384x_usbctlx {
 
 	size_t outbufsize;
 	union hfa384x_usbout outbuf;	/* pkt buf for OUT */
-	hfa384x_usbin_t inbuf;	/* pkt buf for IN(a copy) */
+	union hfa384x_usbin inbuf;	/* pkt buf for IN(a copy) */
 
 	CTLX_STATE state;	/* Tracks running state */
 

@@ -169,13 +169,13 @@ static void hfa384x_ctlxout_callback(struct urb *urb);
 static void hfa384x_usbin_callback(struct urb *urb);
 
 static void
-hfa384x_usbin_txcompl(struct wlandevice *wlandev, hfa384x_usbin_t *usbin);
+hfa384x_usbin_txcompl(struct wlandevice *wlandev, union hfa384x_usbin *usbin);
 
 static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb);
 
-static void hfa384x_usbin_info(struct wlandevice *wlandev, hfa384x_usbin_t *usbin);
+static void hfa384x_usbin_info(struct wlandevice *wlandev, union hfa384x_usbin *usbin);
 
-static void hfa384x_usbin_ctlx(hfa384x_t *hw, hfa384x_usbin_t *usbin,
+static void hfa384x_usbin_ctlx(hfa384x_t *hw, union hfa384x_usbin *usbin,
 			       int urb_status);
 
 /*---------------------------------------------------*/
@@ -327,7 +327,7 @@ static int submit_rx_urb(hfa384x_t *hw, gfp_t memflags)
 	struct sk_buff *skb;
 	int result;
 
-	skb = dev_alloc_skb(sizeof(hfa384x_usbin_t));
+	skb = dev_alloc_skb(sizeof(union hfa384x_usbin));
 	if (!skb) {
 		result = -ENOMEM;
 		goto done;
@@ -336,7 +336,7 @@ static int submit_rx_urb(hfa384x_t *hw, gfp_t memflags)
 	/* Post the IN urb */
 	usb_fill_bulk_urb(&hw->rx_urb, hw->usb,
 			  hw->endp_in,
-			  skb->data, sizeof(hfa384x_usbin_t),
+			  skb->data, sizeof(union hfa384x_usbin),
 			  hfa384x_usbin_callback, hw->wlandev);
 
 	hw->rx_urb_skb = skb;
@@ -2990,7 +2990,7 @@ static void hfa384x_usbin_callback(struct urb *urb)
 {
 	struct wlandevice *wlandev = urb->context;
 	hfa384x_t *hw;
-	hfa384x_usbin_t *usbin = (hfa384x_usbin_t *)urb->transfer_buffer;
+	union hfa384x_usbin *usbin = (union hfa384x_usbin *)urb->transfer_buffer;
 	struct sk_buff *skb = NULL;
 	int result;
 	int urb_status;
@@ -3166,7 +3166,7 @@ exit:
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-static void hfa384x_usbin_ctlx(hfa384x_t *hw, hfa384x_usbin_t *usbin,
+static void hfa384x_usbin_ctlx(hfa384x_t *hw, union hfa384x_usbin *usbin,
 			       int urb_status)
 {
 	hfa384x_usbctlx_t *ctlx;
@@ -3286,7 +3286,7 @@ unlock:
 *	interrupt
 ----------------------------------------------------------------*/
 static void hfa384x_usbin_txcompl(struct wlandevice *wlandev,
-				  hfa384x_usbin_t *usbin)
+				  union hfa384x_usbin *usbin)
 {
 	u16 status;
 
@@ -3318,7 +3318,7 @@ static void hfa384x_usbin_txcompl(struct wlandevice *wlandev,
 ----------------------------------------------------------------*/
 static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb)
 {
-	hfa384x_usbin_t *usbin = (hfa384x_usbin_t *)skb->data;
+	union hfa384x_usbin *usbin = (union hfa384x_usbin *)skb->data;
 	hfa384x_t *hw = wlandev->priv;
 	int hdrlen;
 	struct p80211_rxmeta *rxmeta;
@@ -3517,7 +3517,8 @@ static void hfa384x_int_rxmonitor(struct wlandevice *wlandev,
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-static void hfa384x_usbin_info(struct wlandevice *wlandev, hfa384x_usbin_t *usbin)
+static void hfa384x_usbin_info(struct wlandevice *wlandev,
+			       union hfa384x_usbin *usbin)
 {
 	usbin->infofrm.info.framelen =
 	    le16_to_cpu(usbin->infofrm.info.framelen);
