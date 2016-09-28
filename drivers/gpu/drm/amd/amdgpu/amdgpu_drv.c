@@ -174,7 +174,6 @@ module_param_named(sched_jobs, amdgpu_sched_jobs, int, 0444);
 MODULE_PARM_DESC(sched_hw_submission, "the max number of HW submissions (default 2)");
 module_param_named(sched_hw_submission, amdgpu_sched_hw_submission, int, 0444);
 
-#ifdef CONFIG_DRM_AMD_POWERPLAY
 MODULE_PARM_DESC(powerplay, "Powerplay component (1 = enable, 0 = disable, -1 = auto (default))");
 module_param_named(powerplay, amdgpu_powerplay, int, 0444);
 
@@ -183,7 +182,6 @@ module_param_named(powercontainment, amdgpu_powercontainment, int, 0444);
 
 MODULE_PARM_DESC(ppfeaturemask, "all power features enabled (default))");
 module_param_named(ppfeaturemask, amdgpu_pp_feature_mask, int, 0444);
-#endif
 
 MODULE_PARM_DESC(sclkdeepsleep, "SCLK Deep Sleep (1 = enable (default), 0 = disable)");
 module_param_named(sclkdeepsleep, amdgpu_sclk_deep_sleep_en, int, 0444);
