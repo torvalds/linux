@@ -375,15 +375,6 @@ static void dce_v6_0_hpd_init(struct amdgpu_device *adev)
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 
-		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP ||
-		    connector->connector_type == DRM_MODE_CONNECTOR_LVDS) {
-			/* don't try to enable hpd on eDP or LVDS avoid breaking the
-			 * aux dp channel on imac and help (but not completely fix)
-			 * https://bugzilla.redhat.com/show_bug.cgi?id=726143
-			 * also avoid interrupt storms during dpms.
-			 */
-			continue;
-		}
 		switch (amdgpu_connector->hpd.hpd) {
 		case AMDGPU_HPD_1:
 			WREG32(DC_HPD1_CONTROL, tmp);
@@ -406,6 +397,45 @@ static void dce_v6_0_hpd_init(struct amdgpu_device *adev)
 		default:
 			break;
 		}
+
+		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP ||
+		    connector->connector_type == DRM_MODE_CONNECTOR_LVDS) {
+			/* don't try to enable hpd on eDP or LVDS avoid breaking the
+			 * aux dp channel on imac and help (but not completely fix)
+			 * https://bugzilla.redhat.com/show_bug.cgi?id=726143
+			 * also avoid interrupt storms during dpms.
+			 */
+			u32 dc_hpd_int_cntl_reg, dc_hpd_int_cntl;
+
+			switch (amdgpu_connector->hpd.hpd) {
+			case AMDGPU_HPD_1:
+				dc_hpd_int_cntl_reg = DC_HPD1_INT_CONTROL;
+				break;
+			case AMDGPU_HPD_2:
+				dc_hpd_int_cntl_reg = DC_HPD2_INT_CONTROL;
+				break;
+			case AMDGPU_HPD_3:
+				dc_hpd_int_cntl_reg = DC_HPD3_INT_CONTROL;
+				break;
+			case AMDGPU_HPD_4:
+				dc_hpd_int_cntl_reg = DC_HPD4_INT_CONTROL;
+				break;
+			case AMDGPU_HPD_5:
+				dc_hpd_int_cntl_reg = DC_HPD5_INT_CONTROL;
+				break;
+			case AMDGPU_HPD_6:
+				dc_hpd_int_cntl_reg = DC_HPD6_INT_CONTROL;
+				break;
+			default:
+				continue;
+			}
+
+			dc_hpd_int_cntl = RREG32(dc_hpd_int_cntl_reg);
+			dc_hpd_int_cntl &= ~DC_HPDx_INT_EN;
+			WREG32(dc_hpd_int_cntl_reg, dc_hpd_int_cntl);
+			continue;
+		}
+
 		dce_v6_0_hpd_set_polarity(adev, amdgpu_connector->hpd.hpd);
 		amdgpu_irq_get(adev, &adev->hpd_irq, amdgpu_connector->hpd.hpd);
 	}
