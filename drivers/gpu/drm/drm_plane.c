@@ -898,6 +898,8 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 out:
 	if (ret && crtc->funcs->page_flip_target)
 		drm_crtc_vblank_put(crtc);
+	if (fb)
+		drm_framebuffer_unreference(fb);
 	if (crtc->primary->old_fb)
 		drm_framebuffer_unreference(crtc->primary->old_fb);
 	crtc->primary->old_fb = NULL;
