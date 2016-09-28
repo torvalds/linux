@@ -929,9 +929,9 @@ union hfa384x_usbin {
  *--------------------------------------------------------------------
  */
 
-typedef struct hfa384x_pdr_pcb_partnum {
+struct hfa384x_pdr_pcb_partnum {
 	u8 num[8];
-} __packed hfa384x_pdr_pcb_partnum_t;
+} __packed;
 
 typedef struct hfa384x_pdr_pcb_tracenum {
 	u8 num[8];
@@ -1094,7 +1094,7 @@ typedef struct hfa384x_pdrec {
 	u16 len;		/* in words */
 	u16 code;
 	union pdr {
-		hfa384x_pdr_pcb_partnum_t pcb_partnum;
+		struct hfa384x_pdr_pcb_partnum pcb_partnum;
 		hfa384x_pdr_pcb_tracenum_t pcb_tracenum;
 		hfa384x_pdr_nic_serial_t nic_serial;
 		hfa384x_pdr_mkk_measurements_t mkk_measurements;
