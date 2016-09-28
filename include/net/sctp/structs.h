@@ -554,6 +554,9 @@ struct sctp_chunk {
 
 	atomic_t refcnt;
 
+	/* How many times this chunk have been sent, for prsctp RTX policy */
+	int sent_count;
+
 	/* This is our link to the per-transport transmitted list.  */
 	struct list_head transmitted_list;
 
@@ -609,9 +612,6 @@ struct sctp_chunk {
 	 * for PRIO policy, it is the priority of this chunk.
 	 */
 	unsigned long prsctp_param;
-
-	/* How many times this chunk have been sent, for prsctp RTX policy */
-	int sent_count;
 
 	/* Which association does this belong to?  */
 	struct sctp_association *asoc;
