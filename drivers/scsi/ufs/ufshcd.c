@@ -6503,6 +6503,7 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 		if (IS_ERR(hba->devfreq)) {
 			dev_err(hba->dev, "Unable to register with devfreq %ld\n",
 					PTR_ERR(hba->devfreq));
+			err = PTR_ERR(hba->devfreq);
 			goto out_remove_scsi_host;
 		}
 		/* Suspend devfreq until the UFS device is detected */
