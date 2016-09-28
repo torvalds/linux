@@ -350,14 +350,14 @@ static void prepare_ipv6_hdr(struct dst_entry *dst, struct sk_buff *skb,
 	ip6h->payload_len = htons(skb->len - sizeof(*ip6h));
 }
 
-static int prepare4(struct rxe_dev *rxe, struct sk_buff *skb, struct rxe_av *av)
+static int prepare4(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
+		    struct sk_buff *skb, struct rxe_av *av)
 {
 	struct dst_entry *dst;
 	bool xnet = false;
 	__be16 df = htons(IP_DF);
 	struct in_addr *saddr = &av->sgid_addr._sockaddr_in.sin_addr;
 	struct in_addr *daddr = &av->dgid_addr._sockaddr_in.sin_addr;
-	struct rxe_pkt_info *pkt = SKB_TO_PKT(skb);
 
 	dst = rxe_find_route4(rxe->ndev, saddr, daddr);
 	if (!dst) {
@@ -376,12 +376,12 @@ static int prepare4(struct rxe_dev *rxe, struct sk_buff *skb, struct rxe_av *av)
 	return 0;
 }
 
-static int prepare6(struct rxe_dev *rxe, struct sk_buff *skb, struct rxe_av *av)
+static int prepare6(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
+		    struct sk_buff *skb, struct rxe_av *av)
 {
 	struct dst_entry *dst;
 	struct in6_addr *saddr = &av->sgid_addr._sockaddr_in6.sin6_addr;
 	struct in6_addr *daddr = &av->dgid_addr._sockaddr_in6.sin6_addr;
-	struct rxe_pkt_info *pkt = SKB_TO_PKT(skb);
 
 	dst = rxe_find_route6(rxe->ndev, saddr, daddr);
 	if (!dst) {
@@ -408,9 +408,9 @@ static int prepare(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 	struct rxe_av *av = rxe_get_av(pkt);
 
 	if (av->network_type == RDMA_NETWORK_IPV4)
-		err = prepare4(rxe, skb, av);
+		err = prepare4(rxe, pkt, skb, av);
 	else if (av->network_type == RDMA_NETWORK_IPV6)
-		err = prepare6(rxe, skb, av);
+		err = prepare6(rxe, pkt, skb, av);
 
 	*crc = rxe_icrc_hdr(pkt, skb);
 
