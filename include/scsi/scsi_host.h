@@ -771,12 +771,9 @@ static inline int scsi_host_in_recovery(struct Scsi_Host *shost)
 		shost->tmf_in_progress;
 }
 
-extern bool scsi_use_blk_mq;
-
 static inline bool shost_use_blk_mq(struct Scsi_Host *shost)
 {
-	return scsi_use_blk_mq;
-
+	return shost->use_blk_mq;
 }
 
 extern int scsi_queue_work(struct Scsi_Host *, struct work_struct *);
