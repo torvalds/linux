@@ -15,9 +15,11 @@
 #ifndef __ROCKCHIP_DRM_PSR___
 #define __ROCKCHIP_DRM_PSR___
 
-void rockchip_drm_psr_flush(struct drm_device *dev);
-int rockchip_drm_psr_enable(struct drm_crtc *crtc);
-int rockchip_drm_psr_disable(struct drm_crtc *crtc);
+void rockchip_drm_psr_flush_all(struct drm_device *dev);
+int rockchip_drm_psr_flush(struct drm_crtc *crtc);
+
+int rockchip_drm_psr_activate(struct drm_crtc *crtc);
+int rockchip_drm_psr_deactivate(struct drm_crtc *crtc);
 
 int rockchip_drm_psr_register(struct drm_encoder *encoder,
 			void (*psr_set)(struct drm_encoder *, bool enable));

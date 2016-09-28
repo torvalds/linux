@@ -39,7 +39,6 @@ struct drm_connector;
 struct rockchip_crtc_funcs {
 	int (*enable_vblank)(struct drm_crtc *crtc);
 	void (*disable_vblank)(struct drm_crtc *crtc);
-	void (*wait_for_update)(struct drm_crtc *crtc);
 };
 
 struct rockchip_crtc_state {

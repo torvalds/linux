@@ -70,7 +70,7 @@ static int rockchip_drm_fb_dirty(struct drm_framebuffer *fb,
 				 struct drm_clip_rect *clips,
 				 unsigned int num_clips)
 {
-	rockchip_drm_psr_flush(fb->dev);
+	rockchip_drm_psr_flush_all(fb->dev);
 	return 0;
 }
 
@@ -174,68 +174,6 @@ static void rockchip_drm_output_poll_changed(struct drm_device *dev)
 		drm_fb_helper_hotplug_event(fb_helper);
 }
 
-static void rockchip_crtc_wait_for_update(struct drm_crtc *crtc)
-{
-	struct rockchip_drm_private *priv = crtc->dev->dev_private;
-	int pipe = drm_crtc_index(crtc);
-	const struct rockchip_crtc_funcs *crtc_funcs = priv->crtc_funcs[pipe];
-
-	if (crtc_funcs && crtc_funcs->wait_for_update)
-		crtc_funcs->wait_for_update(crtc);
-}
-
-/*
- * We can't use drm_atomic_helper_wait_for_vblanks() because rk3288 and rk3066
- * have hardware counters for neither vblanks nor scanlines, which results in
- * a race where:
- *				| <-- HW vsync irq and reg take effect
- *	       plane_commit --> |
- *	get_vblank and wait --> |
- *				| <-- handle_vblank, vblank->count + 1
- *		 cleanup_fb --> |
- *		iommu crash --> |
- *				| <-- HW vsync irq and reg take effect
- *
- * This function is equivalent but uses rockchip_crtc_wait_for_update() instead
- * of waiting for vblank_count to change.
- */
-static void
-rockchip_atomic_wait_for_complete(struct drm_device *dev, struct drm_atomic_state *old_state)
-{
-	struct drm_crtc_state *old_crtc_state;
-	struct drm_crtc *crtc;
-	int i, ret;
-
-	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
-		/* No one cares about the old state, so abuse it for tracking
-		 * and store whether we hold a vblank reference (and should do a
-		 * vblank wait) in the ->enable boolean.
-		 */
-		old_crtc_state->enable = false;
-
-		if (!crtc->state->active)
-			continue;
-
-		if (!drm_atomic_helper_framebuffer_changed(dev,
-				old_state, crtc))
-			continue;
-
-		ret = drm_crtc_vblank_get(crtc);
-		if (ret != 0)
-			continue;
-
-		old_crtc_state->enable = true;
-	}
-
-	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
-		if (!old_crtc_state->enable)
-			continue;
-
-		rockchip_crtc_wait_for_update(crtc);
-		drm_crtc_vblank_put(crtc);
-	}
-}
-
 static void
 rockchip_atomic_commit_tail(struct drm_atomic_state *state)
 {
@@ -250,7 +188,7 @@ rockchip_atomic_commit_tail(struct drm_atomic_state *state)
 
 	drm_atomic_helper_commit_hw_done(state);
 
-	rockchip_atomic_wait_for_complete(dev, state);
+	drm_atomic_helper_wait_for_vblanks(dev, state);
 
 	drm_atomic_helper_cleanup_planes(dev, state);
 }
