@@ -1152,11 +1152,11 @@ struct hfa384x_cmdresult {
 /* The following hfa384x_* structures are arguments to
  * the usercb() for the different CTLX types.
  */
-typedef struct hfa384x_rridresult {
+struct hfa384x_rridresult {
 	u16 rid;
 	const void *riddata;
 	unsigned int riddata_len;
-} hfa384x_rridresult_t;
+};
 
 enum ctlx_state {
 	CTLX_START = 0,		/* Start state, not queued */

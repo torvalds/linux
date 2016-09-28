@@ -217,7 +217,7 @@ usbctlx_get_status(const struct hfa384x_usb_statusresp *cmdresp,
 
 static void
 usbctlx_get_rridresult(const struct hfa384x_usb_rridresp *rridresp,
-		       hfa384x_rridresult_t *result);
+		       struct hfa384x_rridresult *result);
 
 /*---------------------------------------------------*/
 /* Low level req/resp CTLX formatters and submitters */
@@ -637,7 +637,7 @@ usbctlx_get_status(const struct hfa384x_usb_statusresp *cmdresp,
 
 static void
 usbctlx_get_rridresult(const struct hfa384x_usb_rridresp *rridresp,
-		       hfa384x_rridresult_t *result)
+		       struct hfa384x_rridresult *result)
 {
 	result->rid = le16_to_cpu(rridresp->rid);
 	result->riddata = rridresp->data;
@@ -693,7 +693,7 @@ struct usbctlx_rrid_completor {
 static int usbctlx_rrid_completor_fn(struct usbctlx_completor *head)
 {
 	struct usbctlx_rrid_completor *complete;
-	hfa384x_rridresult_t rridresult;
+	struct hfa384x_rridresult rridresult;
 
 	complete = (struct usbctlx_rrid_completor *)head;
 	usbctlx_get_rridresult(complete->rridresp, &rridresult);
