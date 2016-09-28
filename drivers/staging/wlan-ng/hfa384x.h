@@ -813,14 +813,14 @@ struct hfa384x_usb_txfrm {
 	u8 data[WLAN_DATA_MAXLEN];
 } __packed;
 
-typedef struct hfa384x_usb_cmdreq {
+struct hfa384x_usb_cmdreq {
 	u16 type;
 	u16 cmd;
 	u16 parm0;
 	u16 parm1;
 	u16 parm2;
 	u8 pad[54];
-} __packed hfa384x_usb_cmdreq_t;
+} __packed;
 
 typedef struct hfa384x_usb_wridreq {
 	u16 type;
@@ -906,7 +906,7 @@ typedef struct hfa384x_usb_error {
 typedef union hfa384x_usbout {
 	__le16 type;
 	struct hfa384x_usb_txfrm txfrm;
-	hfa384x_usb_cmdreq_t cmdreq;
+	struct hfa384x_usb_cmdreq cmdreq;
 	hfa384x_usb_wridreq_t wridreq;
 	hfa384x_usb_rridreq_t rridreq;
 	hfa384x_usb_wmemreq_t wmemreq;
