@@ -1066,9 +1066,9 @@ struct hfa384x_pdr_hfa3861_chcalsp {
 	u16 value[14];
 } __packed;
 
-typedef struct hfa384x_pdr_hfa3861_chcali {
+struct hfa384x_pdr_hfa3861_chcali {
 	u16 value[17];
-} __packed hfa384x_pdr_hfa3861_chcali_t;
+} __packed;
 
 typedef struct hfa384x_pdr_hfa3861_nic_config {
 	u16 config_bitmap;
@@ -1122,7 +1122,7 @@ typedef struct hfa384x_pdrec {
 		struct hfa384x_pdr_hfa3861_shadow hfa3861_shadow;
 		struct hfa384x_pdr_hfa3861_ifrf hfa3861_ifrf;
 		struct hfa384x_pdr_hfa3861_chcalsp hfa3861_chcalsp;
-		hfa384x_pdr_hfa3861_chcali_t hfa3861_chcali;
+		struct hfa384x_pdr_hfa3861_chcali hfa3861_chcali;
 		hfa384x_pdr_nic_config_t nic_config;
 		hfa384x_hfo_delay_t hfo_delay;
 		hfa384x_pdr_hfa3861_manf_testsp_t hfa3861_manf_testsp;
