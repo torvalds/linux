@@ -3262,7 +3262,7 @@ parse_hdmi_vsdb(struct drm_connector *connector, const u8 *db)
 		connector->dvi_dual = db[6] & 1;
 	}
 	if (len >= 7)
-		connector->max_tmds_clock = db[7] * 5;
+		connector->max_tmds_clock = db[7] * 5000;
 	if (len >= 8) {
 		connector->latency_present[0] = db[8] >> 7;
 		connector->latency_present[1] = (db[8] >> 6) & 1;

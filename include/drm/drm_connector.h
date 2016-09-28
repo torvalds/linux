@@ -651,7 +651,7 @@ struct drm_connector {
 	/* EDID bits */
 	uint8_t eld[MAX_ELD_BYTES];
 	bool dvi_dual;
-	int max_tmds_clock;	/* in MHz */
+	int max_tmds_clock;	/* in kHz */
 	bool latency_present[2];
 	int video_latency[2];	/* [0]: progressive, [1]: interlaced */
 	int audio_latency[2];

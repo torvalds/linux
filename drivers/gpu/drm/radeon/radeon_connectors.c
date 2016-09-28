@@ -203,7 +203,7 @@ int radeon_get_monitor_bpc(struct drm_connector *connector)
 			mode_clock = radeon_connector->pixelclock_for_modeset;
 
 			/* Maximum allowable input clock in kHz */
-			max_tmds_clock = connector->max_tmds_clock * 1000;
+			max_tmds_clock = connector->max_tmds_clock;
 
 			DRM_DEBUG("%s: hdmi mode dotclock %d kHz, max tmds input clock %d kHz.\n",
 					  connector->name, mode_clock, max_tmds_clock);
