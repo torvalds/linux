@@ -440,11 +440,11 @@ struct hfa384x_WPAData {
 
 /*-- Information Record: DownLoadBuffer --*/
 /* NOTE: The page and offset are in AUX format */
-typedef struct hfa384x_downloadbuffer {
+struct hfa384x_downloadbuffer {
 	u16 page;
 	u16 offset;
 	u16 len;
-} __packed hfa384x_downloadbuffer_t;
+} __packed;
 
 /*--------------------------------------------------------------------
  * Information Record Structures: NIC Information
@@ -1292,7 +1292,7 @@ typedef struct hfa384x {
 
 	/* Download support */
 	unsigned int dlstate;
-	hfa384x_downloadbuffer_t bufinfo;
+	struct hfa384x_downloadbuffer bufinfo;
 	u16 dltimeout;
 
 	int scanflag;		/* to signal scan complete */
