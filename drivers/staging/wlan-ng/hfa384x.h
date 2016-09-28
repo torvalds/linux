@@ -761,7 +761,7 @@ struct hfa384x_KeyIDChanged {
 } __packed;
 
 /*--  Collection of all Inf frames ---------------*/
-typedef union hfa384x_infodata {
+union hfa384x_infodata {
 	struct hfa384x_CommTallies16 commtallies16;
 	struct hfa384x_CommTallies32 commtallies32;
 	struct hfa384x_ScanResult scanresult;
@@ -772,12 +772,12 @@ typedef union hfa384x_infodata {
 	struct hfa384x_AuthRequest authreq;
 	struct hfa384x_PSUserCount psusercnt;
 	struct hfa384x_KeyIDChanged keyidchanged;
-} __packed hfa384x_infodata_t;
+} __packed;
 
 typedef struct hfa384x_InfFrame {
 	u16 framelen;
 	u16 infotype;
-	hfa384x_infodata_t info;
+	union hfa384x_infodata info;
 } __packed hfa384x_InfFrame_t;
 
 /*--------------------------------------------------------------------
