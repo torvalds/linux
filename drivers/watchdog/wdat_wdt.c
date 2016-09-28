@@ -207,7 +207,7 @@ static int wdat_wdt_enable_reboot(struct wdat_wdt *wdat)
 	 * recommeded to make it configurable through hardware register. We
 	 * enable reboot now if it is configrable, just in case.
 	 */
-	ret = wdat_wdt_run_action(wdat, ACPI_WDAT_SET_REBOOT, 0, 0);
+	ret = wdat_wdt_run_action(wdat, ACPI_WDAT_SET_REBOOT, 0, NULL);
 	if (ret && ret != -EOPNOTSUPP) {
 		dev_err(&wdat->pdev->dev,
 			"Failed to enable reboot when watchdog triggers\n");
@@ -232,7 +232,7 @@ static void wdat_wdt_boot_status(struct wdat_wdt *wdat)
 		wdat->wdd.bootstatus = WDIOF_CARDRESET;
 
 	/* Clear the boot status in case BIOS did not do it */
-	ret = wdat_wdt_run_action(wdat, ACPI_WDAT_SET_STATUS, 0, 0);
+	ret = wdat_wdt_run_action(wdat, ACPI_WDAT_SET_STATUS, 0, NULL);
 	if (ret && ret != -EOPNOTSUPP)
 		dev_err(&wdat->pdev->dev, "Failed to clear boot status\n");
 }
