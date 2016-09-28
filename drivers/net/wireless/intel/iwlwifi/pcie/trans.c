@@ -2887,20 +2887,42 @@ static void iwl_trans_pcie_resume(struct iwl_trans *trans)
 }
 #endif /* CONFIG_PM_SLEEP */
 
+#define IWL_TRANS_COMMON_OPS						\
+	.op_mode_leave = iwl_trans_pcie_op_mode_leave,			\
+	.write8 = iwl_trans_pcie_write8,				\
+	.write32 = iwl_trans_pcie_write32,				\
+	.read32 = iwl_trans_pcie_read32,				\
+	.read_prph = iwl_trans_pcie_read_prph,				\
+	.write_prph = iwl_trans_pcie_write_prph,			\
+	.read_mem = iwl_trans_pcie_read_mem,				\
+	.write_mem = iwl_trans_pcie_write_mem,				\
+	.configure = iwl_trans_pcie_configure,				\
+	.set_pmi = iwl_trans_pcie_set_pmi,				\
+	.grab_nic_access = iwl_trans_pcie_grab_nic_access,		\
+	.release_nic_access = iwl_trans_pcie_release_nic_access,	\
+	.set_bits_mask = iwl_trans_pcie_set_bits_mask,			\
+	.ref = iwl_trans_pcie_ref,					\
+	.unref = iwl_trans_pcie_unref,					\
+	.dump_data = iwl_trans_pcie_dump_data,				\
+	.wait_tx_queue_empty = iwl_trans_pcie_wait_txq_empty,		\
+	.d3_suspend = iwl_trans_pcie_d3_suspend,			\
+	.d3_resume = iwl_trans_pcie_d3_resume
+
+#ifdef CONFIG_PM_SLEEP
+#define IWL_TRANS_PM_OPS						\
+	.suspend = iwl_trans_pcie_suspend,				\
+	.resume = iwl_trans_pcie_resume,
+#else
+#define IWL_TRANS_PM_OPS
+#endif /* CONFIG_PM_SLEEP */
+
 static const struct iwl_trans_ops trans_ops_pcie = {
+	IWL_TRANS_COMMON_OPS,
+	IWL_TRANS_PM_OPS
 	.start_hw = iwl_trans_pcie_start_hw,
-	.op_mode_leave = iwl_trans_pcie_op_mode_leave,
 	.fw_alive = iwl_trans_pcie_fw_alive,
 	.start_fw = iwl_trans_pcie_start_fw,
 	.stop_device = iwl_trans_pcie_stop_device,
-
-	.d3_suspend = iwl_trans_pcie_d3_suspend,
-	.d3_resume = iwl_trans_pcie_d3_resume,
-
-#ifdef CONFIG_PM_SLEEP
-	.suspend = iwl_trans_pcie_suspend,
-	.resume = iwl_trans_pcie_resume,
-#endif /* CONFIG_PM_SLEEP */
 
 	.send_cmd = iwl_trans_pcie_send_hcmd,
 
@@ -2912,27 +2934,30 @@ static const struct iwl_trans_ops trans_ops_pcie = {
 
 	.txq_set_shared_mode = iwl_trans_pcie_txq_set_shared_mode,
 
-	.wait_tx_queue_empty = iwl_trans_pcie_wait_txq_empty,
 	.freeze_txq_timer = iwl_trans_pcie_freeze_txq_timer,
 	.block_txq_ptrs = iwl_trans_pcie_block_txq_ptrs,
+};
 
-	.write8 = iwl_trans_pcie_write8,
-	.write32 = iwl_trans_pcie_write32,
-	.read32 = iwl_trans_pcie_read32,
-	.read_prph = iwl_trans_pcie_read_prph,
-	.write_prph = iwl_trans_pcie_write_prph,
-	.read_mem = iwl_trans_pcie_read_mem,
-	.write_mem = iwl_trans_pcie_write_mem,
-	.configure = iwl_trans_pcie_configure,
-	.set_pmi = iwl_trans_pcie_set_pmi,
-	.grab_nic_access = iwl_trans_pcie_grab_nic_access,
-	.release_nic_access = iwl_trans_pcie_release_nic_access,
-	.set_bits_mask = iwl_trans_pcie_set_bits_mask,
+static const struct iwl_trans_ops trans_ops_pcie_gen2 = {
+	IWL_TRANS_COMMON_OPS,
+	IWL_TRANS_PM_OPS
+	.start_hw = iwl_trans_pcie_start_hw,
+	.fw_alive = iwl_trans_pcie_fw_alive,
+	.start_fw = iwl_trans_pcie_start_fw,
+	.stop_device = iwl_trans_pcie_stop_device,
 
-	.ref = iwl_trans_pcie_ref,
-	.unref = iwl_trans_pcie_unref,
+	.send_cmd = iwl_trans_pcie_send_hcmd,
 
-	.dump_data = iwl_trans_pcie_dump_data,
+	.tx = iwl_trans_pcie_tx,
+	.reclaim = iwl_trans_pcie_reclaim,
+
+	.txq_disable = iwl_trans_pcie_txq_disable,
+	.txq_enable = iwl_trans_pcie_txq_enable,
+
+	.txq_set_shared_mode = iwl_trans_pcie_txq_set_shared_mode,
+
+	.freeze_txq_timer = iwl_trans_pcie_freeze_txq_timer,
+	.block_txq_ptrs = iwl_trans_pcie_block_txq_ptrs,
 };
 
 struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
@@ -2947,8 +2972,12 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	if (ret)
 		return ERR_PTR(ret);
 
-	trans = iwl_trans_alloc(sizeof(struct iwl_trans_pcie),
-				&pdev->dev, cfg, &trans_ops_pcie);
+	if (cfg->gen2)
+		trans = iwl_trans_alloc(sizeof(struct iwl_trans_pcie),
+					&pdev->dev, cfg, &trans_ops_pcie_gen2);
+	else
+		trans = iwl_trans_alloc(sizeof(struct iwl_trans_pcie),
+					&pdev->dev, cfg, &trans_ops_pcie);
 	if (!trans)
 		return ERR_PTR(-ENOMEM);
 
