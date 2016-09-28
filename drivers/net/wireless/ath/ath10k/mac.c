@@ -7012,6 +7012,30 @@ static void ath10k_set_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		ath10k_warn(ar, "failed to set tsf offset: %d\n", ret);
 }
 
+static void ath10k_offset_tsf(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif, s64 tsf_offset)
+{
+	struct ath10k *ar = hw->priv;
+	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
+	u32 offset, vdev_param;
+	int ret;
+
+	if (tsf_offset < 0) {
+		vdev_param = ar->wmi.vdev_param->dec_tsf;
+		offset = -tsf_offset;
+	} else {
+		vdev_param = ar->wmi.vdev_param->inc_tsf;
+		offset = tsf_offset;
+	}
+
+	ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id,
+					vdev_param, offset);
+
+	if (ret && ret != -EOPNOTSUPP)
+		ath10k_warn(ar, "failed to set tsf offset %d cmd %d: %d\n",
+			    offset, vdev_param, ret);
+}
+
 static int ath10k_ampdu_action(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
 			       struct ieee80211_ampdu_params *params)
@@ -7476,6 +7500,7 @@ static const struct ieee80211_ops ath10k_ops = {
 	.sta_rc_update			= ath10k_sta_rc_update,
 	.get_tsf			= ath10k_get_tsf,
 	.set_tsf			= ath10k_set_tsf,
+	.offset_tsf			= ath10k_offset_tsf,
 	.ampdu_action			= ath10k_ampdu_action,
 	.get_et_sset_count		= ath10k_debug_get_et_sset_count,
 	.get_et_stats			= ath10k_debug_get_et_stats,
