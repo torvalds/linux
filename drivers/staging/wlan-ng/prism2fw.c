@@ -96,10 +96,10 @@ struct s3inforec {
 	u16 len;
 	u16 type;
 	union {
-		hfa384x_compident_t version;
+		struct hfa384x_compident version;
 		hfa384x_caplevel_t compat;
 		u16 buildseq;
-		hfa384x_compident_t platform;
+		struct hfa384x_compident platform;
 	} info;
 };
 
@@ -152,7 +152,7 @@ static struct imgchunk fchunk[CHUNKS_MAX];
 /* PDA, built from [card|newfile]+[addfile1+addfile2...] */
 
 static struct pda pda;
-static hfa384x_compident_t nicid;
+static struct hfa384x_compident nicid;
 static hfa384x_caplevel_t rfid;
 static hfa384x_caplevel_t macid;
 static hfa384x_caplevel_t priid;

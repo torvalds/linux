@@ -367,12 +367,12 @@ Configuration Record Structures:
 --------------------------------------------------------------------*/
 
 /*-- Hardware/Firmware Component Information ----------*/
-typedef struct hfa384x_compident {
+struct hfa384x_compident {
 	u16 id;
 	u16 variant;
 	u16 major;
 	u16 minor;
-} __packed hfa384x_compident_t;
+} __packed;
 
 typedef struct hfa384x_caplevel {
 	u16 role;
@@ -1304,10 +1304,10 @@ typedef struct hfa384x {
 	unsigned int dot11_grpcnt;
 
 	/* Component Identities */
-	hfa384x_compident_t ident_nic;
-	hfa384x_compident_t ident_pri_fw;
-	hfa384x_compident_t ident_sta_fw;
-	hfa384x_compident_t ident_ap_fw;
+	struct hfa384x_compident ident_nic;
+	struct hfa384x_compident ident_pri_fw;
+	struct hfa384x_compident ident_sta_fw;
+	struct hfa384x_compident ident_ap_fw;
 	u16 mm_mods;
 
 	/* Supplier compatibility ranges */

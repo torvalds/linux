@@ -593,7 +593,7 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 	/* NIC identity */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_NICIDENTITY,
 					&hw->ident_nic,
-					sizeof(hfa384x_compident_t));
+					sizeof(struct hfa384x_compident));
 	if (result) {
 		netdev_err(wlandev->netdev, "Failed to retrieve NICIDENTITY\n");
 		goto failed;
@@ -612,7 +612,7 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 	/* Primary f/w identity */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_PRIIDENTITY,
 					&hw->ident_pri_fw,
-					sizeof(hfa384x_compident_t));
+					sizeof(struct hfa384x_compident));
 	if (result) {
 		netdev_err(wlandev->netdev, "Failed to retrieve PRIIDENTITY\n");
 		goto failed;
@@ -631,7 +631,7 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 	/* Station (Secondary?) f/w identity */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_STAIDENTITY,
 					&hw->ident_sta_fw,
-					sizeof(hfa384x_compident_t));
+					sizeof(struct hfa384x_compident));
 	if (result) {
 		netdev_err(wlandev->netdev, "Failed to retrieve STAIDENTITY\n");
 		goto failed;
