@@ -984,6 +984,32 @@ TRACE_EVENT(drv_set_tsf,
 	)
 );
 
+TRACE_EVENT(drv_offset_tsf,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 s64 offset),
+
+	TP_ARGS(local, sdata, offset),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__field(s64, tsf_offset)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		__entry->tsf_offset = offset;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT  VIF_PR_FMT  " tsf offset:%lld",
+		LOCAL_PR_ARG, VIF_PR_ARG,
+		(unsigned long long)__entry->tsf_offset
+	)
+);
+
 DEFINE_EVENT(local_sdata_evt, drv_reset_tsf,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata),

@@ -3169,6 +3169,12 @@ enum ieee80211_reconfig_type {
  *	required function.
  *	The callback can sleep.
  *
+ * @offset_tsf: Offset the TSF timer by the specified value in the
+ *	firmware/hardware.  Preferred to set_tsf as it avoids delay between
+ *	calling set_tsf() and hardware getting programmed, which will show up
+ *	as TSF delay. Is not a required function.
+ *	The callback can sleep.
+ *
  * @reset_tsf: Reset the TSF timer and allow firmware/hardware to synchronize
  *	with other STAs in the IBSS. This is only used in IBSS mode. This
  *	function is optional if the firmware/hardware takes full care of
@@ -3549,6 +3555,8 @@ struct ieee80211_ops {
 	u64 (*get_tsf)(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 	void (*set_tsf)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			u64 tsf);
+	void (*offset_tsf)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			   s64 offset);
 	void (*reset_tsf)(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 	int (*tx_last_beacon)(struct ieee80211_hw *hw);
 	int (*ampdu_action)(struct ieee80211_hw *hw,

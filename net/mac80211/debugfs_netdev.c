@@ -556,9 +556,15 @@ static ssize_t ieee80211_if_parse_tsf(
 		ret = kstrtoull(buf, 10, &tsf);
 		if (ret < 0)
 			return ret;
-		if (tsf_is_delta)
-			tsf = drv_get_tsf(local, sdata) + tsf_is_delta * tsf;
-		if (local->ops->set_tsf) {
+		if (tsf_is_delta && local->ops->offset_tsf) {
+			drv_offset_tsf(local, sdata, tsf_is_delta * tsf);
+			wiphy_info(local->hw.wiphy,
+				   "debugfs offset TSF by %018lld\n",
+				   tsf_is_delta * tsf);
+		} else if (local->ops->set_tsf) {
+			if (tsf_is_delta)
+				tsf = drv_get_tsf(local, sdata) +
+				      tsf_is_delta * tsf;
 			drv_set_tsf(local, sdata, tsf);
 			wiphy_info(local->hw.wiphy,
 				   "debugfs set TSF to %#018llx\n", tsf);

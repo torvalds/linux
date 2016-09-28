@@ -569,6 +569,9 @@ u64 drv_get_tsf(struct ieee80211_local *local,
 void drv_set_tsf(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
 		 u64 tsf);
+void drv_offset_tsf(struct ieee80211_local *local,
+		    struct ieee80211_sub_if_data *sdata,
+		    s64 offset);
 void drv_reset_tsf(struct ieee80211_local *local,
 		   struct ieee80211_sub_if_data *sdata);
 
