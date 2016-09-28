@@ -224,4 +224,26 @@ static inline struct drm_encoder *drm_encoder_find(struct drm_device *dev,
 
 void drm_encoder_cleanup(struct drm_encoder *encoder);
 
+/**
+ * drm_for_each_encoder_mask - iterate over encoders specified by bitmask
+ * @encoder: the loop cursor
+ * @dev: the DRM device
+ * @encoder_mask: bitmask of encoder indices
+ *
+ * Iterate over all encoders specified by bitmask.
+ */
+#define drm_for_each_encoder_mask(encoder, dev, encoder_mask) \
+	list_for_each_entry((encoder), &(dev)->mode_config.encoder_list, head) \
+		for_each_if ((encoder_mask) & (1 << drm_encoder_index(encoder)))
+
+/**
+ * drm_for_each_encoder - iterate over all encoders
+ * @encoder: the loop cursor
+ * @dev: the DRM device
+ *
+ * Iterate over all encoders of @dev.
+ */
+#define drm_for_each_encoder(encoder, dev) \
+	list_for_each_entry(encoder, &(dev)->mode_config.encoder_list, head)
+
 #endif

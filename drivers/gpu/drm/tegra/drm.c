@@ -983,8 +983,8 @@ static int host1x_drm_probe(struct host1x_device *dev)
 	int err;
 
 	drm = drm_dev_alloc(driver, &dev->dev);
-	if (!drm)
-		return -ENOMEM;
+	if (IS_ERR(drm))
+		return PTR_ERR(drm);
 
 	dev_set_drvdata(&dev->dev, drm);
 

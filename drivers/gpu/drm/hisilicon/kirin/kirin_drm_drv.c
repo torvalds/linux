@@ -207,8 +207,8 @@ static int kirin_drm_bind(struct device *dev)
 	int ret;
 
 	drm_dev = drm_dev_alloc(driver, dev);
-	if (!drm_dev)
-		return -ENOMEM;
+	if (IS_ERR(drm_dev))
+		return PTR_ERR(drm_dev);
 
 	drm_dev->platformdev = to_platform_device(dev);
 

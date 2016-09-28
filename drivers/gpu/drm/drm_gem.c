@@ -257,7 +257,7 @@ drm_gem_object_release_handle(int id, void *ptr, void *data)
 
 	if (drm_core_check_feature(dev, DRIVER_PRIME))
 		drm_gem_remove_prime_handles(obj, file_priv);
-	drm_vma_node_revoke(&obj->vma_node, file_priv->filp);
+	drm_vma_node_revoke(&obj->vma_node, file_priv);
 
 	if (dev->driver->gem_close_object)
 		dev->driver->gem_close_object(obj, file_priv);
@@ -372,7 +372,7 @@ drm_gem_handle_create_tail(struct drm_file *file_priv,
 
 	handle = ret;
 
-	ret = drm_vma_node_allow(&obj->vma_node, file_priv->filp);
+	ret = drm_vma_node_allow(&obj->vma_node, file_priv);
 	if (ret)
 		goto err_remove;
 
@@ -386,7 +386,7 @@ drm_gem_handle_create_tail(struct drm_file *file_priv,
 	return 0;
 
 err_revoke:
-	drm_vma_node_revoke(&obj->vma_node, file_priv->filp);
+	drm_vma_node_revoke(&obj->vma_node, file_priv);
 err_remove:
 	spin_lock(&file_priv->table_lock);
 	idr_remove(&file_priv->object_idr, handle);
@@ -991,7 +991,7 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (!obj)
 		return -EINVAL;
 
-	if (!drm_vma_node_is_allowed(node, filp)) {
+	if (!drm_vma_node_is_allowed(node, priv)) {
 		drm_gem_object_unreference_unlocked(obj);
 		return -EACCES;
 	}

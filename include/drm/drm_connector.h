@@ -27,6 +27,10 @@
 #include <linux/ctype.h>
 #include <drm/drm_mode_object.h>
 
+#include <uapi/drm/drm_mode.h>
+
+struct drm_device;
+
 struct drm_connector_helper_funcs;
 struct drm_device;
 struct drm_crtc;
@@ -181,14 +185,19 @@ int drm_display_info_set_bus_formats(struct drm_display_info *info,
 /**
  * struct drm_connector_state - mutable connector state
  * @connector: backpointer to the connector
- * @crtc: CRTC to connect connector to, NULL if disabled
  * @best_encoder: can be used by helpers and drivers to select the encoder
  * @state: backpointer to global drm_atomic_state
  */
 struct drm_connector_state {
 	struct drm_connector *connector;
 
-	struct drm_crtc *crtc;  /* do not write directly, use drm_atomic_set_crtc_for_connector() */
+	/**
+	 * @crtc: CRTC to connect connector to, NULL if disabled.
+	 *
+	 * Do not change this directly, use drm_atomic_set_crtc_for_connector()
+	 * instead.
+	 */
+	struct drm_crtc *crtc;
 
 	struct drm_encoder *best_encoder;
 
@@ -744,4 +753,19 @@ int drm_mode_connector_set_path_property(struct drm_connector *connector,
 int drm_mode_connector_set_tile_property(struct drm_connector *connector);
 int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 					    const struct edid *edid);
+
+/**
+ * drm_for_each_connector - iterate over all connectors
+ * @connector: the loop cursor
+ * @dev: the DRM device
+ *
+ * Iterate over all connectors of @dev.
+ */
+#define drm_for_each_connector(connector, dev) \
+	for (assert_drm_connector_list_read_locked(&(dev)->mode_config),	\
+	     connector = list_first_entry(&(dev)->mode_config.connector_list,	\
+					  struct drm_connector, head);		\
+	     &connector->head != (&(dev)->mode_config.connector_list);		\
+	     connector = list_next_entry(connector, head))
+
 #endif

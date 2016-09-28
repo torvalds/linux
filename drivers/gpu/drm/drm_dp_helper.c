@@ -27,6 +27,7 @@
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/i2c.h>
+#include <linux/seq_file.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drmP.h>
 

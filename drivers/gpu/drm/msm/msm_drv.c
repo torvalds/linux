@@ -347,9 +347,9 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	int ret;
 
 	ddev = drm_dev_alloc(drv, dev);
-	if (!ddev) {
+	if (IS_ERR(ddev)) {
 		dev_err(dev, "failed to allocate drm_device\n");
-		return -ENOMEM;
+		return PTR_ERR(ddev);
 	}
 
 	platform_set_drvdata(pdev, ddev);

@@ -755,7 +755,7 @@ int drm_legacy_addbufs_agp(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	entry->buflist = kzalloc(count * sizeof(*entry->buflist), GFP_KERNEL);
+	entry->buflist = kcalloc(count, sizeof(*entry->buflist), GFP_KERNEL);
 	if (!entry->buflist) {
 		mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
@@ -905,14 +905,14 @@ int drm_legacy_addbufs_pci(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	entry->buflist = kzalloc(count * sizeof(*entry->buflist), GFP_KERNEL);
+	entry->buflist = kcalloc(count, sizeof(*entry->buflist), GFP_KERNEL);
 	if (!entry->buflist) {
 		mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;
 	}
 
-	entry->seglist = kzalloc(count * sizeof(*entry->seglist), GFP_KERNEL);
+	entry->seglist = kcalloc(count, sizeof(*entry->seglist), GFP_KERNEL);
 	if (!entry->seglist) {
 		kfree(entry->buflist);
 		mutex_unlock(&dev->struct_mutex);
@@ -923,8 +923,9 @@ int drm_legacy_addbufs_pci(struct drm_device *dev,
 	/* Keep the original pagelist until we know all the allocations
 	 * have succeeded
 	 */
-	temp_pagelist = kmalloc((dma->page_count + (count << page_order)) *
-			       sizeof(*dma->pagelist), GFP_KERNEL);
+	temp_pagelist = kmalloc_array(dma->page_count + (count << page_order),
+				      sizeof(*dma->pagelist),
+				      GFP_KERNEL);
 	if (!temp_pagelist) {
 		kfree(entry->buflist);
 		kfree(entry->seglist);
@@ -1116,8 +1117,7 @@ static int drm_legacy_addbufs_sg(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	entry->buflist = kzalloc(count * sizeof(*entry->buflist),
-				GFP_KERNEL);
+	entry->buflist = kcalloc(count, sizeof(*entry->buflist), GFP_KERNEL);
 	if (!entry->buflist) {
 		mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);

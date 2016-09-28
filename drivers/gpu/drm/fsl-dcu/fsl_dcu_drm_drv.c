@@ -410,8 +410,8 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 	fsl_dev->tcon = fsl_tcon_init(dev);
 
 	drm = drm_dev_alloc(driver, dev);
-	if (!drm) {
-		ret = -ENOMEM;
+	if (IS_ERR(drm)) {
+		ret = PTR_ERR(drm);
 		goto disable_pix_clk;
 	}
 

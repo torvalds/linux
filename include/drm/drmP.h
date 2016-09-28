@@ -396,7 +396,6 @@ struct drm_file {
 	unsigned is_master:1;
 
 	struct pid *pid;
-	kuid_t uid;
 	drm_magic_t magic;
 	struct list_head lhead;
 	struct drm_minor *minor;

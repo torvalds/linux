@@ -797,8 +797,8 @@ static int atmel_hlcdc_dc_drm_probe(struct platform_device *pdev)
 	int ret;
 
 	ddev = drm_dev_alloc(&atmel_hlcdc_dc_driver, &pdev->dev);
-	if (!ddev)
-		return -ENOMEM;
+	if (IS_ERR(ddev))
+		return PTR_ERR(ddev);
 
 	ret = atmel_hlcdc_dc_load(ddev);
 	if (ret)

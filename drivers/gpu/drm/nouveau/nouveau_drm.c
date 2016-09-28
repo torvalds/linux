@@ -1067,8 +1067,8 @@ nouveau_platform_device_create(const struct nvkm_device_tegra_func *func,
 		goto err_free;
 
 	drm = drm_dev_alloc(&driver_platform, &pdev->dev);
-	if (!drm) {
-		err = -ENOMEM;
+	if (IS_ERR(drm)) {
+		err = PTR_ERR(drm);
 		goto err_free;
 	}
 

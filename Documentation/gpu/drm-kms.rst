@@ -110,6 +110,21 @@ Note that dumb objects may not be used for gpu acceleration, as has been
 attempted on some ARM embedded platforms. Such drivers really must have
 a hardware-specific ioctl to allocate suitable buffer objects.
 
+Plane Abstraction
+=================
+
+.. kernel-doc:: drivers/gpu/drm/drm_plane.c
+   :doc: overview
+
+Plane Functions Reference
+-------------------------
+
+.. kernel-doc:: include/drm/drm_plane.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_plane.c
+   :export:
+
 Display Modes Function Reference
 ================================
 
@@ -177,50 +192,6 @@ allocated and zeroed by the driver, possibly as part of a larger
 structure, and registered with a call to :c:func:`drm_crtc_init()`
 with a pointer to CRTC functions.
 
-Planes (:c:type:`struct drm_plane <drm_plane>`)
------------------------------------------------
-
-A plane represents an image source that can be blended with or overlayed
-on top of a CRTC during the scanout process. Planes are associated with
-a frame buffer to crop a portion of the image memory (source) and
-optionally scale it to a destination size. The result is then blended
-with or overlayed on top of a CRTC.
-
-The DRM core recognizes three types of planes:
-
--  DRM_PLANE_TYPE_PRIMARY represents a "main" plane for a CRTC.
-   Primary planes are the planes operated upon by CRTC modesetting and
-   flipping operations described in the page_flip hook in
-   :c:type:`struct drm_crtc_funcs <drm_crtc_funcs>`.
--  DRM_PLANE_TYPE_CURSOR represents a "cursor" plane for a CRTC.
-   Cursor planes are the planes operated upon by the
-   DRM_IOCTL_MODE_CURSOR and DRM_IOCTL_MODE_CURSOR2 ioctls.
--  DRM_PLANE_TYPE_OVERLAY represents all non-primary, non-cursor
-   planes. Some drivers refer to these types of planes as "sprites"
-   internally.
-
-For compatibility with legacy userspace, only overlay planes are made
-available to userspace by default. Userspace clients may set the
-DRM_CLIENT_CAP_UNIVERSAL_PLANES client capability bit to indicate
-that they wish to receive a universal plane list containing all plane
-types.
-
-Plane Initialization
-~~~~~~~~~~~~~~~~~~~~
-
-To create a plane, a KMS drivers allocates and zeroes an instances of
-:c:type:`struct drm_plane <drm_plane>` (possibly as part of a
-larger structure) and registers it with a call to
-:c:func:`drm_universal_plane_init()`. The function takes a
-bitmask of the CRTCs that can be associated with the plane, a pointer to
-the plane functions, a list of format supported formats, and the type of
-plane (primary, cursor, or overlay) being initialized.
-
-Cursor and overlay planes are optional. All drivers should provide one
-primary plane per CRTC (although this requirement may change in the
-future); drivers that do not wish to provide special handling for
-primary planes may make use of the helper functions described in ? to
-create and register a primary plane with standard capabilities.
 
 Cleanup
 -------
@@ -316,10 +287,25 @@ Property Types and Blob Property Support
 .. kernel-doc:: drivers/gpu/drm/drm_property.c
    :export:
 
-Blending and Z-Position properties
-----------------------------------
+Plane Composition Properties
+----------------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_blend.c
+   :doc: overview
+
+.. kernel-doc:: drivers/gpu/drm/drm_blend.c
+   :export:
+
+Color Management Properties
+---------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_color_mgmt.c
+   :doc: overview
+
+.. kernel-doc:: include/drm/drm_color_mgmt.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_color_mgmt.c
    :export:
 
 Existing KMS Properties

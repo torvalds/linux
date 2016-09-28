@@ -86,8 +86,8 @@ static int udl_usb_probe(struct usb_interface *interface,
 	int r;
 
 	dev = drm_dev_alloc(&driver, &interface->dev);
-	if (!dev)
-		return -ENOMEM;
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
 
 	r = drm_dev_register(dev, (unsigned long)udev);
 	if (r)

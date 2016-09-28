@@ -246,7 +246,8 @@ static int amdgpu_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 
 	if (amdgpu_ttm_tt_get_usermm(bo->ttm))
 		return -EPERM;
-	return drm_vma_node_verify_access(&rbo->gem_base.vma_node, filp);
+	return drm_vma_node_verify_access(&rbo->gem_base.vma_node,
+					  filp->private_data);
 }
 
 static void amdgpu_move_null(struct ttm_buffer_object *bo,

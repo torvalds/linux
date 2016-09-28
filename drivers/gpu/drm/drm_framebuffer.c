@@ -62,6 +62,32 @@
  * &drm_framebuffer.
  */
 
+int drm_framebuffer_check_src_coords(uint32_t src_x, uint32_t src_y,
+				     uint32_t src_w, uint32_t src_h,
+				     const struct drm_framebuffer *fb)
+{
+	unsigned int fb_width, fb_height;
+
+	fb_width = fb->width << 16;
+	fb_height = fb->height << 16;
+
+	/* Make sure source coordinates are inside the fb. */
+	if (src_w > fb_width ||
+	    src_x > fb_width - src_w ||
+	    src_h > fb_height ||
+	    src_y > fb_height - src_h) {
+		DRM_DEBUG_KMS("Invalid source coordinates "
+			      "%u.%06ux%u.%06u+%u.%06u+%u.%06u\n",
+			      src_w >> 16, ((src_w & 0xffff) * 15625) >> 10,
+			      src_h >> 16, ((src_h & 0xffff) * 15625) >> 10,
+			      src_x >> 16, ((src_x & 0xffff) * 15625) >> 10,
+			      src_y >> 16, ((src_y & 0xffff) * 15625) >> 10);
+		return -ENOSPC;
+	}
+
+	return 0;
+}
+
 /**
  * drm_mode_addfb - add an FB to the graphics configuration
  * @dev: drm device for the ioctl

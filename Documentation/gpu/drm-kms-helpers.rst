@@ -126,6 +126,13 @@ Default bridge callback sequence
 .. kernel-doc:: drivers/gpu/drm/drm_bridge.c
    :doc: bridge callbacks
 
+
+Bridge Helper Reference
+-------------------------
+
+.. kernel-doc:: include/drm/drm_bridge.h
+   :internal:
+
 .. kernel-doc:: drivers/gpu/drm/drm_bridge.c
    :export:
 
@@ -200,6 +207,9 @@ Output Probing Helper Functions Reference
 
 EDID Helper Functions Reference
 ===============================
+
+.. kernel-doc:: include/drm/drm_edid.h
+   :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_edid.c
    :export:

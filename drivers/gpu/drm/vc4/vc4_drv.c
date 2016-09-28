@@ -233,8 +233,8 @@ static int vc4_drm_bind(struct device *dev)
 		return -ENOMEM;
 
 	drm = drm_dev_alloc(&vc4_drm_driver, dev);
-	if (!drm)
-		return -ENOMEM;
+	if (IS_ERR(drm))
+		return PTR_ERR(drm);
 	platform_set_drvdata(pdev, drm);
 	vc4->dev = drm;
 	drm->dev_private = vc4;

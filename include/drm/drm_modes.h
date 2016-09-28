@@ -27,8 +27,12 @@
 #ifndef __DRM_MODES_H__
 #define __DRM_MODES_H__
 
+#include <linux/hdmi.h>
+
 #include <drm/drm_mode_object.h>
 #include <drm/drm_connector.h>
+
+struct videomode;
 
 /*
  * Note on terminology:  here, for brevity and convenience, we refer to connector
@@ -402,6 +406,8 @@ struct drm_display_mode {
 	 */
 	enum hdmi_picture_aspect picture_aspect_ratio;
 };
+
+#define obj_to_mode(x) container_of(x, struct drm_display_mode, base)
 
 /**
  * drm_mode_is_stereo - check for stereo mode flags

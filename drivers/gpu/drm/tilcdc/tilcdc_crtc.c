@@ -15,9 +15,11 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "drm_flip_work.h"
-#include <drm/drm_plane_helper.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_flip_work.h>
+#include <drm/drm_plane_helper.h>
 
 #include "tilcdc_drv.h"
 #include "tilcdc_regs.h"
