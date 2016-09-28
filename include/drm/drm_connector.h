@@ -167,6 +167,17 @@ struct drm_display_info {
 	u32 bus_flags;
 
 	/**
+	 * @max_tmds_clock: Maximum TMDS clock rate supported by the
+	 * sink in kHz. 0 means undefined.
+	 */
+	int max_tmds_clock;
+
+	/**
+	 * @dvi_dual: Dual-link DVI sink?
+	 */
+	bool dvi_dual;
+
+	/**
 	 * @edid_hdmi_dc_modes: Mask of supported hdmi deep color modes. Even
 	 * more stuff redundant with @bus_formats.
 	 */
@@ -515,8 +526,6 @@ struct drm_cmdline_mode {
  * @encoder_ids: valid encoders for this connector
  * @encoder: encoder driving this connector, if any
  * @eld: EDID-like data, if present
- * @dvi_dual: dual link DVI, if found
- * @max_tmds_clock: max clock rate, if found
  * @latency_present: AV delay info from ELD, if found
  * @video_latency: video latency info from ELD, if found
  * @audio_latency: audio latency info from ELD, if found
@@ -650,8 +659,6 @@ struct drm_connector {
 #define MAX_ELD_BYTES	128
 	/* EDID bits */
 	uint8_t eld[MAX_ELD_BYTES];
-	bool dvi_dual;
-	int max_tmds_clock;	/* in kHz */
 	bool latency_present[2];
 	int video_latency[2];	/* [0]: progressive, [1]: interlaced */
 	int audio_latency[2];

@@ -3255,14 +3255,15 @@ static void fixup_detailed_cea_mode_clock(struct drm_display_mode *mode)
 static void
 parse_hdmi_vsdb(struct drm_connector *connector, const u8 *db)
 {
+	struct drm_display_info *info = &connector->display_info;
 	u8 len = cea_db_payload_len(db);
 
 	if (len >= 6) {
 		connector->eld[5] |= (db[6] >> 7) << 1;  /* Supports_AI */
-		connector->dvi_dual = db[6] & 1;
+		info->dvi_dual = db[6] & 1;
 	}
 	if (len >= 7)
-		connector->max_tmds_clock = db[7] * 5000;
+		info->max_tmds_clock = db[7] * 5000;
 	if (len >= 8) {
 		connector->latency_present[0] = db[8] >> 7;
 		connector->latency_present[1] = (db[8] >> 6) & 1;
@@ -3281,8 +3282,8 @@ parse_hdmi_vsdb(struct drm_connector *connector, const u8 *db)
 		    "latency present %d %d, "
 		    "video latency %d %d, "
 		    "audio latency %d %d\n",
-		    connector->dvi_dual,
-		    connector->max_tmds_clock,
+		    info->dvi_dual,
+		    info->max_tmds_clock,
 	      (int) connector->latency_present[0],
 	      (int) connector->latency_present[1],
 		    connector->video_latency[0],
@@ -3349,6 +3350,7 @@ EXPORT_SYMBOL(drm_edid_get_monitor_name);
  */
 void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 {
+	struct drm_display_info *info = &connector->display_info;
 	uint8_t *eld = connector->eld;
 	u8 *cea;
 	u8 *db;
@@ -3365,8 +3367,8 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 	connector->video_latency[1] = 0;
 	connector->audio_latency[1] = 0;
 
-	connector->max_tmds_clock = 0;
-	connector->dvi_dual = false;
+	info->max_tmds_clock = 0;
+	info->dvi_dual = false;
 
 	cea = drm_find_cea_extension(edid);
 	if (!cea) {
