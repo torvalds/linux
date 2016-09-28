@@ -100,16 +100,6 @@ enum orangefs_vfs_op_states {
 };
 
 /*
- * An array of client_debug_mask will be built to hold debug keyword/mask
- * values fetched from userspace.
- */
-struct client_debug_mask {
-	char *keyword;
-	__u64 mask1;
-	__u64 mask2;
-};
-
-/*
  * orangefs kernel memory related flags
  */
 
@@ -118,29 +108,6 @@ struct client_debug_mask {
 #else
 #define ORANGEFS_CACHE_CREATE_FLAGS 0
 #endif /* ((defined ORANGEFS_KERNEL_DEBUG) && (defined CONFIG_DEBUG_SLAB)) */
-
-/* these functions are defined in orangefs-utils.c */
-int orangefs_prepare_cdm_array(char *debug_array_string);
-int orangefs_prepare_debugfs_help_string(int);
-
-/* defined in orangefs-debugfs.c */
-int orangefs_client_debug_init(void);
-
-void debug_string_to_mask(char *, void *, int);
-void do_c_mask(int, char *, struct client_debug_mask **);
-void do_k_mask(int, char *, __u64 **);
-
-void debug_mask_to_string(void *, int);
-void do_k_string(void *, int);
-void do_c_string(void *, int);
-int check_amalgam_keyword(void *, int);
-int keyword_is_amalgam(char *);
-
-/*these variables are defined in orangefs-mod.c */
-extern char kernel_debug_string[ORANGEFS_MAX_DEBUG_STRING_LEN];
-extern char client_debug_string[ORANGEFS_MAX_DEBUG_STRING_LEN];
-extern char client_debug_array_string[ORANGEFS_MAX_DEBUG_STRING_LEN];
-extern unsigned int kernel_mask_set_mod_init;
 
 extern int orangefs_init_acl(struct inode *inode, struct inode *dir);
 extern const struct xattr_handler *orangefs_xattr_handlers[];
@@ -331,7 +298,7 @@ struct orangefs_stats {
 	unsigned long writes;
 };
 
-extern struct orangefs_stats g_orangefs_stats;
+extern struct orangefs_stats orangefs_stats;
 
 /*
  * NOTE: See Documentation/filesystems/porting for information
@@ -547,20 +514,18 @@ bool orangefs_cancel_op_in_progress(struct orangefs_kernel_op_s *op);
 
 int orangefs_normalize_to_errno(__s32 error_code);
 
-extern struct mutex devreq_mutex;
-extern struct mutex request_mutex;
-extern int debug;
+extern struct mutex orangefs_request_mutex;
 extern int op_timeout_secs;
 extern int slot_timeout_secs;
-extern int dcache_timeout_msecs;
-extern int getattr_timeout_msecs;
+extern int orangefs_dcache_timeout_msecs;
+extern int orangefs_getattr_timeout_msecs;
 extern struct list_head orangefs_superblocks;
 extern spinlock_t orangefs_superblocks_lock;
 extern struct list_head orangefs_request_list;
 extern spinlock_t orangefs_request_list_lock;
 extern wait_queue_head_t orangefs_request_list_waitq;
-extern struct list_head *htable_ops_in_progress;
-extern spinlock_t htable_ops_in_progress_lock;
+extern struct list_head *orangefs_htable_ops_in_progress;
+extern spinlock_t orangefs_htable_ops_in_progress_lock;
 extern int hash_table_size;
 
 extern const struct address_space_operations orangefs_address_operations;

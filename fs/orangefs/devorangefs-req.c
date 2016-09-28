@@ -11,6 +11,7 @@
 #include "orangefs-kernel.h"
 #include "orangefs-dev-proto.h"
 #include "orangefs-bufmap.h"
+#include "orangefs-debugfs.h"
 
 #include <linux/debugfs.h>
 #include <linux/slab.h>
@@ -20,6 +21,8 @@
 uint32_t orangefs_userspace_version;
 
 static int open_access_count;
+
+static DEFINE_MUTEX(devreq_mutex);
 
 #define DUMP_DEVICE_ERROR()                                                   \
 do {                                                                          \
@@ -45,7 +48,7 @@ static void orangefs_devreq_add_op(struct orangefs_kernel_op_s *op)
 {
 	int index = hash_func(op->tag, hash_table_size);
 
-	list_add_tail(&op->list, &htable_ops_in_progress[index]);
+	list_add_tail(&op->list, &orangefs_htable_ops_in_progress[index]);
 }
 
 /*
@@ -59,20 +62,20 @@ static struct orangefs_kernel_op_s *orangefs_devreq_remove_op(__u64 tag)
 
 	index = hash_func(tag, hash_table_size);
 
-	spin_lock(&htable_ops_in_progress_lock);
+	spin_lock(&orangefs_htable_ops_in_progress_lock);
 	list_for_each_entry_safe(op,
 				 next,
-				 &htable_ops_in_progress[index],
+				 &orangefs_htable_ops_in_progress[index],
 				 list) {
 		if (op->tag == tag && !op_state_purged(op) &&
 		    !op_state_given_up(op)) {
 			list_del_init(&op->list);
-			spin_unlock(&htable_ops_in_progress_lock);
+			spin_unlock(&orangefs_htable_ops_in_progress_lock);
 			return op;
 		}
 	}
 
-	spin_unlock(&htable_ops_in_progress_lock);
+	spin_unlock(&orangefs_htable_ops_in_progress_lock);
 	return NULL;
 }
 
@@ -278,11 +281,11 @@ restart:
 	if (ret != 0)
 		goto error;
 
-	spin_lock(&htable_ops_in_progress_lock);
+	spin_lock(&orangefs_htable_ops_in_progress_lock);
 	spin_lock(&cur_op->lock);
 	if (unlikely(op_state_given_up(cur_op))) {
 		spin_unlock(&cur_op->lock);
-		spin_unlock(&htable_ops_in_progress_lock);
+		spin_unlock(&orangefs_htable_ops_in_progress_lock);
 		complete(&cur_op->waitq);
 		goto restart;
 	}
@@ -300,7 +303,7 @@ restart:
 		     current->comm);
 	orangefs_devreq_add_op(cur_op);
 	spin_unlock(&cur_op->lock);
-	spin_unlock(&htable_ops_in_progress_lock);
+	spin_unlock(&orangefs_htable_ops_in_progress_lock);
 
 	/* The client only asks to read one size buffer. */
 	return MAX_DEV_REQ_UPSIZE;
@@ -586,8 +589,6 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 	static __s32 max_down_size = MAX_DEV_REQ_DOWNSIZE;
 	struct ORANGEFS_dev_map_desc user_desc;
 	int ret = 0;
-	struct dev_mask_info_s mask_info = { 0 };
-	struct dev_mask2_info_s mask2_info = { 0, 0 };
 	int upstream_kmod = 1;
 	struct orangefs_sb_info_s *orangefs_sb;
 
@@ -629,7 +630,7 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 		 * all of the remounts are serviced (to avoid ops between
 		 * mounts to fail)
 		 */
-		ret = mutex_lock_interruptible(&request_mutex);
+		ret = mutex_lock_interruptible(&orangefs_request_mutex);
 		if (ret < 0)
 			return ret;
 		gossip_debug(GOSSIP_DEV_DEBUG,
@@ -664,7 +665,7 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 		gossip_debug(GOSSIP_DEV_DEBUG,
 			     "%s: priority remount complete\n",
 			     __func__);
-		mutex_unlock(&request_mutex);
+		mutex_unlock(&orangefs_request_mutex);
 		return ret;
 
 	case ORANGEFS_DEV_UPSTREAM:
@@ -678,134 +679,11 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 			return ret;
 
 	case ORANGEFS_DEV_CLIENT_MASK:
-		ret = copy_from_user(&mask2_info,
-				     (void __user *)arg,
-				     sizeof(struct dev_mask2_info_s));
-
-		if (ret != 0)
-			return -EIO;
-
-		client_debug_mask.mask1 = mask2_info.mask1_value;
-		client_debug_mask.mask2 = mask2_info.mask2_value;
-
-		pr_info("%s: client debug mask has been been received "
-			":%llx: :%llx:\n",
-			__func__,
-			(unsigned long long)client_debug_mask.mask1,
-			(unsigned long long)client_debug_mask.mask2);
-
-		return ret;
-
+		return orangefs_debugfs_new_client_mask((void __user *)arg);
 	case ORANGEFS_DEV_CLIENT_STRING:
-		ret = copy_from_user(&client_debug_array_string,
-				     (void __user *)arg,
-				     ORANGEFS_MAX_DEBUG_STRING_LEN);
-		/*
-		 * The real client-core makes an effort to ensure
-		 * that actual strings that aren't too long to fit in
-		 * this buffer is what we get here. We're going to use
-		 * string functions on the stuff we got, so we'll make
-		 * this extra effort to try and keep from
-		 * flowing out of this buffer when we use the string
-		 * functions, even if somehow the stuff we end up
-		 * with here is garbage.
-		 */
-		client_debug_array_string[ORANGEFS_MAX_DEBUG_STRING_LEN - 1] =
-			'\0';
-		
-		if (ret != 0) {
-			pr_info("%s: CLIENT_STRING: copy_from_user failed\n",
-				__func__);
-			return -EIO;
-		}
-
-		pr_info("%s: client debug array string has been received.\n",
-			__func__);
-
-		if (!help_string_initialized) {
-
-			/* Free the "we don't know yet" default string... */
-			kfree(debug_help_string);
-
-			/* build a proper debug help string */
-			if (orangefs_prepare_debugfs_help_string(0)) {
-				gossip_err("%s: no debug help string \n",
-					   __func__);
-				return -EIO;
-			}
-
-			/* Replace the boilerplate boot-time debug-help file. */
-			debugfs_remove(help_file_dentry);
-
-			help_file_dentry =
-				debugfs_create_file(
-					ORANGEFS_KMOD_DEBUG_HELP_FILE,
-					0444,
-					debug_dir,
-					debug_help_string,
-					&debug_help_fops);
-
-			if (!help_file_dentry) {
-				gossip_err("%s: debugfs_create_file failed for"
-					   " :%s:!\n",
-					   __func__,
-					   ORANGEFS_KMOD_DEBUG_HELP_FILE);
-				return -EIO;
-			}
-		}
-
-		debug_mask_to_string(&client_debug_mask, 1);
-
-		debugfs_remove(client_debug_dentry);
-
-		orangefs_client_debug_init();
-
-		help_string_initialized++;
-
-		return ret;
-
+		return orangefs_debugfs_new_client_string((void __user *)arg);
 	case ORANGEFS_DEV_DEBUG:
-		ret = copy_from_user(&mask_info,
-				     (void __user *)arg,
-				     sizeof(mask_info));
-
-		if (ret != 0)
-			return -EIO;
-
-		if (mask_info.mask_type == KERNEL_MASK) {
-			if ((mask_info.mask_value == 0)
-			    && (kernel_mask_set_mod_init)) {
-				/*
-				 * the kernel debug mask was set when the
-				 * kernel module was loaded; don't override
-				 * it if the client-core was started without
-				 * a value for ORANGEFS_KMODMASK.
-				 */
-				return 0;
-			}
-			debug_mask_to_string(&mask_info.mask_value,
-					     mask_info.mask_type);
-			gossip_debug_mask = mask_info.mask_value;
-			pr_info("%s: kernel debug mask has been modified to "
-				":%s: :%llx:\n",
-				__func__,
-				kernel_debug_string,
-				(unsigned long long)gossip_debug_mask);
-		} else if (mask_info.mask_type == CLIENT_MASK) {
-			debug_mask_to_string(&mask_info.mask_value,
-					     mask_info.mask_type);
-			pr_info("%s: client debug mask has been modified to"
-				":%s: :%llx:\n",
-				__func__,
-				client_debug_string,
-				llu(mask_info.mask_value));
-		} else {
-			gossip_lerr("Invalid mask type....\n");
-			return -EINVAL;
-		}
-
-		return ret;
-
+		return orangefs_debugfs_new_debug((void __user *)arg);
 	default:
 		return -ENOIOCTLCMD;
 	}

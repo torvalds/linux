@@ -557,8 +557,8 @@ void orangefs_kill_sb(struct super_block *sb)
 	 * make sure that ORANGEFS_DEV_REMOUNT_ALL loop that might've seen us
 	 * gets completed before we free the dang thing.
 	 */
-	mutex_lock(&request_mutex);
-	mutex_unlock(&request_mutex);
+	mutex_lock(&orangefs_request_mutex);
+	mutex_unlock(&orangefs_request_mutex);
 
 	/* free the orangefs superblock private data */
 	kfree(ORANGEFS_SB(sb));

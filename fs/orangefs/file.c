@@ -412,7 +412,7 @@ ssize_t orangefs_inode_read(struct inode *inode,
 	size_t bufmap_size;
 	ssize_t ret = -EINVAL;
 
-	g_orangefs_stats.reads++;
+	orangefs_stats.reads++;
 
 	bufmap_size = orangefs_bufmap_size_query();
 	if (count > bufmap_size) {
@@ -453,7 +453,7 @@ static ssize_t orangefs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter
 
 	gossip_debug(GOSSIP_FILE_DEBUG, "orangefs_file_read_iter\n");
 
-	g_orangefs_stats.reads++;
+	orangefs_stats.reads++;
 
 	rc = do_readv_writev(ORANGEFS_IO_READ, file, &pos, iter);
 	iocb->ki_pos = pos;
@@ -514,7 +514,7 @@ static ssize_t orangefs_file_write_iter(struct kiocb *iocb, struct iov_iter *ite
 	}
 
 	iocb->ki_pos = pos;
-	g_orangefs_stats.writes++;
+	orangefs_stats.writes++;
 
 out:
 
