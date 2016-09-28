@@ -266,7 +266,7 @@
 #define		HFA384x_RID_DBMCOMMSQUALITY_LEN	 \
 	((u16)sizeof(hfa384x_dbmcommsquality_t))
 #define		HFA384x_RID_JOINREQUEST_LEN \
-	((u16)sizeof(hfa384x_JoinRequest_data_t))
+	((u16)sizeof(struct hfa384x_JoinRequest_data))
 
 /*--------------------------------------------------------------------
  * Information RIDs:  Modem Information
@@ -415,10 +415,10 @@ struct hfa384x_HostScanRequest_data {
 } __packed;
 
 /*-- Configuration Record: JoinRequest (data portion only) --*/
-typedef struct hfa384x_JoinRequest_data {
+struct hfa384x_JoinRequest_data {
 	u8 bssid[WLAN_BSSID_LEN];
 	u16 channel;
-} __packed hfa384x_JoinRequest_data_t;
+} __packed;
 
 /*-- Configuration Record: authenticateStation (data portion only) --*/
 typedef struct hfa384x_authenticateStation_data {
@@ -1298,7 +1298,7 @@ typedef struct hfa384x {
 	int scanflag;		/* to signal scan complete */
 	int join_ap;		/* are we joined to a specific ap */
 	int join_retries;	/* number of join retries till we fail */
-	hfa384x_JoinRequest_data_t joinreq;	/* join request saved data */
+	struct hfa384x_JoinRequest_data joinreq;	/* join request saved data */
 
 	struct wlandevice *wlandev;
 	/* Timer to allow for the deferred processing of linkstatus messages */

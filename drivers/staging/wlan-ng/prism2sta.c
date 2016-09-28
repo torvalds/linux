@@ -1037,7 +1037,7 @@ static void prism2sta_inf_scanresults(struct wlandevice *wlandev,
 	int nbss;
 	hfa384x_ScanResult_t *sr = &(inf->info.scanresult);
 	int i;
-	hfa384x_JoinRequest_data_t joinreq;
+	struct hfa384x_JoinRequest_data joinreq;
 	int result;
 
 	/* Get the number of results, first in bytes, then in results */
@@ -1391,7 +1391,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 		 * Disable Transmits, Ignore receives of data frames
 		 */
 		if (hw->join_ap && --hw->join_retries > 0) {
-			hfa384x_JoinRequest_data_t joinreq;
+			struct hfa384x_JoinRequest_data joinreq;
 
 			joinreq = hw->joinreq;
 			/* Send the join request */
