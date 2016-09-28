@@ -899,7 +899,7 @@ struct hfa384x_usb_error {
 /*----------------------------------------------------------*/
 /* Unions for packaging all the known packet types together */
 
-typedef union hfa384x_usbout {
+union hfa384x_usbout {
 	__le16 type;
 	struct hfa384x_usb_txfrm txfrm;
 	struct hfa384x_usb_cmdreq cmdreq;
@@ -907,7 +907,7 @@ typedef union hfa384x_usbout {
 	struct hfa384x_usb_rridreq rridreq;
 	struct hfa384x_usb_wmemreq wmemreq;
 	struct hfa384x_usb_rmemreq rmemreq;
-} __packed hfa384x_usbout_t;
+} __packed;
 
 typedef union hfa384x_usbin {
 	__le16 type;
@@ -1183,7 +1183,7 @@ typedef struct hfa384x_usbctlx {
 	struct list_head list;
 
 	size_t outbufsize;
-	hfa384x_usbout_t outbuf;	/* pkt buf for OUT */
+	union hfa384x_usbout outbuf;	/* pkt buf for OUT */
 	hfa384x_usbin_t inbuf;	/* pkt buf for IN(a copy) */
 
 	CTLX_STATE state;	/* Tracks running state */
@@ -1248,7 +1248,7 @@ typedef struct hfa384x {
 	struct sk_buff *rx_urb_skb;
 	struct urb tx_urb;
 	struct urb ctlx_urb;
-	hfa384x_usbout_t txbuff;
+	union hfa384x_usbout txbuff;
 	hfa384x_usbctlxq_t ctlxq;
 	struct timer_list reqtimer;
 	struct timer_list resptimer;
