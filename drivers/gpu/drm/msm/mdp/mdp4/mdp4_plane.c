@@ -81,7 +81,7 @@ static void mdp4_plane_install_properties(struct drm_plane *plane,
 	// XXX
 }
 
-int mdp4_plane_set_property(struct drm_plane *plane,
+static int mdp4_plane_set_property(struct drm_plane *plane,
 		struct drm_property *property, uint64_t val)
 {
 	// XXX

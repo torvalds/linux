@@ -584,18 +584,16 @@ int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op, ktime_t *timeout)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	bool write = !!(op & MSM_PREP_WRITE);
+	unsigned long remain =
+		op & MSM_PREP_NOSYNC ? 0 : timeout_to_jiffies(timeout);
+	long ret;
 
-	if (op & MSM_PREP_NOSYNC) {
-		if (!reservation_object_test_signaled_rcu(msm_obj->resv, write))
-			return -EBUSY;
-	} else {
-		int ret;
-
-		ret = reservation_object_wait_timeout_rcu(msm_obj->resv, write,
-				true, timeout_to_jiffies(timeout));
-		if (ret <= 0)
-			return ret == 0 ? -ETIMEDOUT : ret;
-	}
+	ret = reservation_object_wait_timeout_rcu(msm_obj->resv, write,
+						  true,  remain);
+	if (ret == 0)
+		return remain == 0 ? -EBUSY : -ETIMEDOUT;
+	else if (ret < 0)
+		return ret;
 
 	/* TODO cache maintenance */
 
