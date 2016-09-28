@@ -386,13 +386,13 @@ struct hfa384x_compident {
 	u16 minor;
 } __packed;
 
-typedef struct hfa384x_caplevel {
+struct hfa384x_caplevel {
 	u16 role;
 	u16 id;
 	u16 variant;
 	u16 bottom;
 	u16 top;
-} __packed hfa384x_caplevel_t;
+} __packed;
 
 /*-- Configuration Record: cnfAuthentication --*/
 #define HFA384x_CNFAUTHENTICATION_OPENSYSTEM	0x0001
@@ -1337,31 +1337,31 @@ typedef struct hfa384x {
 	u16 mm_mods;
 
 	/* Supplier compatibility ranges */
-	hfa384x_caplevel_t cap_sup_mfi;
-	hfa384x_caplevel_t cap_sup_cfi;
-	hfa384x_caplevel_t cap_sup_pri;
-	hfa384x_caplevel_t cap_sup_sta;
-	hfa384x_caplevel_t cap_sup_ap;
+	struct hfa384x_caplevel cap_sup_mfi;
+	struct hfa384x_caplevel cap_sup_cfi;
+	struct hfa384x_caplevel cap_sup_pri;
+	struct hfa384x_caplevel cap_sup_sta;
+	struct hfa384x_caplevel cap_sup_ap;
 
 	/* Actor compatibility ranges */
-	hfa384x_caplevel_t cap_act_pri_cfi;	/*
+	struct hfa384x_caplevel cap_act_pri_cfi;	/*
 						 * pri f/w to controller
 						 * interface
 						 */
 
-	hfa384x_caplevel_t cap_act_sta_cfi;	/*
+	struct hfa384x_caplevel cap_act_sta_cfi;	/*
 						 * sta f/w to controller
 						 * interface
 						 */
 
-	hfa384x_caplevel_t cap_act_sta_mfi;	/* sta f/w to modem interface */
+	struct hfa384x_caplevel cap_act_sta_mfi;	/* sta f/w to modem interface */
 
-	hfa384x_caplevel_t cap_act_ap_cfi;	/*
+	struct hfa384x_caplevel cap_act_ap_cfi;	/*
 						 * ap f/w to controller
 						 * interface
 						 */
 
-	hfa384x_caplevel_t cap_act_ap_mfi;	/* ap f/w to modem interface */
+	struct hfa384x_caplevel cap_act_ap_mfi;	/* ap f/w to modem interface */
 
 	u32 psusercount;	/* Power save user count. */
 	hfa384x_CommTallies32_t tallies;	/* Communication tallies. */

@@ -97,7 +97,7 @@ struct s3inforec {
 	u16 type;
 	union {
 		struct hfa384x_compident version;
-		hfa384x_caplevel_t compat;
+		struct hfa384x_caplevel compat;
 		u16 buildseq;
 		struct hfa384x_compident platform;
 	} info;
@@ -153,9 +153,9 @@ static struct imgchunk fchunk[CHUNKS_MAX];
 
 static struct pda pda;
 static struct hfa384x_compident nicid;
-static hfa384x_caplevel_t rfid;
-static hfa384x_caplevel_t macid;
-static hfa384x_caplevel_t priid;
+static struct hfa384x_caplevel rfid;
+static struct hfa384x_caplevel macid;
+static struct hfa384x_caplevel priid;
 
 /*================================================================*/
 /* Local Function Declarations */
