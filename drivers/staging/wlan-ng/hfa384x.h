@@ -1037,10 +1037,10 @@ struct hfa384x_pdr_level_comp_setup {
 	u16 ch_value[14];
 } __packed;
 
-typedef struct hfa384x_pdr_trimdac_setup {
+struct hfa384x_pdr_trimdac_setup {
 	u16 trimidac;
 	u16 trimqdac;
-} __packed hfa384x_pdr_trimdac_setup_t;
+} __packed;
 
 typedef struct hfa384x_pdr_ifr_setting {
 	u16 value[3];
@@ -1115,7 +1115,7 @@ typedef struct hfa384x_pdrec {
 		struct hfa384x_pdr_refdac_setup refdac_setup;
 		struct hfa384x_pdr_vgdac_setup vgdac_setup;
 		struct hfa384x_pdr_level_comp_setup level_comp_setup;
-		hfa384x_pdr_trimdac_setup_t trimdac_setup;
+		struct hfa384x_pdr_trimdac_setup trimdac_setup;
 		hfa384x_pdr_ifr_setting_t ifr_setting;
 		hfa384x_pdr_rfr_setting_t rfr_setting;
 		hfa384x_pdr_hfa3861_baseline_t hfa3861_baseline;
