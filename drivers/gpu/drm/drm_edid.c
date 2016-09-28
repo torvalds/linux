@@ -3253,17 +3253,12 @@ static void fixup_detailed_cea_mode_clock(struct drm_display_mode *mode)
 }
 
 static void
-parse_hdmi_vsdb(struct drm_connector *connector, const u8 *db)
+drm_parse_hdmi_vsdb_audio(struct drm_connector *connector, const u8 *db)
 {
-	struct drm_display_info *info = &connector->display_info;
 	u8 len = cea_db_payload_len(db);
 
-	if (len >= 6) {
+	if (len >= 6)
 		connector->eld[5] |= (db[6] >> 7) << 1;  /* Supports_AI */
-		info->dvi_dual = db[6] & 1;
-	}
-	if (len >= 7)
-		info->max_tmds_clock = db[7] * 5000;
 	if (len >= 8) {
 		connector->latency_present[0] = db[8] >> 7;
 		connector->latency_present[1] = (db[8] >> 6) & 1;
@@ -3277,19 +3272,15 @@ parse_hdmi_vsdb(struct drm_connector *connector, const u8 *db)
 	if (len >= 12)
 		connector->audio_latency[1] = db[12];
 
-	DRM_DEBUG_KMS("HDMI: DVI dual %d, "
-		    "max TMDS clock %d, "
-		    "latency present %d %d, "
-		    "video latency %d %d, "
-		    "audio latency %d %d\n",
-		    info->dvi_dual,
-		    info->max_tmds_clock,
-	      (int) connector->latency_present[0],
-	      (int) connector->latency_present[1],
-		    connector->video_latency[0],
-		    connector->video_latency[1],
-		    connector->audio_latency[0],
-		    connector->audio_latency[1]);
+	DRM_DEBUG_KMS("HDMI: latency present %d %d, "
+		      "video latency %d %d, "
+		      "audio latency %d %d\n",
+		      connector->latency_present[0],
+		      connector->latency_present[1],
+		      connector->video_latency[0],
+		      connector->video_latency[1],
+		      connector->audio_latency[0],
+		      connector->audio_latency[1]);
 }
 
 static void
@@ -3350,7 +3341,6 @@ EXPORT_SYMBOL(drm_edid_get_monitor_name);
  */
 void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 {
-	struct drm_display_info *info = &connector->display_info;
 	uint8_t *eld = connector->eld;
 	u8 *cea;
 	u8 *db;
@@ -3366,9 +3356,6 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 	connector->audio_latency[0] = 0;
 	connector->video_latency[1] = 0;
 	connector->audio_latency[1] = 0;
-
-	info->max_tmds_clock = 0;
-	info->dvi_dual = false;
 
 	cea = drm_find_cea_extension(edid);
 	if (!cea) {
@@ -3419,7 +3406,7 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 			case VENDOR_BLOCK:
 				/* HDMI Vendor-Specific Data Block */
 				if (cea_db_is_hdmi_vsdb(db))
-					parse_hdmi_vsdb(connector, db);
+					drm_parse_hdmi_vsdb_audio(connector, db);
 				break;
 			default:
 				break;
@@ -3800,6 +3787,25 @@ static void drm_parse_hdmi_deep_color_info(struct drm_connector *connector,
 	}
 }
 
+static void
+drm_parse_hdmi_vsdb_video(struct drm_connector *connector, const u8 *db)
+{
+	struct drm_display_info *info = &connector->display_info;
+	u8 len = cea_db_payload_len(db);
+
+	if (len >= 6)
+		info->dvi_dual = db[6] & 1;
+	if (len >= 7)
+		info->max_tmds_clock = db[7] * 5000;
+
+	DRM_DEBUG_KMS("HDMI: DVI dual %d, "
+		      "max TMDS clock %d kHz\n",
+		      info->dvi_dual,
+		      info->max_tmds_clock);
+
+	drm_parse_hdmi_deep_color_info(connector, db);
+}
+
 static void drm_parse_cea_ext(struct drm_connector *connector,
 			      struct edid *edid)
 {
@@ -3826,10 +3832,8 @@ static void drm_parse_cea_ext(struct drm_connector *connector,
 	for_each_cea_db(edid_ext, i, start, end) {
 		const u8 *db = &edid_ext[i];
 
-		if (!cea_db_is_hdmi_vsdb(db))
-			continue;
-
-		drm_parse_hdmi_deep_color_info(connector, db);
+		if (cea_db_is_hdmi_vsdb(db))
+			drm_parse_hdmi_vsdb_video(connector, db);
 	}
 }
 
@@ -3845,6 +3849,8 @@ static void drm_add_display_info(struct drm_connector *connector,
 	info->bpc = 0;
 	info->color_formats = 0;
 	info->cea_rev = 0;
+	info->max_tmds_clock = 0;
+	info->dvi_dual = false;
 
 	if (edid->revision < 3)
 		return;
