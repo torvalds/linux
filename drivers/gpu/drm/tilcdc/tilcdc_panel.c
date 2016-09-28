@@ -25,6 +25,7 @@
 #include <drm/drm_atomic_helper.h>
 
 #include "tilcdc_drv.h"
+#include "tilcdc_panel.h"
 
 struct panel_module {
 	struct tilcdc_module base;
