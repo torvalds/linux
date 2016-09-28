@@ -1206,7 +1206,7 @@ struct hfa384x_usbctlxq {
 	struct list_head reapable;
 };
 
-typedef struct hfa484x_metacmd {
+struct hfa384x_metacmd {
 	u16 cmd;
 
 	u16 parm0;
@@ -1214,7 +1214,7 @@ typedef struct hfa484x_metacmd {
 	u16 parm2;
 
 	struct hfa384x_cmdresult result;
-} hfa384x_metacmd_t;
+};
 
 #define	MAX_GRP_ADDR		32
 #define WLAN_COMMENT_MAX	80  /* Max. length of user comment string. */

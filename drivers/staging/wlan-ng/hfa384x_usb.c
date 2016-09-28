@@ -224,7 +224,7 @@ usbctlx_get_rridresult(const struct hfa384x_usb_rridresp *rridresp,
 static int
 hfa384x_docmd(hfa384x_t *hw,
 	      enum cmd_mode mode,
-	      hfa384x_metacmd_t *cmd,
+	      struct hfa384x_metacmd *cmd,
 	      ctlx_cmdcb_t cmdcb, ctlx_usercb_t usercb, void *usercb_data);
 
 static int
@@ -812,14 +812,14 @@ static void hfa384x_cb_status(hfa384x_t *hw, const struct hfa384x_usbctlx *ctlx)
 	}
 }
 
-static inline int hfa384x_docmd_wait(hfa384x_t *hw, hfa384x_metacmd_t *cmd)
+static inline int hfa384x_docmd_wait(hfa384x_t *hw, struct hfa384x_metacmd *cmd)
 {
 	return hfa384x_docmd(hw, DOWAIT, cmd, NULL, NULL, NULL);
 }
 
 static inline int
 hfa384x_docmd_async(hfa384x_t *hw,
-		    hfa384x_metacmd_t *cmd,
+		    struct hfa384x_metacmd *cmd,
 		    ctlx_cmdcb_t cmdcb, ctlx_usercb_t usercb, void *usercb_data)
 {
 	return hfa384x_docmd(hw, DOASYNC, cmd, cmdcb, usercb, usercb_data);
@@ -927,7 +927,7 @@ int hfa384x_cmd_initialize(hfa384x_t *hw)
 {
 	int result = 0;
 	int i;
-	hfa384x_metacmd_t cmd;
+	struct hfa384x_metacmd cmd;
 
 	cmd.cmd = HFA384x_CMDCODE_INIT;
 	cmd.parm0 = 0;
@@ -971,7 +971,7 @@ int hfa384x_cmd_initialize(hfa384x_t *hw)
 ----------------------------------------------------------------*/
 int hfa384x_cmd_disable(hfa384x_t *hw, u16 macport)
 {
-	hfa384x_metacmd_t cmd;
+	struct hfa384x_metacmd cmd;
 
 	cmd.cmd = HFA384x_CMD_CMDCODE_SET(HFA384x_CMDCODE_DISABLE) |
 	    HFA384x_CMD_MACPORT_SET(macport);
@@ -1004,7 +1004,7 @@ int hfa384x_cmd_disable(hfa384x_t *hw, u16 macport)
 ----------------------------------------------------------------*/
 int hfa384x_cmd_enable(hfa384x_t *hw, u16 macport)
 {
-	hfa384x_metacmd_t cmd;
+	struct hfa384x_metacmd cmd;
 
 	cmd.cmd = HFA384x_CMD_CMDCODE_SET(HFA384x_CMDCODE_ENABLE) |
 	    HFA384x_CMD_MACPORT_SET(macport);
@@ -1046,7 +1046,7 @@ int hfa384x_cmd_enable(hfa384x_t *hw, u16 macport)
 ----------------------------------------------------------------*/
 int hfa384x_cmd_monitor(hfa384x_t *hw, u16 enable)
 {
-	hfa384x_metacmd_t cmd;
+	struct hfa384x_metacmd cmd;
 
 	cmd.cmd = HFA384x_CMD_CMDCODE_SET(HFA384x_CMDCODE_MONITOR) |
 	    HFA384x_CMD_AINFO_SET(enable);
@@ -1098,7 +1098,7 @@ int hfa384x_cmd_monitor(hfa384x_t *hw, u16 enable)
 int hfa384x_cmd_download(hfa384x_t *hw, u16 mode, u16 lowaddr,
 			 u16 highaddr, u16 codelen)
 {
-	hfa384x_metacmd_t cmd;
+	struct hfa384x_metacmd cmd;
 
 	pr_debug("mode=%d, lowaddr=0x%04x, highaddr=0x%04x, codelen=%d\n",
 		 mode, lowaddr, highaddr, codelen);
@@ -1291,7 +1291,7 @@ cleanup:
 static int
 hfa384x_docmd(hfa384x_t *hw,
 	      enum cmd_mode mode,
-	      hfa384x_metacmd_t *cmd,
+	      struct hfa384x_metacmd *cmd,
 	      ctlx_cmdcb_t cmdcb, ctlx_usercb_t usercb, void *usercb_data)
 {
 	int result;
