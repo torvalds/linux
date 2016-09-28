@@ -873,6 +873,14 @@ config GPIO_DLN2
 	  This driver can also be built as a module. If so, the module
 	  will be called gpio-dln2.
 
+config HTC_EGPIO
+	bool "HTC EGPIO support"
+	depends on GPIOLIB && ARM
+	help
+	    This driver supports the CPLD egpio chip present on
+	    several HTC phones.  It provides basic support for input
+	    pins, output pins, and irqs.
+
 config GPIO_JANZ_TTL
 	tristate "Janz VMOD-TTL Digital IO Module"
 	depends on MFD_JANZ_CMODIO
