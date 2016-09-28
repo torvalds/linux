@@ -844,13 +844,13 @@ struct hfa384x_usb_wmemreq {
 	u8 data[HFA384x_USB_RWMEM_MAXLEN];
 } __packed;
 
-typedef struct hfa384x_usb_rmemreq {
+struct hfa384x_usb_rmemreq {
 	u16 type;
 	u16 frmlen;
 	u16 offset;
 	u16 page;
 	u8 pad[56];
-} __packed hfa384x_usb_rmemreq_t;
+} __packed;
 
 /*------------------------------------*/
 /* Response (bulk IN) packet contents */
@@ -910,7 +910,7 @@ typedef union hfa384x_usbout {
 	struct hfa384x_usb_wridreq wridreq;
 	struct hfa384x_usb_rridreq rridreq;
 	struct hfa384x_usb_wmemreq wmemreq;
-	hfa384x_usb_rmemreq_t rmemreq;
+	struct hfa384x_usb_rmemreq rmemreq;
 } __packed hfa384x_usbout_t;
 
 typedef union hfa384x_usbin {
