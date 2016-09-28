@@ -1351,7 +1351,7 @@ static int fsldma_of_probe(struct platform_device *op)
 	if (!fdev->regs) {
 		dev_err(&op->dev, "unable to ioremap registers\n");
 		err = -ENOMEM;
-		goto out_free_fdev;
+		goto out_free;
 	}
 
 	/* map the channel IRQ if it exists, but don't hookup the handler yet */
@@ -1416,6 +1416,8 @@ static int fsldma_of_probe(struct platform_device *op)
 
 out_free_fdev:
 	irq_dispose_mapping(fdev->irq);
+	iounmap(fdev->regs);
+out_free:
 	kfree(fdev);
 out_return:
 	return err;
