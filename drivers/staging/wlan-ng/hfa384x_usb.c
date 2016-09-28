@@ -193,9 +193,9 @@ static void hfa384x_usbctlx_completion_task(unsigned long data);
 
 static void hfa384x_usbctlx_reaper_task(unsigned long data);
 
-static int hfa384x_usbctlx_submit(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx);
+static int hfa384x_usbctlx_submit(hfa384x_t *hw, struct hfa384x_usbctlx *ctlx);
 
-static void unlocked_usbctlx_complete(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx);
+static void unlocked_usbctlx_complete(hfa384x_t *hw, struct hfa384x_usbctlx *ctlx);
 
 struct usbctlx_completor {
 	int (*complete)(struct usbctlx_completor *);
@@ -203,13 +203,13 @@ struct usbctlx_completor {
 
 static int
 hfa384x_usbctlx_complete_sync(hfa384x_t *hw,
-			      hfa384x_usbctlx_t *ctlx,
+			      struct hfa384x_usbctlx *ctlx,
 			      struct usbctlx_completor *completor);
 
 static int
-unlocked_usbctlx_cancel_async(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx);
+unlocked_usbctlx_cancel_async(hfa384x_t *hw, struct hfa384x_usbctlx *ctlx);
 
-static void hfa384x_cb_status(hfa384x_t *hw, const hfa384x_usbctlx_t *ctlx);
+static void hfa384x_cb_status(hfa384x_t *hw, const struct hfa384x_usbctlx *ctlx);
 
 static int
 usbctlx_get_status(const struct hfa384x_usb_statusresp *cmdresp,
@@ -278,9 +278,9 @@ static inline const char *ctlxstr(CTLX_STATE s)
 	return ctlx_str[s];
 };
 
-static inline hfa384x_usbctlx_t *get_active_ctlx(hfa384x_t *hw)
+static inline struct hfa384x_usbctlx *get_active_ctlx(hfa384x_t *hw)
 {
-	return list_entry(hw->ctlxq.active.next, hfa384x_usbctlx_t, list);
+	return list_entry(hw->ctlxq.active.next, struct hfa384x_usbctlx, list);
 }
 
 #ifdef DEBUG_USB
@@ -608,9 +608,9 @@ void hfa384x_destroy(hfa384x_t *hw)
 		dev_kfree_skb(skb);
 }
 
-static hfa384x_usbctlx_t *usbctlx_alloc(void)
+static struct hfa384x_usbctlx *usbctlx_alloc(void)
 {
-	hfa384x_usbctlx_t *ctlx;
+	struct hfa384x_usbctlx *ctlx;
 
 	ctlx = kzalloc(sizeof(*ctlx),
 		       in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
@@ -795,7 +795,7 @@ static inline struct usbctlx_completor *init_rmem_completor(
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-static void hfa384x_cb_status(hfa384x_t *hw, const hfa384x_usbctlx_t *ctlx)
+static void hfa384x_cb_status(hfa384x_t *hw, const struct hfa384x_usbctlx *ctlx)
 {
 	if (ctlx->usercb) {
 		struct hfa384x_cmdresult cmdresult;
@@ -1174,7 +1174,7 @@ int hfa384x_corereset(hfa384x_t *hw, int holdtime, int settletime, int genesis)
 *	process
 ----------------------------------------------------------------*/
 static int hfa384x_usbctlx_complete_sync(hfa384x_t *hw,
-					 hfa384x_usbctlx_t *ctlx,
+					 struct hfa384x_usbctlx *ctlx,
 					 struct usbctlx_completor *completor)
 {
 	unsigned long flags;
@@ -1295,7 +1295,7 @@ hfa384x_docmd(hfa384x_t *hw,
 	      ctlx_cmdcb_t cmdcb, ctlx_usercb_t usercb, void *usercb_data)
 {
 	int result;
-	hfa384x_usbctlx_t *ctlx;
+	struct hfa384x_usbctlx *ctlx;
 
 	ctlx = usbctlx_alloc();
 	if (!ctlx) {
@@ -1385,7 +1385,7 @@ hfa384x_dorrid(hfa384x_t *hw,
 	       ctlx_cmdcb_t cmdcb, ctlx_usercb_t usercb, void *usercb_data)
 {
 	int result;
-	hfa384x_usbctlx_t *ctlx;
+	struct hfa384x_usbctlx *ctlx;
 
 	ctlx = usbctlx_alloc();
 	if (!ctlx) {
@@ -1466,7 +1466,7 @@ hfa384x_dowrid(hfa384x_t *hw,
 	       ctlx_cmdcb_t cmdcb, ctlx_usercb_t usercb, void *usercb_data)
 {
 	int result;
-	hfa384x_usbctlx_t *ctlx;
+	struct hfa384x_usbctlx *ctlx;
 
 	ctlx = usbctlx_alloc();
 	if (!ctlx) {
@@ -1554,7 +1554,7 @@ hfa384x_dormem(hfa384x_t *hw,
 	       ctlx_cmdcb_t cmdcb, ctlx_usercb_t usercb, void *usercb_data)
 {
 	int result;
-	hfa384x_usbctlx_t *ctlx;
+	struct hfa384x_usbctlx *ctlx;
 
 	ctlx = usbctlx_alloc();
 	if (!ctlx) {
@@ -1645,7 +1645,7 @@ hfa384x_dowmem(hfa384x_t *hw,
 	       ctlx_cmdcb_t cmdcb, ctlx_usercb_t usercb, void *usercb_data)
 {
 	int result;
-	hfa384x_usbctlx_t *ctlx;
+	struct hfa384x_usbctlx *ctlx;
 
 	pr_debug("page=0x%04x offset=0x%04x len=%d\n", page, offset, len);
 
@@ -2691,7 +2691,7 @@ void hfa384x_tx_timeout(struct wlandevice *wlandev)
 static void hfa384x_usbctlx_reaper_task(unsigned long data)
 {
 	hfa384x_t *hw = (hfa384x_t *)data;
-	hfa384x_usbctlx_t *ctlx, *temp;
+	struct hfa384x_usbctlx *ctlx, *temp;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hw->ctlxq.lock, flags);
@@ -2724,7 +2724,7 @@ static void hfa384x_usbctlx_reaper_task(unsigned long data)
 static void hfa384x_usbctlx_completion_task(unsigned long data)
 {
 	hfa384x_t *hw = (hfa384x_t *)data;
-	hfa384x_usbctlx_t *ctlx, *temp;
+	struct hfa384x_usbctlx *ctlx, *temp;
 	unsigned long flags;
 
 	int reap = 0;
@@ -2798,7 +2798,7 @@ static void hfa384x_usbctlx_completion_task(unsigned long data)
 *	Either process or interrupt, but presumably interrupt
 ----------------------------------------------------------------*/
 static int unlocked_usbctlx_cancel_async(hfa384x_t *hw,
-					 hfa384x_usbctlx_t *ctlx)
+					 struct hfa384x_usbctlx *ctlx)
 {
 	int ret;
 
@@ -2847,7 +2847,7 @@ static int unlocked_usbctlx_cancel_async(hfa384x_t *hw,
 * Call context:
 *	Either, assume interrupt
 ----------------------------------------------------------------*/
-static void unlocked_usbctlx_complete(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx)
+static void unlocked_usbctlx_complete(hfa384x_t *hw, struct hfa384x_usbctlx *ctlx)
 {
 	/* Timers have been stopped, and ctlx should be in
 	 * a terminal state. Retire it from the "active"
@@ -2905,12 +2905,12 @@ static void hfa384x_usbctlxq_run(hfa384x_t *hw)
 		goto unlock;
 
 	while (!list_empty(&hw->ctlxq.pending)) {
-		hfa384x_usbctlx_t *head;
+		struct hfa384x_usbctlx *head;
 		int result;
 
 		/* This is the first pending command */
 		head = list_entry(hw->ctlxq.pending.next,
-				  hfa384x_usbctlx_t, list);
+				  struct hfa384x_usbctlx, list);
 
 		/* We need to split this off to avoid a race condition */
 		list_move_tail(&head->list, &hw->ctlxq.active);
@@ -3169,7 +3169,7 @@ exit:
 static void hfa384x_usbin_ctlx(hfa384x_t *hw, union hfa384x_usbin *usbin,
 			       int urb_status)
 {
-	hfa384x_usbctlx_t *ctlx;
+	struct hfa384x_usbctlx *ctlx;
 	int run_queue = 0;
 	unsigned long flags;
 
@@ -3622,7 +3622,7 @@ static void hfa384x_ctlxout_callback(struct urb *urb)
 	int delete_resptimer = 0;
 	int timer_ok = 1;
 	int run_queue = 0;
-	hfa384x_usbctlx_t *ctlx;
+	struct hfa384x_usbctlx *ctlx;
 	unsigned long flags;
 
 	pr_debug("urb->status=%d\n", urb->status);
@@ -3766,7 +3766,7 @@ static void hfa384x_usbctlx_reqtimerfn(unsigned long data)
 		 */
 		hw->ctlx_urb.transfer_flags |= URB_ASYNC_UNLINK;
 		if (usb_unlink_urb(&hw->ctlx_urb) == -EINPROGRESS) {
-			hfa384x_usbctlx_t *ctlx = get_active_ctlx(hw);
+			struct hfa384x_usbctlx *ctlx = get_active_ctlx(hw);
 
 			ctlx->state = CTLX_REQ_FAILED;
 
@@ -3818,7 +3818,7 @@ static void hfa384x_usbctlx_resptimerfn(unsigned long data)
 	 * adapter has been unplugged ...
 	 */
 	if (!list_empty(&hw->ctlxq.active)) {
-		hfa384x_usbctlx_t *ctlx = get_active_ctlx(hw);
+		struct hfa384x_usbctlx *ctlx = get_active_ctlx(hw);
 
 		if (unlocked_usbctlx_cancel_async(hw, ctlx) == 0) {
 			spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
@@ -3886,7 +3886,7 @@ static void hfa384x_usb_throttlefn(unsigned long data)
 * Call context:
 *	process or interrupt
 ----------------------------------------------------------------*/
-static int hfa384x_usbctlx_submit(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx)
+static int hfa384x_usbctlx_submit(hfa384x_t *hw, struct hfa384x_usbctlx *ctlx)
 {
 	unsigned long flags;
 

@@ -1179,7 +1179,7 @@ typedef void (*ctlx_cmdcb_t) (struct hfa384x *, const struct hfa384x_usbctlx *);
 typedef void (*ctlx_usercb_t) (struct hfa384x *hw,
 			       void *ctlxresult, void *usercb_data);
 
-typedef struct hfa384x_usbctlx {
+struct hfa384x_usbctlx {
 	struct list_head list;
 
 	size_t outbufsize;
@@ -1196,7 +1196,7 @@ typedef struct hfa384x_usbctlx {
 	void *usercb_data;	/*  at CTLX completion  */
 
 	int variant;		/* Identifies cmd variant */
-} hfa384x_usbctlx_t;
+};
 
 typedef struct hfa384x_usbctlxq {
 	spinlock_t lock;
