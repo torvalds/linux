@@ -1013,9 +1013,9 @@ struct hfa384x_pdr_allowed_channel {
 	u16 ch_bitmap;
 } __packed;
 
-typedef struct hfa384x_pdr_default_channel {
+struct hfa384x_pdr_default_channel {
 	u16 channel;
-} __packed hfa384x_pdr_default_channel_t;
+} __packed;
 
 typedef struct hfa384x_pdr_privacy_option {
 	u16 available;
@@ -1109,7 +1109,7 @@ typedef struct hfa384x_pdrec {
 		struct hfa384x_pdr_mkk_callname mkk_callname;
 		struct hfa384x_pdr_regdomain regdomain;
 		struct hfa384x_pdr_allowed_channel allowed_channel;
-		hfa384x_pdr_default_channel_t default_channel;
+		struct hfa384x_pdr_default_channel default_channel;
 		hfa384x_pdr_privacy_option_t privacy_option;
 		hfa384x_pdr_temptype_t temptype;
 		hfa384x_pdr_refdac_setup_t refdac_setup;
