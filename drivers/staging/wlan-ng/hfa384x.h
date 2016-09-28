@@ -970,12 +970,12 @@ struct hfa384x_pdr_mfisuprange {
 	u16 top;
 } __packed;
 
-typedef struct hfa384x_pdr_cfisuprange {
+struct hfa384x_pdr_cfisuprange {
 	u16 id;
 	u16 variant;
 	u16 bottom;
 	u16 top;
-} __packed hfa384x_pdr_cfisuprange_t;
+} __packed;
 
 typedef struct hfa384x_pdr_nicid {
 	u16 id;
@@ -1100,7 +1100,7 @@ typedef struct hfa384x_pdrec {
 		struct hfa384x_pdr_mkk_measurements mkk_measurements;
 		struct hfa384x_pdr_nic_ramsize nic_ramsize;
 		struct hfa384x_pdr_mfisuprange mfisuprange;
-		hfa384x_pdr_cfisuprange_t cfisuprange;
+		struct hfa384x_pdr_cfisuprange cfisuprange;
 		hfa384x_pdr_nicid_t nicid;
 		hfa384x_pdr_refdac_measurements_t refdac_measurements;
 		hfa384x_pdr_vgdac_measurements_t vgdac_measurements;
