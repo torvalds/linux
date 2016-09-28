@@ -1086,9 +1086,9 @@ struct hfa384x_pdr_hfa3861_manf_testi {
 	u16 value[30];
 } __packed;
 
-typedef struct hfa384x_end_of_pda {
+struct hfa384x_pdr_end_of_pda {
 	u16 crc;
-} __packed hfa384x_pdr_end_of_pda_t;
+} __packed;
 
 typedef struct hfa384x_pdrec {
 	u16 len;		/* in words */
@@ -1127,7 +1127,7 @@ typedef struct hfa384x_pdrec {
 		struct hfa384x_pdr_hfo_delay hfo_delay;
 		struct hfa384x_pdr_hfa3861_manf_testsp hfa3861_manf_testsp;
 		struct hfa384x_pdr_hfa3861_manf_testi hfa3861_manf_testi;
-		hfa384x_pdr_end_of_pda_t end_of_pda;
+		struct hfa384x_pdr_end_of_pda end_of_pda;
 
 	} data;
 } __packed hfa384x_pdrec_t;
