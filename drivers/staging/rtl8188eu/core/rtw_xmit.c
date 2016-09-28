@@ -402,7 +402,7 @@ static void set_qos(struct pkt_file *ppktfile, struct pkt_attrib *pattrib)
 		_rtw_pktfile_read(ppktfile, (u8 *)&ip_hdr, sizeof(ip_hdr));
 /* 		user_prio = (ntohs(ip_hdr.tos) >> 5) & 0x3; */
 		user_prio = ip_hdr.tos >> 5;
-	} else if (pattrib->ether_type == 0x888e) {
+	} else if (pattrib->ether_type == ETH_P_PAE) {
 		/*  "When priority processing of data frames is supported, */
 		/*  a STA's SME should send EAPOL-Key frames at the highest priority." */
 		user_prio = 7;
@@ -469,15 +469,15 @@ static s32 update_attrib(struct adapter *padapter, struct sk_buff *pkt, struct p
 				}
 			}
 		}
-	} else if (pattrib->ether_type == 0x888e) {
+	} else if (pattrib->ether_type == ETH_P_PAE) {
 		DBG_88E_LEVEL(_drv_info_, "send eapol packet\n");
 	}
 
-	if ((pattrib->ether_type == 0x888e) || (pattrib->dhcp_pkt == 1))
+	if ((pattrib->ether_type == ETH_P_PAE) || (pattrib->dhcp_pkt == 1))
 		rtw_set_scan_deny(padapter, 3000);
 
 	/*  If EAPOL , ARP , OR DHCP packet, driver must be in active mode. */
-	if ((pattrib->ether_type == 0x0806) || (pattrib->ether_type == 0x888e) || (pattrib->dhcp_pkt == 1))
+	if ((pattrib->ether_type == ETH_P_ARP) || (pattrib->ether_type == ETH_P_PAE) || (pattrib->dhcp_pkt == 1))
 		rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_SPECIAL_PACKET, 1);
 
 	bmcast = IS_MCAST(pattrib->ra);
@@ -531,8 +531,8 @@ static s32 update_attrib(struct adapter *padapter, struct sk_buff *pkt, struct p
 
 		pattrib->encrypt = 0;
 
-		if ((pattrib->ether_type != 0x888e) && !check_fwstate(pmlmepriv, WIFI_MP_STATE)) {
-			RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_, ("\npsta->ieee8021x_blocked == true,  pattrib->ether_type(%.4x) != 0x888e\n", pattrib->ether_type));
+		if ((pattrib->ether_type != ETH_P_PAE) && !check_fwstate(pmlmepriv, WIFI_MP_STATE)) {
+			RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_, ("\npsta->ieee8021x_blocked == true,  pattrib->ether_type(%.4x) != ETH_P_PAE\n", pattrib->ether_type));
 			res = _FAIL;
 			goto exit;
 		}

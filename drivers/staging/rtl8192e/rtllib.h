@@ -521,7 +521,7 @@ enum wireless_mode {
 };
 
 #ifndef ETH_P_PAE
-#define ETH_P_PAE 0x888E /* Port Access Entity (IEEE 802.1X) */
+#define ETH_P_PAE	0x888E		/* Port Access Entity (IEEE 802.1X) */
 #define ETH_P_IP	0x0800		/* Internet Protocol packet	*/
 #define ETH_P_ARP	0x0806		/* Address Resolution packet	*/
 #endif /* ETH_P_PAE */
