@@ -1090,7 +1090,7 @@ struct hfa384x_pdr_end_of_pda {
 	u16 crc;
 } __packed;
 
-typedef struct hfa384x_pdrec {
+struct hfa384x_pdrec {
 	u16 len;		/* in words */
 	u16 code;
 	union pdr {
@@ -1130,7 +1130,7 @@ typedef struct hfa384x_pdrec {
 		struct hfa384x_pdr_end_of_pda end_of_pda;
 
 	} data;
-} __packed hfa384x_pdrec_t;
+} __packed;
 
 #ifdef __KERNEL__
 /*--------------------------------------------------------------------
