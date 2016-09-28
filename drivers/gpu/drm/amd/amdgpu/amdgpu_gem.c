@@ -553,7 +553,8 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	struct amdgpu_bo *abo;
 	struct amdgpu_bo_va *bo_va;
-	struct ttm_validate_buffer tv, tv_pd;
+	struct amdgpu_bo_list_entry vm_pd;
+	struct ttm_validate_buffer tv;
 	struct ww_acquire_ctx ticket;
 	struct list_head list, duplicates;
 	uint32_t invalid_flags, va_flags = 0;
@@ -598,9 +599,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	tv.shared = true;
 	list_add(&tv.head, &list);
 
-	tv_pd.bo = &fpriv->vm.page_directory->tbo;
-	tv_pd.shared = true;
-	list_add(&tv_pd.head, &list);
+	amdgpu_vm_get_pd_bo(&fpriv->vm, &list, &vm_pd);
 
 	r = ttm_eu_reserve_buffers(&ticket, &list, true, &duplicates);
 	if (r) {
