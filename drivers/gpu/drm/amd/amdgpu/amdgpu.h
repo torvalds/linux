@@ -820,8 +820,8 @@ struct amdgpu_ring {
 #define AMDGPU_VM_FAULT_STOP_ALWAYS	2
 
 struct amdgpu_vm_pt {
-	struct amdgpu_bo_list_entry	entry;
-	uint64_t			addr;
+	struct amdgpu_bo	*bo;
+	uint64_t		addr;
 };
 
 struct amdgpu_vm {
