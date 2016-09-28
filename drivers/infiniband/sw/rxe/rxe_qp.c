@@ -146,7 +146,7 @@ static void free_rd_atomic_resources(struct rxe_qp *qp)
 	if (qp->resp.resources) {
 		int i;
 
-		for (i = 0; i < qp->attr.max_rd_atomic; i++) {
+		for (i = 0; i < qp->attr.max_dest_rd_atomic; i++) {
 			struct resp_res *res = &qp->resp.resources[i];
 
 			free_rd_atomic_resource(qp, res);
@@ -174,7 +174,7 @@ static void cleanup_rd_atomic_resources(struct rxe_qp *qp)
 	struct resp_res *res;
 
 	if (qp->resp.resources) {
-		for (i = 0; i < qp->attr.max_rd_atomic; i++) {
+		for (i = 0; i < qp->attr.max_dest_rd_atomic; i++) {
 			res = &qp->resp.resources[i];
 			free_rd_atomic_resource(qp, res);
 		}
@@ -596,14 +596,21 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 	if (mask & IB_QP_MAX_QP_RD_ATOMIC) {
 		int max_rd_atomic = __roundup_pow_of_two(attr->max_rd_atomic);
 
-		free_rd_atomic_resources(qp);
-
-		err = alloc_rd_atomic_resources(qp, max_rd_atomic);
-		if (err)
-			return err;
-
 		qp->attr.max_rd_atomic = max_rd_atomic;
 		atomic_set(&qp->req.rd_atomic, max_rd_atomic);
+	}
+
+	if (mask & IB_QP_MAX_DEST_RD_ATOMIC) {
+		int max_dest_rd_atomic =
+			__roundup_pow_of_two(attr->max_dest_rd_atomic);
+
+		qp->attr.max_dest_rd_atomic = max_dest_rd_atomic;
+
+		free_rd_atomic_resources(qp);
+
+		err = alloc_rd_atomic_resources(qp, max_dest_rd_atomic);
+		if (err)
+			return err;
 	}
 
 	if (mask & IB_QP_CUR_STATE)
@@ -699,11 +706,6 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 		qp->req.psn = qp->attr.sq_psn;
 		qp->comp.psn = qp->attr.sq_psn;
 		pr_debug("set req psn = 0x%x\n", qp->req.psn);
-	}
-
-	if (mask & IB_QP_MAX_DEST_RD_ATOMIC) {
-		qp->attr.max_dest_rd_atomic =
-			__roundup_pow_of_two(attr->max_dest_rd_atomic);
 	}
 
 	if (mask & IB_QP_PATH_MIG_STATE)

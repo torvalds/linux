@@ -383,7 +383,7 @@ static enum resp_states check_resource(struct rxe_qp *qp,
 		 * too many read/atomic ops, we just
 		 * recycle the responder resource queue
 		 */
-		if (likely(qp->attr.max_rd_atomic > 0))
+		if (likely(qp->attr.max_dest_rd_atomic > 0))
 			return RESPST_CHK_LENGTH;
 		else
 			return RESPST_ERR_TOO_MANY_RDMA_ATM_REQ;
