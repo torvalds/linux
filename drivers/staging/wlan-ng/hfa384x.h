@@ -421,11 +421,11 @@ struct hfa384x_JoinRequest_data {
 } __packed;
 
 /*-- Configuration Record: authenticateStation (data portion only) --*/
-typedef struct hfa384x_authenticateStation_data {
+struct hfa384x_authenticateStation_data {
 	u8 address[ETH_ALEN];
 	u16 status;
 	u16 algorithm;
-} __packed hfa384x_authenticateStation_data_t;
+} __packed;
 
 /*-- Configuration Record: WPAData       (data portion only) --*/
 typedef struct hfa384x_WPAData {
