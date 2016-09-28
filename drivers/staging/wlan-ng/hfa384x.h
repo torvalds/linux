@@ -688,10 +688,10 @@ struct hfa384x_ChInfoResultSub {
 #define HFA384x_CHINFORESULT_BSSACTIVE	BIT(0)
 #define HFA384x_CHINFORESULT_PCFACTIVE	BIT(1)
 
-typedef struct hfa384x_ChInfoResult {
+struct hfa384x_ChInfoResult {
 	u16 scanchannels;
 	struct hfa384x_ChInfoResultSub result[HFA384x_CHINFORESULT_MAX];
-} __packed hfa384x_ChInfoResult_t;
+} __packed;
 
 /*--  Inquiry Frame, Diagnose: Host Scan Results & Subfields--*/
 typedef struct hfa384x_HScanResultSub {
@@ -765,7 +765,7 @@ typedef union hfa384x_infodata {
 	struct hfa384x_CommTallies16 commtallies16;
 	struct hfa384x_CommTallies32 commtallies32;
 	struct hfa384x_ScanResult scanresult;
-	hfa384x_ChInfoResult_t chinforesult;
+	struct hfa384x_ChInfoResult chinforesult;
 	hfa384x_HScanResult_t hscanresult;
 	hfa384x_LinkStatus_t linkstatus;
 	hfa384x_AssocStatus_t assocstatus;
@@ -1371,7 +1371,7 @@ typedef struct hfa384x {
 	struct {
 		atomic_t done;
 		u8 count;
-		hfa384x_ChInfoResult_t results;
+		struct hfa384x_ChInfoResult results;
 	} channel_info;
 
 	hfa384x_InfFrame_t *scanresults;
