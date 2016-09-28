@@ -5301,7 +5301,16 @@ GREYBUS AUDIO PROTOCOLS DRIVERS
 M:	Vaibhav Agarwal <vaibhav.sr@gmail.com>
 M:	Mark Greer <mgreer@animalcreek.com>
 S:	Maintained
+F:	drivers/staging/greybus/audio_apbridgea.c
+F:	drivers/staging/greybus/audio_apbridgea.h
 F:	drivers/staging/greybus/audio_codec.c
+F:	drivers/staging/greybus/audio_codec.h
+F:	drivers/staging/greybus/audio_gb.c
+F:	drivers/staging/greybus/audio_manager.c
+F:	drivers/staging/greybus/audio_manager.h
+F:	drivers/staging/greybus/audio_manager_module.c
+F:	drivers/staging/greybus/audio_manager_private.h
+F:	drivers/staging/greybus/audio_manager_sysfs.c
 F:	drivers/staging/greybus/audio_module.c
 F:	drivers/staging/greybus/audio_topology.c
 
