@@ -388,9 +388,9 @@ retry:
 
 /* Last resort, try to evict something from the current working set */
 static bool amdgpu_cs_try_evict(struct amdgpu_cs_parser *p,
-				struct amdgpu_bo_list_entry *lobj)
+				struct amdgpu_bo *validated)
 {
-	uint32_t domain = lobj->robj->allowed_domains;
+	uint32_t domain = validated->allowed_domains;
 	int r;
 
 	if (!p->evictable)
@@ -406,7 +406,7 @@ static bool amdgpu_cs_try_evict(struct amdgpu_cs_parser *p,
 		uint32_t other;
 
 		/* If we reached our current BO we can forget it */
-		if (candidate == lobj)
+		if (candidate->robj == validated)
 			break;
 
 		other = amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type);
@@ -439,6 +439,23 @@ static bool amdgpu_cs_try_evict(struct amdgpu_cs_parser *p,
 	return false;
 }
 
+static int amdgpu_cs_validate(void *param, struct amdgpu_bo *bo)
+{
+	struct amdgpu_cs_parser *p = param;
+	int r;
+
+	do {
+		r = amdgpu_cs_bo_validate(p, bo);
+	} while (r == -ENOMEM && amdgpu_cs_try_evict(p, bo));
+	if (r)
+		return r;
+
+	if (bo->shadow)
+		r = amdgpu_cs_bo_validate(p, bo);
+
+	return r;
+}
+
 static int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 			    struct list_head *validated)
 {
@@ -466,17 +483,9 @@ static int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 		if (p->evictable == lobj)
 			p->evictable = NULL;
 
-		do {
-			r = amdgpu_cs_bo_validate(p, bo);
-		} while (r == -ENOMEM && amdgpu_cs_try_evict(p, lobj));
+		r = amdgpu_cs_validate(p, bo);
 		if (r)
 			return r;
-
-		if (bo->shadow) {
-			r = amdgpu_cs_bo_validate(p, bo);
-			if (r)
-				return r;
-		}
 
 		if (binding_userptr) {
 			drm_free_large(lobj->user_pages);
@@ -595,13 +604,18 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		list_splice(&need_pages, &p->validated);
 	}
 
-	amdgpu_vm_get_pt_bos(p->adev, &fpriv->vm, &duplicates);
-
 	p->bytes_moved_threshold = amdgpu_cs_get_threshold_for_moves(p->adev);
 	p->bytes_moved = 0;
 	p->evictable = list_last_entry(&p->validated,
 				       struct amdgpu_bo_list_entry,
 				       tv.head);
+
+	r = amdgpu_vm_validate_pt_bos(p->adev, &fpriv->vm,
+				      amdgpu_cs_validate, p);
+	if (r) {
+		DRM_ERROR("amdgpu_vm_validate_pt_bos() failed.\n");
+		goto error_validate;
+	}
 
 	r = amdgpu_cs_list_validate(p, &duplicates);
 	if (r) {

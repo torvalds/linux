@@ -116,27 +116,29 @@ void amdgpu_vm_get_pd_bo(struct amdgpu_vm *vm,
 }
 
 /**
- * amdgpu_vm_get_bos - add the vm BOs to a duplicates list
+ * amdgpu_vm_validate_pt_bos - validate the page table BOs
  *
  * @adev: amdgpu device pointer
  * @vm: vm providing the BOs
- * @duplicates: head of duplicates list
+ * @validate: callback to do the validation
+ * @param: parameter for the validation callback
  *
- * Add the page directory to the BO duplicates list
- * for command submission.
+ * Validate the page table BOs on command submission if neccessary.
  */
-void amdgpu_vm_get_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-			  struct list_head *duplicates)
+int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
+			      int (*validate)(void *p, struct amdgpu_bo *bo),
+			      void *param)
 {
 	uint64_t num_evictions;
 	unsigned i;
+	int r;
 
 	/* We only need to validate the page tables
 	 * if they aren't already valid.
 	 */
 	num_evictions = atomic64_read(&adev->num_evictions);
 	if (num_evictions == vm->last_eviction_counter)
-		return;
+		return 0;
 
 	/* add the vm page table to the list */
 	for (i = 0; i <= vm->max_pde_used; ++i) {
@@ -145,9 +147,12 @@ void amdgpu_vm_get_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		if (!entry->robj)
 			continue;
 
-		list_add(&entry->tv.head, duplicates);
+		r = validate(param, entry->robj);
+		if (r)
+			return r;
 	}
 
+	return 0;
 }
 
 /**
