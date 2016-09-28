@@ -239,6 +239,7 @@ DECLARE_EVENT_CLASS(dwc3_log_trb,
 		__field(u32, bph)
 		__field(u32, size)
 		__field(u32, ctrl)
+		__field(u32, type)
 	),
 	TP_fast_assign(
 		snprintf(__get_str(name), DWC3_MSG_MAX, "%s", dep->name);
@@ -249,11 +250,31 @@ DECLARE_EVENT_CLASS(dwc3_log_trb,
 		__entry->bph = trb->bph;
 		__entry->size = trb->size;
 		__entry->ctrl = trb->ctrl;
+		__entry->type = usb_endpoint_type(dep->endpoint.desc);
 	),
-	TP_printk("%s: %d/%d trb %p buf %08x%08x size %d ctrl %08x (%c%c%c%c:%c%c:%s)",
+	TP_printk("%s: %d/%d trb %p buf %08x%08x size %s%d ctrl %08x (%c%c%c%c:%c%c:%s)",
 		__get_str(name), __entry->queued, __entry->allocated,
 		__entry->trb, __entry->bph, __entry->bpl,
-		__entry->size, __entry->ctrl,
+		({char *s;
+		int pcm = ((__entry->size >> 24) & 3) + 1;
+		switch (__entry->type) {
+		case USB_ENDPOINT_XFER_INT:
+		case USB_ENDPOINT_XFER_ISOC:
+			switch (pcm) {
+			case 1:
+				s = "1x ";
+				break;
+			case 2:
+				s = "2x ";
+				break;
+			case 3:
+				s = "3x ";
+				break;
+			}
+		default:
+			s = "";
+		} s; }),
+		DWC3_TRB_SIZE_LENGTH(__entry->size), __entry->ctrl,
 		__entry->ctrl & DWC3_TRB_CTRL_HWO ? 'H' : 'h',
 		__entry->ctrl & DWC3_TRB_CTRL_LST ? 'L' : 'l',
 		__entry->ctrl & DWC3_TRB_CTRL_CHN ? 'C' : 'c',
