@@ -494,7 +494,7 @@ static int mv_ep_enable(struct usb_ep *_ep,
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
 		/* Calculate transactions needed for high bandwidth iso */
-		mult = (unsigned char)(1 + ((max >> 11) & 0x03));
+		mult = usb_endpoint_maxp_mult(desc);
 		max = max & 0x7ff;	/* bit 0~10 */
 		/* 3 transactions at most */
 		if (mult > 3)
