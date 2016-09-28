@@ -912,6 +912,19 @@ struct ath10k {
 	struct net_device napi_dev;
 	struct napi_struct napi;
 
+	struct work_struct set_coverage_class_work;
+	/* protected by conf_mutex */
+	struct {
+		/* writing also protected by data_lock */
+		s16 coverage_class;
+
+		u32 reg_phyclk;
+		u32 reg_slottime_conf;
+		u32 reg_slottime_orig;
+		u32 reg_ack_cts_timeout_conf;
+		u32 reg_ack_cts_timeout_orig;
+	} fw_coverage;
+
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
 };
