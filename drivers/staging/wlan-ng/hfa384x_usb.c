@@ -212,7 +212,7 @@ unlocked_usbctlx_cancel_async(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx);
 static void hfa384x_cb_status(hfa384x_t *hw, const hfa384x_usbctlx_t *ctlx);
 
 static int
-usbctlx_get_status(const hfa384x_usb_cmdresp_t *cmdresp,
+usbctlx_get_status(const struct hfa384x_usb_statusresp *cmdresp,
 		   hfa384x_cmdresult_t *result);
 
 static void
@@ -621,7 +621,7 @@ static hfa384x_usbctlx_t *usbctlx_alloc(void)
 }
 
 static int
-usbctlx_get_status(const hfa384x_usb_cmdresp_t *cmdresp,
+usbctlx_get_status(const struct hfa384x_usb_statusresp *cmdresp,
 		   hfa384x_cmdresult_t *result)
 {
 	result->status = le16_to_cpu(cmdresp->status);
@@ -652,7 +652,7 @@ usbctlx_get_rridresult(const hfa384x_usb_rridresp_t *rridresp,
 struct usbctlx_cmd_completor {
 	struct usbctlx_completor head;
 
-	const hfa384x_usb_cmdresp_t *cmdresp;
+	const struct hfa384x_usb_statusresp *cmdresp;
 	hfa384x_cmdresult_t *result;
 };
 
@@ -667,7 +667,7 @@ static inline int usbctlx_cmd_completor_fn(struct usbctlx_completor *head)
 static inline struct usbctlx_completor *init_cmd_completor(
 						struct usbctlx_cmd_completor
 							*completor,
-						const hfa384x_usb_cmdresp_t
+						const struct hfa384x_usb_statusresp
 							*cmdresp,
 						hfa384x_cmdresult_t *result)
 {
