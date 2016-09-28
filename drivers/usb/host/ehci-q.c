@@ -550,8 +550,6 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 /*-------------------------------------------------------------------------*/
 
-// high bandwidth multiplier, as encoded in highspeed endpoint descriptors
-#define hb_mult(wMaxPacketSize) (1 + (((wMaxPacketSize) >> 11) & 0x03))
 // ... and packet size, for any kind of endpoint descriptor
 #define max_packet(wMaxPacketSize) ((wMaxPacketSize) & 0x07ff)
 
@@ -770,9 +768,11 @@ qh_make (
 	gfp_t			flags
 ) {
 	struct ehci_qh		*qh = ehci_qh_alloc (ehci, flags);
+	struct usb_host_endpoint *ep;
 	u32			info1 = 0, info2 = 0;
 	int			is_input, type;
 	int			maxp = 0;
+	int			mult;
 	struct usb_tt		*tt = urb->dev->tt;
 	struct ehci_qh_hw	*hw;
 
@@ -787,7 +787,9 @@ qh_make (
 
 	is_input = usb_pipein (urb->pipe);
 	type = usb_pipetype (urb->pipe);
+	ep = usb_pipe_endpoint (urb->dev, urb->pipe);
 	maxp = usb_maxpacket (urb->dev, urb->pipe, !is_input);
+	mult = usb_endpoint_maxp_mult (&ep->desc);
 
 	/* 1024 byte maxpacket is a hardware ceiling.  High bandwidth
 	 * acts like up to 3KB, but is built from smaller packets.
@@ -810,7 +812,7 @@ qh_make (
 
 		qh->ps.usecs = NS_TO_US(usb_calc_bus_time(USB_SPEED_HIGH,
 				is_input, 0,
-				hb_mult(maxp) * max_packet(maxp)));
+				mult * max_packet(maxp)));
 		qh->ps.phase = NO_FRAME;
 
 		if (urb->dev->speed == USB_SPEED_HIGH) {
@@ -929,7 +931,7 @@ qh_make (
 			info2 |= (EHCI_TUNE_MULT_HS << 30);
 		} else {		/* PIPE_INTERRUPT */
 			info1 |= max_packet (maxp) << 16;
-			info2 |= hb_mult (maxp) << 30;
+			info2 |= mult << 30;
 		}
 		break;
 	default:
