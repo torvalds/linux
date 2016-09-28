@@ -325,8 +325,8 @@ static int ccp_pci_resume(struct pci_dev *pdev)
 
 static const struct pci_device_id ccp_pci_table[] = {
 	{ PCI_VDEVICE(AMD, 0x1537), (kernel_ulong_t)&ccpv3 },
-	{ PCI_VDEVICE(AMD, 0x1456), (kernel_ulong_t)&ccpv5 },
-	{ PCI_VDEVICE(AMD, 0x1468), (kernel_ulong_t)&ccpv5other },
+	{ PCI_VDEVICE(AMD, 0x1456), (kernel_ulong_t)&ccpv5a },
+	{ PCI_VDEVICE(AMD, 0x1468), (kernel_ulong_t)&ccpv5b },
 	/* Last entry must be zero */
 	{ 0, }
 };

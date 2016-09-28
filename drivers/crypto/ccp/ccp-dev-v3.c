@@ -566,7 +566,7 @@ static const struct ccp_actions ccp3_actions = {
 	.irqhandler = ccp_irq_handler,
 };
 
-struct ccp_vdata ccpv3 = {
+const struct ccp_vdata ccpv3 = {
 	.version = CCP_VERSION(3, 0),
 	.setup = NULL,
 	.perform = &ccp3_actions,

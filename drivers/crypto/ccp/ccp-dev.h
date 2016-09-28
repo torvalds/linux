@@ -639,8 +639,8 @@ struct ccp_vdata {
 	const unsigned int offset;
 };
 
-extern	struct ccp_vdata ccpv3;
-extern	struct ccp_vdata ccpv5;
-extern	struct ccp_vdata ccpv5other;
+extern const struct ccp_vdata ccpv3;
+extern const struct ccp_vdata ccpv5a;
+extern const struct ccp_vdata ccpv5b;
 
 #endif
