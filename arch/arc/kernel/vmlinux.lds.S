@@ -82,14 +82,6 @@ SECTIONS
 
 	PERCPU_SECTION(L1_CACHE_BYTES)
 
-	/*
-	 * .exit.text is discard at runtime, not link time, to deal with
-	 * references from unwinding sections
-	 * It will be init freed, being inside [__init_start : __init_end]
-	 */
-	.exit.text : { EXIT_TEXT }
-	.exit.data : { EXIT_DATA }
-
 	. = ALIGN(PAGE_SIZE);
 	__init_end = .;
 
