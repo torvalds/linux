@@ -3070,6 +3070,9 @@ static void ixgbe_free_irq(struct ixgbe_adapter *adapter)
 		return;
 	}
 
+	if (!adapter->msix_entries)
+		return;
+
 	for (vector = 0; vector < adapter->num_q_vectors; vector++) {
 		struct ixgbe_q_vector *q_vector = adapter->q_vector[vector];
 		struct msix_entry *entry = &adapter->msix_entries[vector];
