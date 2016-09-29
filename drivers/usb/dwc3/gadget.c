@@ -1073,9 +1073,17 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 
 	list_add_tail(&req->list, &dep->pending_list);
 
-	if (usb_endpoint_xfer_isoc(dep->endpoint.desc) &&
-			dep->flags & DWC3_EP_PENDING_REQUEST) {
-		if (list_empty(&dep->started_list)) {
+	/*
+	 * NOTICE: Isochronous endpoints should NEVER be prestarted. We must
+	 * wait for a XferNotReady event so we will know what's the current
+	 * (micro-)frame number.
+	 *
+	 * Without this trick, we are very, very likely gonna get Bus Expiry
+	 * errors which will force us issue EndTransfer command.
+	 */
+	if (usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
+		if ((dep->flags & DWC3_EP_PENDING_REQUEST) &&
+				list_empty(&dep->started_list)) {
 			dwc3_stop_active_transfer(dwc, dep->number, true);
 			dep->flags = DWC3_EP_ENABLED;
 		}
