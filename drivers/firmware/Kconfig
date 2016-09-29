@@ -176,6 +176,13 @@ config QCOM_SCM_64
 config HAVE_ARM_SMCCC
 	bool
 
+config ROCKCHIP_SIP
+	bool "Rockchip SIP interface"
+	depends on ARM64 && ARM_PSCI_FW
+	help
+	  Say Y here if you want to enable SIP callbacks for Rockchip platforms
+	  This option enables support for communicating with the ATF.
+
 source "drivers/firmware/broadcom/Kconfig"
 source "drivers/firmware/google/Kconfig"
 source "drivers/firmware/efi/Kconfig"

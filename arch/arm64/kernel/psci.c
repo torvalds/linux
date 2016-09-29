@@ -30,6 +30,10 @@
 #include <asm/smp_plat.h>
 #include <asm/suspend.h>
 
+#ifdef CONFIG_FIQ_DEBUGGER_EL3_TO_EL1
+#include <linux/rockchip/rockchip_sip.h>
+#endif
+
 static DEFINE_PER_CPU_READ_MOSTLY(u32 *, psci_power_state);
 
 static int __maybe_unused cpu_psci_cpu_init_idle(unsigned int cpu)
@@ -202,6 +206,9 @@ static int __maybe_unused cpu_psci_cpu_suspend(unsigned long index)
 	else
 		ret = cpu_suspend(index, psci_suspend_finisher);
 
+#ifdef CONFIG_FIQ_DEBUGGER_EL3_TO_EL1
+	psci_enable_fiq();
+#endif
 	return ret;
 }
 
