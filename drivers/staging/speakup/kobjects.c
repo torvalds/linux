@@ -976,11 +976,11 @@ static struct attribute *i18n_attrs[] = {
  * created for the attributes with the directory being the name of the
  * attribute group.
  */
-static struct attribute_group main_attr_group = {
+static const struct attribute_group main_attr_group = {
 	.attrs = main_attrs,
 };
 
-static struct attribute_group i18n_attr_group = {
+static const struct attribute_group i18n_attr_group = {
 	.attrs = i18n_attrs,
 	.name = "i18n",
 };
