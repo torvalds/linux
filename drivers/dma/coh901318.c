@@ -1352,9 +1352,10 @@ static int coh901318_debugfs_read(struct file *file, char __user *buf,
 
 	tmp += sprintf(tmp, "DMA -- enabled dma channels\n");
 
-	for (i = 0; i < U300_DMA_CHANNELS; i++)
-		if (started_channels & (1 << i))
+	for (i = 0; i < U300_DMA_CHANNELS; i++) {
+		if (started_channels & (1ULL << i))
 			tmp += sprintf(tmp, "channel %d\n", i);
+	}
 
 	tmp += sprintf(tmp, "Pool alloc nbr %d\n", pool_count);
 
