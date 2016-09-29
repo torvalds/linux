@@ -351,7 +351,8 @@ struct iwl_mvm_add_sta_cmd_v7 {
  * @assoc_id: assoc_id to be sent in VHT PLCP (9-bit), for grp use 0, for AP
  *	mac-addr.
  * @beamform_flags: beam forming controls
- * @tfd_queue_msk: tfd queues used by this station
+ * @tfd_queue_msk: tfd queues used by this station.
+ *	Obselete for new TX API (9 and above).
  * @rx_ba_window: aggregation window size
  * @scd_queue_bank: queue bank in used. Each bank contains 32 queues. 0 means
  *	that the queues used by this station are in the first 32.
@@ -386,7 +387,7 @@ struct iwl_mvm_add_sta_cmd {
 	__le16 rx_ba_window;
 	u8 scd_queue_bank;
 	u8 uapsd_trigger_acs;
-} __packed; /* ADD_STA_CMD_API_S_VER_8 */
+} __packed; /* ADD_STA_CMD_API_S_VER_9 */
 
 /**
  * struct iwl_mvm_add_sta_key_common - add/modify sta key common part

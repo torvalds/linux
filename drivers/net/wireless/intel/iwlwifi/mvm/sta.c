@@ -127,11 +127,17 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	u32 agg_size = 0, mpdu_dens = 0;
 
 	if (!update || (flags & STA_MODIFY_QUEUES)) {
-		add_sta_cmd.tfd_queue_msk = cpu_to_le32(mvm_sta->tfd_queue_msk);
 		memcpy(&add_sta_cmd.addr, sta->addr, ETH_ALEN);
 
-		if (flags & STA_MODIFY_QUEUES)
-			add_sta_cmd.modify_mask |= STA_MODIFY_QUEUES;
+		if (!iwl_mvm_has_new_tx_api(mvm)) {
+			add_sta_cmd.tfd_queue_msk =
+				cpu_to_le32(mvm_sta->tfd_queue_msk);
+
+			if (flags & STA_MODIFY_QUEUES)
+				add_sta_cmd.modify_mask |= STA_MODIFY_QUEUES;
+		} else {
+			WARN_ON(flags & STA_MODIFY_QUEUES);
+		}
 	}
 
 	switch (sta->bandwidth) {
@@ -337,6 +343,9 @@ static int iwl_mvm_invalidate_sta_queue(struct iwl_mvm *mvm, int queue,
 	u8 sta_id;
 	int ret;
 
+	if (WARN_ON(iwl_mvm_has_new_tx_api(mvm)))
+		return -EINVAL;
+
 	spin_lock_bh(&mvm->queue_info_lock);
 	sta_id = mvm->queue_info[queue].ra_sta_id;
 	spin_unlock_bh(&mvm->queue_info_lock);
@@ -387,6 +396,9 @@ static int iwl_mvm_get_queue_agg_tids(struct iwl_mvm *mvm, int queue)
 
 	lockdep_assert_held(&mvm->mutex);
 
+	if (WARN_ON(iwl_mvm_has_new_tx_api(mvm)))
+		return -EINVAL;
+
 	spin_lock_bh(&mvm->queue_info_lock);
 	sta_id = mvm->queue_info[queue].ra_sta_id;
 	tid_bitmap = mvm->queue_info[queue].tid_bitmap;
@@ -425,6 +437,9 @@ static int iwl_mvm_remove_sta_queue_marking(struct iwl_mvm *mvm, int queue)
 	int tid;
 
 	lockdep_assert_held(&mvm->mutex);
+
+	if (WARN_ON(iwl_mvm_has_new_tx_api(mvm)))
+		return -EINVAL;
 
 	spin_lock_bh(&mvm->queue_info_lock);
 	sta_id = mvm->queue_info[queue].ra_sta_id;
@@ -467,6 +482,9 @@ static int iwl_mvm_free_inactive_queue(struct iwl_mvm *mvm, int queue,
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
+
+	if (WARN_ON(iwl_mvm_has_new_tx_api(mvm)))
+		return -EINVAL;
 
 	spin_lock_bh(&mvm->queue_info_lock);
 	txq_curr_ac = mvm->queue_info[queue].mac80211_ac;
@@ -512,6 +530,8 @@ static int iwl_mvm_get_shared_queue(struct iwl_mvm *mvm,
 	int i;
 
 	lockdep_assert_held(&mvm->queue_info_lock);
+	if (WARN_ON(iwl_mvm_has_new_tx_api(mvm)))
+		return -EINVAL;
 
 	memset(&ac_to_queue, IEEE80211_INVAL_HW_QUEUE, sizeof(ac_to_queue));
 
@@ -595,6 +615,9 @@ int iwl_mvm_scd_queue_redirect(struct iwl_mvm *mvm, int queue, int tid,
 	bool shared_queue;
 	unsigned long mq;
 	int ret;
+
+	if (WARN_ON(iwl_mvm_has_new_tx_api(mvm)))
+		return -EINVAL;
 
 	/*
 	 * If the AC is lower than current one - FIFO needs to be redirected to
@@ -757,6 +780,15 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 
 	/* No free queue - we'll have to share */
 	if (queue <= 0) {
+		/* This shouldn't happen in new HW - we have 512 queues */
+		if (WARN(iwl_mvm_has_new_tx_api(mvm),
+			 "No available queues for tid %d on sta_id %d\n",
+			 tid, cfg.sta_id)) {
+			spin_unlock_bh(&mvm->queue_info_lock);
+
+			return queue;
+		}
+
 		queue = iwl_mvm_get_shared_queue(mvm, tfd_queue_mask, ac);
 		if (queue > 0) {
 			shared_queue = true;
@@ -841,6 +873,9 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 		mvmsta->reserved_queue = IEEE80211_INVAL_HW_QUEUE;
 	spin_unlock_bh(&mvmsta->lock);
 
+	if (iwl_mvm_has_new_tx_api(mvm))
+		return 0;
+
 	if (!shared_queue) {
 		ret = iwl_mvm_sta_send_to_fw(mvm, sta, true, STA_MODIFY_QUEUES);
 		if (ret)
@@ -880,6 +915,9 @@ static void iwl_mvm_change_queue_owner(struct iwl_mvm *mvm, int queue)
 
 	lockdep_assert_held(&mvm->mutex);
 
+	if (WARN_ON(iwl_mvm_has_new_tx_api(mvm)))
+		return;
+
 	spin_lock_bh(&mvm->queue_info_lock);
 	tid_bitmap = mvm->queue_info[queue].tid_bitmap;
 	spin_unlock_bh(&mvm->queue_info_lock);
@@ -916,6 +954,10 @@ static void iwl_mvm_unshare_queue(struct iwl_mvm *mvm, int queue)
 	unsigned int wdg_timeout;
 	int ssn;
 	int ret = true;
+
+	/* queue sharing is disabled on new TX path */
+	if (WARN_ON(iwl_mvm_has_new_tx_api(mvm)))
+		return;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -1675,7 +1717,8 @@ static int iwl_mvm_add_int_sta_common(struct iwl_mvm *mvm,
 	cmd.mac_id_n_color = cpu_to_le32(FW_CMD_ID_AND_COLOR(mac_id,
 							     color));
 
-	cmd.tfd_queue_msk = cpu_to_le32(sta->tfd_queue_msk);
+	if (!iwl_mvm_has_new_tx_api(mvm))
+		cmd.tfd_queue_msk = cpu_to_le32(sta->tfd_queue_msk);
 	cmd.tid_disable_tx = cpu_to_le16(0xffff);
 
 	if (addr)
@@ -2293,7 +2336,9 @@ int iwl_mvm_sta_tx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	cmd.mac_id_n_color = cpu_to_le32(mvm_sta->mac_id_n_color);
 	cmd.sta_id = mvm_sta->sta_id;
 	cmd.add_modify = STA_MODE_MODIFY;
-	cmd.modify_mask = STA_MODIFY_QUEUES | STA_MODIFY_TID_DISABLE_TX;
+	if (!iwl_mvm_has_new_tx_api(mvm))
+		cmd.modify_mask = STA_MODIFY_QUEUES;
+	cmd.modify_mask |= STA_MODIFY_TID_DISABLE_TX;
 	cmd.tfd_queue_msk = cpu_to_le32(mvm_sta->tfd_queue_msk);
 	cmd.tid_disable_tx = cpu_to_le16(mvm_sta->tid_disable_agg);
 
@@ -2493,6 +2538,13 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		 * changed from current (become smaller)
 		 */
 		if (!alloc_queue && buf_size < mvmsta->max_agg_bufsize) {
+			/*
+			 * On new TX API rs and BA manager are offloaded.
+			 * For now though, just don't support being reconfigured
+			 */
+			if (iwl_mvm_has_new_tx_api(mvm))
+				return -ENOTSUPP;
+
 			/*
 			 * If reconfiguring an existing queue, it first must be
 			 * drained

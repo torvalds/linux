@@ -893,6 +893,9 @@ static bool iwl_mvm_txq_should_update(struct iwl_mvm *mvm, int txq_id)
 	unsigned long now = jiffies;
 	int tid;
 
+	if (WARN_ON(iwl_mvm_has_new_tx_api(mvm)))
+		return false;
+
 	for_each_set_bit(tid, &queue_tid_bitmap, IWL_MAX_TID_COUNT + 1) {
 		if (time_before(mvm->queue_info[txq_id].last_frame_time[tid] +
 				IWL_MVM_DQA_QUEUE_TIMEOUT, now))
