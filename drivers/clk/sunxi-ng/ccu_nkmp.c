@@ -9,7 +9,6 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/rational.h>
 
 #include "ccu_gate.h"
 #include "ccu_nkmp.h"
@@ -29,24 +28,24 @@ static void ccu_nkmp_find_best(unsigned long parent, unsigned long rate,
 	unsigned long _n, _k, _m, _p;
 
 	for (_k = 1; _k <= nkmp->max_k; _k++) {
-		for (_p = 1; _p <= nkmp->max_p; _p <<= 1) {
-			unsigned long tmp_rate;
+		for (_n = 1; _n <= nkmp->max_n; _n++) {
+			for (_m = 1; _n <= nkmp->max_m; _m++) {
+				for (_p = 1; _p <= nkmp->max_p; _p <<= 1) {
+					unsigned long tmp_rate;
 
-			rational_best_approximation(rate / _k, parent / _p,
-						    nkmp->max_n, nkmp->max_m,
-						    &_n, &_m);
+					tmp_rate = parent * _n * _k / (_m * _p);
 
-			tmp_rate = parent * _n * _k / (_m * _p);
+					if (tmp_rate > rate)
+						continue;
 
-			if (tmp_rate > rate)
-				continue;
-
-			if ((rate - tmp_rate) < (rate - best_rate)) {
-				best_rate = tmp_rate;
-				best_n = _n;
-				best_k = _k;
-				best_m = _m;
-				best_p = _p;
+					if ((rate - tmp_rate) < (rate - best_rate)) {
+						best_rate = tmp_rate;
+						best_n = _n;
+						best_k = _k;
+						best_m = _m;
+						best_p = _p;
+					}
+				}
 			}
 		}
 	}
