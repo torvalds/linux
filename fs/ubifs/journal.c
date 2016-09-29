@@ -688,13 +688,17 @@ int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 			 const union ubifs_key *key, const void *buf, int len)
 {
 	struct ubifs_data_node *data;
-	int err, lnum, offs, compr_type, out_len;
+	int err, lnum, offs, compr_type, out_len, compr_len;
 	int dlen = COMPRESSED_DATA_NODE_BUF_SZ, allocated = 1;
 	struct ubifs_inode *ui = ubifs_inode(inode);
+	bool encrypted = ubifs_crypt_is_encrypted(inode);
 
 	dbg_jnlk(key, "ino %lu, blk %u, len %d, key ",
 		(unsigned long)key_inum(c, key), key_block(c, key), len);
 	ubifs_assert(len <= UBIFS_BLOCK_SIZE);
+
+	if (encrypted)
+		dlen += UBIFS_CIPHER_BLOCK_SIZE;
 
 	data = kmalloc(dlen, GFP_NOFS | __GFP_NOWARN);
 	if (!data) {
@@ -720,9 +724,18 @@ int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 	else
 		compr_type = ui->compr_type;
 
-	out_len = dlen - UBIFS_DATA_NODE_SZ;
-	ubifs_compress(c, buf, len, &data->data, &out_len, &compr_type);
-	ubifs_assert(out_len <= UBIFS_BLOCK_SIZE);
+	out_len = compr_len = dlen - UBIFS_DATA_NODE_SZ;
+	ubifs_compress(c, buf, len, &data->data, &compr_len, &compr_type);
+	ubifs_assert(compr_len <= UBIFS_BLOCK_SIZE);
+
+	if (encrypted) {
+		err = ubifs_encrypt(inode, data, compr_len, &out_len, key_block(c, key));
+		if (err)
+			goto out_free;
+
+	} else {
+		data->compr_size = 0;
+	}
 
 	dlen = UBIFS_DATA_NODE_SZ + out_len;
 	data->compr_type = cpu_to_le16(compr_type);
@@ -1241,31 +1254,55 @@ out_free:
 }
 
 /**
- * recomp_data_node - re-compress a truncated data node.
+ * truncate_data_node - re-compress/encrypt a truncated data node.
+ * @c: UBIFS file-system description object
+ * @inode: inode which referes to the data node
+ * @block: data block number
  * @dn: data node to re-compress
  * @new_len: new length
  *
  * This function is used when an inode is truncated and the last data node of
- * the inode has to be re-compressed and re-written.
+ * the inode has to be re-compressed/encrypted and re-written.
  */
-static int recomp_data_node(const struct ubifs_info *c,
-			    struct ubifs_data_node *dn, int *new_len)
+static int truncate_data_node(const struct ubifs_info *c, const struct inode *inode,
+			      unsigned int block, struct ubifs_data_node *dn,
+			      int *new_len)
 {
 	void *buf;
-	int err, len, compr_type, out_len;
+	int err, dlen, compr_type, out_len, old_dlen;
 
 	out_len = le32_to_cpu(dn->size);
 	buf = kmalloc(out_len * WORST_COMPR_FACTOR, GFP_NOFS);
 	if (!buf)
 		return -ENOMEM;
 
-	len = le32_to_cpu(dn->ch.len) - UBIFS_DATA_NODE_SZ;
+	dlen = old_dlen = le32_to_cpu(dn->ch.len) - UBIFS_DATA_NODE_SZ;
 	compr_type = le16_to_cpu(dn->compr_type);
-	err = ubifs_decompress(c, &dn->data, len, buf, &out_len, compr_type);
-	if (err)
-		goto out;
 
-	ubifs_compress(c, buf, *new_len, &dn->data, &out_len, &compr_type);
+	if (ubifs_crypt_is_encrypted(inode)) {
+		err = ubifs_decrypt(inode, dn, &dlen, block);
+		if (err)
+			goto out;
+	}
+
+	if (compr_type != UBIFS_COMPR_NONE) {
+		err = ubifs_decompress(c, &dn->data, dlen, buf, &out_len, compr_type);
+		if (err)
+			goto out;
+
+		ubifs_compress(c, buf, *new_len, &dn->data, &out_len, &compr_type);
+	}
+
+	if (ubifs_crypt_is_encrypted(inode)) {
+		err = ubifs_encrypt(inode, dn, out_len, &old_dlen, block);
+		if (err)
+			goto out;
+
+		out_len = old_dlen;
+	} else {
+		dn->compr_size = 0;
+	}
+
 	ubifs_assert(out_len <= UBIFS_BLOCK_SIZE);
 	dn->compr_type = cpu_to_le16(compr_type);
 	dn->size = cpu_to_le32(*new_len);
@@ -1337,16 +1374,9 @@ int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
 			if (le32_to_cpu(dn->size) <= dlen)
 				dlen = 0; /* Nothing to do */
 			else {
-				int compr_type = le16_to_cpu(dn->compr_type);
-
-				if (compr_type != UBIFS_COMPR_NONE) {
-					err = recomp_data_node(c, dn, &dlen);
-					if (err)
-						goto out_free;
-				} else {
-					dn->size = cpu_to_le32(dlen);
-					dlen += UBIFS_DATA_NODE_SZ;
-				}
+				err = truncate_data_node(c, inode, blk, dn, &dlen);
+				if (err)
+					goto out_free;
 			}
 		}
 	}

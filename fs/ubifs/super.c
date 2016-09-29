@@ -1210,7 +1210,8 @@ static int mount_ubifs(struct ubifs_info *c)
 		bu_init(c);
 
 	if (!c->ro_mount) {
-		c->write_reserve_buf = kmalloc(COMPRESSED_DATA_NODE_BUF_SZ,
+		c->write_reserve_buf = kmalloc(COMPRESSED_DATA_NODE_BUF_SZ + \
+					       UBIFS_CIPHER_BLOCK_SIZE,
 					       GFP_KERNEL);
 		if (!c->write_reserve_buf)
 			goto out_free;
@@ -1623,7 +1624,8 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 		goto out;
 	}
 
-	c->write_reserve_buf = kmalloc(COMPRESSED_DATA_NODE_BUF_SZ, GFP_KERNEL);
+	c->write_reserve_buf = kmalloc(COMPRESSED_DATA_NODE_BUF_SZ + \
+				       UBIFS_CIPHER_BLOCK_SIZE, GFP_KERNEL);
 	if (!c->write_reserve_buf) {
 		err = -ENOMEM;
 		goto out;

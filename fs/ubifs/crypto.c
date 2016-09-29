@@ -35,6 +35,57 @@ static int ubifs_key_prefix(struct inode *inode, u8 **key)
 	return sizeof(prefix) - 1;
 }
 
+int ubifs_encrypt(const struct inode *inode, struct ubifs_data_node *dn,
+		  unsigned int in_len, unsigned int *out_len, int block)
+{
+	struct ubifs_info *c = inode->i_sb->s_fs_info;
+	void *p = &dn->data;
+	struct page *ret;
+	unsigned int pad_len = round_up(in_len, UBIFS_CIPHER_BLOCK_SIZE);
+
+	ubifs_assert(pad_len <= *out_len);
+	dn->compr_size = cpu_to_le16(in_len);
+
+	/* pad to full block cipher length */
+	if (pad_len != in_len)
+		memset(p + in_len, 0, pad_len - in_len);
+
+	ret = fscrypt_encrypt_page(inode, virt_to_page(&dn->data), pad_len,
+			offset_in_page(&dn->data), block, GFP_NOFS);
+	if (IS_ERR(ret)) {
+		ubifs_err(c, "fscrypt_encrypt_page failed: %ld", PTR_ERR(ret));
+		return PTR_ERR(ret);
+	}
+	*out_len = pad_len;
+
+	return 0;
+}
+
+int ubifs_decrypt(const struct inode *inode, struct ubifs_data_node *dn,
+		  unsigned int *out_len, int block)
+{
+	struct ubifs_info *c = inode->i_sb->s_fs_info;
+	int err;
+	unsigned int clen = le16_to_cpu(dn->compr_size);
+	unsigned int dlen = *out_len;
+
+	if (clen <= 0 || clen > UBIFS_BLOCK_SIZE || clen > dlen) {
+		ubifs_err(c, "bad compr_size: %i", clen);
+		return -EINVAL;
+	}
+
+	ubifs_assert(dlen <= UBIFS_BLOCK_SIZE);
+	err = fscrypt_decrypt_page(inode, virt_to_page(&dn->data), dlen,
+			offset_in_page(&dn->data), block);
+	if (err) {
+		ubifs_err(c, "fscrypt_decrypt_page failed: %i", err);
+		return err;
+	}
+	*out_len = clen;
+
+	return 0;
+}
+
 struct fscrypt_operations ubifs_crypt_operations = {
 	.flags			= FS_CFLG_INPLACE_ENCRYPTION,
 	.get_context		= ubifs_crypt_get_context,

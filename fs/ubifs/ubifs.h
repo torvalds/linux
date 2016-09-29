@@ -135,6 +135,12 @@
  */
 #define WORST_COMPR_FACTOR 2
 
+#ifdef CONFIG_UBIFS_FS_ENCRYPTION
+#define UBIFS_CIPHER_BLOCK_SIZE FS_CRYPTO_BLOCK_SIZE
+#else
+#define UBIFS_CIPHER_BLOCK_SIZE 0
+#endif
+
 /*
  * How much memory is needed for a buffer where we compress a data node.
  */
@@ -1774,8 +1780,6 @@ void ubifs_compress(const struct ubifs_info *c, const void *in_buf, int in_len,
 int ubifs_decompress(const struct ubifs_info *c, const void *buf, int len,
 		     void *out, int *out_len, int compr_type);
 
-extern struct fscrypt_operations ubifs_crypt_operations;
-
 #include "debug.h"
 #include "misc.h"
 #include "key.h"
@@ -1803,7 +1807,30 @@ extern struct fscrypt_operations ubifs_crypt_operations;
 #define fscrypt_fname_free_buffer       fscrypt_notsupp_fname_free_buffer
 #define fscrypt_fname_disk_to_usr       fscrypt_notsupp_fname_disk_to_usr
 #define fscrypt_fname_usr_to_disk       fscrypt_notsupp_fname_usr_to_disk
+static inline int ubifs_encrypt(const struct inode *inode,
+				struct ubifs_data_node *dn,
+				unsigned int in_len, unsigned int *out_len,
+				int block)
+{
+	ubifs_assert(0);
+	return -EOPNOTSUPP;
+}
+static inline int ubifs_decrypt(const struct inode *inode,
+				struct ubifs_data_node *dn,
+				unsigned int *out_len, int block)
+{
+	ubifs_assert(0);
+	return -EOPNOTSUPP;
+}
+#else
+/* crypto.c */
+int ubifs_encrypt(const struct inode *inode, struct ubifs_data_node *dn,
+		  unsigned int in_len, unsigned int *out_len, int block);
+int ubifs_decrypt(const struct inode *inode, struct ubifs_data_node *dn,
+		  unsigned int *out_len, int block);
 #endif
+
+extern struct fscrypt_operations ubifs_crypt_operations;
 
 static inline bool __ubifs_crypt_is_encrypted(struct inode *inode)
 {
