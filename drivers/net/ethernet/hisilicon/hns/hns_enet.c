@@ -574,7 +574,6 @@ static int hns_nic_poll_rx_skb(struct hns_nic_ring_data *ring_data,
 	struct sk_buff *skb;
 	struct hnae_desc *desc;
 	struct hnae_desc_cb *desc_cb;
-	struct ethhdr *eh;
 	unsigned char *va;
 	int bnum, length, i;
 	int pull_len;
@@ -600,7 +599,6 @@ static int hns_nic_poll_rx_skb(struct hns_nic_ring_data *ring_data,
 		ring->stats.sw_err_cnt++;
 		return -ENOMEM;
 	}
-	skb_reset_mac_header(skb);
 
 	prefetchw(skb->data);
 	length = le16_to_cpu(desc->rx.pkt_len);
@@ -678,14 +676,6 @@ out_bnum_err:
 
 	if (unlikely(hnae_get_bit(bnum_flag, HNS_RXD_L2E_B))) {
 		ring->stats.l2_err++;
-		dev_kfree_skb_any(skb);
-		return -EFAULT;
-	}
-
-	/* filter out multicast pkt with the same src mac as this port */
-	eh = eth_hdr(skb);
-	if (unlikely(is_multicast_ether_addr(eh->h_dest) &&
-		     ether_addr_equal(ndev->dev_addr, eh->h_source))) {
 		dev_kfree_skb_any(skb);
 		return -EFAULT;
 	}
