@@ -221,6 +221,12 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 	ohci->num_ports = board->ports;
 	at91_start_hc(pdev);
 
+	/*
+	 * The RemoteWakeupConnected bit has to be set explicitly
+	 * before calling ohci_run. The reset value of this bit is 0.
+	 */
+	ohci->hc_control = OHCI_CTRL_RWC;
+
 	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval == 0) {
 		device_wakeup_enable(hcd->self.controller);
@@ -677,9 +683,6 @@ ohci_hcd_at91_drv_suspend(struct device *dev)
 	 * REVISIT: some boards will be able to turn VBUS off...
 	 */
 	if (!ohci_at91->wakeup) {
-		ohci->hc_control = ohci_readl(ohci, &ohci->regs->control);
-		ohci->hc_control &= OHCI_CTRL_RWC;
-		ohci_writel(ohci, ohci->hc_control, &ohci->regs->control);
 		ohci->rh_state = OHCI_RH_HALTED;
 
 		/* flush the writes */
