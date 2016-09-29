@@ -29,3 +29,4 @@ See assembly instructions with percentage: perf annotate <symbol>
 If you prefer Intel style assembly, try: perf annotate -M intel
 For hierarchical output, try: perf report --hierarchy
 Order by the overhead of source file name and line number: perf report -s srcline
+System-wide collection from all CPUs: perf record -a
