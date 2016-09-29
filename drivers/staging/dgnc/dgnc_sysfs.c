@@ -677,7 +677,7 @@ static struct attribute *dgnc_sysfs_tty_entries[] = {
 	NULL
 };
 
-static struct attribute_group dgnc_tty_attribute_group = {
+static const struct attribute_group dgnc_tty_attribute_group = {
 	.name = NULL,
 	.attrs = dgnc_sysfs_tty_entries,
 };
