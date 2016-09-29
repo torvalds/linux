@@ -192,6 +192,7 @@ struct clk *ti_clk_register_dpll(struct ti_clk *setup);
 struct clk *ti_clk_register(struct device *dev, struct clk_hw *hw,
 			    const char *con);
 int ti_clk_add_alias(struct device *dev, struct clk *clk, const char *con);
+void ti_clk_add_aliases(void);
 
 struct clk_hw *ti_clk_build_component_div(struct ti_clk_divider *setup);
 struct clk_hw *ti_clk_build_component_gate(struct ti_clk_gate *setup);
