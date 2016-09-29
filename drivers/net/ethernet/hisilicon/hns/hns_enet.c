@@ -760,7 +760,7 @@ static int hns_nic_rx_poll_one(struct hns_nic_ring_data *ring_data,
 {
 	struct hnae_ring *ring = ring_data->ring;
 	struct sk_buff *skb;
-	int num, bnum, ex_num;
+	int num, bnum;
 #define RCB_NOF_ALLOC_RX_BUFF_ONCE 16
 	int recv_pkts, recv_bds, clean_count, err;
 	int unused_count = hns_desc_unused(ring);
@@ -770,7 +770,7 @@ static int hns_nic_rx_poll_one(struct hns_nic_ring_data *ring_data,
 
 	recv_pkts = 0, recv_bds = 0, clean_count = 0;
 	num -= unused_count;
-recv:
+
 	while (recv_pkts < budget && recv_bds < num) {
 		/* reuse or realloc buffers */
 		if (clean_count + unused_count >= RCB_NOF_ALLOC_RX_BUFF_ONCE) {
@@ -796,17 +796,6 @@ recv:
 		((void (*)(struct hns_nic_ring_data *, struct sk_buff *))v)(
 							ring_data, skb);
 		recv_pkts++;
-	}
-
-	/* make all data has been write before submit */
-	if (recv_pkts < budget) {
-		ex_num = readl_relaxed(ring->io_base + RCB_REG_FBDNUM);
-		ex_num -= unused_count;
-		if (ex_num > clean_count) {
-			num += ex_num - clean_count;
-			rmb(); /*complete read rx ring bd number*/
-			goto recv;
-		}
 	}
 
 out:
