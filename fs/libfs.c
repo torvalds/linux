@@ -236,8 +236,8 @@ static const struct super_operations simple_super_operations = {
  * Common helper for pseudo-filesystems (sockfs, pipefs, bdev - stuff that
  * will never be mountable)
  */
-struct dentry *mount_pseudo(struct file_system_type *fs_type, char *name,
-	const struct super_operations *ops,
+struct dentry *mount_pseudo_xattr(struct file_system_type *fs_type, char *name,
+	const struct super_operations *ops, const struct xattr_handler **xattr,
 	const struct dentry_operations *dops, unsigned long magic)
 {
 	struct super_block *s;
@@ -254,6 +254,7 @@ struct dentry *mount_pseudo(struct file_system_type *fs_type, char *name,
 	s->s_blocksize_bits = PAGE_SHIFT;
 	s->s_magic = magic;
 	s->s_op = ops ? ops : &simple_super_operations;
+	s->s_xattr = xattr;
 	s->s_time_gran = 1;
 	root = new_inode(s);
 	if (!root)
@@ -281,7 +282,7 @@ Enomem:
 	deactivate_locked_super(s);
 	return ERR_PTR(-ENOMEM);
 }
-EXPORT_SYMBOL(mount_pseudo);
+EXPORT_SYMBOL(mount_pseudo_xattr);
 
 int simple_open(struct inode *inode, struct file *file)
 {
