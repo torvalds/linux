@@ -349,8 +349,10 @@ int snd_skl_parse_uuids(struct sst_dsp *ctx, const struct firmware *fw,
 		module->max_instance = mod_entry->instance_max_count;
 		size = sizeof(int) * mod_entry->instance_max_count;
 		module->instance_id = devm_kzalloc(ctx->dev, size, GFP_KERNEL);
-		if (!module->instance_id)
+		if (!module->instance_id) {
+			kfree(module);
 			return -ENOMEM;
+		}
 
 		list_add_tail(&module->list, &skl->uuid_list);
 
