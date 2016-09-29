@@ -36,12 +36,9 @@ strcmp_prefix(const char *a, const char *a_prefix)
 
 /*
  * In order to implement different sets of xattr operations for each xattr
- * prefix with the generic xattr API, a filesystem should create a
- * null-terminated array of struct xattr_handler (one for each prefix) and
- * hang a pointer to it off of the s_xattr field of the superblock.
- *
- * The generic_fooxattr() functions will use this list to dispatch xattr
- * operations to the correct xattr_handler.
+ * prefix, a filesystem should create a null-terminated array of struct
+ * xattr_handler (one for each prefix) and hang a pointer to it off of the
+ * s_xattr field of the superblock.
  */
 #define for_each_xattr_handler(handlers, handler)		\
 	if (handlers)						\
@@ -140,9 +137,16 @@ int
 __vfs_setxattr(struct dentry *dentry, struct inode *inode, const char *name,
 	       const void *value, size_t size, int flags)
 {
-	if (!inode->i_op->setxattr)
+	const struct xattr_handler *handler;
+
+	handler = xattr_resolve_name(inode, &name);
+	if (IS_ERR(handler))
+		return PTR_ERR(handler);
+	if (!handler->set)
 		return -EOPNOTSUPP;
-	return inode->i_op->setxattr(dentry, inode, name, value, size, flags);
+	if (size == 0)
+		value = "";  /* empty EA, do not remove */
+	return handler->set(handler, dentry, inode, name, value, size, flags);
 }
 EXPORT_SYMBOL(__vfs_setxattr);
 
@@ -172,7 +176,7 @@ int __vfs_setxattr_noperm(struct dentry *dentry, const char *name,
 
 	if (issec)
 		inode->i_flags &= ~S_NOSEC;
-	if (inode->i_op->setxattr) {
+	if (inode->i_opflags & IOP_XATTR) {
 		error = __vfs_setxattr(dentry, inode, name, value, size, flags);
 		if (!error) {
 			fsnotify_xattr(dentry);
@@ -257,6 +261,7 @@ ssize_t
 vfs_getxattr_alloc(struct dentry *dentry, const char *name, char **xattr_value,
 		   size_t xattr_size, gfp_t flags)
 {
+	const struct xattr_handler *handler;
 	struct inode *inode = dentry->d_inode;
 	char *value = *xattr_value;
 	int error;
@@ -265,10 +270,12 @@ vfs_getxattr_alloc(struct dentry *dentry, const char *name, char **xattr_value,
 	if (error)
 		return error;
 
-	if (!inode->i_op->getxattr)
+	handler = xattr_resolve_name(inode, &name);
+	if (IS_ERR(handler))
+		return PTR_ERR(handler);
+	if (!handler->get)
 		return -EOPNOTSUPP;
-
-	error = inode->i_op->getxattr(dentry, inode, name, NULL, 0);
+	error = handler->get(handler, dentry, inode, name, NULL, 0);
 	if (error < 0)
 		return error;
 
@@ -279,7 +286,7 @@ vfs_getxattr_alloc(struct dentry *dentry, const char *name, char **xattr_value,
 		memset(value, 0, error + 1);
 	}
 
-	error = inode->i_op->getxattr(dentry, inode, name, value, error);
+	error = handler->get(handler, dentry, inode, name, value, error);
 	*xattr_value = value;
 	return error;
 }
@@ -288,9 +295,14 @@ ssize_t
 __vfs_getxattr(struct dentry *dentry, struct inode *inode, const char *name,
 	       void *value, size_t size)
 {
-	if (!inode->i_op->getxattr)
+	const struct xattr_handler *handler;
+
+	handler = xattr_resolve_name(inode, &name);
+	if (IS_ERR(handler))
+		return PTR_ERR(handler);
+	if (!handler->get)
 		return -EOPNOTSUPP;
-	return inode->i_op->getxattr(dentry, inode, name, value, size);
+	return handler->get(handler, dentry, inode, name, value, size);
 }
 EXPORT_SYMBOL(__vfs_getxattr);
 
@@ -349,11 +361,15 @@ EXPORT_SYMBOL_GPL(vfs_listxattr);
 int
 __vfs_removexattr(struct dentry *dentry, const char *name)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
+	const struct xattr_handler *handler;
 
-	if (!inode->i_op->removexattr)
+	handler = xattr_resolve_name(inode, &name);
+	if (IS_ERR(handler))
+		return PTR_ERR(handler);
+	if (!handler->set)
 		return -EOPNOTSUPP;
-	return inode->i_op->removexattr(dentry, name);
+	return handler->set(handler, dentry, inode, name, NULL, 0, XATTR_REPLACE);
 }
 EXPORT_SYMBOL(__vfs_removexattr);
 
