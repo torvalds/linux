@@ -747,6 +747,14 @@ static void hns_nic_rx_up_pro(struct hns_nic_ring_data *ring_data,
 	ndev->last_rx = jiffies;
 }
 
+static int hns_desc_unused(struct hnae_ring *ring)
+{
+	int ntc = ring->next_to_clean;
+	int ntu = ring->next_to_use;
+
+	return ((ntc >= ntu) ? 0 : ring->desc_num) + ntc - ntu;
+}
+
 static int hns_nic_rx_poll_one(struct hns_nic_ring_data *ring_data,
 			       int budget, void *v)
 {
@@ -755,17 +763,21 @@ static int hns_nic_rx_poll_one(struct hns_nic_ring_data *ring_data,
 	int num, bnum, ex_num;
 #define RCB_NOF_ALLOC_RX_BUFF_ONCE 16
 	int recv_pkts, recv_bds, clean_count, err;
+	int unused_count = hns_desc_unused(ring);
 
 	num = readl_relaxed(ring->io_base + RCB_REG_FBDNUM);
 	rmb(); /* make sure num taken effect before the other data is touched */
 
 	recv_pkts = 0, recv_bds = 0, clean_count = 0;
+	num -= unused_count;
 recv:
 	while (recv_pkts < budget && recv_bds < num) {
 		/* reuse or realloc buffers */
-		if (clean_count >= RCB_NOF_ALLOC_RX_BUFF_ONCE) {
-			hns_nic_alloc_rx_buffers(ring_data, clean_count);
+		if (clean_count + unused_count >= RCB_NOF_ALLOC_RX_BUFF_ONCE) {
+			hns_nic_alloc_rx_buffers(ring_data,
+						 clean_count + unused_count);
 			clean_count = 0;
+			unused_count = hns_desc_unused(ring);
 		}
 
 		/* poll one pkt */
@@ -789,7 +801,7 @@ recv:
 	/* make all data has been write before submit */
 	if (recv_pkts < budget) {
 		ex_num = readl_relaxed(ring->io_base + RCB_REG_FBDNUM);
-
+		ex_num -= unused_count;
 		if (ex_num > clean_count) {
 			num += ex_num - clean_count;
 			rmb(); /*complete read rx ring bd number*/
@@ -799,8 +811,9 @@ recv:
 
 out:
 	/* make all data has been write before submit */
-	if (clean_count > 0)
-		hns_nic_alloc_rx_buffers(ring_data, clean_count);
+	if (clean_count + unused_count > 0)
+		hns_nic_alloc_rx_buffers(ring_data,
+					 clean_count + unused_count);
 
 	return recv_pkts;
 }
