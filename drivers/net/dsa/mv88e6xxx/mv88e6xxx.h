@@ -159,7 +159,6 @@
 #define PORT_TAG_REGMAP_0123	0x18
 #define PORT_TAG_REGMAP_4567	0x19
 
-#define REG_GLOBAL		0x1b
 #define GLOBAL_STATUS		0x00
 #define GLOBAL_STATUS_PPU_STATE BIT(15) /* 6351 and 6171 */
 /* Two bits for 6165, 6185 etc */
@@ -613,6 +612,7 @@ struct mv88e6xxx_info {
 	unsigned int num_databases;
 	unsigned int num_ports;
 	unsigned int port_base_addr;
+	unsigned int global1_addr;
 	unsigned int age_time_coeff;
 	unsigned long long flags;
 };
