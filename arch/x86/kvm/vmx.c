@@ -920,16 +920,32 @@ static DEFINE_PER_CPU(struct desc_ptr, host_gdt);
 static DEFINE_PER_CPU(struct list_head, blocked_vcpu_on_cpu);
 static DEFINE_PER_CPU(spinlock_t, blocked_vcpu_on_cpu_lock);
 
-static unsigned long *vmx_io_bitmap_a;
-static unsigned long *vmx_io_bitmap_b;
-static unsigned long *vmx_msr_bitmap_legacy;
-static unsigned long *vmx_msr_bitmap_longmode;
-static unsigned long *vmx_msr_bitmap_legacy_x2apic_apicv;
-static unsigned long *vmx_msr_bitmap_longmode_x2apic_apicv;
-static unsigned long *vmx_msr_bitmap_legacy_x2apic;
-static unsigned long *vmx_msr_bitmap_longmode_x2apic;
-static unsigned long *vmx_vmread_bitmap;
-static unsigned long *vmx_vmwrite_bitmap;
+enum {
+	VMX_IO_BITMAP_A,
+	VMX_IO_BITMAP_B,
+	VMX_MSR_BITMAP_LEGACY,
+	VMX_MSR_BITMAP_LONGMODE,
+	VMX_MSR_BITMAP_LEGACY_X2APIC_APICV,
+	VMX_MSR_BITMAP_LONGMODE_X2APIC_APICV,
+	VMX_MSR_BITMAP_LEGACY_X2APIC,
+	VMX_MSR_BITMAP_LONGMODE_X2APIC,
+	VMX_VMREAD_BITMAP,
+	VMX_VMWRITE_BITMAP,
+	VMX_BITMAP_NR
+};
+
+static unsigned long *vmx_bitmap[VMX_BITMAP_NR];
+
+#define vmx_io_bitmap_a                      (vmx_bitmap[VMX_IO_BITMAP_A])
+#define vmx_io_bitmap_b                      (vmx_bitmap[VMX_IO_BITMAP_B])
+#define vmx_msr_bitmap_legacy                (vmx_bitmap[VMX_MSR_BITMAP_LEGACY])
+#define vmx_msr_bitmap_longmode              (vmx_bitmap[VMX_MSR_BITMAP_LONGMODE])
+#define vmx_msr_bitmap_legacy_x2apic_apicv   (vmx_bitmap[VMX_MSR_BITMAP_LEGACY_X2APIC_APICV])
+#define vmx_msr_bitmap_longmode_x2apic_apicv (vmx_bitmap[VMX_MSR_BITMAP_LONGMODE_X2APIC_APICV])
+#define vmx_msr_bitmap_legacy_x2apic         (vmx_bitmap[VMX_MSR_BITMAP_LEGACY_X2APIC])
+#define vmx_msr_bitmap_longmode_x2apic       (vmx_bitmap[VMX_MSR_BITMAP_LONGMODE_X2APIC])
+#define vmx_vmread_bitmap                    (vmx_bitmap[VMX_VMREAD_BITMAP])
+#define vmx_vmwrite_bitmap                   (vmx_bitmap[VMX_VMWRITE_BITMAP])
 
 static bool cpu_has_load_ia32_efer;
 static bool cpu_has_load_perf_global_ctrl;
@@ -6287,50 +6303,13 @@ static __init int hardware_setup(void)
 	for (i = 0; i < ARRAY_SIZE(vmx_msr_index); ++i)
 		kvm_define_shared_msr(i, vmx_msr_index[i]);
 
-	vmx_io_bitmap_a = (unsigned long *)__get_free_page(GFP_KERNEL);
-	if (!vmx_io_bitmap_a)
-		return r;
+	for (i = 0; i < VMX_BITMAP_NR; i++) {
+		vmx_bitmap[i] = (unsigned long *)__get_free_page(GFP_KERNEL);
+		if (!vmx_bitmap[i])
+			goto out;
+	}
 
 	vmx_io_bitmap_b = (unsigned long *)__get_free_page(GFP_KERNEL);
-	if (!vmx_io_bitmap_b)
-		goto out;
-
-	vmx_msr_bitmap_legacy = (unsigned long *)__get_free_page(GFP_KERNEL);
-	if (!vmx_msr_bitmap_legacy)
-		goto out1;
-
-	vmx_msr_bitmap_legacy_x2apic_apicv =
-				(unsigned long *)__get_free_page(GFP_KERNEL);
-	if (!vmx_msr_bitmap_legacy_x2apic_apicv)
-		goto out2;
-
-	vmx_msr_bitmap_legacy_x2apic =
-				(unsigned long *)__get_free_page(GFP_KERNEL);
-	if (!vmx_msr_bitmap_legacy_x2apic)
-		goto out3;
-
-	vmx_msr_bitmap_longmode = (unsigned long *)__get_free_page(GFP_KERNEL);
-	if (!vmx_msr_bitmap_longmode)
-		goto out4;
-
-	vmx_msr_bitmap_longmode_x2apic_apicv =
-				(unsigned long *)__get_free_page(GFP_KERNEL);
-	if (!vmx_msr_bitmap_longmode_x2apic_apicv)
-		goto out5;
-
-	vmx_msr_bitmap_longmode_x2apic =
-				(unsigned long *)__get_free_page(GFP_KERNEL);
-	if (!vmx_msr_bitmap_longmode_x2apic)
-		goto out6;
-
-	vmx_vmread_bitmap = (unsigned long *)__get_free_page(GFP_KERNEL);
-	if (!vmx_vmread_bitmap)
-		goto out7;
-
-	vmx_vmwrite_bitmap = (unsigned long *)__get_free_page(GFP_KERNEL);
-	if (!vmx_vmwrite_bitmap)
-		goto out8;
-
 	memset(vmx_vmread_bitmap, 0xff, PAGE_SIZE);
 	memset(vmx_vmwrite_bitmap, 0xff, PAGE_SIZE);
 
@@ -6348,7 +6327,7 @@ static __init int hardware_setup(void)
 
 	if (setup_vmcs_config(&vmcs_config) < 0) {
 		r = -EIO;
-		goto out9;
+		goto out;
 	}
 
 	if (boot_cpu_has(X86_FEATURE_NX))
@@ -6485,42 +6464,19 @@ static __init int hardware_setup(void)
 
 	return alloc_kvm_area();
 
-out9:
-	free_page((unsigned long)vmx_vmwrite_bitmap);
-out8:
-	free_page((unsigned long)vmx_vmread_bitmap);
-out7:
-	free_page((unsigned long)vmx_msr_bitmap_longmode_x2apic);
-out6:
-	free_page((unsigned long)vmx_msr_bitmap_longmode_x2apic_apicv);
-out5:
-	free_page((unsigned long)vmx_msr_bitmap_longmode);
-out4:
-	free_page((unsigned long)vmx_msr_bitmap_legacy_x2apic);
-out3:
-	free_page((unsigned long)vmx_msr_bitmap_legacy_x2apic_apicv);
-out2:
-	free_page((unsigned long)vmx_msr_bitmap_legacy);
-out1:
-	free_page((unsigned long)vmx_io_bitmap_b);
 out:
-	free_page((unsigned long)vmx_io_bitmap_a);
+	for (i = 0; i < VMX_BITMAP_NR; i++)
+		free_page((unsigned long)vmx_bitmap[i]);
 
     return r;
 }
 
 static __exit void hardware_unsetup(void)
 {
-	free_page((unsigned long)vmx_msr_bitmap_legacy_x2apic_apicv);
-	free_page((unsigned long)vmx_msr_bitmap_legacy_x2apic);
-	free_page((unsigned long)vmx_msr_bitmap_longmode_x2apic_apicv);
-	free_page((unsigned long)vmx_msr_bitmap_longmode_x2apic);
-	free_page((unsigned long)vmx_msr_bitmap_legacy);
-	free_page((unsigned long)vmx_msr_bitmap_longmode);
-	free_page((unsigned long)vmx_io_bitmap_b);
-	free_page((unsigned long)vmx_io_bitmap_a);
-	free_page((unsigned long)vmx_vmwrite_bitmap);
-	free_page((unsigned long)vmx_vmread_bitmap);
+	int i;
+
+	for (i = 0; i < VMX_BITMAP_NR; i++)
+		free_page((unsigned long)vmx_bitmap[i]);
 
 	free_kvm_area();
 }
