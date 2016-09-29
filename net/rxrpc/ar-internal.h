@@ -603,7 +603,6 @@ enum rxrpc_skb_trace {
 	rxrpc_skb_tx_cleaned,
 	rxrpc_skb_tx_freed,
 	rxrpc_skb_tx_got,
-	rxrpc_skb_tx_lost,
 	rxrpc_skb_tx_new,
 	rxrpc_skb_tx_rotated,
 	rxrpc_skb_tx_seen,
@@ -1073,7 +1072,7 @@ extern const s8 rxrpc_ack_priority[];
  * output.c
  */
 int rxrpc_send_call_packet(struct rxrpc_call *, u8);
-int rxrpc_send_data_packet(struct rxrpc_call *, struct sk_buff *);
+int rxrpc_send_data_packet(struct rxrpc_call *, struct sk_buff *, bool);
 void rxrpc_reject_packets(struct rxrpc_local *);
 
 /*

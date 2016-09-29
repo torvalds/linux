@@ -258,15 +258,16 @@ TRACE_EVENT(rxrpc_rx_ack,
 
 TRACE_EVENT(rxrpc_tx_data,
 	    TP_PROTO(struct rxrpc_call *call, rxrpc_seq_t seq,
-		     rxrpc_serial_t serial, u8 flags, bool lose),
+		     rxrpc_serial_t serial, u8 flags, bool retrans, bool lose),
 
-	    TP_ARGS(call, seq, serial, flags, lose),
+	    TP_ARGS(call, seq, serial, flags, retrans, lose),
 
 	    TP_STRUCT__entry(
 		    __field(struct rxrpc_call *,	call		)
 		    __field(rxrpc_seq_t,		seq		)
 		    __field(rxrpc_serial_t,		serial		)
 		    __field(u8,				flags		)
+		    __field(bool,			retrans		)
 		    __field(bool,			lose		)
 			     ),
 
@@ -275,6 +276,7 @@ TRACE_EVENT(rxrpc_tx_data,
 		    __entry->seq = seq;
 		    __entry->serial = serial;
 		    __entry->flags = flags;
+		    __entry->retrans = retrans;
 		    __entry->lose = lose;
 			   ),
 

@@ -77,14 +77,9 @@ void rxrpc_lose_skb(struct sk_buff *skb, enum rxrpc_skb_trace op)
 	if (skb) {
 		int n;
 		CHECK_SLAB_OKAY(&skb->users);
-		if (op == rxrpc_skb_tx_lost) {
-			n = atomic_read(select_skb_count(op));
-			trace_rxrpc_skb(skb, op, atomic_read(&skb->users), n, here);
-		} else {
-			n = atomic_dec_return(select_skb_count(op));
-			trace_rxrpc_skb(skb, op, atomic_read(&skb->users), n, here);
-			kfree_skb(skb);
-		}
+		n = atomic_dec_return(select_skb_count(op));
+		trace_rxrpc_skb(skb, op, atomic_read(&skb->users), n, here);
+		kfree_skb(skb);
 	}
 }
 

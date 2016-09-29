@@ -108,7 +108,6 @@ const char rxrpc_skb_traces[rxrpc_skb__nr_trace][7] = {
 	[rxrpc_skb_tx_cleaned]		= "Tx CLN",
 	[rxrpc_skb_tx_freed]		= "Tx FRE",
 	[rxrpc_skb_tx_got]		= "Tx GOT",
-	[rxrpc_skb_tx_lost]		= "Tx *L*",
 	[rxrpc_skb_tx_new]		= "Tx NEW",
 	[rxrpc_skb_tx_rotated]		= "Tx ROT",
 	[rxrpc_skb_tx_seen]		= "Tx SEE",

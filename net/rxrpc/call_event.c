@@ -256,7 +256,7 @@ static void rxrpc_resend(struct rxrpc_call *call)
 		rxrpc_get_skb(skb, rxrpc_skb_tx_got);
 		spin_unlock_bh(&call->lock);
 
-		if (rxrpc_send_data_packet(call, skb) < 0) {
+		if (rxrpc_send_data_packet(call, skb, true) < 0) {
 			rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
 			return;
 		}
