@@ -1442,6 +1442,7 @@ F:	drivers/cpufreq/mvebu-cpufreq.c
 F:	arch/arm/configs/mvebu_*_defconfig
 
 ARM/Marvell Berlin SoC support
+M:	Jisheng Zhang <jszhang@marvell.com>
 M:	Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
