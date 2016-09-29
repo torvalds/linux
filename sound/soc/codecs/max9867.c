@@ -38,11 +38,10 @@ static DECLARE_TLV_DB_SCALE(max9860_capture_tlv, -600, 200, 0);
 static DECLARE_TLV_DB_SCALE(max9860_mic_tlv, 2000, 100, 1);
 static DECLARE_TLV_DB_SCALE(max9860_adc_left_tlv, -1200, 100, 1);
 static DECLARE_TLV_DB_SCALE(max9860_adc_right_tlv, -1200, 100, 1);
-static const unsigned int max98088_micboost_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const SNDRV_CTL_TLVD_DECLARE_DB_RANGE(max98088_micboost_tlv,
 	0, 1, TLV_DB_SCALE_ITEM(0, 2000, 0),
 	2, 2, TLV_DB_SCALE_ITEM(3000, 0, 0),
-};
+);
 
 static const struct snd_kcontrol_new max9867_snd_controls[] = {
 	SOC_DOUBLE_R("Master Playback Volume", MAX9867_LEFTVOL,
