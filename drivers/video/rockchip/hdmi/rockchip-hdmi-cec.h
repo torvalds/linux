@@ -1,9 +1,10 @@
 #ifndef __ROCKCHIP_HDMI_CEC_H__
 #define __ROCKCHIP_HDMI_CEC_H__
-#include "rockchip-hdmi.h"
 
 #include <linux/input.h>
 #include <linux/miscdevice.h>
+#include "rockchip-hdmi.h"
+
 enum {
 	CEC_LOGADDR_TV          = 0x00,
 	CEC_LOGADDR_RECDEV1     = 0x01,
@@ -169,13 +170,6 @@ struct cec_device {
 	void (*setceclogicaddr)(struct hdmi *, int);
 };
 
-#ifdef DEBUG
-#define CECDBG(format, ...) \
-		pr_info(format, ## __VA_ARGS__)
-#else
-#define CECDBG(format, ...)
-#endif
-/* for HAL ioctl*/
 #define HDMI_CEC_MAGIC     'N'
 #define HDMI_IOCTL_CECSEND   _IOW(HDMI_CEC_MAGIC, 0, struct cec_framedata)
 #define HDMI_IOCTL_CECENAB   _IOW(HDMI_CEC_MAGIC, 1, int)

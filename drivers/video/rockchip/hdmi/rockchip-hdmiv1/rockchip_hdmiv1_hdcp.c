@@ -100,7 +100,7 @@ static int rockchip_hdmiv1_hdcp_key_check(struct hdcp_keys *key)
 {
 	int i = 0;
 
-	DBG("HDCP: check hdcp key\n");
+	HDMIDBG(3, "HDCP: check hdcp key\n");
 	/*check 40 private key */
 	for (i = 0; i < HDCP_PRIVATE_KEY_SIZE; i++) {
 		if (key->devicekey[i] != 0x00)
@@ -125,7 +125,7 @@ static int rockchip_hdmiv1_hdcp_load_key2mem(void)
 		return -1;
 	hdmi_dev = hdcp->hdmi_dev;
 	key = hdcp->keys;
-	DBG("HDCP: rockchip_hdmiv1_hdcp_load_key2mem start\n");
+	HDMIDBG(3, "HDCP: rockchip_hdmiv1_hdcp_load_key2mem start\n");
 	/* Write 40 private key*/
 	for (i = 0; i < HDCP_PRIVATE_KEY_SIZE; i++)
 		hdmi_writel(hdmi_dev, HDCP_KEY_FIFO, key->devicekey[i]);
@@ -135,7 +135,7 @@ static int rockchip_hdmiv1_hdcp_load_key2mem(void)
 	/* Write 2nd aksv*/
 	for (i = 0; i < 5; i++)
 		hdmi_writel(hdmi_dev, HDCP_KEY_FIFO, key->ksv[i]);
-	DBG("HDCP: rockchip_hdmiv1_hdcp_load_key2mem end\n");
+	HDMIDBG(3, "HDCP: rockchip_hdmiv1_hdcp_load_key2mem end\n");
 	return HDCP_OK;
 }
 
@@ -278,7 +278,7 @@ static struct delayed_work *hdcp_submit_work(int event, int delay)
 {
 	struct hdcp_delayed_work *work;
 
-	DBG("%s event %04x delay %d\n", __func__, event, delay);
+	HDMIDBG(3, "%s event %04x delay %d\n", __func__, event, delay);
 	work = kmalloc(sizeof(*work), GFP_ATOMIC);
 
 	if (work) {
@@ -358,7 +358,7 @@ static void hdcp_wq_authentication_failure(void)
 		hdcp->hdcp_state = HDCP_AUTHENTICATION_START;
 
 		if (hdcp->auth_state == 1 && timer_state == 0) {
-			DBG("add auth timer\n");
+			HDMIDBG(3, "add auth timer\n");
 			hdcp->auth_state = 0;
 			hdcp->retry_cnt = HDCP_INFINITE_REAUTH;
 			auth_timer.expires = jiffies + AUTH_TIMEOUT;
@@ -373,7 +373,7 @@ static void hdcp_wq_authentication_failure(void)
 		hdcp->hdcp_state = HDCP_ENABLE_PENDING;
 
 		if (timer_state == 1) {
-			DBG("delete auth timer\n");
+			HDMIDBG(3, "delete auth timer\n");
 			del_timer_sync(&auth_timer);
 			timer_state = 0;
 		}
@@ -389,10 +389,10 @@ static void hdcp_wq_start_authentication(void)
 	int status = HDCP_OK;
 
 	hdcp->hdcp_state = HDCP_AUTHENTICATION_START;
-	DBG("HDCP: authentication start\n");
+	HDMIDBG(3, "HDCP: authentication start\n");
 	status = rockchip_hdmiv1_hdcp_start_authentication(hdcp->hdmi_dev);
 	if (status != HDCP_OK) {
-		DBG("HDCP: authentication failed\n");
+		HDMIDBG(3, "HDCP: authentication failed\n");
 		hdcp_wq_authentication_failure();
 	} else {
 		/*hdcp->hdcp_state = HDCP_WAIT_KSV_LIST;*/
@@ -434,7 +434,7 @@ static void hdcp_wq_authentication_success(void)
 {
 	hdcp->auth_state = 1;
 	if (timer_state == 1) {
-		DBG("delete auth timer\n");
+		HDMIDBG(3, "delete auth timer\n");
 		timer_state = 0;
 		del_timer_sync(&auth_timer);
 	}
@@ -473,12 +473,13 @@ static void hdcp_work_queue(struct work_struct *work)
 	int event = hdcp_w->event;
 
 	mutex_lock(&hdcp->lock);
-	DBG("hdcp_work_queue() - START - %u hdmi=%d hdcp=%d evt= %x %d\n",
-	    jiffies_to_msecs(jiffies),
-	    hdcp->hdmi_state,
-	    hdcp->hdcp_state,
-	    (event & 0xFF00) >> 8,
-	    event & 0xFF);
+	HDMIDBG(3, "%s - START - %u hdmi=%d hdcp=%d evt= %x %d\n",
+		__func__,
+		jiffies_to_msecs(jiffies),
+		hdcp->hdmi_state,
+		hdcp->hdcp_state,
+		(event & 0xFF00) >> 8,
+		event & 0xFF);
 
 	if (event == HDCP_STOP_FRAME_EVENT)
 		hdcp->hdmi_state = HDMI_STOPPED;
@@ -559,7 +560,7 @@ static void hdcp_work_queue(struct work_struct *work)
  */
 static void hdcp_start_frame_cb(struct hdmi *hdmi)
 {
-	DBG("hdcp_start_frame_cb()\n");
+	HDMIDBG(3, "hdcp_start_frame_cb()\n");
 
 	/* Cancel any pending work */
 	if (hdcp->pending_start)
@@ -568,7 +569,7 @@ static void hdcp_start_frame_cb(struct hdmi *hdmi)
 		hdcp_cancel_work(&hdcp->pending_wq_event);
 
 	if (timer_state == 0) {
-		DBG("add auth timer\n");
+		HDMIDBG(3, "add auth timer\n");
 		auth_timer.expires = jiffies + AUTH_TIMEOUT;
 		add_timer(&auth_timer);
 		timer_state = 1;
@@ -591,7 +592,7 @@ static void hdcp_irq_cb(int status)
 	rockchip_hdmiv1_hdcp_interrupt(hdcp->hdmi_dev,
 				       &interrupt1,
 				       &interrupt2);
-	DBG("%s 0x%02x 0x%02x\n", __func__, interrupt1, interrupt2);
+	HDMIDBG(3, "%s 0x%02x 0x%02x\n", __func__, interrupt1, interrupt2);
 	if (interrupt1 & m_INT_HDCP_ERR) {
 		if ((hdcp->hdcp_state != HDCP_DISABLED) &&
 		    (hdcp->hdcp_state != HDCP_ENABLE_PENDING))
@@ -611,7 +612,7 @@ static void hdcp_irq_cb(int status)
  */
 static int hdcp_power_on_cb(void)
 {
-	DBG("%s", __func__);
+	HDMIDBG(3, "%s", __func__);
 	return rockchip_hdmiv1_hdcp_load_key2mem();
 }
 
@@ -623,9 +624,9 @@ static void hdcp_power_off_cb(struct hdmi *hdmi)
 {
 	unsigned int time;
 
-	DBG("%s\n", __func__);
+	HDMIDBG(3, "%s\n", __func__);
 	if (timer_state == 1) {
-		DBG("delete auth timer\n");
+		HDMIDBG(3, "delete auth timer\n");
 		timer_state = 0;
 		del_timer_sync(&auth_timer);
 	}
@@ -664,8 +665,8 @@ static void hdcp_load_keys_cb(const struct firmware *fw, void *context)
 	HDCP_WARN("HDCP: load hdcp key success\n");
 
 	if (fw->size > HDCP_KEY_SIZE) {
-		DBG("%s invalid key size %d\n", __func__,
-		    (int)fw->size - HDCP_KEY_SIZE);
+		HDMIDBG(3, "%s invalid key size %d\n", __func__,
+			(int)fw->size - HDCP_KEY_SIZE);
 		if ((fw->size - HDCP_KEY_SIZE) % 5) {
 			pr_err("HDCP: failed to load invalid keys\n");
 			return;
@@ -759,7 +760,7 @@ int rockchip_hdmiv1_hdcp_init(struct hdmi *hdmi)
 {
 	int ret;
 
-	DBG("[%s]\n", __func__);
+	HDMIDBG(3, "[%s]\n", __func__);
 	if (hdcp)
 		return 0;
 
@@ -813,7 +814,7 @@ int rockchip_hdmiv1_hdcp_init(struct hdmi *hdmi)
 	init_timer(&auth_timer);
 	auth_timer.data = 0;
 	auth_timer.function = auth_timer_func;
-	DBG("%s success\n", __func__);
+	HDMIDBG(3, "%s success\n", __func__);
 	return 0;
 error5:
 	destroy_workqueue(hdcp->workqueue);

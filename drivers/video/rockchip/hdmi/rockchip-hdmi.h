@@ -536,12 +536,12 @@ struct hdmi {
 #define HDMI_AUDIO_DEFAULT_RATE			HDMI_AUDIO_FS_44100
 #define HDMI_AUDIO_DEFAULT_WORDLENGTH	HDMI_AUDIO_WORD_LENGTH_16bit
 
-#ifdef DEBUG
-#define DBG(format, ...) \
-		pr_info(format, ## __VA_ARGS__)
-#else
-#define DBG(format, ...)
-#endif
+
+extern int hdmi_dbg_level;
+#define HDMIDBG(x, format, ...) do {			\
+	if (unlikely(hdmi_dbg_level >= x))	\
+		pr_info(format, ## __VA_ARGS__); \
+			} while (0)
 
 struct hdmi *rockchip_hdmi_register(struct hdmi_property *property,
 				    struct hdmi_ops *ops);

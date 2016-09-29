@@ -25,8 +25,8 @@ void hdmi_submit_work(struct hdmi *hdmi,
 {
 	struct hdmi_delayed_work *work;
 
-	DBG("%s event %04x delay %d sync %d\n",
-	    __func__, event, delay, sync);
+	HDMIDBG(2, "%s event %04x delay %d sync %d\n",
+		__func__, event, delay, sync);
 
 	work = kmalloc(sizeof(*work), GFP_ATOMIC);
 
@@ -64,14 +64,14 @@ static void hdmi_send_uevent(struct hdmi *hdmi, int uevent)
 
 static inline void hdmi_wq_set_output(struct hdmi *hdmi, int mute)
 {
-	DBG("%s mute %d\n", __func__, mute);
+	HDMIDBG(2, "%s mute %d\n", __func__, mute);
 	if (hdmi->ops->setmute)
 		hdmi->ops->setmute(hdmi, mute);
 }
 
 static inline void hdmi_wq_set_audio(struct hdmi *hdmi)
 {
-	DBG("%s\n", __func__);
+	HDMIDBG(2, "%s\n", __func__);
 	if (hdmi->ops->setaudio)
 		hdmi->ops->setaudio(hdmi, &hdmi->audio);
 }
@@ -81,7 +81,7 @@ static void hdmi_wq_set_video(struct hdmi *hdmi)
 	struct hdmi_video *video = &hdmi->video;
 	int	deepcolor;
 
-	DBG("%s\n", __func__);
+	HDMIDBG(2, "%s\n", __func__);
 
 	video->sink_hdmi = hdmi->edid.sink_hdmi;
 	video->format_3d = hdmi->mode_3d;
@@ -164,7 +164,7 @@ static void hdmi_wq_parse_edid(struct hdmi *hdmi)
 	if (!hdmi)
 		return;
 
-	DBG("%s\n", __func__);
+	HDMIDBG(2, "%s\n", __func__);
 
 	pedid = &hdmi->edid;
 	fb_destroy_modelist(&pedid->modelist);
@@ -246,7 +246,7 @@ out:
 
 static void hdmi_wq_insert(struct hdmi *hdmi)
 {
-	DBG("%s\n", __func__);
+	HDMIDBG(2, "%s\n", __func__);
 	if (hdmi->ops->insert)
 		hdmi->ops->insert(hdmi);
 	hdmi_wq_parse_edid(hdmi);
@@ -275,7 +275,7 @@ static void hdmi_wq_remove(struct hdmi *hdmi)
 	struct rk_screen screen;
 	int i;
 
-	DBG("%s\n", __func__);
+	HDMIDBG(2, "%s\n", __func__);
 	if (hdmi->ops->remove)
 		hdmi->ops->remove(hdmi);
 	if (hdmi->property->feature & SUPPORT_CEC)
@@ -317,9 +317,8 @@ static void hdmi_work_queue(struct work_struct *work)
 
 	mutex_lock(&hdmi->ddev->lock);
 
-	DBG("\nhdmi_work_queue() - evt= %x %d\n",
-	    (event & 0xFF00) >> 8,
-	    event & 0xFF);
+	HDMIDBG(2, "\nhdmi_work_queue() - evt= %x %d\n",
+		(event & 0xFF00) >> 8, event & 0xFF);
 
 	if ((!hdmi->enable || hdmi->sleep) &&
 	    (event != HDMI_ENABLE_CTL) &&
@@ -377,8 +376,8 @@ static void hdmi_work_queue(struct work_struct *work)
 	case HDMI_HPD_CHANGE:
 		if (hdmi->ops->getstatus)
 			hpd = hdmi->ops->getstatus(hdmi);
-		DBG("hdmi_work_queue() - hpd is %d hotplug is %d\n",
-		    hpd, hdmi->hotplug);
+		HDMIDBG(2, "hdmi_work_queue() - hpd is %d hotplug is %d\n",
+			hpd, hdmi->hotplug);
 		if (hpd != hdmi->hotplug) {
 			if (hpd == HDMI_HPD_ACTIVED) {
 				hdmi->hotplug = hpd;
@@ -467,9 +466,8 @@ exit:
 	if (!hdmi_w->sync)
 		kfree(hdmi_w);
 
-	DBG("\nhdmi_work_queue() - exit evt= %x %d\n",
-	    (event & 0xFF00) >> 8,
-	    event & 0xFF);
+	HDMIDBG(2, "\nhdmi_work_queue() - exit evt= %x %d\n",
+		(event & 0xFF00) >> 8, event & 0xFF);
 	mutex_unlock(&hdmi->ddev->lock);
 }
 
@@ -492,8 +490,8 @@ struct hdmi *rockchip_hdmi_register(struct hdmi_property *property,
 	if (i == HDMI_MAX_ID)
 		return NULL;
 
-	DBG("hdmi_register() - video source %d display %d\n",
-	    property->videosrc,  property->display);
+	HDMIDBG(2, "hdmi_register() - video source %d display %d\n",
+		property->videosrc,  property->display);
 
 	hdmi = kmalloc(sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi)

@@ -24,7 +24,7 @@ static int rockchip_hdmiv1_cec_read_frame(struct hdmi *hdmi,
 	hdmi_readl(hdmi_dev, CEC_RX_LENGTH, &length);
 	hdmi_writel(hdmi_dev, CEC_RX_OFFSET, 0);
 
-	CECDBG("CEC: %s length is %d\n", __func__, length);
+	HDMIDBG(1, "CEC: %s length is %d\n", __func__, length);
 	for (i = 0; i < length; i++) {
 		hdmi_readl(hdmi_dev, CEC_DATA, &val);
 		data[i] = val;
@@ -39,14 +39,14 @@ static int rockchip_hdmiv1_cec_send_frame(struct hdmi *hdmi,
 	int i;
 	struct hdmi_dev *hdmi_dev = hdmi->property->priv;
 
-	CECDBG("CEC: TX srcdestaddr %x opcode %x ",
-	       frame->srcdestaddr, frame->opcode);
+	HDMIDBG(1, "CEC: TX srcdestaddr %x opcode %x ",
+		frame->srcdestaddr, frame->opcode);
 	if (frame->argcount) {
-		DBG("args:");
+		HDMIDBG(1, "args:");
 		for (i = 0; i < frame->argcount; i++)
-			DBG("%02x ", frame->args[i]);
+			HDMIDBG(1, "%02x ", frame->args[i]);
 	}
-	CECDBG("\n");
+	HDMIDBG(1, "\n");
 
 	hdmi_writel(hdmi_dev, CEC_TX_OFFSET, 0);
 	hdmi_writel(hdmi_dev, CEC_DATA, frame->srcdestaddr);
@@ -60,13 +60,13 @@ static int rockchip_hdmiv1_cec_send_frame(struct hdmi *hdmi,
 	/*Wait for bus free*/
 	cec.busfree = 1;
 	hdmi_writel(hdmi_dev, CEC_CTRL, m_BUSFREETIME_ENABLE);
-	CECDBG("start wait bus free\n");
+	HDMIDBG(1, "start wait bus free\n");
 	if (wait_event_interruptible_timeout(cec.wait,
 					     cec.busfree == 0,
 					     msecs_to_jiffies(17)))
 		return CEC_SEND_BUSY;
 
-	CECDBG("end wait bus free,start tx,busfree=%d\n", cec.busfree);
+	HDMIDBG(1, "end wait bus free,start tx,busfree=%d\n", cec.busfree);
 	/*Start TX*/
 	cec.tx_done = 0;
 	hdmi_writel(hdmi_dev, CEC_CTRL, m_BUSFREETIME_ENABLE | m_START_TX);
@@ -74,7 +74,7 @@ static int rockchip_hdmiv1_cec_send_frame(struct hdmi *hdmi,
 					     cec.tx_done != 0,
 					     msecs_to_jiffies(100)))
 		hdmi_writel(hdmi_dev, CEC_CTRL, 0);
-	CECDBG("end tx,tx_done=%d\n", cec.tx_done);
+	HDMIDBG(1, "end tx,tx_done=%d\n", cec.tx_done);
 
 	if (cec.tx_done == 1) {
 		cec.tx_done = 0;
@@ -88,7 +88,7 @@ void rockchip_hdmiv1_cec_setcecla(struct hdmi *hdmi, int ceclgaddr)
 {
 	struct hdmi_dev *hdmi_dev = hdmi->property->priv;
 
-	CECDBG("CEC: %s\n", __func__);
+	HDMIDBG(1, "CEC: %s\n", __func__);
 	hdmi_writel(hdmi_dev, CEC_LOGICADDR, ceclgaddr);
 }
 
@@ -99,21 +99,21 @@ void rockchip_hdmiv1_cec_isr(struct hdmi_dev *hdmi_dev)
 	hdmi_readl(hdmi_dev, CEC_TX_INT, &tx_isr);
 	hdmi_readl(hdmi_dev, CEC_RX_INT, &rx_isr);
 
-	CECDBG("CEC: rockchip_hdmiv1_cec_isr:tx_isr %02x  rx_isr %02x\n\n",
-	       tx_isr, rx_isr);
+	HDMIDBG(1, "CEC: rockchip_hdmiv1_cec_isr:tx_isr %02x  rx_isr %02x\n\n",
+		tx_isr, rx_isr);
 
 	hdmi_writel(hdmi_dev, CEC_TX_INT, tx_isr);
 	hdmi_writel(hdmi_dev, CEC_RX_INT, rx_isr);
 
 	if (tx_isr & m_TX_BUSNOTFREE) {
 		cec.busfree = 0;
-		CECDBG("CEC: m_TX_BUSNOTFREE,busfree=%d\n", cec.busfree);
+		HDMIDBG(1, "CEC: m_TX_BUSNOTFREE,busfree=%d\n", cec.busfree);
 	} else if (tx_isr & m_TX_DONE) {
 		cec.tx_done = 1;
-		CECDBG("CEC: m_TX_DONE,busfree=%d\n", cec.tx_done);
+		HDMIDBG(1, "CEC: m_TX_DONE,busfree=%d\n", cec.tx_done);
 	} else {
 		cec.tx_done = -1;
-		CECDBG("CEC: else:busfree=%d\n", cec.tx_done);
+		HDMIDBG(1, "CEC: else:busfree=%d\n", cec.tx_done);
 	}
 
 	wake_up_interruptible_all(&cec.wait);
@@ -139,7 +139,7 @@ void rockchip_hdmiv1_cec_init(struct hdmi *hdmi)
 		hdmi_writel(hdmi_dev, CEC_TX_INT, 0xFF);
 		hdmi_writel(hdmi_dev, CEC_RX_INT, 0xFF);
 
-		CECDBG(KERN_ERR "CEC: rockchip_hdmiv1_cec_init success\n");
+		HDMIDBG(1, "CEC: rockchip_hdmiv1_cec_init sucess\n");
 		rockchip_hdmi_cec_init(hdmi,
 				       rockchip_hdmiv1_cec_send_frame,
 				       rockchip_hdmiv1_cec_read_frame,
@@ -147,6 +147,6 @@ void rockchip_hdmiv1_cec_init(struct hdmi *hdmi)
 		init = 0;
 		init_waitqueue_head(&cec.wait);
 	}
-	CECDBG("%s", __func__);
+	HDMIDBG(1, "%s", __func__);
 }
 

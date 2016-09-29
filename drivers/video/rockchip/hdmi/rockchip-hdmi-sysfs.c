@@ -2,7 +2,11 @@
 #include <linux/string.h>
 #include <linux/display-sys.h>
 #include <linux/interrupt.h>
+#include <linux/moduleparam.h>
 #include "rockchip-hdmi.h"
+
+int hdmi_dbg_level;
+module_param(hdmi_dbg_level, int, S_IRUGO | S_IWUSR);
 
 static int hdmi_get_enable(struct rk_display_device *device)
 {

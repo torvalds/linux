@@ -430,7 +430,7 @@ static int rockchip_hdmiv1_config_vsi(struct hdmi *hdmi,
 	char info[SIZE_VSI_INFOFRAME];
 	int i;
 
-	DBG("[%s] vic_3d %d format %d.\n", __func__, vic_3d, format);
+	HDMIDBG(2, "[%s] vic_3d %d format %d.\n", __func__, vic_3d, format);
 	memset(info, 0, SIZE_VSI_INFOFRAME);
 	hdmi_msk_reg(hdmi_dev, PACKET_SEND_AUTO,
 		     m_PACKET_VSI_EN, v_PACKET_VSI_EN(0));

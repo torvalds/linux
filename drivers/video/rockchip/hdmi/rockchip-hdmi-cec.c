@@ -82,7 +82,7 @@ void rockchip_hdmi_cec_submit_work(int event, int delay, void *data)
 {
 	struct cec_delayed_work *work;
 
-	CECDBG("%s event %04x delay %d\n", __func__, event, delay);
+	HDMIDBG(1, "%s event %04x delay %d\n", __func__, event, delay);
 
 	if (!cec_dev)
 		return;
@@ -97,7 +97,7 @@ void rockchip_hdmi_cec_submit_work(int event, int delay, void *data)
 				   &work->work,
 				   msecs_to_jiffies(delay));
 	} else {
-		CECDBG(KERN_WARNING "CEC: Cannot allocate memory\n");
+		HDMIDBG(1, "CEC: Cannot allocate memory\n");
 	}
 }
 

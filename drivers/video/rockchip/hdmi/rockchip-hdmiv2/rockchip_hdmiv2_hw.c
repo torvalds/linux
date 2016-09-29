@@ -375,7 +375,7 @@ static void rockchip_hdmiv2_scdc_set_tmds_rate(struct hdmi_dev *hdmi_dev)
 static int rockchip_hdmiv2_scrambling_enable(struct hdmi_dev *hdmi_dev,
 					     int enable)
 {
-	HDMIDBG("%s enable %d\n", __func__, enable);
+	HDMIDBG(2, "%s enable %d\n", __func__, enable);
 	if (enable == 1) {
 		/* Write on Rx the bit Scrambling_Enable, register 0x20 */
 		rockchip_hdmiv2_i2cm_write_data(hdmi_dev, 1, SCDC_TMDS_CONFIG);
@@ -406,7 +406,7 @@ static const struct ext_pll_config_tab *get_phy_ext_tab(
 
 	if (pixclock == 0)
 		return NULL;
-	HDMIDBG("%s pixClock %u tmdsclk %u colorDepth %d\n",
+	HDMIDBG(2, "%s pixClock %u tmdsclk %u colorDepth %d\n",
 		__func__, pixclock, tmdsclk, colordepth);
 	for (i = 0; i < ARRAY_SIZE(EXT_PLL_TABLE); i++) {
 		if ((EXT_PLL_TABLE[i].pix_clock == pixclock) &&
@@ -425,7 +425,7 @@ static const struct phy_mpll_config_tab *get_phy_mpll_tab(
 
 	if (pixclock == 0)
 		return NULL;
-	HDMIDBG("%s pixClock %u tmdsclk %u pixRepet %d colorDepth %d\n",
+	HDMIDBG(2, "%s pixClock %u tmdsclk %u pixRepet %d colorDepth %d\n",
 		__func__, pixclock, tmdsclk, pixrepet, colordepth);
 	for (i = 0; i < ARRAY_SIZE(PHY_MPLL_TABLE); i++) {
 		if ((PHY_MPLL_TABLE[i].pix_clock == pixclock) &&
@@ -1388,7 +1388,7 @@ static int hdmi_dev_detect_hotplug(struct hdmi *hdmi)
 	u32 value;
 
 	value = hdmi_readl(hdmi_dev, PHY_STAT0);
-	HDMIDBG("[%s] reg%x value %02x\n", __func__, PHY_STAT0, value);
+	HDMIDBG(2, "[%s] reg%x value %02x\n", __func__, PHY_STAT0, value);
 	if (value & m_PHY_HPD)
 		return HDMI_HPD_ACTIVED;
 
@@ -1402,7 +1402,7 @@ static int hdmi_dev_read_edid(struct hdmi *hdmi, int block, unsigned char *buff)
 	int offset = (block % 2) * 0x80;
 	int interrupt = 0;
 
-	HDMIDBG("[%s] block %d\n", __func__, block);
+	HDMIDBG(2, "[%s] block %d\n", __func__, block);
 
 	rockchip_hdmiv2_i2cm_reset(hdmi_dev);
 
@@ -1563,7 +1563,7 @@ static int hdmi_dev_config_vsi(struct hdmi *hdmi,
 
 	struct hdmi_dev *hdmi_dev = hdmi->property->priv;
 
-	HDMIDBG("[%s] vic %d format %d.\n", __func__, vic_3d, format);
+	HDMIDBG(2, "[%s] vic %d format %d.\n", __func__, vic_3d, format);
 
 	hdmi_msk_reg(hdmi_dev, FC_DATAUTO0, m_VSD_AUTO, v_VSD_AUTO(0));
 	hdmi_writel(hdmi_dev, FC_VSDIEEEID2, id & 0xff);
@@ -1634,7 +1634,7 @@ static int hdmi_dev_config_video(struct hdmi *hdmi, struct hdmi_video *vpara)
 {
 	struct hdmi_dev *hdmi_dev = hdmi->property->priv;
 
-	HDMIDBG("%s vic %d 3dformat %d color mode %d color depth %d\n",
+	HDMIDBG(2, "%s vic %d 3dformat %d color mode %d color depth %d\n",
 		__func__, vpara->vic, vpara->format_3d,
 		vpara->color_output, vpara->color_output_depth);
 
@@ -1751,7 +1751,7 @@ static int hdmi_dev_config_audio(struct hdmi *hdmi, struct hdmi_audio *audio)
 	int rate = 0;
 	char design_id;
 
-	HDMIDBG("%s\n", __func__);
+	HDMIDBG(2, "%s\n", __func__);
 
 	if (audio->channel < 3)
 		channel = I2S_CHANNEL_1_2;
@@ -1868,7 +1868,7 @@ static int hdmi_dev_config_audio(struct hdmi *hdmi, struct hdmi_audio *audio)
 		word_length = I2S_16BIT_SAMPLE;
 	}
 
-	HDMIDBG("rate = %d, tmdsclk = %u, N = %d, CTS = %d\n",
+	HDMIDBG(2, "rate = %d, tmdsclk = %u, N = %d, CTS = %d\n",
 		audio->rate, hdmi_dev->tmdsclk, N, CTS);
 	/* more than 2 channels => layout 1 else layout 0 */
 	hdmi_msk_reg(hdmi_dev, FC_AUDSCONF,
@@ -1918,7 +1918,7 @@ static int hdmi_dev_config_audio(struct hdmi *hdmi, struct hdmi_audio *audio)
 		 */
 		if (audio->type == HDMI_AUDIO_NLPCM) {
 			if (channel == I2S_CHANNEL_7_8) {
-				HDMIDBG("hbr mode.\n");
+				HDMIDBG(2, "hbr mode.\n");
 				hdmi_writel(hdmi_dev, AUD_CONF2, 0x1);
 				word_length = I2S_24BIT_SAMPLE;
 			} else if ((audio->rate == HDMI_AUDIO_FS_32000) ||
@@ -1926,7 +1926,7 @@ static int hdmi_dev_config_audio(struct hdmi *hdmi, struct hdmi_audio *audio)
 				   (audio->rate == HDMI_AUDIO_FS_48000) ||
 				   (audio->rate == HDMI_AUDIO_FS_176400) ||
 				   (audio->rate == HDMI_AUDIO_FS_192000)) {
-				HDMIDBG("nlpcm mode.\n");
+				HDMIDBG(2, "nlpcm mode.\n");
 				hdmi_writel(hdmi_dev, AUD_CONF2, 0x2);
 				word_length = I2S_24BIT_SAMPLE;
 			} else {
@@ -1982,7 +1982,7 @@ static int hdmi_dev_control_output(struct hdmi *hdmi, int enable)
 	struct hdmi_dev *hdmi_dev = hdmi->property->priv;
 	struct hdmi_video vpara;
 
-	HDMIDBG("[%s] %d\n", __func__, enable);
+	HDMIDBG(2, "[%s] %d\n", __func__, enable);
 	if (enable == HDMI_AV_UNMUTE) {
 		hdmi_writel(hdmi_dev, FC_DBGFORCE, 0x00);
 		if (hdmi->edid.sink_hdmi == OUTPUT_HDMI)
@@ -2027,7 +2027,7 @@ static int hdmi_dev_insert(struct hdmi *hdmi)
 {
 	struct hdmi_dev *hdmi_dev = hdmi->property->priv;
 
-	HDMIDBG("%s\n", __func__);
+	HDMIDBG(2, "%s\n", __func__);
 	if (!hdmi->uboot)
 		hdmi_writel(hdmi_dev, MC_CLKDIS, m_HDCPCLK_DISABLE);
 	return HDMI_ERROR_SUCCESS;
@@ -2037,7 +2037,7 @@ static int hdmi_dev_remove(struct hdmi *hdmi)
 {
 	struct hdmi_dev *hdmi_dev = hdmi->property->priv;
 
-	HDMIDBG("%s\n", __func__);
+	HDMIDBG(2, "%s\n", __func__);
 	if (hdmi->ops->hdcp_power_off_cb)
 		hdmi->ops->hdcp_power_off_cb(hdmi);
 	rockchip_hdmiv2_powerdown(hdmi_dev);
@@ -2049,7 +2049,7 @@ static int hdmi_dev_enable(struct hdmi *hdmi)
 {
 	struct hdmi_dev *hdmi_dev = hdmi->property->priv;
 
-	HDMIDBG("%s\n", __func__);
+	HDMIDBG(2, "%s\n", __func__);
 	if (!hdmi_dev->enable) {
 		hdmi_writel(hdmi_dev, IH_MUTE, 0x00);
 		hdmi_dev->enable = 1;
@@ -2062,7 +2062,7 @@ static int hdmi_dev_disable(struct hdmi *hdmi)
 {
 	struct hdmi_dev *hdmi_dev = hdmi->property->priv;
 
-	HDMIDBG("%s\n", __func__);
+	HDMIDBG(2, "%s\n", __func__);
 	if (hdmi_dev->enable) {
 		hdmi_dev->enable = 0;
 		hdmi_writel(hdmi_dev, IH_MUTE, 0x1);
