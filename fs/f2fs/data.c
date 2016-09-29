@@ -1355,6 +1355,7 @@ static int f2fs_write_cache_pages(struct address_space *mapping,
 	int cycled;
 	int range_whole = 0;
 	int tag;
+	int nwritten = 0;
 
 	pagevec_init(&pvec, 0);
 
@@ -1429,6 +1430,8 @@ continue_unlock:
 				done_index = page->index + 1;
 				done = 1;
 				break;
+			} else {
+				nwritten++;
 			}
 
 			if (--wbc->nr_to_write <= 0 &&
@@ -1449,6 +1452,10 @@ continue_unlock:
 	}
 	if (wbc->range_cyclic || (range_whole && wbc->nr_to_write > 0))
 		mapping->writeback_index = done_index;
+
+	if (nwritten)
+		f2fs_submit_merged_bio_cond(F2FS_M_SB(mapping), mapping->host,
+							NULL, 0, DATA, WRITE);
 
 	return ret;
 }
@@ -1491,7 +1498,6 @@ static int f2fs_write_data_pages(struct address_space *mapping,
 	 * if some pages were truncated, we cannot guarantee its mapping->host
 	 * to detect pending bios.
 	 */
-	f2fs_submit_merged_bio(sbi, DATA, WRITE);
 
 	remove_dirty_inode(inode);
 	return ret;
