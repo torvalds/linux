@@ -5,3 +5,4 @@ ALSA Kernel API Documentation
    :maxdepth: 2
 
    alsa-driver-api
+   writing-an-alsa-driver
