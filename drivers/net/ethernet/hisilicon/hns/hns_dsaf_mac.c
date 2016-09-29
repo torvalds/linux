@@ -141,9 +141,10 @@ void hns_mac_adjust_link(struct hns_mac_cb *mac_cb, int speed, int duplex)
  *@port_num:port number
  *
  */
-static int hns_mac_get_inner_port_num(struct hns_mac_cb *mac_cb,
-				      u8 vmid, u8 *port_num)
+int hns_mac_get_inner_port_num(struct hns_mac_cb *mac_cb, u8 vmid, u8 *port_num)
 {
+	int q_num_per_vf, vf_num_per_port;
+	int vm_queue_id;
 	u8 tmp_port;
 
 	if (mac_cb->dsaf_dev->dsaf_mode <= DSAF_MODE_ENABLE) {
@@ -174,6 +175,12 @@ static int hns_mac_get_inner_port_num(struct hns_mac_cb *mac_cb,
 		return -EINVAL;
 	}
 
+	q_num_per_vf = mac_cb->dsaf_dev->rcb_common[0]->max_q_per_vf;
+	vf_num_per_port = mac_cb->dsaf_dev->rcb_common[0]->max_vfn;
+
+	vm_queue_id = vmid * q_num_per_vf +
+			vf_num_per_port * q_num_per_vf * mac_cb->mac_id;
+
 	switch (mac_cb->dsaf_dev->dsaf_mode) {
 	case DSAF_MODE_ENABLE_FIX:
 		tmp_port = 0;
@@ -193,7 +200,7 @@ static int hns_mac_get_inner_port_num(struct hns_mac_cb *mac_cb,
 	case DSAF_MODE_DISABLE_6PORT_2VM:
 	case DSAF_MODE_DISABLE_6PORT_4VM:
 	case DSAF_MODE_DISABLE_6PORT_16VM:
-		tmp_port = vmid;
+		tmp_port = vm_queue_id;
 		break;
 	default:
 		dev_err(mac_cb->dev, "dsaf mode invalid,%s mac%d!\n",
