@@ -41,10 +41,10 @@ static void rxrpc_proto_abort(const char *why,
  */
 static void rxrpc_congestion_management(struct rxrpc_call *call,
 					struct sk_buff *skb,
-					struct rxrpc_ack_summary *summary)
+					struct rxrpc_ack_summary *summary,
+					rxrpc_serial_t acked_serial)
 {
 	enum rxrpc_congest_change change = rxrpc_cong_no_change;
-	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	unsigned int cumulative_acks = call->cong_cumul_acks;
 	unsigned int cwnd = call->cong_cwnd;
 	bool resend = false;
@@ -172,7 +172,7 @@ out_no_clear_ca:
 		cwnd = RXRPC_RXTX_BUFF_SIZE - 1;
 	call->cong_cwnd = cwnd;
 	call->cong_cumul_acks = cumulative_acks;
-	trace_rxrpc_congest(call, summary, sp->hdr.serial, change);
+	trace_rxrpc_congest(call, summary, acked_serial, change);
 	if (resend && !test_and_set_bit(RXRPC_CALL_EV_RESEND, &call->events))
 		rxrpc_queue_call(call);
 	return;
@@ -848,7 +848,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 				  false, true,
 				  rxrpc_propose_ack_ping_for_lost_reply);
 
-	return rxrpc_congestion_management(call, skb, &summary);
+	return rxrpc_congestion_management(call, skb, &summary, acked_serial);
 }
 
 /*
