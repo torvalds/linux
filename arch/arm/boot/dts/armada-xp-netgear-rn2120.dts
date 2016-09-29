@@ -97,7 +97,6 @@
 			};
 
 			i2c@11000 {
-				compatible = "marvell,mv64xxx-i2c";
 				clock-frequency = <400000>;
 				status = "okay";
 
