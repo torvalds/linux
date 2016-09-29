@@ -264,7 +264,7 @@ static int sc18is602_probe(struct i2c_client *client,
 	hw->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(hw->reset))
 		return PTR_ERR(hw->reset);
-	gpiod_set_value(hw->reset, 0);
+	gpiod_set_value_cansleep(hw->reset, 0);
 
 	hw->master = master;
 	hw->client = client;
