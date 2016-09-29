@@ -243,6 +243,18 @@ static int process_measurement(struct file *file, char *buf, loff_t size,
 	if ((action & IMA_MEASURE) && (iint->measured_pcrs & (0x1 << pcr)))
 		action ^= IMA_MEASURE;
 
+	/* HASH sets the digital signature and update flags, nothing else */
+	if ((action & IMA_HASH) &&
+	    !(test_bit(IMA_DIGSIG, &iint->atomic_flags))) {
+		xattr_len = ima_read_xattr(file_dentry(file), &xattr_value);
+		if ((xattr_value && xattr_len > 2) &&
+		    (xattr_value->type == EVM_IMA_XATTR_DIGSIG))
+			set_bit(IMA_DIGSIG, &iint->atomic_flags);
+		iint->flags |= IMA_HASHED;
+		action ^= IMA_HASH;
+		set_bit(IMA_UPDATE_XATTR, &iint->atomic_flags);
+	}
+
 	/* Nothing to do, just return existing appraised status */
 	if (!action) {
 		if (must_appraise)

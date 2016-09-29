@@ -46,14 +46,15 @@ bool is_ima_appraise_enabled(void)
 /*
  * ima_must_appraise - set appraise flag
  *
- * Return 1 to appraise
+ * Return 1 to appraise or hash
  */
 int ima_must_appraise(struct inode *inode, int mask, enum ima_hooks func)
 {
 	if (!ima_appraise)
 		return 0;
 
-	return ima_match_policy(inode, func, mask, IMA_APPRAISE, NULL);
+	return ima_match_policy(inode, func, mask, IMA_APPRAISE | IMA_HASH,
+				NULL);
 }
 
 static int ima_fix_xattr(struct dentry *dentry,
@@ -324,7 +325,8 @@ void ima_update_xattr(struct integrity_iint_cache *iint, struct file *file)
 	if (test_bit(IMA_DIGSIG, &iint->atomic_flags))
 		return;
 
-	if (iint->ima_file_status != INTEGRITY_PASS)
+	if ((iint->ima_file_status != INTEGRITY_PASS) &&
+	    !(iint->flags & IMA_HASH))
 		return;
 
 	rc = ima_collect_measurement(iint, file, NULL, 0, ima_hash_algo);
@@ -349,19 +351,19 @@ void ima_inode_post_setattr(struct dentry *dentry)
 {
 	struct inode *inode = d_backing_inode(dentry);
 	struct integrity_iint_cache *iint;
-	int must_appraise;
+	int action;
 
 	if (!(ima_policy_flag & IMA_APPRAISE) || !S_ISREG(inode->i_mode)
 	    || !(inode->i_opflags & IOP_XATTR))
 		return;
 
-	must_appraise = ima_must_appraise(inode, MAY_ACCESS, POST_SETATTR);
-	if (!must_appraise)
+	action = ima_must_appraise(inode, MAY_ACCESS, POST_SETATTR);
+	if (!action)
 		__vfs_removexattr(dentry, XATTR_NAME_IMA);
 	iint = integrity_iint_find(inode);
 	if (iint) {
 		set_bit(IMA_CHANGE_ATTR, &iint->atomic_flags);
-		if (!must_appraise)
+		if (!action)
 			clear_bit(IMA_UPDATE_XATTR, &iint->atomic_flags);
 	}
 }
