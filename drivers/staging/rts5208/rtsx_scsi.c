@@ -1397,7 +1397,7 @@ static int trace_msg_cmd(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	buf_len = 4 + ((2 + MSG_FUNC_LEN + MSG_FILE_LEN + TIME_VAL_LEN) *
 		TRACE_ITEM_CNT);
 
-	if ((scsi_bufflen(srb) < buf_len) || (scsi_sglist(srb) == NULL)) {
+	if ((scsi_bufflen(srb) < buf_len) || !scsi_sglist(srb)) {
 		set_sense_type(chip, SCSI_LUN(srb),
 			SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
 		rtsx_trace(chip);
