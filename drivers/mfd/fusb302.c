@@ -140,7 +140,7 @@ void fusb_irq_enable(struct fusb30x_chip *chip)
 
 static void platform_fusb_notify(struct fusb30x_chip *chip)
 {
-	bool plugged = 0, flip = 0, dfp = 0, ufp = 0, dp = 0;
+	bool plugged = 0, flip = 0, dfp = 0, ufp = 0, dp = 0, usb_ss = 0;
 	union extcon_property_value property;
 
 	if (chip->notify.is_cc_connected)
@@ -160,13 +160,17 @@ static void platform_fusb_notify(struct fusb30x_chip *chip)
 		       (chip->notify.orientation - 1) : 0;
 		dp = chip->notify.is_enter_mode;
 
-		if (dp)
-			dfp = (chip->notify.pin_assignment_def &
-				(PIN_MAP_B | PIN_MAP_D | PIN_MAP_F)) ? 1 : 0;
-		else if (chip->notify.data_role)
+		if (dp) {
 			dfp = 1;
-		else if (plugged)
+			usb_ss = (chip->notify.pin_assignment_def &
+				(PIN_MAP_B | PIN_MAP_D | PIN_MAP_F)) ? 1 : 0;
+		} else if (chip->notify.data_role) {
+			dfp = 1;
+			usb_ss = 1;
+		} else if (plugged) {
 			ufp = 1;
+			usb_ss = 1;
+		}
 
 		property.intval = flip;
 		extcon_set_property(chip->extcon, EXTCON_USB,
@@ -175,6 +179,14 @@ static void platform_fusb_notify(struct fusb30x_chip *chip)
 				    EXTCON_PROP_USB_TYPEC_POLARITY, property);
 		extcon_set_property(chip->extcon, EXTCON_DISP_DP,
 				    EXTCON_PROP_USB_TYPEC_POLARITY, property);
+
+		property.intval = usb_ss;
+		extcon_set_property(chip->extcon, EXTCON_USB,
+				    EXTCON_PROP_USB_SS, property);
+		extcon_set_property(chip->extcon, EXTCON_USB_HOST,
+				    EXTCON_PROP_USB_SS, property);
+		extcon_set_property(chip->extcon, EXTCON_DISP_DP,
+				    EXTCON_PROP_USB_SS, property);
 		extcon_set_state(chip->extcon, EXTCON_USB, ufp);
 		extcon_set_state(chip->extcon, EXTCON_USB_HOST, dfp);
 		extcon_set_state(chip->extcon, EXTCON_DISP_DP, dp);
@@ -2275,6 +2287,33 @@ static int fusb30x_probe(struct i2c_client *client,
 	if (ret) {
 		dev_err(&client->dev,
 			"failed to set DISP_DP property capability: %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = extcon_set_property_capability(chip->extcon, EXTCON_USB,
+					     EXTCON_PROP_USB_SS);
+	if (ret) {
+		dev_err(&client->dev,
+			"failed to set USB USB_SS property capability: %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = extcon_set_property_capability(chip->extcon, EXTCON_USB_HOST,
+					     EXTCON_PROP_USB_SS);
+	if (ret) {
+		dev_err(&client->dev,
+			"failed to set USB_HOST USB_SS property capability: %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = extcon_set_property_capability(chip->extcon, EXTCON_DISP_DP,
+					     EXTCON_PROP_USB_SS);
+	if (ret) {
+		dev_err(&client->dev,
+			"failed to set DISP_DP USB_SS property capability: %d\n",
 			ret);
 		return ret;
 	}
