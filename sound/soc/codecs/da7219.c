@@ -1937,6 +1937,14 @@ static int da7219_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
+	/* Software reset codec. */
+	regmap_write_bits(da7219->regmap, DA7219_ACCDET_CONFIG_1,
+			  DA7219_ACCDET_EN_MASK, 0);
+	regmap_write_bits(da7219->regmap, DA7219_CIF_CTRL,
+			  DA7219_CIF_REG_SOFT_RESET_MASK, 0);
+	regmap_write_bits(da7219->regmap, DA7219_SYSTEM_ACTIVE,
+			  DA7219_SYSTEM_ACTIVE_MASK, 0);
+
 	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_da7219,
 				     &da7219_dai, 1);
 	if (ret < 0) {

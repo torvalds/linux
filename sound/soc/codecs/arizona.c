@@ -1920,8 +1920,8 @@ static struct {
 
 struct arizona_fll_cfg {
 	int n;
-	int theta;
-	int lambda;
+	unsigned int theta;
+	unsigned int lambda;
 	int refdiv;
 	int outdiv;
 	int fratio;
@@ -2218,11 +2218,11 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 
 	if (already_enabled) {
 		/* Facilitate smooth refclk across the transition */
-		regmap_update_bits_async(fll->arizona->regmap, fll->base + 0x9,
-					 ARIZONA_FLL1_GAIN_MASK, 0);
 		regmap_update_bits(fll->arizona->regmap, fll->base + 1,
 				   ARIZONA_FLL1_FREERUN, ARIZONA_FLL1_FREERUN);
 		udelay(32);
+		regmap_update_bits_async(fll->arizona->regmap, fll->base + 0x9,
+					 ARIZONA_FLL1_GAIN_MASK, 0);
 	}
 
 	/*
@@ -2232,6 +2232,10 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 	if (fll->ref_src >= 0 && fll->ref_freq &&
 	    fll->ref_src != fll->sync_src) {
 		arizona_calc_fll(fll, &cfg, fll->ref_freq, false);
+
+		/* Ref path hardcodes lambda to 65536 when sync is on */
+		if (fll->sync_src >= 0 && cfg.lambda)
+			cfg.theta = (cfg.theta * (1 << 16)) / cfg.lambda;
 
 		arizona_apply_fll(arizona, fll->base, &cfg, fll->ref_src,
 				  false);
@@ -2268,7 +2272,7 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 					 ARIZONA_FLL1_SYNC_BW);
 
 	if (!already_enabled)
-		pm_runtime_get(arizona->dev);
+		pm_runtime_get_sync(arizona->dev);
 
 	regmap_update_bits_async(arizona->regmap, fll->base + 1,
 				 ARIZONA_FLL1_ENA, ARIZONA_FLL1_ENA);
