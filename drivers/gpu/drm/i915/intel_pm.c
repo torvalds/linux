@@ -3966,6 +3966,41 @@ pipes_modified(struct drm_atomic_state *state)
 	return ret;
 }
 
+int
+skl_ddb_add_affected_planes(struct intel_crtc_state *cstate)
+{
+	struct drm_atomic_state *state = cstate->base.state;
+	struct drm_device *dev = state->dev;
+	struct drm_crtc *crtc = cstate->base.crtc;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	struct skl_ddb_allocation *new_ddb = &intel_state->wm_results.ddb;
+	struct skl_ddb_allocation *cur_ddb = &dev_priv->wm.skl_hw.ddb;
+	struct drm_plane_state *plane_state;
+	struct drm_plane *plane;
+	enum pipe pipe = intel_crtc->pipe;
+	int id;
+
+	WARN_ON(!drm_atomic_get_existing_crtc_state(state, crtc));
+
+	drm_for_each_plane_mask(plane, dev, crtc->state->plane_mask) {
+		id = skl_wm_plane_id(to_intel_plane(plane));
+
+		if (skl_ddb_entry_equal(&cur_ddb->plane[pipe][id],
+					&new_ddb->plane[pipe][id]) &&
+		    skl_ddb_entry_equal(&cur_ddb->y_plane[pipe][id],
+					&new_ddb->y_plane[pipe][id]))
+			continue;
+
+		plane_state = drm_atomic_get_plane_state(state, plane);
+		if (IS_ERR(plane_state))
+			return PTR_ERR(plane_state);
+	}
+
+	return 0;
+}
+
 static int
 skl_compute_ddb(struct drm_atomic_state *state)
 {
@@ -4030,7 +4065,7 @@ skl_compute_ddb(struct drm_atomic_state *state)
 		if (ret)
 			return ret;
 
-		ret = drm_atomic_add_affected_planes(state, &intel_crtc->base);
+		ret = skl_ddb_add_affected_planes(cstate);
 		if (ret)
 			return ret;
 	}
