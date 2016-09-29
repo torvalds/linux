@@ -640,12 +640,9 @@ struct mv88e6xxx_atu_entry {
 	u8	mac[ETH_ALEN];
 };
 
-struct mv88e6xxx_vtu_stu_entry {
-	/* VTU only */
+struct mv88e6xxx_vtu_entry {
 	u16	vid;
 	u16	fid;
-
-	/* VTU and STU */
 	u8	sid;
 	bool	valid;
 	u8	data[DSA_MAX_PORTS];
