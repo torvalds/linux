@@ -29,81 +29,6 @@
  */
 #define HDAC_MAX_CAPS 10
 
-/**
- * snd_hdac_ext_bus_parse_capabilities - parse capablity structure
- * @ebus: the pointer to extended bus object
- *
- * Returns 0 if successful, or a negative error code.
- */
-int snd_hdac_ext_bus_parse_capabilities(struct hdac_ext_bus *ebus)
-{
-	unsigned int cur_cap;
-	unsigned int offset;
-	struct hdac_bus *bus = &ebus->bus;
-	unsigned int counter = 0;
-
-	offset = snd_hdac_chip_readl(bus, LLCH);
-
-	/* Lets walk the linked capabilities list */
-	do {
-		cur_cap = _snd_hdac_chip_read(l, bus, offset);
-
-		dev_dbg(bus->dev, "Capability version: 0x%x\n",
-				((cur_cap & AZX_CAP_HDR_VER_MASK) >> AZX_CAP_HDR_VER_OFF));
-
-		dev_dbg(bus->dev, "HDA capability ID: 0x%x\n",
-				(cur_cap & AZX_CAP_HDR_ID_MASK) >> AZX_CAP_HDR_ID_OFF);
-
-		switch ((cur_cap & AZX_CAP_HDR_ID_MASK) >> AZX_CAP_HDR_ID_OFF) {
-		case AZX_ML_CAP_ID:
-			dev_dbg(bus->dev, "Found ML capability\n");
-			ebus->mlcap = bus->remap_addr + offset;
-			break;
-
-		case AZX_GTS_CAP_ID:
-			dev_dbg(bus->dev, "Found GTS capability offset=%x\n", offset);
-			ebus->gtscap = bus->remap_addr + offset;
-			break;
-
-		case AZX_PP_CAP_ID:
-			/* PP capability found, the Audio DSP is present */
-			dev_dbg(bus->dev, "Found PP capability offset=%x\n", offset);
-			ebus->ppcap = bus->remap_addr + offset;
-			break;
-
-		case AZX_SPB_CAP_ID:
-			/* SPIB capability found, handler function */
-			dev_dbg(bus->dev, "Found SPB capability\n");
-			ebus->spbcap = bus->remap_addr + offset;
-			break;
-
-		case AZX_DRSM_CAP_ID:
-			/* DMA resume  capability found, handler function */
-			dev_dbg(bus->dev, "Found DRSM capability\n");
-			ebus->drsmcap = bus->remap_addr + offset;
-			break;
-
-		default:
-			dev_dbg(bus->dev, "Unknown capability %d\n", cur_cap);
-			break;
-		}
-
-		counter++;
-
-		if (counter > HDAC_MAX_CAPS) {
-			dev_err(bus->dev, "We exceeded HDAC Ext capablities!!!\n");
-			break;
-		}
-
-		/* read the offset of next capabiity */
-		offset = cur_cap & AZX_CAP_HDR_NXT_PTR_MASK;
-
-	} while (offset);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_parse_capabilities);
-
 /*
  * processing pipe helpers - these helpers are useful for dealing with HDA
  * new capability of processing pipelines
@@ -118,15 +43,15 @@ void snd_hdac_ext_bus_ppcap_enable(struct hdac_ext_bus *ebus, bool enable)
 {
 	struct hdac_bus *bus = &ebus->bus;
 
-	if (!ebus->ppcap) {
+	if (!bus->ppcap) {
 		dev_err(bus->dev, "Address of PP capability is NULL");
 		return;
 	}
 
 	if (enable)
-		snd_hdac_updatel(ebus->ppcap, AZX_REG_PP_PPCTL, 0, AZX_PPCTL_GPROCEN);
+		snd_hdac_updatel(bus->ppcap, AZX_REG_PP_PPCTL, 0, AZX_PPCTL_GPROCEN);
 	else
-		snd_hdac_updatel(ebus->ppcap, AZX_REG_PP_PPCTL, AZX_PPCTL_GPROCEN, 0);
+		snd_hdac_updatel(bus->ppcap, AZX_REG_PP_PPCTL, AZX_PPCTL_GPROCEN, 0);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_ppcap_enable);
 
@@ -139,15 +64,15 @@ void snd_hdac_ext_bus_ppcap_int_enable(struct hdac_ext_bus *ebus, bool enable)
 {
 	struct hdac_bus *bus = &ebus->bus;
 
-	if (!ebus->ppcap) {
+	if (!bus->ppcap) {
 		dev_err(bus->dev, "Address of PP capability is NULL\n");
 		return;
 	}
 
 	if (enable)
-		snd_hdac_updatel(ebus->ppcap, AZX_REG_PP_PPCTL, 0, AZX_PPCTL_PIE);
+		snd_hdac_updatel(bus->ppcap, AZX_REG_PP_PPCTL, 0, AZX_PPCTL_PIE);
 	else
-		snd_hdac_updatel(ebus->ppcap, AZX_REG_PP_PPCTL, AZX_PPCTL_PIE, 0);
+		snd_hdac_updatel(bus->ppcap, AZX_REG_PP_PPCTL, AZX_PPCTL_PIE, 0);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_ppcap_int_enable);
 
@@ -171,7 +96,7 @@ int snd_hdac_ext_bus_get_ml_capabilities(struct hdac_ext_bus *ebus)
 	struct hdac_ext_link *hlink;
 	struct hdac_bus *bus = &ebus->bus;
 
-	link_count = readl(ebus->mlcap + AZX_REG_ML_MLCD) + 1;
+	link_count = readl(bus->mlcap + AZX_REG_ML_MLCD) + 1;
 
 	dev_dbg(bus->dev, "In %s Link count: %d\n", __func__, link_count);
 
@@ -181,7 +106,7 @@ int snd_hdac_ext_bus_get_ml_capabilities(struct hdac_ext_bus *ebus)
 			return -ENOMEM;
 		hlink->index = idx;
 		hlink->bus = bus;
-		hlink->ml_addr = ebus->mlcap + AZX_ML_BASE +
+		hlink->ml_addr = bus->mlcap + AZX_ML_BASE +
 					(AZX_ML_INTERVAL * idx);
 		hlink->lcaps  = readl(hlink->ml_addr + AZX_REG_ML_LCAP);
 		hlink->lsdiid = readw(hlink->ml_addr + AZX_REG_ML_LSDIID);

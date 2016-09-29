@@ -40,27 +40,27 @@ void snd_hdac_ext_stream_init(struct hdac_ext_bus *ebus,
 {
 	struct hdac_bus *bus = &ebus->bus;
 
-	if (ebus->ppcap) {
-		stream->pphc_addr = ebus->ppcap + AZX_PPHC_BASE +
+	if (bus->ppcap) {
+		stream->pphc_addr = bus->ppcap + AZX_PPHC_BASE +
 				AZX_PPHC_INTERVAL * idx;
 
-		stream->pplc_addr = ebus->ppcap + AZX_PPLC_BASE +
+		stream->pplc_addr = bus->ppcap + AZX_PPLC_BASE +
 				AZX_PPLC_MULTI * ebus->num_streams +
 				AZX_PPLC_INTERVAL * idx;
 	}
 
-	if (ebus->spbcap) {
-		stream->spib_addr = ebus->spbcap + AZX_SPB_BASE +
+	if (bus->spbcap) {
+		stream->spib_addr = bus->spbcap + AZX_SPB_BASE +
 					AZX_SPB_INTERVAL * idx +
 					AZX_SPB_SPIB;
 
-		stream->fifo_addr = ebus->spbcap + AZX_SPB_BASE +
+		stream->fifo_addr = bus->spbcap + AZX_SPB_BASE +
 					AZX_SPB_INTERVAL * idx +
 					AZX_SPB_MAXFIFO;
 	}
 
-	if (ebus->drsmcap)
-		stream->dpibr_addr = ebus->drsmcap + AZX_DRSM_BASE +
+	if (bus->drsmcap)
+		stream->dpibr_addr = bus->drsmcap + AZX_DRSM_BASE +
 					AZX_DRSM_INTERVAL * idx;
 
 	stream->decoupled = false;
@@ -131,10 +131,10 @@ void snd_hdac_ext_stream_decouple(struct hdac_ext_bus *ebus,
 
 	spin_lock_irq(&bus->reg_lock);
 	if (decouple)
-		snd_hdac_updatel(ebus->ppcap, AZX_REG_PP_PPCTL, 0,
+		snd_hdac_updatel(bus->ppcap, AZX_REG_PP_PPCTL, 0,
 				AZX_PPCTL_PROCEN(hstream->index));
 	else
-		snd_hdac_updatel(ebus->ppcap, AZX_REG_PP_PPCTL,
+		snd_hdac_updatel(bus->ppcap, AZX_REG_PP_PPCTL,
 					AZX_PPCTL_PROCEN(hstream->index), 0);
 	stream->decoupled = decouple;
 	spin_unlock_irq(&bus->reg_lock);
@@ -255,7 +255,7 @@ hdac_ext_link_stream_assign(struct hdac_ext_bus *ebus,
 	struct hdac_stream *stream = NULL;
 	struct hdac_bus *hbus = &ebus->bus;
 
-	if (!ebus->ppcap) {
+	if (!hbus->ppcap) {
 		dev_err(hbus->dev, "stream type not supported\n");
 		return NULL;
 	}
@@ -296,7 +296,7 @@ hdac_ext_host_stream_assign(struct hdac_ext_bus *ebus,
 	struct hdac_stream *stream = NULL;
 	struct hdac_bus *hbus = &ebus->bus;
 
-	if (!ebus->ppcap) {
+	if (!hbus->ppcap) {
 		dev_err(hbus->dev, "stream type not supported\n");
 		return NULL;
 	}
@@ -423,21 +423,21 @@ void snd_hdac_ext_stream_spbcap_enable(struct hdac_ext_bus *ebus,
 	u32 register_mask = 0;
 	struct hdac_bus *bus = &ebus->bus;
 
-	if (!ebus->spbcap) {
+	if (!bus->spbcap) {
 		dev_err(bus->dev, "Address of SPB capability is NULL");
 		return;
 	}
 
 	mask |= (1 << index);
 
-	register_mask = readl(ebus->spbcap + AZX_REG_SPB_SPBFCCTL);
+	register_mask = readl(bus->spbcap + AZX_REG_SPB_SPBFCCTL);
 
 	mask |= register_mask;
 
 	if (enable)
-		snd_hdac_updatel(ebus->spbcap, AZX_REG_SPB_SPBFCCTL, 0, mask);
+		snd_hdac_updatel(bus->spbcap, AZX_REG_SPB_SPBFCCTL, 0, mask);
 	else
-		snd_hdac_updatel(ebus->spbcap, AZX_REG_SPB_SPBFCCTL, mask, 0);
+		snd_hdac_updatel(bus->spbcap, AZX_REG_SPB_SPBFCCTL, mask, 0);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_spbcap_enable);
 
@@ -452,7 +452,7 @@ int snd_hdac_ext_stream_set_spib(struct hdac_ext_bus *ebus,
 {
 	struct hdac_bus *bus = &ebus->bus;
 
-	if (!ebus->spbcap) {
+	if (!bus->spbcap) {
 		dev_err(bus->dev, "Address of SPB capability is NULL");
 		return -EINVAL;
 	}
@@ -475,7 +475,7 @@ int snd_hdac_ext_stream_get_spbmaxfifo(struct hdac_ext_bus *ebus,
 {
 	struct hdac_bus *bus = &ebus->bus;
 
-	if (!ebus->spbcap) {
+	if (!bus->spbcap) {
 		dev_err(bus->dev, "Address of SPB capability is NULL");
 		return -EINVAL;
 	}
@@ -515,21 +515,21 @@ void snd_hdac_ext_stream_drsm_enable(struct hdac_ext_bus *ebus,
 	u32 register_mask = 0;
 	struct hdac_bus *bus = &ebus->bus;
 
-	if (!ebus->drsmcap) {
+	if (!bus->drsmcap) {
 		dev_err(bus->dev, "Address of DRSM capability is NULL");
 		return;
 	}
 
 	mask |= (1 << index);
 
-	register_mask = readl(ebus->drsmcap + AZX_REG_SPB_SPBFCCTL);
+	register_mask = readl(bus->drsmcap + AZX_REG_SPB_SPBFCCTL);
 
 	mask |= register_mask;
 
 	if (enable)
-		snd_hdac_updatel(ebus->drsmcap, AZX_REG_DRSM_CTL, 0, mask);
+		snd_hdac_updatel(bus->drsmcap, AZX_REG_DRSM_CTL, 0, mask);
 	else
-		snd_hdac_updatel(ebus->drsmcap, AZX_REG_DRSM_CTL, mask, 0);
+		snd_hdac_updatel(bus->drsmcap, AZX_REG_DRSM_CTL, mask, 0);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_drsm_enable);
 
@@ -544,7 +544,7 @@ int snd_hdac_ext_stream_set_dpibr(struct hdac_ext_bus *ebus,
 {
 	struct hdac_bus *bus = &ebus->bus;
 
-	if (!ebus->drsmcap) {
+	if (!bus->drsmcap) {
 		dev_err(bus->dev, "Address of DRSM capability is NULL");
 		return -EINVAL;
 	}
