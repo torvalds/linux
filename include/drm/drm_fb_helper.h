@@ -217,6 +217,19 @@ struct drm_fb_helper {
 	bool delayed_hotplug;
 };
 
+/**
+ * @DRM_FB_HELPER_DEFAULT_OPS:
+ *
+ * Helper define to register default implementations of drm_fb_helper
+ * functions. To be used in struct fb_ops of drm drivers.
+ */
+#define DRM_FB_HELPER_DEFAULT_OPS \
+	.fb_check_var	= drm_fb_helper_check_var, \
+	.fb_set_par	= drm_fb_helper_set_par, \
+	.fb_setcmap	= drm_fb_helper_setcmap, \
+	.fb_blank	= drm_fb_helper_blank, \
+	.fb_pan_display	= drm_fb_helper_pan_display
+
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 void drm_fb_helper_prepare(struct drm_device *dev, struct drm_fb_helper *helper,
 			   const struct drm_fb_helper_funcs *funcs);
