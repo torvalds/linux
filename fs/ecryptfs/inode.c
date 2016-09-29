@@ -1005,15 +1005,14 @@ ecryptfs_setxattr(struct dentry *dentry, struct inode *inode,
 		  const char *name, const void *value,
 		  size_t size, int flags)
 {
-	int rc = 0;
+	int rc;
 	struct dentry *lower_dentry;
 
 	lower_dentry = ecryptfs_dentry_to_lower(dentry);
-	if (!d_inode(lower_dentry)->i_op->setxattr) {
+	if (!(d_inode(lower_dentry)->i_opflags & IOP_XATTR)) {
 		rc = -EOPNOTSUPP;
 		goto out;
 	}
-
 	rc = vfs_setxattr(lower_dentry, name, value, size, flags);
 	if (!rc && inode)
 		fsstack_copy_attr_all(inode, d_inode(lower_dentry));
@@ -1025,15 +1024,14 @@ ssize_t
 ecryptfs_getxattr_lower(struct dentry *lower_dentry, struct inode *lower_inode,
 			const char *name, void *value, size_t size)
 {
-	int rc = 0;
+	int rc;
 
-	if (!lower_inode->i_op->getxattr) {
+	if (!(lower_inode->i_opflags & IOP_XATTR)) {
 		rc = -EOPNOTSUPP;
 		goto out;
 	}
 	inode_lock(lower_inode);
-	rc = lower_inode->i_op->getxattr(lower_dentry, lower_inode,
-					 name, value, size);
+	rc = __vfs_getxattr(lower_dentry, lower_inode, name, value, size);
 	inode_unlock(lower_inode);
 out:
 	return rc;
@@ -1069,18 +1067,18 @@ out:
 static int ecryptfs_removexattr(struct dentry *dentry, struct inode *inode,
 				const char *name)
 {
-	int rc = 0;
+	int rc;
 	struct dentry *lower_dentry;
 	struct inode *lower_inode;
 
 	lower_dentry = ecryptfs_dentry_to_lower(dentry);
 	lower_inode = ecryptfs_inode_to_lower(inode);
-	if (!lower_inode->i_op->removexattr) {
+	if (!(lower_inode->i_opflags & IOP_XATTR)) {
 		rc = -EOPNOTSUPP;
 		goto out;
 	}
 	inode_lock(lower_inode);
-	rc = lower_inode->i_op->removexattr(lower_dentry, name);
+	rc = __vfs_removexattr(lower_dentry, name);
 	inode_unlock(lower_inode);
 out:
 	return rc;

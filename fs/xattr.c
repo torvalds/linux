@@ -136,6 +136,16 @@ xattr_permission(struct inode *inode, const char *name, int mask)
 	return inode_permission(inode, mask);
 }
 
+int
+__vfs_setxattr(struct dentry *dentry, struct inode *inode, const char *name,
+	       const void *value, size_t size, int flags)
+{
+	if (!inode->i_op->setxattr)
+		return -EOPNOTSUPP;
+	return inode->i_op->setxattr(dentry, inode, name, value, size, flags);
+}
+EXPORT_SYMBOL(__vfs_setxattr);
+
 /**
  *  __vfs_setxattr_noperm - perform setxattr operation without performing
  *  permission checks.
@@ -163,7 +173,7 @@ int __vfs_setxattr_noperm(struct dentry *dentry, const char *name,
 	if (issec)
 		inode->i_flags &= ~S_NOSEC;
 	if (inode->i_op->setxattr) {
-		error = inode->i_op->setxattr(dentry, inode, name, value, size, flags);
+		error = __vfs_setxattr(dentry, inode, name, value, size, flags);
 		if (!error) {
 			fsnotify_xattr(dentry);
 			security_inode_post_setxattr(dentry, name, value,
@@ -275,6 +285,16 @@ vfs_getxattr_alloc(struct dentry *dentry, const char *name, char **xattr_value,
 }
 
 ssize_t
+__vfs_getxattr(struct dentry *dentry, struct inode *inode, const char *name,
+	       void *value, size_t size)
+{
+	if (!inode->i_op->getxattr)
+		return -EOPNOTSUPP;
+	return inode->i_op->getxattr(dentry, inode, name, value, size);
+}
+EXPORT_SYMBOL(__vfs_getxattr);
+
+ssize_t
 vfs_getxattr(struct dentry *dentry, const char *name, void *value, size_t size)
 {
 	struct inode *inode = dentry->d_inode;
@@ -301,13 +321,7 @@ vfs_getxattr(struct dentry *dentry, const char *name, void *value, size_t size)
 		return ret;
 	}
 nolsm:
-	if (inode->i_op->getxattr)
-		error = inode->i_op->getxattr(dentry, inode, name, value, size);
-	else
-		error = -EOPNOTSUPP;
-
-	return error;
-
+	return __vfs_getxattr(dentry, inode, name, value, size);
 }
 EXPORT_SYMBOL_GPL(vfs_getxattr);
 
@@ -332,13 +346,21 @@ vfs_listxattr(struct dentry *d, char *list, size_t size)
 EXPORT_SYMBOL_GPL(vfs_listxattr);
 
 int
+__vfs_removexattr(struct dentry *dentry, const char *name)
+{
+	struct inode *inode = dentry->d_inode;
+
+	if (!inode->i_op->removexattr)
+		return -EOPNOTSUPP;
+	return inode->i_op->removexattr(dentry, name);
+}
+EXPORT_SYMBOL(__vfs_removexattr);
+
+int
 vfs_removexattr(struct dentry *dentry, const char *name)
 {
 	struct inode *inode = dentry->d_inode;
 	int error;
-
-	if (!inode->i_op->removexattr)
-		return -EOPNOTSUPP;
 
 	error = xattr_permission(inode, name, MAY_WRITE);
 	if (error)
@@ -349,7 +371,7 @@ vfs_removexattr(struct dentry *dentry, const char *name)
 	if (error)
 		goto out;
 
-	error = inode->i_op->removexattr(dentry, name);
+	error = __vfs_removexattr(dentry, name);
 
 	if (!error) {
 		fsnotify_xattr(dentry);
