@@ -5220,7 +5220,7 @@ int rtl8xxxu_parse_rxdesc16(struct rtl8xxxu_priv *priv, struct sk_buff *skb)
 			rtl8xxxu_rx_parse_phystats(priv, rx_status, phy_stats,
 						   rx_desc->rxmcs);
 
-		rx_status->mactime = le32_to_cpu(rx_desc->tsfl);
+		rx_status->mactime = rx_desc->tsfl;
 		rx_status->flag |= RX_FLAG_MACTIME_START;
 
 		if (!rx_desc->swdec)
@@ -5290,7 +5290,7 @@ int rtl8xxxu_parse_rxdesc24(struct rtl8xxxu_priv *priv, struct sk_buff *skb)
 		rtl8xxxu_rx_parse_phystats(priv, rx_status, phy_stats,
 					   rx_desc->rxmcs);
 
-	rx_status->mactime = le32_to_cpu(rx_desc->tsfl);
+	rx_status->mactime = rx_desc->tsfl;
 	rx_status->flag |= RX_FLAG_MACTIME_START;
 
 	if (!rx_desc->swdec)
