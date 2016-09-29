@@ -139,7 +139,7 @@ static int cdn_dp_mailbox_validate_receive(struct cdn_dp_device *dp,
 	    req_size != mbox_size) {
 		/*
 		 * If the message in mailbox is not what we want, we need to
-		 * clear the mailbox by read.
+		 * clear the mailbox by reading its contents.
 		 */
 		for (i = 0; i < mbox_size; i++)
 			if (cdn_dp_mailbox_read(dp, 0) < 0)
@@ -448,37 +448,39 @@ int cdn_dp_get_edid_block(void *data, u8 *edid,
 			  unsigned int block, size_t length)
 {
 	struct cdn_dp_device *dp = data;
-	u8 msg[2], reg[2];
+	u8 msg[2], reg[2], i;
 	int ret;
 
-	msg[0] = block / 2;
-	msg[1] = block % 2;
+	for (i = 0; i < 4; i++) {
+		msg[0] = block / 2;
+		msg[1] = block % 2;
 
-	ret = cdn_dp_mailbox_send(dp, MB_MODULE_ID_DP_TX, DPTX_GET_EDID,
-				  sizeof(msg), msg);
-	if (ret)
-		goto err_get_edid;
+		ret = cdn_dp_mailbox_send(dp, MB_MODULE_ID_DP_TX, DPTX_GET_EDID,
+					  sizeof(msg), msg);
+		if (ret)
+			continue;
 
-	ret = cdn_dp_mailbox_validate_receive(dp, MB_MODULE_ID_DP_TX,
-					      DPTX_GET_EDID,
-					      sizeof(reg) + length);
-	if (ret)
-		goto err_get_edid;
+		ret = cdn_dp_mailbox_validate_receive(dp, MB_MODULE_ID_DP_TX,
+						      DPTX_GET_EDID,
+						      sizeof(reg) + length);
+		if (ret)
+			continue;
 
-	ret = cdn_dp_mailbox_read_receive(dp, reg, sizeof(reg));
-	if (ret)
-		goto err_get_edid;
+		ret = cdn_dp_mailbox_read_receive(dp, reg, sizeof(reg));
+		if (ret)
+			continue;
 
-	ret = cdn_dp_mailbox_read_receive(dp, edid, length);
-	if (ret)
-		goto err_get_edid;
+		ret = cdn_dp_mailbox_read_receive(dp, edid, length);
+		if (ret)
+			continue;
 
-	if (reg[0] != length || reg[1] != block / 2)
-		ret = -EINVAL;
+		if (reg[0] == length && reg[1] == block / 2)
+			break;
+	}
 
-err_get_edid:
 	if (ret)
 		dev_err(dp->dev, "get block[%d] edid failed: %d\n", block, ret);
+
 	return ret;
 }
 

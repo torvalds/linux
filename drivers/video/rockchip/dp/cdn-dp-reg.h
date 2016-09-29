@@ -15,6 +15,8 @@
 #ifndef _CDN_DP_REG_H
 #define _CDN_DP_REG_H
 
+#include <linux/wakelock.h>
+#include <linux/mutex.h>
 #include <linux/bitops.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
@@ -524,12 +526,16 @@ struct cdn_dp_device {
 	u32 fw_wait;
 	bool fw_loaded;
 	bool fw_actived;
+	bool fw_clk_enabled;
 	void __iomem *regs;
 	struct regmap *grf;
+	struct clk *grf_clk;
 	struct clk *core_clk;
 	struct clk *pclk;
 	struct clk *spdif_clk;
 	struct reset_control *spdif_rst;
+	struct reset_control *dptx_rst;
+	struct reset_control *apb_rst;
 	struct audio_info audio_info;
 	struct video_info video_info;
 	struct drm_dp_link link;
@@ -539,7 +545,11 @@ struct cdn_dp_device {
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
 	enum drm_connector_status hpd_status;
 	int dpms_mode;
+	bool suspend;
 	bool sink_has_audio;
+
+	struct mutex lock;
+	struct wake_lock	wake_lock;
 };
 
 void cdn_dp_clock_reset(struct cdn_dp_device *dp);
