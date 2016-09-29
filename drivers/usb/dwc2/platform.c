@@ -85,6 +85,7 @@ static const struct dwc2_core_params params_hi6220 = {
 	.uframe_sched			= 0,
 	.external_id_pin_ctl		= -1,
 	.hibernation			= -1,
+	.change_speed_quirk		= 1,
 };
 
 static const struct dwc2_core_params params_bcm2835 = {
