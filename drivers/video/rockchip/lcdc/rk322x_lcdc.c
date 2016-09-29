@@ -297,15 +297,20 @@ static int vop_set_lut(struct rk_lcdc_driver *dev_drv, int *dsp_lut)
 		int __iomem *c;
 
 		v = dsp_lut[i];
-		c = vop_dev->dsp_lut_addr_base + (i << 2);
-		b = (v & 0xff) << 2;
-		g = (v & 0xff00) << 4;
-		r = (v & 0xff0000) << 6;
-		v = r + g + b;
-		for (j = 0; j < 4; j++) {
+		if (dev_drv->id == 0) {
+			c = vop_dev->dsp_lut_addr_base + (i << 2);
+			b = (v & 0xff) << 2;
+			g = (v & 0xff00) << 4;
+			r = (v & 0xff0000) << 6;
+			v = r + g + b;
+			for (j = 0; j < 4; j++) {
+				writel_relaxed(v, c);
+				v += (1 + (1 << 10) + (1 << 20));
+				c++;
+			}
+		} else {
+			c = vop_dev->dsp_lut_addr_base + i;
 			writel_relaxed(v, c);
-			v += (1 + (1 << 10) + (1 << 20));
-			c++;
 		}
 	}
 	vop_msk_reg(vop_dev, DSP_CTRL1, V_DSP_LUT_EN(1));
@@ -2061,9 +2066,12 @@ static int vop_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			vop_msk_reg(vop_dev, DSP_CTRL1, val);
 			break;
 		case SCREEN_EDP:
-			if ((VOP_CHIP(vop_dev) == VOP_RK3399) &&
-			    (vop_dev->id == 0))
-				face = OUT_P101010;
+			if (VOP_CHIP(vop_dev) == VOP_RK3399) {
+				if (vop_dev->id == 0)
+					face = OUT_P101010;
+				else
+					face = OUT_P888;
+			}
 			val = V_EDP_OUT_EN(1);
 			vop_msk_reg(vop_dev, SYS_CTRL, val);
 			val = V_EDP_HSYNC_POL(screen->pin_hsync) |
