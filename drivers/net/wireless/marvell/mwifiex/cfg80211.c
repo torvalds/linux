@@ -3022,6 +3022,8 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 		priv->netdev = NULL;
 		memset(&priv->wdev, 0, sizeof(priv->wdev));
 		priv->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
+		destroy_workqueue(priv->dfs_cac_workqueue);
+		priv->dfs_cac_workqueue = NULL;
 		return ERR_PTR(-ENOMEM);
 	}
 
