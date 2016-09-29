@@ -62,6 +62,8 @@ struct vc4_hdmi {
 struct vc4_hdmi_encoder {
 	struct vc4_encoder base;
 	bool hdmi_monitor;
+	bool limited_rgb_range;
+	bool rgb_range_selectable;
 };
 
 static inline struct vc4_hdmi_encoder *
@@ -205,6 +207,12 @@ static int vc4_hdmi_connector_get_modes(struct drm_connector *connector)
 		return -ENODEV;
 
 	vc4_encoder->hdmi_monitor = drm_detect_hdmi_monitor(edid);
+
+	if (edid && edid->input & DRM_EDID_INPUT_DIGITAL) {
+		vc4_encoder->rgb_range_selectable =
+			drm_rgb_quant_range_selectable(edid);
+	}
+
 	drm_mode_connector_update_edid_property(connector, edid);
 	ret = drm_add_edid_modes(connector, edid);
 
@@ -271,6 +279,117 @@ static void vc4_hdmi_encoder_destroy(struct drm_encoder *encoder)
 static const struct drm_encoder_funcs vc4_hdmi_encoder_funcs = {
 	.destroy = vc4_hdmi_encoder_destroy,
 };
+
+static int vc4_hdmi_stop_packet(struct drm_encoder *encoder,
+				enum hdmi_infoframe_type type)
+{
+	struct drm_device *dev = encoder->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	u32 packet_id = type - 0x80;
+
+	HDMI_WRITE(VC4_HDMI_RAM_PACKET_CONFIG,
+		   HDMI_READ(VC4_HDMI_RAM_PACKET_CONFIG) & ~BIT(packet_id));
+
+	return wait_for(!(HDMI_READ(VC4_HDMI_RAM_PACKET_STATUS) &
+			  BIT(packet_id)), 100);
+}
+
+static void vc4_hdmi_write_infoframe(struct drm_encoder *encoder,
+				     union hdmi_infoframe *frame)
+{
+	struct drm_device *dev = encoder->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	u32 packet_id = frame->any.type - 0x80;
+	u32 packet_reg = VC4_HDMI_GCP_0 + VC4_HDMI_PACKET_STRIDE * packet_id;
+	uint8_t buffer[VC4_HDMI_PACKET_STRIDE];
+	ssize_t len, i;
+	int ret;
+
+	WARN_ONCE(!(HDMI_READ(VC4_HDMI_RAM_PACKET_CONFIG) &
+		    VC4_HDMI_RAM_PACKET_ENABLE),
+		  "Packet RAM has to be on to store the packet.");
+
+	len = hdmi_infoframe_pack(frame, buffer, sizeof(buffer));
+	if (len < 0)
+		return;
+
+	ret = vc4_hdmi_stop_packet(encoder, frame->any.type);
+	if (ret) {
+		DRM_ERROR("Failed to wait for infoframe to go idle: %d\n", ret);
+		return;
+	}
+
+	for (i = 0; i < len; i += 7) {
+		HDMI_WRITE(packet_reg,
+			   buffer[i + 0] << 0 |
+			   buffer[i + 1] << 8 |
+			   buffer[i + 2] << 16);
+		packet_reg += 4;
+
+		HDMI_WRITE(packet_reg,
+			   buffer[i + 3] << 0 |
+			   buffer[i + 4] << 8 |
+			   buffer[i + 5] << 16 |
+			   buffer[i + 6] << 24);
+		packet_reg += 4;
+	}
+
+	HDMI_WRITE(VC4_HDMI_RAM_PACKET_CONFIG,
+		   HDMI_READ(VC4_HDMI_RAM_PACKET_CONFIG) | BIT(packet_id));
+	ret = wait_for((HDMI_READ(VC4_HDMI_RAM_PACKET_STATUS) &
+			BIT(packet_id)), 100);
+	if (ret)
+		DRM_ERROR("Failed to wait for infoframe to start: %d\n", ret);
+}
+
+static void vc4_hdmi_set_avi_infoframe(struct drm_encoder *encoder)
+{
+	struct vc4_hdmi_encoder *vc4_encoder = to_vc4_hdmi_encoder(encoder);
+	struct drm_crtc *crtc = encoder->crtc;
+	const struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+	union hdmi_infoframe frame;
+	int ret;
+
+	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi, mode);
+	if (ret < 0) {
+		DRM_ERROR("couldn't fill AVI infoframe\n");
+		return;
+	}
+
+	if (vc4_encoder->rgb_range_selectable) {
+		if (vc4_encoder->limited_rgb_range) {
+			frame.avi.quantization_range =
+				HDMI_QUANTIZATION_RANGE_LIMITED;
+		} else {
+			frame.avi.quantization_range =
+				HDMI_QUANTIZATION_RANGE_FULL;
+		}
+	}
+
+	vc4_hdmi_write_infoframe(encoder, &frame);
+}
+
+static void vc4_hdmi_set_spd_infoframe(struct drm_encoder *encoder)
+{
+	union hdmi_infoframe frame;
+	int ret;
+
+	ret = hdmi_spd_infoframe_init(&frame.spd, "Broadcom", "Videocore");
+	if (ret < 0) {
+		DRM_ERROR("couldn't fill SPD infoframe\n");
+		return;
+	}
+
+	frame.spd.sdi = HDMI_SPD_SDI_PC;
+
+	vc4_hdmi_write_infoframe(encoder, &frame);
+}
+
+static void vc4_hdmi_set_infoframes(struct drm_encoder *encoder)
+{
+	vc4_hdmi_set_avi_infoframe(encoder);
+	vc4_hdmi_set_spd_infoframe(encoder);
+}
 
 static void vc4_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 				      struct drm_display_mode *unadjusted_mode,
@@ -340,8 +459,9 @@ static void vc4_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 
 	if (vc4_encoder->hdmi_monitor && drm_match_cea_mode(mode) > 1) {
 		/* CEA VICs other than #1 requre limited range RGB
-		 * output.  Apply a colorspace conversion to squash
-		 * 0-255 down to 16-235.  The matrix here is:
+		 * output unless overridden by an AVI infoframe.
+		 * Apply a colorspace conversion to squash 0-255 down
+		 * to 16-235.  The matrix here is:
 		 *
 		 * [ 0      0      0.8594 16]
 		 * [ 0      0.8594 0      16]
@@ -359,6 +479,9 @@ static void vc4_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 		HD_WRITE(VC4_HD_CSC_24_23, (0x100 << 16) | 0x000);
 		HD_WRITE(VC4_HD_CSC_32_31, (0x000 << 16) | 0x6e0);
 		HD_WRITE(VC4_HD_CSC_34_33, (0x100 << 16) | 0x000);
+		vc4_encoder->limited_rgb_range = true;
+	} else {
+		vc4_encoder->limited_rgb_range = false;
 	}
 
 	/* The RGB order applies even when CSC is disabled. */
@@ -376,6 +499,8 @@ static void vc4_hdmi_encoder_disable(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+
+	HDMI_WRITE(VC4_HDMI_RAM_PACKET_CONFIG, 0);
 
 	HDMI_WRITE(VC4_HDMI_TX_PHY_RESET_CTL, 0xf << 16);
 	HD_WRITE(VC4_HD_VID_CTL,
@@ -429,9 +554,10 @@ static void vc4_hdmi_encoder_enable(struct drm_encoder *encoder)
 			   HDMI_READ(VC4_HDMI_SCHEDULER_CONTROL) |
 			   VC4_HDMI_SCHEDULER_CONTROL_VERT_ALWAYS_KEEPOUT);
 
-		/* XXX: Set HDMI_RAM_PACKET_CONFIG (1 << 16) and set
-		 * up the infoframe.
-		 */
+		HDMI_WRITE(VC4_HDMI_RAM_PACKET_CONFIG,
+			   VC4_HDMI_RAM_PACKET_ENABLE);
+
+		vc4_hdmi_set_infoframes(encoder);
 
 		drift = HDMI_READ(VC4_HDMI_FIFO_CTL);
 		drift &= VC4_HDMI_FIFO_VALID_WRITE_MASK;
