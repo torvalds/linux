@@ -126,7 +126,6 @@
 			};
 
 			i2c@11000 {
-				compatible = "marvell,mv64xxx-i2c";
 				clock-frequency = <100000>;
 
 				pinctrl-0 = <&i2c0_pins>;
