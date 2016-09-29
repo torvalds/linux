@@ -271,13 +271,12 @@ static inline dma_addr_t dma_map_resource(struct device *dev,
 					  unsigned long attrs)
 {
 	struct dma_map_ops *ops = get_dma_ops(dev);
-	unsigned long pfn = PHYS_PFN(phys_addr);
 	dma_addr_t addr;
 
 	BUG_ON(!valid_dma_direction(dir));
 
 	/* Don't allow RAM to be mapped */
-	BUG_ON(pfn_valid(pfn));
+	BUG_ON(pfn_valid(PHYS_PFN(phys_addr)));
 
 	addr = phys_addr;
 	if (ops->map_resource)
