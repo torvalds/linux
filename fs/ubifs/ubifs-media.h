@@ -553,18 +553,16 @@ struct ubifs_dent_node {
  * @key: node key
  * @size: uncompressed data size in bytes
  * @compr_type: compression type (%UBIFS_COMPR_NONE, %UBIFS_COMPR_LZO, etc)
- * @padding: reserved for future, zeroes
+ * @compr_size: compressed data size in bytes, only valid when data is encrypted
  * @data: data
  *
- * Note, do not forget to amend 'zero_data_node_unused()' function when
- * changing the padding fields.
  */
 struct ubifs_data_node {
 	struct ubifs_ch ch;
 	__u8 key[UBIFS_MAX_KEY_LEN];
 	__le32 size;
 	__le16 compr_type;
-	__u8 padding[2]; /* Watch 'zero_data_node_unused()' if changing! */
+	__le16 compr_size;
 	__u8 data[];
 } __packed;
 

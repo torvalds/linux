@@ -82,15 +82,6 @@ static inline void zero_dent_node_unused(struct ubifs_dent_node *dent)
 }
 
 /**
- * zero_data_node_unused - zero out unused fields of an on-flash data node.
- * @data: the data node to zero out
- */
-static inline void zero_data_node_unused(struct ubifs_data_node *data)
-{
-	memset(data->padding, 0, 2);
-}
-
-/**
  * zero_trun_node_unused - zero out unused fields of an on-flash truncation
  *                         node.
  * @trun: the truncation node to zero out
@@ -722,7 +713,6 @@ int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 	data->ch.node_type = UBIFS_DATA_NODE;
 	key_write(c, key, &data->key);
 	data->size = cpu_to_le32(len);
-	zero_data_node_unused(data);
 
 	if (!(ui->flags & UBIFS_COMPR_FL))
 		/* Compression is disabled for this inode */
@@ -1357,7 +1347,6 @@ int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
 					dn->size = cpu_to_le32(dlen);
 					dlen += UBIFS_DATA_NODE_SZ;
 				}
-				zero_data_node_unused(dn);
 			}
 		}
 	}
