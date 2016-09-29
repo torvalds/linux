@@ -2358,6 +2358,8 @@ static void mlx5_ib_event(struct mlx5_core_dev *dev, void *context,
 		ibev.event = IB_EVENT_CLIENT_REREGISTER;
 		port = (u8)param;
 		break;
+	default:
+		return;
 	}
 
 	ibev.device	      = &ibdev->ib_dev;
