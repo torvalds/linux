@@ -1539,17 +1539,6 @@ static inline void *snd_soc_platform_get_drvdata(struct snd_soc_platform *platfo
 	return snd_soc_component_get_drvdata(&platform->component);
 }
 
-static inline void snd_soc_pcm_set_drvdata(struct snd_soc_pcm_runtime *rtd,
-		void *data)
-{
-	dev_set_drvdata(rtd->dev, data);
-}
-
-static inline void *snd_soc_pcm_get_drvdata(struct snd_soc_pcm_runtime *rtd)
-{
-	return dev_get_drvdata(rtd->dev);
-}
-
 static inline void snd_soc_initialize_card_lists(struct snd_soc_card *card)
 {
 	INIT_LIST_HEAD(&card->codec_dev_list);

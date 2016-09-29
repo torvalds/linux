@@ -84,9 +84,9 @@ static int lpass_platform_pcmops_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *soc_runtime = substream->private_data;
-	struct lpass_pcm_data *pcm_data = snd_soc_pcm_get_drvdata(soc_runtime);
 	struct lpass_data *drvdata =
 		snd_soc_platform_get_drvdata(soc_runtime->platform);
+	struct lpass_pcm_data *pcm_data = drvdata->private_data;
 	struct lpass_variant *v = drvdata->variant;
 	snd_pcm_format_t format = params_format(params);
 	unsigned int channels = params_channels(params);
@@ -177,9 +177,9 @@ static int lpass_platform_pcmops_hw_params(struct snd_pcm_substream *substream,
 static int lpass_platform_pcmops_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *soc_runtime = substream->private_data;
-	struct lpass_pcm_data *pcm_data = snd_soc_pcm_get_drvdata(soc_runtime);
 	struct lpass_data *drvdata =
 		snd_soc_platform_get_drvdata(soc_runtime->platform);
+	struct lpass_pcm_data *pcm_data = drvdata->private_data;
 	struct lpass_variant *v = drvdata->variant;
 	unsigned int reg;
 	int ret;
@@ -201,9 +201,9 @@ static int lpass_platform_pcmops_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *soc_runtime = substream->private_data;
-	struct lpass_pcm_data *pcm_data = snd_soc_pcm_get_drvdata(soc_runtime);
 	struct lpass_data *drvdata =
 		snd_soc_platform_get_drvdata(soc_runtime->platform);
+	struct lpass_pcm_data *pcm_data = drvdata->private_data;
 	struct lpass_variant *v = drvdata->variant;
 	int ret, ch, dir = substream->stream;
 
@@ -255,9 +255,9 @@ static int lpass_platform_pcmops_trigger(struct snd_pcm_substream *substream,
 		int cmd)
 {
 	struct snd_soc_pcm_runtime *soc_runtime = substream->private_data;
-	struct lpass_pcm_data *pcm_data = snd_soc_pcm_get_drvdata(soc_runtime);
 	struct lpass_data *drvdata =
 		snd_soc_platform_get_drvdata(soc_runtime->platform);
+	struct lpass_pcm_data *pcm_data = drvdata->private_data;
 	struct lpass_variant *v = drvdata->variant;
 	int ret, ch, dir = substream->stream;
 
@@ -331,9 +331,9 @@ static snd_pcm_uframes_t lpass_platform_pcmops_pointer(
 		struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *soc_runtime = substream->private_data;
-	struct lpass_pcm_data *pcm_data = snd_soc_pcm_get_drvdata(soc_runtime);
 	struct lpass_data *drvdata =
 			snd_soc_platform_get_drvdata(soc_runtime->platform);
+	struct lpass_pcm_data *pcm_data = drvdata->private_data;
 	struct lpass_variant *v = drvdata->variant;
 	unsigned int base_addr, curr_addr;
 	int ret, ch, dir = substream->stream;
@@ -483,7 +483,7 @@ static int lpass_platform_pcm_new(struct snd_soc_pcm_runtime *soc_runtime)
 		return -ENOMEM;
 
 	data->i2s_port = cpu_dai->driver->id;
-	snd_soc_pcm_set_drvdata(soc_runtime, data);
+	drvdata->private_data = data;
 
 	psubstream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
 	if (psubstream) {
@@ -570,8 +570,8 @@ static void lpass_platform_pcm_free(struct snd_pcm *pcm)
 		substream = pcm->streams[i].substream;
 		if (substream) {
 			rt = substream->private_data;
-			data = snd_soc_pcm_get_drvdata(rt);
 			drvdata = snd_soc_platform_get_drvdata(rt->platform);
+			data = drvdata->private_data;
 
 			ch = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 				? data->rdma_ch
