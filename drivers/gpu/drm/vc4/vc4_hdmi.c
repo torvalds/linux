@@ -424,7 +424,7 @@ static void vc4_hdmi_encoder_enable(struct drm_encoder *encoder)
 			   VC4_HDMI_SCHEDULER_CONTROL_MODE_HDMI);
 
 		ret = wait_for(HDMI_READ(VC4_HDMI_SCHEDULER_CONTROL) &
-			       VC4_HDMI_SCHEDULER_CONTROL_HDMI_ACTIVE, 1);
+			       VC4_HDMI_SCHEDULER_CONTROL_HDMI_ACTIVE, 1000);
 		WARN_ONCE(ret, "Timeout waiting for "
 			  "VC4_HDMI_SCHEDULER_CONTROL_HDMI_ACTIVE\n");
 	} else {
@@ -436,7 +436,7 @@ static void vc4_hdmi_encoder_enable(struct drm_encoder *encoder)
 			   ~VC4_HDMI_SCHEDULER_CONTROL_MODE_HDMI);
 
 		ret = wait_for(!(HDMI_READ(VC4_HDMI_SCHEDULER_CONTROL) &
-				 VC4_HDMI_SCHEDULER_CONTROL_HDMI_ACTIVE), 1);
+				 VC4_HDMI_SCHEDULER_CONTROL_HDMI_ACTIVE), 1000);
 		WARN_ONCE(ret, "Timeout waiting for "
 			  "!VC4_HDMI_SCHEDULER_CONTROL_HDMI_ACTIVE\n");
 	}
