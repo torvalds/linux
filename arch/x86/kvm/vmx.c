@@ -4630,33 +4630,18 @@ static void vmx_disable_intercept_for_msr(u32 msr, bool longmode_only)
 						msr, MSR_TYPE_R | MSR_TYPE_W);
 }
 
-static void vmx_disable_intercept_msr_read_x2apic(u32 msr, bool apicv_active)
+static void vmx_disable_intercept_msr_x2apic(u32 msr, int type, bool apicv_active)
 {
 	if (apicv_active) {
 		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_legacy_x2apic_apicv,
-				msr, MSR_TYPE_R);
+				msr, type);
 		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_longmode_x2apic_apicv,
-				msr, MSR_TYPE_R);
+				msr, type);
 	} else {
 		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_legacy_x2apic,
-				msr, MSR_TYPE_R);
+				msr, type);
 		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_longmode_x2apic,
-				msr, MSR_TYPE_R);
-	}
-}
-
-static void vmx_disable_intercept_msr_write_x2apic(u32 msr, bool apicv_active)
-{
-	if (apicv_active) {
-		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_legacy_x2apic_apicv,
-				msr, MSR_TYPE_W);
-		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_longmode_x2apic_apicv,
-				msr, MSR_TYPE_W);
-	} else {
-		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_legacy_x2apic,
-				msr, MSR_TYPE_W);
-		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_longmode_x2apic,
-				msr, MSR_TYPE_W);
+				msr, type);
 	}
 }
 
@@ -6437,29 +6422,23 @@ static __init int hardware_setup(void)
 
 	set_bit(0, vmx_vpid_bitmap); /* 0 is reserved for host */
 
-	/*
-	 * enable_apicv && kvm_vcpu_apicv_active()
-	 */
 	for (msr = 0x800; msr <= 0x8ff; msr++) {
 		if (msr == 0x839 /* TMCCT */)
 			continue;
-		vmx_disable_intercept_msr_read_x2apic(msr, true);
+		vmx_disable_intercept_msr_x2apic(msr, MSR_TYPE_R, true);
 	}
 
-	/* TPR */
-	vmx_disable_intercept_msr_write_x2apic(0x808, true);
-	/* EOI */
-	vmx_disable_intercept_msr_write_x2apic(0x80b, true);
-	/* SELF-IPI */
-	vmx_disable_intercept_msr_write_x2apic(0x83f, true);
-
 	/*
-	 * (enable_apicv && !kvm_vcpu_apicv_active()) ||
-	 * 	!enable_apicv
+	 * TPR reads and writes can be virtualized even if virtual interrupt
+	 * delivery is not in use.
 	 */
-	/* TPR */
-	vmx_disable_intercept_msr_read_x2apic(0x808, false);
-	vmx_disable_intercept_msr_write_x2apic(0x808, false);
+	vmx_disable_intercept_msr_x2apic(0x808, MSR_TYPE_W, true);
+	vmx_disable_intercept_msr_x2apic(0x808, MSR_TYPE_R | MSR_TYPE_W, false);
+
+	/* EOI */
+	vmx_disable_intercept_msr_x2apic(0x80b, MSR_TYPE_W, true);
+	/* SELF-IPI */
+	vmx_disable_intercept_msr_x2apic(0x83f, MSR_TYPE_W, true);
 
 	if (enable_ept) {
 		kvm_mmu_set_mask_ptes(VMX_EPT_READABLE_MASK,
