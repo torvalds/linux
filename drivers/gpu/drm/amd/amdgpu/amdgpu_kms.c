@@ -411,32 +411,34 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		return copy_to_user(out, &vram_gtt,
 				    min((size_t)size, sizeof(vram_gtt))) ? -EFAULT : 0;
 	}
-	case AMDGPU_INFO_VRAM_GTT_TOTAL: {
-		struct drm_amdgpu_info_vram_gtt_total vram_gtt_total;
+	case AMDGPU_INFO_MEMORY: {
+		struct drm_amdgpu_memory_info mem;
 
-		vram_gtt_total.vram_total_size = adev->mc.real_vram_size;
-		vram_gtt_total.vram_cpu_accessible_total_size = adev->mc.visible_vram_size;
-		vram_gtt_total.gtt_total_size = adev->mc.gtt_size;
-		return copy_to_user(out, &vram_gtt_total,
-				    min((size_t)size, sizeof(vram_gtt_total)))
-				    ? -EFAULT : 0;
-	}
-	case AMDGPU_INFO_VRAM_GTT_MAX: {
-		struct drm_amdgpu_info_vram_gtt_max vram_gtt_max;
-		u64 max_size;
+		memset(&mem, 0, sizeof(mem));
+		mem.vram.total_heap_size = adev->mc.real_vram_size;
+		mem.vram.usable_heap_size =
+			adev->mc.real_vram_size - adev->vram_pin_size;
+		mem.vram.heap_usage = atomic64_read(&adev->vram_usage);
+		mem.vram.max_allocation = mem.vram.usable_heap_size * 3 / 4;
 
-		max_size = adev->mc.real_vram_size - adev->vram_pin_size;
-		vram_gtt_max.vram_max_size = max_size * 3 / 4;
+		mem.cpu_accessible_vram.total_heap_size =
+			adev->mc.visible_vram_size;
+		mem.cpu_accessible_vram.usable_heap_size =
+			adev->mc.visible_vram_size -
+			(adev->vram_pin_size - adev->invisible_pin_size);
+		mem.cpu_accessible_vram.heap_usage =
+			atomic64_read(&adev->vram_vis_usage);
+		mem.cpu_accessible_vram.max_allocation =
+			mem.cpu_accessible_vram.usable_heap_size * 3 / 4;
 
-		max_size = adev->mc.visible_vram_size - (adev->vram_pin_size -
-				adev->invisible_pin_size);
-		vram_gtt_max.vram_cpu_accessible_max_size = max_size * 3 / 4;
+		mem.gtt.total_heap_size = adev->mc.gtt_size;
+		mem.gtt.usable_heap_size =
+			adev->mc.gtt_size - adev->gart_pin_size;
+		mem.gtt.heap_usage = atomic64_read(&adev->gtt_usage);
+		mem.gtt.max_allocation = mem.gtt.usable_heap_size * 3 / 4;
 
-		max_size = adev->mc.gtt_size - adev->gart_pin_size;
-		vram_gtt_max.gtt_max_size = max_size * 3 / 4;
-
-		return copy_to_user(out, &vram_gtt_max,
-				    min((size_t)size, sizeof(vram_gtt_max)))
+		return copy_to_user(out, &mem,
+				    min((size_t)size, sizeof(mem)))
 				    ? -EFAULT : 0;
 	}
 	case AMDGPU_INFO_READ_MMR_REG: {

@@ -489,10 +489,8 @@ struct drm_amdgpu_cs_chunk_data {
 #define AMDGPU_INFO_VIS_VRAM_USAGE		0x17
 /* number of TTM buffer evictions */
 #define AMDGPU_INFO_NUM_EVICTIONS		0x18
-/* Query the total size of VRAM and GTT domains */
-#define AMDGPU_INFO_VRAM_GTT_TOTAL		0x19
-/* Query the max allocation size of VRAM and GTT domains */
-#define AMDGPU_INFO_VRAM_GTT_MAX		0x1a
+/* Query memory about VRAM and GTT domains */
+#define AMDGPU_INFO_MEMORY			0x19
 
 #define AMDGPU_INFO_MMR_SE_INDEX_SHIFT	0
 #define AMDGPU_INFO_MMR_SE_INDEX_MASK	0xff
@@ -578,16 +576,32 @@ struct drm_amdgpu_info_vram_gtt {
 	__u64 gtt_size;
 };
 
-struct drm_amdgpu_info_vram_gtt_total {
-	__u64 vram_total_size;
-	__u64 vram_cpu_accessible_total_size;
-	__u64 gtt_total_size;
+struct drm_amdgpu_heap_info {
+	/** max. physical memory */
+	__u64 total_heap_size;
+
+	/** Theoretical max. available memory in the given heap */
+	__u64 usable_heap_size;
+
+	/**
+	 * Number of bytes allocated in the heap. This includes all processes
+	 * and private allocations in the kernel. It changes when new buffers
+	 * are allocated, freed, and moved. It cannot be larger than
+	 * heap_size.
+	 */
+	__u64 heap_usage;
+
+	/**
+	 * Theoretical possible max. size of buffer which
+	 * could be allocated in the given heap
+	 */
+	__u64 max_allocation;
 };
 
-struct drm_amdgpu_info_vram_gtt_max {
-	__u64 vram_max_size;
-	__u64 vram_cpu_accessible_max_size;
-	__u64 gtt_max_size;
+struct drm_amdgpu_memory_info {
+	struct drm_amdgpu_heap_info vram;
+	struct drm_amdgpu_heap_info cpu_accessible_vram;
+	struct drm_amdgpu_heap_info gtt;
 };
 
 struct drm_amdgpu_info_firmware {
