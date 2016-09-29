@@ -1597,6 +1597,21 @@ struct rtnl_link_stats64 *hns_nic_get_stats64(struct net_device *ndev,
 	return stats;
 }
 
+static u16
+hns_nic_select_queue(struct net_device *ndev, struct sk_buff *skb,
+		     void *accel_priv, select_queue_fallback_t fallback)
+{
+	struct ethhdr *eth_hdr = (struct ethhdr *)skb->data;
+	struct hns_nic_priv *priv = netdev_priv(ndev);
+
+	/* fix hardware broadcast/multicast packets queue loopback */
+	if (!AE_IS_VER1(priv->enet_ver) &&
+	    is_multicast_ether_addr(eth_hdr->h_dest))
+		return 0;
+	else
+		return fallback(ndev, skb);
+}
+
 static const struct net_device_ops hns_nic_netdev_ops = {
 	.ndo_open = hns_nic_net_open,
 	.ndo_stop = hns_nic_net_stop,
@@ -1612,6 +1627,7 @@ static const struct net_device_ops hns_nic_netdev_ops = {
 	.ndo_poll_controller = hns_nic_poll_controller,
 #endif
 	.ndo_set_rx_mode = hns_nic_set_rx_mode,
+	.ndo_select_queue = hns_nic_select_queue,
 };
 
 static void hns_nic_update_link_status(struct net_device *netdev)
