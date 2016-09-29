@@ -71,7 +71,14 @@ static int tpa6130a2_power(struct tpa6130a2_data *data, bool enable)
 		if (ret != 0) {
 			dev_err(data->dev,
 				"Failed to sync registers: %d\n", ret);
-			goto regcache_sync_failed;
+			regcache_cache_only(data->regmap, true);
+			if (data->power_gpio >= 0)
+				gpio_set_value(data->power_gpio, 0);
+			ret2 = regulator_disable(data->supply);
+			if (ret2 != 0)
+				dev_err(data->dev,
+					"Failed to disable supply: %d\n", ret2);
+			return ret;
 		}
 	} else {
 		/* Powered off device does not retain registers. While device
@@ -79,18 +86,17 @@ static int tpa6130a2_power(struct tpa6130a2_data *data, bool enable)
 		 * happen in cache only.
 		 */
 		regcache_mark_dirty(data->regmap);
-regcache_sync_failed:
 		regcache_cache_only(data->regmap, true);
 
 		/* Power off */
 		if (data->power_gpio >= 0)
 			gpio_set_value(data->power_gpio, 0);
 
-		ret2 = regulator_disable(data->supply);
-		if (ret2 != 0) {
+		ret = regulator_disable(data->supply);
+		if (ret != 0) {
 			dev_err(data->dev,
-				"Failed to disable supply: %d\n", ret2);
-			return ret ? ret : ret2;
+				"Failed to disable supply: %d\n", ret);
+			return ret;
 		}
 	}
 
@@ -193,7 +199,7 @@ static const struct snd_soc_dapm_route tpa6130a2_dapm_routes[] = {
 	{ "Right PGA", NULL, "Power" },
 };
 
-struct snd_soc_component_driver tpa6130a2_component_driver = {
+static const struct snd_soc_component_driver tpa6130a2_component_driver = {
 	.name = "tpa6130a2",
 	.probe = tpa6130a2_component_probe,
 	.dapm_widgets = tpa6130a2_dapm_widgets,

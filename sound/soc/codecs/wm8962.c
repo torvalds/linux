@@ -3713,7 +3713,7 @@ static int wm8962_i2c_probe(struct i2c_client *i2c,
 					    ARRAY_SIZE(wm8962_dc_measure));
 		if (ret != 0)
 			dev_err(&i2c->dev,
-				"Failed to configure for DC mesurement: %d\n",
+				"Failed to configure for DC measurement: %d\n",
 				ret);
 	}
 
