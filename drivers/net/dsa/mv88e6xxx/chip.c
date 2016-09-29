@@ -3168,13 +3168,11 @@ static int mv88e6xxx_get_eeprom(struct dsa_switch *ds,
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
 
+	if (!chip->info->ops->get_eeprom)
+		return -EOPNOTSUPP;
+
 	mutex_lock(&chip->reg_lock);
-
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAGS_EEPROM16))
-		err = mv88e6xxx_g2_get_eeprom16(chip, eeprom, data);
-	else
-		err = -EOPNOTSUPP;
-
+	err = chip->info->ops->get_eeprom(chip, eeprom, data);
 	mutex_unlock(&chip->reg_lock);
 
 	if (err)
@@ -3191,16 +3189,14 @@ static int mv88e6xxx_set_eeprom(struct dsa_switch *ds,
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
 
+	if (!chip->info->ops->set_eeprom)
+		return -EOPNOTSUPP;
+
 	if (eeprom->magic != 0xc3ec4951)
 		return -EINVAL;
 
 	mutex_lock(&chip->reg_lock);
-
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAGS_EEPROM16))
-		err = mv88e6xxx_g2_set_eeprom16(chip, eeprom, data);
-	else
-		err = -EOPNOTSUPP;
-
+	err = chip->info->ops->set_eeprom(chip, eeprom, data);
 	mutex_unlock(&chip->reg_lock);
 
 	return err;
@@ -3249,6 +3245,8 @@ static const struct mv88e6xxx_ops mv88e6171_ops = {
 };
 
 static const struct mv88e6xxx_ops mv88e6172_ops = {
+	.get_eeprom = mv88e6xxx_g2_get_eeprom16,
+	.set_eeprom = mv88e6xxx_g2_set_eeprom16,
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
 	.phy_read = mv88e6xxx_g2_smi_phy_read,
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
@@ -3261,6 +3259,8 @@ static const struct mv88e6xxx_ops mv88e6175_ops = {
 };
 
 static const struct mv88e6xxx_ops mv88e6176_ops = {
+	.get_eeprom = mv88e6xxx_g2_get_eeprom16,
+	.set_eeprom = mv88e6xxx_g2_set_eeprom16,
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
 	.phy_read = mv88e6xxx_g2_smi_phy_read,
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
@@ -3273,18 +3273,24 @@ static const struct mv88e6xxx_ops mv88e6185_ops = {
 };
 
 static const struct mv88e6xxx_ops mv88e6240_ops = {
+	.get_eeprom = mv88e6xxx_g2_get_eeprom16,
+	.set_eeprom = mv88e6xxx_g2_set_eeprom16,
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
 	.phy_read = mv88e6xxx_g2_smi_phy_read,
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
 };
 
 static const struct mv88e6xxx_ops mv88e6320_ops = {
+	.get_eeprom = mv88e6xxx_g2_get_eeprom16,
+	.set_eeprom = mv88e6xxx_g2_set_eeprom16,
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
 	.phy_read = mv88e6xxx_g2_smi_phy_read,
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
 };
 
 static const struct mv88e6xxx_ops mv88e6321_ops = {
+	.get_eeprom = mv88e6xxx_g2_get_eeprom16,
+	.set_eeprom = mv88e6xxx_g2_set_eeprom16,
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
 	.phy_read = mv88e6xxx_g2_smi_phy_read,
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
@@ -3303,6 +3309,8 @@ static const struct mv88e6xxx_ops mv88e6351_ops = {
 };
 
 static const struct mv88e6xxx_ops mv88e6352_ops = {
+	.get_eeprom = mv88e6xxx_g2_get_eeprom16,
+	.set_eeprom = mv88e6xxx_g2_set_eeprom16,
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
 	.phy_read = mv88e6xxx_g2_smi_phy_read,
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
@@ -3825,7 +3833,7 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 	if (IS_ERR(chip->reset))
 		return PTR_ERR(chip->reset);
 
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAGS_EEPROM16) &&
+	if (chip->info->ops->get_eeprom &&
 	    !of_property_read_u32(np, "eeprom-length", &eeprom_len))
 		chip->eeprom_len = eeprom_len;
 

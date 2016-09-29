@@ -424,8 +424,6 @@ enum mv88e6xxx_cap {
 	MV88E6XXX_CAP_G2_PVT_ADDR,	/* (0x0b) Cross Chip Port VLAN Addr */
 	MV88E6XXX_CAP_G2_PVT_DATA,	/* (0x0c) Cross Chip Port VLAN Data */
 	MV88E6XXX_CAP_G2_POT,		/* (0x0f) Priority Override Table */
-	MV88E6XXX_CAP_G2_EEPROM_CMD,	/* (0x14) EEPROM Command */
-	MV88E6XXX_CAP_G2_EEPROM_DATA,	/* (0x15) EEPROM Data */
 
 	/* PHY Polling Unit.
 	 * See GLOBAL_CONTROL_PPU_ENABLE and GLOBAL_STATUS_PPU_POLLING.
@@ -473,8 +471,6 @@ enum mv88e6xxx_cap {
 #define MV88E6XXX_FLAG_G2_PVT_ADDR	BIT_ULL(MV88E6XXX_CAP_G2_PVT_ADDR)
 #define MV88E6XXX_FLAG_G2_PVT_DATA	BIT_ULL(MV88E6XXX_CAP_G2_PVT_DATA)
 #define MV88E6XXX_FLAG_G2_POT		BIT_ULL(MV88E6XXX_CAP_G2_POT)
-#define MV88E6XXX_FLAG_G2_EEPROM_CMD	BIT_ULL(MV88E6XXX_CAP_G2_EEPROM_CMD)
-#define MV88E6XXX_FLAG_G2_EEPROM_DATA	BIT_ULL(MV88E6XXX_CAP_G2_EEPROM_DATA)
 
 #define MV88E6XXX_FLAG_PPU		BIT_ULL(MV88E6XXX_CAP_PPU)
 #define MV88E6XXX_FLAG_PPU_ACTIVE	BIT_ULL(MV88E6XXX_CAP_PPU_ACTIVE)
@@ -482,11 +478,6 @@ enum mv88e6xxx_cap {
 #define MV88E6XXX_FLAG_TEMP		BIT_ULL(MV88E6XXX_CAP_TEMP)
 #define MV88E6XXX_FLAG_TEMP_LIMIT	BIT_ULL(MV88E6XXX_CAP_TEMP_LIMIT)
 #define MV88E6XXX_FLAG_VTU		BIT_ULL(MV88E6XXX_CAP_VTU)
-
-/* EEPROM Programming via Global2 with 16-bit data */
-#define MV88E6XXX_FLAGS_EEPROM16	\
-	(MV88E6XXX_FLAG_G2_EEPROM_CMD |	\
-	 MV88E6XXX_FLAG_G2_EEPROM_DATA)
 
 /* Ingress Rate Limit unit */
 #define MV88E6XXX_FLAGS_IRL		\
@@ -561,7 +552,6 @@ enum mv88e6xxx_cap {
 	 MV88E6XXX_FLAG_TEMP |		\
 	 MV88E6XXX_FLAG_TEMP_LIMIT |	\
 	 MV88E6XXX_FLAG_VTU |		\
-	 MV88E6XXX_FLAGS_EEPROM16 |	\
 	 MV88E6XXX_FLAGS_IRL |		\
 	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
 	 MV88E6XXX_FLAGS_PVT)
@@ -596,7 +586,6 @@ enum mv88e6xxx_cap {
 	 MV88E6XXX_FLAG_TEMP |		\
 	 MV88E6XXX_FLAG_TEMP_LIMIT |	\
 	 MV88E6XXX_FLAG_VTU |		\
-	 MV88E6XXX_FLAGS_EEPROM16 |	\
 	 MV88E6XXX_FLAGS_IRL |		\
 	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
 	 MV88E6XXX_FLAGS_PVT |		\
@@ -696,6 +685,11 @@ struct mv88e6xxx_bus_ops {
 };
 
 struct mv88e6xxx_ops {
+	int (*get_eeprom)(struct mv88e6xxx_chip *chip,
+			  struct ethtool_eeprom *eeprom, u8 *data);
+	int (*set_eeprom)(struct mv88e6xxx_chip *chip,
+			  struct ethtool_eeprom *eeprom, u8 *data);
+
 	int (*set_switch_mac)(struct mv88e6xxx_chip *chip, u8 *addr);
 
 	int (*phy_read)(struct mv88e6xxx_chip *chip, int addr, int reg,
