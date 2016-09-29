@@ -292,7 +292,7 @@ SMB3_request_interfaces(const unsigned int xid, struct cifs_tcon *tcon)
 		cifs_dbg(FYI, "Link Speed %lld\n",
 			le64_to_cpu(out_buf->LinkSpeed));
 	}
-
+	kfree(out_buf);
 	return rc;
 }
 #endif /* STATS2 */
@@ -705,6 +705,7 @@ smb2_clone_range(const unsigned int xid,
 
 cchunk_out:
 	kfree(pcchunk);
+	kfree(retbuf);
 	return rc;
 }
 
@@ -829,7 +830,6 @@ smb2_duplicate_extents(const unsigned int xid,
 {
 	int rc;
 	unsigned int ret_data_len;
-	char *retbuf = NULL;
 	struct duplicate_extents_to_file dup_ext_buf;
 	struct cifs_tcon *tcon = tlink_tcon(trgtfile->tlink);
 
@@ -855,7 +855,7 @@ smb2_duplicate_extents(const unsigned int xid,
 			FSCTL_DUPLICATE_EXTENTS_TO_FILE,
 			true /* is_fsctl */, (char *)&dup_ext_buf,
 			sizeof(struct duplicate_extents_to_file),
-			(char **)&retbuf,
+			NULL,
 			&ret_data_len);
 
 	if (ret_data_len > 0)
@@ -878,7 +878,6 @@ smb3_set_integrity(const unsigned int xid, struct cifs_tcon *tcon,
 		   struct cifsFileInfo *cfile)
 {
 	struct fsctl_set_integrity_information_req integr_info;
-	char *retbuf = NULL;
 	unsigned int ret_data_len;
 
 	integr_info.ChecksumAlgorithm = cpu_to_le16(CHECKSUM_TYPE_UNCHANGED);
@@ -890,7 +889,7 @@ smb3_set_integrity(const unsigned int xid, struct cifs_tcon *tcon,
 			FSCTL_SET_INTEGRITY_INFORMATION,
 			true /* is_fsctl */, (char *)&integr_info,
 			sizeof(struct fsctl_set_integrity_information_req),
-			(char **)&retbuf,
+			NULL,
 			&ret_data_len);
 
 }
