@@ -475,7 +475,6 @@ struct kvm_vcpu_arch {
 	ulong purr;
 	ulong spurr;
 	ulong ic;
-	ulong vtb;
 	ulong dscr;
 	ulong amr;
 	ulong uamor;
