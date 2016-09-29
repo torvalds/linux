@@ -456,7 +456,7 @@ static void iwl_pcie_tfd_unmap(struct iwl_trans *trans,
  * Does NOT advance any TFD circular buffer read/write indexes
  * Does NOT free the TFD itself (which is within circular buffer)
  */
-static void iwl_pcie_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
+void iwl_pcie_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
 {
 	/* rd_ptr is bounded by TFD_QUEUE_SIZE_MAX and
 	 * idx is bounded by n_window
@@ -1359,9 +1359,6 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, u16 ssn,
 	if (test_and_set_bit(txq_id, trans_pcie->queue_used))
 		WARN_ONCE(1, "queue %d already used - expect issues", txq_id);
 
-	if (cfg && trans->cfg->use_tfh)
-		WARN_ONCE(1, "Expected no calls to SCD configuration");
-
 	txq->wd_timeout = msecs_to_jiffies(wdg_timeout);
 
 	if (cfg) {
@@ -1476,9 +1473,6 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id,
 			  "queue %d not used", txq_id);
 		return;
 	}
-
-	if (configure_scd && trans->cfg->use_tfh)
-		WARN_ONCE(1, "Expected no calls to SCD configuration");
 
 	if (configure_scd) {
 		iwl_scd_txq_set_inactive(trans, txq_id);
