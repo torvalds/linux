@@ -33,6 +33,13 @@
 	vdda-supply = <&ldo4_reg>;
 };
 
+&i2c1 {
+	eeprom@50 {
+		compatible = "atmel,24c02";
+		reg = <0x50>;
+	};
+};
+
 &i2c5 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c5_pins>;
