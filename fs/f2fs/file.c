@@ -732,10 +732,7 @@ const struct inode_operations f2fs_file_inode_operations = {
 	.get_acl	= f2fs_get_acl,
 	.set_acl	= f2fs_set_acl,
 #ifdef CONFIG_F2FS_FS_XATTR
-	.setxattr	= generic_setxattr,
-	.getxattr	= generic_getxattr,
 	.listxattr	= f2fs_listxattr,
-	.removexattr	= generic_removexattr,
 #endif
 	.fiemap		= f2fs_fiemap,
 };

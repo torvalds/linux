@@ -28,9 +28,6 @@ static const struct inode_operations kernfs_iops = {
 	.permission	= kernfs_iop_permission,
 	.setattr	= kernfs_iop_setattr,
 	.getattr	= kernfs_iop_getattr,
-	.setxattr	= generic_setxattr,
-	.removexattr	= generic_removexattr,
-	.getxattr	= generic_getxattr,
 	.listxattr	= kernfs_iop_listxattr,
 };
 

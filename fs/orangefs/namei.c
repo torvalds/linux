@@ -462,9 +462,6 @@ const struct inode_operations orangefs_dir_inode_operations = {
 	.rename = orangefs_rename,
 	.setattr = orangefs_setattr,
 	.getattr = orangefs_getattr,
-	.setxattr = generic_setxattr,
-	.getxattr = generic_getxattr,
-	.removexattr = generic_removexattr,
 	.listxattr = orangefs_listxattr,
 	.permission = orangefs_permission,
 };

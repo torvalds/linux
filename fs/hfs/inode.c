@@ -688,7 +688,5 @@ static const struct file_operations hfs_file_operations = {
 static const struct inode_operations hfs_file_inode_operations = {
 	.lookup		= hfs_file_lookup,
 	.setattr	= hfs_inode_setattr,
-	.setxattr	= generic_setxattr,
-	.getxattr	= generic_getxattr,
 	.listxattr	= generic_listxattr,
 };

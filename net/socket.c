@@ -519,7 +519,6 @@ static ssize_t sockfs_listxattr(struct dentry *dentry, char *buffer,
 }
 
 static const struct inode_operations sockfs_inode_ops = {
-	.getxattr = generic_getxattr,
 	.listxattr = sockfs_listxattr,
 };
 

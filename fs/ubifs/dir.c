@@ -1182,10 +1182,7 @@ const struct inode_operations ubifs_dir_inode_operations = {
 	.rename      = ubifs_rename,
 	.setattr     = ubifs_setattr,
 	.getattr     = ubifs_getattr,
-	.setxattr    = generic_setxattr,
-	.getxattr    = generic_getxattr,
 	.listxattr   = ubifs_listxattr,
-	.removexattr = generic_removexattr,
 #ifdef CONFIG_UBIFS_ATIME_SUPPORT
 	.update_time = ubifs_update_time,
 #endif

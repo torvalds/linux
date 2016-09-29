@@ -94,10 +94,7 @@ const struct inode_operations ceph_file_iops = {
 	.permission = ceph_permission,
 	.setattr = ceph_setattr,
 	.getattr = ceph_getattr,
-	.setxattr = generic_setxattr,
-	.getxattr = generic_getxattr,
 	.listxattr = ceph_listxattr,
-	.removexattr = generic_removexattr,
 	.get_acl = ceph_get_acl,
 	.set_acl = ceph_set_acl,
 };
@@ -1885,10 +1882,7 @@ static const struct inode_operations ceph_symlink_iops = {
 	.get_link = simple_get_link,
 	.setattr = ceph_setattr,
 	.getattr = ceph_getattr,
-	.setxattr = generic_setxattr,
-	.getxattr = generic_getxattr,
 	.listxattr = ceph_listxattr,
-	.removexattr = generic_removexattr,
 };
 
 int __ceph_setattr(struct inode *inode, struct iattr *attr)

@@ -741,22 +741,6 @@ SYSCALL_DEFINE2(fremovexattr, int, fd, const char __user *, name)
 }
 
 /*
- * Find the handler for the prefix and dispatch its get() operation.
- */
-ssize_t
-generic_getxattr(struct dentry *dentry, struct inode *inode,
-		 const char *name, void *buffer, size_t size)
-{
-	const struct xattr_handler *handler;
-
-	handler = xattr_resolve_name(inode, &name);
-	if (IS_ERR(handler))
-		return PTR_ERR(handler);
-	return handler->get(handler, dentry, inode,
-			    name, buffer, size);
-}
-
-/*
  * Combine the results of the list() operation from every xattr_handler in the
  * list.
  */
@@ -792,44 +776,7 @@ generic_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)
 	}
 	return size;
 }
-
-/*
- * Find the handler for the prefix and dispatch its set() operation.
- */
-int
-generic_setxattr(struct dentry *dentry, struct inode *inode, const char *name,
-		 const void *value, size_t size, int flags)
-{
-	const struct xattr_handler *handler;
-
-	if (size == 0)
-		value = "";  /* empty EA, do not remove */
-	handler = xattr_resolve_name(inode, &name);
-	if (IS_ERR(handler))
-		return PTR_ERR(handler);
-	return handler->set(handler, dentry, inode, name, value, size, flags);
-}
-
-/*
- * Find the handler for the prefix and dispatch its set() operation to remove
- * any associated extended attribute.
- */
-int
-generic_removexattr(struct dentry *dentry, const char *name)
-{
-	const struct xattr_handler *handler;
-
-	handler = xattr_resolve_name(d_inode(dentry), &name);
-	if (IS_ERR(handler))
-		return PTR_ERR(handler);
-	return handler->set(handler, dentry, d_inode(dentry), name, NULL,
-			    0, XATTR_REPLACE);
-}
-
-EXPORT_SYMBOL(generic_getxattr);
 EXPORT_SYMBOL(generic_listxattr);
-EXPORT_SYMBOL(generic_setxattr);
-EXPORT_SYMBOL(generic_removexattr);
 
 /**
  * xattr_full_name  -  Compute full attribute name from suffix

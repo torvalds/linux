@@ -178,10 +178,7 @@ const struct file_operations ext2_file_operations = {
 
 const struct inode_operations ext2_file_inode_operations = {
 #ifdef CONFIG_EXT2_FS_XATTR
-	.setxattr	= generic_setxattr,
-	.getxattr	= generic_getxattr,
 	.listxattr	= ext2_listxattr,
-	.removexattr	= generic_removexattr,
 #endif
 	.setattr	= ext2_setattr,
 	.get_acl	= ext2_get_acl,

@@ -61,10 +61,7 @@ const struct inode_operations jffs2_dir_inode_operations =
 	.get_acl =	jffs2_get_acl,
 	.set_acl =	jffs2_set_acl,
 	.setattr =	jffs2_setattr,
-	.setxattr =	generic_setxattr,
-	.getxattr =	generic_getxattr,
 	.listxattr =	jffs2_listxattr,
-	.removexattr =	generic_removexattr
 };
 
 /***********************************************************************/

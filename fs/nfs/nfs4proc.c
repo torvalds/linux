@@ -8941,20 +8941,14 @@ static const struct inode_operations nfs4_dir_inode_operations = {
 	.permission	= nfs_permission,
 	.getattr	= nfs_getattr,
 	.setattr	= nfs_setattr,
-	.getxattr	= generic_getxattr,
-	.setxattr	= generic_setxattr,
 	.listxattr	= nfs4_listxattr,
-	.removexattr	= generic_removexattr,
 };
 
 static const struct inode_operations nfs4_file_inode_operations = {
 	.permission	= nfs_permission,
 	.getattr	= nfs_getattr,
 	.setattr	= nfs_setattr,
-	.getxattr	= generic_getxattr,
-	.setxattr	= generic_setxattr,
 	.listxattr	= nfs4_listxattr,
-	.removexattr	= generic_removexattr,
 };
 
 const struct nfs_rpc_ops nfs_v4_clientops = {

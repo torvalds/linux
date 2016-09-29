@@ -16,8 +16,5 @@ const struct inode_operations jffs2_symlink_inode_operations =
 	.readlink =	generic_readlink,
 	.get_link =	simple_get_link,
 	.setattr =	jffs2_setattr,
-	.setxattr =	generic_setxattr,
-	.getxattr =	generic_getxattr,
 	.listxattr =	jffs2_listxattr,
-	.removexattr =	generic_removexattr
 };

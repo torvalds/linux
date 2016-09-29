@@ -1739,12 +1739,7 @@ struct inode_operations {
 			struct inode *, struct dentry *, unsigned int);
 	int (*setattr) (struct dentry *, struct iattr *);
 	int (*getattr) (struct vfsmount *mnt, struct dentry *, struct kstat *);
-	int (*setxattr) (struct dentry *, struct inode *,
-			 const char *, const void *, size_t, int);
-	ssize_t (*getxattr) (struct dentry *, struct inode *,
-			     const char *, void *, size_t);
 	ssize_t (*listxattr) (struct dentry *, char *, size_t);
-	int (*removexattr) (struct dentry *, const char *);
 	int (*fiemap)(struct inode *, struct fiemap_extent_info *, u64 start,
 		      u64 len);
 	int (*update_time)(struct inode *, struct timespec *, int);
