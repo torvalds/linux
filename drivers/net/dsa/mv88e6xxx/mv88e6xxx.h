@@ -427,8 +427,6 @@ enum mv88e6xxx_cap {
 	MV88E6XXX_CAP_G2_POT,		/* (0x0f) Priority Override Table */
 	MV88E6XXX_CAP_G2_EEPROM_CMD,	/* (0x14) EEPROM Command */
 	MV88E6XXX_CAP_G2_EEPROM_DATA,	/* (0x15) EEPROM Data */
-	MV88E6XXX_CAP_G2_SMI_PHY_CMD,	/* (0x18) SMI PHY Command */
-	MV88E6XXX_CAP_G2_SMI_PHY_DATA,	/* (0x19) SMI PHY Data */
 
 	/* PHY Polling Unit.
 	 * See GLOBAL_CONTROL_PPU_ENABLE and GLOBAL_STATUS_PPU_POLLING.
@@ -479,8 +477,6 @@ enum mv88e6xxx_cap {
 #define MV88E6XXX_FLAG_G2_POT		BIT_ULL(MV88E6XXX_CAP_G2_POT)
 #define MV88E6XXX_FLAG_G2_EEPROM_CMD	BIT_ULL(MV88E6XXX_CAP_G2_EEPROM_CMD)
 #define MV88E6XXX_FLAG_G2_EEPROM_DATA	BIT_ULL(MV88E6XXX_CAP_G2_EEPROM_DATA)
-#define MV88E6XXX_FLAG_G2_SMI_PHY_CMD	BIT_ULL(MV88E6XXX_CAP_G2_SMI_PHY_CMD)
-#define MV88E6XXX_FLAG_G2_SMI_PHY_DATA	BIT_ULL(MV88E6XXX_CAP_G2_SMI_PHY_DATA)
 
 #define MV88E6XXX_FLAG_PPU		BIT_ULL(MV88E6XXX_CAP_PPU)
 #define MV88E6XXX_FLAG_PPU_ACTIVE	BIT_ULL(MV88E6XXX_CAP_PPU_ACTIVE)
@@ -513,11 +509,6 @@ enum mv88e6xxx_cap {
 #define MV88E6XXX_FLAGS_SERDES		\
 	(MV88E6XXX_FLAG_PHY_PAGE |	\
 	 MV88E6XXX_FLAG_SERDES)
-
-/* Indirect PHY access via Global2 SMI PHY registers */
-#define MV88E6XXX_FLAGS_SMI_PHY		\
-	(MV88E6XXX_FLAG_G2_SMI_PHY_CMD |\
-	 MV88E6XXX_FLAG_G2_SMI_PHY_DATA)
 
 #define MV88E6XXX_FLAGS_FAMILY_6095	\
 	(MV88E6XXX_FLAG_GLOBAL2 |	\
@@ -577,8 +568,7 @@ enum mv88e6xxx_cap {
 	 MV88E6XXX_FLAGS_EEPROM16 |	\
 	 MV88E6XXX_FLAGS_IRL |		\
 	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
-	 MV88E6XXX_FLAGS_PVT |		\
-	 MV88E6XXX_FLAGS_SMI_PHY)
+	 MV88E6XXX_FLAGS_PVT)
 
 #define MV88E6XXX_FLAGS_FAMILY_6351	\
 	(MV88E6XXX_FLAG_EDSA |		\
@@ -595,8 +585,7 @@ enum mv88e6xxx_cap {
 	 MV88E6XXX_FLAG_VTU |		\
 	 MV88E6XXX_FLAGS_IRL |		\
 	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
-	 MV88E6XXX_FLAGS_PVT |		\
-	 MV88E6XXX_FLAGS_SMI_PHY)
+	 MV88E6XXX_FLAGS_PVT)
 
 #define MV88E6XXX_FLAGS_FAMILY_6352	\
 	(MV88E6XXX_FLAG_EDSA |		\
@@ -617,8 +606,9 @@ enum mv88e6xxx_cap {
 	 MV88E6XXX_FLAGS_IRL |		\
 	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
 	 MV88E6XXX_FLAGS_PVT |		\
-	 MV88E6XXX_FLAGS_SERDES |	\
-	 MV88E6XXX_FLAGS_SMI_PHY)
+	 MV88E6XXX_FLAGS_SERDES)
+
+struct mv88e6xxx_ops;
 
 struct mv88e6xxx_info {
 	enum mv88e6xxx_family family;
@@ -630,6 +620,7 @@ struct mv88e6xxx_info {
 	unsigned int global1_addr;
 	unsigned int age_time_coeff;
 	unsigned long long flags;
+	const struct mv88e6xxx_ops *ops;
 };
 
 struct mv88e6xxx_atu_entry {
@@ -708,6 +699,13 @@ struct mv88e6xxx_chip {
 struct mv88e6xxx_bus_ops {
 	int (*read)(struct mv88e6xxx_chip *chip, int addr, int reg, u16 *val);
 	int (*write)(struct mv88e6xxx_chip *chip, int addr, int reg, u16 val);
+};
+
+struct mv88e6xxx_ops {
+	int (*phy_read)(struct mv88e6xxx_chip *chip, int addr, int reg,
+			u16 *val);
+	int (*phy_write)(struct mv88e6xxx_chip *chip, int addr, int reg,
+			 u16 val);
 };
 
 enum stat_type {

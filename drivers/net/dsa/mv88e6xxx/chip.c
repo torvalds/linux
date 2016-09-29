@@ -238,10 +238,10 @@ static int mv88e6xxx_phy_read(struct mv88e6xxx_chip *chip, int phy,
 {
 	int addr = phy; /* PHY devices addresses start at 0x0 */
 
-	if (!chip->phy_ops)
+	if (!chip->info->ops->phy_read)
 		return -EOPNOTSUPP;
 
-	return chip->phy_ops->read(chip, addr, reg, val);
+	return chip->info->ops->phy_read(chip, addr, reg, val);
 }
 
 static int mv88e6xxx_phy_write(struct mv88e6xxx_chip *chip, int phy,
@@ -249,10 +249,10 @@ static int mv88e6xxx_phy_write(struct mv88e6xxx_chip *chip, int phy,
 {
 	int addr = phy; /* PHY devices addresses start at 0x0 */
 
-	if (!chip->phy_ops)
+	if (!chip->info->ops->phy_write)
 		return -EOPNOTSUPP;
 
-	return chip->phy_ops->write(chip, addr, reg, val);
+	return chip->info->ops->phy_write(chip, addr, reg, val);
 }
 
 static int mv88e6xxx_phy_page_get(struct mv88e6xxx_chip *chip, int phy, u8 page)
@@ -514,11 +514,6 @@ static int mv88e6xxx_phy_ppu_write(struct mv88e6xxx_chip *chip, int addr,
 
 	return err;
 }
-
-static const struct mv88e6xxx_bus_ops mv88e6xxx_phy_ppu_ops = {
-	.read = mv88e6xxx_phy_ppu_read,
-	.write = mv88e6xxx_phy_ppu_write,
-};
 
 static bool mv88e6xxx_6065_family(struct mv88e6xxx_chip *chip)
 {
@@ -3214,6 +3209,91 @@ static int mv88e6xxx_set_eeprom(struct dsa_switch *ds,
 	return err;
 }
 
+static const struct mv88e6xxx_ops mv88e6085_ops = {
+	.phy_read = mv88e6xxx_phy_ppu_read,
+	.phy_write = mv88e6xxx_phy_ppu_write,
+};
+
+static const struct mv88e6xxx_ops mv88e6095_ops = {
+	.phy_read = mv88e6xxx_phy_ppu_read,
+	.phy_write = mv88e6xxx_phy_ppu_write,
+};
+
+static const struct mv88e6xxx_ops mv88e6123_ops = {
+	.phy_read = mv88e6xxx_read,
+	.phy_write = mv88e6xxx_write,
+};
+
+static const struct mv88e6xxx_ops mv88e6131_ops = {
+	.phy_read = mv88e6xxx_phy_ppu_read,
+	.phy_write = mv88e6xxx_phy_ppu_write,
+};
+
+static const struct mv88e6xxx_ops mv88e6161_ops = {
+	.phy_read = mv88e6xxx_read,
+	.phy_write = mv88e6xxx_write,
+};
+
+static const struct mv88e6xxx_ops mv88e6165_ops = {
+	.phy_read = mv88e6xxx_read,
+	.phy_write = mv88e6xxx_write,
+};
+
+static const struct mv88e6xxx_ops mv88e6171_ops = {
+	.phy_read = mv88e6xxx_g2_smi_phy_read,
+	.phy_write = mv88e6xxx_g2_smi_phy_write,
+};
+
+static const struct mv88e6xxx_ops mv88e6172_ops = {
+	.phy_read = mv88e6xxx_g2_smi_phy_read,
+	.phy_write = mv88e6xxx_g2_smi_phy_write,
+};
+
+static const struct mv88e6xxx_ops mv88e6175_ops = {
+	.phy_read = mv88e6xxx_g2_smi_phy_read,
+	.phy_write = mv88e6xxx_g2_smi_phy_write,
+};
+
+static const struct mv88e6xxx_ops mv88e6176_ops = {
+	.phy_read = mv88e6xxx_g2_smi_phy_read,
+	.phy_write = mv88e6xxx_g2_smi_phy_write,
+};
+
+static const struct mv88e6xxx_ops mv88e6185_ops = {
+	.phy_read = mv88e6xxx_phy_ppu_read,
+	.phy_write = mv88e6xxx_phy_ppu_write,
+};
+
+static const struct mv88e6xxx_ops mv88e6240_ops = {
+	.phy_read = mv88e6xxx_g2_smi_phy_read,
+	.phy_write = mv88e6xxx_g2_smi_phy_write,
+};
+
+static const struct mv88e6xxx_ops mv88e6320_ops = {
+	.phy_read = mv88e6xxx_g2_smi_phy_read,
+	.phy_write = mv88e6xxx_g2_smi_phy_write,
+};
+
+static const struct mv88e6xxx_ops mv88e6321_ops = {
+	.phy_read = mv88e6xxx_g2_smi_phy_read,
+	.phy_write = mv88e6xxx_g2_smi_phy_write,
+};
+
+static const struct mv88e6xxx_ops mv88e6350_ops = {
+	.phy_read = mv88e6xxx_g2_smi_phy_read,
+	.phy_write = mv88e6xxx_g2_smi_phy_write,
+};
+
+static const struct mv88e6xxx_ops mv88e6351_ops = {
+	.phy_read = mv88e6xxx_g2_smi_phy_read,
+	.phy_write = mv88e6xxx_g2_smi_phy_write,
+};
+
+static const struct mv88e6xxx_ops mv88e6352_ops = {
+	.phy_read = mv88e6xxx_g2_smi_phy_read,
+	.phy_write = mv88e6xxx_g2_smi_phy_write,
+};
+
 static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	[MV88E6085] = {
 		.prod_num = PORT_SWITCH_ID_PROD_NUM_6085,
@@ -3225,6 +3305,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6097,
+		.ops = &mv88e6085_ops,
 	},
 
 	[MV88E6095] = {
@@ -3237,6 +3318,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6095,
+		.ops = &mv88e6095_ops,
 	},
 
 	[MV88E6123] = {
@@ -3249,6 +3331,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6165,
+		.ops = &mv88e6123_ops,
 	},
 
 	[MV88E6131] = {
@@ -3261,6 +3344,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6185,
+		.ops = &mv88e6131_ops,
 	},
 
 	[MV88E6161] = {
@@ -3273,6 +3357,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6165,
+		.ops = &mv88e6161_ops,
 	},
 
 	[MV88E6165] = {
@@ -3285,6 +3370,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6165,
+		.ops = &mv88e6165_ops,
 	},
 
 	[MV88E6171] = {
@@ -3297,6 +3383,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6351,
+		.ops = &mv88e6171_ops,
 	},
 
 	[MV88E6172] = {
@@ -3309,6 +3396,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6352,
+		.ops = &mv88e6172_ops,
 	},
 
 	[MV88E6175] = {
@@ -3321,6 +3409,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6351,
+		.ops = &mv88e6175_ops,
 	},
 
 	[MV88E6176] = {
@@ -3333,6 +3422,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6352,
+		.ops = &mv88e6176_ops,
 	},
 
 	[MV88E6185] = {
@@ -3345,6 +3435,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6185,
+		.ops = &mv88e6185_ops,
 	},
 
 	[MV88E6240] = {
@@ -3357,6 +3448,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6352,
+		.ops = &mv88e6240_ops,
 	},
 
 	[MV88E6320] = {
@@ -3369,6 +3461,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6320,
+		.ops = &mv88e6320_ops,
 	},
 
 	[MV88E6321] = {
@@ -3381,6 +3474,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6320,
+		.ops = &mv88e6321_ops,
 	},
 
 	[MV88E6350] = {
@@ -3393,6 +3487,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6351,
+		.ops = &mv88e6350_ops,
 	},
 
 	[MV88E6351] = {
@@ -3405,6 +3500,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6351,
+		.ops = &mv88e6351_ops,
 	},
 
 	[MV88E6352] = {
@@ -3417,6 +3513,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6352,
+		.ops = &mv88e6352_ops,
 	},
 };
 
@@ -3479,33 +3576,16 @@ static struct mv88e6xxx_chip *mv88e6xxx_alloc_chip(struct device *dev)
 	return chip;
 }
 
-static const struct mv88e6xxx_bus_ops mv88e6xxx_g2_smi_phy_ops = {
-	.read = mv88e6xxx_g2_smi_phy_read,
-	.write = mv88e6xxx_g2_smi_phy_write,
-};
-
-static const struct mv88e6xxx_bus_ops mv88e6xxx_phy_ops = {
-	.read = mv88e6xxx_read,
-	.write = mv88e6xxx_write,
-};
-
 static void mv88e6xxx_phy_init(struct mv88e6xxx_chip *chip)
 {
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAGS_SMI_PHY)) {
-		chip->phy_ops = &mv88e6xxx_g2_smi_phy_ops;
-	} else if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_PPU)) {
-		chip->phy_ops = &mv88e6xxx_phy_ppu_ops;
+	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_PPU))
 		mv88e6xxx_ppu_state_init(chip);
-	} else {
-		chip->phy_ops = &mv88e6xxx_phy_ops;
-	}
 }
 
 static void mv88e6xxx_phy_destroy(struct mv88e6xxx_chip *chip)
 {
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_PPU)) {
+	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_PPU))
 		mv88e6xxx_ppu_state_destroy(chip);
-	}
 }
 
 static int mv88e6xxx_smi_init(struct mv88e6xxx_chip *chip,
