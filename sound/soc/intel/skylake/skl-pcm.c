@@ -1094,7 +1094,7 @@ static int skl_get_time_info(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_pcm_ops skl_platform_ops = {
+static const struct snd_pcm_ops skl_platform_ops = {
 	.open = skl_platform_open,
 	.ioctl = snd_pcm_lib_ioctl,
 	.trigger = skl_platform_pcm_trigger,

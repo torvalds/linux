@@ -372,7 +372,7 @@ static int lpass_platform_pcmops_mmap(struct snd_pcm_substream *substream,
 			runtime->dma_bytes);
 }
 
-static struct snd_pcm_ops lpass_platform_pcm_ops = {
+static const struct snd_pcm_ops lpass_platform_pcm_ops = {
 	.open		= lpass_platform_pcmops_open,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= lpass_platform_pcmops_hw_params,
