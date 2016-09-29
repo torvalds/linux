@@ -33,6 +33,12 @@ static int tcf_vlan(struct sk_buff *skb, const struct tc_action *a,
 	bstats_update(&v->tcf_bstats, skb);
 	action = v->tcf_action;
 
+	/* Ensure 'data' points at mac_header prior calling vlan manipulating
+	 * functions.
+	 */
+	if (skb_at_tc_ingress(skb))
+		skb_push_rcsum(skb, skb->mac_len);
+
 	switch (v->tcfv_action) {
 	case TCA_VLAN_ACT_POP:
 		err = skb_vlan_pop(skb);
@@ -54,6 +60,9 @@ drop:
 	action = TC_ACT_SHOT;
 	v->tcf_qstats.drops++;
 unlock:
+	if (skb_at_tc_ingress(skb))
+		skb_pull_rcsum(skb, skb->mac_len);
+
 	spin_unlock(&v->tcf_lock);
 	return action;
 }
