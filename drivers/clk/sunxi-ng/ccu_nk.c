@@ -9,21 +9,24 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/rational.h>
 
 #include "ccu_gate.h"
 #include "ccu_nk.h"
 
+struct _ccu_nk {
+	unsigned long	n, max_n;
+	unsigned long	k, max_k;
+};
+
 static void ccu_nk_find_best(unsigned long parent, unsigned long rate,
-			     unsigned int max_n, unsigned int max_k,
-			     unsigned int *n, unsigned int *k)
+			     struct _ccu_nk *nk)
 {
 	unsigned long best_rate = 0;
 	unsigned int best_k = 0, best_n = 0;
 	unsigned int _k, _n;
 
-	for (_k = 1; _k <= max_k; _k++) {
-		for (_n = 1; _n <= max_n; _n++) {
+	for (_k = 1; _k <= nk->max_k; _k++) {
+		for (_n = 1; _n <= nk->max_n; _n++) {
 			unsigned long tmp_rate = parent * _n * _k;
 
 			if (tmp_rate > rate)
@@ -37,8 +40,8 @@ static void ccu_nk_find_best(unsigned long parent, unsigned long rate,
 		}
 	}
 
-	*k = best_k;
-	*n = best_n;
+	nk->k = best_k;
+	nk->n = best_n;
 }
 
 static void ccu_nk_disable(struct clk_hw *hw)
@@ -89,16 +92,17 @@ static long ccu_nk_round_rate(struct clk_hw *hw, unsigned long rate,
 			      unsigned long *parent_rate)
 {
 	struct ccu_nk *nk = hw_to_ccu_nk(hw);
-	unsigned int n, k;
+	struct _ccu_nk _nk;
 
 	if (nk->common.features & CCU_FEATURE_FIXED_POSTDIV)
 		rate *= nk->fixed_post_div;
 
-	ccu_nk_find_best(*parent_rate, rate,
-			 1 << nk->n.width, 1 << nk->k.width,
-			 &n, &k);
+	_nk.max_n = 1 << nk->n.width;
+	_nk.max_k = 1 << nk->k.width;
 
-	rate = *parent_rate * n * k;
+	ccu_nk_find_best(*parent_rate, rate, &_nk);
+	rate = *parent_rate * _nk.n * _nk.k;
+
 	if (nk->common.features & CCU_FEATURE_FIXED_POSTDIV)
 		rate = rate / nk->fixed_post_div;
 
@@ -110,15 +114,16 @@ static int ccu_nk_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct ccu_nk *nk = hw_to_ccu_nk(hw);
 	unsigned long flags;
-	unsigned int n, k;
+	struct _ccu_nk _nk;
 	u32 reg;
 
 	if (nk->common.features & CCU_FEATURE_FIXED_POSTDIV)
 		rate = rate * nk->fixed_post_div;
 
-	ccu_nk_find_best(parent_rate, rate,
-			 1 << nk->n.width, 1 << nk->k.width,
-			 &n, &k);
+	_nk.max_n = 1 << nk->n.width;
+	_nk.max_k = 1 << nk->k.width;
+
+	ccu_nk_find_best(parent_rate, rate, &_nk);
 
 	spin_lock_irqsave(nk->common.lock, flags);
 
@@ -126,7 +131,7 @@ static int ccu_nk_set_rate(struct clk_hw *hw, unsigned long rate,
 	reg &= ~GENMASK(nk->n.width + nk->n.shift - 1, nk->n.shift);
 	reg &= ~GENMASK(nk->k.width + nk->k.shift - 1, nk->k.shift);
 
-	writel(reg | ((k - 1) << nk->k.shift) | ((n - 1) << nk->n.shift),
+	writel(reg | ((_nk.k - 1) << nk->k.shift) | ((_nk.n - 1) << nk->n.shift),
 	       nk->common.base + nk->common.reg);
 
 	spin_unlock_irqrestore(nk->common.lock, flags);
