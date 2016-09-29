@@ -58,8 +58,11 @@ xattr_resolve_name(struct inode *inode, const char **name)
 	const struct xattr_handler **handlers = inode->i_sb->s_xattr;
 	const struct xattr_handler *handler;
 
-	if (!(inode->i_opflags & IOP_XATTR))
+	if (!(inode->i_opflags & IOP_XATTR)) {
+		if (unlikely(is_bad_inode(inode)))
+			return ERR_PTR(-EIO);
 		return ERR_PTR(-EOPNOTSUPP);
+	}
 	for_each_xattr_handler(handlers, handler) {
 		const char *n;
 
@@ -168,6 +171,9 @@ int __vfs_setxattr_noperm(struct dentry *dentry, const char *name,
 		}
 	} else if (issec) {
 		const char *suffix = name + XATTR_SECURITY_PREFIX_LEN;
+
+		if (unlikely(is_bad_inode(inode)))
+			return -EIO;
 		error = security_inode_setsecurity(inode, suffix, value,
 						   size, flags);
 		if (!error)
