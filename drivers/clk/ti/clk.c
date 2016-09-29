@@ -24,6 +24,7 @@
 #include <linux/list.h>
 #include <linux/regmap.h>
 #include <linux/bootmem.h>
+#include <linux/device.h>
 
 #include "clock.h"
 
@@ -452,4 +453,67 @@ void omap2_clk_enable_init_clocks(const char **clk_names, u8 num_clocks)
 			continue;
 		clk_prepare_enable(init_clk);
 	}
+}
+
+/**
+ * ti_clk_add_alias - add a clock alias for a TI clock
+ * @dev: device alias for this clock
+ * @clk: clock handle to create alias for
+ * @con: connection ID for this clock
+ *
+ * Creates a clock alias for a TI clock. Allocates the clock lookup entry
+ * and assigns the data to it. Returns 0 if successful, negative error
+ * value otherwise.
+ */
+int ti_clk_add_alias(struct device *dev, struct clk *clk, const char *con)
+{
+	struct clk_lookup *cl;
+
+	if (!clk)
+		return 0;
+
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
+
+	cl = kzalloc(sizeof(*cl), GFP_KERNEL);
+	if (!cl)
+		return -ENOMEM;
+
+	if (dev)
+		cl->dev_id = dev_name(dev);
+	cl->con_id = con;
+	cl->clk = clk;
+
+	clkdev_add(cl);
+
+	return 0;
+}
+
+/**
+ * ti_clk_register - register a TI clock to the common clock framework
+ * @dev: device for this clock
+ * @hw: hardware clock handle
+ * @con: connection ID for this clock
+ *
+ * Registers a TI clock to the common clock framework, and adds a clock
+ * alias for it. Returns a handle to the registered clock if successful,
+ * ERR_PTR value in failure.
+ */
+struct clk *ti_clk_register(struct device *dev, struct clk_hw *hw,
+			    const char *con)
+{
+	struct clk *clk;
+	int ret;
+
+	clk = clk_register(dev, hw);
+	if (IS_ERR(clk))
+		return clk;
+
+	ret = ti_clk_add_alias(dev, clk, con);
+	if (ret) {
+		clk_unregister(clk);
+		return ERR_PTR(ret);
+	}
+
+	return clk;
 }
