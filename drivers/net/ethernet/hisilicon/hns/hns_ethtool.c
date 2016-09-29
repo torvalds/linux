@@ -342,6 +342,13 @@ static int __lb_setup(struct net_device *ndev,
 		break;
 	}
 
+	if (!ret) {
+		if (loop == MAC_LOOP_NONE)
+			h->dev->ops->set_promisc_mode(
+				h, ndev->flags & IFF_PROMISC);
+		else
+			h->dev->ops->set_promisc_mode(h, 1);
+	}
 	return ret;
 }
 

@@ -678,9 +678,6 @@ static int hns_ae_config_loopback(struct hnae_handle *handle,
 		ret = -EINVAL;
 	}
 
-	if (!ret)
-		hns_dsaf_set_inner_lb(mac_cb->dsaf_dev, mac_cb->mac_id, en);
-
 	return ret;
 }
 

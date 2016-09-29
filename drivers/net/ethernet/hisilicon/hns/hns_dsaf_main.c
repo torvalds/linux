@@ -768,16 +768,6 @@ void hns_dsaf_set_promisc_mode(struct dsaf_device *dsaf_dev, u32 en)
 				 DSAF_CFG_MIX_MODE_S, !!en);
 }
 
-void hns_dsaf_set_inner_lb(struct dsaf_device *dsaf_dev, u32 mac_id, u32 en)
-{
-	if (AE_IS_VER1(dsaf_dev->dsaf_ver) ||
-	    dsaf_dev->mac_cb[mac_id]->mac_type == HNAE_PORT_DEBUG)
-		return;
-
-	dsaf_set_dev_bit(dsaf_dev, DSAFV2_SERDES_LBK_0_REG + 4 * mac_id,
-			 DSAFV2_SERDES_LBK_EN_B, !!en);
-}
-
 /**
  * hns_dsaf_tbl_stat_en - tbl
  * @dsaf_id: dsa fabric id
