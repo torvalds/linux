@@ -639,6 +639,10 @@ static int ubifs_link(struct dentry *old_dentry, struct inode *dir,
 	ubifs_assert(inode_is_locked(dir));
 	ubifs_assert(inode_is_locked(inode));
 
+	if (ubifs_crypt_is_encrypted(dir) &&
+	    !fscrypt_has_permitted_context(dir, inode))
+		return -EPERM;
+
 	err = dbg_check_synced_i_size(c, inode);
 	if (err)
 		return err;
@@ -1133,6 +1137,12 @@ static int do_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (unlink)
 		ubifs_assert(inode_is_locked(new_inode));
 
+	if (old_dir != new_dir) {
+		if (ubifs_crypt_is_encrypted(new_dir) &&
+		    !fscrypt_has_permitted_context(new_dir, old_inode))
+			return -EPERM;
+	}
+
 	if (unlink && is_dir) {
 		err = ubifs_check_dir_empty(new_inode);
 		if (err)
@@ -1326,6 +1336,13 @@ static int ubifs_xrename(struct inode *old_dir, struct dentry *old_dentry,
 	int err;
 
 	ubifs_assert(fst_inode && snd_inode);
+
+	if ((ubifs_crypt_is_encrypted(old_dir) ||
+	    ubifs_crypt_is_encrypted(new_dir)) &&
+	    (old_dir != new_dir) &&
+	    (!fscrypt_has_permitted_context(new_dir, fst_inode) ||
+	     !fscrypt_has_permitted_context(old_dir, snd_inode)))
+		return -EPERM;
 
 	lock_4_inodes(old_dir, new_dir, NULL, NULL);
 
