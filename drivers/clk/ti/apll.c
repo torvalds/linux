@@ -164,7 +164,7 @@ static void __init omap_clk_register_apll(struct clk_hw *hw,
 
 	ad->clk_bypass = __clk_get_hw(clk);
 
-	clk = clk_register(NULL, &clk_hw->hw);
+	clk = ti_clk_register(NULL, &clk_hw->hw, node->name);
 	if (!IS_ERR(clk)) {
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);
 		kfree(clk_hw->hw.init->parent_names);

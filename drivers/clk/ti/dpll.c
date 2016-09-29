@@ -185,7 +185,7 @@ static void __init _register_dpll(struct clk_hw *hw,
 	dd->clk_bypass = __clk_get_hw(clk);
 
 	/* register the clock */
-	clk = clk_register(NULL, &clk_hw->hw);
+	clk = ti_clk_register(NULL, &clk_hw->hw, node->name);
 
 	if (!IS_ERR(clk)) {
 		omap2_init_clk_hw_omap_clocks(&clk_hw->hw);
@@ -288,7 +288,7 @@ struct clk *ti_clk_register_dpll(struct ti_clk *setup)
 	if (dpll->flags & CLKF_J_TYPE)
 		dd->flags |= DPLL_J_TYPE;
 
-	clk = clk_register(NULL, &clk_hw->hw);
+	clk = ti_clk_register(NULL, &clk_hw->hw, setup->name);
 
 	if (!IS_ERR(clk))
 		return clk;
@@ -340,7 +340,7 @@ static void _register_dpll_x2(struct device_node *node,
 	init.num_parents = 1;
 
 	/* register the clock */
-	clk = clk_register(NULL, &clk_hw->hw);
+	clk = ti_clk_register(NULL, &clk_hw->hw, name);
 
 	if (IS_ERR(clk)) {
 		kfree(clk_hw);

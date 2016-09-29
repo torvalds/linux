@@ -58,7 +58,7 @@ static struct clk *_register_interface(struct device *dev, const char *name,
 	init.num_parents = 1;
 	init.parent_names = &parent_name;
 
-	clk = clk_register(NULL, &clk_hw->hw);
+	clk = ti_clk_register(NULL, &clk_hw->hw, name);
 
 	if (IS_ERR(clk))
 		kfree(clk_hw);

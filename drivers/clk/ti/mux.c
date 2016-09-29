@@ -127,7 +127,7 @@ static struct clk *_register_mux(struct device *dev, const char *name,
 	mux->table = table;
 	mux->hw.init = &init;
 
-	clk = clk_register(dev, &mux->hw);
+	clk = ti_clk_register(dev, &mux->hw, name);
 
 	if (IS_ERR(clk))
 		kfree(mux);

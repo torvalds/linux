@@ -311,7 +311,7 @@ static struct clk *_register_divider(struct device *dev, const char *name,
 	div->table = table;
 
 	/* register the clock */
-	clk = clk_register(dev, &div->hw);
+	clk = ti_clk_register(dev, &div->hw, name);
 
 	if (IS_ERR(clk))
 		kfree(div);

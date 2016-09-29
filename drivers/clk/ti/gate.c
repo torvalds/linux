@@ -120,7 +120,7 @@ static struct clk *_register_gate(struct device *dev, const char *name,
 
 	init.flags = flags;
 
-	clk = clk_register(NULL, &clk_hw->hw);
+	clk = ti_clk_register(NULL, &clk_hw->hw, name);
 
 	if (IS_ERR(clk))
 		kfree(clk_hw);
