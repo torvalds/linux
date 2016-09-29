@@ -843,7 +843,7 @@ struct ib_qp *ib_create_qp(struct ib_pd *pd,
 		if (ret) {
 			pr_err("failed to init MR pool ret= %d\n", ret);
 			ib_destroy_qp(qp);
-			qp = ERR_PTR(ret);
+			return ERR_PTR(ret);
 		}
 	}
 
