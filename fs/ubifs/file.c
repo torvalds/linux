@@ -1594,6 +1594,15 @@ static const struct vm_operations_struct ubifs_file_vm_ops = {
 static int ubifs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	int err;
+	struct inode *inode = file->f_mapping->host;
+
+	if (ubifs_crypt_is_encrypted(inode)) {
+		err = fscrypt_get_encryption_info(inode);
+		if (err)
+			return -EACCES;
+		if (!fscrypt_has_encryption_key(inode))
+			return -ENOKEY;
+	}
 
 	err = generic_file_mmap(file, vma);
 	if (err)
