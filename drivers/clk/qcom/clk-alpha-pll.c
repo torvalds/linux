@@ -49,6 +49,7 @@
 #define PLL_USER_CTL_U		0x14
 
 #define PLL_CONFIG_CTL		0x18
+#define PLL_CONFIG_CTL_U	0x20
 #define PLL_TEST_CTL		0x1c
 #define PLL_TEST_CTL_U		0x20
 #define PLL_STATUS		0x24
@@ -105,6 +106,36 @@ static int wait_for_pll(struct clk_alpha_pll *pll, u32 mask, bool inverse,
 
 #define wait_for_pll_offline(pll) \
 	wait_for_pll(pll, PLL_OFFLINE_ACK, 0, "offline")
+
+void clk_alpha_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
+			     const struct alpha_pll_config *config)
+{
+	u32 val, mask;
+	u32 off = pll->offset;
+
+	regmap_write(regmap, off + PLL_L_VAL, config->l);
+	regmap_write(regmap, off + PLL_ALPHA_VAL, config->alpha);
+	regmap_write(regmap, off + PLL_CONFIG_CTL, config->config_ctl_val);
+	regmap_write(regmap, off + PLL_CONFIG_CTL_U, config->config_ctl_hi_val);
+
+	val = config->main_output_mask;
+	val |= config->aux_output_mask;
+	val |= config->aux2_output_mask;
+	val |= config->early_output_mask;
+	val |= config->pre_div_val;
+	val |= config->post_div_val;
+	val |= config->vco_val;
+
+	mask = config->main_output_mask;
+	mask |= config->aux_output_mask;
+	mask |= config->aux2_output_mask;
+	mask |= config->early_output_mask;
+	mask |= config->pre_div_mask;
+	mask |= config->post_div_mask;
+	mask |= config->vco_mask;
+
+	regmap_update_bits(regmap, off + PLL_USER_CTL, mask, val);
+}
 
 static int clk_alpha_pll_hwfsm_enable(struct clk_hw *hw)
 {
