@@ -1830,7 +1830,7 @@ static void wm8903_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 			   !!value << WM8903_GP1_LVL_SHIFT);
 }
 
-static struct gpio_chip wm8903_template_chip = {
+static const struct gpio_chip wm8903_template_chip = {
 	.label			= "wm8903",
 	.owner			= THIS_MODULE,
 	.request		= wm8903_gpio_request,
