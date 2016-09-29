@@ -206,6 +206,22 @@ static void squashfs_bio_end_io(struct bio *bio)
 	kfree(bio_req);
 }
 
+static int bh_is_optional(struct squashfs_read_request *req, int idx)
+{
+	int start_idx, end_idx;
+	struct squashfs_sb_info *msblk = req->sb->s_fs_info;
+
+	start_idx = (idx * msblk->devblksize - req->offset) / PAGE_CACHE_SIZE;
+	end_idx = ((idx + 1) * msblk->devblksize - req->offset + 1) / PAGE_CACHE_SIZE;
+	if (start_idx >= req->output->pages)
+		return 1;
+	if (start_idx < 0)
+		start_idx = end_idx;
+	if (end_idx >= req->output->pages)
+		end_idx = start_idx;
+	return !req->output->page[start_idx] && !req->output->page[end_idx];
+}
+
 static int actor_getblks(struct squashfs_read_request *req, u64 block)
 {
 	int i;
@@ -215,6 +231,15 @@ static int actor_getblks(struct squashfs_read_request *req, u64 block)
 		return -ENOMEM;
 
 	for (i = 0; i < req->nr_buffers; ++i) {
+		/*
+		 * When dealing with an uncompressed block, the actor may
+		 * contains NULL pages. There's no need to read the buffers
+		 * associated with these pages.
+		 */
+		if (!req->compressed && bh_is_optional(req, i)) {
+			req->bh[i] = NULL;
+			continue;
+		}
 		req->bh[i] = sb_getblk(req->sb, block + i);
 		if (!req->bh[i]) {
 			while (--i) {

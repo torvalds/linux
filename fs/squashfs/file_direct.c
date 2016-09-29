@@ -114,15 +114,38 @@ int squashfs_readpages_block(struct page *target_page,
 	struct squashfs_page_actor *actor;
 	struct inode *inode = mapping->host;
 	struct squashfs_sb_info *msblk = inode->i_sb->s_fs_info;
-	int file_end = (i_size_read(inode) - 1) >> PAGE_CACHE_SHIFT;
+	int start_index, end_index, file_end, actor_pages, res;
 	int mask = (1 << (msblk->block_log - PAGE_CACHE_SHIFT)) - 1;
-	int start_index = page_index & ~mask;
-	int end_index = start_index | mask;
-	int actor_pages, res;
 
-	if (end_index > file_end)
-		end_index = file_end;
-	actor_pages = end_index - start_index + 1;
+	/*
+	 * If readpage() is called on an uncompressed datablock, we can just
+	 * read the pages instead of fetching the whole block.
+	 * This greatly improves the performance when a process keep doing
+	 * random reads because we only fetch the necessary data.
+	 * The readahead algorithm will take care of doing speculative reads
+	 * if necessary.
+	 * We can't read more than 1 block even if readahead provides use more
+	 * pages because we don't know yet if the next block is compressed or
+	 * not.
+	 */
+	if (bsize && !SQUASHFS_COMPRESSED_BLOCK(bsize)) {
+		u64 block_end = block + msblk->block_size;
+
+		block += (page_index & mask) * PAGE_CACHE_SIZE;
+		actor_pages = (block_end - block) / PAGE_CACHE_SIZE;
+		if (*nr_pages < actor_pages)
+			actor_pages = *nr_pages;
+		start_index = page_index;
+		bsize = min_t(int, bsize, (PAGE_CACHE_SIZE * actor_pages)
+					  | SQUASHFS_COMPRESSED_BIT_BLOCK);
+	} else {
+		file_end = (i_size_read(inode) - 1) >> PAGE_CACHE_SHIFT;
+		start_index = page_index & ~mask;
+		end_index = start_index | mask;
+		if (end_index > file_end)
+			end_index = file_end;
+		actor_pages = end_index - start_index + 1;
+	}
 
 	actor = actor_from_page_cache(actor_pages, target_page,
 				      readahead_pages, nr_pages, start_index,
