@@ -402,6 +402,7 @@ static void vc4_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 	bool hsync_pos = mode->flags & DRM_MODE_FLAG_PHSYNC;
 	bool vsync_pos = mode->flags & DRM_MODE_FLAG_PVSYNC;
 	bool interlaced = mode->flags & DRM_MODE_FLAG_INTERLACE;
+	u32 pixel_rep = (mode->flags & DRM_MODE_FLAG_DBLCLK) ? 2 : 1;
 	u32 verta = (VC4_SET_FIELD(mode->crtc_vsync_end - mode->crtc_vsync_start,
 				   VC4_HDMI_VERTA_VSP) |
 		     VC4_SET_FIELD(mode->crtc_vsync_start - mode->crtc_vdisplay,
@@ -424,7 +425,8 @@ static void vc4_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 
 	HD_WRITE(VC4_HD_VID_CTL, 0);
 
-	clk_set_rate(vc4->hdmi->pixel_clock, mode->clock * 1000);
+	clk_set_rate(vc4->hdmi->pixel_clock, mode->clock * 1000 *
+		     ((mode->flags & DRM_MODE_FLAG_DBLCLK) ? 2 : 1));
 
 	HDMI_WRITE(VC4_HDMI_SCHEDULER_CONTROL,
 		   HDMI_READ(VC4_HDMI_SCHEDULER_CONTROL) |
@@ -434,14 +436,18 @@ static void vc4_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 	HDMI_WRITE(VC4_HDMI_HORZA,
 		   (vsync_pos ? VC4_HDMI_HORZA_VPOS : 0) |
 		   (hsync_pos ? VC4_HDMI_HORZA_HPOS : 0) |
-		   VC4_SET_FIELD(mode->hdisplay, VC4_HDMI_HORZA_HAP));
+		   VC4_SET_FIELD(mode->hdisplay * pixel_rep,
+				 VC4_HDMI_HORZA_HAP));
 
 	HDMI_WRITE(VC4_HDMI_HORZB,
-		   VC4_SET_FIELD(mode->htotal - mode->hsync_end,
+		   VC4_SET_FIELD((mode->htotal -
+				  mode->hsync_end) * pixel_rep,
 				 VC4_HDMI_HORZB_HBP) |
-		   VC4_SET_FIELD(mode->hsync_end - mode->hsync_start,
+		   VC4_SET_FIELD((mode->hsync_end -
+				  mode->hsync_start) * pixel_rep,
 				 VC4_HDMI_HORZB_HSP) |
-		   VC4_SET_FIELD(mode->hsync_start - mode->hdisplay,
+		   VC4_SET_FIELD((mode->hsync_start -
+				  mode->hdisplay) * pixel_rep,
 				 VC4_HDMI_HORZB_HFP));
 
 	HDMI_WRITE(VC4_HDMI_VERTA0, verta);
