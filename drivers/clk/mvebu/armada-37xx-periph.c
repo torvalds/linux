@@ -305,7 +305,7 @@ static const struct of_device_id armada_3700_periph_clock_of_match[] = {
 };
 static int armada_3700_add_composite_clk(const struct clk_periph_data *data,
 					 void __iomem *reg, spinlock_t *lock,
-					 struct device *dev, struct clk_hw *hw)
+					 struct device *dev, struct clk_hw **hw)
 {
 	const struct clk_ops *mux_ops = NULL, *gate_ops = NULL,
 		*rate_ops = NULL;
@@ -353,13 +353,13 @@ static int armada_3700_add_composite_clk(const struct clk_periph_data *data,
 		}
 	}
 
-	hw = clk_hw_register_composite(dev, data->name, data->parent_names,
+	*hw = clk_hw_register_composite(dev, data->name, data->parent_names,
 				       data->num_parents, mux_hw,
 				       mux_ops, rate_hw, rate_ops,
 				       gate_hw, gate_ops, CLK_IGNORE_UNUSED);
 
-	if (IS_ERR(hw))
-		return PTR_ERR(hw);
+	if (IS_ERR(*hw))
+		return PTR_ERR(*hw);
 
 	return 0;
 }
@@ -400,7 +400,7 @@ static int armada_3700_periph_clock_probe(struct platform_device *pdev)
 	spin_lock_init(&driver_data->lock);
 
 	for (i = 0; i < num_periph; i++) {
-		struct clk_hw *hw = driver_data->hw_data->hws[i];
+		struct clk_hw **hw = &driver_data->hw_data->hws[i];
 
 		if (armada_3700_add_composite_clk(&data[i], reg,
 						  &driver_data->lock, dev, hw))
