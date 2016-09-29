@@ -211,35 +211,10 @@ static int vc4_hdmi_connector_get_modes(struct drm_connector *connector)
 	return ret;
 }
 
-/*
- * drm_helper_probe_single_connector_modes() applies drm_mode_set_crtcinfo to
- * all modes with flag CRTC_INTERLACE_HALVE_V. We don't want this, as it
- * screws up vblank timestamping for interlaced modes, so fix it up.
- */
-static int vc4_hdmi_connector_probe_modes(struct drm_connector *connector,
-					  uint32_t maxX, uint32_t maxY)
-{
-	struct drm_display_mode *mode;
-	int count;
-
-	count = drm_helper_probe_single_connector_modes(connector, maxX, maxY);
-	if (count == 0)
-		return 0;
-
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] probed adapted modes :\n",
-		      connector->base.id, connector->name);
-	list_for_each_entry(mode, &connector->modes, head) {
-		drm_mode_set_crtcinfo(mode, 0);
-		drm_mode_debug_printmodeline(mode);
-	}
-
-	return count;
-}
-
 static const struct drm_connector_funcs vc4_hdmi_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = vc4_hdmi_connector_detect,
-	.fill_modes = vc4_hdmi_connector_probe_modes,
+	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = vc4_hdmi_connector_destroy,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
@@ -307,16 +282,20 @@ static void vc4_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 	bool debug_dump_regs = false;
 	bool hsync_pos = mode->flags & DRM_MODE_FLAG_PHSYNC;
 	bool vsync_pos = mode->flags & DRM_MODE_FLAG_PVSYNC;
-	u32 vactive = (mode->vdisplay >>
-		       ((mode->flags & DRM_MODE_FLAG_INTERLACE) ? 1 : 0));
-	u32 verta = (VC4_SET_FIELD(mode->vsync_end - mode->vsync_start,
+	bool interlaced = mode->flags & DRM_MODE_FLAG_INTERLACE;
+	u32 verta = (VC4_SET_FIELD(mode->crtc_vsync_end - mode->crtc_vsync_start,
 				   VC4_HDMI_VERTA_VSP) |
-		     VC4_SET_FIELD(mode->vsync_start - mode->vdisplay,
+		     VC4_SET_FIELD(mode->crtc_vsync_start - mode->crtc_vdisplay,
 				   VC4_HDMI_VERTA_VFP) |
-		     VC4_SET_FIELD(vactive, VC4_HDMI_VERTA_VAL));
+		     VC4_SET_FIELD(mode->crtc_vdisplay, VC4_HDMI_VERTA_VAL));
 	u32 vertb = (VC4_SET_FIELD(0, VC4_HDMI_VERTB_VSPO) |
-		     VC4_SET_FIELD(mode->vtotal - mode->vsync_end,
+		     VC4_SET_FIELD(mode->crtc_vtotal - mode->crtc_vsync_end,
 				   VC4_HDMI_VERTB_VBP));
+	u32 vertb_even = (VC4_SET_FIELD(0, VC4_HDMI_VERTB_VSPO) |
+			  VC4_SET_FIELD(mode->crtc_vtotal -
+					mode->crtc_vsync_end -
+					interlaced,
+					VC4_HDMI_VERTB_VBP));
 	u32 csc_ctl;
 
 	if (debug_dump_regs) {
@@ -349,7 +328,7 @@ static void vc4_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 	HDMI_WRITE(VC4_HDMI_VERTA0, verta);
 	HDMI_WRITE(VC4_HDMI_VERTA1, verta);
 
-	HDMI_WRITE(VC4_HDMI_VERTB0, vertb);
+	HDMI_WRITE(VC4_HDMI_VERTB0, vertb_even);
 	HDMI_WRITE(VC4_HDMI_VERTB1, vertb);
 
 	HD_WRITE(VC4_HD_VID_CTL,
