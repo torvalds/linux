@@ -1514,7 +1514,7 @@ void debug_dma_map_resource(struct device *dev, phys_addr_t addr, size_t size,
 
 	entry->type		= dma_debug_resource;
 	entry->dev		= dev;
-	entry->pfn		= __phys_to_pfn(addr);
+	entry->pfn		= PHYS_PFN(addr);
 	entry->offset		= offset_in_page(addr);
 	entry->size		= size;
 	entry->dev_addr		= dma_addr;
