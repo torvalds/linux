@@ -52,7 +52,7 @@ struct tpa6130a2_data {
 
 static int tpa6130a2_power(struct tpa6130a2_data *data, bool enable)
 {
-	int ret;
+	int ret = 0, ret2;
 
 	if (enable) {
 		ret = regulator_enable(data->supply);
@@ -64,20 +64,34 @@ static int tpa6130a2_power(struct tpa6130a2_data *data, bool enable)
 		/* Power on */
 		if (data->power_gpio >= 0)
 			gpio_set_value(data->power_gpio, 1);
+
+		/* Sync registers */
+		regcache_cache_only(data->regmap, false);
+		ret = regcache_sync(data->regmap);
+		if (ret != 0) {
+			dev_err(data->dev,
+				"Failed to sync registers: %d\n", ret);
+			goto regcache_sync_failed;
+		}
 	} else {
+		/* Powered off device does not retain registers. While device
+		 * is off, any register updates (i.e. volume changes) should
+		 * happen in cache only.
+		 */
+		regcache_mark_dirty(data->regmap);
+regcache_sync_failed:
+		regcache_cache_only(data->regmap, true);
+
 		/* Power off */
 		if (data->power_gpio >= 0)
 			gpio_set_value(data->power_gpio, 0);
 
-		ret = regulator_disable(data->supply);
-		if (ret != 0) {
+		ret2 = regulator_disable(data->supply);
+		if (ret2 != 0) {
 			dev_err(data->dev,
-				"Failed to disable supply: %d\n", ret);
-			return ret;
+				"Failed to disable supply: %d\n", ret2);
+			return ret ? ret : ret2;
 		}
-
-		/* device regs does not match the cache state anymore */
-		regcache_mark_dirty(data->regmap);
 	}
 
 	return ret;
@@ -88,25 +102,14 @@ static int tpa6130a2_power_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_component *c = snd_soc_dapm_to_component(w->dapm);
 	struct tpa6130a2_data *data = snd_soc_component_get_drvdata(c);
-	int ret;
 
-	/* before widget power up */
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
-		/* Turn on the chip */
-		tpa6130a2_power(data, true);
-		/* Sync the registers */
-		ret = regcache_sync(data->regmap);
-		if (ret < 0) {
-			dev_err(c->dev, "Failed to initialize chip\n");
-			tpa6130a2_power(data, false);
-			return ret;
-		}
-	/* after widget power down */
+		/* Before widget power up: turn chip on, sync registers */
+		return tpa6130a2_power(data, true);
 	} else {
-		tpa6130a2_power(data, false);
+		/* After widget power down: turn chip off */
+		return tpa6130a2_power(data, false);
 	}
-
-	return 0;
 }
 
 /*
