@@ -547,9 +547,10 @@ static struct pnv_php_slot *pnv_php_alloc_slot(struct device_node *dn)
 	struct pci_bus *bus;
 	const char *label;
 	uint64_t id;
+	int ret;
 
-	label = of_get_property(dn, "ibm,slot-label", NULL);
-	if (!label)
+	ret = of_property_read_string(dn, "ibm,slot-label", &label);
+	if (ret)
 		return NULL;
 
 	if (pnv_pci_get_slot_id(dn, &id))
@@ -821,16 +822,16 @@ static void pnv_php_enable_irq(struct pnv_php_slot *php_slot)
 static int pnv_php_register_one(struct device_node *dn)
 {
 	struct pnv_php_slot *php_slot;
-	const __be32 *prop32;
+	u32 prop32;
 	int ret;
 
 	/* Check if it's hotpluggable slot */
-	prop32 = of_get_property(dn, "ibm,slot-pluggable", NULL);
-	if (!prop32 || !of_read_number(prop32, 1))
+	ret = of_property_read_u32(dn, "ibm,slot-pluggable", &prop32);
+	if (ret || !prop32)
 		return -ENXIO;
 
-	prop32 = of_get_property(dn, "ibm,reset-by-firmware", NULL);
-	if (!prop32 || !of_read_number(prop32, 1))
+	ret = of_property_read_u32(dn, "ibm,reset-by-firmware", &prop32);
+	if (ret || !prop32)
 		return -ENXIO;
 
 	php_slot = pnv_php_alloc_slot(dn);
@@ -846,8 +847,8 @@ static int pnv_php_register_one(struct device_node *dn)
 		goto unregister_slot;
 
 	/* Enable interrupt if the slot supports surprise hotplug */
-	prop32 = of_get_property(dn, "ibm,slot-surprise-pluggable", NULL);
-	if (prop32 && of_read_number(prop32, 1))
+	ret = of_property_read_u32(dn, "ibm,slot-surprise-pluggable", &prop32);
+	if (!ret && prop32)
 		pnv_php_enable_irq(php_slot);
 
 	return 0;
