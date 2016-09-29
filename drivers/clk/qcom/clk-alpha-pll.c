@@ -59,6 +59,7 @@
  */
 #define ALPHA_REG_BITWIDTH	40
 #define ALPHA_BITWIDTH		32
+#define ALPHA_16BIT_MASK	0xffff
 
 #define to_clk_alpha_pll(_hw) container_of(to_clk_regmap(_hw), \
 					   struct clk_alpha_pll, clkr)
@@ -334,9 +335,14 @@ clk_alpha_pll_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 	regmap_read(pll->clkr.regmap, off + PLL_USER_CTL, &ctl);
 	if (ctl & PLL_ALPHA_EN) {
 		regmap_read(pll->clkr.regmap, off + PLL_ALPHA_VAL, &low);
-		regmap_read(pll->clkr.regmap, off + PLL_ALPHA_VAL_U, &high);
-		a = (u64)high << 32 | low;
-		a >>= ALPHA_REG_BITWIDTH - ALPHA_BITWIDTH;
+		if (pll->flags & SUPPORTS_16BIT_ALPHA) {
+			a = low & ALPHA_16BIT_MASK;
+		} else {
+			regmap_read(pll->clkr.regmap, off + PLL_ALPHA_VAL_U,
+				    &high);
+			a = (u64)high << 32 | low;
+			a >>= ALPHA_REG_BITWIDTH - ALPHA_BITWIDTH;
+		}
 	}
 
 	return alpha_pll_calc_rate(prate, l, a);
@@ -357,11 +363,15 @@ static int clk_alpha_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 		return -EINVAL;
 	}
 
-	a <<= (ALPHA_REG_BITWIDTH - ALPHA_BITWIDTH);
-
 	regmap_write(pll->clkr.regmap, off + PLL_L_VAL, l);
-	regmap_write(pll->clkr.regmap, off + PLL_ALPHA_VAL, a);
-	regmap_write(pll->clkr.regmap, off + PLL_ALPHA_VAL_U, a >> 32);
+
+	if (pll->flags & SUPPORTS_16BIT_ALPHA) {
+		regmap_write(pll->clkr.regmap, off + PLL_ALPHA_VAL,
+			     a & ALPHA_16BIT_MASK);
+	} else {
+		a <<= (ALPHA_REG_BITWIDTH - ALPHA_BITWIDTH);
+		regmap_write(pll->clkr.regmap, off + PLL_ALPHA_VAL_U, a >> 32);
+	}
 
 	regmap_update_bits(pll->clkr.regmap, off + PLL_USER_CTL,
 			   PLL_VCO_MASK << PLL_VCO_SHIFT,
