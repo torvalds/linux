@@ -1605,6 +1605,35 @@ static int ubifs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
+static int ubifs_file_open(struct inode *inode, struct file *filp)
+{
+	int ret;
+	struct dentry *dir;
+	struct ubifs_info *c = inode->i_sb->s_fs_info;
+
+	if (ubifs_crypt_is_encrypted(inode)) {
+		ret = fscrypt_get_encryption_info(inode);
+		if (ret)
+			return -EACCES;
+		if (!fscrypt_has_encryption_key(inode))
+			return -ENOKEY;
+	}
+
+	dir = dget_parent(file_dentry(filp));
+	if (ubifs_crypt_is_encrypted(d_inode(dir)) &&
+			!fscrypt_has_permitted_context(d_inode(dir), inode)) {
+		ubifs_err(c, "Inconsistent encryption contexts: %lu/%lu",
+			  (unsigned long) d_inode(dir)->i_ino,
+			  (unsigned long) inode->i_ino);
+		dput(dir);
+		ubifs_ro_mode(c, -EPERM);
+		return -EPERM;
+	}
+	dput(dir);
+
+	return 0;
+}
+
 const struct address_space_operations ubifs_file_address_operations = {
 	.readpage       = ubifs_readpage,
 	.writepage      = ubifs_writepage,
@@ -1647,6 +1676,7 @@ const struct file_operations ubifs_file_operations = {
 	.unlocked_ioctl = ubifs_ioctl,
 	.splice_read	= generic_file_splice_read,
 	.splice_write	= iter_file_splice_write,
+	.open		= ubifs_file_open,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl   = ubifs_compat_ioctl,
 #endif
