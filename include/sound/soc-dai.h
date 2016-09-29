@@ -15,6 +15,7 @@
 
 
 #include <linux/list.h>
+#include <sound/asoc.h>
 
 struct snd_pcm_substream;
 struct snd_soc_dapm_widget;
@@ -26,13 +27,13 @@ struct snd_compr_stream;
  * Describes the physical PCM data formating and clocking. Add new formats
  * to the end.
  */
-#define SND_SOC_DAIFMT_I2S		1 /* I2S mode */
-#define SND_SOC_DAIFMT_RIGHT_J		2 /* Right Justified mode */
-#define SND_SOC_DAIFMT_LEFT_J		3 /* Left Justified mode */
-#define SND_SOC_DAIFMT_DSP_A		4 /* L data MSB after FRM LRC */
-#define SND_SOC_DAIFMT_DSP_B		5 /* L data MSB during FRM LRC */
-#define SND_SOC_DAIFMT_AC97		6 /* AC97 */
-#define SND_SOC_DAIFMT_PDM		7 /* Pulse density modulation */
+#define SND_SOC_DAIFMT_I2S		SND_SOC_DAI_FORMAT_I2S
+#define SND_SOC_DAIFMT_RIGHT_J		SND_SOC_DAI_FORMAT_RIGHT_J
+#define SND_SOC_DAIFMT_LEFT_J		SND_SOC_DAI_FORMAT_LEFT_J
+#define SND_SOC_DAIFMT_DSP_A		SND_SOC_DAI_FORMAT_DSP_A
+#define SND_SOC_DAIFMT_DSP_B		SND_SOC_DAI_FORMAT_DSP_B
+#define SND_SOC_DAIFMT_AC97		SND_SOC_DAI_FORMAT_AC97
+#define SND_SOC_DAIFMT_PDM		SND_SOC_DAI_FORMAT_PDM
 
 /* left and right justified also known as MSB and LSB respectively */
 #define SND_SOC_DAIFMT_MSB		SND_SOC_DAIFMT_LEFT_J
