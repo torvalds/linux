@@ -346,7 +346,8 @@ out:
 		if (!strcmp(execname, ""))
 			strcpy(execname, anonstr);
 
-		if (!strncmp(execname, hugetlbfs_mnt, hugetlbfs_mnt_len)) {
+		if (hugetlbfs_mnt_len &&
+		    !strncmp(execname, hugetlbfs_mnt, hugetlbfs_mnt_len)) {
 			strcpy(execname, anonstr);
 			event->mmap2.flags |= MAP_HUGETLB;
 		}

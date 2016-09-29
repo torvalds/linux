@@ -38,6 +38,9 @@ int cu_find_lineinfo(Dwarf_Die *cudie, unsigned long addr,
 int cu_walk_functions_at(Dwarf_Die *cu_die, Dwarf_Addr addr,
 			 int (*callback)(Dwarf_Die *, void *), void *data);
 
+/* Get DW_AT_linkage_name (should be NULL for C binary) */
+const char *die_get_linkage_name(Dwarf_Die *dw_die);
+
 /* Ensure that this DIE is a subprogram and definition (not declaration) */
 bool die_is_func_def(Dwarf_Die *dw_die);
 

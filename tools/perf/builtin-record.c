@@ -1573,28 +1573,38 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (!rec->itr) {
 		rec->itr = auxtrace_record__init(rec->evlist, &err);
 		if (err)
-			return err;
+			goto out;
 	}
 
 	err = auxtrace_parse_snapshot_options(rec->itr, &rec->opts,
 					      rec->opts.auxtrace_snapshot_opts);
 	if (err)
-		return err;
+		goto out;
+
+	/*
+	 * Allow aliases to facilitate the lookup of symbols for address
+	 * filters. Refer to auxtrace_parse_filters().
+	 */
+	symbol_conf.allow_aliases = true;
+
+	symbol__init(NULL);
+
+	err = auxtrace_parse_filters(rec->evlist);
+	if (err)
+		goto out;
 
 	if (dry_run)
-		return 0;
+		goto out;
 
 	err = bpf__setup_stdout(rec->evlist);
 	if (err) {
 		bpf__strerror_setup_stdout(rec->evlist, err, errbuf, sizeof(errbuf));
 		pr_err("ERROR: Setup BPF stdout failed: %s\n",
 			 errbuf);
-		return err;
+		goto out;
 	}
 
 	err = -ENOMEM;
-
-	symbol__init(NULL);
 
 	if (symbol_conf.kptr_restrict)
 		pr_warning(
@@ -1643,7 +1653,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (rec->evlist->nr_entries == 0 &&
 	    perf_evlist__add_default(rec->evlist) < 0) {
 		pr_err("Not enough memory for event selector list\n");
-		goto out_symbol_exit;
+		goto out;
 	}
 
 	if (rec->opts.target.tid && !rec->opts.no_inherit_set)
@@ -1663,7 +1673,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 		ui__error("%s", errbuf);
 
 		err = -saved_errno;
-		goto out_symbol_exit;
+		goto out;
 	}
 
 	err = -ENOMEM;
@@ -1672,7 +1682,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	err = auxtrace_record__options(rec->itr, rec->evlist, &rec->opts);
 	if (err)
-		goto out_symbol_exit;
+		goto out;
 
 	/*
 	 * We take all buildids when the file contains
@@ -1684,11 +1694,11 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	if (record_opts__config(&rec->opts)) {
 		err = -EINVAL;
-		goto out_symbol_exit;
+		goto out;
 	}
 
 	err = __cmd_record(&record, argc, argv);
-out_symbol_exit:
+out:
 	perf_evlist__delete(rec->evlist);
 	symbol__exit();
 	auxtrace_record__free(rec->itr);

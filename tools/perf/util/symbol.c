@@ -345,6 +345,16 @@ static struct symbol *symbols__first(struct rb_root *symbols)
 	return NULL;
 }
 
+static struct symbol *symbols__last(struct rb_root *symbols)
+{
+	struct rb_node *n = rb_last(symbols);
+
+	if (n)
+		return rb_entry(n, struct symbol, rb_node);
+
+	return NULL;
+}
+
 static struct symbol *symbols__next(struct symbol *sym)
 {
 	struct rb_node *n = rb_next(&sym->rb_node);
@@ -464,6 +474,11 @@ struct symbol *dso__find_symbol(struct dso *dso,
 struct symbol *dso__first_symbol(struct dso *dso, enum map_type type)
 {
 	return symbols__first(&dso->symbols[type]);
+}
+
+struct symbol *dso__last_symbol(struct dso *dso, enum map_type type)
+{
+	return symbols__last(&dso->symbols[type]);
 }
 
 struct symbol *dso__next_symbol(struct symbol *sym)

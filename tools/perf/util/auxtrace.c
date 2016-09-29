@@ -16,6 +16,10 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <stdbool.h>
+#include <ctype.h>
+#include <string.h>
+#include <limits.h>
+#include <errno.h>
 
 #include <linux/kernel.h>
 #include <linux/perf_event.h>
@@ -35,9 +39,14 @@
 #include "../perf.h"
 #include "util.h"
 #include "evlist.h"
+#include "dso.h"
+#include "map.h"
+#include "pmu.h"
+#include "evsel.h"
 #include "cpumap.h"
 #include "thread_map.h"
 #include "asm/bug.h"
+#include "symbol/kallsyms.h"
 #include "auxtrace.h"
 
 #include <linux/hash.h>
@@ -1398,4 +1407,732 @@ void *auxtrace_cache__lookup(struct auxtrace_cache *c, u32 key)
 	}
 
 	return NULL;
+}
+
+static void addr_filter__free_str(struct addr_filter *filt)
+{
+	free(filt->str);
+	filt->action   = NULL;
+	filt->sym_from = NULL;
+	filt->sym_to   = NULL;
+	filt->filename = NULL;
+	filt->str      = NULL;
+}
+
+static struct addr_filter *addr_filter__new(void)
+{
+	struct addr_filter *filt = zalloc(sizeof(*filt));
+
+	if (filt)
+		INIT_LIST_HEAD(&filt->list);
+
+	return filt;
+}
+
+static void addr_filter__free(struct addr_filter *filt)
+{
+	if (filt)
+		addr_filter__free_str(filt);
+	free(filt);
+}
+
+static void addr_filters__add(struct addr_filters *filts,
+			      struct addr_filter *filt)
+{
+	list_add_tail(&filt->list, &filts->head);
+	filts->cnt += 1;
+}
+
+static void addr_filters__del(struct addr_filters *filts,
+			      struct addr_filter *filt)
+{
+	list_del_init(&filt->list);
+	filts->cnt -= 1;
+}
+
+void addr_filters__init(struct addr_filters *filts)
+{
+	INIT_LIST_HEAD(&filts->head);
+	filts->cnt = 0;
+}
+
+void addr_filters__exit(struct addr_filters *filts)
+{
+	struct addr_filter *filt, *n;
+
+	list_for_each_entry_safe(filt, n, &filts->head, list) {
+		addr_filters__del(filts, filt);
+		addr_filter__free(filt);
+	}
+}
+
+static int parse_num_or_str(char **inp, u64 *num, const char **str,
+			    const char *str_delim)
+{
+	*inp += strspn(*inp, " ");
+
+	if (isdigit(**inp)) {
+		char *endptr;
+
+		if (!num)
+			return -EINVAL;
+		errno = 0;
+		*num = strtoull(*inp, &endptr, 0);
+		if (errno)
+			return -errno;
+		if (endptr == *inp)
+			return -EINVAL;
+		*inp = endptr;
+	} else {
+		size_t n;
+
+		if (!str)
+			return -EINVAL;
+		*inp += strspn(*inp, " ");
+		*str = *inp;
+		n = strcspn(*inp, str_delim);
+		if (!n)
+			return -EINVAL;
+		*inp += n;
+		if (**inp) {
+			**inp = '\0';
+			*inp += 1;
+		}
+	}
+	return 0;
+}
+
+static int parse_action(struct addr_filter *filt)
+{
+	if (!strcmp(filt->action, "filter")) {
+		filt->start = true;
+		filt->range = true;
+	} else if (!strcmp(filt->action, "start")) {
+		filt->start = true;
+	} else if (!strcmp(filt->action, "stop")) {
+		filt->start = false;
+	} else if (!strcmp(filt->action, "tracestop")) {
+		filt->start = false;
+		filt->range = true;
+		filt->action += 5; /* Change 'tracestop' to 'stop' */
+	} else {
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int parse_sym_idx(char **inp, int *idx)
+{
+	*idx = -1;
+
+	*inp += strspn(*inp, " ");
+
+	if (**inp != '#')
+		return 0;
+
+	*inp += 1;
+
+	if (**inp == 'g' || **inp == 'G') {
+		*inp += 1;
+		*idx = 0;
+	} else {
+		unsigned long num;
+		char *endptr;
+
+		errno = 0;
+		num = strtoul(*inp, &endptr, 0);
+		if (errno)
+			return -errno;
+		if (endptr == *inp || num > INT_MAX)
+			return -EINVAL;
+		*inp = endptr;
+		*idx = num;
+	}
+
+	return 0;
+}
+
+static int parse_addr_size(char **inp, u64 *num, const char **str, int *idx)
+{
+	int err = parse_num_or_str(inp, num, str, " ");
+
+	if (!err && *str)
+		err = parse_sym_idx(inp, idx);
+
+	return err;
+}
+
+static int parse_one_filter(struct addr_filter *filt, const char **filter_inp)
+{
+	char *fstr;
+	int err;
+
+	filt->str = fstr = strdup(*filter_inp);
+	if (!fstr)
+		return -ENOMEM;
+
+	err = parse_num_or_str(&fstr, NULL, &filt->action, " ");
+	if (err)
+		goto out_err;
+
+	err = parse_action(filt);
+	if (err)
+		goto out_err;
+
+	err = parse_addr_size(&fstr, &filt->addr, &filt->sym_from,
+			      &filt->sym_from_idx);
+	if (err)
+		goto out_err;
+
+	fstr += strspn(fstr, " ");
+
+	if (*fstr == '/') {
+		fstr += 1;
+		err = parse_addr_size(&fstr, &filt->size, &filt->sym_to,
+				      &filt->sym_to_idx);
+		if (err)
+			goto out_err;
+		filt->range = true;
+	}
+
+	fstr += strspn(fstr, " ");
+
+	if (*fstr == '@') {
+		fstr += 1;
+		err = parse_num_or_str(&fstr, NULL, &filt->filename, " ,");
+		if (err)
+			goto out_err;
+	}
+
+	fstr += strspn(fstr, " ,");
+
+	*filter_inp += fstr - filt->str;
+
+	return 0;
+
+out_err:
+	addr_filter__free_str(filt);
+
+	return err;
+}
+
+int addr_filters__parse_bare_filter(struct addr_filters *filts,
+				    const char *filter)
+{
+	struct addr_filter *filt;
+	const char *fstr = filter;
+	int err;
+
+	while (*fstr) {
+		filt = addr_filter__new();
+		err = parse_one_filter(filt, &fstr);
+		if (err) {
+			addr_filter__free(filt);
+			addr_filters__exit(filts);
+			return err;
+		}
+		addr_filters__add(filts, filt);
+	}
+
+	return 0;
+}
+
+struct sym_args {
+	const char	*name;
+	u64		start;
+	u64		size;
+	int		idx;
+	int		cnt;
+	bool		started;
+	bool		global;
+	bool		selected;
+	bool		duplicate;
+	bool		near;
+};
+
+static bool kern_sym_match(struct sym_args *args, const char *name, char type)
+{
+	/* A function with the same name, and global or the n'th found or any */
+	return symbol_type__is_a(type, MAP__FUNCTION) &&
+	       !strcmp(name, args->name) &&
+	       ((args->global && isupper(type)) ||
+		(args->selected && ++(args->cnt) == args->idx) ||
+		(!args->global && !args->selected));
+}
+
+static int find_kern_sym_cb(void *arg, const char *name, char type, u64 start)
+{
+	struct sym_args *args = arg;
+
+	if (args->started) {
+		if (!args->size)
+			args->size = start - args->start;
+		if (args->selected) {
+			if (args->size)
+				return 1;
+		} else if (kern_sym_match(args, name, type)) {
+			args->duplicate = true;
+			return 1;
+		}
+	} else if (kern_sym_match(args, name, type)) {
+		args->started = true;
+		args->start = start;
+	}
+
+	return 0;
+}
+
+static int print_kern_sym_cb(void *arg, const char *name, char type, u64 start)
+{
+	struct sym_args *args = arg;
+
+	if (kern_sym_match(args, name, type)) {
+		pr_err("#%d\t0x%"PRIx64"\t%c\t%s\n",
+		       ++args->cnt, start, type, name);
+		args->near = true;
+	} else if (args->near) {
+		args->near = false;
+		pr_err("\t\twhich is near\t\t%s\n", name);
+	}
+
+	return 0;
+}
+
+static int sym_not_found_error(const char *sym_name, int idx)
+{
+	if (idx > 0) {
+		pr_err("N'th occurrence (N=%d) of symbol '%s' not found.\n",
+		       idx, sym_name);
+	} else if (!idx) {
+		pr_err("Global symbol '%s' not found.\n", sym_name);
+	} else {
+		pr_err("Symbol '%s' not found.\n", sym_name);
+	}
+	pr_err("Note that symbols must be functions.\n");
+
+	return -EINVAL;
+}
+
+static int find_kern_sym(const char *sym_name, u64 *start, u64 *size, int idx)
+{
+	struct sym_args args = {
+		.name = sym_name,
+		.idx = idx,
+		.global = !idx,
+		.selected = idx > 0,
+	};
+	int err;
+
+	*start = 0;
+	*size = 0;
+
+	err = kallsyms__parse("/proc/kallsyms", &args, find_kern_sym_cb);
+	if (err < 0) {
+		pr_err("Failed to parse /proc/kallsyms\n");
+		return err;
+	}
+
+	if (args.duplicate) {
+		pr_err("Multiple kernel symbols with name '%s'\n", sym_name);
+		args.cnt = 0;
+		kallsyms__parse("/proc/kallsyms", &args, print_kern_sym_cb);
+		pr_err("Disambiguate symbol name by inserting #n after the name e.g. %s #2\n",
+		       sym_name);
+		pr_err("Or select a global symbol by inserting #0 or #g or #G\n");
+		return -EINVAL;
+	}
+
+	if (!args.started) {
+		pr_err("Kernel symbol lookup: ");
+		return sym_not_found_error(sym_name, idx);
+	}
+
+	*start = args.start;
+	*size = args.size;
+
+	return 0;
+}
+
+static int find_entire_kern_cb(void *arg, const char *name __maybe_unused,
+			       char type, u64 start)
+{
+	struct sym_args *args = arg;
+
+	if (!symbol_type__is_a(type, MAP__FUNCTION))
+		return 0;
+
+	if (!args->started) {
+		args->started = true;
+		args->start = start;
+	}
+	/* Don't know exactly where the kernel ends, so we add a page */
+	args->size = round_up(start, page_size) + page_size - args->start;
+
+	return 0;
+}
+
+static int addr_filter__entire_kernel(struct addr_filter *filt)
+{
+	struct sym_args args = { .started = false };
+	int err;
+
+	err = kallsyms__parse("/proc/kallsyms", &args, find_entire_kern_cb);
+	if (err < 0 || !args.started) {
+		pr_err("Failed to parse /proc/kallsyms\n");
+		return err;
+	}
+
+	filt->addr = args.start;
+	filt->size = args.size;
+
+	return 0;
+}
+
+static int check_end_after_start(struct addr_filter *filt, u64 start, u64 size)
+{
+	if (start + size >= filt->addr)
+		return 0;
+
+	if (filt->sym_from) {
+		pr_err("Symbol '%s' (0x%"PRIx64") comes before '%s' (0x%"PRIx64")\n",
+		       filt->sym_to, start, filt->sym_from, filt->addr);
+	} else {
+		pr_err("Symbol '%s' (0x%"PRIx64") comes before address 0x%"PRIx64")\n",
+		       filt->sym_to, start, filt->addr);
+	}
+
+	return -EINVAL;
+}
+
+static int addr_filter__resolve_kernel_syms(struct addr_filter *filt)
+{
+	bool no_size = false;
+	u64 start, size;
+	int err;
+
+	if (symbol_conf.kptr_restrict) {
+		pr_err("Kernel addresses are restricted. Unable to resolve kernel symbols.\n");
+		return -EINVAL;
+	}
+
+	if (filt->sym_from && !strcmp(filt->sym_from, "*"))
+		return addr_filter__entire_kernel(filt);
+
+	if (filt->sym_from) {
+		err = find_kern_sym(filt->sym_from, &start, &size,
+				    filt->sym_from_idx);
+		if (err)
+			return err;
+		filt->addr = start;
+		if (filt->range && !filt->size && !filt->sym_to) {
+			filt->size = size;
+			no_size = !!size;
+		}
+	}
+
+	if (filt->sym_to) {
+		err = find_kern_sym(filt->sym_to, &start, &size,
+				    filt->sym_to_idx);
+		if (err)
+			return err;
+
+		err = check_end_after_start(filt, start, size);
+		if (err)
+			return err;
+		filt->size = start + size - filt->addr;
+		no_size = !!size;
+	}
+
+	/* The very last symbol in kallsyms does not imply a particular size */
+	if (no_size) {
+		pr_err("Cannot determine size of symbol '%s'\n",
+		       filt->sym_to ? filt->sym_to : filt->sym_from);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static struct dso *load_dso(const char *name)
+{
+	struct map *map;
+	struct dso *dso;
+
+	map = dso__new_map(name);
+	if (!map)
+		return NULL;
+
+	map__load(map);
+
+	dso = dso__get(map->dso);
+
+	map__put(map);
+
+	return dso;
+}
+
+static bool dso_sym_match(struct symbol *sym, const char *name, int *cnt,
+			  int idx)
+{
+	/* Same name, and global or the n'th found or any */
+	return !arch__compare_symbol_names(name, sym->name) &&
+	       ((!idx && sym->binding == STB_GLOBAL) ||
+		(idx > 0 && ++*cnt == idx) ||
+		idx < 0);
+}
+
+static void print_duplicate_syms(struct dso *dso, const char *sym_name)
+{
+	struct symbol *sym;
+	bool near = false;
+	int cnt = 0;
+
+	pr_err("Multiple symbols with name '%s'\n", sym_name);
+
+	sym = dso__first_symbol(dso, MAP__FUNCTION);
+	while (sym) {
+		if (dso_sym_match(sym, sym_name, &cnt, -1)) {
+			pr_err("#%d\t0x%"PRIx64"\t%c\t%s\n",
+			       ++cnt, sym->start,
+			       sym->binding == STB_GLOBAL ? 'g' :
+			       sym->binding == STB_LOCAL  ? 'l' : 'w',
+			       sym->name);
+			near = true;
+		} else if (near) {
+			near = false;
+			pr_err("\t\twhich is near\t\t%s\n", sym->name);
+		}
+		sym = dso__next_symbol(sym);
+	}
+
+	pr_err("Disambiguate symbol name by inserting #n after the name e.g. %s #2\n",
+	       sym_name);
+	pr_err("Or select a global symbol by inserting #0 or #g or #G\n");
+}
+
+static int find_dso_sym(struct dso *dso, const char *sym_name, u64 *start,
+			u64 *size, int idx)
+{
+	struct symbol *sym;
+	int cnt = 0;
+
+	*start = 0;
+	*size = 0;
+
+	sym = dso__first_symbol(dso, MAP__FUNCTION);
+	while (sym) {
+		if (*start) {
+			if (!*size)
+				*size = sym->start - *start;
+			if (idx > 0) {
+				if (*size)
+					return 1;
+			} else if (dso_sym_match(sym, sym_name, &cnt, idx)) {
+				print_duplicate_syms(dso, sym_name);
+				return -EINVAL;
+			}
+		} else if (dso_sym_match(sym, sym_name, &cnt, idx)) {
+			*start = sym->start;
+			*size = sym->end - sym->start;
+		}
+		sym = dso__next_symbol(sym);
+	}
+
+	if (!*start)
+		return sym_not_found_error(sym_name, idx);
+
+	return 0;
+}
+
+static int addr_filter__entire_dso(struct addr_filter *filt, struct dso *dso)
+{
+	struct symbol *first_sym = dso__first_symbol(dso, MAP__FUNCTION);
+	struct symbol *last_sym = dso__last_symbol(dso, MAP__FUNCTION);
+
+	if (!first_sym || !last_sym) {
+		pr_err("Failed to determine filter for %s\nNo symbols found.\n",
+		       filt->filename);
+		return -EINVAL;
+	}
+
+	filt->addr = first_sym->start;
+	filt->size = last_sym->end - first_sym->start;
+
+	return 0;
+}
+
+static int addr_filter__resolve_syms(struct addr_filter *filt)
+{
+	u64 start, size;
+	struct dso *dso;
+	int err = 0;
+
+	if (!filt->sym_from && !filt->sym_to)
+		return 0;
+
+	if (!filt->filename)
+		return addr_filter__resolve_kernel_syms(filt);
+
+	dso = load_dso(filt->filename);
+	if (!dso) {
+		pr_err("Failed to load symbols from: %s\n", filt->filename);
+		return -EINVAL;
+	}
+
+	if (filt->sym_from && !strcmp(filt->sym_from, "*")) {
+		err = addr_filter__entire_dso(filt, dso);
+		goto put_dso;
+	}
+
+	if (filt->sym_from) {
+		err = find_dso_sym(dso, filt->sym_from, &start, &size,
+				   filt->sym_from_idx);
+		if (err)
+			goto put_dso;
+		filt->addr = start;
+		if (filt->range && !filt->size && !filt->sym_to)
+			filt->size = size;
+	}
+
+	if (filt->sym_to) {
+		err = find_dso_sym(dso, filt->sym_to, &start, &size,
+				   filt->sym_to_idx);
+		if (err)
+			goto put_dso;
+
+		err = check_end_after_start(filt, start, size);
+		if (err)
+			return err;
+
+		filt->size = start + size - filt->addr;
+	}
+
+put_dso:
+	dso__put(dso);
+
+	return err;
+}
+
+static char *addr_filter__to_str(struct addr_filter *filt)
+{
+	char filename_buf[PATH_MAX];
+	const char *at = "";
+	const char *fn = "";
+	char *filter;
+	int err;
+
+	if (filt->filename) {
+		at = "@";
+		fn = realpath(filt->filename, filename_buf);
+		if (!fn)
+			return NULL;
+	}
+
+	if (filt->range) {
+		err = asprintf(&filter, "%s 0x%"PRIx64"/0x%"PRIx64"%s%s",
+			       filt->action, filt->addr, filt->size, at, fn);
+	} else {
+		err = asprintf(&filter, "%s 0x%"PRIx64"%s%s",
+			       filt->action, filt->addr, at, fn);
+	}
+
+	return err < 0 ? NULL : filter;
+}
+
+static int parse_addr_filter(struct perf_evsel *evsel, const char *filter,
+			     int max_nr)
+{
+	struct addr_filters filts;
+	struct addr_filter *filt;
+	int err;
+
+	addr_filters__init(&filts);
+
+	err = addr_filters__parse_bare_filter(&filts, filter);
+	if (err)
+		goto out_exit;
+
+	if (filts.cnt > max_nr) {
+		pr_err("Error: number of address filters (%d) exceeds maximum (%d)\n",
+		       filts.cnt, max_nr);
+		err = -EINVAL;
+		goto out_exit;
+	}
+
+	list_for_each_entry(filt, &filts.head, list) {
+		char *new_filter;
+
+		err = addr_filter__resolve_syms(filt);
+		if (err)
+			goto out_exit;
+
+		new_filter = addr_filter__to_str(filt);
+		if (!new_filter) {
+			err = -ENOMEM;
+			goto out_exit;
+		}
+
+		if (perf_evsel__append_addr_filter(evsel, new_filter)) {
+			err = -ENOMEM;
+			goto out_exit;
+		}
+	}
+
+out_exit:
+	addr_filters__exit(&filts);
+
+	if (err) {
+		pr_err("Failed to parse address filter: '%s'\n", filter);
+		pr_err("Filter format is: filter|start|stop|tracestop <start symbol or address> [/ <end symbol or size>] [@<file name>]\n");
+		pr_err("Where multiple filters are separated by space or comma.\n");
+	}
+
+	return err;
+}
+
+static struct perf_pmu *perf_evsel__find_pmu(struct perf_evsel *evsel)
+{
+	struct perf_pmu *pmu = NULL;
+
+	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+		if (pmu->type == evsel->attr.type)
+			break;
+	}
+
+	return pmu;
+}
+
+static int perf_evsel__nr_addr_filter(struct perf_evsel *evsel)
+{
+	struct perf_pmu *pmu = perf_evsel__find_pmu(evsel);
+	int nr_addr_filters = 0;
+
+	if (!pmu)
+		return 0;
+
+	perf_pmu__scan_file(pmu, "nr_addr_filters", "%d", &nr_addr_filters);
+
+	return nr_addr_filters;
+}
+
+int auxtrace_parse_filters(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel;
+	char *filter;
+	int err, max_nr;
+
+	evlist__for_each_entry(evlist, evsel) {
+		filter = evsel->filter;
+		max_nr = perf_evsel__nr_addr_filter(evsel);
+		if (!filter || !max_nr)
+			continue;
+		evsel->filter = NULL;
+		err = parse_addr_filter(evsel, filter, max_nr);
+		free(filter);
+		if (err)
+			return err;
+		pr_debug("Address filter: %s\n", evsel->filter);
+	}
+
+	return 0;
 }
