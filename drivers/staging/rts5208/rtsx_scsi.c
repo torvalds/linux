@@ -484,14 +484,14 @@ static int inquiry(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	u8 card = get_lun_card(chip, lun);
 	bool pro_formatter_flag = false;
 	unsigned char inquiry_buf[] = {
-		QULIFIRE|DRCT_ACCESS_DEV,
-		RMB_DISC|0x0D,
+		QULIFIRE | DRCT_ACCESS_DEV,
+		RMB_DISC | 0x0D,
 		0x00,
 		0x01,
 		0x1f,
 		0x02,
 		0,
-		REL_ADR|WBUS_32|WBUS_16|SYNC|LINKED|CMD_QUE|SFT_RE,
+		REL_ADR | WBUS_32 | WBUS_16 | SYNC | LINKED | CMD_QUE | SFT_RE,
 	};
 
 	if (CHECK_LUN_MODE(chip, SD_MS_2LUN)) {
@@ -1986,8 +1986,8 @@ static int read_phy_register(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 				return TRANSPORT_FAILED;
 			}
 
-			buf[2*i] = (u8)(val >> 8);
-			buf[2*i+1] = (u8)val;
+			buf[2 * i] = (u8)(val >> 8);
+			buf[2 * i + 1] = (u8)val;
 		}
 
 		len = (unsigned short)min_t(unsigned int, scsi_bufflen(srb),
@@ -2045,7 +2045,7 @@ static int write_phy_register(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		}
 
 		for (i = 0; i < len / 2; i++) {
-			val = ((u16)buf[2*i] << 8) | buf[2*i+1];
+			val = ((u16)buf[2 * i] << 8) | buf[2 * i + 1];
 			retval = rtsx_write_phy_register(chip, addr + i, val);
 			if (retval != STATUS_SUCCESS) {
 				vfree(buf);
@@ -3067,18 +3067,18 @@ static int get_ms_information(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	buf[i++] = 0x80;
 	if ((dev_info_id == 0x10) || (dev_info_id == 0x13)) {
 		/* System Information */
-		memcpy(buf+i, ms_card->raw_sys_info, 96);
+		memcpy(buf + i, ms_card->raw_sys_info, 96);
 	} else {
 		/* Model Name */
-		memcpy(buf+i, ms_card->raw_model_name, 48);
+		memcpy(buf + i, ms_card->raw_model_name, 48);
 	}
 
 	rtsx_stor_set_xfer_buf(buf, buf_len, srb);
 
 	if (dev_info_id == 0x15)
-		scsi_set_resid(srb, scsi_bufflen(srb)-0x3C);
+		scsi_set_resid(srb, scsi_bufflen(srb) - 0x3C);
 	else
-		scsi_set_resid(srb, scsi_bufflen(srb)-0x6C);
+		scsi_set_resid(srb, scsi_bufflen(srb) - 0x6C);
 
 	kfree(buf);
 	return STATUS_SUCCESS;
