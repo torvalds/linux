@@ -1232,16 +1232,18 @@ static struct snd_soc_dai_driver wm8991_dai = {
 	.ops = &wm8991_ops
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8991 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8991 = {
 	.set_bias_level = wm8991_set_bias_level,
 	.suspend_bias_off = true,
 
-	.controls = wm8991_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8991_snd_controls),
-	.dapm_widgets = wm8991_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8991_dapm_widgets),
-	.dapm_routes = wm8991_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm8991_dapm_routes),
+	.component_driver = {
+		.controls		= wm8991_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8991_snd_controls),
+		.dapm_widgets		= wm8991_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8991_dapm_widgets),
+		.dapm_routes		= wm8991_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm8991_dapm_routes),
+	},
 };
 
 static const struct regmap_config wm8991_regmap = {

@@ -231,13 +231,14 @@ static int cs35l32_codec_set_sysclk(struct snd_soc_codec *codec,
 static const struct snd_soc_codec_driver soc_codec_dev_cs35l32 = {
 	.set_sysclk = cs35l32_codec_set_sysclk,
 
-	.dapm_widgets = cs35l32_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(cs35l32_dapm_widgets),
-	.dapm_routes = cs35l32_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(cs35l32_audio_map),
-
-	.controls = cs35l32_snd_controls,
-	.num_controls = ARRAY_SIZE(cs35l32_snd_controls),
+	.component_driver = {
+		.controls		= cs35l32_snd_controls,
+		.num_controls		= ARRAY_SIZE(cs35l32_snd_controls),
+		.dapm_widgets		= cs35l32_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(cs35l32_dapm_widgets),
+		.dapm_routes		= cs35l32_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(cs35l32_audio_map),
+	},
 };
 
 /* Current and threshold powerup sequence Pg37 in datasheet */

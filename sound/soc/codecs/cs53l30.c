@@ -897,13 +897,14 @@ static struct snd_soc_codec_driver cs53l30_driver = {
 	.set_bias_level = cs53l30_set_bias_level,
 	.idle_bias_off = true,
 
-	.dapm_widgets = cs53l30_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(cs53l30_dapm_widgets),
-	.dapm_routes = cs53l30_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(cs53l30_dapm_routes),
-
-	.controls = cs53l30_snd_controls,
-	.num_controls = ARRAY_SIZE(cs53l30_snd_controls),
+	.component_driver = {
+		.controls		= cs53l30_snd_controls,
+		.num_controls		= ARRAY_SIZE(cs53l30_snd_controls),
+		.dapm_widgets		= cs53l30_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(cs53l30_dapm_widgets),
+		.dapm_routes		= cs53l30_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(cs53l30_dapm_routes),
+	},
 };
 
 static struct regmap_config cs53l30_regmap = {
