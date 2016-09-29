@@ -237,7 +237,6 @@ struct iwl_pcie_first_tb_buf {
  * @stuck_timer: timer that fires if queue gets stuck
  * @trans_pcie: pointer back to transport (for timer)
  * @need_update: indicates need to update read/write index
- * @active: stores if queue is active
  * @ampdu: true if this queue is an ampdu queue for an specific RA/TID
  * @wd_timeout: queue watchdog timeout (jiffies) - per queue
  * @frozen: tx stuck queue timer is frozen
@@ -277,7 +276,6 @@ struct iwl_txq {
 	struct iwl_trans_pcie *trans_pcie;
 	bool need_update;
 	bool frozen;
-	u8 active;
 	bool ampdu;
 	int block;
 	unsigned long wd_timeout;

@@ -701,7 +701,6 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
 			spin_unlock_irqrestore(&trans_pcie->reg_lock, flags);
 		}
 	}
-	txq->active = false;
 
 	while (!skb_queue_empty(&txq->overflow_q)) {
 		struct sk_buff *skb = __skb_dequeue(&txq->overflow_q);
@@ -932,6 +931,8 @@ void iwl_pcie_tx_free(struct iwl_trans *trans)
 	int txq_id;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
+	memset(trans_pcie->queue_used, 0, sizeof(trans_pcie->queue_used));
+
 	/* Tx queues */
 	if (trans_pcie->txq) {
 		for (txq_id = 0;
@@ -1107,7 +1108,7 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 
 	spin_lock_bh(&txq->lock);
 
-	if (!txq->active) {
+	if (!test_bit(txq_id, trans_pcie->queue_used)) {
 		IWL_DEBUG_TX_QUEUES(trans, "Q %d inactive - ignoring idx %d\n",
 				    txq_id, ssn);
 		goto out;
@@ -1411,8 +1412,6 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, u16 ssn,
 				    "Activate queue %d WrPtr: %d\n",
 				    txq_id, ssn & 0xff);
 	}
-
-	txq->active = true;
 }
 
 void iwl_trans_pcie_txq_set_shared_mode(struct iwl_trans *trans, u32 txq_id,
