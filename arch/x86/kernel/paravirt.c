@@ -332,7 +332,6 @@ __visible struct pv_cpu_ops pv_cpu_ops = {
 	.read_cr0 = native_read_cr0,
 	.write_cr0 = native_write_cr0,
 	.read_cr4 = native_read_cr4,
-	.read_cr4_safe = native_read_cr4_safe,
 	.write_cr4 = native_write_cr4,
 #ifdef CONFIG_X86_64
 	.read_cr8 = native_read_cr8,

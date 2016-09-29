@@ -1137,7 +1137,7 @@ void __init setup_arch(char **cmdline_p)
 	 * auditing all the early-boot CR4 manipulation would be needed to
 	 * rule it out.
 	 */
-	mmu_cr4_features = __read_cr4_safe();
+	mmu_cr4_features = __read_cr4();
 
 	memblock_set_current_limit(get_max_mapped());
 

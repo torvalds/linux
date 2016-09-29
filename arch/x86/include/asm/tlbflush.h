@@ -81,7 +81,7 @@ DECLARE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate);
 /* Initialize cr4 shadow for this CPU. */
 static inline void cr4_init_shadow(void)
 {
-	this_cpu_write(cpu_tlbstate.cr4, __read_cr4_safe());
+	this_cpu_write(cpu_tlbstate.cr4, __read_cr4());
 }
 
 /* Set in this cpu's CR4. */
