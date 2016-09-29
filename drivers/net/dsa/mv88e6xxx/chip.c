@@ -560,11 +560,6 @@ static bool mv88e6xxx_6352_family(struct mv88e6xxx_chip *chip)
 	return chip->info->family == MV88E6XXX_FAMILY_6352;
 }
 
-static unsigned int mv88e6xxx_num_databases(struct mv88e6xxx_chip *chip)
-{
-	return chip->info->num_databases;
-}
-
 /* We expect the switch to perform auto negotiation if there is a real
  * phy. However, in the case of a fixed link phy, we force the port
  * settings from the fixed link settings.

@@ -732,6 +732,11 @@ static inline bool mv88e6xxx_has(struct mv88e6xxx_chip *chip,
 	return (chip->info->flags & flags) == flags;
 }
 
+static inline unsigned int mv88e6xxx_num_databases(struct mv88e6xxx_chip *chip)
+{
+	return chip->info->num_databases;
+}
+
 int mv88e6xxx_read(struct mv88e6xxx_chip *chip, int addr, int reg, u16 *val);
 int mv88e6xxx_write(struct mv88e6xxx_chip *chip, int addr, int reg, u16 val);
 int mv88e6xxx_update(struct mv88e6xxx_chip *chip, int addr, int reg,
