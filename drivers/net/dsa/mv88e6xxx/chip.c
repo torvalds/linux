@@ -98,7 +98,7 @@ static int mv88e6xxx_smi_single_chip_write(struct mv88e6xxx_chip *chip,
 	return 0;
 }
 
-static const struct mv88e6xxx_ops mv88e6xxx_smi_single_chip_ops = {
+static const struct mv88e6xxx_bus_ops mv88e6xxx_smi_single_chip_ops = {
 	.read = mv88e6xxx_smi_single_chip_read,
 	.write = mv88e6xxx_smi_single_chip_write,
 };
@@ -180,7 +180,7 @@ static int mv88e6xxx_smi_multi_chip_write(struct mv88e6xxx_chip *chip,
 	return 0;
 }
 
-static const struct mv88e6xxx_ops mv88e6xxx_smi_multi_chip_ops = {
+static const struct mv88e6xxx_bus_ops mv88e6xxx_smi_multi_chip_ops = {
 	.read = mv88e6xxx_smi_multi_chip_read,
 	.write = mv88e6xxx_smi_multi_chip_write,
 };
@@ -515,7 +515,7 @@ static int mv88e6xxx_phy_ppu_write(struct mv88e6xxx_chip *chip, int addr,
 	return err;
 }
 
-static const struct mv88e6xxx_ops mv88e6xxx_phy_ppu_ops = {
+static const struct mv88e6xxx_bus_ops mv88e6xxx_phy_ppu_ops = {
 	.read = mv88e6xxx_phy_ppu_read,
 	.write = mv88e6xxx_phy_ppu_write,
 };
@@ -3479,12 +3479,12 @@ static struct mv88e6xxx_chip *mv88e6xxx_alloc_chip(struct device *dev)
 	return chip;
 }
 
-static const struct mv88e6xxx_ops mv88e6xxx_g2_smi_phy_ops = {
+static const struct mv88e6xxx_bus_ops mv88e6xxx_g2_smi_phy_ops = {
 	.read = mv88e6xxx_g2_smi_phy_read,
 	.write = mv88e6xxx_g2_smi_phy_write,
 };
 
-static const struct mv88e6xxx_ops mv88e6xxx_phy_ops = {
+static const struct mv88e6xxx_bus_ops mv88e6xxx_phy_ops = {
 	.read = mv88e6xxx_read,
 	.write = mv88e6xxx_write,
 };

@@ -648,7 +648,7 @@ struct mv88e6xxx_vtu_entry {
 	u8	data[DSA_MAX_PORTS];
 };
 
-struct mv88e6xxx_ops;
+struct mv88e6xxx_bus_ops;
 
 struct mv88e6xxx_priv_port {
 	struct net_device *bridge_dev;
@@ -669,14 +669,14 @@ struct mv88e6xxx_chip {
 	/* The MII bus and the address on the bus that is used to
 	 * communication with the switch
 	 */
-	const struct mv88e6xxx_ops *smi_ops;
+	const struct mv88e6xxx_bus_ops *smi_ops;
 	struct mii_bus *bus;
 	int sw_addr;
 
 	/* Handles automatic disabling and re-enabling of the PHY
 	 * polling unit.
 	 */
-	const struct mv88e6xxx_ops *phy_ops;
+	const struct mv88e6xxx_bus_ops *phy_ops;
 	struct mutex		ppu_mutex;
 	int			ppu_disabled;
 	struct work_struct	ppu_work;
@@ -705,7 +705,7 @@ struct mv88e6xxx_chip {
 	struct mii_bus *mdio_bus;
 };
 
-struct mv88e6xxx_ops {
+struct mv88e6xxx_bus_ops {
 	int (*read)(struct mv88e6xxx_chip *chip, int addr, int reg, u16 *val);
 	int (*write)(struct mv88e6xxx_chip *chip, int addr, int reg, u16 val);
 };
