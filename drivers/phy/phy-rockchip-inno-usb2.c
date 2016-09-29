@@ -678,9 +678,9 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 			rport->state = OTG_STATE_B_IDLE;
 			rockchip_usb2phy_power_off(rport->phy);
 		}
-		break;
+		return;
 	default:
-		break;
+		return;
 	}
 
 	if (extcon_get_state(rphy->edev, cable) != rport->vbus_attached)
