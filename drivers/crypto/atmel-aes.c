@@ -317,7 +317,7 @@ static inline void atmel_aes_write(struct atmel_aes_dev *dd,
 		char tmp[16];
 
 		dev_vdbg(dd->dev, "write 0x%08x into %s\n", value,
-			 atmel_aes_reg_name(offset, tmp));
+			 atmel_aes_reg_name(offset, tmp, sizeof(tmp)));
 	}
 #endif /* VERBOSE_DEBUG */
 
