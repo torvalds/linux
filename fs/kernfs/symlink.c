@@ -134,9 +134,9 @@ static const char *kernfs_iop_get_link(struct dentry *dentry,
 }
 
 const struct inode_operations kernfs_symlink_iops = {
-	.setxattr	= kernfs_iop_setxattr,
-	.removexattr	= kernfs_iop_removexattr,
-	.getxattr	= kernfs_iop_getxattr,
+	.setxattr	= generic_setxattr,
+	.removexattr	= generic_removexattr,
+	.getxattr	= generic_getxattr,
 	.listxattr	= kernfs_iop_listxattr,
 	.readlink	= generic_readlink,
 	.get_link	= kernfs_iop_get_link,
