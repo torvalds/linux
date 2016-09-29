@@ -432,11 +432,16 @@ static int mtk_dpi_set_display_mode(struct mtk_dpi *dpi,
 	unsigned long pll_rate;
 	unsigned int factor;
 
+	/* let pll_rate can fix the valid range of tvdpll (1G~2GHz) */
 	pix_rate = 1000UL * mode->clock;
-	if (mode->clock <= 74000)
+	if (mode->clock <= 27000)
+		factor = 16 * 3;
+	else if (mode->clock <= 84000)
 		factor = 8 * 3;
-	else
+	else if (mode->clock <= 167000)
 		factor = 4 * 3;
+	else
+		factor = 2 * 3;
 	pll_rate = pix_rate * factor;
 
 	dev_dbg(dpi->dev, "Want PLL %lu Hz, pixel clock %lu Hz\n",
