@@ -14,8 +14,8 @@
 #include "ccu_nk.h"
 
 struct _ccu_nk {
-	unsigned long	n, max_n;
-	unsigned long	k, max_k;
+	unsigned long	n, min_n, max_n;
+	unsigned long	k, min_k, max_k;
 };
 
 static void ccu_nk_find_best(unsigned long parent, unsigned long rate,
@@ -25,8 +25,8 @@ static void ccu_nk_find_best(unsigned long parent, unsigned long rate,
 	unsigned int best_k = 0, best_n = 0;
 	unsigned int _k, _n;
 
-	for (_k = 1; _k <= nk->max_k; _k++) {
-		for (_n = 1; _n <= nk->max_n; _n++) {
+	for (_k = nk->min_k; _k <= nk->max_k; _k++) {
+		for (_n = nk->min_n; _n <= nk->max_n; _n++) {
 			unsigned long tmp_rate = parent * _n * _k;
 
 			if (tmp_rate > rate)
@@ -97,7 +97,9 @@ static long ccu_nk_round_rate(struct clk_hw *hw, unsigned long rate,
 	if (nk->common.features & CCU_FEATURE_FIXED_POSTDIV)
 		rate *= nk->fixed_post_div;
 
+	_nk.min_n = 1;
 	_nk.max_n = 1 << nk->n.width;
+	_nk.min_k = 1;
 	_nk.max_k = 1 << nk->k.width;
 
 	ccu_nk_find_best(*parent_rate, rate, &_nk);
@@ -120,7 +122,9 @@ static int ccu_nk_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (nk->common.features & CCU_FEATURE_FIXED_POSTDIV)
 		rate = rate * nk->fixed_post_div;
 
+	_nk.min_n = 1;
 	_nk.max_n = 1 << nk->n.width;
+	_nk.min_k = 1;
 	_nk.max_k = 1 << nk->k.width;
 
 	ccu_nk_find_best(parent_rate, rate, &_nk);

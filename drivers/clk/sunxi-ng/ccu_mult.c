@@ -14,7 +14,7 @@
 #include "ccu_mult.h"
 
 struct _ccu_mult {
-	unsigned long	mult, max;
+	unsigned long	mult, min, max;
 };
 
 static void ccu_mult_find_best(unsigned long parent, unsigned long rate,
@@ -23,6 +23,9 @@ static void ccu_mult_find_best(unsigned long parent, unsigned long rate,
 	int _mult;
 
 	_mult = rate / parent;
+	if (_mult < mult->min)
+		_mult = mult->min;
+
 	if (_mult > mult->max)
 		_mult = mult->max;
 
@@ -37,6 +40,7 @@ static unsigned long ccu_mult_round_rate(struct ccu_mux_internal *mux,
 	struct ccu_mult *cm = data;
 	struct _ccu_mult _cm;
 
+	_cm.min = 1;
 	_cm.max = 1 << cm->mult.width;
 	ccu_mult_find_best(parent_rate, rate, &_cm);
 
@@ -101,6 +105,7 @@ static int ccu_mult_set_rate(struct clk_hw *hw, unsigned long rate,
 	ccu_mux_helper_adjust_parent_for_prediv(&cm->common, &cm->mux, -1,
 						&parent_rate);
 
+	_cm.min = 1;
 	_cm.max = 1 << cm->mult.width;
 	ccu_mult_find_best(parent_rate, rate, &_cm);
 

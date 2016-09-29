@@ -15,8 +15,8 @@
 #include "ccu_nm.h"
 
 struct _ccu_nm {
-	unsigned long	n, max_n;
-	unsigned long	m, max_m;
+	unsigned long	n, min_n, max_n;
+	unsigned long	m, min_m, max_m;
 };
 
 static void ccu_nm_find_best(unsigned long parent, unsigned long rate,
@@ -26,8 +26,8 @@ static void ccu_nm_find_best(unsigned long parent, unsigned long rate,
 	unsigned long best_n = 0, best_m = 0;
 	unsigned long _n, _m;
 
-	for (_n = 1; _n <= nm->max_n; _n++) {
-		for (_m = 1; _n <= nm->max_m; _m++) {
+	for (_n = nm->min_n; _n <= nm->max_n; _n++) {
+		for (_m = nm->min_m; _m <= nm->max_m; _m++) {
 			unsigned long tmp_rate = parent * _n  / _m;
 
 			if (tmp_rate > rate)
@@ -93,7 +93,9 @@ static long ccu_nm_round_rate(struct clk_hw *hw, unsigned long rate,
 	struct ccu_nm *nm = hw_to_ccu_nm(hw);
 	struct _ccu_nm _nm;
 
+	_nm.min_n = 1;
 	_nm.max_n = 1 << nm->n.width;
+	_nm.min_m = 1;
 	_nm.max_m = nm->m.max ?: 1 << nm->m.width;
 
 	ccu_nm_find_best(*parent_rate, rate, &_nm);
@@ -114,7 +116,9 @@ static int ccu_nm_set_rate(struct clk_hw *hw, unsigned long rate,
 	else
 		ccu_frac_helper_disable(&nm->common, &nm->frac);
 
+	_nm.min_n = 1;
 	_nm.max_n = 1 << nm->n.width;
+	_nm.min_m = 1;
 	_nm.max_m = nm->m.max ?: 1 << nm->m.width;
 
 	ccu_nm_find_best(parent_rate, rate, &_nm);
