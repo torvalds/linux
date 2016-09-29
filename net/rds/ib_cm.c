@@ -128,6 +128,8 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 			  ic->i_flowctl ? ", flow control" : "");
 	}
 
+	atomic_set(&ic->i_cq_quiesce, 0);
+
 	/* Init rings and fill recv. this needs to wait until protocol
 	 * negotiation is complete, since ring layout is different
 	 * from 3.1 to 4.1.
@@ -267,6 +269,10 @@ static void rds_ib_tasklet_fn_send(unsigned long data)
 
 	rds_ib_stats_inc(s_ib_tasklet_call);
 
+	/* if cq has been already reaped, ignore incoming cq event */
+	if (atomic_read(&ic->i_cq_quiesce))
+		return;
+
 	poll_scq(ic, ic->i_send_cq, ic->i_send_wc);
 	ib_req_notify_cq(ic->i_send_cq, IB_CQ_NEXT_COMP);
 	poll_scq(ic, ic->i_send_cq, ic->i_send_wc);
@@ -307,6 +313,10 @@ static void rds_ib_tasklet_fn_recv(unsigned long data)
 		rds_conn_drop(conn);
 
 	rds_ib_stats_inc(s_ib_tasklet_call);
+
+	/* if cq has been already reaped, ignore incoming cq event */
+	if (atomic_read(&ic->i_cq_quiesce))
+		return;
 
 	memset(&state, 0, sizeof(state));
 	poll_rcq(ic, ic->i_recv_cq, ic->i_recv_wc, &state);
@@ -803,6 +813,8 @@ void rds_ib_conn_path_shutdown(struct rds_conn_path *cp)
 			   (atomic_read(&ic->i_fastunreg_wrs) == RDS_IB_DEFAULT_FR_INV_WR));
 		tasklet_kill(&ic->i_send_tasklet);
 		tasklet_kill(&ic->i_recv_tasklet);
+
+		atomic_set(&ic->i_cq_quiesce, 1);
 
 		/* first destroy the ib state that generates callbacks */
 		if (ic->i_cm_id->qp)
