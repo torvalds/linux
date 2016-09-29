@@ -675,9 +675,6 @@ xattr_resolve_name(const struct xattr_handler **handlers, const char **name)
 {
 	const struct xattr_handler *handler;
 
-	if (!*name)
-		return ERR_PTR(-EINVAL);
-
 	for_each_xattr_handler(handlers, handler) {
 		const char *n;
 
