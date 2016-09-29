@@ -53,10 +53,13 @@ strcmp_prefix(const char *a, const char *a_prefix)
  * Find the xattr_handler with the matching prefix.
  */
 static const struct xattr_handler *
-xattr_resolve_name(const struct xattr_handler **handlers, const char **name)
+xattr_resolve_name(struct inode *inode, const char **name)
 {
+	const struct xattr_handler **handlers = inode->i_sb->s_xattr;
 	const struct xattr_handler *handler;
 
+	if (!(inode->i_opflags & IOP_XATTR))
+		return ERR_PTR(-EOPNOTSUPP);
 	for_each_xattr_handler(handlers, handler) {
 		const char *n;
 
@@ -298,6 +301,7 @@ nolsm:
 		error = -EOPNOTSUPP;
 
 	return error;
+
 }
 EXPORT_SYMBOL_GPL(vfs_getxattr);
 
@@ -700,7 +704,7 @@ generic_getxattr(struct dentry *dentry, struct inode *inode,
 {
 	const struct xattr_handler *handler;
 
-	handler = xattr_resolve_name(dentry->d_sb->s_xattr, &name);
+	handler = xattr_resolve_name(inode, &name);
 	if (IS_ERR(handler))
 		return PTR_ERR(handler);
 	return handler->get(handler, dentry, inode,
@@ -755,7 +759,7 @@ generic_setxattr(struct dentry *dentry, struct inode *inode, const char *name,
 
 	if (size == 0)
 		value = "";  /* empty EA, do not remove */
-	handler = xattr_resolve_name(dentry->d_sb->s_xattr, &name);
+	handler = xattr_resolve_name(inode, &name);
 	if (IS_ERR(handler))
 		return PTR_ERR(handler);
 	return handler->set(handler, dentry, inode, name, value, size, flags);
@@ -770,7 +774,7 @@ generic_removexattr(struct dentry *dentry, const char *name)
 {
 	const struct xattr_handler *handler;
 
-	handler = xattr_resolve_name(dentry->d_sb->s_xattr, &name);
+	handler = xattr_resolve_name(d_inode(dentry), &name);
 	if (IS_ERR(handler))
 		return PTR_ERR(handler);
 	return handler->set(handler, dentry, d_inode(dentry), name, NULL,
