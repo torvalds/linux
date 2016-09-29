@@ -200,7 +200,7 @@ rxrpc_alloc_client_connection(struct rxrpc_conn_parameters *cp, gfp_t gfp)
 	}
 
 	atomic_set(&conn->usage, 1);
-	if (conn->params.exclusive)
+	if (cp->exclusive)
 		__set_bit(RXRPC_CONN_DONT_REUSE, &conn->flags);
 
 	conn->params		= *cp;
