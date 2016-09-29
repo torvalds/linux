@@ -73,6 +73,7 @@ void __cpu_die(unsigned int cpu);
 #define smp_fill_in_sib_core_maps() do { } while (0)
 #define smp_fetch_global_regs() do { } while (0)
 #define smp_fetch_global_pmu() do { } while (0)
+#define smp_fill_in_cpu_possible_map() do { } while (0)
 
 #endif /* !(CONFIG_SMP) */
 
