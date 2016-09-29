@@ -74,7 +74,7 @@ static int mv88e6xxx_g2_set_device_mapping(struct mv88e6xxx_chip *chip)
 static int mv88e6xxx_g2_trunk_mask_write(struct mv88e6xxx_chip *chip, int num,
 					 bool hask, u16 mask)
 {
-	const u16 port_mask = BIT(chip->info->num_ports) - 1;
+	const u16 port_mask = BIT(mv88e6xxx_num_ports(chip)) - 1;
 	u16 val = (num << 12) | (mask & port_mask);
 
 	if (hask)
@@ -88,7 +88,7 @@ static int mv88e6xxx_g2_trunk_mask_write(struct mv88e6xxx_chip *chip, int num,
 static int mv88e6xxx_g2_trunk_mapping_write(struct mv88e6xxx_chip *chip, int id,
 					    u16 map)
 {
-	const u16 port_mask = BIT(chip->info->num_ports) - 1;
+	const u16 port_mask = BIT(mv88e6xxx_num_ports(chip)) - 1;
 	u16 val = (id << 11) | (map & port_mask);
 
 	return mv88e6xxx_g2_update(chip, GLOBAL2_TRUNK_MAPPING, val);
@@ -96,7 +96,7 @@ static int mv88e6xxx_g2_trunk_mapping_write(struct mv88e6xxx_chip *chip, int id,
 
 static int mv88e6xxx_g2_clear_trunk(struct mv88e6xxx_chip *chip)
 {
-	const u16 port_mask = BIT(chip->info->num_ports) - 1;
+	const u16 port_mask = BIT(mv88e6xxx_num_ports(chip)) - 1;
 	int i, err;
 
 	/* Clear all eight possible Trunk Mask vectors */
@@ -125,7 +125,7 @@ static int mv88e6xxx_g2_clear_irl(struct mv88e6xxx_chip *chip)
 	int port, err;
 
 	/* Init all Ingress Rate Limit resources of all ports */
-	for (port = 0; port < chip->info->num_ports; ++port) {
+	for (port = 0; port < mv88e6xxx_num_ports(chip); ++port) {
 		/* XXX newer chips (like 88E6390) have different 2-bit ops */
 		err = mv88e6xxx_g2_write(chip, GLOBAL2_IRL_CMD,
 					 GLOBAL2_IRL_CMD_OP_INIT_ALL |
