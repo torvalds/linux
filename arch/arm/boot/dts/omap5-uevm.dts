@@ -28,6 +28,25 @@
 		};
 	};
 
+	evm_keys {
+		compatible = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&evm_keys_pins>;
+
+		#address-cells = <7>;
+		#size-cells = <0>;
+
+		btn1 {
+			label = "BTN1";
+			linux,code = <169>;
+			gpios = <&gpio3 19 GPIO_ACTIVE_LOW>;	/* gpio3_83 */
+			gpio-key,wakeup;
+			autorepeat;
+			debounce_interval = <50>;
+		};
+	};
+
 	evm_leds {
 		compatible = "gpio-leds";
 
@@ -115,6 +134,12 @@
 };
 
 &omap5_pmx_core {
+	evm_keys_pins: pinmux_evm_keys_gpio_pins {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x0b6, PIN_INPUT | MUX_MODE6)	/* gpio3_83 */
+		>;
+	};
+
 	i2c5_pins: pinmux_i2c5_pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x1c6, PIN_INPUT | MUX_MODE0)		/* i2c5_scl */
