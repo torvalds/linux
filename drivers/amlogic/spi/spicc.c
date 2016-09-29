@@ -121,11 +121,20 @@ static void spicc_set_mode(struct spicc *spicc, u8 mode)
     spicc_dbg("mode = 0x%x\n", mode);
 }
 
+
+//
+// available spi clock out table
+//
+// div = 0 : 39,843,750 Hz, div = 1 : 19,921,875 Hz
+// div = 2 :  9,960,937 Hz, div = 3 :  4,980,468 Hz
+// div = 4 :  2,490,234 Hz, div = 5 :  1,245,117 Hz
+// div = 6 :    625,558 Hz, div = 7 :    311,279 Hz
+//
 static void spicc_set_clk(struct spicc *spicc, int speed) 
 {	
     struct clk *sys_clk = clk_get_sys("clk81", NULL);
-    unsigned sys_clk_rate = clk_get_rate(sys_clk);
-    unsigned div, mid_speed;
+    unsigned long sys_clk_rate = clk_get_rate(sys_clk);
+    unsigned long div, mid_speed, div_val;
   
     // actually, speed = sys_clk_rate / 2^(conreg.data_rate_div+2)
     mid_speed = (sys_clk_rate * 3) >> 4;
@@ -135,8 +144,9 @@ static void spicc_set_clk(struct spicc *spicc, int speed)
     }
     spicc->regs->conreg.data_rate_div = div;
     spicc->cur_speed = speed;
-    spicc_dbg("sys_clk_rate = %d, speed = %d, div = %d, actually speed = %d\n",
-        sys_clk_rate, speed, div, sys_clk_rate / (2^(div+2)));
+    div_val = (div + 2);
+    spicc_dbg("sys_clk_rate = %ld, speed = %d, div = %ld, actually speed = %ld\n",
+        sys_clk_rate, speed, div, (sys_clk_rate >> div_val));
 }
 
 static int spicc_hw_xfer(struct spicc *spicc, u8 *txp, u8 *rxp, int len)
@@ -192,9 +202,33 @@ static int spicc_hw_xfer(struct spicc *spicc, u8 *txp, u8 *rxp, int len)
 				return -ETIMEDOUT;
 			}
 
-			dat = spicc->regs->rxdata;
-			if (rxp)	*rxp++ = (unsigned char)dat;
+			// delay for rx_data
+			if ((spicc->regs->conreg.data_rate_div > 5) &&
+			    (spicc->cur_bits_per_word != 8) ) {
+				unsigned int delay;
 
+				delay = spicc->cur_bits_per_word *
+					(spicc->regs->conreg.data_rate_div - 5);
+				delay += 10;
+				udelay(delay);
+			}
+
+			dat = spicc->regs->rxdata;
+			if (rxp) {
+				switch(spicc->cur_bits_per_word) {
+					case	32:
+						(*rxp++) = (dat >> 24) & 0xFF;
+						(*rxp++) = (dat >> 16) & 0xFF;
+					case	16:
+						(*rxp++) = (dat >> 8) & 0xFF;
+					case	8:
+						(*rxp++) = (dat) & 0xFF;
+						break;
+					default	:
+						pr_err("error: unsupport bits/word!\n");
+						return -1;
+				}
+			}
 			spicc_dbg("rxdata[%d] = 0x%x\n", i, dat);
 		}
 		count -= num;
