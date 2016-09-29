@@ -80,6 +80,7 @@ static void mtk_ovl_enable_vblank(struct mtk_ddp_comp *comp,
 						 ddp_comp);
 
 	priv->crtc = crtc;
+	writel(0x0, comp->regs + DISP_REG_OVL_INTSTA);
 	writel_relaxed(OVL_FME_CPL_INT, comp->regs + DISP_REG_OVL_INTEN);
 }
 
