@@ -576,6 +576,7 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
 		rsnd_dai_stream_init(io, substream);
 
 		ret = rsnd_dai_call(init, io, priv);
@@ -592,6 +593,7 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 		ret = rsnd_dai_call(irq, io, priv, 0);
 
 		ret |= rsnd_dai_call(stop, io, priv);
