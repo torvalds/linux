@@ -34,6 +34,8 @@ struct clk_alpha_pll {
 
 	const struct pll_vco *vco_table;
 	size_t num_vco;
+#define SUPPORTS_OFFLINE_REQ	BIT(0)
+	u8 flags;
 
 	struct clk_regmap clkr;
 };
@@ -52,6 +54,7 @@ struct clk_alpha_pll_postdiv {
 };
 
 extern const struct clk_ops clk_alpha_pll_ops;
+extern const struct clk_ops clk_alpha_pll_hwfsm_ops;
 extern const struct clk_ops clk_alpha_pll_postdiv_ops;
 
 #endif
