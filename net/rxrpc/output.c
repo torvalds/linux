@@ -284,6 +284,7 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	 * ACKs if a DATA packet appears to have been lost.
 	 */
 	if (retrans ||
+	    call->cong_mode == RXRPC_CALL_SLOW_START ||
 	    (call->peer->rtt_usage < 3 && sp->hdr.seq & 1) ||
 	    ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000),
 			 ktime_get_real()))
