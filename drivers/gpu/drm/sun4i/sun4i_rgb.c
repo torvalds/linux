@@ -155,9 +155,6 @@ static void sun4i_rgb_encoder_enable(struct drm_encoder *encoder)
 	if (!IS_ERR(tcon->panel))
 		drm_panel_prepare(tcon->panel);
 
-	/* encoder->bridge can be NULL; drm_bridge_enable checks for it */
-	drm_bridge_enable(encoder->bridge);
-
 	sun4i_tcon_channel_enable(tcon, 0);
 
 	if (!IS_ERR(tcon->panel))
@@ -176,9 +173,6 @@ static void sun4i_rgb_encoder_disable(struct drm_encoder *encoder)
 		drm_panel_disable(tcon->panel);
 
 	sun4i_tcon_channel_disable(tcon, 0);
-
-	/* encoder->bridge can be NULL; drm_bridge_disable checks for it */
-	drm_bridge_disable(encoder->bridge);
 
 	if (!IS_ERR(tcon->panel))
 		drm_panel_unprepare(tcon->panel);
