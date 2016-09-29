@@ -5197,7 +5197,12 @@ int rtl8xxxu_parse_rxdesc16(struct rtl8xxxu_priv *priv, struct sk_buff *skb)
 		pkt_offset = roundup(pkt_len + drvinfo_sz + desc_shift +
 				     sizeof(struct rtl8xxxu_rxdesc16), 128);
 
-		if (pkt_cnt > 1)
+		/*
+		 * Only clone the skb if there's enough data at the end to
+		 * at least cover the rx descriptor
+		 */
+		if (pkt_cnt > 1 &&
+		    urb_len > (pkt_offset + sizeof(struct rtl8xxxu_rxdesc16)))
 			next_skb = skb_clone(skb, GFP_ATOMIC);
 
 		rx_status = IEEE80211_SKB_RXCB(skb);
