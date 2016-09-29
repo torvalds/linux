@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013, 2016, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -8,6 +8,7 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/export.h>
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/regmap.h>
 
@@ -151,6 +152,57 @@ const struct clk_ops clk_branch2_aon_ops = {
 	.is_enabled = clk_is_enabled_regmap,
 };
 EXPORT_SYMBOL_GPL(clk_branch2_aon_ops);
+
+static unsigned long clk_branch2_hw_ctl_recalc_rate(struct clk_hw *hw,
+		unsigned long parent_rate)
+{
+	return parent_rate;
+}
+
+static int clk_branch2_hw_ctl_determine_rate(struct clk_hw *hw,
+		struct clk_rate_request *req)
+{
+	struct clk_hw *clkp;
+
+	clkp = clk_hw_get_parent(hw);
+	if (!clkp)
+		return -EINVAL;
+
+	req->best_parent_hw = clkp;
+	req->best_parent_rate = clk_round_rate(clkp->clk, req->rate);
+
+	return 0;
+}
+
+static int clk_branch2_hw_ctl_enable(struct clk_hw *hw)
+{
+	struct clk_hw *parent = clk_hw_get_parent(hw);
+
+	/* The parent branch clock should have been prepared prior to this. */
+	if (!parent || (parent && !clk_hw_is_prepared(parent)))
+		return -EINVAL;
+
+	return clk_enable_regmap(hw);
+}
+
+static void clk_branch2_hw_ctl_disable(struct clk_hw *hw)
+{
+	struct clk_hw *parent = clk_hw_get_parent(hw);
+
+	if (!parent)
+		return;
+
+	clk_disable_regmap(hw);
+}
+
+const struct clk_ops clk_branch2_hw_ctl_ops = {
+	.enable = clk_branch2_hw_ctl_enable,
+	.disable = clk_branch2_hw_ctl_disable,
+	.is_enabled = clk_is_enabled_regmap,
+	.recalc_rate = clk_branch2_hw_ctl_recalc_rate,
+	.determine_rate = clk_branch2_hw_ctl_determine_rate,
+};
+EXPORT_SYMBOL(clk_branch2_hw_ctl_ops);
 
 const struct clk_ops clk_branch_simple_ops = {
 	.enable = clk_enable_regmap,
