@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2016 Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -122,6 +123,20 @@ enum iwl_tx_flags {
 	TX_CMD_FLG_PAPD_TYPE		= BIT(28),
 	TX_CMD_FLG_HCCA_CHUNK		= BIT(31)
 }; /* TX_FLAGS_BITS_API_S_VER_1 */
+
+/**
+ * enum iwl_tx_cmd_flags - bitmasks for tx_flags in TX command for a000
+ * @IWL_TX_FLAGS_CMD_RATE: use rate from the TX command
+ * @IWL_TX_FLAGS_ENCRYPT_DIS: frame should not be encrypted, even if it belongs
+ *	to a secured STA
+ * @IWL_TX_FLAGS_HIGH_PRI: high priority frame (like EAPOL) - can affect rate
+ *	selection, retry limits and BT kill
+ */
+enum iwl_tx_cmd_flags {
+	IWL_TX_FLAGS_CMD_RATE		= BIT(0),
+	IWL_TX_FLAGS_ENCRYPT_DIS	= BIT(1),
+	IWL_TX_FLAGS_HIGH_PRI		= BIT(2),
+}; /* TX_FLAGS_BITS_API_S_VER_3 */
 
 /**
  * enum iwl_tx_pm_timeouts - pm timeout values in TX command
@@ -300,6 +315,31 @@ struct iwl_tx_cmd {
 	u8 payload[0];
 	struct ieee80211_hdr hdr[0];
 } __packed; /* TX_CMD_API_S_VER_6 */
+
+struct iwl_dram_sec_info {
+	__le32 pn_low;
+	__le16 pn_high;
+	__le16 aux_info;
+} __packed; /* DRAM_SEC_INFO_API_S_VER_1 */
+
+/**
+ * struct iwl_tx_cmd_gen2 - TX command struct to FW for a000 devices
+ * ( TX_CMD = 0x1c )
+ * @len: in bytes of the payload, see below for details
+ * @offload_assist: TX offload configuration
+ * @tx_flags: combination of &iwl_tx_cmd_flags
+ * @dram_info: FW internal DRAM storage
+ * @rate_n_flags: rate for *all* Tx attempts, if TX_CMD_FLG_STA_RATE_MSK is
+ *	cleared. Combination of RATE_MCS_*
+ */
+struct iwl_tx_cmd_gen2 {
+	__le16 len;
+	__le16 offload_assist;
+	__le32 flags;
+	struct iwl_dram_sec_info dram_info;
+	__le32 rate_n_flags;
+	struct ieee80211_hdr hdr[0];
+} __packed; /* TX_CMD_API_S_VER_7 */
 
 /*
  * TX response related data
