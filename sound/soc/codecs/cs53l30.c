@@ -466,7 +466,7 @@ struct cs53l30_mclk_div {
 	u8 mclk_int_scale;
 };
 
-static struct cs53l30_mclk_div cs53l30_mclk_coeffs[] = {
+static const struct cs53l30_mclk_div cs53l30_mclk_coeffs[] = {
 	/* NOTE: Enable MCLK_INT_SCALE to save power. */
 
 	/* MCLK, Sample Rate, asp_rate, internal_fs_ratio, mclk_int_scale */
@@ -511,7 +511,7 @@ struct cs53l30_mclkx_div {
 	u8 mclkdiv;
 };
 
-static struct cs53l30_mclkx_div cs53l30_mclkx_coeffs[] = {
+static const struct cs53l30_mclkx_div cs53l30_mclkx_coeffs[] = {
 	{5644800,  1, CS53L30_MCLK_DIV_BY_1},
 	{6000000,  1, CS53L30_MCLK_DIV_BY_1},
 	{6144000,  1, CS53L30_MCLK_DIV_BY_1},
@@ -1000,8 +1000,8 @@ static int cs53l30_i2c_probe(struct i2c_client *client,
 	/* Check if MCLK provided */
 	cs53l30->mclk = devm_clk_get(dev, "mclk");
 	if (IS_ERR(cs53l30->mclk)) {
-		if (PTR_ERR(cs53l30->mclk) == -EPROBE_DEFER) {
-			ret = -EPROBE_DEFER;
+		if (PTR_ERR(cs53l30->mclk) != -ENOENT) {
+			ret = PTR_ERR(cs53l30->mclk);
 			goto error;
 		}
 		/* Otherwise mark the mclk pointer to NULL */

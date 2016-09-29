@@ -750,10 +750,17 @@ static int da7213_dai_event(struct snd_soc_dapm_widget *w,
 		snd_soc_update_bits(codec, DA7213_PC_COUNT,
 				    DA7213_PC_FREERUN_MASK, 0);
 
-		/* Slave mode, if SRM not enabled no need for status checks */
+		/* If SRM not enabled then nothing more to do */
 		pll_ctrl = snd_soc_read(codec, DA7213_PLL_CTRL);
 		if (!(pll_ctrl & DA7213_PLL_SRM_EN))
 			return 0;
+
+		/* Assist 32KHz mode PLL lock */
+		if (pll_ctrl & DA7213_PLL_32K_MODE) {
+			snd_soc_write(codec, 0xF0, 0x8B);
+			snd_soc_write(codec, 0xF2, 0x03);
+			snd_soc_write(codec, 0xF0, 0x00);
+		}
 
 		/* Check SRM has locked */
 		do {
@@ -771,6 +778,14 @@ static int da7213_dai_event(struct snd_soc_dapm_widget *w,
 
 		return 0;
 	case SND_SOC_DAPM_POST_PMD:
+		/* Revert 32KHz PLL lock udpates if applied previously */
+		pll_ctrl = snd_soc_read(codec, DA7213_PLL_CTRL);
+		if (pll_ctrl & DA7213_PLL_32K_MODE) {
+			snd_soc_write(codec, 0xF0, 0x8B);
+			snd_soc_write(codec, 0xF2, 0x01);
+			snd_soc_write(codec, 0xF0, 0x00);
+		}
+
 		/* PC free-running */
 		snd_soc_update_bits(codec, DA7213_PC_COUNT,
 				    DA7213_PC_FREERUN_MASK,
@@ -1297,10 +1312,13 @@ static int da7213_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 
 	switch (clk_id) {
 	case DA7213_CLKSRC_MCLK:
-		da7213->mclk_squarer_en = false;
+		snd_soc_update_bits(codec, DA7213_PLL_CTRL,
+				    DA7213_PLL_MCLK_SQR_EN, 0);
 		break;
 	case DA7213_CLKSRC_MCLK_SQR:
-		da7213->mclk_squarer_en = true;
+		snd_soc_update_bits(codec, DA7213_PLL_CTRL,
+				    DA7213_PLL_MCLK_SQR_EN,
+				    DA7213_PLL_MCLK_SQR_EN);
 		break;
 	default:
 		dev_err(codec_dai->dev, "Unknown clock source %d\n", clk_id);
@@ -1324,7 +1342,7 @@ static int da7213_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
-/* Supported PLL input frequencies are 5MHz - 54MHz. */
+/* Supported PLL input frequencies are 32KHz, 5MHz - 54MHz. */
 static int da7213_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 			      int source, unsigned int fref, unsigned int fout)
 {
@@ -1336,22 +1354,26 @@ static int da7213_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	u32 freq_ref;
 	u64 frac_div;
 
-	/* Reset PLL configuration */
-	snd_soc_write(codec, DA7213_PLL_CTRL, 0);
-
-	pll_ctrl = 0;
-
 	/* Workout input divider based on MCLK rate */
 	if (da7213->mclk_rate == 32768) {
+		if (!da7213->master) {
+			dev_err(codec->dev,
+				"32KHz only valid if codec is clock master\n");
+			return -EINVAL;
+		}
+
 		/* 32KHz PLL Mode */
 		indiv_bits = DA7213_PLL_INDIV_9_TO_18_MHZ;
 		indiv = DA7213_PLL_INDIV_9_TO_18_MHZ_VAL;
+		source = DA7213_SYSCLK_PLL_32KHZ;
 		freq_ref = 3750000;
-		pll_ctrl |= DA7213_PLL_32K_MODE;
+
 	} else {
-		/* 5 - 54MHz MCLK */
 		if (da7213->mclk_rate < 5000000) {
-			goto pll_err;
+			dev_err(codec->dev,
+				"PLL input clock %d below valid range\n",
+				da7213->mclk_rate);
+			return -EINVAL;
 		} else if (da7213->mclk_rate <= 9000000) {
 			indiv_bits = DA7213_PLL_INDIV_5_TO_9_MHZ;
 			indiv = DA7213_PLL_INDIV_5_TO_9_MHZ_VAL;
@@ -1365,31 +1387,43 @@ static int da7213_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 			indiv_bits = DA7213_PLL_INDIV_36_TO_54_MHZ;
 			indiv = DA7213_PLL_INDIV_36_TO_54_MHZ_VAL;
 		} else {
-			goto pll_err;
+			dev_err(codec->dev,
+				"PLL input clock %d above valid range\n",
+				da7213->mclk_rate);
+			return -EINVAL;
 		}
 		freq_ref = (da7213->mclk_rate / indiv);
 	}
 
-	pll_ctrl |= indiv_bits;
+	pll_ctrl = indiv_bits;
 
-	/* PLL Bypass mode */
-	if (source == DA7213_SYSCLK_MCLK) {
-		snd_soc_write(codec, DA7213_PLL_CTRL, pll_ctrl);
+	/* Configure PLL */
+	switch (source) {
+	case DA7213_SYSCLK_MCLK:
+		snd_soc_update_bits(codec, DA7213_PLL_CTRL,
+				    DA7213_PLL_INDIV_MASK |
+				    DA7213_PLL_MODE_MASK, pll_ctrl);
 		return 0;
-	}
-
-	/*
-	 * If Codec is slave and SRM enabled,
-	 * freq_out is (98304000 + 90316800)/2 = 94310400
-	 */
-	if (!da7213->master && da7213->srm_en) {
-		fout = DA7213_PLL_FREQ_OUT_94310400;
+	case DA7213_SYSCLK_PLL:
+		break;
+	case DA7213_SYSCLK_PLL_SRM:
 		pll_ctrl |= DA7213_PLL_SRM_EN;
-	}
+		fout = DA7213_PLL_FREQ_OUT_94310400;
+		break;
+	case DA7213_SYSCLK_PLL_32KHZ:
+		if (da7213->mclk_rate != 32768) {
+			dev_err(codec->dev,
+				"32KHz mode only valid with 32KHz MCLK\n");
+			return -EINVAL;
+		}
 
-	/* Enable MCLK squarer if required */
-	if (da7213->mclk_squarer_en)
-		pll_ctrl |= DA7213_PLL_MCLK_SQR_EN;
+		pll_ctrl |= DA7213_PLL_32K_MODE | DA7213_PLL_SRM_EN;
+		fout = DA7213_PLL_FREQ_OUT_94310400;
+		break;
+	default:
+		dev_err(codec->dev, "Invalid PLL config\n");
+		return -EINVAL;
+	}
 
 	/* Calculate dividers for PLL */
 	pll_integer = fout / freq_ref;
@@ -1405,14 +1439,19 @@ static int da7213_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 
 	/* Enable PLL */
 	pll_ctrl |= DA7213_PLL_EN;
-	snd_soc_write(codec, DA7213_PLL_CTRL, pll_ctrl);
+	snd_soc_update_bits(codec, DA7213_PLL_CTRL,
+			    DA7213_PLL_INDIV_MASK | DA7213_PLL_MODE_MASK,
+			    pll_ctrl);
+
+	/* Assist 32KHz mode PLL lock */
+	if (source == DA7213_SYSCLK_PLL_32KHZ) {
+		snd_soc_write(codec, 0xF0, 0x8B);
+		snd_soc_write(codec, 0xF1, 0x03);
+		snd_soc_write(codec, 0xF1, 0x01);
+		snd_soc_write(codec, 0xF0, 0x00);
+	}
 
 	return 0;
-
-pll_err:
-	dev_err(codec_dai->dev, "Unsupported PLL input frequency %d\n",
-		da7213->mclk_rate);
-	return -EINVAL;
 }
 
 /* DAI operations */
@@ -1454,11 +1493,10 @@ static int da7213_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-	case SND_SOC_BIAS_PREPARE:
 		break;
-	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
-			/* MCLK */
+	case SND_SOC_BIAS_PREPARE:
+		/* Enable MCLK for transition to ON state */
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_STANDBY) {
 			if (da7213->mclk) {
 				ret = clk_prepare_enable(da7213->mclk);
 				if (ret) {
@@ -1467,21 +1505,24 @@ static int da7213_set_bias_level(struct snd_soc_codec *codec,
 					return ret;
 				}
 			}
-
+		}
+		break;
+	case SND_SOC_BIAS_STANDBY:
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			/* Enable VMID reference & master bias */
 			snd_soc_update_bits(codec, DA7213_REFERENCES,
 					    DA7213_VMID_EN | DA7213_BIAS_EN,
 					    DA7213_VMID_EN | DA7213_BIAS_EN);
+		} else {
+			/* Remove MCLK */
+			if (da7213->mclk)
+				clk_disable_unprepare(da7213->mclk);
 		}
 		break;
 	case SND_SOC_BIAS_OFF:
 		/* Disable VMID reference & master bias */
 		snd_soc_update_bits(codec, DA7213_REFERENCES,
 				    DA7213_VMID_EN | DA7213_BIAS_EN, 0);
-
-		/* MCLK */
-		if (da7213->mclk)
-			clk_disable_unprepare(da7213->mclk);
 		break;
 	}
 	return 0;
@@ -1604,9 +1645,6 @@ static int da7213_probe(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, DA7213_ALC_CTRL1,
 			    DA7213_ALC_CALIB_MODE_MAN, 0);
 	da7213->alc_calib_auto = true;
-
-	/* Default to using SRM for slave mode */
-	da7213->srm_en = true;
 
 	/* Default PC counter to free-running */
 	snd_soc_update_bits(codec, DA7213_PC_COUNT, DA7213_PC_FREERUN_MASK,
