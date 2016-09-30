@@ -123,10 +123,14 @@ struct batadv_hard_iface_bat_v {
  *  of a batadv_hard_iface
  * @BATADV_HARDIF_WIFI_WEXT_DIRECT: it is a wext wifi device
  * @BATADV_HARDIF_WIFI_CFG80211_DIRECT: it is a cfg80211 wifi device
+ * @BATADV_HARDIF_WIFI_WEXT_INDIRECT: link device is a wext wifi device
+ * @BATADV_HARDIF_WIFI_CFG80211_INDIRECT: link device is a cfg80211 wifi device
  */
 enum batadv_hard_iface_wifi_flags {
 	BATADV_HARDIF_WIFI_WEXT_DIRECT = BIT(0),
 	BATADV_HARDIF_WIFI_CFG80211_DIRECT = BIT(1),
+	BATADV_HARDIF_WIFI_WEXT_INDIRECT = BIT(2),
+	BATADV_HARDIF_WIFI_CFG80211_INDIRECT = BIT(3),
 };
 
 /**

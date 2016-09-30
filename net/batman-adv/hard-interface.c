@@ -202,6 +202,47 @@ static bool batadv_is_valid_iface(const struct net_device *net_dev)
 }
 
 /**
+ * batadv_get_real_netdevice - check if the given netdev struct is a virtual
+ *  interface on top of another 'real' interface
+ * @netdev: the device to check
+ *
+ * Return: the 'real' net device or the original net device and NULL in case
+ *  of an error.
+ */
+static struct net_device *batadv_get_real_netdevice(struct net_device *netdev)
+{
+	struct batadv_hard_iface *hard_iface = NULL;
+	struct net_device *real_netdev = NULL;
+	struct net *real_net;
+	struct net *net;
+	int ifindex;
+
+	ASSERT_RTNL();
+
+	if (!netdev)
+		return NULL;
+
+	if (netdev->ifindex == dev_get_iflink(netdev)) {
+		dev_hold(netdev);
+		return netdev;
+	}
+
+	hard_iface = batadv_hardif_get_by_netdev(netdev);
+	if (!hard_iface || !hard_iface->soft_iface)
+		goto out;
+
+	net = dev_net(hard_iface->soft_iface);
+	ifindex = dev_get_iflink(netdev);
+	real_net = batadv_getlink_net(netdev, net);
+	real_netdev = dev_get_by_index(real_net, ifindex);
+
+out:
+	if (hard_iface)
+		batadv_hardif_put(hard_iface);
+	return real_netdev;
+}
+
+/**
  * batadv_is_wext_netdev - check if the given net_device struct is a
  *  wext wifi interface
  * @net_device: the device to check
@@ -254,6 +295,7 @@ static bool batadv_is_cfg80211_netdev(struct net_device *net_device)
 static u32 batadv_wifi_flags_evaluate(struct net_device *net_device)
 {
 	u32 wifi_flags = 0;
+	struct net_device *real_netdev;
 
 	if (batadv_is_wext_netdev(net_device))
 		wifi_flags |= BATADV_HARDIF_WIFI_WEXT_DIRECT;
@@ -261,6 +303,21 @@ static u32 batadv_wifi_flags_evaluate(struct net_device *net_device)
 	if (batadv_is_cfg80211_netdev(net_device))
 		wifi_flags |= BATADV_HARDIF_WIFI_CFG80211_DIRECT;
 
+	real_netdev = batadv_get_real_netdevice(net_device);
+	if (!real_netdev)
+		return wifi_flags;
+
+	if (real_netdev == net_device)
+		goto out;
+
+	if (batadv_is_wext_netdev(real_netdev))
+		wifi_flags |= BATADV_HARDIF_WIFI_WEXT_INDIRECT;
+
+	if (batadv_is_cfg80211_netdev(real_netdev))
+		wifi_flags |= BATADV_HARDIF_WIFI_CFG80211_INDIRECT;
+
+out:
+	dev_put(real_netdev);
 	return wifi_flags;
 }
 
@@ -277,6 +334,7 @@ bool batadv_is_cfg80211_hardif(struct batadv_hard_iface *hard_iface)
 	u32 allowed_flags = 0;
 
 	allowed_flags |= BATADV_HARDIF_WIFI_CFG80211_DIRECT;
+	allowed_flags |= BATADV_HARDIF_WIFI_CFG80211_INDIRECT;
 
 	return !!(hard_iface->wifi_flags & allowed_flags);
 }
