@@ -97,6 +97,187 @@ int cont_trace(pid_t child)
 	return TEST_PASS;
 }
 
+/* TAR, PPR, DSCR */
+int show_tar_registers(pid_t child, unsigned long *out)
+{
+	struct iovec iov;
+	unsigned long *reg;
+	int ret;
+
+	reg = malloc(sizeof(unsigned long));
+	if (!reg) {
+		perror("malloc() failed");
+		return TEST_FAIL;
+	}
+	iov.iov_base = (u64 *) reg;
+	iov.iov_len = sizeof(unsigned long);
+
+	ret = ptrace(PTRACE_GETREGSET, child, NT_PPC_TAR, &iov);
+	if (ret) {
+		perror("ptrace(PTRACE_GETREGSET) failed");
+		goto fail;
+	}
+	if (out)
+		out[0] = *reg;
+
+	ret = ptrace(PTRACE_GETREGSET, child, NT_PPC_PPR, &iov);
+	if (ret) {
+		perror("ptrace(PTRACE_GETREGSET) failed");
+		goto fail;
+	}
+	if (out)
+		out[1] = *reg;
+
+	ret = ptrace(PTRACE_GETREGSET, child, NT_PPC_DSCR, &iov);
+	if (ret) {
+		perror("ptrace(PTRACE_GETREGSET) failed");
+		goto fail;
+	}
+	if (out)
+		out[2] = *reg;
+
+	free(reg);
+	return TEST_PASS;
+fail:
+	free(reg);
+	return TEST_FAIL;
+}
+
+int write_tar_registers(pid_t child, unsigned long tar,
+		unsigned long ppr, unsigned long dscr)
+{
+	struct iovec iov;
+	unsigned long *reg;
+	int ret;
+
+	reg = malloc(sizeof(unsigned long));
+	if (!reg) {
+		perror("malloc() failed");
+		return TEST_FAIL;
+	}
+
+	iov.iov_base = (u64 *) reg;
+	iov.iov_len = sizeof(unsigned long);
+
+	*reg = tar;
+	ret = ptrace(PTRACE_SETREGSET, child, NT_PPC_TAR, &iov);
+	if (ret) {
+		perror("ptrace(PTRACE_SETREGSET) failed");
+		goto fail;
+	}
+
+	*reg = ppr;
+	ret = ptrace(PTRACE_SETREGSET, child, NT_PPC_PPR, &iov);
+	if (ret) {
+		perror("ptrace(PTRACE_SETREGSET) failed");
+		goto fail;
+	}
+
+	*reg = dscr;
+	ret = ptrace(PTRACE_SETREGSET, child, NT_PPC_DSCR, &iov);
+	if (ret) {
+		perror("ptrace(PTRACE_SETREGSET) failed");
+		goto fail;
+	}
+
+	free(reg);
+	return TEST_PASS;
+fail:
+	free(reg);
+	return TEST_FAIL;
+}
+
+int show_tm_checkpointed_state(pid_t child, unsigned long *out)
+{
+	struct iovec iov;
+	unsigned long *reg;
+	int ret;
+
+	reg = malloc(sizeof(unsigned long));
+	if (!reg) {
+		perror("malloc() failed");
+		return TEST_FAIL;
+	}
+
+	iov.iov_base = (u64 *) reg;
+	iov.iov_len = sizeof(unsigned long);
+
+	ret = ptrace(PTRACE_GETREGSET, child, NT_PPC_TM_CTAR, &iov);
+	if (ret) {
+		perror("ptrace(PTRACE_GETREGSET) failed");
+		goto fail;
+	}
+	if (out)
+		out[0] = *reg;
+
+	ret = ptrace(PTRACE_GETREGSET, child, NT_PPC_TM_CPPR, &iov);
+	if (ret) {
+		perror("ptrace(PTRACE_GETREGSET) failed");
+		goto fail;
+	}
+	if (out)
+		out[1] = *reg;
+
+	ret = ptrace(PTRACE_GETREGSET, child, NT_PPC_TM_CDSCR, &iov);
+	if (ret) {
+		perror("ptrace(PTRACE_GETREGSET) failed");
+		goto fail;
+	}
+	if (out)
+		out[2] = *reg;
+
+	free(reg);
+	return TEST_PASS;
+
+fail:
+	free(reg);
+	return TEST_FAIL;
+}
+
+int write_ckpt_tar_registers(pid_t child, unsigned long tar,
+		unsigned long ppr, unsigned long dscr)
+{
+	struct iovec iov;
+	unsigned long *reg;
+	int ret;
+
+	reg = malloc(sizeof(unsigned long));
+	if (!reg) {
+		perror("malloc() failed");
+		return TEST_FAIL;
+	}
+
+	iov.iov_base = (u64 *) reg;
+	iov.iov_len = sizeof(unsigned long);
+
+	*reg = tar;
+	ret = ptrace(PTRACE_SETREGSET, child, NT_PPC_TM_CTAR, &iov);
+	if (ret) {
+		perror("ptrace(PTRACE_GETREGSET) failed");
+		goto fail;
+	}
+
+	*reg = ppr;
+	ret = ptrace(PTRACE_SETREGSET, child, NT_PPC_TM_CPPR, &iov);
+	if (ret) {
+		perror("ptrace(PTRACE_GETREGSET) failed");
+		goto fail;
+	}
+
+	*reg = dscr;
+	ret = ptrace(PTRACE_SETREGSET, child, NT_PPC_TM_CDSCR, &iov);
+	if (ret) {
+		perror("ptrace(PTRACE_GETREGSET) failed");
+		goto fail;
+	}
+
+	free(reg);
+	return TEST_PASS;
+fail:
+	free(reg);
+	return TEST_FAIL;
+}
+
 /* FPR */
 int show_fpr(pid_t child, unsigned long *fpr)
 {
