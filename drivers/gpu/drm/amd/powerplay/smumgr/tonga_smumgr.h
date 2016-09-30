@@ -48,7 +48,7 @@ struct tonga_smumgr {
 	struct SMU72_Discrete_DpmTable       smc_state_table;
 	struct SMU72_Discrete_Ulv            ulv_setting;
 	struct SMU72_Discrete_PmFuses  power_tune_table;
-	struct tonga_pt_defaults  *power_tune_defaults;
+	const struct tonga_pt_defaults  *power_tune_defaults;
 	SMU72_Discrete_MCRegisters      mc_regs;
 	struct tonga_mc_reg_table mc_reg_table;
 

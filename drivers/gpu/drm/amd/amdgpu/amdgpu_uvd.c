@@ -351,12 +351,12 @@ void amdgpu_uvd_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
 	}
 }
 
-static void amdgpu_uvd_force_into_uvd_segment(struct amdgpu_bo *rbo)
+static void amdgpu_uvd_force_into_uvd_segment(struct amdgpu_bo *abo)
 {
 	int i;
-	for (i = 0; i < rbo->placement.num_placement; ++i) {
-		rbo->placements[i].fpfn = 0 >> PAGE_SHIFT;
-		rbo->placements[i].lpfn = (256 * 1024 * 1024) >> PAGE_SHIFT;
+	for (i = 0; i < abo->placement.num_placement; ++i) {
+		abo->placements[i].fpfn = 0 >> PAGE_SHIFT;
+		abo->placements[i].lpfn = (256 * 1024 * 1024) >> PAGE_SHIFT;
 	}
 }
 

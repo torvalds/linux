@@ -229,16 +229,16 @@ static void dce_virtual_crtc_disable(struct drm_crtc *crtc)
 	if (crtc->primary->fb) {
 		int r;
 		struct amdgpu_framebuffer *amdgpu_fb;
-		struct amdgpu_bo *rbo;
+		struct amdgpu_bo *abo;
 
 		amdgpu_fb = to_amdgpu_framebuffer(crtc->primary->fb);
-		rbo = gem_to_amdgpu_bo(amdgpu_fb->obj);
-		r = amdgpu_bo_reserve(rbo, false);
+		abo = gem_to_amdgpu_bo(amdgpu_fb->obj);
+		r = amdgpu_bo_reserve(abo, false);
 		if (unlikely(r))
-			DRM_ERROR("failed to reserve rbo before unpin\n");
+			DRM_ERROR("failed to reserve abo before unpin\n");
 		else {
-			amdgpu_bo_unpin(rbo);
-			amdgpu_bo_unreserve(rbo);
+			amdgpu_bo_unpin(abo);
+			amdgpu_bo_unreserve(abo);
 		}
 	}
 

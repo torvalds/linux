@@ -58,7 +58,7 @@
 #define VDDC_VDDCI_DELTA            200
 
 
-static struct tonga_pt_defaults tonga_power_tune_data_set_array[POWERTUNE_DEFAULT_SET_MAX] = {
+static const struct tonga_pt_defaults tonga_power_tune_data_set_array[POWERTUNE_DEFAULT_SET_MAX] = {
 /* sviLoadLIneEn, SviLoadLineVddC, TDC_VDDC_ThrottleReleaseLimitPerc,  TDC_MAWt,
  * TdcWaterfallCtl, DTEAmbientTempBase, DisplayCac,        BAPM_TEMP_GRADIENT
  */
@@ -1815,14 +1815,13 @@ static int tonga_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr)
 {
 	struct tonga_smumgr *smu_data =
 				(struct tonga_smumgr *)(hwmgr->smumgr->backend);
-	struct tonga_pt_defaults *defaults = smu_data->power_tune_defaults;
+	const struct tonga_pt_defaults *defaults = smu_data->power_tune_defaults;
 	SMU72_Discrete_DpmTable  *dpm_table = &(smu_data->smc_state_table);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	struct phm_cac_tdp_table *cac_dtp_table = table_info->cac_dtp_table;
 	int  i, j, k;
-	uint16_t *pdef1;
-	uint16_t *pdef2;
+	const uint16_t *pdef1, *pdef2;
 
 	dpm_table->DefaultTdp = PP_HOST_TO_SMC_US(
 			(uint16_t)(cac_dtp_table->usTDP * 256));
@@ -1863,7 +1862,7 @@ static int tonga_populate_svi_load_line(struct pp_hwmgr *hwmgr)
 {
 	struct tonga_smumgr *smu_data =
 				(struct tonga_smumgr *)(hwmgr->smumgr->backend);
-	struct tonga_pt_defaults *defaults = smu_data->power_tune_defaults;
+	const struct tonga_pt_defaults *defaults = smu_data->power_tune_defaults;
 
 	smu_data->power_tune_table.SviLoadLineEn = defaults->svi_load_line_en;
 	smu_data->power_tune_table.SviLoadLineVddC = defaults->svi_load_line_vddC;
@@ -1878,7 +1877,7 @@ static int tonga_populate_tdc_limit(struct pp_hwmgr *hwmgr)
 	uint16_t tdc_limit;
 	struct tonga_smumgr *smu_data =
 				(struct tonga_smumgr *)(hwmgr->smumgr->backend);
-	struct tonga_pt_defaults *defaults = smu_data->power_tune_defaults;
+	const struct tonga_pt_defaults *defaults = smu_data->power_tune_defaults;
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 
@@ -1899,7 +1898,7 @@ static int tonga_populate_dw8(struct pp_hwmgr *hwmgr, uint32_t fuse_table_offset
 {
 	struct tonga_smumgr *smu_data =
 			(struct tonga_smumgr *)(hwmgr->smumgr->backend);
-	struct tonga_pt_defaults *defaults = smu_data->power_tune_defaults;
+	const struct tonga_pt_defaults *defaults = smu_data->power_tune_defaults;
 	uint32_t temp;
 
 	if (smu7_read_smc_sram_dword(hwmgr->smumgr,

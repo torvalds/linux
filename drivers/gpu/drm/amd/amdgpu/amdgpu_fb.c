@@ -115,14 +115,14 @@ int amdgpu_align_pitch(struct amdgpu_device *adev, int width, int bpp, bool tile
 
 static void amdgpufb_destroy_pinned_object(struct drm_gem_object *gobj)
 {
-	struct amdgpu_bo *rbo = gem_to_amdgpu_bo(gobj);
+	struct amdgpu_bo *abo = gem_to_amdgpu_bo(gobj);
 	int ret;
 
-	ret = amdgpu_bo_reserve(rbo, false);
+	ret = amdgpu_bo_reserve(abo, false);
 	if (likely(ret == 0)) {
-		amdgpu_bo_kunmap(rbo);
-		amdgpu_bo_unpin(rbo);
-		amdgpu_bo_unreserve(rbo);
+		amdgpu_bo_kunmap(abo);
+		amdgpu_bo_unpin(abo);
+		amdgpu_bo_unreserve(abo);
 	}
 	drm_gem_object_unreference_unlocked(gobj);
 }
@@ -133,7 +133,7 @@ static int amdgpufb_create_pinned_object(struct amdgpu_fbdev *rfbdev,
 {
 	struct amdgpu_device *adev = rfbdev->adev;
 	struct drm_gem_object *gobj = NULL;
-	struct amdgpu_bo *rbo = NULL;
+	struct amdgpu_bo *abo = NULL;
 	bool fb_tiled = false; /* useful for testing */
 	u32 tiling_flags = 0;
 	int ret;
@@ -159,30 +159,30 @@ static int amdgpufb_create_pinned_object(struct amdgpu_fbdev *rfbdev,
 		       aligned_size);
 		return -ENOMEM;
 	}
-	rbo = gem_to_amdgpu_bo(gobj);
+	abo = gem_to_amdgpu_bo(gobj);
 
 	if (fb_tiled)
 		tiling_flags = AMDGPU_TILING_SET(ARRAY_MODE, GRPH_ARRAY_2D_TILED_THIN1);
 
-	ret = amdgpu_bo_reserve(rbo, false);
+	ret = amdgpu_bo_reserve(abo, false);
 	if (unlikely(ret != 0))
 		goto out_unref;
 
 	if (tiling_flags) {
-		ret = amdgpu_bo_set_tiling_flags(rbo,
+		ret = amdgpu_bo_set_tiling_flags(abo,
 						 tiling_flags);
 		if (ret)
 			dev_err(adev->dev, "FB failed to set tiling flags\n");
 	}
 
 
-	ret = amdgpu_bo_pin_restricted(rbo, AMDGPU_GEM_DOMAIN_VRAM, 0, 0, NULL);
+	ret = amdgpu_bo_pin_restricted(abo, AMDGPU_GEM_DOMAIN_VRAM, 0, 0, NULL);
 	if (ret) {
-		amdgpu_bo_unreserve(rbo);
+		amdgpu_bo_unreserve(abo);
 		goto out_unref;
 	}
-	ret = amdgpu_bo_kmap(rbo, NULL);
-	amdgpu_bo_unreserve(rbo);
+	ret = amdgpu_bo_kmap(abo, NULL);
+	amdgpu_bo_unreserve(abo);
 	if (ret) {
 		goto out_unref;
 	}
@@ -204,7 +204,7 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 	struct drm_framebuffer *fb = NULL;
 	struct drm_mode_fb_cmd2 mode_cmd;
 	struct drm_gem_object *gobj = NULL;
-	struct amdgpu_bo *rbo = NULL;
+	struct amdgpu_bo *abo = NULL;
 	int ret;
 	unsigned long tmp;
 
@@ -223,7 +223,7 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 		return ret;
 	}
 
-	rbo = gem_to_amdgpu_bo(gobj);
+	abo = gem_to_amdgpu_bo(gobj);
 
 	/* okay we have an object now allocate the framebuffer */
 	info = drm_fb_helper_alloc_fbi(helper);
@@ -246,7 +246,7 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 	/* setup helper */
 	rfbdev->helper.fb = fb;
 
-	memset_io(rbo->kptr, 0x0, amdgpu_bo_size(rbo));
+	memset_io(abo->kptr, 0x0, amdgpu_bo_size(abo));
 
 	strcpy(info->fix.id, "amdgpudrmfb");
 
@@ -255,11 +255,11 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 	info->flags = FBINFO_DEFAULT | FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &amdgpufb_ops;
 
-	tmp = amdgpu_bo_gpu_offset(rbo) - adev->mc.vram_start;
+	tmp = amdgpu_bo_gpu_offset(abo) - adev->mc.vram_start;
 	info->fix.smem_start = adev->mc.aper_base + tmp;
-	info->fix.smem_len = amdgpu_bo_size(rbo);
-	info->screen_base = rbo->kptr;
-	info->screen_size = amdgpu_bo_size(rbo);
+	info->fix.smem_len = amdgpu_bo_size(abo);
+	info->screen_base = abo->kptr;
+	info->screen_size = amdgpu_bo_size(abo);
 
 	drm_fb_helper_fill_var(info, &rfbdev->helper, sizes->fb_width, sizes->fb_height);
 
@@ -276,7 +276,7 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 
 	DRM_INFO("fb mappable at 0x%lX\n",  info->fix.smem_start);
 	DRM_INFO("vram apper at 0x%lX\n",  (unsigned long)adev->mc.aper_base);
-	DRM_INFO("size %lu\n", (unsigned long)amdgpu_bo_size(rbo));
+	DRM_INFO("size %lu\n", (unsigned long)amdgpu_bo_size(abo));
 	DRM_INFO("fb depth is %d\n", fb->depth);
 	DRM_INFO("   pitch is %d\n", fb->pitches[0]);
 
@@ -286,7 +286,7 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 out_destroy_fbi:
 	drm_fb_helper_release_fbi(helper);
 out_unref:
-	if (rbo) {
+	if (abo) {
 
 	}
 	if (fb && ret) {

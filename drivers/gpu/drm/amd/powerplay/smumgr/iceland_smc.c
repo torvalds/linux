@@ -63,7 +63,7 @@
 #define DEVICE_ID_VI_ICELAND_M_6902	0x6902
 #define DEVICE_ID_VI_ICELAND_M_6903	0x6903
 
-static struct iceland_pt_defaults defaults_iceland = {
+static const struct iceland_pt_defaults defaults_iceland = {
 	/*
 	 * sviLoadLIneEn, SviLoadLineVddC, TDC_VDDC_ThrottleReleaseLimitPerc,
 	 * TDC_MAWt, TdcWaterfallCtl, DTEAmbientTempBase, DisplayCac, BAPM_TEMP_GRADIENT
@@ -74,7 +74,7 @@ static struct iceland_pt_defaults defaults_iceland = {
 };
 
 /* 35W - XT, XTL */
-static struct iceland_pt_defaults defaults_icelandxt = {
+static const struct iceland_pt_defaults defaults_icelandxt = {
 	/*
 	 * sviLoadLIneEn, SviLoadLineVddC,
 	 * TDC_VDDC_ThrottleReleaseLimitPerc, TDC_MAWt,
@@ -87,7 +87,7 @@ static struct iceland_pt_defaults defaults_icelandxt = {
 };
 
 /* 25W - PRO, LE */
-static struct iceland_pt_defaults defaults_icelandpro = {
+static const struct iceland_pt_defaults defaults_icelandpro = {
 	/*
 	 * sviLoadLIneEn, SviLoadLineVddC,
 	 * TDC_VDDC_ThrottleReleaseLimitPerc, TDC_MAWt,
@@ -1740,11 +1740,11 @@ static int iceland_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smumgr->backend);
-	struct iceland_pt_defaults *defaults = smu_data->power_tune_defaults;
+	const struct iceland_pt_defaults *defaults = smu_data->power_tune_defaults;
 	SMU71_Discrete_DpmTable  *dpm_table = &(smu_data->smc_state_table);
 	struct phm_cac_tdp_table *cac_dtp_table = hwmgr->dyn_state.cac_dtp_table;
 	struct phm_ppm_table *ppm = hwmgr->dyn_state.ppm_parameter_table;
-	uint16_t *def1, *def2;
+	const uint16_t *def1, *def2;
 	int i, j, k;
 
 

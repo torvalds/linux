@@ -123,17 +123,17 @@ static void amdgpu_unpin_work_func(struct work_struct *__work)
 	int r;
 
 	/* unpin of the old buffer */
-	r = amdgpu_bo_reserve(work->old_rbo, false);
+	r = amdgpu_bo_reserve(work->old_abo, false);
 	if (likely(r == 0)) {
-		r = amdgpu_bo_unpin(work->old_rbo);
+		r = amdgpu_bo_unpin(work->old_abo);
 		if (unlikely(r != 0)) {
 			DRM_ERROR("failed to unpin buffer after flip\n");
 		}
-		amdgpu_bo_unreserve(work->old_rbo);
+		amdgpu_bo_unreserve(work->old_abo);
 	} else
 		DRM_ERROR("failed to reserve buffer after flip\n");
 
-	amdgpu_bo_unref(&work->old_rbo);
+	amdgpu_bo_unref(&work->old_abo);
 	kfree(work->shared);
 	kfree(work);
 }
@@ -150,7 +150,7 @@ int amdgpu_crtc_page_flip_target(struct drm_crtc *crtc,
 	struct amdgpu_framebuffer *new_amdgpu_fb;
 	struct drm_gem_object *obj;
 	struct amdgpu_flip_work *work;
-	struct amdgpu_bo *new_rbo;
+	struct amdgpu_bo *new_abo;
 	unsigned long flags;
 	u64 tiling_flags;
 	u64 base;
@@ -173,28 +173,28 @@ int amdgpu_crtc_page_flip_target(struct drm_crtc *crtc,
 	obj = old_amdgpu_fb->obj;
 
 	/* take a reference to the old object */
-	work->old_rbo = gem_to_amdgpu_bo(obj);
-	amdgpu_bo_ref(work->old_rbo);
+	work->old_abo = gem_to_amdgpu_bo(obj);
+	amdgpu_bo_ref(work->old_abo);
 
 	new_amdgpu_fb = to_amdgpu_framebuffer(fb);
 	obj = new_amdgpu_fb->obj;
-	new_rbo = gem_to_amdgpu_bo(obj);
+	new_abo = gem_to_amdgpu_bo(obj);
 
 	/* pin the new buffer */
-	r = amdgpu_bo_reserve(new_rbo, false);
+	r = amdgpu_bo_reserve(new_abo, false);
 	if (unlikely(r != 0)) {
-		DRM_ERROR("failed to reserve new rbo buffer before flip\n");
+		DRM_ERROR("failed to reserve new abo buffer before flip\n");
 		goto cleanup;
 	}
 
-	r = amdgpu_bo_pin_restricted(new_rbo, AMDGPU_GEM_DOMAIN_VRAM, 0, 0, &base);
+	r = amdgpu_bo_pin_restricted(new_abo, AMDGPU_GEM_DOMAIN_VRAM, 0, 0, &base);
 	if (unlikely(r != 0)) {
 		r = -EINVAL;
-		DRM_ERROR("failed to pin new rbo buffer before flip\n");
+		DRM_ERROR("failed to pin new abo buffer before flip\n");
 		goto unreserve;
 	}
 
-	r = reservation_object_get_fences_rcu(new_rbo->tbo.resv, &work->excl,
+	r = reservation_object_get_fences_rcu(new_abo->tbo.resv, &work->excl,
 					      &work->shared_count,
 					      &work->shared);
 	if (unlikely(r != 0)) {
@@ -202,8 +202,8 @@ int amdgpu_crtc_page_flip_target(struct drm_crtc *crtc,
 		goto unpin;
 	}
 
-	amdgpu_bo_get_tiling_flags(new_rbo, &tiling_flags);
-	amdgpu_bo_unreserve(new_rbo);
+	amdgpu_bo_get_tiling_flags(new_abo, &tiling_flags);
+	amdgpu_bo_unreserve(new_abo);
 
 	work->base = base;
 	work->target_vblank = target - drm_crtc_vblank_count(crtc) +
@@ -231,19 +231,19 @@ int amdgpu_crtc_page_flip_target(struct drm_crtc *crtc,
 	return 0;
 
 pflip_cleanup:
-	if (unlikely(amdgpu_bo_reserve(new_rbo, false) != 0)) {
-		DRM_ERROR("failed to reserve new rbo in error path\n");
+	if (unlikely(amdgpu_bo_reserve(new_abo, false) != 0)) {
+		DRM_ERROR("failed to reserve new abo in error path\n");
 		goto cleanup;
 	}
 unpin:
-	if (unlikely(amdgpu_bo_unpin(new_rbo) != 0)) {
-		DRM_ERROR("failed to unpin new rbo in error path\n");
+	if (unlikely(amdgpu_bo_unpin(new_abo) != 0)) {
+		DRM_ERROR("failed to unpin new abo in error path\n");
 	}
 unreserve:
-	amdgpu_bo_unreserve(new_rbo);
+	amdgpu_bo_unreserve(new_abo);
 
 cleanup:
-	amdgpu_bo_unref(&work->old_rbo);
+	amdgpu_bo_unref(&work->old_abo);
 	fence_put(work->excl);
 	for (i = 0; i < work->shared_count; ++i)
 		fence_put(work->shared[i]);

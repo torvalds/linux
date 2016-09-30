@@ -158,8 +158,8 @@ static const struct i2c_algorithm amdgpu_atombios_i2c_algo = {
 };
 
 struct amdgpu_i2c_chan *amdgpu_i2c_create(struct drm_device *dev,
-					    struct amdgpu_i2c_bus_rec *rec,
-					    const char *name)
+					  const struct amdgpu_i2c_bus_rec *rec,
+					  const char *name)
 {
 	struct amdgpu_i2c_chan *i2c;
 	int ret;
@@ -249,8 +249,8 @@ void amdgpu_i2c_fini(struct amdgpu_device *adev)
 
 /* Add additional buses */
 void amdgpu_i2c_add(struct amdgpu_device *adev,
-		     struct amdgpu_i2c_bus_rec *rec,
-		     const char *name)
+		    const struct amdgpu_i2c_bus_rec *rec,
+		    const char *name)
 {
 	struct drm_device *dev = adev->ddev;
 	int i;
@@ -266,7 +266,7 @@ void amdgpu_i2c_add(struct amdgpu_device *adev,
 /* looks up bus based on id */
 struct amdgpu_i2c_chan *
 amdgpu_i2c_lookup(struct amdgpu_device *adev,
-		   struct amdgpu_i2c_bus_rec *i2c_bus)
+		  const struct amdgpu_i2c_bus_rec *i2c_bus)
 {
 	int i;
 
@@ -336,7 +336,7 @@ static void amdgpu_i2c_put_byte(struct amdgpu_i2c_chan *i2c_bus,
 
 /* ddc router switching */
 void
-amdgpu_i2c_router_select_ddc_port(struct amdgpu_connector *amdgpu_connector)
+amdgpu_i2c_router_select_ddc_port(const struct amdgpu_connector *amdgpu_connector)
 {
 	u8 val;
 
@@ -365,7 +365,7 @@ amdgpu_i2c_router_select_ddc_port(struct amdgpu_connector *amdgpu_connector)
 
 /* clock/data router switching */
 void
-amdgpu_i2c_router_select_cd_port(struct amdgpu_connector *amdgpu_connector)
+amdgpu_i2c_router_select_cd_port(const struct amdgpu_connector *amdgpu_connector)
 {
 	u8 val;
 

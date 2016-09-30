@@ -210,6 +210,8 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
  */
 int amdgpu_vce_sw_fini(struct amdgpu_device *adev)
 {
+	unsigned i;
+
 	if (adev->vce.vcpu_bo == NULL)
 		return 0;
 
@@ -217,8 +219,8 @@ int amdgpu_vce_sw_fini(struct amdgpu_device *adev)
 
 	amdgpu_bo_unref(&adev->vce.vcpu_bo);
 
-	amdgpu_ring_fini(&adev->vce.ring[0]);
-	amdgpu_ring_fini(&adev->vce.ring[1]);
+	for (i = 0; i < adev->vce.num_rings; i++)
+		amdgpu_ring_fini(&adev->vce.ring[i]);
 
 	release_firmware(adev->vce.fw);
 	mutex_destroy(&adev->vce.idle_mutex);
@@ -303,9 +305,12 @@ static void amdgpu_vce_idle_work_handler(struct work_struct *work)
 {
 	struct amdgpu_device *adev =
 		container_of(work, struct amdgpu_device, vce.idle_work.work);
+	unsigned i, count = 0;
 
-	if ((amdgpu_fence_count_emitted(&adev->vce.ring[0]) == 0) &&
-	    (amdgpu_fence_count_emitted(&adev->vce.ring[1]) == 0)) {
+	for (i = 0; i < adev->vce.num_rings; i++)
+		count += amdgpu_fence_count_emitted(&adev->vce.ring[i]);
+
+	if (count == 0) {
 		if (adev->pm.dpm_enabled) {
 			amdgpu_dpm_enable_vce(adev, false);
 		} else {

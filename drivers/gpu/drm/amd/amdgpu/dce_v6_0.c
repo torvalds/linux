@@ -375,15 +375,6 @@ static void dce_v6_0_hpd_init(struct amdgpu_device *adev)
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 
-		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP ||
-		    connector->connector_type == DRM_MODE_CONNECTOR_LVDS) {
-			/* don't try to enable hpd on eDP or LVDS avoid breaking the
-			 * aux dp channel on imac and help (but not completely fix)
-			 * https://bugzilla.redhat.com/show_bug.cgi?id=726143
-			 * also avoid interrupt storms during dpms.
-			 */
-			continue;
-		}
 		switch (amdgpu_connector->hpd.hpd) {
 		case AMDGPU_HPD_1:
 			WREG32(DC_HPD1_CONTROL, tmp);
@@ -406,6 +397,45 @@ static void dce_v6_0_hpd_init(struct amdgpu_device *adev)
 		default:
 			break;
 		}
+
+		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP ||
+		    connector->connector_type == DRM_MODE_CONNECTOR_LVDS) {
+			/* don't try to enable hpd on eDP or LVDS avoid breaking the
+			 * aux dp channel on imac and help (but not completely fix)
+			 * https://bugzilla.redhat.com/show_bug.cgi?id=726143
+			 * also avoid interrupt storms during dpms.
+			 */
+			u32 dc_hpd_int_cntl_reg, dc_hpd_int_cntl;
+
+			switch (amdgpu_connector->hpd.hpd) {
+			case AMDGPU_HPD_1:
+				dc_hpd_int_cntl_reg = DC_HPD1_INT_CONTROL;
+				break;
+			case AMDGPU_HPD_2:
+				dc_hpd_int_cntl_reg = DC_HPD2_INT_CONTROL;
+				break;
+			case AMDGPU_HPD_3:
+				dc_hpd_int_cntl_reg = DC_HPD3_INT_CONTROL;
+				break;
+			case AMDGPU_HPD_4:
+				dc_hpd_int_cntl_reg = DC_HPD4_INT_CONTROL;
+				break;
+			case AMDGPU_HPD_5:
+				dc_hpd_int_cntl_reg = DC_HPD5_INT_CONTROL;
+				break;
+			case AMDGPU_HPD_6:
+				dc_hpd_int_cntl_reg = DC_HPD6_INT_CONTROL;
+				break;
+			default:
+				continue;
+			}
+
+			dc_hpd_int_cntl = RREG32(dc_hpd_int_cntl_reg);
+			dc_hpd_int_cntl &= ~DC_HPDx_INT_EN;
+			WREG32(dc_hpd_int_cntl_reg, dc_hpd_int_cntl);
+			continue;
+		}
+
 		dce_v6_0_hpd_set_polarity(adev, amdgpu_connector->hpd.hpd);
 		amdgpu_irq_get(adev, &adev->hpd_irq, amdgpu_connector->hpd.hpd);
 	}
@@ -1475,10 +1505,7 @@ static void dce_v6_0_vga_enable(struct drm_crtc *crtc, bool enable)
 	u32 vga_control;
 
 	vga_control = RREG32(vga_control_regs[amdgpu_crtc->crtc_id]) & ~1;
-	if (enable)
-		WREG32(vga_control_regs[amdgpu_crtc->crtc_id], vga_control | 1);
-	else
-		WREG32(vga_control_regs[amdgpu_crtc->crtc_id], vga_control);
+	WREG32(vga_control_regs[amdgpu_crtc->crtc_id], vga_control | (enable ? 1 : 0));
 }
 
 static void dce_v6_0_grph_enable(struct drm_crtc *crtc, bool enable)
@@ -1487,10 +1514,7 @@ static void dce_v6_0_grph_enable(struct drm_crtc *crtc, bool enable)
 	struct drm_device *dev = crtc->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 
-	if (enable)
-		WREG32(EVERGREEN_GRPH_ENABLE + amdgpu_crtc->crtc_offset, 1);
-	else
-		WREG32(EVERGREEN_GRPH_ENABLE + amdgpu_crtc->crtc_offset, 0);
+	WREG32(EVERGREEN_GRPH_ENABLE + amdgpu_crtc->crtc_offset, enable ? 1 : 0);
 }
 
 static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
@@ -1503,7 +1527,7 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 	struct amdgpu_framebuffer *amdgpu_fb;
 	struct drm_framebuffer *target_fb;
 	struct drm_gem_object *obj;
-	struct amdgpu_bo *rbo;
+	struct amdgpu_bo *abo;
 	uint64_t fb_location, tiling_flags;
 	uint32_t fb_format, fb_pitch_pixels, pipe_config;
 	u32 fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_NONE);
@@ -1520,8 +1544,7 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 	if (atomic) {
 		amdgpu_fb = to_amdgpu_framebuffer(fb);
 		target_fb = fb;
-	}
-	else {
+	} else {
 		amdgpu_fb = to_amdgpu_framebuffer(crtc->primary->fb);
 		target_fb = crtc->primary->fb;
 	}
@@ -1530,23 +1553,23 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 	 * just update base pointers
 	 */
 	obj = amdgpu_fb->obj;
-	rbo = gem_to_amdgpu_bo(obj);
-	r = amdgpu_bo_reserve(rbo, false);
+	abo = gem_to_amdgpu_bo(obj);
+	r = amdgpu_bo_reserve(abo, false);
 	if (unlikely(r != 0))
 		return r;
 
-	if (atomic)
-		fb_location = amdgpu_bo_gpu_offset(rbo);
-	else {
-		r = amdgpu_bo_pin(rbo, AMDGPU_GEM_DOMAIN_VRAM, &fb_location);
+	if (atomic) {
+		fb_location = amdgpu_bo_gpu_offset(abo);
+	} else {
+		r = amdgpu_bo_pin(abo, AMDGPU_GEM_DOMAIN_VRAM, &fb_location);
 		if (unlikely(r != 0)) {
-			amdgpu_bo_unreserve(rbo);
+			amdgpu_bo_unreserve(abo);
 			return -EINVAL;
 		}
 	}
 
-	amdgpu_bo_get_tiling_flags(rbo, &tiling_flags);
-	amdgpu_bo_unreserve(rbo);
+	amdgpu_bo_get_tiling_flags(abo, &tiling_flags);
+	amdgpu_bo_unreserve(abo);
 
 	switch (target_fb->pixel_format) {
 	case DRM_FORMAT_C8:
@@ -1633,8 +1656,9 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 		fb_format |= EVERGREEN_GRPH_BANK_WIDTH(bankw);
 		fb_format |= EVERGREEN_GRPH_BANK_HEIGHT(bankh);
 		fb_format |= EVERGREEN_GRPH_MACRO_TILE_ASPECT(mtaspect);
-	} else if (AMDGPU_TILING_GET(tiling_flags, ARRAY_MODE) == ARRAY_1D_TILED_THIN1)
+	} else if (AMDGPU_TILING_GET(tiling_flags, ARRAY_MODE) == ARRAY_1D_TILED_THIN1) {
 		fb_format |= EVERGREEN_GRPH_ARRAY_MODE(EVERGREEN_GRPH_ARRAY_1D_TILED_THIN1);
+	}
 
 	pipe_config = AMDGPU_TILING_GET(tiling_flags, PIPE_CONFIG);
 	fb_format |= SI_GRPH_PIPE_CONFIG(pipe_config);
@@ -1698,12 +1722,12 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 
 	if (!atomic && fb && fb != crtc->primary->fb) {
 		amdgpu_fb = to_amdgpu_framebuffer(fb);
-		rbo = gem_to_amdgpu_bo(amdgpu_fb->obj);
-		r = amdgpu_bo_reserve(rbo, false);
+		abo = gem_to_amdgpu_bo(amdgpu_fb->obj);
+		r = amdgpu_bo_reserve(abo, false);
 		if (unlikely(r != 0))
 			return r;
-		amdgpu_bo_unpin(rbo);
-		amdgpu_bo_unreserve(rbo);
+		amdgpu_bo_unpin(abo);
+		amdgpu_bo_unreserve(abo);
 	}
 
 	/* Bytes per pixel may have changed */
@@ -1798,26 +1822,13 @@ static int dce_v6_0_pick_dig_encoder(struct drm_encoder *encoder)
 
 	switch (amdgpu_encoder->encoder_id) {
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
-		if (dig->linkb)
-			return 1;
-		else
-			return 0;
-		break;
+		return dig->linkb ? 1 : 0;
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
-		if (dig->linkb)
-			return 3;
-		else
-			return 2;
-		break;
+		return dig->linkb ? 3 : 2;
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
-		if (dig->linkb)
-			return 5;
-		else
-			return 4;
-		break;
+		return dig->linkb ? 5 : 4;
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY3:
 		return 6;
-		break;
 	default:
 		DRM_ERROR("invalid encoder_id: 0x%x\n", amdgpu_encoder->encoder_id);
 		return 0;
@@ -2052,7 +2063,6 @@ static void dce_v6_0_cursor_reset(struct drm_crtc *crtc)
 					    amdgpu_crtc->cursor_y);
 
 		dce_v6_0_show_cursor(crtc);
-
 		dce_v6_0_lock_cursor(crtc, false);
 	}
 }
@@ -2151,16 +2161,16 @@ static void dce_v6_0_crtc_disable(struct drm_crtc *crtc)
 	if (crtc->primary->fb) {
 		int r;
 		struct amdgpu_framebuffer *amdgpu_fb;
-		struct amdgpu_bo *rbo;
+		struct amdgpu_bo *abo;
 
 		amdgpu_fb = to_amdgpu_framebuffer(crtc->primary->fb);
-		rbo = gem_to_amdgpu_bo(amdgpu_fb->obj);
-		r = amdgpu_bo_reserve(rbo, false);
+		abo = gem_to_amdgpu_bo(amdgpu_fb->obj);
+		r = amdgpu_bo_reserve(abo, false);
 		if (unlikely(r))
-			DRM_ERROR("failed to reserve rbo before unpin\n");
+			DRM_ERROR("failed to reserve abo before unpin\n");
 		else {
-			amdgpu_bo_unpin(rbo);
-			amdgpu_bo_unreserve(rbo);
+			amdgpu_bo_unpin(abo);
+			amdgpu_bo_unreserve(abo);
 		}
 	}
 	/* disable the GRPH */
@@ -2375,15 +2385,11 @@ static int dce_v6_0_sw_init(void *handle)
 	adev->mode_info.mode_config_initialized = true;
 
 	adev->ddev->mode_config.funcs = &amdgpu_mode_funcs;
-
 	adev->ddev->mode_config.async_page_flip = true;
-
 	adev->ddev->mode_config.max_width = 16384;
 	adev->ddev->mode_config.max_height = 16384;
-
 	adev->ddev->mode_config.preferred_depth = 24;
 	adev->ddev->mode_config.prefer_shadow = 1;
-
 	adev->ddev->mode_config.fb_base = adev->mc.aper_base;
 
 	r = amdgpu_modeset_create_props(adev);
@@ -2429,7 +2435,6 @@ static int dce_v6_0_sw_fini(void *handle)
 	drm_kms_helper_poll_fini(adev->ddev);
 
 	dce_v6_0_audio_fini(adev);
-
 	dce_v6_0_afmt_fini(adev);
 
 	drm_mode_config_cleanup(adev->ddev);
@@ -3057,7 +3062,6 @@ static void dce_v6_0_encoder_add(struct amdgpu_device *adev,
 	}
 
 	amdgpu_encoder->enc_priv = NULL;
-
 	amdgpu_encoder->encoder_enum = encoder_enum;
 	amdgpu_encoder->encoder_id = (encoder_enum & OBJECT_ID_MASK) >> OBJECT_ID_SHIFT;
 	amdgpu_encoder->devices = supported_device;

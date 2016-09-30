@@ -65,6 +65,13 @@ struct amdgpu_mman {
 	struct amdgpu_mman_lru			guard;
 };
 
+extern const struct ttm_mem_type_manager_func amdgpu_gtt_mgr_func;
+
+int amdgpu_gtt_mgr_alloc(struct ttm_mem_type_manager *man,
+			 struct ttm_buffer_object *tbo,
+			 const struct ttm_place *place,
+			 struct ttm_mem_reg *mem);
+
 int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 		       uint64_t src_offset,
 		       uint64_t dst_offset,
@@ -78,6 +85,6 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 
 int amdgpu_mmap(struct file *filp, struct vm_area_struct *vma);
 bool amdgpu_ttm_is_bound(struct ttm_tt *ttm);
-int amdgpu_ttm_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem);
+int amdgpu_ttm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *bo_mem);
 
 #endif

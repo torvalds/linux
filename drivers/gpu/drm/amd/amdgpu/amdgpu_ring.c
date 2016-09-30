@@ -264,6 +264,8 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 			      (void **)&ring->ring);
 
 	amdgpu_debugfs_ring_fini(ring);
+
+	ring->adev->rings[ring->idx] = NULL;
 }
 
 /*

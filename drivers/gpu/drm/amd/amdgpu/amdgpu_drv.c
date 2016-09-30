@@ -57,9 +57,10 @@
  * - 3.5.0 - Add support for new UVD_NO_OP register.
  * - 3.6.0 - kmd involves use CONTEXT_CONTROL in ring buffer.
  * - 3.7.0 - Add support for VCE clock list packet
+ * - 3.8.0 - Add support raster config init in the kernel
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	7
+#define KMS_DRIVER_MINOR	8
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
@@ -480,14 +481,12 @@ amdgpu_pci_remove(struct pci_dev *pdev)
 static void
 amdgpu_pci_shutdown(struct pci_dev *pdev)
 {
-	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct amdgpu_device *adev = dev->dev_private;
-
 	/* if we are running in a VM, make sure the device
-	 * torn down properly on reboot/shutdown
+	 * torn down properly on reboot/shutdown.
+	 * unfortunately we can't detect certain
+	 * hypervisors so just do this all the time.
 	 */
-	if (amdgpu_passthrough(adev))
-		amdgpu_pci_remove(pdev);
+	amdgpu_pci_remove(pdev);
 }
 
 static int amdgpu_pmops_suspend(struct device *dev)

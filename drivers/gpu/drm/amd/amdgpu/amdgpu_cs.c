@@ -648,7 +648,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 	if (!r && p->uf_entry.robj) {
 		struct amdgpu_bo *uf = p->uf_entry.robj;
 
-		r = amdgpu_ttm_bind(uf->tbo.ttm, &uf->tbo.mem);
+		r = amdgpu_ttm_bind(&uf->tbo, &uf->tbo.mem);
 		p->job->uf_addr += amdgpu_bo_gpu_offset(uf);
 	}
 
@@ -1192,7 +1192,7 @@ int amdgpu_cs_sysvm_access_required(struct amdgpu_cs_parser *parser)
 	for (i = 0; i < parser->bo_list->num_entries; i++) {
 		struct amdgpu_bo *bo = parser->bo_list->array[i].robj;
 
-		r = amdgpu_ttm_bind(bo->tbo.ttm, &bo->tbo.mem);
+		r = amdgpu_ttm_bind(&bo->tbo, &bo->tbo.mem);
 		if (unlikely(r))
 			return r;
 	}

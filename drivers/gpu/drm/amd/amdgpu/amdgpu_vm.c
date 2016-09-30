@@ -487,7 +487,7 @@ static void amdgpu_vm_do_set_ptes(struct amdgpu_pte_update_params *params,
 				  unsigned count, uint32_t incr,
 				  uint32_t flags)
 {
-	trace_amdgpu_vm_set_page(pe, addr, count, incr, flags);
+	trace_amdgpu_vm_set_ptes(pe, addr, count, incr, flags);
 
 	if (count < 3) {
 		amdgpu_vm_write_pte(params->adev, params->ib, pe,
@@ -516,10 +516,12 @@ static void amdgpu_vm_do_copy_ptes(struct amdgpu_pte_update_params *params,
 				   unsigned count, uint32_t incr,
 				   uint32_t flags)
 {
-	trace_amdgpu_vm_set_page(pe, addr, count, incr, flags);
+	uint64_t src = (params->src + (addr >> 12) * 8);
 
-	amdgpu_vm_copy_pte(params->adev, params->ib, pe,
-			   (params->src + (addr >> 12) * 8), count);
+
+	trace_amdgpu_vm_copy_ptes(pe, src, count);
+
+	amdgpu_vm_copy_pte(params->adev, params->ib, pe, src, count);
 }
 
 /**
@@ -549,6 +551,10 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 		return r;
 
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
+	if (r)
+		goto error;
+
+	r = amdgpu_ttm_bind(&bo->tbo, &bo->tbo.mem);
 	if (r)
 		goto error;
 
@@ -625,6 +631,11 @@ static int amdgpu_vm_update_pd_or_shadow(struct amdgpu_device *adev,
 
 	if (!pd)
 		return 0;
+
+	r = amdgpu_ttm_bind(&pd->tbo, &pd->tbo.mem);
+	if (r)
+		return r;
+
 	pd_addr = amdgpu_bo_gpu_offset(pd);
 	ring = container_of(vm->entity.sched, struct amdgpu_ring, sched);
 
@@ -649,6 +660,14 @@ static int amdgpu_vm_update_pd_or_shadow(struct amdgpu_device *adev,
 
 		if (bo == NULL)
 			continue;
+
+		if (bo->shadow) {
+			struct amdgpu_bo *shadow = bo->shadow;
+
+			r = amdgpu_ttm_bind(&shadow->tbo, &shadow->tbo.mem);
+			if (r)
+				return r;
+		}
 
 		pt = amdgpu_bo_gpu_offset(bo);
 		if (!shadow) {
@@ -1000,6 +1019,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 						    AMDGPU_GPU_PAGE_SIZE);
 			pte[i] |= flags;
 		}
+		addr = 0;
 	}
 
 	r = amdgpu_sync_fence(adev, &job->sync, exclusive);
@@ -1412,8 +1432,18 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 
 		r = amdgpu_vm_clear_bo(adev, vm, pt);
 		if (r) {
+			amdgpu_bo_unref(&pt->shadow);
 			amdgpu_bo_unref(&pt);
 			goto error_free;
+		}
+
+		if (pt->shadow) {
+			r = amdgpu_vm_clear_bo(adev, vm, pt->shadow);
+			if (r) {
+				amdgpu_bo_unref(&pt->shadow);
+				amdgpu_bo_unref(&pt);
+				goto error_free;
+			}
 		}
 
 		entry->robj = pt;
@@ -1610,14 +1640,25 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 		goto error_free_page_directory;
 
 	r = amdgpu_vm_clear_bo(adev, vm, vm->page_directory);
-	amdgpu_bo_unreserve(vm->page_directory);
 	if (r)
-		goto error_free_page_directory;
+		goto error_unreserve;
+
+	if (vm->page_directory->shadow) {
+		r = amdgpu_vm_clear_bo(adev, vm, vm->page_directory->shadow);
+		if (r)
+			goto error_unreserve;
+	}
+
 	vm->last_eviction_counter = atomic64_read(&adev->num_evictions);
+	amdgpu_bo_unreserve(vm->page_directory);
 
 	return 0;
 
+error_unreserve:
+	amdgpu_bo_unreserve(vm->page_directory);
+
 error_free_page_directory:
+	amdgpu_bo_unref(&vm->page_directory->shadow);
 	amdgpu_bo_unref(&vm->page_directory);
 	vm->page_directory = NULL;
 
@@ -1660,15 +1701,17 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	}
 
 	for (i = 0; i < amdgpu_vm_num_pdes(adev); i++) {
-		if (vm->page_tables[i].entry.robj &&
-		    vm->page_tables[i].entry.robj->shadow)
-			amdgpu_bo_unref(&vm->page_tables[i].entry.robj->shadow);
-		amdgpu_bo_unref(&vm->page_tables[i].entry.robj);
+		struct amdgpu_bo *pt = vm->page_tables[i].entry.robj;
+
+		if (!pt)
+			continue;
+
+		amdgpu_bo_unref(&pt->shadow);
+		amdgpu_bo_unref(&pt);
 	}
 	drm_free_large(vm->page_tables);
 
-	if (vm->page_directory->shadow)
-		amdgpu_bo_unref(&vm->page_directory->shadow);
+	amdgpu_bo_unref(&vm->page_directory->shadow);
 	amdgpu_bo_unref(&vm->page_directory);
 	fence_put(vm->page_directory_fence);
 }
