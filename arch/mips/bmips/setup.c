@@ -17,6 +17,7 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
+#include <linux/libfdt.h>
 #include <linux/smp.h>
 #include <asm/addrspace.h>
 #include <asm/bmips.h>
@@ -152,6 +153,8 @@ void __init plat_time_init(void)
 	mips_hpt_frequency = freq;
 }
 
+extern const char __appended_dtb;
+
 void __init plat_mem_setup(void)
 {
 	void *dtb;
@@ -161,6 +164,11 @@ void __init plat_mem_setup(void)
 	ioport_resource.start = 0;
 	ioport_resource.end = ~0;
 
+#ifdef CONFIG_MIPS_ELF_APPENDED_DTB
+	if (!fdt_check_header(&__appended_dtb))
+		dtb = (void *)&__appended_dtb;
+	else
+#endif
 	/* intended to somewhat resemble ARM; see Documentation/arm/Booting */
 	if (fw_arg0 == 0 && fw_arg1 == 0xffffffff)
 		dtb = phys_to_virt(fw_arg2);
