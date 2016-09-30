@@ -451,7 +451,7 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv, __be16 protocol,
 	struct mlx5e_tc_flow *flow;
 	struct mlx5_flow_spec *spec;
 	struct mlx5_flow_rule *old = NULL;
-	struct mlx5_esw_flow_attr *old_attr;
+	struct mlx5_esw_flow_attr *old_attr = NULL;
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 
 	if (esw && esw->mode == SRIOV_OFFLOADS)
