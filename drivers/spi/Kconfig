@@ -153,6 +153,16 @@ config SPI_BCM63XX_HSSPI
 	  This enables support for the High Speed SPI controller present on
 	  newer Broadcom BCM63XX SoCs.
 
+config SPI_BCM_QSPI
+	tristate "Broadcom BSPI and MSPI controller support"
+	depends on ARCH_BRCMSTB || ARCH_BCM || ARCH_BCM_IPROC || COMPILE_TEST
+	default ARCH_BCM_IPROC
+	help
+	  Enables support for the Broadcom SPI flash and MSPI controller.
+	  Select this option for any one of BRCMSTB, iProc NSP and NS2 SoCs
+	  based platforms. This driver works for both SPI master for spi-nor
+	  flash device as well as MSPI device.
+
 config SPI_BITBANG
 	tristate "Utilities for Bitbanging SPI masters"
 	help
