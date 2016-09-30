@@ -295,6 +295,13 @@ config SPI_IMX
 	  This enables using the Freescale i.MX SPI controllers in master
 	  mode.
 
+config SPI_JCORE
+	tristate "J-Core SPI Master"
+	depends on OF && (SUPERH || COMPILE_TEST)
+	help
+	  This enables support for the SPI master controller in the J-Core
+	  synthesizable, open source SoC.
+
 config SPI_LM70_LLP
 	tristate "Parallel port adapter for LM70 eval board (DEVELOPMENT)"
 	depends on PARPORT
