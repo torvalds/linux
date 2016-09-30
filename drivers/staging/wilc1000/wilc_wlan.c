@@ -621,9 +621,9 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 			if (!ret)
 				break;
 
-			if ((reg & 0x1) == 0) {
+			if ((reg & 0x1) == 0)
 				break;
-			}
+
 			counter++;
 			if (counter > 200) {
 				counter = 0;
