@@ -358,6 +358,14 @@ static void rk808_device_shutdown(void)
 		return;
 	}
 
+	/* close rtc int when power off */
+	regmap_update_bits(rk808->regmap,
+			   RK808_INT_STS_MSK_REG1,
+			   (0x3 << 5), (0x3 << 5));
+	regmap_update_bits(rk808->regmap,
+			   RK808_RTC_INT_REG,
+			   (0x3 << 2), (0x0 << 2));
+
 	ret = pm_shutdown(rk808->regmap);
 	if (ret)
 		dev_err(&rk808_i2c_client->dev, "power off error!\n");
