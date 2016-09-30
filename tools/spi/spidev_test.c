@@ -284,7 +284,7 @@ static void parse_opts(int argc, char *argv[])
 
 static void transfer_escaped_string(int fd, char *str)
 {
-	size_t size = strlen(str + 1);
+	size_t size = strlen(str);
 	uint8_t *tx;
 	uint8_t *rx;
 
