@@ -2501,7 +2501,7 @@ S:	Supported
 F:	kernel/bpf/
 
 BROADCOM B44 10/100 ETHERNET DRIVER
-M:	Gary Zambrano <zambrano@broadcom.com>
+M:	Michael Chan <michael.chan@broadcom.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/broadcom/b44.*
@@ -8161,6 +8161,15 @@ S:	Maintained
 W:	https://fedorahosted.org/dropwatch/
 F:	net/core/drop_monitor.c
 
+NETWORKING [DSA]
+M:	Andrew Lunn <andrew@lunn.ch>
+M:	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
+M:	Florian Fainelli <f.fainelli@gmail.com>
+S:	Maintained
+F:	net/dsa/
+F:	include/net/dsa.h
+F:	drivers/net/dsa/
+
 NETWORKING [GENERAL]
 M:	"David S. Miller" <davem@davemloft.net>
 L:	netdev@vger.kernel.org
@@ -8736,7 +8745,7 @@ F:	drivers/oprofile/
 F:	include/linux/oprofile.h
 
 ORACLE CLUSTER FILESYSTEM 2 (OCFS2)
-M:	Mark Fasheh <mfasheh@suse.com>
+M:	Mark Fasheh <mfasheh@versity.com>
 M:	Joel Becker <jlbec@evilplan.org>
 L:	ocfs2-devel@oss.oracle.com (moderated for non-subscribers)
 W:	http://ocfs2.wiki.kernel.org
