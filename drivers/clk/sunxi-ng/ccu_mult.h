@@ -4,7 +4,7 @@
 #include "ccu_common.h"
 #include "ccu_mux.h"
 
-struct _ccu_mult {
+struct ccu_mult_internal {
 	u8	shift;
 	u8	width;
 };
@@ -18,7 +18,7 @@ struct _ccu_mult {
 struct ccu_mult {
 	u32			enable;
 
-	struct _ccu_mult	mult;
+	struct ccu_mult_internal	mult;
 	struct ccu_mux_internal	mux;
 	struct ccu_common	common;
 };
