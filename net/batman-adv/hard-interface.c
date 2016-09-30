@@ -202,6 +202,26 @@ static bool batadv_is_valid_iface(const struct net_device *net_dev)
 }
 
 /**
+ * batadv_is_cfg80211_netdev - check if the given net_device struct is a
+ *  cfg80211 wifi interface
+ * @net_device: the device to check
+ *
+ * Return: true if the net device is a cfg80211 wireless device, false
+ *  otherwise.
+ */
+bool batadv_is_cfg80211_netdev(struct net_device *net_device)
+{
+	if (!net_device)
+		return false;
+
+	/* cfg80211 drivers have to set ieee80211_ptr */
+	if (net_device->ieee80211_ptr)
+		return true;
+
+	return false;
+}
+
+/**
  * batadv_is_wifi_netdev - check if the given net_device struct is a wifi
  *  interface
  * @net_device: the device to check
@@ -221,11 +241,7 @@ bool batadv_is_wifi_netdev(struct net_device *net_device)
 		return true;
 #endif
 
-	/* cfg80211 drivers have to set ieee80211_ptr */
-	if (net_device->ieee80211_ptr)
-		return true;
-
-	return false;
+	return batadv_is_cfg80211_netdev(net_device);
 }
 
 /**

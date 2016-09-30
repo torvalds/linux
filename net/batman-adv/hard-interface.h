@@ -65,6 +65,7 @@ enum batadv_hard_if_cleanup {
 
 extern struct notifier_block batadv_hard_if_notifier;
 
+bool batadv_is_cfg80211_netdev(struct net_device *net_device);
 bool batadv_is_wifi_netdev(struct net_device *net_device);
 bool batadv_is_wifi_iface(int ifindex);
 struct batadv_hard_iface*
