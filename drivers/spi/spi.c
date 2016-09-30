@@ -37,6 +37,7 @@
 #include <linux/kthread.h>
 #include <linux/ioport.h>
 #include <linux/acpi.h>
+#include <linux/highmem.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/spi.h>
@@ -709,6 +710,13 @@ static int spi_map_buf(struct spi_master *master, struct device *dev,
 {
 	const bool vmalloced_buf = is_vmalloc_addr(buf);
 	unsigned int max_seg_size = dma_get_max_seg_size(dev);
+#ifdef CONFIG_HIGHMEM
+	const bool kmap_buf = ((unsigned long)buf >= PKMAP_BASE &&
+				(unsigned long)buf < (PKMAP_BASE +
+					(LAST_PKMAP * PAGE_SIZE)));
+#else
+	const bool kmap_buf = false;
+#endif
 	int desc_len;
 	int sgs;
 	struct page *vm_page;
@@ -716,7 +724,7 @@ static int spi_map_buf(struct spi_master *master, struct device *dev,
 	size_t min;
 	int i, ret;
 
-	if (vmalloced_buf) {
+	if (vmalloced_buf || kmap_buf) {
 		desc_len = min_t(int, max_seg_size, PAGE_SIZE);
 		sgs = DIV_ROUND_UP(len + offset_in_page(buf), desc_len);
 	} else if (virt_addr_valid(buf)) {
@@ -732,10 +740,13 @@ static int spi_map_buf(struct spi_master *master, struct device *dev,
 
 	for (i = 0; i < sgs; i++) {
 
-		if (vmalloced_buf) {
+		if (vmalloced_buf || kmap_buf) {
 			min = min_t(size_t,
 				    len, desc_len - offset_in_page(buf));
-			vm_page = vmalloc_to_page(buf);
+			if (vmalloced_buf)
+				vm_page = vmalloc_to_page(buf);
+			else
+				vm_page = kmap_to_page(buf);
 			if (!vm_page) {
 				sg_free_table(sgt);
 				return -ENOMEM;
