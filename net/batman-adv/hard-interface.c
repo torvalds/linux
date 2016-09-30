@@ -206,6 +206,9 @@ static bool batadv_is_valid_iface(const struct net_device *net_dev)
  *  interface on top of another 'real' interface
  * @netdev: the device to check
  *
+ * Callers must hold the rtnl semaphore. You may want batadv_get_real_netdev()
+ * instead of this.
+ *
  * Return: the 'real' net device or the original net device and NULL in case
  *  of an error.
  */
@@ -239,6 +242,25 @@ static struct net_device *batadv_get_real_netdevice(struct net_device *netdev)
 out:
 	if (hard_iface)
 		batadv_hardif_put(hard_iface);
+	return real_netdev;
+}
+
+/**
+ * batadv_get_real_netdev - check if the given net_device struct is a virtual
+ *  interface on top of another 'real' interface
+ * @net_device: the device to check
+ *
+ * Return: the 'real' net device or the original net device and NULL in case
+ *  of an error.
+ */
+struct net_device *batadv_get_real_netdev(struct net_device *net_device)
+{
+	struct net_device *real_netdev;
+
+	rtnl_lock();
+	real_netdev = batadv_get_real_netdevice(net_device);
+	rtnl_unlock();
+
 	return real_netdev;
 }
 

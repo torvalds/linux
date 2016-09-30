@@ -75,6 +75,7 @@ static u32 batadv_v_elp_get_throughput(struct batadv_hardif_neigh_node *neigh)
 {
 	struct batadv_hard_iface *hard_iface = neigh->if_incoming;
 	struct ethtool_link_ksettings link_settings;
+	struct net_device *real_netdev;
 	struct station_info sinfo;
 	u32 throughput;
 	int ret;
@@ -94,8 +95,13 @@ static u32 batadv_v_elp_get_throughput(struct batadv_hardif_neigh_node *neigh)
 			/* unsupported WiFi driver version */
 			goto default_throughput;
 
-		ret = cfg80211_get_station(hard_iface->net_dev,
-					   neigh->addr, &sinfo);
+		real_netdev = batadv_get_real_netdev(hard_iface->net_dev);
+		if (!real_netdev)
+			goto default_throughput;
+
+		ret = cfg80211_get_station(real_netdev, neigh->addr, &sinfo);
+
+		dev_put(real_netdev);
 		if (ret == -ENOENT) {
 			/* Node is not associated anymore! It would be
 			 * possible to delete this neighbor. For now set
