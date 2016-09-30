@@ -29,6 +29,7 @@ void rxrpc_set_timer(struct rxrpc_call *call, enum rxrpc_timer_trace why,
 {
 	unsigned long t_j, now_j = jiffies;
 	ktime_t t;
+	bool queue = false;
 
 	read_lock_bh(&call->state_lock);
 
@@ -37,13 +38,21 @@ void rxrpc_set_timer(struct rxrpc_call *call, enum rxrpc_timer_trace why,
 		if (!ktime_after(t, now))
 			goto out;
 
-		if (ktime_after(call->resend_at, now) &&
-		    ktime_before(call->resend_at, t))
+		if (!ktime_after(call->resend_at, now)) {
+			call->resend_at = call->expire_at;
+			if (!test_and_set_bit(RXRPC_CALL_EV_RESEND, &call->events))
+				queue = true;
+		} else if (ktime_before(call->resend_at, t)) {
 			t = call->resend_at;
+		}
 
-		if (ktime_after(call->ack_at, now) &&
-		    ktime_before(call->ack_at, t))
+		if (!ktime_after(call->ack_at, now)) {
+			call->ack_at = call->expire_at;
+			if (!test_and_set_bit(RXRPC_CALL_EV_ACK, &call->events))
+				queue = true;
+		} else if (ktime_before(call->ack_at, t)) {
 			t = call->ack_at;
+		}
 
 		t_j = nsecs_to_jiffies(ktime_to_ns(ktime_sub(t, now)));
 		t_j += jiffies;
@@ -59,6 +68,9 @@ void rxrpc_set_timer(struct rxrpc_call *call, enum rxrpc_timer_trace why,
 			mod_timer(&call->timer, t_j);
 			trace_rxrpc_timer(call, why, now, now_j);
 		}
+
+		if (queue)
+			rxrpc_queue_call(call);
 	}
 
 out:
@@ -332,8 +344,7 @@ recheck_state:
 		goto recheck_state;
 	}
 
-	if (test_and_clear_bit(RXRPC_CALL_EV_ACK, &call->events) ||
-	    ktime_before(call->ack_at, now)) {
+	if (test_and_clear_bit(RXRPC_CALL_EV_ACK, &call->events)) {
 		call->ack_at = call->expire_at;
 		if (call->ackr_reason) {
 			rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ACK);
@@ -341,8 +352,7 @@ recheck_state:
 		}
 	}
 
-	if (test_and_clear_bit(RXRPC_CALL_EV_RESEND, &call->events) ||
-	    ktime_before(call->resend_at, now)) {
+	if (test_and_clear_bit(RXRPC_CALL_EV_RESEND, &call->events)) {
 		rxrpc_resend(call, now);
 		goto recheck_state;
 	}

@@ -71,11 +71,8 @@ static void rxrpc_call_timer_expired(unsigned long _call)
 
 	_enter("%d", call->debug_id);
 
-	if (call->state < RXRPC_CALL_COMPLETE) {
-		trace_rxrpc_timer(call, rxrpc_timer_expired,
-				  ktime_get_real(), jiffies);
-		rxrpc_queue_call(call);
-	}
+	if (call->state < RXRPC_CALL_COMPLETE)
+		rxrpc_set_timer(call, rxrpc_timer_expired, ktime_get_real());
 }
 
 /*
