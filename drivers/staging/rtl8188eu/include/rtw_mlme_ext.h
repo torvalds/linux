@@ -667,32 +667,32 @@ void rtw_dummy_event_callback(struct adapter *adapter, u8 *pbuf);
 void rtw_fwdbg_event_callback(struct adapter *adapter, u8 *pbuf);
 
 enum rtw_c2h_event {
-	GEN_EVT_CODE(_Read_MACREG) = 0, /*0*/
-	GEN_EVT_CODE(_Read_BBREG),
-	GEN_EVT_CODE(_Read_RFREG),
-	GEN_EVT_CODE(_Read_EEPROM),
-	GEN_EVT_CODE(_Read_EFUSE),
-	GEN_EVT_CODE(_Read_CAM),	/*5*/
-	GEN_EVT_CODE(_Get_BasicRate),
-	GEN_EVT_CODE(_Get_DataRate),
-	GEN_EVT_CODE(_Survey),	 /*8*/
-	GEN_EVT_CODE(_SurveyDone),	 /*9*/
+	_Read_MACREG_EVT_ = 0, /*0*/
+	_Read_BBREG_EVT_,
+	_Read_RFREG_EVT_,
+	_Read_EEPROM_EVT_,
+	_Read_EFUSE_EVT_,
+	_Read_CAM_EVT_,	/*5*/
+	_Get_BasicRate_EVT_,
+	_Get_DataRate_EVT_,
+	_Survey_EVT_,	 /*8*/
+	_SurveyDone_EVT_,	 /*9*/
 
-	GEN_EVT_CODE(_JoinBss), /*10*/
-	GEN_EVT_CODE(_AddSTA),
-	GEN_EVT_CODE(_DelSTA),
-	GEN_EVT_CODE(_AtimDone),
-	GEN_EVT_CODE(_TX_Report),
-	GEN_EVT_CODE(_CCX_Report),		/*15*/
-	GEN_EVT_CODE(_DTM_Report),
-	GEN_EVT_CODE(_TX_Rate_Statistics),
-	GEN_EVT_CODE(_C2HLBK),
-	GEN_EVT_CODE(_FWDBG),
-	GEN_EVT_CODE(_C2HFEEDBACK),             /*20*/
-	GEN_EVT_CODE(_ADDBA),
-	GEN_EVT_CODE(_C2HBCN),
-	GEN_EVT_CODE(_ReportPwrState),	/* filen: only for PCIE, USB */
-	GEN_EVT_CODE(_CloseRF),		/* filen: only for PCIE,
+	_JoinBss_EVT_, /*10*/
+	_AddSTA_EVT_,
+	_DelSTA_EVT_,
+	_AtimDone_EVT_,
+	_TX_Report_EVT_,
+	_CCX_Report_EVT_,		/*15*/
+	_DTM_Report_EVT_,
+	_TX_Rate_Statistics_EVT_,
+	_C2HLBK_EVT_,
+	_FWDBG_EVT_,
+	_C2HFEEDBACK_EVT_,             /*20*/
+	_ADDBA_EVT_,
+	_C2HBCN_EVT_,
+	_ReportPwrState_EVT_,	/* filen: only for PCIE, USB */
+	_CloseRF_EVT_,		/* filen: only for PCIE,
 					 * work around ASPM */
 	MAX_C2HEVT
 };

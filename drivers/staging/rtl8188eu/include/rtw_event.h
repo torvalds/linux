@@ -71,8 +71,6 @@ struct stadel_event {
 	int mac_id;
 };
 
-#define GEN_EVT_CODE(event)	event ## _EVT_
-
 struct fwevent {
 	u32	parmsize;
 	void (*event_callback)(struct adapter *dev, u8 *pbuf);
