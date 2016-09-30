@@ -2049,7 +2049,7 @@ int fiji_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int fiji_program_mem_timing_parameters(struct pp_hwmgr *hwmgr)
+static int fiji_program_mem_timing_parameters(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 

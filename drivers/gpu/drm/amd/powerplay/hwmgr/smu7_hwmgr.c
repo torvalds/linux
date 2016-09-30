@@ -89,7 +89,7 @@ enum DPM_EVENT_SRC {
 
 static const unsigned long PhwVIslands_Magic = (unsigned long)(PHM_VIslands_Magic);
 
-struct smu7_power_state *cast_phw_smu7_power_state(
+static struct smu7_power_state *cast_phw_smu7_power_state(
 				  struct pp_hw_power_state *hw_ps)
 {
 	PP_ASSERT_WITH_CODE((PhwVIslands_Magic == hw_ps->magic),
@@ -99,7 +99,7 @@ struct smu7_power_state *cast_phw_smu7_power_state(
 	return (struct smu7_power_state *)hw_ps;
 }
 
-const struct smu7_power_state *cast_const_phw_smu7_power_state(
+static const struct smu7_power_state *cast_const_phw_smu7_power_state(
 				 const struct pp_hw_power_state *hw_ps)
 {
 	PP_ASSERT_WITH_CODE((PhwVIslands_Magic == hw_ps->magic),
@@ -115,7 +115,7 @@ const struct smu7_power_state *cast_const_phw_smu7_power_state(
  * @param    hwmgr  the address of the powerplay hardware manager.
  * @return   always 0
  */
-int smu7_get_mc_microcode_version (struct pp_hwmgr *hwmgr)
+static int smu7_get_mc_microcode_version(struct pp_hwmgr *hwmgr)
 {
 	cgs_write_register(hwmgr->device, mmMC_SEQ_IO_DEBUG_INDEX, 0x9F);
 
@@ -124,7 +124,7 @@ int smu7_get_mc_microcode_version (struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-uint16_t smu7_get_current_pcie_speed(struct pp_hwmgr *hwmgr)
+static uint16_t smu7_get_current_pcie_speed(struct pp_hwmgr *hwmgr)
 {
 	uint32_t speedCntl = 0;
 
@@ -135,7 +135,7 @@ uint16_t smu7_get_current_pcie_speed(struct pp_hwmgr *hwmgr)
 			PCIE_LC_SPEED_CNTL, LC_CURRENT_DATA_RATE));
 }
 
-int smu7_get_current_pcie_lane_number(struct pp_hwmgr *hwmgr)
+static int smu7_get_current_pcie_lane_number(struct pp_hwmgr *hwmgr)
 {
 	uint32_t link_width;
 
@@ -155,7 +155,7 @@ int smu7_get_current_pcie_lane_number(struct pp_hwmgr *hwmgr)
 * @param    pHwMgr  the address of the powerplay hardware manager.
 * @return   always PP_Result_OK
 */
-int smu7_enable_smc_voltage_controller(struct pp_hwmgr *hwmgr)
+static int smu7_enable_smc_voltage_controller(struct pp_hwmgr *hwmgr)
 {
 	if (hwmgr->feature_mask & PP_SMC_VOLTAGE_CONTROL_MASK)
 		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_Voltage_Cntl_Enable);
@@ -802,7 +802,7 @@ static int smu7_setup_dpm_tables_v1(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int smu7_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
+static int smu7_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
@@ -1153,7 +1153,7 @@ static int smu7_disable_thermal_auto_throttle(struct pp_hwmgr *hwmgr)
 	return smu7_disable_auto_throttle_source(hwmgr, PHM_AutoThrottleSource_Thermal);
 }
 
-int smu7_pcie_performance_request(struct pp_hwmgr *hwmgr)
+static int smu7_pcie_performance_request(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	data->pcie_performance_request = true;
@@ -1161,7 +1161,7 @@ int smu7_pcie_performance_request(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int smu7_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
+static int smu7_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
 	int tmp_result = 0;
 	int result = 0;
@@ -1864,7 +1864,7 @@ static int smu7_set_private_data_based_on_pptable_v1(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int smu7_patch_voltage_workaround(struct pp_hwmgr *hwmgr)
+static int smu7_patch_voltage_workaround(struct pp_hwmgr *hwmgr)
 {
 	struct phm_ppt_v1_information *table_info =
 		       (struct phm_ppt_v1_information *)(hwmgr->pptable);
@@ -2253,7 +2253,7 @@ static int smu7_set_private_data_based_on_pptable_v0(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int smu7_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
+static int smu7_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data;
 	int result;
@@ -3672,14 +3672,16 @@ static int smu7_set_max_fan_pwm_output(struct pp_hwmgr *hwmgr, uint16_t us_max_f
 			PPSMC_MSG_SetFanPwmMax, us_max_fan_pwm);
 }
 
-int smu7_notify_smc_display_change(struct pp_hwmgr *hwmgr, bool has_display)
+static int
+smu7_notify_smc_display_change(struct pp_hwmgr *hwmgr, bool has_display)
 {
 	PPSMC_Msg msg = has_display ? (PPSMC_Msg)PPSMC_HasDisplay : (PPSMC_Msg)PPSMC_NoDisplay;
 
 	return (smum_send_msg_to_smc(hwmgr->smumgr, msg) == 0) ?  0 : -1;
 }
 
-int smu7_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
+static int
+smu7_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
 {
 	uint32_t num_active_displays = 0;
 	struct cgs_display_info info = {0};
@@ -3701,7 +3703,7 @@ int smu7_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
 * @param    hwmgr  the address of the powerplay hardware manager.
 * @return   always OK
 */
-int smu7_program_display_gap(struct pp_hwmgr *hwmgr)
+static int smu7_program_display_gap(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	uint32_t num_active_displays = 0;
@@ -3751,7 +3753,7 @@ int smu7_program_display_gap(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int smu7_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
+static int smu7_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 {
 	return smu7_program_display_gap(hwmgr);
 }
@@ -3775,13 +3777,14 @@ static int smu7_set_max_fan_rpm_output(struct pp_hwmgr *hwmgr, uint16_t us_max_f
 			PPSMC_MSG_SetFanRpmMax, us_max_fan_rpm);
 }
 
-int smu7_register_internal_thermal_interrupt(struct pp_hwmgr *hwmgr,
+static int smu7_register_internal_thermal_interrupt(struct pp_hwmgr *hwmgr,
 					const void *thermal_interrupt_info)
 {
 	return 0;
 }
 
-bool smu7_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmgr)
+static bool
+smu7_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	bool is_update_required = false;
@@ -3810,7 +3813,9 @@ static inline bool smu7_are_power_levels_equal(const struct smu7_performance_lev
 		  (pl1->pcie_lane == pl2->pcie_lane));
 }
 
-int smu7_check_states_equal(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *pstate1, const struct pp_hw_power_state *pstate2, bool *equal)
+static int smu7_check_states_equal(struct pp_hwmgr *hwmgr,
+		const struct pp_hw_power_state *pstate1,
+		const struct pp_hw_power_state *pstate2, bool *equal)
 {
 	const struct smu7_power_state *psa;
 	const struct smu7_power_state *psb;
@@ -3843,7 +3848,7 @@ int smu7_check_states_equal(struct pp_hwmgr *hwmgr, const struct pp_hw_power_sta
 	return 0;
 }
 
-int smu7_upload_mc_firmware(struct pp_hwmgr *hwmgr)
+static int smu7_upload_mc_firmware(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
@@ -3972,7 +3977,7 @@ static int smu7_init_sclk_threshold(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int smu7_setup_asic_task(struct pp_hwmgr *hwmgr)
+static int smu7_setup_asic_task(struct pp_hwmgr *hwmgr)
 {
 	int tmp_result, result = 0;
 

@@ -436,7 +436,8 @@ static enum PP_StateUILabel power_state_convert(enum amd_pm_state_type  state)
 	}
 }
 
-int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_event event_id, void *input, void *output)
+static int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_event event_id,
+		void *input, void *output)
 {
 	int ret = 0;
 	struct pp_instance *pp_handle;
@@ -475,7 +476,7 @@ int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_event event_id, void *input,
 	return ret;
 }
 
-enum amd_pm_state_type pp_dpm_get_current_power_state(void *handle)
+static enum amd_pm_state_type pp_dpm_get_current_power_state(void *handle)
 {
 	struct pp_hwmgr *hwmgr;
 	struct pp_power_state *state;
