@@ -2015,6 +2015,7 @@ static struct attribute *it87_attributes_in[] = {
 	&sensor_dev_attr_in10_input.dev_attr.attr,	/* 41 */
 	&sensor_dev_attr_in11_input.dev_attr.attr,	/* 41 */
 	&sensor_dev_attr_in12_input.dev_attr.attr,	/* 41 */
+	NULL
 };
 
 static const struct attribute_group it87_group_in = {

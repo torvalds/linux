@@ -299,12 +299,14 @@ static struct snd_soc_codec_driver soc_codec_dev_ad1980 = {
 	.probe = 	ad1980_soc_probe,
 	.remove = 	ad1980_soc_remove,
 
-	.controls = ad1980_snd_ac97_controls,
-	.num_controls = ARRAY_SIZE(ad1980_snd_ac97_controls),
-	.dapm_widgets = ad1980_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(ad1980_dapm_widgets),
-	.dapm_routes = ad1980_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(ad1980_dapm_routes),
+	.component_driver = {
+		.controls		= ad1980_snd_ac97_controls,
+		.num_controls		= ARRAY_SIZE(ad1980_snd_ac97_controls),
+		.dapm_widgets		= ad1980_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(ad1980_dapm_widgets),
+		.dapm_routes		= ad1980_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(ad1980_dapm_routes),
+	},
 };
 
 static int ad1980_probe(struct platform_device *pdev)

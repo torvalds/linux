@@ -51,16 +51,18 @@ struct mlx5_cqe64 *mlx5e_get_cqe(struct mlx5e_cq *cq)
 
 static void mlx5e_poll_ico_cq(struct mlx5e_cq *cq)
 {
+	struct mlx5e_sq *sq = container_of(cq, struct mlx5e_sq, cq);
 	struct mlx5_wq_cyc *wq;
 	struct mlx5_cqe64 *cqe;
-	struct mlx5e_sq *sq;
 	u16 sqcc;
+
+	if (unlikely(test_bit(MLX5E_SQ_STATE_FLUSH, &sq->state)))
+		return;
 
 	cqe = mlx5e_get_cqe(cq);
 	if (likely(!cqe))
 		return;
 
-	sq = container_of(cq, struct mlx5e_sq, cq);
 	wq = &sq->wq;
 
 	/* sq->cc must be updated only after mlx5_cqwq_update_db_record(),

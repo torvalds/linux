@@ -1433,7 +1433,7 @@ static int dwc3_gadget_get_frame(struct usb_gadget *g)
 
 static int __dwc3_gadget_wakeup(struct dwc3 *dwc)
 {
-	unsigned long		timeout;
+	int			retries;
 
 	int			ret;
 	u32			reg;
@@ -1484,9 +1484,9 @@ static int __dwc3_gadget_wakeup(struct dwc3 *dwc)
 	}
 
 	/* poll until Link State changes to ON */
-	timeout = jiffies + msecs_to_jiffies(100);
+	retries = 20000;
 
-	while (!time_after(jiffies, timeout)) {
+	while (retries--) {
 		reg = dwc3_readl(dwc->regs, DWC3_DSTS);
 
 		/* in HS, means ON */

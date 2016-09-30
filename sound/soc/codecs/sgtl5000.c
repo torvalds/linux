@@ -411,6 +411,8 @@ static const struct snd_kcontrol_new sgtl5000_snd_controls[] = {
 			0, 8,
 			0x7f, 1,
 			headphone_volume),
+	SOC_SINGLE("Headphone Playback Switch", SGTL5000_CHIP_ANA_CTRL,
+			4, 1, 1),
 	SOC_SINGLE("Headphone Playback ZC Switch", SGTL5000_CHIP_ANA_CTRL,
 			5, 1, 0),
 
@@ -423,6 +425,7 @@ static const struct snd_kcontrol_new sgtl5000_snd_controls[] = {
 			SGTL5000_LINE_OUT_VOL_RIGHT_SHIFT,
 			0x1f, 1,
 			lineout_volume),
+	SOC_SINGLE("Lineout Playback Switch", SGTL5000_CHIP_ANA_CTRL, 8, 1, 1),
 };
 
 /* mute the codec used by alsa core */
@@ -1151,12 +1154,14 @@ static struct snd_soc_codec_driver sgtl5000_driver = {
 	.remove = sgtl5000_remove,
 	.set_bias_level = sgtl5000_set_bias_level,
 	.suspend_bias_off = true,
-	.controls = sgtl5000_snd_controls,
-	.num_controls = ARRAY_SIZE(sgtl5000_snd_controls),
-	.dapm_widgets = sgtl5000_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(sgtl5000_dapm_widgets),
-	.dapm_routes = sgtl5000_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(sgtl5000_dapm_routes),
+	.component_driver = {
+		.controls		= sgtl5000_snd_controls,
+		.num_controls		= ARRAY_SIZE(sgtl5000_snd_controls),
+		.dapm_widgets		= sgtl5000_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(sgtl5000_dapm_widgets),
+		.dapm_routes		= sgtl5000_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(sgtl5000_dapm_routes),
+	},
 };
 
 static const struct regmap_config sgtl5000_regmap = {

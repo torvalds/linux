@@ -1030,7 +1030,6 @@ static int spi_qup_remove(struct platform_device *pdev)
 
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	spi_master_put(master);
 
 	return 0;
 }

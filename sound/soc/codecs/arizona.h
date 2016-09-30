@@ -190,20 +190,21 @@ extern unsigned int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 
 #define ARIZONA_DSP_ROUTES(name) \
 	{ name, NULL, name " Preloader"}, \
-	{ name " Preloader", NULL, name " Aux 1" }, \
-	{ name " Preloader", NULL, name " Aux 2" }, \
-	{ name " Preloader", NULL, name " Aux 3" }, \
-	{ name " Preloader", NULL, name " Aux 4" }, \
-	{ name " Preloader", NULL, name " Aux 5" }, \
-	{ name " Preloader", NULL, name " Aux 6" }, \
+	{ name " Preloader", NULL, "SYSCLK" }, \
+	{ name, NULL, name " Aux 1" }, \
+	{ name, NULL, name " Aux 2" }, \
+	{ name, NULL, name " Aux 3" }, \
+	{ name, NULL, name " Aux 4" }, \
+	{ name, NULL, name " Aux 5" }, \
+	{ name, NULL, name " Aux 6" }, \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 1"), \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 2"), \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 3"), \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 4"), \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 5"), \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 6"), \
-	ARIZONA_MIXER_ROUTES(name " Preloader", name "L"), \
-	ARIZONA_MIXER_ROUTES(name " Preloader", name "R")
+	ARIZONA_MIXER_ROUTES(name, name "L"), \
+	ARIZONA_MIXER_ROUTES(name, name "R")
 
 #define ARIZONA_EQ_CONTROL(xname, xbase)                      \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,   \

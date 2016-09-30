@@ -116,7 +116,7 @@ static int snd_soc_ac97_gpio_direction_out(struct gpio_chip *chip,
 	return snd_soc_update_bits(codec, AC97_GPIO_CFG, 1 << offset, 0);
 }
 
-static struct gpio_chip snd_soc_ac97_gpio_chip = {
+static const struct gpio_chip snd_soc_ac97_gpio_chip = {
 	.label			= "snd_soc_ac97",
 	.owner			= THIS_MODULE,
 	.request		= snd_soc_ac97_gpio_request,

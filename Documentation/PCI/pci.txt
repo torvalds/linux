@@ -124,7 +124,6 @@ initialization with a pointer to a structure describing the driver
 
 The ID table is an array of struct pci_device_id entries ending with an
 all-zero entry.  Definitions with static const are generally preferred.
-Use of the deprecated macro DEFINE_PCI_DEVICE_TABLE should be avoided.
 
 Each entry consists of:
 

@@ -5404,6 +5404,9 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	struct drm_pending_vblank_event *e = NULL;
 	int ret = -EINVAL;
 
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
 	if (page_flip->flags & ~DRM_MODE_PAGE_FLIP_FLAGS ||
 	    page_flip->reserved != 0)
 		return -EINVAL;

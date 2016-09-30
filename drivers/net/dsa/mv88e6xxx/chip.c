@@ -2656,13 +2656,17 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 			return ret;
 	}
 
+	/* Rate Control: disable ingress rate limiting. */
 	if (mv88e6xxx_6352_family(chip) || mv88e6xxx_6351_family(chip) ||
 	    mv88e6xxx_6165_family(chip) || mv88e6xxx_6097_family(chip) ||
-	    mv88e6xxx_6185_family(chip) || mv88e6xxx_6095_family(chip) ||
 	    mv88e6xxx_6320_family(chip)) {
-		/* Rate Control: disable ingress rate limiting. */
 		ret = _mv88e6xxx_reg_write(chip, REG_PORT(port),
 					   PORT_RATE_CONTROL, 0x0001);
+		if (ret)
+			return ret;
+	} else if (mv88e6xxx_6185_family(chip) || mv88e6xxx_6095_family(chip)) {
+		ret = _mv88e6xxx_reg_write(chip, REG_PORT(port),
+					   PORT_RATE_CONTROL, 0x0000);
 		if (ret)
 			return ret;
 	}

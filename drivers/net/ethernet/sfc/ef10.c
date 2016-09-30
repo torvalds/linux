@@ -1517,13 +1517,14 @@ static void efx_ef10_get_stat_mask(struct efx_nic *efx, unsigned long *mask)
 	}
 
 #if BITS_PER_LONG == 64
+	BUILD_BUG_ON(BITS_TO_LONGS(EF10_STAT_COUNT) != 2);
 	mask[0] = raw_mask[0];
 	mask[1] = raw_mask[1];
 #else
+	BUILD_BUG_ON(BITS_TO_LONGS(EF10_STAT_COUNT) != 3);
 	mask[0] = raw_mask[0] & 0xffffffff;
 	mask[1] = raw_mask[0] >> 32;
 	mask[2] = raw_mask[1] & 0xffffffff;
-	mask[3] = raw_mask[1] >> 32;
 #endif
 }
 

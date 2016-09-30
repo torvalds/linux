@@ -3357,7 +3357,7 @@ static int wm8962_gpio_direction_out(struct gpio_chip *chip,
 	return 0;
 }
 
-static struct gpio_chip wm8962_template_chip = {
+static const struct gpio_chip wm8962_template_chip = {
 	.label			= "wm8962",
 	.owner			= THIS_MODULE,
 	.request		= wm8962_gpio_request,
@@ -3479,7 +3479,7 @@ static int wm8962_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8962 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8962 = {
 	.probe =	wm8962_probe,
 	.remove =	wm8962_remove,
 	.set_bias_level = wm8962_set_bias_level,
@@ -3713,7 +3713,7 @@ static int wm8962_i2c_probe(struct i2c_client *i2c,
 					    ARRAY_SIZE(wm8962_dc_measure));
 		if (ret != 0)
 			dev_err(&i2c->dev,
-				"Failed to configure for DC mesurement: %d\n",
+				"Failed to configure for DC measurement: %d\n",
 				ret);
 	}
 

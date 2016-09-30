@@ -940,17 +940,19 @@ err_enable:
 	return ret;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8955 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8955 = {
 	.probe =	wm8955_probe,
 	.set_bias_level = wm8955_set_bias_level,
 	.suspend_bias_off = true,
 
-	.controls =	wm8955_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8955_snd_controls),
-	.dapm_widgets = wm8955_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8955_dapm_widgets),
-	.dapm_routes =	wm8955_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm8955_dapm_routes),
+	.component_driver = {
+		.controls		= wm8955_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8955_snd_controls),
+		.dapm_widgets		= wm8955_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8955_dapm_widgets),
+		.dapm_routes		= wm8955_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm8955_dapm_routes),
+	},
 };
 
 static const struct regmap_config wm8955_regmap = {
