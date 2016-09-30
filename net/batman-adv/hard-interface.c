@@ -92,8 +92,8 @@ out:
  *
  * Return: result of rtnl_link_ops->get_link_net or @fallback_net
  */
-static const struct net *batadv_getlink_net(const struct net_device *netdev,
-					    const struct net *fallback_net)
+static struct net *batadv_getlink_net(const struct net_device *netdev,
+				      struct net *fallback_net)
 {
 	if (!netdev->rtnl_link_ops)
 		return fallback_net;
@@ -116,9 +116,9 @@ static const struct net *batadv_getlink_net(const struct net_device *netdev,
  * Return: true if the devices are each others parent, otherwise false
  */
 static bool batadv_mutual_parents(const struct net_device *dev1,
-				  const struct net *net1,
+				  struct net *net1,
 				  const struct net_device *dev2,
-				  const struct net *net2)
+				  struct net *net2)
 {
 	int dev1_parent_iflink = dev_get_iflink(dev1);
 	int dev2_parent_iflink = dev_get_iflink(dev2);
@@ -154,7 +154,7 @@ static bool batadv_is_on_batman_iface(const struct net_device *net_dev)
 {
 	struct net *net = dev_net(net_dev);
 	struct net_device *parent_dev;
-	const struct net *parent_net;
+	struct net *parent_net;
 	bool ret;
 
 	/* check if this is a batman-adv mesh interface */
