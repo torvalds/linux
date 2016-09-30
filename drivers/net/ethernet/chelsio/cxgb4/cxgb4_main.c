@@ -2712,8 +2712,8 @@ static int cxgb_set_tx_maxrate(struct net_device *dev, int index, u32 rate)
 	return err;
 }
 
-int cxgb_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
-		  struct tc_to_netdev *tc)
+static int cxgb_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
+			 struct tc_to_netdev *tc)
 {
 	struct port_info *pi = netdev2pinfo(dev);
 	struct adapter *adap = netdev2adap(dev);
