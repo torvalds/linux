@@ -486,6 +486,125 @@ int write_ckpt_gpr(pid_t child, unsigned long val)
 	return TEST_PASS;
 }
 
+/* VMX */
+int show_vmx(pid_t child, unsigned long vmx[][2])
+{
+	int ret;
+
+	ret = ptrace(PTRACE_GETVRREGS, child, 0, vmx);
+	if (ret) {
+		perror("ptrace(PTRACE_GETVRREGS) failed");
+		return TEST_FAIL;
+	}
+	return TEST_PASS;
+}
+
+int show_vmx_ckpt(pid_t child, unsigned long vmx[][2])
+{
+	unsigned long regs[34][2];
+	struct iovec iov;
+	int ret;
+
+	iov.iov_base = (u64 *) regs;
+	iov.iov_len = sizeof(regs);
+	ret = ptrace(PTRACE_GETREGSET, child, NT_PPC_TM_CVMX, &iov);
+	if (ret) {
+		perror("ptrace(PTRACE_GETREGSET, NT_PPC_TM_CVMX) failed");
+		return TEST_FAIL;
+	}
+	memcpy(vmx, regs, sizeof(regs));
+	return TEST_PASS;
+}
+
+
+int write_vmx(pid_t child, unsigned long vmx[][2])
+{
+	int ret;
+
+	ret = ptrace(PTRACE_SETVRREGS, child, 0, vmx);
+	if (ret) {
+		perror("ptrace(PTRACE_SETVRREGS) failed");
+		return TEST_FAIL;
+	}
+	return TEST_PASS;
+}
+
+int write_vmx_ckpt(pid_t child, unsigned long vmx[][2])
+{
+	unsigned long regs[34][2];
+	struct iovec iov;
+	int ret;
+
+	memcpy(regs, vmx, sizeof(regs));
+	iov.iov_base = (u64 *) regs;
+	iov.iov_len = sizeof(regs);
+	ret = ptrace(PTRACE_SETREGSET, child, NT_PPC_TM_CVMX, &iov);
+	if (ret) {
+		perror("ptrace(PTRACE_SETREGSET, NT_PPC_TM_CVMX) failed");
+		return TEST_FAIL;
+	}
+	return TEST_PASS;
+}
+
+/* VSX */
+int show_vsx(pid_t child, unsigned long *vsx)
+{
+	int ret;
+
+	ret = ptrace(PTRACE_GETVSRREGS, child, 0, vsx);
+	if (ret) {
+		perror("ptrace(PTRACE_GETVSRREGS) failed");
+		return TEST_FAIL;
+	}
+	return TEST_PASS;
+}
+
+int show_vsx_ckpt(pid_t child, unsigned long *vsx)
+{
+	unsigned long regs[32];
+	struct iovec iov;
+	int ret;
+
+	iov.iov_base = (u64 *) regs;
+	iov.iov_len = sizeof(regs);
+	ret = ptrace(PTRACE_GETREGSET, child, NT_PPC_TM_CVSX, &iov);
+	if (ret) {
+		perror("ptrace(PTRACE_GETREGSET, NT_PPC_TM_CVSX) failed");
+		return TEST_FAIL;
+	}
+	memcpy(vsx, regs, sizeof(regs));
+	return TEST_PASS;
+}
+
+int write_vsx(pid_t child, unsigned long *vsx)
+{
+	int ret;
+
+	ret = ptrace(PTRACE_SETVSRREGS, child, 0, vsx);
+	if (ret) {
+		perror("ptrace(PTRACE_SETVSRREGS) failed");
+		return TEST_FAIL;
+	}
+	return TEST_PASS;
+}
+
+int write_vsx_ckpt(pid_t child, unsigned long *vsx)
+{
+	unsigned long regs[32];
+	struct iovec iov;
+	int ret;
+
+	memcpy(regs, vsx, sizeof(regs));
+	iov.iov_base = (u64 *) regs;
+	iov.iov_len = sizeof(regs);
+	ret = ptrace(PTRACE_SETREGSET, child, NT_PPC_TM_CVSX, &iov);
+	if (ret) {
+		perror("ptrace(PTRACE_SETREGSET, NT_PPC_TM_CVSX) failed");
+		return TEST_FAIL;
+	}
+	return TEST_PASS;
+}
+
 /* Analyse TEXASR after TM failure */
 inline unsigned long get_tfiar(void)
 {
