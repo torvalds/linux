@@ -483,7 +483,7 @@ static int gb_blink_set(struct led_classdev *cdev, unsigned long *delay_on,
 	if (ret < 0)
 		goto out_pm_put;
 
-	if (delay_on)
+	if (*delay_on)
 		channel->active = true;
 	else
 		channel->active = false;
