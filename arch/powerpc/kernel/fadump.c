@@ -1108,7 +1108,9 @@ static ssize_t fadump_release_memory_store(struct kobject *kobj,
 		 * Take away the '/proc/vmcore'. We are releasing the dump
 		 * memory, hence it will not be valid anymore.
 		 */
+#ifdef CONFIG_PROC_VMCORE
 		vmcore_cleanup();
+#endif
 		fadump_invalidate_release_mem();
 
 	} else
