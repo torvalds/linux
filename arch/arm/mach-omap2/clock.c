@@ -79,38 +79,6 @@ int __init omap2_clk_setup_ll_ops(void)
  * OMAP2+ specific clock functions
  */
 
-/* Public functions */
-
-/**
- * omap2_init_clk_clkdm - look up a clockdomain name, store pointer in clk
- * @clk: OMAP clock struct ptr to use
- *
- * Convert a clockdomain name stored in a struct clk 'clk' into a
- * clockdomain pointer, and save it into the struct clk.  Intended to be
- * called during clk_register().  No return value.
- */
-void omap2_init_clk_clkdm(struct clk_hw *hw)
-{
-	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
-	struct clockdomain *clkdm;
-	const char *clk_name;
-
-	if (!clk->clkdm_name)
-		return;
-
-	clk_name = __clk_get_name(hw->clk);
-
-	clkdm = clkdm_lookup(clk->clkdm_name);
-	if (clkdm) {
-		pr_debug("clock: associated clk %s to clkdm %s\n",
-			 clk_name, clk->clkdm_name);
-		clk->clkdm = clkdm;
-	} else {
-		pr_debug("clock: could not associate clk %s to clkdm %s\n",
-			 clk_name, clk->clkdm_name);
-	}
-}
-
 /**
  * ti_clk_init_features - init clock features struct for the SoC
  *
