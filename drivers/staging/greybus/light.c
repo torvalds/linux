@@ -463,6 +463,9 @@ static int gb_blink_set(struct led_classdev *cdev, unsigned long *delay_on,
 	if (channel->releasing)
 		return -ESHUTDOWN;
 
+	if (!delay_on || !delay_off)
+		return -EINVAL;
+
 	mutex_lock(&channel->lock);
 	ret = gb_pm_runtime_get_sync(bundle);
 	if (ret < 0)
