@@ -23,13 +23,7 @@
 #define SEC4_SG_OFFSET_MASK	0x00001fff
 
 struct sec4_sg_entry {
-#if !defined(CONFIG_ARCH_DMA_ADDR_T_64BIT) && \
-	defined(CONFIG_CRYPTO_DEV_FSL_CAAM_IMX)
-	u32 rsvd1;
-	dma_addr_t ptr;
-#else
 	u64 ptr;
-#endif /* CONFIG_CRYPTO_DEV_FSL_CAAM_IMX */
 	u32 len;
 	u32 bpid_offset;
 };
