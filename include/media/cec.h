@@ -57,8 +57,8 @@ struct cec_devnode {
 	int minor;
 	bool registered;
 	bool unregistered;
-	struct mutex fhs_lock;
 	struct list_head fhs;
+	struct mutex lock;
 };
 
 struct cec_adapter;

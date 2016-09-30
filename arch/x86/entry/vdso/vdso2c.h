@@ -22,7 +22,7 @@ static void BITSFUNC(go)(void *raw_addr, size_t raw_len,
 
 	ELF(Phdr) *pt = (ELF(Phdr) *)(raw_addr + GET_LE(&hdr->e_phoff));
 
-	if (hdr->e_type != ET_DYN)
+	if (GET_LE(&hdr->e_type) != ET_DYN)
 		fail("input is not a shared object\n");
 
 	/* Walk the segment table. */
