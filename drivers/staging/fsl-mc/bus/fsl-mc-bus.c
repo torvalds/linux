@@ -139,7 +139,6 @@ static struct attribute *fsl_mc_dev_attrs[] = {
 
 ATTRIBUTE_GROUPS(fsl_mc_dev);
 
-
 struct bus_type fsl_mc_bus_type = {
 	.name = "fsl-mc",
 	.match = fsl_mc_bus_match,
