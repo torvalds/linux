@@ -37,16 +37,6 @@ DECLARE_EVENT_CLASS(dwc3_log_msg,
 	TP_printk("%s", __get_str(msg))
 );
 
-DEFINE_EVENT(dwc3_log_msg, dwc3_readl,
-	TP_PROTO(struct va_format *vaf),
-	TP_ARGS(vaf)
-);
-
-DEFINE_EVENT(dwc3_log_msg, dwc3_writel,
-	TP_PROTO(struct va_format *vaf),
-	TP_ARGS(vaf)
-);
-
 DEFINE_EVENT(dwc3_log_msg, dwc3_gadget,
 	TP_PROTO(struct va_format *vaf),
 	TP_ARGS(vaf)
@@ -60,6 +50,33 @@ DEFINE_EVENT(dwc3_log_msg, dwc3_core,
 DEFINE_EVENT(dwc3_log_msg, dwc3_ep0,
 	TP_PROTO(struct va_format *vaf),
 	TP_ARGS(vaf)
+);
+
+DECLARE_EVENT_CLASS(dwc3_log_io,
+	TP_PROTO(void *base, u32 offset, u32 value),
+	TP_ARGS(base, offset, value),
+	TP_STRUCT__entry(
+		__field(void *, base)
+		__field(u32, offset)
+		__field(u32, value)
+	),
+	TP_fast_assign(
+		__entry->base = base;
+		__entry->offset = offset;
+		__entry->value = value;
+	),
+	TP_printk("addr %p value %08x", __entry->base + __entry->offset,
+			__entry->value)
+);
+
+DEFINE_EVENT(dwc3_log_io, dwc3_readl,
+	TP_PROTO(void *base, u32 offset, u32 value),
+	TP_ARGS(base, offset, value)
+);
+
+DEFINE_EVENT(dwc3_log_io, dwc3_writel,
+	TP_PROTO(void *base, u32 offset, u32 value),
+	TP_ARGS(base, offset, value)
 );
 
 DECLARE_EVENT_CLASS(dwc3_log_event,
