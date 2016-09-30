@@ -1231,7 +1231,7 @@ int amdgpu_ip_block_version_cmp(struct amdgpu_device *adev,
 	return 1;
 }
 
-static void amdgpu_whether_enable_virtual_display(struct amdgpu_device *adev)
+static void amdgpu_device_enable_virtual_display(struct amdgpu_device *adev)
 {
 	adev->enable_virtual_display = false;
 
@@ -1261,7 +1261,7 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 {
 	int i, r;
 
-	amdgpu_whether_enable_virtual_display(adev);
+	amdgpu_device_enable_virtual_display(adev);
 
 	switch (adev->asic_type) {
 	case CHIP_TOPAZ:
