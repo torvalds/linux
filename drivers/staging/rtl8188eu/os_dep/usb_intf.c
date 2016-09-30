@@ -294,8 +294,10 @@ static int rtw_resume_process(struct adapter *padapter)
 	pwrpriv->bkeepfwalive = false;
 
 	pr_debug("bkeepfwalive(%x)\n", pwrpriv->bkeepfwalive);
-	if (pm_netdev_open(pnetdev, true) != 0)
+	if (pm_netdev_open(pnetdev, true) != 0) {
+		mutex_unlock(&pwrpriv->mutex_lock);
 		goto exit;
+	}
 
 	netif_device_attach(pnetdev);
 	netif_carrier_on(pnetdev);
@@ -306,10 +308,8 @@ static int rtw_resume_process(struct adapter *padapter)
 
 	ret = 0;
 exit:
-	if (pwrpriv) {
+	if (pwrpriv)
 		pwrpriv->bInSuspend = false;
-		mutex_unlock(&pwrpriv->mutex_lock);
-	}
 	pr_debug("<===  %s return %d.............. in %dms\n", __func__,
 		ret, jiffies_to_msecs(jiffies - start_time));
 
