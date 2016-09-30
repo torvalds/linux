@@ -209,10 +209,9 @@ static void dce_virtual_crtc_dpms(struct drm_crtc *crtc, int mode)
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
 		amdgpu_crtc->enabled = true;
-		/* Make sure VBLANK and PFLIP interrupts are still enabled */
+		/* Make sure VBLANK interrupts are still enabled */
 		type = amdgpu_crtc_idx_to_irq_type(adev, amdgpu_crtc->crtc_id);
 		amdgpu_irq_update(adev, &adev->crtc_irq, type);
-		amdgpu_irq_update(adev, &adev->pageflip_irq, type);
 		drm_vblank_on(dev, amdgpu_crtc->crtc_id);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
@@ -668,8 +667,8 @@ static enum hrtimer_restart dce_virtual_vblank_timer_handle(struct hrtimer *vbla
 }
 
 static void dce_virtual_set_crtc_vblank_interrupt_state(struct amdgpu_device *adev,
-						     int crtc,
-						     enum amdgpu_interrupt_state state)
+							int crtc,
+							enum amdgpu_interrupt_state state)
 {
 	if (crtc >= adev->mode_info.num_crtc) {
 		DRM_DEBUG("invalid crtc %d\n", crtc);
@@ -693,9 +692,9 @@ static void dce_virtual_set_crtc_vblank_interrupt_state(struct amdgpu_device *ad
 
 
 static int dce_virtual_set_crtc_irq_state(struct amdgpu_device *adev,
-                                       struct amdgpu_irq_src *source,
-                                       unsigned type,
-                                       enum amdgpu_interrupt_state state)
+					  struct amdgpu_irq_src *source,
+					  unsigned type,
+					  enum amdgpu_interrupt_state state)
 {
 	switch (type) {
 	case AMDGPU_CRTC_IRQ_VBLANK1:
@@ -719,20 +718,6 @@ static int dce_virtual_crtc_irq(struct amdgpu_device *adev,
 	}
 	dce_virtual_pageflip_irq(adev, NULL, NULL);
 	DRM_DEBUG("IH: D%d vblank\n", crtc + 1);
-	return 0;
-}
-
-static int dce_virtual_set_pageflip_irq_state(struct amdgpu_device *adev,
-					    struct amdgpu_irq_src *src,
-					    unsigned type,
-					    enum amdgpu_interrupt_state state)
-{
-	if (type >= adev->mode_info.num_crtc) {
-		DRM_ERROR("invalid pageflip crtc %d\n", type);
-		return -EINVAL;
-	}
-	DRM_DEBUG("[FM]set pageflip irq type %d state %d\n", type, state);
-
 	return 0;
 }
 
@@ -789,17 +774,9 @@ static const struct amdgpu_irq_src_funcs dce_virtual_crtc_irq_funcs = {
 	.process = dce_virtual_crtc_irq,
 };
 
-static const struct amdgpu_irq_src_funcs dce_virtual_pageflip_irq_funcs = {
-	.set = dce_virtual_set_pageflip_irq_state,
-	.process = dce_virtual_pageflip_irq,
-};
-
 static void dce_virtual_set_irq_funcs(struct amdgpu_device *adev)
 {
 	adev->crtc_irq.num_types = AMDGPU_CRTC_IRQ_LAST;
 	adev->crtc_irq.funcs = &dce_virtual_crtc_irq_funcs;
-
-	adev->pageflip_irq.num_types = AMDGPU_PAGEFLIP_IRQ_LAST;
-	adev->pageflip_irq.funcs = &dce_virtual_pageflip_irq_funcs;
 }
 
