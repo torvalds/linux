@@ -1,5 +1,5 @@
 TEST_PROGS := ptrace-gpr ptrace-tm-gpr ptrace-tm-spd-gpr \
-              ptrace-tar ptrace-tm-tar ptrace-tm-spd-tar ptrace-vsx
+              ptrace-tar ptrace-tm-tar ptrace-tm-spd-tar ptrace-vsx ptrace-tm-vsx
 
 include ../../lib.mk
 
