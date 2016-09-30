@@ -276,7 +276,8 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 		return 0;
 
 	case RXRPC_PACKET_TYPE_ABORT:
-		if (skb_copy_bits(skb, sp->offset, &wtmp, sizeof(wtmp)) < 0)
+		if (skb_copy_bits(skb, sizeof(struct rxrpc_wire_header),
+				  &wtmp, sizeof(wtmp)) < 0)
 			return -EPROTO;
 		abort_code = ntohl(wtmp);
 		_proto("Rx ABORT %%%u { ac=%d }", sp->hdr.serial, abort_code);

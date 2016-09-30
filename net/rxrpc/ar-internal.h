@@ -144,7 +144,6 @@ struct rxrpc_skb_priv {
 		u8		nr_jumbo;	/* Number of jumbo subpackets */
 	};
 	union {
-		unsigned int	offset;		/* offset into buffer of next read */
 		int		remain;		/* amount of space remaining for next write */
 		u32		error;		/* network error code */
 	};
