@@ -57,7 +57,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 		call->cong_ssthresh = max_t(unsigned int,
 					    summary->flight_size / 2, 2);
 		cwnd = 1;
-		if (cwnd > call->cong_ssthresh &&
+		if (cwnd >= call->cong_ssthresh &&
 		    call->cong_mode == RXRPC_CALL_SLOW_START) {
 			call->cong_mode = RXRPC_CALL_CONGEST_AVOIDANCE;
 			call->cong_tstamp = skb->tstamp;
@@ -82,7 +82,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 			goto packet_loss_detected;
 		if (summary->cumulative_acks > 0)
 			cwnd += 1;
-		if (cwnd > call->cong_ssthresh) {
+		if (cwnd >= call->cong_ssthresh) {
 			call->cong_mode = RXRPC_CALL_CONGEST_AVOIDANCE;
 			call->cong_tstamp = skb->tstamp;
 		}
@@ -161,7 +161,7 @@ resume_normality:
 	call->cong_dup_acks = 0;
 	call->cong_extra = 0;
 	call->cong_tstamp = skb->tstamp;
-	if (cwnd <= call->cong_ssthresh)
+	if (cwnd < call->cong_ssthresh)
 		call->cong_mode = RXRPC_CALL_SLOW_START;
 	else
 		call->cong_mode = RXRPC_CALL_CONGEST_AVOIDANCE;
