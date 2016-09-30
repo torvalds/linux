@@ -2285,7 +2285,7 @@ static int wm5100_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 				  (1 << WM5100_GP1_DIR_SHIFT));
 }
 
-static struct gpio_chip wm5100_template_chip = {
+static const struct gpio_chip wm5100_template_chip = {
 	.label			= "wm5100",
 	.owner			= THIS_MODULE,
 	.direction_output	= wm5100_gpio_direction_out,
@@ -2381,7 +2381,7 @@ static int wm5100_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm5100 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm5100 = {
 	.probe =	wm5100_probe,
 	.remove =	wm5100_remove,
 
@@ -2390,12 +2390,14 @@ static struct snd_soc_codec_driver soc_codec_dev_wm5100 = {
 	.idle_bias_off = 1,
 
 	.seq_notifier = wm5100_seq_notifier,
-	.controls = wm5100_snd_controls,
-	.num_controls = ARRAY_SIZE(wm5100_snd_controls),
-	.dapm_widgets = wm5100_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm5100_dapm_widgets),
-	.dapm_routes = wm5100_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm5100_dapm_routes),
+	.component_driver = {
+		.controls		= wm5100_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm5100_snd_controls),
+		.dapm_widgets		= wm5100_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm5100_dapm_widgets),
+		.dapm_routes		= wm5100_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm5100_dapm_routes),
+	},
 };
 
 static const struct regmap_config wm5100_regmap = {

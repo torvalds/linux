@@ -25,7 +25,8 @@
 #include <linux/user.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/extable.h>
+#include <linux/module.h>	/* print_modules */
 #include <linux/prctl.h>
 #include <linux/delay.h>
 #include <linux/kprobes.h>

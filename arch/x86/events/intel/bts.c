@@ -31,7 +31,17 @@
 struct bts_ctx {
 	struct perf_output_handle	handle;
 	struct debug_store		ds_back;
-	int				started;
+	int				state;
+};
+
+/* BTS context states: */
+enum {
+	/* no ongoing AUX transactions */
+	BTS_STATE_STOPPED = 0,
+	/* AUX transaction is on, BTS tracing is disabled */
+	BTS_STATE_INACTIVE,
+	/* AUX transaction is on, BTS tracing is running */
+	BTS_STATE_ACTIVE,
 };
 
 static DEFINE_PER_CPU(struct bts_ctx, bts_ctx);
@@ -204,6 +214,15 @@ static void bts_update(struct bts_ctx *bts)
 static int
 bts_buffer_reset(struct bts_buffer *buf, struct perf_output_handle *handle);
 
+/*
+ * Ordering PMU callbacks wrt themselves and the PMI is done by means
+ * of bts::state, which:
+ *  - is set when bts::handle::event is valid, that is, between
+ *    perf_aux_output_begin() and perf_aux_output_end();
+ *  - is zero otherwise;
+ *  - is ordered against bts::handle::event with a compiler barrier.
+ */
+
 static void __bts_event_start(struct perf_event *event)
 {
 	struct bts_ctx *bts = this_cpu_ptr(&bts_ctx);
@@ -221,9 +240,12 @@ static void __bts_event_start(struct perf_event *event)
 
 	/*
 	 * local barrier to make sure that ds configuration made it
-	 * before we enable BTS
+	 * before we enable BTS and bts::state goes ACTIVE
 	 */
 	wmb();
+
+	/* INACTIVE/STOPPED -> ACTIVE */
+	WRITE_ONCE(bts->state, BTS_STATE_ACTIVE);
 
 	intel_pmu_enable_bts(config);
 
@@ -251,9 +273,6 @@ static void bts_event_start(struct perf_event *event, int flags)
 
 	__bts_event_start(event);
 
-	/* PMI handler: this counter is running and likely generating PMIs */
-	ACCESS_ONCE(bts->started) = 1;
-
 	return;
 
 fail_end_stop:
@@ -263,30 +282,34 @@ fail_stop:
 	event->hw.state = PERF_HES_STOPPED;
 }
 
-static void __bts_event_stop(struct perf_event *event)
+static void __bts_event_stop(struct perf_event *event, int state)
 {
+	struct bts_ctx *bts = this_cpu_ptr(&bts_ctx);
+
+	/* ACTIVE -> INACTIVE(PMI)/STOPPED(->stop()) */
+	WRITE_ONCE(bts->state, state);
+
 	/*
 	 * No extra synchronization is mandated by the documentation to have
 	 * BTS data stores globally visible.
 	 */
 	intel_pmu_disable_bts();
-
-	if (event->hw.state & PERF_HES_STOPPED)
-		return;
-
-	ACCESS_ONCE(event->hw.state) |= PERF_HES_STOPPED;
 }
 
 static void bts_event_stop(struct perf_event *event, int flags)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct bts_ctx *bts = this_cpu_ptr(&bts_ctx);
-	struct bts_buffer *buf = perf_get_aux(&bts->handle);
+	struct bts_buffer *buf = NULL;
+	int state = READ_ONCE(bts->state);
 
-	/* PMI handler: don't restart this counter */
-	ACCESS_ONCE(bts->started) = 0;
+	if (state == BTS_STATE_ACTIVE)
+		__bts_event_stop(event, BTS_STATE_STOPPED);
 
-	__bts_event_stop(event);
+	if (state != BTS_STATE_STOPPED)
+		buf = perf_get_aux(&bts->handle);
+
+	event->hw.state |= PERF_HES_STOPPED;
 
 	if (flags & PERF_EF_UPDATE) {
 		bts_update(bts);
@@ -296,6 +319,7 @@ static void bts_event_stop(struct perf_event *event, int flags)
 				bts->handle.head =
 					local_xchg(&buf->data_size,
 						   buf->nr_pages << PAGE_SHIFT);
+
 			perf_aux_output_end(&bts->handle, local_xchg(&buf->data_size, 0),
 					    !!local_xchg(&buf->lost, 0));
 		}
@@ -310,8 +334,20 @@ static void bts_event_stop(struct perf_event *event, int flags)
 void intel_bts_enable_local(void)
 {
 	struct bts_ctx *bts = this_cpu_ptr(&bts_ctx);
+	int state = READ_ONCE(bts->state);
 
-	if (bts->handle.event && bts->started)
+	/*
+	 * Here we transition from INACTIVE to ACTIVE;
+	 * if we instead are STOPPED from the interrupt handler,
+	 * stay that way. Can't be ACTIVE here though.
+	 */
+	if (WARN_ON_ONCE(state == BTS_STATE_ACTIVE))
+		return;
+
+	if (state == BTS_STATE_STOPPED)
+		return;
+
+	if (bts->handle.event)
 		__bts_event_start(bts->handle.event);
 }
 
@@ -319,8 +355,15 @@ void intel_bts_disable_local(void)
 {
 	struct bts_ctx *bts = this_cpu_ptr(&bts_ctx);
 
+	/*
+	 * Here we transition from ACTIVE to INACTIVE;
+	 * do nothing for STOPPED or INACTIVE.
+	 */
+	if (READ_ONCE(bts->state) != BTS_STATE_ACTIVE)
+		return;
+
 	if (bts->handle.event)
-		__bts_event_stop(bts->handle.event);
+		__bts_event_stop(bts->handle.event, BTS_STATE_INACTIVE);
 }
 
 static int
@@ -335,8 +378,6 @@ bts_buffer_reset(struct bts_buffer *buf, struct perf_output_handle *handle)
 		return 0;
 
 	head = handle->head & ((buf->nr_pages << PAGE_SHIFT) - 1);
-	if (WARN_ON_ONCE(head != local_read(&buf->head)))
-		return -EINVAL;
 
 	phys = &buf->buf[buf->cur_buf];
 	space = phys->offset + phys->displacement + phys->size - head;
@@ -403,22 +444,37 @@ bts_buffer_reset(struct bts_buffer *buf, struct perf_output_handle *handle)
 
 int intel_bts_interrupt(void)
 {
+	struct debug_store *ds = this_cpu_ptr(&cpu_hw_events)->ds;
 	struct bts_ctx *bts = this_cpu_ptr(&bts_ctx);
 	struct perf_event *event = bts->handle.event;
 	struct bts_buffer *buf;
 	s64 old_head;
-	int err;
+	int err = -ENOSPC, handled = 0;
 
-	if (!event || !bts->started)
-		return 0;
+	/*
+	 * The only surefire way of knowing if this NMI is ours is by checking
+	 * the write ptr against the PMI threshold.
+	 */
+	if (ds && (ds->bts_index >= ds->bts_interrupt_threshold))
+		handled = 1;
+
+	/*
+	 * this is wrapped in intel_bts_enable_local/intel_bts_disable_local,
+	 * so we can only be INACTIVE or STOPPED
+	 */
+	if (READ_ONCE(bts->state) == BTS_STATE_STOPPED)
+		return handled;
 
 	buf = perf_get_aux(&bts->handle);
+	if (!buf)
+		return handled;
+
 	/*
 	 * Skip snapshot counters: they don't use the interrupt, but
 	 * there's no other way of telling, because the pointer will
 	 * keep moving
 	 */
-	if (!buf || buf->snapshot)
+	if (buf->snapshot)
 		return 0;
 
 	old_head = local_read(&buf->head);
@@ -426,18 +482,27 @@ int intel_bts_interrupt(void)
 
 	/* no new data */
 	if (old_head == local_read(&buf->head))
-		return 0;
+		return handled;
 
 	perf_aux_output_end(&bts->handle, local_xchg(&buf->data_size, 0),
 			    !!local_xchg(&buf->lost, 0));
 
 	buf = perf_aux_output_begin(&bts->handle, event);
-	if (!buf)
-		return 1;
+	if (buf)
+		err = bts_buffer_reset(buf, &bts->handle);
 
-	err = bts_buffer_reset(buf, &bts->handle);
-	if (err)
-		perf_aux_output_end(&bts->handle, 0, false);
+	if (err) {
+		WRITE_ONCE(bts->state, BTS_STATE_STOPPED);
+
+		if (buf) {
+			/*
+			 * BTS_STATE_STOPPED should be visible before
+			 * cleared handle::event
+			 */
+			barrier();
+			perf_aux_output_end(&bts->handle, 0, false);
+		}
+	}
 
 	return 1;
 }
@@ -519,7 +584,8 @@ static __init int bts_init(void)
 	if (!boot_cpu_has(X86_FEATURE_DTES64) || !x86_pmu.bts)
 		return -ENODEV;
 
-	bts_pmu.capabilities	= PERF_PMU_CAP_AUX_NO_SG | PERF_PMU_CAP_ITRACE;
+	bts_pmu.capabilities	= PERF_PMU_CAP_AUX_NO_SG | PERF_PMU_CAP_ITRACE |
+				  PERF_PMU_CAP_EXCLUSIVE;
 	bts_pmu.task_ctx_nr	= perf_sw_context;
 	bts_pmu.event_init	= bts_event_init;
 	bts_pmu.add		= bts_event_add;

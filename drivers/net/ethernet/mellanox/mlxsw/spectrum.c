@@ -56,6 +56,7 @@
 #include <generated/utsrelease.h>
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_mirred.h>
+#include <net/netevent.h>
 
 #include "spectrum.h"
 #include "core.h"
@@ -2105,6 +2106,13 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	dev->netdev_ops = &mlxsw_sp_port_netdev_ops;
 	dev->ethtool_ops = &mlxsw_sp_port_ethtool_ops;
 
+	err = mlxsw_sp_port_swid_set(mlxsw_sp_port, 0);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to set SWID\n",
+			mlxsw_sp_port->local_port);
+		goto err_port_swid_set;
+	}
+
 	err = mlxsw_sp_port_dev_addr_init(mlxsw_sp_port);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Unable to init port mac address\n",
@@ -2128,13 +2136,6 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to set system port mapping\n",
 			mlxsw_sp_port->local_port);
 		goto err_port_system_port_mapping_set;
-	}
-
-	err = mlxsw_sp_port_swid_set(mlxsw_sp_port, 0);
-	if (err) {
-		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to set SWID\n",
-			mlxsw_sp_port->local_port);
-		goto err_port_swid_set;
 	}
 
 	err = mlxsw_sp_port_speed_by_width_set(mlxsw_sp_port, width);
@@ -2218,10 +2219,10 @@ err_port_buffers_init:
 err_port_admin_status_set:
 err_port_mtu_set:
 err_port_speed_by_width_set:
-	mlxsw_sp_port_swid_set(mlxsw_sp_port, MLXSW_PORT_SWID_DISABLED_PORT);
-err_port_swid_set:
 err_port_system_port_mapping_set:
 err_dev_addr_init:
+	mlxsw_sp_port_swid_set(mlxsw_sp_port, MLXSW_PORT_SWID_DISABLED_PORT);
+err_port_swid_set:
 	free_percpu(mlxsw_sp_port->pcpu_stats);
 err_alloc_stats:
 	kfree(mlxsw_sp_port->untagged_vlans);
@@ -3324,6 +3325,39 @@ static struct mlxsw_sp_fid *mlxsw_sp_bridge_fid_get(struct mlxsw_sp *mlxsw_sp,
 	return mlxsw_sp_fid_find(mlxsw_sp, fid);
 }
 
+static enum mlxsw_flood_table_type mlxsw_sp_flood_table_type_get(u16 fid)
+{
+	return mlxsw_sp_fid_is_vfid(fid) ? MLXSW_REG_SFGC_TABLE_TYPE_FID :
+	       MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFEST;
+}
+
+static u16 mlxsw_sp_flood_table_index_get(u16 fid)
+{
+	return mlxsw_sp_fid_is_vfid(fid) ? mlxsw_sp_fid_to_vfid(fid) : fid;
+}
+
+static int mlxsw_sp_router_port_flood_set(struct mlxsw_sp *mlxsw_sp, u16 fid,
+					  bool set)
+{
+	enum mlxsw_flood_table_type table_type;
+	char *sftr_pl;
+	u16 index;
+	int err;
+
+	sftr_pl = kmalloc(MLXSW_REG_SFTR_LEN, GFP_KERNEL);
+	if (!sftr_pl)
+		return -ENOMEM;
+
+	table_type = mlxsw_sp_flood_table_type_get(fid);
+	index = mlxsw_sp_flood_table_index_get(fid);
+	mlxsw_reg_sftr_pack(sftr_pl, MLXSW_SP_FLOOD_TABLE_BM, index, table_type,
+			    1, MLXSW_PORT_ROUTER_PORT, set);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sftr), sftr_pl);
+
+	kfree(sftr_pl);
+	return err;
+}
+
 static enum mlxsw_reg_ritr_if_type mlxsw_sp_rif_type_get(u16 fid)
 {
 	if (mlxsw_sp_fid_is_vfid(fid))
@@ -3360,9 +3394,13 @@ static int mlxsw_sp_rif_bridge_create(struct mlxsw_sp *mlxsw_sp,
 	if (rif == MLXSW_SP_RIF_MAX)
 		return -ERANGE;
 
-	err = mlxsw_sp_rif_bridge_op(mlxsw_sp, l3_dev, f->fid, rif, true);
+	err = mlxsw_sp_router_port_flood_set(mlxsw_sp, f->fid, true);
 	if (err)
 		return err;
+
+	err = mlxsw_sp_rif_bridge_op(mlxsw_sp, l3_dev, f->fid, rif, true);
+	if (err)
+		goto err_rif_bridge_op;
 
 	err = mlxsw_sp_rif_fdb_op(mlxsw_sp, l3_dev->dev_addr, f->fid, true);
 	if (err)
@@ -3385,6 +3423,8 @@ err_rif_alloc:
 	mlxsw_sp_rif_fdb_op(mlxsw_sp, l3_dev->dev_addr, f->fid, false);
 err_rif_fdb_op:
 	mlxsw_sp_rif_bridge_op(mlxsw_sp, l3_dev, f->fid, rif, false);
+err_rif_bridge_op:
+	mlxsw_sp_router_port_flood_set(mlxsw_sp, f->fid, false);
 	return err;
 }
 
@@ -3403,6 +3443,8 @@ void mlxsw_sp_rif_bridge_destroy(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_rif_fdb_op(mlxsw_sp, l3_dev->dev_addr, f->fid, false);
 
 	mlxsw_sp_rif_bridge_op(mlxsw_sp, l3_dev, f->fid, rif, false);
+
+	mlxsw_sp_router_port_flood_set(mlxsw_sp, f->fid, false);
 
 	netdev_dbg(l3_dev, "RIF=%d destroyed\n", rif);
 }
@@ -4500,18 +4542,26 @@ static struct notifier_block mlxsw_sp_inetaddr_nb __read_mostly = {
 	.priority = 10,	/* Must be called before FIB notifier block */
 };
 
+static struct notifier_block mlxsw_sp_router_netevent_nb __read_mostly = {
+	.notifier_call = mlxsw_sp_router_netevent_event,
+};
+
 static int __init mlxsw_sp_module_init(void)
 {
 	int err;
 
 	register_netdevice_notifier(&mlxsw_sp_netdevice_nb);
 	register_inetaddr_notifier(&mlxsw_sp_inetaddr_nb);
+	register_netevent_notifier(&mlxsw_sp_router_netevent_nb);
+
 	err = mlxsw_core_driver_register(&mlxsw_sp_driver);
 	if (err)
 		goto err_core_driver_register;
 	return 0;
 
 err_core_driver_register:
+	unregister_netevent_notifier(&mlxsw_sp_router_netevent_nb);
+	unregister_inetaddr_notifier(&mlxsw_sp_inetaddr_nb);
 	unregister_netdevice_notifier(&mlxsw_sp_netdevice_nb);
 	return err;
 }
@@ -4519,6 +4569,7 @@ err_core_driver_register:
 static void __exit mlxsw_sp_module_exit(void)
 {
 	mlxsw_core_driver_unregister(&mlxsw_sp_driver);
+	unregister_netevent_notifier(&mlxsw_sp_router_netevent_nb);
 	unregister_inetaddr_notifier(&mlxsw_sp_inetaddr_nb);
 	unregister_netdevice_notifier(&mlxsw_sp_netdevice_nb);
 }

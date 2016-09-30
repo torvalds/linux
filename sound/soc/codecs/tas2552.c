@@ -667,12 +667,14 @@ static struct snd_soc_codec_driver soc_codec_dev_tas2552 = {
 	.resume = tas2552_resume,
 	.ignore_pmdown_time = true,
 
-	.controls = tas2552_snd_controls,
-	.num_controls = ARRAY_SIZE(tas2552_snd_controls),
-	.dapm_widgets = tas2552_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(tas2552_dapm_widgets),
-	.dapm_routes = tas2552_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(tas2552_audio_map),
+	.component_driver = {
+		.controls		= tas2552_snd_controls,
+		.num_controls		= ARRAY_SIZE(tas2552_snd_controls),
+		.dapm_widgets		= tas2552_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(tas2552_dapm_widgets),
+		.dapm_routes		= tas2552_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(tas2552_audio_map),
+	},
 };
 
 static const struct regmap_config tas2552_regmap_config = {

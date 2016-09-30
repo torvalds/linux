@@ -129,10 +129,10 @@
 
 	timer {
 		compatible = "arm,armv8-timer";
-		interrupts = <1 13 0xf01>,
-			     <1 14 0xf01>,
-			     <1 11 0xf01>,
-			     <1 10 0xf01>;
+		interrupts = <1 13 4>,
+			     <1 14 4>,
+			     <1 11 4>,
+			     <1 10 4>;
 	};
 
 	soc {

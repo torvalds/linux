@@ -187,7 +187,7 @@ static int setup_clocking(struct snd_soc_dai *dai,
 
 	default:
 		dev_err(dai->dev,
-			"%s: Error: Unsopported inversion (fmt = 0x%x)!\n",
+			"%s: Error: Unsupported inversion (fmt = 0x%x)!\n",
 			__func__, fmt);
 
 		return -EINVAL;
@@ -218,7 +218,7 @@ static int setup_clocking(struct snd_soc_dai *dai,
 		break;
 
 	default:
-		dev_err(dai->dev, "%s: Error: Unsopported master (fmt = 0x%x)!\n",
+		dev_err(dai->dev, "%s: Error: Unsupported master (fmt = 0x%x)!\n",
 			__func__, fmt);
 
 		return -EINVAL;
@@ -374,7 +374,7 @@ static int setup_msp_config(struct snd_pcm_substream *substream,
 		break;
 
 	default:
-		dev_err(dai->dev, "%s: Error: Unsopported format (%d)!\n",
+		dev_err(dai->dev, "%s: Error: Unsupported format (%d)!\n",
 			__func__, fmt);
 		return -EINVAL;
 	}

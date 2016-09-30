@@ -224,6 +224,7 @@
 #define DA7219_PLL_SRM_STATE_MASK	(0xF << 0)
 #define DA7219_PLL_SRM_STATUS_SHIFT	4
 #define DA7219_PLL_SRM_STATUS_MASK	(0xF << 4)
+#define DA7219_PLL_SRM_STS_MCLK		(0x1 << 4)
 #define DA7219_PLL_SRM_STS_SRM_LOCK	(0x1 << 7)
 
 /* DA7219_DIG_ROUTING_DAI = 0x2A */
@@ -576,6 +577,8 @@
 /* DA7219_GAIN_RAMP_CTRL = 0x92 */
 #define DA7219_GAIN_RAMP_RATE_SHIFT	0
 #define DA7219_GAIN_RAMP_RATE_MASK	(0x3 << 0)
+#define DA7219_GAIN_RAMP_RATE_X8	(0x0 << 0)
+#define DA7219_GAIN_RAMP_RATE_NOMINAL	(0x1 << 0)
 #define DA7219_GAIN_RAMP_RATE_MAX	4
 
 /* DA7219_PC_COUNT = 0x94 */
@@ -770,6 +773,10 @@
 /* SRM */
 #define DA7219_SRM_CHECK_RETRIES	8
 
+/* System Controller */
+#define DA7219_SYS_STAT_CHECK_RETRIES	6
+#define DA7219_SYS_STAT_CHECK_DELAY	50
+
 enum da7219_clk_src {
 	DA7219_CLKSRC_MCLK = 0,
 	DA7219_CLKSRC_MCLK_SQR,
@@ -796,6 +803,7 @@ struct da7219_priv {
 	struct da7219_aad_priv *aad;
 	struct da7219_pdata *pdata;
 
+	bool wakeup_source;
 	struct regulator_bulk_data supplies[DA7219_NUM_SUPPLIES];
 	struct regmap *regmap;
 	struct mutex lock;

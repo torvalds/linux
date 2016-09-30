@@ -11,6 +11,7 @@ Required properties:
     "ti,tlv320aic3110" - TLV320AIC3110 (stereo speaker amp, no MiniDSP)
     "ti,tlv320aic3120" - TLV320AIC3120 (mono speaker amp, MiniDSP)
     "ti,tlv320aic3111" - TLV320AIC3111 (stereo speaker amp, MiniDSP)
+    "ti,tlv320dac3100" - TLV320DAC3100 (no ADC, mono speaker amp, no MiniDSP)
 
 - reg - <int> -  I2C slave address
 - HPVDD-supply, SPRVDD-supply, SPLVDD-supply, AVDD-supply, IOVDD-supply,
@@ -37,9 +38,11 @@ CODEC output pins:
   * MICBIAS
 
 CODEC input pins:
-  * MIC1LP
-  * MIC1RP
-  * MIC1LM
+  * MIC1LP, devices with ADC
+  * MIC1RP, devices with ADC
+  * MIC1LM, devices with ADC
+  * AIN1, devices without ADC
+  * AIN2, devices without ADC
 
 The pins can be used in referring sound node's audio-routing property.
 

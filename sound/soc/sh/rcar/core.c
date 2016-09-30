@@ -110,6 +110,7 @@ MODULE_DEVICE_TABLE(of, rsnd_of_match);
 /*
  *	rsnd_mod functions
  */
+#ifdef DEBUG
 void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type)
 {
 	if (mod->type != type) {
@@ -120,6 +121,7 @@ void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type)
 			 rsnd_mod_name(mod), rsnd_mod_id(mod));
 	}
 }
+#endif
 
 char *rsnd_mod_name(struct rsnd_mod *mod)
 {
@@ -574,6 +576,7 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
 		rsnd_dai_stream_init(io, substream);
 
 		ret = rsnd_dai_call(init, io, priv);
@@ -590,6 +593,7 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 		ret = rsnd_dai_call(irq, io, priv, 0);
 
 		ret |= rsnd_dai_call(stop, io, priv);

@@ -116,6 +116,9 @@ static int dax_pmem_probe(struct device *dev)
 	if (rc)
 		return rc;
 
+	/* adjust the dax_region resource to the start of data */
+	res.start += le64_to_cpu(pfn_sb->dataoff);
+
 	nd_region = to_nd_region(dev->parent);
 	dax_region = alloc_dax_region(dev, nd_region->id, &res,
 			le32_to_cpu(pfn_sb->align), addr, PFN_DEV|PFN_MAP);

@@ -226,11 +226,10 @@ static const DECLARE_TLV_DB_SCALE(dac_tlv, -12750, 50, 1);
 static const DECLARE_TLV_DB_SCALE(bypass_tlv, -2100, 300, 0);
 static const DECLARE_TLV_DB_SCALE(out_tlv, -12100, 100, 1);
 static const DECLARE_TLV_DB_SCALE(lineinboost_tlv, -1500, 300, 1);
-static const unsigned int micboost_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const SNDRV_CTL_TLVD_DECLARE_DB_RANGE(micboost_tlv,
 	0, 1, TLV_DB_SCALE_ITEM(0, 1300, 0),
 	2, 3, TLV_DB_SCALE_ITEM(2000, 900, 0),
-};
+);
 
 static const struct snd_kcontrol_new wm8960_snd_controls[] = {
 SOC_DOUBLE_R_TLV("Capture Volume", WM8960_LINVOL, WM8960_RINVOL,
@@ -1264,7 +1263,7 @@ static int wm8960_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8960 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8960 = {
 	.probe =	wm8960_probe,
 	.set_bias_level = wm8960_set_bias_level,
 	.suspend_bias_off = true,

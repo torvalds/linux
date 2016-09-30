@@ -126,12 +126,21 @@ static struct rb_node *mlx5_fc_stats_query(struct mlx5_core_dev *dev,
 	for (node = &first->node; node; node = rb_next(node)) {
 		struct mlx5_fc *counter = rb_entry(node, struct mlx5_fc, node);
 		struct mlx5_fc_cache *c = &counter->cache;
+		u64 packets;
+		u64 bytes;
 
 		if (counter->id > last_id)
 			break;
 
 		mlx5_cmd_fc_bulk_get(dev, b,
-				     counter->id, &c->packets, &c->bytes);
+				     counter->id, &packets, &bytes);
+
+		if (c->packets == packets)
+			continue;
+
+		c->packets = packets;
+		c->bytes = bytes;
+		c->lastuse = jiffies;
 	}
 
 out:

@@ -297,7 +297,9 @@ static ssize_t qeth_l3_dev_hsuid_store(struct device *dev,
 		addr->u.a6.pfxlen = 0;
 		addr->type = QETH_IP_TYPE_NORMAL;
 
+		spin_lock_bh(&card->ip_lock);
 		qeth_l3_delete_ip(card, addr);
+		spin_unlock_bh(&card->ip_lock);
 		kfree(addr);
 	}
 
@@ -329,7 +331,10 @@ static ssize_t qeth_l3_dev_hsuid_store(struct device *dev,
 		addr->type = QETH_IP_TYPE_NORMAL;
 	} else
 		return -ENOMEM;
+
+	spin_lock_bh(&card->ip_lock);
 	qeth_l3_add_ip(card, addr);
+	spin_unlock_bh(&card->ip_lock);
 	kfree(addr);
 
 	return count;
