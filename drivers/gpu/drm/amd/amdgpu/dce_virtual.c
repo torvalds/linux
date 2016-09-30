@@ -39,9 +39,6 @@
 
 static void dce_virtual_set_display_funcs(struct amdgpu_device *adev);
 static void dce_virtual_set_irq_funcs(struct amdgpu_device *adev);
-static int dce_virtual_pageflip_irq(struct amdgpu_device *adev,
-				  struct amdgpu_irq_src *source,
-				  struct amdgpu_iv_entry *entry);
 
 /**
  * dce_virtual_vblank_wait - vblank wait asic callback.
@@ -655,14 +652,64 @@ static void dce_virtual_set_display_funcs(struct amdgpu_device *adev)
 		adev->mode_info.funcs = &dce_virtual_display_funcs;
 }
 
+static int dce_virtual_pageflip(struct amdgpu_device *adev,
+				unsigned crtc_id)
+{
+	unsigned long flags;
+	struct amdgpu_crtc *amdgpu_crtc;
+	struct amdgpu_flip_work *works;
+
+	amdgpu_crtc = adev->mode_info.crtcs[crtc_id];
+
+	if (crtc_id >= adev->mode_info.num_crtc) {
+		DRM_ERROR("invalid pageflip crtc %d\n", crtc_id);
+		return -EINVAL;
+	}
+
+	/* IRQ could occur when in initial stage */
+	if (amdgpu_crtc == NULL)
+		return 0;
+
+	spin_lock_irqsave(&adev->ddev->event_lock, flags);
+	works = amdgpu_crtc->pflip_works;
+	if (amdgpu_crtc->pflip_status != AMDGPU_FLIP_SUBMITTED) {
+		DRM_DEBUG_DRIVER("amdgpu_crtc->pflip_status = %d != "
+			"AMDGPU_FLIP_SUBMITTED(%d)\n",
+			amdgpu_crtc->pflip_status,
+			AMDGPU_FLIP_SUBMITTED);
+		spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
+		return 0;
+	}
+
+	/* page flip completed. clean up */
+	amdgpu_crtc->pflip_status = AMDGPU_FLIP_NONE;
+	amdgpu_crtc->pflip_works = NULL;
+
+	/* wakeup usersapce */
+	if (works->event)
+		drm_crtc_send_vblank_event(&amdgpu_crtc->base, works->event);
+
+	spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
+
+	drm_crtc_vblank_put(&amdgpu_crtc->base);
+	schedule_work(&works->unpin_work);
+
+	return 0;
+}
+
 static enum hrtimer_restart dce_virtual_vblank_timer_handle(struct hrtimer *vblank_timer)
 {
-	struct amdgpu_mode_info *mode_info = container_of(vblank_timer, struct amdgpu_mode_info ,vblank_timer);
-	struct amdgpu_device *adev = container_of(mode_info, struct amdgpu_device ,mode_info);
+	struct amdgpu_mode_info *mode_info =
+		container_of(vblank_timer, struct amdgpu_mode_info , vblank_timer);
+	struct amdgpu_device *adev =
+		container_of(mode_info, struct amdgpu_device , mode_info);
 	unsigned crtc = 0;
+
 	drm_handle_vblank(adev->ddev, crtc);
-	dce_virtual_pageflip_irq(adev, NULL, NULL);
-	hrtimer_start(vblank_timer, ktime_set(0, DCE_VIRTUAL_VBLANK_PERIOD), HRTIMER_MODE_REL);
+	dce_virtual_pageflip(adev, crtc);
+	hrtimer_start(vblank_timer, ktime_set(0, DCE_VIRTUAL_VBLANK_PERIOD),
+		      HRTIMER_MODE_REL);
+
 	return HRTIMER_NORESTART;
 }
 
@@ -703,54 +750,6 @@ static int dce_virtual_set_crtc_irq_state(struct amdgpu_device *adev,
 	default:
 		break;
 	}
-	return 0;
-}
-
-static int dce_virtual_pageflip_irq(struct amdgpu_device *adev,
-				  struct amdgpu_irq_src *source,
-				  struct amdgpu_iv_entry *entry)
-{
-	unsigned long flags;
-	unsigned crtc_id = 0;
-	struct amdgpu_crtc *amdgpu_crtc;
-	struct amdgpu_flip_work *works;
-
-	crtc_id = 0;
-	amdgpu_crtc = adev->mode_info.crtcs[crtc_id];
-
-	if (crtc_id >= adev->mode_info.num_crtc) {
-		DRM_ERROR("invalid pageflip crtc %d\n", crtc_id);
-		return -EINVAL;
-	}
-
-	/* IRQ could occur when in initial stage */
-	if (amdgpu_crtc == NULL)
-		return 0;
-
-	spin_lock_irqsave(&adev->ddev->event_lock, flags);
-	works = amdgpu_crtc->pflip_works;
-	if (amdgpu_crtc->pflip_status != AMDGPU_FLIP_SUBMITTED) {
-		DRM_DEBUG_DRIVER("amdgpu_crtc->pflip_status = %d != "
-			"AMDGPU_FLIP_SUBMITTED(%d)\n",
-			amdgpu_crtc->pflip_status,
-			AMDGPU_FLIP_SUBMITTED);
-		spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
-		return 0;
-	}
-
-	/* page flip completed. clean up */
-	amdgpu_crtc->pflip_status = AMDGPU_FLIP_NONE;
-	amdgpu_crtc->pflip_works = NULL;
-
-	/* wakeup usersapce */
-	if (works->event)
-		drm_crtc_send_vblank_event(&amdgpu_crtc->base, works->event);
-
-	spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
-
-	drm_crtc_vblank_put(&amdgpu_crtc->base);
-	schedule_work(&works->unpin_work);
-
 	return 0;
 }
 
