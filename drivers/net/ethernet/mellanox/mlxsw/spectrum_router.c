@@ -1640,7 +1640,7 @@ mlxsw_sp_router_fib4_entry_init(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_fib_entry *fib_entry)
 {
 	struct fib_info *fi = fen_info->fi;
-	struct mlxsw_sp_rif *r;
+	struct mlxsw_sp_rif *r = NULL;
 	int nhsel;
 	int err;
 
@@ -1664,9 +1664,13 @@ mlxsw_sp_router_fib4_entry_init(struct mlxsw_sp *mlxsw_sp,
 			 * to us. Set trap and pass the packets for
 			 * this prefix to kernel.
 			 */
-			fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_TRAP;
-			return 0;
+			break;
 		}
+	}
+
+	if (!r) {
+		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_TRAP;
+		return 0;
 	}
 
 	if (fi->fib_scope != RT_SCOPE_UNIVERSE) {
