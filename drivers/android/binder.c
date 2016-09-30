@@ -50,6 +50,7 @@ static DEFINE_MUTEX(binder_main_lock);
 static DEFINE_MUTEX(binder_deferred_lock);
 static DEFINE_MUTEX(binder_mmap_lock);
 
+static HLIST_HEAD(binder_devices);
 static HLIST_HEAD(binder_procs);
 static HLIST_HEAD(binder_deferred_list);
 static HLIST_HEAD(binder_dead_nodes);
@@ -112,6 +113,9 @@ module_param_named(debug_mask, binder_debug_mask, uint, S_IWUSR | S_IRUGO);
 
 static bool binder_debug_no_lock;
 module_param_named(proc_no_lock, binder_debug_no_lock, bool, S_IWUSR | S_IRUGO);
+
+static char *binder_devices_param = CONFIG_ANDROID_BINDER_DEVICES;
+module_param_named(devices, binder_devices_param, charp, S_IRUGO);
 
 static DECLARE_WAIT_QUEUE_HEAD(binder_user_error_wait);
 static int binder_stop_on_user_error;
@@ -220,9 +224,10 @@ struct binder_context {
 	const char *name;
 };
 
-static struct binder_context global_context = {
-	.binder_context_mgr_uid = INVALID_UID,
-	.name = "binder",
+struct binder_device {
+	struct hlist_node hlist;
+	struct miscdevice miscdev;
+	struct binder_context context;
 };
 
 struct binder_work {
@@ -3048,6 +3053,7 @@ err_bad_arg:
 static int binder_open(struct inode *nodp, struct file *filp)
 {
 	struct binder_proc *proc;
+	struct binder_device *binder_dev;
 
 	binder_debug(BINDER_DEBUG_OPEN_CLOSE, "binder_open: %d:%d\n",
 		     current->group_leader->pid, current->pid);
@@ -3058,10 +3064,12 @@ static int binder_open(struct inode *nodp, struct file *filp)
 	get_task_struct(current);
 	proc->tsk = current;
 	proc->vma_vm_mm = current->mm;
-	proc->context = &global_context;
 	INIT_LIST_HEAD(&proc->todo);
 	init_waitqueue_head(&proc->wait);
 	proc->default_priority = task_nice(current);
+	binder_dev = container_of(filp->private_data, struct binder_device,
+				  miscdev);
+	proc->context = &binder_dev->context;
 
 	binder_lock(__func__);
 
@@ -3768,26 +3776,50 @@ static const struct file_operations binder_fops = {
 	.release = binder_release,
 };
 
-static struct miscdevice binder_miscdev = {
-	.minor = MISC_DYNAMIC_MINOR,
-	.name = "binder",
-	.fops = &binder_fops
-};
-
 BINDER_DEBUG_ENTRY(state);
 BINDER_DEBUG_ENTRY(stats);
 BINDER_DEBUG_ENTRY(transactions);
 BINDER_DEBUG_ENTRY(transaction_log);
 
+static int __init init_binder_device(const char *name)
+{
+	int ret;
+	struct binder_device *binder_device;
+
+	binder_device = kzalloc(sizeof(*binder_device), GFP_KERNEL);
+	if (!binder_device)
+		return -ENOMEM;
+
+	binder_device->miscdev.fops = &binder_fops;
+	binder_device->miscdev.minor = MISC_DYNAMIC_MINOR;
+	binder_device->miscdev.name = name;
+
+	binder_device->context.binder_context_mgr_uid = INVALID_UID;
+	binder_device->context.name = name;
+
+	ret = misc_register(&binder_device->miscdev);
+	if (ret < 0) {
+		kfree(binder_device);
+		return ret;
+	}
+
+	hlist_add_head(&binder_device->hlist, &binder_devices);
+
+	return ret;
+}
+
 static int __init binder_init(void)
 {
 	int ret;
+	char *device_name, *device_names;
+	struct binder_device *device;
+	struct hlist_node *tmp;
 
 	binder_debugfs_dir_entry_root = debugfs_create_dir("binder", NULL);
 	if (binder_debugfs_dir_entry_root)
 		binder_debugfs_dir_entry_proc = debugfs_create_dir("proc",
 						 binder_debugfs_dir_entry_root);
-	ret = misc_register(&binder_miscdev);
+
 	if (binder_debugfs_dir_entry_root) {
 		debugfs_create_file("state",
 				    S_IRUGO,
@@ -3815,6 +3847,35 @@ static int __init binder_init(void)
 				    &binder_transaction_log_failed,
 				    &binder_transaction_log_fops);
 	}
+
+	/*
+	 * Copy the module_parameter string, because we don't want to
+	 * tokenize it in-place.
+	 */
+	device_names = kzalloc(strlen(binder_devices_param) + 1, GFP_KERNEL);
+	if (!device_names) {
+		ret = -ENOMEM;
+		goto err_alloc_device_names_failed;
+	}
+	strcpy(device_names, binder_devices_param);
+
+	while ((device_name = strsep(&device_names, ","))) {
+		ret = init_binder_device(device_name);
+		if (ret)
+			goto err_init_binder_device_failed;
+	}
+
+	return ret;
+
+err_init_binder_device_failed:
+	hlist_for_each_entry_safe(device, tmp, &binder_devices, hlist) {
+		misc_deregister(&device->miscdev);
+		hlist_del(&device->hlist);
+		kfree(device);
+	}
+err_alloc_device_names_failed:
+	debugfs_remove_recursive(binder_debugfs_dir_entry_root);
+
 	return ret;
 }
 
