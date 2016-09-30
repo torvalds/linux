@@ -451,12 +451,25 @@ int gsc_try_fmt_mplane(struct gsc_ctx *ctx, struct v4l2_format *f)
 	else /* SD */
 		pix_mp->colorspace = V4L2_COLORSPACE_SMPTE170M;
 
-
 	for (i = 0; i < pix_mp->num_planes; ++i) {
-		int bpl = (pix_mp->width * fmt->depth[i]) >> 3;
-		pix_mp->plane_fmt[i].bytesperline = bpl;
-		pix_mp->plane_fmt[i].sizeimage = bpl * pix_mp->height;
+		struct v4l2_plane_pix_format *plane_fmt = &pix_mp->plane_fmt[i];
+		u32 bpl = plane_fmt->bytesperline;
 
+		if (fmt->num_comp == 1 && /* Packed */
+		    (bpl == 0 || (bpl * 8 / fmt->depth[i]) < pix_mp->width))
+			bpl = pix_mp->width * fmt->depth[i] / 8;
+
+		if (fmt->num_comp > 1 && /* Planar */
+		    (bpl == 0 || bpl < pix_mp->width))
+			bpl = pix_mp->width;
+
+		if (i != 0 && fmt->num_comp == 3)
+			bpl /= 2;
+
+		plane_fmt->bytesperline = bpl;
+		plane_fmt->sizeimage = max(pix_mp->width * pix_mp->height *
+					   fmt->depth[i] / 8,
+					   plane_fmt->sizeimage);
 		pr_debug("[%d]: bpl: %d, sizeimage: %d",
 				i, bpl, pix_mp->plane_fmt[i].sizeimage);
 	}
