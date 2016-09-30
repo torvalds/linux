@@ -153,7 +153,7 @@ static void ektf2127_stop(struct input_dev *dev)
 	gpiod_set_value_cansleep(ts->power_gpios, 0);
 }
 
-static int ektf2127_suspend(struct device *dev)
+static int __maybe_unused ektf2127_suspend(struct device *dev)
 {
 	struct ektf2127_ts *ts = i2c_get_clientdata(to_i2c_client(dev));
 
@@ -165,7 +165,7 @@ static int ektf2127_suspend(struct device *dev)
 	return 0;
 }
 
-static int ektf2127_resume(struct device *dev)
+static int __maybe_unused ektf2127_resume(struct device *dev)
 {
 	struct ektf2127_ts *ts = i2c_get_clientdata(to_i2c_client(dev));
 
