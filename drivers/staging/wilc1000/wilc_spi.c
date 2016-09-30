@@ -419,8 +419,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 
 	if (wilc_spi_tx_rx(wilc, wb, rb, len2)) {
 		dev_err(&spi->dev, "Failed cmd write, bus error...\n");
-		result = N_FAIL;
-		return result;
+		return N_FAIL;
 	}
 
 	/**
@@ -441,8 +440,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 		dev_err(&spi->dev,
 			"Failed cmd response, cmd (%02x), resp (%02x)\n",
 			cmd, rsp);
-		result = N_FAIL;
-		return result;
+		return N_FAIL;
 	}
 
 	/**
@@ -452,8 +450,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 	if (rsp != 0x00) {
 		dev_err(&spi->dev, "Failed cmd state response state (%02x)\n",
 			rsp);
-		result = N_FAIL;
-		return result;
+		return N_FAIL;
 	}
 
 	if ((cmd == CMD_INTERNAL_READ) || (cmd == CMD_SINGLE_READ)
@@ -480,8 +477,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 		if (retry <= 0) {
 			dev_err(&spi->dev,
 				"Error, data read response (%02x)\n", rsp);
-			result = N_RESET;
-			return result;
+			return N_RESET;
 		}
 
 		if ((cmd == CMD_INTERNAL_READ) || (cmd == CMD_SINGLE_READ)) {
@@ -496,8 +492,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 			} else {
 				dev_err(&spi->dev,
 					"buffer overrun when reading data.\n");
-				result = N_FAIL;
-				return result;
+				return N_FAIL;
 			}
 
 			if (!g_spi.crc_off) {
@@ -509,8 +504,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 					crc[1] = rb[rix++];
 				} else {
 					dev_err(&spi->dev, "buffer overrun when reading crc.\n");
-					result = N_FAIL;
-					return result;
+					return N_FAIL;
 				}
 			}
 		} else if ((cmd == CMD_DMA_READ) || (cmd == CMD_DMA_EXT_READ)) {
