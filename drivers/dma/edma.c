@@ -464,13 +464,15 @@ static void edma_write_slot(struct edma_cc *ecc, unsigned slot,
 	memcpy_toio(ecc->base + PARM_OFFSET(slot), param, PARM_SIZE);
 }
 
-static void edma_read_slot(struct edma_cc *ecc, unsigned slot,
+static int edma_read_slot(struct edma_cc *ecc, unsigned slot,
 			   struct edmacc_param *param)
 {
 	slot = EDMA_CHAN_SLOT(slot);
 	if (slot >= ecc->num_slots)
-		return;
+		return -EINVAL;
 	memcpy_fromio(param, ecc->base + PARM_OFFSET(slot), PARM_SIZE);
+
+	return 0;
 }
 
 /**
@@ -1476,13 +1478,15 @@ static void edma_error_handler(struct edma_chan *echan)
 	struct edma_cc *ecc = echan->ecc;
 	struct device *dev = echan->vchan.chan.device->dev;
 	struct edmacc_param p;
+	int err;
 
 	if (!echan->edesc)
 		return;
 
 	spin_lock(&echan->vchan.lock);
 
-	edma_read_slot(ecc, echan->slot[0], &p);
+	err = edma_read_slot(ecc, echan->slot[0], &p);
+
 	/*
 	 * Issue later based on missed flag which will be sure
 	 * to happen as:
@@ -1495,7 +1499,7 @@ static void edma_error_handler(struct edma_chan *echan)
 	 * lead to some nasty recursion when we are in a NULL
 	 * slot. So we avoid doing so and set the missed flag.
 	 */
-	if (p.a_b_cnt == 0 && p.ccnt == 0) {
+	if (err || (p.a_b_cnt == 0 && p.ccnt == 0)) {
 		dev_dbg(dev, "Error on null slot, setting miss\n");
 		echan->missed = 1;
 	} else {
