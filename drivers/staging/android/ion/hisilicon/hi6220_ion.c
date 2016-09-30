@@ -82,9 +82,9 @@ static int hi6220_ion_remove(struct platform_device *pdev)
 
 	ipdev = platform_get_drvdata(pdev);
 
-	for (i = 0; i < ipdev->data->nr; i++) {
+	for (i = 0; i < ipdev->data->nr; i++)
 		ion_heap_destroy(ipdev->heaps[i]);
-	}
+
 	ion_destroy_platform_data(ipdev->data);
 	ion_device_destroy(ipdev->idev);
 
