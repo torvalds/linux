@@ -26,7 +26,8 @@ SUB_DIRS = alignment		\
 	   syscalls		\
 	   tm			\
 	   vphn         \
-	   math
+	   math		\
+	   ptrace
 
 endif
 
