@@ -202,33 +202,14 @@ static bool batadv_is_valid_iface(const struct net_device *net_dev)
 }
 
 /**
- * batadv_is_cfg80211_netdev - check if the given net_device struct is a
- *  cfg80211 wifi interface
+ * batadv_is_wext_netdev - check if the given net_device struct is a
+ *  wext wifi interface
  * @net_device: the device to check
  *
- * Return: true if the net device is a cfg80211 wireless device, false
+ * Return: true if the net device is a wext wireless device, false
  *  otherwise.
  */
-bool batadv_is_cfg80211_netdev(struct net_device *net_device)
-{
-	if (!net_device)
-		return false;
-
-	/* cfg80211 drivers have to set ieee80211_ptr */
-	if (net_device->ieee80211_ptr)
-		return true;
-
-	return false;
-}
-
-/**
- * batadv_is_wifi_netdev - check if the given net_device struct is a wifi
- *  interface
- * @net_device: the device to check
- *
- * Return: true if the net device is a 802.11 wireless device, false otherwise.
- */
-bool batadv_is_wifi_netdev(struct net_device *net_device)
+static bool batadv_is_wext_netdev(struct net_device *net_device)
 {
 	if (!net_device)
 		return false;
@@ -241,7 +222,77 @@ bool batadv_is_wifi_netdev(struct net_device *net_device)
 		return true;
 #endif
 
-	return batadv_is_cfg80211_netdev(net_device);
+	return false;
+}
+
+/**
+ * batadv_is_cfg80211_netdev - check if the given net_device struct is a
+ *  cfg80211 wifi interface
+ * @net_device: the device to check
+ *
+ * Return: true if the net device is a cfg80211 wireless device, false
+ *  otherwise.
+ */
+static bool batadv_is_cfg80211_netdev(struct net_device *net_device)
+{
+	if (!net_device)
+		return false;
+
+	/* cfg80211 drivers have to set ieee80211_ptr */
+	if (net_device->ieee80211_ptr)
+		return true;
+
+	return false;
+}
+
+/**
+ * batadv_wifi_flags_evaluate - calculate wifi flags for net_device
+ * @net_device: the device to check
+ *
+ * Return: batadv_hard_iface_wifi_flags flags of the device
+ */
+static u32 batadv_wifi_flags_evaluate(struct net_device *net_device)
+{
+	u32 wifi_flags = 0;
+
+	if (batadv_is_wext_netdev(net_device))
+		wifi_flags |= BATADV_HARDIF_WIFI_WEXT_DIRECT;
+
+	if (batadv_is_cfg80211_netdev(net_device))
+		wifi_flags |= BATADV_HARDIF_WIFI_CFG80211_DIRECT;
+
+	return wifi_flags;
+}
+
+/**
+ * batadv_is_cfg80211_hardif - check if the given hardif is a cfg80211 wifi
+ *  interface
+ * @hard_iface: the device to check
+ *
+ * Return: true if the net device is a cfg80211 wireless device, false
+ *  otherwise.
+ */
+bool batadv_is_cfg80211_hardif(struct batadv_hard_iface *hard_iface)
+{
+	u32 allowed_flags = 0;
+
+	allowed_flags |= BATADV_HARDIF_WIFI_CFG80211_DIRECT;
+
+	return !!(hard_iface->wifi_flags & allowed_flags);
+}
+
+/**
+ * batadv_is_wifi_hardif - check if the given hardif is a wifi interface
+ * @hard_iface: the device to check
+ *
+ * Return: true if the net device is a 802.11 wireless device, false otherwise.
+ */
+bool batadv_is_wifi_hardif(struct batadv_hard_iface *hard_iface)
+{
+	if (!hard_iface)
+		return false;
+
+	return hard_iface->wifi_flags != 0;
 }
 
 /**
@@ -765,7 +816,8 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 	kref_init(&hard_iface->refcount);
 
 	hard_iface->num_bcasts = BATADV_NUM_BCASTS_DEFAULT;
-	if (batadv_is_wifi_netdev(net_dev))
+	hard_iface->wifi_flags = batadv_wifi_flags_evaluate(net_dev);
+	if (batadv_is_wifi_hardif(hard_iface))
 		hard_iface->num_bcasts = BATADV_NUM_BCASTS_WIRELESS;
 
 	batadv_v_hardif_init(hard_iface);

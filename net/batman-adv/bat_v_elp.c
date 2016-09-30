@@ -89,8 +89,8 @@ static u32 batadv_v_elp_get_throughput(struct batadv_hardif_neigh_node *neigh)
 	/* if this is a wireless device, then ask its throughput through
 	 * cfg80211 API
 	 */
-	if (batadv_is_wifi_netdev(hard_iface->net_dev)) {
-		if (!batadv_is_cfg80211_netdev(hard_iface->net_dev))
+	if (batadv_is_wifi_hardif(hard_iface)) {
+		if (!batadv_is_cfg80211_hardif(hard_iface))
 			/* unsupported WiFi driver version */
 			goto default_throughput;
 
@@ -186,7 +186,7 @@ batadv_v_elp_wifi_neigh_probe(struct batadv_hardif_neigh_node *neigh)
 	int elp_skb_len;
 
 	/* this probing routine is for Wifi neighbours only */
-	if (!batadv_is_wifi_netdev(hard_iface->net_dev))
+	if (!batadv_is_wifi_hardif(hard_iface))
 		return true;
 
 	/* probe the neighbor only if no unicast packets have been sent
@@ -351,7 +351,7 @@ int batadv_v_elp_iface_enable(struct batadv_hard_iface *hard_iface)
 	/* warn the user (again) if there is no throughput data is available */
 	hard_iface->bat_v.flags &= ~BATADV_WARNING_DEFAULT;
 
-	if (batadv_is_wifi_netdev(hard_iface->net_dev))
+	if (batadv_is_wifi_hardif(hard_iface))
 		hard_iface->bat_v.flags &= ~BATADV_FULL_DUPLEX;
 
 	INIT_DELAYED_WORK(&hard_iface->bat_v.elp_wq,

@@ -119,11 +119,23 @@ struct batadv_hard_iface_bat_v {
 };
 
 /**
+ * enum batadv_hard_iface_wifi_flags - Flags describing the wifi configuration
+ *  of a batadv_hard_iface
+ * @BATADV_HARDIF_WIFI_WEXT_DIRECT: it is a wext wifi device
+ * @BATADV_HARDIF_WIFI_CFG80211_DIRECT: it is a cfg80211 wifi device
+ */
+enum batadv_hard_iface_wifi_flags {
+	BATADV_HARDIF_WIFI_WEXT_DIRECT = BIT(0),
+	BATADV_HARDIF_WIFI_CFG80211_DIRECT = BIT(1),
+};
+
+/**
  * struct batadv_hard_iface - network device known to batman-adv
  * @list: list node for batadv_hardif_list
  * @if_num: identificator of the interface
  * @if_status: status of the interface for batman-adv
  * @num_bcasts: number of payload re-broadcasts on this interface (ARQ)
+ * @wifi_flags: flags whether this is (directly or indirectly) a wifi interface
  * @net_dev: pointer to the net_device
  * @hardif_obj: kobject of the per interface sysfs "mesh" directory
  * @refcount: number of contexts the object is used
@@ -142,6 +154,7 @@ struct batadv_hard_iface {
 	s16 if_num;
 	char if_status;
 	u8 num_bcasts;
+	u32 wifi_flags;
 	struct net_device *net_dev;
 	struct kobject *hardif_obj;
 	struct kref refcount;
