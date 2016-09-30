@@ -329,6 +329,7 @@ static int armada_3700_add_composite_clk(const struct clk_periph_data *data,
 		gate->lock = lock;
 		gate_ops = gate_hw->init->ops;
 		gate->reg = reg + (u64)gate->reg;
+		gate->flags = CLK_GATE_SET_TO_DISABLE;
 	}
 
 	if (data->rate_hw) {
