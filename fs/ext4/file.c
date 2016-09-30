@@ -92,7 +92,6 @@ static ssize_t
 ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct inode *inode = file_inode(iocb->ki_filp);
-	struct blk_plug plug;
 	int o_direct = iocb->ki_flags & IOCB_DIRECT;
 	int unaligned_aio = 0;
 	int overwrite = 0;
@@ -133,7 +132,6 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (o_direct) {
 		size_t length = iov_iter_count(from);
 		loff_t pos = iocb->ki_pos;
-		blk_start_plug(&plug);
 
 		/* check whether we do a DIO overwrite or not */
 		if (ext4_should_dioread_nolock(inode) && !unaligned_aio &&
@@ -169,8 +167,6 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 	if (ret > 0)
 		ret = generic_write_sync(iocb, ret);
-	if (o_direct)
-		blk_finish_plug(&plug);
 
 	return ret;
 
