@@ -63,12 +63,12 @@ static int ms_transfer_tpc(struct rtsx_chip *chip, u8 trans_mode,
 	rtsx_add_cmd(chip, WRITE_REG_CMD, MS_BYTE_CNT, 0xFF, cnt);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, MS_TRANS_CFG, 0xFF, cfg);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_DATA_SOURCE,
-		0x01, PINGPONG_BUFFER);
+		     0x01, PINGPONG_BUFFER);
 
 	rtsx_add_cmd(chip, WRITE_REG_CMD, MS_TRANSFER,
-		0xFF, MS_TRANSFER_START | trans_mode);
+		     0xFF, MS_TRANSFER_START | trans_mode);
 	rtsx_add_cmd(chip, CHECK_REG_CMD, MS_TRANSFER,
-		MS_TRANSFER_END, MS_TRANSFER_END);
+		     MS_TRANSFER_END, MS_TRANSFER_END);
 
 	rtsx_add_cmd(chip, READ_REG_CMD, MS_TRANS_CFG, 0, 0);
 
@@ -109,8 +109,8 @@ static int ms_transfer_tpc(struct rtsx_chip *chip, u8 trans_mode,
 }
 
 static int ms_transfer_data(struct rtsx_chip *chip, u8 trans_mode,
-			u8 tpc, u16 sec_cnt, u8 cfg, bool mode_2k,
-			int use_sg, void *buf, int buf_len)
+			    u8 tpc, u16 sec_cnt, u8 cfg, bool mode_2k,
+			    int use_sg, void *buf, int buf_len)
 {
 	int retval;
 	u8 val, err_code = 0;
@@ -206,7 +206,7 @@ static int ms_write_bytes(struct rtsx_chip *chip,
 	rtsx_add_cmd(chip, WRITE_REG_CMD, MS_BYTE_CNT, 0xFF, cnt);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, MS_TRANS_CFG, 0xFF, cfg);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_DATA_SOURCE,
-		0x01, PINGPONG_BUFFER);
+		     0x01, PINGPONG_BUFFER);
 
 	rtsx_add_cmd(chip, WRITE_REG_CMD,
 		     MS_TRANSFER, 0xFF, MS_TRANSFER_START | MS_TM_WRITE_BYTES);
@@ -253,7 +253,7 @@ static int ms_write_bytes(struct rtsx_chip *chip,
 }
 
 static int ms_read_bytes(struct rtsx_chip *chip,
-			u8 tpc, u8 cnt, u8 cfg, u8 *data, int data_len)
+			 u8 tpc, u8 cnt, u8 cfg, u8 *data, int data_len)
 {
 	struct ms_info *ms_card = &chip->ms_card;
 	int retval, i;
@@ -270,12 +270,12 @@ static int ms_read_bytes(struct rtsx_chip *chip,
 	rtsx_add_cmd(chip, WRITE_REG_CMD, MS_BYTE_CNT, 0xFF, cnt);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, MS_TRANS_CFG, 0xFF, cfg);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_DATA_SOURCE,
-		0x01, PINGPONG_BUFFER);
+		     0x01, PINGPONG_BUFFER);
 
 	rtsx_add_cmd(chip, WRITE_REG_CMD, MS_TRANSFER, 0xFF,
-		MS_TRANSFER_START | MS_TM_READ_BYTES);
+		     MS_TRANSFER_START | MS_TM_READ_BYTES);
 	rtsx_add_cmd(chip, CHECK_REG_CMD, MS_TRANSFER,
-		MS_TRANSFER_END, MS_TRANSFER_END);
+		     MS_TRANSFER_END, MS_TRANSFER_END);
 
 	for (i = 0; i < data_len - 1; i++)
 		rtsx_add_cmd(chip, READ_REG_CMD, PPBUF_BASE2 + i, 0, 0);
@@ -284,7 +284,7 @@ static int ms_read_bytes(struct rtsx_chip *chip,
 		rtsx_add_cmd(chip, READ_REG_CMD, PPBUF_BASE2 + data_len, 0, 0);
 	else
 		rtsx_add_cmd(chip, READ_REG_CMD, PPBUF_BASE2 + data_len - 1,
-			0, 0);
+			     0, 0);
 
 	retval = rtsx_send_cmd(chip, MS_CARD, 5000);
 	if (retval < 0) {
@@ -334,8 +334,8 @@ static int ms_read_bytes(struct rtsx_chip *chip,
 	return STATUS_SUCCESS;
 }
 
-static int ms_set_rw_reg_addr(struct rtsx_chip *chip,
-		u8 read_start, u8 read_cnt, u8 write_start, u8 write_cnt)
+static int ms_set_rw_reg_addr(struct rtsx_chip *chip, u8 read_start,
+			      u8 read_cnt, u8 write_start, u8 write_cnt)
 {
 	int retval, i;
 	u8 data[4];
