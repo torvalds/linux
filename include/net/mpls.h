@@ -33,16 +33,4 @@ static inline struct mpls_shim_hdr *mpls_hdr(const struct sk_buff *skb)
 {
 	return (struct mpls_shim_hdr *)skb_network_header(skb);
 }
-
-/*
- * For non-MPLS skbs this will correspond to the network header.
- * For MPLS skbs it will be before the network_header as the MPLS
- * label stack lies between the end of the mac header and the network
- * header. That is, for MPLS skbs the end of the mac header
- * is the top of the MPLS label stack.
- */
-static inline unsigned char *skb_mpls_header(struct sk_buff *skb)
-{
-	return skb_mac_header(skb) + skb->mac_len;
-}
 #endif
