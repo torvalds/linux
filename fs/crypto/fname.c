@@ -14,11 +14,6 @@
 #include <linux/ratelimit.h>
 #include <linux/fscrypto.h>
 
-static u32 size_round_up(size_t size, size_t blksize)
-{
-	return ((size + blksize - 1) / blksize) * blksize;
-}
-
 /**
  * fname_crypt_complete() - completion callback for filename crypto
  * @req: The asynchronous cipher request context
@@ -60,10 +55,9 @@ static int fname_encrypt(struct inode *inode,
 	if (iname->len <= 0 || iname->len > lim)
 		return -EIO;
 
-	ciphertext_len = (iname->len < FS_CRYPTO_BLOCK_SIZE) ?
-					FS_CRYPTO_BLOCK_SIZE : iname->len;
-	ciphertext_len = size_round_up(ciphertext_len, padding);
-	ciphertext_len = (ciphertext_len > lim) ? lim : ciphertext_len;
+	ciphertext_len = max(iname->len, (u32)FS_CRYPTO_BLOCK_SIZE);
+	ciphertext_len = round_up(ciphertext_len, padding);
+	ciphertext_len = min(ciphertext_len, lim);
 
 	if (ciphertext_len <= sizeof(buf)) {
 		workbuf = buf;
@@ -233,9 +227,8 @@ u32 fscrypt_fname_encrypted_size(struct inode *inode, u32 ilen)
 
 	if (ci)
 		padding = 4 << (ci->ci_flags & FS_POLICY_FLAGS_PAD_MASK);
-	if (ilen < FS_CRYPTO_BLOCK_SIZE)
-		ilen = FS_CRYPTO_BLOCK_SIZE;
-	return size_round_up(ilen, padding);
+	ilen = max(ilen, (u32)FS_CRYPTO_BLOCK_SIZE);
+	return round_up(ilen, padding);
 }
 EXPORT_SYMBOL(fscrypt_fname_encrypted_size);
 
