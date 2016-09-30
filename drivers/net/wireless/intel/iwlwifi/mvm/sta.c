@@ -588,9 +588,7 @@ int iwl_mvm_scd_queue_redirect(struct iwl_mvm *mvm, int queue, int tid,
 			ret);
 
 	/* Make sure the SCD wrptr is correctly set before reconfiguring */
-	iwl_trans_txq_enable(mvm->trans, queue, iwl_mvm_ac_to_tx_fifo[ac],
-			     cmd.sta_id, tid, LINK_QUAL_AGG_FRAME_LIMIT_DEF,
-			     ssn, wdg_timeout);
+	iwl_trans_txq_enable_cfg(mvm->trans, queue, ssn, NULL, wdg_timeout);
 
 	/* Update the TID "owner" of the queue */
 	spin_lock_bh(&mvm->queue_info_lock);
@@ -747,14 +745,14 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 			.scd_queue = queue,
 			.action = SCD_CFG_DISABLE_QUEUE,
 		};
-		u8 ac;
+		u8 txq_curr_ac;
 
 		disable_agg_tids = iwl_mvm_remove_sta_queue_marking(mvm, queue);
 
 		spin_lock_bh(&mvm->queue_info_lock);
-		ac = mvm->queue_info[queue].mac80211_ac;
+		txq_curr_ac = mvm->queue_info[queue].mac80211_ac;
 		cmd.sta_id = mvm->queue_info[queue].ra_sta_id;
-		cmd.tx_fifo = iwl_mvm_ac_to_tx_fifo[ac];
+		cmd.tx_fifo = iwl_mvm_ac_to_tx_fifo[txq_curr_ac];
 		cmd.tid = mvm->queue_info[queue].txq_tid;
 		spin_unlock_bh(&mvm->queue_info_lock);
 
@@ -935,7 +933,7 @@ static void iwl_mvm_unshare_queue(struct iwl_mvm *mvm, int queue)
 
 	/* If aggs should be turned back on - do it */
 	if (mvmsta->tid_data[tid].state == IWL_AGG_ON) {
-		struct iwl_mvm_add_sta_cmd cmd;
+		struct iwl_mvm_add_sta_cmd cmd = {0};
 
 		mvmsta->tid_disable_agg &= ~BIT(tid);
 
@@ -1299,13 +1297,6 @@ err:
 	return ret;
 }
 
-int iwl_mvm_update_sta(struct iwl_mvm *mvm,
-		       struct ieee80211_vif *vif,
-		       struct ieee80211_sta *sta)
-{
-	return iwl_mvm_sta_send_to_fw(mvm, sta, true, 0);
-}
-
 int iwl_mvm_drain_sta(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 		      bool drain)
 {
@@ -1498,8 +1489,30 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		ret = iwl_mvm_drain_sta(mvm, mvm_sta, false);
 
 		/* If DQA is supported - the queues can be disabled now */
-		if (iwl_mvm_is_dqa_supported(mvm))
+		if (iwl_mvm_is_dqa_supported(mvm)) {
+			u8 reserved_txq = mvm_sta->reserved_queue;
+			enum iwl_mvm_queue_status *status;
+
 			iwl_mvm_disable_sta_queues(mvm, vif, mvm_sta);
+
+			/*
+			 * If no traffic has gone through the reserved TXQ - it
+			 * is still marked as IWL_MVM_QUEUE_RESERVED, and
+			 * should be manually marked as free again
+			 */
+			spin_lock_bh(&mvm->queue_info_lock);
+			status = &mvm->queue_info[reserved_txq].status;
+			if (WARN((*status != IWL_MVM_QUEUE_RESERVED) &&
+				 (*status != IWL_MVM_QUEUE_FREE),
+				 "sta_id %d reserved txq %d status %d",
+				 mvm_sta->sta_id, reserved_txq, *status)) {
+				spin_unlock_bh(&mvm->queue_info_lock);
+				return -EINVAL;
+			}
+
+			*status = IWL_MVM_QUEUE_FREE;
+			spin_unlock_bh(&mvm->queue_info_lock);
+		}
 
 		if (vif->type == NL80211_IFTYPE_STATION &&
 		    mvmvif->ap_sta_id == mvm_sta->sta_id) {
@@ -2030,11 +2043,9 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		baid_data->baid = baid;
 		baid_data->timeout = timeout;
 		baid_data->last_rx = jiffies;
-		init_timer(&baid_data->session_timer);
-		baid_data->session_timer.function =
-			iwl_mvm_rx_agg_session_expired;
-		baid_data->session_timer.data =
-			(unsigned long)&mvm->baid_map[baid];
+		setup_timer(&baid_data->session_timer,
+			    iwl_mvm_rx_agg_session_expired,
+			    (unsigned long)&mvm->baid_map[baid]);
 		baid_data->mvm = mvm;
 		baid_data->tid = tid;
 		baid_data->sta_id = mvm_sta->sta_id;

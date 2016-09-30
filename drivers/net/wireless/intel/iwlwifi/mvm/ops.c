@@ -359,6 +359,7 @@ static const struct iwl_hcmd_names iwl_mvm_legacy_names[] = {
 	HCMD_NAME(BT_COEX_CI),
 	HCMD_NAME(PHY_CONFIGURATION_CMD),
 	HCMD_NAME(CALIB_RES_NOTIF_PHY_DB),
+	HCMD_NAME(PHY_DB_CMD),
 	HCMD_NAME(SCAN_OFFLOAD_COMPLETE),
 	HCMD_NAME(SCAN_OFFLOAD_UPDATE_PROFILES_CMD),
 	HCMD_NAME(SCAN_OFFLOAD_CONFIG_CMD),
@@ -652,11 +653,9 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	/* the hardware splits the A-MSDU */
 	if (mvm->cfg->mq_rx_supported)
 		trans_cfg.rx_buf_size = IWL_AMSDU_4K;
-	trans_cfg.wide_cmd_header = fw_has_api(&mvm->fw->ucode_capa,
-					       IWL_UCODE_TLV_API_WIDE_CMD_HDR);
 
-	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_DW_BC_TABLE)
-		trans_cfg.bc_table_dword = true;
+	trans->wide_cmd_header = true;
+	trans_cfg.bc_table_dword = true;
 
 	trans_cfg.command_groups = iwl_mvm_groups;
 	trans_cfg.command_groups_size = ARRAY_SIZE(iwl_mvm_groups);
@@ -711,37 +710,21 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		IWL_DEBUG_EEPROM(mvm->trans->dev,
 				 "working without external nvm file\n");
 
-	if (WARN(cfg->no_power_up_nic_in_init && !mvm->nvm_file_name,
-		 "not allowing power-up and not having nvm_file\n"))
+	err = iwl_trans_start_hw(mvm->trans);
+	if (err)
 		goto out_free;
 
-	/*
-	 * Even if nvm exists in the nvm_file driver should read again the nvm
-	 * from the nic because there might be entries that exist in the OTP
-	 * and not in the file.
-	 * for nics with no_power_up_nic_in_init: rely completley on nvm_file
-	 */
-	if (cfg->no_power_up_nic_in_init && mvm->nvm_file_name) {
-		err = iwl_nvm_init(mvm, false);
-		if (err)
-			goto out_free;
-	} else {
-		err = iwl_trans_start_hw(mvm->trans);
-		if (err)
-			goto out_free;
-
-		mutex_lock(&mvm->mutex);
-		iwl_mvm_ref(mvm, IWL_MVM_REF_INIT_UCODE);
-		err = iwl_run_init_mvm_ucode(mvm, true);
-		if (!err || !iwlmvm_mod_params.init_dbg)
-			iwl_mvm_stop_device(mvm);
-		iwl_mvm_unref(mvm, IWL_MVM_REF_INIT_UCODE);
-		mutex_unlock(&mvm->mutex);
-		/* returns 0 if successful, 1 if success but in rfkill */
-		if (err < 0 && !iwlmvm_mod_params.init_dbg) {
-			IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", err);
-			goto out_free;
-		}
+	mutex_lock(&mvm->mutex);
+	iwl_mvm_ref(mvm, IWL_MVM_REF_INIT_UCODE);
+	err = iwl_run_init_mvm_ucode(mvm, true);
+	if (!err || !iwlmvm_mod_params.init_dbg)
+		iwl_mvm_stop_device(mvm);
+	iwl_mvm_unref(mvm, IWL_MVM_REF_INIT_UCODE);
+	mutex_unlock(&mvm->mutex);
+	/* returns 0 if successful, 1 if success but in rfkill */
+	if (err < 0 && !iwlmvm_mod_params.init_dbg) {
+		IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", err);
+		goto out_free;
 	}
 
 	scan_size = iwl_mvm_scan_size(mvm);
@@ -783,8 +766,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	flush_delayed_work(&mvm->fw_dump_wk);
 	iwl_phy_db_free(mvm->phy_db);
 	kfree(mvm->scan_cmd);
-	if (!cfg->no_power_up_nic_in_init || !mvm->nvm_file_name)
-		iwl_trans_op_mode_leave(trans);
+	iwl_trans_op_mode_leave(trans);
+
 	ieee80211_free_hw(mvm->hw);
 	return NULL;
 }
@@ -857,9 +840,7 @@ static void iwl_mvm_async_handlers_wk(struct work_struct *wk)
 	struct iwl_mvm *mvm =
 		container_of(wk, struct iwl_mvm, async_handlers_wk);
 	struct iwl_async_handler_entry *entry, *tmp;
-	struct list_head local_list;
-
-	INIT_LIST_HEAD(&local_list);
+	LIST_HEAD(local_list);
 
 	/* Ensure that we are not in stop flow (check iwl_mvm_mac_stop) */
 
@@ -966,10 +947,11 @@ static void iwl_mvm_rx(struct iwl_op_mode *op_mode,
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+	u16 cmd = WIDE_ID(pkt->hdr.group_id, pkt->hdr.cmd);
 
-	if (likely(pkt->hdr.cmd == REPLY_RX_MPDU_CMD))
+	if (likely(cmd == WIDE_ID(LEGACY_GROUP, REPLY_RX_MPDU_CMD)))
 		iwl_mvm_rx_rx_mpdu(mvm, napi, rxb);
-	else if (pkt->hdr.cmd == REPLY_RX_PHY_CMD)
+	else if (cmd == WIDE_ID(LEGACY_GROUP, REPLY_RX_PHY_CMD))
 		iwl_mvm_rx_rx_phy_cmd(mvm, rxb);
 	else
 		iwl_mvm_rx_common(mvm, rxb, pkt);
@@ -981,13 +963,14 @@ static void iwl_mvm_rx_mq(struct iwl_op_mode *op_mode,
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+	u16 cmd = WIDE_ID(pkt->hdr.group_id, pkt->hdr.cmd);
 
-	if (likely(pkt->hdr.cmd == REPLY_RX_MPDU_CMD))
+	if (likely(cmd == WIDE_ID(LEGACY_GROUP, REPLY_RX_MPDU_CMD)))
 		iwl_mvm_rx_mpdu_mq(mvm, napi, rxb, 0);
-	else if (unlikely(pkt->hdr.group_id == DATA_PATH_GROUP &&
-			  pkt->hdr.cmd == RX_QUEUES_NOTIFICATION))
+	else if (unlikely(cmd == WIDE_ID(DATA_PATH_GROUP,
+					 RX_QUEUES_NOTIFICATION)))
 		iwl_mvm_rx_queue_notif(mvm, rxb, 0);
-	else if (pkt->hdr.cmd == FRAME_RELEASE)
+	else if (cmd == WIDE_ID(LEGACY_GROUP, FRAME_RELEASE))
 		iwl_mvm_rx_frame_release(mvm, napi, rxb, 0);
 	else
 		iwl_mvm_rx_common(mvm, rxb, pkt);
@@ -1666,13 +1649,14 @@ static void iwl_mvm_rx_mq_rss(struct iwl_op_mode *op_mode,
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	u16 cmd = WIDE_ID(pkt->hdr.group_id, pkt->hdr.cmd);
 
-	if (unlikely(pkt->hdr.cmd == FRAME_RELEASE))
+	if (unlikely(cmd == WIDE_ID(LEGACY_GROUP, FRAME_RELEASE)))
 		iwl_mvm_rx_frame_release(mvm, napi, rxb, queue);
-	else if (unlikely(pkt->hdr.cmd == RX_QUEUES_NOTIFICATION &&
-			  pkt->hdr.group_id == DATA_PATH_GROUP))
+	else if (unlikely(cmd == WIDE_ID(DATA_PATH_GROUP,
+					 RX_QUEUES_NOTIFICATION)))
 		iwl_mvm_rx_queue_notif(mvm, rxb, queue);
-	else
+	else if (likely(cmd == WIDE_ID(LEGACY_GROUP, REPLY_RX_MPDU_CMD)))
 		iwl_mvm_rx_mpdu_mq(mvm, napi, rxb, queue);
 }
 

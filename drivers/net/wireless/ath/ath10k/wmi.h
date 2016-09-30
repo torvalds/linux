@@ -55,7 +55,7 @@
  *    type.
  *
  * 6. Comment each parameter part of the WMI command/event structure by
- *    using the 2 stars at the begining of C comment instead of one star to
+ *    using the 2 stars at the beginning of C comment instead of one star to
  *    enable HTML document generation using Doxygen.
  *
  */
@@ -2087,7 +2087,7 @@ struct wmi_resource_config {
 	 * In offload mode target supports features like WOW, chatter and
 	 * other protocol offloads. In order to support them some
 	 * functionalities like reorder buffering, PN checking need to be
-	 * done in target. This determines maximum number of peers suported
+	 * done in target. This determines maximum number of peers supported
 	 * by target in offload mode
 	 */
 	__le32 num_offload_peers;
@@ -2268,7 +2268,7 @@ struct wmi_resource_config {
 	 * Max. number of Tx fragments per MSDU
 	 *  This parameter controls the max number of Tx fragments per MSDU.
 	 *  This is sent by the target as part of the WMI_SERVICE_READY event
-	 *  and is overriden by the OS shim as required.
+	 *  and is overridden by the OS shim as required.
 	 */
 	__le32 max_frag_entries;
 } __packed;
@@ -2450,7 +2450,7 @@ struct wmi_resource_config_10x {
 	 * Max. number of Tx fragments per MSDU
 	 *  This parameter controls the max number of Tx fragments per MSDU.
 	 *  This is sent by the target as part of the WMI_SERVICE_READY event
-	 *  and is overriden by the OS shim as required.
+	 *  and is overridden by the OS shim as required.
 	 */
 	__le32 max_frag_entries;
 } __packed;
@@ -2744,7 +2744,7 @@ struct wmi_init_cmd {
 	struct wmi_host_mem_chunks mem_chunks;
 } __packed;
 
-/* _10x stucture is from 10.X FW API */
+/* _10x structure is from 10.X FW API */
 struct wmi_init_cmd_10x {
 	struct wmi_resource_config_10x resource_config;
 	struct wmi_host_mem_chunks mem_chunks;
@@ -3967,7 +3967,7 @@ struct wmi_pdev_stats_tx {
 	/* illegal rate phy errors  */
 	__le32 illgl_rate_phy_err;
 
-	/* wal pdev continous xretry */
+	/* wal pdev continuous xretry */
 	__le32 pdev_cont_xretry;
 
 	/* wal pdev continous xretry */
@@ -4222,10 +4222,10 @@ struct wmi_10_2_stats_event {
  */
 struct wmi_pdev_stats_base {
 	__le32 chan_nf;
-	__le32 tx_frame_count;
-	__le32 rx_frame_count;
-	__le32 rx_clear_count;
-	__le32 cycle_count;
+	__le32 tx_frame_count; /* Cycles spent transmitting frames */
+	__le32 rx_frame_count; /* Cycles spent receiving frames */
+	__le32 rx_clear_count; /* Total channel busy time, evidently */
+	__le32 cycle_count; /* Total on-channel time */
 	__le32 phy_err_count;
 	__le32 chan_tx_pwr;
 } __packed;
@@ -4461,9 +4461,9 @@ struct wmi_vdev_start_request_cmd {
 	__le32 flags;
 	/* ssid field. Only valid for AP/GO/IBSS/BTAmp VDEV type. */
 	struct wmi_ssid ssid;
-	/* beacon/probe reponse xmit rate. Applicable for SoftAP. */
+	/* beacon/probe response xmit rate. Applicable for SoftAP. */
 	__le32 bcn_tx_rate;
-	/* beacon/probe reponse xmit power. Applicable for SoftAP. */
+	/* beacon/probe response xmit power. Applicable for SoftAP. */
 	__le32 bcn_tx_power;
 	/* number of p2p NOA descriptor(s) from scan entry */
 	__le32 num_noa_descriptors;
@@ -4691,7 +4691,7 @@ enum wmi_vdev_param {
 	WMI_VDEV_PARAM_BEACON_INTERVAL,
 	/* Listen interval in TUs */
 	WMI_VDEV_PARAM_LISTEN_INTERVAL,
-	/* muticast rate in Mbps */
+	/* multicast rate in Mbps */
 	WMI_VDEV_PARAM_MULTICAST_RATE,
 	/* management frame rate in Mbps */
 	WMI_VDEV_PARAM_MGMT_TX_RATE,
@@ -4822,7 +4822,7 @@ enum wmi_10x_vdev_param {
 	WMI_10X_VDEV_PARAM_BEACON_INTERVAL,
 	/* Listen interval in TUs */
 	WMI_10X_VDEV_PARAM_LISTEN_INTERVAL,
-	/* muticast rate in Mbps */
+	/* multicast rate in Mbps */
 	WMI_10X_VDEV_PARAM_MULTICAST_RATE,
 	/* management frame rate in Mbps */
 	WMI_10X_VDEV_PARAM_MGMT_TX_RATE,
@@ -5067,7 +5067,7 @@ struct wmi_vdev_simple_event {
 } __packed;
 
 /* VDEV start response status codes */
-/* VDEV succesfully started */
+/* VDEV successfully started */
 #define WMI_INIFIED_VDEV_START_RESPONSE_STATUS_SUCCESS	0x0
 
 /* requested VDEV not found */
@@ -5383,7 +5383,7 @@ enum wmi_sta_ps_param_pspoll_count {
 #define WMI_UAPSD_AC_TYPE_TRIG 1
 
 #define WMI_UAPSD_AC_BIT_MASK(ac, type) \
-	((type ==  WMI_UAPSD_AC_TYPE_DELI) ? (1 << (ac << 1)) : (1 << ((ac << 1) + 1)))
+	(type == WMI_UAPSD_AC_TYPE_DELI ? 1 << (ac << 1) : 1 << ((ac << 1) + 1))
 
 enum wmi_sta_ps_param_uapsd {
 	WMI_STA_PS_UAPSD_AC0_DELIVERY_EN = (1 << 0),
