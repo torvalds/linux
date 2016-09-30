@@ -530,11 +530,12 @@ static void nd_region_notify_driver_action(struct nvdimm_bus *nvdimm_bus,
 		if (is_nd_pmem(dev))
 			return;
 	}
-	if (dev->parent && is_nd_blk(dev->parent) && probe) {
+	if (dev->parent && (is_nd_blk(dev->parent) || is_nd_pmem(dev->parent))
+			&& probe) {
 		nd_region = to_nd_region(dev->parent);
 		nvdimm_bus_lock(dev);
 		if (nd_region->ns_seed == dev)
-			nd_region_create_blk_seed(nd_region);
+			nd_region_create_ns_seed(nd_region);
 		nvdimm_bus_unlock(dev);
 	}
 	if (is_nd_btt(dev) && probe) {
@@ -544,23 +545,30 @@ static void nd_region_notify_driver_action(struct nvdimm_bus *nvdimm_bus,
 		nvdimm_bus_lock(dev);
 		if (nd_region->btt_seed == dev)
 			nd_region_create_btt_seed(nd_region);
-		if (nd_region->ns_seed == &nd_btt->ndns->dev &&
-				is_nd_blk(dev->parent))
-			nd_region_create_blk_seed(nd_region);
+		if (nd_region->ns_seed == &nd_btt->ndns->dev)
+			nd_region_create_ns_seed(nd_region);
 		nvdimm_bus_unlock(dev);
 	}
 	if (is_nd_pfn(dev) && probe) {
+		struct nd_pfn *nd_pfn = to_nd_pfn(dev);
+
 		nd_region = to_nd_region(dev->parent);
 		nvdimm_bus_lock(dev);
 		if (nd_region->pfn_seed == dev)
 			nd_region_create_pfn_seed(nd_region);
+		if (nd_region->ns_seed == &nd_pfn->ndns->dev)
+			nd_region_create_ns_seed(nd_region);
 		nvdimm_bus_unlock(dev);
 	}
 	if (is_nd_dax(dev) && probe) {
+		struct nd_dax *nd_dax = to_nd_dax(dev);
+
 		nd_region = to_nd_region(dev->parent);
 		nvdimm_bus_lock(dev);
 		if (nd_region->dax_seed == dev)
 			nd_region_create_dax_seed(nd_region);
+		if (nd_region->ns_seed == &nd_dax->nd_pfn.ndns->dev)
+			nd_region_create_ns_seed(nd_region);
 		nvdimm_bus_unlock(dev);
 	}
 }

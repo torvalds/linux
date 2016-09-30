@@ -1860,16 +1860,58 @@ static struct device *nd_namespace_blk_create(struct nd_region *nd_region)
 	return &nsblk->common.dev;
 }
 
-void nd_region_create_blk_seed(struct nd_region *nd_region)
+static struct device *nd_namespace_pmem_create(struct nd_region *nd_region)
+{
+	struct nd_namespace_pmem *nspm;
+	struct resource *res;
+	struct device *dev;
+
+	if (!is_nd_pmem(&nd_region->dev))
+		return NULL;
+
+	nspm = kzalloc(sizeof(*nspm), GFP_KERNEL);
+	if (!nspm)
+		return NULL;
+
+	dev = &nspm->nsio.common.dev;
+	dev->type = &namespace_pmem_device_type;
+	dev->parent = &nd_region->dev;
+	res = &nspm->nsio.res;
+	res->name = dev_name(&nd_region->dev);
+	res->flags = IORESOURCE_MEM;
+
+	nspm->id = ida_simple_get(&nd_region->ns_ida, 0, 0, GFP_KERNEL);
+	if (nspm->id < 0) {
+		kfree(nspm);
+		return NULL;
+	}
+	dev_set_name(dev, "namespace%d.%d", nd_region->id, nspm->id);
+	dev->parent = &nd_region->dev;
+	dev->groups = nd_namespace_attribute_groups;
+	nd_namespace_pmem_set_resource(nd_region, nspm, 0);
+
+	return dev;
+}
+
+void nd_region_create_ns_seed(struct nd_region *nd_region)
 {
 	WARN_ON(!is_nvdimm_bus_locked(&nd_region->dev));
-	nd_region->ns_seed = nd_namespace_blk_create(nd_region);
+
+	if (nd_region_to_nstype(nd_region) == ND_DEVICE_NAMESPACE_IO)
+		return;
+
+	if (is_nd_blk(&nd_region->dev))
+		nd_region->ns_seed = nd_namespace_blk_create(nd_region);
+	else
+		nd_region->ns_seed = nd_namespace_pmem_create(nd_region);
+
 	/*
 	 * Seed creation failures are not fatal, provisioning is simply
 	 * disabled until memory becomes available
 	 */
 	if (!nd_region->ns_seed)
-		dev_err(&nd_region->dev, "failed to create blk namespace\n");
+		dev_err(&nd_region->dev, "failed to create %s namespace\n",
+				is_nd_blk(&nd_region->dev) ? "blk" : "pmem");
 	else
 		nd_device_register(nd_region->ns_seed);
 }
