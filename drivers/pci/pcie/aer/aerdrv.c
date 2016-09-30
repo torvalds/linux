@@ -294,7 +294,6 @@ static void aer_remove(struct pcie_device *dev)
 /**
  * aer_probe - initialize resources
  * @dev: pointer to the pcie_dev data structure
- * @id: pointer to the service id data structure
  *
  * Invoked when PCI Express bus loads AER service driver.
  */
