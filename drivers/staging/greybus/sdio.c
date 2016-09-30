@@ -478,7 +478,7 @@ static int gb_sdio_command(struct gb_sdio_host *host, struct mmc_command *cmd)
 		goto out;
 
 	/* no response expected */
-	if (cmd_flags & GB_SDIO_RSP_NONE)
+	if (cmd_flags == GB_SDIO_RSP_NONE)
 		goto out;
 
 	/* long response expected */
