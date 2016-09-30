@@ -145,7 +145,6 @@ struct rxrpc_skb_priv {
 	};
 	union {
 		int		remain;		/* amount of space remaining for next write */
-		u32		error;		/* network error code */
 	};
 
 	struct rxrpc_host_header hdr;		/* RxRPC packet header from this packet */
