@@ -1,10 +1,10 @@
-TEST_PROGS := ptrace-gpr
+TEST_PROGS := ptrace-gpr ptrace-tm-gpr
 
 include ../../lib.mk
 
 all: $(TEST_PROGS)
 
-CFLAGS += -m64 -I../../../../../usr/include
+CFLAGS += -m64 -I../../../../../usr/include -I../tm -mhtm
 
 $(TEST_PROGS): ../harness.c ../utils.c ../lib/reg.S ptrace.h
 
