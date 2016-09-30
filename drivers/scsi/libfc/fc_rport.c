@@ -418,6 +418,12 @@ static int fc_rport_login(struct fc_rport_priv *rdata)
 {
 	mutex_lock(&rdata->rp_mutex);
 
+	if (rdata->flags & FC_RP_STARTED) {
+		FC_RPORT_DBG(rdata, "port already started\n");
+		mutex_unlock(&rdata->rp_mutex);
+		return 0;
+	}
+
 	rdata->flags |= FC_RP_STARTED;
 	switch (rdata->rp_state) {
 	case RPORT_ST_READY:
