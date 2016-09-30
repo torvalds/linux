@@ -1,4 +1,4 @@
-TEST_PROGS := ptrace-gpr ptrace-tm-gpr
+TEST_PROGS := ptrace-gpr ptrace-tm-gpr ptrace-tm-spd-gpr
 
 include ../../lib.mk
 
