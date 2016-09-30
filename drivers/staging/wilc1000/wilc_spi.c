@@ -544,7 +544,6 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 					}
 				}
 
-
 				ix += nbytes;
 				sz -= nbytes;
 			}
@@ -579,7 +578,6 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 
 				if (result == N_FAIL)
 					break;
-
 
 				/**
 				 * Read bytes
@@ -679,7 +677,6 @@ static int spi_data_write(struct wilc *wilc, u8 *b, u32 sz)
 		ix += nbytes;
 		sz -= nbytes;
 	} while (sz);
-
 
 	return result;
 }
@@ -843,7 +840,6 @@ static int wilc_spi_init(struct wilc *wilc, bool resume)
 	static int isinit;
 
 	if (isinit) {
-
 		if (!wilc_spi_read_reg(wilc, 0x1000, &chipid)) {
 			dev_err(&spi->dev, "Fail cmd read chip id...\n");
 			return 0;
@@ -882,7 +878,6 @@ static int wilc_spi_init(struct wilc *wilc, bool resume)
 		}
 		g_spi.crc_off = 1;
 	}
-
 
 	/**
 	 *      make sure can read back chip id correctly
@@ -924,13 +919,9 @@ static int wilc_spi_read_size(struct wilc *wilc, u32 *size)
 		*size = tmp;
 	}
 
-
-
 _fail_:
 	return ret;
 }
-
-
 
 static int wilc_spi_read_int(struct wilc *wilc, u32 *int_status)
 {
@@ -986,7 +977,6 @@ static int wilc_spi_read_int(struct wilc *wilc, u32 *int_status)
 		}
 
 		*int_status = tmp;
-
 	}
 
 _fail_:
