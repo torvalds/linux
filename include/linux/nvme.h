@@ -16,7 +16,6 @@
 #define _LINUX_NVME_H
 
 #include <linux/types.h>
-#include <linux/uuid.h>
 
 /* NQN names in commands fields specified one size */
 #define NVMF_NQN_FIELD_LEN	256
@@ -803,7 +802,7 @@ struct nvmf_connect_command {
 };
 
 struct nvmf_connect_data {
-	uuid_be		hostid;
+	__u8		hostid[16];
 	__le16		cntlid;
 	char		resv4[238];
 	char		subsysnqn[NVMF_NQN_FIELD_LEN];
