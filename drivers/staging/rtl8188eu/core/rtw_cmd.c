@@ -85,7 +85,7 @@ static int rtw_cmd_filter(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
 	/* To decide allow or not */
 	if ((pcmdpriv->padapter->pwrctrlpriv.bHWPwrPindetect) &&
 	    (!pcmdpriv->padapter->registrypriv.usbss_enable)) {
-		if (cmd_obj->cmdcode == GEN_CMD_CODE(_Set_Drv_Extra)) {
+		if (cmd_obj->cmdcode == _Set_Drv_Extra_CMD_) {
 			struct drvextra_cmd_parm	*pdrvextra_cmd_parm = (struct drvextra_cmd_parm	*)cmd_obj->parmbuf;
 
 			if (pdrvextra_cmd_parm->ec_id == POWER_SAVING_CTRL_WK_CID)
@@ -93,7 +93,7 @@ static int rtw_cmd_filter(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
 		}
 	}
 
-	if (cmd_obj->cmdcode == GEN_CMD_CODE(_SetChannelPlan))
+	if (cmd_obj->cmdcode == _SetChannelPlan_CMD_)
 		bAllow = true;
 
 	if ((!pcmdpriv->padapter->hw_init_completed && !bAllow) ||
@@ -271,7 +271,7 @@ u8 rtw_sitesurvey_cmd(struct adapter  *padapter, struct ndis_802_11_ssid *ssid, 
 
 	RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_, ("%s: flush network queue\n", __func__));
 
-	init_h2fwcmd_w_parm_no_rsp(ph2c, psurveyPara, GEN_CMD_CODE(_SiteSurvey));
+	init_h2fwcmd_w_parm_no_rsp(ph2c, psurveyPara, _SiteSurvey_CMD_);
 
 	/* psurveyPara->bsslimit = 48; */
 	psurveyPara->scan_mode = pmlmepriv->scan_mode;
@@ -489,7 +489,7 @@ u8 rtw_joinbss_cmd(struct adapter  *padapter, struct wlan_network *pnetwork)
 	pcmd->cmdsz = get_wlan_bssid_ex_sz(psecnetwork);/* get cmdsz before endian conversion */
 
 	INIT_LIST_HEAD(&pcmd->list);
-	pcmd->cmdcode = _JoinBss_CMD_;/* GEN_CMD_CODE(_JoinBss) */
+	pcmd->cmdcode = _JoinBss_CMD_;
 	pcmd->parmbuf = (unsigned char *)psecnetwork;
 	pcmd->rsp = NULL;
 	pcmd->rspsz = 0;
@@ -684,7 +684,7 @@ u8 rtw_addbareq_cmd(struct adapter *padapter, u8 tid, u8 *addr)
 	paddbareq_parm->tid = tid;
 	memcpy(paddbareq_parm->addr, addr, ETH_ALEN);
 
-	init_h2fwcmd_w_parm_no_rsp(ph2c, paddbareq_parm, GEN_CMD_CODE(_AddBAReq));
+	init_h2fwcmd_w_parm_no_rsp(ph2c, paddbareq_parm, _AddBAReq_CMD_);
 
 	/* DBG_88E("rtw_addbareq_cmd, tid =%d\n", tid); */
 
@@ -722,7 +722,7 @@ u8 rtw_dynamic_chk_wk_cmd(struct adapter *padapter)
 	pdrvextra_cmd_parm->type_size = 0;
 	pdrvextra_cmd_parm->pbuf = (u8 *)padapter;
 
-	init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, GEN_CMD_CODE(_Set_Drv_Extra));
+	init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, _Set_Drv_Extra_CMD_);
 
 
 	/* rtw_enqueue_cmd(pcmdpriv, ph2c); */
@@ -765,7 +765,7 @@ u8 rtw_set_chplan_cmd(struct adapter *padapter, u8 chplan, u8 enqueue)
 			goto exit;
 		}
 
-		init_h2fwcmd_w_parm_no_rsp(pcmdobj, setChannelPlan_param, GEN_CMD_CODE(_SetChannelPlan));
+		init_h2fwcmd_w_parm_no_rsp(pcmdobj, setChannelPlan_param, _SetChannelPlan_CMD_);
 		res = rtw_enqueue_cmd(pcmdpriv, pcmdobj);
 	} else {
 		/* no need to enqueue, do the cmd hdl directly and free cmd parameter */
@@ -934,7 +934,7 @@ u8 rtw_lps_ctrl_wk_cmd(struct adapter *padapter, u8 lps_ctrl_type, u8 enqueue)
 		pdrvextra_cmd_parm->type_size = lps_ctrl_type;
 		pdrvextra_cmd_parm->pbuf = NULL;
 
-		init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, GEN_CMD_CODE(_Set_Drv_Extra));
+		init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, _Set_Drv_Extra_CMD_);
 
 		res = rtw_enqueue_cmd(pcmdpriv, ph2c);
 	} else {
@@ -976,7 +976,7 @@ u8 rtw_rpt_timer_cfg_cmd(struct adapter *padapter, u16 min_time)
 	pdrvextra_cmd_parm->ec_id = RTP_TIMER_CFG_WK_CID;
 	pdrvextra_cmd_parm->type_size = min_time;
 	pdrvextra_cmd_parm->pbuf = NULL;
-	init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, GEN_CMD_CODE(_Set_Drv_Extra));
+	init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, _Set_Drv_Extra_CMD_);
 	res = rtw_enqueue_cmd(pcmdpriv, ph2c);
 exit:
 
@@ -1018,7 +1018,7 @@ u8 rtw_antenna_select_cmd(struct adapter *padapter, u8 antenna, u8 enqueue)
 		pdrvextra_cmd_parm->ec_id = ANT_SELECT_WK_CID;
 		pdrvextra_cmd_parm->type_size = antenna;
 		pdrvextra_cmd_parm->pbuf = NULL;
-		init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, GEN_CMD_CODE(_Set_Drv_Extra));
+		init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, _Set_Drv_Extra_CMD_);
 
 		res = rtw_enqueue_cmd(pcmdpriv, ph2c);
 	} else {
@@ -1046,7 +1046,7 @@ u8 rtw_ps_cmd(struct adapter *padapter)
 
 	pdrvextra_cmd_parm->ec_id = POWER_SAVING_CTRL_WK_CID;
 	pdrvextra_cmd_parm->pbuf = NULL;
-	init_h2fwcmd_w_parm_no_rsp(ppscmd, pdrvextra_cmd_parm, GEN_CMD_CODE(_Set_Drv_Extra));
+	init_h2fwcmd_w_parm_no_rsp(ppscmd, pdrvextra_cmd_parm, _Set_Drv_Extra_CMD_);
 
 	return rtw_enqueue_cmd(pcmdpriv, ppscmd);
 }
@@ -1117,7 +1117,7 @@ u8 rtw_chk_hi_queue_cmd(struct adapter *padapter)
 	pdrvextra_cmd_parm->type_size = 0;
 	pdrvextra_cmd_parm->pbuf = NULL;
 
-	init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, GEN_CMD_CODE(_Set_Drv_Extra));
+	init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, _Set_Drv_Extra_CMD_);
 
 	res = rtw_enqueue_cmd(pcmdpriv, ph2c);
 exit:

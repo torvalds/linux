@@ -4240,7 +4240,7 @@ void report_survey_event(struct adapter *padapter,
 
 	INIT_LIST_HEAD(&pcmd_obj->list);
 
-	pcmd_obj->cmdcode = GEN_CMD_CODE(_Set_MLME_EVT);
+	pcmd_obj->cmdcode = _Set_MLME_EVT_CMD_;
 	pcmd_obj->cmdsz = cmdsz;
 	pcmd_obj->parmbuf = pevtcmd;
 
@@ -4290,7 +4290,7 @@ void report_surveydone_event(struct adapter *padapter)
 
 	INIT_LIST_HEAD(&pcmd_obj->list);
 
-	pcmd_obj->cmdcode = GEN_CMD_CODE(_Set_MLME_EVT);
+	pcmd_obj->cmdcode = _Set_MLME_EVT_CMD_;
 	pcmd_obj->cmdsz = cmdsz;
 	pcmd_obj->parmbuf = pevtcmd;
 
@@ -4334,7 +4334,7 @@ void report_join_res(struct adapter *padapter, int res)
 
 	INIT_LIST_HEAD(&pcmd_obj->list);
 
-	pcmd_obj->cmdcode = GEN_CMD_CODE(_Set_MLME_EVT);
+	pcmd_obj->cmdcode = _Set_MLME_EVT_CMD_;
 	pcmd_obj->cmdsz = cmdsz;
 	pcmd_obj->parmbuf = pevtcmd;
 
@@ -4385,7 +4385,7 @@ void report_del_sta_event(struct adapter *padapter, unsigned char *MacAddr, unsi
 
 	INIT_LIST_HEAD(&pcmd_obj->list);
 
-	pcmd_obj->cmdcode = GEN_CMD_CODE(_Set_MLME_EVT);
+	pcmd_obj->cmdcode = _Set_MLME_EVT_CMD_;
 	pcmd_obj->cmdsz = cmdsz;
 	pcmd_obj->parmbuf = pevtcmd;
 
@@ -4438,7 +4438,7 @@ void report_add_sta_event(struct adapter *padapter, unsigned char *MacAddr, int 
 
 	INIT_LIST_HEAD(&pcmd_obj->list);
 
-	pcmd_obj->cmdcode = GEN_CMD_CODE(_Set_MLME_EVT);
+	pcmd_obj->cmdcode = _Set_MLME_EVT_CMD_;
 	pcmd_obj->cmdsz = cmdsz;
 	pcmd_obj->parmbuf = pevtcmd;
 
@@ -4849,7 +4849,7 @@ void survey_timer_hdl(unsigned long data)
 			goto exit_survey_timer_hdl;
 		}
 
-		init_h2fwcmd_w_parm_no_rsp(ph2c, psurveyPara, GEN_CMD_CODE(_SiteSurvey));
+		init_h2fwcmd_w_parm_no_rsp(ph2c, psurveyPara, _SiteSurvey_CMD_);
 		rtw_enqueue_cmd(pcmdpriv, ph2c);
 	}
 
@@ -5425,7 +5425,7 @@ u8 set_tx_beacon_cmd(struct adapter *padapter)
 				      pmlmeinfo->hidden_ssid_mode);
 	ptxBeacon_parm->IELength += len_diff;
 
-	init_h2fwcmd_w_parm_no_rsp(ph2c, ptxBeacon_parm, GEN_CMD_CODE(_TX_Beacon));
+	init_h2fwcmd_w_parm_no_rsp(ph2c, ptxBeacon_parm, _TX_Beacon_CMD_);
 
 	res = rtw_enqueue_cmd(pcmdpriv, ph2c);
 
