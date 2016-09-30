@@ -36,6 +36,7 @@ aspeed	ASPEED Technology Inc.
 atlas	Atlas Scientific LLC
 atmel	Atmel Corporation
 auo	AU Optronics Corporation
+auvidea Auvidea GmbH
 avago	Avago Technologies
 avic	Shanghai AVIC Optoelectronics Co., Ltd.
 axis	Axis Communications AB
