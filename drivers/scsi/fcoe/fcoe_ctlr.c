@@ -2145,9 +2145,15 @@ static void fcoe_ctlr_disc_stop_locked(struct fc_lport *lport)
 {
 	struct fc_rport_priv *rdata;
 
+	rcu_read_lock();
+	list_for_each_entry_rcu(rdata, &lport->disc.rports, peers) {
+		if (kref_get_unless_zero(&rdata->kref)) {
+			lport->tt.rport_logoff(rdata);
+			kref_put(&rdata->kref, lport->tt.rport_destroy);
+		}
+	}
+	rcu_read_unlock();
 	mutex_lock(&lport->disc.disc_mutex);
-	list_for_each_entry_rcu(rdata, &lport->disc.rports, peers)
-		lport->tt.rport_logoff(rdata);
 	lport->disc.disc_callback = NULL;
 	mutex_unlock(&lport->disc.disc_mutex);
 }
@@ -2472,17 +2478,22 @@ static void fcoe_ctlr_vn_add(struct fcoe_ctlr *fip, struct fc_rport_priv *new)
 		mutex_unlock(&lport->disc.disc_mutex);
 		return;
 	}
+	mutex_lock(&rdata->rp_mutex);
+	mutex_unlock(&lport->disc.disc_mutex);
 
 	rdata->ops = &fcoe_ctlr_vn_rport_ops;
 	rdata->disc_id = lport->disc.disc_id;
 
 	ids = &rdata->ids;
 	if ((ids->port_name != -1 && ids->port_name != new->ids.port_name) ||
-	    (ids->node_name != -1 && ids->node_name != new->ids.node_name))
+	    (ids->node_name != -1 && ids->node_name != new->ids.node_name)) {
+		mutex_unlock(&rdata->rp_mutex);
 		lport->tt.rport_logoff(rdata);
+		mutex_lock(&rdata->rp_mutex);
+	}
 	ids->port_name = new->ids.port_name;
 	ids->node_name = new->ids.node_name;
-	mutex_unlock(&lport->disc.disc_mutex);
+	mutex_unlock(&rdata->rp_mutex);
 
 	frport = fcoe_ctlr_rport(rdata);
 	LIBFCOE_FIP_DBG(fip, "vn_add rport %6.6x %s\n",
@@ -2638,11 +2649,15 @@ static unsigned long fcoe_ctlr_vn_age(struct fcoe_ctlr *fip)
 	unsigned long deadline;
 
 	next_time = jiffies + msecs_to_jiffies(FIP_VN_BEACON_INT * 10);
-	mutex_lock(&lport->disc.disc_mutex);
+	rcu_read_lock();
 	list_for_each_entry_rcu(rdata, &lport->disc.rports, peers) {
-		frport = fcoe_ctlr_rport(rdata);
-		if (!frport->time)
+		if (!kref_get_unless_zero(&rdata->kref))
 			continue;
+		frport = fcoe_ctlr_rport(rdata);
+		if (!frport->time) {
+			kref_put(&rdata->kref, lport->tt.rport_destroy);
+			continue;
+		}
 		deadline = frport->time +
 			   msecs_to_jiffies(FIP_VN_BEACON_INT * 25 / 10);
 		if (time_after_eq(jiffies, deadline)) {
@@ -2653,8 +2668,9 @@ static unsigned long fcoe_ctlr_vn_age(struct fcoe_ctlr *fip)
 			lport->tt.rport_logoff(rdata);
 		} else if (time_before(deadline, next_time))
 			next_time = deadline;
+		kref_put(&rdata->kref, lport->tt.rport_destroy);
 	}
-	mutex_unlock(&lport->disc.disc_mutex);
+	rcu_read_unlock();
 	return next_time;
 }
 
@@ -2991,12 +3007,17 @@ static void fcoe_ctlr_vn_disc(struct fcoe_ctlr *fip)
 	mutex_lock(&disc->disc_mutex);
 	callback = disc->pending ? disc->disc_callback : NULL;
 	disc->pending = 0;
+	mutex_unlock(&disc->disc_mutex);
+	rcu_read_lock();
 	list_for_each_entry_rcu(rdata, &disc->rports, peers) {
+		if (!kref_get_unless_zero(&rdata->kref))
+			continue;
 		frport = fcoe_ctlr_rport(rdata);
 		if (frport->time)
 			lport->tt.rport_login(rdata);
+		kref_put(&rdata->kref, lport->tt.rport_destroy);
 	}
-	mutex_unlock(&disc->disc_mutex);
+	rcu_read_unlock();
 	if (callback)
 		callback(lport, DISC_EV_SUCCESS);
 }

@@ -237,16 +237,19 @@ static const char *fc_lport_state(struct fc_lport *lport)
  * @remote_fid:	 The FID of the ptp rport
  * @remote_wwpn: The WWPN of the ptp rport
  * @remote_wwnn: The WWNN of the ptp rport
+ *
+ * Locking Note: The lport lock is expected to be held before calling
+ * this routine.
  */
 static void fc_lport_ptp_setup(struct fc_lport *lport,
 			       u32 remote_fid, u64 remote_wwpn,
 			       u64 remote_wwnn)
 {
-	mutex_lock(&lport->disc.disc_mutex);
 	if (lport->ptp_rdata) {
 		lport->tt.rport_logoff(lport->ptp_rdata);
 		kref_put(&lport->ptp_rdata->kref, lport->tt.rport_destroy);
 	}
+	mutex_lock(&lport->disc.disc_mutex);
 	lport->ptp_rdata = lport->tt.rport_create(lport, remote_fid);
 	kref_get(&lport->ptp_rdata->kref);
 	lport->ptp_rdata->ids.port_name = remote_wwpn;
@@ -1007,8 +1010,10 @@ EXPORT_SYMBOL(fc_lport_reset);
  */
 static void fc_lport_reset_locked(struct fc_lport *lport)
 {
-	if (lport->dns_rdata)
+	if (lport->dns_rdata) {
 		lport->tt.rport_logoff(lport->dns_rdata);
+		lport->dns_rdata = NULL;
+	}
 
 	if (lport->ptp_rdata) {
 		lport->tt.rport_logoff(lport->ptp_rdata);

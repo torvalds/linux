@@ -68,10 +68,14 @@ static void fc_disc_stop_rports(struct fc_disc *disc)
 
 	lport = fc_disc_lport(disc);
 
-	mutex_lock(&disc->disc_mutex);
-	list_for_each_entry_rcu(rdata, &disc->rports, peers)
-		lport->tt.rport_logoff(rdata);
-	mutex_unlock(&disc->disc_mutex);
+	rcu_read_lock();
+	list_for_each_entry_rcu(rdata, &disc->rports, peers) {
+		if (kref_get_unless_zero(&rdata->kref)) {
+			lport->tt.rport_logoff(rdata);
+			kref_put(&rdata->kref, lport->tt.rport_destroy);
+		}
+	}
+	rcu_read_unlock();
 }
 
 /**
@@ -289,15 +293,19 @@ static void fc_disc_done(struct fc_disc *disc, enum fc_disc_event event)
 	 * Skip ports which were never discovered.  These are the dNS port
 	 * and ports which were created by PLOGI.
 	 */
+	rcu_read_lock();
 	list_for_each_entry_rcu(rdata, &disc->rports, peers) {
-		if (!rdata->disc_id)
+		if (!kref_get_unless_zero(&rdata->kref))
 			continue;
-		if (rdata->disc_id == disc->disc_id)
-			lport->tt.rport_login(rdata);
-		else
-			lport->tt.rport_logoff(rdata);
+		if (rdata->disc_id) {
+			if (rdata->disc_id == disc->disc_id)
+				lport->tt.rport_login(rdata);
+			else
+				lport->tt.rport_logoff(rdata);
+		}
+		kref_put(&rdata->kref, lport->tt.rport_destroy);
 	}
-
+	rcu_read_unlock();
 	mutex_unlock(&disc->disc_mutex);
 	disc->disc_callback(lport, event);
 	mutex_lock(&disc->disc_mutex);
@@ -592,7 +600,6 @@ static void fc_disc_gpn_id_resp(struct fc_seq *sp, struct fc_frame *fp,
 	lport = rdata->local_port;
 	disc = &lport->disc;
 
-	mutex_lock(&disc->disc_mutex);
 	if (PTR_ERR(fp) == -FC_EX_CLOSED)
 		goto out;
 	if (IS_ERR(fp))
@@ -607,16 +614,19 @@ static void fc_disc_gpn_id_resp(struct fc_seq *sp, struct fc_frame *fp,
 			goto redisc;
 		pn = (struct fc_ns_gid_pn *)(cp + 1);
 		port_name = get_unaligned_be64(&pn->fn_wwpn);
+		mutex_lock(&rdata->rp_mutex);
 		if (rdata->ids.port_name == -1)
 			rdata->ids.port_name = port_name;
 		else if (rdata->ids.port_name != port_name) {
 			FC_DISC_DBG(disc, "GPN_ID accepted.  WWPN changed. "
 				    "Port-id %6.6x wwpn %16.16llx\n",
 				    rdata->ids.port_id, port_name);
+			mutex_unlock(&rdata->rp_mutex);
 			lport->tt.rport_logoff(rdata);
-
+			mutex_lock(&lport->disc.disc_mutex);
 			new_rdata = lport->tt.rport_create(lport,
 							   rdata->ids.port_id);
+			mutex_unlock(&lport->disc.disc_mutex);
 			if (new_rdata) {
 				new_rdata->disc_id = disc->disc_id;
 				lport->tt.rport_login(new_rdata);
@@ -624,6 +634,7 @@ static void fc_disc_gpn_id_resp(struct fc_seq *sp, struct fc_frame *fp,
 			goto out;
 		}
 		rdata->disc_id = disc->disc_id;
+		mutex_unlock(&rdata->rp_mutex);
 		lport->tt.rport_login(rdata);
 	} else if (ntohs(cp->ct_cmd) == FC_FS_RJT) {
 		FC_DISC_DBG(disc, "GPN_ID rejected reason %x exp %x\n",
@@ -633,10 +644,11 @@ static void fc_disc_gpn_id_resp(struct fc_seq *sp, struct fc_frame *fp,
 		FC_DISC_DBG(disc, "GPN_ID unexpected response code %x\n",
 			    ntohs(cp->ct_cmd));
 redisc:
+		mutex_lock(&disc->disc_mutex);
 		fc_disc_restart(disc);
+		mutex_unlock(&disc->disc_mutex);
 	}
 out:
-	mutex_unlock(&disc->disc_mutex);
 	kref_put(&rdata->kref, lport->tt.rport_destroy);
 }
 
