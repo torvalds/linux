@@ -1842,6 +1842,16 @@ out_commit:
 	ocfs2_commit_trans(osb, handle);
 
 out:
+	/*
+	 * The mmapped page won't be unlocked in ocfs2_free_write_ctxt(),
+	 * even in case of error here like ENOSPC and ENOMEM. So, we need
+	 * to unlock the target page manually to prevent deadlocks when
+	 * retrying again on ENOSPC, or when returning non-VM_FAULT_LOCKED
+	 * to VM code.
+	 */
+	if (wc->w_target_locked)
+		unlock_page(mmap_page);
+
 	ocfs2_free_write_ctxt(inode, wc);
 
 	if (data_ac) {
