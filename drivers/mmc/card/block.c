@@ -46,6 +46,7 @@
 #include <asm/uaccess.h>
 
 #include "queue.h"
+#include "block.h"
 
 MODULE_ALIAS("mmc:block");
 #ifdef MODULE_PARAM_PREFIX
