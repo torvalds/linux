@@ -952,9 +952,12 @@ static void fc_rport_plogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 	u16 cssp_seq;
 	u8 op;
 
-	mutex_lock(&rdata->rp_mutex);
-
 	FC_RPORT_DBG(rdata, "Received a PLOGI %s\n", fc_els_resp_type(fp));
+
+	if (fp == ERR_PTR(-FC_EX_CLOSED))
+		goto put;
+
+	mutex_lock(&rdata->rp_mutex);
 
 	if (rdata->rp_state != RPORT_ST_PLOGI) {
 		FC_RPORT_DBG(rdata, "Received a PLOGI response, but in state "
@@ -994,6 +997,7 @@ out:
 	fc_frame_free(fp);
 err:
 	mutex_unlock(&rdata->rp_mutex);
+put:
 	kref_put(&rdata->kref, lport->tt.rport_destroy);
 }
 
@@ -1079,9 +1083,12 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 	u8 op;
 	u8 resp_code = 0;
 
-	mutex_lock(&rdata->rp_mutex);
-
 	FC_RPORT_DBG(rdata, "Received a PRLI %s\n", fc_els_resp_type(fp));
+
+	if (fp == ERR_PTR(-FC_EX_CLOSED))
+		goto put;
+
+	mutex_lock(&rdata->rp_mutex);
 
 	if (rdata->rp_state != RPORT_ST_PRLI) {
 		FC_RPORT_DBG(rdata, "Received a PRLI response, but in state "
@@ -1150,6 +1157,7 @@ out:
 	fc_frame_free(fp);
 err:
 	mutex_unlock(&rdata->rp_mutex);
+put:
 	kref_put(&rdata->kref, rdata->local_port->tt.rport_destroy);
 }
 
@@ -1230,9 +1238,12 @@ static void fc_rport_rtv_resp(struct fc_seq *sp, struct fc_frame *fp,
 	struct fc_rport_priv *rdata = rdata_arg;
 	u8 op;
 
-	mutex_lock(&rdata->rp_mutex);
-
 	FC_RPORT_DBG(rdata, "Received a RTV %s\n", fc_els_resp_type(fp));
+
+	if (fp == ERR_PTR(-FC_EX_CLOSED))
+		goto put;
+
+	mutex_lock(&rdata->rp_mutex);
 
 	if (rdata->rp_state != RPORT_ST_RTV) {
 		FC_RPORT_DBG(rdata, "Received a RTV response, but in state "
@@ -1275,6 +1286,7 @@ out:
 	fc_frame_free(fp);
 err:
 	mutex_unlock(&rdata->rp_mutex);
+put:
 	kref_put(&rdata->kref, rdata->local_port->tt.rport_destroy);
 }
 
@@ -1374,9 +1386,12 @@ static void fc_rport_adisc_resp(struct fc_seq *sp, struct fc_frame *fp,
 	struct fc_els_adisc *adisc;
 	u8 op;
 
-	mutex_lock(&rdata->rp_mutex);
-
 	FC_RPORT_DBG(rdata, "Received a ADISC response\n");
+
+	if (fp == ERR_PTR(-FC_EX_CLOSED))
+		goto put;
+
+	mutex_lock(&rdata->rp_mutex);
 
 	if (rdata->rp_state != RPORT_ST_ADISC) {
 		FC_RPORT_DBG(rdata, "Received a ADISC resp but in state %s\n",
@@ -1412,6 +1427,7 @@ out:
 	fc_frame_free(fp);
 err:
 	mutex_unlock(&rdata->rp_mutex);
+put:
 	kref_put(&rdata->kref, rdata->local_port->tt.rport_destroy);
 }
 
