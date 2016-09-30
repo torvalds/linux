@@ -27,6 +27,9 @@
 #include "atom.h"
 #include "amdgpu_pll.h"
 #include "amdgpu_connectors.h"
+#ifdef CONFIG_DRM_AMDGPU_SI
+#include "dce_v6_0.h"
+#endif
 #ifdef CONFIG_DRM_AMDGPU_CIK
 #include "dce_v8_0.h"
 #endif
@@ -99,6 +102,14 @@ static void dce_virtual_stop_mc_access(struct amdgpu_device *adev,
 			      struct amdgpu_mode_mc_save *save)
 {
 	switch (adev->asic_type) {
+#ifdef CONFIG_DRM_AMDGPU_SI
+	case CHIP_TAHITI:
+	case CHIP_PITCAIRN:
+	case CHIP_VERDE:
+	case CHIP_OLAND:
+		dce_v6_0_disable_dce(adev);
+		break;
+#endif
 #ifdef CONFIG_DRM_AMDGPU_CIK
 	case CHIP_BONAIRE:
 	case CHIP_HAWAII:
@@ -119,6 +130,9 @@ static void dce_virtual_stop_mc_access(struct amdgpu_device *adev,
 		dce_v11_0_disable_dce(adev);
 		break;
 	case CHIP_TOPAZ:
+#ifdef CONFIG_DRM_AMDGPU_SI
+	case CHIP_HAINAN:
+#endif
 		/* no DCE */
 		return;
 	default:
