@@ -1,6 +1,8 @@
 #ifndef __SPI_CAVIUM_H
 #define __SPI_CAVIUM_H
 
+#include <linux/clk.h>
+
 #define OCTEON_SPI_MAX_BYTES 9
 #define OCTEON_SPI_MAX_CLOCK_HZ 16000000
 
@@ -17,6 +19,7 @@ struct octeon_spi {
 	u64 cs_enax;
 	int sys_freq;
 	struct octeon_spi_regs regs;
+	struct clk *clk;
 };
 
 #define OCTEON_SPI_CFG(x)	(x->regs.config)

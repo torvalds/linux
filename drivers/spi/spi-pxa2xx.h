@@ -53,9 +53,7 @@ struct driver_data {
 	atomic_t dma_running;
 
 	/* Current message transfer state info */
-	struct spi_message *cur_msg;
 	struct spi_transfer *cur_transfer;
-	struct chip_data *cur_chip;
 	size_t len;
 	void *tx;
 	void *tx_end;
@@ -68,6 +66,9 @@ struct driver_data {
 	void (*cs_control)(u32 command);
 
 	void __iomem *lpss_base;
+
+	/* GPIOs for chip selects */
+	struct gpio_desc **cs_gpiods;
 };
 
 struct chip_data {
