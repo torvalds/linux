@@ -57,6 +57,7 @@ u16 cpu_mask;
 static struct ti_clk_ll_ops omap_clk_ll_ops = {
 	.clkdm_clk_enable = clkdm_clk_enable,
 	.clkdm_clk_disable = clkdm_clk_disable,
+	.clkdm_lookup = clkdm_lookup,
 	.cm_wait_module_ready = omap_cm_wait_module_ready,
 	.cm_split_idlest_reg = cm_split_idlest_reg,
 };
