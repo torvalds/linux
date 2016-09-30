@@ -765,8 +765,10 @@ static void fc_rport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 		goto bad;
 
 	flogi = fc_frame_payload_get(fp, sizeof(*flogi));
-	if (!flogi)
+	if (!flogi) {
+		FC_RPORT_DBG(rdata, "Bad FLOGI response\n");
 		goto bad;
+	}
 	r_a_tov = ntohl(flogi->fl_csp.sp_r_a_tov);
 	if (r_a_tov > rdata->r_a_tov)
 		rdata->r_a_tov = r_a_tov;
@@ -783,7 +785,6 @@ put:
 	kref_put(&rdata->kref, lport->tt.rport_destroy);
 	return;
 bad:
-	FC_RPORT_DBG(rdata, "Bad FLOGI response\n");
 	fc_rport_error_retry(rdata, fp);
 	goto out;
 }
@@ -925,10 +926,17 @@ static void fc_rport_recv_flogi_req(struct fc_lport *lport,
 	fc_fill_reply_hdr(fp, rx_fp, FC_RCTL_ELS_REP, 0);
 	lport->tt.frame_send(lport, fp);
 
-	if (rdata->ids.port_name < lport->wwpn)
-		fc_rport_enter_plogi(rdata);
-	else
-		fc_rport_state_enter(rdata, RPORT_ST_PLOGI_WAIT);
+	/*
+	 * Do not proceed with the state machine if our
+	 * FLOGI has crossed with an FLOGI from the
+	 * remote port; wait for the FLOGI response instead.
+	 */
+	if (rdata->rp_state != RPORT_ST_FLOGI) {
+		if (rdata->ids.port_name < lport->wwpn)
+			fc_rport_enter_plogi(rdata);
+		else
+			fc_rport_state_enter(rdata, RPORT_ST_PLOGI_WAIT);
+	}
 out:
 	mutex_unlock(&rdata->rp_mutex);
 	kref_put(&rdata->kref, lport->tt.rport_destroy);
