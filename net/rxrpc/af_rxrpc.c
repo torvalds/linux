@@ -136,7 +136,8 @@ static int rxrpc_bind(struct socket *sock, struct sockaddr *saddr, int len)
 	struct sockaddr_rxrpc *srx = (struct sockaddr_rxrpc *)saddr;
 	struct sock *sk = sock->sk;
 	struct rxrpc_local *local;
-	struct rxrpc_sock *rx = rxrpc_sk(sk), *prx;
+	struct rxrpc_sock *rx = rxrpc_sk(sk);
+	u16 service_id = srx->srx_service;
 	int ret;
 
 	_enter("%p,%p,%d", rx, saddr, len);
@@ -160,15 +161,12 @@ static int rxrpc_bind(struct socket *sock, struct sockaddr *saddr, int len)
 		goto error_unlock;
 	}
 
-	if (rx->srx.srx_service) {
+	if (service_id) {
 		write_lock(&local->services_lock);
-		hlist_for_each_entry(prx, &local->services, listen_link) {
-			if (prx->srx.srx_service == rx->srx.srx_service)
-				goto service_in_use;
-		}
-
+		if (rcu_access_pointer(local->service))
+			goto service_in_use;
 		rx->local = local;
-		hlist_add_head_rcu(&rx->listen_link, &local->services);
+		rcu_assign_pointer(local->service, rx);
 		write_unlock(&local->services_lock);
 
 		rx->sk.sk_state = RXRPC_SERVER_BOUND;
@@ -599,7 +597,6 @@ static int rxrpc_create(struct net *net, struct socket *sock, int protocol,
 	rx->family = protocol;
 	rx->calls = RB_ROOT;
 
-	INIT_HLIST_NODE(&rx->listen_link);
 	spin_lock_init(&rx->incoming_lock);
 	INIT_LIST_HEAD(&rx->sock_calls);
 	INIT_LIST_HEAD(&rx->to_be_accepted);
@@ -681,11 +678,9 @@ static int rxrpc_release_sock(struct sock *sk)
 	sk->sk_state = RXRPC_CLOSE;
 	spin_unlock_bh(&sk->sk_receive_queue.lock);
 
-	ASSERTCMP(rx->listen_link.next, !=, LIST_POISON1);
-
-	if (!hlist_unhashed(&rx->listen_link)) {
+	if (rx->local && rx->local->service == rx) {
 		write_lock(&rx->local->services_lock);
-		hlist_del_rcu(&rx->listen_link);
+		rx->local->service = NULL;
 		write_unlock(&rx->local->services_lock);
 	}
 

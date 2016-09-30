@@ -238,7 +238,8 @@ out:
 /*
  * send a packet through the transport endpoint
  */
-int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb)
+int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
+			   bool retrans)
 {
 	struct rxrpc_connection *conn = call->conn;
 	struct rxrpc_wire_header whdr;
@@ -247,6 +248,7 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb)
 	struct kvec iov[2];
 	rxrpc_serial_t serial;
 	size_t len;
+	bool lost = false;
 	int ret, opt;
 
 	_enter(",{%d}", skb->len);
@@ -281,7 +283,8 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb)
 	/* If our RTT cache needs working on, request an ACK.  Also request
 	 * ACKs if a DATA packet appears to have been lost.
 	 */
-	if (call->cong_mode == RXRPC_CALL_FAST_RETRANSMIT ||
+	if (retrans ||
+	    call->cong_mode == RXRPC_CALL_SLOW_START ||
 	    (call->peer->rtt_usage < 3 && sp->hdr.seq & 1) ||
 	    ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000),
 			 ktime_get_real()))
@@ -290,11 +293,9 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb)
 	if (IS_ENABLED(CONFIG_AF_RXRPC_INJECT_LOSS)) {
 		static int lose;
 		if ((lose++ & 7) == 7) {
-			trace_rxrpc_tx_data(call, sp->hdr.seq, serial,
-					    whdr.flags, true);
-			rxrpc_lose_skb(skb, rxrpc_skb_tx_lost);
-			_leave(" = 0 [lose]");
-			return 0;
+			ret = 0;
+			lost = true;
+			goto done;
 		}
 	}
 
@@ -319,7 +320,8 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb)
 		goto send_fragmentable;
 
 done:
-	trace_rxrpc_tx_data(call, sp->hdr.seq, serial, whdr.flags, false);
+	trace_rxrpc_tx_data(call, sp->hdr.seq, serial, whdr.flags,
+			    retrans, lost);
 	if (ret >= 0) {
 		ktime_t now = ktime_get_real();
 		skb->tstamp = now;

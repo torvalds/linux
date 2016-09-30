@@ -331,14 +331,14 @@ struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct rxrpc_sock *rx;
 	struct rxrpc_call *call;
+	u16 service_id = sp->hdr.serviceId;
 
 	_enter("");
 
 	/* Get the socket providing the service */
-	hlist_for_each_entry_rcu_bh(rx, &local->services, listen_link) {
-		if (rx->srx.srx_service == sp->hdr.serviceId)
-			goto found_service;
-	}
+	rx = rcu_dereference(local->service);
+	if (service_id == rx->srx.srx_service)
+		goto found_service;
 
 	trace_rxrpc_abort("INV", sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
 			  RX_INVALID_OPERATION, EOPNOTSUPP);

@@ -144,7 +144,7 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	if (seq == 1 && rxrpc_is_client_call(call))
 		rxrpc_expose_client_call(call);
 
-	ret = rxrpc_send_data_packet(call, skb);
+	ret = rxrpc_send_data_packet(call, skb, false);
 	if (ret < 0) {
 		_debug("need instant resend %d", ret);
 		rxrpc_instant_resend(call, ix);

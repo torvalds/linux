@@ -200,7 +200,7 @@ rxrpc_alloc_client_connection(struct rxrpc_conn_parameters *cp, gfp_t gfp)
 	}
 
 	atomic_set(&conn->usage, 1);
-	if (conn->params.exclusive)
+	if (cp->exclusive)
 		__set_bit(RXRPC_CONN_DONT_REUSE, &conn->flags);
 
 	conn->params		= *cp;
@@ -576,28 +576,42 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 }
 
 /*
+ * Assign channels and callNumbers to waiting calls with channel_lock
+ * held by caller.
+ */
+static void rxrpc_activate_channels_locked(struct rxrpc_connection *conn)
+{
+	u8 avail, mask;
+
+	switch (conn->cache_state) {
+	case RXRPC_CONN_CLIENT_ACTIVE:
+		mask = RXRPC_ACTIVE_CHANS_MASK;
+		break;
+	default:
+		return;
+	}
+
+	while (!list_empty(&conn->waiting_calls) &&
+	       (avail = ~conn->active_chans,
+		avail &= mask,
+		avail != 0))
+		rxrpc_activate_one_channel(conn, __ffs(avail));
+}
+
+/*
  * Assign channels and callNumbers to waiting calls.
  */
 static void rxrpc_activate_channels(struct rxrpc_connection *conn)
 {
-	unsigned char mask;
-
 	_enter("%d", conn->debug_id);
 
 	trace_rxrpc_client(conn, -1, rxrpc_client_activate_chans);
 
-	if (conn->cache_state != RXRPC_CONN_CLIENT_ACTIVE ||
-	    conn->active_chans == RXRPC_ACTIVE_CHANS_MASK)
+	if (conn->active_chans == RXRPC_ACTIVE_CHANS_MASK)
 		return;
 
 	spin_lock(&conn->channel_lock);
-
-	while (!list_empty(&conn->waiting_calls) &&
-	       (mask = ~conn->active_chans,
-		mask &= RXRPC_ACTIVE_CHANS_MASK,
-		mask != 0))
-		rxrpc_activate_one_channel(conn, __ffs(mask));
-
+	rxrpc_activate_channels_locked(conn);
 	spin_unlock(&conn->channel_lock);
 	_leave("");
 }
