@@ -978,6 +978,10 @@ static u32 i40e_get_msglevel(struct net_device *netdev)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_pf *pf = np->vsi->back;
+	u32 debug_mask = pf->hw.debug_mask;
+
+	if (debug_mask)
+		netdev_info(netdev, "i40e debug_mask: 0x%08X\n", debug_mask);
 
 	return pf->msg_enable;
 }
@@ -989,7 +993,8 @@ static void i40e_set_msglevel(struct net_device *netdev, u32 data)
 
 	if (I40E_DEBUG_USER & data)
 		pf->hw.debug_mask = data;
-	pf->msg_enable = data;
+	else
+		pf->msg_enable = data;
 }
 
 static int i40e_get_regs_len(struct net_device *netdev)
