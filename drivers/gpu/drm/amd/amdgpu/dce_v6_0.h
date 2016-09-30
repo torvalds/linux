@@ -26,4 +26,6 @@
 
 extern const struct amd_ip_funcs dce_v6_0_ip_funcs;
 
+void dce_v6_0_disable_dce(struct amdgpu_device *adev);
+
 #endif
