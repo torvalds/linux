@@ -81,7 +81,7 @@ static int sctp_snmp_seq_show(struct seq_file *seq, void *v)
 
 	snmp_get_cpu_field_batch(buff, sctp_snmp_list,
 				 net->sctp.sctp_statistics);
-	for (i = 0; sctp_snmp_list[i].name != NULL; i++)
+	for (i = 0; sctp_snmp_list[i].name; i++)
 		seq_printf(seq, "%-32s\t%ld\n", sctp_snmp_list[i].name,
 						buff[i]);
 
