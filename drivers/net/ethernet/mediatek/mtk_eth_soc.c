@@ -2038,8 +2038,8 @@ static int mtk_cleanup(struct mtk_eth *eth)
 	return 0;
 }
 
-int mtk_get_link_ksettings(struct net_device *ndev,
-			   struct ethtool_link_ksettings *cmd)
+static int mtk_get_link_ksettings(struct net_device *ndev,
+				  struct ethtool_link_ksettings *cmd)
 {
 	struct mtk_mac *mac = netdev_priv(ndev);
 
@@ -2049,8 +2049,8 @@ int mtk_get_link_ksettings(struct net_device *ndev,
 	return phy_ethtool_ksettings_get(ndev->phydev, cmd);
 }
 
-int mtk_set_link_ksettings(struct net_device *ndev,
-			   const struct ethtool_link_ksettings *cmd)
+static int mtk_set_link_ksettings(struct net_device *ndev,
+				  const struct ethtool_link_ksettings *cmd)
 {
 	struct mtk_mac *mac = netdev_priv(ndev);
 
