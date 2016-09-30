@@ -277,11 +277,9 @@ static void dcb_tx_queue_prio_enable(struct net_device *dev, int enable)
 			txq->dcb_prio = value;
 	}
 }
-#endif /* CONFIG_CHELSIO_T4_DCB */
 
 static int cxgb4_dcb_enabled(const struct net_device *dev)
 {
-#ifdef CONFIG_CHELSIO_T4_DCB
 	struct port_info *pi = netdev_priv(dev);
 
 	if (!pi->dcb.enabled)
@@ -289,11 +287,8 @@ static int cxgb4_dcb_enabled(const struct net_device *dev)
 
 	return ((pi->dcb.state == CXGB4_DCB_STATE_FW_ALLSYNCED) ||
 		(pi->dcb.state == CXGB4_DCB_STATE_HOST));
-#else
-	return 0;
-#endif
 }
-EXPORT_SYMBOL(cxgb4_dcb_enabled);
+#endif /* CONFIG_CHELSIO_T4_DCB */
 
 void t4_os_link_changed(struct adapter *adapter, int port_id, int link_stat)
 {
