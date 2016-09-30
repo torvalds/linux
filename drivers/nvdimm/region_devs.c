@@ -38,7 +38,7 @@ static int nvdimm_map_flush(struct device *dev, struct nvdimm *nvdimm, int dimm,
 
 	dev_dbg(dev, "%s: map %d flush address%s\n", nvdimm_name(nvdimm),
 			nvdimm->num_flush, nvdimm->num_flush == 1 ? "" : "es");
-	for (i = 0; i < nvdimm->num_flush; i++) {
+	for (i = 0; i < (1 << ndrd->hints_shift); i++) {
 		struct resource *res = &nvdimm->flush_wpq[i];
 		unsigned long pfn = PHYS_PFN(res->start);
 		void __iomem *flush_page;
@@ -54,14 +54,15 @@ static int nvdimm_map_flush(struct device *dev, struct nvdimm *nvdimm, int dimm,
 
 		if (j < i)
 			flush_page = (void __iomem *) ((unsigned long)
-					ndrd->flush_wpq[dimm][j] & PAGE_MASK);
+					ndrd_get_flush_wpq(ndrd, dimm, j)
+					& PAGE_MASK);
 		else
 			flush_page = devm_nvdimm_ioremap(dev,
-					PHYS_PFN(pfn), PAGE_SIZE);
+					PFN_PHYS(pfn), PAGE_SIZE);
 		if (!flush_page)
 			return -ENXIO;
-		ndrd->flush_wpq[dimm][i] = flush_page
-			+ (res->start & ~PAGE_MASK);
+		ndrd_set_flush_wpq(ndrd, dimm, i, flush_page
+				+ (res->start & ~PAGE_MASK));
 	}
 
 	return 0;
@@ -93,7 +94,10 @@ int nd_region_activate(struct nd_region *nd_region)
 		return -ENOMEM;
 	dev_set_drvdata(dev, ndrd);
 
-	ndrd->flush_mask = (1 << ilog2(num_flush)) - 1;
+	if (!num_flush)
+		return 0;
+
+	ndrd->hints_shift = ilog2(num_flush);
 	for (i = 0; i < nd_region->ndr_mappings; i++) {
 		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
 		struct nvdimm *nvdimm = nd_mapping->nvdimm;
@@ -900,8 +904,8 @@ void nvdimm_flush(struct nd_region *nd_region)
 	 */
 	wmb();
 	for (i = 0; i < nd_region->ndr_mappings; i++)
-		if (ndrd->flush_wpq[i][0])
-			writeq(1, ndrd->flush_wpq[i][idx & ndrd->flush_mask]);
+		if (ndrd_get_flush_wpq(ndrd, i, 0))
+			writeq(1, ndrd_get_flush_wpq(ndrd, i, idx));
 	wmb();
 }
 EXPORT_SYMBOL_GPL(nvdimm_flush);
@@ -925,7 +929,7 @@ int nvdimm_has_flush(struct nd_region *nd_region)
 
 	for (i = 0; i < nd_region->ndr_mappings; i++)
 		/* flush hints present, flushing required */
-		if (ndrd->flush_wpq[i][0])
+		if (ndrd_get_flush_wpq(ndrd, i, 0))
 			return 1;
 
 	/*
