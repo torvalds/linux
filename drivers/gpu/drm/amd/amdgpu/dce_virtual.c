@@ -335,6 +335,7 @@ static int dce_virtual_crtc_init(struct amdgpu_device *adev, int index)
 	amdgpu_crtc->pll_id = ATOM_PPLL_INVALID;
 	amdgpu_crtc->encoder = NULL;
 	amdgpu_crtc->connector = NULL;
+	amdgpu_crtc->vsync_timer_enabled = AMDGPU_IRQ_STATE_DISABLE;
 	drm_crtc_helper_add(&amdgpu_crtc->base, &dce_virtual_crtc_helper_funcs);
 
 	return 0;
@@ -344,11 +345,9 @@ static int dce_virtual_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	adev->mode_info.vsync_timer_enabled = AMDGPU_IRQ_STATE_DISABLE;
 	dce_virtual_set_display_funcs(adev);
 	dce_virtual_set_irq_funcs(adev);
 
-	adev->mode_info.num_crtc = 1;
 	adev->mode_info.num_hpd = 1;
 	adev->mode_info.num_dig = 1;
 	return 0;
@@ -756,14 +755,13 @@ static int dce_virtual_pageflip(struct amdgpu_device *adev,
 
 static enum hrtimer_restart dce_virtual_vblank_timer_handle(struct hrtimer *vblank_timer)
 {
-	struct amdgpu_mode_info *mode_info =
-		container_of(vblank_timer, struct amdgpu_mode_info , vblank_timer);
-	struct amdgpu_device *adev =
-		container_of(mode_info, struct amdgpu_device , mode_info);
-	unsigned crtc = 0;
+	struct amdgpu_crtc *amdgpu_crtc = container_of(vblank_timer,
+						       struct amdgpu_crtc, vblank_timer);
+	struct drm_device *ddev = amdgpu_crtc->base.dev;
+	struct amdgpu_device *adev = ddev->dev_private;
 
-	drm_handle_vblank(adev->ddev, crtc);
-	dce_virtual_pageflip(adev, crtc);
+	drm_handle_vblank(ddev, amdgpu_crtc->crtc_id);
+	dce_virtual_pageflip(adev, amdgpu_crtc->crtc_id);
 	hrtimer_start(vblank_timer, ktime_set(0, DCE_VIRTUAL_VBLANK_PERIOD),
 		      HRTIMER_MODE_REL);
 
@@ -779,18 +777,22 @@ static void dce_virtual_set_crtc_vblank_interrupt_state(struct amdgpu_device *ad
 		return;
 	}
 
-	if (state && !adev->mode_info.vsync_timer_enabled) {
+	if (state && !adev->mode_info.crtcs[crtc]->vsync_timer_enabled) {
 		DRM_DEBUG("Enable software vsync timer\n");
-		hrtimer_init(&adev->mode_info.vblank_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-		hrtimer_set_expires(&adev->mode_info.vblank_timer, ktime_set(0, DCE_VIRTUAL_VBLANK_PERIOD));
-		adev->mode_info.vblank_timer.function = dce_virtual_vblank_timer_handle;
-		hrtimer_start(&adev->mode_info.vblank_timer, ktime_set(0, DCE_VIRTUAL_VBLANK_PERIOD), HRTIMER_MODE_REL);
-	} else if (!state && adev->mode_info.vsync_timer_enabled) {
+		hrtimer_init(&adev->mode_info.crtcs[crtc]->vblank_timer,
+			     CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		hrtimer_set_expires(&adev->mode_info.crtcs[crtc]->vblank_timer,
+				    ktime_set(0, DCE_VIRTUAL_VBLANK_PERIOD));
+		adev->mode_info.crtcs[crtc]->vblank_timer.function =
+			dce_virtual_vblank_timer_handle;
+		hrtimer_start(&adev->mode_info.crtcs[crtc]->vblank_timer,
+			      ktime_set(0, DCE_VIRTUAL_VBLANK_PERIOD), HRTIMER_MODE_REL);
+	} else if (!state && adev->mode_info.crtcs[crtc]->vsync_timer_enabled) {
 		DRM_DEBUG("Disable software vsync timer\n");
-		hrtimer_cancel(&adev->mode_info.vblank_timer);
+		hrtimer_cancel(&adev->mode_info.crtcs[crtc]->vblank_timer);
 	}
 
-	adev->mode_info.vsync_timer_enabled = state;
+	adev->mode_info.crtcs[crtc]->vsync_timer_enabled = state;
 	DRM_DEBUG("[FM]set crtc %d vblank interrupt state %d\n", crtc, state);
 }
 
@@ -800,13 +802,11 @@ static int dce_virtual_set_crtc_irq_state(struct amdgpu_device *adev,
 					  unsigned type,
 					  enum amdgpu_interrupt_state state)
 {
-	switch (type) {
-	case AMDGPU_CRTC_IRQ_VBLANK1:
-		dce_virtual_set_crtc_vblank_interrupt_state(adev, 0, state);
-		break;
-	default:
-		break;
-	}
+	if (type > AMDGPU_CRTC_IRQ_VBLANK6)
+		return -EINVAL;
+
+	dce_virtual_set_crtc_vblank_interrupt_state(adev, type, state);
+
 	return 0;
 }
 
