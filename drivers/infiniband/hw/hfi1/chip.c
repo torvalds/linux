@@ -14566,6 +14566,11 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	if (ret)
 		goto bail_cleanup;
 
+	/* call before get_platform_config(), after init_chip_resources() */
+	ret = eprom_init(dd);
+	if (ret)
+		goto bail_free_rcverr;
+
 	/* Needs to be called before hfi1_firmware_init */
 	get_platform_config(dd);
 
@@ -14685,10 +14690,6 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	ret = init_rcverr(dd);
 	if (ret)
 		goto bail_free_cntrs;
-
-	ret = eprom_init(dd);
-	if (ret)
-		goto bail_free_rcverr;
 
 	goto bail;
 
