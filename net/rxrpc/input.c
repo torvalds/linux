@@ -658,6 +658,8 @@ static void rxrpc_input_ackinfo(struct rxrpc_call *call, struct sk_buff *skb,
 	if (rwind > RXRPC_RXTX_BUFF_SIZE - 1)
 		rwind = RXRPC_RXTX_BUFF_SIZE - 1;
 	call->tx_winsize = rwind;
+	if (call->cong_ssthresh > rwind)
+		call->cong_ssthresh = rwind;
 
 	mtu = min(ntohl(ackinfo->rxMTU), ntohl(ackinfo->maxMTU));
 
