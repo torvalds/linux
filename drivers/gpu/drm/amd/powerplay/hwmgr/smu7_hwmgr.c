@@ -1352,6 +1352,8 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
+	struct cgs_system_info sys_info = {0};
+	int result;
 
 	data->dll_default_on = false;
 	data->mclk_dpm0_activity_target = 0xa;
@@ -1439,6 +1441,18 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	data->pcie_lane_performance.min = 16;
 	data->pcie_lane_power_saving.max = 0;
 	data->pcie_lane_power_saving.min = 16;
+
+	sys_info.size = sizeof(struct cgs_system_info);
+	sys_info.info_id = CGS_SYSTEM_INFO_PG_FLAGS;
+	result = cgs_query_system_info(hwmgr->device, &sys_info);
+	if (!result) {
+		if (sys_info.value & AMD_PG_SUPPORT_UVD)
+			phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+				      PHM_PlatformCaps_UVDPowerGating);
+		if (sys_info.value & AMD_PG_SUPPORT_VCE)
+			phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+				      PHM_PlatformCaps_VCEPowerGating);
+	}
 }
 
 /**
