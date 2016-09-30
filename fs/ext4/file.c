@@ -91,7 +91,6 @@ ext4_unaligned_aio(struct inode *inode, struct iov_iter *from, loff_t pos)
 static ssize_t
 ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
-	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(iocb->ki_filp);
 	struct blk_plug plug;
 	int o_direct = iocb->ki_flags & IOCB_DIRECT;
@@ -138,7 +137,7 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 		/* check whether we do a DIO overwrite or not */
 		if (ext4_should_dioread_nolock(inode) && !unaligned_aio &&
-		    !file->f_mapping->nrpages && pos + length <= i_size_read(inode)) {
+		    pos + length <= i_size_read(inode)) {
 			struct ext4_map_blocks map;
 			unsigned int blkbits = inode->i_blkbits;
 			int err, len;
