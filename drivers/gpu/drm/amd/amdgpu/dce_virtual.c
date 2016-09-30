@@ -706,21 +706,6 @@ static int dce_virtual_set_crtc_irq_state(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int dce_virtual_crtc_irq(struct amdgpu_device *adev,
-			      struct amdgpu_irq_src *source,
-			      struct amdgpu_iv_entry *entry)
-{
-	unsigned crtc = 0;
-	unsigned irq_type = AMDGPU_CRTC_IRQ_VBLANK1;
-
-	if (amdgpu_irq_enabled(adev, source, irq_type)) {
-		drm_handle_vblank(adev->ddev, crtc);
-	}
-	dce_virtual_pageflip_irq(adev, NULL, NULL);
-	DRM_DEBUG("IH: D%d vblank\n", crtc + 1);
-	return 0;
-}
-
 static int dce_virtual_pageflip_irq(struct amdgpu_device *adev,
 				  struct amdgpu_irq_src *source,
 				  struct amdgpu_iv_entry *entry)
@@ -771,7 +756,7 @@ static int dce_virtual_pageflip_irq(struct amdgpu_device *adev,
 
 static const struct amdgpu_irq_src_funcs dce_virtual_crtc_irq_funcs = {
 	.set = dce_virtual_set_crtc_irq_state,
-	.process = dce_virtual_crtc_irq,
+	.process = NULL,
 };
 
 static void dce_virtual_set_irq_funcs(struct amdgpu_device *adev)
