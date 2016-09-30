@@ -1033,8 +1033,7 @@ int wilc_wlan_start(struct wilc *wilc)
 	ret = wilc->hif_func->hif_write_reg(wilc, WILC_GP_REG_1, reg);
 	if (!ret) {
 		release_bus(wilc, RELEASE_ONLY);
-		ret = -EIO;
-		return ret;
+		return -EIO;
 	}
 
 	wilc->hif_func->hif_sync_ext(wilc, NUM_INT_EXT);
@@ -1042,8 +1041,7 @@ int wilc_wlan_start(struct wilc *wilc)
 	ret = wilc->hif_func->hif_read_reg(wilc, 0x1000, &chipid);
 	if (!ret) {
 		release_bus(wilc, RELEASE_ONLY);
-		ret = -EIO;
-		return ret;
+		return -EIO;
 	}
 
 	wilc->hif_func->hif_read_reg(wilc, WILC_GLB_RESET_0, &reg);
