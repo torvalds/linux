@@ -20,9 +20,11 @@
 static unsigned int dataserver_timeo = NFS_DEF_TCP_RETRANS;
 static unsigned int dataserver_retrans;
 
+static bool ff_layout_has_available_ds(struct pnfs_layout_segment *lseg);
+
 void nfs4_ff_layout_put_deviceid(struct nfs4_ff_layout_ds *mirror_ds)
 {
-	if (mirror_ds)
+	if (!IS_ERR_OR_NULL(mirror_ds))
 		nfs4_put_deviceid_node(&mirror_ds->id_node);
 }
 
@@ -182,12 +184,29 @@ static void ff_layout_mark_devid_invalid(struct pnfs_layout_segment *lseg,
 }
 
 static bool ff_layout_mirror_valid(struct pnfs_layout_segment *lseg,
-		struct nfs4_ff_layout_mirror *mirror)
+				   struct nfs4_ff_layout_mirror *mirror,
+				   bool create)
 {
-	if (mirror == NULL || mirror->mirror_ds == NULL) {
-		pnfs_error_mark_layout_for_return(lseg->pls_layout->plh_inode,
-					lseg);
-		return false;
+	if (mirror == NULL || IS_ERR(mirror->mirror_ds))
+		goto outerr;
+	if (mirror->mirror_ds == NULL) {
+		if (create) {
+			struct nfs4_deviceid_node *node;
+			struct pnfs_layout_hdr *lh = lseg->pls_layout;
+			struct nfs4_ff_layout_ds *mirror_ds = ERR_PTR(-ENODEV);
+
+			node = nfs4_find_get_deviceid(NFS_SERVER(lh->plh_inode),
+					&mirror->devid, lh->plh_lc_cred,
+					GFP_KERNEL);
+			if (node)
+				mirror_ds = FF_LAYOUT_MIRROR_DS(node);
+
+			/* check for race with another call to this function */
+			if (cmpxchg(&mirror->mirror_ds, NULL, mirror_ds) &&
+			    mirror_ds != ERR_PTR(-ENODEV))
+				nfs4_put_deviceid_node(node);
+		} else
+			goto outerr;
 	}
 	if (mirror->mirror_ds->ds == NULL) {
 		struct nfs4_deviceid_node *devid;
@@ -196,6 +215,9 @@ static bool ff_layout_mirror_valid(struct pnfs_layout_segment *lseg,
 		return false;
 	}
 	return true;
+outerr:
+	pnfs_error_mark_layout_for_return(lseg->pls_layout->plh_inode, lseg);
+	return false;
 }
 
 static void extend_ds_error(struct nfs4_ff_layout_ds_err *err,
@@ -323,7 +345,7 @@ nfs4_ff_layout_select_ds_fh(struct pnfs_layout_segment *lseg, u32 mirror_idx)
 	struct nfs4_ff_layout_mirror *mirror = FF_LAYOUT_COMP(lseg, mirror_idx);
 	struct nfs_fh *fh = NULL;
 
-	if (!ff_layout_mirror_valid(lseg, mirror)) {
+	if (!ff_layout_mirror_valid(lseg, mirror, false)) {
 		pr_err_ratelimited("NFS: %s: No data server for mirror offset index %d\n",
 			__func__, mirror_idx);
 		goto out;
@@ -363,7 +385,7 @@ nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx,
 	struct nfs_server *s = NFS_SERVER(ino);
 	unsigned int max_payload;
 
-	if (!ff_layout_mirror_valid(lseg, mirror)) {
+	if (!ff_layout_mirror_valid(lseg, mirror, true)) {
 		pr_err_ratelimited("NFS: %s: No data server for offset index %d\n",
 			__func__, ds_idx);
 		goto out;
@@ -547,7 +569,11 @@ static bool ff_read_layout_has_available_ds(struct pnfs_layout_segment *lseg)
 
 	for (idx = 0; idx < FF_LAYOUT_MIRROR_COUNT(lseg); idx++) {
 		mirror = FF_LAYOUT_COMP(lseg, idx);
-		if (mirror && mirror->mirror_ds) {
+		if (mirror) {
+			if (!mirror->mirror_ds)
+				return true;
+			if (IS_ERR(mirror->mirror_ds))
+				continue;
 			devid = &mirror->mirror_ds->id_node;
 			if (!ff_layout_test_devid_unavailable(devid))
 				return true;
@@ -565,8 +591,10 @@ static bool ff_rw_layout_has_available_ds(struct pnfs_layout_segment *lseg)
 
 	for (idx = 0; idx < FF_LAYOUT_MIRROR_COUNT(lseg); idx++) {
 		mirror = FF_LAYOUT_COMP(lseg, idx);
-		if (!mirror || !mirror->mirror_ds)
+		if (!mirror || IS_ERR(mirror->mirror_ds))
 			return false;
+		if (!mirror->mirror_ds)
+			continue;
 		devid = &mirror->mirror_ds->id_node;
 		if (ff_layout_test_devid_unavailable(devid))
 			return false;
@@ -575,7 +603,7 @@ static bool ff_rw_layout_has_available_ds(struct pnfs_layout_segment *lseg)
 	return FF_LAYOUT_MIRROR_COUNT(lseg) != 0;
 }
 
-bool ff_layout_has_available_ds(struct pnfs_layout_segment *lseg)
+static bool ff_layout_has_available_ds(struct pnfs_layout_segment *lseg)
 {
 	if (lseg->pls_range.iomode == IOMODE_READ)
 		return  ff_read_layout_has_available_ds(lseg);

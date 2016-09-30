@@ -74,6 +74,7 @@ struct nfs4_ff_layout_mirror {
 	struct list_head		mirrors;
 	u32				ds_count;
 	u32				efficiency;
+	struct nfs4_deviceid		devid;
 	struct nfs4_ff_layout_ds	*mirror_ds;
 	u32				fh_versions_cnt;
 	struct nfs_fh			*fh_versions;
@@ -211,7 +212,6 @@ nfs4_ff_find_or_create_ds_client(struct pnfs_layout_segment *lseg,
 				 struct inode *inode);
 struct rpc_cred *ff_layout_get_ds_cred(struct pnfs_layout_segment *lseg,
 				       u32 ds_idx, struct rpc_cred *mdscred);
-bool ff_layout_has_available_ds(struct pnfs_layout_segment *lseg);
 bool ff_layout_avoid_mds_available_ds(struct pnfs_layout_segment *lseg);
 bool ff_layout_avoid_read_on_rw(struct pnfs_layout_segment *lseg);
 

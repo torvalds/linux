@@ -183,7 +183,7 @@ ff_layout_add_mirror(struct pnfs_layout_hdr *lo,
 
 	spin_lock(&inode->i_lock);
 	list_for_each_entry(pos, &ff_layout->mirrors, mirrors) {
-		if (mirror->mirror_ds != pos->mirror_ds)
+		if (memcmp(&mirror->devid, &pos->devid, sizeof(pos->devid)) != 0)
 			continue;
 		if (!ff_mirror_match_fh(mirror, pos))
 			continue;
@@ -360,19 +360,6 @@ static void ff_layout_sort_mirrors(struct nfs4_ff_layout_segment *fls)
 	}
 }
 
-static void ff_layout_mark_devices_valid(struct nfs4_ff_layout_segment *fls)
-{
-	struct nfs4_deviceid_node *node;
-	int i;
-
-	if (!(fls->flags & FF_FLAGS_NO_IO_THRU_MDS))
-		return;
-	for (i = 0; i < fls->mirror_array_cnt; i++) {
-		node = &fls->mirror_array[i]->mirror_ds->id_node;
-		clear_bit(NFS_DEVICEID_UNAVAILABLE, &node->flags);
-	}
-}
-
 static struct pnfs_layout_segment *
 ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 		     struct nfs4_layoutget_res *lgr,
@@ -426,8 +413,6 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 
 	for (i = 0; i < fls->mirror_array_cnt; i++) {
 		struct nfs4_ff_layout_mirror *mirror;
-		struct nfs4_deviceid devid;
-		struct nfs4_deviceid_node *idnode;
 		struct auth_cred acred = { .group_info = ff_zero_group };
 		struct rpc_cred	__rcu *cred;
 		u32 ds_count, fh_count, id;
@@ -452,22 +437,8 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 		fls->mirror_array[i]->ds_count = ds_count;
 
 		/* deviceid */
-		rc = decode_deviceid(&stream, &devid);
+		rc = decode_deviceid(&stream, &fls->mirror_array[i]->devid);
 		if (rc)
-			goto out_err_free;
-
-		idnode = nfs4_find_get_deviceid(NFS_SERVER(lh->plh_inode),
-						&devid, lh->plh_lc_cred,
-						gfp_flags);
-		/*
-		 * upon success, mirror_ds is allocated by previous
-		 * getdeviceinfo, or newly by .alloc_deviceid_node
-		 * nfs4_find_get_deviceid failure is indeed getdeviceinfo falure
-		 */
-		if (idnode)
-			fls->mirror_array[i]->mirror_ds =
-				FF_LAYOUT_MIRROR_DS(idnode);
-		else
 			goto out_err_free;
 
 		/* efficiency */
@@ -567,8 +538,6 @@ out_sort_mirrors:
 	rc = ff_layout_check_layout(lgr);
 	if (rc)
 		goto out_err_free;
-	ff_layout_mark_devices_valid(fls);
-
 	ret = &fls->generic_hdr;
 	dprintk("<-- %s (success)\n", __func__);
 out_free_page:
@@ -2332,7 +2301,7 @@ ff_layout_mirror_prepare_stats(struct pnfs_layout_hdr *lo,
 	list_for_each_entry(mirror, &ff_layout->mirrors, mirrors) {
 		if (i >= dev_limit)
 			break;
-		if (!mirror->mirror_ds)
+		if (IS_ERR_OR_NULL(mirror->mirror_ds))
 			continue;
 		if (!test_and_clear_bit(NFS4_FF_MIRROR_STAT_AVAIL, &mirror->flags))
 			continue;
