@@ -33,6 +33,13 @@ config DRM_RK1000
 	---help---
 	  ROCKCHIP TVE bridge chip RK1000 driver.
 
+config DRM_DUMB_VGA_DAC
+	tristate "Dumb VGA DAC Bridge support"
+	depends on OF
+	select DRM_KMS_HELPER
+	help
+	  Support for RGB to VGA DAC based bridges
+
 source "drivers/gpu/drm/bridge/analogix/Kconfig"
 
 source "drivers/gpu/drm/bridge/synopsys/Kconfig"
