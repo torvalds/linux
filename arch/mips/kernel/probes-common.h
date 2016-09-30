@@ -13,6 +13,8 @@
 
 #include <asm/inst.h>
 
+int __insn_is_compact_branch(union mips_instruction insn);
+
 static inline int __insn_has_delay_slot(const union mips_instruction insn)
 {
 	switch (insn.i_format.opcode) {

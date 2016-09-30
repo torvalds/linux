@@ -866,3 +866,37 @@ unaligned:
 	force_sig(SIGBUS, current);
 	return -EFAULT;
 }
+
+#if (defined CONFIG_KPROBES) || (defined CONFIG_UPROBES)
+
+int __insn_is_compact_branch(union mips_instruction insn)
+{
+	if (!cpu_has_mips_r6)
+		return 0;
+
+	switch (insn.i_format.opcode) {
+	case blezl_op:
+	case bgtzl_op:
+	case blez_op:
+	case bgtz_op:
+		/*
+		 * blez[l] and bgtz[l] opcodes with non-zero rt
+		 * are MIPS R6 compact branches
+		 */
+		if (insn.i_format.rt)
+			return 1;
+		break;
+	case bc6_op:
+	case balc6_op:
+	case pop10_op:
+	case pop30_op:
+	case pop66_op:
+	case pop76_op:
+		return 1;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__insn_is_compact_branch);
+
+#endif  /* CONFIG_KPROBES || CONFIG_UPROBES */

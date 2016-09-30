@@ -36,6 +36,12 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *aup,
 		return -EINVAL;
 
 	inst.word = aup->insn[0];
+
+	if (__insn_is_compact_branch(inst)) {
+		pr_notice("Uprobes for compact branches are not supported\n");
+		return -EINVAL;
+	}
+
 	aup->ixol[0] = aup->insn[insn_has_delay_slot(inst)];
 	aup->ixol[1] = UPROBE_BRK_UPROBE_XOL;		/* NOP  */
 

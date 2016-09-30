@@ -106,6 +106,12 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 		goto out;
 	}
 
+	if (__insn_is_compact_branch(insn)) {
+		pr_notice("Kprobes for compact branches are not supported\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
 	/* insn: must be on special executable page on mips. */
 	p->ainsn.insn = get_insn_slot();
 	if (!p->ainsn.insn) {
