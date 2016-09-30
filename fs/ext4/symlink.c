@@ -30,7 +30,6 @@ static const char *ext4_encrypted_get_link(struct dentry *dentry,
 	char *caddr, *paddr = NULL;
 	struct fscrypt_str cstr, pstr;
 	struct fscrypt_symlink_data *sd;
-	loff_t size = min_t(loff_t, i_size_read(inode), PAGE_SIZE - 1);
 	int res;
 	u32 max_size = inode->i_sb->s_blocksize;
 
@@ -49,7 +48,6 @@ static const char *ext4_encrypted_get_link(struct dentry *dentry,
 		if (IS_ERR(cpage))
 			return ERR_CAST(cpage);
 		caddr = page_address(cpage);
-		caddr[size] = 0;
 	}
 
 	/* Symlink is encrypted */
