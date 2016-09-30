@@ -828,7 +828,7 @@ config REGULATOR_TPS65912
 	    This driver supports TPS65912 voltage regulator chip.
 
 config REGULATOR_TPS80031
-	tristate "TI TPS80031/TPS80032 power regualtor driver"
+	tristate "TI TPS80031/TPS80032 power regulator driver"
 	depends on MFD_TPS80031
 	help
 	  TPS80031/ TPS80032 Fully Integrated Power Management with Power
