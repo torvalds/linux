@@ -1316,7 +1316,7 @@ drop:
  * The overall length has already been checked.
  */
 static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
-				     struct fip_header *fh)
+				     struct sk_buff *skb)
 {
 	struct fip_desc *desc;
 	struct fip_mac_desc *mp;
@@ -1331,17 +1331,46 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 	int num_vlink_desc;
 	int reset_phys_port = 0;
 	struct fip_vn_desc **vlink_desc_arr = NULL;
+	struct fip_header *fh = (struct fip_header *)skb->data;
+	struct ethhdr *eh = eth_hdr(skb);
 
 	LIBFCOE_FIP_DBG(fip, "Clear Virtual Link received\n");
 
-	if (!fcf || !lport->port_id) {
+	if (!fcf) {
 		/*
 		 * We are yet to select best FCF, but we got CVL in the
 		 * meantime. reset the ctlr and let it rediscover the FCF
 		 */
+		LIBFCOE_FIP_DBG(fip, "Resetting fcoe_ctlr as FCF has not been "
+		    "selected yet\n");
 		mutex_lock(&fip->ctlr_mutex);
 		fcoe_ctlr_reset(fip);
 		mutex_unlock(&fip->ctlr_mutex);
+		return;
+	}
+
+	/*
+	 * If we've selected an FCF check that the CVL is from there to avoid
+	 * processing CVLs from an unexpected source.  If it is from an
+	 * unexpected source drop it on the floor.
+	 */
+	if (!ether_addr_equal(eh->h_source, fcf->fcf_mac)) {
+		LIBFCOE_FIP_DBG(fip, "Dropping CVL due to source address "
+		    "mismatch with FCF src=%pM\n", eh->h_source);
+		return;
+	}
+
+	/*
+	 * If we haven't logged into the fabric but receive a CVL we should
+	 * reset everything and go back to solicitation.
+	 */
+	if (!lport->port_id) {
+		LIBFCOE_FIP_DBG(fip, "lport not logged in, resoliciting\n");
+		mutex_lock(&fip->ctlr_mutex);
+		fcoe_ctlr_reset(fip);
+		mutex_unlock(&fip->ctlr_mutex);
+		fc_lport_reset(fip->lp);
+		fcoe_ctlr_solicit(fip, NULL);
 		return;
 	}
 
@@ -1576,7 +1605,7 @@ static int fcoe_ctlr_recv_handler(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	if (op == FIP_OP_DISC && sub == FIP_SC_ADV)
 		fcoe_ctlr_recv_adv(fip, skb);
 	else if (op == FIP_OP_CTRL && sub == FIP_SC_CLR_VLINK)
-		fcoe_ctlr_recv_clr_vlink(fip, fiph);
+		fcoe_ctlr_recv_clr_vlink(fip, skb);
 	kfree_skb(skb);
 	return 0;
 drop:
