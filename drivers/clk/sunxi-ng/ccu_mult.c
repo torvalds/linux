@@ -105,7 +105,7 @@ static int ccu_mult_set_rate(struct clk_hw *hw, unsigned long rate,
 	ccu_mux_helper_adjust_parent_for_prediv(&cm->common, &cm->mux, -1,
 						&parent_rate);
 
-	_cm.min = 1;
+	_cm.min = cm->mult.min;
 	_cm.max = 1 << cm->mult.width;
 	ccu_mult_find_best(parent_rate, rate, &_cm);
 
