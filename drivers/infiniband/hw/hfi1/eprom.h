@@ -45,8 +45,6 @@
  *
  */
 
-struct hfi1_cmd;
 struct hfi1_devdata;
 
 int eprom_init(struct hfi1_devdata *dd);
-int handle_eprom_command(struct file *fp, const struct hfi1_cmd *cmd);

@@ -58,7 +58,6 @@
 #include "trace.h"
 #include "user_sdma.h"
 #include "user_exp_rcv.h"
-#include "eprom.h"
 #include "aspm.h"
 #include "mmu_rb.h"
 
