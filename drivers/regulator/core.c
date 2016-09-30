@@ -679,24 +679,6 @@ static int drms_uA_update(struct regulator_dev *rdev)
 	    !rdev->desc->ops->set_load)
 		return -EINVAL;
 
-	/* get output voltage */
-	output_uV = _regulator_get_voltage(rdev);
-	if (output_uV <= 0) {
-		rdev_err(rdev, "invalid output voltage found\n");
-		return -EINVAL;
-	}
-
-	/* get input voltage */
-	input_uV = 0;
-	if (rdev->supply)
-		input_uV = regulator_get_voltage(rdev->supply);
-	if (input_uV <= 0)
-		input_uV = rdev->constraints->input_uV;
-	if (input_uV <= 0) {
-		rdev_err(rdev, "invalid input voltage found\n");
-		return -EINVAL;
-	}
-
 	/* calc total requested load */
 	list_for_each_entry(sibling, &rdev->consumer_list, list)
 		current_uA += sibling->uA_load;
@@ -709,6 +691,24 @@ static int drms_uA_update(struct regulator_dev *rdev)
 		if (err < 0)
 			rdev_err(rdev, "failed to set load %d\n", current_uA);
 	} else {
+		/* get output voltage */
+		output_uV = _regulator_get_voltage(rdev);
+		if (output_uV <= 0) {
+			rdev_err(rdev, "invalid output voltage found\n");
+			return -EINVAL;
+		}
+
+		/* get input voltage */
+		input_uV = 0;
+		if (rdev->supply)
+			input_uV = regulator_get_voltage(rdev->supply);
+		if (input_uV <= 0)
+			input_uV = rdev->constraints->input_uV;
+		if (input_uV <= 0) {
+			rdev_err(rdev, "invalid input voltage found\n");
+			return -EINVAL;
+		}
+
 		/* now get the optimum mode for our new total regulator load */
 		mode = rdev->desc->ops->get_optimum_mode(rdev, input_uV,
 							 output_uV, current_uA);
@@ -3483,10 +3483,8 @@ int regulator_bulk_get(struct device *dev, int num_consumers,
 		consumers[i].consumer = NULL;
 
 	for (i = 0; i < num_consumers; i++) {
-		consumers[i].consumer = _regulator_get(dev,
-						       consumers[i].supply,
-						       false,
-						       !consumers[i].optional);
+		consumers[i].consumer = regulator_get(dev,
+						      consumers[i].supply);
 		if (IS_ERR(consumers[i].consumer)) {
 			ret = PTR_ERR(consumers[i].consumer);
 			dev_err(dev, "Failed to get supply '%s': %d\n",
