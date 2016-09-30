@@ -280,11 +280,12 @@ TRACE_EVENT(rxrpc_tx_data,
 		    __entry->lose = lose;
 			   ),
 
-	    TP_printk("c=%p DATA %08x q=%08x fl=%02x%s",
+	    TP_printk("c=%p DATA %08x q=%08x fl=%02x%s%s",
 		      __entry->call,
 		      __entry->serial,
 		      __entry->seq,
 		      __entry->flags,
+		      __entry->retrans ? " *RETRANS*" : "",
 		      __entry->lose ? " *LOSE*" : "")
 	    );
 
