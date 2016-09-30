@@ -54,7 +54,7 @@ static void nvmet_format_discovery_entry(struct nvmf_disc_rsp_page_hdr *hdr,
 	/* we support only dynamic controllers */
 	e->cntlid = cpu_to_le16(NVME_CNTLID_DYNAMIC);
 	e->asqsz = cpu_to_le16(NVMF_AQ_DEPTH);
-	e->nqntype = type;
+	e->subtype = type;
 	memcpy(e->trsvcid, port->disc_addr.trsvcid, NVMF_TRSVCID_SIZE);
 	memcpy(e->traddr, port->disc_addr.traddr, NVMF_TRADDR_SIZE);
 	memcpy(e->tsas.common, port->disc_addr.tsas.common, NVMF_TSAS_SIZE);

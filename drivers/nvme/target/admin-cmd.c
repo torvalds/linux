@@ -199,7 +199,7 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	 */
 
 	/* we support multiple ports and multiples hosts: */
-	id->mic = (1 << 0) | (1 << 1);
+	id->cmic = (1 << 0) | (1 << 1);
 
 	/* no limit on data transfer sizes for now */
 	id->mdts = 0;
