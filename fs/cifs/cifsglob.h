@@ -388,6 +388,8 @@ struct smb_version_operations {
 	int (*calc_signature)(struct smb_rqst *, struct TCP_Server_Info *);
 	int (*set_integrity)(const unsigned int, struct cifs_tcon *tcon,
 			     struct cifsFileInfo *src_file);
+	int (*enum_snapshots)(const unsigned int xid, struct cifs_tcon *tcon,
+			     struct cifsFileInfo *src_file, void __user *);
 	int (*query_mf_symlink)(unsigned int, struct cifs_tcon *,
 				struct cifs_sb_info *, const unsigned char *,
 				char *, unsigned int *);

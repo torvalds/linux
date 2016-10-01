@@ -28,6 +28,7 @@
 #include "cifs_unicode.h"
 #include "smb2status.h"
 #include "smb2glob.h"
+#include "cifs_ioctl.h"
 
 static int
 change_conf(struct TCP_Server_Info *server)
@@ -895,6 +896,50 @@ smb3_set_integrity(const unsigned int xid, struct cifs_tcon *tcon,
 }
 
 static int
+smb3_enum_snapshots(const unsigned int xid, struct cifs_tcon *tcon,
+		   struct cifsFileInfo *cfile, void __user *ioc_buf)
+{
+	char *retbuf = NULL;
+	unsigned int ret_data_len = 0;
+	int rc;
+	struct smb_snapshot_array snapshot_in;
+
+	rc = SMB2_ioctl(xid, tcon, cfile->fid.persistent_fid,
+			cfile->fid.volatile_fid,
+			FSCTL_SRV_ENUMERATE_SNAPSHOTS,
+			true /* is_fsctl */, NULL, 0 /* no input data */,
+			(char **)&retbuf,
+			&ret_data_len);
+	cifs_dbg(FYI, "enum snaphots ioctl returned %d and ret buflen is %d\n",
+			rc, ret_data_len);
+	if (rc)
+		return rc;
+
+	if (ret_data_len && (ioc_buf != NULL) && (retbuf != NULL)) {
+		/* Fixup buffer */
+		if (copy_from_user(&snapshot_in, ioc_buf,
+		    sizeof(struct smb_snapshot_array))) {
+			rc = -EFAULT;
+			kfree(retbuf);
+			return rc;
+		}
+		if (snapshot_in.snapshot_array_size < sizeof(struct smb_snapshot_array)) {
+			rc = -ERANGE;
+			return rc;
+		}
+
+		if (ret_data_len > snapshot_in.snapshot_array_size)
+			ret_data_len = snapshot_in.snapshot_array_size;
+
+		if (copy_to_user(ioc_buf, retbuf, ret_data_len))
+			rc = -EFAULT;
+	}
+
+	kfree(retbuf);
+	return rc;
+}
+
+static int
 smb2_query_dir_first(const unsigned int xid, struct cifs_tcon *tcon,
 		     const char *path, struct cifs_sb_info *cifs_sb,
 		     struct cifs_fid *fid, __u16 search_flags,
@@ -1659,6 +1704,7 @@ struct smb_version_operations smb21_operations = {
 	.clone_range = smb2_clone_range,
 	.wp_retry_size = smb2_wp_retry_size,
 	.dir_needs_close = smb2_dir_needs_close,
+	.enum_snapshots = smb3_enum_snapshots,
 };
 
 struct smb_version_operations smb30_operations = {
@@ -1745,6 +1791,7 @@ struct smb_version_operations smb30_operations = {
 	.wp_retry_size = smb2_wp_retry_size,
 	.dir_needs_close = smb2_dir_needs_close,
 	.fallocate = smb3_fallocate,
+	.enum_snapshots = smb3_enum_snapshots,
 };
 
 #ifdef CONFIG_CIFS_SMB311
@@ -1832,6 +1879,7 @@ struct smb_version_operations smb311_operations = {
 	.wp_retry_size = smb2_wp_retry_size,
 	.dir_needs_close = smb2_dir_needs_close,
 	.fallocate = smb3_fallocate,
+	.enum_snapshots = smb3_enum_snapshots,
 };
 #endif /* CIFS_SMB311 */
 
