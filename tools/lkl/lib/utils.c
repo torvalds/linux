@@ -158,31 +158,50 @@ void lkl_perror(char *msg, int err)
 	fprintf(stderr, "%s: %s\n", msg, err_msg);
 }
 
-int lkl_printf(const char *fmt, ...)
+static int lkl_vprintf(const char *fmt, va_list args)
 {
-	char *buffer;
-	va_list args, copy;
 	int n;
+	char *buffer;
+	va_list copy;
 
 	if (!lkl_host_ops.print)
 		return 0;
 
-	va_start(args, fmt);
 	va_copy(copy, args);
 	n = vsnprintf(NULL, 0, fmt, copy);
 	va_end(copy);
 
 	buffer = lkl_host_ops.mem_alloc(n + 1);
-	if (!buffer) {
-		va_end(args);
-		return 0;
-	}
+	if (!buffer)
+		return -1;
+
 	vsnprintf(buffer, n + 1, fmt, args);
-	va_end(args);
 
 	lkl_host_ops.print(buffer, n);
-
 	lkl_host_ops.mem_free(buffer);
 
 	return n;
+}
+
+int lkl_printf(const char *fmt, ...)
+{
+	int n;
+	va_list args;
+
+	va_start(args, fmt);
+	n = lkl_vprintf(fmt, args);
+	va_end(args);
+
+	return n;
+}
+
+void lkl_bug(const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	lkl_vprintf(fmt, args);
+	va_end(args);
+
+	lkl_host_ops.panic();
 }
