@@ -39,6 +39,16 @@
 #include <linux/slab.h>
 #include <linux/qed/qed_if.h>
 #include <linux/qed/qed_ll2_if.h>
+#include <linux/qed/rdma_common.h>
+
+enum qed_roce_ll2_tx_dest {
+	/* Light L2 TX Destination to the Network */
+	QED_ROCE_LL2_TX_DEST_NW,
+
+	/* Light L2 TX Destination to the Loopback */
+	QED_ROCE_LL2_TX_DEST_LB,
+	QED_ROCE_LL2_TX_DEST_MAX
+};
 
 #define QED_RDMA_MAX_CNQ_SIZE               (0xFFFF)
 
@@ -461,6 +471,61 @@ struct qed_rdma_counters_out_params {
 #define QED_ROCE_TX_HEAD_FAILURE        (1)
 #define QED_ROCE_TX_FRAG_FAILURE        (2)
 
+struct qed_roce_ll2_header {
+	void *vaddr;
+	dma_addr_t baddr;
+	size_t len;
+};
+
+struct qed_roce_ll2_buffer {
+	dma_addr_t baddr;
+	size_t len;
+};
+
+struct qed_roce_ll2_packet {
+	struct qed_roce_ll2_header header;
+	int n_seg;
+	struct qed_roce_ll2_buffer payload[RDMA_MAX_SGE_PER_SQ_WQE];
+	int roce_mode;
+	enum qed_roce_ll2_tx_dest tx_dest;
+};
+
+struct qed_roce_ll2_tx_params {
+	int reserved;
+};
+
+struct qed_roce_ll2_rx_params {
+	u16 vlan_id;
+	u8 smac[ETH_ALEN];
+	int rc;
+};
+
+struct qed_roce_ll2_cbs {
+	void (*tx_cb)(void *pdev, struct qed_roce_ll2_packet *pkt);
+
+	void (*rx_cb)(void *pdev, struct qed_roce_ll2_packet *pkt,
+		      struct qed_roce_ll2_rx_params *params);
+};
+
+struct qed_roce_ll2_params {
+	u16 max_rx_buffers;
+	u16 max_tx_buffers;
+	u16 mtu;
+	u8 mac_address[ETH_ALEN];
+	struct qed_roce_ll2_cbs cbs;
+	void *cb_cookie;
+};
+
+struct qed_roce_ll2_info {
+	u8 handle;
+	struct qed_roce_ll2_cbs cbs;
+	u8 mac_address[ETH_ALEN];
+	void *cb_cookie;
+
+	/* Lock to protect ll2 */
+	struct mutex lock;
+};
+
 enum qed_rdma_type {
 	QED_RDMA_TYPE_ROCE,
 };
@@ -518,6 +583,20 @@ struct qed_rdma_ops {
 	int (*rdma_deregister_tid)(void *rdma_cxt, u32 itid);
 	int (*rdma_alloc_tid)(void *rdma_cxt, u32 *itid);
 	void (*rdma_free_tid)(void *rdma_cxt, u32 itid);
+	int (*roce_ll2_start)(struct qed_dev *cdev,
+			      struct qed_roce_ll2_params *params);
+	int (*roce_ll2_stop)(struct qed_dev *cdev);
+	int (*roce_ll2_tx)(struct qed_dev *cdev,
+			   struct qed_roce_ll2_packet *packet,
+			   struct qed_roce_ll2_tx_params *params);
+	int (*roce_ll2_post_rx_buffer)(struct qed_dev *cdev,
+				       struct qed_roce_ll2_buffer *buf,
+				       u64 cookie, u8 notify_fw);
+	int (*roce_ll2_set_mac_filter)(struct qed_dev *cdev,
+				       u8 *old_mac_address,
+				       u8 *new_mac_address);
+	int (*roce_ll2_stats)(struct qed_dev *cdev,
+			      struct qed_ll2_stats *stats);
 };
 
 const struct qed_rdma_ops *qed_get_rdma_ops(void);

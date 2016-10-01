@@ -42,6 +42,7 @@
 #include "qed.h"
 #include "qed_dev_api.h"
 #include "qed_hsi.h"
+#include "qed_ll2.h"
 
 #define QED_RDMA_MAX_FMR                    (RDMA_MAX_TIDS)
 #define QED_RDMA_MAX_P_KEY                  (1)

@@ -64,6 +64,7 @@
 #include "qed_reg_addr.h"
 #include "qed_sp.h"
 #include "qed_roce.h"
+#include "qed_ll2.h"
 
 void qed_async_roce_event(struct qed_hwfn *p_hwfn,
 			  struct event_ring_entry *p_eqe)
@@ -2611,6 +2612,306 @@ void qed_rdma_remove_user(void *rdma_cxt, u16 dpi)
 	spin_unlock_bh(&p_hwfn->p_rdma_info->lock);
 }
 
+void qed_ll2b_complete_tx_gsi_packet(struct qed_hwfn *p_hwfn,
+				     u8 connection_handle,
+				     void *cookie,
+				     dma_addr_t first_frag_addr,
+				     bool b_last_fragment, bool b_last_packet)
+{
+	struct qed_roce_ll2_packet *packet = cookie;
+	struct qed_roce_ll2_info *roce_ll2 = p_hwfn->ll2;
+
+	roce_ll2->cbs.tx_cb(roce_ll2->cb_cookie, packet);
+}
+
+void qed_ll2b_release_tx_gsi_packet(struct qed_hwfn *p_hwfn,
+				    u8 connection_handle,
+				    void *cookie,
+				    dma_addr_t first_frag_addr,
+				    bool b_last_fragment, bool b_last_packet)
+{
+	qed_ll2b_complete_tx_gsi_packet(p_hwfn, connection_handle,
+					cookie, first_frag_addr,
+					b_last_fragment, b_last_packet);
+}
+
+void qed_ll2b_complete_rx_gsi_packet(struct qed_hwfn *p_hwfn,
+				     u8 connection_handle,
+				     void *cookie,
+				     dma_addr_t rx_buf_addr,
+				     u16 data_length,
+				     u8 data_length_error,
+				     u16 parse_flags,
+				     u16 vlan,
+				     u32 src_mac_addr_hi,
+				     u16 src_mac_addr_lo, bool b_last_packet)
+{
+	struct qed_roce_ll2_info *roce_ll2 = p_hwfn->ll2;
+	struct qed_roce_ll2_rx_params params;
+	struct qed_dev *cdev = p_hwfn->cdev;
+	struct qed_roce_ll2_packet pkt;
+
+	DP_VERBOSE(cdev,
+		   QED_MSG_LL2,
+		   "roce ll2 rx complete: bus_addr=%p, len=%d, data_len_err=%d\n",
+		   (void *)(uintptr_t)rx_buf_addr,
+		   data_length, data_length_error);
+
+	memset(&pkt, 0, sizeof(pkt));
+	pkt.n_seg = 1;
+	pkt.payload[0].baddr = rx_buf_addr;
+	pkt.payload[0].len = data_length;
+
+	memset(&params, 0, sizeof(params));
+	params.vlan_id = vlan;
+	*((u32 *)&params.smac[0]) = ntohl(src_mac_addr_hi);
+	*((u16 *)&params.smac[4]) = ntohs(src_mac_addr_lo);
+
+	if (data_length_error) {
+		DP_ERR(cdev,
+		       "roce ll2 rx complete: data length error %d, length=%d\n",
+		       data_length_error, data_length);
+		params.rc = -EINVAL;
+	}
+
+	roce_ll2->cbs.rx_cb(roce_ll2->cb_cookie, &pkt, &params);
+}
+
+static int qed_roce_ll2_set_mac_filter(struct qed_dev *cdev,
+				       u8 *old_mac_address,
+				       u8 *new_mac_address)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_ptt *p_ptt;
+	int rc = 0;
+
+	if (!hwfn->ll2 || hwfn->ll2->handle == QED_LL2_UNUSED_HANDLE) {
+		DP_ERR(cdev,
+		       "qed roce mac filter failed - roce_info/ll2 NULL\n");
+		return -EINVAL;
+	}
+
+	p_ptt = qed_ptt_acquire(QED_LEADING_HWFN(cdev));
+	if (!p_ptt) {
+		DP_ERR(cdev,
+		       "qed roce ll2 mac filter set: failed to acquire PTT\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&hwfn->ll2->lock);
+	if (old_mac_address)
+		qed_llh_remove_mac_filter(QED_LEADING_HWFN(cdev), p_ptt,
+					  old_mac_address);
+	if (new_mac_address)
+		rc = qed_llh_add_mac_filter(QED_LEADING_HWFN(cdev), p_ptt,
+					    new_mac_address);
+	mutex_unlock(&hwfn->ll2->lock);
+
+	qed_ptt_release(QED_LEADING_HWFN(cdev), p_ptt);
+
+	if (rc)
+		DP_ERR(cdev,
+		       "qed roce ll2 mac filter set: failed to add mac filter\n");
+
+	return rc;
+}
+
+static int qed_roce_ll2_start(struct qed_dev *cdev,
+			      struct qed_roce_ll2_params *params)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_roce_ll2_info *roce_ll2;
+	struct qed_ll2_info ll2_params;
+	int rc;
+
+	if (!params) {
+		DP_ERR(cdev, "qed roce ll2 start: failed due to NULL params\n");
+		return -EINVAL;
+	}
+	if (!params->cbs.tx_cb || !params->cbs.rx_cb) {
+		DP_ERR(cdev,
+		       "qed roce ll2 start: failed due to NULL tx/rx. tx_cb=%p, rx_cb=%p\n",
+		       params->cbs.tx_cb, params->cbs.rx_cb);
+		return -EINVAL;
+	}
+	if (!is_valid_ether_addr(params->mac_address)) {
+		DP_ERR(cdev,
+		       "qed roce ll2 start: failed due to invalid Ethernet address %pM\n",
+		       params->mac_address);
+		return -EINVAL;
+	}
+
+	/* Initialize */
+	roce_ll2 = kzalloc(sizeof(*roce_ll2), GFP_ATOMIC);
+	if (!roce_ll2) {
+		DP_ERR(cdev, "qed roce ll2 start: failed memory allocation\n");
+		return -ENOMEM;
+	}
+	memset(roce_ll2, 0, sizeof(*roce_ll2));
+	roce_ll2->handle = QED_LL2_UNUSED_HANDLE;
+	roce_ll2->cbs = params->cbs;
+	roce_ll2->cb_cookie = params->cb_cookie;
+	mutex_init(&roce_ll2->lock);
+
+	memset(&ll2_params, 0, sizeof(ll2_params));
+	ll2_params.conn_type = QED_LL2_TYPE_ROCE;
+	ll2_params.mtu = params->mtu;
+	ll2_params.rx_drop_ttl0_flg = true;
+	ll2_params.rx_vlan_removal_en = false;
+	ll2_params.tx_dest = CORE_TX_DEST_NW;
+	ll2_params.ai_err_packet_too_big = LL2_DROP_PACKET;
+	ll2_params.ai_err_no_buf = LL2_DROP_PACKET;
+	ll2_params.gsi_enable = true;
+
+	rc = qed_ll2_acquire_connection(QED_LEADING_HWFN(cdev), &ll2_params,
+					params->max_rx_buffers,
+					params->max_tx_buffers,
+					&roce_ll2->handle);
+	if (rc) {
+		DP_ERR(cdev,
+		       "qed roce ll2 start: failed to acquire LL2 connection (rc=%d)\n",
+		       rc);
+		goto err;
+	}
+
+	rc = qed_ll2_establish_connection(QED_LEADING_HWFN(cdev),
+					  roce_ll2->handle);
+	if (rc) {
+		DP_ERR(cdev,
+		       "qed roce ll2 start: failed to establish LL2 connection (rc=%d)\n",
+		       rc);
+		goto err1;
+	}
+
+	hwfn->ll2 = roce_ll2;
+
+	rc = qed_roce_ll2_set_mac_filter(cdev, NULL, params->mac_address);
+	if (rc) {
+		hwfn->ll2 = NULL;
+		goto err2;
+	}
+	ether_addr_copy(roce_ll2->mac_address, params->mac_address);
+
+	return 0;
+
+err2:
+	qed_ll2_terminate_connection(QED_LEADING_HWFN(cdev), roce_ll2->handle);
+err1:
+	qed_ll2_release_connection(QED_LEADING_HWFN(cdev), roce_ll2->handle);
+err:
+	kfree(roce_ll2);
+	return rc;
+}
+
+static int qed_roce_ll2_stop(struct qed_dev *cdev)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_roce_ll2_info *roce_ll2 = hwfn->ll2;
+	int rc;
+
+	if (!cdev) {
+		DP_ERR(cdev, "qed roce ll2 stop: invalid cdev\n");
+		return -EINVAL;
+	}
+
+	if (roce_ll2->handle == QED_LL2_UNUSED_HANDLE) {
+		DP_ERR(cdev, "qed roce ll2 stop: cannot stop an unused LL2\n");
+		return -EINVAL;
+	}
+
+	/* remove LL2 MAC address filter */
+	rc = qed_roce_ll2_set_mac_filter(cdev, roce_ll2->mac_address, NULL);
+	eth_zero_addr(roce_ll2->mac_address);
+
+	rc = qed_ll2_terminate_connection(QED_LEADING_HWFN(cdev),
+					  roce_ll2->handle);
+	if (rc)
+		DP_ERR(cdev,
+		       "qed roce ll2 stop: failed to terminate LL2 connection (rc=%d)\n",
+		       rc);
+
+	qed_ll2_release_connection(QED_LEADING_HWFN(cdev), roce_ll2->handle);
+
+	roce_ll2->handle = QED_LL2_UNUSED_HANDLE;
+
+	kfree(roce_ll2);
+
+	return rc;
+}
+
+static int qed_roce_ll2_tx(struct qed_dev *cdev,
+			   struct qed_roce_ll2_packet *pkt,
+			   struct qed_roce_ll2_tx_params *params)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_roce_ll2_info *roce_ll2 = hwfn->ll2;
+	enum qed_ll2_roce_flavor_type qed_roce_flavor;
+	u8 flags = 0;
+	int rc;
+	int i;
+
+	if (!cdev || !pkt || !params) {
+		DP_ERR(cdev,
+		       "roce ll2 tx: failed tx because one of the following is NULL - drv=%p, pkt=%p, params=%p\n",
+		       cdev, pkt, params);
+		return -EINVAL;
+	}
+
+	qed_roce_flavor = (pkt->roce_mode == ROCE_V1) ? QED_LL2_ROCE
+						      : QED_LL2_RROCE;
+
+	if (pkt->roce_mode == ROCE_V2_IPV4)
+		flags |= BIT(CORE_TX_BD_FLAGS_IP_CSUM_SHIFT);
+
+	/* Tx header */
+	rc = qed_ll2_prepare_tx_packet(QED_LEADING_HWFN(cdev), roce_ll2->handle,
+				       1 + pkt->n_seg, 0, flags, 0,
+				       qed_roce_flavor, pkt->header.baddr,
+				       pkt->header.len, pkt, 1);
+	if (rc) {
+		DP_ERR(cdev, "roce ll2 tx: header failed (rc=%d)\n", rc);
+		return QED_ROCE_TX_HEAD_FAILURE;
+	}
+
+	/* Tx payload */
+	for (i = 0; i < pkt->n_seg; i++) {
+		rc = qed_ll2_set_fragment_of_tx_packet(QED_LEADING_HWFN(cdev),
+						       roce_ll2->handle,
+						       pkt->payload[i].baddr,
+						       pkt->payload[i].len);
+		if (rc) {
+			/* If failed not much to do here, partial packet has
+			 * been posted * we can't free memory, will need to wait
+			 * for completion
+			 */
+			DP_ERR(cdev,
+			       "roce ll2 tx: payload failed (rc=%d)\n", rc);
+			return QED_ROCE_TX_FRAG_FAILURE;
+		}
+	}
+
+	return 0;
+}
+
+static int qed_roce_ll2_post_rx_buffer(struct qed_dev *cdev,
+				       struct qed_roce_ll2_buffer *buf,
+				       u64 cookie, u8 notify_fw)
+{
+	return qed_ll2_post_rx_buffer(QED_LEADING_HWFN(cdev),
+				      QED_LEADING_HWFN(cdev)->ll2->handle,
+				      buf->baddr, buf->len,
+				      (void *)(uintptr_t)cookie, notify_fw);
+}
+
+static int qed_roce_ll2_stats(struct qed_dev *cdev, struct qed_ll2_stats *stats)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_roce_ll2_info *roce_ll2 = hwfn->ll2;
+
+	return qed_ll2_get_stats(QED_LEADING_HWFN(cdev),
+				 roce_ll2->handle, stats);
+}
+
 static const struct qed_rdma_ops qed_rdma_ops_pass = {
 	.common = &qed_common_ops_pass,
 	.fill_dev_info = &qed_fill_rdma_dev_info,
@@ -2638,6 +2939,12 @@ static const struct qed_rdma_ops qed_rdma_ops_pass = {
 	.rdma_free_tid = &qed_rdma_free_tid,
 	.rdma_register_tid = &qed_rdma_register_tid,
 	.rdma_deregister_tid = &qed_rdma_deregister_tid,
+	.roce_ll2_start = &qed_roce_ll2_start,
+	.roce_ll2_stop = &qed_roce_ll2_stop,
+	.roce_ll2_tx = &qed_roce_ll2_tx,
+	.roce_ll2_post_rx_buffer = &qed_roce_ll2_post_rx_buffer,
+	.roce_ll2_set_mac_filter = &qed_roce_ll2_set_mac_filter,
+	.roce_ll2_stats = &qed_roce_ll2_stats,
 };
 
 const struct qed_rdma_ops *qed_get_rdma_ops()

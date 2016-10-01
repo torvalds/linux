@@ -24,6 +24,12 @@
 
 #define QED_MAX_NUM_OF_LL2_CONNECTIONS                    (4)
 
+enum qed_ll2_roce_flavor_type {
+	QED_LL2_ROCE,
+	QED_LL2_RROCE,
+	MAX_QED_LL2_ROCE_FLAVOR_TYPE
+};
+
 enum qed_ll2_conn_type {
 	QED_LL2_TYPE_RESERVED,
 	QED_LL2_TYPE_ISCSI,
@@ -119,6 +125,7 @@ struct qed_ll2_info {
 	u8 tx_stats_en;
 	struct qed_ll2_rx_queue rx_queue;
 	struct qed_ll2_tx_queue tx_queue;
+	u8 gsi_enable;
 };
 
 /**
@@ -199,6 +206,7 @@ int qed_ll2_prepare_tx_packet(struct qed_hwfn *p_hwfn,
 			      u16 vlan,
 			      u8 bd_flags,
 			      u16 l4_hdr_offset_w,
+			      enum qed_ll2_roce_flavor_type qed_roce_flavor,
 			      dma_addr_t first_frag,
 			      u16 first_frag_len, void *cookie, u8 notify_fw);
 
@@ -285,5 +293,24 @@ void qed_ll2_setup(struct qed_hwfn *p_hwfn,
  */
 void qed_ll2_free(struct qed_hwfn *p_hwfn,
 		  struct qed_ll2_info *p_ll2_connections);
-
+void qed_ll2b_complete_rx_gsi_packet(struct qed_hwfn *p_hwfn,
+				     u8 connection_handle,
+				     void *cookie,
+				     dma_addr_t rx_buf_addr,
+				     u16 data_length,
+				     u8 data_length_error,
+				     u16 parse_flags,
+				     u16 vlan,
+				     u32 src_mac_addr_hi,
+				     u16 src_mac_addr_lo, bool b_last_packet);
+void qed_ll2b_complete_tx_gsi_packet(struct qed_hwfn *p_hwfn,
+				     u8 connection_handle,
+				     void *cookie,
+				     dma_addr_t first_frag_addr,
+				     bool b_last_fragment, bool b_last_packet);
+void qed_ll2b_release_tx_gsi_packet(struct qed_hwfn *p_hwfn,
+				    u8 connection_handle,
+				    void *cookie,
+				    dma_addr_t first_frag_addr,
+				    bool b_last_fragment, bool b_last_packet);
 #endif

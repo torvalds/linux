@@ -278,6 +278,7 @@ static void qed_ll2_txq_flush(struct qed_hwfn *p_hwfn, u8 connection_handle)
 	struct qed_ll2_tx_packet *p_pkt = NULL;
 	struct qed_ll2_info *p_ll2_conn;
 	struct qed_ll2_tx_queue *p_tx;
+	dma_addr_t tx_frag;
 
 	p_ll2_conn = qed_ll2_handle_sanity_inactive(p_hwfn, connection_handle);
 	if (!p_ll2_conn)
@@ -297,11 +298,22 @@ static void qed_ll2_txq_flush(struct qed_hwfn *p_hwfn, u8 connection_handle)
 		p_tx->cur_completing_packet = *p_pkt;
 		p_tx->cur_completing_bd_idx = 1;
 		b_last_frag = p_tx->cur_completing_bd_idx == p_pkt->bd_used;
+		tx_frag = p_pkt->bds_set[0].tx_frag;
+		if (p_ll2_conn->gsi_enable)
+			qed_ll2b_release_tx_gsi_packet(p_hwfn,
+						       p_ll2_conn->my_id,
+						       p_pkt->cookie,
+						       tx_frag,
+						       b_last_frag,
+						       b_last_packet);
+		else
+			qed_ll2b_complete_tx_packet(p_hwfn,
+						    p_ll2_conn->my_id,
+						    p_pkt->cookie,
+						    tx_frag,
+						    b_last_frag,
+						    b_last_packet);
 
-		qed_ll2b_complete_tx_packet(p_hwfn, p_ll2_conn->my_id,
-					    p_pkt->cookie,
-					    p_pkt->bds_set[0].tx_frag,
-					    b_last_frag, b_last_packet);
 	}
 }
 
@@ -313,6 +325,7 @@ static int qed_ll2_txq_completion(struct qed_hwfn *p_hwfn, void *p_cookie)
 	struct qed_ll2_tx_packet *p_pkt;
 	bool b_last_frag = false;
 	unsigned long flags;
+	dma_addr_t tx_frag;
 	int rc = -EINVAL;
 
 	spin_lock_irqsave(&p_tx->lock, flags);
@@ -353,11 +366,19 @@ static int qed_ll2_txq_completion(struct qed_hwfn *p_hwfn, void *p_cookie)
 		list_add_tail(&p_pkt->list_entry, &p_tx->free_descq);
 
 		spin_unlock_irqrestore(&p_tx->lock, flags);
-		qed_ll2b_complete_tx_packet(p_hwfn,
-					    p_ll2_conn->my_id,
-					    p_pkt->cookie,
-					    p_pkt->bds_set[0].tx_frag,
-					    b_last_frag, !num_bds);
+		tx_frag = p_pkt->bds_set[0].tx_frag;
+		if (p_ll2_conn->gsi_enable)
+			qed_ll2b_complete_tx_gsi_packet(p_hwfn,
+							p_ll2_conn->my_id,
+							p_pkt->cookie,
+							tx_frag,
+							b_last_frag, !num_bds);
+		else
+			qed_ll2b_complete_tx_packet(p_hwfn,
+						    p_ll2_conn->my_id,
+						    p_pkt->cookie,
+						    tx_frag,
+						    b_last_frag, !num_bds);
 		spin_lock_irqsave(&p_tx->lock, flags);
 	}
 
@@ -366,6 +387,54 @@ static int qed_ll2_txq_completion(struct qed_hwfn *p_hwfn, void *p_cookie)
 out:
 	spin_unlock_irqrestore(&p_tx->lock, flags);
 	return rc;
+}
+
+static int
+qed_ll2_rxq_completion_gsi(struct qed_hwfn *p_hwfn,
+			   struct qed_ll2_info *p_ll2_info,
+			   union core_rx_cqe_union *p_cqe,
+			   unsigned long lock_flags, bool b_last_cqe)
+{
+	struct qed_ll2_rx_queue *p_rx = &p_ll2_info->rx_queue;
+	struct qed_ll2_rx_packet *p_pkt = NULL;
+	u16 packet_length, parse_flags, vlan;
+	u32 src_mac_addrhi;
+	u16 src_mac_addrlo;
+
+	if (!list_empty(&p_rx->active_descq))
+		p_pkt = list_first_entry(&p_rx->active_descq,
+					 struct qed_ll2_rx_packet, list_entry);
+	if (!p_pkt) {
+		DP_NOTICE(p_hwfn,
+			  "GSI Rx completion but active_descq is empty\n");
+		return -EIO;
+	}
+
+	list_del(&p_pkt->list_entry);
+	parse_flags = le16_to_cpu(p_cqe->rx_cqe_gsi.parse_flags.flags);
+	packet_length = le16_to_cpu(p_cqe->rx_cqe_gsi.data_length);
+	vlan = le16_to_cpu(p_cqe->rx_cqe_gsi.vlan);
+	src_mac_addrhi = le32_to_cpu(p_cqe->rx_cqe_gsi.src_mac_addrhi);
+	src_mac_addrlo = le16_to_cpu(p_cqe->rx_cqe_gsi.src_mac_addrlo);
+	if (qed_chain_consume(&p_rx->rxq_chain) != p_pkt->rxq_bd)
+		DP_NOTICE(p_hwfn,
+			  "Mismatch between active_descq and the LL2 Rx chain\n");
+	list_add_tail(&p_pkt->list_entry, &p_rx->free_descq);
+
+	spin_unlock_irqrestore(&p_rx->lock, lock_flags);
+	qed_ll2b_complete_rx_gsi_packet(p_hwfn,
+					p_ll2_info->my_id,
+					p_pkt->cookie,
+					p_pkt->rx_buf_addr,
+					packet_length,
+					p_cqe->rx_cqe_gsi.data_length_error,
+					parse_flags,
+					vlan,
+					src_mac_addrhi,
+					src_mac_addrlo, b_last_cqe);
+	spin_lock_irqsave(&p_rx->lock, lock_flags);
+
+	return 0;
 }
 
 static int qed_ll2_rxq_completion_reg(struct qed_hwfn *p_hwfn,
@@ -428,6 +497,10 @@ static int qed_ll2_rxq_completion(struct qed_hwfn *p_hwfn, void *cookie)
 		case CORE_RX_CQE_TYPE_SLOW_PATH:
 			DP_NOTICE(p_hwfn, "LL2 - unexpected Rx CQE slowpath\n");
 			rc = -EINVAL;
+			break;
+		case CORE_RX_CQE_TYPE_GSI_OFFLOAD:
+			rc = qed_ll2_rxq_completion_gsi(p_hwfn, p_ll2_conn,
+							cqe, flags, b_last_cqe);
 			break;
 		case CORE_RX_CQE_TYPE_REGULAR:
 			rc = qed_ll2_rxq_completion_reg(p_hwfn, p_ll2_conn,
@@ -527,6 +600,7 @@ static int qed_sp_ll2_rx_queue_start(struct qed_hwfn *p_hwfn,
 	}
 
 	p_ramrod->action_on_error.error_type = action_on_error;
+	p_ramrod->gsi_offload_flag = p_ll2_conn->gsi_enable;
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
 
@@ -589,6 +663,7 @@ static int qed_sp_ll2_tx_queue_start(struct qed_hwfn *p_hwfn,
 		DP_NOTICE(p_hwfn, "Unknown connection type: %d\n", conn_type);
 	}
 
+	p_ramrod->gsi_offload_flag = p_ll2_conn->gsi_enable;
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
 
@@ -775,6 +850,7 @@ int qed_ll2_acquire_connection(struct qed_hwfn *p_hwfn,
 	p_ll2_info->tx_dest = p_params->tx_dest;
 	p_ll2_info->ai_err_packet_too_big = p_params->ai_err_packet_too_big;
 	p_ll2_info->ai_err_no_buf = p_params->ai_err_no_buf;
+	p_ll2_info->gsi_enable = p_params->gsi_enable;
 
 	rc = qed_ll2_acquire_connection_rx(p_hwfn, p_ll2_info, rx_num_desc);
 	if (rc)
@@ -1026,6 +1102,7 @@ static void qed_ll2_prepare_tx_packet_set_bd(struct qed_hwfn *p_hwfn,
 					     u16 vlan,
 					     u8 bd_flags,
 					     u16 l4_hdr_offset_w,
+					     enum core_roce_flavor_type type,
 					     dma_addr_t first_frag,
 					     u16 first_frag_len)
 {
@@ -1045,6 +1122,9 @@ static void qed_ll2_prepare_tx_packet_set_bd(struct qed_hwfn *p_hwfn,
 	SET_FIELD(start_bd->bitfield0, CORE_TX_BD_NBDS, num_of_bds);
 	DMA_REGPAIR_LE(start_bd->addr, first_frag);
 	start_bd->nbytes = cpu_to_le16(first_frag_len);
+
+	SET_FIELD(start_bd->bd_flags.as_bitfield, CORE_TX_BD_FLAGS_ROCE_FLAV,
+		  type);
 
 	DP_VERBOSE(p_hwfn,
 		   (NETIF_MSG_TX_QUEUED | QED_MSG_LL2),
@@ -1137,11 +1217,13 @@ int qed_ll2_prepare_tx_packet(struct qed_hwfn *p_hwfn,
 			      u16 vlan,
 			      u8 bd_flags,
 			      u16 l4_hdr_offset_w,
+			      enum qed_ll2_roce_flavor_type qed_roce_flavor,
 			      dma_addr_t first_frag,
 			      u16 first_frag_len, void *cookie, u8 notify_fw)
 {
 	struct qed_ll2_tx_packet *p_curp = NULL;
 	struct qed_ll2_info *p_ll2_conn = NULL;
+	enum core_roce_flavor_type roce_flavor;
 	struct qed_ll2_tx_queue *p_tx;
 	struct qed_chain *p_tx_chain;
 	unsigned long flags;
@@ -1174,6 +1256,15 @@ int qed_ll2_prepare_tx_packet(struct qed_hwfn *p_hwfn,
 		goto out;
 	}
 
+	if (qed_roce_flavor == QED_LL2_ROCE) {
+		roce_flavor = CORE_ROCE;
+	} else if (qed_roce_flavor == QED_LL2_RROCE) {
+		roce_flavor = CORE_RROCE;
+	} else {
+		rc = -EINVAL;
+		goto out;
+	}
+
 	/* Prepare packet and BD, and perhaps send a doorbell to FW */
 	qed_ll2_prepare_tx_packet_set(p_hwfn, p_tx, p_curp,
 				      num_of_bds, first_frag,
@@ -1181,6 +1272,7 @@ int qed_ll2_prepare_tx_packet(struct qed_hwfn *p_hwfn,
 	qed_ll2_prepare_tx_packet_set_bd(p_hwfn, p_ll2_conn, p_curp,
 					 num_of_bds, CORE_TX_DEST_NW,
 					 vlan, bd_flags, l4_hdr_offset_w,
+					 roce_flavor,
 					 first_frag, first_frag_len);
 
 	qed_ll2_tx_packet_notify(p_hwfn, p_ll2_conn);
@@ -1476,6 +1568,7 @@ static int qed_ll2_start(struct qed_dev *cdev, struct qed_ll2_params *params)
 	ll2_info.rx_vlan_removal_en = params->rx_vlan_stripping;
 	ll2_info.tx_tc = 0;
 	ll2_info.tx_dest = CORE_TX_DEST_NW;
+	ll2_info.gsi_enable = 1;
 
 	rc = qed_ll2_acquire_connection(QED_LEADING_HWFN(cdev), &ll2_info,
 					QED_LL2_RX_SIZE, QED_LL2_TX_SIZE,
@@ -1625,8 +1718,8 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb)
 	rc = qed_ll2_prepare_tx_packet(QED_LEADING_HWFN(cdev),
 				       cdev->ll2->handle,
 				       1 + skb_shinfo(skb)->nr_frags,
-				       vlan, flags, 0, mapping,
-				       skb->len, skb, 1);
+				       vlan, flags, 0, 0 /* RoCE FLAVOR */,
+				       mapping, skb->len, skb, 1);
 	if (rc)
 		goto err;
 
