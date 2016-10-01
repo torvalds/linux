@@ -584,6 +584,10 @@ struct nand_buffers {
  *
  * All these timings are expressed in picoseconds.
  *
+ * @tBERS_max: Block erase time
+ * @tCCS_min: Change column setup time
+ * @tPROG_max: Page program time
+ * @tR_max: Page read time
  * @tALH_min: ALE hold time
  * @tADL_min: ALE to data loading time
  * @tALS_min: ALE setup time
@@ -621,6 +625,10 @@ struct nand_buffers {
  * @tWW_min: WP# transition to WE# low
  */
 struct nand_sdr_timings {
+	u32 tBERS_max;
+	u32 tCCS_min;
+	u32 tPROG_max;
+	u32 tR_max;
 	u32 tALH_min;
 	u32 tADL_min;
 	u32 tALS_min;
