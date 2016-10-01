@@ -114,6 +114,72 @@ struct qed_rdma_resize_cnq_in_params {
 	u64 pbl_ptr;
 };
 
+struct qed_rdma_qp {
+	struct regpair qp_handle;
+	struct regpair qp_handle_async;
+	u32 qpid;
+	u16 icid;
+	enum qed_roce_qp_state cur_state;
+	bool use_srq;
+	bool signal_all;
+	bool fmr_and_reserved_lkey;
+
+	bool incoming_rdma_read_en;
+	bool incoming_rdma_write_en;
+	bool incoming_atomic_en;
+	bool e2e_flow_control_en;
+
+	u16 pd;
+	u16 pkey;
+	u32 dest_qp;
+	u16 mtu;
+	u16 srq_id;
+	u8 traffic_class_tos;
+	u8 hop_limit_ttl;
+	u16 dpi;
+	u32 flow_label;
+	bool lb_indication;
+	u16 vlan_id;
+	u32 ack_timeout;
+	u8 retry_cnt;
+	u8 rnr_retry_cnt;
+	u8 min_rnr_nak_timer;
+	bool sqd_async;
+	union qed_gid sgid;
+	union qed_gid dgid;
+	enum roce_mode roce_mode;
+	u16 udp_src_port;
+	u8 stats_queue;
+
+	/* requeseter */
+	u8 max_rd_atomic_req;
+	u32 sq_psn;
+	u16 sq_cq_id;
+	u16 sq_num_pages;
+	dma_addr_t sq_pbl_ptr;
+	void *orq;
+	dma_addr_t orq_phys_addr;
+	u8 orq_num_pages;
+	bool req_offloaded;
+
+	/* responder */
+	u8 max_rd_atomic_resp;
+	u32 rq_psn;
+	u16 rq_cq_id;
+	u16 rq_num_pages;
+	dma_addr_t rq_pbl_ptr;
+	void *irq;
+	dma_addr_t irq_phys_addr;
+	u8 irq_num_pages;
+	bool resp_offloaded;
+
+	u8 remote_mac_addr[6];
+	u8 local_mac_addr[6];
+
+	void *shared_queue;
+	dma_addr_t shared_queue_phys_addr;
+};
+
 int
 qed_rdma_add_user(void *rdma_cxt,
 		  struct qed_rdma_add_user_out_params *out_params);
@@ -135,6 +201,11 @@ void qed_rdma_cnq_prod_update(void *rdma_cxt, u8 cnq_index, u16 prod);
 void qed_rdma_resc_free(struct qed_hwfn *p_hwfn);
 void qed_async_roce_event(struct qed_hwfn *p_hwfn,
 			  struct event_ring_entry *p_eqe);
+int qed_rdma_destroy_qp(void *rdma_cxt, struct qed_rdma_qp *qp);
+int qed_rdma_modify_qp(void *rdma_cxt, struct qed_rdma_qp *qp,
+		       struct qed_rdma_modify_qp_in_params *params);
+int qed_rdma_query_qp(void *rdma_cxt, struct qed_rdma_qp *qp,
+		      struct qed_rdma_query_qp_out_params *out_params);
 
 #if IS_ENABLED(CONFIG_INFINIBAND_QEDR)
 void qed_rdma_dpm_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);

@@ -43,6 +43,17 @@
 #define QED_RDMA_MAX_CNQ_SIZE               (0xFFFF)
 
 /* rdma interface */
+
+enum qed_roce_qp_state {
+	QED_ROCE_QP_STATE_RESET,
+	QED_ROCE_QP_STATE_INIT,
+	QED_ROCE_QP_STATE_RTR,
+	QED_ROCE_QP_STATE_RTS,
+	QED_ROCE_QP_STATE_SQD,
+	QED_ROCE_QP_STATE_ERR,
+	QED_ROCE_QP_STATE_SQE
+};
+
 enum qed_rdma_tid_type {
 	QED_RDMA_TID_REGISTERED_MR,
 	QED_RDMA_TID_FMR,
@@ -292,6 +303,128 @@ struct qed_rdma_destroy_cq_out_params {
 	u16 num_cq_notif;
 };
 
+struct qed_rdma_create_qp_in_params {
+	u32 qp_handle_lo;
+	u32 qp_handle_hi;
+	u32 qp_handle_async_lo;
+	u32 qp_handle_async_hi;
+	bool use_srq;
+	bool signal_all;
+	bool fmr_and_reserved_lkey;
+	u16 pd;
+	u16 dpi;
+	u16 sq_cq_id;
+	u16 sq_num_pages;
+	u64 sq_pbl_ptr;
+	u8 max_sq_sges;
+	u16 rq_cq_id;
+	u16 rq_num_pages;
+	u64 rq_pbl_ptr;
+	u16 srq_id;
+	u8 stats_queue;
+};
+
+struct qed_rdma_create_qp_out_params {
+	u32 qp_id;
+	u16 icid;
+	void *rq_pbl_virt;
+	dma_addr_t rq_pbl_phys;
+	void *sq_pbl_virt;
+	dma_addr_t sq_pbl_phys;
+};
+
+struct qed_rdma_modify_qp_in_params {
+	u32 modify_flags;
+#define QED_RDMA_MODIFY_QP_VALID_NEW_STATE_MASK               0x1
+#define QED_RDMA_MODIFY_QP_VALID_NEW_STATE_SHIFT              0
+#define QED_ROCE_MODIFY_QP_VALID_PKEY_MASK                    0x1
+#define QED_ROCE_MODIFY_QP_VALID_PKEY_SHIFT                   1
+#define QED_RDMA_MODIFY_QP_VALID_RDMA_OPS_EN_MASK             0x1
+#define QED_RDMA_MODIFY_QP_VALID_RDMA_OPS_EN_SHIFT            2
+#define QED_ROCE_MODIFY_QP_VALID_DEST_QP_MASK                 0x1
+#define QED_ROCE_MODIFY_QP_VALID_DEST_QP_SHIFT                3
+#define QED_ROCE_MODIFY_QP_VALID_ADDRESS_VECTOR_MASK          0x1
+#define QED_ROCE_MODIFY_QP_VALID_ADDRESS_VECTOR_SHIFT         4
+#define QED_ROCE_MODIFY_QP_VALID_RQ_PSN_MASK                  0x1
+#define QED_ROCE_MODIFY_QP_VALID_RQ_PSN_SHIFT                 5
+#define QED_ROCE_MODIFY_QP_VALID_SQ_PSN_MASK                  0x1
+#define QED_ROCE_MODIFY_QP_VALID_SQ_PSN_SHIFT                 6
+#define QED_RDMA_MODIFY_QP_VALID_MAX_RD_ATOMIC_REQ_MASK       0x1
+#define QED_RDMA_MODIFY_QP_VALID_MAX_RD_ATOMIC_REQ_SHIFT      7
+#define QED_RDMA_MODIFY_QP_VALID_MAX_RD_ATOMIC_RESP_MASK      0x1
+#define QED_RDMA_MODIFY_QP_VALID_MAX_RD_ATOMIC_RESP_SHIFT     8
+#define QED_ROCE_MODIFY_QP_VALID_ACK_TIMEOUT_MASK             0x1
+#define QED_ROCE_MODIFY_QP_VALID_ACK_TIMEOUT_SHIFT            9
+#define QED_ROCE_MODIFY_QP_VALID_RETRY_CNT_MASK               0x1
+#define QED_ROCE_MODIFY_QP_VALID_RETRY_CNT_SHIFT              10
+#define QED_ROCE_MODIFY_QP_VALID_RNR_RETRY_CNT_MASK           0x1
+#define QED_ROCE_MODIFY_QP_VALID_RNR_RETRY_CNT_SHIFT          11
+#define QED_ROCE_MODIFY_QP_VALID_MIN_RNR_NAK_TIMER_MASK       0x1
+#define QED_ROCE_MODIFY_QP_VALID_MIN_RNR_NAK_TIMER_SHIFT      12
+#define QED_ROCE_MODIFY_QP_VALID_E2E_FLOW_CONTROL_EN_MASK     0x1
+#define QED_ROCE_MODIFY_QP_VALID_E2E_FLOW_CONTROL_EN_SHIFT    13
+#define QED_ROCE_MODIFY_QP_VALID_ROCE_MODE_MASK               0x1
+#define QED_ROCE_MODIFY_QP_VALID_ROCE_MODE_SHIFT              14
+
+	enum qed_roce_qp_state new_state;
+	u16 pkey;
+	bool incoming_rdma_read_en;
+	bool incoming_rdma_write_en;
+	bool incoming_atomic_en;
+	bool e2e_flow_control_en;
+	u32 dest_qp;
+	bool lb_indication;
+	u16 mtu;
+	u8 traffic_class_tos;
+	u8 hop_limit_ttl;
+	u32 flow_label;
+	union qed_gid sgid;
+	union qed_gid dgid;
+	u16 udp_src_port;
+
+	u16 vlan_id;
+
+	u32 rq_psn;
+	u32 sq_psn;
+	u8 max_rd_atomic_resp;
+	u8 max_rd_atomic_req;
+	u32 ack_timeout;
+	u8 retry_cnt;
+	u8 rnr_retry_cnt;
+	u8 min_rnr_nak_timer;
+	bool sqd_async;
+	u8 remote_mac_addr[6];
+	u8 local_mac_addr[6];
+	bool use_local_mac;
+	enum roce_mode roce_mode;
+};
+
+struct qed_rdma_query_qp_out_params {
+	enum qed_roce_qp_state state;
+	u32 rq_psn;
+	u32 sq_psn;
+	bool draining;
+	u16 mtu;
+	u32 dest_qp;
+	bool incoming_rdma_read_en;
+	bool incoming_rdma_write_en;
+	bool incoming_atomic_en;
+	bool e2e_flow_control_en;
+	union qed_gid sgid;
+	union qed_gid dgid;
+	u32 flow_label;
+	u8 hop_limit_ttl;
+	u8 traffic_class_tos;
+	u32 timeout;
+	u8 rnr_retry;
+	u8 retry_cnt;
+	u8 min_rnr_nak_timer;
+	u16 pkey_index;
+	u8 max_rd_atomic;
+	u8 max_dest_rd_atomic;
+	bool sqd_async;
+};
+
 struct qed_rdma_create_srq_out_params {
 	u16 srq_id;
 };
@@ -368,6 +501,17 @@ struct qed_rdma_ops {
 	int (*rdma_destroy_cq)(void *rdma_cxt,
 			       struct qed_rdma_destroy_cq_in_params *iparams,
 			       struct qed_rdma_destroy_cq_out_params *oparams);
+	struct qed_rdma_qp *
+	(*rdma_create_qp)(void *rdma_cxt,
+			  struct qed_rdma_create_qp_in_params *iparams,
+			  struct qed_rdma_create_qp_out_params *oparams);
+
+	int (*rdma_modify_qp)(void *roce_cxt, struct qed_rdma_qp *qp,
+			      struct qed_rdma_modify_qp_in_params *iparams);
+
+	int (*rdma_query_qp)(void *rdma_cxt, struct qed_rdma_qp *qp,
+			     struct qed_rdma_query_qp_out_params *oparams);
+	int (*rdma_destroy_qp)(void *rdma_cxt, struct qed_rdma_qp *qp);
 };
 
 const struct qed_rdma_ops *qed_get_rdma_ops(void);
