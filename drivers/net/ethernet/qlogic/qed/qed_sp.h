@@ -85,6 +85,7 @@ union ramrod_data {
 	struct rdma_srq_create_ramrod_data rdma_create_srq;
 	struct rdma_srq_destroy_ramrod_data rdma_destroy_srq;
 	struct rdma_srq_modify_ramrod_data rdma_modify_srq;
+	struct roce_init_func_ramrod_data roce_init_func;
 
 	struct iscsi_slow_path_hdr iscsi_empty;
 	struct iscsi_init_ramrod_params iscsi_init;

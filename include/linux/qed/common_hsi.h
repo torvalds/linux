@@ -674,6 +674,7 @@ union event_ring_data {
 	struct iscsi_eqe_data iscsi_info;
 	struct malicious_vf_eqe_data malicious_vf;
 	struct initial_cleanup_eqe_data vf_init_cleanup;
+	struct regpair roce_handle;
 };
 
 /* Event Ring Entry */

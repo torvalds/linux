@@ -35,8 +35,12 @@
 #include "qed_sp.h"
 #include "qed_sriov.h"
 #include "qed_vf.h"
+#include "qed_roce.h"
 
 static DEFINE_SPINLOCK(qm_lock);
+
+#define QED_MIN_DPIS            (4)
+#define QED_MIN_PWM_REGION      (QED_WID_SIZE * QED_MIN_DPIS)
 
 /* API common to all protocols */
 enum BAR_ID {
@@ -787,6 +791,136 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
+static int
+qed_hw_init_dpi_size(struct qed_hwfn *p_hwfn,
+		     struct qed_ptt *p_ptt, u32 pwm_region_size, u32 n_cpus)
+{
+	u32 dpi_page_size_1, dpi_page_size_2, dpi_page_size;
+	u32 dpi_bit_shift, dpi_count;
+	u32 min_dpis;
+
+	/* Calculate DPI size */
+	dpi_page_size_1 = QED_WID_SIZE * n_cpus;
+	dpi_page_size_2 = max_t(u32, QED_WID_SIZE, PAGE_SIZE);
+	dpi_page_size = max_t(u32, dpi_page_size_1, dpi_page_size_2);
+	dpi_page_size = roundup_pow_of_two(dpi_page_size);
+	dpi_bit_shift = ilog2(dpi_page_size / 4096);
+
+	dpi_count = pwm_region_size / dpi_page_size;
+
+	min_dpis = p_hwfn->pf_params.rdma_pf_params.min_dpis;
+	min_dpis = max_t(u32, QED_MIN_DPIS, min_dpis);
+
+	p_hwfn->dpi_size = dpi_page_size;
+	p_hwfn->dpi_count = dpi_count;
+
+	qed_wr(p_hwfn, p_ptt, DORQ_REG_PF_DPI_BIT_SHIFT, dpi_bit_shift);
+
+	if (dpi_count < min_dpis)
+		return -EINVAL;
+
+	return 0;
+}
+
+enum QED_ROCE_EDPM_MODE {
+	QED_ROCE_EDPM_MODE_ENABLE = 0,
+	QED_ROCE_EDPM_MODE_FORCE_ON = 1,
+	QED_ROCE_EDPM_MODE_DISABLE = 2,
+};
+
+static int
+qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	u32 pwm_regsize, norm_regsize;
+	u32 non_pwm_conn, min_addr_reg1;
+	u32 db_bar_size, n_cpus;
+	u32 roce_edpm_mode;
+	u32 pf_dems_shift;
+	int rc = 0;
+	u8 cond;
+
+	db_bar_size = qed_hw_bar_size(p_hwfn, BAR_ID_1);
+	if (p_hwfn->cdev->num_hwfns > 1)
+		db_bar_size /= 2;
+
+	/* Calculate doorbell regions */
+	non_pwm_conn = qed_cxt_get_proto_cid_start(p_hwfn, PROTOCOLID_CORE) +
+		       qed_cxt_get_proto_cid_count(p_hwfn, PROTOCOLID_CORE,
+						   NULL) +
+		       qed_cxt_get_proto_cid_count(p_hwfn, PROTOCOLID_ETH,
+						   NULL);
+	norm_regsize = roundup(QED_PF_DEMS_SIZE * non_pwm_conn, 4096);
+	min_addr_reg1 = norm_regsize / 4096;
+	pwm_regsize = db_bar_size - norm_regsize;
+
+	/* Check that the normal and PWM sizes are valid */
+	if (db_bar_size < norm_regsize) {
+		DP_ERR(p_hwfn->cdev,
+		       "Doorbell BAR size 0x%x is too small (normal region is 0x%0x )\n",
+		       db_bar_size, norm_regsize);
+		return -EINVAL;
+	}
+
+	if (pwm_regsize < QED_MIN_PWM_REGION) {
+		DP_ERR(p_hwfn->cdev,
+		       "PWM region size 0x%0x is too small. Should be at least 0x%0x (Doorbell BAR size is 0x%x and normal region size is 0x%0x)\n",
+		       pwm_regsize,
+		       QED_MIN_PWM_REGION, db_bar_size, norm_regsize);
+		return -EINVAL;
+	}
+
+	/* Calculate number of DPIs */
+	roce_edpm_mode = p_hwfn->pf_params.rdma_pf_params.roce_edpm_mode;
+	if ((roce_edpm_mode == QED_ROCE_EDPM_MODE_ENABLE) ||
+	    ((roce_edpm_mode == QED_ROCE_EDPM_MODE_FORCE_ON))) {
+		/* Either EDPM is mandatory, or we are attempting to allocate a
+		 * WID per CPU.
+		 */
+		n_cpus = num_active_cpus();
+		rc = qed_hw_init_dpi_size(p_hwfn, p_ptt, pwm_regsize, n_cpus);
+	}
+
+	cond = (rc && (roce_edpm_mode == QED_ROCE_EDPM_MODE_ENABLE)) ||
+	       (roce_edpm_mode == QED_ROCE_EDPM_MODE_DISABLE);
+	if (cond || p_hwfn->dcbx_no_edpm) {
+		/* Either EDPM is disabled from user configuration, or it is
+		 * disabled via DCBx, or it is not mandatory and we failed to
+		 * allocated a WID per CPU.
+		 */
+		n_cpus = 1;
+		rc = qed_hw_init_dpi_size(p_hwfn, p_ptt, pwm_regsize, n_cpus);
+
+		if (cond)
+			qed_rdma_dpm_bar(p_hwfn, p_ptt);
+	}
+
+	DP_INFO(p_hwfn,
+		"doorbell bar: normal_region_size=%d, pwm_region_size=%d, dpi_size=%d, dpi_count=%d, roce_edpm=%s\n",
+		norm_regsize,
+		pwm_regsize,
+		p_hwfn->dpi_size,
+		p_hwfn->dpi_count,
+		((p_hwfn->dcbx_no_edpm) || (p_hwfn->db_bar_no_edpm)) ?
+		"disabled" : "enabled");
+
+	if (rc) {
+		DP_ERR(p_hwfn,
+		       "Failed to allocate enough DPIs. Allocated %d but the current minimum is %d.\n",
+		       p_hwfn->dpi_count,
+		       p_hwfn->pf_params.rdma_pf_params.min_dpis);
+		return -EINVAL;
+	}
+
+	p_hwfn->dpi_start_offset = norm_regsize;
+
+	/* DEMS size is configured log2 of DWORDs, hence the division by 4 */
+	pf_dems_shift = ilog2(QED_PF_DEMS_SIZE / 4);
+	qed_wr(p_hwfn, p_ptt, DORQ_REG_PF_ICID_BIT_SHIFT_NORM, pf_dems_shift);
+	qed_wr(p_hwfn, p_ptt, DORQ_REG_PF_MIN_ADDR_REG1, min_addr_reg1);
+
+	return 0;
+}
+
 static int qed_hw_init_port(struct qed_hwfn *p_hwfn,
 			    struct qed_ptt *p_ptt, int hw_mode)
 {
@@ -859,6 +993,10 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 
 	/* Pure runtime initializations - directly to the HW  */
 	qed_int_igu_init_pure_rt(p_hwfn, p_ptt, true, true);
+
+	rc = qed_hw_init_pf_doorbell_bar(p_hwfn, p_ptt);
+	if (rc)
+		return rc;
 
 	if (b_hw_start) {
 		/* enable interrupts */
@@ -1284,6 +1422,19 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 	u32 *feat_num = p_hwfn->hw_info.feat_num;
 	int num_features = 1;
 
+#if IS_ENABLED(CONFIG_INFINIBAND_QEDR)
+	/* Roce CNQ each requires: 1 status block + 1 CNQ. We divide the
+	 * status blocks equally between L2 / RoCE but with consideration as
+	 * to how many l2 queues / cnqs we have
+	 */
+	if (p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE) {
+		num_features++;
+
+		feat_num[QED_RDMA_CNQ] =
+			min_t(u32, RESC_NUM(p_hwfn, QED_SB) / num_features,
+			      RESC_NUM(p_hwfn, QED_RDMA_CNQ_RAM));
+	}
+#endif
 	feat_num[QED_PF_L2_QUE] = min_t(u32, RESC_NUM(p_hwfn, QED_SB) /
 						num_features,
 					RESC_NUM(p_hwfn, QED_L2_QUEUE));
@@ -1325,6 +1476,9 @@ static int qed_hw_get_resc(struct qed_hwfn *p_hwfn)
 			     num_funcs;
 	resc_num[QED_ILT] = PXP_NUM_ILT_RECORDS_BB / num_funcs;
 	resc_num[QED_LL2_QUEUE] = MAX_NUM_LL2_RX_QUEUES / num_funcs;
+	resc_num[QED_RDMA_CNQ_RAM] = NUM_OF_CMDQS_CQS / num_funcs;
+	resc_num[QED_RDMA_STATS_QUEUE] = RDMA_NUM_STATISTIC_COUNTERS_BB /
+					 num_funcs;
 
 	for (i = 0; i < QED_MAX_RESC; i++)
 		resc_start[i] = resc_num[i] * enabled_func_idx;
