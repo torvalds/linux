@@ -39,37 +39,25 @@ static void fuse_advise_use_readdirplus(struct inode *dir)
 	set_bit(FUSE_I_ADVISE_RDPLUS, &fi->state);
 }
 
-#if BITS_PER_LONG >= 64
+union fuse_dentry {
+	u64 time;
+	struct rcu_head rcu;
+};
+
 static inline void fuse_dentry_settime(struct dentry *entry, u64 time)
 {
-	entry->d_time = time;
+	((union fuse_dentry *) entry->d_fsdata)->time = time;
 }
 
 static inline u64 fuse_dentry_time(struct dentry *entry)
 {
-	return entry->d_time;
+	return ((union fuse_dentry *) entry->d_fsdata)->time;
 }
-#else
-/*
- * On 32 bit archs store the high 32 bits of time in d_fsdata
- */
-static void fuse_dentry_settime(struct dentry *entry, u64 time)
-{
-	entry->d_time = time;
-	entry->d_fsdata = (void *) (unsigned long) (time >> 32);
-}
-
-static u64 fuse_dentry_time(struct dentry *entry)
-{
-	return (u64) entry->d_time +
-		((u64) (unsigned long) entry->d_fsdata << 32);
-}
-#endif
 
 /*
  * FUSE caches dentries and attributes with separate timeout.  The
  * time in jiffies until the dentry/attributes are valid is stored in
- * dentry->d_time and fuse_inode->i_time respectively.
+ * dentry->d_fsdata and fuse_inode->i_time respectively.
  */
 
 /*
@@ -275,8 +263,23 @@ static int invalid_nodeid(u64 nodeid)
 	return !nodeid || nodeid == FUSE_ROOT_ID;
 }
 
+static int fuse_dentry_init(struct dentry *dentry)
+{
+	dentry->d_fsdata = kzalloc(sizeof(union fuse_dentry), GFP_KERNEL);
+
+	return dentry->d_fsdata ? 0 : -ENOMEM;
+}
+static void fuse_dentry_release(struct dentry *dentry)
+{
+	union fuse_dentry *fd = dentry->d_fsdata;
+
+	kfree_rcu(fd, rcu);
+}
+
 const struct dentry_operations fuse_dentry_operations = {
 	.d_revalidate	= fuse_dentry_revalidate,
+	.d_init		= fuse_dentry_init,
+	.d_release	= fuse_dentry_release,
 };
 
 int fuse_valid_type(int m)
