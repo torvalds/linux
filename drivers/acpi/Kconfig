@@ -461,6 +461,9 @@ source "drivers/acpi/nfit/Kconfig"
 source "drivers/acpi/apei/Kconfig"
 source "drivers/acpi/dptf/Kconfig"
 
+config ACPI_WATCHDOG
+	bool
+
 config ACPI_EXTLOG
 	tristate "Extended Error Log support"
 	depends on X86_MCE && X86_LOCAL_APIC

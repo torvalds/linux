@@ -173,6 +173,8 @@ struct acpi_ec {
 	struct work_struct work;
 	unsigned long timestamp;
 	unsigned long nr_pending_queries;
+	bool saved_busy_polling;
+	unsigned int saved_polling_guard;
 };
 
 extern struct acpi_ec *first_ec;
@@ -184,9 +186,9 @@ typedef int (*acpi_ec_query_func) (void *data);
 int acpi_ec_init(void);
 int acpi_ec_ecdt_probe(void);
 int acpi_ec_dsdt_probe(void);
+int acpi_ec_ecdt_start(void);
 void acpi_ec_block_transactions(void);
 void acpi_ec_unblock_transactions(void);
-void acpi_ec_unblock_transactions_early(void);
 int acpi_ec_add_query_handler(struct acpi_ec *ec, u8 query_bit,
 			      acpi_handle handle, acpi_ec_query_func func,
 			      void *data);
@@ -223,5 +225,15 @@ static inline void suspend_nvs_restore(void) {}
 
 void acpi_init_properties(struct acpi_device *adev);
 void acpi_free_properties(struct acpi_device *adev);
+
+/*--------------------------------------------------------------------------
+				Watchdog
+  -------------------------------------------------------------------------- */
+
+#ifdef CONFIG_ACPI_WATCHDOG
+void acpi_watchdog_init(void);
+#else
+static inline void acpi_watchdog_init(void) {}
+#endif
 
 #endif /* _ACPI_INTERNAL_H_ */

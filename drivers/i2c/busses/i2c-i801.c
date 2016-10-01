@@ -1486,7 +1486,9 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		priv->features |= FEATURE_IRQ;
 		priv->features |= FEATURE_SMBUS_PEC;
 		priv->features |= FEATURE_BLOCK_BUFFER;
-		priv->features |= FEATURE_TCO;
+		/* If we have ACPI based watchdog use that instead */
+		if (!acpi_has_watchdog())
+			priv->features |= FEATURE_TCO;
 		priv->features |= FEATURE_HOST_NOTIFY;
 		break;
 
