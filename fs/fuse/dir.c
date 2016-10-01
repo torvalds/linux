@@ -1703,14 +1703,22 @@ error:
 static int fuse_setattr(struct dentry *entry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(entry);
+	int ret;
 
 	if (!fuse_allow_current_process(get_fuse_conn(inode)))
 		return -EACCES;
 
 	if (attr->ia_valid & ATTR_FILE)
-		return fuse_do_setattr(inode, attr, attr->ia_file);
+		ret = fuse_do_setattr(inode, attr, attr->ia_file);
 	else
-		return fuse_do_setattr(inode, attr, NULL);
+		ret = fuse_do_setattr(inode, attr, NULL);
+
+	if (!ret) {
+		/* Directory mode changed, may need to revalidate access */
+		if (d_is_dir(entry) && (attr->ia_valid & ATTR_MODE))
+			fuse_invalidate_entry_cache(entry);
+	}
+	return ret;
 }
 
 static int fuse_getattr(struct vfsmount *mnt, struct dentry *entry,
