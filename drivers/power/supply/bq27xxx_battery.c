@@ -397,10 +397,11 @@ static LIST_HEAD(bq27xxx_battery_devices);
 static int poll_interval_param_set(const char *val, const struct kernel_param *kp)
 {
 	struct bq27xxx_device_info *di;
+	unsigned int prev_val = *(unsigned int *) kp->arg;
 	int ret;
 
 	ret = param_set_uint(val, kp);
-	if (ret < 0)
+	if (ret < 0 || prev_val == *(unsigned int *) kp->arg)
 		return ret;
 
 	mutex_lock(&bq27xxx_list_lock);
