@@ -63,11 +63,15 @@ static inline u64 fuse_dentry_time(struct dentry *entry)
 /*
  * Calculate the time in jiffies until a dentry/attributes are valid
  */
-static u64 time_to_jiffies(unsigned long sec, unsigned long nsec)
+static u64 time_to_jiffies(u64 sec, u32 nsec)
 {
 	if (sec || nsec) {
-		struct timespec ts = {sec, nsec};
-		return get_jiffies_64() + timespec_to_jiffies(&ts);
+		struct timespec64 ts = {
+			sec,
+			max_t(u32, nsec, NSEC_PER_SEC - 1)
+		};
+
+		return get_jiffies_64() + timespec64_to_jiffies(&ts);
 	} else
 		return 0;
 }
