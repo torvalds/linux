@@ -381,7 +381,7 @@ struct iio_dev;
  **/
 struct iio_info {
 	struct module			*driver_module;
-	struct attribute_group		*event_attrs;
+	const struct attribute_group	*event_attrs;
 	const struct attribute_group	*attrs;
 
 	int (*read_raw)(struct iio_dev *indio_dev,
