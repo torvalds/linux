@@ -689,6 +689,17 @@ struct qed_rdma_device *qed_rdma_query_device(void *rdma_cxt)
 	return p_hwfn->p_rdma_info->dev;
 }
 
+void qed_rdma_free_tid(void *rdma_cxt, u32 itid)
+{
+	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "itid = %08x\n", itid);
+
+	spin_lock_bh(&p_hwfn->p_rdma_info->lock);
+	qed_bmap_release_id(p_hwfn, &p_hwfn->p_rdma_info->tid_map, itid);
+	spin_unlock_bh(&p_hwfn->p_rdma_info->lock);
+}
+
 int qed_rdma_alloc_tid(void *rdma_cxt, u32 *itid)
 {
 	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
@@ -2300,6 +2311,231 @@ int qed_rdma_modify_qp(void *rdma_cxt,
 	return rc;
 }
 
+int qed_rdma_register_tid(void *rdma_cxt,
+			  struct qed_rdma_register_tid_in_params *params)
+{
+	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
+	struct rdma_register_tid_ramrod_data *p_ramrod;
+	struct qed_sp_init_data init_data;
+	struct qed_spq_entry *p_ent;
+	enum rdma_tid_type tid_type;
+	u8 fw_return_code;
+	int rc;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "itid = %08x\n", params->itid);
+
+	/* Get SPQ entry */
+	memset(&init_data, 0, sizeof(init_data));
+	init_data.opaque_fid = p_hwfn->hw_info.opaque_fid;
+	init_data.comp_mode = QED_SPQ_MODE_EBLOCK;
+
+	rc = qed_sp_init_request(p_hwfn, &p_ent, RDMA_RAMROD_REGISTER_MR,
+				 p_hwfn->p_rdma_info->proto, &init_data);
+	if (rc) {
+		DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "rc = %d\n", rc);
+		return rc;
+	}
+
+	if (p_hwfn->p_rdma_info->last_tid < params->itid)
+		p_hwfn->p_rdma_info->last_tid = params->itid;
+
+	p_ramrod = &p_ent->ramrod.rdma_register_tid;
+
+	p_ramrod->flags = 0;
+	SET_FIELD(p_ramrod->flags,
+		  RDMA_REGISTER_TID_RAMROD_DATA_TWO_LEVEL_PBL,
+		  params->pbl_two_level);
+
+	SET_FIELD(p_ramrod->flags,
+		  RDMA_REGISTER_TID_RAMROD_DATA_ZERO_BASED, params->zbva);
+
+	SET_FIELD(p_ramrod->flags,
+		  RDMA_REGISTER_TID_RAMROD_DATA_PHY_MR, params->phy_mr);
+
+	/* Don't initialize D/C field, as it may override other bits. */
+	if (!(params->tid_type == QED_RDMA_TID_FMR) && !(params->dma_mr))
+		SET_FIELD(p_ramrod->flags,
+			  RDMA_REGISTER_TID_RAMROD_DATA_PAGE_SIZE_LOG,
+			  params->page_size_log - 12);
+
+	SET_FIELD(p_ramrod->flags,
+		  RDMA_REGISTER_TID_RAMROD_DATA_MAX_ID,
+		  p_hwfn->p_rdma_info->last_tid);
+
+	SET_FIELD(p_ramrod->flags,
+		  RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_READ,
+		  params->remote_read);
+
+	SET_FIELD(p_ramrod->flags,
+		  RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_WRITE,
+		  params->remote_write);
+
+	SET_FIELD(p_ramrod->flags,
+		  RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_ATOMIC,
+		  params->remote_atomic);
+
+	SET_FIELD(p_ramrod->flags,
+		  RDMA_REGISTER_TID_RAMROD_DATA_LOCAL_WRITE,
+		  params->local_write);
+
+	SET_FIELD(p_ramrod->flags,
+		  RDMA_REGISTER_TID_RAMROD_DATA_LOCAL_READ, params->local_read);
+
+	SET_FIELD(p_ramrod->flags,
+		  RDMA_REGISTER_TID_RAMROD_DATA_ENABLE_MW_BIND,
+		  params->mw_bind);
+
+	SET_FIELD(p_ramrod->flags1,
+		  RDMA_REGISTER_TID_RAMROD_DATA_PBL_PAGE_SIZE_LOG,
+		  params->pbl_page_size_log - 12);
+
+	SET_FIELD(p_ramrod->flags2,
+		  RDMA_REGISTER_TID_RAMROD_DATA_DMA_MR, params->dma_mr);
+
+	switch (params->tid_type) {
+	case QED_RDMA_TID_REGISTERED_MR:
+		tid_type = RDMA_TID_REGISTERED_MR;
+		break;
+	case QED_RDMA_TID_FMR:
+		tid_type = RDMA_TID_FMR;
+		break;
+	case QED_RDMA_TID_MW_TYPE1:
+		tid_type = RDMA_TID_MW_TYPE1;
+		break;
+	case QED_RDMA_TID_MW_TYPE2A:
+		tid_type = RDMA_TID_MW_TYPE2A;
+		break;
+	default:
+		rc = -EINVAL;
+		DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "rc = %d\n", rc);
+		return rc;
+	}
+	SET_FIELD(p_ramrod->flags1,
+		  RDMA_REGISTER_TID_RAMROD_DATA_TID_TYPE, tid_type);
+
+	p_ramrod->itid = cpu_to_le32(params->itid);
+	p_ramrod->key = params->key;
+	p_ramrod->pd = cpu_to_le16(params->pd);
+	p_ramrod->length_hi = (u8)(params->length >> 32);
+	p_ramrod->length_lo = DMA_LO_LE(params->length);
+	if (params->zbva) {
+		/* Lower 32 bits of the registered MR address.
+		 * In case of zero based MR, will hold FBO
+		 */
+		p_ramrod->va.hi = 0;
+		p_ramrod->va.lo = cpu_to_le32(params->fbo);
+	} else {
+		DMA_REGPAIR_LE(p_ramrod->va, params->vaddr);
+	}
+	DMA_REGPAIR_LE(p_ramrod->pbl_base, params->pbl_ptr);
+
+	/* DIF */
+	if (params->dif_enabled) {
+		SET_FIELD(p_ramrod->flags2,
+			  RDMA_REGISTER_TID_RAMROD_DATA_DIF_ON_HOST_FLG, 1);
+		DMA_REGPAIR_LE(p_ramrod->dif_error_addr,
+			       params->dif_error_addr);
+		DMA_REGPAIR_LE(p_ramrod->dif_runt_addr, params->dif_runt_addr);
+	}
+
+	rc = qed_spq_post(p_hwfn, p_ent, &fw_return_code);
+
+	if (fw_return_code != RDMA_RETURN_OK) {
+		DP_NOTICE(p_hwfn, "fw_return_code = %d\n", fw_return_code);
+		return -EINVAL;
+	}
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Register TID, rc = %d\n", rc);
+	return rc;
+}
+
+int qed_rdma_deregister_tid(void *rdma_cxt, u32 itid)
+{
+	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
+	struct rdma_deregister_tid_ramrod_data *p_ramrod;
+	struct qed_sp_init_data init_data;
+	struct qed_spq_entry *p_ent;
+	struct qed_ptt *p_ptt;
+	u8 fw_return_code;
+	int rc;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "itid = %08x\n", itid);
+
+	/* Get SPQ entry */
+	memset(&init_data, 0, sizeof(init_data));
+	init_data.opaque_fid = p_hwfn->hw_info.opaque_fid;
+	init_data.comp_mode = QED_SPQ_MODE_EBLOCK;
+
+	rc = qed_sp_init_request(p_hwfn, &p_ent, RDMA_RAMROD_DEREGISTER_MR,
+				 p_hwfn->p_rdma_info->proto, &init_data);
+	if (rc) {
+		DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "rc = %d\n", rc);
+		return rc;
+	}
+
+	p_ramrod = &p_ent->ramrod.rdma_deregister_tid;
+	p_ramrod->itid = cpu_to_le32(itid);
+
+	rc = qed_spq_post(p_hwfn, p_ent, &fw_return_code);
+	if (rc) {
+		DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "rc = %d\n", rc);
+		return rc;
+	}
+
+	if (fw_return_code == RDMA_RETURN_DEREGISTER_MR_BAD_STATE_ERR) {
+		DP_NOTICE(p_hwfn, "fw_return_code = %d\n", fw_return_code);
+		return -EINVAL;
+	} else if (fw_return_code == RDMA_RETURN_NIG_DRAIN_REQ) {
+		/* Bit indicating that the TID is in use and a nig drain is
+		 * required before sending the ramrod again
+		 */
+		p_ptt = qed_ptt_acquire(p_hwfn);
+		if (!p_ptt) {
+			rc = -EBUSY;
+			DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
+				   "Failed to acquire PTT\n");
+			return rc;
+		}
+
+		rc = qed_mcp_drain(p_hwfn, p_ptt);
+		if (rc) {
+			qed_ptt_release(p_hwfn, p_ptt);
+			DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
+				   "Drain failed\n");
+			return rc;
+		}
+
+		qed_ptt_release(p_hwfn, p_ptt);
+
+		/* Resend the ramrod */
+		rc = qed_sp_init_request(p_hwfn, &p_ent,
+					 RDMA_RAMROD_DEREGISTER_MR,
+					 p_hwfn->p_rdma_info->proto,
+					 &init_data);
+		if (rc) {
+			DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
+				   "Failed to init sp-element\n");
+			return rc;
+		}
+
+		rc = qed_spq_post(p_hwfn, p_ent, &fw_return_code);
+		if (rc) {
+			DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
+				   "Ramrod failed\n");
+			return rc;
+		}
+
+		if (fw_return_code != RDMA_RETURN_OK) {
+			DP_NOTICE(p_hwfn, "fw_return_code = %d\n",
+				  fw_return_code);
+			return rc;
+		}
+	}
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "De-registered TID, rc = %d\n", rc);
+	return rc;
+}
+
 static void *qed_rdma_get_rdma_ctx(struct qed_dev *cdev)
 {
 	return QED_LEADING_HWFN(cdev);
@@ -2398,6 +2634,10 @@ static const struct qed_rdma_ops qed_rdma_ops_pass = {
 	.rdma_modify_qp = &qed_rdma_modify_qp,
 	.rdma_query_qp = &qed_rdma_query_qp,
 	.rdma_destroy_qp = &qed_rdma_destroy_qp,
+	.rdma_alloc_tid = &qed_rdma_alloc_tid,
+	.rdma_free_tid = &qed_rdma_free_tid,
+	.rdma_register_tid = &qed_rdma_register_tid,
+	.rdma_deregister_tid = &qed_rdma_deregister_tid,
 };
 
 const struct qed_rdma_ops *qed_get_rdma_ops()

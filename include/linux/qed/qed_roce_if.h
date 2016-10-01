@@ -512,6 +512,12 @@ struct qed_rdma_ops {
 	int (*rdma_query_qp)(void *rdma_cxt, struct qed_rdma_qp *qp,
 			     struct qed_rdma_query_qp_out_params *oparams);
 	int (*rdma_destroy_qp)(void *rdma_cxt, struct qed_rdma_qp *qp);
+	int
+	(*rdma_register_tid)(void *rdma_cxt,
+			     struct qed_rdma_register_tid_in_params *iparams);
+	int (*rdma_deregister_tid)(void *rdma_cxt, u32 itid);
+	int (*rdma_alloc_tid)(void *rdma_cxt, u32 *itid);
+	void (*rdma_free_tid)(void *rdma_cxt, u32 itid);
 };
 
 const struct qed_rdma_ops *qed_get_rdma_ops(void);
