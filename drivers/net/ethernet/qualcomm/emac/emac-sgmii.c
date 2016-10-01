@@ -740,9 +740,14 @@ int emac_sgmii_config(struct platform_device *pdev, struct emac_adapter *adpt)
 
 	/* Base address is the first address */
 	res = platform_get_resource(sgmii_pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		ret = -EINVAL;
+		goto error_put_device;
+	}
+
 	phy->base = ioremap(res->start, resource_size(res));
-	if (IS_ERR(phy->base)) {
-		ret = PTR_ERR(phy->base);
+	if (!phy->base) {
+		ret = -ENOMEM;
 		goto error_put_device;
 	}
 
@@ -750,8 +755,8 @@ int emac_sgmii_config(struct platform_device *pdev, struct emac_adapter *adpt)
 	res = platform_get_resource(sgmii_pdev, IORESOURCE_MEM, 1);
 	if (res) {
 		phy->digital = ioremap(res->start, resource_size(res));
-		if (IS_ERR(phy->digital)) {
-			ret = PTR_ERR(phy->digital);
+		if (!phy->digital) {
+			ret = -ENOMEM;
 			goto error_unmap_base;
 		}
 	}
