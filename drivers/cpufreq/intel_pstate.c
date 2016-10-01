@@ -181,6 +181,8 @@ struct _pid {
  * @cpu:		CPU number for this instance data
  * @update_util:	CPUFreq utility callback information
  * @update_util_set:	CPUFreq utility callback is set
+ * @iowait_boost:	iowait-related boost fraction
+ * @last_update:	Time of the last update.
  * @pstate:		Stores P state limits for this CPU
  * @vid:		Stores VID limits for this CPU
  * @pid:		Stores PID parameters for this CPU
@@ -206,6 +208,7 @@ struct cpudata {
 	struct vid_data vid;
 	struct _pid pid;
 
+	u64	last_update;
 	u64	last_sample_time;
 	u64	prev_aperf;
 	u64	prev_mperf;
@@ -216,6 +219,7 @@ struct cpudata {
 	struct acpi_processor_performance acpi_perf_data;
 	bool valid_pss_table;
 #endif
+	unsigned int iowait_boost;
 };
 
 static struct cpudata **all_cpu_data;
@@ -229,6 +233,7 @@ static struct cpudata **all_cpu_data;
  * @p_gain_pct:		PID proportional gain
  * @i_gain_pct:		PID integral gain
  * @d_gain_pct:		PID derivative gain
+ * @boost_iowait:	Whether or not to use iowait boosting.
  *
  * Stores per CPU model static PID configuration data.
  */
@@ -240,6 +245,7 @@ struct pstate_adjust_policy {
 	int p_gain_pct;
 	int d_gain_pct;
 	int i_gain_pct;
+	bool boost_iowait;
 };
 
 /**
@@ -1037,6 +1043,7 @@ static const struct cpu_defaults silvermont_params = {
 		.p_gain_pct = 14,
 		.d_gain_pct = 0,
 		.i_gain_pct = 4,
+		.boost_iowait = true,
 	},
 	.funcs = {
 		.get_max = atom_get_max_pstate,
@@ -1058,6 +1065,7 @@ static const struct cpu_defaults airmont_params = {
 		.p_gain_pct = 14,
 		.d_gain_pct = 0,
 		.i_gain_pct = 4,
+		.boost_iowait = true,
 	},
 	.funcs = {
 		.get_max = atom_get_max_pstate,
@@ -1099,6 +1107,7 @@ static const struct cpu_defaults bxt_params = {
 		.p_gain_pct = 14,
 		.d_gain_pct = 0,
 		.i_gain_pct = 4,
+		.boost_iowait = true,
 	},
 	.funcs = {
 		.get_max = core_get_max_pstate,
@@ -1222,36 +1231,18 @@ static inline int32_t get_avg_pstate(struct cpudata *cpu)
 static inline int32_t get_target_pstate_use_cpu_load(struct cpudata *cpu)
 {
 	struct sample *sample = &cpu->sample;
-	u64 cummulative_iowait, delta_iowait_us;
-	u64 delta_iowait_mperf;
-	u64 mperf, now;
-	int32_t cpu_load;
+	int32_t busy_frac, boost;
 
-	cummulative_iowait = get_cpu_iowait_time_us(cpu->cpu, &now);
+	busy_frac = div_fp(sample->mperf, sample->tsc);
 
-	/*
-	 * Convert iowait time into number of IO cycles spent at max_freq.
-	 * IO is considered as busy only for the cpu_load algorithm. For
-	 * performance this is not needed since we always try to reach the
-	 * maximum P-State, so we are already boosting the IOs.
-	 */
-	delta_iowait_us = cummulative_iowait - cpu->prev_cummulative_iowait;
-	delta_iowait_mperf = div64_u64(delta_iowait_us * cpu->pstate.scaling *
-		cpu->pstate.max_pstate, MSEC_PER_SEC);
+	boost = cpu->iowait_boost;
+	cpu->iowait_boost >>= 1;
 
-	mperf = cpu->sample.mperf + delta_iowait_mperf;
-	cpu->prev_cummulative_iowait = cummulative_iowait;
+	if (busy_frac < boost)
+		busy_frac = boost;
 
-	/*
-	 * The load can be estimated as the ratio of the mperf counter
-	 * running at a constant frequency during active periods
-	 * (C0) and the time stamp counter running at the same frequency
-	 * also during C-states.
-	 */
-	cpu_load = div64_u64(int_tofp(100) * mperf, sample->tsc);
-	cpu->sample.busy_scaled = cpu_load;
-
-	return get_avg_pstate(cpu) - pid_calc(&cpu->pid, cpu_load);
+	sample->busy_scaled = busy_frac * 100;
+	return get_avg_pstate(cpu) - pid_calc(&cpu->pid, sample->busy_scaled);
 }
 
 static inline int32_t get_target_pstate_use_performance(struct cpudata *cpu)
@@ -1325,15 +1316,29 @@ static inline void intel_pstate_adjust_busy_pstate(struct cpudata *cpu)
 		sample->mperf,
 		sample->aperf,
 		sample->tsc,
-		get_avg_frequency(cpu));
+		get_avg_frequency(cpu),
+		fp_toint(cpu->iowait_boost * 100));
 }
 
 static void intel_pstate_update_util(struct update_util_data *data, u64 time,
-				     unsigned long util, unsigned long max)
+				     unsigned int flags)
 {
 	struct cpudata *cpu = container_of(data, struct cpudata, update_util);
-	u64 delta_ns = time - cpu->sample.time;
+	u64 delta_ns;
 
+	if (pid_params.boost_iowait) {
+		if (flags & SCHED_CPUFREQ_IOWAIT) {
+			cpu->iowait_boost = int_tofp(1);
+		} else if (cpu->iowait_boost) {
+			/* Clear iowait_boost if the CPU may have been idle. */
+			delta_ns = time - cpu->last_update;
+			if (delta_ns > TICK_NSEC)
+				cpu->iowait_boost = 0;
+		}
+		cpu->last_update = time;
+	}
+
+	delta_ns = time - cpu->sample.time;
 	if ((s64)delta_ns >= pid_params.sample_rate_ns) {
 		bool sample_taken = intel_pstate_sample(cpu, time);
 
