@@ -1006,6 +1006,37 @@ static void wait_on_all_pages_writeback(struct f2fs_sb_info *sbi)
 	finish_wait(&sbi->cp_wait, &wait);
 }
 
+static void update_ckpt_flags(struct f2fs_sb_info *sbi, struct cp_control *cpc)
+{
+	unsigned long orphan_num = sbi->im[ORPHAN_INO].ino_num;
+	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);
+
+	spin_lock(&sbi->cp_lock);
+
+	if (cpc->reason == CP_UMOUNT)
+		__set_ckpt_flags(ckpt, CP_UMOUNT_FLAG);
+	else
+		__clear_ckpt_flags(ckpt, CP_UMOUNT_FLAG);
+
+	if (cpc->reason == CP_FASTBOOT)
+		__set_ckpt_flags(ckpt, CP_FASTBOOT_FLAG);
+	else
+		__clear_ckpt_flags(ckpt, CP_FASTBOOT_FLAG);
+
+	if (orphan_num)
+		__set_ckpt_flags(ckpt, CP_ORPHAN_PRESENT_FLAG);
+	else
+		__clear_ckpt_flags(ckpt, CP_ORPHAN_PRESENT_FLAG);
+
+	if (is_sbi_flag_set(sbi, SBI_NEED_FSCK))
+		__set_ckpt_flags(ckpt, CP_FSCK_FLAG);
+
+	/* set this flag to activate crc|cp_ver for recovery */
+	__set_ckpt_flags(ckpt, CP_CRC_RECOVERY_FLAG);
+
+	spin_unlock(&sbi->cp_lock);
+}
+
 static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 {
 	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);
@@ -1080,29 +1111,8 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 				cp_payload_blks + data_sum_blocks +
 				orphan_blocks);
 
-	spin_lock(&sbi->cp_lock);
-	if (cpc->reason == CP_UMOUNT)
-		__set_ckpt_flags(ckpt, CP_UMOUNT_FLAG);
-	else
-		__clear_ckpt_flags(ckpt, CP_UMOUNT_FLAG);
-
-	if (cpc->reason == CP_FASTBOOT)
-		__set_ckpt_flags(ckpt, CP_FASTBOOT_FLAG);
-	else
-		__clear_ckpt_flags(ckpt, CP_FASTBOOT_FLAG);
-
-	if (orphan_num)
-		__set_ckpt_flags(ckpt, CP_ORPHAN_PRESENT_FLAG);
-	else
-		__clear_ckpt_flags(ckpt, CP_ORPHAN_PRESENT_FLAG);
-
-	if (is_sbi_flag_set(sbi, SBI_NEED_FSCK))
-		__set_ckpt_flags(ckpt, CP_FSCK_FLAG);
-
-	/* set this flag to activate crc|cp_ver for recovery */
-	__set_ckpt_flags(ckpt, CP_CRC_RECOVERY_FLAG);
-
-	spin_unlock(&sbi->cp_lock);
+	/* update ckpt flag for checkpoint */
+	update_ckpt_flags(sbi, cpc);
 
 	/* update SIT/NAT bitmap */
 	get_sit_bitmap(sbi, __bitmap_ptr(sbi, SIT_BITMAP));
