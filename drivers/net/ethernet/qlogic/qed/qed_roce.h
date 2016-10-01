@@ -94,6 +94,26 @@ struct qed_rdma_info {
 	enum protocol_type proto;
 };
 
+struct qed_rdma_resize_cq_in_params {
+	u16 icid;
+	u32 cq_size;
+	bool pbl_two_level;
+	u64 pbl_ptr;
+	u16 pbl_num_pages;
+	u8 pbl_page_size_log;
+};
+
+struct qed_rdma_resize_cq_out_params {
+	u32 prod;
+	u32 cons;
+};
+
+struct qed_rdma_resize_cnq_in_params {
+	u32 cnq_id;
+	u32 pbl_page_size_log;
+	u64 pbl_ptr;
+};
+
 int
 qed_rdma_add_user(void *rdma_cxt,
 		  struct qed_rdma_add_user_out_params *out_params);
@@ -102,6 +122,7 @@ int qed_rdma_alloc_tid(void *rdma_cxt, u32 *tid);
 int qed_rdma_deregister_tid(void *rdma_cxt, u32 tid);
 void qed_rdma_free_tid(void *rdma_cxt, u32 tid);
 struct qed_rdma_device *qed_rdma_query_device(void *rdma_cxt);
+struct qed_rdma_port *qed_rdma_query_port(void *rdma_cxt);
 int
 qed_rdma_register_tid(void *rdma_cxt,
 		      struct qed_rdma_register_tid_in_params *params);

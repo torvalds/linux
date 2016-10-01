@@ -663,6 +663,22 @@ int qed_rdma_add_user(void *rdma_cxt,
 	return rc;
 }
 
+struct qed_rdma_port *qed_rdma_query_port(void *rdma_cxt)
+{
+	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
+	struct qed_rdma_port *p_port = p_hwfn->p_rdma_info->port;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "RDMA Query port\n");
+
+	/* Link may have changed */
+	p_port->port_state = p_hwfn->mcp_info->link_output.link_up ?
+			     QED_RDMA_PORT_UP : QED_RDMA_PORT_DOWN;
+
+	p_port->link_speed = p_hwfn->mcp_info->link_output.speed;
+
+	return p_port;
+}
+
 struct qed_rdma_device *qed_rdma_query_device(void *rdma_cxt)
 {
 	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
@@ -788,6 +804,309 @@ static int qed_rdma_get_int(struct qed_dev *cdev, struct qed_int_info *info)
 	return 0;
 }
 
+int qed_rdma_alloc_pd(void *rdma_cxt, u16 *pd)
+{
+	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
+	u32 returned_id;
+	int rc;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Alloc PD\n");
+
+	/* Allocates an unused protection domain */
+	spin_lock_bh(&p_hwfn->p_rdma_info->lock);
+	rc = qed_rdma_bmap_alloc_id(p_hwfn,
+				    &p_hwfn->p_rdma_info->pd_map, &returned_id);
+	spin_unlock_bh(&p_hwfn->p_rdma_info->lock);
+
+	*pd = (u16)returned_id;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Alloc PD - done, rc = %d\n", rc);
+	return rc;
+}
+
+void qed_rdma_free_pd(void *rdma_cxt, u16 pd)
+{
+	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "pd = %08x\n", pd);
+
+	/* Returns a previously allocated protection domain for reuse */
+	spin_lock_bh(&p_hwfn->p_rdma_info->lock);
+	qed_bmap_release_id(p_hwfn, &p_hwfn->p_rdma_info->pd_map, pd);
+	spin_unlock_bh(&p_hwfn->p_rdma_info->lock);
+}
+
+static enum qed_rdma_toggle_bit
+qed_rdma_toggle_bit_create_resize_cq(struct qed_hwfn *p_hwfn, u16 icid)
+{
+	struct qed_rdma_info *p_info = p_hwfn->p_rdma_info;
+	enum qed_rdma_toggle_bit toggle_bit;
+	u32 bmap_id;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "icid = %08x\n", icid);
+
+	/* the function toggle the bit that is related to a given icid
+	 * and returns the new toggle bit's value
+	 */
+	bmap_id = icid - qed_cxt_get_proto_cid_start(p_hwfn, p_info->proto);
+
+	spin_lock_bh(&p_info->lock);
+	toggle_bit = !test_and_change_bit(bmap_id,
+					  p_info->toggle_bits.bitmap);
+	spin_unlock_bh(&p_info->lock);
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "QED_RDMA_TOGGLE_BIT_= %d\n",
+		   toggle_bit);
+
+	return toggle_bit;
+}
+
+int qed_rdma_create_cq(void *rdma_cxt,
+		       struct qed_rdma_create_cq_in_params *params, u16 *icid)
+{
+	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
+	struct qed_rdma_info *p_info = p_hwfn->p_rdma_info;
+	struct rdma_create_cq_ramrod_data *p_ramrod;
+	enum qed_rdma_toggle_bit toggle_bit;
+	struct qed_sp_init_data init_data;
+	struct qed_spq_entry *p_ent;
+	u32 returned_id, start_cid;
+	int rc;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "cq_handle = %08x%08x\n",
+		   params->cq_handle_hi, params->cq_handle_lo);
+
+	/* Allocate icid */
+	spin_lock_bh(&p_info->lock);
+	rc = qed_rdma_bmap_alloc_id(p_hwfn,
+				    &p_info->cq_map, &returned_id);
+	spin_unlock_bh(&p_info->lock);
+
+	if (rc) {
+		DP_NOTICE(p_hwfn, "Can't create CQ, rc = %d\n", rc);
+		return rc;
+	}
+
+	start_cid = qed_cxt_get_proto_cid_start(p_hwfn,
+						p_info->proto);
+	*icid = returned_id + start_cid;
+
+	/* Check if icid requires a page allocation */
+	rc = qed_cxt_dynamic_ilt_alloc(p_hwfn, QED_ELEM_CXT, *icid);
+	if (rc)
+		goto err;
+
+	/* Get SPQ entry */
+	memset(&init_data, 0, sizeof(init_data));
+	init_data.cid = *icid;
+	init_data.opaque_fid = p_hwfn->hw_info.opaque_fid;
+	init_data.comp_mode = QED_SPQ_MODE_EBLOCK;
+
+	/* Send create CQ ramrod */
+	rc = qed_sp_init_request(p_hwfn, &p_ent,
+				 RDMA_RAMROD_CREATE_CQ,
+				 p_info->proto, &init_data);
+	if (rc)
+		goto err;
+
+	p_ramrod = &p_ent->ramrod.rdma_create_cq;
+
+	p_ramrod->cq_handle.hi = cpu_to_le32(params->cq_handle_hi);
+	p_ramrod->cq_handle.lo = cpu_to_le32(params->cq_handle_lo);
+	p_ramrod->dpi = cpu_to_le16(params->dpi);
+	p_ramrod->is_two_level_pbl = params->pbl_two_level;
+	p_ramrod->max_cqes = cpu_to_le32(params->cq_size);
+	DMA_REGPAIR_LE(p_ramrod->pbl_addr, params->pbl_ptr);
+	p_ramrod->pbl_num_pages = cpu_to_le16(params->pbl_num_pages);
+	p_ramrod->cnq_id = (u8)RESC_START(p_hwfn, QED_RDMA_CNQ_RAM) +
+			   params->cnq_id;
+	p_ramrod->int_timeout = params->int_timeout;
+
+	/* toggle the bit for every resize or create cq for a given icid */
+	toggle_bit = qed_rdma_toggle_bit_create_resize_cq(p_hwfn, *icid);
+
+	p_ramrod->toggle_bit = toggle_bit;
+
+	rc = qed_spq_post(p_hwfn, p_ent, NULL);
+	if (rc) {
+		/* restore toggle bit */
+		qed_rdma_toggle_bit_create_resize_cq(p_hwfn, *icid);
+		goto err;
+	}
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Created CQ, rc = %d\n", rc);
+	return rc;
+
+err:
+	/* release allocated icid */
+	qed_bmap_release_id(p_hwfn, &p_info->cq_map, returned_id);
+	DP_NOTICE(p_hwfn, "Create CQ failed, rc = %d\n", rc);
+
+	return rc;
+}
+
+int qed_rdma_resize_cq(void *rdma_cxt,
+		       struct qed_rdma_resize_cq_in_params *in_params,
+		       struct qed_rdma_resize_cq_out_params *out_params)
+{
+	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
+	struct rdma_resize_cq_output_params *p_ramrod_res;
+	struct rdma_resize_cq_ramrod_data *p_ramrod;
+	enum qed_rdma_toggle_bit toggle_bit;
+	struct qed_sp_init_data init_data;
+	struct qed_spq_entry *p_ent;
+	dma_addr_t ramrod_res_phys;
+	u8 fw_return_code;
+	int rc = -ENOMEM;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "icid = %08x\n", in_params->icid);
+
+	p_ramrod_res =
+	    (struct rdma_resize_cq_output_params *)
+	    dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
+			       sizeof(struct rdma_resize_cq_output_params),
+			       &ramrod_res_phys, GFP_KERNEL);
+	if (!p_ramrod_res) {
+		DP_NOTICE(p_hwfn,
+			  "qed resize cq failed: cannot allocate memory (ramrod)\n");
+		return rc;
+	}
+
+	/* Get SPQ entry */
+	memset(&init_data, 0, sizeof(init_data));
+	init_data.cid = in_params->icid;
+	init_data.opaque_fid = p_hwfn->hw_info.opaque_fid;
+	init_data.comp_mode = QED_SPQ_MODE_EBLOCK;
+
+	rc = qed_sp_init_request(p_hwfn, &p_ent,
+				 RDMA_RAMROD_RESIZE_CQ,
+				 p_hwfn->p_rdma_info->proto, &init_data);
+	if (rc)
+		goto err;
+
+	p_ramrod = &p_ent->ramrod.rdma_resize_cq;
+
+	p_ramrod->flags = 0;
+
+	/* toggle the bit for every resize or create cq for a given icid */
+	toggle_bit = qed_rdma_toggle_bit_create_resize_cq(p_hwfn,
+							  in_params->icid);
+
+	SET_FIELD(p_ramrod->flags,
+		  RDMA_RESIZE_CQ_RAMROD_DATA_TOGGLE_BIT, toggle_bit);
+
+	SET_FIELD(p_ramrod->flags,
+		  RDMA_RESIZE_CQ_RAMROD_DATA_IS_TWO_LEVEL_PBL,
+		  in_params->pbl_two_level);
+
+	p_ramrod->pbl_log_page_size = in_params->pbl_page_size_log - 12;
+	p_ramrod->pbl_num_pages = cpu_to_le16(in_params->pbl_num_pages);
+	p_ramrod->max_cqes = cpu_to_le32(in_params->cq_size);
+	DMA_REGPAIR_LE(p_ramrod->pbl_addr, in_params->pbl_ptr);
+	DMA_REGPAIR_LE(p_ramrod->output_params_addr, ramrod_res_phys);
+
+	rc = qed_spq_post(p_hwfn, p_ent, &fw_return_code);
+	if (rc)
+		goto err;
+
+	if (fw_return_code != RDMA_RETURN_OK) {
+		DP_NOTICE(p_hwfn, "fw_return_code = %d\n", fw_return_code);
+		rc = -EINVAL;
+		goto err;
+	}
+
+	out_params->prod = le32_to_cpu(p_ramrod_res->old_cq_prod);
+	out_params->cons = le32_to_cpu(p_ramrod_res->old_cq_cons);
+
+	dma_free_coherent(&p_hwfn->cdev->pdev->dev,
+			  sizeof(struct rdma_resize_cq_output_params),
+			  p_ramrod_res, ramrod_res_phys);
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Resized CQ, rc = %d\n", rc);
+
+	return rc;
+
+err:	dma_free_coherent(&p_hwfn->cdev->pdev->dev,
+			  sizeof(struct rdma_resize_cq_output_params),
+			  p_ramrod_res, ramrod_res_phys);
+	DP_NOTICE(p_hwfn, "Resized CQ, Failed - rc = %d\n", rc);
+
+	return rc;
+}
+
+int qed_rdma_destroy_cq(void *rdma_cxt,
+			struct qed_rdma_destroy_cq_in_params *in_params,
+			struct qed_rdma_destroy_cq_out_params *out_params)
+{
+	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
+	struct rdma_destroy_cq_output_params *p_ramrod_res;
+	struct rdma_destroy_cq_ramrod_data *p_ramrod;
+	struct qed_sp_init_data init_data;
+	struct qed_spq_entry *p_ent;
+	dma_addr_t ramrod_res_phys;
+	int rc = -ENOMEM;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "icid = %08x\n", in_params->icid);
+
+	p_ramrod_res =
+	    (struct rdma_destroy_cq_output_params *)
+	    dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
+			       sizeof(struct rdma_destroy_cq_output_params),
+			       &ramrod_res_phys, GFP_KERNEL);
+	if (!p_ramrod_res) {
+		DP_NOTICE(p_hwfn,
+			  "qed destroy cq failed: cannot allocate memory (ramrod)\n");
+		return rc;
+	}
+
+	/* Get SPQ entry */
+	memset(&init_data, 0, sizeof(init_data));
+	init_data.cid = in_params->icid;
+	init_data.opaque_fid = p_hwfn->hw_info.opaque_fid;
+	init_data.comp_mode = QED_SPQ_MODE_EBLOCK;
+
+	/* Send destroy CQ ramrod */
+	rc = qed_sp_init_request(p_hwfn, &p_ent,
+				 RDMA_RAMROD_DESTROY_CQ,
+				 p_hwfn->p_rdma_info->proto, &init_data);
+	if (rc)
+		goto err;
+
+	p_ramrod = &p_ent->ramrod.rdma_destroy_cq;
+	DMA_REGPAIR_LE(p_ramrod->output_params_addr, ramrod_res_phys);
+
+	rc = qed_spq_post(p_hwfn, p_ent, NULL);
+	if (rc)
+		goto err;
+
+	out_params->num_cq_notif = le16_to_cpu(p_ramrod_res->cnq_num);
+
+	dma_free_coherent(&p_hwfn->cdev->pdev->dev,
+			  sizeof(struct rdma_destroy_cq_output_params),
+			  p_ramrod_res, ramrod_res_phys);
+
+	/* Free icid */
+	spin_lock_bh(&p_hwfn->p_rdma_info->lock);
+
+	qed_bmap_release_id(p_hwfn,
+			    &p_hwfn->p_rdma_info->cq_map,
+			    (in_params->icid -
+			     qed_cxt_get_proto_cid_start(p_hwfn,
+							 p_hwfn->
+							 p_rdma_info->proto)));
+
+	spin_unlock_bh(&p_hwfn->p_rdma_info->lock);
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Destroyed CQ, rc = %d\n", rc);
+	return rc;
+
+err:	dma_free_coherent(&p_hwfn->cdev->pdev->dev,
+			  sizeof(struct rdma_destroy_cq_output_params),
+			  p_ramrod_res, ramrod_res_phys);
+
+	return rc;
+}
+
 static void *qed_rdma_get_rdma_ctx(struct qed_dev *cdev)
 {
 	return QED_LEADING_HWFN(cdev);
@@ -871,12 +1190,17 @@ static const struct qed_rdma_ops qed_rdma_ops_pass = {
 	.rdma_add_user = &qed_rdma_add_user,
 	.rdma_remove_user = &qed_rdma_remove_user,
 	.rdma_stop = &qed_rdma_stop,
+	.rdma_query_port = &qed_rdma_query_port,
 	.rdma_query_device = &qed_rdma_query_device,
 	.rdma_get_start_sb = &qed_rdma_get_sb_start,
 	.rdma_get_rdma_int = &qed_rdma_get_int,
 	.rdma_set_rdma_int = &qed_rdma_set_int,
 	.rdma_get_min_cnq_msix = &qed_rdma_get_min_cnq_msix,
 	.rdma_cnq_prod_update = &qed_rdma_cnq_prod_update,
+	.rdma_alloc_pd = &qed_rdma_alloc_pd,
+	.rdma_dealloc_pd = &qed_rdma_free_pd,
+	.rdma_create_cq = &qed_rdma_create_cq,
+	.rdma_destroy_cq = &qed_rdma_destroy_cq,
 };
 
 const struct qed_rdma_ops *qed_get_rdma_ops()

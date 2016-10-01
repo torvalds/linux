@@ -263,12 +263,33 @@ struct qed_rdma_register_tid_in_params {
 	u64 dif_runt_addr;
 };
 
+struct qed_rdma_create_cq_in_params {
+	u32 cq_handle_lo;
+	u32 cq_handle_hi;
+	u32 cq_size;
+	u16 dpi;
+	bool pbl_two_level;
+	u64 pbl_ptr;
+	u16 pbl_num_pages;
+	u8 pbl_page_size_log;
+	u8 cnq_id;
+	u16 int_timeout;
+};
+
 struct qed_rdma_create_srq_in_params {
 	u64 pbl_base_addr;
 	u64 prod_pair_addr;
 	u16 num_pages;
 	u16 pd_id;
 	u16 page_size;
+};
+
+struct qed_rdma_destroy_cq_in_params {
+	u16 icid;
+};
+
+struct qed_rdma_destroy_cq_out_params {
+	u16 num_cq_notif;
 };
 
 struct qed_rdma_create_srq_out_params {
@@ -332,12 +353,21 @@ struct qed_rdma_ops {
 	void (*rdma_remove_user)(void *rdma_cxt, u16 dpi);
 	int (*rdma_stop)(void *rdma_cxt);
 	struct qed_rdma_device* (*rdma_query_device)(void *rdma_cxt);
+	struct qed_rdma_port* (*rdma_query_port)(void *rdma_cxt);
 	int (*rdma_get_start_sb)(struct qed_dev *cdev);
 	int (*rdma_get_min_cnq_msix)(struct qed_dev *cdev);
 	void (*rdma_cnq_prod_update)(void *rdma_cxt, u8 cnq_index, u16 prod);
 	int (*rdma_get_rdma_int)(struct qed_dev *cdev,
 				 struct qed_int_info *info);
 	int (*rdma_set_rdma_int)(struct qed_dev *cdev, u16 cnt);
+	int (*rdma_alloc_pd)(void *rdma_cxt, u16 *pd);
+	void (*rdma_dealloc_pd)(void *rdma_cxt, u16 pd);
+	int (*rdma_create_cq)(void *rdma_cxt,
+			      struct qed_rdma_create_cq_in_params *params,
+			      u16 *icid);
+	int (*rdma_destroy_cq)(void *rdma_cxt,
+			       struct qed_rdma_destroy_cq_in_params *iparams,
+			       struct qed_rdma_destroy_cq_out_params *oparams);
 };
 
 const struct qed_rdma_ops *qed_get_rdma_ops(void);
