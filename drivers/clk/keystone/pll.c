@@ -154,7 +154,7 @@ out:
 }
 
 /**
- * _of_clk_init - PLL initialisation via DT
+ * _of_pll_clk_init - PLL initialisation via DT
  * @node: device tree node for this clock
  * @pllctrl: If true, lower 6 bits of multiplier is in pllm register of
  *		pll controller, else it is in the control register0(bit 11-6)
@@ -235,7 +235,7 @@ CLK_OF_DECLARE(keystone_pll_clock, "ti,keystone,pll-clock",
 					of_keystone_pll_clk_init);
 
 /**
- * of_keystone_pll_main_clk_init - Main PLL initialisation DT wrapper
+ * of_keystone_main_pll_clk_init - Main PLL initialisation DT wrapper
  * @node: device tree node for this clock
  */
 static void __init of_keystone_main_pll_clk_init(struct device_node *node)
