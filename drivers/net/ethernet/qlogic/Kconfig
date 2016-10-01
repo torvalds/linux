@@ -89,12 +89,7 @@ config QED
 	  This enables the support for ...
 
 config QED_LL2
-	bool "Qlogic QED Light L2 interface"
-	default n
-	depends on QED
-	---help---
-	This enables support for Light L2 interface which is required
-	by all qed protocol drivers other than qede.
+	bool
 
 config QED_SRIOV
 	bool "QLogic QED 25/40/100Gb SR-IOV support"
@@ -111,5 +106,16 @@ config QEDE
 	depends on QED
 	---help---
 	  This enables the support for ...
+
+config INFINIBAND_QEDR
+	tristate "QLogic qede RoCE sources [debug]"
+	depends on QEDE && 64BIT
+	select QED_LL2
+	default n
+	---help---
+	  This provides a temporary node that allows the compilation
+	  and logical testing of the InfiniBand over Ethernet support
+	  for QLogic QED. This would be replaced by the 'real' option
+	  once the QEDR driver is added [+relocated].
 
 endif # NET_VENDOR_QLOGIC

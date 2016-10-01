@@ -260,11 +260,10 @@ struct qed_dev_info {
 	/* MFW version */
 	u32		mfw_rev;
 
-	bool rdma_supported;
-
 	u32		flash_size;
 	u8		mf_mode;
 	bool		tx_switching;
+	bool		rdma_supported;
 };
 
 enum qed_sb_type {
