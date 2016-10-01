@@ -489,4 +489,17 @@ config PHY_NS2_PCIE
 	help
 	  Enable this to support the Broadcom Northstar2 PCIe PHY.
 	  If unsure, say N.
+
+config PHY_MESON8B_USB2
+	tristate "Meson8b and GXBB USB2 PHY driver"
+	default ARCH_MESON
+	depends on OF && (ARCH_MESON || COMPILE_TEST)
+	depends on USB_SUPPORT
+	select USB_COMMON
+	select GENERIC_PHY
+	help
+	  Enable this to support the Meson USB2 PHYs found in Meson8b
+	  and GXBB SoCs.
+	  If unsure, say N.
+
 endmenu
