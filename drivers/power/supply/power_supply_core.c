@@ -413,7 +413,7 @@ static int power_supply_match_device_node(struct device *dev, const void *data)
 /**
  * power_supply_get_by_phandle() - Search for a power supply and returns its ref
  * @np: Pointer to device node holding phandle property
- * @phandle_name: Name of property holding a power supply name
+ * @property: Name of property holding a power supply name
  *
  * If power supply was found, it increases reference count for the
  * internal power supply's device. The user should power_supply_put()
@@ -458,7 +458,7 @@ static void devm_power_supply_put(struct device *dev, void *res)
  * devm_power_supply_get_by_phandle() - Resource managed version of
  *  power_supply_get_by_phandle()
  * @dev: Pointer to device holding phandle property
- * @phandle_name: Name of property holding a power supply phandle
+ * @property: Name of property holding a power supply phandle
  *
  * Return: On success returns a reference to a power supply with
  * matching name equals to value under @property, NULL or ERR_PTR otherwise.
