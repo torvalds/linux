@@ -37,15 +37,6 @@
 /** Number of dentries for each connection in the control filesystem */
 #define FUSE_CTL_NUM_DENTRIES 5
 
-/** If the FUSE_DEFAULT_PERMISSIONS flag is given, the filesystem
-    module will check permissions based on the file mode.  Otherwise no
-    permission checking is done in the kernel */
-#define FUSE_DEFAULT_PERMISSIONS (1 << 0)
-
-/** If the FUSE_ALLOW_OTHER flag is given, then not only the user
-    doing the mount will be allowed to access the filesystem */
-#define FUSE_ALLOW_OTHER         (1 << 1)
-
 /** Number of page pointers embedded in fuse_req */
 #define FUSE_REQ_INLINE_PAGES 1
 
@@ -470,9 +461,6 @@ struct fuse_conn {
 	/** The group id for this mount */
 	kgid_t group_id;
 
-	/** The fuse mount flags for this mount */
-	unsigned flags;
-
 	/** Maximum read size */
 	unsigned max_read;
 
@@ -630,6 +618,12 @@ struct fuse_conn {
 
 	/** Does the filesystem support posix acls? */
 	unsigned posix_acl:1;
+
+	/** Check permissions based on the file mode or not? */
+	unsigned default_permissions:1;
+
+	/** Allow other than the mounter user to access the filesystem ? */
+	unsigned allow_other:1;
 
 	/** The number of requests waiting for completion */
 	atomic_t num_waiting;
