@@ -559,8 +559,8 @@ void return_cnp(struct hfi1_ibport *ibp, struct rvt_qp *qp, u32 remote_qpn,
 
 /*
  * opa_smp_check() - Do the regular pkey checking, and the additional
- * checks for SMPs specified in OPAv1 rev 0.90, section 9.10.26
- * ("SMA Packet Checks").
+ * checks for SMPs specified in OPAv1 rev 1.0, 9/19/2016 update, section
+ * 9.10.25 ("SMA Packet Checks").
  *
  * Note that:
  *   - Checks are done using the pkey directly from the packet's BTH,
@@ -603,23 +603,28 @@ static int opa_smp_check(struct hfi1_ibport *ibp, u16 pkey, u8 sc5,
 
 	/*
 	 * SMPs fall into one of four (disjoint) categories:
-	 * SMA request, SMA response, trap, or trap repress.
-	 * Our response depends, in part, on which type of
-	 * SMP we're processing.
+	 * SMA request, SMA response, SMA trap, or SMA trap repress.
+	 * Our response depends, in part, on which type of SMP we're
+	 * processing.
 	 *
-	 * If this is not an SMA request, or trap repress:
-	 *   - accept MAD if the port is running an SM
-	 *   - pkey == FULL_MGMT_P_KEY =>
-	 *       reply with unsupported method (i.e., just mark
-	 *       the smp's status field here, and let it be
-	 *       processed normally)
-	 *   - pkey != LIM_MGMT_P_KEY =>
-	 *       increment port recv constraint errors, drop MAD
-	 * If this is an SMA request or trap repress:
+	 * If this is an SMA response, skip the check here.
+	 *
+	 * If this is an SMA request or SMA trap repress:
 	 *   - pkey != FULL_MGMT_P_KEY =>
 	 *       increment port recv constraint errors, drop MAD
+	 *
+	 * Otherwise:
+	 *    - accept if the port is running an SM
+	 *    - drop MAD if it's an SMA trap
+	 *    - pkey == FULL_MGMT_P_KEY =>
+	 *        reply with unsupported method
+	 *    - pkey != FULL_MGMT_P_KEY =>
+	 *	  increment port recv constraint errors, drop MAD
 	 */
 	switch (smp->method) {
+	case IB_MGMT_METHOD_GET_RESP:
+	case IB_MGMT_METHOD_REPORT_RESP:
+		break;
 	case IB_MGMT_METHOD_GET:
 	case IB_MGMT_METHOD_SET:
 	case IB_MGMT_METHOD_REPORT:
@@ -629,23 +634,17 @@ static int opa_smp_check(struct hfi1_ibport *ibp, u16 pkey, u8 sc5,
 			return 1;
 		}
 		break;
-	case IB_MGMT_METHOD_SEND:
-	case IB_MGMT_METHOD_TRAP:
-	case IB_MGMT_METHOD_GET_RESP:
-	case IB_MGMT_METHOD_REPORT_RESP:
+	default:
 		if (ibp->rvp.port_cap_flags & IB_PORT_SM)
 			return 0;
+		if (smp->method == IB_MGMT_METHOD_TRAP)
+			return 1;
 		if (pkey == FULL_MGMT_P_KEY) {
 			smp->status |= IB_SMP_UNSUP_METHOD;
 			return 0;
 		}
-		if (pkey != LIM_MGMT_P_KEY) {
-			ingress_pkey_table_fail(ppd, pkey, slid);
-			return 1;
-		}
-		break;
-	default:
-		break;
+		ingress_pkey_table_fail(ppd, pkey, slid);
+		return 1;
 	}
 	return 0;
 }
