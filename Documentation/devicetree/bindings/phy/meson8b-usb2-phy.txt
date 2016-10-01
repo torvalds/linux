@@ -1,4 +1,4 @@
-* Amlogic USB2 PHY
+* Amlogic Meson8b and GXBB USB2 PHY
 
 Required properties:
 - compatible:	Depending on the platform this should be one of:
