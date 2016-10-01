@@ -545,9 +545,8 @@ static int fsl_espi_probe(struct device *dev, struct resource *mem,
 	struct spi_master *master;
 	struct mpc8xxx_spi *mpc8xxx_spi;
 	struct device_node *nc;
-	const __be32 *prop;
-	u32 regval, csmode;
-	int i, len, ret;
+	u32 regval, csmode, cs, prop;
+	int ret;
 
 	master = spi_alloc_master(dev, sizeof(struct mpc8xxx_spi));
 	if (!master)
@@ -599,29 +598,29 @@ static int fsl_espi_probe(struct device *dev, struct resource *mem,
 	/* Init eSPI CS mode register */
 	for_each_available_child_of_node(master->dev.of_node, nc) {
 		/* get chip select */
-		prop = of_get_property(nc, "reg", &len);
-		if (!prop || len < sizeof(*prop))
-			continue;
-		i = be32_to_cpup(prop);
-		if (i < 0 || i >= pdata->max_chipselect)
+		ret = of_property_read_u32(nc, "reg", &cs);
+		if (ret || cs >= pdata->max_chipselect)
 			continue;
 
 		csmode = CSMODE_INIT_VAL;
-		/* check if CSBEF is set in device tree */
-		prop = of_get_property(nc, "fsl,csbef", &len);
-		if (prop && len >= sizeof(*prop)) {
-			csmode &= ~(CSMODE_BEF(0xf));
-			csmode |= CSMODE_BEF(be32_to_cpup(prop));
-		}
-		/* check if CSAFT is set in device tree */
-		prop = of_get_property(nc, "fsl,csaft", &len);
-		if (prop && len >= sizeof(*prop)) {
-			csmode &= ~(CSMODE_AFT(0xf));
-			csmode |= CSMODE_AFT(be32_to_cpup(prop));
-		}
-		fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPMODEx(i), csmode);
 
-		dev_info(dev, "cs=%d, init_csmode=0x%x\n", i, csmode);
+		/* check if CSBEF is set in device tree */
+		ret = of_property_read_u32(nc, "fsl,csbef", &prop);
+		if (!ret) {
+			csmode &= ~(CSMODE_BEF(0xf));
+			csmode |= CSMODE_BEF(prop);
+		}
+
+		/* check if CSAFT is set in device tree */
+		ret = of_property_read_u32(nc, "fsl,csaft", &prop);
+		if (!ret) {
+			csmode &= ~(CSMODE_AFT(0xf));
+			csmode |= CSMODE_AFT(prop);
+		}
+
+		fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPMODEx(cs), csmode);
+
+		dev_info(dev, "cs=%u, init_csmode=0x%x\n", cs, csmode);
 	}
 
 	/* Enable SPI interface */
@@ -660,16 +659,16 @@ static int of_fsl_espi_get_chipselects(struct device *dev)
 {
 	struct device_node *np = dev->of_node;
 	struct fsl_spi_platform_data *pdata = dev_get_platdata(dev);
-	const u32 *prop;
-	int len;
+	u32 num_cs;
+	int ret;
 
-	prop = of_get_property(np, "fsl,espi-num-chipselects", &len);
-	if (!prop || len < sizeof(*prop)) {
+	ret = of_property_read_u32(np, "fsl,espi-num-chipselects", &num_cs);
+	if (ret) {
 		dev_err(dev, "No 'fsl,espi-num-chipselects' property\n");
 		return -EINVAL;
 	}
 
-	pdata->max_chipselect = *prop;
+	pdata->max_chipselect = num_cs;
 	pdata->cs_control = NULL;
 
 	return 0;
