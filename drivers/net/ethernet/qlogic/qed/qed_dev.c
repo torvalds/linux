@@ -29,6 +29,7 @@
 #include "qed_hw.h"
 #include "qed_init_ops.h"
 #include "qed_int.h"
+#include "qed_ll2.h"
 #include "qed_mcp.h"
 #include "qed_reg_addr.h"
 #include "qed_sp.h"
@@ -147,6 +148,9 @@ void qed_resc_free(struct qed_dev *cdev)
 		qed_eq_free(p_hwfn, p_hwfn->p_eq);
 		qed_consq_free(p_hwfn, p_hwfn->p_consq);
 		qed_int_free(p_hwfn);
+#ifdef CONFIG_QED_LL2
+		qed_ll2_free(p_hwfn, p_hwfn->p_ll2_info);
+#endif
 		qed_iov_free(p_hwfn);
 		qed_dmae_info_free(p_hwfn);
 		qed_dcbx_info_free(p_hwfn, p_hwfn->p_dcbx_info);
@@ -403,6 +407,9 @@ int qed_qm_reconf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 int qed_resc_alloc(struct qed_dev *cdev)
 {
+#ifdef CONFIG_QED_LL2
+	struct qed_ll2_info *p_ll2_info;
+#endif
 	struct qed_consq *p_consq;
 	struct qed_eq *p_eq;
 	int i, rc = 0;
@@ -513,6 +520,15 @@ int qed_resc_alloc(struct qed_dev *cdev)
 			goto alloc_no_mem;
 		p_hwfn->p_consq = p_consq;
 
+#ifdef CONFIG_QED_LL2
+		if (p_hwfn->using_ll2) {
+			p_ll2_info = qed_ll2_alloc(p_hwfn);
+			if (!p_ll2_info)
+				goto alloc_no_mem;
+			p_hwfn->p_ll2_info = p_ll2_info;
+		}
+#endif
+
 		/* DMA info initialization */
 		rc = qed_dmae_info_alloc(p_hwfn);
 		if (rc)
@@ -561,6 +577,10 @@ void qed_resc_setup(struct qed_dev *cdev)
 		qed_int_setup(p_hwfn, p_hwfn->p_main_ptt);
 
 		qed_iov_setup(p_hwfn, p_hwfn->p_main_ptt);
+#ifdef CONFIG_QED_LL2
+		if (p_hwfn->using_ll2)
+			qed_ll2_setup(p_hwfn, p_hwfn->p_ll2_info);
+#endif
 	}
 }
 
@@ -1304,6 +1324,7 @@ static int qed_hw_get_resc(struct qed_hwfn *p_hwfn)
 	resc_num[QED_VLAN] = (ETH_NUM_VLAN_FILTERS - 1 /*For vlan0*/) /
 			     num_funcs;
 	resc_num[QED_ILT] = PXP_NUM_ILT_RECORDS_BB / num_funcs;
+	resc_num[QED_LL2_QUEUE] = MAX_NUM_LL2_RX_QUEUES / num_funcs;
 
 	for (i = 0; i < QED_MAX_RESC; i++)
 		resc_start[i] = resc_num[i] * enabled_func_idx;
@@ -1327,7 +1348,8 @@ static int qed_hw_get_resc(struct qed_hwfn *p_hwfn)
 		   "RL = %d start = %d\n"
 		   "MAC = %d start = %d\n"
 		   "VLAN = %d start = %d\n"
-		   "ILT = %d start = %d\n",
+		   "ILT = %d start = %d\n"
+		   "LL2_QUEUE = %d start = %d\n",
 		   p_hwfn->hw_info.resc_num[QED_SB],
 		   p_hwfn->hw_info.resc_start[QED_SB],
 		   p_hwfn->hw_info.resc_num[QED_L2_QUEUE],
@@ -1343,7 +1365,9 @@ static int qed_hw_get_resc(struct qed_hwfn *p_hwfn)
 		   p_hwfn->hw_info.resc_num[QED_VLAN],
 		   p_hwfn->hw_info.resc_start[QED_VLAN],
 		   p_hwfn->hw_info.resc_num[QED_ILT],
-		   p_hwfn->hw_info.resc_start[QED_ILT]);
+		   p_hwfn->hw_info.resc_start[QED_ILT],
+		   RESC_NUM(p_hwfn, QED_LL2_QUEUE),
+		   RESC_START(p_hwfn, QED_LL2_QUEUE));
 
 	return 0;
 }
@@ -2131,6 +2155,98 @@ int qed_fw_rss_eng(struct qed_hwfn *p_hwfn, u8 src_id, u8 *dst_id)
 	*dst_id = RESC_START(p_hwfn, QED_RSS_ENG) + src_id;
 
 	return 0;
+}
+
+static void qed_llh_mac_to_filter(u32 *p_high, u32 *p_low,
+				  u8 *p_filter)
+{
+	*p_high = p_filter[1] | (p_filter[0] << 8);
+	*p_low = p_filter[5] | (p_filter[4] << 8) |
+		 (p_filter[3] << 16) | (p_filter[2] << 24);
+}
+
+int qed_llh_add_mac_filter(struct qed_hwfn *p_hwfn,
+			   struct qed_ptt *p_ptt, u8 *p_filter)
+{
+	u32 high = 0, low = 0, en;
+	int i;
+
+	if (!(IS_MF_SI(p_hwfn) || IS_MF_DEFAULT(p_hwfn)))
+		return 0;
+
+	qed_llh_mac_to_filter(&high, &low, p_filter);
+
+	/* Find a free entry and utilize it */
+	for (i = 0; i < NIG_REG_LLH_FUNC_FILTER_EN_SIZE; i++) {
+		en = qed_rd(p_hwfn, p_ptt,
+			    NIG_REG_LLH_FUNC_FILTER_EN + i * sizeof(u32));
+		if (en)
+			continue;
+		qed_wr(p_hwfn, p_ptt,
+		       NIG_REG_LLH_FUNC_FILTER_VALUE +
+		       2 * i * sizeof(u32), low);
+		qed_wr(p_hwfn, p_ptt,
+		       NIG_REG_LLH_FUNC_FILTER_VALUE +
+		       (2 * i + 1) * sizeof(u32), high);
+		qed_wr(p_hwfn, p_ptt,
+		       NIG_REG_LLH_FUNC_FILTER_MODE + i * sizeof(u32), 0);
+		qed_wr(p_hwfn, p_ptt,
+		       NIG_REG_LLH_FUNC_FILTER_PROTOCOL_TYPE +
+		       i * sizeof(u32), 0);
+		qed_wr(p_hwfn, p_ptt,
+		       NIG_REG_LLH_FUNC_FILTER_EN + i * sizeof(u32), 1);
+		break;
+	}
+	if (i >= NIG_REG_LLH_FUNC_FILTER_EN_SIZE) {
+		DP_NOTICE(p_hwfn,
+			  "Failed to find an empty LLH filter to utilize\n");
+		return -EINVAL;
+	}
+
+	DP_VERBOSE(p_hwfn, NETIF_MSG_HW,
+		   "mac: %pM is added at %d\n",
+		   p_filter, i);
+
+	return 0;
+}
+
+void qed_llh_remove_mac_filter(struct qed_hwfn *p_hwfn,
+			       struct qed_ptt *p_ptt, u8 *p_filter)
+{
+	u32 high = 0, low = 0;
+	int i;
+
+	if (!(IS_MF_SI(p_hwfn) || IS_MF_DEFAULT(p_hwfn)))
+		return;
+
+	qed_llh_mac_to_filter(&high, &low, p_filter);
+
+	/* Find the entry and clean it */
+	for (i = 0; i < NIG_REG_LLH_FUNC_FILTER_EN_SIZE; i++) {
+		if (qed_rd(p_hwfn, p_ptt,
+			   NIG_REG_LLH_FUNC_FILTER_VALUE +
+			   2 * i * sizeof(u32)) != low)
+			continue;
+		if (qed_rd(p_hwfn, p_ptt,
+			   NIG_REG_LLH_FUNC_FILTER_VALUE +
+			   (2 * i + 1) * sizeof(u32)) != high)
+			continue;
+
+		qed_wr(p_hwfn, p_ptt,
+		       NIG_REG_LLH_FUNC_FILTER_EN + i * sizeof(u32), 0);
+		qed_wr(p_hwfn, p_ptt,
+		       NIG_REG_LLH_FUNC_FILTER_VALUE + 2 * i * sizeof(u32), 0);
+		qed_wr(p_hwfn, p_ptt,
+		       NIG_REG_LLH_FUNC_FILTER_VALUE +
+		       (2 * i + 1) * sizeof(u32), 0);
+
+		DP_VERBOSE(p_hwfn, NETIF_MSG_HW,
+			   "mac: %pM is removed from %d\n",
+			   p_filter, i);
+		break;
+	}
+	if (i >= NIG_REG_LLH_FUNC_FILTER_EN_SIZE)
+		DP_NOTICE(p_hwfn, "Tried to remove a non-configured filter\n");
 }
 
 static int qed_set_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,

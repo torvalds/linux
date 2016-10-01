@@ -72,6 +72,7 @@ struct qed_sb_info;
 struct qed_sb_attn_info;
 struct qed_cxt_mngr;
 struct qed_sb_sp_info;
+struct qed_ll2_info;
 struct qed_mcp_info;
 
 struct qed_rt_data {
@@ -152,6 +153,7 @@ enum QED_RESOURCES {
 	QED_MAC,
 	QED_VLAN,
 	QED_ILT,
+	QED_LL2_QUEUE,
 	QED_MAX_RESC,
 };
 
@@ -360,6 +362,8 @@ struct qed_hwfn {
 	struct qed_sb_attn_info		*p_sb_attn;
 
 	/* Protocol related */
+	bool				using_ll2;
+	struct qed_ll2_info		*p_ll2_info;
 	struct qed_pf_params		pf_params;
 
 	bool b_rdma_enabled_in_prs;
@@ -563,6 +567,11 @@ struct qed_dev {
 	void				*ops_cookie;
 
 	struct qed_dbg_params		dbg_params;
+
+#ifdef CONFIG_QED_LL2
+	struct qed_cb_ll2_info		*ll2;
+	u8				ll2_mac_address[ETH_ALEN];
+#endif
 
 	const struct firmware		*firmware;
 };

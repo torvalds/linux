@@ -88,6 +88,14 @@ config QED
 	---help---
 	  This enables the support for ...
 
+config QED_LL2
+	bool "Qlogic QED Light L2 interface"
+	default n
+	depends on QED
+	---help---
+	This enables support for Light L2 interface which is required
+	by all qed protocol drivers other than qede.
+
 config QED_SRIOV
 	bool "QLogic QED 25/40/100Gb SR-IOV support"
 	depends on QED && PCI_IOV

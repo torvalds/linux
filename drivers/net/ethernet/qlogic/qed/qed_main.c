@@ -22,11 +22,13 @@
 #include <linux/etherdevice.h>
 #include <linux/vmalloc.h>
 #include <linux/qed/qed_if.h>
+#include <linux/qed/qed_ll2_if.h>
 
 #include "qed.h"
 #include "qed_sriov.h"
 #include "qed_sp.h"
 #include "qed_dev_api.h"
+#include "qed_ll2.h"
 #include "qed_mcp.h"
 #include "qed_hw.h"
 #include "qed_selftest.h"
@@ -608,7 +610,16 @@ static int qed_nic_reset(struct qed_dev *cdev)
 
 static int qed_nic_setup(struct qed_dev *cdev)
 {
-	int rc;
+	int rc, i;
+
+	/* Determine if interface is going to require LL2 */
+	if (QED_LEADING_HWFN(cdev)->hw_info.personality != QED_PCI_ETH) {
+		for (i = 0; i < cdev->num_hwfns; i++) {
+			struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
+
+			p_hwfn->using_ll2 = true;
+		}
+	}
 
 	rc = qed_resc_alloc(cdev);
 	if (rc)
@@ -873,6 +884,12 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 	DP_INFO(cdev,
 		"HW initialization and function start completed successfully\n");
 
+	/* Allocate LL2 interface if needed */
+	if (QED_LEADING_HWFN(cdev)->using_ll2) {
+		rc = qed_ll2_alloc_if(cdev);
+		if (rc)
+			goto err3;
+	}
 	if (IS_PF(cdev)) {
 		hwfn = QED_LEADING_HWFN(cdev);
 		drv_version.version = (params->drv_major << 24) |
@@ -893,6 +910,8 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 
 	return 0;
 
+err3:
+	qed_hw_stop(cdev);
 err2:
 	qed_hw_timers_stop_all(cdev);
 	if (IS_PF(cdev))
@@ -914,6 +933,8 @@ static int qed_slowpath_stop(struct qed_dev *cdev)
 {
 	if (!cdev)
 		return -ENODEV;
+
+	qed_ll2_dealloc_if(cdev);
 
 	if (IS_PF(cdev)) {
 		qed_free_stream_mem(cdev);

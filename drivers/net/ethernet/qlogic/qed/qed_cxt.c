@@ -1839,6 +1839,8 @@ int qed_cxt_set_pf_params(struct qed_hwfn *p_hwfn)
 	/* Set the number of required CORE connections */
 	u32 core_cids = 1; /* SPQ */
 
+	if (p_hwfn->using_ll2)
+		core_cids += 4;
 	qed_cxt_set_proto_cid_count(p_hwfn, PROTOCOLID_CORE, core_cids, 0);
 
 	switch (p_hwfn->hw_info.personality) {
