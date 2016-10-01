@@ -1266,6 +1266,7 @@ void device_del(struct device *dev)
 	bus_remove_device(dev);
 	device_pm_remove(dev);
 	driver_deferred_probe_del(dev);
+	device_remove_properties(dev);
 
 	/* Notify the platform of the removal, in case they
 	 * need to do anything...
