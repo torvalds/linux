@@ -709,6 +709,25 @@ static void nand_command(struct mtd_info *mtd, unsigned int command,
 	nand_wait_ready(mtd);
 }
 
+static void nand_ccs_delay(struct nand_chip *chip)
+{
+	/*
+	 * The controller already takes care of waiting for tCCS when the RNDIN
+	 * or RNDOUT command is sent, return directly.
+	 */
+	if (!(chip->options & NAND_WAIT_TCCS))
+		return;
+
+	/*
+	 * Wait tCCS_min if it is correctly defined, otherwise wait 500ns
+	 * (which should be safe for all NANDs).
+	 */
+	if (chip->data_interface && chip->data_interface->timings.sdr.tCCS_min)
+		ndelay(chip->data_interface->timings.sdr.tCCS_min / 1000);
+	else
+		ndelay(500);
+}
+
 /**
  * nand_command_lp - [DEFAULT] Send command to NAND large page device
  * @mtd: MTD device structure
@@ -773,8 +792,11 @@ static void nand_command_lp(struct mtd_info *mtd, unsigned int command,
 	case NAND_CMD_ERASE1:
 	case NAND_CMD_ERASE2:
 	case NAND_CMD_SEQIN:
-	case NAND_CMD_RNDIN:
 	case NAND_CMD_STATUS:
+		return;
+
+	case NAND_CMD_RNDIN:
+		nand_ccs_delay(chip);
 		return;
 
 	case NAND_CMD_RESET:
@@ -795,6 +817,8 @@ static void nand_command_lp(struct mtd_info *mtd, unsigned int command,
 			       NAND_NCE | NAND_CLE | NAND_CTRL_CHANGE);
 		chip->cmd_ctrl(mtd, NAND_CMD_NONE,
 			       NAND_NCE | NAND_CTRL_CHANGE);
+
+		nand_ccs_delay(chip);
 		return;
 
 	case NAND_CMD_READ0:

@@ -210,6 +210,16 @@ enum nand_ecc_algo {
  */
 #define NAND_USE_BOUNCE_BUFFER	0x00100000
 
+/*
+ * In case your controller is implementing ->cmd_ctrl() and is relying on the
+ * default ->cmdfunc() implementation, you may want to let the core handle the
+ * tCCS delay which is required when a column change (RNDIN or RNDOUT) is
+ * requested.
+ * If your controller already takes care of this delay, you don't need to set
+ * this flag.
+ */
+#define NAND_WAIT_TCCS		0x00200000
+
 /* Options set by nand scan */
 /* Nand scan has allocated controller struct */
 #define NAND_CONTROLLER_ALLOC	0x80000000
