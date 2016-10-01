@@ -76,8 +76,6 @@ config PAGE_POISONING_ZERO
 	   no longer necessary to write zeros when GFP_ZERO is used on
 	   allocation.
 
-	   Enabling page poisoning with this option will disable hibernation
-
 	   If unsure, say N
 	bool
 
