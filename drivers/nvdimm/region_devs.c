@@ -294,9 +294,8 @@ resource_size_t nd_region_available_dpa(struct nd_region *nd_region)
 				blk_max_overlap = overlap;
 				goto retry;
 			}
-		} else if (is_nd_blk(&nd_region->dev)) {
-			available += nd_blk_available_dpa(nd_mapping);
-		}
+		} else if (is_nd_blk(&nd_region->dev))
+			available += nd_blk_available_dpa(nd_region);
 	}
 
 	return available;
