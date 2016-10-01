@@ -1703,6 +1703,7 @@ error:
 static int fuse_setattr(struct dentry *entry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(entry);
+	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct file *file = (attr->ia_valid & ATTR_FILE) ? attr->ia_file : NULL;
 	int ret;
 
@@ -1710,27 +1711,36 @@ static int fuse_setattr(struct dentry *entry, struct iattr *attr)
 		return -EACCES;
 
 	if (attr->ia_valid & (ATTR_KILL_SUID | ATTR_KILL_SGID)) {
-		int kill;
-
 		attr->ia_valid &= ~(ATTR_KILL_SUID | ATTR_KILL_SGID |
 				    ATTR_MODE);
-		/*
-		 * ia_mode calculation may have used stale i_mode.  Refresh and
-		 * recalculate.
-		 */
-		ret = fuse_do_getattr(inode, NULL, file);
-		if (ret)
-			return ret;
 
-		attr->ia_mode = inode->i_mode;
-		kill = should_remove_suid(entry);
-		if (kill & ATTR_KILL_SUID) {
-			attr->ia_valid |= ATTR_MODE;
-			attr->ia_mode &= ~S_ISUID;
-		}
-		if (kill & ATTR_KILL_SGID) {
-			attr->ia_valid |= ATTR_MODE;
-			attr->ia_mode &= ~S_ISGID;
+		/*
+		 * The only sane way to reliably kill suid/sgid is to do it in
+		 * the userspace filesystem
+		 *
+		 * This should be done on write(), truncate() and chown().
+		 */
+		if (!fc->handle_killpriv) {
+			int kill;
+
+			/*
+			 * ia_mode calculation may have used stale i_mode.
+			 * Refresh and recalculate.
+			 */
+			ret = fuse_do_getattr(inode, NULL, file);
+			if (ret)
+				return ret;
+
+			attr->ia_mode = inode->i_mode;
+			kill = should_remove_suid(entry);
+			if (kill & ATTR_KILL_SUID) {
+				attr->ia_valid |= ATTR_MODE;
+				attr->ia_mode &= ~S_ISUID;
+			}
+			if (kill & ATTR_KILL_SGID) {
+				attr->ia_valid |= ATTR_MODE;
+				attr->ia_mode &= ~S_ISGID;
+			}
 		}
 	}
 	if (!attr->ia_valid)

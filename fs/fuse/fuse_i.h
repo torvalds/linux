@@ -547,6 +547,9 @@ struct fuse_conn {
 	/** allow parallel lookups and readdir (default is serialized) */
 	unsigned parallel_dirops:1;
 
+	/** handle fs handles killing suid/sgid/cap on write/chown/trunc */
+	unsigned handle_killpriv:1;
+
 	/*
 	 * The following bitfields are only for optimization purposes
 	 * and hence races in setting them will not cause malfunction
