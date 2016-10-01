@@ -67,8 +67,8 @@ u8 ibhdr_exhdr_len(struct ib_header *hdr)
 #define AETH_PRN "aeth syn 0x%.2x %s msn 0x%.8x"
 #define DETH_PRN "deth qkey 0x%.8x sqpn 0x%.6x"
 #define IETH_PRN "ieth rkey 0x%.8x"
-#define ATOMICACKETH_PRN "origdata %lld"
-#define ATOMICETH_PRN "vaddr 0x%llx rkey 0x%.8x sdata %lld cdata %lld"
+#define ATOMICACKETH_PRN "origdata %llx"
+#define ATOMICETH_PRN "vaddr 0x%llx rkey 0x%.8x sdata %llx cdata %llx"
 
 #define OP(transport, op) IB_OPCODE_## transport ## _ ## op
 
