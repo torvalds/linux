@@ -69,6 +69,26 @@ struct drm_simple_display_pipe_funcs {
 	 */
 	void (*update)(struct drm_simple_display_pipe *pipe,
 		       struct drm_plane_state *plane_state);
+
+	/**
+	 * @prepare_fb:
+	 *
+	 * Optional, called by struct &drm_plane_helper_funcs ->prepare_fb .
+	 * Please read the documentation for the ->prepare_fb hook in
+	 * struct &drm_plane_helper_funcs for more details.
+	 */
+	int (*prepare_fb)(struct drm_simple_display_pipe *pipe,
+			  struct drm_plane_state *plane_state);
+
+	/**
+	 * @cleanup_fb:
+	 *
+	 * Optional, called by struct &drm_plane_helper_funcs ->cleanup_fb .
+	 * Please read the documentation for the ->cleanup_fb hook in
+	 * struct &drm_plane_helper_funcs for more details.
+	 */
+	void (*cleanup_fb)(struct drm_simple_display_pipe *pipe,
+			   struct drm_plane_state *plane_state);
 };
 
 /**
