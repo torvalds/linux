@@ -1389,7 +1389,7 @@ xfs_bmap_search_multi_extents(
  * Else, *lastxp will be set to the index of the found
  * entry; *gotp will contain the entry.
  */
-STATIC xfs_bmbt_rec_host_t *                 /* pointer to found extent entry */
+xfs_bmbt_rec_host_t *                 /* pointer to found extent entry */
 xfs_bmap_search_extents(
 	xfs_inode_t     *ip,            /* incore inode pointer */
 	xfs_fileoff_t   bno,            /* block number searched for */
@@ -4076,7 +4076,7 @@ xfs_bmapi_read(
 	return 0;
 }
 
-STATIC int
+int
 xfs_bmapi_reserve_delalloc(
 	struct xfs_inode	*ip,
 	xfs_fileoff_t		aoff,
@@ -4171,91 +4171,6 @@ out_unreserve_quota:
 				XFS_QMOPT_RES_RTBLKS : XFS_QMOPT_RES_REGBLKS);
 	return error;
 }
-
-/*
- * Map file blocks to filesystem blocks, adding delayed allocations as needed.
- */
-int
-xfs_bmapi_delay(
-	struct xfs_inode	*ip,	/* incore inode */
-	xfs_fileoff_t		bno,	/* starting file offs. mapped */
-	xfs_filblks_t		len,	/* length to map in file */
-	struct xfs_bmbt_irec	*mval,	/* output: map values */
-	int			*nmap,	/* i/o: mval size/count */
-	int			flags)	/* XFS_BMAPI_... */
-{
-	struct xfs_mount	*mp = ip->i_mount;
-	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
-	struct xfs_bmbt_irec	got;	/* current file extent record */
-	struct xfs_bmbt_irec	prev;	/* previous file extent record */
-	xfs_fileoff_t		obno;	/* old block number (offset) */
-	xfs_fileoff_t		end;	/* end of mapped file region */
-	xfs_extnum_t		lastx;	/* last useful extent number */
-	int			eof;	/* we've hit the end of extents */
-	int			n = 0;	/* current extent index */
-	int			error = 0;
-
-	ASSERT(*nmap >= 1);
-	ASSERT(*nmap <= XFS_BMAP_MAX_NMAP);
-	ASSERT(!(flags & ~XFS_BMAPI_ENTIRE));
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-
-	if (unlikely(XFS_TEST_ERROR(
-	    (XFS_IFORK_FORMAT(ip, XFS_DATA_FORK) != XFS_DINODE_FMT_EXTENTS &&
-	     XFS_IFORK_FORMAT(ip, XFS_DATA_FORK) != XFS_DINODE_FMT_BTREE),
-	     mp, XFS_ERRTAG_BMAPIFORMAT, XFS_RANDOM_BMAPIFORMAT))) {
-		XFS_ERROR_REPORT("xfs_bmapi_delay", XFS_ERRLEVEL_LOW, mp);
-		return -EFSCORRUPTED;
-	}
-
-	if (XFS_FORCED_SHUTDOWN(mp))
-		return -EIO;
-
-	XFS_STATS_INC(mp, xs_blk_mapw);
-
-	if (!(ifp->if_flags & XFS_IFEXTENTS)) {
-		error = xfs_iread_extents(NULL, ip, XFS_DATA_FORK);
-		if (error)
-			return error;
-	}
-
-	xfs_bmap_search_extents(ip, bno, XFS_DATA_FORK, &eof, &lastx, &got, &prev);
-	end = bno + len;
-	obno = bno;
-
-	while (bno < end && n < *nmap) {
-		if (eof || got.br_startoff > bno) {
-			error = xfs_bmapi_reserve_delalloc(ip, bno, len, &got,
-							   &prev, &lastx, eof);
-			if (error) {
-				if (n == 0) {
-					*nmap = 0;
-					return error;
-				}
-				break;
-			}
-		}
-
-		/* set up the extent map to return. */
-		xfs_bmapi_trim_map(mval, &got, &bno, len, obno, end, n, flags);
-		xfs_bmapi_update_map(&mval, &bno, &len, obno, end, &n, flags);
-
-		/* If we're done, stop now. */
-		if (bno >= end || n >= *nmap)
-			break;
-
-		/* Else go on to the next record. */
-		prev = got;
-		if (++lastx < ifp->if_bytes / sizeof(xfs_bmbt_rec_t))
-			xfs_bmbt_get_all(xfs_iext_get_ext(ifp, lastx), &got);
-		else
-			eof = 1;
-	}
-
-	*nmap = n;
-	return 0;
-}
-
 
 static int
 xfs_bmapi_allocate(
