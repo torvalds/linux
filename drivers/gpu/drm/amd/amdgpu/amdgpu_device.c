@@ -1424,6 +1424,7 @@ static int amdgpu_late_init(struct amdgpu_device *adev)
 				DRM_ERROR("late_init of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
 				return r;
 			}
+			adev->ip_block_status[i].late_initialized = true;
 		}
 	}
 
@@ -1469,8 +1470,11 @@ static int amdgpu_fini(struct amdgpu_device *adev)
 	}
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
+		if (!adev->ip_block_status[i].late_initialized)
+			continue;
 		if (adev->ip_blocks[i].funcs->late_fini)
 			adev->ip_blocks[i].funcs->late_fini((void *)adev);
+		adev->ip_block_status[i].late_initialized = false;
 	}
 
 	return 0;
