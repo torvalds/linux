@@ -934,11 +934,13 @@ error_on_bmapi_transaction:
 	return error;
 }
 
-static inline bool imap_needs_alloc(struct xfs_bmbt_irec *imap, int nimaps)
+static inline bool imap_needs_alloc(struct inode *inode,
+		struct xfs_bmbt_irec *imap, int nimaps)
 {
 	return !nimaps ||
 		imap->br_startblock == HOLESTARTBLOCK ||
-		imap->br_startblock == DELAYSTARTBLOCK;
+		imap->br_startblock == DELAYSTARTBLOCK ||
+		(IS_DAX(inode) && ISUNWRITTEN(imap));
 }
 
 static int
@@ -954,16 +956,18 @@ xfs_file_iomap_begin(
 	struct xfs_bmbt_irec	imap;
 	xfs_fileoff_t		offset_fsb, end_fsb;
 	int			nimaps = 1, error = 0;
+	unsigned		lockmode;
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
-	if ((flags & IOMAP_WRITE) && !xfs_get_extsz_hint(ip)) {
+	if ((flags & IOMAP_WRITE) &&
+	    !IS_DAX(inode) && !xfs_get_extsz_hint(ip)) {
 		return xfs_file_iomap_begin_delay(inode, offset, length, flags,
 				iomap);
 	}
 
-	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	lockmode = xfs_ilock_data_map_shared(ip);
 
 	ASSERT(offset <= mp->m_super->s_maxbytes);
 	if ((xfs_fsize_t)offset + length > mp->m_super->s_maxbytes)
@@ -974,11 +978,11 @@ xfs_file_iomap_begin(
 	error = xfs_bmapi_read(ip, offset_fsb, end_fsb - offset_fsb, &imap,
 			       &nimaps, XFS_BMAPI_ENTIRE);
 	if (error) {
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+		xfs_iunlock(ip, lockmode);
 		return error;
 	}
 
-	if ((flags & IOMAP_WRITE) && imap_needs_alloc(&imap, nimaps)) {
+	if ((flags & IOMAP_WRITE) && imap_needs_alloc(inode, &imap, nimaps)) {
 		/*
 		 * We cap the maximum length we map here to MAX_WRITEBACK_PAGES
 		 * pages to keep the chunks of work done where somewhat symmetric
@@ -994,17 +998,19 @@ xfs_file_iomap_begin(
 		 * xfs_iomap_write_direct() expects the shared lock. It
 		 * is unlocked on return.
 		 */
-		xfs_ilock_demote(ip, XFS_ILOCK_EXCL);
+		if (lockmode == XFS_ILOCK_EXCL)
+			xfs_ilock_demote(ip, lockmode);
 		error = xfs_iomap_write_direct(ip, offset, length, &imap,
 				nimaps);
 		if (error)
 			return error;
 
+		iomap->flags = IOMAP_F_NEW;
 		trace_xfs_iomap_alloc(ip, offset, length, 0, &imap);
 	} else {
 		ASSERT(nimaps);
 
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+		xfs_iunlock(ip, lockmode);
 		trace_xfs_iomap_found(ip, offset, length, 0, &imap);
 	}
 

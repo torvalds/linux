@@ -27,9 +27,6 @@
 #include <linux/dax.h>
 #include "internal.h"
 
-typedef loff_t (*iomap_actor_t)(struct inode *inode, loff_t pos, loff_t len,
-		void *data, struct iomap *iomap);
-
 /*
  * Execute a iomap write on a segment of the mapping that spans a
  * contiguous range of pages that have identical block mapping state.
@@ -41,7 +38,7 @@ typedef loff_t (*iomap_actor_t)(struct inode *inode, loff_t pos, loff_t len,
  * resources they require in the iomap_begin call, and release them in the
  * iomap_end call.
  */
-static loff_t
+loff_t
 iomap_apply(struct inode *inode, loff_t pos, loff_t length, unsigned flags,
 		struct iomap_ops *ops, void *data, iomap_actor_t actor)
 {
