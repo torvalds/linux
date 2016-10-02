@@ -220,6 +220,7 @@ void amdgpu_i2c_destroy(struct amdgpu_i2c_chan *i2c)
 {
 	if (!i2c)
 		return;
+	WARN_ON(i2c->has_aux);
 	i2c_del_adapter(&i2c->adapter);
 	kfree(i2c);
 }
