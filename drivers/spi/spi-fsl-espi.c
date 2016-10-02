@@ -153,12 +153,22 @@ static int fsl_espi_check_message(struct spi_message *m)
 
 	first = list_first_entry(&m->transfers, struct spi_transfer,
 				 transfer_list);
+
 	list_for_each_entry(t, &m->transfers, transfer_list) {
 		if (first->bits_per_word != t->bits_per_word ||
 		    first->speed_hz != t->speed_hz) {
 			dev_err(mspi->dev, "bits_per_word/speed_hz should be the same for all transfers\n");
 			return -EINVAL;
 		}
+	}
+
+	/* ESPI supports MSB-first transfers for word size 8 / 16 only */
+	if (!(m->spi->mode & SPI_LSB_FIRST) && first->bits_per_word != 8 &&
+	    first->bits_per_word != 16) {
+		dev_err(mspi->dev,
+			"MSB-first transfer not supported for wordsize %u\n",
+			first->bits_per_word);
+		return -EINVAL;
 	}
 
 	return 0;
