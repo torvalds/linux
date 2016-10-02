@@ -1045,7 +1045,7 @@ int eeh_init(void)
 	if (eeh_enabled())
 		pr_info("EEH: PCI Enhanced I/O Error Handling Enabled\n");
 	else
-		pr_warn("EEH: No capable adapters found\n");
+		pr_info("EEH: No capable adapters found\n");
 
 	return ret;
 }
