@@ -250,10 +250,10 @@ int drm_connector_init(struct drm_device *dev,
 	connector->debugfs_entry = NULL;
 out_put_type_id:
 	if (ret)
-		ida_remove(connector_ida, connector->connector_type_id);
+		ida_simple_remove(connector_ida, connector->connector_type_id);
 out_put_id:
 	if (ret)
-		ida_remove(&config->connector_ida, connector->index);
+		ida_simple_remove(&config->connector_ida, connector->index);
 out_put:
 	if (ret)
 		drm_mode_object_unregister(dev, &connector->base);
