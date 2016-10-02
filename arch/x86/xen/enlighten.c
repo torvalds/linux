@@ -1644,7 +1644,6 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	xen_initial_gdt = &per_cpu(gdt_page, 0);
 
 	xen_smp_init();
-	WARN_ON(xen_cpuhp_setup());
 
 #ifdef CONFIG_ACPI_NUMA
 	/*
@@ -1657,6 +1656,8 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	/* Don't do the full vcpu_info placement stuff until we have a
 	   possible map and a non-dummy shared_info. */
 	per_cpu(xen_vcpu, 0) = &HYPERVISOR_shared_info->vcpu_info[0];
+
+	WARN_ON(xen_cpuhp_setup());
 
 	local_irq_disable();
 	early_boot_irqs_disabled = true;
