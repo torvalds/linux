@@ -764,7 +764,6 @@ static void __init arch_mem_init(char **cmdline_p)
 	device_tree_init();
 	sparse_init();
 	plat_swiotlb_setup();
-	paging_init();
 
 	dma_contiguous_reserve(PFN_PHYS(max_low_pfn));
 	/* Tell bootmem about cma reserved memblock section */
@@ -877,6 +876,7 @@ void __init setup_arch(char **cmdline_p)
 	prefill_possible_map();
 
 	cpu_cache_init();
+	paging_init();
 }
 
 unsigned long kernelsp[NR_CPUS];

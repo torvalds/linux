@@ -1619,6 +1619,12 @@ static int __init octeon_irq_init_gpio(
 		return -ENOMEM;
 	}
 
+	/*
+	 * Clear the OF_POPULATED flag that was set by of_irq_init()
+	 * so that all GPIO devices will be probed.
+	 */
+	of_node_clear_flag(gpio_node, OF_POPULATED);
+
 	return 0;
 }
 /*
