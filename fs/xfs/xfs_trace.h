@@ -1624,7 +1624,7 @@ DECLARE_EVENT_CLASS(xfs_alloc_class,
 		__field(char, wasdel)
 		__field(char, wasfromfl)
 		__field(int, resv)
-		__field(char, userdata)
+		__field(int, datatype)
 		__field(xfs_fsblock_t, firstblock)
 	),
 	TP_fast_assign(
@@ -1645,13 +1645,13 @@ DECLARE_EVENT_CLASS(xfs_alloc_class,
 		__entry->wasdel = args->wasdel;
 		__entry->wasfromfl = args->wasfromfl;
 		__entry->resv = args->resv;
-		__entry->userdata = args->userdata;
+		__entry->datatype = args->datatype;
 		__entry->firstblock = args->firstblock;
 	),
 	TP_printk("dev %d:%d agno %u agbno %u minlen %u maxlen %u mod %u "
 		  "prod %u minleft %u total %u alignment %u minalignslop %u "
 		  "len %u type %s otype %s wasdel %d wasfromfl %d resv %d "
-		  "userdata %d firstblock 0x%llx",
+		  "datatype 0x%x firstblock 0x%llx",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->agno,
 		  __entry->agbno,
@@ -1669,7 +1669,7 @@ DECLARE_EVENT_CLASS(xfs_alloc_class,
 		  __entry->wasdel,
 		  __entry->wasfromfl,
 		  __entry->resv,
-		  __entry->userdata,
+		  __entry->datatype,
 		  (unsigned long long)__entry->firstblock)
 )
 
@@ -1985,6 +1985,29 @@ DEFINE_EVENT(xfs_swap_extent_class, name, \
 DEFINE_SWAPEXT_EVENT(xfs_swap_extent_before);
 DEFINE_SWAPEXT_EVENT(xfs_swap_extent_after);
 
+TRACE_EVENT(xfs_log_recover_record,
+	TP_PROTO(struct xlog *log, struct xlog_rec_header *rhead, int pass),
+	TP_ARGS(log, rhead, pass),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_lsn_t, lsn)
+		__field(int, len)
+		__field(int, num_logops)
+		__field(int, pass)
+	),
+	TP_fast_assign(
+		__entry->dev = log->l_mp->m_super->s_dev;
+		__entry->lsn = be64_to_cpu(rhead->h_lsn);
+		__entry->len = be32_to_cpu(rhead->h_len);
+		__entry->num_logops = be32_to_cpu(rhead->h_num_logops);
+		__entry->pass = pass;
+	),
+	TP_printk("dev %d:%d lsn 0x%llx len 0x%x num_logops 0x%x pass %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->lsn, __entry->len, __entry->num_logops,
+		   __entry->pass)
+)
+
 DECLARE_EVENT_CLASS(xfs_log_recover_item_class,
 	TP_PROTO(struct xlog *log, struct xlog_recover *trans,
 		struct xlog_recover_item *item, int pass),
@@ -1993,6 +2016,7 @@ DECLARE_EVENT_CLASS(xfs_log_recover_item_class,
 		__field(dev_t, dev)
 		__field(unsigned long, item)
 		__field(xlog_tid_t, tid)
+		__field(xfs_lsn_t, lsn)
 		__field(int, type)
 		__field(int, pass)
 		__field(int, count)
@@ -2002,15 +2026,17 @@ DECLARE_EVENT_CLASS(xfs_log_recover_item_class,
 		__entry->dev = log->l_mp->m_super->s_dev;
 		__entry->item = (unsigned long)item;
 		__entry->tid = trans->r_log_tid;
+		__entry->lsn = trans->r_lsn;
 		__entry->type = ITEM_TYPE(item);
 		__entry->pass = pass;
 		__entry->count = item->ri_cnt;
 		__entry->total = item->ri_total;
 	),
-	TP_printk("dev %d:%d trans 0x%x, pass %d, item 0x%p, item type %s "
-		  "item region count/total %d/%d",
+	TP_printk("dev %d:%d tid 0x%x lsn 0x%llx, pass %d, item 0x%p, "
+		  "item type %s item region count/total %d/%d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->tid,
+		  __entry->lsn,
 		  __entry->pass,
 		  (void *)__entry->item,
 		  __print_symbolic(__entry->type, XFS_LI_TYPE_DESC),
@@ -2069,6 +2095,7 @@ DEFINE_LOG_RECOVER_BUF_ITEM(xfs_log_recover_buf_cancel);
 DEFINE_LOG_RECOVER_BUF_ITEM(xfs_log_recover_buf_cancel_add);
 DEFINE_LOG_RECOVER_BUF_ITEM(xfs_log_recover_buf_cancel_ref_inc);
 DEFINE_LOG_RECOVER_BUF_ITEM(xfs_log_recover_buf_recover);
+DEFINE_LOG_RECOVER_BUF_ITEM(xfs_log_recover_buf_skip);
 DEFINE_LOG_RECOVER_BUF_ITEM(xfs_log_recover_buf_inode_buf);
 DEFINE_LOG_RECOVER_BUF_ITEM(xfs_log_recover_buf_reg_buf);
 DEFINE_LOG_RECOVER_BUF_ITEM(xfs_log_recover_buf_dquot_buf);

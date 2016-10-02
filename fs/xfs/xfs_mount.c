@@ -934,6 +934,20 @@ xfs_mountfs(
 	}
 
 	/*
+	 * Now the log is fully replayed, we can transition to full read-only
+	 * mode for read-only mounts. This will sync all the metadata and clean
+	 * the log so that the recovery we just performed does not have to be
+	 * replayed again on the next mount.
+	 *
+	 * We use the same quiesce mechanism as the rw->ro remount, as they are
+	 * semantically identical operations.
+	 */
+	if ((mp->m_flags & (XFS_MOUNT_RDONLY|XFS_MOUNT_NORECOVERY)) ==
+							XFS_MOUNT_RDONLY) {
+		xfs_quiesce_attr(mp);
+	}
+
+	/*
 	 * Complete the quota initialisation, post-log-replay component.
 	 */
 	if (quotamount) {

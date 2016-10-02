@@ -413,7 +413,8 @@ struct xlog {
 	/* log record crc error injection factor */
 	uint32_t		l_badcrc_factor;
 #endif
-
+	/* log recovery lsn tracking (for buffer submission */
+	xfs_lsn_t		l_recovery_lsn;
 };
 
 #define XLOG_BUF_CANCEL_BUCKET(log, blkno) \

@@ -54,7 +54,7 @@ struct xfs_bmalloca {
 	bool			wasdel;	/* replacing a delayed allocation */
 	bool			aeof;	/* allocated space at eof */
 	bool			conv;	/* overwriting unwritten extents */
-	char			userdata;/* userdata mask */
+	int			datatype;/* data type being allocated */
 	int			flags;
 };
 

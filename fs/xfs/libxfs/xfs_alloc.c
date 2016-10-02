@@ -258,7 +258,7 @@ xfs_alloc_compute_diff(
 	xfs_agblock_t	wantbno,	/* target starting block */
 	xfs_extlen_t	wantlen,	/* target length */
 	xfs_extlen_t	alignment,	/* target alignment */
-	char		userdata,	/* are we allocating data? */
+	int		datatype,	/* are we allocating data? */
 	xfs_agblock_t	freebno,	/* freespace's starting block */
 	xfs_extlen_t	freelen,	/* freespace's length */
 	xfs_agblock_t	*newbnop)	/* result: best start block from free */
@@ -269,6 +269,7 @@ xfs_alloc_compute_diff(
 	xfs_extlen_t	newlen1=0;	/* length with newbno1 */
 	xfs_extlen_t	newlen2=0;	/* length with newbno2 */
 	xfs_agblock_t	wantend;	/* end of target extent */
+	bool		userdata = xfs_alloc_is_userdata(datatype);
 
 	ASSERT(freelen >= wantlen);
 	freeend = freebno + freelen;
@@ -924,7 +925,7 @@ xfs_alloc_find_best_extent(
 
 			sdiff = xfs_alloc_compute_diff(args->agbno, args->len,
 						       args->alignment,
-						       args->userdata, *sbnoa,
+						       args->datatype, *sbnoa,
 						       *slena, &new);
 
 			/*
@@ -1108,7 +1109,7 @@ restart:
 			if (args->len < blen)
 				continue;
 			ltdiff = xfs_alloc_compute_diff(args->agbno, args->len,
-				args->alignment, args->userdata, ltbnoa,
+				args->alignment, args->datatype, ltbnoa,
 				ltlena, &ltnew);
 			if (ltnew != NULLAGBLOCK &&
 			    (args->len > blen || ltdiff < bdiff)) {
@@ -1261,7 +1262,7 @@ restart:
 			args->len = XFS_EXTLEN_MIN(ltlena, args->maxlen);
 			xfs_alloc_fix_len(args);
 			ltdiff = xfs_alloc_compute_diff(args->agbno, args->len,
-				args->alignment, args->userdata, ltbnoa,
+				args->alignment, args->datatype, ltbnoa,
 				ltlena, &ltnew);
 
 			error = xfs_alloc_find_best_extent(args,
@@ -1278,7 +1279,7 @@ restart:
 			args->len = XFS_EXTLEN_MIN(gtlena, args->maxlen);
 			xfs_alloc_fix_len(args);
 			gtdiff = xfs_alloc_compute_diff(args->agbno, args->len,
-				args->alignment, args->userdata, gtbnoa,
+				args->alignment, args->datatype, gtbnoa,
 				gtlena, &gtnew);
 
 			error = xfs_alloc_find_best_extent(args,
@@ -1338,7 +1339,7 @@ restart:
 	}
 	rlen = args->len;
 	(void)xfs_alloc_compute_diff(args->agbno, rlen, args->alignment,
-				     args->userdata, ltbnoa, ltlena, &ltnew);
+				     args->datatype, ltbnoa, ltlena, &ltnew);
 	ASSERT(ltnew >= ltbno);
 	ASSERT(ltnew + rlen <= ltbnoa + ltlena);
 	ASSERT(ltnew + rlen <= be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_length));
@@ -1617,9 +1618,9 @@ xfs_alloc_ag_vextent_small(
 			goto error0;
 		if (fbno != NULLAGBLOCK) {
 			xfs_extent_busy_reuse(args->mp, args->agno, fbno, 1,
-					     args->userdata);
+			      xfs_alloc_allow_busy_reuse(args->datatype));
 
-			if (args->userdata) {
+			if (xfs_alloc_is_userdata(args->datatype)) {
 				xfs_buf_t	*bp;
 
 				bp = xfs_btree_get_bufs(args->mp, args->tp,
@@ -2099,7 +2100,7 @@ xfs_alloc_fix_freelist(
 	 * somewhere else if we are not being asked to try harder at this
 	 * point
 	 */
-	if (pag->pagf_metadata && args->userdata &&
+	if (pag->pagf_metadata && xfs_alloc_is_userdata(args->datatype) &&
 	    (flags & XFS_ALLOC_FLAG_TRYLOCK)) {
 		ASSERT(!(flags & XFS_ALLOC_FLAG_FREEING));
 		goto out_agbp_relse;
@@ -2675,7 +2676,7 @@ xfs_alloc_vextent(
 		 * Try near allocation first, then anywhere-in-ag after
 		 * the first a.g. fails.
 		 */
-		if ((args->userdata & XFS_ALLOC_INITIAL_USER_DATA) &&
+		if ((args->datatype & XFS_ALLOC_INITIAL_USER_DATA) &&
 		    (mp->m_flags & XFS_MOUNT_32BITINODES)) {
 			args->fsbno = XFS_AGB_TO_FSB(mp,
 					((mp->m_agfrotor / rotorstep) %
@@ -2808,7 +2809,7 @@ xfs_alloc_vextent(
 #endif
 
 		/* Zero the extent if we were asked to do so */
-		if (args->userdata & XFS_ALLOC_USERDATA_ZERO) {
+		if (args->datatype & XFS_ALLOC_USERDATA_ZERO) {
 			error = xfs_zero_extent(args->ip, args->fsbno, args->len);
 			if (error)
 				goto error0;
