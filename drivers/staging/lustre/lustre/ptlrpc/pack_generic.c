@@ -942,6 +942,25 @@ __u32 lustre_msg_get_opc(struct lustre_msg *msg)
 }
 EXPORT_SYMBOL(lustre_msg_get_opc);
 
+__u16 lustre_msg_get_tag(struct lustre_msg *msg)
+{
+	switch (msg->lm_magic) {
+	case LUSTRE_MSG_MAGIC_V2: {
+		struct ptlrpc_body *pb = lustre_msg_ptlrpc_body(msg);
+
+		if (!pb) {
+			CERROR("invalid msg %p: no ptlrpc body!\n", msg);
+			return 0;
+		}
+		return pb->pb_tag;
+	}
+	default:
+		CERROR("incorrect message magic: %08x\n", msg->lm_magic);
+		return 0;
+	}
+}
+EXPORT_SYMBOL(lustre_msg_get_tag);
+
 __u64 lustre_msg_get_last_committed(struct lustre_msg *msg)
 {
 	switch (msg->lm_magic) {
@@ -1236,6 +1255,22 @@ void lustre_msg_set_opc(struct lustre_msg *msg, __u32 opc)
 	}
 }
 
+void lustre_msg_set_tag(struct lustre_msg *msg, __u16 tag)
+{
+	switch (msg->lm_magic) {
+	case LUSTRE_MSG_MAGIC_V2: {
+		struct ptlrpc_body *pb = lustre_msg_ptlrpc_body(msg);
+
+		LASSERTF(pb, "invalid msg %p: no ptlrpc body!\n", msg);
+		pb->pb_tag = tag;
+		return;
+	}
+	default:
+		LASSERTF(0, "incorrect message magic: %08x\n", msg->lm_magic);
+	}
+}
+EXPORT_SYMBOL(lustre_msg_set_tag);
+
 void lustre_msg_set_versions(struct lustre_msg *msg, __u64 *versions)
 {
 	switch (msg->lm_magic) {
@@ -1442,7 +1477,7 @@ void lustre_swab_ptlrpc_body(struct ptlrpc_body *b)
 	__swab32s(&b->pb_opc);
 	__swab32s(&b->pb_status);
 	__swab64s(&b->pb_last_xid);
-	__swab64s(&b->pb_last_seen);
+	__swab16s(&b->pb_tag);
 	__swab64s(&b->pb_last_committed);
 	__swab64s(&b->pb_transno);
 	__swab32s(&b->pb_flags);
@@ -1456,6 +1491,8 @@ void lustre_swab_ptlrpc_body(struct ptlrpc_body *b)
 	__swab64s(&b->pb_pre_versions[1]);
 	__swab64s(&b->pb_pre_versions[2]);
 	__swab64s(&b->pb_pre_versions[3]);
+	CLASSERT(offsetof(typeof(*b), pb_padding0) != 0);
+	CLASSERT(offsetof(typeof(*b), pb_padding1) != 0);
 	CLASSERT(offsetof(typeof(*b), pb_padding) != 0);
 	/* While we need to maintain compatibility between
 	 * clients and servers without ptlrpc_body_v2 (< 2.3)

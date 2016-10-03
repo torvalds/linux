@@ -1099,8 +1099,10 @@ struct ptlrpc_body_v3 {
 	__u32 pb_version;
 	__u32 pb_opc;
 	__u32 pb_status;
-	__u64 pb_last_xid;
-	__u64 pb_last_seen;
+	__u64 pb_last_xid; /* highest replied XID without lower unreplied XID */
+	__u16 pb_tag;      /* virtual slot idx for multiple modifying RPCs */
+	__u16 pb_padding0;
+	__u32 pb_padding1;
 	__u64 pb_last_committed;
 	__u64 pb_transno;
 	__u32 pb_flags;
@@ -1125,8 +1127,10 @@ struct ptlrpc_body_v2 {
 	__u32 pb_version;
 	__u32 pb_opc;
 	__u32 pb_status;
-	__u64 pb_last_xid;
-	__u64 pb_last_seen;
+	__u64 pb_last_xid; /* highest replied XID without lower unreplied XID */
+	__u16 pb_tag;      /* virtual slot idx for multiple modifying RPCs */
+	__u16 pb_padding0;
+	__u32 pb_padding1;
 	__u64 pb_last_committed;
 	__u64 pb_transno;
 	__u32 pb_flags;
