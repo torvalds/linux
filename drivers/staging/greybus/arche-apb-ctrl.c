@@ -285,8 +285,10 @@ static ssize_t state_store(struct device *dev,
 		if (apb->state == ARCHE_PLATFORM_STATE_FW_FLASHING)
 			return count;
 
-		/* First we want to make sure we power off everything
-		 * and then enter FW flashing state */
+		/*
+		 * First we want to make sure we power off everything
+		 * and then enter FW flashing state
+		 */
 		poweroff_seq(pdev);
 		ret = fw_flashing_seq(pdev);
 	} else {
