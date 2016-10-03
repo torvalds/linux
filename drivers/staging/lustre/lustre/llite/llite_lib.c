@@ -2269,8 +2269,9 @@ struct md_op_data *ll_prep_md_op_data(struct md_op_data *op_data,
 	op_data->op_default_stripe_offset = -1;
 	if (S_ISDIR(i1->i_mode)) {
 		op_data->op_mea1 = ll_i2info(i1)->lli_lsm_md;
-		op_data->op_default_stripe_offset =
-			ll_i2info(i1)->lli_def_stripe_offset;
+		if (opc == LUSTRE_OPC_MKDIR)
+			op_data->op_default_stripe_offset =
+				ll_i2info(i1)->lli_def_stripe_offset;
 	}
 
 	if (i2) {
