@@ -47,6 +47,7 @@
 #include "xfs_sysfs.h"
 #include "xfs_ondisk.h"
 #include "xfs_rmap_item.h"
+#include "xfs_refcount_item.h"
 
 #include <linux/namei.h>
 #include <linux/init.h>
@@ -1788,8 +1789,23 @@ xfs_init_zones(void)
 	if (!xfs_rui_zone)
 		goto out_destroy_rud_zone;
 
+	xfs_cud_zone = kmem_zone_init(sizeof(struct xfs_cud_log_item),
+			"xfs_cud_item");
+	if (!xfs_cud_zone)
+		goto out_destroy_rui_zone;
+
+	xfs_cui_zone = kmem_zone_init(
+			xfs_cui_log_item_sizeof(XFS_CUI_MAX_FAST_EXTENTS),
+			"xfs_cui_item");
+	if (!xfs_cui_zone)
+		goto out_destroy_cud_zone;
+
 	return 0;
 
+ out_destroy_cud_zone:
+	kmem_zone_destroy(xfs_cud_zone);
+ out_destroy_rui_zone:
+	kmem_zone_destroy(xfs_rui_zone);
  out_destroy_rud_zone:
 	kmem_zone_destroy(xfs_rud_zone);
  out_destroy_icreate_zone:
@@ -1832,6 +1848,8 @@ xfs_destroy_zones(void)
 	 * destroy caches.
 	 */
 	rcu_barrier();
+	kmem_zone_destroy(xfs_cui_zone);
+	kmem_zone_destroy(xfs_cud_zone);
 	kmem_zone_destroy(xfs_rui_zone);
 	kmem_zone_destroy(xfs_rud_zone);
 	kmem_zone_destroy(xfs_icreate_zone);
