@@ -1456,7 +1456,7 @@ static int mdc_ioc_fid2path(struct obd_export *exp, struct getinfo_fid2path *gf)
 	/* Val is struct getinfo_fid2path result plus path */
 	vallen = sizeof(*gf) + gf->gf_pathlen;
 
-	rc = obd_get_info(NULL, exp, keylen, key, &vallen, gf, NULL);
+	rc = obd_get_info(NULL, exp, keylen, key, &vallen, gf);
 	if (rc != 0 && rc != -EREMOTE)
 		goto out;
 
@@ -2436,8 +2436,7 @@ static int mdc_set_info_async(const struct lu_env *env,
 }
 
 static int mdc_get_info(const struct lu_env *env, struct obd_export *exp,
-			__u32 keylen, void *key, __u32 *vallen, void *val,
-			struct lov_stripe_md *lsm)
+			__u32 keylen, void *key, __u32 *vallen, void *val)
 {
 	int rc = -EINVAL;
 

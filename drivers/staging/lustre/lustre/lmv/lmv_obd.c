@@ -2628,14 +2628,12 @@ static int lmv_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
  * \param[in]  key	identifier of key to get value for
  * \param[in]  vallen	size of \a val
  * \param[out] val	pointer to storage location for value
- * \param[in]  lsm	optional striping metadata of object
  *
  * \retval 0		on success
  * \retval negative	negated errno on failure
  */
 static int lmv_get_info(const struct lu_env *env, struct obd_export *exp,
-			__u32 keylen, void *key, __u32 *vallen, void *val,
-			struct lov_stripe_md *lsm)
+			__u32 keylen, void *key, __u32 *vallen, void *val)
 {
 	struct obd_device       *obd;
 	struct lmv_obd	  *lmv;
@@ -2667,7 +2665,7 @@ static int lmv_get_info(const struct lu_env *env, struct obd_export *exp,
 				continue;
 
 			if (!obd_get_info(env, tgt->ltd_exp, keylen, key,
-					  vallen, val, NULL))
+					  vallen, val))
 				return 0;
 		}
 		return -EINVAL;
@@ -2683,7 +2681,7 @@ static int lmv_get_info(const struct lu_env *env, struct obd_export *exp,
 		 * desc.
 		 */
 		rc = obd_get_info(env, lmv->tgts[0]->ltd_exp, keylen, key,
-				  vallen, val, NULL);
+				  vallen, val);
 		if (!rc && KEY_IS(KEY_CONN_DATA))
 			exp->exp_connect_data = *(struct obd_connect_data *)val;
 		return rc;

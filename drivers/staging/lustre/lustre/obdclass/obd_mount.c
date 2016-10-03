@@ -261,7 +261,7 @@ int lustre_start_mgc(struct super_block *sb)
 
 			rc = obd_get_info(NULL, obd->obd_self_export,
 					  strlen(KEY_CONN_DATA), KEY_CONN_DATA,
-					  &vallen, data, NULL);
+					  &vallen, data);
 			LASSERT(rc == 0);
 			has_ir = OCD_HAS_FLAG(data, IMP_RECOV);
 			if (has_ir ^ !(*flags & LMD_FLG_NOIR)) {
