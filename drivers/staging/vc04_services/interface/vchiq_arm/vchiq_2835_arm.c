@@ -420,7 +420,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 		*need_release = 0; /* do not try and release vmalloc pages */
 	} else {
 		down_read(&task->mm->mmap_sem);
-		actual_pages = get_user_pages(task, task->mm,
+		actual_pages = get_user_pages(
 				          (unsigned long)buf & ~(PAGE_SIZE - 1),
 					  num_pages,
 					  (type == PAGELIST_READ) /*Write */ ,
