@@ -672,13 +672,6 @@ static int dw_pcie_valid_config(struct pcie_port *pp,
 	if (bus->number == pp->root_bus_nr && dev > 0)
 		return 0;
 
-	/*
-	 * do not read more than one device on the bus directly attached
-	 * to RC's (Virtual Bridge's) DS side.
-	 */
-	if (bus->primary == pp->root_bus_nr && dev > 0)
-		return 0;
-
 	return 1;
 }
 

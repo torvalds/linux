@@ -174,13 +174,6 @@ static bool altera_pcie_valid_config(struct altera_pcie *pcie,
 	if (bus->number == pcie->root_bus_nr && dev > 0)
 		return false;
 
-	/*
-	 * Do not read more than one device on the bus directly attached
-	 * to root port, root port can only attach to one downstream port.
-	 */
-	if (bus->primary == pcie->root_bus_nr && dev > 0)
-		return false;
-
 	 return true;
 }
 
