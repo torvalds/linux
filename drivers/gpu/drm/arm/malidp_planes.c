@@ -267,7 +267,7 @@ int malidp_de_planes_init(struct drm_device *drm)
 	u32 *formats;
 	int ret, i, j, n;
 
-	formats = kcalloc(map->n_input_formats, sizeof(*formats), GFP_KERNEL);
+	formats = kcalloc(map->n_pixel_formats, sizeof(*formats), GFP_KERNEL);
 	if (!formats) {
 		ret = -ENOMEM;
 		goto cleanup;
@@ -283,9 +283,9 @@ int malidp_de_planes_init(struct drm_device *drm)
 		}
 
 		/* build the list of DRM supported formats based on the map */
-		for (n = 0, j = 0;  j < map->n_input_formats; j++) {
-			if ((map->input_formats[j].layer & id) == id)
-				formats[n++] = map->input_formats[j].format;
+		for (n = 0, j = 0;  j < map->n_pixel_formats; j++) {
+			if ((map->pixel_formats[j].layer & id) == id)
+				formats[n++] = map->pixel_formats[j].format;
 		}
 
 		plane_type = (i == 0) ? DRM_PLANE_TYPE_PRIMARY :
