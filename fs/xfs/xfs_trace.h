@@ -3373,6 +3373,11 @@ DEFINE_INODE_EVENT(xfs_reflink_cancel_pending_cow);
 DEFINE_INODE_IREC_EVENT(xfs_reflink_cancel_cow);
 DEFINE_INODE_ERROR_EVENT(xfs_reflink_cancel_pending_cow_error);
 
+/* rmap swapext tracepoints */
+DEFINE_INODE_IREC_EVENT(xfs_swap_extent_rmap_remap);
+DEFINE_INODE_IREC_EVENT(xfs_swap_extent_rmap_remap_piece);
+DEFINE_INODE_ERROR_EVENT(xfs_swap_extent_rmap_error);
+
 #endif /* _TRACE_XFS_H */
 
 #undef TRACE_INCLUDE_PATH
