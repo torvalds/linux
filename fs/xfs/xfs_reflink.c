@@ -54,6 +54,8 @@
 #include "xfs_reflink.h"
 #include "xfs_iomap.h"
 #include "xfs_rmap_btree.h"
+#include "xfs_sb.h"
+#include "xfs_ag_resv.h"
 
 /*
  * Copy on Write of Shared Blocks
@@ -978,6 +980,31 @@ out_error:
 }
 
 /*
+ * Do we have enough reserve in this AG to handle a reflink?  The refcount
+ * btree already reserved all the space it needs, but the rmap btree can grow
+ * infinitely, so we won't allow more reflinks when the AG is down to the
+ * btree reserves.
+ */
+static int
+xfs_reflink_ag_has_free_space(
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		agno)
+{
+	struct xfs_perag	*pag;
+	int			error = 0;
+
+	if (!xfs_sb_version_hasrmapbt(&mp->m_sb))
+		return 0;
+
+	pag = xfs_perag_get(mp, agno);
+	if (xfs_ag_resv_critical(pag, XFS_AG_RESV_AGFL) ||
+	    xfs_ag_resv_critical(pag, XFS_AG_RESV_METADATA))
+		error = -ENOSPC;
+	xfs_perag_put(pag);
+	return error;
+}
+
+/*
  * Unmap a range of blocks from a file, then map other blocks into the hole.
  * The range to unmap is (destoff : destoff + srcioff + irec->br_blockcount).
  * The extent irec is mapped into dest at irec->br_startoff.
@@ -1008,6 +1035,14 @@ xfs_reflink_remap_extent(
 	real_extent =  (irec->br_startblock != HOLESTARTBLOCK &&
 			irec->br_startblock != DELAYSTARTBLOCK &&
 			!ISUNWRITTEN(irec));
+
+	/* No reflinking if we're low on space */
+	if (real_extent) {
+		error = xfs_reflink_ag_has_free_space(mp,
+				XFS_FSB_TO_AGNO(mp, irec->br_startblock));
+		if (error)
+			goto out;
+	}
 
 	/* Start a rolling transaction to switch the mappings */
 	resblks = XFS_EXTENTADD_SPACE_RES(ip->i_mount, XFS_DATA_FORK);
