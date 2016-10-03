@@ -20,4 +20,13 @@
 #ifndef __XFS_REFLINK_H
 #define __XFS_REFLINK_H 1
 
+extern int xfs_reflink_find_shared(struct xfs_mount *mp, xfs_agnumber_t agno,
+		xfs_agblock_t agbno, xfs_extlen_t aglen, xfs_agblock_t *fbno,
+		xfs_extlen_t *flen, bool find_maximal);
+extern int xfs_reflink_trim_around_shared(struct xfs_inode *ip,
+		struct xfs_bmbt_irec *irec, bool *shared, bool *trimmed);
+
+extern int xfs_reflink_reserve_cow_range(struct xfs_inode *ip,
+		xfs_off_t offset, xfs_off_t count);
+
 #endif /* __XFS_REFLINK_H */

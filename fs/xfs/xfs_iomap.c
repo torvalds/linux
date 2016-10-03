@@ -39,6 +39,7 @@
 #include "xfs_quota.h"
 #include "xfs_dquot_item.h"
 #include "xfs_dquot.h"
+#include "xfs_reflink.h"
 
 
 #define XFS_WRITEIO_ALIGN(mp,off)	(((off) >> mp->m_writeio_log) \
@@ -961,8 +962,15 @@ xfs_file_iomap_begin(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
-	if ((flags & IOMAP_WRITE) &&
-	    !IS_DAX(inode) && !xfs_get_extsz_hint(ip)) {
+	if ((flags & (IOMAP_WRITE | IOMAP_ZERO)) && xfs_is_reflink_inode(ip)) {
+		error = xfs_reflink_reserve_cow_range(ip, offset, length);
+		if (error < 0)
+			return error;
+	}
+
+	if ((flags & IOMAP_WRITE) && !IS_DAX(inode) &&
+		   !xfs_get_extsz_hint(ip)) {
+		/* Reserve delalloc blocks for regular writeback. */
 		return xfs_file_iomap_begin_delay(inode, offset, length, flags,
 				iomap);
 	}
