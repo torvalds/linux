@@ -1512,7 +1512,7 @@ dump_phys_mem(void *virt_addr, uint32_t num_bytes)
 		kunmap(page);
 
 	for (page_idx = 0; page_idx < num_pages; page_idx++)
-		page_cache_release(pages[page_idx]);
+		put_page(pages[page_idx]);
 
 	kfree(pages);
 }
