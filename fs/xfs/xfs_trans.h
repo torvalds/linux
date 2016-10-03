@@ -40,6 +40,7 @@ struct xfs_cui_log_item;
 struct xfs_cud_log_item;
 struct xfs_defer_ops;
 struct xfs_bui_log_item;
+struct xfs_bud_log_item;
 
 typedef struct xfs_log_item {
 	struct list_head		li_ail;		/* AIL pointers */

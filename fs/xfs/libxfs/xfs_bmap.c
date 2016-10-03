@@ -6062,3 +6062,146 @@ out:
 	xfs_trans_cancel(tp);
 	return error;
 }
+
+/* Deferred mapping is only for real extents in the data fork. */
+static bool
+xfs_bmap_is_update_needed(
+	struct xfs_bmbt_irec	*bmap)
+{
+	return  bmap->br_startblock != HOLESTARTBLOCK &&
+		bmap->br_startblock != DELAYSTARTBLOCK;
+}
+
+/* Record a bmap intent. */
+static int
+__xfs_bmap_add(
+	struct xfs_mount		*mp,
+	struct xfs_defer_ops		*dfops,
+	enum xfs_bmap_intent_type	type,
+	struct xfs_inode		*ip,
+	int				whichfork,
+	struct xfs_bmbt_irec		*bmap)
+{
+	int				error;
+	struct xfs_bmap_intent		*bi;
+
+	trace_xfs_bmap_defer(mp,
+			XFS_FSB_TO_AGNO(mp, bmap->br_startblock),
+			type,
+			XFS_FSB_TO_AGBNO(mp, bmap->br_startblock),
+			ip->i_ino, whichfork,
+			bmap->br_startoff,
+			bmap->br_blockcount,
+			bmap->br_state);
+
+	bi = kmem_alloc(sizeof(struct xfs_bmap_intent), KM_SLEEP | KM_NOFS);
+	INIT_LIST_HEAD(&bi->bi_list);
+	bi->bi_type = type;
+	bi->bi_owner = ip;
+	bi->bi_whichfork = whichfork;
+	bi->bi_bmap = *bmap;
+
+	error = xfs_defer_join(dfops, bi->bi_owner);
+	if (error) {
+		kmem_free(bi);
+		return error;
+	}
+
+	xfs_defer_add(dfops, XFS_DEFER_OPS_TYPE_BMAP, &bi->bi_list);
+	return 0;
+}
+
+/* Map an extent into a file. */
+int
+xfs_bmap_map_extent(
+	struct xfs_mount	*mp,
+	struct xfs_defer_ops	*dfops,
+	struct xfs_inode	*ip,
+	struct xfs_bmbt_irec	*PREV)
+{
+	if (!xfs_bmap_is_update_needed(PREV))
+		return 0;
+
+	return __xfs_bmap_add(mp, dfops, XFS_BMAP_MAP, ip,
+			XFS_DATA_FORK, PREV);
+}
+
+/* Unmap an extent out of a file. */
+int
+xfs_bmap_unmap_extent(
+	struct xfs_mount	*mp,
+	struct xfs_defer_ops	*dfops,
+	struct xfs_inode	*ip,
+	struct xfs_bmbt_irec	*PREV)
+{
+	if (!xfs_bmap_is_update_needed(PREV))
+		return 0;
+
+	return __xfs_bmap_add(mp, dfops, XFS_BMAP_UNMAP, ip,
+			XFS_DATA_FORK, PREV);
+}
+
+/*
+ * Process one of the deferred bmap operations.  We pass back the
+ * btree cursor to maintain our lock on the bmapbt between calls.
+ */
+int
+xfs_bmap_finish_one(
+	struct xfs_trans		*tp,
+	struct xfs_defer_ops		*dfops,
+	struct xfs_inode		*ip,
+	enum xfs_bmap_intent_type	type,
+	int				whichfork,
+	xfs_fileoff_t			startoff,
+	xfs_fsblock_t			startblock,
+	xfs_filblks_t			blockcount,
+	xfs_exntst_t			state)
+{
+	struct xfs_bmbt_irec		bmap;
+	int				nimaps = 1;
+	xfs_fsblock_t			firstfsb;
+	int				flags = XFS_BMAPI_REMAP;
+	int				done;
+	int				error = 0;
+
+	bmap.br_startblock = startblock;
+	bmap.br_startoff = startoff;
+	bmap.br_blockcount = blockcount;
+	bmap.br_state = state;
+
+	trace_xfs_bmap_deferred(tp->t_mountp,
+			XFS_FSB_TO_AGNO(tp->t_mountp, startblock), type,
+			XFS_FSB_TO_AGBNO(tp->t_mountp, startblock),
+			ip->i_ino, whichfork, startoff, blockcount, state);
+
+	if (whichfork != XFS_DATA_FORK && whichfork != XFS_ATTR_FORK)
+		return -EFSCORRUPTED;
+	if (whichfork == XFS_ATTR_FORK)
+		flags |= XFS_BMAPI_ATTRFORK;
+
+	if (XFS_TEST_ERROR(false, tp->t_mountp,
+			XFS_ERRTAG_BMAP_FINISH_ONE,
+			XFS_RANDOM_BMAP_FINISH_ONE))
+		return -EIO;
+
+	switch (type) {
+	case XFS_BMAP_MAP:
+		firstfsb = bmap.br_startblock;
+		error = xfs_bmapi_write(tp, ip, bmap.br_startoff,
+					bmap.br_blockcount, flags, &firstfsb,
+					bmap.br_blockcount, &bmap, &nimaps,
+					dfops);
+		break;
+	case XFS_BMAP_UNMAP:
+		error = xfs_bunmapi(tp, ip, bmap.br_startoff,
+				bmap.br_blockcount, flags, 1, &firstfsb,
+				dfops, &done);
+		ASSERT(done);
+		break;
+	default:
+		ASSERT(0);
+		error = -EFSCORRUPTED;
+	}
+
+	return error;
+}

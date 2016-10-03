@@ -389,10 +389,19 @@ xfs_bui_recover(
 	struct xfs_bui_log_item		*buip)
 {
 	int				error = 0;
+	unsigned int			bui_type;
 	struct xfs_map_extent		*bmap;
 	xfs_fsblock_t			startblock_fsb;
 	xfs_fsblock_t			inode_fsb;
 	bool				op_ok;
+	struct xfs_bud_log_item		*budp;
+	enum xfs_bmap_intent_type	type;
+	int				whichfork;
+	xfs_exntst_t			state;
+	struct xfs_trans		*tp;
+	struct xfs_inode		*ip = NULL;
+	struct xfs_defer_ops		dfops;
+	xfs_fsblock_t			firstfsb;
 
 	ASSERT(!test_bit(XFS_BUI_RECOVERED, &buip->bui_flags));
 
@@ -437,7 +446,61 @@ xfs_bui_recover(
 		return -EIO;
 	}
 
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);
+	if (error)
+		return error;
+	budp = xfs_trans_get_bud(tp, buip);
+
+	/* Grab the inode. */
+	error = xfs_iget(mp, tp, bmap->me_owner, 0, XFS_ILOCK_EXCL, &ip);
+	if (error)
+		goto err_inode;
+
+	xfs_defer_init(&dfops, &firstfsb);
+
+	/* Process deferred bmap item. */
+	state = (bmap->me_flags & XFS_BMAP_EXTENT_UNWRITTEN) ?
+			XFS_EXT_UNWRITTEN : XFS_EXT_NORM;
+	whichfork = (bmap->me_flags & XFS_BMAP_EXTENT_ATTR_FORK) ?
+			XFS_ATTR_FORK : XFS_DATA_FORK;
+	bui_type = bmap->me_flags & XFS_BMAP_EXTENT_TYPE_MASK;
+	switch (bui_type) {
+	case XFS_BMAP_MAP:
+	case XFS_BMAP_UNMAP:
+		type = bui_type;
+		break;
+	default:
+		error = -EFSCORRUPTED;
+		goto err_dfops;
+	}
+	xfs_trans_ijoin(tp, ip, 0);
+
+	error = xfs_trans_log_finish_bmap_update(tp, budp, &dfops, type,
+			ip, whichfork, bmap->me_startoff,
+			bmap->me_startblock, bmap->me_len,
+			state);
+	if (error)
+		goto err_dfops;
+
+	/* Finish transaction, free inodes. */
+	error = xfs_defer_finish(&tp, &dfops, NULL);
+	if (error)
+		goto err_dfops;
+
 	set_bit(XFS_BUI_RECOVERED, &buip->bui_flags);
-	xfs_bui_release(buip);
+	error = xfs_trans_commit(tp);
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+	IRELE(ip);
+
+	return error;
+
+err_dfops:
+	xfs_defer_cancel(&dfops);
+err_inode:
+	xfs_trans_cancel(tp);
+	if (ip) {
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+		IRELE(ip);
+	}
 	return error;
 }
