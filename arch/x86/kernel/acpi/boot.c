@@ -176,15 +176,10 @@ static int acpi_register_lapic(int id, u32 acpiid, u8 enabled)
 		return -EINVAL;
 	}
 
-	if (!enabled) {
-		++disabled_cpus;
-		return -EINVAL;
-	}
-
 	if (boot_cpu_physical_apicid != -1U)
-		ver = apic_version[boot_cpu_physical_apicid];
+		ver = boot_cpu_apic_version;
 
-	cpu = generic_processor_info(id, ver);
+	cpu = __generic_processor_info(id, ver, enabled);
 	if (cpu >= 0)
 		early_per_cpu(x86_cpu_to_acpiid, cpu) = acpiid;
 
@@ -281,6 +276,8 @@ acpi_parse_lapic_addr_ovr(struct acpi_subtable_header * header,
 
 	if (BAD_MADT_ENTRY(lapic_addr_ovr, end))
 		return -EINVAL;
+
+	acpi_table_print_madt_entry(header);
 
 	acpi_lapic_addr = lapic_addr_ovr->address;
 
@@ -705,7 +702,7 @@ static void __init acpi_set_irq_model_ioapic(void)
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
 #include <acpi/processor.h>
 
-static void acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
+int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
 {
 #ifdef CONFIG_ACPI_NUMA
 	int nid;
@@ -716,6 +713,7 @@ static void acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
 		numa_set_node(cpu, nid);
 	}
 #endif
+	return 0;
 }
 
 int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, int *pcpu)
@@ -997,21 +995,6 @@ static int __init acpi_parse_madt_lapic_entries(void)
 
 	if (!boot_cpu_has(X86_FEATURE_APIC))
 		return -ENODEV;
-
-	/*
-	 * Note that the LAPIC address is obtained from the MADT (32-bit value)
-	 * and (optionally) overridden by a LAPIC_ADDR_OVR entry (64-bit value).
-	 */
-
-	count = acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_APIC_OVERRIDE,
-				      acpi_parse_lapic_addr_ovr, 0);
-	if (count < 0) {
-		printk(KERN_ERR PREFIX
-		       "Error parsing LAPIC address override entry\n");
-		return count;
-	}
-
-	register_lapic_address(acpi_lapic_addr);
 
 	count = acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_SAPIC,
 				      acpi_parse_sapic, MAX_LOCAL_APIC);

@@ -1219,8 +1219,7 @@ void __init setup_arch(char **cmdline_p)
 	/*
 	 * get boot-time SMP configuration:
 	 */
-	if (smp_found_config)
-		get_smp_config();
+	get_smp_config();
 
 	prefill_possible_map();
 
