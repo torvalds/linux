@@ -714,6 +714,8 @@ static void ath6kl_sdio_cleanup_scatter(struct ath6kl *ar)
 		spin_lock_bh(&ar_sdio->scat_lock);
 	}
 	spin_unlock_bh(&ar_sdio->scat_lock);
+
+	ar_sdio->scatter_enabled = false;
 }
 
 /* setup of HIF scatter resources */
