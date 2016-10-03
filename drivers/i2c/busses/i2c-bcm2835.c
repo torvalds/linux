@@ -64,6 +64,7 @@ struct bcm2835_i2c_dev {
 	int irq;
 	struct i2c_adapter adapter;
 	struct completion completion;
+	struct i2c_msg *curr_msg;
 	u32 msg_err;
 	u8 *msg_buf;
 	size_t msg_buf_remaining;
@@ -126,14 +127,13 @@ static irqreturn_t bcm2835_i2c_isr(int this_irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	if (val & BCM2835_I2C_S_RXD) {
-		bcm2835_drain_rxfifo(i2c_dev);
-		if (!(val & BCM2835_I2C_S_DONE))
-			return IRQ_HANDLED;
-	}
-
 	if (val & BCM2835_I2C_S_DONE) {
-		if (i2c_dev->msg_buf_remaining)
+		if (i2c_dev->curr_msg->flags & I2C_M_RD) {
+			bcm2835_drain_rxfifo(i2c_dev);
+			val = bcm2835_i2c_readl(i2c_dev, BCM2835_I2C_S);
+		}
+
+		if ((val & BCM2835_I2C_S_RXD) || i2c_dev->msg_buf_remaining)
 			i2c_dev->msg_err = BCM2835_I2C_S_LEN;
 		else
 			i2c_dev->msg_err = 0;
@@ -141,8 +141,13 @@ static irqreturn_t bcm2835_i2c_isr(int this_irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	if (val & BCM2835_I2C_S_TXD) {
+	if (val & BCM2835_I2C_S_TXW) {
 		bcm2835_fill_txfifo(i2c_dev);
+		return IRQ_HANDLED;
+	}
+
+	if (val & BCM2835_I2C_S_RXR) {
+		bcm2835_drain_rxfifo(i2c_dev);
 		return IRQ_HANDLED;
 	}
 
@@ -155,6 +160,7 @@ static int bcm2835_i2c_xfer_msg(struct bcm2835_i2c_dev *i2c_dev,
 	u32 c;
 	unsigned long time_left;
 
+	i2c_dev->curr_msg = msg;
 	i2c_dev->msg_buf = msg->buf;
 	i2c_dev->msg_buf_remaining = msg->len;
 	reinit_completion(&i2c_dev->completion);
