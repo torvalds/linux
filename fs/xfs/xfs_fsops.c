@@ -43,6 +43,7 @@
 #include "xfs_log.h"
 #include "xfs_filestream.h"
 #include "xfs_rmap.h"
+#include "xfs_ag_resv.h"
 
 /*
  * File system operations
@@ -630,6 +631,11 @@ xfs_growfs_data_private(
 	xfs_set_low_space_thresholds(mp);
 	mp->m_alloc_set_aside = xfs_alloc_set_aside(mp);
 
+	/* Reserve AG metadata blocks. */
+	error = xfs_fs_reserve_ag_blocks(mp);
+	if (error && error != -ENOSPC)
+		goto out;
+
 	/* update secondary superblocks. */
 	for (agno = 1; agno < nagcount; agno++) {
 		error = 0;
@@ -680,6 +686,8 @@ xfs_growfs_data_private(
 			continue;
 		}
 	}
+
+ out:
 	return saved_error ? saved_error : error;
 
  error0:
@@ -988,4 +996,60 @@ xfs_do_force_shutdown(
 		xfs_alert(mp,
 	"Please umount the filesystem and rectify the problem(s)");
 	}
+}
+
+/*
+ * Reserve free space for per-AG metadata.
+ */
+int
+xfs_fs_reserve_ag_blocks(
+	struct xfs_mount	*mp)
+{
+	xfs_agnumber_t		agno;
+	struct xfs_perag	*pag;
+	int			error = 0;
+	int			err2;
+
+	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
+		pag = xfs_perag_get(mp, agno);
+		err2 = xfs_ag_resv_init(pag);
+		xfs_perag_put(pag);
+		if (err2 && !error)
+			error = err2;
+	}
+
+	if (error && error != -ENOSPC) {
+		xfs_warn(mp,
+	"Error %d reserving per-AG metadata reserve pool.", error);
+		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
+	}
+
+	return error;
+}
+
+/*
+ * Free space reserved for per-AG metadata.
+ */
+int
+xfs_fs_unreserve_ag_blocks(
+	struct xfs_mount	*mp)
+{
+	xfs_agnumber_t		agno;
+	struct xfs_perag	*pag;
+	int			error = 0;
+	int			err2;
+
+	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
+		pag = xfs_perag_get(mp, agno);
+		err2 = xfs_ag_resv_free(pag);
+		xfs_perag_put(pag);
+		if (err2 && !error)
+			error = err2;
+	}
+
+	if (error)
+		xfs_warn(mp,
+	"Error %d freeing per-AG metadata reserve pool.", error);
+
+	return error;
 }

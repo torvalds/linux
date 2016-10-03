@@ -35,6 +35,7 @@
 #include "xfs_cksum.h"
 #include "xfs_error.h"
 #include "xfs_extent_busy.h"
+#include "xfs_ag_resv.h"
 
 /*
  * Reverse map btree.
@@ -532,4 +533,63 @@ xfs_rmapbt_compute_maxlevels(
 	else
 		mp->m_rmap_maxlevels = xfs_btree_compute_maxlevels(mp,
 				mp->m_rmap_mnr, mp->m_sb.sb_agblocks);
+}
+
+/* Calculate the refcount btree size for some records. */
+xfs_extlen_t
+xfs_rmapbt_calc_size(
+	struct xfs_mount	*mp,
+	unsigned long long	len)
+{
+	return xfs_btree_calc_size(mp, mp->m_rmap_mnr, len);
+}
+
+/*
+ * Calculate the maximum refcount btree size.
+ */
+xfs_extlen_t
+xfs_rmapbt_max_size(
+	struct xfs_mount	*mp)
+{
+	/* Bail out if we're uninitialized, which can happen in mkfs. */
+	if (mp->m_rmap_mxr[0] == 0)
+		return 0;
+
+	return xfs_rmapbt_calc_size(mp, mp->m_sb.sb_agblocks);
+}
+
+/*
+ * Figure out how many blocks to reserve and how many are used by this btree.
+ */
+int
+xfs_rmapbt_calc_reserves(
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		agno,
+	xfs_extlen_t		*ask,
+	xfs_extlen_t		*used)
+{
+	struct xfs_buf		*agbp;
+	struct xfs_agf		*agf;
+	xfs_extlen_t		pool_len;
+	xfs_extlen_t		tree_len;
+	int			error;
+
+	if (!xfs_sb_version_hasrmapbt(&mp->m_sb))
+		return 0;
+
+	/* Reserve 1% of the AG or enough for 1 block per record. */
+	pool_len = max(mp->m_sb.sb_agblocks / 100, xfs_rmapbt_max_size(mp));
+	*ask += pool_len;
+
+	error = xfs_alloc_read_agf(mp, NULL, agno, 0, &agbp);
+	if (error)
+		return error;
+
+	agf = XFS_BUF_TO_AGF(agbp);
+	tree_len = be32_to_cpu(agf->agf_rmap_blocks);
+	xfs_buf_relse(agbp);
+
+	*used += tree_len;
+
+	return error;
 }

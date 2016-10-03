@@ -1325,10 +1325,22 @@ xfs_fs_remount(
 			xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 			return error;
 		}
+
+		/* Create the per-AG metadata reservation pool .*/
+		error = xfs_fs_reserve_ag_blocks(mp);
+		if (error && error != -ENOSPC)
+			return error;
 	}
 
 	/* rw -> ro */
 	if (!(mp->m_flags & XFS_MOUNT_RDONLY) && (*flags & MS_RDONLY)) {
+		/* Free the per-AG metadata reservation pool. */
+		error = xfs_fs_unreserve_ag_blocks(mp);
+		if (error) {
+			xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
+			return error;
+		}
+
 		/*
 		 * Before we sync the metadata, we need to free up the reserve
 		 * block pool so that the used block count in the superblock on

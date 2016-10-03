@@ -995,10 +995,17 @@ xfs_mountfs(
 			xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 			goto out_quota;
 		}
+
+		/* Reserve AG blocks for future btree expansion. */
+		error = xfs_fs_reserve_ag_blocks(mp);
+		if (error && error != -ENOSPC)
+			goto out_agresv;
 	}
 
 	return 0;
 
+ out_agresv:
+	xfs_fs_unreserve_ag_blocks(mp);
  out_quota:
 	xfs_qm_unmount_quotas(mp);
  out_rtunmount:
@@ -1043,6 +1050,7 @@ xfs_unmountfs(
 
 	cancel_delayed_work_sync(&mp->m_eofblocks_work);
 
+	xfs_fs_unreserve_ag_blocks(mp);
 	xfs_qm_unmount_quotas(mp);
 	xfs_rtunmount_inodes(mp);
 	IRELE(mp->m_rootip);

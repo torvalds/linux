@@ -38,6 +38,7 @@
 #include "xfs_trans_space.h"
 #include "xfs_rmap_btree.h"
 #include "xfs_btree.h"
+#include "xfs_refcount_btree.h"
 
 /*
  * Per-AG Block Reservations
@@ -228,6 +229,11 @@ xfs_ag_resv_init(
 	if (pag->pag_meta_resv.ar_asked == 0) {
 		ask = used = 0;
 
+		error = xfs_refcountbt_calc_reserves(pag->pag_mount,
+				pag->pag_agno, &ask, &used);
+		if (error)
+			goto out;
+
 		error = __xfs_ag_resv_init(pag, XFS_AG_RESV_METADATA,
 				ask, used);
 		if (error)
@@ -237,6 +243,11 @@ xfs_ag_resv_init(
 	/* Create the AGFL metadata reservation */
 	if (pag->pag_agfl_resv.ar_asked == 0) {
 		ask = used = 0;
+
+		error = xfs_rmapbt_calc_reserves(pag->pag_mount, pag->pag_agno,
+				&ask, &used);
+		if (error)
+			goto out;
 
 		error = __xfs_ag_resv_init(pag, XFS_AG_RESV_AGFL, ask, used);
 		if (error)

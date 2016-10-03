@@ -64,4 +64,11 @@ extern int xfs_refcountbt_maxrecs(struct xfs_mount *mp, int blocklen,
 		bool leaf);
 extern void xfs_refcountbt_compute_maxlevels(struct xfs_mount *mp);
 
+extern xfs_extlen_t xfs_refcountbt_calc_size(struct xfs_mount *mp,
+		unsigned long long len);
+extern xfs_extlen_t xfs_refcountbt_max_size(struct xfs_mount *mp);
+
+extern int xfs_refcountbt_calc_reserves(struct xfs_mount *mp,
+		xfs_agnumber_t agno, xfs_extlen_t *ask, xfs_extlen_t *used);
+
 #endif	/* __XFS_REFCOUNT_BTREE_H__ */
