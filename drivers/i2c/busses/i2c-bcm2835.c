@@ -63,6 +63,7 @@ struct bcm2835_i2c_dev {
 	struct i2c_adapter adapter;
 	struct completion completion;
 	struct i2c_msg *curr_msg;
+	int num_msgs;
 	u32 msg_err;
 	u8 *msg_buf;
 	size_t msg_buf_remaining;
@@ -110,6 +111,45 @@ static void bcm2835_drain_rxfifo(struct bcm2835_i2c_dev *i2c_dev)
 }
 
 /*
+ * Repeated Start Condition (Sr)
+ * The BCM2835 ARM Peripherals datasheet mentions a way to trigger a Sr when it
+ * talks about reading from a slave with 10 bit address. This is achieved by
+ * issuing a write, poll the I2CS.TA flag and wait for it to be set, and then
+ * issue a read.
+ * A comment in https://github.com/raspberrypi/linux/issues/254 shows how the
+ * firmware actually does it using polling and says that it's a workaround for
+ * a problem in the state machine.
+ * It turns out that it is possible to use the TXW interrupt to know when the
+ * transfer is active, provided the FIFO has not been prefilled.
+ */
+
+static void bcm2835_i2c_start_transfer(struct bcm2835_i2c_dev *i2c_dev)
+{
+	u32 c = BCM2835_I2C_C_ST | BCM2835_I2C_C_I2CEN;
+	struct i2c_msg *msg = i2c_dev->curr_msg;
+	bool last_msg = (i2c_dev->num_msgs == 1);
+
+	if (!i2c_dev->num_msgs)
+		return;
+
+	i2c_dev->num_msgs--;
+	i2c_dev->msg_buf = msg->buf;
+	i2c_dev->msg_buf_remaining = msg->len;
+
+	if (msg->flags & I2C_M_RD)
+		c |= BCM2835_I2C_C_READ | BCM2835_I2C_C_INTR;
+	else
+		c |= BCM2835_I2C_C_INTT;
+
+	if (last_msg)
+		c |= BCM2835_I2C_C_INTD;
+
+	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_A, msg->addr);
+	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_DLEN, msg->len);
+	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_C, c);
+}
+
+/*
  * Note about I2C_C_CLEAR on error:
  * The I2C_C_CLEAR on errors will take some time to resolve -- if you were in
  * non-idle state and I2C_C_READ, it sets an abort_rx flag and runs through
@@ -151,6 +191,12 @@ static irqreturn_t bcm2835_i2c_isr(int this_irq, void *data)
 		}
 
 		bcm2835_fill_txfifo(i2c_dev);
+
+		if (i2c_dev->num_msgs && !i2c_dev->msg_buf_remaining) {
+			i2c_dev->curr_msg++;
+			bcm2835_i2c_start_transfer(i2c_dev);
+		}
+
 		return IRQ_HANDLED;
 	}
 
@@ -175,30 +221,25 @@ complete:
 	return IRQ_HANDLED;
 }
 
-static int bcm2835_i2c_xfer_msg(struct bcm2835_i2c_dev *i2c_dev,
-				struct i2c_msg *msg)
+static int bcm2835_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
+			    int num)
 {
-	u32 c;
+	struct bcm2835_i2c_dev *i2c_dev = i2c_get_adapdata(adap);
 	unsigned long time_left;
+	int i;
 
-	i2c_dev->curr_msg = msg;
-	i2c_dev->msg_buf = msg->buf;
-	i2c_dev->msg_buf_remaining = msg->len;
+	for (i = 0; i < (num - 1); i++)
+		if (msgs[i].flags & I2C_M_RD) {
+			dev_warn_once(i2c_dev->dev,
+				      "only one read message supported, has to be last\n");
+			return -EOPNOTSUPP;
+		}
+
+	i2c_dev->curr_msg = msgs;
+	i2c_dev->num_msgs = num;
 	reinit_completion(&i2c_dev->completion);
 
-	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_C, BCM2835_I2C_C_CLEAR);
-
-	if (msg->flags & I2C_M_RD) {
-		c = BCM2835_I2C_C_READ | BCM2835_I2C_C_INTR;
-	} else {
-		c = BCM2835_I2C_C_INTT;
-		bcm2835_fill_txfifo(i2c_dev);
-	}
-	c |= BCM2835_I2C_C_ST | BCM2835_I2C_C_INTD | BCM2835_I2C_C_I2CEN;
-
-	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_A, msg->addr);
-	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_DLEN, msg->len);
-	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_C, c);
+	bcm2835_i2c_start_transfer(i2c_dev);
 
 	time_left = wait_for_completion_timeout(&i2c_dev->completion,
 						BCM2835_I2C_TIMEOUT);
@@ -209,31 +250,15 @@ static int bcm2835_i2c_xfer_msg(struct bcm2835_i2c_dev *i2c_dev,
 		return -ETIMEDOUT;
 	}
 
-	if (likely(!i2c_dev->msg_err))
-		return 0;
+	if (!i2c_dev->msg_err)
+		return num;
 
 	dev_dbg(i2c_dev->dev, "i2c transfer failed: %x\n", i2c_dev->msg_err);
 
 	if (i2c_dev->msg_err & BCM2835_I2C_S_ERR)
 		return -EREMOTEIO;
-	else
-		return -EIO;
-}
 
-static int bcm2835_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
-			    int num)
-{
-	struct bcm2835_i2c_dev *i2c_dev = i2c_get_adapdata(adap);
-	int i;
-	int ret = 0;
-
-	for (i = 0; i < num; i++) {
-		ret = bcm2835_i2c_xfer_msg(i2c_dev, &msgs[i]);
-		if (ret)
-			break;
-	}
-
-	return ret ?: i;
+	return -EIO;
 }
 
 static u32 bcm2835_i2c_func(struct i2c_adapter *adap)
