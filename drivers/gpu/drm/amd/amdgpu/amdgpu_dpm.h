@@ -404,6 +404,8 @@ struct amdgpu_dpm {
 	enum amd_vce_level vce_level;
 	enum amd_pm_state_type state;
 	enum amd_pm_state_type user_state;
+	enum amd_pm_state_type last_state;
+	enum amd_pm_state_type last_user_state;
 	u32                     platform_caps;
 	u32                     voltage_response_time;
 	u32                     backbias_response_time;

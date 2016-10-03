@@ -6345,12 +6345,19 @@ static int ci_dpm_suspend(void *handle)
 
 	if (adev->pm.dpm_enabled) {
 		mutex_lock(&adev->pm.mutex);
-		/* disable dpm */
-		ci_dpm_disable(adev);
-		/* reset the power state */
-		adev->pm.dpm.current_ps = adev->pm.dpm.requested_ps = adev->pm.dpm.boot_ps;
+		amdgpu_irq_put(adev, &adev->pm.dpm.thermal.irq,
+			       AMDGPU_THERMAL_IRQ_LOW_TO_HIGH);
+		amdgpu_irq_put(adev, &adev->pm.dpm.thermal.irq,
+			       AMDGPU_THERMAL_IRQ_HIGH_TO_LOW);
+		adev->pm.dpm.last_user_state = adev->pm.dpm.user_state;
+		adev->pm.dpm.last_state = adev->pm.dpm.state;
+		adev->pm.dpm.user_state = POWER_STATE_TYPE_INTERNAL_BOOT;
+		adev->pm.dpm.state = POWER_STATE_TYPE_INTERNAL_BOOT;
 		mutex_unlock(&adev->pm.mutex);
+		amdgpu_pm_compute_clocks(adev);
+
 	}
+
 	return 0;
 }
 
@@ -6368,6 +6375,8 @@ static int ci_dpm_resume(void *handle)
 			adev->pm.dpm_enabled = false;
 		else
 			adev->pm.dpm_enabled = true;
+		adev->pm.dpm.user_state = adev->pm.dpm.last_user_state;
+		adev->pm.dpm.state = adev->pm.dpm.last_state;
 		mutex_unlock(&adev->pm.mutex);
 		if (adev->pm.dpm_enabled)
 			amdgpu_pm_compute_clocks(adev);
