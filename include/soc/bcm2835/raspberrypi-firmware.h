@@ -109,6 +109,8 @@ enum rpi_firmware_property_tag {
 	RPI_FIRMWARE_FRAMEBUFFER_SET_OVERSCAN =               0x0004800a,
 	RPI_FIRMWARE_FRAMEBUFFER_SET_PALETTE =                0x0004800b,
 
+	RPI_FIRMWARE_VCHIQ_INIT =                             0x00048010,
+
 	RPI_FIRMWARE_GET_COMMAND_LINE =                       0x00050001,
 	RPI_FIRMWARE_GET_DMA_CHANNELS =                       0x00060001,
 };
