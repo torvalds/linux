@@ -995,14 +995,6 @@ static int __clear_discard(struct dm_cache_metadata *cmd, dm_dblock_t b)
 				   from_dblock(b), &cmd->discard_root);
 }
 
-static int __is_discarded(struct dm_cache_metadata *cmd, dm_dblock_t b,
-			  bool *is_discarded)
-{
-	return dm_bitset_test_bit(&cmd->discard_info, cmd->discard_root,
-				  from_dblock(b), &cmd->discard_root,
-				  is_discarded);
-}
-
 static int __discard(struct dm_cache_metadata *cmd,
 		     dm_dblock_t dblock, bool discard)
 {
@@ -1032,22 +1024,38 @@ static int __load_discards(struct dm_cache_metadata *cmd,
 			   load_discard_fn fn, void *context)
 {
 	int r = 0;
-	dm_block_t b;
-	bool discard;
+	uint32_t b;
+	struct dm_bitset_cursor c;
 
-	for (b = 0; b < from_dblock(cmd->discard_nr_blocks); b++) {
-		dm_dblock_t dblock = to_dblock(b);
+	if (from_dblock(cmd->discard_nr_blocks) == 0)
+		/* nothing to do */
+		return 0;
 
-		if (cmd->clean_when_opened) {
-			r = __is_discarded(cmd, dblock, &discard);
+	if (cmd->clean_when_opened) {
+		r = dm_bitset_flush(&cmd->discard_info, cmd->discard_root, &cmd->discard_root);
+		if (r)
+			return r;
+
+		r = dm_bitset_cursor_begin(&cmd->discard_info, cmd->discard_root,
+					   from_dblock(cmd->discard_nr_blocks), &c);
+		if (r)
+			return r;
+
+		for (b = 0; b < from_dblock(cmd->discard_nr_blocks); b++) {
+			r = fn(context, cmd->discard_block_size, to_dblock(b),
+			       dm_bitset_cursor_get_value(&c));
+			if (r)
+				break;
+		}
+
+		dm_bitset_cursor_end(&c);
+
+	} else {
+		for (b = 0; b < from_dblock(cmd->discard_nr_blocks); b++) {
+			r = fn(context, cmd->discard_block_size, to_dblock(b), false);
 			if (r)
 				return r;
-		} else
-			discard = false;
-
-		r = fn(context, cmd->discard_block_size, dblock, discard);
-		if (r)
-			break;
+		}
 	}
 
 	return r;
