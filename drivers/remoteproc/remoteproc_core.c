@@ -847,14 +847,14 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 	ret = rproc_handle_resources(rproc, tablesz, rproc_loading_handlers);
 	if (ret) {
 		dev_err(dev, "Failed to process resources: %d\n", ret);
-		goto clean_up;
+		goto clean_up_resources;
 	}
 
 	/* load the ELF segments to memory */
 	ret = rproc_load_segments(rproc, fw);
 	if (ret) {
 		dev_err(dev, "Failed to load program segments: %d\n", ret);
-		goto clean_up;
+		goto clean_up_resources;
 	}
 
 	/*
@@ -875,7 +875,7 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 	ret = rproc->ops->start(rproc);
 	if (ret) {
 		dev_err(dev, "can't start rproc %s: %d\n", rproc->name, ret);
-		goto clean_up;
+		goto clean_up_resources;
 	}
 
 	rproc->state = RPROC_RUNNING;
@@ -884,12 +884,13 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 
 	return 0;
 
+clean_up_resources:
+	rproc_resource_cleanup(rproc);
 clean_up:
 	kfree(rproc->cached_table);
 	rproc->cached_table = NULL;
 	rproc->table_ptr = NULL;
 
-	rproc_resource_cleanup(rproc);
 	rproc_disable_iommu(rproc);
 	return ret;
 }
