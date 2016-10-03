@@ -22,12 +22,18 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
+#include "xfs_bit.h"
 #include "xfs_mount.h"
+#include "xfs_defer.h"
+#include "xfs_inode.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
 #include "xfs_buf_item.h"
 #include "xfs_bmap_item.h"
 #include "xfs_log.h"
+#include "xfs_bmap.h"
+#include "xfs_icache.h"
+#include "xfs_trace.h"
 
 
 kmem_zone_t	*xfs_bui_zone;
@@ -371,4 +377,67 @@ xfs_bud_init(
 	budp->bud_format.bud_bui_id = buip->bui_format.bui_id;
 
 	return budp;
+}
+
+/*
+ * Process a bmap update intent item that was recovered from the log.
+ * We need to update some inode's bmbt.
+ */
+int
+xfs_bui_recover(
+	struct xfs_mount		*mp,
+	struct xfs_bui_log_item		*buip)
+{
+	int				error = 0;
+	struct xfs_map_extent		*bmap;
+	xfs_fsblock_t			startblock_fsb;
+	xfs_fsblock_t			inode_fsb;
+	bool				op_ok;
+
+	ASSERT(!test_bit(XFS_BUI_RECOVERED, &buip->bui_flags));
+
+	/* Only one mapping operation per BUI... */
+	if (buip->bui_format.bui_nextents != XFS_BUI_MAX_FAST_EXTENTS) {
+		set_bit(XFS_BUI_RECOVERED, &buip->bui_flags);
+		xfs_bui_release(buip);
+		return -EIO;
+	}
+
+	/*
+	 * First check the validity of the extent described by the
+	 * BUI.  If anything is bad, then toss the BUI.
+	 */
+	bmap = &buip->bui_format.bui_extents[0];
+	startblock_fsb = XFS_BB_TO_FSB(mp,
+			   XFS_FSB_TO_DADDR(mp, bmap->me_startblock));
+	inode_fsb = XFS_BB_TO_FSB(mp, XFS_FSB_TO_DADDR(mp,
+			XFS_INO_TO_FSB(mp, bmap->me_owner)));
+	switch (bmap->me_flags & XFS_BMAP_EXTENT_TYPE_MASK) {
+	case XFS_BMAP_MAP:
+	case XFS_BMAP_UNMAP:
+		op_ok = true;
+		break;
+	default:
+		op_ok = false;
+		break;
+	}
+	if (!op_ok || startblock_fsb == 0 ||
+	    bmap->me_len == 0 ||
+	    inode_fsb == 0 ||
+	    startblock_fsb >= mp->m_sb.sb_dblocks ||
+	    bmap->me_len >= mp->m_sb.sb_agblocks ||
+	    inode_fsb >= mp->m_sb.sb_dblocks ||
+	    (bmap->me_flags & ~XFS_BMAP_EXTENT_FLAGS)) {
+		/*
+		 * This will pull the BUI from the AIL and
+		 * free the memory associated with it.
+		 */
+		set_bit(XFS_BUI_RECOVERED, &buip->bui_flags);
+		xfs_bui_release(buip);
+		return -EIO;
+	}
+
+	set_bit(XFS_BUI_RECOVERED, &buip->bui_flags);
+	xfs_bui_release(buip);
+	return error;
 }

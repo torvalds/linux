@@ -39,6 +39,7 @@ struct xfs_btree_cur;
 struct xfs_cui_log_item;
 struct xfs_cud_log_item;
 struct xfs_defer_ops;
+struct xfs_bui_log_item;
 
 typedef struct xfs_log_item {
 	struct list_head		li_ail;		/* AIL pointers */
@@ -262,5 +263,17 @@ int xfs_trans_log_finish_refcount_update(struct xfs_trans *tp,
 		enum xfs_refcount_intent_type type, xfs_fsblock_t startblock,
 		xfs_extlen_t blockcount, xfs_fsblock_t *new_fsb,
 		xfs_extlen_t *new_len, struct xfs_btree_cur **pcur);
+
+/* mapping updates */
+enum xfs_bmap_intent_type;
+
+void xfs_bmap_update_init_defer_op(void);
+struct xfs_bud_log_item *xfs_trans_get_bud(struct xfs_trans *tp,
+		struct xfs_bui_log_item *buip);
+int xfs_trans_log_finish_bmap_update(struct xfs_trans *tp,
+		struct xfs_bud_log_item *rudp, struct xfs_defer_ops *dfops,
+		enum xfs_bmap_intent_type type, struct xfs_inode *ip,
+		int whichfork, xfs_fileoff_t startoff, xfs_fsblock_t startblock,
+		xfs_filblks_t blockcount, xfs_exntst_t state);
 
 #endif	/* __XFS_TRANS_H__ */
