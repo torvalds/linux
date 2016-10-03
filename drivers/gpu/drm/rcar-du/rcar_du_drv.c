@@ -294,16 +294,10 @@ static int rcar_du_remove(struct platform_device *pdev)
 
 static int rcar_du_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
 	struct rcar_du_device *rcdu;
 	struct drm_device *ddev;
 	struct resource *mem;
 	int ret;
-
-	if (np == NULL) {
-		dev_err(&pdev->dev, "no device tree node\n");
-		return -ENODEV;
-	}
 
 	/* Allocate and initialize the DRM and R-Car device structures. */
 	rcdu = devm_kzalloc(&pdev->dev, sizeof(*rcdu), GFP_KERNEL);
