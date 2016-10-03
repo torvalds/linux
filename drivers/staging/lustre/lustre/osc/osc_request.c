@@ -103,68 +103,6 @@ static void osc_release_ppga(struct brw_page **ppga, u32 count);
 static int brw_interpret(const struct lu_env *env,
 			 struct ptlrpc_request *req, void *data, int rc);
 
-/* Unpack OSC object metadata from disk storage (LE byte order). */
-static int osc_unpackmd(struct obd_export *exp, struct lov_stripe_md **lsmp,
-			struct lov_mds_md *lmm, int lmm_bytes)
-{
-	int lsm_size;
-	struct obd_import *imp = class_exp2cliimp(exp);
-
-	if (lmm) {
-		if (lmm_bytes < sizeof(*lmm)) {
-			CERROR("%s: lov_mds_md too small: %d, need %d\n",
-			       exp->exp_obd->obd_name, lmm_bytes,
-			       (int)sizeof(*lmm));
-			return -EINVAL;
-		}
-		/* XXX LOV_MAGIC etc check? */
-
-		if (unlikely(ostid_id(&lmm->lmm_oi) == 0)) {
-			CERROR("%s: zero lmm_object_id: rc = %d\n",
-			       exp->exp_obd->obd_name, -EINVAL);
-			return -EINVAL;
-		}
-	}
-
-	lsm_size = lov_stripe_md_size(1);
-	if (!lsmp)
-		return lsm_size;
-
-	if (*lsmp && !lmm) {
-		kfree((*lsmp)->lsm_oinfo[0]);
-		kfree(*lsmp);
-		*lsmp = NULL;
-		return 0;
-	}
-
-	if (!*lsmp) {
-		*lsmp = kzalloc(lsm_size, GFP_NOFS);
-		if (unlikely(!*lsmp))
-			return -ENOMEM;
-		(*lsmp)->lsm_oinfo[0] = kzalloc(sizeof(struct lov_oinfo),
-						GFP_NOFS);
-		if (unlikely(!(*lsmp)->lsm_oinfo[0])) {
-			kfree(*lsmp);
-			return -ENOMEM;
-		}
-		loi_init((*lsmp)->lsm_oinfo[0]);
-	} else if (unlikely(ostid_id(&(*lsmp)->lsm_oi) == 0)) {
-		return -EBADF;
-	}
-
-	if (lmm)
-		/* XXX zero *lsmp? */
-		ostid_le_to_cpu(&lmm->lmm_oi, &(*lsmp)->lsm_oi);
-
-	if (imp &&
-	    (imp->imp_connect_data.ocd_connect_flags & OBD_CONNECT_MAXBYTES))
-		(*lsmp)->lsm_maxbytes = imp->imp_connect_data.ocd_maxbytes;
-	else
-		(*lsmp)->lsm_maxbytes = LUSTRE_EXT3_STRIPE_MAXBYTES;
-
-	return lsm_size;
-}
-
 static inline void osc_pack_req_body(struct ptlrpc_request *req,
 				     struct obdo *oa)
 {
@@ -2884,7 +2822,6 @@ static struct obd_ops osc_obd_ops = {
 	.disconnect     = osc_disconnect,
 	.statfs         = osc_statfs,
 	.statfs_async   = osc_statfs_async,
-	.unpackmd       = osc_unpackmd,
 	.create         = osc_create,
 	.destroy        = osc_destroy,
 	.getattr        = osc_getattr,

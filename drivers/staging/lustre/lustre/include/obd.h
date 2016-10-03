@@ -73,53 +73,7 @@ static inline void loi_init(struct lov_oinfo *loi)
 {
 }
 
-/*
- * If we are unable to get the maximum object size from the OST in
- * ocd_maxbytes using OBD_CONNECT_MAXBYTES, then we fall back to using
- * the old maximum object size from ext3.
- */
-#define LUSTRE_EXT3_STRIPE_MAXBYTES 0x1fffffff000ULL
-
-struct lov_stripe_md {
-	atomic_t     lsm_refc;
-	spinlock_t	lsm_lock;
-	pid_t	    lsm_lock_owner; /* debugging */
-
-	/* maximum possible file size, might change as OSTs status changes,
-	 * e.g. disconnected, deactivated
-	 */
-	loff_t		lsm_maxbytes;
-	struct ost_id	lsm_oi;
-	__u32		lsm_magic;
-	__u32		lsm_stripe_size;
-	__u32		lsm_pattern;	/* striping pattern (RAID0, RAID1) */
-	__u16		lsm_stripe_count;
-	__u16		lsm_layout_gen;
-	char		lsm_pool_name[LOV_MAXPOOLNAME + 1];
-	struct lov_oinfo *lsm_oinfo[0];
-};
-
-static inline bool lsm_is_released(struct lov_stripe_md *lsm)
-{
-	return !!(lsm->lsm_pattern & LOV_PATTERN_F_RELEASED);
-}
-
-static inline bool lsm_has_objects(struct lov_stripe_md *lsm)
-{
-	if (!lsm)
-		return false;
-	if (lsm_is_released(lsm))
-		return false;
-	return true;
-}
-
-static inline int lov_stripe_md_size(unsigned int stripe_count)
-{
-	struct lov_stripe_md lsm;
-
-	return sizeof(lsm) + stripe_count * sizeof(lsm.lsm_oinfo[0]);
-}
-
+struct lov_stripe_md;
 struct obd_info;
 
 typedef int (*obd_enqueue_update_f)(void *cookie, int rc);
@@ -854,8 +808,6 @@ struct obd_ops {
 		      struct obd_statfs *osfs, __u64 max_age, __u32 flags);
 	int (*statfs_async)(struct obd_export *exp, struct obd_info *oinfo,
 			    __u64 max_age, struct ptlrpc_request_set *set);
-	int (*packmd)(struct obd_export *exp, struct lov_mds_md **disk_tgt,
-		      struct lov_stripe_md *mem_src);
 	int (*unpackmd)(struct obd_export *exp,
 			struct lov_stripe_md **mem_tgt,
 			struct lov_mds_md *disk_src, int disk_len);
@@ -1032,33 +984,6 @@ struct md_ops {
 	 * wrapper function in include/linux/obd_class.h.
 	 */
 };
-
-struct lsm_operations {
-	void (*lsm_free)(struct lov_stripe_md *);
-	void (*lsm_stripe_by_index)(struct lov_stripe_md *, int *, u64 *,
-				    u64 *);
-	void (*lsm_stripe_by_offset)(struct lov_stripe_md *, int *, u64 *,
-				     u64 *);
-	int (*lsm_lmm_verify)(struct lov_mds_md *lmm, int lmm_bytes,
-			      __u16 *stripe_count);
-	int (*lsm_unpackmd)(struct lov_obd *lov, struct lov_stripe_md *lsm,
-			    struct lov_mds_md *lmm);
-};
-
-extern const struct lsm_operations lsm_v1_ops;
-extern const struct lsm_operations lsm_v3_ops;
-static inline const struct lsm_operations *lsm_op_find(int magic)
-{
-	switch (magic) {
-	case LOV_MAGIC_V1:
-	       return &lsm_v1_ops;
-	case LOV_MAGIC_V3:
-	       return &lsm_v3_ops;
-	default:
-	       CERROR("Cannot recognize lsm_magic %08x\n", magic);
-	       return NULL;
-	}
-}
 
 static inline struct md_open_data *obd_mod_alloc(void)
 {

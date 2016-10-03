@@ -206,7 +206,7 @@ static int lsm_unpackmd_common(struct lov_obd *lov,
 
 static void
 lsm_stripe_by_index_plain(struct lov_stripe_md *lsm, int *stripeno,
-			  u64 *lov_off, u64 *swidth)
+			  loff_t *lov_off, loff_t *swidth)
 {
 	if (swidth)
 		*swidth = (u64)lsm->lsm_stripe_size * lsm->lsm_stripe_count;
@@ -214,7 +214,7 @@ lsm_stripe_by_index_plain(struct lov_stripe_md *lsm, int *stripeno,
 
 static void
 lsm_stripe_by_offset_plain(struct lov_stripe_md *lsm, int *stripeno,
-			   u64 *lov_off, u64 *swidth)
+			   loff_t *lov_off, loff_t *swidth)
 {
 	if (swidth)
 		*swidth = (u64)lsm->lsm_stripe_size * lsm->lsm_stripe_count;

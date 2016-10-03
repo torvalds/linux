@@ -609,8 +609,6 @@ struct ll_file_data {
 	struct list_head fd_lccs; /* list of ll_cl_context */
 };
 
-struct lov_stripe_md;
-
 extern struct dentry *llite_root;
 extern struct kset *llite_kset;
 

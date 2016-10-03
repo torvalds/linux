@@ -36,6 +36,84 @@
 #include "../include/obd_class.h"
 #include "../include/lustre/lustre_user.h"
 
+/*
+ * If we are unable to get the maximum object size from the OST in
+ * ocd_maxbytes using OBD_CONNECT_MAXBYTES, then we fall back to using
+ * the old maximum object size from ext3.
+ */
+#define LUSTRE_EXT3_STRIPE_MAXBYTES 0x1fffffff000ULL
+
+struct lov_stripe_md {
+	atomic_t	lsm_refc;
+	spinlock_t	lsm_lock;
+	pid_t		lsm_lock_owner; /* debugging */
+
+	/*
+	 * maximum possible file size, might change as OSTs status changes,
+	 * e.g. disconnected, deactivated
+	 */
+	loff_t		lsm_maxbytes;
+	struct ost_id	lsm_oi;
+	u32		lsm_magic;
+	u32		lsm_stripe_size;
+	u32		lsm_pattern; /* RAID0, RAID1, released, ... */
+	u16		lsm_stripe_count;
+	u16		lsm_layout_gen;
+	char		lsm_pool_name[LOV_MAXPOOLNAME + 1];
+	struct lov_oinfo	*lsm_oinfo[0];
+};
+
+static inline bool lsm_is_released(struct lov_stripe_md *lsm)
+{
+	return !!(lsm->lsm_pattern & LOV_PATTERN_F_RELEASED);
+}
+
+static inline bool lsm_has_objects(struct lov_stripe_md *lsm)
+{
+	if (!lsm)
+		return false;
+
+	if (lsm_is_released(lsm))
+		return false;
+
+	return true;
+}
+
+static inline int lov_stripe_md_size(unsigned int stripe_count)
+{
+	struct lov_stripe_md lsm;
+
+	return sizeof(lsm) + stripe_count * sizeof(lsm.lsm_oinfo[0]);
+}
+
+struct lsm_operations {
+	void (*lsm_free)(struct lov_stripe_md *);
+	void (*lsm_stripe_by_index)(struct lov_stripe_md *, int *, loff_t *,
+				    loff_t *);
+	void (*lsm_stripe_by_offset)(struct lov_stripe_md *, int *, loff_t *,
+				     loff_t *);
+	int (*lsm_lmm_verify)(struct lov_mds_md *lmm, int lmm_bytes,
+			      u16 *stripe_count);
+	int (*lsm_unpackmd)(struct lov_obd *lov, struct lov_stripe_md *lsm,
+			    struct lov_mds_md *lmm);
+};
+
+extern const struct lsm_operations lsm_v1_ops;
+extern const struct lsm_operations lsm_v3_ops;
+
+static inline const struct lsm_operations *lsm_op_find(int magic)
+{
+	switch (magic) {
+	case LOV_MAGIC_V1:
+		return &lsm_v1_ops;
+	case LOV_MAGIC_V3:
+		return &lsm_v3_ops;
+	default:
+		CERROR("unrecognized lsm_magic %08x\n", magic);
+		return NULL;
+	}
+}
+
 /* lov_do_div64(a, b) returns a % b, and a = a / b.
  * The 32-bit code is LOV-specific due to knowing about stripe limits in
  * order to reduce the divisor to a 32-bit number.  If the divisor is
@@ -176,8 +254,6 @@ int lov_del_target(struct obd_device *obd, __u32 index,
 /* lov_pack.c */
 ssize_t lov_lsm_pack(const struct lov_stripe_md *lsm, void *buf,
 		     size_t buf_size);
-int lov_packmd(struct obd_export *exp, struct lov_mds_md **lmm,
-	       struct lov_stripe_md *lsm);
 int lov_unpackmd(struct obd_export *exp, struct lov_stripe_md **lsmp,
 		 struct lov_mds_md *lmm, int lmm_bytes);
 int lov_alloc_memmd(struct lov_stripe_md **lsmp, __u16 stripe_count,

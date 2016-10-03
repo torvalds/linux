@@ -609,44 +609,6 @@ obd_process_config(struct obd_device *obd, int datalen, void *data)
 	return rc;
 }
 
-/* Pack an in-memory MD struct for storage on disk.
- * Returns +ve size of packed MD (0 for free), or -ve error.
- *
- * If @disk_tgt == NULL, MD size is returned (max size if @mem_src == NULL).
- * If @*disk_tgt != NULL and @mem_src == NULL, @*disk_tgt will be freed.
- * If @*disk_tgt == NULL, it will be allocated
- */
-static inline int obd_packmd(struct obd_export *exp,
-			     struct lov_mds_md **disk_tgt,
-			     struct lov_stripe_md *mem_src)
-{
-	int rc;
-
-	EXP_CHECK_DT_OP(exp, packmd);
-	EXP_COUNTER_INCREMENT(exp, packmd);
-
-	rc = OBP(exp->exp_obd, packmd)(exp, disk_tgt, mem_src);
-	return rc;
-}
-
-static inline int obd_free_diskmd(struct obd_export *exp,
-				  struct lov_mds_md **disk_tgt)
-{
-	LASSERT(disk_tgt);
-	LASSERT(*disk_tgt);
-	/*
-	 * LU-2590, for caller's convenience, *disk_tgt could be host
-	 * endianness, it needs swab to LE if necessary, while just
-	 * lov_mds_md header needs it for figuring out how much memory
-	 * needs to be freed.
-	 */
-	if ((cpu_to_le32(LOV_MAGIC) != LOV_MAGIC) &&
-	    (((*disk_tgt)->lmm_magic == LOV_MAGIC_V1) ||
-	     ((*disk_tgt)->lmm_magic == LOV_MAGIC_V3)))
-		lustre_swab_lov_mds_md(*disk_tgt);
-	return obd_packmd(exp, disk_tgt, NULL);
-}
-
 /* Unpack an MD struct from disk to in-memory format.
  * Returns +ve size of unpacked MD (0 for free), or -ve error.
  *
