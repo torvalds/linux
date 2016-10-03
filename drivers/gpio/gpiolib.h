@@ -92,6 +92,8 @@ struct gpio_desc *of_find_gpio(struct device *dev,
 			       const char *con_id,
 			       unsigned int idx,
 			       enum gpio_lookup_flags *flags);
+struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
+		   const char *list_name, int index, enum of_gpio_flags *flags);
 int of_gpiochip_add(struct gpio_chip *gc);
 void of_gpiochip_remove(struct gpio_chip *gc);
 #else
@@ -99,6 +101,11 @@ static inline struct gpio_desc *of_find_gpio(struct device *dev,
 					     const char *con_id,
 					     unsigned int idx,
 					     enum gpio_lookup_flags *flags)
+{
+	return ERR_PTR(-ENOENT);
+}
+static inline struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
+		   const char *list_name, int index, enum of_gpio_flags *flags)
 {
 	return ERR_PTR(-ENOENT);
 }
@@ -159,9 +166,6 @@ static inline bool acpi_can_fallback_to_crs(struct acpi_device *adev,
 	return false;
 }
 #endif
-
-struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
-		   const char *list_name, int index, enum of_gpio_flags *flags);
 
 struct gpio_desc *gpiochip_get_desc(struct gpio_chip *chip, u16 hwnum);
 void gpiod_set_array_value_complex(bool raw, bool can_sleep,
