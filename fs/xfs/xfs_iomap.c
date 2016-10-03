@@ -609,7 +609,7 @@ xfs_file_iomap_begin_delay(
 	}
 
 retry:
-	error = xfs_bmapi_reserve_delalloc(ip, offset_fsb,
+	error = xfs_bmapi_reserve_delalloc(ip, XFS_DATA_FORK, offset_fsb,
 			end_fsb - offset_fsb, &got,
 			&prev, &idx, eof);
 	switch (error) {
