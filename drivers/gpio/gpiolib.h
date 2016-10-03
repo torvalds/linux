@@ -109,9 +109,11 @@ void acpi_gpiochip_remove(struct gpio_chip *chip);
 void acpi_gpiochip_request_interrupts(struct gpio_chip *chip);
 void acpi_gpiochip_free_interrupts(struct gpio_chip *chip);
 
-struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
-					  const char *propname, int index,
-					  struct acpi_gpio_info *info);
+struct gpio_desc *acpi_find_gpio(struct device *dev,
+				 const char *con_id,
+				 unsigned int idx,
+				 enum gpiod_flags flags,
+				 enum gpio_lookup_flags *lookupflags);
 struct gpio_desc *acpi_node_get_gpiod(struct fwnode_handle *fwnode,
 				      const char *propname, int index,
 				      struct acpi_gpio_info *info);
@@ -130,10 +132,11 @@ static inline void
 acpi_gpiochip_free_interrupts(struct gpio_chip *chip) { }
 
 static inline struct gpio_desc *
-acpi_get_gpiod_by_index(struct acpi_device *adev, const char *propname,
-			int index, struct acpi_gpio_info *info)
+acpi_find_gpio(struct device *dev, const char *con_id,
+	       unsigned int idx, enum gpiod_flags flags,
+	       enum gpio_lookup_flags *lookupflags)
 {
-	return ERR_PTR(-ENOSYS);
+	return ERR_PTR(-ENOENT);
 }
 static inline struct gpio_desc *
 acpi_node_get_gpiod(struct fwnode_handle *fwnode, const char *propname,
