@@ -184,7 +184,7 @@
 struct sdma_mode_count {
 	u32 count   : 16; /* size of the buffer pointed by this BD */
 	u32 status  :  8; /* E,R,I,C,W,D status bits stored here */
-	u32 command :  8; /* command mostlky used for channel 0 */
+	u32 command :  8; /* command mostly used for channel 0 */
 };
 
 /*
@@ -479,6 +479,24 @@ static struct sdma_driver_data sdma_imx6q = {
 	.script_addrs = &sdma_script_imx6q,
 };
 
+static struct sdma_script_start_addrs sdma_script_imx7d = {
+	.ap_2_ap_addr = 644,
+	.uart_2_mcu_addr = 819,
+	.mcu_2_app_addr = 749,
+	.uartsh_2_mcu_addr = 1034,
+	.mcu_2_shp_addr = 962,
+	.app_2_mcu_addr = 685,
+	.shp_2_mcu_addr = 893,
+	.spdif_2_mcu_addr = 1102,
+	.mcu_2_spdif_addr = 1136,
+};
+
+static struct sdma_driver_data sdma_imx7d = {
+	.chnenbl0 = SDMA_CHNENBL0_IMX35,
+	.num_events = 48,
+	.script_addrs = &sdma_script_imx7d,
+};
+
 static const struct platform_device_id sdma_devtypes[] = {
 	{
 		.name = "imx25-sdma",
@@ -499,6 +517,9 @@ static const struct platform_device_id sdma_devtypes[] = {
 		.name = "imx6q-sdma",
 		.driver_data = (unsigned long)&sdma_imx6q,
 	}, {
+		.name = "imx7d-sdma",
+		.driver_data = (unsigned long)&sdma_imx7d,
+	}, {
 		/* sentinel */
 	}
 };
@@ -511,6 +532,7 @@ static const struct of_device_id sdma_dt_ids[] = {
 	{ .compatible = "fsl,imx35-sdma", .data = &sdma_imx35, },
 	{ .compatible = "fsl,imx31-sdma", .data = &sdma_imx31, },
 	{ .compatible = "fsl,imx25-sdma", .data = &sdma_imx25, },
+	{ .compatible = "fsl,imx7d-sdma", .data = &sdma_imx7d, },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, sdma_dt_ids);
@@ -1374,6 +1396,7 @@ static void sdma_issue_pending(struct dma_chan *chan)
 #define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V1	34
 #define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V2	38
 #define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V3	41
+#define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V4	42
 
 static void sdma_add_scripts(struct sdma_engine *sdma,
 		const struct sdma_script_start_addrs *addr)
@@ -1422,6 +1445,9 @@ static void sdma_load_firmware(const struct firmware *fw, void *context)
 		break;
 	case 3:
 		sdma->script_number = SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V3;
+		break;
+	case 4:
+		sdma->script_number = SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V4;
 		break;
 	default:
 		dev_err(sdma->dev, "unknown firmware version\n");
