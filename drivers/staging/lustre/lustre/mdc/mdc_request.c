@@ -1867,10 +1867,8 @@ static int mdc_changelog_send_thread(void *csdata)
 
 	/* Send EOF no matter what our result */
 	kuch = changelog_kuc_hdr(cs->cs_buf, sizeof(*kuch), cs->cs_flags);
-	if (kuch) {
-		kuch->kuc_msgtype = CL_EOF;
-		libcfs_kkuc_msg_put(cs->cs_fp, kuch);
-	}
+	kuch->kuc_msgtype = CL_EOF;
+	libcfs_kkuc_msg_put(cs->cs_fp, kuch);
 
 out:
 	fput(cs->cs_fp);
