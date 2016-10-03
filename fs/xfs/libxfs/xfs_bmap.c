@@ -5098,17 +5098,16 @@ done:
  * *done is set.
  */
 int						/* error */
-xfs_bunmapi(
+__xfs_bunmapi(
 	xfs_trans_t		*tp,		/* transaction pointer */
 	struct xfs_inode	*ip,		/* incore inode */
 	xfs_fileoff_t		bno,		/* starting offset to unmap */
-	xfs_filblks_t		len,		/* length to unmap in file */
+	xfs_filblks_t		*rlen,		/* i/o: amount remaining */
 	int			flags,		/* misc flags */
 	xfs_extnum_t		nexts,		/* number of extents max */
 	xfs_fsblock_t		*firstblock,	/* first allocated block
 						   controls a.g. for allocs */
-	struct xfs_defer_ops	*dfops,		/* i/o: list extents to free */
-	int			*done)		/* set if not done yet */
+	struct xfs_defer_ops	*dfops)		/* i/o: deferred updates */
 {
 	xfs_btree_cur_t		*cur;		/* bmap btree cursor */
 	xfs_bmbt_irec_t		del;		/* extent being deleted */
@@ -5130,6 +5129,7 @@ xfs_bunmapi(
 	int			wasdel;		/* was a delayed alloc extent */
 	int			whichfork;	/* data or attribute fork */
 	xfs_fsblock_t		sum;
+	xfs_filblks_t		len = *rlen;	/* length to unmap in file */
 
 	trace_xfs_bunmap(ip, bno, len, flags, _RET_IP_);
 
@@ -5156,7 +5156,7 @@ xfs_bunmapi(
 		return error;
 	nextents = ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t);
 	if (nextents == 0) {
-		*done = 1;
+		*rlen = 0;
 		return 0;
 	}
 	XFS_STATS_INC(mp, xs_blk_unmap);
@@ -5427,7 +5427,10 @@ nodelete:
 			extno++;
 		}
 	}
-	*done = bno == (xfs_fileoff_t)-1 || bno < start || lastx < 0;
+	if (bno == (xfs_fileoff_t)-1 || bno < start || lastx < 0)
+		*rlen = 0;
+	else
+		*rlen = bno - start + 1;
 
 	/*
 	 * Convert to a btree if necessary.
@@ -5480,6 +5483,27 @@ error0:
 		xfs_btree_del_cursor(cur,
 			error ? XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
 	}
+	return error;
+}
+
+/* Unmap a range of a file. */
+int
+xfs_bunmapi(
+	xfs_trans_t		*tp,
+	struct xfs_inode	*ip,
+	xfs_fileoff_t		bno,
+	xfs_filblks_t		len,
+	int			flags,
+	xfs_extnum_t		nexts,
+	xfs_fsblock_t		*firstblock,
+	struct xfs_defer_ops	*dfops,
+	int			*done)
+{
+	int			error;
+
+	error = __xfs_bunmapi(tp, ip, bno, &len, flags, nexts, firstblock,
+			dfops);
+	*done = (len == 0);
 	return error;
 }
 
