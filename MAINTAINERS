@@ -4587,6 +4587,13 @@ M:	Peter Jones <pjones@redhat.com>
 S:	Maintained
 F:	drivers/video/fbdev/efifb.c
 
+EFI TEST DRIVER
+L:	linux-efi@vger.kernel.org
+M:	Ivan Hu <ivan.hu@canonical.com>
+M:	Matt Fleming <matt@codeblueprint.co.uk>
+S:	Maintained
+F:	drivers/firmware/efi/test/
+
 EFS FILESYSTEM
 W:	http://aeschi.ch.eu.org/efs/
 S:	Orphan
