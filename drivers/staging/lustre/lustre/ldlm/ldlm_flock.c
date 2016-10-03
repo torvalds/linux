@@ -612,22 +612,8 @@ granted:
 }
 EXPORT_SYMBOL(ldlm_flock_completion_ast);
 
-void ldlm_flock_policy_wire18_to_local(const ldlm_wire_policy_data_t *wpolicy,
-				       ldlm_policy_data_t *lpolicy)
-{
-	memset(lpolicy, 0, sizeof(*lpolicy));
-	lpolicy->l_flock.start = wpolicy->l_flock.lfw_start;
-	lpolicy->l_flock.end = wpolicy->l_flock.lfw_end;
-	lpolicy->l_flock.pid = wpolicy->l_flock.lfw_pid;
-	/* Compat code, old clients had no idea about owner field and
-	 * relied solely on pid for ownership. Introduced in LU-104, 2.1,
-	 * April 2011
-	 */
-	lpolicy->l_flock.owner = wpolicy->l_flock.lfw_pid;
-}
-
-void ldlm_flock_policy_wire21_to_local(const ldlm_wire_policy_data_t *wpolicy,
-				       ldlm_policy_data_t *lpolicy)
+void ldlm_flock_policy_wire_to_local(const ldlm_wire_policy_data_t *wpolicy,
+				     ldlm_policy_data_t *lpolicy)
 {
 	memset(lpolicy, 0, sizeof(*lpolicy));
 	lpolicy->l_flock.start = wpolicy->l_flock.lfw_start;

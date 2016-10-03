@@ -329,10 +329,7 @@ void ldlm_extent_policy_wire_to_local(const ldlm_wire_policy_data_t *wpolicy,
 				      ldlm_policy_data_t *lpolicy);
 void ldlm_extent_policy_local_to_wire(const ldlm_policy_data_t *lpolicy,
 				      ldlm_wire_policy_data_t *wpolicy);
-void ldlm_flock_policy_wire18_to_local(const ldlm_wire_policy_data_t *wpolicy,
-				       ldlm_policy_data_t *lpolicy);
-void ldlm_flock_policy_wire21_to_local(const ldlm_wire_policy_data_t *wpolicy,
-				       ldlm_policy_data_t *lpolicy);
-
+void ldlm_flock_policy_wire_to_local(const ldlm_wire_policy_data_t *wpolicy,
+				     ldlm_policy_data_t *lpolicy);
 void ldlm_flock_policy_local_to_wire(const ldlm_policy_data_t *lpolicy,
 				     ldlm_wire_policy_data_t *wpolicy);

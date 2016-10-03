@@ -691,8 +691,6 @@ int ptlrpc_connect_import(struct obd_import *imp)
 	request->rq_timeout = INITIAL_CONNECT_TIMEOUT;
 	lustre_msg_set_timeout(request->rq_reqmsg, request->rq_timeout);
 
-	lustre_msg_add_op_flags(request->rq_reqmsg, MSG_CONNECT_NEXT_VER);
-
 	request->rq_no_resend = 1;
 	request->rq_no_delay = 1;
 	request->rq_send_state = LUSTRE_IMP_CONNECTING;
@@ -873,8 +871,7 @@ static int ptlrpc_connect_set_flags(struct obd_import *imp,
 			ocd->ocd_connect_flags;
 	}
 
-	if ((ocd->ocd_connect_flags & OBD_CONNECT_AT) &&
-	    (imp->imp_msg_magic == LUSTRE_MSG_MAGIC_V2))
+	if (ocd->ocd_connect_flags & OBD_CONNECT_AT)
 		/*
 		 * We need a per-message support flag, because
 		 * a. we don't know if the incoming connect reply
@@ -889,11 +886,7 @@ static int ptlrpc_connect_set_flags(struct obd_import *imp,
 	else
 		imp->imp_msghdr_flags &= ~MSGHDR_AT_SUPPORT;
 
-	if ((ocd->ocd_connect_flags & OBD_CONNECT_FULL20) &&
-	    (imp->imp_msg_magic == LUSTRE_MSG_MAGIC_V2))
-		imp->imp_msghdr_flags |= MSGHDR_CKSUM_INCOMPAT18;
-	else
-		imp->imp_msghdr_flags &= ~MSGHDR_CKSUM_INCOMPAT18;
+	imp->imp_msghdr_flags |= MSGHDR_CKSUM_INCOMPAT18;
 
 	return 0;
 }
