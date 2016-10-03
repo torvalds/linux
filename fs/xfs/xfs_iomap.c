@@ -667,6 +667,7 @@ out_unlock:
 int
 xfs_iomap_write_allocate(
 	xfs_inode_t	*ip,
+	int		whichfork,
 	xfs_off_t	offset,
 	xfs_bmbt_irec_t *imap)
 {
@@ -679,7 +680,11 @@ xfs_iomap_write_allocate(
 	xfs_trans_t	*tp;
 	int		nimaps;
 	int		error = 0;
+	int		flags = 0;
 	int		nres;
+
+	if (whichfork == XFS_COW_FORK)
+		flags |= XFS_BMAPI_COWFORK;
 
 	/*
 	 * Make sure that the dquots are there.
@@ -774,7 +779,7 @@ xfs_iomap_write_allocate(
 			 * pointer that the caller gave to us.
 			 */
 			error = xfs_bmapi_write(tp, ip, map_start_fsb,
-						count_fsb, 0, &first_block,
+						count_fsb, flags, &first_block,
 						nres, imap, &nimaps,
 						&dfops);
 			if (error)

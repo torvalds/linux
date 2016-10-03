@@ -362,9 +362,11 @@ xfs_map_blocks(
 
 	if (type == XFS_IO_DELALLOC &&
 	    (!nimaps || isnullstartblock(imap->br_startblock))) {
-		error = xfs_iomap_write_allocate(ip, offset, imap);
+		error = xfs_iomap_write_allocate(ip, XFS_DATA_FORK, offset,
+				imap);
 		if (!error)
-			trace_xfs_map_blocks_alloc(ip, offset, count, type, imap);
+			trace_xfs_map_blocks_alloc(ip, offset, count, type,
+					imap);
 		return error;
 	}
 
