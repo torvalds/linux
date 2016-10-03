@@ -784,11 +784,16 @@ void ldlm_lock_decref_internal(struct ldlm_lock *lock, __u32 mode)
 	}
 
 	if (!lock->l_readers && !lock->l_writers &&
-	    ldlm_is_cbpending(lock)) {
+	    (ldlm_is_cbpending(lock) || lock->l_req_mode == LCK_GROUP)) {
 		/* If we received a blocked AST and this was the last reference,
 		 * run the callback.
+		 * Group locks are special:
+		 * They must not go in LRU, but they are not called back
+		 * like non-group locks, instead they are manually released.
+		 * They have an l_writers reference which they keep until
+		 * they are manually released, so we remove them when they have
+		 * no more reader or writer references. - LU-6368
 		 */
-
 		LDLM_DEBUG(lock, "final decref done on cbpending lock");
 
 		LDLM_LOCK_GET(lock); /* dropped by bl thread */
@@ -844,8 +849,6 @@ EXPORT_SYMBOL(ldlm_lock_decref);
  * Decrease reader/writer refcount for LDLM lock with handle
  * \a lockh and mark it for subsequent cancellation once r/w refcount
  * drops to zero instead of putting into LRU.
- *
- * Typical usage is for GROUP locks which we cannot allow to be cached.
  */
 void ldlm_lock_decref_and_cancel(const struct lustre_handle *lockh, __u32 mode)
 {

@@ -1009,7 +1009,7 @@ static void osc_lock_detach(const struct lu_env *env, struct osc_lock *olck)
 
 	if (olck->ols_hold) {
 		olck->ols_hold = 0;
-		osc_cancel_base(&olck->ols_handle, olck->ols_einfo.ei_mode);
+		ldlm_lock_decref(&olck->ols_handle, olck->ols_einfo.ei_mode);
 		olck->ols_handle.cookie = 0ULL;
 	}
 
