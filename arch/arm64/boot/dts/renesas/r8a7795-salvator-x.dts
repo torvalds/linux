@@ -191,6 +191,10 @@
 				remote-endpoint = <&adv7123_in>;
 			};
 		};
+		port@3 {
+			lvds_connector: endpoint {
+			};
+		};
 	};
 };
 
