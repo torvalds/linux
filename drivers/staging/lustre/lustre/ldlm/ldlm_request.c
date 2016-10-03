@@ -1182,6 +1182,14 @@ static enum ldlm_policy_res ldlm_cancel_lrur_policy(struct ldlm_namespace *ns,
 	if (count && added >= count)
 		return LDLM_POLICY_KEEP_LOCK;
 
+	/*
+	 * Despite of the LV, It doesn't make sense to keep the lock which
+	 * is unused for ns_max_age time.
+	 */
+	if (cfs_time_after(cfs_time_current(),
+			   cfs_time_add(lock->l_last_used, ns->ns_max_age)))
+		return LDLM_POLICY_CANCEL_LOCK;
+
 	slv = ldlm_pool_get_slv(pl);
 	lvf = ldlm_pool_get_lvf(pl);
 	la = cfs_duration_sec(cfs_time_sub(cur, lock->l_last_used));
