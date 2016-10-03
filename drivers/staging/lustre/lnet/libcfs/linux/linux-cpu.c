@@ -55,6 +55,8 @@ MODULE_PARM_DESC(cpu_npartitions, "# of CPU partitions");
  * i.e: "N 0[0,1] 1[2,3]" the first character 'N' means numbers in bracket
  *       are NUMA node ID, number before bracket is CPU partition ID.
  *
+ * i.e: "N", shortcut expression to create CPT from NUMA & CPU topology
+ *
  * NB: If user specified cpu_pattern, cpu_npartitions will be ignored
  */
 static char	*cpu_pattern = "";
@@ -818,11 +820,14 @@ static struct cfs_cpt_table *
 cfs_cpt_table_create_pattern(char *pattern)
 {
 	struct cfs_cpt_table	*cptab;
-	char			*str	= pattern;
+	char *str;
 	int			node	= 0;
 	int			high;
-	int			ncpt;
+	int ncpt = 0;
+	int cpt;
+	int rc;
 	int			c;
+	int i;
 
 	for (ncpt = 0;; ncpt++) { /* quick scan bracket */
 		str = strchr(str, '[');
@@ -834,7 +839,20 @@ cfs_cpt_table_create_pattern(char *pattern)
 	str = cfs_trimwhite(pattern);
 	if (*str == 'n' || *str == 'N') {
 		pattern = str + 1;
-		node = 1;
+		if (*pattern != '\0') {
+			node = 1;
+		} else { /* shortcut to create CPT from NUMA & CPU topology */
+			node = -1;
+			ncpt = num_online_nodes();
+		}
+	}
+
+	if (!ncpt) { /* scanning bracket which is mark of partition */
+		for (str = pattern;; str++, ncpt++) {
+			str = strchr(str, '[');
+			if (!str)
+				break;
+		}
 	}
 
 	if (ncpt == 0 ||
@@ -845,21 +863,35 @@ cfs_cpt_table_create_pattern(char *pattern)
 		return NULL;
 	}
 
-	high = node ? MAX_NUMNODES - 1 : nr_cpu_ids - 1;
-
 	cptab = cfs_cpt_table_alloc(ncpt);
 	if (!cptab) {
 		CERROR("Failed to allocate cpu partition table\n");
 		return NULL;
 	}
 
+	if (node < 0) { /* shortcut to create CPT from NUMA & CPU topology */
+		cpt = 0;
+
+		for_each_online_node(i) {
+			if (cpt >= ncpt) {
+				CERROR("CPU changed while setting CPU partition table, %d/%d\n",
+				       cpt, ncpt);
+				goto failed;
+			}
+
+			rc = cfs_cpt_set_node(cptab, cpt++, i);
+			if (!rc)
+				goto failed;
+		}
+		return cptab;
+	}
+
+	high = node ? MAX_NUMNODES - 1 : nr_cpu_ids - 1;
+
 	for (str = cfs_trimwhite(pattern), c = 0;; c++) {
 		struct cfs_range_expr	*range;
 		struct cfs_expr_list	*el;
 		char			*bracket = strchr(str, '[');
-		int			cpt;
-		int			rc;
-		int			i;
 		int			n;
 
 		if (!bracket) {
