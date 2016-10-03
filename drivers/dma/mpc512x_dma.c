@@ -411,8 +411,7 @@ static void mpc_dma_process_completed(struct mpc_dma *mdma)
 		list_for_each_entry(mdesc, &list, node) {
 			desc = &mdesc->desc;
 
-			if (desc->callback)
-				desc->callback(desc->callback_param);
+			dmaengine_desc_get_callback_invoke(desc, NULL);
 
 			last_cookie = desc->cookie;
 			dma_run_dependencies(desc);

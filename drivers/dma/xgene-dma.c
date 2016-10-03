@@ -608,8 +608,7 @@ static void xgene_dma_run_tx_complete_actions(struct xgene_dma_chan *chan,
 	dma_cookie_complete(tx);
 
 	/* Run the link descriptor callback function */
-	if (tx->callback)
-		tx->callback(tx->callback_param);
+	dmaengine_desc_get_callback_invoke(tx, NULL);
 
 	dma_descriptor_unmap(tx);
 

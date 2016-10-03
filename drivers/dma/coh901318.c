@@ -1875,8 +1875,7 @@ static void dma_tasklet(unsigned long data)
 	struct coh901318_chan *cohc = (struct coh901318_chan *) data;
 	struct coh901318_desc *cohd_fin;
 	unsigned long flags;
-	dma_async_tx_callback callback;
-	void *callback_param;
+	struct dmaengine_desc_callback cb;
 
 	dev_vdbg(COHC_2_DEV(cohc), "[%s] chan_id %d"
 		 " nbr_active_done %ld\n", __func__,
@@ -1891,8 +1890,7 @@ static void dma_tasklet(unsigned long data)
 		goto err;
 
 	/* locate callback to client */
-	callback = cohd_fin->desc.callback;
-	callback_param = cohd_fin->desc.callback_param;
+	dmaengine_desc_get_callback(&cohd_fin->desc, &cb);
 
 	/* sign this job as completed on the channel */
 	dma_cookie_complete(&cohd_fin->desc);
@@ -1907,8 +1905,7 @@ static void dma_tasklet(unsigned long data)
 	spin_unlock_irqrestore(&cohc->lock, flags);
 
 	/* Call the callback when we're done */
-	if (callback)
-		callback(callback_param);
+	dmaengine_desc_callback_invoke(&cb, NULL);
 
 	spin_lock_irqsave(&cohc->lock, flags);
 

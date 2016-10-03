@@ -1485,10 +1485,7 @@ static dma_cookie_t ppc440spe_adma_run_tx_complete_actions(
 		/* call the callback (must not sleep or submit new
 		 * operations to this channel)
 		 */
-		if (desc->async_tx.callback)
-			desc->async_tx.callback(
-				desc->async_tx.callback_param);
-
+		dmaengine_desc_get_callback_invoke(&desc->async_tx, NULL);
 		dma_descriptor_unmap(&desc->async_tx);
 	}
 
