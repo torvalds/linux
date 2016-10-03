@@ -41,6 +41,7 @@
 #include <linux/debugfs.h>
 #include <linux/irq_work.h>
 #include <linux/export.h>
+#include <linux/jump_label.h>
 
 #include <asm/processor.h>
 #include <asm/traps.h>
@@ -291,6 +292,13 @@ static void print_mce(struct mce *m)
 		pr_cont("ADDR %llx ", m->addr);
 	if (m->misc)
 		pr_cont("MISC %llx ", m->misc);
+
+	if (mce_flags.smca) {
+		if (m->synd)
+			pr_cont("SYND %llx ", m->synd);
+		if (m->ipid)
+			pr_cont("IPID %llx ", m->ipid);
+	}
 
 	pr_cont("\n");
 	/*
@@ -568,6 +576,7 @@ static void mce_read_aux(struct mce *m, int i)
 {
 	if (m->status & MCI_STATUS_MISCV)
 		m->misc = mce_rdmsrl(msr_ops.misc(i));
+
 	if (m->status & MCI_STATUS_ADDRV) {
 		m->addr = mce_rdmsrl(msr_ops.addr(i));
 
@@ -579,6 +588,23 @@ static void mce_read_aux(struct mce *m, int i)
 			m->addr >>= shift;
 			m->addr <<= shift;
 		}
+
+		/*
+		 * Extract [55:<lsb>] where lsb is the least significant
+		 * *valid* bit of the address bits.
+		 */
+		if (mce_flags.smca) {
+			u8 lsb = (m->addr >> 56) & 0x3f;
+
+			m->addr &= GENMASK_ULL(55, lsb);
+		}
+	}
+
+	if (mce_flags.smca) {
+		m->ipid = mce_rdmsrl(MSR_AMD64_SMCA_MCx_IPID(i));
+
+		if (m->status & MCI_STATUS_SYNDV)
+			m->synd = mce_rdmsrl(MSR_AMD64_SMCA_MCx_SYND(i));
 	}
 }
 
@@ -1633,17 +1659,6 @@ static int __mcheck_cpu_apply_quirks(struct cpuinfo_x86 *c)
 
 		if (c->x86 == 6 && c->x86_model == 45)
 			quirk_no_way_out = quirk_sandybridge_ifu;
-		/*
-		 * MCG_CAP.MCG_SER_P is necessary but not sufficient to know
-		 * whether this processor will actually generate recoverable
-		 * machine checks. Check to see if this is an E7 model Xeon.
-		 * We can't do a model number check because E5 and E7 use the
-		 * same model number. E5 doesn't support recovery, E7 does.
-		 */
-		if (mca_cfg.recovery || (mca_cfg.ser &&
-			!strncmp(c->x86_model_id,
-				 "Intel(R) Xeon(R) CPU E7-", 24)))
-			set_cpu_cap(c, X86_FEATURE_MCE_RECOVERY);
 	}
 	if (cfg->monarch_timeout < 0)
 		cfg->monarch_timeout = 0;
@@ -2080,6 +2095,7 @@ void mce_disable_bank(int bank)
  * mce=bootlog Log MCEs from before booting. Disabled by default on AMD.
  * mce=nobootlog Don't log MCEs from before booting.
  * mce=bios_cmci_threshold Don't program the CMCI threshold
+ * mce=recovery force enable memcpy_mcsafe()
  */
 static int __init mcheck_enable(char *str)
 {
@@ -2676,8 +2692,14 @@ static int __init mcheck_debugfs_init(void)
 static int __init mcheck_debugfs_init(void) { return -EINVAL; }
 #endif
 
+DEFINE_STATIC_KEY_FALSE(mcsafe_key);
+EXPORT_SYMBOL_GPL(mcsafe_key);
+
 static int __init mcheck_late_init(void)
 {
+	if (mca_cfg.recovery)
+		static_branch_inc(&mcsafe_key);
+
 	mcheck_debugfs_init();
 
 	/*

@@ -38,7 +38,7 @@ EXPORT_SYMBOL(__copy_user_nocache);
 EXPORT_SYMBOL(_copy_from_user);
 EXPORT_SYMBOL(_copy_to_user);
 
-EXPORT_SYMBOL_GPL(memcpy_mcsafe);
+EXPORT_SYMBOL_GPL(memcpy_mcsafe_unrolled);
 
 EXPORT_SYMBOL(copy_page);
 EXPORT_SYMBOL(clear_page);
