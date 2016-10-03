@@ -28,6 +28,7 @@
 #define AES_MR_OPMOD_CFB		(0x3 << 12)
 #define AES_MR_OPMOD_CTR		(0x4 << 12)
 #define AES_MR_OPMOD_GCM		(0x5 << 12)
+#define AES_MR_OPMOD_XTS		(0x6 << 12)
 #define AES_MR_LOD				(0x1 << 15)
 #define AES_MR_CFBS_MASK		(0x7 << 16)
 #define AES_MR_CFBS_128b		(0x0 << 16)
@@ -66,6 +67,9 @@
 #define AES_TAGR(x)	(0x88 + ((x) * 0x04))
 #define AES_CTRR	0x98
 #define AES_GCMHR(x)	(0x9c + ((x) * 0x04))
+
+#define AES_TWR(x)	(0xc0 + ((x) * 0x04))
+#define AES_ALPHAR(x)	(0xd0 + ((x) * 0x04))
 
 #define AES_HW_VERSION	0xFC
 
