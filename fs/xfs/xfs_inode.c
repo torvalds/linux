@@ -80,7 +80,8 @@ xfs_get_extsz_hint(
 /*
  * Helper function to extract CoW extent size hint from inode.
  * Between the extent size hint and the CoW extent size hint, we
- * return the greater of the two.
+ * return the greater of the two.  If the value is zero (automatic),
+ * use the default size.
  */
 xfs_extlen_t
 xfs_get_cowextsz_hint(
@@ -93,9 +94,10 @@ xfs_get_cowextsz_hint(
 		a = ip->i_d.di_cowextsize;
 	b = xfs_get_extsz_hint(ip);
 
-	if (a > b)
-		return a;
-	return b;
+	a = max(a, b);
+	if (a == 0)
+		return XFS_DEFAULT_COWEXTSZ_HINT;
+	return a;
 }
 
 /*

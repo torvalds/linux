@@ -490,4 +490,7 @@ do { \
 
 extern struct kmem_zone	*xfs_inode_zone;
 
+/* The default CoW extent size hint. */
+#define XFS_DEFAULT_COWEXTSZ_HINT 32
+
 #endif	/* __XFS_INODE_H__ */
