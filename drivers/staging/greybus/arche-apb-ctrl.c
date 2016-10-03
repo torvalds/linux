@@ -183,7 +183,7 @@ static int standby_boot_seq(struct platform_device *pdev)
 	 * Pasted from WDM spec,
 	 *  - A falling edge on POWEROFF_L is detected (a)
 	 *  - WDM enters standby mode, but no output signals are changed
-	 * */
+	 */
 
 	/* TODO: POWEROFF_L is input to WDM module  */
 	apb->state = ARCHE_PLATFORM_STATE_STANDBY;
