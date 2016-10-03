@@ -4765,7 +4765,8 @@ xfs_bmap_del_extent(
 	xfs_btree_cur_t		*cur,	/* if null, not a btree */
 	xfs_bmbt_irec_t		*del,	/* data to remove from extents */
 	int			*logflagsp, /* inode logging flags */
-	int			whichfork) /* data or attr fork */
+	int			whichfork, /* data or attr fork */
+	int			bflags)	/* bmapi flags */
 {
 	xfs_filblks_t		da_new;	/* new delay-alloc indirect blocks */
 	xfs_filblks_t		da_old;	/* old delay-alloc indirect blocks */
@@ -5057,7 +5058,7 @@ xfs_bmap_del_extent(
 	/*
 	 * If we need to, add to list of extents to delete.
 	 */
-	if (do_fx) {
+	if (do_fx && !(bflags & XFS_BMAPI_REMAP)) {
 		if (xfs_is_reflink_inode(ip) && whichfork == XFS_DATA_FORK) {
 			error = xfs_refcount_decrease_extent(mp, dfops, del);
 			if (error)
@@ -5075,7 +5076,7 @@ xfs_bmap_del_extent(
 	/*
 	 * Adjust quota data.
 	 */
-	if (qfield)
+	if (qfield && !(bflags & XFS_BMAPI_REMAP))
 		xfs_trans_mod_dquot_byino(tp, ip, qfield, (long)-nblks);
 
 	/*
@@ -5400,7 +5401,7 @@ xfs_bunmapi(
 			cur->bc_private.b.flags &= ~XFS_BTCUR_BPRV_WASDEL;
 
 		error = xfs_bmap_del_extent(ip, tp, &lastx, dfops, cur, &del,
-				&tmp_logflags, whichfork);
+				&tmp_logflags, whichfork, flags);
 		logflags |= tmp_logflags;
 		if (error)
 			goto error0;

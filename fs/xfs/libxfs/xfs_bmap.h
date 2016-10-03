@@ -101,6 +101,9 @@ struct xfs_extent_free_item
  * Map the inode offset to the block given in ap->firstblock.  Primarily
  * used for reflink.  The range must be in a hole, and this flag cannot be
  * turned on with PREALLOC or CONVERT, and cannot be used on the attr fork.
+ *
+ * For bunmapi, this flag unmaps the range without adjusting quota, reducing
+ * refcount, or freeing the blocks.
  */
 #define XFS_BMAPI_REMAP		0x100
 
