@@ -754,6 +754,7 @@ static int tas571x_i2c_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
+	usleep_range(50000, 60000);
 
 	memcpy(&priv->codec_driver, &tas571x_codec, sizeof(priv->codec_driver));
 	priv->codec_driver.component_driver.controls = priv->chip->controls;
