@@ -54,4 +54,8 @@ extern int xfs_refcount_finish_one(struct xfs_trans *tp,
 		xfs_fsblock_t *new_fsb, xfs_extlen_t *new_len,
 		struct xfs_btree_cur **pcur);
 
+extern int xfs_refcount_find_shared(struct xfs_btree_cur *cur,
+		xfs_agblock_t agbno, xfs_extlen_t aglen, xfs_agblock_t *fbno,
+		xfs_extlen_t *flen, bool find_end_of_shared);
+
 #endif	/* __XFS_REFCOUNT_H__ */
