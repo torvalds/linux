@@ -1552,14 +1552,52 @@ out_free:
 	return rc;
 }
 
-/** Get a config log from the MGS and process it.
- * This func is called for both clients and servers.
- * Copy the log locally before parsing it if appropriate (non-MGS server)
+static bool mgc_import_in_recovery(struct obd_import *imp)
+{
+	bool in_recovery = true;
+
+	spin_lock(&imp->imp_lock);
+	if (imp->imp_state == LUSTRE_IMP_FULL ||
+	    imp->imp_state == LUSTRE_IMP_CLOSED)
+		in_recovery = false;
+	spin_unlock(&imp->imp_lock);
+
+	return in_recovery;
+}
+
+/**
+ * Get a configuration log from the MGS and process it.
+ *
+ * This function is called for both clients and servers to process the
+ * configuration log from the MGS.  The MGC enqueues a DLM lock on the
+ * log from the MGS, and if the lock gets revoked the MGC will be notified
+ * by the lock cancellation callback that the config log has changed,
+ * and will enqueue another MGS lock on it, and then continue processing
+ * the new additions to the end of the log.
+ *
+ * Since the MGC import is not replayable, if the import is being evicted
+ * (rcl == -ESHUTDOWN, \see ptlrpc_import_delay_req()), retry to process
+ * the log until recovery is finished or the import is closed.
+ *
+ * Make a local copy of the log before parsing it if appropriate (non-MGS
+ * server) so that the server can start even when the MGS is down.
+ *
+ * There shouldn't be multiple processes running process_log at once --
+ * sounds like badness.  It actually might be fine, as long as they're not
+ * trying to update from the same log simultaneously, in which case we
+ * should use a per-log semaphore instead of cld_lock.
+ *
+ * \param[in] mgc	MGC device by which to fetch the configuration log
+ * \param[in] cld	log processing state (stored in lock callback data)
+ *
+ * \retval		0 on success
+ * \retval		negative errno on failure
  */
 int mgc_process_log(struct obd_device *mgc, struct config_llog_data *cld)
 {
 	struct lustre_handle lockh = { 0 };
 	__u64 flags = LDLM_FL_NO_LRU;
+	bool retry = false;
 	int rc = 0, rcl;
 
 	LASSERT(cld);
@@ -1569,6 +1607,7 @@ int mgc_process_log(struct obd_device *mgc, struct config_llog_data *cld)
 	 * we're not trying to update from the same log
 	 * simultaneously (in which case we should use a per-log sem.)
 	 */
+restart:
 	mutex_lock(&cld->cld_lock);
 	if (cld->cld_stopping) {
 		mutex_unlock(&cld->cld_lock);
@@ -1592,10 +1631,42 @@ int mgc_process_log(struct obd_device *mgc, struct config_llog_data *cld)
 	} else {
 		CDEBUG(D_MGC, "Can't get cfg lock: %d\n", rcl);
 
-		/* mark cld_lostlock so that it will requeue
-		 * after MGC becomes available.
-		 */
-		cld->cld_lostlock = 1;
+		if (rcl == -ESHUTDOWN &&
+		    atomic_read(&mgc->u.cli.cl_mgc_refcount) > 0 && !retry) {
+			int secs = cfs_time_seconds(obd_timeout);
+			struct obd_import *imp;
+			struct l_wait_info lwi;
+
+			mutex_unlock(&cld->cld_lock);
+			imp = class_exp2cliimp(mgc->u.cli.cl_mgc_mgsexp);
+
+			/*
+			 * Let's force the pinger, and wait the import to be
+			 * connected, note: since mgc import is non-replayable,
+			 * and even the import state is disconnected, it does
+			 * not mean the "recovery" is stopped, so we will keep
+			 * waitting until timeout or the import state is
+			 * FULL or closed
+			 */
+			ptlrpc_pinger_force(imp);
+
+			lwi = LWI_TIMEOUT(secs, NULL, NULL);
+			l_wait_event(imp->imp_recovery_waitq,
+				     !mgc_import_in_recovery(imp), &lwi);
+
+			if (imp->imp_state == LUSTRE_IMP_FULL) {
+				retry = true;
+				goto restart;
+			} else {
+				mutex_lock(&cld->cld_lock);
+				cld->cld_lostlock = 1;
+			}
+		} else {
+			/* mark cld_lostlock so that it will requeue
+			 * after MGC becomes available.
+			 */
+			cld->cld_lostlock = 1;
+		}
 		/* Get extra reference, it will be put in requeue thread */
 		config_log_get(cld);
 	}

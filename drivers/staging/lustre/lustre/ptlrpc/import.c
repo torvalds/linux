@@ -396,7 +396,7 @@ void ptlrpc_activate_import(struct obd_import *imp)
 }
 EXPORT_SYMBOL(ptlrpc_activate_import);
 
-static void ptlrpc_pinger_force(struct obd_import *imp)
+void ptlrpc_pinger_force(struct obd_import *imp)
 {
 	CDEBUG(D_HA, "%s: waking up pinger s:%s\n", obd2cli_tgt(imp->imp_obd),
 	       ptlrpc_import_state_name(imp->imp_state));
@@ -408,6 +408,7 @@ static void ptlrpc_pinger_force(struct obd_import *imp)
 	if (imp->imp_state != LUSTRE_IMP_CONNECTING)
 		ptlrpc_pinger_wake_up();
 }
+EXPORT_SYMBOL(ptlrpc_pinger_force);
 
 void ptlrpc_fail_import(struct obd_import *imp, __u32 conn_cnt)
 {
