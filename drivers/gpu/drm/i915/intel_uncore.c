@@ -796,10 +796,9 @@ __unclaimed_reg_debug(struct drm_i915_private *dev_priv,
 		      const bool read,
 		      const bool before)
 {
-	if (WARN(check_for_unclaimed_mmio(dev_priv),
-		 "Unclaimed register detected %s %s register 0x%x\n",
-		 before ? "before" : "after",
-		 read ? "reading" : "writing to",
+	if (WARN(check_for_unclaimed_mmio(dev_priv) && !before,
+		 "Unclaimed %s register 0x%x\n",
+		 read ? "read from" : "write to",
 		 i915_mmio_reg_offset(reg)))
 		i915.mmio_debug--; /* Only report the first N failures */
 }
