@@ -315,7 +315,8 @@ void schedule_console_callback(void)
 	schedule_work(&console_work);
 }
 
-static void scrup(struct vc_data *vc, unsigned int t, unsigned int b, int nr)
+static void scrup(struct vc_data *vc, unsigned int t, unsigned int b,
+		unsigned int nr)
 {
 	unsigned short *d, *s;
 
@@ -332,7 +333,8 @@ static void scrup(struct vc_data *vc, unsigned int t, unsigned int b, int nr)
 		    vc->vc_size_row * nr);
 }
 
-static void scrdown(struct vc_data *vc, unsigned int t, unsigned int b, int nr)
+static void scrdown(struct vc_data *vc, unsigned int t, unsigned int b,
+		unsigned int nr)
 {
 	unsigned short *s;
 	unsigned int step;

@@ -808,9 +808,10 @@ sisusbcon_cursor(struct vc_data *c, int mode)
 	mutex_unlock(&sisusb->lock);
 }
 
-static int
+static bool
 sisusbcon_scroll_area(struct vc_data *c, struct sisusb_usb_data *sisusb,
-					int t, int b, int dir, int lines)
+		unsigned int t, unsigned int b, enum con_scroll dir,
+		unsigned int lines)
 {
 	int cols = sisusb->sisusb_num_columns;
 	int length = ((b - t) * cols) * 2;
@@ -852,8 +853,9 @@ sisusbcon_scroll_area(struct vc_data *c, struct sisusb_usb_data *sisusb,
 }
 
 /* Interface routine */
-static int
-sisusbcon_scroll(struct vc_data *c, int t, int b, int dir, int lines)
+static bool
+sisusbcon_scroll(struct vc_data *c, unsigned int t, unsigned int b,
+		enum con_scroll dir, unsigned int lines)
 {
 	struct sisusb_usb_data *sisusb;
 	u16 eattr = c->vc_video_erase_char;
@@ -870,17 +872,17 @@ sisusbcon_scroll(struct vc_data *c, int t, int b, int dir, int lines)
 	 */
 
 	if (!lines)
-		return 1;
+		return true;
 
 	sisusb = sisusb_get_sisusb_lock_and_check(c->vc_num);
 	if (!sisusb)
-		return 0;
+		return false;
 
 	/* sisusb->lock is down */
 
 	if (sisusb_is_inactive(c, sisusb)) {
 		mutex_unlock(&sisusb->lock);
-		return 0;
+		return false;
 	}
 
 	/* Special case */
@@ -971,7 +973,7 @@ sisusbcon_scroll(struct vc_data *c, int t, int b, int dir, int lines)
 
 	mutex_unlock(&sisusb->lock);
 
-	return 1;
+	return true;
 }
 
 /* Interface routine */
