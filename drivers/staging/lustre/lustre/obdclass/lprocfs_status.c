@@ -100,7 +100,7 @@ static const char * const obd_connect_names[] = {
 	"lfsck",
 	"unknown",
 	"unlink_close",
-	"unknown",
+	"multi_mod_rpcs",
 	"dir_stripe",
 	"unknown",
 	NULL
@@ -127,7 +127,7 @@ EXPORT_SYMBOL(obd_connect_flags2str);
 static void obd_connect_data_seqprint(struct seq_file *m,
 				      struct obd_connect_data *ocd)
 {
-	int flags;
+	u64 flags;
 
 	LASSERT(ocd);
 	flags = ocd->ocd_connect_flags;
@@ -172,6 +172,9 @@ static void obd_connect_data_seqprint(struct seq_file *m,
 	if (flags & OBD_CONNECT_MAXBYTES)
 		seq_printf(m, "       max_object_bytes: %llx\n",
 			   ocd->ocd_maxbytes);
+	if (flags & OBD_CONNECT_MULTIMODRPCS)
+		seq_printf(m, "       max_mod_rpcs: %hu\n",
+			   ocd->ocd_maxmodrpcs);
 }
 
 int lprocfs_read_frac_helper(char *buffer, unsigned long count, long val,

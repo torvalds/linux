@@ -1874,13 +1874,14 @@ static void *__req_capsule_get(struct req_capsule *pill,
 	getter = (field->rmf_flags & RMF_F_STRING) ?
 		(typeof(getter))lustre_msg_string : lustre_msg_buf;
 
-	if (field->rmf_flags & RMF_F_STRUCT_ARRAY) {
+	if (field->rmf_flags & (RMF_F_STRUCT_ARRAY | RMF_F_NO_SIZE_CHECK)) {
 		/*
 		 * We've already asserted that field->rmf_size > 0 in
 		 * req_layout_init().
 		 */
 		len = lustre_msg_buflen(msg, offset);
-		if ((len % field->rmf_size) != 0) {
+		if (!(field->rmf_flags & RMF_F_NO_SIZE_CHECK) &&
+		    (len % field->rmf_size)) {
 			CERROR("%s: array field size mismatch %d modulo %u != 0 (%d)\n",
 			       field->rmf_name, len, field->rmf_size, loc);
 			return NULL;

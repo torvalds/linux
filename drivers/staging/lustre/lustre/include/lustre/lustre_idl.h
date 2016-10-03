@@ -1282,6 +1282,9 @@ void lustre_swab_ptlrpc_body(struct ptlrpc_body *pb);
 							 */
 #define OBD_CONNECT_LFSCK	0x40000000000000ULL/* support online LFSCK */
 #define OBD_CONNECT_UNLINK_CLOSE 0x100000000000000ULL/* close file in unlink */
+#define OBD_CONNECT_MULTIMODRPCS 0x200000000000000ULL /* support multiple modify
+						       *  RPCs in parallel
+						       */
 #define OBD_CONNECT_DIR_STRIPE	 0x400000000000000ULL/* striped DNE dir */
 
 /* XXX README XXX:
@@ -1313,25 +1316,6 @@ void lustre_swab_ptlrpc_body(struct ptlrpc_body *pb);
  * If we eventually have separate connect data for different types, which we
  * almost certainly will, then perhaps we stick a union in here.
  */
-struct obd_connect_data_v1 {
-	__u64 ocd_connect_flags; /* OBD_CONNECT_* per above */
-	__u32 ocd_version;	 /* lustre release version number */
-	__u32 ocd_grant;	 /* initial cache grant amount (bytes) */
-	__u32 ocd_index;	 /* LOV index to connect to */
-	__u32 ocd_brw_size;	 /* Maximum BRW size in bytes, must be 2^n */
-	__u64 ocd_ibits_known;   /* inode bits this client understands */
-	__u8  ocd_blocksize;     /* log2 of the backend filesystem blocksize */
-	__u8  ocd_inodespace;    /* log2 of the per-inode space consumption */
-	__u16 ocd_grant_extent;  /* per-extent grant overhead, in 1K blocks */
-	__u32 ocd_unused;	/* also fix lustre_swab_connect */
-	__u64 ocd_transno;       /* first transno from client to be replayed */
-	__u32 ocd_group;	 /* MDS group on OST */
-	__u32 ocd_cksum_types;   /* supported checksum algorithms */
-	__u32 ocd_max_easize;    /* How big LOV EA can be on MDS */
-	__u32 ocd_instance;      /* also fix lustre_swab_connect */
-	__u64 ocd_maxbytes;      /* Maximum stripe size in bytes */
-};
-
 struct obd_connect_data {
 	__u64 ocd_connect_flags; /* OBD_CONNECT_* per above */
 	__u32 ocd_version;	 /* lustre release version number */
@@ -1354,7 +1338,9 @@ struct obd_connect_data {
 	 * any field after ocd_maxbytes on the receiver without a valid flag
 	 * may result in out-of-bound memory access and kernel oops.
 	 */
-	__u64 padding1;	  /* added 2.1.0. also fix lustre_swab_connect */
+	__u16 ocd_maxmodrpcs;	/* Maximum modify RPCs in parallel */
+	__u16 padding0;		/* added 2.1.0. also fix lustre_swab_connect */
+	__u32 padding1;		/* added 2.1.0. also fix lustre_swab_connect */
 	__u64 padding2;	  /* added 2.1.0. also fix lustre_swab_connect */
 	__u64 padding3;	  /* added 2.1.0. also fix lustre_swab_connect */
 	__u64 padding4;	  /* added 2.1.0. also fix lustre_swab_connect */

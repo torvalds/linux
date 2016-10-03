@@ -1492,6 +1492,9 @@ void lustre_swab_connect(struct obd_connect_data *ocd)
 		__swab32s(&ocd->ocd_max_easize);
 	if (ocd->ocd_connect_flags & OBD_CONNECT_MAXBYTES)
 		__swab64s(&ocd->ocd_maxbytes);
+	if (ocd->ocd_connect_flags & OBD_CONNECT_MULTIMODRPCS)
+		__swab16s(&ocd->ocd_maxmodrpcs);
+	CLASSERT(offsetof(typeof(*ocd), padding0));
 	CLASSERT(offsetof(typeof(*ocd), padding1) != 0);
 	CLASSERT(offsetof(typeof(*ocd), padding2) != 0);
 	CLASSERT(offsetof(typeof(*ocd), padding3) != 0);
