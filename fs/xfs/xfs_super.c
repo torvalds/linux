@@ -1614,6 +1614,9 @@ xfs_fs_fill_super(
 			"DAX unsupported by block device. Turning off DAX.");
 			mp->m_flags &= ~XFS_MOUNT_DAX;
 		}
+		if (xfs_sb_version_hasreflink(&mp->m_sb))
+			xfs_alert(mp,
+		"DAX and reflink have not been tested together!");
 	}
 
 	if (xfs_sb_version_hasrmapbt(&mp->m_sb)) {
@@ -1626,6 +1629,10 @@ xfs_fs_fill_super(
 		xfs_alert(mp,
 	"EXPERIMENTAL reverse mapping btree feature enabled. Use at your own risk!");
 	}
+
+	if (xfs_sb_version_hasreflink(&mp->m_sb))
+		xfs_alert(mp,
+	"EXPERIMENTAL reflink feature enabled. Use at your own risk!");
 
 	error = xfs_mountfs(mp);
 	if (error)
