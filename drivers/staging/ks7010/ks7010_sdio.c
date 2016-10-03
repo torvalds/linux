@@ -294,6 +294,7 @@ static int write_to_device(struct ks_wlan_private *priv, unsigned char *buffer,
 	int retval;
 	unsigned char rw_data;
 	struct hostif_hdr *hdr;
+
 	hdr = (struct hostif_hdr *)buffer;
 
 	DPRINTK(4, "size=%d\n", hdr->size);
@@ -358,6 +359,7 @@ int ks_wlan_hw_tx(struct ks_wlan_private *priv, void *p, unsigned long size,
 {
 	int result = 0;
 	struct hostif_hdr *hdr;
+
 	hdr = (struct hostif_hdr *)p;
 
 	if (hdr->event < HIF_DATA_REQ || HIF_REQ_MAX < hdr->event) {
@@ -1117,6 +1119,7 @@ static void ks7010_sdio_remove(struct sdio_func *func)
 	int ret;
 	struct ks_sdio_card *card;
 	struct ks_wlan_private *priv;
+
 	DPRINTK(1, "ks7010_sdio_remove()\n");
 
 	card = sdio_get_drvdata(func);
@@ -1142,6 +1145,7 @@ static void ks7010_sdio_remove(struct sdio_func *func)
 		/* send stop request to MAC */
 		{
 			struct hostif_stop_request_t *pp;
+
 			pp = kzalloc(hif_align_size(sizeof(*pp)), GFP_KERNEL);
 			if (!pp) {
 				DPRINTK(3, "allocate memory failed..\n");
