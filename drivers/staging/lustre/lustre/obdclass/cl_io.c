@@ -126,6 +126,7 @@ void cl_io_fini(const struct lu_env *env, struct cl_io *io)
 	switch (io->ci_type) {
 	case CIT_READ:
 	case CIT_WRITE:
+	case CIT_DATA_VERSION:
 		break;
 	case CIT_FAULT:
 		break;

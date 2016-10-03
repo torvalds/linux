@@ -979,74 +979,6 @@ do {									    \
 		 "%p->lsm_magic=%x\n", (lsmp), (lsmp)->lsm_magic);	      \
 } while (0)
 
-static int lov_getattr_interpret(struct ptlrpc_request_set *rqset,
-				 void *data, int rc)
-{
-	struct lov_request_set *lovset = (struct lov_request_set *)data;
-	int err;
-
-	/* don't do attribute merge if this async op failed */
-	if (rc)
-		atomic_set(&lovset->set_completes, 0);
-	err = lov_fini_getattr_set(lovset);
-	return rc ? rc : err;
-}
-
-static int lov_getattr_async(struct obd_export *exp, struct obd_info *oinfo,
-			     struct ptlrpc_request_set *rqset)
-{
-	struct lov_request_set *lovset;
-	struct lov_obd *lov;
-	struct lov_request *req;
-	int rc = 0, err;
-
-	LASSERT(oinfo);
-	ASSERT_LSM_MAGIC(oinfo->oi_md);
-
-	if (!exp || !exp->exp_obd)
-		return -ENODEV;
-
-	lov = &exp->exp_obd->u.lov;
-
-	rc = lov_prep_getattr_set(exp, oinfo, &lovset);
-	if (rc)
-		return rc;
-
-	CDEBUG(D_INFO, "objid "DOSTID": %ux%u byte stripes\n",
-	       POSTID(&oinfo->oi_md->lsm_oi), oinfo->oi_md->lsm_stripe_count,
-	       oinfo->oi_md->lsm_stripe_size);
-
-	list_for_each_entry(req, &lovset->set_list, rq_link) {
-		CDEBUG(D_INFO, "objid " DOSTID "[%d] has subobj " DOSTID " at idx%u\n",
-		       POSTID(&oinfo->oi_oa->o_oi), req->rq_stripe,
-		       POSTID(&req->rq_oi.oi_oa->o_oi), req->rq_idx);
-		rc = obd_getattr_async(lov->lov_tgts[req->rq_idx]->ltd_exp,
-				       &req->rq_oi, rqset);
-		if (rc) {
-			CERROR("%s: getattr objid "DOSTID" subobj"
-			       DOSTID" on OST idx %d: rc = %d\n",
-			       exp->exp_obd->obd_name,
-			       POSTID(&oinfo->oi_oa->o_oi),
-			       POSTID(&req->rq_oi.oi_oa->o_oi),
-			       req->rq_idx, rc);
-			goto out;
-		}
-	}
-
-	if (!list_empty(&rqset->set_requests)) {
-		LASSERT(rc == 0);
-		LASSERT(!rqset->set_interpret);
-		rqset->set_interpret = lov_getattr_interpret;
-		rqset->set_arg = (void *)lovset;
-		return rc;
-	}
-out:
-	if (rc)
-		atomic_set(&lovset->set_completes, 0);
-	err = lov_fini_getattr_set(lovset);
-	return rc ? rc : err;
-}
-
 int lov_statfs_interpret(struct ptlrpc_request_set *rqset, void *data, int rc)
 {
 	struct lov_request_set *lovset = (struct lov_request_set *)data;
@@ -1530,7 +1462,6 @@ static struct obd_ops lov_obd_ops = {
 	.statfs_async   = lov_statfs_async,
 	.packmd         = lov_packmd,
 	.unpackmd       = lov_unpackmd,
-	.getattr_async  = lov_getattr_async,
 	.iocontrol      = lov_iocontrol,
 	.get_info       = lov_get_info,
 	.set_info_async = lov_set_info_async,

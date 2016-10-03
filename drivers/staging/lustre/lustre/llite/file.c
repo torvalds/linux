@@ -865,55 +865,6 @@ static int ll_lease_close(struct obd_client_handle *och, struct inode *inode,
 					 inode, och, NULL);
 }
 
-/* Fills the obdo with the attributes for the lsm */
-static int ll_lsm_getattr(struct lov_stripe_md *lsm, struct obd_export *exp,
-			  struct obdo *obdo, int dv_flags)
-{
-	struct ptlrpc_request_set *set;
-	struct obd_info	    oinfo = { };
-	int			rc;
-
-	LASSERT(lsm);
-
-	oinfo.oi_md = lsm;
-	oinfo.oi_oa = obdo;
-	oinfo.oi_oa->o_oi = lsm->lsm_oi;
-	oinfo.oi_oa->o_mode = S_IFREG;
-	oinfo.oi_oa->o_valid = OBD_MD_FLID | OBD_MD_FLTYPE |
-			       OBD_MD_FLSIZE | OBD_MD_FLBLOCKS |
-			       OBD_MD_FLBLKSZ | OBD_MD_FLATIME |
-			       OBD_MD_FLMTIME | OBD_MD_FLCTIME |
-			       OBD_MD_FLGROUP | OBD_MD_FLDATAVERSION;
-	if (dv_flags & (LL_DV_WR_FLUSH | LL_DV_RD_FLUSH)) {
-		oinfo.oi_oa->o_valid |= OBD_MD_FLFLAGS;
-		oinfo.oi_oa->o_flags |= OBD_FL_SRVLOCK;
-		if (dv_flags & LL_DV_WR_FLUSH)
-			oinfo.oi_oa->o_flags |= OBD_FL_FLUSH;
-	}
-
-	set = ptlrpc_prep_set();
-	if (!set) {
-		CERROR("cannot allocate ptlrpc set: rc = %d\n", -ENOMEM);
-		rc = -ENOMEM;
-	} else {
-		rc = obd_getattr_async(exp, &oinfo, set);
-		if (rc == 0)
-			rc = ptlrpc_set_wait(set);
-		ptlrpc_set_destroy(set);
-	}
-	if (rc == 0) {
-		oinfo.oi_oa->o_valid &= (OBD_MD_FLBLOCKS | OBD_MD_FLBLKSZ |
-					 OBD_MD_FLATIME | OBD_MD_FLMTIME |
-					 OBD_MD_FLCTIME | OBD_MD_FLSIZE |
-					 OBD_MD_FLDATAVERSION | OBD_MD_FLFLAGS);
-		if (dv_flags & LL_DV_WR_FLUSH &&
-		    !(oinfo.oi_oa->o_valid & OBD_MD_FLFLAGS &&
-		      oinfo.oi_oa->o_flags & OBD_FL_FLUSH))
-			return -ENOTSUPP;
-	}
-	return rc;
-}
-
 int ll_merge_attr(const struct lu_env *env, struct inode *inode)
 {
 	struct ll_inode_info *lli = ll_i2info(inode);
@@ -967,23 +918,6 @@ int ll_merge_attr(const struct lu_env *env, struct inode *inode)
 out_size_unlock:
 	ll_inode_size_unlock(inode);
 
-	return rc;
-}
-
-int ll_glimpse_ioctl(struct ll_sb_info *sbi, struct lov_stripe_md *lsm,
-		     lstat_t *st)
-{
-	struct obdo obdo = { 0 };
-	int rc;
-
-	rc = ll_lsm_getattr(lsm, sbi->ll_dt_exp, &obdo, 0);
-	if (rc == 0) {
-		st->st_size   = obdo.o_size;
-		st->st_blocks = obdo.o_blocks;
-		st->st_mtime  = obdo.o_mtime;
-		st->st_atime  = obdo.o_atime;
-		st->st_ctime  = obdo.o_ctime;
-	}
 	return rc;
 }
 
@@ -1596,45 +1530,50 @@ gf_free:
  * This value is computed using stripe object version on OST.
  * Version is computed using server side locking.
  *
- * @param sync  if do sync on the OST side;
+ * @param flags if do sync on the OST side;
  *		0: no sync
  *		LL_DV_RD_FLUSH: flush dirty pages, LCK_PR on OSTs
  *		LL_DV_WR_FLUSH: drop all caching pages, LCK_PW on OSTs
  */
 int ll_data_version(struct inode *inode, __u64 *data_version, int flags)
 {
-	struct lov_stripe_md	*lsm = NULL;
-	struct ll_sb_info	*sbi = ll_i2sbi(inode);
-	struct obdo		*obdo = NULL;
-	int			 rc;
+	struct cl_object *obj = ll_i2info(inode)->lli_clob;
+	struct lu_env *env;
+	struct cl_io *io;
+	int refcheck;
+	int result;
 
-	/* If no stripe, we consider version is 0. */
-	lsm = ccc_inode_lsm_get(inode);
-	if (!lsm_has_objects(lsm)) {
+	/* If no file object initialized, we consider its version is 0. */
+	if (!obj) {
 		*data_version = 0;
-		CDEBUG(D_INODE, "No object for inode\n");
-		rc = 0;
-		goto out;
+		return 0;
 	}
 
-	obdo = kzalloc(sizeof(*obdo), GFP_NOFS);
-	if (!obdo) {
-		rc = -ENOMEM;
-		goto out;
-	}
+	env = cl_env_get(&refcheck);
+	if (IS_ERR(env))
+		return PTR_ERR(env);
 
-	rc = ll_lsm_getattr(lsm, sbi->ll_dt_exp, obdo, flags);
-	if (rc == 0) {
-		if (!(obdo->o_valid & OBD_MD_FLDATAVERSION))
-			rc = -EOPNOTSUPP;
-		else
-			*data_version = obdo->o_data_version;
-	}
+	io = vvp_env_thread_io(env);
+	io->ci_obj = obj;
+	io->u.ci_data_version.dv_data_version = 0;
+	io->u.ci_data_version.dv_flags = flags;
 
-	kfree(obdo);
-out:
-	ccc_inode_lsm_put(inode, lsm);
-	return rc;
+restart:
+	if (!cl_io_init(env, io, CIT_DATA_VERSION, io->ci_obj))
+		result = cl_io_loop(env, io);
+	else
+		result = io->ci_result;
+
+	*data_version = io->u.ci_data_version.dv_data_version;
+
+	cl_io_fini(env, io);
+
+	if (unlikely(io->ci_need_restart))
+		goto restart;
+
+	cl_env_put(env, &refcheck);
+
+	return result;
 }
 
 /*

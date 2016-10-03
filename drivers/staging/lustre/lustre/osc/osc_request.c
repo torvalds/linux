@@ -177,64 +177,6 @@ static inline void osc_pack_req_body(struct ptlrpc_request *req,
 			     oinfo->oi_oa);
 }
 
-static int osc_getattr_interpret(const struct lu_env *env,
-				 struct ptlrpc_request *req,
-				 struct osc_async_args *aa, int rc)
-{
-	struct ost_body *body;
-
-	if (rc != 0)
-		goto out;
-
-	body = req_capsule_server_get(&req->rq_pill, &RMF_OST_BODY);
-	if (body) {
-		CDEBUG(D_INODE, "mode: %o\n", body->oa.o_mode);
-		lustre_get_wire_obdo(&req->rq_import->imp_connect_data,
-				     aa->aa_oi->oi_oa, &body->oa);
-
-		/* This should really be sent by the OST */
-		aa->aa_oi->oi_oa->o_blksize = DT_MAX_BRW_SIZE;
-		aa->aa_oi->oi_oa->o_valid |= OBD_MD_FLBLKSZ;
-	} else {
-		CDEBUG(D_INFO, "can't unpack ost_body\n");
-		rc = -EPROTO;
-		aa->aa_oi->oi_oa->o_valid = 0;
-	}
-out:
-	rc = aa->aa_oi->oi_cb_up(aa->aa_oi, rc);
-	return rc;
-}
-
-static int osc_getattr_async(struct obd_export *exp, struct obd_info *oinfo,
-			     struct ptlrpc_request_set *set)
-{
-	struct ptlrpc_request *req;
-	struct osc_async_args *aa;
-	int rc;
-
-	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_OST_GETATTR);
-	if (!req)
-		return -ENOMEM;
-
-	rc = ptlrpc_request_pack(req, LUSTRE_OST_VERSION, OST_GETATTR);
-	if (rc) {
-		ptlrpc_request_free(req);
-		return rc;
-	}
-
-	osc_pack_req_body(req, oinfo);
-
-	ptlrpc_request_set_replen(req);
-	req->rq_interpret_reply = (ptlrpc_interpterer_t)osc_getattr_interpret;
-
-	CLASSERT(sizeof(*aa) <= sizeof(req->rq_async_args));
-	aa = ptlrpc_req_async_args(req);
-	aa->aa_oi = oinfo;
-
-	ptlrpc_set_add_req(set, req);
-	return 0;
-}
-
 static int osc_getattr(const struct lu_env *env, struct obd_export *exp,
 		       struct obd_info *oinfo)
 {
@@ -2986,7 +2928,6 @@ static struct obd_ops osc_obd_ops = {
 	.create         = osc_create,
 	.destroy        = osc_destroy,
 	.getattr        = osc_getattr,
-	.getattr_async  = osc_getattr_async,
 	.setattr        = osc_setattr,
 	.iocontrol      = osc_iocontrol,
 	.set_info_async = osc_set_info_async,

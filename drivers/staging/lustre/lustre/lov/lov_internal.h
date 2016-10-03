@@ -132,8 +132,6 @@ static inline void lov_put_reqset(struct lov_request_set *set)
 	(char *)((lv)->lov_tgts[index]->ltd_uuid.uuid)
 
 /* lov_merge.c */
-void lov_merge_attrs(struct obdo *tgt, struct obdo *src, u64 valid,
-		     struct lov_stripe_md *lsm, int stripeno, int *set);
 int lov_merge_lvb_kms(struct lov_stripe_md *lsm,
 		      struct ost_lvb *lvb, __u64 *kms_place);
 
@@ -150,8 +148,6 @@ pgoff_t lov_stripe_pgoff(struct lov_stripe_md *lsm, pgoff_t stripe_index,
 			 int stripe);
 
 /* lov_request.c */
-int lov_update_common_set(struct lov_request_set *set,
-			  struct lov_request *req, int rc);
 int lov_prep_getattr_set(struct obd_export *exp, struct obd_info *oinfo,
 			 struct lov_request_set **reqset);
 int lov_fini_getattr_set(struct lov_request_set *set);

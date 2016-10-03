@@ -63,9 +63,13 @@
 #if __BITS_PER_LONG != 64 || defined(__ARCH_WANT_STAT64)
 typedef struct stat64   lstat_t;
 #define lstat_f  lstat64
+#define fstat_f		fstat64
+#define fstatat_f	fstatat64
 #else
 typedef struct stat     lstat_t;
 #define lstat_f  lstat
+#define fstat_f		fstat
+#define fstatat_f	fstatat
 #endif
 
 #define HAVE_LOV_USER_MDS_DATA
@@ -234,7 +238,7 @@ struct ost_id {
 /* #define LL_IOC_POLL_QUOTACHECK	161 OBD_IOC_POLL_QUOTACHECK */
 /* #define LL_IOC_QUOTACTL		162 OBD_IOC_QUOTACTL */
 #define IOC_OBD_STATFS		  _IOWR('f', 164, struct obd_statfs *)
-#define IOC_LOV_GETINFO		 _IOWR('f', 165, struct lov_user_mds_data *)
+/*	IOC_LOV_GETINFO			165 obsolete */
 #define LL_IOC_FLUSHCTX		 _IOW('f', 166, long)
 /* LL_IOC_RMTACL			167 obsolete */
 #define LL_IOC_GETOBDCOUNT	      _IOR('f', 168, long)

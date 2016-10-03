@@ -741,8 +741,6 @@ enum ldlm_mode ll_take_md_lock(struct inode *inode, __u64 bits,
 			       enum ldlm_mode mode);
 int ll_file_open(struct inode *inode, struct file *file);
 int ll_file_release(struct inode *inode, struct file *file);
-int ll_glimpse_ioctl(struct ll_sb_info *sbi,
-		     struct lov_stripe_md *lsm, lstat_t *st);
 int ll_release_openhandle(struct inode *, struct lookup_intent *);
 int ll_md_real_close(struct inode *inode, fmode_t fmode);
 void ll_pack_inode2opdata(struct inode *inode, struct md_op_data *op_data,
