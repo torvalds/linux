@@ -60,8 +60,6 @@ void lov_finish_set(struct lov_request_set *set)
 							 rq_link);
 		list_del_init(&req->rq_link);
 
-		if (req->rq_oi.oi_oa)
-			kmem_cache_free(obdo_cachep, req->rq_oi.oi_oa);
 		kfree(req->rq_oi.oi_osfs);
 		kfree(req);
 	}

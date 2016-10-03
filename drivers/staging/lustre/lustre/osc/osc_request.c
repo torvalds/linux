@@ -82,7 +82,7 @@ struct osc_setattr_args {
 };
 
 struct osc_fsync_args {
-	struct obd_info     *fa_oi;
+	struct obdo		*fa_oa;
 	obd_enqueue_update_f fa_upcall;
 	void		*fa_cookie;
 };
@@ -166,19 +166,18 @@ static int osc_unpackmd(struct obd_export *exp, struct lov_stripe_md **lsmp,
 }
 
 static inline void osc_pack_req_body(struct ptlrpc_request *req,
-				     struct obd_info *oinfo)
+				     struct obdo *oa)
 {
 	struct ost_body *body;
 
 	body = req_capsule_client_get(&req->rq_pill, &RMF_OST_BODY);
 	LASSERT(body);
 
-	lustre_set_wire_obdo(&req->rq_import->imp_connect_data, &body->oa,
-			     oinfo->oi_oa);
+	lustre_set_wire_obdo(&req->rq_import->imp_connect_data, &body->oa, oa);
 }
 
 static int osc_getattr(const struct lu_env *env, struct obd_export *exp,
-		       struct obd_info *oinfo)
+		       struct obdo *oa)
 {
 	struct ptlrpc_request *req;
 	struct ost_body *body;
@@ -194,7 +193,7 @@ static int osc_getattr(const struct lu_env *env, struct obd_export *exp,
 		return rc;
 	}
 
-	osc_pack_req_body(req, oinfo);
+	osc_pack_req_body(req, oa);
 
 	ptlrpc_request_set_replen(req);
 
@@ -209,11 +208,11 @@ static int osc_getattr(const struct lu_env *env, struct obd_export *exp,
 	}
 
 	CDEBUG(D_INODE, "mode: %o\n", body->oa.o_mode);
-	lustre_get_wire_obdo(&req->rq_import->imp_connect_data, oinfo->oi_oa,
+	lustre_get_wire_obdo(&req->rq_import->imp_connect_data, oa,
 			     &body->oa);
 
-	oinfo->oi_oa->o_blksize = cli_brw_size(exp->exp_obd);
-	oinfo->oi_oa->o_valid |= OBD_MD_FLBLKSZ;
+	oa->o_blksize = cli_brw_size(exp->exp_obd);
+	oa->o_valid |= OBD_MD_FLBLKSZ;
 
  out:
 	ptlrpc_req_finished(req);
@@ -221,13 +220,13 @@ static int osc_getattr(const struct lu_env *env, struct obd_export *exp,
 }
 
 static int osc_setattr(const struct lu_env *env, struct obd_export *exp,
-		       struct obd_info *oinfo)
+		       struct obdo *oa)
 {
 	struct ptlrpc_request *req;
 	struct ost_body *body;
 	int rc;
 
-	LASSERT(oinfo->oi_oa->o_valid & OBD_MD_FLGROUP);
+	LASSERT(oa->o_valid & OBD_MD_FLGROUP);
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_OST_SETATTR);
 	if (!req)
@@ -239,7 +238,7 @@ static int osc_setattr(const struct lu_env *env, struct obd_export *exp,
 		return rc;
 	}
 
-	osc_pack_req_body(req, oinfo);
+	osc_pack_req_body(req, oa);
 
 	ptlrpc_request_set_replen(req);
 
@@ -253,7 +252,7 @@ static int osc_setattr(const struct lu_env *env, struct obd_export *exp,
 		goto out;
 	}
 
-	lustre_get_wire_obdo(&req->rq_import->imp_connect_data, oinfo->oi_oa,
+	lustre_get_wire_obdo(&req->rq_import->imp_connect_data, oa,
 			     &body->oa);
 
 out:
@@ -283,7 +282,7 @@ out:
 	return rc;
 }
 
-int osc_setattr_async(struct obd_export *exp, struct obd_info *oinfo,
+int osc_setattr_async(struct obd_export *exp, struct obdo *oa,
 		      obd_enqueue_update_f upcall, void *cookie,
 		      struct ptlrpc_request_set *rqset)
 {
@@ -301,7 +300,7 @@ int osc_setattr_async(struct obd_export *exp, struct obd_info *oinfo,
 		return rc;
 	}
 
-	osc_pack_req_body(req, oinfo);
+	osc_pack_req_body(req, oa);
 
 	ptlrpc_request_set_replen(req);
 
@@ -315,7 +314,7 @@ int osc_setattr_async(struct obd_export *exp, struct obd_info *oinfo,
 
 		CLASSERT(sizeof(*sa) <= sizeof(req->rq_async_args));
 		sa = ptlrpc_req_async_args(req);
-		sa->sa_oa = oinfo->oi_oa;
+		sa->sa_oa = oa;
 		sa->sa_upcall = upcall;
 		sa->sa_cookie = cookie;
 
@@ -382,7 +381,7 @@ out:
 	return rc;
 }
 
-int osc_punch_base(struct obd_export *exp, struct obd_info *oinfo,
+int osc_punch_base(struct obd_export *exp, struct obdo *oa,
 		   obd_enqueue_update_f upcall, void *cookie,
 		   struct ptlrpc_request_set *rqset)
 {
@@ -406,14 +405,14 @@ int osc_punch_base(struct obd_export *exp, struct obd_info *oinfo,
 	body = req_capsule_client_get(&req->rq_pill, &RMF_OST_BODY);
 	LASSERT(body);
 	lustre_set_wire_obdo(&req->rq_import->imp_connect_data, &body->oa,
-			     oinfo->oi_oa);
+			     oa);
 
 	ptlrpc_request_set_replen(req);
 
 	req->rq_interpret_reply = (ptlrpc_interpterer_t)osc_setattr_interpret;
 	CLASSERT(sizeof(*sa) <= sizeof(req->rq_async_args));
 	sa = ptlrpc_req_async_args(req);
-	sa->sa_oa = oinfo->oi_oa;
+	sa->sa_oa = oa;
 	sa->sa_upcall = upcall;
 	sa->sa_cookie = cookie;
 	if (rqset == PTLRPCD_SET)
@@ -441,13 +440,13 @@ static int osc_sync_interpret(const struct lu_env *env,
 		goto out;
 	}
 
-	*fa->fa_oi->oi_oa = body->oa;
+	*fa->fa_oa = body->oa;
 out:
 	rc = fa->fa_upcall(fa->fa_cookie, rc);
 	return rc;
 }
 
-int osc_sync_base(struct obd_export *exp, struct obd_info *oinfo,
+int osc_sync_base(struct obd_export *exp, struct obdo *oa,
 		  obd_enqueue_update_f upcall, void *cookie,
 		  struct ptlrpc_request_set *rqset)
 {
@@ -470,14 +469,14 @@ int osc_sync_base(struct obd_export *exp, struct obd_info *oinfo,
 	body = req_capsule_client_get(&req->rq_pill, &RMF_OST_BODY);
 	LASSERT(body);
 	lustre_set_wire_obdo(&req->rq_import->imp_connect_data, &body->oa,
-			     oinfo->oi_oa);
+			     oa);
 
 	ptlrpc_request_set_replen(req);
 	req->rq_interpret_reply = osc_sync_interpret;
 
 	CLASSERT(sizeof(*fa) <= sizeof(req->rq_async_args));
 	fa = ptlrpc_req_async_args(req);
-	fa->fa_oi = oinfo;
+	fa->fa_oa = oa;
 	fa->fa_upcall = upcall;
 	fa->fa_cookie = cookie;
 

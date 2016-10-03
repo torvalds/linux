@@ -126,17 +126,10 @@ typedef int (*obd_enqueue_update_f)(void *cookie, int rc);
 
 /* obd info for a particular level (lov, osc). */
 struct obd_info {
-	/* Flags used for set request specific flags:
-	   - while lock handling, the flags obtained on the enqueue
-	   request are set here.
-	   - while stats, the flags used for control delay/resend.
-	   - while setattr, the flags used for distinguish punch operation
-	 */
+	/* OBD_STATFS_* flags */
 	__u64		   oi_flags;
 	/* lsm data specific for every OSC. */
 	struct lov_stripe_md   *oi_md;
-	/* obdo data specific for every OSC, if needed at all. */
-	struct obdo	    *oi_oa;
 	/* statfs data specific for every OSC, if needed at all. */
 	struct obd_statfs      *oi_osfs;
 	/* An update callback which is called to update some data on upper
@@ -871,9 +864,9 @@ struct obd_ops {
 	int (*destroy)(const struct lu_env *env, struct obd_export *exp,
 		       struct obdo *oa);
 	int (*setattr)(const struct lu_env *, struct obd_export *exp,
-		       struct obd_info *oinfo);
+		       struct obdo *oa);
 	int (*getattr)(const struct lu_env *env, struct obd_export *exp,
-		       struct obd_info *oinfo);
+		       struct obdo *oa);
 	int (*preprw)(const struct lu_env *env, int cmd,
 		      struct obd_export *exp, struct obdo *oa, int objcount,
 		      struct obd_ioobj *obj, struct niobuf_remote *remote,

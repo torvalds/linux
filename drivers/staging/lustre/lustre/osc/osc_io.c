@@ -484,7 +484,6 @@ static int osc_io_setattr_start(const struct lu_env *env,
 	__u64 size = io->u.ci_setattr.sa_attr.lvb_size;
 	unsigned int ia_valid = io->u.ci_setattr.sa_valid;
 	int result = 0;
-	struct obd_info oinfo = { };
 
 	/* truncate cache dirty pages first */
 	if (cl_io_is_trunc(io))
@@ -554,16 +553,15 @@ static int osc_io_setattr_start(const struct lu_env *env,
 			oa->o_valid |= OBD_MD_FLFLAGS;
 		}
 
-		oinfo.oi_oa = oa;
 		init_completion(&cbargs->opc_sync);
 
 		if (ia_valid & ATTR_SIZE)
 			result = osc_punch_base(osc_export(cl2osc(obj)),
-						&oinfo, osc_async_upcall,
+						oa, osc_async_upcall,
 						cbargs, PTLRPCD_SET);
 		else
 			result = osc_setattr_async(osc_export(cl2osc(obj)),
-						   &oinfo, osc_async_upcall,
+						   oa, osc_async_upcall,
 						   cbargs, PTLRPCD_SET);
 		cbargs->opc_rpc_sent = result == 0;
 	}
@@ -745,7 +743,6 @@ static int osc_fsync_ost(const struct lu_env *env, struct osc_object *obj,
 {
 	struct osc_io *oio = osc_env_io(env);
 	struct obdo *oa = &oio->oi_oa;
-	struct obd_info *oinfo = &oio->oi_info;
 	struct lov_oinfo *loi = obj->oo_oinfo;
 	struct osc_async_cbargs *cbargs = &oio->oi_cbarg;
 	int rc = 0;
@@ -761,11 +758,9 @@ static int osc_fsync_ost(const struct lu_env *env, struct osc_object *obj,
 
 	obdo_set_parent_fid(oa, fio->fi_fid);
 
-	memset(oinfo, 0, sizeof(*oinfo));
-	oinfo->oi_oa = oa;
 	init_completion(&cbargs->opc_sync);
 
-	rc = osc_sync_base(osc_export(obj), oinfo, osc_async_upcall, cbargs,
+	rc = osc_sync_base(osc_export(obj), oa, osc_async_upcall, cbargs,
 			   PTLRPCD_SET);
 	return rc;
 }
