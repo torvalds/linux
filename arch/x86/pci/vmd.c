@@ -596,6 +596,7 @@ static int vmd_enable_domain(struct vmd_dev *vmd)
 		.parent = res,
 	};
 
+	sd->vmd_domain = true;
 	sd->domain = vmd_find_free_domain();
 	if (sd->domain < 0)
 		return sd->domain;

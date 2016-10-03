@@ -113,6 +113,9 @@ static int init_slot(struct controller *ctrl)
 	if (ATTN_LED(ctrl)) {
 		ops->get_attention_status = get_attention_status;
 		ops->set_attention_status = set_attention_status;
+	} else if (ctrl->pcie->port->hotplug_user_indicators) {
+		ops->get_attention_status = pciehp_get_raw_indicator_status;
+		ops->set_attention_status = pciehp_set_raw_indicator_status;
 	}
 
 	/* register this slot with the hotplug pci core */
