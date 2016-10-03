@@ -753,6 +753,7 @@ xfs_bmap_extents_to_btree(
 		args.type = XFS_ALLOCTYPE_START_BNO;
 		args.fsbno = XFS_INO_TO_FSB(mp, ip->i_ino);
 	} else if (dfops->dop_low) {
+try_another_ag:
 		args.type = XFS_ALLOCTYPE_START_BNO;
 		args.fsbno = *firstblock;
 	} else {
@@ -766,6 +767,21 @@ xfs_bmap_extents_to_btree(
 		xfs_iroot_realloc(ip, -1, whichfork);
 		xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
 		return error;
+	}
+
+	/*
+	 * During a CoW operation, the allocation and bmbt updates occur in
+	 * different transactions.  The mapping code tries to put new bmbt
+	 * blocks near extents being mapped, but the only way to guarantee this
+	 * is if the alloc and the mapping happen in a single transaction that
+	 * has a block reservation.  That isn't the case here, so if we run out
+	 * of space we'll try again with another AG.
+	 */
+	if (xfs_sb_version_hasreflink(&cur->bc_mp->m_sb) &&
+	    args.fsbno == NULLFSBLOCK &&
+	    args.type == XFS_ALLOCTYPE_NEAR_BNO) {
+		dfops->dop_low = true;
+		goto try_another_ag;
 	}
 	/*
 	 * Allocation can't fail, the space was reserved.
@@ -902,6 +918,7 @@ xfs_bmap_local_to_extents(
 	 * file currently fits in an inode.
 	 */
 	if (*firstblock == NULLFSBLOCK) {
+try_another_ag:
 		args.fsbno = XFS_INO_TO_FSB(args.mp, ip->i_ino);
 		args.type = XFS_ALLOCTYPE_START_BNO;
 	} else {
@@ -914,6 +931,19 @@ xfs_bmap_local_to_extents(
 	if (error)
 		goto done;
 
+	/*
+	 * During a CoW operation, the allocation and bmbt updates occur in
+	 * different transactions.  The mapping code tries to put new bmbt
+	 * blocks near extents being mapped, but the only way to guarantee this
+	 * is if the alloc and the mapping happen in a single transaction that
+	 * has a block reservation.  That isn't the case here, so if we run out
+	 * of space we'll try again with another AG.
+	 */
+	if (xfs_sb_version_hasreflink(&ip->i_mount->m_sb) &&
+	    args.fsbno == NULLFSBLOCK &&
+	    args.type == XFS_ALLOCTYPE_NEAR_BNO) {
+		goto try_another_ag;
+	}
 	/* Can't fail, the space was reserved. */
 	ASSERT(args.fsbno != NULLFSBLOCK);
 	ASSERT(args.len == 1);
