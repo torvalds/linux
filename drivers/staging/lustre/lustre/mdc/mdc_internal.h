@@ -46,7 +46,7 @@ void mdc_readdir_pack(struct ptlrpc_request *req, __u64 pgoff, size_t size,
 void mdc_getattr_pack(struct ptlrpc_request *req, __u64 valid, u32 flags,
 		      struct md_op_data *data, size_t ea_size);
 void mdc_setattr_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
-		      void *ea, size_t ealen, void *ea2, size_t ea2len);
+		      void *ea, size_t ealen);
 void mdc_create_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 		     const void *data, size_t datalen, umode_t mode, uid_t uid,
 		     gid_t gid, cfs_cap_t capability, __u64 rdev);
@@ -105,8 +105,7 @@ int mdc_rename(struct obd_export *exp, struct md_op_data *op_data,
 	       const char *new, size_t newlen,
 	       struct ptlrpc_request **request);
 int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
-		void *ea, size_t ealen, void *ea2, size_t ea2len,
-		struct ptlrpc_request **request, struct md_open_data **mod);
+		void *ea, size_t ealen, struct ptlrpc_request **request);
 int mdc_unlink(struct obd_export *exp, struct md_op_data *op_data,
 	       struct ptlrpc_request **request);
 int mdc_cancel_unused(struct obd_export *exp, const struct lu_fid *fid,

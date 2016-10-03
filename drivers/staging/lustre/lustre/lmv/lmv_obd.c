@@ -1728,27 +1728,6 @@ static int lmv_create(struct obd_export *exp, struct md_op_data *op_data,
 	return rc;
 }
 
-static int lmv_done_writing(struct obd_export *exp,
-			    struct md_op_data *op_data,
-			    struct md_open_data *mod)
-{
-	struct obd_device     *obd = exp->exp_obd;
-	struct lmv_obd	*lmv = &obd->u.lmv;
-	struct lmv_tgt_desc   *tgt;
-	int		    rc;
-
-	rc = lmv_check_connect(obd);
-	if (rc)
-		return rc;
-
-	tgt = lmv_find_target(lmv, &op_data->op_fid1);
-	if (IS_ERR(tgt))
-		return PTR_ERR(tgt);
-
-	rc = md_done_writing(tgt->ltd_exp, op_data, mod);
-	return rc;
-}
-
 static int
 lmv_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 	    const ldlm_policy_data_t *policy,
@@ -2065,9 +2044,7 @@ static int lmv_rename(struct obd_export *exp, struct md_op_data *op_data,
 }
 
 static int lmv_setattr(struct obd_export *exp, struct md_op_data *op_data,
-		       void *ea, size_t ealen, void *ea2, size_t ea2len,
-		       struct ptlrpc_request **request,
-		       struct md_open_data **mod)
+		       void *ea, size_t ealen, struct ptlrpc_request **request)
 {
 	struct obd_device       *obd = exp->exp_obd;
 	struct lmv_obd	  *lmv = &obd->u.lmv;
@@ -2086,10 +2063,7 @@ static int lmv_setattr(struct obd_export *exp, struct md_op_data *op_data,
 	if (IS_ERR(tgt))
 		return PTR_ERR(tgt);
 
-	rc = md_setattr(tgt->ltd_exp, op_data, ea, ealen, ea2,
-			ea2len, request, mod);
-
-	return rc;
+	return md_setattr(tgt->ltd_exp, op_data, ea, ealen, request);
 }
 
 static int lmv_sync(struct obd_export *exp, const struct lu_fid *fid,
@@ -3363,7 +3337,6 @@ static struct md_ops lmv_md_ops = {
 	.null_inode		= lmv_null_inode,
 	.close			= lmv_close,
 	.create			= lmv_create,
-	.done_writing		= lmv_done_writing,
 	.enqueue		= lmv_enqueue,
 	.getattr		= lmv_getattr,
 	.getxattr		= lmv_getxattr,

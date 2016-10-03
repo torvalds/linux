@@ -1295,8 +1295,7 @@ void ll_clear_inode(struct inode *inode)
 
 #define TIMES_SET_FLAGS (ATTR_MTIME_SET | ATTR_ATIME_SET | ATTR_TIMES_SET)
 
-static int ll_md_setattr(struct dentry *dentry, struct md_op_data *op_data,
-			 struct md_open_data **mod)
+static int ll_md_setattr(struct dentry *dentry, struct md_op_data *op_data)
 {
 	struct lustre_md md;
 	struct inode *inode = d_inode(dentry);
@@ -1309,8 +1308,7 @@ static int ll_md_setattr(struct dentry *dentry, struct md_op_data *op_data,
 	if (IS_ERR(op_data))
 		return PTR_ERR(op_data);
 
-	rc = md_setattr(sbi->ll_md_exp, op_data, NULL, 0, NULL, 0,
-			&request, mod);
+	rc = md_setattr(sbi->ll_md_exp, op_data, NULL, 0, &request);
 	if (rc) {
 		ptlrpc_req_finished(request);
 		if (rc == -ENOENT) {
@@ -1372,7 +1370,6 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 	struct inode *inode = d_inode(dentry);
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct md_op_data *op_data = NULL;
-	struct md_open_data *mod = NULL;
 	bool file_is_released = false;
 	int rc = 0;
 
@@ -1477,7 +1474,7 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 
 	memcpy(&op_data->op_attr, attr, sizeof(*attr));
 
-	rc = ll_md_setattr(dentry, op_data, &mod);
+	rc = ll_md_setattr(dentry, op_data);
 	if (rc)
 		goto out;
 
@@ -1896,8 +1893,7 @@ int ll_iocontrol(struct inode *inode, struct file *file,
 
 		op_data->op_attr_flags = flags;
 		op_data->op_attr.ia_valid |= ATTR_ATTR_FLAG;
-		rc = md_setattr(sbi->ll_md_exp, op_data,
-				NULL, 0, NULL, 0, &req, NULL);
+		rc = md_setattr(sbi->ll_md_exp, op_data, NULL, 0, &req);
 		ll_finish_md_op_data(op_data);
 		ptlrpc_req_finished(req);
 		if (rc)

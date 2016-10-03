@@ -2049,8 +2049,6 @@ enum md_op_flags {
 	MF_GET_MDT_IDX	  = (1 << 9),
 };
 
-#define MF_SOM_LOCAL_FLAGS (MF_SOM_CHANGE | MF_EPOCH_OPEN | MF_EPOCH_CLOSE)
-
 #define LUSTRE_BFLAG_UNCOMMITTED_WRITES   0x1
 
 /* these should be identical to their EXT4_*_FL counterparts, they are

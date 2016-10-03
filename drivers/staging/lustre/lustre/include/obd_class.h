@@ -269,10 +269,8 @@ static inline int lprocfs_climp_check(struct obd_device *obd)
 struct inode;
 struct lu_attr;
 struct obdo;
-void obdo_refresh_inode(struct inode *dst, const struct obdo *src, u32 valid);
 
 void obdo_to_ioobj(const struct obdo *oa, struct obd_ioobj *ioobj);
-void md_from_obdo(struct md_op_data *op_data, const struct obdo *oa, u32 valid);
 
 #define OBT(dev)	(dev)->obd_type
 #define OBP(dev, op)    (dev)->obd_type->typ_dt_ops->op
@@ -1346,18 +1344,6 @@ static inline int md_create(struct obd_export *exp, struct md_op_data *op_data,
 	return rc;
 }
 
-static inline int md_done_writing(struct obd_export *exp,
-				  struct md_op_data *op_data,
-				  struct md_open_data *mod)
-{
-	int rc;
-
-	EXP_CHECK_MD_OP(exp, done_writing);
-	EXP_MD_COUNTER_INCREMENT(exp, done_writing);
-	rc = MDP(exp->exp_obd, done_writing)(exp, op_data, mod);
-	return rc;
-}
-
 static inline int md_enqueue(struct obd_export *exp,
 			     struct ldlm_enqueue_info *einfo,
 			     const ldlm_policy_data_t *policy,
@@ -1428,16 +1414,14 @@ static inline int md_rename(struct obd_export *exp, struct md_op_data *op_data,
 }
 
 static inline int md_setattr(struct obd_export *exp, struct md_op_data *op_data,
-			     void *ea, size_t ealen, void *ea2, size_t ea2len,
-			     struct ptlrpc_request **request,
-			     struct md_open_data **mod)
+			     void *ea, size_t ealen,
+			     struct ptlrpc_request **request)
 {
 	int rc;
 
 	EXP_CHECK_MD_OP(exp, setattr);
 	EXP_MD_COUNTER_INCREMENT(exp, setattr);
-	rc = MDP(exp->exp_obd, setattr)(exp, op_data, ea, ealen,
-					ea2, ea2len, request, mod);
+	rc = MDP(exp->exp_obd, setattr)(exp, op_data, ea, ealen, request);
 	return rc;
 }
 

@@ -528,10 +528,6 @@ static int mdc_free_lustre_md(struct obd_export *exp, struct lustre_md *md)
 	return 0;
 }
 
-/**
- * Handles both OPEN and SETATTR RPCs for OPEN-CLOSE and SETATTR-DONE_WRITING
- * RPC chains.
- */
 void mdc_replay_open(struct ptlrpc_request *req)
 {
 	struct md_open_data *mod = req->rq_cb_data;
@@ -565,7 +561,7 @@ void mdc_replay_open(struct ptlrpc_request *req)
 		__u32 opc = lustre_msg_get_opc(close_req->rq_reqmsg);
 		struct mdt_ioepoch *epoch;
 
-		LASSERT(opc == MDS_CLOSE || opc == MDS_DONE_WRITING);
+		LASSERT(opc == MDS_CLOSE);
 		epoch = req_capsule_client_get(&close_req->rq_pill,
 					       &RMF_MDT_EPOCH);
 		LASSERT(epoch);
@@ -715,22 +711,6 @@ static int mdc_clear_open_replay_data(struct obd_export *exp,
 	return 0;
 }
 
-/* Prepares the request for the replay by the given reply */
-static void mdc_close_handle_reply(struct ptlrpc_request *req,
-				   struct md_op_data *op_data, int rc) {
-	struct mdt_body  *repbody;
-	struct mdt_ioepoch *epoch;
-
-	if (req && rc == -EAGAIN) {
-		repbody = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
-		epoch = req_capsule_client_get(&req->rq_pill, &RMF_MDT_EPOCH);
-
-		epoch->flags |= MF_SOM_AU;
-		if (repbody->mbo_valid & OBD_MD_FLGETATTRLOCK)
-			op_data->op_flags |= MF_GETATTR_LOCK;
-	}
-}
-
 static int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 		     struct md_open_data *mod, struct ptlrpc_request **request)
 {
@@ -857,77 +837,7 @@ out:
 		obd_mod_put(mod);
 	}
 	*request = req;
-	mdc_close_handle_reply(req, op_data, rc);
 	return rc < 0 ? rc : saved_rc;
-}
-
-static int mdc_done_writing(struct obd_export *exp, struct md_op_data *op_data,
-			    struct md_open_data *mod)
-{
-	struct obd_device     *obd = class_exp2obd(exp);
-	struct ptlrpc_request *req;
-	int		    rc;
-
-	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
-				   &RQF_MDS_DONE_WRITING);
-	if (!req)
-		return -ENOMEM;
-
-	rc = ptlrpc_request_pack(req, LUSTRE_MDS_VERSION, MDS_DONE_WRITING);
-	if (rc) {
-		ptlrpc_request_free(req);
-		return rc;
-	}
-
-	if (mod) {
-		LASSERTF(mod->mod_open_req &&
-			 mod->mod_open_req->rq_type != LI_POISON,
-			 "POISONED setattr %p!\n", mod->mod_open_req);
-
-		mod->mod_close_req = req;
-		DEBUG_REQ(D_HA, mod->mod_open_req, "matched setattr");
-		/* We no longer want to preserve this setattr for replay even
-		 * though the open was committed. b=3632, b=3633
-		 */
-		spin_lock(&mod->mod_open_req->rq_lock);
-		mod->mod_open_req->rq_replay = 0;
-		spin_unlock(&mod->mod_open_req->rq_lock);
-	}
-
-	mdc_close_pack(req, op_data);
-	ptlrpc_request_set_replen(req);
-
-	mdc_get_rpc_lock(obd->u.cli.cl_close_lock, NULL);
-	rc = ptlrpc_queue_wait(req);
-	mdc_put_rpc_lock(obd->u.cli.cl_close_lock, NULL);
-
-	if (rc == -ESTALE) {
-		/**
-		 * it can be allowed error after 3633 if open or setattr were
-		 * committed and server failed before close was sent.
-		 * Let's check if mod exists and return no error in that case
-		 */
-		if (mod) {
-			if (mod->mod_open_req->rq_committed)
-				rc = 0;
-		}
-	}
-
-	if (mod) {
-		if (rc != 0)
-			mod->mod_close_req = NULL;
-		LASSERT(mod->mod_open_req);
-		mdc_free_open(mod);
-
-		/* Since now, mod is accessed through setattr req only,
-		 * thus DW req does not keep a reference on mod anymore.
-		 */
-		obd_mod_put(mod);
-	}
-
-	mdc_close_handle_reply(req, op_data, rc);
-	ptlrpc_req_finished(req);
-	return rc;
 }
 
 static int mdc_getpage(struct obd_export *exp, const struct lu_fid *fid,
@@ -2889,7 +2799,6 @@ static struct md_ops mdc_md_ops = {
 	.null_inode		= mdc_null_inode,
 	.close			= mdc_close,
 	.create			= mdc_create,
-	.done_writing		= mdc_done_writing,
 	.enqueue		= mdc_enqueue,
 	.getattr		= mdc_getattr,
 	.getattr_name		= mdc_getattr_name,

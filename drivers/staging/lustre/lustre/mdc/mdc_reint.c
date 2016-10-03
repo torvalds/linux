@@ -99,8 +99,7 @@ int mdc_resource_get_unused(struct obd_export *exp, const struct lu_fid *fid,
 }
 
 int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
-		void *ea, size_t ealen, void *ea2, size_t ea2len,
-		struct ptlrpc_request **request, struct md_open_data **mod)
+		void *ea, size_t ealen, struct ptlrpc_request **request)
 {
 	LIST_HEAD(cancels);
 	struct ptlrpc_request *req;
@@ -122,12 +121,9 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 		ldlm_lock_list_put(&cancels, l_bl_ast, count);
 		return -ENOMEM;
 	}
-	if ((op_data->op_flags & (MF_SOM_CHANGE | MF_EPOCH_OPEN)) == 0)
-		req_capsule_set_size(&req->rq_pill, &RMF_MDT_EPOCH, RCL_CLIENT,
-				     0);
+	req_capsule_set_size(&req->rq_pill, &RMF_MDT_EPOCH, RCL_CLIENT, 0);
 	req_capsule_set_size(&req->rq_pill, &RMF_EADATA, RCL_CLIENT, ealen);
-	req_capsule_set_size(&req->rq_pill, &RMF_LOGCOOKIES, RCL_CLIENT,
-			     ea2len);
+	req_capsule_set_size(&req->rq_pill, &RMF_LOGCOOKIES, RCL_CLIENT, 0);
 
 	rc = mdc_prep_elc_req(exp, req, MDS_REINT, &cancels, count);
 	if (rc) {
@@ -141,57 +137,17 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 		CDEBUG(D_INODE, "setting mtime %ld, ctime %ld\n",
 		       LTIME_S(op_data->op_attr.ia_mtime),
 		       LTIME_S(op_data->op_attr.ia_ctime));
-	mdc_setattr_pack(req, op_data, ea, ealen, ea2, ea2len);
+	mdc_setattr_pack(req, op_data, ea, ealen);
 
 	ptlrpc_request_set_replen(req);
-	if (mod && (op_data->op_flags & MF_EPOCH_OPEN) &&
-	    req->rq_import->imp_replayable) {
-		LASSERT(!*mod);
-
-		*mod = obd_mod_alloc();
-		if (!*mod) {
-			DEBUG_REQ(D_ERROR, req, "Can't allocate md_open_data");
-		} else {
-			req->rq_replay = 1;
-			req->rq_cb_data = *mod;
-			(*mod)->mod_open_req = req;
-			req->rq_commit_cb = mdc_commit_open;
-			(*mod)->mod_is_create = true;
-			/**
-			 * Take an extra reference on \var mod, it protects \var
-			 * mod from being freed on eviction (commit callback is
-			 * called despite rq_replay flag).
-			 * Will be put on mdc_done_writing().
-			 */
-			obd_mod_get(*mod);
-		}
-	}
 
 	rc = mdc_reint(req, rpc_lock, LUSTRE_IMP_FULL);
 
-	/* Save the obtained info in the original RPC for the replay case. */
-	if (rc == 0 && (op_data->op_flags & MF_EPOCH_OPEN)) {
-		struct mdt_ioepoch *epoch;
-		struct mdt_body  *body;
+	if (rc == -ERESTARTSYS)
+		rc = 0;
 
-		epoch = req_capsule_client_get(&req->rq_pill, &RMF_MDT_EPOCH);
-		body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
-		epoch->handle = body->mbo_handle;
-		epoch->ioepoch = body->mbo_ioepoch;
-		req->rq_replay_cb = mdc_replay_open;
-	/** bug 3633, open may be committed and estale answer is not error */
-	} else if (rc == -ESTALE && (op_data->op_flags & MF_SOM_CHANGE)) {
-		rc = 0;
-	} else if (rc == -ERESTARTSYS) {
-		rc = 0;
-	}
 	*request = req;
-	if (rc && req->rq_commit_cb) {
-		/* Put an extra reference on \var mod on error case. */
-		if (mod && *mod)
-			obd_mod_put(*mod);
-		req->rq_commit_cb(req);
-	}
+
 	return rc;
 }
 

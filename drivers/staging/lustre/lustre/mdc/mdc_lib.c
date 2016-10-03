@@ -139,7 +139,7 @@ void mdc_create_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 	rec->cr_time     = op_data->op_mod_time;
 	rec->cr_suppgid1 = op_data->op_suppgids[0];
 	rec->cr_suppgid2 = op_data->op_suppgids[1];
-	flags = op_data->op_flags & MF_SOM_LOCAL_FLAGS;
+	flags = 0;
 	if (op_data->op_bias & MDS_CREATE_VOLATILE)
 		flags |= MDS_OPEN_VOLATILE;
 	set_mrc_cr_flags(rec, flags);
@@ -302,26 +302,20 @@ static void mdc_ioepoch_pack(struct mdt_ioepoch *epoch,
 			     struct md_op_data *op_data)
 {
 	memcpy(&epoch->handle, &op_data->op_handle, sizeof(epoch->handle));
-	epoch->ioepoch = op_data->op_ioepoch;
-	epoch->flags = op_data->op_flags & MF_SOM_LOCAL_FLAGS;
+	epoch->ioepoch = 0;
+	epoch->flags = 0;
 }
 
 void mdc_setattr_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
-		      void *ea, size_t ealen, void *ea2, size_t ea2len)
+		      void *ea, size_t ealen)
 {
 	struct mdt_rec_setattr *rec;
-	struct mdt_ioepoch *epoch;
 	struct lov_user_md *lum = NULL;
 
 	CLASSERT(sizeof(struct mdt_rec_reint) ==
 					sizeof(struct mdt_rec_setattr));
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
 	mdc_setattr_pack_rec(rec, op_data);
-
-	if (op_data->op_flags & (MF_SOM_CHANGE | MF_EPOCH_OPEN)) {
-		epoch = req_capsule_client_get(&req->rq_pill, &RMF_MDT_EPOCH);
-		mdc_ioepoch_pack(epoch, op_data);
-	}
 
 	if (ealen == 0)
 		return;
@@ -335,12 +329,6 @@ void mdc_setattr_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 	} else {
 		memcpy(lum, ea, ealen);
 	}
-
-	if (ea2len == 0)
-		return;
-
-	memcpy(req_capsule_client_get(&req->rq_pill, &RMF_LOGCOOKIES), ea2,
-	       ea2len);
 }
 
 void mdc_unlink_pack(struct ptlrpc_request *req, struct md_op_data *op_data)

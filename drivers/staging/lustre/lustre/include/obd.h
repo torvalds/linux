@@ -789,8 +789,6 @@ struct md_op_data {
 	__u64		   op_valid;
 	loff_t		  op_attr_blocks;
 
-	/* Size-on-MDS epoch and flags. */
-	__u64		   op_ioepoch;
 	__u32		   op_flags;
 
 	/* Various operation flags. */
@@ -992,8 +990,6 @@ struct md_ops {
 	int (*create)(struct obd_export *, struct md_op_data *,
 		      const void *, size_t, umode_t, uid_t, gid_t,
 		      cfs_cap_t, __u64, struct ptlrpc_request **);
-	int (*done_writing)(struct obd_export *, struct md_op_data  *,
-			    struct md_open_data *);
 	int (*enqueue)(struct obd_export *, struct ldlm_enqueue_info *,
 		       const ldlm_policy_data_t *,
 		       struct lookup_intent *, struct md_op_data *,
@@ -1012,8 +1008,7 @@ struct md_ops {
 		      const char *, size_t, const char *, size_t,
 		      struct ptlrpc_request **);
 	int (*setattr)(struct obd_export *, struct md_op_data *, void *,
-		       size_t, void *, size_t, struct ptlrpc_request **,
-			 struct md_open_data **mod);
+		       size_t, struct ptlrpc_request **);
 	int (*sync)(struct obd_export *, const struct lu_fid *,
 		    struct ptlrpc_request **);
 	int (*read_page)(struct obd_export *, struct md_op_data *,

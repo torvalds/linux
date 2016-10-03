@@ -214,15 +214,6 @@ static int common_attr_done(struct lov_request_set *set)
 		CERROR("No stripes had valid attrs\n");
 		rc = -EIO;
 	}
-	if ((set->set_oi->oi_oa->o_valid & OBD_MD_FLEPOCH) &&
-	    (set->set_oi->oi_md->lsm_stripe_count != attrset)) {
-		/* When we take attributes of some epoch, we require all the
-		 * ost to be active.
-		 */
-		CERROR("Not all the stripes had valid attrs\n");
-		rc = -EIO;
-		goto out;
-	}
 
 	tmp_oa->o_oi = set->set_oi->oi_oa->o_oi;
 	memcpy(set->set_oi->oi_oa, tmp_oa, sizeof(*set->set_oi->oi_oa));
@@ -284,11 +275,6 @@ int lov_prep_getattr_set(struct obd_export *exp, struct obd_info *oinfo,
 
 		if (!lov_check_and_wait_active(lov, loi->loi_ost_idx)) {
 			CDEBUG(D_HA, "lov idx %d inactive\n", loi->loi_ost_idx);
-			if (oinfo->oi_oa->o_valid & OBD_MD_FLEPOCH) {
-				/* SOM requires all the OSTs to be active. */
-				rc = -EIO;
-				goto out_set;
-			}
 			continue;
 		}
 

@@ -501,8 +501,7 @@ int ll_dir_setstripe(struct inode *inode, struct lov_user_md *lump,
 		return PTR_ERR(op_data);
 
 	/* swabbing is done in lov_setstripe() on server side */
-	rc = md_setattr(sbi->ll_md_exp, op_data, lump, lum_size,
-			NULL, 0, &req, NULL);
+	rc = md_setattr(sbi->ll_md_exp, op_data, lump, lum_size, &req);
 	ll_finish_md_op_data(op_data);
 	ptlrpc_req_finished(req);
 	if (rc) {
