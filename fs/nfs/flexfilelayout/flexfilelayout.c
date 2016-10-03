@@ -2250,10 +2250,12 @@ ff_layout_mirror_prepare_stats(struct pnfs_layout_hdr *lo,
 		memcpy(&devinfo->dev_id, &dev->deviceid, NFS4_DEVICEID4_SIZE);
 		devinfo->offset = 0;
 		devinfo->length = NFS4_MAX_UINT64;
+		spin_lock(&mirror->lock);
 		devinfo->read_count = mirror->read_stat.io_stat.ops_completed;
 		devinfo->read_bytes = mirror->read_stat.io_stat.bytes_completed;
 		devinfo->write_count = mirror->write_stat.io_stat.ops_completed;
 		devinfo->write_bytes = mirror->write_stat.io_stat.bytes_completed;
+		spin_unlock(&mirror->lock);
 		devinfo->layout_type = LAYOUT_FLEX_FILES;
 		devinfo->layoutstats_encode = ff_layout_encode_layoutstats;
 		devinfo->layout_private = mirror;
