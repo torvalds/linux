@@ -273,7 +273,7 @@ static int stmmac_ethtool_getsettings(struct net_device *dev,
 				      struct ethtool_cmd *cmd)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
-	struct phy_device *phy = priv->phydev;
+	struct phy_device *phy = dev->phydev;
 	int rc;
 
 	if (priv->hw->pcs & STMMAC_PCS_RGMII ||
@@ -359,7 +359,7 @@ static int stmmac_ethtool_setsettings(struct net_device *dev,
 				      struct ethtool_cmd *cmd)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
-	struct phy_device *phy = priv->phydev;
+	struct phy_device *phy = dev->phydev;
 	int rc;
 
 	if (priv->hw->pcs & STMMAC_PCS_RGMII ||
@@ -468,12 +468,12 @@ stmmac_get_pauseparam(struct net_device *netdev,
 		if (!adv_lp.pause)
 			return;
 	} else {
-		if (!(priv->phydev->supported & SUPPORTED_Pause) ||
-		    !(priv->phydev->supported & SUPPORTED_Asym_Pause))
+		if (!(netdev->phydev->supported & SUPPORTED_Pause) ||
+		    !(netdev->phydev->supported & SUPPORTED_Asym_Pause))
 			return;
 	}
 
-	pause->autoneg = priv->phydev->autoneg;
+	pause->autoneg = netdev->phydev->autoneg;
 
 	if (priv->flow_ctrl & FLOW_RX)
 		pause->rx_pause = 1;
@@ -487,7 +487,7 @@ stmmac_set_pauseparam(struct net_device *netdev,
 		      struct ethtool_pauseparam *pause)
 {
 	struct stmmac_priv *priv = netdev_priv(netdev);
-	struct phy_device *phy = priv->phydev;
+	struct phy_device *phy = netdev->phydev;
 	int new_pause = FLOW_OFF;
 
 	if (priv->hw->pcs && priv->hw->mac->pcs_get_adv_lp) {
@@ -547,7 +547,7 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 			}
 		}
 		if (priv->eee_enabled) {
-			int val = phy_get_eee_err(priv->phydev);
+			int val = phy_get_eee_err(dev->phydev);
 			if (val)
 				priv->xstats.phy_eee_wakeup_error_n = val;
 		}
@@ -666,7 +666,7 @@ static int stmmac_ethtool_op_get_eee(struct net_device *dev,
 	edata->eee_active = priv->eee_active;
 	edata->tx_lpi_timer = priv->tx_lpi_timer;
 
-	return phy_ethtool_get_eee(priv->phydev, edata);
+	return phy_ethtool_get_eee(dev->phydev, edata);
 }
 
 static int stmmac_ethtool_op_set_eee(struct net_device *dev,
@@ -691,7 +691,7 @@ static int stmmac_ethtool_op_set_eee(struct net_device *dev,
 		priv->tx_lpi_timer = edata->tx_lpi_timer;
 	}
 
-	return phy_ethtool_set_eee(priv->phydev, edata);
+	return phy_ethtool_set_eee(dev->phydev, edata);
 }
 
 static u32 stmmac_usec2riwt(u32 usec, struct stmmac_priv *priv)

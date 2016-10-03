@@ -221,7 +221,8 @@ static inline u32 stmmac_rx_dirty(struct stmmac_priv *priv)
  */
 static inline void stmmac_hw_fix_mac_speed(struct stmmac_priv *priv)
 {
-	struct phy_device *phydev = priv->phydev;
+	struct net_device *ndev = priv->dev;
+	struct phy_device *phydev = ndev->phydev;
 
 	if (likely(priv->plat->fix_mac_speed))
 		priv->plat->fix_mac_speed(priv->plat->bsp_priv, phydev->speed);
@@ -279,6 +280,7 @@ static void stmmac_eee_ctrl_timer(unsigned long arg)
  */
 bool stmmac_eee_init(struct stmmac_priv *priv)
 {
+	struct net_device *ndev = priv->dev;
 	unsigned long flags;
 	bool ret = false;
 
@@ -295,7 +297,7 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 		int tx_lpi_timer = priv->tx_lpi_timer;
 
 		/* Check if the PHY supports EEE */
-		if (phy_init_eee(priv->phydev, 1)) {
+		if (phy_init_eee(ndev->phydev, 1)) {
 			/* To manage at run-time if the EEE cannot be supported
 			 * anymore (for example because the lp caps have been
 			 * changed).
@@ -327,7 +329,7 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 						     tx_lpi_timer);
 		}
 		/* Set HW EEE according to the speed */
-		priv->hw->mac->set_eee_pls(priv->hw, priv->phydev->link);
+		priv->hw->mac->set_eee_pls(priv->hw, ndev->phydev->link);
 
 		ret = true;
 		spin_unlock_irqrestore(&priv->lock, flags);
@@ -691,7 +693,7 @@ static void stmmac_release_ptp(struct stmmac_priv *priv)
 static void stmmac_adjust_link(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
-	struct phy_device *phydev = priv->phydev;
+	struct phy_device *phydev = dev->phydev;
 	unsigned long flags;
 	int new_state = 0;
 	unsigned int fc = priv->flow_ctrl, pause_time = priv->pause;
@@ -873,8 +875,6 @@ static int stmmac_init_phy(struct net_device *dev)
 
 	pr_debug("stmmac_init_phy:  %s: attached to PHY (UID 0x%x)"
 		 " Link = %d\n", dev->name, phydev->phy_id, phydev->link);
-
-	priv->phydev = phydev;
 
 	return 0;
 }
@@ -1800,8 +1800,8 @@ static int stmmac_open(struct net_device *dev)
 
 	stmmac_init_tx_coalesce(priv);
 
-	if (priv->phydev)
-		phy_start(priv->phydev);
+	if (dev->phydev)
+		phy_start(dev->phydev);
 
 	/* Request the IRQ lines */
 	ret = request_irq(dev->irq, stmmac_interrupt,
@@ -1848,8 +1848,8 @@ wolirq_error:
 init_error:
 	free_dma_desc_resources(priv);
 dma_desc_error:
-	if (priv->phydev)
-		phy_disconnect(priv->phydev);
+	if (dev->phydev)
+		phy_disconnect(dev->phydev);
 
 	return ret;
 }
@@ -1868,10 +1868,9 @@ static int stmmac_release(struct net_device *dev)
 		del_timer_sync(&priv->eee_ctrl_timer);
 
 	/* Stop and disconnect the PHY */
-	if (priv->phydev) {
-		phy_stop(priv->phydev);
-		phy_disconnect(priv->phydev);
-		priv->phydev = NULL;
+	if (dev->phydev) {
+		phy_stop(dev->phydev);
+		phy_disconnect(dev->phydev);
 	}
 
 	netif_stop_queue(dev);
@@ -2863,7 +2862,6 @@ static void stmmac_poll_controller(struct net_device *dev)
  */
 static int stmmac_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-	struct stmmac_priv *priv = netdev_priv(dev);
 	int ret = -EOPNOTSUPP;
 
 	if (!netif_running(dev))
@@ -2873,9 +2871,9 @@ static int stmmac_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
-		if (!priv->phydev)
+		if (!dev->phydev)
 			return -EINVAL;
-		ret = phy_mii_ioctl(priv->phydev, rq, cmd);
+		ret = phy_mii_ioctl(dev->phydev, rq, cmd);
 		break;
 	case SIOCSHWTSTAMP:
 		ret = stmmac_hwtstamp_ioctl(dev, rq);
@@ -3428,8 +3426,8 @@ int stmmac_suspend(struct device *dev)
 	if (!ndev || !netif_running(ndev))
 		return 0;
 
-	if (priv->phydev)
-		phy_stop(priv->phydev);
+	if (ndev->phydev)
+		phy_stop(ndev->phydev);
 
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -3523,8 +3521,8 @@ int stmmac_resume(struct device *dev)
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	if (priv->phydev)
-		phy_start(priv->phydev);
+	if (ndev->phydev)
+		phy_start(ndev->phydev);
 
 	return 0;
 }
