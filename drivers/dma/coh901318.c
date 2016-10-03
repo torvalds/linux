@@ -1319,10 +1319,10 @@ static void coh901318_list_print(struct coh901318_chan *cohc,
 	int i = 0;
 
 	while (l) {
-		dev_vdbg(COHC_2_DEV(cohc), "i %d, lli %p, ctrl 0x%x, src 0x%x"
-			 ", dst 0x%x, link 0x%x virt_link_addr 0x%p\n",
-			 i, l, l->control, l->src_addr, l->dst_addr,
-			 l->link_addr, l->virt_link_addr);
+		dev_vdbg(COHC_2_DEV(cohc), "i %d, lli %p, ctrl 0x%x, src 0x%pad"
+			 ", dst 0x%pad, link 0x%pad virt_link_addr 0x%p\n",
+			 i, l, l->control, &l->src_addr, &l->dst_addr,
+			 &l->link_addr, l->virt_link_addr);
 		i++;
 		l = l->virt_link_addr;
 	}
@@ -1335,7 +1335,7 @@ static void coh901318_list_print(struct coh901318_chan *cohc,
 static struct coh901318_base *debugfs_dma_base;
 static struct dentry *dma_dentry;
 
-static int coh901318_debugfs_read(struct file *file, char __user *buf,
+static ssize_t coh901318_debugfs_read(struct file *file, char __user *buf,
 				  size_t count, loff_t *f_pos)
 {
 	u64 started_channels = debugfs_dma_base->pm.started_channels;
@@ -1753,7 +1753,7 @@ static int coh901318_resume(struct dma_chan *chan)
 
 bool coh901318_filter_id(struct dma_chan *chan, void *chan_id)
 {
-	unsigned int ch_nr = (unsigned int) chan_id;
+	unsigned long ch_nr = (unsigned long) chan_id;
 
 	if (ch_nr == to_coh901318_chan(chan)->id)
 		return true;
@@ -2234,8 +2234,8 @@ coh901318_prep_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	spin_lock_irqsave(&cohc->lock, flg);
 
 	dev_vdbg(COHC_2_DEV(cohc),
-		 "[%s] channel %d src 0x%x dest 0x%x size %d\n",
-		 __func__, cohc->id, src, dest, size);
+		 "[%s] channel %d src 0x%pad dest 0x%pad size %zu\n",
+		 __func__, cohc->id, &src, &dest, size);
 
 	if (flags & DMA_PREP_INTERRUPT)
 		/* Trigger interrupt after last lli */
@@ -2731,8 +2731,8 @@ static int __init coh901318_probe(struct platform_device *pdev)
 		goto err_register_of_dma;
 
 	platform_set_drvdata(pdev, base);
-	dev_info(&pdev->dev, "Initialized COH901318 DMA on virtual base 0x%08x\n",
-		(u32) base->virtbase);
+	dev_info(&pdev->dev, "Initialized COH901318 DMA on virtual base 0x%p\n",
+		base->virtbase);
 
 	return err;
 

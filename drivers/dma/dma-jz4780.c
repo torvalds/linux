@@ -400,7 +400,7 @@ static struct dma_async_tx_descriptor *jz4780_dma_prep_dma_cyclic(
 	return vchan_tx_prep(&jzchan->vchan, &desc->vdesc, flags);
 }
 
-struct dma_async_tx_descriptor *jz4780_dma_prep_dma_memcpy(
+static struct dma_async_tx_descriptor *jz4780_dma_prep_dma_memcpy(
 	struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	size_t len, unsigned long flags)
 {
