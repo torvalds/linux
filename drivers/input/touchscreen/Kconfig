@@ -305,19 +305,6 @@ config TOUCHSCREEN_EGALAX_SERIAL
 	  To compile this driver as a module, choose M here: the
 	  module will be called egalax_ts_serial.
 
-config TOUCHSCREEN_FT6236
-	tristate "FT6236 I2C touchscreen"
-	depends on I2C
-	depends on GPIOLIB || COMPILE_TEST
-	help
-	  Say Y here to enable support for the I2C connected FT6x06 and
-	  FT6x36 family of capacitive touchscreen drivers.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ft6236.
-
 config TOUCHSCREEN_FUJITSU
 	tristate "Fujitsu serial touchscreen"
 	select SERIO
@@ -396,6 +383,18 @@ config TOUCHSCREEN_GUNZE
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gunze.
+
+config TOUCHSCREEN_EKTF2127
+	tristate "Elan eKTF2127 I2C touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have an Elan eKTF2127 touchscreen
+	  connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ektf2127.
 
 config TOUCHSCREEN_ELAN
 	tristate "Elan eKTH I2C touchscreen"
