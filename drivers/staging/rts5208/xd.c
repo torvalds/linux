@@ -37,21 +37,21 @@ static int xd_init_page(struct rtsx_chip *chip, u32 phy_blk, u16 logoff,
 
 static inline void xd_set_err_code(struct rtsx_chip *chip, u8 err_code)
 {
-	struct xd_info *xd_card = &(chip->xd_card);
+	struct xd_info *xd_card = &chip->xd_card;
 
 	xd_card->err_code = err_code;
 }
 
 static inline int xd_check_err_code(struct rtsx_chip *chip, u8 err_code)
 {
-	struct xd_info *xd_card = &(chip->xd_card);
+	struct xd_info *xd_card = &chip->xd_card;
 
 	return (xd_card->err_code == err_code);
 }
 
 static int xd_set_init_para(struct rtsx_chip *chip)
 {
-	struct xd_info *xd_card = &(chip->xd_card);
+	struct xd_info *xd_card = &chip->xd_card;
 	int retval;
 
 	if (chip->asic_code)
@@ -70,7 +70,7 @@ static int xd_set_init_para(struct rtsx_chip *chip)
 
 static int xd_switch_clock(struct rtsx_chip *chip)
 {
-	struct xd_info *xd_card = &(chip->xd_card);
+	struct xd_info *xd_card = &chip->xd_card;
 	int retval;
 
 	retval = select_card(chip, XD_CARD);
@@ -122,7 +122,7 @@ static int xd_read_id(struct rtsx_chip *chip, u8 id_cmd, u8 *id_buf, u8 buf_len)
 
 static void xd_assign_phy_addr(struct rtsx_chip *chip, u32 addr, u8 mode)
 {
-	struct xd_info *xd_card = &(chip->xd_card);
+	struct xd_info *xd_card = &chip->xd_card;
 
 	switch (mode) {
 	case XD_RW_ADDR:
@@ -503,7 +503,7 @@ static int xd_pull_ctl_disable(struct rtsx_chip *chip)
 
 static int reset_xd(struct rtsx_chip *chip)
 {
-	struct xd_info *xd_card = &(chip->xd_card);
+	struct xd_info *xd_card = &chip->xd_card;
 	int retval, i, j;
 	u8 *ptr, id_buf[4], redunt[11];
 
@@ -882,7 +882,7 @@ static u16 xd_load_log_block_addr(u8 *redunt)
 
 static int xd_init_l2p_tbl(struct rtsx_chip *chip)
 {
-	struct xd_info *xd_card = &(chip->xd_card);
+	struct xd_info *xd_card = &chip->xd_card;
 	int size, i;
 
 	dev_dbg(rtsx_dev(chip), "xd_init_l2p_tbl: zone_cnt = %d\n",
@@ -931,7 +931,7 @@ static inline void free_zone(struct zone_entry *zone)
 
 static void xd_set_unused_block(struct rtsx_chip *chip, u32 phy_blk)
 {
-	struct xd_info *xd_card = &(chip->xd_card);
+	struct xd_info *xd_card = &chip->xd_card;
 	struct zone_entry *zone;
 	int zone_no;
 
@@ -941,7 +941,7 @@ static void xd_set_unused_block(struct rtsx_chip *chip, u32 phy_blk)
 			zone_no, xd_card->zone_cnt);
 		return;
 	}
-	zone = &(xd_card->zone[zone_no]);
+	zone = &xd_card->zone[zone_no];
 
 	if (zone->free_table == NULL) {
 		if (xd_build_l2p_tbl(chip, zone_no) != STATUS_SUCCESS)
@@ -966,7 +966,7 @@ static void xd_set_unused_block(struct rtsx_chip *chip, u32 phy_blk)
 
 static u32 xd_get_unused_block(struct rtsx_chip *chip, int zone_no)
 {
-	struct xd_info *xd_card = &(chip->xd_card);
+	struct xd_info *xd_card = &chip->xd_card;
 	struct zone_entry *zone;
 	u32 phy_blk;
 
@@ -975,7 +975,7 @@ static u32 xd_get_unused_block(struct rtsx_chip *chip, int zone_no)
 			zone_no, xd_card->zone_cnt);
 		return BLK_NOT_FOUND;
 	}
-	zone = &(xd_card->zone[zone_no]);
+	zone = &xd_card->zone[zone_no];
 
 	if ((zone->unused_blk_cnt == 0) ||
 	    (zone->set_index == zone->get_index)) {
@@ -1005,20 +1005,20 @@ static u32 xd_get_unused_block(struct rtsx_chip *chip, int zone_no)
 static void xd_set_l2p_tbl(struct rtsx_chip *chip,
 			   int zone_no, u16 log_off, u16 phy_off)
 {
-	struct xd_info *xd_card = &(chip->xd_card);
+	struct xd_info *xd_card = &chip->xd_card;
 	struct zone_entry *zone;
 
-	zone = &(xd_card->zone[zone_no]);
+	zone = &xd_card->zone[zone_no];
 	zone->l2p_table[log_off] = phy_off;
 }
 
 static u32 xd_get_l2p_tbl(struct rtsx_chip *chip, int zone_no, u16 log_off)
 {
-	struct xd_info *xd_card = &(chip->xd_card);
+	struct xd_info *xd_card = &chip->xd_card;
 	struct zone_entry *zone;
 	int retval;
 
-	zone = &(xd_card->zone[zone_no]);
+	zone = &xd_card->zone[zone_no];
 	if (zone->l2p_table[log_off] == 0xFFFF) {
 		u32 phy_blk = 0;
 		int i;
@@ -1062,7 +1062,7 @@ static u32 xd_get_l2p_tbl(struct rtsx_chip *chip, int zone_no, u16 log_off)
 
 int reset_xd_card(struct rtsx_chip *chip)
 {
-	struct xd_info *xd_card = &(chip->xd_card);
+	struct xd_info *xd_card = &chip->xd_card;
 	int retval;
 
 	memset(xd_card, 0, sizeof(struct xd_info));
@@ -1098,7 +1098,7 @@ int reset_xd_card(struct rtsx_chip *chip)
 
 static int xd_mark_bad_block(struct rtsx_chip *chip, u32 phy_blk)
 {
-	struct xd_info *xd_card = &(chip->xd_card);
+	struct xd_info *xd_card = &chip->xd_card;
 	int retval;
 	u32 page_addr;
 	u8 reg = 0;
@@ -1153,7 +1153,7 @@ static int xd_mark_bad_block(struct rtsx_chip *chip, u32 phy_blk)
 static int xd_init_page(struct rtsx_chip *chip, u32 phy_blk,
 			u16 logoff, u8 start_page, u8 end_page)
 {
-	struct xd_info *xd_card = &(chip->xd_card);
+	struct xd_info *xd_card = &chip->xd_card;
 	int retval;
 	u32 page_addr;
 	u8 reg = 0;
@@ -1212,7 +1212,7 @@ static int xd_init_page(struct rtsx_chip *chip, u32 phy_blk,
 static int xd_copy_page(struct rtsx_chip *chip, u32 old_blk, u32 new_blk,
 			u8 start_page, u8 end_page)
 {
-	struct xd_info *xd_card = &(chip->xd_card);
+	struct xd_info *xd_card = &chip->xd_card;
 	u32 old_page, new_page;
 	u8 i, reg = 0;
 	int retval;
@@ -1365,7 +1365,7 @@ static int xd_reset_cmd(struct rtsx_chip *chip)
 
 static int xd_erase_block(struct rtsx_chip *chip, u32 phy_blk)
 {
-	struct xd_info *xd_card = &(chip->xd_card);
+	struct xd_info *xd_card = &chip->xd_card;
 	u32 page_addr;
 	u8 reg = 0, *ptr;
 	int i, retval;
@@ -1426,7 +1426,7 @@ static int xd_erase_block(struct rtsx_chip *chip, u32 phy_blk)
 
 static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 {
-	struct xd_info *xd_card = &(chip->xd_card);
+	struct xd_info *xd_card = &chip->xd_card;
 	struct zone_entry *zone;
 	int retval;
 	u32 start, end, i;
@@ -1448,7 +1448,7 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 		return STATUS_SUCCESS;
 	}
 
-	zone = &(xd_card->zone[zone_no]);
+	zone = &xd_card->zone[zone_no];
 
 	if (zone->l2p_table == NULL) {
 		zone->l2p_table = vmalloc(2000);
@@ -1639,7 +1639,7 @@ static int xd_read_multiple_pages(struct rtsx_chip *chip, u32 phy_blk,
 				  u8 *buf, unsigned int *index,
 				  unsigned int *offset)
 {
-	struct xd_info *xd_card = &(chip->xd_card);
+	struct xd_info *xd_card = &chip->xd_card;
 	u32 page_addr, new_blk;
 	u16 log_off;
 	u8 reg_val, page_cnt;
@@ -1769,7 +1769,7 @@ Status_Fail:
 static int xd_finish_write(struct rtsx_chip *chip,
 			   u32 old_blk, u32 new_blk, u32 log_blk, u8 page_off)
 {
-	struct xd_info *xd_card = &(chip->xd_card);
+	struct xd_info *xd_card = &chip->xd_card;
 	int retval, zone_no;
 	u16 log_off;
 
@@ -1851,7 +1851,7 @@ static int xd_write_multiple_pages(struct rtsx_chip *chip, u32 old_blk,
 				   u8 end_page, u8 *buf, unsigned int *index,
 				   unsigned int *offset)
 {
-	struct xd_info *xd_card = &(chip->xd_card);
+	struct xd_info *xd_card = &chip->xd_card;
 	u32 page_addr;
 	int zone_no, retval;
 	u16 log_off;
@@ -1954,8 +1954,8 @@ Status_Fail:
 #ifdef XD_DELAY_WRITE
 int xd_delay_write(struct rtsx_chip *chip)
 {
-	struct xd_info *xd_card = &(chip->xd_card);
-	struct xd_delay_write_tag *delay_write = &(xd_card->delay_write);
+	struct xd_info *xd_card = &chip->xd_card;
+	struct xd_delay_write_tag *delay_write = &xd_card->delay_write;
 	int retval;
 
 	if (delay_write->delay_write_flag) {
@@ -1985,10 +1985,10 @@ int xd_delay_write(struct rtsx_chip *chip)
 int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 	  u32 start_sector, u16 sector_cnt)
 {
-	struct xd_info *xd_card = &(chip->xd_card);
+	struct xd_info *xd_card = &chip->xd_card;
 	unsigned int lun = SCSI_LUN(srb);
 #ifdef XD_DELAY_WRITE
-	struct xd_delay_write_tag *delay_write = &(xd_card->delay_write);
+	struct xd_delay_write_tag *delay_write = &xd_card->delay_write;
 #endif
 	int retval, zone_no;
 	unsigned int index = 0, offset = 0;
@@ -2250,7 +2250,7 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 
 void xd_free_l2p_tbl(struct rtsx_chip *chip)
 {
-	struct xd_info *xd_card = &(chip->xd_card);
+	struct xd_info *xd_card = &chip->xd_card;
 	int i = 0;
 
 	if (xd_card->zone != NULL) {
@@ -2268,7 +2268,7 @@ void xd_free_l2p_tbl(struct rtsx_chip *chip)
 void xd_cleanup_work(struct rtsx_chip *chip)
 {
 #ifdef XD_DELAY_WRITE
-	struct xd_info *xd_card = &(chip->xd_card);
+	struct xd_info *xd_card = &chip->xd_card;
 
 	if (xd_card->delay_write.delay_write_flag) {
 		dev_dbg(rtsx_dev(chip), "xD: delay write\n");
@@ -2323,7 +2323,7 @@ int xd_power_off_card3v3(struct rtsx_chip *chip)
 
 int release_xd_card(struct rtsx_chip *chip)
 {
-	struct xd_info *xd_card = &(chip->xd_card);
+	struct xd_info *xd_card = &chip->xd_card;
 	int retval;
 
 	chip->card_ready &= ~XD_CARD;
