@@ -53,8 +53,6 @@
 #define BCM2835_I2C_CDIV_MIN	0x0002
 #define BCM2835_I2C_CDIV_MAX	0xFFFE
 
-#define BCM2835_I2C_TIMEOUT (msecs_to_jiffies(1000))
-
 struct bcm2835_i2c_dev {
 	struct device *dev;
 	void __iomem *regs;
@@ -242,7 +240,7 @@ static int bcm2835_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 	bcm2835_i2c_start_transfer(i2c_dev);
 
 	time_left = wait_for_completion_timeout(&i2c_dev->completion,
-						BCM2835_I2C_TIMEOUT);
+						adap->timeout);
 	if (!time_left) {
 		bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_C,
 				   BCM2835_I2C_C_CLEAR);
