@@ -961,6 +961,7 @@ xfs_file_iomap_begin(
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_bmbt_irec	imap;
 	xfs_fileoff_t		offset_fsb, end_fsb;
+	bool			shared, trimmed;
 	int			nimaps = 1, error = 0;
 	unsigned		lockmode;
 
@@ -989,7 +990,14 @@ xfs_file_iomap_begin(
 	end_fsb = XFS_B_TO_FSB(mp, offset + length);
 
 	error = xfs_bmapi_read(ip, offset_fsb, end_fsb - offset_fsb, &imap,
-			       &nimaps, XFS_BMAPI_ENTIRE);
+			       &nimaps, 0);
+	if (error) {
+		xfs_iunlock(ip, lockmode);
+		return error;
+	}
+
+	/* Trim the mapping to the nearest shared extent boundary. */
+	error = xfs_reflink_trim_around_shared(ip, &imap, &shared, &trimmed);
 	if (error) {
 		xfs_iunlock(ip, lockmode);
 		return error;
@@ -1028,6 +1036,8 @@ xfs_file_iomap_begin(
 	}
 
 	xfs_bmbt_to_iomap(ip, iomap, &imap);
+	if (shared)
+		iomap->flags |= IOMAP_F_SHARED;
 	return 0;
 }
 
