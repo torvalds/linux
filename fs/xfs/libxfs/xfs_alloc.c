@@ -2334,6 +2334,9 @@ xfs_alloc_log_agf(
 		offsetof(xfs_agf_t, agf_btreeblks),
 		offsetof(xfs_agf_t, agf_uuid),
 		offsetof(xfs_agf_t, agf_rmap_blocks),
+		offsetof(xfs_agf_t, agf_refcount_blocks),
+		offsetof(xfs_agf_t, agf_refcount_root),
+		offsetof(xfs_agf_t, agf_refcount_level),
 		/* needed so that we don't log the whole rest of the structure: */
 		offsetof(xfs_agf_t, agf_spare64),
 		sizeof(xfs_agf_t)
