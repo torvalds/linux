@@ -65,6 +65,7 @@ config GPIO_SYSFS
 	  exported to userspace; this can be useful when debugging.
 
 config GPIO_GENERIC
+	depends on HAS_IOMEM # Only for IOMEM drivers
 	tristate
 
 # put drivers in the right section, in alphabetical order
@@ -74,6 +75,7 @@ config GPIO_MAX730X
 	tristate
 
 menu "Memory mapped GPIO drivers"
+	depends on HAS_IOMEM
 
 config GPIO_74XX_MMIO
 	tristate "GPIO driver for 74xx-ICs with MMIO access"
