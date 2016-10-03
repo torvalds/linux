@@ -4977,6 +4977,13 @@ static resource_size_t pci_specified_resource_alignment(struct pci_dev *dev)
 
 	spin_lock(&resource_alignment_lock);
 	p = resource_alignment_param;
+	if (!*p)
+		goto out;
+	if (pci_has_flag(PCI_PROBE_ONLY)) {
+		pr_info_once("PCI: Ignoring requested alignments (PCI_PROBE_ONLY)\n");
+		goto out;
+	}
+
 	while (*p) {
 		count = 0;
 		if (sscanf(p, "%d%n", &align_order, &count) == 1 &&
@@ -5041,6 +5048,7 @@ static resource_size_t pci_specified_resource_alignment(struct pci_dev *dev)
 		}
 		p++;
 	}
+out:
 	spin_unlock(&resource_alignment_lock);
 	return align;
 }
@@ -5058,6 +5066,15 @@ void pci_reassigndev_resource_alignment(struct pci_dev *dev)
 	struct resource *r;
 	resource_size_t align, size;
 	u16 command;
+
+	/*
+	 * VF BARs are read-only zero according to SR-IOV spec r1.1, sec
+	 * 3.4.1.11.  Their resources are allocated from the space
+	 * described by the VF BARx register in the PF's SR-IOV capability.
+	 * We can't influence their alignment here.
+	 */
+	if (dev->is_virtfn)
+		return;
 
 	/* check if specified PCI is target device to reassign */
 	align = pci_specified_resource_alignment(dev);
@@ -5081,6 +5098,12 @@ void pci_reassigndev_resource_alignment(struct pci_dev *dev)
 		r = &dev->resource[i];
 		if (!(r->flags & IORESOURCE_MEM))
 			continue;
+		if (r->flags & IORESOURCE_PCI_FIXED) {
+			dev_info(&dev->dev, "Ignoring requested alignment for BAR%d: %pR\n",
+				i, r);
+			continue;
+		}
+
 		size = resource_size(r);
 		if (size < align) {
 			size = align;
