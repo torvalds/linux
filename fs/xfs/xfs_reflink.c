@@ -328,3 +328,87 @@ xfs_reflink_reserve_cow_range(
 
 	return error;
 }
+
+/*
+ * Find the CoW reservation (and whether or not it needs block allocation)
+ * for a given byte offset of a file.
+ */
+bool
+xfs_reflink_find_cow_mapping(
+	struct xfs_inode		*ip,
+	xfs_off_t			offset,
+	struct xfs_bmbt_irec		*imap,
+	bool				*need_alloc)
+{
+	struct xfs_bmbt_irec		irec;
+	struct xfs_ifork		*ifp;
+	struct xfs_bmbt_rec_host	*gotp;
+	xfs_fileoff_t			bno;
+	xfs_extnum_t			idx;
+
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL | XFS_ILOCK_SHARED));
+	ASSERT(xfs_is_reflink_inode(ip));
+
+	/* Find the extent in the CoW fork. */
+	ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
+	bno = XFS_B_TO_FSBT(ip->i_mount, offset);
+	gotp = xfs_iext_bno_to_ext(ifp, bno, &idx);
+	if (!gotp)
+		return false;
+
+	xfs_bmbt_get_all(gotp, &irec);
+	if (bno >= irec.br_startoff + irec.br_blockcount ||
+	    bno < irec.br_startoff)
+		return false;
+
+	trace_xfs_reflink_find_cow_mapping(ip, offset, 1, XFS_IO_OVERWRITE,
+			&irec);
+
+	/* If it's still delalloc, we must allocate later. */
+	*imap = irec;
+	*need_alloc = !!(isnullstartblock(irec.br_startblock));
+
+	return true;
+}
+
+/*
+ * Trim an extent to end at the next CoW reservation past offset_fsb.
+ */
+int
+xfs_reflink_trim_irec_to_next_cow(
+	struct xfs_inode		*ip,
+	xfs_fileoff_t			offset_fsb,
+	struct xfs_bmbt_irec		*imap)
+{
+	struct xfs_bmbt_irec		irec;
+	struct xfs_ifork		*ifp;
+	struct xfs_bmbt_rec_host	*gotp;
+	xfs_extnum_t			idx;
+
+	if (!xfs_is_reflink_inode(ip))
+		return 0;
+
+	/* Find the extent in the CoW fork. */
+	ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
+	gotp = xfs_iext_bno_to_ext(ifp, offset_fsb, &idx);
+	if (!gotp)
+		return 0;
+	xfs_bmbt_get_all(gotp, &irec);
+
+	/* This is the extent before; try sliding up one. */
+	if (irec.br_startoff < offset_fsb) {
+		idx++;
+		if (idx >= ifp->if_bytes / sizeof(xfs_bmbt_rec_t))
+			return 0;
+		gotp = xfs_iext_get_ext(ifp, idx);
+		xfs_bmbt_get_all(gotp, &irec);
+	}
+
+	if (irec.br_startoff >= imap->br_startoff + imap->br_blockcount)
+		return 0;
+
+	imap->br_blockcount = irec.br_startoff - imap->br_startoff;
+	trace_xfs_reflink_trim_irec(ip, imap);
+
+	return 0;
+}
