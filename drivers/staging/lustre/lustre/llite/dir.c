@@ -681,7 +681,7 @@ static int ll_ioc_copy_start(struct super_block *sb, struct hsm_copy *copy)
 {
 	struct ll_sb_info		*sbi = ll_s2sbi(sb);
 	struct hsm_progress_kernel	 hpk;
-	int				 rc;
+	int rc2, rc = 0;
 
 	/* Forge a hsm_progress based on data from copy. */
 	hpk.hpk_fid = copy->hc_hai.hai_fid;
@@ -731,10 +731,10 @@ progress:
 	/* On error, the request should be considered as completed */
 	if (hpk.hpk_errval > 0)
 		hpk.hpk_flags |= HP_FLAG_COMPLETED;
-	rc = obd_iocontrol(LL_IOC_HSM_PROGRESS, sbi->ll_md_exp, sizeof(hpk),
-			   &hpk, NULL);
+	rc2 = obd_iocontrol(LL_IOC_HSM_PROGRESS, sbi->ll_md_exp, sizeof(hpk),
+			    &hpk, NULL);
 
-	return rc;
+	return rc ? rc : rc2;
 }
 
 /**
@@ -756,7 +756,7 @@ static int ll_ioc_copy_end(struct super_block *sb, struct hsm_copy *copy)
 {
 	struct ll_sb_info		*sbi = ll_s2sbi(sb);
 	struct hsm_progress_kernel	 hpk;
-	int				 rc;
+	int rc2, rc = 0;
 
 	/* If you modify the logic here, also check llapi_hsm_copy_end(). */
 	/* Take care: copy->hc_hai.hai_action, len, gid and data are not
@@ -830,10 +830,10 @@ static int ll_ioc_copy_end(struct super_block *sb, struct hsm_copy *copy)
 	}
 
 progress:
-	rc = obd_iocontrol(LL_IOC_HSM_PROGRESS, sbi->ll_md_exp, sizeof(hpk),
-			   &hpk, NULL);
+	rc2 = obd_iocontrol(LL_IOC_HSM_PROGRESS, sbi->ll_md_exp, sizeof(hpk),
+			    &hpk, NULL);
 
-	return rc;
+	return rc ? rc : rc2;
 }
 
 static int copy_and_ioctl(int cmd, struct obd_export *exp,
