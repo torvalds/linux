@@ -913,15 +913,17 @@ F:	arch/arm/include/asm/floppy.h
 
 ARM PMU PROFILING AND DEBUGGING
 M:	Will Deacon <will.deacon@arm.com>
-R:	Mark Rutland <mark.rutland@arm.com>
+M:	Mark Rutland <mark.rutland@arm.com>
 S:	Maintained
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 F:	arch/arm*/kernel/perf_*
 F:	arch/arm/oprofile/common.c
 F:	arch/arm*/kernel/hw_breakpoint.c
 F:	arch/arm*/include/asm/hw_breakpoint.h
 F:	arch/arm*/include/asm/perf_event.h
-F:	drivers/perf/arm_pmu.c
+F:	drivers/perf/*
 F:	include/linux/perf/arm_pmu.h
+F:	Documentation/devicetree/bindings/arm/pmu.txt
 
 ARM PORT
 M:	Russell King <linux@armlinux.org.uk>
@@ -1123,6 +1125,11 @@ F:	drivers/hwtracing/coresight/*
 F:	Documentation/trace/coresight.txt
 F:	Documentation/devicetree/bindings/arm/coresight.txt
 F:	Documentation/ABI/testing/sysfs-bus-coresight-devices-*
+F:	tools/perf/arch/arm/util/pmu.c
+F:	tools/perf/arch/arm/util/auxtrace.c
+F:	tools/perf/arch/arm/util/cs-etm.c
+F:	tools/perf/arch/arm/util/cs-etm.h
+F:	tools/perf/util/cs-etm.h
 
 ARM/CORGI MACHINE SUPPORT
 M:	Richard Purdie <rpurdie@rpsys.net>
@@ -3282,6 +3289,7 @@ L:	linux-pm@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm.git
 T:	git git://git.linaro.org/people/vireshk/linux.git (For ARM Updates)
+F:	Documentation/cpu-freq/
 F:	drivers/cpufreq/
 F:	include/linux/cpufreq.h
 
@@ -4583,6 +4591,13 @@ L:	linux-fbdev@vger.kernel.org
 M:	Peter Jones <pjones@redhat.com>
 S:	Maintained
 F:	drivers/video/fbdev/efifb.c
+
+EFI TEST DRIVER
+L:	linux-efi@vger.kernel.org
+M:	Ivan Hu <ivan.hu@canonical.com>
+M:	Matt Fleming <matt@codeblueprint.co.uk>
+S:	Maintained
+F:	drivers/firmware/efi/test/
 
 EFS FILESYSTEM
 W:	http://aeschi.ch.eu.org/efs/
@@ -8857,6 +8872,7 @@ S:	Supported
 F:	Documentation/virtual/paravirt_ops.txt
 F:	arch/*/kernel/paravirt*
 F:	arch/*/include/asm/paravirt.h
+F:	include/linux/hypervisor.h
 
 PARIDE DRIVERS FOR PARALLEL PORT IDE DEVICES
 M:	Tim Waugh <tim@cyberelk.net>

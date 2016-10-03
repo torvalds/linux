@@ -23,8 +23,8 @@ unsigned long *sleep_save_stash;
  * time the notifier runs debug exceptions might have been enabled already,
  * with HW breakpoints registers content still in an unknown state.
  */
-static void (*hw_breakpoint_restore)(void *);
-void __init cpu_suspend_set_dbg_restorer(void (*hw_bp_restore)(void *))
+static int (*hw_breakpoint_restore)(unsigned int);
+void __init cpu_suspend_set_dbg_restorer(int (*hw_bp_restore)(unsigned int))
 {
 	/* Prevent multiple restore hook initializations */
 	if (WARN_ON(hw_breakpoint_restore))
@@ -34,6 +34,8 @@ void __init cpu_suspend_set_dbg_restorer(void (*hw_bp_restore)(void *))
 
 void notrace __cpu_suspend_exit(void)
 {
+	unsigned int cpu = smp_processor_id();
+
 	/*
 	 * We are resuming from reset with the idmap active in TTBR0_EL1.
 	 * We must uninstall the idmap and restore the expected MMU
@@ -45,7 +47,7 @@ void notrace __cpu_suspend_exit(void)
 	 * Restore per-cpu offset before any kernel
 	 * subsystem relying on it has a chance to run.
 	 */
-	set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
+	set_my_cpu_offset(per_cpu_offset(cpu));
 
 	/*
 	 * Restore HW breakpoint registers to sane values
@@ -53,7 +55,7 @@ void notrace __cpu_suspend_exit(void)
 	 * through local_dbg_restore.
 	 */
 	if (hw_breakpoint_restore)
-		hw_breakpoint_restore(NULL);
+		hw_breakpoint_restore(cpu);
 }
 
 /*

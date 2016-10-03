@@ -139,4 +139,43 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
 					__pgprot(0),
 					__pgprot(PTE_VALID));
 }
-#endif
+#ifdef CONFIG_HIBERNATION
+/*
+ * When built with CONFIG_DEBUG_PAGEALLOC and CONFIG_HIBERNATION, this function
+ * is used to determine if a linear map page has been marked as not-valid by
+ * CONFIG_DEBUG_PAGEALLOC. Walk the page table and check the PTE_VALID bit.
+ * This is based on kern_addr_valid(), which almost does what we need.
+ *
+ * Because this is only called on the kernel linear map,  p?d_sect() implies
+ * p?d_present(). When debug_pagealloc is enabled, sections mappings are
+ * disabled.
+ */
+bool kernel_page_present(struct page *page)
+{
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+	unsigned long addr = (unsigned long)page_address(page);
+
+	pgd = pgd_offset_k(addr);
+	if (pgd_none(*pgd))
+		return false;
+
+	pud = pud_offset(pgd, addr);
+	if (pud_none(*pud))
+		return false;
+	if (pud_sect(*pud))
+		return true;
+
+	pmd = pmd_offset(pud, addr);
+	if (pmd_none(*pmd))
+		return false;
+	if (pmd_sect(*pmd))
+		return true;
+
+	pte = pte_offset_kernel(pmd, addr);
+	return pte_valid(*pte);
+}
+#endif /* CONFIG_HIBERNATION */
+#endif /* CONFIG_DEBUG_PAGEALLOC */

@@ -305,6 +305,16 @@ config ARM_ARCH_TIMER_EVTSTREAM
 	  This must be disabled for hardware validation purposes to detect any
 	  hardware anomalies of missing events.
 
+config FSL_ERRATUM_A008585
+	bool "Workaround for Freescale/NXP Erratum A-008585"
+	default y
+	depends on ARM_ARCH_TIMER && ARM64
+	help
+	  This option enables a workaround for Freescale/NXP Erratum
+	  A-008585 ("ARM generic timer may contain an erroneous
+	  value").  The workaround will only be active if the
+	  fsl,erratum-a008585 property is found in the timer node.
+
 config ARM_GLOBAL_TIMER
 	bool "Support for the ARM global timer" if COMPILE_TEST
 	select CLKSRC_OF if OF

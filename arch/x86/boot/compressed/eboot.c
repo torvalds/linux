@@ -29,22 +29,11 @@ __pure const struct efi_config *__efi_early(void)
 static void setup_boot_services##bits(struct efi_config *c)		\
 {									\
 	efi_system_table_##bits##_t *table;				\
-	efi_boot_services_##bits##_t *bt;				\
 									\
 	table = (typeof(table))sys_table;				\
 									\
+	c->boot_services = table->boottime;				\
 	c->text_output = table->con_out;				\
-									\
-	bt = (typeof(bt))(unsigned long)(table->boottime);		\
-									\
-	c->allocate_pool = bt->allocate_pool;				\
-	c->allocate_pages = bt->allocate_pages;				\
-	c->get_memory_map = bt->get_memory_map;				\
-	c->free_pool = bt->free_pool;					\
-	c->free_pages = bt->free_pages;					\
-	c->locate_handle = bt->locate_handle;				\
-	c->handle_protocol = bt->handle_protocol;			\
-	c->exit_boot_services = bt->exit_boot_services;			\
 }
 BOOT_SERVICES(32);
 BOOT_SERVICES(64);
@@ -284,29 +273,6 @@ void efi_char16_printk(efi_system_table_t *table, efi_char16_t *str)
 
 		efi_early->call(*func, out, str);
 	}
-}
-
-static void find_bits(unsigned long mask, u8 *pos, u8 *size)
-{
-	u8 first, len;
-
-	first = 0;
-	len = 0;
-
-	if (mask) {
-		while (!(mask & 0x1)) {
-			mask = mask >> 1;
-			first++;
-		}
-
-		while (mask & 0x1) {
-			mask = mask >> 1;
-			len++;
-		}
-	}
-
-	*pos = first;
-	*size = len;
 }
 
 static efi_status_t
@@ -578,7 +544,7 @@ setup_uga32(void **uga_handle, unsigned long size, u32 *width, u32 *height)
 	efi_guid_t uga_proto = EFI_UGA_PROTOCOL_GUID;
 	unsigned long nr_ugas;
 	u32 *handles = (u32 *)uga_handle;;
-	efi_status_t status;
+	efi_status_t status = EFI_INVALID_PARAMETER;
 	int i;
 
 	first_uga = NULL;
@@ -623,7 +589,7 @@ setup_uga64(void **uga_handle, unsigned long size, u32 *width, u32 *height)
 	efi_guid_t uga_proto = EFI_UGA_PROTOCOL_GUID;
 	unsigned long nr_ugas;
 	u64 *handles = (u64 *)uga_handle;;
-	efi_status_t status;
+	efi_status_t status = EFI_INVALID_PARAMETER;
 	int i;
 
 	first_uga = NULL;

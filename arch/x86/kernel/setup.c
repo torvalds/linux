@@ -1096,19 +1096,19 @@ void __init setup_arch(char **cmdline_p)
 	memblock_set_current_limit(ISA_END_ADDRESS);
 	memblock_x86_fill();
 
-	if (efi_enabled(EFI_BOOT)) {
-		efi_fake_memmap();
-		efi_find_mirror();
-	}
-
 	reserve_bios_regions();
 
-	/*
-	 * The EFI specification says that boot service code won't be called
-	 * after ExitBootServices(). This is, in fact, a lie.
-	 */
-	if (efi_enabled(EFI_MEMMAP))
+	if (efi_enabled(EFI_MEMMAP)) {
+		efi_fake_memmap();
+		efi_find_mirror();
+		efi_esrt_init();
+
+		/*
+		 * The EFI specification says that boot service code won't be
+		 * called after ExitBootServices(). This is, in fact, a lie.
+		 */
 		efi_reserve_boot_services();
+	}
 
 	/* preallocate 4k for mptable mpc */
 	early_reserve_e820_mpc_new();
@@ -1137,9 +1137,7 @@ void __init setup_arch(char **cmdline_p)
 	 * auditing all the early-boot CR4 manipulation would be needed to
 	 * rule it out.
 	 */
-	if (boot_cpu_data.cpuid_level >= 0)
-		/* A CPU has %cr4 if and only if it has CPUID. */
-		mmu_cr4_features = __read_cr4();
+	mmu_cr4_features = __read_cr4_safe();
 
 	memblock_set_current_limit(get_max_mapped());
 

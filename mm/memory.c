@@ -3395,7 +3395,7 @@ static int do_numa_page(struct fault_env *fe, pte_t pte)
 	 * pte_dirty has unpredictable behaviour between PTE scan updates,
 	 * background writeback, dirty balancing and application behaviour.
 	 */
-	if (!(vma->vm_flags & VM_WRITE))
+	if (!pte_write(pte))
 		flags |= TNF_NO_GROUP;
 
 	/*

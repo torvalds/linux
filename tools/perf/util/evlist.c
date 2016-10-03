@@ -1032,16 +1032,18 @@ perf_evlist__should_poll(struct perf_evlist *evlist __maybe_unused,
 }
 
 static int perf_evlist__mmap_per_evsel(struct perf_evlist *evlist, int idx,
-				       struct mmap_params *mp, int cpu,
+				       struct mmap_params *mp, int cpu_idx,
 				       int thread, int *_output, int *_output_backward)
 {
 	struct perf_evsel *evsel;
 	int revent;
+	int evlist_cpu = cpu_map__cpu(evlist->cpus, cpu_idx);
 
 	evlist__for_each_entry(evlist, evsel) {
 		struct perf_mmap *maps = evlist->mmap;
 		int *output = _output;
 		int fd;
+		int cpu;
 
 		if (evsel->attr.write_backward) {
 			output = _output_backward;
@@ -1058,6 +1060,10 @@ static int perf_evlist__mmap_per_evsel(struct perf_evlist *evlist, int idx,
 		}
 
 		if (evsel->system_wide && thread)
+			continue;
+
+		cpu = cpu_map__idx(evsel->cpus, evlist_cpu);
+		if (cpu == -1)
 			continue;
 
 		fd = FD(evsel, cpu, thread);

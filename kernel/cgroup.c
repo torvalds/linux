@@ -5627,6 +5627,12 @@ int __init cgroup_init(void)
 	BUG_ON(cgroup_init_cftypes(NULL, cgroup_dfl_base_files));
 	BUG_ON(cgroup_init_cftypes(NULL, cgroup_legacy_base_files));
 
+	/*
+	 * The latency of the synchronize_sched() is too high for cgroups,
+	 * avoid it at the cost of forcing all readers into the slow path.
+	 */
+	rcu_sync_enter_start(&cgroup_threadgroup_rwsem.rss);
+
 	get_user_ns(init_cgroup_ns.user_ns);
 
 	mutex_lock(&cgroup_mutex);

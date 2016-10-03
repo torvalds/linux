@@ -75,6 +75,9 @@ static inline struct thread_info *current_thread_info(void) __attribute_const__;
 
 /*
  * struct thread_info can be accessed directly via sp_el0.
+ *
+ * We don't use read_sysreg() as we want the compiler to cache the value where
+ * possible.
  */
 static inline struct thread_info *current_thread_info(void)
 {

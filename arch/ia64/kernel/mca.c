@@ -986,7 +986,7 @@ ia64_mca_modify_original_stack(struct pt_regs *regs,
 	int cpu = smp_processor_id();
 
 	previous_current = curr_task(cpu);
-	set_curr_task(cpu, current);
+	ia64_set_curr_task(cpu, current);
 	if ((p = strchr(current->comm, ' ')))
 		*p = '\0';
 
@@ -1360,14 +1360,14 @@ ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 				cpumask_clear_cpu(i, &mca_cpu);	/* wake next cpu */
 				while (monarch_cpu != -1)
 					cpu_relax();	/* spin until last cpu leaves */
-				set_curr_task(cpu, previous_current);
+				ia64_set_curr_task(cpu, previous_current);
 				ia64_mc_info.imi_rendez_checkin[cpu]
 						= IA64_MCA_RENDEZ_CHECKIN_NOTDONE;
 				return;
 			}
 		}
 	}
-	set_curr_task(cpu, previous_current);
+	ia64_set_curr_task(cpu, previous_current);
 	ia64_mc_info.imi_rendez_checkin[cpu] = IA64_MCA_RENDEZ_CHECKIN_NOTDONE;
 	monarch_cpu = -1;	/* This frees the slaves and previous monarchs */
 }
@@ -1729,7 +1729,7 @@ ia64_init_handler(struct pt_regs *regs, struct switch_stack *sw,
 		NOTIFY_INIT(DIE_INIT_SLAVE_LEAVE, regs, (long)&nd, 1);
 
 		mprintk("Slave on cpu %d returning to normal service.\n", cpu);
-		set_curr_task(cpu, previous_current);
+		ia64_set_curr_task(cpu, previous_current);
 		ia64_mc_info.imi_rendez_checkin[cpu] = IA64_MCA_RENDEZ_CHECKIN_NOTDONE;
 		atomic_dec(&slaves);
 		return;
@@ -1756,7 +1756,7 @@ ia64_init_handler(struct pt_regs *regs, struct switch_stack *sw,
 
 	mprintk("\nINIT dump complete.  Monarch on cpu %d returning to normal service.\n", cpu);
 	atomic_dec(&monarchs);
-	set_curr_task(cpu, previous_current);
+	ia64_set_curr_task(cpu, previous_current);
 	monarch_cpu = -1;
 	return;
 }

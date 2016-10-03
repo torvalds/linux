@@ -317,6 +317,7 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_ignore_noop_operator, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_cstyle_disassembly, TRUE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_force_aml_disassembly, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_dm_opt_verbose, TRUE);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_dm_emit_external_opcodes, FALSE);
 
 ACPI_GLOBAL(u8, acpi_gbl_dm_opt_disasm);
 ACPI_GLOBAL(u8, acpi_gbl_dm_opt_listing);
@@ -382,6 +383,7 @@ ACPI_GLOBAL(const char, *acpi_gbl_pld_shape_list[]);
 
 ACPI_INIT_GLOBAL(ACPI_FILE, acpi_gbl_debug_file, NULL);
 ACPI_INIT_GLOBAL(ACPI_FILE, acpi_gbl_output_file, NULL);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_debug_timeout, FALSE);
 
 /* Print buffer */
 

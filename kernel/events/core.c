@@ -1475,8 +1475,7 @@ list_add_event(struct perf_event *event, struct perf_event_context *ctx)
 	if (event->group_leader == event) {
 		struct list_head *list;
 
-		if (is_software_event(event))
-			event->group_flags |= PERF_GROUP_SOFTWARE;
+		event->group_caps = event->event_caps;
 
 		list = ctx_group_list(event, ctx);
 		list_add_tail(&event->group_entry, list);
@@ -1630,9 +1629,7 @@ static void perf_group_attach(struct perf_event *event)
 
 	WARN_ON_ONCE(group_leader->ctx != event->ctx);
 
-	if (group_leader->group_flags & PERF_GROUP_SOFTWARE &&
-			!is_software_event(event))
-		group_leader->group_flags &= ~PERF_GROUP_SOFTWARE;
+	group_leader->group_caps &= event->event_caps;
 
 	list_add_tail(&event->group_entry, &group_leader->sibling_list);
 	group_leader->nr_siblings++;
@@ -1723,7 +1720,7 @@ static void perf_group_detach(struct perf_event *event)
 		sibling->group_leader = sibling;
 
 		/* Inherit group flags from the previous leader */
-		sibling->group_flags = event->group_flags;
+		sibling->group_caps = event->group_caps;
 
 		WARN_ON_ONCE(sibling->ctx != event->ctx);
 	}
@@ -1832,6 +1829,8 @@ group_sched_out(struct perf_event *group_event,
 	struct perf_event *event;
 	int state = group_event->state;
 
+	perf_pmu_disable(ctx->pmu);
+
 	event_sched_out(group_event, cpuctx, ctx);
 
 	/*
@@ -1839,6 +1838,8 @@ group_sched_out(struct perf_event *group_event,
 	 */
 	list_for_each_entry(event, &group_event->sibling_list, group_entry)
 		event_sched_out(event, cpuctx, ctx);
+
+	perf_pmu_enable(ctx->pmu);
 
 	if (state == PERF_EVENT_STATE_ACTIVE && group_event->attr.exclusive)
 		cpuctx->exclusive = 0;
@@ -2145,7 +2146,7 @@ static int group_can_go_on(struct perf_event *event,
 	/*
 	 * Groups consisting entirely of software events can always go on.
 	 */
-	if (event->group_flags & PERF_GROUP_SOFTWARE)
+	if (event->group_caps & PERF_EV_CAP_SOFTWARE)
 		return 1;
 	/*
 	 * If an exclusive group is already on, no other hardware
@@ -2491,7 +2492,7 @@ static int __perf_event_stop(void *info)
 	 * while restarting.
 	 */
 	if (sd->restart)
-		event->pmu->start(event, PERF_EF_START);
+		event->pmu->start(event, 0);
 
 	return 0;
 }
@@ -2837,19 +2838,36 @@ unlock:
 	}
 }
 
+static DEFINE_PER_CPU(struct list_head, sched_cb_list);
+
 void perf_sched_cb_dec(struct pmu *pmu)
 {
+	struct perf_cpu_context *cpuctx = this_cpu_ptr(pmu->pmu_cpu_context);
+
 	this_cpu_dec(perf_sched_cb_usages);
+
+	if (!--cpuctx->sched_cb_usage)
+		list_del(&cpuctx->sched_cb_entry);
 }
+
 
 void perf_sched_cb_inc(struct pmu *pmu)
 {
+	struct perf_cpu_context *cpuctx = this_cpu_ptr(pmu->pmu_cpu_context);
+
+	if (!cpuctx->sched_cb_usage++)
+		list_add(&cpuctx->sched_cb_entry, this_cpu_ptr(&sched_cb_list));
+
 	this_cpu_inc(perf_sched_cb_usages);
 }
 
 /*
  * This function provides the context switch callback to the lower code
  * layer. It is invoked ONLY when the context switch callback is enabled.
+ *
+ * This callback is relevant even to per-cpu events; for example multi event
+ * PEBS requires this to provide PID/TID information. This requires we flush
+ * all queued PEBS records before we context switch to a new task.
  */
 static void perf_pmu_sched_task(struct task_struct *prev,
 				struct task_struct *next,
@@ -2857,34 +2875,24 @@ static void perf_pmu_sched_task(struct task_struct *prev,
 {
 	struct perf_cpu_context *cpuctx;
 	struct pmu *pmu;
-	unsigned long flags;
 
 	if (prev == next)
 		return;
 
-	local_irq_save(flags);
+	list_for_each_entry(cpuctx, this_cpu_ptr(&sched_cb_list), sched_cb_entry) {
+		pmu = cpuctx->unique_pmu; /* software PMUs will not have sched_task */
 
-	rcu_read_lock();
+		if (WARN_ON_ONCE(!pmu->sched_task))
+			continue;
 
-	list_for_each_entry_rcu(pmu, &pmus, entry) {
-		if (pmu->sched_task) {
-			cpuctx = this_cpu_ptr(pmu->pmu_cpu_context);
+		perf_ctx_lock(cpuctx, cpuctx->task_ctx);
+		perf_pmu_disable(pmu);
 
-			perf_ctx_lock(cpuctx, cpuctx->task_ctx);
+		pmu->sched_task(cpuctx->task_ctx, sched_in);
 
-			perf_pmu_disable(pmu);
-
-			pmu->sched_task(cpuctx->task_ctx, sched_in);
-
-			perf_pmu_enable(pmu);
-
-			perf_ctx_unlock(cpuctx, cpuctx->task_ctx);
-		}
+		perf_pmu_enable(pmu);
+		perf_ctx_unlock(cpuctx, cpuctx->task_ctx);
 	}
-
-	rcu_read_unlock();
-
-	local_irq_restore(flags);
 }
 
 static void perf_event_switch(struct task_struct *task,
@@ -3416,6 +3424,22 @@ struct perf_read_data {
 	int ret;
 };
 
+static int find_cpu_to_read(struct perf_event *event, int local_cpu)
+{
+	int event_cpu = event->oncpu;
+	u16 local_pkg, event_pkg;
+
+	if (event->group_caps & PERF_EV_CAP_READ_ACTIVE_PKG) {
+		event_pkg =  topology_physical_package_id(event_cpu);
+		local_pkg =  topology_physical_package_id(local_cpu);
+
+		if (event_pkg == local_pkg)
+			return local_cpu;
+	}
+
+	return event_cpu;
+}
+
 /*
  * Cross CPU call to read the hardware event
  */
@@ -3537,7 +3561,7 @@ u64 perf_event_read_local(struct perf_event *event)
 
 static int perf_event_read(struct perf_event *event, bool group)
 {
-	int ret = 0;
+	int ret = 0, cpu_to_read, local_cpu;
 
 	/*
 	 * If event is enabled and currently active on a CPU, update the
@@ -3549,6 +3573,11 @@ static int perf_event_read(struct perf_event *event, bool group)
 			.group = group,
 			.ret = 0,
 		};
+
+		local_cpu = get_cpu();
+		cpu_to_read = find_cpu_to_read(event, local_cpu);
+		put_cpu();
+
 		/*
 		 * Purposely ignore the smp_call_function_single() return
 		 * value.
@@ -3559,7 +3588,7 @@ static int perf_event_read(struct perf_event *event, bool group)
 		 * Therefore, either way, we'll have an up-to-date event count
 		 * after this.
 		 */
-		(void)smp_call_function_single(event->oncpu, __perf_event_read, &data, 1);
+		(void)smp_call_function_single(cpu_to_read, __perf_event_read, &data, 1);
 		ret = data.ret;
 	} else if (event->state == PERF_EVENT_STATE_INACTIVE) {
 		struct perf_event_context *ctx = event->ctx;
@@ -5350,9 +5379,10 @@ perf_output_sample_regs(struct perf_output_handle *handle,
 			struct pt_regs *regs, u64 mask)
 {
 	int bit;
+	DECLARE_BITMAP(_mask, 64);
 
-	for_each_set_bit(bit, (const unsigned long *) &mask,
-			 sizeof(mask) * BITS_PER_BYTE) {
+	bitmap_from_u64(_mask, mask);
+	for_each_set_bit(bit, _mask, sizeof(mask) * BITS_PER_BYTE) {
 		u64 val;
 
 		val = perf_reg_value(regs, bit);
@@ -9505,6 +9535,9 @@ SYSCALL_DEFINE5(perf_event_open,
 			goto err_alloc;
 	}
 
+	if (pmu->task_ctx_nr == perf_sw_context)
+		event->event_caps |= PERF_EV_CAP_SOFTWARE;
+
 	if (group_leader &&
 	    (is_software_event(event) != is_software_event(group_leader))) {
 		if (is_software_event(event)) {
@@ -9518,7 +9551,7 @@ SYSCALL_DEFINE5(perf_event_open,
 			 */
 			pmu = group_leader->pmu;
 		} else if (is_software_event(group_leader) &&
-			   (group_leader->group_flags & PERF_GROUP_SOFTWARE)) {
+			   (group_leader->group_caps & PERF_EV_CAP_SOFTWARE)) {
 			/*
 			 * In case the group is a pure software group, and we
 			 * try to add a hardware event, move the whole group to
@@ -10453,6 +10486,8 @@ static void __init perf_event_init_all_cpus(void)
 
 		INIT_LIST_HEAD(&per_cpu(pmu_sb_events.list, cpu));
 		raw_spin_lock_init(&per_cpu(pmu_sb_events.lock, cpu));
+
+		INIT_LIST_HEAD(&per_cpu(sched_cb_list, cpu));
 	}
 }
 

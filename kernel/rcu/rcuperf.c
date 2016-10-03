@@ -52,7 +52,7 @@ MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.vnet.ibm.com>");
 
 #define PERF_FLAG "-perf:"
 #define PERFOUT_STRING(s) \
-	pr_alert("%s" PERF_FLAG s "\n", perf_type)
+	pr_alert("%s" PERF_FLAG " %s\n", perf_type, s)
 #define VERBOSE_PERFOUT_STRING(s) \
 	do { if (verbose) pr_alert("%s" PERF_FLAG " %s\n", perf_type, s); } while (0)
 #define VERBOSE_PERFOUT_ERRSTRING(s) \
@@ -400,9 +400,8 @@ rcu_perf_writer(void *arg)
 			sp.sched_priority = 0;
 			sched_setscheduler_nocheck(current,
 						   SCHED_NORMAL, &sp);
-			pr_alert("%s" PERF_FLAG
-				 "rcu_perf_writer %ld has %d measurements\n",
-				 perf_type, me, MIN_MEAS);
+			pr_alert("%s%s rcu_perf_writer %ld has %d measurements\n",
+				 perf_type, PERF_FLAG, me, MIN_MEAS);
 			if (atomic_inc_return(&n_rcu_perf_writer_finished) >=
 			    nrealwriters) {
 				schedule_timeout_interruptible(10);

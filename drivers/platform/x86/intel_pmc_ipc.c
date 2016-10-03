@@ -651,11 +651,15 @@ static int ipc_create_pmc_devices(void)
 {
 	int ret;
 
-	ret = ipc_create_tco_device();
-	if (ret) {
-		dev_err(ipcdev.dev, "Failed to add tco platform device\n");
-		return ret;
+	/* If we have ACPI based watchdog use that instead */
+	if (!acpi_has_watchdog()) {
+		ret = ipc_create_tco_device();
+		if (ret) {
+			dev_err(ipcdev.dev, "Failed to add tco platform device\n");
+			return ret;
+		}
 	}
+
 	ret = ipc_create_punit_device();
 	if (ret) {
 		dev_err(ipcdev.dev, "Failed to add punit platform device\n");

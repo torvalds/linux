@@ -60,14 +60,18 @@ tools/include/asm-generic/bitops.h
 tools/include/linux/atomic.h
 tools/include/linux/bitops.h
 tools/include/linux/compiler.h
+tools/include/linux/coresight-pmu.h
 tools/include/linux/filter.h
 tools/include/linux/hash.h
 tools/include/linux/kernel.h
 tools/include/linux/list.h
 tools/include/linux/log2.h
+tools/include/uapi/asm-generic/mman-common.h
+tools/include/uapi/asm-generic/mman.h
 tools/include/uapi/linux/bpf.h
 tools/include/uapi/linux/bpf_common.h
 tools/include/uapi/linux/hw_breakpoint.h
+tools/include/uapi/linux/mman.h
 tools/include/uapi/linux/perf_event.h
 tools/include/linux/poison.h
 tools/include/linux/rbtree.h
@@ -77,4 +81,6 @@ tools/include/linux/stringify.h
 tools/include/linux/types.h
 tools/include/linux/err.h
 tools/include/linux/bitmap.h
+tools/include/linux/time64.h
+tools/arch/*/include/uapi/asm/mman.h
 tools/arch/*/include/uapi/asm/perf_regs.h

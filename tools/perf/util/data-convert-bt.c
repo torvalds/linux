@@ -437,7 +437,7 @@ add_bpf_output_values(struct bt_ctf_event_class *event_class,
 	int ret;
 
 	if (nr_elements * sizeof(u32) != raw_size)
-		pr_warning("Incorrect raw_size (%u) in bpf output event, skip %lu bytes\n",
+		pr_warning("Incorrect raw_size (%u) in bpf output event, skip %zu bytes\n",
 			   raw_size, nr_elements * sizeof(u32) - raw_size);
 
 	len_type = bt_ctf_event_class_get_field_by_name(event_class, "raw_len");

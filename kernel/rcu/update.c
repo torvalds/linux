@@ -46,7 +46,7 @@
 #include <linux/export.h>
 #include <linux/hardirq.h>
 #include <linux/delay.h>
-#include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/kthread.h>
 #include <linux/tick.h>
 
@@ -54,7 +54,6 @@
 
 #include "rcu.h"
 
-MODULE_ALIAS("rcupdate");
 #ifdef MODULE_PARAM_PREFIX
 #undef MODULE_PARAM_PREFIX
 #endif

@@ -1925,6 +1925,45 @@ static void xen_set_cpu_features(struct cpuinfo_x86 *c)
 	}
 }
 
+static void xen_pin_vcpu(int cpu)
+{
+	static bool disable_pinning;
+	struct sched_pin_override pin_override;
+	int ret;
+
+	if (disable_pinning)
+		return;
+
+	pin_override.pcpu = cpu;
+	ret = HYPERVISOR_sched_op(SCHEDOP_pin_override, &pin_override);
+
+	/* Ignore errors when removing override. */
+	if (cpu < 0)
+		return;
+
+	switch (ret) {
+	case -ENOSYS:
+		pr_warn("Unable to pin on physical cpu %d. In case of problems consider vcpu pinning.\n",
+			cpu);
+		disable_pinning = true;
+		break;
+	case -EPERM:
+		WARN(1, "Trying to pin vcpu without having privilege to do so\n");
+		disable_pinning = true;
+		break;
+	case -EINVAL:
+	case -EBUSY:
+		pr_warn("Physical cpu %d not available for pinning. Check Xen cpu configuration.\n",
+			cpu);
+		break;
+	case 0:
+		break;
+	default:
+		WARN(1, "rc %d while trying to pin vcpu\n", ret);
+		disable_pinning = true;
+	}
+}
+
 const struct hypervisor_x86 x86_hyper_xen = {
 	.name			= "Xen",
 	.detect			= xen_platform,
@@ -1933,6 +1972,7 @@ const struct hypervisor_x86 x86_hyper_xen = {
 #endif
 	.x2apic_available	= xen_x2apic_para_available,
 	.set_cpu_features       = xen_set_cpu_features,
+	.pin_vcpu               = xen_pin_vcpu,
 };
 EXPORT_SYMBOL(x86_hyper_xen);
 
