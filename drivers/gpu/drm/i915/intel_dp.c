@@ -4333,7 +4333,7 @@ intel_dp_unset_edid(struct intel_dp *intel_dp)
 	intel_dp->has_audio = false;
 }
 
-static void
+static enum drm_connector_status
 intel_dp_long_pulse(struct intel_connector *intel_connector)
 {
 	struct drm_connector *connector = &intel_connector->base;
@@ -4357,7 +4357,7 @@ intel_dp_long_pulse(struct intel_connector *intel_connector)
 	else
 		status = connector_status_disconnected;
 
-	if (status != connector_status_connected) {
+	if (status == connector_status_disconnected) {
 		intel_dp->compliance_test_active = 0;
 		intel_dp->compliance_test_type = 0;
 		intel_dp->compliance_test_data = 0;
@@ -4419,8 +4419,8 @@ intel_dp_long_pulse(struct intel_connector *intel_connector)
 	intel_dp->aux.i2c_defer_count = 0;
 
 	intel_dp_set_edid(intel_dp);
-
-	status = connector_status_connected;
+	if (is_edp(intel_dp) || intel_connector->detect_edid)
+		status = connector_status_connected;
 	intel_dp->detect_done = true;
 
 	/* Try to read the source of the interrupt */
@@ -4439,12 +4439,11 @@ intel_dp_long_pulse(struct intel_connector *intel_connector)
 	}
 
 out:
-	if ((status != connector_status_connected) &&
-	    (intel_dp->is_mst == false))
+	if (status != connector_status_connected && !intel_dp->is_mst)
 		intel_dp_unset_edid(intel_dp);
 
 	intel_display_power_put(to_i915(dev), power_domain);
-	return;
+	return status;
 }
 
 static enum drm_connector_status
@@ -4453,7 +4452,7 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct intel_encoder *intel_encoder = &intel_dig_port->base;
-	struct intel_connector *intel_connector = to_intel_connector(connector);
+	enum drm_connector_status status = connector->status;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
@@ -4468,14 +4467,11 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 
 	/* If full detect is not performed yet, do a full detect */
 	if (!intel_dp->detect_done)
-		intel_dp_long_pulse(intel_dp->attached_connector);
+		status = intel_dp_long_pulse(intel_dp->attached_connector);
 
 	intel_dp->detect_done = false;
 
-	if (is_edp(intel_dp) || intel_connector->detect_edid)
-		return connector_status_connected;
-	else
-		return connector_status_disconnected;
+	return status;
 }
 
 static void
