@@ -401,16 +401,6 @@ static const struct snd_kcontrol_new tas5711_controls[] = {
 		   TAS571X_SOFT_MUTE_REG,
 		   TAS571X_SOFT_MUTE_CH1_SHIFT, TAS571X_SOFT_MUTE_CH2_SHIFT,
 		   1, 1),
-
-	SOC_DOUBLE_R_RANGE("CH1 Mixer Volume",
-			   TAS5717_CH1_LEFT_CH_MIX_REG,
-			   TAS5717_CH1_RIGHT_CH_MIX_REG,
-			   16, 0, 0x80, 0),
-
-	SOC_DOUBLE_R_RANGE("CH2 Mixer Volume",
-			   TAS5717_CH2_LEFT_CH_MIX_REG,
-			   TAS5717_CH2_RIGHT_CH_MIX_REG,
-			   16, 0, 0x80, 0),
 };
 
 static const struct regmap_range tas571x_readonly_regs_range[] = {
@@ -487,6 +477,16 @@ static const struct snd_kcontrol_new tas5717_controls[] = {
 		   TAS571X_SOFT_MUTE_REG,
 		   TAS571X_SOFT_MUTE_CH1_SHIFT, TAS571X_SOFT_MUTE_CH2_SHIFT,
 		   1, 1),
+
+	SOC_DOUBLE_R_RANGE("CH1 Mixer Volume",
+			   TAS5717_CH1_LEFT_CH_MIX_REG,
+			   TAS5717_CH1_RIGHT_CH_MIX_REG,
+			   16, 0, 0x80, 0),
+
+	SOC_DOUBLE_R_RANGE("CH2 Mixer Volume",
+			   TAS5717_CH2_LEFT_CH_MIX_REG,
+			   TAS5717_CH2_RIGHT_CH_MIX_REG,
+			   16, 0, 0x80, 0),
 
 	/*
 	 * The biquads are named according to the register names.
