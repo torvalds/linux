@@ -10,8 +10,8 @@
 #include <uapi/asm/e820.h>
 #ifndef __ASSEMBLY__
 /* see comment in arch/x86/kernel/e820.c */
-extern struct e820map e820;
-extern struct e820map e820_saved;
+extern struct e820map *e820;
+extern struct e820map *e820_saved;
 
 extern unsigned long pci_mem_start;
 extern int e820_any_mapped(u64 start, u64 end, unsigned type);
@@ -52,6 +52,8 @@ extern void e820_reserve_resources(void);
 extern void e820_reserve_resources_late(void);
 extern void setup_memory_map(void);
 extern char *default_machine_specific_memory_setup(void);
+
+extern void e820_reallocate_tables(void);
 
 /*
  * Returns true iff the specified range [s,e) is completely contained inside

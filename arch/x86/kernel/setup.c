@@ -458,8 +458,8 @@ static void __init e820_reserve_setup_data(void)
 		early_memunmap(data, sizeof(*data));
 	}
 
-	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
-	memcpy(&e820_saved, &e820, sizeof(struct e820map));
+	sanitize_e820_map(e820->map, ARRAY_SIZE(e820->map), &e820->nr_map);
+	memcpy(e820_saved, e820, sizeof(struct e820map));
 	printk(KERN_INFO "extended physical RAM map:\n");
 	e820_print_map("reserve setup_data");
 }
@@ -763,7 +763,7 @@ static void __init trim_bios_range(void)
 	 */
 	e820_remove_range(BIOS_BEGIN, BIOS_END - BIOS_BEGIN, E820_RAM, 1);
 
-	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
+	sanitize_e820_map(e820->map, ARRAY_SIZE(e820->map), &e820->nr_map);
 }
 
 /* called before trim_bios_range() to spare extra sanitize */
@@ -1032,7 +1032,7 @@ void __init setup_arch(char **cmdline_p)
 	if (ppro_with_ram_bug()) {
 		e820_update_range(0x70000000ULL, 0x40000ULL, E820_RAM,
 				  E820_RESERVED);
-		sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
+		sanitize_e820_map(e820->map, ARRAY_SIZE(e820->map), &e820->nr_map);
 		printk(KERN_INFO "fixed physical RAM map:\n");
 		e820_print_map("bad_ppro");
 	}
