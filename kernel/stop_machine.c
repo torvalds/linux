@@ -121,6 +121,11 @@ int stop_one_cpu(unsigned int cpu, cpu_stop_fn_t fn, void *arg)
 	cpu_stop_init_done(&done, 1);
 	if (!cpu_stop_queue_work(cpu, &work))
 		return -ENOENT;
+	/*
+	 * In case @cpu == smp_proccessor_id() we can avoid a sleep+wakeup
+	 * cycle by doing a preemption:
+	 */
+	cond_resched();
 	wait_for_completion(&done.completion);
 	return done.ret;
 }
