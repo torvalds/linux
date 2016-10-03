@@ -1294,10 +1294,11 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
 	return result;
 }
 
-#define ps_confirm_wait_inc(priv)  do{if(atomic_read(&priv->psstatus.status) > PS_ACTIVE_SET){ \
-                                                  atomic_inc(&priv->psstatus.confirm_wait); \
-                                                  /* atomic_set(&priv->psstatus.status, PS_CONF_WAIT);*/ \
-                                      } }while(0)
+#define ps_confirm_wait_inc(priv) do { \
+	if (atomic_read(&priv->psstatus.status) > PS_ACTIVE_SET) { \
+		atomic_inc(&priv->psstatus.confirm_wait); \
+		/* atomic_set(&priv->psstatus.status, PS_CONF_WAIT);*/ \
+	} } while (0)
 
 static
 void hostif_mib_get_request(struct ks_wlan_private *priv,
