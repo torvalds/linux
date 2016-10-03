@@ -945,7 +945,7 @@ static int rcar_pcie_parse_request_of_pci_ranges(struct rcar_pcie *pci)
 	struct device *dev = pci->dev;
 	struct device_node *np = dev->of_node;
 	resource_size_t iobase;
-	struct resource_entry *win;
+	struct resource_entry *win, *tmp;
 
 	err = of_pci_get_host_bridge_resources(np, 0, 0xff, &pci->resources, &iobase);
 	if (err)
@@ -955,14 +955,17 @@ static int rcar_pcie_parse_request_of_pci_ranges(struct rcar_pcie *pci)
 	if (err)
 		goto out_release_res;
 
-	resource_list_for_each_entry(win, &pci->resources) {
+	resource_list_for_each_entry_safe(win, tmp, &pci->resources) {
 		struct resource *res = win->res;
 
 		if (resource_type(res) == IORESOURCE_IO) {
 			err = pci_remap_iospace(res, iobase);
-			if (err)
+			if (err) {
 				dev_warn(dev, "error %d: failed to map resource %pR\n",
 					 err, res);
+
+				resource_list_destroy_entry(win);
+			}
 		}
 	}
 

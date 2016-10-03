@@ -435,7 +435,7 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	struct resource *cfg_res;
 	int i, ret;
 	LIST_HEAD(res);
-	struct resource_entry *win;
+	struct resource_entry *win, *tmp;
 
 	cfg_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "config");
 	if (cfg_res) {
@@ -456,17 +456,20 @@ int dw_pcie_host_init(struct pcie_port *pp)
 		goto error;
 
 	/* Get the I/O and memory ranges from DT */
-	resource_list_for_each_entry(win, &res) {
+	resource_list_for_each_entry_safe(win, tmp, &res) {
 		switch (resource_type(win->res)) {
 		case IORESOURCE_IO:
-			pp->io = win->res;
-			pp->io->name = "I/O";
-			pp->io_size = resource_size(pp->io);
-			pp->io_bus_addr = pp->io->start - win->offset;
-			ret = pci_remap_iospace(pp->io, pp->io_base);
-			if (ret)
+			ret = pci_remap_iospace(win->res, pp->io_base);
+			if (ret) {
 				dev_warn(pp->dev, "error %d: failed to map resource %pR\n",
-					 ret, pp->io);
+					 ret, win->res);
+				resource_list_destroy_entry(win);
+			} else {
+				pp->io = win->res;
+				pp->io->name = "I/O";
+				pp->io_size = resource_size(pp->io);
+				pp->io_bus_addr = pp->io->start - win->offset;
+			}
 			break;
 		case IORESOURCE_MEM:
 			pp->mem = win->res;
