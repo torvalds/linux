@@ -85,6 +85,8 @@ static inline const char *acpi_dev_name(struct acpi_device *adev)
 	return dev_name(&adev->dev);
 }
 
+struct device *acpi_get_first_physical_node(struct acpi_device *adev);
+
 enum acpi_irq_model_id {
 	ACPI_IRQ_MODEL_PIC = 0,
 	ACPI_IRQ_MODEL_IOAPIC,
@@ -634,6 +636,11 @@ static inline const char *acpi_dev_name(struct acpi_device *adev)
 	return NULL;
 }
 
+static inline struct device *acpi_get_first_physical_node(struct acpi_device *adev)
+{
+	return NULL;
+}
+
 static inline void acpi_early_init(void) { }
 static inline void acpi_subsystem_init(void) { }
 
@@ -1072,6 +1079,12 @@ static inline struct fwnode_handle *acpi_get_next_subnode(struct device *dev,
 void acpi_table_upgrade(void);
 #else
 static inline void acpi_table_upgrade(void) { }
+#endif
+
+#if defined(CONFIG_ACPI) && defined(CONFIG_ACPI_WATCHDOG)
+extern bool acpi_has_watchdog(void);
+#else
+static inline bool acpi_has_watchdog(void) { return false; }
 #endif
 
 #endif	/*_LINUX_ACPI_H*/

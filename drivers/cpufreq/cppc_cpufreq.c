@@ -39,7 +39,7 @@
  * performance capabilities, desired performance level
  * requested etc.
  */
-static struct cpudata **all_cpu_data;
+static struct cppc_cpudata **all_cpu_data;
 
 /* Capture the max KHz from DMI */
 static u64 cppc_dmi_max_khz;
@@ -78,7 +78,7 @@ static int cppc_cpufreq_set_target(struct cpufreq_policy *policy,
 		unsigned int target_freq,
 		unsigned int relation)
 {
-	struct cpudata *cpu;
+	struct cppc_cpudata *cpu;
 	struct cpufreq_freqs freqs;
 	int ret = 0;
 
@@ -108,7 +108,7 @@ static int cppc_verify_policy(struct cpufreq_policy *policy)
 static void cppc_cpufreq_stop_cpu(struct cpufreq_policy *policy)
 {
 	int cpu_num = policy->cpu;
-	struct cpudata *cpu = all_cpu_data[cpu_num];
+	struct cppc_cpudata *cpu = all_cpu_data[cpu_num];
 	int ret;
 
 	cpu->perf_ctrls.desired_perf = cpu->perf_caps.lowest_perf;
@@ -121,7 +121,7 @@ static void cppc_cpufreq_stop_cpu(struct cpufreq_policy *policy)
 
 static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
-	struct cpudata *cpu;
+	struct cppc_cpudata *cpu;
 	unsigned int cpu_num = policy->cpu;
 	int ret = 0;
 
@@ -142,6 +142,7 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	policy->max = cppc_dmi_max_khz;
 	policy->cpuinfo.min_freq = policy->min;
 	policy->cpuinfo.max_freq = policy->max;
+	policy->cpuinfo.transition_latency = cppc_get_transition_latency(cpu_num);
 	policy->shared_type = cpu->shared_type;
 
 	if (policy->shared_type == CPUFREQ_SHARED_TYPE_ANY)
@@ -179,7 +180,7 @@ static struct cpufreq_driver cppc_cpufreq_driver = {
 static int __init cppc_cpufreq_init(void)
 {
 	int i, ret = 0;
-	struct cpudata *cpu;
+	struct cppc_cpudata *cpu;
 
 	if (acpi_disabled)
 		return -ENODEV;
@@ -189,7 +190,7 @@ static int __init cppc_cpufreq_init(void)
 		return -ENOMEM;
 
 	for_each_possible_cpu(i) {
-		all_cpu_data[i] = kzalloc(sizeof(struct cpudata), GFP_KERNEL);
+		all_cpu_data[i] = kzalloc(sizeof(struct cppc_cpudata), GFP_KERNEL);
 		if (!all_cpu_data[i])
 			goto out;
 
@@ -220,7 +221,7 @@ out:
 
 static void __exit cppc_cpufreq_exit(void)
 {
-	struct cpudata *cpu;
+	struct cppc_cpudata *cpu;
 	int i;
 
 	cpufreq_unregister_driver(&cppc_cpufreq_driver);
