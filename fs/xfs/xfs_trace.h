@@ -2588,6 +2588,11 @@ DEFINE_RMAPBT_EVENT(xfs_rmap_delete);
 DEFINE_AG_ERROR_EVENT(xfs_rmap_insert_error);
 DEFINE_AG_ERROR_EVENT(xfs_rmap_delete_error);
 DEFINE_AG_ERROR_EVENT(xfs_rmap_update_error);
+
+DEFINE_RMAPBT_EVENT(xfs_rmap_find_left_neighbor_candidate);
+DEFINE_RMAPBT_EVENT(xfs_rmap_find_left_neighbor_query);
+DEFINE_RMAPBT_EVENT(xfs_rmap_lookup_le_range_candidate);
+DEFINE_RMAPBT_EVENT(xfs_rmap_lookup_le_range);
 DEFINE_RMAPBT_EVENT(xfs_rmap_lookup_le_range_result);
 DEFINE_RMAPBT_EVENT(xfs_rmap_find_right_neighbor_result);
 DEFINE_RMAPBT_EVENT(xfs_rmap_find_left_neighbor_result);

@@ -484,8 +484,14 @@ xfs_rui_recover(
 		case XFS_RMAP_EXTENT_MAP:
 			type = XFS_RMAP_MAP;
 			break;
+		case XFS_RMAP_EXTENT_MAP_SHARED:
+			type = XFS_RMAP_MAP_SHARED;
+			break;
 		case XFS_RMAP_EXTENT_UNMAP:
 			type = XFS_RMAP_UNMAP;
+			break;
+		case XFS_RMAP_EXTENT_UNMAP_SHARED:
+			type = XFS_RMAP_UNMAP_SHARED;
 			break;
 		case XFS_RMAP_EXTENT_CONVERT:
 			type = XFS_RMAP_CONVERT;
