@@ -747,7 +747,7 @@ static int tas571x_i2c_probe(struct i2c_client *client,
 		/* pulse the active low reset line for ~100us */
 		usleep_range(100, 200);
 		gpiod_set_value(priv->reset_gpio, 0);
-		usleep_range(12000, 20000);
+		usleep_range(13500, 20000);
 	}
 
 	ret = regmap_write(priv->regmap, TAS571X_OSC_TRIM_REG, 0);
