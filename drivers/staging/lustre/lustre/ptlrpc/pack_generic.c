@@ -1772,7 +1772,7 @@ void lustre_swab_fid2path(struct getinfo_fid2path *gf)
 }
 EXPORT_SYMBOL(lustre_swab_fid2path);
 
-static void lustre_swab_fiemap_extent(struct ll_fiemap_extent *fm_extent)
+static void lustre_swab_fiemap_extent(struct fiemap_extent *fm_extent)
 {
 	__swab64s(&fm_extent->fe_logical);
 	__swab64s(&fm_extent->fe_physical);
@@ -1781,7 +1781,7 @@ static void lustre_swab_fiemap_extent(struct ll_fiemap_extent *fm_extent)
 	__swab32s(&fm_extent->fe_device);
 }
 
-void lustre_swab_fiemap(struct ll_user_fiemap *fiemap)
+void lustre_swab_fiemap(struct fiemap *fiemap)
 {
 	__u32 i;
 

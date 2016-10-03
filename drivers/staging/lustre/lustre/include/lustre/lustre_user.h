@@ -82,7 +82,6 @@ typedef struct stat     lstat_t;
 #define FSFILT_IOC_SETVERSION	     _IOW('f', 4, long)
 #define FSFILT_IOC_GETVERSION_OLD	 _IOR('v', 1, long)
 #define FSFILT_IOC_SETVERSION_OLD	 _IOW('v', 2, long)
-#define FSFILT_IOC_FIEMAP		 _IOWR('f', 11, struct ll_user_fiemap)
 #endif
 
 /* FIEMAP flags supported by Lustre */
