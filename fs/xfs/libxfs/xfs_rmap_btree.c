@@ -512,6 +512,24 @@ void
 xfs_rmapbt_compute_maxlevels(
 	struct xfs_mount		*mp)
 {
-	mp->m_rmap_maxlevels = xfs_btree_compute_maxlevels(mp,
-			mp->m_rmap_mnr, mp->m_sb.sb_agblocks);
+	/*
+	 * On a non-reflink filesystem, the maximum number of rmap
+	 * records is the number of blocks in the AG, hence the max
+	 * rmapbt height is log_$maxrecs($agblocks).  However, with
+	 * reflink each AG block can have up to 2^32 (per the refcount
+	 * record format) owners, which means that theoretically we
+	 * could face up to 2^64 rmap records.
+	 *
+	 * That effectively means that the max rmapbt height must be
+	 * XFS_BTREE_MAXLEVELS.  "Fortunately" we'll run out of AG
+	 * blocks to feed the rmapbt long before the rmapbt reaches
+	 * maximum height.  The reflink code uses ag_resv_critical to
+	 * disallow reflinking when less than 10% of the per-AG metadata
+	 * block reservation since the fallback is a regular file copy.
+	 */
+	if (xfs_sb_version_hasreflink(&mp->m_sb))
+		mp->m_rmap_maxlevels = XFS_BTREE_MAXLEVELS;
+	else
+		mp->m_rmap_maxlevels = xfs_btree_compute_maxlevels(mp,
+				mp->m_rmap_mnr, mp->m_sb.sb_agblocks);
 }

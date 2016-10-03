@@ -399,6 +399,9 @@ typedef struct xfs_perag {
 	struct xfs_ag_resv	pag_meta_resv;
 	/* Blocks reserved for just AGFL-based metadata. */
 	struct xfs_ag_resv	pag_agfl_resv;
+
+	/* reference count */
+	__uint8_t		pagf_refcount_level;
 } xfs_perag_t;
 
 static inline struct xfs_ag_resv *
