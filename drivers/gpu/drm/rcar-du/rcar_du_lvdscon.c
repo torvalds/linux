@@ -79,7 +79,7 @@ static const struct drm_connector_funcs connector_funcs = {
 
 int rcar_du_lvds_connector_init(struct rcar_du_device *rcdu,
 				struct rcar_du_encoder *renc,
-				/* TODO const */ struct device_node *np)
+				const struct device_node *np)
 {
 	struct drm_encoder *encoder = rcar_encoder_to_drm_encoder(renc);
 	struct rcar_du_lvds_connector *lvdscon;
