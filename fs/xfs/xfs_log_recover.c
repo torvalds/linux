@@ -4969,6 +4969,7 @@ xlog_recover_process_one_iunlink(
 	if (error)
 		goto fail_iput;
 
+	xfs_iflags_clear(ip, XFS_IRECOVERY);
 	ASSERT(VFS_I(ip)->i_nlink == 0);
 	ASSERT(VFS_I(ip)->i_mode != 0);
 

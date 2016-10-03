@@ -1850,6 +1850,7 @@ xfs_inactive(
 	}
 
 	mp = ip->i_mount;
+	ASSERT(!xfs_iflags_test(ip, XFS_IRECOVERY));
 
 	/* If this is a read-only mount, don't do this (would generate I/O) */
 	if (mp->m_flags & XFS_MOUNT_RDONLY)

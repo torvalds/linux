@@ -222,6 +222,12 @@ static inline bool xfs_is_reflink_inode(struct xfs_inode *ip)
 #define XFS_IPINNED		(1 << __XFS_IPINNED_BIT)
 #define XFS_IDONTCACHE		(1 << 9) /* don't cache the inode long term */
 #define XFS_IEOFBLOCKS		(1 << 10)/* has the preallocblocks tag set */
+/*
+ * If this unlinked inode is in the middle of recovery, don't let drop_inode
+ * truncate and free the inode.  This can happen if we iget the inode during
+ * log recovery to replay a bmap operation on the inode.
+ */
+#define XFS_IRECOVERY		(1 << 11)
 
 /*
  * Per-lifetime flags need to be reset when re-using a reclaimable inode during

@@ -925,6 +925,15 @@ xfs_mountfs(
 	}
 
 	/*
+	 * During the second phase of log recovery, we need iget and
+	 * iput to behave like they do for an active filesystem.
+	 * xfs_fs_drop_inode needs to be able to prevent the deletion
+	 * of inodes before we're done replaying log items on those
+	 * inodes.
+	 */
+	mp->m_super->s_flags |= MS_ACTIVE;
+
+	/*
 	 * Finish recovering the file system.  This part needed to be delayed
 	 * until after the root and real-time bitmap inodes were consistently
 	 * read in.

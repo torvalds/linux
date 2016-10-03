@@ -456,6 +456,8 @@ xfs_bui_recover(
 	if (error)
 		goto err_inode;
 
+	if (VFS_I(ip)->i_nlink == 0)
+		xfs_iflags_set(ip, XFS_IRECOVERY);
 	xfs_defer_init(&dfops, &firstfsb);
 
 	/* Process deferred bmap item. */
