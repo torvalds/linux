@@ -1457,6 +1457,42 @@ typedef __be32 xfs_rmap_ptr_t;
 
 unsigned int xfs_refc_block(struct xfs_mount *mp);
 
+/*
+ * Data record/key structure
+ *
+ * Each record associates a range of physical blocks (starting at
+ * rc_startblock and ending rc_blockcount blocks later) with a reference
+ * count (rc_refcount).  Extents that are being used to stage a copy on
+ * write (CoW) operation are recorded in the refcount btree with a
+ * refcount of 1.  All other records must have a refcount > 1 and must
+ * track an extent mapped only by file data forks.
+ *
+ * Extents with a single owner (attributes, metadata, non-shared file
+ * data) are not tracked here.  Free space is also not tracked here.
+ * This is consistent with pre-reflink XFS.
+ */
+struct xfs_refcount_rec {
+	__be32		rc_startblock;	/* starting block number */
+	__be32		rc_blockcount;	/* count of blocks */
+	__be32		rc_refcount;	/* number of inodes linked here */
+};
+
+struct xfs_refcount_key {
+	__be32		rc_startblock;	/* starting block number */
+};
+
+struct xfs_refcount_irec {
+	xfs_agblock_t	rc_startblock;	/* starting block number */
+	xfs_extlen_t	rc_blockcount;	/* count of free blocks */
+	xfs_nlink_t	rc_refcount;	/* number of inodes linked here */
+};
+
+#define MAXREFCOUNT	((xfs_nlink_t)~0U)
+#define MAXREFCEXTLEN	((xfs_extlen_t)~0U)
+
+/* btree pointer type */
+typedef __be32 xfs_refcount_ptr_t;
+
 
 /*
  * BMAP Btree format definitions

@@ -39,16 +39,7 @@ struct xfs_buf_log_format;
 struct xfs_inode_log_format;
 struct xfs_bmbt_irec;
 struct xfs_btree_cur;
-
-#ifndef XFS_REFCOUNT_IREC_PLACEHOLDER
-#define XFS_REFCOUNT_IREC_PLACEHOLDER
-/* Placeholder definition to avoid breaking bisectability. */
-struct xfs_refcount_irec {
-	xfs_agblock_t	rc_startblock;	/* starting block number */
-	xfs_extlen_t	rc_blockcount;	/* count of free blocks */
-	xfs_nlink_t	rc_refcount;	/* number of inodes linked here */
-};
-#endif
+struct xfs_refcount_irec;
 
 DECLARE_EVENT_CLASS(xfs_attr_list_class,
 	TP_PROTO(struct xfs_attr_list_context *ctx),

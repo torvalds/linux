@@ -73,7 +73,7 @@ xfs_calc_buf_res(
  *
  * Keep in mind that max depth is calculated separately for each type of tree.
  */
-static uint
+uint
 xfs_allocfree_log_count(
 	struct xfs_mount *mp,
 	uint		num_ops)
