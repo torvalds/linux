@@ -686,8 +686,6 @@ static void
 sisusbcon_scrolldelta(struct vc_data *c, int lines)
 {
 	struct sisusb_usb_data *sisusb;
-	int margin = c->vc_size_row * 4;
-	int ul, we, p, st;
 
 	sisusb = sisusb_get_sisusb_lock_and_check(c->vc_num);
 	if (!sisusb)
@@ -700,39 +698,8 @@ sisusbcon_scrolldelta(struct vc_data *c, int lines)
 		return;
 	}
 
-	if (!lines)		/* Turn scrollback off */
-		c->vc_visible_origin = c->vc_origin;
-	else {
-
-		if (sisusb->con_rolled_over >
-				(c->vc_scr_end - sisusb->scrbuf) + margin) {
-
-			ul = c->vc_scr_end - sisusb->scrbuf;
-			we = sisusb->con_rolled_over + c->vc_size_row;
-
-		} else {
-
-			ul = 0;
-			we = sisusb->scrbuf_size;
-
-		}
-
-		p = (c->vc_visible_origin - sisusb->scrbuf - ul + we) % we +
-				lines * c->vc_size_row;
-
-		st = (c->vc_origin - sisusb->scrbuf - ul + we) % we;
-
-		if (st < 2 * margin)
-			margin = 0;
-
-		if (p < margin)
-			p = 0;
-
-		if (p > st - margin)
-			p = st;
-
-		c->vc_visible_origin = sisusb->scrbuf + (p + ul) % we;
-	}
+	vc_scrolldelta_helper(c, lines, sisusb->con_rolled_over,
+			(void *)sisusb->scrbuf, sisusb->scrbuf_size);
 
 	sisusbcon_set_start_address(sisusb, c);
 

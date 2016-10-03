@@ -332,31 +332,8 @@ static void vgacon_restore_screen(struct vc_data *c)
 
 static void vgacon_scrolldelta(struct vc_data *c, int lines)
 {
-	if (!lines)		/* Turn scrollback off */
-		c->vc_visible_origin = c->vc_origin;
-	else {
-		int margin = c->vc_size_row * 4;
-		int ul, we, p, st;
-
-		if (vga_rolled_over >
-		    (c->vc_scr_end - vga_vram_base) + margin) {
-			ul = c->vc_scr_end - vga_vram_base;
-			we = vga_rolled_over + c->vc_size_row;
-		} else {
-			ul = 0;
-			we = vga_vram_size;
-		}
-		p = (c->vc_visible_origin - vga_vram_base - ul + we) % we +
-		    lines * c->vc_size_row;
-		st = (c->vc_origin - vga_vram_base - ul + we) % we;
-		if (st < 2 * margin)
-			margin = 0;
-		if (p < margin)
-			p = 0;
-		if (p > st - margin)
-			p = st;
-		c->vc_visible_origin = vga_vram_base + (p + ul) % we;
-	}
+	vc_scrolldelta_helper(c, lines, vga_rolled_over, (void *)vga_vram_base,
+			vga_vram_size);
 	vga_set_mem_top(c);
 }
 #endif /* CONFIG_VGACON_SOFT_SCROLLBACK */
