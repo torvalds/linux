@@ -185,7 +185,6 @@ struct ll_inode_info {
 		struct {
 			struct mutex			lli_size_mutex;
 			char			       *lli_symlink_name;
-			__u64				lli_maxbytes;
 			/*
 			 * struct rw_semaphore {
 			 *    signed long	count;     // align d.d_def_acl
@@ -977,9 +976,14 @@ static inline struct lu_fid *ll_inode2fid(struct inode *inode)
 	return fid;
 }
 
-static inline __u64 ll_file_maxbytes(struct inode *inode)
+static inline loff_t ll_file_maxbytes(struct inode *inode)
 {
-	return ll_i2info(inode)->lli_maxbytes;
+	struct cl_object *obj = ll_i2info(inode)->lli_clob;
+
+	if (!obj)
+		return MAX_LFS_FILESIZE;
+
+	return min_t(loff_t, cl_object_maxbytes(obj), MAX_LFS_FILESIZE);
 }
 
 /* llite/xattr.c */

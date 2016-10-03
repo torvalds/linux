@@ -88,7 +88,7 @@ struct lov_stripe_md {
 	/* maximum possible file size, might change as OSTs status changes,
 	 * e.g. disconnected, deactivated
 	 */
-	__u64		lsm_maxbytes;
+	loff_t		lsm_maxbytes;
 	struct ost_id	lsm_oi;
 	__u32		lsm_magic;
 	__u32		lsm_stripe_size;
