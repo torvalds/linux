@@ -27,4 +27,18 @@ extern int xfs_refcount_lookup_ge(struct xfs_btree_cur *cur,
 extern int xfs_refcount_get_rec(struct xfs_btree_cur *cur,
 		struct xfs_refcount_irec *irec, int *stat);
 
+enum xfs_refcount_intent_type {
+	XFS_REFCOUNT_INCREASE = 1,
+	XFS_REFCOUNT_DECREASE,
+	XFS_REFCOUNT_ALLOC_COW,
+	XFS_REFCOUNT_FREE_COW,
+};
+
+struct xfs_refcount_intent {
+	struct list_head			ri_list;
+	enum xfs_refcount_intent_type		ri_type;
+	xfs_fsblock_t				ri_startblock;
+	xfs_extlen_t				ri_blockcount;
+};
+
 #endif	/* __XFS_REFCOUNT_H__ */

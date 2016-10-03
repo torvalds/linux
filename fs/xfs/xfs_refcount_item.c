@@ -22,12 +22,15 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
+#include "xfs_bit.h"
 #include "xfs_mount.h"
+#include "xfs_defer.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
 #include "xfs_buf_item.h"
 #include "xfs_refcount_item.h"
 #include "xfs_log.h"
+#include "xfs_refcount.h"
 
 
 kmem_zone_t	*xfs_cui_zone;
@@ -380,4 +383,61 @@ xfs_cud_init(
 	cudp->cud_format.cud_cui_id = cuip->cui_format.cui_id;
 
 	return cudp;
+}
+
+/*
+ * Process a refcount update intent item that was recovered from the log.
+ * We need to update the refcountbt.
+ */
+int
+xfs_cui_recover(
+	struct xfs_mount		*mp,
+	struct xfs_cui_log_item		*cuip)
+{
+	int				i;
+	int				error = 0;
+	struct xfs_phys_extent		*refc;
+	xfs_fsblock_t			startblock_fsb;
+	bool				op_ok;
+
+	ASSERT(!test_bit(XFS_CUI_RECOVERED, &cuip->cui_flags));
+
+	/*
+	 * First check the validity of the extents described by the
+	 * CUI.  If any are bad, then assume that all are bad and
+	 * just toss the CUI.
+	 */
+	for (i = 0; i < cuip->cui_format.cui_nextents; i++) {
+		refc = &cuip->cui_format.cui_extents[i];
+		startblock_fsb = XFS_BB_TO_FSB(mp,
+				   XFS_FSB_TO_DADDR(mp, refc->pe_startblock));
+		switch (refc->pe_flags & XFS_REFCOUNT_EXTENT_TYPE_MASK) {
+		case XFS_REFCOUNT_INCREASE:
+		case XFS_REFCOUNT_DECREASE:
+		case XFS_REFCOUNT_ALLOC_COW:
+		case XFS_REFCOUNT_FREE_COW:
+			op_ok = true;
+			break;
+		default:
+			op_ok = false;
+			break;
+		}
+		if (!op_ok || startblock_fsb == 0 ||
+		    refc->pe_len == 0 ||
+		    startblock_fsb >= mp->m_sb.sb_dblocks ||
+		    refc->pe_len >= mp->m_sb.sb_agblocks ||
+		    (refc->pe_flags & ~XFS_REFCOUNT_EXTENT_FLAGS)) {
+			/*
+			 * This will pull the CUI from the AIL and
+			 * free the memory associated with it.
+			 */
+			set_bit(XFS_CUI_RECOVERED, &cuip->cui_flags);
+			xfs_cui_release(cuip);
+			return -EIO;
+		}
+	}
+
+	set_bit(XFS_CUI_RECOVERED, &cuip->cui_flags);
+	xfs_cui_release(cuip);
+	return error;
 }

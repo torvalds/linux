@@ -96,5 +96,6 @@ struct xfs_cud_log_item *xfs_cud_init(struct xfs_mount *,
 		struct xfs_cui_log_item *);
 void xfs_cui_item_free(struct xfs_cui_log_item *);
 void xfs_cui_release(struct xfs_cui_log_item *);
+int xfs_cui_recover(struct xfs_mount *mp, struct xfs_cui_log_item *cuip);
 
 #endif	/* __XFS_REFCOUNT_ITEM_H__ */
