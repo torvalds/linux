@@ -374,6 +374,20 @@ int cl_object_fiemap(const struct lu_env *env, struct cl_object *obj,
 }
 EXPORT_SYMBOL(cl_object_fiemap);
 
+int cl_object_layout_get(const struct lu_env *env, struct cl_object *obj,
+			 struct cl_layout *cl)
+{
+	struct lu_object_header *top = obj->co_lu.lo_header;
+
+	list_for_each_entry(obj, &top->loh_layers, co_lu.lo_linkage) {
+		if (obj->co_ops->coo_layout_get)
+			return obj->co_ops->coo_layout_get(env, obj, cl);
+	}
+
+	return -EOPNOTSUPP;
+}
+EXPORT_SYMBOL(cl_object_layout_get);
+
 /**
  * Helper function removing all object locks, and marking object for
  * deletion. All object pages must have been deleted at this point.

@@ -800,7 +800,7 @@ void ll_lli_init(struct ll_inode_info *lli)
 	spin_lock_init(&lli->lli_agl_lock);
 	lli->lli_has_smd = false;
 	spin_lock_init(&lli->lli_layout_lock);
-	ll_layout_version_set(lli, LL_LAYOUT_GEN_NONE);
+	ll_layout_version_set(lli, CL_LAYOUT_GEN_NONE);
 	lli->lli_clob = NULL;
 
 	init_rwsem(&lli->lli_xattrs_list_rwsem);
@@ -1441,14 +1441,33 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 	 * but other attributes must be set
 	 */
 	if (S_ISREG(inode->i_mode)) {
-		struct lov_stripe_md *lsm;
+		struct cl_layout cl = {
+			.cl_is_released = false,
+		};
+		struct lu_env *env;
+		int refcheck;
 		__u32 gen;
 
-		ll_layout_refresh(inode, &gen);
-		lsm = ccc_inode_lsm_get(inode);
-		if (lsm && lsm->lsm_pattern & LOV_PATTERN_F_RELEASED)
-			file_is_released = true;
-		ccc_inode_lsm_put(inode, lsm);
+		rc = ll_layout_refresh(inode, &gen);
+		if (rc < 0)
+			goto out;
+
+		/*
+		 * XXX: the only place we need to know the layout type,
+		 * this will be removed by a later patch. -Jinshan
+		 */
+		env = cl_env_get(&refcheck);
+		if (IS_ERR(env)) {
+			rc = PTR_ERR(env);
+			goto out;
+		}
+
+		rc = cl_object_layout_get(env, lli->lli_clob, &cl);
+		cl_env_put(env, &refcheck);
+		if (rc < 0)
+			goto out;
+
+		file_is_released = cl.cl_is_released;
 
 		if (!hsm_import && attr->ia_valid & ATTR_SIZE) {
 			if (file_is_released) {

@@ -1316,11 +1316,6 @@ static inline void d_lustre_revalidate(struct dentry *dentry)
 	spin_unlock(&dentry->d_lock);
 }
 
-enum {
-	LL_LAYOUT_GEN_NONE  = ((__u32)-2),	/* layout lock was cancelled */
-	LL_LAYOUT_GEN_EMPTY = ((__u32)-1)	/* for empty layout */
-};
-
 int ll_layout_conf(struct inode *inode, const struct cl_object_conf *conf);
 int ll_layout_refresh(struct inode *inode, __u32 *gen);
 int ll_layout_restore(struct inode *inode, loff_t start, __u64 length);

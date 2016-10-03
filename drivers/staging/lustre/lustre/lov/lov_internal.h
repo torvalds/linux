@@ -176,6 +176,8 @@ int lov_del_target(struct obd_device *obd, __u32 index,
 		   struct obd_uuid *uuidp, int gen);
 
 /* lov_pack.c */
+ssize_t lov_lsm_pack(const struct lov_stripe_md *lsm, void *buf,
+		     size_t buf_size);
 int lov_packmd(struct obd_export *exp, struct lov_mds_md **lmm,
 	       struct lov_stripe_md *lsm);
 int lov_unpackmd(struct obd_export *exp, struct lov_stripe_md **lsmp,

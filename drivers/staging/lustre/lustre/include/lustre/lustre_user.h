@@ -346,6 +346,9 @@ enum ll_lease_type {
 #define LOV_ALL_STRIPES       0xffff /* only valid for directories */
 #define LOV_V1_INSANE_STRIPE_COUNT 65532 /* maximum stripe count bz13933 */
 
+#define XATTR_LUSTRE_PREFIX	"lustre."
+#define XATTR_LUSTRE_LOV	"lustre.lov"
+
 #define lov_user_ost_data lov_user_ost_data_v1
 struct lov_user_ost_data_v1 {     /* per-stripe data structure */
 	struct ost_id l_ost_oi;	  /* OST object ID */

@@ -97,6 +97,62 @@ void lov_dump_lmm_v3(int level, struct lov_mds_md_v3 *lmm)
 			     le16_to_cpu(lmm->lmm_stripe_count));
 }
 
+/**
+ * Pack LOV striping metadata for disk storage format (in little
+ * endian byte order).
+ *
+ * This follows the getxattr() conventions. If \a buf_size is zero
+ * then return the size needed. If \a buf_size is too small then
+ * return -ERANGE. Otherwise return the size of the result.
+ */
+ssize_t lov_lsm_pack(const struct lov_stripe_md *lsm, void *buf,
+		     size_t buf_size)
+{
+	struct lov_ost_data_v1 *lmm_objects;
+	struct lov_mds_md_v1 *lmmv1 = buf;
+	struct lov_mds_md_v3 *lmmv3 = buf;
+	size_t lmm_size;
+	unsigned int i;
+
+	lmm_size = lov_mds_md_size(lsm->lsm_stripe_count, lsm->lsm_magic);
+	if (!buf_size)
+		return lmm_size;
+
+	if (buf_size < lmm_size)
+		return -ERANGE;
+
+	/*
+	 * lmmv1 and lmmv3 point to the same struct and have the
+	 * same first fields
+	 */
+	lmmv1->lmm_magic = cpu_to_le32(lsm->lsm_magic);
+	lmm_oi_cpu_to_le(&lmmv1->lmm_oi, &lsm->lsm_oi);
+	lmmv1->lmm_stripe_size = cpu_to_le32(lsm->lsm_stripe_size);
+	lmmv1->lmm_stripe_count = cpu_to_le16(lsm->lsm_stripe_count);
+	lmmv1->lmm_pattern = cpu_to_le32(lsm->lsm_pattern);
+	lmmv1->lmm_layout_gen = cpu_to_le16(lsm->lsm_layout_gen);
+
+	if (lsm->lsm_magic == LOV_MAGIC_V3) {
+		CLASSERT(sizeof(lsm->lsm_pool_name) ==
+			 sizeof(lmmv3->lmm_pool_name));
+		strlcpy(lmmv3->lmm_pool_name, lsm->lsm_pool_name,
+			sizeof(lmmv3->lmm_pool_name));
+		lmm_objects = lmmv3->lmm_objects;
+	} else {
+		lmm_objects = lmmv1->lmm_objects;
+	}
+
+	for (i = 0; i < lsm->lsm_stripe_count; i++) {
+		struct lov_oinfo *loi = lsm->lsm_oinfo[i];
+
+		ostid_cpu_to_le(&loi->loi_oi, &lmm_objects[i].l_ost_oi);
+		lmm_objects[i].l_ost_gen = cpu_to_le32(loi->loi_ost_gen);
+		lmm_objects[i].l_ost_idx = cpu_to_le32(loi->loi_ost_idx);
+	}
+
+	return lmm_size;
+}
+
 /* Pack LOV object metadata for disk storage.  It is packed in LE byte
  * order and is opaque to the networking layer.
  *
@@ -108,13 +164,8 @@ void lov_dump_lmm_v3(int level, struct lov_mds_md_v3 *lmm)
 int lov_obd_packmd(struct lov_obd *lov, struct lov_mds_md **lmmp,
 		   struct lov_stripe_md *lsm)
 {
-	struct lov_mds_md_v1 *lmmv1;
-	struct lov_mds_md_v3 *lmmv3;
 	__u16 stripe_count;
-	struct lov_ost_data_v1 *lmm_objects;
 	int lmm_size, lmm_magic;
-	int i;
-	int cplen = 0;
 
 	if (lsm) {
 		lmm_magic = lsm->lsm_magic;
@@ -177,46 +228,10 @@ int lov_obd_packmd(struct lov_obd *lov, struct lov_mds_md **lmmp,
 	CDEBUG(D_INFO, "lov_packmd: LOV_MAGIC 0x%08X, lmm_size = %d\n",
 	       lmm_magic, lmm_size);
 
-	lmmv1 = *lmmp;
-	lmmv3 = (struct lov_mds_md_v3 *)*lmmp;
-	if (lmm_magic == LOV_MAGIC_V3)
-		lmmv3->lmm_magic = cpu_to_le32(LOV_MAGIC_V3);
-	else
-		lmmv1->lmm_magic = cpu_to_le32(LOV_MAGIC_V1);
-
 	if (!lsm)
 		return lmm_size;
 
-	/* lmmv1 and lmmv3 point to the same struct and have the
-	 * same first fields
-	 */
-	lmm_oi_cpu_to_le(&lmmv1->lmm_oi, &lsm->lsm_oi);
-	lmmv1->lmm_stripe_size = cpu_to_le32(lsm->lsm_stripe_size);
-	lmmv1->lmm_stripe_count = cpu_to_le16(stripe_count);
-	lmmv1->lmm_pattern = cpu_to_le32(lsm->lsm_pattern);
-	lmmv1->lmm_layout_gen = cpu_to_le16(lsm->lsm_layout_gen);
-	if (lsm->lsm_magic == LOV_MAGIC_V3) {
-		cplen = strlcpy(lmmv3->lmm_pool_name, lsm->lsm_pool_name,
-				sizeof(lmmv3->lmm_pool_name));
-		if (cplen >= sizeof(lmmv3->lmm_pool_name))
-			return -E2BIG;
-		lmm_objects = lmmv3->lmm_objects;
-	} else {
-		lmm_objects = lmmv1->lmm_objects;
-	}
-
-	for (i = 0; i < stripe_count; i++) {
-		struct lov_oinfo *loi = lsm->lsm_oinfo[i];
-		/* XXX LOV STACKING call down to osc_packmd() to do packing */
-		LASSERTF(ostid_id(&loi->loi_oi) != 0, "lmm_oi "DOSTID
-			 " stripe %u/%u idx %u\n", POSTID(&lmmv1->lmm_oi),
-			 i, stripe_count, loi->loi_ost_idx);
-		ostid_cpu_to_le(&loi->loi_oi, &lmm_objects[i].l_ost_oi);
-		lmm_objects[i].l_ost_gen = cpu_to_le32(loi->loi_ost_gen);
-		lmm_objects[i].l_ost_idx = cpu_to_le32(loi->loi_ost_idx);
-	}
-
-	return lmm_size;
+	return lov_lsm_pack(lsm, *lmmp, lmm_size);
 }
 
 int lov_packmd(struct obd_export *exp, struct lov_mds_md **lmmp,
