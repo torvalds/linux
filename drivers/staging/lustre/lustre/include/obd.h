@@ -345,13 +345,6 @@ struct client_obd {
 	/* also protected by the poorly named _loi_list_lock lock above */
 	struct osc_async_rc      cl_ar;
 
-	/* used by quotacheck when the servers are older than 2.4 */
-	int		      cl_qchk_stat; /* quotacheck stat of the peer */
-#define CL_NOT_QUOTACHECKED 1   /* client->cl_qchk_stat init value */
-#if OBD_OCD_VERSION(2, 7, 53, 0) < LUSTRE_VERSION_CODE
-#warning "please consider removing quotacheck compatibility code"
-#endif
-
 	/* sequence manager */
 	struct lu_client_seq    *cl_seq;
 
@@ -930,8 +923,6 @@ struct obd_ops {
 	struct obd_uuid *(*get_uuid)(struct obd_export *exp);
 
 	/* quota methods */
-	int (*quotacheck)(struct obd_device *, struct obd_export *,
-			  struct obd_quotactl *);
 	int (*quotactl)(struct obd_device *, struct obd_export *,
 			struct obd_quotactl *);
 

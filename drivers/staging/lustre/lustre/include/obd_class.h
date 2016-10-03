@@ -1163,18 +1163,6 @@ static inline int obd_notify_observer(struct obd_device *observer,
 	return rc1 ? rc1 : rc2;
 }
 
-static inline int obd_quotacheck(struct obd_export *exp,
-				 struct obd_quotactl *oqctl)
-{
-	int rc;
-
-	EXP_CHECK_DT_OP(exp, quotacheck);
-	EXP_COUNTER_INCREMENT(exp, quotacheck);
-
-	rc = OBP(exp->exp_obd, quotacheck)(exp->exp_obd, exp, oqctl);
-	return rc;
-}
-
 static inline int obd_quotactl(struct obd_export *exp,
 			       struct obd_quotactl *oqctl)
 {

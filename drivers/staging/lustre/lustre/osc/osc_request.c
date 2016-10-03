@@ -2443,9 +2443,6 @@ static int osc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		err = ptlrpc_set_import_active(obd->u.cli.cl_import,
 					       data->ioc_offset);
 		goto out;
-	case OBD_IOC_POLL_QUOTACHECK:
-		err = osc_quota_poll_check(exp, karg);
-		goto out;
 	case OBD_IOC_PING_TARGET:
 		err = ptlrpc_obd_ping(obd);
 		goto out;
@@ -2934,7 +2931,6 @@ static struct obd_ops osc_obd_ops = {
 	.import_event   = osc_import_event,
 	.process_config = osc_process_config,
 	.quotactl       = osc_quotactl,
-	.quotacheck     = osc_quotacheck,
 };
 
 extern struct lu_kmem_descr osc_caches[];

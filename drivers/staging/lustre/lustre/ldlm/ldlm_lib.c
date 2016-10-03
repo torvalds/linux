@@ -425,8 +425,6 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 		goto err_import;
 	}
 
-	cli->cl_qchk_stat = CL_NOT_QUOTACHECKED;
-
 	return rc;
 
 err_import:

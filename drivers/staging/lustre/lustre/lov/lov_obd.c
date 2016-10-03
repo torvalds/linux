@@ -1217,8 +1217,6 @@ static int lov_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 			osc_obd->obd_force = obddev->obd_force;
 			err = obd_iocontrol(cmd, lov->lov_tgts[i]->ltd_exp,
 					    len, karg, uarg);
-			if (err == -ENODATA && cmd == OBD_IOC_POLL_QUOTACHECK)
-				return err;
 			if (err) {
 				if (lov->lov_tgts[i]->ltd_active) {
 					CDEBUG(err == -ENOTTY ?
@@ -1355,12 +1353,8 @@ static int lov_quotactl(struct obd_device *obd, struct obd_export *exp,
 	__u64		bhardlimit = 0;
 	int		  i, rc = 0;
 
-	if (oqctl->qc_cmd != LUSTRE_Q_QUOTAON &&
-	    oqctl->qc_cmd != LUSTRE_Q_QUOTAOFF &&
-	    oqctl->qc_cmd != Q_GETOQUOTA &&
-	    oqctl->qc_cmd != Q_INITQUOTA &&
-	    oqctl->qc_cmd != LUSTRE_Q_SETQUOTA &&
-	    oqctl->qc_cmd != Q_FINVALIDATE) {
+	if (oqctl->qc_cmd != Q_GETOQUOTA &&
+	    oqctl->qc_cmd != LUSTRE_Q_SETQUOTA) {
 		CERROR("bad quota opc %x for lov obd\n", oqctl->qc_cmd);
 		return -EFAULT;
 	}
@@ -1407,49 +1401,6 @@ static int lov_quotactl(struct obd_device *obd, struct obd_export *exp,
 	return rc;
 }
 
-static int lov_quotacheck(struct obd_device *obd, struct obd_export *exp,
-			  struct obd_quotactl *oqctl)
-{
-	struct lov_obd *lov = &obd->u.lov;
-	int	     i, rc = 0;
-
-	obd_getref(obd);
-
-	for (i = 0; i < lov->desc.ld_tgt_count; i++) {
-		if (!lov->lov_tgts[i])
-			continue;
-
-		/* Skip quota check on the administratively disabled OSTs. */
-		if (!lov->lov_tgts[i]->ltd_activate) {
-			CWARN("lov idx %d was administratively disabled, skip quotacheck on it.\n",
-			      i);
-			continue;
-		}
-
-		if (!lov->lov_tgts[i]->ltd_active) {
-			CERROR("lov idx %d inactive\n", i);
-			rc = -EIO;
-			goto out;
-		}
-	}
-
-	for (i = 0; i < lov->desc.ld_tgt_count; i++) {
-		int err;
-
-		if (!lov->lov_tgts[i] || !lov->lov_tgts[i]->ltd_activate)
-			continue;
-
-		err = obd_quotacheck(lov->lov_tgts[i]->ltd_exp, oqctl);
-		if (err && !rc)
-			rc = err;
-	}
-
-out:
-	obd_putref(obd);
-
-	return rc;
-}
-
 static struct obd_ops lov_obd_ops = {
 	.owner          = THIS_MODULE,
 	.setup          = lov_setup,
@@ -1473,7 +1424,6 @@ static struct obd_ops lov_obd_ops = {
 	.getref         = lov_getref,
 	.putref         = lov_putref,
 	.quotactl       = lov_quotactl,
-	.quotacheck     = lov_quotacheck,
 };
 
 struct kmem_cache *lov_oinfo_slab;

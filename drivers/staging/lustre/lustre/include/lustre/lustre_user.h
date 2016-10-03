@@ -557,22 +557,17 @@ static inline void obd_uuid2fsname(char *buf, char *uuid, int buflen)
 #define Q_FINVALIDATE  0x800104 /* deprecated as of 2.4 */
 
 /* these must be explicitly translated into linux Q_* in ll_dir_ioctl */
-#define LUSTRE_Q_QUOTAON    0x800002     /* turn quotas on */
-#define LUSTRE_Q_QUOTAOFF   0x800003     /* turn quotas off */
+#define LUSTRE_Q_QUOTAON    0x800002	/* deprecated as of 2.4 */
+#define LUSTRE_Q_QUOTAOFF   0x800003	/* deprecated as of 2.4 */
 #define LUSTRE_Q_GETINFO    0x800005     /* get information about quota files */
 #define LUSTRE_Q_SETINFO    0x800006     /* set information about quota files */
 #define LUSTRE_Q_GETQUOTA   0x800007     /* get user quota structure */
 #define LUSTRE_Q_SETQUOTA   0x800008     /* set user quota structure */
 /* lustre-specific control commands */
-#define LUSTRE_Q_INVALIDATE  0x80000b     /* invalidate quota data */
-#define LUSTRE_Q_FINVALIDATE 0x80000c     /* invalidate filter quota data */
+#define LUSTRE_Q_INVALIDATE  0x80000b	/* deprecated as of 2.4 */
+#define LUSTRE_Q_FINVALIDATE 0x80000c	/* deprecated as of 2.4 */
 
 #define UGQUOTA 2       /* set both USRQUOTA and GRPQUOTA */
-
-struct if_quotacheck {
-	char		    obd_type[16];
-	struct obd_uuid	 obd_uuid;
-};
 
 #define IDENTITY_DOWNCALL_MAGIC 0x6d6dd629
 

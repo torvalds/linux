@@ -861,10 +861,6 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 	int rc = 0;
 
 	switch (cmd) {
-	case LUSTRE_Q_INVALIDATE:
-	case LUSTRE_Q_FINVALIDATE:
-	case Q_QUOTAON:
-	case Q_QUOTAOFF:
 	case Q_SETQUOTA:
 	case Q_SETINFO:
 		if (!capable(CFS_CAP_SYS_ADMIN))
@@ -929,10 +925,6 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 		QCTL_COPY(oqctl, qctl);
 		rc = obd_quotactl(sbi->ll_md_exp, oqctl);
 		if (rc) {
-			if (rc != -EALREADY && cmd == Q_QUOTAON) {
-				oqctl->qc_cmd = Q_QUOTAOFF;
-				obd_quotactl(sbi->ll_md_exp, oqctl);
-			}
 			kfree(oqctl);
 			return rc;
 		}
@@ -1367,63 +1359,6 @@ out_req:
 		ptlrpc_req_finished(request);
 		if (filename)
 			ll_putname(filename);
-		return rc;
-	}
-	case OBD_IOC_QUOTACHECK: {
-		struct obd_quotactl *oqctl;
-		int error = 0;
-
-		if (!capable(CFS_CAP_SYS_ADMIN))
-			return -EPERM;
-
-		oqctl = kzalloc(sizeof(*oqctl), GFP_NOFS);
-		if (!oqctl)
-			return -ENOMEM;
-		oqctl->qc_type = arg;
-		rc = obd_quotacheck(sbi->ll_md_exp, oqctl);
-		if (rc < 0) {
-			CDEBUG(D_INFO, "md_quotacheck failed: rc %d\n", rc);
-			error = rc;
-		}
-
-		rc = obd_quotacheck(sbi->ll_dt_exp, oqctl);
-		if (rc < 0)
-			CDEBUG(D_INFO, "obd_quotacheck failed: rc %d\n", rc);
-
-		kfree(oqctl);
-		return error ?: rc;
-	}
-	case OBD_IOC_POLL_QUOTACHECK: {
-		struct if_quotacheck *check;
-
-		if (!capable(CFS_CAP_SYS_ADMIN))
-			return -EPERM;
-
-		check = kzalloc(sizeof(*check), GFP_NOFS);
-		if (!check)
-			return -ENOMEM;
-
-		rc = obd_iocontrol(cmd, sbi->ll_md_exp, 0, (void *)check,
-				   NULL);
-		if (rc) {
-			CDEBUG(D_QUOTA, "mdc ioctl %d failed: %d\n", cmd, rc);
-			if (copy_to_user((void __user *)arg, check,
-					 sizeof(*check)))
-				CDEBUG(D_QUOTA, "copy_to_user failed\n");
-			goto out_poll;
-		}
-
-		rc = obd_iocontrol(cmd, sbi->ll_dt_exp, 0, (void *)check,
-				   NULL);
-		if (rc) {
-			CDEBUG(D_QUOTA, "osc ioctl %d failed: %d\n", cmd, rc);
-			if (copy_to_user((void __user *)arg, check,
-					 sizeof(*check)))
-				CDEBUG(D_QUOTA, "copy_to_user failed\n");
-			goto out_poll;
-		}
-out_poll:
-		kfree(check);
 		return rc;
 	}
 	case OBD_IOC_QUOTACTL: {
