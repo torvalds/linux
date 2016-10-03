@@ -42,7 +42,7 @@ static DEFINE_PER_CPU(struct led_trigger_cpu, cpu_trig);
  * @evt: CPU event to be emitted
  *
  * Emit a CPU event on a CPU core, which will trigger a
- * binded LED to turn on or turn off.
+ * bound LED to turn on or turn off.
  */
 void ledtrig_cpu(enum cpu_led_event ledevt)
 {
