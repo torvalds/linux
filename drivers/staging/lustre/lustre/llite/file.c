@@ -1186,27 +1186,14 @@ int ll_lov_setstripe_ea_info(struct inode *inode, struct dentry *dentry,
 			     __u64 flags, struct lov_user_md *lum,
 			     int lum_size)
 {
-	struct lov_stripe_md *lsm = NULL;
 	struct lookup_intent oit = {
 		.it_op = IT_OPEN,
 		.it_flags = flags | MDS_OPEN_BY_FID,
 	};
 	int rc = 0;
 
-	lsm = ccc_inode_lsm_get(inode);
-	if (lsm) {
-		ccc_inode_lsm_put(inode, lsm);
-		CDEBUG(D_IOCTL, "stripe already exists for inode "DFID"\n",
-		       PFID(ll_inode2fid(inode)));
-		rc = -EEXIST;
-		goto out;
-	}
-
 	ll_inode_size_lock(inode);
 	rc = ll_intent_file_open(dentry, lum, lum_size, &oit);
-	if (rc < 0)
-		goto out_unlock;
-	rc = oit.it_status;
 	if (rc < 0)
 		goto out_unlock;
 
@@ -1215,8 +1202,6 @@ int ll_lov_setstripe_ea_info(struct inode *inode, struct dentry *dentry,
 out_unlock:
 	ll_inode_size_unlock(inode);
 	ll_intent_release(&oit);
-	ccc_inode_lsm_put(inode, lsm);
-out:
 	return rc;
 }
 
