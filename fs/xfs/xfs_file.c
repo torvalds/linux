@@ -38,6 +38,7 @@
 #include "xfs_icache.h"
 #include "xfs_pnfs.h"
 #include "xfs_iomap.h"
+#include "xfs_reflink.h"
 
 #include <linux/dcache.h>
 #include <linux/falloc.h>
@@ -673,6 +674,13 @@ xfs_file_dio_aio_write(
 
 	trace_xfs_file_direct_write(ip, count, iocb->ki_pos);
 
+	/* If this is a block-aligned directio CoW, remap immediately. */
+	if (xfs_is_reflink_inode(ip) && !unaligned_io) {
+		ret = xfs_reflink_allocate_cow_range(ip, iocb->ki_pos, count);
+		if (ret)
+			goto out;
+	}
+
 	data = *from;
 	ret = __blockdev_direct_IO(iocb, inode, target->bt_bdev, &data,
 			xfs_get_blocks_direct, xfs_end_io_direct_write,
@@ -813,10 +821,20 @@ xfs_file_write_iter(
 
 	if (IS_DAX(inode))
 		ret = xfs_file_dax_write(iocb, from);
-	else if (iocb->ki_flags & IOCB_DIRECT)
+	else if (iocb->ki_flags & IOCB_DIRECT) {
+		/*
+		 * Allow a directio write to fall back to a buffered
+		 * write *only* in the case that we're doing a reflink
+		 * CoW.  In all other directio scenarios we do not
+		 * allow an operation to fall back to buffered mode.
+		 */
 		ret = xfs_file_dio_aio_write(iocb, from);
-	else
+		if (ret == -EREMCHG)
+			goto buffered;
+	} else {
+buffered:
 		ret = xfs_file_buffered_aio_write(iocb, from);
+	}
 
 	if (ret > 0) {
 		XFS_STATS_ADD(ip->i_mount, xs_write_bytes, ret);

@@ -229,7 +229,8 @@ static int
 __xfs_reflink_reserve_cow(
 	struct xfs_inode	*ip,
 	xfs_fileoff_t		*offset_fsb,
-	xfs_fileoff_t		end_fsb)
+	xfs_fileoff_t		end_fsb,
+	bool			*skipped)
 {
 	struct xfs_bmbt_irec	got, prev, imap;
 	xfs_fileoff_t		orig_end_fsb;
@@ -262,8 +263,10 @@ __xfs_reflink_reserve_cow(
 	end_fsb = orig_end_fsb = imap.br_startoff + imap.br_blockcount;
 
 	/* Not shared?  Just report the (potentially capped) extent. */
-	if (!shared)
+	if (!shared) {
+		*skipped = true;
 		goto done;
+	}
 
 	/*
 	 * Fork all the shared blocks from our write offset until the end of
@@ -309,6 +312,7 @@ xfs_reflink_reserve_cow_range(
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	xfs_fileoff_t		offset_fsb, end_fsb;
+	bool			skipped = false;
 	int			error;
 
 	trace_xfs_reflink_reserve_cow_range(ip, offset, count);
@@ -318,7 +322,8 @@ xfs_reflink_reserve_cow_range(
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	while (offset_fsb < end_fsb) {
-		error = __xfs_reflink_reserve_cow(ip, &offset_fsb, end_fsb);
+		error = __xfs_reflink_reserve_cow(ip, &offset_fsb, end_fsb,
+				&skipped);
 		if (error) {
 			trace_xfs_reflink_reserve_cow_range_error(ip, error,
 				_RET_IP_);
@@ -326,6 +331,102 @@ xfs_reflink_reserve_cow_range(
 		}
 	}
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+
+	return error;
+}
+
+/* Allocate all CoW reservations covering a range of blocks in a file. */
+static int
+__xfs_reflink_allocate_cow(
+	struct xfs_inode	*ip,
+	xfs_fileoff_t		*offset_fsb,
+	xfs_fileoff_t		end_fsb)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_bmbt_irec	imap;
+	struct xfs_defer_ops	dfops;
+	struct xfs_trans	*tp;
+	xfs_fsblock_t		first_block;
+	xfs_fileoff_t		next_fsb;
+	int			nimaps = 1, error;
+	bool			skipped = false;
+
+	xfs_defer_init(&dfops, &first_block);
+
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, 0, 0,
+			XFS_TRANS_RESERVE, &tp);
+	if (error)
+		return error;
+
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+
+	next_fsb = *offset_fsb;
+	error = __xfs_reflink_reserve_cow(ip, &next_fsb, end_fsb, &skipped);
+	if (error)
+		goto out_trans_cancel;
+
+	if (skipped) {
+		*offset_fsb = next_fsb;
+		goto out_trans_cancel;
+	}
+
+	xfs_trans_ijoin(tp, ip, 0);
+	error = xfs_bmapi_write(tp, ip, *offset_fsb, next_fsb - *offset_fsb,
+			XFS_BMAPI_COWFORK, &first_block,
+			XFS_EXTENTADD_SPACE_RES(mp, XFS_DATA_FORK),
+			&imap, &nimaps, &dfops);
+	if (error)
+		goto out_trans_cancel;
+
+	/* We might not have been able to map the whole delalloc extent */
+	*offset_fsb = min(*offset_fsb + imap.br_blockcount, next_fsb);
+
+	error = xfs_defer_finish(&tp, &dfops, NULL);
+	if (error)
+		goto out_trans_cancel;
+
+	error = xfs_trans_commit(tp);
+
+out_unlock:
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+	return error;
+out_trans_cancel:
+	xfs_defer_cancel(&dfops);
+	xfs_trans_cancel(tp);
+	goto out_unlock;
+}
+
+/* Allocate all CoW reservations covering a part of a file. */
+int
+xfs_reflink_allocate_cow_range(
+	struct xfs_inode	*ip,
+	xfs_off_t		offset,
+	xfs_off_t		count)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+	xfs_fileoff_t		offset_fsb = XFS_B_TO_FSBT(mp, offset);
+	xfs_fileoff_t		end_fsb = XFS_B_TO_FSB(mp, offset + count);
+	int			error;
+
+	ASSERT(xfs_is_reflink_inode(ip));
+
+	trace_xfs_reflink_allocate_cow_range(ip, offset, count);
+
+	/*
+	 * Make sure that the dquots are there.
+	 */
+	error = xfs_qm_dqattach(ip, 0);
+	if (error)
+		return error;
+
+	while (offset_fsb < end_fsb) {
+		error = __xfs_reflink_allocate_cow(ip, &offset_fsb, end_fsb);
+		if (error) {
+			trace_xfs_reflink_allocate_cow_range_error(ip, error,
+					_RET_IP_);
+			break;
+		}
+	}
 
 	return error;
 }

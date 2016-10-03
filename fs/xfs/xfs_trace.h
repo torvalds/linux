@@ -3335,7 +3335,6 @@ DEFINE_INODE_IREC_EVENT(xfs_reflink_cow_enospc);
 
 DEFINE_RW_EVENT(xfs_reflink_reserve_cow_range);
 DEFINE_RW_EVENT(xfs_reflink_allocate_cow_range);
-DEFINE_INODE_IREC_EVENT(xfs_reflink_allocate_cow_extent);
 
 DEFINE_INODE_IREC_EVENT(xfs_reflink_bounce_dio_write);
 DEFINE_IOMAP_EVENT(xfs_reflink_find_cow_mapping);

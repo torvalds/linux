@@ -40,6 +40,7 @@
 /* flags for direct write completions */
 #define XFS_DIO_FLAG_UNWRITTEN	(1 << 0)
 #define XFS_DIO_FLAG_APPEND	(1 << 1)
+#define XFS_DIO_FLAG_COW	(1 << 2)
 
 /*
  * structure owned by writepages passed to individual writepage calls
@@ -1190,18 +1191,24 @@ xfs_map_direct(
 	struct inode		*inode,
 	struct buffer_head	*bh_result,
 	struct xfs_bmbt_irec	*imap,
-	xfs_off_t		offset)
+	xfs_off_t		offset,
+	bool			is_cow)
 {
 	uintptr_t		*flags = (uintptr_t *)&bh_result->b_private;
 	xfs_off_t		size = bh_result->b_size;
 
 	trace_xfs_get_blocks_map_direct(XFS_I(inode), offset, size,
-		ISUNWRITTEN(imap) ? XFS_IO_UNWRITTEN : XFS_IO_OVERWRITE, imap);
+		ISUNWRITTEN(imap) ? XFS_IO_UNWRITTEN : is_cow ? XFS_IO_COW :
+		XFS_IO_OVERWRITE, imap);
 
 	if (ISUNWRITTEN(imap)) {
 		*flags |= XFS_DIO_FLAG_UNWRITTEN;
 		set_buffer_defer_completion(bh_result);
-	} else if (offset + size > i_size_read(inode) || offset + size < 0) {
+	} else if (is_cow) {
+		*flags |= XFS_DIO_FLAG_COW;
+		set_buffer_defer_completion(bh_result);
+	}
+	if (offset + size > i_size_read(inode) || offset + size < 0) {
 		*flags |= XFS_DIO_FLAG_APPEND;
 		set_buffer_defer_completion(bh_result);
 	}
@@ -1247,6 +1254,44 @@ xfs_map_trim_size(
 	bh_result->b_size = mapping_size;
 }
 
+/* Bounce unaligned directio writes to the page cache. */
+static int
+xfs_bounce_unaligned_dio_write(
+	struct xfs_inode	*ip,
+	xfs_fileoff_t		offset_fsb,
+	struct xfs_bmbt_irec	*imap)
+{
+	struct xfs_bmbt_irec	irec;
+	xfs_fileoff_t		delta;
+	bool			shared;
+	bool			x;
+	int			error;
+
+	irec = *imap;
+	if (offset_fsb > irec.br_startoff) {
+		delta = offset_fsb - irec.br_startoff;
+		irec.br_blockcount -= delta;
+		irec.br_startblock += delta;
+		irec.br_startoff = offset_fsb;
+	}
+	error = xfs_reflink_trim_around_shared(ip, &irec, &shared, &x);
+	if (error)
+		return error;
+
+	/*
+	 * We're here because we're trying to do a directio write to a
+	 * region that isn't aligned to a filesystem block.  If any part
+	 * of the extent is shared, fall back to buffered mode to handle
+	 * the RMW.  This is done by returning -EREMCHG ("remote addr
+	 * changed"), which is caught further up the call stack.
+	 */
+	if (shared) {
+		trace_xfs_reflink_bounce_dio_write(ip, imap);
+		return -EREMCHG;
+	}
+	return 0;
+}
+
 STATIC int
 __xfs_get_blocks(
 	struct inode		*inode,
@@ -1266,6 +1311,8 @@ __xfs_get_blocks(
 	xfs_off_t		offset;
 	ssize_t			size;
 	int			new = 0;
+	bool			is_cow = false;
+	bool			need_alloc = false;
 
 	BUG_ON(create && !direct);
 
@@ -1291,8 +1338,26 @@ __xfs_get_blocks(
 	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)offset + size);
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);
 
-	error = xfs_bmapi_read(ip, offset_fsb, end_fsb - offset_fsb,
-				&imap, &nimaps, XFS_BMAPI_ENTIRE);
+	if (create && direct && xfs_is_reflink_inode(ip))
+		is_cow = xfs_reflink_find_cow_mapping(ip, offset, &imap,
+					&need_alloc);
+	if (!is_cow) {
+		error = xfs_bmapi_read(ip, offset_fsb, end_fsb - offset_fsb,
+					&imap, &nimaps, XFS_BMAPI_ENTIRE);
+		/*
+		 * Truncate an overwrite extent if there's a pending CoW
+		 * reservation before the end of this extent.  This
+		 * forces us to come back to get_blocks to take care of
+		 * the CoW.
+		 */
+		if (create && direct && nimaps &&
+		    imap.br_startblock != HOLESTARTBLOCK &&
+		    imap.br_startblock != DELAYSTARTBLOCK &&
+		    !ISUNWRITTEN(&imap))
+			xfs_reflink_trim_irec_to_next_cow(ip, offset_fsb,
+					&imap);
+	}
+	ASSERT(!need_alloc);
 	if (error)
 		goto out_unlock;
 
@@ -1344,6 +1409,13 @@ __xfs_get_blocks(
 	if (imap.br_startblock != HOLESTARTBLOCK &&
 	    imap.br_startblock != DELAYSTARTBLOCK &&
 	    (create || !ISUNWRITTEN(&imap))) {
+		if (create && direct && !is_cow) {
+			error = xfs_bounce_unaligned_dio_write(ip, offset_fsb,
+					&imap);
+			if (error)
+				return error;
+		}
+
 		xfs_map_buffer(inode, bh_result, &imap, offset);
 		if (ISUNWRITTEN(&imap))
 			set_buffer_unwritten(bh_result);
@@ -1352,7 +1424,8 @@ __xfs_get_blocks(
 			if (dax_fault)
 				ASSERT(!ISUNWRITTEN(&imap));
 			else
-				xfs_map_direct(inode, bh_result, &imap, offset);
+				xfs_map_direct(inode, bh_result, &imap, offset,
+						is_cow);
 		}
 	}
 
@@ -1478,7 +1551,10 @@ xfs_end_io_direct_write(
 		trace_xfs_end_io_direct_write_unwritten(ip, offset, size);
 
 		error = xfs_iomap_write_unwritten(ip, offset, size);
-	} else if (flags & XFS_DIO_FLAG_APPEND) {
+	}
+	if (flags & XFS_DIO_FLAG_COW)
+		error = xfs_reflink_end_cow(ip, offset, size);
+	if (flags & XFS_DIO_FLAG_APPEND) {
 		trace_xfs_end_io_direct_write_append(ip, offset, size);
 
 		error = xfs_setfilesize(ip, offset, size);
