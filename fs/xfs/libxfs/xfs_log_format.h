@@ -635,8 +635,11 @@ struct xfs_map_extent {
 
 /* rmap me_flags: upper bits are flags, lower byte is type code */
 #define XFS_RMAP_EXTENT_MAP		1
+#define XFS_RMAP_EXTENT_MAP_SHARED	2
 #define XFS_RMAP_EXTENT_UNMAP		3
+#define XFS_RMAP_EXTENT_UNMAP_SHARED	4
 #define XFS_RMAP_EXTENT_CONVERT		5
+#define XFS_RMAP_EXTENT_CONVERT_SHARED	6
 #define XFS_RMAP_EXTENT_ALLOC		7
 #define XFS_RMAP_EXTENT_FREE		8
 #define XFS_RMAP_EXTENT_TYPE_MASK	0xFF

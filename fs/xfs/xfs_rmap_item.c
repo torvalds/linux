@@ -441,8 +441,11 @@ xfs_rui_recover(
 				   XFS_FSB_TO_DADDR(mp, rmap->me_startblock));
 		switch (rmap->me_flags & XFS_RMAP_EXTENT_TYPE_MASK) {
 		case XFS_RMAP_EXTENT_MAP:
+		case XFS_RMAP_EXTENT_MAP_SHARED:
 		case XFS_RMAP_EXTENT_UNMAP:
+		case XFS_RMAP_EXTENT_UNMAP_SHARED:
 		case XFS_RMAP_EXTENT_CONVERT:
+		case XFS_RMAP_EXTENT_CONVERT_SHARED:
 		case XFS_RMAP_EXTENT_ALLOC:
 		case XFS_RMAP_EXTENT_FREE:
 			op_ok = true;
