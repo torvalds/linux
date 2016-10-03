@@ -92,6 +92,8 @@ struct gpio_desc *of_find_gpio(struct device *dev,
 			       const char *con_id,
 			       unsigned int idx,
 			       enum gpio_lookup_flags *flags);
+int of_gpiochip_add(struct gpio_chip *gc);
+void of_gpiochip_remove(struct gpio_chip *gc);
 #else
 static inline struct gpio_desc *of_find_gpio(struct device *dev,
 					     const char *con_id,
@@ -100,6 +102,8 @@ static inline struct gpio_desc *of_find_gpio(struct device *dev,
 {
 	return ERR_PTR(-ENOENT);
 }
+static inline int of_gpiochip_add(struct gpio_chip *gc) { return 0; }
+static inline void of_gpiochip_remove(struct gpio_chip *gc) { }
 #endif /* CONFIG_OF_GPIO */
 
 #ifdef CONFIG_ACPI
