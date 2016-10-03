@@ -585,7 +585,8 @@ static ssize_t max_pages_per_rpc_store(struct kobject *kobj,
 	chunk_mask = ~((1 << (cli->cl_chunkbits - PAGE_SHIFT)) - 1);
 	/* max_pages_per_rpc must be chunk aligned */
 	val = (val + ~chunk_mask) & chunk_mask;
-	if (val == 0 || val > ocd->ocd_brw_size >> PAGE_SHIFT) {
+	if (!val || (ocd->ocd_brw_size &&
+		     val > ocd->ocd_brw_size >> PAGE_SHIFT)) {
 		return -ERANGE;
 	}
 	spin_lock(&cli->cl_loi_list_lock);
