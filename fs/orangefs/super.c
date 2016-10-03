@@ -251,7 +251,7 @@ int orangefs_remount(struct orangefs_sb_info_s *orangefs_sb)
 
 	op_release(new_op);
 
-	if (orangefs_userspace_version >= 20907) {
+	if (orangefs_userspace_version >= 20906) {
 		new_op = op_alloc(ORANGEFS_VFS_OP_FEATURES);
 		if (!new_op)
 			return -ENOMEM;
@@ -507,7 +507,7 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 	spin_unlock(&orangefs_superblocks_lock);
 	op_release(new_op);
 
-	if (orangefs_userspace_version >= 20907) {
+	if (orangefs_userspace_version >= 20906) {
 		new_op = op_alloc(ORANGEFS_VFS_OP_FEATURES);
 		if (!new_op)
 			return ERR_PTR(-ENOMEM);
