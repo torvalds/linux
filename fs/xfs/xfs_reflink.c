@@ -52,6 +52,7 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_reflink.h"
 #include "xfs_iomap.h"
+#include "xfs_rmap_btree.h"
 
 /*
  * Copy on Write of Shared Blocks
@@ -411,4 +412,245 @@ xfs_reflink_trim_irec_to_next_cow(
 	trace_xfs_reflink_trim_irec(ip, imap);
 
 	return 0;
+}
+
+/*
+ * Cancel all pending CoW reservations for some block range of an inode.
+ */
+int
+xfs_reflink_cancel_cow_blocks(
+	struct xfs_inode		*ip,
+	struct xfs_trans		**tpp,
+	xfs_fileoff_t			offset_fsb,
+	xfs_fileoff_t			end_fsb)
+{
+	struct xfs_bmbt_irec		irec;
+	xfs_filblks_t			count_fsb;
+	xfs_fsblock_t			firstfsb;
+	struct xfs_defer_ops		dfops;
+	int				error = 0;
+	int				nimaps;
+
+	if (!xfs_is_reflink_inode(ip))
+		return 0;
+
+	/* Go find the old extent in the CoW fork. */
+	while (offset_fsb < end_fsb) {
+		nimaps = 1;
+		count_fsb = (xfs_filblks_t)(end_fsb - offset_fsb);
+		error = xfs_bmapi_read(ip, offset_fsb, count_fsb, &irec,
+				&nimaps, XFS_BMAPI_COWFORK);
+		if (error)
+			break;
+		ASSERT(nimaps == 1);
+
+		trace_xfs_reflink_cancel_cow(ip, &irec);
+
+		if (irec.br_startblock == DELAYSTARTBLOCK) {
+			/* Free a delayed allocation. */
+			xfs_mod_fdblocks(ip->i_mount, irec.br_blockcount,
+					false);
+			ip->i_delayed_blks -= irec.br_blockcount;
+
+			/* Remove the mapping from the CoW fork. */
+			error = xfs_bunmapi_cow(ip, &irec);
+			if (error)
+				break;
+		} else if (irec.br_startblock == HOLESTARTBLOCK) {
+			/* empty */
+		} else {
+			xfs_trans_ijoin(*tpp, ip, 0);
+			xfs_defer_init(&dfops, &firstfsb);
+
+			xfs_bmap_add_free(ip->i_mount, &dfops,
+					irec.br_startblock, irec.br_blockcount,
+					NULL);
+
+			/* Update quota accounting */
+			xfs_trans_mod_dquot_byino(*tpp, ip, XFS_TRANS_DQ_BCOUNT,
+					-(long)irec.br_blockcount);
+
+			/* Roll the transaction */
+			error = xfs_defer_finish(tpp, &dfops, ip);
+			if (error) {
+				xfs_defer_cancel(&dfops);
+				break;
+			}
+
+			/* Remove the mapping from the CoW fork. */
+			error = xfs_bunmapi_cow(ip, &irec);
+			if (error)
+				break;
+		}
+
+		/* Roll on... */
+		offset_fsb = irec.br_startoff + irec.br_blockcount;
+	}
+
+	return error;
+}
+
+/*
+ * Cancel all pending CoW reservations for some byte range of an inode.
+ */
+int
+xfs_reflink_cancel_cow_range(
+	struct xfs_inode	*ip,
+	xfs_off_t		offset,
+	xfs_off_t		count)
+{
+	struct xfs_trans	*tp;
+	xfs_fileoff_t		offset_fsb;
+	xfs_fileoff_t		end_fsb;
+	int			error;
+
+	trace_xfs_reflink_cancel_cow_range(ip, offset, count);
+
+	offset_fsb = XFS_B_TO_FSBT(ip->i_mount, offset);
+	if (count == NULLFILEOFF)
+		end_fsb = NULLFILEOFF;
+	else
+		end_fsb = XFS_B_TO_FSB(ip->i_mount, offset + count);
+
+	/* Start a rolling transaction to remove the mappings */
+	error = xfs_trans_alloc(ip->i_mount, &M_RES(ip->i_mount)->tr_write,
+			0, 0, 0, &tp);
+	if (error)
+		goto out;
+
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, ip, 0);
+
+	/* Scrape out the old CoW reservations */
+	error = xfs_reflink_cancel_cow_blocks(ip, &tp, offset_fsb, end_fsb);
+	if (error)
+		goto out_cancel;
+
+	error = xfs_trans_commit(tp);
+
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+	return error;
+
+out_cancel:
+	xfs_trans_cancel(tp);
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+out:
+	trace_xfs_reflink_cancel_cow_range_error(ip, error, _RET_IP_);
+	return error;
+}
+
+/*
+ * Remap parts of a file's data fork after a successful CoW.
+ */
+int
+xfs_reflink_end_cow(
+	struct xfs_inode		*ip,
+	xfs_off_t			offset,
+	xfs_off_t			count)
+{
+	struct xfs_bmbt_irec		irec;
+	struct xfs_bmbt_irec		uirec;
+	struct xfs_trans		*tp;
+	xfs_fileoff_t			offset_fsb;
+	xfs_fileoff_t			end_fsb;
+	xfs_filblks_t			count_fsb;
+	xfs_fsblock_t			firstfsb;
+	struct xfs_defer_ops		dfops;
+	int				error;
+	unsigned int			resblks;
+	xfs_filblks_t			ilen;
+	xfs_filblks_t			rlen;
+	int				nimaps;
+
+	trace_xfs_reflink_end_cow(ip, offset, count);
+
+	offset_fsb = XFS_B_TO_FSBT(ip->i_mount, offset);
+	end_fsb = XFS_B_TO_FSB(ip->i_mount, offset + count);
+	count_fsb = (xfs_filblks_t)(end_fsb - offset_fsb);
+
+	/* Start a rolling transaction to switch the mappings */
+	resblks = XFS_EXTENTADD_SPACE_RES(ip->i_mount, XFS_DATA_FORK);
+	error = xfs_trans_alloc(ip->i_mount, &M_RES(ip->i_mount)->tr_write,
+			resblks, 0, 0, &tp);
+	if (error)
+		goto out;
+
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, ip, 0);
+
+	/* Go find the old extent in the CoW fork. */
+	while (offset_fsb < end_fsb) {
+		/* Read extent from the source file */
+		nimaps = 1;
+		count_fsb = (xfs_filblks_t)(end_fsb - offset_fsb);
+		error = xfs_bmapi_read(ip, offset_fsb, count_fsb, &irec,
+				&nimaps, XFS_BMAPI_COWFORK);
+		if (error)
+			goto out_cancel;
+		ASSERT(nimaps == 1);
+
+		ASSERT(irec.br_startblock != DELAYSTARTBLOCK);
+		trace_xfs_reflink_cow_remap(ip, &irec);
+
+		/*
+		 * We can have a hole in the CoW fork if part of a directio
+		 * write is CoW but part of it isn't.
+		 */
+		rlen = ilen = irec.br_blockcount;
+		if (irec.br_startblock == HOLESTARTBLOCK)
+			goto next_extent;
+
+		/* Unmap the old blocks in the data fork. */
+		while (rlen) {
+			xfs_defer_init(&dfops, &firstfsb);
+			error = __xfs_bunmapi(tp, ip, irec.br_startoff,
+					&rlen, 0, 1, &firstfsb, &dfops);
+			if (error)
+				goto out_defer;
+
+			/*
+			 * Trim the extent to whatever got unmapped.
+			 * Remember, bunmapi works backwards.
+			 */
+			uirec.br_startblock = irec.br_startblock + rlen;
+			uirec.br_startoff = irec.br_startoff + rlen;
+			uirec.br_blockcount = irec.br_blockcount - rlen;
+			irec.br_blockcount = rlen;
+			trace_xfs_reflink_cow_remap_piece(ip, &uirec);
+
+			/* Map the new blocks into the data fork. */
+			error = xfs_bmap_map_extent(tp->t_mountp, &dfops,
+					ip, &uirec);
+			if (error)
+				goto out_defer;
+
+			/* Remove the mapping from the CoW fork. */
+			error = xfs_bunmapi_cow(ip, &uirec);
+			if (error)
+				goto out_defer;
+
+			error = xfs_defer_finish(&tp, &dfops, ip);
+			if (error)
+				goto out_defer;
+		}
+
+next_extent:
+		/* Roll on... */
+		offset_fsb = irec.br_startoff + ilen;
+	}
+
+	error = xfs_trans_commit(tp);
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+	if (error)
+		goto out;
+	return 0;
+
+out_defer:
+	xfs_defer_cancel(&dfops);
+out_cancel:
+	xfs_trans_cancel(tp);
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+out:
+	trace_xfs_reflink_end_cow_error(ip, error, _RET_IP_);
+	return error;
 }

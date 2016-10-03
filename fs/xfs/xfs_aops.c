@@ -288,6 +288,25 @@ xfs_end_io(
 		error = -EIO;
 
 	/*
+	 * For a CoW extent, we need to move the mapping from the CoW fork
+	 * to the data fork.  If instead an error happened, just dump the
+	 * new blocks.
+	 */
+	if (ioend->io_type == XFS_IO_COW) {
+		if (error)
+			goto done;
+		if (ioend->io_bio->bi_error) {
+			error = xfs_reflink_cancel_cow_range(ip,
+					ioend->io_offset, ioend->io_size);
+			goto done;
+		}
+		error = xfs_reflink_end_cow(ip, ioend->io_offset,
+				ioend->io_size);
+		if (error)
+			goto done;
+	}
+
+	/*
 	 * For unwritten extents we need to issue transactions to convert a
 	 * range to normal written extens after the data I/O has finished.
 	 * Detecting and handling completion IO errors is done individually
@@ -302,7 +321,8 @@ xfs_end_io(
 	} else if (ioend->io_append_trans) {
 		error = xfs_setfilesize_ioend(ioend, error);
 	} else {
-		ASSERT(!xfs_ioend_is_append(ioend));
+		ASSERT(!xfs_ioend_is_append(ioend) ||
+		       ioend->io_type == XFS_IO_COW);
 	}
 
 done:
@@ -316,7 +336,7 @@ xfs_end_bio(
 	struct xfs_ioend	*ioend = bio->bi_private;
 	struct xfs_mount	*mp = XFS_I(ioend->io_inode)->i_mount;
 
-	if (ioend->io_type == XFS_IO_UNWRITTEN)
+	if (ioend->io_type == XFS_IO_UNWRITTEN || ioend->io_type == XFS_IO_COW)
 		queue_work(mp->m_unwritten_workqueue, &ioend->io_work);
 	else if (ioend->io_append_trans)
 		queue_work(mp->m_data_workqueue, &ioend->io_work);
