@@ -49,6 +49,7 @@
 #include "xfs_trans_priv.h"
 #include "xfs_log.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_reflink.h"
 
 kmem_zone_t *xfs_inode_zone;
 
@@ -1585,6 +1586,18 @@ xfs_itruncate_extents(
 		if (error)
 			goto out;
 	}
+
+	/* Remove all pending CoW reservations. */
+	error = xfs_reflink_cancel_cow_blocks(ip, &tp, first_unmap_block,
+			last_block);
+	if (error)
+		goto out;
+
+	/*
+	 * Clear the reflink flag if we truncated everything.
+	 */
+	if (ip->i_d.di_nblocks == 0 && xfs_is_reflink_inode(ip))
+		ip->i_d.di_flags2 &= ~XFS_DIFLAG2_REFLINK;
 
 	/*
 	 * Always re-log the inode so that our permanent transaction can keep
