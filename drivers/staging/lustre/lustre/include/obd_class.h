@@ -628,12 +628,6 @@ static inline int obd_packmd(struct obd_export *exp,
 	return rc;
 }
 
-static inline int obd_size_diskmd(struct obd_export *exp,
-				  struct lov_stripe_md *mem_src)
-{
-	return obd_packmd(exp, NULL, mem_src);
-}
-
 static inline int obd_free_diskmd(struct obd_export *exp,
 				  struct lov_mds_md **disk_tgt)
 {

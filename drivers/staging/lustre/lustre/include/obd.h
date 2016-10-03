@@ -667,7 +667,6 @@ enum obd_cleanup_stage {
 #define KEY_INTERMDS	    "inter_mds"
 #define KEY_LAST_ID	     "last_id"
 #define KEY_LAST_FID		"last_fid"
-#define KEY_LOVDESC	     "lovdesc"
 #define KEY_MAX_EASIZE		"max_easize"
 #define KEY_DEFAULT_EASIZE	"default_easize"
 #define KEY_MGSSEC	      "mgssec"

@@ -560,7 +560,15 @@ int ll_get_max_mdsize(struct ll_sb_info *sbi, int *lmmsize)
 {
 	int size, rc;
 
-	*lmmsize = obd_size_diskmd(sbi->ll_dt_exp, NULL);
+	size = sizeof(*lmmsize);
+	rc = obd_get_info(NULL, sbi->ll_dt_exp, sizeof(KEY_MAX_EASIZE),
+			  KEY_MAX_EASIZE, &size, lmmsize);
+	if (rc) {
+		CERROR("%s: cannot get max LOV EA size: rc = %d\n",
+		       sbi->ll_dt_exp->exp_obd->obd_name, rc);
+		return rc;
+	}
+
 	size = sizeof(int);
 	rc = obd_get_info(NULL, sbi->ll_md_exp, sizeof(KEY_MAX_EASIZE),
 			  KEY_MAX_EASIZE, &size, lmmsize);
