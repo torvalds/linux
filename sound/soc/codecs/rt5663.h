@@ -996,11 +996,21 @@
 #define RT5663_EN_IRQ_INLINE_NOR		(0x1 << 3)
 #define RT5663_EN_IRQ_INLINE_BYP		(0x0 << 3)
 
+/*  RT5663: GPIO Control 1 (0x00c0) */
+#define RT5663_GPIO1_TYPE_MASK			(0x1 << 15)
+#define RT5663_GPIO1_TYPE_SHIFT			15
+#define RT5663_GPIO1_TYPE_EN			(0x1 << 15)
+#define RT5663_GPIO1_TYPE_DIS			(0x0 << 15)
+
 /* RT5663: IRQ Control 1 (0x00c1) */
 #define RT5663_EN_IRQ_JD1_MASK			(0x1 << 6)
 #define RT5663_EN_IRQ_JD1_SHIFT			6
 #define RT5663_EN_IRQ_JD1_EN			(0x1 << 6)
 #define RT5663_EN_IRQ_JD1_DIS			(0x0 << 6)
+#define RT5663_SEL_GPIO1_MASK			(0x1 << 2)
+#define RT5663_SEL_GPIO1_SHIFT			6
+#define RT5663_SEL_GPIO1_EN			(0x1 << 2)
+#define RT5663_SEL_GPIO1_DIS			(0x0 << 2)
 
 /* RT5663: Inline Command Function 2 (0x00dc) */
 #define RT5663_PWR_MIC_DET_MASK			(0x1)
