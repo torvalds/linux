@@ -23,11 +23,11 @@
 
 /* macro */
 #define inc_smeqhead(priv) \
-        ( priv->sme_i.qhead = (priv->sme_i.qhead + 1) % SME_EVENT_BUFF_SIZE )
+        (priv->sme_i.qhead = (priv->sme_i.qhead + 1) % SME_EVENT_BUFF_SIZE)
 #define inc_smeqtail(priv) \
-        ( priv->sme_i.qtail = (priv->sme_i.qtail + 1) % SME_EVENT_BUFF_SIZE )
+        (priv->sme_i.qtail = (priv->sme_i.qtail + 1) % SME_EVENT_BUFF_SIZE)
 #define cnt_smeqbody(priv) \
-        (((priv->sme_i.qtail + SME_EVENT_BUFF_SIZE) - (priv->sme_i.qhead)) % SME_EVENT_BUFF_SIZE )
+        (((priv->sme_i.qtail + SME_EVENT_BUFF_SIZE) - (priv->sme_i.qhead)) % SME_EVENT_BUFF_SIZE)
 
 #define KS_WLAN_MEM_FLAG (GFP_ATOMIC)
 
@@ -1244,7 +1244,7 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
 			pp->auth_type = cpu_to_le16((uint16_t) TYPE_AUTH);	/* no encryption */
 		} else {
 			if (priv->wpa.pairwise_suite == IW_AUTH_CIPHER_TKIP) {
-				MichaelMICFunction(&michel_mic, (uint8_t *) priv->wpa.key[0].tx_mic_key, (uint8_t *) & pp->data[0], (int)packet_len, (uint8_t) 0,	/* priority */
+				MichaelMICFunction(&michel_mic, (uint8_t *) priv->wpa.key[0].tx_mic_key, (uint8_t *) &pp->data[0], (int)packet_len, (uint8_t) 0,	/* priority */
 						   (uint8_t *) michel_mic.
 						   Result);
 				memcpy(p, michel_mic.Result, 8);
