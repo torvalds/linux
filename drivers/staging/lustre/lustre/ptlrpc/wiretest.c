@@ -1245,8 +1245,6 @@ void lustre_assert_wire_constants(void)
 		 OBD_MD_FLCKSUM);
 	LASSERTF(OBD_MD_FLQOS == (0x00200000ULL), "found 0x%.16llxULL\n",
 		 OBD_MD_FLQOS);
-	LASSERTF(OBD_MD_FLCOOKIE == (0x00800000ULL), "found 0x%.16llxULL\n",
-		 OBD_MD_FLCOOKIE);
 	LASSERTF(OBD_MD_FLGROUP == (0x01000000ULL), "found 0x%.16llxULL\n",
 		 OBD_MD_FLGROUP);
 	LASSERTF(OBD_MD_FLFID == (0x02000000ULL), "found 0x%.16llxULL\n",
@@ -1823,10 +1821,10 @@ void lustre_assert_wire_constants(void)
 		 (long long)(int)offsetof(struct mdt_body, mbo_max_mdsize));
 	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_max_mdsize) == 4, "found %lld\n",
 		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_max_mdsize));
-	LASSERTF((int)offsetof(struct mdt_body, mbo_max_cookiesize) == 160, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, mbo_max_cookiesize));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_max_cookiesize) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_max_cookiesize));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_unused3) == 160, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_unused3));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_unused3) == 4, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_unused3));
 	LASSERTF((int)offsetof(struct mdt_body, mbo_uid_h) == 164, "found %lld\n",
 		 (long long)(int)offsetof(struct mdt_body, mbo_uid_h));
 	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_uid_h) == 4, "found %lld\n",

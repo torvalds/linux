@@ -412,7 +412,6 @@ struct lov_io_sub {
 	int		  sub_refcheck;
 	int		  sub_refcheck2;
 	int		  sub_reenter;
-	void		*sub_cookie;
 };
 
 /**

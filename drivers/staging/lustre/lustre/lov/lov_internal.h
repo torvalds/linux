@@ -110,8 +110,6 @@ struct lov_request_set {
 	atomic_t			set_completes;
 	atomic_t			set_success;
 	atomic_t			set_finish_checked;
-	struct llog_cookie		*set_cookies;
-	int				set_cookie_sent;
 	struct list_head			set_list;
 	wait_queue_head_t			set_waitq;
 };

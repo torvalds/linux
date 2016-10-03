@@ -49,7 +49,7 @@ int cl_init_ea_size(struct obd_export *md_exp, struct obd_export *dt_exp)
 {
 	struct lov_stripe_md lsm = { .lsm_magic = LOV_MAGIC_V3 };
 	__u32 valsize = sizeof(struct lov_desc);
-	int rc, easize, def_easize, cookiesize;
+	int rc, easize, def_easize;
 	struct lov_desc desc;
 	__u16 stripes, def_stripes;
 
@@ -67,16 +67,9 @@ int cl_init_ea_size(struct obd_export *md_exp, struct obd_export *dt_exp)
 	lsm.lsm_stripe_count = def_stripes;
 	def_easize = obd_size_diskmd(dt_exp, &lsm);
 
-	cookiesize = stripes * sizeof(struct llog_cookie);
+	CDEBUG(D_HA, "updating def/max_easize: %d/%d\n", def_easize, easize);
 
-	/* default cookiesize is 0 because from 2.4 server doesn't send
-	 * llog cookies to client.
-	 */
-	CDEBUG(D_HA,
-	       "updating def/max_easize: %d/%d def/max_cookiesize: 0/%d\n",
-	       def_easize, easize, cookiesize);
-
-	rc = md_init_ea_size(md_exp, easize, def_easize, cookiesize, 0);
+	rc = md_init_ea_size(md_exp, easize, def_easize);
 	return rc;
 }
 

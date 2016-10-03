@@ -245,8 +245,7 @@ static int lmv_connect(const struct lu_env *env,
 	return rc;
 }
 
-static int lmv_init_ea_size(struct obd_export *exp, u32 easize, u32 def_easize,
-			    u32 cookiesize, u32 def_cookiesize)
+static int lmv_init_ea_size(struct obd_export *exp, u32 easize, u32 def_easize)
 {
 	struct obd_device   *obd = exp->exp_obd;
 	struct lmv_obd      *lmv = &obd->u.lmv;
@@ -262,14 +261,7 @@ static int lmv_init_ea_size(struct obd_export *exp, u32 easize, u32 def_easize,
 		lmv->max_def_easize = def_easize;
 		change = 1;
 	}
-	if (lmv->max_cookiesize < cookiesize) {
-		lmv->max_cookiesize = cookiesize;
-		change = 1;
-	}
-	if (lmv->max_def_cookiesize < def_cookiesize) {
-		lmv->max_def_cookiesize = def_cookiesize;
-		change = 1;
-	}
+
 	if (change == 0)
 		return 0;
 
@@ -284,8 +276,7 @@ static int lmv_init_ea_size(struct obd_export *exp, u32 easize, u32 def_easize,
 			continue;
 		}
 
-		rc = md_init_ea_size(tgt->ltd_exp, easize, def_easize,
-				     cookiesize, def_cookiesize);
+		rc = md_init_ea_size(tgt->ltd_exp, easize, def_easize);
 		if (rc) {
 			CERROR("%s: obd_init_ea_size() failed on MDT target %d: rc = %d\n",
 			       obd->obd_name, i, rc);
@@ -368,8 +359,7 @@ static int lmv_connect_mdc(struct obd_device *obd, struct lmv_tgt_desc *tgt)
 	tgt->ltd_exp = mdc_exp;
 	lmv->desc.ld_active_tgt_count++;
 
-	md_init_ea_size(tgt->ltd_exp, lmv->max_easize, lmv->max_def_easize,
-			lmv->max_cookiesize, lmv->max_def_cookiesize);
+	md_init_ea_size(tgt->ltd_exp, lmv->max_easize, lmv->max_def_easize);
 
 	CDEBUG(D_CONFIG, "Connected to %s(%s) successfully (%d)\n",
 	       mdc_obd->obd_name, mdc_obd->obd_uuid.uuid,
@@ -483,7 +473,7 @@ static int lmv_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 		} else {
 			int easize = sizeof(struct lmv_stripe_md) +
 				lmv->desc.ld_tgt_count * sizeof(struct lu_fid);
-			lmv_init_ea_size(obd->obd_self_export, easize, 0, 0, 0);
+			lmv_init_ea_size(obd->obd_self_export, easize, 0);
 		}
 	}
 
@@ -538,7 +528,7 @@ int lmv_check_connect(struct obd_device *obd)
 	class_export_put(lmv->exp);
 	lmv->connected = 1;
 	easize = lmv_mds_md_size(lmv->desc.ld_tgt_count, LMV_MAGIC);
-	lmv_init_ea_size(obd->obd_self_export, easize, 0, 0, 0);
+	lmv_init_ea_size(obd->obd_self_export, easize, 0);
 	mutex_unlock(&lmv->lmv_init_mutex);
 	return 0;
 
@@ -1282,7 +1272,6 @@ static int lmv_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	obd_str2uuid(&lmv->desc.ld_uuid, desc->ld_uuid.uuid);
 	lmv->desc.ld_tgt_count = 0;
 	lmv->desc.ld_active_tgt_count = 0;
-	lmv->max_cookiesize = 0;
 	lmv->max_def_easize = 0;
 	lmv->max_easize = 0;
 	lmv->lmv_placement = PLACEMENT_CHAR_POLICY;

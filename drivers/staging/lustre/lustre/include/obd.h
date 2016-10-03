@@ -204,7 +204,6 @@ enum obd_cl_sem_lock_class {
  * on the MDS.
  */
 #define OBD_MAX_DEFAULT_EA_SIZE		4096
-#define OBD_MAX_DEFAULT_COOKIE_SIZE	4096
 
 struct mdc_rpc_lock;
 struct obd_import;
@@ -214,7 +213,7 @@ struct client_obd {
 	struct obd_import       *cl_import; /* ptlrpc connection state */
 	size_t			 cl_conn_count;
 	/*
-	 * Cache maximum and default values for easize and cookiesize. This is
+	 * Cache maximum and default values for easize. This is
 	 * strictly a performance optimization to minimize calls to
 	 * obd_size_diskmd(). The default values are used to calculate the
 	 * initial size of a request buffer. The ptlrpc layer will resize the
@@ -235,18 +234,6 @@ struct client_obd {
 	 * run-time if a larger observed size is advertised by the MDT.
 	 */
 	u32			 cl_max_mds_easize;
-	/* Default cookie size for llog cookies (see struct llog_cookie). It is
-	 * initialized to zero at mount-time, then it tracks the largest
-	 * observed cookie size advertised by the MDT, up to a maximum value of
-	 * OBD_MAX_DEFAULT_COOKIE_SIZE. Note that llog_cookies are not
-	 * used by clients communicating with MDS versions 2.4.0 and later.
-	 */
-	u32			 cl_default_mds_cookiesize;
-	/* Maximum possible cookie size computed at mount-time based on
-	 * the number of OSTs in the filesystem. May be increased at
-	 * run-time if a larger observed size is advertised by the MDT.
-	 */
-	u32			 cl_max_mds_cookiesize;
 
 	enum lustre_sec_part     cl_sp_me;
 	enum lustre_sec_part     cl_sp_to;
@@ -447,8 +434,6 @@ struct lmv_obd {
 	int			connected;
 	int			max_easize;
 	int			max_def_easize;
-	int			max_cookiesize;
-	int			max_def_cookiesize;
 
 	u32			tgts_size; /* size of tgts array */
 	struct lmv_tgt_desc	**tgts;
@@ -504,21 +489,6 @@ struct niobuf_local {
 
 /* Don't conflict with on-wire flags OBD_BRW_WRITE, etc */
 #define N_LOCAL_TEMP_PAGE 0x10000000
-
-struct obd_trans_info {
-	__u64		    oti_xid;
-	/* Only used on the server side for tracking acks. */
-	struct oti_req_ack_lock {
-		struct lustre_handle lock;
-		__u32		mode;
-	}			oti_ack_locks[4];
-	void		    *oti_handle;
-	struct llog_cookie       oti_onecookie;
-	struct llog_cookie      *oti_logcookies;
-
-	/** VBR: versions */
-	__u64		    oti_pre_version;
-};
 
 /*
  * Events signalled through obd_notify() upcall-chain.
@@ -891,24 +861,22 @@ struct obd_ops {
 			struct lov_stripe_md **mem_tgt,
 			struct lov_mds_md *disk_src, int disk_len);
 	int (*create)(const struct lu_env *env, struct obd_export *exp,
-		      struct obdo *oa, struct obd_trans_info *oti);
+		      struct obdo *oa);
 	int (*destroy)(const struct lu_env *env, struct obd_export *exp,
-		       struct obdo *oa, struct obd_trans_info *oti);
+		       struct obdo *oa);
 	int (*setattr)(const struct lu_env *, struct obd_export *exp,
-		       struct obd_info *oinfo, struct obd_trans_info *oti);
+		       struct obd_info *oinfo);
 	int (*getattr)(const struct lu_env *env, struct obd_export *exp,
 		       struct obd_info *oinfo);
 	int (*preprw)(const struct lu_env *env, int cmd,
 		      struct obd_export *exp, struct obdo *oa, int objcount,
 		      struct obd_ioobj *obj, struct niobuf_remote *remote,
-		      int *nr_pages, struct niobuf_local *local,
-		      struct obd_trans_info *oti);
+		      int *nr_pages, struct niobuf_local *local);
 	int (*commitrw)(const struct lu_env *env, int cmd,
 			struct obd_export *exp, struct obdo *oa,
 			int objcount, struct obd_ioobj *obj,
 			struct niobuf_remote *remote, int pages,
-			struct niobuf_local *local,
-			struct obd_trans_info *oti, int rc);
+			struct niobuf_local *local, int rc);
 	int (*init_export)(struct obd_export *exp);
 	int (*destroy_export)(struct obd_export *exp);
 
@@ -1018,7 +986,7 @@ struct md_ops {
 			u64, const char *, const char *, int, int, int,
 			struct ptlrpc_request **);
 
-	int (*init_ea_size)(struct obd_export *, u32, u32, u32, u32);
+	int (*init_ea_size)(struct obd_export *, u32, u32);
 
 	int (*get_lustre_md)(struct obd_export *, struct ptlrpc_request *,
 			     struct obd_export *, struct obd_export *,

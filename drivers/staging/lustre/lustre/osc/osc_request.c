@@ -221,7 +221,7 @@ static int osc_getattr(const struct lu_env *env, struct obd_export *exp,
 }
 
 static int osc_setattr(const struct lu_env *env, struct obd_export *exp,
-		       struct obd_info *oinfo, struct obd_trans_info *oti)
+		       struct obd_info *oinfo)
 {
 	struct ptlrpc_request *req;
 	struct ost_body *body;
@@ -329,7 +329,7 @@ int osc_setattr_async(struct obd_export *exp, struct obd_info *oinfo,
 }
 
 static int osc_create(const struct lu_env *env, struct obd_export *exp,
-		      struct obdo *oa, struct obd_trans_info *oti)
+		      struct obdo *oa)
 {
 	struct ptlrpc_request *req;
 	struct ost_body *body;
@@ -358,15 +358,6 @@ static int osc_create(const struct lu_env *env, struct obd_export *exp,
 
 	ptlrpc_request_set_replen(req);
 
-	if ((oa->o_valid & OBD_MD_FLFLAGS) &&
-	    oa->o_flags == OBD_FL_DELORPHAN) {
-		DEBUG_REQ(D_HA, req,
-			  "delorphan from OST integration");
-		/* Don't resend the delorphan req */
-		req->rq_no_resend = 1;
-		req->rq_no_delay = 1;
-	}
-
 	rc = ptlrpc_queue_wait(req);
 	if (rc)
 		goto out_req;
@@ -382,12 +373,6 @@ static int osc_create(const struct lu_env *env, struct obd_export *exp,
 
 	oa->o_blksize = cli_brw_size(exp->exp_obd);
 	oa->o_valid |= OBD_MD_FLBLKSZ;
-
-	if (oti && oa->o_valid & OBD_MD_FLCOOKIE) {
-		if (!oti->oti_logcookies)
-			oti->oti_logcookies = &oti->oti_onecookie;
-		*oti->oti_logcookies = oa->o_lcookie;
-	}
 
 	CDEBUG(D_HA, "transno: %lld\n",
 	       lustre_msg_get_transno(req->rq_repmsg));
@@ -569,19 +554,8 @@ static int osc_can_send_destroy(struct client_obd *cli)
 	return 0;
 }
 
-/* Destroy requests can be async always on the client, and we don't even really
- * care about the return code since the client cannot do anything at all about
- * a destroy failure.
- * When the MDS is unlinking a filename, it saves the file objects into a
- * recovery llog, and these object records are cancelled when the OST reports
- * they were destroyed and sync'd to disk (i.e. transaction committed).
- * If the client dies, or the OST is down when the object should be destroyed,
- * the records are not cancelled, and when the OST reconnects to the MDS next,
- * it will retrieve the llog unlink logs and then sends the log cancellation
- * cookies to the MDS after committing destroy transactions.
- */
 static int osc_destroy(const struct lu_env *env, struct obd_export *exp,
-		       struct obdo *oa, struct obd_trans_info *oti)
+		       struct obdo *oa)
 {
 	struct client_obd *cli = &exp->exp_obd->u.cli;
 	struct ptlrpc_request *req;
@@ -613,32 +587,22 @@ static int osc_destroy(const struct lu_env *env, struct obd_export *exp,
 	req->rq_request_portal = OST_IO_PORTAL; /* bug 7198 */
 	ptlrpc_at_set_req_timeout(req);
 
-	if (oti && oa->o_valid & OBD_MD_FLCOOKIE)
-		oa->o_lcookie = *oti->oti_logcookies;
 	body = req_capsule_client_get(&req->rq_pill, &RMF_OST_BODY);
 	LASSERT(body);
 	lustre_set_wire_obdo(&req->rq_import->imp_connect_data, &body->oa, oa);
 
 	ptlrpc_request_set_replen(req);
 
-	/* If osc_destroy is for destroying the unlink orphan,
-	 * sent from MDT to OST, which should not be blocked here,
-	 * because the process might be triggered by ptlrpcd, and
-	 * it is not good to block ptlrpcd thread (b=16006
-	 **/
-	if (!(oa->o_flags & OBD_FL_DELORPHAN)) {
-		req->rq_interpret_reply = osc_destroy_interpret;
-		if (!osc_can_send_destroy(cli)) {
-			struct l_wait_info lwi = LWI_INTR(LWI_ON_SIGNAL_NOOP,
-							  NULL);
+	req->rq_interpret_reply = osc_destroy_interpret;
+	if (!osc_can_send_destroy(cli)) {
+		struct l_wait_info lwi = LWI_INTR(LWI_ON_SIGNAL_NOOP, NULL);
 
-			/*
-			 * Wait until the number of on-going destroy RPCs drops
-			 * under max_rpc_in_flight
-			 */
-			l_wait_event_exclusive(cli->cl_destroy_waitq,
-					       osc_can_send_destroy(cli), &lwi);
-		}
+		/*
+		 * Wait until the number of on-going destroy RPCs drops
+		 * under max_rpc_in_flight
+		 */
+		l_wait_event_exclusive(cli->cl_destroy_waitq,
+				       osc_can_send_destroy(cli), &lwi);
 	}
 
 	/* Do not wait for response */

@@ -1706,7 +1706,7 @@ void lustre_swab_mdt_body(struct mdt_body *b)
 	__swab32s(&b->mbo_eadatasize);
 	__swab32s(&b->mbo_aclsize);
 	__swab32s(&b->mbo_max_mdsize);
-	__swab32s(&b->mbo_max_cookiesize);
+	CLASSERT(offsetof(typeof(*b), mbo_unused3));
 	__swab32s(&b->mbo_uid_h);
 	__swab32s(&b->mbo_gid_h);
 	CLASSERT(offsetof(typeof(*b), mbo_padding_5) != 0);
@@ -2103,8 +2103,6 @@ static void dump_obdo(struct obdo *oa)
 	if (valid & OBD_MD_FLHANDLE)
 		CDEBUG(D_RPCTRACE, "obdo: o_handle = %lld\n",
 		       oa->o_handle.cookie);
-	if (valid & OBD_MD_FLCOOKIE)
-		CDEBUG(D_RPCTRACE, "obdo: o_lcookie = (llog_cookie dumping not yet implemented)\n");
 }
 
 void dump_ost_body(struct ost_body *ob)
