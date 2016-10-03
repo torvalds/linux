@@ -29,6 +29,7 @@
 #include <linux/rcupdate.h>
 #include <linux/scatterlist.h>
 #include <linux/ctype.h>
+#include <crypto/aes.h>
 #include <crypto/hash.h>
 #include <crypto/sha.h>
 #include <crypto/skcipher.h>
@@ -478,6 +479,7 @@ static int derived_key_encrypt(struct encrypted_key_payload *epayload,
 	struct crypto_skcipher *tfm;
 	struct skcipher_request *req;
 	unsigned int encrypted_datalen;
+	u8 iv[AES_BLOCK_SIZE];
 	unsigned int padlen;
 	char pad[16];
 	int ret;
@@ -500,8 +502,8 @@ static int derived_key_encrypt(struct encrypted_key_payload *epayload,
 	sg_init_table(sg_out, 1);
 	sg_set_buf(sg_out, epayload->encrypted_data, encrypted_datalen);
 
-	skcipher_request_set_crypt(req, sg_in, sg_out, encrypted_datalen,
-				   epayload->iv);
+	memcpy(iv, epayload->iv, sizeof(iv));
+	skcipher_request_set_crypt(req, sg_in, sg_out, encrypted_datalen, iv);
 	ret = crypto_skcipher_encrypt(req);
 	tfm = crypto_skcipher_reqtfm(req);
 	skcipher_request_free(req);
@@ -581,6 +583,7 @@ static int derived_key_decrypt(struct encrypted_key_payload *epayload,
 	struct crypto_skcipher *tfm;
 	struct skcipher_request *req;
 	unsigned int encrypted_datalen;
+	u8 iv[AES_BLOCK_SIZE];
 	char pad[16];
 	int ret;
 
@@ -599,8 +602,8 @@ static int derived_key_decrypt(struct encrypted_key_payload *epayload,
 		   epayload->decrypted_datalen);
 	sg_set_buf(&sg_out[1], pad, sizeof pad);
 
-	skcipher_request_set_crypt(req, sg_in, sg_out, encrypted_datalen,
-				   epayload->iv);
+	memcpy(iv, epayload->iv, sizeof(iv));
+	skcipher_request_set_crypt(req, sg_in, sg_out, encrypted_datalen, iv);
 	ret = crypto_skcipher_decrypt(req);
 	tfm = crypto_skcipher_reqtfm(req);
 	skcipher_request_free(req);

@@ -124,6 +124,13 @@ static inline bool pnv_pci_is_m64(struct pnv_phb *phb, struct resource *r)
 		r->start < (phb->ioda.m64_base + phb->ioda.m64_size));
 }
 
+static inline bool pnv_pci_is_m64_flags(unsigned long resource_flags)
+{
+	unsigned long flags = (IORESOURCE_MEM_64 | IORESOURCE_PREFETCH);
+
+	return (resource_flags & flags) == flags;
+}
+
 static struct pnv_ioda_pe *pnv_ioda_init_pe(struct pnv_phb *phb, int pe_no)
 {
 	phb->ioda.pe_array[pe_no].phb = phb;
@@ -2871,7 +2878,7 @@ static void pnv_pci_ioda_fixup_iov_resources(struct pci_dev *pdev)
 		res = &pdev->resource[i + PCI_IOV_RESOURCES];
 		if (!res->flags || res->parent)
 			continue;
-		if (!pnv_pci_is_m64(phb, res)) {
+		if (!pnv_pci_is_m64_flags(res->flags)) {
 			dev_warn(&pdev->dev, "Don't support SR-IOV with"
 					" non M64 VF BAR%d: %pR. \n",
 				 i, res);
@@ -3096,7 +3103,7 @@ static resource_size_t pnv_pci_window_alignment(struct pci_bus *bus,
 	 * alignment for any 64-bit resource, PCIe doesn't care and
 	 * bridges only do 64-bit prefetchable anyway.
 	 */
-	if (phb->ioda.m64_segsize && (type & IORESOURCE_MEM_64))
+	if (phb->ioda.m64_segsize && pnv_pci_is_m64_flags(type))
 		return phb->ioda.m64_segsize;
 	if (type & IORESOURCE_MEM)
 		return phb->ioda.m32_segsize;

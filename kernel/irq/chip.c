@@ -820,6 +820,8 @@ __irq_do_set_handler(struct irq_desc *desc, irq_flow_handler_t handle,
 	desc->name = name;
 
 	if (handle != handle_bad_irq && is_chained) {
+		unsigned int type = irqd_get_trigger_type(&desc->irq_data);
+
 		/*
 		 * We're about to start this interrupt immediately,
 		 * hence the need to set the trigger configuration.
@@ -828,8 +830,10 @@ __irq_do_set_handler(struct irq_desc *desc, irq_flow_handler_t handle,
 		 * chained interrupt. Reset it immediately because we
 		 * do know better.
 		 */
-		__irq_set_trigger(desc, irqd_get_trigger_type(&desc->irq_data));
-		desc->handle_irq = handle;
+		if (type != IRQ_TYPE_NONE) {
+			__irq_set_trigger(desc, type);
+			desc->handle_irq = handle;
+		}
 
 		irq_settings_set_noprobe(desc);
 		irq_settings_set_norequest(desc);

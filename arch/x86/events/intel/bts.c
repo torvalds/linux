@@ -455,7 +455,7 @@ int intel_bts_interrupt(void)
 	 * The only surefire way of knowing if this NMI is ours is by checking
 	 * the write ptr against the PMI threshold.
 	 */
-	if (ds->bts_index >= ds->bts_interrupt_threshold)
+	if (ds && (ds->bts_index >= ds->bts_interrupt_threshold))
 		handled = 1;
 
 	/*
@@ -584,7 +584,8 @@ static __init int bts_init(void)
 	if (!boot_cpu_has(X86_FEATURE_DTES64) || !x86_pmu.bts)
 		return -ENODEV;
 
-	bts_pmu.capabilities	= PERF_PMU_CAP_AUX_NO_SG | PERF_PMU_CAP_ITRACE;
+	bts_pmu.capabilities	= PERF_PMU_CAP_AUX_NO_SG | PERF_PMU_CAP_ITRACE |
+				  PERF_PMU_CAP_EXCLUSIVE;
 	bts_pmu.task_ctx_nr	= perf_sw_context;
 	bts_pmu.event_init	= bts_event_init;
 	bts_pmu.add		= bts_event_add;

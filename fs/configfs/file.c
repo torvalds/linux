@@ -333,6 +333,7 @@ configfs_write_bin_file(struct file *file, const char __user *buf,
 		if (bin_attr->cb_max_size &&
 			*ppos + count > bin_attr->cb_max_size) {
 			len = -EFBIG;
+			goto out;
 		}
 
 		tbuf = vmalloc(*ppos + count);

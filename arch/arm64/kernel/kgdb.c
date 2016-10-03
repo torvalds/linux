@@ -19,10 +19,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/bug.h>
 #include <linux/irq.h>
 #include <linux/kdebug.h>
 #include <linux/kgdb.h>
 #include <linux/kprobes.h>
+#include <asm/debug-monitors.h>
+#include <asm/insn.h>
 #include <asm/traps.h>
 
 struct dbg_reg_def_t dbg_reg_def[DBG_MAX_REG_NUM] = {
@@ -338,15 +341,24 @@ void kgdb_arch_exit(void)
 	unregister_die_notifier(&kgdb_notifier);
 }
 
-/*
- * ARM instructions are always in LE.
- * Break instruction is encoded in LE format
- */
-struct kgdb_arch arch_kgdb_ops = {
-	.gdb_bpt_instr = {
-		KGDB_DYN_BRK_INS_BYTE(0),
-		KGDB_DYN_BRK_INS_BYTE(1),
-		KGDB_DYN_BRK_INS_BYTE(2),
-		KGDB_DYN_BRK_INS_BYTE(3),
-	}
-};
+struct kgdb_arch arch_kgdb_ops;
+
+int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
+{
+	int err;
+
+	BUILD_BUG_ON(AARCH64_INSN_SIZE != BREAK_INSTR_SIZE);
+
+	err = aarch64_insn_read((void *)bpt->bpt_addr, (u32 *)bpt->saved_instr);
+	if (err)
+		return err;
+
+	return aarch64_insn_write((void *)bpt->bpt_addr,
+			(u32)AARCH64_BREAK_KGDB_DYN_DBG);
+}
+
+int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt)
+{
+	return aarch64_insn_write((void *)bpt->bpt_addr,
+			*(u32 *)bpt->saved_instr);
+}
