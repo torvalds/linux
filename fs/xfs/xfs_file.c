@@ -1055,6 +1055,10 @@ xfs_file_share_range(
 	if (!S_ISREG(inode_in->i_mode) || !S_ISREG(inode_out->i_mode))
 		return -EINVAL;
 
+	/* Don't share DAX file data for now. */
+	if (IS_DAX(inode_in) || IS_DAX(inode_out))
+		return -EINVAL;
+
 	/* Are we going all the way to the end? */
 	isize = i_size_read(inode_in);
 	if (isize == 0)
