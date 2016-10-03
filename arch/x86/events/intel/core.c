@@ -1906,13 +1906,6 @@ static void intel_pmu_disable_event(struct perf_event *event)
 	cpuc->intel_ctrl_host_mask &= ~(1ull << hwc->idx);
 	cpuc->intel_cp_status &= ~(1ull << hwc->idx);
 
-	/*
-	 * must disable before any actual event
-	 * because any event may be combined with LBR
-	 */
-	if (needs_branch_stack(event))
-		intel_pmu_lbr_disable(event);
-
 	if (unlikely(hwc->config_base == MSR_ARCH_PERFMON_FIXED_CTR_CTRL)) {
 		intel_pmu_disable_fixed(hwc);
 		return;
@@ -1922,6 +1915,14 @@ static void intel_pmu_disable_event(struct perf_event *event)
 
 	if (unlikely(event->attr.precise_ip))
 		intel_pmu_pebs_disable(event);
+}
+
+static void intel_pmu_del_event(struct perf_event *event)
+{
+	if (needs_branch_stack(event))
+		intel_pmu_lbr_del(event);
+	if (event->attr.precise_ip)
+		intel_pmu_pebs_del(event);
 }
 
 static void intel_pmu_enable_fixed(struct hw_perf_event *hwc)
@@ -1967,12 +1968,6 @@ static void intel_pmu_enable_event(struct perf_event *event)
 		intel_pmu_enable_bts(hwc->config);
 		return;
 	}
-	/*
-	 * must enabled before any actual event
-	 * because any event may be combined with LBR
-	 */
-	if (needs_branch_stack(event))
-		intel_pmu_lbr_enable(event);
 
 	if (event->attr.exclude_host)
 		cpuc->intel_ctrl_guest_mask |= (1ull << hwc->idx);
@@ -1991,6 +1986,14 @@ static void intel_pmu_enable_event(struct perf_event *event)
 		intel_pmu_pebs_enable(event);
 
 	__x86_pmu_enable_event(hwc, ARCH_PERFMON_EVENTSEL_ENABLE);
+}
+
+static void intel_pmu_add_event(struct perf_event *event)
+{
+	if (event->attr.precise_ip)
+		intel_pmu_pebs_add(event);
+	if (needs_branch_stack(event))
+		intel_pmu_lbr_add(event);
 }
 
 /*
@@ -3291,6 +3294,8 @@ static __initconst const struct x86_pmu intel_pmu = {
 	.enable_all		= intel_pmu_enable_all,
 	.enable			= intel_pmu_enable_event,
 	.disable		= intel_pmu_disable_event,
+	.add			= intel_pmu_add_event,
+	.del			= intel_pmu_del_event,
 	.hw_config		= intel_pmu_hw_config,
 	.schedule_events	= x86_schedule_events,
 	.eventsel		= MSR_ARCH_PERFMON_EVENTSEL0,

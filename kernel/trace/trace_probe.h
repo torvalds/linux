@@ -149,6 +149,11 @@ DECLARE_BASIC_PRINT_TYPE_FUNC(s8);
 DECLARE_BASIC_PRINT_TYPE_FUNC(s16);
 DECLARE_BASIC_PRINT_TYPE_FUNC(s32);
 DECLARE_BASIC_PRINT_TYPE_FUNC(s64);
+DECLARE_BASIC_PRINT_TYPE_FUNC(x8);
+DECLARE_BASIC_PRINT_TYPE_FUNC(x16);
+DECLARE_BASIC_PRINT_TYPE_FUNC(x32);
+DECLARE_BASIC_PRINT_TYPE_FUNC(x64);
+
 DECLARE_BASIC_PRINT_TYPE_FUNC(string);
 
 #define FETCH_FUNC_NAME(method, type)	fetch_##method##_##type
@@ -203,7 +208,7 @@ DEFINE_FETCH_##method(u32)		\
 DEFINE_FETCH_##method(u64)
 
 /* Default (unsigned long) fetch type */
-#define __DEFAULT_FETCH_TYPE(t) u##t
+#define __DEFAULT_FETCH_TYPE(t) x##t
 #define _DEFAULT_FETCH_TYPE(t) __DEFAULT_FETCH_TYPE(t)
 #define DEFAULT_FETCH_TYPE _DEFAULT_FETCH_TYPE(BITS_PER_LONG)
 #define DEFAULT_FETCH_TYPE_STR __stringify(DEFAULT_FETCH_TYPE)
@@ -233,6 +238,10 @@ ASSIGN_FETCH_FUNC(file_offset, ftype),			\
 
 #define ASSIGN_FETCH_TYPE(ptype, ftype, sign)			\
 	__ASSIGN_FETCH_TYPE(#ptype, ptype, ftype, sizeof(ftype), sign, #ptype)
+
+/* If ptype is an alias of atype, use this macro (show atype in format) */
+#define ASSIGN_FETCH_TYPE_ALIAS(ptype, atype, ftype, sign)		\
+	__ASSIGN_FETCH_TYPE(#ptype, ptype, ftype, sizeof(ftype), sign, #atype)
 
 #define ASSIGN_FETCH_TYPE_END {}
 
