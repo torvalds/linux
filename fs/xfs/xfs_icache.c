@@ -76,6 +76,9 @@ xfs_inode_alloc(
 	ip->i_mount = mp;
 	memset(&ip->i_imap, 0, sizeof(struct xfs_imap));
 	ip->i_afp = NULL;
+	ip->i_cowfp = NULL;
+	ip->i_cnextents = 0;
+	ip->i_cformat = XFS_DINODE_FMT_EXTENTS;
 	memset(&ip->i_df, 0, sizeof(xfs_ifork_t));
 	ip->i_flags = 0;
 	ip->i_delayed_blks = 0;
@@ -101,6 +104,8 @@ xfs_inode_free_callback(
 
 	if (ip->i_afp)
 		xfs_idestroy_fork(ip, XFS_ATTR_FORK);
+	if (ip->i_cowfp)
+		xfs_idestroy_fork(ip, XFS_COW_FORK);
 
 	if (ip->i_itemp) {
 		ASSERT(!(ip->i_itemp->ili_item.li_flags & XFS_LI_IN_AIL));

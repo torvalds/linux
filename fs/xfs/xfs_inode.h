@@ -47,6 +47,7 @@ typedef struct xfs_inode {
 
 	/* Extent information. */
 	xfs_ifork_t		*i_afp;		/* attribute fork pointer */
+	xfs_ifork_t		*i_cowfp;	/* copy on write extents */
 	xfs_ifork_t		i_df;		/* data fork */
 
 	/* operations vectors */
@@ -64,6 +65,9 @@ typedef struct xfs_inode {
 	unsigned int		i_delayed_blks;	/* count of delay alloc blks */
 
 	struct xfs_icdinode	i_d;		/* most of ondisk inode */
+
+	xfs_extnum_t		i_cnextents;	/* # of extents in cow fork */
+	unsigned int		i_cformat;	/* format of cow fork */
 
 	/* VFS inode */
 	struct inode		i_vnode;	/* embedded VFS inode */
