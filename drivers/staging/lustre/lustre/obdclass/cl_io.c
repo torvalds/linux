@@ -586,67 +586,32 @@ void cl_io_end(const struct lu_env *env, struct cl_io *io)
 }
 EXPORT_SYMBOL(cl_io_end);
 
-static const struct cl_page_slice *
-cl_io_slice_page(const struct cl_io_slice *ios, struct cl_page *page)
-{
-	const struct cl_page_slice *slice;
-
-	slice = cl_page_at(page, ios->cis_obj->co_lu.lo_dev->ld_type);
-	LINVRNT(slice);
-	return slice;
-}
-
 /**
- * Called by read io, when page has to be read from the server.
+ * Called by read io, to decide the readahead extent
  *
- * \see cl_io_operations::cio_read_page()
+ * \see cl_io_operations::cio_read_ahead()
  */
-int cl_io_read_page(const struct lu_env *env, struct cl_io *io,
-		    struct cl_page *page)
+int cl_io_read_ahead(const struct lu_env *env, struct cl_io *io,
+		     pgoff_t start, struct cl_read_ahead *ra)
 {
 	const struct cl_io_slice *scan;
-	struct cl_2queue	 *queue;
 	int		       result = 0;
 
 	LINVRNT(io->ci_type == CIT_READ || io->ci_type == CIT_FAULT);
-	LINVRNT(cl_page_is_owned(page, io));
 	LINVRNT(io->ci_state == CIS_IO_GOING || io->ci_state == CIS_LOCKED);
 	LINVRNT(cl_io_invariant(io));
 
-	queue = &io->ci_queue;
-
-	cl_2queue_init(queue);
-	/*
-	 * ->cio_read_page() methods called in the loop below are supposed to
-	 * never block waiting for network (the only subtle point is the
-	 * creation of new pages for read-ahead that might result in cache
-	 * shrinking, but currently only clean pages are shrunk and this
-	 * requires no network io).
-	 *
-	 * Should this ever starts blocking, retry loop would be needed for
-	 * "parallel io" (see CLO_REPEAT loops in cl_lock.c).
-	 */
 	cl_io_for_each(scan, io) {
-		if (scan->cis_iop->cio_read_page) {
-			const struct cl_page_slice *slice;
+		if (!scan->cis_iop->cio_read_ahead)
+			continue;
 
-			slice = cl_io_slice_page(scan, page);
-			LINVRNT(slice);
-			result = scan->cis_iop->cio_read_page(env, scan, slice);
-			if (result != 0)
-				break;
-		}
+		result = scan->cis_iop->cio_read_ahead(env, scan, start, ra);
+		if (result)
+			break;
 	}
-	if (result == 0 && queue->c2_qin.pl_nr > 0)
-		result = cl_io_submit_rw(env, io, CRT_READ, queue);
-	/*
-	 * Unlock unsent pages in case of error.
-	 */
-	cl_page_list_disown(env, io, &queue->c2_qin);
-	cl_2queue_fini(env, queue);
-	return result;
+	return result > 0 ? 0 : result;
 }
-EXPORT_SYMBOL(cl_io_read_page);
+EXPORT_SYMBOL(cl_io_read_ahead);
 
 /**
  * Commit a list of contiguous pages into writeback cache.

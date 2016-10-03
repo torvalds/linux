@@ -117,25 +117,6 @@ void osc_index2policy(ldlm_policy_data_t *policy, const struct cl_object *obj,
 	policy->l_extent.end = cl_offset(obj, end + 1) - 1;
 }
 
-static int osc_page_is_under_lock(const struct lu_env *env,
-				  const struct cl_page_slice *slice,
-				  struct cl_io *unused, pgoff_t *max_index)
-{
-	struct osc_page *opg = cl2osc_page(slice);
-	struct ldlm_lock *dlmlock;
-	int result = -ENODATA;
-
-	dlmlock = osc_dlmlock_at_pgoff(env, cl2osc(slice->cpl_obj),
-				       osc_index(opg), 1, 0);
-	if (dlmlock) {
-		*max_index = cl_index(slice->cpl_obj,
-				      dlmlock->l_policy_data.l_extent.end);
-		LDLM_LOCK_PUT(dlmlock);
-		result = 0;
-	}
-	return result;
-}
-
 static const char *osc_list(struct list_head *head)
 {
 	return list_empty(head) ? "-" : "+";
@@ -276,7 +257,6 @@ static int osc_page_flush(const struct lu_env *env,
 static const struct cl_page_operations osc_page_ops = {
 	.cpo_print	 = osc_page_print,
 	.cpo_delete	= osc_page_delete,
-	.cpo_is_under_lock = osc_page_is_under_lock,
 	.cpo_clip	   = osc_page_clip,
 	.cpo_cancel	 = osc_page_cancel,
 	.cpo_flush	  = osc_page_flush

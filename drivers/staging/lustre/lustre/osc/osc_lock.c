@@ -1180,7 +1180,7 @@ int osc_lock_init(const struct lu_env *env,
  */
 struct ldlm_lock *osc_dlmlock_at_pgoff(const struct lu_env *env,
 				       struct osc_object *obj, pgoff_t index,
-				       int pending, int canceling)
+				       enum osc_dap_flags dap_flags)
 {
 	struct osc_thread_info *info = osc_env_info(env);
 	struct ldlm_res_id *resname = &info->oti_resname;
@@ -1194,9 +1194,10 @@ struct ldlm_lock *osc_dlmlock_at_pgoff(const struct lu_env *env,
 	osc_index2policy(policy, osc2cl(obj), index, index);
 	policy->l_extent.gid = LDLM_GID_ANY;
 
-	flags = LDLM_FL_BLOCK_GRANTED | LDLM_FL_TEST_LOCK;
-	if (pending)
-		flags |= LDLM_FL_CBPENDING;
+	flags = LDLM_FL_BLOCK_GRANTED | LDLM_FL_CBPENDING;
+	if (dap_flags & OSC_DAP_FL_TEST_LOCK)
+		flags |= LDLM_FL_TEST_LOCK;
+
 	/*
 	 * It is fine to match any group lock since there could be only one
 	 * with a uniq gid and it conflicts with all other lock modes too
@@ -1204,7 +1205,8 @@ struct ldlm_lock *osc_dlmlock_at_pgoff(const struct lu_env *env,
 again:
 	mode = ldlm_lock_match(osc_export(obj)->exp_obd->obd_namespace,
 			       flags, resname, LDLM_EXTENT, policy,
-			       LCK_PR | LCK_PW | LCK_GROUP, &lockh, canceling);
+			       LCK_PR | LCK_PW | LCK_GROUP, &lockh,
+			       dap_flags & OSC_DAP_FL_CANCELING);
 	if (mode != 0) {
 		lock = ldlm_handle2lock(&lockh);
 		/* RACE: the lock is cancelled so let's try again */

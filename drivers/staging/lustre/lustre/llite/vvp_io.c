@@ -1191,40 +1191,23 @@ static int vvp_io_fsync_start(const struct lu_env *env,
 	return 0;
 }
 
-static int vvp_io_read_page(const struct lu_env *env,
-			    const struct cl_io_slice *ios,
-			    const struct cl_page_slice *slice)
+static int vvp_io_read_ahead(const struct lu_env *env,
+			     const struct cl_io_slice *ios,
+			     pgoff_t start, struct cl_read_ahead *ra)
 {
-	struct cl_io	      *io     = ios->cis_io;
-	struct vvp_page           *vpg    = cl2vvp_page(slice);
-	struct cl_page	    *page   = slice->cpl_page;
-	struct inode              *inode  = vvp_object_inode(slice->cpl_obj);
-	struct ll_sb_info	 *sbi    = ll_i2sbi(inode);
-	struct ll_file_data       *fd     = cl2vvp_io(env, ios)->vui_fd;
-	struct ll_readahead_state *ras    = &fd->fd_ras;
-	struct cl_2queue	  *queue  = &io->ci_queue;
+	int result = 0;
 
-	if (sbi->ll_ra_info.ra_max_pages_per_file &&
-	    sbi->ll_ra_info.ra_max_pages)
-		ras_update(sbi, inode, ras, vvp_index(vpg),
-			   vpg->vpg_defer_uptodate);
+	if (ios->cis_io->ci_type == CIT_READ ||
+	    ios->cis_io->ci_type == CIT_FAULT) {
+		struct vvp_io *vio = cl2vvp_io(env, ios);
 
-	if (vpg->vpg_defer_uptodate) {
-		vpg->vpg_ra_used = 1;
-		cl_page_export(env, page, 1);
+		if (unlikely(vio->vui_fd->fd_flags & LL_FILE_GROUP_LOCKED)) {
+			ra->cra_end = CL_PAGE_EOF;
+			result = 1; /* no need to call down */
+		}
 	}
-	/*
-	 * Add page into the queue even when it is marked uptodate above.
-	 * this will unlock it automatically as part of cl_page_list_disown().
-	 */
 
-	cl_page_list_add(&queue->c2_qin, page);
-	if (sbi->ll_ra_info.ra_max_pages_per_file &&
-	    sbi->ll_ra_info.ra_max_pages)
-		ll_readahead(env, io, &queue->c2_qin, ras,
-			     vpg->vpg_defer_uptodate);
-
-	return 0;
+	return result;
 }
 
 static void vvp_io_end(const struct lu_env *env, const struct cl_io_slice *ios)
@@ -1271,7 +1254,7 @@ static const struct cl_io_operations vvp_io_ops = {
 			.cio_fini   = vvp_io_fini
 		}
 	},
-	.cio_read_page     = vvp_io_read_page,
+	.cio_read_ahead	= vvp_io_read_ahead,
 };
 
 int vvp_io_init(const struct lu_env *env, struct cl_object *obj,

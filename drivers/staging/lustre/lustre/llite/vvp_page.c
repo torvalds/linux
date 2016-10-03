@@ -339,20 +339,6 @@ static int vvp_page_make_ready(const struct lu_env *env,
 	return result;
 }
 
-static int vvp_page_is_under_lock(const struct lu_env *env,
-				  const struct cl_page_slice *slice,
-				  struct cl_io *io, pgoff_t *max_index)
-{
-	if (io->ci_type == CIT_READ || io->ci_type == CIT_WRITE ||
-	    io->ci_type == CIT_FAULT) {
-		struct vvp_io *vio = vvp_env_io(env);
-
-		if (unlikely(vio->vui_fd->fd_flags & LL_FILE_GROUP_LOCKED))
-			*max_index = CL_PAGE_EOF;
-	}
-	return 0;
-}
-
 static int vvp_page_print(const struct lu_env *env,
 			  const struct cl_page_slice *slice,
 			  void *cookie, lu_printer_t printer)
@@ -397,7 +383,6 @@ static const struct cl_page_operations vvp_page_ops = {
 	.cpo_is_vmlocked   = vvp_page_is_vmlocked,
 	.cpo_fini	  = vvp_page_fini,
 	.cpo_print	 = vvp_page_print,
-	.cpo_is_under_lock = vvp_page_is_under_lock,
 	.io = {
 		[CRT_READ] = {
 			.cpo_prep	= vvp_page_prep_read,
@@ -496,7 +481,6 @@ static const struct cl_page_operations vvp_transient_page_ops = {
 	.cpo_fini	  = vvp_transient_page_fini,
 	.cpo_is_vmlocked   = vvp_transient_page_is_vmlocked,
 	.cpo_print	 = vvp_page_print,
-	.cpo_is_under_lock	= vvp_page_is_under_lock,
 	.io = {
 		[CRT_READ] = {
 			.cpo_prep	= vvp_transient_page_prep,

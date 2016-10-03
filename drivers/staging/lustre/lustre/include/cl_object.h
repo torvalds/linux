@@ -884,26 +884,6 @@ struct cl_page_operations {
 	/** Destructor. Frees resources and slice itself. */
 	void (*cpo_fini)(const struct lu_env *env,
 			 struct cl_page_slice *slice);
-
-	/**
-	 * Checks whether the page is protected by a cl_lock. This is a
-	 * per-layer method, because certain layers have ways to check for the
-	 * lock much more efficiently than through the generic locks scan, or
-	 * implement locking mechanisms separate from cl_lock, e.g.,
-	 * LL_FILE_GROUP_LOCKED in vvp. If \a pending is true, check for locks
-	 * being canceled, or scheduled for cancellation as soon as the last
-	 * user goes away, too.
-	 *
-	 * \retval    -EBUSY: page is protected by a lock of a given mode;
-	 * \retval  -ENODATA: page is not protected by a lock;
-	 * \retval	 0: this layer cannot decide.
-	 *
-	 * \see cl_page_is_under_lock()
-	 */
-	int (*cpo_is_under_lock)(const struct lu_env *env,
-				 const struct cl_page_slice *slice,
-				 struct cl_io *io, pgoff_t *max);
-
 	/**
 	 * Optional debugging helper. Prints given page slice.
 	 *
@@ -1365,7 +1345,6 @@ struct cl_2queue {
  *     (3) sort all locks to avoid dead-locks, and acquire them
  *
  *     (4) process the chunk: call per-page methods
- *	 (cl_io_operations::cio_read_page() for read,
  *	 cl_io_operations::cio_prepare_write(),
  *	 cl_io_operations::cio_commit_write() for write)
  *
@@ -1467,6 +1446,31 @@ struct cl_io_slice {
 
 typedef void (*cl_commit_cbt)(const struct lu_env *, struct cl_io *,
 			      struct cl_page *);
+
+struct cl_read_ahead {
+	/*
+	 * Maximum page index the readahead window will end.
+	 * This is determined DLM lock coverage, RPC and stripe boundary.
+	 * cra_end is included.
+	 */
+	pgoff_t cra_end;
+	/*
+	 * Release routine. If readahead holds resources underneath, this
+	 * function should be called to release it.
+	 */
+	void (*cra_release)(const struct lu_env *env, void *cbdata);
+	/* Callback data for cra_release routine */
+	void *cra_cbdata;
+};
+
+static inline void cl_read_ahead_release(const struct lu_env *env,
+					 struct cl_read_ahead *ra)
+{
+	if (ra->cra_release)
+		ra->cra_release(env, ra->cra_cbdata);
+	memset(ra, 0, sizeof(*ra));
+}
+
 /**
  * Per-layer io operations.
  * \see vvp_io_ops, lov_io_ops, lovsub_io_ops, osc_io_ops
@@ -1573,16 +1577,13 @@ struct cl_io_operations {
 				 struct cl_page_list *queue, int from, int to,
 				 cl_commit_cbt cb);
 	/**
-	 * Read missing page.
-	 *
-	 * Called by a top-level cl_io_operations::op[CIT_READ]::cio_start()
-	 * method, when it hits not-up-to-date page in the range. Optional.
+	 * Decide maximum read ahead extent
 	 *
 	 * \pre io->ci_type == CIT_READ
 	 */
-	int (*cio_read_page)(const struct lu_env *env,
-			     const struct cl_io_slice *slice,
-			     const struct cl_page_slice *page);
+	int (*cio_read_ahead)(const struct lu_env *env,
+			      const struct cl_io_slice *slice,
+			      pgoff_t start, struct cl_read_ahead *ra);
 	/**
 	 * Optional debugging helper. Print given io slice.
 	 */
@@ -2302,8 +2303,6 @@ void cl_page_discard(const struct lu_env *env, struct cl_io *io,
 void cl_page_delete(const struct lu_env *env, struct cl_page *pg);
 int cl_page_is_vmlocked(const struct lu_env *env, const struct cl_page *pg);
 void cl_page_export(const struct lu_env *env, struct cl_page *pg, int uptodate);
-int cl_page_is_under_lock(const struct lu_env *env, struct cl_io *io,
-			  struct cl_page *page, pgoff_t *max_index);
 loff_t cl_offset(const struct cl_object *obj, pgoff_t idx);
 pgoff_t cl_index(const struct cl_object *obj, loff_t offset);
 size_t cl_page_size(const struct cl_object *obj);
@@ -2414,8 +2413,6 @@ int cl_io_lock_add(const struct lu_env *env, struct cl_io *io,
 		   struct cl_io_lock_link *link);
 int cl_io_lock_alloc_add(const struct lu_env *env, struct cl_io *io,
 			 struct cl_lock_descr *descr);
-int cl_io_read_page(const struct lu_env *env, struct cl_io *io,
-		    struct cl_page *page);
 int cl_io_submit_rw(const struct lu_env *env, struct cl_io *io,
 		    enum cl_req_type iot, struct cl_2queue *queue);
 int cl_io_submit_sync(const struct lu_env *env, struct cl_io *io,
@@ -2424,6 +2421,8 @@ int cl_io_submit_sync(const struct lu_env *env, struct cl_io *io,
 int cl_io_commit_async(const struct lu_env *env, struct cl_io *io,
 		       struct cl_page_list *queue, int from, int to,
 		       cl_commit_cbt cb);
+int cl_io_read_ahead(const struct lu_env *env, struct cl_io *io,
+		     pgoff_t start, struct cl_read_ahead *ra);
 int cl_io_is_going(const struct lu_env *env);
 
 /**

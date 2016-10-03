@@ -555,6 +555,63 @@ static void lov_io_unlock(const struct lu_env *env,
 	LASSERT(rc == 0);
 }
 
+static int lov_io_read_ahead(const struct lu_env *env,
+			     const struct cl_io_slice *ios,
+			     pgoff_t start, struct cl_read_ahead *ra)
+{
+	struct lov_io *lio = cl2lov_io(env, ios);
+	struct lov_object *loo = lio->lis_object;
+	struct cl_object *obj = lov2cl(loo);
+	struct lov_layout_raid0 *r0 = lov_r0(loo);
+	unsigned int pps; /* pages per stripe */
+	struct lov_io_sub *sub;
+	pgoff_t ra_end;
+	loff_t suboff;
+	int stripe;
+	int rc;
+
+	stripe = lov_stripe_number(loo->lo_lsm, cl_offset(obj, start));
+	if (unlikely(!r0->lo_sub[stripe]))
+		return -EIO;
+
+	sub = lov_sub_get(env, lio, stripe);
+
+	lov_stripe_offset(loo->lo_lsm, cl_offset(obj, start), stripe, &suboff);
+	rc = cl_io_read_ahead(sub->sub_env, sub->sub_io,
+			      cl_index(lovsub2cl(r0->lo_sub[stripe]), suboff),
+			      ra);
+	lov_sub_put(sub);
+
+	CDEBUG(D_READA, DFID " cra_end = %lu, stripes = %d, rc = %d\n",
+	       PFID(lu_object_fid(lov2lu(loo))), ra->cra_end, r0->lo_nr, rc);
+	if (rc)
+		return rc;
+
+	/**
+	 * Adjust the stripe index by layout of raid0. ra->cra_end is
+	 * the maximum page index covered by an underlying DLM lock.
+	 * This function converts cra_end from stripe level to file
+	 * level, and make sure it's not beyond stripe boundary.
+	 */
+	if (r0->lo_nr == 1)	/* single stripe file */
+		return 0;
+
+	/* cra_end is stripe level, convert it into file level */
+	ra_end = ra->cra_end;
+	if (ra_end != CL_PAGE_EOF)
+		ra_end = lov_stripe_pgoff(loo->lo_lsm, ra_end, stripe);
+
+	pps = loo->lo_lsm->lsm_stripe_size >> PAGE_SHIFT;
+
+	CDEBUG(D_READA, DFID " max_index = %lu, pps = %u, stripe_size = %u, stripe no = %u, start index = %lu\n",
+	       PFID(lu_object_fid(lov2lu(loo))), ra_end, pps,
+	       loo->lo_lsm->lsm_stripe_size, stripe, start);
+
+	/* never exceed the end of the stripe */
+	ra->cra_end = min_t(pgoff_t, ra_end, start + pps - start % pps - 1);
+	return 0;
+}
+
 /**
  * lov implementation of cl_operations::cio_submit() method. It takes a list
  * of pages in \a queue, splits it into per-stripe sub-lists, invokes
@@ -801,6 +858,7 @@ static const struct cl_io_operations lov_io_ops = {
 			.cio_fini   = lov_io_fini
 		}
 	},
+	.cio_read_ahead			= lov_io_read_ahead,
 	.cio_submit                    = lov_io_submit,
 	.cio_commit_async              = lov_io_commit_async,
 };
