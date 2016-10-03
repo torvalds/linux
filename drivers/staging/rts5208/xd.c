@@ -819,11 +819,11 @@ static int reset_xd(struct rtsx_chip *chip)
 			}
 
 			if ((buf[0] == 0x01) && (buf[1] == 0x03) &&
-			    (buf[2] == 0xD9)
-			    && (buf[3] == 0x01) && (buf[4] == 0xFF)
-			    && (buf[5] == 0x18) && (buf[6] == 0x02)
-			    && (buf[7] == 0xDF) && (buf[8] == 0x01)
-			    && (buf[9] == 0x20)) {
+			    (buf[2] == 0xD9) &&
+			    (buf[3] == 0x01) && (buf[4] == 0xFF) &&
+			    (buf[5] == 0x18) && (buf[6] == 0x02) &&
+			    (buf[7] == 0xDF) && (buf[8] == 0x01) &&
+			    (buf[9] == 0x20)) {
 				xd_card->cis_block = (u16)i;
 			}
 		}
@@ -948,8 +948,8 @@ static void xd_set_unused_block(struct rtsx_chip *chip, u32 phy_blk)
 			return;
 	}
 
-	if ((zone->set_index >= XD_FREE_TABLE_CNT)
-			|| (zone->set_index < 0)) {
+	if ((zone->set_index >= XD_FREE_TABLE_CNT) ||
+	    (zone->set_index < 0)) {
 		free_zone(zone);
 		dev_dbg(rtsx_dev(chip), "Set unused block fail, invalid set_index\n");
 		return;
@@ -1278,8 +1278,8 @@ static int xd_copy_page(struct rtsx_chip *chip, u32 old_blk, u32 new_blk,
 				}
 
 				if (((reg & (XD_ECC1_ERROR | XD_ECC1_UNCORRECTABLE)) ==
-						(XD_ECC1_ERROR | XD_ECC1_UNCORRECTABLE))
-					|| ((reg & (XD_ECC2_ERROR | XD_ECC2_UNCORRECTABLE)) ==
+						(XD_ECC1_ERROR | XD_ECC1_UNCORRECTABLE)) ||
+					((reg & (XD_ECC2_ERROR | XD_ECC2_UNCORRECTABLE)) ==
 						(XD_ECC2_ERROR | XD_ECC2_UNCORRECTABLE))) {
 					rtsx_write_register(chip,
 							    XD_PAGE_STATUS,
@@ -1723,10 +1723,10 @@ Fail:
 		return retval;
 	}
 
-	if (((reg_val & (XD_ECC1_ERROR | XD_ECC1_UNCORRECTABLE))
-				== (XD_ECC1_ERROR | XD_ECC1_UNCORRECTABLE))
-		|| ((reg_val & (XD_ECC2_ERROR | XD_ECC2_UNCORRECTABLE))
-			== (XD_ECC2_ERROR | XD_ECC2_UNCORRECTABLE))) {
+	if (((reg_val & (XD_ECC1_ERROR | XD_ECC1_UNCORRECTABLE)) ==
+				(XD_ECC1_ERROR | XD_ECC1_UNCORRECTABLE)) ||
+		((reg_val & (XD_ECC2_ERROR | XD_ECC2_UNCORRECTABLE)) ==
+			(XD_ECC2_ERROR | XD_ECC2_UNCORRECTABLE))) {
 		wait_timeout(100);
 
 		if (detect_card_cd(chip, XD_CARD) != STATUS_SUCCESS) {
