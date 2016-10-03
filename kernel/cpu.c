@@ -1024,12 +1024,13 @@ EXPORT_SYMBOL_GPL(cpu_up);
 #ifdef CONFIG_PM_SLEEP_SMP
 static cpumask_var_t frozen_cpus;
 
-int disable_nonboot_cpus(void)
+int freeze_secondary_cpus(int primary)
 {
-	int cpu, first_cpu, error = 0;
+	int cpu, error = 0;
 
 	cpu_maps_update_begin();
-	first_cpu = cpumask_first(cpu_online_mask);
+	if (!cpu_online(primary))
+		primary = cpumask_first(cpu_online_mask);
 	/*
 	 * We take down all of the non-boot CPUs in one shot to avoid races
 	 * with the userspace trying to use the CPU hotplug at the same time
@@ -1038,7 +1039,7 @@ int disable_nonboot_cpus(void)
 
 	pr_info("Disabling non-boot CPUs ...\n");
 	for_each_online_cpu(cpu) {
-		if (cpu == first_cpu)
+		if (cpu == primary)
 			continue;
 		trace_suspend_resume(TPS("CPU_OFF"), cpu, true);
 		error = _cpu_down(cpu, 1, CPUHP_OFFLINE);

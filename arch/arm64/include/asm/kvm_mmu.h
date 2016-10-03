@@ -99,14 +99,10 @@
 .macro kern_hyp_va	reg
 alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
 	and     \reg, \reg, #HYP_PAGE_OFFSET_HIGH_MASK
-alternative_else
-	nop
-alternative_endif
-alternative_if_not ARM64_HYP_OFFSET_LOW
-	nop
-alternative_else
+alternative_else_nop_endif
+alternative_if ARM64_HYP_OFFSET_LOW
 	and     \reg, \reg, #HYP_PAGE_OFFSET_LOW_MASK
-alternative_endif
+alternative_else_nop_endif
 .endm
 
 #else
