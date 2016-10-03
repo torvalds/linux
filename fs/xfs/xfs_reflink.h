@@ -43,7 +43,10 @@ extern int xfs_reflink_cancel_cow_range(struct xfs_inode *ip, xfs_off_t offset,
 extern int xfs_reflink_end_cow(struct xfs_inode *ip, xfs_off_t offset,
 		xfs_off_t count);
 extern int xfs_reflink_recover_cow(struct xfs_mount *mp);
+#define XFS_REFLINK_DEDUPE	1	/* only reflink if contents match */
+#define XFS_REFLINK_ALL		(XFS_REFLINK_DEDUPE)
 extern int xfs_reflink_remap_range(struct xfs_inode *src, xfs_off_t srcoff,
-		struct xfs_inode *dest, xfs_off_t destoff, xfs_off_t len);
+		struct xfs_inode *dest, xfs_off_t destoff, xfs_off_t len,
+		unsigned int flags);
 
 #endif /* __XFS_REFLINK_H */

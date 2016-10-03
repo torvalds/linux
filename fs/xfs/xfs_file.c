@@ -1010,7 +1010,8 @@ xfs_file_share_range(
 	loff_t		pos_in,
 	struct file	*file_out,
 	loff_t		pos_out,
-	u64		len)
+	u64		len,
+	bool		is_dedupe)
 {
 	struct inode	*inode_in;
 	struct inode	*inode_out;
@@ -1019,6 +1020,7 @@ xfs_file_share_range(
 	loff_t		isize;
 	int		same_inode;
 	loff_t		blen;
+	unsigned int	flags = 0;
 
 	inode_in = file_inode(file_in);
 	inode_out = file_inode(file_out);
@@ -1056,6 +1058,15 @@ xfs_file_share_range(
 	    pos_in + len > isize)
 		return -EINVAL;
 
+	/* Don't allow dedupe past EOF in the dest file */
+	if (is_dedupe) {
+		loff_t	disize;
+
+		disize = i_size_read(inode_out);
+		if (pos_out >= disize || pos_out + len > disize)
+			return -EINVAL;
+	}
+
 	/* If we're linking to EOF, continue to the block boundary. */
 	if (pos_in + len == isize)
 		blen = ALIGN(isize, bs) - pos_in;
@@ -1079,8 +1090,10 @@ xfs_file_share_range(
 	if (ret)
 		goto out_unlock;
 
+	if (is_dedupe)
+		flags |= XFS_REFLINK_DEDUPE;
 	ret = xfs_reflink_remap_range(XFS_I(inode_in), pos_in, XFS_I(inode_out),
-			pos_out, len);
+			pos_out, len, flags);
 	if (ret < 0)
 		goto out_unlock;
 
@@ -1100,7 +1113,7 @@ xfs_file_copy_range(
 	int		error;
 
 	error = xfs_file_share_range(file_in, pos_in, file_out, pos_out,
-				     len);
+				     len, false);
 	if (error)
 		return error;
 	return len;
@@ -1115,7 +1128,33 @@ xfs_file_clone_range(
 	u64		len)
 {
 	return xfs_file_share_range(file_in, pos_in, file_out, pos_out,
-				     len);
+				     len, false);
+}
+
+#define XFS_MAX_DEDUPE_LEN	(16 * 1024 * 1024)
+STATIC ssize_t
+xfs_file_dedupe_range(
+	struct file	*src_file,
+	u64		loff,
+	u64		len,
+	struct file	*dst_file,
+	u64		dst_loff)
+{
+	int		error;
+
+	/*
+	 * Limit the total length we will dedupe for each operation.
+	 * This is intended to bound the total time spent in this
+	 * ioctl to something sane.
+	 */
+	if (len > XFS_MAX_DEDUPE_LEN)
+		len = XFS_MAX_DEDUPE_LEN;
+
+	error = xfs_file_share_range(src_file, loff, dst_file, dst_loff,
+				     len, true);
+	if (error)
+		return error;
+	return len;
 }
 
 STATIC int
@@ -1779,6 +1818,7 @@ const struct file_operations xfs_file_operations = {
 	.fallocate	= xfs_file_fallocate,
 	.copy_file_range = xfs_file_copy_range,
 	.clone_file_range = xfs_file_clone_range,
+	.dedupe_file_range = xfs_file_dedupe_range,
 };
 
 const struct file_operations xfs_dir_file_operations = {

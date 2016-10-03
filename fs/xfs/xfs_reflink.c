@@ -1150,6 +1150,111 @@ err:
 }
 
 /*
+ * Read a page's worth of file data into the page cache.  Return the page
+ * locked.
+ */
+static struct page *
+xfs_get_page(
+	struct inode	*inode,
+	xfs_off_t	offset)
+{
+	struct address_space	*mapping;
+	struct page		*page;
+	pgoff_t			n;
+
+	n = offset >> PAGE_SHIFT;
+	mapping = inode->i_mapping;
+	page = read_mapping_page(mapping, n, NULL);
+	if (IS_ERR(page))
+		return page;
+	if (!PageUptodate(page)) {
+		put_page(page);
+		return ERR_PTR(-EIO);
+	}
+	lock_page(page);
+	return page;
+}
+
+/*
+ * Compare extents of two files to see if they are the same.
+ */
+static int
+xfs_compare_extents(
+	struct inode	*src,
+	xfs_off_t	srcoff,
+	struct inode	*dest,
+	xfs_off_t	destoff,
+	xfs_off_t	len,
+	bool		*is_same)
+{
+	xfs_off_t	src_poff;
+	xfs_off_t	dest_poff;
+	void		*src_addr;
+	void		*dest_addr;
+	struct page	*src_page;
+	struct page	*dest_page;
+	xfs_off_t	cmp_len;
+	bool		same;
+	int		error;
+
+	error = -EINVAL;
+	same = true;
+	while (len) {
+		src_poff = srcoff & (PAGE_SIZE - 1);
+		dest_poff = destoff & (PAGE_SIZE - 1);
+		cmp_len = min(PAGE_SIZE - src_poff,
+			      PAGE_SIZE - dest_poff);
+		cmp_len = min(cmp_len, len);
+		ASSERT(cmp_len > 0);
+
+		trace_xfs_reflink_compare_extents(XFS_I(src), srcoff, cmp_len,
+				XFS_I(dest), destoff);
+
+		src_page = xfs_get_page(src, srcoff);
+		if (IS_ERR(src_page)) {
+			error = PTR_ERR(src_page);
+			goto out_error;
+		}
+		dest_page = xfs_get_page(dest, destoff);
+		if (IS_ERR(dest_page)) {
+			error = PTR_ERR(dest_page);
+			unlock_page(src_page);
+			put_page(src_page);
+			goto out_error;
+		}
+		src_addr = kmap_atomic(src_page);
+		dest_addr = kmap_atomic(dest_page);
+
+		flush_dcache_page(src_page);
+		flush_dcache_page(dest_page);
+
+		if (memcmp(src_addr + src_poff, dest_addr + dest_poff, cmp_len))
+			same = false;
+
+		kunmap_atomic(dest_addr);
+		kunmap_atomic(src_addr);
+		unlock_page(dest_page);
+		unlock_page(src_page);
+		put_page(dest_page);
+		put_page(src_page);
+
+		if (!same)
+			break;
+
+		srcoff += cmp_len;
+		destoff += cmp_len;
+		len -= cmp_len;
+	}
+
+	*is_same = same;
+	return 0;
+
+out_error:
+	trace_xfs_reflink_compare_extents_error(XFS_I(dest), error, _RET_IP_);
+	return error;
+}
+
+/*
  * Link a range of blocks from one file to another.
  */
 int
@@ -1158,12 +1263,14 @@ xfs_reflink_remap_range(
 	xfs_off_t		srcoff,
 	struct xfs_inode	*dest,
 	xfs_off_t		destoff,
-	xfs_off_t		len)
+	xfs_off_t		len,
+	unsigned int		flags)
 {
 	struct xfs_mount	*mp = src->i_mount;
 	xfs_fileoff_t		sfsbno, dfsbno;
 	xfs_filblks_t		fsblen;
 	int			error;
+	bool			is_same;
 
 	if (!xfs_sb_version_hasreflink(&mp->m_sb))
 		return -EOPNOTSUPP;
@@ -1175,6 +1282,9 @@ xfs_reflink_remap_range(
 	if (XFS_IS_REALTIME_INODE(src) || XFS_IS_REALTIME_INODE(dest))
 		return -EINVAL;
 
+	if (flags & ~XFS_REFLINK_ALL)
+		return -EINVAL;
+
 	trace_xfs_reflink_remap_range(src, srcoff, len, dest, destoff);
 
 	/* Lock both files against IO */
@@ -1184,6 +1294,21 @@ xfs_reflink_remap_range(
 	} else {
 		xfs_lock_two_inodes(src, dest, XFS_IOLOCK_EXCL);
 		xfs_lock_two_inodes(src, dest, XFS_MMAPLOCK_EXCL);
+	}
+
+	/*
+	 * Check that the extents are the same.
+	 */
+	if (flags & XFS_REFLINK_DEDUPE) {
+		is_same = false;
+		error = xfs_compare_extents(VFS_I(src), srcoff, VFS_I(dest),
+				destoff, len, &is_same);
+		if (error)
+			goto out_error;
+		if (!is_same) {
+			error = -EBADE;
+			goto out_error;
+		}
 	}
 
 	error = xfs_reflink_set_inode_flag(src, dest);
