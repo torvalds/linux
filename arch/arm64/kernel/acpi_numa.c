@@ -105,8 +105,10 @@ int __init arm64_acpi_numa_init(void)
 	int ret;
 
 	ret = acpi_numa_init();
-	if (ret)
+	if (ret) {
+		pr_info("Failed to initialise from firmware\n");
 		return ret;
+	}
 
 	return srat_disabled() ? -EINVAL : 0;
 }

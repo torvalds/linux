@@ -165,7 +165,7 @@ SUBCMD_DIR	= $(srctree)/tools/lib/subcmd/
 # non-config cases
 config := 1
 
-NON_CONFIG_TARGETS := clean TAGS tags cscope help
+NON_CONFIG_TARGETS := clean TAGS tags cscope help install-doc
 
 ifdef MAKECMDGOALS
 ifeq ($(filter-out $(NON_CONFIG_TARGETS),$(MAKECMDGOALS)),)
@@ -429,6 +429,18 @@ $(PERF_IN): prepare FORCE
 	@(test -f ../../include/asm-generic/bitops/fls64.h && ( \
         (diff -B ../include/asm-generic/bitops/fls64.h ../../include/asm-generic/bitops/fls64.h >/dev/null) \
         || echo "Warning: tools/include/asm-generic/bitops/fls64.h differs from kernel" >&2 )) || true
+	@(test -f ../../include/linux/coresight-pmu.h && ( \
+	(diff -B ../include/linux/coresight-pmu.h ../../include/linux/coresight-pmu.h >/dev/null) \
+	|| echo "Warning: tools/include/linux/coresight-pmu.h differs from kernel" >&2 )) || true
+	@(test -f ../../include/uapi/asm-generic/mman-common.h && ( \
+	(diff -B ../include/uapi/asm-generic/mman-common.h ../../include/uapi/asm-generic/mman-common.h >/dev/null) \
+	|| echo "Warning: tools/include/uapi/asm-generic/mman-common.h differs from kernel" >&2 )) || true
+	@(test -f ../../include/uapi/asm-generic/mman.h && ( \
+	(diff -B -I "^#include <\(uapi/\)*asm-generic/mman-common.h>$$" ../include/uapi/asm-generic/mman.h ../../include/uapi/asm-generic/mman.h >/dev/null) \
+	|| echo "Warning: tools/include/uapi/asm-generic/mman.h differs from kernel" >&2 )) || true
+	@(test -f ../../include/uapi/linux/mman.h && ( \
+	(diff -B -I "^#include <\(uapi/\)*asm/mman.h>$$" ../include/uapi/linux/mman.h ../../include/uapi/linux/mman.h >/dev/null) \
+	|| echo "Warning: tools/include/uapi/linux/mman.h differs from kernel" >&2 )) || true
 	$(Q)$(MAKE) $(build)=perf
 
 $(OUTPUT)perf: $(PERFLIBS) $(PERF_IN) $(LIBTRACEEVENT_DYNAMIC_LIST)

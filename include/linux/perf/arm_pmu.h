@@ -14,7 +14,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/perf_event.h>
-
+#include <linux/sysfs.h>
 #include <asm/cputype.h>
 
 /*
@@ -77,6 +77,13 @@ struct pmu_hw_events {
 	struct arm_pmu		*percpu_pmu;
 };
 
+enum armpmu_attr_groups {
+	ARMPMU_ATTR_GROUP_COMMON,
+	ARMPMU_ATTR_GROUP_EVENTS,
+	ARMPMU_ATTR_GROUP_FORMATS,
+	ARMPMU_NR_ATTR_GROUPS
+};
+
 struct arm_pmu {
 	struct pmu	pmu;
 	cpumask_t	active_irqs;
@@ -111,6 +118,8 @@ struct arm_pmu {
 	struct pmu_hw_events	__percpu *hw_events;
 	struct list_head	entry;
 	struct notifier_block	cpu_pm_nb;
+	/* the attr_groups array must be NULL-terminated */
+	const struct attribute_group *attr_groups[ARMPMU_NR_ATTR_GROUPS + 1];
 };
 
 #define to_arm_pmu(p) (container_of(p, struct arm_pmu, pmu))
@@ -150,6 +159,8 @@ struct pmu_probe_info {
 int arm_pmu_device_probe(struct platform_device *pdev,
 			 const struct of_device_id *of_table,
 			 const struct pmu_probe_info *probe_table);
+
+#define ARMV8_PMU_PDEV_NAME "armv8-pmu"
 
 #endif /* CONFIG_ARM_PMU */
 

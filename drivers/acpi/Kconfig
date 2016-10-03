@@ -227,7 +227,6 @@ config ACPI_MCFG
 config ACPI_CPPC_LIB
 	bool
 	depends on ACPI_PROCESSOR
-	depends on !ACPI_CPU_FREQ_PSS
 	select MAILBOX
 	select PCC
 	help
@@ -461,6 +460,9 @@ source "drivers/acpi/nfit/Kconfig"
 
 source "drivers/acpi/apei/Kconfig"
 source "drivers/acpi/dptf/Kconfig"
+
+config ACPI_WATCHDOG
+	bool
 
 config ACPI_EXTLOG
 	tristate "Extended Error Log support"

@@ -23,6 +23,7 @@
 #include <linux/swap.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
+#include <linux/cache.h>
 #include <linux/mman.h>
 #include <linux/nodemask.h>
 #include <linux/initrd.h>
@@ -34,6 +35,7 @@
 #include <linux/dma-contiguous.h>
 #include <linux/efi.h>
 #include <linux/swiotlb.h>
+#include <linux/vmalloc.h>
 
 #include <asm/boot.h>
 #include <asm/fixmap.h>
@@ -47,16 +49,14 @@
 #include <asm/tlb.h>
 #include <asm/alternative.h>
 
-#include "mm.h"
-
 /*
  * We need to be able to catch inadvertent references to memstart_addr
  * that occur (potentially in generic code) before arm64_memblock_init()
  * executes, which assigns it its actual value. So use a default value
  * that cannot be mistaken for a real physical address.
  */
-s64 memstart_addr __read_mostly = -1;
-phys_addr_t arm64_dma_phys_limit __read_mostly;
+s64 memstart_addr __ro_after_init = -1;
+phys_addr_t arm64_dma_phys_limit __ro_after_init;
 
 #ifdef CONFIG_BLK_DEV_INITRD
 static int __init early_initrd(char *p)
@@ -485,7 +485,12 @@ void free_initmem(void)
 {
 	free_reserved_area(__va(__pa(__init_begin)), __va(__pa(__init_end)),
 			   0, "unused kernel");
-	fixup_init();
+	/*
+	 * Unmap the __init region but leave the VM area in place. This
+	 * prevents the region from being reused for kernel modules, which
+	 * is not supported by kallsyms.
+	 */
+	unmap_kernel_range((u64)__init_begin, (u64)(__init_end - __init_begin));
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD

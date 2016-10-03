@@ -45,6 +45,7 @@
 #include <linux/audit.h>
 #include <linux/random.h>
 #include <linux/stringify.h>
+#include <linux/time64.h>
 
 #ifndef O_CLOEXEC
 # define O_CLOEXEC		02000000
@@ -741,6 +742,8 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [1] = SCA_SIGNUM, /* sig */ }, },
 	{ .name	    = "rt_tgsigqueueinfo", .errmsg = true,
 	  .arg_scnprintf = { [2] = SCA_SIGNUM, /* sig */ }, },
+	{ .name	    = "sched_getattr",	      .errmsg = true, },
+	{ .name	    = "sched_setattr",	      .errmsg = true, },
 	{ .name	    = "sched_setscheduler",   .errmsg = true,
 	  .arg_scnprintf = { [1] = SCA_SCHED_POLICY, /* policy */ }, },
 	{ .name	    = "seccomp", .errmsg = true,
@@ -2140,6 +2143,7 @@ out_delete_sys_enter:
 static int trace__set_ev_qualifier_filter(struct trace *trace)
 {
 	int err = -1;
+	struct perf_evsel *sys_exit;
 	char *filter = asprintf_expr_inout_ints("id", !trace->not_ev_qualifier,
 						trace->ev_qualifier_ids.nr,
 						trace->ev_qualifier_ids.entries);
@@ -2147,8 +2151,11 @@ static int trace__set_ev_qualifier_filter(struct trace *trace)
 	if (filter == NULL)
 		goto out_enomem;
 
-	if (!perf_evsel__append_filter(trace->syscalls.events.sys_enter, "&&", filter))
-		err = perf_evsel__append_filter(trace->syscalls.events.sys_exit, "&&", filter);
+	if (!perf_evsel__append_tp_filter(trace->syscalls.events.sys_enter,
+					  filter)) {
+		sys_exit = trace->syscalls.events.sys_exit;
+		err = perf_evsel__append_tp_filter(sys_exit, filter);
+	}
 
 	free(filter);
 out:

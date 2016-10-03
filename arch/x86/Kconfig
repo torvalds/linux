@@ -705,7 +705,6 @@ config PARAVIRT_DEBUG
 config PARAVIRT_SPINLOCKS
 	bool "Paravirtualization layer for spinlocks"
 	depends on PARAVIRT && SMP
-	select UNINLINE_SPIN_UNLOCK if !QUEUED_SPINLOCKS
 	---help---
 	  Paravirtualized spinlocks allow a pvops backend to replace the
 	  spinlock implementation with something virtualization-friendly
@@ -718,7 +717,7 @@ config PARAVIRT_SPINLOCKS
 
 config QUEUED_LOCK_STAT
 	bool "Paravirt queued spinlock statistics"
-	depends on PARAVIRT_SPINLOCKS && DEBUG_FS && QUEUED_SPINLOCKS
+	depends on PARAVIRT_SPINLOCKS && DEBUG_FS
 	---help---
 	  Enable the collection of statistical data on the slowpath
 	  behavior of paravirtualized queued spinlocks and report

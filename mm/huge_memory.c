@@ -1165,7 +1165,7 @@ int do_huge_pmd_numa_page(struct fault_env *fe, pmd_t pmd)
 	}
 
 	/* See similar comment in do_numa_page for explanation */
-	if (!(vma->vm_flags & VM_WRITE))
+	if (!pmd_write(pmd))
 		flags |= TNF_NO_GROUP;
 
 	/*

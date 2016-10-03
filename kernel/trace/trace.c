@@ -4123,6 +4123,30 @@ static const char readme_msg[] =
 	"\t\t\t  traces\n"
 #endif
 #endif /* CONFIG_STACK_TRACER */
+#ifdef CONFIG_KPROBE_EVENT
+	"  kprobe_events\t\t- Add/remove/show the kernel dynamic events\n"
+	"\t\t\t  Write into this file to define/undefine new trace events.\n"
+#endif
+#ifdef CONFIG_UPROBE_EVENT
+	"  uprobe_events\t\t- Add/remove/show the userspace dynamic events\n"
+	"\t\t\t  Write into this file to define/undefine new trace events.\n"
+#endif
+#if defined(CONFIG_KPROBE_EVENT) || defined(CONFIG_UPROBE_EVENT)
+	"\t  accepts: event-definitions (one definition per line)\n"
+	"\t   Format: p|r[:[<group>/]<event>] <place> [<args>]\n"
+	"\t           -:[<group>/]<event>\n"
+#ifdef CONFIG_KPROBE_EVENT
+	"\t    place: [<module>:]<symbol>[+<offset>]|<memaddr>\n"
+#endif
+#ifdef CONFIG_UPROBE_EVENT
+	"\t    place: <path>:<offset>\n"
+#endif
+	"\t     args: <name>=fetcharg[:type]\n"
+	"\t fetcharg: %<register>, @<address>, @<symbol>[+|-<offset>],\n"
+	"\t           $stack<index>, $stack, $retval, $comm\n"
+	"\t     type: s8/16/32/64, u8/16/32/64, x8/16/32/64, string,\n"
+	"\t           b<bit-width>@<bit-offset>/<container-size>\n"
+#endif
 	"  events/\t\t- Directory containing all trace event subsystems:\n"
 	"      enable\t\t- Write 0/1 to enable/disable tracing of all events\n"
 	"  events/<system>/\t- Directory containing all trace events for <system>:\n"
