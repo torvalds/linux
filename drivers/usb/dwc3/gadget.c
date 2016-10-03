@@ -2871,6 +2871,39 @@ static irqreturn_t dwc3_interrupt(int irq, void *_evt)
 	return dwc3_check_event_buf(evt);
 }
 
+static int dwc3_gadget_get_irq(struct dwc3 *dwc)
+{
+	struct platform_device *dwc3_pdev = to_platform_device(dwc->dev);
+	int irq;
+
+	irq = platform_get_irq_byname(dwc3_pdev, "peripheral");
+	if (irq > 0)
+		goto out;
+
+	if (irq == -EPROBE_DEFER)
+		goto out;
+
+	irq = platform_get_irq_byname(dwc3_pdev, "dwc_usb3");
+	if (irq > 0)
+		goto out;
+
+	if (irq == -EPROBE_DEFER)
+		goto out;
+
+	irq = platform_get_irq(dwc3_pdev, 0);
+	if (irq > 0)
+		goto out;
+
+	if (irq != -EPROBE_DEFER)
+		dev_err(dwc->dev, "missing peripheral IRQ\n");
+
+	if (!irq)
+		irq = -EINVAL;
+
+out:
+	return irq;
+}
+
 /**
  * dwc3_gadget_init - Initializes gadget related registers
  * @dwc: pointer to our controller context structure
@@ -2879,30 +2912,13 @@ static irqreturn_t dwc3_interrupt(int irq, void *_evt)
  */
 int dwc3_gadget_init(struct dwc3 *dwc)
 {
-	int ret, irq;
-	struct platform_device *dwc3_pdev = to_platform_device(dwc->dev);
+	int ret;
+	int irq;
 
-	irq = platform_get_irq_byname(dwc3_pdev, "peripheral");
-	if (irq == -EPROBE_DEFER)
-		return irq;
-
-	if (irq <= 0) {
-		irq = platform_get_irq_byname(dwc3_pdev, "dwc_usb3");
-		if (irq == -EPROBE_DEFER)
-			return irq;
-
-		if (irq <= 0) {
-			irq = platform_get_irq(dwc3_pdev, 0);
-			if (irq <= 0) {
-				if (irq != -EPROBE_DEFER) {
-					dev_err(dwc->dev,
-						"missing peripheral IRQ\n");
-				}
-				if (!irq)
-					irq = -EINVAL;
-				return irq;
-			}
-		}
+	irq = dwc3_gadget_get_irq(dwc);
+	if (irq < 0) {
+		ret = irq;
+		goto err0;
 	}
 
 	dwc->irq_gadget = irq;
