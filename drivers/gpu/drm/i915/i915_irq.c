@@ -2846,7 +2846,7 @@ semaphore_wait_to_signaller_ring(struct intel_engine_cs *engine, u32 ipehr,
 			if (engine == signaller)
 				continue;
 
-			if (offset == signaller->semaphore.signal_ggtt[engine->id])
+			if (offset == signaller->semaphore.signal_ggtt[engine->hw_id])
 				return signaller;
 		}
 	} else {
@@ -2856,13 +2856,13 @@ semaphore_wait_to_signaller_ring(struct intel_engine_cs *engine, u32 ipehr,
 			if(engine == signaller)
 				continue;
 
-			if (sync_bits == signaller->semaphore.mbox.wait[engine->id])
+			if (sync_bits == signaller->semaphore.mbox.wait[engine->hw_id])
 				return signaller;
 		}
 	}
 
-	DRM_DEBUG_DRIVER("No signaller ring found for ring %i, ipehr 0x%08x, offset 0x%016llx\n",
-			 engine->id, ipehr, offset);
+	DRM_DEBUG_DRIVER("No signaller ring found for %s, ipehr 0x%08x, offset 0x%016llx\n",
+			 engine->name, ipehr, offset);
 
 	return ERR_PTR(-ENODEV);
 }
