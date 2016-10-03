@@ -866,7 +866,7 @@ static int sirfsoc_dma_probe(struct platform_device *op)
 	}
 
 	sdma->irq = irq_of_parse_and_map(dn, 0);
-	if (sdma->irq == NO_IRQ) {
+	if (!sdma->irq) {
 		dev_err(dev, "Error mapping IRQ!\n");
 		return -EINVAL;
 	}

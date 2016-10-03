@@ -428,12 +428,10 @@ static int mxs_dma_alloc_chan_resources(struct dma_chan *chan)
 		goto err_alloc;
 	}
 
-	if (mxs_chan->chan_irq != NO_IRQ) {
-		ret = request_irq(mxs_chan->chan_irq, mxs_dma_int_handler,
-					0, "mxs-dma", mxs_dma);
-		if (ret)
-			goto err_irq;
-	}
+	ret = request_irq(mxs_chan->chan_irq, mxs_dma_int_handler,
+			  0, "mxs-dma", mxs_dma);
+	if (ret)
+		goto err_irq;
 
 	ret = clk_prepare_enable(mxs_dma->clk);
 	if (ret)
