@@ -341,20 +341,9 @@ static int tas571x_set_bias_level(struct snd_soc_codec *codec,
 					return ret;
 				}
 			}
-
-			gpiod_set_value(priv->pdn_gpio, 0);
-			usleep_range(5000, 6000);
-
-			regcache_cache_only(priv->regmap, false);
-			ret = regcache_sync(priv->regmap);
-			if (ret)
-				return ret;
 		}
 		break;
 	case SND_SOC_BIAS_OFF:
-		regcache_cache_only(priv->regmap, true);
-		gpiod_set_value(priv->pdn_gpio, 1);
-
 		if (!IS_ERR(priv->mclk))
 			clk_disable_unprepare(priv->mclk);
 		break;
@@ -770,9 +759,6 @@ static int tas571x_i2c_probe(struct i2c_client *client,
 		if (ret)
 			return ret;
 	}
-
-	regcache_cache_only(priv->regmap, true);
-	gpiod_set_value(priv->pdn_gpio, 1);
 
 	return snd_soc_register_codec(&client->dev, &priv->codec_driver,
 				      &tas571x_dai, 1);
