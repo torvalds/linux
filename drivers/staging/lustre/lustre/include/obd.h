@@ -755,6 +755,14 @@ static inline int it_to_lock_mode(struct lookup_intent *it)
 	return -EINVAL;
 }
 
+enum md_op_flags {
+	MF_MDC_CANCEL_FID1	= BIT(0),
+	MF_MDC_CANCEL_FID2      = BIT(1),
+	MF_MDC_CANCEL_FID3      = BIT(2),
+	MF_MDC_CANCEL_FID4      = BIT(3),
+	MF_GET_MDT_IDX          = BIT(4),
+};
+
 enum md_cli_flags {
 	CLI_SET_MEA	= BIT(0),
 	CLI_RM_ENTRY	= BIT(1),

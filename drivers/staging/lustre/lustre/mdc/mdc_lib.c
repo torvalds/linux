@@ -301,9 +301,10 @@ static void mdc_setattr_pack_rec(struct mdt_rec_setattr *rec,
 static void mdc_ioepoch_pack(struct mdt_ioepoch *epoch,
 			     struct md_op_data *op_data)
 {
-	memcpy(&epoch->handle, &op_data->op_handle, sizeof(epoch->handle));
-	epoch->ioepoch = 0;
-	epoch->flags = 0;
+	epoch->mio_handle = op_data->op_handle;
+	epoch->mio_unused1 = 0;
+	epoch->mio_unused2 = 0;
+	epoch->mio_padding = 0;
 }
 
 void mdc_setattr_pack(struct ptlrpc_request *req, struct md_op_data *op_data,

@@ -567,9 +567,9 @@ void mdc_replay_open(struct ptlrpc_request *req)
 		LASSERT(epoch);
 
 		if (och)
-			LASSERT(!memcmp(&old, &epoch->handle, sizeof(old)));
+			LASSERT(!memcmp(&old, &epoch->mio_handle, sizeof(old)));
 		DEBUG_REQ(D_HA, close_req, "updating close body with new fh");
-		epoch->handle = body->mbo_handle;
+		epoch->mio_handle = body->mbo_handle;
 	}
 }
 

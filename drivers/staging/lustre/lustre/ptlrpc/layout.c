@@ -669,7 +669,6 @@ static struct req_format *req_formats[] = {
 	&RQF_MDS_RELEASE_CLOSE,
 	&RQF_MDS_READPAGE,
 	&RQF_MDS_WRITEPAGE,
-	&RQF_MDS_DONE_WRITING,
 	&RQF_MDS_REINT,
 	&RQF_MDS_REINT_CREATE,
 	&RQF_MDS_REINT_CREATE_ACL,
@@ -1385,11 +1384,6 @@ struct req_format RQF_MDS_RELEASE_CLOSE =
 	DEFINE_REQ_FMT0("MDS_CLOSE",
 			mdt_release_close_client, mds_last_unlink_server);
 EXPORT_SYMBOL(RQF_MDS_RELEASE_CLOSE);
-
-struct req_format RQF_MDS_DONE_WRITING =
-	DEFINE_REQ_FMT0("MDS_DONE_WRITING",
-			mdt_close_client, mdt_body_only);
-EXPORT_SYMBOL(RQF_MDS_DONE_WRITING);
 
 struct req_format RQF_MDS_READPAGE =
 	DEFINE_REQ_FMT0("MDS_READPAGE",

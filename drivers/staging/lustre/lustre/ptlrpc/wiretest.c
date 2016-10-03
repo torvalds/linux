@@ -220,24 +220,6 @@ void lustre_assert_wire_constants(void)
 		 (long long)MDS_STATUS_LOV);
 	LASSERTF(LUSTRE_BFLAG_UNCOMMITTED_WRITES == 1, "found %lld\n",
 		 (long long)LUSTRE_BFLAG_UNCOMMITTED_WRITES);
-	LASSERTF(MF_SOM_CHANGE == 0x00000001UL, "found 0x%.8xUL\n",
-		 (unsigned)MF_SOM_CHANGE);
-	LASSERTF(MF_EPOCH_OPEN == 0x00000002UL, "found 0x%.8xUL\n",
-		 (unsigned)MF_EPOCH_OPEN);
-	LASSERTF(MF_EPOCH_CLOSE == 0x00000004UL, "found 0x%.8xUL\n",
-		 (unsigned)MF_EPOCH_CLOSE);
-	LASSERTF(MF_MDC_CANCEL_FID1 == 0x00000008UL, "found 0x%.8xUL\n",
-		 (unsigned)MF_MDC_CANCEL_FID1);
-	LASSERTF(MF_MDC_CANCEL_FID2 == 0x00000010UL, "found 0x%.8xUL\n",
-		 (unsigned)MF_MDC_CANCEL_FID2);
-	LASSERTF(MF_MDC_CANCEL_FID3 == 0x00000020UL, "found 0x%.8xUL\n",
-		 (unsigned)MF_MDC_CANCEL_FID3);
-	LASSERTF(MF_MDC_CANCEL_FID4 == 0x00000040UL, "found 0x%.8xUL\n",
-		 (unsigned)MF_MDC_CANCEL_FID4);
-	LASSERTF(MF_SOM_AU == 0x00000080UL, "found 0x%.8xUL\n",
-		 (unsigned)MF_SOM_AU);
-	LASSERTF(MF_GETATTR_LOCK == 0x00000100UL, "found 0x%.8xUL\n",
-		 (unsigned)MF_GETATTR_LOCK);
 	LASSERTF(MDS_ATTR_MODE == 0x0000000000000001ULL, "found 0x%.16llxULL\n",
 		 (long long)MDS_ATTR_MODE);
 	LASSERTF(MDS_ATTR_UID == 0x0000000000000002ULL, "found 0x%.16llxULL\n",
@@ -423,8 +405,6 @@ void lustre_assert_wire_constants(void)
 		 (unsigned)LMAI_RELEASED);
 	LASSERTF(LMAC_HSM == 0x00000001UL, "found 0x%.8xUL\n",
 		 (unsigned)LMAC_HSM);
-	LASSERTF(LMAC_SOM == 0x00000002UL, "found 0x%.8xUL\n",
-		 (unsigned)LMAC_SOM);
 	LASSERTF(LMAC_NOT_IN_OI == 0x00000004UL, "found 0x%.8xUL\n",
 		 (unsigned)LMAC_NOT_IN_OI);
 	LASSERTF(LMAC_FID_ON_OST == 0x00000008UL, "found 0x%.8xUL\n",
@@ -1883,12 +1863,6 @@ void lustre_assert_wire_constants(void)
 		 MDS_FMODE_CLOSED);
 	LASSERTF(MDS_FMODE_EXEC == 000000000004UL, "found 0%.11oUL\n",
 		 MDS_FMODE_EXEC);
-	LASSERTF(MDS_FMODE_EPOCH == 000001000000UL, "found 0%.11oUL\n",
-		 MDS_FMODE_EPOCH);
-	LASSERTF(MDS_FMODE_TRUNC == 000002000000UL, "found 0%.11oUL\n",
-		 MDS_FMODE_TRUNC);
-	LASSERTF(MDS_FMODE_SOM == 000004000000UL, "found 0%.11oUL\n",
-		 MDS_FMODE_SOM);
 	LASSERTF(MDS_OPEN_CREATED == 000000000010UL, "found 0%.11oUL\n",
 		 MDS_OPEN_CREATED);
 	LASSERTF(MDS_OPEN_CROSS == 000000000020UL, "found 0%.11oUL\n",
@@ -1947,22 +1921,22 @@ void lustre_assert_wire_constants(void)
 	/* Checks for struct mdt_ioepoch */
 	LASSERTF((int)sizeof(struct mdt_ioepoch) == 24, "found %lld\n",
 		 (long long)(int)sizeof(struct mdt_ioepoch));
-	LASSERTF((int)offsetof(struct mdt_ioepoch, handle) == 0, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_ioepoch, handle));
-	LASSERTF((int)sizeof(((struct mdt_ioepoch *)0)->handle) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_ioepoch *)0)->handle));
-	LASSERTF((int)offsetof(struct mdt_ioepoch, ioepoch) == 8, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_ioepoch, ioepoch));
-	LASSERTF((int)sizeof(((struct mdt_ioepoch *)0)->ioepoch) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_ioepoch *)0)->ioepoch));
-	LASSERTF((int)offsetof(struct mdt_ioepoch, flags) == 16, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_ioepoch, flags));
-	LASSERTF((int)sizeof(((struct mdt_ioepoch *)0)->flags) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_ioepoch *)0)->flags));
-	LASSERTF((int)offsetof(struct mdt_ioepoch, padding) == 20, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_ioepoch, padding));
-	LASSERTF((int)sizeof(((struct mdt_ioepoch *)0)->padding) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_ioepoch *)0)->padding));
+	LASSERTF((int)offsetof(struct mdt_ioepoch, mio_handle) == 0, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_ioepoch, mio_handle));
+	LASSERTF((int)sizeof(((struct mdt_ioepoch *)0)->mio_handle) == 8, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_ioepoch *)0)->mio_handle));
+	LASSERTF((int)offsetof(struct mdt_ioepoch, mio_unused1) == 8, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_ioepoch, mio_unused1));
+	LASSERTF((int)sizeof(((struct mdt_ioepoch *)0)->mio_unused1) == 8, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_ioepoch *)0)->mio_unused1));
+	LASSERTF((int)offsetof(struct mdt_ioepoch, mio_unused2) == 16, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_ioepoch, mio_unused2));
+	LASSERTF((int)sizeof(((struct mdt_ioepoch *)0)->mio_unused2) == 4, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_ioepoch *)0)->mio_unused2));
+	LASSERTF((int)offsetof(struct mdt_ioepoch, mio_padding) == 20, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_ioepoch, mio_padding));
+	LASSERTF((int)sizeof(((struct mdt_ioepoch *)0)->mio_padding) == 4, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_ioepoch *)0)->mio_padding));
 
 	/* Checks for struct mdt_rec_setattr */
 	LASSERTF((int)sizeof(struct mdt_rec_setattr) == 136, "found %lld\n",
