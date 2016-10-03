@@ -315,40 +315,27 @@ void schedule_console_callback(void)
 	schedule_work(&console_work);
 }
 
-static void scrup(struct vc_data *vc, unsigned int t, unsigned int b,
-		unsigned int nr)
+static void con_scroll(struct vc_data *vc, unsigned int t, unsigned int b,
+		enum con_scroll dir, unsigned int nr)
 {
-	unsigned short *d, *s;
+	u16 *clear, *d, *s;
 
-	if (t+nr >= b)
+	if (t + nr >= b)
 		nr = b - t - 1;
 	if (b > vc->vc_rows || t >= b || nr < 1)
 		return;
-	if (con_is_visible(vc) && vc->vc_sw->con_scroll(vc, t, b, SM_UP, nr))
+	if (con_is_visible(vc) && vc->vc_sw->con_scroll(vc, t, b, dir, nr))
 		return;
-	d = (unsigned short *)(vc->vc_origin + vc->vc_size_row * t);
-	s = (unsigned short *)(vc->vc_origin + vc->vc_size_row * (t + nr));
+
+	s = clear = (u16 *)(vc->vc_origin + vc->vc_size_row * t);
+	d = (u16 *)(vc->vc_origin + vc->vc_size_row * (t + nr));
+
+	if (dir == SM_UP) {
+		clear = s + (b - t - nr) * vc->vc_cols;
+		swap(s, d);
+	}
 	scr_memmovew(d, s, (b - t - nr) * vc->vc_size_row);
-	scr_memsetw(d + (b - t - nr) * vc->vc_cols, vc->vc_video_erase_char,
-		    vc->vc_size_row * nr);
-}
-
-static void scrdown(struct vc_data *vc, unsigned int t, unsigned int b,
-		unsigned int nr)
-{
-	unsigned short *s;
-	unsigned int step;
-
-	if (t+nr >= b)
-		nr = b - t - 1;
-	if (b > vc->vc_rows || t >= b || nr < 1)
-		return;
-	if (con_is_visible(vc) && vc->vc_sw->con_scroll(vc, t, b, SM_DOWN, nr))
-		return;
-	s = (unsigned short *)(vc->vc_origin + vc->vc_size_row * t);
-	step = vc->vc_cols * nr;
-	scr_memmovew(s + step, s, (b - t - nr) * vc->vc_size_row);
-	scr_memsetw(s, vc->vc_video_erase_char, 2 * step);
+	scr_memsetw(clear, vc->vc_video_erase_char, vc->vc_size_row * nr);
 }
 
 static void do_update_region(struct vc_data *vc, unsigned long start, int count)
@@ -1117,7 +1104,7 @@ static void lf(struct vc_data *vc)
 	 * if below scrolling region
 	 */
     	if (vc->vc_y + 1 == vc->vc_bottom)
-		scrup(vc, vc->vc_top, vc->vc_bottom, 1);
+		con_scroll(vc, vc->vc_top, vc->vc_bottom, SM_UP, 1);
 	else if (vc->vc_y < vc->vc_rows - 1) {
 	    	vc->vc_y++;
 		vc->vc_pos += vc->vc_size_row;
@@ -1132,7 +1119,7 @@ static void ri(struct vc_data *vc)
 	 * if above scrolling region
 	 */
 	if (vc->vc_y == vc->vc_top)
-		scrdown(vc, vc->vc_top, vc->vc_bottom, 1);
+		con_scroll(vc, vc->vc_top, vc->vc_bottom, SM_DOWN, 1);
 	else if (vc->vc_y > 0) {
 		vc->vc_y--;
 		vc->vc_pos -= vc->vc_size_row;
@@ -1628,7 +1615,7 @@ static void csi_L(struct vc_data *vc, unsigned int nr)
 		nr = vc->vc_rows - vc->vc_y;
 	else if (!nr)
 		nr = 1;
-	scrdown(vc, vc->vc_y, vc->vc_bottom, nr);
+	con_scroll(vc, vc->vc_y, vc->vc_bottom, SM_DOWN, nr);
 	vc->vc_need_wrap = 0;
 }
 
@@ -1649,7 +1636,7 @@ static void csi_M(struct vc_data *vc, unsigned int nr)
 		nr = vc->vc_rows - vc->vc_y;
 	else if (!nr)
 		nr=1;
-	scrup(vc, vc->vc_y, vc->vc_bottom, nr);
+	con_scroll(vc, vc->vc_y, vc->vc_bottom, SM_UP, nr);
 	vc->vc_need_wrap = 0;
 }
 
