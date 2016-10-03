@@ -168,4 +168,73 @@ int dm_bitset_test_bit(struct dm_disk_bitset *info, dm_block_t root,
 }
 EXPORT_SYMBOL_GPL(dm_bitset_test_bit);
 
+static int cursor_next_array_entry(struct dm_bitset_cursor *c)
+{
+	int r;
+	__le64 *value;
+
+	r = dm_array_cursor_next(&c->cursor);
+	if (r)
+		return r;
+
+	dm_array_cursor_get_value(&c->cursor, (void **) &value);
+	c->array_index++;
+	c->bit_index = 0;
+	c->current_bits = le64_to_cpu(*value);
+	return 0;
+}
+
+int dm_bitset_cursor_begin(struct dm_disk_bitset *info,
+			   dm_block_t root, uint32_t nr_entries,
+			   struct dm_bitset_cursor *c)
+{
+	int r;
+	__le64 *value;
+
+	if (!nr_entries)
+		return -ENODATA;
+
+	c->info = info;
+	c->entries_remaining = nr_entries;
+
+	r = dm_array_cursor_begin(&info->array_info, root, &c->cursor);
+	if (r)
+		return r;
+
+	dm_array_cursor_get_value(&c->cursor, (void **) &value);
+	c->array_index = 0;
+	c->bit_index = 0;
+	c->current_bits = le64_to_cpu(*value);
+
+	return r;
+}
+EXPORT_SYMBOL_GPL(dm_bitset_cursor_begin);
+
+void dm_bitset_cursor_end(struct dm_bitset_cursor *c)
+{
+	return dm_array_cursor_end(&c->cursor);
+}
+EXPORT_SYMBOL_GPL(dm_bitset_cursor_end);
+
+int dm_bitset_cursor_next(struct dm_bitset_cursor *c)
+{
+	int r = 0;
+
+	if (!c->entries_remaining)
+		return -ENODATA;
+
+	c->entries_remaining--;
+	if (++c->bit_index > 63)
+		r = cursor_next_array_entry(c);
+
+	return r;
+}
+EXPORT_SYMBOL_GPL(dm_bitset_cursor_next);
+
+bool dm_bitset_cursor_get_value(struct dm_bitset_cursor *c)
+{
+	return test_bit(c->bit_index, (unsigned long *) &c->current_bits);
+}
+EXPORT_SYMBOL_GPL(dm_bitset_cursor_get_value);
+
 /*----------------------------------------------------------------*/
