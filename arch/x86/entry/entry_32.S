@@ -204,34 +204,70 @@
 	POP_GS_EX
 .endm
 
+/*
+ * %eax: prev task
+ * %edx: next task
+ */
+ENTRY(__switch_to_asm)
+	/*
+	 * Save callee-saved registers
+	 * This must match the order in struct inactive_task_frame
+	 */
+	pushl	%ebp
+	pushl	%ebx
+	pushl	%edi
+	pushl	%esi
+
+	/* switch stack */
+	movl	%esp, TASK_threadsp(%eax)
+	movl	TASK_threadsp(%edx), %esp
+
+#ifdef CONFIG_CC_STACKPROTECTOR
+	movl	TASK_stack_canary(%edx), %ebx
+	movl	%ebx, PER_CPU_VAR(stack_canary)+stack_canary_offset
+#endif
+
+	/* restore callee-saved registers */
+	popl	%esi
+	popl	%edi
+	popl	%ebx
+	popl	%ebp
+
+	jmp	__switch_to
+END(__switch_to_asm)
+
+/*
+ * A newly forked process directly context switches into this address.
+ *
+ * eax: prev task we switched from
+ * ebx: kernel thread func (NULL for user thread)
+ * edi: kernel thread arg
+ */
 ENTRY(ret_from_fork)
 	pushl	%eax
 	call	schedule_tail
 	popl	%eax
 
+	testl	%ebx, %ebx
+	jnz	1f		/* kernel threads are uncommon */
+
+2:
 	/* When we fork, we trace the syscall return in the child, too. */
 	movl    %esp, %eax
 	call    syscall_return_slowpath
 	jmp     restore_all
-END(ret_from_fork)
 
-ENTRY(ret_from_kernel_thread)
-	pushl	%eax
-	call	schedule_tail
-	popl	%eax
-	movl	PT_EBP(%esp), %eax
-	call	*PT_EBX(%esp)
-	movl	$0, PT_EAX(%esp)
-
+	/* kernel thread */
+1:	movl	%edi, %eax
+	call	*%ebx
 	/*
-	 * Kernel threads return to userspace as if returning from a syscall.
-	 * We should check whether anything actually uses this path and, if so,
-	 * consider switching it over to ret_from_fork.
+	 * A kernel thread is allowed to return here after successfully
+	 * calling do_execve().  Exit to userspace to complete the execve()
+	 * syscall.
 	 */
-	movl    %esp, %eax
-	call    syscall_return_slowpath
-	jmp     restore_all
-ENDPROC(ret_from_kernel_thread)
+	movl	$0, PT_EAX(%esp)
+	jmp	2b
+END(ret_from_fork)
 
 /*
  * Return to user mode is not as complex as all this looks,

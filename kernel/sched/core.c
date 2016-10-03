@@ -2781,6 +2781,10 @@ static struct rq *finish_task_switch(struct task_struct *prev)
 		 * task and put them back on the free list.
 		 */
 		kprobe_flush_task(prev);
+
+		/* Task is done with its stack. */
+		put_task_stack(prev);
+
 		put_task_struct(prev);
 	}
 
@@ -3403,7 +3407,6 @@ static void __sched notrace __schedule(bool preempt)
 
 	balance_callback(rq);
 }
-STACK_FRAME_NON_STANDARD(__schedule); /* switch_to() */
 
 void __noreturn do_task_dead(void)
 {

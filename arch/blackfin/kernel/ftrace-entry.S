@@ -169,7 +169,7 @@ ENTRY(_ftrace_graph_caller)
 	r0 = sp;	/* unsigned long *parent */
 	r1 = [sp];	/* unsigned long self_addr */
 # endif
-# ifdef CONFIG_HAVE_FUNCTION_GRAPH_FP_TEST
+# ifdef HAVE_FUNCTION_GRAPH_FP_TEST
 	r2 = fp;	/* unsigned long frame_pointer */
 # endif
 	r0 += 16;	/* skip the 4 local regs on stack */
@@ -190,7 +190,7 @@ ENTRY(_return_to_handler)
 	[--sp] = r1;
 
 	/* get original return address */
-# ifdef CONFIG_HAVE_FUNCTION_GRAPH_FP_TEST
+# ifdef HAVE_FUNCTION_GRAPH_FP_TEST
 	r0 = fp;	/* Blackfin is sane, so omit this */
 # endif
 	call _ftrace_return_to_handler;
