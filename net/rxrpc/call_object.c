@@ -19,11 +19,6 @@
 #include <net/af_rxrpc.h>
 #include "ar-internal.h"
 
-/*
- * Maximum lifetime of a call (in jiffies).
- */
-unsigned int rxrpc_max_call_lifetime = 60 * HZ;
-
 const char *const rxrpc_call_states[NR__RXRPC_CALL_STATES] = {
 	[RXRPC_CALL_UNINITIALISED]		= "Uninit  ",
 	[RXRPC_CALL_CLIENT_AWAIT_CONN]		= "ClWtConn",
@@ -76,10 +71,8 @@ static void rxrpc_call_timer_expired(unsigned long _call)
 
 	_enter("%d", call->debug_id);
 
-	if (call->state < RXRPC_CALL_COMPLETE) {
-		trace_rxrpc_timer(call, rxrpc_timer_expired, jiffies);
-		rxrpc_queue_call(call);
-	}
+	if (call->state < RXRPC_CALL_COMPLETE)
+		rxrpc_set_timer(call, rxrpc_timer_expired, ktime_get_real());
 }
 
 /*
@@ -207,14 +200,14 @@ static struct rxrpc_call *rxrpc_alloc_client_call(struct sockaddr_rxrpc *srx,
  */
 static void rxrpc_start_call_timer(struct rxrpc_call *call)
 {
-	unsigned long expire_at;
+	ktime_t now = ktime_get_real(), expire_at;
 
-	expire_at = jiffies + rxrpc_max_call_lifetime;
+	expire_at = ktime_add_ms(now, rxrpc_max_call_lifetime);
 	call->expire_at = expire_at;
 	call->ack_at = expire_at;
 	call->resend_at = expire_at;
-	call->timer.expires = expire_at + 1;
-	rxrpc_set_timer(call, rxrpc_timer_begin);
+	call->timer.expires = jiffies + LONG_MAX / 2;
+	rxrpc_set_timer(call, rxrpc_timer_begin, now);
 }
 
 /*

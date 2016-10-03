@@ -57,7 +57,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 		call->cong_ssthresh = max_t(unsigned int,
 					    summary->flight_size / 2, 2);
 		cwnd = 1;
-		if (cwnd > call->cong_ssthresh &&
+		if (cwnd >= call->cong_ssthresh &&
 		    call->cong_mode == RXRPC_CALL_SLOW_START) {
 			call->cong_mode = RXRPC_CALL_CONGEST_AVOIDANCE;
 			call->cong_tstamp = skb->tstamp;
@@ -82,7 +82,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 			goto packet_loss_detected;
 		if (summary->cumulative_acks > 0)
 			cwnd += 1;
-		if (cwnd > call->cong_ssthresh) {
+		if (cwnd >= call->cong_ssthresh) {
 			call->cong_mode = RXRPC_CALL_CONGEST_AVOIDANCE;
 			call->cong_tstamp = skb->tstamp;
 		}
@@ -161,7 +161,7 @@ resume_normality:
 	call->cong_dup_acks = 0;
 	call->cong_extra = 0;
 	call->cong_tstamp = skb->tstamp;
-	if (cwnd <= call->cong_ssthresh)
+	if (cwnd < call->cong_ssthresh)
 		call->cong_mode = RXRPC_CALL_SLOW_START;
 	else
 		call->cong_mode = RXRPC_CALL_CONGEST_AVOIDANCE;
@@ -328,7 +328,8 @@ static bool rxrpc_receiving_reply(struct rxrpc_call *call)
 		call->resend_at = call->expire_at;
 		call->ack_at = call->expire_at;
 		spin_unlock_bh(&call->lock);
-		rxrpc_set_timer(call, rxrpc_timer_init_for_reply);
+		rxrpc_set_timer(call, rxrpc_timer_init_for_reply,
+				ktime_get_real());
 	}
 
 	if (!test_bit(RXRPC_CALL_TX_LAST, &call->flags))
@@ -358,7 +359,7 @@ static bool rxrpc_receiving_reply(struct rxrpc_call *call)
 static bool rxrpc_validate_jumbo(struct sk_buff *skb)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-	unsigned int offset = sp->offset;
+	unsigned int offset = sizeof(struct rxrpc_wire_header);
 	unsigned int len = skb->len;
 	int nr_jumbo = 1;
 	u8 flags = sp->hdr.flags;
@@ -419,7 +420,7 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb,
 			     u16 skew)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-	unsigned int offset = sp->offset;
+	unsigned int offset = sizeof(struct rxrpc_wire_header);
 	unsigned int ix;
 	rxrpc_serial_t serial = sp->hdr.serial, ack_serial = 0;
 	rxrpc_seq_t seq = sp->hdr.seq, hard_ack;
@@ -658,6 +659,8 @@ static void rxrpc_input_ackinfo(struct rxrpc_call *call, struct sk_buff *skb,
 	if (rwind > RXRPC_RXTX_BUFF_SIZE - 1)
 		rwind = RXRPC_RXTX_BUFF_SIZE - 1;
 	call->tx_winsize = rwind;
+	if (call->cong_ssthresh > rwind)
+		call->cong_ssthresh = rwind;
 
 	mtu = min(ntohl(ackinfo->rxMTU), ntohl(ackinfo->maxMTU));
 
@@ -744,15 +747,16 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 	} buf;
 	rxrpc_serial_t acked_serial;
 	rxrpc_seq_t first_soft_ack, hard_ack;
-	int nr_acks, offset;
+	int nr_acks, offset, ioffset;
 
 	_enter("");
 
-	if (skb_copy_bits(skb, sp->offset, &buf.ack, sizeof(buf.ack)) < 0) {
+	offset = sizeof(struct rxrpc_wire_header);
+	if (skb_copy_bits(skb, offset, &buf.ack, sizeof(buf.ack)) < 0) {
 		_debug("extraction failure");
 		return rxrpc_proto_abort("XAK", call, 0);
 	}
-	sp->offset += sizeof(buf.ack);
+	offset += sizeof(buf.ack);
 
 	acked_serial = ntohl(buf.ack.serial);
 	first_soft_ack = ntohl(buf.ack.firstPacket);
@@ -790,9 +794,9 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 				  rxrpc_propose_ack_respond_to_ack);
 	}
 
-	offset = sp->offset + nr_acks + 3;
-	if (skb->len >= offset + sizeof(buf.info)) {
-		if (skb_copy_bits(skb, offset, &buf.info, sizeof(buf.info)) < 0)
+	ioffset = offset + nr_acks + 3;
+	if (skb->len >= ioffset + sizeof(buf.info)) {
+		if (skb_copy_bits(skb, ioffset, &buf.info, sizeof(buf.info)) < 0)
 			return rxrpc_proto_abort("XAI", call, 0);
 		rxrpc_input_ackinfo(call, skb, &buf.info);
 	}
@@ -830,7 +834,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 		rxrpc_rotate_tx_window(call, hard_ack, &summary);
 
 	if (nr_acks > 0) {
-		if (skb_copy_bits(skb, sp->offset, buf.acks, nr_acks) < 0)
+		if (skb_copy_bits(skb, offset, buf.acks, nr_acks) < 0)
 			return rxrpc_proto_abort("XSA", call, 0);
 		rxrpc_input_soft_acks(call, buf.acks, first_soft_ack, nr_acks,
 				      &summary);
@@ -878,7 +882,8 @@ static void rxrpc_input_abort(struct rxrpc_call *call, struct sk_buff *skb)
 	_enter("");
 
 	if (skb->len >= 4 &&
-	    skb_copy_bits(skb, sp->offset, &wtmp, sizeof(wtmp)) >= 0)
+	    skb_copy_bits(skb, sizeof(struct rxrpc_wire_header),
+			  &wtmp, sizeof(wtmp)) >= 0)
 		abort_code = ntohl(wtmp);
 
 	_proto("Rx ABORT %%%u { %x }", sp->hdr.serial, abort_code);
@@ -994,7 +999,6 @@ int rxrpc_extract_header(struct rxrpc_skb_priv *sp, struct sk_buff *skb)
 	sp->hdr.securityIndex	= whdr.securityIndex;
 	sp->hdr._rsvd		= ntohs(whdr._rsvd);
 	sp->hdr.serviceId	= ntohs(whdr.serviceId);
-	sp->offset = sizeof(whdr);
 	return 0;
 }
 

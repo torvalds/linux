@@ -771,7 +771,8 @@ static int rxkad_respond_to_challenge(struct rxrpc_connection *conn,
 	}
 
 	abort_code = RXKADPACKETSHORT;
-	if (skb_copy_bits(skb, sp->offset, &challenge, sizeof(challenge)) < 0)
+	if (skb_copy_bits(skb, sizeof(struct rxrpc_wire_header),
+			  &challenge, sizeof(challenge)) < 0)
 		goto protocol_error;
 
 	version = ntohl(challenge.version);
@@ -1028,7 +1029,8 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 	_enter("{%d,%x}", conn->debug_id, key_serial(conn->server_key));
 
 	abort_code = RXKADPACKETSHORT;
-	if (skb_copy_bits(skb, sp->offset, &response, sizeof(response)) < 0)
+	if (skb_copy_bits(skb, sizeof(struct rxrpc_wire_header),
+			  &response, sizeof(response)) < 0)
 		goto protocol_error;
 	if (!pskb_pull(skb, sizeof(response)))
 		BUG();
@@ -1057,7 +1059,8 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 		return -ENOMEM;
 
 	abort_code = RXKADPACKETSHORT;
-	if (skb_copy_bits(skb, sp->offset, ticket, ticket_len) < 0)
+	if (skb_copy_bits(skb, sizeof(struct rxrpc_wire_header),
+			  ticket, ticket_len) < 0)
 		goto protocol_error_free;
 
 	ret = rxkad_decrypt_ticket(conn, ticket, ticket_len, &session_key,

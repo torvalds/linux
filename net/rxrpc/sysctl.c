@@ -35,7 +35,7 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 		.data		= &rxrpc_requested_ack_delay,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_ms_jiffies,
+		.proc_handler	= proc_dointvec,
 		.extra1		= (void *)&zero,
 	},
 	{
@@ -43,7 +43,7 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 		.data		= &rxrpc_soft_ack_delay,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_ms_jiffies,
+		.proc_handler	= proc_dointvec,
 		.extra1		= (void *)&one,
 	},
 	{
@@ -51,7 +51,7 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 		.data		= &rxrpc_idle_ack_delay,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_ms_jiffies,
+		.proc_handler	= proc_dointvec,
 		.extra1		= (void *)&one,
 	},
 	{
@@ -85,7 +85,7 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 		.data		= &rxrpc_max_call_lifetime,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.proc_handler	= proc_dointvec,
 		.extra1		= (void *)&one,
 	},
 

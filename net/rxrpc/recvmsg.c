@@ -261,15 +261,13 @@ static int rxrpc_locate_data(struct rxrpc_call *call, struct sk_buff *skb,
 			     u8 *_annotation,
 			     unsigned int *_offset, unsigned int *_len)
 {
-	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-	unsigned int offset = *_offset;
+	unsigned int offset = sizeof(struct rxrpc_wire_header);
 	unsigned int len = *_len;
 	int ret;
 	u8 annotation = *_annotation;
 
 	/* Locate the subpacket */
-	offset = sp->offset;
-	len = skb->len - sp->offset;
+	len = skb->len - offset;
 	if ((annotation & RXRPC_RX_ANNO_JUMBO) > 0) {
 		offset += (((annotation & RXRPC_RX_ANNO_JUMBO) - 1) *
 			   RXRPC_JUMBO_SUBPKTLEN);
