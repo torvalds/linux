@@ -86,7 +86,6 @@ void ll_pack_inode2opdata(struct inode *inode, struct md_op_data *op_data,
 	op_data->op_attr.ia_size = i_size_read(inode);
 	op_data->op_attr_blocks = inode->i_blocks;
 	op_data->op_attr_flags = ll_inode_to_ext_flags(inode->i_flags);
-	op_data->op_ioepoch = ll_i2info(inode)->lli_ioepoch;
 	if (fh)
 		op_data->op_handle = *fh;
 
@@ -95,8 +94,7 @@ void ll_pack_inode2opdata(struct inode *inode, struct md_op_data *op_data,
 }
 
 /**
- * Closes the IO epoch and packs all the attributes into @op_data for
- * the CLOSE rpc.
+ * Packs all the attributes into @op_data for the CLOSE rpc.
  */
 static void ll_prepare_close(struct inode *inode, struct md_op_data *op_data,
 			     struct obd_client_handle *och)
@@ -108,11 +106,7 @@ static void ll_prepare_close(struct inode *inode, struct md_op_data *op_data,
 	if (!(och->och_flags & FMODE_WRITE))
 		goto out;
 
-	if (!exp_connect_som(ll_i2mdexp(inode)) || !S_ISREG(inode->i_mode))
-		op_data->op_attr.ia_valid |= ATTR_SIZE | ATTR_BLOCKS;
-	else
-		ll_ioepoch_close(inode, op_data, &och, 0);
-
+	op_data->op_attr.ia_valid |= ATTR_SIZE | ATTR_BLOCKS;
 out:
 	ll_pack_inode2opdata(inode, op_data, &och->och_fh);
 	ll_prep_md_op_data(op_data, inode, NULL, NULL,
@@ -128,7 +122,6 @@ static int ll_close_inode_openhandle(struct obd_export *md_exp,
 	struct md_op_data *op_data;
 	struct ptlrpc_request *req = NULL;
 	struct obd_device *obd = class_exp2obd(exp);
-	int epoch_close = 1;
 	int rc;
 
 	if (!obd) {
@@ -157,22 +150,9 @@ static int ll_close_inode_openhandle(struct obd_export *md_exp,
 		op_data->op_lease_handle = och->och_lease_handle;
 		op_data->op_attr.ia_valid |= ATTR_SIZE | ATTR_BLOCKS;
 	}
-	epoch_close = op_data->op_flags & MF_EPOCH_CLOSE;
+
 	rc = md_close(md_exp, op_data, och->och_mod, &req);
-	if (rc == -EAGAIN) {
-		/* This close must have the epoch closed. */
-		LASSERT(epoch_close);
-		/* MDS has instructed us to obtain Size-on-MDS attribute from
-		 * OSTs and send setattr to back to MDS.
-		 */
-		rc = ll_som_update(inode, op_data);
-		if (rc) {
-			CERROR("%s: inode "DFID" mdc Size-on-MDS update failed: rc = %d\n",
-			       ll_i2mdexp(inode)->exp_obd->obd_name,
-			       PFID(ll_inode2fid(inode)), rc);
-			rc = 0;
-		}
-	} else if (rc) {
+	if (rc) {
 		CERROR("%s: inode "DFID" mdc close failed: rc = %d\n",
 		       ll_i2mdexp(inode)->exp_obd->obd_name,
 		       PFID(ll_inode2fid(inode)), rc);
@@ -200,15 +180,10 @@ static int ll_close_inode_openhandle(struct obd_export *md_exp,
 	ll_finish_md_op_data(op_data);
 
 out:
-	if (exp_connect_som(exp) && !epoch_close &&
-	    S_ISREG(inode->i_mode) && (och->och_flags & FMODE_WRITE)) {
-		ll_queue_done_writing(inode, LLIF_DONE_WRITING);
-	} else {
-		md_clear_open_replay_data(md_exp, och);
-		/* Free @och if it is not waiting for DONE_WRITING. */
-		och->och_fh.cookie = DEAD_HANDLE_MAGIC;
-		kfree(och);
-	}
+	md_clear_open_replay_data(md_exp, och);
+	och->och_fh.cookie = DEAD_HANDLE_MAGIC;
+	kfree(och);
+
 	if (req) /* This is close request */
 		ptlrpc_req_finished(req);
 	return rc;
@@ -437,20 +412,6 @@ out:
 	return rc;
 }
 
-/**
- * Assign an obtained @ioepoch to client's inode. No lock is needed, MDS does
- * not believe attributes if a few ioepoch holders exist. Attributes for
- * previous ioepoch if new one is opened are also skipped by MDS.
- */
-void ll_ioepoch_open(struct ll_inode_info *lli, __u64 ioepoch)
-{
-	if (ioepoch && lli->lli_ioepoch != ioepoch) {
-		lli->lli_ioepoch = ioepoch;
-		CDEBUG(D_INODE, "Epoch %llu opened on "DFID"\n",
-		       ioepoch, PFID(&lli->lli_fid));
-	}
-}
-
 static int ll_och_fill(struct obd_export *md_exp, struct lookup_intent *it,
 		       struct obd_client_handle *och)
 {
@@ -470,23 +431,17 @@ static int ll_local_open(struct file *file, struct lookup_intent *it,
 			 struct ll_file_data *fd, struct obd_client_handle *och)
 {
 	struct inode *inode = file_inode(file);
-	struct ll_inode_info *lli = ll_i2info(inode);
 
 	LASSERT(!LUSTRE_FPRIVATE(file));
 
 	LASSERT(fd);
 
 	if (och) {
-		struct mdt_body *body;
 		int rc;
 
 		rc = ll_och_fill(ll_i2sbi(inode)->ll_md_exp, it, och);
 		if (rc != 0)
 			return rc;
-
-		body = req_capsule_server_get(&it->it_request->rq_pill,
-					      &RMF_MDT_BODY);
-		ll_ioepoch_open(lli, body->mbo_ioepoch);
 	}
 
 	LUSTRE_FPRIVATE(file) = fd;
@@ -912,7 +867,7 @@ static int ll_lease_close(struct obd_client_handle *och, struct inode *inode,
 
 /* Fills the obdo with the attributes for the lsm */
 static int ll_lsm_getattr(struct lov_stripe_md *lsm, struct obd_export *exp,
-			  struct obdo *obdo, __u64 ioepoch, int dv_flags)
+			  struct obdo *obdo, int dv_flags)
 {
 	struct ptlrpc_request_set *set;
 	struct obd_info	    oinfo = { };
@@ -924,13 +879,11 @@ static int ll_lsm_getattr(struct lov_stripe_md *lsm, struct obd_export *exp,
 	oinfo.oi_oa = obdo;
 	oinfo.oi_oa->o_oi = lsm->lsm_oi;
 	oinfo.oi_oa->o_mode = S_IFREG;
-	oinfo.oi_oa->o_ioepoch = ioepoch;
 	oinfo.oi_oa->o_valid = OBD_MD_FLID | OBD_MD_FLTYPE |
 			       OBD_MD_FLSIZE | OBD_MD_FLBLOCKS |
 			       OBD_MD_FLBLKSZ | OBD_MD_FLATIME |
 			       OBD_MD_FLMTIME | OBD_MD_FLCTIME |
-			       OBD_MD_FLGROUP | OBD_MD_FLEPOCH |
-			       OBD_MD_FLDATAVERSION;
+			       OBD_MD_FLGROUP | OBD_MD_FLDATAVERSION;
 	if (dv_flags & (LL_DV_WR_FLUSH | LL_DV_RD_FLUSH)) {
 		oinfo.oi_oa->o_valid |= OBD_MD_FLFLAGS;
 		oinfo.oi_oa->o_flags |= OBD_FL_SRVLOCK;
@@ -958,32 +911,6 @@ static int ll_lsm_getattr(struct lov_stripe_md *lsm, struct obd_export *exp,
 		      oinfo.oi_oa->o_flags & OBD_FL_FLUSH))
 			return -ENOTSUPP;
 	}
-	return rc;
-}
-
-/**
-  * Performs the getattr on the inode and updates its fields.
-  * If @sync != 0, perform the getattr under the server-side lock.
-  */
-int ll_inode_getattr(struct inode *inode, struct obdo *obdo,
-		     __u64 ioepoch, int sync)
-{
-	struct lov_stripe_md *lsm;
-	int rc;
-
-	lsm = ccc_inode_lsm_get(inode);
-	rc = ll_lsm_getattr(lsm, ll_i2dtexp(inode),
-			    obdo, ioepoch, sync ? LL_DV_RD_FLUSH : 0);
-	if (rc == 0) {
-		struct ost_id *oi = lsm ? &lsm->lsm_oi : &obdo->o_oi;
-
-		obdo_refresh_inode(inode, obdo, obdo->o_valid);
-		CDEBUG(D_INODE, "objid " DOSTID " size %llu, blocks %llu, blksize %lu\n",
-		       POSTID(oi), i_size_read(inode),
-		       (unsigned long long)inode->i_blocks,
-		       1UL << inode->i_blkbits);
-	}
-	ccc_inode_lsm_put(inode, lsm);
 	return rc;
 }
 
@@ -1049,7 +976,7 @@ int ll_glimpse_ioctl(struct ll_sb_info *sbi, struct lov_stripe_md *lsm,
 	struct obdo obdo = { 0 };
 	int rc;
 
-	rc = ll_lsm_getattr(lsm, sbi->ll_dt_exp, &obdo, 0, 0);
+	rc = ll_lsm_getattr(lsm, sbi->ll_dt_exp, &obdo, 0);
 	if (rc == 0) {
 		st->st_size   = obdo.o_size;
 		st->st_blocks = obdo.o_blocks;
@@ -1784,7 +1711,7 @@ int ll_data_version(struct inode *inode, __u64 *data_version, int flags)
 		goto out;
 	}
 
-	rc = ll_lsm_getattr(lsm, sbi->ll_dt_exp, obdo, 0, flags);
+	rc = ll_lsm_getattr(lsm, sbi->ll_dt_exp, obdo, flags);
 	if (rc == 0) {
 		if (!(obdo->o_valid & OBD_MD_FLDATAVERSION))
 			rc = -EOPNOTSUPP;

@@ -65,8 +65,7 @@ static int vvp_object_print(const struct lu_env *env, void *cookie,
 	struct inode	 *inode = obj->vob_inode;
 	struct ll_inode_info *lli;
 
-	(*p)(env, cookie, "(%s %d %d) inode: %p ",
-	     list_empty(&obj->vob_pending_list) ? "-" : "+",
+	(*p)(env, cookie, "(%d %d) inode: %p ",
 	     atomic_read(&obj->vob_transient_pages),
 	     atomic_read(&obj->vob_mmap_cnt), inode);
 	if (inode) {
@@ -240,7 +239,6 @@ static int vvp_object_init(const struct lu_env *env, struct lu_object *obj,
 		const struct cl_object_conf *cconf;
 
 		cconf = lu2cl_conf(conf);
-		INIT_LIST_HEAD(&vob->vob_pending_list);
 		lu_object_add(obj, below);
 		result = vvp_object_init0(env, vob, cconf);
 	} else {

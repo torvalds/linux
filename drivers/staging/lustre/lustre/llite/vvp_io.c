@@ -770,15 +770,10 @@ static int vvp_io_commit_sync(const struct lu_env *env, struct cl_io *io,
 static void write_commit_callback(const struct lu_env *env, struct cl_io *io,
 				  struct cl_page *page)
 {
-	struct vvp_page *vpg;
 	struct page *vmpage = page->cp_vmpage;
-	struct cl_object *clob = cl_io_top(io)->ci_obj;
 
 	SetPageUptodate(vmpage);
 	set_page_dirty(vmpage);
-
-	vpg = cl2vvp_page(cl_object_page_slice(clob, page));
-	vvp_write_pending(cl2vvp(clob), vpg);
 
 	cl_page_disown(env, io, page);
 
@@ -1014,13 +1009,7 @@ static int vvp_io_kernel_fault(struct vvp_fault_io *cfio)
 static void mkwrite_commit_callback(const struct lu_env *env, struct cl_io *io,
 				    struct cl_page *page)
 {
-	struct vvp_page *vpg;
-	struct cl_object *clob = cl_io_top(io)->ci_obj;
-
 	set_page_dirty(page->cp_vmpage);
-
-	vpg = cl2vvp_page(cl_object_page_slice(clob, page));
-	vvp_write_pending(cl2vvp(clob), vpg);
 }
 
 static int vvp_io_fault_start(const struct lu_env *env,

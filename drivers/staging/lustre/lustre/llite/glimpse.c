@@ -82,65 +82,62 @@ int cl_glimpse_lock(const struct lu_env *env, struct cl_io *io,
 {
 	struct ll_inode_info *lli   = ll_i2info(inode);
 	const struct lu_fid  *fid   = lu_object_fid(&clob->co_lu);
-	int result;
+	int result = 0;
 
-	result = 0;
-	if (!(lli->lli_flags & LLIF_MDS_SIZE_LOCK)) {
-		CDEBUG(D_DLMTRACE, "Glimpsing inode " DFID "\n", PFID(fid));
-		if (lli->lli_has_smd) {
-			struct cl_lock *lock = vvp_env_lock(env);
-			struct cl_lock_descr *descr = &lock->cll_descr;
+	CDEBUG(D_DLMTRACE, "Glimpsing inode " DFID "\n", PFID(fid));
+	if (lli->lli_has_smd) {
+		struct cl_lock *lock = vvp_env_lock(env);
+		struct cl_lock_descr *descr = &lock->cll_descr;
 
-			/* NOTE: this looks like DLM lock request, but it may
-			 *       not be one. Due to CEF_ASYNC flag (translated
-			 *       to LDLM_FL_HAS_INTENT by osc), this is
-			 *       glimpse request, that won't revoke any
-			 *       conflicting DLM locks held. Instead,
-			 *       ll_glimpse_callback() will be called on each
-			 *       client holding a DLM lock against this file,
-			 *       and resulting size will be returned for each
-			 *       stripe. DLM lock on [0, EOF] is acquired only
-			 *       if there were no conflicting locks. If there
-			 *       were conflicting locks, enqueuing or waiting
-			 *       fails with -ENAVAIL, but valid inode
-			 *       attributes are returned anyway.
-			 */
-			*descr = whole_file;
-			descr->cld_obj   = clob;
-			descr->cld_mode  = CLM_READ;
-			descr->cld_enq_flags = CEF_ASYNC | CEF_MUST;
-			if (agl)
-				descr->cld_enq_flags |= CEF_AGL;
-			/*
-			 * CEF_ASYNC is used because glimpse sub-locks cannot
-			 * deadlock (because they never conflict with other
-			 * locks) and, hence, can be enqueued out-of-order.
-			 *
-			 * CEF_MUST protects glimpse lock from conversion into
-			 * a lockless mode.
-			 */
-			result = cl_lock_request(env, io, lock);
-			if (result < 0)
-				return result;
+		/* NOTE: this looks like DLM lock request, but it may
+		 *       not be one. Due to CEF_ASYNC flag (translated
+		 *       to LDLM_FL_HAS_INTENT by osc), this is
+		 *       glimpse request, that won't revoke any
+		 *       conflicting DLM locks held. Instead,
+		 *       ll_glimpse_callback() will be called on each
+		 *       client holding a DLM lock against this file,
+		 *       and resulting size will be returned for each
+		 *       stripe. DLM lock on [0, EOF] is acquired only
+		 *       if there were no conflicting locks. If there
+		 *       were conflicting locks, enqueuing or waiting
+		 *       fails with -ENAVAIL, but valid inode
+		 *       attributes are returned anyway.
+		 */
+		*descr = whole_file;
+		descr->cld_obj = clob;
+		descr->cld_mode = CLM_READ;
+		descr->cld_enq_flags = CEF_ASYNC | CEF_MUST;
+		if (agl)
+			descr->cld_enq_flags |= CEF_AGL;
+		/*
+		 * CEF_ASYNC is used because glimpse sub-locks cannot
+		 * deadlock (because they never conflict with other
+		 * locks) and, hence, can be enqueued out-of-order.
+		 *
+		 * CEF_MUST protects glimpse lock from conversion into
+		 * a lockless mode.
+		 */
+		result = cl_lock_request(env, io, lock);
+		if (result < 0)
+			return result;
 
-			if (!agl) {
-				ll_merge_attr(env, inode);
-				if (i_size_read(inode) > 0 &&
-				    inode->i_blocks == 0) {
-					/*
-					 * LU-417: Add dirty pages block count
-					 * lest i_blocks reports 0, some "cp" or
-					 * "tar" may think it's a completely
-					 * sparse file and skip it.
-					 */
-					inode->i_blocks = dirty_cnt(inode);
-				}
-			}
-			cl_lock_release(env, lock);
-		} else {
-			CDEBUG(D_DLMTRACE, "No objects for inode\n");
+		if (!agl) {
 			ll_merge_attr(env, inode);
+			if (i_size_read(inode) > 0 && !inode->i_blocks) {
+				/*
+				 * LU-417: Add dirty pages block count
+				 * lest i_blocks reports 0, some "cp" or
+				 * "tar" may think it's a completely
+				 * sparse file and skip it.
+				 */
+				inode->i_blocks = dirty_cnt(inode);
+			}
 		}
+
+		cl_lock_release(env, lock);
+	} else {
+		CDEBUG(D_DLMTRACE, "No objects for inode\n");
+		ll_merge_attr(env, inode);
 	}
 
 	return result;

@@ -56,8 +56,6 @@ static inline struct vvp_req *cl2vvp_req(const struct cl_req_slice *slice)
  *
  *    - o_parent_ver
  *
- *    - o_ioepoch,
- *
  */
 static void vvp_req_attr_set(const struct lu_env *env,
 			     const struct cl_req_slice *slice,
@@ -72,14 +70,9 @@ static void vvp_req_attr_set(const struct lu_env *env,
 	inode = vvp_object_inode(obj);
 	valid_flags = OBD_MD_FLTYPE;
 
-	if (slice->crs_req->crq_type == CRT_WRITE) {
-		if (flags & OBD_MD_FLEPOCH) {
-			oa->o_valid |= OBD_MD_FLEPOCH;
-			oa->o_ioepoch = ll_i2info(inode)->lli_ioepoch;
-			valid_flags |= OBD_MD_FLMTIME | OBD_MD_FLCTIME |
-				       OBD_MD_FLUID | OBD_MD_FLGID;
-		}
-	}
+	if (slice->crs_req->crq_type == CRT_WRITE)
+		valid_flags |= OBD_MD_FLMTIME | OBD_MD_FLCTIME |
+			       OBD_MD_FLUID | OBD_MD_FLGID;
 	obdo_from_inode(oa, inode, valid_flags & flags);
 	obdo_set_parent_fid(oa, &ll_i2info(inode)->lli_fid);
 	if (OBD_FAIL_CHECK(OBD_FAIL_LFSCK_INVALID_PFID))
