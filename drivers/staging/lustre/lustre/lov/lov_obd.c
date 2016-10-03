@@ -1085,8 +1085,8 @@ static int lov_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 
 		/* copy UUID */
 		if (copy_to_user(data->ioc_pbuf2, obd2cli_tgt(osc_obd),
-				 min((int)data->ioc_plen2,
-				     (int)sizeof(struct obd_uuid))))
+				 min_t(unsigned long, data->ioc_plen2,
+				       sizeof(struct obd_uuid))))
 			return -EFAULT;
 
 		memcpy(&flags, data->ioc_inlbuf1, sizeof(__u32));
@@ -1099,8 +1099,8 @@ static int lov_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		if (rc)
 			return rc;
 		if (copy_to_user(data->ioc_pbuf1, &stat_buf,
-				 min((int)data->ioc_plen1,
-				     (int)sizeof(stat_buf))))
+				 min_t(unsigned long, data->ioc_plen1,
+				       sizeof(stat_buf))))
 			return -EFAULT;
 		break;
 	}
