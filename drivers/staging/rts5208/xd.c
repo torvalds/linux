@@ -97,9 +97,9 @@ static int xd_read_id(struct rtsx_chip *chip, u8 id_cmd, u8 *id_buf, u8 buf_len)
 
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_DAT, 0xFF, id_cmd);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_TRANSFER, 0xFF,
-		XD_TRANSFER_START | XD_READ_ID);
+		     XD_TRANSFER_START | XD_READ_ID);
 	rtsx_add_cmd(chip, CHECK_REG_CMD, XD_TRANSFER, XD_TRANSFER_END,
-		XD_TRANSFER_END);
+		     XD_TRANSFER_END);
 
 	for (i = 0; i < 4; i++)
 		rtsx_add_cmd(chip, READ_REG_CMD, (u16)(XD_ADDRESS1 + i), 0, 0);
@@ -129,21 +129,23 @@ static void xd_assign_phy_addr(struct rtsx_chip *chip, u32 addr, u8 mode)
 		rtsx_add_cmd(chip, WRITE_REG_CMD, XD_ADDRESS0, 0xFF, 0);
 		rtsx_add_cmd(chip, WRITE_REG_CMD, XD_ADDRESS1, 0xFF, (u8)addr);
 		rtsx_add_cmd(chip, WRITE_REG_CMD, XD_ADDRESS2,
-			0xFF, (u8)(addr >> 8));
+			     0xFF, (u8)(addr >> 8));
 		rtsx_add_cmd(chip, WRITE_REG_CMD, XD_ADDRESS3,
-			0xFF, (u8)(addr >> 16));
+			     0xFF, (u8)(addr >> 16));
 		rtsx_add_cmd(chip, WRITE_REG_CMD, XD_CFG, 0xFF,
-			xd_card->addr_cycle | XD_CALC_ECC | XD_BA_NO_TRANSFORM);
+			     xd_card->addr_cycle |
+			     XD_CALC_ECC |
+			     XD_BA_NO_TRANSFORM);
 		break;
 
 	case XD_ERASE_ADDR:
 		rtsx_add_cmd(chip, WRITE_REG_CMD, XD_ADDRESS0, 0xFF, (u8)addr);
 		rtsx_add_cmd(chip, WRITE_REG_CMD, XD_ADDRESS1,
-			0xFF, (u8)(addr >> 8));
+			     0xFF, (u8)(addr >> 8));
 		rtsx_add_cmd(chip, WRITE_REG_CMD, XD_ADDRESS2,
-			0xFF, (u8)(addr >> 16));
+			     0xFF, (u8)(addr >> 16));
 		rtsx_add_cmd(chip, WRITE_REG_CMD, XD_CFG, 0xFF,
-			(xd_card->addr_cycle - 1) | XD_CALC_ECC |
+			     (xd_card->addr_cycle - 1) | XD_CALC_ECC |
 			XD_BA_NO_TRANSFORM);
 		break;
 
@@ -153,7 +155,7 @@ static void xd_assign_phy_addr(struct rtsx_chip *chip, u32 addr, u8 mode)
 }
 
 static int xd_read_redundant(struct rtsx_chip *chip, u32 page_addr,
-			u8 *buf, int buf_len)
+			     u8 *buf, int buf_len)
 {
 	int retval, i;
 
@@ -162,16 +164,16 @@ static int xd_read_redundant(struct rtsx_chip *chip, u32 page_addr,
 	xd_assign_phy_addr(chip, page_addr, XD_RW_ADDR);
 
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_TRANSFER,
-		0xFF, XD_TRANSFER_START | XD_READ_REDUNDANT);
+		     0xFF, XD_TRANSFER_START | XD_READ_REDUNDANT);
 	rtsx_add_cmd(chip, CHECK_REG_CMD, XD_TRANSFER,
-		XD_TRANSFER_END, XD_TRANSFER_END);
+		     XD_TRANSFER_END, XD_TRANSFER_END);
 
 	for (i = 0; i < 6; i++)
 		rtsx_add_cmd(chip, READ_REG_CMD, (u16)(XD_PAGE_STATUS + i),
-			0, 0);
+			     0, 0);
 	for (i = 0; i < 4; i++)
 		rtsx_add_cmd(chip, READ_REG_CMD, (u16)(XD_RESERVED0 + i),
-			0, 0);
+			     0, 0);
 	rtsx_add_cmd(chip, READ_REG_CMD, XD_PARITY, 0, 0);
 
 	retval = rtsx_send_cmd(chip, XD_CARD, 500);
@@ -192,7 +194,7 @@ static int xd_read_redundant(struct rtsx_chip *chip, u32 page_addr,
 }
 
 static int xd_read_data_from_ppb(struct rtsx_chip *chip, int offset,
-				u8 *buf, int buf_len)
+				 u8 *buf, int buf_len)
 {
 	int retval, i;
 
@@ -205,7 +207,7 @@ static int xd_read_data_from_ppb(struct rtsx_chip *chip, int offset,
 
 	for (i = 0; i < buf_len; i++)
 		rtsx_add_cmd(chip, READ_REG_CMD, PPBUF_BASE2 + offset + i,
-			0, 0);
+			     0, 0);
 
 	retval = rtsx_send_cmd(chip, 0, 250);
 	if (retval < 0) {
@@ -220,7 +222,7 @@ static int xd_read_data_from_ppb(struct rtsx_chip *chip, int offset,
 }
 
 static int xd_read_cis(struct rtsx_chip *chip, u32 page_addr, u8 *buf,
-		int buf_len)
+		       int buf_len)
 {
 	int retval;
 	u8 reg;
@@ -235,15 +237,15 @@ static int xd_read_cis(struct rtsx_chip *chip, u32 page_addr, u8 *buf,
 	xd_assign_phy_addr(chip, page_addr, XD_RW_ADDR);
 
 	rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_DATA_SOURCE,
-		0x01, PINGPONG_BUFFER);
+		     0x01, PINGPONG_BUFFER);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_PAGE_CNT, 0xFF, 1);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_CHK_DATA_STATUS,
-		XD_AUTO_CHK_DATA_STATUS, XD_AUTO_CHK_DATA_STATUS);
+		     XD_AUTO_CHK_DATA_STATUS, XD_AUTO_CHK_DATA_STATUS);
 
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_TRANSFER, 0xFF,
-		XD_TRANSFER_START | XD_READ_PAGES);
+		     XD_TRANSFER_START | XD_READ_PAGES);
 	rtsx_add_cmd(chip, CHECK_REG_CMD, XD_TRANSFER, XD_TRANSFER_END,
-		XD_TRANSFER_END);
+		     XD_TRANSFER_END);
 
 	retval = rtsx_send_cmd(chip, XD_CARD, 250);
 	if (retval == -ETIMEDOUT) {
@@ -347,27 +349,27 @@ static void xd_fill_pull_ctl_disable(struct rtsx_chip *chip)
 {
 	if (CHECK_PID(chip, 0x5208)) {
 		rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_PULL_CTL1, 0xFF,
-			XD_D3_PD | XD_D2_PD | XD_D1_PD | XD_D0_PD);
+			     XD_D3_PD | XD_D2_PD | XD_D1_PD | XD_D0_PD);
 		rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_PULL_CTL2, 0xFF,
-			XD_D7_PD | XD_D6_PD | XD_D5_PD | XD_D4_PD);
+			     XD_D7_PD | XD_D6_PD | XD_D5_PD | XD_D4_PD);
 		rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_PULL_CTL3, 0xFF,
-			XD_WP_PD | XD_CE_PD | XD_CLE_PD | XD_CD_PU);
+			     XD_WP_PD | XD_CE_PD | XD_CLE_PD | XD_CD_PU);
 		rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_PULL_CTL4, 0xFF,
-			XD_RDY_PD | XD_WE_PD | XD_RE_PD | XD_ALE_PD);
+			     XD_RDY_PD | XD_WE_PD | XD_RE_PD | XD_ALE_PD);
 		rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_PULL_CTL5, 0xFF,
-			MS_INS_PU | SD_WP_PD | SD_CD_PU | SD_CMD_PD);
+			     MS_INS_PU | SD_WP_PD | SD_CD_PU | SD_CMD_PD);
 		rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_PULL_CTL6, 0xFF,
-			MS_D5_PD | MS_D4_PD);
+			     MS_D5_PD | MS_D4_PD);
 	} else if (CHECK_PID(chip, 0x5288)) {
 		if (CHECK_BARO_PKG(chip, QFN)) {
 			rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_PULL_CTL1,
-				0xFF, 0x55);
+				     0xFF, 0x55);
 			rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_PULL_CTL2,
-				0xFF, 0x55);
+				     0xFF, 0x55);
 			rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_PULL_CTL3,
-				0xFF, 0x4B);
+				     0xFF, 0x4B);
 			rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_PULL_CTL4,
-				0xFF, 0x69);
+				     0xFF, 0x69);
 		}
 	}
 }
@@ -386,27 +388,27 @@ static void xd_fill_pull_ctl_enable(struct rtsx_chip *chip)
 {
 	if (CHECK_PID(chip, 0x5208)) {
 		rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_PULL_CTL1, 0xFF,
-			XD_D3_PD | XD_D2_PD | XD_D1_PD | XD_D0_PD);
+			     XD_D3_PD | XD_D2_PD | XD_D1_PD | XD_D0_PD);
 		rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_PULL_CTL2, 0xFF,
-			XD_D7_PD | XD_D6_PD | XD_D5_PD | XD_D4_PD);
+			     XD_D7_PD | XD_D6_PD | XD_D5_PD | XD_D4_PD);
 		rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_PULL_CTL3, 0xFF,
-			XD_WP_PD | XD_CE_PU | XD_CLE_PD | XD_CD_PU);
+			     XD_WP_PD | XD_CE_PU | XD_CLE_PD | XD_CD_PU);
 		rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_PULL_CTL4, 0xFF,
-			XD_RDY_PU | XD_WE_PU | XD_RE_PU | XD_ALE_PD);
+			     XD_RDY_PU | XD_WE_PU | XD_RE_PU | XD_ALE_PD);
 		rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_PULL_CTL5, 0xFF,
-			MS_INS_PU | SD_WP_PD | SD_CD_PU | SD_CMD_PD);
+			     MS_INS_PU | SD_WP_PD | SD_CD_PU | SD_CMD_PD);
 		rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_PULL_CTL6, 0xFF,
-			MS_D5_PD | MS_D4_PD);
+			     MS_D5_PD | MS_D4_PD);
 	} else if (CHECK_PID(chip, 0x5288)) {
 		if (CHECK_BARO_PKG(chip, QFN)) {
 			rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_PULL_CTL1,
-				0xFF, 0x55);
+				     0xFF, 0x55);
 			rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_PULL_CTL2,
-				0xFF, 0x55);
+				     0xFF, 0x55);
 			rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_PULL_CTL3,
-				0xFF, 0x53);
+				     0xFF, 0x53);
 			rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_PULL_CTL4,
-				0xFF, 0xA9);
+				     0xFF, 0xA9);
 		}
 	}
 }
@@ -417,31 +419,46 @@ static int xd_pull_ctl_disable(struct rtsx_chip *chip)
 
 	if (CHECK_PID(chip, 0x5208)) {
 		retval = rtsx_write_register(chip, CARD_PULL_CTL1, 0xFF,
-					     XD_D3_PD | XD_D2_PD | XD_D1_PD | XD_D0_PD);
+					     XD_D3_PD |
+					     XD_D2_PD |
+					     XD_D1_PD |
+					     XD_D0_PD);
 		if (retval) {
 			rtsx_trace(chip);
 			return retval;
 		}
 		retval = rtsx_write_register(chip, CARD_PULL_CTL2, 0xFF,
-					     XD_D7_PD | XD_D6_PD | XD_D5_PD | XD_D4_PD);
+					     XD_D7_PD |
+					     XD_D6_PD |
+					     XD_D5_PD |
+					     XD_D4_PD);
 		if (retval) {
 			rtsx_trace(chip);
 			return retval;
 		}
 		retval = rtsx_write_register(chip, CARD_PULL_CTL3, 0xFF,
-					     XD_WP_PD | XD_CE_PD | XD_CLE_PD | XD_CD_PU);
+					     XD_WP_PD |
+					     XD_CE_PD |
+					     XD_CLE_PD |
+					     XD_CD_PU);
 		if (retval) {
 			rtsx_trace(chip);
 			return retval;
 		}
 		retval = rtsx_write_register(chip, CARD_PULL_CTL4, 0xFF,
-					     XD_RDY_PD | XD_WE_PD | XD_RE_PD | XD_ALE_PD);
+					     XD_RDY_PD |
+					     XD_WE_PD |
+					     XD_RE_PD |
+					     XD_ALE_PD);
 		if (retval) {
 			rtsx_trace(chip);
 			return retval;
 		}
 		retval = rtsx_write_register(chip, CARD_PULL_CTL5, 0xFF,
-					     MS_INS_PU | SD_WP_PD | SD_CD_PU | SD_CMD_PD);
+					     MS_INS_PU |
+					     SD_WP_PD |
+					     SD_CD_PU |
+					     SD_CMD_PD);
 		if (retval) {
 			rtsx_trace(chip);
 			return retval;
@@ -499,7 +516,7 @@ static int reset_xd(struct rtsx_chip *chip)
 	rtsx_init_cmd(chip);
 
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_CHK_DATA_STATUS, 0xFF,
-		XD_PGSTS_NOT_FF);
+		     XD_PGSTS_NOT_FF);
 	if (chip->asic_code) {
 		if (!CHECK_PID(chip, 0x5288))
 			xd_fill_pull_ctl_disable(chip);
@@ -507,12 +524,13 @@ static int reset_xd(struct rtsx_chip *chip)
 			xd_fill_pull_ctl_stage1_barossa(chip);
 	} else {
 		rtsx_add_cmd(chip, WRITE_REG_CMD, FPGA_PULL_CTL, 0xFF,
-			(FPGA_XD_PULL_CTL_EN1 & FPGA_XD_PULL_CTL_EN3) | 0x20);
+			     (FPGA_XD_PULL_CTL_EN1 & FPGA_XD_PULL_CTL_EN3) |
+			     0x20);
 	}
 
 	if (!chip->ft2_fast_mode)
 		rtsx_add_cmd(chip, WRITE_REG_CMD, XD_INIT,
-			XD_NO_AUTO_PWR_OFF, 0);
+			     XD_NO_AUTO_PWR_OFF, 0);
 
 	rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_OE, XD_OUTPUT_EN, 0);
 
@@ -537,8 +555,9 @@ static int reset_xd(struct rtsx_chip *chip)
 			xd_fill_pull_ctl_enable(chip);
 		} else {
 			rtsx_add_cmd(chip, WRITE_REG_CMD, FPGA_PULL_CTL, 0xFF,
-				(FPGA_XD_PULL_CTL_EN1 & FPGA_XD_PULL_CTL_EN2) |
-				0x20);
+				     (FPGA_XD_PULL_CTL_EN1 &
+				      FPGA_XD_PULL_CTL_EN2) |
+				     0x20);
 		}
 
 		retval = rtsx_send_cmd(chip, XD_CARD, 100);
@@ -571,8 +590,9 @@ static int reset_xd(struct rtsx_chip *chip)
 			xd_fill_pull_ctl_enable(chip);
 		} else {
 			rtsx_add_cmd(chip, WRITE_REG_CMD, FPGA_PULL_CTL, 0xFF,
-				(FPGA_XD_PULL_CTL_EN1 & FPGA_XD_PULL_CTL_EN2) |
-				0x20);
+				     (FPGA_XD_PULL_CTL_EN1 &
+				      FPGA_XD_PULL_CTL_EN2) |
+				     0x20);
 		}
 	}
 
@@ -599,16 +619,17 @@ static int reset_xd(struct rtsx_chip *chip)
 		rtsx_init_cmd(chip);
 
 		rtsx_add_cmd(chip, WRITE_REG_CMD, XD_DTCTL, 0xFF,
-			XD_TIME_SETUP_STEP * 3 +
-			XD_TIME_RW_STEP * (2 + i) + XD_TIME_RWN_STEP * i);
+			     XD_TIME_SETUP_STEP * 3 +
+			     XD_TIME_RW_STEP * (2 + i) + XD_TIME_RWN_STEP * i);
 		rtsx_add_cmd(chip, WRITE_REG_CMD, XD_CATCTL, 0xFF,
-			XD_TIME_SETUP_STEP * 3 + XD_TIME_RW_STEP * (4 + i) +
-			XD_TIME_RWN_STEP * (3 + i));
+			     XD_TIME_SETUP_STEP * 3 +
+			     XD_TIME_RW_STEP * (4 + i) +
+			     XD_TIME_RWN_STEP * (3 + i));
 
 		rtsx_add_cmd(chip, WRITE_REG_CMD, XD_TRANSFER, 0xFF,
-			XD_TRANSFER_START | XD_RESET);
+			     XD_TRANSFER_START | XD_RESET);
 		rtsx_add_cmd(chip, CHECK_REG_CMD, XD_TRANSFER,
-			XD_TRANSFER_END, XD_TRANSFER_END);
+			     XD_TRANSFER_END, XD_TRANSFER_END);
 
 		rtsx_add_cmd(chip, READ_REG_CMD, XD_DAT, 0, 0);
 		rtsx_add_cmd(chip, READ_REG_CMD, XD_CTL, 0, 0);
@@ -625,7 +646,7 @@ static int reset_xd(struct rtsx_chip *chip)
 			ptr[0], ptr[1]);
 
 		if (((ptr[0] & READY_FLAG) != READY_STATE) ||
-			!(ptr[1] & XD_RDY))
+		    !(ptr[1] & XD_RDY))
 			continue;
 
 		retval = xd_read_id(chip, READ_ID, id_buf, 4);
@@ -773,7 +794,7 @@ static int reset_xd(struct rtsx_chip *chip)
 		if (redunt[PAGE_STATUS] != XD_GPG) {
 			for (j = 1; j <= 8; j++) {
 				retval = xd_read_redundant(chip, page_addr + j,
-							redunt, 11);
+							   redunt, 11);
 				if (retval == STATUS_SUCCESS) {
 					if (redunt[PAGE_STATUS] == XD_GPG)
 						break;
@@ -786,7 +807,7 @@ static int reset_xd(struct rtsx_chip *chip)
 
 		/* Check CIS data */
 		if ((redunt[BLOCK_STATUS] == XD_GBLK) &&
-			(redunt[PARITY] & XD_BA1_ALL0)) {
+		    (redunt[PARITY] & XD_BA1_ALL0)) {
 			u8 buf[10];
 
 			page_addr += j;
@@ -798,11 +819,11 @@ static int reset_xd(struct rtsx_chip *chip)
 			}
 
 			if ((buf[0] == 0x01) && (buf[1] == 0x03) &&
-				(buf[2] == 0xD9)
-					&& (buf[3] == 0x01) && (buf[4] == 0xFF)
-					&& (buf[5] == 0x18) && (buf[6] == 0x02)
-					&& (buf[7] == 0xDF) && (buf[8] == 0x01)
-					&& (buf[9] == 0x20)) {
+			    (buf[2] == 0xD9)
+			    && (buf[3] == 0x01) && (buf[4] == 0xFF)
+			    && (buf[5] == 0x18) && (buf[6] == 0x02)
+			    && (buf[7] == 0xDF) && (buf[8] == 0x01)
+			    && (buf[9] == 0x20)) {
 				xd_card->cis_block = (u16)i;
 			}
 		}
@@ -957,7 +978,7 @@ static u32 xd_get_unused_block(struct rtsx_chip *chip, int zone_no)
 	zone = &(xd_card->zone[zone_no]);
 
 	if ((zone->unused_blk_cnt == 0) ||
-		(zone->set_index == zone->get_index)) {
+	    (zone->set_index == zone->get_index)) {
 		free_zone(zone);
 		dev_dbg(rtsx_dev(chip), "Get unused block fail, no unused block available\n");
 		return BLK_NOT_FOUND;
@@ -982,7 +1003,7 @@ static u32 xd_get_unused_block(struct rtsx_chip *chip, int zone_no)
 }
 
 static void xd_set_l2p_tbl(struct rtsx_chip *chip,
-			int zone_no, u16 log_off, u16 phy_off)
+			   int zone_no, u16 log_off, u16 phy_off)
 {
 	struct xd_info *xd_card = &(chip->xd_card);
 	struct zone_entry *zone;
@@ -1023,7 +1044,7 @@ static u32 xd_get_l2p_tbl(struct rtsx_chip *chip, int zone_no, u16 log_off)
 			}
 
 			retval = xd_init_page(chip, phy_blk, log_off,
-					0, xd_card->page_off + 1);
+					      0, xd_card->page_off + 1);
 			if (retval == STATUS_SUCCESS)
 				break;
 		}
@@ -1107,12 +1128,12 @@ static int xd_mark_bad_block(struct rtsx_chip *chip, u32 phy_blk)
 	xd_assign_phy_addr(chip, page_addr, XD_RW_ADDR);
 
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_PAGE_CNT, 0xFF,
-		xd_card->page_off + 1);
+		     xd_card->page_off + 1);
 
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_TRANSFER, 0xFF,
-		XD_TRANSFER_START | XD_WRITE_REDUNDANT);
+		     XD_TRANSFER_START | XD_WRITE_REDUNDANT);
 	rtsx_add_cmd(chip, CHECK_REG_CMD, XD_TRANSFER,
-		XD_TRANSFER_END, XD_TRANSFER_END);
+		     XD_TRANSFER_END, XD_TRANSFER_END);
 
 	retval = rtsx_send_cmd(chip, XD_CARD, 500);
 	if (retval < 0) {
@@ -1153,7 +1174,7 @@ static int xd_init_page(struct rtsx_chip *chip, u32 phy_blk,
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_PAGE_STATUS, 0xFF, 0xFF);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_BLOCK_STATUS, 0xFF, 0xFF);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_BLOCK_ADDR1_H,
-		0xFF, (u8)(logoff >> 8));
+		     0xFF, (u8)(logoff >> 8));
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_BLOCK_ADDR1_L, 0xFF, (u8)logoff);
 
 	page_addr = (phy_blk << xd_card->block_shift) + start_page;
@@ -1161,15 +1182,15 @@ static int xd_init_page(struct rtsx_chip *chip, u32 phy_blk,
 	xd_assign_phy_addr(chip, page_addr, XD_RW_ADDR);
 
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_CFG,
-		XD_BA_TRANSFORM, XD_BA_TRANSFORM);
+		     XD_BA_TRANSFORM, XD_BA_TRANSFORM);
 
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_PAGE_CNT,
-		0xFF, (end_page - start_page));
+		     0xFF, (end_page - start_page));
 
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_TRANSFER,
-		0xFF, XD_TRANSFER_START | XD_WRITE_REDUNDANT);
+		     0xFF, XD_TRANSFER_START | XD_WRITE_REDUNDANT);
 	rtsx_add_cmd(chip, CHECK_REG_CMD, XD_TRANSFER,
-		XD_TRANSFER_END, XD_TRANSFER_END);
+		     XD_TRANSFER_END, XD_TRANSFER_END);
 
 	retval = rtsx_send_cmd(chip, XD_CARD, 500);
 	if (retval < 0) {
@@ -1235,11 +1256,11 @@ static int xd_copy_page(struct rtsx_chip *chip, u32 old_blk, u32 new_blk,
 
 		rtsx_add_cmd(chip, WRITE_REG_CMD, XD_PAGE_CNT, 0xFF, 1);
 		rtsx_add_cmd(chip, WRITE_REG_CMD, XD_CHK_DATA_STATUS,
-			XD_AUTO_CHK_DATA_STATUS, 0);
+			     XD_AUTO_CHK_DATA_STATUS, 0);
 		rtsx_add_cmd(chip, WRITE_REG_CMD, XD_TRANSFER, 0xFF,
-			XD_TRANSFER_START | XD_READ_PAGES);
+			     XD_TRANSFER_START | XD_READ_PAGES);
 		rtsx_add_cmd(chip, CHECK_REG_CMD, XD_TRANSFER,
-			XD_TRANSFER_END, XD_TRANSFER_END);
+			     XD_TRANSFER_END, XD_TRANSFER_END);
 
 		retval = rtsx_send_cmd(chip, XD_CARD, 500);
 		if (retval < 0) {
@@ -1250,7 +1271,7 @@ static int xd_copy_page(struct rtsx_chip *chip, u32 old_blk, u32 new_blk,
 				wait_timeout(100);
 
 				if (detect_card_cd(chip,
-					XD_CARD) != STATUS_SUCCESS) {
+						   XD_CARD) != STATUS_SUCCESS) {
 					xd_set_err_code(chip, XD_NO_CARD);
 					rtsx_trace(chip);
 					return STATUS_FAIL;
@@ -1261,11 +1282,13 @@ static int xd_copy_page(struct rtsx_chip *chip, u32 old_blk, u32 new_blk,
 					|| ((reg & (XD_ECC2_ERROR | XD_ECC2_UNCORRECTABLE)) ==
 						(XD_ECC2_ERROR | XD_ECC2_UNCORRECTABLE))) {
 					rtsx_write_register(chip,
-							XD_PAGE_STATUS, 0xFF,
-							XD_BPG);
+							    XD_PAGE_STATUS,
+							    0xFF,
+							    XD_BPG);
 					rtsx_write_register(chip,
-							XD_BLOCK_STATUS, 0xFF,
-							XD_GBLK);
+							    XD_BLOCK_STATUS,
+							    0xFF,
+							    XD_GBLK);
 					XD_SET_BAD_OLDBLK(xd_card);
 					dev_dbg(rtsx_dev(chip), "old block 0x%x ecc error\n",
 						old_blk);
@@ -1287,7 +1310,7 @@ static int xd_copy_page(struct rtsx_chip *chip, u32 old_blk, u32 new_blk,
 		rtsx_add_cmd(chip, WRITE_REG_CMD, XD_TRANSFER, 0xFF,
 			     XD_TRANSFER_START | XD_WRITE_PAGES);
 		rtsx_add_cmd(chip, CHECK_REG_CMD, XD_TRANSFER,
-			XD_TRANSFER_END, XD_TRANSFER_END);
+			     XD_TRANSFER_END, XD_TRANSFER_END);
 
 		retval = rtsx_send_cmd(chip, XD_CARD, 300);
 		if (retval < 0) {
@@ -1320,9 +1343,9 @@ static int xd_reset_cmd(struct rtsx_chip *chip)
 	rtsx_init_cmd(chip);
 
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_TRANSFER,
-		0xFF, XD_TRANSFER_START | XD_RESET);
+		     0xFF, XD_TRANSFER_START | XD_RESET);
 	rtsx_add_cmd(chip, CHECK_REG_CMD, XD_TRANSFER,
-		XD_TRANSFER_END, XD_TRANSFER_END);
+		     XD_TRANSFER_END, XD_TRANSFER_END);
 	rtsx_add_cmd(chip, READ_REG_CMD, XD_DAT, 0, 0);
 	rtsx_add_cmd(chip, READ_REG_CMD, XD_CTL, 0, 0);
 
@@ -1360,9 +1383,9 @@ static int xd_erase_block(struct rtsx_chip *chip, u32 phy_blk)
 		xd_assign_phy_addr(chip, page_addr, XD_ERASE_ADDR);
 
 		rtsx_add_cmd(chip, WRITE_REG_CMD, XD_TRANSFER, 0xFF,
-			XD_TRANSFER_START | XD_ERASE);
+			     XD_TRANSFER_START | XD_ERASE);
 		rtsx_add_cmd(chip, CHECK_REG_CMD, XD_TRANSFER,
-			XD_TRANSFER_END, XD_TRANSFER_END);
+			     XD_TRANSFER_END, XD_TRANSFER_END);
 		rtsx_add_cmd(chip, READ_REG_CMD, XD_DAT, 0, 0);
 
 		retval = rtsx_send_cmd(chip, XD_CARD, 250);
@@ -1490,7 +1513,7 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 
 		cur_fst_page_logoff = xd_load_log_block_addr(redunt);
 		if ((cur_fst_page_logoff == 0xFFFF) ||
-			(cur_fst_page_logoff > max_logoff)) {
+		    (cur_fst_page_logoff > max_logoff)) {
 			retval = xd_erase_block(chip, i);
 			if (retval == STATUS_SUCCESS)
 				xd_set_unused_block(chip, i);
@@ -1498,7 +1521,7 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 		}
 
 		if ((zone_no == 0) && (cur_fst_page_logoff == 0) &&
-			(redunt[PAGE_STATUS] != XD_GPG))
+		    (redunt[PAGE_STATUS] != XD_GPG))
 			XD_SET_MBR_FAIL(xd_card);
 
 		if (zone->l2p_table[cur_fst_page_logoff] == 0xFFFF) {
@@ -1524,7 +1547,7 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 
 			for (m = 0; m < 3; m++) {
 				retval = xd_read_redundant(chip, page_addr,
-							redunt, 11);
+							   redunt, 11);
 				if (retval == STATUS_SUCCESS)
 					break;
 			}
@@ -1598,9 +1621,9 @@ static int xd_send_cmd(struct rtsx_chip *chip, u8 cmd)
 
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_DAT, 0xFF, cmd);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_TRANSFER, 0xFF,
-		XD_TRANSFER_START | XD_SET_CMD);
+		     XD_TRANSFER_START | XD_SET_CMD);
 	rtsx_add_cmd(chip, CHECK_REG_CMD, XD_TRANSFER,
-		XD_TRANSFER_END, XD_TRANSFER_END);
+		     XD_TRANSFER_END, XD_TRANSFER_END);
 
 	retval = rtsx_send_cmd(chip, XD_CARD, 200);
 	if (retval < 0) {
@@ -1612,9 +1635,9 @@ static int xd_send_cmd(struct rtsx_chip *chip, u8 cmd)
 }
 
 static int xd_read_multiple_pages(struct rtsx_chip *chip, u32 phy_blk,
-				u32 log_blk, u8 start_page, u8 end_page,
-				u8 *buf, unsigned int *index,
-				unsigned int *offset)
+				  u32 log_blk, u8 start_page, u8 end_page,
+				  u8 *buf, unsigned int *index,
+				  unsigned int *offset)
 {
 	struct xd_info *xd_card = &(chip->xd_card);
 	u32 page_addr, new_blk;
@@ -1653,22 +1676,23 @@ static int xd_read_multiple_pages(struct rtsx_chip *chip, u32 phy_blk,
 	rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_DATA_SOURCE, 0x01, RING_BUFFER);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_PAGE_CNT, 0xFF, page_cnt);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_CHK_DATA_STATUS,
-			XD_AUTO_CHK_DATA_STATUS, XD_AUTO_CHK_DATA_STATUS);
+		     XD_AUTO_CHK_DATA_STATUS, XD_AUTO_CHK_DATA_STATUS);
 
 	trans_dma_enable(chip->srb->sc_data_direction, chip,
-			page_cnt * 512, DMA_512);
+			 page_cnt * 512, DMA_512);
 
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_TRANSFER, 0xFF,
-		XD_TRANSFER_START | XD_READ_PAGES);
+		     XD_TRANSFER_START | XD_READ_PAGES);
 	rtsx_add_cmd(chip, CHECK_REG_CMD, XD_TRANSFER,
-		XD_TRANSFER_END | XD_PPB_EMPTY, XD_TRANSFER_END | XD_PPB_EMPTY);
+		     XD_TRANSFER_END | XD_PPB_EMPTY,
+		     XD_TRANSFER_END | XD_PPB_EMPTY);
 
 	rtsx_send_cmd_no_wait(chip);
 
 	retval = rtsx_transfer_data_partial(chip, XD_CARD, buf, page_cnt * 512,
-					scsi_sg_count(chip->srb),
-					index, offset, DMA_FROM_DEVICE,
-					chip->xd_timeout);
+					    scsi_sg_count(chip->srb),
+					    index, offset, DMA_FROM_DEVICE,
+					    chip->xd_timeout);
 	if (retval < 0) {
 		rtsx_clear_xd_error(chip);
 
@@ -1719,7 +1743,7 @@ Fail:
 		}
 
 		retval = xd_copy_page(chip, phy_blk, new_blk, 0,
-				xd_card->page_off + 1);
+				      xd_card->page_off + 1);
 		if (retval != STATUS_SUCCESS) {
 			if (!XD_CHK_BAD_NEWBLK(xd_card)) {
 				retval = xd_erase_block(chip, new_blk);
@@ -1743,7 +1767,7 @@ Status_Fail:
 }
 
 static int xd_finish_write(struct rtsx_chip *chip,
-		u32 old_blk, u32 new_blk, u32 log_blk, u8 page_off)
+			   u32 old_blk, u32 new_blk, u32 log_blk, u8 page_off)
 {
 	struct xd_info *xd_card = &(chip->xd_card);
 	int retval, zone_no;
@@ -1762,7 +1786,7 @@ static int xd_finish_write(struct rtsx_chip *chip,
 
 	if (old_blk == BLK_NOT_FOUND) {
 		retval = xd_init_page(chip, new_blk, log_off,
-				page_off, xd_card->page_off + 1);
+				      page_off, xd_card->page_off + 1);
 		if (retval != STATUS_SUCCESS) {
 			retval = xd_erase_block(chip, new_blk);
 			if (retval == STATUS_SUCCESS)
@@ -1772,7 +1796,7 @@ static int xd_finish_write(struct rtsx_chip *chip,
 		}
 	} else {
 		retval = xd_copy_page(chip, old_blk, new_blk,
-				page_off, xd_card->page_off + 1);
+				      page_off, xd_card->page_off + 1);
 		if (retval != STATUS_SUCCESS) {
 			if (!XD_CHK_BAD_NEWBLK(xd_card)) {
 				retval = xd_erase_block(chip, new_blk);
@@ -1804,7 +1828,7 @@ static int xd_finish_write(struct rtsx_chip *chip,
 }
 
 static int xd_prepare_write(struct rtsx_chip *chip,
-		u32 old_blk, u32 new_blk, u32 log_blk, u8 page_off)
+			    u32 old_blk, u32 new_blk, u32 log_blk, u8 page_off)
 {
 	int retval;
 
@@ -1823,9 +1847,9 @@ static int xd_prepare_write(struct rtsx_chip *chip,
 }
 
 static int xd_write_multiple_pages(struct rtsx_chip *chip, u32 old_blk,
-				u32 new_blk, u32 log_blk, u8 start_page,
-				u8 end_page, u8 *buf, unsigned int *index,
-				unsigned int *offset)
+				   u32 new_blk, u32 log_blk, u8 start_page,
+				   u8 end_page, u8 *buf, unsigned int *index,
+				   unsigned int *offset)
 {
 	struct xd_info *xd_card = &(chip->xd_card);
 	u32 page_addr;
@@ -1852,7 +1876,7 @@ static int xd_write_multiple_pages(struct rtsx_chip *chip, u32 old_blk,
 	rtsx_init_cmd(chip);
 
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_BLOCK_ADDR1_H,
-		0xFF, (u8)(log_off >> 8));
+		     0xFF, (u8)(log_off >> 8));
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_BLOCK_ADDR1_L, 0xFF, (u8)log_off);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_BLOCK_STATUS, 0xFF, XD_GBLK);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_PAGE_STATUS, 0xFF, XD_GPG);
@@ -1860,23 +1884,23 @@ static int xd_write_multiple_pages(struct rtsx_chip *chip, u32 old_blk,
 	xd_assign_phy_addr(chip, page_addr, XD_RW_ADDR);
 
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_CFG, XD_BA_TRANSFORM,
-		XD_BA_TRANSFORM);
+		     XD_BA_TRANSFORM);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_PAGE_CNT, 0xFF, page_cnt);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_DATA_SOURCE, 0x01, RING_BUFFER);
 
 	trans_dma_enable(chip->srb->sc_data_direction, chip,
-			page_cnt * 512, DMA_512);
+			 page_cnt * 512, DMA_512);
 
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_TRANSFER,
-		0xFF, XD_TRANSFER_START | XD_WRITE_PAGES);
+		     0xFF, XD_TRANSFER_START | XD_WRITE_PAGES);
 	rtsx_add_cmd(chip, CHECK_REG_CMD, XD_TRANSFER,
-		XD_TRANSFER_END, XD_TRANSFER_END);
+		     XD_TRANSFER_END, XD_TRANSFER_END);
 
 	rtsx_send_cmd_no_wait(chip);
 
 	retval = rtsx_transfer_data_partial(chip, XD_CARD, buf, page_cnt * 512,
-					scsi_sg_count(chip->srb),
-			index, offset, DMA_TO_DEVICE, chip->xd_timeout);
+					    scsi_sg_count(chip->srb),
+					    index, offset, DMA_TO_DEVICE, chip->xd_timeout);
 	if (retval < 0) {
 		rtsx_clear_xd_error(chip);
 
@@ -1944,9 +1968,10 @@ int xd_delay_write(struct rtsx_chip *chip)
 
 		delay_write->delay_write_flag = 0;
 		retval = xd_finish_write(chip,
-				delay_write->old_phyblock,
-					delay_write->new_phyblock,
-				delay_write->logblock, delay_write->pageoff);
+					 delay_write->old_phyblock,
+					 delay_write->new_phyblock,
+					 delay_write->logblock,
+					 delay_write->pageoff);
 		if (retval != STATUS_SUCCESS) {
 			rtsx_trace(chip);
 			return STATUS_FAIL;
@@ -1958,7 +1983,7 @@ int xd_delay_write(struct rtsx_chip *chip)
 #endif
 
 int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
-	u32 start_sector, u16 sector_cnt)
+	  u32 start_sector, u16 sector_cnt)
 {
 	struct xd_info *xd_card = &(chip->xd_card);
 	unsigned int lun = SCSI_LUN(srb);
@@ -2012,17 +2037,18 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 	if (srb->sc_data_direction == DMA_TO_DEVICE) {
 #ifdef XD_DELAY_WRITE
 		if (delay_write->delay_write_flag &&
-				(delay_write->logblock == log_blk) &&
-				(start_page > delay_write->pageoff)) {
+		    (delay_write->logblock == log_blk) &&
+		    (start_page > delay_write->pageoff)) {
 			delay_write->delay_write_flag = 0;
 			if (delay_write->old_phyblock != BLK_NOT_FOUND) {
 				retval = xd_copy_page(chip,
-					delay_write->old_phyblock,
-					delay_write->new_phyblock,
-					delay_write->pageoff, start_page);
+						      delay_write->old_phyblock,
+						      delay_write->new_phyblock,
+						      delay_write->pageoff,
+						      start_page);
 				if (retval != STATUS_SUCCESS) {
 					set_sense_type(chip, lun,
-						SENSE_TYPE_MEDIA_WRITE_ERR);
+						       SENSE_TYPE_MEDIA_WRITE_ERR);
 					rtsx_trace(chip);
 					return STATUS_FAIL;
 				}
@@ -2039,7 +2065,7 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 			retval = xd_delay_write(chip);
 			if (retval != STATUS_SUCCESS) {
 				set_sense_type(chip, lun,
-					SENSE_TYPE_MEDIA_WRITE_ERR);
+					       SENSE_TYPE_MEDIA_WRITE_ERR);
 				rtsx_trace(chip);
 				return STATUS_FAIL;
 			}
@@ -2047,25 +2073,25 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 			old_blk = xd_get_l2p_tbl(chip, zone_no, log_off);
 			new_blk  = xd_get_unused_block(chip, zone_no);
 			if ((old_blk == BLK_NOT_FOUND) ||
-				(new_blk == BLK_NOT_FOUND)) {
+			    (new_blk == BLK_NOT_FOUND)) {
 				set_sense_type(chip, lun,
-					SENSE_TYPE_MEDIA_WRITE_ERR);
+					       SENSE_TYPE_MEDIA_WRITE_ERR);
 				rtsx_trace(chip);
 				return STATUS_FAIL;
 			}
 
 			retval = xd_prepare_write(chip, old_blk, new_blk,
-						log_blk, start_page);
+						  log_blk, start_page);
 			if (retval != STATUS_SUCCESS) {
 				if (detect_card_cd(chip, XD_CARD) !=
 					STATUS_SUCCESS) {
 					set_sense_type(chip, lun,
-						SENSE_TYPE_MEDIA_NOT_PRESENT);
+						       SENSE_TYPE_MEDIA_NOT_PRESENT);
 					rtsx_trace(chip);
 					return STATUS_FAIL;
 				}
 				set_sense_type(chip, lun,
-					SENSE_TYPE_MEDIA_WRITE_ERR);
+					       SENSE_TYPE_MEDIA_WRITE_ERR);
 				rtsx_trace(chip);
 				return STATUS_FAIL;
 			}
@@ -2078,12 +2104,12 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 		if (retval != STATUS_SUCCESS) {
 			if (detect_card_cd(chip, XD_CARD) != STATUS_SUCCESS) {
 				set_sense_type(chip, lun,
-					SENSE_TYPE_MEDIA_NOT_PRESENT);
+					       SENSE_TYPE_MEDIA_NOT_PRESENT);
 				rtsx_trace(chip);
 				return STATUS_FAIL;
 			}
 			set_sense_type(chip, lun,
-				SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
+				       SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
 			rtsx_trace(chip);
 			return STATUS_FAIL;
 		}
@@ -2092,7 +2118,7 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 		old_blk = xd_get_l2p_tbl(chip, zone_no, log_off);
 		if (old_blk == BLK_NOT_FOUND) {
 			set_sense_type(chip, lun,
-				SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
+				       SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
 			rtsx_trace(chip);
 			return STATUS_FAIL;
 		}
@@ -2116,22 +2142,22 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 		page_cnt = end_page - start_page;
 		if (srb->sc_data_direction == DMA_FROM_DEVICE) {
 			retval = xd_read_multiple_pages(chip, old_blk, log_blk,
-					start_page, end_page, ptr,
-							&index, &offset);
+							start_page, end_page,
+							ptr, &index, &offset);
 			if (retval != STATUS_SUCCESS) {
 				set_sense_type(chip, lun,
-					SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
+					       SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
 				rtsx_trace(chip);
 				return STATUS_FAIL;
 			}
 		} else {
 			retval = xd_write_multiple_pages(chip, old_blk,
-							new_blk, log_blk,
-					start_page, end_page, ptr,
-							&index, &offset);
+							 new_blk, log_blk,
+							 start_page, end_page,
+							 ptr, &index, &offset);
 			if (retval != STATUS_SUCCESS) {
 				set_sense_type(chip, lun,
-					SENSE_TYPE_MEDIA_WRITE_ERR);
+					       SENSE_TYPE_MEDIA_WRITE_ERR);
 				rtsx_trace(chip);
 				return STATUS_FAIL;
 			}
@@ -2153,7 +2179,7 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 			if (retval != STATUS_SUCCESS) {
 				chip->card_fail |= XD_CARD;
 				set_sense_type(chip, lun,
-					SENSE_TYPE_MEDIA_NOT_PRESENT);
+					       SENSE_TYPE_MEDIA_NOT_PRESENT);
 				rtsx_trace(chip);
 				return STATUS_FAIL;
 			}
@@ -2163,10 +2189,10 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 		if (old_blk == BLK_NOT_FOUND) {
 			if (srb->sc_data_direction == DMA_FROM_DEVICE)
 				set_sense_type(chip, lun,
-					SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
+					       SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
 			else
 				set_sense_type(chip, lun,
-					SENSE_TYPE_MEDIA_WRITE_ERR);
+					       SENSE_TYPE_MEDIA_WRITE_ERR);
 
 			rtsx_trace(chip);
 			return STATUS_FAIL;
@@ -2176,7 +2202,7 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 			new_blk = xd_get_unused_block(chip, zone_no);
 			if (new_blk == BLK_NOT_FOUND) {
 				set_sense_type(chip, lun,
-					SENSE_TYPE_MEDIA_WRITE_ERR);
+					       SENSE_TYPE_MEDIA_WRITE_ERR);
 				rtsx_trace(chip);
 				return STATUS_FAIL;
 			}
@@ -2186,7 +2212,7 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 	}
 
 	if ((srb->sc_data_direction == DMA_TO_DEVICE) &&
-			(end_page != (xd_card->page_off + 1))) {
+	    (end_page != (xd_card->page_off + 1))) {
 #ifdef XD_DELAY_WRITE
 		delay_write->delay_write_flag = 1;
 		delay_write->old_phyblock = old_blk;
@@ -2202,11 +2228,11 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 		}
 
 		retval = xd_finish_write(chip, old_blk, new_blk,
-					log_blk, end_page);
+					 log_blk, end_page);
 		if (retval != STATUS_SUCCESS) {
 			if (detect_card_cd(chip, XD_CARD) != STATUS_SUCCESS) {
 				set_sense_type(chip, lun,
-					SENSE_TYPE_MEDIA_NOT_PRESENT);
+					       SENSE_TYPE_MEDIA_NOT_PRESENT);
 				rtsx_trace(chip);
 				return STATUS_FAIL;
 			}
