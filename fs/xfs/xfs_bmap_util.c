@@ -1564,8 +1564,8 @@ xfs_insert_file_space(
  */
 static int
 xfs_swap_extents_check_format(
-	xfs_inode_t	*ip,	/* target inode */
-	xfs_inode_t	*tip)	/* tmp inode */
+	struct xfs_inode	*ip,	/* target inode */
+	struct xfs_inode	*tip)	/* tmp inode */
 {
 
 	/* Should never get a local format */
@@ -1651,22 +1651,22 @@ xfs_swap_extent_flush(
 
 int
 xfs_swap_extents(
-	xfs_inode_t	*ip,	/* target inode */
-	xfs_inode_t	*tip,	/* tmp inode */
-	xfs_swapext_t	*sxp)
+	struct xfs_inode	*ip,	/* target inode */
+	struct xfs_inode	*tip,	/* tmp inode */
+	struct xfs_swapext	*sxp)
 {
-	xfs_mount_t	*mp = ip->i_mount;
-	xfs_trans_t	*tp;
-	xfs_bstat_t	*sbp = &sxp->sx_stat;
-	xfs_ifork_t	*tempifp, *ifp, *tifp;
-	int		src_log_flags, target_log_flags;
-	int		error = 0;
-	int		aforkblks = 0;
-	int		taforkblks = 0;
-	__uint64_t	tmp;
-	int		lock_flags;
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_trans	*tp;
+	struct xfs_bstat	*sbp = &sxp->sx_stat;
+	struct xfs_ifork	*tempifp, *ifp, *tifp;
+	int			src_log_flags, target_log_flags;
+	int			error = 0;
+	int			aforkblks = 0;
+	int			taforkblks = 0;
+	__uint64_t		tmp;
+	int			lock_flags;
 	struct xfs_ifork	*cowfp;
-	__uint64_t	f;
+	__uint64_t		f;
 
 	/* XXX: we can't do this with rmap, will fix later */
 	if (xfs_sb_version_hasrmapbt(&mp->m_sb))
