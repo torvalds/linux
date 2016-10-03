@@ -1903,6 +1903,7 @@ init_xfs_fs(void)
 
 	xfs_extent_free_init_defer_op();
 	xfs_rmap_update_init_defer_op();
+	xfs_refcount_update_init_defer_op();
 
 	xfs_dir_startup();
 

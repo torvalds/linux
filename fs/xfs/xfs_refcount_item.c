@@ -396,9 +396,20 @@ xfs_cui_recover(
 {
 	int				i;
 	int				error = 0;
+	unsigned int			refc_type;
 	struct xfs_phys_extent		*refc;
 	xfs_fsblock_t			startblock_fsb;
 	bool				op_ok;
+	struct xfs_cud_log_item		*cudp;
+	struct xfs_trans		*tp;
+	struct xfs_btree_cur		*rcur = NULL;
+	enum xfs_refcount_intent_type	type;
+	xfs_fsblock_t			firstfsb;
+	xfs_fsblock_t			new_fsb;
+	xfs_extlen_t			new_len;
+	struct xfs_bmbt_irec		irec;
+	struct xfs_defer_ops		dfops;
+	bool				requeue_only = false;
 
 	ASSERT(!test_bit(XFS_CUI_RECOVERED, &cuip->cui_flags));
 
@@ -437,7 +448,80 @@ xfs_cui_recover(
 		}
 	}
 
+	/*
+	 * Under normal operation, refcount updates are deferred, so we
+	 * wouldn't be adding them directly to a transaction.  All
+	 * refcount updates manage reservation usage internally and
+	 * dynamically by deferring work that won't fit in the
+	 * transaction.  Normally, any work that needs to be deferred
+	 * gets attached to the same defer_ops that scheduled the
+	 * refcount update.  However, we're in log recovery here, so we
+	 * we create our own defer_ops and use that to finish up any
+	 * work that doesn't fit.
+	 */
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);
+	if (error)
+		return error;
+	cudp = xfs_trans_get_cud(tp, cuip);
+
+	xfs_defer_init(&dfops, &firstfsb);
+	for (i = 0; i < cuip->cui_format.cui_nextents; i++) {
+		refc = &cuip->cui_format.cui_extents[i];
+		refc_type = refc->pe_flags & XFS_REFCOUNT_EXTENT_TYPE_MASK;
+		switch (refc_type) {
+		case XFS_REFCOUNT_INCREASE:
+		case XFS_REFCOUNT_DECREASE:
+		case XFS_REFCOUNT_ALLOC_COW:
+		case XFS_REFCOUNT_FREE_COW:
+			type = refc_type;
+			break;
+		default:
+			error = -EFSCORRUPTED;
+			goto abort_error;
+		}
+		if (requeue_only) {
+			new_fsb = refc->pe_startblock;
+			new_len = refc->pe_len;
+		} else
+			error = xfs_trans_log_finish_refcount_update(tp, cudp,
+				&dfops, type, refc->pe_startblock, refc->pe_len,
+				&new_fsb, &new_len, &rcur);
+		if (error)
+			goto abort_error;
+
+		/* Requeue what we didn't finish. */
+		if (new_len > 0) {
+			irec.br_startblock = new_fsb;
+			irec.br_blockcount = new_len;
+			switch (type) {
+			case XFS_REFCOUNT_INCREASE:
+				error = xfs_refcount_increase_extent(
+						tp->t_mountp, &dfops, &irec);
+				break;
+			case XFS_REFCOUNT_DECREASE:
+				error = xfs_refcount_decrease_extent(
+						tp->t_mountp, &dfops, &irec);
+				break;
+			default:
+				ASSERT(0);
+			}
+			if (error)
+				goto abort_error;
+			requeue_only = true;
+		}
+	}
+
+	xfs_refcount_finish_one_cleanup(tp, rcur, error);
+	error = xfs_defer_finish(&tp, &dfops, NULL);
+	if (error)
+		goto abort_error;
 	set_bit(XFS_CUI_RECOVERED, &cuip->cui_flags);
-	xfs_cui_release(cuip);
+	error = xfs_trans_commit(tp);
+	return error;
+
+abort_error:
+	xfs_refcount_finish_one_cleanup(tp, rcur, error);
+	xfs_defer_cancel(&dfops);
+	xfs_trans_cancel(tp);
 	return error;
 }
