@@ -20,6 +20,7 @@
 
 enum of_gpio_flags;
 enum gpiod_flags;
+enum gpio_lookup_flags;
 struct acpi_device;
 
 /**
@@ -85,6 +86,21 @@ struct acpi_gpio_info {
 
 /* gpio suffixes used for ACPI and device tree lookup */
 static const char * const gpio_suffixes[] = { "gpios", "gpio" };
+
+#ifdef CONFIG_OF_GPIO
+struct gpio_desc *of_find_gpio(struct device *dev,
+			       const char *con_id,
+			       unsigned int idx,
+			       enum gpio_lookup_flags *flags);
+#else
+static inline struct gpio_desc *of_find_gpio(struct device *dev,
+					     const char *con_id,
+					     unsigned int idx,
+					     enum gpio_lookup_flags *flags)
+{
+	return ERR_PTR(-ENOENT);
+}
+#endif /* CONFIG_OF_GPIO */
 
 #ifdef CONFIG_ACPI
 void acpi_gpiochip_add(struct gpio_chip *chip);
