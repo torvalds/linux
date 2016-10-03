@@ -233,8 +233,11 @@ void update_rq_clock(struct rq *rq)
 		return;
 
 #ifdef CONFIG_SCHED_DEBUG
+	if (sched_feat(WARN_DOUBLE_CLOCK))
+		SCHED_WARN_ON(rq->clock_update_flags & RQCF_UPDATED);
 	rq->clock_update_flags |= RQCF_UPDATED;
 #endif
+
 	delta = sched_clock_cpu(cpu_of(rq)) - rq->clock;
 	if (delta < 0)
 		return;
