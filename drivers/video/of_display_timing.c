@@ -110,7 +110,7 @@ static int of_parse_display_timing(const struct device_node *np,
  * @name: name of the timing node
  * @dt: display_timing struct to fill
  **/
-int of_get_display_timing(struct device_node *np, const char *name,
+int of_get_display_timing(const struct device_node *np, const char *name,
 		struct display_timing *dt)
 {
 	struct device_node *timing_np;
@@ -133,7 +133,7 @@ EXPORT_SYMBOL_GPL(of_get_display_timing);
  * of_get_display_timings - parse all display_timing entries from a device_node
  * @np: device_node with the subnodes
  **/
-struct display_timings *of_get_display_timings(struct device_node *np)
+struct display_timings *of_get_display_timings(const struct device_node *np)
 {
 	struct device_node *timings_np;
 	struct device_node *entry;
@@ -249,7 +249,7 @@ EXPORT_SYMBOL_GPL(of_get_display_timings);
  * of_display_timings_exist - check if a display-timings node is provided
  * @np: device_node with the timing
  **/
-int of_display_timings_exist(struct device_node *np)
+int of_display_timings_exist(const struct device_node *np)
 {
 	struct device_node *timings_np;
 
