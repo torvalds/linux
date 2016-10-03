@@ -875,7 +875,7 @@ static int q6v5_probe(struct platform_device *pdev)
 	return 0;
 
 free_rproc:
-	rproc_put(rproc);
+	rproc_free(rproc);
 
 	return ret;
 }
@@ -885,7 +885,7 @@ static int q6v5_remove(struct platform_device *pdev)
 	struct q6v5 *qproc = platform_get_drvdata(pdev);
 
 	rproc_del(qproc->rproc);
-	rproc_put(qproc->rproc);
+	rproc_free(qproc->rproc);
 
 	return 0;
 }

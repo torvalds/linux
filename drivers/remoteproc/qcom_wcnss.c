@@ -585,7 +585,7 @@ static int wcnss_probe(struct platform_device *pdev)
 	return of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
 
 free_rproc:
-	rproc_put(rproc);
+	rproc_free(rproc);
 
 	return ret;
 }
@@ -598,7 +598,7 @@ static int wcnss_remove(struct platform_device *pdev)
 
 	qcom_smem_state_put(wcnss->state);
 	rproc_del(wcnss->rproc);
-	rproc_put(wcnss->rproc);
+	rproc_free(wcnss->rproc);
 
 	return 0;
 }
