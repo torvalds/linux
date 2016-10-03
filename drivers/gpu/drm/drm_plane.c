@@ -783,6 +783,45 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	if (!crtc)
 		return -ENOENT;
 
+	if (crtc->funcs->page_flip_target) {
+		u32 current_vblank;
+		int r;
+
+		r = drm_crtc_vblank_get(crtc);
+		if (r)
+			return r;
+
+		current_vblank = drm_crtc_vblank_count(crtc);
+
+		switch (page_flip->flags & DRM_MODE_PAGE_FLIP_TARGET) {
+		case DRM_MODE_PAGE_FLIP_TARGET_ABSOLUTE:
+			if ((int)(target_vblank - current_vblank) > 1) {
+				DRM_DEBUG("Invalid absolute flip target %u, "
+					  "must be <= %u\n", target_vblank,
+					  current_vblank + 1);
+				drm_crtc_vblank_put(crtc);
+				return -EINVAL;
+			}
+			break;
+		case DRM_MODE_PAGE_FLIP_TARGET_RELATIVE:
+			if (target_vblank != 0 && target_vblank != 1) {
+				DRM_DEBUG("Invalid relative flip target %u, "
+					  "must be 0 or 1\n", target_vblank);
+				drm_crtc_vblank_put(crtc);
+				return -EINVAL;
+			}
+			target_vblank += current_vblank;
+			break;
+		default:
+			target_vblank = current_vblank +
+				!(page_flip->flags & DRM_MODE_PAGE_FLIP_ASYNC);
+			break;
+		}
+	} else if (crtc->funcs->page_flip == NULL ||
+		   (page_flip->flags & DRM_MODE_PAGE_FLIP_TARGET)) {
+		return -EINVAL;
+	}
+
 	drm_modeset_lock_crtc(crtc, crtc->primary);
 	if (crtc->primary->fb == NULL) {
 		/* The framebuffer is currently unbound, presumably
@@ -792,9 +831,6 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		ret = -EBUSY;
 		goto out;
 	}
-
-	if (crtc->funcs->page_flip == NULL)
-		goto out;
 
 	fb = drm_framebuffer_lookup(dev, page_flip->fb_id);
 	if (!fb) {
@@ -839,45 +875,6 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	}
 
 	crtc->primary->old_fb = crtc->primary->fb;
-	if (crtc->funcs->page_flip_target) {
-		u32 current_vblank;
-		int r;
-
-		r = drm_crtc_vblank_get(crtc);
-		if (r)
-			return r;
-
-		current_vblank = drm_crtc_vblank_count(crtc);
-
-		switch (page_flip->flags & DRM_MODE_PAGE_FLIP_TARGET) {
-		case DRM_MODE_PAGE_FLIP_TARGET_ABSOLUTE:
-			if ((int)(target_vblank - current_vblank) > 1) {
-				DRM_DEBUG("Invalid absolute flip target %u, "
-					  "must be <= %u\n", target_vblank,
-					  current_vblank + 1);
-				drm_crtc_vblank_put(crtc);
-				return -EINVAL;
-			}
-			break;
-		case DRM_MODE_PAGE_FLIP_TARGET_RELATIVE:
-			if (target_vblank != 0 && target_vblank != 1) {
-				DRM_DEBUG("Invalid relative flip target %u, "
-					  "must be 0 or 1\n", target_vblank);
-				drm_crtc_vblank_put(crtc);
-				return -EINVAL;
-			}
-			target_vblank += current_vblank;
-			break;
-		default:
-			target_vblank = current_vblank +
-				!(page_flip->flags & DRM_MODE_PAGE_FLIP_ASYNC);
-			break;
-		}
-	} else if (crtc->funcs->page_flip == NULL ||
-		   (page_flip->flags & DRM_MODE_PAGE_FLIP_TARGET)) {
-		return -EINVAL;
-	}
-
 	if (crtc->funcs->page_flip_target)
 		ret = crtc->funcs->page_flip_target(crtc, fb, e,
 						    page_flip->flags,
