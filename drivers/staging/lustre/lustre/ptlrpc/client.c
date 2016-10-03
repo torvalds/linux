@@ -1206,6 +1206,10 @@ static int after_reply(struct ptlrpc_request *req)
 		return 0;
 	}
 
+	ktime_get_real_ts64(&work_start);
+	timediff = (work_start.tv_sec - req->rq_sent_tv.tv_sec) * USEC_PER_SEC +
+		   (work_start.tv_nsec - req->rq_sent_tv.tv_nsec) /
+								 NSEC_PER_USEC;
 	/*
 	 * NB Until this point, the whole of the incoming message,
 	 * including buflens, status etc is in the sender's byte order.
@@ -1258,10 +1262,6 @@ static int after_reply(struct ptlrpc_request *req)
 		return 0;
 	}
 
-	ktime_get_real_ts64(&work_start);
-	timediff = (work_start.tv_sec - req->rq_sent_tv.tv_sec) * USEC_PER_SEC +
-		   (work_start.tv_nsec - req->rq_sent_tv.tv_nsec) /
-								 NSEC_PER_USEC;
 	if (obd->obd_svc_stats) {
 		lprocfs_counter_add(obd->obd_svc_stats, PTLRPC_REQWAIT_CNTR,
 				    timediff);
