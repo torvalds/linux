@@ -766,7 +766,7 @@ void hostif_sleep_confirm(struct ks_wlan_private *priv)
 static
 void hostif_start_confirm(struct ks_wlan_private *priv)
 {
-#ifdef  WPS
+#ifdef WPS
 	union iwreq_data wrqu;
 	wrqu.data.length = 0;
 	wrqu.data.flags = 0;
