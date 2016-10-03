@@ -502,6 +502,18 @@ xfs_cui_recover(
 				error = xfs_refcount_decrease_extent(
 						tp->t_mountp, &dfops, &irec);
 				break;
+			case XFS_REFCOUNT_ALLOC_COW:
+				error = xfs_refcount_alloc_cow_extent(
+						tp->t_mountp, &dfops,
+						irec.br_startblock,
+						irec.br_blockcount);
+				break;
+			case XFS_REFCOUNT_FREE_COW:
+				error = xfs_refcount_free_cow_extent(
+						tp->t_mountp, &dfops,
+						irec.br_startblock,
+						irec.br_blockcount);
+				break;
 			default:
 				ASSERT(0);
 			}

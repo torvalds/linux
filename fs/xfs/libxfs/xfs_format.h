@@ -1375,7 +1375,8 @@ struct xfs_owner_info {
 #define XFS_RMAP_OWN_INOBT	(-6ULL)	/* Inode btree blocks */
 #define XFS_RMAP_OWN_INODES	(-7ULL)	/* Inode chunk */
 #define XFS_RMAP_OWN_REFC	(-8ULL) /* refcount tree */
-#define XFS_RMAP_OWN_MIN	(-9ULL) /* guard */
+#define XFS_RMAP_OWN_COW	(-9ULL) /* cow allocations */
+#define XFS_RMAP_OWN_MIN	(-10ULL) /* guard */
 
 #define XFS_RMAP_NON_INODE_OWNER(owner)	(!!((owner) & (1ULL << 63)))
 
@@ -1477,6 +1478,17 @@ unsigned int xfs_refc_block(struct xfs_mount *mp);
  * data) are not tracked here.  Free space is also not tracked here.
  * This is consistent with pre-reflink XFS.
  */
+
+/*
+ * Extents that are being used to stage a copy on write are stored
+ * in the refcount btree with a refcount of 1 and the upper bit set
+ * on the startblock.  This speeds up mount time deletion of stale
+ * staging extents because they're all at the right side of the tree.
+ */
+#define XFS_REFC_COW_START		((xfs_agblock_t)(1U << 31))
+#define REFCNTBT_COWFLAG_BITLEN		1
+#define REFCNTBT_AGBLOCK_BITLEN		31
+
 struct xfs_refcount_rec {
 	__be32		rc_startblock;	/* starting block number */
 	__be32		rc_blockcount;	/* count of blocks */

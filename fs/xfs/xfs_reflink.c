@@ -40,6 +40,7 @@
 #include "xfs_log.h"
 #include "xfs_icache.h"
 #include "xfs_pnfs.h"
+#include "xfs_btree.h"
 #include "xfs_refcount_btree.h"
 #include "xfs_refcount.h"
 #include "xfs_bmap_btree.h"
@@ -563,6 +564,13 @@ xfs_reflink_cancel_cow_blocks(
 			xfs_trans_ijoin(*tpp, ip, 0);
 			xfs_defer_init(&dfops, &firstfsb);
 
+			/* Free the CoW orphan record. */
+			error = xfs_refcount_free_cow_extent(ip->i_mount,
+					&dfops, irec.br_startblock,
+					irec.br_blockcount);
+			if (error)
+				break;
+
 			xfs_bmap_add_free(ip->i_mount, &dfops,
 					irec.br_startblock, irec.br_blockcount,
 					NULL);
@@ -719,6 +727,13 @@ xfs_reflink_end_cow(
 			irec.br_blockcount = rlen;
 			trace_xfs_reflink_cow_remap_piece(ip, &uirec);
 
+			/* Free the CoW orphan record. */
+			error = xfs_refcount_free_cow_extent(tp->t_mountp,
+					&dfops, uirec.br_startblock,
+					uirec.br_blockcount);
+			if (error)
+				goto out_defer;
+
 			/* Map the new blocks into the data fork. */
 			error = xfs_bmap_map_extent(tp->t_mountp, &dfops,
 					ip, &uirec);
@@ -753,5 +768,27 @@ out_cancel:
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 out:
 	trace_xfs_reflink_end_cow_error(ip, error, _RET_IP_);
+	return error;
+}
+
+/*
+ * Free leftover CoW reservations that didn't get cleaned out.
+ */
+int
+xfs_reflink_recover_cow(
+	struct xfs_mount	*mp)
+{
+	xfs_agnumber_t		agno;
+	int			error = 0;
+
+	if (!xfs_sb_version_hasreflink(&mp->m_sb))
+		return 0;
+
+	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
+		error = xfs_refcount_recover_cow_leftovers(mp, agno);
+		if (error)
+			break;
+	}
+
 	return error;
 }

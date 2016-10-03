@@ -42,5 +42,6 @@ extern int xfs_reflink_cancel_cow_range(struct xfs_inode *ip, xfs_off_t offset,
 		xfs_off_t count);
 extern int xfs_reflink_end_cow(struct xfs_inode *ip, xfs_off_t offset,
 		xfs_off_t count);
+extern int xfs_reflink_recover_cow(struct xfs_mount *mp);
 
 #endif /* __XFS_REFLINK_H */
