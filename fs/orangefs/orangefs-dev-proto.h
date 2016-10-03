@@ -41,6 +41,10 @@
 #define ORANGEFS_VFS_OP_FSYNC          0xFF00EE01
 #define ORANGEFS_VFS_OP_FSKEY             0xFF00EE02
 #define ORANGEFS_VFS_OP_READDIRPLUS       0xFF00EE03
+#define ORANGEFS_VFS_OP_FEATURES	0xFF00EE05 /* 2.9.6 */
+
+/* features is a 64-bit unsigned bitmask */
+#define ORANGEFS_FEATURE_READAHEAD 1
 
 /*
  * Misc constants. Please retain them as multiples of 8!

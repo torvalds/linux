@@ -97,6 +97,8 @@ char *get_opname_string(struct orangefs_kernel_op_s *new_op)
 			return "OP_FSYNC";
 		else if (type == ORANGEFS_VFS_OP_FSKEY)
 			return "OP_FSKEY";
+		else if (type == ORANGEFS_VFS_OP_FEATURES)
+			return "OP_FEATURES";
 	}
 	return "OP_UNKNOWN?";
 }

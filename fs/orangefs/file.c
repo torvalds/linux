@@ -412,7 +412,7 @@ ssize_t orangefs_inode_read(struct inode *inode,
 	size_t bufmap_size;
 	ssize_t ret = -EINVAL;
 
-	g_orangefs_stats.reads++;
+	orangefs_stats.reads++;
 
 	bufmap_size = orangefs_bufmap_size_query();
 	if (count > bufmap_size) {
@@ -453,7 +453,7 @@ static ssize_t orangefs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter
 
 	gossip_debug(GOSSIP_FILE_DEBUG, "orangefs_file_read_iter\n");
 
-	g_orangefs_stats.reads++;
+	orangefs_stats.reads++;
 
 	rc = do_readv_writev(ORANGEFS_IO_READ, file, &pos, iter);
 	iocb->ki_pos = pos;
@@ -514,7 +514,7 @@ static ssize_t orangefs_file_write_iter(struct kiocb *iocb, struct iov_iter *ite
 	}
 
 	iocb->ki_pos = pos;
-	g_orangefs_stats.writes++;
+	orangefs_stats.writes++;
 
 out:
 
@@ -624,11 +624,14 @@ static int orangefs_file_release(struct inode *inode, struct file *file)
 	if (file->f_path.dentry->d_inode &&
 	    file->f_path.dentry->d_inode->i_mapping &&
 	    mapping_nrpages(&file->f_path.dentry->d_inode->i_data)) {
-		gossip_debug(GOSSIP_INODE_DEBUG,
-		    "calling flush_racache on %pU\n",
-		    get_khandle_from_ino(inode));
-		flush_racache(inode);
-		gossip_debug(GOSSIP_INODE_DEBUG, "flush_racache finished\n");
+		if (orangefs_features & ORANGEFS_FEATURE_READAHEAD) {
+			gossip_debug(GOSSIP_INODE_DEBUG,
+			    "calling flush_racache on %pU\n",
+			    get_khandle_from_ino(inode));
+			flush_racache(inode);
+			gossip_debug(GOSSIP_INODE_DEBUG,
+			    "flush_racache finished\n");
+		}
 		truncate_inode_pages(file->f_path.dentry->d_inode->i_mapping,
 				     0);
 	}
