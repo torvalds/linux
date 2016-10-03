@@ -943,7 +943,7 @@ static void xd_set_unused_block(struct rtsx_chip *chip, u32 phy_blk)
 	}
 	zone = &xd_card->zone[zone_no];
 
-	if (zone->free_table == NULL) {
+	if (!zone->free_table) {
 		if (xd_build_l2p_tbl(chip, zone_no) != STATUS_SUCCESS)
 			return;
 	}
@@ -1436,7 +1436,7 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 
 	dev_dbg(rtsx_dev(chip), "xd_build_l2p_tbl: %d\n", zone_no);
 
-	if (xd_card->zone == NULL) {
+	if (!xd_card->zone) {
 		retval = xd_init_l2p_tbl(chip);
 		if (retval != STATUS_SUCCESS)
 			return retval;
@@ -1450,7 +1450,7 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 
 	zone = &xd_card->zone[zone_no];
 
-	if (zone->l2p_table == NULL) {
+	if (!zone->l2p_table) {
 		zone->l2p_table = vmalloc(2000);
 		if (!zone->l2p_table) {
 			rtsx_trace(chip);
@@ -1459,7 +1459,7 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 	}
 	memset((u8 *)(zone->l2p_table), 0xff, 2000);
 
-	if (zone->free_table == NULL) {
+	if (!zone->free_table) {
 		zone->free_table = vmalloc(XD_FREE_TABLE_CNT * 2);
 		if (!zone->free_table) {
 			rtsx_trace(chip);
@@ -2253,7 +2253,7 @@ void xd_free_l2p_tbl(struct rtsx_chip *chip)
 	struct xd_info *xd_card = &chip->xd_card;
 	int i = 0;
 
-	if (xd_card->zone != NULL) {
+	if (xd_card->zone) {
 		for (i = 0; i < xd_card->zone_cnt; i++) {
 			vfree(xd_card->zone[i].l2p_table);
 			xd_card->zone[i].l2p_table = NULL;
