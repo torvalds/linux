@@ -719,6 +719,7 @@ static int tilcdc_pdev_remove(struct platform_device *pdev)
 
 static struct of_device_id tilcdc_of_match[] = {
 		{ .compatible = "ti,am33xx-tilcdc", },
+		{ .compatible = "ti,da850-tilcdc", },
 		{ },
 };
 MODULE_DEVICE_TABLE(of, tilcdc_of_match);
