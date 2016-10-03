@@ -33,9 +33,9 @@
 #include "clk-div6.h"
 
 #ifdef DEBUG
-#define WARN_DEBUG(x)	do { } while (0)
-#else
 #define WARN_DEBUG(x)	WARN_ON(x)
+#else
+#define WARN_DEBUG(x)	do { } while (0)
 #endif
 
 
