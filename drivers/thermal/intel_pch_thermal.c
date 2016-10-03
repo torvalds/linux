@@ -20,6 +20,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/acpi.h>
 #include <linux/thermal.h>
 #include <linux/pm.h>
 
@@ -66,8 +67,52 @@ struct pch_thermal_device {
 	unsigned long crt_temp;
 	int hot_trip_id;
 	unsigned long hot_temp;
+	int psv_trip_id;
+	unsigned long psv_temp;
 	bool bios_enabled;
 };
+
+#ifdef CONFIG_ACPI
+
+/*
+ * On some platforms, there is a companion ACPI device, which adds
+ * passive trip temperature using _PSV method. There is no specific
+ * passive temperature setting in MMIO interface of this PCI device.
+ */
+static void pch_wpt_add_acpi_psv_trip(struct pch_thermal_device *ptd,
+				      int *nr_trips)
+{
+	struct acpi_device *adev;
+
+	ptd->psv_trip_id = -1;
+
+	adev = ACPI_COMPANION(&ptd->pdev->dev);
+	if (adev) {
+		unsigned long long r;
+		acpi_status status;
+
+		status = acpi_evaluate_integer(adev->handle, "_PSV", NULL,
+					       &r);
+		if (ACPI_SUCCESS(status)) {
+			unsigned long trip_temp;
+
+			trip_temp = DECI_KELVIN_TO_MILLICELSIUS(r);
+			if (trip_temp) {
+				ptd->psv_temp = trip_temp;
+				ptd->psv_trip_id = *nr_trips;
+				++(*nr_trips);
+			}
+		}
+	}
+}
+#else
+static void pch_wpt_add_acpi_psv_trip(struct pch_thermal_device *ptd,
+				      int *nr_trips)
+{
+	ptd->psv_trip_id = -1;
+
+}
+#endif
 
 static int pch_wpt_init(struct pch_thermal_device *ptd, int *nr_trips)
 {
@@ -118,6 +163,8 @@ read_trips:
 		ptd->hot_trip_id = *nr_trips;
 		++(*nr_trips);
 	}
+
+	pch_wpt_add_acpi_psv_trip(ptd, nr_trips);
 
 	return 0;
 }
@@ -194,6 +241,8 @@ static int pch_get_trip_type(struct thermal_zone_device *tzd, int trip,
 		*type = THERMAL_TRIP_CRITICAL;
 	else if (ptd->hot_trip_id == trip)
 		*type = THERMAL_TRIP_HOT;
+	else if (ptd->psv_trip_id == trip)
+		*type = THERMAL_TRIP_PASSIVE;
 	else
 		return -EINVAL;
 
@@ -208,6 +257,8 @@ static int pch_get_trip_temp(struct thermal_zone_device *tzd, int trip, int *tem
 		*temp = ptd->crt_temp;
 	else if (ptd->hot_trip_id == trip)
 		*temp = ptd->hot_temp;
+	else if (ptd->psv_trip_id == trip)
+		*temp = ptd->psv_temp;
 	else
 		return -EINVAL;
 
