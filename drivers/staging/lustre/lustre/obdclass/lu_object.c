@@ -1663,6 +1663,9 @@ void lu_context_exit(struct lu_context *ctx)
 	ctx->lc_state = LCS_LEFT;
 	if (ctx->lc_tags & LCT_HAS_EXIT && ctx->lc_value) {
 		for (i = 0; i < ARRAY_SIZE(lu_keys); ++i) {
+			/* could race with key quiescency */
+			if (ctx->lc_tags & LCT_REMEMBER)
+				spin_lock(&lu_keys_guard);
 			if (ctx->lc_value[i]) {
 				struct lu_context_key *key;
 
@@ -1671,6 +1674,8 @@ void lu_context_exit(struct lu_context *ctx)
 					key->lct_exit(ctx,
 						      key, ctx->lc_value[i]);
 			}
+			if (ctx->lc_tags & LCT_REMEMBER)
+				spin_unlock(&lu_keys_guard);
 		}
 	}
 }
