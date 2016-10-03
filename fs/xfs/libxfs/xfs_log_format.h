@@ -114,7 +114,9 @@ static inline uint xlog_get_cycle(char *ptr)
 #define XLOG_REG_TYPE_RUD_FORMAT	22
 #define XLOG_REG_TYPE_CUI_FORMAT	23
 #define XLOG_REG_TYPE_CUD_FORMAT	24
-#define XLOG_REG_TYPE_MAX		24
+#define XLOG_REG_TYPE_BUI_FORMAT	25
+#define XLOG_REG_TYPE_BUD_FORMAT	26
+#define XLOG_REG_TYPE_MAX		26
 
 /*
  * Flags to log operation header
@@ -235,6 +237,8 @@ typedef struct xfs_trans_header {
 #define	XFS_LI_RUD		0x1241
 #define	XFS_LI_CUI		0x1242	/* refcount update intent */
 #define	XFS_LI_CUD		0x1243
+#define	XFS_LI_BUI		0x1244	/* bmbt update intent */
+#define	XFS_LI_BUD		0x1245
 
 #define XFS_LI_TYPE_DESC \
 	{ XFS_LI_EFI,		"XFS_LI_EFI" }, \
@@ -248,7 +252,9 @@ typedef struct xfs_trans_header {
 	{ XFS_LI_RUI,		"XFS_LI_RUI" }, \
 	{ XFS_LI_RUD,		"XFS_LI_RUD" }, \
 	{ XFS_LI_CUI,		"XFS_LI_CUI" }, \
-	{ XFS_LI_CUD,		"XFS_LI_CUD" }
+	{ XFS_LI_CUD,		"XFS_LI_CUD" }, \
+	{ XFS_LI_BUI,		"XFS_LI_BUI" }, \
+	{ XFS_LI_BUD,		"XFS_LI_BUD" }
 
 /*
  * Inode Log Item Format definitions.
@@ -722,6 +728,54 @@ struct xfs_cud_log_format {
 	__uint16_t		cud_size;	/* size of this item */
 	__uint32_t		__pad;
 	__uint64_t		cud_cui_id;	/* id of corresponding cui */
+};
+
+/*
+ * BUI/BUD (inode block mapping) log format definitions
+ */
+
+/* bmbt me_flags: upper bits are flags, lower byte is type code */
+/* Type codes are taken directly from enum xfs_bmap_intent_type. */
+#define XFS_BMAP_EXTENT_TYPE_MASK	0xFF
+
+#define XFS_BMAP_EXTENT_ATTR_FORK	(1U << 31)
+#define XFS_BMAP_EXTENT_UNWRITTEN	(1U << 30)
+
+#define XFS_BMAP_EXTENT_FLAGS		(XFS_BMAP_EXTENT_TYPE_MASK | \
+					 XFS_BMAP_EXTENT_ATTR_FORK | \
+					 XFS_BMAP_EXTENT_UNWRITTEN)
+
+/*
+ * This is the structure used to lay out an bui log item in the
+ * log.  The bui_extents field is a variable size array whose
+ * size is given by bui_nextents.
+ */
+struct xfs_bui_log_format {
+	__uint16_t		bui_type;	/* bui log item type */
+	__uint16_t		bui_size;	/* size of this item */
+	__uint32_t		bui_nextents;	/* # extents to free */
+	__uint64_t		bui_id;		/* bui identifier */
+	struct xfs_map_extent	bui_extents[];	/* array of extents to bmap */
+};
+
+static inline size_t
+xfs_bui_log_format_sizeof(
+	unsigned int		nr)
+{
+	return sizeof(struct xfs_bui_log_format) +
+			nr * sizeof(struct xfs_map_extent);
+}
+
+/*
+ * This is the structure used to lay out an bud log item in the
+ * log.  The bud_extents array is a variable size array whose
+ * size is given by bud_nextents;
+ */
+struct xfs_bud_log_format {
+	__uint16_t		bud_type;	/* bud log item type */
+	__uint16_t		bud_size;	/* size of this item */
+	__uint32_t		__pad;
+	__uint64_t		bud_bui_id;	/* id of corresponding bui */
 };
 
 /*

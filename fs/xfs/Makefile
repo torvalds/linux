@@ -102,6 +102,7 @@ xfs-y				+= xfs_aops.o \
 # low-level transaction/log code
 xfs-y				+= xfs_log.o \
 				   xfs_log_cil.o \
+				   xfs_bmap_item.o \
 				   xfs_buf_item.o \
 				   xfs_extfree_item.o \
 				   xfs_icreate_item.o \
