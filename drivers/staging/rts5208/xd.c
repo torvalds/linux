@@ -1489,7 +1489,8 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 	dev_dbg(rtsx_dev(chip), "start block 0x%x, end block 0x%x\n",
 		start, end);
 
-	zone->set_index = zone->get_index = 0;
+	zone->set_index = 0;
+	zone->get_index = 0;
 	zone->unused_blk_cnt = 0;
 
 	for (i = start; i < end; i++) {
