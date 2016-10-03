@@ -582,8 +582,13 @@ xfs_getbmap(
 		if (ip->i_cformat != XFS_DINODE_FMT_EXTENTS)
 			return -EINVAL;
 
-		prealloced = 0;
-		fixlen = XFS_ISIZE(ip);
+		if (xfs_get_cowextsz_hint(ip)) {
+			prealloced = 1;
+			fixlen = mp->m_super->s_maxbytes;
+		} else {
+			prealloced = 0;
+			fixlen = XFS_ISIZE(ip);
+		}
 		break;
 	default:
 		if (ip->i_d.di_format != XFS_DINODE_FMT_EXTENTS &&
