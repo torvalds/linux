@@ -73,6 +73,43 @@ static ssize_t max_rpcs_in_flight_store(struct kobject *kobj,
 }
 LUSTRE_RW_ATTR(max_rpcs_in_flight);
 
+static ssize_t max_mod_rpcs_in_flight_show(struct kobject *kobj,
+					   struct attribute *attr,
+					   char *buf)
+{
+	struct obd_device *dev = container_of(kobj, struct obd_device,
+					      obd_kobj);
+	u16 max;
+	int len;
+
+	max = dev->u.cli.cl_max_mod_rpcs_in_flight;
+	len = sprintf(buf, "%hu\n", max);
+
+	return len;
+}
+
+static ssize_t max_mod_rpcs_in_flight_store(struct kobject *kobj,
+					    struct attribute *attr,
+					    const char *buffer,
+					    size_t count)
+{
+	struct obd_device *dev = container_of(kobj, struct obd_device,
+					      obd_kobj);
+	u16 val;
+	int rc;
+
+	rc = kstrtou16(buffer, 10, &val);
+	if (rc)
+		return rc;
+
+	rc = obd_set_max_mod_rpcs_in_flight(&dev->u.cli, val);
+	if (rc)
+		count = rc;
+
+	return count;
+}
+LUSTRE_RW_ATTR(max_mod_rpcs_in_flight);
+
 LPROC_SEQ_FOPS_WR_ONLY(mdc, ping);
 
 LPROC_SEQ_FOPS_RO_TYPE(mdc, connect_flags);
@@ -117,6 +154,7 @@ static struct lprocfs_vars lprocfs_mdc_obd_vars[] = {
 
 static struct attribute *mdc_attrs[] = {
 	&lustre_attr_max_rpcs_in_flight.attr,
+	&lustre_attr_max_mod_rpcs_in_flight.attr,
 	&lustre_attr_max_pages_per_rpc.attr,
 	NULL,
 };

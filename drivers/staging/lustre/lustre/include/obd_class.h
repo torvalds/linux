@@ -100,6 +100,7 @@ int obd_get_request_slot(struct client_obd *cli);
 void obd_put_request_slot(struct client_obd *cli);
 __u32 obd_get_max_rpcs_in_flight(struct client_obd *cli);
 int obd_set_max_rpcs_in_flight(struct client_obd *cli, __u32 max);
+int obd_set_max_mod_rpcs_in_flight(struct client_obd *cli, u16 max);
 
 struct llog_handle;
 struct llog_rec_hdr;

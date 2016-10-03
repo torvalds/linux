@@ -318,6 +318,13 @@ struct client_obd {
 	struct mdc_rpc_lock     *cl_rpc_lock;
 	struct mdc_rpc_lock     *cl_close_lock;
 
+	/* modify rpcs in flight
+	 * currently used for metadata only
+	 */
+	spinlock_t		 cl_mod_rpcs_lock;
+	u16			 cl_max_mod_rpcs_in_flight;
+
+
 	/* mgc datastruct */
 	atomic_t	     cl_mgc_refcount;
 	struct obd_export       *cl_mgc_mgsexp;
