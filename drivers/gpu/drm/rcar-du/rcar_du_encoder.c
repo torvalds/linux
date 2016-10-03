@@ -98,6 +98,8 @@ static void rcar_du_encoder_mode_set(struct drm_encoder *encoder,
 				     struct drm_connector_state *conn_state)
 {
 	struct rcar_du_encoder *renc = to_rcar_encoder(encoder);
+	struct drm_display_info *info = &conn_state->connector->display_info;
+	enum rcar_lvds_mode mode;
 
 	rcar_du_crtc_route_output(crtc_state->crtc, renc->output);
 
@@ -111,6 +113,31 @@ static void rcar_du_encoder_mode_set(struct drm_encoder *encoder,
 	}
 
 	renc->connector = to_rcar_connector(conn_state->connector);
+
+	if (!info->num_bus_formats || !info->bus_formats) {
+		dev_err(encoder->dev->dev, "no LVDS bus format reported\n");
+		return;
+	}
+
+	switch (info->bus_formats[0]) {
+	case MEDIA_BUS_FMT_RGB666_1X7X3_SPWG:
+	case MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA:
+		mode = RCAR_LVDS_MODE_JEIDA;
+		break;
+	case MEDIA_BUS_FMT_RGB888_1X7X4_SPWG:
+		mode = RCAR_LVDS_MODE_VESA;
+		break;
+	default:
+		dev_err(encoder->dev->dev,
+			"unsupported LVDS bus format 0x%04x\n",
+			info->bus_formats[0]);
+		return;
+	}
+
+	if (info->bus_flags & DRM_BUS_FLAG_DATA_LSB_TO_MSB)
+		mode |= RCAR_LVDS_MODE_MIRROR;
+
+	rcar_du_lvdsenc_set_mode(renc->lvds, mode);
 }
 
 static const struct drm_encoder_helper_funcs encoder_helper_funcs = {
