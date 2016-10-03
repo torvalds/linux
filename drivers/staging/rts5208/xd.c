@@ -1454,7 +1454,7 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 		zone->l2p_table = vmalloc(2000);
 		if (!zone->l2p_table) {
 			rtsx_trace(chip);
-			goto Build_Fail;
+			goto build_fail;
 		}
 	}
 	memset((u8 *)(zone->l2p_table), 0xff, 2000);
@@ -1463,7 +1463,7 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 		zone->free_table = vmalloc(XD_FREE_TABLE_CNT * 2);
 		if (!zone->free_table) {
 			rtsx_trace(chip);
-			goto Build_Fail;
+			goto build_fail;
 		}
 	}
 	memset((u8 *)(zone->free_table), 0xff, XD_FREE_TABLE_CNT * 2);
@@ -1604,7 +1604,7 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 
 	return STATUS_SUCCESS;
 
-Build_Fail:
+build_fail:
 	vfree(zone->l2p_table);
 	zone->l2p_table = NULL;
 	vfree(zone->free_table);
@@ -1646,7 +1646,7 @@ static int xd_read_multiple_pages(struct rtsx_chip *chip, u32 phy_blk,
 	int zone_no, retval, i;
 
 	if (start_page > end_page)
-		goto Status_Fail;
+		goto status_fail;
 
 	page_cnt = end_page - start_page;
 	zone_no = (int)(log_blk / 1000);
@@ -1662,7 +1662,7 @@ static int xd_read_multiple_pages(struct rtsx_chip *chip, u32 phy_blk,
 
 			if (detect_card_cd(chip, XD_CARD) != STATUS_SUCCESS) {
 				xd_set_err_code(chip, XD_NO_CARD);
-				goto Status_Fail;
+				goto status_fail;
 			}
 		}
 	}
@@ -1698,16 +1698,16 @@ static int xd_read_multiple_pages(struct rtsx_chip *chip, u32 phy_blk,
 
 		if (retval == -ETIMEDOUT) {
 			xd_set_err_code(chip, XD_TO_ERROR);
-			goto Status_Fail;
+			goto status_fail;
 		} else {
 			rtsx_trace(chip);
-			goto Fail;
+			goto fail;
 		}
 	}
 
 	return STATUS_SUCCESS;
 
-Fail:
+fail:
 	retval = rtsx_read_register(chip, XD_PAGE_STATUS, &reg_val);
 	if (retval) {
 		rtsx_trace(chip);
@@ -1731,7 +1731,7 @@ Fail:
 
 		if (detect_card_cd(chip, XD_CARD) != STATUS_SUCCESS) {
 			xd_set_err_code(chip, XD_NO_CARD);
-			goto Status_Fail;
+			goto status_fail;
 		}
 
 		xd_set_err_code(chip, XD_ECC_ERROR);
@@ -1739,7 +1739,7 @@ Fail:
 		new_blk = xd_get_unused_block(chip, zone_no);
 		if (new_blk == NO_NEW_BLK) {
 			XD_CLR_BAD_OLDBLK(xd_card);
-			goto Status_Fail;
+			goto status_fail;
 		}
 
 		retval = xd_copy_page(chip, phy_blk, new_blk, 0,
@@ -1753,7 +1753,7 @@ Fail:
 				XD_CLR_BAD_NEWBLK(xd_card);
 			}
 			XD_CLR_BAD_OLDBLK(xd_card);
-			goto Status_Fail;
+			goto status_fail;
 		}
 		xd_set_l2p_tbl(chip, zone_no, log_off, (u16)(new_blk & 0x3FF));
 		xd_erase_block(chip, phy_blk);
@@ -1761,7 +1761,7 @@ Fail:
 		XD_CLR_BAD_OLDBLK(xd_card);
 	}
 
-Status_Fail:
+status_fail:
 	rtsx_trace(chip);
 	return STATUS_FAIL;
 }
@@ -1861,7 +1861,7 @@ static int xd_write_multiple_pages(struct rtsx_chip *chip, u32 old_blk,
 		__func__, old_blk, new_blk, log_blk);
 
 	if (start_page > end_page)
-		goto Status_Fail;
+		goto status_fail;
 
 	page_cnt = end_page - start_page;
 	zone_no = (int)(log_blk / 1000);
@@ -1871,7 +1871,7 @@ static int xd_write_multiple_pages(struct rtsx_chip *chip, u32 old_blk,
 
 	retval = xd_send_cmd(chip, READ1_1);
 	if (retval != STATUS_SUCCESS)
-		goto Status_Fail;
+		goto status_fail;
 
 	rtsx_init_cmd(chip);
 
@@ -1906,10 +1906,10 @@ static int xd_write_multiple_pages(struct rtsx_chip *chip, u32 old_blk,
 
 		if (retval == -ETIMEDOUT) {
 			xd_set_err_code(chip, XD_TO_ERROR);
-			goto Status_Fail;
+			goto status_fail;
 		} else {
 			rtsx_trace(chip);
-			goto Fail;
+			goto fail;
 		}
 	}
 
@@ -1935,7 +1935,7 @@ static int xd_write_multiple_pages(struct rtsx_chip *chip, u32 old_blk,
 
 	return STATUS_SUCCESS;
 
-Fail:
+fail:
 	retval = rtsx_read_register(chip, XD_DAT, &reg_val);
 	if (retval) {
 		rtsx_trace(chip);
@@ -1946,7 +1946,7 @@ Fail:
 		xd_mark_bad_block(chip, new_blk);
 	}
 
-Status_Fail:
+status_fail:
 	rtsx_trace(chip);
 	return STATUS_FAIL;
 }
