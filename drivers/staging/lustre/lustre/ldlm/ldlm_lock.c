@@ -512,7 +512,6 @@ int ldlm_lock_change_resource(struct ldlm_namespace *ns, struct ldlm_lock *lock,
 
 	return 0;
 }
-EXPORT_SYMBOL(ldlm_lock_change_resource);
 
 /** \defgroup ldlm_handles LDLM HANDLES
  * Ways to get hold of locks without any addresses.
@@ -595,7 +594,6 @@ void ldlm_lock2desc(struct ldlm_lock *lock, struct ldlm_lock_desc *desc)
 				    &lock->l_policy_data,
 				    &desc->l_policy_data);
 }
-EXPORT_SYMBOL(ldlm_lock2desc);
 
 /**
  * Add a lock to list of conflicting locks to send AST to.
@@ -1147,7 +1145,6 @@ void ldlm_lock_fail_match_locked(struct ldlm_lock *lock)
 		wake_up_all(&lock->l_waitq);
 	}
 }
-EXPORT_SYMBOL(ldlm_lock_fail_match_locked);
 
 /**
  * Mark lock as "matchable" by OST.

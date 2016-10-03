@@ -1022,7 +1022,6 @@ int ldlm_cli_update_pool(struct ptlrpc_request *req)
 
 	return 0;
 }
-EXPORT_SYMBOL(ldlm_cli_update_pool);
 
 /**
  * Client side lock cancel.
@@ -1125,7 +1124,6 @@ int ldlm_cli_cancel_list_local(struct list_head *cancels, int count,
 
 	return count;
 }
-EXPORT_SYMBOL(ldlm_cli_cancel_list_local);
 
 /**
  * Cancel as many locks as possible w/o sending any RPCs (e.g. to write back
@@ -2048,4 +2046,3 @@ int ldlm_replay_locks(struct obd_import *imp)
 
 	return rc;
 }
-EXPORT_SYMBOL(ldlm_replay_locks);

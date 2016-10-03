@@ -858,7 +858,6 @@ int ldlm_get_ref(void)
 
 	return rc;
 }
-EXPORT_SYMBOL(ldlm_get_ref);
 
 void ldlm_put_ref(void)
 {
@@ -875,7 +874,6 @@ void ldlm_put_ref(void)
 	}
 	mutex_unlock(&ldlm_ref_mutex);
 }
-EXPORT_SYMBOL(ldlm_put_ref);
 
 static ssize_t cancel_unused_locks_before_replay_show(struct kobject *kobj,
 						      struct attribute *attr,

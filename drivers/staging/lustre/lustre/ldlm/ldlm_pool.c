@@ -684,7 +684,6 @@ int ldlm_pool_init(struct ldlm_pool *pl, struct ldlm_namespace *ns,
 
 	return rc;
 }
-EXPORT_SYMBOL(ldlm_pool_init);
 
 void ldlm_pool_fini(struct ldlm_pool *pl)
 {
@@ -698,7 +697,6 @@ void ldlm_pool_fini(struct ldlm_pool *pl)
 	 */
 	POISON(pl, 0x5a, sizeof(*pl));
 }
-EXPORT_SYMBOL(ldlm_pool_fini);
 
 /**
  * Add new taken ldlm lock \a lock into pool \a pl accounting.
@@ -724,7 +722,6 @@ void ldlm_pool_add(struct ldlm_pool *pl, struct ldlm_lock *lock)
 	 * with too long call paths.
 	 */
 }
-EXPORT_SYMBOL(ldlm_pool_add);
 
 /**
  * Remove ldlm lock \a lock from pool \a pl accounting.
@@ -743,7 +740,6 @@ void ldlm_pool_del(struct ldlm_pool *pl, struct ldlm_lock *lock)
 
 	lprocfs_counter_incr(pl->pl_stats, LDLM_POOL_CANCEL_STAT);
 }
-EXPORT_SYMBOL(ldlm_pool_del);
 
 /**
  * Returns current \a pl SLV.
@@ -1095,7 +1091,6 @@ int ldlm_pools_init(void)
 
 	return rc;
 }
-EXPORT_SYMBOL(ldlm_pools_init);
 
 void ldlm_pools_fini(void)
 {
@@ -1104,4 +1099,3 @@ void ldlm_pools_fini(void)
 
 	ldlm_pools_thread_stop();
 }
-EXPORT_SYMBOL(ldlm_pools_fini);
