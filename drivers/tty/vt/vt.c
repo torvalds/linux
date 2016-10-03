@@ -4287,7 +4287,7 @@ void vc_scrolldelta_helper(struct vc_data *c, int lines,
 	ptrdiff_t vorigin = (void *)c->vc_visible_origin - base;
 	ptrdiff_t origin = (void *)c->vc_origin - base;
 	int margin = c->vc_size_row * 4;
-	int ul, we, p, st;
+	int from, wrap, from_off, avail;
 
 	/* Turn scrollback off */
 	if (!lines) {
@@ -4297,25 +4297,25 @@ void vc_scrolldelta_helper(struct vc_data *c, int lines,
 
 	/* Do we have already enough to allow jumping from 0 to the end? */
 	if (rolled_over > scr_end + margin) {
-		ul = scr_end;
-		we = rolled_over + c->vc_size_row;
+		from = scr_end;
+		wrap = rolled_over + c->vc_size_row;
 	} else {
-		ul = 0;
-		we = size;
+		from = 0;
+		wrap = size;
 	}
 
-	p = (vorigin - ul + we) % we + lines * c->vc_size_row;
-	st = (origin - ul + we) % we;
+	from_off = (vorigin - from + wrap) % wrap + lines * c->vc_size_row;
+	avail = (origin - from + wrap) % wrap;
 
 	/* Only a little piece would be left? Show all incl. the piece! */
-	if (st < 2 * margin)
+	if (avail < 2 * margin)
 		margin = 0;
-	if (p < margin)
-		p = 0;
-	if (p > st - margin)
-		p = st;
+	if (from_off < margin)
+		from_off = 0;
+	if (from_off > avail - margin)
+		from_off = avail;
 
-	c->vc_visible_origin = ubase + (p + ul) % we;
+	c->vc_visible_origin = ubase + (from + from_off) % wrap;
 }
 EXPORT_SYMBOL_GPL(vc_scrolldelta_helper);
 
