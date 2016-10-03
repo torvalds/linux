@@ -703,8 +703,10 @@ static void ath6kl_sdio_cleanup_scatter(struct ath6kl *ar)
 		 * ath6kl_hif_rw_comp_handler() with status -ECANCELED so
 		 * that the packet is properly freed?
 		 */
-		if (s_req->busrequest)
+		if (s_req->busrequest) {
+			s_req->busrequest->scat_req = 0;
 			ath6kl_sdio_free_bus_req(ar_sdio, s_req->busrequest);
+		}
 		kfree(s_req->virt_dma_buf);
 		kfree(s_req->sgentries);
 		kfree(s_req);
