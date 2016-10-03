@@ -75,6 +75,8 @@ struct ath6kl_sdio {
 #define CMD53_ARG_FIXED_ADDRESS 0
 #define CMD53_ARG_INCR_ADDRESS  1
 
+static int ath6kl_sdio_config(struct ath6kl *ar);
+
 static inline struct ath6kl_sdio *ath6kl_sdio_priv(struct ath6kl *ar)
 {
 	return ar->hif_priv;
@@ -526,8 +528,15 @@ static int ath6kl_sdio_power_on(struct ath6kl *ar)
 	 */
 	msleep(10);
 
+	ret = ath6kl_sdio_config(ar);
+	if (ret) {
+		ath6kl_err("Failed to config sdio: %d\n", ret);
+		goto out;
+	}
+
 	ar_sdio->is_disabled = false;
 
+out:
 	return ret;
 }
 
