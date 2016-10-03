@@ -551,9 +551,16 @@ static int vvp_io_setattr_lock(const struct lu_env *env,
 		if (new_size == 0)
 			enqflags = CEF_DISCARD_DATA;
 	} else {
-		if ((io->u.ci_setattr.sa_attr.lvb_mtime >=
-		     io->u.ci_setattr.sa_attr.lvb_ctime) ||
-		    (io->u.ci_setattr.sa_attr.lvb_atime >=
+		unsigned int valid = io->u.ci_setattr.sa_valid;
+
+		if (!(valid & TIMES_SET_FLAGS))
+			return 0;
+
+		if ((!(valid & ATTR_MTIME) ||
+		     io->u.ci_setattr.sa_attr.lvb_mtime >=
+		     io->u.ci_setattr.sa_attr.lvb_ctime) &&
+		    (!(valid & ATTR_ATIME) ||
+		     io->u.ci_setattr.sa_attr.lvb_atime >=
 		     io->u.ci_setattr.sa_attr.lvb_ctime))
 			return 0;
 		new_size = 0;
@@ -624,7 +631,7 @@ static int vvp_io_setattr_start(const struct lu_env *env,
 	if (cl_io_is_trunc(io))
 		result = vvp_io_setattr_trunc(env, ios, inode,
 					io->u.ci_setattr.sa_attr.lvb_size);
-	if (result == 0)
+	if (!result && io->u.ci_setattr.sa_valid & TIMES_SET_FLAGS)
 		result = vvp_io_setattr_time(env, ios);
 	return result;
 }

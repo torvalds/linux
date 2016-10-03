@@ -1336,7 +1336,8 @@ int ll_page_sync_io(const struct lu_env *env, struct cl_io *io,
 int ll_getparent(struct file *file, struct getparent __user *arg);
 
 /* lcommon_cl.c */
-int cl_setattr_ost(struct inode *inode, const struct iattr *attr);
+int cl_setattr_ost(struct cl_object *obj, const struct iattr *attr,
+		   unsigned int attr_flags);
 
 extern struct lu_env *cl_inode_fini_env;
 extern int cl_inode_fini_refcheck;

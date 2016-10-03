@@ -1047,87 +1047,6 @@ out:
 	return rc ? rc : err;
 }
 
-static int lov_setattr_interpret(struct ptlrpc_request_set *rqset,
-				 void *data, int rc)
-{
-	struct lov_request_set *lovset = (struct lov_request_set *)data;
-	int err;
-
-	if (rc)
-		atomic_set(&lovset->set_completes, 0);
-	err = lov_fini_setattr_set(lovset);
-	return rc ? rc : err;
-}
-
-/* If @oti is given, the request goes from MDS and responses from OSTs are not
- * needed. Otherwise, a client is waiting for responses.
- */
-static int lov_setattr_async(struct obd_export *exp, struct obd_info *oinfo,
-			     struct obd_trans_info *oti,
-			     struct ptlrpc_request_set *rqset)
-{
-	struct lov_request_set *set;
-	struct lov_request *req;
-	struct lov_obd *lov;
-	int rc = 0;
-
-	LASSERT(oinfo);
-	ASSERT_LSM_MAGIC(oinfo->oi_md);
-	if (oinfo->oi_oa->o_valid & OBD_MD_FLCOOKIE) {
-		LASSERT(oti);
-		LASSERT(oti->oti_logcookies);
-	}
-
-	if (!exp || !exp->exp_obd)
-		return -ENODEV;
-
-	lov = &exp->exp_obd->u.lov;
-	rc = lov_prep_setattr_set(exp, oinfo, oti, &set);
-	if (rc)
-		return rc;
-
-	CDEBUG(D_INFO, "objid "DOSTID": %ux%u byte stripes\n",
-	       POSTID(&oinfo->oi_md->lsm_oi),
-	       oinfo->oi_md->lsm_stripe_count,
-	       oinfo->oi_md->lsm_stripe_size);
-
-	list_for_each_entry(req, &set->set_list, rq_link) {
-		if (oinfo->oi_oa->o_valid & OBD_MD_FLCOOKIE)
-			oti->oti_logcookies = set->set_cookies + req->rq_stripe;
-
-		CDEBUG(D_INFO, "objid " DOSTID "[%d] has subobj " DOSTID " at idx%u\n",
-		       POSTID(&oinfo->oi_oa->o_oi), req->rq_stripe,
-		       POSTID(&req->rq_oi.oi_oa->o_oi), req->rq_idx);
-
-		rc = obd_setattr_async(lov->lov_tgts[req->rq_idx]->ltd_exp,
-				       &req->rq_oi, oti, rqset);
-		if (rc) {
-			CERROR("error: setattr objid "DOSTID" subobj"
-			       DOSTID" on OST idx %d: rc = %d\n",
-			       POSTID(&set->set_oi->oi_oa->o_oi),
-			       POSTID(&req->rq_oi.oi_oa->o_oi),
-			       req->rq_idx, rc);
-			break;
-		}
-	}
-
-	/* If we are not waiting for responses on async requests, return. */
-	if (rc || !rqset || list_empty(&rqset->set_requests)) {
-		int err;
-
-		if (rc)
-			atomic_set(&set->set_completes, 0);
-		err = lov_fini_setattr_set(set);
-		return rc ? rc : err;
-	}
-
-	LASSERT(!rqset->set_interpret);
-	rqset->set_interpret = lov_setattr_interpret;
-	rqset->set_arg = (void *)set;
-
-	return 0;
-}
-
 int lov_statfs_interpret(struct ptlrpc_request_set *rqset, void *data, int rc)
 {
 	struct lov_request_set *lovset = (struct lov_request_set *)data;
@@ -1613,7 +1532,6 @@ static struct obd_ops lov_obd_ops = {
 	.packmd         = lov_packmd,
 	.unpackmd       = lov_unpackmd,
 	.getattr_async  = lov_getattr_async,
-	.setattr_async  = lov_setattr_async,
 	.iocontrol      = lov_iocontrol,
 	.get_info       = lov_get_info,
 	.set_info_async = lov_set_info_async,

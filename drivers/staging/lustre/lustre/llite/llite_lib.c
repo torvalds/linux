@@ -1502,7 +1502,7 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 		 */
 		if (attr->ia_valid & ATTR_SIZE)
 			down_write(&lli->lli_trunc_sem);
-		rc = cl_setattr_ost(inode, attr);
+		rc = cl_setattr_ost(ll_i2info(inode)->lli_clob, attr, 0);
 		if (attr->ia_valid & ATTR_SIZE)
 			up_write(&lli->lli_trunc_sem);
 	}
@@ -1879,9 +1879,9 @@ int ll_iocontrol(struct inode *inode, struct file *file,
 		return put_user(flags, (int __user *)arg);
 	}
 	case FSFILT_IOC_SETFLAGS: {
-		struct lov_stripe_md *lsm;
-		struct obd_info oinfo = { };
 		struct md_op_data *op_data;
+		struct cl_object *obj;
+		struct iattr *attr;
 
 		if (get_user(flags, (int __user *)arg))
 			return -EFAULT;
@@ -1901,30 +1901,17 @@ int ll_iocontrol(struct inode *inode, struct file *file,
 
 		inode->i_flags = ll_ext_to_inode_flags(flags);
 
-		lsm = ccc_inode_lsm_get(inode);
-		if (!lsm_has_objects(lsm)) {
-			ccc_inode_lsm_put(inode, lsm);
+		obj = ll_i2info(inode)->lli_clob;
+		if (!obj)
 			return 0;
-		}
 
-		oinfo.oi_oa = kmem_cache_zalloc(obdo_cachep, GFP_NOFS);
-		if (!oinfo.oi_oa) {
-			ccc_inode_lsm_put(inode, lsm);
+		attr = kzalloc(sizeof(*attr), GFP_NOFS);
+		if (!attr)
 			return -ENOMEM;
-		}
-		oinfo.oi_md = lsm;
-		oinfo.oi_oa->o_oi = lsm->lsm_oi;
-		oinfo.oi_oa->o_flags = flags;
-		oinfo.oi_oa->o_valid = OBD_MD_FLID | OBD_MD_FLFLAGS |
-				       OBD_MD_FLGROUP;
-		obdo_set_parent_fid(oinfo.oi_oa, &ll_i2info(inode)->lli_fid);
-		rc = obd_setattr_rqset(sbi->ll_dt_exp, &oinfo, NULL);
-		kmem_cache_free(obdo_cachep, oinfo.oi_oa);
-		ccc_inode_lsm_put(inode, lsm);
 
-		if (rc && rc != -EPERM && rc != -EACCES)
-			CERROR("osc_setattr_async fails: rc = %d\n", rc);
-
+		attr->ia_valid = ATTR_ATTR_FLAG;
+		rc = cl_setattr_ost(obj, attr, flags);
+		kfree(attr);
 		return rc;
 	}
 	default:

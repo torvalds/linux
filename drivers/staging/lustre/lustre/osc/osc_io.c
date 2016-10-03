@@ -524,11 +524,19 @@ static int osc_io_setattr_start(const struct lu_env *env,
 		oa->o_oi = loi->loi_oi;
 		obdo_set_parent_fid(oa, io->u.ci_setattr.sa_parent_fid);
 		oa->o_stripe_idx = io->u.ci_setattr.sa_stripe_index;
-		oa->o_mtime = attr->cat_mtime;
-		oa->o_atime = attr->cat_atime;
-		oa->o_ctime = attr->cat_ctime;
-		oa->o_valid |= OBD_MD_FLID | OBD_MD_FLGROUP | OBD_MD_FLATIME |
-			       OBD_MD_FLCTIME | OBD_MD_FLMTIME;
+		oa->o_valid |= OBD_MD_FLID | OBD_MD_FLGROUP;
+		if (ia_valid & ATTR_CTIME) {
+			oa->o_valid |= OBD_MD_FLCTIME;
+			oa->o_ctime = attr->cat_ctime;
+		}
+		if (ia_valid & ATTR_ATIME) {
+			oa->o_valid |= OBD_MD_FLATIME;
+			oa->o_atime = attr->cat_atime;
+		}
+		if (ia_valid & ATTR_MTIME) {
+			oa->o_valid |= OBD_MD_FLMTIME;
+			oa->o_mtime = attr->cat_mtime;
+		}
 		if (ia_valid & ATTR_SIZE) {
 			oa->o_size = size;
 			oa->o_blocks = OBD_OBJECT_EOF;
@@ -541,6 +549,10 @@ static int osc_io_setattr_start(const struct lu_env *env,
 		} else {
 			LASSERT(oio->oi_lockless == 0);
 		}
+		if (ia_valid & ATTR_ATTR_FLAG) {
+			oa->o_flags = io->u.ci_setattr.sa_attr_flags;
+			oa->o_valid |= OBD_MD_FLFLAGS;
+		}
 
 		oinfo.oi_oa = oa;
 		init_completion(&cbargs->opc_sync);
@@ -550,10 +562,9 @@ static int osc_io_setattr_start(const struct lu_env *env,
 						&oinfo, osc_async_upcall,
 						cbargs, PTLRPCD_SET);
 		else
-			result = osc_setattr_async_base(osc_export(cl2osc(obj)),
-							&oinfo, NULL,
-							osc_async_upcall,
-							cbargs, PTLRPCD_SET);
+			result = osc_setattr_async(osc_export(cl2osc(obj)),
+						   &oinfo, osc_async_upcall,
+						   cbargs, PTLRPCD_SET);
 		cbargs->opc_rpc_sent = result == 0;
 	}
 	return result;

@@ -749,45 +749,6 @@ static inline int obd_setattr(const struct lu_env *env, struct obd_export *exp,
 	return rc;
 }
 
-/* This performs all the requests set init/wait/destroy actions. */
-static inline int obd_setattr_rqset(struct obd_export *exp,
-				    struct obd_info *oinfo,
-				    struct obd_trans_info *oti)
-{
-	struct ptlrpc_request_set *set = NULL;
-	int rc;
-
-	EXP_CHECK_DT_OP(exp, setattr_async);
-	EXP_COUNTER_INCREMENT(exp, setattr_async);
-
-	set =  ptlrpc_prep_set();
-	if (!set)
-		return -ENOMEM;
-
-	rc = OBP(exp->exp_obd, setattr_async)(exp, oinfo, oti, set);
-	if (rc == 0)
-		rc = ptlrpc_set_wait(set);
-	ptlrpc_set_destroy(set);
-	return rc;
-}
-
-/* This adds all the requests into @set if @set != NULL, otherwise
- * all requests are sent asynchronously without waiting for response.
- */
-static inline int obd_setattr_async(struct obd_export *exp,
-				    struct obd_info *oinfo,
-				    struct obd_trans_info *oti,
-				    struct ptlrpc_request_set *set)
-{
-	int rc;
-
-	EXP_CHECK_DT_OP(exp, setattr_async);
-	EXP_COUNTER_INCREMENT(exp, setattr_async);
-
-	rc = OBP(exp->exp_obd, setattr_async)(exp, oinfo, oti, set);
-	return rc;
-}
-
 static inline int obd_add_conn(struct obd_import *imp, struct obd_uuid *uuid,
 			       int priority)
 {
