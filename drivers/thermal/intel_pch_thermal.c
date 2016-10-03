@@ -25,6 +25,8 @@
 #include <linux/pm.h>
 
 /* Intel PCH thermal Device IDs */
+#define PCH_THERMAL_DID_HSW_1	0x9C24 /* Haswell PCH */
+#define PCH_THERMAL_DID_HSW_2	0x8C24 /* Haswell PCH */
 #define PCH_THERMAL_DID_WPT	0x9CA4 /* Wildcat Point */
 #define PCH_THERMAL_DID_SKL	0x9D31 /* Skylake PCH */
 
@@ -293,6 +295,11 @@ static int intel_pch_thermal_probe(struct pci_dev *pdev,
 		ptd->ops = &pch_dev_ops_wpt;
 		dev_name = "pch_skylake";
 		break;
+	case PCH_THERMAL_DID_HSW_1:
+	case PCH_THERMAL_DID_HSW_2:
+		ptd->ops = &pch_dev_ops_wpt;
+		dev_name = "pch_haswell";
+		break;
 	default:
 		dev_err(&pdev->dev, "unknown pch thermal device\n");
 		return -ENODEV;
@@ -375,6 +382,8 @@ static int intel_pch_thermal_resume(struct device *device)
 static struct pci_device_id intel_pch_thermal_id[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_WPT) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_SKL) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_HSW_1) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_HSW_2) },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, intel_pch_thermal_id);
