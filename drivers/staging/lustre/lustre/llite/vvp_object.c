@@ -145,27 +145,8 @@ static int vvp_conf_set(const struct lu_env *env, struct cl_object *obj,
 		 */
 		unmap_mapping_range(conf->coc_inode->i_mapping,
 				    0, OBD_OBJECT_EOF, 0);
-
-		return 0;
 	}
 
-	if (conf->coc_opc != OBJECT_CONF_SET)
-		return 0;
-
-	if (conf->u.coc_md && conf->u.coc_md->lsm) {
-		CDEBUG(D_VFSTRACE, DFID ": layout version change: %u -> %u\n",
-		       PFID(&lli->lli_fid), lli->lli_layout_gen,
-		       conf->u.coc_md->lsm->lsm_layout_gen);
-
-		lli->lli_has_smd = lsm_has_objects(conf->u.coc_md->lsm);
-		ll_layout_version_set(lli, conf->u.coc_md->lsm->lsm_layout_gen);
-	} else {
-		CDEBUG(D_VFSTRACE, DFID ": layout nuked: %u.\n",
-		       PFID(&lli->lli_fid), lli->lli_layout_gen);
-
-		lli->lli_has_smd = false;
-		ll_layout_version_set(lli, CL_LAYOUT_GEN_EMPTY);
-	}
 	return 0;
 }
 
