@@ -317,7 +317,7 @@ static int ncsi_rsp_handler_gls(struct ncsi_request *nr)
 	ncm->data[3] = ntohl(rsp->other);
 	ncm->data[4] = ntohl(rsp->oem_status);
 
-	if (nr->driven)
+	if (nr->flags & NCSI_REQ_FLAG_EVENT_DRIVEN)
 		return 0;
 
 	/* Reset the channel monitor if it has been enabled */

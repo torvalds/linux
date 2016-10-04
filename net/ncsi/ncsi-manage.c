@@ -194,7 +194,7 @@ static void ncsi_channel_monitor(unsigned long data)
 		nca.package = np->id;
 		nca.channel = nc->id;
 		nca.type = NCSI_PKT_CMD_GLS;
-		nca.driven = false;
+		nca.req_flags = 0;
 		ret = ncsi_xmit_cmd(&nca);
 		if (ret) {
 			netdev_err(ndp->ndev.dev, "Error %d sending GLS\n",
@@ -419,7 +419,8 @@ void ncsi_find_package_and_channel(struct ncsi_dev_priv *ndp,
  * be same. Otherwise, the bogus response might be replied. So
  * the available IDs are allocated in round-robin fashion.
  */
-struct ncsi_request *ncsi_alloc_request(struct ncsi_dev_priv *ndp, bool driven)
+struct ncsi_request *ncsi_alloc_request(struct ncsi_dev_priv *ndp,
+					unsigned int req_flags)
 {
 	struct ncsi_request *nr = NULL;
 	int i, limit = ARRAY_SIZE(ndp->requests);
@@ -433,7 +434,7 @@ struct ncsi_request *ncsi_alloc_request(struct ncsi_dev_priv *ndp, bool driven)
 
 		nr = &ndp->requests[i];
 		nr->used = true;
-		nr->driven = driven;
+		nr->flags = req_flags;
 		ndp->request_id = i + 1;
 		goto found;
 	}
@@ -445,7 +446,7 @@ struct ncsi_request *ncsi_alloc_request(struct ncsi_dev_priv *ndp, bool driven)
 
 		nr = &ndp->requests[i];
 		nr->used = true;
-		nr->driven = driven;
+		nr->flags = req_flags;
 		ndp->request_id = i + 1;
 		goto found;
 	}
@@ -473,7 +474,7 @@ void ncsi_free_request(struct ncsi_request *nr)
 	nr->cmd = NULL;
 	nr->rsp = NULL;
 	nr->used = false;
-	driven = nr->driven;
+	driven = !!(nr->flags & NCSI_REQ_FLAG_EVENT_DRIVEN);
 	spin_unlock_irqrestore(&ndp->lock, flags);
 
 	if (driven && cmd && --ndp->pending_req_num == 0)
@@ -527,7 +528,7 @@ static void ncsi_suspend_channel(struct ncsi_dev_priv *ndp)
 	int ret;
 
 	nca.ndp = ndp;
-	nca.driven = true;
+	nca.req_flags = NCSI_REQ_FLAG_EVENT_DRIVEN;
 	switch (nd->state) {
 	case ncsi_dev_state_suspend:
 		nd->state = ncsi_dev_state_suspend_select;
@@ -596,7 +597,7 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 	int ret;
 
 	nca.ndp = ndp;
-	nca.driven = true;
+	nca.req_flags = NCSI_REQ_FLAG_EVENT_DRIVEN;
 	switch (nd->state) {
 	case ncsi_dev_state_config:
 	case ncsi_dev_state_config_sp:
@@ -825,7 +826,7 @@ static void ncsi_probe_channel(struct ncsi_dev_priv *ndp)
 	int ret;
 
 	nca.ndp = ndp;
-	nca.driven = true;
+	nca.req_flags = NCSI_REQ_FLAG_EVENT_DRIVEN;
 	switch (nd->state) {
 	case ncsi_dev_state_probe:
 		nd->state = ncsi_dev_state_probe_deselect;
@@ -1101,7 +1102,7 @@ static int ncsi_inet6addr_event(struct notifier_block *this,
 		return NOTIFY_OK;
 
 	nca.ndp = ndp;
-	nca.driven = false;
+	nca.req_flags = 0;
 	nca.package = np->id;
 	nca.channel = nc->id;
 	nca.dwords[0] = nc->caps[NCSI_CAP_MC].cap;

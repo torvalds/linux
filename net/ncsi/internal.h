@@ -207,7 +207,8 @@ struct ncsi_package {
 struct ncsi_request {
 	unsigned char        id;      /* Request ID - 0 to 255           */
 	bool                 used;    /* Request that has been assigned  */
-	bool                 driven;  /* Drive state machine             */
+	unsigned int         flags;   /* NCSI request property           */
+#define NCSI_REQ_FLAG_EVENT_DRIVEN	1
 	struct ncsi_dev_priv *ndp;    /* Associated NCSI device          */
 	struct sk_buff       *cmd;    /* Associated NCSI command packet  */
 	struct sk_buff       *rsp;    /* Associated NCSI response packet */
@@ -276,7 +277,7 @@ struct ncsi_cmd_arg {
 	unsigned char        package;     /* Destination package ID        */
 	unsigned char        channel;     /* Detination channel ID or 0x1f */
 	unsigned short       payload;     /* Command packet payload length */
-	bool                 driven;      /* Drive the state machine?      */
+	unsigned int         req_flags;   /* NCSI request properties       */
 	union {
 		unsigned char  bytes[16]; /* Command packet specific data  */
 		unsigned short words[8];
@@ -315,7 +316,8 @@ void ncsi_find_package_and_channel(struct ncsi_dev_priv *ndp,
 				   unsigned char id,
 				   struct ncsi_package **np,
 				   struct ncsi_channel **nc);
-struct ncsi_request *ncsi_alloc_request(struct ncsi_dev_priv *ndp, bool driven);
+struct ncsi_request *ncsi_alloc_request(struct ncsi_dev_priv *ndp,
+					unsigned int req_flags);
 void ncsi_free_request(struct ncsi_request *nr);
 struct ncsi_dev *ncsi_find_dev(struct net_device *dev);
 int ncsi_process_next_channel(struct ncsi_dev_priv *ndp);
