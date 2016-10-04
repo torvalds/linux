@@ -114,6 +114,7 @@ static int gbaudio_map_widgetname(struct gbaudio_module_info *module,
 				  const char *name)
 {
 	struct gbaudio_widget *widget;
+
 	list_for_each_entry(widget, &module->widget_list, list) {
 		if (!strncmp(widget->name, name, NAME_SIZE))
 			return widget->id;
