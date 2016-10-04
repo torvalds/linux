@@ -70,6 +70,7 @@ struct net_dev_context {
 	struct net_device *dev;
 	struct net_dev_channel rx;
 	struct net_dev_channel tx;
+	struct completion mac_compl;
 	struct list_head list;
 };
 
@@ -180,6 +181,7 @@ static int most_nd_set_mac_address(struct net_device *dev, void *p)
 static int most_nd_open(struct net_device *dev)
 {
 	struct net_dev_context *nd = dev->ml_priv;
+	long wait_res;
 
 	netdev_info(dev, "open net device\n");
 
@@ -204,8 +206,21 @@ static int most_nd_open(struct net_device *dev)
 	nd->channels_opened = true;
 	netif_wake_queue(dev);
 
-	if (!nd->is_mamac)
-		nd->iface->request_netinfo(nd->iface, nd->tx.ch_id);
+	if (is_valid_ether_addr(dev->dev_addr))
+		return 0;
+
+	nd->iface->request_netinfo(nd->iface, nd->tx.ch_id);
+	wait_res = wait_for_completion_interruptible_timeout(
+				&nd->mac_compl, msecs_to_jiffies(5000));
+	if (!wait_res) {
+		netdev_err(dev, "mac timeout\n");
+		return -EBUSY;
+	}
+
+	if (wait_res < 0) {
+		netdev_warn(dev, "mac waiting interrupted\n");
+		return wait_res;
+	}
 
 	return 0;
 }
@@ -328,6 +343,7 @@ static int aim_probe_channel(struct most_interface *iface, int channel_idx,
 		if (!nd)
 			return -ENOMEM;
 
+		init_completion(&nd->mac_compl);
 		nd->iface = iface;
 
 		spin_lock_irqsave(&list_lock, flags);
@@ -544,8 +560,7 @@ void most_deliver_netinfo(struct most_interface *iface,
 {
 	struct net_dev_context *nd;
 	struct net_device *dev;
-
-	pr_info("Received netinfo from %s\n", iface->description);
+	const u8 *m = mac_addr;
 
 	nd = get_net_dev_context(iface);
 	if (!nd)
@@ -555,8 +570,17 @@ void most_deliver_netinfo(struct most_interface *iface,
 	if (!dev)
 		return;
 
-	if (mac_addr)
-		ether_addr_copy(dev->dev_addr, mac_addr);
+	if (m && is_valid_ether_addr(m)) {
+		if (!is_valid_ether_addr(dev->dev_addr)) {
+			netdev_info(dev, "set mac %02x-%02x-%02x-%02x-%02x-%02x\n",
+				    m[0], m[1], m[2], m[3], m[4], m[5]);
+			ether_addr_copy(dev->dev_addr, m);
+			complete(&nd->mac_compl);
+		} else if (!ether_addr_equal(dev->dev_addr, m)) {
+			netdev_warn(dev, "reject mac %02x-%02x-%02x-%02x-%02x-%02x\n",
+				    m[0], m[1], m[2], m[3], m[4], m[5]);
+		}
+	}
 }
 EXPORT_SYMBOL(most_deliver_netinfo);
 
