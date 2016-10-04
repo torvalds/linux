@@ -3068,6 +3068,14 @@ out:
 	return ERR_PTR(ret);
 }
 
+bool vma_is_special_mapping(const struct vm_area_struct *vma,
+	const struct vm_special_mapping *sm)
+{
+	return vma->vm_private_data == sm &&
+		(vma->vm_ops == &special_mapping_vmops ||
+		 vma->vm_ops == &legacy_special_mapping_vmops);
+}
+
 /*
  * Called with mm->mmap_sem held for writing.
  * Insert a new vma covering the given region, with the given flags.

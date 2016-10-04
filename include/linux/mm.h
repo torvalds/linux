@@ -2019,6 +2019,8 @@ extern struct file *get_task_exe_file(struct task_struct *task);
 extern bool may_expand_vm(struct mm_struct *, vm_flags_t, unsigned long npages);
 extern void vm_stat_account(struct mm_struct *, vm_flags_t, long npages);
 
+extern bool vma_is_special_mapping(const struct vm_area_struct *vma,
+				   const struct vm_special_mapping *sm);
 extern struct vm_area_struct *_install_special_mapping(struct mm_struct *mm,
 				   unsigned long addr, unsigned long len,
 				   unsigned long flags,
