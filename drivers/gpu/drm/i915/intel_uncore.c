@@ -663,15 +663,33 @@ static const struct intel_forcewake_range __vlv_fw_ranges[] = {
 	__fwd; \
 })
 
+/* *Must* be sorted by offset! See intel_shadow_table_check(). */
 static const i915_reg_t gen8_shadowed_regs[] = {
-	GEN6_RPNSWREQ,
-	GEN6_RC_VIDEO_FREQ,
-	RING_TAIL(RENDER_RING_BASE),
-	RING_TAIL(GEN6_BSD_RING_BASE),
-	RING_TAIL(VEBOX_RING_BASE),
-	RING_TAIL(BLT_RING_BASE),
+	RING_TAIL(RENDER_RING_BASE),	/* 0x2000 (base) */
+	GEN6_RPNSWREQ,			/* 0xA008 */
+	GEN6_RC_VIDEO_FREQ,		/* 0xA00C */
+	RING_TAIL(GEN6_BSD_RING_BASE),	/* 0x12000 (base) */
+	RING_TAIL(VEBOX_RING_BASE),	/* 0x1a000 (base) */
+	RING_TAIL(BLT_RING_BASE),	/* 0x22000 (base) */
 	/* TODO: Other registers are not yet used */
 };
+
+static void intel_shadow_table_check(void)
+{
+	const i915_reg_t *reg = gen8_shadowed_regs;
+	s32 prev;
+	u32 offset;
+	unsigned int i;
+
+	if (!IS_ENABLED(CONFIG_DRM_I915_DEBUG))
+		return;
+
+	for (i = 0, prev = -1; i < ARRAY_SIZE(gen8_shadowed_regs); i++, reg++) {
+		offset = i915_mmio_reg_offset(*reg);
+		WARN_ON_ONCE(prev >= (s32)offset);
+		prev = offset;
+	}
+}
 
 static bool is_gen8_shadowed(u32 offset)
 {
@@ -1283,6 +1301,8 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 	}
 
 	intel_fw_table_check(dev_priv);
+	if (INTEL_GEN(dev_priv) >= 8)
+		intel_shadow_table_check();
 
 	if (intel_vgpu_active(dev_priv)) {
 		ASSIGN_WRITE_MMIO_VFUNCS(vgpu);
