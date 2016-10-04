@@ -878,12 +878,12 @@ static void amdgpu_vm_frag_ptes(struct amdgpu_pte_update_params	*params,
 	 * allocation size to the fragment size.
 	 */
 
-	const uint64_t frag_align = 1 << AMDGPU_LOG2_PAGES_PER_FRAG;
+	/* SI and newer are optimized for 64KB */
+	uint64_t frag_flags = AMDGPU_PTE_FRAG(AMDGPU_LOG2_PAGES_PER_FRAG);
+	uint64_t frag_align = 1 << AMDGPU_LOG2_PAGES_PER_FRAG;
 
 	uint64_t frag_start = ALIGN(start, frag_align);
 	uint64_t frag_end = end & ~(frag_align - 1);
-
-	uint32_t frag;
 
 	/* system pages are non continuously */
 	if (params->src || !(flags & AMDGPU_PTE_VALID) ||
@@ -892,10 +892,6 @@ static void amdgpu_vm_frag_ptes(struct amdgpu_pte_update_params	*params,
 		amdgpu_vm_update_ptes(params, vm, start, end, dst, flags);
 		return;
 	}
-
-	/* use more than 64KB fragment size if possible */
-	frag = lower_32_bits(frag_start | frag_end);
-	frag = likely(frag) ? __ffs(frag) : 31;
 
 	/* handle the 4K area at the beginning */
 	if (start != frag_start) {
@@ -906,7 +902,7 @@ static void amdgpu_vm_frag_ptes(struct amdgpu_pte_update_params	*params,
 
 	/* handle the area in the middle */
 	amdgpu_vm_update_ptes(params, vm, frag_start, frag_end, dst,
-			      flags | AMDGPU_PTE_FRAG(frag));
+			      flags | frag_flags);
 
 	/* handle the 4K area at the end */
 	if (frag_end != end) {
