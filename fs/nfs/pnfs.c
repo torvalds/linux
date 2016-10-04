@@ -2088,6 +2088,8 @@ void pnfs_lgopen_prepare(struct nfs4_opendata *data,
 	      server->pnfs_curr_ld->flags & PNFS_LAYOUTGET_ON_OPEN))
 		return;
 	/* Could check on max_ops, but currently hardcoded high enough */
+	if (!nfs_server_capable(data->dir->d_inode, NFS_CAP_LGOPEN))
+		return;
 	if (data->state)
 		_lgopen_prepare_attached(data, ctx);
 	else
@@ -2101,8 +2103,23 @@ void pnfs_parse_lgopen(struct inode *ino, struct nfs4_layoutget *lgp,
 	struct pnfs_layout_segment *lseg;
 	u32 iomode;
 
-	if (!lgp || lgp->res.layoutp->len == 0)
+	if (!lgp)
 		return;
+	dprintk("%s: entered with status %i\n", __func__, lgp->res.status);
+	if (lgp->res.status) {
+		switch (lgp->res.status) {
+		case -NFS4ERR_DELAY:
+		case -NFS4ERR_GRACE:
+		case -NFS4ERR_LAYOUTTRYLATER:
+			break;
+		default:
+			/* FIXME - Any error not listed above permanently
+			 * halts lgopen attempts.
+			 */
+			NFS_SERVER(ino)->caps &= ~NFS_CAP_LGOPEN;
+		}
+		return;
+	}
 	if (!lgp->args.inode) {
 		lo = _pnfs_grab_empty_layout(ino, ctx);
 		if (!lo)
