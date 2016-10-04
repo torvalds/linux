@@ -67,7 +67,6 @@ struct net_dev_context {
 	struct most_interface *iface;
 	bool channels_opened;
 	bool is_mamac;
-	unsigned char link_stat;
 	struct net_device *dev;
 	struct net_dev_channel rx;
 	struct net_dev_channel tx;
@@ -203,13 +202,10 @@ static int most_nd_open(struct net_device *dev)
 	}
 
 	nd->channels_opened = true;
+	netif_wake_queue(dev);
 
-	if (nd->is_mamac) {
-		nd->link_stat = 1;
-		netif_wake_queue(dev);
-	} else {
+	if (!nd->is_mamac)
 		nd->iface->request_netinfo(nd->iface, nd->tx.ch_id);
-	}
 
 	return 0;
 }
@@ -561,14 +557,6 @@ void most_deliver_netinfo(struct most_interface *iface,
 
 	if (mac_addr)
 		ether_addr_copy(dev->dev_addr, mac_addr);
-
-	if (nd->link_stat != link_stat) {
-		nd->link_stat = link_stat;
-		if (nd->link_stat)
-			netif_wake_queue(dev);
-		else
-			netif_stop_queue(dev);
-	}
 }
 EXPORT_SYMBOL(most_deliver_netinfo);
 
