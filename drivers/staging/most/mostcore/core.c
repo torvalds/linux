@@ -763,7 +763,6 @@ struct most_aim_obj {
 	struct kobject kobj;
 	struct list_head list;
 	struct most_aim *driver;
-	char remove_link[STRING_SIZE];
 };
 
 #define to_aim_obj(d) container_of(d, struct most_aim_obj, kobj)
@@ -1019,13 +1018,6 @@ static ssize_t store_add_link(struct most_aim_obj *aim_obj,
 static struct most_aim_attribute most_aim_attr_add_link =
 	__ATTR(add_link, S_IRUGO | S_IWUSR, show_add_link, store_add_link);
 
-static ssize_t show_remove_link(struct most_aim_obj *aim_obj,
-				struct most_aim_attribute *attr,
-				char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%s\n", aim_obj->remove_link);
-}
-
 /**
  * store_remove_link - store function for remove_link attribute
  * @aim_obj: pointer to AIM object
@@ -1049,7 +1041,6 @@ static ssize_t store_remove_link(struct most_aim_obj *aim_obj,
 	size_t max_len = min_t(size_t, len + 1, STRING_SIZE);
 
 	strlcpy(buffer, buf, max_len);
-	strlcpy(aim_obj->remove_link, buf, max_len);
 	ret = split_string(buffer, &mdev, &mdev_ch, NULL);
 	if (ret)
 		return ret;
@@ -1068,8 +1059,7 @@ static ssize_t store_remove_link(struct most_aim_obj *aim_obj,
 }
 
 static struct most_aim_attribute most_aim_attr_remove_link =
-	__ATTR(remove_link, S_IRUGO | S_IWUSR, show_remove_link,
-	       store_remove_link);
+	__ATTR(remove_link, S_IWUSR, NULL, store_remove_link);
 
 static struct attribute *most_aim_def_attrs[] = {
 	&most_aim_attr_add_link.attr,
