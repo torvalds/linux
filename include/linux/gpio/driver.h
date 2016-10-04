@@ -91,7 +91,7 @@ enum single_ended_mode {
  *	bit. This callback assigns the right bit mask.
  * @reg_dat: data (in) register for generic GPIO
  * @reg_set: output set register (out=high) for generic GPIO
- * @reg_clk: output clear register (out=low) for generic GPIO
+ * @reg_clr: output clear register (out=low) for generic GPIO
  * @reg_dir: direction setting register for generic GPIO
  * @bgpio_bits: number of register bits used for a generic GPIO i.e.
  *	<register width> * 8
