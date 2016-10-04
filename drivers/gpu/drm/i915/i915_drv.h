@@ -788,6 +788,9 @@ struct drm_i915_error_state {
 		struct i915_address_space *vm;
 		int num_requests;
 
+		/* position of active request inside the ring */
+		u32 rq_head, rq_post, rq_tail;
+
 		/* our own tracking of ring head and tail */
 		u32 cpu_ring_head;
 		u32 cpu_ring_tail;

@@ -262,8 +262,9 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 {
 	err_printf(m, "%s command stream:\n", engine_str(ee->engine_id));
 	err_printf(m, "  START: 0x%08x\n", ee->start);
-	err_printf(m, "  HEAD:  0x%08x\n", ee->head);
-	err_printf(m, "  TAIL:  0x%08x\n", ee->tail);
+	err_printf(m, "  HEAD:  0x%08x\n [0x%08x]", ee->head, ee->rq_head);
+	err_printf(m, "  TAIL:  0x%08x [0x%08x, 0x%08x]\n",
+		   ee->tail, ee->rq_post, ee->rq_tail);
 	err_printf(m, "  CTL:   0x%08x\n", ee->ctl);
 	err_printf(m, "  MODE:  0x%08x\n", ee->mode);
 	err_printf(m, "  HWS:   0x%08x\n", ee->hws);
@@ -1229,6 +1230,10 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 
 			error->simulated |=
 				request->ctx->flags & CONTEXT_NO_ERROR_CAPTURE;
+
+			ee->rq_head = request->head;
+			ee->rq_post = request->postfix;
+			ee->rq_tail = request->tail;
 
 			ring = request->ring;
 			ee->cpu_ring_head = ring->head;
