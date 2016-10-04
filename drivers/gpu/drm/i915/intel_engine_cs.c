@@ -334,3 +334,33 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	intel_engine_cleanup_cmd_parser(engine);
 	i915_gem_batch_pool_fini(&engine->batch_pool);
 }
+
+u64 intel_engine_get_active_head(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+	u64 acthd;
+
+	if (INTEL_GEN(dev_priv) >= 8)
+		acthd = I915_READ64_2x32(RING_ACTHD(engine->mmio_base),
+					 RING_ACTHD_UDW(engine->mmio_base));
+	else if (INTEL_GEN(dev_priv) >= 4)
+		acthd = I915_READ(RING_ACTHD(engine->mmio_base));
+	else
+		acthd = I915_READ(ACTHD);
+
+	return acthd;
+}
+
+u64 intel_engine_get_last_batch_head(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+	u64 bbaddr;
+
+	if (INTEL_GEN(dev_priv) >= 8)
+		bbaddr = I915_READ64_2x32(RING_BBADDR(engine->mmio_base),
+					  RING_BBADDR_UDW(engine->mmio_base));
+	else
+		bbaddr = I915_READ(RING_BBADDR(engine->mmio_base));
+
+	return bbaddr;
+}

@@ -541,6 +541,8 @@ int intel_init_blt_ring_buffer(struct intel_engine_cs *engine);
 int intel_init_vebox_ring_buffer(struct intel_engine_cs *engine);
 
 u64 intel_engine_get_active_head(struct intel_engine_cs *engine);
+u64 intel_engine_get_last_batch_head(struct intel_engine_cs *engine);
+
 static inline u32 intel_engine_get_seqno(struct intel_engine_cs *engine)
 {
 	return intel_read_status_page(engine, I915_GEM_HWS_INDEX);

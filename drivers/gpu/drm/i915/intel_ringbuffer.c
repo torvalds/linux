@@ -405,22 +405,6 @@ gen8_render_ring_flush(struct drm_i915_gem_request *req, u32 mode)
 	return gen8_emit_pipe_control(req, flags, scratch_addr);
 }
 
-u64 intel_engine_get_active_head(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-	u64 acthd;
-
-	if (INTEL_GEN(dev_priv) >= 8)
-		acthd = I915_READ64_2x32(RING_ACTHD(engine->mmio_base),
-					 RING_ACTHD_UDW(engine->mmio_base));
-	else if (INTEL_GEN(dev_priv) >= 4)
-		acthd = I915_READ(RING_ACTHD(engine->mmio_base));
-	else
-		acthd = I915_READ(ACTHD);
-
-	return acthd;
-}
-
 static void ring_setup_phys_status_page(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
