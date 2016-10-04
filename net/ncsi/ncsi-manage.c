@@ -911,12 +911,12 @@ static void ncsi_probe_channel(struct ncsi_dev_priv *ndp)
 		nd->state = ncsi_dev_state_probe_cis;
 		break;
 	case ncsi_dev_state_probe_cis:
-		ndp->pending_req_num = 32;
+		ndp->pending_req_num = NCSI_RESERVED_CHANNEL;
 
 		/* Clear initial state */
 		nca.type = NCSI_PKT_CMD_CIS;
 		nca.package = ndp->active_package->id;
-		for (index = 0; index < 0x20; index++) {
+		for (index = 0; index < NCSI_RESERVED_CHANNEL; index++) {
 			nca.channel = index;
 			ret = ncsi_xmit_cmd(&nca);
 			if (ret)
