@@ -183,30 +183,6 @@ static inline int drci_wr_reg(struct usb_device *dev, u16 reg, u16 data)
 }
 
 /**
- * free_anchored_buffers - free device's anchored items
- * @mdev: the device
- * @channel: channel ID
- * @status: status of MBO termination
- */
-static void free_anchored_buffers(struct most_dev *mdev, unsigned int channel,
-				  enum mbo_status_flags status)
-{
-	struct mbo *mbo;
-	struct urb *urb;
-
-	while ((urb = usb_get_from_anchor(&mdev->busy_urbs[channel]))) {
-		mbo = urb->context;
-		usb_kill_urb(urb);
-		if (mbo && mbo->complete) {
-			mbo->status = status;
-			mbo->processed_length = 0;
-			mbo->complete(mbo);
-		}
-		usb_free_urb(urb);
-	}
-}
-
-/**
  * get_stream_frame_size - calculate frame size of current configuration
  * @cfg: channel configuration
  */
@@ -274,7 +250,7 @@ static int hdm_poison_channel(struct most_interface *iface, int channel)
 	cancel_work_sync(&mdev->clear_work[channel].ws);
 
 	mutex_lock(&mdev->io_mutex);
-	free_anchored_buffers(mdev, channel, MBO_E_CLOSE);
+	usb_kill_anchored_urbs(&mdev->busy_urbs[channel]);
 	if (mdev->padding_active[channel])
 		mdev->padding_active[channel] = false;
 
@@ -373,33 +349,27 @@ static void hdm_write_completion(struct urb *urb)
 	unsigned long flags;
 
 	spin_lock_irqsave(lock, flags);
-	if (urb->status == -ENOENT || urb->status == -ECONNRESET ||
-	    !mdev->is_channel_healthy[channel]) {
-		spin_unlock_irqrestore(lock, flags);
-		return;
-	}
 
-	if (unlikely(urb->status && urb->status != -ESHUTDOWN)) {
-		mbo->processed_length = 0;
+	mbo->processed_length = 0;
+	mbo->status = MBO_E_INVAL;
+	if (likely(mdev->is_channel_healthy[channel])) {
 		switch (urb->status) {
+		case 0:
+		case -ESHUTDOWN:
+			mbo->processed_length = urb->actual_length;
+			mbo->status = MBO_SUCCESS;
+			break;
 		case -EPIPE:
 			dev_warn(dev, "Broken OUT pipe detected\n");
 			mdev->is_channel_healthy[channel] = false;
-			spin_unlock_irqrestore(lock, flags);
 			mdev->clear_work[channel].pipe = urb->pipe;
 			schedule_work(&mdev->clear_work[channel].ws);
-			return;
+			break;
 		case -ENODEV:
 		case -EPROTO:
 			mbo->status = MBO_E_CLOSE;
 			break;
-		default:
-			mbo->status = MBO_E_INVAL;
-			break;
 		}
-	} else {
-		mbo->status = MBO_SUCCESS;
-		mbo->processed_length = urb->actual_length;
 	}
 
 	spin_unlock_irqrestore(lock, flags);
@@ -527,39 +497,34 @@ static void hdm_read_completion(struct urb *urb)
 	unsigned long flags;
 
 	spin_lock_irqsave(lock, flags);
-	if (urb->status == -ENOENT || urb->status == -ECONNRESET ||
-	    !mdev->is_channel_healthy[channel]) {
-		spin_unlock_irqrestore(lock, flags);
-		return;
-	}
 
-	if (unlikely(urb->status && urb->status != -ESHUTDOWN)) {
-		mbo->processed_length = 0;
+	mbo->processed_length = 0;
+	mbo->status = MBO_E_INVAL;
+	if (likely(mdev->is_channel_healthy[channel])) {
 		switch (urb->status) {
+		case 0:
+		case -ESHUTDOWN:
+			mbo->processed_length = urb->actual_length;
+			mbo->status = MBO_SUCCESS;
+			if (mdev->padding_active[channel] &&
+			    hdm_remove_padding(mdev, channel, mbo)) {
+				mbo->processed_length = 0;
+				mbo->status = MBO_E_INVAL;
+			}
+			break;
 		case -EPIPE:
 			dev_warn(dev, "Broken IN pipe detected\n");
 			mdev->is_channel_healthy[channel] = false;
-			spin_unlock_irqrestore(lock, flags);
 			mdev->clear_work[channel].pipe = urb->pipe;
 			schedule_work(&mdev->clear_work[channel].ws);
-			return;
+			break;
 		case -ENODEV:
 		case -EPROTO:
 			mbo->status = MBO_E_CLOSE;
 			break;
 		case -EOVERFLOW:
 			dev_warn(dev, "Babble on IN pipe detected\n");
-		default:
-			mbo->status = MBO_E_INVAL;
 			break;
-		}
-	} else {
-		mbo->processed_length = urb->actual_length;
-		mbo->status = MBO_SUCCESS;
-		if (mdev->padding_active[channel] &&
-		    hdm_remove_padding(mdev, channel, mbo)) {
-			mbo->processed_length = 0;
-			mbo->status = MBO_E_INVAL;
 		}
 	}
 
@@ -827,7 +792,7 @@ static void wq_clear_halt(struct work_struct *wq_obj)
 
 	mutex_lock(&mdev->io_mutex);
 	most_stop_enqueue(&mdev->iface, channel);
-	free_anchored_buffers(mdev, channel, MBO_E_INVAL);
+	usb_kill_anchored_urbs(&mdev->busy_urbs[channel]);
 	if (usb_clear_halt(mdev->usb_device, pipe))
 		dev_warn(&mdev->usb_device->dev, "Failed to reset endpoint.\n");
 
