@@ -215,7 +215,8 @@ static unsigned int xenvif_gso_type(struct sk_buff *skb)
 struct xenvif_pkt_state {
 	struct sk_buff *skb;
 	size_t remaining_len;
-	int frag; /* frag == -1 => skb->head */
+	struct sk_buff *frag_iter;
+	int frag; /* frag == -1 => frag_iter->head */
 	unsigned int frag_offset;
 	struct xen_netif_extra_info extras[XEN_NETIF_EXTRA_TYPE_MAX - 1];
 	unsigned int extra_count;
@@ -237,6 +238,7 @@ static void xenvif_rx_next_skb(struct xenvif_queue *queue,
 	memset(pkt, 0, sizeof(struct xenvif_pkt_state));
 
 	pkt->skb = skb;
+	pkt->frag_iter = skb;
 	pkt->remaining_len = skb->len;
 	pkt->frag = -1;
 
@@ -293,20 +295,40 @@ static void xenvif_rx_complete(struct xenvif_queue *queue,
 	__skb_queue_tail(queue->rx_copy.completed, pkt->skb);
 }
 
+static void xenvif_rx_next_frag(struct xenvif_pkt_state *pkt)
+{
+	struct sk_buff *frag_iter = pkt->frag_iter;
+	unsigned int nr_frags = skb_shinfo(frag_iter)->nr_frags;
+
+	pkt->frag++;
+	pkt->frag_offset = 0;
+
+	if (pkt->frag >= nr_frags) {
+		if (frag_iter == pkt->skb)
+			pkt->frag_iter = skb_shinfo(frag_iter)->frag_list;
+		else
+			pkt->frag_iter = frag_iter->next;
+
+		pkt->frag = -1;
+	}
+}
+
 static void xenvif_rx_next_chunk(struct xenvif_queue *queue,
 				 struct xenvif_pkt_state *pkt,
 				 unsigned int offset, void **data,
 				 size_t *len)
 {
-	struct sk_buff *skb = pkt->skb;
+	struct sk_buff *frag_iter = pkt->frag_iter;
 	void *frag_data;
 	size_t frag_len, chunk_len;
 
+	BUG_ON(!frag_iter);
+
 	if (pkt->frag == -1) {
-		frag_data = skb->data;
-		frag_len = skb_headlen(skb);
+		frag_data = frag_iter->data;
+		frag_len = skb_headlen(frag_iter);
 	} else {
-		skb_frag_t *frag = &skb_shinfo(skb)->frags[pkt->frag];
+		skb_frag_t *frag = &skb_shinfo(frag_iter)->frags[pkt->frag];
 
 		frag_data = skb_frag_address(frag);
 		frag_len = skb_frag_size(frag);
@@ -322,10 +344,8 @@ static void xenvif_rx_next_chunk(struct xenvif_queue *queue,
 	pkt->frag_offset += chunk_len;
 
 	/* Advance to next frag? */
-	if (frag_len == chunk_len) {
-		pkt->frag++;
-		pkt->frag_offset = 0;
-	}
+	if (frag_len == chunk_len)
+		xenvif_rx_next_frag(pkt);
 
 	*data = frag_data;
 	*len = chunk_len;
