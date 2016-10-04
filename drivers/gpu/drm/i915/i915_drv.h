@@ -588,7 +588,9 @@ struct intel_uncore {
 	struct intel_uncore_funcs funcs;
 
 	unsigned fifo_count;
+
 	enum forcewake_domains fw_domains;
+	enum forcewake_domains fw_domains_active;
 
 	struct intel_uncore_forcewake_domain {
 		struct drm_i915_private *i915;

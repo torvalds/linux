@@ -231,19 +231,21 @@ intel_uncore_fw_release_timer(struct hrtimer *timer)
 {
 	struct intel_uncore_forcewake_domain *domain =
 	       container_of(timer, struct intel_uncore_forcewake_domain, timer);
+	struct drm_i915_private *dev_priv = domain->i915;
 	unsigned long irqflags;
 
-	assert_rpm_device_not_suspended(domain->i915);
+	assert_rpm_device_not_suspended(dev_priv);
 
-	spin_lock_irqsave(&domain->i915->uncore.lock, irqflags);
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 	if (WARN_ON(domain->wake_count == 0))
 		domain->wake_count++;
 
-	if (--domain->wake_count == 0)
-		domain->i915->uncore.funcs.force_wake_put(domain->i915,
-							  1 << domain->id);
+	if (--domain->wake_count == 0) {
+		dev_priv->uncore.funcs.force_wake_put(dev_priv, domain->mask);
+		dev_priv->uncore.fw_domains_active &= ~domain->mask;
+	}
 
-	spin_unlock_irqrestore(&domain->i915->uncore.lock, irqflags);
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 
 	return HRTIMER_NORESTART;
 }
@@ -254,7 +256,7 @@ void intel_uncore_forcewake_reset(struct drm_i915_private *dev_priv,
 	unsigned long irqflags;
 	struct intel_uncore_forcewake_domain *domain;
 	int retry_count = 100;
-	enum forcewake_domains fw = 0, active_domains;
+	enum forcewake_domains fw, active_domains;
 
 	/* Hold uncore.lock across reset to prevent any register access
 	 * with forcewake not set correctly. Wait until all pending
@@ -291,10 +293,7 @@ void intel_uncore_forcewake_reset(struct drm_i915_private *dev_priv,
 
 	WARN_ON(active_domains);
 
-	for_each_fw_domain(domain, dev_priv)
-		if (domain->wake_count)
-			fw |= domain->mask;
-
+	fw = dev_priv->uncore.fw_domains_active;
 	if (fw)
 		dev_priv->uncore.funcs.force_wake_put(dev_priv, fw);
 
@@ -443,9 +442,6 @@ static void __intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,
 {
 	struct intel_uncore_forcewake_domain *domain;
 
-	if (!dev_priv->uncore.funcs.force_wake_get)
-		return;
-
 	fw_domains &= dev_priv->uncore.fw_domains;
 
 	for_each_fw_domain_masked(domain, fw_domains, dev_priv) {
@@ -453,8 +449,10 @@ static void __intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,
 			fw_domains &= ~domain->mask;
 	}
 
-	if (fw_domains)
+	if (fw_domains) {
 		dev_priv->uncore.funcs.force_wake_get(dev_priv, fw_domains);
+		dev_priv->uncore.fw_domains_active |= fw_domains;
+	}
 }
 
 /**
@@ -508,9 +506,6 @@ static void __intel_uncore_forcewake_put(struct drm_i915_private *dev_priv,
 					 enum forcewake_domains fw_domains)
 {
 	struct intel_uncore_forcewake_domain *domain;
-
-	if (!dev_priv->uncore.funcs.force_wake_put)
-		return;
 
 	fw_domains &= dev_priv->uncore.fw_domains;
 
@@ -567,13 +562,10 @@ void intel_uncore_forcewake_put__locked(struct drm_i915_private *dev_priv,
 
 void assert_forcewakes_inactive(struct drm_i915_private *dev_priv)
 {
-	struct intel_uncore_forcewake_domain *domain;
-
 	if (!dev_priv->uncore.funcs.force_wake_get)
 		return;
 
-	for_each_fw_domain(domain, dev_priv)
-		WARN_ON(domain->wake_count);
+	WARN_ON(dev_priv->uncore.fw_domains_active);
 }
 
 /* We give fast paths for the really cool registers */
@@ -877,18 +869,18 @@ static inline void __force_wake_auto(struct drm_i915_private *dev_priv,
 	if (WARN_ON(!fw_domains))
 		return;
 
-	/* Ideally GCC would be constant-fold and eliminate this loop */
-	for_each_fw_domain_masked(domain, fw_domains, dev_priv) {
-		if (domain->wake_count) {
-			fw_domains &= ~domain->mask;
-			continue;
-		}
+	/* Turn on all requested but inactive supported forcewake domains. */
+	fw_domains &= dev_priv->uncore.fw_domains;
+	fw_domains &= ~dev_priv->uncore.fw_domains_active;
 
-		fw_domain_arm_timer(domain);
-	}
+	if (fw_domains) {
+		/* Ideally GCC would be constant-fold and eliminate this loop */
+		for_each_fw_domain_masked(domain, fw_domains, dev_priv)
+			fw_domain_arm_timer(domain);
 
-	if (fw_domains)
 		dev_priv->uncore.funcs.force_wake_get(dev_priv, fw_domains);
+		dev_priv->uncore.fw_domains_active |= fw_domains;
+	}
 }
 
 #define __gen6_read(x) \
