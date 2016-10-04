@@ -2319,6 +2319,7 @@ static int hisi_sas_v2_remove(struct platform_device *pdev)
 
 static const struct of_device_id sas_v2_of_match[] = {
 	{ .compatible = "hisilicon,hip06-sas-v2",},
+	{ .compatible = "hisilicon,hip07-sas-v2",},
 	{},
 };
 MODULE_DEVICE_TABLE(of, sas_v2_of_match);
