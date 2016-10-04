@@ -1331,15 +1331,17 @@ extern const u32 sched_prio_to_wmult[40];
 #define DEQUEUE_SLEEP		0x01
 #define DEQUEUE_SAVE		0x02 /* matches ENQUEUE_RESTORE */
 #define DEQUEUE_MOVE		0x04 /* matches ENQUEUE_MOVE */
+#define DEQUEUE_NOCLOCK		0x08 /* matches ENQUEUE_NOCLOCK */
 
 #define ENQUEUE_WAKEUP		0x01
 #define ENQUEUE_RESTORE		0x02
 #define ENQUEUE_MOVE		0x04
+#define ENQUEUE_NOCLOCK		0x08
 
-#define ENQUEUE_HEAD		0x08
-#define ENQUEUE_REPLENISH	0x10
+#define ENQUEUE_HEAD		0x10
+#define ENQUEUE_REPLENISH	0x20
 #ifdef CONFIG_SMP
-#define ENQUEUE_MIGRATED	0x20
+#define ENQUEUE_MIGRATED	0x40
 #else
 #define ENQUEUE_MIGRATED	0x00
 #endif
