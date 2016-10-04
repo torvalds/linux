@@ -31,6 +31,7 @@
 #include <linux/dmi.h>
 #include <linux/nmi.h>
 #include <linux/delay.h>
+#include <linux/of.h>
 
 #include <linux/debugfs.h>
 #include <linux/dmaengine.h>
@@ -1825,6 +1826,10 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, priv);
 	priv->trigger_level = 1;
 	priv->fcr = 0;
+
+	if (pdev->dev.of_node)
+		of_property_read_u32(pdev->dev.of_node, "clock-frequency"
+					 , &user_uartclk);
 
 #ifdef CONFIG_SERIAL_PCH_UART_CONSOLE
 	pch_uart_ports[board->line_no] = priv;

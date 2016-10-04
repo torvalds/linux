@@ -8,8 +8,6 @@ menu "Pressure sensors"
 config BMP280
 	tristate "Bosch Sensortec BMP180/BMP280 pressure sensor I2C driver"
 	depends on (I2C || SPI_MASTER)
-	depends on !(BMP085_I2C=y || BMP085_I2C=m)
-	depends on !(BMP085_SPI=y || BMP085_SPI=m)
 	select REGMAP
 	select BMP280_I2C if (I2C)
 	select BMP280_SPI if (SPI_MASTER)

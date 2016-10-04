@@ -495,7 +495,7 @@ struct hv_ring_buffer_debug_info {
 
 extern int hv_init(void);
 
-extern void hv_cleanup(void);
+extern void hv_cleanup(bool crash);
 
 extern int hv_post_message(union hv_connection_id connection_id,
 			 enum hv_message_type message_type,
@@ -522,14 +522,15 @@ extern unsigned int host_info_edx;
 /* Interface */
 
 
-int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info, void *buffer,
-		   u32 buflen);
+int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
+		       struct page *pages, u32 pagecnt);
 
 void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info);
 
 int hv_ringbuffer_write(struct hv_ring_buffer_info *ring_info,
 		    struct kvec *kv_list,
-		    u32 kv_count, bool *signal, bool lock);
+		    u32 kv_count, bool *signal, bool lock,
+		    enum hv_signal_policy policy);
 
 int hv_ringbuffer_read(struct hv_ring_buffer_info *inring_info,
 		       void *buffer, u32 buflen, u32 *buffer_actual_len,

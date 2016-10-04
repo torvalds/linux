@@ -115,7 +115,6 @@ int scif_reserve_dma_chan(struct scif_endpt *ep)
  */
 static
 void __scif_rma_destroy_tcw(struct scif_mmu_notif *mmn,
-			    struct scif_endpt *ep,
 			    u64 start, u64 len)
 {
 	struct list_head *item, *tmp;
@@ -128,7 +127,6 @@ void __scif_rma_destroy_tcw(struct scif_mmu_notif *mmn,
 
 	list_for_each_safe(item, tmp, &mmn->tc_reg_list) {
 		window = list_entry(item, struct scif_window, list);
-		ep = (struct scif_endpt *)window->ep;
 		if (!len)
 			break;
 		start_va = window->va_for_temp;
@@ -146,7 +144,7 @@ static void scif_rma_destroy_tcw(struct scif_mmu_notif *mmn, u64 start, u64 len)
 	struct scif_endpt *ep = mmn->ep;
 
 	spin_lock(&ep->rma_info.tc_lock);
-	__scif_rma_destroy_tcw(mmn, ep, start, len);
+	__scif_rma_destroy_tcw(mmn, start, len);
 	spin_unlock(&ep->rma_info.tc_lock);
 }
 
@@ -169,7 +167,7 @@ static void __scif_rma_destroy_tcw_ep(struct scif_endpt *ep)
 	spin_lock(&ep->rma_info.tc_lock);
 	list_for_each_safe(item, tmp, &ep->rma_info.mmn_list) {
 		mmn = list_entry(item, struct scif_mmu_notif, list);
-		__scif_rma_destroy_tcw(mmn, ep, 0, ULONG_MAX);
+		__scif_rma_destroy_tcw(mmn, 0, ULONG_MAX);
 	}
 	spin_unlock(&ep->rma_info.tc_lock);
 }

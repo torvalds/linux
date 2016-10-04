@@ -1171,27 +1171,10 @@ static struct miscdevice _nvm_misc = {
 	.nodename	= "lightnvm/control",
 	.fops		= &_ctl_fops,
 };
+module_misc_device(_nvm_misc);
 
 MODULE_ALIAS_MISCDEV(MISC_DYNAMIC_MINOR);
-
-static int __init nvm_mod_init(void)
-{
-	int ret;
-
-	ret = misc_register(&_nvm_misc);
-	if (ret)
-		pr_err("nvm: misc_register failed for control device");
-
-	return ret;
-}
-
-static void __exit nvm_mod_exit(void)
-{
-	misc_deregister(&_nvm_misc);
-}
 
 MODULE_AUTHOR("Matias Bjorling <m@bjorling.me>");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION("0.1");
-module_init(nvm_mod_init);
-module_exit(nvm_mod_exit);
