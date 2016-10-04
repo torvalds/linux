@@ -386,13 +386,7 @@ struct nvdimm *nvdimm_create(struct nvdimm_bus *nvdimm_bus, void *provider_data,
 }
 EXPORT_SYMBOL_GPL(nvdimm_create);
 
-struct blk_alloc_info {
-	struct nd_mapping *nd_mapping;
-	resource_size_t available, busy;
-	struct resource *res;
-};
-
-static int alias_dpa_busy(struct device *dev, void *data)
+int alias_dpa_busy(struct device *dev, void *data)
 {
 	resource_size_t map_end, blk_start, new, busy;
 	struct blk_alloc_info *info = data;
@@ -418,6 +412,20 @@ static int alias_dpa_busy(struct device *dev, void *data)
 	ndd = to_ndd(nd_mapping);
 	map_end = nd_mapping->start + nd_mapping->size - 1;
 	blk_start = nd_mapping->start;
+
+	/*
+	 * In the allocation case ->res is set to free space that we are
+	 * looking to validate against PMEM aliasing collision rules
+	 * (i.e. BLK is allocated after all aliased PMEM).
+	 */
+	if (info->res) {
+		if (info->res->start >= nd_mapping->start
+				&& info->res->start < map_end)
+			/* pass */;
+		else
+			return 0;
+	}
+
  retry:
 	/*
 	 * Find the free dpa from the end of the last pmem allocation to
@@ -447,7 +455,16 @@ static int alias_dpa_busy(struct device *dev, void *data)
 		}
 	}
 
+	/* update the free space range with the probed blk_start */
+	if (info->res && blk_start > info->res->start) {
+		info->res->start = max(info->res->start, blk_start);
+		if (info->res->start > info->res->end)
+			info->res->end = info->res->start - 1;
+		return 1;
+	}
+
 	info->available -= blk_start - nd_mapping->start + busy;
+
 	return 0;
 }
 
@@ -508,6 +525,7 @@ resource_size_t nd_blk_available_dpa(struct nd_region *nd_region)
 	struct blk_alloc_info info = {
 		.nd_mapping = nd_mapping,
 		.available = nd_mapping->size,
+		.res = NULL,
 	};
 	struct resource *res;
 

@@ -529,19 +529,68 @@ static resource_size_t init_dpa_allocation(struct nd_label_id *label_id,
 	return rc ? n : 0;
 }
 
-static bool space_valid(bool is_pmem, bool is_reserve,
-		struct nd_label_id *label_id, struct resource *res)
+
+/**
+ * space_valid() - validate free dpa space against constraints
+ * @nd_region: hosting region of the free space
+ * @ndd: dimm device data for debug
+ * @label_id: namespace id to allocate space
+ * @prev: potential allocation that precedes free space
+ * @next: allocation that follows the given free space range
+ * @exist: first allocation with same id in the mapping
+ * @n: range that must satisfied for pmem allocations
+ * @valid: free space range to validate
+ *
+ * BLK-space is valid as long as it does not precede a PMEM
+ * allocation in a given region. PMEM-space must be contiguous
+ * and adjacent to an existing existing allocation (if one
+ * exists).  If reserving PMEM any space is valid.
+ */
+static void space_valid(struct nd_region *nd_region, struct nvdimm_drvdata *ndd,
+		struct nd_label_id *label_id, struct resource *prev,
+		struct resource *next, struct resource *exist,
+		resource_size_t n, struct resource *valid)
 {
-	/*
-	 * For BLK-space any space is valid, for PMEM-space, it must be
-	 * contiguous with an existing allocation unless we are
-	 * reserving pmem.
-	 */
-	if (is_reserve || !is_pmem)
-		return true;
-	if (!res || strcmp(res->name, label_id->id) == 0)
-		return true;
-	return false;
+	bool is_reserve = strcmp(label_id->id, "pmem-reserve") == 0;
+	bool is_pmem = strncmp(label_id->id, "pmem", 4) == 0;
+
+	if (valid->start >= valid->end)
+		goto invalid;
+
+	if (is_reserve)
+		return;
+
+	if (!is_pmem) {
+		struct nd_mapping *nd_mapping = &nd_region->mapping[0];
+		struct nvdimm_bus *nvdimm_bus;
+		struct blk_alloc_info info = {
+			.nd_mapping = nd_mapping,
+			.available = nd_mapping->size,
+			.res = valid,
+		};
+
+		WARN_ON(!is_nd_blk(&nd_region->dev));
+		nvdimm_bus = walk_to_nvdimm_bus(&nd_region->dev);
+		device_for_each_child(&nvdimm_bus->dev, &info, alias_dpa_busy);
+		return;
+	}
+
+	/* allocation needs to be contiguous, so this is all or nothing */
+	if (resource_size(valid) < n)
+		goto invalid;
+
+	/* we've got all the space we need and no existing allocation */
+	if (!exist)
+		return;
+
+	/* allocation needs to be contiguous with the existing namespace */
+	if (valid->start == exist->end + 1
+			|| valid->end == exist->start - 1)
+		return;
+
+ invalid:
+	/* truncate @valid size to 0 */
+	valid->end = valid->start - 1;
 }
 
 enum alloc_loc {
@@ -553,18 +602,24 @@ static resource_size_t scan_allocate(struct nd_region *nd_region,
 		resource_size_t n)
 {
 	resource_size_t mapping_end = nd_mapping->start + nd_mapping->size - 1;
-	bool is_reserve = strcmp(label_id->id, "pmem-reserve") == 0;
 	bool is_pmem = strncmp(label_id->id, "pmem", 4) == 0;
 	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
+	struct resource *res, *exist = NULL, valid;
 	const resource_size_t to_allocate = n;
-	struct resource *res;
 	int first;
 
+	for_each_dpa_resource(ndd, res)
+		if (strcmp(label_id->id, res->name) == 0)
+			exist = res;
+
+	valid.start = nd_mapping->start;
+	valid.end = mapping_end;
+	valid.name = "free space";
  retry:
 	first = 0;
 	for_each_dpa_resource(ndd, res) {
-		resource_size_t allocate, available = 0, free_start, free_end;
 		struct resource *next = res->sibling, *new_res = NULL;
+		resource_size_t allocate, available = 0;
 		enum alloc_loc loc = ALLOC_ERR;
 		const char *action;
 		int rc = 0;
@@ -577,32 +632,35 @@ static resource_size_t scan_allocate(struct nd_region *nd_region,
 
 		/* space at the beginning of the mapping */
 		if (!first++ && res->start > nd_mapping->start) {
-			free_start = nd_mapping->start;
-			available = res->start - free_start;
-			if (space_valid(is_pmem, is_reserve, label_id, NULL))
+			valid.start = nd_mapping->start;
+			valid.end = res->start - 1;
+			space_valid(nd_region, ndd, label_id, NULL, next, exist,
+					to_allocate, &valid);
+			available = resource_size(&valid);
+			if (available)
 				loc = ALLOC_BEFORE;
 		}
 
 		/* space between allocations */
 		if (!loc && next) {
-			free_start = res->start + resource_size(res);
-			free_end = min(mapping_end, next->start - 1);
-			if (space_valid(is_pmem, is_reserve, label_id, res)
-					&& free_start < free_end) {
-				available = free_end + 1 - free_start;
+			valid.start = res->start + resource_size(res);
+			valid.end = min(mapping_end, next->start - 1);
+			space_valid(nd_region, ndd, label_id, res, next, exist,
+					to_allocate, &valid);
+			available = resource_size(&valid);
+			if (available)
 				loc = ALLOC_MID;
-			}
 		}
 
 		/* space at the end of the mapping */
 		if (!loc && !next) {
-			free_start = res->start + resource_size(res);
-			free_end = mapping_end;
-			if (space_valid(is_pmem, is_reserve, label_id, res)
-					&& free_start < free_end) {
-				available = free_end + 1 - free_start;
+			valid.start = res->start + resource_size(res);
+			valid.end = mapping_end;
+			space_valid(nd_region, ndd, label_id, res, next, exist,
+					to_allocate, &valid);
+			available = resource_size(&valid);
+			if (available)
 				loc = ALLOC_AFTER;
-			}
 		}
 
 		if (!loc || !available)
@@ -612,8 +670,6 @@ static resource_size_t scan_allocate(struct nd_region *nd_region,
 		case ALLOC_BEFORE:
 			if (strcmp(res->name, label_id->id) == 0) {
 				/* adjust current resource up */
-				if (is_pmem && !is_reserve)
-					return n;
 				rc = adjust_resource(res, res->start - allocate,
 						resource_size(res) + allocate);
 				action = "cur grow up";
@@ -623,8 +679,6 @@ static resource_size_t scan_allocate(struct nd_region *nd_region,
 		case ALLOC_MID:
 			if (strcmp(next->name, label_id->id) == 0) {
 				/* adjust next resource up */
-				if (is_pmem && !is_reserve)
-					return n;
 				rc = adjust_resource(next, next->start
 						- allocate, resource_size(next)
 						+ allocate);
@@ -648,12 +702,10 @@ static resource_size_t scan_allocate(struct nd_region *nd_region,
 		if (strcmp(action, "allocate") == 0) {
 			/* BLK allocate bottom up */
 			if (!is_pmem)
-				free_start += available - allocate;
-			else if (!is_reserve && free_start != nd_mapping->start)
-				return n;
+				valid.start += available - allocate;
 
 			new_res = nvdimm_allocate_dpa(ndd, label_id,
-					free_start, allocate);
+					valid.start, allocate);
 			if (!new_res)
 				rc = -EBUSY;
 		} else if (strcmp(action, "grow down") == 0) {
