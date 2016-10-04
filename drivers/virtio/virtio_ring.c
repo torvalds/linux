@@ -327,6 +327,8 @@ static inline int virtqueue_add(struct virtqueue *_vq,
 		 * host should service the ring ASAP. */
 		if (out_sgs)
 			vq->notify(&vq->vq);
+		if (indirect)
+			kfree(desc);
 		END_USE(vq);
 		return -ENOSPC;
 	}
@@ -426,6 +428,7 @@ unmap_release:
 	if (indirect)
 		kfree(desc);
 
+	END_USE(vq);
 	return -EIO;
 }
 

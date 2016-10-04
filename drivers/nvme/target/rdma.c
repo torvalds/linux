@@ -77,6 +77,7 @@ enum nvmet_rdma_queue_state {
 	NVMET_RDMA_Q_CONNECTING,
 	NVMET_RDMA_Q_LIVE,
 	NVMET_RDMA_Q_DISCONNECTING,
+	NVMET_RDMA_IN_DEVICE_REMOVAL,
 };
 
 struct nvmet_rdma_queue {
@@ -615,15 +616,10 @@ static u16 nvmet_rdma_map_sgl_keyed(struct nvmet_rdma_rsp *rsp,
 	if (!len)
 		return 0;
 
-	/* use the already allocated data buffer if possible */
-	if (len <= NVMET_RDMA_INLINE_DATA_SIZE && rsp->queue->host_qid) {
-		nvmet_rdma_use_inline_sg(rsp, len, 0);
-	} else {
-		status = nvmet_rdma_alloc_sgl(&rsp->req.sg, &rsp->req.sg_cnt,
-				len);
-		if (status)
-			return status;
-	}
+	status = nvmet_rdma_alloc_sgl(&rsp->req.sg, &rsp->req.sg_cnt,
+			len);
+	if (status)
+		return status;
 
 	ret = rdma_rw_ctx_init(&rsp->rw, cm_id->qp, cm_id->port_num,
 			rsp->req.sg, rsp->req.sg_cnt, 0, addr, key,
@@ -984,7 +980,10 @@ static void nvmet_rdma_release_queue_work(struct work_struct *w)
 	struct nvmet_rdma_device *dev = queue->dev;
 
 	nvmet_rdma_free_queue(queue);
-	rdma_destroy_id(cm_id);
+
+	if (queue->state != NVMET_RDMA_IN_DEVICE_REMOVAL)
+		rdma_destroy_id(cm_id);
+
 	kref_put(&dev->ref, nvmet_rdma_free_dev);
 }
 
@@ -1233,8 +1232,9 @@ static void __nvmet_rdma_queue_disconnect(struct nvmet_rdma_queue *queue)
 	switch (queue->state) {
 	case NVMET_RDMA_Q_CONNECTING:
 	case NVMET_RDMA_Q_LIVE:
-		disconnect = true;
 		queue->state = NVMET_RDMA_Q_DISCONNECTING;
+	case NVMET_RDMA_IN_DEVICE_REMOVAL:
+		disconnect = true;
 		break;
 	case NVMET_RDMA_Q_DISCONNECTING:
 		break;
@@ -1272,6 +1272,62 @@ static void nvmet_rdma_queue_connect_fail(struct rdma_cm_id *cm_id,
 	schedule_work(&queue->release_work);
 }
 
+/**
+ * nvme_rdma_device_removal() - Handle RDMA device removal
+ * @queue:      nvmet rdma queue (cm id qp_context)
+ * @addr:	nvmet address (cm_id context)
+ *
+ * DEVICE_REMOVAL event notifies us that the RDMA device is about
+ * to unplug so we should take care of destroying our RDMA resources.
+ * This event will be generated for each allocated cm_id.
+ *
+ * Note that this event can be generated on a normal queue cm_id
+ * and/or a device bound listener cm_id (where in this case
+ * queue will be null).
+ *
+ * we claim ownership on destroying the cm_id. For queues we move
+ * the queue state to NVMET_RDMA_IN_DEVICE_REMOVAL and for port
+ * we nullify the priv to prevent double cm_id destruction and destroying
+ * the cm_id implicitely by returning a non-zero rc to the callout.
+ */
+static int nvmet_rdma_device_removal(struct rdma_cm_id *cm_id,
+		struct nvmet_rdma_queue *queue)
+{
+	unsigned long flags;
+
+	if (!queue) {
+		struct nvmet_port *port = cm_id->context;
+
+		/*
+		 * This is a listener cm_id. Make sure that
+		 * future remove_port won't invoke a double
+		 * cm_id destroy. use atomic xchg to make sure
+		 * we don't compete with remove_port.
+		 */
+		if (xchg(&port->priv, NULL) != cm_id)
+			return 0;
+	} else {
+		/*
+		 * This is a queue cm_id. Make sure that
+		 * release queue will not destroy the cm_id
+		 * and schedule all ctrl queues removal (only
+		 * if the queue is not disconnecting already).
+		 */
+		spin_lock_irqsave(&queue->state_lock, flags);
+		if (queue->state != NVMET_RDMA_Q_DISCONNECTING)
+			queue->state = NVMET_RDMA_IN_DEVICE_REMOVAL;
+		spin_unlock_irqrestore(&queue->state_lock, flags);
+		nvmet_rdma_queue_disconnect(queue);
+		flush_scheduled_work();
+	}
+
+	/*
+	 * We need to return 1 so that the core will destroy
+	 * it's own ID.  What a great API design..
+	 */
+	return 1;
+}
+
 static int nvmet_rdma_cm_handler(struct rdma_cm_id *cm_id,
 		struct rdma_cm_event *event)
 {
@@ -1294,20 +1350,11 @@ static int nvmet_rdma_cm_handler(struct rdma_cm_id *cm_id,
 		break;
 	case RDMA_CM_EVENT_ADDR_CHANGE:
 	case RDMA_CM_EVENT_DISCONNECTED:
-	case RDMA_CM_EVENT_DEVICE_REMOVAL:
 	case RDMA_CM_EVENT_TIMEWAIT_EXIT:
-		/*
-		 * We can get the device removal callback even for a
-		 * CM ID that we aren't actually using.  In that case
-		 * the context pointer is NULL, so we shouldn't try
-		 * to disconnect a non-existing queue.  But we also
-		 * need to return 1 so that the core will destroy
-		 * it's own ID.  What a great API design..
-		 */
-		if (queue)
-			nvmet_rdma_queue_disconnect(queue);
-		else
-			ret = 1;
+		nvmet_rdma_queue_disconnect(queue);
+		break;
+	case RDMA_CM_EVENT_DEVICE_REMOVAL:
+		ret = nvmet_rdma_device_removal(cm_id, queue);
 		break;
 	case RDMA_CM_EVENT_REJECTED:
 	case RDMA_CM_EVENT_UNREACHABLE:
@@ -1396,9 +1443,10 @@ out_destroy_id:
 
 static void nvmet_rdma_remove_port(struct nvmet_port *port)
 {
-	struct rdma_cm_id *cm_id = port->priv;
+	struct rdma_cm_id *cm_id = xchg(&port->priv, NULL);
 
-	rdma_destroy_id(cm_id);
+	if (cm_id)
+		rdma_destroy_id(cm_id);
 }
 
 static struct nvmet_fabrics_ops nvmet_rdma_ops = {

@@ -35,6 +35,7 @@
 #include <asm/sections.h>
 #include <asm/smp.h>
 #include <asm/suspend.h>
+#include <asm/sysreg.h>
 #include <asm/virt.h>
 
 /*
@@ -217,12 +218,22 @@ static int create_safe_exec_page(void *src_start, size_t length,
 	set_pte(pte, __pte(virt_to_phys((void *)dst) |
 			 pgprot_val(PAGE_KERNEL_EXEC)));
 
-	/* Load our new page tables */
-	asm volatile("msr	ttbr0_el1, %0;"
-		     "isb;"
-		     "tlbi	vmalle1is;"
-		     "dsb	ish;"
-		     "isb" : : "r"(virt_to_phys(pgd)));
+	/*
+	 * Load our new page tables. A strict BBM approach requires that we
+	 * ensure that TLBs are free of any entries that may overlap with the
+	 * global mappings we are about to install.
+	 *
+	 * For a real hibernate/resume cycle TTBR0 currently points to a zero
+	 * page, but TLBs may contain stale ASID-tagged entries (e.g. for EFI
+	 * runtime services), while for a userspace-driven test_resume cycle it
+	 * points to userspace page tables (and we must point it at a zero page
+	 * ourselves). Elsewhere we only (un)install the idmap with preemption
+	 * disabled, so T0SZ should be as required regardless.
+	 */
+	cpu_set_reserved_ttbr0();
+	local_flush_tlb_all();
+	write_sysreg(virt_to_phys(pgd), ttbr0_el1);
+	isb();
 
 	*phys_dst_addr = virt_to_phys((void *)dst);
 
@@ -394,6 +405,38 @@ int swsusp_arch_resume(void)
 					  void *, phys_addr_t, phys_addr_t);
 
 	/*
+	 * Restoring the memory image will overwrite the ttbr1 page tables.
+	 * Create a second copy of just the linear map, and use this when
+	 * restoring.
+	 */
+	tmp_pg_dir = (pgd_t *)get_safe_page(GFP_ATOMIC);
+	if (!tmp_pg_dir) {
+		pr_err("Failed to allocate memory for temporary page tables.");
+		rc = -ENOMEM;
+		goto out;
+	}
+	rc = copy_page_tables(tmp_pg_dir, PAGE_OFFSET, 0);
+	if (rc)
+		goto out;
+
+	/*
+	 * Since we only copied the linear map, we need to find restore_pblist's
+	 * linear map address.
+	 */
+	lm_restore_pblist = LMADDR(restore_pblist);
+
+	/*
+	 * We need a zero page that is zero before & after resume in order to
+	 * to break before make on the ttbr1 page tables.
+	 */
+	zero_page = (void *)get_safe_page(GFP_ATOMIC);
+	if (!zero_page) {
+		pr_err("Failed to allocate zero page.");
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	/*
 	 * Locate the exit code in the bottom-but-one page, so that *NULL
 	 * still has disastrous affects.
 	 */
@@ -419,27 +462,6 @@ int swsusp_arch_resume(void)
 	__flush_dcache_area(hibernate_exit, exit_size);
 
 	/*
-	 * Restoring the memory image will overwrite the ttbr1 page tables.
-	 * Create a second copy of just the linear map, and use this when
-	 * restoring.
-	 */
-	tmp_pg_dir = (pgd_t *)get_safe_page(GFP_ATOMIC);
-	if (!tmp_pg_dir) {
-		pr_err("Failed to allocate memory for temporary page tables.");
-		rc = -ENOMEM;
-		goto out;
-	}
-	rc = copy_page_tables(tmp_pg_dir, PAGE_OFFSET, 0);
-	if (rc)
-		goto out;
-
-	/*
-	 * Since we only copied the linear map, we need to find restore_pblist's
-	 * linear map address.
-	 */
-	lm_restore_pblist = LMADDR(restore_pblist);
-
-	/*
 	 * KASLR will cause the el2 vectors to be in a different location in
 	 * the resumed kernel. Load hibernate's temporary copy into el2.
 	 *
@@ -452,12 +474,6 @@ int swsusp_arch_resume(void)
 
 		__hyp_set_vectors(el2_vectors);
 	}
-
-	/*
-	 * We need a zero page that is zero before & after resume in order to
-	 * to break before make on the ttbr1 page tables.
-	 */
-	zero_page = (void *)get_safe_page(GFP_ATOMIC);
 
 	hibernate_exit(virt_to_phys(tmp_pg_dir), resume_hdr.ttbr1_el1,
 		       resume_hdr.reenter_kernel, lm_restore_pblist,

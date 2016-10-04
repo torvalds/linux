@@ -388,11 +388,62 @@ static const struct qcom_rpm_data ipq806x_template = {
 	.ack_sel_size = 7,
 };
 
+static const struct qcom_rpm_resource mdm9615_rpm_resource_table[] = {
+	[QCOM_RPM_CXO_CLK] =			{ 25, 9, 5, 1 },
+	[QCOM_RPM_SYS_FABRIC_CLK] =		{ 26, 10, 9, 1 },
+	[QCOM_RPM_DAYTONA_FABRIC_CLK] =		{ 27, 11, 11, 1 },
+	[QCOM_RPM_SFPB_CLK] =			{ 28, 12, 12, 1 },
+	[QCOM_RPM_CFPB_CLK] =			{ 29, 13, 13, 1 },
+	[QCOM_RPM_EBI1_CLK] =			{ 30, 14, 16, 1 },
+	[QCOM_RPM_APPS_FABRIC_HALT] =		{ 31, 15, 22, 2 },
+	[QCOM_RPM_APPS_FABRIC_MODE] =		{ 33, 16, 23, 3 },
+	[QCOM_RPM_APPS_FABRIC_IOCTL] =		{ 36, 17, 24, 1 },
+	[QCOM_RPM_APPS_FABRIC_ARB] =		{ 37, 18, 25, 27 },
+	[QCOM_RPM_PM8018_SMPS1] =		{ 64, 19, 30, 2 },
+	[QCOM_RPM_PM8018_SMPS2] =		{ 66, 21, 31, 2 },
+	[QCOM_RPM_PM8018_SMPS3] =		{ 68, 23, 32, 2 },
+	[QCOM_RPM_PM8018_SMPS4] =		{ 70, 25, 33, 2 },
+	[QCOM_RPM_PM8018_SMPS5] =		{ 72, 27, 34, 2 },
+	[QCOM_RPM_PM8018_LDO1] =		{ 74, 29, 35, 2 },
+	[QCOM_RPM_PM8018_LDO2] =		{ 76, 31, 36, 2 },
+	[QCOM_RPM_PM8018_LDO3] =		{ 78, 33, 37, 2 },
+	[QCOM_RPM_PM8018_LDO4] =		{ 80, 35, 38, 2 },
+	[QCOM_RPM_PM8018_LDO5] =		{ 82, 37, 39, 2 },
+	[QCOM_RPM_PM8018_LDO6] =		{ 84, 39, 40, 2 },
+	[QCOM_RPM_PM8018_LDO7] =		{ 86, 41, 41, 2 },
+	[QCOM_RPM_PM8018_LDO8] =		{ 88, 43, 42, 2 },
+	[QCOM_RPM_PM8018_LDO9] =		{ 90, 45, 43, 2 },
+	[QCOM_RPM_PM8018_LDO10] =		{ 92, 47, 44, 2 },
+	[QCOM_RPM_PM8018_LDO11] =		{ 94, 49, 45, 2 },
+	[QCOM_RPM_PM8018_LDO12] =		{ 96, 51, 46, 2 },
+	[QCOM_RPM_PM8018_LDO13] =		{ 98, 53, 47, 2 },
+	[QCOM_RPM_PM8018_LDO14] =		{ 100, 55, 48, 2 },
+	[QCOM_RPM_PM8018_LVS1] =		{ 102, 57, 49, 1 },
+	[QCOM_RPM_PM8018_NCP] =			{ 103, 58, 80, 2 },
+	[QCOM_RPM_CXO_BUFFERS] =		{ 105, 60, 81, 1 },
+	[QCOM_RPM_USB_OTG_SWITCH] =		{ 106, 61, 82, 1 },
+	[QCOM_RPM_HDMI_SWITCH] =		{ 107, 62, 83, 1 },
+	[QCOM_RPM_VOLTAGE_CORNER] =		{ 109, 64, 87, 1 },
+};
+
+static const struct qcom_rpm_data mdm9615_template = {
+	.version = 3,
+	.resource_table = mdm9615_rpm_resource_table,
+	.n_resources = ARRAY_SIZE(mdm9615_rpm_resource_table),
+	.req_ctx_off = 3,
+	.req_sel_off = 11,
+	.ack_ctx_off = 15,
+	.ack_sel_off = 23,
+	.req_sel_size = 4,
+	.ack_sel_size = 7,
+};
+
 static const struct of_device_id qcom_rpm_of_match[] = {
 	{ .compatible = "qcom,rpm-apq8064", .data = &apq8064_template },
 	{ .compatible = "qcom,rpm-msm8660", .data = &msm8660_template },
 	{ .compatible = "qcom,rpm-msm8960", .data = &msm8960_template },
 	{ .compatible = "qcom,rpm-ipq8064", .data = &ipq806x_template },
+	{ .compatible = "qcom,rpm-mdm9615", .data = &mdm9615_template },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, qcom_rpm_of_match);

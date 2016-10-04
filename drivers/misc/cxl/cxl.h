@@ -561,7 +561,6 @@ struct cxl_service_layer_ops {
 	u64 (*timebase_read)(struct cxl *adapter);
 	int capi_mode;
 	bool needs_reset_before_disable;
-	int min_pe;
 };
 
 struct cxl_native {
@@ -603,6 +602,7 @@ struct cxl {
 	struct bin_attribute cxl_attr;
 	int adapter_num;
 	int user_irqs;
+	int min_pe;
 	u64 ps_size;
 	u16 psl_rev;
 	u16 base_image;

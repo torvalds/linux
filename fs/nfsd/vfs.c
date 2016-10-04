@@ -1252,10 +1252,13 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (IS_ERR(dchild))
 		return nfserrno(host_err);
 	err = fh_compose(resfhp, fhp->fh_export, dchild, fhp);
-	if (err) {
-		dput(dchild);
+	/*
+	 * We unconditionally drop our ref to dchild as fh_compose will have
+	 * already grabbed its own ref for it.
+	 */
+	dput(dchild);
+	if (err)
 		return err;
-	}
 	return nfsd_create_locked(rqstp, fhp, fname, flen, iap, type,
 					rdev, resfhp);
 }

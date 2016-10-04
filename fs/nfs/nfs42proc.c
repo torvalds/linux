@@ -338,6 +338,8 @@ nfs42_layoutstat_done(struct rpc_task *task, void *calldata)
 	case 0:
 		break;
 	case -NFS4ERR_EXPIRED:
+	case -NFS4ERR_ADMIN_REVOKED:
+	case -NFS4ERR_DELEG_REVOKED:
 	case -NFS4ERR_STALE_STATEID:
 	case -NFS4ERR_OLD_STATEID:
 	case -NFS4ERR_BAD_STATEID:

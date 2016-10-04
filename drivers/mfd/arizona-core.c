@@ -10,6 +10,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
@@ -49,7 +50,15 @@ int arizona_clk32k_enable(struct arizona *arizona)
 		case ARIZONA_32KZ_MCLK1:
 			ret = pm_runtime_get_sync(arizona->dev);
 			if (ret != 0)
-				goto out;
+				goto err_ref;
+			ret = clk_prepare_enable(arizona->mclk[ARIZONA_MCLK1]);
+			if (ret != 0)
+				goto err_pm;
+			break;
+		case ARIZONA_32KZ_MCLK2:
+			ret = clk_prepare_enable(arizona->mclk[ARIZONA_MCLK2]);
+			if (ret != 0)
+				goto err_ref;
 			break;
 		}
 
@@ -58,7 +67,9 @@ int arizona_clk32k_enable(struct arizona *arizona)
 					 ARIZONA_CLK_32K_ENA);
 	}
 
-out:
+err_pm:
+	pm_runtime_put_sync(arizona->dev);
+err_ref:
 	if (ret != 0)
 		arizona->clk32k_ref--;
 
@@ -83,6 +94,10 @@ int arizona_clk32k_disable(struct arizona *arizona)
 		switch (arizona->pdata.clk32k_src) {
 		case ARIZONA_32KZ_MCLK1:
 			pm_runtime_put_sync(arizona->dev);
+			clk_disable_unprepare(arizona->mclk[ARIZONA_MCLK1]);
+			break;
+		case ARIZONA_32KZ_MCLK2:
+			clk_disable_unprepare(arizona->mclk[ARIZONA_MCLK2]);
 			break;
 		}
 	}
@@ -1000,6 +1015,7 @@ static const struct mfd_cell wm8998_devs[] = {
 
 int arizona_dev_init(struct arizona *arizona)
 {
+	const char * const mclk_name[] = { "mclk1", "mclk2" };
 	struct device *dev = arizona->dev;
 	const char *type_name = NULL;
 	unsigned int reg, val, mask;
@@ -1015,6 +1031,16 @@ int arizona_dev_init(struct arizona *arizona)
 		       sizeof(arizona->pdata));
 	else
 		arizona_of_get_core_pdata(arizona);
+
+	BUILD_BUG_ON(ARRAY_SIZE(arizona->mclk) != ARRAY_SIZE(mclk_name));
+	for (i = 0; i < ARRAY_SIZE(arizona->mclk); i++) {
+		arizona->mclk[i] = devm_clk_get(arizona->dev, mclk_name[i]);
+		if (IS_ERR(arizona->mclk[i])) {
+			dev_info(arizona->dev, "Failed to get %s: %ld\n",
+				 mclk_name[i], PTR_ERR(arizona->mclk[i]));
+			arizona->mclk[i] = NULL;
+		}
+	}
 
 	regcache_cache_only(arizona->regmap, true);
 

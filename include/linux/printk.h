@@ -266,39 +266,21 @@ extern asmlinkage void dump_stack(void) __cold;
  * and other debug macros are compiled out unless either DEBUG is defined
  * or CONFIG_DYNAMIC_DEBUG is set.
  */
-
-#ifdef CONFIG_PRINTK
-
-asmlinkage __printf(1, 2) __cold void __pr_emerg(const char *fmt, ...);
-asmlinkage __printf(1, 2) __cold void __pr_alert(const char *fmt, ...);
-asmlinkage __printf(1, 2) __cold void __pr_crit(const char *fmt, ...);
-asmlinkage __printf(1, 2) __cold void __pr_err(const char *fmt, ...);
-asmlinkage __printf(1, 2) __cold void __pr_warn(const char *fmt, ...);
-asmlinkage __printf(1, 2) __cold void __pr_notice(const char *fmt, ...);
-asmlinkage __printf(1, 2) __cold void __pr_info(const char *fmt, ...);
-
-#define pr_emerg(fmt, ...)	__pr_emerg(pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_alert(fmt, ...)	__pr_alert(pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_crit(fmt, ...)	__pr_crit(pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_err(fmt, ...)	__pr_err(pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_warn(fmt, ...)	__pr_warn(pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_notice(fmt, ...)	__pr_notice(pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_info(fmt, ...)	__pr_info(pr_fmt(fmt), ##__VA_ARGS__)
-
-#else
-
-#define pr_emerg(fmt, ...)	printk(KERN_EMERG pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_alert(fmt, ...)	printk(KERN_ALERT pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_crit(fmt, ...)	printk(KERN_CRIT pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_err(fmt, ...)	printk(KERN_ERR pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_warn(fmt, ...)	printk(KERN_WARNING pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_notice(fmt, ...)	printk(KERN_NOTICE pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_info(fmt, ...)	printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
-
-#endif
-
-#define pr_warning pr_warn
-
+#define pr_emerg(fmt, ...) \
+	printk(KERN_EMERG pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_alert(fmt, ...) \
+	printk(KERN_ALERT pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_crit(fmt, ...) \
+	printk(KERN_CRIT pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_err(fmt, ...) \
+	printk(KERN_ERR pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_warning(fmt, ...) \
+	printk(KERN_WARNING pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_warn pr_warning
+#define pr_notice(fmt, ...) \
+	printk(KERN_NOTICE pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_info(fmt, ...) \
+	printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
 /*
  * Like KERN_CONT, pr_cont() should only be used when continuing
  * a line with no newline ('\n') enclosed. Otherwise it defaults
