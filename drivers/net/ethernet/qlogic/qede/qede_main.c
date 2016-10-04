@@ -36,7 +36,7 @@
 #include <linux/random.h>
 #include <net/ip6_checksum.h>
 #include <linux/bitops.h>
-
+#include <linux/qed/qede_roce.h>
 #include "qede.h"
 
 static char version[] =
@@ -193,8 +193,7 @@ static int qede_netdev_event(struct notifier_block *this, unsigned long event,
 	struct ethtool_drvinfo drvinfo;
 	struct qede_dev *edev;
 
-	/* Currently only support name change */
-	if (event != NETDEV_CHANGENAME)
+	if (event != NETDEV_CHANGENAME && event != NETDEV_CHANGEADDR)
 		goto done;
 
 	/* Check whether this is a qede device */
@@ -207,11 +206,18 @@ static int qede_netdev_event(struct notifier_block *this, unsigned long event,
 		goto done;
 	edev = netdev_priv(ndev);
 
-	/* Notify qed of the name change */
-	if (!edev->ops || !edev->ops->common)
-		goto done;
-	edev->ops->common->set_id(edev->cdev, edev->ndev->name,
-				  "qede");
+	switch (event) {
+	case NETDEV_CHANGENAME:
+		/* Notify qed of the name change */
+		if (!edev->ops || !edev->ops->common)
+			goto done;
+		edev->ops->common->set_id(edev->cdev, edev->ndev->name, "qede");
+		break;
+	case NETDEV_CHANGEADDR:
+		edev = netdev_priv(ndev);
+		qede_roce_event_changeaddr(edev);
+		break;
+	}
 
 done:
 	return NOTIFY_DONE;
@@ -2545,10 +2551,14 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 
 	qede_init_ndev(edev);
 
+	rc = qede_roce_dev_add(edev);
+	if (rc)
+		goto err3;
+
 	rc = register_netdev(edev->ndev);
 	if (rc) {
 		DP_NOTICE(edev, "Cannot register net-device\n");
-		goto err3;
+		goto err4;
 	}
 
 	edev->ops->common->set_id(cdev, edev->ndev->name, DRV_MODULE_VERSION);
@@ -2568,6 +2578,8 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 
 	return 0;
 
+err4:
+	qede_roce_dev_remove(edev);
 err3:
 	free_netdev(edev->ndev);
 err2:
@@ -2614,7 +2626,10 @@ static void __qede_remove(struct pci_dev *pdev, enum qede_remove_mode mode)
 	DP_INFO(edev, "Starting qede_remove\n");
 
 	cancel_delayed_work_sync(&edev->sp_task);
+
 	unregister_netdev(ndev);
+
+	qede_roce_dev_remove(edev);
 
 	edev->ops->common->set_power_state(cdev, PCI_D0);
 
@@ -3512,6 +3527,7 @@ static void qede_unload(struct qede_dev *edev, enum qede_unload_mode mode)
 
 	DP_INFO(edev, "Starting qede unload\n");
 
+	qede_roce_dev_event_close(edev);
 	mutex_lock(&edev->qede_lock);
 	edev->state = QEDE_STATE_CLOSED;
 
@@ -3612,6 +3628,7 @@ static int qede_load(struct qede_dev *edev, enum qede_load_mode mode)
 	/* Query whether link is already-up */
 	memset(&link_output, 0, sizeof(link_output));
 	edev->ops->common->get_link(edev->cdev, &link_output);
+	qede_roce_dev_event_open(edev);
 	qede_link_update(edev, &link_output);
 
 	DP_INFO(edev, "Ending successfully qede load\n");

@@ -544,7 +544,7 @@ int qed_vf_pf_txq_start(struct qed_hwfn *p_hwfn,
 			u8 cid = p_iov->acquire_resp.resc.cid[tx_queue_id];
 			u32 db_addr;
 
-			db_addr = qed_db_addr(cid, DQ_DEMS_LEGACY);
+			db_addr = qed_db_addr_vf(cid, DQ_DEMS_LEGACY);
 			*pp_doorbell = (u8 __iomem *)p_hwfn->doorbells +
 						     db_addr;
 		}
