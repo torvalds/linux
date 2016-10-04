@@ -1488,6 +1488,10 @@ static inline void intel_fbdev_set_suspend(struct drm_device *dev, int state, bo
 {
 }
 
+static inline void intel_fbdev_output_poll_changed(struct drm_device *dev)
+{
+}
+
 static inline void intel_fbdev_restore_mode(struct drm_device *dev)
 {
 }
