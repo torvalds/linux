@@ -581,28 +581,52 @@ void assert_forcewakes_inactive(struct drm_i915_private *dev_priv)
 	__fwd; \
 })
 
-#define REG_RANGE(reg, start, end) ((reg) >= (start) && (reg) < (end))
+struct intel_forcewake_range
+{
+	u32 start;
+	u32 end;
 
-#define FORCEWAKE_VLV_RENDER_RANGE_OFFSET(reg) \
-	(REG_RANGE((reg), 0x2000, 0x4000) || \
-	 REG_RANGE((reg), 0x5000, 0x8000) || \
-	 REG_RANGE((reg), 0xB000, 0x12000) || \
-	 REG_RANGE((reg), 0x2E000, 0x30000))
+	enum forcewake_domains domains;
+};
 
-#define FORCEWAKE_VLV_MEDIA_RANGE_OFFSET(reg) \
-	(REG_RANGE((reg), 0x12000, 0x14000) || \
-	 REG_RANGE((reg), 0x22000, 0x24000) || \
-	 REG_RANGE((reg), 0x30000, 0x40000))
+static enum forcewake_domains
+find_fw_domain(u32 offset, const struct intel_forcewake_range *ranges,
+	       unsigned int num_ranges)
+{
+	unsigned int i;
+	struct intel_forcewake_range *entry =
+		(struct intel_forcewake_range *)ranges;
+
+	for (i = 0; i < num_ranges; i++, entry++) {
+		if (offset >= entry->start && offset <= entry->end)
+			return entry->domains;
+	}
+
+	return -1;
+}
+
+#define GEN_FW_RANGE(s, e, d) \
+	{ .start = (s), .end = (e), .domains = (d) }
+
+static const struct intel_forcewake_range __vlv_fw_ranges[] = {
+	GEN_FW_RANGE(0x2000, 0x3fff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x5000, 0x7fff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0xb000, 0x11fff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x2e000, 0x2ffff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x12000, 0x13fff, FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0x22000, 0x23fff, FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0x30000, 0x3ffff, FORCEWAKE_MEDIA),
+};
 
 #define __vlv_reg_read_fw_domains(offset) \
 ({ \
 	enum forcewake_domains __fwd = 0; \
-	if (!NEEDS_FORCE_WAKE(offset)) \
-		__fwd = 0; \
-	else if (FORCEWAKE_VLV_RENDER_RANGE_OFFSET(offset)) \
-		__fwd = FORCEWAKE_RENDER; \
-	else if (FORCEWAKE_VLV_MEDIA_RANGE_OFFSET(offset)) \
-		__fwd = FORCEWAKE_MEDIA; \
+	if (NEEDS_FORCE_WAKE((offset))) { \
+		__fwd = find_fw_domain(offset, __vlv_fw_ranges, \
+				       ARRAY_SIZE(__vlv_fw_ranges)); \
+		if (__fwd == -1 ) \
+			__fwd = 0; \
+	} \
 	__fwd; \
 })
 
@@ -636,104 +660,78 @@ static bool is_gen8_shadowed(u32 offset)
 	__fwd; \
 })
 
-#define FORCEWAKE_CHV_RENDER_RANGE_OFFSET(reg) \
-	(REG_RANGE((reg), 0x2000, 0x4000) || \
-	 REG_RANGE((reg), 0x5200, 0x8000) || \
-	 REG_RANGE((reg), 0x8300, 0x8500) || \
-	 REG_RANGE((reg), 0xB000, 0xB480) || \
-	 REG_RANGE((reg), 0xE000, 0xE800))
-
-#define FORCEWAKE_CHV_MEDIA_RANGE_OFFSET(reg) \
-	(REG_RANGE((reg), 0x8800, 0x8900) || \
-	 REG_RANGE((reg), 0xD000, 0xD800) || \
-	 REG_RANGE((reg), 0x12000, 0x14000) || \
-	 REG_RANGE((reg), 0x1A000, 0x1C000) || \
-	 REG_RANGE((reg), 0x1E800, 0x1EA00) || \
-	 REG_RANGE((reg), 0x30000, 0x38000))
-
-#define FORCEWAKE_CHV_COMMON_RANGE_OFFSET(reg) \
-	(REG_RANGE((reg), 0x4000, 0x5000) || \
-	 REG_RANGE((reg), 0x8000, 0x8300) || \
-	 REG_RANGE((reg), 0x8500, 0x8600) || \
-	 REG_RANGE((reg), 0x9000, 0xB000) || \
-	 REG_RANGE((reg), 0xF000, 0x10000))
+static const struct intel_forcewake_range __chv_fw_ranges[] = {
+	GEN_FW_RANGE(0x2000, 0x3fff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x5200, 0x7fff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x8300, 0x84ff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0xb000, 0xb47f, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0xe000, 0xe7ff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x8800, 0x88ff, FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0xd000, 0xd7ff, FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0x12000, 0x13fff, FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0x1a000, 0x1bfff, FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0x1e800, 0x1e9ff, FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0x30000, 0x37fff, FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0x4000, 0x4fff, FORCEWAKE_RENDER | FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0x8000, 0x82ff, FORCEWAKE_RENDER | FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0x8500, 0x85ff, FORCEWAKE_RENDER | FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0x9000, 0xafff, FORCEWAKE_RENDER | FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0xf000, 0xffff, FORCEWAKE_RENDER | FORCEWAKE_MEDIA),
+};
 
 #define __chv_reg_read_fw_domains(offset) \
 ({ \
 	enum forcewake_domains __fwd = 0; \
-	if (!NEEDS_FORCE_WAKE(offset)) \
-		__fwd = 0; \
-	else if (FORCEWAKE_CHV_RENDER_RANGE_OFFSET(offset)) \
-		__fwd = FORCEWAKE_RENDER; \
-	else if (FORCEWAKE_CHV_MEDIA_RANGE_OFFSET(offset)) \
-		__fwd = FORCEWAKE_MEDIA; \
-	else if (FORCEWAKE_CHV_COMMON_RANGE_OFFSET(offset)) \
-		__fwd = FORCEWAKE_RENDER | FORCEWAKE_MEDIA; \
+	if (NEEDS_FORCE_WAKE((offset))) { \
+		__fwd = find_fw_domain(offset, __chv_fw_ranges, \
+				       ARRAY_SIZE(__chv_fw_ranges)); \
+		if (__fwd == -1 ) \
+			__fwd = 0; \
+	} \
 	__fwd; \
 })
 
 #define __chv_reg_write_fw_domains(offset) \
 ({ \
 	enum forcewake_domains __fwd = 0; \
-	if (!NEEDS_FORCE_WAKE(offset) || is_gen8_shadowed(offset)) \
-		__fwd = 0; \
-	else if (FORCEWAKE_CHV_RENDER_RANGE_OFFSET(offset)) \
-		__fwd = FORCEWAKE_RENDER; \
-	else if (FORCEWAKE_CHV_MEDIA_RANGE_OFFSET(offset)) \
-		__fwd = FORCEWAKE_MEDIA; \
-	else if (FORCEWAKE_CHV_COMMON_RANGE_OFFSET(offset)) \
-		__fwd = FORCEWAKE_RENDER | FORCEWAKE_MEDIA; \
+	if (NEEDS_FORCE_WAKE((offset)) && !is_gen8_shadowed(offset)) { \
+		__fwd = find_fw_domain(offset, __chv_fw_ranges, \
+				       ARRAY_SIZE(__chv_fw_ranges)); \
+		if (__fwd == -1 ) \
+			__fwd = 0; \
+	} \
 	__fwd; \
 })
 
-#define FORCEWAKE_GEN9_UNCORE_RANGE_OFFSET(reg) \
-	REG_RANGE((reg), 0xB00,  0x2000)
-
-#define FORCEWAKE_GEN9_RENDER_RANGE_OFFSET(reg) \
-	(REG_RANGE((reg), 0x2000, 0x2700) || \
-	 REG_RANGE((reg), 0x3000, 0x4000) || \
-	 REG_RANGE((reg), 0x5200, 0x8000) || \
-	 REG_RANGE((reg), 0x8140, 0x8160) || \
-	 REG_RANGE((reg), 0x8300, 0x8500) || \
-	 REG_RANGE((reg), 0x8C00, 0x8D00) || \
-	 REG_RANGE((reg), 0xB000, 0xB480) || \
-	 REG_RANGE((reg), 0xE000, 0xE900) || \
-	 REG_RANGE((reg), 0x24400, 0x24800))
-
-#define FORCEWAKE_GEN9_MEDIA_RANGE_OFFSET(reg) \
-	(REG_RANGE((reg), 0x8130, 0x8140) || \
-	 REG_RANGE((reg), 0x8800, 0x8A00) || \
-	 REG_RANGE((reg), 0xD000, 0xD800) || \
-	 REG_RANGE((reg), 0x12000, 0x14000) || \
-	 REG_RANGE((reg), 0x1A000, 0x1EA00) || \
-	 REG_RANGE((reg), 0x30000, 0x40000))
-
-#define FORCEWAKE_GEN9_COMMON_RANGE_OFFSET(reg) \
-	REG_RANGE((reg), 0x9400, 0x9800)
-
-#define FORCEWAKE_GEN9_BLITTER_RANGE_OFFSET(reg) \
-	((reg) < 0x40000 && \
-	 !FORCEWAKE_GEN9_UNCORE_RANGE_OFFSET(reg) && \
-	 !FORCEWAKE_GEN9_RENDER_RANGE_OFFSET(reg) && \
-	 !FORCEWAKE_GEN9_MEDIA_RANGE_OFFSET(reg) && \
-	 !FORCEWAKE_GEN9_COMMON_RANGE_OFFSET(reg))
-
-#define SKL_NEEDS_FORCE_WAKE(reg) \
-	((reg) < 0x40000 && !FORCEWAKE_GEN9_UNCORE_RANGE_OFFSET(reg))
+static const struct intel_forcewake_range __gen9_fw_ranges[] = {
+	GEN_FW_RANGE(0xb00, 0x1fff, 0), /* uncore range */
+	GEN_FW_RANGE(0x2000, 0x26ff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x3000, 0x3fff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x5200, 0x7fff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x8140, 0x815f, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x8300, 0x84ff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x8c00, 0x8cff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0xb000, 0xb47f, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0xe000, 0xe8ff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x24400, 0x247ff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x9400, 0x97ff, FORCEWAKE_RENDER | FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0x8130, 0x813f, FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0x8800, 0x89ff, FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0xd000, 0xd7ff, FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0x12000, 0x13fff, FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0x1a000, 0x1e9ff, FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0x30000, 0x3ffff, FORCEWAKE_MEDIA),
+};
 
 #define __gen9_reg_read_fw_domains(offset) \
 ({ \
-	enum forcewake_domains __fwd; \
-	if (!SKL_NEEDS_FORCE_WAKE(offset)) \
-		__fwd = 0; \
-	else if (FORCEWAKE_GEN9_RENDER_RANGE_OFFSET(offset)) \
-		__fwd = FORCEWAKE_RENDER; \
-	else if (FORCEWAKE_GEN9_MEDIA_RANGE_OFFSET(offset)) \
-		__fwd = FORCEWAKE_MEDIA; \
-	else if (FORCEWAKE_GEN9_COMMON_RANGE_OFFSET(offset)) \
-		__fwd = FORCEWAKE_RENDER | FORCEWAKE_MEDIA; \
-	else \
-		__fwd = FORCEWAKE_BLITTER; \
+	enum forcewake_domains __fwd = 0; \
+	if (NEEDS_FORCE_WAKE((offset))) { \
+		__fwd = find_fw_domain(offset, __gen9_fw_ranges, \
+				       ARRAY_SIZE(__gen9_fw_ranges)); \
+		if (__fwd == -1 ) \
+			__fwd = FORCEWAKE_BLITTER; \
+	} \
 	__fwd; \
 })
 
@@ -759,17 +757,13 @@ static bool is_gen9_shadowed(u32 offset)
 
 #define __gen9_reg_write_fw_domains(offset) \
 ({ \
-	enum forcewake_domains __fwd; \
-	if (!SKL_NEEDS_FORCE_WAKE(offset) || is_gen9_shadowed(offset)) \
-		__fwd = 0; \
-	else if (FORCEWAKE_GEN9_RENDER_RANGE_OFFSET(offset)) \
-		__fwd = FORCEWAKE_RENDER; \
-	else if (FORCEWAKE_GEN9_MEDIA_RANGE_OFFSET(offset)) \
-		__fwd = FORCEWAKE_MEDIA; \
-	else if (FORCEWAKE_GEN9_COMMON_RANGE_OFFSET(offset)) \
-		__fwd = FORCEWAKE_RENDER | FORCEWAKE_MEDIA; \
-	else \
-		__fwd = FORCEWAKE_BLITTER; \
+	enum forcewake_domains __fwd = 0; \
+	if (NEEDS_FORCE_WAKE((offset)) && !is_gen9_shadowed(offset)) { \
+		__fwd = find_fw_domain(offset, __gen9_fw_ranges, \
+				       ARRAY_SIZE(__gen9_fw_ranges)); \
+		if (__fwd == -1 ) \
+			__fwd = FORCEWAKE_BLITTER; \
+	} \
 	__fwd; \
 })
 
