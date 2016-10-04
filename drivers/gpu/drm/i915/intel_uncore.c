@@ -861,11 +861,21 @@ __gen2_read(64)
 	trace_i915_reg_rw(false, reg, val, sizeof(val), trace); \
 	return val
 
-static inline void __force_wake_auto(struct drm_i915_private *dev_priv,
-				     enum forcewake_domains fw_domains)
+static noinline void ___force_wake_auto(struct drm_i915_private *dev_priv,
+					enum forcewake_domains fw_domains)
 {
 	struct intel_uncore_forcewake_domain *domain;
 
+	for_each_fw_domain_masked(domain, fw_domains, dev_priv)
+		fw_domain_arm_timer(domain);
+
+	dev_priv->uncore.funcs.force_wake_get(dev_priv, fw_domains);
+	dev_priv->uncore.fw_domains_active |= fw_domains;
+}
+
+static inline void __force_wake_auto(struct drm_i915_private *dev_priv,
+				     enum forcewake_domains fw_domains)
+{
 	if (WARN_ON(!fw_domains))
 		return;
 
@@ -873,14 +883,8 @@ static inline void __force_wake_auto(struct drm_i915_private *dev_priv,
 	fw_domains &= dev_priv->uncore.fw_domains;
 	fw_domains &= ~dev_priv->uncore.fw_domains_active;
 
-	if (fw_domains) {
-		/* Ideally GCC would be constant-fold and eliminate this loop */
-		for_each_fw_domain_masked(domain, fw_domains, dev_priv)
-			fw_domain_arm_timer(domain);
-
-		dev_priv->uncore.funcs.force_wake_get(dev_priv, fw_domains);
-		dev_priv->uncore.fw_domains_active |= fw_domains;
-	}
+	if (fw_domains)
+		___force_wake_auto(dev_priv, fw_domains);
 }
 
 #define __gen6_read(x) \
