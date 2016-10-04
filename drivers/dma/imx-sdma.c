@@ -648,15 +648,11 @@ static void sdma_event_disable(struct sdma_channel *sdmac, unsigned int event)
 	writel_relaxed(val, sdma->regs + chnenbl);
 }
 
-static void sdma_handle_channel_loop(struct sdma_channel *sdmac)
-{
-	if (sdmac->desc.callback)
-		sdmac->desc.callback(sdmac->desc.callback_param);
-}
-
 static void sdma_update_channel_loop(struct sdma_channel *sdmac)
 {
 	struct sdma_buffer_descriptor *bd;
+	int error = 0;
+	enum dma_status	old_status = sdmac->status;
 
 	/*
 	 * loop mode. Iterate over descriptors, re-setup them and
@@ -668,17 +664,42 @@ static void sdma_update_channel_loop(struct sdma_channel *sdmac)
 		if (bd->mode.status & BD_DONE)
 			break;
 
-		if (bd->mode.status & BD_RROR)
+		if (bd->mode.status & BD_RROR) {
+			bd->mode.status &= ~BD_RROR;
 			sdmac->status = DMA_ERROR;
+			error = -EIO;
+		}
 
+	       /*
+		* We use bd->mode.count to calculate the residue, since contains
+		* the number of bytes present in the current buffer descriptor.
+		*/
+
+		sdmac->chn_real_count = bd->mode.count;
 		bd->mode.status |= BD_DONE;
+		bd->mode.count = sdmac->period_len;
+
+		/*
+		 * The callback is called from the interrupt context in order
+		 * to reduce latency and to avoid the risk of altering the
+		 * SDMA transaction status by the time the client tasklet is
+		 * executed.
+		 */
+
+		if (sdmac->desc.callback)
+			sdmac->desc.callback(sdmac->desc.callback_param);
+
 		sdmac->buf_tail++;
 		sdmac->buf_tail %= sdmac->num_bd;
+
+		if (error)
+			sdmac->status = old_status;
 	}
 }
 
-static void mxc_sdma_handle_channel_normal(struct sdma_channel *sdmac)
+static void mxc_sdma_handle_channel_normal(unsigned long data)
 {
+	struct sdma_channel *sdmac = (struct sdma_channel *) data;
 	struct sdma_buffer_descriptor *bd;
 	int i, error = 0;
 
@@ -705,16 +726,6 @@ static void mxc_sdma_handle_channel_normal(struct sdma_channel *sdmac)
 		sdmac->desc.callback(sdmac->desc.callback_param);
 }
 
-static void sdma_tasklet(unsigned long data)
-{
-	struct sdma_channel *sdmac = (struct sdma_channel *) data;
-
-	if (sdmac->flags & IMX_DMA_SG_LOOP)
-		sdma_handle_channel_loop(sdmac);
-	else
-		mxc_sdma_handle_channel_normal(sdmac);
-}
-
 static irqreturn_t sdma_int_handler(int irq, void *dev_id)
 {
 	struct sdma_engine *sdma = dev_id;
@@ -731,8 +742,8 @@ static irqreturn_t sdma_int_handler(int irq, void *dev_id)
 
 		if (sdmac->flags & IMX_DMA_SG_LOOP)
 			sdma_update_channel_loop(sdmac);
-
-		tasklet_schedule(&sdmac->tasklet);
+		else
+			tasklet_schedule(&sdmac->tasklet);
 
 		__clear_bit(channel, &stat);
 	}
@@ -1353,7 +1364,8 @@ static enum dma_status sdma_tx_status(struct dma_chan *chan,
 	u32 residue;
 
 	if (sdmac->flags & IMX_DMA_SG_LOOP)
-		residue = (sdmac->num_bd - sdmac->buf_tail) * sdmac->period_len;
+		residue = (sdmac->num_bd - sdmac->buf_tail) *
+			   sdmac->period_len - sdmac->chn_real_count;
 	else
 		residue = sdmac->chn_count - sdmac->chn_real_count;
 
@@ -1732,7 +1744,7 @@ static int sdma_probe(struct platform_device *pdev)
 		dma_cookie_init(&sdmac->chan);
 		sdmac->channel = i;
 
-		tasklet_init(&sdmac->tasklet, sdma_tasklet,
+		tasklet_init(&sdmac->tasklet, mxc_sdma_handle_channel_normal,
 			     (unsigned long) sdmac);
 		/*
 		 * Add the channel to the DMAC list. Do not add channel 0 though

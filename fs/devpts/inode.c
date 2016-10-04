@@ -272,13 +272,8 @@ static int mknod_ptmx(struct super_block *sb)
 	struct dentry *root = sb->s_root;
 	struct pts_fs_info *fsi = DEVPTS_SB(sb);
 	struct pts_mount_opts *opts = &fsi->mount_opts;
-	kuid_t root_uid;
-	kgid_t root_gid;
-
-	root_uid = make_kuid(current_user_ns(), 0);
-	root_gid = make_kgid(current_user_ns(), 0);
-	if (!uid_valid(root_uid) || !gid_valid(root_gid))
-		return -EINVAL;
+	kuid_t ptmx_uid = current_fsuid();
+	kgid_t ptmx_gid = current_fsgid();
 
 	inode_lock(d_inode(root));
 
@@ -309,8 +304,8 @@ static int mknod_ptmx(struct super_block *sb)
 
 	mode = S_IFCHR|opts->ptmxmode;
 	init_special_inode(inode, mode, MKDEV(TTYAUX_MAJOR, 2));
-	inode->i_uid = root_uid;
-	inode->i_gid = root_gid;
+	inode->i_uid = ptmx_uid;
+	inode->i_gid = ptmx_gid;
 
 	d_add(dentry, inode);
 
@@ -336,7 +331,6 @@ static int devpts_remount(struct super_block *sb, int *flags, char *data)
 	struct pts_fs_info *fsi = DEVPTS_SB(sb);
 	struct pts_mount_opts *opts = &fsi->mount_opts;
 
-	sync_filesystem(sb);
 	err = parse_mount_options(data, PARSE_REMOUNT, opts);
 
 	/*
@@ -395,6 +389,7 @@ static int
 devpts_fill_super(struct super_block *s, void *data, int silent)
 {
 	struct inode *inode;
+	int error;
 
 	s->s_iflags &= ~SB_I_NODEV;
 	s->s_blocksize = 1024;
@@ -403,10 +398,16 @@ devpts_fill_super(struct super_block *s, void *data, int silent)
 	s->s_op = &devpts_sops;
 	s->s_time_gran = 1;
 
+	error = -ENOMEM;
 	s->s_fs_info = new_pts_fs_info(s);
 	if (!s->s_fs_info)
 		goto fail;
 
+	error = parse_mount_options(data, PARSE_MOUNT, &DEVPTS_SB(s)->mount_opts);
+	if (error)
+		goto fail;
+
+	error = -ENOMEM;
 	inode = new_inode(s);
 	if (!inode)
 		goto fail;
@@ -418,13 +419,21 @@ devpts_fill_super(struct super_block *s, void *data, int silent)
 	set_nlink(inode, 2);
 
 	s->s_root = d_make_root(inode);
-	if (s->s_root)
-		return 0;
+	if (!s->s_root) {
+		pr_err("get root dentry failed\n");
+		goto fail;
+	}
 
-	pr_err("get root dentry failed\n");
+	error = mknod_ptmx(s);
+	if (error)
+		goto fail_dput;
 
+	return 0;
+fail_dput:
+	dput(s->s_root);
+	s->s_root = NULL;
 fail:
-	return -ENOMEM;
+	return error;
 }
 
 /*
@@ -436,43 +445,15 @@ fail:
 static struct dentry *devpts_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
 {
-	int error;
-	struct pts_mount_opts opts;
-	struct super_block *s;
-
-	error = parse_mount_options(data, PARSE_MOUNT, &opts);
-	if (error)
-		return ERR_PTR(error);
-
-	s = sget(fs_type, NULL, set_anon_super, flags, NULL);
-	if (IS_ERR(s))
-		return ERR_CAST(s);
-
-	if (!s->s_root) {
-		error = devpts_fill_super(s, data, flags & MS_SILENT ? 1 : 0);
-		if (error)
-			goto out_undo_sget;
-		s->s_flags |= MS_ACTIVE;
-	}
-
-	memcpy(&(DEVPTS_SB(s))->mount_opts, &opts, sizeof(opts));
-
-	error = mknod_ptmx(s);
-	if (error)
-		goto out_undo_sget;
-
-	return dget(s->s_root);
-
-out_undo_sget:
-	deactivate_locked_super(s);
-	return ERR_PTR(error);
+	return mount_nodev(fs_type, flags, data, devpts_fill_super);
 }
 
 static void devpts_kill_sb(struct super_block *sb)
 {
 	struct pts_fs_info *fsi = DEVPTS_SB(sb);
 
-	ida_destroy(&fsi->allocated_ptys);
+	if (fsi)
+		ida_destroy(&fsi->allocated_ptys);
 	kfree(fsi);
 	kill_litter_super(sb);
 }

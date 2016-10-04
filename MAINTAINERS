@@ -2121,11 +2121,6 @@ M:	Ludovic Desroches <ludovic.desroches@atmel.com>
 S:	Maintained
 F:	drivers/mmc/host/atmel-mci.c
 
-ATMEL AT91 / AT32 SERIAL DRIVER
-M:	Nicolas Ferre <nicolas.ferre@atmel.com>
-S:	Supported
-F:	drivers/tty/serial/atmel_serial.c
-
 ATMEL AT91 SAMA5D2-Compatible Shutdown Controller
 M:	Nicolas Ferre <nicolas.ferre@atmel.com>
 S:	Supported
@@ -7773,6 +7768,12 @@ W:	http://www.monstr.eu/fdt/
 T:	git git://git.monstr.eu/linux-2.6-microblaze.git
 S:	Supported
 F:	arch/microblaze/
+
+MICROCHIP / ATMEL AT91 / AT32 SERIAL DRIVER
+M:	Richard Genoud <richard.genoud@gmail.com>
+S:	Maintained
+F:	drivers/tty/serial/atmel_serial.c
+F:	include/linux/atmel_serial.h
 
 MICROSOFT SURFACE PRO 3 BUTTON DRIVER
 M:	Chen Yu <yu.c.chen@intel.com>

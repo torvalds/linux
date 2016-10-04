@@ -631,7 +631,7 @@ static int bcm_uart_verify_port(struct uart_port *port,
 }
 
 /* serial core callbacks */
-static struct uart_ops bcm_uart_ops = {
+static const struct uart_ops bcm_uart_ops = {
 	.tx_empty	= bcm_uart_tx_empty,
 	.get_mctrl	= bcm_uart_get_mctrl,
 	.set_mctrl	= bcm_uart_set_mctrl,

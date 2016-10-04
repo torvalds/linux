@@ -1604,7 +1604,7 @@ static void pch_uart_put_poll_char(struct uart_port *port,
 }
 #endif /* CONFIG_CONSOLE_POLL */
 
-static struct uart_ops pch_uart_ops = {
+static const struct uart_ops pch_uart_ops = {
 	.tx_empty = pch_uart_tx_empty,
 	.set_mctrl = pch_uart_set_mctrl,
 	.get_mctrl = pch_uart_get_mctrl,

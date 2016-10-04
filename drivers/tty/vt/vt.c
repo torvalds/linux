@@ -1312,12 +1312,12 @@ static int vc_t416_color(struct vc_data *vc, int i,
 	if (i > vc->vc_npar)
 		return i;
 
-	if (vc->vc_par[i] == 5 && i < vc->vc_npar) {
-		/* 256 colours -- ubiquitous */
+	if (vc->vc_par[i] == 5 && i + 1 <= vc->vc_npar) {
+		/* 256 colours */
 		i++;
 		rgb_from_256(vc->vc_par[i], &c);
-	} else if (vc->vc_par[i] == 2 && i <= vc->vc_npar + 3) {
-		/* 24 bit -- extremely rare */
+	} else if (vc->vc_par[i] == 2 && i + 3 <= vc->vc_npar) {
+		/* 24 bit */
 		c.r = vc->vc_par[i + 1];
 		c.g = vc->vc_par[i + 2];
 		c.b = vc->vc_par[i + 3];
@@ -1415,6 +1415,11 @@ static void csi_m(struct vc_data *vc)
 				(vc->vc_color & 0x0f);
 			break;
 		default:
+			if (vc->vc_par[i] >= 90 && vc->vc_par[i] <= 107) {
+				if (vc->vc_par[i] < 100)
+					vc->vc_intensity = 2;
+				vc->vc_par[i] -= 60;
+			}
 			if (vc->vc_par[i] >= 30 && vc->vc_par[i] <= 37)
 				vc->vc_color = color_table[vc->vc_par[i] - 30]
 					| (vc->vc_color & 0xf0);

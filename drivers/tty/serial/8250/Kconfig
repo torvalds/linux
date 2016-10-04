@@ -120,7 +120,6 @@ config SERIAL_8250_PCI
 	tristate "8250/16550 PCI device support" if EXPERT
 	depends on SERIAL_8250 && PCI
 	default SERIAL_8250
-	select RATIONAL
 	help
 	  This builds standard PCI serial support. You may be able to
 	  disable this feature if you only need legacy serial support.
@@ -401,6 +400,21 @@ config SERIAL_8250_INGENIC
 	help
 	  If you have a system using an Ingenic SoC and wish to make use of
 	  its UARTs, say Y to this option. If unsure, say N.
+
+config SERIAL_8250_LPSS
+	tristate "Support for serial ports on Intel LPSS platforms" if EXPERT
+	default SERIAL_8250
+	depends on SERIAL_8250 && PCI
+	depends on X86 || COMPILE_TEST
+	select DW_DMAC_CORE if SERIAL_8250_DMA
+	select DW_DMAC_PCI if (SERIAL_8250_DMA && X86_INTEL_LPSS)
+	select RATIONAL
+	help
+	  Selecting this option will enable handling of the extra features
+	  present on the UART found on various Intel platforms such as:
+	    - Intel Baytrail SoC
+	    - Intel Braswell SoC
+	    - Intel Quark X1000 SoC
 
 config SERIAL_8250_MID
 	tristate "Support for serial ports on Intel MID platforms" if EXPERT

@@ -1099,4 +1099,10 @@ extern bool acpi_has_watchdog(void);
 static inline bool acpi_has_watchdog(void) { return false; }
 #endif
 
+#ifdef CONFIG_ACPI_SPCR_TABLE
+int parse_spcr(bool earlycon);
+#else
+static inline int parse_spcr(bool earlycon) { return 0; }
+#endif
+
 #endif	/*_LINUX_ACPI_H*/
