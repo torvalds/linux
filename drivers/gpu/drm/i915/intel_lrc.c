@@ -1242,8 +1242,12 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 
 	intel_engine_init_hangcheck(engine);
 
-	if (!execlists_elsp_idle(engine))
+	/* After a GPU reset, we may have requests to replay */
+	if (!execlists_elsp_idle(engine)) {
+		engine->execlist_port[0].count = 0;
+		engine->execlist_port[1].count = 0;
 		execlists_submit_ports(engine);
+	}
 
 	return 0;
 }
@@ -1318,10 +1322,7 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 		memset(&port[1], 0, sizeof(port[1]));
 	}
 
-	/* CS is stopped, and we will resubmit both ports on resume */
 	GEM_BUG_ON(request->ctx != port[0].request->ctx);
-	port[0].count = 0;
-	port[1].count = 0;
 
 	/* Reset WaIdleLiteRestore:bdw,skl as well */
 	request->tail = request->wa_tail - WA_TAIL_DWORDS * sizeof(u32);
