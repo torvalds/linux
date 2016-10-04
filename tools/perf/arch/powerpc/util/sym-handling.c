@@ -82,7 +82,8 @@ void arch__fix_tev_from_maps(struct perf_probe_event *pev,
 	 *
 	 * In addition, we shouldn't specify an offset for kretprobes.
 	 */
-	if (pev->point.offset || pev->point.retprobe || !map || !sym)
+	if (pev->point.offset || (!pev->uprobes && pev->point.retprobe) ||
+	    !map || !sym)
 		return;
 
 	lep_offset = PPC64_LOCAL_ENTRY_OFFSET(sym->arch_sym);
