@@ -832,6 +832,19 @@ retry:
 		if (err)
 			goto out_dput;
 
+		/*
+		 * Try to remove POSIX ACL xattrs from workdir.  We are good if:
+		 *
+		 * a) success (there was a POSIX ACL xattr and was removed)
+		 * b) -ENODATA (there was no POSIX ACL xattr)
+		 * c) -EOPNOTSUPP (POSIX ACL xattrs are not supported)
+		 *
+		 * There are various other error values that could effectively
+		 * mean that the xattr doesn't exist (e.g. -ERANGE is returned
+		 * if the xattr name is too long), but the set of filesystems
+		 * allowed as upper are limited to "normal" ones, where checking
+		 * for the above two errors is sufficient.
+		 */
 		err = vfs_removexattr(work, XATTR_NAME_POSIX_ACL_DEFAULT);
 		if (err && err != -ENODATA && err != -EOPNOTSUPP)
 			goto out_dput;
