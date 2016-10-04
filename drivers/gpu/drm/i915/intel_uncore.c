@@ -691,14 +691,30 @@ static void intel_shadow_table_check(void)
 	}
 }
 
+static int mmio_reg_cmp(const void *key, const void *elt)
+{
+	u32 offset = (u32)(unsigned long)key;
+	i915_reg_t *reg = (i915_reg_t *)elt;
+
+	if (offset < i915_mmio_reg_offset(*reg))
+		return -1;
+	else if (offset > i915_mmio_reg_offset(*reg))
+		return 1;
+	else
+		return 0;
+}
+
 static bool is_gen8_shadowed(u32 offset)
 {
-	int i;
-	for (i = 0; i < ARRAY_SIZE(gen8_shadowed_regs); i++)
-		if (offset == gen8_shadowed_regs[i].reg)
-			return true;
+	i915_reg_t *reg;
 
-	return false;
+	reg = bsearch((void *)(unsigned long)offset,
+		      (const void *)gen8_shadowed_regs,
+		      ARRAY_SIZE(gen8_shadowed_regs),
+		      sizeof(i915_reg_t),
+		      mmio_reg_cmp);
+
+	return reg;
 }
 
 #define __gen8_reg_write_fw_domains(offset) \
