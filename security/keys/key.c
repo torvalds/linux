@@ -500,21 +500,23 @@ int key_instantiate_and_link(struct key *key,
 	}
 
 	if (keyring) {
+		ret = __key_link_begin(keyring, &key->index_key, &edit);
+		if (ret < 0)
+			goto error;
+
 		if (keyring->restrict_link && keyring->restrict_link->check) {
 			struct key_restriction *keyres = keyring->restrict_link;
 
 			ret = keyres->check(keyring, key->type, &prep.payload,
 					    keyres->key);
 			if (ret < 0)
-				goto error;
+				goto error_link_end;
 		}
-		ret = __key_link_begin(keyring, &key->index_key, &edit);
-		if (ret < 0)
-			goto error;
 	}
 
 	ret = __key_instantiate_and_link(key, &prep, keyring, authkey, &edit);
 
+error_link_end:
 	if (keyring)
 		__key_link_end(keyring, &key->index_key, edit);
 
@@ -855,19 +857,19 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 	}
 	index_key.desc_len = strlen(index_key.description);
 
+	ret = __key_link_begin(keyring, &index_key, &edit);
+	if (ret < 0) {
+		key_ref = ERR_PTR(ret);
+		goto error_free_prep;
+	}
+
 	if (restrict_link && restrict_link->check) {
 		ret = restrict_link->check(keyring, index_key.type,
 					   &prep.payload, restrict_link->key);
 		if (ret < 0) {
 			key_ref = ERR_PTR(ret);
-			goto error_free_prep;
+			goto error_link_end;
 		}
-	}
-
-	ret = __key_link_begin(keyring, &index_key, &edit);
-	if (ret < 0) {
-		key_ref = ERR_PTR(ret);
-		goto error_free_prep;
 	}
 
 	/* if we're going to allocate a new key, we're going to have
