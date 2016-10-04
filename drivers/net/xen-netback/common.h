@@ -260,7 +260,6 @@ struct xenvif {
 
 	/* Frontend feature information. */
 	int gso_mask;
-	int gso_prefix_mask;
 
 	u8 can_sg:1;
 	u8 ip_csum:1;

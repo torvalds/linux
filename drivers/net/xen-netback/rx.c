@@ -347,16 +347,6 @@ static int xenvif_gop_skb(struct sk_buff *skb,
 			gso_type = XEN_NETIF_GSO_TYPE_TCPV6;
 	}
 
-	/* Set up a GSO prefix descriptor, if necessary */
-	if ((1 << gso_type) & vif->gso_prefix_mask) {
-		RING_COPY_REQUEST(&queue->rx, queue->rx.req_cons++, &req);
-		meta = npo->meta + npo->meta_prod++;
-		meta->gso_type = gso_type;
-		meta->gso_size = skb_shinfo(skb)->gso_size;
-		meta->size = 0;
-		meta->id = req.id;
-	}
-
 	RING_COPY_REQUEST(&queue->rx, queue->rx.req_cons++, &req);
 	meta = npo->meta + npo->meta_prod++;
 
@@ -510,22 +500,6 @@ static void xenvif_rx_action(struct xenvif_queue *queue)
 
 	while ((skb = __skb_dequeue(&rxq)) != NULL) {
 		struct xen_netif_extra_info *extra = NULL;
-
-		if ((1 << queue->meta[npo.meta_cons].gso_type) &
-		    vif->gso_prefix_mask) {
-			resp = RING_GET_RESPONSE(&queue->rx,
-						 queue->rx.rsp_prod_pvt++);
-
-			resp->flags = XEN_NETRXF_gso_prefix |
-				      XEN_NETRXF_more_data;
-
-			resp->offset = queue->meta[npo.meta_cons].gso_size;
-			resp->id = queue->meta[npo.meta_cons].id;
-			resp->status = XENVIF_RX_CB(skb)->meta_slots_used;
-
-			npo.meta_cons++;
-			XENVIF_RX_CB(skb)->meta_slots_used--;
-		}
 
 		queue->stats.tx_bytes += skb->len;
 		queue->stats.tx_packets++;

@@ -319,9 +319,9 @@ static netdev_features_t xenvif_fix_features(struct net_device *dev,
 
 	if (!vif->can_sg)
 		features &= ~NETIF_F_SG;
-	if (~(vif->gso_mask | vif->gso_prefix_mask) & GSO_BIT(TCPV4))
+	if (~(vif->gso_mask) & GSO_BIT(TCPV4))
 		features &= ~NETIF_F_TSO;
-	if (~(vif->gso_mask | vif->gso_prefix_mask) & GSO_BIT(TCPV6))
+	if (~(vif->gso_mask) & GSO_BIT(TCPV6))
 		features &= ~NETIF_F_TSO6;
 	if (!vif->ip_csum)
 		features &= ~NETIF_F_IP_CSUM;
