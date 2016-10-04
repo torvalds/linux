@@ -582,14 +582,6 @@ void assert_forcewakes_inactive(struct drm_i915_private *dev_priv)
 	__fwd; \
 })
 
-struct intel_forcewake_range
-{
-	u32 start;
-	u32 end;
-
-	enum forcewake_domains domains;
-};
-
 static int fw_range_cmp(const void *key, const void *elt)
 {
 	const struct intel_forcewake_range *entry = elt;
@@ -604,27 +596,37 @@ static int fw_range_cmp(const void *key, const void *elt)
 }
 
 static enum forcewake_domains
-find_fw_domain(u32 offset, const struct intel_forcewake_range *ranges,
-	       unsigned int num_ranges)
+find_fw_domain(struct drm_i915_private *dev_priv, u32 offset)
 {
-	struct intel_forcewake_range *entry;
+	const struct intel_forcewake_range *table, *entry;
+	unsigned int num_entries;
 
-	entry = bsearch((void *)(unsigned long)offset, (const void *)ranges,
-			num_ranges, sizeof(struct intel_forcewake_range),
+	table = dev_priv->uncore.fw_domains_table;
+	num_entries = dev_priv->uncore.fw_domains_table_entries;
+
+	entry = bsearch((void *)(unsigned long)offset, (const void *)table,
+			num_entries, sizeof(struct intel_forcewake_range),
 			fw_range_cmp);
 
 	return entry ? entry->domains : 0;
 }
 
 static void
-intel_fw_table_check(const struct intel_forcewake_range *ranges,
-		     unsigned int num_ranges)
+intel_fw_table_check(struct drm_i915_private *dev_priv)
 {
+	const struct intel_forcewake_range *ranges;
+	unsigned int num_ranges;
 	s32 prev;
 	unsigned int i;
 
 	if (!IS_ENABLED(CONFIG_DRM_I915_DEBUG))
 		return;
+
+	ranges = dev_priv->uncore.fw_domains_table;
+	if (!ranges)
+		return;
+
+	num_ranges = dev_priv->uncore.fw_domains_table_entries;
 
 	for (i = 0, prev = -1; i < num_ranges; i++, ranges++) {
 		WARN_ON_ONCE(prev >= (s32)ranges->start);
@@ -652,8 +654,7 @@ static const struct intel_forcewake_range __vlv_fw_ranges[] = {
 ({ \
 	enum forcewake_domains __fwd = 0; \
 	if (NEEDS_FORCE_WAKE((offset))) \
-		__fwd = find_fw_domain(offset, __vlv_fw_ranges, \
-				       ARRAY_SIZE(__vlv_fw_ranges)); \
+		__fwd = find_fw_domain(dev_priv, offset); \
 	__fwd; \
 })
 
@@ -711,8 +712,7 @@ static const struct intel_forcewake_range __chv_fw_ranges[] = {
 ({ \
 	enum forcewake_domains __fwd = 0; \
 	if (NEEDS_FORCE_WAKE((offset))) \
-		__fwd = find_fw_domain(offset, __chv_fw_ranges, \
-				       ARRAY_SIZE(__chv_fw_ranges)); \
+		__fwd = find_fw_domain(dev_priv, offset); \
 	__fwd; \
 })
 
@@ -720,8 +720,7 @@ static const struct intel_forcewake_range __chv_fw_ranges[] = {
 ({ \
 	enum forcewake_domains __fwd = 0; \
 	if (NEEDS_FORCE_WAKE((offset)) && !is_gen8_shadowed(offset)) \
-		__fwd = find_fw_domain(offset, __chv_fw_ranges, \
-				       ARRAY_SIZE(__chv_fw_ranges)); \
+		__fwd = find_fw_domain(dev_priv, offset); \
 	__fwd; \
 })
 
@@ -765,8 +764,7 @@ static const struct intel_forcewake_range __gen9_fw_ranges[] = {
 ({ \
 	enum forcewake_domains __fwd = 0; \
 	if (NEEDS_FORCE_WAKE((offset))) \
-		__fwd = find_fw_domain(offset, __gen9_fw_ranges, \
-				       ARRAY_SIZE(__gen9_fw_ranges)); \
+		__fwd = find_fw_domain(dev_priv, offset); \
 	__fwd; \
 })
 
@@ -794,8 +792,7 @@ static bool is_gen9_shadowed(u32 offset)
 ({ \
 	enum forcewake_domains __fwd = 0; \
 	if (NEEDS_FORCE_WAKE((offset)) && !is_gen9_shadowed(offset)) \
-		__fwd = find_fw_domain(offset, __gen9_fw_ranges, \
-				       ARRAY_SIZE(__gen9_fw_ranges)); \
+		__fwd = find_fw_domain(dev_priv, offset); \
 	__fwd; \
 })
 
@@ -1317,6 +1314,13 @@ static void intel_uncore_fw_domains_init(struct drm_i915_private *dev_priv)
 	WARN_ON(dev_priv->uncore.fw_domains == 0);
 }
 
+#define ASSIGN_FW_DOMAINS_TABLE(d) \
+{ \
+	dev_priv->uncore.fw_domains_table = \
+			(struct intel_forcewake_range *)(d); \
+	dev_priv->uncore.fw_domains_table_entries = ARRAY_SIZE((d)); \
+}
+
 void intel_uncore_init(struct drm_i915_private *dev_priv)
 {
 	i915_check_vgpu(dev_priv);
@@ -1330,17 +1334,13 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 	switch (INTEL_INFO(dev_priv)->gen) {
 	default:
 	case 9:
-		intel_fw_table_check(__gen9_fw_ranges,
-				     ARRAY_SIZE(__gen9_fw_ranges));
-
+		ASSIGN_FW_DOMAINS_TABLE(__gen9_fw_ranges);
 		ASSIGN_WRITE_MMIO_VFUNCS(gen9);
 		ASSIGN_READ_MMIO_VFUNCS(gen9);
 		break;
 	case 8:
 		if (IS_CHERRYVIEW(dev_priv)) {
-			intel_fw_table_check(__chv_fw_ranges,
-					     ARRAY_SIZE(__chv_fw_ranges));
-
+			ASSIGN_FW_DOMAINS_TABLE(__chv_fw_ranges);
 			ASSIGN_WRITE_MMIO_VFUNCS(chv);
 			ASSIGN_READ_MMIO_VFUNCS(chv);
 
@@ -1354,9 +1354,7 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 		ASSIGN_WRITE_MMIO_VFUNCS(gen6);
 
 		if (IS_VALLEYVIEW(dev_priv)) {
-			intel_fw_table_check(__vlv_fw_ranges,
-					     ARRAY_SIZE(__vlv_fw_ranges));
-
+			ASSIGN_FW_DOMAINS_TABLE(__vlv_fw_ranges);
 			ASSIGN_READ_MMIO_VFUNCS(vlv);
 		} else {
 			ASSIGN_READ_MMIO_VFUNCS(gen6);
@@ -1373,6 +1371,8 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 		ASSIGN_READ_MMIO_VFUNCS(gen2);
 		break;
 	}
+
+	intel_fw_table_check(dev_priv);
 
 	if (intel_vgpu_active(dev_priv)) {
 		ASSIGN_WRITE_MMIO_VFUNCS(vgpu);

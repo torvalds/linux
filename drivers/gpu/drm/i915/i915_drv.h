@@ -582,8 +582,18 @@ struct intel_uncore_funcs {
 				uint32_t val, bool trace);
 };
 
+struct intel_forcewake_range {
+	u32 start;
+	u32 end;
+
+	enum forcewake_domains domains;
+};
+
 struct intel_uncore {
 	spinlock_t lock; /** lock is also taken in irq contexts. */
+
+	const struct intel_forcewake_range *fw_domains_table;
+	unsigned int fw_domains_table_entries;
 
 	struct intel_uncore_funcs funcs;
 
