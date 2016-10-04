@@ -26,6 +26,7 @@
 #include "i915_vgpu.h"
 
 #include <linux/pm_runtime.h>
+#include <linux/bsearch.h>
 
 #define FORCEWAKE_ACK_TIMEOUT_MS 50
 
@@ -589,20 +590,30 @@ struct intel_forcewake_range
 	enum forcewake_domains domains;
 };
 
+static int fw_range_cmp(const void *key, const void *elt)
+{
+	const struct intel_forcewake_range *entry = elt;
+	u32 offset = (u32)((unsigned long)key);
+
+	if (offset < entry->start)
+		return -1;
+	else if (offset > entry->end)
+		return 1;
+	else
+		return 0;
+}
+
 static enum forcewake_domains
 find_fw_domain(u32 offset, const struct intel_forcewake_range *ranges,
 	       unsigned int num_ranges)
 {
-	unsigned int i;
-	struct intel_forcewake_range *entry =
-		(struct intel_forcewake_range *)ranges;
+	struct intel_forcewake_range *entry;
 
-	for (i = 0; i < num_ranges; i++, entry++) {
-		if (offset >= entry->start && offset <= entry->end)
-			return entry->domains;
-	}
+	entry = bsearch((void *)(unsigned long)offset, (const void *)ranges,
+			num_ranges, sizeof(struct intel_forcewake_range),
+			fw_range_cmp);
 
-	return -1;
+	return entry ? entry->domains : -1;
 }
 
 static void
