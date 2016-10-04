@@ -132,6 +132,7 @@ static void ncsi_report_link(struct ncsi_dev_priv *ndp, bool force_down)
 	struct ncsi_dev *nd = &ndp->ndev;
 	struct ncsi_package *np;
 	struct ncsi_channel *nc;
+	unsigned long flags;
 
 	nd->state = ncsi_dev_state_functional;
 	if (force_down) {
@@ -142,14 +143,21 @@ static void ncsi_report_link(struct ncsi_dev_priv *ndp, bool force_down)
 	nd->link_up = 0;
 	NCSI_FOR_EACH_PACKAGE(ndp, np) {
 		NCSI_FOR_EACH_CHANNEL(np, nc) {
+			spin_lock_irqsave(&nc->lock, flags);
+
 			if (!list_empty(&nc->link) ||
-			    nc->state != NCSI_CHANNEL_ACTIVE)
+			    nc->state != NCSI_CHANNEL_ACTIVE) {
+				spin_unlock_irqrestore(&nc->lock, flags);
 				continue;
+			}
 
 			if (nc->modes[NCSI_MODE_LINK].data[2] & 0x1) {
+				spin_unlock_irqrestore(&nc->lock, flags);
 				nd->link_up = 1;
 				goto report;
 			}
+
+			spin_unlock_irqrestore(&nc->lock, flags);
 		}
 	}
 
@@ -163,20 +171,22 @@ static void ncsi_channel_monitor(unsigned long data)
 	struct ncsi_package *np = nc->package;
 	struct ncsi_dev_priv *ndp = np->ndp;
 	struct ncsi_cmd_arg nca;
-	bool enabled;
+	bool enabled, chained;
 	unsigned int timeout;
 	unsigned long flags;
-	int ret;
+	int state, ret;
 
 	spin_lock_irqsave(&nc->lock, flags);
+	state = nc->state;
+	chained = !list_empty(&nc->link);
 	timeout = nc->timeout;
 	enabled = nc->enabled;
 	spin_unlock_irqrestore(&nc->lock, flags);
 
-	if (!enabled || !list_empty(&nc->link))
+	if (!enabled || chained)
 		return;
-	if (nc->state != NCSI_CHANNEL_INACTIVE &&
-	    nc->state != NCSI_CHANNEL_ACTIVE)
+	if (state != NCSI_CHANNEL_INACTIVE &&
+	    state != NCSI_CHANNEL_ACTIVE)
 		return;
 
 	if (!(timeout % 2)) {
@@ -195,11 +205,15 @@ static void ncsi_channel_monitor(unsigned long data)
 
 	if (timeout + 1 >= 3) {
 		if (!(ndp->flags & NCSI_DEV_HWA) &&
-		    nc->state == NCSI_CHANNEL_ACTIVE)
+		    state == NCSI_CHANNEL_ACTIVE)
 			ncsi_report_link(ndp, true);
 
+		spin_lock_irqsave(&nc->lock, flags);
+		nc->state = NCSI_CHANNEL_INVISIBLE;
+		spin_unlock_irqrestore(&nc->lock, flags);
+
 		spin_lock_irqsave(&ndp->lock, flags);
-		xchg(&nc->state, NCSI_CHANNEL_INACTIVE);
+		nc->state = NCSI_CHANNEL_INACTIVE;
 		list_add_tail_rcu(&nc->link, &ndp->channel_queue);
 		spin_unlock_irqrestore(&ndp->lock, flags);
 		ncsi_process_next_channel(ndp);
@@ -508,6 +522,7 @@ static void ncsi_suspend_channel(struct ncsi_dev_priv *ndp)
 	struct ncsi_package *np = ndp->active_package;
 	struct ncsi_channel *nc = ndp->active_channel;
 	struct ncsi_cmd_arg nca;
+	unsigned long flags;
 	int ret;
 
 	nca.ndp = ndp;
@@ -556,7 +571,9 @@ static void ncsi_suspend_channel(struct ncsi_dev_priv *ndp)
 
 		break;
 	case ncsi_dev_state_suspend_done:
-		xchg(&nc->state, NCSI_CHANNEL_INACTIVE);
+		spin_lock_irqsave(&nc->lock, flags);
+		nc->state = NCSI_CHANNEL_INACTIVE;
+		spin_unlock_irqrestore(&nc->lock, flags);
 		ncsi_process_next_channel(ndp);
 
 		break;
@@ -574,6 +591,7 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 	struct ncsi_channel *nc = ndp->active_channel;
 	struct ncsi_cmd_arg nca;
 	unsigned char index;
+	unsigned long flags;
 	int ret;
 
 	nca.ndp = ndp;
@@ -675,10 +693,12 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 			goto error;
 		break;
 	case ncsi_dev_state_config_done:
+		spin_lock_irqsave(&nc->lock, flags);
 		if (nc->modes[NCSI_MODE_LINK].data[2] & 0x1)
-			xchg(&nc->state, NCSI_CHANNEL_ACTIVE);
+			nc->state = NCSI_CHANNEL_ACTIVE;
 		else
-			xchg(&nc->state, NCSI_CHANNEL_INACTIVE);
+			nc->state = NCSI_CHANNEL_INACTIVE;
+		spin_unlock_irqrestore(&nc->lock, flags);
 
 		ncsi_start_channel_monitor(nc);
 		ncsi_process_next_channel(ndp);
@@ -707,18 +727,25 @@ static int ncsi_choose_active_channel(struct ncsi_dev_priv *ndp)
 	found = NULL;
 	NCSI_FOR_EACH_PACKAGE(ndp, np) {
 		NCSI_FOR_EACH_CHANNEL(np, nc) {
+			spin_lock_irqsave(&nc->lock, flags);
+
 			if (!list_empty(&nc->link) ||
-			    nc->state != NCSI_CHANNEL_INACTIVE)
+			    nc->state != NCSI_CHANNEL_INACTIVE) {
+				spin_unlock_irqrestore(&nc->lock, flags);
 				continue;
+			}
 
 			if (!found)
 				found = nc;
 
 			ncm = &nc->modes[NCSI_MODE_LINK];
 			if (ncm->data[2] & 0x1) {
+				spin_unlock_irqrestore(&nc->lock, flags);
 				found = nc;
 				goto out;
 			}
+
+			spin_unlock_irqrestore(&nc->lock, flags);
 		}
 	}
 
@@ -987,10 +1014,13 @@ int ncsi_process_next_channel(struct ncsi_dev_priv *ndp)
 		goto out;
 	}
 
-	old_state = xchg(&nc->state, NCSI_CHANNEL_INVISIBLE);
 	list_del_init(&nc->link);
-
 	spin_unlock_irqrestore(&ndp->lock, flags);
+
+	spin_lock_irqsave(&nc->lock, flags);
+	old_state = nc->state;
+	nc->state = NCSI_CHANNEL_INVISIBLE;
+	spin_unlock_irqrestore(&nc->lock, flags);
 
 	ndp->active_channel = nc;
 	ndp->active_package = nc->package;
@@ -1006,7 +1036,7 @@ int ncsi_process_next_channel(struct ncsi_dev_priv *ndp)
 		break;
 	default:
 		netdev_err(ndp->ndev.dev, "Invalid state 0x%x on %d:%d\n",
-			   nc->state, nc->package->id, nc->id);
+			   old_state, nc->package->id, nc->id);
 		ncsi_report_link(ndp, false);
 		return -EINVAL;
 	}
@@ -1151,6 +1181,8 @@ int ncsi_start_dev(struct ncsi_dev *nd)
 	struct ncsi_dev_priv *ndp = TO_NCSI_DEV_PRIV(nd);
 	struct ncsi_package *np;
 	struct ncsi_channel *nc;
+	unsigned long flags;
+	bool chained;
 	int old_state, ret;
 
 	if (nd->state != ncsi_dev_state_registered &&
@@ -1166,8 +1198,13 @@ int ncsi_start_dev(struct ncsi_dev *nd)
 	/* Reset channel's state and start over */
 	NCSI_FOR_EACH_PACKAGE(ndp, np) {
 		NCSI_FOR_EACH_CHANNEL(np, nc) {
-			old_state = xchg(&nc->state, NCSI_CHANNEL_INACTIVE);
-			WARN_ON_ONCE(!list_empty(&nc->link) ||
+			spin_lock_irqsave(&nc->lock, flags);
+			chained = !list_empty(&nc->link);
+			old_state = nc->state;
+			nc->state = NCSI_CHANNEL_INACTIVE;
+			spin_unlock_irqrestore(&nc->lock, flags);
+
+			WARN_ON_ONCE(chained ||
 				     old_state == NCSI_CHANNEL_INVISIBLE);
 		}
 	}
