@@ -1353,6 +1353,9 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 		seq_printf(m, "Hangcheck inactive\n");
 
 	for_each_engine_id(engine, dev_priv, id) {
+		struct intel_breadcrumbs *b = &engine->breadcrumbs;
+		struct rb_node *rb;
+
 		seq_printf(m, "%s:\n", engine->name);
 		seq_printf(m, "\tseqno = %x [current %x, last %x]\n",
 			   engine->hangcheck.seqno,
@@ -1362,6 +1365,15 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 			   yesno(intel_engine_has_waiter(engine)),
 			   yesno(test_bit(engine->id,
 					  &dev_priv->gpu_error.missed_irq_rings)));
+		spin_lock(&b->lock);
+		for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
+			struct intel_wait *w = container_of(rb, typeof(*w), node);
+
+			seq_printf(m, "\t%s [%d] waiting for %x\n",
+				   w->tsk->comm, w->tsk->pid, w->seqno);
+		}
+		spin_unlock(&b->lock);
+
 		seq_printf(m, "\tACTHD = 0x%08llx [current 0x%08llx]\n",
 			   (long long)engine->hangcheck.acthd,
 			   (long long)acthd[id]);
