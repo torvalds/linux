@@ -1316,8 +1316,10 @@ static int __load_mapping_v1(struct dm_cache_metadata *cmd,
 
 		r = fn(context, oblock, to_cblock(cb), flags & M_DIRTY,
 		       le32_to_cpu(hint), hints_valid);
-		if (r)
-			DMERR("policy couldn't load cblock");
+		if (r) {
+			DMERR("policy couldn't load cache block %llu",
+			      (unsigned long long) from_cblock(to_cblock(cb)));
+		}
 	}
 
 	return r;
@@ -1355,8 +1357,10 @@ static int __load_mapping_v2(struct dm_cache_metadata *cmd,
 		dirty = dm_bitset_cursor_get_value(dirty_cursor);
 		r = fn(context, oblock, to_cblock(cb), dirty,
 		       le32_to_cpu(hint), hints_valid);
-		if (r)
-			DMERR("policy couldn't load cblock");
+		if (r) {
+			DMERR("policy couldn't load cache block %llu",
+			      (unsigned long long) from_cblock(to_cblock(cb)));
+		}
 	}
 
 	return r;
