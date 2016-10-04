@@ -47,29 +47,39 @@
 
 #include "hfi.h"
 #include "efivar.h"
+#include "eprom.h"
 
 void get_platform_config(struct hfi1_devdata *dd)
 {
 	int ret = 0;
 	unsigned long size = 0;
 	u8 *temp_platform_config = NULL;
+	u32 esize;
+
+	ret = eprom_read_platform_config(dd, (void **)&temp_platform_config,
+					 &esize);
+	if (!ret) {
+		/* success */
+		size = esize;
+		goto success;
+	}
+	/* fail, try EFI variable */
 
 	ret = read_hfi1_efi_var(dd, "configuration", &size,
 				(void **)&temp_platform_config);
-	if (ret) {
-		dd_dev_info(dd,
-			    "%s: Failed to get platform config from UEFI, falling back to request firmware\n",
-			    __func__);
-		/* fall back to request firmware */
-		platform_config_load = 1;
-		goto bail;
-	}
+	if (!ret)
+		goto success;
 
+	dd_dev_info(dd,
+		    "%s: Failed to get platform config from UEFI, falling back to request firmware\n",
+		    __func__);
+	/* fall back to request firmware */
+	platform_config_load = 1;
+	return;
+
+success:
 	dd->platform_config.data = temp_platform_config;
 	dd->platform_config.size = size;
-
-bail:
-	/* exit */;
 }
 
 void free_platform_config(struct hfi1_devdata *dd)

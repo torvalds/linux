@@ -60,6 +60,7 @@
 #include <rdma/ib_pack.h>
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_mad.h>
+#include <rdma/ib_hdrs.h>
 #include <rdma/rdma_vt.h>
 #include <rdma/rdmavt_qp.h>
 #include <rdma/rdmavt_cq.h>
@@ -80,16 +81,6 @@ struct hfi1_packet;
  */
 #define HFI1_UVERBS_ABI_VERSION       2
 
-#define IB_SEQ_NAK	(3 << 29)
-
-/* AETH NAK opcode values */
-#define IB_RNR_NAK                      0x20
-#define IB_NAK_PSN_ERROR                0x60
-#define IB_NAK_INVALID_REQUEST          0x61
-#define IB_NAK_REMOTE_ACCESS_ERROR      0x62
-#define IB_NAK_REMOTE_OPERATIONAL_ERROR 0x63
-#define IB_NAK_INVALID_RD_REQUEST       0x64
-
 /* IB Performance Manager status values */
 #define IB_PMA_SAMPLE_STATUS_DONE       0x00
 #define IB_PMA_SAMPLE_STATUS_STARTED    0x01
@@ -104,79 +95,15 @@ struct hfi1_packet;
 
 #define HFI1_VENDOR_IPG		cpu_to_be16(0xFFA0)
 
-#define IB_BTH_REQ_ACK		BIT(31)
-#define IB_BTH_SOLICITED	BIT(23)
-#define IB_BTH_MIG_REQ		BIT(22)
-
-#define IB_GRH_VERSION		6
-#define IB_GRH_VERSION_MASK	0xF
-#define IB_GRH_VERSION_SHIFT	28
-#define IB_GRH_TCLASS_MASK	0xFF
-#define IB_GRH_TCLASS_SHIFT	20
-#define IB_GRH_FLOW_MASK	0xFFFFF
-#define IB_GRH_FLOW_SHIFT	0
-#define IB_GRH_NEXT_HDR		0x1B
-
 #define IB_DEFAULT_GID_PREFIX	cpu_to_be64(0xfe80000000000000ULL)
+
+#define RC_OP(x) IB_OPCODE_RC_##x
+#define UC_OP(x) IB_OPCODE_UC_##x
 
 /* flags passed by hfi1_ib_rcv() */
 enum {
 	HFI1_HAS_GRH = (1 << 0),
 };
-
-struct ib_reth {
-	__be64 vaddr;
-	__be32 rkey;
-	__be32 length;
-} __packed;
-
-struct ib_atomic_eth {
-	__be32 vaddr[2];        /* unaligned so access as 2 32-bit words */
-	__be32 rkey;
-	__be64 swap_data;
-	__be64 compare_data;
-} __packed;
-
-union ib_ehdrs {
-	struct {
-		__be32 deth[2];
-		__be32 imm_data;
-	} ud;
-	struct {
-		struct ib_reth reth;
-		__be32 imm_data;
-	} rc;
-	struct {
-		__be32 aeth;
-		__be32 atomic_ack_eth[2];
-	} at;
-	__be32 imm_data;
-	__be32 aeth;
-	__be32 ieth;
-	struct ib_atomic_eth atomic_eth;
-}  __packed;
-
-struct hfi1_other_headers {
-	__be32 bth[3];
-	union ib_ehdrs u;
-} __packed;
-
-/*
- * Note that UD packets with a GRH header are 8+40+12+8 = 68 bytes
- * long (72 w/ imm_data).  Only the first 56 bytes of the IB header
- * will be in the eager header buffer.  The remaining 12 or 16 bytes
- * are in the data buffer.
- */
-struct hfi1_ib_header {
-	__be16 lrh[4];
-	union {
-		struct {
-			struct ib_grh grh;
-			struct hfi1_other_headers oth;
-		} l;
-		struct hfi1_other_headers oth;
-	} u;
-} __packed;
 
 struct hfi1_ahg_info {
 	u32 ahgdesc[2];
@@ -187,7 +114,7 @@ struct hfi1_ahg_info {
 
 struct hfi1_sdma_header {
 	__le64 pbc;
-	struct hfi1_ib_header hdr;
+	struct ib_header hdr;
 } __packed;
 
 /*
@@ -386,7 +313,7 @@ void hfi1_rc_rcv(struct hfi1_packet *packet);
 
 void hfi1_rc_hdrerr(
 	struct hfi1_ctxtdata *rcd,
-	struct hfi1_ib_header *hdr,
+	struct ib_header *hdr,
 	u32 rcv_flags,
 	struct rvt_qp *qp);
 
@@ -400,7 +327,7 @@ void hfi1_rc_timeout(unsigned long arg);
 void hfi1_del_timers_sync(struct rvt_qp *qp);
 void hfi1_stop_rc_timers(struct rvt_qp *qp);
 
-void hfi1_rc_send_complete(struct rvt_qp *qp, struct hfi1_ib_header *hdr);
+void hfi1_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr);
 
 void hfi1_rc_error(struct rvt_qp *qp, enum ib_wc_status err);
 
@@ -423,7 +350,7 @@ int hfi1_check_send_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe);
 extern const u32 rc_only_opcode;
 extern const u32 uc_only_opcode;
 
-static inline u8 get_opcode(struct hfi1_ib_header *h)
+static inline u8 get_opcode(struct ib_header *h)
 {
 	u16 lnh = be16_to_cpu(h->lrh[0]) & 3;
 
@@ -433,13 +360,13 @@ static inline u8 get_opcode(struct hfi1_ib_header *h)
 		return be32_to_cpu(h->u.l.oth.bth[0]) >> 24;
 }
 
-int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct hfi1_ib_header *hdr,
+int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct ib_header *hdr,
 		       int has_grh, struct rvt_qp *qp, u32 bth0);
 
 u32 hfi1_make_grh(struct hfi1_ibport *ibp, struct ib_grh *hdr,
 		  struct ib_global_route *grh, u32 hwords, u32 nwords);
 
-void hfi1_make_ruc_header(struct rvt_qp *qp, struct hfi1_other_headers *ohdr,
+void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 			  u32 bth0, u32 bth2, int middle,
 			  struct hfi1_pkt_state *ps);
 
