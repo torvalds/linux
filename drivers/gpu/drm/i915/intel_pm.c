@@ -3966,7 +3966,7 @@ pipes_modified(struct drm_atomic_state *state)
 	return ret;
 }
 
-int
+static int
 skl_ddb_add_affected_planes(struct intel_crtc_state *cstate)
 {
 	struct drm_atomic_state *state = cstate->base.state;
