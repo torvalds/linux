@@ -523,4 +523,8 @@ config ACPI_CONFIGFS
 	  userspace. The configurable ACPI groups will be visible under
 	  /config/acpi, assuming configfs is mounted under /config.
 
+if ARM64
+source "drivers/acpi/arm64/Kconfig"
+endif
+
 endif	# ACPI
