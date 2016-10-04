@@ -2474,7 +2474,7 @@ static int sbridge_mci_bind_devs(struct mem_ctl_info *mci,
 
 	/* Check if everything were registered */
 	if (!pvt->pci_sad0 || !pvt->pci_sad1 || !pvt->pci_ha0 ||
-	    !pvt-> pci_tad || !pvt->pci_ras  || !pvt->pci_ta)
+	    !pvt->pci_ras || !pvt->pci_ta)
 		goto enodev;
 
 	if (saw_chan_mask != 0x0f)
@@ -2563,8 +2563,7 @@ static int ibridge_mci_bind_devs(struct mem_ctl_info *mci,
 
 	/* Check if everything were registered */
 	if (!pvt->pci_sad0 || !pvt->pci_ha0 || !pvt->pci_br0 ||
-	    !pvt->pci_br1 || !pvt->pci_tad || !pvt->pci_ras  ||
-	    !pvt->pci_ta)
+	    !pvt->pci_br1 || !pvt->pci_ras || !pvt->pci_ta)
 		goto enodev;
 
 	if (saw_chan_mask != 0x0f && /* -EN */

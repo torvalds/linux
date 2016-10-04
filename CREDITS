@@ -3523,6 +3523,10 @@ S: 145 Howard St.
 S: Northborough, MA 01532
 S: USA
 
+N: Doug Thompson
+E: dougthompson@xmission.com
+D: EDAC
+
 N: Tommy Thorn
 E: Tommy.Thorn@irisa.fr
 W: http://www.irisa.fr/prive/thorn/index.html
@@ -3658,6 +3662,10 @@ D: Author of a German book on Linux
 S: Obere Heerbergstrasse 17
 S: 97078 Wuerzburg
 S: Germany
+
+N: Jason Uhlenkott
+E: juhlenko@akamai.com
+D: I3000 EDAC driver
 
 N: Greg Ungerer
 E: gerg@snapgear.com
