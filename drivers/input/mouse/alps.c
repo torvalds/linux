@@ -2747,6 +2747,10 @@ static int alps_set_protocol(struct psmouse *psmouse,
 		if (alps_set_defaults_ss4_v2(psmouse, priv))
 			return -EIO;
 
+		if (priv->fw_ver[1] == 0x1)
+			priv->flags |= ALPS_DUALPOINT |
+					ALPS_DUALPOINT_WITH_PRESSURE;
+
 		break;
 	}
 
@@ -2818,6 +2822,9 @@ static int alps_identify(struct psmouse *psmouse, struct alps_data *priv)
 			protocol = &alps_v3_protocol_data;
 		} else if (e7[0] == 0x73 && e7[1] == 0x03 &&
 			   e7[2] == 0x14 && ec[1] == 0x02) {
+			protocol = &alps_v8_protocol_data;
+		} else if (e7[0] == 0x73 && e7[1] == 0x03 &&
+			   e7[2] == 0x28 && ec[1] == 0x01) {
 			protocol = &alps_v8_protocol_data;
 		} else {
 			psmouse_dbg(psmouse,
