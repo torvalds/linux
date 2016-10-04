@@ -585,9 +585,7 @@ static int init_ring_common(struct intel_engine_cs *engine)
 	I915_WRITE_TAIL(engine, ring->tail);
 	(void)I915_READ_TAIL(engine);
 
-	I915_WRITE_CTL(engine,
-			((ring->size - PAGE_SIZE) & RING_NR_PAGES)
-			| RING_VALID);
+	I915_WRITE_CTL(engine, RING_CTL_SIZE(ring->size) | RING_VALID);
 
 	/* If the head is still not zero, the ring is dead */
 	if (intel_wait_for_register_fw(dev_priv, RING_CTL(engine->mmio_base),
@@ -1951,6 +1949,7 @@ intel_engine_create_ring(struct intel_engine_cs *engine, int size)
 	struct i915_vma *vma;
 
 	GEM_BUG_ON(!is_power_of_2(size));
+	GEM_BUG_ON(RING_CTL_SIZE(size) & ~RING_NR_PAGES);
 
 	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
 	if (!ring)

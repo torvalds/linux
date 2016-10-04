@@ -1605,6 +1605,7 @@ enum skl_disp_power_wells {
 #define RING_HEAD(base)		_MMIO((base)+0x34)
 #define RING_START(base)	_MMIO((base)+0x38)
 #define RING_CTL(base)		_MMIO((base)+0x3c)
+#define   RING_CTL_SIZE(size)	((size) - PAGE_SIZE) /* in bytes -> pages */
 #define RING_SYNC_0(base)	_MMIO((base)+0x40)
 #define RING_SYNC_1(base)	_MMIO((base)+0x44)
 #define RING_SYNC_2(base)	_MMIO((base)+0x48)
