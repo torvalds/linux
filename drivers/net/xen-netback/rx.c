@@ -133,6 +133,7 @@ static void xenvif_rx_queue_drop_expired(struct xenvif_queue *queue)
 static void xenvif_rx_copy_flush(struct xenvif_queue *queue)
 {
 	unsigned int i;
+	int notify;
 
 	gnttab_batch_copy(queue->rx_copy.op, queue->rx_copy.num);
 
@@ -154,6 +155,13 @@ static void xenvif_rx_copy_flush(struct xenvif_queue *queue)
 	}
 
 	queue->rx_copy.num = 0;
+
+	/* Push responses for all completed packets. */
+	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&queue->rx, notify);
+	if (notify)
+		notify_remote_via_irq(queue->rx_irq);
+
+	__skb_queue_purge(queue->rx_copy.completed);
 }
 
 static void xenvif_rx_copy_add(struct xenvif_queue *queue,
@@ -279,18 +287,10 @@ static void xenvif_rx_next_skb(struct xenvif_queue *queue,
 static void xenvif_rx_complete(struct xenvif_queue *queue,
 			       struct xenvif_pkt_state *pkt)
 {
-	int notify;
-
-	/* Complete any outstanding copy ops for this skb. */
-	xenvif_rx_copy_flush(queue);
-
-	/* Push responses and notify. */
+	/* All responses are ready to be pushed. */
 	queue->rx.rsp_prod_pvt = queue->rx.req_cons;
-	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&queue->rx, notify);
-	if (notify)
-		notify_remote_via_irq(queue->rx_irq);
 
-	dev_kfree_skb(pkt->skb);
+	__skb_queue_tail(queue->rx_copy.completed, pkt->skb);
 }
 
 static void xenvif_rx_next_chunk(struct xenvif_queue *queue,
@@ -429,13 +429,20 @@ void xenvif_rx_skb(struct xenvif_queue *queue)
 
 void xenvif_rx_action(struct xenvif_queue *queue)
 {
+	struct sk_buff_head completed_skbs;
 	unsigned int work_done = 0;
+
+	__skb_queue_head_init(&completed_skbs);
+	queue->rx_copy.completed = &completed_skbs;
 
 	while (xenvif_rx_ring_slots_available(queue) &&
 	       work_done < RX_BATCH_SIZE) {
 		xenvif_rx_skb(queue);
 		work_done++;
 	}
+
+	/* Flush any pending copies and complete all skbs. */
+	xenvif_rx_copy_flush(queue);
 }
 
 static bool xenvif_rx_queue_stalled(struct xenvif_queue *queue)
