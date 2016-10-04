@@ -3362,13 +3362,15 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	int num_active;
 	int id, i;
 
+	/* Clear the partitioning for disabled planes. */
+	memset(ddb->plane[pipe], 0, sizeof(ddb->plane[pipe]));
+	memset(ddb->y_plane[pipe], 0, sizeof(ddb->y_plane[pipe]));
+
 	if (WARN_ON(!state))
 		return 0;
 
 	if (!cstate->base.active) {
 		ddb->pipe[pipe].start = ddb->pipe[pipe].end = 0;
-		memset(ddb->plane[pipe], 0, sizeof(ddb->plane[pipe]));
-		memset(ddb->y_plane[pipe], 0, sizeof(ddb->y_plane[pipe]));
 		return 0;
 	}
 
@@ -4049,6 +4051,12 @@ skl_compute_ddb(struct drm_atomic_state *state)
 		realloc_pipes = ~0;
 		intel_state->wm_results.dirty_pipes = ~0;
 	}
+
+	/*
+	 * We're not recomputing for the pipes not included in the commit, so
+	 * make sure we start with the current state.
+	 */
+	memcpy(ddb, &dev_priv->wm.skl_hw.ddb, sizeof(*ddb));
 
 	for_each_intel_crtc_mask(dev, intel_crtc, realloc_pipes) {
 		struct intel_crtc_state *cstate;
