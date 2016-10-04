@@ -1,4 +1,7 @@
-5: POSTING PATCHES
+.. _development_posting:
+
+Posting patches
+===============
 
 Sooner or later, the time comes when your work is ready to be presented to
 the community for review and, eventually, inclusion into the mainline
@@ -11,7 +14,8 @@ SubmittingDrivers, and SubmitChecklist in the kernel documentation
 directory.
 
 
-5.1: WHEN TO POST
+When to post
+------------
 
 There is a constant temptation to avoid posting patches before they are
 completely "ready."  For simple patches, that is not a problem.  If the
@@ -27,7 +31,8 @@ patches which are known to be half-baked, but those who do will come in
 with the idea that they can help you drive the work in the right direction.
 
 
-5.2: BEFORE CREATING PATCHES
+Before creating patches
+-----------------------
 
 There are a number of things which should be done before you consider
 sending patches to the development community.  These include:
@@ -52,7 +57,8 @@ As a general rule, putting in some extra thought before posting code almost
 always pays back the effort in short order.
 
 
-5.3: PATCH PREPARATION
+Patch preparation
+-----------------
 
 The preparation of patches for posting can be a surprising amount of work,
 but, once again, attempting to save time here is not generally advisable
@@ -122,7 +128,8 @@ which takes quite a bit of time and thought after the "real work" has been
 done.  When done properly, though, it is time well spent.
 
 
-5.4: PATCH FORMATTING AND CHANGELOGS
+Patch formatting and changelogs
+-------------------------------
 
 So now you have a perfect series of patches for posting, but the work is
 not done quite yet.  Each patch needs to be formatted into a message which
@@ -139,6 +146,8 @@ that end, each patch will be composed of the following:
    changelogs.  This message is usually formatted with the relevant
    subsystem name first, followed by the purpose of the patch.  For
    example:
+
+   ::
 
 	gpio: fix build on CONFIG_GPIO_SYSFS=n
 
@@ -192,6 +201,8 @@ been associated with the development of this patch.  They are described in
 detail in the SubmittingPatches document; what follows here is a brief
 summary.  Each of these lines has the format:
 
+::
+
 	tag: Full Name <email address>  optional-other-stuff
 
 The tags in common use are:
@@ -225,7 +236,8 @@ Be careful in the addition of tags to your patches: only Cc: is appropriate
 for addition without the explicit permission of the person named.
 
 
-5.5: SENDING THE PATCH
+Sending the patch
+-----------------
 
 Before you mail your patches, there are a couple of other things you should
 take care of:
@@ -286,6 +298,8 @@ obvious maintainer, Andrew Morton is often the patch target of last resort.
 
 Patches need good subject lines.  The canonical format for a patch line is
 something like:
+
+::
 
 	[PATCH nn/mm] subsys: one-line description of the patch
 

@@ -1,4 +1,7 @@
-4: GETTING THE CODE RIGHT
+.. _development_coding:
+
+Getting the code right
+======================
 
 While there is much to be said for a solid and community-oriented design
 process, the proof of any kernel development project is in the resulting
@@ -12,9 +15,11 @@ will shift toward doing things right and the tools which can help in that
 quest.
 
 
-4.1: PITFALLS
+Pitfalls
+---------
 
-* Coding style
+Coding style
+************
 
 The kernel has long had a standard coding style, described in
 Documentation/CodingStyle.  For much of that time, the policies described
@@ -54,7 +59,8 @@ style (a line which becomes far less readable if split to fit within the
 80-column limit, for example), just do it.
 
 
-* Abstraction layers
+Abstraction layers
+******************
 
 Computer Science professors teach students to make extensive use of
 abstraction layers in the name of flexibility and information hiding.
@@ -87,7 +93,8 @@ implement that functionality at a higher level.  There is no value in
 replicating the same code throughout the kernel.
 
 
-* #ifdef and preprocessor use in general
+#ifdef and preprocessor use in general
+**************************************
 
 The C preprocessor seems to present a powerful temptation to some C
 programmers, who see it as a way to efficiently encode a great deal of
@@ -113,7 +120,8 @@ easier to read, do not evaluate their arguments multiple times, and allow
 the compiler to perform type checking on the arguments and return value.
 
 
-* Inline functions
+Inline functions
+****************
 
 Inline functions present a hazard of their own, though.  Programmers can
 become enamored of the perceived efficiency inherent in avoiding a function
@@ -137,7 +145,8 @@ placement of "inline" keywords may not just be excessive; it could also be
 irrelevant.
 
 
-* Locking
+Locking
+*******
 
 In May, 2006, the "Devicescape" networking stack was, with great
 fanfare, released under the GPL and made available for inclusion in the
@@ -151,7 +160,7 @@ This code showed a number of signs of having been developed behind
 corporate doors.  But one large problem in particular was that it was not
 designed to work on multiprocessor systems.  Before this networking stack
 (now called mac80211) could be merged, a locking scheme needed to be
-retrofitted onto it.  
+retrofitted onto it.
 
 Once upon a time, Linux kernel code could be developed without thinking
 about the concurrency issues presented by multiprocessor systems.  Now,
@@ -169,7 +178,8 @@ enough to pick the right tool for the job.  Code which shows a lack of
 attention to concurrency will have a difficult path into the mainline.
 
 
-* Regressions
+Regressions
+***********
 
 One final hazard worth mentioning is this: it can be tempting to make a
 change (which may bring big improvements) which causes something to break
@@ -184,6 +194,8 @@ to work for more people than it creates problems for.  Why not make a
 change if it brings new functionality to ten systems for each one it
 breaks?  The best answer to this question was expressed by Linus in July,
 2007:
+
+::
 
 	So we don't fix bugs by introducing new problems.  That way lies
 	madness, and nobody ever knows if you actually make any real
@@ -201,8 +213,8 @@ reason, a great deal of thought, clear documentation, and wide review for
 user-space interfaces is always required.
 
 
-
-4.2: CODE CHECKING TOOLS
+Code checking tools
+-------------------
 
 For now, at least, the writing of error-free code remains an ideal that few
 of us can reach.  What we can hope to do, though, is to catch and fix as
@@ -250,7 +262,7 @@ testing purposes.  In particular, you should turn on:
 There are quite a few other debugging options, some of which will be
 discussed below.  Some of them have a significant performance impact and
 should not be used all of the time.  But some time spent learning the
-available options will likely be paid back many times over in short order. 
+available options will likely be paid back many times over in short order.
 
 One of the heavier debugging tools is the locking checker, or "lockdep."
 This tool will track the acquisition and release of every lock (spinlock or
@@ -263,7 +275,7 @@ occasion, deadlock.  This kind of problem can be painful (for both
 developers and users) in a deployed system; lockdep allows them to be found
 in an automated manner ahead of time.  Code with any sort of non-trivial
 locking should be run with lockdep enabled before being submitted for
-inclusion. 
+inclusion.
 
 As a diligent kernel programmer, you will, beyond doubt, check the return
 status of any operation (such as a memory allocation) which can fail.  The
@@ -300,7 +312,7 @@ Documentation/coccinelle.txt for more information.
 Other kinds of portability errors are best found by compiling your code for
 other architectures.  If you do not happen to have an S/390 system or a
 Blackfin development board handy, you can still perform the compilation
-step.  A large set of cross compilers for x86 systems can be found at 
+step.  A large set of cross compilers for x86 systems can be found at
 
 	http://www.kernel.org/pub/tools/crosstool/
 
@@ -308,7 +320,8 @@ Some time spent installing and using these compilers will help avoid
 embarrassment later.
 
 
-4.3: DOCUMENTATION
+Documentation
+-------------
 
 Documentation has often been more the exception than the rule with kernel
 development.  Even so, adequate documentation will help to ease the merging
@@ -364,7 +377,8 @@ out.  Anything which might tempt a code janitor to make an incorrect
 "cleanup" needs a comment saying why it is done the way it is.  And so on.
 
 
-4.4: INTERNAL API CHANGES
+Internal API changes
+--------------------
 
 The binary interface provided by the kernel to user space cannot be broken
 except under the most severe circumstances.  The kernel's internal

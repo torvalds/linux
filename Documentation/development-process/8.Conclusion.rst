@@ -1,4 +1,7 @@
-8: FOR MORE INFORMATION
+.. _development_conclusion:
+
+For more information
+====================
 
 There are numerous sources of information on Linux kernel development and
 related topics.  First among those will always be the Documentation
@@ -47,7 +50,8 @@ Documentation for git can be found at:
 	http://www.kernel.org/pub/software/scm/git/docs/user-manual.html
 
 
-9: CONCLUSION
+Conclusion
+==========
 
 Congratulations to anybody who has made it through this long-winded
 document.  Hopefully it has provided a helpful understanding of how the

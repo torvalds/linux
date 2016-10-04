@@ -1,4 +1,7 @@
-3: EARLY-STAGE PLANNING
+.. _development_early_stage:
+
+Early-stage planning
+====================
 
 When contemplating a Linux kernel development project, it can be tempting
 to jump right in and start coding.  As with any significant project,
@@ -7,7 +10,8 @@ line of code is written.  Some time spent in early planning and
 communication can save far more time later on.
 
 
-3.1: SPECIFYING THE PROBLEM
+Specifying the problem
+----------------------
 
 Like any engineering project, a successful kernel enhancement starts with a
 clear description of the problem to be solved.  In some cases, this step is
@@ -64,7 +68,8 @@ answers to a short set of questions:
 Only then does it make sense to start considering possible solutions.
 
 
-3.2: EARLY DISCUSSION
+Early discussion
+----------------
 
 When planning a kernel development project, it makes great sense to hold
 discussions with the community before launching into implementation.  Early
@@ -117,7 +122,8 @@ In each of these cases, a great deal of pain and extra work could have been
 avoided with some early discussion with the kernel developers.
 
 
-3.3: WHO DO YOU TALK TO?
+Who do you talk to?
+-------------------
 
 When developers decide to take their plans public, the next question will
 be: where do we start?  The answer is to find the right mailing list(s) and
@@ -141,6 +147,8 @@ development project.
 The task of finding the right maintainer is sometimes challenging enough
 that the kernel developers have added a script to ease the process:
 
+::
+
 	.../scripts/get_maintainer.pl
 
 This script will return the current maintainer(s) for a given file or
@@ -155,7 +163,8 @@ If all else fails, talking to Andrew Morton can be an effective way to
 track down a maintainer for a specific piece of code.
 
 
-3.4: WHEN TO POST?
+When to post?
+-------------
 
 If possible, posting your plans during the early stages can only be
 helpful.  Describe the problem being solved and any plans that have been
@@ -179,7 +188,8 @@ idea.  The best thing to do in this situation is to proceed, keeping the
 community informed as you go.
 
 
-3.5: GETTING OFFICIAL BUY-IN
+Getting official buy-in
+-----------------------
 
 If your work is being done in a corporate environment - as most Linux
 kernel work is - you must, obviously, have permission from suitably

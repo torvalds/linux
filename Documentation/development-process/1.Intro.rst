@@ -1,16 +1,8 @@
-1: A GUIDE TO THE KERNEL DEVELOPMENT PROCESS
+Introdution
+===========
 
-The purpose of this document is to help developers (and their managers)
-work with the development community with a minimum of frustration.  It is
-an attempt to document how this community works in a way which is
-accessible to those who are not intimately familiar with Linux kernel
-development (or, indeed, free software development in general).  While
-there is some technical material here, this is very much a process-oriented
-discussion which does not require a deep knowledge of kernel programming to
-understand.
-
-
-1.1: EXECUTIVE SUMMARY
+Executive summary
+-----------------
 
 The rest of this section covers the scope of the kernel development process
 and the kinds of frustrations that developers and their employers can
@@ -20,41 +12,41 @@ availability to users, community support in many forms, and the ability to
 influence the direction of kernel development.  Code contributed to the
 Linux kernel must be made available under a GPL-compatible license.
 
-Section 2 introduces the development process, the kernel release cycle, and
-the mechanics of the merge window.  The various phases in the patch
-development, review, and merging cycle are covered.  There is some
+:ref:`development_process` introduces the development process, the kernel
+release cycle, and the mechanics of the merge window.  The various phases in
+the patch development, review, and merging cycle are covered.  There is some
 discussion of tools and mailing lists.  Developers wanting to get started
 with kernel development are encouraged to track down and fix bugs as an
 initial exercise.
 
-Section 3 covers early-stage project planning, with an emphasis on
-involving the development community as soon as possible.
+:ref:`development_early_stage` covers early-stage project planning, with an
+emphasis on involving the development community as soon as possible.
 
-Section 4 is about the coding process; several pitfalls which have been
-encountered by other developers are discussed.  Some requirements for
+:ref:`development_coding` is about the coding process; several pitfalls which
+have been encountered by other developers are discussed.  Some requirements for
 patches are covered, and there is an introduction to some of the tools
 which can help to ensure that kernel patches are correct.
 
-Section 5 talks about the process of posting patches for review.  To be
-taken seriously by the development community, patches must be properly
-formatted and described, and they must be sent to the right place.
+:ref:`development_posting` talks about the process of posting patches for
+review. To be taken seriously by the development community, patches must be
+properly formatted and described, and they must be sent to the right place.
 Following the advice in this section should help to ensure the best
 possible reception for your work.
 
-Section 6 covers what happens after posting patches; the job is far from
-done at that point.  Working with reviewers is a crucial part of the
-development process; this section offers a number of tips on how to avoid
-problems at this important stage.  Developers are cautioned against
+:ref:`development_followthrough` covers what happens after posting patches; the
+job is far from done at that point.  Working with reviewers is a crucial part
+of the development process; this section offers a number of tips on how to
+avoid problems at this important stage.  Developers are cautioned against
 assuming that the job is done when a patch is merged into the mainline.
 
-Section 7 introduces a couple of "advanced" topics: managing patches with
-git and reviewing patches posted by others.
+:ref:`development_advancedtopics` introduces a couple of "advanced" topics:
+managing patches with git and reviewing patches posted by others.
 
-Section 8 concludes the document with pointers to sources for more
-information on kernel development.
+:ref:`development_conclusion` concludes the document with pointers to sources
+for more information on kernel development.
 
-
-1.2: WHAT THIS DOCUMENT IS ABOUT
+What this document is about
+---------------------------
 
 The Linux kernel, at over 8 million lines of code and well over 1000
 contributors to each release, is one of the largest and most active free
@@ -108,8 +100,8 @@ community is always in need of developers who will help to make the kernel
 better; the following text should help you - or those who work for you -
 join our community.
 
-
-1.3: CREDITS
+Credits
+-------
 
 This document was written by Jonathan Corbet, corbet@lwn.net.  It has been
 improved by comments from Johannes Berg, James Berry, Alex Chiang, Roland
@@ -120,8 +112,8 @@ Jochen Voß.
 This work was supported by the Linux Foundation; thanks especially to
 Amanda McPherson, who saw the value of this effort and made it all happen.
 
-
-1.4: THE IMPORTANCE OF GETTING CODE INTO THE MAINLINE
+The importance of getting code into the mainline
+------------------------------------------------
 
 Some companies and developers occasionally wonder why they should bother
 learning how to work with the kernel community and get their code into the
@@ -233,8 +225,8 @@ commercial life, after which a new version must be released.  At that
 point, vendors whose code is in the mainline and well maintained will be
 much better positioned to get the new product ready for market quickly.
 
-
-1.5: LICENSING
+Licensing
+---------
 
 Code is contributed to the Linux kernel under a number of licenses, but all
 code must be compatible with version 2 of the GNU General Public License

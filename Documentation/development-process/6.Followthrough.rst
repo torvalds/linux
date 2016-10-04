@@ -1,4 +1,7 @@
-6: FOLLOWTHROUGH
+.. _development_followthrough:
+
+Followthrough
+=============
 
 At this point, you have followed the guidelines given so far and, with the
 addition of your own engineering skills, have posted a perfect series of
@@ -16,7 +19,8 @@ standards.  A failure to participate in this process is quite likely to
 prevent the inclusion of your patches into the mainline.
 
 
-6.1: WORKING WITH REVIEWERS
+Working with reviewers
+----------------------
 
 A patch of any significance will result in a number of comments from other
 developers as they review the code.  Working with reviewers can be, for
@@ -97,7 +101,8 @@ though, and not before all other alternatives have been explored.  And bear
 in mind, of course, that he may not agree with you either.
 
 
-6.2: WHAT HAPPENS NEXT
+What happens next
+-----------------
 
 If a patch is considered to be a good thing to add to the kernel, and once
 most of the review issues have been resolved, the next step is usually
@@ -177,7 +182,8 @@ it with the assumption that you will not be around to maintain it
 afterward.
 
 
-6.3: OTHER THINGS THAT CAN HAPPEN
+Other things that can happen
+-----------------------------
 
 One day, you may open your mail client and see that somebody has mailed you
 a patch to your code.  That is one of the advantages of having your code

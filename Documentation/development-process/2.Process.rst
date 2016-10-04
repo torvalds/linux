@@ -1,4 +1,7 @@
-2: HOW THE DEVELOPMENT PROCESS WORKS
+.. _development_process:
+
+How the development process works
+=================================
 
 Linux kernel development in the early 1990's was a pretty loose affair,
 with relatively small numbers of users and developers involved.  With a
@@ -7,19 +10,21 @@ course of one year, the kernel has since had to evolve a number of
 processes to keep development happening smoothly.  A solid understanding of
 how the process works is required in order to be an effective part of it.
 
-
-2.1: THE BIG PICTURE
+The big picture
+---------------
 
 The kernel developers use a loosely time-based release process, with a new
 major kernel release happening every two or three months.  The recent
 release history looks like this:
 
+	======  =================
 	2.6.38	March 14, 2011
 	2.6.37	January 4, 2011
 	2.6.36	October 20, 2010
 	2.6.35	August 1, 2010
 	2.6.34	May 15, 2010
 	2.6.33	February 24, 2010
+	======  =================
 
 Every 2.6.x release is a major kernel release with new features, internal
 API changes, and more.  A typical 2.6 release can contain nearly 10,000
@@ -68,6 +73,7 @@ At that point the whole process starts over again.
 As an example, here is how the 2.6.38 development cycle went (all dates in
 2011):
 
+	==============  ===============================
 	January 4	2.6.37 stable release
 	January 18	2.6.38-rc1, merge window closes
 	January 21	2.6.38-rc2
@@ -78,6 +84,7 @@ As an example, here is how the 2.6.38 development cycle went (all dates in
 	March 1		2.6.38-rc7
 	March 7		2.6.38-rc8
 	March 14	2.6.38 stable release
+	==============  ===============================
 
 How do the developers decide when to close the development cycle and create
 the stable release?  The most significant metric used is the list of
@@ -105,11 +112,13 @@ next development kernel.  Kernels will typically receive stable updates for
 a little more than one development cycle past their initial release.  So,
 for example, the 2.6.36 kernel's history looked like:
 
+	==============  ===============================
 	October 10	2.6.36 stable release
 	November 22	2.6.36.1
 	December 9	2.6.36.2
 	January 7	2.6.36.3
 	February 17	2.6.36.4
+	==============  ===============================
 
 2.6.36.4 was the final stable update for the 2.6.36 release.
 
@@ -117,9 +126,11 @@ Some kernels are designated "long term" kernels; they will receive support
 for a longer period.  As of this writing, the current long term kernels
 and their maintainers are:
 
+	======  ======================  ===========================
 	2.6.27	Willy Tarreau		(Deep-frozen stable kernel)
 	2.6.32	Greg Kroah-Hartman
 	2.6.35	Andi Kleen		(Embedded flag kernel)
+	======  ======================  ===========================
 
 The selection of a kernel for long-term support is purely a matter of a
 maintainer having the need and the time to maintain that release.  There
@@ -127,7 +138,8 @@ are no known plans for long-term support for any specific upcoming
 release.
 
 
-2.2: THE LIFECYCLE OF A PATCH
+The lifecycle of a patch
+------------------------
 
 Patches do not go directly from the developer's keyboard into the mainline
 kernel.  There is, instead, a somewhat involved (if somewhat informal)
@@ -195,8 +207,8 @@ is to try to cut the process down to a single "merging into the mainline"
 step.  This approach invariably leads to frustration for everybody
 involved.
 
-
-2.3: HOW PATCHES GET INTO THE KERNEL
+How patches get into the Kernel
+-------------------------------
 
 There is exactly one person who can merge patches into the mainline kernel
 repository: Linus Torvalds.  But, of the over 9,500 patches which went
@@ -242,7 +254,8 @@ finding the right maintainer.  Sending patches directly to Linus is not
 normally the right way to go.
 
 
-2.4: NEXT TREES
+Next trees
+----------
 
 The chain of subsystem trees guides the flow of patches into the kernel,
 but it also raises an interesting question: what if somebody wants to look
@@ -294,7 +307,8 @@ all patches merged during a given merge window should really have found
 their way into linux-next some time before the merge window opens.
 
 
-2.4.1: STAGING TREES
+Staging trees
+-------------
 
 The kernel source tree contains the drivers/staging/ directory, where
 many sub-directories for drivers or filesystems that are on their way to
@@ -322,7 +336,8 @@ staging drivers.  So staging is, at best, a stop on the way toward becoming
 a proper mainline driver.
 
 
-2.5: TOOLS
+Tools
+-----
 
 As can be seen from the above text, the kernel development process depends
 heavily on the ability to herd collections of patches in various
@@ -368,7 +383,8 @@ upstream.  For the management of certain kinds of trees (-mm, for example),
 quilt is the best tool for the job.
 
 
-2.6: MAILING LISTS
+Mailing lists
+-------------
 
 A great deal of Linux kernel development work is done by way of mailing
 lists.  It is hard to be a fully-functioning member of the community
@@ -436,7 +452,8 @@ filesystem, etc. subsystems.  The best place to look for mailing lists is
 in the MAINTAINERS file packaged with the kernel source.
 
 
-2.7: GETTING STARTED WITH KERNEL DEVELOPMENT
+Getting started with Kernel development
+---------------------------------------
 
 Questions about how to get started with the kernel development process are
 common - from both individuals and companies.  Equally common are missteps
@@ -462,6 +479,8 @@ introduce themselves to the community will not get the sort of reception
 they wish for by these means.
 
 Andrew Morton gives this advice for aspiring kernel developers
+
+::
 
 	The #1 project for all kernel beginners should surely be "make sure
 	that the kernel runs perfectly at all times on all machines which

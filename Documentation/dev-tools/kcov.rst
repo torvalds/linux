@@ -12,38 +12,38 @@ To achieve this goal it does not collect coverage in soft/hard interrupts
 and instrumentation of some inherently non-deterministic parts of kernel is
 disbled (e.g. scheduler, locking).
 
-Usage:
-======
+Usage
+-----
 
-Configure kernel with:
+Configure the kernel with::
 
         CONFIG_KCOV=y
 
 CONFIG_KCOV requires gcc built on revision 231296 or later.
-Profiling data will only become accessible once debugfs has been mounted:
+Profiling data will only become accessible once debugfs has been mounted::
 
         mount -t debugfs none /sys/kernel/debug
 
-The following program demonstrates kcov usage from within a test program:
+The following program demonstrates kcov usage from within a test program::
 
-#include <stdio.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/ioctl.h>
-#include <sys/mman.h>
-#include <unistd.h>
-#include <fcntl.h>
+    #include <stdio.h>
+    #include <stddef.h>
+    #include <stdint.h>
+    #include <stdlib.h>
+    #include <sys/types.h>
+    #include <sys/stat.h>
+    #include <sys/ioctl.h>
+    #include <sys/mman.h>
+    #include <unistd.h>
+    #include <fcntl.h>
 
-#define KCOV_INIT_TRACE			_IOR('c', 1, unsigned long)
-#define KCOV_ENABLE			_IO('c', 100)
-#define KCOV_DISABLE			_IO('c', 101)
-#define COVER_SIZE			(64<<10)
+    #define KCOV_INIT_TRACE			_IOR('c', 1, unsigned long)
+    #define KCOV_ENABLE			_IO('c', 100)
+    #define KCOV_DISABLE			_IO('c', 101)
+    #define COVER_SIZE			(64<<10)
 
-int main(int argc, char **argv)
-{
+    int main(int argc, char **argv)
+    {
 	int fd;
 	unsigned long *cover, n, i;
 
@@ -83,24 +83,24 @@ int main(int argc, char **argv)
 	if (close(fd))
 		perror("close"), exit(1);
 	return 0;
-}
+    }
 
-After piping through addr2line output of the program looks as follows:
+After piping through addr2line output of the program looks as follows::
 
-SyS_read
-fs/read_write.c:562
-__fdget_pos
-fs/file.c:774
-__fget_light
-fs/file.c:746
-__fget_light
-fs/file.c:750
-__fget_light
-fs/file.c:760
-__fdget_pos
-fs/file.c:784
-SyS_read
-fs/read_write.c:562
+    SyS_read
+    fs/read_write.c:562
+    __fdget_pos
+    fs/file.c:774
+    __fget_light
+    fs/file.c:746
+    __fget_light
+    fs/file.c:750
+    __fget_light
+    fs/file.c:760
+    __fdget_pos
+    fs/file.c:784
+    SyS_read
+    fs/read_write.c:562
 
 If a program needs to collect coverage from several threads (independently),
 it needs to open /sys/kernel/debug/kcov in each thread separately.
