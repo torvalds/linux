@@ -357,10 +357,7 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 	mutex_lock(&local->sta_mtx);
 
 	if (mac_addr) {
-		if (ieee80211_vif_is_mesh(&sdata->vif))
-			sta = sta_info_get(sdata, mac_addr);
-		else
-			sta = sta_info_get_bss(sdata, mac_addr);
+		sta = sta_info_get_bss(sdata, mac_addr);
 		/*
 		 * The ASSOC test makes sure the driver is ready to
 		 * receive the key. When wpa_supplicant has roamed
