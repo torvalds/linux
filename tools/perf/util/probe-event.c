@@ -213,7 +213,7 @@ static int convert_exec_to_group(const char *exec, char **result)
 		goto out;
 	}
 
-	for (ptr2 = ptr1; ptr2 != '\0'; ptr2++) {
+	for (ptr2 = ptr1; *ptr2 != '\0'; ptr2++) {
 		if (!isalnum(*ptr2) && *ptr2 != '_') {
 			*ptr2 = '\0';
 			break;
