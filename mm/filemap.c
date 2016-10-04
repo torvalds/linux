@@ -633,7 +633,6 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
 		__delete_from_page_cache(old, NULL);
 		error = page_cache_tree_insert(mapping, new, NULL);
 		BUG_ON(error);
-		mapping->nrpages++;
 
 		/*
 		 * hugetlb pages do not participate in page cache accounting.
