@@ -468,9 +468,13 @@ struct intel_pipe_wm {
 	bool sprites_scaled;
 };
 
-struct skl_pipe_wm {
+struct skl_plane_wm {
 	struct skl_wm_level wm[8];
 	struct skl_wm_level trans_wm;
+};
+
+struct skl_pipe_wm {
+	struct skl_plane_wm planes[I915_MAX_PLANES];
 	uint32_t linetime;
 };
 

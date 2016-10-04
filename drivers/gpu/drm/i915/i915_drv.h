@@ -1653,9 +1653,9 @@ struct skl_wm_values {
 };
 
 struct skl_wm_level {
-	bool plane_en[I915_MAX_PLANES];
-	uint16_t plane_res_b[I915_MAX_PLANES];
-	uint8_t plane_res_l[I915_MAX_PLANES];
+	bool plane_en;
+	uint16_t plane_res_b;
+	uint8_t plane_res_l;
 };
 
 /*
