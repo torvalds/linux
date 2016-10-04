@@ -7683,6 +7683,12 @@ W:	http://www.mellanox.com
 Q:	http://patchwork.ozlabs.org/project/netdev/list/
 F:	drivers/net/ethernet/mellanox/mlxsw/
 
+MELLANOX PLATFORM DRIVER
+M:      Vadim Pasternak <vadimp@mellanox.com>
+L:      platform-driver-x86@vger.kernel.org
+S:      Supported
+F:      arch/x86/platform/mellanox/mlx-platform.c
+
 SOFT-ROCE DRIVER (rxe)
 M:	Moni Shoua <monis@mellanox.com>
 L:	linux-rdma@vger.kernel.org
