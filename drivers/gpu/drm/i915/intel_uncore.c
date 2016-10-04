@@ -1054,21 +1054,6 @@ gen6_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, bool 
 	GEN6_WRITE_FOOTER; \
 }
 
-#define __hsw_write(x) \
-static void \
-hsw_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, bool trace) { \
-	u32 __fifo_ret = 0; \
-	GEN6_WRITE_HEADER; \
-	if (NEEDS_FORCE_WAKE(offset)) { \
-		__fifo_ret = __gen6_gt_wait_for_fifo(dev_priv); \
-	} \
-	__raw_i915_write##x(dev_priv, reg, val); \
-	if (unlikely(__fifo_ret)) { \
-		gen6_gt_check_fifodbg(dev_priv); \
-	} \
-	GEN6_WRITE_FOOTER; \
-}
-
 #define __gen8_write(x) \
 static void \
 gen8_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, bool trace) { \
@@ -1115,9 +1100,6 @@ __chv_write(32)
 __gen8_write(8)
 __gen8_write(16)
 __gen8_write(32)
-__hsw_write(8)
-__hsw_write(16)
-__hsw_write(32)
 __gen6_write(8)
 __gen6_write(16)
 __gen6_write(32)
@@ -1125,7 +1107,6 @@ __gen6_write(32)
 #undef __gen9_write
 #undef __chv_write
 #undef __gen8_write
-#undef __hsw_write
 #undef __gen6_write
 #undef GEN6_WRITE_FOOTER
 #undef GEN6_WRITE_HEADER
@@ -1342,11 +1323,7 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 		break;
 	case 7:
 	case 6:
-		if (IS_HASWELL(dev_priv)) {
-			ASSIGN_WRITE_MMIO_VFUNCS(hsw);
-		} else {
-			ASSIGN_WRITE_MMIO_VFUNCS(gen6);
-		}
+		ASSIGN_WRITE_MMIO_VFUNCS(gen6);
 
 		if (IS_VALLEYVIEW(dev_priv)) {
 			ASSIGN_READ_MMIO_VFUNCS(vlv);
