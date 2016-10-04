@@ -496,20 +496,37 @@ static struct key_restriction *asymmetric_lookup_restriction(
 	restrict_method = strsep(&next, ":");
 
 	if ((strcmp(restrict_method, "key_or_keyring") == 0) && next) {
+		char *key_text;
 		key_serial_t serial;
 		struct key *key;
+		key_restrict_link_func_t link_fn =
+			restrict_link_by_key_or_keyring;
+		bool allow_null_key = false;
 
-		if (kstrtos32(next, 0, &serial) < 0)
-			goto out;
+		key_text = strsep(&next, ":");
 
-		key = key_lookup(serial);
-		if (IS_ERR(key)) {
-			ret = ERR_CAST(key);
-			goto out;
+		if (next) {
+			if (strcmp(next, "chain") != 0)
+				goto out;
+
+			link_fn = restrict_link_by_key_or_keyring_chain;
+			allow_null_key = true;
 		}
 
-		ret = asymmetric_restriction_alloc(
-			restrict_link_by_key_or_keyring, key);
+		if (kstrtos32(key_text, 0, &serial) < 0)
+			goto out;
+
+		if ((serial == 0) && allow_null_key) {
+			key = NULL;
+		} else {
+			key = key_lookup(serial);
+			if (IS_ERR(key)) {
+				ret = ERR_CAST(key);
+				goto out;
+			}
+		}
+
+		ret = asymmetric_restriction_alloc(link_fn, key);
 		if (IS_ERR(ret))
 			key_put(key);
 	}
