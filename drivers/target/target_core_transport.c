@@ -2509,8 +2509,10 @@ int target_get_sess_cmd(struct se_cmd *se_cmd, bool ack_kref)
 	 * fabric acknowledgement that requires two target_put_sess_cmd()
 	 * invocations before se_cmd descriptor release.
 	 */
-	if (ack_kref)
+	if (ack_kref) {
 		kref_get(&se_cmd->cmd_kref);
+		se_cmd->se_cmd_flags |= SCF_ACK_KREF;
+	}
 
 	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
 	if (se_sess->sess_tearing_down) {
