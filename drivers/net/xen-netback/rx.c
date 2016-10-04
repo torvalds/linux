@@ -92,25 +92,19 @@ static struct sk_buff *xenvif_rx_dequeue(struct xenvif_queue *queue)
 	spin_lock_irq(&queue->rx_queue.lock);
 
 	skb = __skb_dequeue(&queue->rx_queue);
-	if (skb)
+	if (skb) {
 		queue->rx_queue_len -= skb->len;
+		if (queue->rx_queue_len < queue->rx_queue_max) {
+			struct netdev_queue *txq;
+
+			txq = netdev_get_tx_queue(queue->vif->dev, queue->id);
+			netif_tx_wake_queue(txq);
+		}
+	}
 
 	spin_unlock_irq(&queue->rx_queue.lock);
 
 	return skb;
-}
-
-static void xenvif_rx_queue_maybe_wake(struct xenvif_queue *queue)
-{
-	spin_lock_irq(&queue->rx_queue.lock);
-
-	if (queue->rx_queue_len < queue->rx_queue_max) {
-		struct net_device *dev = queue->vif->dev;
-
-		netif_tx_wake_queue(netdev_get_tx_queue(dev, queue->id));
-	}
-
-	spin_unlock_irq(&queue->rx_queue.lock);
 }
 
 static void xenvif_rx_queue_purge(struct xenvif_queue *queue)
@@ -584,8 +578,6 @@ int xenvif_kthread_guest_rx(void *data)
 		 * slots.
 		 */
 		xenvif_rx_queue_drop_expired(queue);
-
-		xenvif_rx_queue_maybe_wake(queue);
 
 		cond_resched();
 	}
