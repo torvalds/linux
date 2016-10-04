@@ -836,7 +836,9 @@ static void init_reg_v2_hw(struct hisi_hba *hisi_hba)
 		hisi_sas_phy_write32(hisi_hba, i, SL_RX_BCAST_CHK_MSK, 0x0);
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT_COAL_EN, 0x0);
 		hisi_sas_phy_write32(hisi_hba, i, PHYCTRL_OOB_RESTART_MSK, 0x0);
-		hisi_sas_phy_write32(hisi_hba, i, PHY_CTRL, 0x199B694);
+		if (hisi_hba->refclk_frequency_mhz == 66)
+			hisi_sas_phy_write32(hisi_hba, i, PHY_CTRL, 0x199B694);
+		/* else, do nothing -> leave it how you found it */
 	}
 
 	for (i = 0; i < hisi_hba->queue_count; i++) {

@@ -13,6 +13,7 @@
 #define _HISI_SAS_H_
 
 #include <linux/acpi.h>
+#include <linux/clk.h>
 #include <linux/dmapool.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
@@ -183,6 +184,7 @@ struct hisi_hba {
 	u32 ctrl_reset_reg;
 	u32 ctrl_reset_sts_reg;
 	u32 ctrl_clock_ena_reg;
+	u32 refclk_frequency_mhz;
 	u8 sas_addr[SAS_ADDR_SIZE];
 
 	int n_phy;

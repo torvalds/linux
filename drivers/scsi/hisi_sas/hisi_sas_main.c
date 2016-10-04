@@ -1396,6 +1396,7 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 	struct hisi_hba *hisi_hba;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = pdev->dev.of_node;
+	struct clk *refclk;
 
 	shost = scsi_host_alloc(&hisi_sas_sht, sizeof(*hisi_hba));
 	if (!shost)
@@ -1431,6 +1432,12 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 					     &hisi_hba->ctrl_clock_ena_reg))
 			goto err_out;
 	}
+
+	refclk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(refclk))
+		dev_info(dev, "no ref clk property\n");
+	else
+		hisi_hba->refclk_frequency_mhz = clk_get_rate(refclk) / 1000000;
 
 	if (device_property_read_u32(dev, "phy-count", &hisi_hba->n_phy))
 		goto err_out;
