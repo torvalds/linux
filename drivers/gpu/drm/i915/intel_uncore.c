@@ -26,7 +26,6 @@
 #include "i915_vgpu.h"
 
 #include <linux/pm_runtime.h>
-#include <linux/bsearch.h>
 
 #define FORCEWAKE_ACK_TIMEOUT_MS 50
 
@@ -582,11 +581,8 @@ void assert_forcewakes_inactive(struct drm_i915_private *dev_priv)
 	__fwd; \
 })
 
-static int fw_range_cmp(const void *key, const void *elt)
+static int fw_range_cmp(u32 offset, const struct intel_forcewake_range *entry)
 {
-	const struct intel_forcewake_range *entry = elt;
-	u32 offset = (u32)((unsigned long)key);
-
 	if (offset < entry->start)
 		return -1;
 	else if (offset > entry->end)
@@ -595,17 +591,33 @@ static int fw_range_cmp(const void *key, const void *elt)
 		return 0;
 }
 
+/* Copied and "macroized" from lib/bsearch.c */
+#define BSEARCH(key, base, num, cmp) ({                                 \
+	unsigned int start__ = 0, end__ = (num);                        \
+	typeof(base) result__ = NULL;                                   \
+	while (start__ < end__) {                                       \
+		unsigned int mid__ = start__ + (end__ - start__) / 2;   \
+		int ret__ = (cmp)((key), (base) + mid__);               \
+		if (ret__ < 0) {                                        \
+			end__ = mid__;                                  \
+		} else if (ret__ > 0) {                                 \
+			start__ = mid__ + 1;                            \
+		} else {                                                \
+			result__ = (base) + mid__;                      \
+			break;                                          \
+		}                                                       \
+	}                                                               \
+	result__;                                                       \
+})
+
 static enum forcewake_domains
 find_fw_domain(struct drm_i915_private *dev_priv, u32 offset)
 {
-	const struct intel_forcewake_range *table, *entry;
-	unsigned int num_entries;
+	const struct intel_forcewake_range *entry;
 
-	table = dev_priv->uncore.fw_domains_table;
-	num_entries = dev_priv->uncore.fw_domains_table_entries;
-
-	entry = bsearch((void *)(unsigned long)offset, (const void *)table,
-			num_entries, sizeof(struct intel_forcewake_range),
+	entry = BSEARCH(offset,
+			dev_priv->uncore.fw_domains_table,
+			dev_priv->uncore.fw_domains_table_entries,
 			fw_range_cmp);
 
 	return entry ? entry->domains : 0;
@@ -691,14 +703,13 @@ static void intel_shadow_table_check(void)
 	}
 }
 
-static int mmio_reg_cmp(const void *key, const void *elt)
+static int mmio_reg_cmp(u32 key, const i915_reg_t *reg)
 {
-	u32 offset = (u32)(unsigned long)key;
-	i915_reg_t *reg = (i915_reg_t *)elt;
+	u32 offset = i915_mmio_reg_offset(*reg);
 
-	if (offset < i915_mmio_reg_offset(*reg))
+	if (key < offset)
 		return -1;
-	else if (offset > i915_mmio_reg_offset(*reg))
+	else if (key > offset)
 		return 1;
 	else
 		return 0;
@@ -706,15 +717,10 @@ static int mmio_reg_cmp(const void *key, const void *elt)
 
 static bool is_gen8_shadowed(u32 offset)
 {
-	i915_reg_t *reg;
+	const i915_reg_t *regs = gen8_shadowed_regs;
 
-	reg = bsearch((void *)(unsigned long)offset,
-		      (const void *)gen8_shadowed_regs,
-		      ARRAY_SIZE(gen8_shadowed_regs),
-		      sizeof(i915_reg_t),
-		      mmio_reg_cmp);
-
-	return reg;
+	return BSEARCH(offset, regs, ARRAY_SIZE(gen8_shadowed_regs),
+		       mmio_reg_cmp);
 }
 
 #define __gen8_reg_write_fw_domains(offset) \
