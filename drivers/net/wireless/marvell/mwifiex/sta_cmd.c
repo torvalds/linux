@@ -598,6 +598,11 @@ static int mwifiex_set_aes_key_v2(struct mwifiex_private *priv,
 		memcpy(km->key_param_set.key_params.cmac_aes.key,
 		       enc_key->key_material, enc_key->key_len);
 		len += sizeof(struct mwifiex_cmac_aes_param);
+	} else if (enc_key->is_igtk_def_key) {
+		mwifiex_dbg(adapter, INFO,
+			    "%s: Set CMAC default Key index\n", __func__);
+		km->key_param_set.key_type = KEY_TYPE_ID_AES_CMAC_DEF;
+		km->key_param_set.key_idx = enc_key->key_index & KEY_INDEX_MASK;
 	} else {
 		mwifiex_dbg(adapter, INFO,
 			    "%s: Set AES Key\n", __func__);

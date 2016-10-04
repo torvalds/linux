@@ -211,8 +211,7 @@ static int orion_mdio_probe(struct platform_device *pdev)
 	dev->regs = devm_ioremap(&pdev->dev, r->start, resource_size(r));
 	if (!dev->regs) {
 		dev_err(&pdev->dev, "Unable to remap SMI register\n");
-		ret = -ENODEV;
-		goto out_mdio;
+		return -ENODEV;
 	}
 
 	init_waitqueue_head(&dev->smi_busy_wait);

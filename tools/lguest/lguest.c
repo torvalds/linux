@@ -3266,6 +3266,9 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	/* If we exit via err(), this kills all the threads, restores tty. */
+	atexit(cleanup_devices);
+
 	/* We always have a console device, and it's always device 1. */
 	setup_console();
 
@@ -3368,9 +3371,6 @@ int main(int argc, char *argv[])
 
 	/* Ensure that we terminate if a device-servicing child dies. */
 	signal(SIGCHLD, kill_launcher);
-
-	/* If we exit via err(), this kills all the threads, restores tty. */
-	atexit(cleanup_devices);
 
 	/* If requested, chroot to a directory */
 	if (chroot_path) {

@@ -35,6 +35,9 @@ extern const struct qed_common_ops qed_common_ops_pass;
 
 #define QED_WFQ_UNIT	100
 
+#define QED_WID_SIZE            (1024)
+#define QED_PF_DEMS_SIZE        (4)
+
 /* cau states */
 enum qed_coalescing_mode {
 	QED_COAL_MODE_DISABLE,
@@ -48,6 +51,14 @@ enum qed_mcp_protocol_type;
 
 /* helpers */
 static inline u32 qed_db_addr(u32 cid, u32 DEMS)
+{
+	u32 db_addr = FIELD_VALUE(DB_LEGACY_ADDR_DEMS, DEMS) |
+		      (cid * QED_PF_DEMS_SIZE);
+
+	return db_addr;
+}
+
+static inline u32 qed_db_addr_vf(u32 cid, u32 DEMS)
 {
 	u32 db_addr = FIELD_VALUE(DB_LEGACY_ADDR_DEMS, DEMS) |
 		      FIELD_VALUE(DB_LEGACY_ADDR_ICID, cid);
@@ -72,6 +83,7 @@ struct qed_sb_info;
 struct qed_sb_attn_info;
 struct qed_cxt_mngr;
 struct qed_sb_sp_info;
+struct qed_ll2_info;
 struct qed_mcp_info;
 
 struct qed_rt_data {
@@ -151,13 +163,17 @@ enum QED_RESOURCES {
 	QED_RL,
 	QED_MAC,
 	QED_VLAN,
+	QED_RDMA_CNQ_RAM,
 	QED_ILT,
+	QED_LL2_QUEUE,
+	QED_RDMA_STATS_QUEUE,
 	QED_MAX_RESC,
 };
 
 enum QED_FEATURE {
 	QED_PF_L2_QUE,
 	QED_VF,
+	QED_RDMA_CNQ,
 	QED_MAX_FEATURES,
 };
 
@@ -360,6 +376,9 @@ struct qed_hwfn {
 	struct qed_sb_attn_info		*p_sb_attn;
 
 	/* Protocol related */
+	bool				using_ll2;
+	struct qed_ll2_info		*p_ll2_info;
+	struct qed_rdma_info		*p_rdma_info;
 	struct qed_pf_params		pf_params;
 
 	bool b_rdma_enabled_in_prs;
@@ -398,6 +417,17 @@ struct qed_hwfn {
 
 	struct dbg_tools_data		dbg_info;
 
+	/* PWM region specific data */
+	u32				dpi_size;
+	u32				dpi_count;
+
+	/* This is used to calculate the doorbell address */
+	u32 dpi_start_offset;
+
+	/* If one of the following is set then EDPM shouldn't be used */
+	u8 dcbx_no_edpm;
+	u8 db_bar_no_edpm;
+
 	struct qed_simd_fp_handler	simd_proto_handler[64];
 
 #ifdef CONFIG_QED_SRIOV
@@ -407,6 +437,7 @@ struct qed_hwfn {
 #endif
 
 	struct z_stream_s		*stream;
+	struct qed_roce_ll2_info	*ll2;
 };
 
 struct pci_params {
@@ -431,6 +462,8 @@ struct qed_int_params {
 	bool			fp_initialized;
 	u8			fp_msix_base;
 	u8			fp_msix_cnt;
+	u8			rdma_msix_base;
+	u8			rdma_msix_cnt;
 };
 
 struct qed_dbg_feature {
@@ -537,7 +570,6 @@ struct qed_dev {
 
 	bool				b_is_vf;
 	u32				drv_type;
-
 	struct qed_eth_stats		*reset_stats;
 	struct qed_fw_data		*fw_data;
 
@@ -564,7 +596,16 @@ struct qed_dev {
 
 	struct qed_dbg_params		dbg_params;
 
+#ifdef CONFIG_QED_LL2
+	struct qed_cb_ll2_info		*ll2;
+	u8				ll2_mac_address[ETH_ALEN];
+#endif
+
 	const struct firmware		*firmware;
+
+	u32 rdma_max_sge;
+	u32 rdma_max_inline;
+	u32 rdma_max_srq_sge;
 };
 
 #define NUM_OF_VFS(dev)         MAX_NUM_VFS_BB

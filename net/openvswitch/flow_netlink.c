@@ -1996,13 +1996,15 @@ static int validate_and_copy_sample(struct net *net, const struct nlattr *attr,
 
 void ovs_match_init(struct sw_flow_match *match,
 		    struct sw_flow_key *key,
+		    bool reset_key,
 		    struct sw_flow_mask *mask)
 {
 	memset(match, 0, sizeof(*match));
 	match->key = key;
 	match->mask = mask;
 
-	memset(key, 0, sizeof(*key));
+	if (reset_key)
+		memset(key, 0, sizeof(*key));
 
 	if (mask) {
 		memset(&mask->key, 0, sizeof(mask->key));
@@ -2049,7 +2051,7 @@ static int validate_and_copy_set_tun(const struct nlattr *attr,
 	struct nlattr *a;
 	int err = 0, start, opts_type;
 
-	ovs_match_init(&match, &key, NULL);
+	ovs_match_init(&match, &key, true, NULL);
 	opts_type = ip_tun_from_nlattr(nla_data(attr), &match, false, log);
 	if (opts_type < 0)
 		return opts_type;

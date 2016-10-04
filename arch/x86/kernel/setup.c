@@ -1137,9 +1137,7 @@ void __init setup_arch(char **cmdline_p)
 	 * auditing all the early-boot CR4 manipulation would be needed to
 	 * rule it out.
 	 */
-	if (boot_cpu_data.cpuid_level >= 0)
-		/* A CPU has %cr4 if and only if it has CPUID. */
-		mmu_cr4_features = __read_cr4();
+	mmu_cr4_features = __read_cr4_safe();
 
 	memblock_set_current_limit(get_max_mapped());
 

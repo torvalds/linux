@@ -106,6 +106,13 @@ struct qede_vlan {
 	bool configured;
 };
 
+struct qede_rdma_dev {
+	struct qedr_dev *qedr_dev;
+	struct list_head entry;
+	struct list_head roce_event_list;
+	struct workqueue_struct *roce_wq;
+};
+
 struct qede_dev {
 	struct qed_dev			*cdev;
 	struct net_device		*ndev;
@@ -185,6 +192,8 @@ struct qede_dev {
 	unsigned long			sp_flags;
 	u16				vxlan_dst_port;
 	u16				geneve_dst_port;
+
+	struct qede_rdma_dev		rdma_info;
 };
 
 enum QEDE_STATE {

@@ -99,10 +99,16 @@ EXPORT_SYMBOL_GPL(rcar_fcp_put);
  */
 int rcar_fcp_enable(struct rcar_fcp_device *fcp)
 {
+	int error;
+
 	if (!fcp)
 		return 0;
 
-	return pm_runtime_get_sync(fcp->dev);
+	error = pm_runtime_get_sync(fcp->dev);
+	if (error < 0)
+		return error;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(rcar_fcp_enable);
 

@@ -1181,8 +1181,8 @@ qed_mcp_send_drv_version(struct qed_hwfn *p_hwfn,
 	p_drv_version = &union_data.drv_version;
 	p_drv_version->version = p_ver->version;
 
-	for (i = 0; i < MCP_DRV_VER_STR_SIZE - 1; i += 4) {
-		val = cpu_to_be32(p_ver->name[i]);
+	for (i = 0; i < (MCP_DRV_VER_STR_SIZE - 4) / sizeof(u32); i++) {
+		val = cpu_to_be32(*((u32 *)&p_ver->name[i * sizeof(u32)]));
 		*(__be32 *)&p_drv_version->name[i * sizeof(u32)] = val;
 	}
 

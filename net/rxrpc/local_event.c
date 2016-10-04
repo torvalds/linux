@@ -90,12 +90,13 @@ void rxrpc_process_local_events(struct rxrpc_local *local)
 	if (skb) {
 		struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 
-		rxrpc_see_skb(skb);
+		rxrpc_see_skb(skb, rxrpc_skb_rx_seen);
 		_debug("{%d},{%u}", local->debug_id, sp->hdr.type);
 
 		switch (sp->hdr.type) {
 		case RXRPC_PACKET_TYPE_VERSION:
-			if (skb_copy_bits(skb, sp->offset, &v, 1) < 0)
+			if (skb_copy_bits(skb, sizeof(struct rxrpc_wire_header),
+					  &v, 1) < 0)
 				return;
 			_proto("Rx VERSION { %02x }", v);
 			if (v == 0)
@@ -107,7 +108,7 @@ void rxrpc_process_local_events(struct rxrpc_local *local)
 			break;
 		}
 
-		rxrpc_free_skb(skb);
+		rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
 	}
 
 	_leave("");

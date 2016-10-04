@@ -119,10 +119,10 @@
 
 	timer {
 		compatible = "arm,armv8-timer";
-		interrupts = <1 13 0x1>, /* Physical Secure PPI */
-			     <1 14 0x1>, /* Physical Non-Secure PPI */
-			     <1 11 0x1>, /* Virtual PPI */
-			     <1 10 0x1>; /* Hypervisor PPI */
+		interrupts = <1 13 0xf08>, /* Physical Secure PPI */
+			     <1 14 0xf08>, /* Physical Non-Secure PPI */
+			     <1 11 0xf08>, /* Virtual PPI */
+			     <1 10 0xf08>; /* Hypervisor PPI */
 	};
 
 	pmu {

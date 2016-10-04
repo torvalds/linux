@@ -44,10 +44,13 @@ struct rxe_recv_sockets {
 };
 
 extern struct rxe_recv_sockets recv_sockets;
+extern struct notifier_block rxe_net_notifier;
+void rxe_release_udp_tunnel(struct socket *sk);
 
 struct rxe_dev *rxe_net_add(struct net_device *ndev);
 
-int rxe_net_init(void);
+int rxe_net_ipv4_init(void);
+int rxe_net_ipv6_init(void);
 void rxe_net_exit(void);
 
 #endif /* RXE_NET_H */

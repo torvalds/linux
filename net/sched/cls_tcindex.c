@@ -50,14 +50,13 @@ struct tcindex_data {
 	struct rcu_head rcu;
 };
 
-static inline int
-tcindex_filter_is_set(struct tcindex_filter_result *r)
+static inline int tcindex_filter_is_set(struct tcindex_filter_result *r)
 {
 	return tcf_exts_is_predicative(&r->exts) || r->res.classid;
 }
 
-static struct tcindex_filter_result *
-tcindex_lookup(struct tcindex_data *p, u16 key)
+static struct tcindex_filter_result *tcindex_lookup(struct tcindex_data *p,
+						    u16 key)
 {
 	if (p->perfect) {
 		struct tcindex_filter_result *f = p->perfect + key;
@@ -144,7 +143,8 @@ static void tcindex_destroy_rexts(struct rcu_head *head)
 
 static void tcindex_destroy_fexts(struct rcu_head *head)
 {
-	struct tcindex_filter *f = container_of(head, struct tcindex_filter, rcu);
+	struct tcindex_filter *f = container_of(head, struct tcindex_filter,
+						rcu);
 
 	tcf_exts_destroy(&f->result.exts);
 	kfree(f);
@@ -550,7 +550,7 @@ static bool tcindex_destroy(struct tcf_proto *tp, bool force)
 
 
 static int tcindex_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
-    struct sk_buff *skb, struct tcmsg *t)
+			struct sk_buff *skb, struct tcmsg *t)
 {
 	struct tcindex_data *p = rtnl_dereference(tp->root);
 	struct tcindex_filter_result *r = (struct tcindex_filter_result *) fh;

@@ -378,22 +378,8 @@ static void rht_deferred_worker(struct work_struct *work)
 		schedule_work(&ht->run_work);
 }
 
-static bool rhashtable_check_elasticity(struct rhashtable *ht,
-					struct bucket_table *tbl,
-					unsigned int hash)
-{
-	unsigned int elasticity = ht->elasticity;
-	struct rhash_head *head;
-
-	rht_for_each(head, tbl, hash)
-		if (!--elasticity)
-			return true;
-
-	return false;
-}
-
-int rhashtable_insert_rehash(struct rhashtable *ht,
-			     struct bucket_table *tbl)
+static int rhashtable_insert_rehash(struct rhashtable *ht,
+				    struct bucket_table *tbl)
 {
 	struct bucket_table *old_tbl;
 	struct bucket_table *new_tbl;
@@ -439,57 +425,165 @@ fail:
 
 	return err;
 }
-EXPORT_SYMBOL_GPL(rhashtable_insert_rehash);
 
-struct bucket_table *rhashtable_insert_slow(struct rhashtable *ht,
-					    const void *key,
-					    struct rhash_head *obj,
-					    struct bucket_table *tbl,
-					    void **data)
+static void *rhashtable_lookup_one(struct rhashtable *ht,
+				   struct bucket_table *tbl, unsigned int hash,
+				   const void *key, struct rhash_head *obj)
 {
+	struct rhashtable_compare_arg arg = {
+		.ht = ht,
+		.key = key,
+	};
+	struct rhash_head __rcu **pprev;
 	struct rhash_head *head;
-	unsigned int hash;
-	int err;
+	int elasticity;
 
-	tbl = rhashtable_last_table(ht, tbl);
-	hash = head_hashfn(ht, tbl, obj);
-	spin_lock_nested(rht_bucket_lock(tbl, hash), SINGLE_DEPTH_NESTING);
+	elasticity = ht->elasticity;
+	pprev = &tbl->buckets[hash];
+	rht_for_each(head, tbl, hash) {
+		struct rhlist_head *list;
+		struct rhlist_head *plist;
 
-	err = -EEXIST;
-	if (key) {
-		*data = rhashtable_lookup_fast(ht, key, ht->p);
-		if (*data)
-			goto exit;
+		elasticity--;
+		if (!key ||
+		    (ht->p.obj_cmpfn ?
+		     ht->p.obj_cmpfn(&arg, rht_obj(ht, head)) :
+		     rhashtable_compare(&arg, rht_obj(ht, head))))
+			continue;
+
+		if (!ht->rhlist)
+			return rht_obj(ht, head);
+
+		list = container_of(obj, struct rhlist_head, rhead);
+		plist = container_of(head, struct rhlist_head, rhead);
+
+		RCU_INIT_POINTER(list->next, plist);
+		head = rht_dereference_bucket(head->next, tbl, hash);
+		RCU_INIT_POINTER(list->rhead.next, head);
+		rcu_assign_pointer(*pprev, obj);
+
+		return NULL;
 	}
 
-	err = -E2BIG;
+	if (elasticity <= 0)
+		return ERR_PTR(-EAGAIN);
+
+	return ERR_PTR(-ENOENT);
+}
+
+static struct bucket_table *rhashtable_insert_one(struct rhashtable *ht,
+						  struct bucket_table *tbl,
+						  unsigned int hash,
+						  struct rhash_head *obj,
+						  void *data)
+{
+	struct bucket_table *new_tbl;
+	struct rhash_head *head;
+
+	if (!IS_ERR_OR_NULL(data))
+		return ERR_PTR(-EEXIST);
+
+	if (PTR_ERR(data) != -EAGAIN && PTR_ERR(data) != -ENOENT)
+		return ERR_CAST(data);
+
+	new_tbl = rcu_dereference(tbl->future_tbl);
+	if (new_tbl)
+		return new_tbl;
+
+	if (PTR_ERR(data) != -ENOENT)
+		return ERR_CAST(data);
+
 	if (unlikely(rht_grow_above_max(ht, tbl)))
-		goto exit;
+		return ERR_PTR(-E2BIG);
 
-	err = -EAGAIN;
-	if (rhashtable_check_elasticity(ht, tbl, hash) ||
-	    rht_grow_above_100(ht, tbl))
-		goto exit;
-
-	err = 0;
+	if (unlikely(rht_grow_above_100(ht, tbl)))
+		return ERR_PTR(-EAGAIN);
 
 	head = rht_dereference_bucket(tbl->buckets[hash], tbl, hash);
 
 	RCU_INIT_POINTER(obj->next, head);
+	if (ht->rhlist) {
+		struct rhlist_head *list;
+
+		list = container_of(obj, struct rhlist_head, rhead);
+		RCU_INIT_POINTER(list->next, NULL);
+	}
 
 	rcu_assign_pointer(tbl->buckets[hash], obj);
 
 	atomic_inc(&ht->nelems);
+	if (rht_grow_above_75(ht, tbl))
+		schedule_work(&ht->run_work);
 
-exit:
-	spin_unlock(rht_bucket_lock(tbl, hash));
+	return NULL;
+}
 
-	if (err == 0)
-		return NULL;
-	else if (err == -EAGAIN)
-		return tbl;
-	else
-		return ERR_PTR(err);
+static void *rhashtable_try_insert(struct rhashtable *ht, const void *key,
+				   struct rhash_head *obj)
+{
+	struct bucket_table *new_tbl;
+	struct bucket_table *tbl;
+	unsigned int hash;
+	spinlock_t *lock;
+	void *data;
+
+	tbl = rcu_dereference(ht->tbl);
+
+	/* All insertions must grab the oldest table containing
+	 * the hashed bucket that is yet to be rehashed.
+	 */
+	for (;;) {
+		hash = rht_head_hashfn(ht, tbl, obj, ht->p);
+		lock = rht_bucket_lock(tbl, hash);
+		spin_lock_bh(lock);
+
+		if (tbl->rehash <= hash)
+			break;
+
+		spin_unlock_bh(lock);
+		tbl = rcu_dereference(tbl->future_tbl);
+	}
+
+	data = rhashtable_lookup_one(ht, tbl, hash, key, obj);
+	new_tbl = rhashtable_insert_one(ht, tbl, hash, obj, data);
+	if (PTR_ERR(new_tbl) != -EEXIST)
+		data = ERR_CAST(new_tbl);
+
+	while (!IS_ERR_OR_NULL(new_tbl)) {
+		tbl = new_tbl;
+		hash = rht_head_hashfn(ht, tbl, obj, ht->p);
+		spin_lock_nested(rht_bucket_lock(tbl, hash),
+				 SINGLE_DEPTH_NESTING);
+
+		data = rhashtable_lookup_one(ht, tbl, hash, key, obj);
+		new_tbl = rhashtable_insert_one(ht, tbl, hash, obj, data);
+		if (PTR_ERR(new_tbl) != -EEXIST)
+			data = ERR_CAST(new_tbl);
+
+		spin_unlock(rht_bucket_lock(tbl, hash));
+	}
+
+	spin_unlock_bh(lock);
+
+	if (PTR_ERR(data) == -EAGAIN)
+		data = ERR_PTR(rhashtable_insert_rehash(ht, tbl) ?:
+			       -EAGAIN);
+
+	return data;
+}
+
+void *rhashtable_insert_slow(struct rhashtable *ht, const void *key,
+			     struct rhash_head *obj)
+{
+	void *data;
+
+	do {
+		rcu_read_lock();
+		data = rhashtable_try_insert(ht, key, obj);
+		rcu_read_unlock();
+	} while (PTR_ERR(data) == -EAGAIN);
+
+	return data;
 }
 EXPORT_SYMBOL_GPL(rhashtable_insert_slow);
 
@@ -593,11 +687,16 @@ EXPORT_SYMBOL_GPL(rhashtable_walk_start);
 void *rhashtable_walk_next(struct rhashtable_iter *iter)
 {
 	struct bucket_table *tbl = iter->walker.tbl;
+	struct rhlist_head *list = iter->list;
 	struct rhashtable *ht = iter->ht;
 	struct rhash_head *p = iter->p;
+	bool rhlist = ht->rhlist;
 
 	if (p) {
-		p = rht_dereference_bucket_rcu(p->next, tbl, iter->slot);
+		if (!rhlist || !(list = rcu_dereference(list->next))) {
+			p = rcu_dereference(p->next);
+			list = container_of(p, struct rhlist_head, rhead);
+		}
 		goto next;
 	}
 
@@ -605,6 +704,18 @@ void *rhashtable_walk_next(struct rhashtable_iter *iter)
 		int skip = iter->skip;
 
 		rht_for_each_rcu(p, tbl, iter->slot) {
+			if (rhlist) {
+				list = container_of(p, struct rhlist_head,
+						    rhead);
+				do {
+					if (!skip)
+						goto next;
+					skip--;
+					list = rcu_dereference(list->next);
+				} while (list);
+
+				continue;
+			}
 			if (!skip)
 				break;
 			skip--;
@@ -614,7 +725,8 @@ next:
 		if (!rht_is_a_nulls(p)) {
 			iter->skip++;
 			iter->p = p;
-			return rht_obj(ht, p);
+			iter->list = list;
+			return rht_obj(ht, rhlist ? &list->rhead : p);
 		}
 
 		iter->skip = 0;
@@ -803,6 +915,48 @@ int rhashtable_init(struct rhashtable *ht,
 EXPORT_SYMBOL_GPL(rhashtable_init);
 
 /**
+ * rhltable_init - initialize a new hash list table
+ * @hlt:	hash list table to be initialized
+ * @params:	configuration parameters
+ *
+ * Initializes a new hash list table.
+ *
+ * See documentation for rhashtable_init.
+ */
+int rhltable_init(struct rhltable *hlt, const struct rhashtable_params *params)
+{
+	int err;
+
+	/* No rhlist NULLs marking for now. */
+	if (params->nulls_base)
+		return -EINVAL;
+
+	err = rhashtable_init(&hlt->ht, params);
+	hlt->ht.rhlist = true;
+	return err;
+}
+EXPORT_SYMBOL_GPL(rhltable_init);
+
+static void rhashtable_free_one(struct rhashtable *ht, struct rhash_head *obj,
+				void (*free_fn)(void *ptr, void *arg),
+				void *arg)
+{
+	struct rhlist_head *list;
+
+	if (!ht->rhlist) {
+		free_fn(rht_obj(ht, obj), arg);
+		return;
+	}
+
+	list = container_of(obj, struct rhlist_head, rhead);
+	do {
+		obj = &list->rhead;
+		list = rht_dereference(list->next, ht);
+		free_fn(rht_obj(ht, obj), arg);
+	} while (list);
+}
+
+/**
  * rhashtable_free_and_destroy - free elements and destroy hash table
  * @ht:		the hash table to destroy
  * @free_fn:	callback to release resources of element
@@ -839,7 +993,7 @@ void rhashtable_free_and_destroy(struct rhashtable *ht,
 			     pos = next,
 			     next = !rht_is_a_nulls(pos) ?
 					rht_dereference(pos->next, ht) : NULL)
-				free_fn(rht_obj(ht, pos), arg);
+				rhashtable_free_one(ht, pos, free_fn, arg);
 		}
 	}
 

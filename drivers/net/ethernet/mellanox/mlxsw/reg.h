@@ -1392,7 +1392,7 @@ static inline void mlxsw_reg_slcr_pack(char *payload, u16 lag_hash)
 {
 	MLXSW_REG_ZERO(slcr, payload);
 	mlxsw_reg_slcr_pp_set(payload, MLXSW_REG_SLCR_PP_GLOBAL);
-	mlxsw_reg_slcr_type_set(payload, MLXSW_REG_SLCR_TYPE_XOR);
+	mlxsw_reg_slcr_type_set(payload, MLXSW_REG_SLCR_TYPE_CRC);
 	mlxsw_reg_slcr_lag_hash_set(payload, lag_hash);
 }
 

@@ -270,7 +270,7 @@ bool shmem_charge(struct inode *inode, long pages)
 		info->alloced -= pages;
 		shmem_recalc_inode(inode);
 		spin_unlock_irqrestore(&info->lock, flags);
-
+		shmem_unacct_blocks(info->flags, pages);
 		return false;
 	}
 	percpu_counter_add(&sbinfo->used_blocks, pages);
@@ -291,6 +291,7 @@ void shmem_uncharge(struct inode *inode, long pages)
 
 	if (sbinfo->max_blocks)
 		percpu_counter_sub(&sbinfo->used_blocks, pages);
+	shmem_unacct_blocks(info->flags, pages);
 }
 
 /*
@@ -1980,7 +1981,7 @@ unsigned long shmem_get_unmapped_area(struct file *file,
 				return addr;
 			sb = shm_mnt->mnt_sb;
 		}
-		if (SHMEM_SB(sb)->huge != SHMEM_HUGE_NEVER)
+		if (SHMEM_SB(sb)->huge == SHMEM_HUGE_NEVER)
 			return addr;
 	}
 

@@ -14,6 +14,28 @@
 #include "mv88e6xxx.h"
 #include "global2.h"
 
+#define ADDR_GLOBAL2	0x1c
+
+static int mv88e6xxx_g2_read(struct mv88e6xxx_chip *chip, int reg, u16 *val)
+{
+	return mv88e6xxx_read(chip, ADDR_GLOBAL2, reg, val);
+}
+
+static int mv88e6xxx_g2_write(struct mv88e6xxx_chip *chip, int reg, u16 val)
+{
+	return mv88e6xxx_write(chip, ADDR_GLOBAL2, reg, val);
+}
+
+static int mv88e6xxx_g2_update(struct mv88e6xxx_chip *chip, int reg, u16 update)
+{
+	return mv88e6xxx_update(chip, ADDR_GLOBAL2, reg, update);
+}
+
+static int mv88e6xxx_g2_wait(struct mv88e6xxx_chip *chip, int reg, u16 mask)
+{
+	return mv88e6xxx_wait(chip, ADDR_GLOBAL2, reg, mask);
+}
+
 /* Offset 0x06: Device Mapping Table register */
 
 static int mv88e6xxx_g2_device_mapping_write(struct mv88e6xxx_chip *chip,
@@ -21,7 +43,7 @@ static int mv88e6xxx_g2_device_mapping_write(struct mv88e6xxx_chip *chip,
 {
 	u16 val = (target << 8) | (port & 0xf);
 
-	return mv88e6xxx_update(chip, REG_GLOBAL2, GLOBAL2_DEVICE_MAPPING, val);
+	return mv88e6xxx_g2_update(chip, GLOBAL2_DEVICE_MAPPING, val);
 }
 
 static int mv88e6xxx_g2_set_device_mapping(struct mv88e6xxx_chip *chip)
@@ -52,13 +74,13 @@ static int mv88e6xxx_g2_set_device_mapping(struct mv88e6xxx_chip *chip)
 static int mv88e6xxx_g2_trunk_mask_write(struct mv88e6xxx_chip *chip, int num,
 					 bool hask, u16 mask)
 {
-	const u16 port_mask = BIT(chip->info->num_ports) - 1;
+	const u16 port_mask = BIT(mv88e6xxx_num_ports(chip)) - 1;
 	u16 val = (num << 12) | (mask & port_mask);
 
 	if (hask)
 		val |= GLOBAL2_TRUNK_MASK_HASK;
 
-	return mv88e6xxx_update(chip, REG_GLOBAL2, GLOBAL2_TRUNK_MASK, val);
+	return mv88e6xxx_g2_update(chip, GLOBAL2_TRUNK_MASK, val);
 }
 
 /* Offset 0x08: Trunk Mapping Table register */
@@ -66,15 +88,15 @@ static int mv88e6xxx_g2_trunk_mask_write(struct mv88e6xxx_chip *chip, int num,
 static int mv88e6xxx_g2_trunk_mapping_write(struct mv88e6xxx_chip *chip, int id,
 					    u16 map)
 {
-	const u16 port_mask = BIT(chip->info->num_ports) - 1;
+	const u16 port_mask = BIT(mv88e6xxx_num_ports(chip)) - 1;
 	u16 val = (id << 11) | (map & port_mask);
 
-	return mv88e6xxx_update(chip, REG_GLOBAL2, GLOBAL2_TRUNK_MAPPING, val);
+	return mv88e6xxx_g2_update(chip, GLOBAL2_TRUNK_MAPPING, val);
 }
 
 static int mv88e6xxx_g2_clear_trunk(struct mv88e6xxx_chip *chip)
 {
-	const u16 port_mask = BIT(chip->info->num_ports) - 1;
+	const u16 port_mask = BIT(mv88e6xxx_num_ports(chip)) - 1;
 	int i, err;
 
 	/* Clear all eight possible Trunk Mask vectors */
@@ -103,17 +125,17 @@ static int mv88e6xxx_g2_clear_irl(struct mv88e6xxx_chip *chip)
 	int port, err;
 
 	/* Init all Ingress Rate Limit resources of all ports */
-	for (port = 0; port < chip->info->num_ports; ++port) {
+	for (port = 0; port < mv88e6xxx_num_ports(chip); ++port) {
 		/* XXX newer chips (like 88E6390) have different 2-bit ops */
-		err = mv88e6xxx_write(chip, REG_GLOBAL2, GLOBAL2_IRL_CMD,
-				      GLOBAL2_IRL_CMD_OP_INIT_ALL |
-				      (port << 8));
+		err = mv88e6xxx_g2_write(chip, GLOBAL2_IRL_CMD,
+					 GLOBAL2_IRL_CMD_OP_INIT_ALL |
+					 (port << 8));
 		if (err)
 			break;
 
 		/* Wait for the operation to complete */
-		err = mv88e6xxx_wait(chip, REG_GLOBAL2, GLOBAL2_IRL_CMD,
-				     GLOBAL2_IRL_CMD_BUSY);
+		err = mv88e6xxx_g2_wait(chip, GLOBAL2_IRL_CMD,
+					GLOBAL2_IRL_CMD_BUSY);
 		if (err)
 			break;
 	}
@@ -128,7 +150,7 @@ static int mv88e6xxx_g2_switch_mac_write(struct mv88e6xxx_chip *chip,
 {
 	u16 val = (pointer << 8) | data;
 
-	return mv88e6xxx_update(chip, REG_GLOBAL2, GLOBAL2_SWITCH_MAC, val);
+	return mv88e6xxx_g2_update(chip, GLOBAL2_SWITCH_MAC, val);
 }
 
 int mv88e6xxx_g2_set_switch_mac(struct mv88e6xxx_chip *chip, u8 *addr)
@@ -151,7 +173,7 @@ static int mv88e6xxx_g2_pot_write(struct mv88e6xxx_chip *chip, int pointer,
 {
 	u16 val = (pointer << 8) | (data & 0x7);
 
-	return mv88e6xxx_update(chip, REG_GLOBAL2, GLOBAL2_PRIO_OVERRIDE, val);
+	return mv88e6xxx_g2_update(chip, GLOBAL2_PRIO_OVERRIDE, val);
 }
 
 static int mv88e6xxx_g2_clear_pot(struct mv88e6xxx_chip *chip)
@@ -174,16 +196,16 @@ static int mv88e6xxx_g2_clear_pot(struct mv88e6xxx_chip *chip)
 
 static int mv88e6xxx_g2_eeprom_wait(struct mv88e6xxx_chip *chip)
 {
-	return mv88e6xxx_wait(chip, REG_GLOBAL2, GLOBAL2_EEPROM_CMD,
-			      GLOBAL2_EEPROM_CMD_BUSY |
-			      GLOBAL2_EEPROM_CMD_RUNNING);
+	return mv88e6xxx_g2_wait(chip, GLOBAL2_EEPROM_CMD,
+				 GLOBAL2_EEPROM_CMD_BUSY |
+				 GLOBAL2_EEPROM_CMD_RUNNING);
 }
 
 static int mv88e6xxx_g2_eeprom_cmd(struct mv88e6xxx_chip *chip, u16 cmd)
 {
 	int err;
 
-	err = mv88e6xxx_write(chip, REG_GLOBAL2, GLOBAL2_EEPROM_CMD, cmd);
+	err = mv88e6xxx_g2_write(chip, GLOBAL2_EEPROM_CMD, cmd);
 	if (err)
 		return err;
 
@@ -204,7 +226,7 @@ static int mv88e6xxx_g2_eeprom_read16(struct mv88e6xxx_chip *chip,
 	if (err)
 		return err;
 
-	return mv88e6xxx_read(chip, REG_GLOBAL2, GLOBAL2_EEPROM_DATA, data);
+	return mv88e6xxx_g2_read(chip, GLOBAL2_EEPROM_DATA, data);
 }
 
 static int mv88e6xxx_g2_eeprom_write16(struct mv88e6xxx_chip *chip,
@@ -217,7 +239,7 @@ static int mv88e6xxx_g2_eeprom_write16(struct mv88e6xxx_chip *chip,
 	if (err)
 		return err;
 
-	err = mv88e6xxx_write(chip, REG_GLOBAL2, GLOBAL2_EEPROM_DATA, data);
+	err = mv88e6xxx_g2_write(chip, GLOBAL2_EEPROM_DATA, data);
 	if (err)
 		return err;
 
@@ -283,7 +305,7 @@ int mv88e6xxx_g2_set_eeprom16(struct mv88e6xxx_chip *chip,
 	int err;
 
 	/* Ensure the RO WriteEn bit is set */
-	err = mv88e6xxx_read(chip, REG_GLOBAL2, GLOBAL2_EEPROM_CMD, &val);
+	err = mv88e6xxx_g2_read(chip, GLOBAL2_EEPROM_CMD, &val);
 	if (err)
 		return err;
 
@@ -346,15 +368,15 @@ int mv88e6xxx_g2_set_eeprom16(struct mv88e6xxx_chip *chip,
 
 static int mv88e6xxx_g2_smi_phy_wait(struct mv88e6xxx_chip *chip)
 {
-	return mv88e6xxx_wait(chip, REG_GLOBAL2, GLOBAL2_SMI_PHY_CMD,
-			      GLOBAL2_SMI_PHY_CMD_BUSY);
+	return mv88e6xxx_g2_wait(chip, GLOBAL2_SMI_PHY_CMD,
+				 GLOBAL2_SMI_PHY_CMD_BUSY);
 }
 
 static int mv88e6xxx_g2_smi_phy_cmd(struct mv88e6xxx_chip *chip, u16 cmd)
 {
 	int err;
 
-	err = mv88e6xxx_write(chip, REG_GLOBAL2, GLOBAL2_SMI_PHY_CMD, cmd);
+	err = mv88e6xxx_g2_write(chip, GLOBAL2_SMI_PHY_CMD, cmd);
 	if (err)
 		return err;
 
@@ -375,7 +397,7 @@ int mv88e6xxx_g2_smi_phy_read(struct mv88e6xxx_chip *chip, int addr, int reg,
 	if (err)
 		return err;
 
-	return mv88e6xxx_read(chip, REG_GLOBAL2, GLOBAL2_SMI_PHY_DATA, val);
+	return mv88e6xxx_g2_read(chip, GLOBAL2_SMI_PHY_DATA, val);
 }
 
 int mv88e6xxx_g2_smi_phy_write(struct mv88e6xxx_chip *chip, int addr, int reg,
@@ -388,7 +410,7 @@ int mv88e6xxx_g2_smi_phy_write(struct mv88e6xxx_chip *chip, int addr, int reg,
 	if (err)
 		return err;
 
-	err = mv88e6xxx_write(chip, REG_GLOBAL2, GLOBAL2_SMI_PHY_DATA, val);
+	err = mv88e6xxx_g2_write(chip, GLOBAL2_SMI_PHY_DATA, val);
 	if (err)
 		return err;
 
@@ -404,8 +426,7 @@ int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 		/* Consider the frames with reserved multicast destination
 		 * addresses matching 01:80:c2:00:00:2x as MGMT.
 		 */
-		err = mv88e6xxx_write(chip, REG_GLOBAL2, GLOBAL2_MGMT_EN_2X,
-				      0xffff);
+		err = mv88e6xxx_g2_write(chip, GLOBAL2_MGMT_EN_2X, 0xffff);
 		if (err)
 			return err;
 	}
@@ -414,8 +435,7 @@ int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 		/* Consider the frames with reserved multicast destination
 		 * addresses matching 01:80:c2:00:00:0x as MGMT.
 		 */
-		err = mv88e6xxx_write(chip, REG_GLOBAL2, GLOBAL2_MGMT_EN_0X,
-				      0xffff);
+		err = mv88e6xxx_g2_write(chip, GLOBAL2_MGMT_EN_0X, 0xffff);
 		if (err)
 			return err;
 	}
@@ -429,7 +449,7 @@ int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_MGMT_EN_0X) ||
 	    mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_MGMT_EN_2X))
 		reg |= GLOBAL2_SWITCH_MGMT_RSVD2CPU | 0x7;
-	err = mv88e6xxx_write(chip, REG_GLOBAL2, GLOBAL2_SWITCH_MGMT, reg);
+	err = mv88e6xxx_g2_write(chip, GLOBAL2_SWITCH_MGMT, reg);
 	if (err)
 		return err;
 
@@ -454,8 +474,8 @@ int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 
 	if (mv88e6xxx_has(chip, MV88E6XXX_FLAGS_PVT)) {
 		/* Initialize Cross-chip Port VLAN Table to reset defaults */
-		err = mv88e6xxx_write(chip, REG_GLOBAL2, GLOBAL2_PVT_ADDR,
-				      GLOBAL2_PVT_ADDR_OP_INIT_ONES);
+		err = mv88e6xxx_g2_write(chip, GLOBAL2_PVT_ADDR,
+					 GLOBAL2_PVT_ADDR_OP_INIT_ONES);
 		if (err)
 			return err;
 	}

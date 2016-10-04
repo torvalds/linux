@@ -19,6 +19,7 @@
 #include <linux/of_mdio.h>
 #include <linux/phy.h>
 #include <linux/iopoll.h>
+#include <linux/acpi.h>
 #include "emac.h"
 #include "emac-mac.h"
 #include "emac-phy.h"
@@ -167,7 +168,6 @@ static int emac_mdio_write(struct mii_bus *bus, int addr, int regnum, u16 val)
 int emac_phy_config(struct platform_device *pdev, struct emac_adapter *adpt)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct device_node *phy_np;
 	struct mii_bus *mii_bus;
 	int ret;
 
@@ -183,14 +183,37 @@ int emac_phy_config(struct platform_device *pdev, struct emac_adapter *adpt)
 	mii_bus->parent = &pdev->dev;
 	mii_bus->priv = adpt;
 
-	ret = of_mdiobus_register(mii_bus, np);
-	if (ret) {
-		dev_err(&pdev->dev, "could not register mdio bus\n");
-		return ret;
+	if (has_acpi_companion(&pdev->dev)) {
+		u32 phy_addr;
+
+		ret = mdiobus_register(mii_bus);
+		if (ret) {
+			dev_err(&pdev->dev, "could not register mdio bus\n");
+			return ret;
+		}
+		ret = device_property_read_u32(&pdev->dev, "phy-channel",
+					       &phy_addr);
+		if (ret)
+			/* If we can't read a valid phy address, then assume
+			 * that there is only one phy on this mdio bus.
+			 */
+			adpt->phydev = phy_find_first(mii_bus);
+		else
+			adpt->phydev = mdiobus_get_phy(mii_bus, phy_addr);
+
+	} else {
+		struct device_node *phy_np;
+
+		ret = of_mdiobus_register(mii_bus, np);
+		if (ret) {
+			dev_err(&pdev->dev, "could not register mdio bus\n");
+			return ret;
+		}
+
+		phy_np = of_parse_phandle(np, "phy-handle", 0);
+		adpt->phydev = of_phy_find_device(phy_np);
 	}
 
-	phy_np = of_parse_phandle(np, "phy-handle", 0);
-	adpt->phydev = of_phy_find_device(phy_np);
 	if (!adpt->phydev) {
 		dev_err(&pdev->dev, "could not find external phy\n");
 		mdiobus_unregister(mii_bus);

@@ -466,7 +466,7 @@ static const u8 prio2band[TC_PRIO_MAX + 1] = {
  */
 struct pfifo_fast_priv {
 	u32 bitmap;
-	struct sk_buff_head q[PFIFO_FAST_BANDS];
+	struct qdisc_skb_head q[PFIFO_FAST_BANDS];
 };
 
 /*
@@ -477,7 +477,7 @@ struct pfifo_fast_priv {
  */
 static const int bitmap2band[] = {-1, 0, 1, 0, 2, 0, 1, 0};
 
-static inline struct sk_buff_head *band2list(struct pfifo_fast_priv *priv,
+static inline struct qdisc_skb_head *band2list(struct pfifo_fast_priv *priv,
 					     int band)
 {
 	return priv->q + band;
@@ -486,10 +486,10 @@ static inline struct sk_buff_head *band2list(struct pfifo_fast_priv *priv,
 static int pfifo_fast_enqueue(struct sk_buff *skb, struct Qdisc *qdisc,
 			      struct sk_buff **to_free)
 {
-	if (skb_queue_len(&qdisc->q) < qdisc_dev(qdisc)->tx_queue_len) {
+	if (qdisc->q.qlen < qdisc_dev(qdisc)->tx_queue_len) {
 		int band = prio2band[skb->priority & TC_PRIO_MAX];
 		struct pfifo_fast_priv *priv = qdisc_priv(qdisc);
-		struct sk_buff_head *list = band2list(priv, band);
+		struct qdisc_skb_head *list = band2list(priv, band);
 
 		priv->bitmap |= (1 << band);
 		qdisc->q.qlen++;
@@ -505,11 +505,16 @@ static struct sk_buff *pfifo_fast_dequeue(struct Qdisc *qdisc)
 	int band = bitmap2band[priv->bitmap];
 
 	if (likely(band >= 0)) {
-		struct sk_buff_head *list = band2list(priv, band);
-		struct sk_buff *skb = __qdisc_dequeue_head(qdisc, list);
+		struct qdisc_skb_head *qh = band2list(priv, band);
+		struct sk_buff *skb = __qdisc_dequeue_head(qh);
+
+		if (likely(skb != NULL)) {
+			qdisc_qstats_backlog_dec(qdisc, skb);
+			qdisc_bstats_update(qdisc, skb);
+		}
 
 		qdisc->q.qlen--;
-		if (skb_queue_empty(list))
+		if (qh->qlen == 0)
 			priv->bitmap &= ~(1 << band);
 
 		return skb;
@@ -524,9 +529,9 @@ static struct sk_buff *pfifo_fast_peek(struct Qdisc *qdisc)
 	int band = bitmap2band[priv->bitmap];
 
 	if (band >= 0) {
-		struct sk_buff_head *list = band2list(priv, band);
+		struct qdisc_skb_head *qh = band2list(priv, band);
 
-		return skb_peek(list);
+		return qh->head;
 	}
 
 	return NULL;
@@ -564,7 +569,7 @@ static int pfifo_fast_init(struct Qdisc *qdisc, struct nlattr *opt)
 	struct pfifo_fast_priv *priv = qdisc_priv(qdisc);
 
 	for (prio = 0; prio < PFIFO_FAST_BANDS; prio++)
-		__skb_queue_head_init(band2list(priv, prio));
+		qdisc_skb_head_init(band2list(priv, prio));
 
 	/* Can by-pass the queue discipline */
 	qdisc->flags |= TCQ_F_CAN_BYPASS;
@@ -612,7 +617,8 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 		sch = (struct Qdisc *) QDISC_ALIGN((unsigned long) p);
 		sch->padded = (char *) sch - (char *) p;
 	}
-	skb_queue_head_init(&sch->q);
+	qdisc_skb_head_init(&sch->q);
+	spin_lock_init(&sch->q.lock);
 
 	spin_lock_init(&sch->busylock);
 	lockdep_set_class(&sch->busylock,

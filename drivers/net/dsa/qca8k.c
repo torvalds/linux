@@ -256,7 +256,7 @@ static struct regmap_access_table qca8k_readable_table = {
 	.n_yes_ranges = ARRAY_SIZE(qca8k_readable_ranges),
 };
 
-struct regmap_config qca8k_regmap_config = {
+static struct regmap_config qca8k_regmap_config = {
 	.reg_bits = 16,
 	.val_bits = 32,
 	.reg_stride = 4,
@@ -582,13 +582,6 @@ qca8k_setup(struct dsa_switch *ds)
 	/* Flush the FDB table */
 	qca8k_fdb_flush(priv);
 
-	return 0;
-}
-
-static int
-qca8k_set_addr(struct dsa_switch *ds, u8 *addr)
-{
-	/* The subsystem always calls this function so add an empty stub */
 	return 0;
 }
 
@@ -921,7 +914,6 @@ qca8k_get_tag_protocol(struct dsa_switch *ds)
 static struct dsa_switch_ops qca8k_switch_ops = {
 	.get_tag_protocol	= qca8k_get_tag_protocol,
 	.setup			= qca8k_setup,
-	.set_addr		= qca8k_set_addr,
 	.get_strings		= qca8k_get_strings,
 	.phy_read		= qca8k_phy_read,
 	.phy_write		= qca8k_phy_write,
@@ -1040,19 +1032,7 @@ static struct mdio_driver qca8kmdio_driver = {
 	},
 };
 
-static int __init
-qca8kmdio_driver_register(void)
-{
-	return mdio_driver_register(&qca8kmdio_driver);
-}
-module_init(qca8kmdio_driver_register);
-
-static void __exit
-qca8kmdio_driver_unregister(void)
-{
-	mdio_driver_unregister(&qca8kmdio_driver);
-}
-module_exit(qca8kmdio_driver_unregister);
+mdio_module_driver(qca8kmdio_driver);
 
 MODULE_AUTHOR("Mathieu Olivari, John Crispin <john@phrozen.org>");
 MODULE_DESCRIPTION("Driver for QCA8K ethernet switch family");

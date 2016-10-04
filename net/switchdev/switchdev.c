@@ -21,7 +21,6 @@
 #include <linux/workqueue.h>
 #include <linux/if_vlan.h>
 #include <linux/rtnetlink.h>
-#include <net/ip_fib.h>
 #include <net/switchdev.h>
 
 /**
@@ -344,8 +343,6 @@ static size_t switchdev_obj_size(const struct switchdev_obj *obj)
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
 		return sizeof(struct switchdev_obj_port_vlan);
-	case SWITCHDEV_OBJ_ID_IPV4_FIB:
-		return sizeof(struct switchdev_obj_ipv4_fib);
 	case SWITCHDEV_OBJ_ID_PORT_FDB:
 		return sizeof(struct switchdev_obj_port_fdb);
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
@@ -1107,184 +1104,6 @@ int switchdev_port_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 	return err;
 }
 EXPORT_SYMBOL_GPL(switchdev_port_fdb_dump);
-
-static struct net_device *switchdev_get_lowest_dev(struct net_device *dev)
-{
-	const struct switchdev_ops *ops = dev->switchdev_ops;
-	struct net_device *lower_dev;
-	struct net_device *port_dev;
-	struct list_head *iter;
-
-	/* Recusively search down until we find a sw port dev.
-	 * (A sw port dev supports switchdev_port_attr_get).
-	 */
-
-	if (ops && ops->switchdev_port_attr_get)
-		return dev;
-
-	netdev_for_each_lower_dev(dev, lower_dev, iter) {
-		port_dev = switchdev_get_lowest_dev(lower_dev);
-		if (port_dev)
-			return port_dev;
-	}
-
-	return NULL;
-}
-
-static struct net_device *switchdev_get_dev_by_nhs(struct fib_info *fi)
-{
-	struct switchdev_attr attr = {
-		.id = SWITCHDEV_ATTR_ID_PORT_PARENT_ID,
-	};
-	struct switchdev_attr prev_attr;
-	struct net_device *dev = NULL;
-	int nhsel;
-
-	ASSERT_RTNL();
-
-	/* For this route, all nexthop devs must be on the same switch. */
-
-	for (nhsel = 0; nhsel < fi->fib_nhs; nhsel++) {
-		const struct fib_nh *nh = &fi->fib_nh[nhsel];
-
-		if (!nh->nh_dev)
-			return NULL;
-
-		dev = switchdev_get_lowest_dev(nh->nh_dev);
-		if (!dev)
-			return NULL;
-
-		attr.orig_dev = dev;
-		if (switchdev_port_attr_get(dev, &attr))
-			return NULL;
-
-		if (nhsel > 0 &&
-		    !netdev_phys_item_id_same(&prev_attr.u.ppid, &attr.u.ppid))
-				return NULL;
-
-		prev_attr = attr;
-	}
-
-	return dev;
-}
-
-/**
- *	switchdev_fib_ipv4_add - Add/modify switch IPv4 route entry
- *
- *	@dst: route's IPv4 destination address
- *	@dst_len: destination address length (prefix length)
- *	@fi: route FIB info structure
- *	@tos: route TOS
- *	@type: route type
- *	@nlflags: netlink flags passed in (NLM_F_*)
- *	@tb_id: route table ID
- *
- *	Add/modify switch IPv4 route entry.
- */
-int switchdev_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
-			   u8 tos, u8 type, u32 nlflags, u32 tb_id)
-{
-	struct switchdev_obj_ipv4_fib ipv4_fib = {
-		.obj.id = SWITCHDEV_OBJ_ID_IPV4_FIB,
-		.dst = dst,
-		.dst_len = dst_len,
-		.fi = fi,
-		.tos = tos,
-		.type = type,
-		.nlflags = nlflags,
-		.tb_id = tb_id,
-	};
-	struct net_device *dev;
-	int err = 0;
-
-	/* Don't offload route if using custom ip rules or if
-	 * IPv4 FIB offloading has been disabled completely.
-	 */
-
-#ifdef CONFIG_IP_MULTIPLE_TABLES
-	if (fi->fib_net->ipv4.fib_has_custom_rules)
-		return 0;
-#endif
-
-	if (fi->fib_net->ipv4.fib_offload_disabled)
-		return 0;
-
-	dev = switchdev_get_dev_by_nhs(fi);
-	if (!dev)
-		return 0;
-
-	ipv4_fib.obj.orig_dev = dev;
-	err = switchdev_port_obj_add(dev, &ipv4_fib.obj);
-	if (!err)
-		fi->fib_flags |= RTNH_F_OFFLOAD;
-
-	return err == -EOPNOTSUPP ? 0 : err;
-}
-EXPORT_SYMBOL_GPL(switchdev_fib_ipv4_add);
-
-/**
- *	switchdev_fib_ipv4_del - Delete IPv4 route entry from switch
- *
- *	@dst: route's IPv4 destination address
- *	@dst_len: destination address length (prefix length)
- *	@fi: route FIB info structure
- *	@tos: route TOS
- *	@type: route type
- *	@tb_id: route table ID
- *
- *	Delete IPv4 route entry from switch device.
- */
-int switchdev_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
-			   u8 tos, u8 type, u32 tb_id)
-{
-	struct switchdev_obj_ipv4_fib ipv4_fib = {
-		.obj.id = SWITCHDEV_OBJ_ID_IPV4_FIB,
-		.dst = dst,
-		.dst_len = dst_len,
-		.fi = fi,
-		.tos = tos,
-		.type = type,
-		.nlflags = 0,
-		.tb_id = tb_id,
-	};
-	struct net_device *dev;
-	int err = 0;
-
-	if (!(fi->fib_flags & RTNH_F_OFFLOAD))
-		return 0;
-
-	dev = switchdev_get_dev_by_nhs(fi);
-	if (!dev)
-		return 0;
-
-	ipv4_fib.obj.orig_dev = dev;
-	err = switchdev_port_obj_del(dev, &ipv4_fib.obj);
-	if (!err)
-		fi->fib_flags &= ~RTNH_F_OFFLOAD;
-
-	return err == -EOPNOTSUPP ? 0 : err;
-}
-EXPORT_SYMBOL_GPL(switchdev_fib_ipv4_del);
-
-/**
- *	switchdev_fib_ipv4_abort - Abort an IPv4 FIB operation
- *
- *	@fi: route FIB info structure
- */
-void switchdev_fib_ipv4_abort(struct fib_info *fi)
-{
-	/* There was a problem installing this route to the offload
-	 * device.  For now, until we come up with more refined
-	 * policy handling, abruptly end IPv4 fib offloading for
-	 * for entire net by flushing offload device(s) of all
-	 * IPv4 routes, and mark IPv4 fib offloading broken from
-	 * this point forward.
-	 */
-
-	fib_flush_external(fi->fib_net);
-	fi->fib_net->ipv4.fib_offload_disabled = true;
-}
-EXPORT_SYMBOL_GPL(switchdev_fib_ipv4_abort);
 
 bool switchdev_port_same_parent_id(struct net_device *a,
 				   struct net_device *b)

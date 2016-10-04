@@ -555,6 +555,9 @@ struct sctp_chunk {
 
 	atomic_t refcnt;
 
+	/* How many times this chunk have been sent, for prsctp RTX policy */
+	int sent_count;
+
 	/* This is our link to the per-transport transmitted list.  */
 	struct list_head transmitted_list;
 
@@ -603,16 +606,6 @@ struct sctp_chunk {
 
 	/* This needs to be recoverable for SCTP_SEND_FAILED events. */
 	struct sctp_sndrcvinfo sinfo;
-
-	/* We use this field to record param for prsctp policies,
-	 * for TTL policy, it is the time_to_drop of this chunk,
-	 * for RTX policy, it is the max_sent_count of this chunk,
-	 * for PRIO policy, it is the priority of this chunk.
-	 */
-	unsigned long prsctp_param;
-
-	/* How many times this chunk have been sent, for prsctp RTX policy */
-	int sent_count;
 
 	/* Which association does this belong to?  */
 	struct sctp_association *asoc;

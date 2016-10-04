@@ -595,7 +595,7 @@ enum htt_rx_mpdu_status {
 	/* only accept EAPOL frames */
 	HTT_RX_IND_MPDU_STATUS_UNAUTH_PEER,
 	HTT_RX_IND_MPDU_STATUS_OUT_OF_SYNC,
-	/* Non-data in promiscous mode */
+	/* Non-data in promiscuous mode */
 	HTT_RX_IND_MPDU_STATUS_MGMT_CTRL,
 	HTT_RX_IND_MPDU_STATUS_TKIP_MIC_ERR,
 	HTT_RX_IND_MPDU_STATUS_DECRYPT_ERR,
@@ -900,7 +900,7 @@ struct htt_rx_in_ord_ind {
  *     Purpose: indicate how many 32-bit integers follow the message header
  *   - NUM_CHARS
  *     Bits 31:16
- *     Purpose: indicate how many 8-bit charaters follow the series of integers
+ *     Purpose: indicate how many 8-bit characters follow the series of integers
  */
 struct htt_rx_test {
 	u8 num_ints;
@@ -1042,10 +1042,10 @@ struct htt_dbg_stats_wal_tx_stats {
 	/* illegal rate phy errors  */
 	__le32 illgl_rate_phy_err;
 
-	/* wal pdev continous xretry */
+	/* wal pdev continuous xretry */
 	__le32 pdev_cont_xretry;
 
-	/* wal pdev continous xretry */
+	/* wal pdev continuous xretry */
 	__le32 pdev_tx_timeout;
 
 	/* wal pdev resets  */

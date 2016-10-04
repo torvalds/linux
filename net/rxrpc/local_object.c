@@ -86,7 +86,6 @@ static struct rxrpc_local *rxrpc_alloc_local(const struct sockaddr_rxrpc *srx)
 		atomic_set(&local->usage, 1);
 		INIT_LIST_HEAD(&local->link);
 		INIT_WORK(&local->processor, rxrpc_local_processor);
-		INIT_HLIST_HEAD(&local->services);
 		init_rwsem(&local->defrag_sem);
 		skb_queue_head_init(&local->reject_queue);
 		skb_queue_head_init(&local->event_queue);
@@ -292,7 +291,7 @@ static void rxrpc_local_destroyer(struct rxrpc_local *local)
 	mutex_unlock(&rxrpc_local_mutex);
 
 	ASSERT(RB_EMPTY_ROOT(&local->client_conns));
-	ASSERT(hlist_empty(&local->services));
+	ASSERT(!local->service);
 
 	if (socket) {
 		local->socket = NULL;

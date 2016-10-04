@@ -643,6 +643,7 @@ struct iwl_rb_status {
 #define TFD_QUEUE_BC_SIZE	(TFD_QUEUE_SIZE_MAX + TFD_QUEUE_SIZE_BC_DUP)
 #define IWL_TX_DMA_MASK        DMA_BIT_MASK(36)
 #define IWL_NUM_OF_TBS		20
+#define IWL_TFH_NUM_TBS		25
 
 static inline u8 iwl_get_dma_hi_addr(dma_addr_t addr)
 {
@@ -664,25 +665,29 @@ struct iwl_tfd_tb {
 } __packed;
 
 /**
- * struct iwl_tfd
+ * struct iwl_tfh_tb transmit buffer descriptor within transmit frame descriptor
  *
- * Transmit Frame Descriptor (TFD)
+ * This structure contains dma address and length of transmission address
  *
- * @ __reserved1[3] reserved
- * @ num_tbs 0-4 number of active tbs
- *	     5   reserved
- * 	     6-7 padding (not used)
- * @ tbs[20]	transmit frame buffer descriptors
- * @ __pad 	padding
- *
+ * @tb_len length of the tx buffer
+ * @addr 64 bits dma address
+ */
+struct iwl_tfh_tb {
+	__le16 tb_len;
+	__le64 addr;
+} __packed;
+
+/**
  * Each Tx queue uses a circular buffer of 256 TFDs stored in host DRAM.
  * Both driver and device share these circular buffers, each of which must be
- * contiguous 256 TFDs x 128 bytes-per-TFD = 32 KBytes
+ * contiguous 256 TFDs.
+ * For pre a000 HW it is 256 x 128 bytes-per-TFD = 32 KBytes
+ * For a000 HW and on it is 256 x 256 bytes-per-TFD = 65 KBytes
  *
  * Driver must indicate the physical address of the base of each
  * circular buffer via the FH_MEM_CBBC_QUEUE registers.
  *
- * Each TFD contains pointer/size information for up to 20 data buffers
+ * Each TFD contains pointer/size information for up to 20 / 25 data buffers
  * in host DRAM.  These buffers collectively contain the (one) frame described
  * by the TFD.  Each buffer must be a single contiguous block of memory within
  * itself, but buffers may be scattered in host DRAM.  Each buffer has max size
@@ -691,10 +696,33 @@ struct iwl_tfd_tb {
  *
  * A maximum of 255 (not 256!) TFDs may be on a queue waiting for Tx.
  */
+
+/**
+ * struct iwl_tfd - Transmit Frame Descriptor (TFD)
+ * @ __reserved1[3] reserved
+ * @ num_tbs 0-4 number of active tbs
+ *	     5   reserved
+ *	     6-7 padding (not used)
+ * @ tbs[20]	transmit frame buffer descriptors
+ * @ __pad	padding
+ */
 struct iwl_tfd {
 	u8 __reserved1[3];
 	u8 num_tbs;
 	struct iwl_tfd_tb tbs[IWL_NUM_OF_TBS];
+	__le32 __pad;
+} __packed;
+
+/**
+ * struct iwl_tfh_tfd - Transmit Frame Descriptor (TFD)
+ * @ num_tbs 0-4 number of active tbs
+ *	     5 -15   reserved
+ * @ tbs[25]	transmit frame buffer descriptors
+ * @ __pad	padding
+ */
+struct iwl_tfh_tfd {
+	__le16 num_tbs;
+	struct iwl_tfh_tb tbs[IWL_TFH_NUM_TBS];
 	__le32 __pad;
 } __packed;
 
@@ -706,8 +734,13 @@ struct iwl_tfd {
 /**
  * struct iwlagn_schedq_bc_tbl scheduler byte count table
  *	base physical address provided by SCD_DRAM_BASE_ADDR
+ * For devices up to a000:
  * @tfd_offset  0-12 - tx command byte count
- *	       12-16 - station index
+ *		12-16 - station index
+ * For a000 and on:
+ * @tfd_offset  0-12 - tx command byte count
+ *		12-13 - number of 64 byte chunks
+ *		14-16 - reserved
  */
 struct iwlagn_scd_bc_tbl {
 	__le16 tfd_offset[TFD_QUEUE_BC_SIZE];

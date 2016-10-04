@@ -232,9 +232,22 @@ static void xgene_xgmac_set_mac_addr(struct xgene_enet_pdata *pdata)
 	xgene_enet_wr_mac(pdata, HSTMACADR_MSW_ADDR, addr1);
 }
 
-static void xgene_xgmac_set_mss(struct xgene_enet_pdata *pdata)
+static void xgene_xgmac_set_mss(struct xgene_enet_pdata *pdata,
+				u16 mss, u8 index)
 {
-	xgene_enet_wr_csr(pdata, XG_TSIF_MSS_REG0_ADDR, pdata->mss);
+	u8 offset;
+	u32 data;
+
+	offset = (index < 2) ? 0 : 4;
+	xgene_enet_rd_csr(pdata, XG_TSIF_MSS_REG0_ADDR + offset, &data);
+
+	if (!(index & 0x1))
+		data = SET_VAL(TSO_MSS1, data >> TSO_MSS1_POS) |
+			SET_VAL(TSO_MSS0, mss);
+	else
+		data = SET_VAL(TSO_MSS1, mss) | SET_VAL(TSO_MSS0, data);
+
+	xgene_enet_wr_csr(pdata, XG_TSIF_MSS_REG0_ADDR + offset, data);
 }
 
 static u32 xgene_enet_link_status(struct xgene_enet_pdata *pdata)
@@ -258,7 +271,6 @@ static void xgene_xgmac_init(struct xgene_enet_pdata *pdata)
 	xgene_enet_wr_mac(pdata, AXGMAC_CONFIG_1, data);
 
 	xgene_xgmac_set_mac_addr(pdata);
-	xgene_xgmac_set_mss(pdata);
 
 	xgene_enet_rd_csr(pdata, XG_RSIF_CONFIG_REG_ADDR, &data);
 	data |= CFG_RSIF_FPBUFF_TIMEOUT_EN;

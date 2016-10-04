@@ -15,8 +15,8 @@
 static inline bool __should_swizzle_bits(volatile void *a)
 {
 	extern const bool octeon_should_swizzle_table[];
+	u64 did = ((u64)(uintptr_t)a >> 40) & 0xff;
 
-	unsigned long did = ((unsigned long)a >> 40) & 0xff;
 	return octeon_should_swizzle_table[did];
 }
 
@@ -29,7 +29,7 @@ static inline bool __should_swizzle_bits(volatile void *a)
 
 #define __should_swizzle_bits(a)	false
 
-static inline bool __should_swizzle_addr(unsigned long p)
+static inline bool __should_swizzle_addr(u64 p)
 {
 	/* boot bus? */
 	return ((p >> 40) & 0xff) == 0;

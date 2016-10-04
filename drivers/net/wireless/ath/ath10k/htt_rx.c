@@ -1103,6 +1103,7 @@ static void *ath10k_htt_rx_h_find_rfc1042(struct ath10k *ar,
 	size_t hdr_len, crypto_len;
 	void *rfc1042;
 	bool is_first, is_last, is_amsdu;
+	int bytes_aligned = ar->hw_params.decap_align_bytes;
 
 	rxd = (void *)msdu->data - sizeof(*rxd);
 	hdr = (void *)rxd->rx_hdr_status;
@@ -1119,8 +1120,8 @@ static void *ath10k_htt_rx_h_find_rfc1042(struct ath10k *ar,
 		hdr_len = ieee80211_hdrlen(hdr->frame_control);
 		crypto_len = ath10k_htt_rx_crypto_param_len(ar, enctype);
 
-		rfc1042 += round_up(hdr_len, 4) +
-			   round_up(crypto_len, 4);
+		rfc1042 += round_up(hdr_len, bytes_aligned) +
+			   round_up(crypto_len, bytes_aligned);
 	}
 
 	if (is_amsdu)

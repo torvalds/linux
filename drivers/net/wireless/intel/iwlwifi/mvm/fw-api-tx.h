@@ -89,7 +89,6 @@
  * @TX_CMD_FLG_MH_PAD: driver inserted 2 byte padding after MAC header.
  *	Should be set for 26/30 length MAC headers
  * @TX_CMD_FLG_RESP_TO_DRV: zero this if the response should go only to FW
- * @TX_CMD_FLG_CCMP_AGG: this frame uses CCMP for aggregation acceleration
  * @TX_CMD_FLG_TKIP_MIC_DONE: FW already performed TKIP MIC calculation
  * @TX_CMD_FLG_DUR: disable duration overwriting used in PS-Poll Assoc-id
  * @TX_CMD_FLG_FW_DROP: FW should mark frame to be dropped
@@ -116,7 +115,6 @@ enum iwl_tx_flags {
 	TX_CMD_FLG_KEEP_SEQ_CTL		= BIT(18),
 	TX_CMD_FLG_MH_PAD		= BIT(20),
 	TX_CMD_FLG_RESP_TO_DRV		= BIT(21),
-	TX_CMD_FLG_CCMP_AGG		= BIT(22),
 	TX_CMD_FLG_TKIP_MIC_DONE	= BIT(23),
 	TX_CMD_FLG_DUR			= BIT(25),
 	TX_CMD_FLG_FW_DROP		= BIT(26),
@@ -149,7 +147,7 @@ enum iwl_tx_pm_timeouts {
  * @TX_CMD_SEC_EXT: extended cipher algorithm.
  * @TX_CMD_SEC_GCMP: GCMP encryption algorithm.
  * @TX_CMD_SEC_KEY128: set for 104 bits WEP key.
- * @TC_CMD_SEC_KEY_FROM_TABLE: for a non-WEP key, set if the key should be taken
+ * @TX_CMD_SEC_KEY_FROM_TABLE: for a non-WEP key, set if the key should be taken
  *	from the table instead of from the TX command.
  *	If the key is taken from the key table its index should be given by the
  *	first byte of the TX command key field.
@@ -161,7 +159,7 @@ enum iwl_tx_cmd_sec_ctrl {
 	TX_CMD_SEC_EXT			= 0x04,
 	TX_CMD_SEC_GCMP			= 0x05,
 	TX_CMD_SEC_KEY128		= 0x08,
-	TC_CMD_SEC_KEY_FROM_TABLE	= 0x08,
+	TX_CMD_SEC_KEY_FROM_TABLE	= 0x08,
 };
 
 /* TODO: how does these values are OK with only 16 bit variable??? */
@@ -576,6 +574,85 @@ struct iwl_mvm_ba_notif {
 	u8 reduced_txp;
 	u8 reserved1;
 } __packed;
+
+/**
+ * struct iwl_mvm_compressed_ba_tfd - progress of a TFD queue
+ * @q_num: TFD queue number
+ * @tfd_index: Index of first un-acked frame in the  TFD queue
+ */
+struct iwl_mvm_compressed_ba_tfd {
+	u8 q_num;
+	u8 reserved;
+	__le16 tfd_index;
+} __packed; /* COMPRESSED_BA_TFD_API_S_VER_1 */
+
+/**
+ * struct iwl_mvm_compressed_ba_ratid - progress of a RA TID queue
+ * @q_num: RA TID queue number
+ * @tid: TID of the queue
+ * @ssn: BA window current SSN
+ */
+struct iwl_mvm_compressed_ba_ratid {
+	u8 q_num;
+	u8 tid;
+	__le16 ssn;
+} __packed; /* COMPRESSED_BA_RATID_API_S_VER_1 */
+
+/*
+ * enum iwl_mvm_ba_resp_flags - TX aggregation status
+ * @IWL_MVM_BA_RESP_TX_AGG: generated due to BA
+ * @IWL_MVM_BA_RESP_TX_BAR: generated due to BA after BAR
+ * @IWL_MVM_BA_RESP_TX_AGG_FAIL: aggregation didn't receive BA
+ * @IWL_MVM_BA_RESP_TX_UNDERRUN: aggregation got underrun
+ * @IWL_MVM_BA_RESP_TX_BT_KILL: aggregation got BT-kill
+ * @IWL_MVM_BA_RESP_TX_DSP_TIMEOUT: aggregation didn't finish within the
+ *	expected time
+ */
+enum iwl_mvm_ba_resp_flags {
+	IWL_MVM_BA_RESP_TX_AGG,
+	IWL_MVM_BA_RESP_TX_BAR,
+	IWL_MVM_BA_RESP_TX_AGG_FAIL,
+	IWL_MVM_BA_RESP_TX_UNDERRUN,
+	IWL_MVM_BA_RESP_TX_BT_KILL,
+	IWL_MVM_BA_RESP_TX_DSP_TIMEOUT
+};
+
+/**
+ * struct iwl_mvm_compressed_ba_notif - notifies about reception of BA
+ * ( BA_NOTIF = 0xc5 )
+ * @flags: status flag, see the &iwl_mvm_ba_resp_flags
+ * @sta_id: Index of recipient (BA-sending) station in fw's station table
+ * @reduced_txp: power reduced according to TPC. This is the actual value and
+ *	not a copy from the LQ command. Thus, if not the first rate was used
+ *	for Tx-ing then this value will be set to 0 by FW.
+ * @initial_rate: TLC rate info, initial rate index, TLC table color
+ * @retry_cnt: retry count
+ * @query_byte_cnt: SCD query byte count
+ * @query_frame_cnt: SCD query frame count
+ * @txed: number of frames sent in the aggregation (all-TIDs)
+ * @done: number of frames that were Acked by the BA (all-TIDs)
+ * @wireless_time: Wireless-media time
+ * @tx_rate: the rate the aggregation was sent at
+ * @tfd_cnt: number of TFD-Q elements
+ * @ra_tid_cnt: number of RATID-Q elements
+ */
+struct iwl_mvm_compressed_ba_notif {
+	__le32 flags;
+	u8 sta_id;
+	u8 reduced_txp;
+	u8 initial_rate;
+	u8 retry_cnt;
+	__le32 query_byte_cnt;
+	__le16 query_frame_cnt;
+	__le16 txed;
+	__le16 done;
+	__le32 wireless_time;
+	__le32 tx_rate;
+	__le16 tfd_cnt;
+	__le16 ra_tid_cnt;
+	struct iwl_mvm_compressed_ba_tfd tfd[1];
+	struct iwl_mvm_compressed_ba_ratid ra_tid[0];
+} __packed; /* COMPRESSED_BA_RES_API_S_VER_4 */
 
 /**
  * struct iwl_mac_beacon_cmd_v6 - beacon template command

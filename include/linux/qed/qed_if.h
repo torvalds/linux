@@ -34,6 +34,8 @@ enum dcbx_protocol_type {
 	DCBX_MAX_PROTOCOL_TYPE
 };
 
+#define QED_ROCE_PROTOCOL_INDEX (3)
+
 #ifdef CONFIG_DCB
 #define QED_LLDP_CHASSIS_ID_STAT_LEN 4
 #define QED_LLDP_PORT_ID_STAT_LEN 4
@@ -260,15 +262,15 @@ struct qed_dev_info {
 	/* MFW version */
 	u32		mfw_rev;
 
-	bool rdma_supported;
-
 	u32		flash_size;
 	u8		mf_mode;
 	bool		tx_switching;
+	bool		rdma_supported;
 };
 
 enum qed_sb_type {
 	QED_SB_TYPE_L2_QUEUE,
+	QED_SB_TYPE_CNQ,
 };
 
 enum qed_protocol {
@@ -627,8 +629,9 @@ enum DP_MODULE {
 	QED_MSG_SP	= 0x100000,
 	QED_MSG_STORAGE = 0x200000,
 	QED_MSG_CXT	= 0x800000,
+	QED_MSG_LL2	= 0x1000000,
 	QED_MSG_ILT	= 0x2000000,
-	QED_MSG_ROCE	= 0x4000000,
+	QED_MSG_RDMA	= 0x4000000,
 	QED_MSG_DEBUG	= 0x8000000,
 	/* to be added...up to 0x8000000 */
 };

@@ -1555,8 +1555,8 @@ static struct page *new_node_page(struct page *page, unsigned long private,
 {
 	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
 	int nid = page_to_nid(page);
-	nodemask_t nmask = node_online_map;
-	struct page *new_page;
+	nodemask_t nmask = node_states[N_MEMORY];
+	struct page *new_page = NULL;
 
 	/*
 	 * TODO: allocate a destination hugepage from a nearest neighbor node,
@@ -1568,11 +1568,13 @@ static struct page *new_node_page(struct page *page, unsigned long private,
 					next_node_in(nid, nmask));
 
 	node_clear(nid, nmask);
+
 	if (PageHighMem(page)
 	    || (zone_idx(page_zone(page)) == ZONE_MOVABLE))
 		gfp_mask |= __GFP_HIGHMEM;
 
-	new_page = __alloc_pages_nodemask(gfp_mask, 0,
+	if (!nodes_empty(nmask))
+		new_page = __alloc_pages_nodemask(gfp_mask, 0,
 					node_zonelist(nid, gfp_mask), &nmask);
 	if (!new_page)
 		new_page = __alloc_pages(gfp_mask, 0,

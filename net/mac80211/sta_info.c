@@ -67,12 +67,10 @@
 
 static const struct rhashtable_params sta_rht_params = {
 	.nelem_hint = 3, /* start small */
-	.insecure_elasticity = true, /* Disable chain-length checks. */
 	.automatic_shrinking = true,
 	.head_offset = offsetof(struct sta_info, hash_node),
 	.key_offset = offsetof(struct sta_info, addr),
 	.key_len = ETH_ALEN,
-	.hashfn = sta_addr_hash,
 	.max_size = CONFIG_MAC80211_STA_HASH_MAX_SIZE,
 };
 
@@ -80,8 +78,8 @@ static const struct rhashtable_params sta_rht_params = {
 static int sta_info_hash_del(struct ieee80211_local *local,
 			     struct sta_info *sta)
 {
-	return rhashtable_remove_fast(&local->sta_hash, &sta->hash_node,
-				      sta_rht_params);
+	return rhltable_remove(&local->sta_hash, &sta->hash_node,
+			       sta_rht_params);
 }
 
 static void __cleanup_single_sta(struct sta_info *sta)
@@ -157,19 +155,22 @@ static void cleanup_single_sta(struct sta_info *sta)
 	sta_info_free(local, sta);
 }
 
+struct rhlist_head *sta_info_hash_lookup(struct ieee80211_local *local,
+					 const u8 *addr)
+{
+	return rhltable_lookup(&local->sta_hash, addr, sta_rht_params);
+}
+
 /* protected by RCU */
 struct sta_info *sta_info_get(struct ieee80211_sub_if_data *sdata,
 			      const u8 *addr)
 {
 	struct ieee80211_local *local = sdata->local;
+	struct rhlist_head *tmp;
 	struct sta_info *sta;
-	struct rhash_head *tmp;
-	const struct bucket_table *tbl;
 
 	rcu_read_lock();
-	tbl = rht_dereference_rcu(local->sta_hash.tbl, &local->sta_hash);
-
-	for_each_sta_info(local, tbl, addr, sta, tmp) {
+	for_each_sta_info(local, addr, sta, tmp) {
 		if (sta->sdata == sdata) {
 			rcu_read_unlock();
 			/* this is safe as the caller must already hold
@@ -190,14 +191,11 @@ struct sta_info *sta_info_get_bss(struct ieee80211_sub_if_data *sdata,
 				  const u8 *addr)
 {
 	struct ieee80211_local *local = sdata->local;
+	struct rhlist_head *tmp;
 	struct sta_info *sta;
-	struct rhash_head *tmp;
-	const struct bucket_table *tbl;
 
 	rcu_read_lock();
-	tbl = rht_dereference_rcu(local->sta_hash.tbl, &local->sta_hash);
-
-	for_each_sta_info(local, tbl, addr, sta, tmp) {
+	for_each_sta_info(local, addr, sta, tmp) {
 		if (sta->sdata == sdata ||
 		    (sta->sdata->bss && sta->sdata->bss == sdata->bss)) {
 			rcu_read_unlock();
@@ -263,8 +261,8 @@ void sta_info_free(struct ieee80211_local *local, struct sta_info *sta)
 static int sta_info_hash_add(struct ieee80211_local *local,
 			     struct sta_info *sta)
 {
-	return rhashtable_insert_fast(&local->sta_hash, &sta->hash_node,
-				      sta_rht_params);
+	return rhltable_insert(&local->sta_hash, &sta->hash_node,
+			       sta_rht_params);
 }
 
 static void sta_deliver_ps_frames(struct work_struct *wk)
@@ -453,9 +451,9 @@ static int sta_info_insert_check(struct sta_info *sta)
 		    is_multicast_ether_addr(sta->sta.addr)))
 		return -EINVAL;
 
-	/* Strictly speaking this isn't necessary as we hold the mutex, but
-	 * the rhashtable code can't really deal with that distinction. We
-	 * do require the mutex for correctness though.
+	/* The RCU read lock is required by rhashtable due to
+	 * asynchronous resize/rehash.  We also require the mutex
+	 * for correctness.
 	 */
 	rcu_read_lock();
 	lockdep_assert_held(&sdata->local->sta_mtx);
@@ -1043,16 +1041,11 @@ static void sta_info_cleanup(unsigned long data)
 		  round_jiffies(jiffies + STA_INFO_CLEANUP_INTERVAL));
 }
 
-u32 sta_addr_hash(const void *key, u32 length, u32 seed)
-{
-	return jhash(key, ETH_ALEN, seed);
-}
-
 int sta_info_init(struct ieee80211_local *local)
 {
 	int err;
 
-	err = rhashtable_init(&local->sta_hash, &sta_rht_params);
+	err = rhltable_init(&local->sta_hash, &sta_rht_params);
 	if (err)
 		return err;
 
@@ -1068,7 +1061,7 @@ int sta_info_init(struct ieee80211_local *local)
 void sta_info_stop(struct ieee80211_local *local)
 {
 	del_timer_sync(&local->sta_cleanup);
-	rhashtable_destroy(&local->sta_hash);
+	rhltable_destroy(&local->sta_hash);
 }
 
 
@@ -1138,17 +1131,14 @@ struct ieee80211_sta *ieee80211_find_sta_by_ifaddr(struct ieee80211_hw *hw,
 						   const u8 *localaddr)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
+	struct rhlist_head *tmp;
 	struct sta_info *sta;
-	struct rhash_head *tmp;
-	const struct bucket_table *tbl;
-
-	tbl = rht_dereference_rcu(local->sta_hash.tbl, &local->sta_hash);
 
 	/*
 	 * Just return a random station if localaddr is NULL
 	 * ... first in list.
 	 */
-	for_each_sta_info(local, tbl, addr, sta, tmp) {
+	for_each_sta_info(local, addr, sta, tmp) {
 		if (localaddr &&
 		    !ether_addr_equal(sta->sdata->vif.addr, localaddr))
 			continue;
@@ -1617,7 +1607,6 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 
 		sta_info_recalc_tim(sta);
 	} else {
-		unsigned long tids = sta->txq_buffered_tids & driver_release_tids;
 		int tid;
 
 		/*
@@ -1647,7 +1636,8 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 			return;
 
 		for (tid = 0; tid < ARRAY_SIZE(sta->sta.txq); tid++) {
-			if (!(tids & BIT(tid)) || txq_has_queue(sta->sta.txq[tid]))
+			if (!(driver_release_tids & BIT(tid)) ||
+			    txq_has_queue(sta->sta.txq[tid]))
 				continue;
 
 			sta_info_recalc_tim(sta);

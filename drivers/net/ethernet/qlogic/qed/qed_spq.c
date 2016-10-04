@@ -28,6 +28,9 @@
 #include "qed_reg_addr.h"
 #include "qed_sp.h"
 #include "qed_sriov.h"
+#if IS_ENABLED(CONFIG_INFINIBAND_QEDR)
+#include "qed_roce.h"
+#endif
 
 /***************************************************************************
 * Structures & Definitions
@@ -237,6 +240,11 @@ qed_async_event_completion(struct qed_hwfn *p_hwfn,
 			   struct event_ring_entry *p_eqe)
 {
 	switch (p_eqe->protocol_id) {
+#if IS_ENABLED(CONFIG_INFINIBAND_QEDR)
+	case PROTOCOLID_ROCE:
+		qed_async_roce_event(p_hwfn, p_eqe);
+		return 0;
+#endif
 	case PROTOCOLID_COMMON:
 		return qed_sriov_eqe_event(p_hwfn,
 					   p_eqe->opcode,

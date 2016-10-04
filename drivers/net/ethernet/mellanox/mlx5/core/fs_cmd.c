@@ -401,11 +401,11 @@ struct mlx5_cmd_fc_bulk *
 mlx5_cmd_fc_bulk_alloc(struct mlx5_core_dev *dev, u16 id, int num)
 {
 	struct mlx5_cmd_fc_bulk *b;
-	int outlen = sizeof(*b) +
+	int outlen =
 		MLX5_ST_SZ_BYTES(query_flow_counter_out) +
 		MLX5_ST_SZ_BYTES(traffic_counter) * num;
 
-	b = kzalloc(outlen, GFP_KERNEL);
+	b = kzalloc(sizeof(*b) + outlen, GFP_KERNEL);
 	if (!b)
 		return NULL;
 

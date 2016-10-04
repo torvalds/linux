@@ -1156,7 +1156,8 @@ void efx_mcdi_flush_async(struct efx_nic *efx)
 	 * acquired locks in the wrong order.
 	 */
 	list_for_each_entry_safe(async, next, &mcdi->async_list, list) {
-		async->complete(efx, async->cookie, -ENETDOWN, NULL, 0);
+		if (async->complete)
+			async->complete(efx, async->cookie, -ENETDOWN, NULL, 0);
 		list_del(&async->list);
 		kfree(async);
 	}

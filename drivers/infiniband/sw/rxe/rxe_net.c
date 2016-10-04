@@ -275,9 +275,10 @@ static struct socket *rxe_setup_udp_tunnel(struct net *net, __be16 port,
 	return sock;
 }
 
-static void rxe_release_udp_tunnel(struct socket *sk)
+void rxe_release_udp_tunnel(struct socket *sk)
 {
-	udp_tunnel_sock_release(sk);
+	if (sk)
+		udp_tunnel_sock_release(sk);
 }
 
 static void prepare_udp_hdr(struct sk_buff *skb, __be16 src_port,
@@ -658,51 +659,45 @@ out:
 	return NOTIFY_OK;
 }
 
-static struct notifier_block rxe_net_notifier = {
+struct notifier_block rxe_net_notifier = {
 	.notifier_call = rxe_notify,
 };
 
-int rxe_net_init(void)
+int rxe_net_ipv4_init(void)
 {
-	int err;
+	spin_lock_init(&dev_list_lock);
+
+	recv_sockets.sk4 = rxe_setup_udp_tunnel(&init_net,
+				htons(ROCE_V2_UDP_DPORT), false);
+	if (IS_ERR(recv_sockets.sk4)) {
+		recv_sockets.sk4 = NULL;
+		pr_err("rxe: Failed to create IPv4 UDP tunnel\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+int rxe_net_ipv6_init(void)
+{
+#if IS_ENABLED(CONFIG_IPV6)
 
 	spin_lock_init(&dev_list_lock);
 
 	recv_sockets.sk6 = rxe_setup_udp_tunnel(&init_net,
-			htons(ROCE_V2_UDP_DPORT), true);
+						htons(ROCE_V2_UDP_DPORT), true);
 	if (IS_ERR(recv_sockets.sk6)) {
 		recv_sockets.sk6 = NULL;
 		pr_err("rxe: Failed to create IPv6 UDP tunnel\n");
 		return -1;
 	}
-
-	recv_sockets.sk4 = rxe_setup_udp_tunnel(&init_net,
-			htons(ROCE_V2_UDP_DPORT), false);
-	if (IS_ERR(recv_sockets.sk4)) {
-		rxe_release_udp_tunnel(recv_sockets.sk6);
-		recv_sockets.sk4 = NULL;
-		recv_sockets.sk6 = NULL;
-		pr_err("rxe: Failed to create IPv4 UDP tunnel\n");
-		return -1;
-	}
-
-	err = register_netdevice_notifier(&rxe_net_notifier);
-	if (err) {
-		rxe_release_udp_tunnel(recv_sockets.sk6);
-		rxe_release_udp_tunnel(recv_sockets.sk4);
-		pr_err("rxe: Failed to rigister netdev notifier\n");
-	}
-
-	return err;
+#endif
+	return 0;
 }
 
 void rxe_net_exit(void)
 {
-	if (recv_sockets.sk6)
-		rxe_release_udp_tunnel(recv_sockets.sk6);
-
-	if (recv_sockets.sk4)
-		rxe_release_udp_tunnel(recv_sockets.sk4);
-
+	rxe_release_udp_tunnel(recv_sockets.sk6);
+	rxe_release_udp_tunnel(recv_sockets.sk4);
 	unregister_netdevice_notifier(&rxe_net_notifier);
 }

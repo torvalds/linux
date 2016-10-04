@@ -1984,13 +1984,9 @@ ctnetlink_ct_stat_cpu_fill_info(struct sk_buff *skb, u32 portid, u32 seq,
 	nfmsg->version      = NFNETLINK_V0;
 	nfmsg->res_id	    = htons(cpu);
 
-	if (nla_put_be32(skb, CTA_STATS_SEARCHED, htonl(st->searched)) ||
-	    nla_put_be32(skb, CTA_STATS_FOUND, htonl(st->found)) ||
-	    nla_put_be32(skb, CTA_STATS_NEW, htonl(st->new)) ||
+	if (nla_put_be32(skb, CTA_STATS_FOUND, htonl(st->found)) ||
 	    nla_put_be32(skb, CTA_STATS_INVALID, htonl(st->invalid)) ||
 	    nla_put_be32(skb, CTA_STATS_IGNORE, htonl(st->ignore)) ||
-	    nla_put_be32(skb, CTA_STATS_DELETE, htonl(st->delete)) ||
-	    nla_put_be32(skb, CTA_STATS_DELETE_LIST, htonl(st->delete_list)) ||
 	    nla_put_be32(skb, CTA_STATS_INSERT, htonl(st->insert)) ||
 	    nla_put_be32(skb, CTA_STATS_INSERT_FAILED,
 				htonl(st->insert_failed)) ||

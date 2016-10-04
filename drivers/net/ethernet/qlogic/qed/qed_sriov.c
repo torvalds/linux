@@ -1851,8 +1851,8 @@ static void qed_iov_vf_mbx_start_txq_resp(struct qed_hwfn *p_hwfn,
 	if ((status == PFVF_STATUS_SUCCESS) && !b_legacy) {
 		u16 qid = mbx->req_virt->start_txq.tx_qid;
 
-		p_tlv->offset = qed_db_addr(p_vf->vf_queues[qid].fw_cid,
-					    DQ_DEMS_LEGACY);
+		p_tlv->offset = qed_db_addr_vf(p_vf->vf_queues[qid].fw_cid,
+					       DQ_DEMS_LEGACY);
 	}
 
 	qed_iov_send_response(p_hwfn, p_ptt, p_vf, length, status);

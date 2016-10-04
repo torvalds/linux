@@ -22,14 +22,21 @@
 #include <linux/etherdevice.h>
 #include <linux/vmalloc.h>
 #include <linux/qed/qed_if.h>
+#include <linux/qed/qed_ll2_if.h>
 
 #include "qed.h"
 #include "qed_sriov.h"
 #include "qed_sp.h"
 #include "qed_dev_api.h"
+#include "qed_ll2.h"
 #include "qed_mcp.h"
 #include "qed_hw.h"
 #include "qed_selftest.h"
+
+#if IS_ENABLED(CONFIG_INFINIBAND_QEDR)
+#define QED_ROCE_QPS			(8192)
+#define QED_ROCE_DPIS			(8)
+#endif
 
 static char version[] =
 	"QLogic FastLinQ 4xxxx Core Module qed " DRV_MODULE_VERSION "\n";
@@ -204,8 +211,8 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 	dev_info->pci_mem_start = cdev->pci_params.mem_start;
 	dev_info->pci_mem_end = cdev->pci_params.mem_end;
 	dev_info->pci_irq = cdev->pci_params.irq;
-	dev_info->rdma_supported =
-	    (cdev->hwfns[0].hw_info.personality == QED_PCI_ETH_ROCE);
+	dev_info->rdma_supported = (cdev->hwfns[0].hw_info.personality ==
+				    QED_PCI_ETH_ROCE);
 	dev_info->is_mf_default = IS_MF_DEFAULT(&cdev->hwfns[0]);
 	ether_addr_copy(dev_info->hw_mac, cdev->hwfns[0].hw_info.hw_mac_addr);
 
@@ -608,7 +615,16 @@ static int qed_nic_reset(struct qed_dev *cdev)
 
 static int qed_nic_setup(struct qed_dev *cdev)
 {
-	int rc;
+	int rc, i;
+
+	/* Determine if interface is going to require LL2 */
+	if (QED_LEADING_HWFN(cdev)->hw_info.personality != QED_PCI_ETH) {
+		for (i = 0; i < cdev->num_hwfns; i++) {
+			struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
+
+			p_hwfn->using_ll2 = true;
+		}
+	}
 
 	rc = qed_resc_alloc(cdev);
 	if (rc)
@@ -666,6 +682,9 @@ static int qed_slowpath_setup_int(struct qed_dev *cdev,
 				  enum qed_int_mode int_mode)
 {
 	struct qed_sb_cnt_info sb_cnt_info;
+#if IS_ENABLED(CONFIG_INFINIBAND_QEDR)
+	int num_l2_queues;
+#endif
 	int rc;
 	int i;
 
@@ -695,6 +714,31 @@ static int qed_slowpath_setup_int(struct qed_dev *cdev,
 	cdev->int_params.fp_msix_base = cdev->num_hwfns;
 	cdev->int_params.fp_msix_cnt = cdev->int_params.out.num_vectors -
 				       cdev->num_hwfns;
+
+#if IS_ENABLED(CONFIG_INFINIBAND_QEDR)
+	num_l2_queues = 0;
+	for_each_hwfn(cdev, i)
+		num_l2_queues += FEAT_NUM(&cdev->hwfns[i], QED_PF_L2_QUE);
+
+	DP_VERBOSE(cdev, QED_MSG_RDMA,
+		   "cdev->int_params.fp_msix_cnt=%d num_l2_queues=%d\n",
+		   cdev->int_params.fp_msix_cnt, num_l2_queues);
+
+	if (cdev->int_params.fp_msix_cnt > num_l2_queues) {
+		cdev->int_params.rdma_msix_cnt =
+			(cdev->int_params.fp_msix_cnt - num_l2_queues)
+			/ cdev->num_hwfns;
+		cdev->int_params.rdma_msix_base =
+			cdev->int_params.fp_msix_base + num_l2_queues;
+		cdev->int_params.fp_msix_cnt = num_l2_queues;
+	} else {
+		cdev->int_params.rdma_msix_cnt = 0;
+	}
+
+	DP_VERBOSE(cdev, QED_MSG_RDMA, "roce_msix_cnt=%d roce_msix_base=%d\n",
+		   cdev->int_params.rdma_msix_cnt,
+		   cdev->int_params.rdma_msix_base);
+#endif
 
 	return 0;
 }
@@ -799,6 +843,13 @@ static void qed_update_pf_params(struct qed_dev *cdev,
 {
 	int i;
 
+#if IS_ENABLED(CONFIG_INFINIBAND_QEDR)
+	params->rdma_pf_params.num_qps = QED_ROCE_QPS;
+	params->rdma_pf_params.min_dpis = QED_ROCE_DPIS;
+	/* divide by 3 the MRs to avoid MF ILT overflow */
+	params->rdma_pf_params.num_mrs = RDMA_MAX_TIDS;
+	params->rdma_pf_params.gl_pi = QED_ROCE_PROTOCOL_INDEX;
+#endif
 	for (i = 0; i < cdev->num_hwfns; i++) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 
@@ -873,6 +924,12 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 	DP_INFO(cdev,
 		"HW initialization and function start completed successfully\n");
 
+	/* Allocate LL2 interface if needed */
+	if (QED_LEADING_HWFN(cdev)->using_ll2) {
+		rc = qed_ll2_alloc_if(cdev);
+		if (rc)
+			goto err3;
+	}
 	if (IS_PF(cdev)) {
 		hwfn = QED_LEADING_HWFN(cdev);
 		drv_version.version = (params->drv_major << 24) |
@@ -893,6 +950,8 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 
 	return 0;
 
+err3:
+	qed_hw_stop(cdev);
 err2:
 	qed_hw_timers_stop_all(cdev);
 	if (IS_PF(cdev))
@@ -914,6 +973,8 @@ static int qed_slowpath_stop(struct qed_dev *cdev)
 {
 	if (!cdev)
 		return -ENODEV;
+
+	qed_ll2_dealloc_if(cdev);
 
 	if (IS_PF(cdev)) {
 		qed_free_stream_mem(cdev);

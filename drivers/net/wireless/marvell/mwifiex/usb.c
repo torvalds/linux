@@ -273,6 +273,8 @@ static void mwifiex_usb_tx_complete(struct urb *urb)
 	} else {
 		mwifiex_dbg(adapter, DATA,
 			    "%s: DATA\n", __func__);
+		mwifiex_write_data_complete(adapter, context->skb, 0,
+					    urb->status ? -1 : 0);
 		for (i = 0; i < MWIFIEX_TX_DATA_PORT; i++) {
 			port = &card->port[i];
 			if (context->ep == port->tx_data_ep) {
@@ -282,8 +284,6 @@ static void mwifiex_usb_tx_complete(struct urb *urb)
 			}
 		}
 		adapter->data_sent = false;
-		mwifiex_write_data_complete(adapter, context->skb, 0,
-					    urb->status ? -1 : 0);
 	}
 
 	if (card->mc_resync_flag)
@@ -841,7 +841,7 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 	struct usb_tx_data_port *port = NULL;
 	u8 *data = (u8 *)skb->data;
 	struct urb *tx_urb;
-	int idx, ret;
+	int idx, ret = -EINPROGRESS;
 
 	if (adapter->is_suspended) {
 		mwifiex_dbg(adapter, ERROR,
@@ -865,8 +865,9 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 				if (atomic_read(&port->tx_data_urb_pending)
 				    >= MWIFIEX_TX_DATA_URB) {
 					port->block_status = true;
-					ret = -EBUSY;
-					goto done;
+					adapter->data_sent =
+						mwifiex_usb_data_sent(adapter);
+					return -EBUSY;
 				}
 				if (port->tx_data_ix >= MWIFIEX_TX_DATA_URB)
 					port->tx_data_ix = 0;
@@ -897,6 +898,14 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 	else
 		atomic_inc(&port->tx_data_urb_pending);
 
+	if (ep != card->tx_cmd_ep &&
+	    atomic_read(&port->tx_data_urb_pending) ==
+					MWIFIEX_TX_DATA_URB) {
+		port->block_status = true;
+		adapter->data_sent = mwifiex_usb_data_sent(adapter);
+		ret = -ENOSR;
+	}
+
 	if (usb_submit_urb(tx_urb, GFP_ATOMIC)) {
 		mwifiex_dbg(adapter, ERROR,
 			    "%s: usb_submit_urb failed\n", __func__);
@@ -905,28 +914,14 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 		} else {
 			atomic_dec(&port->tx_data_urb_pending);
 			port->block_status = false;
+			adapter->data_sent = false;
 			if (port->tx_data_ix)
 				port->tx_data_ix--;
 			else
 				port->tx_data_ix = MWIFIEX_TX_DATA_URB;
 		}
-
-		return -1;
-	} else {
-		if (ep != card->tx_cmd_ep &&
-		    atomic_read(&port->tx_data_urb_pending) ==
-							MWIFIEX_TX_DATA_URB) {
-			port->block_status = true;
-			ret = -ENOSR;
-			goto done;
-		}
+		ret = -1;
 	}
-
-	return -EINPROGRESS;
-
-done:
-	if (ep != card->tx_cmd_ep)
-		adapter->data_sent = mwifiex_usb_data_sent(adapter);
 
 	return ret;
 }

@@ -53,7 +53,6 @@ struct rxrpc_connection *rxrpc_alloc_connection(gfp_t gfp)
 		spin_lock_init(&conn->state_lock);
 		conn->debug_id = atomic_inc_return(&rxrpc_debug_id);
 		conn->size_align = 4;
-		conn->header_size = sizeof(struct rxrpc_wire_header);
 		conn->idle_timestamp = jiffies;
 	}
 
@@ -246,11 +245,77 @@ void rxrpc_kill_connection(struct rxrpc_connection *conn)
 }
 
 /*
- * release a virtual connection
+ * Queue a connection's work processor, getting a ref to pass to the work
+ * queue.
  */
-void __rxrpc_put_connection(struct rxrpc_connection *conn)
+bool rxrpc_queue_conn(struct rxrpc_connection *conn)
 {
-	rxrpc_queue_delayed_work(&rxrpc_connection_reap, 0);
+	const void *here = __builtin_return_address(0);
+	int n = __atomic_add_unless(&conn->usage, 1, 0);
+	if (n == 0)
+		return false;
+	if (rxrpc_queue_work(&conn->processor))
+		trace_rxrpc_conn(conn, rxrpc_conn_queued, n + 1, here);
+	else
+		rxrpc_put_connection(conn);
+	return true;
+}
+
+/*
+ * Note the re-emergence of a connection.
+ */
+void rxrpc_see_connection(struct rxrpc_connection *conn)
+{
+	const void *here = __builtin_return_address(0);
+	if (conn) {
+		int n = atomic_read(&conn->usage);
+
+		trace_rxrpc_conn(conn, rxrpc_conn_seen, n, here);
+	}
+}
+
+/*
+ * Get a ref on a connection.
+ */
+void rxrpc_get_connection(struct rxrpc_connection *conn)
+{
+	const void *here = __builtin_return_address(0);
+	int n = atomic_inc_return(&conn->usage);
+
+	trace_rxrpc_conn(conn, rxrpc_conn_got, n, here);
+}
+
+/*
+ * Try to get a ref on a connection.
+ */
+struct rxrpc_connection *
+rxrpc_get_connection_maybe(struct rxrpc_connection *conn)
+{
+	const void *here = __builtin_return_address(0);
+
+	if (conn) {
+		int n = __atomic_add_unless(&conn->usage, 1, 0);
+		if (n > 0)
+			trace_rxrpc_conn(conn, rxrpc_conn_got, n + 1, here);
+		else
+			conn = NULL;
+	}
+	return conn;
+}
+
+/*
+ * Release a service connection
+ */
+void rxrpc_put_service_conn(struct rxrpc_connection *conn)
+{
+	const void *here = __builtin_return_address(0);
+	int n;
+
+	n = atomic_dec_return(&conn->usage);
+	trace_rxrpc_conn(conn, rxrpc_conn_put_service, n, here);
+	ASSERTCMP(n, >=, 0);
+	if (n == 0)
+		rxrpc_queue_delayed_work(&rxrpc_connection_reap, 0);
 }
 
 /*

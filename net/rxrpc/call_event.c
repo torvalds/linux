@@ -24,28 +24,56 @@
 /*
  * Set the timer
  */
-static void rxrpc_set_timer(struct rxrpc_call *call)
+void rxrpc_set_timer(struct rxrpc_call *call, enum rxrpc_timer_trace why,
+		     ktime_t now)
 {
-	unsigned long t, now = jiffies;
+	unsigned long t_j, now_j = jiffies;
+	ktime_t t;
+	bool queue = false;
 
-	_enter("{%ld,%ld,%ld:%ld}",
-	       call->ack_at - now, call->resend_at - now, call->expire_at - now,
-	       call->timer.expires - now);
-	
 	read_lock_bh(&call->state_lock);
 
 	if (call->state < RXRPC_CALL_COMPLETE) {
-		t = call->ack_at;
-		if (time_before(call->resend_at, t))
+		t = call->expire_at;
+		if (!ktime_after(t, now))
+			goto out;
+
+		if (!ktime_after(call->resend_at, now)) {
+			call->resend_at = call->expire_at;
+			if (!test_and_set_bit(RXRPC_CALL_EV_RESEND, &call->events))
+				queue = true;
+		} else if (ktime_before(call->resend_at, t)) {
 			t = call->resend_at;
-		if (time_before(call->expire_at, t))
-			t = call->expire_at;
-		if (!timer_pending(&call->timer) ||
-		    time_before(t, call->timer.expires)) {
-			_debug("set timer %ld", t - now);
-			mod_timer(&call->timer, t);
 		}
+
+		if (!ktime_after(call->ack_at, now)) {
+			call->ack_at = call->expire_at;
+			if (!test_and_set_bit(RXRPC_CALL_EV_ACK, &call->events))
+				queue = true;
+		} else if (ktime_before(call->ack_at, t)) {
+			t = call->ack_at;
+		}
+
+		t_j = nsecs_to_jiffies(ktime_to_ns(ktime_sub(t, now)));
+		t_j += jiffies;
+
+		/* We have to make sure that the calculated jiffies value falls
+		 * at or after the nsec value, or we may loop ceaselessly
+		 * because the timer times out, but we haven't reached the nsec
+		 * timeout yet.
+		 */
+		t_j++;
+
+		if (call->timer.expires != t_j || !timer_pending(&call->timer)) {
+			mod_timer(&call->timer, t_j);
+			trace_rxrpc_timer(call, why, now, now_j);
+		}
+
+		if (queue)
+			rxrpc_queue_call(call);
 	}
+
+out:
 	read_unlock_bh(&call->state_lock);
 }
 
@@ -54,13 +82,13 @@ static void rxrpc_set_timer(struct rxrpc_call *call)
  */
 static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 				u16 skew, u32 serial, bool immediate,
-				bool background)
+				bool background,
+				enum rxrpc_propose_ack_trace why)
 {
-	unsigned long now, ack_at, expiry = rxrpc_soft_ack_delay;
+	enum rxrpc_propose_ack_outcome outcome = rxrpc_propose_ack_use;
+	unsigned int expiry = rxrpc_soft_ack_delay;
+	ktime_t now, ack_at;
 	s8 prior = rxrpc_ack_priority[ack_reason];
-
-	_enter("{%d},%s,%%%x,%u",
-	       call->debug_id, rxrpc_acks(ack_reason), serial, immediate);
 
 	/* Update DELAY, IDLE, REQUESTED and PING_RESPONSE ACK serial
 	 * numbers, but we don't alter the timeout.
@@ -70,15 +98,18 @@ static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 	       call->ackr_reason, rxrpc_ack_priority[call->ackr_reason]);
 	if (ack_reason == call->ackr_reason) {
 		if (RXRPC_ACK_UPDATEABLE & (1 << ack_reason)) {
+			outcome = rxrpc_propose_ack_update;
 			call->ackr_serial = serial;
 			call->ackr_skew = skew;
 		}
 		if (!immediate)
-			return;
+			goto trace;
 	} else if (prior > rxrpc_ack_priority[call->ackr_reason]) {
 		call->ackr_reason = ack_reason;
 		call->ackr_serial = serial;
 		call->ackr_skew = skew;
+	} else {
+		outcome = rxrpc_propose_ack_subsume;
 	}
 
 	switch (ack_reason) {
@@ -94,6 +125,7 @@ static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 			expiry = rxrpc_soft_ack_delay;
 		break;
 
+	case RXRPC_ACK_PING:
 	case RXRPC_ACK_IDLE:
 		if (rxrpc_idle_ack_delay < expiry)
 			expiry = rxrpc_idle_ack_delay;
@@ -104,7 +136,6 @@ static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 		break;
 	}
 
-	now = jiffies;
 	if (test_bit(RXRPC_CALL_EV_ACK, &call->events)) {
 		_debug("already scheduled");
 	} else if (immediate || expiry == 0) {
@@ -113,41 +144,55 @@ static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 		    background)
 			rxrpc_queue_call(call);
 	} else {
-		ack_at = now + expiry;
-		_debug("deferred ACK %ld < %ld", expiry, call->ack_at - now);
-		if (time_before(ack_at, call->ack_at)) {
+		now = ktime_get_real();
+		ack_at = ktime_add_ms(now, expiry);
+		if (ktime_before(ack_at, call->ack_at)) {
 			call->ack_at = ack_at;
-			rxrpc_set_timer(call);
+			rxrpc_set_timer(call, rxrpc_timer_set_for_ack, now);
 		}
 	}
+
+trace:
+	trace_rxrpc_propose_ack(call, why, ack_reason, serial, immediate,
+				background, outcome);
 }
 
 /*
  * propose an ACK be sent, locking the call structure
  */
 void rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
-		       u16 skew, u32 serial, bool immediate, bool background)
+		       u16 skew, u32 serial, bool immediate, bool background,
+		       enum rxrpc_propose_ack_trace why)
 {
 	spin_lock_bh(&call->lock);
 	__rxrpc_propose_ACK(call, ack_reason, skew, serial,
-			    immediate, background);
+			    immediate, background, why);
 	spin_unlock_bh(&call->lock);
+}
+
+/*
+ * Handle congestion being detected by the retransmit timeout.
+ */
+static void rxrpc_congestion_timeout(struct rxrpc_call *call)
+{
+	set_bit(RXRPC_CALL_RETRANS_TIMEOUT, &call->flags);
 }
 
 /*
  * Perform retransmission of NAK'd and unack'd packets.
  */
-static void rxrpc_resend(struct rxrpc_call *call)
+static void rxrpc_resend(struct rxrpc_call *call, ktime_t now)
 {
-	struct rxrpc_wire_header *whdr;
 	struct rxrpc_skb_priv *sp;
 	struct sk_buff *skb;
 	rxrpc_seq_t cursor, seq, top;
-	unsigned long resend_at, now;
+	ktime_t max_age, oldest, ack_ts;
 	int ix;
-	u8 annotation;
+	u8 annotation, anno_type, retrans = 0, unacked = 0;
 
 	_enter("{%d,%d}", call->tx_hard_ack, call->tx_top);
+
+	max_age = ktime_sub_ms(now, rxrpc_resend_timeout);
 
 	spin_lock_bh(&call->lock);
 
@@ -161,68 +206,82 @@ static void rxrpc_resend(struct rxrpc_call *call)
 	 * the packets in the Tx buffer we're going to resend and what the new
 	 * resend timeout will be.
 	 */
-	now = jiffies;
-	resend_at = now + rxrpc_resend_timeout;
-	seq = cursor + 1;
-	do {
+	oldest = now;
+	for (seq = cursor + 1; before_eq(seq, top); seq++) {
 		ix = seq & RXRPC_RXTX_BUFF_MASK;
 		annotation = call->rxtx_annotations[ix];
-		if (annotation == RXRPC_TX_ANNO_ACK)
+		anno_type = annotation & RXRPC_TX_ANNO_MASK;
+		annotation &= ~RXRPC_TX_ANNO_MASK;
+		if (anno_type == RXRPC_TX_ANNO_ACK)
 			continue;
 
 		skb = call->rxtx_buffer[ix];
-		rxrpc_see_skb(skb);
+		rxrpc_see_skb(skb, rxrpc_skb_tx_seen);
 		sp = rxrpc_skb(skb);
 
-		if (annotation == RXRPC_TX_ANNO_UNACK) {
-			if (time_after(sp->resend_at, now)) {
-				if (time_before(sp->resend_at, resend_at))
-					resend_at = sp->resend_at;
+		if (anno_type == RXRPC_TX_ANNO_UNACK) {
+			if (ktime_after(skb->tstamp, max_age)) {
+				if (ktime_before(skb->tstamp, oldest))
+					oldest = skb->tstamp;
 				continue;
 			}
+			if (!(annotation & RXRPC_TX_ANNO_RESENT))
+				unacked++;
 		}
 
 		/* Okay, we need to retransmit a packet. */
-		call->rxtx_annotations[ix] = RXRPC_TX_ANNO_RETRANS;
-		seq++;
-	} while (before_eq(seq, top));
+		call->rxtx_annotations[ix] = RXRPC_TX_ANNO_RETRANS | annotation;
+		retrans++;
+		trace_rxrpc_retransmit(call, seq, annotation | anno_type,
+				       ktime_to_ns(ktime_sub(skb->tstamp, max_age)));
+	}
 
-	call->resend_at = resend_at;
+	call->resend_at = ktime_add_ms(oldest, rxrpc_resend_timeout);
+
+	if (unacked)
+		rxrpc_congestion_timeout(call);
+
+	/* If there was nothing that needed retransmission then it's likely
+	 * that an ACK got lost somewhere.  Send a ping to find out instead of
+	 * retransmitting data.
+	 */
+	if (!retrans) {
+		rxrpc_set_timer(call, rxrpc_timer_set_for_resend, now);
+		spin_unlock_bh(&call->lock);
+		ack_ts = ktime_sub(now, call->acks_latest_ts);
+		if (ktime_to_ns(ack_ts) < call->peer->rtt)
+			goto out;
+		rxrpc_propose_ACK(call, RXRPC_ACK_PING, 0, 0, true, false,
+				  rxrpc_propose_ack_ping_for_lost_ack);
+		rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ACK);
+		goto out;
+	}
 
 	/* Now go through the Tx window and perform the retransmissions.  We
 	 * have to drop the lock for each send.  If an ACK comes in whilst the
 	 * lock is dropped, it may clear some of the retransmission markers for
 	 * packets that it soft-ACKs.
 	 */
-	seq = cursor + 1;
-	do {
+	for (seq = cursor + 1; before_eq(seq, top); seq++) {
 		ix = seq & RXRPC_RXTX_BUFF_MASK;
 		annotation = call->rxtx_annotations[ix];
-		if (annotation != RXRPC_TX_ANNO_RETRANS)
+		anno_type = annotation & RXRPC_TX_ANNO_MASK;
+		if (anno_type != RXRPC_TX_ANNO_RETRANS)
 			continue;
 
 		skb = call->rxtx_buffer[ix];
-		rxrpc_get_skb(skb);
+		rxrpc_get_skb(skb, rxrpc_skb_tx_got);
 		spin_unlock_bh(&call->lock);
-		sp = rxrpc_skb(skb);
 
-		/* Each Tx packet needs a new serial number */
-		sp->hdr.serial = atomic_inc_return(&call->conn->serial);
-
-		whdr = (struct rxrpc_wire_header *)skb->head;
-		whdr->serial = htonl(sp->hdr.serial);
-
-		if (rxrpc_send_data_packet(call->conn, skb) < 0) {
-			call->resend_at = now + 2;
-			rxrpc_free_skb(skb);
+		if (rxrpc_send_data_packet(call, skb, true) < 0) {
+			rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
 			return;
 		}
 
 		if (rxrpc_is_client_call(call))
 			rxrpc_expose_client_call(call);
-		sp->resend_at = now + rxrpc_resend_timeout;
 
-		rxrpc_free_skb(skb);
+		rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
 		spin_lock_bh(&call->lock);
 
 		/* We need to clear the retransmit state, but there are two
@@ -230,18 +289,25 @@ static void rxrpc_resend(struct rxrpc_call *call)
 		 * received and the packet might have been hard-ACK'd (in which
 		 * case it will no longer be in the buffer).
 		 */
-		if (after(seq, call->tx_hard_ack) &&
-		    (call->rxtx_annotations[ix] == RXRPC_TX_ANNO_RETRANS ||
-		     call->rxtx_annotations[ix] == RXRPC_TX_ANNO_NAK))
-			call->rxtx_annotations[ix] = RXRPC_TX_ANNO_UNACK;
+		if (after(seq, call->tx_hard_ack)) {
+			annotation = call->rxtx_annotations[ix];
+			anno_type = annotation & RXRPC_TX_ANNO_MASK;
+			if (anno_type == RXRPC_TX_ANNO_RETRANS ||
+			    anno_type == RXRPC_TX_ANNO_NAK) {
+				annotation &= ~RXRPC_TX_ANNO_MASK;
+				annotation |= RXRPC_TX_ANNO_UNACK;
+			}
+			annotation |= RXRPC_TX_ANNO_RESENT;
+			call->rxtx_annotations[ix] = annotation;
+		}
 
 		if (after(call->tx_hard_ack, seq))
 			seq = call->tx_hard_ack;
-		seq++;
-	} while (before_eq(seq, top));
+	}
 
 out_unlock:
 	spin_unlock_bh(&call->lock);
+out:
 	_leave("");
 }
 
@@ -252,7 +318,7 @@ void rxrpc_process_call(struct work_struct *work)
 {
 	struct rxrpc_call *call =
 		container_of(work, struct rxrpc_call, processor);
-	unsigned long now;
+	ktime_t now;
 
 	rxrpc_see_call(call);
 
@@ -271,14 +337,14 @@ recheck_state:
 		goto out_put;
 	}
 
-	now = jiffies;
-	if (time_after_eq(now, call->expire_at)) {
+	now = ktime_get_real();
+	if (ktime_before(call->expire_at, now)) {
 		rxrpc_abort_call("EXP", call, 0, RX_CALL_TIMEOUT, ETIME);
 		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
+		goto recheck_state;
 	}
 
-	if (test_and_clear_bit(RXRPC_CALL_EV_ACK, &call->events) ||
-	    time_after_eq(now, call->ack_at)) {
+	if (test_and_clear_bit(RXRPC_CALL_EV_ACK, &call->events)) {
 		call->ack_at = call->expire_at;
 		if (call->ackr_reason) {
 			rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ACK);
@@ -286,13 +352,12 @@ recheck_state:
 		}
 	}
 
-	if (test_and_clear_bit(RXRPC_CALL_EV_RESEND, &call->events) ||
-	    time_after_eq(now, call->resend_at)) {
-		rxrpc_resend(call);
+	if (test_and_clear_bit(RXRPC_CALL_EV_RESEND, &call->events)) {
+		rxrpc_resend(call, now);
 		goto recheck_state;
 	}
 
-	rxrpc_set_timer(call);
+	rxrpc_set_timer(call, rxrpc_timer_set_for_resend, now);
 
 	/* other events may have been raised since we started checking */
 	if (call->events && call->state < RXRPC_CALL_COMPLETE) {

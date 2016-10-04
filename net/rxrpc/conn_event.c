@@ -97,6 +97,7 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 		pkt.info.maxMTU		= htonl(mtu);
 		pkt.info.rwind		= htonl(rxrpc_rx_window_size);
 		pkt.info.jumbo_max	= htonl(rxrpc_rx_jumbo_max);
+		pkt.whdr.flags		|= RXRPC_SLOW_START_OK;
 		len += sizeof(pkt.ack) + sizeof(pkt.info);
 		break;
 	}
@@ -119,6 +120,8 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 		_proto("Tx ABORT %%%u { %d } [re]", serial, conn->local_abort);
 		break;
 	case RXRPC_PACKET_TYPE_ACK:
+		trace_rxrpc_tx_ack(NULL, serial, chan->last_seq, 0,
+				   RXRPC_ACK_DUPLICATE, 0);
 		_proto("Tx ACK %%%u [re]", serial);
 		break;
 	}
@@ -273,7 +276,8 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 		return 0;
 
 	case RXRPC_PACKET_TYPE_ABORT:
-		if (skb_copy_bits(skb, sp->offset, &wtmp, sizeof(wtmp)) < 0)
+		if (skb_copy_bits(skb, sizeof(struct rxrpc_wire_header),
+				  &wtmp, sizeof(wtmp)) < 0)
 			return -EPROTO;
 		abort_code = ntohl(wtmp);
 		_proto("Rx ABORT %%%u { ac=%d }", sp->hdr.serial, abort_code);
@@ -377,7 +381,7 @@ void rxrpc_process_connection(struct work_struct *work)
 	u32 abort_code = RX_PROTOCOL_ERROR;
 	int ret;
 
-	_enter("{%d}", conn->debug_id);
+	rxrpc_see_connection(conn);
 
 	if (test_and_clear_bit(RXRPC_CONN_EV_CHALLENGE, &conn->events))
 		rxrpc_secure_connection(conn);
@@ -385,7 +389,7 @@ void rxrpc_process_connection(struct work_struct *work)
 	/* go through the conn-level event packets, releasing the ref on this
 	 * connection that each one has when we've finished with it */
 	while ((skb = skb_dequeue(&conn->rx_queue))) {
-		rxrpc_see_skb(skb);
+		rxrpc_see_skb(skb, rxrpc_skb_rx_seen);
 		ret = rxrpc_process_event(conn, skb, &abort_code);
 		switch (ret) {
 		case -EPROTO:
@@ -396,7 +400,7 @@ void rxrpc_process_connection(struct work_struct *work)
 			goto requeue_and_leave;
 		case -ECONNABORTED:
 		default:
-			rxrpc_free_skb(skb);
+			rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
 			break;
 		}
 	}
@@ -413,7 +417,7 @@ requeue_and_leave:
 protocol_error:
 	if (rxrpc_abort_connection(conn, -ret, abort_code) < 0)
 		goto requeue_and_leave;
-	rxrpc_free_skb(skb);
+	rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
 	_leave(" [EPROTO]");
 	goto out;
 }

@@ -29,7 +29,8 @@
 #include <net/sock.h>
 #include <linux/seq_file.h>
 
-#define BT_SUBSYS_VERSION "2.21"
+#define BT_SUBSYS_VERSION	2
+#define BT_SUBSYS_REVISION	22
 
 #ifndef AF_BLUETOOTH
 #define AF_BLUETOOTH	31
@@ -371,6 +372,7 @@ void hci_sock_set_flag(struct sock *sk, int nr);
 void hci_sock_clear_flag(struct sock *sk, int nr);
 int hci_sock_test_flag(struct sock *sk, int nr);
 unsigned short hci_sock_get_channel(struct sock *sk);
+u32 hci_sock_get_cookie(struct sock *sk);
 
 int hci_sock_init(void);
 void hci_sock_cleanup(void);

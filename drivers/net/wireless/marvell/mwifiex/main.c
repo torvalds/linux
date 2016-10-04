@@ -1369,11 +1369,11 @@ mwifiex_shutdown_sw(struct mwifiex_adapter *adapter, struct semaphore *sem)
 	struct mwifiex_private *priv;
 	int i;
 
+	if (!adapter)
+		goto exit_return;
+
 	if (down_interruptible(sem))
 		goto exit_sem_err;
-
-	if (!adapter)
-		goto exit_remove;
 
 	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 	mwifiex_deauthenticate(priv, NULL);
@@ -1430,10 +1430,10 @@ mwifiex_shutdown_sw(struct mwifiex_adapter *adapter, struct semaphore *sem)
 		rtnl_unlock();
 	}
 
-exit_remove:
 	up(sem);
 exit_sem_err:
 	mwifiex_dbg(adapter, INFO, "%s, successful\n", __func__);
+exit_return:
 	return 0;
 }
 

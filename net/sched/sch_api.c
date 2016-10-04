@@ -389,7 +389,8 @@ static __u8 __detect_linklayer(struct tc_ratespec *r, __u32 *rtab)
 
 static struct qdisc_rate_table *qdisc_rtab_list;
 
-struct qdisc_rate_table *qdisc_get_rtab(struct tc_ratespec *r, struct nlattr *tab)
+struct qdisc_rate_table *qdisc_get_rtab(struct tc_ratespec *r,
+					struct nlattr *tab)
 {
 	struct qdisc_rate_table *rtab;
 
@@ -541,7 +542,8 @@ nla_put_failure:
 	return -1;
 }
 
-void __qdisc_calculate_pkt_len(struct sk_buff *skb, const struct qdisc_size_table *stab)
+void __qdisc_calculate_pkt_len(struct sk_buff *skb,
+			       const struct qdisc_size_table *stab)
 {
 	int pkt_len, slot;
 
@@ -888,10 +890,10 @@ static struct lock_class_key qdisc_rx_lock;
    Parameters are passed via opt.
  */
 
-static struct Qdisc *
-qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
-	     struct Qdisc *p, u32 parent, u32 handle,
-	     struct nlattr **tca, int *errp)
+static struct Qdisc *qdisc_create(struct net_device *dev,
+				  struct netdev_queue *dev_queue,
+				  struct Qdisc *p, u32 parent, u32 handle,
+				  struct nlattr **tca, int *errp)
 {
 	int err;
 	struct nlattr *kind = tca[TCA_KIND];
@@ -1073,7 +1075,8 @@ struct check_loop_arg {
 	int			depth;
 };
 
-static int check_loop_fn(struct Qdisc *q, unsigned long cl, struct qdisc_walker *w);
+static int check_loop_fn(struct Qdisc *q, unsigned long cl,
+			 struct qdisc_walker *w);
 
 static int check_loop(struct Qdisc *q, struct Qdisc *p, int depth)
 {
@@ -1450,7 +1453,8 @@ static int tc_dump_qdisc_root(struct Qdisc *root, struct sk_buff *skb,
 	} else {
 		if (!tc_qdisc_dump_ignore(q) &&
 		    tc_fill_qdisc(skb, q, q->parent, NETLINK_CB(cb->skb).portid,
-				  cb->nlh->nlmsg_seq, NLM_F_MULTI, RTM_NEWQDISC) <= 0)
+				  cb->nlh->nlmsg_seq, NLM_F_MULTI,
+				  RTM_NEWQDISC) <= 0)
 			goto done;
 		q_idx++;
 	}
@@ -1471,7 +1475,8 @@ static int tc_dump_qdisc_root(struct Qdisc *root, struct sk_buff *skb,
 		}
 		if (!tc_qdisc_dump_ignore(q) &&
 		    tc_fill_qdisc(skb, q, q->parent, NETLINK_CB(cb->skb).portid,
-				  cb->nlh->nlmsg_seq, NLM_F_MULTI, RTM_NEWQDISC) <= 0)
+				  cb->nlh->nlmsg_seq, NLM_F_MULTI,
+				  RTM_NEWQDISC) <= 0)
 			goto done;
 		q_idx++;
 	}
@@ -1505,7 +1510,8 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 			s_q_idx = 0;
 		q_idx = 0;
 
-		if (tc_dump_qdisc_root(dev->qdisc, skb, cb, &q_idx, s_q_idx, true) < 0)
+		if (tc_dump_qdisc_root(dev->qdisc, skb, cb, &q_idx, s_q_idx,
+				       true) < 0)
 			goto done;
 
 		dev_queue = dev_ingress_queue(dev);
@@ -1640,7 +1646,8 @@ static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n)
 			if (cops->delete)
 				err = cops->delete(q, cl);
 			if (err == 0)
-				tclass_notify(net, skb, n, q, cl, RTM_DELTCLASS);
+				tclass_notify(net, skb, n, q, cl,
+					      RTM_DELTCLASS);
 			goto out;
 		case RTM_GETTCLASS:
 			err = tclass_notify(net, skb, n, q, cl, RTM_NEWTCLASS);
@@ -1738,12 +1745,14 @@ struct qdisc_dump_args {
 	struct netlink_callback	*cb;
 };
 
-static int qdisc_class_dump(struct Qdisc *q, unsigned long cl, struct qdisc_walker *arg)
+static int qdisc_class_dump(struct Qdisc *q, unsigned long cl,
+			    struct qdisc_walker *arg)
 {
 	struct qdisc_dump_args *a = (struct qdisc_dump_args *)arg;
 
 	return tc_fill_tclass(a->skb, q, cl, NETLINK_CB(a->cb->skb).portid,
-			      a->cb->nlh->nlmsg_seq, NLM_F_MULTI, RTM_NEWTCLASS);
+			      a->cb->nlh->nlmsg_seq, NLM_F_MULTI,
+			      RTM_NEWTCLASS);
 }
 
 static int tc_dump_tclass_qdisc(struct Qdisc *q, struct sk_buff *skb,
@@ -1976,10 +1985,12 @@ static int __init pktsched_init(void)
 
 	rtnl_register(PF_UNSPEC, RTM_NEWQDISC, tc_modify_qdisc, NULL, NULL);
 	rtnl_register(PF_UNSPEC, RTM_DELQDISC, tc_get_qdisc, NULL, NULL);
-	rtnl_register(PF_UNSPEC, RTM_GETQDISC, tc_get_qdisc, tc_dump_qdisc, NULL);
+	rtnl_register(PF_UNSPEC, RTM_GETQDISC, tc_get_qdisc, tc_dump_qdisc,
+		      NULL);
 	rtnl_register(PF_UNSPEC, RTM_NEWTCLASS, tc_ctl_tclass, NULL, NULL);
 	rtnl_register(PF_UNSPEC, RTM_DELTCLASS, tc_ctl_tclass, NULL, NULL);
-	rtnl_register(PF_UNSPEC, RTM_GETTCLASS, tc_ctl_tclass, tc_dump_tclass, NULL);
+	rtnl_register(PF_UNSPEC, RTM_GETTCLASS, tc_ctl_tclass, tc_dump_tclass,
+		      NULL);
 
 	return 0;
 }

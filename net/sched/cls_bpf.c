@@ -27,6 +27,8 @@ MODULE_AUTHOR("Daniel Borkmann <dborkman@redhat.com>");
 MODULE_DESCRIPTION("TC BPF based classifier");
 
 #define CLS_BPF_NAME_LEN	256
+#define CLS_BPF_SUPPORTED_GEN_FLAGS		\
+	(TCA_CLS_FLAGS_SKIP_HW | TCA_CLS_FLAGS_SKIP_SW)
 
 struct cls_bpf_head {
 	struct list_head plist;
@@ -39,6 +41,8 @@ struct cls_bpf_prog {
 	struct list_head link;
 	struct tcf_result res;
 	bool exts_integrated;
+	bool offloaded;
+	u32 gen_flags;
 	struct tcf_exts exts;
 	u32 handle;
 	union {
@@ -54,8 +58,10 @@ struct cls_bpf_prog {
 static const struct nla_policy bpf_policy[TCA_BPF_MAX + 1] = {
 	[TCA_BPF_CLASSID]	= { .type = NLA_U32 },
 	[TCA_BPF_FLAGS]		= { .type = NLA_U32 },
+	[TCA_BPF_FLAGS_GEN]	= { .type = NLA_U32 },
 	[TCA_BPF_FD]		= { .type = NLA_U32 },
-	[TCA_BPF_NAME]		= { .type = NLA_NUL_STRING, .len = CLS_BPF_NAME_LEN },
+	[TCA_BPF_NAME]		= { .type = NLA_NUL_STRING,
+				    .len = CLS_BPF_NAME_LEN },
 	[TCA_BPF_OPS_LEN]	= { .type = NLA_U16 },
 	[TCA_BPF_OPS]		= { .type = NLA_BINARY,
 				    .len = sizeof(struct sock_filter) * BPF_MAXINSNS },
@@ -90,7 +96,9 @@ static int cls_bpf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 
 		qdisc_skb_cb(skb)->tc_classid = prog->res.classid;
 
-		if (at_ingress) {
+		if (tc_skip_sw(prog->gen_flags)) {
+			filter_res = prog->exts_integrated ? TC_ACT_UNSPEC : 0;
+		} else if (at_ingress) {
 			/* It is safe to push/pull even if skb_shared() */
 			__skb_push(skb, skb->mac_len);
 			bpf_compute_data_end(skb);
@@ -137,6 +145,91 @@ static bool cls_bpf_is_ebpf(const struct cls_bpf_prog *prog)
 	return !prog->bpf_ops;
 }
 
+static int cls_bpf_offload_cmd(struct tcf_proto *tp, struct cls_bpf_prog *prog,
+			       enum tc_clsbpf_command cmd)
+{
+	struct net_device *dev = tp->q->dev_queue->dev;
+	struct tc_cls_bpf_offload bpf_offload = {};
+	struct tc_to_netdev offload;
+
+	offload.type = TC_SETUP_CLSBPF;
+	offload.cls_bpf = &bpf_offload;
+
+	bpf_offload.command = cmd;
+	bpf_offload.exts = &prog->exts;
+	bpf_offload.prog = prog->filter;
+	bpf_offload.name = prog->bpf_name;
+	bpf_offload.exts_integrated = prog->exts_integrated;
+	bpf_offload.gen_flags = prog->gen_flags;
+
+	return dev->netdev_ops->ndo_setup_tc(dev, tp->q->handle,
+					     tp->protocol, &offload);
+}
+
+static int cls_bpf_offload(struct tcf_proto *tp, struct cls_bpf_prog *prog,
+			   struct cls_bpf_prog *oldprog)
+{
+	struct net_device *dev = tp->q->dev_queue->dev;
+	struct cls_bpf_prog *obj = prog;
+	enum tc_clsbpf_command cmd;
+	bool skip_sw;
+	int ret;
+
+	skip_sw = tc_skip_sw(prog->gen_flags) ||
+		(oldprog && tc_skip_sw(oldprog->gen_flags));
+
+	if (oldprog && oldprog->offloaded) {
+		if (tc_should_offload(dev, tp, prog->gen_flags)) {
+			cmd = TC_CLSBPF_REPLACE;
+		} else if (!tc_skip_sw(prog->gen_flags)) {
+			obj = oldprog;
+			cmd = TC_CLSBPF_DESTROY;
+		} else {
+			return -EINVAL;
+		}
+	} else {
+		if (!tc_should_offload(dev, tp, prog->gen_flags))
+			return skip_sw ? -EINVAL : 0;
+		cmd = TC_CLSBPF_ADD;
+	}
+
+	ret = cls_bpf_offload_cmd(tp, obj, cmd);
+	if (ret)
+		return skip_sw ? ret : 0;
+
+	obj->offloaded = true;
+	if (oldprog)
+		oldprog->offloaded = false;
+
+	return 0;
+}
+
+static void cls_bpf_stop_offload(struct tcf_proto *tp,
+				 struct cls_bpf_prog *prog)
+{
+	int err;
+
+	if (!prog->offloaded)
+		return;
+
+	err = cls_bpf_offload_cmd(tp, prog, TC_CLSBPF_DESTROY);
+	if (err) {
+		pr_err("Stopping hardware offload failed: %d\n", err);
+		return;
+	}
+
+	prog->offloaded = false;
+}
+
+static void cls_bpf_offload_update_stats(struct tcf_proto *tp,
+					 struct cls_bpf_prog *prog)
+{
+	if (!prog->offloaded)
+		return;
+
+	cls_bpf_offload_cmd(tp, prog, TC_CLSBPF_STATS);
+}
+
 static int cls_bpf_init(struct tcf_proto *tp)
 {
 	struct cls_bpf_head *head;
@@ -176,6 +269,7 @@ static int cls_bpf_delete(struct tcf_proto *tp, unsigned long arg)
 {
 	struct cls_bpf_prog *prog = (struct cls_bpf_prog *) arg;
 
+	cls_bpf_stop_offload(tp, prog);
 	list_del_rcu(&prog->link);
 	tcf_unbind_filter(tp, &prog->res);
 	call_rcu(&prog->rcu, __cls_bpf_delete_prog);
@@ -192,6 +286,7 @@ static bool cls_bpf_destroy(struct tcf_proto *tp, bool force)
 		return false;
 
 	list_for_each_entry_safe(prog, tmp, &head->plist, link) {
+		cls_bpf_stop_offload(tp, prog);
 		list_del_rcu(&prog->link);
 		tcf_unbind_filter(tp, &prog->res);
 		call_rcu(&prog->rcu, __cls_bpf_delete_prog);
@@ -301,6 +396,7 @@ static int cls_bpf_modify_existing(struct net *net, struct tcf_proto *tp,
 {
 	bool is_bpf, is_ebpf, have_exts = false;
 	struct tcf_exts exts;
+	u32 gen_flags = 0;
 	int ret;
 
 	is_bpf = tb[TCA_BPF_OPS_LEN] && tb[TCA_BPF_OPS];
@@ -325,8 +421,17 @@ static int cls_bpf_modify_existing(struct net *net, struct tcf_proto *tp,
 
 		have_exts = bpf_flags & TCA_BPF_FLAG_ACT_DIRECT;
 	}
+	if (tb[TCA_BPF_FLAGS_GEN]) {
+		gen_flags = nla_get_u32(tb[TCA_BPF_FLAGS_GEN]);
+		if (gen_flags & ~CLS_BPF_SUPPORTED_GEN_FLAGS ||
+		    !tc_flags_valid(gen_flags)) {
+			ret = -EINVAL;
+			goto errout;
+		}
+	}
 
 	prog->exts_integrated = have_exts;
+	prog->gen_flags = gen_flags;
 
 	ret = is_bpf ? cls_bpf_prog_from_ops(tb, prog) :
 		       cls_bpf_prog_from_efd(tb, prog, tp);
@@ -409,9 +514,16 @@ static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
 		goto errout;
 	}
 
-	ret = cls_bpf_modify_existing(net, tp, prog, base, tb, tca[TCA_RATE], ovr);
+	ret = cls_bpf_modify_existing(net, tp, prog, base, tb, tca[TCA_RATE],
+				      ovr);
 	if (ret < 0)
 		goto errout;
+
+	ret = cls_bpf_offload(tp, prog, oldprog);
+	if (ret) {
+		cls_bpf_delete_prog(tp, prog);
+		return ret;
+	}
 
 	if (oldprog) {
 		list_replace_rcu(&oldprog->link, &prog->link);
@@ -474,6 +586,8 @@ static int cls_bpf_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 
 	tm->tcm_handle = prog->handle;
 
+	cls_bpf_offload_update_stats(tp, prog);
+
 	nest = nla_nest_start(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
@@ -495,6 +609,9 @@ static int cls_bpf_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 	if (prog->exts_integrated)
 		bpf_flags |= TCA_BPF_FLAG_ACT_DIRECT;
 	if (bpf_flags && nla_put_u32(skb, TCA_BPF_FLAGS, bpf_flags))
+		goto nla_put_failure;
+	if (prog->gen_flags &&
+	    nla_put_u32(skb, TCA_BPF_FLAGS_GEN, prog->gen_flags))
 		goto nla_put_failure;
 
 	nla_nest_end(skb, nest);

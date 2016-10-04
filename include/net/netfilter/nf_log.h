@@ -2,15 +2,10 @@
 #define _NF_LOG_H
 
 #include <linux/netfilter.h>
+#include <linux/netfilter/nf_log.h>
 
-/* those NF_LOG_* defines and struct nf_loginfo are legacy definitios that will
- * disappear once iptables is replaced with pkttables.  Please DO NOT use them
- * for any new code! */
-#define NF_LOG_TCPSEQ		0x01	/* Log TCP sequence numbers */
-#define NF_LOG_TCPOPT		0x02	/* Log TCP options */
-#define NF_LOG_IPOPT		0x04	/* Log IP options */
-#define NF_LOG_UID		0x08	/* Log UID owning local socket */
-#define NF_LOG_MASK		0x0f
+/* Log tcp sequence, tcp options, ip options and uid owning local socket */
+#define NF_LOG_DEFAULT_MASK	0x0f
 
 /* This flag indicates that copy_len field in nf_loginfo is set */
 #define NF_LOG_F_COPY_LEN	0x1

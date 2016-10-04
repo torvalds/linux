@@ -1810,8 +1810,10 @@ static void ixgbevf_configure_rx(struct ixgbevf_adapter *adapter)
 	if (hw->mac.type >= ixgbe_mac_X550_vf)
 		ixgbevf_setup_vfmrqc(adapter);
 
+	spin_lock_bh(&adapter->mbx_lock);
 	/* notify the PF of our intent to use this size of frame */
 	ret = hw->mac.ops.set_rlpml(hw, netdev->mtu + ETH_HLEN + ETH_FCS_LEN);
+	spin_unlock_bh(&adapter->mbx_lock);
 	if (ret)
 		dev_err(&adapter->pdev->dev,
 			"Failed to set MTU at %d\n", netdev->mtu);
@@ -3758,8 +3760,10 @@ static int ixgbevf_change_mtu(struct net_device *netdev, int new_mtu)
 	if ((new_mtu < 68) || (max_frame > max_possible_frame))
 		return -EINVAL;
 
+	spin_lock_bh(&adapter->mbx_lock);
 	/* notify the PF of our intent to use this size of frame */
 	ret = hw->mac.ops.set_rlpml(hw, max_frame);
+	spin_unlock_bh(&adapter->mbx_lock);
 	if (ret)
 		return -EINVAL;
 

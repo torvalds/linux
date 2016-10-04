@@ -603,7 +603,8 @@ static int nfit_test0_alloc(struct nfit_test *t)
 			return -ENOMEM;
 		sprintf(t->label[i], "label%d", i);
 
-		t->flush[i] = test_alloc(t, sizeof(u64) * NUM_HINTS,
+		t->flush[i] = test_alloc(t, max(PAGE_SIZE,
+					sizeof(u64) * NUM_HINTS),
 				&t->flush_dma[i]);
 		if (!t->flush[i])
 			return -ENOMEM;

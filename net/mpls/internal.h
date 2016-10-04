@@ -1,9 +1,6 @@
 #ifndef MPLS_INTERNAL_H
 #define MPLS_INTERNAL_H
-
-struct mpls_shim_hdr {
-	__be32 label_stack_entry;
-};
+#include <net/mpls.h>
 
 struct mpls_entry_decoded {
 	u32 label;
@@ -92,11 +89,6 @@ struct mpls_route { /* next hop label forwarding entry */
 	     nh++, nhsel++)
 
 #define endfor_nexthops(rt) }
-
-static inline struct mpls_shim_hdr *mpls_hdr(const struct sk_buff *skb)
-{
-	return (struct mpls_shim_hdr *)skb_network_header(skb);
-}
 
 static inline struct mpls_shim_hdr mpls_entry_encode(u32 label, unsigned ttl, unsigned tc, bool bos)
 {

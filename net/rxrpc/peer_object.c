@@ -244,6 +244,7 @@ static void rxrpc_init_peer(struct rxrpc_peer *peer, unsigned long hash_key)
 	peer->hash_key = hash_key;
 	rxrpc_assess_MTU_size(peer);
 	peer->mtu = peer->if_mtu;
+	peer->rtt_last_req = ktime_get_real();
 
 	switch (peer->srx.transport.family) {
 	case AF_INET:

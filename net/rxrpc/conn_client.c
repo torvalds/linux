@@ -105,6 +105,14 @@ static void rxrpc_discard_expired_client_conns(struct work_struct *);
 static DECLARE_DELAYED_WORK(rxrpc_client_conn_reap,
 			    rxrpc_discard_expired_client_conns);
 
+const char rxrpc_conn_cache_states[RXRPC_CONN__NR_CACHE_STATES][5] = {
+	[RXRPC_CONN_CLIENT_INACTIVE]	= "Inac",
+	[RXRPC_CONN_CLIENT_WAITING]	= "Wait",
+	[RXRPC_CONN_CLIENT_ACTIVE]	= "Actv",
+	[RXRPC_CONN_CLIENT_CULLED]	= "Cull",
+	[RXRPC_CONN_CLIENT_IDLE]	= "Idle",
+};
+
 /*
  * Get a connection ID and epoch for a client connection from the global pool.
  * The connection struct pointer is then recorded in the idr radix tree.  The
@@ -192,7 +200,7 @@ rxrpc_alloc_client_connection(struct rxrpc_conn_parameters *cp, gfp_t gfp)
 	}
 
 	atomic_set(&conn->usage, 1);
-	if (conn->params.exclusive)
+	if (cp->exclusive)
 		__set_bit(RXRPC_CONN_DONT_REUSE, &conn->flags);
 
 	conn->params		= *cp;
@@ -220,6 +228,9 @@ rxrpc_alloc_client_connection(struct rxrpc_conn_parameters *cp, gfp_t gfp)
 	rxrpc_get_local(conn->params.local);
 	key_get(conn->params.key);
 
+	trace_rxrpc_conn(conn, rxrpc_conn_new_client, atomic_read(&conn->usage),
+			 __builtin_return_address(0));
+	trace_rxrpc_client(conn, -1, rxrpc_client_alloc);
 	_leave(" = %p", conn);
 	return conn;
 
@@ -385,6 +396,7 @@ static int rxrpc_get_client_conn(struct rxrpc_call *call,
 			rb_replace_node(&conn->client_node,
 					&candidate->client_node,
 					&local->client_conns);
+			trace_rxrpc_client(conn, -1, rxrpc_client_replace);
 			goto candidate_published;
 		}
 	}
@@ -409,8 +421,11 @@ found_extant_conn:
 	_debug("found conn");
 	spin_unlock(&local->client_conns_lock);
 
-	rxrpc_put_connection(candidate);
-	candidate = NULL;
+	if (candidate) {
+		trace_rxrpc_client(candidate, -1, rxrpc_client_duplicate);
+		rxrpc_put_connection(candidate);
+		candidate = NULL;
+	}
 
 	spin_lock(&conn->channel_lock);
 	call->conn = conn;
@@ -433,6 +448,7 @@ error:
  */
 static void rxrpc_activate_conn(struct rxrpc_connection *conn)
 {
+	trace_rxrpc_client(conn, -1, rxrpc_client_to_active);
 	conn->cache_state = RXRPC_CONN_CLIENT_ACTIVE;
 	rxrpc_nr_active_client_conns++;
 	list_move_tail(&conn->cache_link, &rxrpc_active_client_conns);
@@ -462,8 +478,10 @@ static void rxrpc_animate_client_conn(struct rxrpc_connection *conn)
 	spin_lock(&rxrpc_client_conn_cache_lock);
 
 	nr_conns = rxrpc_nr_client_conns;
-	if (!test_and_set_bit(RXRPC_CONN_COUNTED, &conn->flags))
+	if (!test_and_set_bit(RXRPC_CONN_COUNTED, &conn->flags)) {
+		trace_rxrpc_client(conn, -1, rxrpc_client_count);
 		rxrpc_nr_client_conns = nr_conns + 1;
+	}
 
 	switch (conn->cache_state) {
 	case RXRPC_CONN_CLIENT_ACTIVE:
@@ -494,6 +512,7 @@ activate_conn:
 
 wait_for_capacity:
 	_debug("wait");
+	trace_rxrpc_client(conn, -1, rxrpc_client_to_waiting);
 	conn->cache_state = RXRPC_CONN_CLIENT_WAITING;
 	list_move_tail(&conn->cache_link, &rxrpc_waiting_client_conns);
 	goto out_unlock;
@@ -523,6 +542,8 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 	struct rxrpc_call *call = list_entry(conn->waiting_calls.next,
 					     struct rxrpc_call, chan_wait_link);
 	u32 call_id = chan->call_counter + 1;
+
+	trace_rxrpc_client(conn, channel, rxrpc_client_chan_activate);
 
 	write_lock_bh(&call->state_lock);
 	call->state = RXRPC_CALL_CLIENT_SEND_REQUEST;
@@ -555,26 +576,42 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 }
 
 /*
+ * Assign channels and callNumbers to waiting calls with channel_lock
+ * held by caller.
+ */
+static void rxrpc_activate_channels_locked(struct rxrpc_connection *conn)
+{
+	u8 avail, mask;
+
+	switch (conn->cache_state) {
+	case RXRPC_CONN_CLIENT_ACTIVE:
+		mask = RXRPC_ACTIVE_CHANS_MASK;
+		break;
+	default:
+		return;
+	}
+
+	while (!list_empty(&conn->waiting_calls) &&
+	       (avail = ~conn->active_chans,
+		avail &= mask,
+		avail != 0))
+		rxrpc_activate_one_channel(conn, __ffs(avail));
+}
+
+/*
  * Assign channels and callNumbers to waiting calls.
  */
 static void rxrpc_activate_channels(struct rxrpc_connection *conn)
 {
-	unsigned char mask;
-
 	_enter("%d", conn->debug_id);
 
-	if (conn->cache_state != RXRPC_CONN_CLIENT_ACTIVE ||
-	    conn->active_chans == RXRPC_ACTIVE_CHANS_MASK)
+	trace_rxrpc_client(conn, -1, rxrpc_client_activate_chans);
+
+	if (conn->active_chans == RXRPC_ACTIVE_CHANS_MASK)
 		return;
 
 	spin_lock(&conn->channel_lock);
-
-	while (!list_empty(&conn->waiting_calls) &&
-	       (mask = ~conn->active_chans,
-		mask &= RXRPC_ACTIVE_CHANS_MASK,
-		mask != 0))
-		rxrpc_activate_one_channel(conn, __ffs(mask));
-
+	rxrpc_activate_channels_locked(conn);
 	spin_unlock(&conn->channel_lock);
 	_leave("");
 }
@@ -657,10 +694,13 @@ int rxrpc_connect_call(struct rxrpc_call *call,
  * had a chance at re-use (the per-connection security negotiation is
  * expensive).
  */
-static void rxrpc_expose_client_conn(struct rxrpc_connection *conn)
+static void rxrpc_expose_client_conn(struct rxrpc_connection *conn,
+				     unsigned int channel)
 {
-	if (!test_and_set_bit(RXRPC_CONN_EXPOSED, &conn->flags))
+	if (!test_and_set_bit(RXRPC_CONN_EXPOSED, &conn->flags)) {
+		trace_rxrpc_client(conn, channel, rxrpc_client_exposed);
 		rxrpc_get_connection(conn);
+	}
 }
 
 /*
@@ -669,9 +709,9 @@ static void rxrpc_expose_client_conn(struct rxrpc_connection *conn)
  */
 void rxrpc_expose_client_call(struct rxrpc_call *call)
 {
+	unsigned int channel = call->cid & RXRPC_CHANNELMASK;
 	struct rxrpc_connection *conn = call->conn;
-	struct rxrpc_channel *chan =
-		&conn->channels[call->cid & RXRPC_CHANNELMASK];
+	struct rxrpc_channel *chan = &conn->channels[channel];
 
 	if (!test_and_set_bit(RXRPC_CALL_EXPOSED, &call->flags)) {
 		/* Mark the call ID as being used.  If the callNumber counter
@@ -682,7 +722,7 @@ void rxrpc_expose_client_call(struct rxrpc_call *call)
 		chan->call_counter++;
 		if (chan->call_counter >= INT_MAX)
 			set_bit(RXRPC_CONN_DONT_REUSE, &conn->flags);
-		rxrpc_expose_client_conn(conn);
+		rxrpc_expose_client_conn(conn, channel);
 	}
 }
 
@@ -695,6 +735,7 @@ void rxrpc_disconnect_client_call(struct rxrpc_call *call)
 	struct rxrpc_connection *conn = call->conn;
 	struct rxrpc_channel *chan = &conn->channels[channel];
 
+	trace_rxrpc_client(conn, channel, rxrpc_client_chan_disconnect);
 	call->conn = NULL;
 
 	spin_lock(&conn->channel_lock);
@@ -709,6 +750,8 @@ void rxrpc_disconnect_client_call(struct rxrpc_call *call)
 		ASSERT(!test_bit(RXRPC_CALL_EXPOSED, &call->flags));
 		list_del_init(&call->chan_wait_link);
 
+		trace_rxrpc_client(conn, channel, rxrpc_client_chan_unstarted);
+
 		/* We must deactivate or idle the connection if it's now
 		 * waiting for nothing.
 		 */
@@ -721,7 +764,6 @@ void rxrpc_disconnect_client_call(struct rxrpc_call *call)
 	}
 
 	ASSERTCMP(rcu_access_pointer(chan->call), ==, call);
-	ASSERTCMP(atomic_read(&conn->usage), >=, 2);
 
 	/* If a client call was exposed to the world, we save the result for
 	 * retransmission.
@@ -740,7 +782,7 @@ void rxrpc_disconnect_client_call(struct rxrpc_call *call)
 	/* See if we can pass the channel directly to another call. */
 	if (conn->cache_state == RXRPC_CONN_CLIENT_ACTIVE &&
 	    !list_empty(&conn->waiting_calls)) {
-		_debug("pass chan");
+		trace_rxrpc_client(conn, channel, rxrpc_client_chan_pass);
 		rxrpc_activate_one_channel(conn, channel);
 		goto out_2;
 	}
@@ -763,7 +805,7 @@ void rxrpc_disconnect_client_call(struct rxrpc_call *call)
 			goto out;
 		}
 
-		_debug("pass chan 2");
+		trace_rxrpc_client(conn, channel, rxrpc_client_chan_pass);
 		rxrpc_activate_one_channel(conn, channel);
 		goto out;
 
@@ -795,7 +837,7 @@ idle_connection:
 	 * immediately or moved to the idle list for a short while.
 	 */
 	if (test_bit(RXRPC_CONN_EXPOSED, &conn->flags)) {
-		_debug("make idle");
+		trace_rxrpc_client(conn, channel, rxrpc_client_to_idle);
 		conn->idle_timestamp = jiffies;
 		conn->cache_state = RXRPC_CONN_CLIENT_IDLE;
 		list_move_tail(&conn->cache_link, &rxrpc_idle_client_conns);
@@ -805,7 +847,7 @@ idle_connection:
 					   &rxrpc_client_conn_reap,
 					   rxrpc_conn_idle_client_expiry);
 	} else {
-		_debug("make inactive");
+		trace_rxrpc_client(conn, channel, rxrpc_client_to_inactive);
 		conn->cache_state = RXRPC_CONN_CLIENT_INACTIVE;
 		list_del_init(&conn->cache_link);
 	}
@@ -818,9 +860,11 @@ idle_connection:
 static struct rxrpc_connection *
 rxrpc_put_one_client_conn(struct rxrpc_connection *conn)
 {
-	struct rxrpc_connection *next;
+	struct rxrpc_connection *next = NULL;
 	struct rxrpc_local *local = conn->params.local;
 	unsigned int nr_conns;
+
+	trace_rxrpc_client(conn, -1, rxrpc_client_cleanup);
 
 	if (test_bit(RXRPC_CONN_IN_CLIENT_CONNS, &conn->flags)) {
 		spin_lock(&local->client_conns_lock);
@@ -834,24 +878,23 @@ rxrpc_put_one_client_conn(struct rxrpc_connection *conn)
 
 	ASSERTCMP(conn->cache_state, ==, RXRPC_CONN_CLIENT_INACTIVE);
 
-	if (!test_bit(RXRPC_CONN_COUNTED, &conn->flags))
-		return NULL;
+	if (test_bit(RXRPC_CONN_COUNTED, &conn->flags)) {
+		trace_rxrpc_client(conn, -1, rxrpc_client_uncount);
+		spin_lock(&rxrpc_client_conn_cache_lock);
+		nr_conns = --rxrpc_nr_client_conns;
 
-	spin_lock(&rxrpc_client_conn_cache_lock);
-	nr_conns = --rxrpc_nr_client_conns;
+		if (nr_conns < rxrpc_max_client_connections &&
+		    !list_empty(&rxrpc_waiting_client_conns)) {
+			next = list_entry(rxrpc_waiting_client_conns.next,
+					  struct rxrpc_connection, cache_link);
+			rxrpc_get_connection(next);
+			rxrpc_activate_conn(next);
+		}
 
-	next = NULL;
-	if (nr_conns < rxrpc_max_client_connections &&
-	    !list_empty(&rxrpc_waiting_client_conns)) {
-		next = list_entry(rxrpc_waiting_client_conns.next,
-				  struct rxrpc_connection, cache_link);
-		rxrpc_get_connection(next);
-		rxrpc_activate_conn(next);
+		spin_unlock(&rxrpc_client_conn_cache_lock);
 	}
 
-	spin_unlock(&rxrpc_client_conn_cache_lock);
 	rxrpc_kill_connection(conn);
-
 	if (next)
 		rxrpc_activate_channels(next);
 
@@ -866,20 +909,18 @@ rxrpc_put_one_client_conn(struct rxrpc_connection *conn)
  */
 void rxrpc_put_client_conn(struct rxrpc_connection *conn)
 {
-	struct rxrpc_connection *next;
+	const void *here = __builtin_return_address(0);
+	int n;
 
 	do {
-		_enter("%p{u=%d,d=%d}",
-		       conn, atomic_read(&conn->usage), conn->debug_id);
+		n = atomic_dec_return(&conn->usage);
+		trace_rxrpc_conn(conn, rxrpc_conn_put_client, n, here);
+		if (n > 0)
+			return;
+		ASSERTCMP(n, >=, 0);
 
-		next = rxrpc_put_one_client_conn(conn);
-
-		if (!next)
-			break;
-		conn = next;
-	} while (atomic_dec_and_test(&conn->usage));
-
-	_leave("");
+		conn = rxrpc_put_one_client_conn(conn);
+	} while (conn);
 }
 
 /*
@@ -910,9 +951,11 @@ static void rxrpc_cull_active_client_conns(void)
 		ASSERTCMP(conn->cache_state, ==, RXRPC_CONN_CLIENT_ACTIVE);
 
 		if (list_empty(&conn->waiting_calls)) {
+			trace_rxrpc_client(conn, -1, rxrpc_client_to_culled);
 			conn->cache_state = RXRPC_CONN_CLIENT_CULLED;
 			list_del_init(&conn->cache_link);
 		} else {
+			trace_rxrpc_client(conn, -1, rxrpc_client_to_waiting);
 			conn->cache_state = RXRPC_CONN_CLIENT_WAITING;
 			list_move_tail(&conn->cache_link,
 				       &rxrpc_waiting_client_conns);
@@ -986,7 +1029,7 @@ next:
 			goto not_yet_expired;
 	}
 
-	_debug("discard conn %d", conn->debug_id);
+	trace_rxrpc_client(conn, -1, rxrpc_client_discard);
 	if (!test_and_clear_bit(RXRPC_CONN_EXPOSED, &conn->flags))
 		BUG();
 	conn->cache_state = RXRPC_CONN_CLIENT_INACTIVE;

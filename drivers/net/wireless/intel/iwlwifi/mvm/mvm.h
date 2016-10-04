@@ -604,16 +604,9 @@ enum iwl_mvm_tdls_cs_state {
 };
 
 struct iwl_mvm_shared_mem_cfg {
-	u32 shared_mem_addr;
-	u32 shared_mem_size;
-	u32 sample_buff_addr;
-	u32 sample_buff_size;
-	u32 txfifo_addr;
+	int num_txfifo_entries;
 	u32 txfifo_size[TX_FIFO_MAX_NUM];
 	u32 rxfifo_size[RX_FIFO_MAX_NUM];
-	u32 page_buff_addr;
-	u32 page_buff_size;
-	u32 rxfifo_addr;
 	u32 internal_txfifo_addr;
 	u32 internal_txfifo_size[TX_FIFO_INTERNAL_MAX_NUM];
 };
@@ -827,6 +820,12 @@ struct iwl_mvm {
 
 	/* UMAC scan tracking */
 	u32 scan_uid_status[IWL_MVM_MAX_UMAC_SCANS];
+
+	/* start time of last scan in TSF of the mac that requested the scan */
+	u64 scan_start;
+
+	/* the vif that requested the current scan */
+	struct iwl_mvm_vif *scan_vif;
 
 	/* rx chain antennas set through debugfs for the scan command */
 	u8 scan_rx_ant;
@@ -1269,6 +1268,7 @@ u8 iwl_mvm_mac80211_idx_to_hwrate(int rate_idx);
 void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm);
 u8 first_antenna(u8 mask);
 u8 iwl_mvm_next_antenna(struct iwl_mvm *mvm, u8 valid, u8 last_idx);
+void iwl_mvm_get_sync_time(struct iwl_mvm *mvm, u32 *gp2, u64 *boottime);
 
 /* Tx / Host Commands */
 int __must_check iwl_mvm_send_cmd(struct iwl_mvm *mvm,
@@ -1305,8 +1305,6 @@ static inline void iwl_mvm_set_tx_cmd_ccmp(struct ieee80211_tx_info *info,
 
 	tx_cmd->sec_ctl = TX_CMD_SEC_CCM;
 	memcpy(tx_cmd->key, keyconf->key, keyconf->keylen);
-	if (info->flags & IEEE80211_TX_CTL_AMPDU)
-		tx_cmd->tx_flags |= cpu_to_le32(TX_CMD_FLG_CCMP_AGG);
 }
 
 static inline void iwl_mvm_wait_for_async_handlers(struct iwl_mvm *mvm)

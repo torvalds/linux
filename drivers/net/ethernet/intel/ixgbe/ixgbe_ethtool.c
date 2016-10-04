@@ -313,6 +313,25 @@ static int ixgbe_get_settings(struct net_device *netdev,
 		break;
 	}
 
+	/* Indicate pause support */
+	ecmd->supported |= SUPPORTED_Pause;
+
+	switch (hw->fc.requested_mode) {
+	case ixgbe_fc_full:
+		ecmd->advertising |= ADVERTISED_Pause;
+		break;
+	case ixgbe_fc_rx_pause:
+		ecmd->advertising |= ADVERTISED_Pause |
+				     ADVERTISED_Asym_Pause;
+		break;
+	case ixgbe_fc_tx_pause:
+		ecmd->advertising |= ADVERTISED_Asym_Pause;
+		break;
+	default:
+		ecmd->advertising &= ~(ADVERTISED_Pause |
+				       ADVERTISED_Asym_Pause);
+	}
+
 	if (netif_carrier_ok(netdev)) {
 		switch (adapter->link_speed) {
 		case IXGBE_LINK_SPEED_10GB_FULL:
@@ -2928,9 +2947,13 @@ static u32 ixgbe_rss_indir_size(struct net_device *netdev)
 static void ixgbe_get_reta(struct ixgbe_adapter *adapter, u32 *indir)
 {
 	int i, reta_size = ixgbe_rss_indir_tbl_entries(adapter);
+	u16 rss_m = adapter->ring_feature[RING_F_RSS].mask;
+
+	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
+		rss_m = adapter->ring_feature[RING_F_RSS].indices - 1;
 
 	for (i = 0; i < reta_size; i++)
-		indir[i] = adapter->rss_indir_tbl[i];
+		indir[i] = adapter->rss_indir_tbl[i] & rss_m;
 }
 
 static int ixgbe_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
@@ -3041,8 +3064,8 @@ static unsigned int ixgbe_max_channels(struct ixgbe_adapter *adapter)
 		/* We only support one q_vector without MSI-X */
 		max_combined = 1;
 	} else if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) {
-		/* SR-IOV currently only allows one queue on the PF */
-		max_combined = 1;
+		/* Limit value based on the queue mask */
+		max_combined = adapter->ring_feature[RING_F_RSS].mask + 1;
 	} else if (tcs > 1) {
 		/* For DCB report channels per traffic class */
 		if (adapter->hw.mac.type == ixgbe_mac_82598EB) {

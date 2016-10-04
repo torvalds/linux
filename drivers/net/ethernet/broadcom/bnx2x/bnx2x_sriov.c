@@ -2521,7 +2521,8 @@ void bnx2x_pf_set_vfs_vlan(struct bnx2x *bp)
 	for_each_vf(bp, vfidx) {
 		bulletin = BP_VF_BULLETIN(bp, vfidx);
 		if (bulletin->valid_bitmap & (1 << VLAN_VALID))
-			bnx2x_set_vf_vlan(bp->dev, vfidx, bulletin->vlan, 0);
+			bnx2x_set_vf_vlan(bp->dev, vfidx, bulletin->vlan, 0,
+					  htons(ETH_P_8021Q));
 	}
 }
 
@@ -2781,7 +2782,8 @@ static int bnx2x_set_vf_vlan_filter(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	return 0;
 }
 
-int bnx2x_set_vf_vlan(struct net_device *dev, int vfidx, u16 vlan, u8 qos)
+int bnx2x_set_vf_vlan(struct net_device *dev, int vfidx, u16 vlan, u8 qos,
+		      __be16 vlan_proto)
 {
 	struct pf_vf_bulletin_content *bulletin = NULL;
 	struct bnx2x *bp = netdev_priv(dev);
@@ -2795,6 +2797,9 @@ int bnx2x_set_vf_vlan(struct net_device *dev, int vfidx, u16 vlan, u8 qos)
 		BNX2X_ERR("illegal vlan value %d\n", vlan);
 		return -EINVAL;
 	}
+
+	if (vlan_proto != htons(ETH_P_8021Q))
+		return -EPROTONOSUPPORT;
 
 	DP(BNX2X_MSG_IOV, "configuring VF %d with VLAN %d qos %d\n",
 	   vfidx, vlan, 0);

@@ -600,7 +600,7 @@ static irqreturn_t hip04_mac_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-enum hrtimer_restart tx_done(struct hrtimer *hrtimer)
+static enum hrtimer_restart tx_done(struct hrtimer *hrtimer)
 {
 	struct hip04_priv *priv;
 

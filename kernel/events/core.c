@@ -2496,11 +2496,11 @@ static int __perf_event_stop(void *info)
 	return 0;
 }
 
-static int perf_event_restart(struct perf_event *event)
+static int perf_event_stop(struct perf_event *event, int restart)
 {
 	struct stop_event_data sd = {
 		.event		= event,
-		.restart	= 1,
+		.restart	= restart,
 	};
 	int ret = 0;
 
@@ -3549,10 +3549,18 @@ static int perf_event_read(struct perf_event *event, bool group)
 			.group = group,
 			.ret = 0,
 		};
-		ret = smp_call_function_single(event->oncpu, __perf_event_read, &data, 1);
-		/* The event must have been read from an online CPU: */
-		WARN_ON_ONCE(ret);
-		ret = ret ? : data.ret;
+		/*
+		 * Purposely ignore the smp_call_function_single() return
+		 * value.
+		 *
+		 * If event->oncpu isn't a valid CPU it means the event got
+		 * scheduled out and that will have updated the event count.
+		 *
+		 * Therefore, either way, we'll have an up-to-date event count
+		 * after this.
+		 */
+		(void)smp_call_function_single(event->oncpu, __perf_event_read, &data, 1);
+		ret = data.ret;
 	} else if (event->state == PERF_EVENT_STATE_INACTIVE) {
 		struct perf_event_context *ctx = event->ctx;
 		unsigned long flags;
@@ -3921,7 +3929,7 @@ static void exclusive_event_destroy(struct perf_event *event)
 
 static bool exclusive_event_match(struct perf_event *e1, struct perf_event *e2)
 {
-	if ((e1->pmu->capabilities & PERF_PMU_CAP_EXCLUSIVE) &&
+	if ((e1->pmu == e2->pmu) &&
 	    (e1->cpu == e2->cpu ||
 	     e1->cpu == -1 ||
 	     e2->cpu == -1))
@@ -4836,6 +4844,19 @@ static void ring_buffer_attach(struct perf_event *event,
 		list_add_rcu(&event->rb_entry, &rb->event_list);
 		spin_unlock_irqrestore(&rb->event_lock, flags);
 	}
+
+	/*
+	 * Avoid racing with perf_mmap_close(AUX): stop the event
+	 * before swizzling the event::rb pointer; if it's getting
+	 * unmapped, its aux_mmap_count will be 0 and it won't
+	 * restart. See the comment in __perf_pmu_output_stop().
+	 *
+	 * Data will inevitably be lost when set_output is done in
+	 * mid-air, but then again, whoever does it like this is
+	 * not in for the data anyway.
+	 */
+	if (has_aux(event))
+		perf_event_stop(event, 0);
 
 	rcu_assign_pointer(event->rb, rb);
 
@@ -6112,7 +6133,7 @@ static void perf_event_addr_filters_exec(struct perf_event *event, void *data)
 	raw_spin_unlock_irqrestore(&ifh->lock, flags);
 
 	if (restart)
-		perf_event_restart(event);
+		perf_event_stop(event, 1);
 }
 
 void perf_event_exec(void)
@@ -6156,7 +6177,13 @@ static void __perf_event_output_stop(struct perf_event *event, void *data)
 
 	/*
 	 * In case of inheritance, it will be the parent that links to the
-	 * ring-buffer, but it will be the child that's actually using it:
+	 * ring-buffer, but it will be the child that's actually using it.
+	 *
+	 * We are using event::rb to determine if the event should be stopped,
+	 * however this may race with ring_buffer_attach() (through set_output),
+	 * which will make us skip the event that actually needs to be stopped.
+	 * So ring_buffer_attach() has to stop an aux event before re-assigning
+	 * its rb pointer.
 	 */
 	if (rcu_dereference(parent->rb) == rb)
 		ro->err = __perf_event_stop(&sd);
@@ -6670,7 +6697,7 @@ static void __perf_addr_filters_adjust(struct perf_event *event, void *data)
 	raw_spin_unlock_irqrestore(&ifh->lock, flags);
 
 	if (restart)
-		perf_event_restart(event);
+		perf_event_stop(event, 1);
 }
 
 /*
@@ -7933,7 +7960,7 @@ static void perf_event_addr_filters_apply(struct perf_event *event)
 	mmput(mm);
 
 restart:
-	perf_event_restart(event);
+	perf_event_stop(event, 1);
 }
 
 /*

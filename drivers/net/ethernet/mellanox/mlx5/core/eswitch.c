@@ -81,9 +81,6 @@ enum {
 			    MC_ADDR_CHANGE | \
 			    PROMISC_CHANGE)
 
-int esw_offloads_init(struct mlx5_eswitch *esw, int nvports);
-void esw_offloads_cleanup(struct mlx5_eswitch *esw, int nvports);
-
 static int arm_vport_context_events_cmd(struct mlx5_core_dev *dev, u16 vport,
 					u32 events_mask)
 {
@@ -130,7 +127,7 @@ static int modify_esw_vport_context_cmd(struct mlx5_core_dev *dev, u16 vport,
 }
 
 static int modify_esw_vport_cvlan(struct mlx5_core_dev *dev, u32 vport,
-				  u16 vlan, u8 qos, bool set)
+				  u16 vlan, u8 qos, u8 set_flags)
 {
 	u32 in[MLX5_ST_SZ_DW(modify_esw_vport_context_in)] = {0};
 
@@ -138,14 +135,18 @@ static int modify_esw_vport_cvlan(struct mlx5_core_dev *dev, u32 vport,
 	    !MLX5_CAP_ESW(dev, vport_cvlan_insert_if_not_exist))
 		return -ENOTSUPP;
 
-	esw_debug(dev, "Set Vport[%d] VLAN %d qos %d set=%d\n",
-		  vport, vlan, qos, set);
-	if (set) {
+	esw_debug(dev, "Set Vport[%d] VLAN %d qos %d set=%x\n",
+		  vport, vlan, qos, set_flags);
+
+	if (set_flags & SET_VLAN_STRIP)
 		MLX5_SET(modify_esw_vport_context_in, in,
 			 esw_vport_context.vport_cvlan_strip, 1);
+
+	if (set_flags & SET_VLAN_INSERT) {
 		/* insert only if no vlan in packet */
 		MLX5_SET(modify_esw_vport_context_in, in,
 			 esw_vport_context.vport_cvlan_insert, 1);
+
 		MLX5_SET(modify_esw_vport_context_in, in,
 			 esw_vport_context.cvlan_pcp, qos);
 		MLX5_SET(modify_esw_vport_context_in, in,
@@ -1492,6 +1493,7 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 
 abort:
 	esw_enable_vport(esw, 0, UC_ADDR_CHANGE);
+	esw->mode = SRIOV_NONE;
 	return err;
 }
 
@@ -1780,25 +1782,21 @@ int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
 	return 0;
 }
 
-int mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
-				int vport, u16 vlan, u8 qos)
+int __mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
+				  int vport, u16 vlan, u8 qos, u8 set_flags)
 {
 	struct mlx5_vport *evport;
 	int err = 0;
-	int set = 0;
 
 	if (!ESW_ALLOWED(esw))
 		return -EPERM;
 	if (!LEGAL_VPORT(esw, vport) || (vlan > 4095) || (qos > 7))
 		return -EINVAL;
 
-	if (vlan || qos)
-		set = 1;
-
 	mutex_lock(&esw->state_lock);
 	evport = &esw->vports[vport];
 
-	err = modify_esw_vport_cvlan(esw->dev, vport, vlan, qos, set);
+	err = modify_esw_vport_cvlan(esw->dev, vport, vlan, qos, set_flags);
 	if (err)
 		goto unlock;
 
@@ -1814,6 +1812,17 @@ int mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 unlock:
 	mutex_unlock(&esw->state_lock);
 	return err;
+}
+
+int mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
+				int vport, u16 vlan, u8 qos)
+{
+	u8 set_flags = 0;
+
+	if (vlan || qos)
+		set_flags = SET_VLAN_STRIP | SET_VLAN_INSERT;
+
+	return __mlx5_eswitch_set_vport_vlan(esw, vport, vlan, qos, set_flags);
 }
 
 int mlx5_eswitch_set_vport_spoofchk(struct mlx5_eswitch *esw,

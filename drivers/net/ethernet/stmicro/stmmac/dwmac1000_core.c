@@ -261,7 +261,7 @@ static void dwmac1000_pmt(struct mac_device_info *hw, unsigned long mode)
 	}
 	if (mode & WAKE_UCAST) {
 		pr_debug("GMAC: WOL on global unicast\n");
-		pmt |= global_unicast;
+		pmt |= power_down | global_unicast | wake_up_frame_en;
 	}
 
 	writel(pmt, ioaddr + GMAC_PMT);

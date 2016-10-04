@@ -137,6 +137,7 @@ static irqreturn_t xgene_enet_rx_irq(const int irq, void *data)
 static int xgene_enet_tx_completion(struct xgene_enet_desc_ring *cp_ring,
 				    struct xgene_enet_raw_desc *raw_desc)
 {
+	struct xgene_enet_pdata *pdata = netdev_priv(cp_ring->ndev);
 	struct sk_buff *skb;
 	struct device *dev;
 	skb_frag_t *frag;
@@ -144,6 +145,7 @@ static int xgene_enet_tx_completion(struct xgene_enet_desc_ring *cp_ring,
 	u16 skb_index;
 	u8 status;
 	int i, ret = 0;
+	u8 mss_index;
 
 	skb_index = GET_VAL(USERINFO, le64_to_cpu(raw_desc->m0));
 	skb = cp_ring->cp_skb[skb_index];
@@ -158,6 +160,13 @@ static int xgene_enet_tx_completion(struct xgene_enet_desc_ring *cp_ring,
 		frag = &skb_shinfo(skb)->frags[i];
 		dma_unmap_page(dev, frag_dma_addr[i], skb_frag_size(frag),
 			       DMA_TO_DEVICE);
+	}
+
+	if (GET_BIT(ET, le64_to_cpu(raw_desc->m3))) {
+		mss_index = GET_VAL(MSS, le64_to_cpu(raw_desc->m3));
+		spin_lock(&pdata->mss_lock);
+		pdata->mss_refcnt[mss_index]--;
+		spin_unlock(&pdata->mss_lock);
 	}
 
 	/* Checking for error */
@@ -178,15 +187,53 @@ static int xgene_enet_tx_completion(struct xgene_enet_desc_ring *cp_ring,
 	return ret;
 }
 
-static u64 xgene_enet_work_msg(struct sk_buff *skb)
+static int xgene_enet_setup_mss(struct net_device *ndev, u32 mss)
+{
+	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
+	bool mss_index_found = false;
+	int mss_index;
+	int i;
+
+	spin_lock(&pdata->mss_lock);
+
+	/* Reuse the slot if MSS matches */
+	for (i = 0; !mss_index_found && i < NUM_MSS_REG; i++) {
+		if (pdata->mss[i] == mss) {
+			pdata->mss_refcnt[i]++;
+			mss_index = i;
+			mss_index_found = true;
+		}
+	}
+
+	/* Overwrite the slot with ref_count = 0 */
+	for (i = 0; !mss_index_found && i < NUM_MSS_REG; i++) {
+		if (!pdata->mss_refcnt[i]) {
+			pdata->mss_refcnt[i]++;
+			pdata->mac_ops->set_mss(pdata, mss, i);
+			pdata->mss[i] = mss;
+			mss_index = i;
+			mss_index_found = true;
+		}
+	}
+
+	spin_unlock(&pdata->mss_lock);
+
+	/* No slots with ref_count = 0 available, return busy */
+	if (!mss_index_found)
+		return -EBUSY;
+
+	return mss_index;
+}
+
+static int xgene_enet_work_msg(struct sk_buff *skb, u64 *hopinfo)
 {
 	struct net_device *ndev = skb->dev;
 	struct iphdr *iph;
 	u8 l3hlen = 0, l4hlen = 0;
 	u8 ethhdr, proto = 0, csum_enable = 0;
-	u64 hopinfo = 0;
 	u32 hdr_len, mss = 0;
 	u32 i, len, nr_frags;
+	int mss_index;
 
 	ethhdr = xgene_enet_hdr_len(skb->data);
 
@@ -226,7 +273,11 @@ static u64 xgene_enet_work_msg(struct sk_buff *skb)
 			if (!mss || ((skb->len - hdr_len) <= mss))
 				goto out;
 
-			hopinfo |= SET_BIT(ET);
+			mss_index = xgene_enet_setup_mss(ndev, mss);
+			if (unlikely(mss_index < 0))
+				return -EBUSY;
+
+			*hopinfo |= SET_BIT(ET) | SET_VAL(MSS, mss_index);
 		}
 	} else if (iph->protocol == IPPROTO_UDP) {
 		l4hlen = UDP_HDR_SIZE;
@@ -234,15 +285,15 @@ static u64 xgene_enet_work_msg(struct sk_buff *skb)
 	}
 out:
 	l3hlen = ip_hdrlen(skb) >> 2;
-	hopinfo |= SET_VAL(TCPHDR, l4hlen) |
-		  SET_VAL(IPHDR, l3hlen) |
-		  SET_VAL(ETHHDR, ethhdr) |
-		  SET_VAL(EC, csum_enable) |
-		  SET_VAL(IS, proto) |
-		  SET_BIT(IC) |
-		  SET_BIT(TYPE_ETH_WORK_MESSAGE);
+	*hopinfo |= SET_VAL(TCPHDR, l4hlen) |
+		    SET_VAL(IPHDR, l3hlen) |
+		    SET_VAL(ETHHDR, ethhdr) |
+		    SET_VAL(EC, csum_enable) |
+		    SET_VAL(IS, proto) |
+		    SET_BIT(IC) |
+		    SET_BIT(TYPE_ETH_WORK_MESSAGE);
 
-	return hopinfo;
+	return 0;
 }
 
 static u16 xgene_enet_encode_len(u16 len)
@@ -282,20 +333,22 @@ static int xgene_enet_setup_tx_desc(struct xgene_enet_desc_ring *tx_ring,
 	dma_addr_t dma_addr, pbuf_addr, *frag_dma_addr;
 	skb_frag_t *frag;
 	u16 tail = tx_ring->tail;
-	u64 hopinfo;
+	u64 hopinfo = 0;
 	u32 len, hw_len;
 	u8 ll = 0, nv = 0, idx = 0;
 	bool split = false;
 	u32 size, offset, ell_bytes = 0;
 	u32 i, fidx, nr_frags, count = 1;
+	int ret;
 
 	raw_desc = &tx_ring->raw_desc[tail];
 	tail = (tail + 1) & (tx_ring->slots - 1);
 	memset(raw_desc, 0, sizeof(struct xgene_enet_raw_desc));
 
-	hopinfo = xgene_enet_work_msg(skb);
-	if (!hopinfo)
-		return -EINVAL;
+	ret = xgene_enet_work_msg(skb, &hopinfo);
+	if (ret)
+		return ret;
+
 	raw_desc->m3 = cpu_to_le64(SET_VAL(HENQNUM, tx_ring->dst_ring_num) |
 				   hopinfo);
 
@@ -435,6 +488,9 @@ static netdev_tx_t xgene_enet_start_xmit(struct sk_buff *skb,
 		return NETDEV_TX_OK;
 
 	count = xgene_enet_setup_tx_desc(tx_ring, skb);
+	if (count == -EBUSY)
+		return NETDEV_TX_BUSY;
+
 	if (count <= 0) {
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
@@ -1669,7 +1725,7 @@ static int xgene_enet_probe(struct platform_device *pdev)
 
 	if (pdata->phy_mode == PHY_INTERFACE_MODE_XGMII) {
 		ndev->features |= NETIF_F_TSO;
-		pdata->mss = XGENE_ENET_MSS;
+		spin_lock_init(&pdata->mss_lock);
 	}
 	ndev->hw_features = ndev->features;
 

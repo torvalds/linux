@@ -3514,6 +3514,12 @@ void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 			continue;
 		}
 
+		/* mac80211 would have already asked us to stop beaconing and
+		 * bring the vdev down, so continue in that case
+		 */
+		if (!arvif->is_up)
+			continue;
+
 		/* There are no completions for beacons so wait for next SWBA
 		 * before telling mac80211 to decrement CSA counter
 		 *

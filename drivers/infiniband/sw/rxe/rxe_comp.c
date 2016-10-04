@@ -689,7 +689,14 @@ int rxe_completer(void *arg)
 					qp->req.need_retry = 1;
 					rxe_run_task(&qp->req.task, 1);
 				}
+
+				if (pkt) {
+					rxe_drop_ref(pkt->qp);
+					kfree_skb(skb);
+				}
+
 				goto exit;
+
 			} else {
 				wqe->status = IB_WC_RETRY_EXC_ERR;
 				state = COMPST_ERROR;
@@ -716,6 +723,12 @@ int rxe_completer(void *arg)
 		case COMPST_ERROR:
 			do_complete(qp, wqe);
 			rxe_qp_error(qp);
+
+			if (pkt) {
+				rxe_drop_ref(pkt->qp);
+				kfree_skb(skb);
+			}
+
 			goto exit;
 		}
 	}

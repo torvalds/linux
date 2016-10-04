@@ -123,7 +123,7 @@ static inline void tcf_exts_to_list(const struct tcf_exts *exts,
 	for (i = 0; i < exts->nr_actions; i++) {
 		struct tc_action *a = exts->actions[i];
 
-		list_add(&a->list, actions);
+		list_add_tail(&a->list, actions);
 	}
 #endif
 }
@@ -484,6 +484,22 @@ struct tc_cls_matchall_offload {
 	enum tc_matchall_command command;
 	struct tcf_exts *exts;
 	unsigned long cookie;
+};
+
+enum tc_clsbpf_command {
+	TC_CLSBPF_ADD,
+	TC_CLSBPF_REPLACE,
+	TC_CLSBPF_DESTROY,
+	TC_CLSBPF_STATS,
+};
+
+struct tc_cls_bpf_offload {
+	enum tc_clsbpf_command command;
+	struct tcf_exts *exts;
+	struct bpf_prog *prog;
+	const char *name;
+	bool exts_integrated;
+	u32 gen_flags;
 };
 
 #endif

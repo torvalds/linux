@@ -21,10 +21,10 @@ struct nft_quota {
 	atomic64_t	remain;
 };
 
-static inline long nft_quota(struct nft_quota *priv,
-			     const struct nft_pktinfo *pkt)
+static inline bool nft_overquota(struct nft_quota *priv,
+				 const struct nft_pktinfo *pkt)
 {
-	return atomic64_sub_return(pkt->skb->len, &priv->remain);
+	return atomic64_sub_return(pkt->skb->len, &priv->remain) < 0;
 }
 
 static void nft_quota_eval(const struct nft_expr *expr,
@@ -33,7 +33,7 @@ static void nft_quota_eval(const struct nft_expr *expr,
 {
 	struct nft_quota *priv = nft_expr_priv(expr);
 
-	if (nft_quota(priv, pkt) < 0 && !priv->invert)
+	if (nft_overquota(priv, pkt) ^ priv->invert)
 		regs->verdict.code = NFT_BREAK;
 }
 

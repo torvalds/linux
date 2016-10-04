@@ -1232,7 +1232,7 @@ struct ieee80211_local {
 	spinlock_t tim_lock;
 	unsigned long num_sta;
 	struct list_head sta_list;
-	struct rhashtable sta_hash;
+	struct rhltable sta_hash;
 	struct timer_list sta_cleanup;
 	int sta_generation;
 

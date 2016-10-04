@@ -676,6 +676,7 @@
 #define REG_SCH_TXCMD			0x05d0
 
 /* define REG_FW_TSF_SYNC_CNT		0x04a0 */
+#define REG_SCH_TX_CMD			0x05f8
 #define REG_FW_RESET_TSF_CNT_1		0x05fc
 #define REG_FW_RESET_TSF_CNT_0		0x05fd
 #define REG_FW_BCN_DIS_CNT		0x05fe

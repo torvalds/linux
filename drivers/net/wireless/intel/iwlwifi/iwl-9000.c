@@ -55,10 +55,10 @@
 #include "iwl-agn-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL9000_UCODE_API_MAX	24
+#define IWL9000_UCODE_API_MAX	26
 
 /* Lowest firmware API version supported */
-#define IWL9000_UCODE_API_MIN	16
+#define IWL9000_UCODE_API_MIN	17
 
 /* NVM versions */
 #define IWL9000_NVM_VERSION		0x0a1d
@@ -178,6 +178,17 @@ const struct iwl_cfg iwl9270_2ac_cfg = {
 
 const struct iwl_cfg iwl9460_2ac_cfg = {
 	.name = "Intel(R) Dual Band Wireless AC 9460",
+	.fw_name_pre = IWL9000_FW_PRE,
+	IWL_DEVICE_9000,
+	.ht_params = &iwl9000_ht_params,
+	.nvm_ver = IWL9000_NVM_VERSION,
+	.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
+	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+	.integrated = true,
+};
+
+const struct iwl_cfg iwl9560_2ac_cfg = {
+	.name = "Intel(R) Dual Band Wireless AC 9560",
 	.fw_name_pre = IWL9000_FW_PRE,
 	IWL_DEVICE_9000,
 	.ht_params = &iwl9000_ht_params,

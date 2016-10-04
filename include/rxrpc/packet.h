@@ -123,6 +123,7 @@ struct rxrpc_ackpacket {
 #define RXRPC_ACK_PING_RESPONSE		7	/* response to RXRPC_ACK_PING */
 #define RXRPC_ACK_DELAY			8	/* nothing happened since received packet */
 #define RXRPC_ACK_IDLE			9	/* ACK due to fully received ACK window */
+#define RXRPC_ACK__INVALID		10	/* Representation of invalid ACK reason */
 
 	uint8_t		nAcks;		/* number of ACKs */
 #define RXRPC_MAXACKS	255

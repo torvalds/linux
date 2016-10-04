@@ -635,7 +635,7 @@ static void netvsc_send_tx_complete(struct netvsc_device *net_device,
 		q_idx = nvsc_packet->q_idx;
 		channel = incoming_channel;
 
-		dev_kfree_skb_any(skb);
+		dev_consume_skb_any(skb);
 	}
 
 	num_outstanding_sends =
@@ -944,7 +944,7 @@ int netvsc_send(struct hv_device *device,
 		}
 
 		if (msdp->skb)
-			dev_kfree_skb_any(msdp->skb);
+			dev_consume_skb_any(msdp->skb);
 
 		if (xmit_more && !packet->cp_partial) {
 			msdp->skb = skb;

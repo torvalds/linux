@@ -131,10 +131,10 @@ int rxrpc_init_server_conn_security(struct rxrpc_connection *conn)
 
 	/* find the service */
 	read_lock(&local->services_lock);
-	hlist_for_each_entry(rx, &local->services, listen_link) {
-		if (rx->srx.srx_service == conn->params.service_id)
-			goto found_service;
-	}
+	rx = rcu_dereference_protected(local->service,
+				       lockdep_is_held(&local->services_lock));
+	if (rx && rx->srx.srx_service == conn->params.service_id)
+		goto found_service;
 
 	/* the service appears to have died */
 	read_unlock(&local->services_lock);

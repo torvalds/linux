@@ -45,7 +45,9 @@ static int rxrpc_wait_for_tx_window(struct rxrpc_sock *rx,
 	for (;;) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		ret = 0;
-		if (call->tx_top - call->tx_hard_ack < call->tx_winsize)
+		if (call->tx_top - call->tx_hard_ack <
+		    min_t(unsigned int, call->tx_winsize,
+			  call->cong_cwnd + call->cong_extra))
 			break;
 		if (call->state >= RXRPC_CALL_COMPLETE) {
 			ret = -call->error;
@@ -56,6 +58,7 @@ static int rxrpc_wait_for_tx_window(struct rxrpc_sock *rx,
 			break;
 		}
 
+		trace_rxrpc_transmit(call, rxrpc_transmit_wait);
 		release_sock(&rx->sk);
 		*timeo = schedule_timeout(*timeo);
 		lock_sock(&rx->sk);
@@ -93,19 +96,30 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	rxrpc_seq_t seq = sp->hdr.seq;
 	int ret, ix;
+	u8 annotation = RXRPC_TX_ANNO_UNACK;
 
 	_net("queue skb %p [%d]", skb, seq);
 
 	ASSERTCMP(seq, ==, call->tx_top + 1);
 
+	if (last)
+		annotation |= RXRPC_TX_ANNO_LAST;
+
+	/* We have to set the timestamp before queueing as the retransmit
+	 * algorithm can see the packet as soon as we queue it.
+	 */
+	skb->tstamp = ktime_get_real();
+
 	ix = seq & RXRPC_RXTX_BUFF_MASK;
-	rxrpc_get_skb(skb);
-	call->rxtx_annotations[ix] = RXRPC_TX_ANNO_UNACK;
+	rxrpc_get_skb(skb, rxrpc_skb_tx_got);
+	call->rxtx_annotations[ix] = annotation;
 	smp_wmb();
 	call->rxtx_buffer[ix] = skb;
 	call->tx_top = seq;
 	if (last)
-		set_bit(RXRPC_CALL_TX_LAST, &call->flags);
+		trace_rxrpc_transmit(call, rxrpc_transmit_queue_last);
+	else
+		trace_rxrpc_transmit(call, rxrpc_transmit_queue);
 
 	if (last || call->state == RXRPC_CALL_SERVER_ACK_REQUEST) {
 		_debug("________awaiting reply/ACK__________");
@@ -127,43 +141,26 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 		write_unlock_bh(&call->state_lock);
 	}
 
-	_proto("Tx DATA %%%u { #%u }", sp->hdr.serial, sp->hdr.seq);
-
 	if (seq == 1 && rxrpc_is_client_call(call))
 		rxrpc_expose_client_call(call);
 
-	sp->resend_at = jiffies + rxrpc_resend_timeout;
-	ret = rxrpc_send_data_packet(call->conn, skb);
+	ret = rxrpc_send_data_packet(call, skb, false);
 	if (ret < 0) {
 		_debug("need instant resend %d", ret);
 		rxrpc_instant_resend(call, ix);
+	} else {
+		ktime_t now = ktime_get_real(), resend_at;
+
+		resend_at = ktime_add_ms(now, rxrpc_resend_timeout);
+
+		if (ktime_before(resend_at, call->resend_at)) {
+			call->resend_at = resend_at;
+			rxrpc_set_timer(call, rxrpc_timer_set_for_send, now);
+		}
 	}
 
-	rxrpc_free_skb(skb);
+	rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
 	_leave("");
-}
-
-/*
- * Convert a host-endian header into a network-endian header.
- */
-static void rxrpc_insert_header(struct sk_buff *skb)
-{
-	struct rxrpc_wire_header whdr;
-	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-
-	whdr.epoch	= htonl(sp->hdr.epoch);
-	whdr.cid	= htonl(sp->hdr.cid);
-	whdr.callNumber	= htonl(sp->hdr.callNumber);
-	whdr.seq	= htonl(sp->hdr.seq);
-	whdr.serial	= htonl(sp->hdr.serial);
-	whdr.type	= sp->hdr.type;
-	whdr.flags	= sp->hdr.flags;
-	whdr.userStatus	= sp->hdr.userStatus;
-	whdr.securityIndex = sp->hdr.securityIndex;
-	whdr._rsvd	= htons(sp->hdr._rsvd);
-	whdr.serviceId	= htons(sp->hdr.serviceId);
-
-	memcpy(skb->head, &whdr, sizeof(whdr));
 }
 
 /*
@@ -194,17 +191,22 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 
 	skb = call->tx_pending;
 	call->tx_pending = NULL;
-	rxrpc_see_skb(skb);
+	rxrpc_see_skb(skb, rxrpc_skb_tx_seen);
 
 	copied = 0;
 	do {
+		/* Check to see if there's a ping ACK to reply to. */
+		if (call->ackr_reason == RXRPC_ACK_PING_RESPONSE)
+			rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ACK);
+
 		if (!skb) {
 			size_t size, chunk, max, space;
 
 			_debug("alloc");
 
 			if (call->tx_top - call->tx_hard_ack >=
-			    call->tx_winsize) {
+			    min_t(unsigned int, call->tx_winsize,
+				  call->cong_cwnd + call->cong_extra)) {
 				ret = -EAGAIN;
 				if (msg->msg_flags & MSG_DONTWAIT)
 					goto maybe_error;
@@ -214,7 +216,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 					goto maybe_error;
 			}
 
-			max = call->conn->params.peer->maxdata;
+			max = RXRPC_JUMBO_DATALEN;
 			max -= call->conn->security_size;
 			max &= ~(call->conn->size_align - 1UL);
 
@@ -225,7 +227,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			space = chunk + call->conn->size_align;
 			space &= ~(call->conn->size_align - 1UL);
 
-			size = space + call->conn->header_size;
+			size = space + call->conn->security_size;
 
 			_debug("SIZE: %zu/%zu/%zu", chunk, space, size);
 
@@ -235,15 +237,15 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			if (!skb)
 				goto maybe_error;
 
-			rxrpc_new_skb(skb);
+			rxrpc_new_skb(skb, rxrpc_skb_tx_new);
 
 			_debug("ALLOC SEND %p", skb);
 
 			ASSERTCMP(skb->mark, ==, 0);
 
-			_debug("HS: %u", call->conn->header_size);
-			skb_reserve(skb, call->conn->header_size);
-			skb->len += call->conn->header_size;
+			_debug("HS: %u", call->conn->security_size);
+			skb_reserve(skb, call->conn->security_size);
+			skb->len += call->conn->security_size;
 
 			sp = rxrpc_skb(skb);
 			sp->remain = chunk;
@@ -305,33 +307,21 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 
 			seq = call->tx_top + 1;
 
-			sp->hdr.epoch	= conn->proto.epoch;
-			sp->hdr.cid	= call->cid;
-			sp->hdr.callNumber = call->call_id;
 			sp->hdr.seq	= seq;
-			sp->hdr.serial	= atomic_inc_return(&conn->serial);
-			sp->hdr.type	= RXRPC_PACKET_TYPE_DATA;
-			sp->hdr.userStatus = 0;
-			sp->hdr.securityIndex = call->security_ix;
 			sp->hdr._rsvd	= 0;
-			sp->hdr.serviceId = call->service_id;
+			sp->hdr.flags	= conn->out_clientflag;
 
-			sp->hdr.flags = conn->out_clientflag;
 			if (msg_data_left(msg) == 0 && !more)
 				sp->hdr.flags |= RXRPC_LAST_PACKET;
 			else if (call->tx_top - call->tx_hard_ack <
 				 call->tx_winsize)
 				sp->hdr.flags |= RXRPC_MORE_PACKETS;
-			if (more && seq & 1)
-				sp->hdr.flags |= RXRPC_REQUEST_ACK;
 
 			ret = conn->security->secure_packet(
-				call, skb, skb->mark,
-				skb->head + sizeof(struct rxrpc_wire_header));
+				call, skb, skb->mark, skb->head);
 			if (ret < 0)
 				goto out;
 
-			rxrpc_insert_header(skb);
 			rxrpc_queue_packet(call, skb, !msg_data_left(msg) && !more);
 			skb = NULL;
 		}
@@ -345,7 +335,7 @@ out:
 	return ret;
 
 call_terminated:
-	rxrpc_free_skb(skb);
+	rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
 	_leave(" = %d", -call->error);
 	return -call->error;
 

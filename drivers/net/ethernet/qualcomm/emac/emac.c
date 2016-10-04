@@ -22,6 +22,7 @@
 #include <linux/of_device.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
+#include <linux/acpi.h>
 #include "emac.h"
 #include "emac-mac.h"
 #include "emac-phy.h"
@@ -531,18 +532,16 @@ static void emac_clks_teardown(struct emac_adapter *adpt)
 static int emac_probe_resources(struct platform_device *pdev,
 				struct emac_adapter *adpt)
 {
-	struct device_node *node = pdev->dev.of_node;
 	struct net_device *netdev = adpt->netdev;
 	struct resource *res;
-	const void *maddr;
+	char maddr[ETH_ALEN];
 	int ret = 0;
 
 	/* get mac address */
-	maddr = of_get_mac_address(node);
-	if (!maddr)
-		eth_hw_addr_random(netdev);
-	else
+	if (device_get_mac_address(&pdev->dev, maddr, ETH_ALEN))
 		ether_addr_copy(netdev->dev_addr, maddr);
+	else
+		eth_hw_addr_random(netdev);
 
 	/* Core 0 interrupt */
 	ret = platform_get_irq(pdev, 0);
@@ -576,6 +575,16 @@ static const struct of_device_id emac_dt_match[] = {
 	},
 	{}
 };
+
+#if IS_ENABLED(CONFIG_ACPI)
+static const struct acpi_device_id emac_acpi_match[] = {
+	{
+		.id = "QCOM8070",
+	},
+	{}
+};
+MODULE_DEVICE_TABLE(acpi, emac_acpi_match);
+#endif
 
 static int emac_probe(struct platform_device *pdev)
 {
@@ -723,6 +732,10 @@ static int emac_remove(struct platform_device *pdev)
 	mdiobus_unregister(adpt->mii_bus);
 	free_netdev(netdev);
 
+	if (adpt->phy.digital)
+		iounmap(adpt->phy.digital);
+	iounmap(adpt->phy.base);
+
 	return 0;
 }
 
@@ -732,6 +745,7 @@ static struct platform_driver emac_platform_driver = {
 	.driver = {
 		.name		= "qcom-emac",
 		.of_match_table = emac_dt_match,
+		.acpi_match_table = ACPI_PTR(emac_acpi_match),
 	},
 };
 

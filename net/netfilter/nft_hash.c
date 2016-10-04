@@ -23,6 +23,7 @@ struct nft_hash {
 	u8			len;
 	u32			modulus;
 	u32			seed;
+	u32			offset;
 };
 
 static void nft_hash_eval(const struct nft_expr *expr,
@@ -31,10 +32,10 @@ static void nft_hash_eval(const struct nft_expr *expr,
 {
 	struct nft_hash *priv = nft_expr_priv(expr);
 	const void *data = &regs->data[priv->sreg];
+	u32 h;
 
-	regs->data[priv->dreg] =
-		reciprocal_scale(jhash(data, priv->len, priv->seed),
-				 priv->modulus);
+	h = reciprocal_scale(jhash(data, priv->len, priv->seed), priv->modulus);
+	regs->data[priv->dreg] = h + priv->offset;
 }
 
 static const struct nla_policy nft_hash_policy[NFTA_HASH_MAX + 1] = {
@@ -59,6 +60,9 @@ static int nft_hash_init(const struct nft_ctx *ctx,
 	    !tb[NFTA_HASH_MODULUS])
 		return -EINVAL;
 
+	if (tb[NFTA_HASH_OFFSET])
+		priv->offset = ntohl(nla_get_be32(tb[NFTA_HASH_OFFSET]));
+
 	priv->sreg = nft_parse_register(tb[NFTA_HASH_SREG]);
 	priv->dreg = nft_parse_register(tb[NFTA_HASH_DREG]);
 
@@ -71,6 +75,9 @@ static int nft_hash_init(const struct nft_ctx *ctx,
 	priv->modulus = ntohl(nla_get_be32(tb[NFTA_HASH_MODULUS]));
 	if (priv->modulus <= 1)
 		return -ERANGE;
+
+	if (priv->offset + priv->modulus - 1 < priv->offset)
+		return -EOVERFLOW;
 
 	priv->seed = ntohl(nla_get_be32(tb[NFTA_HASH_SEED]));
 
@@ -94,7 +101,9 @@ static int nft_hash_dump(struct sk_buff *skb,
 		goto nla_put_failure;
 	if (nla_put_be32(skb, NFTA_HASH_SEED, htonl(priv->seed)))
 		goto nla_put_failure;
-
+	if (priv->offset != 0)
+		if (nla_put_be32(skb, NFTA_HASH_OFFSET, htonl(priv->offset)))
+			goto nla_put_failure;
 	return 0;
 
 nla_put_failure:

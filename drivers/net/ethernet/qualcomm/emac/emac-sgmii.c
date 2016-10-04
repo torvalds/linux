@@ -14,6 +14,7 @@
  */
 
 #include <linux/iopoll.h>
+#include <linux/acpi.h>
 #include <linux/of_device.h>
 #include "emac.h"
 #include "emac-mac.h"
@@ -662,6 +663,24 @@ void emac_sgmii_reset(struct emac_adapter *adpt)
 	clk_set_rate(adpt->clk[EMAC_CLK_HIGH_SPEED], 125000000);
 }
 
+static int emac_sgmii_acpi_match(struct device *dev, void *data)
+{
+	static const struct acpi_device_id match_table[] = {
+		{
+			.id = "QCOM8071",
+			.driver_data = (kernel_ulong_t)emac_sgmii_init_v2,
+		},
+		{}
+	};
+	const struct acpi_device_id *id = acpi_match_device(match_table, dev);
+	emac_sgmii_initialize *initialize = data;
+
+	if (id)
+		*initialize = (emac_sgmii_initialize)id->driver_data;
+
+	return !!id;
+}
+
 static const struct of_device_id emac_sgmii_dt_match[] = {
 	{
 		.compatible = "qcom,fsm9900-emac-sgmii",
@@ -679,43 +698,87 @@ int emac_sgmii_config(struct platform_device *pdev, struct emac_adapter *adpt)
 	struct platform_device *sgmii_pdev = NULL;
 	struct emac_phy *phy = &adpt->phy;
 	struct resource *res;
-	const struct of_device_id *match;
-	struct device_node *np;
+	int ret;
 
-	np = of_parse_phandle(pdev->dev.of_node, "internal-phy", 0);
-	if (!np) {
-		dev_err(&pdev->dev, "missing internal-phy property\n");
-		return -ENODEV;
+	if (has_acpi_companion(&pdev->dev)) {
+		struct device *dev;
+
+		dev = device_find_child(&pdev->dev, &phy->initialize,
+					emac_sgmii_acpi_match);
+
+		if (!dev) {
+			dev_err(&pdev->dev, "cannot find internal phy node\n");
+			return -ENODEV;
+		}
+
+		sgmii_pdev = to_platform_device(dev);
+	} else {
+		const struct of_device_id *match;
+		struct device_node *np;
+
+		np = of_parse_phandle(pdev->dev.of_node, "internal-phy", 0);
+		if (!np) {
+			dev_err(&pdev->dev, "missing internal-phy property\n");
+			return -ENODEV;
+		}
+
+		sgmii_pdev = of_find_device_by_node(np);
+		if (!sgmii_pdev) {
+			dev_err(&pdev->dev, "invalid internal-phy property\n");
+			return -ENODEV;
+		}
+
+		match = of_match_device(emac_sgmii_dt_match, &sgmii_pdev->dev);
+		if (!match) {
+			dev_err(&pdev->dev, "unrecognized internal phy node\n");
+			ret = -ENODEV;
+			goto error_put_device;
+		}
+
+		phy->initialize = (emac_sgmii_initialize)match->data;
 	}
-
-	sgmii_pdev = of_find_device_by_node(np);
-	if (!sgmii_pdev) {
-		dev_err(&pdev->dev, "invalid internal-phy property\n");
-		return -ENODEV;
-	}
-
-	match = of_match_device(emac_sgmii_dt_match, &sgmii_pdev->dev);
-	if (!match) {
-		dev_err(&pdev->dev, "unrecognized internal phy node\n");
-		return -ENODEV;
-	}
-
-	phy->initialize = (emac_sgmii_initialize)match->data;
 
 	/* Base address is the first address */
 	res = platform_get_resource(sgmii_pdev, IORESOURCE_MEM, 0);
-	phy->base = devm_ioremap_resource(&sgmii_pdev->dev, res);
-	if (IS_ERR(phy->base))
-		return PTR_ERR(phy->base);
+	if (!res) {
+		ret = -EINVAL;
+		goto error_put_device;
+	}
+
+	phy->base = ioremap(res->start, resource_size(res));
+	if (!phy->base) {
+		ret = -ENOMEM;
+		goto error_put_device;
+	}
 
 	/* v2 SGMII has a per-lane digital digital, so parse it if it exists */
 	res = platform_get_resource(sgmii_pdev, IORESOURCE_MEM, 1);
 	if (res) {
-		phy->digital = devm_ioremap_resource(&sgmii_pdev->dev, res);
-		if (IS_ERR(phy->base))
-			return PTR_ERR(phy->base);
-
+		phy->digital = ioremap(res->start, resource_size(res));
+		if (!phy->digital) {
+			ret = -ENOMEM;
+			goto error_unmap_base;
+		}
 	}
 
-	return phy->initialize(adpt);
+	ret = phy->initialize(adpt);
+	if (ret)
+		goto error;
+
+	/* We've remapped the addresses, so we don't need the device any
+	 * more.  of_find_device_by_node() says we should release it.
+	 */
+	put_device(&sgmii_pdev->dev);
+
+	return 0;
+
+error:
+	if (phy->digital)
+		iounmap(phy->digital);
+error_unmap_base:
+	iounmap(phy->base);
+error_put_device:
+	put_device(&sgmii_pdev->dev);
+
+	return ret;
 }

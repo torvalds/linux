@@ -99,6 +99,7 @@ struct ofdpa_flow_tbl_entry {
 	struct ofdpa_flow_tbl_key key;
 	size_t key_len;
 	u32 key_crc32; /* key */
+	struct fib_info *fi;
 };
 
 struct ofdpa_group_tbl_entry {
@@ -189,6 +190,7 @@ struct ofdpa {
 	spinlock_t neigh_tbl_lock;		/* for neigh tbl accesses */
 	u32 neigh_tbl_next_index;
 	unsigned long ageing_time;
+	bool fib_aborted;
 };
 
 struct ofdpa_port {
@@ -1043,7 +1045,8 @@ static int ofdpa_flow_tbl_ucast4_routing(struct ofdpa_port *ofdpa_port,
 					 __be16 eth_type, __be32 dst,
 					 __be32 dst_mask, u32 priority,
 					 enum rocker_of_dpa_table_id goto_tbl,
-					 u32 group_id, int flags)
+					 u32 group_id, struct fib_info *fi,
+					 int flags)
 {
 	struct ofdpa_flow_tbl_entry *entry;
 
@@ -1060,6 +1063,7 @@ static int ofdpa_flow_tbl_ucast4_routing(struct ofdpa_port *ofdpa_port,
 	entry->key.ucast_routing.group_id = group_id;
 	entry->key_len = offsetof(struct ofdpa_flow_tbl_key,
 				  ucast_routing.group_id);
+	entry->fi = fi;
 
 	return ofdpa_flow_tbl_do(ofdpa_port, trans, flags, entry);
 }
@@ -1425,7 +1429,7 @@ static int ofdpa_port_ipv4_neigh(struct ofdpa_port *ofdpa_port,
 						    eth_type, ip_addr,
 						    inet_make_mask(32),
 						    priority, goto_tbl,
-						    group_id, flags);
+						    group_id, NULL, flags);
 
 		if (err)
 			netdev_err(ofdpa_port->dev, "Error (%d) /32 unicast route %pI4 group 0x%08x\n",
@@ -2390,7 +2394,7 @@ found:
 
 static int ofdpa_port_fib_ipv4(struct ofdpa_port *ofdpa_port,
 			       struct switchdev_trans *trans, __be32 dst,
-			       int dst_len, const struct fib_info *fi,
+			       int dst_len, struct fib_info *fi,
 			       u32 tb_id, int flags)
 {
 	const struct fib_nh *nh;
@@ -2426,7 +2430,7 @@ static int ofdpa_port_fib_ipv4(struct ofdpa_port *ofdpa_port,
 
 	err = ofdpa_flow_tbl_ucast4_routing(ofdpa_port, trans, eth_type, dst,
 					    dst_mask, priority, goto_tbl,
-					    group_id, flags);
+					    group_id, fi, flags);
 	if (err)
 		netdev_err(ofdpa_port->dev, "Error (%d) IPv4 route %pI4\n",
 			   err, &dst);
@@ -2718,28 +2722,6 @@ static int ofdpa_port_obj_vlan_dump(const struct rocker_port *rocker_port,
 	return err;
 }
 
-static int ofdpa_port_obj_fib4_add(struct rocker_port *rocker_port,
-				   const struct switchdev_obj_ipv4_fib *fib4,
-				   struct switchdev_trans *trans)
-{
-	struct ofdpa_port *ofdpa_port = rocker_port->wpriv;
-
-	return ofdpa_port_fib_ipv4(ofdpa_port, trans,
-				   htonl(fib4->dst), fib4->dst_len,
-				   fib4->fi, fib4->tb_id, 0);
-}
-
-static int ofdpa_port_obj_fib4_del(struct rocker_port *rocker_port,
-				   const struct switchdev_obj_ipv4_fib *fib4)
-{
-	struct ofdpa_port *ofdpa_port = rocker_port->wpriv;
-
-	return ofdpa_port_fib_ipv4(ofdpa_port, NULL,
-				   htonl(fib4->dst), fib4->dst_len,
-				   fib4->fi, fib4->tb_id,
-				   OFDPA_OP_FLAG_REMOVE);
-}
-
 static int ofdpa_port_obj_fdb_add(struct rocker_port *rocker_port,
 				  const struct switchdev_obj_port_fdb *fdb,
 				  struct switchdev_trans *trans)
@@ -2922,6 +2904,82 @@ static int ofdpa_port_ev_mac_vlan_seen(struct rocker_port *rocker_port,
 	return ofdpa_port_fdb(ofdpa_port, NULL, addr, vlan_id, flags);
 }
 
+static struct ofdpa_port *ofdpa_port_dev_lower_find(struct net_device *dev,
+						    struct rocker *rocker)
+{
+	struct rocker_port *rocker_port;
+
+	rocker_port = rocker_port_dev_lower_find(dev, rocker);
+	return rocker_port ? rocker_port->wpriv : NULL;
+}
+
+static int ofdpa_fib4_add(struct rocker *rocker,
+			  const struct fib_entry_notifier_info *fen_info)
+{
+	struct ofdpa *ofdpa = rocker->wpriv;
+	struct ofdpa_port *ofdpa_port;
+	int err;
+
+	if (ofdpa->fib_aborted)
+		return 0;
+	ofdpa_port = ofdpa_port_dev_lower_find(fen_info->fi->fib_dev, rocker);
+	if (!ofdpa_port)
+		return 0;
+	err = ofdpa_port_fib_ipv4(ofdpa_port, NULL, htonl(fen_info->dst),
+				  fen_info->dst_len, fen_info->fi,
+				  fen_info->tb_id, 0);
+	if (err)
+		return err;
+	fib_info_offload_inc(fen_info->fi);
+	return 0;
+}
+
+static int ofdpa_fib4_del(struct rocker *rocker,
+			  const struct fib_entry_notifier_info *fen_info)
+{
+	struct ofdpa *ofdpa = rocker->wpriv;
+	struct ofdpa_port *ofdpa_port;
+
+	if (ofdpa->fib_aborted)
+		return 0;
+	ofdpa_port = ofdpa_port_dev_lower_find(fen_info->fi->fib_dev, rocker);
+	if (!ofdpa_port)
+		return 0;
+	fib_info_offload_dec(fen_info->fi);
+	return ofdpa_port_fib_ipv4(ofdpa_port, NULL, htonl(fen_info->dst),
+				   fen_info->dst_len, fen_info->fi,
+				   fen_info->tb_id, OFDPA_OP_FLAG_REMOVE);
+}
+
+static void ofdpa_fib4_abort(struct rocker *rocker)
+{
+	struct ofdpa *ofdpa = rocker->wpriv;
+	struct ofdpa_port *ofdpa_port;
+	struct ofdpa_flow_tbl_entry *flow_entry;
+	struct hlist_node *tmp;
+	unsigned long flags;
+	int bkt;
+
+	if (ofdpa->fib_aborted)
+		return;
+
+	spin_lock_irqsave(&ofdpa->flow_tbl_lock, flags);
+	hash_for_each_safe(ofdpa->flow_tbl, bkt, tmp, flow_entry, entry) {
+		if (flow_entry->key.tbl_id !=
+		    ROCKER_OF_DPA_TABLE_ID_UNICAST_ROUTING)
+			continue;
+		ofdpa_port = ofdpa_port_dev_lower_find(flow_entry->fi->fib_dev,
+						       rocker);
+		if (!ofdpa_port)
+			continue;
+		fib_info_offload_dec(flow_entry->fi);
+		ofdpa_flow_tbl_del(ofdpa_port, NULL, OFDPA_OP_FLAG_REMOVE,
+				   flow_entry);
+	}
+	spin_unlock_irqrestore(&ofdpa->flow_tbl_lock, flags);
+	ofdpa->fib_aborted = true;
+}
+
 struct rocker_world_ops rocker_ofdpa_ops = {
 	.kind = "ofdpa",
 	.priv_size = sizeof(struct ofdpa),
@@ -2941,8 +2999,6 @@ struct rocker_world_ops rocker_ofdpa_ops = {
 	.port_obj_vlan_add = ofdpa_port_obj_vlan_add,
 	.port_obj_vlan_del = ofdpa_port_obj_vlan_del,
 	.port_obj_vlan_dump = ofdpa_port_obj_vlan_dump,
-	.port_obj_fib4_add = ofdpa_port_obj_fib4_add,
-	.port_obj_fib4_del = ofdpa_port_obj_fib4_del,
 	.port_obj_fdb_add = ofdpa_port_obj_fdb_add,
 	.port_obj_fdb_del = ofdpa_port_obj_fdb_del,
 	.port_obj_fdb_dump = ofdpa_port_obj_fdb_dump,
@@ -2951,4 +3007,7 @@ struct rocker_world_ops rocker_ofdpa_ops = {
 	.port_neigh_update = ofdpa_port_neigh_update,
 	.port_neigh_destroy = ofdpa_port_neigh_destroy,
 	.port_ev_mac_vlan_seen = ofdpa_port_ev_mac_vlan_seen,
+	.fib4_add = ofdpa_fib4_add,
+	.fib4_del = ofdpa_fib4_del,
+	.fib4_abort = ofdpa_fib4_abort,
 };

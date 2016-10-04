@@ -297,7 +297,7 @@ static sctp_xmit_t __sctp_packet_append_chunk(struct sctp_packet *packet,
 					      struct sctp_chunk *chunk)
 {
 	sctp_xmit_t retval = SCTP_XMIT_OK;
-	__u16 chunk_len = WORD_ROUND(ntohs(chunk->chunk_hdr->length));
+	__u16 chunk_len = SCTP_PAD4(ntohs(chunk->chunk_hdr->length));
 
 	/* Check to see if this chunk will fit into the packet */
 	retval = sctp_packet_will_fit(packet, chunk, chunk_len);
@@ -508,7 +508,7 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 		if (gso) {
 			pkt_size = packet->overhead;
 			list_for_each_entry(chunk, &packet->chunk_list, list) {
-				int padded = WORD_ROUND(chunk->skb->len);
+				int padded = SCTP_PAD4(chunk->skb->len);
 
 				if (pkt_size + padded > tp->pathmtu)
 					break;
@@ -538,7 +538,7 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 		 * included in the chunk length field.  The sender should
 		 * never pad with more than 3 bytes.
 		 *
-		 * [This whole comment explains WORD_ROUND() below.]
+		 * [This whole comment explains SCTP_PAD4() below.]
 		 */
 
 		pkt_size -= packet->overhead;
@@ -560,7 +560,7 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 				has_data = 1;
 			}
 
-			padding = WORD_ROUND(chunk->skb->len) - chunk->skb->len;
+			padding = SCTP_PAD4(chunk->skb->len) - chunk->skb->len;
 			if (padding)
 				memset(skb_put(chunk->skb, padding), 0, padding);
 
@@ -587,7 +587,7 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 			 * acknowledged or have failed.
 			 * Re-queue auth chunks if needed.
 			 */
-			pkt_size -= WORD_ROUND(chunk->skb->len);
+			pkt_size -= SCTP_PAD4(chunk->skb->len);
 
 			if (!sctp_chunk_is_data(chunk) && chunk != packet->auth)
 				sctp_chunk_free(chunk);
@@ -911,7 +911,7 @@ static sctp_xmit_t sctp_packet_will_fit(struct sctp_packet *packet,
 		 */
 		maxsize = pmtu - packet->overhead;
 		if (packet->auth)
-			maxsize -= WORD_ROUND(packet->auth->skb->len);
+			maxsize -= SCTP_PAD4(packet->auth->skb->len);
 		if (chunk_len > maxsize)
 			retval = SCTP_XMIT_PMTU_FULL;
 

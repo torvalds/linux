@@ -48,7 +48,13 @@
 #define TM_ELEM_SIZE    4
 
 /* ILT constants */
+#if IS_ENABLED(CONFIG_INFINIBAND_QEDR)
+/* For RoCE we configure to 64K to cover for RoCE max tasks 256K purpose. */
+#define ILT_DEFAULT_HW_P_SIZE		4
+#else
 #define ILT_DEFAULT_HW_P_SIZE		3
+#endif
+
 #define ILT_PAGE_IN_BYTES(hw_p_size)	(1U << ((hw_p_size) + 12))
 #define ILT_CFG_REG(cli, reg)	PSWRQ2_REG_ ## cli ## _ ## reg ## _RT_OFFSET
 
@@ -1839,6 +1845,8 @@ int qed_cxt_set_pf_params(struct qed_hwfn *p_hwfn)
 	/* Set the number of required CORE connections */
 	u32 core_cids = 1; /* SPQ */
 
+	if (p_hwfn->using_ll2)
+		core_cids += 4;
 	qed_cxt_set_proto_cid_count(p_hwfn, PROTOCOLID_CORE, core_cids, 0);
 
 	switch (p_hwfn->hw_info.personality) {

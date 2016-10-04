@@ -51,7 +51,10 @@ static void i40e_unmap_and_free_tx_resource(struct i40e_ring *ring,
 					    struct i40e_tx_buffer *tx_buffer)
 {
 	if (tx_buffer->skb) {
-		dev_kfree_skb_any(tx_buffer->skb);
+		if (tx_buffer->tx_flags & I40E_TX_FLAGS_FD_SB)
+			kfree(tx_buffer->raw_buf);
+		else
+			dev_kfree_skb_any(tx_buffer->skb);
 		if (dma_unmap_len(tx_buffer, len))
 			dma_unmap_single(ring->dev,
 					 dma_unmap_addr(tx_buffer, dma),
@@ -63,9 +66,6 @@ static void i40e_unmap_and_free_tx_resource(struct i40e_ring *ring,
 			       dma_unmap_len(tx_buffer, len),
 			       DMA_TO_DEVICE);
 	}
-
-	if (tx_buffer->tx_flags & I40E_TX_FLAGS_FD_SB)
-		kfree(tx_buffer->raw_buf);
 
 	tx_buffer->next_to_watch = NULL;
 	tx_buffer->skb = NULL;
@@ -103,8 +103,7 @@ void i40evf_clean_tx_ring(struct i40e_ring *tx_ring)
 		return;
 
 	/* cleanup Tx queue statistics */
-	netdev_tx_reset_queue(netdev_get_tx_queue(tx_ring->netdev,
-						  tx_ring->queue_index));
+	netdev_tx_reset_queue(txring_txq(tx_ring));
 }
 
 /**
@@ -273,8 +272,8 @@ static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
 			tx_ring->arm_wb = true;
 	}
 
-	netdev_tx_completed_queue(netdev_get_tx_queue(tx_ring->netdev,
-						      tx_ring->queue_index),
+	/* notify netdev of completed buffers */
+	netdev_tx_completed_queue(txring_txq(tx_ring),
 				  total_packets, total_bytes);
 
 #define TX_WAKE_THRESHOLD (DESC_NEEDED * 2)
@@ -1312,6 +1311,19 @@ static u32 i40e_buildreg_itr(const int type, const u16 itr)
 
 /* a small macro to shorten up some long lines */
 #define INTREG I40E_VFINT_DYN_CTLN1
+static inline int get_rx_itr_enabled(struct i40e_vsi *vsi, int idx)
+{
+	struct i40evf_adapter *adapter = vsi->back;
+
+	return !!(adapter->rx_rings[idx].rx_itr_setting);
+}
+
+static inline int get_tx_itr_enabled(struct i40e_vsi *vsi, int idx)
+{
+	struct i40evf_adapter *adapter = vsi->back;
+
+	return !!(adapter->tx_rings[idx].tx_itr_setting);
+}
 
 /**
  * i40e_update_enable_itr - Update itr and re-enable MSIX interrupt
@@ -1326,6 +1338,8 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 	bool rx = false, tx = false;
 	u32 rxval, txval;
 	int vector;
+	int idx = q_vector->v_idx;
+	int rx_itr_setting, tx_itr_setting;
 
 	vector = (q_vector->v_idx + vsi->base_vector);
 
@@ -1334,18 +1348,21 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 	 */
 	rxval = txval = i40e_buildreg_itr(I40E_ITR_NONE, 0);
 
+	rx_itr_setting = get_rx_itr_enabled(vsi, idx);
+	tx_itr_setting = get_tx_itr_enabled(vsi, idx);
+
 	if (q_vector->itr_countdown > 0 ||
-	    (!ITR_IS_DYNAMIC(vsi->rx_itr_setting) &&
-	     !ITR_IS_DYNAMIC(vsi->tx_itr_setting))) {
+	    (!ITR_IS_DYNAMIC(rx_itr_setting) &&
+	     !ITR_IS_DYNAMIC(tx_itr_setting))) {
 		goto enable_int;
 	}
 
-	if (ITR_IS_DYNAMIC(vsi->rx_itr_setting)) {
+	if (ITR_IS_DYNAMIC(rx_itr_setting)) {
 		rx = i40e_set_new_dynamic_itr(&q_vector->rx);
 		rxval = i40e_buildreg_itr(I40E_RX_ITR, q_vector->rx.itr);
 	}
 
-	if (ITR_IS_DYNAMIC(vsi->tx_itr_setting)) {
+	if (ITR_IS_DYNAMIC(tx_itr_setting)) {
 		tx = i40e_set_new_dynamic_itr(&q_vector->tx);
 		txval = i40e_buildreg_itr(I40E_TX_ITR, q_vector->tx.itr);
 	}
@@ -1832,9 +1849,7 @@ bool __i40evf_chk_linearize(struct sk_buff *skb)
 		return false;
 
 	/* We need to walk through the list and validate that each group
-	 * of 6 fragments totals at least gso_size.  However we don't need
-	 * to perform such validation on the last 6 since the last 6 cannot
-	 * inherit any data from a descriptor after them.
+	 * of 6 fragments totals at least gso_size.
 	 */
 	nr_frags -= I40E_MAX_BUFFER_TXD - 2;
 	frag = &skb_shinfo(skb)->frags[0];
@@ -1865,8 +1880,7 @@ bool __i40evf_chk_linearize(struct sk_buff *skb)
 		if (sum < 0)
 			return true;
 
-		/* use pre-decrement to avoid processing last fragment */
-		if (!--nr_frags)
+		if (!nr_frags--)
 			break;
 
 		sum -= skb_frag_size(stale++);
@@ -2015,9 +2029,7 @@ static inline void i40evf_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 
 	tx_ring->next_to_use = i;
 
-	netdev_tx_sent_queue(netdev_get_tx_queue(tx_ring->netdev,
-						 tx_ring->queue_index),
-						 first->bytecount);
+	netdev_tx_sent_queue(txring_txq(tx_ring), first->bytecount);
 	i40e_maybe_stop_tx(tx_ring, DESC_NEEDED);
 
 	/* Algorithm to optimize tail and RS bit setting:
@@ -2042,13 +2054,11 @@ static inline void i40evf_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	 * trigger a force WB.
 	 */
 	if (skb->xmit_more  &&
-	    !netif_xmit_stopped(netdev_get_tx_queue(tx_ring->netdev,
-						    tx_ring->queue_index))) {
+	    !netif_xmit_stopped(txring_txq(tx_ring))) {
 		tx_ring->flags |= I40E_TXR_FLAGS_LAST_XMIT_MORE_SET;
 		tail_bump = false;
 	} else if (!skb->xmit_more &&
-		   !netif_xmit_stopped(netdev_get_tx_queue(tx_ring->netdev,
-						       tx_ring->queue_index)) &&
+		   !netif_xmit_stopped(txring_txq(tx_ring)) &&
 		   (!(tx_ring->flags & I40E_TXR_FLAGS_LAST_XMIT_MORE_SET)) &&
 		   (tx_ring->packet_stride < WB_STRIDE) &&
 		   (desc_count < WB_STRIDE)) {

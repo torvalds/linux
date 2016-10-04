@@ -304,13 +304,11 @@ static int dsa_ds_apply(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 	if (err < 0)
 		return err;
 
-	err = ds->ops->set_addr(ds, dst->master_netdev->dev_addr);
-	if (err < 0)
-		return err;
-
-	err = ds->ops->set_addr(ds, dst->master_netdev->dev_addr);
-	if (err < 0)
-		return err;
+	if (ds->ops->set_addr) {
+		err = ds->ops->set_addr(ds, dst->master_netdev->dev_addr);
+		if (err < 0)
+			return err;
+	}
 
 	if (!ds->slave_mii_bus && ds->ops->phy_read) {
 		ds->slave_mii_bus = devm_mdiobus_alloc(ds->dev);

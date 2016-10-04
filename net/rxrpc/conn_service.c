@@ -136,6 +136,10 @@ struct rxrpc_connection *rxrpc_prealloc_service_connection(gfp_t gfp)
 		list_add_tail(&conn->link, &rxrpc_connections);
 		list_add_tail(&conn->proc_link, &rxrpc_connection_proc_list);
 		write_unlock(&rxrpc_connection_lock);
+
+		trace_rxrpc_conn(conn, rxrpc_conn_new_service,
+				 atomic_read(&conn->usage),
+				 __builtin_return_address(0));
 	}
 
 	return conn;

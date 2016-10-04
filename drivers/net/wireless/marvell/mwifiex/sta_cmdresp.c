@@ -1049,8 +1049,10 @@ mwifiex_create_custom_regdomain(struct mwifiex_private *priv,
 		enum nl80211_band band;
 
 		chan = *buf++;
-		if (!chan)
+		if (!chan) {
+			kfree(regd);
 			return NULL;
+		}
 		chflags = *buf++;
 		band = (chan <= 14) ? NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
 		freq = ieee80211_channel_to_frequency(chan, band);
@@ -1116,6 +1118,7 @@ static int mwifiex_ret_chan_region_cfg(struct mwifiex_private *priv,
 	u16 action = le16_to_cpu(reg->action);
 	u16 tlv, tlv_buf_len, tlv_buf_left;
 	struct mwifiex_ie_types_header *head;
+	struct ieee80211_regdomain *regd;
 	u8 *tlv_buf;
 
 	if (action != HostCmd_ACT_GEN_GET)
@@ -1137,10 +1140,10 @@ static int mwifiex_ret_chan_region_cfg(struct mwifiex_private *priv,
 			mwifiex_dbg_dump(priv->adapter, CMD_D, "CHAN:",
 					 (u8 *)head + sizeof(*head),
 					 tlv_buf_len);
-			priv->adapter->regd =
-				mwifiex_create_custom_regdomain(priv,
-								(u8 *)head +
-						sizeof(*head), tlv_buf_len);
+			regd = mwifiex_create_custom_regdomain(priv,
+				(u8 *)head + sizeof(*head), tlv_buf_len);
+			if (!IS_ERR(regd))
+				priv->adapter->regd = regd;
 			break;
 		}
 

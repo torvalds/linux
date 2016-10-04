@@ -124,6 +124,7 @@ enum {
 	INET_DIAG_PEERS,
 	INET_DIAG_PAD,
 	INET_DIAG_MARK,
+	INET_DIAG_BBRINFO,
 	__INET_DIAG_MAX,
 };
 
@@ -157,8 +158,20 @@ struct tcp_dctcp_info {
 	__u32	dctcp_ab_tot;
 };
 
+/* INET_DIAG_BBRINFO */
+
+struct tcp_bbr_info {
+	/* u64 bw: max-filtered BW (app throughput) estimate in Byte per sec: */
+	__u32	bbr_bw_lo;		/* lower 32 bits of bw */
+	__u32	bbr_bw_hi;		/* upper 32 bits of bw */
+	__u32	bbr_min_rtt;		/* min-filtered RTT in uSec */
+	__u32	bbr_pacing_gain;	/* pacing gain shifted left 8 bits */
+	__u32	bbr_cwnd_gain;		/* cwnd gain shifted left 8 bits */
+};
+
 union tcp_cc_info {
 	struct tcpvegas_info	vegas;
 	struct tcp_dctcp_info	dctcp;
+	struct tcp_bbr_info	bbr;
 };
 #endif /* _UAPI_INET_DIAG_H_ */

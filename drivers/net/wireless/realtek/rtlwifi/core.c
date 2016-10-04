@@ -765,7 +765,8 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 					mac->bw_40 = false;
 					mac->bw_80 = false;
 					RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-						 "switch case not processed\n");
+						 "switch case %#x not processed\n",
+						 channel_type);
 					break;
 			}
 		}

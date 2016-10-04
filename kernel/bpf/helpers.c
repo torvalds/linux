@@ -36,6 +36,7 @@ BPF_CALL_2(bpf_map_lookup_elem, struct bpf_map *, map, void *, key)
 const struct bpf_func_proto bpf_map_lookup_elem_proto = {
 	.func		= bpf_map_lookup_elem,
 	.gpl_only	= false,
+	.pkt_access	= true,
 	.ret_type	= RET_PTR_TO_MAP_VALUE_OR_NULL,
 	.arg1_type	= ARG_CONST_MAP_PTR,
 	.arg2_type	= ARG_PTR_TO_MAP_KEY,
@@ -51,6 +52,7 @@ BPF_CALL_4(bpf_map_update_elem, struct bpf_map *, map, void *, key,
 const struct bpf_func_proto bpf_map_update_elem_proto = {
 	.func		= bpf_map_update_elem,
 	.gpl_only	= false,
+	.pkt_access	= true,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_CONST_MAP_PTR,
 	.arg2_type	= ARG_PTR_TO_MAP_KEY,
@@ -67,6 +69,7 @@ BPF_CALL_2(bpf_map_delete_elem, struct bpf_map *, map, void *, key)
 const struct bpf_func_proto bpf_map_delete_elem_proto = {
 	.func		= bpf_map_delete_elem,
 	.gpl_only	= false,
+	.pkt_access	= true,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_CONST_MAP_PTR,
 	.arg2_type	= ARG_PTR_TO_MAP_KEY,

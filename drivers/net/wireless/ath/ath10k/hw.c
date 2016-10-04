@@ -85,7 +85,7 @@ const struct ath10k_hw_regs qca99x0_regs = {
 	.ce7_base_address			= 0x0004bc00,
 	/* Note: qca99x0 supports upto 12 Copy Engines. Other than address of
 	 * CE0 and CE1 no other copy engine is directly referred in the code.
-	 * It is not really neccessary to assign address for newly supported
+	 * It is not really necessary to assign address for newly supported
 	 * CEs in this address table.
 	 *	Copy Engine		Address
 	 *	CE8			0x0004c000

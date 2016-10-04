@@ -1,6 +1,8 @@
 #ifndef __CPUHOTPLUG_H
 #define __CPUHOTPLUG_H
 
+#include <linux/types.h>
+
 enum cpuhp_state {
 	CPUHP_OFFLINE,
 	CPUHP_CREATE_THREADS,

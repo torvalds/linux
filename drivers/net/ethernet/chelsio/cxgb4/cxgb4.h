@@ -422,8 +422,8 @@ struct link_config {
 	unsigned short supported;        /* link capabilities */
 	unsigned short advertising;      /* advertised capabilities */
 	unsigned short lp_advertising;   /* peer advertised capabilities */
-	unsigned short requested_speed;  /* speed user has requested */
-	unsigned short speed;            /* actual link speed */
+	unsigned int   requested_speed;  /* speed user has requested */
+	unsigned int   speed;            /* actual link speed */
 	unsigned char  requested_fc;     /* flow control user has requested */
 	unsigned char  fc;               /* actual link flow control */
 	unsigned char  autoneg;          /* autonegotiating? */
@@ -437,11 +437,6 @@ enum {
 	MAX_ETH_QSETS = 32,           /* # of Ethernet Tx/Rx queue sets */
 	MAX_OFLD_QSETS = 16,          /* # of offload Tx, iscsi Rx queue sets */
 	MAX_CTRL_QUEUES = NCHAN,      /* # of control Tx queues */
-	MAX_RDMA_QUEUES = NCHAN,      /* # of streaming RDMA Rx queues */
-	MAX_RDMA_CIQS = 32,        /* # of  RDMA concentrator IQs */
-
-	/* # of streaming iSCSIT Rx queues */
-	MAX_ISCSIT_QUEUES = MAX_OFLD_QSETS,
 };
 
 enum {
@@ -458,8 +453,7 @@ enum {
 enum {
 	INGQ_EXTRAS = 2,        /* firmware event queue and */
 				/*   forwarded interrupts */
-	MAX_INGQ = MAX_ETH_QSETS + MAX_OFLD_QSETS + MAX_RDMA_QUEUES +
-		   MAX_RDMA_CIQS + MAX_ISCSIT_QUEUES + INGQ_EXTRAS,
+	MAX_INGQ = MAX_ETH_QSETS + INGQ_EXTRAS,
 };
 
 struct adapter;
@@ -704,10 +698,6 @@ struct sge {
 	struct sge_ctrl_txq ctrlq[MAX_CTRL_QUEUES];
 
 	struct sge_eth_rxq ethrxq[MAX_ETH_QSETS];
-	struct sge_ofld_rxq iscsirxq[MAX_OFLD_QSETS];
-	struct sge_ofld_rxq iscsitrxq[MAX_ISCSIT_QUEUES];
-	struct sge_ofld_rxq rdmarxq[MAX_RDMA_QUEUES];
-	struct sge_ofld_rxq rdmaciq[MAX_RDMA_CIQS];
 	struct sge_rspq fw_evtq ____cacheline_aligned_in_smp;
 	struct sge_uld_rxq_info **uld_rxq_info;
 
@@ -717,15 +707,8 @@ struct sge {
 	u16 max_ethqsets;           /* # of available Ethernet queue sets */
 	u16 ethqsets;               /* # of active Ethernet queue sets */
 	u16 ethtxq_rover;           /* Tx queue to clean up next */
-	u16 iscsiqsets;              /* # of active iSCSI queue sets */
-	u16 niscsitq;               /* # of available iSCST Rx queues */
-	u16 rdmaqs;                 /* # of available RDMA Rx queues */
-	u16 rdmaciqs;               /* # of available RDMA concentrator IQs */
+	u16 ofldqsets;              /* # of active ofld queue sets */
 	u16 nqs_per_uld;	    /* # of Rx queues per ULD */
-	u16 iscsi_rxq[MAX_OFLD_QSETS];
-	u16 iscsit_rxq[MAX_ISCSIT_QUEUES];
-	u16 rdma_rxq[MAX_RDMA_QUEUES];
-	u16 rdma_ciq[MAX_RDMA_CIQS];
 	u16 timer_val[SGE_NTIMERS];
 	u8 counter_val[SGE_NCOUNTERS];
 	u32 fl_pg_order;            /* large page allocation size */
@@ -749,10 +732,7 @@ struct sge {
 };
 
 #define for_each_ethrxq(sge, i) for (i = 0; i < (sge)->ethqsets; i++)
-#define for_each_iscsirxq(sge, i) for (i = 0; i < (sge)->iscsiqsets; i++)
-#define for_each_iscsitrxq(sge, i) for (i = 0; i < (sge)->niscsitq; i++)
-#define for_each_rdmarxq(sge, i) for (i = 0; i < (sge)->rdmaqs; i++)
-#define for_each_rdmaciq(sge, i) for (i = 0; i < (sge)->rdmaciqs; i++)
+#define for_each_ofldtxq(sge, i) for (i = 0; i < (sge)->ofldqsets; i++)
 
 struct l2t_data;
 
@@ -786,6 +766,7 @@ struct uld_msix_bmap {
 struct uld_msix_info {
 	unsigned short vec;
 	char desc[IFNAMSIZ + 10];
+	unsigned int idx;
 };
 
 struct vf_info {
@@ -818,7 +799,7 @@ struct adapter {
 	} msix_info[MAX_INGQ + 1];
 	struct uld_msix_info *msix_info_ulds; /* msix info for uld's */
 	struct uld_msix_bmap msix_bmap_ulds; /* msix bitmap for all uld */
-	unsigned int msi_idx;
+	int msi_idx;
 
 	struct doorbell_stats db_stats;
 	struct sge sge;
@@ -836,9 +817,10 @@ struct adapter {
 	unsigned int clipt_start;
 	unsigned int clipt_end;
 	struct clip_tbl *clipt;
-	struct cxgb4_pci_uld_info *uld;
+	struct cxgb4_uld_info *uld;
 	void *uld_handle[CXGB4_ULD_MAX];
 	unsigned int num_uld;
+	unsigned int num_ofld_uld;
 	struct list_head list_node;
 	struct list_head rcu_node;
 	struct list_head mac_hlist; /* list of MAC addresses in MPS Hash */
@@ -858,6 +840,8 @@ struct adapter {
 #define T4_OS_LOG_MBOX_CMDS 256
 	struct mbox_cmd_log *mbox_log;
 
+	struct mutex uld_mutex;
+
 	struct dentry *debugfs_root;
 	bool use_bd;     /* Use SGE Back Door intfc for reading SGE Contexts */
 	bool trace_rss;	/* 1 implies that different RSS flit per filter is
@@ -867,6 +851,9 @@ struct adapter {
 
 	spinlock_t stats_lock;
 	spinlock_t win0_lock ____cacheline_aligned_in_smp;
+
+	/* TC u32 offload */
+	struct cxgb4_tc_u32_table *tc_u32;
 };
 
 /* Support for "sched-class" command to allow a TX Scheduling Class to be
@@ -1041,6 +1028,32 @@ enum {
 	VLAN_REWRITE
 };
 
+/* Host shadow copy of ingress filter entry.  This is in host native format
+ * and doesn't match the ordering or bit order, etc. of the hardware of the
+ * firmware command.  The use of bit-field structure elements is purely to
+ * remind ourselves of the field size limitations and save memory in the case
+ * where the filter table is large.
+ */
+struct filter_entry {
+	/* Administrative fields for filter. */
+	u32 valid:1;            /* filter allocated and valid */
+	u32 locked:1;           /* filter is administratively locked */
+
+	u32 pending:1;          /* filter action is pending firmware reply */
+	u32 smtidx:8;           /* Source MAC Table index for smac */
+	struct filter_ctx *ctx; /* Caller's completion hook */
+	struct l2t_entry *l2t;  /* Layer Two Table entry for dmac */
+	struct net_device *dev; /* Associated net device */
+	u32 tid;                /* This will store the actual tid */
+
+	/* The filter itself.  Most of this is a straight copy of information
+	 * provided by the extended ioctl().  Some fields are translated to
+	 * internal forms -- for instance the Ingress Queue ID passed in from
+	 * the ioctl() is translated into the Absolute Ingress Queue ID.
+	 */
+	struct ch_filter_specification fs;
+};
+
 static inline int is_offload(const struct adapter *adap)
 {
 	return adap->params.offload;
@@ -1049,6 +1062,11 @@ static inline int is_offload(const struct adapter *adap)
 static inline int is_pci_uld(const struct adapter *adap)
 {
 	return adap->params.crypto;
+}
+
+static inline int is_uld(const struct adapter *adap)
+{
+	return (adap->params.offload || adap->params.crypto);
 }
 
 static inline u32 t4_read_reg(struct adapter *adap, u32 reg_addr)
@@ -1277,6 +1295,8 @@ int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 int t4_sge_alloc_ctrl_txq(struct adapter *adap, struct sge_ctrl_txq *txq,
 			  struct net_device *dev, unsigned int iqid,
 			  unsigned int cmplqid);
+int t4_sge_mod_ctrl_txq(struct adapter *adap, unsigned int eqid,
+			unsigned int cmplqid);
 int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_ofld_txq *txq,
 			  struct net_device *dev, unsigned int iqid);
 irqreturn_t t4_sge_intr_msix(int irq, void *cookie);
@@ -1635,7 +1655,9 @@ void t4_idma_monitor(struct adapter *adapter,
 		     int hz, int ticks);
 int t4_set_vf_mac_acl(struct adapter *adapter, unsigned int vf,
 		      unsigned int naddr, u8 *addr);
-void uld_mem_free(struct adapter *adap);
-int uld_mem_alloc(struct adapter *adap);
+void t4_uld_mem_free(struct adapter *adap);
+int t4_uld_mem_alloc(struct adapter *adap);
+void t4_uld_clean_up(struct adapter *adap);
+void t4_register_netevent_notifier(void);
 void free_rspq_fl(struct adapter *adap, struct sge_rspq *rq, struct sge_fl *fl);
 #endif /* __CXGB4_H__ */
