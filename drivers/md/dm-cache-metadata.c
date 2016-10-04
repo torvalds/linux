@@ -931,26 +931,45 @@ static int blocks_are_clean_separate_dirty(struct dm_cache_metadata *cmd,
 	bool dirty_flag;
 	*result = true;
 
-	// FIXME: use a cursor so we can benefit from preloading metadata.
+	r = dm_bitset_cursor_begin(&cmd->dirty_info, cmd->dirty_root,
+				   from_cblock(begin), &cmd->dirty_cursor);
+	if (r) {
+		DMERR("%s: dm_bitset_cursor_begin for dirty failed", __func__);
+		return r;
+	}
+
+	r = dm_bitset_cursor_skip(&cmd->dirty_cursor, from_cblock(begin));
+	if (r) {
+		DMERR("%s: dm_bitset_cursor_skip for dirty failed", __func__);
+		dm_bitset_cursor_end(&cmd->dirty_cursor);
+		return r;
+	}
+
 	while (begin != end) {
 		/*
 		 * We assume that unmapped blocks have their dirty bit
 		 * cleared.
 		 */
-		r = dm_bitset_test_bit(&cmd->dirty_info, cmd->dirty_root,
-				       from_cblock(begin), &cmd->dirty_root, &dirty_flag);
-		if (r)
-			return r;
-
+		dirty_flag = dm_bitset_cursor_get_value(&cmd->dirty_cursor);
 		if (dirty_flag) {
-			DMERR("cache block %llu is dirty",
+			DMERR("%s: cache block %llu is dirty", __func__,
 			      (unsigned long long) from_cblock(begin));
+			dm_bitset_cursor_end(&cmd->dirty_cursor);
 			*result = false;
 			return 0;
 		}
 
+		r = dm_bitset_cursor_next(&cmd->dirty_cursor);
+		if (r) {
+			DMERR("%s: dm_bitset_cursor_next for dirty failed", __func__);
+			dm_bitset_cursor_end(&cmd->dirty_cursor);
+			return r;
+		}
+
 		begin = to_cblock(from_cblock(begin) + 1);
 	}
+
+	dm_bitset_cursor_end(&cmd->dirty_cursor);
 
 	return 0;
 }
