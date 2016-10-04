@@ -399,7 +399,7 @@ static void xenvif_rx_extra_slot(struct xenvif_queue *queue,
 	BUG();
 }
 
-void xenvif_rx_action(struct xenvif_queue *queue)
+void xenvif_rx_skb(struct xenvif_queue *queue)
 {
 	struct xenvif_pkt_state pkt;
 
@@ -423,6 +423,19 @@ void xenvif_rx_action(struct xenvif_queue *queue)
 	} while (pkt.remaining_len > 0 || pkt.extra_count != 0);
 
 	xenvif_rx_complete(queue, &pkt);
+}
+
+#define RX_BATCH_SIZE 64
+
+void xenvif_rx_action(struct xenvif_queue *queue)
+{
+	unsigned int work_done = 0;
+
+	while (xenvif_rx_ring_slots_available(queue) &&
+	       work_done < RX_BATCH_SIZE) {
+		xenvif_rx_skb(queue);
+		work_done++;
+	}
 }
 
 static bool xenvif_rx_queue_stalled(struct xenvif_queue *queue)
