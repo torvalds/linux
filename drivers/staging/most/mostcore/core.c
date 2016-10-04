@@ -883,16 +883,16 @@ static ssize_t show_add_link(struct most_aim_obj *aim_obj,
  *
  * Examples:
  *
- * Input: "mdev0:ch0@ep_81:my_channel\n" or
- *        "mdev0:ch0@ep_81:my_channel"
+ * Input: "mdev0:ch6:my_channel\n" or
+ *        "mdev0:ch6:my_channel"
  *
- * Output: *a -> "mdev0", *b -> "ch0@ep_81", *c -> "my_channel"
+ * Output: *a -> "mdev0", *b -> "ch6", *c -> "my_channel"
  *
- * Input: "mdev0:ch0@ep_81\n"
- * Output: *a -> "mdev0", *b -> "ch0@ep_81", *c -> ""
+ * Input: "mdev1:ep81\n"
+ * Output: *a -> "mdev1", *b -> "ep81", *c -> ""
  *
- * Input: "mdev0:ch0@ep_81"
- * Output: *a -> "mdev0", *b -> "ch0@ep_81", *c == NULL
+ * Input: "mdev1:ep81"
+ * Output: *a -> "mdev1", *b -> "ep81", *c == NULL
  */
 static int split_string(char *buf, char **a, char **b, char **c)
 {
@@ -960,11 +960,11 @@ most_c_obj *get_channel_by_name(char *mdev, char *mdev_ch)
  * Searches for a pair of device and channel and probes the AIM
  *
  * Example:
- * (1) echo -n -e "mdev0:ch0@ep_81:my_rxchannel\n" >add_link
- * (2) echo -n -e "mdev0:ch0@ep_81\n" >add_link
+ * (1) echo -n -e "mdev0:ch6:my_rxchannel\n" >add_link
+ * (2) echo -n -e "mdev1:ep81\n" >add_link
  *
  * (1) would create the device node /dev/my_rxchannel
- * (2) would create the device node /dev/mdev0-ch0@ep_81
+ * (2) would create the device node /dev/mdev1-ep81
  */
 static ssize_t store_add_link(struct most_aim_obj *aim_obj,
 			      struct most_aim_attribute *attr,
@@ -1026,7 +1026,7 @@ static struct most_aim_attribute most_aim_attr_add_link =
  * @len: buffer length
  *
  * Example:
- * echo -n -e "mdev0:ch0@ep_81\n" >remove_link
+ * echo -n -e "mdev0:ep81\n" >remove_link
  */
 static ssize_t store_remove_link(struct most_aim_obj *aim_obj,
 				 struct most_aim_attribute *attr,
@@ -1749,9 +1749,6 @@ struct kobject *most_register_interface(struct most_interface *iface)
 
 		if (!name_suffix)
 			snprintf(channel_name, STRING_SIZE, "ch%d", i);
-		else if (name_suffix[0] == '@')
-			snprintf(channel_name, STRING_SIZE, "ch%d%s", i,
-				 name_suffix);
 		else
 			snprintf(channel_name, STRING_SIZE, "%s", name_suffix);
 
