@@ -960,8 +960,8 @@ most_c_obj *get_channel_by_name(char *mdev, char *mdev_ch)
  * Searches for a pair of device and channel and probes the AIM
  *
  * Example:
- * (1) echo -n -e "mdev0:ch6:my_rxchannel\n" >add_link
- * (2) echo -n -e "mdev1:ep81\n" >add_link
+ * (1) echo "mdev0:ch6:my_rxchannel" >add_link
+ * (2) echo "mdev1:ep81" >add_link
  *
  * (1) would create the device node /dev/my_rxchannel
  * (2) would create the device node /dev/mdev1-ep81
@@ -1026,7 +1026,7 @@ static struct most_aim_attribute most_aim_attr_add_link =
  * @len: buffer length
  *
  * Example:
- * echo -n -e "mdev0:ep81\n" >remove_link
+ * echo "mdev0:ep81" >remove_link
  */
 static ssize_t store_remove_link(struct most_aim_obj *aim_obj,
 				 struct most_aim_attribute *attr,
