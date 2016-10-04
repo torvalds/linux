@@ -187,9 +187,15 @@ struct ncsi_channel {
 	struct ncsi_channel_mode    modes[NCSI_MODE_MAX];
 	struct ncsi_channel_filter  *filters[NCSI_FILTER_MAX];
 	struct ncsi_channel_stats   stats;
-	struct timer_list           timer;	/* Link monitor timer  */
-	bool                        enabled;	/* Timer is enabled    */
-	unsigned int                timeout;	/* Times of timeout    */
+	struct {
+		struct timer_list   timer;
+		bool                enabled;
+		unsigned int        state;
+#define NCSI_CHANNEL_MONITOR_START	0
+#define NCSI_CHANNEL_MONITOR_RETRY	1
+#define NCSI_CHANNEL_MONITOR_WAIT	2
+#define NCSI_CHANNEL_MONITOR_WAIT_MAX	5
+	} monitor;
 	struct list_head            node;
 	struct list_head            link;
 };

@@ -322,7 +322,7 @@ static int ncsi_rsp_handler_gls(struct ncsi_request *nr)
 
 	/* Reset the channel monitor if it has been enabled */
 	spin_lock_irqsave(&nc->lock, flags);
-	nc->timeout = 0;
+	nc->monitor.state = NCSI_CHANNEL_MONITOR_START;
 	spin_unlock_irqrestore(&nc->lock, flags);
 
 	return 0;
