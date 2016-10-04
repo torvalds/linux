@@ -798,7 +798,7 @@ nfserrno (int errno)
 		if (nfs_errtbl[i].syserr == errno)
 			return nfs_errtbl[i].nfserr;
 	}
-	WARN(1, "nfsd: non-standard errno: %d\n", errno);
+	WARN_ONCE(1, "nfsd: non-standard errno: %d\n", errno);
 	return nfserr_io;
 }
 
