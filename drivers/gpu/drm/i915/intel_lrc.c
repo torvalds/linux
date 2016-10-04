@@ -226,10 +226,16 @@ enum {
 /* Typical size of the average request (2 pipecontrols and a MI_BB) */
 #define EXECLISTS_REQUEST_SIZE 64 /* bytes */
 
+#define WA_TAIL_DWORDS 2
+
 static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 					    struct intel_engine_cs *engine);
 static int intel_lr_context_pin(struct i915_gem_context *ctx,
 				struct intel_engine_cs *engine);
+static void execlists_init_reg_state(u32 *reg_state,
+				     struct i915_gem_context *ctx,
+				     struct intel_engine_cs *engine,
+				     struct intel_ring *ring);
 
 /**
  * intel_sanitize_enable_execlists() - sanitize i915.enable_execlists
@@ -707,7 +713,6 @@ static int intel_lr_context_pin(struct i915_gem_context *ctx,
 {
 	struct intel_context *ce = &ctx->engine[engine->id];
 	void *vaddr;
-	u32 *lrc_reg_state;
 	int ret;
 
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
@@ -726,17 +731,16 @@ static int intel_lr_context_pin(struct i915_gem_context *ctx,
 		goto unpin_vma;
 	}
 
-	lrc_reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
-
 	ret = intel_ring_pin(ce->ring);
 	if (ret)
 		goto unpin_map;
 
 	intel_lr_context_descriptor_update(ctx, engine);
 
-	lrc_reg_state[CTX_RING_BUFFER_START+1] =
+	ce->lrc_reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
+	ce->lrc_reg_state[CTX_RING_BUFFER_START+1] =
 		i915_ggtt_offset(ce->ring->vma);
-	ce->lrc_reg_state = lrc_reg_state;
+
 	ce->state->obj->dirty = true;
 
 	/* Invalidate GuC TLB. */
@@ -1284,8 +1288,21 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	struct execlist_port *port = engine->execlist_port;
 	struct intel_context *ce = &request->ctx->engine[engine->id];
 
+	/* We want a simple context + ring to execute the breadcrumb update.
+	 * We cannot rely on the context being intact across the GPU hang,
+	 * so clear it and rebuild just what we need for the breadcrumb.
+	 * All pending requests for this context will be zapped, and any
+	 * future request will be after userspace has had the opportunity
+	 * to recreate its own state.
+	 */
+	execlists_init_reg_state(ce->lrc_reg_state,
+				 request->ctx, engine, ce->ring);
+
 	/* Move the RING_HEAD onto the breadcrumb, past the hanging batch */
+	ce->lrc_reg_state[CTX_RING_BUFFER_START+1] =
+		i915_ggtt_offset(ce->ring->vma);
 	ce->lrc_reg_state[CTX_RING_HEAD+1] = request->postfix;
+
 	request->ring->head = request->postfix;
 	request->ring->last_retired_head = -1;
 	intel_ring_update_space(request->ring);
@@ -1305,6 +1322,9 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	GEM_BUG_ON(request->ctx != port[0].request->ctx);
 	port[0].count = 0;
 	port[1].count = 0;
+
+	/* Reset WaIdleLiteRestore:bdw,skl as well */
+	request->tail = request->wa_tail - WA_TAIL_DWORDS * sizeof(u32);
 }
 
 static int intel_logical_ring_emit_pdps(struct drm_i915_gem_request *req)
@@ -1542,7 +1562,6 @@ static void bxt_a_seqno_barrier(struct intel_engine_cs *engine)
  * used as a workaround for not being allowed to do lite
  * restore with HEAD==TAIL (WaIdleLiteRestore).
  */
-#define WA_TAIL_DWORDS 2
 
 static int gen8_emit_request(struct drm_i915_gem_request *request)
 {
@@ -1889,38 +1908,13 @@ static u32 intel_lr_indirect_ctx_offset(struct intel_engine_cs *engine)
 	return indirect_ctx_offset;
 }
 
-static int
-populate_lr_context(struct i915_gem_context *ctx,
-		    struct drm_i915_gem_object *ctx_obj,
-		    struct intel_engine_cs *engine,
-		    struct intel_ring *ring)
+static void execlists_init_reg_state(u32 *reg_state,
+				     struct i915_gem_context *ctx,
+				     struct intel_engine_cs *engine,
+				     struct intel_ring *ring)
 {
-	struct drm_i915_private *dev_priv = ctx->i915;
-	struct i915_hw_ppgtt *ppgtt = ctx->ppgtt;
-	void *vaddr;
-	u32 *reg_state;
-	int ret;
-
-	if (!ppgtt)
-		ppgtt = dev_priv->mm.aliasing_ppgtt;
-
-	ret = i915_gem_object_set_to_cpu_domain(ctx_obj, true);
-	if (ret) {
-		DRM_DEBUG_DRIVER("Could not set to CPU domain\n");
-		return ret;
-	}
-
-	vaddr = i915_gem_object_pin_map(ctx_obj, I915_MAP_WB);
-	if (IS_ERR(vaddr)) {
-		ret = PTR_ERR(vaddr);
-		DRM_DEBUG_DRIVER("Could not map object pages! (%d)\n", ret);
-		return ret;
-	}
-	ctx_obj->dirty = true;
-
-	/* The second page of the context object contains some fields which must
-	 * be set up prior to the first execution. */
-	reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
+	struct drm_i915_private *dev_priv = engine->i915;
+	struct i915_hw_ppgtt *ppgtt = ctx->ppgtt ?: dev_priv->mm.aliasing_ppgtt;
 
 	/* A context is actually a big batch buffer with several MI_LOAD_REGISTER_IMM
 	 * commands followed by (reg, value) pairs. The values we are setting here are
@@ -1934,14 +1928,11 @@ populate_lr_context(struct i915_gem_context *ctx,
 		       _MASKED_BIT_ENABLE(CTX_CTRL_INHIBIT_SYN_CTX_SWITCH |
 					  CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
 					  (HAS_RESOURCE_STREAMER(dev_priv) ?
-					    CTX_CTRL_RS_CTX_ENABLE : 0)));
+					   CTX_CTRL_RS_CTX_ENABLE : 0)));
 	ASSIGN_CTX_REG(reg_state, CTX_RING_HEAD, RING_HEAD(engine->mmio_base),
 		       0);
 	ASSIGN_CTX_REG(reg_state, CTX_RING_TAIL, RING_TAIL(engine->mmio_base),
 		       0);
-	/* Ring buffer start address is not known until the buffer is pinned.
-	 * It is written to the context image in execlists_update_context()
-	 */
 	ASSIGN_CTX_REG(reg_state, CTX_RING_BUFFER_START,
 		       RING_START(engine->mmio_base), 0);
 	ASSIGN_CTX_REG(reg_state, CTX_RING_BUFFER_CONTROL,
@@ -2024,6 +2015,36 @@ populate_lr_context(struct i915_gem_context *ctx,
 		ASSIGN_CTX_REG(reg_state, CTX_R_PWR_CLK_STATE, GEN8_R_PWR_CLK_STATE,
 			       make_rpcs(dev_priv));
 	}
+}
+
+static int
+populate_lr_context(struct i915_gem_context *ctx,
+		    struct drm_i915_gem_object *ctx_obj,
+		    struct intel_engine_cs *engine,
+		    struct intel_ring *ring)
+{
+	void *vaddr;
+	int ret;
+
+	ret = i915_gem_object_set_to_cpu_domain(ctx_obj, true);
+	if (ret) {
+		DRM_DEBUG_DRIVER("Could not set to CPU domain\n");
+		return ret;
+	}
+
+	vaddr = i915_gem_object_pin_map(ctx_obj, I915_MAP_WB);
+	if (IS_ERR(vaddr)) {
+		ret = PTR_ERR(vaddr);
+		DRM_DEBUG_DRIVER("Could not map object pages! (%d)\n", ret);
+		return ret;
+	}
+	ctx_obj->dirty = true;
+
+	/* The second page of the context object contains some fields which must
+	 * be set up prior to the first execution. */
+
+	execlists_init_reg_state(vaddr + LRC_STATE_PN * PAGE_SIZE,
+				 ctx, engine, ring);
 
 	i915_gem_object_unpin_map(ctx_obj);
 
