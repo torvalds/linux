@@ -709,28 +709,20 @@ static int cpu_pmu_request_irq(struct arm_pmu *cpu_pmu, irq_handler_t handler)
 	return 0;
 }
 
-static DEFINE_SPINLOCK(arm_pmu_lock);
-static LIST_HEAD(arm_pmu_list);
-
 /*
  * PMU hardware loses all context when a CPU goes offline.
  * When a CPU is hotplugged back in, since some hardware registers are
  * UNKNOWN at reset, the PMU must be explicitly reset to avoid reading
  * junk values out of them.
  */
-static int arm_perf_starting_cpu(unsigned int cpu)
+static int arm_perf_starting_cpu(unsigned int cpu, struct hlist_node *node)
 {
-	struct arm_pmu *pmu;
+	struct arm_pmu *pmu = hlist_entry_safe(node, struct arm_pmu, node);
 
-	spin_lock(&arm_pmu_lock);
-	list_for_each_entry(pmu, &arm_pmu_list, entry) {
-
-		if (!cpumask_test_cpu(cpu, &pmu->supported_cpus))
-			continue;
-		if (pmu->reset)
-			pmu->reset(pmu);
-	}
-	spin_unlock(&arm_pmu_lock);
+	if (!cpumask_test_cpu(cpu, &pmu->supported_cpus))
+		return 0;
+	if (pmu->reset)
+		pmu->reset(pmu);
 	return 0;
 }
 
@@ -842,9 +834,10 @@ static int cpu_pmu_init(struct arm_pmu *cpu_pmu)
 	if (!cpu_hw_events)
 		return -ENOMEM;
 
-	spin_lock(&arm_pmu_lock);
-	list_add_tail(&cpu_pmu->entry, &arm_pmu_list);
-	spin_unlock(&arm_pmu_lock);
+	err = cpuhp_state_add_instance_nocalls(CPUHP_AP_PERF_ARM_STARTING,
+					       &cpu_pmu->node);
+	if (err)
+		goto out_free;
 
 	err = cpu_pm_pmu_register(cpu_pmu);
 	if (err)
@@ -880,9 +873,9 @@ static int cpu_pmu_init(struct arm_pmu *cpu_pmu)
 	return 0;
 
 out_unregister:
-	spin_lock(&arm_pmu_lock);
-	list_del(&cpu_pmu->entry);
-	spin_unlock(&arm_pmu_lock);
+	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_STARTING,
+					    &cpu_pmu->node);
+out_free:
 	free_percpu(cpu_hw_events);
 	return err;
 }
@@ -890,9 +883,8 @@ out_unregister:
 static void cpu_pmu_destroy(struct arm_pmu *cpu_pmu)
 {
 	cpu_pm_pmu_unregister(cpu_pmu);
-	spin_lock(&arm_pmu_lock);
-	list_del(&cpu_pmu->entry);
-	spin_unlock(&arm_pmu_lock);
+	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_STARTING,
+					    &cpu_pmu->node);
 	free_percpu(cpu_pmu->hw_events);
 }
 
@@ -1091,9 +1083,9 @@ static int arm_pmu_hp_init(void)
 {
 	int ret;
 
-	ret = cpuhp_setup_state_nocalls(CPUHP_AP_PERF_ARM_STARTING,
-					"AP_PERF_ARM_STARTING",
-					arm_perf_starting_cpu, NULL);
+	ret = cpuhp_setup_state_multi(CPUHP_AP_PERF_ARM_STARTING,
+				      "AP_PERF_ARM_STARTING",
+				      arm_perf_starting_cpu, NULL);
 	if (ret)
 		pr_err("CPU hotplug notifier for ARM PMU could not be registered: %d\n",
 		       ret);

@@ -714,7 +714,7 @@ void tasklet_kill_immediate(struct tasklet_struct *t, unsigned int cpu)
 	BUG();
 }
 
-static void takeover_tasklets(unsigned int cpu)
+static int takeover_tasklets(unsigned int cpu)
 {
 	/* CPU is dead, so no lock needed. */
 	local_irq_disable();
@@ -737,26 +737,11 @@ static void takeover_tasklets(unsigned int cpu)
 	raise_softirq_irqoff(HI_SOFTIRQ);
 
 	local_irq_enable();
+	return 0;
 }
+#else
+#define takeover_tasklets	NULL
 #endif /* CONFIG_HOTPLUG_CPU */
-
-static int cpu_callback(struct notifier_block *nfb, unsigned long action,
-			void *hcpu)
-{
-	switch (action) {
-#ifdef CONFIG_HOTPLUG_CPU
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-		takeover_tasklets((unsigned long)hcpu);
-		break;
-#endif /* CONFIG_HOTPLUG_CPU */
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block cpu_nfb = {
-	.notifier_call = cpu_callback
-};
 
 static struct smp_hotplug_thread softirq_threads = {
 	.store			= &ksoftirqd,
@@ -767,8 +752,8 @@ static struct smp_hotplug_thread softirq_threads = {
 
 static __init int spawn_ksoftirqd(void)
 {
-	register_cpu_notifier(&cpu_nfb);
-
+	cpuhp_setup_state_nocalls(CPUHP_SOFTIRQ_DEAD, "softirq:dead", NULL,
+				  takeover_tasklets);
 	BUG_ON(smpboot_register_percpu_thread(&softirq_threads));
 
 	return 0;
