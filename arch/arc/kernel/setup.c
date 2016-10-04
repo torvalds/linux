@@ -171,6 +171,7 @@ static const struct cpuinfo_data arc_cpu_tbl[] = {
 #else
 	{ {0x50, "ARC HS38 R2.0"}, 0x51},
 	{ {0x52, "ARC HS38 R2.1"}, 0x52},
+	{ {0x53, "ARC HS38 R3.0"}, 0x53},
 #endif
 	{ {0x00, NULL		} }
 };
@@ -272,8 +273,8 @@ static char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 	FIX_PTR(cpu);
 
 	n += scnprintf(buf + n, len - n,
-		       "Vector Table\t: %#x\nUncached Base\t: %#lx\n",
-		       cpu->vec_base, perip_base);
+		       "Vector Table\t: %#x\nPeripherals\t: %#lx:%#lx\n",
+		       cpu->vec_base, perip_base, perip_end);
 
 	if (cpu->extn.fpu_sp || cpu->extn.fpu_dp)
 		n += scnprintf(buf + n, len - n, "FPU\t\t: %s%s\n",
