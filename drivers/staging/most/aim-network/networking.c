@@ -211,7 +211,7 @@ static int most_nd_open(struct net_device *dev)
 
 	nd->iface->request_netinfo(nd->iface, nd->tx.ch_id);
 	wait_res = wait_for_completion_interruptible_timeout(
-				&nd->mac_compl, msecs_to_jiffies(5000));
+			   &nd->mac_compl, msecs_to_jiffies(5000));
 	if (!wait_res) {
 		netdev_err(dev, "mac timeout\n");
 		return -EBUSY;
@@ -288,7 +288,6 @@ static const struct net_device_ops most_nd_ops = {
 
 static void most_nd_setup(struct net_device *dev)
 {
-	netdev_info(dev, "setup net device\n");
 	ether_setup(dev);
 	dev->netdev_ops = &most_nd_ops;
 }
