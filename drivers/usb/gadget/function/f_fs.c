@@ -1725,17 +1725,17 @@ static void ffs_func_eps_disable(struct ffs_function *func)
 	unsigned long flags;
 
 	do {
-		if (epfile)
-			mutex_lock(&epfile->mutex);
 		spin_lock_irqsave(&func->ffs->eps_lock, flags);
 		/* pending requests get nuked */
 		if (likely(ep->ep))
 			usb_ep_disable(ep->ep);
 		++ep;
+		if (epfile)
+			epfile->ep = NULL;
 		spin_unlock_irqrestore(&func->ffs->eps_lock, flags);
 
 		if (epfile) {
-			epfile->ep = NULL;
+			mutex_lock(&epfile->mutex);
 			kfree(epfile->read_buffer);
 			epfile->read_buffer = NULL;
 			mutex_unlock(&epfile->mutex);
