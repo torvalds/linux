@@ -605,16 +605,35 @@ find_fw_domain(u32 offset, const struct intel_forcewake_range *ranges,
 	return -1;
 }
 
+static void
+intel_fw_table_check(const struct intel_forcewake_range *ranges,
+		     unsigned int num_ranges)
+{
+	s32 prev;
+	unsigned int i;
+
+	if (!IS_ENABLED(CONFIG_DRM_I915_DEBUG))
+		return;
+
+	for (i = 0, prev = -1; i < num_ranges; i++, ranges++) {
+		WARN_ON_ONCE(prev >= (s32)ranges->start);
+		prev = ranges->start;
+		WARN_ON_ONCE(prev >= (s32)ranges->end);
+		prev = ranges->end;
+	}
+}
+
 #define GEN_FW_RANGE(s, e, d) \
 	{ .start = (s), .end = (e), .domains = (d) }
 
+/* *Must* be sorted by offset ranges! See intel_fw_table_check(). */
 static const struct intel_forcewake_range __vlv_fw_ranges[] = {
 	GEN_FW_RANGE(0x2000, 0x3fff, FORCEWAKE_RENDER),
 	GEN_FW_RANGE(0x5000, 0x7fff, FORCEWAKE_RENDER),
 	GEN_FW_RANGE(0xb000, 0x11fff, FORCEWAKE_RENDER),
-	GEN_FW_RANGE(0x2e000, 0x2ffff, FORCEWAKE_RENDER),
 	GEN_FW_RANGE(0x12000, 0x13fff, FORCEWAKE_MEDIA),
 	GEN_FW_RANGE(0x22000, 0x23fff, FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0x2e000, 0x2ffff, FORCEWAKE_RENDER),
 	GEN_FW_RANGE(0x30000, 0x3ffff, FORCEWAKE_MEDIA),
 };
 
@@ -660,23 +679,24 @@ static bool is_gen8_shadowed(u32 offset)
 	__fwd; \
 })
 
+/* *Must* be sorted by offset ranges! See intel_fw_table_check(). */
 static const struct intel_forcewake_range __chv_fw_ranges[] = {
 	GEN_FW_RANGE(0x2000, 0x3fff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x4000, 0x4fff, FORCEWAKE_RENDER | FORCEWAKE_MEDIA),
 	GEN_FW_RANGE(0x5200, 0x7fff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x8000, 0x82ff, FORCEWAKE_RENDER | FORCEWAKE_MEDIA),
 	GEN_FW_RANGE(0x8300, 0x84ff, FORCEWAKE_RENDER),
-	GEN_FW_RANGE(0xb000, 0xb47f, FORCEWAKE_RENDER),
-	GEN_FW_RANGE(0xe000, 0xe7ff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x8500, 0x85ff, FORCEWAKE_RENDER | FORCEWAKE_MEDIA),
 	GEN_FW_RANGE(0x8800, 0x88ff, FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0x9000, 0xafff, FORCEWAKE_RENDER | FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0xb000, 0xb47f, FORCEWAKE_RENDER),
 	GEN_FW_RANGE(0xd000, 0xd7ff, FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0xe000, 0xe7ff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0xf000, 0xffff, FORCEWAKE_RENDER | FORCEWAKE_MEDIA),
 	GEN_FW_RANGE(0x12000, 0x13fff, FORCEWAKE_MEDIA),
 	GEN_FW_RANGE(0x1a000, 0x1bfff, FORCEWAKE_MEDIA),
 	GEN_FW_RANGE(0x1e800, 0x1e9ff, FORCEWAKE_MEDIA),
 	GEN_FW_RANGE(0x30000, 0x37fff, FORCEWAKE_MEDIA),
-	GEN_FW_RANGE(0x4000, 0x4fff, FORCEWAKE_RENDER | FORCEWAKE_MEDIA),
-	GEN_FW_RANGE(0x8000, 0x82ff, FORCEWAKE_RENDER | FORCEWAKE_MEDIA),
-	GEN_FW_RANGE(0x8500, 0x85ff, FORCEWAKE_RENDER | FORCEWAKE_MEDIA),
-	GEN_FW_RANGE(0x9000, 0xafff, FORCEWAKE_RENDER | FORCEWAKE_MEDIA),
-	GEN_FW_RANGE(0xf000, 0xffff, FORCEWAKE_RENDER | FORCEWAKE_MEDIA),
 };
 
 #define __chv_reg_read_fw_domains(offset) \
@@ -703,23 +723,24 @@ static const struct intel_forcewake_range __chv_fw_ranges[] = {
 	__fwd; \
 })
 
+/* *Must* be sorted by offset ranges! See intel_fw_table_check(). */
 static const struct intel_forcewake_range __gen9_fw_ranges[] = {
 	GEN_FW_RANGE(0xb00, 0x1fff, 0), /* uncore range */
 	GEN_FW_RANGE(0x2000, 0x26ff, FORCEWAKE_RENDER),
 	GEN_FW_RANGE(0x3000, 0x3fff, FORCEWAKE_RENDER),
 	GEN_FW_RANGE(0x5200, 0x7fff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x8130, 0x813f, FORCEWAKE_MEDIA),
 	GEN_FW_RANGE(0x8140, 0x815f, FORCEWAKE_RENDER),
 	GEN_FW_RANGE(0x8300, 0x84ff, FORCEWAKE_RENDER),
-	GEN_FW_RANGE(0x8c00, 0x8cff, FORCEWAKE_RENDER),
-	GEN_FW_RANGE(0xb000, 0xb47f, FORCEWAKE_RENDER),
-	GEN_FW_RANGE(0xe000, 0xe8ff, FORCEWAKE_RENDER),
-	GEN_FW_RANGE(0x24400, 0x247ff, FORCEWAKE_RENDER),
-	GEN_FW_RANGE(0x9400, 0x97ff, FORCEWAKE_RENDER | FORCEWAKE_MEDIA),
-	GEN_FW_RANGE(0x8130, 0x813f, FORCEWAKE_MEDIA),
 	GEN_FW_RANGE(0x8800, 0x89ff, FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0x8c00, 0x8cff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x9400, 0x97ff, FORCEWAKE_RENDER | FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0xb000, 0xb47f, FORCEWAKE_RENDER),
 	GEN_FW_RANGE(0xd000, 0xd7ff, FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0xe000, 0xe8ff, FORCEWAKE_RENDER),
 	GEN_FW_RANGE(0x12000, 0x13fff, FORCEWAKE_MEDIA),
 	GEN_FW_RANGE(0x1a000, 0x1e9ff, FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0x24400, 0x247ff, FORCEWAKE_RENDER),
 	GEN_FW_RANGE(0x30000, 0x3ffff, FORCEWAKE_MEDIA),
 };
 
@@ -1298,11 +1319,17 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 	switch (INTEL_INFO(dev_priv)->gen) {
 	default:
 	case 9:
+		intel_fw_table_check(__gen9_fw_ranges,
+				     ARRAY_SIZE(__gen9_fw_ranges));
+
 		ASSIGN_WRITE_MMIO_VFUNCS(gen9);
 		ASSIGN_READ_MMIO_VFUNCS(gen9);
 		break;
 	case 8:
 		if (IS_CHERRYVIEW(dev_priv)) {
+			intel_fw_table_check(__chv_fw_ranges,
+					     ARRAY_SIZE(__chv_fw_ranges));
+
 			ASSIGN_WRITE_MMIO_VFUNCS(chv);
 			ASSIGN_READ_MMIO_VFUNCS(chv);
 
@@ -1316,6 +1343,9 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 		ASSIGN_WRITE_MMIO_VFUNCS(gen6);
 
 		if (IS_VALLEYVIEW(dev_priv)) {
+			intel_fw_table_check(__vlv_fw_ranges,
+					     ARRAY_SIZE(__vlv_fw_ranges));
+
 			ASSIGN_READ_MMIO_VFUNCS(vlv);
 		} else {
 			ASSIGN_READ_MMIO_VFUNCS(gen6);
