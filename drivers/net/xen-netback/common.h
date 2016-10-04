@@ -91,13 +91,6 @@ struct xenvif_rx_meta {
  */
 #define MAX_XEN_SKB_FRAGS (65536 / XEN_PAGE_SIZE + 1)
 
-/* It's possible for an skb to have a maximal number of frags
- * but still be less than MAX_BUFFER_OFFSET in size. Thus the
- * worst-case number of copy operations is MAX_XEN_SKB_FRAGS per
- * ring slot.
- */
-#define MAX_GRANT_COPY_OPS (MAX_XEN_SKB_FRAGS * XEN_NETIF_RX_RING_SIZE)
-
 #define NETBACK_INVALID_HANDLE -1
 
 /* To avoid confusion, we define XEN_NETBK_LEGACY_SLOTS_MAX indicating
@@ -131,6 +124,14 @@ struct xenvif_stats {
 	unsigned long tx_zerocopy_success;
 	unsigned long tx_zerocopy_fail;
 	unsigned long tx_frag_overflow;
+};
+
+#define COPY_BATCH_SIZE 64
+
+struct xenvif_copy_state {
+	struct gnttab_copy op[COPY_BATCH_SIZE];
+	RING_IDX idx[COPY_BATCH_SIZE];
+	unsigned int num;
 };
 
 struct xenvif_queue { /* Per-queue data for xenvif */
@@ -189,12 +190,7 @@ struct xenvif_queue { /* Per-queue data for xenvif */
 	unsigned long last_rx_time;
 	bool stalled;
 
-	struct gnttab_copy grant_copy_op[MAX_GRANT_COPY_OPS];
-
-	/* We create one meta structure per ring request we consume, so
-	 * the maximum number is the same as the ring size.
-	 */
-	struct xenvif_rx_meta meta[XEN_NETIF_RX_RING_SIZE];
+	struct xenvif_copy_state rx_copy;
 
 	/* Transmit shaping: allow 'credit_bytes' every 'credit_usec'. */
 	unsigned long   credit_bytes;
@@ -358,6 +354,7 @@ int xenvif_dealloc_kthread(void *data);
 
 irqreturn_t xenvif_ctrl_irq_fn(int irq, void *data);
 
+void xenvif_rx_action(struct xenvif_queue *queue);
 void xenvif_rx_queue_tail(struct xenvif_queue *queue, struct sk_buff *skb);
 
 void xenvif_carrier_on(struct xenvif *vif);
