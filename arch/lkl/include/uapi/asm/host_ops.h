@@ -86,6 +86,8 @@ struct lkl_host_operations {
 	void (*thread_detach)(void);
 	void (*thread_exit)(void);
 	int (*thread_join)(lkl_thread_t tid);
+	lkl_thread_t (*thread_self)(void);
+	int (*thread_equal)(lkl_thread_t a, lkl_thread_t b);
 
 	int (*tls_alloc)(unsigned int *key, void (*destructor)(void *));
 	int (*tls_free)(unsigned int key);

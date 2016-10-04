@@ -68,8 +68,12 @@ static void mutex_free(struct lkl_mutex *_mutex)
 static lkl_thread_t thread_create(void (*fn)(void *), void *arg)
 {
 	DWORD WINAPI (*win_fn)(LPVOID arg) = (DWORD WINAPI (*)(LPVOID))fn;
+	HANDLE h = CreateThread(NULL, 0, win_fn, arg, 0, NULL);
 
-	return (lkl_thread_t)CreateThread(NULL, 0, win_fn, arg, 0, NULL);
+	if (!h)
+		return 0;
+
+	return GetThreadId(h);
 }
 
 static void thread_detach(void)
@@ -83,9 +87,30 @@ static void thread_exit(void)
 
 static int thread_join(lkl_thread_t tid)
 {
-	/* TODO: error handling */
-	WaitForSingleObject((void *)tid, INFINITE);
-	return 0;
+	int ret;
+	HANDLE *h;
+
+	h = OpenThread(SYNCHRONIZE, FALSE, tid);
+	if (!h)
+		lkl_printf("%s: can't get thread handle\n", __func__);
+
+	ret = WaitForSingleObject(h, INFINITE);
+	if (ret)
+		lkl_printf("%s: %d\n", __func__, ret);
+
+	CloseHandle(h);
+
+	return ret ? -1 : 0;
+}
+
+static lkl_thread_t thread_self(void)
+{
+	return GetThreadId(GetCurrentThread());
+}
+
+static int thread_equal(lkl_thread_t a, lkl_thread_t b)
+{
+	return a == b;
 }
 
 static int tls_alloc(unsigned int *key, void (*destructor)(void *))
@@ -215,6 +240,8 @@ struct lkl_host_operations lkl_host_ops = {
 	.thread_detach = thread_detach,
 	.thread_exit = thread_exit,
 	.thread_join = thread_join,
+	.thread_self = thread_self,
+	.thread_equal = thread_equal,
 	.sem_alloc = sem_alloc,
 	.sem_free = sem_free,
 	.sem_up = sem_up,
