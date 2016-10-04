@@ -169,32 +169,34 @@ static int page_cache_tree_insert(struct address_space *mapping,
 static void page_cache_tree_delete(struct address_space *mapping,
 				   struct page *page, void *shadow)
 {
-	struct radix_tree_node *node;
 	int i, nr = PageHuge(page) ? 1 : hpage_nr_pages(page);
 
 	VM_BUG_ON_PAGE(!PageLocked(page), page);
 	VM_BUG_ON_PAGE(PageTail(page), page);
 	VM_BUG_ON_PAGE(nr != 1 && shadow, page);
 
-	if (shadow) {
-		mapping->nrexceptional += nr;
-		/*
-		 * Make sure the nrexceptional update is committed before
-		 * the nrpages update so that final truncate racing
-		 * with reclaim does not see both counters 0 at the
-		 * same time and miss a shadow entry.
-		 */
-		smp_wmb();
-	}
-	mapping->nrpages -= nr;
-
 	for (i = 0; i < nr; i++) {
-		node = radix_tree_replace_clear_tags(&mapping->page_tree,
-				page->index + i, shadow);
+		struct radix_tree_node *node;
+		void **slot;
+
+		__radix_tree_lookup(&mapping->page_tree, page->index + i,
+				    &node, &slot);
+
+		radix_tree_clear_tags(&mapping->page_tree, node, slot);
+
 		if (!node) {
 			VM_BUG_ON_PAGE(nr != 1, page);
-			return;
+			/*
+			 * We need a node to properly account shadow
+			 * entries. Don't plant any without. XXX
+			 */
+			shadow = NULL;
 		}
+
+		radix_tree_replace_slot(slot, shadow);
+
+		if (!node)
+			break;
 
 		workingset_node_pages_dec(node);
 		if (shadow)
@@ -219,6 +221,18 @@ static void page_cache_tree_delete(struct address_space *mapping,
 					&node->private_list);
 		}
 	}
+
+	if (shadow) {
+		mapping->nrexceptional += nr;
+		/*
+		 * Make sure the nrexceptional update is committed before
+		 * the nrpages update so that final truncate racing
+		 * with reclaim does not see both counters 0 at the
+		 * same time and miss a shadow entry.
+		 */
+		smp_wmb();
+	}
+	mapping->nrpages -= nr;
 }
 
 /*
