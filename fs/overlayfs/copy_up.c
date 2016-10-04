@@ -177,40 +177,6 @@ out_fput:
 	return error;
 }
 
-static char *ovl_read_symlink(struct dentry *realdentry)
-{
-	int res;
-	char *buf;
-	struct inode *inode = realdentry->d_inode;
-	mm_segment_t old_fs;
-
-	res = -EINVAL;
-	if (!inode->i_op->readlink)
-		goto err;
-
-	res = -ENOMEM;
-	buf = (char *) __get_free_page(GFP_KERNEL);
-	if (!buf)
-		goto err;
-
-	old_fs = get_fs();
-	set_fs(get_ds());
-	/* The cast to a user pointer is valid due to the set_fs() */
-	res = inode->i_op->readlink(realdentry,
-				    (char __user *)buf, PAGE_SIZE - 1);
-	set_fs(old_fs);
-	if (res < 0) {
-		free_page((unsigned long) buf);
-		goto err;
-	}
-	buf[res] = '\0';
-
-	return buf;
-
-err:
-	return ERR_PTR(res);
-}
-
 static int ovl_set_timestamps(struct dentry *upperdentry, struct kstat *stat)
 {
 	struct iattr attr = {
@@ -342,18 +308,20 @@ out_cleanup:
 int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 		    struct path *lowerpath, struct kstat *stat)
 {
+	DEFINE_DELAYED_CALL(done);
 	struct dentry *workdir = ovl_workdir(dentry);
 	int err;
 	struct kstat pstat;
 	struct path parentpath;
+	struct dentry *lowerdentry = lowerpath->dentry;
 	struct dentry *upperdir;
 	struct dentry *upperdentry;
-	char *link = NULL;
+	const char *link = NULL;
 
 	if (WARN_ON(!workdir))
 		return -EROFS;
 
-	ovl_do_check_copy_up(lowerpath->dentry);
+	ovl_do_check_copy_up(lowerdentry);
 
 	ovl_path_upper(parent, &parentpath);
 	upperdir = parentpath.dentry;
@@ -363,7 +331,7 @@ int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 		return err;
 
 	if (S_ISLNK(stat->mode)) {
-		link = ovl_read_symlink(lowerpath->dentry);
+		link = vfs_get_link(lowerdentry, &done);
 		if (IS_ERR(link))
 			return PTR_ERR(link);
 	}
@@ -388,9 +356,7 @@ int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 	}
 out_unlock:
 	unlock_rename(workdir, upperdir);
-
-	if (link)
-		free_page((unsigned long) link);
+	do_delayed_call(&done);
 
 	return err;
 }

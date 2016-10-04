@@ -156,22 +156,14 @@ static const char *ovl_get_link(struct dentry *dentry,
 				struct inode *inode,
 				struct delayed_call *done)
 {
-	struct dentry *realdentry;
-	struct inode *realinode;
 	const struct cred *old_cred;
 	const char *p;
 
 	if (!dentry)
 		return ERR_PTR(-ECHILD);
 
-	realdentry = ovl_dentry_real(dentry);
-	realinode = realdentry->d_inode;
-
-	if (WARN_ON(!realinode->i_op->get_link))
-		return ERR_PTR(-EPERM);
-
 	old_cred = ovl_override_creds(dentry->d_sb);
-	p = realinode->i_op->get_link(realdentry, realinode, done);
+	p = vfs_get_link(ovl_dentry_real(dentry), done);
 	revert_creds(old_cred);
 	return p;
 }
