@@ -21,6 +21,7 @@
 #define EXIT_KEY 0xAA
 #define CHIP_ID1  0x20
 #define CHIP_ID2  0x21
+#define CHIP_ID_F81866 0x1010
 #define CHIP_ID_F81216AD 0x1602
 #define CHIP_ID_F81216H 0x0501
 #define CHIP_ID_F81216 0x0802
@@ -49,6 +50,26 @@
 #define FIFO_MODE_128		(BIT(1) | BIT(0))
 #define RXFTHR_MODE_MASK	(BIT(5) | BIT(4))
 #define RXFTHR_MODE_4X		BIT(5)
+
+#define F81216_LDN_LOW	0x0
+#define F81216_LDN_HIGH	0x4
+
+/*
+ * F81866 registers
+ *
+ * The IRQ setting mode of F81866 is not the same with F81216 series.
+ *	Level/Low: IRQ_MODE0:0, IRQ_MODE1:0
+ *	Edge/High: IRQ_MODE0:1, IRQ_MODE1:0
+ */
+#define F81866_IRQ_MODE		0xf0
+#define F81866_IRQ_SHARE	BIT(0)
+#define F81866_IRQ_MODE0	BIT(1)
+
+#define F81866_FIFO_CTRL	FIFO_CTRL
+#define F81866_IRQ_MODE1	BIT(3)
+
+#define F81866_LDN_LOW		0x10
+#define F81866_LDN_HIGH		0x16
 
 struct fintek_8250 {
 	u16 pid;
@@ -109,6 +130,7 @@ static int fintek_8250_check_id(struct fintek_8250 *pdata)
 	chip |= sio_read_reg(pdata, CHIP_ID2) << 8;
 
 	switch (chip) {
+	case CHIP_ID_F81866:
 	case CHIP_ID_F81216AD:
 	case CHIP_ID_F81216H:
 	case CHIP_ID_F81216:
@@ -119,6 +141,26 @@ static int fintek_8250_check_id(struct fintek_8250 *pdata)
 
 	pdata->pid = chip;
 	return 0;
+}
+
+static int fintek_8250_get_ldn_range(struct fintek_8250 *pdata, int *min,
+				     int *max)
+{
+	switch (pdata->pid) {
+	case CHIP_ID_F81866:
+		*min = F81866_LDN_LOW;
+		*max = F81866_LDN_HIGH;
+		return 0;
+
+	case CHIP_ID_F81216AD:
+	case CHIP_ID_F81216H:
+	case CHIP_ID_F81216:
+		*min = F81216_LDN_LOW;
+		*max = F81216_LDN_HIGH;
+		return 0;
+	}
+
+	return -ENODEV;
 }
 
 static int fintek_8250_rs485_config(struct uart_port *port,
@@ -172,15 +214,33 @@ static int fintek_8250_rs485_config(struct uart_port *port,
 static void fintek_8250_set_irq_mode(struct fintek_8250 *pdata, bool is_level)
 {
 	sio_write_reg(pdata, LDN, pdata->index);
-	sio_write_mask_reg(pdata, FINTEK_IRQ_MODE, IRQ_SHARE, IRQ_SHARE);
-	sio_write_mask_reg(pdata, FINTEK_IRQ_MODE, IRQ_MODE_MASK,
-			   is_level ? IRQ_LEVEL_LOW : IRQ_EDGE_HIGH);
+
+	switch (pdata->pid) {
+	case CHIP_ID_F81866:
+		sio_write_mask_reg(pdata, F81866_FIFO_CTRL, F81866_IRQ_MODE1,
+				   0);
+		sio_write_mask_reg(pdata, F81866_IRQ_MODE, F81866_IRQ_SHARE,
+				   F81866_IRQ_SHARE);
+		sio_write_mask_reg(pdata, F81866_IRQ_MODE, F81866_IRQ_MODE0,
+				   is_level ? 0 : F81866_IRQ_MODE0);
+		break;
+
+	case CHIP_ID_F81216AD:
+	case CHIP_ID_F81216H:
+	case CHIP_ID_F81216:
+		sio_write_mask_reg(pdata, FINTEK_IRQ_MODE, IRQ_SHARE,
+				   IRQ_SHARE);
+		sio_write_mask_reg(pdata, FINTEK_IRQ_MODE, IRQ_MODE_MASK,
+				   is_level ? IRQ_LEVEL_LOW : IRQ_EDGE_HIGH);
+		break;
+	}
 }
 
 static void fintek_8250_set_max_fifo(struct fintek_8250 *pdata)
 {
 	switch (pdata->pid) {
 	case CHIP_ID_F81216H: /* 128Bytes FIFO */
+	case CHIP_ID_F81866:
 		sio_write_mask_reg(pdata, FIFO_CTRL,
 				   FIFO_MODE_MASK | RXFTHR_MODE_MASK,
 				   FIFO_MODE_128 | RXFTHR_MODE_4X);
@@ -198,7 +258,7 @@ static int probe_setup_port(struct fintek_8250 *pdata, u16 io_address,
 	static const u8 keys[] = {0x77, 0xa0, 0x87, 0x67};
 	struct irq_data *irq_data;
 	bool level_mode = false;
-	int i, j, k;
+	int i, j, k, min, max;
 
 	for (i = 0; i < ARRAY_SIZE(addr); i++) {
 		for (j = 0; j < ARRAY_SIZE(keys); j++) {
@@ -207,12 +267,13 @@ static int probe_setup_port(struct fintek_8250 *pdata, u16 io_address,
 
 			if (fintek_8250_enter_key(addr[i], keys[j]))
 				continue;
-			if (fintek_8250_check_id(pdata)) {
+			if (fintek_8250_check_id(pdata) ||
+			    fintek_8250_get_ldn_range(pdata, &min, &max)) {
 				fintek_8250_exit_key(addr[i]);
 				continue;
 			}
 
-			for (k = 0; k < 4; k++) {
+			for (k = min; k < max; k++) {
 				u16 aux;
 
 				sio_write_reg(pdata, LDN, k);
@@ -249,6 +310,7 @@ static void fintek_8250_set_rs485_handler(struct uart_8250_port *uart)
 	switch (pdata->pid) {
 	case CHIP_ID_F81216AD:
 	case CHIP_ID_F81216H:
+	case CHIP_ID_F81866:
 		uart->port.rs485_config = fintek_8250_rs485_config;
 		break;
 
