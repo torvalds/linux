@@ -509,7 +509,6 @@ static int msi2500_isoc_init(struct msi2500_dev *dev)
 	for (i = 0; i < MAX_ISO_BUFS; i++) {
 		urb = usb_alloc_urb(ISO_FRAMES_PER_DESC, GFP_KERNEL);
 		if (urb == NULL) {
-			dev_err(dev->dev, "Failed to allocate urb %d\n", i);
 			msi2500_isoc_cleanup(dev);
 			return -ENOMEM;
 		}

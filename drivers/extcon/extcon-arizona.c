@@ -183,7 +183,7 @@ static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
 		if (clamp)
 			val = ARIZONA_RMV_SHRT_HP1L;
 		break;
-	};
+	}
 
 	snd_soc_dapm_mutex_lock(arizona->dapm);
 
@@ -614,7 +614,7 @@ static irqreturn_t arizona_hpdet_irq(int irq, void *data)
 	}
 
 	/* If the cable was removed while measuring ignore the result */
-	ret = extcon_get_cable_state_(info->edev, EXTCON_MECHANICAL);
+	ret = extcon_get_state(info->edev, EXTCON_MECHANICAL);
 	if (ret < 0) {
 		dev_err(arizona->dev, "Failed to check cable state: %d\n",
 			ret);
@@ -649,7 +649,7 @@ static irqreturn_t arizona_hpdet_irq(int irq, void *data)
 	else
 		report = EXTCON_JACK_HEADPHONE;
 
-	ret = extcon_set_cable_state_(info->edev, report, true);
+	ret = extcon_set_state_sync(info->edev, report, true);
 	if (ret != 0)
 		dev_err(arizona->dev, "Failed to report HP/line: %d\n",
 			ret);
@@ -732,7 +732,7 @@ err:
 			   ARIZONA_ACCDET_MODE_MASK, ARIZONA_ACCDET_MODE_MIC);
 
 	/* Just report headphone */
-	ret = extcon_set_cable_state_(info->edev, EXTCON_JACK_HEADPHONE, true);
+	ret = extcon_set_state_sync(info->edev, EXTCON_JACK_HEADPHONE, true);
 	if (ret != 0)
 		dev_err(arizona->dev, "Failed to report headphone: %d\n", ret);
 
@@ -789,7 +789,7 @@ err:
 			   ARIZONA_ACCDET_MODE_MASK, ARIZONA_ACCDET_MODE_MIC);
 
 	/* Just report headphone */
-	ret = extcon_set_cable_state_(info->edev, EXTCON_JACK_HEADPHONE, true);
+	ret = extcon_set_state_sync(info->edev, EXTCON_JACK_HEADPHONE, true);
 	if (ret != 0)
 		dev_err(arizona->dev, "Failed to report headphone: %d\n", ret);
 
@@ -829,7 +829,7 @@ static void arizona_micd_detect(struct work_struct *work)
 	mutex_lock(&info->lock);
 
 	/* If the cable was removed while measuring ignore the result */
-	ret = extcon_get_cable_state_(info->edev, EXTCON_MECHANICAL);
+	ret = extcon_get_state(info->edev, EXTCON_MECHANICAL);
 	if (ret < 0) {
 		dev_err(arizona->dev, "Failed to check cable state: %d\n",
 				ret);
@@ -914,7 +914,7 @@ static void arizona_micd_detect(struct work_struct *work)
 
 		arizona_identify_headphone(info);
 
-		ret = extcon_set_cable_state_(info->edev,
+		ret = extcon_set_state_sync(info->edev,
 					      EXTCON_JACK_MICROPHONE, true);
 		if (ret != 0)
 			dev_err(arizona->dev, "Headset report failed: %d\n",
@@ -1108,7 +1108,7 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 
 	if (info->last_jackdet == present) {
 		dev_dbg(arizona->dev, "Detected jack\n");
-		ret = extcon_set_cable_state_(info->edev,
+		ret = extcon_set_state_sync(info->edev,
 					      EXTCON_MECHANICAL, true);
 
 		if (ret != 0)
@@ -1149,10 +1149,13 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 					 info->micd_ranges[i].key, 0);
 		input_sync(info->input);
 
-		ret = extcon_update_state(info->edev, 0xffffffff, 0);
-		if (ret != 0)
-			dev_err(arizona->dev, "Removal report failed: %d\n",
-				ret);
+		for (i = 0; i < ARRAY_SIZE(arizona_cable) - 1; i++) {
+			ret = extcon_set_state_sync(info->edev,
+					arizona_cable[i], false);
+			if (ret != 0)
+				dev_err(arizona->dev,
+					"Removal report failed: %d\n", ret);
+		}
 
 		regmap_update_bits(arizona->regmap,
 				   ARIZONA_JACK_DETECT_DEBOUNCE,

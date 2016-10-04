@@ -4248,6 +4248,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 				u = IGNORE_UAS (don't bind to the uas driver);
 				w = NO_WP_DETECT (don't test whether the
 					medium is write-protected).
+				y = ALWAYS_SYNC (issue a SYNCHRONIZE_CACHE
+					even if the device claims no cache)
 			Example: quirks=0419:aaf5:rl,0421:0433:rc
 
 	user_debug=	[KNL,ARM]

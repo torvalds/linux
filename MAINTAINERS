@@ -12216,7 +12216,7 @@ S:	Maintained
 F:	drivers/net/usb/lan78xx.*
 
 USB MASS STORAGE DRIVER
-M:	Matthew Dharm <mdharm-usb@one-eyed-alien.net>
+M:	Alan Stern <stern@rowland.harvard.edu>
 L:	linux-usb@vger.kernel.org
 L:	usb-storage@lists.one-eyed-alien.net
 S:	Maintained
@@ -12300,6 +12300,7 @@ F:	drivers/net/usb/rtl8150.c
 USB SERIAL SUBSYSTEM
 M:	Johan Hovold <johan@kernel.org>
 L:	linux-usb@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/johan/usb-serial.git
 S:	Maintained
 F:	Documentation/usb/usb-serial.txt
 F:	drivers/usb/serial/

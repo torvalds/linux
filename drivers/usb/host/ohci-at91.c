@@ -21,8 +21,11 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
+#include <soc/at91/atmel-sfr.h>
 
 #include "ohci.h"
 
@@ -51,6 +54,7 @@ struct ohci_at91_priv {
 	struct clk *hclk;
 	bool clocked;
 	bool wakeup;		/* Saved wake-up state for resume */
+	struct regmap *sfr_regmap;
 };
 /* interface and function clocks; sometimes also an AHB clock */
 
@@ -134,6 +138,17 @@ static void at91_stop_hc(struct platform_device *pdev)
 
 static void usb_hcd_at91_remove (struct usb_hcd *, struct platform_device *);
 
+static struct regmap *at91_dt_syscon_sfr(void)
+{
+	struct regmap *regmap;
+
+	regmap = syscon_regmap_lookup_by_compatible("atmel,sama5d2-sfr");
+	if (IS_ERR(regmap))
+		regmap = NULL;
+
+	return regmap;
+}
+
 /* configure so an HC device and id are always provided */
 /* always called with process context; sleeping is OK */
 
@@ -196,6 +211,10 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 		retval = PTR_ERR(ohci_at91->hclk);
 		goto err;
 	}
+
+	ohci_at91->sfr_regmap = at91_dt_syscon_sfr();
+	if (!ohci_at91->sfr_regmap)
+		dev_warn(dev, "failed to find sfr node\n");
 
 	board = hcd->self.controller->platform_data;
 	ohci = hcd_to_ohci(hcd);
@@ -282,6 +301,28 @@ static int ohci_at91_hub_status_data(struct usb_hcd *hcd, char *buf)
 	return length;
 }
 
+static int ohci_at91_port_suspend(struct regmap *regmap, u8 set)
+{
+	u32 regval;
+	int ret;
+
+	if (!regmap)
+		return 0;
+
+	ret = regmap_read(regmap, AT91_SFR_OHCIICR, &regval);
+	if (ret)
+		return ret;
+
+	if (set)
+		regval |= AT91_OHCIICR_USB_SUSPEND;
+	else
+		regval &= ~AT91_OHCIICR_USB_SUSPEND;
+
+	regmap_write(regmap, AT91_SFR_OHCIICR, regval);
+
+	return 0;
+}
+
 /*
  * Look at the control requests to the root hub and see if we need to override.
  */
@@ -289,6 +330,7 @@ static int ohci_at91_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				 u16 wIndex, char *buf, u16 wLength)
 {
 	struct at91_usbh_data *pdata = dev_get_platdata(hcd->self.controller);
+	struct ohci_at91_priv *ohci_at91 = hcd_to_ohci_at91_priv(hcd);
 	struct usb_hub_descriptor *desc;
 	int ret = -EINVAL;
 	u32 *data = (u32 *)buf;
@@ -301,7 +343,8 @@ static int ohci_at91_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 	switch (typeReq) {
 	case SetPortFeature:
-		if (wValue == USB_PORT_FEAT_POWER) {
+		switch (wValue) {
+		case USB_PORT_FEAT_POWER:
 			dev_dbg(hcd->self.controller, "SetPortFeat: POWER\n");
 			if (valid_port(wIndex)) {
 				ohci_at91_usb_set_power(pdata, wIndex, 1);
@@ -309,6 +352,15 @@ static int ohci_at91_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			}
 
 			goto out;
+
+		case USB_PORT_FEAT_SUSPEND:
+			dev_dbg(hcd->self.controller, "SetPortFeat: SUSPEND\n");
+			if (valid_port(wIndex)) {
+				ohci_at91_port_suspend(ohci_at91->sfr_regmap,
+						       1);
+				return 0;
+			}
+			break;
 		}
 		break;
 
@@ -342,6 +394,16 @@ static int ohci_at91_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				ohci_at91_usb_set_power(pdata, wIndex, 0);
 				return 0;
 			}
+			break;
+
+		case USB_PORT_FEAT_SUSPEND:
+			dev_dbg(hcd->self.controller, "ClearPortFeature: SUSPEND\n");
+			if (valid_port(wIndex)) {
+				ohci_at91_port_suspend(ohci_at91->sfr_regmap,
+						       0);
+				return 0;
+			}
+			break;
 		}
 		break;
 	}
@@ -599,6 +661,8 @@ ohci_hcd_at91_drv_suspend(struct device *dev)
 	if (ohci_at91->wakeup)
 		enable_irq_wake(hcd->irq);
 
+	ohci_at91_port_suspend(ohci_at91->sfr_regmap, 1);
+
 	ret = ohci_suspend(hcd, ohci_at91->wakeup);
 	if (ret) {
 		if (ohci_at91->wakeup)
@@ -638,6 +702,9 @@ ohci_hcd_at91_drv_resume(struct device *dev)
 	at91_start_clock(ohci_at91);
 
 	ohci_resume(hcd, false);
+
+	ohci_at91_port_suspend(ohci_at91->sfr_regmap, 0);
+
 	return 0;
 }
 
