@@ -763,7 +763,6 @@ struct most_aim_obj {
 	struct kobject kobj;
 	struct list_head list;
 	struct most_aim *driver;
-	char add_link[STRING_SIZE];
 	char remove_link[STRING_SIZE];
 };
 
@@ -984,7 +983,6 @@ static ssize_t store_add_link(struct most_aim_obj *aim_obj,
 	size_t max_len = min_t(size_t, len + 1, STRING_SIZE);
 
 	strlcpy(buffer, buf, max_len);
-	strlcpy(aim_obj->add_link, buf, max_len);
 
 	ret = split_string(buffer, &mdev, &mdev_ch, &mdev_devnod);
 	if (ret)
