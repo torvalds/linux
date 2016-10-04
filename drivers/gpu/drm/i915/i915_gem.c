@@ -2581,8 +2581,6 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 	struct i915_gem_context *incomplete_ctx;
 	bool ring_hung;
 
-	/* Ensure irq handler finishes, and not run again. */
-	tasklet_kill(&engine->irq_tasklet);
 	if (engine->irq_seqno_barrier)
 		engine->irq_seqno_barrier(engine);
 
