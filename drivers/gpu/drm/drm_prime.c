@@ -285,7 +285,8 @@ static void drm_gem_unmap_dma_buf(struct dma_buf_attachment *attach,
 
 /**
  * drm_gem_dmabuf_export - dma_buf export implementation for GEM
- * @dma_buf: buffer to be exported
+ * @dev: parent device for the exported dmabuf
+ * @exp_info: the export information used by dma_buf_export()
  *
  * This wraps dma_buf_export() for use by generic GEM drivers that are using
  * drm_gem_dmabuf_release(). In addition to calling dma_buf_export(), we take
