@@ -173,7 +173,21 @@ const char *nvdimm_namespace_disk_name(struct nd_namespace_common *ndns,
 		suffix = "s";
 
 	if (is_namespace_pmem(&ndns->dev) || is_namespace_io(&ndns->dev)) {
-		sprintf(name, "pmem%d%s", nd_region->id, suffix ? suffix : "");
+		int nsidx = 0;
+
+		if (is_namespace_pmem(&ndns->dev)) {
+			struct nd_namespace_pmem *nspm;
+
+			nspm = to_nd_namespace_pmem(&ndns->dev);
+			nsidx = nspm->id;
+		}
+
+		if (nsidx)
+			sprintf(name, "pmem%d.%d%s", nd_region->id, nsidx,
+					suffix ? suffix : "");
+		else
+			sprintf(name, "pmem%d%s", nd_region->id,
+					suffix ? suffix : "");
 	} else if (is_namespace_blk(&ndns->dev)) {
 		struct nd_namespace_blk *nsblk;
 
