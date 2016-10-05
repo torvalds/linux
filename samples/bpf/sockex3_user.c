@@ -7,7 +7,7 @@
 #include <arpa/inet.h>
 #include <sys/resource.h>
 
-struct flow_keys {
+struct bpf_flow_keys {
 	__be32 src;
 	__be32 dst;
 	union {
@@ -49,7 +49,7 @@ int main(int argc, char **argv)
 	(void) f;
 
 	for (i = 0; i < 5; i++) {
-		struct flow_keys key = {}, next_key;
+		struct bpf_flow_keys key = {}, next_key;
 		struct pair value;
 
 		sleep(1);

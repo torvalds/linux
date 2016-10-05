@@ -531,7 +531,7 @@ static void ns2_pin_dbg_show(struct pinctrl_dev *pctrl_dev,
 	seq_printf(s, " %s", dev_name(pctrl_dev->dev));
 }
 
-static struct pinctrl_ops ns2_pinctrl_ops = {
+static const struct pinctrl_ops ns2_pinctrl_ops = {
 	.get_groups_count = ns2_get_groups_count,
 	.get_group_name = ns2_get_group_name,
 	.get_group_pins = ns2_get_group_pins,
@@ -959,7 +959,7 @@ static int ns2_pin_config_set(struct pinctrl_dev *pctrldev, unsigned int pin,
 out:
 	return ret;
 }
-static struct pinmux_ops ns2_pinmux_ops = {
+static const struct pinmux_ops ns2_pinmux_ops = {
 	.get_functions_count = ns2_get_functions_count,
 	.get_function_name = ns2_get_function_name,
 	.get_function_groups = ns2_get_function_groups,

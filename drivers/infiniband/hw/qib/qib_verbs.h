@@ -45,6 +45,7 @@
 #include <linux/completion.h>
 #include <rdma/ib_pack.h>
 #include <rdma/ib_user_verbs.h>
+#include <rdma/ib_hdrs.h>
 #include <rdma/rdma_vt.h>
 #include <rdma/rdmavt_cq.h>
 
@@ -63,16 +64,6 @@ struct qib_verbs_txreq;
  */
 #define QIB_UVERBS_ABI_VERSION       2
 
-#define IB_SEQ_NAK	(3 << 29)
-
-/* AETH NAK opcode values */
-#define IB_RNR_NAK                      0x20
-#define IB_NAK_PSN_ERROR                0x60
-#define IB_NAK_INVALID_REQUEST          0x61
-#define IB_NAK_REMOTE_ACCESS_ERROR      0x62
-#define IB_NAK_REMOTE_OPERATIONAL_ERROR 0x63
-#define IB_NAK_INVALID_RD_REQUEST       0x64
-
 /* IB Performance Manager status values */
 #define IB_PMA_SAMPLE_STATUS_DONE       0x00
 #define IB_PMA_SAMPLE_STATUS_STARTED    0x01
@@ -87,21 +78,8 @@ struct qib_verbs_txreq;
 
 #define QIB_VENDOR_IPG		cpu_to_be16(0xFFA0)
 
-#define IB_BTH_REQ_ACK		(1 << 31)
-#define IB_BTH_SOLICITED	(1 << 23)
-#define IB_BTH_MIG_REQ		(1 << 22)
-
 /* XXX Should be defined in ib_verbs.h enum ib_port_cap_flags */
 #define IB_PORT_OTHER_LOCAL_CHANGES_SUP (1 << 26)
-
-#define IB_GRH_VERSION		6
-#define IB_GRH_VERSION_MASK	0xF
-#define IB_GRH_VERSION_SHIFT	28
-#define IB_GRH_TCLASS_MASK	0xFF
-#define IB_GRH_TCLASS_SHIFT	20
-#define IB_GRH_FLOW_MASK	0xFFFFF
-#define IB_GRH_FLOW_SHIFT	0
-#define IB_GRH_NEXT_HDR		0x1B
 
 #define IB_DEFAULT_GID_PREFIX	cpu_to_be64(0xfe80000000000000ULL)
 
@@ -129,61 +107,9 @@ static inline int qib_num_vls(int vls)
 	}
 }
 
-struct ib_reth {
-	__be64 vaddr;
-	__be32 rkey;
-	__be32 length;
-} __packed;
-
-struct ib_atomic_eth {
-	__be32 vaddr[2];        /* unaligned so access as 2 32-bit words */
-	__be32 rkey;
-	__be64 swap_data;
-	__be64 compare_data;
-} __packed;
-
-struct qib_other_headers {
-	__be32 bth[3];
-	union {
-		struct {
-			__be32 deth[2];
-			__be32 imm_data;
-		} ud;
-		struct {
-			struct ib_reth reth;
-			__be32 imm_data;
-		} rc;
-		struct {
-			__be32 aeth;
-			__be32 atomic_ack_eth[2];
-		} at;
-		__be32 imm_data;
-		__be32 aeth;
-		__be32 ieth;
-		struct ib_atomic_eth atomic_eth;
-	} u;
-} __packed;
-
-/*
- * Note that UD packets with a GRH header are 8+40+12+8 = 68 bytes
- * long (72 w/ imm_data).  Only the first 56 bytes of the IB header
- * will be in the eager header buffer.  The remaining 12 or 16 bytes
- * are in the data buffer.
- */
-struct qib_ib_header {
-	__be16 lrh[4];
-	union {
-		struct {
-			struct ib_grh grh;
-			struct qib_other_headers oth;
-		} l;
-		struct qib_other_headers oth;
-	} u;
-} __packed;
-
 struct qib_pio_header {
 	__le32 pbc[2];
-	struct qib_ib_header hdr;
+	struct ib_header hdr;
 } __packed;
 
 /*
@@ -191,7 +117,7 @@ struct qib_pio_header {
  * is made common.
  */
 struct qib_qp_priv {
-	struct qib_ib_header *s_hdr;    /* next packet header to send */
+	struct ib_header *s_hdr;        /* next packet header to send */
 	struct list_head iowait;        /* link for wait PIO buf */
 	atomic_t s_dma_busy;
 	struct qib_verbs_txreq *s_tx;
@@ -376,7 +302,7 @@ void qib_verbs_sdma_desc_avail(struct qib_pportdata *ppd, unsigned avail);
 
 void qib_put_txreq(struct qib_verbs_txreq *tx);
 
-int qib_verbs_send(struct rvt_qp *qp, struct qib_ib_header *hdr,
+int qib_verbs_send(struct rvt_qp *qp, struct ib_header *hdr,
 		   u32 hdrwords, struct rvt_sge_state *ss, u32 len);
 
 void qib_copy_sge(struct rvt_sge_state *ss, void *data, u32 length,
@@ -384,10 +310,10 @@ void qib_copy_sge(struct rvt_sge_state *ss, void *data, u32 length,
 
 void qib_skip_sge(struct rvt_sge_state *ss, u32 length, int release);
 
-void qib_uc_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
+void qib_uc_rcv(struct qib_ibport *ibp, struct ib_header *hdr,
 		int has_grh, void *data, u32 tlen, struct rvt_qp *qp);
 
-void qib_rc_rcv(struct qib_ctxtdata *rcd, struct qib_ib_header *hdr,
+void qib_rc_rcv(struct qib_ctxtdata *rcd, struct ib_header *hdr,
 		int has_grh, void *data, u32 tlen, struct rvt_qp *qp);
 
 int qib_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr);
@@ -398,13 +324,13 @@ struct ib_ah *qib_create_qp0_ah(struct qib_ibport *ibp, u16 dlid);
 
 void qib_rc_rnr_retry(unsigned long arg);
 
-void qib_rc_send_complete(struct rvt_qp *qp, struct qib_ib_header *hdr);
+void qib_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr);
 
 void qib_rc_error(struct rvt_qp *qp, enum ib_wc_status err);
 
 int qib_post_ud_send(struct rvt_qp *qp, struct ib_send_wr *wr);
 
-void qib_ud_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
+void qib_ud_rcv(struct qib_ibport *ibp, struct ib_header *hdr,
 		int has_grh, void *data, u32 tlen, struct rvt_qp *qp);
 
 void mr_rcu_callback(struct rcu_head *list);
@@ -413,13 +339,13 @@ int qib_get_rwqe(struct rvt_qp *qp, int wr_id_only);
 
 void qib_migrate_qp(struct rvt_qp *qp);
 
-int qib_ruc_check_hdr(struct qib_ibport *ibp, struct qib_ib_header *hdr,
+int qib_ruc_check_hdr(struct qib_ibport *ibp, struct ib_header *hdr,
 		      int has_grh, struct rvt_qp *qp, u32 bth0);
 
 u32 qib_make_grh(struct qib_ibport *ibp, struct ib_grh *hdr,
 		 struct ib_global_route *grh, u32 hwords, u32 nwords);
 
-void qib_make_ruc_header(struct rvt_qp *qp, struct qib_other_headers *ohdr,
+void qib_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 			 u32 bth0, u32 bth2);
 
 void _qib_do_send(struct work_struct *work);

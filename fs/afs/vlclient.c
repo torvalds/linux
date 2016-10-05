@@ -58,17 +58,16 @@ static int afs_vl_abort_to_error(u32 abort_code)
 /*
  * deliver reply data to a VL.GetEntryByXXX call
  */
-static int afs_deliver_vl_get_entry_by_xxx(struct afs_call *call,
-					   struct sk_buff *skb, bool last)
+static int afs_deliver_vl_get_entry_by_xxx(struct afs_call *call)
 {
 	struct afs_cache_vlocation *entry;
 	__be32 *bp;
 	u32 tmp;
 	int loop, ret;
 
-	_enter(",,%u", last);
+	_enter("");
 
-	ret = afs_transfer_reply(call, skb, last);
+	ret = afs_transfer_reply(call);
 	if (ret < 0)
 		return ret;
 

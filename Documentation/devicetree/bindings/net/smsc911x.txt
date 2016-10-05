@@ -3,9 +3,11 @@
 Required properties:
 - compatible : Should be "smsc,lan<model>", "smsc,lan9115"
 - reg : Address and length of the io space for SMSC LAN
-- interrupts : Should contain SMSC LAN interrupt line
-- interrupt-parent : Should be the phandle for the interrupt controller
-  that services interrupts for this device
+- interrupts : one or two interrupt specifiers
+  - The first interrupt is the SMSC LAN interrupt line
+  - The second interrupt (if present) is the PME (power
+    management event) interrupt that is able to wake up the host
+     system with a 50ms pulse on network activity
 - phy-mode : See ethernet.txt file in the same directory
 
 Optional properties:
@@ -21,6 +23,10 @@ Optional properties:
   external PHY
 - smsc,save-mac-address : Indicates that mac address needs to be saved
   before resetting the controller
+- reset-gpios : a GPIO line connected to the RESET (active low) signal
+  of the device. On many systems this is wired high so the device goes
+  out of reset at power-on, but if it is under program control, this
+  optional GPIO can wake up in response to it.
 
 Examples:
 
@@ -29,7 +35,8 @@ lan9220@f4000000 {
 	reg = <0xf4000000 0x2000000>;
 	phy-mode = "mii";
 	interrupt-parent = <&gpio1>;
-	interrupts = <31>;
+	interrupts = <31>, <32>;
+	reset-gpios = <&gpio1 30 GPIO_ACTIVE_LOW>;
 	reg-io-width = <4>;
 	smsc,irq-push-pull;
 };

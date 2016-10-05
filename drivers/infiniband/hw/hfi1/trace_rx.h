@@ -260,7 +260,7 @@ TRACE_EVENT(hfi1_mmu_invalidate,
 TRACE_EVENT(snoop_capture,
 	    TP_PROTO(struct hfi1_devdata *dd,
 		     int hdr_len,
-		     struct hfi1_ib_header *hdr,
+		     struct ib_header *hdr,
 		     int data_len,
 		     void *data),
 	    TP_ARGS(dd, hdr_len, hdr, data_len, data),
@@ -279,7 +279,7 @@ TRACE_EVENT(snoop_capture,
 			     __dynamic_array(u8, raw_pkt, data_len)
 			     ),
 	    TP_fast_assign(
-		struct hfi1_other_headers *ohdr;
+		struct ib_other_headers *ohdr;
 
 		__entry->lnh = (u8)(be16_to_cpu(hdr->lrh[0]) & 3);
 		if (__entry->lnh == HFI1_LRH_BTH)

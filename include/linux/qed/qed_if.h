@@ -34,6 +34,8 @@ enum dcbx_protocol_type {
 	DCBX_MAX_PROTOCOL_TYPE
 };
 
+#define QED_ROCE_PROTOCOL_INDEX (3)
+
 #ifdef CONFIG_DCB
 #define QED_LLDP_CHASSIS_ID_STAT_LEN 4
 #define QED_LLDP_PORT_ID_STAT_LEN 4
@@ -260,20 +262,35 @@ struct qed_dev_info {
 	/* MFW version */
 	u32		mfw_rev;
 
-	bool rdma_supported;
-
 	u32		flash_size;
 	u8		mf_mode;
 	bool		tx_switching;
+	bool		rdma_supported;
 };
 
 enum qed_sb_type {
 	QED_SB_TYPE_L2_QUEUE,
+	QED_SB_TYPE_CNQ,
 };
 
 enum qed_protocol {
 	QED_PROTOCOL_ETH,
 	QED_PROTOCOL_ISCSI,
+};
+
+enum qed_link_mode_bits {
+	QED_LM_FIBRE_BIT = BIT(0),
+	QED_LM_Autoneg_BIT = BIT(1),
+	QED_LM_Asym_Pause_BIT = BIT(2),
+	QED_LM_Pause_BIT = BIT(3),
+	QED_LM_1000baseT_Half_BIT = BIT(4),
+	QED_LM_1000baseT_Full_BIT = BIT(5),
+	QED_LM_10000baseKR_Full_BIT = BIT(6),
+	QED_LM_25000baseKR_Full_BIT = BIT(7),
+	QED_LM_40000baseLR4_Full_BIT = BIT(8),
+	QED_LM_50000baseKR2_Full_BIT = BIT(9),
+	QED_LM_100000baseKR4_Full_BIT = BIT(10),
+	QED_LM_COUNT = 11
 };
 
 struct qed_link_params {
@@ -303,9 +320,11 @@ struct qed_link_params {
 struct qed_link_output {
 	bool	link_up;
 
-	u32	supported_caps;         /* In SUPPORTED defs */
-	u32	advertised_caps;        /* In ADVERTISED defs */
-	u32	lp_caps;                /* In ADVERTISED defs */
+	/* In QED_LM_* defs */
+	u32	supported_caps;
+	u32	advertised_caps;
+	u32	lp_caps;
+
 	u32	speed;                  /* In Mb/s */
 	u8	duplex;                 /* In DUPLEX defs */
 	u8	port;                   /* In PORT defs */
@@ -437,6 +456,10 @@ struct qed_common_ops {
 
 	void		(*simd_handler_clean)(struct qed_dev *cdev,
 					      int index);
+
+	int (*dbg_all_data) (struct qed_dev *cdev, void *buffer);
+
+	int (*dbg_all_data_size) (struct qed_dev *cdev);
 
 /**
  * @brief can_link_change - can the instance change the link or not
@@ -606,8 +629,9 @@ enum DP_MODULE {
 	QED_MSG_SP	= 0x100000,
 	QED_MSG_STORAGE = 0x200000,
 	QED_MSG_CXT	= 0x800000,
+	QED_MSG_LL2	= 0x1000000,
 	QED_MSG_ILT	= 0x2000000,
-	QED_MSG_ROCE	= 0x4000000,
+	QED_MSG_RDMA	= 0x4000000,
 	QED_MSG_DEBUG	= 0x8000000,
 	/* to be added...up to 0x8000000 */
 };

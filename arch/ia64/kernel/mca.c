@@ -1890,7 +1890,7 @@ ia64_mca_cpu_init(void *cpu_data)
 							      PAGE_KERNEL)));
 }
 
-static void ia64_mca_cmc_vector_adjust(void *dummy)
+static int ia64_mca_cpu_online(unsigned int cpu)
 {
 	unsigned long flags;
 
@@ -1898,24 +1898,8 @@ static void ia64_mca_cmc_vector_adjust(void *dummy)
 	if (!cmc_polling_enabled)
 		ia64_mca_cmc_vector_enable(NULL);
 	local_irq_restore(flags);
+	return 0;
 }
-
-static int mca_cpu_callback(struct notifier_block *nfb,
-				      unsigned long action,
-				      void *hcpu)
-{
-	switch (action) {
-	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
-		ia64_mca_cmc_vector_adjust(NULL);
-		break;
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block mca_cpu_notifier = {
-	.notifier_call = mca_cpu_callback
-};
 
 /*
  * ia64_mca_init
@@ -2111,15 +2095,13 @@ ia64_mca_late_init(void)
 	if (!mca_init)
 		return 0;
 
-	register_hotcpu_notifier(&mca_cpu_notifier);
-
 	/* Setup the CMCI/P vector and handler */
 	setup_timer(&cmc_poll_timer, ia64_mca_cmc_poll, 0UL);
 
 	/* Unmask/enable the vector */
 	cmc_polling_enabled = 0;
-	schedule_work(&cmc_enable_work);
-
+	cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "ia64/mca:online",
+			  ia64_mca_cpu_online, NULL);
 	IA64_MCA_DEBUG("%s: CMCI/P setup and enabled.\n", __func__);
 
 #ifdef CONFIG_ACPI

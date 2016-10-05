@@ -155,7 +155,7 @@ static void punit_dbgfs_unregister(void)
 
 static const struct x86_cpu_id intel_punit_cpu_ids[] = {
 	ICPU(INTEL_FAM6_ATOM_SILVERMONT1, punit_device_byt),
-	ICPU(INTEL_FAM6_ATOM_MERRIFIELD1, punit_device_tng),
+	ICPU(INTEL_FAM6_ATOM_MERRIFIELD,  punit_device_tng),
 	ICPU(INTEL_FAM6_ATOM_AIRMONT,	  punit_device_cht),
 	{}
 };

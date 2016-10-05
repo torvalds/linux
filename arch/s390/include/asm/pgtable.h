@@ -874,35 +874,31 @@ static inline pte_t pte_mkhuge(pte_t pte)
 }
 #endif
 
-static inline void __ptep_ipte(unsigned long address, pte_t *ptep)
+#define IPTE_GLOBAL	0
+#define	IPTE_LOCAL	1
+
+static inline void __ptep_ipte(unsigned long address, pte_t *ptep, int local)
 {
 	unsigned long pto = (unsigned long) ptep;
 
-	/* Invalidation + global TLB flush for the pte */
+	/* Invalidation + TLB flush for the pte */
 	asm volatile(
-		"	ipte	%2,%3"
-		: "=m" (*ptep) : "m" (*ptep), "a" (pto), "a" (address));
+		"       .insn rrf,0xb2210000,%[r1],%[r2],0,%[m4]"
+		: "+m" (*ptep) : [r1] "a" (pto), [r2] "a" (address),
+		  [m4] "i" (local));
 }
 
-static inline void __ptep_ipte_local(unsigned long address, pte_t *ptep)
+static inline void __ptep_ipte_range(unsigned long address, int nr,
+				     pte_t *ptep, int local)
 {
 	unsigned long pto = (unsigned long) ptep;
 
-	/* Invalidation + local TLB flush for the pte */
-	asm volatile(
-		"	.insn rrf,0xb2210000,%2,%3,0,1"
-		: "=m" (*ptep) : "m" (*ptep), "a" (pto), "a" (address));
-}
-
-static inline void __ptep_ipte_range(unsigned long address, int nr, pte_t *ptep)
-{
-	unsigned long pto = (unsigned long) ptep;
-
-	/* Invalidate a range of ptes + global TLB flush of the ptes */
+	/* Invalidate a range of ptes + TLB flush of the ptes */
 	do {
 		asm volatile(
-			"	.insn rrf,0xb2210000,%2,%0,%1,0"
-			: "+a" (address), "+a" (nr) : "a" (pto) : "memory");
+			"       .insn rrf,0xb2210000,%[r1],%[r2],%[r3],%[m4]"
+			: [r2] "+a" (address), [r3] "+a" (nr)
+			: [r1] "a" (pto), [m4] "i" (local) : "memory");
 	} while (nr != 255);
 }
 
@@ -1239,53 +1235,33 @@ static inline void __pmdp_csp(pmd_t *pmdp)
 	    pmd_val(*pmdp) | _SEGMENT_ENTRY_INVALID);
 }
 
-static inline void __pmdp_idte(unsigned long address, pmd_t *pmdp)
+#define IDTE_GLOBAL	0
+#define IDTE_LOCAL	1
+
+static inline void __pmdp_idte(unsigned long address, pmd_t *pmdp, int local)
 {
 	unsigned long sto;
 
 	sto = (unsigned long) pmdp - pmd_index(address) * sizeof(pmd_t);
 	asm volatile(
-		"	.insn	rrf,0xb98e0000,%2,%3,0,0"
-		: "=m" (*pmdp)
-		: "m" (*pmdp), "a" (sto), "a" ((address & HPAGE_MASK))
+		"	.insn	rrf,0xb98e0000,%[r1],%[r2],0,%[m4]"
+		: "+m" (*pmdp)
+		: [r1] "a" (sto), [r2] "a" ((address & HPAGE_MASK)),
+		  [m4] "i" (local)
 		: "cc" );
 }
 
-static inline void __pudp_idte(unsigned long address, pud_t *pudp)
+static inline void __pudp_idte(unsigned long address, pud_t *pudp, int local)
 {
 	unsigned long r3o;
 
 	r3o = (unsigned long) pudp - pud_index(address) * sizeof(pud_t);
 	r3o |= _ASCE_TYPE_REGION3;
 	asm volatile(
-		"	.insn	rrf,0xb98e0000,%2,%3,0,0"
-		: "=m" (*pudp)
-		: "m" (*pudp), "a" (r3o), "a" ((address & PUD_MASK))
-		: "cc");
-}
-
-static inline void __pmdp_idte_local(unsigned long address, pmd_t *pmdp)
-{
-	unsigned long sto;
-
-	sto = (unsigned long) pmdp - pmd_index(address) * sizeof(pmd_t);
-	asm volatile(
-		"	.insn	rrf,0xb98e0000,%2,%3,0,1"
-		: "=m" (*pmdp)
-		: "m" (*pmdp), "a" (sto), "a" ((address & HPAGE_MASK))
-		: "cc" );
-}
-
-static inline void __pudp_idte_local(unsigned long address, pud_t *pudp)
-{
-	unsigned long r3o;
-
-	r3o = (unsigned long) pudp - pud_index(address) * sizeof(pud_t);
-	r3o |= _ASCE_TYPE_REGION3;
-	asm volatile(
-		"	.insn	rrf,0xb98e0000,%2,%3,0,1"
-		: "=m" (*pudp)
-		: "m" (*pudp), "a" (r3o), "a" ((address & PUD_MASK))
+		"	.insn	rrf,0xb98e0000,%[r1],%[r2],0,%[m4]"
+		: "+m" (*pudp)
+		: [r1] "a" (r3o), [r2] "a" ((address & PUD_MASK)),
+		  [m4] "i" (local)
 		: "cc");
 }
 

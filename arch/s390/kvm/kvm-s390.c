@@ -132,10 +132,7 @@ module_param(nested, int, S_IRUGO);
 MODULE_PARM_DESC(nested, "Nested virtualization support");
 
 /* upper facilities limit for kvm */
-unsigned long kvm_s390_fac_list_mask[16] = {
-	0xffe6000000000000UL,
-	0x005e000000000000UL,
-};
+unsigned long kvm_s390_fac_list_mask[16] = { FACILITIES_KVM };
 
 unsigned long kvm_s390_fac_list_mask_size(void)
 {
@@ -248,22 +245,33 @@ static void kvm_s390_cpu_feat_init(void)
 		     PTFF_QAF);
 
 	if (test_facility(17)) { /* MSA */
-		__cpacf_query(CPACF_KMAC, kvm_s390_available_subfunc.kmac);
-		__cpacf_query(CPACF_KMC, kvm_s390_available_subfunc.kmc);
-		__cpacf_query(CPACF_KM, kvm_s390_available_subfunc.km);
-		__cpacf_query(CPACF_KIMD, kvm_s390_available_subfunc.kimd);
-		__cpacf_query(CPACF_KLMD, kvm_s390_available_subfunc.klmd);
+		__cpacf_query(CPACF_KMAC, (cpacf_mask_t *)
+			      kvm_s390_available_subfunc.kmac);
+		__cpacf_query(CPACF_KMC, (cpacf_mask_t *)
+			      kvm_s390_available_subfunc.kmc);
+		__cpacf_query(CPACF_KM, (cpacf_mask_t *)
+			      kvm_s390_available_subfunc.km);
+		__cpacf_query(CPACF_KIMD, (cpacf_mask_t *)
+			      kvm_s390_available_subfunc.kimd);
+		__cpacf_query(CPACF_KLMD, (cpacf_mask_t *)
+			      kvm_s390_available_subfunc.klmd);
 	}
 	if (test_facility(76)) /* MSA3 */
-		__cpacf_query(CPACF_PCKMO, kvm_s390_available_subfunc.pckmo);
+		__cpacf_query(CPACF_PCKMO, (cpacf_mask_t *)
+			      kvm_s390_available_subfunc.pckmo);
 	if (test_facility(77)) { /* MSA4 */
-		__cpacf_query(CPACF_KMCTR, kvm_s390_available_subfunc.kmctr);
-		__cpacf_query(CPACF_KMF, kvm_s390_available_subfunc.kmf);
-		__cpacf_query(CPACF_KMO, kvm_s390_available_subfunc.kmo);
-		__cpacf_query(CPACF_PCC, kvm_s390_available_subfunc.pcc);
+		__cpacf_query(CPACF_KMCTR, (cpacf_mask_t *)
+			      kvm_s390_available_subfunc.kmctr);
+		__cpacf_query(CPACF_KMF, (cpacf_mask_t *)
+			      kvm_s390_available_subfunc.kmf);
+		__cpacf_query(CPACF_KMO, (cpacf_mask_t *)
+			      kvm_s390_available_subfunc.kmo);
+		__cpacf_query(CPACF_PCC, (cpacf_mask_t *)
+			      kvm_s390_available_subfunc.pcc);
 	}
 	if (test_facility(57)) /* MSA5 */
-		__cpacf_query(CPACF_PPNO, kvm_s390_available_subfunc.ppno);
+		__cpacf_query(CPACF_PPNO, (cpacf_mask_t *)
+			      kvm_s390_available_subfunc.ppno);
 
 	if (MACHINE_HAS_ESOP)
 		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_ESOP);

@@ -1367,7 +1367,7 @@ static void __ovs_ct_free_action(struct ovs_conntrack_info *ct_info)
 	if (ct_info->helper)
 		module_put(ct_info->helper->me);
 	if (ct_info->ct)
-		nf_ct_put(ct_info->ct);
+		nf_ct_tmpl_free(ct_info->ct);
 }
 
 void ovs_ct_init(struct net *net)

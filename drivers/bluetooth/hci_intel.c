@@ -128,7 +128,7 @@ static int intel_wait_booting(struct hci_uart *hu)
 				  TASK_INTERRUPTIBLE,
 				  msecs_to_jiffies(1000));
 
-	if (err == 1) {
+	if (err == -EINTR) {
 		bt_dev_err(hu->hdev, "Device boot interrupted");
 		return -EINTR;
 	}
@@ -151,7 +151,7 @@ static int intel_wait_lpm_transaction(struct hci_uart *hu)
 				  TASK_INTERRUPTIBLE,
 				  msecs_to_jiffies(1000));
 
-	if (err == 1) {
+	if (err == -EINTR) {
 		bt_dev_err(hu->hdev, "LPM transaction interrupted");
 		return -EINTR;
 	}
@@ -813,7 +813,7 @@ static int intel_setup(struct hci_uart *hu)
 	err = wait_on_bit_timeout(&intel->flags, STATE_DOWNLOADING,
 				  TASK_INTERRUPTIBLE,
 				  msecs_to_jiffies(5000));
-	if (err == 1) {
+	if (err == -EINTR) {
 		bt_dev_err(hdev, "Firmware loading interrupted");
 		err = -EINTR;
 		goto done;

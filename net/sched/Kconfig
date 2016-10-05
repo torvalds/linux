@@ -749,6 +749,17 @@ config NET_ACT_CONNMARK
 	  To compile this code as a module, choose M here: the
 	  module will be called act_connmark.
 
+config NET_ACT_SKBMOD
+        tristate "skb data modification action"
+        depends on NET_CLS_ACT
+        ---help---
+         Say Y here to allow modification of skb data
+
+         If unsure, say N.
+
+         To compile this code as a module, choose M here: the
+         module will be called act_skbmod.
+
 config NET_ACT_IFE
         tristate "Inter-FE action based on IETF ForCES InterFE LFB"
         depends on NET_CLS_ACT
@@ -761,6 +772,17 @@ config NET_ACT_IFE
 	  To compile this code as a module, choose M here: the
 	  module will be called act_ife.
 
+config NET_ACT_TUNNEL_KEY
+        tristate "IP tunnel metadata manipulation"
+        depends on NET_CLS_ACT
+        ---help---
+	  Say Y here to set/release ip tunnel metadata.
+
+	  If unsure, say N.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_tunnel_key.
+
 config NET_IFE_SKBMARK
         tristate "Support to encoding decoding skb mark on IFE action"
         depends on NET_ACT_IFE
@@ -768,6 +790,11 @@ config NET_IFE_SKBMARK
 
 config NET_IFE_SKBPRIO
         tristate "Support to encoding decoding skb prio on IFE action"
+        depends on NET_ACT_IFE
+        ---help---
+
+config NET_IFE_SKBTCINDEX
+        tristate "Support to encoding decoding skb tcindex on IFE action"
         depends on NET_ACT_IFE
         ---help---
 

@@ -1657,12 +1657,14 @@ static struct snd_soc_codec_driver soc_codec_dev_rt5631 = {
 	.probe = rt5631_probe,
 	.set_bias_level = rt5631_set_bias_level,
 	.suspend_bias_off = true,
-	.controls = rt5631_snd_controls,
-	.num_controls = ARRAY_SIZE(rt5631_snd_controls),
-	.dapm_widgets = rt5631_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(rt5631_dapm_widgets),
-	.dapm_routes = rt5631_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(rt5631_dapm_routes),
+	.component_driver = {
+		.controls		= rt5631_snd_controls,
+		.num_controls		= ARRAY_SIZE(rt5631_snd_controls),
+		.dapm_widgets		= rt5631_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(rt5631_dapm_widgets),
+		.dapm_routes		= rt5631_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(rt5631_dapm_routes),
+	},
 };
 
 static const struct i2c_device_id rt5631_i2c_id[] = {

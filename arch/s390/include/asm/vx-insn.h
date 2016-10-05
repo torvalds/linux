@@ -16,15 +16,13 @@
 
 /* Macros to generate vector instruction byte code */
 
-#define REG_NUM_INVALID	       255
-
 /* GR_NUM - Retrieve general-purpose register number
  *
  * @opd:	Operand to store register number
  * @r64:	String designation register in the format "%rN"
  */
 .macro	GR_NUM	opd gr
-	\opd = REG_NUM_INVALID
+	\opd = 255
 	.ifc \gr,%r0
 		\opd = 0
 	.endif
@@ -73,13 +71,10 @@
 	.ifc \gr,%r15
 		\opd = 15
 	.endif
-	.if \opd == REG_NUM_INVALID
-		.error "Invalid general-purpose register designation: \gr"
+	.if \opd == 255
+		\opd = \gr
 	.endif
 .endm
-
-/* VX_R() - Macro to encode the VX_NUM into the instruction */
-#define VX_R(v)		(v & 0x0F)
 
 /* VX_NUM - Retrieve vector register number
  *
@@ -88,11 +83,10 @@
  *
  * The vector register number is used for as input number to the
  * instruction and, as well as, to compute the RXB field of the
- * instruction.  To encode the particular vector register number,
- * use the VX_R(v) macro to extract the instruction opcode.
+ * instruction.
  */
 .macro	VX_NUM	opd vxr
-	\opd = REG_NUM_INVALID
+	\opd = 255
 	.ifc \vxr,%v0
 		\opd = 0
 	.endif
@@ -189,8 +183,8 @@
 	.ifc \vxr,%v31
 		\opd = 31
 	.endif
-	.if \opd == REG_NUM_INVALID
-		.error "Invalid vector register designation: \vxr"
+	.if \opd == 255
+		\opd = \vxr
 	.endif
 .endm
 
@@ -251,7 +245,7 @@
 /* VECTOR GENERATE BYTE MASK */
 .macro	VGBM	vr imm2
 	VX_NUM	v1, \vr
-	.word	(0xE700 | (VX_R(v1) << 4))
+	.word	(0xE700 | ((v1&15) << 4))
 	.word	\imm2
 	MRXBOPC	0, 0x44, v1
 .endm
@@ -267,7 +261,7 @@
 	VX_NUM	v1, \v
 	GR_NUM	b2, "%r0"
 	GR_NUM	r3, \gr
-	.word	0xE700 | (VX_R(v1) << 4) | r3
+	.word	0xE700 | ((v1&15) << 4) | r3
 	.word	(b2 << 12) | (\disp)
 	MRXBOPC	\m, 0x22, v1
 .endm
@@ -284,12 +278,21 @@
 	VLVG	\v, \gr, \index, 3
 .endm
 
+/* VECTOR LOAD REGISTER */
+.macro	VLR	v1, v2
+	VX_NUM	v1, \v1
+	VX_NUM	v2, \v2
+	.word	0xE700 | ((v1&15) << 4) | (v2&15)
+	.word	0
+	MRXBOPC	0, 0x56, v1, v2
+.endm
+
 /* VECTOR LOAD */
 .macro	VL	v, disp, index="%r0", base
 	VX_NUM	v1, \v
 	GR_NUM	x2, \index
 	GR_NUM	b2, \base
-	.word	0xE700 | (VX_R(v1) << 4) | x2
+	.word	0xE700 | ((v1&15) << 4) | x2
 	.word	(b2 << 12) | (\disp)
 	MRXBOPC 0, 0x06, v1
 .endm
@@ -299,7 +302,7 @@
 	VX_NUM	v1, \vr1
 	GR_NUM	x2, \index
 	GR_NUM	b2, \base
-	.word	0xE700 | (VX_R(v1) << 4) | x2
+	.word	0xE700 | ((v1&15) << 4) | x2
 	.word	(b2 << 12) | (\disp)
 	MRXBOPC	\m3, \opc, v1
 .endm
@@ -319,7 +322,7 @@
 /* VECTOR LOAD ELEMENT IMMEDIATE */
 .macro	VLEIx	vr1, imm2, m3, opc
 	VX_NUM	v1, \vr1
-	.word	0xE700 | (VX_R(v1) << 4)
+	.word	0xE700 | ((v1&15) << 4)
 	.word	\imm2
 	MRXBOPC	\m3, \opc, v1
 .endm
@@ -341,7 +344,7 @@
 	GR_NUM	r1, \gr
 	GR_NUM	b2, \base
 	VX_NUM	v3, \vr
-	.word	0xE700 | (r1 << 4) | VX_R(v3)
+	.word	0xE700 | (r1 << 4) | (v3&15)
 	.word	(b2 << 12) | (\disp)
 	MRXBOPC	\m, 0x21, v3
 .endm
@@ -363,7 +366,7 @@
 	VX_NUM	v1, \vfrom
 	VX_NUM	v3, \vto
 	GR_NUM	b2, \base	    /* Base register */
-	.word	0xE700 | (VX_R(v1) << 4) | VX_R(v3)
+	.word	0xE700 | ((v1&15) << 4) | (v3&15)
 	.word	(b2 << 12) | (\disp)
 	MRXBOPC	0, 0x36, v1, v3
 .endm
@@ -373,7 +376,7 @@
 	VX_NUM	v1, \vfrom
 	VX_NUM	v3, \vto
 	GR_NUM	b2, \base	    /* Base register */
-	.word	0xE700 | (VX_R(v1) << 4) | VX_R(v3)
+	.word	0xE700 | ((v1&15) << 4) | (v3&15)
 	.word	(b2 << 12) | (\disp)
 	MRXBOPC	0, 0x3E, v1, v3
 .endm
@@ -384,16 +387,16 @@
 	VX_NUM	v2, \vr2
 	VX_NUM	v3, \vr3
 	VX_NUM	v4, \vr4
-	.word	0xE700 | (VX_R(v1) << 4) | VX_R(v2)
-	.word	(VX_R(v3) << 12)
-	MRXBOPC	VX_R(v4), 0x8C, v1, v2, v3, v4
+	.word	0xE700 | ((v1&15) << 4) | (v2&15)
+	.word	((v3&15) << 12)
+	MRXBOPC	(v4&15), 0x8C, v1, v2, v3, v4
 .endm
 
 /* VECTOR UNPACK LOGICAL LOW */
 .macro	VUPLL	vr1, vr2, m3
 	VX_NUM	v1, \vr1
 	VX_NUM	v2, \vr2
-	.word	0xE700 | (VX_R(v1) << 4) | VX_R(v2)
+	.word	0xE700 | ((v1&15) << 4) | (v2&15)
 	.word	0x0000
 	MRXBOPC	\m3, 0xD4, v1, v2
 .endm
@@ -410,13 +413,23 @@
 
 /* Vector integer instructions */
 
+/* VECTOR AND */
+.macro	VN	vr1, vr2, vr3
+	VX_NUM	v1, \vr1
+	VX_NUM	v2, \vr2
+	VX_NUM	v3, \vr3
+	.word	0xE700 | ((v1&15) << 4) | (v2&15)
+	.word	((v3&15) << 12)
+	MRXBOPC	0, 0x68, v1, v2, v3
+.endm
+
 /* VECTOR EXCLUSIVE OR */
 .macro	VX	vr1, vr2, vr3
 	VX_NUM	v1, \vr1
 	VX_NUM	v2, \vr2
 	VX_NUM	v3, \vr3
-	.word	0xE700 | (VX_R(v1) << 4) | VX_R(v2)
-	.word	(VX_R(v3) << 12)
+	.word	0xE700 | ((v1&15) << 4) | (v2&15)
+	.word	((v3&15) << 12)
 	MRXBOPC	0, 0x6D, v1, v2, v3
 .endm
 
@@ -425,8 +438,8 @@
 	VX_NUM	v1, \vr1
 	VX_NUM	v2, \vr2
 	VX_NUM	v3, \vr3
-	.word	0xE700 | (VX_R(v1) << 4) | VX_R(v2)
-	.word	(VX_R(v3) << 12)
+	.word	0xE700 | ((v1&15) << 4) | (v2&15)
+	.word	((v3&15) << 12)
 	MRXBOPC	\m4, 0xB4, v1, v2, v3
 .endm
 .macro	VGFMB	vr1, vr2, vr3
@@ -448,9 +461,9 @@
 	VX_NUM	v2, \vr2
 	VX_NUM	v3, \vr3
 	VX_NUM	v4, \vr4
-	.word	0xE700 | (VX_R(v1) << 4) | VX_R(v2)
-	.word	(VX_R(v3) << 12) | (\m5 << 8)
-	MRXBOPC	VX_R(v4), 0xBC, v1, v2, v3, v4
+	.word	0xE700 | ((v1&15) << 4) | (v2&15)
+	.word	((v3&15) << 12) | (\m5 << 8)
+	MRXBOPC	(v4&15), 0xBC, v1, v2, v3, v4
 .endm
 .macro	VGFMAB	vr1, vr2, vr3, vr4
 	VGFMA	\vr1, \vr2, \vr3, \vr4, 0
@@ -470,11 +483,78 @@
 	VX_NUM	v1, \vr1
 	VX_NUM	v2, \vr2
 	VX_NUM	v3, \vr3
-	.word	0xE700 | (VX_R(v1) << 4) | VX_R(v2)
-	.word	(VX_R(v3) << 12)
+	.word	0xE700 | ((v1&15) << 4) | (v2&15)
+	.word	((v3&15) << 12)
 	MRXBOPC	0, 0x7D, v1, v2, v3
 .endm
 
+/* VECTOR REPLICATE IMMEDIATE */
+.macro	VREPI	vr1, imm2, m3
+	VX_NUM	v1, \vr1
+	.word	0xE700 | ((v1&15) << 4)
+	.word	\imm2
+	MRXBOPC	\m3, 0x45, v1
+.endm
+.macro	VREPIB	vr1, imm2
+	VREPI	\vr1, \imm2, 0
+.endm
+.macro	VREPIH	vr1, imm2
+	VREPI	\vr1, \imm2, 1
+.endm
+.macro	VREPIF	vr1, imm2
+	VREPI	\vr1, \imm2, 2
+.endm
+.macro	VREPIG	vr1, imm2
+	VREP	\vr1, \imm2, 3
+.endm
+
+/* VECTOR ADD */
+.macro	VA	vr1, vr2, vr3, m4
+	VX_NUM	v1, \vr1
+	VX_NUM	v2, \vr2
+	VX_NUM	v3, \vr3
+	.word	0xE700 | ((v1&15) << 4) | (v2&15)
+	.word	((v3&15) << 12)
+	MRXBOPC	\m4, 0xF3, v1, v2, v3
+.endm
+.macro	VAB	vr1, vr2, vr3
+	VA	\vr1, \vr2, \vr3, 0
+.endm
+.macro	VAH	vr1, vr2, vr3
+	VA	\vr1, \vr2, \vr3, 1
+.endm
+.macro	VAF	vr1, vr2, vr3
+	VA	\vr1, \vr2, \vr3, 2
+.endm
+.macro	VAG	vr1, vr2, vr3
+	VA	\vr1, \vr2, \vr3, 3
+.endm
+.macro	VAQ	vr1, vr2, vr3
+	VA	\vr1, \vr2, \vr3, 4
+.endm
+
+/* VECTOR ELEMENT SHIFT RIGHT ARITHMETIC */
+.macro	VESRAV	vr1, vr2, vr3, m4
+	VX_NUM	v1, \vr1
+	VX_NUM	v2, \vr2
+	VX_NUM	v3, \vr3
+	.word	0xE700 | ((v1&15) << 4) | (v2&15)
+	.word	((v3&15) << 12)
+	MRXBOPC \m4, 0x7A, v1, v2, v3
+.endm
+
+.macro	VESRAVB	vr1, vr2, vr3
+	VESRAV	\vr1, \vr2, \vr3, 0
+.endm
+.macro	VESRAVH	vr1, vr2, vr3
+	VESRAV	\vr1, \vr2, \vr3, 1
+.endm
+.macro	VESRAVF	vr1, vr2, vr3
+	VESRAV	\vr1, \vr2, \vr3, 2
+.endm
+.macro	VESRAVG	vr1, vr2, vr3
+	VESRAV	\vr1, \vr2, \vr3, 3
+.endm
 
 #endif	/* __ASSEMBLY__ */
 #endif	/* __ASM_S390_VX_INSN_H */

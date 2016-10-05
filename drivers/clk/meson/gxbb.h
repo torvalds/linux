@@ -170,11 +170,11 @@
  */
 #define CLKID_SYS_PLL		  0
 /* CLKID_CPUCLK */
-#define CLKID_HDMI_PLL		  2
+/* CLKID_HDMI_PLL */
 #define CLKID_FIXED_PLL		  3
-#define CLKID_FCLK_DIV2		  4
-#define CLKID_FCLK_DIV3		  5
-#define CLKID_FCLK_DIV4		  6
+/* CLKID_FCLK_DIV2 */
+/* CLKID_FCLK_DIV3 */
+/* CLKID_FCLK_DIV4 */
 #define CLKID_FCLK_DIV5		  7
 #define CLKID_FCLK_DIV7		  8
 #define CLKID_GP0_PLL		  9
@@ -262,8 +262,11 @@
 #define CLKID_AO_AHB_BUS	  91
 #define CLKID_AO_IFACE		  92
 #define CLKID_AO_I2C		  93
+/* CLKID_SD_EMMC_A */
+/* CLKID_SD_EMMC_B */
+/* CLKID_SD_EMMC_C */
 
-#define NR_CLKS			  94
+#define NR_CLKS			  97
 
 /* include the CLKIDs that have been made part of the stable DT binding */
 #include <dt-bindings/clock/gxbb-clkc.h>

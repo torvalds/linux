@@ -16,19 +16,6 @@
 #include <linux/slab.h>
 #include <linux/qed/common_hsi.h>
 
-/* dma_addr_t manip */
-#define DMA_LO_LE(x)            cpu_to_le32(lower_32_bits(x))
-#define DMA_HI_LE(x)            cpu_to_le32(upper_32_bits(x))
-#define DMA_REGPAIR_LE(x, val)  do { \
-					(x).hi = DMA_HI_LE((val)); \
-					(x).lo = DMA_LO_LE((val)); \
-				} while (0)
-
-#define HILO_GEN(hi, lo, type)  ((((type)(hi)) << 32) + (lo))
-#define HILO_64(hi, lo) HILO_GEN((le32_to_cpu(hi)), (le32_to_cpu(lo)), u64)
-#define HILO_64_REGPAIR(regpair)        (HILO_64(regpair.hi, regpair.lo))
-#define HILO_DMA_REGPAIR(regpair)	((dma_addr_t)HILO_64_REGPAIR(regpair))
-
 enum qed_chain_mode {
 	/* Each Page contains a next pointer at its end */
 	QED_CHAIN_MODE_NEXT_PTR,
