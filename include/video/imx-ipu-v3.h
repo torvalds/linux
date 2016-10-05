@@ -318,6 +318,7 @@ int ipu_csi_init_interface(struct ipu_csi *csi,
 bool ipu_csi_is_interlaced(struct ipu_csi *csi);
 void ipu_csi_get_window(struct ipu_csi *csi, struct v4l2_rect *w);
 void ipu_csi_set_window(struct ipu_csi *csi, struct v4l2_rect *w);
+void ipu_csi_set_downsize(struct ipu_csi *csi, bool horiz, bool vert);
 void ipu_csi_set_test_generator(struct ipu_csi *csi, bool active,
 				u32 r_value, u32 g_value, u32 b_value,
 				u32 pix_clk);
