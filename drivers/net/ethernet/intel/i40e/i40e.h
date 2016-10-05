@@ -430,7 +430,7 @@ struct i40e_pf {
 	struct sk_buff *ptp_tx_skb;
 	struct hwtstamp_config tstamp_config;
 	unsigned long last_rx_ptp_check;
-	spinlock_t tmreg_lock; /* Used to protect the device time registers. */
+	struct mutex tmreg_lock; /* Used to protect the SYSTIME registers. */
 	u64 ptp_base_adj;
 	u32 tx_hwtstamp_timeouts;
 	u32 rx_hwtstamp_cleared;

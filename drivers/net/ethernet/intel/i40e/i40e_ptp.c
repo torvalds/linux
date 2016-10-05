@@ -159,16 +159,15 @@ static int i40e_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
 	struct i40e_pf *pf = container_of(ptp, struct i40e_pf, ptp_caps);
 	struct timespec64 now, then;
-	unsigned long flags;
 
 	then = ns_to_timespec64(delta);
-	spin_lock_irqsave(&pf->tmreg_lock, flags);
+	mutex_lock(&pf->tmreg_lock);
 
 	i40e_ptp_read(pf, &now);
 	now = timespec64_add(now, then);
 	i40e_ptp_write(pf, (const struct timespec64 *)&now);
 
-	spin_unlock_irqrestore(&pf->tmreg_lock, flags);
+	mutex_unlock(&pf->tmreg_lock);
 
 	return 0;
 }
@@ -184,11 +183,10 @@ static int i40e_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 static int i40e_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 {
 	struct i40e_pf *pf = container_of(ptp, struct i40e_pf, ptp_caps);
-	unsigned long flags;
 
-	spin_lock_irqsave(&pf->tmreg_lock, flags);
+	mutex_lock(&pf->tmreg_lock);
 	i40e_ptp_read(pf, ts);
-	spin_unlock_irqrestore(&pf->tmreg_lock, flags);
+	mutex_unlock(&pf->tmreg_lock);
 
 	return 0;
 }
@@ -205,11 +203,10 @@ static int i40e_ptp_settime(struct ptp_clock_info *ptp,
 			    const struct timespec64 *ts)
 {
 	struct i40e_pf *pf = container_of(ptp, struct i40e_pf, ptp_caps);
-	unsigned long flags;
 
-	spin_lock_irqsave(&pf->tmreg_lock, flags);
+	mutex_lock(&pf->tmreg_lock);
 	i40e_ptp_write(pf, ts);
-	spin_unlock_irqrestore(&pf->tmreg_lock, flags);
+	mutex_unlock(&pf->tmreg_lock);
 
 	return 0;
 }
@@ -658,10 +655,7 @@ void i40e_ptp_init(struct i40e_pf *pf)
 		return;
 	}
 
-	/* we have to initialize the lock first, since we can't control
-	 * when the user will enter the PHC device entry points
-	 */
-	spin_lock_init(&pf->tmreg_lock);
+	mutex_init(&pf->tmreg_lock);
 
 	/* ensure we have a clock device */
 	err = i40e_ptp_create_clock(pf);
