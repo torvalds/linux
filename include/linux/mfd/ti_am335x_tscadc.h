@@ -155,6 +155,7 @@ struct ti_tscadc_dev {
 	struct device *dev;
 	struct regmap *regmap;
 	void __iomem *tscadc_base;
+	phys_addr_t tscadc_phys_base;
 	int irq;
 	int used_cells;	/* 1-2 */
 	int tsc_wires;
