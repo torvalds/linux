@@ -1,5 +1,7 @@
-#include "cache.h"
+#include <stdlib.h>
+#include "strbuf.h"
 #include "quote.h"
+#include "util.h"
 
 /* Help to copy the thing properly quoted for the shell safety.
  * any single quote is replaced with '\'', any exclamation point

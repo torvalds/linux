@@ -37,9 +37,6 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 
-STATIC void __xfs_inode_clear_reclaim_tag(struct xfs_mount *mp,
-				struct xfs_perag *pag, struct xfs_inode *ip);
-
 /*
  * Allocate and initialise an xfs_inode.
  */
@@ -94,13 +91,6 @@ xfs_inode_free_callback(
 	struct inode		*inode = container_of(head, struct inode, i_rcu);
 	struct xfs_inode	*ip = XFS_I(inode);
 
-	kmem_zone_free(xfs_inode_zone, ip);
-}
-
-void
-xfs_inode_free(
-	struct xfs_inode	*ip)
-{
 	switch (VFS_I(ip)->i_mode & S_IFMT) {
 	case S_IFREG:
 	case S_IFDIR:
@@ -118,6 +108,25 @@ xfs_inode_free(
 		ip->i_itemp = NULL;
 	}
 
+	kmem_zone_free(xfs_inode_zone, ip);
+}
+
+static void
+__xfs_inode_free(
+	struct xfs_inode	*ip)
+{
+	/* asserts to verify all state is correct here */
+	ASSERT(atomic_read(&ip->i_pincount) == 0);
+	ASSERT(!xfs_isiflocked(ip));
+	XFS_STATS_DEC(ip->i_mount, vn_active);
+
+	call_rcu(&VFS_I(ip)->i_rcu, xfs_inode_free_callback);
+}
+
+void
+xfs_inode_free(
+	struct xfs_inode	*ip)
+{
 	/*
 	 * Because we use RCU freeing we need to ensure the inode always
 	 * appears to be reclaimed with an invalid inode number when in the
@@ -129,12 +138,123 @@ xfs_inode_free(
 	ip->i_ino = 0;
 	spin_unlock(&ip->i_flags_lock);
 
-	/* asserts to verify all state is correct here */
-	ASSERT(atomic_read(&ip->i_pincount) == 0);
-	ASSERT(!xfs_isiflocked(ip));
-	XFS_STATS_DEC(ip->i_mount, vn_active);
+	__xfs_inode_free(ip);
+}
 
-	call_rcu(&VFS_I(ip)->i_rcu, xfs_inode_free_callback);
+/*
+ * Queue a new inode reclaim pass if there are reclaimable inodes and there
+ * isn't a reclaim pass already in progress. By default it runs every 5s based
+ * on the xfs periodic sync default of 30s. Perhaps this should have it's own
+ * tunable, but that can be done if this method proves to be ineffective or too
+ * aggressive.
+ */
+static void
+xfs_reclaim_work_queue(
+	struct xfs_mount        *mp)
+{
+
+	rcu_read_lock();
+	if (radix_tree_tagged(&mp->m_perag_tree, XFS_ICI_RECLAIM_TAG)) {
+		queue_delayed_work(mp->m_reclaim_workqueue, &mp->m_reclaim_work,
+			msecs_to_jiffies(xfs_syncd_centisecs / 6 * 10));
+	}
+	rcu_read_unlock();
+}
+
+/*
+ * This is a fast pass over the inode cache to try to get reclaim moving on as
+ * many inodes as possible in a short period of time. It kicks itself every few
+ * seconds, as well as being kicked by the inode cache shrinker when memory
+ * goes low. It scans as quickly as possible avoiding locked inodes or those
+ * already being flushed, and once done schedules a future pass.
+ */
+void
+xfs_reclaim_worker(
+	struct work_struct *work)
+{
+	struct xfs_mount *mp = container_of(to_delayed_work(work),
+					struct xfs_mount, m_reclaim_work);
+
+	xfs_reclaim_inodes(mp, SYNC_TRYLOCK);
+	xfs_reclaim_work_queue(mp);
+}
+
+static void
+xfs_perag_set_reclaim_tag(
+	struct xfs_perag	*pag)
+{
+	struct xfs_mount	*mp = pag->pag_mount;
+
+	ASSERT(spin_is_locked(&pag->pag_ici_lock));
+	if (pag->pag_ici_reclaimable++)
+		return;
+
+	/* propagate the reclaim tag up into the perag radix tree */
+	spin_lock(&mp->m_perag_lock);
+	radix_tree_tag_set(&mp->m_perag_tree, pag->pag_agno,
+			   XFS_ICI_RECLAIM_TAG);
+	spin_unlock(&mp->m_perag_lock);
+
+	/* schedule periodic background inode reclaim */
+	xfs_reclaim_work_queue(mp);
+
+	trace_xfs_perag_set_reclaim(mp, pag->pag_agno, -1, _RET_IP_);
+}
+
+static void
+xfs_perag_clear_reclaim_tag(
+	struct xfs_perag	*pag)
+{
+	struct xfs_mount	*mp = pag->pag_mount;
+
+	ASSERT(spin_is_locked(&pag->pag_ici_lock));
+	if (--pag->pag_ici_reclaimable)
+		return;
+
+	/* clear the reclaim tag from the perag radix tree */
+	spin_lock(&mp->m_perag_lock);
+	radix_tree_tag_clear(&mp->m_perag_tree, pag->pag_agno,
+			     XFS_ICI_RECLAIM_TAG);
+	spin_unlock(&mp->m_perag_lock);
+	trace_xfs_perag_clear_reclaim(mp, pag->pag_agno, -1, _RET_IP_);
+}
+
+
+/*
+ * We set the inode flag atomically with the radix tree tag.
+ * Once we get tag lookups on the radix tree, this inode flag
+ * can go away.
+ */
+void
+xfs_inode_set_reclaim_tag(
+	struct xfs_inode	*ip)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_perag	*pag;
+
+	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, ip->i_ino));
+	spin_lock(&pag->pag_ici_lock);
+	spin_lock(&ip->i_flags_lock);
+
+	radix_tree_tag_set(&pag->pag_ici_root, XFS_INO_TO_AGINO(mp, ip->i_ino),
+			   XFS_ICI_RECLAIM_TAG);
+	xfs_perag_set_reclaim_tag(pag);
+	__xfs_iflags_set(ip, XFS_IRECLAIMABLE);
+
+	spin_unlock(&ip->i_flags_lock);
+	spin_unlock(&pag->pag_ici_lock);
+	xfs_perag_put(pag);
+}
+
+STATIC void
+xfs_inode_clear_reclaim_tag(
+	struct xfs_perag	*pag,
+	xfs_ino_t		ino)
+{
+	radix_tree_tag_clear(&pag->pag_ici_root,
+			     XFS_INO_TO_AGINO(pag->pag_mount, ino),
+			     XFS_ICI_RECLAIM_TAG);
+	xfs_perag_clear_reclaim_tag(pag);
 }
 
 /*
@@ -264,7 +384,7 @@ xfs_iget_cache_hit(
 		 */
 		ip->i_flags &= ~XFS_IRECLAIM_RESET_FLAGS;
 		ip->i_flags |= XFS_INEW;
-		__xfs_inode_clear_reclaim_tag(mp, pag, ip);
+		xfs_inode_clear_reclaim_tag(pag, ip->i_ino);
 		inode->i_state = I_NEW;
 
 		ASSERT(!rwsem_is_locked(&ip->i_iolock.mr_lock));
@@ -645,7 +765,7 @@ restart:
  * Background scanning to trim post-EOF preallocated space. This is queued
  * based on the 'speculative_prealloc_lifetime' tunable (5m by default).
  */
-STATIC void
+void
 xfs_queue_eofblocks(
 	struct xfs_mount *mp)
 {
@@ -720,121 +840,6 @@ xfs_inode_ag_iterator_tag(
 		}
 	}
 	return last_error;
-}
-
-/*
- * Queue a new inode reclaim pass if there are reclaimable inodes and there
- * isn't a reclaim pass already in progress. By default it runs every 5s based
- * on the xfs periodic sync default of 30s. Perhaps this should have it's own
- * tunable, but that can be done if this method proves to be ineffective or too
- * aggressive.
- */
-static void
-xfs_reclaim_work_queue(
-	struct xfs_mount        *mp)
-{
-
-	rcu_read_lock();
-	if (radix_tree_tagged(&mp->m_perag_tree, XFS_ICI_RECLAIM_TAG)) {
-		queue_delayed_work(mp->m_reclaim_workqueue, &mp->m_reclaim_work,
-			msecs_to_jiffies(xfs_syncd_centisecs / 6 * 10));
-	}
-	rcu_read_unlock();
-}
-
-/*
- * This is a fast pass over the inode cache to try to get reclaim moving on as
- * many inodes as possible in a short period of time. It kicks itself every few
- * seconds, as well as being kicked by the inode cache shrinker when memory
- * goes low. It scans as quickly as possible avoiding locked inodes or those
- * already being flushed, and once done schedules a future pass.
- */
-void
-xfs_reclaim_worker(
-	struct work_struct *work)
-{
-	struct xfs_mount *mp = container_of(to_delayed_work(work),
-					struct xfs_mount, m_reclaim_work);
-
-	xfs_reclaim_inodes(mp, SYNC_TRYLOCK);
-	xfs_reclaim_work_queue(mp);
-}
-
-static void
-__xfs_inode_set_reclaim_tag(
-	struct xfs_perag	*pag,
-	struct xfs_inode	*ip)
-{
-	radix_tree_tag_set(&pag->pag_ici_root,
-			   XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino),
-			   XFS_ICI_RECLAIM_TAG);
-
-	if (!pag->pag_ici_reclaimable) {
-		/* propagate the reclaim tag up into the perag radix tree */
-		spin_lock(&ip->i_mount->m_perag_lock);
-		radix_tree_tag_set(&ip->i_mount->m_perag_tree,
-				XFS_INO_TO_AGNO(ip->i_mount, ip->i_ino),
-				XFS_ICI_RECLAIM_TAG);
-		spin_unlock(&ip->i_mount->m_perag_lock);
-
-		/* schedule periodic background inode reclaim */
-		xfs_reclaim_work_queue(ip->i_mount);
-
-		trace_xfs_perag_set_reclaim(ip->i_mount, pag->pag_agno,
-							-1, _RET_IP_);
-	}
-	pag->pag_ici_reclaimable++;
-}
-
-/*
- * We set the inode flag atomically with the radix tree tag.
- * Once we get tag lookups on the radix tree, this inode flag
- * can go away.
- */
-void
-xfs_inode_set_reclaim_tag(
-	xfs_inode_t	*ip)
-{
-	struct xfs_mount *mp = ip->i_mount;
-	struct xfs_perag *pag;
-
-	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, ip->i_ino));
-	spin_lock(&pag->pag_ici_lock);
-	spin_lock(&ip->i_flags_lock);
-	__xfs_inode_set_reclaim_tag(pag, ip);
-	__xfs_iflags_set(ip, XFS_IRECLAIMABLE);
-	spin_unlock(&ip->i_flags_lock);
-	spin_unlock(&pag->pag_ici_lock);
-	xfs_perag_put(pag);
-}
-
-STATIC void
-__xfs_inode_clear_reclaim(
-	xfs_perag_t	*pag,
-	xfs_inode_t	*ip)
-{
-	pag->pag_ici_reclaimable--;
-	if (!pag->pag_ici_reclaimable) {
-		/* clear the reclaim tag from the perag radix tree */
-		spin_lock(&ip->i_mount->m_perag_lock);
-		radix_tree_tag_clear(&ip->i_mount->m_perag_tree,
-				XFS_INO_TO_AGNO(ip->i_mount, ip->i_ino),
-				XFS_ICI_RECLAIM_TAG);
-		spin_unlock(&ip->i_mount->m_perag_lock);
-		trace_xfs_perag_clear_reclaim(ip->i_mount, pag->pag_agno,
-							-1, _RET_IP_);
-	}
-}
-
-STATIC void
-__xfs_inode_clear_reclaim_tag(
-	xfs_mount_t	*mp,
-	xfs_perag_t	*pag,
-	xfs_inode_t	*ip)
-{
-	radix_tree_tag_clear(&pag->pag_ici_root,
-			XFS_INO_TO_AGINO(mp, ip->i_ino), XFS_ICI_RECLAIM_TAG);
-	__xfs_inode_clear_reclaim(pag, ip);
 }
 
 /*
@@ -929,6 +934,7 @@ xfs_reclaim_inode(
 	int			sync_mode)
 {
 	struct xfs_buf		*bp = NULL;
+	xfs_ino_t		ino = ip->i_ino; /* for radix_tree_delete */
 	int			error;
 
 restart:
@@ -993,6 +999,22 @@ restart:
 
 	xfs_iflock(ip);
 reclaim:
+	/*
+	 * Because we use RCU freeing we need to ensure the inode always appears
+	 * to be reclaimed with an invalid inode number when in the free state.
+	 * We do this as early as possible under the ILOCK and flush lock so
+	 * that xfs_iflush_cluster() can be guaranteed to detect races with us
+	 * here. By doing this, we guarantee that once xfs_iflush_cluster has
+	 * locked both the XFS_ILOCK and the flush lock that it will see either
+	 * a valid, flushable inode that will serialise correctly against the
+	 * locks below, or it will see a clean (and invalid) inode that it can
+	 * skip.
+	 */
+	spin_lock(&ip->i_flags_lock);
+	ip->i_flags = XFS_IRECLAIM;
+	ip->i_ino = 0;
+	spin_unlock(&ip->i_flags_lock);
+
 	xfs_ifunlock(ip);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 
@@ -1006,9 +1028,9 @@ reclaim:
 	 */
 	spin_lock(&pag->pag_ici_lock);
 	if (!radix_tree_delete(&pag->pag_ici_root,
-				XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino)))
+				XFS_INO_TO_AGINO(ip->i_mount, ino)))
 		ASSERT(0);
-	__xfs_inode_clear_reclaim(pag, ip);
+	xfs_perag_clear_reclaim_tag(pag);
 	spin_unlock(&pag->pag_ici_lock);
 
 	/*
@@ -1023,7 +1045,7 @@ reclaim:
 	xfs_qm_dqdetach(ip);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 
-	xfs_inode_free(ip);
+	__xfs_inode_free(ip);
 	return error;
 
 out_ifunlock:

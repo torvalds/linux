@@ -342,7 +342,7 @@ static int tfp410_probe(struct platform_device *pdev)
 
 	tfp410_mod->gpio = of_get_named_gpio_flags(node, "powerdn-gpio",
 			0, NULL);
-	if (IS_ERR_VALUE(tfp410_mod->gpio)) {
+	if (tfp410_mod->gpio < 0) {
 		dev_warn(&pdev->dev, "No power down GPIO\n");
 	} else {
 		ret = gpio_request(tfp410_mod->gpio, "DVI_PDn");

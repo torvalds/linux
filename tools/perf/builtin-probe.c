@@ -44,7 +44,7 @@
 
 #define DEFAULT_VAR_FILTER "!__k???tab_* & !__crc_*"
 #define DEFAULT_FUNC_FILTER "!_*"
-#define DEFAULT_LIST_FILTER "*:*"
+#define DEFAULT_LIST_FILTER "*"
 
 /* Session management structure */
 static struct {
@@ -308,7 +308,7 @@ static void pr_err_with_code(const char *msg, int err)
 
 	pr_err("%s", msg);
 	pr_debug(" Reason: %s (Code: %d)",
-		 strerror_r(-err, sbuf, sizeof(sbuf)), err);
+		 str_error_r(-err, sbuf, sizeof(sbuf)), err);
 	pr_err("\n");
 }
 
@@ -325,6 +325,11 @@ static int perf_add_probe_events(struct perf_probe_event *pevs, int npevs)
 	ret = convert_perf_probe_events(pevs, npevs);
 	if (ret < 0)
 		goto out_cleanup;
+
+	if (params.command == 'D') {	/* it shows definition */
+		ret = show_probe_trace_events(pevs, npevs);
+		goto out_cleanup;
+	}
 
 	ret = apply_perf_probe_events(pevs, npevs);
 	if (ret < 0)
@@ -363,6 +368,32 @@ out_cleanup:
 	return ret;
 }
 
+static int del_perf_probe_caches(struct strfilter *filter)
+{
+	struct probe_cache *cache;
+	struct strlist *bidlist;
+	struct str_node *nd;
+	int ret;
+
+	bidlist = build_id_cache__list_all(false);
+	if (!bidlist) {
+		ret = -errno;
+		pr_debug("Failed to get buildids: %d\n", ret);
+		return ret ?: -ENOMEM;
+	}
+
+	strlist__for_each_entry(nd, bidlist) {
+		cache = probe_cache__new(nd->s);
+		if (!cache)
+			continue;
+		if (probe_cache__filter_purge(cache, filter) < 0 ||
+		    probe_cache__commit(cache) < 0)
+			pr_warning("Failed to remove entries for %s\n", nd->s);
+		probe_cache__delete(cache);
+	}
+	return 0;
+}
+
 static int perf_del_probe_events(struct strfilter *filter)
 {
 	int ret, ret2, ufd = -1, kfd = -1;
@@ -374,6 +405,9 @@ static int perf_del_probe_events(struct strfilter *filter)
 		return -EINVAL;
 
 	pr_debug("Delete filter: \'%s\'\n", str);
+
+	if (probe_conf.cache)
+		return del_perf_probe_caches(filter);
 
 	/* Get current event names */
 	ret = probe_file__open_both(&kfd, &ufd, PF_FL_RW);
@@ -389,7 +423,7 @@ static int perf_del_probe_events(struct strfilter *filter)
 
 	ret = probe_file__get_events(kfd, filter, klist);
 	if (ret == 0) {
-		strlist__for_each(ent, klist)
+		strlist__for_each_entry(ent, klist)
 			pr_info("Removed event: %s\n", ent->s);
 
 		ret = probe_file__del_strlist(kfd, klist);
@@ -399,7 +433,7 @@ static int perf_del_probe_events(struct strfilter *filter)
 
 	ret2 = probe_file__get_events(ufd, filter, ulist);
 	if (ret2 == 0) {
-		strlist__for_each(ent, ulist)
+		strlist__for_each_entry(ent, ulist)
 			pr_info("Removed event: %s\n", ent->s);
 
 		ret2 = probe_file__del_strlist(ufd, ulist);
@@ -424,6 +458,14 @@ out:
 
 	return ret;
 }
+
+#ifdef HAVE_DWARF_SUPPORT
+#define PROBEDEF_STR	\
+	"[EVENT=]FUNC[@SRC][+OFF|%return|:RL|;PT]|SRC:AL|SRC;PT [[NAME=]ARG ...]"
+#else
+#define PROBEDEF_STR	"[EVENT=]FUNC[+OFF|%return] [[NAME=]ARG ...]"
+#endif
+
 
 static int
 __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
@@ -450,13 +492,7 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 			     opt_set_filter_with_command, DEFAULT_LIST_FILTER),
 	OPT_CALLBACK('d', "del", NULL, "[GROUP:]EVENT", "delete a probe event.",
 		     opt_set_filter_with_command),
-	OPT_CALLBACK('a', "add", NULL,
-#ifdef HAVE_DWARF_SUPPORT
-		"[EVENT=]FUNC[@SRC][+OFF|%return|:RL|;PT]|SRC:AL|SRC;PT"
-		" [[NAME=]ARG ...]",
-#else
-		"[EVENT=]FUNC[+OFF|%return] [[NAME=]ARG ...]",
-#endif
+	OPT_CALLBACK('a', "add", NULL, PROBEDEF_STR,
 		"probe point definition, where\n"
 		"\t\tGROUP:\tGroup name (optional)\n"
 		"\t\tEVENT:\tEvent name\n"
@@ -473,6 +509,9 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 #else
 		"\t\tARG:\tProbe argument (kprobe-tracer argument format.)\n",
 #endif
+		opt_add_probe_event),
+	OPT_CALLBACK('D', "definition", NULL, PROBEDEF_STR,
+		"Show trace event definition of given traceevent for k/uprobe_events.",
 		opt_add_probe_event),
 	OPT_BOOLEAN('f', "force", &probe_conf.force_add, "forcibly add events"
 		    " with existing name"),
@@ -512,12 +551,14 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "Enable symbol demangling"),
 	OPT_BOOLEAN(0, "demangle-kernel", &symbol_conf.demangle_kernel,
 		    "Enable kernel symbol demangling"),
+	OPT_BOOLEAN(0, "cache", &probe_conf.cache, "Manipulate probe cache"),
 	OPT_END()
 	};
 	int ret;
 
 	set_option_flag(options, 'a', "add", PARSE_OPT_EXCLUSIVE);
 	set_option_flag(options, 'd', "del", PARSE_OPT_EXCLUSIVE);
+	set_option_flag(options, 'D', "definition", PARSE_OPT_EXCLUSIVE);
 	set_option_flag(options, 'l', "list", PARSE_OPT_EXCLUSIVE);
 #ifdef HAVE_DWARF_SUPPORT
 	set_option_flag(options, 'L', "line", PARSE_OPT_EXCLUSIVE);
@@ -570,6 +611,14 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	 */
 	symbol_conf.try_vmlinux_path = (symbol_conf.vmlinux_name == NULL);
 
+	/*
+	 * Except for --list, --del and --add, other command doesn't depend
+	 * nor change running kernel. So if user gives offline vmlinux,
+	 * ignore its buildid.
+	 */
+	if (!strchr("lda", params.command) && symbol_conf.vmlinux_name)
+		symbol_conf.ignore_vmlinux_buildid = true;
+
 	switch (params.command) {
 	case 'l':
 		if (params.uprobes) {
@@ -613,7 +662,9 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 			return ret;
 		}
 		break;
+	case 'D':
 	case 'a':
+
 		/* Ensure the last given target is used */
 		if (params.target && !params.target_used) {
 			pr_err("  Error: -x/-m must follow the probe definitions.\n");

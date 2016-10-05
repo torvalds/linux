@@ -19,8 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 #include "priv.h"
+
+#include <subdev/mc.h>
 #include <subdev/timer.h>
 
 static const char *
@@ -70,12 +71,11 @@ nvkm_secboot_falcon_enable(struct nvkm_secboot *sb)
 	int ret;
 
 	/* enable engine */
-	nvkm_mask(device, 0x200, sb->enable_mask, sb->enable_mask);
-	nvkm_rd32(device, 0x200);
+	nvkm_mc_enable(device, sb->devidx);
 	ret = nvkm_wait_msec(device, 10, sb->base + 0x10c, 0x6, 0x0);
 	if (ret < 0) {
-		nvkm_mask(device, 0x200, sb->enable_mask, 0x0);
 		nvkm_error(&sb->subdev, "Falcon mem scrubbing timeout\n");
+		nvkm_mc_disable(device, sb->devidx);
 		return ret;
 	}
 
@@ -85,8 +85,7 @@ nvkm_secboot_falcon_enable(struct nvkm_secboot *sb)
 
 	/* enable IRQs */
 	nvkm_wr32(device, sb->base + 0x010, 0xff);
-	nvkm_mask(device, 0x640, sb->irq_mask, sb->irq_mask);
-	nvkm_mask(device, 0x644, sb->irq_mask, sb->irq_mask);
+	nvkm_mc_intr_mask(device, sb->devidx, true);
 
 	return 0;
 }
@@ -97,14 +96,13 @@ nvkm_secboot_falcon_disable(struct nvkm_secboot *sb)
 	struct nvkm_device *device = sb->subdev.device;
 
 	/* disable IRQs and wait for any previous code to complete */
-	nvkm_mask(device, 0x644, sb->irq_mask, 0x0);
-	nvkm_mask(device, 0x640, sb->irq_mask, 0x0);
+	nvkm_mc_intr_mask(device, sb->devidx, false);
 	nvkm_wr32(device, sb->base + 0x014, 0xff);
 
 	falcon_wait_idle(device, sb->base);
 
 	/* disable engine */
-	nvkm_mask(device, 0x200, sb->enable_mask, 0x0);
+	nvkm_mc_disable(device, sb->devidx);
 
 	return 0;
 }
@@ -216,14 +214,7 @@ nvkm_secboot_oneinit(struct nvkm_subdev *subdev)
 		return ret;
 	}
 
-	/*
-	 * Build all blobs - the same blobs can be used to perform secure boot
-	 * multiple times
-	 */
-	if (sb->func->prepare_blobs)
-		ret = sb->func->prepare_blobs(sb);
-
-	return ret;
+	return 0;
 }
 
 static int
@@ -264,15 +255,14 @@ nvkm_secboot_ctor(const struct nvkm_secboot_func *func,
 {
 	unsigned long fid;
 
-	nvkm_subdev_ctor(&nvkm_secboot, device, index, 0, &sb->subdev);
+	nvkm_subdev_ctor(&nvkm_secboot, device, index, &sb->subdev);
 	sb->func = func;
 
 	/* setup the performing falcon's base address and masks */
 	switch (func->boot_falcon) {
 	case NVKM_SECBOOT_FALCON_PMU:
+		sb->devidx = NVKM_SUBDEV_PMU;
 		sb->base = 0x10a000;
-		sb->irq_mask = 0x1000000;
-		sb->enable_mask = 0x2000;
 		break;
 	default:
 		nvkm_error(&sb->subdev, "invalid secure boot falcon\n");

@@ -321,6 +321,9 @@ enum iwl_mvm_agg_state {
  *	Basically when next_reclaimed reaches ssn, we can tell mac80211 that
  *	we are ready to finish the Tx AGG stop / start flow.
  * @tx_time: medium time consumed by this A-MPDU
+ * @is_tid_active: has this TID sent traffic in the last
+ *	%IWL_MVM_DQA_QUEUE_TIMEOUT time period. If %txq_id is invalid, this
+ *	field should be ignored.
  */
 struct iwl_mvm_tid_data {
 	struct sk_buff_head deferred_tx_frames;
@@ -333,6 +336,7 @@ struct iwl_mvm_tid_data {
 	u16 txq_id;
 	u16 ssn;
 	u16 tx_time;
+	bool is_tid_active;
 };
 
 static inline u16 iwl_mvm_tid_queued(struct iwl_mvm_tid_data *tid_data)
@@ -434,6 +438,7 @@ struct iwl_mvm_sta {
 	bool tlc_amsdu;
 	u8 agg_tids;
 	u8 sleep_tx_count;
+	u8 avg_energy;
 };
 
 static inline struct iwl_mvm_sta *
@@ -468,9 +473,14 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 		    struct ieee80211_vif *vif,
 		    struct ieee80211_sta *sta);
-int iwl_mvm_update_sta(struct iwl_mvm *mvm,
-		       struct ieee80211_vif *vif,
-		       struct ieee80211_sta *sta);
+
+static inline int iwl_mvm_update_sta(struct iwl_mvm *mvm,
+				     struct ieee80211_vif *vif,
+				     struct ieee80211_sta *sta)
+{
+	return iwl_mvm_sta_send_to_fw(mvm, sta, true, 0);
+}
+
 int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		   struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta);
@@ -509,6 +519,9 @@ int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, u16 tid);
 
+int iwl_mvm_sta_tx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+		       int tid, u8 queue, bool start);
+
 int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm);
 void iwl_mvm_del_aux_sta(struct iwl_mvm *mvm);
 
@@ -545,5 +558,9 @@ void iwl_mvm_modify_all_sta_disable_tx(struct iwl_mvm *mvm,
 				       bool disable);
 void iwl_mvm_csa_client_absent(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 void iwl_mvm_add_new_dqa_stream_wk(struct work_struct *wk);
+
+int iwl_mvm_scd_queue_redirect(struct iwl_mvm *mvm, int queue, int tid,
+			       int ac, int ssn, unsigned int wdg_timeout,
+			       bool force);
 
 #endif /* __sta_h__ */

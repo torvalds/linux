@@ -510,6 +510,7 @@ int rvt_driver_cq_init(struct rvt_dev_info *rdi)
 
 	if (rdi->worker)
 		return 0;
+	spin_lock_init(&rdi->n_cqs_lock);
 	rdi->worker = kzalloc(sizeof(*rdi->worker), GFP_KERNEL);
 	if (!rdi->worker)
 		return -ENOMEM;
@@ -525,6 +526,7 @@ int rvt_driver_cq_init(struct rvt_dev_info *rdi)
 		return PTR_ERR(task);
 	}
 
+	set_user_nice(task, MIN_NICE);
 	cpu = cpumask_first(cpumask_of_node(rdi->dparms.node));
 	kthread_bind(task, cpu);
 	wake_up_process(task);

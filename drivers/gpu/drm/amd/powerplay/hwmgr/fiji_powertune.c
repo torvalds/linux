@@ -32,7 +32,7 @@
 #define VOLTAGE_SCALE  4
 #define POWERTUNE_DEFAULT_SET_MAX    1
 
-struct fiji_pt_defaults fiji_power_tune_data_set_array[POWERTUNE_DEFAULT_SET_MAX] = {
+const struct fiji_pt_defaults fiji_power_tune_data_set_array[POWERTUNE_DEFAULT_SET_MAX] = {
 		/*sviLoadLIneEn,  SviLoadLineVddC, TDC_VDDC_ThrottleReleaseLimitPerc */
 		{1,               0xF,             0xFD,
 		/* TDC_MAWt, TdcWaterfallCtl, DTEAmbientTempBase */
@@ -73,17 +73,18 @@ void fiji_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 
 	if (!tmp) {
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-				PHM_PlatformCaps_PowerContainment);
-
-		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_CAC);
 
 		fiji_hwmgr->fast_watermark_threshold = 100;
 
-		tmp = 1;
-		fiji_hwmgr->enable_dte_feature = tmp ? false : true;
-		fiji_hwmgr->enable_tdc_limit_feature = tmp ? true : false;
-		fiji_hwmgr->enable_pkg_pwr_tracking_feature = tmp ? true : false;
+		if (hwmgr->powercontainment_enabled) {
+			phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+				    PHM_PlatformCaps_PowerContainment);
+			tmp = 1;
+			fiji_hwmgr->enable_dte_feature = tmp ? false : true;
+			fiji_hwmgr->enable_tdc_limit_feature = tmp ? true : false;
+			fiji_hwmgr->enable_pkg_pwr_tracking_feature = tmp ? true : false;
+		}
 	}
 }
 
@@ -143,7 +144,7 @@ static void get_scl_sda_value(uint8_t line, uint8_t *scl, uint8_t* sda)
 int fiji_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr)
 {
 	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
-	struct fiji_pt_defaults *defaults = data->power_tune_defaults;
+	const struct fiji_pt_defaults *defaults = data->power_tune_defaults;
 	SMU73_Discrete_DpmTable  *dpm_table = &(data->smc_state_table);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
@@ -222,7 +223,7 @@ int fiji_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr)
 static int fiji_populate_svi_load_line(struct pp_hwmgr *hwmgr)
 {
     struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
-    struct fiji_pt_defaults *defaults = data->power_tune_defaults;
+    const struct fiji_pt_defaults *defaults = data->power_tune_defaults;
 
     data->power_tune_table.SviLoadLineEn = defaults->SviLoadLineEn;
     data->power_tune_table.SviLoadLineVddC = defaults->SviLoadLineVddC;
@@ -238,7 +239,7 @@ static int fiji_populate_tdc_limit(struct pp_hwmgr *hwmgr)
 	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
-	struct  fiji_pt_defaults *defaults = data->power_tune_defaults;
+	const struct fiji_pt_defaults *defaults = data->power_tune_defaults;
 
 	/* TDC number of fraction bits are changed from 8 to 7
 	 * for Fiji as requested by SMC team
@@ -256,7 +257,7 @@ static int fiji_populate_tdc_limit(struct pp_hwmgr *hwmgr)
 static int fiji_populate_dw8(struct pp_hwmgr *hwmgr, uint32_t fuse_table_offset)
 {
 	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
-	struct  fiji_pt_defaults *defaults = data->power_tune_defaults;
+	const struct fiji_pt_defaults *defaults = data->power_tune_defaults;
 	uint32_t temp;
 
 	if (fiji_read_smc_sram_dword(hwmgr->smumgr,
@@ -459,6 +460,23 @@ int fiji_enable_smc_cac(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
+int fiji_disable_smc_cac(struct pp_hwmgr *hwmgr)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+	int result = 0;
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_CAC) && data->cac_enabled) {
+		int smc_result = smum_send_msg_to_smc(hwmgr->smumgr,
+				(uint16_t)(PPSMC_MSG_DisableCac));
+		PP_ASSERT_WITH_CODE((smc_result == 0),
+				"Failed to disable CAC in SMC.", result = -1);
+
+		data->cac_enabled = false;
+	}
+	return result;
+}
+
 int fiji_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n)
 {
 	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
@@ -525,6 +543,48 @@ int fiji_enable_power_containment(struct pp_hwmgr *hwmgr)
 			}
 		}
 	}
+	return result;
+}
+
+int fiji_disable_power_containment(struct pp_hwmgr *hwmgr)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+	int result = 0;
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_PowerContainment) &&
+			data->power_containment_features) {
+		int smc_result;
+
+		if (data->power_containment_features &
+				POWERCONTAINMENT_FEATURE_TDCLimit) {
+			smc_result = smum_send_msg_to_smc(hwmgr->smumgr,
+					(uint16_t)(PPSMC_MSG_TDCLimitDisable));
+			PP_ASSERT_WITH_CODE((smc_result == 0),
+					"Failed to disable TDCLimit in SMC.",
+					result = smc_result);
+		}
+
+		if (data->power_containment_features &
+				POWERCONTAINMENT_FEATURE_DTE) {
+			smc_result = smum_send_msg_to_smc(hwmgr->smumgr,
+					(uint16_t)(PPSMC_MSG_DisableDTE));
+			PP_ASSERT_WITH_CODE((smc_result == 0),
+					"Failed to disable DTE in SMC.",
+					result = smc_result);
+		}
+
+		if (data->power_containment_features &
+				POWERCONTAINMENT_FEATURE_PkgPwrLimit) {
+			smc_result = smum_send_msg_to_smc(hwmgr->smumgr,
+					(uint16_t)(PPSMC_MSG_PkgPwrLimitDisable));
+			PP_ASSERT_WITH_CODE((smc_result == 0),
+					"Failed to disable PkgPwrTracking in SMC.",
+					result = smc_result);
+		}
+		data->power_containment_features = 0;
+	}
+
 	return result;
 }
 

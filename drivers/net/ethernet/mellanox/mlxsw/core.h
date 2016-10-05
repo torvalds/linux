@@ -87,6 +87,7 @@ struct mlxsw_rx_listener {
 	void (*func)(struct sk_buff *skb, u8 local_port, void *priv);
 	u8 local_port;
 	u16 trap_id;
+	enum mlxsw_reg_hpkt_action action;
 };
 
 struct mlxsw_event_listener {
@@ -178,8 +179,6 @@ struct mlxsw_swid_config {
 
 struct mlxsw_config_profile {
 	u16	used_max_vepa_channels:1,
-		used_max_lag:1,
-		used_max_port_per_lag:1,
 		used_max_mid:1,
 		used_max_pgt:1,
 		used_max_system_port:1,
@@ -190,10 +189,10 @@ struct mlxsw_config_profile {
 		used_max_ib_mc:1,
 		used_max_pkey:1,
 		used_ar_sec:1,
-		used_adaptive_routing_group_cap:1;
+		used_adaptive_routing_group_cap:1,
+		used_kvd_split_data:1; /* indicate for the kvd's values */
+
 	u8	max_vepa_channels;
-	u16	max_lag;
-	u16	max_port_per_lag;
 	u16	max_mid;
 	u16	max_pgt;
 	u16	max_system_port;
@@ -211,6 +210,11 @@ struct mlxsw_config_profile {
 	u8	ar_sec;
 	u16	adaptive_routing_group_cap;
 	u8	arn;
+	u32	kvd_linear_size;
+	u16	kvd_hash_granularity;
+	u8	kvd_hash_single_parts;
+	u8	kvd_hash_double_parts;
+	u8	resource_query_enable;
 	struct mlxsw_swid_config swid_config[MLXSW_CONFIG_PROFILE_SWID_COUNT];
 };
 
@@ -262,10 +266,45 @@ struct mlxsw_driver {
 	const struct mlxsw_config_profile *profile;
 };
 
+struct mlxsw_resources {
+	u32	max_span_valid:1,
+		max_lag_valid:1,
+		max_ports_in_lag_valid:1,
+		kvd_size_valid:1,
+		kvd_single_min_size_valid:1,
+		kvd_double_min_size_valid:1,
+		max_virtual_routers_valid:1,
+		max_system_ports_valid:1,
+		max_vlan_groups_valid:1,
+		max_regions_valid:1,
+		max_rif_valid:1;
+	u8      max_span;
+	u8	max_lag;
+	u8	max_ports_in_lag;
+	u32	kvd_size;
+	u32	kvd_single_min_size;
+	u32	kvd_double_min_size;
+	u16     max_virtual_routers;
+	u16	max_system_ports;
+	u16	max_vlan_groups;
+	u16	max_regions;
+	u16	max_rif;
+
+	/* Internal resources.
+	 * Determined by the SW, not queried from the HW.
+	 */
+	u32	kvd_single_size;
+	u32	kvd_double_size;
+	u32	kvd_linear_size;
+};
+
+struct mlxsw_resources *mlxsw_core_resources_get(struct mlxsw_core *mlxsw_core);
+
 struct mlxsw_bus {
 	const char *kind;
 	int (*init)(void *bus_priv, struct mlxsw_core *mlxsw_core,
-		    const struct mlxsw_config_profile *profile);
+		    const struct mlxsw_config_profile *profile,
+		    struct mlxsw_resources *resources);
 	void (*fini)(void *bus_priv);
 	bool (*skb_transmit_busy)(void *bus_priv,
 				  const struct mlxsw_tx_info *tx_info);

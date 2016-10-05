@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -783,7 +779,7 @@ do {								      \
 	if (cfs_cdebug_show(mask, DEBUG_SUBSYSTEM)) {		     \
 		LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, mask, NULL);		\
 		lu_object_print(env, &msgdata, lu_cdebug_printer, object);\
-		CDEBUG(mask, format, ## __VA_ARGS__);		    \
+		CDEBUG(mask, format "\n", ## __VA_ARGS__);		    \
 	}								 \
 } while (0)
 

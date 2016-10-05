@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -603,6 +604,8 @@ struct iwl_scan_req_umac_tail {
  * @uid: scan id, &enum iwl_umac_scan_uid_offsets
  * @ooc_priority: out of channel priority - &enum iwl_scan_priority
  * @general_flags: &enum iwl_umac_scan_general_flags
+ * @reserved2: for future use and alignment
+ * @scan_start_mac_id: report the scan start TSF time according to this mac TSF
  * @extended_dwell: dwell time for channels 1, 6 and 11
  * @active_dwell: dwell time for active scan
  * @passive_dwell: dwell time for passive scan
@@ -620,8 +623,10 @@ struct iwl_scan_req_umac {
 	__le32 flags;
 	__le32 uid;
 	__le32 ooc_priority;
-	/* SCAN_GENERAL_PARAMS_API_S_VER_1 */
-	__le32 general_flags;
+	/* SCAN_GENERAL_PARAMS_API_S_VER_4 */
+	__le16 general_flags;
+	u8 reserved2;
+	u8 scan_start_mac_id;
 	u8 extended_dwell;
 	u8 active_dwell;
 	u8 passive_dwell;
@@ -629,7 +634,7 @@ struct iwl_scan_req_umac {
 	__le32 max_out_time;
 	__le32 suspend_time;
 	__le32 scan_priority;
-	/* SCAN_CHANNEL_PARAMS_API_S_VER_1 */
+	/* SCAN_CHANNEL_PARAMS_API_S_VER_4 */
 	u8 channel_flags;
 	u8 n_channels;
 	__le16 reserved;
@@ -718,8 +723,8 @@ struct iwl_scan_offload_profiles_query {
  * @status: one of SCAN_COMP_STATUS_*
  * @bt_status: BT on/off status
  * @last_channel: last channel that was scanned
- * @tsf_low: TSF timer (lower half) in usecs
- * @tsf_high: TSF timer (higher half) in usecs
+ * @start_tsf: TSF timer in usecs of the scan start time for the mac specified
+ *	in &struct iwl_scan_req_umac.
  * @results: array of scan results, only "scanned_channels" of them are valid
  */
 struct iwl_umac_scan_iter_complete_notif {
@@ -728,9 +733,8 @@ struct iwl_umac_scan_iter_complete_notif {
 	u8 status;
 	u8 bt_status;
 	u8 last_channel;
-	__le32 tsf_low;
-	__le32 tsf_high;
+	__le64 start_tsf;
 	struct iwl_scan_results_notif results[];
-} __packed; /* SCAN_ITER_COMPLETE_NTF_UMAC_API_S_VER_1 */
+} __packed; /* SCAN_ITER_COMPLETE_NTF_UMAC_API_S_VER_2 */
 
 #endif

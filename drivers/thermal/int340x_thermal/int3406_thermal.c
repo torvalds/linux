@@ -177,7 +177,7 @@ static int int3406_thermal_probe(struct platform_device *pdev)
 		return -ENODEV;
 	d->raw_bd = bd;
 
-	ret = acpi_video_get_levels(ACPI_COMPANION(&pdev->dev), &d->br);
+	ret = acpi_video_get_levels(ACPI_COMPANION(&pdev->dev), &d->br, NULL);
 	if (ret)
 		return ret;
 
@@ -225,7 +225,6 @@ static struct platform_driver int3406_thermal_driver = {
 	.remove = int3406_thermal_remove,
 	.driver = {
 		   .name = "int3406 thermal",
-		   .owner = THIS_MODULE,
 		   .acpi_match_table = int3406_thermal_match,
 		   },
 };

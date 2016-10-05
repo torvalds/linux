@@ -518,10 +518,10 @@ static int p9_check_errors(struct p9_client *c, struct p9_req_t *req)
 		if (err)
 			goto out_err;
 
-		if (p9_is_proto_dotu(c))
+		if (p9_is_proto_dotu(c) && ecode < 512)
 			err = -ecode;
 
-		if (!err || !IS_ERR_VALUE(err)) {
+		if (!err) {
 			err = p9_errstr2errno(ename, strlen(ename));
 
 			p9_debug(P9_DEBUG_9P, "<<< RERROR (%d) %s\n",
@@ -605,10 +605,10 @@ static int p9_check_zc_errors(struct p9_client *c, struct p9_req_t *req,
 		if (err)
 			goto out_err;
 
-		if (p9_is_proto_dotu(c))
+		if (p9_is_proto_dotu(c) && ecode < 512)
 			err = -ecode;
 
-		if (!err || !IS_ERR_VALUE(err)) {
+		if (!err) {
 			err = p9_errstr2errno(ename, strlen(ename));
 
 			p9_debug(P9_DEBUG_9P, "<<< RERROR (%d) %s\n",

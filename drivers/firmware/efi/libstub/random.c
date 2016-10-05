@@ -73,12 +73,20 @@ efi_status_t efi_random_alloc(efi_system_table_t *sys_table_arg,
 			      unsigned long random_seed)
 {
 	unsigned long map_size, desc_size, total_slots = 0, target_slot;
+	unsigned long buff_size;
 	efi_status_t status;
 	efi_memory_desc_t *memory_map;
 	int map_offset;
+	struct efi_boot_memmap map;
 
-	status = efi_get_memory_map(sys_table_arg, &memory_map, &map_size,
-				    &desc_size, NULL, NULL);
+	map.map =	&memory_map;
+	map.map_size =	&map_size;
+	map.desc_size =	&desc_size;
+	map.desc_ver =	NULL;
+	map.key_ptr =	NULL;
+	map.buff_size =	&buff_size;
+
+	status = efi_get_memory_map(sys_table_arg, &map);
 	if (status != EFI_SUCCESS)
 		return status;
 

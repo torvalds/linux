@@ -395,9 +395,6 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	sb_start_pagefault(inode->i_sb);
 
-	/* Update file times before taking page lock */
-	file_update_time(vma->vm_file);
-
 	ret = gfs2_rsqa_alloc(ip);
 	if (ret)
 		goto out;
@@ -408,6 +405,9 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	ret = gfs2_glock_nq(&gh);
 	if (ret)
 		goto out_uninit;
+
+	/* Update file times before taking page lock */
+	file_update_time(vma->vm_file);
 
 	set_bit(GLF_DIRTY, &ip->i_gl->gl_flags);
 	set_bit(GIF_SW_PAGED, &ip->i_flags);
@@ -1098,7 +1098,7 @@ static void do_unflock(struct file *file, struct file_lock *fl)
 
 	mutex_lock(&fp->f_fl_mutex);
 	locks_lock_file_wait(file, fl);
-	if (fl_gh->gh_gl) {
+	if (gfs2_holder_initialized(fl_gh)) {
 		gfs2_glock_dq(fl_gh);
 		gfs2_holder_uninit(fl_gh);
 	}

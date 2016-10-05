@@ -328,11 +328,12 @@ extern struct list_head ib_nodev_conns;
 /* ib_cm.c */
 int rds_ib_conn_alloc(struct rds_connection *conn, gfp_t gfp);
 void rds_ib_conn_free(void *arg);
-int rds_ib_conn_connect(struct rds_connection *conn);
-void rds_ib_conn_shutdown(struct rds_connection *conn);
+int rds_ib_conn_path_connect(struct rds_conn_path *cp);
+void rds_ib_conn_path_shutdown(struct rds_conn_path *cp);
 void rds_ib_state_change(struct sock *sk);
 int rds_ib_listen_init(void);
 void rds_ib_listen_stop(void);
+__printf(2, 3)
 void __rds_ib_conn_error(struct rds_connection *conn, const char *, ...);
 int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 			     struct rdma_cm_event *event);
@@ -354,7 +355,7 @@ void rds_ib_mr_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc);
 /* ib_recv.c */
 int rds_ib_recv_init(void);
 void rds_ib_recv_exit(void);
-int rds_ib_recv(struct rds_connection *conn);
+int rds_ib_recv_path(struct rds_conn_path *conn);
 int rds_ib_recv_alloc_caches(struct rds_ib_connection *ic);
 void rds_ib_recv_free_caches(struct rds_ib_connection *ic);
 void rds_ib_recv_refill(struct rds_connection *conn, int prefill, gfp_t gfp);
@@ -384,7 +385,7 @@ u32 rds_ib_ring_completed(struct rds_ib_work_ring *ring, u32 wr_id, u32 oldest);
 extern wait_queue_head_t rds_ib_ring_empty_wait;
 
 /* ib_send.c */
-void rds_ib_xmit_complete(struct rds_connection *conn);
+void rds_ib_xmit_path_complete(struct rds_conn_path *cp);
 int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		unsigned int hdr_off, unsigned int sg, unsigned int off);
 void rds_ib_send_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc);

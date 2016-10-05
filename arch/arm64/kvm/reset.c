@@ -65,7 +65,7 @@ static bool cpu_has_32bit_el1(void)
  * We currently assume that the number of HW registers is uniform
  * across all CPUs (see cpuinfo_sanity_check).
  */
-int kvm_arch_dev_ioctl_check_extension(long ext)
+int kvm_arch_dev_ioctl_check_extension(struct kvm *kvm, long ext)
 {
 	int r;
 
@@ -86,6 +86,12 @@ int kvm_arch_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_VCPU_ATTRIBUTES:
 		r = 1;
 		break;
+	case KVM_CAP_MSI_DEVID:
+		if (!kvm)
+			r = -EINVAL;
+		else
+			r = kvm->arch.vgic.msis_require_devid;
+		break;
 	default:
 		r = 0;
 	}
@@ -98,7 +104,7 @@ int kvm_arch_dev_ioctl_check_extension(long ext)
  * @vcpu: The VCPU pointer
  *
  * This function finds the right table above and sets the registers on
- * the virtual CPU struct to their architectually defined reset
+ * the virtual CPU struct to their architecturally defined reset
  * values.
  */
 int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
@@ -131,32 +137,4 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 
 	/* Reset timer */
 	return kvm_timer_vcpu_reset(vcpu, cpu_vtimer_irq);
-}
-
-extern char __hyp_idmap_text_start[];
-
-unsigned long kvm_hyp_reset_entry(void)
-{
-	if (!__kvm_cpu_uses_extended_idmap()) {
-		unsigned long offset;
-
-		/*
-		 * Find the address of __kvm_hyp_reset() in the trampoline page.
-		 * This is present in the running page tables, and the boot page
-		 * tables, so we call the code here to start the trampoline
-		 * dance in reverse.
-		 */
-		offset = (unsigned long)__kvm_hyp_reset
-			 - ((unsigned long)__hyp_idmap_text_start & PAGE_MASK);
-
-		return TRAMPOLINE_VA + offset;
-	} else {
-		/*
-		 * KVM is running with merged page tables, which don't have the
-		 * trampoline page mapped. We know the idmap is still mapped,
-		 * but can't be called into directly. Use
-		 * __extended_idmap_trampoline to do the call.
-		 */
-		return (unsigned long)kvm_ksym_ref(__extended_idmap_trampoline);
-	}
 }

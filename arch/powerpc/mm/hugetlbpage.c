@@ -73,13 +73,20 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
 	cachep = PGT_CACHE(pdshift - pshift);
 #endif
 
-	new = kmem_cache_zalloc(cachep, GFP_KERNEL|__GFP_REPEAT);
+	new = kmem_cache_zalloc(cachep, GFP_KERNEL);
 
 	BUG_ON(pshift > HUGEPD_SHIFT_MASK);
 	BUG_ON((unsigned long)new & HUGEPD_SHIFT_MASK);
 
 	if (! new)
 		return -ENOMEM;
+
+	/*
+	 * Make sure other cpus find the hugepd set only after a
+	 * properly initialized page table is visible to them.
+	 * For more details look for comment in __pte_alloc().
+	 */
+	smp_wmb();
 
 	spin_lock(&mm->page_table_lock);
 #ifdef CONFIG_PPC_FSL_BOOK3E

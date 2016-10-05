@@ -29,10 +29,11 @@ ext4_xattr_trusted_get(const struct xattr_handler *handler,
 
 static int
 ext4_xattr_trusted_set(const struct xattr_handler *handler,
-		       struct dentry *dentry, const char *name,
-		       const void *value, size_t size, int flags)
+		       struct dentry *unused, struct inode *inode,
+		       const char *name, const void *value,
+		       size_t size, int flags)
 {
-	return ext4_xattr_set(d_inode(dentry), EXT4_XATTR_INDEX_TRUSTED,
+	return ext4_xattr_set(inode, EXT4_XATTR_INDEX_TRUSTED,
 			      name, value, size, flags);
 }
 

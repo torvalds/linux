@@ -64,7 +64,7 @@ static inline void plat_post_dma_flush(struct device *dev)
 
 static inline int plat_device_is_coherent(struct device *dev)
 {
-	return 1;		/* IP27 non-cohernet mode is unsupported */
+	return 1;		/* IP27 non-coherent mode is unsupported */
 }
 
 #endif /* __ASM_MACH_IP27_DMA_COHERENCE_H */

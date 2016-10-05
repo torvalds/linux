@@ -245,7 +245,6 @@ static int au0828_init_isoc(struct au0828_dev *dev, int max_packets,
 	for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
 		urb = usb_alloc_urb(max_packets, GFP_KERNEL);
 		if (!urb) {
-			au0828_isocdbg("cannot alloc isoc_ctl.urb %i\n", i);
 			au0828_uninit_isoc(dev);
 			return -ENOMEM;
 		}
@@ -698,7 +697,7 @@ int au0828_v4l2_device_register(struct usb_interface *interface,
 
 static int queue_setup(struct vb2_queue *vq,
 		       unsigned int *nbuffers, unsigned int *nplanes,
-		       unsigned int sizes[], void *alloc_ctxs[])
+		       unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct au0828_dev *dev = vb2_get_drv_priv(vq);
 	unsigned long size = dev->height * dev->bytesperline;

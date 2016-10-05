@@ -66,7 +66,7 @@ struct w1_therm_family_data {
 
 /* return the address of the refcnt in the family data */
 #define THERM_REFCNT(family_data) \
-	(&((struct w1_therm_family_data*)family_data)->refcnt)
+	(&((struct w1_therm_family_data *)family_data)->refcnt)
 
 static int w1_therm_add_slave(struct w1_slave *sl)
 {
@@ -81,7 +81,8 @@ static int w1_therm_add_slave(struct w1_slave *sl)
 static void w1_therm_remove_slave(struct w1_slave *sl)
 {
 	int refcnt = atomic_sub_return(1, THERM_REFCNT(sl->family_data));
-	while(refcnt) {
+
+	while (refcnt) {
 		msleep(1000);
 		refcnt = atomic_read(THERM_REFCNT(sl->family_data));
 	}
@@ -151,8 +152,7 @@ static struct w1_family w1_therm_family_DS1825 = {
 	.fops = &w1_therm_fops,
 };
 
-struct w1_therm_family_converter
-{
+struct w1_therm_family_converter {
 	u8			broken;
 	u16			reserved;
 	struct w1_family	*f;
@@ -293,7 +293,7 @@ static inline int w1_DS18B20_precision(struct device *device, int val)
 	uint8_t precision_bits;
 	uint8_t mask = 0x60;
 
-	if(val > 12 || val < 9) {
+	if (val > 12 || val < 9) {
 		pr_warn("Unsupported precision\n");
 		return -1;
 	}
@@ -336,7 +336,8 @@ static inline int w1_DS18B20_precision(struct device *device, int val)
 
 			/* read values to only alter precision bits */
 			w1_write_8(dev, W1_READ_SCRATCHPAD);
-			if ((count = w1_read_block(dev, rom, 9)) != 9)
+			count = w1_read_block(dev, rom, 9);
+			if (count != 9)
 				dev_warn(device, "w1_read_block() returned %u instead of 9.\n",	count);
 
 			crc = w1_calc_crc8(rom, 8);
@@ -366,6 +367,7 @@ post_unlock:
 static inline int w1_DS18B20_convert_temp(u8 rom[9])
 {
 	s16 t = le16_to_cpup((__le16 *)rom);
+
 	return t*1000/16;
 }
 
@@ -415,7 +417,7 @@ static ssize_t w1_slave_store(struct device *device,
 	for (i = 0; i < ARRAY_SIZE(w1_therm_families); ++i) {
 		if (w1_therm_families[i].f->fid == sl->family->fid) {
 			/* zero value indicates to write current configuration to eeprom */
-			if (0 == val)
+			if (val == 0)
 				ret = w1_therm_families[i].eeprom(device);
 			else
 				ret = w1_therm_families[i].precision(device, val);
@@ -439,8 +441,7 @@ static ssize_t w1_slave_show(struct device *device,
 	if (ret != 0)
 		goto post_unlock;
 
-	if(!sl->family_data)
-	{
+	if (!sl->family_data) {
 		ret = -ENODEV;
 		goto pre_unlock;
 	}
@@ -495,7 +496,8 @@ static ssize_t w1_slave_show(struct device *device,
 			if (!w1_reset_select_slave(sl)) {
 
 				w1_write_8(dev, W1_READ_SCRATCHPAD);
-				if ((count = w1_read_block(dev, rom, 9)) != 9) {
+				count = w1_read_block(dev, rom, 9);
+				if (count != 9) {
 					dev_warn(device, "w1_read_block() "
 						"returned %u instead of 9.\n",
 						count);

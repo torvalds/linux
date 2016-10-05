@@ -12,6 +12,7 @@
  */
 #include <linux/device.h>
 #include <linux/sizes.h>
+#include <linux/pmem.h>
 #include "nd-core.h"
 #include "pfn.h"
 #include "btt.h"
@@ -84,10 +85,31 @@ static bool is_idle(struct device *dev, struct nd_namespace_common *ndns)
 		seed = nd_region->btt_seed;
 	else if (is_nd_pfn(dev))
 		seed = nd_region->pfn_seed;
+	else if (is_nd_dax(dev))
+		seed = nd_region->dax_seed;
 
 	if (seed == dev || ndns || dev->driver)
 		return false;
 	return true;
+}
+
+struct nd_pfn *to_nd_pfn_safe(struct device *dev)
+{
+	/*
+	 * pfn device attributes are re-used by dax device instances, so we
+	 * need to be careful to correct device-to-nd_pfn conversion.
+	 */
+	if (is_nd_pfn(dev))
+		return to_nd_pfn(dev);
+
+	if (is_nd_dax(dev)) {
+		struct nd_dax *nd_dax = to_nd_dax(dev);
+
+		return &nd_dax->nd_pfn;
+	}
+
+	WARN_ON(1);
+	return NULL;
 }
 
 static void nd_detach_and_reset(struct device *dev,
@@ -103,8 +125,8 @@ static void nd_detach_and_reset(struct device *dev,
 		nd_btt->lbasize = 0;
 		kfree(nd_btt->uuid);
 		nd_btt->uuid = NULL;
-	} else if (is_nd_pfn(dev)) {
-		struct nd_pfn *nd_pfn = to_nd_pfn(dev);
+	} else if (is_nd_pfn(dev) || is_nd_dax(dev)) {
+		struct nd_pfn *nd_pfn = to_nd_pfn_safe(dev);
 
 		kfree(nd_pfn->uuid);
 		nd_pfn->uuid = NULL;
@@ -199,3 +221,62 @@ u64 nd_sb_checksum(struct nd_gen_sb *nd_gen_sb)
 	return sum;
 }
 EXPORT_SYMBOL(nd_sb_checksum);
+
+static int nsio_rw_bytes(struct nd_namespace_common *ndns,
+		resource_size_t offset, void *buf, size_t size, int rw)
+{
+	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
+
+	if (unlikely(offset + size > nsio->size)) {
+		dev_WARN_ONCE(&ndns->dev, 1, "request out of range\n");
+		return -EFAULT;
+	}
+
+	if (rw == READ) {
+		unsigned int sz_align = ALIGN(size + (offset & (512 - 1)), 512);
+
+		if (unlikely(is_bad_pmem(&nsio->bb, offset / 512, sz_align)))
+			return -EIO;
+		return memcpy_from_pmem(buf, nsio->addr + offset, size);
+	} else {
+		memcpy_to_pmem(nsio->addr + offset, buf, size);
+		nvdimm_flush(to_nd_region(ndns->dev.parent));
+	}
+
+	return 0;
+}
+
+int devm_nsio_enable(struct device *dev, struct nd_namespace_io *nsio)
+{
+	struct resource *res = &nsio->res;
+	struct nd_namespace_common *ndns = &nsio->common;
+
+	nsio->size = resource_size(res);
+	if (!devm_request_mem_region(dev, res->start, resource_size(res),
+				dev_name(dev))) {
+		dev_warn(dev, "could not reserve region %pR\n", res);
+		return -EBUSY;
+	}
+
+	ndns->rw_bytes = nsio_rw_bytes;
+	if (devm_init_badblocks(dev, &nsio->bb))
+		return -ENOMEM;
+	nvdimm_badblocks_populate(to_nd_region(ndns->dev.parent), &nsio->bb,
+			&nsio->res);
+
+	nsio->addr = devm_memremap(dev, res->start, resource_size(res),
+			ARCH_MEMREMAP_PMEM);
+
+	return PTR_ERR_OR_ZERO(nsio->addr);
+}
+EXPORT_SYMBOL_GPL(devm_nsio_enable);
+
+void devm_nsio_disable(struct device *dev, struct nd_namespace_io *nsio)
+{
+	struct resource *res = &nsio->res;
+
+	devm_memunmap(dev, nsio->addr);
+	devm_exit_badblocks(dev, &nsio->bb);
+	devm_release_mem_region(dev, res->start, resource_size(res));
+}
+EXPORT_SYMBOL_GPL(devm_nsio_disable);

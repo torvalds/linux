@@ -37,6 +37,7 @@
 #include <linux/wait.h>
 #include <linux/pci.h>
 #include <linux/timer.h>
+#include <linux/cpu.h>
 
 #include "iwl-fh.h"
 #include "iwl-csr.h"
@@ -49,7 +50,7 @@
  * be needed for potential data in the SKB's head. The remaining ones can
  * be used for frags.
  */
-#define IWL_PCIE_MAX_FRAGS (IWL_NUM_OF_TBS - 3)
+#define IWL_PCIE_MAX_FRAGS(x) (x->max_tbs - 3)
 
 /*
  * RX related structures and functions
@@ -68,12 +69,14 @@ struct iwl_host_cmd;
  * struct iwl_rx_mem_buffer
  * @page_dma: bus address of rxb page
  * @page: driver's pointer to the rxb page
+ * @invalid: rxb is in driver ownership - not owned by HW
  * @vid: index of this rxb in the global table
  */
 struct iwl_rx_mem_buffer {
 	dma_addr_t page_dma;
 	struct page *page;
 	u16 vid;
+	bool invalid;
 	struct list_head list;
 };
 
@@ -190,55 +193,24 @@ struct iwl_cmd_meta {
 	/* only for SYNC commands, iff the reply skb is wanted */
 	struct iwl_host_cmd *source;
 	u32 flags;
+	u32 tbs;
 };
 
-/*
- * Generic queue structure
- *
- * Contains common data for Rx and Tx queues.
- *
- * Note the difference between TFD_QUEUE_SIZE_MAX and n_window: the hardware
- * always assumes 256 descriptors, so TFD_QUEUE_SIZE_MAX is always 256 (unless
- * there might be HW changes in the future). For the normal TX
- * queues, n_window, which is the size of the software queue data
- * is also 256; however, for the command queue, n_window is only
- * 32 since we don't need so many commands pending. Since the HW
- * still uses 256 BDs for DMA though, TFD_QUEUE_SIZE_MAX stays 256. As a result,
- * the software buffers (in the variables @meta, @txb in struct
- * iwl_txq) only have 32 entries, while the HW buffers (@tfds in
- * the same struct) have 256.
- * This means that we end up with the following:
- *  HW entries: | 0 | ... | N * 32 | ... | N * 32 + 31 | ... | 255 |
- *  SW entries:           | 0      | ... | 31          |
- * where N is a number between 0 and 7. This means that the SW
- * data is a window overlayed over the HW queue.
- */
-struct iwl_queue {
-	int write_ptr;       /* 1-st empty entry (index) host_w*/
-	int read_ptr;         /* last used entry (index) host_r*/
-	/* use for monitoring and recovering the stuck queue */
-	dma_addr_t dma_addr;   /* physical addr for BD's */
-	int n_window;	       /* safe queue window */
-	u32 id;
-	int low_mark;	       /* low watermark, resume queue if free
-				* space more than this */
-	int high_mark;         /* high watermark, stop queue if free
-				* space less than this */
-};
 
 #define TFD_TX_CMD_SLOTS 256
 #define TFD_CMD_SLOTS 32
 
 /*
- * The FH will write back to the first TB only, so we need
- * to copy some data into the buffer regardless of whether
- * it should be mapped or not. This indicates how big the
- * first TB must be to include the scratch buffer. Since
- * the scratch is 4 bytes at offset 12, it's 16 now. If we
- * make it bigger then allocations will be bigger and copy
- * slower, so that's probably not useful.
+ * The FH will write back to the first TB only, so we need to copy some data
+ * into the buffer regardless of whether it should be mapped or not.
+ * This indicates how big the first TB must be to include the scratch buffer
+ * and the assigned PN.
+ * Since PN location is 16 bytes at offset 24, it's 40 now.
+ * If we make it bigger then allocations will be bigger and copy slower, so
+ * that's probably not useful.
  */
-#define IWL_HCMD_SCRATCHBUF_SIZE	16
+#define IWL_FIRST_TB_SIZE	40
+#define IWL_FIRST_TB_SIZE_ALIGN ALIGN(IWL_FIRST_TB_SIZE, 64)
 
 struct iwl_pcie_txq_entry {
 	struct iwl_device_cmd *cmd;
@@ -248,20 +220,18 @@ struct iwl_pcie_txq_entry {
 	struct iwl_cmd_meta meta;
 };
 
-struct iwl_pcie_txq_scratch_buf {
-	struct iwl_cmd_header hdr;
-	u8 buf[8];
-	__le32 scratch;
+struct iwl_pcie_first_tb_buf {
+	u8 buf[IWL_FIRST_TB_SIZE_ALIGN];
 };
 
 /**
  * struct iwl_txq - Tx Queue for DMA
  * @q: generic Rx/Tx queue descriptor
  * @tfds: transmit frame descriptors (DMA memory)
- * @scratchbufs: start of command headers, including scratch buffers, for
+ * @first_tb_bufs: start of command headers, including scratch buffers, for
  *	the writeback -- this is DMA memory and an array holding one buffer
  *	for each command on the queue
- * @scratchbufs_dma: DMA address for the scratchbufs start
+ * @first_tb_dma: DMA address for the first_tb_bufs start
  * @entries: transmit entries (driver state)
  * @lock: queue lock
  * @stuck_timer: timer that fires if queue gets stuck
@@ -272,15 +242,34 @@ struct iwl_pcie_txq_scratch_buf {
  * @wd_timeout: queue watchdog timeout (jiffies) - per queue
  * @frozen: tx stuck queue timer is frozen
  * @frozen_expiry_remainder: remember how long until the timer fires
+ * @write_ptr: 1-st empty entry (index) host_w
+ * @read_ptr: last used entry (index) host_r
+ * @dma_addr:  physical addr for BD's
+ * @n_window: safe queue window
+ * @id: queue id
+ * @low_mark: low watermark, resume queue if free space more than this
+ * @high_mark: high watermark, stop queue if free space less than this
  *
  * A Tx queue consists of circular buffer of BDs (a.k.a. TFDs, transmit frame
  * descriptors) and required locking structures.
+ *
+ * Note the difference between TFD_QUEUE_SIZE_MAX and n_window: the hardware
+ * always assumes 256 descriptors, so TFD_QUEUE_SIZE_MAX is always 256 (unless
+ * there might be HW changes in the future). For the normal TX
+ * queues, n_window, which is the size of the software queue data
+ * is also 256; however, for the command queue, n_window is only
+ * 32 since we don't need so many commands pending. Since the HW
+ * still uses 256 BDs for DMA though, TFD_QUEUE_SIZE_MAX stays 256.
+ * This means that we end up with the following:
+ *  HW entries: | 0 | ... | N * 32 | ... | N * 32 + 31 | ... | 255 |
+ *  SW entries:           | 0      | ... | 31          |
+ * where N is a number between 0 and 7. This means that the SW
+ * data is a window overlayed over the HW queue.
  */
 struct iwl_txq {
-	struct iwl_queue q;
-	struct iwl_tfd *tfds;
-	struct iwl_pcie_txq_scratch_buf *scratchbufs;
-	dma_addr_t scratchbufs_dma;
+	void *tfds;
+	struct iwl_pcie_first_tb_buf *first_tb_bufs;
+	dma_addr_t first_tb_dma;
 	struct iwl_pcie_txq_entry *entries;
 	spinlock_t lock;
 	unsigned long frozen_expiry_remainder;
@@ -293,13 +282,21 @@ struct iwl_txq {
 	bool block;
 	unsigned long wd_timeout;
 	struct sk_buff_head overflow_q;
+
+	int write_ptr;
+	int read_ptr;
+	dma_addr_t dma_addr;
+	int n_window;
+	u32 id;
+	int low_mark;
+	int high_mark;
 };
 
 static inline dma_addr_t
-iwl_pcie_get_scratchbuf_dma(struct iwl_txq *txq, int idx)
+iwl_pcie_get_first_tb_dma(struct iwl_txq *txq, int idx)
 {
-	return txq->scratchbufs_dma +
-	       sizeof(struct iwl_pcie_txq_scratch_buf) * idx;
+	return txq->first_tb_dma +
+	       sizeof(struct iwl_pcie_first_tb_buf) * idx;
 }
 
 struct iwl_tso_hdr_page {
@@ -308,12 +305,21 @@ struct iwl_tso_hdr_page {
 };
 
 /**
+ * enum iwl_shared_irq_flags - level of sharing for irq
+ * @IWL_SHARED_IRQ_NON_RX: interrupt vector serves non rx causes.
+ * @IWL_SHARED_IRQ_FIRST_RSS: interrupt vector serves first RSS queue.
+ */
+enum iwl_shared_irq_flags {
+	IWL_SHARED_IRQ_NON_RX		= BIT(0),
+	IWL_SHARED_IRQ_FIRST_RSS	= BIT(1),
+};
+
+/**
  * struct iwl_trans_pcie - PCIe transport specific data
  * @rxq: all the RX queue data
  * @rx_pool: initial pool of iwl_rx_mem_buffer for all the queues
  * @global_table: table mapping received VID from hw to rxb
  * @rba: allocator for RX replenishing
- * @drv - pointer to iwl_drv
  * @trans: pointer to the generic transport area
  * @scd_base_addr: scheduler sram base address in SRAM
  * @scd_bc_tbls: pointer to the byte count table of the scheduler
@@ -326,7 +332,6 @@ struct iwl_tso_hdr_page {
  * @rx_buf_size: Rx buffer size
  * @bc_table_dword: true if the BC table expects DWORD (as opposed to bytes)
  * @scd_set_active: should the transport configure the SCD for HCMD queue
- * @wide_cmd_header: true when ucode supports wide command header format
  * @sw_csum_tx: if true, then the transport will compute the csum of the TXed
  *	frame.
  * @rx_page_order: page order for receive buffer size
@@ -338,8 +343,10 @@ struct iwl_tso_hdr_page {
  * @fw_mon_size: size of the buffer for the firmware monitor
  * @msix_entries: array of MSI-X entries
  * @msix_enabled: true if managed to enable MSI-X
- * @allocated_vector: the number of interrupt vector allocated by the OS
- * @default_irq_num: default irq for non rx interrupt
+ * @shared_vec_mask: the type of causes the shared vector handles
+ *	(see iwl_shared_irq_flags).
+ * @alloc_vecs: the number of interrupt vectors allocated by the OS
+ * @def_irq: default irq for non rx causes
  * @fh_init_mask: initial unmasked fh causes
  * @hw_init_mask: initial unmasked hw causes
  * @fh_mask: current unmasked fh causes
@@ -351,7 +358,6 @@ struct iwl_trans_pcie {
 	struct iwl_rx_mem_buffer *global_table[RX_POOL_SIZE];
 	struct iwl_rb_allocator rba;
 	struct iwl_trans *trans;
-	struct iwl_drv *drv;
 
 	struct net_device napi_dev;
 
@@ -385,16 +391,19 @@ struct iwl_trans_pcie {
 	wait_queue_head_t wait_command_queue;
 	wait_queue_head_t d0i3_waitq;
 
+	u8 page_offs, dev_cmd_offs;
+
 	u8 cmd_queue;
 	u8 cmd_fifo;
 	unsigned int cmd_q_wdg_timeout;
 	u8 n_no_reclaim_cmds;
 	u8 no_reclaim_cmds[MAX_NO_RECLAIM_CMDS];
+	u8 max_tbs;
+	u16 tfd_size;
 
 	enum iwl_amsdu_size rx_buf_size;
 	bool bc_table_dword;
 	bool scd_set_active;
-	bool wide_cmd_header;
 	bool sw_csum_tx;
 	u32 rx_page_order;
 
@@ -409,12 +418,14 @@ struct iwl_trans_pcie {
 
 	struct msix_entry msix_entries[IWL_MAX_RX_HW_QUEUES];
 	bool msix_enabled;
-	u32 allocated_vector;
-	u32 default_irq_num;
+	u8 shared_vec_mask;
+	u32 alloc_vecs;
+	u32 def_irq;
 	u32 fh_init_mask;
 	u32 hw_init_mask;
 	u32 fh_mask;
 	u32 hw_mask;
+	cpumask_t affinity_mask[IWL_MAX_RX_HW_QUEUES];
 };
 
 static inline struct iwl_trans_pcie *
@@ -471,6 +482,11 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int queue, u16 ssn,
 			       unsigned int wdg_timeout);
 void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int queue,
 				bool configure_scd);
+void iwl_trans_pcie_txq_set_shared_mode(struct iwl_trans *trans, u32 txq_id,
+					bool shared_mode);
+dma_addr_t iwl_trans_pcie_get_txq_byte_table(struct iwl_trans *trans, int txq);
+void iwl_trans_pcie_log_scd_error(struct iwl_trans *trans,
+				  struct iwl_txq *txq);
 int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		      struct iwl_device_cmd *dev_cmd, int txq_id);
 void iwl_pcie_txq_check_wrptrs(struct iwl_trans *trans);
@@ -481,11 +497,20 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 			    struct sk_buff_head *skbs);
 void iwl_trans_pcie_tx_reset(struct iwl_trans *trans);
 
-static inline u16 iwl_pcie_tfd_tb_get_len(struct iwl_tfd *tfd, u8 idx)
+static inline u16 iwl_pcie_tfd_tb_get_len(struct iwl_trans *trans, void *_tfd,
+					  u8 idx)
 {
-	struct iwl_tfd_tb *tb = &tfd->tbs[idx];
+	if (trans->cfg->use_tfh) {
+		struct iwl_tfh_tfd *tfd = _tfd;
+		struct iwl_tfh_tb *tb = &tfd->tbs[idx];
 
-	return le16_to_cpu(tb->hi_n_len) >> 4;
+		return le16_to_cpu(tb->tb_len);
+	} else {
+		struct iwl_tfd *tfd = _tfd;
+		struct iwl_tfd_tb *tb = &tfd->tbs[idx];
+
+		return le16_to_cpu(tb->hi_n_len) >> 4;
+	}
 }
 
 /*****************************************************
@@ -496,7 +521,7 @@ void iwl_pcie_dump_csr(struct iwl_trans *trans);
 /*****************************************************
 * Helpers
 ******************************************************/
-static inline void iwl_disable_interrupts(struct iwl_trans *trans)
+static inline void _iwl_disable_interrupts(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
@@ -519,7 +544,16 @@ static inline void iwl_disable_interrupts(struct iwl_trans *trans)
 	IWL_DEBUG_ISR(trans, "Disabled interrupts\n");
 }
 
-static inline void iwl_enable_interrupts(struct iwl_trans *trans)
+static inline void iwl_disable_interrupts(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	spin_lock(&trans_pcie->irq_lock);
+	_iwl_disable_interrupts(trans);
+	spin_unlock(&trans_pcie->irq_lock);
+}
+
+static inline void _iwl_enable_interrupts(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
@@ -542,6 +576,14 @@ static inline void iwl_enable_interrupts(struct iwl_trans *trans)
 	}
 }
 
+static inline void iwl_enable_interrupts(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	spin_lock(&trans_pcie->irq_lock);
+	_iwl_enable_interrupts(trans);
+	spin_unlock(&trans_pcie->irq_lock);
+}
 static inline void iwl_enable_hw_int_msk_msix(struct iwl_trans *trans, u32 msk)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -595,9 +637,9 @@ static inline void iwl_wake_queue(struct iwl_trans *trans,
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	if (test_and_clear_bit(txq->q.id, trans_pcie->queue_stopped)) {
-		IWL_DEBUG_TX_QUEUES(trans, "Wake hwq %d\n", txq->q.id);
-		iwl_op_mode_queue_not_full(trans->op_mode, txq->q.id);
+	if (test_and_clear_bit(txq->id, trans_pcie->queue_stopped)) {
+		IWL_DEBUG_TX_QUEUES(trans, "Wake hwq %d\n", txq->id);
+		iwl_op_mode_queue_not_full(trans->op_mode, txq->id);
 	}
 }
 
@@ -606,22 +648,22 @@ static inline void iwl_stop_queue(struct iwl_trans *trans,
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	if (!test_and_set_bit(txq->q.id, trans_pcie->queue_stopped)) {
-		iwl_op_mode_queue_full(trans->op_mode, txq->q.id);
-		IWL_DEBUG_TX_QUEUES(trans, "Stop hwq %d\n", txq->q.id);
+	if (!test_and_set_bit(txq->id, trans_pcie->queue_stopped)) {
+		iwl_op_mode_queue_full(trans->op_mode, txq->id);
+		IWL_DEBUG_TX_QUEUES(trans, "Stop hwq %d\n", txq->id);
 	} else
 		IWL_DEBUG_TX_QUEUES(trans, "hwq %d already stopped\n",
-				    txq->q.id);
+				    txq->id);
 }
 
-static inline bool iwl_queue_used(const struct iwl_queue *q, int i)
+static inline bool iwl_queue_used(const struct iwl_txq *q, int i)
 {
 	return q->write_ptr >= q->read_ptr ?
 		(i >= q->read_ptr && i < q->write_ptr) :
 		!(i < q->read_ptr && i >= q->write_ptr);
 }
 
-static inline u8 get_cmd_index(struct iwl_queue *q, u32 index)
+static inline u8 get_cmd_index(struct iwl_txq *q, u32 index)
 {
 	return index & (q->n_window - 1);
 }
@@ -672,5 +714,7 @@ static inline int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans)
 
 int iwl_pci_fw_exit_d0i3(struct iwl_trans *trans);
 int iwl_pci_fw_enter_d0i3(struct iwl_trans *trans);
+
+void iwl_pcie_enable_rx_wake(struct iwl_trans *trans, bool enable);
 
 #endif /* __iwl_trans_int_pcie_h__ */

@@ -185,11 +185,13 @@ const struct msm_dsi_phy_cfg dsi_phy_28nm_8960_cfgs = {
 	.reg_cfg = {
 		.num = 1,
 		.regs = {
-			{"vddio", 1800000, 1800000, 100000, 100},
+			{"vddio", 100000, 100},	/* 1.8 V */
 		},
 	},
 	.ops = {
 		.enable = dsi_28nm_phy_enable,
 		.disable = dsi_28nm_phy_disable,
 	},
+	.io_start = { 0x4700300, 0x5800300 },
+	.num_dsi_phy = 2,
 };

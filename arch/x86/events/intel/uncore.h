@@ -1,4 +1,3 @@
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <asm/apicdef.h>
@@ -15,7 +14,11 @@
 #define UNCORE_PMC_IDX_FIXED		UNCORE_PMC_IDX_MAX_GENERIC
 #define UNCORE_PMC_IDX_MAX		(UNCORE_PMC_IDX_FIXED + 1)
 
+#define UNCORE_PCI_DEV_FULL_DATA(dev, func, type, idx)	\
+		((dev << 24) | (func << 16) | (type << 8) | idx)
 #define UNCORE_PCI_DEV_DATA(type, idx)	((type << 8) | idx)
+#define UNCORE_PCI_DEV_DEV(data)	((data >> 24) & 0xff)
+#define UNCORE_PCI_DEV_FUNC(data)	((data >> 16) & 0xff)
 #define UNCORE_PCI_DEV_TYPE(data)	((data >> 8) & 0xff)
 #define UNCORE_PCI_DEV_IDX(data)	(data & 0xff)
 #define UNCORE_EXTRA_PCI_DEV		0xff
@@ -41,6 +44,7 @@ struct intel_uncore_type {
 	unsigned perf_ctr;
 	unsigned event_ctl;
 	unsigned event_mask;
+	unsigned event_mask_ext;
 	unsigned fixed_ctr;
 	unsigned fixed_ctl;
 	unsigned box_ctl;
@@ -117,6 +121,7 @@ struct intel_uncore_box {
 };
 
 #define UNCORE_BOX_FLAG_INITIATED	0
+#define UNCORE_BOX_FLAG_CTL_OFFS8	1 /* event config registers are 8-byte apart */
 
 struct uncore_event_desc {
 	struct kobj_attribute attr;
@@ -169,6 +174,9 @@ static inline unsigned uncore_pci_fixed_ctr(struct intel_uncore_box *box)
 static inline
 unsigned uncore_pci_event_ctl(struct intel_uncore_box *box, int idx)
 {
+	if (test_bit(UNCORE_BOX_FLAG_CTL_OFFS8, &box->flags))
+		return idx * 8 + box->pmu->type->event_ctl;
+
 	return idx * 4 + box->pmu->type->event_ctl;
 }
 
@@ -360,6 +368,7 @@ int bdw_uncore_pci_init(void);
 int skl_uncore_pci_init(void);
 void snb_uncore_cpu_init(void);
 void nhm_uncore_cpu_init(void);
+void skl_uncore_cpu_init(void);
 int snb_pci2phy_map_init(int devid);
 
 /* perf_event_intel_uncore_snbep.c */
@@ -373,6 +382,8 @@ int bdx_uncore_pci_init(void);
 void bdx_uncore_cpu_init(void);
 int knl_uncore_pci_init(void);
 void knl_uncore_cpu_init(void);
+int skx_uncore_pci_init(void);
+void skx_uncore_cpu_init(void);
 
 /* perf_event_intel_uncore_nhmex.c */
 void nhmex_uncore_cpu_init(void);

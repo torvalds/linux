@@ -21,7 +21,7 @@ extern const struct xattr_handler *hfsplus_xattr_handlers[];
 int __hfsplus_setxattr(struct inode *inode, const char *name,
 			const void *value, size_t size, int flags);
 
-int hfsplus_setxattr(struct dentry *dentry, const char *name,
+int hfsplus_setxattr(struct inode *inode, const char *name,
 				   const void *value, size_t size, int flags,
 				   const char *prefix, size_t prefixlen);
 

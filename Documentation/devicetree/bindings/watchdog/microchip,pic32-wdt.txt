@@ -7,12 +7,12 @@ Required properties:
 - compatible: must be "microchip,pic32mzda-wdt".
 - reg: physical base address of the controller and length of memory mapped
   region.
-- clocks: phandle of source clk. should be <&LPRC> clk.
+- clocks: phandle of source clk. Should be <&rootclk LPRCCLK>.
 
 Example:
 
 	watchdog@1f800800 {
 		compatible = "microchip,pic32mzda-wdt";
 		reg = <0x1f800800 0x200>;
-		clocks = <&LPRC>;
+		clocks = <&rootclk LPRCCLK>;
 	};

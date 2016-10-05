@@ -1212,7 +1212,7 @@ static void ioat_shutdown(struct pci_dev *pdev)
 	ioat_disable_interrupts(ioat_dma);
 }
 
-void ioat_resume(struct ioatdma_device *ioat_dma)
+static void ioat_resume(struct ioatdma_device *ioat_dma)
 {
 	struct ioatdma_chan *ioat_chan;
 	u32 chanerr;

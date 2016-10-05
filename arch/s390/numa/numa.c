@@ -26,8 +26,14 @@ EXPORT_SYMBOL(node_data);
 cpumask_t node_to_cpumask_map[MAX_NUMNODES];
 EXPORT_SYMBOL(node_to_cpumask_map);
 
+static void plain_setup(void)
+{
+	node_set(0, node_possible_map);
+}
+
 const struct numa_mode numa_mode_plain = {
 	.name = "plain",
+	.setup = plain_setup,
 };
 
 static const struct numa_mode *mode = &numa_mode_plain;
@@ -126,12 +132,12 @@ static void __init numa_setup_memory(void)
 void __init numa_setup(void)
 {
 	pr_info("NUMA mode: %s\n", mode->name);
+	nodes_clear(node_possible_map);
 	if (mode->setup)
 		mode->setup();
 	numa_setup_memory();
 	memblock_dump_all();
 }
-
 
 /*
  * numa_init_early() - Initialization initcall

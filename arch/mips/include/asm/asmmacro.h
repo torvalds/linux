@@ -19,6 +19,28 @@
 #include <asm/asmmacro-64.h>
 #endif
 
+/*
+ * Helper macros for generating raw instruction encodings.
+ */
+#ifdef CONFIG_CPU_MICROMIPS
+	.macro	insn32_if_mm enc
+	.insn
+	.hword ((\enc) >> 16)
+	.hword ((\enc) & 0xffff)
+	.endm
+
+	.macro	insn_if_mips enc
+	.endm
+#else
+	.macro	insn32_if_mm enc
+	.endm
+
+	.macro	insn_if_mips enc
+	.insn
+	.word (\enc)
+	.endm
+#endif
+
 #if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
 	.macro	local_irq_enable reg=t0
 	ei
@@ -135,6 +157,7 @@
 	ldc1	$f28, THREAD_FPR28(\thread)
 	ldc1	$f30, THREAD_FPR30(\thread)
 	ctc1	\tmp, fcr31
+	.set	pop
 	.endm
 
 	.macro	fpu_restore_16odd thread
@@ -341,38 +364,6 @@
 	.endm
 #else
 
-#ifdef CONFIG_CPU_MICROMIPS
-#define CFC_MSA_INSN		0x587e0056
-#define CTC_MSA_INSN		0x583e0816
-#define LDB_MSA_INSN		0x58000807
-#define LDH_MSA_INSN		0x58000817
-#define LDW_MSA_INSN		0x58000827
-#define LDD_MSA_INSN		0x58000837
-#define STB_MSA_INSN		0x5800080f
-#define STH_MSA_INSN		0x5800081f
-#define STW_MSA_INSN		0x5800082f
-#define STD_MSA_INSN		0x5800083f
-#define COPY_SW_MSA_INSN	0x58b00056
-#define COPY_SD_MSA_INSN	0x58b80056
-#define INSERT_W_MSA_INSN	0x59300816
-#define INSERT_D_MSA_INSN	0x59380816
-#else
-#define CFC_MSA_INSN		0x787e0059
-#define CTC_MSA_INSN		0x783e0819
-#define LDB_MSA_INSN		0x78000820
-#define LDH_MSA_INSN		0x78000821
-#define LDW_MSA_INSN		0x78000822
-#define LDD_MSA_INSN		0x78000823
-#define STB_MSA_INSN		0x78000824
-#define STH_MSA_INSN		0x78000825
-#define STW_MSA_INSN		0x78000826
-#define STD_MSA_INSN		0x78000827
-#define COPY_SW_MSA_INSN	0x78b00059
-#define COPY_SD_MSA_INSN	0x78b80059
-#define INSERT_W_MSA_INSN	0x79300819
-#define INSERT_D_MSA_INSN	0x79380819
-#endif
-
 	/*
 	 * Temporary until all toolchains in use include MSA support.
 	 */
@@ -380,8 +371,8 @@
 	.set	push
 	.set	noat
 	SET_HARDFLOAT
-	.insn
-	.word	CFC_MSA_INSN | (\cs << 11)
+	insn_if_mips 0x787e0059 | (\cs << 11)
+	insn32_if_mm 0x587e0056 | (\cs << 11)
 	move	\rd, $1
 	.set	pop
 	.endm
@@ -391,7 +382,8 @@
 	.set	noat
 	SET_HARDFLOAT
 	move	$1, \rs
-	.word	CTC_MSA_INSN | (\cd << 6)
+	insn_if_mips 0x783e0819 | (\cd << 6)
+	insn32_if_mm 0x583e0816 | (\cd << 6)
 	.set	pop
 	.endm
 
@@ -400,7 +392,8 @@
 	.set	noat
 	SET_HARDFLOAT
 	PTR_ADDU $1, \base, \off
-	.word	LDB_MSA_INSN | (\wd << 6)
+	insn_if_mips 0x78000820 | (\wd << 6)
+	insn32_if_mm 0x58000807 | (\wd << 6)
 	.set	pop
 	.endm
 
@@ -409,7 +402,8 @@
 	.set	noat
 	SET_HARDFLOAT
 	PTR_ADDU $1, \base, \off
-	.word	LDH_MSA_INSN | (\wd << 6)
+	insn_if_mips 0x78000821 | (\wd << 6)
+	insn32_if_mm 0x58000817 | (\wd << 6)
 	.set	pop
 	.endm
 
@@ -418,7 +412,8 @@
 	.set	noat
 	SET_HARDFLOAT
 	PTR_ADDU $1, \base, \off
-	.word	LDW_MSA_INSN | (\wd << 6)
+	insn_if_mips 0x78000822 | (\wd << 6)
+	insn32_if_mm 0x58000827 | (\wd << 6)
 	.set	pop
 	.endm
 
@@ -427,7 +422,8 @@
 	.set	noat
 	SET_HARDFLOAT
 	PTR_ADDU $1, \base, \off
-	.word	LDD_MSA_INSN | (\wd << 6)
+	insn_if_mips 0x78000823 | (\wd << 6)
+	insn32_if_mm 0x58000837 | (\wd << 6)
 	.set	pop
 	.endm
 
@@ -436,7 +432,8 @@
 	.set	noat
 	SET_HARDFLOAT
 	PTR_ADDU $1, \base, \off
-	.word	STB_MSA_INSN | (\wd << 6)
+	insn_if_mips 0x78000824 | (\wd << 6)
+	insn32_if_mm 0x5800080f | (\wd << 6)
 	.set	pop
 	.endm
 
@@ -445,7 +442,8 @@
 	.set	noat
 	SET_HARDFLOAT
 	PTR_ADDU $1, \base, \off
-	.word	STH_MSA_INSN | (\wd << 6)
+	insn_if_mips 0x78000825 | (\wd << 6)
+	insn32_if_mm 0x5800081f | (\wd << 6)
 	.set	pop
 	.endm
 
@@ -454,7 +452,8 @@
 	.set	noat
 	SET_HARDFLOAT
 	PTR_ADDU $1, \base, \off
-	.word	STW_MSA_INSN | (\wd << 6)
+	insn_if_mips 0x78000826 | (\wd << 6)
+	insn32_if_mm 0x5800082f | (\wd << 6)
 	.set	pop
 	.endm
 
@@ -463,7 +462,8 @@
 	.set	noat
 	SET_HARDFLOAT
 	PTR_ADDU $1, \base, \off
-	.word	STD_MSA_INSN | (\wd << 6)
+	insn_if_mips 0x78000827 | (\wd << 6)
+	insn32_if_mm 0x5800083f | (\wd << 6)
 	.set	pop
 	.endm
 
@@ -471,8 +471,8 @@
 	.set	push
 	.set	noat
 	SET_HARDFLOAT
-	.insn
-	.word	COPY_SW_MSA_INSN | (\n << 16) | (\ws << 11)
+	insn_if_mips 0x78b00059 | (\n << 16) | (\ws << 11)
+	insn32_if_mm 0x58b00056 | (\n << 16) | (\ws << 11)
 	.set	pop
 	.endm
 
@@ -480,8 +480,8 @@
 	.set	push
 	.set	noat
 	SET_HARDFLOAT
-	.insn
-	.word	COPY_SD_MSA_INSN | (\n << 16) | (\ws << 11)
+	insn_if_mips 0x78b80059 | (\n << 16) | (\ws << 11)
+	insn32_if_mm 0x58b80056 | (\n << 16) | (\ws << 11)
 	.set	pop
 	.endm
 
@@ -489,7 +489,8 @@
 	.set	push
 	.set	noat
 	SET_HARDFLOAT
-	.word	INSERT_W_MSA_INSN | (\n << 16) | (\wd << 6)
+	insn_if_mips 0x79300819 | (\n << 16) | (\wd << 6)
+	insn32_if_mm 0x59300816 | (\n << 16) | (\wd << 6)
 	.set	pop
 	.endm
 
@@ -497,7 +498,8 @@
 	.set	push
 	.set	noat
 	SET_HARDFLOAT
-	.word	INSERT_D_MSA_INSN | (\n << 16) | (\wd << 6)
+	insn_if_mips 0x79380819 | (\n << 16) | (\wd << 6)
+	insn32_if_mm 0x59380816 | (\n << 16) | (\wd << 6)
 	.set	pop
 	.endm
 #endif

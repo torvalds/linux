@@ -15,7 +15,7 @@
 		ddc-i2c-bus = <&dpaux>;
 	};
 
-	sdhci@0,700b0400 { /* SD Card on this bus */
+	sdhci@700b0400 { /* SD Card on this bus */
 		wp-gpios = <&gpio TEGRA_GPIO(Q, 4) GPIO_ACTIVE_LOW>;
 	};
 
@@ -26,7 +26,7 @@
 		nvidia,model = "GoogleNyanBig";
 	};
 
-	pinmux@0,70000868 {
+	pinmux@70000868 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinmux_default>;
 

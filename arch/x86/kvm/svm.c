@@ -84,7 +84,7 @@ MODULE_DEVICE_TABLE(x86cpu, svm_cpu_id);
 #define TSC_RATIO_MIN		0x0000000000000001ULL
 #define TSC_RATIO_MAX		0x000000ffffffffffULL
 
-#define AVIC_HPA_MASK	~((0xFFFULL << 52) || 0xFFF)
+#define AVIC_HPA_MASK	~((0xFFFULL << 52) | 0xFFF)
 
 /*
  * 0xff is broadcast, so the max index allowed for physical APIC ID
@@ -238,7 +238,9 @@ module_param(nested, int, S_IRUGO);
 
 /* enable / disable AVIC */
 static int avic;
+#ifdef CONFIG_X86_LOCAL_APIC
 module_param(avic, int, S_IRUGO);
+#endif
 
 static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
 static void svm_flush_tlb(struct kvm_vcpu *vcpu);
@@ -981,11 +983,14 @@ static __init int svm_hardware_setup(void)
 	} else
 		kvm_disable_tdp();
 
-	if (avic && (!npt_enabled || !boot_cpu_has(X86_FEATURE_AVIC)))
-		avic = false;
-
-	if (avic)
-		pr_info("AVIC enabled\n");
+	if (avic) {
+		if (!npt_enabled ||
+		    !boot_cpu_has(X86_FEATURE_AVIC) ||
+		    !IS_ENABLED(CONFIG_X86_LOCAL_APIC))
+			avic = false;
+		else
+			pr_info("AVIC enabled\n");
+	}
 
 	return 0;
 
@@ -1324,7 +1329,7 @@ free_avic:
 static void avic_set_running(struct kvm_vcpu *vcpu, bool is_run)
 {
 	u64 entry;
-	int h_physical_id = __default_cpu_present_to_apicid(vcpu->cpu);
+	int h_physical_id = kvm_cpu_get_apicid(vcpu->cpu);
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	if (!kvm_vcpu_apicv_active(vcpu))
@@ -1349,7 +1354,7 @@ static void avic_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	u64 entry;
 	/* ID = 0xff (broadcast), ID > 0xff (reserved) */
-	int h_physical_id = __default_cpu_present_to_apicid(cpu);
+	int h_physical_id = kvm_cpu_get_apicid(cpu);
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	if (!kvm_vcpu_apicv_active(vcpu))
@@ -1572,7 +1577,7 @@ static unsigned long svm_get_rflags(struct kvm_vcpu *vcpu)
 static void svm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 {
        /*
-        * Any change of EFLAGS.VM is accompained by a reload of SS
+        * Any change of EFLAGS.VM is accompanied by a reload of SS
         * (caused by either a task switch or an inter-privilege IRET),
         * so we do not need to update the CPL here.
         */
@@ -3597,7 +3602,7 @@ static int avic_incomplete_ipi_interception(struct vcpu_svm *svm)
 	u32 icrh = svm->vmcb->control.exit_info_1 >> 32;
 	u32 icrl = svm->vmcb->control.exit_info_1;
 	u32 id = svm->vmcb->control.exit_info_2 >> 32;
-	u32 index = svm->vmcb->control.exit_info_2 && 0xFF;
+	u32 index = svm->vmcb->control.exit_info_2 & 0xFF;
 	struct kvm_lapic *apic = svm->vcpu.arch.apic;
 
 	trace_kvm_avic_incomplete_ipi(svm->vcpu.vcpu_id, icrh, icrl, id, index);
@@ -4236,7 +4241,7 @@ static void svm_deliver_avic_intr(struct kvm_vcpu *vcpu, int vec)
 
 	if (avic_vcpu_is_running(vcpu))
 		wrmsrl(SVM_AVIC_DOORBELL,
-		       __default_cpu_present_to_apicid(vcpu->cpu));
+		       kvm_cpu_get_apicid(vcpu->cpu));
 	else
 		kvm_vcpu_wake_up(vcpu);
 }
@@ -4935,6 +4940,12 @@ out:
 static void svm_handle_external_intr(struct kvm_vcpu *vcpu)
 {
 	local_irq_enable();
+	/*
+	 * We must have an instruction with interrupts enabled, so
+	 * the timer interrupt isn't delayed by the interrupt shadow.
+	 */
+	asm("nop");
+	local_irq_disable();
 }
 
 static void svm_sched_in(struct kvm_vcpu *vcpu, int cpu)
@@ -4950,7 +4961,7 @@ static inline void avic_post_state_restore(struct kvm_vcpu *vcpu)
 	avic_handle_ldr_update(vcpu);
 }
 
-static struct kvm_x86_ops svm_x86_ops = {
+static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.cpu_has_kvm_support = has_svm,
 	.disabled_by_bios = is_disabled,
 	.hardware_setup = svm_hardware_setup,

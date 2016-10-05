@@ -39,6 +39,26 @@ static struct mm_struct efi_mm = {
 	.mmlist			= LIST_HEAD_INIT(efi_mm.mmlist),
 };
 
+#ifdef CONFIG_ARM64_PTDUMP
+#include <asm/ptdump.h>
+
+static struct ptdump_info efi_ptdump_info = {
+	.mm		= &efi_mm,
+	.markers	= (struct addr_marker[]){
+		{ 0,		"UEFI runtime start" },
+		{ TASK_SIZE_64,	"UEFI runtime end" }
+	},
+	.base_addr	= 0,
+};
+
+static int __init ptdump_init(void)
+{
+	return ptdump_register(&efi_ptdump_info, "efi_page_tables");
+}
+device_initcall(ptdump_init);
+
+#endif
+
 static bool __init efi_virtmap_init(void)
 {
 	efi_memory_desc_t *md;
@@ -107,16 +127,19 @@ static int __init arm_enable_runtime_services(void)
 		return 0;
 	}
 
+	if (efi_enabled(EFI_RUNTIME_SERVICES)) {
+		pr_info("EFI runtime services access via paravirt.\n");
+		return 0;
+	}
+
 	pr_info("Remapping and enabling EFI services.\n");
 
-	mapsize = efi.memmap.map_end - efi.memmap.map;
+	mapsize = efi.memmap.desc_size * efi.memmap.nr_map;
 
-	efi.memmap.map = memremap(efi.memmap.phys_map, mapsize, MEMREMAP_WB);
-	if (!efi.memmap.map) {
+	if (efi_memmap_init_late(efi.memmap.phys_map, mapsize)) {
 		pr_err("Failed to remap EFI memory map\n");
 		return -ENOMEM;
 	}
-	efi.memmap.map_end = efi.memmap.map + mapsize;
 
 	if (!efi_virtmap_init()) {
 		pr_err("UEFI virtual mapping missing or invalid -- runtime services will not be available\n");

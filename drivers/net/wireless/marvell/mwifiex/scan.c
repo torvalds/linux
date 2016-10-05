@@ -820,6 +820,7 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_ie_types_num_probes *num_probes_tlv;
 	struct mwifiex_ie_types_scan_chan_gap *chan_gap_tlv;
+	struct mwifiex_ie_types_random_mac *random_mac_tlv;
 	struct mwifiex_ie_types_wildcard_ssid_params *wildcard_ssid_tlv;
 	struct mwifiex_ie_types_bssid_list *bssid_tlv;
 	u8 *tlv_pos;
@@ -835,6 +836,7 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 	u8 ssid_filter;
 	struct mwifiex_ie_types_htcap *ht_cap;
 	struct mwifiex_ie_types_bss_mode *bss_mode;
+	const u8 zero_mac[6] = {0, 0, 0, 0, 0, 0};
 
 	/* The tlv_buf_len is calculated for each scan command.  The TLVs added
 	   in this routine will be preserved since the routine that sends the
@@ -966,6 +968,18 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 				     cpu_to_le16((user_scan_in->scan_chan_gap));
 			tlv_pos +=
 				  sizeof(struct mwifiex_ie_types_scan_chan_gap);
+		}
+
+		if (!ether_addr_equal(user_scan_in->random_mac, zero_mac)) {
+			random_mac_tlv = (void *)tlv_pos;
+			random_mac_tlv->header.type =
+					 cpu_to_le16(TLV_TYPE_RANDOM_MAC);
+			random_mac_tlv->header.len =
+				    cpu_to_le16(sizeof(random_mac_tlv->mac));
+			ether_addr_copy(random_mac_tlv->mac,
+					user_scan_in->random_mac);
+			tlv_pos +=
+				  sizeof(struct mwifiex_ie_types_random_mac);
 		}
 	} else {
 		scan_cfg_out->bss_mode = (u8) adapter->scan_mode;
@@ -1896,7 +1910,8 @@ mwifiex_active_scan_req_for_passive_chan(struct mwifiex_private *priv)
 	u8 id = 0;
 	struct mwifiex_user_scan_cfg  *user_scan_cfg;
 
-	if (adapter->active_scan_triggered || !priv->scan_request) {
+	if (adapter->active_scan_triggered || !priv->scan_request ||
+	    priv->scan_aborting) {
 		adapter->active_scan_triggered = false;
 		return 0;
 	}
@@ -1921,6 +1936,7 @@ mwifiex_active_scan_req_for_passive_chan(struct mwifiex_private *priv)
 	}
 
 	adapter->active_scan_triggered = true;
+	ether_addr_copy(user_scan_cfg->random_mac, priv->random_mac);
 	user_scan_cfg->num_ssids = priv->scan_request->n_ssids;
 	user_scan_cfg->ssid_list = priv->scan_request->ssids;
 
@@ -1956,10 +1972,15 @@ static void mwifiex_check_next_scan_command(struct mwifiex_private *priv)
 			mwifiex_complete_scan(priv);
 
 		if (priv->scan_request) {
+			struct cfg80211_scan_info info = {
+				.aborted = false,
+			};
+
 			mwifiex_dbg(adapter, INFO,
 				    "info: notifying scan done\n");
-			cfg80211_scan_done(priv->scan_request, 0);
+			cfg80211_scan_done(priv->scan_request, &info);
 			priv->scan_request = NULL;
+			priv->scan_aborting = false;
 		} else {
 			priv->scan_aborting = false;
 			mwifiex_dbg(adapter, INFO,
@@ -1977,10 +1998,15 @@ static void mwifiex_check_next_scan_command(struct mwifiex_private *priv)
 
 		if (!adapter->active_scan_triggered) {
 			if (priv->scan_request) {
+				struct cfg80211_scan_info info = {
+					.aborted = true,
+				};
+
 				mwifiex_dbg(adapter, INFO,
 					    "info: aborting scan\n");
-				cfg80211_scan_done(priv->scan_request, 1);
+				cfg80211_scan_done(priv->scan_request, &info);
 				priv->scan_request = NULL;
+				priv->scan_aborting = false;
 			} else {
 				priv->scan_aborting = false;
 				mwifiex_dbg(adapter, INFO,
@@ -1999,6 +2025,37 @@ static void mwifiex_check_next_scan_command(struct mwifiex_private *priv)
 	}
 
 	return;
+}
+
+void mwifiex_cancel_scan(struct mwifiex_adapter *adapter)
+{
+	struct mwifiex_private *priv;
+	unsigned long cmd_flags;
+	int i;
+
+	mwifiex_cancel_pending_scan_cmd(adapter);
+
+	if (adapter->scan_processing) {
+		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, cmd_flags);
+		adapter->scan_processing = false;
+		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, cmd_flags);
+		for (i = 0; i < adapter->priv_num; i++) {
+			priv = adapter->priv[i];
+			if (!priv)
+				continue;
+			if (priv->scan_request) {
+				struct cfg80211_scan_info info = {
+					.aborted = true,
+				};
+
+				mwifiex_dbg(adapter, INFO,
+					    "info: aborting scan\n");
+				cfg80211_scan_done(priv->scan_request, &info);
+				priv->scan_request = NULL;
+				priv->scan_aborting = false;
+			}
+		}
+	}
 }
 
 /*
@@ -2137,18 +2194,14 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 
 		if (chan_band_tlv && adapter->nd_info) {
 			adapter->nd_info->matches[idx] =
-				kzalloc(sizeof(*pmatch) +
-				sizeof(u32), GFP_ATOMIC);
+				kzalloc(sizeof(*pmatch) + sizeof(u32),
+					GFP_ATOMIC);
 
 			pmatch = adapter->nd_info->matches[idx];
 
 			if (pmatch) {
-				memset(pmatch, 0, sizeof(*pmatch));
-				if (chan_band_tlv) {
-					pmatch->n_channels = 1;
-					pmatch->channels[0] =
-						chan_band->chan_number;
-				}
+				pmatch->n_channels = 1;
+				pmatch->channels[0] = chan_band->chan_number;
 			}
 		}
 
@@ -2719,6 +2772,7 @@ static int mwifiex_scan_specific_ssid(struct mwifiex_private *priv,
 	if (!scan_cfg)
 		return -ENOMEM;
 
+	ether_addr_copy(scan_cfg->random_mac, priv->random_mac);
 	scan_cfg->ssid_list = req_ssid;
 	scan_cfg->num_ssids = 1;
 

@@ -984,6 +984,10 @@ static int lpc_ich_init_wdt(struct pci_dev *dev)
 	int ret;
 	struct resource *res;
 
+	/* If we have ACPI based watchdog use that instead */
+	if (acpi_has_watchdog())
+		return -ENODEV;
+
 	/* Setup power management base register */
 	pci_read_config_dword(dev, priv->abase, &base_addr_cfg);
 	base_addr = base_addr_cfg & 0x0000ff80;

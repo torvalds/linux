@@ -179,7 +179,15 @@ int __read_mostly futex_cmpxchg_enabled;
  * Futex flags used to encode options to functions and preserve them across
  * restarts.
  */
-#define FLAGS_SHARED		0x01
+#ifdef CONFIG_MMU
+# define FLAGS_SHARED		0x01
+#else
+/*
+ * NOMMU does not have per process address space. Let the compiler optimize
+ * code away.
+ */
+# define FLAGS_SHARED		0x00
+#endif
 #define FLAGS_CLOCKRT		0x02
 #define FLAGS_HAS_TIMEOUT	0x04
 
@@ -373,8 +381,12 @@ static inline int hb_waiters_pending(struct futex_hash_bucket *hb)
 #endif
 }
 
-/*
- * We hash on the keys returned from get_futex_key (see below).
+/**
+ * hash_futex - Return the hash bucket in the global hash
+ * @key:	Pointer to the futex key for which the hash is calculated
+ *
+ * We hash on the keys returned from get_futex_key (see below) and return the
+ * corresponding hash bucket in the global hash.
  */
 static struct futex_hash_bucket *hash_futex(union futex_key *key)
 {
@@ -384,7 +396,12 @@ static struct futex_hash_bucket *hash_futex(union futex_key *key)
 	return &futex_queues[hash & (futex_hashsize - 1)];
 }
 
-/*
+
+/**
+ * match_futex - Check whether two futex keys are equal
+ * @key1:	Pointer to key1
+ * @key2:	Pointer to key2
+ *
  * Return 1 if two futex_keys are equal, 0 otherwise.
  */
 static inline int match_futex(union futex_key *key1, union futex_key *key2)
@@ -404,6 +421,16 @@ static void get_futex_key_refs(union futex_key *key)
 {
 	if (!key->both.ptr)
 		return;
+
+	/*
+	 * On MMU less systems futexes are always "private" as there is no per
+	 * process address space. We need the smp wmb nevertheless - yes,
+	 * arch/blackfin has MMU less SMP ...
+	 */
+	if (!IS_ENABLED(CONFIG_MMU)) {
+		smp_mb(); /* explicit smp_mb(); (B) */
+		return;
+	}
 
 	switch (key->both.offset & (FUT_OFF_INODE|FUT_OFF_MMSHARED)) {
 	case FUT_OFF_INODE:
@@ -435,6 +462,9 @@ static void drop_futex_key_refs(union futex_key *key)
 		WARN_ON_ONCE(1);
 		return;
 	}
+
+	if (!IS_ENABLED(CONFIG_MMU))
+		return;
 
 	switch (key->both.offset & (FUT_OFF_INODE|FUT_OFF_MMSHARED)) {
 	case FUT_OFF_INODE:
@@ -469,7 +499,7 @@ get_futex_key(u32 __user *uaddr, int fshared, union futex_key *key, int rw)
 {
 	unsigned long address = (unsigned long)uaddr;
 	struct mm_struct *mm = current->mm;
-	struct page *page;
+	struct page *page, *tail;
 	struct address_space *mapping;
 	int err, ro = 0;
 
@@ -530,7 +560,15 @@ again:
 	 * considered here and page lock forces unnecessarily serialization
 	 * From this point on, mapping will be re-verified if necessary and
 	 * page lock will be acquired only if it is unavoidable
+	 *
+	 * Mapping checks require the head page for any compound page so the
+	 * head page and mapping is looked up now. For anonymous pages, it
+	 * does not matter if the page splits in the future as the key is
+	 * based on the address. For filesystem-backed pages, the tail is
+	 * required as the index of the page determines the key. For
+	 * base pages, there is no tail page and tail == page.
 	 */
+	tail = page;
 	page = compound_head(page);
 	mapping = READ_ONCE(page->mapping);
 
@@ -654,7 +692,7 @@ again:
 
 		key->both.offset |= FUT_OFF_INODE; /* inode-based key */
 		key->shared.inode = inode;
-		key->shared.pgoff = basepage_index(page);
+		key->shared.pgoff = basepage_index(tail);
 		rcu_read_unlock();
 	}
 
@@ -729,7 +767,7 @@ static int get_futex_value_locked(u32 *dest, u32 __user *from)
 	int ret;
 
 	pagefault_disable();
-	ret = __copy_from_user_inatomic(dest, from, sizeof(u32));
+	ret = __get_user(*dest, from);
 	pagefault_enable();
 
 	return ret ? -EFAULT : 0;

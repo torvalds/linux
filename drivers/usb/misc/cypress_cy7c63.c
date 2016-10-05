@@ -79,7 +79,6 @@ static int vendor_command(struct cypress *dev, unsigned char request,
 	/* allocate some memory for the i/o buffer*/
 	iobuf = kzalloc(CYPRESS_MAX_REQSIZE, GFP_KERNEL);
 	if (!iobuf) {
-		dev_err(&dev->udev->dev, "Out of memory!\n");
 		retval = -ENOMEM;
 		goto error;
 	}
@@ -208,10 +207,8 @@ static int cypress_probe(struct usb_interface *interface,
 
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (dev == NULL) {
-		dev_err(&interface->dev, "Out of memory!\n");
+	if (!dev)
 		goto error_mem;
-	}
 
 	dev->udev = usb_get_dev(interface_to_usbdev(interface));
 

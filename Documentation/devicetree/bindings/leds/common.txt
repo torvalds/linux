@@ -19,6 +19,13 @@ Optional properties for child nodes:
 	  a device, i.e. no other LED class device can be assigned the same
 	  label.
 
+- default-state : The initial state of the LED. Valid values are "on", "off",
+  and "keep". If the LED is already on or off and the default-state property is
+  set the to same value, then no glitch should be produced where the LED
+  momentarily turns off (or on). The "keep" setting will keep the LED at
+  whatever its current state is, without producing a glitch.  The default is
+  off if this property is not present.
+
 - linux,default-trigger :  This parameter, if present, is a
     string defining the trigger assigned to the LED.  Current triggers are:
      "backlight" - LED will act as a back-light, controlled by the framebuffer
@@ -26,7 +33,9 @@ Optional properties for child nodes:
      "default-on" - LED will turn on (but for leds-gpio see "default-state"
 		    property in Documentation/devicetree/bindings/gpio/led.txt)
      "heartbeat" - LED "double" flashes at a load average based rate
-     "ide-disk" - LED indicates disk activity
+     "disk-activity" - LED indicates disk activity
+     "ide-disk" - LED indicates IDE disk activity (deprecated),
+                  in new implementations use "disk-activity"
      "timer" - LED flashes at a fixed, configurable rate
 
 - led-max-microamp : Maximum LED supply current in microamperes. This property

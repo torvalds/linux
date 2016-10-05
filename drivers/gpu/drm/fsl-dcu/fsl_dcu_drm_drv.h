@@ -47,8 +47,8 @@
 #define DCU_VSYN_PARA_FP(x)		(x)
 
 #define DCU_SYN_POL			0x0024
-#define DCU_SYN_POL_INV_PXCK_FALL	(0 << 6)
-#define DCU_SYN_POL_NEG_REMAIN		(0 << 5)
+#define DCU_SYN_POL_INV_PXCK		BIT(6)
+#define DCU_SYN_POL_NEG			BIT(5)
 #define DCU_SYN_POL_INV_VS_LOW		BIT(1)
 #define DCU_SYN_POL_INV_HS_LOW		BIT(0)
 
@@ -175,6 +175,7 @@ struct fsl_dcu_soc_data {
 	unsigned int total_layer;
 	/*max layer number DCU supported*/
 	unsigned int max_layer;
+	unsigned int layer_regs;
 };
 
 struct fsl_dcu_drm_device {
@@ -183,6 +184,8 @@ struct fsl_dcu_drm_device {
 	struct regmap *regmap;
 	int irq;
 	struct clk *clk;
+	struct clk *pix_clk;
+	struct fsl_tcon *tcon;
 	/*protects hardware register*/
 	spinlock_t irq_lock;
 	struct drm_device *drm;
@@ -191,6 +194,7 @@ struct fsl_dcu_drm_device {
 	struct drm_encoder encoder;
 	struct fsl_dcu_drm_connector connector;
 	const struct fsl_dcu_soc_data *soc;
+	struct drm_atomic_state *state;
 };
 
 void fsl_dcu_fbdev_init(struct drm_device *dev);

@@ -149,7 +149,7 @@ static void complete_flip(struct drm_crtc *crtc, struct drm_file *file)
 		if (!file || (event->base.file_priv == file)) {
 			mdp5_crtc->event = NULL;
 			DBG("%s: send event: %p", mdp5_crtc->name, event);
-			drm_send_vblank_event(dev, mdp5_crtc->id, event);
+			drm_crtc_send_vblank_event(crtc, event);
 		}
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
@@ -374,6 +374,7 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct plane_state pstates[STAGE_MAX + 1];
 	const struct mdp5_cfg_hw *hw_cfg;
+	const struct drm_plane_state *pstate;
 	int cnt = 0, i;
 
 	DBG("%s: check", mdp5_crtc->name);
@@ -382,20 +383,13 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	 * and that we don't have conflicting mixer stages:
 	 */
 	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
-	drm_atomic_crtc_state_for_each_plane(plane, state) {
-		struct drm_plane_state *pstate;
+	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, state) {
 		if (cnt >= (hw_cfg->lm.nb_stages)) {
 			dev_err(dev->dev, "too many planes!\n");
 			return -EINVAL;
 		}
 
-		pstate = state->state->plane_states[drm_plane_index(plane)];
 
-		/* plane might not have changed, in which case take
-		 * current state:
-		 */
-		if (!pstate)
-			pstate = plane->state;
 		pstates[cnt].plane = plane;
 		pstates[cnt].state = to_mdp5_plane_state(pstate);
 
@@ -496,8 +490,7 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
 	struct drm_gem_object *cursor_bo, *old_bo = NULL;
 	uint32_t blendcfg, cursor_addr, stride;
-	int ret, bpp, lm;
-	unsigned int depth;
+	int ret, lm;
 	enum mdp5_cursor_alpha cur_alpha = CURSOR_ALPHA_PER_PIXEL;
 	uint32_t flush_mask = mdp_ctl_flush_mask_cursor(0);
 	uint32_t roi_w, roi_h;
@@ -518,7 +511,7 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 		goto set_cursor;
 	}
 
-	cursor_bo = drm_gem_object_lookup(dev, file, handle);
+	cursor_bo = drm_gem_object_lookup(file, handle);
 	if (!cursor_bo)
 		return -ENOENT;
 
@@ -527,8 +520,7 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 		return -EINVAL;
 
 	lm = mdp5_crtc->lm;
-	drm_fb_get_bpp_depth(DRM_FORMAT_ARGB8888, &depth, &bpp);
-	stride = width * (bpp >> 3);
+	stride = width * drm_format_plane_cpp(DRM_FORMAT_ARGB8888, 0);
 
 	spin_lock_irqsave(&mdp5_crtc->cursor.lock, flags);
 	old_bo = mdp5_crtc->cursor.scanout_bo;

@@ -126,7 +126,7 @@ struct sur40_image_header {
 #define VIDEO_PACKET_SIZE  16384
 
 /* polling interval (ms) */
-#define POLL_INTERVAL 4
+#define POLL_INTERVAL 1
 
 /* maximum number of contacts FIXME: this is a guess? */
 #define MAX_CONTACTS 64
@@ -151,7 +151,6 @@ struct sur40_state {
 	struct mutex lock;
 
 	struct vb2_queue queue;
-	struct vb2_alloc_ctx *alloc_ctx;
 	struct list_head buf_list;
 	spinlock_t qlock;
 	int sequence;
@@ -448,7 +447,7 @@ static void sur40_process_video(struct sur40_state *sur40)
 
 	/* return error if streaming was stopped in the meantime */
 	if (sur40->sequence == -1)
-		goto err_poll;
+		return;
 
 	/* mark as finished */
 	new_buf->vb.vb2_buf.timestamp = ktime_get_ns();
@@ -580,18 +579,12 @@ static int sur40_probe(struct usb_interface *interface,
 	sur40->queue = sur40_queue;
 	sur40->queue.drv_priv = sur40;
 	sur40->queue.lock = &sur40->lock;
+	sur40->queue.dev = sur40->dev;
 
 	/* initialize the queue */
 	error = vb2_queue_init(&sur40->queue);
 	if (error)
 		goto err_unreg_v4l2;
-
-	sur40->alloc_ctx = vb2_dma_sg_init_ctx(sur40->dev);
-	if (IS_ERR(sur40->alloc_ctx)) {
-		dev_err(sur40->dev, "Can't allocate buffer context");
-		error = PTR_ERR(sur40->alloc_ctx);
-		goto err_unreg_v4l2;
-	}
 
 	sur40->vdev = sur40_video_device;
 	sur40->vdev.v4l2_dev = &sur40->v4l2;
@@ -633,7 +626,6 @@ static void sur40_disconnect(struct usb_interface *interface)
 
 	video_unregister_device(&sur40->vdev);
 	v4l2_device_unregister(&sur40->v4l2);
-	vb2_dma_sg_cleanup_ctx(sur40->alloc_ctx);
 
 	input_unregister_polled_device(sur40->input);
 	input_free_polled_device(sur40->input);
@@ -653,13 +645,10 @@ static void sur40_disconnect(struct usb_interface *interface)
  */
 static int sur40_queue_setup(struct vb2_queue *q,
 		       unsigned int *nbuffers, unsigned int *nplanes,
-		       unsigned int sizes[], void *alloc_ctxs[])
+		       unsigned int sizes[], struct device *alloc_devs[])
 {
-	struct sur40_state *sur40 = vb2_get_drv_priv(q);
-
 	if (q->num_buffers + *nbuffers < 3)
 		*nbuffers = 3 - q->num_buffers;
-	alloc_ctxs[0] = sur40->alloc_ctx;
 
 	if (*nplanes)
 		return sizes[0] < sur40_video_format.sizeimage ? -EINVAL : 0;
@@ -736,6 +725,7 @@ static int sur40_start_streaming(struct vb2_queue *vq, unsigned int count)
 static void sur40_stop_streaming(struct vb2_queue *vq)
 {
 	struct sur40_state *sur40 = vb2_get_drv_priv(vq);
+	vb2_wait_for_all_buffers(vq);
 	sur40->sequence = -1;
 
 	/* Release all active buffers */
@@ -793,7 +783,6 @@ static int sur40_vidioc_enum_fmt(struct file *file, void *priv,
 {
 	if (f->index != 0)
 		return -EINVAL;
-	strlcpy(f->description, "8-bit greyscale", sizeof(f->description));
 	f->pixelformat = V4L2_PIX_FMT_GREY;
 	f->flags = 0;
 	return 0;

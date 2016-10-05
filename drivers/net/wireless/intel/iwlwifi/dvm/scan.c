@@ -94,10 +94,14 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 
 static void iwl_complete_scan(struct iwl_priv *priv, bool aborted)
 {
+	struct cfg80211_scan_info info = {
+		.aborted = aborted,
+	};
+
 	/* check if scan was requested from mac80211 */
 	if (priv->scan_request) {
 		IWL_DEBUG_SCAN(priv, "Complete scan in mac80211\n");
-		ieee80211_scan_completed(priv->hw, aborted);
+		ieee80211_scan_completed(priv->hw, &info);
 	}
 
 	priv->scan_type = IWL_SCAN_NORMAL;

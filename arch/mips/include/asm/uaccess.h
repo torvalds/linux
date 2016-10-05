@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/thread_info.h>
+#include <linux/string.h>
 #include <asm/asm-eva.h>
 
 /*
@@ -88,7 +89,7 @@ extern u64 __ua_limit;
  */
 static inline bool eva_kernel_access(void)
 {
-	if (!config_enabled(CONFIG_EVA))
+	if (!IS_ENABLED(CONFIG_EVA))
 		return false;
 
 	return segment_eq(get_fs(), get_ds());
@@ -1170,6 +1171,8 @@ extern size_t __copy_in_user_eva(void *__to, const void *__from, size_t __n);
 			__cu_len = __invoke_copy_from_user(__cu_to,	\
 							   __cu_from,	\
 							   __cu_len);   \
+		} else {						\
+			memset(__cu_to, 0, __cu_len);			\
 		}							\
 	}								\
 	__cu_len;							\

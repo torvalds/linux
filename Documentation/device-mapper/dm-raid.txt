@@ -14,8 +14,12 @@ The target is named "raid" and it accepts the following parameters:
     <#raid_devs> <metadata_dev0> <dev0> [.. <metadata_devN> <devN>]
 
 <raid_type>:
+  raid0		RAID0 striping (no resilience)
   raid1		RAID1 mirroring
-  raid4		RAID4 dedicated parity disk
+  raid4		RAID4 with dedicated last parity disk
+  raid5_n 	RAID5 with dedicated last parity disk suporting takeover
+		Same as raid4
+		-Transitory layout
   raid5_la	RAID5 left asymmetric
 		- rotating parity 0 with data continuation
   raid5_ra	RAID5 right asymmetric
@@ -30,7 +34,19 @@ The target is named "raid" and it accepts the following parameters:
 		- rotating parity N (right-to-left) with data restart
   raid6_nc	RAID6 N continue
 		- rotating parity N (right-to-left) with data continuation
+  raid6_n_6	RAID6 with dedicate parity disks
+		- parity and Q-syndrome on the last 2 disks;
+		  laylout for takeover from/to raid4/raid5_n
+  raid6_la_6	Same as "raid_la" plus dedicated last Q-syndrome disk
+		- layout for takeover from raid5_la from/to raid6
+  raid6_ra_6	Same as "raid5_ra" dedicated last Q-syndrome disk
+		- layout for takeover from raid5_ra from/to raid6
+  raid6_ls_6	Same as "raid5_ls" dedicated last Q-syndrome disk
+		- layout for takeover from raid5_ls from/to raid6
+  raid6_rs_6	Same as "raid5_rs" dedicated last Q-syndrome disk
+		- layout for takeover from raid5_rs from/to raid6
   raid10        Various RAID10 inspired algorithms chosen by additional params
+		(see raid10_format and raid10_copies below)
 		- RAID10: Striped Mirrors (aka 'Striping on top of mirrors')
 		- RAID1E: Integrated Adjacent Stripe Mirroring
 		- RAID1E: Integrated Offset Stripe Mirroring
@@ -116,10 +132,41 @@ The target is named "raid" and it accepts the following parameters:
 		Here we see layouts closely akin to 'RAID1E - Integrated
 		Offset Stripe Mirroring'.
 
+        [delta_disks <N>]
+		The delta_disks option value (-251 < N < +251) triggers
+		device removal (negative value) or device addition (positive
+		value) to any reshape supporting raid levels 4/5/6 and 10.
+		RAID levels 4/5/6 allow for addition of devices (metadata
+		and data device tupel), raid10_near and raid10_offset only
+		allow for device addtion. raid10_far does not support any
+		reshaping at all.
+		A minimum of devices have to be kept to enforce resilience,
+		which is 3 devices for raid4/5 and 4 devices for raid6.
+
+        [data_offset <sectors>]
+		This option value defines the offset into each data device
+		where the data starts. This is used to provide out-of-place
+		reshaping space to avoid writing over data whilst
+		changing the layout of stripes, hence an interruption/crash
+		may happen at any time without the risk of losing data.
+		E.g. when adding devices to an existing raid set during
+		forward reshaping, the out-of-place space will be allocated
+		at the beginning of each raid device. The kernel raid4/5/6/10
+		MD personalities supporting such device addition will read the data from
+		the existing first stripes (those with smaller number of stripes)
+		starting at data_offset to fill up a new stripe with the larger
+		number of stripes, calculate the redundancy blocks (CRC/Q-syndrome)
+		and write that new stripe to offset 0. Same will be applied to all
+		N-1 other new stripes. This out-of-place scheme is used to change
+		the RAID type (i.e. the allocation algorithm) as well, e.g.
+		changing from raid5_ls to raid5_n.
+
 <#raid_devs>: The number of devices composing the array.
 	Each device consists of two entries.  The first is the device
 	containing the metadata (if any); the second is the one containing the
-	data.
+	data. A Maximum of 64 metadata/data device entries are supported
+	up to target version 1.8.0.
+	1.9.0 supports up to 253 which is enforced by the used MD kernel runtime.
 
 	If a drive has failed or is missing at creation time, a '-' can be
 	given for both the metadata and data drives for a given position.
@@ -207,7 +254,6 @@ include:
 	"recover"- Initiate/continue a recover process.
 	"check"  - Initiate a check (i.e. a "scrub") of the array.
 	"repair" - Initiate a repair of the array.
-	"reshape"- Currently unsupported (-EINVAL).
 
 
 Discard Support
@@ -257,3 +303,9 @@ Version History
 1.5.2   'mismatch_cnt' is zero unless [last_]sync_action is "check".
 1.6.0   Add discard support (and devices_handle_discard_safely module param).
 1.7.0   Add support for MD RAID0 mappings.
+1.8.0   Explictely check for compatible flags in the superblock metadata
+	and reject to start the raid set if any are set by a newer
+	target version, thus avoiding data corruption on a raid set
+	with a reshape in progress.
+1.9.0   Add support for RAID level takeover/reshape/region size
+	and set size reduction.

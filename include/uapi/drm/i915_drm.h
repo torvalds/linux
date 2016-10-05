@@ -29,6 +29,10 @@
 
 #include "drm.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /* Please note that modifications to all structs defined here are
  * subject to backwards-compatibility constraints.
  */
@@ -357,6 +361,8 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_HAS_GPU_RESET	 35
 #define I915_PARAM_HAS_RESOURCE_STREAMER 36
 #define I915_PARAM_HAS_EXEC_SOFTPIN	 37
+#define I915_PARAM_HAS_POOLED_EU	 38
+#define I915_PARAM_MIN_EU_IN_POOL	 39
 
 typedef struct drm_i915_getparam {
 	__s32 param;
@@ -1167,7 +1173,12 @@ struct drm_i915_gem_context_param {
 #define I915_CONTEXT_PARAM_BAN_PERIOD	0x1
 #define I915_CONTEXT_PARAM_NO_ZEROMAP	0x2
 #define I915_CONTEXT_PARAM_GTT_SIZE	0x3
+#define I915_CONTEXT_PARAM_NO_ERROR_CAPTURE	0x4
 	__u64 value;
 };
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* _UAPI_I915_DRM_H_ */

@@ -98,7 +98,7 @@ void drm_mode_destroy(struct drm_device *dev, struct drm_display_mode *mode)
 	if (!mode)
 		return;
 
-	drm_mode_object_put(dev, &mode->base);
+	drm_mode_object_unregister(dev, &mode->base);
 
 	kfree(mode);
 }
@@ -544,6 +544,7 @@ EXPORT_SYMBOL(drm_gtf_mode_complex);
  *
  * This function is to create the modeline based on the GTF algorithm.
  * Generalized Timing Formula is derived from:
+ *
  *	GTF Spreadsheet by Andy Morrish (1/5/97)
  *	available at http://www.vesa.org
  *
@@ -552,7 +553,8 @@ EXPORT_SYMBOL(drm_gtf_mode_complex);
  * I also refer to the function of fb_get_mode in the file of
  * drivers/video/fbmon.c
  *
- * Standard GTF parameters:
+ * Standard GTF parameters::
+ *
  *     M = 600
  *     C = 40
  *     K = 128
@@ -1517,6 +1519,8 @@ int drm_mode_convert_umode(struct drm_display_mode *out,
 	out->status = drm_mode_validate_basic(out);
 	if (out->status != MODE_OK)
 		goto out;
+
+	drm_mode_set_crtcinfo(out, CRTC_INTERLACE_HALVE_V);
 
 	ret = 0;
 

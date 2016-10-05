@@ -50,6 +50,7 @@ MODULE_FIRMWARE("radeon/tahiti_ce.bin");
 MODULE_FIRMWARE("radeon/tahiti_mc.bin");
 MODULE_FIRMWARE("radeon/tahiti_rlc.bin");
 MODULE_FIRMWARE("radeon/tahiti_smc.bin");
+MODULE_FIRMWARE("radeon/tahiti_k_smc.bin");
 
 MODULE_FIRMWARE("radeon/PITCAIRN_pfp.bin");
 MODULE_FIRMWARE("radeon/PITCAIRN_me.bin");
@@ -65,6 +66,7 @@ MODULE_FIRMWARE("radeon/pitcairn_ce.bin");
 MODULE_FIRMWARE("radeon/pitcairn_mc.bin");
 MODULE_FIRMWARE("radeon/pitcairn_rlc.bin");
 MODULE_FIRMWARE("radeon/pitcairn_smc.bin");
+MODULE_FIRMWARE("radeon/pitcairn_k_smc.bin");
 
 MODULE_FIRMWARE("radeon/VERDE_pfp.bin");
 MODULE_FIRMWARE("radeon/VERDE_me.bin");
@@ -80,6 +82,7 @@ MODULE_FIRMWARE("radeon/verde_ce.bin");
 MODULE_FIRMWARE("radeon/verde_mc.bin");
 MODULE_FIRMWARE("radeon/verde_rlc.bin");
 MODULE_FIRMWARE("radeon/verde_smc.bin");
+MODULE_FIRMWARE("radeon/verde_k_smc.bin");
 
 MODULE_FIRMWARE("radeon/OLAND_pfp.bin");
 MODULE_FIRMWARE("radeon/OLAND_me.bin");
@@ -95,6 +98,7 @@ MODULE_FIRMWARE("radeon/oland_ce.bin");
 MODULE_FIRMWARE("radeon/oland_mc.bin");
 MODULE_FIRMWARE("radeon/oland_rlc.bin");
 MODULE_FIRMWARE("radeon/oland_smc.bin");
+MODULE_FIRMWARE("radeon/oland_k_smc.bin");
 
 MODULE_FIRMWARE("radeon/HAINAN_pfp.bin");
 MODULE_FIRMWARE("radeon/HAINAN_me.bin");
@@ -110,6 +114,7 @@ MODULE_FIRMWARE("radeon/hainan_ce.bin");
 MODULE_FIRMWARE("radeon/hainan_mc.bin");
 MODULE_FIRMWARE("radeon/hainan_rlc.bin");
 MODULE_FIRMWARE("radeon/hainan_smc.bin");
+MODULE_FIRMWARE("radeon/hainan_k_smc.bin");
 
 static u32 si_get_cu_active_bitmap(struct radeon_device *rdev, u32 se, u32 sh);
 static void si_pcie_gen3_enable(struct radeon_device *rdev);
@@ -1653,12 +1658,16 @@ static int si_init_microcode(struct radeon_device *rdev)
 	char fw_name[30];
 	int err;
 	int new_fw = 0;
+	bool new_smc = false;
 
 	DRM_DEBUG("\n");
 
 	switch (rdev->family) {
 	case CHIP_TAHITI:
 		chip_name = "TAHITI";
+		/* XXX: figure out which Tahitis need the new ucode */
+		if (0)
+			new_smc = true;
 		new_chip_name = "tahiti";
 		pfp_req_size = SI_PFP_UCODE_SIZE * 4;
 		me_req_size = SI_PM4_UCODE_SIZE * 4;
@@ -1670,6 +1679,13 @@ static int si_init_microcode(struct radeon_device *rdev)
 		break;
 	case CHIP_PITCAIRN:
 		chip_name = "PITCAIRN";
+		if ((rdev->pdev->revision == 0x81) ||
+		    (rdev->pdev->device == 0x6810) ||
+		    (rdev->pdev->device == 0x6811) ||
+		    (rdev->pdev->device == 0x6816) ||
+		    (rdev->pdev->device == 0x6817) ||
+		    (rdev->pdev->device == 0x6806))
+			new_smc = true;
 		new_chip_name = "pitcairn";
 		pfp_req_size = SI_PFP_UCODE_SIZE * 4;
 		me_req_size = SI_PM4_UCODE_SIZE * 4;
@@ -1681,6 +1697,16 @@ static int si_init_microcode(struct radeon_device *rdev)
 		break;
 	case CHIP_VERDE:
 		chip_name = "VERDE";
+		if ((rdev->pdev->revision == 0x81) ||
+		    (rdev->pdev->revision == 0x83) ||
+		    (rdev->pdev->revision == 0x87) ||
+		    (rdev->pdev->device == 0x6820) ||
+		    (rdev->pdev->device == 0x6821) ||
+		    (rdev->pdev->device == 0x6822) ||
+		    (rdev->pdev->device == 0x6823) ||
+		    (rdev->pdev->device == 0x682A) ||
+		    (rdev->pdev->device == 0x682B))
+			new_smc = true;
 		new_chip_name = "verde";
 		pfp_req_size = SI_PFP_UCODE_SIZE * 4;
 		me_req_size = SI_PM4_UCODE_SIZE * 4;
@@ -1692,6 +1718,13 @@ static int si_init_microcode(struct radeon_device *rdev)
 		break;
 	case CHIP_OLAND:
 		chip_name = "OLAND";
+		if ((rdev->pdev->revision == 0xC7) ||
+		    (rdev->pdev->revision == 0x80) ||
+		    (rdev->pdev->revision == 0x81) ||
+		    (rdev->pdev->revision == 0x83) ||
+		    (rdev->pdev->device == 0x6604) ||
+		    (rdev->pdev->device == 0x6605))
+			new_smc = true;
 		new_chip_name = "oland";
 		pfp_req_size = SI_PFP_UCODE_SIZE * 4;
 		me_req_size = SI_PM4_UCODE_SIZE * 4;
@@ -1702,6 +1735,13 @@ static int si_init_microcode(struct radeon_device *rdev)
 		break;
 	case CHIP_HAINAN:
 		chip_name = "HAINAN";
+		if ((rdev->pdev->revision == 0x81) ||
+		    (rdev->pdev->revision == 0x83) ||
+		    (rdev->pdev->revision == 0xC3) ||
+		    (rdev->pdev->device == 0x6664) ||
+		    (rdev->pdev->device == 0x6665) ||
+		    (rdev->pdev->device == 0x6667))
+			new_smc = true;
 		new_chip_name = "hainan";
 		pfp_req_size = SI_PFP_UCODE_SIZE * 4;
 		me_req_size = SI_PM4_UCODE_SIZE * 4;
@@ -1847,7 +1887,10 @@ static int si_init_microcode(struct radeon_device *rdev)
 		}
 	}
 
-	snprintf(fw_name, sizeof(fw_name), "radeon/%s_smc.bin", new_chip_name);
+	if (new_smc)
+		snprintf(fw_name, sizeof(fw_name), "radeon/%s_k_smc.bin", new_chip_name);
+	else
+		snprintf(fw_name, sizeof(fw_name), "radeon/%s_smc.bin", new_chip_name);
 	err = request_firmware(&rdev->smc_fw, fw_name, rdev->dev);
 	if (err) {
 		snprintf(fw_name, sizeof(fw_name), "radeon/%s_smc.bin", chip_name);
@@ -4034,9 +4077,14 @@ static void si_gpu_pci_config_reset(struct radeon_device *rdev)
 	}
 }
 
-int si_asic_reset(struct radeon_device *rdev)
+int si_asic_reset(struct radeon_device *rdev, bool hard)
 {
 	u32 reset_mask;
+
+	if (hard) {
+		si_gpu_pci_config_reset(rdev);
+		return 0;
+	}
 
 	reset_mask = si_gpu_check_soft_reset(rdev);
 
@@ -4357,6 +4405,10 @@ static bool si_vm_reg_valid(u32 reg)
 {
 	/* context regs are fine */
 	if (reg >= 0x28000)
+		return true;
+
+	/* shader regs are also fine */
+	if (reg >= 0xB000 && reg < 0xC000)
 		return true;
 
 	/* check config regs */
@@ -6821,6 +6873,159 @@ restart_ih:
 /*
  * startup/shutdown callbacks
  */
+static void si_uvd_init(struct radeon_device *rdev)
+{
+	int r;
+
+	if (!rdev->has_uvd)
+		return;
+
+	r = radeon_uvd_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "failed UVD (%d) init.\n", r);
+		/*
+		 * At this point rdev->uvd.vcpu_bo is NULL which trickles down
+		 * to early fails uvd_v2_2_resume() and thus nothing happens
+		 * there. So it is pointless to try to go through that code
+		 * hence why we disable uvd here.
+		 */
+		rdev->has_uvd = 0;
+		return;
+	}
+	rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_obj = NULL;
+	r600_ring_init(rdev, &rdev->ring[R600_RING_TYPE_UVD_INDEX], 4096);
+}
+
+static void si_uvd_start(struct radeon_device *rdev)
+{
+	int r;
+
+	if (!rdev->has_uvd)
+		return;
+
+	r = uvd_v2_2_resume(rdev);
+	if (r) {
+		dev_err(rdev->dev, "failed UVD resume (%d).\n", r);
+		goto error;
+	}
+	r = radeon_fence_driver_start_ring(rdev, R600_RING_TYPE_UVD_INDEX);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing UVD fences (%d).\n", r);
+		goto error;
+	}
+	return;
+
+error:
+	rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_size = 0;
+}
+
+static void si_uvd_resume(struct radeon_device *rdev)
+{
+	struct radeon_ring *ring;
+	int r;
+
+	if (!rdev->has_uvd || !rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_size)
+		return;
+
+	ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
+	r = radeon_ring_init(rdev, ring, ring->ring_size, 0, RADEON_CP_PACKET2);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing UVD ring (%d).\n", r);
+		return;
+	}
+	r = uvd_v1_0_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing UVD (%d).\n", r);
+		return;
+	}
+}
+
+static void si_vce_init(struct radeon_device *rdev)
+{
+	int r;
+
+	if (!rdev->has_vce)
+		return;
+
+	r = radeon_vce_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "failed VCE (%d) init.\n", r);
+		/*
+		 * At this point rdev->vce.vcpu_bo is NULL which trickles down
+		 * to early fails si_vce_start() and thus nothing happens
+		 * there. So it is pointless to try to go through that code
+		 * hence why we disable vce here.
+		 */
+		rdev->has_vce = 0;
+		return;
+	}
+	rdev->ring[TN_RING_TYPE_VCE1_INDEX].ring_obj = NULL;
+	r600_ring_init(rdev, &rdev->ring[TN_RING_TYPE_VCE1_INDEX], 4096);
+	rdev->ring[TN_RING_TYPE_VCE2_INDEX].ring_obj = NULL;
+	r600_ring_init(rdev, &rdev->ring[TN_RING_TYPE_VCE2_INDEX], 4096);
+}
+
+static void si_vce_start(struct radeon_device *rdev)
+{
+	int r;
+
+	if (!rdev->has_vce)
+		return;
+
+	r = radeon_vce_resume(rdev);
+	if (r) {
+		dev_err(rdev->dev, "failed VCE resume (%d).\n", r);
+		goto error;
+	}
+	r = vce_v1_0_resume(rdev);
+	if (r) {
+		dev_err(rdev->dev, "failed VCE resume (%d).\n", r);
+		goto error;
+	}
+	r = radeon_fence_driver_start_ring(rdev, TN_RING_TYPE_VCE1_INDEX);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing VCE1 fences (%d).\n", r);
+		goto error;
+	}
+	r = radeon_fence_driver_start_ring(rdev, TN_RING_TYPE_VCE2_INDEX);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing VCE2 fences (%d).\n", r);
+		goto error;
+	}
+	return;
+
+error:
+	rdev->ring[TN_RING_TYPE_VCE1_INDEX].ring_size = 0;
+	rdev->ring[TN_RING_TYPE_VCE2_INDEX].ring_size = 0;
+}
+
+static void si_vce_resume(struct radeon_device *rdev)
+{
+	struct radeon_ring *ring;
+	int r;
+
+	if (!rdev->has_vce || !rdev->ring[TN_RING_TYPE_VCE1_INDEX].ring_size)
+		return;
+
+	ring = &rdev->ring[TN_RING_TYPE_VCE1_INDEX];
+	r = radeon_ring_init(rdev, ring, ring->ring_size, 0, VCE_CMD_NO_OP);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing VCE1 ring (%d).\n", r);
+		return;
+	}
+	ring = &rdev->ring[TN_RING_TYPE_VCE2_INDEX];
+	r = radeon_ring_init(rdev, ring, ring->ring_size, 0, VCE_CMD_NO_OP);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing VCE1 ring (%d).\n", r);
+		return;
+	}
+	r = vce_v1_0_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing VCE (%d).\n", r);
+		return;
+	}
+}
+
 static int si_startup(struct radeon_device *rdev)
 {
 	struct radeon_ring *ring;
@@ -6899,33 +7104,8 @@ static int si_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	if (rdev->has_uvd) {
-		r = uvd_v2_2_resume(rdev);
-		if (!r) {
-			r = radeon_fence_driver_start_ring(rdev,
-							   R600_RING_TYPE_UVD_INDEX);
-			if (r)
-				dev_err(rdev->dev, "UVD fences init error (%d).\n", r);
-		}
-		if (r)
-			rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_size = 0;
-	}
-
-	r = radeon_vce_resume(rdev);
-	if (!r) {
-		r = vce_v1_0_resume(rdev);
-		if (!r)
-			r = radeon_fence_driver_start_ring(rdev,
-							   TN_RING_TYPE_VCE1_INDEX);
-		if (!r)
-			r = radeon_fence_driver_start_ring(rdev,
-							   TN_RING_TYPE_VCE2_INDEX);
-	}
-	if (r) {
-		dev_err(rdev->dev, "VCE init error (%d).\n", r);
-		rdev->ring[TN_RING_TYPE_VCE1_INDEX].ring_size = 0;
-		rdev->ring[TN_RING_TYPE_VCE2_INDEX].ring_size = 0;
-	}
+	si_uvd_start(rdev);
+	si_vce_start(rdev);
 
 	/* Enable IRQ */
 	if (!rdev->irq.installed) {
@@ -6983,34 +7163,8 @@ static int si_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	if (rdev->has_uvd) {
-		ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
-		if (ring->ring_size) {
-			r = radeon_ring_init(rdev, ring, ring->ring_size, 0,
-					     RADEON_CP_PACKET2);
-			if (!r)
-				r = uvd_v1_0_init(rdev);
-			if (r)
-				DRM_ERROR("radeon: failed initializing UVD (%d).\n", r);
-		}
-	}
-
-	r = -ENOENT;
-
-	ring = &rdev->ring[TN_RING_TYPE_VCE1_INDEX];
-	if (ring->ring_size)
-		r = radeon_ring_init(rdev, ring, ring->ring_size, 0,
-				     VCE_CMD_NO_OP);
-
-	ring = &rdev->ring[TN_RING_TYPE_VCE2_INDEX];
-	if (ring->ring_size)
-		r = radeon_ring_init(rdev, ring, ring->ring_size, 0,
-				     VCE_CMD_NO_OP);
-
-	if (!r)
-		r = vce_v1_0_init(rdev);
-	else if (r != -ENOENT)
-		DRM_ERROR("radeon: failed initializing VCE (%d).\n", r);
+	si_uvd_resume(rdev);
+	si_vce_resume(rdev);
 
 	r = radeon_ib_pool_init(rdev);
 	if (r) {
@@ -7070,8 +7224,9 @@ int si_suspend(struct radeon_device *rdev)
 	if (rdev->has_uvd) {
 		uvd_v1_0_fini(rdev);
 		radeon_uvd_suspend(rdev);
-		radeon_vce_suspend(rdev);
 	}
+	if (rdev->has_vce)
+		radeon_vce_suspend(rdev);
 	si_fini_pg(rdev);
 	si_fini_cg(rdev);
 	si_irq_suspend(rdev);
@@ -7169,25 +7324,8 @@ int si_init(struct radeon_device *rdev)
 	ring->ring_obj = NULL;
 	r600_ring_init(rdev, ring, 64 * 1024);
 
-	if (rdev->has_uvd) {
-		r = radeon_uvd_init(rdev);
-		if (!r) {
-			ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
-			ring->ring_obj = NULL;
-			r600_ring_init(rdev, ring, 4096);
-		}
-	}
-
-	r = radeon_vce_init(rdev);
-	if (!r) {
-		ring = &rdev->ring[TN_RING_TYPE_VCE1_INDEX];
-		ring->ring_obj = NULL;
-		r600_ring_init(rdev, ring, 4096);
-
-		ring = &rdev->ring[TN_RING_TYPE_VCE2_INDEX];
-		ring->ring_obj = NULL;
-		r600_ring_init(rdev, ring, 4096);
-	}
+	si_uvd_init(rdev);
+	si_vce_init(rdev);
 
 	rdev->ih.ring_obj = NULL;
 	r600_ih_ring_init(rdev, 64 * 1024);
@@ -7240,8 +7378,9 @@ void si_fini(struct radeon_device *rdev)
 	if (rdev->has_uvd) {
 		uvd_v1_0_fini(rdev);
 		radeon_uvd_fini(rdev);
-		radeon_vce_fini(rdev);
 	}
+	if (rdev->has_vce)
+		radeon_vce_fini(rdev);
 	si_pcie_gart_fini(rdev);
 	r600_vram_scratch_fini(rdev);
 	radeon_gem_fini(rdev);

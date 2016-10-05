@@ -213,10 +213,66 @@
 #define REG_HMBOX_EXT_1			0x008a
 #define REG_HMBOX_EXT_2			0x008c
 #define REG_HMBOX_EXT_3			0x008e
+
 /* Interrupt registers for 8192e/8723bu/8812 */
 #define REG_HIMR0			0x00b0
+#define	 IMR0_TXCCK			BIT(30)	/* TXRPT interrupt when CCX bit
+						   of the packet is set */
+#define	 IMR0_PSTIMEOUT			BIT(29)	/* Power Save Time Out Int */
+#define	 IMR0_GTINT4			BIT(28)	/* Set when GTIMER4 expires */
+#define	 IMR0_GTINT3			BIT(27)	/* Set when GTIMER3 expires */
+#define	 IMR0_TBDER			BIT(26)	/* Transmit Beacon0 Error */
+#define	 IMR0_TBDOK			BIT(25)	/* Transmit Beacon0 OK */
+#define	 IMR0_TSF_BIT32_TOGGLE		BIT(24)	/* TSF Timer BIT32 toggle
+						   indication interrupt */
+#define	 IMR0_BCNDMAINT0		BIT(20)	/* Beacon DMA Interrupt 0 */
+#define	 IMR0_BCNDERR0			BIT(16)	/* Beacon Queue DMA Error 0 */
+#define	 IMR0_HSISR_IND_ON_INT		BIT(15)	/* HSISR Indicator (HSIMR &
+						   HSISR is true) */
+#define	 IMR0_BCNDMAINT_E		BIT(14)	/* Beacon DMA Interrupt
+						   Extension for Win7 */
+#define	 IMR0_ATIMEND			BIT(12)	/* CTWidnow End or
+						   ATIM Window End */
+#define	 IMR0_HISR1_IND_INT		BIT(11)	/* HISR1 Indicator
+						   (HISR1 & HIMR1 is true) */
+#define	 IMR0_C2HCMD			BIT(10)	/* CPU to Host Command INT
+						   Status, Write 1 to clear */
+#define	 IMR0_CPWM2			BIT(9)	/* CPU power Mode exchange INT
+						   Status, Write 1 to clear */
+#define	 IMR0_CPWM			BIT(8)	/* CPU power Mode exchange INT
+						   Status, Write 1 to clear */
+#define	 IMR0_HIGHDOK			BIT(7)	/* High Queue DMA OK */
+#define	 IMR0_MGNTDOK			BIT(6)	/* Management Queue DMA OK */
+#define	 IMR0_BKDOK			BIT(5)	/* AC_BK DMA OK */
+#define	 IMR0_BEDOK			BIT(4)	/* AC_BE DMA OK */
+#define	 IMR0_VIDOK			BIT(3)	/* AC_VI DMA OK */
+#define	 IMR0_VODOK			BIT(2)	/* AC_VO DMA OK */
+#define	 IMR0_RDU			BIT(1)	/* Rx Descriptor Unavailable */
+#define	 IMR0_ROK			BIT(0)	/* Receive DMA OK */
 #define REG_HISR0			0x00b4
 #define REG_HIMR1			0x00b8
+#define	 IMR1_BCNDMAINT7		BIT(27)	/* Beacon DMA Interrupt 7 */
+#define	 IMR1_BCNDMAINT6		BIT(26)	/* Beacon DMA Interrupt 6 */
+#define	 IMR1_BCNDMAINT5		BIT(25)	/* Beacon DMA Interrupt 5 */
+#define	 IMR1_BCNDMAINT4		BIT(24)	/* Beacon DMA Interrupt 4 */
+#define	 IMR1_BCNDMAINT3		BIT(23)	/* Beacon DMA Interrupt 3 */
+#define	 IMR1_BCNDMAINT2		BIT(22)	/* Beacon DMA Interrupt 2 */
+#define	 IMR1_BCNDMAINT1		BIT(21)	/* Beacon DMA Interrupt 1 */
+#define	 IMR1_BCNDERR7			BIT(20)	/* Beacon Queue DMA Err Int 7 */
+#define	 IMR1_BCNDERR6			BIT(19)	/* Beacon Queue DMA Err Int 6 */
+#define	 IMR1_BCNDERR5			BIT(18)	/* Beacon Queue DMA Err Int 5 */
+#define	 IMR1_BCNDERR4			BIT(17)	/* Beacon Queue DMA Err Int 4 */
+#define	 IMR1_BCNDERR3			BIT(16)	/* Beacon Queue DMA Err Int 3 */
+#define	 IMR1_BCNDERR2			BIT(15)	/* Beacon Queue DMA Err Int 2 */
+#define	 IMR1_BCNDERR1			BIT(14)	/* Beacon Queue DMA Err Int 1 */
+#define	 IMR1_ATIMEND_E			BIT(13)	/* ATIM Window End Extension
+						   for Win7 */
+#define	 IMR1_TXERR			BIT(11)	/* Tx Error Flag Int Status,
+						   write 1 to clear */
+#define	 IMR1_RXERR			BIT(10)	/* Rx Error Flag Int Status,
+						   write 1 to clear */
+#define	 IMR1_TXFOVW			BIT(9)	/* Transmit FIFO Overflow */
+#define	 IMR1_RXFOVW			BIT(8)	/* Receive FIFO Overflow */
 #define REG_HISR1			0x00bc
 
 /*  Host suspend counter on FPGA platform */
@@ -405,7 +461,11 @@
 #define REG_DWBCN1_CTRL_8723B		0x0228
 
 /* 0x0280 ~ 0x02FF	RXDMA Configuration */
-#define REG_RXDMA_AGG_PG_TH		0x0280
+#define REG_RXDMA_AGG_PG_TH		0x0280	/* 0-7 : USB DMA size bits
+						   8-14: USB DMA timeout
+						   15  : Aggregation enable
+						         Only seems to be used
+							 on 8723bu/8192eu */
 #define  RXDMA_USB_AGG_ENABLE		BIT(31)
 #define REG_RXPKT_NUM			0x0284
 #define  RXPKT_NUM_RXDMA_IDLE		BIT(17)
@@ -616,6 +676,7 @@
 #define REG_SCH_TXCMD			0x05d0
 
 /* define REG_FW_TSF_SYNC_CNT		0x04a0 */
+#define REG_SCH_TX_CMD			0x05f8
 #define REG_FW_RESET_TSF_CNT_1		0x05fc
 #define REG_FW_RESET_TSF_CNT_0		0x05fd
 #define REG_FW_BCN_DIS_CNT		0x05fe
@@ -776,6 +837,10 @@
 #define  FPGA_RF_MODE_OFDM		BIT(25)
 
 #define REG_FPGA0_TX_INFO		0x0804
+#define  FPGA0_TX_INFO_OFDM_PATH_A	BIT(0)
+#define  FPGA0_TX_INFO_OFDM_PATH_B	BIT(1)
+#define  FPGA0_TX_INFO_OFDM_PATH_C	BIT(2)
+#define  FPGA0_TX_INFO_OFDM_PATH_D	BIT(3)
 #define REG_FPGA0_PSD_FUNC		0x0808
 #define REG_FPGA0_TX_GAIN		0x080c
 #define REG_FPGA0_RF_TIMING1		0x0810
@@ -1052,10 +1117,14 @@
 #define  USB_HIMR_ROK			BIT(0)	/*  Receive DMA OK Interrupt */
 
 #define REG_USB_SPECIAL_OPTION		0xfe55
+#define  USB_SPEC_USB_AGG_ENABLE	BIT(3)	/* Enable USB aggregation */
+#define  USB_SPEC_INT_BULK_SELECT	BIT(4)	/* Use interrupt endpoint to
+						   deliver interrupt packet.
+						   0: Use int, 1: use bulk */
 #define REG_USB_HRPWM			0xfe58
 #define REG_USB_DMA_AGG_TO		0xfe5b
-#define REG_USB_AGG_TO			0xfe5c
-#define REG_USB_AGG_TH			0xfe5d
+#define REG_USB_AGG_TIMEOUT		0xfe5c
+#define REG_USB_AGG_THRESH		0xfe5d
 
 #define REG_NORMAL_SIE_VID		0xfe60	/* 0xfe60 - 0xfe61 */
 #define REG_NORMAL_SIE_PID		0xfe62	/* 0xfe62 - 0xfe63 */

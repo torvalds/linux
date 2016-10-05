@@ -11,7 +11,7 @@
  * version 2 as published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/magic.h>
 #include <linux/major.h>
 #include <linux/mount.h>
@@ -365,10 +365,7 @@ static struct file_system_type bpf_fs_type = {
 	.name		= "bpf",
 	.mount		= bpf_mount,
 	.kill_sb	= kill_litter_super,
-	.fs_flags	= FS_USERNS_MOUNT,
 };
-
-MODULE_ALIAS_FS("bpf");
 
 static int __init bpf_init(void)
 {

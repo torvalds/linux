@@ -21,6 +21,7 @@
 #include <linux/ceph/mon_client.h>
 #include <linux/ceph/osd_client.h>
 #include <linux/ceph/ceph_fs.h>
+#include <linux/ceph/string_table.h>
 
 /*
  * mount options
@@ -179,6 +180,64 @@ static inline int calc_pages_for(u64 off, u64 len)
 	return ((off+len+PAGE_SIZE-1) >> PAGE_SHIFT) -
 		(off >> PAGE_SHIFT);
 }
+
+/*
+ * These are not meant to be generic - an integer key is assumed.
+ */
+#define DEFINE_RB_INSDEL_FUNCS(name, type, keyfld, nodefld)		\
+static void insert_##name(struct rb_root *root, type *t)		\
+{									\
+	struct rb_node **n = &root->rb_node;				\
+	struct rb_node *parent = NULL;					\
+									\
+	BUG_ON(!RB_EMPTY_NODE(&t->nodefld));				\
+									\
+	while (*n) {							\
+		type *cur = rb_entry(*n, type, nodefld);		\
+									\
+		parent = *n;						\
+		if (t->keyfld < cur->keyfld)				\
+			n = &(*n)->rb_left;				\
+		else if (t->keyfld > cur->keyfld)			\
+			n = &(*n)->rb_right;				\
+		else							\
+			BUG();						\
+	}								\
+									\
+	rb_link_node(&t->nodefld, parent, n);				\
+	rb_insert_color(&t->nodefld, root);				\
+}									\
+static void erase_##name(struct rb_root *root, type *t)			\
+{									\
+	BUG_ON(RB_EMPTY_NODE(&t->nodefld));				\
+	rb_erase(&t->nodefld, root);					\
+	RB_CLEAR_NODE(&t->nodefld);					\
+}
+
+#define DEFINE_RB_LOOKUP_FUNC(name, type, keyfld, nodefld)		\
+extern type __lookup_##name##_key;					\
+static type *lookup_##name(struct rb_root *root,			\
+			   typeof(__lookup_##name##_key.keyfld) key)	\
+{									\
+	struct rb_node *n = root->rb_node;				\
+									\
+	while (n) {							\
+		type *cur = rb_entry(n, type, nodefld);			\
+									\
+		if (key < cur->keyfld)					\
+			n = n->rb_left;					\
+		else if (key > cur->keyfld)				\
+			n = n->rb_right;				\
+		else							\
+			return cur;					\
+	}								\
+									\
+	return NULL;							\
+}
+
+#define DEFINE_RB_FUNCS(name, type, keyfld, nodefld)			\
+DEFINE_RB_INSDEL_FUNCS(name, type, keyfld, nodefld)			\
+DEFINE_RB_LOOKUP_FUNC(name, type, keyfld, nodefld)
 
 extern struct kmem_cache *ceph_inode_cachep;
 extern struct kmem_cache *ceph_cap_cachep;

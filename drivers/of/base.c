@@ -17,6 +17,9 @@
  *      as published by the Free Software Foundation; either version
  *      2 of the License, or (at your option) any later version.
  */
+
+#define pr_fmt(fmt)	"OF: " fmt
+
 #include <linux/console.h>
 #include <linux/ctype.h>
 #include <linux/cpu.h>
@@ -112,6 +115,7 @@ static ssize_t of_node_property_read(struct file *filp, struct kobject *kobj,
 	return memory_read_from_buffer(buf, count, &offset, pp->value, pp->length);
 }
 
+/* always return newly allocated name, caller must free after use */
 static const char *safe_name(struct kobject *kobj, const char *orig_name)
 {
 	const char *name = orig_name;
@@ -126,9 +130,12 @@ static const char *safe_name(struct kobject *kobj, const char *orig_name)
 		name = kasprintf(GFP_KERNEL, "%s#%i", orig_name, ++i);
 	}
 
-	if (name != orig_name)
-		pr_warn("device-tree: Duplicate name in %s, renamed to \"%s\"\n",
+	if (name == orig_name) {
+		name = kstrdup(orig_name, GFP_KERNEL);
+	} else {
+		pr_warn("Duplicate name in %s, renamed to \"%s\"\n",
 			kobject_name(kobj), name);
+	}
 	return name;
 }
 
@@ -159,6 +166,7 @@ int __of_add_property_sysfs(struct device_node *np, struct property *pp)
 int __of_attach_node_sysfs(struct device_node *np)
 {
 	const char *name;
+	struct kobject *parent;
 	struct property *pp;
 	int rc;
 
@@ -171,15 +179,16 @@ int __of_attach_node_sysfs(struct device_node *np)
 	np->kobj.kset = of_kset;
 	if (!np->parent) {
 		/* Nodes without parents are new top level trees */
-		rc = kobject_add(&np->kobj, NULL, "%s",
-				 safe_name(&of_kset->kobj, "base"));
+		name = safe_name(&of_kset->kobj, "base");
+		parent = NULL;
 	} else {
 		name = safe_name(&np->parent->kobj, kbasename(np->full_name));
-		if (!name || !name[0])
-			return -EINVAL;
-
-		rc = kobject_add(&np->kobj, &np->parent->kobj, "%s", name);
+		parent = &np->parent->kobj;
 	}
+	if (!name)
+		return -ENOMEM;
+	rc = kobject_add(&np->kobj, parent, "%s", name);
+	kfree(name);
 	if (rc)
 		return rc;
 
@@ -198,7 +207,7 @@ void __init of_core_init(void)
 	of_kset = kset_create_and_add("devicetree", NULL, firmware_kobj);
 	if (!of_kset) {
 		mutex_unlock(&of_mutex);
-		pr_err("devicetree: failed to register existing nodes\n");
+		pr_err("failed to register existing nodes\n");
 		return;
 	}
 	for_each_of_allnodes(np)
@@ -492,6 +501,28 @@ int of_device_is_compatible(const struct device_node *device,
 	return res;
 }
 EXPORT_SYMBOL(of_device_is_compatible);
+
+/** Checks if the device is compatible with any of the entries in
+ *  a NULL terminated array of strings. Returns the best match
+ *  score or 0.
+ */
+int of_device_compatible_match(struct device_node *device,
+			       const char *const *compat)
+{
+	unsigned int tmp, score = 0;
+
+	if (!compat)
+		return 0;
+
+	while (*compat) {
+		tmp = of_device_is_compatible(device, *compat);
+		if (tmp > score)
+			score = tmp;
+		compat++;
+	}
+
+	return score;
+}
 
 /**
  * of_machine_is_compatible - Test root of device tree for a given compatible value
@@ -1600,8 +1631,7 @@ static int __of_parse_phandle_with_args(const struct device_node *np,
 	 */
 
  err:
-	if (it.node)
-		of_node_put(it.node);
+	of_node_put(it.node);
 	return rc;
 }
 
@@ -1815,6 +1845,12 @@ int __of_remove_property(struct device_node *np, struct property *prop)
 	return 0;
 }
 
+void __of_sysfs_remove_bin_file(struct device_node *np, struct property *prop)
+{
+	sysfs_remove_bin_file(&np->kobj, &prop->attr);
+	kfree(prop->attr.attr.name);
+}
+
 void __of_remove_property_sysfs(struct device_node *np, struct property *prop)
 {
 	if (!IS_ENABLED(CONFIG_SYSFS))
@@ -1822,7 +1858,7 @@ void __of_remove_property_sysfs(struct device_node *np, struct property *prop)
 
 	/* at early boot, bail here and defer setup to of_init() */
 	if (of_kset && of_node_is_attached(np))
-		sysfs_remove_bin_file(&np->kobj, &prop->attr);
+		__of_sysfs_remove_bin_file(np, prop);
 }
 
 /**
@@ -1895,7 +1931,7 @@ void __of_update_property_sysfs(struct device_node *np, struct property *newprop
 		return;
 
 	if (oldprop)
-		sysfs_remove_bin_file(&np->kobj, &oldprop->attr);
+		__of_sysfs_remove_bin_file(np, oldprop);
 	__of_add_property_sysfs(np, newprop);
 }
 
@@ -2257,8 +2293,8 @@ struct device_node *of_graph_get_next_endpoint(const struct device_node *parent,
 		of_node_put(node);
 
 		if (!port) {
-			pr_err("%s(): no port node found in %s\n",
-			       __func__, parent->full_name);
+			pr_err("graph: no port node found in %s\n",
+			       parent->full_name);
 			return NULL;
 		}
 	} else {
@@ -2306,20 +2342,13 @@ struct device_node *of_graph_get_endpoint_by_regs(
 	const struct device_node *parent, int port_reg, int reg)
 {
 	struct of_endpoint endpoint;
-	struct device_node *node, *prev_node = NULL;
+	struct device_node *node = NULL;
 
-	while (1) {
-		node = of_graph_get_next_endpoint(parent, prev_node);
-		of_node_put(prev_node);
-		if (!node)
-			break;
-
+	for_each_endpoint_of_node(parent, node) {
 		of_graph_parse_endpoint(node, &endpoint);
 		if (((port_reg == -1) || (endpoint.port == port_reg)) &&
 			((reg == -1) || (endpoint.id == reg)))
 			return node;
-
-		prev_node = node;
 	}
 
 	return NULL;

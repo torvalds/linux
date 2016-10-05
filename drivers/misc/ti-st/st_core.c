@@ -141,7 +141,7 @@ static void st_send_frame(unsigned char chnl_id, struct st_data_s *st_gdata)
  * This function is being called with spin lock held, protocol drivers are
  * only expected to complete their waits and do nothing more than that.
  */
-static void st_reg_complete(struct st_data_s *st_gdata, char err)
+static void st_reg_complete(struct st_data_s *st_gdata, int err)
 {
 	unsigned char i = 0;
 	pr_info(" %s ", __func__);

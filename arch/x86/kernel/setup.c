@@ -36,7 +36,7 @@
 #include <linux/console.h>
 #include <linux/root_dev.h>
 #include <linux/highmem.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/efi.h>
 #include <linux/init.h>
 #include <linux/edd.h>
@@ -113,6 +113,7 @@
 #include <asm/prom.h>
 #include <asm/microcode.h>
 #include <asm/mmu_context.h>
+#include <asm/kaslr.h>
 
 /*
  * max_low_pfn_mapped: highest direct mapped pfn under 4GB
@@ -209,9 +210,9 @@ EXPORT_SYMBOL(boot_cpu_data);
 
 
 #if !defined(CONFIG_X86_PAE) || defined(CONFIG_X86_64)
-__visible unsigned long mmu_cr4_features;
+__visible unsigned long mmu_cr4_features __ro_after_init;
 #else
-__visible unsigned long mmu_cr4_features = X86_CR4_PAE;
+__visible unsigned long mmu_cr4_features __ro_after_init = X86_CR4_PAE;
 #endif
 
 /* Boot loader ID and version as integers, for the benefit of proc_dointvec */
@@ -399,18 +400,11 @@ static void __init reserve_initrd(void)
 	memblock_free(ramdisk_image, ramdisk_end - ramdisk_image);
 }
 
-static void __init early_initrd_acpi_init(void)
-{
-	early_acpi_table_init((void *)initrd_start, initrd_end - initrd_start);
-}
 #else
 static void __init early_reserve_initrd(void)
 {
 }
 static void __init reserve_initrd(void)
-{
-}
-static void __init early_initrd_acpi_init(void)
 {
 }
 #endif /* CONFIG_BLK_DEV_INITRD */
@@ -464,8 +458,8 @@ static void __init e820_reserve_setup_data(void)
 		early_memunmap(data, sizeof(*data));
 	}
 
-	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
-	memcpy(&e820_saved, &e820, sizeof(struct e820map));
+	sanitize_e820_map(e820->map, ARRAY_SIZE(e820->map), &e820->nr_map);
+	memcpy(e820_saved, e820, sizeof(struct e820map));
 	printk(KERN_INFO "extended physical RAM map:\n");
 	e820_print_map("reserve setup_data");
 }
@@ -769,7 +763,7 @@ static void __init trim_bios_range(void)
 	 */
 	e820_remove_range(BIOS_BEGIN, BIOS_END - BIOS_BEGIN, E820_RAM, 1);
 
-	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
+	sanitize_e820_map(e820->map, ARRAY_SIZE(e820->map), &e820->nr_map);
 }
 
 /* called before trim_bios_range() to spare extra sanitize */
@@ -1038,7 +1032,7 @@ void __init setup_arch(char **cmdline_p)
 	if (ppro_with_ram_bug()) {
 		e820_update_range(0x70000000ULL, 0x40000ULL, E820_RAM,
 				  E820_RESERVED);
-		sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
+		sanitize_e820_map(e820->map, ARRAY_SIZE(e820->map), &e820->nr_map);
 		printk(KERN_INFO "fixed physical RAM map:\n");
 		e820_print_map("bad_ppro");
 	}
@@ -1058,6 +1052,12 @@ void __init setup_arch(char **cmdline_p)
 		max_pfn = e820_end_of_ram_pfn();
 
 	max_possible_pfn = max_pfn;
+
+	/*
+	 * Define random base addresses for memory sections after max_pfn is
+	 * defined and before each memory section base is used.
+	 */
+	kernel_randomize_memory();
 
 #ifdef CONFIG_X86_32
 	/* max_low_pfn get updated here */
@@ -1096,17 +1096,19 @@ void __init setup_arch(char **cmdline_p)
 	memblock_set_current_limit(ISA_END_ADDRESS);
 	memblock_x86_fill();
 
-	if (efi_enabled(EFI_BOOT)) {
+	reserve_bios_regions();
+
+	if (efi_enabled(EFI_MEMMAP)) {
 		efi_fake_memmap();
 		efi_find_mirror();
-	}
+		efi_esrt_init();
 
-	/*
-	 * The EFI specification says that boot service code won't be called
-	 * after ExitBootServices(). This is, in fact, a lie.
-	 */
-	if (efi_enabled(EFI_MEMMAP))
+		/*
+		 * The EFI specification says that boot service code won't be
+		 * called after ExitBootServices(). This is, in fact, a lie.
+		 */
 		efi_reserve_boot_services();
+	}
 
 	/* preallocate 4k for mptable mpc */
 	early_reserve_e820_mpc_new();
@@ -1129,7 +1131,13 @@ void __init setup_arch(char **cmdline_p)
 
 	early_trap_pf_init();
 
-	setup_real_mode();
+	/*
+	 * Update mmu_cr4_features (and, indirectly, trampoline_cr4_features)
+	 * with the current CR4 value.  This may not be necessary, but
+	 * auditing all the early-boot CR4 manipulation would be needed to
+	 * rule it out.
+	 */
+	mmu_cr4_features = __read_cr4();
 
 	memblock_set_current_limit(get_max_mapped());
 
@@ -1146,7 +1154,7 @@ void __init setup_arch(char **cmdline_p)
 
 	reserve_initrd();
 
-	early_initrd_acpi_init();
+	acpi_table_upgrade();
 
 	vsmp_init();
 
@@ -1177,13 +1185,6 @@ void __init setup_arch(char **cmdline_p)
 	x86_init.paging.pagetable_init();
 
 	kasan_init();
-
-	if (boot_cpu_data.cpuid_level >= 0) {
-		/* A CPU has %cr4 if and only if it has CPUID */
-		mmu_cr4_features = __read_cr4();
-		if (trampoline_cr4_features)
-			*trampoline_cr4_features = mmu_cr4_features;
-	}
 
 #ifdef CONFIG_X86_32
 	/* sync back kernel address range */
@@ -1218,8 +1219,7 @@ void __init setup_arch(char **cmdline_p)
 	/*
 	 * get boot-time SMP configuration:
 	 */
-	if (smp_found_config)
-		get_smp_config();
+	get_smp_config();
 
 	prefill_possible_map();
 

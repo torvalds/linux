@@ -73,6 +73,8 @@ static unsigned int xprt_rdma_memreg_strategy = RPCRDMA_FRMR;
 
 static unsigned int min_slot_table_size = RPCRDMA_MIN_SLOT_TABLE;
 static unsigned int max_slot_table_size = RPCRDMA_MAX_SLOT_TABLE;
+static unsigned int min_inline_size = RPCRDMA_MIN_INLINE;
+static unsigned int max_inline_size = RPCRDMA_MAX_INLINE;
 static unsigned int zero;
 static unsigned int max_padding = PAGE_SIZE;
 static unsigned int min_memreg = RPCRDMA_BOUNCEBUFFERS;
@@ -96,6 +98,8 @@ static struct ctl_table xr_tunables_table[] = {
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
+		.extra1		= &min_inline_size,
+		.extra2		= &max_inline_size,
 	},
 	{
 		.procname	= "rdma_max_inline_write",
@@ -103,6 +107,8 @@ static struct ctl_table xr_tunables_table[] = {
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
+		.extra1		= &min_inline_size,
+		.extra2		= &max_inline_size,
 	},
 	{
 		.procname	= "rdma_inline_write_padding",
@@ -508,6 +514,7 @@ xprt_rdma_allocate(struct rpc_task *task, size_t size)
 out:
 	dprintk("RPC:       %s: size %zd, request 0x%p\n", __func__, size, req);
 	req->rl_connect_cookie = 0;	/* our reserved value */
+	req->rl_task = task;
 	return req->rl_sendbuf->rg_base;
 
 out_rdmabuf:
@@ -551,7 +558,6 @@ out_sendbuf:
 
 out_fail:
 	rpcrdma_buffer_put(req);
-	r_xprt->rx_stats.failed_marshal_count++;
 	return NULL;
 }
 
@@ -564,7 +570,6 @@ xprt_rdma_free(void *buffer)
 	struct rpcrdma_req *req;
 	struct rpcrdma_xprt *r_xprt;
 	struct rpcrdma_regbuf *rb;
-	int i;
 
 	if (buffer == NULL)
 		return;
@@ -578,17 +583,25 @@ xprt_rdma_free(void *buffer)
 
 	dprintk("RPC:       %s: called on 0x%p\n", __func__, req->rl_reply);
 
-	for (i = 0; req->rl_nchunks;) {
-		--req->rl_nchunks;
-		i += r_xprt->rx_ia.ri_ops->ro_unmap(r_xprt,
-						    &req->rl_segments[i]);
-	}
+	r_xprt->rx_ia.ri_ops->ro_unmap_safe(r_xprt, req,
+					    !RPC_IS_ASYNC(req->rl_task));
 
 	rpcrdma_buffer_put(req);
 }
 
-/*
+/**
+ * xprt_rdma_send_request - marshal and send an RPC request
+ * @task: RPC task with an RPC message in rq_snd_buf
+ *
+ * Return values:
+ *        0:	The request has been sent
+ * ENOTCONN:	Caller needs to invoke connect logic then call again
+ *  ENOBUFS:	Call again later to send the request
+ *      EIO:	A permanent error occurred. The request was not sent,
+ *		and don't try it again
+ *
  * send_request invokes the meat of RPC RDMA. It must do the following:
+ *
  *  1.  Marshal the RPC request into an RPC RDMA request, which means
  *	putting a header in front of data, and creating IOVs for RDMA
  *	from those in the request.
@@ -597,7 +610,6 @@ xprt_rdma_free(void *buffer)
  *	the request (rpcrdma_ep_post).
  *  4.  No partial sends are possible in the RPC-RDMA protocol (as in UDP).
  */
-
 static int
 xprt_rdma_send_request(struct rpc_task *task)
 {
@@ -606,6 +618,9 @@ xprt_rdma_send_request(struct rpc_task *task)
 	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 	int rc = 0;
+
+	/* On retransmit, remove any previously registered chunks */
+	r_xprt->rx_ia.ri_ops->ro_unmap_safe(r_xprt, req, false);
 
 	rc = rpcrdma_marshal_req(rqst);
 	if (rc < 0)
@@ -627,11 +642,12 @@ xprt_rdma_send_request(struct rpc_task *task)
 	return 0;
 
 failed_marshal:
-	r_xprt->rx_stats.failed_marshal_count++;
 	dprintk("RPC:       %s: rpcrdma_marshal_req failed, status %i\n",
 		__func__, rc);
 	if (rc == -EIO)
-		return -EIO;
+		r_xprt->rx_stats.failed_marshal_count++;
+	if (rc != -ENOTCONN)
+		return rc;
 drop_connection:
 	xprt_disconnect_done(xprt);
 	return -ENOTCONN;	/* implies disconnect */
@@ -657,7 +673,7 @@ void xprt_rdma_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 		   xprt->stat.bad_xids,
 		   xprt->stat.req_u,
 		   xprt->stat.bklog_u);
-	seq_printf(seq, "%lu %lu %lu %llu %llu %llu %llu %lu %lu %lu %lu\n",
+	seq_printf(seq, "%lu %lu %lu %llu %llu %llu %llu %lu %lu %lu %lu ",
 		   r_xprt->rx_stats.read_chunk_count,
 		   r_xprt->rx_stats.write_chunk_count,
 		   r_xprt->rx_stats.reply_chunk_count,
@@ -669,6 +685,10 @@ void xprt_rdma_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 		   r_xprt->rx_stats.failed_marshal_count,
 		   r_xprt->rx_stats.bad_reply_count,
 		   r_xprt->rx_stats.nomsg_call_count);
+	seq_printf(seq, "%lu %lu %lu\n",
+		   r_xprt->rx_stats.mrs_recovered,
+		   r_xprt->rx_stats.mrs_orphaned,
+		   r_xprt->rx_stats.mrs_allocated);
 }
 
 static int
@@ -707,6 +727,7 @@ static struct rpc_xprt_ops xprt_rdma_procs = {
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
 	.bc_setup		= xprt_rdma_bc_setup,
 	.bc_up			= xprt_rdma_bc_up,
+	.bc_maxpayload		= xprt_rdma_bc_maxpayload,
 	.bc_free_rqst		= xprt_rdma_bc_free_rqst,
 	.bc_destroy		= xprt_rdma_bc_destroy,
 #endif
@@ -737,7 +758,6 @@ void xprt_rdma_cleanup(void)
 			__func__, rc);
 
 	rpcrdma_destroy_wq();
-	frwr_destroy_recovery_wq();
 
 	rc = xprt_unregister_transport(&xprt_rdma_bc);
 	if (rc)
@@ -749,20 +769,13 @@ int xprt_rdma_init(void)
 {
 	int rc;
 
-	rc = frwr_alloc_recovery_wq();
+	rc = rpcrdma_alloc_wq();
 	if (rc)
 		return rc;
-
-	rc = rpcrdma_alloc_wq();
-	if (rc) {
-		frwr_destroy_recovery_wq();
-		return rc;
-	}
 
 	rc = xprt_register_transport(&xprt_rdma);
 	if (rc) {
 		rpcrdma_destroy_wq();
-		frwr_destroy_recovery_wq();
 		return rc;
 	}
 
@@ -770,7 +783,6 @@ int xprt_rdma_init(void)
 	if (rc) {
 		xprt_unregister_transport(&xprt_rdma);
 		rpcrdma_destroy_wq();
-		frwr_destroy_recovery_wq();
 		return rc;
 	}
 

@@ -59,7 +59,7 @@ static bool pcm179x_accessible_reg(struct device *dev, unsigned int reg)
 	return reg >= 0x10 && reg <= 0x17;
 }
 
-static bool pcm179x_writeable_reg(struct device *dev, unsigned register reg)
+static bool pcm179x_writeable_reg(struct device *dev, unsigned int reg)
 {
 	bool accessible;
 

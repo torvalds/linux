@@ -60,9 +60,10 @@ struct qed_mcp_link_state {
 #define QED_LINK_PARTNER_SPEED_1G_FD    BIT(1)
 #define QED_LINK_PARTNER_SPEED_10G      BIT(2)
 #define QED_LINK_PARTNER_SPEED_20G      BIT(3)
-#define QED_LINK_PARTNER_SPEED_40G      BIT(4)
-#define QED_LINK_PARTNER_SPEED_50G      BIT(5)
-#define QED_LINK_PARTNER_SPEED_100G     BIT(6)
+#define QED_LINK_PARTNER_SPEED_25G      BIT(4)
+#define QED_LINK_PARTNER_SPEED_40G      BIT(5)
+#define QED_LINK_PARTNER_SPEED_50G      BIT(6)
+#define QED_LINK_PARTNER_SPEED_100G     BIT(7)
 	u32     partner_adv_speed;
 
 	bool    partner_tx_flow_ctrl_en;
@@ -103,6 +104,47 @@ struct qed_mcp_nvm_common {
 struct qed_mcp_drv_version {
 	u32	version;
 	u8	name[MCP_DRV_VER_STR_SIZE - 4];
+};
+
+struct qed_mcp_lan_stats {
+	u64 ucast_rx_pkts;
+	u64 ucast_tx_pkts;
+	u32 fcs_err;
+};
+
+struct qed_mcp_fcoe_stats {
+	u64 rx_pkts;
+	u64 tx_pkts;
+	u32 fcs_err;
+	u32 login_failure;
+};
+
+struct qed_mcp_iscsi_stats {
+	u64 rx_pdus;
+	u64 tx_pdus;
+	u64 rx_bytes;
+	u64 tx_bytes;
+};
+
+struct qed_mcp_rdma_stats {
+	u64 rx_pkts;
+	u64 tx_pkts;
+	u64 rx_bytes;
+	u64 tx_byts;
+};
+
+enum qed_mcp_protocol_type {
+	QED_MCP_LAN_STATS,
+	QED_MCP_FCOE_STATS,
+	QED_MCP_ISCSI_STATS,
+	QED_MCP_RDMA_STATS
+};
+
+union qed_mcp_protocol_stats {
+	struct qed_mcp_lan_stats lan_stats;
+	struct qed_mcp_fcoe_stats fcoe_stats;
+	struct qed_mcp_iscsi_stats iscsi_stats;
+	struct qed_mcp_rdma_stats rdma_stats;
 };
 
 /**
@@ -426,6 +468,29 @@ int qed_mcp_reset(struct qed_hwfn *p_hwfn,
 		  struct qed_ptt *p_ptt);
 
 /**
+ * @brief - Sends an NVM read command request to the MFW to get
+ *        a buffer.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param cmd - Command: DRV_MSG_CODE_NVM_GET_FILE_DATA or
+ *            DRV_MSG_CODE_NVM_READ_NVRAM commands
+ * @param param - [0:23] - Offset [24:31] - Size
+ * @param o_mcp_resp - MCP response
+ * @param o_mcp_param - MCP response param
+ * @param o_txn_size -  Buffer size output
+ * @param o_buf - Pointer to the buffer returned by the MFW.
+ *
+ * @param return 0 upon success.
+ */
+int qed_mcp_nvm_rd_cmd(struct qed_hwfn *p_hwfn,
+		       struct qed_ptt *p_ptt,
+		       u32 cmd,
+		       u32 param,
+		       u32 *o_mcp_resp,
+		       u32 *o_mcp_param, u32 *o_txn_size, u32 *o_buf);
+
+/**
  * @brief indicates whether the MFW objects [under mcp_info] are accessible
  *
  * @param p_hwfn
@@ -447,6 +512,26 @@ bool qed_mcp_is_init(struct qed_hwfn *p_hwfn);
 int qed_mcp_config_vf_msix(struct qed_hwfn *p_hwfn,
 			   struct qed_ptt *p_ptt, u8 vf_id, u8 num);
 
+/**
+ * @brief - Halt the MCP.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ *
+ * @param return 0 upon success.
+ */
+int qed_mcp_halt(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
+/**
+ * @brief - Wake up the MCP.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ *
+ * @param return 0 upon success.
+ */
+int qed_mcp_resume(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
 int qed_configure_pf_min_bandwidth(struct qed_dev *cdev, u8 min_bw);
 int qed_configure_pf_max_bandwidth(struct qed_dev *cdev, u8 max_bw);
 int __qed_configure_pf_max_bandwidth(struct qed_hwfn *p_hwfn,
@@ -457,4 +542,8 @@ int __qed_configure_pf_min_bandwidth(struct qed_hwfn *p_hwfn,
 				     struct qed_ptt *p_ptt,
 				     struct qed_mcp_link_state *p_link,
 				     u8 min_bw);
+
+int qed_mcp_mask_parities(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u32 mask_parities);
+
 #endif

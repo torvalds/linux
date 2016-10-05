@@ -58,7 +58,7 @@ struct btrfs_ordered_sum {
 
 #define BTRFS_ORDERED_COMPRESSED 3 /* writing a zlib compressed extent */
 
-#define BTRFS_ORDERED_PREALLOC 4 /* set when writing to prealloced extent */
+#define BTRFS_ORDERED_PREALLOC 4 /* set when writing to preallocated extent */
 
 #define BTRFS_ORDERED_DIRECT 5 /* set when we're doing DIO with this extent */
 
@@ -199,7 +199,7 @@ int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u64 disk_bytenr,
 			   u32 *sum, int len);
 int btrfs_wait_ordered_extents(struct btrfs_root *root, int nr,
 			       const u64 range_start, const u64 range_len);
-void btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, int nr,
+int btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, int nr,
 			      const u64 range_start, const u64 range_len);
 void btrfs_get_logged_extents(struct inode *inode,
 			      struct list_head *logged_list,

@@ -228,7 +228,7 @@ check_XRC (struct ccw1         *de_ccw,
 	data->ga_extended |= 0x08; /* switch on 'Time Stamp Valid'   */
 	data->ga_extended |= 0x02; /* switch on 'Extended Parameter' */
 
-	rc = get_sync_clock(&data->ep_sys_time);
+	rc = get_phys_clock(&data->ep_sys_time);
 	/* Ignore return code if sync clock is switched off. */
 	if (rc == -EOPNOTSUPP || rc == -EACCES)
 		rc = 0;
@@ -339,7 +339,7 @@ static int check_XRC_on_prefix(struct PFX_eckd_data *pfxdata,
 	pfxdata->define_extent.ga_extended |= 0x02; /* 'Extended Parameter' */
 	pfxdata->validity.time_stamp = 1;	    /* 'Time Stamp Valid'   */
 
-	rc = get_sync_clock(&pfxdata->define_extent.ep_sys_time);
+	rc = get_phys_clock(&pfxdata->define_extent.ep_sys_time);
 	/* Ignore return code if sync clock is switched off. */
 	if (rc == -EOPNOTSUPP || rc == -EACCES)
 		rc = 0;
@@ -5078,6 +5078,8 @@ static int dasd_eckd_read_message_buffer(struct dasd_device *device,
 		return PTR_ERR(cqr);
 	}
 
+	cqr->lpm = lpum;
+retry:
 	cqr->startdev = device;
 	cqr->memdev = device;
 	cqr->block = NULL;
@@ -5122,6 +5124,14 @@ static int dasd_eckd_read_message_buffer(struct dasd_device *device,
 			(prssdp + 1);
 		memcpy(messages, message_buf,
 		       sizeof(struct dasd_rssd_messages));
+	} else if (cqr->lpm) {
+		/*
+		 * on z/VM we might not be able to do I/O on the requested path
+		 * but instead we get the required information on any path
+		 * so retry with open path mask
+		 */
+		cqr->lpm = 0;
+		goto retry;
 	} else
 		DBF_EVENT_DEVID(DBF_WARNING, device->cdev,
 				"Reading messages failed with rc=%d\n"
@@ -5191,7 +5201,7 @@ static int dasd_eckd_query_host_access(struct dasd_device *device,
 
 	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
-	rc = dasd_sleep_on(cqr);
+	rc = dasd_sleep_on_interruptible(cqr);
 	if (rc == 0) {
 		*data = *host_access;
 	} else {

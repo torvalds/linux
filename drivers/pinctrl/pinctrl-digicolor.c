@@ -15,7 +15,7 @@
  * - Pin pad configuration (pull up/down, strength)
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -335,27 +335,17 @@ static int dc_pinctrl_probe(struct platform_device *pdev)
 	return dc_gpiochip_add(pmap, pdev->dev.of_node);
 }
 
-static int dc_pinctrl_remove(struct platform_device *pdev)
-{
-	struct dc_pinmap *pmap = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&pmap->chip);
-
-	return 0;
-}
-
 static const struct of_device_id dc_pinctrl_ids[] = {
 	{ .compatible = "cnxt,cx92755-pinctrl" },
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, dc_pinctrl_ids);
 
 static struct platform_driver dc_pinctrl_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = dc_pinctrl_ids,
+		.suppress_bind_attrs = true,
 	},
 	.probe = dc_pinctrl_probe,
-	.remove = dc_pinctrl_remove,
 };
-module_platform_driver(dc_pinctrl_driver);
+builtin_platform_driver(dc_pinctrl_driver);

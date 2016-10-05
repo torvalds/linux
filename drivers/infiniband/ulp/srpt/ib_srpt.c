@@ -254,8 +254,8 @@ static void srpt_get_class_port_info(struct ib_dm_mad *mad)
 	memset(cif, 0, sizeof(*cif));
 	cif->base_version = 1;
 	cif->class_version = 1;
-	cif->resp_time_value = 20;
 
+	ib_set_cpi_resp_time(cif, 20);
 	mad->mad_hdr.status = 0;
 }
 
@@ -521,6 +521,11 @@ static int srpt_refresh_port(struct srpt_port *sport)
 			   NULL);
 	if (ret)
 		goto err_query_port;
+
+	snprintf(sport->port_guid, sizeof(sport->port_guid),
+		"0x%016llx%016llx",
+		be64_to_cpu(sport->gid.global.subnet_prefix),
+		be64_to_cpu(sport->gid.global.interface_id));
 
 	if (!sport->mad_agent) {
 		memset(&reg_req, 0, sizeof(reg_req));
@@ -1601,6 +1606,7 @@ static int srpt_create_ch_ib(struct srpt_rdma_ch *ch)
 	struct ib_qp_init_attr *qp_init;
 	struct srpt_port *sport = ch->sport;
 	struct srpt_device *sdev = sport->sdev;
+	const struct ib_device_attr *attrs = &sdev->device->attrs;
 	u32 srp_sq_size = sport->port_attrib.srp_sq_size;
 	int ret;
 
@@ -1638,8 +1644,7 @@ retry:
 	 */
 	qp_init->cap.max_send_wr = srp_sq_size / 2;
 	qp_init->cap.max_rdma_ctxs = srp_sq_size / 2;
-	qp_init->cap.max_send_sge = max(sdev->device->attrs.max_sge_rd,
-					sdev->device->attrs.max_sge);
+	qp_init->cap.max_send_sge = min(attrs->max_sge, SRPT_MAX_SG_PER_WQE);
 	qp_init->port_num = ch->sport->port;
 
 	ch->qp = ib_create_qp(sdev->pd, qp_init);
@@ -1765,14 +1770,6 @@ static void __srpt_close_all_ch(struct srpt_device *sdev)
 				sdev->device->name);
 		srpt_close_ch(ch);
 	}
-}
-
-/**
- * srpt_shutdown_session() - Whether or not a session may be shut down.
- */
-static int srpt_shutdown_session(struct se_session *se_sess)
-{
-	return 1;
 }
 
 static void srpt_free_ch(struct kref *kref)
@@ -2270,7 +2267,7 @@ static void srpt_queue_response(struct se_cmd *cmd)
 		container_of(cmd, struct srpt_send_ioctx, cmd);
 	struct srpt_rdma_ch *ch = ioctx->ch;
 	struct srpt_device *sdev = ch->sport->sdev;
-	struct ib_send_wr send_wr, *first_wr = NULL, *bad_wr;
+	struct ib_send_wr send_wr, *first_wr = &send_wr, *bad_wr;
 	struct ib_sge sge;
 	enum srpt_command_state state;
 	unsigned long flags;
@@ -2311,11 +2308,8 @@ static void srpt_queue_response(struct se_cmd *cmd)
 			struct srpt_rw_ctx *ctx = &ioctx->rw_ctxs[i];
 
 			first_wr = rdma_rw_ctx_wrs(&ctx->rw, ch->qp,
-					ch->sport->port, NULL,
-					first_wr ? first_wr : &send_wr);
+					ch->sport->port, NULL, first_wr);
 		}
-	} else {
-		first_wr = &send_wr;
 	}
 
 	if (state != SRPT_STATE_MGMT)
@@ -2559,10 +2553,6 @@ static void srpt_add_one(struct ib_device *device)
 			       sdev->device->name, i);
 			goto err_ring;
 		}
-		snprintf(sport->port_guid, sizeof(sport->port_guid),
-			"0x%016llx%016llx",
-			be64_to_cpu(sport->gid.global.subnet_prefix),
-			be64_to_cpu(sport->gid.global.interface_id));
 	}
 
 	spin_lock(&srpt_dev_lock);
@@ -3064,7 +3054,6 @@ static const struct target_core_fabric_ops srpt_template = {
 	.tpg_get_inst_index		= srpt_tpg_get_inst_index,
 	.release_cmd			= srpt_release_cmd,
 	.check_stop_free		= srpt_check_stop_free,
-	.shutdown_session		= srpt_shutdown_session,
 	.close_session			= srpt_close_session,
 	.sess_get_index			= srpt_sess_get_index,
 	.sess_get_initiator_sid		= NULL,

@@ -184,9 +184,6 @@ static void dump_tlb_book3e(void);
 
 static int xmon_no_auto_backtrace;
 
-extern void xmon_enter(void);
-extern void xmon_leave(void);
-
 #ifdef CONFIG_PPC64
 #define REG		"%.16lx"
 #else
@@ -1685,9 +1682,78 @@ write_spr(int n, unsigned long val)
 	catch_spr_faults = 0;
 }
 
-static unsigned long regno;
-extern char exc_prolog;
-extern char dec_exc;
+static void dump_206_sprs(void)
+{
+#ifdef CONFIG_PPC64
+	if (!cpu_has_feature(CPU_FTR_ARCH_206))
+		return;
+
+	/* Actually some of these pre-date 2.06, but whatevs */
+
+	printf("srr0   = %.16x  srr1  = %.16x dsisr  = %.8x\n",
+		mfspr(SPRN_SRR0), mfspr(SPRN_SRR1), mfspr(SPRN_DSISR));
+	printf("dscr   = %.16x  ppr   = %.16x pir    = %.8x\n",
+		mfspr(SPRN_DSCR), mfspr(SPRN_PPR), mfspr(SPRN_PIR));
+
+	if (!(mfmsr() & MSR_HV))
+		return;
+
+	printf("sdr1   = %.16x  hdar  = %.16x hdsisr = %.8x\n",
+		mfspr(SPRN_SDR1), mfspr(SPRN_HDAR), mfspr(SPRN_HDSISR));
+	printf("hsrr0  = %.16x hsrr1  = %.16x hdec = %.8x\n",
+		mfspr(SPRN_HSRR0), mfspr(SPRN_HSRR1), mfspr(SPRN_HDEC));
+	printf("lpcr   = %.16x  pcr   = %.16x lpidr = %.8x\n",
+		mfspr(SPRN_LPCR), mfspr(SPRN_PCR), mfspr(SPRN_LPID));
+	printf("hsprg0 = %.16x hsprg1 = %.16x\n",
+		mfspr(SPRN_HSPRG0), mfspr(SPRN_HSPRG1));
+	printf("dabr   = %.16x dabrx  = %.16x\n",
+		mfspr(SPRN_DABR), mfspr(SPRN_DABRX));
+#endif
+}
+
+static void dump_207_sprs(void)
+{
+#ifdef CONFIG_PPC64
+	unsigned long msr;
+
+	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
+		return;
+
+	printf("dpdes  = %.16x  tir   = %.16x cir    = %.8x\n",
+		mfspr(SPRN_DPDES), mfspr(SPRN_TIR), mfspr(SPRN_CIR));
+
+	printf("fscr   = %.16x  tar   = %.16x pspb   = %.8x\n",
+		mfspr(SPRN_FSCR), mfspr(SPRN_TAR), mfspr(SPRN_PSPB));
+
+	msr = mfmsr();
+	if (msr & MSR_TM) {
+		/* Only if TM has been enabled in the kernel */
+		printf("tfhar  = %.16x  tfiar = %.16x texasr = %.16x\n",
+			mfspr(SPRN_TFHAR), mfspr(SPRN_TFIAR),
+			mfspr(SPRN_TEXASR));
+	}
+
+	printf("mmcr0  = %.16x  mmcr1 = %.16x mmcr2  = %.16x\n",
+		mfspr(SPRN_MMCR0), mfspr(SPRN_MMCR1), mfspr(SPRN_MMCR2));
+	printf("pmc1   = %.8x pmc2 = %.8x  pmc3 = %.8x  pmc4   = %.8x\n",
+		mfspr(SPRN_PMC1), mfspr(SPRN_PMC2),
+		mfspr(SPRN_PMC3), mfspr(SPRN_PMC4));
+	printf("mmcra  = %.16x   siar = %.16x pmc5   = %.8x\n",
+		mfspr(SPRN_MMCRA), mfspr(SPRN_SIAR), mfspr(SPRN_PMC5));
+	printf("sdar   = %.16x   sier = %.16x pmc6   = %.8x\n",
+		mfspr(SPRN_SDAR), mfspr(SPRN_SIER), mfspr(SPRN_PMC6));
+	printf("ebbhr  = %.16x  ebbrr = %.16x bescr  = %.16x\n",
+		mfspr(SPRN_EBBHR), mfspr(SPRN_EBBRR), mfspr(SPRN_BESCR));
+
+	if (!(msr & MSR_HV))
+		return;
+
+	printf("hfscr  = %.16x  dhdes = %.16x rpr    = %.16x\n",
+		mfspr(SPRN_HFSCR), mfspr(SPRN_DHDES), mfspr(SPRN_RPR));
+	printf("dawr   = %.16x  dawrx = %.16x ciabr  = %.16x\n",
+		mfspr(SPRN_DAWR), mfspr(SPRN_DAWRX), mfspr(SPRN_CIABR));
+#endif
+}
 
 static void dump_one_spr(int spr, bool show_unimplemented)
 {
@@ -1719,6 +1785,7 @@ static void dump_one_spr(int spr, bool show_unimplemented)
 
 static void super_regs(void)
 {
+	static unsigned long regno;
 	int cmd;
 	int spr;
 
@@ -1730,14 +1797,18 @@ static void super_regs(void)
 		asm("mr %0,1" : "=r" (sp) :);
 		asm("mr %0,2" : "=r" (toc) :);
 
-		printf("msr  = "REG"  sprg0= "REG"\n",
+		printf("msr    = "REG"  sprg0 = "REG"\n",
 		       mfmsr(), mfspr(SPRN_SPRG0));
-		printf("pvr  = "REG"  sprg1= "REG"\n",
+		printf("pvr    = "REG"  sprg1 = "REG"\n",
 		       mfspr(SPRN_PVR), mfspr(SPRN_SPRG1));
-		printf("dec  = "REG"  sprg2= "REG"\n",
+		printf("dec    = "REG"  sprg2 = "REG"\n",
 		       mfspr(SPRN_DEC), mfspr(SPRN_SPRG2));
-		printf("sp   = "REG"  sprg3= "REG"\n", sp, mfspr(SPRN_SPRG3));
-		printf("toc  = "REG"  dar  = "REG"\n", toc, mfspr(SPRN_DAR));
+		printf("sp     = "REG"  sprg3 = "REG"\n", sp, mfspr(SPRN_SPRG3));
+		printf("toc    = "REG"  dar   = "REG"\n", toc, mfspr(SPRN_DAR));
+
+		dump_206_sprs();
+		dump_207_sprs();
+
 		return;
 	}
 	case 'w': {
@@ -2213,13 +2284,13 @@ static void dump_one_paca(int cpu)
 	DUMP(p, subcore_sibling_mask, "x");
 #endif
 
-	DUMP(p, user_time, "llx");
-	DUMP(p, system_time, "llx");
-	DUMP(p, user_time_scaled, "llx");
-	DUMP(p, starttime, "llx");
-	DUMP(p, starttime_user, "llx");
-	DUMP(p, startspurr, "llx");
-	DUMP(p, utime_sspurr, "llx");
+	DUMP(p, accounting.user_time, "llx");
+	DUMP(p, accounting.system_time, "llx");
+	DUMP(p, accounting.user_time_scaled, "llx");
+	DUMP(p, accounting.starttime, "llx");
+	DUMP(p, accounting.starttime_user, "llx");
+	DUMP(p, accounting.startspurr, "llx");
+	DUMP(p, accounting.utime_sspurr, "llx");
 	DUMP(p, stolen_time, "llx");
 #undef DUMP
 

@@ -80,22 +80,20 @@
 #define APM_CPU_PART_POTENZA		0x000
 
 #define CAVIUM_CPU_PART_THUNDERX	0x0A1
+#define CAVIUM_CPU_PART_THUNDERX_81XX	0x0A2
 
 #define BRCM_CPU_PART_VULCAN		0x516
 
 #define MIDR_CORTEX_A53 MIDR_CPU_MODEL(ARM_CPU_IMP_ARM, ARM_CPU_PART_CORTEX_A53)
 #define MIDR_CORTEX_A57 MIDR_CPU_MODEL(ARM_CPU_IMP_ARM, ARM_CPU_PART_CORTEX_A57)
 #define MIDR_THUNDERX	MIDR_CPU_MODEL(ARM_CPU_IMP_CAVIUM, CAVIUM_CPU_PART_THUNDERX)
+#define MIDR_THUNDERX_81XX MIDR_CPU_MODEL(ARM_CPU_IMP_CAVIUM, CAVIUM_CPU_PART_THUNDERX_81XX)
 
 #ifndef __ASSEMBLY__
 
 #include <asm/sysreg.h>
 
-#define read_cpuid(reg) ({						\
-	u64 __val;							\
-	asm("mrs_s	%0, " __stringify(SYS_ ## reg) : "=r" (__val));	\
-	__val;								\
-})
+#define read_cpuid(reg)			read_sysreg_s(SYS_ ## reg)
 
 /*
  * The CPU ID never changes at run time, so we might as well tell the

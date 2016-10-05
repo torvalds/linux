@@ -30,12 +30,71 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_core.h>
+#include <drm/drm_auth.h>
 #include "drm_legacy.h"
 #include "drm_internal.h"
 #include "drm_crtc_internal.h"
 
 #include <linux/pci.h>
 #include <linux/export.h>
+
+/**
+ * DOC: getunique and setversion story
+ *
+ * BEWARE THE DRAGONS! MIND THE TRAPDOORS!
+ *
+ * In an attempt to warn anyone else who's trying to figure out what's going
+ * on here, I'll try to summarize the story. First things first, let's clear up
+ * the names, because the kernel internals, libdrm and the ioctls are all named
+ * differently:
+ *
+ *  - GET_UNIQUE ioctl, implemented by drm_getunique is wrapped up in libdrm
+ *    through the drmGetBusid function.
+ *  - The libdrm drmSetBusid function is backed by the SET_UNIQUE ioctl. All
+ *    that code is nerved in the kernel with drm_invalid_op().
+ *  - The internal set_busid kernel functions and driver callbacks are
+ *    exclusively use by the SET_VERSION ioctl, because only drm 1.0 (which is
+ *    nerved) allowed userspace to set the busid through the above ioctl.
+ *  - Other ioctls and functions involved are named consistently.
+ *
+ * For anyone wondering what's the difference between drm 1.1 and 1.4: Correctly
+ * handling pci domains in the busid on ppc. Doing this correctly was only
+ * implemented in libdrm in 2010, hence can't be nerved yet. No one knows what's
+ * special with drm 1.2 and 1.3.
+ *
+ * Now the actual horror story of how device lookup in drm works. At large,
+ * there's 2 different ways, either by busid, or by device driver name.
+ *
+ * Opening by busid is fairly simple:
+ *
+ * 1. First call SET_VERSION to make sure pci domains are handled properly. As a
+ *    side-effect this fills out the unique name in the master structure.
+ * 2. Call GET_UNIQUE to read out the unique name from the master structure,
+ *    which matches the busid thanks to step 1. If it doesn't, proceed to try
+ *    the next device node.
+ *
+ * Opening by name is slightly different:
+ *
+ * 1. Directly call VERSION to get the version and to match against the driver
+ *    name returned by that ioctl. Note that SET_VERSION is not called, which
+ *    means the the unique name for the master node just opening is _not_ filled
+ *    out. This despite that with current drm device nodes are always bound to
+ *    one device, and can't be runtime assigned like with drm 1.0.
+ * 2. Match driver name. If it mismatches, proceed to the next device node.
+ * 3. Call GET_UNIQUE, and check whether the unique name has length zero (by
+ *    checking that the first byte in the string is 0). If that's not the case
+ *    libdrm skips and proceeds to the next device node. Probably this is just
+ *    copypasta from drm 1.0 times where a set unique name meant that the driver
+ *    was in use already, but that's just conjecture.
+ *
+ * Long story short: To keep the open by name logic working, GET_UNIQUE must
+ * _not_ return a unique string when SET_VERSION hasn't been called yet,
+ * otherwise libdrm breaks. Even when that unique string can't ever change, and
+ * is totally irrelevant for actually opening the device because runtime
+ * assignable device instances were only support in drm 1.0, which is long dead.
+ * But the libdrm code in drmOpenByName somehow survived, hence this can't be
+ * broken.
+ */
 
 static int drm_version(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
@@ -75,51 +134,6 @@ drm_unset_busid(struct drm_device *dev,
 	master->unique_len = 0;
 }
 
-/*
- * Set the bus id.
- *
- * \param inode device inode.
- * \param file_priv DRM file private.
- * \param cmd command.
- * \param arg user argument, pointing to a drm_unique structure.
- * \return zero on success or a negative number on failure.
- *
- * Copies the bus id from userspace into drm_device::unique, and verifies that
- * it matches the device this DRM is attached to (EINVAL otherwise).  Deprecated
- * in interface version 1.1 and will return EBUSY when setversion has requested
- * version 1.1 or greater. Also note that KMS is all version 1.1 and later and
- * UMS was only ever supported on pci devices.
- */
-static int drm_setunique(struct drm_device *dev, void *data,
-		  struct drm_file *file_priv)
-{
-	struct drm_unique *u = data;
-	struct drm_master *master = file_priv->master;
-	int ret;
-
-	if (master->unique_len || master->unique)
-		return -EBUSY;
-
-	if (!u->unique_len || u->unique_len > 1024)
-		return -EINVAL;
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		return 0;
-
-	if (WARN_ON(!dev->pdev))
-		return -EINVAL;
-
-	ret = drm_pci_set_unique(dev, master, u);
-	if (ret)
-		goto err;
-
-	return 0;
-
-err:
-	drm_unset_busid(dev, master);
-	return ret;
-}
-
 static int drm_set_busid(struct drm_device *dev, struct drm_file *file_priv)
 {
 	struct drm_master *master = file_priv->master;
@@ -135,68 +149,11 @@ static int drm_set_busid(struct drm_device *dev, struct drm_file *file_priv)
 			return ret;
 		}
 	} else {
-		if (WARN(dev->unique == NULL,
-			 "No drm_driver.set_busid() implementation provided by "
-			 "%ps. Use drm_dev_set_unique() to set the unique "
-			 "name explicitly.", dev->driver))
-			return -EINVAL;
-
+		WARN_ON(!dev->unique);
 		master->unique = kstrdup(dev->unique, GFP_KERNEL);
 		if (master->unique)
 			master->unique_len = strlen(dev->unique);
 	}
-
-	return 0;
-}
-
-/*
- * Get a mapping information.
- *
- * \param inode device inode.
- * \param file_priv DRM file private.
- * \param cmd command.
- * \param arg user argument, pointing to a drm_map structure.
- *
- * \return zero on success or a negative number on failure.
- *
- * Searches for the mapping with the specified offset and copies its information
- * into userspace
- */
-static int drm_getmap(struct drm_device *dev, void *data,
-	       struct drm_file *file_priv)
-{
-	struct drm_map *map = data;
-	struct drm_map_list *r_list = NULL;
-	struct list_head *list;
-	int idx;
-	int i;
-
-	idx = map->offset;
-	if (idx < 0)
-		return -EINVAL;
-
-	i = 0;
-	mutex_lock(&dev->struct_mutex);
-	list_for_each(list, &dev->maplist) {
-		if (i == idx) {
-			r_list = list_entry(list, struct drm_map_list, head);
-			break;
-		}
-		i++;
-	}
-	if (!r_list || !r_list->map) {
-		mutex_unlock(&dev->struct_mutex);
-		return -EINVAL;
-	}
-
-	map->offset = r_list->map->offset;
-	map->size = r_list->map->size;
-	map->type = r_list->map->type;
-	map->flags = r_list->map->flags;
-	map->handle = (void *)(unsigned long) r_list->user_token;
-	map->mtrr = arch_phys_wc_index(r_list->map->mtrr);
-
-	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -525,7 +482,8 @@ int drm_ioctl_permit(u32 flags, struct drm_file *file_priv)
 		return -EACCES;
 
 	/* MASTER is only for master or control clients */
-	if (unlikely((flags & DRM_MASTER) && !file_priv->is_master &&
+	if (unlikely((flags & DRM_MASTER) && 
+		     !drm_is_current_master(file_priv) &&
 		     !drm_is_control_client(file_priv)))
 		return -EACCES;
 
@@ -556,19 +514,19 @@ static const struct drm_ioctl_desc drm_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_IOCTL_VERSION, drm_version,
 		      DRM_UNLOCKED|DRM_RENDER_ALLOW|DRM_CONTROL_ALLOW),
 	DRM_IOCTL_DEF(DRM_IOCTL_GET_UNIQUE, drm_getunique, 0),
-	DRM_IOCTL_DEF(DRM_IOCTL_GET_MAGIC, drm_getmagic, 0),
+	DRM_IOCTL_DEF(DRM_IOCTL_GET_MAGIC, drm_getmagic, DRM_UNLOCKED),
 	DRM_IOCTL_DEF(DRM_IOCTL_IRQ_BUSID, drm_irq_by_busid, DRM_MASTER|DRM_ROOT_ONLY),
-	DRM_IOCTL_DEF(DRM_IOCTL_GET_MAP, drm_getmap, DRM_UNLOCKED),
+	DRM_IOCTL_DEF(DRM_IOCTL_GET_MAP, drm_legacy_getmap_ioctl, DRM_UNLOCKED),
 	DRM_IOCTL_DEF(DRM_IOCTL_GET_CLIENT, drm_getclient, DRM_UNLOCKED),
 	DRM_IOCTL_DEF(DRM_IOCTL_GET_STATS, drm_getstats, DRM_UNLOCKED),
 	DRM_IOCTL_DEF(DRM_IOCTL_GET_CAP, drm_getcap, DRM_UNLOCKED|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF(DRM_IOCTL_SET_CLIENT_CAP, drm_setclientcap, 0),
 	DRM_IOCTL_DEF(DRM_IOCTL_SET_VERSION, drm_setversion, DRM_MASTER),
 
-	DRM_IOCTL_DEF(DRM_IOCTL_SET_UNIQUE, drm_setunique, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF(DRM_IOCTL_SET_UNIQUE, drm_invalid_op, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_IOCTL_BLOCK, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_IOCTL_UNBLOCK, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
-	DRM_IOCTL_DEF(DRM_IOCTL_AUTH_MAGIC, drm_authmagic, DRM_AUTH|DRM_MASTER),
+	DRM_IOCTL_DEF(DRM_IOCTL_AUTH_MAGIC, drm_authmagic, DRM_AUTH|DRM_UNLOCKED|DRM_MASTER),
 
 	DRM_IOCTL_DEF(DRM_IOCTL_ADD_MAP, drm_legacy_addmap_ioctl, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_IOCTL_RM_MAP, drm_legacy_rmmap_ioctl, DRM_AUTH),
@@ -576,8 +534,8 @@ static const struct drm_ioctl_desc drm_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_IOCTL_SET_SAREA_CTX, drm_legacy_setsareactx, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_IOCTL_GET_SAREA_CTX, drm_legacy_getsareactx, DRM_AUTH),
 
-	DRM_IOCTL_DEF(DRM_IOCTL_SET_MASTER, drm_setmaster_ioctl, DRM_ROOT_ONLY),
-	DRM_IOCTL_DEF(DRM_IOCTL_DROP_MASTER, drm_dropmaster_ioctl, DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF(DRM_IOCTL_SET_MASTER, drm_setmaster_ioctl, DRM_UNLOCKED|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF(DRM_IOCTL_DROP_MASTER, drm_dropmaster_ioctl, DRM_UNLOCKED|DRM_ROOT_ONLY),
 
 	DRM_IOCTL_DEF(DRM_IOCTL_ADD_CTX, drm_legacy_addctx, DRM_AUTH|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_IOCTL_RM_CTX, drm_legacy_rmctx, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
@@ -690,7 +648,7 @@ long drm_ioctl(struct file *filp,
 	int retcode = -EINVAL;
 	char stack_kdata[128];
 	char *kdata = NULL;
-	unsigned int usize, asize, drv_size;
+	unsigned int in_size, out_size, drv_size, ksize;
 	bool is_driver_ioctl;
 
 	dev = file_priv->minor->dev;
@@ -713,9 +671,12 @@ long drm_ioctl(struct file *filp,
 	}
 
 	drv_size = _IOC_SIZE(ioctl->cmd);
-	usize = _IOC_SIZE(cmd);
-	asize = max(usize, drv_size);
-	cmd = ioctl->cmd;
+	out_size = in_size = _IOC_SIZE(cmd);
+	if ((cmd & ioctl->cmd & IOC_IN) == 0)
+		in_size = 0;
+	if ((cmd & ioctl->cmd & IOC_OUT) == 0)
+		out_size = 0;
+	ksize = max(max(in_size, out_size), drv_size);
 
 	DRM_DEBUG("pid=%d, dev=0x%lx, auth=%d, %s\n",
 		  task_pid_nr(current),
@@ -735,29 +696,23 @@ long drm_ioctl(struct file *filp,
 	if (unlikely(retcode))
 		goto err_i1;
 
-	if (cmd & (IOC_IN | IOC_OUT)) {
-		if (asize <= sizeof(stack_kdata)) {
-			kdata = stack_kdata;
-		} else {
-			kdata = kmalloc(asize, GFP_KERNEL);
-			if (!kdata) {
-				retcode = -ENOMEM;
-				goto err_i1;
-			}
-		}
-		if (asize > usize)
-			memset(kdata + usize, 0, asize - usize);
-	}
-
-	if (cmd & IOC_IN) {
-		if (copy_from_user(kdata, (void __user *)arg,
-				   usize) != 0) {
-			retcode = -EFAULT;
+	if (ksize <= sizeof(stack_kdata)) {
+		kdata = stack_kdata;
+	} else {
+		kdata = kmalloc(ksize, GFP_KERNEL);
+		if (!kdata) {
+			retcode = -ENOMEM;
 			goto err_i1;
 		}
-	} else if (cmd & IOC_OUT) {
-		memset(kdata, 0, usize);
 	}
+
+	if (copy_from_user(kdata, (void __user *)arg, in_size) != 0) {
+		retcode = -EFAULT;
+		goto err_i1;
+	}
+
+	if (ksize > in_size)
+		memset(kdata + in_size, 0, ksize - in_size);
 
 	/* Enforce sane locking for kms driver ioctls. Core ioctls are
 	 * too messy still. */
@@ -770,11 +725,8 @@ long drm_ioctl(struct file *filp,
 		mutex_unlock(&drm_global_mutex);
 	}
 
-	if (cmd & IOC_OUT) {
-		if (copy_to_user((void __user *)arg, kdata,
-				 usize) != 0)
-			retcode = -EFAULT;
-	}
+	if (copy_to_user((void __user *)arg, kdata, out_size) != 0)
+		retcode = -EFAULT;
 
       err_i1:
 	if (!ioctl)
@@ -801,7 +753,7 @@ EXPORT_SYMBOL(drm_ioctl);
  * shouldn't be used by any drivers.
  *
  * Returns:
- * True if the @nr corresponds to a DRM core ioctl numer, false otherwise.
+ * True if the @nr corresponds to a DRM core ioctl number, false otherwise.
  */
 bool drm_ioctl_flags(unsigned int nr, unsigned int *flags)
 {

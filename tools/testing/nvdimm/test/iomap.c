@@ -10,11 +10,13 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  */
+#include <linux/memremap.h>
 #include <linux/rculist.h>
 #include <linux/export.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/pfn_t.h>
 #include <linux/io.h>
 #include <linux/mm.h>
 #include "nfit_test.h"
@@ -52,7 +54,7 @@ static struct nfit_test_resource *__get_nfit_res(resource_size_t resource)
 	return NULL;
 }
 
-static struct nfit_test_resource *get_nfit_res(resource_size_t resource)
+struct nfit_test_resource *get_nfit_res(resource_size_t resource)
 {
 	struct nfit_test_resource *res;
 
@@ -62,6 +64,7 @@ static struct nfit_test_resource *get_nfit_res(resource_size_t resource)
 
 	return res;
 }
+EXPORT_SYMBOL(get_nfit_res);
 
 void __iomem *__nfit_test_ioremap(resource_size_t offset, unsigned long size,
 		void __iomem *(*fallback_fn)(resource_size_t, unsigned long))
@@ -97,10 +100,6 @@ void *__wrap_devm_memremap(struct device *dev, resource_size_t offset,
 }
 EXPORT_SYMBOL(__wrap_devm_memremap);
 
-#ifdef __HAVE_ARCH_PTE_DEVMAP
-#include <linux/memremap.h>
-#include <linux/pfn_t.h>
-
 void *__wrap_devm_memremap_pages(struct device *dev, struct resource *res,
 		struct percpu_ref *ref, struct vmem_altmap *altmap)
 {
@@ -122,19 +121,6 @@ pfn_t __wrap_phys_to_pfn_t(phys_addr_t addr, unsigned long flags)
         return phys_to_pfn_t(addr, flags);
 }
 EXPORT_SYMBOL(__wrap_phys_to_pfn_t);
-#else
-/* to be removed post 4.5-rc1 */
-void *__wrap_devm_memremap_pages(struct device *dev, struct resource *res)
-{
-	resource_size_t offset = res->start;
-	struct nfit_test_resource *nfit_res = get_nfit_res(offset);
-
-	if (nfit_res)
-		return nfit_res->buf + offset - nfit_res->res->start;
-	return devm_memremap_pages(dev, res);
-}
-EXPORT_SYMBOL(__wrap_devm_memremap_pages);
-#endif
 
 void *__wrap_memremap(resource_size_t offset, size_t size,
 		unsigned long flags)
@@ -229,6 +215,22 @@ struct resource *__wrap___request_region(struct resource *parent,
 }
 EXPORT_SYMBOL(__wrap___request_region);
 
+int __wrap_insert_resource(struct resource *parent, struct resource *res)
+{
+	if (get_nfit_res(res->start))
+		return 0;
+	return insert_resource(parent, res);
+}
+EXPORT_SYMBOL(__wrap_insert_resource);
+
+int __wrap_remove_resource(struct resource *res)
+{
+	if (get_nfit_res(res->start))
+		return 0;
+	return remove_resource(res);
+}
+EXPORT_SYMBOL(__wrap_remove_resource);
+
 struct resource *__wrap___devm_request_region(struct device *dev,
 		struct resource *parent, resource_size_t start,
 		resource_size_t n, const char *name)
@@ -239,13 +241,11 @@ struct resource *__wrap___devm_request_region(struct device *dev,
 }
 EXPORT_SYMBOL(__wrap___devm_request_region);
 
-void __wrap___release_region(struct resource *parent, resource_size_t start,
-				resource_size_t n)
+static bool nfit_test_release_region(struct resource *parent,
+		resource_size_t start, resource_size_t n)
 {
-	struct nfit_test_resource *nfit_res;
-
 	if (parent == &iomem_resource) {
-		nfit_res = get_nfit_res(start);
+		struct nfit_test_resource *nfit_res = get_nfit_res(start);
 		if (nfit_res) {
 			struct resource *res = nfit_res->res + 1;
 
@@ -254,11 +254,26 @@ void __wrap___release_region(struct resource *parent, resource_size_t start,
 						__func__, start, n, res);
 			else
 				memset(res, 0, sizeof(*res));
-			return;
+			return true;
 		}
 	}
-	__release_region(parent, start, n);
+	return false;
+}
+
+void __wrap___release_region(struct resource *parent, resource_size_t start,
+		resource_size_t n)
+{
+	if (!nfit_test_release_region(parent, start, n))
+		__release_region(parent, start, n);
 }
 EXPORT_SYMBOL(__wrap___release_region);
+
+void __wrap___devm_release_region(struct device *dev, struct resource *parent,
+		resource_size_t start, resource_size_t n)
+{
+	if (!nfit_test_release_region(parent, start, n))
+		__devm_release_region(dev, parent, start, n);
+}
+EXPORT_SYMBOL(__wrap___devm_release_region);
 
 MODULE_LICENSE("GPL v2");

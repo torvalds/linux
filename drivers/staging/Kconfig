@@ -66,8 +66,6 @@ source "drivers/staging/nvec/Kconfig"
 
 source "drivers/staging/media/Kconfig"
 
-source "drivers/staging/rdma/Kconfig"
-
 source "drivers/staging/android/Kconfig"
 
 source "drivers/staging/board/Kconfig"
@@ -103,5 +101,7 @@ source "drivers/staging/wilc1000/Kconfig"
 source "drivers/staging/most/Kconfig"
 
 source "drivers/staging/i4l/Kconfig"
+
+source "drivers/staging/ks7010/Kconfig"
 
 endif # STAGING

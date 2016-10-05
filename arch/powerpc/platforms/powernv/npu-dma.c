@@ -73,7 +73,7 @@ EXPORT_SYMBOL(pnv_pci_get_npu_dev);
 
 static void *dma_npu_alloc(struct device *dev, size_t size,
 			   dma_addr_t *dma_handle, gfp_t flag,
-			   struct dma_attrs *attrs)
+			   unsigned long attrs)
 {
 	NPU_DMA_OP_UNSUPPORTED();
 	return NULL;
@@ -81,7 +81,7 @@ static void *dma_npu_alloc(struct device *dev, size_t size,
 
 static void dma_npu_free(struct device *dev, size_t size,
 			 void *vaddr, dma_addr_t dma_handle,
-			 struct dma_attrs *attrs)
+			 unsigned long attrs)
 {
 	NPU_DMA_OP_UNSUPPORTED();
 }
@@ -89,7 +89,7 @@ static void dma_npu_free(struct device *dev, size_t size,
 static dma_addr_t dma_npu_map_page(struct device *dev, struct page *page,
 				   unsigned long offset, size_t size,
 				   enum dma_data_direction direction,
-				   struct dma_attrs *attrs)
+				   unsigned long attrs)
 {
 	NPU_DMA_OP_UNSUPPORTED();
 	return 0;
@@ -97,7 +97,7 @@ static dma_addr_t dma_npu_map_page(struct device *dev, struct page *page,
 
 static int dma_npu_map_sg(struct device *dev, struct scatterlist *sglist,
 			  int nelems, enum dma_data_direction direction,
-			  struct dma_attrs *attrs)
+			  unsigned long attrs)
 {
 	NPU_DMA_OP_UNSUPPORTED();
 	return 0;
@@ -180,7 +180,7 @@ long pnv_npu_set_window(struct pnv_ioda_pe *npe, int num,
 		pe_err(npe, "Failed to configure TCE table, err %lld\n", rc);
 		return rc;
 	}
-	pnv_pci_ioda2_tce_invalidate_entire(phb, false);
+	pnv_pci_phb3_tce_invalidate_entire(phb, false);
 
 	/* Add the table to the list so its TCE cache will get invalidated */
 	pnv_pci_link_table_and_group(phb->hose->node, num,
@@ -204,7 +204,7 @@ long pnv_npu_unset_window(struct pnv_ioda_pe *npe, int num)
 		pe_err(npe, "Unmapping failed, ret = %lld\n", rc);
 		return rc;
 	}
-	pnv_pci_ioda2_tce_invalidate_entire(phb, false);
+	pnv_pci_phb3_tce_invalidate_entire(phb, false);
 
 	pnv_pci_unlink_table_and_group(npe->table_group.tables[num],
 			&npe->table_group);
@@ -270,7 +270,7 @@ static int pnv_npu_dma_set_bypass(struct pnv_ioda_pe *npe)
 			0 /* bypass base */, top);
 
 	if (rc == OPAL_SUCCESS)
-		pnv_pci_ioda2_tce_invalidate_entire(phb, false);
+		pnv_pci_phb3_tce_invalidate_entire(phb, false);
 
 	return rc;
 }
@@ -334,7 +334,7 @@ void pnv_npu_take_ownership(struct pnv_ioda_pe *npe)
 		pe_err(npe, "Failed to disable bypass, err %lld\n", rc);
 		return;
 	}
-	pnv_pci_ioda2_tce_invalidate_entire(npe->phb, false);
+	pnv_pci_phb3_tce_invalidate_entire(npe->phb, false);
 }
 
 struct pnv_ioda_pe *pnv_pci_npu_setup_iommu(struct pnv_ioda_pe *npe)

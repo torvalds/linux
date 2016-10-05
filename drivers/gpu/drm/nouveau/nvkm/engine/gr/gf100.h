@@ -31,7 +31,8 @@
 #include <subdev/mmu.h>
 
 #define GPC_MAX 32
-#define TPC_MAX (GPC_MAX * 8)
+#define TPC_MAX_PER_GPC 8
+#define TPC_MAX (GPC_MAX * TPC_MAX_PER_GPC)
 
 #define ROP_BCAST(r)      (0x408800 + (r))
 #define ROP_UNIT(u, r)    (0x410000 + (u) * 0x400 + (r))
@@ -100,15 +101,12 @@ struct gf100_gr {
 	u8 ppc_mask[GPC_MAX];
 	u8 ppc_tpc_nr[GPC_MAX][4];
 
-	struct nvkm_memory *unk4188b4;
-	struct nvkm_memory *unk4188b8;
-
 	struct gf100_gr_data mmio_data[4];
 	struct gf100_gr_mmio mmio_list[4096/8];
 	u32  size;
 	u32 *data;
 
-	u8 magic_not_rop_nr;
+	u8 screen_tile_row_offset;
 };
 
 int gf100_gr_ctor(const struct gf100_gr_func *, struct nvkm_device *,
@@ -121,6 +119,8 @@ struct gf100_gr_func {
 	void (*dtor)(struct gf100_gr *);
 	int (*init)(struct gf100_gr *);
 	void (*init_gpc_mmu)(struct gf100_gr *);
+	void (*init_rop_active_fbps)(struct gf100_gr *);
+	void (*init_ppc_exceptions)(struct gf100_gr *);
 	void (*set_hww_esr_report_mask)(struct gf100_gr *);
 	const struct gf100_gr_pack *mmio;
 	struct {
@@ -129,18 +129,23 @@ struct gf100_gr_func {
 	struct {
 		struct gf100_gr_ucode *ucode;
 	} gpccs;
+	int (*rops)(struct gf100_gr *);
 	int ppc_nr;
 	const struct gf100_grctx_func *grctx;
 	struct nvkm_sclass sclass[];
 };
 
 int gf100_gr_init(struct gf100_gr *);
+int gf100_gr_rops(struct gf100_gr *);
 
 int gk104_gr_init(struct gf100_gr *);
+void gk104_gr_init_rop_active_fbps(struct gf100_gr *);
+void gk104_gr_init_ppc_exceptions(struct gf100_gr *);
 
 int gk20a_gr_init(struct gf100_gr *);
 
 int gm200_gr_init(struct gf100_gr *);
+int gm200_gr_rops(struct gf100_gr *);
 
 #define gf100_gr_chan(p) container_of((p), struct gf100_gr_chan, object)
 
@@ -287,4 +292,6 @@ extern const struct gf100_gr_init gm107_gr_init_l1c_0[];
 extern const struct gf100_gr_init gm107_gr_init_wwdx_0[];
 extern const struct gf100_gr_init gm107_gr_init_cbm_0[];
 void gm107_gr_init_bios(struct gf100_gr *);
+
+void gm200_gr_init_gpc_mmu(struct gf100_gr *);
 #endif

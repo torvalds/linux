@@ -13,8 +13,9 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <video/omapdss.h>
+#include <linux/seq_file.h>
 
+#include "omapdss.h"
 #include "dss.h"
 #include "hdmi.h"
 

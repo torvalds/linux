@@ -226,6 +226,7 @@ static int v253_open(struct tty_struct *tty)
 	if (!tty->disc_data)
 		return -ENODEV;
 
+	tty->receive_room = 16;
 	if (tty->ops->write(tty, v253_init, len) != len) {
 		ret = -EIO;
 		goto err;

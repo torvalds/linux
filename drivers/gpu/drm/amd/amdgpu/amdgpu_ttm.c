@@ -251,8 +251,8 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 
 	adev = amdgpu_get_adev(bo->bdev);
 	ring = adev->mman.buffer_funcs_ring;
-	old_start = old_mem->start << PAGE_SHIFT;
-	new_start = new_mem->start << PAGE_SHIFT;
+	old_start = (u64)old_mem->start << PAGE_SHIFT;
+	new_start = (u64)new_mem->start << PAGE_SHIFT;
 
 	switch (old_mem->mem_type) {
 	case TTM_PL_VRAM:
@@ -286,9 +286,10 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 	r = amdgpu_copy_buffer(ring, old_start, new_start,
 			       new_mem->num_pages * PAGE_SIZE, /* bytes */
 			       bo->resv, &fence);
-	/* FIXME: handle copy error */
-	r = ttm_bo_move_accel_cleanup(bo, fence,
-				      evict, no_wait_gpu, new_mem);
+	if (r)
+		return r;
+
+	r = ttm_bo_pipeline_move(bo, fence, evict, new_mem);
 	fence_put(fence);
 	return r;
 }
@@ -334,7 +335,7 @@ static int amdgpu_move_vram_ram(struct ttm_buffer_object *bo,
 	if (unlikely(r)) {
 		goto out_cleanup;
 	}
-	r = ttm_bo_move_ttm(bo, true, no_wait_gpu, new_mem);
+	r = ttm_bo_move_ttm(bo, true, interruptible, no_wait_gpu, new_mem);
 out_cleanup:
 	ttm_bo_mem_put(bo, &tmp_mem);
 	return r;
@@ -367,7 +368,7 @@ static int amdgpu_move_ram_vram(struct ttm_buffer_object *bo,
 	if (unlikely(r)) {
 		return r;
 	}
-	r = ttm_bo_move_ttm(bo, true, no_wait_gpu, &tmp_mem);
+	r = ttm_bo_move_ttm(bo, true, interruptible, no_wait_gpu, &tmp_mem);
 	if (unlikely(r)) {
 		goto out_cleanup;
 	}
@@ -396,6 +397,11 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo,
 		return -EINVAL;
 
 	adev = amdgpu_get_adev(bo->bdev);
+
+	/* remember the eviction */
+	if (evict)
+		atomic64_inc(&adev->num_evictions);
+
 	if (old_mem->mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
 		amdgpu_move_null(bo, new_mem);
 		return 0;
@@ -429,7 +435,8 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo,
 
 	if (r) {
 memcpy:
-		r = ttm_bo_move_memcpy(bo, evict, no_wait_gpu, new_mem);
+		r = ttm_bo_move_memcpy(bo, evict, interruptible,
+				       no_wait_gpu, new_mem);
 		if (r) {
 			return r;
 		}
@@ -911,6 +918,56 @@ uint32_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
 	return flags;
 }
 
+static void amdgpu_ttm_lru_removal(struct ttm_buffer_object *tbo)
+{
+	struct amdgpu_device *adev = amdgpu_get_adev(tbo->bdev);
+	unsigned i, j;
+
+	for (i = 0; i < AMDGPU_TTM_LRU_SIZE; ++i) {
+		struct amdgpu_mman_lru *lru = &adev->mman.log2_size[i];
+
+		for (j = 0; j < TTM_NUM_MEM_TYPES; ++j)
+			if (&tbo->lru == lru->lru[j])
+				lru->lru[j] = tbo->lru.prev;
+
+		if (&tbo->swap == lru->swap_lru)
+			lru->swap_lru = tbo->swap.prev;
+	}
+}
+
+static struct amdgpu_mman_lru *amdgpu_ttm_lru(struct ttm_buffer_object *tbo)
+{
+	struct amdgpu_device *adev = amdgpu_get_adev(tbo->bdev);
+	unsigned log2_size = min(ilog2(tbo->num_pages),
+				 AMDGPU_TTM_LRU_SIZE - 1);
+
+	return &adev->mman.log2_size[log2_size];
+}
+
+static struct list_head *amdgpu_ttm_lru_tail(struct ttm_buffer_object *tbo)
+{
+	struct amdgpu_mman_lru *lru = amdgpu_ttm_lru(tbo);
+	struct list_head *res = lru->lru[tbo->mem.mem_type];
+
+	lru->lru[tbo->mem.mem_type] = &tbo->lru;
+	while ((++lru)->lru[tbo->mem.mem_type] == res)
+		lru->lru[tbo->mem.mem_type] = &tbo->lru;
+
+	return res;
+}
+
+static struct list_head *amdgpu_ttm_swap_lru_tail(struct ttm_buffer_object *tbo)
+{
+	struct amdgpu_mman_lru *lru = amdgpu_ttm_lru(tbo);
+	struct list_head *res = lru->swap_lru;
+
+	lru->swap_lru = &tbo->swap;
+	while ((++lru)->swap_lru == res)
+		lru->swap_lru = &tbo->swap;
+
+	return res;
+}
+
 static struct ttm_bo_driver amdgpu_bo_driver = {
 	.ttm_tt_create = &amdgpu_ttm_tt_create,
 	.ttm_tt_populate = &amdgpu_ttm_tt_populate,
@@ -924,10 +981,14 @@ static struct ttm_bo_driver amdgpu_bo_driver = {
 	.fault_reserve_notify = &amdgpu_bo_fault_reserve_notify,
 	.io_mem_reserve = &amdgpu_ttm_io_mem_reserve,
 	.io_mem_free = &amdgpu_ttm_io_mem_free,
+	.lru_removal = &amdgpu_ttm_lru_removal,
+	.lru_tail = &amdgpu_ttm_lru_tail,
+	.swap_lru_tail = &amdgpu_ttm_swap_lru_tail,
 };
 
 int amdgpu_ttm_init(struct amdgpu_device *adev)
 {
+	unsigned i, j;
 	int r;
 
 	r = amdgpu_ttm_global_init(adev);
@@ -945,6 +1006,19 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 		DRM_ERROR("failed initializing buffer object driver(%d).\n", r);
 		return r;
 	}
+
+	for (i = 0; i < AMDGPU_TTM_LRU_SIZE; ++i) {
+		struct amdgpu_mman_lru *lru = &adev->mman.log2_size[i];
+
+		for (j = 0; j < TTM_NUM_MEM_TYPES; ++j)
+			lru->lru[j] = &adev->mman.bdev.man[j].lru;
+		lru->swap_lru = &adev->mman.bdev.glob->swap_lru;
+	}
+
+	for (j = 0; j < TTM_NUM_MEM_TYPES; ++j)
+		adev->mman.guard.lru[j] = NULL;
+	adev->mman.guard.swap_lru = NULL;
+
 	adev->mman.initialized = true;
 	r = ttm_bo_init_mm(&adev->mman.bdev, TTM_PL_VRAM,
 				adev->mc.real_vram_size >> PAGE_SHIFT);
@@ -1167,7 +1241,7 @@ static int amdgpu_mm_dump_table(struct seq_file *m, void *data)
 static int ttm_pl_vram = TTM_PL_VRAM;
 static int ttm_pl_tt = TTM_PL_TT;
 
-static struct drm_info_list amdgpu_ttm_debugfs_list[] = {
+static const struct drm_info_list amdgpu_ttm_debugfs_list[] = {
 	{"amdgpu_vram_mm", amdgpu_mm_dump_table, 0, &ttm_pl_vram},
 	{"amdgpu_gtt_mm", amdgpu_mm_dump_table, 0, &ttm_pl_tt},
 	{"ttm_page_pool", ttm_page_alloc_debugfs, 0, NULL},
@@ -1218,6 +1292,8 @@ static const struct file_operations amdgpu_ttm_vram_fops = {
 	.llseek = default_llseek
 };
 
+#ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
+
 static ssize_t amdgpu_ttm_gtt_read(struct file *f, char __user *buf,
 				   size_t size, loff_t *pos)
 {
@@ -1265,6 +1341,8 @@ static const struct file_operations amdgpu_ttm_gtt_fops = {
 
 #endif
 
+#endif
+
 static int amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
 {
 #if defined(CONFIG_DEBUG_FS)
@@ -1280,6 +1358,7 @@ static int amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
 	i_size_write(ent->d_inode, adev->mc.mc_vram_size);
 	adev->mman.vram = ent;
 
+#ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
 	ent = debugfs_create_file("amdgpu_gtt", S_IFREG | S_IRUGO, root,
 				  adev, &amdgpu_ttm_gtt_fops);
 	if (IS_ERR(ent))
@@ -1287,6 +1366,7 @@ static int amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
 	i_size_write(ent->d_inode, adev->mc.gtt_size);
 	adev->mman.gtt = ent;
 
+#endif
 	count = ARRAY_SIZE(amdgpu_ttm_debugfs_list);
 
 #ifdef CONFIG_SWIOTLB
@@ -1308,7 +1388,10 @@ static void amdgpu_ttm_debugfs_fini(struct amdgpu_device *adev)
 	debugfs_remove(adev->mman.vram);
 	adev->mman.vram = NULL;
 
+#ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
 	debugfs_remove(adev->mman.gtt);
 	adev->mman.gtt = NULL;
+#endif
+
 #endif
 }

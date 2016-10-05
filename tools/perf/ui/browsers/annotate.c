@@ -8,6 +8,7 @@
 #include "../../util/sort.h"
 #include "../../util/symbol.h"
 #include "../../util/evsel.h"
+#include "../../util/config.h"
 #include <pthread.h>
 
 struct disasm_line_samples {
@@ -222,16 +223,14 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 			} else if (ins__is_call(dl->ins)) {
 				ui_browser__write_graph(browser, SLSMG_RARROW_CHAR);
 				SLsmg_write_char(' ');
+			} else if (ins__is_ret(dl->ins)) {
+				ui_browser__write_graph(browser, SLSMG_LARROW_CHAR);
+				SLsmg_write_char(' ');
 			} else {
 				ui_browser__write_nstring(browser, " ", 2);
 			}
 		} else {
-			if (strcmp(dl->name, "retq")) {
-				ui_browser__write_nstring(browser, " ", 2);
-			} else {
-				ui_browser__write_graph(browser, SLSMG_LARROW_CHAR);
-				SLsmg_write_char(' ');
-			}
+			ui_browser__write_nstring(browser, " ", 2);
 		}
 
 		disasm_line__scnprintf(dl, bf, sizeof(bf), !annotate_browser__opts.use_offset);
@@ -496,7 +495,7 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 	if (!ins__is_call(dl->ins))
 		return false;
 
-	if (map_groups__find_ams(&target, NULL) ||
+	if (map_groups__find_ams(&target) ||
 	    map__rip_2objdump(target.map, target.map->map_ip(target.map,
 							     target.addr)) !=
 	    dl->ops.target.addr) {
@@ -842,14 +841,14 @@ show_help:
 				ui_helpline__puts("Huh? No selection. Report to linux-kernel@vger.kernel.org");
 			else if (browser->selection->offset == -1)
 				ui_helpline__puts("Actions are only available for assembly lines.");
-			else if (!browser->selection->ins) {
-				if (strcmp(browser->selection->name, "retq"))
-					goto show_sup_ins;
+			else if (!browser->selection->ins)
+				goto show_sup_ins;
+			else if (ins__is_ret(browser->selection->ins))
 				goto out;
-			} else if (!(annotate_browser__jump(browser) ||
+			else if (!(annotate_browser__jump(browser) ||
 				     annotate_browser__callq(browser, evsel, hbt))) {
 show_sup_ins:
-				ui_helpline__puts("Actions are only available for 'callq', 'retq' & jump instructions.");
+				ui_helpline__puts("Actions are only available for function call/return & jump/branch instructions.");
 			}
 			continue;
 		case 't':
@@ -1027,7 +1026,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 			.use_navkeypressed = true,
 		},
 	};
-	int ret = -1;
+	int ret = -1, err;
 	int nr_pcnt = 1;
 	size_t sizeof_bdl = sizeof(struct browser_disasm_line);
 
@@ -1051,8 +1050,11 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 		  (nr_pcnt - 1);
 	}
 
-	if (symbol__annotate(sym, map, sizeof_bdl) < 0) {
-		ui__error("%s", ui_helpline__last_msg);
+	err = symbol__disassemble(sym, map, sizeof_bdl);
+	if (err) {
+		char msg[BUFSIZ];
+		symbol__strerror_disassemble(sym, map, err, msg, sizeof(msg));
+		ui__error("Couldn't annotate %s:\n%s", sym->name, msg);
 		goto out_free_offsets;
 	}
 

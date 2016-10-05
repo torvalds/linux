@@ -106,7 +106,7 @@ asm (".pushsection .text\n\t"
      ".type int3, @function\n\t"
      ".align 4096\n\t"
      "int3:\n\t"
-     "mov %ss,%eax\n\t"
+     "mov %ss,%ecx\n\t"
      "int3\n\t"
      ".size int3, . - int3\n\t"
      ".align 4096, 0xcc\n\t"
@@ -306,7 +306,7 @@ static volatile sig_atomic_t sig_corrupt_final_ss;
 #ifdef __x86_64__
 # define REG_IP REG_RIP
 # define REG_SP REG_RSP
-# define REG_AX REG_RAX
+# define REG_CX REG_RCX
 
 struct selectors {
 	unsigned short cs, gs, fs, ss;
@@ -326,7 +326,7 @@ static unsigned short *csptr(ucontext_t *ctx)
 #else
 # define REG_IP REG_EIP
 # define REG_SP REG_ESP
-# define REG_AX REG_EAX
+# define REG_CX REG_ECX
 
 static greg_t *ssptr(ucontext_t *ctx)
 {
@@ -457,10 +457,10 @@ static void sigusr1(int sig, siginfo_t *info, void *ctx_void)
 	ctx->uc_mcontext.gregs[REG_IP] =
 		sig_cs == code16_sel ? 0 : (unsigned long)&int3;
 	ctx->uc_mcontext.gregs[REG_SP] = (unsigned long)0x8badf00d5aadc0deULL;
-	ctx->uc_mcontext.gregs[REG_AX] = 0;
+	ctx->uc_mcontext.gregs[REG_CX] = 0;
 
 	memcpy(&requested_regs, &ctx->uc_mcontext.gregs, sizeof(gregset_t));
-	requested_regs[REG_AX] = *ssptr(ctx);	/* The asm code does this. */
+	requested_regs[REG_CX] = *ssptr(ctx);	/* The asm code does this. */
 
 	return;
 }
@@ -482,7 +482,7 @@ static void sigtrap(int sig, siginfo_t *info, void *ctx_void)
 	unsigned short ss;
 	asm ("mov %%ss,%0" : "=r" (ss));
 
-	greg_t asm_ss = ctx->uc_mcontext.gregs[REG_AX];
+	greg_t asm_ss = ctx->uc_mcontext.gregs[REG_CX];
 	if (asm_ss != sig_ss && sig == SIGTRAP) {
 		/* Sanity check failure. */
 		printf("[FAIL]\tSIGTRAP: ss = %hx, frame ss = %hx, ax = %llx\n",
@@ -654,8 +654,8 @@ static int test_valid_sigreturn(int cs_bits, bool use_16bit_ss, int force_ss)
 #endif
 
 		/* Sanity check on the kernel */
-		if (i == REG_AX && requested_regs[i] != resulting_regs[i]) {
-			printf("[FAIL]\tAX (saved SP) mismatch: requested 0x%llx; got 0x%llx\n",
+		if (i == REG_CX && requested_regs[i] != resulting_regs[i]) {
+			printf("[FAIL]\tCX (saved SP) mismatch: requested 0x%llx; got 0x%llx\n",
 			       (unsigned long long)requested_regs[i],
 			       (unsigned long long)resulting_regs[i]);
 			nerrs++;

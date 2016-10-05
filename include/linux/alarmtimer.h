@@ -26,10 +26,10 @@ enum alarmtimer_restart {
  * struct alarm - Alarm timer structure
  * @node:	timerqueue node for adding to the event list this value
  *		also includes the expiration time.
- * @period:	Period for recuring alarms
+ * @timer:	hrtimer used to schedule events while running
  * @function:	Function pointer to be executed when the timer fires.
- * @type:	Alarm type (BOOTTIME/REALTIME)
- * @enabled:	Flag that represents if the alarm is set to fire or not
+ * @type:	Alarm type (BOOTTIME/REALTIME).
+ * @state:	Flag that represents if the alarm is set to fire or not.
  * @data:	Internal data value.
  */
 struct alarm {

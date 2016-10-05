@@ -102,10 +102,9 @@ static int mwifiex_sdio_probe_of(struct device *dev, struct sdio_mmc_card *card)
 	struct mwifiex_plt_wake_cfg *cfg;
 	int ret;
 
-	if (!dev->of_node ||
-	    !of_match_node(mwifiex_sdio_of_match_table, dev->of_node)) {
-		dev_err(dev, "sdio platform data not available\n");
-		return -1;
+	if (!of_match_node(mwifiex_sdio_of_match_table, dev->of_node)) {
+		dev_err(dev, "required compatible string missing\n");
+		return -EINVAL;
 	}
 
 	card->plt_of_node = dev->of_node;
@@ -115,7 +114,7 @@ static int mwifiex_sdio_probe_of(struct device *dev, struct sdio_mmc_card *card)
 	if (cfg && card->plt_of_node) {
 		cfg->irq_wifi = irq_of_parse_and_map(card->plt_of_node, 0);
 		if (!cfg->irq_wifi) {
-			dev_err(dev,
+			dev_dbg(dev,
 				"fail to parse irq_wifi from device tree\n");
 		} else {
 			ret = devm_request_irq(dev, cfg->irq_wifi,
@@ -123,9 +122,11 @@ static int mwifiex_sdio_probe_of(struct device *dev, struct sdio_mmc_card *card)
 					       IRQF_TRIGGER_LOW,
 					       "wifi_wake", cfg);
 			if (ret) {
-				dev_err(dev,
+				dev_dbg(dev,
 					"Failed to request irq_wifi %d (%d)\n",
 					cfg->irq_wifi, ret);
+				card->plt_wake_cfg = NULL;
+				return 0;
 			}
 			disable_irq(cfg->irq_wifi);
 		}
@@ -183,23 +184,34 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 	sdio_release_host(func);
 
 	if (ret) {
-		pr_err("%s: failed to enable function\n", __func__);
-		kfree(card);
-		return -EIO;
+		dev_err(&func->dev, "failed to enable function\n");
+		goto err_free;
 	}
 
 	/* device tree node parsing and platform specific configuration*/
-	mwifiex_sdio_probe_of(&func->dev, card);
-
-	if (mwifiex_add_card(card, &add_remove_card_sem, &sdio_ops,
-			     MWIFIEX_SDIO)) {
-		pr_err("%s: add card failed\n", __func__);
-		kfree(card);
-		sdio_claim_host(func);
-		ret = sdio_disable_func(func);
-		sdio_release_host(func);
-		ret = -1;
+	if (func->dev.of_node) {
+		ret = mwifiex_sdio_probe_of(&func->dev, card);
+		if (ret) {
+			dev_err(&func->dev, "SDIO dt node parse failed\n");
+			goto err_disable;
+		}
 	}
+
+	ret = mwifiex_add_card(card, &add_remove_card_sem, &sdio_ops,
+			       MWIFIEX_SDIO);
+	if (ret) {
+		dev_err(&func->dev, "add card failed\n");
+		goto err_disable;
+	}
+
+	return 0;
+
+err_disable:
+	sdio_claim_host(func);
+	sdio_disable_func(func);
+	sdio_release_host(func);
+err_free:
+	kfree(card);
 
 	return ret;
 }
@@ -279,7 +291,7 @@ mwifiex_sdio_remove(struct sdio_func *func)
 
 	mwifiex_dbg(adapter, INFO, "info: SDIO func num=%d\n", func->num);
 
-	if (user_rmmod) {
+	if (user_rmmod && !adapter->mfg_mode) {
 		if (adapter->is_suspended)
 			mwifiex_sdio_resume(adapter->dev);
 
@@ -542,6 +554,19 @@ static int mwifiex_pm_wakeup_card_complete(struct mwifiex_adapter *adapter)
 		    "cmd: wakeup device completed\n");
 
 	return mwifiex_write_reg(adapter, CONFIGURATION_REG, 0);
+}
+
+static int mwifiex_sdio_dnld_fw(struct mwifiex_adapter *adapter,
+			struct mwifiex_fw_image *fw)
+{
+	struct sdio_mmc_card *card = adapter->card;
+	int ret;
+
+	sdio_claim_host(card->func);
+	ret = mwifiex_dnld_fw(adapter, fw);
+	sdio_release_host(card->func);
+
+	return ret;
 }
 
 /*
@@ -1492,7 +1517,7 @@ rx_curr_single:
 		mwifiex_dbg(adapter, INFO, "info: RX: port: %d, rx_len: %d\n",
 			    port, rx_len);
 
-		skb = mwifiex_alloc_dma_align_buf(rx_len, GFP_KERNEL | GFP_DMA);
+		skb = mwifiex_alloc_dma_align_buf(rx_len, GFP_KERNEL);
 		if (!skb) {
 			mwifiex_dbg(adapter, ERROR,
 				    "single skb allocated fail,\t"
@@ -1597,7 +1622,7 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 		rx_len = (u16) (rx_blocks * MWIFIEX_SDIO_BLOCK_SIZE);
 		mwifiex_dbg(adapter, INFO, "info: rx_len = %d\n", rx_len);
 
-		skb = mwifiex_alloc_dma_align_buf(rx_len, GFP_KERNEL | GFP_DMA);
+		skb = mwifiex_alloc_dma_align_buf(rx_len, GFP_KERNEL);
 		if (!skb)
 			return -1;
 
@@ -2732,6 +2757,7 @@ static struct mwifiex_if_ops sdio_ops = {
 	.cleanup_mpa_buf = mwifiex_cleanup_mpa_buf,
 	.cmdrsp_complete = mwifiex_sdio_cmdrsp_complete,
 	.event_complete = mwifiex_sdio_event_complete,
+	.dnld_fw = mwifiex_sdio_dnld_fw,
 	.card_reset = mwifiex_sdio_card_reset,
 	.reg_dump = mwifiex_sdio_reg_dump,
 	.device_dump = mwifiex_sdio_device_dump,

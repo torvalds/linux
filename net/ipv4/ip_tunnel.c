@@ -55,6 +55,7 @@
 #include <net/netns/generic.h>
 #include <net/rtnetlink.h>
 #include <net/udp.h>
+#include <net/dst_metadata.h>
 
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ipv6.h>
@@ -546,6 +547,81 @@ static int tnl_update_pmtu(struct net_device *dev, struct sk_buff *skb,
 	return 0;
 }
 
+void ip_md_tunnel_xmit(struct sk_buff *skb, struct net_device *dev, u8 proto)
+{
+	struct ip_tunnel *tunnel = netdev_priv(dev);
+	u32 headroom = sizeof(struct iphdr);
+	struct ip_tunnel_info *tun_info;
+	const struct ip_tunnel_key *key;
+	const struct iphdr *inner_iph;
+	struct rtable *rt;
+	struct flowi4 fl4;
+	__be16 df = 0;
+	u8 tos, ttl;
+
+	tun_info = skb_tunnel_info(skb);
+	if (unlikely(!tun_info || !(tun_info->mode & IP_TUNNEL_INFO_TX) ||
+		     ip_tunnel_info_af(tun_info) != AF_INET))
+		goto tx_error;
+	key = &tun_info->key;
+	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
+	inner_iph = (const struct iphdr *)skb_inner_network_header(skb);
+	tos = key->tos;
+	if (tos == 1) {
+		if (skb->protocol == htons(ETH_P_IP))
+			tos = inner_iph->tos;
+		else if (skb->protocol == htons(ETH_P_IPV6))
+			tos = ipv6_get_dsfield((const struct ipv6hdr *)inner_iph);
+	}
+	init_tunnel_flow(&fl4, proto, key->u.ipv4.dst, key->u.ipv4.src, 0,
+			 RT_TOS(tos), tunnel->parms.link);
+	if (tunnel->encap.type != TUNNEL_ENCAP_NONE)
+		goto tx_error;
+	rt = ip_route_output_key(tunnel->net, &fl4);
+	if (IS_ERR(rt)) {
+		dev->stats.tx_carrier_errors++;
+		goto tx_error;
+	}
+	if (rt->dst.dev == dev) {
+		ip_rt_put(rt);
+		dev->stats.collisions++;
+		goto tx_error;
+	}
+	tos = ip_tunnel_ecn_encap(tos, inner_iph, skb);
+	ttl = key->ttl;
+	if (ttl == 0) {
+		if (skb->protocol == htons(ETH_P_IP))
+			ttl = inner_iph->ttl;
+		else if (skb->protocol == htons(ETH_P_IPV6))
+			ttl = ((const struct ipv6hdr *)inner_iph)->hop_limit;
+		else
+			ttl = ip4_dst_hoplimit(&rt->dst);
+	}
+	if (key->tun_flags & TUNNEL_DONT_FRAGMENT)
+		df = htons(IP_DF);
+	else if (skb->protocol == htons(ETH_P_IP))
+		df = inner_iph->frag_off & htons(IP_DF);
+	headroom += LL_RESERVED_SPACE(rt->dst.dev) + rt->dst.header_len;
+	if (headroom > dev->needed_headroom)
+		dev->needed_headroom = headroom;
+
+	if (skb_cow_head(skb, dev->needed_headroom)) {
+		ip_rt_put(rt);
+		goto tx_dropped;
+	}
+	iptunnel_xmit(NULL, rt, skb, fl4.saddr, fl4.daddr, proto, key->tos,
+		      key->ttl, df, !net_eq(tunnel->net, dev_net(dev)));
+	return;
+tx_error:
+	dev->stats.tx_errors++;
+	goto kfree;
+tx_dropped:
+	dev->stats.tx_dropped++;
+kfree:
+	kfree_skb(skb);
+}
+EXPORT_SYMBOL_GPL(ip_md_tunnel_xmit);
+
 void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		    const struct iphdr *tnl_params, u8 protocol)
 {
@@ -682,7 +758,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	df = tnl_params->frag_off;
-	if (skb->protocol == htons(ETH_P_IP))
+	if (skb->protocol == htons(ETH_P_IP) && !tunnel->ignore_df)
 		df |= (inner_iph->frag_off&htons(IP_DF));
 
 	max_headroom = LL_RESERVED_SPACE(rt->dst.dev) + sizeof(struct iphdr)

@@ -56,3 +56,31 @@ config DRM_I915_USERPTR
 	  selected to enabled full userptr support.
 
 	  If in doubt, say "Y".
+
+config DRM_I915_GVT
+        bool "Enable Intel GVT-g graphics virtualization host support"
+        depends on DRM_I915
+        default n
+        help
+	  Choose this option if you want to enable Intel GVT-g graphics
+	  virtualization technology host support with integrated graphics.
+	  With GVT-g, it's possible to have one integrated graphics
+	  device shared by multiple VMs under different hypervisors.
+
+	  Note that at least one hypervisor like Xen or KVM is required for
+	  this driver to work, and it only supports newer device from
+	  Broadwell+. For further information and setup guide, you can
+	  visit: http://01.org/igvt-g.
+
+	  Now it's just a stub to support the modifications of i915 for
+	  GVT device model. It requires at least one MPT modules for Xen/KVM
+	  and other components of GVT device model to work. Use it under
+	  you own risk.
+
+	  If in doubt, say "N".
+
+menu "drm/i915 Debugging"
+depends on DRM_I915
+depends on EXPERT
+source drivers/gpu/drm/i915/Kconfig.debug
+endmenu

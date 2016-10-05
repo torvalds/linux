@@ -65,7 +65,7 @@ static int radix__init_new_context(struct mm_struct *mm, int index)
 	/*
 	 * set the process table entry,
 	 */
-	rts_field = 3ull << PPC_BITLSHIFT(2);
+	rts_field = radix__get_tree_size();
 	process_tb[index].prtb0 = cpu_to_be64(rts_field | __pa(mm->pgd) | RADIX_PGD_INDEX_SIZE);
 	return 0;
 }
@@ -181,7 +181,10 @@ void destroy_context(struct mm_struct *mm)
 #ifdef CONFIG_PPC_RADIX_MMU
 void radix__switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 {
-	mtspr(SPRN_PID, next->context.id);
 	asm volatile("isync": : :"memory");
+	mtspr(SPRN_PID, next->context.id);
+	asm volatile("isync \n"
+		     PPC_SLBIA(0x7)
+		     : : :"memory");
 }
 #endif

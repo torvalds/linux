@@ -35,7 +35,6 @@
 #include <asm/amigahw.h>
 #include <asm/amigaints.h>
 #include <asm/irq.h>
-#include <asm/rtc.h>
 #include <asm/machdep.h>
 #include <asm/io.h>
 
@@ -397,7 +396,7 @@ void __init config_amiga(void)
 	mach_max_dma_address = 0xffffffff;
 
 	mach_reset           = amiga_reset;
-#if defined(CONFIG_INPUT_M68K_BEEP) || defined(CONFIG_INPUT_M68K_BEEP_MODULE)
+#if IS_ENABLED(CONFIG_INPUT_M68K_BEEP)
 	mach_beep            = amiga_mksound;
 #endif
 

@@ -39,6 +39,9 @@ int aa_calc_profile_hash(struct aa_profile *profile, u32 version, void *start,
 	int error = -ENOMEM;
 	u32 le32_version = cpu_to_le32(version);
 
+	if (!aa_g_hash_policy)
+		return 0;
+
 	if (!apparmor_tfm)
 		return 0;
 

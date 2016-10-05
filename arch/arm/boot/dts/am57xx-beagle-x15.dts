@@ -86,7 +86,7 @@
 		led@3 {
 			label = "beagle-x15:usr3";
 			gpios = <&gpio7 15 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "ide-disk";
+			linux,default-trigger = "disk-activity";
 			default-state = "off";
 		};
 	};

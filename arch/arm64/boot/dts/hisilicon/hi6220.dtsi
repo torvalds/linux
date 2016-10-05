@@ -5,6 +5,7 @@
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/reset/hisi,hi6220-resets.h>
 #include <dt-bindings/clock/hi6220-clock.h>
 #include <dt-bindings/pinctrl/hisi.h>
 #include <dt-bindings/thermal/thermal.h>
@@ -252,6 +253,7 @@
 			compatible = "hisilicon,hi6220-mediactrl", "syscon";
 			reg = <0x0 0xf4410000 0x0 0x1000>;
 			#clock-cells = <1>;
+			#reset-cells = <1>;
 		};
 
 		pm_ctrl: pm_ctrl@f7032000 {
@@ -334,6 +336,22 @@
 				 <&ao_ctrl HI6220_TIMER0_PCLK>,
 				 <&ao_ctrl HI6220_TIMER0_PCLK>;
 			clock-names = "timer1", "timer2", "apb_pclk";
+		};
+
+		rtc0: rtc@f8003000 {
+			compatible = "arm,pl031", "arm,primecell";
+			reg = <0x0 0xf8003000 0x0 0x1000>;
+			interrupts = <0 12 4>;
+			clocks = <&ao_ctrl HI6220_RTC0_PCLK>;
+			clock-names = "apb_pclk";
+		};
+
+		rtc1: rtc@f8004000 {
+			compatible = "arm,pl031", "arm,primecell";
+			reg = <0x0 0xf8004000 0x0 0x1000>;
+			interrupts = <0 8 4>;
+			clocks = <&ao_ctrl HI6220_RTC1_PCLK>;
+			clock-names = "apb_pclk";
 		};
 
 		pmx0: pinmux@f7010000 {

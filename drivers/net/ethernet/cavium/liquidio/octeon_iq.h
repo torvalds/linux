@@ -65,6 +65,11 @@ struct oct_iq_stats {
 	u64 tx_iq_busy;/**< Numof times this iq was found to be full. */
 	u64 tx_dropped;/**< Numof pkts dropped dueto xmitpath errors. */
 	u64 tx_tot_bytes;/**< Total count of bytes sento to network. */
+	u64 tx_gso;  /* count of tso */
+	u64 tx_vxlan; /* tunnel */
+	u64 tx_dmamap_fail;
+	u64 tx_restart;
+	/*u64 tx_timeout_count;*/
 };
 
 #define OCT_IQ_STATS_SIZE   (sizeof(struct oct_iq_stats))
@@ -75,18 +80,28 @@ struct oct_iq_stats {
  *  a Octeon device has one such structure to represent it.
 */
 struct octeon_instr_queue {
+	struct octeon_device *oct_dev;
+
 	/** A spinlock to protect access to the input ring.  */
 	spinlock_t lock;
+
+	/** A spinlock to protect while posting on the ring.  */
+	spinlock_t post_lock;
+
+	u32 pkt_in_done;
+
+	/** A spinlock to protect access to the input ring.*/
+	spinlock_t iq_flush_running_lock;
 
 	/** Flag that indicates if the queue uses 64 byte commands. */
 	u32 iqcmd_64B:1;
 
-	/** Queue Number. */
-	u32 iq_no:5;
+	/** Queue info. */
+	union oct_txpciq txpciq;
 
 	u32 rsvd:17;
 
-	/* Controls the periodic flushing of iq */
+	/* Controls whether extra flushing of IQ is done on Tx */
 	u32 do_auto_flush:1;
 
 	u32 status:8;
@@ -147,6 +162,13 @@ struct octeon_instr_queue {
 
 	/** Application context */
 	void *app_ctx;
+
+	/* network stack queue index */
+	int q_index;
+
+	/*os ifidx associated with this queue */
+	int ifidx;
+
 };
 
 /*----------------------  INSTRUCTION FORMAT ----------------------------*/
@@ -176,12 +198,12 @@ struct octeon_instr_32B {
 /** 64-byte instruction format.
  *  Format of instruction for a 64-byte mode input queue.
  */
-struct octeon_instr_64B {
+struct octeon_instr2_64B {
 	/** Pointer where the input data is available. */
 	u64 dptr;
 
 	/** Instruction Header. */
-	u64 ih;
+	u64 ih2;
 
 	/** Input Request Header. */
 	u64 irh;
@@ -198,14 +220,44 @@ struct octeon_instr_64B {
 	u64 rptr;
 
 	u64 reserved;
+};
+
+struct octeon_instr3_64B {
+	/** Pointer where the input data is available. */
+	u64 dptr;
+
+	/** Instruction Header. */
+	u64 ih3;
+
+	/** Instruction Header. */
+	u64 pki_ih3;
+
+	/** Input Request Header. */
+	u64 irh;
+
+	/** opcode/subcode specific parameters */
+	u64 ossp[2];
+
+	/** Return Data Parameters */
+	u64 rdp;
+
+	/** Pointer where the response for a RAW mode packet will be written
+	 * by Octeon.
+	 */
+	u64 rptr;
 
 };
 
-#define OCT_64B_INSTR_SIZE     (sizeof(struct octeon_instr_64B))
+union octeon_instr_64B {
+	struct octeon_instr2_64B cmd2;
+	struct octeon_instr3_64B cmd3;
+};
+
+#define OCT_64B_INSTR_SIZE     (sizeof(union octeon_instr_64B))
 
 /** The size of each buffer in soft command buffer pool
  */
-#define  SOFT_COMMAND_BUFFER_SIZE	1024
+#define  SOFT_COMMAND_BUFFER_SIZE	1536
 
 struct octeon_soft_command {
 	/** Soft command buffer info. */
@@ -214,7 +266,8 @@ struct octeon_soft_command {
 	u32 size;
 
 	/** Command and return status */
-	struct octeon_instr_64B cmd;
+	union octeon_instr_64B cmd;
+
 #define COMPLETION_WORD_INIT    0xffffffffffffffffULL
 	u64 *status_word;
 
@@ -242,7 +295,7 @@ struct octeon_soft_command {
 
 /** Maximum number of buffers to allocate into soft command buffer pool
  */
-#define  MAX_SOFT_COMMAND_BUFFERS	16
+#define  MAX_SOFT_COMMAND_BUFFERS	256
 
 /** Head of a soft command buffer pool.
  */
@@ -268,14 +321,15 @@ void octeon_free_soft_command(struct octeon_device *oct,
 /**
  *  octeon_init_instr_queue()
  *  @param octeon_dev      - pointer to the octeon device structure.
- *  @param iq_no           - queue to be initialized (0 <= q_no <= 3).
+ *  @param txpciq          - queue to be initialized (0 <= q_no <= 3).
  *
  *  Called at driver init time for each input queue. iq_conf has the
  *  configuration parameters for the queue.
  *
  *  @return  Success: 0   Failure: 1
  */
-int octeon_init_instr_queue(struct octeon_device *octeon_dev, u32 iq_no,
+int octeon_init_instr_queue(struct octeon_device *octeon_dev,
+			    union oct_txpciq txpciq,
 			    u32 num_descs);
 
 /**
@@ -298,7 +352,7 @@ octeon_register_reqtype_free_fn(struct octeon_device *oct, int reqtype,
 
 int
 lio_process_iq_request_list(struct octeon_device *oct,
-			    struct octeon_instr_queue *iq);
+			    struct octeon_instr_queue *iq, u32 napi_budget);
 
 int octeon_send_command(struct octeon_device *oct, u32 iq_no,
 			u32 force_db, void *cmd, void *buf,
@@ -313,7 +367,10 @@ void octeon_prepare_soft_command(struct octeon_device *oct,
 int octeon_send_soft_command(struct octeon_device *oct,
 			     struct octeon_soft_command *sc);
 
-int octeon_setup_iq(struct octeon_device *oct, u32 iq_no,
-		    u32 num_descs, void *app_ctx);
-
+int octeon_setup_iq(struct octeon_device *oct, int ifidx,
+		    int q_index, union oct_txpciq iq_no, u32 num_descs,
+		    void *app_ctx);
+int
+octeon_flush_iq(struct octeon_device *oct, struct octeon_instr_queue *iq,
+		u32 pending_thresh, u32 napi_budget);
 #endif				/* __OCTEON_IQ_H__ */

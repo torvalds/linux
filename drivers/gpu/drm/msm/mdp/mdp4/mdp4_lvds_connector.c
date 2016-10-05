@@ -48,7 +48,6 @@ static void mdp4_lvds_connector_destroy(struct drm_connector *connector)
 	struct mdp4_lvds_connector *mdp4_lvds_connector =
 			to_mdp4_lvds_connector(connector);
 
-	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 
 	kfree(mdp4_lvds_connector);
@@ -91,14 +90,6 @@ static int mdp4_lvds_connector_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static struct drm_encoder *
-mdp4_lvds_connector_best_encoder(struct drm_connector *connector)
-{
-	struct mdp4_lvds_connector *mdp4_lvds_connector =
-			to_mdp4_lvds_connector(connector);
-	return mdp4_lvds_connector->encoder;
-}
-
 static const struct drm_connector_funcs mdp4_lvds_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = mdp4_lvds_connector_detect,
@@ -112,7 +103,6 @@ static const struct drm_connector_funcs mdp4_lvds_connector_funcs = {
 static const struct drm_connector_helper_funcs mdp4_lvds_connector_helper_funcs = {
 	.get_modes = mdp4_lvds_connector_get_modes,
 	.mode_valid = mdp4_lvds_connector_mode_valid,
-	.best_encoder = mdp4_lvds_connector_best_encoder,
 };
 
 /* initialize connector */
@@ -121,13 +111,10 @@ struct drm_connector *mdp4_lvds_connector_init(struct drm_device *dev,
 {
 	struct drm_connector *connector = NULL;
 	struct mdp4_lvds_connector *mdp4_lvds_connector;
-	int ret;
 
 	mdp4_lvds_connector = kzalloc(sizeof(*mdp4_lvds_connector), GFP_KERNEL);
-	if (!mdp4_lvds_connector) {
-		ret = -ENOMEM;
-		goto fail;
-	}
+	if (!mdp4_lvds_connector)
+		return ERR_PTR(-ENOMEM);
 
 	mdp4_lvds_connector->encoder = encoder;
 	mdp4_lvds_connector->panel_node = panel_node;
@@ -143,15 +130,7 @@ struct drm_connector *mdp4_lvds_connector_init(struct drm_device *dev,
 	connector->interlace_allowed = 0;
 	connector->doublescan_allowed = 0;
 
-	drm_connector_register(connector);
-
 	drm_mode_connector_attach_encoder(connector, encoder);
 
 	return connector;
-
-fail:
-	if (connector)
-		mdp4_lvds_connector_destroy(connector);
-
-	return ERR_PTR(ret);
 }

@@ -434,6 +434,8 @@ void i40evf_add_ether_addrs(struct i40evf_adapter *adapter)
 			ether_addr_copy(veal->list[i].addr, f->macaddr);
 			i++;
 			f->add = false;
+			if (i == count)
+				break;
 		}
 	}
 	if (!more)
@@ -497,6 +499,8 @@ void i40evf_del_ether_addrs(struct i40evf_adapter *adapter)
 			i++;
 			list_del(&f->list);
 			kfree(f);
+			if (i == count)
+				break;
 		}
 	}
 	if (!more)
@@ -560,6 +564,8 @@ void i40evf_add_vlans(struct i40evf_adapter *adapter)
 			vvfl->vlan_id[i] = f->vlan;
 			i++;
 			f->add = false;
+			if (i == count)
+				break;
 		}
 	}
 	if (!more)
@@ -623,6 +629,8 @@ void i40evf_del_vlans(struct i40evf_adapter *adapter)
 			i++;
 			list_del(&f->list);
 			kfree(f);
+			if (i == count)
+				break;
 		}
 	}
 	if (!more)
@@ -809,6 +817,45 @@ void i40evf_set_rss_lut(struct i40evf_adapter *adapter)
 }
 
 /**
+ * i40evf_print_link_message - print link up or down
+ * @adapter: adapter structure
+ *
+ * Log a message telling the world of our wonderous link status
+ */
+static void i40evf_print_link_message(struct i40evf_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	char *speed = "Unknown ";
+
+	if (!adapter->link_up) {
+		netdev_info(netdev, "NIC Link is Down\n");
+		return;
+	}
+
+	switch (adapter->link_speed) {
+	case I40E_LINK_SPEED_40GB:
+		speed = "40 G";
+		break;
+	case I40E_LINK_SPEED_20GB:
+		speed = "20 G";
+		break;
+	case I40E_LINK_SPEED_10GB:
+		speed = "10 G";
+		break;
+	case I40E_LINK_SPEED_1GB:
+		speed = "1000 M";
+		break;
+	case I40E_LINK_SPEED_100MB:
+		speed = "100 M";
+		break;
+	default:
+		break;
+	}
+
+	netdev_info(netdev, "NIC Link is Up %sbps Full Duplex\n", speed);
+}
+
+/**
  * i40evf_request_reset
  * @adapter: adapter structure
  *
@@ -845,16 +892,20 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 			(struct i40e_virtchnl_pf_event *)msg;
 		switch (vpe->event) {
 		case I40E_VIRTCHNL_EVENT_LINK_CHANGE:
-			adapter->link_up =
-				vpe->event_data.link_event.link_status;
-			if (adapter->link_up && !netif_carrier_ok(netdev)) {
-				dev_info(&adapter->pdev->dev, "NIC Link is Up\n");
-				netif_carrier_on(netdev);
-				netif_tx_wake_all_queues(netdev);
-			} else if (!adapter->link_up) {
-				dev_info(&adapter->pdev->dev, "NIC Link is Down\n");
-				netif_carrier_off(netdev);
-				netif_tx_stop_all_queues(netdev);
+			adapter->link_speed =
+				vpe->event_data.link_event.link_speed;
+			if (adapter->link_up !=
+			    vpe->event_data.link_event.link_status) {
+				adapter->link_up =
+					vpe->event_data.link_event.link_status;
+				if (adapter->link_up) {
+					netif_tx_start_all_queues(netdev);
+					netif_carrier_on(netdev);
+				} else {
+					netif_tx_stop_all_queues(netdev);
+					netif_carrier_off(netdev);
+				}
+				i40evf_print_link_message(adapter);
 			}
 			break;
 		case I40E_VIRTCHNL_EVENT_RESET_IMPENDING:
@@ -929,8 +980,6 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 	case I40E_VIRTCHNL_OP_ENABLE_QUEUES:
 		/* enable transmits */
 		i40evf_irq_enable(adapter, true);
-		netif_tx_start_all_queues(adapter->netdev);
-		netif_carrier_on(adapter->netdev);
 		break;
 	case I40E_VIRTCHNL_OP_DISABLE_QUEUES:
 		i40evf_free_all_tx_resources(adapter);

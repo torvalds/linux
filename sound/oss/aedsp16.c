@@ -482,13 +482,13 @@ static struct orVals orDMA[] __initdata = {
 };
 
 static struct aedsp16_info ae_config = {
-	DEF_AEDSP16_IOB,
-	DEF_AEDSP16_IRQ,
-	DEF_AEDSP16_MRQ,
-	DEF_AEDSP16_DMA,
-	-1,
-	-1,
-	INIT_NONE
+	.base_io = DEF_AEDSP16_IOB,
+	.irq = DEF_AEDSP16_IRQ,
+	.mpu_irq = DEF_AEDSP16_MRQ,
+	.dma = DEF_AEDSP16_DMA,
+	.mss_base = -1,
+	.mpu_base = -1,
+	.init = INIT_NONE
 };
 
 /*

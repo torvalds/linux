@@ -47,6 +47,12 @@
 				clock-frequency = <50000000>;
 				#clock-cells = <0>;
 			};
+
+			pguclk: pguclk {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <74440000>;
+			};
 		};
 
 		ethernet@0x18000 {
@@ -160,6 +166,37 @@
 			clocks = <&i2cclk>;
 			interrupts = <16>;
 
+			adv7511:adv7511@39{
+				compatible="adi,adv7511";
+				reg = <0x39>;
+				interrupts = <23>;
+				adi,input-depth = <8>;
+				adi,input-colorspace = "rgb";
+				adi,input-clock = "1x";
+				adi,clock-delay = <0x03>;
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					/* RGB/YUV input */
+					port@0 {
+						reg = <0>;
+						adv7511_input:endpoint {
+						remote-endpoint = <&pgu_output>;
+						};
+					};
+
+					/* HDMI output */
+					port@1 {
+						reg = <1>;
+						adv7511_output: endpoint {
+							remote-endpoint = <&hdmi_connector_in>;
+						};
+					};
+				};
+			};
+
 			eeprom@0x54{
 				compatible = "24c01";
 				reg = <0x54>;
@@ -170,6 +207,16 @@
 				compatible = "24c04";
 				reg = <0x57>;
 				pagesize = <0x8>;
+			};
+		};
+
+		hdmi0: connector {
+			compatible = "hdmi-connector";
+			type = "a";
+			port {
+				hdmi_connector_in: endpoint {
+					remote-endpoint = <&adv7511_output>;
+				};
 			};
 		};
 
@@ -232,6 +279,20 @@
 				#gpio-cells = <2>;
 				snps,nr-gpios = <8>;
 				reg = <2>;
+			};
+		};
+
+		pgu@17000 {
+			compatible = "snps,arcpgu";
+			reg = <0x17000 0x400>;
+			encoder-slave = <&adv7511>;
+			clocks = <&pguclk>;
+			clock-names = "pxlclk";
+			memory-region = <&frame_buffer>;
+			port {
+				pgu_output: endpoint {
+					remote-endpoint = <&adv7511_input>;
+				};
 			};
 		};
 	};

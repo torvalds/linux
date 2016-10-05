@@ -35,7 +35,7 @@ DEFINE_RB_RESORT_RB(threads, strcmp(a->thread->shortname,
 
 	struct rb_node *nd;
 
-	resort_rb__for_each(nd, threads) {
+	resort_rb__for_each_entry(nd, threads) {
 		struct thread *t = threads_entry;
 		printf("%s: %d\n", t->shortname, t->tid);
 	}
@@ -123,7 +123,7 @@ static void __name##_sorted__init_entry(struct rb_node *nd,			\
 struct __name##_sorted_entry *__name##_entry;					\
 struct __name##_sorted *__name = __name##_sorted__new
 
-#define resort_rb__for_each(__nd, __name)					\
+#define resort_rb__for_each_entry(__nd, __name)					\
 	for (__nd = rb_first(&__name->entries);					\
 	     __name##_entry = rb_entry(__nd, struct __name##_sorted_entry,	\
 				       rb_node), __nd;				\

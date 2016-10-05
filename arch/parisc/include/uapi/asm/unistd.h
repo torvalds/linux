@@ -102,7 +102,7 @@
 #define __NR_uselib              (__NR_Linux + 86)
 #define __NR_swapon              (__NR_Linux + 87)
 #define __NR_reboot              (__NR_Linux + 88)
-#define __NR_mmap2             (__NR_Linux + 89)
+#define __NR_mmap2               (__NR_Linux + 89)
 #define __NR_mmap                (__NR_Linux + 90)
 #define __NR_munmap              (__NR_Linux + 91)
 #define __NR_truncate            (__NR_Linux + 92)
@@ -114,7 +114,7 @@
 #define __NR_recv                (__NR_Linux + 98)
 #define __NR_statfs              (__NR_Linux + 99)
 #define __NR_fstatfs            (__NR_Linux + 100)
-#define __NR_stat64           (__NR_Linux + 101)
+#define __NR_stat64             (__NR_Linux + 101)
 /* #define __NR_socketcall         (__NR_Linux + 102) */
 #define __NR_syslog             (__NR_Linux + 103)
 #define __NR_setitimer          (__NR_Linux + 104)
@@ -140,17 +140,17 @@
 #define __NR_adjtimex           (__NR_Linux + 124)
 #define __NR_mprotect           (__NR_Linux + 125)
 #define __NR_sigprocmask        (__NR_Linux + 126)
-#define __NR_create_module      (__NR_Linux + 127)
+#define __NR_create_module      (__NR_Linux + 127) /* not used */
 #define __NR_init_module        (__NR_Linux + 128)
 #define __NR_delete_module      (__NR_Linux + 129)
-#define __NR_get_kernel_syms    (__NR_Linux + 130)
+#define __NR_get_kernel_syms    (__NR_Linux + 130) /* not used */
 #define __NR_quotactl           (__NR_Linux + 131)
 #define __NR_getpgid            (__NR_Linux + 132)
 #define __NR_fchdir             (__NR_Linux + 133)
 #define __NR_bdflush            (__NR_Linux + 134)
 #define __NR_sysfs              (__NR_Linux + 135)
 #define __NR_personality        (__NR_Linux + 136)
-#define __NR_afs_syscall        (__NR_Linux + 137) /* Syscall for Andrew File System */
+#define __NR_afs_syscall        (__NR_Linux + 137) /* not used */
 #define __NR_setfsuid           (__NR_Linux + 138)
 #define __NR_setfsgid           (__NR_Linux + 139)
 #define __NR__llseek            (__NR_Linux + 140)
@@ -180,9 +180,9 @@
 #define __NR_setresuid          (__NR_Linux + 164)
 #define __NR_getresuid          (__NR_Linux + 165)
 #define __NR_sigaltstack        (__NR_Linux + 166)
-#define __NR_query_module       (__NR_Linux + 167)
+#define __NR_query_module       (__NR_Linux + 167) /* not used */
 #define __NR_poll               (__NR_Linux + 168)
-#define __NR_nfsservctl         (__NR_Linux + 169)
+#define __NR_nfsservctl         (__NR_Linux + 169) /* not used */
 #define __NR_setresgid          (__NR_Linux + 170)
 #define __NR_getresgid          (__NR_Linux + 171)
 #define __NR_prctl              (__NR_Linux + 172)
@@ -209,18 +209,16 @@
 #define __NR_shmdt              (__NR_Linux + 193)
 #define __NR_shmget             (__NR_Linux + 194)
 #define __NR_shmctl             (__NR_Linux + 195)
-
-#define __NR_getpmsg		(__NR_Linux + 196) /* Somebody *wants* streams? */
-#define __NR_putpmsg		(__NR_Linux + 197)
-
+#define __NR_getpmsg            (__NR_Linux + 196) /* not used */
+#define __NR_putpmsg            (__NR_Linux + 197) /* not used */
 #define __NR_lstat64            (__NR_Linux + 198)
 #define __NR_truncate64         (__NR_Linux + 199)
 #define __NR_ftruncate64        (__NR_Linux + 200)
 #define __NR_getdents64         (__NR_Linux + 201)
 #define __NR_fcntl64            (__NR_Linux + 202)
-#define __NR_attrctl            (__NR_Linux + 203)
-#define __NR_acl_get            (__NR_Linux + 204)
-#define __NR_acl_set            (__NR_Linux + 205)
+#define __NR_attrctl            (__NR_Linux + 203) /* not used */
+#define __NR_acl_get            (__NR_Linux + 204) /* not used */
+#define __NR_acl_set            (__NR_Linux + 205) /* not used */
 #define __NR_gettid             (__NR_Linux + 206)
 #define __NR_readahead          (__NR_Linux + 207)
 #define __NR_tkill              (__NR_Linux + 208)
@@ -228,8 +226,8 @@
 #define __NR_futex              (__NR_Linux + 210)
 #define __NR_sched_setaffinity  (__NR_Linux + 211)
 #define __NR_sched_getaffinity  (__NR_Linux + 212)
-#define __NR_set_thread_area    (__NR_Linux + 213)
-#define __NR_get_thread_area    (__NR_Linux + 214)
+#define __NR_set_thread_area    (__NR_Linux + 213) /* not used */
+#define __NR_get_thread_area    (__NR_Linux + 214) /* not used */
 #define __NR_io_setup           (__NR_Linux + 215)
 #define __NR_io_destroy         (__NR_Linux + 216)
 #define __NR_io_getevents       (__NR_Linux + 217)
@@ -278,7 +276,7 @@
 #define __NR_mbind		(__NR_Linux + 260)
 #define __NR_get_mempolicy	(__NR_Linux + 261)
 #define __NR_set_mempolicy	(__NR_Linux + 262)
-#define __NR_vserver		(__NR_Linux + 263)
+#define __NR_vserver		(__NR_Linux + 263) /* not used */
 #define __NR_add_key		(__NR_Linux + 264)
 #define __NR_request_key	(__NR_Linux + 265)
 #define __NR_keyctl		(__NR_Linux + 266)
@@ -318,7 +316,7 @@
 #define __NR_kexec_load		(__NR_Linux + 300)
 #define __NR_utimensat		(__NR_Linux + 301)
 #define __NR_signalfd		(__NR_Linux + 302)
-#define __NR_timerfd		(__NR_Linux + 303)
+#define __NR_timerfd		(__NR_Linux + 303) /* not used */
 #define __NR_eventfd		(__NR_Linux + 304)
 #define __NR_fallocate		(__NR_Linux + 305)
 #define __NR_timerfd_create	(__NR_Linux + 306)

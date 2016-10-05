@@ -96,7 +96,7 @@ static struct clk * __init ath79_reg_ffclk(const char *name,
 	struct clk *clk;
 
 	clk = clk_register_fixed_factor(NULL, name, parent_name, 0, mult, div);
-	if (!clk)
+	if (IS_ERR(clk))
 		panic("failed to allocate %s clock structure", name);
 
 	return clk;

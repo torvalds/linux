@@ -487,7 +487,7 @@ static int __init pcc_cpufreq_probe(void)
 	doorbell.space_id = reg_resource->space_id;
 	doorbell.bit_width = reg_resource->bit_width;
 	doorbell.bit_offset = reg_resource->bit_offset;
-	doorbell.access_width = 64;
+	doorbell.access_width = 4;
 	doorbell.address = reg_resource->address;
 
 	pr_debug("probe: doorbell: space_id is %d, bit_width is %d, "
@@ -554,8 +554,6 @@ static int pcc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		ioread32(&pcch_hdr->nominal) * 1000;
 	policy->min = policy->cpuinfo.min_freq =
 		ioread32(&pcch_hdr->minimum_frequency) * 1000;
-
-	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
 
 	pr_debug("init: policy->max is %d, policy->min is %d\n",
 		policy->max, policy->min);

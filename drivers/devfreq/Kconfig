@@ -75,8 +75,8 @@ config DEVFREQ_GOV_PASSIVE
 comment "DEVFREQ Drivers"
 
 config ARM_EXYNOS_BUS_DEVFREQ
-	bool "ARM EXYNOS Generic Memory Bus DEVFREQ Driver"
-	depends on ARCH_EXYNOS
+	tristate "ARM EXYNOS Generic Memory Bus DEVFREQ Driver"
+	depends on ARCH_EXYNOS || COMPILE_TEST
 	select DEVFREQ_GOV_SIMPLE_ONDEMAND
 	select DEVFREQ_GOV_PASSIVE
 	select DEVFREQ_EVENT_EXYNOS_PPMU
@@ -91,14 +91,26 @@ config ARM_EXYNOS_BUS_DEVFREQ
 	  This does not yet operate with optimal voltages.
 
 config ARM_TEGRA_DEVFREQ
-       tristate "Tegra DEVFREQ Driver"
-       depends on ARCH_TEGRA_124_SOC
-       select DEVFREQ_GOV_SIMPLE_ONDEMAND
-       select PM_OPP
-       help
-         This adds the DEVFREQ driver for the Tegra family of SoCs.
-         It reads ACTMON counters of memory controllers and adjusts the
-         operating frequencies and voltages with OPP support.
+	tristate "Tegra DEVFREQ Driver"
+	depends on ARCH_TEGRA_124_SOC
+	select DEVFREQ_GOV_SIMPLE_ONDEMAND
+	select PM_OPP
+	help
+	  This adds the DEVFREQ driver for the Tegra family of SoCs.
+	  It reads ACTMON counters of memory controllers and adjusts the
+	  operating frequencies and voltages with OPP support.
+
+config ARM_RK3399_DMC_DEVFREQ
+	tristate "ARM RK3399 DMC DEVFREQ Driver"
+	depends on ARCH_ROCKCHIP
+	select DEVFREQ_EVENT_ROCKCHIP_DFI
+	select DEVFREQ_GOV_SIMPLE_ONDEMAND
+	select PM_DEVFREQ_EVENT
+	select PM_OPP
+	help
+          This adds the DEVFREQ driver for the RK3399 DMC(Dynamic Memory Controller).
+          It sets the frequency for the memory controller and reads the usage counts
+          from hardware.
 
 source "drivers/devfreq/event/Kconfig"
 

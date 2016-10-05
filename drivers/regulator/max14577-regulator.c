@@ -2,7 +2,7 @@
  * max14577.c - Regulator driver for the Maxim 14577/77836
  *
  * Copyright (C) 2013,2014 Samsung Electronics
- * Krzysztof Kozlowski <k.kozlowski@samsung.com>
+ * Krzysztof Kozlowski <krzk@kernel.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -331,7 +331,7 @@ static void __exit max14577_regulator_exit(void)
 }
 module_exit(max14577_regulator_exit);
 
-MODULE_AUTHOR("Krzysztof Kozlowski <k.kozlowski@samsung.com>");
+MODULE_AUTHOR("Krzysztof Kozlowski <krzk@kernel.org>");
 MODULE_DESCRIPTION("Maxim 14577/77836 regulator driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:max14577-regulator");

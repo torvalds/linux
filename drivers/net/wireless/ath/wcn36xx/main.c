@@ -19,6 +19,8 @@
 #include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
+#include <linux/of_address.h>
+#include <linux/of_device.h>
 #include "wcn36xx.h"
 
 unsigned int wcn36xx_dbg_mask;
@@ -259,17 +261,6 @@ static void wcn36xx_feat_caps_info(struct wcn36xx *wcn)
 	}
 }
 
-static void wcn36xx_detect_chip_version(struct wcn36xx *wcn)
-{
-	if (get_feat_caps(wcn->fw_feat_caps, DOT11AC)) {
-		wcn36xx_info("Chip is 3680\n");
-		wcn->chip_version = WCN36XX_CHIP_3680;
-	} else {
-		wcn36xx_info("Chip is 3660\n");
-		wcn->chip_version = WCN36XX_CHIP_3660;
-	}
-}
-
 static int wcn36xx_start(struct ieee80211_hw *hw)
 {
 	struct wcn36xx *wcn = hw->priv;
@@ -323,9 +314,6 @@ static int wcn36xx_start(struct ieee80211_hw *hw)
 		else
 			wcn36xx_feat_caps_info(wcn);
 	}
-
-	wcn36xx_detect_chip_version(wcn);
-	wcn36xx_smd_update_cfg(wcn, WCN36XX_HAL_CFG_ENABLE_MC_ADDR_LIST, 1);
 
 	/* DMA channel initialization */
 	ret = wcn36xx_dxe_init(wcn);
@@ -1064,7 +1052,11 @@ static int wcn36xx_init_ieee80211(struct wcn36xx *wcn)
 static int wcn36xx_platform_get_resources(struct wcn36xx *wcn,
 					  struct platform_device *pdev)
 {
+	struct device_node *mmio_node;
 	struct resource *res;
+	int index;
+	int ret;
+
 	/* Set TX IRQ */
 	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ,
 					   "wcnss_wlantx_irq");
@@ -1083,19 +1075,40 @@ static int wcn36xx_platform_get_resources(struct wcn36xx *wcn,
 	}
 	wcn->rx_irq = res->start;
 
-	/* Map the memory */
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						 "wcnss_mmio");
-	if (!res) {
-		wcn36xx_err("failed to get mmio\n");
-		return -ENOENT;
+	mmio_node = of_parse_phandle(pdev->dev.parent->of_node, "qcom,mmio", 0);
+	if (!mmio_node) {
+		wcn36xx_err("failed to acquire qcom,mmio reference\n");
+		return -EINVAL;
 	}
-	wcn->mmio = ioremap(res->start, resource_size(res));
-	if (!wcn->mmio) {
-		wcn36xx_err("failed to map io memory\n");
-		return -ENOMEM;
+
+	wcn->is_pronto = !!of_device_is_compatible(mmio_node, "qcom,pronto");
+
+	/* Map the CCU memory */
+	index = of_property_match_string(mmio_node, "reg-names", "ccu");
+	wcn->ccu_base = of_iomap(mmio_node, index);
+	if (!wcn->ccu_base) {
+		wcn36xx_err("failed to map ccu memory\n");
+		ret = -ENOMEM;
+		goto put_mmio_node;
 	}
+
+	/* Map the DXE memory */
+	index = of_property_match_string(mmio_node, "reg-names", "dxe");
+	wcn->dxe_base = of_iomap(mmio_node, index);
+	if (!wcn->dxe_base) {
+		wcn36xx_err("failed to map dxe memory\n");
+		ret = -ENOMEM;
+		goto unmap_ccu;
+	}
+
+	of_node_put(mmio_node);
 	return 0;
+
+unmap_ccu:
+	iounmap(wcn->ccu_base);
+put_mmio_node:
+	of_node_put(mmio_node);
+	return ret;
 }
 
 static int wcn36xx_probe(struct platform_device *pdev)
@@ -1138,7 +1151,8 @@ static int wcn36xx_probe(struct platform_device *pdev)
 	return 0;
 
 out_unmap:
-	iounmap(wcn->mmio);
+	iounmap(wcn->ccu_base);
+	iounmap(wcn->dxe_base);
 out_wq:
 	ieee80211_free_hw(hw);
 out_err:
@@ -1154,7 +1168,8 @@ static int wcn36xx_remove(struct platform_device *pdev)
 	mutex_destroy(&wcn->hal_mutex);
 
 	ieee80211_unregister_hw(hw);
-	iounmap(wcn->mmio);
+	iounmap(wcn->dxe_base);
+	iounmap(wcn->ccu_base);
 	ieee80211_free_hw(hw);
 
 	return 0;

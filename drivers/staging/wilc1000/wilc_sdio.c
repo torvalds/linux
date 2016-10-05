@@ -1006,7 +1006,7 @@ static int sdio_sync_ext(struct wilc *wilc, int nint)
 	u32 reg;
 
 	if (nint > MAX_NUM_INT) {
-		dev_err(&func->dev, "Too many interupts (%d)...\n", nint);
+		dev_err(&func->dev, "Too many interrupts (%d)...\n", nint);
 		return 0;
 	}
 	if (nint > MAX_NUN_INT_THRPT_ENH2) {

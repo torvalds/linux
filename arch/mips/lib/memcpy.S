@@ -256,7 +256,7 @@
 
 	/*
 	 * Macro to build the __copy_user common code
-	 * Arguements:
+	 * Arguments:
 	 * mode : LEGACY_MODE or EVA_MODE
 	 * from : Source operand. USEROP or KERNELOP
 	 * to   : Destination operand. USEROP or KERNELOP

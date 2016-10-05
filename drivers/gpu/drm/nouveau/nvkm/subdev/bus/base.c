@@ -58,7 +58,7 @@ nvkm_bus_new_(const struct nvkm_bus_func *func, struct nvkm_device *device,
 	struct nvkm_bus *bus;
 	if (!(bus = *pbus = kzalloc(sizeof(*bus), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_subdev_ctor(&nvkm_bus, device, index, 0, &bus->subdev);
+	nvkm_subdev_ctor(&nvkm_bus, device, index, &bus->subdev);
 	bus->func = func;
 	return 0;
 }

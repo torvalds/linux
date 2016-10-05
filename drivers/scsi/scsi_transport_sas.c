@@ -341,22 +341,6 @@ static int do_sas_phy_delete(struct device *dev, void *data)
 }
 
 /**
- * is_sas_attached - check if device is SAS attached
- * @sdev: scsi device to check
- *
- * returns true if the device is SAS attached
- */
-int is_sas_attached(struct scsi_device *sdev)
-{
-	struct Scsi_Host *shost = sdev->host;
-
-	return shost->transportt->host_attrs.ac.class ==
-		&sas_host_class.class;
-}
-EXPORT_SYMBOL(is_sas_attached);
-
-
-/**
  * sas_remove_children  -  tear down a devices SAS data structures
  * @dev:	device belonging to the sas object
  *

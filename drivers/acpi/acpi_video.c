@@ -754,7 +754,8 @@ static int acpi_video_bqc_quirk(struct acpi_video_device *device,
 }
 
 int acpi_video_get_levels(struct acpi_device *device,
-			  struct acpi_video_device_brightness **dev_br)
+			  struct acpi_video_device_brightness **dev_br,
+			  int *pmax_level)
 {
 	union acpi_object *obj = NULL;
 	int i, max_level = 0, count = 0, level_ac_battery = 0;
@@ -841,6 +842,8 @@ int acpi_video_get_levels(struct acpi_device *device,
 
 	br->count = count;
 	*dev_br = br;
+	if (pmax_level)
+		*pmax_level = max_level;
 
 out:
 	kfree(obj);
@@ -869,7 +872,7 @@ acpi_video_init_brightness(struct acpi_video_device *device)
 	struct acpi_video_device_brightness *br = NULL;
 	int result = -EINVAL;
 
-	result = acpi_video_get_levels(device->dev, &br);
+	result = acpi_video_get_levels(device->dev, &br, &max_level);
 	if (result)
 		return result;
 	device->brightness = br;
@@ -1242,6 +1245,9 @@ static int acpi_video_device_enumerate(struct acpi_video_bus *video)
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *dod = NULL;
 	union acpi_object *obj;
+
+	if (!video->cap._DOD)
+		return AE_NOT_EXIST;
 
 	status = acpi_evaluate_object(video->device->handle, "_DOD", NULL, &buffer);
 	if (!ACPI_SUCCESS(status)) {
@@ -1737,7 +1743,7 @@ static void acpi_video_run_bcl_for_osi(struct acpi_video_bus *video)
 
 	mutex_lock(&video->device_list_lock);
 	list_for_each_entry(dev, &video->video_device_list, entry) {
-		if (!acpi_video_device_lcd_query_levels(dev, &levels))
+		if (!acpi_video_device_lcd_query_levels(dev->dev->handle, &levels))
 			kfree(levels);
 	}
 	mutex_unlock(&video->device_list_lock);

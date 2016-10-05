@@ -97,10 +97,10 @@ static int __vhci_create_device(struct vhci_data *data, __u8 opcode)
 	if (data->hdev)
 		return -EBADFD;
 
-	/* bits 0-1 are dev_type (BR/EDR or AMP) */
+	/* bits 0-1 are dev_type (Primary or AMP) */
 	dev_type = opcode & 0x03;
 
-	if (dev_type != HCI_BREDR && dev_type != HCI_AMP)
+	if (dev_type != HCI_PRIMARY && dev_type != HCI_AMP)
 		return -EINVAL;
 
 	/* bits 2-5 are reserved (must be zero) */
@@ -316,7 +316,7 @@ static void vhci_open_timeout(struct work_struct *work)
 	struct vhci_data *data = container_of(work, struct vhci_data,
 					      open_timeout.work);
 
-	vhci_create_device(data, amp ? HCI_AMP : HCI_BREDR);
+	vhci_create_device(data, amp ? HCI_AMP : HCI_PRIMARY);
 }
 
 static int vhci_open(struct inode *inode, struct file *file)
@@ -377,21 +377,7 @@ static struct miscdevice vhci_miscdev = {
 	.fops	= &vhci_fops,
 	.minor	= VHCI_MINOR,
 };
-
-static int __init vhci_init(void)
-{
-	BT_INFO("Virtual HCI driver ver %s", VERSION);
-
-	return misc_register(&vhci_miscdev);
-}
-
-static void __exit vhci_exit(void)
-{
-	misc_deregister(&vhci_miscdev);
-}
-
-module_init(vhci_init);
-module_exit(vhci_exit);
+module_misc_device(vhci_miscdev);
 
 module_param(amp, bool, 0644);
 MODULE_PARM_DESC(amp, "Create AMP controller device");

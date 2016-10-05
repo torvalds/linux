@@ -20,7 +20,7 @@ Example:
 		interrupts = <112 IRQ_TYPE_LEVEL_HIGH>,
 			<113 IRQ_TYPE_LEVEL_HIGH>,
 			<114 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&PBCLK2>;
+		clocks = <&rootclk PB2CLK>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_uart1
 				&pinctrl_uart1_cts

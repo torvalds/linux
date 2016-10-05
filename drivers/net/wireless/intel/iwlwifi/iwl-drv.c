@@ -129,8 +129,8 @@ struct iwl_drv {
 };
 
 enum {
-	DVM_OP_MODE =	0,
-	MVM_OP_MODE =	1,
+	DVM_OP_MODE,
+	MVM_OP_MODE,
 };
 
 /* Protects the table contents, i.e. the ops pointer & drv list */
@@ -326,8 +326,6 @@ static int iwl_store_cscheme(struct iwl_fw *fw, const u8 *data, const u32 len)
 	int i, j;
 	struct iwl_fw_cscheme_list *l = (struct iwl_fw_cscheme_list *)data;
 	struct iwl_fw_cipher_scheme *fwcs;
-	struct ieee80211_cipher_scheme *cs;
-	u32 cipher;
 
 	if (len < sizeof(*l) ||
 	    len < sizeof(l->size) + l->size * sizeof(l->cs[0]))
@@ -335,22 +333,12 @@ static int iwl_store_cscheme(struct iwl_fw *fw, const u8 *data, const u32 len)
 
 	for (i = 0, j = 0; i < IWL_UCODE_MAX_CS && i < l->size; i++) {
 		fwcs = &l->cs[j];
-		cipher = le32_to_cpu(fwcs->cipher);
 
 		/* we skip schemes with zero cipher suite selector */
-		if (!cipher)
+		if (!fwcs->cipher)
 			continue;
 
-		cs = &fw->cs[j++];
-		cs->cipher = cipher;
-		cs->iftype = BIT(NL80211_IFTYPE_STATION);
-		cs->hdr_len = fwcs->hdr_len;
-		cs->pn_len = fwcs->pn_len;
-		cs->pn_off = fwcs->pn_off;
-		cs->key_idx_off = fwcs->key_idx_off;
-		cs->key_idx_mask = fwcs->key_idx_mask;
-		cs->key_idx_shift = fwcs->key_idx_shift;
-		cs->mic_len = fwcs->mic_len;
+		fw->cs[j++] = *fwcs;
 	}
 
 	return 0;
@@ -795,17 +783,17 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 		 case IWL_UCODE_TLV_SEC_RT:
 			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_REGULAR,
 					    tlv_len);
-			drv->fw.mvm_fw = true;
+			drv->fw.type = IWL_FW_MVM;
 			break;
 		case IWL_UCODE_TLV_SEC_INIT:
 			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_INIT,
 					    tlv_len);
-			drv->fw.mvm_fw = true;
+			drv->fw.type = IWL_FW_MVM;
 			break;
 		case IWL_UCODE_TLV_SEC_WOWLAN:
 			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_WOWLAN,
 					    tlv_len);
-			drv->fw.mvm_fw = true;
+			drv->fw.type = IWL_FW_MVM;
 			break;
 		case IWL_UCODE_TLV_DEF_CALIB:
 			if (tlv_len != sizeof(struct iwl_tlv_calib_data))
@@ -827,17 +815,17 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 		 case IWL_UCODE_TLV_SECURE_SEC_RT:
 			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_REGULAR,
 					    tlv_len);
-			drv->fw.mvm_fw = true;
+			drv->fw.type = IWL_FW_MVM;
 			break;
 		case IWL_UCODE_TLV_SECURE_SEC_INIT:
 			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_INIT,
 					    tlv_len);
-			drv->fw.mvm_fw = true;
+			drv->fw.type = IWL_FW_MVM;
 			break;
 		case IWL_UCODE_TLV_SECURE_SEC_WOWLAN:
 			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_WOWLAN,
 					    tlv_len);
-			drv->fw.mvm_fw = true;
+			drv->fw.type = IWL_FW_MVM;
 			break;
 		case IWL_UCODE_TLV_NUM_OF_CPU:
 			if (tlv_len != sizeof(u32))
@@ -1275,7 +1263,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	 * In mvm uCode there is no difference between data and instructions
 	 * sections.
 	 */
-	if (!fw->mvm_fw && validate_sec_sizes(drv, pieces, drv->cfg))
+	if (fw->type == IWL_FW_DVM && validate_sec_sizes(drv, pieces, drv->cfg))
 		goto try_again;
 
 	/* Allocate ucode buffers for card's bus-master loading ... */
@@ -1403,10 +1391,16 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	release_firmware(ucode_raw);
 
 	mutex_lock(&iwlwifi_opmode_table_mtx);
-	if (fw->mvm_fw)
-		op = &iwlwifi_opmode_table[MVM_OP_MODE];
-	else
+	switch (fw->type) {
+	case IWL_FW_DVM:
 		op = &iwlwifi_opmode_table[DVM_OP_MODE];
+		break;
+	default:
+		WARN(1, "Invalid fw type %d\n", fw->type);
+	case IWL_FW_MVM:
+		op = &iwlwifi_opmode_table[MVM_OP_MODE];
+		break;
+	}
 
 	IWL_INFO(drv, "loaded firmware version %s op_mode %s\n",
 		 drv->fw.fw_version, op->name);
@@ -1658,7 +1652,8 @@ MODULE_PARM_DESC(11n_disable,
 	"disable 11n functionality, bitmap: 1: full, 2: disable agg TX, 4: disable agg RX, 8 enable agg TX");
 module_param_named(amsdu_size, iwlwifi_mod_params.amsdu_size,
 		   int, S_IRUGO);
-MODULE_PARM_DESC(amsdu_size, "amsdu size 0:4K 1:8K 2:12K (default 0)");
+MODULE_PARM_DESC(amsdu_size,
+		 "amsdu size 0: 12K for multi Rx queue devices, 4K for other devices 1:4K 2:8K 3:12K (default 0)");
 module_param_named(fw_restart, iwlwifi_mod_params.restart_fw, bool, S_IRUGO);
 MODULE_PARM_DESC(fw_restart, "restart firmware in case of error (default true)");
 

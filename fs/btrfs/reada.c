@@ -761,12 +761,14 @@ static void __reada_start_machine(struct btrfs_fs_info *fs_info)
 
 	do {
 		enqueued = 0;
+		mutex_lock(&fs_devices->device_list_mutex);
 		list_for_each_entry(device, &fs_devices->devices, dev_list) {
 			if (atomic_read(&device->reada_in_flight) <
 			    MAX_IN_FLIGHT)
 				enqueued += reada_start_machine_dev(fs_info,
 								    device);
 		}
+		mutex_unlock(&fs_devices->device_list_mutex);
 		total += enqueued;
 	} while (enqueued && total < 10000);
 

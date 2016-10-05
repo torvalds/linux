@@ -373,7 +373,8 @@ static size_t hist_entry_callchain__fprintf(struct hist_entry *he,
 	return 0;
 }
 
-static int hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp)
+int __hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp,
+			   struct perf_hpp_list *hpp_list)
 {
 	const char *sep = symbol_conf.field_sep;
 	struct perf_hpp_fmt *fmt;
@@ -384,7 +385,7 @@ static int hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp)
 	if (symbol_conf.exclude_other && !he->parent)
 		return 0;
 
-	hists__for_each_format(he->hists, fmt) {
+	perf_hpp_list__for_each_format(hpp_list, fmt) {
 		if (perf_hpp__should_skip(fmt, he->hists))
 			continue;
 
@@ -408,6 +409,11 @@ static int hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp)
 	}
 
 	return hpp->buf - start;
+}
+
+static int hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp)
+{
+	return __hist_entry__snprintf(he, hpp, he->hists->hpp_list);
 }
 
 static int hist_entry__hierarchy_fprintf(struct hist_entry *he,
@@ -492,14 +498,15 @@ out:
 }
 
 static int hist_entry__fprintf(struct hist_entry *he, size_t size,
-			       struct hists *hists,
-			       char *bf, size_t bfsz, FILE *fp)
+			       char *bf, size_t bfsz, FILE *fp,
+			       bool use_callchain)
 {
 	int ret;
 	struct perf_hpp hpp = {
 		.buf		= bf,
 		.size		= size,
 	};
+	struct hists *hists = he->hists;
 	u64 total_period = hists->stats.total_period;
 
 	if (size == 0 || size > bfsz)
@@ -512,7 +519,7 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 
 	ret = fprintf(fp, "%s\n", bf);
 
-	if (symbol_conf.use_callchain)
+	if (use_callchain)
 		ret += hist_entry_callchain__fprintf(he, total_period, 0, fp);
 
 	return ret;
@@ -527,8 +534,8 @@ static int print_hierarchy_indent(const char *sep, int indent,
 	return fprintf(fp, "%-.*s", (indent - 2) * HIERARCHY_INDENT, line);
 }
 
-static int print_hierarchy_header(struct hists *hists, struct perf_hpp *hpp,
-				  const char *sep, FILE *fp)
+static int hists__fprintf_hierarchy_headers(struct hists *hists,
+					    struct perf_hpp *hpp, FILE *fp)
 {
 	bool first_node, first_col;
 	int indent;
@@ -537,6 +544,7 @@ static int print_hierarchy_header(struct hists *hists, struct perf_hpp *hpp,
 	unsigned header_width = 0;
 	struct perf_hpp_fmt *fmt;
 	struct perf_hpp_list_node *fmt_node;
+	const char *sep = symbol_conf.field_sep;
 
 	indent = hists->nr_hpp_node;
 
@@ -548,7 +556,7 @@ static int print_hierarchy_header(struct hists *hists, struct perf_hpp *hpp,
 				    struct perf_hpp_list_node, list);
 
 	perf_hpp_list__for_each_format(&fmt_node->hpp, fmt) {
-		fmt->header(fmt, hpp, hists_to_evsel(hists));
+		fmt->header(fmt, hpp, hists, 0, NULL);
 		fprintf(fp, "%s%s", hpp->buf, sep ?: "  ");
 	}
 
@@ -568,7 +576,7 @@ static int print_hierarchy_header(struct hists *hists, struct perf_hpp *hpp,
 				header_width += fprintf(fp, "+");
 			first_col = false;
 
-			fmt->header(fmt, hpp, hists_to_evsel(hists));
+			fmt->header(fmt, hpp, hists, 0, NULL);
 
 			header_width += fprintf(fp, "%s", trim(hpp->buf));
 		}
@@ -589,7 +597,7 @@ static int print_hierarchy_header(struct hists *hists, struct perf_hpp *hpp,
 			fprintf(fp, "%s", sep ?: "..");
 		first_col = false;
 
-		width = fmt->width(fmt, hpp, hists_to_evsel(hists));
+		width = fmt->width(fmt, hpp, hists);
 		fprintf(fp, "%.*s", width, dots);
 	}
 
@@ -606,7 +614,7 @@ static int print_hierarchy_header(struct hists *hists, struct perf_hpp *hpp,
 				width++;  /* for '+' sign between column header */
 			first_col = false;
 
-			width += fmt->width(fmt, hpp, hists_to_evsel(hists));
+			width += fmt->width(fmt, hpp, hists);
 		}
 
 		if (width > header_width)
@@ -622,67 +630,52 @@ static int print_hierarchy_header(struct hists *hists, struct perf_hpp *hpp,
 	return 2;
 }
 
-size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
-		      int max_cols, float min_pcnt, FILE *fp)
+static void fprintf_line(struct hists *hists, struct perf_hpp *hpp,
+			 int line, FILE *fp)
 {
 	struct perf_hpp_fmt *fmt;
-	struct perf_hpp_list_node *fmt_node;
-	struct rb_node *nd;
-	size_t ret = 0;
-	unsigned int width;
 	const char *sep = symbol_conf.field_sep;
-	int nr_rows = 0;
-	char bf[96];
-	struct perf_hpp dummy_hpp = {
-		.buf	= bf,
-		.size	= sizeof(bf),
-	};
 	bool first = true;
-	size_t linesz;
-	char *line = NULL;
-	unsigned indent;
-
-	init_rem_hits();
-
-	hists__for_each_format(hists, fmt)
-		perf_hpp__reset_width(fmt, hists);
-
-	if (symbol_conf.col_width_list_str)
-		perf_hpp__set_user_width(symbol_conf.col_width_list_str);
-
-	if (!show_header)
-		goto print_entries;
-
-	fprintf(fp, "# ");
-
-	if (symbol_conf.report_hierarchy) {
-		list_for_each_entry(fmt_node, &hists->hpp_formats, list) {
-			perf_hpp_list__for_each_format(&fmt_node->hpp, fmt)
-				perf_hpp__reset_width(fmt, hists);
-		}
-		nr_rows += print_hierarchy_header(hists, &dummy_hpp, sep, fp);
-		goto print_entries;
-	}
+	int span = 0;
 
 	hists__for_each_format(hists, fmt) {
 		if (perf_hpp__should_skip(fmt, hists))
 			continue;
 
-		if (!first)
+		if (!first && !span)
 			fprintf(fp, "%s", sep ?: "  ");
 		else
 			first = false;
 
-		fmt->header(fmt, &dummy_hpp, hists_to_evsel(hists));
-		fprintf(fp, "%s", bf);
+		fmt->header(fmt, hpp, hists, line, &span);
+
+		if (!span)
+			fprintf(fp, "%s", hpp->buf);
+	}
+}
+
+static int
+hists__fprintf_standard_headers(struct hists *hists,
+				struct perf_hpp *hpp,
+				FILE *fp)
+{
+	struct perf_hpp_list *hpp_list = hists->hpp_list;
+	struct perf_hpp_fmt *fmt;
+	unsigned int width;
+	const char *sep = symbol_conf.field_sep;
+	bool first = true;
+	int line;
+
+	for (line = 0; line < hpp_list->nr_header_lines; line++) {
+		/* first # is displayed one level up */
+		if (line)
+			fprintf(fp, "# ");
+		fprintf_line(hists, hpp, line, fp);
+		fprintf(fp, "\n");
 	}
 
-	fprintf(fp, "\n");
-	if (max_rows && ++nr_rows >= max_rows)
-		goto out;
-
 	if (sep)
-		goto print_entries;
+		return hpp_list->nr_header_lines;
 
 	first = true;
 
@@ -699,20 +692,58 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		else
 			first = false;
 
-		width = fmt->width(fmt, &dummy_hpp, hists_to_evsel(hists));
+		width = fmt->width(fmt, hpp, hists);
 		for (i = 0; i < width; i++)
 			fprintf(fp, ".");
 	}
 
 	fprintf(fp, "\n");
-	if (max_rows && ++nr_rows >= max_rows)
-		goto out;
-
 	fprintf(fp, "#\n");
-	if (max_rows && ++nr_rows >= max_rows)
+	return hpp_list->nr_header_lines + 2;
+}
+
+int hists__fprintf_headers(struct hists *hists, FILE *fp)
+{
+	char bf[1024];
+	struct perf_hpp dummy_hpp = {
+		.buf	= bf,
+		.size	= sizeof(bf),
+	};
+
+	fprintf(fp, "# ");
+
+	if (symbol_conf.report_hierarchy)
+		return hists__fprintf_hierarchy_headers(hists, &dummy_hpp, fp);
+	else
+		return hists__fprintf_standard_headers(hists, &dummy_hpp, fp);
+
+}
+
+size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
+		      int max_cols, float min_pcnt, FILE *fp,
+		      bool use_callchain)
+{
+	struct rb_node *nd;
+	size_t ret = 0;
+	const char *sep = symbol_conf.field_sep;
+	int nr_rows = 0;
+	size_t linesz;
+	char *line = NULL;
+	unsigned indent;
+
+	init_rem_hits();
+
+	hists__reset_column_width(hists);
+
+	if (symbol_conf.col_width_list_str)
+		perf_hpp__set_user_width(symbol_conf.col_width_list_str);
+
+	if (show_header)
+		nr_rows += hists__fprintf_headers(hists, fp);
+
+	if (max_rows && nr_rows >= max_rows)
 		goto out;
 
-print_entries:
 	linesz = hists__sort_list_width(hists) + 3 + 1;
 	linesz += perf_hpp__color_overhead();
 	line = malloc(linesz);
@@ -734,7 +765,7 @@ print_entries:
 		if (percent < min_pcnt)
 			continue;
 
-		ret += hist_entry__fprintf(h, max_cols, hists, line, linesz, fp);
+		ret += hist_entry__fprintf(h, max_cols, line, linesz, fp, use_callchain);
 
 		if (max_rows && ++nr_rows >= max_rows)
 			break;

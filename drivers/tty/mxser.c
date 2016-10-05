@@ -1219,7 +1219,6 @@ static int mxser_get_serial_info(struct tty_struct *tty,
 		.close_delay = info->port.close_delay,
 		.closing_wait = info->port.closing_wait,
 		.custom_divisor = info->custom_divisor,
-		.hub6 = 0
 	};
 	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
 		return -EFAULT;

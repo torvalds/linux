@@ -20,7 +20,7 @@ common-objs-y += powerpc.o emulate.o emulate_loadstore.o
 obj-$(CONFIG_KVM_EXIT_TIMING) += timing.o
 obj-$(CONFIG_KVM_BOOK3S_HANDLER) += book3s_exports.o
 
-AFLAGS_booke_interrupts.o := -I$(obj)
+AFLAGS_booke_interrupts.o := -I$(objtree)/$(obj)
 
 kvm-e500-objs := \
 	$(common-objs-y) \
@@ -78,6 +78,7 @@ kvm-book3s_64-builtin-xics-objs-$(CONFIG_KVM_XICS) := \
 
 ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 kvm-book3s_64-builtin-objs-$(CONFIG_KVM_BOOK3S_64_HANDLER) += \
+	book3s_hv_hmi.o \
 	book3s_hv_rmhandlers.o \
 	book3s_hv_rm_mmu.o \
 	book3s_hv_ras.o \

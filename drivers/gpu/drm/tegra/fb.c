@@ -68,7 +68,7 @@ static void tegra_fb_destroy(struct drm_framebuffer *framebuffer)
 		struct tegra_bo *bo = fb->planes[i];
 
 		if (bo) {
-			if (bo->pages && bo->vaddr)
+			if (bo->pages)
 				vunmap(bo->vaddr);
 
 			drm_gem_object_unreference_unlocked(&bo->gem);
@@ -149,7 +149,7 @@ struct drm_framebuffer *tegra_fb_create(struct drm_device *drm,
 		unsigned int height = cmd->height / (i ? vsub : 1);
 		unsigned int size, bpp;
 
-		gem = drm_gem_object_lookup(drm, file, cmd->handles[i]);
+		gem = drm_gem_object_lookup(file, cmd->handles[i]);
 		if (!gem) {
 			err = -ENXIO;
 			goto unreference;

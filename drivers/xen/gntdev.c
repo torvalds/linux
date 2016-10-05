@@ -748,7 +748,7 @@ static long gntdev_ioctl_notify(struct gntdev_priv *priv, void __user *u)
 	return rc;
 }
 
-#define GNTDEV_COPY_BATCH 24
+#define GNTDEV_COPY_BATCH 16
 
 struct gntdev_copy_batch {
 	struct gnttab_copy ops[GNTDEV_COPY_BATCH];
@@ -982,7 +982,7 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 {
 	struct gntdev_priv *priv = flip->private_data;
 	int index = vma->vm_pgoff;
-	int count = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+	int count = vma_pages(vma);
 	struct grant_map *map;
 	int i, err = -EINVAL;
 

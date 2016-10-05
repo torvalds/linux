@@ -411,3 +411,25 @@ struct page *realmode_pfn_to_page(unsigned long pfn)
 EXPORT_SYMBOL_GPL(realmode_pfn_to_page);
 
 #endif /* CONFIG_SPARSEMEM_VMEMMAP/CONFIG_FLATMEM */
+
+#ifdef CONFIG_PPC_STD_MMU_64
+static bool disable_radix;
+static int __init parse_disable_radix(char *p)
+{
+	disable_radix = true;
+	return 0;
+}
+early_param("disable_radix", parse_disable_radix);
+
+void __init mmu_early_init_devtree(void)
+{
+	/* Disable radix mode based on kernel command line. */
+	if (disable_radix)
+		cur_cpu_spec->mmu_features &= ~MMU_FTR_TYPE_RADIX;
+
+	if (early_radix_enabled())
+		radix__early_init_devtree();
+	else
+		hash__early_init_devtree();
+}
+#endif /* CONFIG_PPC_STD_MMU_64 */

@@ -1,5 +1,3 @@
-#include <linux/seccomp.h>
-
 #ifndef SECCOMP_SET_MODE_STRICT
 #define SECCOMP_SET_MODE_STRICT 0
 #endif

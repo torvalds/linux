@@ -62,7 +62,7 @@ static int pkcs7_preparse(struct key_preparsed_payload *prep)
 
 	return verify_pkcs7_signature(NULL, 0,
 				      prep->data, prep->datalen,
-				      NULL, usage,
+				      (void *)1UL, usage,
 				      pkcs7_view_content, prep);
 }
 

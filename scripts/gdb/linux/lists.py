@@ -18,6 +18,27 @@ from linux import utils
 list_head = utils.CachedType("struct list_head")
 
 
+def list_for_each(head):
+    if head.type == list_head.get_type().pointer():
+        head = head.dereference()
+    elif head.type != list_head.get_type():
+        raise gdb.GdbError("Must be struct list_head not {}"
+                           .format(head.type))
+
+    node = head['next'].dereference()
+    while node.address != head.address:
+        yield node.address
+        node = node['next'].dereference()
+
+
+def list_for_each_entry(head, gdbtype, member):
+    for node in list_for_each(head):
+        if node.type != list_head.get_type().pointer():
+            raise TypeError("Type {} found. Expected struct list_head *."
+                            .format(node.type))
+        yield utils.container_of(node, gdbtype, member)
+
+
 def list_check(head):
     nb = 0
     if (head.type == list_head.get_type().pointer()):

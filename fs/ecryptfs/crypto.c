@@ -45,7 +45,7 @@
  * ecryptfs_to_hex
  * @dst: Buffer to take hex character representation of contents of
  *       src; must be at least of size (src_size * 2)
- * @src: Buffer to be converted to a hex string respresentation
+ * @src: Buffer to be converted to a hex string representation
  * @src_size: number of bytes to convert
  */
 void ecryptfs_to_hex(char *dst, char *src, size_t src_size)
@@ -60,7 +60,7 @@ void ecryptfs_to_hex(char *dst, char *src, size_t src_size)
  * ecryptfs_from_hex
  * @dst: Buffer to take the bytes from src hex; must be at least of
  *       size (src_size / 2)
- * @src: Buffer to be converted from a hex string respresentation to raw value
+ * @src: Buffer to be converted from a hex string representation to raw value
  * @dst_size: size of dst buffer, or number of hex characters pairs to convert
  */
 void ecryptfs_from_hex(char *dst, char *src, int dst_size)
@@ -953,7 +953,7 @@ struct ecryptfs_cipher_code_str_map_elem {
 };
 
 /* Add support for additional ciphers by adding elements here. The
- * cipher_code is whatever OpenPGP applicatoins use to identify the
+ * cipher_code is whatever OpenPGP applications use to identify the
  * ciphers. List in order of probability. */
 static struct ecryptfs_cipher_code_str_map_elem
 ecryptfs_cipher_code_str_map[] = {
@@ -1141,12 +1141,13 @@ ecryptfs_write_metadata_to_contents(struct inode *ecryptfs_inode,
 
 static int
 ecryptfs_write_metadata_to_xattr(struct dentry *ecryptfs_dentry,
+				 struct inode *ecryptfs_inode,
 				 char *page_virt, size_t size)
 {
 	int rc;
 
-	rc = ecryptfs_setxattr(ecryptfs_dentry, ECRYPTFS_XATTR_NAME, page_virt,
-			       size, 0);
+	rc = ecryptfs_setxattr(ecryptfs_dentry, ecryptfs_inode,
+			       ECRYPTFS_XATTR_NAME, page_virt, size, 0);
 	return rc;
 }
 
@@ -1215,8 +1216,8 @@ int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry,
 		goto out_free;
 	}
 	if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR)
-		rc = ecryptfs_write_metadata_to_xattr(ecryptfs_dentry, virt,
-						      size);
+		rc = ecryptfs_write_metadata_to_xattr(ecryptfs_dentry, ecryptfs_inode,
+						      virt, size);
 	else
 		rc = ecryptfs_write_metadata_to_contents(ecryptfs_inode, virt,
 							 virt_len);
@@ -1409,7 +1410,7 @@ int ecryptfs_read_and_validate_xattr_region(struct dentry *dentry,
  *
  * Common entry point for reading file metadata. From here, we could
  * retrieve the header information from the header region of the file,
- * the xattr region of the file, or some other repostory that is
+ * the xattr region of the file, or some other repository that is
  * stored separately from the file itself. The current implementation
  * supports retrieving the metadata information from the file contents
  * and from the xattr region.

@@ -46,7 +46,7 @@ struct bpf_object;
 struct parse_events_term;
 #define PERF_BPF_PROBE_GROUP "perf_bpf_probe"
 
-typedef int (*bpf_prog_iter_callback_t)(struct probe_trace_event *tev,
+typedef int (*bpf_prog_iter_callback_t)(const char *group, const char *event,
 					int fd, void *arg);
 
 #ifdef HAVE_LIBBPF_SUPPORT
@@ -67,8 +67,8 @@ int bpf__strerror_probe(struct bpf_object *obj, int err,
 int bpf__load(struct bpf_object *obj);
 int bpf__strerror_load(struct bpf_object *obj, int err,
 		       char *buf, size_t size);
-int bpf__foreach_tev(struct bpf_object *obj,
-		     bpf_prog_iter_callback_t func, void *arg);
+int bpf__foreach_event(struct bpf_object *obj,
+		       bpf_prog_iter_callback_t func, void *arg);
 
 int bpf__config_obj(struct bpf_object *obj, struct parse_events_term *term,
 		    struct perf_evlist *evlist, int *error_pos);
@@ -107,9 +107,9 @@ static inline int bpf__unprobe(struct bpf_object *obj __maybe_unused) { return 0
 static inline int bpf__load(struct bpf_object *obj __maybe_unused) { return 0; }
 
 static inline int
-bpf__foreach_tev(struct bpf_object *obj __maybe_unused,
-		 bpf_prog_iter_callback_t func __maybe_unused,
-		 void *arg __maybe_unused)
+bpf__foreach_event(struct bpf_object *obj __maybe_unused,
+		   bpf_prog_iter_callback_t func __maybe_unused,
+		   void *arg __maybe_unused)
 {
 	return 0;
 }

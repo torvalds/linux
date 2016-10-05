@@ -80,6 +80,8 @@ int ovl_copy_xattr(struct dentry *old, struct dentry *new)
 	}
 
 	for (name = buf; name < (buf + list_size); name += strlen(name) + 1) {
+		if (ovl_is_private_xattr(name))
+			continue;
 retry:
 		size = vfs_getxattr(old, name, value, value_size);
 		if (size == -ERANGE)
@@ -103,6 +105,13 @@ retry:
 			goto retry;
 		}
 
+		error = security_inode_copy_up_xattr(name);
+		if (error < 0 && error != -EOPNOTSUPP)
+			break;
+		if (error == 1) {
+			error = 0;
+			continue; /* Discard */
+		}
 		error = vfs_setxattr(new, name, value, size, 0);
 		if (error)
 			break;
@@ -246,6 +255,8 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 	struct dentry *upper = NULL;
 	umode_t mode = stat->mode;
 	int err;
+	const struct cred *old_creds = NULL;
+	struct cred *new_creds = NULL;
 
 	newdentry = ovl_lookup_temp(workdir, dentry);
 	err = PTR_ERR(newdentry);
@@ -258,10 +269,23 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 	if (IS_ERR(upper))
 		goto out1;
 
+	err = security_inode_copy_up(dentry, &new_creds);
+	if (err < 0)
+		goto out2;
+
+	if (new_creds)
+		old_creds = override_creds(new_creds);
+
 	/* Can't properly set mode on creation because of the umask */
 	stat->mode &= S_IFMT;
 	err = ovl_create_real(wdir, newdentry, stat, link, NULL, true);
 	stat->mode = mode;
+
+	if (new_creds) {
+		revert_creds(old_creds);
+		put_cred(new_creds);
+	}
+
 	if (err)
 		goto out2;
 
@@ -292,6 +316,7 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 		goto out_cleanup;
 
 	ovl_dentry_update(dentry, newdentry);
+	ovl_inode_update(d_inode(dentry), d_inode(newdentry));
 	newdentry = NULL;
 
 	/*
@@ -336,7 +361,6 @@ int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 	struct dentry *upperdir;
 	struct dentry *upperdentry;
 	const struct cred *old_cred;
-	struct cred *override_cred;
 	char *link = NULL;
 
 	if (WARN_ON(!workdir))
@@ -357,28 +381,7 @@ int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 			return PTR_ERR(link);
 	}
 
-	err = -ENOMEM;
-	override_cred = prepare_creds();
-	if (!override_cred)
-		goto out_free_link;
-
-	override_cred->fsuid = stat->uid;
-	override_cred->fsgid = stat->gid;
-	/*
-	 * CAP_SYS_ADMIN for copying up extended attributes
-	 * CAP_DAC_OVERRIDE for create
-	 * CAP_FOWNER for chmod, timestamp update
-	 * CAP_FSETID for chmod
-	 * CAP_CHOWN for chown
-	 * CAP_MKNOD for mknod
-	 */
-	cap_raise(override_cred->cap_effective, CAP_SYS_ADMIN);
-	cap_raise(override_cred->cap_effective, CAP_DAC_OVERRIDE);
-	cap_raise(override_cred->cap_effective, CAP_FOWNER);
-	cap_raise(override_cred->cap_effective, CAP_FSETID);
-	cap_raise(override_cred->cap_effective, CAP_CHOWN);
-	cap_raise(override_cred->cap_effective, CAP_MKNOD);
-	old_cred = override_creds(override_cred);
+	old_cred = ovl_override_creds(dentry->d_sb);
 
 	err = -EIO;
 	if (lock_rename(workdir, upperdir) != NULL) {
@@ -401,9 +404,7 @@ int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 out_unlock:
 	unlock_rename(workdir, upperdir);
 	revert_creds(old_cred);
-	put_cred(override_cred);
 
-out_free_link:
 	if (link)
 		free_page((unsigned long) link);
 

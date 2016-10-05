@@ -13,7 +13,7 @@
 #include <linux/rtc.h>
 #include <linux/types.h>
 #include <linux/bcd.h>
-#include <linux/rtc-ds2404.h>
+#include <linux/platform_data/rtc-ds2404.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>

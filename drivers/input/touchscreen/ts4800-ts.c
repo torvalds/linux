@@ -118,6 +118,13 @@ static int ts4800_parse_dt(struct platform_device *pdev,
 		return -ENODEV;
 	}
 
+	ts->regmap = syscon_node_to_regmap(syscon_np);
+	of_node_put(syscon_np);
+	if (IS_ERR(ts->regmap)) {
+		dev_err(dev, "cannot get parent's regmap\n");
+		return PTR_ERR(ts->regmap);
+	}
+
 	error = of_property_read_u32_index(np, "syscon", 1, &reg);
 	if (error < 0) {
 		dev_err(dev, "no offset in syscon\n");
@@ -133,12 +140,6 @@ static int ts4800_parse_dt(struct platform_device *pdev,
 	}
 
 	ts->bit = BIT(bit);
-
-	ts->regmap = syscon_node_to_regmap(syscon_np);
-	if (IS_ERR(ts->regmap)) {
-		dev_err(dev, "cannot get parent's regmap\n");
-		return PTR_ERR(ts->regmap);
-	}
 
 	return 0;
 }

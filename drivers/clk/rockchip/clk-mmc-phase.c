@@ -41,8 +41,6 @@ static unsigned long rockchip_mmc_recalc(struct clk_hw *hw,
 #define ROCKCHIP_MMC_DEGREE_MASK 0x3
 #define ROCKCHIP_MMC_DELAYNUM_OFFSET 2
 #define ROCKCHIP_MMC_DELAYNUM_MASK (0xff << ROCKCHIP_MMC_DELAYNUM_OFFSET)
-#define ROCKCHIP_MMC_INIT_STATE_RESET 0x1
-#define ROCKCHIP_MMC_INIT_STATE_SHIFT 1
 
 #define PSECS_PER_SEC 1000000000000LL
 
@@ -154,6 +152,7 @@ struct clk *rockchip_clk_register_mmc(const char *name,
 		return ERR_PTR(-ENOMEM);
 
 	init.name = name;
+	init.flags = 0;
 	init.num_parents = num_parents;
 	init.parent_names = parent_names;
 	init.ops = &rockchip_mmc_clk_ops;
@@ -161,15 +160,6 @@ struct clk *rockchip_clk_register_mmc(const char *name,
 	mmc_clock->hw.init = &init;
 	mmc_clock->reg = reg;
 	mmc_clock->shift = shift;
-
-	/*
-	 * Assert init_state to soft reset the CLKGEN
-	 * for mmc tuning phase and degree
-	 */
-	if (mmc_clock->shift == ROCKCHIP_MMC_INIT_STATE_SHIFT)
-		writel(HIWORD_UPDATE(ROCKCHIP_MMC_INIT_STATE_RESET,
-				     ROCKCHIP_MMC_INIT_STATE_RESET,
-				     mmc_clock->shift), mmc_clock->reg);
 
 	clk = clk_register(NULL, &mmc_clock->hw);
 	if (IS_ERR(clk))

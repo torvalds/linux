@@ -457,10 +457,8 @@ int stk1160_alloc_isoc(struct stk1160 *dev)
 	for (i = 0; i < num_bufs; i++) {
 
 		urb = usb_alloc_urb(max_packets, GFP_KERNEL);
-		if (!urb) {
-			stk1160_err("cannot alloc urb[%d]\n", i);
+		if (!urb)
 			goto free_i_bufs;
-		}
 		dev->isoc_ctl.urb[i] = urb;
 
 #ifndef CONFIG_DMA_NONCOHERENT

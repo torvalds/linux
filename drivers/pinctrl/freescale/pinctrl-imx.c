@@ -16,7 +16,6 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_address.h>
@@ -46,7 +45,7 @@ struct imx_pinctrl {
 	const struct imx_pinctrl_soc_info *info;
 };
 
-static const inline struct imx_pin_group *imx_pinctrl_find_group_by_name(
+static inline const struct imx_pin_group *imx_pinctrl_find_group_by_name(
 				const struct imx_pinctrl_soc_info *info,
 				const char *name)
 {
@@ -209,9 +208,9 @@ static int imx_pmx_set(struct pinctrl_dev *pctldev, unsigned selector,
 		pin_reg = &info->pin_regs[pin_id];
 
 		if (pin_reg->mux_reg == -1) {
-			dev_err(ipctl->dev, "Pin(%s) does not support mux function\n",
+			dev_dbg(ipctl->dev, "Pin(%s) does not support mux function\n",
 				info->pins[pin_id].name);
-			return -EINVAL;
+			continue;
 		}
 
 		if (info->flags & SHARE_MUX_CONF_REG) {
@@ -513,13 +512,6 @@ static const struct pinconf_ops imx_pinconf_ops = {
 	.pin_config_group_dbg_show = imx_pinconf_group_dbg_show,
 };
 
-static struct pinctrl_desc imx_pinctrl_desc = {
-	.pctlops = &imx_pctrl_ops,
-	.pmxops = &imx_pmx_ops,
-	.confops = &imx_pinconf_ops,
-	.owner = THIS_MODULE,
-};
-
 /*
  * Each pin represented in fsl,pins consists of 5 u32 PIN_FUNC_ID and
  * 1 u32 CONFIG, so 24 types in total for each pin.
@@ -722,6 +714,7 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 {
 	struct regmap_config config = { .name = "gpr" };
 	struct device_node *dev_np = pdev->dev.of_node;
+	struct pinctrl_desc *imx_pinctrl_desc;
 	struct device_node *np;
 	struct imx_pinctrl *ipctl;
 	struct resource *res;
@@ -776,9 +769,18 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 		}
 	}
 
-	imx_pinctrl_desc.name = dev_name(&pdev->dev);
-	imx_pinctrl_desc.pins = info->pins;
-	imx_pinctrl_desc.npins = info->npins;
+	imx_pinctrl_desc = devm_kzalloc(&pdev->dev, sizeof(*imx_pinctrl_desc),
+					GFP_KERNEL);
+	if (!imx_pinctrl_desc)
+		return -ENOMEM;
+
+	imx_pinctrl_desc->name = dev_name(&pdev->dev);
+	imx_pinctrl_desc->pins = info->pins;
+	imx_pinctrl_desc->npins = info->npins;
+	imx_pinctrl_desc->pctlops = &imx_pctrl_ops,
+	imx_pinctrl_desc->pmxops = &imx_pmx_ops,
+	imx_pinctrl_desc->confops = &imx_pinconf_ops,
+	imx_pinctrl_desc->owner = THIS_MODULE,
 
 	ret = imx_pinctrl_probe_dt(pdev, info);
 	if (ret) {
@@ -789,7 +791,8 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 	ipctl->info = info;
 	ipctl->dev = info->dev;
 	platform_set_drvdata(pdev, ipctl);
-	ipctl->pctl = devm_pinctrl_register(&pdev->dev, &imx_pinctrl_desc, ipctl);
+	ipctl->pctl = devm_pinctrl_register(&pdev->dev,
+					    imx_pinctrl_desc, ipctl);
 	if (IS_ERR(ipctl->pctl)) {
 		dev_err(&pdev->dev, "could not register IMX pinctrl driver\n");
 		return PTR_ERR(ipctl->pctl);

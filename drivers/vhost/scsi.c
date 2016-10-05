@@ -88,7 +88,7 @@ struct vhost_scsi_cmd {
 	struct scatterlist *tvc_prot_sgl;
 	struct page **tvc_upages;
 	/* Pointer to response header iovec */
-	struct iovec *tvc_resp_iov;
+	struct iovec tvc_resp_iov;
 	/* Pointer to vhost_scsi for our device */
 	struct vhost_scsi *tvc_vhost;
 	/* Pointer to vhost_virtqueue for the cmd */
@@ -333,16 +333,6 @@ static void vhost_scsi_release_cmd(struct se_cmd *se_cmd)
 	percpu_ida_free(&se_sess->sess_tag_pool, se_cmd->map_tag);
 }
 
-static int vhost_scsi_shutdown_session(struct se_session *se_sess)
-{
-	return 0;
-}
-
-static void vhost_scsi_close_session(struct se_session *se_sess)
-{
-	return;
-}
-
 static u32 vhost_scsi_sess_get_index(struct se_session *se_sess)
 {
 	return 0;
@@ -557,7 +547,7 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 		memcpy(v_rsp.sense, cmd->tvc_sense_buf,
 		       se_cmd->scsi_sense_length);
 
-		iov_iter_init(&iov_iter, READ, cmd->tvc_resp_iov,
+		iov_iter_init(&iov_iter, READ, &cmd->tvc_resp_iov,
 			      cmd->tvc_in_iovs, sizeof(v_rsp));
 		ret = copy_to_iter(&v_rsp, sizeof(v_rsp), &iov_iter);
 		if (likely(ret == sizeof(v_rsp))) {
@@ -1054,7 +1044,7 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 		}
 		cmd->tvc_vhost = vs;
 		cmd->tvc_vq = vq;
-		cmd->tvc_resp_iov = &vq->iov[out];
+		cmd->tvc_resp_iov = vq->iov[out];
 		cmd->tvc_in_iovs = in;
 
 		pr_debug("vhost_scsi got command opcode: %#02x, lun: %d\n",
@@ -2114,8 +2104,6 @@ static struct target_core_fabric_ops vhost_scsi_ops = {
 	.tpg_get_inst_index		= vhost_scsi_tpg_get_inst_index,
 	.release_cmd			= vhost_scsi_release_cmd,
 	.check_stop_free		= vhost_scsi_check_stop_free,
-	.shutdown_session		= vhost_scsi_shutdown_session,
-	.close_session			= vhost_scsi_close_session,
 	.sess_get_index			= vhost_scsi_sess_get_index,
 	.sess_get_initiator_sid		= NULL,
 	.write_pending			= vhost_scsi_write_pending,

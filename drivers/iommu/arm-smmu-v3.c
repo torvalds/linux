@@ -879,7 +879,7 @@ static void arm_smmu_cmdq_skip_err(struct arm_smmu_device *smmu)
 	 * We may have concurrent producers, so we need to be careful
 	 * not to touch any of the shadow cmdq state.
 	 */
-	queue_read(cmd, Q_ENT(q, idx), q->ent_dwords);
+	queue_read(cmd, Q_ENT(q, cons), q->ent_dwords);
 	dev_err(smmu->dev, "skipping command in error state:\n");
 	for (i = 0; i < ARRAY_SIZE(cmd); ++i)
 		dev_err(smmu->dev, "\t0x%016llx\n", (unsigned long long)cmd[i]);
@@ -890,7 +890,7 @@ static void arm_smmu_cmdq_skip_err(struct arm_smmu_device *smmu)
 		return;
 	}
 
-	queue_write(cmd, Q_ENT(q, idx), q->ent_dwords);
+	queue_write(Q_ENT(q, cons), cmd, q->ent_dwords);
 }
 
 static void arm_smmu_cmdq_issue_cmd(struct arm_smmu_device *smmu,
@@ -1034,6 +1034,9 @@ static void arm_smmu_write_strtab_ent(struct arm_smmu_device *smmu, u32 sid,
 		case STRTAB_STE_0_CFG_S2_TRANS:
 			ste_live = true;
 			break;
+		case STRTAB_STE_0_CFG_ABORT:
+			if (disable_bypass)
+				break;
 		default:
 			BUG(); /* STE corruption */
 		}
@@ -1477,7 +1480,7 @@ static int arm_smmu_domain_finalise_s1(struct arm_smmu_domain *smmu_domain,
 	struct arm_smmu_s1_cfg *cfg = &smmu_domain->s1_cfg;
 
 	asid = arm_smmu_bitmap_alloc(smmu->asid_map, smmu->asid_bits);
-	if (IS_ERR_VALUE(asid))
+	if (asid < 0)
 		return asid;
 
 	cfg->cdptr = dmam_alloc_coherent(smmu->dev, CTXDESC_CD_DWORDS << 3,
@@ -1508,7 +1511,7 @@ static int arm_smmu_domain_finalise_s2(struct arm_smmu_domain *smmu_domain,
 	struct arm_smmu_s2_cfg *cfg = &smmu_domain->s2_cfg;
 
 	vmid = arm_smmu_bitmap_alloc(smmu->vmid_map, smmu->vmid_bits);
-	if (IS_ERR_VALUE(vmid))
+	if (vmid < 0)
 		return vmid;
 
 	cfg->vmid	= (u16)vmid;
@@ -1569,7 +1572,7 @@ static int arm_smmu_domain_finalise(struct iommu_domain *domain)
 	smmu_domain->pgtbl_ops = pgtbl_ops;
 
 	ret = finalise_stage_fn(smmu_domain, &pgtbl_cfg);
-	if (IS_ERR_VALUE(ret))
+	if (ret < 0)
 		free_io_pgtable_ops(pgtbl_ops);
 
 	return ret;
@@ -1642,7 +1645,7 @@ static void arm_smmu_detach_dev(struct device *dev)
 	struct arm_smmu_group *smmu_group = arm_smmu_group_get(dev);
 
 	smmu_group->ste.bypass = true;
-	if (IS_ERR_VALUE(arm_smmu_install_ste_for_group(smmu_group)))
+	if (arm_smmu_install_ste_for_group(smmu_group) < 0)
 		dev_warn(dev, "failed to install bypass STE\n");
 
 	smmu_group->domain = NULL;
@@ -1694,7 +1697,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	smmu_group->ste.bypass	= domain->type == IOMMU_DOMAIN_DMA;
 
 	ret = arm_smmu_install_ste_for_group(smmu_group);
-	if (IS_ERR_VALUE(ret))
+	if (ret < 0)
 		smmu_group->domain = NULL;
 
 out_unlock:
@@ -1941,6 +1944,7 @@ static struct iommu_ops arm_smmu_ops = {
 	.attach_dev		= arm_smmu_attach_dev,
 	.map			= arm_smmu_map,
 	.unmap			= arm_smmu_unmap,
+	.map_sg			= default_iommu_map_sg,
 	.iova_to_phys		= arm_smmu_iova_to_phys,
 	.add_device		= arm_smmu_add_device,
 	.remove_device		= arm_smmu_remove_device,
@@ -2235,7 +2239,7 @@ static int arm_smmu_setup_irqs(struct arm_smmu_device *smmu)
 						arm_smmu_evtq_handler,
 						arm_smmu_evtq_thread,
 						0, "arm-smmu-v3-evtq", smmu);
-		if (IS_ERR_VALUE(ret))
+		if (ret < 0)
 			dev_warn(smmu->dev, "failed to enable evtq irq\n");
 	}
 
@@ -2244,7 +2248,7 @@ static int arm_smmu_setup_irqs(struct arm_smmu_device *smmu)
 		ret = devm_request_irq(smmu->dev, irq,
 				       arm_smmu_cmdq_sync_handler, 0,
 				       "arm-smmu-v3-cmdq-sync", smmu);
-		if (IS_ERR_VALUE(ret))
+		if (ret < 0)
 			dev_warn(smmu->dev, "failed to enable cmdq-sync irq\n");
 	}
 
@@ -2252,7 +2256,7 @@ static int arm_smmu_setup_irqs(struct arm_smmu_device *smmu)
 	if (irq) {
 		ret = devm_request_irq(smmu->dev, irq, arm_smmu_gerror_handler,
 				       0, "arm-smmu-v3-gerror", smmu);
-		if (IS_ERR_VALUE(ret))
+		if (ret < 0)
 			dev_warn(smmu->dev, "failed to enable gerror irq\n");
 	}
 
@@ -2264,7 +2268,7 @@ static int arm_smmu_setup_irqs(struct arm_smmu_device *smmu)
 							arm_smmu_priq_thread,
 							0, "arm-smmu-v3-priq",
 							smmu);
-			if (IS_ERR_VALUE(ret))
+			if (ret < 0)
 				dev_warn(smmu->dev,
 					 "failed to enable priq irq\n");
 			else
@@ -2685,6 +2689,8 @@ static int __init arm_smmu_init(void)
 	ret = platform_driver_register(&arm_smmu_driver);
 	if (ret)
 		return ret;
+
+	pci_request_acs();
 
 	return bus_set_iommu(&pci_bus_type, &arm_smmu_ops);
 }

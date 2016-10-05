@@ -452,7 +452,7 @@ static struct platform_driver ti_dma_xbar_driver = {
 	.probe	= ti_dma_xbar_probe,
 };
 
-int omap_dmaxbar_init(void)
+static int omap_dmaxbar_init(void)
 {
 	return platform_driver_register(&ti_dma_xbar_driver);
 }

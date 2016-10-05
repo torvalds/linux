@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2016 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -18,12 +18,20 @@
 #include <linux/pci.h>
 #include <linux/moduleparam.h>
 #include <linux/interrupt.h>
-
+#include <linux/suspend.h>
 #include "wil6210.h"
+#include <linux/rtnetlink.h>
 
 static bool use_msi = true;
 module_param(use_msi, bool, S_IRUGO);
 MODULE_PARM_DESC(use_msi, " Use MSI interrupt, default - true");
+
+#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
+static int wil6210_pm_notify(struct notifier_block *notify_block,
+			     unsigned long mode, void *unused);
+#endif /* CONFIG_PM_SLEEP */
+#endif /* CONFIG_PM */
 
 static
 void wil_set_capabilities(struct wil6210_priv *wil)
@@ -31,6 +39,7 @@ void wil_set_capabilities(struct wil6210_priv *wil)
 	u32 rev_id = wil_r(wil, RGF_USER_JTAG_DEV_ID);
 
 	bitmap_zero(wil->hw_capabilities, hw_capability_last);
+	bitmap_zero(wil->fw_capabilities, WMI_FW_CAPABILITY_MAX);
 
 	switch (rev_id) {
 	case JTAG_DEV_ID_SPARROW_B0:
@@ -44,6 +53,9 @@ void wil_set_capabilities(struct wil6210_priv *wil)
 	}
 
 	wil_info(wil, "Board hardware is %s\n", wil->hw_name);
+
+	/* extract FW capabilities from file without loading the FW */
+	wil_request_firmware(wil, WIL_FW_NAME, false);
 }
 
 void wil_disable_irq(struct wil6210_priv *wil)
@@ -238,6 +250,18 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto bus_disable;
 	}
 
+#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
+	wil->pm_notify.notifier_call = wil6210_pm_notify;
+	rc = register_pm_notifier(&wil->pm_notify);
+	if (rc)
+		/* Do not fail the driver initialization, as suspend can
+		 * be prevented in a later phase if needed
+		 */
+		wil_err(wil, "register_pm_notifier failed: %d\n", rc);
+#endif /* CONFIG_PM_SLEEP */
+#endif /* CONFIG_PM */
+
 	wil6210_debugfs_init(wil);
 
 
@@ -267,7 +291,16 @@ static void wil_pcie_remove(struct pci_dev *pdev)
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
+#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
+	unregister_pm_notifier(&wil->pm_notify);
+#endif /* CONFIG_PM_SLEEP */
+#endif /* CONFIG_PM */
+
 	wil6210_debugfs_remove(wil);
+	rtnl_lock();
+	wil_p2p_wdev_free(wil);
+	rtnl_unlock();
 	wil_if_remove(wil);
 	wil_if_pcie_disable(wil);
 	pci_iounmap(pdev, csr);
@@ -275,7 +308,6 @@ static void wil_pcie_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 	if (wil->platform_ops.uninit)
 		wil->platform_ops.uninit(wil->platform_handle);
-	wil_p2p_wdev_free(wil);
 	wil_if_free(wil);
 }
 
@@ -332,6 +364,45 @@ static int wil6210_resume(struct device *dev, bool is_runtime)
 	if (rc)
 		pci_clear_master(pdev);
 
+	return rc;
+}
+
+static int wil6210_pm_notify(struct notifier_block *notify_block,
+			     unsigned long mode, void *unused)
+{
+	struct wil6210_priv *wil = container_of(
+		notify_block, struct wil6210_priv, pm_notify);
+	int rc = 0;
+	enum wil_platform_event evt;
+
+	wil_dbg_pm(wil, "%s: mode (%ld)\n", __func__, mode);
+
+	switch (mode) {
+	case PM_HIBERNATION_PREPARE:
+	case PM_SUSPEND_PREPARE:
+	case PM_RESTORE_PREPARE:
+		rc = wil_can_suspend(wil, false);
+		if (rc)
+			break;
+		evt = WIL_PLATFORM_EVT_PRE_SUSPEND;
+		if (wil->platform_ops.notify)
+			rc = wil->platform_ops.notify(wil->platform_handle,
+						      evt);
+		break;
+	case PM_POST_SUSPEND:
+	case PM_POST_HIBERNATION:
+	case PM_POST_RESTORE:
+		evt = WIL_PLATFORM_EVT_POST_SUSPEND;
+		if (wil->platform_ops.notify)
+			rc = wil->platform_ops.notify(wil->platform_handle,
+						      evt);
+		break;
+	default:
+		wil_dbg_pm(wil, "unhandled notify mode %ld\n", mode);
+		break;
+	}
+
+	wil_dbg_pm(wil, "notification mode %ld: rc (%d)\n", mode, rc);
 	return rc;
 }
 

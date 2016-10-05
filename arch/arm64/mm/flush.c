@@ -25,8 +25,6 @@
 #include <asm/cachetype.h>
 #include <asm/tlbflush.h>
 
-#include "mm.h"
-
 void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
 		       unsigned long end)
 {
@@ -70,10 +68,6 @@ void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
 void __sync_icache_dcache(pte_t pte, unsigned long addr)
 {
 	struct page *page = pte_page(pte);
-
-	/* no flushing needed for anonymous pages */
-	if (!page_mapping(page))
-		return;
 
 	if (!test_and_set_bit(PG_dcache_clean, &page->flags))
 		sync_icache_aliases(page_address(page),

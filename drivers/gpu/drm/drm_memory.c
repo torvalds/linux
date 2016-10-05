@@ -44,7 +44,7 @@
 # include <asm/agp.h>
 #else
 # ifdef __powerpc__
-#  define PAGE_AGP	__pgprot(_PAGE_KERNEL | _PAGE_NO_CACHE)
+#  define PAGE_AGP	pgprot_noncached_wc(PAGE_KERNEL)
 # else
 #  define PAGE_AGP	PAGE_KERNEL
 # endif

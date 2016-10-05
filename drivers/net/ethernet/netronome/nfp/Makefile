@@ -3,6 +3,13 @@ obj-$(CONFIG_NFP_NETVF)	+= nfp_netvf.o
 nfp_netvf-objs := \
 	    nfp_net_common.o \
 	    nfp_net_ethtool.o \
+	    nfp_net_offload.o \
 	    nfp_netvf_main.o
+
+ifeq ($(CONFIG_BPF_SYSCALL),y)
+nfp_netvf-objs += \
+	    nfp_bpf_verifier.o \
+	    nfp_bpf_jit.o
+endif
 
 nfp_netvf-$(CONFIG_NFP_NET_DEBUG) += nfp_net_debugfs.o

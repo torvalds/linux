@@ -312,8 +312,11 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  * @flags: other constraints relevant to this driver
  * @max_transfer_size: function that returns the max transfer size for
  *	a &spi_device; may be %NULL, so the default %SIZE_MAX will be used.
+ * @max_message_size: function that returns the max message size for
+ *	a &spi_device; may be %NULL, so the default %SIZE_MAX will be used.
+ * @io_mutex: mutex for physical bus access
  * @bus_lock_spinlock: spinlock for SPI bus locking
- * @bus_lock_mutex: mutex for SPI bus locking
+ * @bus_lock_mutex: mutex for exclusion of multiple callers
  * @bus_lock_flag: indicates that the SPI bus is locked for exclusive use
  * @setup: updates the device mode and clocking records used by a
  *	device's SPI controller; protocol code may call this.  This
@@ -372,6 +375,7 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  * @unprepare_message: undo any work done by prepare_message().
  * @spi_flash_read: to support spi-controller hardwares that provide
  *                  accelerated interface to read from flash devices.
+ * @flash_read_supported: spi device supports flash read
  * @cs_gpios: Array of GPIOs to use as chip select lines; one per CS
  *	number. Any individual value may be -ENOENT for CS lines that
  *	are not GPIOs (driven by the SPI controller itself).
@@ -440,10 +444,14 @@ struct spi_master {
 #define SPI_MASTER_MUST_TX      BIT(4)		/* requires tx */
 
 	/*
-	 * on some hardware transfer size may be constrained
+	 * on some hardware transfer / message size may be constrained
 	 * the limit may depend on device transfer settings
 	 */
 	size_t (*max_transfer_size)(struct spi_device *spi);
+	size_t (*max_message_size)(struct spi_device *spi);
+
+	/* I/O mutex */
+	struct mutex		io_mutex;
 
 	/* lock and mutex for SPI bus locking */
 	spinlock_t		bus_lock_spinlock;
@@ -529,6 +537,7 @@ struct spi_master {
 				 struct spi_message *message);
 	int (*spi_flash_read)(struct  spi_device *spi,
 			      struct spi_flash_read_message *msg);
+	bool (*flash_read_supported)(struct spi_device *spi);
 
 	/*
 	 * These hooks are for drivers that use a generic implementation
@@ -899,12 +908,26 @@ extern int spi_async_locked(struct spi_device *spi,
 			    struct spi_message *message);
 
 static inline size_t
+spi_max_message_size(struct spi_device *spi)
+{
+	struct spi_master *master = spi->master;
+	if (!master->max_message_size)
+		return SIZE_MAX;
+	return master->max_message_size(spi);
+}
+
+static inline size_t
 spi_max_transfer_size(struct spi_device *spi)
 {
 	struct spi_master *master = spi->master;
-	if (!master->max_transfer_size)
-		return SIZE_MAX;
-	return master->max_transfer_size(spi);
+	size_t tr_max = SIZE_MAX;
+	size_t msg_max = spi_max_message_size(spi);
+
+	if (master->max_transfer_size)
+		tr_max = master->max_transfer_size(spi);
+
+	/* transfer size limit must not be greater than messsage size limit */
+	return min(tr_max, msg_max);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -974,58 +997,6 @@ extern int spi_bus_lock(struct spi_master *master);
 extern int spi_bus_unlock(struct spi_master *master);
 
 /**
- * spi_write - SPI synchronous write
- * @spi: device to which data will be written
- * @buf: data buffer
- * @len: data buffer size
- * Context: can sleep
- *
- * This function writes the buffer @buf.
- * Callable only from contexts that can sleep.
- *
- * Return: zero on success, else a negative error code.
- */
-static inline int
-spi_write(struct spi_device *spi, const void *buf, size_t len)
-{
-	struct spi_transfer	t = {
-			.tx_buf		= buf,
-			.len		= len,
-		};
-	struct spi_message	m;
-
-	spi_message_init(&m);
-	spi_message_add_tail(&t, &m);
-	return spi_sync(spi, &m);
-}
-
-/**
- * spi_read - SPI synchronous read
- * @spi: device from which data will be read
- * @buf: data buffer
- * @len: data buffer size
- * Context: can sleep
- *
- * This function reads the buffer @buf.
- * Callable only from contexts that can sleep.
- *
- * Return: zero on success, else a negative error code.
- */
-static inline int
-spi_read(struct spi_device *spi, void *buf, size_t len)
-{
-	struct spi_transfer	t = {
-			.rx_buf		= buf,
-			.len		= len,
-		};
-	struct spi_message	m;
-
-	spi_message_init(&m);
-	spi_message_add_tail(&t, &m);
-	return spi_sync(spi, &m);
-}
-
-/**
  * spi_sync_transfer - synchronous SPI data transfer
  * @spi: device with which data will be exchanged
  * @xfers: An array of spi_transfers
@@ -1047,6 +1018,52 @@ spi_sync_transfer(struct spi_device *spi, struct spi_transfer *xfers,
 	spi_message_init_with_transfers(&msg, xfers, num_xfers);
 
 	return spi_sync(spi, &msg);
+}
+
+/**
+ * spi_write - SPI synchronous write
+ * @spi: device to which data will be written
+ * @buf: data buffer
+ * @len: data buffer size
+ * Context: can sleep
+ *
+ * This function writes the buffer @buf.
+ * Callable only from contexts that can sleep.
+ *
+ * Return: zero on success, else a negative error code.
+ */
+static inline int
+spi_write(struct spi_device *spi, const void *buf, size_t len)
+{
+	struct spi_transfer	t = {
+			.tx_buf		= buf,
+			.len		= len,
+		};
+
+	return spi_sync_transfer(spi, &t, 1);
+}
+
+/**
+ * spi_read - SPI synchronous read
+ * @spi: device from which data will be read
+ * @buf: data buffer
+ * @len: data buffer size
+ * Context: can sleep
+ *
+ * This function reads the buffer @buf.
+ * Callable only from contexts that can sleep.
+ *
+ * Return: zero on success, else a negative error code.
+ */
+static inline int
+spi_read(struct spi_device *spi, void *buf, size_t len)
+{
+	struct spi_transfer	t = {
+			.rx_buf		= buf,
+			.len		= len,
+		};
+
+	return spi_sync_transfer(spi, &t, 1);
 }
 
 /* this copies txbuf and rxbuf data; for small transfers only! */
@@ -1141,6 +1158,8 @@ static inline ssize_t spi_w8r16be(struct spi_device *spi, u8 cmd)
  * @opcode_nbits: number of lines to send opcode
  * @addr_nbits: number of lines to send address
  * @data_nbits: number of lines for data
+ * @rx_sg: Scatterlist for receive data read from flash
+ * @cur_msg_mapped: message has been mapped for DMA
  */
 struct spi_flash_read_message {
 	void *buf;
@@ -1153,12 +1172,16 @@ struct spi_flash_read_message {
 	u8 opcode_nbits;
 	u8 addr_nbits;
 	u8 data_nbits;
+	struct sg_table rx_sg;
+	bool cur_msg_mapped;
 };
 
 /* SPI core interface for flash read support */
 static inline bool spi_flash_read_supported(struct spi_device *spi)
 {
-	return spi->master->spi_flash_read ? true : false;
+	return spi->master->spi_flash_read &&
+	       (!spi->master->flash_read_supported ||
+	       spi->master->flash_read_supported(spi));
 }
 
 int spi_flash_read(struct spi_device *spi,

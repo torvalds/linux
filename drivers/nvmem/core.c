@@ -113,7 +113,7 @@ static ssize_t bin_attr_nvmem_read(struct file *filp, struct kobject *kobj,
 
 	rc = nvmem_reg_read(nvmem, pos, buf, count);
 
-	if (IS_ERR_VALUE(rc))
+	if (rc)
 		return rc;
 
 	return count;
@@ -147,7 +147,7 @@ static ssize_t bin_attr_nvmem_write(struct file *filp, struct kobject *kobj,
 
 	rc = nvmem_reg_write(nvmem, pos, buf, count);
 
-	if (IS_ERR_VALUE(rc))
+	if (rc)
 		return rc;
 
 	return count;
@@ -366,7 +366,7 @@ static int nvmem_add_cells(struct nvmem_device *nvmem,
 		}
 
 		rval = nvmem_cell_info_to_nvmem_cell(nvmem, &info[i], cells[i]);
-		if (IS_ERR_VALUE(rval)) {
+		if (rval) {
 			kfree(cells[i]);
 			goto err;
 		}
@@ -963,7 +963,7 @@ static int __nvmem_cell_read(struct nvmem_device *nvmem,
 
 	rc = nvmem_reg_read(nvmem, cell->offset, buf, cell->bytes);
 
-	if (IS_ERR_VALUE(rc))
+	if (rc)
 		return rc;
 
 	/* shift bits in-place */
@@ -998,7 +998,7 @@ void *nvmem_cell_read(struct nvmem_cell *cell, size_t *len)
 		return ERR_PTR(-ENOMEM);
 
 	rc = __nvmem_cell_read(nvmem, cell, buf, len);
-	if (IS_ERR_VALUE(rc)) {
+	if (rc) {
 		kfree(buf);
 		return ERR_PTR(rc);
 	}
@@ -1083,7 +1083,7 @@ int nvmem_cell_write(struct nvmem_cell *cell, void *buf, size_t len)
 	if (cell->bit_offset || cell->nbits)
 		kfree(buf);
 
-	if (IS_ERR_VALUE(rc))
+	if (rc)
 		return rc;
 
 	return len;
@@ -1111,11 +1111,11 @@ ssize_t nvmem_device_cell_read(struct nvmem_device *nvmem,
 		return -EINVAL;
 
 	rc = nvmem_cell_info_to_nvmem_cell(nvmem, info, &cell);
-	if (IS_ERR_VALUE(rc))
+	if (rc)
 		return rc;
 
 	rc = __nvmem_cell_read(nvmem, &cell, buf, &len);
-	if (IS_ERR_VALUE(rc))
+	if (rc)
 		return rc;
 
 	return len;
@@ -1141,7 +1141,7 @@ int nvmem_device_cell_write(struct nvmem_device *nvmem,
 		return -EINVAL;
 
 	rc = nvmem_cell_info_to_nvmem_cell(nvmem, info, &cell);
-	if (IS_ERR_VALUE(rc))
+	if (rc)
 		return rc;
 
 	return nvmem_cell_write(&cell, buf, cell.bytes);
@@ -1170,7 +1170,7 @@ int nvmem_device_read(struct nvmem_device *nvmem,
 
 	rc = nvmem_reg_read(nvmem, offset, buf, bytes);
 
-	if (IS_ERR_VALUE(rc))
+	if (rc)
 		return rc;
 
 	return bytes;
@@ -1198,7 +1198,7 @@ int nvmem_device_write(struct nvmem_device *nvmem,
 
 	rc = nvmem_reg_write(nvmem, offset, buf, bytes);
 
-	if (IS_ERR_VALUE(rc))
+	if (rc)
 		return rc;
 
 

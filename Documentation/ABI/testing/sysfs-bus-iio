@@ -32,6 +32,13 @@ Description:
 		Description of the physical chip / device for device X.
 		Typically a part number.
 
+What:		/sys/bus/iio/devices/iio:deviceX/timestamp_clock
+KernelVersion:	4.5
+Contact:	linux-iio@vger.kernel.org
+Description:
+		String identifying current posix clock used to timestamp
+		buffered samples and events for device X.
+
 What:		/sys/bus/iio/devices/iio:deviceX/sampling_frequency
 What:		/sys/bus/iio/devices/iio:deviceX/buffer/sampling_frequency
 What:		/sys/bus/iio/devices/triggerX/sampling_frequency
@@ -1565,3 +1572,10 @@ Description:
 		* X is in the plane of the propellers, perpendicular to Y axis,
 		  and positive towards the starboard side of the UAV ;
 		* Z is perpendicular to propellers plane and positive upwards.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_electricalconductivity_raw
+KernelVersion:	4.8
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw (unscaled no offset etc.) electric conductivity reading that
+		can be processed to siemens per meter.

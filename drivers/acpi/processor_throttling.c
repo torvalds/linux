@@ -375,11 +375,11 @@ int acpi_processor_tstate_has_changed(struct acpi_processor *pr)
  *	3. TSD domain
  */
 void acpi_processor_reevaluate_tstate(struct acpi_processor *pr,
-					unsigned long action)
+					bool is_dead)
 {
 	int result = 0;
 
-	if (action == CPU_DEAD) {
+	if (is_dead) {
 		/* When one CPU is offline, the T-state throttling
 		 * will be invalidated.
 		 */
@@ -675,6 +675,15 @@ static int acpi_processor_get_throttling_fadt(struct acpi_processor *pr)
 
 	if (!pr->flags.throttling)
 		return -ENODEV;
+
+	/*
+	 * We don't care about error returns - we just try to mark
+	 * these reserved so that nobody else is confused into thinking
+	 * that this region might be unused..
+	 *
+	 * (In particular, allocating the IO range for Cardbus)
+	 */
+	request_region(pr->throttling.address, 6, "ACPI CPU throttle");
 
 	pr->throttling.state = 0;
 

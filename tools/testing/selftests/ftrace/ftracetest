@@ -88,7 +88,12 @@ parse_opts() { # opts
 
 # Parameters
 DEBUGFS_DIR=`grep debugfs /proc/mounts | cut -f2 -d' ' | head -1`
-TRACING_DIR=$DEBUGFS_DIR/tracing
+if [ -z "$DEBUGFS_DIR" ]; then
+    TRACING_DIR=`grep tracefs /proc/mounts | cut -f2 -d' ' | head -1`
+else
+    TRACING_DIR=$DEBUGFS_DIR/tracing
+fi
+
 TOP_DIR=`absdir $0`
 TEST_DIR=$TOP_DIR/test.d
 TEST_CASES=`find_testcases $TEST_DIR`
@@ -102,7 +107,7 @@ parse_opts $*
 [ $DEBUG -ne 0 ] && set -x
 
 # Verify parameters
-if [ -z "$DEBUGFS_DIR" -o ! -d "$TRACING_DIR" ]; then
+if [ -z "$TRACING_DIR" -o ! -d "$TRACING_DIR" ]; then
   errexit "No ftrace directory found"
 fi
 

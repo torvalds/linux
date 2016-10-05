@@ -180,6 +180,17 @@ config BT_HCIUART_AG6XX
 
 	  Say Y here to compile support for Intel AG6XX protocol.
 
+config BT_HCIUART_MRVL
+	bool "Marvell protocol support"
+	depends on BT_HCIUART
+	select BT_HCIUART_H4
+	help
+	  Marvell is serial protocol for communication between Bluetooth
+	  device and host. This protocol is required for most Marvell Bluetooth
+	  devices with UART interface.
+
+	  Say Y here to compile support for HCI MRVL protocol.
+
 config BT_HCIBCM203X
 	tristate "HCI BCM203x USB driver"
 	depends on USB
@@ -330,5 +341,17 @@ config BT_WILINK
 
 	  Say Y here to compile support for Texas Instrument's WiLink7 driver
 	  into the kernel or say M to compile it as module (btwilink).
+
+config BT_QCOMSMD
+	tristate "Qualcomm SMD based HCI support"
+	depends on QCOM_SMD && QCOM_WCNSS_CTRL
+	select BT_QCA
+	help
+	  Qualcomm SMD based HCI driver.
+	  This driver is used to bridge HCI data onto the shared memory
+	  channels to the WCNSS core.
+
+	  Say Y here to compile support for HCI over Qualcomm SMD into the
+	  kernel or say M to compile as a module.
 
 endmenu

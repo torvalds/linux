@@ -79,15 +79,6 @@ config USB_LCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called usblcd.
 
-config USB_LED
-	tristate "USB LED driver support"
-	help
-	  Say Y here if you want to connect an USBLED device to your 
-	  computer's USB port.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called usbled.
-
 config USB_CYPRESS_CY7C63
 	tristate "Cypress CY7C63xxx USB driver support"
 	help
@@ -249,6 +240,12 @@ config USB_HSIC_USB3503
        help
          This option enables support for SMSC USB3503 HSIC to USB 2.0 Driver.
 
+config USB_HSIC_USB4604
+       tristate "USB4604 HSIC to USB20 Driver"
+       depends on I2C
+       help
+         This option enables support for SMSC USB4604 HSIC to USB 2.0 Driver.
+
 config USB_LINK_LAYER_TEST
 	tristate "USB Link Layer Test driver"
 	help
@@ -260,11 +257,12 @@ config USB_CHAOSKEY
 	tristate "ChaosKey random number generator driver support"
 	depends on HW_RANDOM
 	help
-	  Say Y here if you want to connect an AltusMetrum ChaosKey to
-	  your computer's USB port. The ChaosKey is a hardware random
-	  number generator which hooks into the kernel entropy pool to
-	  ensure a large supply of entropy for /dev/random and
-	  /dev/urandom and also provides direct access via /dev/chaoskeyX
+	  Say Y here if you want to connect an AltusMetrum ChaosKey or
+	  Araneus Alea I to your computer's USB port. These devices
+	  are hardware random number generators which hook into the
+	  kernel entropy pool to ensure a large supply of entropy for
+	  /dev/random and /dev/urandom and also provides direct access
+	  via /dev/chaoskeyX
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called chaoskey.

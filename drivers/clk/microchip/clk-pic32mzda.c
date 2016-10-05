@@ -118,6 +118,7 @@ static const struct pic32_sec_osc_data sosc_clk = {
 	.status_reg = 0x1d0,
 	.enable_mask = BIT(1),
 	.status_mask = BIT(4),
+	.fixed_rate = 32768,
 	.init_data = {
 		.name = "sosc_clk",
 		.parent_names = NULL,
@@ -180,15 +181,15 @@ static int pic32mzda_clk_probe(struct platform_device *pdev)
 
 	/* register fixed rate clocks */
 	clks[POSCCLK] = clk_register_fixed_rate(&pdev->dev, "posc_clk", NULL,
-						CLK_IS_ROOT, 24000000);
+						0, 24000000);
 	clks[FRCCLK] =  clk_register_fixed_rate(&pdev->dev, "frc_clk", NULL,
-						CLK_IS_ROOT, 8000000);
+						0, 8000000);
 	clks[BFRCCLK] = clk_register_fixed_rate(&pdev->dev, "bfrc_clk", NULL,
-						CLK_IS_ROOT, 8000000);
+						0, 8000000);
 	clks[LPRCCLK] = clk_register_fixed_rate(&pdev->dev, "lprc_clk", NULL,
-						CLK_IS_ROOT, 32000);
+						0, 32000);
 	clks[UPLLCLK] = clk_register_fixed_rate(&pdev->dev, "usbphy_clk", NULL,
-						CLK_IS_ROOT, 24000000);
+						0, 24000000);
 	/* fixed rate (optional) clock */
 	if (of_find_property(np, "microchip,pic32mzda-sosc", NULL)) {
 		pr_info("pic32-clk: dt requests SOSC.\n");

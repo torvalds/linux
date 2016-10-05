@@ -10,6 +10,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/rtnetlink.h>
+#include <linux/vmalloc.h>
 #include "ieee80211_i.h"
 #include "driver-ops.h"
 #include "rate.h"
@@ -69,6 +70,84 @@ DEBUGFS_READONLY_FILE(wep_iv, "%#08x",
 		      local->wep_iv & 0xffffff);
 DEBUGFS_READONLY_FILE(rate_ctrl_alg, "%s",
 	local->rate_ctrl ? local->rate_ctrl->ops->name : "hw/driver");
+
+static ssize_t aqm_read(struct file *file,
+			char __user *user_buf,
+			size_t count,
+			loff_t *ppos)
+{
+	struct ieee80211_local *local = file->private_data;
+	struct fq *fq = &local->fq;
+	char buf[200];
+	int len = 0;
+
+	spin_lock_bh(&local->fq.lock);
+	rcu_read_lock();
+
+	len = scnprintf(buf, sizeof(buf),
+			"access name value\n"
+			"R fq_flows_cnt %u\n"
+			"R fq_backlog %u\n"
+			"R fq_overlimit %u\n"
+			"R fq_overmemory %u\n"
+			"R fq_collisions %u\n"
+			"R fq_memory_usage %u\n"
+			"RW fq_memory_limit %u\n"
+			"RW fq_limit %u\n"
+			"RW fq_quantum %u\n",
+			fq->flows_cnt,
+			fq->backlog,
+			fq->overmemory,
+			fq->overlimit,
+			fq->collisions,
+			fq->memory_usage,
+			fq->memory_limit,
+			fq->limit,
+			fq->quantum);
+
+	rcu_read_unlock();
+	spin_unlock_bh(&local->fq.lock);
+
+	return simple_read_from_buffer(user_buf, count, ppos,
+				       buf, len);
+}
+
+static ssize_t aqm_write(struct file *file,
+			 const char __user *user_buf,
+			 size_t count,
+			 loff_t *ppos)
+{
+	struct ieee80211_local *local = file->private_data;
+	char buf[100];
+	size_t len;
+
+	if (count > sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(buf, user_buf, count))
+		return -EFAULT;
+
+	buf[sizeof(buf) - 1] = '\0';
+	len = strlen(buf);
+	if (len > 0 && buf[len-1] == '\n')
+		buf[len-1] = 0;
+
+	if (sscanf(buf, "fq_limit %u", &local->fq.limit) == 1)
+		return count;
+	else if (sscanf(buf, "fq_memory_limit %u", &local->fq.memory_limit) == 1)
+		return count;
+	else if (sscanf(buf, "fq_quantum %u", &local->fq.quantum) == 1)
+		return count;
+
+	return -EINVAL;
+}
+
+static const struct file_operations aqm_ops = {
+	.write = aqm_write,
+	.read = aqm_read,
+	.open = simple_open,
+	.llseek = default_llseek,
+};
 
 #ifdef CONFIG_PM
 static ssize_t reset_write(struct file *file, const char __user *user_buf,
@@ -130,6 +209,7 @@ static const char *hw_flag_names[] = {
 	FLAG(USES_RSS),
 	FLAG(TX_AMSDU),
 	FLAG(TX_FRAG_LIST),
+	FLAG(REPORTS_LOW_ACK),
 #undef FLAG
 };
 
@@ -256,6 +336,9 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_ADD(hwflags);
 	DEBUGFS_ADD(user_power);
 	DEBUGFS_ADD(power);
+
+	if (local->ops->wake_tx_queue)
+		DEBUGFS_ADD_MODE(aqm, 0600);
 
 	statsd = debugfs_create_dir("statistics", phyd);
 

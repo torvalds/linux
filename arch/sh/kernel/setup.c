@@ -242,7 +242,7 @@ void __init __weak plat_early_device_setup(void)
 {
 }
 
-#ifdef CONFIG_OF
+#ifdef CONFIG_OF_FLATTREE
 void __ref sh_fdt_init(phys_addr_t dt_phys)
 {
 	static int done = 0;
@@ -251,7 +251,11 @@ void __ref sh_fdt_init(phys_addr_t dt_phys)
 	/* Avoid calling an __init function on secondary cpus. */
 	if (done) return;
 
+#ifdef CONFIG_USE_BUILTIN_DTB
+	dt_virt = __dtb_start;
+#else
 	dt_virt = phys_to_virt(dt_phys);
+#endif
 
 	if (!dt_virt || !early_init_dt_scan(dt_virt)) {
 		pr_crit("Error: invalid device tree blob"

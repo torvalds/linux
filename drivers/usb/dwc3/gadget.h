@@ -95,11 +95,11 @@ int __dwc3_gadget_ep_set_halt(struct dwc3_ep *dep, int value, int protocol);
  *
  * Caller should take care of locking
  */
-static inline u32 dwc3_gadget_ep_get_transfer_index(struct dwc3 *dwc, u8 number)
+static inline u32 dwc3_gadget_ep_get_transfer_index(struct dwc3_ep *dep)
 {
 	u32			res_id;
 
-	res_id = dwc3_readl(dwc->regs, DWC3_DEPCMD(number));
+	res_id = dwc3_readl(dep->regs, DWC3_DEPCMD);
 
 	return DWC3_DEPCMD_GET_RSC_IDX(res_id);
 }

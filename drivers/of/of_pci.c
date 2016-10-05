@@ -1,3 +1,5 @@
+#define pr_fmt(fmt)	"OF: PCI: " fmt
+
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/of.h>
@@ -138,7 +140,7 @@ void of_pci_check_probe_only(void)
 	else
 		pci_clear_flags(PCI_PROBE_ONLY);
 
-	pr_info("PCI: PROBE_ONLY %sabled\n", val ? "en" : "dis");
+	pr_info("PROBE_ONLY %sabled\n", val ? "en" : "dis");
 }
 EXPORT_SYMBOL_GPL(of_pci_check_probe_only);
 
@@ -181,7 +183,7 @@ int of_pci_get_host_bridge_resources(struct device_node *dev,
 	if (!bus_range)
 		return -ENOMEM;
 
-	pr_info("PCI host bridge %s ranges:\n", dev->full_name);
+	pr_info("host bridge %s ranges:\n", dev->full_name);
 
 	err = of_pci_parse_bus_range(dev, bus_range);
 	if (err) {

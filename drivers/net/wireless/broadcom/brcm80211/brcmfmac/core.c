@@ -136,27 +136,6 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 			  err);
 }
 
-static void
-_brcmf_set_mac_address(struct work_struct *work)
-{
-	struct brcmf_if *ifp;
-	s32 err;
-
-	ifp = container_of(work, struct brcmf_if, setmacaddr_work);
-
-	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d\n", ifp->bsscfgidx);
-
-	err = brcmf_fil_iovar_data_set(ifp, "cur_etheraddr", ifp->mac_addr,
-				       ETH_ALEN);
-	if (err < 0) {
-		brcmf_err("Setting cur_etheraddr failed, %d\n", err);
-	} else {
-		brcmf_dbg(TRACE, "MAC address updated to %pM\n",
-			  ifp->mac_addr);
-		memcpy(ifp->ndev->dev_addr, ifp->mac_addr, ETH_ALEN);
-	}
-}
-
 #if IS_ENABLED(CONFIG_IPV6)
 static void _brcmf_update_ndtable(struct work_struct *work)
 {
@@ -190,10 +169,20 @@ static int brcmf_netdev_set_mac_address(struct net_device *ndev, void *addr)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct sockaddr *sa = (struct sockaddr *)addr;
+	int err;
 
-	memcpy(&ifp->mac_addr, sa->sa_data, ETH_ALEN);
-	schedule_work(&ifp->setmacaddr_work);
-	return 0;
+	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d\n", ifp->bsscfgidx);
+
+	err = brcmf_fil_iovar_data_set(ifp, "cur_etheraddr", sa->sa_data,
+				       ETH_ALEN);
+	if (err < 0) {
+		brcmf_err("Setting cur_etheraddr failed, %d\n", err);
+	} else {
+		brcmf_dbg(TRACE, "updated to %pM\n", sa->sa_data);
+		memcpy(ifp->mac_addr, sa->sa_data, ETH_ALEN);
+		memcpy(ifp->ndev->dev_addr, ifp->mac_addr, ETH_ALEN);
+	}
+	return err;
 }
 
 static void brcmf_netdev_set_multicast_list(struct net_device *ndev)
@@ -516,16 +505,12 @@ int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked)
 	/* set appropriate operations */
 	ndev->netdev_ops = &brcmf_netdev_ops_pri;
 
-	ndev->hard_header_len += drvr->hdrlen;
+	ndev->needed_headroom += drvr->hdrlen;
 	ndev->ethtool_ops = &brcmf_ethtool_ops;
-
-	drvr->rxsz = ndev->mtu + ndev->hard_header_len +
-			      drvr->hdrlen;
 
 	/* set the mac address */
 	memcpy(ndev->dev_addr, ifp->mac_addr, ETH_ALEN);
 
-	INIT_WORK(&ifp->setmacaddr_work, _brcmf_set_mac_address);
 	INIT_WORK(&ifp->multicast_work, _brcmf_set_multicast_list);
 	INIT_WORK(&ifp->ndoffload_work, _brcmf_update_ndtable);
 
@@ -548,12 +533,16 @@ fail:
 	return -EBADE;
 }
 
-static void brcmf_net_detach(struct net_device *ndev)
+static void brcmf_net_detach(struct net_device *ndev, bool rtnl_locked)
 {
-	if (ndev->reg_state == NETREG_REGISTERED)
-		unregister_netdev(ndev);
-	else
+	if (ndev->reg_state == NETREG_REGISTERED) {
+		if (rtnl_locked)
+			unregister_netdevice(ndev);
+		else
+			unregister_netdev(ndev);
+	} else {
 		brcmf_cfg80211_free_netdev(ndev);
+	}
 }
 
 void brcmf_net_setcarrier(struct brcmf_if *ifp, bool on)
@@ -634,7 +623,7 @@ fail:
 }
 
 struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bsscfgidx, s32 ifidx,
-			      bool is_p2pdev, char *name, u8 *mac_addr)
+			      bool is_p2pdev, const char *name, u8 *mac_addr)
 {
 	struct brcmf_if *ifp;
 	struct net_device *ndev;
@@ -651,7 +640,7 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bsscfgidx, s32 ifidx,
 			brcmf_err("ERROR: netdev:%s already exists\n",
 				  ifp->ndev->name);
 			netif_stop_queue(ifp->ndev);
-			brcmf_net_detach(ifp->ndev);
+			brcmf_net_detach(ifp->ndev, false);
 			drvr->iflist[bsscfgidx] = NULL;
 		} else {
 			brcmf_dbg(INFO, "netdev:%s ignore IF event\n",
@@ -699,7 +688,8 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bsscfgidx, s32 ifidx,
 	return ifp;
 }
 
-static void brcmf_del_if(struct brcmf_pub *drvr, s32 bsscfgidx)
+static void brcmf_del_if(struct brcmf_pub *drvr, s32 bsscfgidx,
+			 bool rtnl_locked)
 {
 	struct brcmf_if *ifp;
 
@@ -725,11 +715,10 @@ static void brcmf_del_if(struct brcmf_pub *drvr, s32 bsscfgidx)
 		}
 
 		if (ifp->ndev->netdev_ops == &brcmf_netdev_ops_pri) {
-			cancel_work_sync(&ifp->setmacaddr_work);
 			cancel_work_sync(&ifp->multicast_work);
 			cancel_work_sync(&ifp->ndoffload_work);
 		}
-		brcmf_net_detach(ifp->ndev);
+		brcmf_net_detach(ifp->ndev, rtnl_locked);
 	} else {
 		/* Only p2p device interfaces which get dynamically created
 		 * end up here. In this case the p2p module should be informed
@@ -738,43 +727,19 @@ static void brcmf_del_if(struct brcmf_pub *drvr, s32 bsscfgidx)
 		 * serious troublesome side effects. The p2p module will clean
 		 * up the ifp if needed.
 		 */
-		brcmf_p2p_ifp_removed(ifp);
+		brcmf_p2p_ifp_removed(ifp, rtnl_locked);
 		kfree(ifp);
 	}
 }
 
-void brcmf_remove_interface(struct brcmf_if *ifp)
+void brcmf_remove_interface(struct brcmf_if *ifp, bool rtnl_locked)
 {
 	if (!ifp || WARN_ON(ifp->drvr->iflist[ifp->bsscfgidx] != ifp))
 		return;
 	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d, ifidx=%d\n", ifp->bsscfgidx,
 		  ifp->ifidx);
 	brcmf_fws_del_interface(ifp);
-	brcmf_del_if(ifp->drvr, ifp->bsscfgidx);
-}
-
-int brcmf_get_next_free_bsscfgidx(struct brcmf_pub *drvr)
-{
-	int ifidx;
-	int bsscfgidx;
-	bool available;
-	int highest;
-
-	available = false;
-	bsscfgidx = 2;
-	highest = 2;
-	for (ifidx = 0; ifidx < BRCMF_MAX_IFS; ifidx++) {
-		if (drvr->iflist[ifidx]) {
-			if (drvr->iflist[ifidx]->bsscfgidx == bsscfgidx)
-				bsscfgidx = highest + 1;
-			else if (drvr->iflist[ifidx]->bsscfgidx > highest)
-				highest = drvr->iflist[ifidx]->bsscfgidx;
-		} else {
-			available = true;
-		}
-	}
-
-	return available ? bsscfgidx : -ENOMEM;
+	brcmf_del_if(ifp->drvr, ifp->bsscfgidx, rtnl_locked);
 }
 
 #ifdef CONFIG_INET
@@ -905,9 +870,12 @@ static int brcmf_inet6addr_changed(struct notifier_block *nb,
 		}
 		break;
 	case NETDEV_DOWN:
-		if (i < NDOL_MAX_ENTRIES)
-			for (; i < ifp->ipv6addr_idx; i++)
+		if (i < NDOL_MAX_ENTRIES) {
+			for (; i < ifp->ipv6addr_idx - 1; i++)
 				table[i] = table[i + 1];
+			memset(&table[i], 0, sizeof(table[i]));
+			ifp->ipv6addr_idx--;
+		}
 		break;
 	default:
 		break;
@@ -1080,10 +1048,9 @@ fail:
 		brcmf_fws_del_interface(ifp);
 		brcmf_fws_deinit(drvr);
 	}
-	if (ifp)
-		brcmf_net_detach(ifp->ndev);
+	brcmf_net_detach(ifp->ndev, false);
 	if (p2p_ifp)
-		brcmf_net_detach(p2p_ifp->ndev);
+		brcmf_net_detach(p2p_ifp->ndev, false);
 	drvr->iflist[0] = NULL;
 	drvr->iflist[1] = NULL;
 	if (drvr->settings->ignore_probe_fail)
@@ -1152,7 +1119,7 @@ void brcmf_detach(struct device *dev)
 
 	/* make sure primary interface removed last */
 	for (i = BRCMF_MAX_IFS-1; i > -1; i--)
-		brcmf_remove_interface(drvr->iflist[i]);
+		brcmf_remove_interface(drvr->iflist[i], false);
 
 	brcmf_cfg80211_detach(drvr->config);
 
@@ -1188,7 +1155,8 @@ int brcmf_netdev_wait_pend8021x(struct brcmf_if *ifp)
 				 !brcmf_get_pend_8021x_cnt(ifp),
 				 MAX_WAIT_FOR_8021X_TX);
 
-	WARN_ON(!err);
+	if (!err)
+		brcmf_err("Timed out waiting for no pending 802.1x packets\n");
 
 	return !err;
 }

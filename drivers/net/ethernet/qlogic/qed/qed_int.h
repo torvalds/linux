@@ -389,6 +389,9 @@ void qed_init_cau_sb_entry(struct qed_hwfn *p_hwfn,
 			   u16 vf_number,
 			   u8 vf_valid);
 
+int qed_int_set_timer_res(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			  u8 timer_res, u16 sb_id, bool tx);
+
 #define QED_MAPPING_MEMORY_SIZE(dev)	(NUM_OF_SBS(dev))
 
 #endif

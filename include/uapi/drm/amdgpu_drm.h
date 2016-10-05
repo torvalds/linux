@@ -34,6 +34,10 @@
 
 #include "drm.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #define DRM_AMDGPU_GEM_CREATE		0x00
 #define DRM_AMDGPU_GEM_MMAP		0x01
 #define DRM_AMDGPU_CTX			0x02
@@ -483,6 +487,22 @@ struct drm_amdgpu_cs_chunk_data {
 #define AMDGPU_INFO_MMR_SH_INDEX_SHIFT	8
 #define AMDGPU_INFO_MMR_SH_INDEX_MASK	0xff
 
+struct drm_amdgpu_query_fw {
+	/** AMDGPU_INFO_FW_* */
+	__u32 fw_type;
+	/**
+	 * Index of the IP if there are more IPs of
+	 * the same type.
+	 */
+	__u32 ip_instance;
+	/**
+	 * Index of the engine. Whether this is used depends
+	 * on the firmware type. (e.g. MEC, SDMA)
+	 */
+	__u32 index;
+	__u32 _pad;
+};
+
 /* Input structure for the INFO ioctl */
 struct drm_amdgpu_info {
 	/* Where the return value will be stored */
@@ -518,21 +538,7 @@ struct drm_amdgpu_info {
 			__u32 flags;
 		} read_mmr_reg;
 
-		struct {
-			/** AMDGPU_INFO_FW_* */
-			__u32 fw_type;
-			/**
-			 * Index of the IP if there are more IPs of
-			 * the same type.
-			 */
-			__u32 ip_instance;
-			/**
-			 * Index of the engine. Whether this is used depends
-			 * on the firmware type. (e.g. MEC, SDMA)
-			 */
-			__u32 index;
-			__u32 _pad;
-		} query_fw;
+		struct drm_amdgpu_query_fw query_fw;
 	};
 };
 
@@ -641,5 +647,9 @@ struct drm_amdgpu_info_hw_ip {
 #define AMDGPU_FAMILY_KV			125 /* Kaveri, Kabini, Mullins */
 #define AMDGPU_FAMILY_VI			130 /* Iceland, Tonga */
 #define AMDGPU_FAMILY_CZ			135 /* Carrizo, Stoney */
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif

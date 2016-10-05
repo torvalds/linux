@@ -395,8 +395,7 @@ static void __init cns3xxx_init(void)
 
 	pm_power_off = cns3xxx_power_off;
 
-	of_platform_populate(NULL, of_default_bus_match_table,
-                        cns3xxx_auxdata, NULL);
+	of_platform_default_populate(NULL, cns3xxx_auxdata, NULL);
 }
 
 static const char *const cns3xxx_dt_compat[] __initconst = {

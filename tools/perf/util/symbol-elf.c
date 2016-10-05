@@ -7,6 +7,7 @@
 
 #include "symbol.h"
 #include "demangle-java.h"
+#include "demangle-rust.h"
 #include "machine.h"
 #include "vdso.h"
 #include <symbol/kallsyms.h>
@@ -16,6 +17,7 @@
 #define EM_AARCH64	183  /* ARM 64 bit */
 #endif
 
+typedef Elf64_Nhdr GElf_Nhdr;
 
 #ifdef HAVE_CPLUS_DEMANGLE_SUPPORT
 extern char *cplus_demangle(const char *, int);
@@ -51,6 +53,14 @@ static int elf_getphdrnum(Elf *elf, size_t *dst)
 	*dst = ehdr->e_phnum;
 
 	return 0;
+}
+#endif
+
+#ifndef HAVE_ELF_GETSHDRSTRNDX_SUPPORT
+static int elf_getshdrstrndx(Elf *elf __maybe_unused, size_t *dst __maybe_unused)
+{
+	pr_err("%s: update your libelf to > 0.140, this one lacks elf_getshdrstrndx().\n", __func__);
+	return -1;
 }
 #endif
 
@@ -196,6 +206,37 @@ Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
 	return NULL;
 }
 
+static bool want_demangle(bool is_kernel_sym)
+{
+	return is_kernel_sym ? symbol_conf.demangle_kernel : symbol_conf.demangle;
+}
+
+static char *demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
+{
+	int demangle_flags = verbose ? (DMGL_PARAMS | DMGL_ANSI) : DMGL_NO_OPTS;
+	char *demangled = NULL;
+
+	/*
+	 * We need to figure out if the object was created from C++ sources
+	 * DWARF DW_compile_unit has this, but we don't always have access
+	 * to it...
+	 */
+	if (!want_demangle(dso->kernel || kmodule))
+	    return demangled;
+
+	demangled = bfd_demangle(NULL, elf_name, demangle_flags);
+	if (demangled == NULL)
+		demangled = java_demangle_sym(elf_name, JAVA_DEMANGLE_NORET);
+	else if (rust_is_mangled(demangled))
+		/*
+		    * Input to Rust demangling is the BFD-demangled
+		    * name which it Rust-demangles in place.
+		    */
+		rust_demangle_sym(demangled);
+
+	return demangled;
+}
+
 #define elf_section__for_each_rel(reldata, pos, pos_mem, idx, nr_entries) \
 	for (idx = 0, pos = gelf_getrel(reldata, 0, &pos_mem); \
 	     idx < nr_entries; \
@@ -213,8 +254,7 @@ Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
  * And always look at the original dso, not at debuginfo packages, that
  * have the PLT data stripped out (shdr_rel_plt.sh_type == SHT_NOBITS).
  */
-int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss, struct map *map,
-				symbol_filter_t filter)
+int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss, struct map *map)
 {
 	uint32_t nr_rel_entries, idx;
 	GElf_Sym sym;
@@ -291,45 +331,53 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss, struct map *
 
 		elf_section__for_each_rela(reldata, pos, pos_mem, idx,
 					   nr_rel_entries) {
+			const char *elf_name = NULL;
+			char *demangled = NULL;
 			symidx = GELF_R_SYM(pos->r_info);
 			plt_offset += shdr_plt.sh_entsize;
 			gelf_getsym(syms, symidx, &sym);
+
+			elf_name = elf_sym__name(&sym, symstrs);
+			demangled = demangle_sym(dso, 0, elf_name);
+			if (demangled != NULL)
+				elf_name = demangled;
 			snprintf(sympltname, sizeof(sympltname),
-				 "%s@plt", elf_sym__name(&sym, symstrs));
+				 "%s@plt", elf_name);
+			free(demangled);
 
 			f = symbol__new(plt_offset, shdr_plt.sh_entsize,
 					STB_GLOBAL, sympltname);
 			if (!f)
 				goto out_elf_end;
 
-			if (filter && filter(map, f))
-				symbol__delete(f);
-			else {
-				symbols__insert(&dso->symbols[map->type], f);
-				++nr;
-			}
+			symbols__insert(&dso->symbols[map->type], f);
+			++nr;
 		}
 	} else if (shdr_rel_plt.sh_type == SHT_REL) {
 		GElf_Rel pos_mem, *pos;
 		elf_section__for_each_rel(reldata, pos, pos_mem, idx,
 					  nr_rel_entries) {
+			const char *elf_name = NULL;
+			char *demangled = NULL;
 			symidx = GELF_R_SYM(pos->r_info);
 			plt_offset += shdr_plt.sh_entsize;
 			gelf_getsym(syms, symidx, &sym);
+
+			elf_name = elf_sym__name(&sym, symstrs);
+			demangled = demangle_sym(dso, 0, elf_name);
+			if (demangled != NULL)
+				elf_name = demangled;
 			snprintf(sympltname, sizeof(sympltname),
-				 "%s@plt", elf_sym__name(&sym, symstrs));
+				 "%s@plt", elf_name);
+			free(demangled);
 
 			f = symbol__new(plt_offset, shdr_plt.sh_entsize,
 					STB_GLOBAL, sympltname);
 			if (!f)
 				goto out_elf_end;
 
-			if (filter && filter(map, f))
-				symbol__delete(f);
-			else {
-				symbols__insert(&dso->symbols[map->type], f);
-				++nr;
-			}
+			symbols__insert(&dso->symbols[map->type], f);
+			++nr;
 		}
 	}
 
@@ -675,7 +723,7 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 	}
 
 	/* Always reject images with a mismatched build-id: */
-	if (dso->has_build_id) {
+	if (dso->has_build_id && !symbol_conf.ignore_vmlinux_buildid) {
 		u8 build_id[BUILD_ID_SIZE];
 
 		if (elf_read_build_id(elf, build_id, BUILD_ID_SIZE) < 0) {
@@ -765,17 +813,11 @@ static u64 ref_reloc(struct kmap *kmap)
 	return 0;
 }
 
-static bool want_demangle(bool is_kernel_sym)
-{
-	return is_kernel_sym ? symbol_conf.demangle_kernel : symbol_conf.demangle;
-}
-
 void __weak arch__sym_update(struct symbol *s __maybe_unused,
 		GElf_Sym *sym __maybe_unused) { }
 
-int dso__load_sym(struct dso *dso, struct map *map,
-		  struct symsrc *syms_ss, struct symsrc *runtime_ss,
-		  symbol_filter_t filter, int kmodule)
+int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
+		  struct symsrc *runtime_ss, int kmodule)
 {
 	struct kmap *kmap = dso->kernel ? map__kmap(map) : NULL;
 	struct map_groups *kmaps = kmap ? map__kmaps(map) : NULL;
@@ -827,7 +869,8 @@ int dso__load_sym(struct dso *dso, struct map *map,
 	sec = syms_ss->symtab;
 	shdr = syms_ss->symshdr;
 
-	if (elf_section_by_name(elf, &ehdr, &tshdr, ".text", NULL))
+	if (elf_section_by_name(runtime_ss->elf, &runtime_ss->ehdr, &tshdr,
+				".text", NULL))
 		dso->text_offset = tshdr.sh_addr - tshdr.sh_offset;
 
 	if (runtime_ss->opdsec)
@@ -1059,22 +1102,10 @@ int dso__load_sym(struct dso *dso, struct map *map,
 			sym.st_value -= shdr.sh_addr - shdr.sh_offset;
 		}
 new_symbol:
-		/*
-		 * We need to figure out if the object was created from C++ sources
-		 * DWARF DW_compile_unit has this, but we don't always have access
-		 * to it...
-		 */
-		if (want_demangle(dso->kernel || kmodule)) {
-			int demangle_flags = DMGL_NO_OPTS;
-			if (verbose)
-				demangle_flags = DMGL_PARAMS | DMGL_ANSI;
+		demangled = demangle_sym(dso, kmodule, elf_name);
+		if (demangled != NULL)
+			elf_name = demangled;
 
-			demangled = bfd_demangle(NULL, elf_name, demangle_flags);
-			if (demangled == NULL)
-				demangled = java_demangle_sym(elf_name, JAVA_DEMANGLE_NORET);
-			if (demangled != NULL)
-				elf_name = demangled;
-		}
 		f = symbol__new(sym.st_value, sym.st_size,
 				GELF_ST_BIND(sym.st_info), elf_name);
 		free(demangled);
@@ -1083,21 +1114,16 @@ new_symbol:
 
 		arch__sym_update(f, &sym);
 
-		if (filter && filter(curr_map, f))
-			symbol__delete(f);
-		else {
-			symbols__insert(&curr_dso->symbols[curr_map->type], f);
-			nr++;
-		}
+		__symbols__insert(&curr_dso->symbols[curr_map->type], f, dso->kernel);
+		nr++;
 	}
 
 	/*
 	 * For misannotated, zeroed, ASM function sizes.
 	 */
 	if (nr > 0) {
-		if (!symbol_conf.allow_aliases)
-			symbols__fixup_duplicate(&dso->symbols[map->type]);
 		symbols__fixup_end(&dso->symbols[map->type]);
+		symbols__fixup_duplicate(&dso->symbols[map->type]);
 		if (kmap) {
 			/*
 			 * We need to fixup this here too because we create new
@@ -1780,6 +1806,260 @@ void kcore_extract__delete(struct kcore_extract *kce)
 {
 	unlink(kce->extract_filename);
 }
+
+#ifdef HAVE_GELF_GETNOTE_SUPPORT
+/**
+ * populate_sdt_note : Parse raw data and identify SDT note
+ * @elf: elf of the opened file
+ * @data: raw data of a section with description offset applied
+ * @len: note description size
+ * @type: type of the note
+ * @sdt_notes: List to add the SDT note
+ *
+ * Responsible for parsing the @data in section .note.stapsdt in @elf and
+ * if its an SDT note, it appends to @sdt_notes list.
+ */
+static int populate_sdt_note(Elf **elf, const char *data, size_t len,
+			     struct list_head *sdt_notes)
+{
+	const char *provider, *name;
+	struct sdt_note *tmp = NULL;
+	GElf_Ehdr ehdr;
+	GElf_Addr base_off = 0;
+	GElf_Shdr shdr;
+	int ret = -EINVAL;
+
+	union {
+		Elf64_Addr a64[NR_ADDR];
+		Elf32_Addr a32[NR_ADDR];
+	} buf;
+
+	Elf_Data dst = {
+		.d_buf = &buf, .d_type = ELF_T_ADDR, .d_version = EV_CURRENT,
+		.d_size = gelf_fsize((*elf), ELF_T_ADDR, NR_ADDR, EV_CURRENT),
+		.d_off = 0, .d_align = 0
+	};
+	Elf_Data src = {
+		.d_buf = (void *) data, .d_type = ELF_T_ADDR,
+		.d_version = EV_CURRENT, .d_size = dst.d_size, .d_off = 0,
+		.d_align = 0
+	};
+
+	tmp = (struct sdt_note *)calloc(1, sizeof(struct sdt_note));
+	if (!tmp) {
+		ret = -ENOMEM;
+		goto out_err;
+	}
+
+	INIT_LIST_HEAD(&tmp->note_list);
+
+	if (len < dst.d_size + 3)
+		goto out_free_note;
+
+	/* Translation from file representation to memory representation */
+	if (gelf_xlatetom(*elf, &dst, &src,
+			  elf_getident(*elf, NULL)[EI_DATA]) == NULL) {
+		pr_err("gelf_xlatetom : %s\n", elf_errmsg(-1));
+		goto out_free_note;
+	}
+
+	/* Populate the fields of sdt_note */
+	provider = data + dst.d_size;
+
+	name = (const char *)memchr(provider, '\0', data + len - provider);
+	if (name++ == NULL)
+		goto out_free_note;
+
+	tmp->provider = strdup(provider);
+	if (!tmp->provider) {
+		ret = -ENOMEM;
+		goto out_free_note;
+	}
+	tmp->name = strdup(name);
+	if (!tmp->name) {
+		ret = -ENOMEM;
+		goto out_free_prov;
+	}
+
+	if (gelf_getclass(*elf) == ELFCLASS32) {
+		memcpy(&tmp->addr, &buf, 3 * sizeof(Elf32_Addr));
+		tmp->bit32 = true;
+	} else {
+		memcpy(&tmp->addr, &buf, 3 * sizeof(Elf64_Addr));
+		tmp->bit32 = false;
+	}
+
+	if (!gelf_getehdr(*elf, &ehdr)) {
+		pr_debug("%s : cannot get elf header.\n", __func__);
+		ret = -EBADF;
+		goto out_free_name;
+	}
+
+	/* Adjust the prelink effect :
+	 * Find out the .stapsdt.base section.
+	 * This scn will help us to handle prelinking (if present).
+	 * Compare the retrieved file offset of the base section with the
+	 * base address in the description of the SDT note. If its different,
+	 * then accordingly, adjust the note location.
+	 */
+	if (elf_section_by_name(*elf, &ehdr, &shdr, SDT_BASE_SCN, NULL)) {
+		base_off = shdr.sh_offset;
+		if (base_off) {
+			if (tmp->bit32)
+				tmp->addr.a32[0] = tmp->addr.a32[0] + base_off -
+					tmp->addr.a32[1];
+			else
+				tmp->addr.a64[0] = tmp->addr.a64[0] + base_off -
+					tmp->addr.a64[1];
+		}
+	}
+
+	list_add_tail(&tmp->note_list, sdt_notes);
+	return 0;
+
+out_free_name:
+	free(tmp->name);
+out_free_prov:
+	free(tmp->provider);
+out_free_note:
+	free(tmp);
+out_err:
+	return ret;
+}
+
+/**
+ * construct_sdt_notes_list : constructs a list of SDT notes
+ * @elf : elf to look into
+ * @sdt_notes : empty list_head
+ *
+ * Scans the sections in 'elf' for the section
+ * .note.stapsdt. It, then calls populate_sdt_note to find
+ * out the SDT events and populates the 'sdt_notes'.
+ */
+static int construct_sdt_notes_list(Elf *elf, struct list_head *sdt_notes)
+{
+	GElf_Ehdr ehdr;
+	Elf_Scn *scn = NULL;
+	Elf_Data *data;
+	GElf_Shdr shdr;
+	size_t shstrndx, next;
+	GElf_Nhdr nhdr;
+	size_t name_off, desc_off, offset;
+	int ret = 0;
+
+	if (gelf_getehdr(elf, &ehdr) == NULL) {
+		ret = -EBADF;
+		goto out_ret;
+	}
+	if (elf_getshdrstrndx(elf, &shstrndx) != 0) {
+		ret = -EBADF;
+		goto out_ret;
+	}
+
+	/* Look for the required section */
+	scn = elf_section_by_name(elf, &ehdr, &shdr, SDT_NOTE_SCN, NULL);
+	if (!scn) {
+		ret = -ENOENT;
+		goto out_ret;
+	}
+
+	if ((shdr.sh_type != SHT_NOTE) || (shdr.sh_flags & SHF_ALLOC)) {
+		ret = -ENOENT;
+		goto out_ret;
+	}
+
+	data = elf_getdata(scn, NULL);
+
+	/* Get the SDT notes */
+	for (offset = 0; (next = gelf_getnote(data, offset, &nhdr, &name_off,
+					      &desc_off)) > 0; offset = next) {
+		if (nhdr.n_namesz == sizeof(SDT_NOTE_NAME) &&
+		    !memcmp(data->d_buf + name_off, SDT_NOTE_NAME,
+			    sizeof(SDT_NOTE_NAME))) {
+			/* Check the type of the note */
+			if (nhdr.n_type != SDT_NOTE_TYPE)
+				goto out_ret;
+
+			ret = populate_sdt_note(&elf, ((data->d_buf) + desc_off),
+						nhdr.n_descsz, sdt_notes);
+			if (ret < 0)
+				goto out_ret;
+		}
+	}
+	if (list_empty(sdt_notes))
+		ret = -ENOENT;
+
+out_ret:
+	return ret;
+}
+
+/**
+ * get_sdt_note_list : Wrapper to construct a list of sdt notes
+ * @head : empty list_head
+ * @target : file to find SDT notes from
+ *
+ * This opens the file, initializes
+ * the ELF and then calls construct_sdt_notes_list.
+ */
+int get_sdt_note_list(struct list_head *head, const char *target)
+{
+	Elf *elf;
+	int fd, ret;
+
+	fd = open(target, O_RDONLY);
+	if (fd < 0)
+		return -EBADF;
+
+	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
+	if (!elf) {
+		ret = -EBADF;
+		goto out_close;
+	}
+	ret = construct_sdt_notes_list(elf, head);
+	elf_end(elf);
+out_close:
+	close(fd);
+	return ret;
+}
+
+/**
+ * cleanup_sdt_note_list : free the sdt notes' list
+ * @sdt_notes: sdt notes' list
+ *
+ * Free up the SDT notes in @sdt_notes.
+ * Returns the number of SDT notes free'd.
+ */
+int cleanup_sdt_note_list(struct list_head *sdt_notes)
+{
+	struct sdt_note *tmp, *pos;
+	int nr_free = 0;
+
+	list_for_each_entry_safe(pos, tmp, sdt_notes, note_list) {
+		list_del(&pos->note_list);
+		free(pos->name);
+		free(pos->provider);
+		free(pos);
+		nr_free++;
+	}
+	return nr_free;
+}
+
+/**
+ * sdt_notes__get_count: Counts the number of sdt events
+ * @start: list_head to sdt_notes list
+ *
+ * Returns the number of SDT notes in a list
+ */
+int sdt_notes__get_count(struct list_head *start)
+{
+	struct sdt_note *sdt_ptr;
+	int count = 0;
+
+	list_for_each_entry(sdt_ptr, start, note_list)
+		count++;
+	return count;
+}
+#endif
 
 void symbol__elf_init(void)
 {

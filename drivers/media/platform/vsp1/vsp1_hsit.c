@@ -107,7 +107,7 @@ static int hsit_set_format(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static struct v4l2_subdev_pad_ops hsit_pad_ops = {
+static const struct v4l2_subdev_pad_ops hsit_pad_ops = {
 	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = hsit_enum_mbus_code,
 	.enum_frame_size = hsit_enum_frame_size,
@@ -115,7 +115,7 @@ static struct v4l2_subdev_pad_ops hsit_pad_ops = {
 	.set_fmt = hsit_set_format,
 };
 
-static struct v4l2_subdev_ops hsit_ops = {
+static const struct v4l2_subdev_ops hsit_ops = {
 	.pad    = &hsit_pad_ops,
 };
 
@@ -125,9 +125,12 @@ static struct v4l2_subdev_ops hsit_ops = {
 
 static void hsit_configure(struct vsp1_entity *entity,
 			   struct vsp1_pipeline *pipe,
-			   struct vsp1_dl_list *dl)
+			   struct vsp1_dl_list *dl, bool full)
 {
 	struct vsp1_hsit *hsit = to_hsit(&entity->subdev);
+
+	if (!full)
+		return;
 
 	if (hsit->inverse)
 		vsp1_hsit_write(hsit, dl, VI6_HSI_CTRL, VI6_HSI_CTRL_EN);
@@ -161,8 +164,9 @@ struct vsp1_hsit *vsp1_hsit_create(struct vsp1_device *vsp1, bool inverse)
 	else
 		hsit->entity.type = VSP1_ENTITY_HST;
 
-	ret = vsp1_entity_init(vsp1, &hsit->entity, inverse ? "hsi" : "hst", 2,
-			       &hsit_ops);
+	ret = vsp1_entity_init(vsp1, &hsit->entity, inverse ? "hsi" : "hst",
+			       2, &hsit_ops,
+			       MEDIA_ENT_F_PROC_VIDEO_PIXEL_ENC_CONV);
 	if (ret < 0)
 		return ERR_PTR(ret);
 

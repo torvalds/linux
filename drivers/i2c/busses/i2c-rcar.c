@@ -378,7 +378,7 @@ static void rcar_i2c_dma(struct rcar_i2c_priv *priv)
 	}
 
 	dma_addr = dma_map_single(chan->device->dev, buf, len, dir);
-	if (dma_mapping_error(dev, dma_addr)) {
+	if (dma_mapping_error(chan->device->dev, dma_addr)) {
 		dev_dbg(dev, "dma map failed, using PIO\n");
 		return;
 	}
@@ -623,7 +623,7 @@ static struct dma_chan *rcar_i2c_request_dma_chan(struct device *dev,
 	char *chan_name = dir == DMA_MEM_TO_DEV ? "tx" : "rx";
 	int ret;
 
-	chan = dma_request_slave_channel_reason(dev, chan_name);
+	chan = dma_request_chan(dev, chan_name);
 	if (IS_ERR(chan)) {
 		ret = PTR_ERR(chan);
 		dev_dbg(dev, "request_channel failed for %s (%d)\n",

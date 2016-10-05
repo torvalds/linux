@@ -165,10 +165,8 @@ static irqreturn_t am2315_trigger_handler(int irq, void *p)
 	struct am2315_sensor_data sensor_data;
 
 	ret = am2315_read_data(data, &sensor_data);
-	if (ret < 0) {
-		mutex_unlock(&data->lock);
+	if (ret < 0)
 		goto err;
-	}
 
 	mutex_lock(&data->lock);
 	if (*(indio_dev->active_scan_mask) == AM2315_ALL_CHANNEL_MASK) {
@@ -246,7 +244,7 @@ static int am2315_probe(struct i2c_client *client,
 	indio_dev->channels = am2315_channels;
 	indio_dev->num_channels = ARRAY_SIZE(am2315_channels);
 
-	ret = iio_triggered_buffer_setup(indio_dev, NULL,
+	ret = iio_triggered_buffer_setup(indio_dev, iio_pollfunc_store_time,
 					 am2315_trigger_handler, NULL);
 	if (ret < 0) {
 		dev_err(&client->dev, "iio triggered buffer setup failed\n");
@@ -278,6 +276,7 @@ static const struct i2c_device_id am2315_i2c_id[] = {
 	{"am2315", 0},
 	{}
 };
+MODULE_DEVICE_TABLE(i2c, am2315_i2c_id);
 
 static const struct acpi_device_id am2315_acpi_id[] = {
 	{"AOS2315", 0},

@@ -331,14 +331,12 @@ static void tce_iommu_free_table(struct iommu_table *tbl);
 static void tce_iommu_release(void *iommu_data)
 {
 	struct tce_container *container = iommu_data;
-	struct iommu_table_group *table_group;
 	struct tce_iommu_group *tcegrp;
 	long i;
 
 	while (tce_groups_attached(container)) {
 		tcegrp = list_first_entry(&container->group_list,
 				struct tce_iommu_group, next);
-		table_group = iommu_group_get_iommudata(tcegrp->grp);
 		tce_iommu_detach_group(iommu_data, tcegrp->grp);
 	}
 

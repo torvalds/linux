@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -489,7 +485,7 @@ static int ll_write_begin(struct file *file, struct address_space *mapping,
 			  struct page **pagep, void **fsdata)
 {
 	struct ll_cl_context *lcc;
-	struct lu_env  *env;
+	const struct lu_env  *env;
 	struct cl_io   *io;
 	struct cl_page *page;
 	struct cl_object *clob = ll_i2info(mapping->host)->lli_clob;
@@ -501,9 +497,9 @@ static int ll_write_begin(struct file *file, struct address_space *mapping,
 
 	CDEBUG(D_VFSTRACE, "Writing %lu of %d to %d bytes\n", index, from, len);
 
-	lcc = ll_cl_init(file, NULL);
-	if (IS_ERR(lcc)) {
-		result = PTR_ERR(lcc);
+	lcc = ll_cl_find(file);
+	if (!lcc) {
+		result = -EIO;
 		goto out;
 	}
 
@@ -579,8 +575,6 @@ out:
 			unlock_page(vmpage);
 			put_page(vmpage);
 		}
-		if (!IS_ERR(lcc))
-			ll_cl_fini(lcc);
 	} else {
 		*pagep = vmpage;
 		*fsdata = lcc;
@@ -593,7 +587,7 @@ static int ll_write_end(struct file *file, struct address_space *mapping,
 			struct page *vmpage, void *fsdata)
 {
 	struct ll_cl_context *lcc = fsdata;
-	struct lu_env *env;
+	const struct lu_env *env;
 	struct cl_io *io;
 	struct vvp_io *vio;
 	struct cl_page *page;
@@ -631,6 +625,10 @@ static int ll_write_end(struct file *file, struct address_space *mapping,
 	} else {
 		cl_page_disown(env, io, page);
 
+		lcc->lcc_page = NULL;
+		lu_ref_del(&page->cp_reference, "cl_io", io);
+		cl_page_put(env, page);
+
 		/* page list is not contiguous now, commit it now */
 		unplug = true;
 	}
@@ -639,7 +637,6 @@ static int ll_write_end(struct file *file, struct address_space *mapping,
 	    file->f_flags & O_SYNC || IS_SYNC(file_inode(file)))
 		result = vvp_io_write_commit(env, io);
 
-	ll_cl_fini(lcc);
 	return result >= 0 ? copied : result;
 }
 

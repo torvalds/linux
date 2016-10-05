@@ -1308,21 +1308,6 @@ static const struct  qib_hwerror_msgs qib_7322p_error_msgs[] = {
 	SYM_LSB(IntMask, fldname##17IntMask)), \
 	.msg = #fldname "_C", .sz = sizeof(#fldname "_C") }
 
-static const struct  qib_hwerror_msgs qib_7322_intr_msgs[] = {
-	INTR_AUTO_P(SDmaInt),
-	INTR_AUTO_P(SDmaProgressInt),
-	INTR_AUTO_P(SDmaIdleInt),
-	INTR_AUTO_P(SDmaCleanupDone),
-	INTR_AUTO_C(RcvUrg),
-	INTR_AUTO_P(ErrInt),
-	INTR_AUTO(ErrInt),      /* non-port-specific errs */
-	INTR_AUTO(AssertGPIOInt),
-	INTR_AUTO_P(SendDoneInt),
-	INTR_AUTO(SendBufAvailInt),
-	INTR_AUTO_C(RcvAvail),
-	{ .mask = 0, .sz = 0 }
-};
-
 #define TXSYMPTOM_AUTO_P(fldname) \
 	{ .mask = SYM_MASK(SendHdrErrSymptom_0, fldname), \
 	.msg = #fldname, .sz = sizeof(#fldname) }
@@ -1430,7 +1415,7 @@ static void flush_fifo(struct qib_pportdata *ppd)
 	u32 *hdr;
 	u64 pbc;
 	const unsigned hdrwords = 7;
-	static struct qib_ib_header ibhdr = {
+	static struct ib_header ibhdr = {
 		.lrh[0] = cpu_to_be16(0xF000 | QIB_LRH_BTH),
 		.lrh[1] = IB_LID_PERMISSIVE,
 		.lrh[2] = cpu_to_be16(hdrwords + SIZE_OF_CRC),

@@ -535,8 +535,7 @@ static int __init init_affinity(void)
 	if (of_has_vicinity()) {
 		init_affinity_fw();
 	} else {
-		long root = of_get_flat_dt_root();
-		if (of_flat_dt_is_compatible(root, "IBM,CPBW-1.0"))
+		if (of_machine_is_compatible("IBM,CPBW-1.0"))
 			init_affinity_qs20_harcoded();
 		else
 			printk("No affinity configuration found\n");

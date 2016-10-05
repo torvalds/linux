@@ -86,7 +86,7 @@ struct vfpf_acquire_tlv {
 	struct vfpf_first_tlv first_tlv;
 
 	struct vf_pf_vfdev_info {
-#define VFPF_ACQUIRE_CAP_OBSOLETE	(1 << 0)
+#define VFPF_ACQUIRE_CAP_PRE_FP_HSI     (1 << 0) /* VF pre-FP hsi version */
 #define VFPF_ACQUIRE_CAP_100G		(1 << 1) /* VF can support 100g */
 		u64 capabilities;
 		u8 fw_major;
@@ -96,7 +96,9 @@ struct vfpf_acquire_tlv {
 		u32 driver_version;
 		u16 opaque_fid;	/* ME register value */
 		u8 os_type;	/* VFPF_ACQUIRE_OS_* value */
-		u8 padding[5];
+		u8 eth_fp_hsi_major;
+		u8 eth_fp_hsi_minor;
+		u8 padding[3];
 	} vfdev_info;
 
 	struct vf_pf_resc_request resc_request;
@@ -171,7 +173,14 @@ struct pfvf_acquire_resp_tlv {
 		struct pfvf_stats_info stats_info;
 
 		u8 port_mac[ETH_ALEN];
-		u8 padding2[2];
+
+		/* It's possible PF had to configure an older fastpath HSI
+		 * [in case VF is newer than PF]. This is communicated back
+		 * to the VF. It can also be used in case of error due to
+		 * non-matching versions to shed light in VF about failure.
+		 */
+		u8 major_fp_hsi;
+		u8 minor_fp_hsi;
 	} pfdev_info;
 
 	struct pf_vf_resc {
@@ -542,6 +551,11 @@ struct qed_vf_iov {
 
 	/* we set aside a copy of the acquire response */
 	struct pfvf_acquire_resp_tlv acquire_resp;
+
+	/* In case PF originates prior to the fp-hsi version comparison,
+	 * this has to be propagated as it affects the fastpath.
+	 */
+	bool b_pre_fp_hsi;
 };
 
 #ifdef CONFIG_QED_SRIOV

@@ -82,13 +82,30 @@ drm_mode_validate_flag(const struct drm_display_mode *mode,
 
 static int drm_helper_probe_add_cmdline_mode(struct drm_connector *connector)
 {
+	struct drm_cmdline_mode *cmdline_mode;
 	struct drm_display_mode *mode;
 
-	if (!connector->cmdline_mode.specified)
+	cmdline_mode = &connector->cmdline_mode;
+	if (!cmdline_mode->specified)
 		return 0;
 
+	/* Only add a GTF mode if we find no matching probed modes */
+	list_for_each_entry(mode, &connector->probed_modes, head) {
+		if (mode->hdisplay != cmdline_mode->xres ||
+		    mode->vdisplay != cmdline_mode->yres)
+			continue;
+
+		if (cmdline_mode->refresh_specified) {
+			/* The probed mode's vrefresh is set until later */
+			if (drm_mode_vrefresh(mode) != cmdline_mode->refresh)
+				continue;
+		}
+
+		return 0;
+	}
+
 	mode = drm_mode_create_from_cmdline_mode(connector->dev,
-						 &connector->cmdline_mode);
+						 cmdline_mode);
 	if (mode == NULL)
 		return 0;
 
@@ -264,10 +281,8 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 		count = drm_add_edid_modes(connector, edid);
 		drm_edid_to_eld(connector, edid);
 	} else {
-#ifdef CONFIG_DRM_LOAD_EDID_FIRMWARE
 		count = drm_load_edid_firmware(connector);
 		if (count == 0)
-#endif
 			count = (*connector_funcs->get_modes)(connector);
 	}
 

@@ -230,6 +230,7 @@ extern unsigned long __kernel_virt_size;
 #define KERN_VIRT_SIZE  __kernel_virt_size
 extern struct page *vmemmap;
 extern unsigned long ioremap_bot;
+extern unsigned long pci_io_base;
 #endif /* __ASSEMBLY__ */
 
 #include <asm/book3s/64/hash.h>
@@ -317,7 +318,7 @@ static inline int __ptep_test_and_clear_young(struct mm_struct *mm,
 {
 	unsigned long old;
 
-	if ((pte_val(*ptep) & (_PAGE_ACCESSED | H_PAGE_HASHPTE)) == 0)
+	if ((pte_raw(*ptep) & cpu_to_be64(_PAGE_ACCESSED | H_PAGE_HASHPTE)) == 0)
 		return 0;
 	old = pte_update(mm, addr, ptep, _PAGE_ACCESSED, 0, 0);
 	return (old & _PAGE_ACCESSED) != 0;
@@ -335,8 +336,7 @@ static inline int __ptep_test_and_clear_young(struct mm_struct *mm,
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 				      pte_t *ptep)
 {
-
-	if ((pte_val(*ptep) & _PAGE_WRITE) == 0)
+	if ((pte_raw(*ptep) & cpu_to_be64(_PAGE_WRITE)) == 0)
 		return;
 
 	pte_update(mm, addr, ptep, _PAGE_WRITE, 0, 0);
@@ -345,7 +345,7 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
 					   unsigned long addr, pte_t *ptep)
 {
-	if ((pte_val(*ptep) & _PAGE_WRITE) == 0)
+	if ((pte_raw(*ptep) & cpu_to_be64(_PAGE_WRITE)) == 0)
 		return;
 
 	pte_update(mm, addr, ptep, _PAGE_WRITE, 0, 1);
@@ -364,17 +364,35 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
 {
 	pte_update(mm, addr, ptep, ~0UL, 0, 0);
 }
-static inline int pte_write(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_WRITE);}
-static inline int pte_dirty(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_DIRTY); }
-static inline int pte_young(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_ACCESSED); }
-static inline int pte_special(pte_t pte)	{ return !!(pte_val(pte) & _PAGE_SPECIAL); }
+
+static inline int pte_write(pte_t pte)
+{
+	return !!(pte_raw(pte) & cpu_to_be64(_PAGE_WRITE));
+}
+
+static inline int pte_dirty(pte_t pte)
+{
+	return !!(pte_raw(pte) & cpu_to_be64(_PAGE_DIRTY));
+}
+
+static inline int pte_young(pte_t pte)
+{
+	return !!(pte_raw(pte) & cpu_to_be64(_PAGE_ACCESSED));
+}
+
+static inline int pte_special(pte_t pte)
+{
+	return !!(pte_raw(pte) & cpu_to_be64(_PAGE_SPECIAL));
+}
+
 static inline pgprot_t pte_pgprot(pte_t pte)	{ return __pgprot(pte_val(pte) & PAGE_PROT_BITS); }
 
 #ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
 static inline bool pte_soft_dirty(pte_t pte)
 {
-	return !!(pte_val(pte) & _PAGE_SOFT_DIRTY);
+	return !!(pte_raw(pte) & cpu_to_be64(_PAGE_SOFT_DIRTY));
 }
+
 static inline pte_t pte_mksoft_dirty(pte_t pte)
 {
 	return __pte(pte_val(pte) | _PAGE_SOFT_DIRTY);
@@ -394,14 +412,14 @@ static inline pte_t pte_clear_soft_dirty(pte_t pte)
  */
 static inline int pte_protnone(pte_t pte)
 {
-	return (pte_val(pte) & (_PAGE_PRESENT | _PAGE_PRIVILEGED)) ==
-		(_PAGE_PRESENT | _PAGE_PRIVILEGED);
+	return (pte_raw(pte) & cpu_to_be64(_PAGE_PRESENT | _PAGE_PRIVILEGED)) ==
+		cpu_to_be64(_PAGE_PRESENT | _PAGE_PRIVILEGED);
 }
 #endif /* CONFIG_NUMA_BALANCING */
 
 static inline int pte_present(pte_t pte)
 {
-	return !!(pte_val(pte) & _PAGE_PRESENT);
+	return !!(pte_raw(pte) & cpu_to_be64(_PAGE_PRESENT));
 }
 /*
  * Conversion functions: convert a page and protection to a page entry,
@@ -473,7 +491,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 
 static inline bool pte_user(pte_t pte)
 {
-	return !(pte_val(pte) & _PAGE_PRIVILEGED);
+	return !(pte_raw(pte) & cpu_to_be64(_PAGE_PRIVILEGED));
 }
 
 /* Encode and de-code a swap entry */
@@ -516,10 +534,12 @@ static inline pte_t pte_swp_mksoft_dirty(pte_t pte)
 {
 	return __pte(pte_val(pte) | _PAGE_SWP_SOFT_DIRTY);
 }
+
 static inline bool pte_swp_soft_dirty(pte_t pte)
 {
-	return !!(pte_val(pte) & _PAGE_SWP_SOFT_DIRTY);
+	return !!(pte_raw(pte) & cpu_to_be64(_PAGE_SWP_SOFT_DIRTY));
 }
+
 static inline pte_t pte_swp_clear_soft_dirty(pte_t pte)
 {
 	return __pte(pte_val(pte) & ~_PAGE_SWP_SOFT_DIRTY);
@@ -625,8 +645,16 @@ static inline void pmd_clear(pmd_t *pmdp)
 	*pmdp = __pmd(0);
 }
 
-#define pmd_none(pmd)		(!pmd_val(pmd))
-#define	pmd_present(pmd)	(!pmd_none(pmd))
+static inline int pmd_none(pmd_t pmd)
+{
+	return !pmd_raw(pmd);
+}
+
+static inline int pmd_present(pmd_t pmd)
+{
+
+	return !pmd_none(pmd);
+}
 
 static inline int pmd_bad(pmd_t pmd)
 {
@@ -645,19 +673,26 @@ static inline void pud_clear(pud_t *pudp)
 	*pudp = __pud(0);
 }
 
-#define pud_none(pud)		(!pud_val(pud))
-#define pud_present(pud)	(pud_val(pud) != 0)
+static inline int pud_none(pud_t pud)
+{
+	return !pud_raw(pud);
+}
+
+static inline int pud_present(pud_t pud)
+{
+	return !pud_none(pud);
+}
 
 extern struct page *pud_page(pud_t pud);
 extern struct page *pmd_page(pmd_t pmd);
 static inline pte_t pud_pte(pud_t pud)
 {
-	return __pte(pud_val(pud));
+	return __pte_raw(pud_raw(pud));
 }
 
 static inline pud_t pte_pud(pte_t pte)
 {
-	return __pud(pte_val(pte));
+	return __pud_raw(pte_raw(pte));
 }
 #define pud_write(pud)		pte_write(pud_pte(pud))
 
@@ -680,17 +715,24 @@ static inline void pgd_clear(pgd_t *pgdp)
 	*pgdp = __pgd(0);
 }
 
-#define pgd_none(pgd)		(!pgd_val(pgd))
-#define pgd_present(pgd)	(!pgd_none(pgd))
+static inline int pgd_none(pgd_t pgd)
+{
+	return !pgd_raw(pgd);
+}
+
+static inline int pgd_present(pgd_t pgd)
+{
+	return !pgd_none(pgd);
+}
 
 static inline pte_t pgd_pte(pgd_t pgd)
 {
-	return __pte(pgd_val(pgd));
+	return __pte_raw(pgd_raw(pgd));
 }
 
 static inline pgd_t pte_pgd(pte_t pte)
 {
-	return __pgd(pte_val(pte));
+	return __pgd_raw(pte_raw(pte));
 }
 
 static inline int pgd_bad(pgd_t pgd)
@@ -782,12 +824,12 @@ struct page *realmode_pfn_to_page(unsigned long pfn);
 
 static inline pte_t pmd_pte(pmd_t pmd)
 {
-	return __pte(pmd_val(pmd));
+	return __pte_raw(pmd_raw(pmd));
 }
 
 static inline pmd_t pte_pmd(pte_t pte)
 {
-	return __pmd(pte_val(pte));
+	return __pmd_raw(pte_raw(pte));
 }
 
 static inline pte_t *pmdp_ptep(pmd_t *pmd)
@@ -848,7 +890,7 @@ pmd_hugepage_update(struct mm_struct *mm, unsigned long addr, pmd_t *pmdp,
 
 static inline int pmd_large(pmd_t pmd)
 {
-	return !!(pmd_val(pmd) & _PAGE_PTE);
+	return !!(pmd_raw(pmd) & cpu_to_be64(_PAGE_PTE));
 }
 
 static inline pmd_t pmd_mknotpresent(pmd_t pmd)
@@ -864,7 +906,7 @@ static inline int __pmdp_test_and_clear_young(struct mm_struct *mm,
 {
 	unsigned long old;
 
-	if ((pmd_val(*pmdp) & (_PAGE_ACCESSED | H_PAGE_HASHPTE)) == 0)
+	if ((pmd_raw(*pmdp) & cpu_to_be64(_PAGE_ACCESSED | H_PAGE_HASHPTE)) == 0)
 		return 0;
 	old = pmd_hugepage_update(mm, addr, pmdp, _PAGE_ACCESSED, 0);
 	return ((old & _PAGE_ACCESSED) != 0);
@@ -875,7 +917,7 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 				      pmd_t *pmdp)
 {
 
-	if ((pmd_val(*pmdp) & _PAGE_WRITE) == 0)
+	if ((pmd_raw(*pmdp) & cpu_to_be64(_PAGE_WRITE)) == 0)
 		return;
 
 	pmd_hugepage_update(mm, addr, pmdp, _PAGE_WRITE, 0);

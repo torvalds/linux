@@ -504,6 +504,9 @@
 #define BCMA_CC_PMU1_PLL0_PC2_NDIV_INT_MASK	0x1ff00000
 #define BCMA_CC_PMU1_PLL0_PC2_NDIV_INT_SHIFT	20
 
+#define BCMA_CCB_MII_MNG_CTL		0x0000
+#define BCMA_CCB_MII_MNG_CMD_DATA	0x0004
+
 /* BCM4331 ChipControl numbers. */
 #define BCMA_CHIPCTL_4331_BT_COEXIST		BIT(0)	/* 0 disable */
 #define BCMA_CHIPCTL_4331_SECI			BIT(1)	/* 0 SECI is disabled (JATG functional) */
@@ -587,7 +590,6 @@ struct mtd_info;
 
 struct bcma_sflash {
 	bool present;
-	u32 window;
 	u32 blocksize;
 	u16 numblocks;
 	u32 size;

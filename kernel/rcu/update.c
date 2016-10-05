@@ -46,7 +46,7 @@
 #include <linux/export.h>
 #include <linux/hardirq.h>
 #include <linux/delay.h>
-#include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/kthread.h>
 #include <linux/tick.h>
 
@@ -54,7 +54,6 @@
 
 #include "rcu.h"
 
-MODULE_ALIAS("rcupdate");
 #ifdef MODULE_PARAM_PREFIX
 #undef MODULE_PARAM_PREFIX
 #endif
@@ -528,6 +527,7 @@ static int rcu_task_stall_timeout __read_mostly = HZ * 60 * 10;
 module_param(rcu_task_stall_timeout, int, 0644);
 
 static void rcu_spawn_tasks_kthread(void);
+static struct task_struct *rcu_tasks_kthread_ptr;
 
 /*
  * Post an RCU-tasks callback.  First call must be from process context
@@ -537,6 +537,7 @@ void call_rcu_tasks(struct rcu_head *rhp, rcu_callback_t func)
 {
 	unsigned long flags;
 	bool needwake;
+	bool havetask = READ_ONCE(rcu_tasks_kthread_ptr);
 
 	rhp->next = NULL;
 	rhp->func = func;
@@ -545,7 +546,9 @@ void call_rcu_tasks(struct rcu_head *rhp, rcu_callback_t func)
 	*rcu_tasks_cbs_tail = rhp;
 	rcu_tasks_cbs_tail = &rhp->next;
 	raw_spin_unlock_irqrestore(&rcu_tasks_cbs_lock, flags);
-	if (needwake) {
+	/* We can't create the thread unless interrupts are enabled. */
+	if ((needwake && havetask) ||
+	    (!havetask && !irqs_disabled_flags(flags))) {
 		rcu_spawn_tasks_kthread();
 		wake_up(&rcu_tasks_cbs_wq);
 	}
@@ -790,7 +793,6 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 static void rcu_spawn_tasks_kthread(void)
 {
 	static DEFINE_MUTEX(rcu_tasks_kthread_mutex);
-	static struct task_struct *rcu_tasks_kthread_ptr;
 	struct task_struct *t;
 
 	if (READ_ONCE(rcu_tasks_kthread_ptr)) {

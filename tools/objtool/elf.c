@@ -30,6 +30,13 @@
 #include "elf.h"
 #include "warn.h"
 
+/*
+ * Fallback for systems without this "read, mmaping if possible" cmd.
+ */
+#ifndef ELF_C_READ_MMAP
+#define ELF_C_READ_MMAP ELF_C_READ
+#endif
+
 struct section *find_section_by_name(struct elf *elf, const char *name)
 {
 	struct section *sec;

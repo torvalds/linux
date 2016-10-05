@@ -15,3 +15,13 @@ config DRM_AMDGPU_USERPTR
 	help
 	  This option selects CONFIG_MMU_NOTIFIER if it isn't already
 	  selected to enabled full userptr support.
+
+config DRM_AMDGPU_GART_DEBUGFS
+	bool "Allow GART access through debugfs"
+	depends on DRM_AMDGPU
+	depends on DEBUG_FS
+	default n
+	help
+	  Selecting this option creates a debugfs file to inspect the mapped
+	  pages. Uses more memory for housekeeping, enable only for debugging.
+

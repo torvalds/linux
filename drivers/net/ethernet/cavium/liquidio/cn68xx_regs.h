@@ -29,7 +29,6 @@
 
 #ifndef __CN68XX_REGS_H__
 #define __CN68XX_REGS_H__
-#include "cn66xx_regs.h"
 
 /*###################### REQUEST QUEUE #########################*/
 

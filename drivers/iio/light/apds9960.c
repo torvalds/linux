@@ -807,7 +807,7 @@ static irqreturn_t apds9960_interrupt_handler(int irq, void *private)
 			       IIO_UNMOD_EVENT_CODE(IIO_INTENSITY, 0,
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_EITHER),
-			       iio_get_time_ns());
+			       iio_get_time_ns(indio_dev));
 		regmap_write(data->regmap, APDS9960_REG_CICLEAR, 1);
 	}
 
@@ -816,7 +816,7 @@ static irqreturn_t apds9960_interrupt_handler(int irq, void *private)
 			       IIO_UNMOD_EVENT_CODE(IIO_PROXIMITY, 0,
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_EITHER),
-			       iio_get_time_ns());
+			       iio_get_time_ns(indio_dev));
 		regmap_write(data->regmap, APDS9960_REG_PICLEAR, 1);
 	}
 
@@ -1011,6 +1011,7 @@ static int apds9960_probe(struct i2c_client *client,
 
 	iio_device_attach_buffer(indio_dev, buffer);
 
+	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &apds9960_info;
 	indio_dev->name = APDS9960_DRV_NAME;
 	indio_dev->channels = apds9960_channels;

@@ -113,6 +113,8 @@
 
 #define IW_HMC_OBJ_TYPE_NUM ARRAY_SIZE(iw_hmc_obj_types)
 #define IW_CFG_FPM_QP_COUNT		32768
+#define I40IW_MAX_PAGES_PER_FMR		512
+#define I40IW_MIN_PAGES_PER_FMR		1
 
 #define I40IW_MTU_TO_MSS		40
 #define I40IW_DEFAULT_MSS		1460
@@ -230,7 +232,7 @@ struct i40iw_device {
 	struct i40e_client *client;
 	struct i40iw_hw hw;
 	struct i40iw_cm_core cm_core;
-	unsigned long *mem_resources;
+	u8 *mem_resources;
 	unsigned long *allocated_qps;
 	unsigned long *allocated_cqs;
 	unsigned long *allocated_mrs;
@@ -433,8 +435,8 @@ static inline int i40iw_alloc_resource(struct i40iw_device *iwdev,
 	*next = resource_num + 1;
 	if (*next == max_resources)
 		*next = 0;
-	spin_unlock_irqrestore(&iwdev->resource_lock, flags);
 	*req_resource_num = resource_num;
+	spin_unlock_irqrestore(&iwdev->resource_lock, flags);
 
 	return 0;
 }

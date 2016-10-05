@@ -65,6 +65,10 @@
 #define ATH10K_KEEPALIVE_MAX_IDLE 3895
 #define ATH10K_KEEPALIVE_MAX_UNRESPONSIVE 3900
 
+/* NAPI poll budget */
+#define ATH10K_NAPI_BUDGET      64
+#define ATH10K_NAPI_QUOTA_LIMIT 60
+
 struct ath10k;
 
 enum ath10k_bus {
@@ -142,6 +146,7 @@ struct ath10k_wmi {
 	enum ath10k_htc_ep_id eid;
 	struct completion service_ready;
 	struct completion unified_ready;
+	struct completion barrier;
 	wait_queue_head_t tx_credits_wq;
 	DECLARE_BITMAP(svc_map, WMI_SERVICE_MAX);
 	struct wmi_cmd_map *cmd;
@@ -162,6 +167,13 @@ struct ath10k_fw_stats_peer {
 	u32 peer_rssi;
 	u32 peer_tx_rate;
 	u32 peer_rx_rate; /* 10x only */
+	u32 rx_duration;
+};
+
+struct ath10k_fw_extd_stats_peer {
+	struct list_head list;
+
+	u8 peer_macaddr[ETH_ALEN];
 	u32 rx_duration;
 };
 
@@ -189,10 +201,10 @@ struct ath10k_fw_stats_pdev {
 
 	/* PDEV stats */
 	s32 ch_noise_floor;
-	u32 tx_frame_count;
-	u32 rx_frame_count;
-	u32 rx_clear_count;
-	u32 cycle_count;
+	u32 tx_frame_count; /* Cycles spent transmitting frames */
+	u32 rx_frame_count; /* Cycles spent receiving frames */
+	u32 rx_clear_count; /* Total channel busy time, evidently */
+	u32 cycle_count; /* Total on-channel time */
 	u32 phy_err_count;
 	u32 chan_tx_power;
 	u32 ack_rx_bad;
@@ -256,9 +268,11 @@ struct ath10k_fw_stats_pdev {
 };
 
 struct ath10k_fw_stats {
+	bool extended;
 	struct list_head pdevs;
 	struct list_head vdevs;
 	struct list_head peers;
+	struct list_head peers_extd;
 };
 
 #define ATH10K_TPC_TABLE_TYPE_FLAG	1
@@ -431,7 +445,7 @@ struct ath10k_debug {
 	struct completion tpc_complete;
 
 	/* protected by conf_mutex */
-	u32 fw_dbglog_mask;
+	u64 fw_dbglog_mask;
 	u32 fw_dbglog_level;
 	u32 pktlog_filter;
 	u32 reg_addr;
@@ -535,6 +549,20 @@ enum ath10k_fw_features {
 	 */
 	ATH10K_FW_FEATURE_PEER_FLOW_CONTROL = 13,
 
+	/* Firmware supports BT-Coex without reloading firmware via pdev param.
+	 * To support Bluetooth coexistence pdev param, WMI_COEX_GPIO_SUPPORT of
+	 * extended resource config should be enabled always. This firmware IE
+	 * is used to configure WMI_COEX_GPIO_SUPPORT.
+	 */
+	ATH10K_FW_FEATURE_BTCOEX_PARAM = 14,
+
+	/* Older firmware with HTT delivers incorrect tx status for null func
+	 * frames to driver, but this fixed in 10.2 and 10.4 firmware versions.
+	 * Also this workaround results in reporting of incorrect null func
+	 * status for 10.4. This flag is used to skip the workaround.
+	 */
+	ATH10K_FW_FEATURE_SKIP_NULL_FUNC_WAR = 15,
+
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
 };
@@ -571,6 +599,7 @@ enum ath10k_cal_mode {
 	ATH10K_CAL_MODE_DT,
 	ATH10K_PRE_CAL_MODE_FILE,
 	ATH10K_PRE_CAL_MODE_DT,
+	ATH10K_CAL_MODE_EEPROM,
 };
 
 enum ath10k_crypt_mode {
@@ -593,6 +622,8 @@ static inline const char *ath10k_cal_mode_str(enum ath10k_cal_mode mode)
 		return "pre-cal-file";
 	case ATH10K_PRE_CAL_MODE_DT:
 		return "pre-cal-dt";
+	case ATH10K_CAL_MODE_EEPROM:
+		return "eeprom";
 	}
 
 	return "unknown";
@@ -644,6 +675,15 @@ struct ath10k_fw_file {
 
 	const void *codeswap_data;
 	size_t codeswap_len;
+
+	/* The original idea of struct ath10k_fw_file was that it only
+	 * contains struct firmware and pointers to various parts (actual
+	 * firmware binary, otp, metadata etc) of the file. This seg_info
+	 * is actually created separate but as this is used similarly as
+	 * the other firmware components it's more convenient to have it
+	 * here.
+	 */
+	struct ath10k_swap_code_seg_info *firmware_swap_code_seg_info;
 };
 
 struct ath10k_fw_components {
@@ -657,6 +697,7 @@ struct ath10k_fw_components {
 struct ath10k {
 	struct ath_common ath_common;
 	struct ieee80211_hw *hw;
+	struct ieee80211_ops *ops;
 	struct device *dev;
 	u8 mac_addr[ETH_ALEN];
 
@@ -695,49 +736,7 @@ struct ath10k {
 	struct ath10k_htc htc;
 	struct ath10k_htt htt;
 
-	struct ath10k_hw_params {
-		u32 id;
-		u16 dev_id;
-		const char *name;
-		u32 patch_load_addr;
-		int uart_pin;
-		u32 otp_exe_param;
-
-		/* This is true if given HW chip has a quirky Cycle Counter
-		 * wraparound which resets to 0x7fffffff instead of 0. All
-		 * other CC related counters (e.g. Rx Clear Count) are divided
-		 * by 2 so they never wraparound themselves.
-		 */
-		bool has_shifted_cc_wraparound;
-
-		/* Some of chip expects fragment descriptor to be continuous
-		 * memory for any TX operation. Set continuous_frag_desc flag
-		 * for the hardware which have such requirement.
-		 */
-		bool continuous_frag_desc;
-
-		u32 channel_counters_freq_hz;
-
-		/* Mgmt tx descriptors threshold for limiting probe response
-		 * frames.
-		 */
-		u32 max_probe_resp_desc_thres;
-
-		/* The padding bytes's location is different on various chips */
-		enum ath10k_hw_4addr_pad hw_4addr_pad;
-
-		u32 tx_chain_mask;
-		u32 rx_chain_mask;
-		u32 max_spatial_stream;
-		u32 cal_data_len;
-
-		struct ath10k_hw_params_fw {
-			const char *dir;
-			const char *board;
-			size_t board_size;
-			size_t board_ext_size;
-		} fw;
-	} hw_params;
+	struct ath10k_hw_params hw_params;
 
 	/* contains the firmware images used with ATH10K_FIRMWARE_MODE_NORMAL */
 	struct ath10k_fw_components normal_mode_fw;
@@ -749,10 +748,6 @@ struct ath10k {
 
 	const struct firmware *pre_cal_file;
 	const struct firmware *cal_file;
-
-	struct {
-		struct ath10k_swap_code_seg_info *firmware_swap_code_seg_info;
-	} swap;
 
 	struct {
 		u32 vendor;
@@ -911,6 +906,10 @@ struct ath10k {
 
 	struct ath10k_thermal thermal;
 	struct ath10k_wow wow;
+
+	/* NAPI */
+	struct net_device napi_dev;
+	struct napi_struct napi;
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));

@@ -6,3 +6,4 @@ tm-vmxcopy
 tm-fork
 tm-tar
 tm-tmspr
+tm-exec

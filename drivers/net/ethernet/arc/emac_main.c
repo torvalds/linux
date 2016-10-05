@@ -47,7 +47,7 @@ static inline int arc_emac_tx_avail(struct arc_emac_priv *priv)
 static void arc_emac_adjust_link(struct net_device *ndev)
 {
 	struct arc_emac_priv *priv = netdev_priv(ndev);
-	struct phy_device *phy_dev = priv->phy_dev;
+	struct phy_device *phy_dev = ndev->phydev;
 	unsigned int reg, state_changed = 0;
 
 	if (priv->link != phy_dev->link) {
@@ -80,46 +80,6 @@ static void arc_emac_adjust_link(struct net_device *ndev)
 }
 
 /**
- * arc_emac_get_settings - Get PHY settings.
- * @ndev:	Pointer to net_device structure.
- * @cmd:	Pointer to ethtool_cmd structure.
- *
- * This implements ethtool command for getting PHY settings. If PHY could
- * not be found, the function returns -ENODEV. This function calls the
- * relevant PHY ethtool API to get the PHY settings.
- * Issue "ethtool ethX" under linux prompt to execute this function.
- */
-static int arc_emac_get_settings(struct net_device *ndev,
-				 struct ethtool_cmd *cmd)
-{
-	struct arc_emac_priv *priv = netdev_priv(ndev);
-
-	return phy_ethtool_gset(priv->phy_dev, cmd);
-}
-
-/**
- * arc_emac_set_settings - Set PHY settings as passed in the argument.
- * @ndev:	Pointer to net_device structure.
- * @cmd:	Pointer to ethtool_cmd structure.
- *
- * This implements ethtool command for setting various PHY settings. If PHY
- * could not be found, the function returns -ENODEV. This function calls the
- * relevant PHY ethtool API to set the PHY.
- * Issue e.g. "ethtool -s ethX speed 1000" under linux prompt to execute this
- * function.
- */
-static int arc_emac_set_settings(struct net_device *ndev,
-				 struct ethtool_cmd *cmd)
-{
-	struct arc_emac_priv *priv = netdev_priv(ndev);
-
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
-	return phy_ethtool_sset(priv->phy_dev, cmd);
-}
-
-/**
  * arc_emac_get_drvinfo - Get EMAC driver information.
  * @ndev:	Pointer to net_device structure.
  * @info:	Pointer to ethtool_drvinfo structure.
@@ -137,10 +97,10 @@ static void arc_emac_get_drvinfo(struct net_device *ndev,
 }
 
 static const struct ethtool_ops arc_emac_ethtool_ops = {
-	.get_settings	= arc_emac_get_settings,
-	.set_settings	= arc_emac_set_settings,
 	.get_drvinfo	= arc_emac_get_drvinfo,
 	.get_link	= ethtool_op_get_link,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 #define FIRST_OR_LAST_MASK	(FIRST_MASK | LAST_MASK)
@@ -403,7 +363,7 @@ static void arc_emac_poll_controller(struct net_device *dev)
 static int arc_emac_open(struct net_device *ndev)
 {
 	struct arc_emac_priv *priv = netdev_priv(ndev);
-	struct phy_device *phy_dev = priv->phy_dev;
+	struct phy_device *phy_dev = ndev->phydev;
 	int i;
 
 	phy_dev->autoneg = AUTONEG_ENABLE;
@@ -474,7 +434,7 @@ static int arc_emac_open(struct net_device *ndev)
 	/* Enable EMAC */
 	arc_reg_or(priv, R_CTRL, EN_MASK);
 
-	phy_start_aneg(priv->phy_dev);
+	phy_start_aneg(ndev->phydev);
 
 	netif_start_queue(ndev);
 
@@ -772,6 +732,7 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 	struct device *dev = ndev->dev.parent;
 	struct resource res_regs;
 	struct device_node *phy_node;
+	struct phy_device *phydev = NULL;
 	struct arc_emac_priv *priv;
 	const char *mac_addr;
 	unsigned int id, clock_frequency, irq;
@@ -788,14 +749,16 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 	err = of_address_to_resource(dev->of_node, 0, &res_regs);
 	if (err) {
 		dev_err(dev, "failed to retrieve registers base from device tree\n");
-		return -ENODEV;
+		err = -ENODEV;
+		goto out_put_node;
 	}
 
 	/* Get IRQ from device tree */
 	irq = irq_of_parse_and_map(dev->of_node, 0);
 	if (!irq) {
 		dev_err(dev, "failed to retrieve <irq> value from device tree\n");
-		return -ENODEV;
+		err = -ENODEV;
+		goto out_put_node;
 	}
 
 	ndev->netdev_ops = &arc_emac_netdev_ops;
@@ -808,8 +771,10 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 	priv->dev = dev;
 
 	priv->regs = devm_ioremap_resource(dev, &res_regs);
-	if (IS_ERR(priv->regs))
-		return PTR_ERR(priv->regs);
+	if (IS_ERR(priv->regs)) {
+		err = PTR_ERR(priv->regs);
+		goto out_put_node;
+	}
 
 	dev_dbg(dev, "Registers base address is 0x%p\n", priv->regs);
 
@@ -817,7 +782,7 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 		err = clk_prepare_enable(priv->clk);
 		if (err) {
 			dev_err(dev, "failed to enable clock\n");
-			return err;
+			goto out_put_node;
 		}
 
 		clock_frequency = clk_get_rate(priv->clk);
@@ -826,7 +791,8 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 		if (of_property_read_u32(dev->of_node, "clock-frequency",
 					 &clock_frequency)) {
 			dev_err(dev, "failed to retrieve <clock-frequency> from device tree\n");
-			return -EINVAL;
+			err = -EINVAL;
+			goto out_put_node;
 		}
 	}
 
@@ -887,16 +853,16 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 		goto out_clken;
 	}
 
-	priv->phy_dev = of_phy_connect(ndev, phy_node, arc_emac_adjust_link, 0,
-				       interface);
-	if (!priv->phy_dev) {
+	phydev = of_phy_connect(ndev, phy_node, arc_emac_adjust_link, 0,
+				interface);
+	if (!phydev) {
 		dev_err(dev, "of_phy_connect() failed\n");
 		err = -ENODEV;
 		goto out_mdio;
 	}
 
 	dev_info(dev, "connected to %s phy with id 0x%x\n",
-		 priv->phy_dev->drv->name, priv->phy_dev->phy_id);
+		 phydev->drv->name, phydev->phy_id);
 
 	netif_napi_add(ndev, &priv->napi, arc_emac_poll, ARC_EMAC_NAPI_WEIGHT);
 
@@ -906,17 +872,20 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 		goto out_netif_api;
 	}
 
+	of_node_put(phy_node);
 	return 0;
 
 out_netif_api:
 	netif_napi_del(&priv->napi);
-	phy_disconnect(priv->phy_dev);
-	priv->phy_dev = NULL;
+	phy_disconnect(phydev);
 out_mdio:
 	arc_mdio_remove(priv);
 out_clken:
 	if (priv->clk)
 		clk_disable_unprepare(priv->clk);
+out_put_node:
+	of_node_put(phy_node);
+
 	return err;
 }
 EXPORT_SYMBOL_GPL(arc_emac_probe);
@@ -925,8 +894,7 @@ int arc_emac_remove(struct net_device *ndev)
 {
 	struct arc_emac_priv *priv = netdev_priv(ndev);
 
-	phy_disconnect(priv->phy_dev);
-	priv->phy_dev = NULL;
+	phy_disconnect(ndev->phydev);
 	arc_mdio_remove(priv);
 	unregister_netdev(ndev);
 	netif_napi_del(&priv->napi);

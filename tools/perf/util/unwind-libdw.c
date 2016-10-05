@@ -66,7 +66,7 @@ static int entry(u64 ip, struct unwind_info *ui)
 	if (__report_module(&al, ip, ui))
 		return -1;
 
-	e->ip  = ip;
+	e->ip  = al.addr;
 	e->map = al.map;
 	e->sym = al.sym;
 

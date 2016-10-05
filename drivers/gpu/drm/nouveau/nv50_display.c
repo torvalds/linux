@@ -39,7 +39,7 @@
 #include <nvif/cl507d.h>
 #include <nvif/cl507e.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_gem.h"
 #include "nouveau_connector.h"
@@ -297,6 +297,8 @@ nv50_core_create(struct nvif_device *device, struct nvif_object *disp,
 		.pushbuf = 0xb0007d00,
 	};
 	static const s32 oclass[] = {
+		GP104_DISP_CORE_CHANNEL_DMA,
+		GP100_DISP_CORE_CHANNEL_DMA,
 		GM200_DISP_CORE_CHANNEL_DMA,
 		GM107_DISP_CORE_CHANNEL_DMA,
 		GK110_DISP_CORE_CHANNEL_DMA,
@@ -1305,7 +1307,6 @@ nv50_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 		     uint32_t handle, uint32_t width, uint32_t height)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	struct drm_device *dev = crtc->dev;
 	struct drm_gem_object *gem = NULL;
 	struct nouveau_bo *nvbo = NULL;
 	int ret = 0;
@@ -1314,7 +1315,7 @@ nv50_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 		if (width != 64 || height != 64)
 			return -EINVAL;
 
-		gem = drm_gem_object_lookup(dev, file_priv, handle);
+		gem = drm_gem_object_lookup(file_priv, handle);
 		if (unlikely(!gem))
 			return -ENOENT;
 		nvbo = nouveau_gem_object(gem);
@@ -1347,21 +1348,22 @@ nv50_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	return 0;
 }
 
-static void
+static int
 nv50_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
-		    uint32_t start, uint32_t size)
+		    uint32_t size)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	u32 end = min_t(u32, start + size, 256);
 	u32 i;
 
-	for (i = start; i < end; i++) {
+	for (i = 0; i < size; i++) {
 		nv_crtc->lut.r[i] = r[i];
 		nv_crtc->lut.g[i] = g[i];
 		nv_crtc->lut.b[i] = b[i];
 	}
 
 	nv50_crtc_lut_load(crtc);
+
+	return 0;
 }
 
 static void

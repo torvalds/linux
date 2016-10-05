@@ -104,20 +104,16 @@ static inline void poison_element(mempool_t *pool, void *element)
 
 static void kasan_poison_element(mempool_t *pool, void *element)
 {
-	if (pool->alloc == mempool_alloc_slab)
-		kasan_poison_slab_free(pool->pool_data, element);
-	if (pool->alloc == mempool_kmalloc)
-		kasan_kfree(element);
+	if (pool->alloc == mempool_alloc_slab || pool->alloc == mempool_kmalloc)
+		kasan_poison_kfree(element);
 	if (pool->alloc == mempool_alloc_pages)
 		kasan_free_pages(element, (unsigned long)pool->pool_data);
 }
 
 static void kasan_unpoison_element(mempool_t *pool, void *element, gfp_t flags)
 {
-	if (pool->alloc == mempool_alloc_slab)
-		kasan_slab_alloc(pool->pool_data, element, flags);
-	if (pool->alloc == mempool_kmalloc)
-		kasan_krealloc(element, (size_t)pool->pool_data, flags);
+	if (pool->alloc == mempool_alloc_slab || pool->alloc == mempool_kmalloc)
+		kasan_unpoison_slab(element);
 	if (pool->alloc == mempool_alloc_pages)
 		kasan_alloc_pages(element, (unsigned long)pool->pool_data);
 }
@@ -310,7 +306,7 @@ EXPORT_SYMBOL(mempool_resize);
  * returns NULL. Note that due to preallocation, this function
  * *never* fails when called from process contexts. (it might
  * fail if called from an IRQ context.)
- * Note: neither __GFP_NOMEMALLOC nor __GFP_ZERO are supported.
+ * Note: using __GFP_ZERO is not supported.
  */
 void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
 {
@@ -319,27 +315,16 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
 	wait_queue_t wait;
 	gfp_t gfp_temp;
 
-	/* If oom killed, memory reserves are essential to prevent livelock */
-	VM_WARN_ON_ONCE(gfp_mask & __GFP_NOMEMALLOC);
-	/* No element size to zero on allocation */
 	VM_WARN_ON_ONCE(gfp_mask & __GFP_ZERO);
-
 	might_sleep_if(gfp_mask & __GFP_DIRECT_RECLAIM);
 
+	gfp_mask |= __GFP_NOMEMALLOC;	/* don't allocate emergency reserves */
 	gfp_mask |= __GFP_NORETRY;	/* don't loop in __alloc_pages */
 	gfp_mask |= __GFP_NOWARN;	/* failures are OK */
 
 	gfp_temp = gfp_mask & ~(__GFP_DIRECT_RECLAIM|__GFP_IO);
 
 repeat_alloc:
-	if (likely(pool->curr_nr)) {
-		/*
-		 * Don't allocate from emergency reserves if there are
-		 * elements available.  This check is racy, but it will
-		 * be rechecked each loop.
-		 */
-		gfp_temp |= __GFP_NOMEMALLOC;
-	}
 
 	element = pool->alloc(gfp_temp, pool->pool_data);
 	if (likely(element != NULL))
@@ -363,12 +348,11 @@ repeat_alloc:
 	 * We use gfp mask w/o direct reclaim or IO for the first round.  If
 	 * alloc failed with that and @pool was empty, retry immediately.
 	 */
-	if ((gfp_temp & ~__GFP_NOMEMALLOC) != gfp_mask) {
+	if (gfp_temp != gfp_mask) {
 		spin_unlock_irqrestore(&pool->lock, flags);
 		gfp_temp = gfp_mask;
 		goto repeat_alloc;
 	}
-	gfp_temp = gfp_mask;
 
 	/* We must not sleep if !__GFP_DIRECT_RECLAIM */
 	if (!(gfp_mask & __GFP_DIRECT_RECLAIM)) {

@@ -43,6 +43,7 @@
 #include <linux/stat.h>
 #include <linux/slab.h>
 #include <linux/trace_clock.h>
+#include <linux/ktime.h>
 #include <asm/byteorder.h>
 #include <linux/torture.h>
 
@@ -82,6 +83,104 @@ static int min_online = -1;
 static int max_online;
 
 /*
+ * Attempt to take a CPU offline.  Return false if the CPU is already
+ * offline or if it is not subject to CPU-hotplug operations.  The
+ * caller can detect other failures by looking at the statistics.
+ */
+bool torture_offline(int cpu, long *n_offl_attempts, long *n_offl_successes,
+		     unsigned long *sum_offl, int *min_offl, int *max_offl)
+{
+	unsigned long delta;
+	int ret;
+	unsigned long starttime;
+
+	if (!cpu_online(cpu) || !cpu_is_hotpluggable(cpu))
+		return false;
+
+	if (verbose)
+		pr_alert("%s" TORTURE_FLAG
+			 "torture_onoff task: offlining %d\n",
+			 torture_type, cpu);
+	starttime = jiffies;
+	(*n_offl_attempts)++;
+	ret = cpu_down(cpu);
+	if (ret) {
+		if (verbose)
+			pr_alert("%s" TORTURE_FLAG
+				 "torture_onoff task: offline %d failed: errno %d\n",
+				 torture_type, cpu, ret);
+	} else {
+		if (verbose)
+			pr_alert("%s" TORTURE_FLAG
+				 "torture_onoff task: offlined %d\n",
+				 torture_type, cpu);
+		(*n_offl_successes)++;
+		delta = jiffies - starttime;
+		sum_offl += delta;
+		if (*min_offl < 0) {
+			*min_offl = delta;
+			*max_offl = delta;
+		}
+		if (*min_offl > delta)
+			*min_offl = delta;
+		if (*max_offl < delta)
+			*max_offl = delta;
+	}
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(torture_offline);
+
+/*
+ * Attempt to bring a CPU online.  Return false if the CPU is already
+ * online or if it is not subject to CPU-hotplug operations.  The
+ * caller can detect other failures by looking at the statistics.
+ */
+bool torture_online(int cpu, long *n_onl_attempts, long *n_onl_successes,
+		    unsigned long *sum_onl, int *min_onl, int *max_onl)
+{
+	unsigned long delta;
+	int ret;
+	unsigned long starttime;
+
+	if (cpu_online(cpu) || !cpu_is_hotpluggable(cpu))
+		return false;
+
+	if (verbose)
+		pr_alert("%s" TORTURE_FLAG
+			 "torture_onoff task: onlining %d\n",
+			 torture_type, cpu);
+	starttime = jiffies;
+	(*n_onl_attempts)++;
+	ret = cpu_up(cpu);
+	if (ret) {
+		if (verbose)
+			pr_alert("%s" TORTURE_FLAG
+				 "torture_onoff task: online %d failed: errno %d\n",
+				 torture_type, cpu, ret);
+	} else {
+		if (verbose)
+			pr_alert("%s" TORTURE_FLAG
+				 "torture_onoff task: onlined %d\n",
+				 torture_type, cpu);
+		(*n_onl_successes)++;
+		delta = jiffies - starttime;
+		*sum_onl += delta;
+		if (*min_onl < 0) {
+			*min_onl = delta;
+			*max_onl = delta;
+		}
+		if (*min_onl > delta)
+			*min_onl = delta;
+		if (*max_onl < delta)
+			*max_onl = delta;
+	}
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(torture_online);
+
+/*
  * Execute random CPU-hotplug operations at the interval specified
  * by the onoff_interval.
  */
@@ -89,16 +188,19 @@ static int
 torture_onoff(void *arg)
 {
 	int cpu;
-	unsigned long delta;
 	int maxcpu = -1;
 	DEFINE_TORTURE_RANDOM(rand);
-	int ret;
-	unsigned long starttime;
 
 	VERBOSE_TOROUT_STRING("torture_onoff task started");
 	for_each_online_cpu(cpu)
 		maxcpu = cpu;
 	WARN_ON(maxcpu < 0);
+
+	if (maxcpu == 0) {
+		VERBOSE_TOROUT_STRING("Only one CPU, so CPU-hotplug testing is disabled");
+		goto stop;
+	}
+
 	if (onoff_holdoff > 0) {
 		VERBOSE_TOROUT_STRING("torture_onoff begin holdoff");
 		schedule_timeout_interruptible(onoff_holdoff);
@@ -106,69 +208,16 @@ torture_onoff(void *arg)
 	}
 	while (!torture_must_stop()) {
 		cpu = (torture_random(&rand) >> 4) % (maxcpu + 1);
-		if (cpu_online(cpu) && cpu_is_hotpluggable(cpu)) {
-			if (verbose)
-				pr_alert("%s" TORTURE_FLAG
-					 "torture_onoff task: offlining %d\n",
-					 torture_type, cpu);
-			starttime = jiffies;
-			n_offline_attempts++;
-			ret = cpu_down(cpu);
-			if (ret) {
-				if (verbose)
-					pr_alert("%s" TORTURE_FLAG
-						 "torture_onoff task: offline %d failed: errno %d\n",
-						 torture_type, cpu, ret);
-			} else {
-				if (verbose)
-					pr_alert("%s" TORTURE_FLAG
-						 "torture_onoff task: offlined %d\n",
-						 torture_type, cpu);
-				n_offline_successes++;
-				delta = jiffies - starttime;
-				sum_offline += delta;
-				if (min_offline < 0) {
-					min_offline = delta;
-					max_offline = delta;
-				}
-				if (min_offline > delta)
-					min_offline = delta;
-				if (max_offline < delta)
-					max_offline = delta;
-			}
-		} else if (cpu_is_hotpluggable(cpu)) {
-			if (verbose)
-				pr_alert("%s" TORTURE_FLAG
-					 "torture_onoff task: onlining %d\n",
-					 torture_type, cpu);
-			starttime = jiffies;
-			n_online_attempts++;
-			ret = cpu_up(cpu);
-			if (ret) {
-				if (verbose)
-					pr_alert("%s" TORTURE_FLAG
-						 "torture_onoff task: online %d failed: errno %d\n",
-						 torture_type, cpu, ret);
-			} else {
-				if (verbose)
-					pr_alert("%s" TORTURE_FLAG
-						 "torture_onoff task: onlined %d\n",
-						 torture_type, cpu);
-				n_online_successes++;
-				delta = jiffies - starttime;
-				sum_online += delta;
-				if (min_online < 0) {
-					min_online = delta;
-					max_online = delta;
-				}
-				if (min_online > delta)
-					min_online = delta;
-				if (max_online < delta)
-					max_online = delta;
-			}
-		}
+		if (!torture_offline(cpu,
+				     &n_offline_attempts, &n_offline_successes,
+				     &sum_offline, &min_offline, &max_offline))
+			torture_online(cpu,
+				       &n_online_attempts, &n_online_successes,
+				       &sum_online, &min_online, &max_online);
 		schedule_timeout_interruptible(onoff_interval);
 	}
+
+stop:
 	torture_kthread_stopping("torture_onoff");
 	return 0;
 }
@@ -398,9 +447,8 @@ EXPORT_SYMBOL_GPL(torture_shuffle_cleanup);
  * Variables for auto-shutdown.  This allows "lights out" torture runs
  * to be fully scripted.
  */
-static int shutdown_secs;		/* desired test duration in seconds. */
 static struct task_struct *shutdown_task;
-static unsigned long shutdown_time;	/* jiffies to system shutdown. */
+static ktime_t shutdown_time;		/* time to system shutdown. */
 static void (*torture_shutdown_hook)(void);
 
 /*
@@ -423,20 +471,20 @@ EXPORT_SYMBOL_GPL(torture_shutdown_absorb);
  */
 static int torture_shutdown(void *arg)
 {
-	long delta;
-	unsigned long jiffies_snap;
+	ktime_t ktime_snap;
 
 	VERBOSE_TOROUT_STRING("torture_shutdown task started");
-	jiffies_snap = jiffies;
-	while (ULONG_CMP_LT(jiffies_snap, shutdown_time) &&
+	ktime_snap = ktime_get();
+	while (ktime_before(ktime_snap, shutdown_time) &&
 	       !torture_must_stop()) {
-		delta = shutdown_time - jiffies_snap;
 		if (verbose)
 			pr_alert("%s" TORTURE_FLAG
-				 "torture_shutdown task: %lu jiffies remaining\n",
-				 torture_type, delta);
-		schedule_timeout_interruptible(delta);
-		jiffies_snap = jiffies;
+				 "torture_shutdown task: %llu ms remaining\n",
+				 torture_type,
+				 ktime_ms_delta(shutdown_time, ktime_snap));
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_hrtimeout(&shutdown_time, HRTIMER_MODE_ABS);
+		ktime_snap = ktime_get();
 	}
 	if (torture_must_stop()) {
 		torture_kthread_stopping("torture_shutdown");
@@ -463,10 +511,9 @@ int torture_shutdown_init(int ssecs, void (*cleanup)(void))
 {
 	int ret = 0;
 
-	shutdown_secs = ssecs;
 	torture_shutdown_hook = cleanup;
-	if (shutdown_secs > 0) {
-		shutdown_time = jiffies + shutdown_secs * HZ;
+	if (ssecs > 0) {
+		shutdown_time = ktime_add(ktime_get(), ktime_set(ssecs, 0));
 		ret = torture_create_kthread(torture_shutdown, NULL,
 					     shutdown_task);
 	}

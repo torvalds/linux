@@ -56,6 +56,9 @@ int __fib_lookup(struct net *net, struct flowi4 *flp,
 	};
 	int err;
 
+	/* update flow if oif or iif point to device enslaved to l3mdev */
+	l3mdev_update_flow(net, flowi4_to_flowi(flp));
+
 	err = fib_rules_lookup(net->ipv4.rules_ops, flowi4_to_flowi(flp), 0, &arg);
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	if (arg.rule)
@@ -76,6 +79,7 @@ static int fib4_rule_action(struct fib_rule *rule, struct flowi *flp,
 {
 	int err = -EAGAIN;
 	struct fib_table *tbl;
+	u32 tb_id;
 
 	switch (rule->action) {
 	case FR_ACT_TO_TBL:
@@ -94,7 +98,8 @@ static int fib4_rule_action(struct fib_rule *rule, struct flowi *flp,
 
 	rcu_read_lock();
 
-	tbl = fib_get_table(rule->fr_net, rule->table);
+	tb_id = fib_rule_get_table(rule, arg);
+	tbl = fib_get_table(rule->fr_net, tb_id);
 	if (tbl)
 		err = fib_table_lookup(tbl, &flp->u.ip4,
 				       (struct fib_result *)arg->result,
@@ -159,6 +164,14 @@ static struct fib_table *fib_empty_table(struct net *net)
 	return NULL;
 }
 
+static int call_fib_rule_notifiers(struct net *net,
+				   enum fib_event_type event_type)
+{
+	struct fib_notifier_info info;
+
+	return call_fib_notifiers(net, event_type, &info);
+}
+
 static const struct nla_policy fib4_rule_policy[FRA_MAX+1] = {
 	FRA_GENERIC_POLICY,
 	[FRA_FLOW]	= { .type = NLA_U32 },
@@ -180,7 +193,7 @@ static int fib4_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 	if (err)
 		goto errout;
 
-	if (rule->table == RT_TABLE_UNSPEC) {
+	if (rule->table == RT_TABLE_UNSPEC && !rule->l3mdev) {
 		if (rule->action == FR_ACT_TO_TBL) {
 			struct fib_table *table;
 
@@ -215,7 +228,7 @@ static int fib4_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 	rule4->tos = frh->tos;
 
 	net->ipv4.fib_has_custom_rules = true;
-	fib_flush_external(rule->fr_net);
+	call_fib_rule_notifiers(net, FIB_EVENT_RULE_ADD);
 
 	err = 0;
 errout:
@@ -237,7 +250,7 @@ static int fib4_rule_delete(struct fib_rule *rule)
 		net->ipv4.fib_num_tclassid_users--;
 #endif
 	net->ipv4.fib_has_custom_rules = true;
-	fib_flush_external(rule->fr_net);
+	call_fib_rule_notifiers(net, FIB_EVENT_RULE_DEL);
 errout:
 	return err;
 }

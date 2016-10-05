@@ -314,6 +314,70 @@ struct bpf_prog_aux;
 	bpf_size;						\
 })
 
+#define BPF_SIZEOF(type)					\
+	({							\
+		const int __size = bytes_to_bpf_size(sizeof(type)); \
+		BUILD_BUG_ON(__size < 0);			\
+		__size;						\
+	})
+
+#define BPF_FIELD_SIZEOF(type, field)				\
+	({							\
+		const int __size = bytes_to_bpf_size(FIELD_SIZEOF(type, field)); \
+		BUILD_BUG_ON(__size < 0);			\
+		__size;						\
+	})
+
+#define __BPF_MAP_0(m, v, ...) v
+#define __BPF_MAP_1(m, v, t, a, ...) m(t, a)
+#define __BPF_MAP_2(m, v, t, a, ...) m(t, a), __BPF_MAP_1(m, v, __VA_ARGS__)
+#define __BPF_MAP_3(m, v, t, a, ...) m(t, a), __BPF_MAP_2(m, v, __VA_ARGS__)
+#define __BPF_MAP_4(m, v, t, a, ...) m(t, a), __BPF_MAP_3(m, v, __VA_ARGS__)
+#define __BPF_MAP_5(m, v, t, a, ...) m(t, a), __BPF_MAP_4(m, v, __VA_ARGS__)
+
+#define __BPF_REG_0(...) __BPF_PAD(5)
+#define __BPF_REG_1(...) __BPF_MAP(1, __VA_ARGS__), __BPF_PAD(4)
+#define __BPF_REG_2(...) __BPF_MAP(2, __VA_ARGS__), __BPF_PAD(3)
+#define __BPF_REG_3(...) __BPF_MAP(3, __VA_ARGS__), __BPF_PAD(2)
+#define __BPF_REG_4(...) __BPF_MAP(4, __VA_ARGS__), __BPF_PAD(1)
+#define __BPF_REG_5(...) __BPF_MAP(5, __VA_ARGS__)
+
+#define __BPF_MAP(n, ...) __BPF_MAP_##n(__VA_ARGS__)
+#define __BPF_REG(n, ...) __BPF_REG_##n(__VA_ARGS__)
+
+#define __BPF_CAST(t, a)						       \
+	(__force t)							       \
+	(__force							       \
+	 typeof(__builtin_choose_expr(sizeof(t) == sizeof(unsigned long),      \
+				      (unsigned long)0, (t)0))) a
+#define __BPF_V void
+#define __BPF_N
+
+#define __BPF_DECL_ARGS(t, a) t   a
+#define __BPF_DECL_REGS(t, a) u64 a
+
+#define __BPF_PAD(n)							       \
+	__BPF_MAP(n, __BPF_DECL_ARGS, __BPF_N, u64, __ur_1, u64, __ur_2,       \
+		  u64, __ur_3, u64, __ur_4, u64, __ur_5)
+
+#define BPF_CALL_x(x, name, ...)					       \
+	static __always_inline						       \
+	u64 ____##name(__BPF_MAP(x, __BPF_DECL_ARGS, __BPF_V, __VA_ARGS__));   \
+	u64 name(__BPF_REG(x, __BPF_DECL_REGS, __BPF_N, __VA_ARGS__));	       \
+	u64 name(__BPF_REG(x, __BPF_DECL_REGS, __BPF_N, __VA_ARGS__))	       \
+	{								       \
+		return ____##name(__BPF_MAP(x,__BPF_CAST,__BPF_N,__VA_ARGS__));\
+	}								       \
+	static __always_inline						       \
+	u64 ____##name(__BPF_MAP(x, __BPF_DECL_ARGS, __BPF_V, __VA_ARGS__))
+
+#define BPF_CALL_0(name, ...)	BPF_CALL_x(0, name, __VA_ARGS__)
+#define BPF_CALL_1(name, ...)	BPF_CALL_x(1, name, __VA_ARGS__)
+#define BPF_CALL_2(name, ...)	BPF_CALL_x(2, name, __VA_ARGS__)
+#define BPF_CALL_3(name, ...)	BPF_CALL_x(3, name, __VA_ARGS__)
+#define BPF_CALL_4(name, ...)	BPF_CALL_x(4, name, __VA_ARGS__)
+#define BPF_CALL_5(name, ...)	BPF_CALL_x(5, name, __VA_ARGS__)
+
 #ifdef CONFIG_COMPAT
 /* A struct sock_filter is architecture independent. */
 struct compat_sock_fprog {
@@ -365,6 +429,11 @@ struct sk_filter {
 
 struct bpf_skb_data_end {
 	struct qdisc_skb_cb qdisc_cb;
+	void *data_end;
+};
+
+struct xdp_buff {
+	void *data;
 	void *data_end;
 };
 
@@ -429,6 +498,18 @@ static inline u32 bpf_prog_run_clear_cb(const struct bpf_prog *prog,
 	return BPF_PROG_RUN(prog, skb);
 }
 
+static inline u32 bpf_prog_run_xdp(const struct bpf_prog *prog,
+				   struct xdp_buff *xdp)
+{
+	u32 ret;
+
+	rcu_read_lock();
+	ret = BPF_PROG_RUN(prog, (void *)xdp);
+	rcu_read_unlock();
+
+	return ret;
+}
+
 static inline unsigned int bpf_prog_size(unsigned int proglen)
 {
 	return max(sizeof(struct bpf_prog),
@@ -467,7 +548,11 @@ static inline void bpf_prog_unlock_ro(struct bpf_prog *fp)
 }
 #endif /* CONFIG_DEBUG_SET_MODULE_RONX */
 
-int sk_filter(struct sock *sk, struct sk_buff *skb);
+int sk_filter_trim_cap(struct sock *sk, struct sk_buff *skb, unsigned int cap);
+static inline int sk_filter(struct sock *sk, struct sk_buff *skb)
+{
+	return sk_filter_trim_cap(sk, skb, 1);
+}
 
 struct bpf_prog *bpf_prog_select_runtime(struct bpf_prog *fp, int *err);
 void bpf_prog_free(struct bpf_prog *fp);
@@ -509,6 +594,7 @@ bool bpf_helper_changes_skb_data(void *func);
 
 struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 				       const struct bpf_insn *patch, u32 len);
+void bpf_warn_invalid_xdp_action(u32 act);
 
 #ifdef CONFIG_BPF_JIT
 extern int bpf_jit_enable;

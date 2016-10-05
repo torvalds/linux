@@ -231,7 +231,7 @@ struct armada_gem_object *armada_gem_alloc_object(struct drm_device *dev,
 
 	obj->dev_addr = DMA_ERROR_CODE;
 
-	mapping = file_inode(obj->obj.filp)->i_mapping;
+	mapping = obj->obj.filp->f_mapping;
 	mapping_set_gfp_mask(mapping, GFP_HIGHUSER | __GFP_RECLAIMABLE);
 
 	DRM_DEBUG_DRIVER("alloc obj %p size %zu\n", obj, size);
@@ -278,7 +278,7 @@ int armada_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 	struct armada_gem_object *obj;
 	int ret = 0;
 
-	obj = armada_gem_object_lookup(dev, file, handle);
+	obj = armada_gem_object_lookup(file, handle);
 	if (!obj) {
 		DRM_ERROR("failed to lookup gem object\n");
 		return -EINVAL;
@@ -348,7 +348,7 @@ int armada_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	struct armada_gem_object *dobj;
 	unsigned long addr;
 
-	dobj = armada_gem_object_lookup(dev, file, args->handle);
+	dobj = armada_gem_object_lookup(file, args->handle);
 	if (dobj == NULL)
 		return -ENOENT;
 
@@ -391,7 +391,7 @@ int armada_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	dobj = armada_gem_object_lookup(dev, file, args->handle);
+	dobj = armada_gem_object_lookup(file, args->handle);
 	if (dobj == NULL)
 		return -ENOENT;
 
@@ -441,7 +441,7 @@ armada_gem_prime_map_dma_buf(struct dma_buf_attachment *attach,
 		if (sg_alloc_table(sgt, count, GFP_KERNEL))
 			goto free_sgt;
 
-		mapping = file_inode(dobj->obj.filp)->i_mapping;
+		mapping = dobj->obj.filp->f_mapping;
 
 		for_each_sg(sgt->sgl, sg, count, i) {
 			struct page *page;

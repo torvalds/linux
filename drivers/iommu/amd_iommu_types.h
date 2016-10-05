@@ -421,7 +421,6 @@ struct protection_domain {
 	bool updated;		/* complete domain flush required */
 	unsigned dev_cnt;	/* devices assigned to this domain */
 	unsigned dev_iommu[MAX_IOMMUS]; /* per-IOMMU reference count */
-	void *priv;             /* private data */
 };
 
 /*
@@ -525,6 +524,8 @@ struct amd_iommu {
 	struct irq_domain *ir_domain;
 	struct irq_domain *msi_domain;
 #endif
+
+	volatile u64 __aligned(8) cmd_sem;
 };
 
 #define ACPIHID_UID_LEN 256

@@ -108,15 +108,21 @@ static int in_fatal(struct mlx5_core_dev *dev)
 
 void mlx5_enter_error_state(struct mlx5_core_dev *dev)
 {
+	mutex_lock(&dev->intf_state_mutex);
 	if (dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)
-		return;
+		goto unlock;
 
 	mlx5_core_err(dev, "start\n");
-	if (pci_channel_offline(dev->pdev) || in_fatal(dev))
+	if (pci_channel_offline(dev->pdev) || in_fatal(dev)) {
 		dev->state = MLX5_DEVICE_STATE_INTERNAL_ERROR;
+		trigger_cmd_completions(dev);
+	}
 
 	mlx5_core_event(dev, MLX5_DEV_EVENT_SYS_ERROR, 0);
 	mlx5_core_err(dev, "end\n");
+
+unlock:
+	mutex_unlock(&dev->intf_state_mutex);
 }
 
 static void mlx5_handle_bad_state(struct mlx5_core_dev *dev)
@@ -245,7 +251,6 @@ static void poll_health(unsigned long data)
 	u32 count;
 
 	if (dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
-		trigger_cmd_completions(dev);
 		mod_timer(&health->timer, get_next_poll_jiffies());
 		return;
 	}
@@ -267,7 +272,7 @@ static void poll_health(unsigned long data)
 	if (in_fatal(dev) && !health->sick) {
 		health->sick = true;
 		print_health_info(dev);
-		queue_work(health->wq, &health->work);
+		schedule_work(&health->work);
 	}
 }
 
@@ -296,7 +301,7 @@ void mlx5_health_cleanup(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health = &dev->priv.health;
 
-	destroy_workqueue(health->wq);
+	flush_work(&health->work);
 }
 
 int mlx5_health_init(struct mlx5_core_dev *dev)
@@ -311,10 +316,7 @@ int mlx5_health_init(struct mlx5_core_dev *dev)
 
 	strcpy(name, "mlx5_health");
 	strcat(name, dev_name(&dev->pdev->dev));
-	health->wq = create_singlethread_workqueue(name);
 	kfree(name);
-	if (!health->wq)
-		return -ENOMEM;
 
 	INIT_WORK(&health->work, health_care);
 

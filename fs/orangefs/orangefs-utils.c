@@ -153,12 +153,12 @@ static inline int copy_attributes_from_inode(struct inode *inode,
 	 */
 	attrs->mask = 0;
 	if (iattr->ia_valid & ATTR_UID) {
-		attrs->owner = from_kuid(current_user_ns(), iattr->ia_uid);
+		attrs->owner = from_kuid(&init_user_ns, iattr->ia_uid);
 		attrs->mask |= ORANGEFS_ATTR_SYS_UID;
 		gossip_debug(GOSSIP_UTILS_DEBUG, "(UID) %d\n", attrs->owner);
 	}
 	if (iattr->ia_valid & ATTR_GID) {
-		attrs->group = from_kgid(current_user_ns(), iattr->ia_gid);
+		attrs->group = from_kgid(&init_user_ns, iattr->ia_gid);
 		attrs->mask |= ORANGEFS_ATTR_SYS_GID;
 		gossip_debug(GOSSIP_UTILS_DEBUG, "(GID) %d\n", attrs->group);
 	}
@@ -251,7 +251,7 @@ static int orangefs_inode_is_stale(struct inode *inode, int new,
 	return 0;
 }
 
-int orangefs_inode_getattr(struct inode *inode, int new, int size)
+int orangefs_inode_getattr(struct inode *inode, int new, int bypass)
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_kernel_op_s *new_op;
@@ -261,12 +261,16 @@ int orangefs_inode_getattr(struct inode *inode, int new, int size)
 	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: called on inode %pU\n", __func__,
 	    get_khandle_from_ino(inode));
 
+	if (!new && !bypass) {
+		if (time_before(jiffies, orangefs_inode->getattr_time))
+			return 0;
+	}
+
 	new_op = op_alloc(ORANGEFS_VFS_OP_GETATTR);
 	if (!new_op)
 		return -ENOMEM;
 	new_op->upcall.req.getattr.refn = orangefs_inode->refn;
-	new_op->upcall.req.getattr.mask = size ?
-	    ORANGEFS_ATTR_SYS_ALL_NOHINT : ORANGEFS_ATTR_SYS_ALL_NOHINT_NOSIZE;
+	new_op->upcall.req.getattr.mask = ORANGEFS_ATTR_SYS_ALL_NOHINT;
 
 	ret = service_operation(new_op, __func__,
 	    get_interruptible_flag(inode));
@@ -287,20 +291,18 @@ int orangefs_inode_getattr(struct inode *inode, int new, int size)
 	case S_IFREG:
 		inode->i_flags = orangefs_inode_flags(&new_op->
 		    downcall.resp.getattr.attributes);
-		if (size) {
-			inode_size = (loff_t)new_op->
-			    downcall.resp.getattr.attributes.size;
-			rounded_up_size =
-			    (inode_size + (4096 - (inode_size % 4096)));
-			inode->i_size = inode_size;
-			orangefs_inode->blksize =
-			    new_op->downcall.resp.getattr.attributes.blksize;
-			spin_lock(&inode->i_lock);
-			inode->i_bytes = inode_size;
-			inode->i_blocks =
-			    (unsigned long)(rounded_up_size / 512);
-			spin_unlock(&inode->i_lock);
-		}
+		inode_size = (loff_t)new_op->
+		    downcall.resp.getattr.attributes.size;
+		rounded_up_size =
+		    (inode_size + (4096 - (inode_size % 4096)));
+		inode->i_size = inode_size;
+		orangefs_inode->blksize =
+		    new_op->downcall.resp.getattr.attributes.blksize;
+		spin_lock(&inode->i_lock);
+		inode->i_bytes = inode_size;
+		inode->i_blocks =
+		    (unsigned long)(rounded_up_size / 512);
+		spin_unlock(&inode->i_lock);
 		break;
 	case S_IFDIR:
 		inode->i_size = PAGE_SIZE;
@@ -345,6 +347,7 @@ int orangefs_inode_getattr(struct inode *inode, int new, int size)
 	inode->i_mode = type | (is_root_handle(inode) ? S_ISVTX : 0) |
 	    orangefs_inode_perms(&new_op->downcall.resp.getattr.attributes);
 
+	orangefs_inode->getattr_time = jiffies + getattr_timeout_msecs*HZ/1000;
 	ret = 0;
 out:
 	op_release(new_op);
@@ -418,6 +421,7 @@ int orangefs_inode_setattr(struct inode *inode, struct iattr *iattr)
 		ClearMtimeFlag(orangefs_inode);
 		ClearCtimeFlag(orangefs_inode);
 		ClearModeFlag(orangefs_inode);
+		orangefs_inode->getattr_time = jiffies - 1;
 	}
 
 	return ret;

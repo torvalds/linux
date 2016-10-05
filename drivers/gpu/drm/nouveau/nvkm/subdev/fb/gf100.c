@@ -24,6 +24,9 @@
 #include "gf100.h"
 #include "ram.h"
 
+#include <core/memory.h>
+#include <core/option.h>
+
 extern const u8 gf100_pte_storage_type_map[256];
 
 bool
@@ -46,6 +49,44 @@ gf100_fb_intr(struct nvkm_fb *base)
 		nvkm_debug(subdev, "PBFB intr\n");
 }
 
+int
+gf100_fb_oneinit(struct nvkm_fb *fb)
+{
+	struct nvkm_device *device = fb->subdev.device;
+	int ret, size = 0x1000;
+
+	size = nvkm_longopt(device->cfgopt, "MmuDebugBufferSize", size);
+	size = min(size, 0x1000);
+
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, size, 0x1000,
+			      false, &fb->mmu_rd);
+	if (ret)
+		return ret;
+
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, size, 0x1000,
+			      false, &fb->mmu_wr);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+void
+gf100_fb_init_page(struct nvkm_fb *fb)
+{
+	struct nvkm_device *device = fb->subdev.device;
+	switch (fb->page) {
+	case 16:
+		nvkm_mask(device, 0x100c80, 0x00000001, 0x00000001);
+		break;
+	case 17:
+	default:
+		nvkm_mask(device, 0x100c80, 0x00000001, 0x00000000);
+		fb->page = 17;
+		break;
+	}
+}
+
 void
 gf100_fb_init(struct nvkm_fb *base)
 {
@@ -54,8 +95,6 @@ gf100_fb_init(struct nvkm_fb *base)
 
 	if (fb->r100c10_page)
 		nvkm_wr32(device, 0x100c10, fb->r100c10 >> 8);
-
-	nvkm_mask(device, 0x100c80, 0x00000001, 0x00000000); /* 128KiB lpg */
 }
 
 void *
@@ -98,7 +137,9 @@ gf100_fb_new_(const struct nvkm_fb_func *func, struct nvkm_device *device,
 static const struct nvkm_fb_func
 gf100_fb = {
 	.dtor = gf100_fb_dtor,
+	.oneinit = gf100_fb_oneinit,
 	.init = gf100_fb_init,
+	.init_page = gf100_fb_init_page,
 	.intr = gf100_fb_intr,
 	.ram_new = gf100_ram_new,
 	.memtype_valid = gf100_fb_memtype_valid,

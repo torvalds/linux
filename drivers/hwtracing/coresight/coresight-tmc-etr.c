@@ -20,7 +20,7 @@
 #include "coresight-priv.h"
 #include "coresight-tmc.h"
 
-void tmc_etr_enable_hw(struct tmc_drvdata *drvdata)
+static void tmc_etr_enable_hw(struct tmc_drvdata *drvdata)
 {
 	u32 axictl;
 
@@ -64,11 +64,17 @@ static void tmc_etr_dump_hw(struct tmc_drvdata *drvdata)
 	rwp = readl_relaxed(drvdata->base + TMC_RWP);
 	val = readl_relaxed(drvdata->base + TMC_STS);
 
-	/* How much memory do we still have */
-	if (val & BIT(0))
+	/*
+	 * Adjust the buffer to point to the beginning of the trace data
+	 * and update the available trace data.
+	 */
+	if (val & TMC_STS_FULL) {
 		drvdata->buf = drvdata->vaddr + rwp - drvdata->paddr;
-	else
+		drvdata->len = drvdata->size;
+	} else {
 		drvdata->buf = drvdata->vaddr;
+		drvdata->len = rwp - drvdata->paddr;
+	}
 }
 
 static void tmc_etr_disable_hw(struct tmc_drvdata *drvdata)
@@ -300,13 +306,10 @@ int tmc_read_unprepare_etr(struct tmc_drvdata *drvdata)
 	if (local_read(&drvdata->mode) == CS_MODE_SYSFS) {
 		/*
 		 * The trace run will continue with the same allocated trace
-		 * buffer. As such zero-out the buffer so that we don't end
-		 * up with stale data.
-		 *
-		 * Since the tracer is still enabled drvdata::buf
-		 * can't be NULL.
+		 * buffer. The trace buffer is cleared in tmc_etr_enable_hw(),
+		 * so we don't have to explicitly clear it. Also, since the
+		 * tracer is still enabled drvdata::buf can't be NULL.
 		 */
-		memset(drvdata->buf, 0, drvdata->size);
 		tmc_etr_enable_hw(drvdata);
 	} else {
 		/*
@@ -315,7 +318,7 @@ int tmc_read_unprepare_etr(struct tmc_drvdata *drvdata)
 		 */
 		vaddr = drvdata->vaddr;
 		paddr = drvdata->paddr;
-		drvdata->buf = NULL;
+		drvdata->buf = drvdata->vaddr = NULL;
 	}
 
 	drvdata->reading = false;

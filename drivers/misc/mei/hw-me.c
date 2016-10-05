@@ -18,6 +18,7 @@
 
 #include <linux/kthread.h>
 #include <linux/interrupt.h>
+#include <linux/pm_runtime.h>
 
 #include "mei_dev.h"
 #include "hbm.h"
@@ -1063,6 +1064,8 @@ static int mei_me_hw_reset(struct mei_device *dev, bool intr_enable)
 		}
 	}
 
+	pm_runtime_set_active(dev->dev);
+
 	hcsr = mei_hcsr_read(dev);
 	/* H_RST may be found lit before reset is started,
 	 * for example if preceding reset flow hasn't completed.
@@ -1263,8 +1266,14 @@ static bool mei_me_fw_type_nm(struct pci_dev *pdev)
 static bool mei_me_fw_type_sps(struct pci_dev *pdev)
 {
 	u32 reg;
-	/* Read ME FW Status check for SPS Firmware */
-	pci_read_config_dword(pdev, PCI_CFG_HFS_1, &reg);
+	unsigned int devfn;
+
+	/*
+	 * Read ME FW Status register to check for SPS Firmware
+	 * The SPS FW is only signaled in pci function 0
+	 */
+	devfn = PCI_DEVFN(PCI_SLOT(pdev->devfn), 0);
+	pci_bus_read_config_dword(pdev->bus, devfn, PCI_CFG_HFS_1, &reg);
 	trace_mei_pci_cfg_read(&pdev->dev, "PCI_CFG_HFS_1", PCI_CFG_HFS_1, reg);
 	/* if bits [19:16] = 15, running SPS Firmware */
 	return (reg & 0xf0000) == 0xf0000;

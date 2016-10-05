@@ -18,7 +18,6 @@
 
 / {
 	compatible = "ezchip,arc-nps";
-	clock-frequency = <83333333>;	/* 83.333333 MHZ */
 	#address-cells = <1>;
 	#size-cells = <1>;
 	interrupt-parent = <&intc>;

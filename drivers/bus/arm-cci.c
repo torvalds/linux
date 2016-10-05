@@ -144,7 +144,7 @@ struct cci_pmu {
 	int num_cntrs;
 	atomic_t active_events;
 	struct mutex reserve_mutex;
-	struct notifier_block cpu_nb;
+	struct hlist_node node;
 	cpumask_t cpus;
 };
 
@@ -548,7 +548,7 @@ static struct attribute *cci5xx_pmu_event_attrs[] = {
 	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_wrq, 0xB),
 	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_cd_hs, 0xC),
 	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_rq_stall_addr_hazard, 0xD),
-	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snopp_rq_stall_tt_full, 0xE),
+	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_rq_stall_tt_full, 0xE),
 	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_rq_tzmp1_prot, 0xF),
 	NULL
 };
@@ -1503,31 +1503,22 @@ static int cci_pmu_init(struct cci_pmu *cci_pmu, struct platform_device *pdev)
 	return perf_pmu_register(&cci_pmu->pmu, name, -1);
 }
 
-static int cci_pmu_cpu_notifier(struct notifier_block *self,
-				unsigned long action, void *hcpu)
+static int cci_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 {
-	struct cci_pmu *cci_pmu = container_of(self,
-					struct cci_pmu, cpu_nb);
-	unsigned int cpu = (long)hcpu;
+	struct cci_pmu *cci_pmu = hlist_entry_safe(node, struct cci_pmu, node);
 	unsigned int target;
 
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_DOWN_PREPARE:
-		if (!cpumask_test_and_clear_cpu(cpu, &cci_pmu->cpus))
-			break;
-		target = cpumask_any_but(cpu_online_mask, cpu);
-		if (target >= nr_cpu_ids) // UP, last CPU
-			break;
-		/*
-		 * TODO: migrate context once core races on event->ctx have
-		 * been fixed.
-		 */
-		cpumask_set_cpu(target, &cci_pmu->cpus);
-	default:
-		break;
-	}
-
-	return NOTIFY_OK;
+	if (!cpumask_test_and_clear_cpu(cpu, &cci_pmu->cpus))
+		return 0;
+	target = cpumask_any_but(cpu_online_mask, cpu);
+	if (target >= nr_cpu_ids)
+		return 0;
+	/*
+	 * TODO: migrate context once core races on event->ctx have
+	 * been fixed.
+	 */
+	cpumask_set_cpu(target, &cci_pmu->cpus);
+	return 0;
 }
 
 static struct cci_pmu_model cci_pmu_models[] = {
@@ -1766,25 +1757,12 @@ static int cci_pmu_probe(struct platform_device *pdev)
 	atomic_set(&cci_pmu->active_events, 0);
 	cpumask_set_cpu(smp_processor_id(), &cci_pmu->cpus);
 
-	cci_pmu->cpu_nb = (struct notifier_block) {
-		.notifier_call	= cci_pmu_cpu_notifier,
-		/*
-		 * to migrate uncore events, our notifier should be executed
-		 * before perf core's notifier.
-		 */
-		.priority	= CPU_PRI_PERF + 1,
-	};
-
-	ret = register_cpu_notifier(&cci_pmu->cpu_nb);
+	ret = cci_pmu_init(cci_pmu, pdev);
 	if (ret)
 		return ret;
 
-	ret = cci_pmu_init(cci_pmu, pdev);
-	if (ret) {
-		unregister_cpu_notifier(&cci_pmu->cpu_nb);
-		return ret;
-	}
-
+	cpuhp_state_add_instance_nocalls(CPUHP_AP_PERF_ARM_CCI_ONLINE,
+					 &cci_pmu->node);
 	pr_info("ARM %s PMU driver probed", cci_pmu->model->name);
 	return 0;
 }
@@ -1816,6 +1794,12 @@ static struct platform_driver cci_platform_driver = {
 static int __init cci_platform_init(void)
 {
 	int ret;
+
+	ret = cpuhp_setup_state_multi(CPUHP_AP_PERF_ARM_CCI_ONLINE,
+				      "AP_PERF_ARM_CCI_ONLINE", NULL,
+				      cci_pmu_offline_cpu);
+	if (ret)
+		return ret;
 
 	ret = platform_driver_register(&cci_pmu_driver);
 	if (ret)

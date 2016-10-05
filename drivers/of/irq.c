@@ -18,6 +18,8 @@
  * driver.
  */
 
+#define pr_fmt(fmt)	"OF: " fmt
+
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/list.h>
@@ -386,13 +388,13 @@ int of_irq_to_resource(struct device_node *dev, int index, struct resource *r)
 EXPORT_SYMBOL_GPL(of_irq_to_resource);
 
 /**
- * of_irq_get - Decode a node's IRQ and return it as a Linux irq number
+ * of_irq_get - Decode a node's IRQ and return it as a Linux IRQ number
  * @dev: pointer to device tree node
- * @index: zero-based index of the irq
+ * @index: zero-based index of the IRQ
  *
- * Returns Linux irq number on success, or -EPROBE_DEFER if the irq domain
- * is not yet created.
- *
+ * Returns Linux IRQ number on success, or 0 on the IRQ mapping failure, or
+ * -EPROBE_DEFER if the IRQ domain is not yet created, or error code in case
+ * of any other failure.
  */
 int of_irq_get(struct device_node *dev, int index)
 {
@@ -413,12 +415,13 @@ int of_irq_get(struct device_node *dev, int index)
 EXPORT_SYMBOL_GPL(of_irq_get);
 
 /**
- * of_irq_get_byname - Decode a node's IRQ and return it as a Linux irq number
+ * of_irq_get_byname - Decode a node's IRQ and return it as a Linux IRQ number
  * @dev: pointer to device tree node
- * @name: irq name
+ * @name: IRQ name
  *
- * Returns Linux irq number on success, or -EPROBE_DEFER if the irq domain
- * is not yet created, or error code in case of any other failure.
+ * Returns Linux IRQ number on success, or 0 on the IRQ mapping failure, or
+ * -EPROBE_DEFER if the IRQ domain is not yet created, or error code in case
+ * of any other failure.
  */
 int of_irq_get_byname(struct device_node *dev, const char *name)
 {
@@ -541,12 +544,15 @@ void __init of_irq_init(const struct of_device_id *matches)
 
 			list_del(&desc->list);
 
+			of_node_set_flag(desc->dev, OF_POPULATED);
+
 			pr_debug("of_irq_init: init %s (%p), parent %p\n",
 				 desc->dev->full_name,
 				 desc->dev, desc->interrupt_parent);
 			ret = desc->irq_init_cb(desc->dev,
 						desc->interrupt_parent);
 			if (ret) {
+				of_node_clear_flag(desc->dev, OF_POPULATED);
 				kfree(desc);
 				continue;
 			}

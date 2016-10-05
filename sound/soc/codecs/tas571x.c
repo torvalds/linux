@@ -4,6 +4,9 @@
  * Copyright (C) 2015 Google, Inc.
  * Copyright (c) 2013 Daniel Mack <zonque@gmail.com>
  *
+ * TAS5721 support:
+ * Copyright (C) 2016 Petr Kulhavy, Barix AG <petr@barix.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -25,6 +28,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
+#include <asm/unaligned.h>
 
 #include "tas571x.h"
 
@@ -57,6 +61,14 @@ static int tas571x_register_size(struct tas571x_private *priv, unsigned int reg)
 	case TAS571X_CH1_VOL_REG:
 	case TAS571X_CH2_VOL_REG:
 		return priv->chip->vol_reg_size;
+	case TAS571X_INPUT_MUX_REG:
+	case TAS571X_CH4_SRC_SELECT_REG:
+	case TAS571X_PWM_MUX_REG:
+	case TAS5717_CH1_RIGHT_CH_MIX_REG:
+	case TAS5717_CH1_LEFT_CH_MIX_REG:
+	case TAS5717_CH2_LEFT_CH_MIX_REG:
+	case TAS5717_CH2_RIGHT_CH_MIX_REG:
+		return 4;
 	default:
 		return 1;
 	}
@@ -128,6 +140,129 @@ static int tas571x_reg_read(void *context, unsigned int reg,
 	return 0;
 }
 
+/*
+ * register write for 8- and 20-byte registers
+ */
+static int tas571x_reg_write_multiword(struct i2c_client *client,
+		unsigned int reg, const long values[], size_t len)
+{
+	size_t i;
+	uint8_t *buf, *p;
+	int ret;
+	size_t send_size = 1 + len * sizeof(uint32_t);
+
+	buf = kzalloc(send_size, GFP_KERNEL | GFP_DMA);
+	if (!buf)
+		return -ENOMEM;
+	buf[0] = reg;
+
+	for (i = 0, p = buf + 1; i < len; i++, p += sizeof(uint32_t))
+		put_unaligned_be32(values[i], p);
+
+	ret = i2c_master_send(client, buf, send_size);
+
+	kfree(buf);
+
+	if (ret == send_size)
+		return 0;
+	else if (ret < 0)
+		return ret;
+	else
+		return -EIO;
+}
+
+/*
+ * register read for 8- and 20-byte registers
+ */
+static int tas571x_reg_read_multiword(struct i2c_client *client,
+		unsigned int reg, long values[], size_t len)
+{
+	unsigned int i;
+	uint8_t send_buf;
+	uint8_t *recv_buf, *p;
+	struct i2c_msg msgs[2];
+	unsigned int recv_size = len * sizeof(uint32_t);
+	int ret;
+
+	recv_buf = kzalloc(recv_size, GFP_KERNEL | GFP_DMA);
+	if (!recv_buf)
+		return -ENOMEM;
+
+	send_buf = reg;
+
+	msgs[0].addr = client->addr;
+	msgs[0].len = sizeof(send_buf);
+	msgs[0].buf = &send_buf;
+	msgs[0].flags = 0;
+
+	msgs[1].addr = client->addr;
+	msgs[1].len = recv_size;
+	msgs[1].buf = recv_buf;
+	msgs[1].flags = I2C_M_RD;
+
+	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
+	if (ret < 0)
+		goto err_ret;
+	else if (ret != ARRAY_SIZE(msgs)) {
+		ret = -EIO;
+		goto err_ret;
+	}
+
+	for (i = 0, p = recv_buf; i < len; i++, p += sizeof(uint32_t))
+		values[i] = get_unaligned_be32(p);
+
+err_ret:
+	kfree(recv_buf);
+	return ret;
+}
+
+/*
+ * Integer array controls for setting biquad, mixer, DRC coefficients.
+ * According to the datasheet each coefficient is effectively 26bits,
+ * i.e. stored as 32bits, where bits [31:26] are ignored.
+ * TI's TAS57xx Graphical Development Environment tool however produces
+ * coefficients with more than 26 bits. For this reason we allow values
+ * in the full 32-bits reange.
+ * The coefficients are ordered as given in the TAS571x data sheet:
+ * b0, b1, b2, a1, a2
+ */
+
+static int tas571x_coefficient_info(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_info *uinfo)
+{
+	int numcoef = kcontrol->private_value >> 16;
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = numcoef;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 0xffffffff;
+	return 0;
+}
+
+static int tas571x_coefficient_get(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct i2c_client *i2c = to_i2c_client(codec->dev);
+	int numcoef = kcontrol->private_value >> 16;
+	int index = kcontrol->private_value & 0xffff;
+
+	return tas571x_reg_read_multiword(i2c, index,
+		ucontrol->value.integer.value, numcoef);
+}
+
+static int tas571x_coefficient_put(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct i2c_client *i2c = to_i2c_client(codec->dev);
+	int numcoef = kcontrol->private_value >> 16;
+	int index = kcontrol->private_value & 0xffff;
+
+	return tas571x_reg_write_multiword(i2c, index,
+		ucontrol->value.integer.value, numcoef);
+}
+
 static int tas571x_set_dai_fmt(struct snd_soc_dai *dai, unsigned int format)
 {
 	struct tas571x_private *priv = snd_soc_codec_get_drvdata(dai->codec);
@@ -165,6 +300,23 @@ static int tas571x_hw_params(struct snd_pcm_substream *substream,
 
 	return regmap_update_bits(priv->regmap, TAS571X_SDI_REG,
 				  TAS571X_SDI_FMT_MASK, val);
+}
+
+static int tas571x_mute(struct snd_soc_dai *dai, int mute)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	u8 sysctl2;
+	int ret;
+
+	sysctl2 = mute ? TAS571X_SYS_CTRL_2_SDN_MASK : 0;
+
+	ret = snd_soc_update_bits(codec,
+			    TAS571X_SYS_CTRL_2_REG,
+		     TAS571X_SYS_CTRL_2_SDN_MASK,
+		     sysctl2);
+	usleep_range(1000, 2000);
+
+	return ret;
 }
 
 static int tas571x_set_bias_level(struct snd_soc_codec *codec,
@@ -214,7 +366,17 @@ static int tas571x_set_bias_level(struct snd_soc_codec *codec,
 static const struct snd_soc_dai_ops tas571x_dai_ops = {
 	.set_fmt	= tas571x_set_dai_fmt,
 	.hw_params	= tas571x_hw_params,
+	.digital_mute	= tas571x_mute,
 };
+
+
+#define BIQUAD_COEFS(xname, reg) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.info = tas571x_coefficient_info, \
+	.get = tas571x_coefficient_get,\
+	.put = tas571x_coefficient_put, \
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE, \
+	.private_value = reg | (5 << 16) }
 
 static const char *const tas5711_supply_names[] = {
 	"AVDD",
@@ -239,6 +401,36 @@ static const struct snd_kcontrol_new tas5711_controls[] = {
 		   TAS571X_SOFT_MUTE_REG,
 		   TAS571X_SOFT_MUTE_CH1_SHIFT, TAS571X_SOFT_MUTE_CH2_SHIFT,
 		   1, 1),
+
+	SOC_DOUBLE_R_RANGE("CH1 Mixer Volume",
+			   TAS5717_CH1_LEFT_CH_MIX_REG,
+			   TAS5717_CH1_RIGHT_CH_MIX_REG,
+			   16, 0, 0x80, 0),
+
+	SOC_DOUBLE_R_RANGE("CH2 Mixer Volume",
+			   TAS5717_CH2_LEFT_CH_MIX_REG,
+			   TAS5717_CH2_RIGHT_CH_MIX_REG,
+			   16, 0, 0x80, 0),
+};
+
+static const struct regmap_range tas571x_readonly_regs_range[] = {
+	regmap_reg_range(TAS571X_CLK_CTRL_REG,  TAS571X_DEV_ID_REG),
+};
+
+static const struct regmap_range tas571x_volatile_regs_range[] = {
+	regmap_reg_range(TAS571X_CLK_CTRL_REG,  TAS571X_ERR_STATUS_REG),
+	regmap_reg_range(TAS571X_OSC_TRIM_REG,  TAS571X_OSC_TRIM_REG),
+};
+
+static const struct regmap_access_table tas571x_write_regs = {
+	.no_ranges =	tas571x_readonly_regs_range,
+	.n_no_ranges =	ARRAY_SIZE(tas571x_readonly_regs_range),
+};
+
+static const struct regmap_access_table tas571x_volatile_regs = {
+	.yes_ranges =	tas571x_volatile_regs_range,
+	.n_yes_ranges =	ARRAY_SIZE(tas571x_volatile_regs_range),
+
 };
 
 static const struct reg_default tas5711_reg_defaults[] = {
@@ -260,6 +452,8 @@ static const struct regmap_config tas5711_regmap_config = {
 	.reg_defaults			= tas5711_reg_defaults,
 	.num_reg_defaults		= ARRAY_SIZE(tas5711_reg_defaults),
 	.cache_type			= REGCACHE_RBTREE,
+	.wr_table			= &tas571x_write_regs,
+	.volatile_table			= &tas571x_volatile_regs,
 };
 
 static const struct tas571x_chip tas5711_chip = {
@@ -293,6 +487,43 @@ static const struct snd_kcontrol_new tas5717_controls[] = {
 		   TAS571X_SOFT_MUTE_REG,
 		   TAS571X_SOFT_MUTE_CH1_SHIFT, TAS571X_SOFT_MUTE_CH2_SHIFT,
 		   1, 1),
+
+	/*
+	 * The biquads are named according to the register names.
+	 * Please note that TI's TAS57xx Graphical Development Environment
+	 * tool names them different.
+	 */
+	BIQUAD_COEFS("CH1 - Biquad 0", TAS5717_CH1_BQ0_REG),
+	BIQUAD_COEFS("CH1 - Biquad 1", TAS5717_CH1_BQ1_REG),
+	BIQUAD_COEFS("CH1 - Biquad 2", TAS5717_CH1_BQ2_REG),
+	BIQUAD_COEFS("CH1 - Biquad 3", TAS5717_CH1_BQ3_REG),
+	BIQUAD_COEFS("CH1 - Biquad 4", TAS5717_CH1_BQ4_REG),
+	BIQUAD_COEFS("CH1 - Biquad 5", TAS5717_CH1_BQ5_REG),
+	BIQUAD_COEFS("CH1 - Biquad 6", TAS5717_CH1_BQ6_REG),
+	BIQUAD_COEFS("CH1 - Biquad 7", TAS5717_CH1_BQ7_REG),
+	BIQUAD_COEFS("CH1 - Biquad 8", TAS5717_CH1_BQ8_REG),
+	BIQUAD_COEFS("CH1 - Biquad 9", TAS5717_CH1_BQ9_REG),
+	BIQUAD_COEFS("CH1 - Biquad 10", TAS5717_CH1_BQ10_REG),
+	BIQUAD_COEFS("CH1 - Biquad 11", TAS5717_CH1_BQ11_REG),
+
+	BIQUAD_COEFS("CH2 - Biquad 0", TAS5717_CH2_BQ0_REG),
+	BIQUAD_COEFS("CH2 - Biquad 1", TAS5717_CH2_BQ1_REG),
+	BIQUAD_COEFS("CH2 - Biquad 2", TAS5717_CH2_BQ2_REG),
+	BIQUAD_COEFS("CH2 - Biquad 3", TAS5717_CH2_BQ3_REG),
+	BIQUAD_COEFS("CH2 - Biquad 4", TAS5717_CH2_BQ4_REG),
+	BIQUAD_COEFS("CH2 - Biquad 5", TAS5717_CH2_BQ5_REG),
+	BIQUAD_COEFS("CH2 - Biquad 6", TAS5717_CH2_BQ6_REG),
+	BIQUAD_COEFS("CH2 - Biquad 7", TAS5717_CH2_BQ7_REG),
+	BIQUAD_COEFS("CH2 - Biquad 8", TAS5717_CH2_BQ8_REG),
+	BIQUAD_COEFS("CH2 - Biquad 9", TAS5717_CH2_BQ9_REG),
+	BIQUAD_COEFS("CH2 - Biquad 10", TAS5717_CH2_BQ10_REG),
+	BIQUAD_COEFS("CH2 - Biquad 11", TAS5717_CH2_BQ11_REG),
+
+	BIQUAD_COEFS("CH3 - Biquad 0", TAS5717_CH3_BQ0_REG),
+	BIQUAD_COEFS("CH3 - Biquad 1", TAS5717_CH3_BQ1_REG),
+
+	BIQUAD_COEFS("CH4 - Biquad 0", TAS5717_CH4_BQ0_REG),
+	BIQUAD_COEFS("CH4 - Biquad 1", TAS5717_CH4_BQ1_REG),
 };
 
 static const struct reg_default tas5717_reg_defaults[] = {
@@ -303,6 +534,10 @@ static const struct reg_default tas5717_reg_defaults[] = {
 	{ 0x08, 0x00c0 },
 	{ 0x09, 0x00c0 },
 	{ 0x1b, 0x82 },
+	{ TAS5717_CH1_RIGHT_CH_MIX_REG, 0x0 },
+	{ TAS5717_CH1_LEFT_CH_MIX_REG, 0x800000},
+	{ TAS5717_CH2_LEFT_CH_MIX_REG, 0x0 },
+	{ TAS5717_CH2_RIGHT_CH_MIX_REG, 0x800000},
 };
 
 static const struct regmap_config tas5717_regmap_config = {
@@ -314,6 +549,8 @@ static const struct regmap_config tas5717_regmap_config = {
 	.reg_defaults			= tas5717_reg_defaults,
 	.num_reg_defaults		= ARRAY_SIZE(tas5717_reg_defaults),
 	.cache_type			= REGCACHE_RBTREE,
+	.wr_table			= &tas571x_write_regs,
+	.volatile_table			= &tas571x_volatile_regs,
 };
 
 /* This entry is reused for tas5719 as the software interface is identical. */
@@ -324,6 +561,77 @@ static const struct tas571x_chip tas5717_chip = {
 	.num_controls			= ARRAY_SIZE(tas5717_controls),
 	.regmap_config			= &tas5717_regmap_config,
 	.vol_reg_size			= 2,
+};
+
+static const char *const tas5721_supply_names[] = {
+	"AVDD",
+	"DVDD",
+	"DRVDD",
+	"PVDD",
+};
+
+static const struct snd_kcontrol_new tas5721_controls[] = {
+	SOC_SINGLE_TLV("Master Volume",
+		       TAS571X_MVOL_REG,
+		       0, 0xff, 1, tas5711_volume_tlv),
+	SOC_DOUBLE_R_TLV("Speaker Volume",
+			 TAS571X_CH1_VOL_REG,
+			 TAS571X_CH2_VOL_REG,
+			 0, 0xff, 1, tas5711_volume_tlv),
+	SOC_DOUBLE("Speaker Switch",
+		   TAS571X_SOFT_MUTE_REG,
+		   TAS571X_SOFT_MUTE_CH1_SHIFT, TAS571X_SOFT_MUTE_CH2_SHIFT,
+		   1, 1),
+};
+
+static const struct reg_default tas5721_reg_defaults[] = {
+	{TAS571X_CLK_CTRL_REG,		0x6c},
+	{TAS571X_DEV_ID_REG,		0x00},
+	{TAS571X_ERR_STATUS_REG,	0x00},
+	{TAS571X_SYS_CTRL_1_REG,	0xa0},
+	{TAS571X_SDI_REG,		0x05},
+	{TAS571X_SYS_CTRL_2_REG,	0x40},
+	{TAS571X_SOFT_MUTE_REG,		0x00},
+	{TAS571X_MVOL_REG,		0xff},
+	{TAS571X_CH1_VOL_REG,		0x30},
+	{TAS571X_CH2_VOL_REG,		0x30},
+	{TAS571X_CH3_VOL_REG,		0x30},
+	{TAS571X_VOL_CFG_REG,		0x91},
+	{TAS571X_MODULATION_LIMIT_REG,	0x02},
+	{TAS571X_IC_DELAY_CH1_REG,	0xac},
+	{TAS571X_IC_DELAY_CH2_REG,	0x54},
+	{TAS571X_IC_DELAY_CH3_REG,	0xac},
+	{TAS571X_IC_DELAY_CH4_REG,	0x54},
+	{TAS571X_PWM_CH_SDN_GROUP_REG,	0x30},
+	{TAS571X_START_STOP_PERIOD_REG,	0x0f},
+	{TAS571X_OSC_TRIM_REG,		0x82},
+	{TAS571X_BKND_ERR_REG,		0x02},
+	{TAS571X_INPUT_MUX_REG,		0x17772},
+	{TAS571X_CH4_SRC_SELECT_REG,	0x4303},
+	{TAS571X_PWM_MUX_REG,		0x1021345},
+};
+
+static const struct regmap_config tas5721_regmap_config = {
+	.reg_bits			= 8,
+	.val_bits			= 32,
+	.max_register			= 0xff,
+	.reg_read			= tas571x_reg_read,
+	.reg_write			= tas571x_reg_write,
+	.reg_defaults			= tas5721_reg_defaults,
+	.num_reg_defaults		= ARRAY_SIZE(tas5721_reg_defaults),
+	.cache_type			= REGCACHE_RBTREE,
+	.wr_table			= &tas571x_write_regs,
+	.volatile_table			= &tas571x_volatile_regs,
+};
+
+
+static const struct tas571x_chip tas5721_chip = {
+	.supply_names			= tas5721_supply_names,
+	.num_supply_names		= ARRAY_SIZE(tas5721_supply_names),
+	.controls			= tas5711_controls,
+	.num_controls			= ARRAY_SIZE(tas5711_controls),
+	.regmap_config			= &tas5721_regmap_config,
+	.vol_reg_size			= 1,
 };
 
 static const struct snd_soc_dapm_widget tas571x_dapm_widgets[] = {
@@ -386,11 +694,10 @@ static int tas571x_i2c_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, priv);
 
 	of_id = of_match_device(tas571x_of_match, dev);
-	if (!of_id) {
-		dev_err(dev, "Unknown device type\n");
-		return -EINVAL;
-	}
-	priv->chip = of_id->data;
+	if (of_id)
+		priv->chip = of_id->data;
+	else
+		priv->chip = (void *) id->driver_data;
 
 	priv->mclk = devm_clk_get(dev, "mclk");
 	if (IS_ERR(priv->mclk) && PTR_ERR(priv->mclk) != -ENOENT) {
@@ -445,10 +752,6 @@ static int tas571x_i2c_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
-	ret = regmap_update_bits(priv->regmap, TAS571X_SYS_CTRL_2_REG,
-				 TAS571X_SYS_CTRL_2_SDN_MASK, 0);
-	if (ret)
-		return ret;
 
 	memcpy(&priv->codec_driver, &tas571x_codec, sizeof(priv->codec_driver));
 	priv->codec_driver.controls = priv->chip->controls;
@@ -486,14 +789,16 @@ static const struct of_device_id tas571x_of_match[] = {
 	{ .compatible = "ti,tas5711", .data = &tas5711_chip, },
 	{ .compatible = "ti,tas5717", .data = &tas5717_chip, },
 	{ .compatible = "ti,tas5719", .data = &tas5717_chip, },
+	{ .compatible = "ti,tas5721", .data = &tas5721_chip, },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, tas571x_of_match);
 
 static const struct i2c_device_id tas571x_i2c_id[] = {
-	{ "tas5711", 0 },
-	{ "tas5717", 0 },
-	{ "tas5719", 0 },
+	{ "tas5711", (kernel_ulong_t) &tas5711_chip },
+	{ "tas5717", (kernel_ulong_t) &tas5717_chip },
+	{ "tas5719", (kernel_ulong_t) &tas5717_chip },
+	{ "tas5721", (kernel_ulong_t) &tas5721_chip },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tas571x_i2c_id);

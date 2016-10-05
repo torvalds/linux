@@ -31,7 +31,7 @@
 
 #include <drm/drmP.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_hwmon.h"
 
 #include <nvkm/subdev/iccsense.h>
@@ -535,6 +535,40 @@ static SENSOR_DEVICE_ATTR(in0_input, S_IRUGO,
 			  nouveau_hwmon_get_in0_input, NULL, 0);
 
 static ssize_t
+nouveau_hwmon_get_in0_min(struct device *d,
+			    struct device_attribute *a, char *buf)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvkm_volt *volt = nvxx_volt(&drm->device);
+
+	if (!volt || !volt->min_uv)
+		return -ENODEV;
+
+	return sprintf(buf, "%i\n", volt->min_uv / 1000);
+}
+
+static SENSOR_DEVICE_ATTR(in0_min, S_IRUGO,
+			  nouveau_hwmon_get_in0_min, NULL, 0);
+
+static ssize_t
+nouveau_hwmon_get_in0_max(struct device *d,
+			    struct device_attribute *a, char *buf)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvkm_volt *volt = nvxx_volt(&drm->device);
+
+	if (!volt || !volt->max_uv)
+		return -ENODEV;
+
+	return sprintf(buf, "%i\n", volt->max_uv / 1000);
+}
+
+static SENSOR_DEVICE_ATTR(in0_max, S_IRUGO,
+			  nouveau_hwmon_get_in0_max, NULL, 0);
+
+static ssize_t
 nouveau_hwmon_get_in0_label(struct device *d,
 			    struct device_attribute *a, char *buf)
 {
@@ -594,6 +628,8 @@ static struct attribute *hwmon_pwm_fan_attributes[] = {
 
 static struct attribute *hwmon_in0_attributes[] = {
 	&sensor_dev_attr_in0_input.dev_attr.attr,
+	&sensor_dev_attr_in0_min.dev_attr.attr,
+	&sensor_dev_attr_in0_max.dev_attr.attr,
 	&sensor_dev_attr_in0_label.dev_attr.attr,
 	NULL
 };
@@ -689,7 +725,7 @@ nouveau_hwmon_init(struct drm_device *dev)
 			goto error;
 	}
 
-	if (iccsense && iccsense->data_valid && iccsense->rail_count) {
+	if (iccsense && iccsense->data_valid && !list_empty(&iccsense->rails)) {
 		ret = sysfs_create_group(&hwmon_dev->kobj,
 					 &hwmon_power_attrgroup);
 		if (ret)

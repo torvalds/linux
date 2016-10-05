@@ -76,6 +76,8 @@ static const struct fm10k_stats fm10k_gstrings_global_stats[] = {
 	FM10K_STAT("mac_rules_used", hw.swapi.mac.used),
 	FM10K_STAT("mac_rules_avail", hw.swapi.mac.avail),
 
+	FM10K_STAT("reset_while_pending", hw.mac.reset_while_pending),
+
 	FM10K_STAT("tx_hang_count", tx_timeout_count),
 };
 
@@ -964,7 +966,7 @@ static int fm10k_set_priv_flags(struct net_device *netdev, u32 priv_flags)
 	return 0;
 }
 
-u32 fm10k_get_reta_size(struct net_device __always_unused *netdev)
+static u32 fm10k_get_reta_size(struct net_device __always_unused *netdev)
 {
 	return FM10K_RETA_SIZE * FM10K_RETA_ENTRIES_PER_REG;
 }
@@ -983,9 +985,10 @@ void fm10k_write_reta(struct fm10k_intfc *interface, const u32 *indir)
 		/* generate a new table if we weren't given one */
 		for (j = 0; j < 4; j++) {
 			if (indir)
-				n = indir[i + j];
+				n = indir[4 * i + j];
 			else
-				n = ethtool_rxfh_indir_default(i + j, rss_i);
+				n = ethtool_rxfh_indir_default(4 * i + j,
+							       rss_i);
 
 			table[j] = n;
 		}
@@ -1179,6 +1182,7 @@ static const struct ethtool_ops fm10k_ethtool_ops = {
 	.set_rxfh		= fm10k_set_rssh,
 	.get_channels		= fm10k_get_channels,
 	.set_channels		= fm10k_set_channels,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
 void fm10k_set_ethtool_ops(struct net_device *dev)

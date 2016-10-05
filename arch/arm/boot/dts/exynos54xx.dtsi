@@ -1,0 +1,199 @@
+/*
+ * Samsung's Exynos54xx SoC series common device tree source
+ *
+ * Copyright (c) 2012-2013 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ * Copyright (c) 2016 Krzysztof Kozlowski
+ *
+ * Device nodes common for Samsung Exynos5410/5420/5422/5800. Specific
+ * Exynos 54xx SoCs should include this file and customize it further
+ * (e.g. with clocks).
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "skeleton.dtsi"
+#include "exynos5.dtsi"
+
+/ {
+	compatible = "samsung,exynos5";
+
+	aliases {
+		i2c4 = &hsi2c_4;
+		i2c5 = &hsi2c_5;
+		i2c6 = &hsi2c_6;
+		i2c7 = &hsi2c_7;
+		usbdrdphy0 = &usbdrd_phy0;
+		usbdrdphy1 = &usbdrd_phy1;
+	};
+
+	soc: soc {
+		sysram@02020000 {
+			compatible = "mmio-sram";
+			reg = <0x02020000 0x54000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x02020000 0x54000>;
+
+			smp-sysram@0 {
+				compatible = "samsung,exynos4210-sysram";
+				reg = <0x0 0x1000>;
+			};
+
+			smp-sysram@53000 {
+				compatible = "samsung,exynos4210-sysram-ns";
+				reg = <0x53000 0x1000>;
+			};
+		};
+
+		mct: mct@101c0000 {
+			compatible = "samsung,exynos4210-mct";
+			reg = <0x101c0000 0xb00>;
+			interrupt-parent = <&mct_map>;
+			interrupts = <0>, <1>, <2>, <3>, <4>, <5>, <6>, <7>,
+					<8>, <9>, <10>, <11>;
+
+			mct_map: mct-map {
+				#interrupt-cells = <1>;
+				#address-cells = <0>;
+				#size-cells = <0>;
+				interrupt-map = <0 &combiner 23 3>,
+						<1 &combiner 23 4>,
+						<2 &combiner 25 2>,
+						<3 &combiner 25 3>,
+						<4 &gic 0 120 0>,
+						<5 &gic 0 121 0>,
+						<6 &gic 0 122 0>,
+						<7 &gic 0 123 0>,
+						<8 &gic 0 128 0>,
+						<9 &gic 0 129 0>,
+						<10 &gic 0 130 0>,
+						<11 &gic 0 131 0>;
+			};
+		};
+
+		watchdog: watchdog@101d0000 {
+			compatible = "samsung,exynos5420-wdt";
+			reg = <0x101d0000 0x100>;
+			interrupts = <0 42 0>;
+		};
+
+		sss: sss@10830000 {
+			compatible = "samsung,exynos4210-secss";
+			reg = <0x10830000 0x300>;
+			interrupts = <0 112 0>;
+		};
+
+		/* i2c_0-3 are defined in exynos5.dtsi */
+		hsi2c_4: i2c@12ca0000 {
+			compatible = "samsung,exynos5250-hsi2c";
+			reg = <0x12ca0000 0x1000>;
+			interrupts = <0 60 0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		hsi2c_5: i2c@12cb0000 {
+			compatible = "samsung,exynos5250-hsi2c";
+			reg = <0x12cb0000 0x1000>;
+			interrupts = <0 61 0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		hsi2c_6: i2c@12cc0000 {
+			compatible = "samsung,exynos5250-hsi2c";
+			reg = <0x12cc0000 0x1000>;
+			interrupts = <0 62 0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		hsi2c_7: i2c@12cd0000 {
+			compatible = "samsung,exynos5250-hsi2c";
+			reg = <0x12cd0000 0x1000>;
+			interrupts = <0 63 0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		usbdrd3_0: usb3-0 {
+			compatible = "samsung,exynos5250-dwusb3";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			usbdrd_dwc3_0: dwc3@12000000 {
+				compatible = "snps,dwc3";
+				reg = <0x12000000 0x10000>;
+				interrupts = <0 72 0>;
+				phys = <&usbdrd_phy0 0>, <&usbdrd_phy0 1>;
+				phy-names = "usb2-phy", "usb3-phy";
+			};
+		};
+
+		usbdrd_phy0: phy@12100000 {
+			compatible = "samsung,exynos5420-usbdrd-phy";
+			reg = <0x12100000 0x100>;
+			#phy-cells = <1>;
+		};
+
+		usbdrd3_1: usb3-1 {
+			compatible = "samsung,exynos5250-dwusb3";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			usbdrd_dwc3_1: dwc3@12400000 {
+				compatible = "snps,dwc3";
+				reg = <0x12400000 0x10000>;
+				phys = <&usbdrd_phy1 0>, <&usbdrd_phy1 1>;
+				phy-names = "usb2-phy", "usb3-phy";
+			};
+		};
+
+		usbdrd_phy1: phy@12500000 {
+			compatible = "samsung,exynos5420-usbdrd-phy";
+			reg = <0x12500000 0x100>;
+			#phy-cells = <1>;
+		};
+
+		usbhost2: usb@12110000 {
+			compatible = "samsung,exynos4210-ehci";
+			reg = <0x12110000 0x100>;
+			interrupts = <0 71 0>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+			port@0 {
+				reg = <0>;
+				phys = <&usb2_phy 1>;
+			};
+		};
+
+		usbhost1: usb@12120000 {
+			compatible = "samsung,exynos4210-ohci";
+			reg = <0x12120000 0x100>;
+			interrupts = <0 71 0>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+			port@0 {
+				reg = <0>;
+				phys = <&usb2_phy 1>;
+			};
+		};
+
+		usb2_phy: phy@12130000 {
+			compatible = "samsung,exynos5250-usb2-phy";
+			reg = <0x12130000 0x100>;
+			#phy-cells = <1>;
+		};
+	};
+};

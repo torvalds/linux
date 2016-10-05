@@ -157,11 +157,11 @@ static int rmi_function_match(struct device *dev, struct device_driver *drv)
 static void rmi_function_of_probe(struct rmi_function *fn)
 {
 	char of_name[9];
+	struct device_node *node = fn->rmi_dev->xport->dev->of_node;
 
 	snprintf(of_name, sizeof(of_name), "rmi4-f%02x",
 		fn->fd.function_number);
-	fn->dev.of_node = of_find_node_by_name(
-				fn->rmi_dev->xport->dev->of_node, of_name);
+	fn->dev.of_node = of_get_child_by_name(node, of_name);
 }
 #else
 static inline void rmi_function_of_probe(struct rmi_function *fn)
@@ -232,10 +232,7 @@ err_put_device:
 void rmi_unregister_function(struct rmi_function *fn)
 {
 	device_del(&fn->dev);
-
-	if (fn->dev.of_node)
-		of_node_put(fn->dev.of_node);
-
+	of_node_put(fn->dev.of_node);
 	put_device(&fn->dev);
 }
 

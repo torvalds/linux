@@ -30,3 +30,4 @@ else:
     import linux.cpus
     import linux.lists
     import linux.proc
+    import linux.constants

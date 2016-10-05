@@ -119,6 +119,12 @@ struct opp_device {
 #endif
 };
 
+enum opp_table_access {
+	OPP_TABLE_ACCESS_UNKNOWN = 0,
+	OPP_TABLE_ACCESS_EXCLUSIVE = 1,
+	OPP_TABLE_ACCESS_SHARED = 2,
+};
+
 /**
  * struct opp_table - Device opp structure
  * @node:	table node - contains the devices with OPPs that
@@ -166,7 +172,7 @@ struct opp_table {
 	/* For backward compatibility with v1 bindings */
 	unsigned int voltage_tolerance_v1;
 
-	bool shared_opp;
+	enum opp_table_access shared_opp;
 	struct dev_pm_opp *suspend_opp;
 
 	unsigned int *supported_hw;

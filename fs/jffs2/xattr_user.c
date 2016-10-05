@@ -25,10 +25,11 @@ static int jffs2_user_getxattr(const struct xattr_handler *handler,
 }
 
 static int jffs2_user_setxattr(const struct xattr_handler *handler,
-			       struct dentry *dentry, const char *name,
-			       const void *buffer, size_t size, int flags)
+			       struct dentry *unused, struct inode *inode,
+			       const char *name, const void *buffer,
+			       size_t size, int flags)
 {
-	return do_jffs2_setxattr(d_inode(dentry), JFFS2_XPREFIX_USER,
+	return do_jffs2_setxattr(inode, JFFS2_XPREFIX_USER,
 				 name, buffer, size, flags);
 }
 

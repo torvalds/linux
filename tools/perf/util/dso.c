@@ -7,6 +7,7 @@
 #include "auxtrace.h"
 #include "util.h"
 #include "debug.h"
+#include "vdso.h"
 
 char dso__symtab_origin(const struct dso *dso)
 {
@@ -62,9 +63,7 @@ int dso__read_binary_type_filename(const struct dso *dso,
 		}
 		break;
 	case DSO_BINARY_TYPE__BUILD_ID_CACHE:
-		/* skip the locally configured cache if a symfs is given */
-		if (symbol_conf.symfs[0] ||
-		    (dso__build_id_filename(dso, filename, size) == NULL))
+		if (dso__build_id_filename(dso, filename, size) == NULL)
 			ret = -1;
 		break;
 
@@ -336,7 +335,7 @@ static int do_open(char *name)
 			return fd;
 
 		pr_debug("dso open failed: %s\n",
-			 strerror_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		if (!dso__data_open_cnt || errno != EMFILE)
 			break;
 
@@ -363,6 +362,9 @@ static int __open_dso(struct dso *dso, struct machine *machine)
 		free(name);
 		return -EINVAL;
 	}
+
+	if (!is_regular_file(name))
+		return -EINVAL;
 
 	fd = do_open(name);
 	free(name);
@@ -443,17 +445,27 @@ static rlim_t get_fd_limit(void)
 	return limit;
 }
 
+static rlim_t fd_limit;
+
+/*
+ * Used only by tests/dso-data.c to reset the environment
+ * for tests. I dont expect we should change this during
+ * standard runtime.
+ */
+void reset_fd_limit(void)
+{
+	fd_limit = 0;
+}
+
 static bool may_cache_fd(void)
 {
-	static rlim_t limit;
+	if (!fd_limit)
+		fd_limit = get_fd_limit();
 
-	if (!limit)
-		limit = get_fd_limit();
-
-	if (limit == RLIM_INFINITY)
+	if (fd_limit == RLIM_INFINITY)
 		return true;
 
-	return limit > (rlim_t) dso__data_open_cnt;
+	return fd_limit > (rlim_t) dso__data_open_cnt;
 }
 
 /*
@@ -777,7 +789,7 @@ static int data_file_size(struct dso *dso, struct machine *machine)
 	if (fstat(dso->data.fd, &st) < 0) {
 		ret = -errno;
 		pr_err("dso cache fstat failed: %s\n",
-		       strerror_r(errno, sbuf, sizeof(sbuf)));
+		       str_error_r(errno, sbuf, sizeof(sbuf)));
 		dso->data.status = DSO_DATA_STATUS_ERROR;
 		goto out;
 	}
@@ -1169,7 +1181,7 @@ bool __dsos__read_build_ids(struct list_head *head, bool with_hits)
 	struct dso *pos;
 
 	list_for_each_entry(pos, head, node) {
-		if (with_hits && !pos->hit)
+		if (with_hits && !pos->hit && !dso__is_vdso(pos))
 			continue;
 		if (pos->has_build_id) {
 			have_build_id = true;
@@ -1357,7 +1369,7 @@ int dso__strerror_load(struct dso *dso, char *buf, size_t buflen)
 	BUG_ON(buflen == 0);
 
 	if (errnum >= 0) {
-		const char *err = strerror_r(errnum, buf, buflen);
+		const char *err = str_error_r(errnum, buf, buflen);
 
 		if (err != buf)
 			scnprintf(buf, buflen, "%s", err);

@@ -509,7 +509,6 @@ static int msi2500_isoc_init(struct msi2500_dev *dev)
 	for (i = 0; i < MAX_ISO_BUFS; i++) {
 		urb = usb_alloc_urb(ISO_FRAMES_PER_DESC, GFP_KERNEL);
 		if (urb == NULL) {
-			dev_err(dev->dev, "Failed to allocate urb %d\n", i);
 			msi2500_isoc_cleanup(dev);
 			return -ENOMEM;
 		}
@@ -618,7 +617,7 @@ static int msi2500_querycap(struct file *file, void *fh,
 static int msi2500_queue_setup(struct vb2_queue *vq,
 			       unsigned int *nbuffers,
 			       unsigned int *nplanes, unsigned int sizes[],
-			       void *alloc_ctxs[])
+			       struct device *alloc_devs[])
 {
 	struct msi2500_dev *dev = vb2_get_drv_priv(vq);
 

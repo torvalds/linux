@@ -215,8 +215,8 @@ static inline void qlt_incr_num_pend_cmds(struct scsi_qla_host *vha)
 	spin_lock_irqsave(&vha->hw->tgt.q_full_lock, flags);
 
 	vha->hw->tgt.num_pend_cmds++;
-	if (vha->hw->tgt.num_pend_cmds > vha->hw->qla_stats.stat_max_pend_cmds)
-		vha->hw->qla_stats.stat_max_pend_cmds =
+	if (vha->hw->tgt.num_pend_cmds > vha->qla_stats.stat_max_pend_cmds)
+		vha->qla_stats.stat_max_pend_cmds =
 			vha->hw->tgt.num_pend_cmds;
 	spin_unlock_irqrestore(&vha->hw->tgt.q_full_lock, flags);
 }
@@ -637,8 +637,10 @@ static void qlt_free_session_done(struct work_struct *work)
 }
 
 /* ha->tgt.sess_lock supposed to be held on entry */
-void qlt_unreg_sess(struct qla_tgt_sess *sess)
+static void qlt_release_session(struct kref *kref)
 {
+	struct qla_tgt_sess *sess =
+		container_of(kref, struct qla_tgt_sess, sess_kref);
 	struct scsi_qla_host *vha = sess->vha;
 
 	if (sess->se_sess)
@@ -651,8 +653,16 @@ void qlt_unreg_sess(struct qla_tgt_sess *sess)
 	INIT_WORK(&sess->free_work, qlt_free_session_done);
 	schedule_work(&sess->free_work);
 }
-EXPORT_SYMBOL(qlt_unreg_sess);
 
+void qlt_put_sess(struct qla_tgt_sess *sess)
+{
+	if (!sess)
+		return;
+
+	assert_spin_locked(&sess->vha->hw->tgt.sess_lock);
+	kref_put(&sess->sess_kref, qlt_release_session);
+}
+EXPORT_SYMBOL(qlt_put_sess);
 
 static int qlt_reset(struct scsi_qla_host *vha, void *iocb, int mcmd)
 {
@@ -857,12 +867,9 @@ static void qlt_del_sess_work_fn(struct delayed_work *work)
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf004,
 			    "Timeout: sess %p about to be deleted\n",
 			    sess);
-			if (sess->se_sess) {
+			if (sess->se_sess)
 				ha->tgt.tgt_ops->shutdown_sess(sess);
-				ha->tgt.tgt_ops->put_sess(sess);
-			} else {
-				qlt_unreg_sess(sess);
-			}
+			qlt_put_sess(sess);
 		} else {
 			schedule_delayed_work(&tgt->sess_del_work,
 			    sess->expires - elapsed);
@@ -917,7 +924,7 @@ static struct qla_tgt_sess *qlt_create_sess(
 				}
 			}
 
-			kref_get(&sess->se_sess->sess_kref);
+			kref_get(&sess->sess_kref);
 			ha->tgt.tgt_ops->update_sess(sess, fcport->d_id, fcport->loop_id,
 						(fcport->flags & FCF_CONF_COMP_SUPPORTED));
 
@@ -947,6 +954,7 @@ static struct qla_tgt_sess *qlt_create_sess(
 	sess->s_id = fcport->d_id;
 	sess->loop_id = fcport->loop_id;
 	sess->local = local;
+	kref_init(&sess->sess_kref);
 	INIT_LIST_HEAD(&sess->del_list_entry);
 
 	/* Under normal circumstances we want to logout from firmware when
@@ -991,7 +999,7 @@ static struct qla_tgt_sess *qlt_create_sess(
 		 * Take an extra reference to ->sess_kref here to handle qla_tgt_sess
 		 * access across ->tgt.sess_lock reaquire.
 		 */
-		kref_get(&sess->se_sess->sess_kref);
+		kref_get(&sess->sess_kref);
 	}
 
 	return sess;
@@ -1035,7 +1043,7 @@ void qlt_fc_port_added(struct scsi_qla_host *vha, fc_port_t *fcport)
 		spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
 		return;
 	} else {
-		kref_get(&sess->se_sess->sess_kref);
+		kref_get(&sess->sess_kref);
 
 		if (sess->deleted) {
 			qlt_undelete_sess(sess);
@@ -1060,7 +1068,7 @@ void qlt_fc_port_added(struct scsi_qla_host *vha, fc_port_t *fcport)
 		    fcport->port_name, sess->loop_id);
 		sess->local = 0;
 	}
-	ha->tgt.tgt_ops->put_sess(sess);
+	qlt_put_sess(sess);
 	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
 }
 
@@ -3817,7 +3825,7 @@ static void __qlt_do_work(struct qla_tgt_cmd *cmd)
 	 * Drop extra session reference from qla_tgt_handle_cmd_for_atio*(
 	 */
 	spin_lock_irqsave(&ha->tgt.sess_lock, flags);
-	ha->tgt.tgt_ops->put_sess(sess);
+	qlt_put_sess(sess);
 	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
 	return;
 
@@ -3836,7 +3844,7 @@ out_term:
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	spin_lock_irqsave(&ha->tgt.sess_lock, flags);
-	ha->tgt.tgt_ops->put_sess(sess);
+	qlt_put_sess(sess);
 	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
 }
 
@@ -3936,13 +3944,13 @@ static void qlt_create_sess_from_atio(struct work_struct *work)
 	if (!cmd) {
 		spin_lock_irqsave(&ha->hardware_lock, flags);
 		qlt_send_busy(vha, &op->atio, SAM_STAT_BUSY);
-		ha->tgt.tgt_ops->put_sess(sess);
+		qlt_put_sess(sess);
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 		kfree(op);
 		return;
 	}
 	/*
-	 * __qlt_do_work() will call ha->tgt.tgt_ops->put_sess() to release
+	 * __qlt_do_work() will call qlt_put_sess() to release
 	 * the extra reference taken above by qlt_make_local_sess()
 	 */
 	__qlt_do_work(cmd);
@@ -4003,13 +4011,13 @@ static int qlt_handle_cmd_for_atio(struct scsi_qla_host *vha,
 	/*
 	 * Do kref_get() before returning + dropping qla_hw_data->hardware_lock.
 	 */
-	kref_get(&sess->se_sess->sess_kref);
+	kref_get(&sess->sess_kref);
 
 	cmd = qlt_get_tag(vha, sess, atio);
 	if (!cmd) {
 		ql_dbg(ql_dbg_io, vha, 0x3062,
 		    "qla_target(%d): Allocation of cmd failed\n", vha->vp_idx);
-		ha->tgt.tgt_ops->put_sess(sess);
+		qlt_put_sess(sess);
 		return -ENOMEM;
 	}
 
@@ -5223,8 +5231,8 @@ qlt_alloc_qfull_cmd(struct scsi_qla_host *vha,
 	if ((vha->hw->tgt.num_qfull_cmds_alloc + 1) > MAX_QFULL_CMDS_ALLOC) {
 		vha->hw->tgt.num_qfull_cmds_dropped++;
 		if (vha->hw->tgt.num_qfull_cmds_dropped >
-			vha->hw->qla_stats.stat_max_qfull_cmds_dropped)
-			vha->hw->qla_stats.stat_max_qfull_cmds_dropped =
+			vha->qla_stats.stat_max_qfull_cmds_dropped)
+			vha->qla_stats.stat_max_qfull_cmds_dropped =
 				vha->hw->tgt.num_qfull_cmds_dropped;
 
 		ql_dbg(ql_dbg_io, vha, 0x3068,
@@ -5255,8 +5263,8 @@ qlt_alloc_qfull_cmd(struct scsi_qla_host *vha,
 
 		vha->hw->tgt.num_qfull_cmds_dropped++;
 		if (vha->hw->tgt.num_qfull_cmds_dropped >
-			vha->hw->qla_stats.stat_max_qfull_cmds_dropped)
-			vha->hw->qla_stats.stat_max_qfull_cmds_dropped =
+			vha->qla_stats.stat_max_qfull_cmds_dropped)
+			vha->qla_stats.stat_max_qfull_cmds_dropped =
 				vha->hw->tgt.num_qfull_cmds_dropped;
 
 		qlt_chk_exch_leak_thresh_hold(vha);
@@ -5285,8 +5293,8 @@ qlt_alloc_qfull_cmd(struct scsi_qla_host *vha,
 
 	vha->hw->tgt.num_qfull_cmds_alloc++;
 	if (vha->hw->tgt.num_qfull_cmds_alloc >
-		vha->hw->qla_stats.stat_max_qfull_cmds_alloc)
-		vha->hw->qla_stats.stat_max_qfull_cmds_alloc =
+		vha->qla_stats.stat_max_qfull_cmds_alloc)
+		vha->qla_stats.stat_max_qfull_cmds_alloc =
 			vha->hw->tgt.num_qfull_cmds_alloc;
 }
 
@@ -5911,7 +5919,7 @@ static void qlt_abort_work(struct qla_tgt *tgt,
 			goto out_term2;
 		}
 
-		kref_get(&sess->se_sess->sess_kref);
+		kref_get(&sess->sess_kref);
 	}
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -5924,7 +5932,7 @@ static void qlt_abort_work(struct qla_tgt *tgt,
 		goto out_term;
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
-	ha->tgt.tgt_ops->put_sess(sess);
+	qlt_put_sess(sess);
 	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags2);
 	return;
 
@@ -5935,8 +5943,7 @@ out_term:
 	qlt_24xx_send_abts_resp(vha, &prm->abts, FCP_TMF_REJECTED, false);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
-	if (sess)
-		ha->tgt.tgt_ops->put_sess(sess);
+	qlt_put_sess(sess);
 	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags2);
 }
 
@@ -5976,7 +5983,7 @@ static void qlt_tmr_work(struct qla_tgt *tgt,
 			goto out_term;
 		}
 
-		kref_get(&sess->se_sess->sess_kref);
+		kref_get(&sess->sess_kref);
 	}
 
 	iocb = a;
@@ -5988,14 +5995,13 @@ static void qlt_tmr_work(struct qla_tgt *tgt,
 	if (rc != 0)
 		goto out_term;
 
-	ha->tgt.tgt_ops->put_sess(sess);
+	qlt_put_sess(sess);
 	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
 	return;
 
 out_term:
 	qlt_send_term_exchange(vha, NULL, &prm->tm_iocb2, 1, 0);
-	if (sess)
-		ha->tgt.tgt_ops->put_sess(sess);
+	qlt_put_sess(sess);
 	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
 }
 

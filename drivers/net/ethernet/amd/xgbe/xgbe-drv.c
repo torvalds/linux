@@ -154,7 +154,7 @@ static int xgbe_alloc_channels(struct xgbe_prv_data *pdata)
 		goto err_rx_ring;
 
 	for (i = 0, channel = channel_mem; i < count; i++, channel++) {
-		snprintf(channel->name, sizeof(channel->name), "channel-%d", i);
+		snprintf(channel->name, sizeof(channel->name), "channel-%u", i);
 		channel->pdata = pdata;
 		channel->queue_index = i;
 		channel->dma_regs = pdata->xgmac_regs + DMA_CH_BASE +
@@ -1708,9 +1708,9 @@ static const struct net_device_ops xgbe_netdev_ops = {
 	.ndo_set_features	= xgbe_set_features,
 };
 
-struct net_device_ops *xgbe_get_netdev_ops(void)
+const struct net_device_ops *xgbe_get_netdev_ops(void)
 {
-	return (struct net_device_ops *)&xgbe_netdev_ops;
+	return &xgbe_netdev_ops;
 }
 
 static void xgbe_rx_refresh(struct xgbe_channel *channel)

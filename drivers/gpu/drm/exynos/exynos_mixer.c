@@ -31,6 +31,7 @@
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/component.h>
 
 #include <drm/exynos_drm.h>
@@ -103,8 +104,6 @@ struct mixer_context {
 
 	struct mixer_resources	mixer_res;
 	enum mixer_version_id	mxr_ver;
-	wait_queue_head_t	wait_vsync_queue;
-	atomic_t		wait_vsync_event;
 };
 
 struct mixer_drv_data {
@@ -478,6 +477,7 @@ static void vp_video_buffer(struct mixer_context *ctx,
 	struct drm_display_mode *mode = &state->base.crtc->state->adjusted_mode;
 	struct mixer_resources *res = &ctx->mixer_res;
 	struct drm_framebuffer *fb = state->base.fb;
+	unsigned int priority = state->base.normalized_zpos + 1;
 	unsigned long flags;
 	dma_addr_t luma_addr[2], chroma_addr[2];
 	bool tiled_mode = false;
@@ -562,7 +562,7 @@ static void vp_video_buffer(struct mixer_context *ctx,
 
 	mixer_cfg_scan(ctx, mode->vdisplay);
 	mixer_cfg_rgb_fmt(ctx, mode->vdisplay);
-	mixer_cfg_layer(ctx, plane->index, state->zpos + 1, true);
+	mixer_cfg_layer(ctx, plane->index, priority, true);
 	mixer_cfg_vp_blend(ctx);
 	mixer_run(ctx);
 
@@ -587,6 +587,7 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	struct drm_display_mode *mode = &state->base.crtc->state->adjusted_mode;
 	struct mixer_resources *res = &ctx->mixer_res;
 	struct drm_framebuffer *fb = state->base.fb;
+	unsigned int priority = state->base.normalized_zpos + 1;
 	unsigned long flags;
 	unsigned int win = plane->index;
 	unsigned int x_ratio = 0, y_ratio = 0;
@@ -678,7 +679,7 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 
 	mixer_cfg_scan(ctx, mode->vdisplay);
 	mixer_cfg_rgb_fmt(ctx, mode->vdisplay);
-	mixer_cfg_layer(ctx, win, state->zpos + 1, true);
+	mixer_cfg_layer(ctx, win, priority, true);
 	mixer_cfg_gfx_blend(ctx, win, is_alpha_format(fb->pixel_format));
 
 	/* layer update mandatory for mixer 16.0.33.0 */
@@ -786,12 +787,6 @@ static irqreturn_t mixer_irq_handler(int irq, void *arg)
 				continue;
 
 			exynos_drm_crtc_finish_update(ctx->crtc, plane);
-		}
-
-		/* set wait vsync event to zero and wake up queue. */
-		if (atomic_read(&ctx->wait_vsync_event)) {
-			atomic_set(&ctx->wait_vsync_event, 0);
-			wake_up(&ctx->wait_vsync_queue);
 		}
 	}
 
@@ -1027,34 +1022,6 @@ static void mixer_atomic_flush(struct exynos_drm_crtc *crtc)
 	mixer_vsync_set_update(mixer_ctx, true);
 }
 
-static void mixer_wait_for_vblank(struct exynos_drm_crtc *crtc)
-{
-	struct mixer_context *mixer_ctx = crtc->ctx;
-	int err;
-
-	if (!test_bit(MXR_BIT_POWERED, &mixer_ctx->flags))
-		return;
-
-	err = drm_vblank_get(mixer_ctx->drm_dev, mixer_ctx->pipe);
-	if (err < 0) {
-		DRM_DEBUG_KMS("failed to acquire vblank counter\n");
-		return;
-	}
-
-	atomic_set(&mixer_ctx->wait_vsync_event, 1);
-
-	/*
-	 * wait for MIXER to signal VSYNC interrupt or return after
-	 * timeout which is set to 50ms (refresh rate of 20).
-	 */
-	if (!wait_event_timeout(mixer_ctx->wait_vsync_queue,
-				!atomic_read(&mixer_ctx->wait_vsync_event),
-				HZ/20))
-		DRM_DEBUG_KMS("vblank wait timed out.\n");
-
-	drm_vblank_put(mixer_ctx->drm_dev, mixer_ctx->pipe);
-}
-
 static void mixer_enable(struct exynos_drm_crtc *crtc)
 {
 	struct mixer_context *ctx = crtc->ctx;
@@ -1064,6 +1031,8 @@ static void mixer_enable(struct exynos_drm_crtc *crtc)
 		return;
 
 	pm_runtime_get_sync(ctx->dev);
+
+	exynos_drm_pipe_clk_enable(crtc, true);
 
 	mixer_vsync_set_update(ctx, false);
 
@@ -1093,6 +1062,8 @@ static void mixer_disable(struct exynos_drm_crtc *crtc)
 
 	for (i = 0; i < MIXER_WIN_NR; i++)
 		mixer_disable_plane(crtc, &ctx->planes[i]);
+
+	exynos_drm_pipe_clk_enable(crtc, false);
 
 	pm_runtime_put(ctx->dev);
 
@@ -1126,7 +1097,6 @@ static const struct exynos_drm_crtc_ops mixer_crtc_ops = {
 	.disable		= mixer_disable,
 	.enable_vblank		= mixer_enable_vblank,
 	.disable_vblank		= mixer_disable_vblank,
-	.wait_for_vblank	= mixer_wait_for_vblank,
 	.atomic_begin		= mixer_atomic_begin,
 	.update_plane		= mixer_update_plane,
 	.disable_plane		= mixer_disable_plane,
@@ -1153,18 +1123,6 @@ static struct mixer_drv_data exynos4210_mxr_drv_data = {
 	.version = MXR_VER_0_0_0_16,
 	.is_vp_enabled = 1,
 	.has_sclk = 1,
-};
-
-static const struct platform_device_id mixer_driver_types[] = {
-	{
-		.name		= "s5p-mixer",
-		.driver_data	= (unsigned long)&exynos4210_mxr_drv_data,
-	}, {
-		.name		= "exynos5-mixer",
-		.driver_data	= (unsigned long)&exynos5250_mxr_drv_data,
-	}, {
-		/* end node */
-	}
 };
 
 static struct of_device_id mixer_match_types[] = {
@@ -1243,7 +1201,7 @@ static const struct component_ops mixer_component_ops = {
 static int mixer_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct mixer_drv_data *drv;
+	const struct mixer_drv_data *drv;
 	struct mixer_context *ctx;
 	int ret;
 
@@ -1253,23 +1211,13 @@ static int mixer_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	if (dev->of_node) {
-		const struct of_device_id *match;
-
-		match = of_match_node(mixer_match_types, dev->of_node);
-		drv = (struct mixer_drv_data *)match->data;
-	} else {
-		drv = (struct mixer_drv_data *)
-			platform_get_device_id(pdev)->driver_data;
-	}
+	drv = of_device_get_match_data(dev);
 
 	ctx->pdev = pdev;
 	ctx->dev = dev;
 	ctx->vp_enabled = drv->is_vp_enabled;
 	ctx->has_sclk = drv->has_sclk;
 	ctx->mxr_ver = drv->version;
-	init_waitqueue_head(&ctx->wait_vsync_queue);
-	atomic_set(&ctx->wait_vsync_event, 0);
 
 	platform_set_drvdata(pdev, ctx);
 
@@ -1355,5 +1303,4 @@ struct platform_driver mixer_driver = {
 	},
 	.probe = mixer_probe,
 	.remove = mixer_remove,
-	.id_table	= mixer_driver_types,
 };

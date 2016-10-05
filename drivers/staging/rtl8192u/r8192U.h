@@ -879,8 +879,7 @@ typedef struct r8192_priv {
 	/* If 1, allow bad crc frame, reception in monitor mode */
 	short crcmon;
 
-	struct semaphore wx_sem;
-	struct semaphore rf_sem;	/* Used to lock rf write operation */
+	struct mutex wx_mutex;
 
 	u8 rf_type;			/* 0: 1T2R, 1: 2T4R */
 	RT_RF_TYPE_819xU rf_chip;
@@ -1129,10 +1128,10 @@ int read_nic_byte(struct net_device *dev, int x, u8 *data);
 int read_nic_byte_E(struct net_device *dev, int x, u8 *data);
 int read_nic_dword(struct net_device *dev, int x, u32 *data);
 int read_nic_word(struct net_device *dev, int x, u16 *data);
-void write_nic_byte(struct net_device *dev, int x, u8 y);
-void write_nic_byte_E(struct net_device *dev, int x, u8 y);
-void write_nic_word(struct net_device *dev, int x, u16 y);
-void write_nic_dword(struct net_device *dev, int x, u32 y);
+int write_nic_byte(struct net_device *dev, int x, u8 y);
+int write_nic_byte_E(struct net_device *dev, int x, u8 y);
+int write_nic_word(struct net_device *dev, int x, u16 y);
+int write_nic_dword(struct net_device *dev, int x, u32 y);
 void force_pci_posting(struct net_device *dev);
 
 void rtl8192_rtx_disable(struct net_device *);

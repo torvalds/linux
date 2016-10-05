@@ -1688,8 +1688,8 @@ SYSCALL_DEFINE5(keyctl, int, option, unsigned long, arg2, unsigned long, arg3,
 
 	case KEYCTL_DH_COMPUTE:
 		return keyctl_dh_compute((struct keyctl_dh_params __user *) arg2,
-					 (char __user *) arg3,
-					 (size_t) arg4);
+					 (char __user *) arg3, (size_t) arg4,
+					 (void __user *) arg5);
 
 	default:
 		return -EOPNOTSUPP;

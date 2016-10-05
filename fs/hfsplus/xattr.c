@@ -424,7 +424,7 @@ static int copy_name(char *buffer, const char *xattr_name, int name_len)
 	return len;
 }
 
-int hfsplus_setxattr(struct dentry *dentry, const char *name,
+int hfsplus_setxattr(struct inode *inode, const char *name,
 		     const void *value, size_t size, int flags,
 		     const char *prefix, size_t prefixlen)
 {
@@ -437,8 +437,7 @@ int hfsplus_setxattr(struct dentry *dentry, const char *name,
 		return -ENOMEM;
 	strcpy(xattr_name, prefix);
 	strcpy(xattr_name + prefixlen, name);
-	res = __hfsplus_setxattr(d_inode(dentry), xattr_name, value, size,
-				 flags);
+	res = __hfsplus_setxattr(inode, xattr_name, value, size, flags);
 	kfree(xattr_name);
 	return res;
 }
@@ -864,8 +863,9 @@ static int hfsplus_osx_getxattr(const struct xattr_handler *handler,
 }
 
 static int hfsplus_osx_setxattr(const struct xattr_handler *handler,
-				struct dentry *dentry, const char *name,
-				const void *buffer, size_t size, int flags)
+				struct dentry *unused, struct inode *inode,
+				const char *name, const void *buffer,
+				size_t size, int flags)
 {
 	/*
 	 * Don't allow setting properly prefixed attributes
@@ -880,7 +880,7 @@ static int hfsplus_osx_setxattr(const struct xattr_handler *handler,
 	 * creates), so we pass the name through unmodified (after
 	 * ensuring it doesn't conflict with another namespace).
 	 */
-	return __hfsplus_setxattr(d_inode(dentry), name, buffer, size, flags);
+	return __hfsplus_setxattr(inode, name, buffer, size, flags);
 }
 
 const struct xattr_handler hfsplus_xattr_osx_handler = {

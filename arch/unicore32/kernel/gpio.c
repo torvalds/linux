@@ -27,7 +27,7 @@ static const struct gpio_led puv3_gpio_leds[] = {
 	{ .name = "cpuhealth", .gpio = GPO_CPU_HEALTH, .active_low = 0,
 		.default_trigger = "heartbeat",	},
 	{ .name = "hdd_led", .gpio = GPO_HDD_LED, .active_low = 1,
-		.default_trigger = "ide-disk", },
+		.default_trigger = "disk-activity", },
 };
 
 static const struct gpio_led_platform_data puv3_gpio_led_data = {

@@ -169,8 +169,12 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	}
 
 	if (ah_attr->ah_flags & IB_AH_GRH) {
-		qib_copy_sge(&qp->r_sge, &ah_attr->grh,
-			     sizeof(struct ib_grh), 1);
+		struct ib_grh grh;
+		struct ib_global_route grd = ah_attr->grh;
+
+		qib_make_grh(ibp, &grh, &grd, 0, 0);
+		qib_copy_sge(&qp->r_sge, &grh,
+			     sizeof(grh), 1);
 		wc.wc_flags |= IB_WC_GRH;
 	} else
 		qib_skip_sge(&qp->r_sge, sizeof(struct ib_grh), 1);
@@ -241,7 +245,7 @@ drop:
 int qib_make_ud_req(struct rvt_qp *qp, unsigned long *flags)
 {
 	struct qib_qp_priv *priv = qp->priv;
-	struct qib_other_headers *ohdr;
+	struct ib_other_headers *ohdr;
 	struct ib_ah_attr *ah_attr;
 	struct qib_pportdata *ppd;
 	struct qib_ibport *ibp;
@@ -431,10 +435,10 @@ static unsigned qib_lookup_pkey(struct qib_ibport *ibp, u16 pkey)
  * for the given QP.
  * Called at interrupt level.
  */
-void qib_ud_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
+void qib_ud_rcv(struct qib_ibport *ibp, struct ib_header *hdr,
 		int has_grh, void *data, u32 tlen, struct rvt_qp *qp)
 {
-	struct qib_other_headers *ohdr;
+	struct ib_other_headers *ohdr;
 	int opcode;
 	u32 hdrsize;
 	u32 pad;

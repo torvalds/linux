@@ -15,7 +15,6 @@ int nvkm_xtensa_new_(const struct nvkm_xtensa_func *, struct nvkm_device *,
 		     int index, bool enable, u32 addr, struct nvkm_engine **);
 
 struct nvkm_xtensa_func {
-	u32 pmc_enable;
 	u32 fifo_val;
 	u32 unkd28;
 	struct nvkm_sclass sclass[];

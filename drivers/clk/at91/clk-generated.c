@@ -233,14 +233,16 @@ static void clk_generated_startup(struct clk_generated *gck)
 					>> AT91_PMC_PCR_GCKDIV_OFFSET;
 }
 
-static struct clk * __init
-at91_clk_register_generated(struct regmap *regmap,  spinlock_t *lock, const char
-			    *name, const char **parent_names, u8 num_parents,
-			    u8 id, const struct clk_range *range)
+static struct clk_hw * __init
+at91_clk_register_generated(struct regmap *regmap, spinlock_t *lock,
+			    const char *name, const char **parent_names,
+			    u8 num_parents, u8 id,
+			    const struct clk_range *range)
 {
 	struct clk_generated *gck;
-	struct clk *clk = NULL;
 	struct clk_init_data init;
+	struct clk_hw *hw;
+	int ret;
 
 	gck = kzalloc(sizeof(*gck), GFP_KERNEL);
 	if (!gck)
@@ -258,21 +260,23 @@ at91_clk_register_generated(struct regmap *regmap,  spinlock_t *lock, const char
 	gck->lock = lock;
 	gck->range = *range;
 
-	clk = clk_register(NULL, &gck->hw);
-	if (IS_ERR(clk))
+	hw = &gck->hw;
+	ret = clk_hw_register(NULL, &gck->hw);
+	if (ret) {
 		kfree(gck);
-	else
+		hw = ERR_PTR(ret);
+	} else
 		clk_generated_startup(gck);
 
-	return clk;
+	return hw;
 }
 
-void __init of_sama5d2_clk_generated_setup(struct device_node *np)
+static void __init of_sama5d2_clk_generated_setup(struct device_node *np)
 {
 	int num;
 	u32 id;
 	const char *name;
-	struct clk *clk;
+	struct clk_hw *hw;
 	unsigned int num_parents;
 	const char *parent_names[GENERATED_SOURCE_MAX];
 	struct device_node *gcknp;
@@ -306,13 +310,13 @@ void __init of_sama5d2_clk_generated_setup(struct device_node *np)
 		of_at91_get_clk_range(gcknp, "atmel,clk-output-range",
 				      &range);
 
-		clk = at91_clk_register_generated(regmap, &pmc_pcr_lock, name,
+		hw = at91_clk_register_generated(regmap, &pmc_pcr_lock, name,
 						  parent_names, num_parents,
 						  id, &range);
-		if (IS_ERR(clk))
+		if (IS_ERR(hw))
 			continue;
 
-		of_clk_add_provider(gcknp, of_clk_src_simple_get, clk);
+		of_clk_add_hw_provider(gcknp, of_clk_hw_simple_get, hw);
 	}
 }
 CLK_OF_DECLARE(of_sama5d2_clk_generated_setup, "atmel,sama5d2-clk-generated",

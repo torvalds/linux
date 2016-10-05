@@ -1,0 +1,14 @@
+config DRM_SUN4I
+	tristate "DRM Support for Allwinner A10 Display Engine"
+	depends on DRM && ARM && COMMON_CLK
+	depends on ARCH_SUNXI || COMPILE_TEST
+	select DRM_GEM_CMA_HELPER
+	select DRM_KMS_HELPER
+	select DRM_KMS_CMA_HELPER
+	select DRM_PANEL
+	select REGMAP_MMIO
+	select VIDEOMODE_HELPERS
+	help
+	  Choose this option if you have an Allwinner SoC with a
+	  Display Engine. If M is selected the module will be called
+	  sun4i-drm.

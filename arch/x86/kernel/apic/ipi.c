@@ -8,7 +8,6 @@
 #include <linux/mc146818rtc.h>
 #include <linux/cache.h>
 #include <linux/cpu.h>
-#include <linux/module.h>
 
 #include <asm/smp.h>
 #include <asm/mtrr.h>

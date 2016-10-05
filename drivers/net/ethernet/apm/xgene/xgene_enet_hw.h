@@ -104,6 +104,8 @@ enum xgene_enet_rm {
 #define RECOMBBUF		BIT(27)
 
 #define MAC_OFFSET			0x30
+#define OFFSET_4			0x04
+#define OFFSET_8			0x08
 
 #define BLOCK_ETH_CSR_OFFSET		0x2000
 #define BLOCK_ETH_CLE_CSR_OFFSET	0x6000
@@ -121,6 +123,12 @@ enum xgene_enet_rm {
 #define MAC_WRITE_REG_OFFSET		0x08
 #define MAC_READ_REG_OFFSET		0x0c
 #define MAC_COMMAND_DONE_REG_OFFSET	0x10
+
+#define PCS_ADDR_REG_OFFSET		0x00
+#define PCS_COMMAND_REG_OFFSET		0x04
+#define PCS_WRITE_REG_OFFSET		0x08
+#define PCS_READ_REG_OFFSET		0x0c
+#define PCS_COMMAND_DONE_REG_OFFSET	0x10
 
 #define MII_MGMT_CONFIG_ADDR		0x20
 #define MII_MGMT_COMMAND_ADDR		0x24
@@ -165,6 +173,8 @@ enum xgene_enet_rm {
 #define TX_DV_GATE_EN0			BIT(2)
 #define RX_DV_GATE_EN0			BIT(1)
 #define RESUME_RX0			BIT(0)
+#define ENET_CFGSSQMIFPRESET_ADDR		0x14
+#define ENET_CFGSSQMIWQRESET_ADDR		0x1c
 #define ENET_CFGSSQMIWQASSOC_ADDR		0xe0
 #define ENET_CFGSSQMIFPQASSOC_ADDR		0xdc
 #define ENET_CFGSSQMIQMLITEFPQASSOC_ADDR	0xf0
@@ -227,6 +237,8 @@ enum xgene_enet_rm {
 #define TCPHDR_LEN			6
 #define IPHDR_POS			6
 #define IPHDR_LEN			6
+#define MSS_POS				20
+#define MSS_LEN				2
 #define EC_POS				22	/* Enable checksum */
 #define EC_LEN				1
 #define ET_POS				23	/* Enable TSO */
@@ -242,6 +254,11 @@ enum xgene_enet_rm {
 #define DATALEN_MASK			GENMASK(11, 0)
 
 #define LAST_BUFFER			(0x7800ULL << BUFDATALEN_POS)
+
+#define TSO_MSS0_POS			0
+#define TSO_MSS0_LEN			14
+#define TSO_MSS1_POS			16
+#define TSO_MSS1_LEN			14
 
 struct xgene_enet_raw_desc {
 	__le64 m0;
@@ -297,11 +314,6 @@ enum xgene_enet_ring_bufnum {
 	RING_BUFNUM_INVALID
 };
 
-enum xgene_enet_cmd {
-	XGENE_ENET_WR_CMD = BIT(31),
-	XGENE_ENET_RD_CMD = BIT(30)
-};
-
 enum xgene_enet_err_code {
 	HBF_READ_DATA = 3,
 	HBF_LL_READ = 4,
@@ -347,6 +359,8 @@ void xgene_enet_parse_error(struct xgene_enet_desc_ring *ring,
 int xgene_enet_mdio_config(struct xgene_enet_pdata *pdata);
 void xgene_enet_mdio_remove(struct xgene_enet_pdata *pdata);
 bool xgene_ring_mgr_init(struct xgene_enet_pdata *p);
+int xgene_enet_phy_connect(struct net_device *ndev);
+void xgene_enet_phy_disconnect(struct xgene_enet_pdata *pdata);
 
 extern const struct xgene_mac_ops xgene_gmac_ops;
 extern const struct xgene_port_ops xgene_gport_ops;

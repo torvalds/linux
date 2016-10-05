@@ -48,9 +48,12 @@
 #define CP0_CONF $3
 #define CP0_CONTEXT $4
 #define CP0_PAGEMASK $5
+#define CP0_SEGCTL0 $5, 2
+#define CP0_SEGCTL1 $5, 3
+#define CP0_SEGCTL2 $5, 4
 #define CP0_WIRED $6
 #define CP0_INFO $7
-#define CP0_HWRENA $7, 0
+#define CP0_HWRENA $7
 #define CP0_BADVADDR $8
 #define CP0_BADINSTR $8, 1
 #define CP0_COUNT $9
@@ -530,6 +533,7 @@
 #define TX49_CONF_CWFON		(_ULCAST_(1) << 27)
 
 /* Bits specific to the MIPS32/64 PRA.	*/
+#define MIPS_CONF_VI		(_ULCAST_(1) <<  3)
 #define MIPS_CONF_MT		(_ULCAST_(7) <<	 7)
 #define MIPS_CONF_MT_TLB	(_ULCAST_(1) <<  7)
 #define MIPS_CONF_MT_FTLB	(_ULCAST_(4) <<  7)
@@ -656,8 +660,6 @@
 
 #define MIPS_CONF7_IAR		(_ULCAST_(1) << 10)
 #define MIPS_CONF7_AR		(_ULCAST_(1) << 16)
-/* FTLB probability bits for R6 */
-#define MIPS_CONF7_FTLBP_SHIFT	(18)
 
 /* WatchLo* register definitions */
 #define MIPS_WATCHLO_IRW	(_ULCAST_(0x7) << 0)
@@ -726,6 +728,8 @@
 #define MIPS_PWFIELD_PTEI_SHIFT	0
 #define MIPS_PWFIELD_PTEI_MASK	0x0000003f
 
+#define MIPS_PWSIZE_PS_SHIFT	30
+#define MIPS_PWSIZE_PS_MASK	0x40000000
 #define MIPS_PWSIZE_GDW_SHIFT	24
 #define MIPS_PWSIZE_GDW_MASK	0x3f000000
 #define MIPS_PWSIZE_UDW_SHIFT	18
@@ -739,6 +743,12 @@
 
 #define MIPS_PWCTL_PWEN_SHIFT	31
 #define MIPS_PWCTL_PWEN_MASK	0x80000000
+#define MIPS_PWCTL_XK_SHIFT	28
+#define MIPS_PWCTL_XK_MASK	0x10000000
+#define MIPS_PWCTL_XS_SHIFT	27
+#define MIPS_PWCTL_XS_MASK	0x08000000
+#define MIPS_PWCTL_XU_SHIFT	26
+#define MIPS_PWCTL_XU_MASK	0x04000000
 #define MIPS_PWCTL_DPH_SHIFT	7
 #define MIPS_PWCTL_DPH_MASK	0x00000080
 #define MIPS_PWCTL_HUGEPG_SHIFT	6
@@ -841,6 +851,24 @@
 #define MIPS_CDMMBASE_EN	(_ULCAST_(1) << 10)
 #define MIPS_CDMMBASE_ADDR_SHIFT 11
 #define MIPS_CDMMBASE_ADDR_START 15
+
+/* RDHWR register numbers */
+#define MIPS_HWR_CPUNUM		0	/* CPU number */
+#define MIPS_HWR_SYNCISTEP	1	/* SYNCI step size */
+#define MIPS_HWR_CC		2	/* Cycle counter */
+#define MIPS_HWR_CCRES		3	/* Cycle counter resolution */
+#define MIPS_HWR_ULR		29	/* UserLocal */
+#define MIPS_HWR_IMPL1		30	/* Implementation dependent */
+#define MIPS_HWR_IMPL2		31	/* Implementation dependent */
+
+/* Bits in HWREna register */
+#define MIPS_HWRENA_CPUNUM	(_ULCAST_(1) << MIPS_HWR_CPUNUM)
+#define MIPS_HWRENA_SYNCISTEP	(_ULCAST_(1) << MIPS_HWR_SYNCISTEP)
+#define MIPS_HWRENA_CC		(_ULCAST_(1) << MIPS_HWR_CC)
+#define MIPS_HWRENA_CCRES	(_ULCAST_(1) << MIPS_HWR_CCRES)
+#define MIPS_HWRENA_ULR		(_ULCAST_(1) << MIPS_HWR_ULR)
+#define MIPS_HWRENA_IMPL1	(_ULCAST_(1) << MIPS_HWR_IMPL1)
+#define MIPS_HWRENA_IMPL2	(_ULCAST_(1) << MIPS_HWR_IMPL2)
 
 /*
  * Bitfields in the TX39 family CP0 Configuration Register 3
@@ -1046,6 +1074,33 @@ static inline int mm_insn_16bit(u16 insn)
 }
 
 /*
+ * Helper macros for generating raw instruction encodings in inline asm.
+ */
+#ifdef CONFIG_CPU_MICROMIPS
+#define _ASM_INSN16_IF_MM(_enc)			\
+	".insn\n\t"				\
+	".hword (" #_enc ")\n\t"
+#define _ASM_INSN32_IF_MM(_enc)			\
+	".insn\n\t"				\
+	".hword ((" #_enc ") >> 16)\n\t"	\
+	".hword ((" #_enc ") & 0xffff)\n\t"
+#else
+#define _ASM_INSN_IF_MIPS(_enc)			\
+	".insn\n\t"				\
+	".word (" #_enc ")\n\t"
+#endif
+
+#ifndef _ASM_INSN16_IF_MM
+#define _ASM_INSN16_IF_MM(_enc)
+#endif
+#ifndef _ASM_INSN32_IF_MM
+#define _ASM_INSN32_IF_MM(_enc)
+#endif
+#ifndef _ASM_INSN_IF_MIPS
+#define _ASM_INSN_IF_MIPS(_enc)
+#endif
+
+/*
  * TLB Invalidate Flush
  */
 static inline void tlbinvf(void)
@@ -1053,7 +1108,9 @@ static inline void tlbinvf(void)
 	__asm__ __volatile__(
 		".set push\n\t"
 		".set noreorder\n\t"
-		".word 0x42000004\n\t" /* tlbinvf */
+		"# tlbinvf\n\t"
+		_ASM_INSN_IF_MIPS(0x42000004)
+		_ASM_INSN32_IF_MM(0x0000537c)
 		".set pop");
 }
 
@@ -1274,9 +1331,9 @@ do {									\
 	"	.set	push					\n"	\
 	"	.set	noat					\n"	\
 	"	.set	mips32r2				\n"	\
-	"	.insn						\n"	\
 	"	# mfhc0 $1, %1					\n"	\
-	"	.word	(0x40410000 | ((%1 & 0x1f) << 11))	\n"	\
+	_ASM_INSN_IF_MIPS(0x40410000 | ((%1 & 0x1f) << 11))		\
+	_ASM_INSN32_IF_MM(0x002000f4 | ((%1 & 0x1f) << 16))		\
 	"	move	%0, $1					\n"	\
 	"	.set	pop					\n"	\
 	: "=r" (__res)							\
@@ -1292,8 +1349,8 @@ do {									\
 	"	.set	mips32r2				\n"	\
 	"	move	$1, %0					\n"	\
 	"	# mthc0 $1, %1					\n"	\
-	"	.insn						\n"	\
-	"	.word	(0x40c10000 | ((%1 & 0x1f) << 11))	\n"	\
+	_ASM_INSN_IF_MIPS(0x40c10000 | ((%1 & 0x1f) << 11))		\
+	_ASM_INSN32_IF_MM(0x002002f4 | ((%1 & 0x1f) << 16))		\
 	"	.set	pop					\n"	\
 	:								\
 	: "r" (value), "i" (register));					\
@@ -1743,7 +1800,8 @@ do {									\
 		".set\tpush\n\t"					\
 		".set\tnoat\n\t"					\
 		"# mfgc0\t$1, $%1, %2\n\t"				\
-		".word\t(0x40610000 | %1 << 11 | %2)\n\t"		\
+		_ASM_INSN_IF_MIPS(0x40610000 | %1 << 11 | %2)		\
+		_ASM_INSN32_IF_MM(0x002004fc | %1 << 16 | %2 << 11)	\
 		"move\t%0, $1\n\t"					\
 		".set\tpop"						\
 		: "=r" (__res)						\
@@ -1757,7 +1815,8 @@ do {									\
 		".set\tpush\n\t"					\
 		".set\tnoat\n\t"					\
 		"# dmfgc0\t$1, $%1, %2\n\t"				\
-		".word\t(0x40610100 | %1 << 11 | %2)\n\t"		\
+		_ASM_INSN_IF_MIPS(0x40610100 | %1 << 11 | %2)		\
+		_ASM_INSN32_IF_MM(0x582004fc | %1 << 16 | %2 << 11)	\
 		"move\t%0, $1\n\t"					\
 		".set\tpop"						\
 		: "=r" (__res)						\
@@ -1770,9 +1829,10 @@ do {									\
 	__asm__ __volatile__(						\
 		".set\tpush\n\t"					\
 		".set\tnoat\n\t"					\
-		"move\t$1, %0\n\t"					\
+		"move\t$1, %z0\n\t"					\
 		"# mtgc0\t$1, $%1, %2\n\t"				\
-		".word\t(0x40610200 | %1 << 11 | %2)\n\t"		\
+		_ASM_INSN_IF_MIPS(0x40610200 | %1 << 11 | %2)		\
+		_ASM_INSN32_IF_MM(0x002006fc | %1 << 16 | %2 << 11)	\
 		".set\tpop"						\
 		: : "Jr" ((unsigned int)(value)),			\
 		    "i" (register), "i" (sel));				\
@@ -1783,9 +1843,10 @@ do {									\
 	__asm__ __volatile__(						\
 		".set\tpush\n\t"					\
 		".set\tnoat\n\t"					\
-		"move\t$1, %0\n\t"					\
+		"move\t$1, %z0\n\t"					\
 		"# dmtgc0\t$1, $%1, %2\n\t"				\
-		".word\t(0x40610300 | %1 << 11 | %2)\n\t"		\
+		_ASM_INSN_IF_MIPS(0x40610300 | %1 << 11 | %2)		\
+		_ASM_INSN32_IF_MM(0x582006fc | %1 << 16 | %2 << 11)	\
 		".set\tpop"						\
 		: : "Jr" (value),					\
 		    "i" (register), "i" (sel));				\
@@ -2246,7 +2307,6 @@ do {									\
 
 #else
 
-#ifdef CONFIG_CPU_MICROMIPS
 #define rddsp(mask)							\
 ({									\
 	unsigned int __res;						\
@@ -2255,8 +2315,8 @@ do {									\
 	"	.set	push					\n"	\
 	"	.set	noat					\n"	\
 	"	# rddsp $1, %x1					\n"	\
-	"	.hword	((0x0020067c | (%x1 << 14)) >> 16)	\n"	\
-	"	.hword	((0x0020067c | (%x1 << 14)) & 0xffff)	\n"	\
+	_ASM_INSN_IF_MIPS(0x7c000cb8 | (%x1 << 16))			\
+	_ASM_INSN32_IF_MM(0x0020067c | (%x1 << 14))			\
 	"	move	%0, $1					\n"	\
 	"	.set	pop					\n"	\
 	: "=r" (__res)							\
@@ -2271,95 +2331,10 @@ do {									\
 	"	.set	noat					\n"	\
 	"	move	$1, %0					\n"	\
 	"	# wrdsp $1, %x1					\n"	\
-	"	.hword	((0x0020167c | (%x1 << 14)) >> 16)	\n"	\
-	"	.hword	((0x0020167c | (%x1 << 14)) & 0xffff)	\n"	\
+	_ASM_INSN_IF_MIPS(0x7c2004f8 | (%x1 << 11))			\
+	_ASM_INSN32_IF_MM(0x0020167c | (%x1 << 14))			\
 	"	.set	pop					\n"	\
 	:								\
-	: "r" (val), "i" (mask));					\
-} while (0)
-
-#define _umips_dsp_mfxxx(ins)						\
-({									\
-	unsigned long __treg;						\
-									\
-	__asm__ __volatile__(						\
-	"	.set	push					\n"	\
-	"	.set	noat					\n"	\
-	"	.hword	0x0001					\n"	\
-	"	.hword	%x1					\n"	\
-	"	move	%0, $1					\n"	\
-	"	.set	pop					\n"	\
-	: "=r" (__treg)							\
-	: "i" (ins));							\
-	__treg;								\
-})
-
-#define _umips_dsp_mtxxx(val, ins)					\
-do {									\
-	__asm__ __volatile__(						\
-	"	.set	push					\n"	\
-	"	.set	noat					\n"	\
-	"	move	$1, %0					\n"	\
-	"	.hword	0x0001					\n"	\
-	"	.hword	%x1					\n"	\
-	"	.set	pop					\n"	\
-	:								\
-	: "r" (val), "i" (ins));					\
-} while (0)
-
-#define _umips_dsp_mflo(reg) _umips_dsp_mfxxx((reg << 14) | 0x107c)
-#define _umips_dsp_mfhi(reg) _umips_dsp_mfxxx((reg << 14) | 0x007c)
-
-#define _umips_dsp_mtlo(val, reg) _umips_dsp_mtxxx(val, ((reg << 14) | 0x307c))
-#define _umips_dsp_mthi(val, reg) _umips_dsp_mtxxx(val, ((reg << 14) | 0x207c))
-
-#define mflo0() _umips_dsp_mflo(0)
-#define mflo1() _umips_dsp_mflo(1)
-#define mflo2() _umips_dsp_mflo(2)
-#define mflo3() _umips_dsp_mflo(3)
-
-#define mfhi0() _umips_dsp_mfhi(0)
-#define mfhi1() _umips_dsp_mfhi(1)
-#define mfhi2() _umips_dsp_mfhi(2)
-#define mfhi3() _umips_dsp_mfhi(3)
-
-#define mtlo0(x) _umips_dsp_mtlo(x, 0)
-#define mtlo1(x) _umips_dsp_mtlo(x, 1)
-#define mtlo2(x) _umips_dsp_mtlo(x, 2)
-#define mtlo3(x) _umips_dsp_mtlo(x, 3)
-
-#define mthi0(x) _umips_dsp_mthi(x, 0)
-#define mthi1(x) _umips_dsp_mthi(x, 1)
-#define mthi2(x) _umips_dsp_mthi(x, 2)
-#define mthi3(x) _umips_dsp_mthi(x, 3)
-
-#else  /* !CONFIG_CPU_MICROMIPS */
-#define rddsp(mask)							\
-({									\
-	unsigned int __res;						\
-									\
-	__asm__ __volatile__(						\
-	"	.set	push				\n"		\
-	"	.set	noat				\n"		\
-	"	# rddsp $1, %x1				\n"		\
-	"	.word	0x7c000cb8 | (%x1 << 16)	\n"		\
-	"	move	%0, $1				\n"		\
-	"	.set	pop				\n"		\
-	: "=r" (__res)							\
-	: "i" (mask));							\
-	__res;								\
-})
-
-#define wrdsp(val, mask)						\
-do {									\
-	__asm__ __volatile__(						\
-	"	.set	push					\n"	\
-	"	.set	noat					\n"	\
-	"	move	$1, %0					\n"	\
-	"	# wrdsp $1, %x1					\n"	\
-	"	.word	0x7c2004f8 | (%x1 << 11)		\n"	\
-	"	.set	pop					\n"	\
-        :								\
 	: "r" (val), "i" (mask));					\
 } while (0)
 
@@ -2370,7 +2345,8 @@ do {									\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
 	"	.set	noat					\n"	\
-	"	.word	(0x00000810 | %1)			\n"	\
+	_ASM_INSN_IF_MIPS(0x00000810 | %X1)				\
+	_ASM_INSN32_IF_MM(0x0001007c | %x1)				\
 	"	move	%0, $1					\n"	\
 	"	.set	pop					\n"	\
 	: "=r" (__treg)							\
@@ -2384,17 +2360,30 @@ do {									\
 	"	.set	push					\n"	\
 	"	.set	noat					\n"	\
 	"	move	$1, %0					\n"	\
-	"	.word	(0x00200011 | %1)			\n"	\
+	_ASM_INSN_IF_MIPS(0x00200011 | %X1)				\
+	_ASM_INSN32_IF_MM(0x0001207c | %x1)				\
 	"	.set	pop					\n"	\
 	:								\
 	: "r" (val), "i" (ins));					\
 } while (0)
+
+#ifdef CONFIG_CPU_MICROMIPS
+
+#define _dsp_mflo(reg) _dsp_mfxxx((reg << 14) | 0x1000)
+#define _dsp_mfhi(reg) _dsp_mfxxx((reg << 14) | 0x0000)
+
+#define _dsp_mtlo(val, reg) _dsp_mtxxx(val, ((reg << 14) | 0x1000))
+#define _dsp_mthi(val, reg) _dsp_mtxxx(val, ((reg << 14) | 0x0000))
+
+#else  /* !CONFIG_CPU_MICROMIPS */
 
 #define _dsp_mflo(reg) _dsp_mfxxx((reg << 21) | 0x0002)
 #define _dsp_mfhi(reg) _dsp_mfxxx((reg << 21) | 0x0000)
 
 #define _dsp_mtlo(val, reg) _dsp_mtxxx(val, ((reg << 11) | 0x0002))
 #define _dsp_mthi(val, reg) _dsp_mtxxx(val, ((reg << 11) | 0x0000))
+
+#endif /* CONFIG_CPU_MICROMIPS */
 
 #define mflo0() _dsp_mflo(0)
 #define mflo1() _dsp_mflo(1)
@@ -2416,7 +2405,6 @@ do {									\
 #define mthi2(x) _dsp_mthi(x, 2)
 #define mthi3(x) _dsp_mthi(x, 3)
 
-#endif /* CONFIG_CPU_MICROMIPS */
 #endif
 
 /*
@@ -2556,28 +2544,32 @@ static inline void guest_tlb_probe(void)
 {
 	__asm__ __volatile__(
 		"# tlbgp\n\t"
-		".word 0x42000010");
+		_ASM_INSN_IF_MIPS(0x42000010)
+		_ASM_INSN32_IF_MM(0x0000017c));
 }
 
 static inline void guest_tlb_read(void)
 {
 	__asm__ __volatile__(
 		"# tlbgr\n\t"
-		".word 0x42000009");
+		_ASM_INSN_IF_MIPS(0x42000009)
+		_ASM_INSN32_IF_MM(0x0000117c));
 }
 
 static inline void guest_tlb_write_indexed(void)
 {
 	__asm__ __volatile__(
 		"# tlbgwi\n\t"
-		".word 0x4200000a");
+		_ASM_INSN_IF_MIPS(0x4200000a)
+		_ASM_INSN32_IF_MM(0x0000217c));
 }
 
 static inline void guest_tlb_write_random(void)
 {
 	__asm__ __volatile__(
 		"# tlbgwr\n\t"
-		".word 0x4200000e");
+		_ASM_INSN_IF_MIPS(0x4200000e)
+		_ASM_INSN32_IF_MM(0x0000317c));
 }
 
 /*
@@ -2587,7 +2579,8 @@ static inline void guest_tlbinvf(void)
 {
 	__asm__ __volatile__(
 		"# tlbginvf\n\t"
-		".word 0x4200000c");
+		_ASM_INSN_IF_MIPS(0x4200000c)
+		_ASM_INSN32_IF_MM(0x0000517c));
 }
 
 #endif	/* !TOOLCHAIN_SUPPORTS_VIRT */

@@ -233,17 +233,6 @@ int db_export__symbol(struct db_export *dbe, struct symbol *sym,
 	return 0;
 }
 
-static struct thread *get_main_thread(struct machine *machine, struct thread *thread)
-{
-	if (thread->pid_ == thread->tid)
-		return thread__get(thread);
-
-	if (thread->pid_ == -1)
-		return NULL;
-
-	return machine__find_thread(machine, thread->pid_, thread->pid_);
-}
-
 static int db_ids_from_al(struct db_export *dbe, struct addr_location *al,
 			  u64 *dso_db_id, u64 *sym_db_id, u64 *offset)
 {
@@ -298,8 +287,7 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 	 */
 	callchain_param.order = ORDER_CALLER;
 	err = thread__resolve_callchain(thread, &callchain_cursor, evsel,
-					sample, NULL, NULL,
-					sysctl_perf_event_max_stack);
+					sample, NULL, NULL, PERF_MAX_STACK_DEPTH);
 	if (err) {
 		callchain_param.order = saved_order;
 		return NULL;
@@ -383,7 +371,7 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 	if (err)
 		return err;
 
-	main_thread = get_main_thread(al->machine, thread);
+	main_thread = thread__main_thread(al->machine, thread);
 	if (main_thread)
 		comm = machine__thread_exec_comm(al->machine, main_thread);
 

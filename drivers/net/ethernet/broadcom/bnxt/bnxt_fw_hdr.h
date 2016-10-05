@@ -11,6 +11,7 @@
 #define __BNXT_FW_HDR_H__
 
 #define BNXT_FIRMWARE_BIN_SIGNATURE     0x1a4d4342	/* "BCM"+0x1a */
+#define BNXT_UCODE_TRAILER_SIGNATURE	0x726c7254	/* "Trlr" */
 
 enum SUPPORTED_FAMILY {
 	DEVICE_5702_3_4_FAMILY,		/* 0  - Denali, Vinson, K2 */
@@ -70,6 +71,7 @@ enum SUPPORTED_CODE {
 	CODE_KONG_PATCH,	/* 18 - KONG Patch firmware */
 	CODE_BONO_FW,		/* 19 - BONO firmware */
 	CODE_BONO_PATCH,	/* 20 - BONO Patch firmware */
+	CODE_CHIMP_PATCH,	/* 21 - ChiMP Patch firmware */
 
 	MAX_CODE_TYPE,
 };
@@ -84,7 +86,7 @@ enum SUPPORTED_MEDIA {
 
 struct bnxt_fw_header {
 	__le32 signature;	/* constains the constant value of
-				 * BNXT_Firmware_Bin_Signatures
+				 * BNXT_FIRMWARE_BIN_SIGNATURE
 				 */
 	u8 flags;		/* reserved for ChiMP use */
 	u8 code_type;		/* enum SUPPORTED_CODE */
@@ -99,6 +101,19 @@ struct bnxt_fw_header {
 	u8 revision;
 	u8 minor_ver;
 	u8 major_ver;
+};
+
+/* Microcode and pre-boot software/firmware trailer: */
+struct bnxt_ucode_trailer {
+	u8 rsa_sig[256];
+	__le16 flags;
+	u8 version_format;
+	u8 version_length;
+	u8 version[16];
+	__le16 dir_type;
+	__le16 trailer_length;
+	__le32 sig;		/* BNXT_UCODE_TRAILER_SIGNATURE */
+	__le32 chksum;		/* CRC-32 */
 };
 
 #endif

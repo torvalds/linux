@@ -643,10 +643,6 @@ ssize_t afs_file_write(struct kiocb *iocb, struct iov_iter *from)
 		return 0;
 
 	result = generic_file_write_iter(iocb, from);
-	if (IS_ERR_VALUE(result)) {
-		_leave(" = %zd", result);
-		return result;
-	}
 
 	_leave(" = %zd", result);
 	return result;

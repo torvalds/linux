@@ -79,6 +79,7 @@ static int i40iw_query_device(struct ib_device *ibdev,
 	props->max_qp_init_rd_atom = props->max_qp_rd_atom;
 	props->atomic_cap = IB_ATOMIC_NONE;
 	props->max_map_per_fmr = 1;
+	props->max_fast_reg_page_list_len = I40IW_MAX_PAGES_PER_FMR;
 	return 0;
 }
 
@@ -528,7 +529,7 @@ static int i40iw_setup_kmode_qp(struct i40iw_device *iwdev,
 		status = i40iw_get_wqe_shift(rq_size, ukinfo->max_rq_frag_cnt, 0, &rqshift);
 
 	if (status)
-		return -ENOSYS;
+		return -ENOMEM;
 
 	sqdepth = sq_size << sqshift;
 	rqdepth = rq_size << rqshift;
@@ -670,7 +671,7 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 	iwqp->ctx_info.qp_compl_ctx = (uintptr_t)qp;
 
 	if (init_attr->qp_type != IB_QPT_RC) {
-		err_code = -ENOSYS;
+		err_code = -EINVAL;
 		goto error;
 	}
 	if (iwdev->push_mode)
@@ -793,7 +794,6 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 	return &iwqp->ibqp;
 error:
 	i40iw_free_qp_resources(iwdev, iwqp, qp_num);
-	kfree(mem);
 	return ERR_PTR(err_code);
 }
 
@@ -1473,6 +1473,7 @@ static int i40iw_hw_alloc_stag(struct i40iw_device *iwdev, struct i40iw_mr *iwmr
 	info->stag_idx = iwmr->stag >> I40IW_CQPSQ_STAG_IDX_SHIFT;
 	info->pd_id = iwpd->sc_pd.pd_id;
 	info->total_len = iwmr->length;
+	info->remote_access = true;
 	cqp_info->cqp_cmd = OP_ALLOC_STAG;
 	cqp_info->post_sq = 1;
 	cqp_info->in.u.alloc_stag.dev = &iwdev->sc_dev;
@@ -1527,7 +1528,7 @@ static struct ib_mr *i40iw_alloc_mr(struct ib_pd *pd,
 	mutex_lock(&iwdev->pbl_mutex);
 	status = i40iw_get_pble(&iwdev->sc_dev, iwdev->pble_rsrc, palloc, iwmr->page_cnt);
 	mutex_unlock(&iwdev->pbl_mutex);
-	if (!status)
+	if (status)
 		goto err1;
 
 	if (palloc->level != I40IW_LEVEL_1)
@@ -1838,6 +1839,7 @@ struct ib_mr *i40iw_reg_phys_mr(struct ib_pd *pd,
 	iwmr->ibmr.lkey = stag;
 	iwmr->page_cnt = 1;
 	iwmr->pgaddrmem[0]  = addr;
+	iwmr->length = size;
 	status = i40iw_hwreg_mr(iwdev, iwmr, access);
 	if (status) {
 		i40iw_free_stag(iwdev, stag);
@@ -1861,7 +1863,7 @@ static struct ib_mr *i40iw_get_dma_mr(struct ib_pd *pd, int acc)
 {
 	u64 kva = 0;
 
-	return i40iw_reg_phys_mr(pd, 0, 0xffffffffffULL, acc, &kva);
+	return i40iw_reg_phys_mr(pd, 0, 0, acc, &kva);
 }
 
 /**
@@ -1923,8 +1925,7 @@ static int i40iw_dereg_mr(struct ib_mr *ib_mr)
 		}
 		if (iwpbl->pbl_allocated)
 			i40iw_free_pble(iwdev->pble_rsrc, palloc);
-		kfree(iwpbl->iwmr);
-		iwpbl->iwmr = NULL;
+		kfree(iwmr);
 		return 0;
 	}
 
@@ -1973,18 +1974,6 @@ static ssize_t i40iw_show_rev(struct device *dev,
 }
 
 /**
- * i40iw_show_fw_ver
- */
-static ssize_t i40iw_show_fw_ver(struct device *dev,
-				 struct device_attribute *attr, char *buf)
-{
-	u32 firmware_version = I40IW_FW_VERSION;
-
-	return sprintf(buf, "%u.%u\n", firmware_version,
-		       (firmware_version & 0x000000ff));
-}
-
-/**
  * i40iw_show_hca
  */
 static ssize_t i40iw_show_hca(struct device *dev,
@@ -2004,13 +1993,11 @@ static ssize_t i40iw_show_board(struct device *dev,
 }
 
 static DEVICE_ATTR(hw_rev, S_IRUGO, i40iw_show_rev, NULL);
-static DEVICE_ATTR(fw_ver, S_IRUGO, i40iw_show_fw_ver, NULL);
 static DEVICE_ATTR(hca_type, S_IRUGO, i40iw_show_hca, NULL);
 static DEVICE_ATTR(board_id, S_IRUGO, i40iw_show_board, NULL);
 
 static struct device_attribute *i40iw_dev_attributes[] = {
 	&dev_attr_hw_rev,
-	&dev_attr_fw_ver,
 	&dev_attr_hca_type,
 	&dev_attr_board_id
 };
@@ -2089,8 +2076,12 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 				ret = ukqp->ops.iw_send(ukqp, &info, ib_wr->ex.invalidate_rkey, false);
 			}
 
-			if (ret)
-				err = -EIO;
+			if (ret) {
+				if (ret == I40IW_ERR_QP_TOOMANY_WRS_POSTED)
+					err = -ENOMEM;
+				else
+					err = -EINVAL;
+			}
 			break;
 		case IB_WR_RDMA_WRITE:
 			info.op_type = I40IW_OP_TYPE_RDMA_WRITE;
@@ -2111,8 +2102,12 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 				ret = ukqp->ops.iw_rdma_write(ukqp, &info, false);
 			}
 
-			if (ret)
-				err = -EIO;
+			if (ret) {
+				if (ret == I40IW_ERR_QP_TOOMANY_WRS_POSTED)
+					err = -ENOMEM;
+				else
+					err = -EINVAL;
+			}
 			break;
 		case IB_WR_RDMA_READ_WITH_INV:
 			inv_stag = true;
@@ -2130,15 +2125,19 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 			info.op.rdma_read.lo_addr.stag = ib_wr->sg_list->lkey;
 			info.op.rdma_read.lo_addr.len = ib_wr->sg_list->length;
 			ret = ukqp->ops.iw_rdma_read(ukqp, &info, inv_stag, false);
-			if (ret)
-				err = -EIO;
+			if (ret) {
+				if (ret == I40IW_ERR_QP_TOOMANY_WRS_POSTED)
+					err = -ENOMEM;
+				else
+					err = -EINVAL;
+			}
 			break;
 		case IB_WR_LOCAL_INV:
 			info.op_type = I40IW_OP_TYPE_INV_STAG;
 			info.op.inv_local_stag.target_stag = ib_wr->ex.invalidate_rkey;
 			ret = ukqp->ops.iw_stag_local_invalidate(ukqp, &info, true);
 			if (ret)
-				err = -EIO;
+				err = -ENOMEM;
 			break;
 		case IB_WR_REG_MR:
 		{
@@ -2149,6 +2148,7 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 			struct i40iw_sc_dev *dev = &iwqp->iwdev->sc_dev;
 			struct i40iw_fast_reg_stag_info info;
 
+			memset(&info, 0, sizeof(info));
 			info.access_rights = I40IW_ACCESS_FLAGS_LOCALREAD;
 			info.access_rights |= i40iw_get_user_access(flags);
 			info.stag_key = reg_wr(ib_wr)->key & 0xff;
@@ -2158,16 +2158,20 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 			info.addr_type = I40IW_ADDR_TYPE_VA_BASED;
 			info.va = (void *)(uintptr_t)iwmr->ibmr.iova;
 			info.total_len = iwmr->ibmr.length;
+			info.reg_addr_pa = *(u64 *)palloc->level1.addr;
 			info.first_pm_pbl_index = palloc->level1.idx;
 			info.local_fence = ib_wr->send_flags & IB_SEND_FENCE;
 			info.signaled = ib_wr->send_flags & IB_SEND_SIGNALED;
+
+			if (iwmr->npages > I40IW_MIN_PAGES_PER_FMR)
+				info.chunk_size = 1;
 
 			if (page_shift == 21)
 				info.page_size = 1; /* 2M page */
 
 			ret = dev->iw_priv_qp_ops->iw_mr_fast_register(&iwqp->sc_qp, &info, true);
 			if (ret)
-				err = -EIO;
+				err = -ENOMEM;
 			break;
 		}
 		default:
@@ -2207,6 +2211,7 @@ static int i40iw_post_recv(struct ib_qp *ibqp,
 	struct i40iw_sge sg_list[I40IW_MAX_WQ_FRAGMENT_COUNT];
 	enum i40iw_status_code ret = 0;
 	unsigned long flags;
+	int err = 0;
 
 	iwqp = (struct i40iw_qp *)ibqp;
 	ukqp = &iwqp->sc_qp.qp_uk;
@@ -2221,6 +2226,10 @@ static int i40iw_post_recv(struct ib_qp *ibqp,
 		ret = ukqp->ops.iw_post_receive(ukqp, &post_recv);
 		if (ret) {
 			i40iw_pr_err(" post_recv err %d\n", ret);
+			if (ret == I40IW_ERR_QP_TOOMANY_WRS_POSTED)
+				err = -ENOMEM;
+			else
+				err = -EINVAL;
 			*bad_wr = ib_wr;
 			goto out;
 		}
@@ -2228,9 +2237,7 @@ static int i40iw_post_recv(struct ib_qp *ibqp,
 	}
  out:
 	spin_unlock_irqrestore(&iwqp->lock, flags);
-	if (ret)
-		return -ENOSYS;
-	return 0;
+	return err;
 }
 
 /**
@@ -2257,7 +2264,7 @@ static int i40iw_poll_cq(struct ib_cq *ibcq,
 
 	spin_lock_irqsave(&iwcq->lock, flags);
 	while (cqe_count < num_entries) {
-		ret = ukcq->ops.iw_cq_poll_completion(ukcq, &cq_poll_info, true);
+		ret = ukcq->ops.iw_cq_poll_completion(ukcq, &cq_poll_info);
 		if (ret == I40IW_ERR_QUEUE_EMPTY) {
 			break;
 		} else if (ret == I40IW_ERR_QUEUE_DESTROYED) {
@@ -2327,13 +2334,16 @@ static int i40iw_req_notify_cq(struct ib_cq *ibcq,
 {
 	struct i40iw_cq *iwcq;
 	struct i40iw_cq_uk *ukcq;
-	enum i40iw_completion_notify cq_notify = IW_CQ_COMPL_SOLICITED;
+	unsigned long flags;
+	enum i40iw_completion_notify cq_notify = IW_CQ_COMPL_EVENT;
 
 	iwcq = (struct i40iw_cq *)ibcq;
 	ukcq = &iwcq->sc_cq.cq_uk;
-	if (notify_flags == IB_CQ_NEXT_COMP)
-		cq_notify = IW_CQ_COMPL_EVENT;
+	if (notify_flags == IB_CQ_SOLICITED)
+		cq_notify = IW_CQ_COMPL_SOLICITED;
+	spin_lock_irqsave(&iwcq->lock, flags);
 	ukcq->ops.iw_cq_request_notification(ukcq, cq_notify);
+	spin_unlock_irqrestore(&iwcq->lock, flags);
 	return 0;
 }
 
@@ -2361,24 +2371,125 @@ static int i40iw_port_immutable(struct ib_device *ibdev, u8 port_num,
 	return 0;
 }
 
+static const char * const i40iw_hw_stat_names[] = {
+	// 32bit names
+	[I40IW_HW_STAT_INDEX_IP4RXDISCARD] = "ip4InDiscards",
+	[I40IW_HW_STAT_INDEX_IP4RXTRUNC] = "ip4InTruncatedPkts",
+	[I40IW_HW_STAT_INDEX_IP4TXNOROUTE] = "ip4OutNoRoutes",
+	[I40IW_HW_STAT_INDEX_IP6RXDISCARD] = "ip6InDiscards",
+	[I40IW_HW_STAT_INDEX_IP6RXTRUNC] = "ip6InTruncatedPkts",
+	[I40IW_HW_STAT_INDEX_IP6TXNOROUTE] = "ip6OutNoRoutes",
+	[I40IW_HW_STAT_INDEX_TCPRTXSEG] = "tcpRetransSegs",
+	[I40IW_HW_STAT_INDEX_TCPRXOPTERR] = "tcpInOptErrors",
+	[I40IW_HW_STAT_INDEX_TCPRXPROTOERR] = "tcpInProtoErrors",
+	// 64bit names
+	[I40IW_HW_STAT_INDEX_IP4RXOCTS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip4InOctets",
+	[I40IW_HW_STAT_INDEX_IP4RXPKTS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip4InPkts",
+	[I40IW_HW_STAT_INDEX_IP4RXFRAGS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip4InReasmRqd",
+	[I40IW_HW_STAT_INDEX_IP4RXMCPKTS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip4InMcastPkts",
+	[I40IW_HW_STAT_INDEX_IP4TXOCTS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip4OutOctets",
+	[I40IW_HW_STAT_INDEX_IP4TXPKTS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip4OutPkts",
+	[I40IW_HW_STAT_INDEX_IP4TXFRAGS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip4OutSegRqd",
+	[I40IW_HW_STAT_INDEX_IP4TXMCPKTS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip4OutMcastPkts",
+	[I40IW_HW_STAT_INDEX_IP6RXOCTS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip6InOctets",
+	[I40IW_HW_STAT_INDEX_IP6RXPKTS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip6InPkts",
+	[I40IW_HW_STAT_INDEX_IP6RXFRAGS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip6InReasmRqd",
+	[I40IW_HW_STAT_INDEX_IP6RXMCPKTS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip6InMcastPkts",
+	[I40IW_HW_STAT_INDEX_IP6TXOCTS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip6OutOctets",
+	[I40IW_HW_STAT_INDEX_IP6TXPKTS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip6OutPkts",
+	[I40IW_HW_STAT_INDEX_IP6TXFRAGS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip6OutSegRqd",
+	[I40IW_HW_STAT_INDEX_IP6TXMCPKTS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip6OutMcastPkts",
+	[I40IW_HW_STAT_INDEX_TCPRXSEGS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"tcpInSegs",
+	[I40IW_HW_STAT_INDEX_TCPTXSEG + I40IW_HW_STAT_INDEX_MAX_32] =
+		"tcpOutSegs",
+	[I40IW_HW_STAT_INDEX_RDMARXRDS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"iwInRdmaReads",
+	[I40IW_HW_STAT_INDEX_RDMARXSNDS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"iwInRdmaSends",
+	[I40IW_HW_STAT_INDEX_RDMARXWRS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"iwInRdmaWrites",
+	[I40IW_HW_STAT_INDEX_RDMATXRDS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"iwOutRdmaReads",
+	[I40IW_HW_STAT_INDEX_RDMATXSNDS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"iwOutRdmaSends",
+	[I40IW_HW_STAT_INDEX_RDMATXWRS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"iwOutRdmaWrites",
+	[I40IW_HW_STAT_INDEX_RDMAVBND + I40IW_HW_STAT_INDEX_MAX_32] =
+		"iwRdmaBnd",
+	[I40IW_HW_STAT_INDEX_RDMAVINV + I40IW_HW_STAT_INDEX_MAX_32] =
+		"iwRdmaInv"
+};
+
+static void i40iw_get_dev_fw_str(struct ib_device *dev, char *str,
+				 size_t str_len)
+{
+	u32 firmware_version = I40IW_FW_VERSION;
+
+	snprintf(str, str_len, "%u.%u", firmware_version,
+		       (firmware_version & 0x000000ff));
+}
+
 /**
- * i40iw_get_protocol_stats - Populates the rdma_stats structure
- * @ibdev: ib dev struct
- * @stats: iw protocol stats struct
+ * i40iw_alloc_hw_stats - Allocate a hw stats structure
+ * @ibdev: device pointer from stack
+ * @port_num: port number
  */
-static int i40iw_get_protocol_stats(struct ib_device *ibdev,
-				    union rdma_protocol_stats *stats)
+static struct rdma_hw_stats *i40iw_alloc_hw_stats(struct ib_device *ibdev,
+						  u8 port_num)
+{
+	struct i40iw_device *iwdev = to_iwdev(ibdev);
+	struct i40iw_sc_dev *dev = &iwdev->sc_dev;
+	int num_counters = I40IW_HW_STAT_INDEX_MAX_32 +
+		I40IW_HW_STAT_INDEX_MAX_64;
+	unsigned long lifespan = RDMA_HW_STATS_DEFAULT_LIFESPAN;
+
+	BUILD_BUG_ON(ARRAY_SIZE(i40iw_hw_stat_names) !=
+		     (I40IW_HW_STAT_INDEX_MAX_32 +
+		      I40IW_HW_STAT_INDEX_MAX_64));
+
+	/*
+	 * PFs get the default update lifespan, but VFs only update once
+	 * per second
+	 */
+	if (!dev->is_pf)
+		lifespan = 1000;
+	return rdma_alloc_hw_stats_struct(i40iw_hw_stat_names, num_counters,
+					  lifespan);
+}
+
+/**
+ * i40iw_get_hw_stats - Populates the rdma_hw_stats structure
+ * @ibdev: device pointer from stack
+ * @stats: stats pointer from stack
+ * @port_num: port number
+ * @index: which hw counter the stack is requesting we update
+ */
+static int i40iw_get_hw_stats(struct ib_device *ibdev,
+			      struct rdma_hw_stats *stats,
+			      u8 port_num, int index)
 {
 	struct i40iw_device *iwdev = to_iwdev(ibdev);
 	struct i40iw_sc_dev *dev = &iwdev->sc_dev;
 	struct i40iw_dev_pestat *devstat = &dev->dev_pestat;
 	struct i40iw_dev_hw_stats *hw_stats = &devstat->hw_stats;
-	struct timespec curr_time;
-	static struct timespec last_rd_time = {0, 0};
 	unsigned long flags;
-
-	curr_time = current_kernel_time();
-	memset(stats, 0, sizeof(*stats));
 
 	if (dev->is_pf) {
 		spin_lock_irqsave(&devstat->stats_lock, flags);
@@ -2386,33 +2497,13 @@ static int i40iw_get_protocol_stats(struct ib_device *ibdev,
 			&devstat->hw_stats);
 		spin_unlock_irqrestore(&devstat->stats_lock, flags);
 	} else {
-		if (((u64)curr_time.tv_sec - (u64)last_rd_time.tv_sec) > 1)
-			if (i40iw_vchnl_vf_get_pe_stats(dev, &devstat->hw_stats))
-				return -ENOSYS;
+		if (i40iw_vchnl_vf_get_pe_stats(dev, &devstat->hw_stats))
+			return -ENOSYS;
 	}
 
-	stats->iw.ipInReceives = hw_stats->stat_value_64[I40IW_HW_STAT_INDEX_IP4RXPKTS] +
-				 hw_stats->stat_value_64[I40IW_HW_STAT_INDEX_IP6RXPKTS];
-	stats->iw.ipInTruncatedPkts = hw_stats->stat_value_32[I40IW_HW_STAT_INDEX_IP4RXTRUNC] +
-				      hw_stats->stat_value_32[I40IW_HW_STAT_INDEX_IP6RXTRUNC];
-	stats->iw.ipInDiscards = hw_stats->stat_value_32[I40IW_HW_STAT_INDEX_IP4RXDISCARD] +
-				 hw_stats->stat_value_32[I40IW_HW_STAT_INDEX_IP6RXDISCARD];
-	stats->iw.ipOutNoRoutes = hw_stats->stat_value_32[I40IW_HW_STAT_INDEX_IP4TXNOROUTE] +
-				  hw_stats->stat_value_32[I40IW_HW_STAT_INDEX_IP6TXNOROUTE];
-	stats->iw.ipReasmReqds = hw_stats->stat_value_64[I40IW_HW_STAT_INDEX_IP4RXFRAGS] +
-				 hw_stats->stat_value_64[I40IW_HW_STAT_INDEX_IP6RXFRAGS];
-	stats->iw.ipFragCreates = hw_stats->stat_value_64[I40IW_HW_STAT_INDEX_IP4TXFRAGS] +
-				  hw_stats->stat_value_64[I40IW_HW_STAT_INDEX_IP6TXFRAGS];
-	stats->iw.ipInMcastPkts = hw_stats->stat_value_64[I40IW_HW_STAT_INDEX_IP4RXMCPKTS] +
-				  hw_stats->stat_value_64[I40IW_HW_STAT_INDEX_IP6RXMCPKTS];
-	stats->iw.ipOutMcastPkts = hw_stats->stat_value_64[I40IW_HW_STAT_INDEX_IP4TXMCPKTS] +
-				   hw_stats->stat_value_64[I40IW_HW_STAT_INDEX_IP6TXMCPKTS];
-	stats->iw.tcpOutSegs = hw_stats->stat_value_64[I40IW_HW_STAT_INDEX_TCPTXSEG];
-	stats->iw.tcpInSegs = hw_stats->stat_value_64[I40IW_HW_STAT_INDEX_TCPRXSEGS];
-	stats->iw.tcpRetransSegs = hw_stats->stat_value_32[I40IW_HW_STAT_INDEX_TCPRTXSEG];
+	memcpy(&stats->value[0], &hw_stats, sizeof(*hw_stats));
 
-	last_rd_time = curr_time;
-	return 0;
+	return stats->num_counters;
 }
 
 /**
@@ -2446,7 +2537,7 @@ static int i40iw_modify_port(struct ib_device *ibdev,
 			     int port_modify_mask,
 			     struct ib_port_modify *props)
 {
-	return 0;
+	return -ENOSYS;
 }
 
 /**
@@ -2551,7 +2642,8 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 	iwibdev->ibdev.get_dma_mr = i40iw_get_dma_mr;
 	iwibdev->ibdev.reg_user_mr = i40iw_reg_user_mr;
 	iwibdev->ibdev.dereg_mr = i40iw_dereg_mr;
-	iwibdev->ibdev.get_protocol_stats = i40iw_get_protocol_stats;
+	iwibdev->ibdev.alloc_hw_stats = i40iw_alloc_hw_stats;
+	iwibdev->ibdev.get_hw_stats = i40iw_get_hw_stats;
 	iwibdev->ibdev.query_device = i40iw_query_device;
 	iwibdev->ibdev.create_ah = i40iw_create_ah;
 	iwibdev->ibdev.destroy_ah = i40iw_destroy_ah;
@@ -2577,6 +2669,7 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 	memcpy(iwibdev->ibdev.iwcm->ifname, netdev->name,
 	       sizeof(iwibdev->ibdev.iwcm->ifname));
 	iwibdev->ibdev.get_port_immutable   = i40iw_port_immutable;
+	iwibdev->ibdev.get_dev_fw_str       = i40iw_get_dev_fw_str;
 	iwibdev->ibdev.poll_cq = i40iw_poll_cq;
 	iwibdev->ibdev.req_notify_cq = i40iw_req_notify_cq;
 	iwibdev->ibdev.post_send = i40iw_post_send;
@@ -2640,7 +2733,7 @@ int i40iw_register_rdma_device(struct i40iw_device *iwdev)
 
 	iwdev->iwibdev = i40iw_init_rdma_device(iwdev);
 	if (!iwdev->iwibdev)
-		return -ENOSYS;
+		return -ENOMEM;
 	iwibdev = iwdev->iwibdev;
 
 	ret = ib_register_device(&iwibdev->ibdev, NULL);
@@ -2665,5 +2758,5 @@ error:
 	kfree(iwdev->iwibdev->ibdev.iwcm);
 	iwdev->iwibdev->ibdev.iwcm = NULL;
 	ib_dealloc_device(&iwdev->iwibdev->ibdev);
-	return -ENOSYS;
+	return ret;
 }

@@ -15,6 +15,7 @@
  * as defined in MIPI STPv2 specification.
  */
 
+#include <linux/pm_runtime.h>
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -482,13 +483,39 @@ static ssize_t stm_char_write(struct file *file, const char __user *buf,
 		return -EFAULT;
 	}
 
+	pm_runtime_get_sync(&stm->dev);
+
 	count = stm_write(stm->data, stmf->output.master, stmf->output.channel,
 			  kbuf, count);
 
+	pm_runtime_mark_last_busy(&stm->dev);
+	pm_runtime_put_autosuspend(&stm->dev);
 	kfree(kbuf);
 
 	return count;
 }
+
+static void stm_mmap_open(struct vm_area_struct *vma)
+{
+	struct stm_file *stmf = vma->vm_file->private_data;
+	struct stm_device *stm = stmf->stm;
+
+	pm_runtime_get(&stm->dev);
+}
+
+static void stm_mmap_close(struct vm_area_struct *vma)
+{
+	struct stm_file *stmf = vma->vm_file->private_data;
+	struct stm_device *stm = stmf->stm;
+
+	pm_runtime_mark_last_busy(&stm->dev);
+	pm_runtime_put_autosuspend(&stm->dev);
+}
+
+static const struct vm_operations_struct stm_mmap_vmops = {
+	.open	= stm_mmap_open,
+	.close	= stm_mmap_close,
+};
 
 static int stm_char_mmap(struct file *file, struct vm_area_struct *vma)
 {
@@ -514,8 +541,11 @@ static int stm_char_mmap(struct file *file, struct vm_area_struct *vma)
 	if (!phys)
 		return -EINVAL;
 
+	pm_runtime_get_sync(&stm->dev);
+
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
+	vma->vm_ops = &stm_mmap_vmops;
 	vm_iomap_memory(vma, phys, size);
 
 	return 0;
@@ -701,6 +731,17 @@ int stm_register_device(struct device *parent, struct stm_data *stm_data,
 	if (err)
 		goto err_device;
 
+	/*
+	 * Use delayed autosuspend to avoid bouncing back and forth
+	 * on recurring character device writes, with the initial
+	 * delay time of 2 seconds.
+	 */
+	pm_runtime_no_callbacks(&stm->dev);
+	pm_runtime_use_autosuspend(&stm->dev);
+	pm_runtime_set_autosuspend_delay(&stm->dev, 2000);
+	pm_runtime_set_suspended(&stm->dev);
+	pm_runtime_enable(&stm->dev);
+
 	return 0;
 
 err_device:
@@ -723,6 +764,9 @@ void stm_unregister_device(struct stm_data *stm_data)
 	struct stm_device *stm = stm_data->stm;
 	struct stm_source_device *src, *iter;
 	int i, ret;
+
+	pm_runtime_dont_use_autosuspend(&stm->dev);
+	pm_runtime_disable(&stm->dev);
 
 	mutex_lock(&stm->link_mutex);
 	list_for_each_entry_safe(src, iter, &stm->link_list, link_entry) {
@@ -878,6 +922,8 @@ static int __stm_source_link_drop(struct stm_source_device *src,
 
 	stm_output_free(link, &src->output);
 	list_del_init(&src->link_entry);
+	pm_runtime_mark_last_busy(&link->dev);
+	pm_runtime_put_autosuspend(&link->dev);
 	/* matches stm_find_device() from stm_source_link_store() */
 	stm_put_device(link);
 	rcu_assign_pointer(src->link, NULL);
@@ -971,8 +1017,11 @@ static ssize_t stm_source_link_store(struct device *dev,
 	if (!link)
 		return -EINVAL;
 
+	pm_runtime_get(&link->dev);
+
 	err = stm_source_link_add(src, link);
 	if (err) {
+		pm_runtime_put_autosuspend(&link->dev);
 		/* matches the stm_find_device() above */
 		stm_put_device(link);
 	}
@@ -1032,6 +1081,9 @@ int stm_source_register_device(struct device *parent,
 	err = kobject_set_name(&src->dev.kobj, "%s", data->name);
 	if (err)
 		goto err;
+
+	pm_runtime_no_callbacks(&src->dev);
+	pm_runtime_forbid(&src->dev);
 
 	err = device_add(&src->dev);
 	if (err)

@@ -997,7 +997,7 @@ struct ipu_platform_reg {
 };
 
 /* These must be in the order of the corresponding device tree port nodes */
-static const struct ipu_platform_reg client_reg[] = {
+static struct ipu_platform_reg client_reg[] = {
 	{
 		.pdata = {
 			.csi = 0,
@@ -1048,7 +1048,7 @@ static int ipu_add_client_devices(struct ipu_soc *ipu, unsigned long ipu_base)
 	mutex_unlock(&ipu_client_id_mutex);
 
 	for (i = 0; i < ARRAY_SIZE(client_reg); i++) {
-		const struct ipu_platform_reg *reg = &client_reg[i];
+		struct ipu_platform_reg *reg = &client_reg[i];
 		struct platform_device *pdev;
 		struct device_node *of_node;
 
@@ -1070,6 +1070,7 @@ static int ipu_add_client_devices(struct ipu_soc *ipu, unsigned long ipu_base)
 
 		pdev->dev.parent = dev;
 
+		reg->pdata.of_node = of_node;
 		ret = platform_device_add_data(pdev, &reg->pdata,
 					       sizeof(reg->pdata));
 		if (!ret)

@@ -63,5 +63,5 @@
  * which makes the pinctrl driver unshareable.
  */
 &pinctrl {
-	compatible = "socionext,ph1-ld6b-pinctrl", "syscon";
+	compatible = "socionext,uniphier-ld6b-pinctrl";
 };

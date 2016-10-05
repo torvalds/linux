@@ -565,7 +565,7 @@ chan_request_fail:
 	qc->ap->hsm_task_state = HSM_ST_ERR;
 
 	cf_ctrl_reset(acdev);
-	spin_unlock_irqrestore(qc->ap->lock, flags);
+	spin_unlock_irqrestore(&acdev->host->lock, flags);
 sff_intr:
 	dma_complete(acdev);
 }

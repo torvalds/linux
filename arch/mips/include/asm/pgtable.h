@@ -24,7 +24,7 @@ struct mm_struct;
 struct vm_area_struct;
 
 #define PAGE_NONE	__pgprot(_PAGE_PRESENT | _PAGE_NO_READ | \
-				 _CACHE_CACHABLE_NONCOHERENT)
+				 _page_cachable_default)
 #define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_WRITE | \
 				 _page_cachable_default)
 #define PAGE_COPY	__pgprot(_PAGE_PRESENT | _PAGE_NO_EXEC | \
@@ -159,7 +159,7 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 		 * it better already be global)
 		 */
 		if (pte_none(*buddy)) {
-			if (!config_enabled(CONFIG_XPA))
+			if (!IS_ENABLED(CONFIG_XPA))
 				buddy->pte_low |= _PAGE_GLOBAL;
 			buddy->pte_high |= _PAGE_GLOBAL;
 		}
@@ -172,7 +172,7 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 
 	htw_stop();
 	/* Preserve global status for the pair */
-	if (config_enabled(CONFIG_XPA)) {
+	if (IS_ENABLED(CONFIG_XPA)) {
 		if (ptep_buddy(ptep)->pte_high & _PAGE_GLOBAL)
 			null.pte_high = _PAGE_GLOBAL;
 	} else {
@@ -319,7 +319,7 @@ static inline int pte_young(pte_t pte)	{ return pte.pte_low & _PAGE_ACCESSED; }
 static inline pte_t pte_wrprotect(pte_t pte)
 {
 	pte.pte_low  &= ~_PAGE_WRITE;
-	if (!config_enabled(CONFIG_XPA))
+	if (!IS_ENABLED(CONFIG_XPA))
 		pte.pte_low &= ~_PAGE_SILENT_WRITE;
 	pte.pte_high &= ~_PAGE_SILENT_WRITE;
 	return pte;
@@ -328,7 +328,7 @@ static inline pte_t pte_wrprotect(pte_t pte)
 static inline pte_t pte_mkclean(pte_t pte)
 {
 	pte.pte_low  &= ~_PAGE_MODIFIED;
-	if (!config_enabled(CONFIG_XPA))
+	if (!IS_ENABLED(CONFIG_XPA))
 		pte.pte_low &= ~_PAGE_SILENT_WRITE;
 	pte.pte_high &= ~_PAGE_SILENT_WRITE;
 	return pte;
@@ -337,7 +337,7 @@ static inline pte_t pte_mkclean(pte_t pte)
 static inline pte_t pte_mkold(pte_t pte)
 {
 	pte.pte_low  &= ~_PAGE_ACCESSED;
-	if (!config_enabled(CONFIG_XPA))
+	if (!IS_ENABLED(CONFIG_XPA))
 		pte.pte_low &= ~_PAGE_SILENT_READ;
 	pte.pte_high &= ~_PAGE_SILENT_READ;
 	return pte;
@@ -347,7 +347,7 @@ static inline pte_t pte_mkwrite(pte_t pte)
 {
 	pte.pte_low |= _PAGE_WRITE;
 	if (pte.pte_low & _PAGE_MODIFIED) {
-		if (!config_enabled(CONFIG_XPA))
+		if (!IS_ENABLED(CONFIG_XPA))
 			pte.pte_low |= _PAGE_SILENT_WRITE;
 		pte.pte_high |= _PAGE_SILENT_WRITE;
 	}
@@ -358,7 +358,7 @@ static inline pte_t pte_mkdirty(pte_t pte)
 {
 	pte.pte_low |= _PAGE_MODIFIED;
 	if (pte.pte_low & _PAGE_WRITE) {
-		if (!config_enabled(CONFIG_XPA))
+		if (!IS_ENABLED(CONFIG_XPA))
 			pte.pte_low |= _PAGE_SILENT_WRITE;
 		pte.pte_high |= _PAGE_SILENT_WRITE;
 	}
@@ -369,7 +369,7 @@ static inline pte_t pte_mkyoung(pte_t pte)
 {
 	pte.pte_low |= _PAGE_ACCESSED;
 	if (!(pte.pte_low & _PAGE_NO_READ)) {
-		if (!config_enabled(CONFIG_XPA))
+		if (!IS_ENABLED(CONFIG_XPA))
 			pte.pte_low |= _PAGE_SILENT_READ;
 		pte.pte_high |= _PAGE_SILENT_READ;
 	}
@@ -476,7 +476,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 	pte.pte_low  &= (_PAGE_MODIFIED | _PAGE_ACCESSED | _PFNX_MASK);
 	pte.pte_high &= (_PFN_MASK | _CACHE_MASK);
 	pte.pte_low  |= pgprot_val(newprot) & ~_PFNX_MASK;
-	pte.pte_high |= pgprot_val(newprot) & ~_PFN_MASK;
+	pte.pte_high |= pgprot_val(newprot) & ~(_PFN_MASK | _CACHE_MASK);
 	return pte;
 }
 #elif defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
@@ -491,7 +491,8 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #else
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
-	return __pte((pte_val(pte) & _PAGE_CHG_MASK) | pgprot_val(newprot));
+	return __pte((pte_val(pte) & _PAGE_CHG_MASK) |
+		     (pgprot_val(newprot) & ~_PAGE_CHG_MASK));
 }
 #endif
 
@@ -632,7 +633,8 @@ static inline struct page *pmd_page(pmd_t pmd)
 
 static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 {
-	pmd_val(pmd) = (pmd_val(pmd) & _PAGE_CHG_MASK) | pgprot_val(newprot);
+	pmd_val(pmd) = (pmd_val(pmd) & (_PAGE_CHG_MASK | _PAGE_HUGE)) |
+		       (pgprot_val(newprot) & ~_PAGE_CHG_MASK);
 	return pmd;
 }
 

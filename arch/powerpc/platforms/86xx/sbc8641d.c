@@ -67,9 +67,7 @@ sbc8641_show_cpuinfo(struct seq_file *m)
  */
 static int __init sbc8641_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (of_flat_dt_is_compatible(root, "wind,sbc8641"))
+	if (of_machine_is_compatible("wind,sbc8641"))
 		return 1;	/* Looks good */
 
 	return 0;

@@ -6,7 +6,6 @@ ccflags-y += -DFIRMWARE_1002=\"atmel/wilc1002_firmware.bin\" \
 ccflags-y += -I$(src)/ -DWILC_ASIC_A0 -DWILC_DEBUGFS
 
 wilc1000-objs := wilc_wfi_cfgoperations.o linux_wlan.o linux_mon.o \
-			wilc_msgqueue.o \
 			coreconfigurator.o host_interface.o \
 			wilc_wlan_cfg.o wilc_debugfs.o \
 			wilc_wlan.o

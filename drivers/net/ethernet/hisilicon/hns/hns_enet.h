@@ -54,12 +54,11 @@ struct hns_nic_ops {
 };
 
 struct hns_nic_priv {
-	const struct device_node *ae_node;
+	const struct fwnode_handle      *fwnode;
 	u32 enet_ver;
 	u32 port_id;
 	int phy_mode;
 	int phy_led_val;
-	struct phy_device *phy;
 	struct net_device *netdev;
 	struct device *dev;
 	struct hnae_handle *ae_handle;

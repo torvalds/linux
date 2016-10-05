@@ -2391,6 +2391,41 @@ and <tt>RCU_NONIDLE()</tt> on the other while inspecting
 idle-loop code.
 Steven Rostedt supplied <tt>_rcuidle</tt> event tracing,
 which is used quite heavily in the idle loop.
+However, there are some restrictions on the code placed within
+<tt>RCU_NONIDLE()</tt>:
+
+<ol>
+<li>	Blocking is prohibited.
+	In practice, this is not a serious restriction given that idle
+	tasks are prohibited from blocking to begin with.
+<li>	Although nesting <tt>RCU_NONIDLE()</tt> is permited, they cannot
+	nest indefinitely deeply.
+	However, given that they can be nested on the order of a million
+	deep, even on 32-bit systems, this should not be a serious
+	restriction.
+	This nesting limit would probably be reached long after the
+	compiler OOMed or the stack overflowed.
+<li>	Any code path that enters <tt>RCU_NONIDLE()</tt> must sequence
+	out of that same <tt>RCU_NONIDLE()</tt>.
+	For example, the following is grossly illegal:
+
+	<blockquote>
+	<pre>
+ 1     RCU_NONIDLE({
+ 2       do_something();
+ 3       goto bad_idea;  /* BUG!!! */
+ 4       do_something_else();});
+ 5   bad_idea:
+	</pre>
+	</blockquote>
+
+	<p>
+	It is just as illegal to transfer control into the middle of
+	<tt>RCU_NONIDLE()</tt>'s argument.
+	Yes, in theory, you could transfer in as long as you also
+	transferred out, but in practice you could also expect to get sharply
+	worded review comments.
+</ol>
 
 <p>
 It is similarly socially unacceptable to interrupt an
@@ -2457,6 +2492,28 @@ is used to post the callback, as opposed to <tt>kfree_rcu()</tt>
 or some future &ldquo;lazy&rdquo;
 variant of <tt>call_rcu()</tt> that might one day be created for
 energy-efficiency purposes.
+
+<p>
+That said, there are limits.
+RCU requires that the <tt>rcu_head</tt> structure be aligned to a
+two-byte boundary, and passing a misaligned <tt>rcu_head</tt>
+structure to one of the <tt>call_rcu()</tt> family of functions
+will result in a splat.
+It is therefore necessary to exercise caution when packing
+structures containing fields of type <tt>rcu_head</tt>.
+Why not a four-byte or even eight-byte alignment requirement?
+Because the m68k architecture provides only two-byte alignment,
+and thus acts as alignment's least common denominator.
+
+<p>
+The reason for reserving the bottom bit of pointers to
+<tt>rcu_head</tt> structures is to leave the door open to
+&ldquo;lazy&rdquo; callbacks whose invocations can safely be deferred.
+Deferring invocation could potentially have energy-efficiency
+benefits, but only if the rate of non-lazy callbacks decreases
+significantly for some important workload.
+In the meantime, reserving the bottom bit keeps this option open
+in case it one day becomes useful.
 
 <h3><a name="Performance, Scalability, Response Time, and Reliability">
 Performance, Scalability, Response Time, and Reliability</a></h3>

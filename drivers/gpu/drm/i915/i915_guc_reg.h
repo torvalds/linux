@@ -27,9 +27,12 @@
 /* Definitions of GuC H/W registers, bits, etc */
 
 #define GUC_STATUS			_MMIO(0xc000)
+#define   GS_RESET_SHIFT		0
+#define   GS_MIA_IN_RESET		  (0x01 << GS_RESET_SHIFT)
 #define   GS_BOOTROM_SHIFT		1
 #define   GS_BOOTROM_MASK		  (0x7F << GS_BOOTROM_SHIFT)
 #define   GS_BOOTROM_RSA_FAILED		  (0x50 << GS_BOOTROM_SHIFT)
+#define   GS_BOOTROM_JUMP_PASSED	  (0x76 << GS_BOOTROM_SHIFT)
 #define   GS_UKERNEL_SHIFT		8
 #define   GS_UKERNEL_MASK		  (0xFF << GS_UKERNEL_SHIFT)
 #define   GS_UKERNEL_LAPIC_DONE		  (0x30 << GS_UKERNEL_SHIFT)
@@ -37,7 +40,13 @@
 #define   GS_UKERNEL_READY		  (0xF0 << GS_UKERNEL_SHIFT)
 #define   GS_MIA_SHIFT			16
 #define   GS_MIA_MASK			  (0x07 << GS_MIA_SHIFT)
-#define   GS_MIA_CORE_STATE		  (1 << GS_MIA_SHIFT)
+#define   GS_MIA_CORE_STATE		  (0x01 << GS_MIA_SHIFT)
+#define   GS_MIA_HALT_REQUESTED		  (0x02 << GS_MIA_SHIFT)
+#define   GS_MIA_ISR_ENTRY		  (0x04 << GS_MIA_SHIFT)
+#define   GS_AUTH_STATUS_SHIFT		30
+#define   GS_AUTH_STATUS_MASK		  (0x03 << GS_AUTH_STATUS_SHIFT)
+#define   GS_AUTH_STATUS_BAD		  (0x01 << GS_AUTH_STATUS_SHIFT)
+#define   GS_AUTH_STATUS_GOOD		  (0x02 << GS_AUTH_STATUS_SHIFT)
 
 #define SOFT_SCRATCH(n)			_MMIO(0xc180 + (n) * 4)
 #define SOFT_SCRATCH_COUNT		16
@@ -58,11 +67,11 @@
 #define   GUC_WOPCM_OFFSET_VALUE	  0x80000	/* 512KB */
 #define GUC_MAX_IDLE_COUNT		_MMIO(0xC3E4)
 
+/* Defines WOPCM space available to GuC firmware */
 #define GUC_WOPCM_SIZE			_MMIO(0xc050)
-#define   GUC_WOPCM_SIZE_VALUE  	  (0x80 << 12)	/* 512KB */
-
 /* GuC addresses below GUC_WOPCM_TOP don't map through the GTT */
-#define	GUC_WOPCM_TOP			(GUC_WOPCM_SIZE_VALUE)
+#define   GUC_WOPCM_TOP			  (0x80 << 12)	/* 512KB */
+#define   BXT_GUC_WOPCM_RC6_RESERVED	  (0x10 << 12)	/* 64KB  */
 
 #define GEN8_GT_PM_CONFIG		_MMIO(0x138140)
 #define GEN9LP_GT_PM_CONFIG		_MMIO(0x138140)

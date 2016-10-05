@@ -597,17 +597,16 @@ static void l2c310_configure(void __iomem *base)
 			      L310_POWER_CTRL);
 }
 
-static int l2c310_cpu_enable_flz(struct notifier_block *nb, unsigned long act, void *data)
+static int l2c310_starting_cpu(unsigned int cpu)
 {
-	switch (act & ~CPU_TASKS_FROZEN) {
-	case CPU_STARTING:
-		set_auxcr(get_auxcr() | BIT(3) | BIT(2) | BIT(1));
-		break;
-	case CPU_DYING:
-		set_auxcr(get_auxcr() & ~(BIT(3) | BIT(2) | BIT(1)));
-		break;
-	}
-	return NOTIFY_OK;
+	set_auxcr(get_auxcr() | BIT(3) | BIT(2) | BIT(1));
+	return 0;
+}
+
+static int l2c310_dying_cpu(unsigned int cpu)
+{
+	set_auxcr(get_auxcr() & ~(BIT(3) | BIT(2) | BIT(1)));
+	return 0;
 }
 
 static void __init l2c310_enable(void __iomem *base, unsigned num_lock)
@@ -678,10 +677,10 @@ static void __init l2c310_enable(void __iomem *base, unsigned num_lock)
 			power_ctrl & L310_STNDBY_MODE_EN ? "en" : "dis");
 	}
 
-	if (aux & L310_AUX_CTRL_FULL_LINE_ZERO) {
-		set_auxcr(get_auxcr() | BIT(3) | BIT(2) | BIT(1));
-		cpu_notifier(l2c310_cpu_enable_flz, 0);
-	}
+	if (aux & L310_AUX_CTRL_FULL_LINE_ZERO)
+		cpuhp_setup_state(CPUHP_AP_ARM_L2X0_STARTING,
+				  "AP_ARM_L2X0_STARTING", l2c310_starting_cpu,
+				  l2c310_dying_cpu);
 }
 
 static void __init l2c310_fixup(void __iomem *base, u32 cache_id,

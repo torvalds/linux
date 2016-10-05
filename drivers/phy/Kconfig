@@ -24,6 +24,15 @@ config PHY_BCM_NS_USB2
 	  Enable this to support Broadcom USB 2.0 PHY connected to the USB
 	  controller on Northstar family.
 
+config PHY_BCM_NS_USB3
+	tristate "Broadcom Northstar USB 3.0 PHY Driver"
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	depends on HAS_IOMEM && OF
+	select GENERIC_PHY
+	help
+	  Enable this to support Broadcom USB 3.0 PHY connected to the USB
+	  controller on Northstar family.
+
 config PHY_BERLIN_USB
 	tristate "Marvell Berlin USB PHY Driver"
 	depends on ARCH_BERLIN && RESET_CONTROLLER && HAS_IOMEM && OF
@@ -43,6 +52,16 @@ config ARMADA375_USBCLUSTER_PHY
 	depends on MACH_ARMADA_375 || COMPILE_TEST
 	depends on OF && HAS_IOMEM
 	select GENERIC_PHY
+
+config PHY_DA8XX_USB
+	tristate "TI DA8xx USB PHY Driver"
+	depends on ARCH_DAVINCI_DA8XX
+	select GENERIC_PHY
+	select MFD_SYSCON
+	help
+	  Enable this to support the USB PHY on DA8xx SoCs.
+
+	  This driver controls both the USB 1.1 PHY and the USB 2.0 PHY.
 
 config PHY_DM816X_USB
 	tristate "TI dm816x USB PHY driver"
@@ -176,6 +195,7 @@ config TWL4030_USB
 	tristate "TWL4030 USB Transceiver Driver"
 	depends on TWL4030_CORE && REGULATOR_TWL4030 && USB_MUSB_OMAP2PLUS
 	depends on USB_SUPPORT
+	depends on USB_GADGET || !USB_GADGET # if USB_GADGET=m, this can't 'y'
 	select GENERIC_PHY
 	select USB_PHY
 	help
@@ -247,7 +267,9 @@ config PHY_SUN4I_USB
 	depends on RESET_CONTROLLER
 	depends on EXTCON
 	depends on POWER_SUPPLY
+	depends on USB_SUPPORT
 	select GENERIC_PHY
+	select USB_COMMON
 	help
 	  Enable this to support the transceiver that is part of Allwinner
 	  sunxi SoCs.
@@ -347,6 +369,14 @@ config PHY_ROCKCHIP_USB
 	help
 	  Enable this to support the Rockchip USB 2.0 PHY.
 
+config PHY_ROCKCHIP_INNO_USB2
+	tristate "Rockchip INNO USB2PHY Driver"
+	depends on (ARCH_ROCKCHIP || COMPILE_TEST) && OF
+	depends on COMMON_CLK
+	select GENERIC_PHY
+	help
+	  Support for Rockchip USB2.0 PHY with Innosilicon IP block.
+
 config PHY_ROCKCHIP_EMMC
 	tristate "Rockchip EMMC PHY Driver"
 	depends on ARCH_ROCKCHIP && OF
@@ -360,6 +390,23 @@ config PHY_ROCKCHIP_DP
 	select GENERIC_PHY
 	help
 	  Enable this to support the Rockchip Display Port PHY.
+
+config PHY_ROCKCHIP_PCIE
+	tristate "Rockchip PCIe PHY Driver"
+	depends on (ARCH_ROCKCHIP && OF) || COMPILE_TEST
+	select GENERIC_PHY
+	select MFD_SYSCON
+	help
+	  Enable this to support the Rockchip PCIe PHY.
+
+config PHY_ROCKCHIP_TYPEC
+	tristate "Rockchip TYPEC PHY Driver"
+	depends on OF && (ARCH_ROCKCHIP || COMPILE_TEST)
+	select EXTCON
+	select GENERIC_PHY
+	select RESET_CONTROLLER
+	help
+	  Enable this to support the Rockchip USB TYPEC PHY.
 
 config PHY_ST_SPEAR1310_MIPHY
 	tristate "ST SPEAR1310-MIPHY driver"
@@ -434,4 +481,12 @@ config PHY_CYGNUS_PCIE
 
 source "drivers/phy/tegra/Kconfig"
 
+config PHY_NS2_PCIE
+	tristate "Broadcom Northstar2 PCIe PHY driver"
+	depends on OF && MDIO_BUS_MUX_BCM_IPROC
+	select GENERIC_PHY
+	default ARCH_BCM_IPROC
+	help
+	  Enable this to support the Broadcom Northstar2 PCIe PHY.
+	  If unsure, say N.
 endmenu

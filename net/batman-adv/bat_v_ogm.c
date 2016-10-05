@@ -39,13 +39,16 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
+#include "bat_algo.h"
 #include "hard-interface.h"
 #include "hash.h"
+#include "log.h"
 #include "originator.h"
 #include "packet.h"
 #include "routing.h"
 #include "send.h"
 #include "translation-table.h"
+#include "tvlv.h"
 
 /**
  * batadv_v_ogm_orig_get - retrieve and possibly create an originator node
@@ -70,13 +73,12 @@ struct batadv_orig_node *batadv_v_ogm_orig_get(struct batadv_priv *bat_priv,
 	if (!orig_node)
 		return NULL;
 
+	kref_get(&orig_node->refcount);
 	hash_added = batadv_hash_add(bat_priv->orig_hash, batadv_compare_orig,
 				     batadv_choose_orig, orig_node,
 				     &orig_node->hash_entry);
 	if (hash_added != 0) {
-		/* orig_node->refcounter is initialised to 2 by
-		 * batadv_orig_node_new()
-		 */
+		/* remove refcnt for newly created orig_node and hash entry */
 		batadv_orig_node_put(orig_node);
 		batadv_orig_node_put(orig_node);
 		orig_node = NULL;
@@ -683,8 +685,8 @@ static void batadv_v_ogm_process(const struct sk_buff *skb, int ogm_offset,
 	if (!orig_node)
 		return;
 
-	neigh_node = batadv_neigh_node_new(orig_node, if_incoming,
-					   ethhdr->h_source);
+	neigh_node = batadv_neigh_node_get_or_create(orig_node, if_incoming,
+						     ethhdr->h_source);
 	if (!neigh_node)
 		goto out;
 
@@ -751,7 +753,7 @@ int batadv_v_ogm_packet_recv(struct sk_buff *skb,
 	/* did we receive a OGM2 packet on an interface that does not have
 	 * B.A.T.M.A.N. V enabled ?
 	 */
-	if (strcmp(bat_priv->bat_algo_ops->name, "BATMAN_V") != 0)
+	if (strcmp(bat_priv->algo_ops->name, "BATMAN_V") != 0)
 		return NET_RX_DROP;
 
 	if (!batadv_check_management_packet(skb, if_incoming, BATADV_OGM2_HLEN))

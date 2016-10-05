@@ -1,4 +1,6 @@
 /*
+ * MPS2 UART driver
+ *
  * Copyright (C) 2015 ARM Limited
  *
  * Author: Vladimir Murzin <vladimir.murzin@arm.com>
@@ -17,7 +19,6 @@
 #include <linux/console.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -569,30 +570,20 @@ static int mps2_serial_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mps2_serial_remove(struct platform_device *pdev)
-{
-	struct mps2_uart_port *mps_port = platform_get_drvdata(pdev);
-
-	uart_remove_one_port(&mps2_uart_driver, &mps_port->port);
-
-	return 0;
-}
-
 #ifdef CONFIG_OF
 static const struct of_device_id mps2_match[] = {
 	{ .compatible = "arm,mps2-uart", },
 	{},
 };
-MODULE_DEVICE_TABLE(of, mps2_match);
 #endif
 
 static struct platform_driver mps2_serial_driver = {
 	.probe = mps2_serial_probe,
-	.remove = mps2_serial_remove,
 
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = of_match_ptr(mps2_match),
+		.suppress_bind_attrs = true,
 	},
 };
 
@@ -610,16 +601,4 @@ static int __init mps2_uart_init(void)
 
 	return ret;
 }
-module_init(mps2_uart_init);
-
-static void __exit mps2_uart_exit(void)
-{
-	platform_driver_unregister(&mps2_serial_driver);
-	uart_unregister_driver(&mps2_uart_driver);
-}
-module_exit(mps2_uart_exit);
-
-MODULE_AUTHOR("Vladimir Murzin <vladimir.murzin@arm.com>");
-MODULE_DESCRIPTION("MPS2 UART driver");
-MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:" DRIVER_NAME);
+arch_initcall(mps2_uart_init);

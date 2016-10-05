@@ -29,7 +29,7 @@
 #include <nvif/cla06f.h>
 #include <nvif/unpack.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_gem.h"
 #include "nouveau_chan.h"
@@ -100,6 +100,7 @@ nouveau_abi16_swclass(struct nouveau_drm *drm)
 	case NV_DEVICE_INFO_V0_FERMI:
 	case NV_DEVICE_INFO_V0_KEPLER:
 	case NV_DEVICE_INFO_V0_MAXWELL:
+	case NV_DEVICE_INFO_V0_PASCAL:
 		return NVIF_CLASS_SW_GF100;
 	}
 

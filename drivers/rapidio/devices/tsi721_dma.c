@@ -36,17 +36,25 @@
 
 #include "tsi721.h"
 
-#define TSI721_DMA_TX_QUEUE_SZ	16	/* number of transaction descriptors */
-
 #ifdef CONFIG_PCI_MSI
 static irqreturn_t tsi721_bdma_msix(int irq, void *ptr);
 #endif
 static int tsi721_submit_sg(struct tsi721_tx_desc *desc);
 
 static unsigned int dma_desc_per_channel = 128;
-module_param(dma_desc_per_channel, uint, S_IWUSR | S_IRUGO);
+module_param(dma_desc_per_channel, uint, S_IRUGO);
 MODULE_PARM_DESC(dma_desc_per_channel,
 		 "Number of DMA descriptors per channel (default: 128)");
+
+static unsigned int dma_txqueue_sz = 16;
+module_param(dma_txqueue_sz, uint, S_IRUGO);
+MODULE_PARM_DESC(dma_txqueue_sz,
+		 "DMA Transactions Queue Size (default: 16)");
+
+static u8 dma_sel = 0x7f;
+module_param(dma_sel, byte, S_IRUGO);
+MODULE_PARM_DESC(dma_sel,
+		 "DMA Channel Selection Mask (default: 0x7f = all)");
 
 static inline struct tsi721_bdma_chan *to_tsi721_chan(struct dma_chan *chan)
 {
@@ -718,6 +726,7 @@ static dma_cookie_t tsi721_tx_submit(struct dma_async_tx_descriptor *txd)
 	cookie = dma_cookie_assign(txd);
 	desc->status = DMA_IN_PROGRESS;
 	list_add_tail(&desc->desc_node, &bdma_chan->queue);
+	tsi721_advance_work(bdma_chan, NULL);
 
 	spin_unlock_bh(&bdma_chan->lock);
 	return cookie;
@@ -732,7 +741,7 @@ static int tsi721_alloc_chan_resources(struct dma_chan *dchan)
 	tsi_debug(DMA, &dchan->dev->device, "DMAC%d", bdma_chan->id);
 
 	if (bdma_chan->bd_base)
-		return TSI721_DMA_TX_QUEUE_SZ;
+		return dma_txqueue_sz;
 
 	/* Initialize BDMA channel */
 	if (tsi721_bdma_ch_init(bdma_chan, dma_desc_per_channel)) {
@@ -742,7 +751,7 @@ static int tsi721_alloc_chan_resources(struct dma_chan *dchan)
 	}
 
 	/* Allocate queue of transaction descriptors */
-	desc = kcalloc(TSI721_DMA_TX_QUEUE_SZ, sizeof(struct tsi721_tx_desc),
+	desc = kcalloc(dma_txqueue_sz, sizeof(struct tsi721_tx_desc),
 			GFP_ATOMIC);
 	if (!desc) {
 		tsi_err(&dchan->dev->device,
@@ -754,7 +763,7 @@ static int tsi721_alloc_chan_resources(struct dma_chan *dchan)
 
 	bdma_chan->tx_desc = desc;
 
-	for (i = 0; i < TSI721_DMA_TX_QUEUE_SZ; i++) {
+	for (i = 0; i < dma_txqueue_sz; i++) {
 		dma_async_tx_descriptor_init(&desc[i].txd, dchan);
 		desc[i].txd.tx_submit = tsi721_tx_submit;
 		desc[i].txd.flags = DMA_CTRL_ACK;
@@ -766,7 +775,7 @@ static int tsi721_alloc_chan_resources(struct dma_chan *dchan)
 	bdma_chan->active = true;
 	tsi721_bdma_interrupt_enable(bdma_chan, 1);
 
-	return TSI721_DMA_TX_QUEUE_SZ;
+	return dma_txqueue_sz;
 }
 
 static void tsi721_sync_dma_irq(struct tsi721_bdma_chan *bdma_chan)
@@ -962,7 +971,7 @@ void tsi721_dma_stop_all(struct tsi721_device *priv)
 	int i;
 
 	for (i = 0; i < TSI721_DMA_MAXCH; i++) {
-		if (i != TSI721_DMACH_MAINT)
+		if ((i != TSI721_DMACH_MAINT) && (dma_sel & (1 << i)))
 			tsi721_dma_stop(&priv->bdma[i]);
 	}
 }
@@ -979,7 +988,7 @@ int tsi721_register_dma(struct tsi721_device *priv)
 	for (i = 0; i < TSI721_DMA_MAXCH; i++) {
 		struct tsi721_bdma_chan *bdma_chan = &priv->bdma[i];
 
-		if (i == TSI721_DMACH_MAINT)
+		if ((i == TSI721_DMACH_MAINT) || (dma_sel & (1 << i)) == 0)
 			continue;
 
 		bdma_chan->regs = priv->regs + TSI721_DMAC_BASE(i);

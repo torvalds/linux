@@ -150,7 +150,7 @@ u32 amdgpu_dpm_get_vrefresh(struct amdgpu_device *adev)
 		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 			amdgpu_crtc = to_amdgpu_crtc(crtc);
 			if (crtc->enabled && amdgpu_crtc->enabled && amdgpu_crtc->hw_mode.clock) {
-				vrefresh = amdgpu_crtc->hw_mode.vrefresh;
+				vrefresh = drm_mode_vrefresh(&amdgpu_crtc->hw_mode);
 				break;
 			}
 		}

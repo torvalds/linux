@@ -132,7 +132,7 @@ static int ascot2e_write_regs(struct ascot2e_priv *priv,
 		}
 	};
 
-	if (len + 1 >= sizeof(buf)) {
+	if (len + 1 > sizeof(buf)) {
 		dev_warn(&priv->i2c->dev,"wr reg=%04x: len=%d is too big!\n",
 			 reg, len + 1);
 		return -E2BIG;

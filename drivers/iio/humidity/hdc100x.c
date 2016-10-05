@@ -55,7 +55,7 @@ static const struct {
 	},
 	{ /* IIO_HUMIDITYRELATIVE channel */
 		.shift = 8,
-		.mask = 2,
+		.mask = 3,
 	},
 };
 
@@ -142,7 +142,7 @@ static int hdc100x_get_measurement(struct hdc100x_data *data,
 	struct i2c_client *client = data->client;
 	int delay = data->adc_int_us[chan->address];
 	int ret;
-	int val;
+	__be16 val;
 
 	/* start measurement */
 	ret = i2c_smbus_write_byte(client, chan->address);
@@ -154,26 +154,13 @@ static int hdc100x_get_measurement(struct hdc100x_data *data,
 	/* wait for integration time to pass */
 	usleep_range(delay, delay + 1000);
 
-	/*
-	 * i2c_smbus_read_word_data cannot() be used here due to the command
-	 * value not being understood and causes NAKs preventing any reading
-	 * from being accessed.
-	 */
-	ret = i2c_smbus_read_byte(client);
+	/* read measurement */
+	ret = i2c_master_recv(data->client, (char *)&val, sizeof(val));
 	if (ret < 0) {
-		dev_err(&client->dev, "cannot read high byte measurement");
+		dev_err(&client->dev, "cannot read sensor data\n");
 		return ret;
 	}
-	val = ret << 6;
-
-	ret = i2c_smbus_read_byte(client);
-	if (ret < 0) {
-		dev_err(&client->dev, "cannot read low byte measurement");
-		return ret;
-	}
-	val |= ret >> 2;
-
-	return val;
+	return be16_to_cpu(val);
 }
 
 static int hdc100x_get_heater_status(struct hdc100x_data *data)
@@ -211,18 +198,18 @@ static int hdc100x_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_SCALE:
 		if (chan->type == IIO_TEMP) {
-			*val = 165;
-			*val2 = 65536 >> 2;
+			*val = 165000;
+			*val2 = 65536;
 			return IIO_VAL_FRACTIONAL;
 		} else {
-			*val = 0;
-			*val2 = 10000;
-			return IIO_VAL_INT_PLUS_MICRO;
+			*val = 100;
+			*val2 = 65536;
+			return IIO_VAL_FRACTIONAL;
 		}
 		break;
 	case IIO_CHAN_INFO_OFFSET:
-		*val = -3971;
-		*val2 = 879096;
+		*val = -15887;
+		*val2 = 515151;
 		return IIO_VAL_INT_PLUS_MICRO;
 	default:
 		return -EINVAL;
@@ -272,8 +259,8 @@ static int hdc100x_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	struct hdc100x_data *data;
 
-	if (!i2c_check_functionality(client->adapter,
-				I2C_FUNC_SMBUS_WORD_DATA | I2C_FUNC_SMBUS_BYTE))
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA |
+				     I2C_FUNC_SMBUS_BYTE | I2C_FUNC_I2C))
 		return -EOPNOTSUPP;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));

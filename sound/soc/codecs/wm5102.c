@@ -1713,6 +1713,7 @@ static const struct snd_soc_dapm_route wm5102_dapm_routes[] = {
 
 	{ "MICSUPP", NULL, "SYSCLK" },
 
+	{ "DRC1 Signal Activity", NULL, "SYSCLK" },
 	{ "DRC1 Signal Activity", NULL, "DRC1L" },
 	{ "DRC1 Signal Activity", NULL, "DRC1R" },
 };
@@ -1872,7 +1873,7 @@ static struct snd_soc_dai_driver wm5102_dai[] = {
 		.capture = {
 			.stream_name = "Audio Trace CPU",
 			.channels_min = 1,
-			.channels_max = 6,
+			.channels_max = 4,
 			.rates = WM5102_RATES,
 			.formats = WM5102_FORMATS,
 		},

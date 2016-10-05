@@ -14,13 +14,6 @@ void test_attr__open(struct perf_event_attr *attr, pid_t pid, int cpu,
 #define HAVE_ATTR_TEST
 #include "perf-sys.h"
 
-#ifndef NSEC_PER_SEC
-# define NSEC_PER_SEC			1000000000ULL
-#endif
-#ifndef NSEC_PER_USEC
-# define NSEC_PER_USEC			1000ULL
-#endif
-
 static inline unsigned long long rdclock(void)
 {
 	struct timespec ts;
@@ -52,6 +45,7 @@ struct record_opts {
 	bool	     sample_weight;
 	bool	     sample_time;
 	bool	     sample_time_set;
+	bool	     sample_cpu;
 	bool	     period;
 	bool	     running_time;
 	bool	     full_auxtrace;
@@ -59,6 +53,8 @@ struct record_opts {
 	bool	     record_switch_events;
 	bool	     all_kernel;
 	bool	     all_user;
+	bool	     tail_synthesize;
+	bool	     overwrite;
 	unsigned int freq;
 	unsigned int mmap_pages;
 	unsigned int auxtrace_mmap_pages;

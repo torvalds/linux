@@ -401,7 +401,7 @@ generic_secondary_common_init:
 	ld	r12,CPU_SPEC_RESTORE(r23)
 	cmpdi	0,r12,0
 	beq	3f
-#if !defined(_CALL_ELF) || _CALL_ELF != 2
+#ifdef PPC64_ELF_ABI_v1
 	ld	r12,0(r12)
 #endif
 	mtctr	r12
@@ -941,7 +941,7 @@ start_here_multiplatform:
 	mtspr	SPRN_SRR1,r4
 	RFI
 	b	.	/* prevent speculative execution */
-	
+
 	/* This is where all platforms converge execution */
 
 start_here_common:
@@ -950,9 +950,6 @@ start_here_common:
 
 	/* Load the TOC (virtual address) */
 	ld	r2,PACATOC(r13)
-
-	/* Do more system initializations in virtual mode */
-	bl	setup_system
 
 	/* Mark interrupts soft and hard disabled (they might be enabled
 	 * in the PACA when doing hotplug)

@@ -1133,11 +1133,11 @@ static int btt_write_pg(struct btt *btt, struct bio_integrity_payload *bip,
 
 static int btt_do_bvec(struct btt *btt, struct bio_integrity_payload *bip,
 			struct page *page, unsigned int len, unsigned int off,
-			int rw, sector_t sector)
+			bool is_write, sector_t sector)
 {
 	int ret;
 
-	if (rw == READ) {
+	if (!is_write) {
 		ret = btt_read_pg(btt, bip, page, off, sector, len);
 		flush_dcache_page(page);
 	} else {
@@ -1155,7 +1155,7 @@ static blk_qc_t btt_make_request(struct request_queue *q, struct bio *bio)
 	struct bvec_iter iter;
 	unsigned long start;
 	struct bio_vec bvec;
-	int err = 0, rw;
+	int err = 0;
 	bool do_acct;
 
 	/*
@@ -1170,7 +1170,6 @@ static blk_qc_t btt_make_request(struct request_queue *q, struct bio *bio)
 	}
 
 	do_acct = nd_iostat_start(bio, &start);
-	rw = bio_data_dir(bio);
 	bio_for_each_segment(bvec, bio, iter) {
 		unsigned int len = bvec.bv_len;
 
@@ -1181,11 +1180,12 @@ static blk_qc_t btt_make_request(struct request_queue *q, struct bio *bio)
 		BUG_ON(len % btt->sector_size);
 
 		err = btt_do_bvec(btt, bip, bvec.bv_page, len, bvec.bv_offset,
-				rw, iter.bi_sector);
+				  op_is_write(bio_op(bio)), iter.bi_sector);
 		if (err) {
 			dev_info(&btt->nd_btt->dev,
 					"io error in %s sector %lld, len %d,\n",
-					(rw == READ) ? "READ" : "WRITE",
+					(op_is_write(bio_op(bio))) ? "WRITE" :
+					"READ",
 					(unsigned long long) iter.bi_sector, len);
 			bio->bi_error = err;
 			break;
@@ -1200,12 +1200,12 @@ out:
 }
 
 static int btt_rw_page(struct block_device *bdev, sector_t sector,
-		struct page *page, int rw)
+		struct page *page, bool is_write)
 {
 	struct btt *btt = bdev->bd_disk->private_data;
 
-	btt_do_bvec(btt, NULL, page, PAGE_SIZE, 0, rw, sector);
-	page_endio(page, rw & WRITE, 0);
+	btt_do_bvec(btt, NULL, page, PAGE_SIZE, 0, is_write, sector);
+	page_endio(page, is_write, 0);
 	return 0;
 }
 
@@ -1243,7 +1243,6 @@ static int btt_blk_init(struct btt *btt)
 	}
 
 	nvdimm_namespace_disk_name(ndns, btt->btt_disk->disk_name);
-	btt->btt_disk->driverfs_dev = &btt->nd_btt->dev;
 	btt->btt_disk->first_minor = 0;
 	btt->btt_disk->fops = &btt_fops;
 	btt->btt_disk->private_data = btt;
@@ -1258,7 +1257,7 @@ static int btt_blk_init(struct btt *btt)
 	btt->btt_queue->queuedata = btt;
 
 	set_capacity(btt->btt_disk, 0);
-	add_disk(btt->btt_disk);
+	device_add_disk(&btt->nd_btt->dev, btt->btt_disk);
 	if (btt_meta_size(btt)) {
 		int rc = nd_integrity_init(btt->btt_disk, btt_meta_size(btt));
 
@@ -1270,6 +1269,7 @@ static int btt_blk_init(struct btt *btt)
 		}
 	}
 	set_capacity(btt->btt_disk, btt->nlba * btt->sector_size >> 9);
+	btt->nd_btt->size = btt->nlba * (u64)btt->sector_size;
 	revalidate_disk(btt->btt_disk);
 
 	return 0;
@@ -1306,7 +1306,7 @@ static struct btt *btt_init(struct nd_btt *nd_btt, unsigned long long rawsize,
 	struct btt *btt;
 	struct device *dev = &nd_btt->dev;
 
-	btt = kzalloc(sizeof(struct btt), GFP_KERNEL);
+	btt = devm_kzalloc(dev, sizeof(struct btt), GFP_KERNEL);
 	if (!btt)
 		return NULL;
 
@@ -1321,13 +1321,13 @@ static struct btt *btt_init(struct nd_btt *nd_btt, unsigned long long rawsize,
 	ret = discover_arenas(btt);
 	if (ret) {
 		dev_err(dev, "init: error in arena_discover: %d\n", ret);
-		goto out_free;
+		return NULL;
 	}
 
 	if (btt->init_state != INIT_READY && nd_region->ro) {
 		dev_info(dev, "%s is read-only, unable to init btt metadata\n",
 				dev_name(&nd_region->dev));
-		goto out_free;
+		return NULL;
 	} else if (btt->init_state != INIT_READY) {
 		btt->num_arenas = (rawsize / ARENA_MAX_SIZE) +
 			((rawsize % ARENA_MAX_SIZE) ? 1 : 0);
@@ -1337,29 +1337,25 @@ static struct btt *btt_init(struct nd_btt *nd_btt, unsigned long long rawsize,
 		ret = create_arenas(btt);
 		if (ret) {
 			dev_info(dev, "init: create_arenas: %d\n", ret);
-			goto out_free;
+			return NULL;
 		}
 
 		ret = btt_meta_init(btt);
 		if (ret) {
 			dev_err(dev, "init: error in meta_init: %d\n", ret);
-			goto out_free;
+			return NULL;
 		}
 	}
 
 	ret = btt_blk_init(btt);
 	if (ret) {
 		dev_err(dev, "init: error in blk_init: %d\n", ret);
-		goto out_free;
+		return NULL;
 	}
 
 	btt_debugfs_init(btt);
 
 	return btt;
-
- out_free:
-	kfree(btt);
-	return NULL;
 }
 
 /**
@@ -1377,7 +1373,6 @@ static void btt_fini(struct btt *btt)
 		btt_blk_cleanup(btt);
 		free_arenas(btt);
 		debugfs_remove_recursive(btt->debugfs_dir);
-		kfree(btt);
 	}
 }
 
@@ -1388,11 +1383,15 @@ int nvdimm_namespace_attach_btt(struct nd_namespace_common *ndns)
 	struct btt *btt;
 	size_t rawsize;
 
-	if (!nd_btt->uuid || !nd_btt->ndns || !nd_btt->lbasize)
+	if (!nd_btt->uuid || !nd_btt->ndns || !nd_btt->lbasize) {
+		dev_dbg(&nd_btt->dev, "incomplete btt configuration\n");
 		return -ENODEV;
+	}
 
 	rawsize = nvdimm_namespace_capacity(ndns) - SZ_4K;
 	if (rawsize < ARENA_MIN_SIZE) {
+		dev_dbg(&nd_btt->dev, "%s must be at least %ld bytes\n",
+				dev_name(&ndns->dev), ARENA_MIN_SIZE + SZ_4K);
 		return -ENXIO;
 	}
 	nd_region = to_nd_region(nd_btt->dev.parent);
@@ -1406,9 +1405,8 @@ int nvdimm_namespace_attach_btt(struct nd_namespace_common *ndns)
 }
 EXPORT_SYMBOL(nvdimm_namespace_attach_btt);
 
-int nvdimm_namespace_detach_btt(struct nd_namespace_common *ndns)
+int nvdimm_namespace_detach_btt(struct nd_btt *nd_btt)
 {
-	struct nd_btt *nd_btt = to_nd_btt(ndns->claim);
 	struct btt *btt = nd_btt->btt;
 
 	btt_fini(btt);

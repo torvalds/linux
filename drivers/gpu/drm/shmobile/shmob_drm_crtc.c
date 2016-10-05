@@ -440,8 +440,8 @@ void shmob_drm_crtc_finish_page_flip(struct shmob_drm_crtc *scrtc)
 	event = scrtc->event;
 	scrtc->event = NULL;
 	if (event) {
-		drm_send_vblank_event(dev, 0, event);
-		drm_vblank_put(dev, 0);
+		drm_crtc_send_vblank_event(&scrtc->crtc, event);
+		drm_crtc_vblank_put(&scrtc->crtc);
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
@@ -467,7 +467,7 @@ static int shmob_drm_crtc_page_flip(struct drm_crtc *crtc,
 
 	if (event) {
 		event->pipe = 0;
-		drm_vblank_get(dev, 0);
+		drm_crtc_vblank_get(&scrtc->crtc);
 		spin_lock_irqsave(&dev->event_lock, flags);
 		scrtc->event = event;
 		spin_unlock_irqrestore(&dev->event_lock, flags);

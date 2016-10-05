@@ -160,8 +160,8 @@ void udp_set_csum(bool nocheck, struct sk_buff *skb,
 
 static inline void udp_csum_pull_header(struct sk_buff *skb)
 {
-	if (skb->ip_summed == CHECKSUM_NONE)
-		skb->csum = csum_partial(udp_hdr(skb), sizeof(struct udphdr),
+	if (!skb->csum_valid && skb->ip_summed == CHECKSUM_NONE)
+		skb->csum = csum_partial(skb->data, sizeof(struct udphdr),
 					 skb->csum);
 	skb_pull_rcsum(skb, sizeof(struct udphdr));
 	UDP_SKB_CB(skb)->cscov -= sizeof(struct udphdr);
@@ -251,6 +251,7 @@ int udp_get_port(struct sock *sk, unsigned short snum,
 		 int (*saddr_cmp)(const struct sock *,
 				  const struct sock *));
 void udp_err(struct sk_buff *, u32);
+int udp_abort(struct sock *sk, int err);
 int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len);
 int udp_push_pending_frames(struct sock *sk);
 void udp_flush_pending_frames(struct sock *sk);

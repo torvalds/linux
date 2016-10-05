@@ -1,0 +1,24 @@
+HiSilicon SPI-NOR Flash Controller
+
+Required properties:
+- compatible : Should be "hisilicon,fmc-spi-nor" and one of the following strings:
+		"hisilicon,hi3519-spi-nor"
+- address-cells : Should be 1.
+- size-cells : Should be 0.
+- reg : Offset and length of the register set for the controller device.
+- reg-names : Must include the following two entries: "control", "memory".
+- clocks : handle to spi-nor flash controller clock.
+
+Example:
+spi-nor-controller@10000000 {
+	compatible = "hisilicon,hi3519-spi-nor", "hisilicon,fmc-spi-nor";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	reg = <0x10000000 0x1000>, <0x14000000 0x1000000>;
+	reg-names = "control", "memory";
+	clocks = <&clock HI3519_FMC_CLK>;
+	spi-nor@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+	};
+};

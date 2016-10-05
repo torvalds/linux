@@ -244,9 +244,7 @@ void cfg80211_conn_work(struct work_struct *work)
 		if (cfg80211_conn_do_work(wdev)) {
 			__cfg80211_connect_result(
 					wdev->netdev, bssid,
-					NULL, 0, NULL, 0,
-					WLAN_STATUS_UNSPECIFIED_FAILURE,
-					false, NULL);
+					NULL, 0, NULL, 0, -1, false, NULL);
 		}
 		wdev_unlock(wdev);
 	}
@@ -648,7 +646,7 @@ static DECLARE_WORK(cfg80211_disconnect_work, disconnect_work);
 void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 			       const u8 *req_ie, size_t req_ie_len,
 			       const u8 *resp_ie, size_t resp_ie_len,
-			       u16 status, bool wextev,
+			       int status, bool wextev,
 			       struct cfg80211_bss *bss)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
@@ -728,7 +726,8 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 
 	wdev->current_bss = bss_from_pub(bss);
 
-	cfg80211_upload_connect_keys(wdev);
+	if (!(wdev->wiphy->flags & WIPHY_FLAG_HAS_STATIC_WEP))
+		cfg80211_upload_connect_keys(wdev);
 
 	rcu_read_lock();
 	country_ie = ieee80211_bss_get_ie(bss, WLAN_EID_COUNTRY);
@@ -757,7 +756,7 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 void cfg80211_connect_bss(struct net_device *dev, const u8 *bssid,
 			  struct cfg80211_bss *bss, const u8 *req_ie,
 			  size_t req_ie_len, const u8 *resp_ie,
-			  size_t resp_ie_len, u16 status, gfp_t gfp)
+			  size_t resp_ie_len, int status, gfp_t gfp)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
@@ -1045,6 +1044,12 @@ int cfg80211_connect(struct cfg80211_registered_device *rdev,
 				connect->crypto.ciphers_pairwise[0] = cipher;
 			}
 		}
+
+		connect->crypto.wep_keys = connkeys->params;
+		connect->crypto.wep_tx_key = connkeys->def;
+	} else {
+		if (WARN_ON(connkeys))
+			return -EINVAL;
 	}
 
 	wdev->connect_keys = connkeys;

@@ -36,7 +36,6 @@
 #include <mach/mux.h>
 
 #include <mach/hardware.h>
-#include <mach/irqs.h>
 #include <mach/usb.h>
 
 

@@ -18,6 +18,7 @@ struct ipv6_devconf {
 	__s32		dad_transmits;
 	__s32		rtr_solicits;
 	__s32		rtr_solicit_interval;
+	__s32		rtr_solicit_max_interval;
 	__s32		rtr_solicit_delay;
 	__s32		force_mld_version;
 	__s32		mldv1_unsolicited_report_interval;
@@ -283,6 +284,8 @@ struct tcp6_timewait_sock {
 };
 
 #if IS_ENABLED(CONFIG_IPV6)
+bool ipv6_mod_enabled(void);
+
 static inline struct ipv6_pinfo *inet6_sk(const struct sock *__sk)
 {
 	return sk_fullsock(__sk) ? inet_sk(__sk)->pinet6 : NULL;
@@ -325,6 +328,11 @@ static inline int inet_v6_ipv6only(const struct sock *sk)
 #define __ipv6_only_sock(sk)	0
 #define ipv6_only_sock(sk)	0
 #define ipv6_sk_rxinfo(sk)	0
+
+static inline bool ipv6_mod_enabled(void)
+{
+	return false;
+}
 
 static inline struct ipv6_pinfo * inet6_sk(const struct sock *__sk)
 {

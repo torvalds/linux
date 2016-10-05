@@ -36,7 +36,7 @@ struct ins_operands {
 
 struct ins_ops {
 	void (*free)(struct ins_operands *ops);
-	int (*parse)(struct ins_operands *ops);
+	int (*parse)(struct ins_operands *ops, struct map *map);
 	int (*scnprintf)(struct ins *ins, char *bf, size_t size,
 			 struct ins_operands *ops);
 };
@@ -48,6 +48,7 @@ struct ins {
 
 bool ins__is_jump(const struct ins *ins);
 bool ins__is_call(const struct ins *ins);
+bool ins__is_ret(const struct ins *ins);
 int ins__scnprintf(struct ins *ins, char *bf, size_t size, struct ins_operands *ops);
 
 struct annotation;
@@ -129,6 +130,7 @@ struct annotated_source {
 
 struct annotation {
 	pthread_mutex_t		lock;
+	u64			max_coverage;
 	struct annotated_source *src;
 };
 
@@ -154,11 +156,28 @@ int hist_entry__inc_addr_samples(struct hist_entry *he, int evidx, u64 addr);
 int symbol__alloc_hist(struct symbol *sym);
 void symbol__annotate_zero_histograms(struct symbol *sym);
 
-int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize);
+int symbol__disassemble(struct symbol *sym, struct map *map, size_t privsize);
 
-int hist_entry__annotate(struct hist_entry *he, size_t privsize);
+enum symbol_disassemble_errno {
+	SYMBOL_ANNOTATE_ERRNO__SUCCESS		= 0,
 
-int symbol__annotate_init(struct map *map, struct symbol *sym);
+	/*
+	 * Choose an arbitrary negative big number not to clash with standard
+	 * errno since SUS requires the errno has distinct positive values.
+	 * See 'Issue 6' in the link below.
+	 *
+	 * http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/errno.h.html
+	 */
+	__SYMBOL_ANNOTATE_ERRNO__START		= -10000,
+
+	SYMBOL_ANNOTATE_ERRNO__NO_VMLINUX	= __SYMBOL_ANNOTATE_ERRNO__START,
+
+	__SYMBOL_ANNOTATE_ERRNO__END,
+};
+
+int symbol__strerror_disassemble(struct symbol *sym, struct map *map,
+				 int errnum, char *buf, size_t buflen);
+
 int symbol__annotate_printf(struct symbol *sym, struct map *map,
 			    struct perf_evsel *evsel, bool full_paths,
 			    int min_pcnt, int max_lines, int context);

@@ -99,8 +99,12 @@ void iwl_notification_wait_notify(struct iwl_notif_wait_data *notif_wait,
 				continue;
 
 			for (i = 0; i < w->n_cmds; i++) {
-				if (w->cmds[i] ==
-				    WIDE_ID(pkt->hdr.group_id, pkt->hdr.cmd)) {
+				u16 rec_id = WIDE_ID(pkt->hdr.group_id,
+						     pkt->hdr.cmd);
+
+				if (w->cmds[i] == rec_id ||
+				    (!iwl_cmd_groupid(w->cmds[i]) &&
+				     DEF_ID(w->cmds[i]) == rec_id)) {
 					found = true;
 					break;
 				}

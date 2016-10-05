@@ -601,11 +601,8 @@ static int uhci_start(struct usb_hcd *hcd)
 
 	uhci->frame_cpu = kcalloc(UHCI_NUMFRAMES, sizeof(*uhci->frame_cpu),
 			GFP_KERNEL);
-	if (!uhci->frame_cpu) {
-		dev_err(uhci_dev(uhci),
-			"unable to allocate memory for frame pointers\n");
+	if (!uhci->frame_cpu)
 		goto err_alloc_frame_cpu;
-	}
 
 	uhci->td_pool = dma_pool_create("uhci_td", uhci_dev(uhci),
 			sizeof(struct uhci_td), 16, 0);

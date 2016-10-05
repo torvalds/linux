@@ -20,11 +20,26 @@
 #include "../include/mc-sys.h"
 #include "dprc-cmd.h"
 
+/*
+ * Generate a unique ID identifying the interrupt (only used within the MSI
+ * irqdomain.  Combine the icid with the interrupt index.
+ */
+static irq_hw_number_t fsl_mc_domain_calc_hwirq(struct fsl_mc_device *dev,
+						struct msi_desc *desc)
+{
+	/*
+	 * Make the base hwirq value for ICID*10000 so it is readable
+	 * as a decimal value in /proc/interrupts.
+	 */
+	return (irq_hw_number_t)(desc->fsl_mc.msi_index + (dev->icid * 10000));
+}
+
 static void fsl_mc_msi_set_desc(msi_alloc_info_t *arg,
 				struct msi_desc *desc)
 {
 	arg->desc = desc;
-	arg->hwirq = (irq_hw_number_t)desc->fsl_mc.msi_index;
+	arg->hwirq = fsl_mc_domain_calc_hwirq(to_fsl_mc_device(desc->dev),
+					      desc);
 }
 
 static void fsl_mc_msi_update_dom_ops(struct msi_domain_info *info)
@@ -198,7 +213,7 @@ static int fsl_mc_msi_alloc_descs(struct device *dev, unsigned int irq_count)
 	struct msi_desc *msi_desc;
 
 	for (i = 0; i < irq_count; i++) {
-		msi_desc = alloc_msi_entry(dev);
+		msi_desc = alloc_msi_entry(dev, 1, NULL);
 		if (!msi_desc) {
 			dev_err(dev, "Failed to allocate msi entry\n");
 			error = -ENOMEM;
@@ -206,7 +221,6 @@ static int fsl_mc_msi_alloc_descs(struct device *dev, unsigned int irq_count)
 		}
 
 		msi_desc->fsl_mc.msi_index = i;
-		msi_desc->nvec_used = 1;
 		INIT_LIST_HEAD(&msi_desc->list);
 		list_add_tail(&msi_desc->list, dev_to_msi_list(dev));
 	}

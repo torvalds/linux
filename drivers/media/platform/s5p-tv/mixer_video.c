@@ -80,12 +80,7 @@ int mxr_acquire_video(struct mxr_device *mdev,
 		goto fail;
 	}
 
-	mdev->alloc_ctx = vb2_dma_contig_init_ctx(mdev->dev);
-	if (IS_ERR(mdev->alloc_ctx)) {
-		mxr_err(mdev, "could not acquire vb2 allocator\n");
-		ret = PTR_ERR(mdev->alloc_ctx);
-		goto fail_v4l2_dev;
-	}
+	vb2_dma_contig_set_max_seg_size(mdev->dev, DMA_BIT_MASK(32));
 
 	/* registering outputs */
 	mdev->output_cnt = 0;
@@ -120,7 +115,7 @@ int mxr_acquire_video(struct mxr_device *mdev,
 		mxr_err(mdev, "failed to register any output\n");
 		ret = -ENODEV;
 		/* skipping fail_output because there is nothing to free */
-		goto fail_vb2_allocator;
+		goto fail_v4l2_dev;
 	}
 
 	return 0;
@@ -130,10 +125,6 @@ fail_output:
 	for (i = 0; i < mdev->output_cnt; ++i)
 		kfree(mdev->output[i]);
 	memset(mdev->output, 0, sizeof(mdev->output));
-
-fail_vb2_allocator:
-	/* freeing allocator context */
-	vb2_dma_contig_cleanup_ctx(mdev->alloc_ctx);
 
 fail_v4l2_dev:
 	/* NOTE: automatically unregister all subdevs */
@@ -151,7 +142,7 @@ void mxr_release_video(struct mxr_device *mdev)
 	for (i = 0; i < mdev->output_cnt; ++i)
 		kfree(mdev->output[i]);
 
-	vb2_dma_contig_cleanup_ctx(mdev->alloc_ctx);
+	vb2_dma_contig_clear_max_seg_size(mdev->dev);
 	v4l2_device_unregister(&mdev->v4l2_dev);
 }
 
@@ -883,7 +874,7 @@ static const struct v4l2_file_operations mxr_fops = {
 
 static int queue_setup(struct vb2_queue *vq,
 	unsigned int *nbuffers, unsigned int *nplanes, unsigned int sizes[],
-	void *alloc_ctxs[])
+	struct device *alloc_devs[])
 {
 	struct mxr_layer *layer = vb2_get_drv_priv(vq);
 	const struct mxr_format *fmt = layer->fmt;
@@ -901,7 +892,6 @@ static int queue_setup(struct vb2_queue *vq,
 
 	*nplanes = fmt->num_subframes;
 	for (i = 0; i < fmt->num_subframes; ++i) {
-		alloc_ctxs[i] = layer->mdev->alloc_ctx;
 		sizes[i] = planes[i].sizeimage;
 		mxr_dbg(mdev, "size[%d] = %08x\n", i, sizes[i]);
 	}
@@ -1110,6 +1100,7 @@ struct mxr_layer *mxr_base_layer_create(struct mxr_device *mdev,
 		.min_buffers_needed = 1,
 		.mem_ops = &vb2_dma_contig_memops,
 		.lock = &layer->mutex,
+		.dev = mdev->dev,
 	};
 
 	return layer;

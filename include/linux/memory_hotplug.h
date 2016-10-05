@@ -182,7 +182,7 @@ static inline void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
 #endif /* CONFIG_HAVE_ARCH_NODEDATA_EXTENSION */
 
 #ifdef CONFIG_HAVE_BOOTMEM_INFO_NODE
-extern void register_page_bootmem_info_node(struct pglist_data *pgdat);
+extern void __init register_page_bootmem_info_node(struct pglist_data *pgdat);
 #else
 static inline void register_page_bootmem_info_node(struct pglist_data *pgdat)
 {
@@ -284,5 +284,7 @@ extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
 		unsigned long map_offset);
 extern struct page *sparse_decode_mem_map(unsigned long coded_mem_map,
 					  unsigned long pnum);
+extern int zone_can_shift(unsigned long pfn, unsigned long nr_pages,
+			  enum zone_type target);
 
 #endif /* __LINUX_MEMORY_HOTPLUG_H */

@@ -26,21 +26,6 @@
 #include <subdev/bios/image.h>
 #include <subdev/bios/pmu.h>
 
-static u32
-weirdo_pointer(struct nvkm_bios *bios, u32 data)
-{
-	struct nvbios_image image;
-	int idx = 0;
-	if (nvbios_image(bios, idx++, &image)) {
-		data -= image.size;
-		while (nvbios_image(bios, idx++, &image)) {
-			if (image.type == 0xe0)
-				return image.base + data;
-		}
-	}
-	return 0;
-}
-
 u32
 nvbios_pmuTe(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
@@ -50,7 +35,7 @@ nvbios_pmuTe(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 	if (!bit_entry(bios, 'p', &bit_p)) {
 		if (bit_p.version == 2 && bit_p.length >= 4)
 			data = nvbios_rd32(bios, bit_p.offset + 0x00);
-		if ((data = weirdo_pointer(bios, data))) {
+		if (data) {
 			*ver = nvbios_rd08(bios, data + 0x00); /* maybe? */
 			*hdr = nvbios_rd08(bios, data + 0x01);
 			*len = nvbios_rd08(bios, data + 0x02);
@@ -97,8 +82,7 @@ nvbios_pmuRm(struct nvkm_bios *bios, u8 type, struct nvbios_pmuR *info)
 	u32 data;
 	memset(info, 0x00, sizeof(*info));
 	while ((data = nvbios_pmuEp(bios, idx++, &ver, &hdr, &pmuE))) {
-		if ( pmuE.type == type &&
-		    (data = weirdo_pointer(bios, pmuE.data))) {
+		if (pmuE.type == type && (data = pmuE.data)) {
 			info->init_addr_pmu = nvbios_rd32(bios, data + 0x08);
 			info->args_addr_pmu = nvbios_rd32(bios, data + 0x0c);
 			info->boot_addr     = data + 0x30;

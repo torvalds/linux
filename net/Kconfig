@@ -237,6 +237,7 @@ source "net/hsr/Kconfig"
 source "net/switchdev/Kconfig"
 source "net/l3mdev/Kconfig"
 source "net/qrtr/Kconfig"
+source "net/ncsi/Kconfig"
 
 config RPS
 	bool
@@ -368,6 +369,7 @@ source "net/irda/Kconfig"
 source "net/bluetooth/Kconfig"
 source "net/rxrpc/Kconfig"
 source "net/kcm/Kconfig"
+source "net/strparser/Kconfig"
 
 config FIB_RULES
 	bool

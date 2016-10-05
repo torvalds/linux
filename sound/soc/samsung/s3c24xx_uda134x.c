@@ -58,10 +58,12 @@ static struct platform_device *s3c24xx_uda134x_snd_device;
 
 static int s3c24xx_uda134x_startup(struct snd_pcm_substream *substream)
 {
-	int ret = 0;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 #ifdef ENFORCE_RATES
 	struct snd_pcm_runtime *runtime = substream->runtime;
 #endif
+	int ret = 0;
 
 	mutex_lock(&clk_lock);
 	pr_debug("%s %d\n", __func__, clk_users);
@@ -71,8 +73,7 @@ static int s3c24xx_uda134x_startup(struct snd_pcm_substream *substream)
 			printk(KERN_ERR "%s cannot get xtal\n", __func__);
 			ret = PTR_ERR(xtal);
 		} else {
-			pclk = clk_get(&s3c24xx_uda134x_snd_device->dev,
-				       "pclk");
+			pclk = clk_get(cpu_dai->dev, "iis");
 			if (IS_ERR(pclk)) {
 				printk(KERN_ERR "%s cannot get pclk\n",
 				       __func__);

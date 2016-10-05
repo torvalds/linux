@@ -5,7 +5,7 @@
 	#size-cells = <1>;
 	compatible = "ingenic,jz4740";
 
-	cpuintc: interrupt-controller@0 {
+	cpuintc: interrupt-controller {
 		#address-cells = <0>;
 		#interrupt-cells = <1>;
 		interrupt-controller;
