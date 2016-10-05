@@ -212,7 +212,8 @@ mv_cesa_ablkcipher_complete(struct crypto_async_request *req)
 		struct mv_cesa_req *basereq;
 
 		basereq = &creq->base;
-		memcpy(ablkreq->info, basereq->chain.last->data, ivsize);
+		memcpy(ablkreq->info, basereq->chain.last->op->ctx.blkcipher.iv,
+		       ivsize);
 	} else {
 		memcpy_fromio(ablkreq->info,
 			      engine->sram + CESA_SA_CRYPT_IV_SRAM_OFFSET,
@@ -373,8 +374,9 @@ static int mv_cesa_ablkcipher_dma_req_init(struct ablkcipher_request *req,
 
 	/* Add output data for IV */
 	ivsize = crypto_ablkcipher_ivsize(crypto_ablkcipher_reqtfm(req));
-	ret = mv_cesa_dma_add_iv_op(&basereq->chain, CESA_SA_CRYPT_IV_SRAM_OFFSET,
-				    ivsize, CESA_TDMA_SRC_IN_SRAM, flags);
+	ret = mv_cesa_dma_add_result_op(&basereq->chain, CESA_SA_CFG_SRAM_OFFSET,
+				    CESA_SA_DATA_SRAM_OFFSET,
+				    CESA_TDMA_SRC_IN_SRAM, flags);
 
 	if (ret)
 		goto err_free_tdma;
