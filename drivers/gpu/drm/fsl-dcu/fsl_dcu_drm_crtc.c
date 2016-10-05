@@ -116,8 +116,6 @@ static void fsl_dcu_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 		     DCU_THRESHOLD_LS_BF_VS(BF_VS_VAL) |
 		     DCU_THRESHOLD_OUT_BUF_HIGH(BUF_MAX_VAL) |
 		     DCU_THRESHOLD_OUT_BUF_LOW(BUF_MIN_VAL));
-	regmap_write(fsl_dev->regmap, DCU_UPDATE_MODE,
-		     DCU_UPDATE_MODE_READREG);
 	return;
 }
 
