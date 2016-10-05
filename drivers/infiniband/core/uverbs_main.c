@@ -922,6 +922,7 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 	file->async_file = NULL;
 	kref_init(&file->ref);
 	mutex_init(&file->mutex);
+	mutex_init(&file->cleanup_mutex);
 
 	filp->private_data = file;
 	kobject_get(&dev->kobj);
@@ -947,18 +948,20 @@ static int ib_uverbs_close(struct inode *inode, struct file *filp)
 {
 	struct ib_uverbs_file *file = filp->private_data;
 	struct ib_uverbs_device *dev = file->device;
-	struct ib_ucontext *ucontext = NULL;
+
+	mutex_lock(&file->cleanup_mutex);
+	if (file->ucontext) {
+		ib_uverbs_cleanup_ucontext(file, file->ucontext);
+		file->ucontext = NULL;
+	}
+	mutex_unlock(&file->cleanup_mutex);
 
 	mutex_lock(&file->device->lists_mutex);
-	ucontext = file->ucontext;
-	file->ucontext = NULL;
 	if (!file->is_closed) {
 		list_del(&file->list);
 		file->is_closed = 1;
 	}
 	mutex_unlock(&file->device->lists_mutex);
-	if (ucontext)
-		ib_uverbs_cleanup_ucontext(file, ucontext);
 
 	if (file->async_file)
 		kref_put(&file->async_file->ref, ib_uverbs_release_event_file);
@@ -1172,22 +1175,30 @@ static void ib_uverbs_free_hw_resources(struct ib_uverbs_device *uverbs_dev,
 	mutex_lock(&uverbs_dev->lists_mutex);
 	while (!list_empty(&uverbs_dev->uverbs_file_list)) {
 		struct ib_ucontext *ucontext;
-
 		file = list_first_entry(&uverbs_dev->uverbs_file_list,
 					struct ib_uverbs_file, list);
 		file->is_closed = 1;
-		ucontext = file->ucontext;
 		list_del(&file->list);
-		file->ucontext = NULL;
 		kref_get(&file->ref);
 		mutex_unlock(&uverbs_dev->lists_mutex);
-		/* We must release the mutex before going ahead and calling
-		 * disassociate_ucontext. disassociate_ucontext might end up
-		 * indirectly calling uverbs_close, for example due to freeing
-		 * the resources (e.g mmput).
-		 */
+
 		ib_uverbs_event_handler(&file->event_handler, &event);
+
+		mutex_lock(&file->cleanup_mutex);
+		ucontext = file->ucontext;
+		file->ucontext = NULL;
+		mutex_unlock(&file->cleanup_mutex);
+
+		/* At this point ib_uverbs_close cannot be running
+		 * ib_uverbs_cleanup_ucontext
+		 */
 		if (ucontext) {
+			/* We must release the mutex before going ahead and
+			 * calling disassociate_ucontext. disassociate_ucontext
+			 * might end up indirectly calling uverbs_close,
+			 * for example due to freeing the resources
+			 * (e.g mmput).
+			 */
 			ib_dev->disassociate_ucontext(ucontext);
 			ib_uverbs_cleanup_ucontext(file, ucontext);
 		}

@@ -2950,13 +2950,13 @@ u32 intel_fb_stride_alignment(struct drm_device *dev, uint64_t fb_modifier,
 	}
 }
 
-unsigned long intel_plane_obj_offset(struct intel_plane *intel_plane,
-				     struct drm_i915_gem_object *obj,
-				     unsigned int plane)
+u32 intel_plane_obj_offset(struct intel_plane *intel_plane,
+			   struct drm_i915_gem_object *obj,
+			   unsigned int plane)
 {
 	const struct i915_ggtt_view *view = &i915_ggtt_view_normal;
 	struct i915_vma *vma;
-	unsigned char *offset;
+	u64 offset;
 
 	if (intel_rotation_90_or_270(intel_plane->base.state->rotation))
 		view = &i915_ggtt_view_rotated;
@@ -2966,14 +2966,16 @@ unsigned long intel_plane_obj_offset(struct intel_plane *intel_plane,
 		view->type))
 		return -1;
 
-	offset = (unsigned char *)vma->node.start;
+	offset = vma->node.start;
 
 	if (plane == 1) {
 		offset += vma->ggtt_view.rotation_info.uv_start_page *
 			  PAGE_SIZE;
 	}
 
-	return (unsigned long)offset;
+	WARN_ON(upper_32_bits(offset));
+
+	return lower_32_bits(offset);
 }
 
 static void skl_detach_scaler(struct intel_crtc *intel_crtc, int id)
@@ -3099,7 +3101,7 @@ static void skylake_update_primary_plane(struct drm_crtc *crtc,
 	u32 tile_height, plane_offset, plane_size;
 	unsigned int rotation;
 	int x_offset, y_offset;
-	unsigned long surf_addr;
+	u32 surf_addr;
 	struct intel_crtc_state *crtc_state = intel_crtc->config;
 	struct intel_plane_state *plane_state;
 	int src_x = 0, src_y = 0, src_w = 0, src_h = 0;

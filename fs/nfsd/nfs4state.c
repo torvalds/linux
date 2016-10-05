@@ -1200,27 +1200,6 @@ free_ol_stateid_reaplist(struct list_head *reaplist)
 	}
 }
 
-static void release_lockowner(struct nfs4_lockowner *lo)
-{
-	struct nfs4_client *clp = lo->lo_owner.so_client;
-	struct nfs4_ol_stateid *stp;
-	struct list_head reaplist;
-
-	INIT_LIST_HEAD(&reaplist);
-
-	spin_lock(&clp->cl_lock);
-	unhash_lockowner_locked(lo);
-	while (!list_empty(&lo->lo_owner.so_stateids)) {
-		stp = list_first_entry(&lo->lo_owner.so_stateids,
-				struct nfs4_ol_stateid, st_perstateowner);
-		WARN_ON(!unhash_lock_stateid(stp));
-		put_ol_stateid_locked(stp, &reaplist);
-	}
-	spin_unlock(&clp->cl_lock);
-	free_ol_stateid_reaplist(&reaplist);
-	nfs4_put_stateowner(&lo->lo_owner);
-}
-
 static void release_open_stateid_locks(struct nfs4_ol_stateid *open_stp,
 				       struct list_head *reaplist)
 {
@@ -5952,6 +5931,7 @@ nfsd4_release_lockowner(struct svc_rqst *rqstp,
 	__be32 status;
 	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 	struct nfs4_client *clp;
+	LIST_HEAD (reaplist);
 
 	dprintk("nfsd4_release_lockowner clientid: (%08x/%08x):\n",
 		clid->cl_boot, clid->cl_id);
@@ -5982,9 +5962,23 @@ nfsd4_release_lockowner(struct svc_rqst *rqstp,
 		nfs4_get_stateowner(sop);
 		break;
 	}
+	if (!lo) {
+		spin_unlock(&clp->cl_lock);
+		return status;
+	}
+
+	unhash_lockowner_locked(lo);
+	while (!list_empty(&lo->lo_owner.so_stateids)) {
+		stp = list_first_entry(&lo->lo_owner.so_stateids,
+				       struct nfs4_ol_stateid,
+				       st_perstateowner);
+		WARN_ON(!unhash_lock_stateid(stp));
+		put_ol_stateid_locked(stp, &reaplist);
+	}
 	spin_unlock(&clp->cl_lock);
-	if (lo)
-		release_lockowner(lo);
+	free_ol_stateid_reaplist(&reaplist);
+	nfs4_put_stateowner(&lo->lo_owner);
+
 	return status;
 }
 

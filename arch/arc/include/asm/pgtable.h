@@ -277,8 +277,7 @@ static inline void pmd_set(pmd_t *pmdp, pte_t *ptep)
 
 #define mk_pte(page, prot)	pfn_pte(page_to_pfn(page), prot)
 #define pte_pfn(pte)		(pte_val(pte) >> PAGE_SHIFT)
-#define pfn_pte(pfn, prot)	(__pte(((pte_t)(pfn) << PAGE_SHIFT) | \
-				 pgprot_val(prot)))
+#define pfn_pte(pfn, prot)	(__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot)))
 #define __pte_index(addr)	(((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 
 /*

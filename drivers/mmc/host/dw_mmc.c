@@ -699,7 +699,7 @@ static int dw_mci_edmac_start_dma(struct dw_mci *host,
 	int ret = 0;
 
 	/* Set external dma config: burst size, burst width */
-	cfg.dst_addr = (dma_addr_t)(host->phy_regs + fifo_offset);
+	cfg.dst_addr = host->phy_regs + fifo_offset;
 	cfg.src_addr = cfg.dst_addr;
 	cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	cfg.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;

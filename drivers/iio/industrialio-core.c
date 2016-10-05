@@ -447,9 +447,8 @@ ssize_t iio_format_value(char *buf, unsigned int type, int size, int *vals)
 			return sprintf(buf, "%d.%09u\n", vals[0], vals[1]);
 	case IIO_VAL_FRACTIONAL:
 		tmp = div_s64((s64)vals[0] * 1000000000LL, vals[1]);
-		vals[1] = do_div(tmp, 1000000000LL);
-		vals[0] = tmp;
-		return sprintf(buf, "%d.%09u\n", vals[0], vals[1]);
+		vals[0] = (int)div_s64_rem(tmp, 1000000000, &vals[1]);
+		return sprintf(buf, "%d.%09u\n", vals[0], abs(vals[1]));
 	case IIO_VAL_FRACTIONAL_LOG2:
 		tmp = (s64)vals[0] * 1000000000LL >> vals[1];
 		vals[1] = do_div(tmp, 1000000000LL);

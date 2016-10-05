@@ -220,7 +220,7 @@ i2c_dp_aux_prepare_bus(struct i2c_adapter *adapter)
  * FIXME: This is the old dp aux helper, gma500 is the last driver that needs to
  * be ported over to the new helper code in drm_dp_helper.c like i915 or radeon.
  */
-static int __deprecated
+static int
 i2c_dp_aux_add_bus(struct i2c_adapter *adapter)
 {
 	int error;
