@@ -642,6 +642,9 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 	uint32_t *size = &tmp;
 	int i, r, idx = 0;
 
+	p->job->vm = NULL;
+	ib->gpu_addr = amdgpu_sa_bo_gpu_addr(ib->sa_bo);
+
 	r = amdgpu_cs_sysvm_access_required(p);
 	if (r)
 		return r;

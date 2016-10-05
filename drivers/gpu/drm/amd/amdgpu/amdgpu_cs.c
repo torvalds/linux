@@ -822,13 +822,14 @@ static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 
 	/* Only for UVD/VCE VM emulation */
 	if (ring->funcs->parse_cs) {
-		p->job->vm = NULL;
 		for (i = 0; i < p->job->num_ibs; i++) {
 			r = amdgpu_ring_parse_cs(ring, p, i);
 			if (r)
 				return r;
 		}
-	} else {
+	}
+
+	if (p->job->vm) {
 		p->job->vm_pd_addr = amdgpu_bo_gpu_offset(vm->page_directory);
 
 		r = amdgpu_bo_vm_update_pte(p, vm);
@@ -917,7 +918,7 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 			offset = ((uint64_t)m->it.start) * AMDGPU_GPU_PAGE_SIZE;
 			kptr += chunk_ib->va_start - offset;
 
-			r =  amdgpu_ib_get(adev, NULL, chunk_ib->ib_bytes, ib);
+			r =  amdgpu_ib_get(adev, vm, chunk_ib->ib_bytes, ib);
 			if (r) {
 				DRM_ERROR("Failed to get ib !\n");
 				return r;
@@ -932,9 +933,9 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 				return r;
 			}
 
-			ib->gpu_addr = chunk_ib->va_start;
 		}
 
+		ib->gpu_addr = chunk_ib->va_start;
 		ib->length_dw = chunk_ib->ib_bytes / 4;
 		ib->flags = chunk_ib->flags;
 		j++;
