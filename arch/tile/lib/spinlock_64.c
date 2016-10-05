@@ -76,6 +76,12 @@ void arch_spin_unlock_wait(arch_spinlock_t *lock)
 	do {
 		delay_backoff(iterations++);
 	} while (arch_spin_current(READ_ONCE(lock->lock)) == curr);
+
+	/*
+	 * The TILE architecture doesn't do read speculation; therefore
+	 * a control dependency guarantees a LOAD->{LOAD,STORE} order.
+	 */
+	barrier();
 }
 EXPORT_SYMBOL(arch_spin_unlock_wait);
 

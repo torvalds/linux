@@ -721,6 +721,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_RSVD_LKEY_OFFSET		0x98
 #define QUERY_DEV_CAP_MAX_ICM_SZ_OFFSET		0xa0
 #define QUERY_DEV_CAP_ETH_BACKPL_OFFSET		0x9c
+#define QUERY_DEV_CAP_DIAG_RPRT_PER_PORT	0x9c
 #define QUERY_DEV_CAP_FW_REASSIGN_MAC		0x9d
 #define QUERY_DEV_CAP_VXLAN			0x9e
 #define QUERY_DEV_CAP_MAD_DEMUX_OFFSET		0xb0
@@ -935,6 +936,9 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_ETH_BACKPL_AN_REP;
 	if (field32 & (1 << 7))
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_RECOVERABLE_ERROR_EVENT;
+	MLX4_GET(field32, outbox, QUERY_DEV_CAP_DIAG_RPRT_PER_PORT);
+	if (field32 & (1 << 17))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_DIAG_PER_PORT;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_FW_REASSIGN_MAC);
 	if (field & 1<<6)
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_REASSIGN_MAC_EN;
@@ -1128,6 +1132,7 @@ int mlx4_QUERY_PORT(struct mlx4_dev *dev, int port, struct mlx4_port_cap *port_c
 		port_cap->max_pkeys	   = 1 << (field & 0xf);
 		MLX4_GET(field, outbox, QUERY_PORT_MAX_VL_OFFSET);
 		port_cap->max_vl	   = field & 0xf;
+		port_cap->max_tc_eth	   = field >> 4;
 		MLX4_GET(field, outbox, QUERY_PORT_MAX_MACVLAN_OFFSET);
 		port_cap->log_max_macs  = field & 0xf;
 		port_cap->log_max_vlans = field >> 4;
@@ -2455,6 +2460,42 @@ int mlx4_NOP(struct mlx4_dev *dev)
 	return mlx4_cmd(dev, 0, 0x1f, 0, MLX4_CMD_NOP, MLX4_CMD_TIME_CLASS_A,
 			MLX4_CMD_NATIVE);
 }
+
+int mlx4_query_diag_counters(struct mlx4_dev *dev, u8 op_modifier,
+			     const u32 offset[],
+			     u32 value[], size_t array_len, u8 port)
+{
+	struct mlx4_cmd_mailbox *mailbox;
+	u32 *outbox;
+	size_t i;
+	int ret;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	outbox = mailbox->buf;
+
+	ret = mlx4_cmd_box(dev, 0, mailbox->dma, port, op_modifier,
+			   MLX4_CMD_DIAG_RPRT, MLX4_CMD_TIME_CLASS_A,
+			   MLX4_CMD_NATIVE);
+	if (ret)
+		goto out;
+
+	for (i = 0; i < array_len; i++) {
+		if (offset[i] > MLX4_MAILBOX_SIZE) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		MLX4_GET(value[i], outbox, offset[i]);
+	}
+
+out:
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return ret;
+}
+EXPORT_SYMBOL(mlx4_query_diag_counters);
 
 int mlx4_get_phys_port_id(struct mlx4_dev *dev)
 {

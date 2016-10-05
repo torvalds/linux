@@ -3,6 +3,8 @@ config VIDEO_TW686X
 	depends on PCI && VIDEO_DEV && VIDEO_V4L2 && SND
 	depends on HAS_DMA
 	select VIDEOBUF2_VMALLOC
+	select VIDEOBUF2_DMA_CONTIG
+	select VIDEOBUF2_DMA_SG
 	select SND_PCM
 	help
 	  Support for Intersil/Techwell TW686x-based frame grabber cards.

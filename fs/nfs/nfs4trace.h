@@ -1235,8 +1235,8 @@ DECLARE_EVENT_CLASS(nfs4_idmap_event,
 				len = 0;
 			__entry->error = error < 0 ? error : 0;
 			__entry->id = id;
-			memcpy(__get_dynamic_array(name), name, len);
-			((char *)__get_dynamic_array(name))[len] = 0;
+			memcpy(__get_str(name), name, len);
+			__get_str(name)[len] = 0;
 		),
 
 		TP_printk(

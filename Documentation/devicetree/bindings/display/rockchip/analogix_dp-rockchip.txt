@@ -2,7 +2,8 @@ Rockchip RK3288 specific extensions to the Analogix Display Port
 ================================
 
 Required properties:
-- compatible: "rockchip,rk3288-edp";
+- compatible: "rockchip,rk3288-dp",
+	      "rockchip,rk3399-edp";
 
 - reg: physical base address of the controller and length
 
@@ -26,6 +27,12 @@ Required properties:
   Documentation/devicetree/bindings/media/video-interfaces.txt.
     Port 0: contained 2 endpoints, connecting to the output of vop.
     Port 1: contained 1 endpoint, connecting to the input of panel.
+
+Optional property for different chips:
+- clocks: from common clock binding: handle to grf_vio clock.
+
+- clock-names: from common clock binding:
+	       Required elements: "grf"
 
 For the below properties, please refer to Analogix DP binding document:
  * Documentation/devicetree/bindings/drm/bridge/analogix_dp.txt

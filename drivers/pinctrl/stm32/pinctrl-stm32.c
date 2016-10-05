@@ -638,8 +638,8 @@ static u32 stm32_pconf_get_bias(struct stm32_gpio_bank *bank,
 	return (val >> (offset * 2));
 }
 
-static bool stm32_pconf_input_get(struct stm32_gpio_bank *bank,
-	unsigned int offset)
+static bool stm32_pconf_get(struct stm32_gpio_bank *bank,
+	unsigned int offset, bool dir)
 {
 	unsigned long flags;
 	u32 val;
@@ -647,23 +647,12 @@ static bool stm32_pconf_input_get(struct stm32_gpio_bank *bank,
 	clk_enable(bank->clk);
 	spin_lock_irqsave(&bank->lock, flags);
 
-	val = !!(readl_relaxed(bank->base + STM32_GPIO_IDR) & BIT(offset));
-
-	spin_unlock_irqrestore(&bank->lock, flags);
-	clk_disable(bank->clk);
-
-	return val;
-}
-
-static bool stm32_pconf_output_get(struct stm32_gpio_bank *bank,
-	unsigned int offset)
-{
-	unsigned long flags;
-	u32 val;
-
-	clk_enable(bank->clk);
-	spin_lock_irqsave(&bank->lock, flags);
-	val = !!(readl_relaxed(bank->base + STM32_GPIO_ODR) & BIT(offset));
+	if (dir)
+		val = !!(readl_relaxed(bank->base + STM32_GPIO_IDR) &
+			 BIT(offset));
+	else
+		val = !!(readl_relaxed(bank->base + STM32_GPIO_ODR) &
+			 BIT(offset));
 
 	spin_unlock_irqrestore(&bank->lock, flags);
 	clk_disable(bank->clk);
@@ -772,7 +761,7 @@ static void stm32_pconf_dbg_show(struct pinctrl_dev *pctldev,
 	switch (mode) {
 	/* input */
 	case 0:
-		val = stm32_pconf_input_get(bank, offset);
+		val = stm32_pconf_get(bank, offset, true);
 		seq_printf(s, "- %s - %s",
 			   val ? "high" : "low",
 			   biasing[bias]);
@@ -782,7 +771,7 @@ static void stm32_pconf_dbg_show(struct pinctrl_dev *pctldev,
 	case 1:
 		drive = stm32_pconf_get_driving(bank, offset);
 		speed = stm32_pconf_get_speed(bank, offset);
-		val = stm32_pconf_output_get(bank, offset);
+		val = stm32_pconf_get(bank, offset, false);
 		seq_printf(s, "- %s - %s - %s - %s %s",
 			   val ? "high" : "low",
 			   drive ? "open drain" : "push pull",

@@ -6,6 +6,10 @@
 #include <linux/static_key.h>
 #include <uapi/linux/netfilter/x_tables.h>
 
+/* Test a struct->invflags and a boolean for inequality */
+#define NF_INVF(ptr, flag, boolean)					\
+	((boolean) ^ !!((ptr)->invflags & (flag)))
+
 /**
  * struct xt_action_param - parameters for matches/targets
  *
@@ -245,6 +249,10 @@ void xt_unregister_matches(struct xt_match *match, unsigned int n);
 int xt_check_entry_offsets(const void *base, const char *elems,
 			   unsigned int target_offset,
 			   unsigned int next_offset);
+
+unsigned int *xt_alloc_entry_offsets(unsigned int size);
+bool xt_find_jump_offset(const unsigned int *offsets,
+			 unsigned int target, unsigned int size);
 
 int xt_check_match(struct xt_mtchk_param *, unsigned int size, u_int8_t proto,
 		   bool inv_proto);

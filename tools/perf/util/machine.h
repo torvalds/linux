@@ -216,6 +216,7 @@ struct symbol *machine__find_kernel_function_by_name(struct machine *machine,
 
 struct map *machine__findnew_module_map(struct machine *machine, u64 start,
 					const char *filename);
+int arch__fix_module_text_start(u64 *start, const char *name);
 
 int __machine__load_kallsyms(struct machine *machine, const char *filename,
 			     enum map_type type, bool no_kcore, symbol_filter_t filter);

@@ -65,10 +65,17 @@ struct ib_sa_sm_ah {
 	u8		     src_path_mask;
 };
 
+struct ib_sa_classport_cache {
+	bool valid;
+	struct ib_class_port_info data;
+};
+
 struct ib_sa_port {
 	struct ib_mad_agent *agent;
 	struct ib_sa_sm_ah  *sm_ah;
 	struct work_struct   update_task;
+	struct ib_sa_classport_cache classport_info;
+	spinlock_t                   classport_lock; /* protects class port info set */
 	spinlock_t           ah_lock;
 	u8                   port_num;
 };
@@ -998,6 +1005,13 @@ static void ib_sa_event(struct ib_event_handler *handler, struct ib_event *event
 		port->sm_ah = NULL;
 		spin_unlock_irqrestore(&port->ah_lock, flags);
 
+		if (event->event == IB_EVENT_SM_CHANGE ||
+		    event->event == IB_EVENT_CLIENT_REREGISTER ||
+		    event->event == IB_EVENT_LID_CHANGE) {
+			spin_lock_irqsave(&port->classport_lock, flags);
+			port->classport_info.valid = false;
+			spin_unlock_irqrestore(&port->classport_lock, flags);
+		}
 		queue_work(ib_wq, &sa_dev->port[event->element.port_num -
 					    sa_dev->start_port].update_task);
 	}
@@ -1719,6 +1733,7 @@ static void ib_sa_classport_info_rec_callback(struct ib_sa_query *sa_query,
 					      int status,
 					      struct ib_sa_mad *mad)
 {
+	unsigned long flags;
 	struct ib_sa_classport_info_query *query =
 		container_of(sa_query, struct ib_sa_classport_info_query, sa_query);
 
@@ -1728,6 +1743,16 @@ static void ib_sa_classport_info_rec_callback(struct ib_sa_query *sa_query,
 		ib_unpack(classport_info_rec_table,
 			  ARRAY_SIZE(classport_info_rec_table),
 			  mad->data, &rec);
+
+		spin_lock_irqsave(&sa_query->port->classport_lock, flags);
+		if (!status && !sa_query->port->classport_info.valid) {
+			memcpy(&sa_query->port->classport_info.data, &rec,
+			       sizeof(sa_query->port->classport_info.data));
+
+			sa_query->port->classport_info.valid = true;
+		}
+		spin_unlock_irqrestore(&sa_query->port->classport_lock, flags);
+
 		query->callback(status, &rec, query->context);
 	} else {
 		query->callback(status, NULL, query->context);
@@ -1754,13 +1779,26 @@ int ib_sa_classport_info_rec_query(struct ib_sa_client *client,
 	struct ib_sa_port *port;
 	struct ib_mad_agent *agent;
 	struct ib_sa_mad *mad;
+	struct ib_class_port_info cached_class_port_info;
 	int ret;
+	unsigned long flags;
 
 	if (!sa_dev)
 		return -ENODEV;
 
 	port  = &sa_dev->port[port_num - sa_dev->start_port];
 	agent = port->agent;
+
+	/* Use cached ClassPortInfo attribute if valid instead of sending mad */
+	spin_lock_irqsave(&port->classport_lock, flags);
+	if (port->classport_info.valid && callback) {
+		memcpy(&cached_class_port_info, &port->classport_info.data,
+		       sizeof(cached_class_port_info));
+		spin_unlock_irqrestore(&port->classport_lock, flags);
+		callback(0, &cached_class_port_info, context);
+		return 0;
+	}
+	spin_unlock_irqrestore(&port->classport_lock, flags);
 
 	query = kzalloc(sizeof(*query), gfp_mask);
 	if (!query)
@@ -1884,6 +1922,9 @@ static void ib_sa_add_one(struct ib_device *device)
 
 		sa_dev->port[i].sm_ah    = NULL;
 		sa_dev->port[i].port_num = i + s;
+
+		spin_lock_init(&sa_dev->port[i].classport_lock);
+		sa_dev->port[i].classport_info.valid = false;
 
 		sa_dev->port[i].agent =
 			ib_register_mad_agent(device, i + s, IB_QPT_GSI,

@@ -47,6 +47,7 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->ndirty_data = get_pages(sbi, F2FS_DIRTY_DATA);
 	si->ndirty_dirs = sbi->ndirty_inode[DIR_INODE];
 	si->ndirty_files = sbi->ndirty_inode[FILE_INODE];
+	si->ndirty_all = sbi->ndirty_inode[DIRTY_META];
 	si->inmem_pages = get_pages(sbi, F2FS_INMEM_PAGES);
 	si->wb_bios = atomic_read(&sbi->nr_wb_bios);
 	si->total_count = (int)sbi->user_block_count / sbi->blocks_per_seg;
@@ -304,8 +305,8 @@ static int stat_show(struct seq_file *s, void *v)
 			   si->inmem_pages, si->wb_bios);
 		seq_printf(s, "  - nodes: %4lld in %4d\n",
 			   si->ndirty_node, si->node_pages);
-		seq_printf(s, "  - dents: %4lld in dirs:%4d\n",
-			   si->ndirty_dent, si->ndirty_dirs);
+		seq_printf(s, "  - dents: %4lld in dirs:%4d (%4d)\n",
+			   si->ndirty_dent, si->ndirty_dirs, si->ndirty_all);
 		seq_printf(s, "  - datas: %4lld in files:%4d\n",
 			   si->ndirty_data, si->ndirty_files);
 		seq_printf(s, "  - meta: %4lld in %4d\n",

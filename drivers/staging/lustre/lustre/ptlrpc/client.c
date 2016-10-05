@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -587,13 +583,18 @@ static void __ptlrpc_free_req_to_pool(struct ptlrpc_request *request)
 	spin_unlock(&pool->prp_lock);
 }
 
-static int __ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
-				      __u32 version, int opcode,
-				      int count, __u32 *lengths, char **bufs,
-				      struct ptlrpc_cli_ctx *ctx)
+int ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
+			     __u32 version, int opcode, char **bufs,
+			     struct ptlrpc_cli_ctx *ctx)
 {
-	struct obd_import *imp = request->rq_import;
+	int count;
+	struct obd_import *imp;
+	__u32 *lengths;
 	int rc;
+
+	count = req_capsule_filled_sizes(&request->rq_pill, RCL_CLIENT);
+	imp = request->rq_import;
+	lengths = request->rq_pill.rc_area[RCL_CLIENT];
 
 	if (unlikely(ctx)) {
 		request->rq_cli_ctx = sptlrpc_cli_ctx_get(ctx);
@@ -602,20 +603,16 @@ static int __ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
 		if (rc)
 			goto out_free;
 	}
-
 	sptlrpc_req_set_flavor(request, opcode);
 
 	rc = lustre_pack_request(request, imp->imp_msg_magic, count,
 				 lengths, bufs);
-	if (rc) {
-		LASSERT(!request->rq_pool);
+	if (rc)
 		goto out_ctx;
-	}
 
 	lustre_msg_add_version(request->rq_reqmsg, version);
 	request->rq_send_state = LUSTRE_IMP_FULL;
 	request->rq_type = PTL_RPC_MSG_REQUEST;
-	request->rq_export = NULL;
 
 	request->rq_req_cbid.cbid_fn = request_out_callback;
 	request->rq_req_cbid.cbid_arg = request;
@@ -624,6 +621,8 @@ static int __ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
 	request->rq_reply_cbid.cbid_arg = request;
 
 	request->rq_reply_deadline = 0;
+	request->rq_bulk_deadline = 0;
+	request->rq_req_deadline = 0;
 	request->rq_phase = RQ_PHASE_NEW;
 	request->rq_next_phase = RQ_PHASE_UNDEFINED;
 
@@ -632,39 +631,48 @@ static int __ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
 
 	ptlrpc_at_set_req_timeout(request);
 
-	spin_lock_init(&request->rq_lock);
-	INIT_LIST_HEAD(&request->rq_list);
-	INIT_LIST_HEAD(&request->rq_timed_list);
-	INIT_LIST_HEAD(&request->rq_replay_list);
-	INIT_LIST_HEAD(&request->rq_ctx_chain);
-	INIT_LIST_HEAD(&request->rq_set_chain);
-	INIT_LIST_HEAD(&request->rq_history_list);
-	INIT_LIST_HEAD(&request->rq_exp_list);
-	init_waitqueue_head(&request->rq_reply_waitq);
-	init_waitqueue_head(&request->rq_set_waitq);
 	request->rq_xid = ptlrpc_next_xid();
-	atomic_set(&request->rq_refcount, 1);
-
 	lustre_msg_set_opc(request->rq_reqmsg, opcode);
 
+	/* Let's setup deadline for req/reply/bulk unlink for opcode. */
+	if (cfs_fail_val == opcode) {
+		time_t *fail_t = NULL, *fail2_t = NULL;
+
+		if (CFS_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_BULK_UNLINK)) {
+			fail_t = &request->rq_bulk_deadline;
+		} else if (CFS_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK)) {
+			fail_t = &request->rq_reply_deadline;
+		} else if (CFS_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REQ_UNLINK)) {
+			fail_t = &request->rq_req_deadline;
+		} else if (CFS_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_BOTH_UNLINK)) {
+			fail_t = &request->rq_reply_deadline;
+			fail2_t = &request->rq_bulk_deadline;
+		}
+
+		if (fail_t) {
+			*fail_t = ktime_get_real_seconds() + LONG_UNLINK;
+
+			if (fail2_t)
+				*fail2_t = ktime_get_real_seconds() +
+						 LONG_UNLINK;
+
+			/* The RPC is infected, let the test change the
+			 * fail_loc
+			 */
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			schedule_timeout(cfs_time_seconds(2));
+			set_current_state(TASK_RUNNING);
+		}
+	}
+
 	return 0;
+
 out_ctx:
+	LASSERT(!request->rq_pool);
 	sptlrpc_cli_ctx_put(request->rq_cli_ctx, 1);
 out_free:
 	class_import_put(imp);
 	return rc;
-}
-
-int ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
-			     __u32 version, int opcode, char **bufs,
-			     struct ptlrpc_cli_ctx *ctx)
-{
-	int count;
-
-	count = req_capsule_filled_sizes(&request->rq_pill, RCL_CLIENT);
-	return __ptlrpc_request_bufs_pack(request, version, opcode, count,
-					  request->rq_pill.rc_area[RCL_CLIENT],
-					  bufs, ctx);
 }
 EXPORT_SYMBOL(ptlrpc_request_bufs_pack);
 
@@ -722,7 +730,9 @@ struct ptlrpc_request *__ptlrpc_request_alloc(struct obd_import *imp,
 		request = ptlrpc_prep_req_from_pool(pool);
 
 	if (request) {
-		LASSERTF((unsigned long)imp > 0x1000, "%p\n", imp);
+		ptlrpc_cli_req_init(request);
+
+		LASSERTF((unsigned long)imp > 0x1000, "%p", imp);
 		LASSERT(imp != LP_POISON);
 		LASSERTF((unsigned long)imp->imp_client > 0x1000, "%p\n",
 			 imp->imp_client);
@@ -1163,9 +1173,9 @@ static int after_reply(struct ptlrpc_request *req)
 
 	LASSERT(obd);
 	/* repbuf must be unlinked */
-	LASSERT(!req->rq_receiving_reply && !req->rq_reply_unlink);
+	LASSERT(!req->rq_receiving_reply && req->rq_reply_unlinked);
 
-	if (req->rq_reply_truncate) {
+	if (req->rq_reply_truncated) {
 		if (ptlrpc_no_resend(req)) {
 			DEBUG_REQ(D_ERROR, req, "reply buffer overflow, expected: %d, actual size: %d",
 				  req->rq_nob_received, req->rq_repbuf_len);
@@ -1239,8 +1249,9 @@ static int after_reply(struct ptlrpc_request *req)
 	}
 
 	ktime_get_real_ts64(&work_start);
-	timediff = (work_start.tv_sec - req->rq_arrival_time.tv_sec) * USEC_PER_SEC +
-		   (work_start.tv_nsec - req->rq_arrival_time.tv_nsec) / NSEC_PER_USEC;
+	timediff = (work_start.tv_sec - req->rq_sent_tv.tv_sec) * USEC_PER_SEC +
+		   (work_start.tv_nsec - req->rq_sent_tv.tv_nsec) /
+								 NSEC_PER_USEC;
 	if (obd->obd_svc_stats) {
 		lprocfs_counter_add(obd->obd_svc_stats, PTLRPC_REQWAIT_CNTR,
 				    timediff);
@@ -1503,15 +1514,27 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 		if (!(req->rq_phase == RQ_PHASE_RPC ||
 		      req->rq_phase == RQ_PHASE_BULK ||
 		      req->rq_phase == RQ_PHASE_INTERPRET ||
-		      req->rq_phase == RQ_PHASE_UNREGISTERING ||
+		      req->rq_phase == RQ_PHASE_UNREG_RPC ||
+		      req->rq_phase == RQ_PHASE_UNREG_BULK ||
 		      req->rq_phase == RQ_PHASE_COMPLETE)) {
 			DEBUG_REQ(D_ERROR, req, "bad phase %x", req->rq_phase);
 			LBUG();
 		}
 
-		if (req->rq_phase == RQ_PHASE_UNREGISTERING) {
+		if (req->rq_phase == RQ_PHASE_UNREG_RPC ||
+		    req->rq_phase == RQ_PHASE_UNREG_BULK) {
 			LASSERT(req->rq_next_phase != req->rq_phase);
 			LASSERT(req->rq_next_phase != RQ_PHASE_UNDEFINED);
+
+			if (req->rq_req_deadline &&
+			    !OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REQ_UNLINK))
+				req->rq_req_deadline = 0;
+			if (req->rq_reply_deadline &&
+			    !OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK))
+				req->rq_reply_deadline = 0;
+			if (req->rq_bulk_deadline &&
+			    !OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_BULK_UNLINK))
+				req->rq_bulk_deadline = 0;
 
 			/*
 			 * Skip processing until reply is unlinked. We
@@ -1520,7 +1543,10 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 			 * sure that all rdma transfers finished and will
 			 * not corrupt any data.
 			 */
-			if (ptlrpc_client_recv_or_unlink(req) ||
+			if (req->rq_phase == RQ_PHASE_UNREG_RPC &&
+			    ptlrpc_client_recv_or_unlink(req))
+				continue;
+			if (req->rq_phase == RQ_PHASE_UNREG_BULK &&
 			    ptlrpc_client_bulk_active(req))
 				continue;
 
@@ -1998,7 +2024,7 @@ void ptlrpc_interrupted_set(void *data)
 			list_entry(tmp, struct ptlrpc_request, rq_set_chain);
 
 		if (req->rq_phase != RQ_PHASE_RPC &&
-		    req->rq_phase != RQ_PHASE_UNREGISTERING)
+		    req->rq_phase != RQ_PHASE_UNREG_RPC)
 			continue;
 
 		ptlrpc_mark_interrupted(req);
@@ -2195,11 +2221,11 @@ static void __ptlrpc_free_req(struct ptlrpc_request *request, int locked)
 {
 	if (!request)
 		return;
+	LASSERT(!request->rq_srv_req);
+	LASSERT(!request->rq_export);
 	LASSERTF(!request->rq_receiving_reply, "req %p\n", request);
-	LASSERTF(!request->rq_rqbd, "req %p\n", request);/* client-side */
 	LASSERTF(list_empty(&request->rq_list), "req %p\n", request);
 	LASSERTF(list_empty(&request->rq_set_chain), "req %p\n", request);
-	LASSERTF(list_empty(&request->rq_exp_list), "req %p\n", request);
 	LASSERTF(!request->rq_replay, "req %p\n", request);
 
 	req_capsule_fini(&request->rq_pill);
@@ -2225,10 +2251,7 @@ static void __ptlrpc_free_req(struct ptlrpc_request *request, int locked)
 
 	if (request->rq_repbuf)
 		sptlrpc_cli_free_repbuf(request);
-	if (request->rq_export) {
-		class_export_put(request->rq_export);
-		request->rq_export = NULL;
-	}
+
 	if (request->rq_import) {
 		class_import_put(request->rq_import);
 		request->rq_import = NULL;
@@ -2313,8 +2336,9 @@ int ptlrpc_unregister_reply(struct ptlrpc_request *request, int async)
 
 	/* Let's setup deadline for reply unlink. */
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK) &&
-	    async && request->rq_reply_deadline == 0)
-		request->rq_reply_deadline = ktime_get_real_seconds()+LONG_UNLINK;
+	    async && request->rq_reply_deadline == 0 && cfs_fail_val == 0)
+		request->rq_reply_deadline =
+			ktime_get_real_seconds() + LONG_UNLINK;
 
 	/* Nothing left to do. */
 	if (!ptlrpc_client_recv_or_unlink(request))
@@ -2327,7 +2351,7 @@ int ptlrpc_unregister_reply(struct ptlrpc_request *request, int async)
 		return 1;
 
 	/* Move to "Unregistering" phase as reply was not unlinked yet. */
-	ptlrpc_rqphase_move(request, RQ_PHASE_UNREGISTERING);
+	ptlrpc_rqphase_move(request, RQ_PHASE_UNREG_RPC);
 
 	/* Do not wait for unlink to finish. */
 	if (async)
@@ -2359,9 +2383,10 @@ int ptlrpc_unregister_reply(struct ptlrpc_request *request, int async)
 
 		LASSERT(rc == -ETIMEDOUT);
 		DEBUG_REQ(D_WARNING, request,
-			  "Unexpectedly long timeout rvcng=%d unlnk=%d/%d",
+			  "Unexpectedly long timeout receiving_reply=%d req_ulinked=%d reply_unlinked=%d",
 			  request->rq_receiving_reply,
-			  request->rq_req_unlink, request->rq_reply_unlink);
+			  request->rq_req_unlinked,
+			  request->rq_reply_unlinked);
 	}
 	return 0;
 }
@@ -2617,11 +2642,6 @@ int ptlrpc_queue_wait(struct ptlrpc_request *req)
 	return rc;
 }
 EXPORT_SYMBOL(ptlrpc_queue_wait);
-
-struct ptlrpc_replay_async_args {
-	int praa_old_state;
-	int praa_old_status;
-};
 
 /**
  * Callback used for replayed requests reply processing.
@@ -2961,7 +2981,6 @@ static void ptlrpcd_add_work_req(struct ptlrpc_request *req)
 	req->rq_timeout		= obd_timeout;
 	req->rq_sent		= ktime_get_real_seconds();
 	req->rq_deadline	= req->rq_sent + req->rq_timeout;
-	req->rq_reply_deadline	= req->rq_deadline;
 	req->rq_phase		= RQ_PHASE_INTERPRET;
 	req->rq_next_phase	= RQ_PHASE_COMPLETE;
 	req->rq_xid		= ptlrpc_next_xid();
@@ -3017,26 +3036,16 @@ void *ptlrpcd_alloc_work(struct obd_import *imp,
 		return ERR_PTR(-ENOMEM);
 	}
 
+	ptlrpc_cli_req_init(req);
+
 	req->rq_send_state = LUSTRE_IMP_FULL;
 	req->rq_type = PTL_RPC_MSG_REQUEST;
 	req->rq_import = class_import_get(imp);
-	req->rq_export = NULL;
 	req->rq_interpret_reply = work_interpreter;
 	/* don't want reply */
-	req->rq_receiving_reply = 0;
-	req->rq_req_unlink = req->rq_reply_unlink = 0;
-	req->rq_no_delay = req->rq_no_resend = 1;
+	req->rq_no_delay = 1;
+	req->rq_no_resend = 1;
 	req->rq_pill.rc_fmt = (void *)&worker_format;
-
-	spin_lock_init(&req->rq_lock);
-	INIT_LIST_HEAD(&req->rq_list);
-	INIT_LIST_HEAD(&req->rq_replay_list);
-	INIT_LIST_HEAD(&req->rq_set_chain);
-	INIT_LIST_HEAD(&req->rq_history_list);
-	INIT_LIST_HEAD(&req->rq_exp_list);
-	init_waitqueue_head(&req->rq_reply_waitq);
-	init_waitqueue_head(&req->rq_set_waitq);
-	atomic_set(&req->rq_refcount, 1);
 
 	CLASSERT(sizeof(*args) <= sizeof(req->rq_async_args));
 	args = ptlrpc_req_async_args(req);

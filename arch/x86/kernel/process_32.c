@@ -25,7 +25,7 @@
 #include <linux/delay.h>
 #include <linux/reboot.h>
 #include <linux/mc146818rtc.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/kallsyms.h>
 #include <linux/ptrace.h>
 #include <linux/personality.h>

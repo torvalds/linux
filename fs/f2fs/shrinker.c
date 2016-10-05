@@ -13,6 +13,7 @@
 #include <linux/f2fs_fs.h>
 
 #include "f2fs.h"
+#include "node.h"
 
 static LIST_HEAD(f2fs_list);
 static DEFINE_SPINLOCK(f2fs_list_lock);
@@ -25,8 +26,8 @@ static unsigned long __count_nat_entries(struct f2fs_sb_info *sbi)
 
 static unsigned long __count_free_nids(struct f2fs_sb_info *sbi)
 {
-	if (NM_I(sbi)->fcnt > NAT_ENTRY_PER_BLOCK)
-		return NM_I(sbi)->fcnt - NAT_ENTRY_PER_BLOCK;
+	if (NM_I(sbi)->fcnt > MAX_FREE_NIDS)
+		return NM_I(sbi)->fcnt - MAX_FREE_NIDS;
 	return 0;
 }
 

@@ -49,10 +49,30 @@ struct nvdimm_drvdata {
 	struct kref kref;
 };
 
-struct nd_region_namespaces {
-	int count;
-	int active;
+struct nd_region_data {
+	int ns_count;
+	int ns_active;
+	unsigned int hints_shift;
+	void __iomem *flush_wpq[0];
 };
+
+static inline void __iomem *ndrd_get_flush_wpq(struct nd_region_data *ndrd,
+		int dimm, int hint)
+{
+	unsigned int num = 1 << ndrd->hints_shift;
+	unsigned int mask = num - 1;
+
+	return ndrd->flush_wpq[dimm * num + (hint & mask)];
+}
+
+static inline void ndrd_set_flush_wpq(struct nd_region_data *ndrd, int dimm,
+		int hint, void __iomem *flush)
+{
+	unsigned int num = 1 << ndrd->hints_shift;
+	unsigned int mask = num - 1;
+
+	ndrd->flush_wpq[dimm * num + (hint & mask)] = flush;
+}
 
 static inline struct nd_namespace_index *to_namespace_index(
 		struct nvdimm_drvdata *ndd, int i)
@@ -119,7 +139,6 @@ struct nd_region {
 
 struct nd_blk_region {
 	int (*enable)(struct nvdimm_bus *nvdimm_bus, struct device *dev);
-	void (*disable)(struct nvdimm_bus *nvdimm_bus, struct device *dev);
 	int (*do_io)(struct nd_blk_region *ndbr, resource_size_t dpa,
 			void *iobuf, u64 len, int rw);
 	void *blk_provider_data;
@@ -142,6 +161,7 @@ struct nd_btt {
 	struct nd_namespace_common *ndns;
 	struct btt *btt;
 	unsigned long lbasize;
+	u64 size;
 	u8 *uuid;
 	int id;
 };
@@ -325,6 +345,7 @@ static inline void devm_nsio_disable(struct device *dev,
 }
 #endif
 int nd_blk_region_init(struct nd_region *nd_region);
+int nd_region_activate(struct nd_region *nd_region);
 void __nd_iostat_start(struct bio *bio, unsigned long *start);
 static inline bool nd_iostat_start(struct bio *bio, unsigned long *start)
 {

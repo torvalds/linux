@@ -26,7 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/seq_file.h>
 
-#include <video/omapdss.h>
+#include <video/omapfb_dss.h>
 
 #include "dss.h"
 #include "dss_features.h"

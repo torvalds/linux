@@ -499,9 +499,8 @@ con_insert_unipair(struct uni_pagedir *p, u_short unicode, u_short fontpos)
 	return 0;
 }
 
-/* ui is a leftover from using a hashtable, but might be used again
-   Caller must hold the lock */
-static int con_do_clear_unimap(struct vc_data *vc, struct unimapinit *ui)
+/* Caller must hold the lock */
+static int con_do_clear_unimap(struct vc_data *vc)
 {
 	struct uni_pagedir *p, *q;
 
@@ -524,11 +523,11 @@ static int con_do_clear_unimap(struct vc_data *vc, struct unimapinit *ui)
 	return 0;
 }
 
-int con_clear_unimap(struct vc_data *vc, struct unimapinit *ui)
+int con_clear_unimap(struct vc_data *vc)
 {
 	int ret;
 	console_lock();
-	ret = con_do_clear_unimap(vc, ui);
+	ret = con_do_clear_unimap(vc);
 	console_unlock();
 	return ret;
 }
@@ -556,7 +555,7 @@ int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 		int j, k;
 		u16 **p1, *p2, l;
 		
-		err1 = con_do_clear_unimap(vc, NULL);
+		err1 = con_do_clear_unimap(vc);
 		if (err1) {
 			console_unlock();
 			return err1;
@@ -677,7 +676,7 @@ int con_set_default_unimap(struct vc_data *vc)
 	
 	/* The default font is always 256 characters */
 
-	err = con_do_clear_unimap(vc, NULL);
+	err = con_do_clear_unimap(vc);
 	if (err)
 		return err;
     

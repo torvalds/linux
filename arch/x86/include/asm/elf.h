@@ -344,8 +344,8 @@ extern int compat_arch_setup_additional_pages(struct linux_binprm *bprm,
  */
 static inline int mmap_is_ia32(void)
 {
-	return config_enabled(CONFIG_X86_32) ||
-	       (config_enabled(CONFIG_COMPAT) &&
+	return IS_ENABLED(CONFIG_X86_32) ||
+	       (IS_ENABLED(CONFIG_COMPAT) &&
 		test_thread_flag(TIF_ADDR32));
 }
 

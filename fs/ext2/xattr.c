@@ -759,10 +759,19 @@ void
 ext2_xattr_delete_inode(struct inode *inode)
 {
 	struct buffer_head *bh = NULL;
+	struct ext2_sb_info *sbi = EXT2_SB(inode->i_sb);
 
 	down_write(&EXT2_I(inode)->xattr_sem);
 	if (!EXT2_I(inode)->i_file_acl)
 		goto cleanup;
+
+	if (!ext2_data_block_valid(sbi, EXT2_I(inode)->i_file_acl, 0)) {
+		ext2_error(inode->i_sb, "ext2_xattr_delete_inode",
+			"inode %ld: xattr block %d is out of data blocks range",
+			inode->i_ino, EXT2_I(inode)->i_file_acl);
+		goto cleanup;
+	}
+
 	bh = sb_bread(inode->i_sb, EXT2_I(inode)->i_file_acl);
 	if (!bh) {
 		ext2_error(inode->i_sb, "ext2_xattr_delete_inode",

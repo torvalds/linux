@@ -1056,7 +1056,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	if (!rtd->platform) {
 		dev_err(card->dev, "ASoC: platform %s not registered\n",
 			dai_link->platform_name);
-		return -EPROBE_DEFER;
+		goto _err_defer;
 	}
 
 	soc_add_pcm_runtime(card, rtd);
@@ -2083,13 +2083,12 @@ static int soc_cleanup_card_resources(struct snd_soc_card *card)
 	/* remove auxiliary devices */
 	soc_remove_aux_devices(card);
 
+	snd_soc_dapm_free(&card->dapm);
 	soc_cleanup_card_debugfs(card);
 
 	/* remove the card */
 	if (card->remove)
 		card->remove(card);
-
-	snd_soc_dapm_free(&card->dapm);
 
 	snd_card_free(card->snd_card);
 	return 0;

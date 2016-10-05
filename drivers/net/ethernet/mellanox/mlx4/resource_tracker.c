@@ -2372,16 +2372,15 @@ static int mpt_free_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 		__mlx4_mpt_release(dev, index);
 		break;
 	case RES_OP_MAP_ICM:
-			index = get_param_l(&in_param);
-			id = index & mpt_mask(dev);
-			err = mr_res_start_move_to(dev, slave, id,
-						   RES_MPT_RESERVED, &mpt);
-			if (err)
-				return err;
-
-			__mlx4_mpt_free_icm(dev, mpt->key);
-			res_end_move(dev, slave, RES_MPT, id);
+		index = get_param_l(&in_param);
+		id = index & mpt_mask(dev);
+		err = mr_res_start_move_to(dev, slave, id,
+					   RES_MPT_RESERVED, &mpt);
+		if (err)
 			return err;
+
+		__mlx4_mpt_free_icm(dev, mpt->key);
+		res_end_move(dev, slave, RES_MPT, id);
 		break;
 	default:
 		err = -EINVAL;
@@ -4253,9 +4252,8 @@ int mlx4_UPDATE_QP_wrapper(struct mlx4_dev *dev, int slave,
 	     (1ULL << MLX4_UPD_QP_PATH_MASK_ETH_SRC_CHECK_MC_LB)) &&
 		!(dev->caps.flags2 &
 		  MLX4_DEV_CAP_FLAG2_UPDATE_QP_SRC_CHECK_LB)) {
-			mlx4_warn(dev,
-				  "Src check LB for slave %d isn't supported\n",
-				   slave);
+		mlx4_warn(dev, "Src check LB for slave %d isn't supported\n",
+			  slave);
 		return -ENOTSUPP;
 	}
 

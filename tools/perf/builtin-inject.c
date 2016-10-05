@@ -562,7 +562,7 @@ static void strip_init(struct perf_inject *inject)
 
 	inject->tool.context_switch = perf_event__drop;
 
-	evlist__for_each(evlist, evsel)
+	evlist__for_each_entry(evlist, evsel)
 		evsel->handler = drop_sample;
 }
 
@@ -590,7 +590,7 @@ static bool ok_to_remove(struct perf_evlist *evlist,
 	if (!has_tracking(evsel_to_remove))
 		return true;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->handler != drop_sample) {
 			cnt += 1;
 			if ((evsel->attr.sample_type & COMPAT_MASK) ==
@@ -608,7 +608,7 @@ static void strip_fini(struct perf_inject *inject)
 	struct perf_evsel *evsel, *tmp;
 
 	/* Remove non-synthesized evsels if possible */
-	evlist__for_each_safe(evlist, tmp, evsel) {
+	evlist__for_each_entry_safe(evlist, tmp, evsel) {
 		if (evsel->handler == drop_sample &&
 		    ok_to_remove(evlist, evsel)) {
 			pr_debug("Deleting %s\n", perf_evsel__name(evsel));
@@ -643,7 +643,7 @@ static int __cmd_inject(struct perf_inject *inject)
 	} else if (inject->sched_stat) {
 		struct perf_evsel *evsel;
 
-		evlist__for_each(session->evlist, evsel) {
+		evlist__for_each_entry(session->evlist, evsel) {
 			const char *name = perf_evsel__name(evsel);
 
 			if (!strcmp(name, "sched:sched_switch")) {

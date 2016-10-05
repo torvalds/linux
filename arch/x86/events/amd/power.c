@@ -228,12 +228,12 @@ static struct pmu pmu_class = {
 	.read		= pmu_event_read,
 };
 
-static void power_cpu_exit(int cpu)
+static int power_cpu_exit(unsigned int cpu)
 {
 	int target;
 
 	if (!cpumask_test_and_clear_cpu(cpu, &cpu_mask))
-		return;
+		return 0;
 
 	/*
 	 * Find a new CPU on the same compute unit, if was set in cpumask
@@ -245,9 +245,10 @@ static void power_cpu_exit(int cpu)
 		cpumask_set_cpu(target, &cpu_mask);
 		perf_pmu_migrate_context(&pmu_class, cpu, target);
 	}
+	return 0;
 }
 
-static void power_cpu_init(int cpu)
+static int power_cpu_init(unsigned int cpu)
 {
 	int target;
 
@@ -255,7 +256,7 @@ static void power_cpu_init(int cpu)
 	 * 1) If any CPU is set at cpu_mask in the same compute unit, do
 	 * nothing.
 	 * 2) If no CPU is set at cpu_mask in the same compute unit,
-	 * set current STARTING CPU.
+	 * set current ONLINE CPU.
 	 *
 	 * Note: if there is a CPU aside of the new one already in the
 	 * sibling mask, then it is also in cpu_mask.
@@ -263,32 +264,8 @@ static void power_cpu_init(int cpu)
 	target = cpumask_any_but(topology_sibling_cpumask(cpu), cpu);
 	if (target >= nr_cpumask_bits)
 		cpumask_set_cpu(cpu, &cpu_mask);
+	return 0;
 }
-
-static int
-power_cpu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
-{
-	unsigned int cpu = (long)hcpu;
-
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_DOWN_FAILED:
-	case CPU_STARTING:
-		power_cpu_init(cpu);
-		break;
-	case CPU_DOWN_PREPARE:
-		power_cpu_exit(cpu);
-		break;
-	default:
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block power_cpu_notifier_nb = {
-	.notifier_call = power_cpu_notifier,
-	.priority = CPU_PRI_PERF,
-};
 
 static const struct x86_cpu_id cpu_match[] = {
 	{ .vendor = X86_VENDOR_AMD, .family = 0x15 },
@@ -297,7 +274,7 @@ static const struct x86_cpu_id cpu_match[] = {
 
 static int __init amd_power_pmu_init(void)
 {
-	int cpu, target, ret;
+	int ret;
 
 	if (!x86_match_cpu(cpu_match))
 		return 0;
@@ -312,38 +289,25 @@ static int __init amd_power_pmu_init(void)
 		return -ENODEV;
 	}
 
-	cpu_notifier_register_begin();
 
-	/* Choose one online core of each compute unit. */
-	for_each_online_cpu(cpu) {
-		target = cpumask_first(topology_sibling_cpumask(cpu));
-		if (!cpumask_test_cpu(target, &cpu_mask))
-			cpumask_set_cpu(target, &cpu_mask);
-	}
+	cpuhp_setup_state(CPUHP_AP_PERF_X86_AMD_POWER_ONLINE,
+			  "AP_PERF_X86_AMD_POWER_ONLINE",
+			  power_cpu_init, power_cpu_exit);
 
 	ret = perf_pmu_register(&pmu_class, "power", -1);
 	if (WARN_ON(ret)) {
 		pr_warn("AMD Power PMU registration failed\n");
-		goto out;
+		return ret;
 	}
 
-	__register_cpu_notifier(&power_cpu_notifier_nb);
-
 	pr_info("AMD Power PMU detected\n");
-
-out:
-	cpu_notifier_register_done();
-
 	return ret;
 }
 module_init(amd_power_pmu_init);
 
 static void __exit amd_power_pmu_exit(void)
 {
-	cpu_notifier_register_begin();
-	__unregister_cpu_notifier(&power_cpu_notifier_nb);
-	cpu_notifier_register_done();
-
+	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_X86_AMD_POWER_ONLINE);
 	perf_pmu_unregister(&pmu_class);
 }
 module_exit(amd_power_pmu_exit);

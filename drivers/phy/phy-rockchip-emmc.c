@@ -14,6 +14,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
@@ -31,42 +32,64 @@
 		((val) << (shift) | (mask) << ((shift) + 16))
 
 /* Register definition */
-#define GRF_EMMCPHY_CON0	0x0
-#define GRF_EMMCPHY_CON1	0x4
-#define GRF_EMMCPHY_CON2	0x8
-#define GRF_EMMCPHY_CON3	0xc
-#define GRF_EMMCPHY_CON4	0x10
-#define GRF_EMMCPHY_CON5	0x14
-#define GRF_EMMCPHY_CON6	0x18
-#define GRF_EMMCPHY_STATUS	0x20
+#define GRF_EMMCPHY_CON0		0x0
+#define GRF_EMMCPHY_CON1		0x4
+#define GRF_EMMCPHY_CON2		0x8
+#define GRF_EMMCPHY_CON3		0xc
+#define GRF_EMMCPHY_CON4		0x10
+#define GRF_EMMCPHY_CON5		0x14
+#define GRF_EMMCPHY_CON6		0x18
+#define GRF_EMMCPHY_STATUS		0x20
 
-#define PHYCTRL_PDB_MASK	0x1
-#define PHYCTRL_PDB_SHIFT	0x0
-#define PHYCTRL_PDB_PWR_ON	0x1
-#define PHYCTRL_PDB_PWR_OFF	0x0
-#define PHYCTRL_ENDLL_MASK	0x1
-#define PHYCTRL_ENDLL_SHIFT     0x1
-#define PHYCTRL_ENDLL_ENABLE	0x1
-#define PHYCTRL_ENDLL_DISABLE	0x0
-#define PHYCTRL_CALDONE_MASK	0x1
-#define PHYCTRL_CALDONE_SHIFT   0x6
-#define PHYCTRL_CALDONE_DONE	0x1
-#define PHYCTRL_CALDONE_GOING	0x0
-#define PHYCTRL_DLLRDY_MASK	0x1
-#define PHYCTRL_DLLRDY_SHIFT	0x5
-#define PHYCTRL_DLLRDY_DONE	0x1
-#define PHYCTRL_DLLRDY_GOING	0x0
+#define PHYCTRL_PDB_MASK		0x1
+#define PHYCTRL_PDB_SHIFT		0x0
+#define PHYCTRL_PDB_PWR_ON		0x1
+#define PHYCTRL_PDB_PWR_OFF		0x0
+#define PHYCTRL_ENDLL_MASK		0x1
+#define PHYCTRL_ENDLL_SHIFT		0x1
+#define PHYCTRL_ENDLL_ENABLE		0x1
+#define PHYCTRL_ENDLL_DISABLE		0x0
+#define PHYCTRL_CALDONE_MASK		0x1
+#define PHYCTRL_CALDONE_SHIFT		0x6
+#define PHYCTRL_CALDONE_DONE		0x1
+#define PHYCTRL_CALDONE_GOING		0x0
+#define PHYCTRL_DLLRDY_MASK		0x1
+#define PHYCTRL_DLLRDY_SHIFT		0x5
+#define PHYCTRL_DLLRDY_DONE		0x1
+#define PHYCTRL_DLLRDY_GOING		0x0
+#define PHYCTRL_FREQSEL_200M		0x0
+#define PHYCTRL_FREQSEL_50M		0x1
+#define PHYCTRL_FREQSEL_100M		0x2
+#define PHYCTRL_FREQSEL_150M		0x3
+#define PHYCTRL_FREQSEL_MASK		0x3
+#define PHYCTRL_FREQSEL_SHIFT		0xc
+#define PHYCTRL_DR_MASK			0x7
+#define PHYCTRL_DR_SHIFT		0x4
+#define PHYCTRL_DR_50OHM		0x0
+#define PHYCTRL_DR_33OHM		0x1
+#define PHYCTRL_DR_66OHM		0x2
+#define PHYCTRL_DR_100OHM		0x3
+#define PHYCTRL_DR_40OHM		0x4
+#define PHYCTRL_OTAPDLYENA		0x1
+#define PHYCTRL_OTAPDLYENA_MASK		0x1
+#define PHYCTRL_OTAPDLYENA_SHIFT	0xb
+#define PHYCTRL_OTAPDLYSEL_MASK		0xf
+#define PHYCTRL_OTAPDLYSEL_SHIFT	0x7
 
 struct rockchip_emmc_phy {
 	unsigned int	reg_offset;
 	struct regmap	*reg_base;
+	struct clk	*emmcclk;
 };
 
-static int rockchip_emmc_phy_power(struct rockchip_emmc_phy *rk_phy,
-				   bool on_off)
+static int rockchip_emmc_phy_power(struct phy *phy, bool on_off)
 {
+	struct rockchip_emmc_phy *rk_phy = phy_get_drvdata(phy);
 	unsigned int caldone;
 	unsigned int dllrdy;
+	unsigned int freqsel = PHYCTRL_FREQSEL_200M;
+	unsigned long rate;
+	unsigned long timeout;
 
 	/*
 	 * Keep phyctrl_pdb and phyctrl_endll low to allow
@@ -86,6 +109,43 @@ static int rockchip_emmc_phy_power(struct rockchip_emmc_phy *rk_phy,
 	/* Already finish power_off above */
 	if (on_off == PHYCTRL_PDB_PWR_OFF)
 		return 0;
+
+	rate = clk_get_rate(rk_phy->emmcclk);
+
+	if (rate != 0) {
+		unsigned long ideal_rate;
+		unsigned long diff;
+
+		switch (rate) {
+		case 1 ... 74999999:
+			ideal_rate = 50000000;
+			freqsel = PHYCTRL_FREQSEL_50M;
+			break;
+		case 75000000 ... 124999999:
+			ideal_rate = 100000000;
+			freqsel = PHYCTRL_FREQSEL_100M;
+			break;
+		case 125000000 ... 174999999:
+			ideal_rate = 150000000;
+			freqsel = PHYCTRL_FREQSEL_150M;
+			break;
+		default:
+			ideal_rate = 200000000;
+			break;
+		};
+
+		diff = (rate > ideal_rate) ?
+			rate - ideal_rate : ideal_rate - rate;
+
+		/*
+		 * In order for tuning delays to be accurate we need to be
+		 * pretty spot on for the DLL range, so warn if we're too
+		 * far off.  Also warn if we're above the 200 MHz max.  Don't
+		 * warn for really slow rates since we won't be tuning then.
+		 */
+		if ((rate > 50000000 && diff > 15000000) || (rate > 200000000))
+			dev_warn(&phy->dev, "Unsupported rate: %lu\n", rate);
+	}
 
 	/*
 	 * According to the user manual, calpad calibration
@@ -113,20 +173,62 @@ static int rockchip_emmc_phy_power(struct rockchip_emmc_phy *rk_phy,
 		return -ETIMEDOUT;
 	}
 
+	/* Set the frequency of the DLL operation */
+	regmap_write(rk_phy->reg_base,
+		     rk_phy->reg_offset + GRF_EMMCPHY_CON0,
+		     HIWORD_UPDATE(freqsel, PHYCTRL_FREQSEL_MASK,
+				   PHYCTRL_FREQSEL_SHIFT));
+
+	/* Turn on the DLL */
 	regmap_write(rk_phy->reg_base,
 		     rk_phy->reg_offset + GRF_EMMCPHY_CON6,
 		     HIWORD_UPDATE(PHYCTRL_ENDLL_ENABLE,
 				   PHYCTRL_ENDLL_MASK,
 				   PHYCTRL_ENDLL_SHIFT));
+
 	/*
-	 * After enable analog DLL circuits, we need extra 10.2us
-	 * for dll to be ready for work.
+	 * We turned on the DLL even though the rate was 0 because we the
+	 * clock might be turned on later.  ...but we can't wait for the DLL
+	 * to lock when the rate is 0 because it will never lock with no
+	 * input clock.
+	 *
+	 * Technically we should be checking the lock later when the clock
+	 * is turned on, but for now we won't.
 	 */
-	udelay(11);
-	regmap_read(rk_phy->reg_base,
-		    rk_phy->reg_offset + GRF_EMMCPHY_STATUS,
-		    &dllrdy);
-	dllrdy = (dllrdy >> PHYCTRL_DLLRDY_SHIFT) & PHYCTRL_DLLRDY_MASK;
+	if (rate == 0)
+		return 0;
+
+	/*
+	 * After enabling analog DLL circuits docs say that we need 10.2 us if
+	 * our source clock is at 50 MHz and that lock time scales linearly
+	 * with clock speed.  If we are powering on the PHY and the card clock
+	 * is super slow (like 100 kHZ) this could take as long as 5.1 ms as
+	 * per the math: 10.2 us * (50000000 Hz / 100000 Hz) => 5.1 ms
+	 * Hopefully we won't be running at 100 kHz, but we should still make
+	 * sure we wait long enough.
+	 *
+	 * NOTE: There appear to be corner cases where the DLL seems to take
+	 * extra long to lock for reasons that aren't understood.  In some
+	 * extreme cases we've seen it take up to over 10ms (!).  We'll be
+	 * generous and give it 50ms.  We still busy wait here because:
+	 * - In most cases it should be super fast.
+	 * - This is not called lots during normal operation so it shouldn't
+	 *   be a power or performance problem to busy wait.  We expect it
+	 *   only at boot / resume.  In both cases, eMMC is probably on the
+	 *   critical path so busy waiting a little extra time should be OK.
+	 */
+	timeout = jiffies + msecs_to_jiffies(50);
+	do {
+		udelay(1);
+
+		regmap_read(rk_phy->reg_base,
+			rk_phy->reg_offset + GRF_EMMCPHY_STATUS,
+			&dllrdy);
+		dllrdy = (dllrdy >> PHYCTRL_DLLRDY_SHIFT) & PHYCTRL_DLLRDY_MASK;
+		if (dllrdy == PHYCTRL_DLLRDY_DONE)
+			break;
+	} while (!time_after(jiffies, timeout));
+
 	if (dllrdy != PHYCTRL_DLLRDY_DONE) {
 		pr_err("rockchip_emmc_phy_power: dllrdy timeout.\n");
 		return -ETIMEDOUT;
@@ -135,33 +237,82 @@ static int rockchip_emmc_phy_power(struct rockchip_emmc_phy *rk_phy,
 	return 0;
 }
 
-static int rockchip_emmc_phy_power_off(struct phy *phy)
+static int rockchip_emmc_phy_init(struct phy *phy)
 {
 	struct rockchip_emmc_phy *rk_phy = phy_get_drvdata(phy);
 	int ret = 0;
 
-	/* Power down emmc phy analog blocks */
-	ret = rockchip_emmc_phy_power(rk_phy, PHYCTRL_PDB_PWR_OFF);
-	if (ret)
-		return ret;
+	/*
+	 * We purposely get the clock here and not in probe to avoid the
+	 * circular dependency problem.  We expect:
+	 * - PHY driver to probe
+	 * - SDHCI driver to start probe
+	 * - SDHCI driver to register it's clock
+	 * - SDHCI driver to get the PHY
+	 * - SDHCI driver to init the PHY
+	 *
+	 * The clock is optional, so upon any error we just set to NULL.
+	 *
+	 * NOTE: we don't do anything special for EPROBE_DEFER here.  Given the
+	 * above expected use case, EPROBE_DEFER isn't sensible to expect, so
+	 * it's just like any other error.
+	 */
+	rk_phy->emmcclk = clk_get(&phy->dev, "emmcclk");
+	if (IS_ERR(rk_phy->emmcclk)) {
+		dev_dbg(&phy->dev, "Error getting emmcclk: %d\n", ret);
+		rk_phy->emmcclk = NULL;
+	}
+
+	return ret;
+}
+
+static int rockchip_emmc_phy_exit(struct phy *phy)
+{
+	struct rockchip_emmc_phy *rk_phy = phy_get_drvdata(phy);
+
+	clk_put(rk_phy->emmcclk);
 
 	return 0;
+}
+
+static int rockchip_emmc_phy_power_off(struct phy *phy)
+{
+	/* Power down emmc phy analog blocks */
+	return rockchip_emmc_phy_power(phy, PHYCTRL_PDB_PWR_OFF);
 }
 
 static int rockchip_emmc_phy_power_on(struct phy *phy)
 {
 	struct rockchip_emmc_phy *rk_phy = phy_get_drvdata(phy);
-	int ret = 0;
+
+	/* Drive impedance: 50 Ohm */
+	regmap_write(rk_phy->reg_base,
+		     rk_phy->reg_offset + GRF_EMMCPHY_CON6,
+		     HIWORD_UPDATE(PHYCTRL_DR_50OHM,
+				   PHYCTRL_DR_MASK,
+				   PHYCTRL_DR_SHIFT));
+
+	/* Output tap delay: enable */
+	regmap_write(rk_phy->reg_base,
+		     rk_phy->reg_offset + GRF_EMMCPHY_CON0,
+		     HIWORD_UPDATE(PHYCTRL_OTAPDLYENA,
+				   PHYCTRL_OTAPDLYENA_MASK,
+				   PHYCTRL_OTAPDLYENA_SHIFT));
+
+	/* Output tap delay */
+	regmap_write(rk_phy->reg_base,
+		     rk_phy->reg_offset + GRF_EMMCPHY_CON0,
+		     HIWORD_UPDATE(4,
+				   PHYCTRL_OTAPDLYSEL_MASK,
+				   PHYCTRL_OTAPDLYSEL_SHIFT));
 
 	/* Power up emmc phy analog blocks */
-	ret = rockchip_emmc_phy_power(rk_phy, PHYCTRL_PDB_PWR_ON);
-	if (ret)
-		return ret;
-
-	return 0;
+	return rockchip_emmc_phy_power(phy, PHYCTRL_PDB_PWR_ON);
 }
 
 static const struct phy_ops ops = {
+	.init		= rockchip_emmc_phy_init,
+	.exit		= rockchip_emmc_phy_exit,
 	.power_on	= rockchip_emmc_phy_power_on,
 	.power_off	= rockchip_emmc_phy_power_off,
 	.owner		= THIS_MODULE,

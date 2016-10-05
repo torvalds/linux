@@ -89,6 +89,9 @@
  * @IWL_FW_ERROR_PAGING: UMAC's image memory segments which were
  *	paged to the DRAM.
  * @IWL_FW_ERROR_DUMP_RADIO_REG: Dump the radio registers.
+ * @IWL_FW_ERROR_DUMP_EXTERNAL: used only by external code utilities, and
+ *	for that reason is not in use in any other place in the Linux Wi-Fi
+ *	stack.
  */
 enum iwl_fw_error_dump_type {
 	/* 0 is deprecated */
@@ -106,6 +109,7 @@ enum iwl_fw_error_dump_type {
 	IWL_FW_ERROR_DUMP_PAGING = 12,
 	IWL_FW_ERROR_DUMP_RADIO_REG = 13,
 	IWL_FW_ERROR_DUMP_INTERNAL_TXF = 14,
+	IWL_FW_ERROR_DUMP_EXTERNAL = 15, /* Do not move */
 
 	IWL_FW_ERROR_DUMP_MAX,
 };

@@ -70,6 +70,7 @@ struct mlx5e_sw_stats {
 	u64 tx_queue_stopped;
 	u64 tx_queue_wake;
 	u64 tx_queue_dropped;
+	u64 tx_xmit_more;
 	u64 rx_wqe_err;
 	u64 rx_mpwqe_filler;
 	u64 rx_mpwqe_frag;
@@ -101,6 +102,7 @@ static const struct counter_desc sw_stats_desc[] = {
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_queue_stopped) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_queue_wake) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_queue_dropped) },
+	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_xmit_more) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_wqe_err) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_mpwqe_filler) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_mpwqe_frag) },
@@ -151,6 +153,22 @@ static const struct counter_desc vport_stats_desc[] = {
 		VPORT_COUNTER_OFF(transmitted_eth_broadcast.packets) },
 	{ "tx_vport_broadcast_bytes",
 		VPORT_COUNTER_OFF(transmitted_eth_broadcast.octets) },
+	{ "rx_vport_rdma_unicast_packets",
+		VPORT_COUNTER_OFF(received_ib_unicast.packets) },
+	{ "rx_vport_rdma_unicast_bytes",
+		VPORT_COUNTER_OFF(received_ib_unicast.octets) },
+	{ "tx_vport_rdma_unicast_packets",
+		VPORT_COUNTER_OFF(transmitted_ib_unicast.packets) },
+	{ "tx_vport_rdma_unicast_bytes",
+		VPORT_COUNTER_OFF(transmitted_ib_unicast.octets) },
+	{ "rx_vport_rdma_multicast_packets",
+		VPORT_COUNTER_OFF(received_ib_multicast.packets) },
+	{ "rx_vport_rdma_multicast_bytes",
+		VPORT_COUNTER_OFF(received_ib_multicast.octets) },
+	{ "tx_vport_rdma_multicast_packets",
+		VPORT_COUNTER_OFF(transmitted_ib_multicast.packets) },
+	{ "tx_vport_rdma_multicast_bytes",
+		VPORT_COUNTER_OFF(transmitted_ib_multicast.octets) },
 };
 
 #define PPORT_802_3_OFF(c) \
@@ -238,11 +256,12 @@ static const struct counter_desc pport_per_prio_traffic_stats_desc[] = {
 };
 
 static const struct counter_desc pport_per_prio_pfc_stats_desc[] = {
-	{ "rx_prio%d_pause", PPORT_PER_PRIO_OFF(rx_pause) },
-	{ "rx_prio%d_pause_duration", PPORT_PER_PRIO_OFF(rx_pause_duration) },
-	{ "tx_prio%d_pause", PPORT_PER_PRIO_OFF(tx_pause) },
-	{ "tx_prio%d_pause_duration", PPORT_PER_PRIO_OFF(tx_pause_duration) },
-	{ "rx_prio%d_pause_transition", PPORT_PER_PRIO_OFF(rx_pause_transition) },
+	/* %s is "global" or "prio{i}" */
+	{ "rx_%s_pause", PPORT_PER_PRIO_OFF(rx_pause) },
+	{ "rx_%s_pause_duration", PPORT_PER_PRIO_OFF(rx_pause_duration) },
+	{ "tx_%s_pause", PPORT_PER_PRIO_OFF(tx_pause) },
+	{ "tx_%s_pause_duration", PPORT_PER_PRIO_OFF(tx_pause_duration) },
+	{ "rx_%s_pause_transition", PPORT_PER_PRIO_OFF(rx_pause_transition) },
 };
 
 struct mlx5e_rq_stats {
@@ -281,6 +300,7 @@ struct mlx5e_sq_stats {
 	/* commonly accessed in data path */
 	u64 packets;
 	u64 bytes;
+	u64 xmit_more;
 	u64 tso_packets;
 	u64 tso_bytes;
 	u64 tso_inner_packets;
@@ -307,6 +327,7 @@ static const struct counter_desc sq_stats_desc[] = {
 	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, stopped) },
 	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, wake) },
 	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, dropped) },
+	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, xmit_more) },
 };
 
 #define NUM_SW_COUNTERS			ARRAY_SIZE(sw_stats_desc)

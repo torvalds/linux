@@ -747,6 +747,8 @@ out:
 static void __exit exit_ceph_lib(void)
 {
 	dout("exit_ceph_lib\n");
+	WARN_ON(!ceph_strings_empty());
+
 	ceph_osdc_cleanup();
 	ceph_msgr_exit();
 	ceph_crypto_shutdown();

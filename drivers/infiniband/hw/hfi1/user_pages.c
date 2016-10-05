@@ -68,7 +68,8 @@ MODULE_PARM_DESC(cache_size, "Send and receive side cache size limit (in MB)");
  * could keeping caching buffers.
  *
  */
-bool hfi1_can_pin_pages(struct hfi1_devdata *dd, u32 nlocked, u32 npages)
+bool hfi1_can_pin_pages(struct hfi1_devdata *dd, struct mm_struct *mm,
+			u32 nlocked, u32 npages)
 {
 	unsigned long ulimit = rlimit(RLIMIT_MEMLOCK), pinned, cache_limit,
 		size = (cache_size * (1UL << 20)); /* convert to bytes */
@@ -89,9 +90,9 @@ bool hfi1_can_pin_pages(struct hfi1_devdata *dd, u32 nlocked, u32 npages)
 	/* Convert to number of pages */
 	size = DIV_ROUND_UP(size, PAGE_SIZE);
 
-	down_read(&current->mm->mmap_sem);
-	pinned = current->mm->pinned_vm;
-	up_read(&current->mm->mmap_sem);
+	down_read(&mm->mmap_sem);
+	pinned = mm->pinned_vm;
+	up_read(&mm->mmap_sem);
 
 	/* First, check the absolute limit against all pinned pages. */
 	if (pinned + npages >= ulimit && !can_lock)
@@ -100,8 +101,8 @@ bool hfi1_can_pin_pages(struct hfi1_devdata *dd, u32 nlocked, u32 npages)
 	return ((nlocked + npages) <= size) || can_lock;
 }
 
-int hfi1_acquire_user_pages(unsigned long vaddr, size_t npages, bool writable,
-			    struct page **pages)
+int hfi1_acquire_user_pages(struct mm_struct *mm, unsigned long vaddr, size_t npages,
+			    bool writable, struct page **pages)
 {
 	int ret;
 
@@ -109,9 +110,9 @@ int hfi1_acquire_user_pages(unsigned long vaddr, size_t npages, bool writable,
 	if (ret < 0)
 		return ret;
 
-	down_write(&current->mm->mmap_sem);
-	current->mm->pinned_vm += ret;
-	up_write(&current->mm->mmap_sem);
+	down_write(&mm->mmap_sem);
+	mm->pinned_vm += ret;
+	up_write(&mm->mmap_sem);
 
 	return ret;
 }

@@ -58,7 +58,7 @@ static int ssi_debug_show(struct seq_file *m, void *p __maybe_unused)
 	seq_printf(m, "REVISION\t: 0x%08x\n",  readl(sys + SSI_REVISION_REG));
 	seq_printf(m, "SYSCONFIG\t: 0x%08x\n", readl(sys + SSI_SYSCONFIG_REG));
 	seq_printf(m, "SYSSTATUS\t: 0x%08x\n", readl(sys + SSI_SYSSTATUS_REG));
-	pm_runtime_put_sync(ssi->device.parent);
+	pm_runtime_put(ssi->device.parent);
 
 	return 0;
 }
@@ -112,7 +112,7 @@ static int ssi_debug_gdd_show(struct seq_file *m, void *p __maybe_unused)
 				readw(gdd + SSI_GDD_CLNK_CTRL_REG(lch)));
 	}
 
-	pm_runtime_put_sync(ssi->device.parent);
+	pm_runtime_put(ssi->device.parent);
 
 	return 0;
 }
@@ -193,7 +193,7 @@ void ssi_waketest(struct hsi_client *cl, unsigned int enable)
 	} else {
 		writel_relaxed(SSI_WAKE(0),
 				omap_ssi->sys +	SSI_CLEAR_WAKE_REG(port->num));
-		pm_runtime_put_sync(ssi->device.parent);
+		pm_runtime_put(ssi->device.parent);
 	}
 }
 EXPORT_SYMBOL_GPL(ssi_waketest);
@@ -217,7 +217,7 @@ static void ssi_gdd_complete(struct hsi_controller *ssi, unsigned int lch)
 	if (msg->ttype == HSI_MSG_READ) {
 		dir = DMA_FROM_DEVICE;
 		val = SSI_DATAAVAILABLE(msg->channel);
-		pm_runtime_put_sync(ssi->device.parent);
+		pm_runtime_put(omap_port->pdev);
 	} else {
 		dir = DMA_TO_DEVICE;
 		val = SSI_DATAACCEPT(msg->channel);
@@ -235,7 +235,9 @@ static void ssi_gdd_complete(struct hsi_controller *ssi, unsigned int lch)
 		spin_lock(&omap_port->lock);
 		list_del(&msg->link); /* Dequeue msg */
 		spin_unlock(&omap_port->lock);
-		msg->complete(msg);
+
+		list_add_tail(&msg->link, &omap_port->errqueue);
+		schedule_delayed_work(&omap_port->errqueue_work, 0);
 		return;
 	}
 	spin_lock(&omap_port->lock);
@@ -255,7 +257,13 @@ static void ssi_gdd_tasklet(unsigned long dev)
 	unsigned int lch;
 	u32 status_reg;
 
-	pm_runtime_get_sync(ssi->device.parent);
+	pm_runtime_get(ssi->device.parent);
+
+	if (!pm_runtime_active(ssi->device.parent)) {
+		dev_warn(ssi->device.parent, "ssi_gdd_tasklet called without runtime PM!\n");
+		pm_runtime_put(ssi->device.parent);
+		return;
+	}
 
 	status_reg = readl(sys + SSI_GDD_MPU_IRQ_STATUS_REG);
 	for (lch = 0; lch < SSI_MAX_GDD_LCH; lch++) {
@@ -265,7 +273,7 @@ static void ssi_gdd_tasklet(unsigned long dev)
 	writel_relaxed(status_reg, sys + SSI_GDD_MPU_IRQ_STATUS_REG);
 	status_reg = readl(sys + SSI_GDD_MPU_IRQ_STATUS_REG);
 
-	pm_runtime_put_sync(ssi->device.parent);
+	pm_runtime_put(ssi->device.parent);
 
 	if (status_reg)
 		tasklet_hi_schedule(&omap_ssi->gdd_tasklet);
@@ -312,7 +320,7 @@ static int ssi_clk_event(struct notifier_block *nb, unsigned long event,
 				continue;
 
 			/* Workaround for SWBREAK + CAwake down race in CMT */
-			tasklet_disable(&omap_port->wake_tasklet);
+			disable_irq(omap_port->wake_irq);
 
 			/* stop all ssi communication */
 			pinctrl_pm_select_idle_state(omap_port->pdev);
@@ -338,7 +346,7 @@ static int ssi_clk_event(struct notifier_block *nb, unsigned long event,
 
 			/* resume ssi communication */
 			pinctrl_pm_select_default_state(omap_port->pdev);
-			tasklet_enable(&omap_port->wake_tasklet);
+			enable_irq(omap_port->wake_irq);
 		}
 
 		break;
@@ -452,8 +460,6 @@ out_err:
 static int ssi_hw_init(struct hsi_controller *ssi)
 {
 	struct omap_ssi_controller *omap_ssi = hsi_controller_drvdata(ssi);
-	unsigned int i;
-	u32 val;
 	int err;
 
 	err = pm_runtime_get_sync(ssi->device.parent);
@@ -461,27 +467,12 @@ static int ssi_hw_init(struct hsi_controller *ssi)
 		dev_err(&ssi->device, "runtime PM failed %d\n", err);
 		return err;
 	}
-	/* Reseting SSI controller */
-	writel_relaxed(SSI_SOFTRESET, omap_ssi->sys + SSI_SYSCONFIG_REG);
-	val = readl(omap_ssi->sys + SSI_SYSSTATUS_REG);
-	for (i = 0; ((i < 20) && !(val & SSI_RESETDONE)); i++) {
-		msleep(20);
-		val = readl(omap_ssi->sys + SSI_SYSSTATUS_REG);
-	}
-	if (!(val & SSI_RESETDONE)) {
-		dev_err(&ssi->device, "SSI HW reset failed\n");
-		pm_runtime_put_sync(ssi->device.parent);
-		return -EIO;
-	}
 	/* Reseting GDD */
 	writel_relaxed(SSI_SWRESET, omap_ssi->gdd + SSI_GDD_GRST_REG);
 	/* Get FCK rate in KHz */
 	omap_ssi->fck_rate = DIV_ROUND_CLOSEST(ssi_get_clk_rate(ssi), 1000);
 	dev_dbg(&ssi->device, "SSI fck rate %lu KHz\n", omap_ssi->fck_rate);
-	/* Set default PM settings */
-	val = SSI_AUTOIDLE | SSI_SIDLEMODE_SMART | SSI_MIDLEMODE_SMART;
-	writel_relaxed(val, omap_ssi->sys + SSI_SYSCONFIG_REG);
-	omap_ssi->sysconfig = val;
+
 	writel_relaxed(SSI_CLK_AUTOGATING_ON, omap_ssi->sys + SSI_GDD_GCR_REG);
 	omap_ssi->gdd_gcr = SSI_CLK_AUTOGATING_ON;
 	pm_runtime_put_sync(ssi->device.parent);
@@ -552,7 +543,6 @@ static int ssi_probe(struct platform_device *pd)
 	if (err < 0)
 		goto out1;
 
-	pm_runtime_irq_safe(&pd->dev);
 	pm_runtime_enable(&pd->dev);
 
 	err = ssi_hw_init(ssi);

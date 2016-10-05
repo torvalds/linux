@@ -2455,7 +2455,7 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 		list_for_each_entry(pvc, &core_info.vcs[sub], preempt_list)
 			spin_unlock(&pvc->lock);
 
-	kvm_guest_enter();
+	guest_enter();
 
 	srcu_idx = srcu_read_lock(&vc->kvm->srcu);
 
@@ -2503,7 +2503,7 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 
 	/* make sure updates to secondary vcpu structs are visible now */
 	smp_mb();
-	kvm_guest_exit();
+	guest_exit();
 
 	for (sub = 0; sub < core_info.n_subcores; ++sub)
 		list_for_each_entry_safe(pvc, vcnext, &core_info.vcs[sub],

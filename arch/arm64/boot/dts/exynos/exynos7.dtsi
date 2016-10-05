@@ -473,10 +473,10 @@
 
 		timer {
 			compatible = "arm,armv8-timer";
-			interrupts = <1 13 0xff01>,
-				     <1 14 0xff01>,
-				     <1 11 0xff01>,
-				     <1 10 0xff01>;
+			interrupts = <1 13 0xff08>,
+				     <1 14 0xff08>,
+				     <1 11 0xff08>,
+				     <1 10 0xff08>;
 		};
 
 		pmu_system_controller: system-controller@105c0000 {

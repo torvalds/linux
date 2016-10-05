@@ -2856,11 +2856,15 @@ static void pvr2_subdev_set_control(struct pvr2_hdw *hdw, int id,
 				    const char *name, int val)
 {
 	struct v4l2_control ctrl;
+	struct v4l2_subdev *sd;
+
 	pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 %s=%d", name, val);
 	memset(&ctrl, 0, sizeof(ctrl));
 	ctrl.id = id;
 	ctrl.value = val;
-	v4l2_device_call_all(&hdw->v4l2_dev, 0, core, s_ctrl, &ctrl);
+
+	v4l2_device_for_each_subdev(sd, &hdw->v4l2_dev)
+		v4l2_s_ctrl(NULL, sd->ctrl_handler, &ctrl);
 }
 
 #define PVR2_SUBDEV_SET_CONTROL(hdw, id, lab) \

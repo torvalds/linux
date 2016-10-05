@@ -1680,6 +1680,11 @@ static bool check_non_pcm_per_cvt(struct hda_codec *codec, hda_nid_t cvt_nid)
 
 	mutex_lock(&codec->spdif_mutex);
 	spdif = snd_hda_spdif_out_of_nid(codec, cvt_nid);
+	/* Add sanity check to pass klockwork check.
+	 * This should never happen.
+	 */
+	if (WARN_ON(spdif == NULL))
+		return true;
 	non_pcm = !!(spdif->status & IEC958_AES0_NONAUDIO);
 	mutex_unlock(&codec->spdif_mutex);
 	return non_pcm;

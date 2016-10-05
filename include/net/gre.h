@@ -104,6 +104,7 @@ static inline void gre_build_header(struct sk_buff *skb, int hdr_len,
 
 	skb_push(skb, hdr_len);
 
+	skb_set_inner_protocol(skb, proto);
 	skb_reset_transport_header(skb);
 	greh = (struct gre_base_hdr *)skb->data;
 	greh->flags = gre_tnl_flags_to_gre_flags(flags);

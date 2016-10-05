@@ -104,16 +104,6 @@ config CAN_JANZ_ICAN3
 	  This driver can also be built as a module. If so, the module will be
 	  called janz-ican3.ko.
 
-config CAN_RCAR
-	tristate "Renesas R-Car CAN controller"
-	depends on ARCH_RENESAS || ARM
-	---help---
-	  Say Y here if you want to use CAN controller found on Renesas R-Car
-	  SoCs.
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called rcar_can.
-
 config CAN_SUN4I
 	tristate "Allwinner A10 CAN controller"
 	depends on MACH_SUN4I || MACH_SUN7I || COMPILE_TEST
@@ -152,6 +142,7 @@ source "drivers/net/can/cc770/Kconfig"
 source "drivers/net/can/ifi_canfd/Kconfig"
 source "drivers/net/can/m_can/Kconfig"
 source "drivers/net/can/mscan/Kconfig"
+source "drivers/net/can/rcar/Kconfig"
 source "drivers/net/can/sja1000/Kconfig"
 source "drivers/net/can/softing/Kconfig"
 source "drivers/net/can/spi/Kconfig"

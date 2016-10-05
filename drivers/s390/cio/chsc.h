@@ -112,8 +112,9 @@ struct chsc_scpd {
 	u32 last_chpid:8;
 	u32 zeroes1;
 	struct chsc_header response;
-	u8 data[PAGE_SIZE - 20];
-} __attribute__ ((packed));
+	u32:32;
+	u8 data[0];
+} __packed;
 
 struct chsc_sda_area {
 	struct chsc_header request;

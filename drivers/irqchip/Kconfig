@@ -8,6 +8,12 @@ config ARM_GIC
 	select IRQ_DOMAIN_HIERARCHY
 	select MULTI_IRQ_HANDLER
 
+config ARM_GIC_PM
+	bool
+	depends on PM
+	select ARM_GIC
+	select PM_CLK
+
 config ARM_GIC_MAX_NR
 	int
 	default 2 if ARCH_REALVIEW
@@ -15,9 +21,9 @@ config ARM_GIC_MAX_NR
 
 config ARM_GIC_V2M
 	bool
-	depends on ARM_GIC
-	depends on PCI && PCI_MSI
-	select PCI_MSI_IRQ_DOMAIN
+	depends on PCI
+	select ARM_GIC
+	select PCI_MSI
 
 config GIC_NON_BANKED
 	bool
@@ -31,7 +37,8 @@ config ARM_GIC_V3
 
 config ARM_GIC_V3_ITS
 	bool
-	select PCI_MSI_IRQ_DOMAIN
+	depends on PCI
+	depends on PCI_MSI
 
 config ARM_NVIC
 	bool
@@ -56,13 +63,13 @@ config ARM_VIC_NR
 config ARMADA_370_XP_IRQ
 	bool
 	select GENERIC_IRQ_CHIP
-	select PCI_MSI_IRQ_DOMAIN if PCI_MSI
+	select PCI_MSI if PCI
 
 config ALPINE_MSI
 	bool
-	depends on PCI && PCI_MSI
+	depends on PCI
+	select PCI_MSI
 	select GENERIC_IRQ_CHIP
-	select PCI_MSI_IRQ_DOMAIN
 
 config ATMEL_AIC_IRQ
 	bool
@@ -111,7 +118,6 @@ config HISILICON_IRQ_MBIGEN
 	bool
 	select ARM_GIC_V3
 	select ARM_GIC_V3_ITS
-	select GENERIC_MSI_IRQ_DOMAIN
 
 config IMGPDC_IRQ
 	bool
@@ -244,12 +250,10 @@ config IRQ_MXS
 
 config MVEBU_ODMI
 	bool
-	select GENERIC_MSI_IRQ_DOMAIN
 
 config LS_SCFG_MSI
 	def_bool y if SOC_LS1021A || ARCH_LAYERSCAPE
 	depends on PCI && PCI_MSI
-	select PCI_MSI_IRQ_DOMAIN
 
 config PARTITION_PERCPU
 	bool

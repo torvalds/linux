@@ -26,6 +26,7 @@ struct nd_device_driver {
 	unsigned long type;
 	int (*probe)(struct device *dev);
 	int (*remove)(struct device *dev);
+	void (*shutdown)(struct device *dev);
 	void (*notify)(struct device *dev, enum nvdimm_event event);
 };
 
@@ -67,7 +68,7 @@ struct nd_namespace_io {
 	struct nd_namespace_common common;
 	struct resource res;
 	resource_size_t size;
-	void __pmem *addr;
+	void *addr;
 	struct badblocks bb;
 };
 

@@ -212,6 +212,11 @@ static int __diag_virtio_hypercall(struct kvm_vcpu *vcpu)
 	    (vcpu->run->s.regs.gprs[1] != KVM_S390_VIRTIO_CCW_NOTIFY))
 		return -EOPNOTSUPP;
 
+	VCPU_EVENT(vcpu, 4, "diag 0x500 schid 0x%8.8x queue 0x%x cookie 0x%llx",
+			    (u32) vcpu->run->s.regs.gprs[2],
+			    (u32) vcpu->run->s.regs.gprs[3],
+			    vcpu->run->s.regs.gprs[4]);
+
 	/*
 	 * The layout is as follows:
 	 * - gpr 2 contains the subchannel id (passed as addr)

@@ -59,7 +59,6 @@ static int get_e_machine(struct jitheader *hdr)
 	ssize_t sret;
 	char id[16];
 	int fd, ret = -1;
-	int m = -1;
 	struct {
 		uint16_t e_type;
 		uint16_t e_machine;
@@ -81,11 +80,7 @@ static int get_e_machine(struct jitheader *hdr)
 	if (sret != sizeof(info))
 		goto error;
 
-	m = info.e_machine;
-	if (m < 0)
-		m = 0; /* ELF EM_NONE */
-
-	hdr->elf_mach = m;
+	hdr->elf_mach = info.e_machine;
 	ret = 0;
 error:
 	close(fd);
@@ -491,10 +486,11 @@ jvmti_write_debug_info(void *agent, uint64_t code, const char *file,
 		if (sret != 1)
 			goto error;
 	}
-	if (padding_count)
+	if (padding_count) {
 		sret = fwrite_unlocked(pad_bytes, padding_count, 1, fp);
 		if (sret != 1)
 			goto error;
+	}
 
 	funlockfile(fp);
 	return 0;

@@ -209,58 +209,35 @@ static int bar_read(struct pci_dev *dev, int offset, u32 * value, void *data)
 	return 0;
 }
 
-static inline void read_dev_bar(struct pci_dev *dev,
-				struct pci_bar_info *bar_info, int offset,
-				u32 len_mask)
+static void *bar_init(struct pci_dev *dev, int offset)
 {
-	int	pos;
-	struct resource	*res = dev->resource;
+	unsigned int pos;
+	const struct resource *res = dev->resource;
+	struct pci_bar_info *bar = kzalloc(sizeof(*bar), GFP_KERNEL);
+
+	if (!bar)
+		return ERR_PTR(-ENOMEM);
 
 	if (offset == PCI_ROM_ADDRESS || offset == PCI_ROM_ADDRESS1)
 		pos = PCI_ROM_RESOURCE;
 	else {
 		pos = (offset - PCI_BASE_ADDRESS_0) / 4;
-		if (pos && ((res[pos - 1].flags & (PCI_BASE_ADDRESS_SPACE |
-				PCI_BASE_ADDRESS_MEM_TYPE_MASK)) ==
-			   (PCI_BASE_ADDRESS_SPACE_MEMORY |
-				PCI_BASE_ADDRESS_MEM_TYPE_64))) {
-			bar_info->val = res[pos - 1].start >> 32;
-			bar_info->len_val = -resource_size(&res[pos - 1]) >> 32;
-			return;
+		if (pos && (res[pos - 1].flags & IORESOURCE_MEM_64)) {
+			bar->val = res[pos - 1].start >> 32;
+			bar->len_val = -resource_size(&res[pos - 1]) >> 32;
+			return bar;
 		}
 	}
 
 	if (!res[pos].flags ||
 	    (res[pos].flags & (IORESOURCE_DISABLED | IORESOURCE_UNSET |
 			       IORESOURCE_BUSY)))
-		return;
+		return bar;
 
-	bar_info->val = res[pos].start |
-			(res[pos].flags & PCI_REGION_FLAG_MASK);
-	bar_info->len_val = -resource_size(&res[pos]) |
-			    (res[pos].flags & PCI_REGION_FLAG_MASK);
-}
-
-static void *bar_init(struct pci_dev *dev, int offset)
-{
-	struct pci_bar_info *bar = kzalloc(sizeof(*bar), GFP_KERNEL);
-
-	if (!bar)
-		return ERR_PTR(-ENOMEM);
-
-	read_dev_bar(dev, bar, offset, ~0);
-
-	return bar;
-}
-
-static void *rom_init(struct pci_dev *dev, int offset)
-{
-	struct pci_bar_info *bar = kzalloc(sizeof(*bar), GFP_KERNEL);
-
-	if (!bar)
-		return ERR_PTR(-ENOMEM);
-
-	read_dev_bar(dev, bar, offset, ~PCI_ROM_ADDRESS_ENABLE);
+	bar->val = res[pos].start |
+		   (res[pos].flags & PCI_REGION_FLAG_MASK);
+	bar->len_val = -resource_size(&res[pos]) |
+		       (res[pos].flags & PCI_REGION_FLAG_MASK);
 
 	return bar;
 }
@@ -383,7 +360,7 @@ static const struct config_field header_common[] = {
 	{						\
 	.offset     = reg_offset,			\
 	.size       = 4,				\
-	.init       = rom_init,				\
+	.init       = bar_init,				\
 	.reset      = bar_reset,			\
 	.release    = bar_release,			\
 	.u.dw.read  = bar_read,				\

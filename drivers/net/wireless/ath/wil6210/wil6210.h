@@ -458,6 +458,7 @@ struct wil_tid_crypto_rx {
 struct wil_p2p_info {
 	struct ieee80211_channel listen_chan;
 	u8 discovery_started;
+	u8 p2p_dev_started;
 	u64 cookie;
 	struct timer_list discovery_timer; /* listen/search duration */
 	struct work_struct discovery_expired_work; /* listen/search expire */
@@ -662,6 +663,11 @@ struct wil6210_priv {
 	/* High Access Latency Policy voting */
 	struct wil_halp halp;
 
+#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
+	struct notifier_block pm_notify;
+#endif /* CONFIG_PM_SLEEP */
+#endif /* CONFIG_PM */
 };
 
 #define wil_to_wiphy(i) (i->wdev->wiphy)

@@ -395,12 +395,17 @@ static inline unsigned long __pte_huge_mask(void)
 
 static inline pte_t pte_mkhuge(pte_t pte)
 {
-	return __pte(pte_val(pte) | __pte_huge_mask());
+	return __pte(pte_val(pte) | _PAGE_PMD_HUGE | __pte_huge_mask());
 }
 
 static inline bool is_hugetlb_pte(pte_t pte)
 {
 	return !!(pte_val(pte) & __pte_huge_mask());
+}
+
+static inline bool is_hugetlb_pmd(pmd_t pmd)
+{
+	return !!(pmd_val(pmd) & _PAGE_PMD_HUGE);
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE

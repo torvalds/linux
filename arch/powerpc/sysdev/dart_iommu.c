@@ -48,15 +48,9 @@
 
 #include "dart.h"
 
-/* Physical base address and size of the DART table */
-unsigned long dart_tablebase; /* exported to htab_initialize */
+/* DART table address and size */
+static u32 *dart_tablebase;
 static unsigned long dart_tablesize;
-
-/* Virtual base address of the DART table */
-static u32 *dart_vbase;
-#ifdef CONFIG_PM
-static u32 *dart_copy;
-#endif
 
 /* Mapped base address for the dart */
 static unsigned int __iomem *dart;
@@ -151,6 +145,34 @@ wait_more:
 	spin_unlock_irqrestore(&invalidate_lock, flags);
 }
 
+static void dart_cache_sync(unsigned int *base, unsigned int count)
+{
+	/*
+	 * We add 1 to the number of entries to flush, following a
+	 * comment in Darwin indicating that the memory controller
+	 * can prefetch unmapped memory under some circumstances.
+	 */
+	unsigned long start = (unsigned long)base;
+	unsigned long end = start + (count + 1) * sizeof(unsigned int);
+	unsigned int tmp;
+
+	/* Perform a standard cache flush */
+	flush_inval_dcache_range(start, end);
+
+	/*
+	 * Perform the sequence described in the CPC925 manual to
+	 * ensure all the data gets to a point the cache incoherent
+	 * DART hardware will see.
+	 */
+	asm volatile(" sync;"
+		     " isync;"
+		     " dcbf 0,%1;"
+		     " sync;"
+		     " isync;"
+		     " lwz %0,0(%1);"
+		     " isync" : "=r" (tmp) : "r" (end) : "memory");
+}
+
 static void dart_flush(struct iommu_table *tbl)
 {
 	mb();
@@ -163,15 +185,15 @@ static void dart_flush(struct iommu_table *tbl)
 static int dart_build(struct iommu_table *tbl, long index,
 		       long npages, unsigned long uaddr,
 		       enum dma_data_direction direction,
-		       struct dma_attrs *attrs)
+		       unsigned long attrs)
 {
-	unsigned int *dp;
+	unsigned int *dp, *orig_dp;
 	unsigned int rpn;
 	long l;
 
 	DBG("dart: build at: %lx, %lx, addr: %x\n", index, npages, uaddr);
 
-	dp = ((unsigned int*)tbl->it_base) + index;
+	orig_dp = dp = ((unsigned int*)tbl->it_base) + index;
 
 	/* On U3, all memory is contiguous, so we can move this
 	 * out of the loop.
@@ -184,11 +206,7 @@ static int dart_build(struct iommu_table *tbl, long index,
 
 		uaddr += DART_PAGE_SIZE;
 	}
-
-	/* make sure all updates have reached memory */
-	mb();
-	in_be32((unsigned __iomem *)dp);
-	mb();
+	dart_cache_sync(orig_dp, npages);
 
 	if (dart_is_u4) {
 		rpn = index;
@@ -203,7 +221,8 @@ static int dart_build(struct iommu_table *tbl, long index,
 
 static void dart_free(struct iommu_table *tbl, long index, long npages)
 {
-	unsigned int *dp;
+	unsigned int *dp, *orig_dp;
+	long orig_npages = npages;
 
 	/* We don't worry about flushing the TLB cache. The only drawback of
 	 * not doing it is that we won't catch buggy device drivers doing
@@ -212,34 +231,30 @@ static void dart_free(struct iommu_table *tbl, long index, long npages)
 
 	DBG("dart: free at: %lx, %lx\n", index, npages);
 
-	dp  = ((unsigned int *)tbl->it_base) + index;
+	orig_dp = dp  = ((unsigned int *)tbl->it_base) + index;
 
 	while (npages--)
 		*(dp++) = dart_emptyval;
+
+	dart_cache_sync(orig_dp, orig_npages);
 }
 
-
-static int __init dart_init(struct device_node *dart_node)
+static void allocate_dart(void)
 {
-	unsigned int i;
-	unsigned long tmp, base, size;
-	struct resource r;
+	unsigned long tmp;
 
-	if (dart_tablebase == 0 || dart_tablesize == 0) {
-		printk(KERN_INFO "DART: table not allocated, using "
-		       "direct DMA\n");
-		return -ENODEV;
-	}
+	/* 512 pages (2MB) is max DART tablesize. */
+	dart_tablesize = 1UL << 21;
 
-	if (of_address_to_resource(dart_node, 0, &r))
-		panic("DART: can't get register base ! ");
-
-	/* Make sure nothing from the DART range remains in the CPU cache
-	 * from a previous mapping that existed before the kernel took
-	 * over
+	/*
+	 * 16MB (1 << 24) alignment. We allocate a full 16Mb chuck since we
+	 * will blow up an entire large page anyway in the kernel mapping.
 	 */
-	flush_dcache_phys_range(dart_tablebase,
-				dart_tablebase + dart_tablesize);
+	dart_tablebase = __va(memblock_alloc_base(1UL<<24,
+						  1UL<<24, 0x80000000L));
+
+	/* There is no point scanning the DART space for leaks*/
+	kmemleak_no_scan((void *)dart_tablebase);
 
 	/* Allocate a spare page to map all invalid DART pages. We need to do
 	 * that to work around what looks like a problem with the HT bridge
@@ -249,20 +264,51 @@ static int __init dart_init(struct device_node *dart_node)
 	dart_emptyval = DARTMAP_VALID | ((tmp >> DART_PAGE_SHIFT) &
 					 DARTMAP_RPNMASK);
 
+	printk(KERN_INFO "DART table allocated at: %p\n", dart_tablebase);
+}
+
+static int __init dart_init(struct device_node *dart_node)
+{
+	unsigned int i;
+	unsigned long base, size;
+	struct resource r;
+
+	/* IOMMU disabled by the user ? bail out */
+	if (iommu_is_off)
+		return -ENODEV;
+
+	/*
+	 * Only use the DART if the machine has more than 1GB of RAM
+	 * or if requested with iommu=on on cmdline.
+	 *
+	 * 1GB of RAM is picked as limit because some default devices
+	 * (i.e. Airport Extreme) have 30 bit address range limits.
+	 */
+
+	if (!iommu_force_on && memblock_end_of_DRAM() <= 0x40000000ull)
+		return -ENODEV;
+
+	/* Get DART registers */
+	if (of_address_to_resource(dart_node, 0, &r))
+		panic("DART: can't get register base ! ");
+
 	/* Map in DART registers */
 	dart = ioremap(r.start, resource_size(&r));
 	if (dart == NULL)
 		panic("DART: Cannot map registers!");
 
-	/* Map in DART table */
-	dart_vbase = ioremap(__pa(dart_tablebase), dart_tablesize);
+	/* Allocate the DART and dummy page */
+	allocate_dart();
 
 	/* Fill initial table */
 	for (i = 0; i < dart_tablesize/4; i++)
-		dart_vbase[i] = dart_emptyval;
+		dart_tablebase[i] = dart_emptyval;
+
+	/* Push to memory */
+	dart_cache_sync(dart_tablebase, dart_tablesize / sizeof(u32));
 
 	/* Initialize DART with table base and enable it. */
-	base = dart_tablebase >> DART_PAGE_SHIFT;
+	base = ((unsigned long)dart_tablebase) >> DART_PAGE_SHIFT;
 	size = dart_tablesize >> DART_PAGE_SHIFT;
 	if (dart_is_u4) {
 		size &= DART_SIZE_U4_SIZE_MASK;
@@ -301,7 +347,7 @@ static void iommu_table_dart_setup(void)
 	iommu_table_dart.it_page_shift = IOMMU_PAGE_SHIFT_4K;
 
 	/* Initialize the common IOMMU code */
-	iommu_table_dart.it_base = (unsigned long)dart_vbase;
+	iommu_table_dart.it_base = (unsigned long)dart_tablebase;
 	iommu_table_dart.it_index = 0;
 	iommu_table_dart.it_blocksize = 1;
 	iommu_table_dart.it_ops = &iommu_dart_ops;
@@ -404,75 +450,21 @@ void __init iommu_init_early_dart(struct pci_controller_ops *controller_ops)
 }
 
 #ifdef CONFIG_PM
-static void iommu_dart_save(void)
-{
-	memcpy(dart_copy, dart_vbase, 2*1024*1024);
-}
-
 static void iommu_dart_restore(void)
 {
-	memcpy(dart_vbase, dart_copy, 2*1024*1024);
+	dart_cache_sync(dart_tablebase, dart_tablesize / sizeof(u32));
 	dart_tlb_invalidate_all();
 }
 
 static int __init iommu_init_late_dart(void)
 {
-	unsigned long tbasepfn;
-	struct page *p;
-
-	/* if no dart table exists then we won't need to save it
-	 * and the area has also not been reserved */
 	if (!dart_tablebase)
 		return 0;
 
-	tbasepfn = __pa(dart_tablebase) >> PAGE_SHIFT;
-	register_nosave_region_late(tbasepfn,
-				    tbasepfn + ((1<<24) >> PAGE_SHIFT));
-
-	/* For suspend we need to copy the dart contents because
-	 * it is not part of the regular mapping (see above) and
-	 * thus not saved automatically. The memory for this copy
-	 * must be allocated early because we need 2 MB. */
-	p = alloc_pages(GFP_KERNEL, 21 - PAGE_SHIFT);
-	BUG_ON(!p);
-	dart_copy = page_address(p);
-
-	ppc_md.iommu_save = iommu_dart_save;
 	ppc_md.iommu_restore = iommu_dart_restore;
 
 	return 0;
 }
 
 late_initcall(iommu_init_late_dart);
-#endif
-
-void __init alloc_dart_table(void)
-{
-	/* Only reserve DART space if machine has more than 1GB of RAM
-	 * or if requested with iommu=on on cmdline.
-	 *
-	 * 1GB of RAM is picked as limit because some default devices
-	 * (i.e. Airport Extreme) have 30 bit address range limits.
-	 */
-
-	if (iommu_is_off)
-		return;
-
-	if (!iommu_force_on && memblock_end_of_DRAM() <= 0x40000000ull)
-		return;
-
-	/* 512 pages (2MB) is max DART tablesize. */
-	dart_tablesize = 1UL << 21;
-	/* 16MB (1 << 24) alignment. We allocate a full 16Mb chuck since we
-	 * will blow up an entire large page anyway in the kernel mapping
-	 */
-	dart_tablebase = (unsigned long)
-		__va(memblock_alloc_base(1UL<<24, 1UL<<24, 0x80000000L));
-	/*
-	 * The DART space is later unmapped from the kernel linear mapping and
-	 * accessing dart_tablebase during kmemleak scanning will fault.
-	 */
-	kmemleak_no_scan((void *)dart_tablebase);
-
-	printk(KERN_INFO "DART table allocated at: %lx\n", dart_tablebase);
-}
+#endif /* CONFIG_PM */

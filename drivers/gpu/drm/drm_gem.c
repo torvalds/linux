@@ -511,7 +511,7 @@ struct page **drm_gem_get_pages(struct drm_gem_object *obj)
 	int i, npages;
 
 	/* This is the shared memory object that backs the GEM resource */
-	mapping = file_inode(obj->filp)->i_mapping;
+	mapping = obj->filp->f_mapping;
 
 	/* We already BUG_ON() for non-page-aligned sizes in
 	 * drm_gem_object_init(), so we should never hit this unless
@@ -787,7 +787,7 @@ EXPORT_SYMBOL(drm_gem_object_release);
  * @kref: kref of the object to free
  *
  * Called after the last reference to the object has been lost.
- * Must be called holding struct_ mutex
+ * Must be called holding &drm_device->struct_mutex.
  *
  * Frees the object
  */

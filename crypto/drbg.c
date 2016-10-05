@@ -252,10 +252,16 @@ MODULE_ALIAS_CRYPTO("drbg_nopr_ctr_aes192");
 MODULE_ALIAS_CRYPTO("drbg_pr_ctr_aes128");
 MODULE_ALIAS_CRYPTO("drbg_nopr_ctr_aes128");
 
-static int drbg_kcapi_sym(struct drbg_state *drbg, const unsigned char *key,
-			  unsigned char *outval, const struct drbg_string *in);
+static void drbg_kcapi_symsetkey(struct drbg_state *drbg,
+				 const unsigned char *key);
+static int drbg_kcapi_sym(struct drbg_state *drbg, unsigned char *outval,
+			  const struct drbg_string *in);
 static int drbg_init_sym_kernel(struct drbg_state *drbg);
 static int drbg_fini_sym_kernel(struct drbg_state *drbg);
+static int drbg_kcapi_sym_ctr(struct drbg_state *drbg,
+			      u8 *inbuf, u32 inbuflen,
+			      u8 *outbuf, u32 outlen);
+#define DRBG_CTR_NULL_LEN 128
 
 /* BCC function for CTR DRBG as defined in 10.4.3 */
 static int drbg_ctr_bcc(struct drbg_state *drbg,
@@ -270,6 +276,7 @@ static int drbg_ctr_bcc(struct drbg_state *drbg,
 	drbg_string_fill(&data, out, drbg_blocklen(drbg));
 
 	/* 10.4.3 step 2 / 4 */
+	drbg_kcapi_symsetkey(drbg, key);
 	list_for_each_entry(curr, in, list) {
 		const unsigned char *pos = curr->buf;
 		size_t len = curr->len;
@@ -278,7 +285,7 @@ static int drbg_ctr_bcc(struct drbg_state *drbg,
 			/* 10.4.3 step 4.2 */
 			if (drbg_blocklen(drbg) == cnt) {
 				cnt = 0;
-				ret = drbg_kcapi_sym(drbg, key, out, &data);
+				ret = drbg_kcapi_sym(drbg, out, &data);
 				if (ret)
 					return ret;
 			}
@@ -290,7 +297,7 @@ static int drbg_ctr_bcc(struct drbg_state *drbg,
 	}
 	/* 10.4.3 step 4.2 for last block */
 	if (cnt)
-		ret = drbg_kcapi_sym(drbg, key, out, &data);
+		ret = drbg_kcapi_sym(drbg, out, &data);
 
 	return ret;
 }
@@ -425,6 +432,7 @@ static int drbg_ctr_df(struct drbg_state *drbg,
 	/* 10.4.2 step 12: overwriting of outval is implemented in next step */
 
 	/* 10.4.2 step 13 */
+	drbg_kcapi_symsetkey(drbg, temp);
 	while (generated_len < bytes_to_return) {
 		short blocklen = 0;
 		/*
@@ -432,7 +440,7 @@ static int drbg_ctr_df(struct drbg_state *drbg,
 		 * implicit as the key is only drbg_blocklen in size based on
 		 * the implementation of the cipher function callback
 		 */
-		ret = drbg_kcapi_sym(drbg, temp, X, &cipherin);
+		ret = drbg_kcapi_sym(drbg, X, &cipherin);
 		if (ret)
 			goto out;
 		blocklen = (drbg_blocklen(drbg) <
@@ -476,12 +484,25 @@ static int drbg_ctr_update(struct drbg_state *drbg, struct list_head *seed,
 	unsigned char *temp = drbg->scratchpad;
 	unsigned char *df_data = drbg->scratchpad + drbg_statelen(drbg) +
 				 drbg_blocklen(drbg);
-	unsigned char *temp_p, *df_data_p; /* pointer to iterate over buffers */
-	unsigned int len = 0;
-	struct drbg_string cipherin;
 
 	if (3 > reseed)
 		memset(df_data, 0, drbg_statelen(drbg));
+
+	if (!reseed) {
+		/*
+		 * The DRBG uses the CTR mode of the underlying AES cipher. The
+		 * CTR mode increments the counter value after the AES operation
+		 * but SP800-90A requires that the counter is incremented before
+		 * the AES operation. Hence, we increment it at the time we set
+		 * it by one.
+		 */
+		crypto_inc(drbg->V, drbg_blocklen(drbg));
+
+		ret = crypto_skcipher_setkey(drbg->ctr_handle, drbg->C,
+					     drbg_keylen(drbg));
+		if (ret)
+			goto out;
+	}
 
 	/* 10.2.1.3.2 step 2 and 10.2.1.4.2 step 2 */
 	if (seed) {
@@ -490,35 +511,20 @@ static int drbg_ctr_update(struct drbg_state *drbg, struct list_head *seed,
 			goto out;
 	}
 
-	drbg_string_fill(&cipherin, drbg->V, drbg_blocklen(drbg));
-	/*
-	 * 10.2.1.3.2 steps 2 and 3 are already covered as the allocation
-	 * zeroizes all memory during initialization
-	 */
-	while (len < (drbg_statelen(drbg))) {
-		/* 10.2.1.2 step 2.1 */
-		crypto_inc(drbg->V, drbg_blocklen(drbg));
-		/*
-		 * 10.2.1.2 step 2.2 */
-		ret = drbg_kcapi_sym(drbg, drbg->C, temp + len, &cipherin);
-		if (ret)
-			goto out;
-		/* 10.2.1.2 step 2.3 and 3 */
-		len += drbg_blocklen(drbg);
-	}
-
-	/* 10.2.1.2 step 4 */
-	temp_p = temp;
-	df_data_p = df_data;
-	for (len = 0; len < drbg_statelen(drbg); len++) {
-		*temp_p ^= *df_data_p;
-		df_data_p++; temp_p++;
-	}
+	ret = drbg_kcapi_sym_ctr(drbg, df_data, drbg_statelen(drbg),
+				 temp, drbg_statelen(drbg));
+	if (ret)
+		return ret;
 
 	/* 10.2.1.2 step 5 */
-	memcpy(drbg->C, temp, drbg_keylen(drbg));
+	ret = crypto_skcipher_setkey(drbg->ctr_handle, temp,
+				     drbg_keylen(drbg));
+	if (ret)
+		goto out;
 	/* 10.2.1.2 step 6 */
 	memcpy(drbg->V, temp + drbg_keylen(drbg), drbg_blocklen(drbg));
+	/* See above: increment counter by one to compensate timing of CTR op */
+	crypto_inc(drbg->V, drbg_blocklen(drbg));
 	ret = 0;
 
 out:
@@ -537,9 +543,8 @@ static int drbg_ctr_generate(struct drbg_state *drbg,
 			     unsigned char *buf, unsigned int buflen,
 			     struct list_head *addtl)
 {
-	int len = 0;
-	int ret = 0;
-	struct drbg_string data;
+	int ret;
+	int len = min_t(int, buflen, INT_MAX);
 
 	/* 10.2.1.5.2 step 2 */
 	if (addtl && !list_empty(addtl)) {
@@ -549,33 +554,16 @@ static int drbg_ctr_generate(struct drbg_state *drbg,
 	}
 
 	/* 10.2.1.5.2 step 4.1 */
-	crypto_inc(drbg->V, drbg_blocklen(drbg));
-	drbg_string_fill(&data, drbg->V, drbg_blocklen(drbg));
-	while (len < buflen) {
-		int outlen = 0;
-		/* 10.2.1.5.2 step 4.2 */
-		ret = drbg_kcapi_sym(drbg, drbg->C, drbg->scratchpad, &data);
-		if (ret) {
-			len = ret;
-			goto out;
-		}
-		outlen = (drbg_blocklen(drbg) < (buflen - len)) ?
-			  drbg_blocklen(drbg) : (buflen - len);
-		/* 10.2.1.5.2 step 4.3 */
-		memcpy(buf + len, drbg->scratchpad, outlen);
-		len += outlen;
-		/* 10.2.1.5.2 step 6 */
-		if (len < buflen)
-			crypto_inc(drbg->V, drbg_blocklen(drbg));
-	}
+	ret = drbg_kcapi_sym_ctr(drbg, drbg->ctr_null_value, DRBG_CTR_NULL_LEN,
+				 buf, len);
+	if (ret)
+		return ret;
 
 	/* 10.2.1.5.2 step 6 */
 	ret = drbg_ctr_update(drbg, NULL, 3);
 	if (ret)
 		len = ret;
 
-out:
-	memset(drbg->scratchpad, 0, drbg_blocklen(drbg));
 	return len;
 }
 
@@ -1145,11 +1133,11 @@ static inline void drbg_dealloc_state(struct drbg_state *drbg)
 	if (!drbg)
 		return;
 	kzfree(drbg->V);
-	drbg->V = NULL;
+	drbg->Vbuf = NULL;
 	kzfree(drbg->C);
-	drbg->C = NULL;
-	kzfree(drbg->scratchpad);
-	drbg->scratchpad = NULL;
+	drbg->Cbuf = NULL;
+	kzfree(drbg->scratchpadbuf);
+	drbg->scratchpadbuf = NULL;
 	drbg->reseed_ctr = 0;
 	drbg->d_ops = NULL;
 	drbg->core = NULL;
@@ -1185,12 +1173,18 @@ static inline int drbg_alloc_state(struct drbg_state *drbg)
 		goto err;
 	}
 
-	drbg->V = kmalloc(drbg_statelen(drbg), GFP_KERNEL);
-	if (!drbg->V)
+	ret = drbg->d_ops->crypto_init(drbg);
+	if (ret < 0)
 		goto err;
-	drbg->C = kmalloc(drbg_statelen(drbg), GFP_KERNEL);
-	if (!drbg->C)
-		goto err;
+
+	drbg->Vbuf = kmalloc(drbg_statelen(drbg) + ret, GFP_KERNEL);
+	if (!drbg->Vbuf)
+		goto fini;
+	drbg->V = PTR_ALIGN(drbg->Vbuf, ret + 1);
+	drbg->Cbuf = kmalloc(drbg_statelen(drbg) + ret, GFP_KERNEL);
+	if (!drbg->Cbuf)
+		goto fini;
+	drbg->C = PTR_ALIGN(drbg->Cbuf, ret + 1);
 	/* scratchpad is only generated for CTR and Hash */
 	if (drbg->core->flags & DRBG_HMAC)
 		sb_size = 0;
@@ -1204,13 +1198,16 @@ static inline int drbg_alloc_state(struct drbg_state *drbg)
 		sb_size = drbg_statelen(drbg) + drbg_blocklen(drbg);
 
 	if (0 < sb_size) {
-		drbg->scratchpad = kzalloc(sb_size, GFP_KERNEL);
-		if (!drbg->scratchpad)
-			goto err;
+		drbg->scratchpadbuf = kzalloc(sb_size + ret, GFP_KERNEL);
+		if (!drbg->scratchpadbuf)
+			goto fini;
+		drbg->scratchpad = PTR_ALIGN(drbg->scratchpadbuf, ret + 1);
 	}
 
 	return 0;
 
+fini:
+	drbg->d_ops->crypto_fini(drbg);
 err:
 	drbg_dealloc_state(drbg);
 	return ret;
@@ -1478,10 +1475,6 @@ static int drbg_instantiate(struct drbg_state *drbg, struct drbg_string *pers,
 		if (ret)
 			goto unlock;
 
-		ret = -EFAULT;
-		if (drbg->d_ops->crypto_init(drbg))
-			goto err;
-
 		ret = drbg_prepare_hrng(drbg);
 		if (ret)
 			goto free_everything;
@@ -1505,8 +1498,6 @@ static int drbg_instantiate(struct drbg_state *drbg, struct drbg_string *pers,
 	mutex_unlock(&drbg->drbg_mutex);
 	return ret;
 
-err:
-	drbg_dealloc_state(drbg);
 unlock:
 	mutex_unlock(&drbg->drbg_mutex);
 	return ret;
@@ -1591,7 +1582,8 @@ static int drbg_init_hash_kernel(struct drbg_state *drbg)
 	sdesc->shash.tfm = tfm;
 	sdesc->shash.flags = 0;
 	drbg->priv_data = sdesc;
-	return 0;
+
+	return crypto_shash_alignmask(tfm);
 }
 
 static int drbg_fini_hash_kernel(struct drbg_state *drbg)
@@ -1627,10 +1619,45 @@ static int drbg_kcapi_hash(struct drbg_state *drbg, unsigned char *outval,
 #endif /* (CONFIG_CRYPTO_DRBG_HASH || CONFIG_CRYPTO_DRBG_HMAC) */
 
 #ifdef CONFIG_CRYPTO_DRBG_CTR
+static int drbg_fini_sym_kernel(struct drbg_state *drbg)
+{
+	struct crypto_cipher *tfm =
+		(struct crypto_cipher *)drbg->priv_data;
+	if (tfm)
+		crypto_free_cipher(tfm);
+	drbg->priv_data = NULL;
+
+	if (drbg->ctr_handle)
+		crypto_free_skcipher(drbg->ctr_handle);
+	drbg->ctr_handle = NULL;
+
+	if (drbg->ctr_req)
+		skcipher_request_free(drbg->ctr_req);
+	drbg->ctr_req = NULL;
+
+	kfree(drbg->ctr_null_value_buf);
+	drbg->ctr_null_value = NULL;
+
+	return 0;
+}
+
+static void drbg_skcipher_cb(struct crypto_async_request *req, int error)
+{
+	struct drbg_state *drbg = req->data;
+
+	if (error == -EINPROGRESS)
+		return;
+	drbg->ctr_async_err = error;
+	complete(&drbg->ctr_completion);
+}
+
 static int drbg_init_sym_kernel(struct drbg_state *drbg)
 {
-	int ret = 0;
 	struct crypto_cipher *tfm;
+	struct crypto_skcipher *sk_tfm;
+	struct skcipher_request *req;
+	unsigned int alignmask;
+	char ctr_name[CRYPTO_MAX_ALG_NAME];
 
 	tfm = crypto_alloc_cipher(drbg->core->backend_cra_name, 0, 0);
 	if (IS_ERR(tfm)) {
@@ -1640,29 +1667,101 @@ static int drbg_init_sym_kernel(struct drbg_state *drbg)
 	}
 	BUG_ON(drbg_blocklen(drbg) != crypto_cipher_blocksize(tfm));
 	drbg->priv_data = tfm;
-	return ret;
+
+	if (snprintf(ctr_name, CRYPTO_MAX_ALG_NAME, "ctr(%s)",
+	    drbg->core->backend_cra_name) >= CRYPTO_MAX_ALG_NAME) {
+		drbg_fini_sym_kernel(drbg);
+		return -EINVAL;
+	}
+	sk_tfm = crypto_alloc_skcipher(ctr_name, 0, 0);
+	if (IS_ERR(sk_tfm)) {
+		pr_info("DRBG: could not allocate CTR cipher TFM handle: %s\n",
+				ctr_name);
+		drbg_fini_sym_kernel(drbg);
+		return PTR_ERR(sk_tfm);
+	}
+	drbg->ctr_handle = sk_tfm;
+
+	req = skcipher_request_alloc(sk_tfm, GFP_KERNEL);
+	if (!req) {
+		pr_info("DRBG: could not allocate request queue\n");
+		drbg_fini_sym_kernel(drbg);
+		return -ENOMEM;
+	}
+	drbg->ctr_req = req;
+	skcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+					drbg_skcipher_cb, drbg);
+
+	alignmask = crypto_skcipher_alignmask(sk_tfm);
+	drbg->ctr_null_value_buf = kzalloc(DRBG_CTR_NULL_LEN + alignmask,
+					   GFP_KERNEL);
+	if (!drbg->ctr_null_value_buf) {
+		drbg_fini_sym_kernel(drbg);
+		return -ENOMEM;
+	}
+	drbg->ctr_null_value = (u8 *)PTR_ALIGN(drbg->ctr_null_value_buf,
+					       alignmask + 1);
+
+	return alignmask;
 }
 
-static int drbg_fini_sym_kernel(struct drbg_state *drbg)
-{
-	struct crypto_cipher *tfm =
-		(struct crypto_cipher *)drbg->priv_data;
-	if (tfm)
-		crypto_free_cipher(tfm);
-	drbg->priv_data = NULL;
-	return 0;
-}
-
-static int drbg_kcapi_sym(struct drbg_state *drbg, const unsigned char *key,
-			  unsigned char *outval, const struct drbg_string *in)
+static void drbg_kcapi_symsetkey(struct drbg_state *drbg,
+				 const unsigned char *key)
 {
 	struct crypto_cipher *tfm =
 		(struct crypto_cipher *)drbg->priv_data;
 
 	crypto_cipher_setkey(tfm, key, (drbg_keylen(drbg)));
+}
+
+static int drbg_kcapi_sym(struct drbg_state *drbg, unsigned char *outval,
+			  const struct drbg_string *in)
+{
+	struct crypto_cipher *tfm =
+		(struct crypto_cipher *)drbg->priv_data;
+
 	/* there is only component in *in */
 	BUG_ON(in->len < drbg_blocklen(drbg));
 	crypto_cipher_encrypt_one(tfm, outval, in->buf);
+	return 0;
+}
+
+static int drbg_kcapi_sym_ctr(struct drbg_state *drbg,
+			      u8 *inbuf, u32 inlen,
+			      u8 *outbuf, u32 outlen)
+{
+	struct scatterlist sg_in;
+
+	sg_init_one(&sg_in, inbuf, inlen);
+
+	while (outlen) {
+		u32 cryptlen = min_t(u32, inlen, outlen);
+		struct scatterlist sg_out;
+		int ret;
+
+		sg_init_one(&sg_out, outbuf, cryptlen);
+		skcipher_request_set_crypt(drbg->ctr_req, &sg_in, &sg_out,
+					   cryptlen, drbg->V);
+		ret = crypto_skcipher_encrypt(drbg->ctr_req);
+		switch (ret) {
+		case 0:
+			break;
+		case -EINPROGRESS:
+		case -EBUSY:
+			ret = wait_for_completion_interruptible(
+				&drbg->ctr_completion);
+			if (!ret && !drbg->ctr_async_err) {
+				reinit_completion(&drbg->ctr_completion);
+				break;
+			}
+		default:
+			return ret;
+		}
+		init_completion(&drbg->ctr_completion);
+
+		outlen -= cryptlen;
+	}
+
 	return 0;
 }
 #endif /* CONFIG_CRYPTO_DRBG_CTR */

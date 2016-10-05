@@ -31,6 +31,7 @@ This file contains
       4.2.4 Broadcast Manager message sequence transmission
       4.2.5 Broadcast Manager receive filter timers
       4.2.6 Broadcast Manager multiplex message receive filter
+      4.2.7 Broadcast Manager CAN FD support
     4.3 connected transport protocols (SOCK_SEQPACKET)
     4.4 unconnected transport protocols (SOCK_DGRAM)
 
@@ -799,7 +800,7 @@ solution for a couple of reasons:
     } mytxmsg;
 
     (..)
-    mytxmsg.nframes = 4;
+    mytxmsg.msg_head.nframes = 4;
     (..)
 
     write(s, &mytxmsg, sizeof(mytxmsg));
@@ -851,6 +852,28 @@ solution for a couple of reasons:
     U64_DATA(&msg.frame[4]) = 0x4F07FC0FF0000000ULL; /* data mask (MUX 0x4F) */
 
     write(s, &msg, sizeof(msg));
+
+  4.2.7 Broadcast Manager CAN FD support
+
+  The programming API of the CAN_BCM depends on struct can_frame which is
+  given as array directly behind the bcm_msg_head structure. To follow this
+  schema for the CAN FD frames a new flag 'CAN_FD_FRAME' in the bcm_msg_head
+  flags indicates that the concatenated CAN frame structures behind the
+  bcm_msg_head are defined as struct canfd_frame.
+
+    struct {
+            struct bcm_msg_head msg_head;
+            struct canfd_frame frame[5];
+    } msg;
+
+    msg.msg_head.opcode  = RX_SETUP;
+    msg.msg_head.can_id  = 0x42;
+    msg.msg_head.flags   = CAN_FD_FRAME;
+    msg.msg_head.nframes = 5;
+    (..)
+
+  When using CAN FD frames for multiplex filtering the MUX mask is still
+  expected in the first 64 bit of the struct canfd_frame data section.
 
   4.3 connected transport protocols (SOCK_SEQPACKET)
   4.4 unconnected transport protocols (SOCK_DGRAM)

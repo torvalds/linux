@@ -41,10 +41,9 @@ extern unsigned long asmlinkage efi_call_phys(void *, ...);
 /*
  * Wrap all the virtual calls in a way that forces the parameters on the stack.
  */
-#define arch_efi_call_virt(f, args...)					\
+#define arch_efi_call_virt(p, f, args...)				\
 ({									\
-	((efi_##f##_t __attribute__((regparm(0)))*)			\
-		efi.systab->runtime->f)(args);				\
+	((efi_##f##_t __attribute__((regparm(0)))*) p->f)(args);	\
 })
 
 #define efi_ioremap(addr, size, type, attr)	ioremap_cache(addr, size)
@@ -81,8 +80,8 @@ struct efi_scratch {
 	}								\
 })
 
-#define arch_efi_call_virt(f, args...)					\
-	efi_call((void *)efi.systab->runtime->f, args)			\
+#define arch_efi_call_virt(p, f, args...)				\
+	efi_call((void *)p->f, args)					\
 
 #define arch_efi_call_virt_teardown()					\
 ({									\
@@ -125,7 +124,6 @@ extern void __init efi_map_region_fixed(efi_memory_desc_t *md);
 extern void efi_sync_low_kernel_mappings(void);
 extern int __init efi_alloc_page_tables(void);
 extern int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages);
-extern void __init efi_cleanup_page_tables(unsigned long pa_memmap, unsigned num_pages);
 extern void __init old_map_region(efi_memory_desc_t *md);
 extern void __init runtime_code_page_mkexec(void);
 extern void __init efi_runtime_update_mappings(void);

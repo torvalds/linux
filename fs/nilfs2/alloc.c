@@ -622,10 +622,10 @@ void nilfs_palloc_commit_free_entry(struct inode *inode,
 	lock = nilfs_mdt_bgl_lock(inode, group);
 
 	if (!nilfs_clear_bit_atomic(lock, group_offset, bitmap))
-		nilfs_warning(inode->i_sb, __func__,
-			      "entry number %llu already freed: ino=%lu",
-			      (unsigned long long)req->pr_entry_nr,
-			      (unsigned long)inode->i_ino);
+		nilfs_msg(inode->i_sb, KERN_WARNING,
+			  "%s (ino=%lu): entry number %llu already freed",
+			  __func__, inode->i_ino,
+			  (unsigned long long)req->pr_entry_nr);
 	else
 		nilfs_palloc_group_desc_add_entries(desc, lock, 1);
 
@@ -663,10 +663,10 @@ void nilfs_palloc_abort_alloc_entry(struct inode *inode,
 	lock = nilfs_mdt_bgl_lock(inode, group);
 
 	if (!nilfs_clear_bit_atomic(lock, group_offset, bitmap))
-		nilfs_warning(inode->i_sb, __func__,
-			      "entry number %llu already freed: ino=%lu",
-			      (unsigned long long)req->pr_entry_nr,
-			      (unsigned long)inode->i_ino);
+		nilfs_msg(inode->i_sb, KERN_WARNING,
+			  "%s (ino=%lu): entry number %llu already freed",
+			  __func__, inode->i_ino,
+			  (unsigned long long)req->pr_entry_nr);
 	else
 		nilfs_palloc_group_desc_add_entries(desc, lock, 1);
 
@@ -772,10 +772,10 @@ int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
 		do {
 			if (!nilfs_clear_bit_atomic(lock, group_offset,
 						    bitmap)) {
-				nilfs_warning(inode->i_sb, __func__,
-					      "entry number %llu already freed: ino=%lu",
-					      (unsigned long long)entry_nrs[j],
-					      (unsigned long)inode->i_ino);
+				nilfs_msg(inode->i_sb, KERN_WARNING,
+					  "%s (ino=%lu): entry number %llu already freed",
+					  __func__, inode->i_ino,
+					  (unsigned long long)entry_nrs[j]);
 			} else {
 				n++;
 			}
@@ -816,12 +816,11 @@ int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
 		for (k = 0; k < nempties; k++) {
 			ret = nilfs_palloc_delete_entry_block(inode,
 							      last_nrs[k]);
-			if (ret && ret != -ENOENT) {
-				nilfs_warning(inode->i_sb, __func__,
-					      "failed to delete block of entry %llu: ino=%lu, err=%d",
-					      (unsigned long long)last_nrs[k],
-					      (unsigned long)inode->i_ino, ret);
-			}
+			if (ret && ret != -ENOENT)
+				nilfs_msg(inode->i_sb, KERN_WARNING,
+					  "error %d deleting block that object (entry=%llu, ino=%lu) belongs to",
+					  ret, (unsigned long long)last_nrs[k],
+					  inode->i_ino);
 		}
 
 		desc_kaddr = kmap_atomic(desc_bh->b_page);
@@ -835,12 +834,10 @@ int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
 
 		if (nfree == nilfs_palloc_entries_per_group(inode)) {
 			ret = nilfs_palloc_delete_bitmap_block(inode, group);
-			if (ret && ret != -ENOENT) {
-				nilfs_warning(inode->i_sb, __func__,
-					      "failed to delete bitmap block of group %lu: ino=%lu, err=%d",
-					      group,
-					      (unsigned long)inode->i_ino, ret);
-			}
+			if (ret && ret != -ENOENT)
+				nilfs_msg(inode->i_sb, KERN_WARNING,
+					  "error %d deleting bitmap block of group=%lu, ino=%lu",
+					  ret, group, inode->i_ino);
 		}
 	}
 	return 0;

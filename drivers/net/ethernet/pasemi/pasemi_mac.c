@@ -989,7 +989,7 @@ static void pasemi_adjust_link(struct net_device *dev)
 	unsigned int flags;
 	unsigned int new_flags;
 
-	if (!mac->phydev->link) {
+	if (!dev->phydev->link) {
 		/* If no link, MAC speed settings don't matter. Just report
 		 * link down and return.
 		 */
@@ -1010,10 +1010,10 @@ static void pasemi_adjust_link(struct net_device *dev)
 	new_flags = flags & ~(PAS_MAC_CFG_PCFG_HD | PAS_MAC_CFG_PCFG_SPD_M |
 			      PAS_MAC_CFG_PCFG_TSR_M);
 
-	if (!mac->phydev->duplex)
+	if (!dev->phydev->duplex)
 		new_flags |= PAS_MAC_CFG_PCFG_HD;
 
-	switch (mac->phydev->speed) {
+	switch (dev->phydev->speed) {
 	case 1000:
 		new_flags |= PAS_MAC_CFG_PCFG_SPD_1G |
 			     PAS_MAC_CFG_PCFG_TSR_1G;
@@ -1027,15 +1027,15 @@ static void pasemi_adjust_link(struct net_device *dev)
 			     PAS_MAC_CFG_PCFG_TSR_10M;
 		break;
 	default:
-		printk("Unsupported speed %d\n", mac->phydev->speed);
+		printk("Unsupported speed %d\n", dev->phydev->speed);
 	}
 
 	/* Print on link or speed/duplex change */
-	msg = mac->link != mac->phydev->link || flags != new_flags;
+	msg = mac->link != dev->phydev->link || flags != new_flags;
 
-	mac->duplex = mac->phydev->duplex;
-	mac->speed = mac->phydev->speed;
-	mac->link = mac->phydev->link;
+	mac->duplex = dev->phydev->duplex;
+	mac->speed = dev->phydev->speed;
+	mac->link = dev->phydev->link;
 
 	if (new_flags != flags)
 		write_mac_reg(mac, PAS_MAC_CFG_PCFG, new_flags);
@@ -1066,8 +1066,6 @@ static int pasemi_mac_phy_init(struct net_device *dev)
 		printk(KERN_ERR "%s: Could not attach to phy\n", dev->name);
 		return -ENODEV;
 	}
-
-	mac->phydev = phydev;
 
 	return 0;
 }
@@ -1198,8 +1196,8 @@ static int pasemi_mac_open(struct net_device *dev)
 		goto out_rx_int;
 	}
 
-	if (mac->phydev)
-		phy_start(mac->phydev);
+	if (dev->phydev)
+		phy_start(dev->phydev);
 
 	setup_timer(&mac->tx->clean_timer, pasemi_mac_tx_timer,
 		    (unsigned long)mac->tx);
@@ -1293,9 +1291,9 @@ static int pasemi_mac_close(struct net_device *dev)
 	rxch = rx_ring(mac)->chan.chno;
 	txch = tx_ring(mac)->chan.chno;
 
-	if (mac->phydev) {
-		phy_stop(mac->phydev);
-		phy_disconnect(mac->phydev);
+	if (dev->phydev) {
+		phy_stop(dev->phydev);
+		phy_disconnect(dev->phydev);
 	}
 
 	del_timer_sync(&mac->tx->clean_timer);

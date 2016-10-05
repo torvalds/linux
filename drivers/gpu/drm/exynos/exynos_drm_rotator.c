@@ -794,29 +794,6 @@ static int rotator_clk_crtl(struct rot_context *rot, bool enable)
 	return 0;
 }
 
-
-#ifdef CONFIG_PM_SLEEP
-static int rotator_suspend(struct device *dev)
-{
-	struct rot_context *rot = dev_get_drvdata(dev);
-
-	if (pm_runtime_suspended(dev))
-		return 0;
-
-	return rotator_clk_crtl(rot, false);
-}
-
-static int rotator_resume(struct device *dev)
-{
-	struct rot_context *rot = dev_get_drvdata(dev);
-
-	if (!pm_runtime_suspended(dev))
-		return rotator_clk_crtl(rot, true);
-
-	return 0;
-}
-#endif
-
 static int rotator_runtime_suspend(struct device *dev)
 {
 	struct rot_context *rot = dev_get_drvdata(dev);
@@ -833,7 +810,8 @@ static int rotator_runtime_resume(struct device *dev)
 #endif
 
 static const struct dev_pm_ops rotator_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(rotator_suspend, rotator_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(rotator_runtime_suspend, rotator_runtime_resume,
 									NULL)
 };

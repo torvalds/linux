@@ -1,13 +1,10 @@
 #ifndef __NET_VXLAN_H
 #define __NET_VXLAN_H 1
 
-#include <linux/ip.h>
-#include <linux/ipv6.h>
 #include <linux/if_vlan.h>
-#include <linux/skbuff.h>
-#include <linux/netdevice.h>
-#include <linux/udp.h>
+#include <net/udp_tunnel.h>
 #include <net/dst_metadata.h>
+#include <net/udp_tunnel.h>
 
 /* VXLAN protocol (RFC 7348) header:
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -390,12 +387,6 @@ static inline __be32 vxlan_compute_rco(unsigned int start, unsigned int offset)
 	if (offset == offsetof(struct udphdr, check))
 		vni_field |= VXLAN_RCO_UDP;
 	return vni_field;
-}
-
-static inline void vxlan_get_rx_port(struct net_device *netdev)
-{
-	ASSERT_RTNL();
-	call_netdevice_notifiers(NETDEV_OFFLOAD_PUSH_VXLAN, netdev);
 }
 
 static inline unsigned short vxlan_get_sk_family(struct vxlan_sock *vs)

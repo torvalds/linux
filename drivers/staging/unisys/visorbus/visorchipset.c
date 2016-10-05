@@ -1613,7 +1613,7 @@ parahotplug_request_complete(int id, u16 active)
 	}
 
 	spin_unlock(&parahotplug_request_list_lock);
-	return -1;
+	return -EINVAL;
 }
 
 /*

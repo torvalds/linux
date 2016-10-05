@@ -537,20 +537,6 @@ static void apply_tunings(
 	u8 precur = 0, attn = 0, postcur = 0, external_device_config = 0;
 	u8 *cache = ppd->qsfp_info.cache;
 
-	/* Enable external device config if channel is limiting active */
-	read_8051_config(ppd->dd, LINK_OPTIMIZATION_SETTINGS,
-			 GENERAL_CONFIG, &config_data);
-	config_data &= ~(0xff << ENABLE_EXT_DEV_CONFIG_SHIFT);
-	config_data |= ((u32)limiting_active << ENABLE_EXT_DEV_CONFIG_SHIFT);
-	ret = load_8051_config(ppd->dd, LINK_OPTIMIZATION_SETTINGS,
-			       GENERAL_CONFIG, config_data);
-	if (ret != HCMD_SUCCESS)
-		dd_dev_err(
-			ppd->dd,
-			"%s: Failed to set enable external device config\n",
-			__func__);
-
-	config_data = 0; /* re-init  */
 	/* Pass tuning method to 8051 */
 	read_8051_config(ppd->dd, LINK_TUNING_PARAMETERS, GENERAL_CONFIG,
 			 &config_data);
@@ -638,9 +624,13 @@ static int tune_active_qsfp(struct hfi1_pportdata *ppd, u32 *ptr_tx_preset,
 	if (ret)
 		return ret;
 
+	/*
+	 * We'll change the QSFP memory contents from here on out, thus we set a
+	 * flag here to remind ourselves to reset the QSFP module. This prevents
+	 * reuse of stale settings established in our previous pass through.
+	 */
 	if (ppd->qsfp_info.reset_needed) {
 		reset_qsfp(ppd);
-		ppd->qsfp_info.reset_needed = 0;
 		refresh_qsfp_cache(ppd, &ppd->qsfp_info);
 	} else {
 		ppd->qsfp_info.reset_needed = 1;

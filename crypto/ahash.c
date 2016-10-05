@@ -461,10 +461,10 @@ static int crypto_ahash_init_tfm(struct crypto_tfm *tfm)
 
 static unsigned int crypto_ahash_extsize(struct crypto_alg *alg)
 {
-	if (alg->cra_type == &crypto_ahash_type)
-		return alg->cra_ctxsize;
+	if (alg->cra_type != &crypto_ahash_type)
+		return sizeof(struct crypto_shash *);
 
-	return sizeof(struct crypto_shash *);
+	return crypto_alg_extsize(alg);
 }
 
 #ifdef CONFIG_NET

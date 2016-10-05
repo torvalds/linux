@@ -91,6 +91,11 @@
 
 #define ELF_NGREG	48	/* includes nip, msr, lr, etc. */
 #define ELF_NFPREG	33	/* includes fpscr */
+#define ELF_NVMX	34	/* includes all vector registers */
+#define ELF_NVSX	32	/* includes all VSX registers */
+#define ELF_NTMSPRREG	3	/* include tfhar, tfiar, texasr */
+#define ELF_NEBB	3	/* includes ebbrr, ebbhr, bescr */
+#define ELF_NPMU	5	/* includes siar, sdar, sier, mmcr2, mmcr0 */
 
 typedef unsigned long elf_greg_t64;
 typedef elf_greg_t64 elf_gregset_t64[ELF_NGREG];

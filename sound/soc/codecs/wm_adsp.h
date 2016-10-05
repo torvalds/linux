@@ -19,6 +19,10 @@
 
 #include "wmfw.h"
 
+/* Return values for wm_adsp_compr_handle_irq */
+#define WM_ADSP_COMPR_OK                 0
+#define WM_ADSP_COMPR_VOICE_TRIGGER      1
+
 struct wm_adsp_region {
 	int type;
 	unsigned int base;

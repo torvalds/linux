@@ -13,7 +13,8 @@
  * If you want more physical memory than this then see the CONFIG_HIGHMEM4G
  * and CONFIG_HIGHMEM64G options in the kernel configuration.
  */
-#define __PAGE_OFFSET		_AC(CONFIG_PAGE_OFFSET, UL)
+#define __PAGE_OFFSET_BASE	_AC(CONFIG_PAGE_OFFSET, UL)
+#define __PAGE_OFFSET		__PAGE_OFFSET_BASE
 
 #define __START_KERNEL_map	__PAGE_OFFSET
 

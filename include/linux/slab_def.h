@@ -81,14 +81,15 @@ struct kmem_cache {
 #endif
 
 #ifdef CONFIG_SLAB_FREELIST_RANDOM
-	void *random_seq;
+	unsigned int *random_seq;
 #endif
 
 	struct kmem_cache_node *node[MAX_NUMNODES];
 };
 
 static inline void *nearest_obj(struct kmem_cache *cache, struct page *page,
-				void *x) {
+				void *x)
+{
 	void *object = x - (x - page->s_mem) % cache->size;
 	void *last_object = page->s_mem + (cache->num - 1) * cache->size;
 

@@ -145,6 +145,8 @@ const struct msm_dsi_phy_cfg dsi_phy_28nm_hpm_cfgs = {
 		.enable = dsi_28nm_phy_enable,
 		.disable = dsi_28nm_phy_disable,
 	},
+	.io_start = { 0xfd922b00, 0xfd923100 },
+	.num_dsi_phy = 2,
 };
 
 const struct msm_dsi_phy_cfg dsi_phy_28nm_lp_cfgs = {
@@ -160,5 +162,7 @@ const struct msm_dsi_phy_cfg dsi_phy_28nm_lp_cfgs = {
 		.enable = dsi_28nm_phy_enable,
 		.disable = dsi_28nm_phy_disable,
 	},
+	.io_start = { 0x1a98500 },
+	.num_dsi_phy = 1,
 };
 

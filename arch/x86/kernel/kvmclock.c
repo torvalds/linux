@@ -289,6 +289,7 @@ void __init kvmclock_init(void)
 	put_cpu();
 
 	x86_platform.calibrate_tsc = kvm_get_tsc_khz;
+	x86_platform.calibrate_cpu = kvm_get_tsc_khz;
 	x86_platform.get_wallclock = kvm_get_wallclock;
 	x86_platform.set_wallclock = kvm_set_wallclock;
 #ifdef CONFIG_X86_LOCAL_APIC

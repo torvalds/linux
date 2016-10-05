@@ -99,12 +99,7 @@ static inline enum cache_type get_cache_type(struct cache_info *ci, int level)
 
 static inline unsigned long ecag(int ai, int li, int ti)
 {
-	unsigned long cmd, val;
-
-	cmd = ai << 4 | li << 1 | ti;
-	asm volatile(".insn	rsy,0xeb000000004c,%0,0,0(%1)" /* ecag */
-		     : "=d" (val) : "a" (cmd));
-	return val;
+	return __ecag(ECAG_CACHE_ATTRIBUTE, ai << 4 | li << 1 | ti);
 }
 
 static void ci_leaf_init(struct cacheinfo *this_leaf, int private,

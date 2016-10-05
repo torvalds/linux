@@ -122,6 +122,7 @@ enum xfeature {
 #define XFEATURE_MASK_OPMASK		(1 << XFEATURE_OPMASK)
 #define XFEATURE_MASK_ZMM_Hi256		(1 << XFEATURE_ZMM_Hi256)
 #define XFEATURE_MASK_Hi16_ZMM		(1 << XFEATURE_Hi16_ZMM)
+#define XFEATURE_MASK_PT		(1 << XFEATURE_PT_UNIMPLEMENTED_SO_FAR)
 #define XFEATURE_MASK_PKRU		(1 << XFEATURE_PKRU)
 
 #define XFEATURE_MASK_FPSSE		(XFEATURE_MASK_FP | XFEATURE_MASK_SSE)
@@ -229,6 +230,12 @@ struct xstate_header {
 	u64				xcomp_bv;
 	u64				reserved[6];
 } __attribute__((packed));
+
+/*
+ * xstate_header.xcomp_bv[63] indicates that the extended_state_area
+ * is in compacted format.
+ */
+#define XCOMP_BV_COMPACTED_FORMAT ((u64)1 << 63)
 
 /*
  * This is our most modern FPU state format, as saved by the XSAVE

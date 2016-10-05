@@ -589,7 +589,7 @@ static inline int tcp_bound_to_half_wnd(struct tcp_sock *tp, int pktsize)
 	 * On the other hand, for extremely large MSS devices, handling
 	 * smaller than MSS windows in this way does make sense.
 	 */
-	if (tp->max_window >= 512)
+	if (tp->max_window > TCP_MSS_DEFAULT)
 		cutoff = (tp->max_window >> 1);
 	else
 		cutoff = tp->max_window;
@@ -767,6 +767,7 @@ struct tcp_skb_cb {
 	union {
 		struct {
 			/* There is space for up to 20 bytes */
+			__u32 in_flight;/* Bytes in flight when packet sent */
 		} tx;   /* only used for outgoing skbs */
 		union {
 			struct inet_skb_parm	h4;
@@ -859,6 +860,7 @@ union tcp_cc_info;
 struct ack_sample {
 	u32 pkts_acked;
 	s32 rtt_us;
+	u32 in_flight;
 };
 
 struct tcp_congestion_ops {
@@ -1382,7 +1384,7 @@ union tcp_md5sum_block {
 /* - pool: digest algorithm, hash description and scratch buffer */
 struct tcp_md5sig_pool {
 	struct ahash_request	*md5_req;
-	union tcp_md5sum_block	md5_blk;
+	void			*scratch;
 };
 
 /* - functions */
@@ -1418,7 +1420,6 @@ static inline void tcp_put_md5sig_pool(void)
 	local_bh_enable();
 }
 
-int tcp_md5_hash_header(struct tcp_md5sig_pool *, const struct tcphdr *);
 int tcp_md5_hash_skb_data(struct tcp_md5sig_pool *, const struct sk_buff *,
 			  unsigned int header_len);
 int tcp_md5_hash_key(struct tcp_md5sig_pool *hp,
@@ -1522,6 +1523,8 @@ static inline void tcp_check_send_head(struct sock *sk, struct sk_buff *skb_unli
 {
 	if (sk->sk_send_head == skb_unlinked)
 		sk->sk_send_head = NULL;
+	if (tcp_sk(sk)->highest_sack == skb_unlinked)
+		tcp_sk(sk)->highest_sack = NULL;
 }
 
 static inline void tcp_init_send_head(struct sock *sk)

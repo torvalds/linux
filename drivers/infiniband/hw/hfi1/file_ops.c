@@ -168,6 +168,7 @@ static inline int is_valid_mmap(u64 token)
 
 static int hfi1_file_open(struct inode *inode, struct file *fp)
 {
+	struct hfi1_filedata *fd;
 	struct hfi1_devdata *dd = container_of(inode->i_cdev,
 					       struct hfi1_devdata,
 					       user_cdev);
@@ -176,10 +177,18 @@ static int hfi1_file_open(struct inode *inode, struct file *fp)
 	kobject_get(&dd->kobj);
 
 	/* The real work is performed later in assign_ctxt() */
-	fp->private_data = kzalloc(sizeof(struct hfi1_filedata), GFP_KERNEL);
-	if (fp->private_data) /* no cpu affinity by default */
-		((struct hfi1_filedata *)fp->private_data)->rec_cpu_num = -1;
-	return fp->private_data ? 0 : -ENOMEM;
+
+	fd = kzalloc(sizeof(*fd), GFP_KERNEL);
+
+	if (fd) {
+		fd->rec_cpu_num = -1; /* no cpu affinity by default */
+		fd->mm = current->mm;
+		atomic_inc(&fd->mm->mm_count);
+	}
+
+	fp->private_data = fd;
+
+	return fd ? 0 : -ENOMEM;
 }
 
 static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
@@ -214,7 +223,7 @@ static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 		ret = assign_ctxt(fp, &uinfo);
 		if (ret < 0)
 			return ret;
-		setup_ctxt(fp);
+		ret = setup_ctxt(fp);
 		if (ret)
 			return ret;
 		ret = user_init(fp);
@@ -228,7 +237,7 @@ static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 				    sizeof(struct hfi1_base_info));
 		break;
 	case HFI1_IOCTL_CREDIT_UPD:
-		if (uctxt && uctxt->sc)
+		if (uctxt)
 			sc_return_credits(uctxt->sc);
 		break;
 
@@ -392,41 +401,38 @@ static ssize_t hfi1_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 	struct hfi1_filedata *fd = kiocb->ki_filp->private_data;
 	struct hfi1_user_sdma_pkt_q *pq = fd->pq;
 	struct hfi1_user_sdma_comp_q *cq = fd->cq;
-	int ret = 0, done = 0, reqs = 0;
+	int done = 0, reqs = 0;
 	unsigned long dim = from->nr_segs;
 
-	if (!cq || !pq) {
-		ret = -EIO;
-		goto done;
-	}
+	if (!cq || !pq)
+		return -EIO;
 
-	if (!iter_is_iovec(from) || !dim) {
-		ret = -EINVAL;
-		goto done;
-	}
+	if (!iter_is_iovec(from) || !dim)
+		return -EINVAL;
 
 	hfi1_cdbg(SDMA, "SDMA request from %u:%u (%lu)",
 		  fd->uctxt->ctxt, fd->subctxt, dim);
 
-	if (atomic_read(&pq->n_reqs) == pq->n_max_reqs) {
-		ret = -ENOSPC;
-		goto done;
-	}
+	if (atomic_read(&pq->n_reqs) == pq->n_max_reqs)
+		return -ENOSPC;
 
 	while (dim) {
+		int ret;
 		unsigned long count = 0;
 
 		ret = hfi1_user_sdma_process_request(
 			kiocb->ki_filp,	(struct iovec *)(from->iov + done),
 			dim, &count);
-		if (ret)
-			goto done;
+		if (ret) {
+			reqs = ret;
+			break;
+		}
 		dim -= count;
 		done += count;
 		reqs++;
 	}
-done:
-	return ret ? ret : reqs;
+
+	return reqs;
 }
 
 static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
@@ -718,7 +724,7 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	hfi1_user_sdma_free_queues(fdata);
 
 	/* release the cpu */
-	hfi1_put_proc_affinity(dd, fdata->rec_cpu_num);
+	hfi1_put_proc_affinity(fdata->rec_cpu_num);
 
 	/*
 	 * Clear any left over, unhandled events so the next process that
@@ -730,7 +736,6 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 
 	if (--uctxt->cnt) {
 		uctxt->active_slaves &= ~(1 << fdata->subctxt);
-		uctxt->subpid[fdata->subctxt] = 0;
 		mutex_unlock(&hfi1_mutex);
 		goto done;
 	}
@@ -756,7 +761,6 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	write_kctxt_csr(dd, uctxt->sc->hw_context, SEND_CTXT_CHECK_ENABLE,
 			hfi1_pkt_default_send_ctxt_mask(dd, uctxt->sc->type));
 	sc_disable(uctxt->sc);
-	uctxt->pid = 0;
 	spin_unlock_irqrestore(&dd->uctxt_lock, flags);
 
 	dd->rcd[uctxt->ctxt] = NULL;
@@ -776,6 +780,7 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	mutex_unlock(&hfi1_mutex);
 	hfi1_free_ctxtdata(dd, uctxt);
 done:
+	mmdrop(fdata->mm);
 	kobject_put(&dd->kobj);
 	kfree(fdata);
 	return 0;
@@ -818,9 +823,10 @@ static int assign_ctxt(struct file *fp, struct hfi1_user_info *uinfo)
 		ret = find_shared_ctxt(fp, uinfo);
 		if (ret < 0)
 			goto done_unlock;
-		if (ret)
-			fd->rec_cpu_num = hfi1_get_proc_affinity(
-				fd->uctxt->dd, fd->uctxt->numa_id);
+		if (ret) {
+			fd->rec_cpu_num =
+				hfi1_get_proc_affinity(fd->uctxt->numa_id);
+		}
 	}
 
 	/*
@@ -895,7 +901,6 @@ static int find_shared_ctxt(struct file *fp,
 			}
 			fd->uctxt = uctxt;
 			fd->subctxt  = uctxt->cnt++;
-			uctxt->subpid[fd->subctxt] = current->pid;
 			uctxt->active_slaves |= 1 << fd->subctxt;
 			ret = 1;
 			goto done;
@@ -932,7 +937,11 @@ static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
 	if (ctxt == dd->num_rcv_contexts)
 		return -EBUSY;
 
-	fd->rec_cpu_num = hfi1_get_proc_affinity(dd, -1);
+	/*
+	 * If we don't have a NUMA node requested, preference is towards
+	 * device NUMA node.
+	 */
+	fd->rec_cpu_num = hfi1_get_proc_affinity(dd->node);
 	if (fd->rec_cpu_num != -1)
 		numa = cpu_to_node(fd->rec_cpu_num);
 	else
@@ -976,8 +985,7 @@ static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
 			return ret;
 	}
 	uctxt->userversion = uinfo->userversion;
-	uctxt->pid = current->pid;
-	uctxt->flags = HFI1_CAP_UGET(MASK);
+	uctxt->flags = hfi1_cap_mask; /* save current flag state */
 	init_waitqueue_head(&uctxt->wait);
 	strlcpy(uctxt->comm, current->comm, sizeof(uctxt->comm));
 	memcpy(uctxt->uuid, uinfo->uuid, sizeof(uctxt->uuid));
@@ -1080,18 +1088,18 @@ static int user_init(struct file *fp)
 	hfi1_set_ctxt_jkey(uctxt->dd, uctxt->ctxt, uctxt->jkey);
 
 	rcvctrl_ops = HFI1_RCVCTRL_CTXT_ENB;
-	if (HFI1_CAP_KGET_MASK(uctxt->flags, HDRSUPP))
+	if (HFI1_CAP_UGET_MASK(uctxt->flags, HDRSUPP))
 		rcvctrl_ops |= HFI1_RCVCTRL_TIDFLOW_ENB;
 	/*
 	 * Ignore the bit in the flags for now until proper
 	 * support for multiple packet per rcv array entry is
 	 * added.
 	 */
-	if (!HFI1_CAP_KGET_MASK(uctxt->flags, MULTI_PKT_EGR))
+	if (!HFI1_CAP_UGET_MASK(uctxt->flags, MULTI_PKT_EGR))
 		rcvctrl_ops |= HFI1_RCVCTRL_ONE_PKT_EGR_ENB;
-	if (HFI1_CAP_KGET_MASK(uctxt->flags, NODROP_EGR_FULL))
+	if (HFI1_CAP_UGET_MASK(uctxt->flags, NODROP_EGR_FULL))
 		rcvctrl_ops |= HFI1_RCVCTRL_NO_EGR_DROP_ENB;
-	if (HFI1_CAP_KGET_MASK(uctxt->flags, NODROP_RHQ_FULL))
+	if (HFI1_CAP_UGET_MASK(uctxt->flags, NODROP_RHQ_FULL))
 		rcvctrl_ops |= HFI1_RCVCTRL_NO_RHQ_DROP_ENB;
 	/*
 	 * The RcvCtxtCtrl.TailUpd bit has to be explicitly written.
@@ -1099,7 +1107,7 @@ static int user_init(struct file *fp)
 	 * uses of the chip or ctxt. Therefore, add the rcvctrl op
 	 * for both cases.
 	 */
-	if (HFI1_CAP_KGET_MASK(uctxt->flags, DMA_RTAIL))
+	if (HFI1_CAP_UGET_MASK(uctxt->flags, DMA_RTAIL))
 		rcvctrl_ops |= HFI1_RCVCTRL_TAILUPD_ENB;
 	else
 		rcvctrl_ops |= HFI1_RCVCTRL_TAILUPD_DIS;
@@ -1122,9 +1130,14 @@ static int get_ctxt_info(struct file *fp, void __user *ubase, __u32 len)
 	int ret = 0;
 
 	memset(&cinfo, 0, sizeof(cinfo));
-	ret = hfi1_get_base_kinfo(uctxt, &cinfo);
-	if (ret < 0)
-		goto done;
+	cinfo.runtime_flags = (((uctxt->flags >> HFI1_CAP_MISC_SHIFT) &
+				HFI1_CAP_MISC_MASK) << HFI1_CAP_USER_SHIFT) |
+			HFI1_CAP_UGET_MASK(uctxt->flags, MASK) |
+			HFI1_CAP_KGET_MASK(uctxt->flags, K2U);
+	/* adjust flag if this fd is not able to cache */
+	if (!fd->handler)
+		cinfo.runtime_flags |= HFI1_CAP_TID_UNMAP; /* no caching */
+
 	cinfo.num_active = hfi1_count_active_units();
 	cinfo.unit = uctxt->dd->unit;
 	cinfo.ctxt = uctxt->ctxt;
@@ -1146,7 +1159,7 @@ static int get_ctxt_info(struct file *fp, void __user *ubase, __u32 len)
 	trace_hfi1_ctxt_info(uctxt->dd, uctxt->ctxt, fd->subctxt, cinfo);
 	if (copy_to_user(ubase, &cinfo, sizeof(cinfo)))
 		ret = -EFAULT;
-done:
+
 	return ret;
 }
 

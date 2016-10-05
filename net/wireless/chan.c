@@ -513,6 +513,7 @@ static bool cfg80211_chandef_dfs_available(struct wiphy *wiphy,
 		r = cfg80211_get_chans_dfs_available(wiphy,
 						     chandef->center_freq2,
 						     width);
+		break;
 	default:
 		WARN_ON(chandef->center_freq2);
 		break;
@@ -715,7 +716,7 @@ static bool cfg80211_ir_permissive_chan(struct wiphy *wiphy,
 
 	ASSERT_RTNL();
 
-	if (!config_enabled(CONFIG_CFG80211_REG_RELAX_NO_IR) ||
+	if (!IS_ENABLED(CONFIG_CFG80211_REG_RELAX_NO_IR) ||
 	    !(wiphy->regulatory_flags & REGULATORY_ENABLE_RELAX_NO_IR))
 		return false;
 

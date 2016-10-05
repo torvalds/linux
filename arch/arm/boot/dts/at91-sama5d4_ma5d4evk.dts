@@ -159,7 +159,7 @@
 		};
 	};
 
-	vcc_mmc1_reg: fixedregulator@2 {
+	vcc_mmc1_reg: fixedregulator_mmc1 {
 		compatible = "regulator-fixed";
 		gpio = <&pioE 17 GPIO_ACTIVE_LOW>;
 		regulator-name = "VDD MCI1";

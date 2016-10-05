@@ -13,13 +13,13 @@
 
 #ifdef HAVE_LIBBPF_SUPPORT
 
-static int epoll_pwait_loop(void)
+static int epoll_wait_loop(void)
 {
 	int i;
 
 	/* Should fail NR_ITERS times */
 	for (i = 0; i < NR_ITERS; i++)
-		epoll_pwait(-(i + 1), NULL, 0, 0, NULL);
+		epoll_wait(-(i + 1), NULL, 0, 0);
 	return 0;
 }
 
@@ -61,7 +61,7 @@ static struct {
 		"[basic_bpf_test]",
 		"fix 'perf test LLVM' first",
 		"load bpf object failed",
-		&epoll_pwait_loop,
+		&epoll_wait_loop,
 		(NR_ITERS + 1) / 2,
 	},
 #ifdef HAVE_BPF_PROLOGUE
@@ -143,14 +143,14 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 	err = perf_evlist__open(evlist);
 	if (err < 0) {
 		pr_debug("perf_evlist__open: %s\n",
-			 strerror_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
 	err = perf_evlist__mmap(evlist, opts.mmap_pages, false);
 	if (err < 0) {
 		pr_debug("perf_evlist__mmap: %s\n",
-			 strerror_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 

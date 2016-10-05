@@ -39,9 +39,9 @@
 #include <linux/regulator/consumer.h>
 #include <linux/component.h>
 #include <linux/of.h>
-#include <video/omapdss.h>
 #include <sound/omap-hdmi-audio.h>
 
+#include "omapdss.h"
 #include "hdmi5_core.h"
 #include "dss.h"
 #include "dss_features.h"
@@ -189,7 +189,11 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 	if (p->double_pixel)
 		pc *= 2;
 
-	hdmi_pll_compute(&hdmi.pll, pc, &hdmi_cinfo);
+	/* DSS_HDMI_TCLK is bitclk / 10 */
+	pc *= 10;
+
+	dss_pll_calc_b(&hdmi.pll.pll, clk_get_rate(hdmi.pll.pll.clkin),
+		pc, &hdmi_cinfo);
 
 	/* disable and clear irqs */
 	hdmi_wp_clear_irqenable(&hdmi.wp, 0xffffffff);
@@ -220,9 +224,6 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 		goto err_phy_pwr;
 
 	hdmi5_configure(&hdmi.core, &hdmi.wp, &hdmi.cfg);
-
-	/* bypass TV gamma table */
-	dispc_enable_gamma_table(0);
 
 	/* tv size */
 	dss_mgr_set_timings(channel, p);

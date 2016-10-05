@@ -50,6 +50,8 @@ typedef u64 __nocast cputime64_t;
 	(__force u64)(__ct)
 #define nsecs_to_cputime(__nsecs)	\
 	(__force cputime_t)(__nsecs)
+#define nsecs_to_cputime64(__nsecs)	\
+	(__force cputime64_t)(__nsecs)
 
 
 /*

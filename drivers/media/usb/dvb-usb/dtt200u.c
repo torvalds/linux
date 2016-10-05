@@ -55,36 +55,36 @@ static int dtt200u_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, 
 	return dvb_usb_generic_write(adap->dev, b_pid, 4);
 }
 
-/* remote control */
-/* key list for the tiny remote control (Yakumo, don't know about the others) */
-static struct rc_map_table rc_map_dtt200u_table[] = {
-	{ 0x8001, KEY_MUTE },
-	{ 0x8002, KEY_CHANNELDOWN },
-	{ 0x8003, KEY_VOLUMEDOWN },
-	{ 0x8004, KEY_1 },
-	{ 0x8005, KEY_2 },
-	{ 0x8006, KEY_3 },
-	{ 0x8007, KEY_4 },
-	{ 0x8008, KEY_5 },
-	{ 0x8009, KEY_6 },
-	{ 0x800a, KEY_7 },
-	{ 0x800c, KEY_ZOOM },
-	{ 0x800d, KEY_0 },
-	{ 0x800e, KEY_SELECT },
-	{ 0x8012, KEY_POWER },
-	{ 0x801a, KEY_CHANNELUP },
-	{ 0x801b, KEY_8 },
-	{ 0x801e, KEY_VOLUMEUP },
-	{ 0x801f, KEY_9 },
-};
-
-static int dtt200u_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
+static int dtt200u_rc_query(struct dvb_usb_device *d)
 {
 	u8 key[5],cmd = GET_RC_CODE;
+	u32 scancode;
+
 	dvb_usb_generic_rw(d,&cmd,1,key,5,0);
-	dvb_usb_nec_rc_key_to_event(d,key,event,state);
+	if (key[0] == 1) {
+		scancode = key[1];
+		if ((u8) ~key[1] != key[2]) {
+			/* Extended NEC */
+			scancode = scancode << 8;
+			scancode |= key[2];
+		}
+		scancode = scancode << 8;
+		scancode |= key[3];
+
+		/* Check command checksum is ok */
+		if ((u8) ~key[3] == key[4])
+			rc_keydown(d->rc_dev, RC_TYPE_NEC, scancode, 0);
+		else
+			rc_keyup(d->rc_dev);
+	} else if (key[0] == 2) {
+		rc_repeat(d->rc_dev);
+	} else {
+		rc_keyup(d->rc_dev);
+	}
+
 	if (key[0] != 0)
 		deb_info("key: %*ph\n", 5, key);
+
 	return 0;
 }
 
@@ -164,11 +164,11 @@ static struct dvb_usb_device_properties dtt200u_properties = {
 	},
 	.power_ctrl      = dtt200u_power_ctrl,
 
-	.rc.legacy = {
+	.rc.core = {
 		.rc_interval     = 300,
-		.rc_map_table    = rc_map_dtt200u_table,
-		.rc_map_size     = ARRAY_SIZE(rc_map_dtt200u_table),
+		.rc_codes        = RC_MAP_DTT200U,
 		.rc_query        = dtt200u_rc_query,
+		.allowed_protos  = RC_BIT_NEC,
 	},
 
 	.generic_bulk_ctrl_endpoint = 0x01,
@@ -214,11 +214,11 @@ static struct dvb_usb_device_properties wt220u_properties = {
 	},
 	.power_ctrl      = dtt200u_power_ctrl,
 
-	.rc.legacy = {
+	.rc.core = {
 		.rc_interval     = 300,
-		.rc_map_table      = rc_map_dtt200u_table,
-		.rc_map_size = ARRAY_SIZE(rc_map_dtt200u_table),
+		.rc_codes        = RC_MAP_DTT200U,
 		.rc_query        = dtt200u_rc_query,
+		.allowed_protos  = RC_BIT_NEC,
 	},
 
 	.generic_bulk_ctrl_endpoint = 0x01,
@@ -264,11 +264,11 @@ static struct dvb_usb_device_properties wt220u_fc_properties = {
 	},
 	.power_ctrl      = dtt200u_power_ctrl,
 
-	.rc.legacy = {
+	.rc.core = {
 		.rc_interval     = 300,
-		.rc_map_table    = rc_map_dtt200u_table,
-		.rc_map_size     = ARRAY_SIZE(rc_map_dtt200u_table),
+		.rc_codes        = RC_MAP_DTT200U,
 		.rc_query        = dtt200u_rc_query,
+		.allowed_protos  = RC_BIT_NEC,
 	},
 
 	.generic_bulk_ctrl_endpoint = 0x01,
@@ -314,11 +314,11 @@ static struct dvb_usb_device_properties wt220u_zl0353_properties = {
 	},
 	.power_ctrl      = dtt200u_power_ctrl,
 
-	.rc.legacy = {
+	.rc.core = {
 		.rc_interval     = 300,
-		.rc_map_table    = rc_map_dtt200u_table,
-		.rc_map_size     = ARRAY_SIZE(rc_map_dtt200u_table),
+		.rc_codes        = RC_MAP_DTT200U,
 		.rc_query        = dtt200u_rc_query,
+		.allowed_protos  = RC_BIT_NEC,
 	},
 
 	.generic_bulk_ctrl_endpoint = 0x01,

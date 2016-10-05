@@ -77,18 +77,19 @@ gk20a_volt_get_cvb_t_voltage(int speedo, int temp, int s_scale, int t_scale,
 	return mv;
 }
 
-int
+static int
 gk20a_volt_calc_voltage(const struct cvb_coef *coef, int speedo)
 {
+	static const int v_scale = 1000;
 	int mv;
 
 	mv = gk20a_volt_get_cvb_t_voltage(speedo, -10, 100, 10, coef);
-	mv = DIV_ROUND_UP(mv, 1000);
+	mv = DIV_ROUND_UP(mv, v_scale);
 
 	return mv * 1000;
 }
 
-int
+static int
 gk20a_volt_vid_get(struct nvkm_volt *base)
 {
 	struct gk20a_volt *volt = gk20a_volt(base);
@@ -103,7 +104,7 @@ gk20a_volt_vid_get(struct nvkm_volt *base)
 	return -EINVAL;
 }
 
-int
+static int
 gk20a_volt_vid_set(struct nvkm_volt *base, u8 vid)
 {
 	struct gk20a_volt *volt = gk20a_volt(base);
@@ -113,7 +114,7 @@ gk20a_volt_vid_set(struct nvkm_volt *base, u8 vid)
 	return regulator_set_voltage(volt->vdd, volt->base.vid[vid].uv, 1200000);
 }
 
-int
+static int
 gk20a_volt_set_id(struct nvkm_volt *base, u8 id, int condition)
 {
 	struct gk20a_volt *volt = gk20a_volt(base);
@@ -143,9 +144,9 @@ gk20a_volt = {
 };
 
 int
-_gk20a_volt_ctor(struct nvkm_device *device, int index,
-		 const struct cvb_coef *coefs, int nb_coefs,
-		 struct gk20a_volt *volt)
+gk20a_volt_ctor(struct nvkm_device *device, int index,
+		const struct cvb_coef *coefs, int nb_coefs,
+		int vmin, struct gk20a_volt *volt)
 {
 	struct nvkm_device_tegra *tdev = device->func->tegra(device);
 	int i, uv;
@@ -160,9 +161,9 @@ _gk20a_volt_ctor(struct nvkm_device *device, int index,
 	volt->base.vid_nr = nb_coefs;
 	for (i = 0; i < volt->base.vid_nr; i++) {
 		volt->base.vid[i].vid = i;
-		volt->base.vid[i].uv =
-			gk20a_volt_calc_voltage(&coefs[i],
-						tdev->gpu_speedo);
+		volt->base.vid[i].uv = max(
+			gk20a_volt_calc_voltage(&coefs[i], tdev->gpu_speedo),
+			vmin);
 		nvkm_debug(&volt->base.subdev, "%2d: vid=%d, uv=%d\n", i,
 			   volt->base.vid[i].vid, volt->base.vid[i].uv);
 	}
@@ -180,6 +181,6 @@ gk20a_volt_new(struct nvkm_device *device, int index, struct nvkm_volt **pvolt)
 		return -ENOMEM;
 	*pvolt = &volt->base;
 
-	return _gk20a_volt_ctor(device, index, gk20a_cvb_coef,
-				ARRAY_SIZE(gk20a_cvb_coef), volt);
+	return gk20a_volt_ctor(device, index, gk20a_cvb_coef,
+			       ARRAY_SIZE(gk20a_cvb_coef), 0, volt);
 }

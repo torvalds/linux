@@ -20,9 +20,8 @@
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
+#include <linux/pci-ecam.h>
 #include <linux/platform_device.h>
-
-#include "../ecam.h"
 
 static int gen_pci_parse_request_of_pci_ranges(struct device *dev,
 		       struct list_head *resources, struct resource **bus_range)
@@ -36,44 +35,34 @@ static int gen_pci_parse_request_of_pci_ranges(struct device *dev,
 	if (err)
 		return err;
 
+	err = devm_request_pci_bus_resources(dev, resources);
+	if (err)
+		return err;
+
 	resource_list_for_each_entry(win, resources) {
-		struct resource *parent, *res = win->res;
+		struct resource *res = win->res;
 
 		switch (resource_type(res)) {
 		case IORESOURCE_IO:
-			parent = &ioport_resource;
 			err = pci_remap_iospace(res, iobase);
-			if (err) {
+			if (err)
 				dev_warn(dev, "error %d: failed to map resource %pR\n",
 					 err, res);
-				continue;
-			}
 			break;
 		case IORESOURCE_MEM:
-			parent = &iomem_resource;
 			res_valid |= !(res->flags & IORESOURCE_PREFETCH);
 			break;
 		case IORESOURCE_BUS:
 			*bus_range = res;
-		default:
-			continue;
+			break;
 		}
-
-		err = devm_request_resource(dev, parent, res);
-		if (err)
-			goto out_release_res;
 	}
 
-	if (!res_valid) {
-		dev_err(dev, "non-prefetchable memory resource required\n");
-		err = -EINVAL;
-		goto out_release_res;
-	}
+	if (res_valid)
+		return 0;
 
-	return 0;
-
-out_release_res:
-	return err;
+	dev_err(dev, "non-prefetchable memory resource required\n");
+	return -EINVAL;
 }
 
 static void gen_pci_unmap_cfg(void *ptr)
@@ -155,7 +144,14 @@ int pci_host_common_probe(struct platform_device *pdev,
 
 	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
 
-	if (!pci_has_flag(PCI_PROBE_ONLY)) {
+	/*
+	 * We insert PCI resources into the iomem_resource and
+	 * ioport_resource trees in either pci_bus_claim_resources()
+	 * or pci_bus_assign_resources().
+	 */
+	if (pci_has_flag(PCI_PROBE_ONLY)) {
+		pci_bus_claim_resources(bus);
+	} else {
 		pci_bus_size_bridges(bus);
 		pci_bus_assign_resources(bus);
 

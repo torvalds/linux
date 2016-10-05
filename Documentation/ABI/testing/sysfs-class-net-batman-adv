@@ -1,19 +1,10 @@
 
-What:		/sys/class/net/<iface>/batman-adv/throughput_override
-Date:		Feb 2014
-Contact:	Antonio Quartulli <antonio@meshcoding.com>
-description:
-		Defines the throughput value to be used by B.A.T.M.A.N. V
-		when estimating the link throughput using this interface.
-		If the value is set to 0 then batman-adv will try to
-		estimate the throughput by itself.
-
 What:           /sys/class/net/<iface>/batman-adv/elp_interval
 Date:           Feb 2014
 Contact:        Linus Lüssing <linus.luessing@web.de>
 Description:
                 Defines the interval in milliseconds in which batman
-                sends its probing packets for link quality measurements.
+                emits probing packets for neighbor sensing (ELP).
 
 What:           /sys/class/net/<iface>/batman-adv/iface_status
 Date:           May 2010
@@ -28,3 +19,12 @@ Description:
                 The /sys/class/net/<iface>/batman-adv/mesh_iface file
                 displays the batman mesh interface this <iface>
                 currently is associated with.
+
+What:           /sys/class/net/<iface>/batman-adv/throughput_override
+Date:           Feb 2014
+Contact:        Antonio Quartulli <a@unstable.cc>
+description:
+                Defines the throughput value to be used by B.A.T.M.A.N. V
+                when estimating the link throughput using this interface.
+                If the value is set to 0 then batman-adv will try to
+                estimate the throughput by itself.

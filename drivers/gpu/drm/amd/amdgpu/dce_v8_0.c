@@ -526,36 +526,16 @@ static void dce_v8_0_stop_mc_access(struct amdgpu_device *adev,
 		crtc_enabled = REG_GET_FIELD(RREG32(mmCRTC_CONTROL + crtc_offsets[i]),
 					     CRTC_CONTROL, CRTC_MASTER_EN);
 		if (crtc_enabled) {
-#if 0
-			u32 frame_count;
-			int j;
-
+#if 1
 			save->crtc_enabled[i] = true;
 			tmp = RREG32(mmCRTC_BLANK_CONTROL + crtc_offsets[i]);
 			if (REG_GET_FIELD(tmp, CRTC_BLANK_CONTROL, CRTC_BLANK_DATA_EN) == 0) {
-				amdgpu_display_vblank_wait(adev, i);
-				WREG32(mmCRTC_UPDATE_LOCK + crtc_offsets[i], 1);
+				/*it is correct only for RGB ; black is 0*/
+				WREG32(mmCRTC_BLANK_DATA_COLOR + crtc_offsets[i], 0);
 				tmp = REG_SET_FIELD(tmp, CRTC_BLANK_CONTROL, CRTC_BLANK_DATA_EN, 1);
 				WREG32(mmCRTC_BLANK_CONTROL + crtc_offsets[i], tmp);
-				WREG32(mmCRTC_UPDATE_LOCK + crtc_offsets[i], 0);
 			}
-			/* wait for the next frame */
-			frame_count = amdgpu_display_vblank_get_counter(adev, i);
-			for (j = 0; j < adev->usec_timeout; j++) {
-				if (amdgpu_display_vblank_get_counter(adev, i) != frame_count)
-					break;
-				udelay(1);
-			}
-			tmp = RREG32(mmGRPH_UPDATE + crtc_offsets[i]);
-			if (REG_GET_FIELD(tmp, GRPH_UPDATE, GRPH_UPDATE_LOCK) == 0) {
-				tmp = REG_SET_FIELD(tmp, GRPH_UPDATE, GRPH_UPDATE_LOCK, 1);
-				WREG32(mmGRPH_UPDATE + crtc_offsets[i], tmp);
-			}
-			tmp = RREG32(mmMASTER_UPDATE_LOCK + crtc_offsets[i]);
-			if (REG_GET_FIELD(tmp, MASTER_UPDATE_LOCK, MASTER_UPDATE_LOCK) == 0) {
-				tmp = REG_SET_FIELD(tmp, MASTER_UPDATE_LOCK, MASTER_UPDATE_LOCK, 1);
-				WREG32(mmMASTER_UPDATE_LOCK + crtc_offsets[i], tmp);
-			}
+			mdelay(20);
 #else
 			/* XXX this is a hack to avoid strange behavior with EFI on certain systems */
 			WREG32(mmCRTC_UPDATE_LOCK + crtc_offsets[i], 1);
@@ -575,55 +555,22 @@ static void dce_v8_0_stop_mc_access(struct amdgpu_device *adev,
 static void dce_v8_0_resume_mc_access(struct amdgpu_device *adev,
 				      struct amdgpu_mode_mc_save *save)
 {
-	u32 tmp, frame_count;
-	int i, j;
+	u32 tmp;
+	int i;
 
 	/* update crtc base addresses */
 	for (i = 0; i < adev->mode_info.num_crtc; i++) {
 		WREG32(mmGRPH_PRIMARY_SURFACE_ADDRESS_HIGH + crtc_offsets[i],
 		       upper_32_bits(adev->mc.vram_start));
-		WREG32(mmGRPH_SECONDARY_SURFACE_ADDRESS_HIGH + crtc_offsets[i],
-		       upper_32_bits(adev->mc.vram_start));
 		WREG32(mmGRPH_PRIMARY_SURFACE_ADDRESS + crtc_offsets[i],
-		       (u32)adev->mc.vram_start);
-		WREG32(mmGRPH_SECONDARY_SURFACE_ADDRESS + crtc_offsets[i],
 		       (u32)adev->mc.vram_start);
 
 		if (save->crtc_enabled[i]) {
-			tmp = RREG32(mmMASTER_UPDATE_MODE + crtc_offsets[i]);
-			if (REG_GET_FIELD(tmp, MASTER_UPDATE_MODE, MASTER_UPDATE_MODE) != 3) {
-				tmp = REG_SET_FIELD(tmp, MASTER_UPDATE_MODE, MASTER_UPDATE_MODE, 3);
-				WREG32(mmMASTER_UPDATE_MODE + crtc_offsets[i], tmp);
-			}
-			tmp = RREG32(mmGRPH_UPDATE + crtc_offsets[i]);
-			if (REG_GET_FIELD(tmp, GRPH_UPDATE, GRPH_UPDATE_LOCK)) {
-				tmp = REG_SET_FIELD(tmp, GRPH_UPDATE, GRPH_UPDATE_LOCK, 0);
-				WREG32(mmGRPH_UPDATE + crtc_offsets[i], tmp);
-			}
-			tmp = RREG32(mmMASTER_UPDATE_LOCK + crtc_offsets[i]);
-			if (REG_GET_FIELD(tmp, MASTER_UPDATE_LOCK, MASTER_UPDATE_LOCK)) {
-				tmp = REG_SET_FIELD(tmp, MASTER_UPDATE_LOCK, MASTER_UPDATE_LOCK, 0);
-				WREG32(mmMASTER_UPDATE_LOCK + crtc_offsets[i], tmp);
-			}
-			for (j = 0; j < adev->usec_timeout; j++) {
-				tmp = RREG32(mmGRPH_UPDATE + crtc_offsets[i]);
-				if (REG_GET_FIELD(tmp, GRPH_UPDATE, GRPH_SURFACE_UPDATE_PENDING) == 0)
-					break;
-				udelay(1);
-			}
 			tmp = RREG32(mmCRTC_BLANK_CONTROL + crtc_offsets[i]);
 			tmp = REG_SET_FIELD(tmp, CRTC_BLANK_CONTROL, CRTC_BLANK_DATA_EN, 0);
-			WREG32(mmCRTC_UPDATE_LOCK + crtc_offsets[i], 1);
 			WREG32(mmCRTC_BLANK_CONTROL + crtc_offsets[i], tmp);
-			WREG32(mmCRTC_UPDATE_LOCK + crtc_offsets[i], 0);
-			/* wait for the next frame */
-			frame_count = amdgpu_display_vblank_get_counter(adev, i);
-			for (j = 0; j < adev->usec_timeout; j++) {
-				if (amdgpu_display_vblank_get_counter(adev, i) != frame_count)
-					break;
-				udelay(1);
-			}
 		}
+		mdelay(20);
 	}
 
 	WREG32(mmVGA_MEMORY_BASE_ADDRESS_HIGH, upper_32_bits(adev->mc.vram_start));
@@ -2574,19 +2521,21 @@ static void dce_v8_0_cursor_reset(struct drm_crtc *crtc)
 	}
 }
 
-static void dce_v8_0_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
-				    u16 *blue, uint32_t start, uint32_t size)
+static int dce_v8_0_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
+				   u16 *blue, uint32_t size)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
-	int end = (start + size > 256) ? 256 : start + size, i;
+	int i;
 
 	/* userspace palettes are always correct as is */
-	for (i = start; i < end; i++) {
+	for (i = 0; i < size; i++) {
 		amdgpu_crtc->lut_r[i] = red[i] >> 6;
 		amdgpu_crtc->lut_g[i] = green[i] >> 6;
 		amdgpu_crtc->lut_b[i] = blue[i] >> 6;
 	}
 	dce_v8_0_crtc_load_lut(crtc);
+
+	return 0;
 }
 
 static void dce_v8_0_crtc_destroy(struct drm_crtc *crtc)
@@ -2624,13 +2573,13 @@ static void dce_v8_0_crtc_dpms(struct drm_crtc *crtc, int mode)
 		type = amdgpu_crtc_idx_to_irq_type(adev, amdgpu_crtc->crtc_id);
 		amdgpu_irq_update(adev, &adev->crtc_irq, type);
 		amdgpu_irq_update(adev, &adev->pageflip_irq, type);
-		drm_vblank_on(dev, amdgpu_crtc->crtc_id);
+		drm_crtc_vblank_on(crtc);
 		dce_v8_0_crtc_load_lut(crtc);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
-		drm_vblank_off(dev, amdgpu_crtc->crtc_id);
+		drm_crtc_vblank_off(crtc);
 		if (amdgpu_crtc->enabled) {
 			dce_v8_0_vga_enable(crtc, true);
 			amdgpu_atombios_crtc_blank(crtc, ATOM_ENABLE);
@@ -3376,7 +3325,7 @@ static int dce_v8_0_pageflip_irq(struct amdgpu_device *adev,
 
 	spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
 
-	drm_vblank_put(adev->ddev, amdgpu_crtc->crtc_id);
+	drm_crtc_vblank_put(&amdgpu_crtc->base);
 	schedule_work(&works->unpin_work);
 
 	return 0;

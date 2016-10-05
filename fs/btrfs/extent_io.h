@@ -20,6 +20,7 @@
 #define EXTENT_DAMAGED		(1U << 14)
 #define EXTENT_NORESERVE	(1U << 15)
 #define EXTENT_QGROUP_RESERVED	(1U << 16)
+#define EXTENT_CLEAR_DATA_RESV	(1U << 17)
 #define EXTENT_IOBITS		(EXTENT_LOCKED | EXTENT_WRITEBACK)
 #define EXTENT_CTLBITS		(EXTENT_DO_ACCOUNTING | EXTENT_FIRST_DELALLOC)
 
@@ -63,16 +64,16 @@ struct btrfs_root;
 struct btrfs_io_bio;
 struct io_failure_record;
 
-typedef	int (extent_submit_bio_hook_t)(struct inode *inode, int rw,
-				       struct bio *bio, int mirror_num,
-				       unsigned long bio_flags, u64 bio_offset);
+typedef	int (extent_submit_bio_hook_t)(struct inode *inode, struct bio *bio,
+				       int mirror_num, unsigned long bio_flags,
+				       u64 bio_offset);
 struct extent_io_ops {
 	int (*fill_delalloc)(struct inode *inode, struct page *locked_page,
 			     u64 start, u64 end, int *page_started,
 			     unsigned long *nr_written);
 	int (*writepage_start_hook)(struct page *page, u64 start, u64 end);
 	extent_submit_bio_hook_t *submit_bio_hook;
-	int (*merge_bio_hook)(int rw, struct page *page, unsigned long offset,
+	int (*merge_bio_hook)(struct page *page, unsigned long offset,
 			      size_t size, struct bio *bio,
 			      unsigned long bio_flags);
 	int (*readpage_io_failed_hook)(struct page *page, int failed_mirror);

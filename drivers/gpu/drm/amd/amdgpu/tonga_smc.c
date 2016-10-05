@@ -173,7 +173,7 @@ static int tonga_send_msg_to_smc(struct amdgpu_device *adev, PPSMC_Msg msg)
 {
 	if (!tonga_is_smc_ram_running(adev))
 	{
-		return -EINVAL;;
+		return -EINVAL;
 	}
 
 	if (wait_smu_response(adev)) {

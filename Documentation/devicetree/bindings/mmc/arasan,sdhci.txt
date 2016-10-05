@@ -9,8 +9,12 @@ Device Tree Bindings for the Arasan SDHCI Controller
   [4] Documentation/devicetree/bindings/phy/phy-bindings.txt
 
 Required Properties:
-  - compatible: Compatibility string. Must be 'arasan,sdhci-8.9a' or
-                'arasan,sdhci-4.9a' or 'arasan,sdhci-5.1'
+  - compatible: Compatibility string.  One of:
+    - "arasan,sdhci-8.9a": generic Arasan SDHCI 8.9a PHY
+    - "arasan,sdhci-4.9a": generic Arasan SDHCI 4.9a PHY
+    - "arasan,sdhci-5.1": generic Arasan SDHCI 5.1 PHY
+    - "rockchip,rk3399-sdhci-5.1", "arasan,sdhci-5.1": rk3399 eMMC PHY
+      For this device it is strongly suggested to include arasan,soc-ctl-syscon.
   - reg: From mmc bindings: Register location and length.
   - clocks: From clock bindings: Handles to clock inputs.
   - clock-names: From clock bindings: Tuple including "clk_xin" and "clk_ahb"
@@ -21,6 +25,17 @@ Required Properties:
 Required Properties for "arasan,sdhci-5.1":
   - phys: From PHY bindings: Phandle for the Generic PHY for arasan.
   - phy-names:  MUST be "phy_arasan".
+
+Optional Properties:
+  - arasan,soc-ctl-syscon: A phandle to a syscon device (see ../mfd/syscon.txt)
+    used to access core corecfg registers.  Offsets of registers in this
+    syscon are determined based on the main compatible string for the device.
+  - clock-output-names: If specified, this will be the name of the card clock
+    which will be exposed by this device.  Required if #clock-cells is
+    specified.
+  - #clock-cells: If specified this should be the value <0>.  With this property
+    in place we will export a clock representing the Card Clock.  This clock
+    is expected to be consumed by our PHY.  You must also specify
 
 Example:
 	sdhci@e0100000 {
@@ -42,3 +57,19 @@ Example:
 		phys = <&emmc_phy>;
 		phy-names = "phy_arasan";
 	} ;
+
+	sdhci: sdhci@fe330000 {
+		compatible = "rockchip,rk3399-sdhci-5.1", "arasan,sdhci-5.1";
+		reg = <0x0 0xfe330000 0x0 0x10000>;
+		interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_EMMC>, <&cru ACLK_EMMC>;
+		clock-names = "clk_xin", "clk_ahb";
+		arasan,soc-ctl-syscon = <&grf>;
+		assigned-clocks = <&cru SCLK_EMMC>;
+		assigned-clock-rates = <200000000>;
+		clock-output-names = "emmc_cardclock";
+		phys = <&emmc_phy>;
+		phy-names = "phy_arasan";
+		#clock-cells = <0>;
+		status = "disabled";
+	};

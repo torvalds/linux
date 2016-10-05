@@ -67,6 +67,7 @@ static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
 	struct net *net = rule->fr_net;
 	pol_lookup_t lookup = arg->lookup_ptr;
 	int err = 0;
+	u32 tb_id;
 
 	switch (rule->action) {
 	case FR_ACT_TO_TBL:
@@ -86,7 +87,8 @@ static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
 		goto discard_pkt;
 	}
 
-	table = fib6_get_table(net, rule->table);
+	tb_id = fib_rule_get_table(rule, arg);
+	table = fib6_get_table(net, tb_id);
 	if (!table) {
 		err = -EAGAIN;
 		goto out;
@@ -199,7 +201,7 @@ static int fib6_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 	struct net *net = sock_net(skb->sk);
 	struct fib6_rule *rule6 = (struct fib6_rule *) rule;
 
-	if (rule->action == FR_ACT_TO_TBL) {
+	if (rule->action == FR_ACT_TO_TBL && !rule->l3mdev) {
 		if (rule->table == RT6_TABLE_UNSPEC)
 			goto errout;
 

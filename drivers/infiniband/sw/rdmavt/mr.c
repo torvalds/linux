@@ -140,6 +140,7 @@ static int rvt_init_mregion(struct rvt_mregion *mr, struct ib_pd *pd,
 	init_completion(&mr->comp);
 	/* count returning the ptr to user */
 	atomic_set(&mr->refcount, 1);
+	atomic_set(&mr->lkey_invalid, 0);
 	mr->pd = pd;
 	mr->max_segs = count;
 	return 0;
@@ -293,7 +294,7 @@ static void __rvt_free_mr(struct rvt_mr *mr)
 {
 	rvt_deinit_mregion(&mr->mr);
 	rvt_free_lkey(&mr->mr);
-	vfree(mr);
+	kfree(mr);
 }
 
 /**
@@ -478,6 +479,123 @@ struct ib_mr *rvt_alloc_mr(struct ib_pd *pd,
 
 	return &mr->ibmr;
 }
+
+/**
+ * rvt_set_page - page assignment function called by ib_sg_to_pages
+ * @ibmr: memory region
+ * @addr: dma address of mapped page
+ *
+ * Return: 0 on success
+ */
+static int rvt_set_page(struct ib_mr *ibmr, u64 addr)
+{
+	struct rvt_mr *mr = to_imr(ibmr);
+	u32 ps = 1 << mr->mr.page_shift;
+	u32 mapped_segs = mr->mr.length >> mr->mr.page_shift;
+	int m, n;
+
+	if (unlikely(mapped_segs == mr->mr.max_segs))
+		return -ENOMEM;
+
+	if (mr->mr.length == 0) {
+		mr->mr.user_base = addr;
+		mr->mr.iova = addr;
+	}
+
+	m = mapped_segs / RVT_SEGSZ;
+	n = mapped_segs % RVT_SEGSZ;
+	mr->mr.map[m]->segs[n].vaddr = (void *)addr;
+	mr->mr.map[m]->segs[n].length = ps;
+	mr->mr.length += ps;
+
+	return 0;
+}
+
+/**
+ * rvt_map_mr_sg - map sg list and set it the memory region
+ * @ibmr: memory region
+ * @sg: dma mapped scatterlist
+ * @sg_nents: number of entries in sg
+ * @sg_offset: offset in bytes into sg
+ *
+ * Return: number of sg elements mapped to the memory region
+ */
+int rvt_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
+		  int sg_nents, unsigned int *sg_offset)
+{
+	struct rvt_mr *mr = to_imr(ibmr);
+
+	mr->mr.length = 0;
+	mr->mr.page_shift = PAGE_SHIFT;
+	return ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset,
+			      rvt_set_page);
+}
+
+/**
+ * rvt_fast_reg_mr - fast register physical MR
+ * @qp: the queue pair where the work request comes from
+ * @ibmr: the memory region to be registered
+ * @key: updated key for this memory region
+ * @access: access flags for this memory region
+ *
+ * Returns 0 on success.
+ */
+int rvt_fast_reg_mr(struct rvt_qp *qp, struct ib_mr *ibmr, u32 key,
+		    int access)
+{
+	struct rvt_mr *mr = to_imr(ibmr);
+
+	if (qp->ibqp.pd != mr->mr.pd)
+		return -EACCES;
+
+	/* not applicable to dma MR or user MR */
+	if (!mr->mr.lkey || mr->umem)
+		return -EINVAL;
+
+	if ((key & 0xFFFFFF00) != (mr->mr.lkey & 0xFFFFFF00))
+		return -EINVAL;
+
+	ibmr->lkey = key;
+	ibmr->rkey = key;
+	mr->mr.lkey = key;
+	mr->mr.access_flags = access;
+	atomic_set(&mr->mr.lkey_invalid, 0);
+
+	return 0;
+}
+EXPORT_SYMBOL(rvt_fast_reg_mr);
+
+/**
+ * rvt_invalidate_rkey - invalidate an MR rkey
+ * @qp: queue pair associated with the invalidate op
+ * @rkey: rkey to invalidate
+ *
+ * Returns 0 on success.
+ */
+int rvt_invalidate_rkey(struct rvt_qp *qp, u32 rkey)
+{
+	struct rvt_dev_info *dev = ib_to_rvt(qp->ibqp.device);
+	struct rvt_lkey_table *rkt = &dev->lkey_table;
+	struct rvt_mregion *mr;
+
+	if (rkey == 0)
+		return -EINVAL;
+
+	rcu_read_lock();
+	mr = rcu_dereference(
+		rkt->table[(rkey >> (32 - dev->dparms.lkey_table_size))]);
+	if (unlikely(!mr || mr->lkey != rkey || qp->ibqp.pd != mr->pd))
+		goto bail;
+
+	atomic_set(&mr->lkey_invalid, 1);
+	rcu_read_unlock();
+	return 0;
+
+bail:
+	rcu_read_unlock();
+	return -EINVAL;
+}
+EXPORT_SYMBOL(rvt_invalidate_rkey);
 
 /**
  * rvt_alloc_fmr - allocate a fast memory region
@@ -682,7 +800,8 @@ int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
 	}
 	mr = rcu_dereference(
 		rkt->table[(sge->lkey >> (32 - dev->dparms.lkey_table_size))]);
-	if (unlikely(!mr || mr->lkey != sge->lkey || mr->pd != &pd->ibpd))
+	if (unlikely(!mr || atomic_read(&mr->lkey_invalid) ||
+		     mr->lkey != sge->lkey || mr->pd != &pd->ibpd))
 		goto bail;
 
 	off = sge->addr - mr->user_base;
@@ -782,7 +901,8 @@ int rvt_rkey_ok(struct rvt_qp *qp, struct rvt_sge *sge,
 
 	mr = rcu_dereference(
 		rkt->table[(rkey >> (32 - dev->dparms.lkey_table_size))]);
-	if (unlikely(!mr || mr->lkey != rkey || qp->ibqp.pd != mr->pd))
+	if (unlikely(!mr || atomic_read(&mr->lkey_invalid) ||
+		     mr->lkey != rkey || qp->ibqp.pd != mr->pd))
 		goto bail;
 
 	off = vaddr - mr->iova;

@@ -114,8 +114,10 @@ int wil_p2p_listen(struct wil6210_priv *wil, unsigned int duration,
 	u8 channel = P2P_DMG_SOCIAL_CHANNEL;
 	int rc;
 
-	if (chan)
-		channel = chan->hw_value;
+	if (!chan)
+		return -EINVAL;
+
+	channel = chan->hw_value;
 
 	wil_dbg_misc(wil, "%s: duration %d\n", __func__, duration);
 
@@ -250,8 +252,12 @@ void wil_p2p_search_expired(struct work_struct *work)
 	mutex_unlock(&wil->mutex);
 
 	if (started) {
+		struct cfg80211_scan_info info = {
+			.aborted = false,
+		};
+
 		mutex_lock(&wil->p2p_wdev_mutex);
-		cfg80211_scan_done(wil->scan_request, 0);
+		cfg80211_scan_done(wil->scan_request, &info);
 		wil->scan_request = NULL;
 		wil->radio_wdev = wil->wdev;
 		mutex_unlock(&wil->p2p_wdev_mutex);

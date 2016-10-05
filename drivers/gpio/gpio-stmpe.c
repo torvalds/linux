@@ -68,6 +68,22 @@ static void stmpe_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 		stmpe_reg_write(stmpe, reg, mask);
 }
 
+static int stmpe_gpio_get_direction(struct gpio_chip *chip,
+				    unsigned offset)
+{
+	struct stmpe_gpio *stmpe_gpio = gpiochip_get_data(chip);
+	struct stmpe *stmpe = stmpe_gpio->stmpe;
+	u8 reg = stmpe->regs[STMPE_IDX_GPDR_LSB] - (offset / 8);
+	u8 mask = 1 << (offset % 8);
+	int ret;
+
+	ret = stmpe_reg_read(stmpe, reg);
+	if (ret < 0)
+		return ret;
+
+	return !(ret & mask);
+}
+
 static int stmpe_gpio_direction_output(struct gpio_chip *chip,
 					 unsigned offset, int val)
 {
@@ -106,6 +122,7 @@ static int stmpe_gpio_request(struct gpio_chip *chip, unsigned offset)
 static struct gpio_chip template_chip = {
 	.label			= "stmpe",
 	.owner			= THIS_MODULE,
+	.get_direction		= stmpe_gpio_get_direction,
 	.direction_input	= stmpe_gpio_direction_input,
 	.get			= stmpe_gpio_get,
 	.direction_output	= stmpe_gpio_direction_output,
@@ -416,7 +433,6 @@ static struct platform_driver stmpe_gpio_driver = {
 	.driver = {
 		.suppress_bind_attrs	= true,
 		.name			= "stmpe-gpio",
-		.owner			= THIS_MODULE,
 	},
 	.probe		= stmpe_gpio_probe,
 };

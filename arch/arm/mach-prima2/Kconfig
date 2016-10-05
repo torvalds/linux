@@ -3,8 +3,8 @@ menuconfig ARCH_SIRF
 	depends on ARCH_MULTI_V7
 	select ARCH_HAS_RESET_CONTROLLER
 	select RESET_CONTROLLER
-	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_IRQ_CHIP
+	select GPIOLIB
 	select NO_IOPORT_MAP
 	select REGMAP
 	select PINCTRL
@@ -28,6 +28,7 @@ config ARCH_ATLAS7
 	default y
 	select ARM_GIC
 	select CPU_V7
+	select ATLAS7_TIMER
 	select HAVE_ARM_SCU if SMP
 	select HAVE_SMP
 	help
@@ -38,6 +39,7 @@ config ARCH_PRIMA2
 	default y
 	select SIRF_IRQ
 	select ZONE_DMA
+	select PRIMA2_TIMER
 	help
           Support for CSR SiRFSoC ARM Cortex A9 Platform
 

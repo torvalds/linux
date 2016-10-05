@@ -82,7 +82,7 @@ extern struct module __this_module;
 #include <generated/autoksyms.h>
 
 #define __EXPORT_SYMBOL(sym, sec)				\
-	__cond_export_sym(sym, sec, config_enabled(__KSYM_##sym))
+	__cond_export_sym(sym, sec, __is_defined(__KSYM_##sym))
 #define __cond_export_sym(sym, sec, conf)			\
 	___cond_export_sym(sym, sec, conf)
 #define ___cond_export_sym(sym, sec, enabled)			\

@@ -156,8 +156,16 @@ static void dump_target(struct seq_file *s, struct ceph_osd_request_target *t)
 	seq_printf(s, "]/%d\t[", t->up.primary);
 	for (i = 0; i < t->acting.size; i++)
 		seq_printf(s, "%s%d", (!i ? "" : ","), t->acting.osds[i]);
-	seq_printf(s, "]/%d\t%*pE\t0x%x", t->acting.primary,
-		   t->target_oid.name_len, t->target_oid.name, t->flags);
+	seq_printf(s, "]/%d\t", t->acting.primary);
+	if (t->target_oloc.pool_ns) {
+		seq_printf(s, "%*pE/%*pE\t0x%x",
+			(int)t->target_oloc.pool_ns->len,
+			t->target_oloc.pool_ns->str,
+			t->target_oid.name_len, t->target_oid.name, t->flags);
+	} else {
+		seq_printf(s, "%*pE\t0x%x", t->target_oid.name_len,
+			t->target_oid.name, t->flags);
+	}
 	if (t->paused)
 		seq_puts(s, "\tP");
 }

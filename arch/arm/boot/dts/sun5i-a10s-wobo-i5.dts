@@ -79,6 +79,7 @@
 		regulator-name = "emac-3v3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <20000>;
 		enable-active-high;
 		gpio = <&pio 0 2 GPIO_ACTIVE_HIGH>;
 	};
@@ -195,7 +196,14 @@
 	regulator-always-on;
 	regulator-min-microvolt = <3300000>;
 	regulator-max-microvolt = <3300000>;
-	regulator-name = "vcc-wifi";
+	regulator-name = "vcc-wifi1";
+};
+
+&reg_ldo4 {
+	regulator-always-on;
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+	regulator-name = "vcc-wifi2";
 };
 
 &reg_usb1_vbus {

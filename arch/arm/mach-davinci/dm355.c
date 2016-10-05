@@ -1035,7 +1035,7 @@ static struct davinci_soc_info davinci_soc_info_dm355 = {
 	.sram_len		= SZ_32K,
 };
 
-void __init dm355_init_asp1(u32 evt_enable, struct snd_platform_data *pdata)
+void __init dm355_init_asp1(u32 evt_enable)
 {
 	/* we don't use ASP1 IRQs, or we'd need to mux them ... */
 	if (evt_enable & ASP1_TX_EVT_EN)
@@ -1044,7 +1044,6 @@ void __init dm355_init_asp1(u32 evt_enable, struct snd_platform_data *pdata)
 	if (evt_enable & ASP1_RX_EVT_EN)
 		davinci_cfg_reg(DM355_EVT9_ASP1_RX);
 
-	dm355_asp1_device.dev.platform_data = pdata;
 	platform_device_register(&dm355_asp1_device);
 }
 

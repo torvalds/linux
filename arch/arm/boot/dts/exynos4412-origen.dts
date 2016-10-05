@@ -16,6 +16,7 @@
 #include "exynos4412.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include "exynos-mfc-reserved-memory.dtsi"
 
 / {
 	model = "Insignal Origen evaluation board based on Exynos4412";
@@ -81,6 +82,22 @@
 
 &cpu0 {
 	cpu0-supply = <&buck2_reg>;
+};
+
+&exynos_usbphy {
+	status = "okay";
+};
+
+&ehci {
+	samsung,vbus-gpio = <&gpx3 5 1>;
+	status = "okay";
+
+	port@1{
+		status = "okay";
+	};
+	port@2 {
+		status = "okay";
+	};
 };
 
 &fimd {
@@ -463,12 +480,6 @@
 		keypad,column = <1>;
 		linux,code = <KEY_ENTER>;
 	};
-};
-
-&mfc {
-	samsung,mfc-r = <0x43000000 0x800000>;
-	samsung,mfc-l = <0x51000000 0x800000>;
-	status = "okay";
 };
 
 &mshc_0 {

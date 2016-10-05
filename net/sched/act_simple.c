@@ -27,15 +27,16 @@
 #define SIMP_TAB_MASK     7
 
 static int simp_net_id;
+static struct tc_action_ops act_simp_ops;
 
 #define SIMP_MAX_DATA	32
 static int tcf_simp(struct sk_buff *skb, const struct tc_action *a,
 		    struct tcf_result *res)
 {
-	struct tcf_defact *d = a->priv;
+	struct tcf_defact *d = to_defact(a);
 
 	spin_lock(&d->tcf_lock);
-	d->tcf_tm.lastuse = jiffies;
+	tcf_lastuse_update(&d->tcf_tm);
 	bstats_update(&d->tcf_bstats, skb);
 
 	/* print policy string followed by _ then packet count
@@ -79,15 +80,16 @@ static const struct nla_policy simple_policy[TCA_DEF_MAX + 1] = {
 };
 
 static int tcf_simp_init(struct net *net, struct nlattr *nla,
-			 struct nlattr *est, struct tc_action *a,
+			 struct nlattr *est, struct tc_action **a,
 			 int ovr, int bind)
 {
 	struct tc_action_net *tn = net_generic(net, simp_net_id);
 	struct nlattr *tb[TCA_DEF_MAX + 1];
 	struct tc_defact *parm;
 	struct tcf_defact *d;
+	bool exists = false;
+	int ret = 0, err;
 	char *defdata;
-	int ret = 0, err, exists = 0;
 
 	if (nla == NULL)
 		return -EINVAL;
@@ -99,7 +101,6 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 	if (tb[TCA_DEF_PARMS] == NULL)
 		return -EINVAL;
 
-
 	parm = nla_data(tb[TCA_DEF_PARMS]);
 	exists = tcf_hash_check(tn, parm->index, a, bind);
 	if (exists && bind)
@@ -107,7 +108,7 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 
 	if (tb[TCA_DEF_DATA] == NULL) {
 		if (exists)
-			tcf_hash_release(a, bind);
+			tcf_hash_release(*a, bind);
 		return -EINVAL;
 	}
 
@@ -115,22 +116,22 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 
 	if (!exists) {
 		ret = tcf_hash_create(tn, parm->index, est, a,
-				      sizeof(*d), bind, false);
+				      &act_simp_ops, bind, false);
 		if (ret)
 			return ret;
 
-		d = to_defact(a);
+		d = to_defact(*a);
 		ret = alloc_defdata(d, defdata);
 		if (ret < 0) {
-			tcf_hash_cleanup(a, est);
+			tcf_hash_cleanup(*a, est);
 			return ret;
 		}
 		d->tcf_action = parm->action;
 		ret = ACT_P_CREATED;
 	} else {
-		d = to_defact(a);
+		d = to_defact(*a);
 
-		tcf_hash_release(a, bind);
+		tcf_hash_release(*a, bind);
 		if (!ovr)
 			return -EEXIST;
 
@@ -138,7 +139,7 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 	}
 
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(tn, a);
+		tcf_hash_insert(tn, *a);
 	return ret;
 }
 
@@ -146,7 +147,7 @@ static int tcf_simp_dump(struct sk_buff *skb, struct tc_action *a,
 			 int bind, int ref)
 {
 	unsigned char *b = skb_tail_pointer(skb);
-	struct tcf_defact *d = a->priv;
+	struct tcf_defact *d = to_defact(a);
 	struct tc_defact opt = {
 		.index   = d->tcf_index,
 		.refcnt  = d->tcf_refcnt - ref,
@@ -158,9 +159,8 @@ static int tcf_simp_dump(struct sk_buff *skb, struct tc_action *a,
 	if (nla_put(skb, TCA_DEF_PARMS, sizeof(opt), &opt) ||
 	    nla_put_string(skb, TCA_DEF_DATA, d->tcfd_defdata))
 		goto nla_put_failure;
-	t.install = jiffies_to_clock_t(jiffies - d->tcf_tm.install);
-	t.lastuse = jiffies_to_clock_t(jiffies - d->tcf_tm.lastuse);
-	t.expires = jiffies_to_clock_t(d->tcf_tm.expires);
+
+	tcf_tm_dump(&t, &d->tcf_tm);
 	if (nla_put_64bit(skb, TCA_DEF_TM, sizeof(t), &t, TCA_DEF_PAD))
 		goto nla_put_failure;
 	return skb->len;
@@ -172,14 +172,14 @@ nla_put_failure:
 
 static int tcf_simp_walker(struct net *net, struct sk_buff *skb,
 			   struct netlink_callback *cb, int type,
-			   struct tc_action *a)
+			   const struct tc_action_ops *ops)
 {
 	struct tc_action_net *tn = net_generic(net, simp_net_id);
 
-	return tcf_generic_walker(tn, skb, cb, type, a);
+	return tcf_generic_walker(tn, skb, cb, type, ops);
 }
 
-static int tcf_simp_search(struct net *net, struct tc_action *a, u32 index)
+static int tcf_simp_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, simp_net_id);
 
@@ -196,6 +196,7 @@ static struct tc_action_ops act_simp_ops = {
 	.init		=	tcf_simp_init,
 	.walk		=	tcf_simp_walker,
 	.lookup		=	tcf_simp_search,
+	.size		=	sizeof(struct tcf_defact),
 };
 
 static __net_init int simp_init_net(struct net *net)

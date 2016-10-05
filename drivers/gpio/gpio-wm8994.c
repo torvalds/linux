@@ -299,7 +299,6 @@ static int wm8994_gpio_probe(struct platform_device *pdev)
 
 static struct platform_driver wm8994_gpio_driver = {
 	.driver.name	= "wm8994-gpio",
-	.driver.owner	= THIS_MODULE,
 	.probe		= wm8994_gpio_probe,
 };
 

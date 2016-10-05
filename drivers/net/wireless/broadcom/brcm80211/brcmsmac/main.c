@@ -3349,8 +3349,8 @@ static void brcms_b_coreinit(struct brcms_c_info *wlc)
 	dma_rxfill(wlc_hw->di[RX_FIFO]);
 }
 
-void
-static brcms_b_init(struct brcms_hardware *wlc_hw, u16 chanspec) {
+static void brcms_b_init(struct brcms_hardware *wlc_hw, u16 chanspec)
+{
 	u32 macintmask;
 	bool fastclk;
 	struct brcms_c_info *wlc = wlc_hw->wlc;

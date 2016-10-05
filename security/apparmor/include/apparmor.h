@@ -37,6 +37,7 @@
 extern enum audit_mode aa_g_audit;
 extern bool aa_g_audit_header;
 extern bool aa_g_debug;
+extern bool aa_g_hash_policy;
 extern bool aa_g_lock_policy;
 extern bool aa_g_logsyscall;
 extern bool aa_g_paranoid_load;

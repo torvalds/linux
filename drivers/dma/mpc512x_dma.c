@@ -1110,6 +1110,7 @@ static int mpc_dma_remove(struct platform_device *op)
 	}
 	free_irq(mdma->irq, mdma);
 	irq_dispose_mapping(mdma->irq);
+	tasklet_kill(&mdma->tasklet);
 
 	return 0;
 }

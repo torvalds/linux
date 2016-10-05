@@ -305,9 +305,9 @@ static void lirc_lirc_irq_handler(void *blah)
 
 	/* enable interrupt */
 	/*
-	  enable_irq(irq);
-	  out(LIRC_PORT_IRQ, in(LIRC_PORT_IRQ)|LP_PINTEN);
-	*/
+	 * enable_irq(irq);
+	 * out(LIRC_PORT_IRQ, in(LIRC_PORT_IRQ)|LP_PINTEN);
+	 */
 }
 
 /*** file operations ***/
@@ -620,7 +620,7 @@ static void kf(void *handle)
 	lirc_off();
 	/* this is a bit annoying when you actually print...*/
 	/*
-	printk(KERN_INFO "%s: reclaimed port\n", LIRC_DRIVER_NAME);
+	 * printk(KERN_INFO "%s: reclaimed port\n", LIRC_DRIVER_NAME);
 	*/
 }
 

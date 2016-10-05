@@ -95,13 +95,11 @@ void apply_alternatives(void *start, size_t length);
  * The code that follows this macro will be assembled and linked as
  * normal. There are no restrictions on this code.
  */
-.macro alternative_if_not cap, enable = 1
-	.if \enable
+.macro alternative_if_not cap
 	.pushsection .altinstructions, "a"
 	altinstruction_entry 661f, 663f, \cap, 662f-661f, 664f-663f
 	.popsection
 661:
-	.endif
 .endm
 
 /*
@@ -118,27 +116,27 @@ void apply_alternatives(void *start, size_t length);
  *    alternative sequence it is defined in (branches into an
  *    alternative sequence are not fixed up).
  */
-.macro alternative_else, enable = 1
-	.if \enable
+.macro alternative_else
 662:	.pushsection .altinstr_replacement, "ax"
 663:
-	.endif
 .endm
 
 /*
  * Complete an alternative code sequence.
  */
-.macro alternative_endif, enable = 1
-	.if \enable
+.macro alternative_endif
 664:	.popsection
 	.org	. - (664b-663b) + (662b-661b)
 	.org	. - (662b-661b) + (664b-663b)
-	.endif
 .endm
 
 #define _ALTERNATIVE_CFG(insn1, insn2, cap, cfg, ...)	\
 	alternative_insn insn1, insn2, cap, IS_ENABLED(cfg)
 
+.macro user_alt, label, oldinstr, newinstr, cond
+9999:	alternative_insn "\oldinstr", "\newinstr", \cond
+	_ASM_EXTABLE 9999b, \label
+.endm
 
 /*
  * Generate the assembly for UAO alternatives with exception table entries.

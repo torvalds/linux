@@ -42,9 +42,9 @@
 #include <linux/of_platform.h>
 #include <linux/component.h>
 
-#include <video/omapdss.h>
 #include <video/mipi_display.h>
 
+#include "omapdss.h"
 #include "dss.h"
 #include "dss_features.h"
 
@@ -1261,7 +1261,7 @@ static unsigned long dsi_fclk_rate(struct platform_device *dsidev)
 	unsigned long r;
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 
-	if (dss_get_dsi_clk_source(dsi->module_id) == OMAP_DSS_CLK_SRC_FCK) {
+	if (dss_get_dsi_clk_source(dsi->module_id) == DSS_CLK_SRC_FCK) {
 		/* DSI FCLK source is DSS_CLK_FCK */
 		r = clk_get_rate(dsi->dss_clk);
 	} else {
@@ -1474,7 +1474,7 @@ static void dsi_dump_dsidev_clocks(struct platform_device *dsidev,
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	struct dss_pll_clock_info *cinfo = &dsi->pll.cinfo;
-	enum omap_dss_clk_source dispc_clk_src, dsi_clk_src;
+	enum dss_clk_source dispc_clk_src, dsi_clk_src;
 	int dsi_module = dsi->module_id;
 	struct dss_pll *pll = &dsi->pll;
 
@@ -1494,28 +1494,27 @@ static void dsi_dump_dsidev_clocks(struct platform_device *dsidev,
 			cinfo->clkdco, cinfo->m);
 
 	seq_printf(s,	"DSI_PLL_HSDIV_DISPC (%s)\t%-16lum_dispc %u\t(%s)\n",
-			dss_feat_get_clk_source_name(dsi_module == 0 ?
-				OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC :
-				OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC),
+			dss_get_clk_source_name(dsi_module == 0 ?
+				DSS_CLK_SRC_PLL1_1 :
+				DSS_CLK_SRC_PLL2_1),
 			cinfo->clkout[HSDIV_DISPC],
 			cinfo->mX[HSDIV_DISPC],
-			dispc_clk_src == OMAP_DSS_CLK_SRC_FCK ?
+			dispc_clk_src == DSS_CLK_SRC_FCK ?
 			"off" : "on");
 
 	seq_printf(s,	"DSI_PLL_HSDIV_DSI (%s)\t%-16lum_dsi %u\t(%s)\n",
-			dss_feat_get_clk_source_name(dsi_module == 0 ?
-				OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI :
-				OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DSI),
+			dss_get_clk_source_name(dsi_module == 0 ?
+				DSS_CLK_SRC_PLL1_2 :
+				DSS_CLK_SRC_PLL2_2),
 			cinfo->clkout[HSDIV_DSI],
 			cinfo->mX[HSDIV_DSI],
-			dsi_clk_src == OMAP_DSS_CLK_SRC_FCK ?
+			dsi_clk_src == DSS_CLK_SRC_FCK ?
 			"off" : "on");
 
 	seq_printf(s,	"- DSI%d -\n", dsi_module + 1);
 
-	seq_printf(s,	"dsi fclk source = %s (%s)\n",
-			dss_get_generic_clk_source_name(dsi_clk_src),
-			dss_feat_get_clk_source_name(dsi_clk_src));
+	seq_printf(s,	"dsi fclk source = %s\n",
+			dss_get_clk_source_name(dsi_clk_src));
 
 	seq_printf(s,	"DSI_FCLK\t%lu\n", dsi_fclk_rate(dsidev));
 
@@ -4101,8 +4100,8 @@ static int dsi_display_init_dispc(struct platform_device *dsidev,
 	int r;
 
 	dss_select_lcd_clk_source(channel, dsi->module_id == 0 ?
-			OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC :
-			OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC);
+			DSS_CLK_SRC_PLL1_1 :
+			DSS_CLK_SRC_PLL2_1);
 
 	if (dsi->mode == OMAP_DSS_DSI_CMD_MODE) {
 		r = dss_mgr_register_framedone_handler(channel,
@@ -4149,7 +4148,7 @@ err1:
 		dss_mgr_unregister_framedone_handler(channel,
 				dsi_framedone_irq_callback, dsidev);
 err:
-	dss_select_lcd_clk_source(channel, OMAP_DSS_CLK_SRC_FCK);
+	dss_select_lcd_clk_source(channel, DSS_CLK_SRC_FCK);
 	return r;
 }
 
@@ -4162,7 +4161,7 @@ static void dsi_display_uninit_dispc(struct platform_device *dsidev,
 		dss_mgr_unregister_framedone_handler(channel,
 				dsi_framedone_irq_callback, dsidev);
 
-	dss_select_lcd_clk_source(channel, OMAP_DSS_CLK_SRC_FCK);
+	dss_select_lcd_clk_source(channel, DSS_CLK_SRC_FCK);
 }
 
 static int dsi_configure_dsi_clocks(struct platform_device *dsidev)
@@ -4196,8 +4195,8 @@ static int dsi_display_init_dsi(struct platform_device *dsidev)
 		goto err1;
 
 	dss_select_dsi_clk_source(dsi->module_id, dsi->module_id == 0 ?
-			OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI :
-			OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DSI);
+			DSS_CLK_SRC_PLL1_2 :
+			DSS_CLK_SRC_PLL2_2);
 
 	DSSDBG("PLL OK\n");
 
@@ -4229,7 +4228,7 @@ static int dsi_display_init_dsi(struct platform_device *dsidev)
 err3:
 	dsi_cio_uninit(dsidev);
 err2:
-	dss_select_dsi_clk_source(dsi->module_id, OMAP_DSS_CLK_SRC_FCK);
+	dss_select_dsi_clk_source(dsi->module_id, DSS_CLK_SRC_FCK);
 err1:
 	dss_pll_disable(&dsi->pll);
 err0:
@@ -4251,7 +4250,7 @@ static void dsi_display_uninit_dsi(struct platform_device *dsidev,
 	dsi_vc_enable(dsidev, 2, 0);
 	dsi_vc_enable(dsidev, 3, 0);
 
-	dss_select_dsi_clk_source(dsi->module_id, OMAP_DSS_CLK_SRC_FCK);
+	dss_select_dsi_clk_source(dsi->module_id, DSS_CLK_SRC_FCK);
 	dsi_cio_uninit(dsidev);
 	dsi_pll_uninit(dsidev, disconnect_lanes);
 }
@@ -4452,7 +4451,7 @@ static bool dsi_cm_calc_pll_cb(int n, int m, unsigned long fint,
 	ctx->dsi_cinfo.fint = fint;
 	ctx->dsi_cinfo.clkdco = clkdco;
 
-	return dss_pll_hsdiv_calc(ctx->pll, clkdco, ctx->req_pck_min,
+	return dss_pll_hsdiv_calc_a(ctx->pll, clkdco, ctx->req_pck_min,
 			dss_feat_get_param_max(FEAT_PARAM_DSS_FCK),
 			dsi_cm_calc_hsdiv_cb, ctx);
 }
@@ -4491,7 +4490,7 @@ static bool dsi_cm_calc(struct dsi_data *dsi,
 	pll_min = max(cfg->hs_clk_min * 4, txbyteclk * 4 * 4);
 	pll_max = cfg->hs_clk_max * 4;
 
-	return dss_pll_calc(ctx->pll, clkin,
+	return dss_pll_calc_a(ctx->pll, clkin,
 			pll_min, pll_max,
 			dsi_cm_calc_pll_cb, ctx);
 }
@@ -4750,7 +4749,7 @@ static bool dsi_vm_calc_pll_cb(int n, int m, unsigned long fint,
 	ctx->dsi_cinfo.fint = fint;
 	ctx->dsi_cinfo.clkdco = clkdco;
 
-	return dss_pll_hsdiv_calc(ctx->pll, clkdco, ctx->req_pck_min,
+	return dss_pll_hsdiv_calc_a(ctx->pll, clkdco, ctx->req_pck_min,
 			dss_feat_get_param_max(FEAT_PARAM_DSS_FCK),
 			dsi_vm_calc_hsdiv_cb, ctx);
 }
@@ -4792,7 +4791,7 @@ static bool dsi_vm_calc(struct dsi_data *dsi,
 		pll_max = byteclk_max * 4 * 4;
 	}
 
-	return dss_pll_calc(ctx->pll, clkin,
+	return dss_pll_calc_a(ctx->pll, clkin,
 			pll_min, pll_max,
 			dsi_vm_calc_pll_cb, ctx);
 }
@@ -5138,6 +5137,8 @@ static const struct dss_pll_ops dsi_pll_ops = {
 };
 
 static const struct dss_pll_hw dss_omap3_dsi_pll_hw = {
+	.type = DSS_PLL_TYPE_A,
+
 	.n_max = (1 << 7) - 1,
 	.m_max = (1 << 11) - 1,
 	.mX_max = (1 << 4) - 1,
@@ -5163,6 +5164,8 @@ static const struct dss_pll_hw dss_omap3_dsi_pll_hw = {
 };
 
 static const struct dss_pll_hw dss_omap4_dsi_pll_hw = {
+	.type = DSS_PLL_TYPE_A,
+
 	.n_max = (1 << 8) - 1,
 	.m_max = (1 << 12) - 1,
 	.mX_max = (1 << 5) - 1,
@@ -5188,6 +5191,8 @@ static const struct dss_pll_hw dss_omap4_dsi_pll_hw = {
 };
 
 static const struct dss_pll_hw dss_omap5_dsi_pll_hw = {
+	.type = DSS_PLL_TYPE_A,
+
 	.n_max = (1 << 8) - 1,
 	.m_max = (1 << 12) - 1,
 	.mX_max = (1 << 5) - 1,

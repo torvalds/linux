@@ -51,13 +51,6 @@
 
 #include "clkc.h"
 
-struct meson_clk_cpu {
-	struct notifier_block		clk_nb;
-	const struct clk_div_table	*div_table;
-	struct clk_hw			hw;
-	void __iomem			*base;
-	u16				reg_off;
-};
 #define to_meson_clk_cpu_hw(_hw) container_of(_hw, struct meson_clk_cpu, hw)
 #define to_meson_clk_cpu_nb(_nb) container_of(_nb, struct meson_clk_cpu, clk_nb)
 
@@ -119,6 +112,7 @@ static unsigned long meson_clk_cpu_recalc_rate(struct clk_hw *hw,
 	return parent_rate / div;
 }
 
+/* FIXME MUX1 & MUX2 should be struct clk_hw objects */
 static int meson_clk_cpu_pre_rate_change(struct meson_clk_cpu *clk_cpu,
 					 struct clk_notifier_data *ndata)
 {
@@ -140,6 +134,7 @@ static int meson_clk_cpu_pre_rate_change(struct meson_clk_cpu *clk_cpu,
 	return 0;
 }
 
+/* FIXME MUX1 & MUX2 should be struct clk_hw objects */
 static int meson_clk_cpu_post_rate_change(struct meson_clk_cpu *clk_cpu,
 					  struct clk_notifier_data *ndata)
 {
@@ -161,7 +156,7 @@ static int meson_clk_cpu_post_rate_change(struct meson_clk_cpu *clk_cpu,
  * PLL clock is to be changed. We use the xtal input as temporary parent
  * while the PLL frequency is stabilized.
  */
-static int meson_clk_cpu_notifier_cb(struct notifier_block *nb,
+int meson_clk_cpu_notifier_cb(struct notifier_block *nb,
 				     unsigned long event, void *data)
 {
 	struct clk_notifier_data *ndata = data;
@@ -176,68 +171,8 @@ static int meson_clk_cpu_notifier_cb(struct notifier_block *nb,
 	return notifier_from_errno(ret);
 }
 
-static const struct clk_ops meson_clk_cpu_ops = {
+const struct clk_ops meson_clk_cpu_ops = {
 	.recalc_rate	= meson_clk_cpu_recalc_rate,
 	.round_rate	= meson_clk_cpu_round_rate,
 	.set_rate	= meson_clk_cpu_set_rate,
 };
-
-struct clk *meson_clk_register_cpu(const struct clk_conf *clk_conf,
-				   void __iomem *reg_base,
-				   spinlock_t *lock)
-{
-	struct clk *clk;
-	struct clk *pclk;
-	struct meson_clk_cpu *clk_cpu;
-	struct clk_init_data init;
-	int ret;
-
-	clk_cpu = kzalloc(sizeof(*clk_cpu), GFP_KERNEL);
-	if (!clk_cpu)
-		return ERR_PTR(-ENOMEM);
-
-	clk_cpu->base = reg_base;
-	clk_cpu->reg_off = clk_conf->reg_off;
-	clk_cpu->div_table = clk_conf->conf.div_table;
-	clk_cpu->clk_nb.notifier_call = meson_clk_cpu_notifier_cb;
-
-	init.name = clk_conf->clk_name;
-	init.ops = &meson_clk_cpu_ops;
-	init.flags = clk_conf->flags | CLK_GET_RATE_NOCACHE;
-	init.flags |= CLK_SET_RATE_PARENT;
-	init.parent_names = clk_conf->clks_parent;
-	init.num_parents = 1;
-
-	clk_cpu->hw.init = &init;
-
-	pclk = __clk_lookup(clk_conf->clks_parent[0]);
-	if (!pclk) {
-		pr_err("%s: could not lookup parent clock %s\n",
-				__func__, clk_conf->clks_parent[0]);
-		ret = -EINVAL;
-		goto free_clk;
-	}
-
-	ret = clk_notifier_register(pclk, &clk_cpu->clk_nb);
-	if (ret) {
-		pr_err("%s: failed to register clock notifier for %s\n",
-				__func__, clk_conf->clk_name);
-		goto free_clk;
-	}
-
-	clk = clk_register(NULL, &clk_cpu->hw);
-	if (IS_ERR(clk)) {
-		ret = PTR_ERR(clk);
-		goto unregister_clk_nb;
-	}
-
-	return clk;
-
-unregister_clk_nb:
-	clk_notifier_unregister(pclk, &clk_cpu->clk_nb);
-free_clk:
-	kfree(clk_cpu);
-
-	return ERR_PTR(ret);
-}
-

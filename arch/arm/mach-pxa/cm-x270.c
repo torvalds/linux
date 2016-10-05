@@ -14,7 +14,7 @@
 #include <linux/gpio.h>
 #include <linux/delay.h>
 
-#include <linux/rtc-v3020.h>
+#include <linux/platform_data/rtc-v3020.h>
 #include <video/mbxfb.h>
 
 #include <linux/spi/spi.h>

@@ -11,6 +11,8 @@
 #include <linux/rmi.h>
 #include <linux/irq.h>
 #include <linux/of.h>
+#include <linux/delay.h>
+#include <linux/regulator/consumer.h>
 #include "rmi_driver.h"
 
 #define BUFFER_SIZE_INCREMENT 32
@@ -37,6 +39,9 @@ struct rmi_i2c_xport {
 
 	u8 *tx_buf;
 	size_t tx_buf_size;
+
+	struct regulator_bulk_data supplies[2];
+	u32 startup_delay;
 };
 
 #define RMI_PAGE_SELECT_REGISTER 0xff
@@ -246,6 +251,24 @@ static int rmi_i2c_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
+	rmi_i2c->supplies[0].supply = "vdd";
+	rmi_i2c->supplies[1].supply = "vio";
+	retval = devm_regulator_bulk_get(&client->dev,
+					 ARRAY_SIZE(rmi_i2c->supplies),
+					 rmi_i2c->supplies);
+	if (retval < 0)
+		return retval;
+
+	retval = regulator_bulk_enable(ARRAY_SIZE(rmi_i2c->supplies),
+				       rmi_i2c->supplies);
+	if (retval < 0)
+		return retval;
+
+	of_property_read_u32(client->dev.of_node, "syna,startup-delay-ms",
+			     &rmi_i2c->startup_delay);
+
+	msleep(rmi_i2c->startup_delay);
+
 	rmi_i2c->client = client;
 	mutex_init(&rmi_i2c->page_mutex);
 
@@ -286,6 +309,8 @@ static int rmi_i2c_remove(struct i2c_client *client)
 	struct rmi_i2c_xport *rmi_i2c = i2c_get_clientdata(client);
 
 	rmi_unregister_transport_device(&rmi_i2c->xport);
+	regulator_bulk_disable(ARRAY_SIZE(rmi_i2c->supplies),
+			       rmi_i2c->supplies);
 
 	return 0;
 }
@@ -308,6 +333,10 @@ static int rmi_i2c_suspend(struct device *dev)
 			dev_warn(dev, "Failed to enable irq for wake: %d\n",
 				ret);
 	}
+
+	regulator_bulk_disable(ARRAY_SIZE(rmi_i2c->supplies),
+			       rmi_i2c->supplies);
+
 	return ret;
 }
 
@@ -316,6 +345,13 @@ static int rmi_i2c_resume(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct rmi_i2c_xport *rmi_i2c = i2c_get_clientdata(client);
 	int ret;
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(rmi_i2c->supplies),
+				    rmi_i2c->supplies);
+	if (ret)
+		return ret;
+
+	msleep(rmi_i2c->startup_delay);
 
 	enable_irq(rmi_i2c->irq);
 	if (device_may_wakeup(&client->dev)) {
@@ -346,6 +382,9 @@ static int rmi_i2c_runtime_suspend(struct device *dev)
 
 	disable_irq(rmi_i2c->irq);
 
+	regulator_bulk_disable(ARRAY_SIZE(rmi_i2c->supplies),
+			       rmi_i2c->supplies);
+
 	return 0;
 }
 
@@ -354,6 +393,13 @@ static int rmi_i2c_runtime_resume(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct rmi_i2c_xport *rmi_i2c = i2c_get_clientdata(client);
 	int ret;
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(rmi_i2c->supplies),
+				    rmi_i2c->supplies);
+	if (ret)
+		return ret;
+
+	msleep(rmi_i2c->startup_delay);
 
 	enable_irq(rmi_i2c->irq);
 

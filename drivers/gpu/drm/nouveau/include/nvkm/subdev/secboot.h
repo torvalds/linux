@@ -43,9 +43,8 @@ struct nvkm_secboot {
 	const struct nvkm_secboot_func *func;
 	struct nvkm_subdev subdev;
 
+	enum nvkm_devidx devidx;
 	u32 base;
-	u32 irq_mask;
-	u32 enable_mask;
 };
 #define nvkm_secboot(p) container_of((p), struct nvkm_secboot, subdev)
 

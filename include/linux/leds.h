@@ -325,10 +325,10 @@ static inline void *led_get_trigger_data(struct led_classdev *led_cdev)
 #endif /* CONFIG_LEDS_TRIGGERS */
 
 /* Trigger specific functions */
-#ifdef CONFIG_LEDS_TRIGGER_IDE_DISK
-extern void ledtrig_ide_activity(void);
+#ifdef CONFIG_LEDS_TRIGGER_DISK
+extern void ledtrig_disk_activity(void);
 #else
-static inline void ledtrig_ide_activity(void) {}
+static inline void ledtrig_disk_activity(void) {}
 #endif
 
 #ifdef CONFIG_LEDS_TRIGGER_MTD
@@ -387,8 +387,16 @@ struct gpio_led_platform_data {
 					unsigned long *delay_off);
 };
 
+#ifdef CONFIG_NEW_LEDS
 struct platform_device *gpio_led_register_device(
 		int id, const struct gpio_led_platform_data *pdata);
+#else
+static inline struct platform_device *gpio_led_register_device(
+		int id, const struct gpio_led_platform_data *pdata)
+{
+	return 0;
+}
+#endif
 
 enum cpu_led_event {
 	CPU_LED_IDLE_START,	/* CPU enters idle */

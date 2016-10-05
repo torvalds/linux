@@ -53,6 +53,7 @@ struct mlx4_port_cap {
 	int ib_mtu;
 	int max_port_width;
 	int max_vl;
+	int max_tc_eth;
 	int max_gids;
 	int max_pkeys;
 	u64 def_mac;

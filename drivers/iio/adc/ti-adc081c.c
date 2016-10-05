@@ -22,6 +22,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/acpi.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
@@ -138,7 +139,8 @@ static irqreturn_t adc081c_trigger_handler(int irq, void *p)
 	if (ret < 0)
 		goto out;
 	buf[0] = ret;
-	iio_push_to_buffers_with_timestamp(indio_dev, buf, iio_get_time_ns());
+	iio_push_to_buffers_with_timestamp(indio_dev, buf,
+					   iio_get_time_ns(indio_dev));
 out:
 	iio_trigger_notify_done(indio_dev->trig);
 	return IRQ_HANDLED;
@@ -149,11 +151,23 @@ static int adc081c_probe(struct i2c_client *client,
 {
 	struct iio_dev *iio;
 	struct adc081c *adc;
-	struct adcxx1c_model *model = &adcxx1c_models[id->driver_data];
+	struct adcxx1c_model *model;
 	int err;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA))
 		return -EOPNOTSUPP;
+
+	if (ACPI_COMPANION(&client->dev)) {
+		const struct acpi_device_id *ad_id;
+
+		ad_id = acpi_match_device(client->dev.driver->acpi_match_table,
+					  &client->dev);
+		if (!ad_id)
+			return -ENODEV;
+		model = &adcxx1c_models[ad_id->driver_data];
+	} else {
+		model = &adcxx1c_models[id->driver_data];
+	}
 
 	iio = devm_iio_device_alloc(&client->dev, sizeof(*adc));
 	if (!iio)
@@ -172,6 +186,7 @@ static int adc081c_probe(struct i2c_client *client,
 		return err;
 
 	iio->dev.parent = &client->dev;
+	iio->dev.of_node = client->dev.of_node;
 	iio->name = dev_name(&client->dev);
 	iio->modes = INDIO_DIRECT_MODE;
 	iio->info = &adc081c_info;
@@ -231,10 +246,21 @@ static const struct of_device_id adc081c_of_match[] = {
 MODULE_DEVICE_TABLE(of, adc081c_of_match);
 #endif
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id adc081c_acpi_match[] = {
+	{ "ADC081C", ADC081C },
+	{ "ADC101C", ADC101C },
+	{ "ADC121C", ADC121C },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, adc081c_acpi_match);
+#endif
+
 static struct i2c_driver adc081c_driver = {
 	.driver = {
 		.name = "adc081c",
 		.of_match_table = of_match_ptr(adc081c_of_match),
+		.acpi_match_table = ACPI_PTR(adc081c_acpi_match),
 	},
 	.probe = adc081c_probe,
 	.remove = adc081c_remove,

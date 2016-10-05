@@ -383,18 +383,6 @@ size_t omap_gem_mmap_size(struct drm_gem_object *obj)
 	return size;
 }
 
-/* get tiled size, returns -EINVAL if not tiled buffer */
-int omap_gem_tiled_size(struct drm_gem_object *obj, uint16_t *w, uint16_t *h)
-{
-	struct omap_gem_object *omap_obj = to_omap_bo(obj);
-	if (omap_obj->flags & OMAP_BO_TILED) {
-		*w = omap_obj->width;
-		*h = omap_obj->height;
-		return 0;
-	}
-	return -EINVAL;
-}
-
 /* -----------------------------------------------------------------------------
  * Fault Handling
  */
@@ -661,7 +649,8 @@ int omap_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 {
 	union omap_gem_size gsize;
 
-	args->pitch = align_pitch(0, args->width, args->bpp);
+	args->pitch = DIV_ROUND_UP(args->width * args->bpp, 8);
+
 	args->size = PAGE_ALIGN(args->pitch * args->height);
 
 	gsize = (union omap_gem_size){
@@ -1407,7 +1396,7 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		if (ret)
 			goto err_free;
 
-		mapping = file_inode(obj->filp)->i_mapping;
+		mapping = obj->filp->f_mapping;
 		mapping_set_gfp_mask(mapping, GFP_USER | __GFP_DMA32);
 	}
 

@@ -544,6 +544,7 @@ EXPORT_SYMBOL(drm_gtf_mode_complex);
  *
  * This function is to create the modeline based on the GTF algorithm.
  * Generalized Timing Formula is derived from:
+ *
  *	GTF Spreadsheet by Andy Morrish (1/5/97)
  *	available at http://www.vesa.org
  *
@@ -552,7 +553,8 @@ EXPORT_SYMBOL(drm_gtf_mode_complex);
  * I also refer to the function of fb_get_mode in the file of
  * drivers/video/fbmon.c
  *
- * Standard GTF parameters:
+ * Standard GTF parameters::
+ *
  *     M = 600
  *     C = 40
  *     K = 128

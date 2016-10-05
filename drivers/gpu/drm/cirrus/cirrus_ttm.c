@@ -186,17 +186,6 @@ static void cirrus_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_re
 {
 }
 
-static int cirrus_bo_move(struct ttm_buffer_object *bo,
-		       bool evict, bool interruptible,
-		       bool no_wait_gpu,
-		       struct ttm_mem_reg *new_mem)
-{
-	int r;
-	r = ttm_bo_move_memcpy(bo, evict, no_wait_gpu, new_mem);
-	return r;
-}
-
-
 static void cirrus_ttm_backend_destroy(struct ttm_tt *tt)
 {
 	ttm_tt_fini(tt);
@@ -241,7 +230,7 @@ struct ttm_bo_driver cirrus_bo_driver = {
 	.ttm_tt_unpopulate = cirrus_ttm_tt_unpopulate,
 	.init_mem_type = cirrus_bo_init_mem_type,
 	.evict_flags = cirrus_bo_evict_flags,
-	.move = cirrus_bo_move,
+	.move = NULL,
 	.verify_access = cirrus_bo_verify_access,
 	.io_mem_reserve = &cirrus_ttm_io_mem_reserve,
 	.io_mem_free = &cirrus_ttm_io_mem_free,

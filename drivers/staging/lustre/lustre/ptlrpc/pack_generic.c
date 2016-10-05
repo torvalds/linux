@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -1805,19 +1801,6 @@ void lustre_swab_obd_quotactl(struct obd_quotactl *q)
 	lustre_swab_obd_dqblk(&q->qc_dqblk);
 }
 EXPORT_SYMBOL(lustre_swab_obd_quotactl);
-
-void lustre_swab_mdt_remote_perm(struct mdt_remote_perm *p)
-{
-	__swab32s(&p->rp_uid);
-	__swab32s(&p->rp_gid);
-	__swab32s(&p->rp_fsuid);
-	__swab32s(&p->rp_fsuid_h);
-	__swab32s(&p->rp_fsgid);
-	__swab32s(&p->rp_fsgid_h);
-	__swab32s(&p->rp_access_perm);
-	__swab32s(&p->rp_padding);
-};
-EXPORT_SYMBOL(lustre_swab_mdt_remote_perm);
 
 void lustre_swab_fid2path(struct getinfo_fid2path *gf)
 {

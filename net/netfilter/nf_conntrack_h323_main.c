@@ -1273,19 +1273,6 @@ static struct nf_conntrack_expect *find_expect(struct nf_conn *ct,
 }
 
 /****************************************************************************/
-static int set_expect_timeout(struct nf_conntrack_expect *exp,
-			      unsigned int timeout)
-{
-	if (!exp || !del_timer(&exp->timeout))
-		return 0;
-
-	exp->timeout.expires = jiffies + timeout * HZ;
-	add_timer(&exp->timeout);
-
-	return 1;
-}
-
-/****************************************************************************/
 static int expect_q931(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
 		       unsigned int protoff, unsigned char **data,
@@ -1486,7 +1473,8 @@ static int process_rcf(struct sk_buff *skb, struct nf_conn *ct,
 				 "timeout to %u seconds for",
 				 info->timeout);
 			nf_ct_dump_tuple(&exp->tuple);
-			set_expect_timeout(exp, info->timeout);
+			mod_timer_pending(&exp->timeout,
+					  jiffies + info->timeout * HZ);
 		}
 		spin_unlock_bh(&nf_conntrack_expect_lock);
 	}

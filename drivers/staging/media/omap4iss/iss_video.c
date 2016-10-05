@@ -298,7 +298,7 @@ iss_video_check_format(struct iss_video *video, struct iss_video_fh *vfh)
 
 static int iss_video_queue_setup(struct vb2_queue *vq,
 				 unsigned int *count, unsigned int *num_planes,
-				 unsigned int sizes[], void *alloc_ctxs[])
+				 unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct iss_video_fh *vfh = vb2_get_drv_priv(vq);
 	struct iss_video *video = vfh->video;
@@ -309,8 +309,6 @@ static int iss_video_queue_setup(struct vb2_queue *vq,
 	sizes[0] = vfh->format.fmt.pix.sizeimage;
 	if (sizes[0] == 0)
 		return -EINVAL;
-
-	alloc_ctxs[0] = video->alloc_ctx;
 
 	*count = min(*count, video->capture_mem / PAGE_ALIGN(sizes[0]));
 
@@ -1017,13 +1015,6 @@ static int iss_video_open(struct file *file)
 		goto done;
 	}
 
-	video->alloc_ctx = vb2_dma_contig_init_ctx(video->iss->dev);
-	if (IS_ERR(video->alloc_ctx)) {
-		ret = PTR_ERR(video->alloc_ctx);
-		omap4iss_put(video->iss);
-		goto done;
-	}
-
 	q = &handle->queue;
 
 	q->type = video->type;
@@ -1033,6 +1024,7 @@ static int iss_video_open(struct file *file)
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct iss_buffer);
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->dev = video->iss->dev;
 
 	ret = vb2_queue_init(q);
 	if (ret) {

@@ -1259,7 +1259,8 @@ static int __init acpi_thermal_init(void)
 		return -ENODEV;
 	}
 
-	acpi_thermal_pm_queue = create_workqueue("acpi_thermal_pm");
+	acpi_thermal_pm_queue = alloc_workqueue("acpi_thermal_pm",
+						WQ_HIGHPRI | WQ_MEM_RECLAIM, 0);
 	if (!acpi_thermal_pm_queue)
 		return -ENODEV;
 

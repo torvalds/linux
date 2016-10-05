@@ -192,6 +192,10 @@ int __max730x_probe(struct max7301 *ts)
 	ts->chip.parent = dev;
 	ts->chip.owner = THIS_MODULE;
 
+	ret = gpiochip_add_data(&ts->chip, ts);
+	if (ret)
+		goto exit_destroy;
+
 	/*
 	 * initialize pullups according to platform data and cache the
 	 * register values for later use.
@@ -212,10 +216,6 @@ int __max730x_probe(struct max7301 *ts)
 				goto exit_destroy;
 		}
 	}
-
-	ret = gpiochip_add_data(&ts->chip, ts);
-	if (ret)
-		goto exit_destroy;
 
 	return ret;
 

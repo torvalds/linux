@@ -1,4 +1,4 @@
-* Dialog Semiconductor DA9210 Voltage Regulator
+* Dialog Semiconductor DA9210 Multi-phase 12A DCDC BUCK Converter
 
 Required properties:
 
@@ -18,8 +18,12 @@ Example:
 		compatible = "dlg,da9210";
 		reg = <0x68>;
 
-		regulator-min-microvolt = <900000>;
-		regulator-max-microvolt = <1000000>;
+		interrupt-parent = <...>;
+		interrupts = <...>;
+
+		regulator-min-microvolt = <300000>;
+		regulator-max-microvolt = <1570000>;
+		regulator-min-microamp = <1600000>;
+		regulator-max-microamp = <4600000>;
 		regulator-boot-on;
-		regulator-always-on;
 	};

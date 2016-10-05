@@ -21,7 +21,6 @@
 
 #include <linux/hrtimer.h>
 #include <linux/delay.h>
-#include <linux/module.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/irq.h>
@@ -730,22 +729,12 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int vt8500_serial_remove(struct platform_device *pdev)
-{
-	struct vt8500_port *vt8500_port = platform_get_drvdata(pdev);
-
-	clk_disable_unprepare(vt8500_port->clk);
-	uart_remove_one_port(&vt8500_uart_driver, &vt8500_port->uart);
-
-	return 0;
-}
-
 static struct platform_driver vt8500_platform_driver = {
 	.probe  = vt8500_serial_probe,
-	.remove = vt8500_serial_remove,
 	.driver = {
 		.name = "vt8500_serial",
 		.of_match_table = wmt_dt_ids,
+		.suppress_bind_attrs = true,
 	},
 };
 
@@ -764,19 +753,4 @@ static int __init vt8500_serial_init(void)
 
 	return ret;
 }
-
-static void __exit vt8500_serial_exit(void)
-{
-#ifdef CONFIG_SERIAL_VT8500_CONSOLE
-	unregister_console(&vt8500_console);
-#endif
-	platform_driver_unregister(&vt8500_platform_driver);
-	uart_unregister_driver(&vt8500_uart_driver);
-}
-
-module_init(vt8500_serial_init);
-module_exit(vt8500_serial_exit);
-
-MODULE_AUTHOR("Alexey Charkov <alchark@gmail.com>");
-MODULE_DESCRIPTION("Driver for vt8500 serial device");
-MODULE_LICENSE("GPL v2");
+device_initcall(vt8500_serial_init);

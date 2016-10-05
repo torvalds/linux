@@ -17,6 +17,7 @@
 #
 
 obj-$(CONFIG_BATMAN_ADV) += batman-adv.o
+batman-adv-y += bat_algo.o
 batman-adv-y += bat_iv_ogm.o
 batman-adv-$(CONFIG_BATMAN_ADV_BATMAN_V) += bat_v.o
 batman-adv-$(CONFIG_BATMAN_ADV_BATMAN_V) += bat_v_elp.o
@@ -31,12 +32,16 @@ batman-adv-y += gateway_common.o
 batman-adv-y += hard-interface.o
 batman-adv-y += hash.o
 batman-adv-y += icmp_socket.o
+batman-adv-$(CONFIG_BATMAN_ADV_DEBUG) += log.o
 batman-adv-y += main.o
 batman-adv-$(CONFIG_BATMAN_ADV_MCAST) += multicast.o
+batman-adv-y += netlink.o
 batman-adv-$(CONFIG_BATMAN_ADV_NC) += network-coding.o
 batman-adv-y += originator.o
 batman-adv-y += routing.o
 batman-adv-y += send.o
 batman-adv-y += soft-interface.o
 batman-adv-y += sysfs.o
+batman-adv-y += tp_meter.o
 batman-adv-y += translation-table.o
+batman-adv-y += tvlv.o

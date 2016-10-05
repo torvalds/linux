@@ -2204,11 +2204,11 @@ static int ixgbe_set_phys_id(struct net_device *netdev,
 		return 2;
 
 	case ETHTOOL_ID_ON:
-		hw->mac.ops.led_on(hw, IXGBE_LED_ON);
+		hw->mac.ops.led_on(hw, hw->bus.func);
 		break;
 
 	case ETHTOOL_ID_OFF:
-		hw->mac.ops.led_off(hw, IXGBE_LED_ON);
+		hw->mac.ops.led_off(hw, hw->bus.func);
 		break;
 
 	case ETHTOOL_ID_INACTIVE:
@@ -2991,10 +2991,15 @@ static int ixgbe_get_ts_info(struct net_device *dev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 
+	/* we always support timestamping disabled */
+	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE);
+
 	switch (adapter->hw.mac.type) {
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
 	case ixgbe_mac_x550em_a:
+		info->rx_filters |= BIT(HWTSTAMP_FILTER_ALL);
+		/* fallthrough */
 	case ixgbe_mac_X540:
 	case ixgbe_mac_82599EB:
 		info->so_timestamping =
@@ -3014,8 +3019,7 @@ static int ixgbe_get_ts_info(struct net_device *dev,
 			BIT(HWTSTAMP_TX_OFF) |
 			BIT(HWTSTAMP_TX_ON);
 
-		info->rx_filters =
-			BIT(HWTSTAMP_FILTER_NONE) |
+		info->rx_filters |=
 			BIT(HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
 			BIT(HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
 			BIT(HWTSTAMP_FILTER_PTP_V2_EVENT);

@@ -186,7 +186,7 @@ static ide_startstop_t ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 	BUG_ON(drive->dev_flags & IDE_DFLAG_BLOCKED);
 	BUG_ON(rq->cmd_type != REQ_TYPE_FS);
 
-	ledtrig_ide_activity();
+	ledtrig_disk_activity();
 
 	pr_debug("%s: %sing: block=%llu, sectors=%u\n",
 		 drive->name, rq_data_dir(rq) == READ ? "read" : "writ",
@@ -431,7 +431,7 @@ static int idedisk_prep_fn(struct request_queue *q, struct request *rq)
 	ide_drive_t *drive = q->queuedata;
 	struct ide_cmd *cmd;
 
-	if (!(rq->cmd_flags & REQ_FLUSH))
+	if (req_op(rq) != REQ_OP_FLUSH)
 		return BLKPREP_OK;
 
 	if (rq->special) {

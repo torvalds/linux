@@ -223,9 +223,11 @@ static int ip_finish_output_gso(struct net *net, struct sock *sk,
 	struct sk_buff *segs;
 	int ret = 0;
 
-	/* common case: locally created skb or seglen is <= mtu */
-	if (((IPCB(skb)->flags & IPSKB_FORWARDED) == 0) ||
-	      skb_gso_network_seglen(skb) <= mtu)
+	/* common case: fragmentation of segments is not allowed,
+	 * or seglen is <= mtu
+	 */
+	if (((IPCB(skb)->flags & IPSKB_FRAG_SEGS) == 0) ||
+	      skb_gso_validate_mtu(skb, mtu))
 		return ip_finish_output2(net, sk, skb);
 
 	/* Slowpath -  GSO segment length is exceeding the dst MTU.

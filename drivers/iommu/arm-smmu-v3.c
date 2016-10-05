@@ -879,7 +879,7 @@ static void arm_smmu_cmdq_skip_err(struct arm_smmu_device *smmu)
 	 * We may have concurrent producers, so we need to be careful
 	 * not to touch any of the shadow cmdq state.
 	 */
-	queue_read(cmd, Q_ENT(q, idx), q->ent_dwords);
+	queue_read(cmd, Q_ENT(q, cons), q->ent_dwords);
 	dev_err(smmu->dev, "skipping command in error state:\n");
 	for (i = 0; i < ARRAY_SIZE(cmd); ++i)
 		dev_err(smmu->dev, "\t0x%016llx\n", (unsigned long long)cmd[i]);
@@ -890,7 +890,7 @@ static void arm_smmu_cmdq_skip_err(struct arm_smmu_device *smmu)
 		return;
 	}
 
-	queue_write(cmd, Q_ENT(q, idx), q->ent_dwords);
+	queue_write(Q_ENT(q, cons), cmd, q->ent_dwords);
 }
 
 static void arm_smmu_cmdq_issue_cmd(struct arm_smmu_device *smmu,
@@ -1034,6 +1034,9 @@ static void arm_smmu_write_strtab_ent(struct arm_smmu_device *smmu, u32 sid,
 		case STRTAB_STE_0_CFG_S2_TRANS:
 			ste_live = true;
 			break;
+		case STRTAB_STE_0_CFG_ABORT:
+			if (disable_bypass)
+				break;
 		default:
 			BUG(); /* STE corruption */
 		}
@@ -2686,6 +2689,8 @@ static int __init arm_smmu_init(void)
 	ret = platform_driver_register(&arm_smmu_driver);
 	if (ret)
 		return ret;
+
+	pci_request_acs();
 
 	return bus_set_iommu(&pci_bus_type, &arm_smmu_ops);
 }

@@ -3,7 +3,9 @@ SMI (Smart Multimedia Interface) Local Arbiter
 The hardware block diagram please check bindings/iommu/mediatek,iommu.txt
 
 Required properties:
-- compatible : must be "mediatek,mt8173-smi-larb"
+- compatible : must be one of :
+		"mediatek,mt8173-smi-larb"
+		"mediatek,mt2701-smi-larb"
 - reg : the register and size of this local arbiter.
 - mediatek,smi : a phandle to the smi_common node.
 - power-domains : a phandle to the power domain of this local arbiter.

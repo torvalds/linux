@@ -622,8 +622,9 @@
 #define CLK_SCLK_UFSUNIPRO		112
 #define CLK_SCLK_USBHOST30		113
 #define CLK_SCLK_USBDRD30		114
+#define CLK_PCIE			115
 
-#define FSYS_NR_CLK			115
+#define FSYS_NR_CLK			116
 
 /* CMU_G2D */
 #define CLK_MUX_ACLK_G2D_266_USER	1

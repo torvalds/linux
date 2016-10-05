@@ -44,6 +44,7 @@ config BMC150_MAGN_I2C
 	  This driver is only implementing magnetometer part, which has
 	  its own address and register map.
 
+	  This driver also supports I2C Bosch BMC156 and BMM150 chips.
 	  To compile this driver as a module, choose M here: the module will be
 	  called bmc150_magn_i2c.
 
@@ -60,6 +61,7 @@ config BMC150_MAGN_SPI
 	  This driver is only implementing magnetometer part, which has
 	  its own address and register map.
 
+	  This driver also supports SPI Bosch BMC156 and BMM150 chips.
 	  To compile this driver as a module, choose M here: the module will be
 	  called bmc150_magn_spi.
 

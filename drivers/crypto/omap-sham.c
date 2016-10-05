@@ -100,6 +100,8 @@
 
 #define DEFAULT_TIMEOUT_INTERVAL	HZ
 
+#define DEFAULT_AUTOSUSPEND_DELAY	1000
+
 /* mostly device flags */
 #define FLAGS_BUSY		0
 #define FLAGS_FINAL		1
@@ -173,7 +175,7 @@ struct omap_sham_ctx {
 	struct omap_sham_hmac_ctx base[0];
 };
 
-#define OMAP_SHAM_QUEUE_LENGTH	1
+#define OMAP_SHAM_QUEUE_LENGTH	10
 
 struct omap_sham_algs_info {
 	struct ahash_alg	*algs_list;
@@ -813,7 +815,6 @@ static int omap_sham_update_dma_stop(struct omap_sham_dev *dd)
 {
 	struct omap_sham_reqctx *ctx = ahash_request_ctx(dd->req);
 
-	dmaengine_terminate_all(dd->dma_lch);
 
 	if (ctx->flags & BIT(FLAGS_SG)) {
 		dma_unmap_sg(dd->dev, ctx->sg, 1, DMA_TO_DEVICE);
@@ -999,7 +1000,8 @@ static void omap_sham_finish_req(struct ahash_request *req, int err)
 	dd->flags &= ~(BIT(FLAGS_BUSY) | BIT(FLAGS_FINAL) | BIT(FLAGS_CPU) |
 			BIT(FLAGS_DMA_READY) | BIT(FLAGS_OUTPUT_READY));
 
-	pm_runtime_put(dd->dev);
+	pm_runtime_mark_last_busy(dd->dev);
+	pm_runtime_put_autosuspend(dd->dev);
 
 	if (req->base.complete)
 		req->base.complete(&req->base, err);
@@ -1093,7 +1095,7 @@ static int omap_sham_update(struct ahash_request *req)
 	ctx->offset = 0;
 
 	if (ctx->flags & BIT(FLAGS_FINUP)) {
-		if ((ctx->digcnt + ctx->bufcnt + ctx->total) < 9) {
+		if ((ctx->digcnt + ctx->bufcnt + ctx->total) < 240) {
 			/*
 			* OMAP HW accel works only with buffers >= 9
 			* will switch to bypass in final()
@@ -1149,9 +1151,13 @@ static int omap_sham_final(struct ahash_request *req)
 	if (ctx->flags & BIT(FLAGS_ERROR))
 		return 0; /* uncompleted hash is not needed */
 
-	/* OMAP HW accel works only with buffers >= 9 */
-	/* HMAC is always >= 9 because ipad == block size */
-	if ((ctx->digcnt + ctx->bufcnt) < 9)
+	/*
+	 * OMAP HW accel works only with buffers >= 9.
+	 * HMAC is always >= 9 because ipad == block size.
+	 * If buffersize is less than 240, we use fallback SW encoding,
+	 * as using DMA + HW in this case doesn't provide any benefit.
+	 */
+	if ((ctx->digcnt + ctx->bufcnt) < 240)
 		return omap_sham_final_shash(req);
 	else if (ctx->bufcnt)
 		return omap_sham_enqueue(req, OP_FINAL);
@@ -1328,7 +1334,7 @@ static struct ahash_alg algs_sha1_md5[] = {
 	.halg.base	= {
 		.cra_name		= "sha1",
 		.cra_driver_name	= "omap-sha1",
-		.cra_priority		= 100,
+		.cra_priority		= 400,
 		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 						CRYPTO_ALG_KERN_DRIVER_ONLY |
 						CRYPTO_ALG_ASYNC |
@@ -1351,7 +1357,7 @@ static struct ahash_alg algs_sha1_md5[] = {
 	.halg.base	= {
 		.cra_name		= "md5",
 		.cra_driver_name	= "omap-md5",
-		.cra_priority		= 100,
+		.cra_priority		= 400,
 		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 						CRYPTO_ALG_KERN_DRIVER_ONLY |
 						CRYPTO_ALG_ASYNC |
@@ -1375,7 +1381,7 @@ static struct ahash_alg algs_sha1_md5[] = {
 	.halg.base	= {
 		.cra_name		= "hmac(sha1)",
 		.cra_driver_name	= "omap-hmac-sha1",
-		.cra_priority		= 100,
+		.cra_priority		= 400,
 		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 						CRYPTO_ALG_KERN_DRIVER_ONLY |
 						CRYPTO_ALG_ASYNC |
@@ -1400,7 +1406,7 @@ static struct ahash_alg algs_sha1_md5[] = {
 	.halg.base	= {
 		.cra_name		= "hmac(md5)",
 		.cra_driver_name	= "omap-hmac-md5",
-		.cra_priority		= 100,
+		.cra_priority		= 400,
 		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 						CRYPTO_ALG_KERN_DRIVER_ONLY |
 						CRYPTO_ALG_ASYNC |
@@ -1428,7 +1434,7 @@ static struct ahash_alg algs_sha224_sha256[] = {
 	.halg.base	= {
 		.cra_name		= "sha224",
 		.cra_driver_name	= "omap-sha224",
-		.cra_priority		= 100,
+		.cra_priority		= 400,
 		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 						CRYPTO_ALG_ASYNC |
 						CRYPTO_ALG_NEED_FALLBACK,
@@ -1450,7 +1456,7 @@ static struct ahash_alg algs_sha224_sha256[] = {
 	.halg.base	= {
 		.cra_name		= "sha256",
 		.cra_driver_name	= "omap-sha256",
-		.cra_priority		= 100,
+		.cra_priority		= 400,
 		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 						CRYPTO_ALG_ASYNC |
 						CRYPTO_ALG_NEED_FALLBACK,
@@ -1473,7 +1479,7 @@ static struct ahash_alg algs_sha224_sha256[] = {
 	.halg.base	= {
 		.cra_name		= "hmac(sha224)",
 		.cra_driver_name	= "omap-hmac-sha224",
-		.cra_priority		= 100,
+		.cra_priority		= 400,
 		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 						CRYPTO_ALG_ASYNC |
 						CRYPTO_ALG_NEED_FALLBACK,
@@ -1497,7 +1503,7 @@ static struct ahash_alg algs_sha224_sha256[] = {
 	.halg.base	= {
 		.cra_name		= "hmac(sha256)",
 		.cra_driver_name	= "omap-hmac-sha256",
-		.cra_priority		= 100,
+		.cra_priority		= 400,
 		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 						CRYPTO_ALG_ASYNC |
 						CRYPTO_ALG_NEED_FALLBACK,
@@ -1523,7 +1529,7 @@ static struct ahash_alg algs_sha384_sha512[] = {
 	.halg.base	= {
 		.cra_name		= "sha384",
 		.cra_driver_name	= "omap-sha384",
-		.cra_priority		= 100,
+		.cra_priority		= 400,
 		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 						CRYPTO_ALG_ASYNC |
 						CRYPTO_ALG_NEED_FALLBACK,
@@ -1545,7 +1551,7 @@ static struct ahash_alg algs_sha384_sha512[] = {
 	.halg.base	= {
 		.cra_name		= "sha512",
 		.cra_driver_name	= "omap-sha512",
-		.cra_priority		= 100,
+		.cra_priority		= 400,
 		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 						CRYPTO_ALG_ASYNC |
 						CRYPTO_ALG_NEED_FALLBACK,
@@ -1568,7 +1574,7 @@ static struct ahash_alg algs_sha384_sha512[] = {
 	.halg.base	= {
 		.cra_name		= "hmac(sha384)",
 		.cra_driver_name	= "omap-hmac-sha384",
-		.cra_priority		= 100,
+		.cra_priority		= 400,
 		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 						CRYPTO_ALG_ASYNC |
 						CRYPTO_ALG_NEED_FALLBACK,
@@ -1592,7 +1598,7 @@ static struct ahash_alg algs_sha384_sha512[] = {
 	.halg.base	= {
 		.cra_name		= "hmac(sha512)",
 		.cra_driver_name	= "omap-hmac-sha512",
-		.cra_priority		= 100,
+		.cra_priority		= 400,
 		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 						CRYPTO_ALG_ASYNC |
 						CRYPTO_ALG_NEED_FALLBACK,
@@ -1945,6 +1951,9 @@ static int omap_sham_probe(struct platform_device *pdev)
 	}
 
 	dd->flags |= dd->pdata->flags;
+
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_set_autosuspend_delay(dev, DEFAULT_AUTOSUSPEND_DELAY);
 
 	pm_runtime_enable(dev);
 	pm_runtime_irq_safe(dev);

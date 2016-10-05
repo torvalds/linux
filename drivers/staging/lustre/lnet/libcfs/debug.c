@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -366,12 +362,12 @@ void libcfs_debug_dumplog(void)
 	 * get to schedule()
 	 */
 	init_waitqueue_entry(&wait, current);
-	set_current_state(TASK_INTERRUPTIBLE);
 	add_wait_queue(&debug_ctlwq, &wait);
 
 	dumper = kthread_run(libcfs_debug_dumplog_thread,
 			     (void *)(long)current_pid(),
 			     "libcfs_debug_dumper");
+	set_current_state(TASK_INTERRUPTIBLE);
 	if (IS_ERR(dumper))
 		pr_err("LustreError: cannot start log dump thread: %ld\n",
 		       PTR_ERR(dumper));

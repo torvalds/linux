@@ -55,13 +55,13 @@
 	};
 
 	chosen {
-		stdout-path = "serial2:115200n8";
+		stdout-path = "serial0:115200n8";
 	};
 
 	aliases {
-		serial0 = &serial0;
-		serial1 = &serial1;
-		serial2 = &serial2;
+		serial0 = &serial2;
+		serial1 = &serial0;
+		serial2 = &serial1;
 		i2c0 = &i2c0;
 		i2c2 = &i2c2;
 		i2c4 = &i2c4;

@@ -283,6 +283,11 @@ int filename__read_int(const char *filename, int *value)
 	return err;
 }
 
+/*
+ * Parses @value out of @filename with strtoull.
+ * By using 0 for base, the strtoull detects the
+ * base automatically (see man strtoull).
+ */
 int filename__read_ull(const char *filename, unsigned long long *value)
 {
 	char line[64];
@@ -292,7 +297,7 @@ int filename__read_ull(const char *filename, unsigned long long *value)
 		return -1;
 
 	if (read(fd, line, sizeof(line)) > 0) {
-		*value = strtoull(line, NULL, 10);
+		*value = strtoull(line, NULL, 0);
 		if (*value != ULLONG_MAX)
 			err = 0;
 	}

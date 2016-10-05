@@ -236,9 +236,10 @@ static int rockchip_usb_phy_init(struct rockchip_usb_phy_base *base,
 			goto err_clk_prov;
 	}
 
-	err = devm_add_action(base->dev, rockchip_usb_phy_action, rk_phy);
+	err = devm_add_action_or_reset(base->dev, rockchip_usb_phy_action,
+				       rk_phy);
 	if (err)
-		goto err_devm_action;
+		return err;
 
 	rk_phy->phy = devm_phy_create(base->dev, child, &ops);
 	if (IS_ERR(rk_phy->phy)) {
@@ -256,9 +257,6 @@ static int rockchip_usb_phy_init(struct rockchip_usb_phy_base *base,
 	else
 		return rockchip_usb_phy_power(rk_phy, 1);
 
-err_devm_action:
-	if (!rk_phy->uart_enabled)
-		of_clk_del_provider(child);
 err_clk_prov:
 	if (!rk_phy->uart_enabled)
 		clk_unregister(rk_phy->clk480m);
@@ -397,8 +395,13 @@ static int rockchip_usb_phy_probe(struct platform_device *pdev)
 	phy_base->pdata = match->data;
 
 	phy_base->dev = dev;
-	phy_base->reg_base = syscon_regmap_lookup_by_phandle(dev->of_node,
-							     "rockchip,grf");
+	phy_base->reg_base = ERR_PTR(-ENODEV);
+	if (dev->parent && dev->parent->of_node)
+		phy_base->reg_base = syscon_node_to_regmap(
+						dev->parent->of_node);
+	if (IS_ERR(phy_base->reg_base))
+		phy_base->reg_base = syscon_regmap_lookup_by_phandle(
+						dev->of_node, "rockchip,grf");
 	if (IS_ERR(phy_base->reg_base)) {
 		dev_err(&pdev->dev, "Missing rockchip,grf property\n");
 		return PTR_ERR(phy_base->reg_base);
@@ -463,7 +466,11 @@ static int __init rockchip_init_usb_uart(void)
 		return -ENOTSUPP;
 	}
 
-	grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
+	grf = ERR_PTR(-ENODEV);
+	if (np->parent)
+		grf = syscon_node_to_regmap(np->parent);
+	if (IS_ERR(grf))
+		grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 	if (IS_ERR(grf)) {
 		pr_err("%s: Missing rockchip,grf property, %lu\n",
 		       __func__, PTR_ERR(grf));

@@ -117,7 +117,6 @@ static const struct file_operations virtio_gpu_driver_fops = {
 
 static struct drm_driver driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME | DRIVER_RENDER | DRIVER_ATOMIC,
-	.set_busid = drm_virtio_set_busid,
 	.load = virtio_gpu_driver_load,
 	.unload = virtio_gpu_driver_unload,
 	.open = virtio_gpu_driver_open,
@@ -143,7 +142,7 @@ static struct drm_driver driver = {
 	.gem_prime_vunmap = virtgpu_gem_prime_vunmap,
 	.gem_prime_mmap = virtgpu_gem_prime_mmap,
 
-	.gem_free_object = virtio_gpu_gem_free_object,
+	.gem_free_object_unlocked = virtio_gpu_gem_free_object,
 	.gem_open_object = virtio_gpu_gem_object_open,
 	.gem_close_object = virtio_gpu_gem_object_close,
 	.fops = &virtio_gpu_driver_fops,

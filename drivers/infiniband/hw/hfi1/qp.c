@@ -52,6 +52,7 @@
 #include <linux/seq_file.h>
 #include <rdma/rdma_vt.h>
 #include <rdma/rdmavt_qp.h>
+#include <rdma/ib_verbs.h>
 
 #include "hfi.h"
 #include "qp.h"
@@ -113,6 +114,66 @@ static const u16 credit_table[31] = {
 	16384,                  /* 1C */
 	24576,                  /* 1D */
 	32768                   /* 1E */
+};
+
+const struct rvt_operation_params hfi1_post_parms[RVT_OPERATION_MAX] = {
+[IB_WR_RDMA_WRITE] = {
+	.length = sizeof(struct ib_rdma_wr),
+	.qpt_support = BIT(IB_QPT_UC) | BIT(IB_QPT_RC),
+},
+
+[IB_WR_RDMA_READ] = {
+	.length = sizeof(struct ib_rdma_wr),
+	.qpt_support = BIT(IB_QPT_RC),
+	.flags = RVT_OPERATION_ATOMIC,
+},
+
+[IB_WR_ATOMIC_CMP_AND_SWP] = {
+	.length = sizeof(struct ib_atomic_wr),
+	.qpt_support = BIT(IB_QPT_RC),
+	.flags = RVT_OPERATION_ATOMIC | RVT_OPERATION_ATOMIC_SGE,
+},
+
+[IB_WR_ATOMIC_FETCH_AND_ADD] = {
+	.length = sizeof(struct ib_atomic_wr),
+	.qpt_support = BIT(IB_QPT_RC),
+	.flags = RVT_OPERATION_ATOMIC | RVT_OPERATION_ATOMIC_SGE,
+},
+
+[IB_WR_RDMA_WRITE_WITH_IMM] = {
+	.length = sizeof(struct ib_rdma_wr),
+	.qpt_support = BIT(IB_QPT_UC) | BIT(IB_QPT_RC),
+},
+
+[IB_WR_SEND] = {
+	.length = sizeof(struct ib_send_wr),
+	.qpt_support = BIT(IB_QPT_UD) | BIT(IB_QPT_SMI) | BIT(IB_QPT_GSI) |
+		       BIT(IB_QPT_UC) | BIT(IB_QPT_RC),
+},
+
+[IB_WR_SEND_WITH_IMM] = {
+	.length = sizeof(struct ib_send_wr),
+	.qpt_support = BIT(IB_QPT_UD) | BIT(IB_QPT_SMI) | BIT(IB_QPT_GSI) |
+		       BIT(IB_QPT_UC) | BIT(IB_QPT_RC),
+},
+
+[IB_WR_REG_MR] = {
+	.length = sizeof(struct ib_reg_wr),
+	.qpt_support = BIT(IB_QPT_UC) | BIT(IB_QPT_RC),
+	.flags = RVT_OPERATION_LOCAL,
+},
+
+[IB_WR_LOCAL_INV] = {
+	.length = sizeof(struct ib_send_wr),
+	.qpt_support = BIT(IB_QPT_UC) | BIT(IB_QPT_RC),
+	.flags = RVT_OPERATION_LOCAL,
+},
+
+[IB_WR_SEND_WITH_INV] = {
+	.length = sizeof(struct ib_send_wr),
+	.qpt_support = BIT(IB_QPT_RC),
+},
+
 };
 
 static void flush_tx_list(struct rvt_qp *qp)
@@ -595,10 +656,6 @@ struct qp_iter *qp_iter_init(struct hfi1_ibdev *dev)
 
 	iter->dev = dev;
 	iter->specials = dev->rdi.ibdev.phys_port_cnt * 2;
-	if (qp_iter_next(iter)) {
-		kfree(iter);
-		return NULL;
-	}
 
 	return iter;
 }
@@ -745,8 +802,9 @@ void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 
 	priv->owner = qp;
 
-	priv->s_hdr = kzalloc_node(sizeof(*priv->s_hdr), gfp, rdi->dparms.node);
-	if (!priv->s_hdr) {
+	priv->s_ahg = kzalloc_node(sizeof(*priv->s_ahg), gfp,
+				   rdi->dparms.node);
+	if (!priv->s_ahg) {
 		kfree(priv);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -759,7 +817,7 @@ void qp_priv_free(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 
-	kfree(priv->s_hdr);
+	kfree(priv->s_ahg);
 	kfree(priv);
 }
 

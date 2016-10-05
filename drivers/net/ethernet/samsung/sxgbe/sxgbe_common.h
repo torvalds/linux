@@ -475,7 +475,6 @@ struct sxgbe_priv_data {
 	int rxcsum_insertion;
 	spinlock_t stats_lock;	/* lock for tx/rx statatics */
 
-	struct phy_device *phydev;
 	int oldlink;
 	int speed;
 	int oldduplex;

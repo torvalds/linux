@@ -21,10 +21,10 @@ static long ceph_ioctl_get_layout(struct file *file, void __user *arg)
 
 	err = ceph_do_getattr(file_inode(file), CEPH_STAT_CAP_LAYOUT, false);
 	if (!err) {
-		l.stripe_unit = ceph_file_layout_su(ci->i_layout);
-		l.stripe_count = ceph_file_layout_stripe_count(ci->i_layout);
-		l.object_size = ceph_file_layout_object_size(ci->i_layout);
-		l.data_pool = le32_to_cpu(ci->i_layout.fl_pg_pool);
+		l.stripe_unit = ci->i_layout.stripe_unit;
+		l.stripe_count = ci->i_layout.stripe_count;
+		l.object_size = ci->i_layout.object_size;
+		l.data_pool = ci->i_layout.pool_id;
 		l.preferred_osd = (s32)-1;
 		if (copy_to_user(arg, &l, sizeof(l)))
 			return -EFAULT;
@@ -82,19 +82,19 @@ static long ceph_ioctl_set_layout(struct file *file, void __user *arg)
 	if (l.stripe_count)
 		nl.stripe_count = l.stripe_count;
 	else
-		nl.stripe_count = ceph_file_layout_stripe_count(ci->i_layout);
+		nl.stripe_count = ci->i_layout.stripe_count;
 	if (l.stripe_unit)
 		nl.stripe_unit = l.stripe_unit;
 	else
-		nl.stripe_unit = ceph_file_layout_su(ci->i_layout);
+		nl.stripe_unit = ci->i_layout.stripe_unit;
 	if (l.object_size)
 		nl.object_size = l.object_size;
 	else
-		nl.object_size = ceph_file_layout_object_size(ci->i_layout);
+		nl.object_size = ci->i_layout.object_size;
 	if (l.data_pool)
 		nl.data_pool = l.data_pool;
 	else
-		nl.data_pool = ceph_file_layout_pg_pool(ci->i_layout);
+		nl.data_pool = ci->i_layout.pool_id;
 
 	/* this is obsolete, and always -1 */
 	nl.preferred_osd = le64_to_cpu(-1);
@@ -183,7 +183,7 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 	struct ceph_osd_client *osdc =
 		&ceph_sb_to_client(inode->i_sb)->client->osdc;
 	struct ceph_object_locator oloc;
-	struct ceph_object_id oid;
+	CEPH_DEFINE_OID_ONSTACK(oid);
 	u64 len = 1, olen;
 	u64 tmp;
 	struct ceph_pg pgid;
@@ -202,8 +202,8 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 		return -EIO;
 	}
 	dl.file_offset -= dl.object_offset;
-	dl.object_size = ceph_file_layout_object_size(ci->i_layout);
-	dl.block_size = ceph_file_layout_su(ci->i_layout);
+	dl.object_size = ci->i_layout.object_size;
+	dl.block_size = ci->i_layout.stripe_unit;
 
 	/* block_offset = object_offset % block_size */
 	tmp = dl.object_offset;
@@ -212,10 +212,13 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 	snprintf(dl.object_name, sizeof(dl.object_name), "%llx.%08llx",
 		 ceph_ino(inode), dl.object_no);
 
-	oloc.pool = ceph_file_layout_pg_pool(ci->i_layout);
+	oloc.pool = ci->i_layout.pool_id;
+	oloc.pool_ns = ceph_try_get_string(ci->i_layout.pool_ns);
 	ceph_oid_printf(&oid, "%s", dl.object_name);
 
 	r = ceph_object_locator_to_pg(osdc->osdmap, &oid, &oloc, &pgid);
+
+	ceph_oloc_destroy(&oloc);
 	if (r < 0) {
 		up_read(&osdc->lock);
 		return r;
@@ -247,9 +250,8 @@ static long ceph_ioctl_lazyio(struct file *file)
 
 	if ((fi->fmode & CEPH_FILE_MODE_LAZY) == 0) {
 		spin_lock(&ci->i_ceph_lock);
-		ci->i_nr_by_mode[fi->fmode]--;
 		fi->fmode |= CEPH_FILE_MODE_LAZY;
-		ci->i_nr_by_mode[fi->fmode]++;
+		ci->i_nr_by_mode[ffs(CEPH_FILE_MODE_LAZY)]++;
 		spin_unlock(&ci->i_ceph_lock);
 		dout("ioctl_layzio: file %p marked lazy\n", file);
 

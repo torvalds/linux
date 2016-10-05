@@ -320,21 +320,29 @@ static union iucv_param *iucv_param_irq[NR_CPUS];
  *
  * Returns the result of the CP IUCV call.
  */
-static inline int iucv_call_b2f0(int command, union iucv_param *parm)
+static inline int __iucv_call_b2f0(int command, union iucv_param *parm)
 {
 	register unsigned long reg0 asm ("0");
 	register unsigned long reg1 asm ("1");
 	int ccode;
 
 	reg0 = command;
-	reg1 = virt_to_phys(parm);
+	reg1 = (unsigned long)parm;
 	asm volatile(
 		"	.long 0xb2f01000\n"
 		"	ipm	%0\n"
 		"	srl	%0,28\n"
 		: "=d" (ccode), "=m" (*parm), "+d" (reg0), "+a" (reg1)
 		:  "m" (*parm) : "cc");
-	return (ccode == 1) ? parm->ctrl.iprcode : ccode;
+	return ccode;
+}
+
+static inline int iucv_call_b2f0(int command, union iucv_param *parm)
+{
+	int ccode;
+
+	ccode = __iucv_call_b2f0(command, parm);
+	return ccode == 1 ? parm->ctrl.iprcode : ccode;
 }
 
 /**
@@ -345,16 +353,12 @@ static inline int iucv_call_b2f0(int command, union iucv_param *parm)
  * Returns the maximum number of connections or -EPERM is IUCV is not
  * available.
  */
-static int iucv_query_maxconn(void)
+static int __iucv_query_maxconn(void *param, unsigned long *max_pathid)
 {
 	register unsigned long reg0 asm ("0");
 	register unsigned long reg1 asm ("1");
-	void *param;
 	int ccode;
 
-	param = kzalloc(sizeof(union iucv_param), GFP_KERNEL|GFP_DMA);
-	if (!param)
-		return -ENOMEM;
 	reg0 = IUCV_QUERY;
 	reg1 = (unsigned long) param;
 	asm volatile (
@@ -362,8 +366,22 @@ static int iucv_query_maxconn(void)
 		"	ipm	%0\n"
 		"	srl	%0,28\n"
 		: "=d" (ccode), "+d" (reg0), "+d" (reg1) : : "cc");
+	*max_pathid = reg1;
+	return ccode;
+}
+
+static int iucv_query_maxconn(void)
+{
+	unsigned long max_pathid;
+	void *param;
+	int ccode;
+
+	param = kzalloc(sizeof(union iucv_param), GFP_KERNEL | GFP_DMA);
+	if (!param)
+		return -ENOMEM;
+	ccode = __iucv_query_maxconn(param, &max_pathid);
 	if (ccode == 0)
-		iucv_max_pathid = reg1;
+		iucv_max_pathid = max_pathid;
 	kfree(param);
 	return ccode ? -EPERM : 0;
 }

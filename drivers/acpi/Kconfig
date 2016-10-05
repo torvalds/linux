@@ -213,9 +213,16 @@ config ACPI_CPU_FREQ_PSS
 	bool
 	select THERMAL
 
+config ACPI_PROCESSOR_CSTATE
+	def_bool y
+	depends on IA64 || X86
+
 config ACPI_PROCESSOR_IDLE
 	bool
 	select CPU_IDLE
+
+config ACPI_MCFG
+	bool
 
 config ACPI_CPPC_LIB
 	bool
@@ -234,7 +241,7 @@ config ACPI_CPPC_LIB
 config ACPI_PROCESSOR
 	tristate "Processor"
 	depends on X86 || IA64 || ARM64
-	select ACPI_PROCESSOR_IDLE if X86 || IA64
+	select ACPI_PROCESSOR_IDLE
 	select ACPI_CPU_FREQ_PSS if X86 || IA64
 	default y
 	help
@@ -291,8 +298,8 @@ config ACPI_THERMAL
 config ACPI_NUMA
 	bool "NUMA support"
 	depends on NUMA
-	depends on (X86 || IA64)
-	default y if IA64_GENERIC || IA64_SGI_SN2
+	depends on (X86 || IA64 || ARM64)
+	default y if IA64_GENERIC || IA64_SGI_SN2 || ARM64
 
 config ACPI_CUSTOM_DSDT_FILE
 	string "Custom DSDT Table file to include"
@@ -311,9 +318,12 @@ config ACPI_CUSTOM_DSDT
 	bool
 	default ACPI_CUSTOM_DSDT_FILE != ""
 
+config ARCH_HAS_ACPI_TABLE_UPGRADE
+	def_bool n
+
 config ACPI_TABLE_UPGRADE
 	bool "Allow upgrading ACPI tables via initrd"
-	depends on BLK_DEV_INITRD && X86
+	depends on BLK_DEV_INITRD && ARCH_HAS_ACPI_TABLE_UPGRADE
 	default y
 	help
 	  This option provides functionality to upgrade arbitrary ACPI tables
@@ -447,34 +457,10 @@ config ACPI_REDUCED_HARDWARE_ONLY
 
 	  If you are unsure what to do, do not enable this option.
 
-config ACPI_NFIT
-	tristate "ACPI NVDIMM Firmware Interface Table (NFIT)"
-	depends on PHYS_ADDR_T_64BIT
-	depends on BLK_DEV
-	depends on ARCH_HAS_MMIO_FLUSH
-	select LIBNVDIMM
-	help
-	  Infrastructure to probe ACPI 6 compliant platforms for
-	  NVDIMMs (NFIT) and register a libnvdimm device tree.  In
-	  addition to storage devices this also enables libnvdimm to pass
-	  ACPI._DSM messages for platform/dimm configuration.
-
-	  To compile this driver as a module, choose M here:
-	  the module will be called nfit.
-
-config ACPI_NFIT_DEBUG
-	bool "NFIT DSM debug"
-	depends on ACPI_NFIT
-	depends on DYNAMIC_DEBUG
-	default n
-	help
-	  Enabling this option causes the nfit driver to dump the
-	  input and output buffers of _DSM operations on the ACPI0012
-	  device and its children.  This can be very verbose, so leave
-	  it disabled unless you are debugging a hardware / firmware
-	  issue.
+source "drivers/acpi/nfit/Kconfig"
 
 source "drivers/acpi/apei/Kconfig"
+source "drivers/acpi/dptf/Kconfig"
 
 config ACPI_EXTLOG
 	tristate "Extended Error Log support"
@@ -519,6 +505,20 @@ config XPOWER_PMIC_OPREGION
 	help
 	  This config adds ACPI operation region support for XPower AXP288 PMIC.
 
+config BXT_WC_PMIC_OPREGION
+	bool "ACPI operation region support for BXT WhiskeyCove PMIC"
+	depends on INTEL_SOC_PMIC
+	help
+	  This config adds ACPI operation region support for BXT WhiskeyCove PMIC.
+
 endif
+
+config ACPI_CONFIGFS
+	tristate "ACPI configfs support"
+	select CONFIGFS_FS
+	help
+	  Select this option to enable support for ACPI configuration from
+	  userspace. The configurable ACPI groups will be visible under
+	  /config/acpi, assuming configfs is mounted under /config.
 
 endif	# ACPI

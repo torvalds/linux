@@ -1214,6 +1214,10 @@ static void wl18xx_convert_fw_status(struct wl1271 *wl, void *raw_fw_status,
 			int_fw_status->counters.tx_voice_released_blks;
 	fw_status->counters.tx_last_rate =
 			int_fw_status->counters.tx_last_rate;
+	fw_status->counters.tx_last_rate_mbps =
+			int_fw_status->counters.tx_last_rate_mbps;
+	fw_status->counters.hlid =
+			int_fw_status->counters.hlid;
 
 	fw_status->log_start_addr = le32_to_cpu(int_fw_status->log_start_addr);
 
@@ -1821,9 +1825,12 @@ static const struct ieee80211_iface_limit wl18xx_iface_limits[] = {
 	},
 	{
 		.max = 1,
-		.types = BIT(NL80211_IFTYPE_AP) |
-			 BIT(NL80211_IFTYPE_P2P_GO) |
-			 BIT(NL80211_IFTYPE_P2P_CLIENT),
+		.types =   BIT(NL80211_IFTYPE_AP)
+			 | BIT(NL80211_IFTYPE_P2P_GO)
+			 | BIT(NL80211_IFTYPE_P2P_CLIENT)
+#ifdef CONFIG_MAC80211_MESH
+			 | BIT(NL80211_IFTYPE_MESH_POINT)
+#endif
 	},
 	{
 		.max = 1,
@@ -1836,6 +1843,12 @@ static const struct ieee80211_iface_limit wl18xx_iface_ap_limits[] = {
 		.max = 2,
 		.types = BIT(NL80211_IFTYPE_AP),
 	},
+#ifdef CONFIG_MAC80211_MESH
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_MESH_POINT),
+	},
+#endif
 	{
 		.max = 1,
 		.types = BIT(NL80211_IFTYPE_P2P_DEVICE),
