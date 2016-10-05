@@ -2744,19 +2744,6 @@ config PMC_ATOM
 	def_bool y
         depends on PCI
 
-config VMD
-	depends on PCI_MSI
-	tristate "Volume Management Device Driver"
-	default N
-	---help---
-	  Adds support for the Intel Volume Management Device (VMD). VMD is a
-	  secondary PCI host bridge that allows PCI Express root ports,
-	  and devices attached to them, to be removed from the default
-	  PCI domain and placed within the VMD domain. This provides
-	  more bus resources than are otherwise possible with a
-	  single domain. If you know your system provides one of these and
-	  has devices attached to it, say Y; if you are not sure, say N.
-
 source "net/Kconfig"
 
 source "drivers/Kconfig"
