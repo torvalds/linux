@@ -783,7 +783,6 @@ static const struct amdgpu_ring_funcs si_dma_ring_funcs = {
 	.get_rptr = si_dma_ring_get_rptr,
 	.get_wptr = si_dma_ring_get_wptr,
 	.set_wptr = si_dma_ring_set_wptr,
-	.parse_cs = NULL,
 	.emit_ib = si_dma_ring_emit_ib,
 	.emit_fence = si_dma_ring_emit_fence,
 	.emit_pipeline_sync = si_dma_ring_emit_pipeline_sync,

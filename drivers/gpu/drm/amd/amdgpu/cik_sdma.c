@@ -1228,7 +1228,6 @@ static const struct amdgpu_ring_funcs cik_sdma_ring_funcs = {
 	.get_rptr = cik_sdma_ring_get_rptr,
 	.get_wptr = cik_sdma_ring_get_wptr,
 	.set_wptr = cik_sdma_ring_set_wptr,
-	.parse_cs = NULL,
 	.emit_ib = cik_sdma_ring_emit_ib,
 	.emit_fence = cik_sdma_ring_emit_fence,
 	.emit_pipeline_sync = cik_sdma_ring_emit_pipeline_sync,

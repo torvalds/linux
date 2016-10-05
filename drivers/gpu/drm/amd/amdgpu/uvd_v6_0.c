@@ -1070,7 +1070,6 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_vm_funcs = {
 	.get_rptr = uvd_v6_0_ring_get_rptr,
 	.get_wptr = uvd_v6_0_ring_get_wptr,
 	.set_wptr = uvd_v6_0_ring_set_wptr,
-	.parse_cs = NULL,
 	.emit_ib = uvd_v6_0_ring_emit_ib,
 	.emit_fence = uvd_v6_0_ring_emit_fence,
 	.emit_vm_flush = uvd_v6_0_ring_emit_vm_flush,

@@ -1225,7 +1225,6 @@ static const struct amdgpu_ring_funcs sdma_v2_4_ring_funcs = {
 	.get_rptr = sdma_v2_4_ring_get_rptr,
 	.get_wptr = sdma_v2_4_ring_get_wptr,
 	.set_wptr = sdma_v2_4_ring_set_wptr,
-	.parse_cs = NULL,
 	.emit_ib = sdma_v2_4_ring_emit_ib,
 	.emit_fence = sdma_v2_4_ring_emit_fence,
 	.emit_pipeline_sync = sdma_v2_4_ring_emit_pipeline_sync,
