@@ -24,7 +24,7 @@
 
 #include <dma-coherence.h>
 
-#ifdef CONFIG_DMA_MAYBE_COHERENT
+#if defined(CONFIG_DMA_MAYBE_COHERENT) && !defined(CONFIG_DMA_PERDEV_COHERENT)
 /* User defined DMA coherency from command line. */
 enum coherent_io_user_state coherentio = IO_COHERENCE_DEFAULT;
 EXPORT_SYMBOL_GPL(coherentio);

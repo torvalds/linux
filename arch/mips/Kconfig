@@ -1099,6 +1099,10 @@ config DMA_MAYBE_COHERENT
 	select DMA_NONCOHERENT
 	bool
 
+config DMA_PERDEV_COHERENT
+	bool
+	select DMA_MAYBE_COHERENT
+
 config DMA_COHERENT
 	bool
 

@@ -15,7 +15,9 @@ enum coherent_io_user_state {
 	IO_COHERENCE_DISABLED,
 };
 
-#ifdef CONFIG_DMA_MAYBE_COHERENT
+#if defined(CONFIG_DMA_PERDEV_COHERENT)
+/* Don't provide (hw_)coherentio to avoid misuse */
+#elif defined(CONFIG_DMA_MAYBE_COHERENT)
 extern enum coherent_io_user_state coherentio;
 extern int hw_coherentio;
 #else

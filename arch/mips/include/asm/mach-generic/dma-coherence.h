@@ -49,6 +49,9 @@ static inline int plat_dma_supported(struct device *dev, u64 mask)
 
 static inline int plat_device_is_coherent(struct device *dev)
 {
+#ifdef CONFIG_DMA_PERDEV_COHERENT
+	return dev->archdata.dma_coherent;
+#else
 	switch (coherentio) {
 	default:
 	case IO_COHERENCE_DEFAULT:
@@ -58,6 +61,7 @@ static inline int plat_device_is_coherent(struct device *dev)
 	case IO_COHERENCE_DISABLED:
 		return 0;
 	}
+#endif
 }
 
 #ifndef plat_post_dma_flush
