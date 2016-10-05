@@ -2070,9 +2070,6 @@ static struct device **scan_labels(struct nd_region *nd_region)
 				}
 			} else
 				devs[count++] = dev;
-
-			/* we only expect one valid pmem label set per region */
-			break;
 		}
 	}
 
