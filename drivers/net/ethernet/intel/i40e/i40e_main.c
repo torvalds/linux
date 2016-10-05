@@ -1683,15 +1683,16 @@ static void i40e_set_rx_mode(struct net_device *netdev)
 }
 
 /**
- * i40e_undo_del_filter_entries - Undo the changes made to MAC filter entries
- * @vsi: pointer to vsi struct
+ * i40e_undo_filter_entries - Undo the changes made to MAC filter entries
+ * @vsi: Pointer to VSI struct
  * @from: Pointer to list which contains MAC filter entries - changes to
  *        those entries needs to be undone.
  *
- * MAC filter entries from list were slated to be removed from device.
+ * MAC filter entries from list were slated to be sent to firmware, either for
+ * addition or deletion.
  **/
-static void i40e_undo_del_filter_entries(struct i40e_vsi *vsi,
-					 struct hlist_head *from)
+static void i40e_undo_filter_entries(struct i40e_vsi *vsi,
+				     struct hlist_head *from)
 {
 	struct i40e_mac_filter *f;
 	struct hlist_node *h;
@@ -1840,14 +1841,8 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 		list_size = filter_list_len *
 			    sizeof(struct i40e_aqc_remove_macvlan_element_data);
 		del_list = kzalloc(list_size, GFP_ATOMIC);
-		if (!del_list) {
-			/* Undo VSI's MAC filter entry element updates */
-			spin_lock_bh(&vsi->mac_filter_hash_lock);
-			i40e_undo_del_filter_entries(vsi, &tmp_del_list);
-			spin_unlock_bh(&vsi->mac_filter_hash_lock);
-			retval = -ENOMEM;
-			goto out;
-		}
+		if (!del_list)
+			goto err_no_memory;
 
 		hlist_for_each_entry_safe(f, h, &tmp_del_list, hlist) {
 			cmd_flags = 0;
@@ -1924,10 +1919,9 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 		list_size = filter_list_len *
 			       sizeof(struct i40e_aqc_add_macvlan_element_data);
 		add_list = kzalloc(list_size, GFP_ATOMIC);
-		if (!add_list) {
-			retval = -ENOMEM;
-			goto out;
-		}
+		if (!add_list)
+			goto err_no_memory;
+
 		num_add = 0;
 		hlist_for_each_entry(f, &tmp_add_list, hlist) {
 			if (test_bit(__I40E_FILTER_OVERFLOW_PROMISC,
@@ -2152,6 +2146,17 @@ out:
 
 	clear_bit(__I40E_CONFIG_BUSY, &vsi->state);
 	return retval;
+
+err_no_memory:
+	/* Restore elements on the temporary add and delete lists */
+	spin_lock_bh(&vsi->mac_filter_hash_lock);
+	i40e_undo_filter_entries(vsi, &tmp_del_list);
+	i40e_undo_filter_entries(vsi, &tmp_add_list);
+	spin_unlock_bh(&vsi->mac_filter_hash_lock);
+
+	vsi->flags |= I40E_VSI_FLAG_FILTER_CHANGED;
+	clear_bit(__I40E_CONFIG_BUSY, &vsi->state);
+	return -ENOMEM;
 }
 
 /**
