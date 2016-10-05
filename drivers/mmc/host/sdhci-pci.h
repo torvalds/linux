@@ -72,7 +72,6 @@ struct sdhci_pci_slot {
 	struct sdhci_host	*host;
 	struct sdhci_pci_data	*data;
 
-	int			pci_bar;
 	int			rst_n_gpio;
 	int			cd_gpio;
 	int			cd_irq;
