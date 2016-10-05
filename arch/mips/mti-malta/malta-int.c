@@ -290,18 +290,3 @@ void __init arch_init_irq(void)
 
 	setup_irq(corehi_irq, &corehi_irqaction);
 }
-
-void malta_be_init(void)
-{
-	/* Could change CM error mask register. */
-}
-
-int malta_be_handler(struct pt_regs *regs, int is_fixup)
-{
-	/* This duplicates the handling in do_be which seems wrong */
-	int retval = is_fixup ? MIPS_BE_FIXUP : MIPS_BE_FATAL;
-
-	mips_cm_error_report();
-
-	return retval;
-}
