@@ -17,6 +17,7 @@
  */
 
 #include <linux/ioport.h>
+#include <linux/list.h>
 #include <linux/of.h>
 
 /*
@@ -25,7 +26,7 @@
  * single controller supporting multiple channels.
  */
 struct pci_controller {
-	struct pci_controller *next;
+	struct list_head list;
 	struct pci_bus *bus;
 	struct device_node *of_node;
 
