@@ -64,6 +64,7 @@
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
+			next-level-cache = <&l2>;
 		};
 
 		cpu1: cpu@1 {
@@ -71,6 +72,7 @@
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
+			next-level-cache = <&l2>;
 		};
 
 		cpu2: cpu@2 {
@@ -78,6 +80,7 @@
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
+			next-level-cache = <&l2>;
 		};
 
 		cpu3: cpu@3 {
@@ -85,6 +88,11 @@
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
+			next-level-cache = <&l2>;
+		};
+
+		l2: l2-cache0 {
+			compatible = "cache";
 		};
 	};
 
