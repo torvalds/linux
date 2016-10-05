@@ -1022,7 +1022,16 @@ static u8 append_local_name(struct hci_dev *hdev, u8 *ptr, u8 ad_len)
 
 static u8 create_default_scan_rsp_data(struct hci_dev *hdev, u8 *ptr)
 {
-	return append_local_name(hdev, ptr, 0);
+	u8 scan_rsp_len = 0;
+
+	if (hdev->appearance) {
+		ptr[0] = 3;
+		ptr[1] = EIR_APPEARANCE;
+		put_unaligned_le16(hdev->appearance, ptr + 2);
+		scan_rsp_len += 4;
+	}
+
+	return append_local_name(hdev, ptr + scan_rsp_len, scan_rsp_len);
 }
 
 static u8 create_instance_scan_rsp_data(struct hci_dev *hdev, u8 instance,
