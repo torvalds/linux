@@ -454,11 +454,8 @@ static bool referring_call_exists(struct nfs_client *clp,
 				((u32 *)&rclist->rcl_sessionid.data)[3],
 				ref->rc_sequenceid, ref->rc_slotid);
 
-			spin_lock(&tbl->slot_tbl_lock);
-			status = (test_bit(ref->rc_slotid, tbl->used_slots) &&
-				  tbl->slots[ref->rc_slotid].seq_nr ==
-					ref->rc_sequenceid);
-			spin_unlock(&tbl->slot_tbl_lock);
+			status = nfs4_slot_wait_on_seqid(tbl, ref->rc_slotid,
+					ref->rc_sequenceid, HZ >> 1) < 0;
 			if (status)
 				goto out;
 		}
@@ -487,7 +484,6 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 		goto out;
 
 	tbl = &clp->cl_session->bc_slot_table;
-	slot = tbl->slots + args->csa_slotid;
 
 	/* Set up res before grabbing the spinlock */
 	memcpy(&res->csr_sessionid, &args->csa_sessionid,

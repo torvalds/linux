@@ -174,6 +174,7 @@ struct mlx5_eswitch_rep {
 	void		      *priv_data;
 	struct list_head       vport_sqs_list;
 	bool		       valid;
+	u8		       hw_id[ETH_ALEN];
 };
 
 struct mlx5_esw_offload {

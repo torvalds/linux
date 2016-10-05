@@ -744,7 +744,8 @@ static void igb_ptp_tx_hwtstamp(struct igb_adapter *adapter)
 		}
 	}
 
-	shhwtstamps.hwtstamp = ktime_sub_ns(shhwtstamps.hwtstamp, adjust);
+	shhwtstamps.hwtstamp =
+		ktime_add_ns(shhwtstamps.hwtstamp, adjust);
 
 	skb_tstamp_tx(adapter->ptp_tx_skb, &shhwtstamps);
 	dev_kfree_skb_any(adapter->ptp_tx_skb);
@@ -767,13 +768,32 @@ void igb_ptp_rx_pktstamp(struct igb_q_vector *q_vector,
 			 struct sk_buff *skb)
 {
 	__le64 *regval = (__le64 *)va;
+	struct igb_adapter *adapter = q_vector->adapter;
+	int adjust = 0;
 
 	/* The timestamp is recorded in little endian format.
 	 * DWORD: 0        1        2        3
 	 * Field: Reserved Reserved SYSTIML  SYSTIMH
 	 */
-	igb_ptp_systim_to_hwtstamp(q_vector->adapter, skb_hwtstamps(skb),
+	igb_ptp_systim_to_hwtstamp(adapter, skb_hwtstamps(skb),
 				   le64_to_cpu(regval[1]));
+
+	/* adjust timestamp for the RX latency based on link speed */
+	if (adapter->hw.mac.type == e1000_i210) {
+		switch (adapter->link_speed) {
+		case SPEED_10:
+			adjust = IGB_I210_RX_LATENCY_10;
+			break;
+		case SPEED_100:
+			adjust = IGB_I210_RX_LATENCY_100;
+			break;
+		case SPEED_1000:
+			adjust = IGB_I210_RX_LATENCY_1000;
+			break;
+		}
+	}
+	skb_hwtstamps(skb)->hwtstamp =
+		ktime_sub_ns(skb_hwtstamps(skb)->hwtstamp, adjust);
 }
 
 /**
@@ -825,7 +845,7 @@ void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector,
 		}
 	}
 	skb_hwtstamps(skb)->hwtstamp =
-		ktime_add_ns(skb_hwtstamps(skb)->hwtstamp, adjust);
+		ktime_sub_ns(skb_hwtstamps(skb)->hwtstamp, adjust);
 
 	/* Update the last_rx_timestamp timer in order to enable watchdog check
 	 * for error case of latched timestamp on a dropped packet.

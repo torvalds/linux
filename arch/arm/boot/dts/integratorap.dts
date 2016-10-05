@@ -42,7 +42,7 @@
 	};
 
 	syscon {
-		compatible = "arm,integrator-ap-syscon";
+		compatible = "arm,integrator-ap-syscon", "syscon";
 		reg = <0x11000000 0x100>;
 		interrupt-parent = <&pic>;
 		/* These are the logical module IRQs */

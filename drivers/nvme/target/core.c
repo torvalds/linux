@@ -13,6 +13,7 @@
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
+#include <linux/random.h>
 #include "nvmet.h"
 
 static struct nvmet_fabrics_ops *nvmet_transports[NVMF_TRTYPE_MAX];
@@ -727,6 +728,9 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 
 	memcpy(ctrl->subsysnqn, subsysnqn, NVMF_NQN_SIZE);
 	memcpy(ctrl->hostnqn, hostnqn, NVMF_NQN_SIZE);
+
+	/* generate a random serial number as our controllers are ephemeral: */
+	get_random_bytes(&ctrl->serial, sizeof(ctrl->serial));
 
 	kref_init(&ctrl->ref);
 	ctrl->subsys = subsys;

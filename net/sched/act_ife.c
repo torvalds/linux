@@ -53,7 +53,7 @@ int ife_tlv_meta_encode(void *skbdata, u16 attrtype, u16 dlen, const void *dval)
 	u32 *tlv = (u32 *)(skbdata);
 	u16 totlen = nla_total_size(dlen);	/*alignment + hdr */
 	char *dptr = (char *)tlv + NLA_HDRLEN;
-	u32 htlv = attrtype << 16 | totlen;
+	u32 htlv = attrtype << 16 | (dlen + NLA_HDRLEN);
 
 	*tlv = htonl(htlv);
 	memset(dptr, 0, totlen - NLA_HDRLEN);
@@ -135,7 +135,7 @@ EXPORT_SYMBOL_GPL(ife_release_meta_gen);
 
 int ife_validate_meta_u32(void *val, int len)
 {
-	if (len == 4)
+	if (len == sizeof(u32))
 		return 0;
 
 	return -EINVAL;
@@ -144,8 +144,8 @@ EXPORT_SYMBOL_GPL(ife_validate_meta_u32);
 
 int ife_validate_meta_u16(void *val, int len)
 {
-	/* length will include padding */
-	if (len == NLA_ALIGN(2))
+	/* length will not include padding */
+	if (len == sizeof(u16))
 		return 0;
 
 	return -EINVAL;
@@ -627,7 +627,7 @@ static int tcf_ife_decode(struct sk_buff *skb, const struct tc_action *a,
 	struct tcf_ife_info *ife = to_ife(a);
 	int action = ife->tcf_action;
 	struct ifeheadr *ifehdr = (struct ifeheadr *)skb->data;
-	u16 ifehdrln = ifehdr->metalen;
+	int ifehdrln = (int)ifehdr->metalen;
 	struct meta_tlvhdr *tlv = (struct meta_tlvhdr *)(ifehdr->tlv_data);
 
 	spin_lock(&ife->tcf_lock);
@@ -652,12 +652,14 @@ static int tcf_ife_decode(struct sk_buff *skb, const struct tc_action *a,
 		u8 *tlvdata = (u8 *)tlv;
 		u16 mtype = tlv->type;
 		u16 mlen = tlv->len;
+		u16 alen;
 
 		mtype = ntohs(mtype);
 		mlen = ntohs(mlen);
+		alen = NLA_ALIGN(mlen);
 
-		if (find_decode_metaid(skb, ife, mtype, (mlen - 4),
-				       (void *)(tlvdata + 4))) {
+		if (find_decode_metaid(skb, ife, mtype, (mlen - NLA_HDRLEN),
+				       (void *)(tlvdata + NLA_HDRLEN))) {
 			/* abuse overlimits to count when we receive metadata
 			 * but dont have an ops for it
 			 */
@@ -666,8 +668,8 @@ static int tcf_ife_decode(struct sk_buff *skb, const struct tc_action *a,
 			ife->tcf_qstats.overlimits++;
 		}
 
-		tlvdata += mlen;
-		ifehdrln -= mlen;
+		tlvdata += alen;
+		ifehdrln -= alen;
 		tlv = (struct meta_tlvhdr *)tlvdata;
 	}
 
@@ -738,8 +740,6 @@ static int tcf_ife_encode(struct sk_buff *skb, const struct tc_action *a,
 		return TC_ACT_SHOT;
 	}
 
-	iethh = eth_hdr(skb);
-
 	err = skb_cow_head(skb, hdrm);
 	if (unlikely(err)) {
 		ife->tcf_qstats.drops++;
@@ -750,6 +750,7 @@ static int tcf_ife_encode(struct sk_buff *skb, const struct tc_action *a,
 	if (!(at & AT_EGRESS))
 		skb_push(skb, skb->dev->hard_header_len);
 
+	iethh = (struct ethhdr *)skb->data;
 	__skb_push(skb, hdrm);
 	memcpy(skb->data, iethh, skb->mac_len);
 	skb_reset_mac_header(skb);

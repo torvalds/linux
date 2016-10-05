@@ -771,8 +771,10 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 	priv->dev = dev;
 
 	priv->regs = devm_ioremap_resource(dev, &res_regs);
-	if (IS_ERR(priv->regs))
-		return PTR_ERR(priv->regs);
+	if (IS_ERR(priv->regs)) {
+		err = PTR_ERR(priv->regs);
+		goto out_put_node;
+	}
 
 	dev_dbg(dev, "Registers base address is 0x%p\n", priv->regs);
 

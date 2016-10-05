@@ -706,6 +706,7 @@ void handle_link_up(struct work_struct *work);
 void handle_link_down(struct work_struct *work);
 void handle_link_downgrade(struct work_struct *work);
 void handle_link_bounce(struct work_struct *work);
+void handle_start_link(struct work_struct *work);
 void handle_sma_message(struct work_struct *work);
 void reset_qsfp(struct hfi1_pportdata *ppd);
 void qsfp_event(struct work_struct *work);

@@ -482,20 +482,10 @@ enum dcb_pfc_type {
 	pfc_enabled_rx
 };
 
-struct tc_configuration {
-	enum dcb_pfc_type  dcb_pfc;
-};
-
 struct mlx4_en_cee_config {
 	bool	pfc_state;
-	struct	tc_configuration tc_config[MLX4_EN_NUM_UP];
+	enum	dcb_pfc_type dcb_pfc[MLX4_EN_NUM_UP];
 };
-
-struct mlx4_en_cee_params {
-	u8 dcbx_cap;
-	struct mlx4_en_cee_config dcb_cfg;
-};
-
 #endif
 
 struct ethtool_flow_id {
@@ -624,7 +614,8 @@ struct mlx4_en_priv {
 	struct ieee_ets ets;
 	u16 maxrate[IEEE_8021QAZ_MAX_TCS];
 	enum dcbnl_cndd_states cndd_state[IEEE_8021QAZ_MAX_TCS];
-	struct mlx4_en_cee_params cee_params;
+	struct mlx4_en_cee_config cee_config;
+	u8 dcbx_cap;
 #endif
 #ifdef CONFIG_RFS_ACCEL
 	spinlock_t filters_lock;

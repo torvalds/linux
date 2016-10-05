@@ -127,6 +127,7 @@ config XGENE_SLIMPRO_MBOX
 config BCM_PDC_MBOX
 	tristate "Broadcom PDC Mailbox"
 	depends on ARM64 || COMPILE_TEST
+	depends on HAS_DMA
 	default ARCH_BCM_IPROC
 	help
 	  Mailbox implementation for the Broadcom PDC ring manager,

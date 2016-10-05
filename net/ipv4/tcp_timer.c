@@ -384,6 +384,7 @@ static void tcp_fastopen_synack_timer(struct sock *sk)
 	 */
 	inet_rtx_syn_ack(sk, req);
 	req->num_timeout++;
+	icsk->icsk_retransmits++;
 	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
 			  TCP_TIMEOUT_INIT << req->num_timeout, TCP_RTO_MAX);
 }

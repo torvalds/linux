@@ -1543,15 +1543,10 @@ static void nvme_disable_io_queues(struct nvme_dev *dev)
 		reinit_completion(&dev->ioq_wait);
  retry:
 		timeout = ADMIN_TIMEOUT;
-		for (; i > 0; i--) {
-			struct nvme_queue *nvmeq = dev->queues[i];
-
-			if (!pass)
-				nvme_suspend_queue(nvmeq);
-			if (nvme_delete_queue(nvmeq, opcode))
+		for (; i > 0; i--, sent++)
+			if (nvme_delete_queue(dev->queues[i], opcode))
 				break;
-			++sent;
-		}
+
 		while (sent--) {
 			timeout = wait_for_completion_io_timeout(&dev->ioq_wait, timeout);
 			if (timeout == 0)
@@ -1693,11 +1688,17 @@ static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 		nvme_stop_queues(&dev->ctrl);
 		csts = readl(dev->bar + NVME_REG_CSTS);
 	}
+
+	for (i = dev->queue_count - 1; i > 0; i--)
+		nvme_suspend_queue(dev->queues[i]);
+
 	if (csts & NVME_CSTS_CFS || !(csts & NVME_CSTS_RDY)) {
-		for (i = dev->queue_count - 1; i >= 0; i--) {
-			struct nvme_queue *nvmeq = dev->queues[i];
-			nvme_suspend_queue(nvmeq);
-		}
+		/* A device might become IO incapable very soon during
+		 * probe, before the admin queue is configured. Thus,
+		 * queue_count can be 0 here.
+		 */
+		if (dev->queue_count)
+			nvme_suspend_queue(dev->queues[0]);
 	} else {
 		nvme_disable_io_queues(dev);
 		nvme_disable_admin_queue(dev, shutdown);
@@ -2115,6 +2116,8 @@ static const struct pci_device_id nvme_id_table[] = {
 	{ PCI_VDEVICE(INTEL, 0x5845),	/* Qemu emulated controller */
 		.driver_data = NVME_QUIRK_IDENTIFY_CNS, },
 	{ PCI_DEVICE(0x1c58, 0x0003),	/* HGST adapter */
+		.driver_data = NVME_QUIRK_DELAY_BEFORE_CHK_RDY, },
+	{ PCI_DEVICE(0x1c5f, 0x0540),	/* Memblaze Pblaze4 adapter */
 		.driver_data = NVME_QUIRK_DELAY_BEFORE_CHK_RDY, },
 	{ PCI_DEVICE_CLASS(PCI_CLASS_STORAGE_EXPRESS, 0xffffff) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_APPLE, 0x2001) },

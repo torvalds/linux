@@ -458,6 +458,11 @@ static void __intel_cqm_event_count(void *info);
 static void init_mbm_sample(u32 rmid, u32 evt_type);
 static void __intel_mbm_event_count(void *info);
 
+static bool is_cqm_event(int e)
+{
+	return (e == QOS_L3_OCCUP_EVENT_ID);
+}
+
 static bool is_mbm_event(int e)
 {
 	return (e >= QOS_MBM_TOTAL_EVENT_ID && e <= QOS_MBM_LOCAL_EVENT_ID);
@@ -1364,6 +1369,10 @@ static int intel_cqm_event_init(struct perf_event *event)
 
 	if ((event->attr.config < QOS_L3_OCCUP_EVENT_ID) ||
 	     (event->attr.config > QOS_MBM_LOCAL_EVENT_ID))
+		return -EINVAL;
+
+	if ((is_cqm_event(event->attr.config) && !cqm_enabled) ||
+	    (is_mbm_event(event->attr.config) && !mbm_enabled))
 		return -EINVAL;
 
 	/* unsupported modes and filters */

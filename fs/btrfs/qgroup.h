@@ -46,7 +46,8 @@ int btrfs_quota_disable(struct btrfs_trans_handle *trans,
 			struct btrfs_fs_info *fs_info);
 int btrfs_qgroup_rescan(struct btrfs_fs_info *fs_info);
 void btrfs_qgroup_rescan_resume(struct btrfs_fs_info *fs_info);
-int btrfs_qgroup_wait_for_completion(struct btrfs_fs_info *fs_info);
+int btrfs_qgroup_wait_for_completion(struct btrfs_fs_info *fs_info,
+				     bool interruptible);
 int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans,
 			      struct btrfs_fs_info *fs_info, u64 src, u64 dst);
 int btrfs_del_qgroup_relation(struct btrfs_trans_handle *trans,
@@ -63,10 +64,35 @@ void btrfs_free_qgroup_config(struct btrfs_fs_info *fs_info);
 struct btrfs_delayed_extent_op;
 int btrfs_qgroup_prepare_account_extents(struct btrfs_trans_handle *trans,
 					 struct btrfs_fs_info *fs_info);
-struct btrfs_qgroup_extent_record *
-btrfs_qgroup_insert_dirty_extent(struct btrfs_fs_info *fs_info,
-				 struct btrfs_delayed_ref_root *delayed_refs,
-				 struct btrfs_qgroup_extent_record *record);
+/*
+ * Insert one dirty extent record into @delayed_refs, informing qgroup to
+ * account that extent at commit trans time.
+ *
+ * No lock version, caller must acquire delayed ref lock and allocate memory.
+ *
+ * Return 0 for success insert
+ * Return >0 for existing record, caller can free @record safely.
+ * Error is not possible
+ */
+int btrfs_qgroup_insert_dirty_extent_nolock(
+		struct btrfs_fs_info *fs_info,
+		struct btrfs_delayed_ref_root *delayed_refs,
+		struct btrfs_qgroup_extent_record *record);
+
+/*
+ * Insert one dirty extent record into @delayed_refs, informing qgroup to
+ * account that extent at commit trans time.
+ *
+ * Better encapsulated version.
+ *
+ * Return 0 if the operation is done.
+ * Return <0 for error, like memory allocation failure or invalid parameter
+ * (NULL trans)
+ */
+int btrfs_qgroup_insert_dirty_extent(struct btrfs_trans_handle *trans,
+		struct btrfs_fs_info *fs_info, u64 bytenr, u64 num_bytes,
+		gfp_t gfp_flag);
+
 int
 btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans,
 			    struct btrfs_fs_info *fs_info,

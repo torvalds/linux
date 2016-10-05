@@ -4469,17 +4469,21 @@ int sctp_transport_lookup_process(int (*cb)(struct sctp_transport *, void *),
 				  const union sctp_addr *paddr, void *p)
 {
 	struct sctp_transport *transport;
-	int err = 0;
+	int err = -ENOENT;
 
 	rcu_read_lock();
 	transport = sctp_addrs_lookup_transport(net, laddr, paddr);
 	if (!transport || !sctp_transport_hold(transport))
 		goto out;
-	err = cb(transport, p);
+
+	sctp_association_hold(transport->asoc);
 	sctp_transport_put(transport);
 
-out:
 	rcu_read_unlock();
+	err = cb(transport, p);
+	sctp_association_put(transport->asoc);
+
+out:
 	return err;
 }
 EXPORT_SYMBOL_GPL(sctp_transport_lookup_process);

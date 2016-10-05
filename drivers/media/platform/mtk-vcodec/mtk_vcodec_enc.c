@@ -490,7 +490,6 @@ static int vidioc_venc_s_fmt_out(struct file *file, void *priv,
 	struct mtk_q_data *q_data;
 	int ret, i;
 	struct mtk_video_fmt *fmt;
-	unsigned int pitch_w_div16;
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 
 	vq = v4l2_m2m_get_vq(ctx->m2m_ctx, f->type);
@@ -532,15 +531,6 @@ static int vidioc_venc_s_fmt_out(struct file *file, void *priv,
 
 	q_data->coded_width = f->fmt.pix_mp.width;
 	q_data->coded_height = f->fmt.pix_mp.height;
-
-	pitch_w_div16 = DIV_ROUND_UP(q_data->visible_width, 16);
-	if (pitch_w_div16 % 8 != 0) {
-		/* Adjust returned width/height, so application could correctly
-		 * allocate hw required memory
-		 */
-		q_data->visible_height += 32;
-		vidioc_try_fmt(f, q_data->fmt);
-	}
 
 	q_data->field = f->fmt.pix_mp.field;
 	ctx->colorspace = f->fmt.pix_mp.colorspace;
@@ -947,7 +937,8 @@ static int mtk_venc_encode_header(void *priv)
 {
 	struct mtk_vcodec_ctx *ctx = priv;
 	int ret;
-	struct vb2_buffer *dst_buf;
+	struct vb2_buffer *src_buf, *dst_buf;
+	struct vb2_v4l2_buffer *dst_vb2_v4l2, *src_vb2_v4l2;
 	struct mtk_vcodec_mem bs_buf;
 	struct venc_done_result enc_result;
 
@@ -979,6 +970,15 @@ static int mtk_venc_encode_header(void *priv)
 				  VB2_BUF_STATE_ERROR);
 		mtk_v4l2_err("venc_if_encode failed=%d", ret);
 		return -EINVAL;
+	}
+	src_buf = v4l2_m2m_next_src_buf(ctx->m2m_ctx);
+	if (src_buf) {
+		src_vb2_v4l2 = to_vb2_v4l2_buffer(src_buf);
+		dst_vb2_v4l2 = to_vb2_v4l2_buffer(dst_buf);
+		dst_buf->timestamp = src_buf->timestamp;
+		dst_vb2_v4l2->timecode = src_vb2_v4l2->timecode;
+	} else {
+		mtk_v4l2_err("No timestamp for the header buffer.");
 	}
 
 	ctx->state = MTK_STATE_HEADER;
@@ -1072,7 +1072,7 @@ static void mtk_venc_worker(struct work_struct *work)
 	struct mtk_vcodec_mem bs_buf;
 	struct venc_done_result enc_result;
 	int ret, i;
-	struct vb2_v4l2_buffer *vb2_v4l2;
+	struct vb2_v4l2_buffer *dst_vb2_v4l2, *src_vb2_v4l2;
 
 	/* check dst_buf, dst_buf may be removed in device_run
 	 * to stored encdoe header so we need check dst_buf and
@@ -1112,9 +1112,14 @@ static void mtk_venc_worker(struct work_struct *work)
 	ret = venc_if_encode(ctx, VENC_START_OPT_ENCODE_FRAME,
 			     &frm_buf, &bs_buf, &enc_result);
 
-	vb2_v4l2 = container_of(dst_buf, struct vb2_v4l2_buffer, vb2_buf);
+	src_vb2_v4l2 = to_vb2_v4l2_buffer(src_buf);
+	dst_vb2_v4l2 = to_vb2_v4l2_buffer(dst_buf);
+
+	dst_buf->timestamp = src_buf->timestamp;
+	dst_vb2_v4l2->timecode = src_vb2_v4l2->timecode;
+
 	if (enc_result.is_key_frm)
-		vb2_v4l2->flags |= V4L2_BUF_FLAG_KEYFRAME;
+		dst_vb2_v4l2->flags |= V4L2_BUF_FLAG_KEYFRAME;
 
 	if (ret) {
 		v4l2_m2m_buf_done(to_vb2_v4l2_buffer(src_buf),
@@ -1286,7 +1291,7 @@ int mtk_vcodec_enc_ctrls_setup(struct mtk_vcodec_ctx *ctx)
 			0, V4L2_MPEG_VIDEO_HEADER_MODE_SEPARATE);
 	v4l2_ctrl_new_std_menu(handler, ops, V4L2_CID_MPEG_VIDEO_H264_PROFILE,
 			V4L2_MPEG_VIDEO_H264_PROFILE_HIGH,
-			0, V4L2_MPEG_VIDEO_H264_PROFILE_MAIN);
+			0, V4L2_MPEG_VIDEO_H264_PROFILE_HIGH);
 	v4l2_ctrl_new_std_menu(handler, ops, V4L2_CID_MPEG_VIDEO_H264_LEVEL,
 			V4L2_MPEG_VIDEO_H264_LEVEL_4_2,
 			0, V4L2_MPEG_VIDEO_H264_LEVEL_4_0);
@@ -1357,5 +1362,10 @@ int mtk_venc_lock(struct mtk_vcodec_ctx *ctx)
 
 void mtk_vcodec_enc_release(struct mtk_vcodec_ctx *ctx)
 {
-	venc_if_deinit(ctx);
+	int ret = venc_if_deinit(ctx);
+
+	if (ret)
+		mtk_v4l2_err("venc_if_deinit failed=%d", ret);
+
+	ctx->state = MTK_STATE_FREE;
 }

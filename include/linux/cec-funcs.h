@@ -162,10 +162,11 @@ static inline void cec_msg_standby(struct cec_msg *msg)
 
 
 /* One Touch Record Feature */
-static inline void cec_msg_record_off(struct cec_msg *msg)
+static inline void cec_msg_record_off(struct cec_msg *msg, bool reply)
 {
 	msg->len = 2;
 	msg->msg[1] = CEC_MSG_RECORD_OFF;
+	msg->reply = reply ? CEC_MSG_RECORD_STATUS : 0;
 }
 
 struct cec_op_arib_data {
@@ -227,7 +228,7 @@ static inline void cec_set_digital_service_id(__u8 *msg,
 	if (digital->service_id_method == CEC_OP_SERVICE_ID_METHOD_BY_CHANNEL) {
 		*msg++ = (digital->channel.channel_number_fmt << 2) |
 			 (digital->channel.major >> 8);
-		*msg++ = digital->channel.major && 0xff;
+		*msg++ = digital->channel.major & 0xff;
 		*msg++ = digital->channel.minor >> 8;
 		*msg++ = digital->channel.minor & 0xff;
 		*msg++ = 0;
@@ -323,6 +324,7 @@ static inline void cec_msg_record_on_phys_addr(struct cec_msg *msg,
 }
 
 static inline void cec_msg_record_on(struct cec_msg *msg,
+				     bool reply,
 				     const struct cec_op_record_src *rec_src)
 {
 	switch (rec_src->type) {
@@ -346,6 +348,7 @@ static inline void cec_msg_record_on(struct cec_msg *msg,
 					    rec_src->ext_phys_addr.phys_addr);
 		break;
 	}
+	msg->reply = reply ? CEC_MSG_RECORD_STATUS : 0;
 }
 
 static inline void cec_ops_record_on(const struct cec_msg *msg,
@@ -1141,6 +1144,75 @@ static inline void cec_msg_give_device_vendor_id(struct cec_msg *msg,
 	msg->reply = reply ? CEC_MSG_DEVICE_VENDOR_ID : 0;
 }
 
+static inline void cec_msg_vendor_command(struct cec_msg *msg,
+					  __u8 size, const __u8 *vendor_cmd)
+{
+	if (size > 14)
+		size = 14;
+	msg->len = 2 + size;
+	msg->msg[1] = CEC_MSG_VENDOR_COMMAND;
+	memcpy(msg->msg + 2, vendor_cmd, size);
+}
+
+static inline void cec_ops_vendor_command(const struct cec_msg *msg,
+					  __u8 *size,
+					  const __u8 **vendor_cmd)
+{
+	*size = msg->len - 2;
+
+	if (*size > 14)
+		*size = 14;
+	*vendor_cmd = msg->msg + 2;
+}
+
+static inline void cec_msg_vendor_command_with_id(struct cec_msg *msg,
+						  __u32 vendor_id, __u8 size,
+						  const __u8 *vendor_cmd)
+{
+	if (size > 11)
+		size = 11;
+	msg->len = 5 + size;
+	msg->msg[1] = CEC_MSG_VENDOR_COMMAND_WITH_ID;
+	msg->msg[2] = vendor_id >> 16;
+	msg->msg[3] = (vendor_id >> 8) & 0xff;
+	msg->msg[4] = vendor_id & 0xff;
+	memcpy(msg->msg + 5, vendor_cmd, size);
+}
+
+static inline void cec_ops_vendor_command_with_id(const struct cec_msg *msg,
+						  __u32 *vendor_id,  __u8 *size,
+						  const __u8 **vendor_cmd)
+{
+	*size = msg->len - 5;
+
+	if (*size > 11)
+		*size = 11;
+	*vendor_id = (msg->msg[2] << 16) | (msg->msg[3] << 8) | msg->msg[4];
+	*vendor_cmd = msg->msg + 5;
+}
+
+static inline void cec_msg_vendor_remote_button_down(struct cec_msg *msg,
+						     __u8 size,
+						     const __u8 *rc_code)
+{
+	if (size > 14)
+		size = 14;
+	msg->len = 2 + size;
+	msg->msg[1] = CEC_MSG_VENDOR_REMOTE_BUTTON_DOWN;
+	memcpy(msg->msg + 2, rc_code, size);
+}
+
+static inline void cec_ops_vendor_remote_button_down(const struct cec_msg *msg,
+						     __u8 *size,
+						     const __u8 **rc_code)
+{
+	*size = msg->len - 2;
+
+	if (*size > 14)
+		*size = 14;
+	*rc_code = msg->msg + 2;
+}
+
 static inline void cec_msg_vendor_remote_button_up(struct cec_msg *msg)
 {
 	msg->len = 2;
@@ -1277,7 +1349,7 @@ static inline void cec_msg_user_control_pressed(struct cec_msg *msg,
 		msg->len += 4;
 		msg->msg[3] = (ui_cmd->channel_identifier.channel_number_fmt << 2) |
 			      (ui_cmd->channel_identifier.major >> 8);
-		msg->msg[4] = ui_cmd->channel_identifier.major && 0xff;
+		msg->msg[4] = ui_cmd->channel_identifier.major & 0xff;
 		msg->msg[5] = ui_cmd->channel_identifier.minor >> 8;
 		msg->msg[6] = ui_cmd->channel_identifier.minor & 0xff;
 		break;

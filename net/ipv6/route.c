@@ -1986,8 +1986,17 @@ static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg)
 			if (!(gwa_type & IPV6_ADDR_UNICAST))
 				goto out;
 
-			if (cfg->fc_table)
+			if (cfg->fc_table) {
 				grt = ip6_nh_lookup_table(net, cfg, gw_addr);
+
+				if (grt) {
+					if (grt->rt6i_flags & RTF_GATEWAY ||
+					    (dev && dev != grt->dst.dev)) {
+						ip6_rt_put(grt);
+						grt = NULL;
+					}
+				}
+			}
 
 			if (!grt)
 				grt = rt6_lookup(net, gw_addr, NULL,
@@ -3193,7 +3202,9 @@ static int rt6_fill_node(struct net *net,
 	if (iif) {
 #ifdef CONFIG_IPV6_MROUTE
 		if (ipv6_addr_is_multicast(&rt->rt6i_dst.addr)) {
-			int err = ip6mr_get_route(net, skb, rtm, nowait);
+			int err = ip6mr_get_route(net, skb, rtm, nowait,
+						  portid);
+
 			if (err <= 0) {
 				if (!nowait) {
 					if (err == 0)

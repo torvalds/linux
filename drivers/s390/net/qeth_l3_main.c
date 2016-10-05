@@ -257,6 +257,11 @@ int qeth_l3_delete_ip(struct qeth_card *card, struct qeth_ipaddr *tmp_addr)
 	if (addr->in_progress)
 		return -EINPROGRESS;
 
+	if (!qeth_card_hw_is_reachable(card)) {
+		addr->disp_flag = QETH_DISP_ADDR_DELETE;
+		return 0;
+	}
+
 	rc = qeth_l3_deregister_addr_entry(card, addr);
 
 	hash_del(&addr->hnode);
@@ -295,6 +300,11 @@ int qeth_l3_add_ip(struct qeth_card *card, struct qeth_ipaddr *tmp_addr)
 		}
 		hash_add(card->ip_htable, &addr->hnode,
 				qeth_l3_ipaddr_hash(addr));
+
+		if (!qeth_card_hw_is_reachable(card)) {
+			addr->disp_flag = QETH_DISP_ADDR_ADD;
+			return 0;
+		}
 
 		/* qeth_l3_register_addr_entry can go to sleep
 		 * if we add a IPV4 addr. It is caused by the reason
@@ -390,12 +400,16 @@ static void qeth_l3_recover_ip(struct qeth_card *card)
 	int i;
 	int rc;
 
-	QETH_CARD_TEXT(card, 4, "recoverip");
+	QETH_CARD_TEXT(card, 4, "recovrip");
 
 	spin_lock_bh(&card->ip_lock);
 
 	hash_for_each_safe(card->ip_htable, i, tmp, addr, hnode) {
-		if (addr->disp_flag == QETH_DISP_ADDR_ADD) {
+		if (addr->disp_flag == QETH_DISP_ADDR_DELETE) {
+			qeth_l3_deregister_addr_entry(card, addr);
+			hash_del(&addr->hnode);
+			kfree(addr);
+		} else if (addr->disp_flag == QETH_DISP_ADDR_ADD) {
 			if (addr->proto == QETH_PROT_IPV4) {
 				addr->in_progress = 1;
 				spin_unlock_bh(&card->ip_lock);
@@ -407,10 +421,8 @@ static void qeth_l3_recover_ip(struct qeth_card *card)
 
 			if (!rc) {
 				addr->disp_flag = QETH_DISP_ADDR_DO_NOTHING;
-				if (addr->ref_counter < 1) {
+				if (addr->ref_counter < 1)
 					qeth_l3_delete_ip(card, addr);
-					kfree(addr);
-				}
 			} else {
 				hash_del(&addr->hnode);
 				kfree(addr);
@@ -689,7 +701,7 @@ int qeth_l3_add_vipa(struct qeth_card *card, enum qeth_prot_versions proto,
 
 	spin_lock_bh(&card->ip_lock);
 
-	if (!qeth_l3_ip_from_hash(card, ipaddr))
+	if (qeth_l3_ip_from_hash(card, ipaddr))
 		rc = -EEXIST;
 	else
 		qeth_l3_add_ip(card, ipaddr);
@@ -757,7 +769,7 @@ int qeth_l3_add_rxip(struct qeth_card *card, enum qeth_prot_versions proto,
 
 	spin_lock_bh(&card->ip_lock);
 
-	if (!qeth_l3_ip_from_hash(card, ipaddr))
+	if (qeth_l3_ip_from_hash(card, ipaddr))
 		rc = -EEXIST;
 	else
 		qeth_l3_add_ip(card, ipaddr);
@@ -3108,7 +3120,6 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 				card->dev->vlan_features = NETIF_F_SG |
 					NETIF_F_RXCSUM | NETIF_F_IP_CSUM |
 					NETIF_F_TSO;
-				card->dev->features = NETIF_F_SG;
 			}
 		}
 	} else if (card->info.type == QETH_CARD_TYPE_IQD) {
@@ -3136,7 +3147,6 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 	netif_keep_dst(card->dev);
 	card->dev->gso_max_size = (QETH_MAX_BUFFER_ELEMENTS(card) - 1) *
 				  PAGE_SIZE;
-	card->dev->gso_max_segs = (QETH_MAX_BUFFER_ELEMENTS(card) - 1);
 
 	SET_NETDEV_DEV(card->dev, &card->gdev->dev);
 	netif_napi_add(card->dev, &card->napi, qeth_l3_poll, QETH_NAPI_WEIGHT);
@@ -3269,6 +3279,7 @@ contin:
 		else
 			dev_open(card->dev);
 		qeth_l3_set_multicast_list(card->dev);
+		qeth_recover_features(card->dev);
 		rtnl_unlock();
 	}
 	qeth_trace_features(card);

@@ -149,7 +149,7 @@ logical address types are already defined will return with error ``EBUSY``.
 
        -  ``flags``
 
-       -  Flags. No flags are defined yet, so set this to 0.
+       -  Flags. See :ref:`cec-log-addrs-flags` for a list of available flags.
 
     -  .. row 7
 
@@ -205,6 +205,25 @@ logical address types are already defined will return with error ``EBUSY``.
           this field to all 0, or fill it in according to the CEC 2.0 guidelines to
           give the CEC framework more information about the device type, even
           though the framework won't use it directly in the CEC message.
+
+.. _cec-log-addrs-flags:
+
+.. flat-table:: Flags for struct cec_log_addrs
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       3 1 4
+
+
+    -  .. _`CEC-LOG-ADDRS-FL-ALLOW-UNREG-FALLBACK`:
+
+       -  ``CEC_LOG_ADDRS_FL_ALLOW_UNREG_FALLBACK``
+
+       -  1
+
+       -  By default if no logical address of the requested type can be claimed, then
+	  it will go back to the unconfigured state. If this flag is set, then it will
+	  fallback to the Unregistered logical address. Note that if the Unregistered
+	  logical address was explicitly requested, then this flag has no effect.
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 

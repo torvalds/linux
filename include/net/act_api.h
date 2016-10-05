@@ -176,8 +176,8 @@ int tcf_register_action(struct tc_action_ops *a, struct pernet_operations *ops);
 int tcf_unregister_action(struct tc_action_ops *a,
 			  struct pernet_operations *ops);
 int tcf_action_destroy(struct list_head *actions, int bind);
-int tcf_action_exec(struct sk_buff *skb, const struct list_head *actions,
-		    struct tcf_result *res);
+int tcf_action_exec(struct sk_buff *skb, struct tc_action **actions,
+		    int nr_actions, struct tcf_result *res);
 int tcf_action_init(struct net *net, struct nlattr *nla,
 				  struct nlattr *est, char *n, int ovr,
 				  int bind, struct list_head *);
@@ -189,30 +189,17 @@ int tcf_action_dump_old(struct sk_buff *skb, struct tc_action *a, int, int);
 int tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int, int);
 int tcf_action_copy_stats(struct sk_buff *, struct tc_action *, int);
 
-#define tc_no_actions(_exts) \
-	(list_empty(&(_exts)->actions))
-
-#define tc_for_each_action(_a, _exts) \
-	list_for_each_entry(a, &(_exts)->actions, list)
-
-#define tc_single_action(_exts) \
-	(list_is_singular(&(_exts)->actions))
+#endif /* CONFIG_NET_CLS_ACT */
 
 static inline void tcf_action_stats_update(struct tc_action *a, u64 bytes,
 					   u64 packets, u64 lastuse)
 {
+#ifdef CONFIG_NET_CLS_ACT
 	if (!a->ops->stats_update)
 		return;
 
 	a->ops->stats_update(a, bytes, packets, lastuse);
+#endif
 }
 
-#else /* CONFIG_NET_CLS_ACT */
-
-#define tc_no_actions(_exts) true
-#define tc_for_each_action(_a, _exts) while ((void)(_a), 0)
-#define tc_single_action(_exts) false
-#define tcf_action_stats_update(a, bytes, packets, lastuse)
-
-#endif /* CONFIG_NET_CLS_ACT */
 #endif

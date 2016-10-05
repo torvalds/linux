@@ -65,7 +65,8 @@ it is guaranteed that the state did change in between the two events.
 
        -  ``phys_addr``
 
-       -  The current physical address.
+       -  The current physical address. This is ``CEC_PHYS_ADDR_INVALID`` if no
+          valid physical address is set.
 
     -  .. row 2
 
@@ -73,12 +74,15 @@ it is guaranteed that the state did change in between the two events.
 
        -  ``log_addr_mask``
 
-       -  The current set of claimed logical addresses.
+       -  The current set of claimed logical addresses. This is 0 if no logical
+          addresses are claimed or if ``phys_addr`` is ``CEC_PHYS_ADDR_INVALID``.
+	  If bit 15 is set (``1 << CEC_LOG_ADDR_UNREGISTERED``) then this device
+	  has the unregistered logical address. In that case all other bits are 0.
 
-
-.. tabularcolumns:: |p{1.0cm}|p{2.0cm}|p{14.5cm}|
 
 .. c:type:: cec_event_lost_msgs
+
+.. tabularcolumns:: |p{1.0cm}|p{2.0cm}|p{14.5cm}|
 
 .. flat-table:: struct cec_event_lost_msgs
     :header-rows:  0

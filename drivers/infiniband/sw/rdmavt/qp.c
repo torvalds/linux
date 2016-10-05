@@ -873,7 +873,8 @@ bail_qpn:
 	free_qpn(&rdi->qp_dev->qpn_table, qp->ibqp.qp_num);
 
 bail_rq_wq:
-	vfree(qp->r_rq.wq);
+	if (!qp->ip)
+		vfree(qp->r_rq.wq);
 
 bail_driver_priv:
 	rdi->driver_f.qp_priv_free(rdi, qp);

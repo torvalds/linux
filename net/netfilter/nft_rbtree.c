@@ -70,7 +70,6 @@ static bool nft_rbtree_lookup(const struct net *net, const struct nft_set *set,
 		} else if (d > 0)
 			parent = parent->rb_right;
 		else {
-found:
 			if (!nft_set_elem_active(&rbe->ext, genmask)) {
 				parent = parent->rb_left;
 				continue;
@@ -84,9 +83,12 @@ found:
 		}
 	}
 
-	if (set->flags & NFT_SET_INTERVAL && interval != NULL) {
-		rbe = interval;
-		goto found;
+	if (set->flags & NFT_SET_INTERVAL && interval != NULL &&
+	    nft_set_elem_active(&interval->ext, genmask) &&
+	    !nft_rbtree_interval_end(interval)) {
+		spin_unlock_bh(&nft_rbtree_lock);
+		*ext = &interval->ext;
+		return true;
 	}
 out:
 	spin_unlock_bh(&nft_rbtree_lock);

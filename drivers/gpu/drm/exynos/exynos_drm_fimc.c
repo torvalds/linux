@@ -1753,32 +1753,6 @@ static int fimc_clk_ctrl(struct fimc_context *ctx, bool enable)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int fimc_suspend(struct device *dev)
-{
-	struct fimc_context *ctx = get_fimc_context(dev);
-
-	DRM_DEBUG_KMS("id[%d]\n", ctx->id);
-
-	if (pm_runtime_suspended(dev))
-		return 0;
-
-	return fimc_clk_ctrl(ctx, false);
-}
-
-static int fimc_resume(struct device *dev)
-{
-	struct fimc_context *ctx = get_fimc_context(dev);
-
-	DRM_DEBUG_KMS("id[%d]\n", ctx->id);
-
-	if (!pm_runtime_suspended(dev))
-		return fimc_clk_ctrl(ctx, true);
-
-	return 0;
-}
-#endif
-
 static int fimc_runtime_suspend(struct device *dev)
 {
 	struct fimc_context *ctx = get_fimc_context(dev);
@@ -1799,7 +1773,8 @@ static int fimc_runtime_resume(struct device *dev)
 #endif
 
 static const struct dev_pm_ops fimc_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(fimc_suspend, fimc_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(fimc_runtime_suspend, fimc_runtime_resume, NULL)
 };
 

@@ -776,7 +776,7 @@ resizefs_out:
 				   (struct fscrypt_policy __user *)arg,
 				   sizeof(policy)))
 			return -EFAULT;
-		return fscrypt_process_policy(inode, &policy);
+		return fscrypt_process_policy(filp, &policy);
 #else
 		return -EOPNOTSUPP;
 #endif

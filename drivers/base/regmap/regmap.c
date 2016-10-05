@@ -1474,6 +1474,12 @@ int _regmap_raw_write(struct regmap *map, unsigned int reg,
 		ret = map->bus->write(map->bus_context, buf, len);
 
 		kfree(buf);
+	} else if (ret != 0 && !map->cache_bypass && map->format.parse_val) {
+		/* regcache_drop_region() takes lock that we already have,
+		 * thus call map->cache_ops->drop() directly
+		 */
+		if (map->cache_ops && map->cache_ops->drop)
+			map->cache_ops->drop(map, reg, reg + 1);
 	}
 
 	trace_regmap_hw_write_done(map, reg, val_len / map->format.val_bytes);

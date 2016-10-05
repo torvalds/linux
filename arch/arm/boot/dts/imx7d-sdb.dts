@@ -131,7 +131,7 @@
 		ti,y-min = /bits/ 16 <0>;
 		ti,y-max = /bits/ 16 <0>;
 		ti,pressure-max = /bits/ 16 <0>;
-		ti,x-plat-ohms = /bits/ 16 <400>;
+		ti,x-plate-ohms = /bits/ 16 <400>;
 		wakeup-source;
 	};
 };

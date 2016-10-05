@@ -1219,6 +1219,7 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
 
 	/* init node's zones as empty zones, we don't have any present pages.*/
 	free_area_init_node(nid, zones_size, start_pfn, zholes_size);
+	pgdat->per_cpu_nodestats = alloc_percpu(struct per_cpu_nodestat);
 
 	/*
 	 * The node we allocated has no zone fallback lists. For avoiding
@@ -1249,6 +1250,7 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
 static void rollback_node_hotadd(int nid, pg_data_t *pgdat)
 {
 	arch_refresh_nodedata(nid, NULL);
+	free_percpu(pgdat->per_cpu_nodestats);
 	arch_free_nodedata(pgdat);
 	return;
 }
@@ -1553,8 +1555,8 @@ static struct page *new_node_page(struct page *page, unsigned long private,
 {
 	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
 	int nid = page_to_nid(page);
-	nodemask_t nmask = node_online_map;
-	struct page *new_page;
+	nodemask_t nmask = node_states[N_MEMORY];
+	struct page *new_page = NULL;
 
 	/*
 	 * TODO: allocate a destination hugepage from a nearest neighbor node,
@@ -1566,11 +1568,13 @@ static struct page *new_node_page(struct page *page, unsigned long private,
 					next_node_in(nid, nmask));
 
 	node_clear(nid, nmask);
+
 	if (PageHighMem(page)
 	    || (zone_idx(page_zone(page)) == ZONE_MOVABLE))
 		gfp_mask |= __GFP_HIGHMEM;
 
-	new_page = __alloc_pages_nodemask(gfp_mask, 0,
+	if (!nodes_empty(nmask))
+		new_page = __alloc_pages_nodemask(gfp_mask, 0,
 					node_zonelist(nid, gfp_mask), &nmask);
 	if (!new_page)
 		new_page = __alloc_pages(gfp_mask, 0,

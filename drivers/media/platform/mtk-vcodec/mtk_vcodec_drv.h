@@ -23,7 +23,6 @@
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-core.h>
 
-#include "mtk_vcodec_util.h"
 
 #define MTK_VCODEC_DRV_NAME	"mtk_vcodec_drv"
 #define MTK_VCODEC_ENC_NAME	"mtk-vcodec-enc"

@@ -13,6 +13,7 @@
 #define cache_line_size() SMP_CACHE_BYTES
 #define ____cacheline_aligned_in_smp __attribute__ ((aligned (SMP_CACHE_BYTES)))
 #define unlikely(x)    (__builtin_expect(!!(x), 0))
+#define likely(x)    (__builtin_expect(!!(x), 1))
 #define ALIGN(x, a) (((x) + (a) - 1) / (a) * (a))
 typedef pthread_spinlock_t  spinlock_t;
 

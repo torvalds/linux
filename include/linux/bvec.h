@@ -74,7 +74,8 @@ static inline void bvec_iter_advance(const struct bio_vec *bv,
 		  "Attempted to advance past end of bvec iter\n");
 
 	while (bytes) {
-		unsigned len = min(bytes, bvec_iter_len(bv, *iter));
+		unsigned iter_len = bvec_iter_len(bv, *iter);
+		unsigned len = min(bytes, iter_len);
 
 		bytes -= len;
 		iter->bi_size -= len;

@@ -2202,6 +2202,9 @@ static int mlx4_ib_alloc_diag_counters(struct mlx4_ib_dev *ibdev)
 	bool per_port = !!(ibdev->dev->caps.flags2 &
 		MLX4_DEV_CAP_FLAG2_DIAG_PER_PORT);
 
+	if (mlx4_is_slave(ibdev->dev))
+		return 0;
+
 	for (i = 0; i < MLX4_DIAG_COUNTERS_TYPES; i++) {
 		/* i == 1 means we are building port counters */
 		if (i && !per_port)

@@ -275,7 +275,6 @@ static void macvtap_put_queue(struct macvtap_queue *q)
 	rtnl_unlock();
 
 	synchronize_rcu();
-	skb_array_cleanup(&q->skb_array);
 	sock_put(&q->sk);
 }
 
@@ -533,10 +532,8 @@ static void macvtap_sock_write_space(struct sock *sk)
 static void macvtap_sock_destruct(struct sock *sk)
 {
 	struct macvtap_queue *q = container_of(sk, struct macvtap_queue, sk);
-	struct sk_buff *skb;
 
-	while ((skb = skb_array_consume(&q->skb_array)) != NULL)
-		kfree_skb(skb);
+	skb_array_cleanup(&q->skb_array);
 }
 
 static int macvtap_open(struct inode *inode, struct file *file)

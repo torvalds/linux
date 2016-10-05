@@ -87,7 +87,7 @@ config USB_MUSB_DA8XX
 config USB_MUSB_TUSB6010
 	tristate "TUSB6010"
 	depends on HAS_IOMEM
-	depends on ARCH_OMAP2PLUS || COMPILE_TEST
+	depends on (ARCH_OMAP2PLUS || COMPILE_TEST) && !BLACKFIN
 	depends on NOP_USB_XCEIV = USB_MUSB_HDRC # both built-in or both modules
 
 config USB_MUSB_OMAP2PLUS

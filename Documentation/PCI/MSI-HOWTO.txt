@@ -94,14 +94,11 @@ has a requirements for a minimum number of vectors the driver can pass a
 min_vecs argument set to this limit, and the PCI core will return -ENOSPC
 if it can't meet the minimum number of vectors.
 
-The flags argument should normally be set to 0, but can be used to pass the
-PCI_IRQ_NOMSI and PCI_IRQ_NOMSIX flag in case a device claims to support
-MSI or MSI-X, but the support is broken, or to pass PCI_IRQ_NOLEGACY in
-case the device does not support legacy interrupt lines.
-
-By default this function will spread the interrupts around the available
-CPUs, but this feature can be disabled by passing the PCI_IRQ_NOAFFINITY
-flag.
+The flags argument is used to specify which type of interrupt can be used
+by the device and the driver (PCI_IRQ_LEGACY, PCI_IRQ_MSI, PCI_IRQ_MSIX).
+A convenient short-hand (PCI_IRQ_ALL_TYPES) is also available to ask for
+any possible kind of interrupt.  If the PCI_IRQ_AFFINITY flag is set,
+pci_alloc_irq_vectors() will spread the interrupts around the available CPUs.
 
 To get the Linux IRQ numbers passed to request_irq() and free_irq() and the
 vectors, use the following function:
@@ -131,7 +128,7 @@ larger than the number supported by the device it will automatically be
 capped to the supported limit, so there is no need to query the number of
 vectors supported beforehand:
 
-	nvec = pci_alloc_irq_vectors(pdev, 1, nvec, 0);
+	nvec = pci_alloc_irq_vectors(pdev, 1, nvec, PCI_IRQ_ALL_TYPES)
 	if (nvec < 0)
 		goto out_err;
 
@@ -140,7 +137,7 @@ interrupts it can request a particular number of interrupts by passing that
 number to pci_alloc_irq_vectors() function as both 'min_vecs' and
 'max_vecs' parameters:
 
-	ret = pci_alloc_irq_vectors(pdev, nvec, nvec, 0);
+	ret = pci_alloc_irq_vectors(pdev, nvec, nvec, PCI_IRQ_ALL_TYPES);
 	if (ret < 0)
 		goto out_err;
 
@@ -148,15 +145,14 @@ The most notorious example of the request type described above is enabling
 the single MSI mode for a device.  It could be done by passing two 1s as
 'min_vecs' and 'max_vecs':
 
-	ret = pci_alloc_irq_vectors(pdev, 1, 1, 0);
+	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
 	if (ret < 0)
 		goto out_err;
 
 Some devices might not support using legacy line interrupts, in which case
-the PCI_IRQ_NOLEGACY flag can be used to fail the request if the platform
-can't provide MSI or MSI-X interrupts:
+the driver can specify that only MSI or MSI-X is acceptable:
 
-	nvec = pci_alloc_irq_vectors(pdev, 1, nvec, PCI_IRQ_NOLEGACY);
+	nvec = pci_alloc_irq_vectors(pdev, 1, nvec, PCI_IRQ_MSI | PCI_IRQ_MSIX);
 	if (nvec < 0)
 		goto out_err;
 

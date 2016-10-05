@@ -656,10 +656,6 @@ struct qp_iter *qp_iter_init(struct hfi1_ibdev *dev)
 
 	iter->dev = dev;
 	iter->specials = dev->rdi.ibdev.phys_port_cnt * 2;
-	if (qp_iter_next(iter)) {
-		kfree(iter);
-		return NULL;
-	}
 
 	return iter;
 }

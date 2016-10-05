@@ -605,12 +605,16 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 		ptrace_event(PTRACE_EVENT_SECCOMP, data);
 		/*
 		 * The delivery of a fatal signal during event
-		 * notification may silently skip tracer notification.
-		 * Terminating the task now avoids executing a system
-		 * call that may not be intended.
+		 * notification may silently skip tracer notification,
+		 * which could leave us with a potentially unmodified
+		 * syscall that the tracer would have liked to have
+		 * changed. Since the process is about to die, we just
+		 * force the syscall to be skipped and let the signal
+		 * kill the process and correctly handle any tracer exit
+		 * notifications.
 		 */
 		if (fatal_signal_pending(current))
-			do_exit(SIGSYS);
+			goto skip;
 		/* Check if the tracer forced the syscall to be skipped. */
 		this_syscall = syscall_get_nr(current, task_pt_regs(current));
 		if (this_syscall < 0)

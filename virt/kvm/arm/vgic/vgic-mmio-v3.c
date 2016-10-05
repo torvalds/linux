@@ -306,16 +306,19 @@ static void vgic_mmio_write_propbase(struct kvm_vcpu *vcpu,
 {
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
-	u64 propbaser = dist->propbaser;
+	u64 old_propbaser, propbaser;
 
 	/* Storing a value with LPIs already enabled is undefined */
 	if (vgic_cpu->lpis_enabled)
 		return;
 
-	propbaser = update_64bit_reg(propbaser, addr & 4, len, val);
-	propbaser = vgic_sanitise_propbaser(propbaser);
-
-	dist->propbaser = propbaser;
+	do {
+		old_propbaser = dist->propbaser;
+		propbaser = old_propbaser;
+		propbaser = update_64bit_reg(propbaser, addr & 4, len, val);
+		propbaser = vgic_sanitise_propbaser(propbaser);
+	} while (cmpxchg64(&dist->propbaser, old_propbaser,
+			   propbaser) != old_propbaser);
 }
 
 static unsigned long vgic_mmio_read_pendbase(struct kvm_vcpu *vcpu,
@@ -331,16 +334,19 @@ static void vgic_mmio_write_pendbase(struct kvm_vcpu *vcpu,
 				     unsigned long val)
 {
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
-	u64 pendbaser = vgic_cpu->pendbaser;
+	u64 old_pendbaser, pendbaser;
 
 	/* Storing a value with LPIs already enabled is undefined */
 	if (vgic_cpu->lpis_enabled)
 		return;
 
-	pendbaser = update_64bit_reg(pendbaser, addr & 4, len, val);
-	pendbaser = vgic_sanitise_pendbaser(pendbaser);
-
-	vgic_cpu->pendbaser = pendbaser;
+	do {
+		old_pendbaser = vgic_cpu->pendbaser;
+		pendbaser = old_pendbaser;
+		pendbaser = update_64bit_reg(pendbaser, addr & 4, len, val);
+		pendbaser = vgic_sanitise_pendbaser(pendbaser);
+	} while (cmpxchg64(&vgic_cpu->pendbaser, old_pendbaser,
+			   pendbaser) != old_pendbaser);
 }
 
 /*

@@ -185,8 +185,12 @@ long nvdimm_clear_poison(struct device *dev, phys_addr_t phys,
 		return -ENXIO;
 
 	nd_desc = nvdimm_bus->nd_desc;
+	/*
+	 * if ndctl does not exist, it's PMEM_LEGACY and
+	 * we want to just pretend everything is handled.
+	 */
 	if (!nd_desc->ndctl)
-		return -ENXIO;
+		return len;
 
 	memset(&ars_cap, 0, sizeof(ars_cap));
 	ars_cap.address = phys;

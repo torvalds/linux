@@ -1192,6 +1192,7 @@ static int dwc3_runtime_resume(struct device *dev)
 	}
 
 	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put(dev);
 
 	return 0;
 }

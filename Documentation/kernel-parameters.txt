@@ -3036,6 +3036,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 				PAGE_SIZE is used as alignment.
 				PCI-PCI bridge can be specified, if resource
 				windows need to be expanded.
+				To specify the alignment for several
+				instances of a device, the PCI vendor,
+				device, subvendor, and subdevice may be
+				specified, e.g., 4096@pci:8086:9c22:103c:198f
 		ecrc=		Enable/disable PCIe ECRC (transaction layer
 				end-to-end CRC checking).
 				bios: Use BIOS/firmware settings. This is the

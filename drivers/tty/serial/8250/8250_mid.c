@@ -168,6 +168,9 @@ static void mid8250_set_termios(struct uart_port *p,
 	unsigned long w = BIT(24) - 1;
 	unsigned long mul, div;
 
+	/* Gracefully handle the B0 case: fall back to B9600 */
+	fuart = fuart ? fuart : 9600 * 16;
+
 	if (mid->board->freq < fuart) {
 		/* Find prescaler value that satisfies Fuart < Fref */
 		if (mid->board->freq > baud)

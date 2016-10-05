@@ -1616,7 +1616,6 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 
 		sta_info_recalc_tim(sta);
 	} else {
-		unsigned long tids = sta->txq_buffered_tids & driver_release_tids;
 		int tid;
 
 		/*
@@ -1648,7 +1647,8 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 		for (tid = 0; tid < ARRAY_SIZE(sta->sta.txq); tid++) {
 			struct txq_info *txqi = to_txq_info(sta->sta.txq[tid]);
 
-			if (!(tids & BIT(tid)) || txqi->tin.backlog_packets)
+			if (!(driver_release_tids & BIT(tid)) ||
+			    txqi->tin.backlog_packets)
 				continue;
 
 			sta_info_recalc_tim(sta);

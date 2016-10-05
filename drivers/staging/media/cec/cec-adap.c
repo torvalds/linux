@@ -124,10 +124,10 @@ static void cec_queue_event(struct cec_adapter *adap,
 	u64 ts = ktime_get_ns();
 	struct cec_fh *fh;
 
-	mutex_lock(&adap->devnode.fhs_lock);
+	mutex_lock(&adap->devnode.lock);
 	list_for_each_entry(fh, &adap->devnode.fhs, list)
 		cec_queue_event_fh(fh, ev, ts);
-	mutex_unlock(&adap->devnode.fhs_lock);
+	mutex_unlock(&adap->devnode.lock);
 }
 
 /*
@@ -191,12 +191,12 @@ static void cec_queue_msg_monitor(struct cec_adapter *adap,
 	u32 monitor_mode = valid_la ? CEC_MODE_MONITOR :
 				      CEC_MODE_MONITOR_ALL;
 
-	mutex_lock(&adap->devnode.fhs_lock);
+	mutex_lock(&adap->devnode.lock);
 	list_for_each_entry(fh, &adap->devnode.fhs, list) {
 		if (fh->mode_follower >= monitor_mode)
 			cec_queue_msg_fh(fh, msg);
 	}
-	mutex_unlock(&adap->devnode.fhs_lock);
+	mutex_unlock(&adap->devnode.lock);
 }
 
 /*
@@ -207,12 +207,12 @@ static void cec_queue_msg_followers(struct cec_adapter *adap,
 {
 	struct cec_fh *fh;
 
-	mutex_lock(&adap->devnode.fhs_lock);
+	mutex_lock(&adap->devnode.lock);
 	list_for_each_entry(fh, &adap->devnode.fhs, list) {
 		if (fh->mode_follower == CEC_MODE_FOLLOWER)
 			cec_queue_msg_fh(fh, msg);
 	}
-	mutex_unlock(&adap->devnode.fhs_lock);
+	mutex_unlock(&adap->devnode.lock);
 }
 
 /* Notify userspace of an adapter state change. */
@@ -851,6 +851,9 @@ void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg)
 	if (!valid_la || msg->len <= 1)
 		return;
 
+	if (adap->log_addrs.log_addr_mask == 0)
+		return;
+
 	/*
 	 * Process the message on the protocol level. If is_reply is true,
 	 * then cec_receive_notify() won't pass on the reply to the listener(s)
@@ -1047,11 +1050,17 @@ static int cec_config_thread_func(void *arg)
 			dprintk(1, "could not claim LA %d\n", i);
 	}
 
+	if (adap->log_addrs.log_addr_mask == 0 &&
+	    !(las->flags & CEC_LOG_ADDRS_FL_ALLOW_UNREG_FALLBACK))
+		goto unconfigure;
+
 configured:
 	if (adap->log_addrs.log_addr_mask == 0) {
 		/* Fall back to unregistered */
 		las->log_addr[0] = CEC_LOG_ADDR_UNREGISTERED;
 		las->log_addr_mask = 1 << las->log_addr[0];
+		for (i = 1; i < las->num_log_addrs; i++)
+			las->log_addr[i] = CEC_LOG_ADDR_INVALID;
 	}
 	adap->is_configured = true;
 	adap->is_configuring = false;
@@ -1070,6 +1079,8 @@ configured:
 			cec_report_features(adap, i);
 		cec_report_phys_addr(adap, i);
 	}
+	for (i = las->num_log_addrs; i < CEC_MAX_LOG_ADDRS; i++)
+		las->log_addr[i] = CEC_LOG_ADDR_INVALID;
 	mutex_lock(&adap->lock);
 	adap->kthread_config = NULL;
 	mutex_unlock(&adap->lock);
@@ -1394,7 +1405,6 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 	u8 init_laddr = cec_msg_initiator(msg);
 	u8 devtype = cec_log_addr2dev(adap, dest_laddr);
 	int la_idx = cec_log_addr2idx(adap, dest_laddr);
-	bool is_directed = la_idx >= 0;
 	bool from_unregistered = init_laddr == 0xf;
 	struct cec_msg tx_cec_msg = { };
 
@@ -1556,7 +1566,7 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 		 * Unprocessed messages are aborted if userspace isn't doing
 		 * any processing either.
 		 */
-		if (is_directed && !is_reply && !adap->follower_cnt &&
+		if (!is_broadcast && !is_reply && !adap->follower_cnt &&
 		    !adap->cec_follower && msg->msg[1] != CEC_MSG_FEATURE_ABORT)
 			return cec_feature_abort(adap, msg);
 		break;

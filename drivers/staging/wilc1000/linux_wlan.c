@@ -648,7 +648,7 @@ void wilc1000_wlan_deinit(struct net_device *dev)
 			mutex_unlock(&wl->hif_cs);
 		}
 		if (&wl->txq_event)
-			wait_for_completion(&wl->txq_event);
+			complete(&wl->txq_event);
 
 		wlan_deinitialize_threads(dev);
 		deinit_irq(dev);

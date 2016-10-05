@@ -288,11 +288,15 @@ return_from_SYSCALL_64:
 	jne	opportunistic_sysret_failed
 
 	/*
-	 * SYSRET can't restore RF.  SYSRET can restore TF, but unlike IRET,
-	 * restoring TF results in a trap from userspace immediately after
-	 * SYSRET.  This would cause an infinite loop whenever #DB happens
-	 * with register state that satisfies the opportunistic SYSRET
-	 * conditions.  For example, single-stepping this user code:
+	 * SYSCALL clears RF when it saves RFLAGS in R11 and SYSRET cannot
+	 * restore RF properly. If the slowpath sets it for whatever reason, we
+	 * need to restore it correctly.
+	 *
+	 * SYSRET can restore TF, but unlike IRET, restoring TF results in a
+	 * trap from userspace immediately after SYSRET.  This would cause an
+	 * infinite loop whenever #DB happens with register state that satisfies
+	 * the opportunistic SYSRET conditions.  For example, single-stepping
+	 * this user code:
 	 *
 	 *           movq	$stuck_here, %rcx
 	 *           pushfq
@@ -601,9 +605,20 @@ apicinterrupt3 \num trace(\sym) smp_trace(\sym)
 .endm
 #endif
 
+/* Make sure APIC interrupt handlers end up in the irqentry section: */
+#if defined(CONFIG_FUNCTION_GRAPH_TRACER) || defined(CONFIG_KASAN)
+# define PUSH_SECTION_IRQENTRY	.pushsection .irqentry.text, "ax"
+# define POP_SECTION_IRQENTRY	.popsection
+#else
+# define PUSH_SECTION_IRQENTRY
+# define POP_SECTION_IRQENTRY
+#endif
+
 .macro apicinterrupt num sym do_sym
+PUSH_SECTION_IRQENTRY
 apicinterrupt3 \num \sym \do_sym
 trace_apicinterrupt \num \sym
+POP_SECTION_IRQENTRY
 .endm
 
 #ifdef CONFIG_SMP
@@ -987,7 +1002,6 @@ ENTRY(error_entry)
 	testb	$3, CS+8(%rsp)
 	jz	.Lerror_kernelspace
 
-.Lerror_entry_from_usermode_swapgs:
 	/*
 	 * We entered from user mode or we're pretending to have entered
 	 * from user mode due to an IRET fault.
@@ -1030,7 +1044,8 @@ ENTRY(error_entry)
 	 * gsbase and proceed.  We'll fix up the exception and land in
 	 * .Lgs_change's error handler with kernel gsbase.
 	 */
-	jmp	.Lerror_entry_from_usermode_swapgs
+	SWAPGS
+	jmp .Lerror_entry_done
 
 .Lbstep_iret:
 	/* Fix truncated RIP */

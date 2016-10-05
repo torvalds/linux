@@ -746,6 +746,7 @@ static void hwmp_perr_frame_process(struct ieee80211_sub_if_data *sdata,
 		sta = next_hop_deref_protected(mpath);
 		if (mpath->flags & MESH_PATH_ACTIVE &&
 		    ether_addr_equal(ta, sta->sta.addr) &&
+		    !(mpath->flags & MESH_PATH_FIXED) &&
 		    (!(mpath->flags & MESH_PATH_SN_VALID) ||
 		    SN_GT(target_sn, mpath->sn)  || target_sn == 0)) {
 			mpath->flags &= ~MESH_PATH_ACTIVE;
@@ -1012,7 +1013,7 @@ void mesh_path_start_discovery(struct ieee80211_sub_if_data *sdata)
 		goto enddiscovery;
 
 	spin_lock_bh(&mpath->state_lock);
-	if (mpath->flags & MESH_PATH_DELETED) {
+	if (mpath->flags & (MESH_PATH_DELETED | MESH_PATH_FIXED)) {
 		spin_unlock_bh(&mpath->state_lock);
 		goto enddiscovery;
 	}

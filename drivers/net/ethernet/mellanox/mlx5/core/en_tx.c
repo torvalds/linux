@@ -356,6 +356,7 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 		sq->stats.stopped++;
 	}
 
+	sq->stats.xmit_more += skb->xmit_more;
 	if (!skb->xmit_more || netif_xmit_stopped(sq->txq)) {
 		int bf_sz = 0;
 
@@ -394,35 +395,6 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 	return mlx5e_sq_xmit(sq, skb);
 }
 
-void mlx5e_free_tx_descs(struct mlx5e_sq *sq)
-{
-	struct mlx5e_tx_wqe_info *wi;
-	struct sk_buff *skb;
-	u16 ci;
-	int i;
-
-	while (sq->cc != sq->pc) {
-		ci = sq->cc & sq->wq.sz_m1;
-		skb = sq->skb[ci];
-		wi = &sq->wqe_info[ci];
-
-		if (!skb) { /* nop */
-			sq->cc++;
-			continue;
-		}
-
-		for (i = 0; i < wi->num_dma; i++) {
-			struct mlx5e_sq_dma *dma =
-				mlx5e_dma_get(sq, sq->dma_fifo_cc++);
-
-			mlx5e_tx_dma_unmap(sq->pdev, dma);
-		}
-
-		dev_kfree_skb_any(skb);
-		sq->cc += wi->num_wqebbs;
-	}
-}
-
 bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 {
 	struct mlx5e_sq *sq;
@@ -434,7 +406,7 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 
 	sq = container_of(cq, struct mlx5e_sq, cq);
 
-	if (unlikely(test_bit(MLX5E_SQ_STATE_TX_TIMEOUT, &sq->state)))
+	if (unlikely(test_bit(MLX5E_SQ_STATE_FLUSH, &sq->state)))
 		return false;
 
 	npkts = 0;
@@ -512,11 +484,39 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 	netdev_tx_completed_queue(sq->txq, npkts, nbytes);
 
 	if (netif_tx_queue_stopped(sq->txq) &&
-	    mlx5e_sq_has_room_for(sq, MLX5E_SQ_STOP_ROOM) &&
-	    likely(test_bit(MLX5E_SQ_STATE_WAKE_TXQ_ENABLE, &sq->state))) {
-				netif_tx_wake_queue(sq->txq);
-				sq->stats.wake++;
+	    mlx5e_sq_has_room_for(sq, MLX5E_SQ_STOP_ROOM)) {
+		netif_tx_wake_queue(sq->txq);
+		sq->stats.wake++;
 	}
 
 	return (i == MLX5E_TX_CQ_POLL_BUDGET);
+}
+
+void mlx5e_free_tx_descs(struct mlx5e_sq *sq)
+{
+	struct mlx5e_tx_wqe_info *wi;
+	struct sk_buff *skb;
+	u16 ci;
+	int i;
+
+	while (sq->cc != sq->pc) {
+		ci = sq->cc & sq->wq.sz_m1;
+		skb = sq->skb[ci];
+		wi = &sq->wqe_info[ci];
+
+		if (!skb) { /* nop */
+			sq->cc++;
+			continue;
+		}
+
+		for (i = 0; i < wi->num_dma; i++) {
+			struct mlx5e_sq_dma *dma =
+				mlx5e_dma_get(sq, sq->dma_fifo_cc++);
+
+			mlx5e_tx_dma_unmap(sq->pdev, dma);
+		}
+
+		dev_kfree_skb_any(skb);
+		sq->cc += wi->num_wqebbs;
+	}
 }

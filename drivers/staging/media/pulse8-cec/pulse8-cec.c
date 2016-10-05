@@ -151,14 +151,11 @@ static void pulse8_irq_work_handler(struct work_struct *work)
 		cec_transmit_done(pulse8->adap, CEC_TX_STATUS_OK,
 				  0, 0, 0, 0);
 		break;
-	case MSGCODE_TRANSMIT_FAILED_LINE:
-		cec_transmit_done(pulse8->adap, CEC_TX_STATUS_ARB_LOST,
-				  1, 0, 0, 0);
-		break;
 	case MSGCODE_TRANSMIT_FAILED_ACK:
 		cec_transmit_done(pulse8->adap, CEC_TX_STATUS_NACK,
 				  0, 1, 0, 0);
 		break;
+	case MSGCODE_TRANSMIT_FAILED_LINE:
 	case MSGCODE_TRANSMIT_FAILED_TIMEOUT_DATA:
 	case MSGCODE_TRANSMIT_FAILED_TIMEOUT_LINE:
 		cec_transmit_done(pulse8->adap, CEC_TX_STATUS_ERROR,
@@ -207,6 +204,9 @@ static irqreturn_t pulse8_interrupt(struct serio *serio, unsigned char data,
 		case MSGCODE_TRANSMIT_FAILED_TIMEOUT_LINE:
 			schedule_work(&pulse8->work);
 			break;
+		case MSGCODE_HIGH_ERROR:
+		case MSGCODE_LOW_ERROR:
+		case MSGCODE_RECEIVE_FAILED:
 		case MSGCODE_TIMEOUT_ERROR:
 			break;
 		case MSGCODE_COMMAND_ACCEPTED:
@@ -592,7 +592,7 @@ static int pulse8_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 	int err;
 
 	cmd[0] = MSGCODE_TRANSMIT_IDLETIME;
-	cmd[1] = 3;
+	cmd[1] = signal_free_time;
 	err = pulse8_send_and_wait(pulse8, cmd, 2,
 				   MSGCODE_COMMAND_ACCEPTED, 1);
 	cmd[0] = MSGCODE_TRANSMIT_ACK_POLARITY;

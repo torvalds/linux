@@ -1930,28 +1930,7 @@ asmlinkage int printk_emit(int facility, int level,
 }
 EXPORT_SYMBOL(printk_emit);
 
-#ifdef CONFIG_PRINTK
-#define define_pr_level(func, loglevel)				\
-asmlinkage __visible void func(const char *fmt, ...)		\
-{								\
-	va_list args;						\
-								\
-	va_start(args, fmt);					\
-	vprintk_default(loglevel, fmt, args);			\
-	va_end(args);						\
-}								\
-EXPORT_SYMBOL(func)
-
-define_pr_level(__pr_emerg, LOGLEVEL_EMERG);
-define_pr_level(__pr_alert, LOGLEVEL_ALERT);
-define_pr_level(__pr_crit, LOGLEVEL_CRIT);
-define_pr_level(__pr_err, LOGLEVEL_ERR);
-define_pr_level(__pr_warn, LOGLEVEL_WARNING);
-define_pr_level(__pr_notice, LOGLEVEL_NOTICE);
-define_pr_level(__pr_info, LOGLEVEL_INFO);
-#endif
-
-int vprintk_default(int level, const char *fmt, va_list args)
+int vprintk_default(const char *fmt, va_list args)
 {
 	int r;
 
@@ -1961,7 +1940,7 @@ int vprintk_default(int level, const char *fmt, va_list args)
 		return r;
 	}
 #endif
-	r = vprintk_emit(0, level, NULL, 0, fmt, args);
+	r = vprintk_emit(0, LOGLEVEL_DEFAULT, NULL, 0, fmt, args);
 
 	return r;
 }
@@ -1994,7 +1973,7 @@ asmlinkage __visible int printk(const char *fmt, ...)
 	int r;
 
 	va_start(args, fmt);
-	r = vprintk_func(LOGLEVEL_DEFAULT, fmt, args);
+	r = vprintk_func(fmt, args);
 	va_end(args);
 
 	return r;

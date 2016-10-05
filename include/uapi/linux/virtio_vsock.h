@@ -32,7 +32,7 @@
  */
 
 #ifndef _UAPI_LINUX_VIRTIO_VSOCK_H
-#define _UAPI_LINUX_VIRTIO_VOSCK_H
+#define _UAPI_LINUX_VIRTIO_VSOCK_H
 
 #include <linux/types.h>
 #include <linux/virtio_ids.h>

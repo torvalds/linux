@@ -197,7 +197,7 @@
 		gpmc,wr-access-ns = <30>;
 		gpmc,wr-data-mux-bus-ns = <0>;
 
-		elm_id = <&elm>;
+		ti,elm-id = <&elm>;
 
 		#address-cells = <1>;
 		#size-cells = <1>;

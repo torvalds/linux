@@ -318,10 +318,22 @@ static void
 nfs42_layoutstat_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs42_layoutstat_data *data = calldata;
-	struct nfs_server *server = NFS_SERVER(data->args.inode);
+	struct inode *inode = data->inode;
+	struct nfs_server *server = NFS_SERVER(inode);
+	struct pnfs_layout_hdr *lo;
 
+	spin_lock(&inode->i_lock);
+	lo = NFS_I(inode)->layout;
+	if (!pnfs_layout_is_valid(lo)) {
+		spin_unlock(&inode->i_lock);
+		rpc_exit(task, 0);
+		return;
+	}
+	nfs4_stateid_copy(&data->args.stateid, &lo->plh_stateid);
+	spin_unlock(&inode->i_lock);
 	nfs41_setup_sequence(nfs4_get_session(server), &data->args.seq_args,
 			     &data->res.seq_res, task);
+
 }
 
 static void
@@ -338,12 +350,14 @@ nfs42_layoutstat_done(struct rpc_task *task, void *calldata)
 	case 0:
 		break;
 	case -NFS4ERR_EXPIRED:
+	case -NFS4ERR_ADMIN_REVOKED:
+	case -NFS4ERR_DELEG_REVOKED:
 	case -NFS4ERR_STALE_STATEID:
-	case -NFS4ERR_OLD_STATEID:
 	case -NFS4ERR_BAD_STATEID:
 		spin_lock(&inode->i_lock);
 		lo = NFS_I(inode)->layout;
-		if (lo && nfs4_stateid_match(&data->args.stateid,
+		if (pnfs_layout_is_valid(lo) &&
+		    nfs4_stateid_match(&data->args.stateid,
 					     &lo->plh_stateid)) {
 			LIST_HEAD(head);
 
@@ -357,11 +371,23 @@ nfs42_layoutstat_done(struct rpc_task *task, void *calldata)
 		} else
 			spin_unlock(&inode->i_lock);
 		break;
+	case -NFS4ERR_OLD_STATEID:
+		spin_lock(&inode->i_lock);
+		lo = NFS_I(inode)->layout;
+		if (pnfs_layout_is_valid(lo) &&
+		    nfs4_stateid_match_other(&data->args.stateid,
+					&lo->plh_stateid)) {
+			/* Do we need to delay before resending? */
+			if (!nfs4_stateid_is_newer(&lo->plh_stateid,
+						&data->args.stateid))
+				rpc_delay(task, HZ);
+			rpc_restart_call_prepare(task);
+		}
+		spin_unlock(&inode->i_lock);
+		break;
 	case -ENOTSUPP:
 	case -EOPNOTSUPP:
 		NFS_SERVER(inode)->caps &= ~NFS_CAP_LAYOUTSTATS;
-	default:
-		break;
 	}
 
 	dprintk("%s server returns %d\n", __func__, task->tk_status);
