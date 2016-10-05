@@ -531,7 +531,6 @@ static int si_dma_sw_init(void *handle)
 		ring->use_doorbell = false;
 		sprintf(ring->name, "sdma%d", i);
 		r = amdgpu_ring_init(adev, ring, 1024,
-				     DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0, 0), 0xf,
 				     &adev->sdma.trap_irq,
 				     (i == 0) ?
 				     AMDGPU_SDMA_IRQ_TRAP0 :
@@ -765,6 +764,8 @@ const struct amd_ip_funcs si_dma_ip_funcs = {
 
 static const struct amdgpu_ring_funcs si_dma_ring_funcs = {
 	.type = AMDGPU_RING_TYPE_SDMA,
+	.align_mask = 0xf,
+	.nop = DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0, 0),
 	.get_rptr = si_dma_ring_get_rptr,
 	.get_wptr = si_dma_ring_get_wptr,
 	.set_wptr = si_dma_ring_set_wptr,

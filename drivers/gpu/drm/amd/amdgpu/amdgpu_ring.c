@@ -65,7 +65,7 @@ int amdgpu_ring_alloc(struct amdgpu_ring *ring, unsigned ndw)
 {
 	/* Align requested size with padding so unlock_commit can
 	 * pad safely */
-	ndw = (ndw + ring->align_mask) & ~ring->align_mask;
+	ndw = (ndw + ring->funcs->align_mask) & ~ring->funcs->align_mask;
 
 	/* Make sure we aren't trying to allocate more space
 	 * than the maximum for one submission
@@ -94,7 +94,7 @@ void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
 	int i;
 
 	for (i = 0; i < count; i++)
-		amdgpu_ring_write(ring, ring->nop);
+		amdgpu_ring_write(ring, ring->funcs->nop);
 }
 
 /** amdgpu_ring_generic_pad_ib - pad IB with NOP packets
@@ -106,8 +106,8 @@ void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
  */
 void amdgpu_ring_generic_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib)
 {
-	while (ib->length_dw & ring->align_mask)
-		ib->ptr[ib->length_dw++] = ring->nop;
+	while (ib->length_dw & ring->funcs->align_mask)
+		ib->ptr[ib->length_dw++] = ring->funcs->nop;
 }
 
 /**
@@ -125,8 +125,9 @@ void amdgpu_ring_commit(struct amdgpu_ring *ring)
 	uint32_t count;
 
 	/* We pad to match fetch size */
-	count = ring->align_mask + 1 - (ring->wptr & ring->align_mask);
-	count %= ring->align_mask + 1;
+	count = ring->funcs->align_mask + 1 -
+		(ring->wptr & ring->funcs->align_mask);
+	count %= ring->funcs->align_mask + 1;
 	ring->funcs->insert_nop(ring, count);
 
 	mb();
@@ -163,8 +164,8 @@ void amdgpu_ring_undo(struct amdgpu_ring *ring)
  * Returns 0 on success, error on failure.
  */
 int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
-		     unsigned max_dw, u32 nop, u32 align_mask,
-		     struct amdgpu_irq_src *irq_src, unsigned irq_type)
+		     unsigned max_dw, struct amdgpu_irq_src *irq_src,
+		     unsigned irq_type)
 {
 	int r;
 
@@ -215,8 +216,6 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 
 	ring->ring_size = roundup_pow_of_two(max_dw * 4 *
 					     amdgpu_sched_hw_submission);
-	ring->align_mask = align_mask;
-	ring->nop = nop;
 
 	/* Allocate ring buffer */
 	if (ring->ring_obj == NULL) {

@@ -224,7 +224,7 @@ static int vce_v2_0_sw_init(void *handle)
 	for (i = 0; i < adev->vce.num_rings; i++) {
 		ring = &adev->vce.ring[i];
 		sprintf(ring->name, "vce%d", i);
-		r = amdgpu_ring_init(adev, ring, 512, VCE_CMD_NO_OP, 0xf,
+		r = amdgpu_ring_init(adev, ring, 512,
 				     &adev->vce.irq, 0);
 		if (r)
 			return r;
@@ -611,6 +611,8 @@ const struct amd_ip_funcs vce_v2_0_ip_funcs = {
 
 static const struct amdgpu_ring_funcs vce_v2_0_ring_funcs = {
 	.type = AMDGPU_RING_TYPE_VCE,
+	.align_mask = 0xf,
+	.nop = VCE_CMD_NO_OP,
 	.get_rptr = vce_v2_0_ring_get_rptr,
 	.get_wptr = vce_v2_0_ring_get_wptr,
 	.set_wptr = vce_v2_0_ring_set_wptr,

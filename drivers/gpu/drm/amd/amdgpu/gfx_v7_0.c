@@ -4611,7 +4611,6 @@ static int gfx_v7_0_sw_init(void *handle)
 		ring->ring_obj = NULL;
 		sprintf(ring->name, "gfx");
 		r = amdgpu_ring_init(adev, ring, 1024,
-				     PACKET3(PACKET3_NOP, 0x3FFF), 0xff,
 				     &adev->gfx.eop_irq, AMDGPU_CP_IRQ_GFX_EOP);
 		if (r)
 			return r;
@@ -4637,7 +4636,6 @@ static int gfx_v7_0_sw_init(void *handle)
 		irq_type = AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE0_EOP + ring->pipe;
 		/* type-2 packets are deprecated on MEC, use type-3 instead */
 		r = amdgpu_ring_init(adev, ring, 1024,
-				     PACKET3(PACKET3_NOP, 0x3FFF), 0xff,
 				     &adev->gfx.eop_irq, irq_type);
 		if (r)
 			return r;
@@ -5108,6 +5106,8 @@ const struct amd_ip_funcs gfx_v7_0_ip_funcs = {
 
 static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_gfx = {
 	.type = AMDGPU_RING_TYPE_GFX,
+	.align_mask = 0xff,
+	.nop = PACKET3(PACKET3_NOP, 0x3FFF),
 	.get_rptr = gfx_v7_0_ring_get_rptr,
 	.get_wptr = gfx_v7_0_ring_get_wptr_gfx,
 	.set_wptr = gfx_v7_0_ring_set_wptr_gfx,
@@ -5136,6 +5136,8 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_gfx = {
 
 static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_compute = {
 	.type = AMDGPU_RING_TYPE_COMPUTE,
+	.align_mask = 0xff,
+	.nop = PACKET3(PACKET3_NOP, 0x3FFF),
 	.get_rptr = gfx_v7_0_ring_get_rptr,
 	.get_wptr = gfx_v7_0_ring_get_wptr_compute,
 	.set_wptr = gfx_v7_0_ring_set_wptr_compute,

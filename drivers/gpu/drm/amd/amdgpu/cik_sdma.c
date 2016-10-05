@@ -206,10 +206,10 @@ static void cik_sdma_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
 
 	for (i = 0; i < count; i++)
 		if (sdma && sdma->burst_nop && (i == 0))
-			amdgpu_ring_write(ring, ring->nop |
+			amdgpu_ring_write(ring, ring->funcs->nop |
 					  SDMA_NOP_COUNT(count - 1));
 		else
-			amdgpu_ring_write(ring, ring->nop);
+			amdgpu_ring_write(ring, ring->funcs->nop);
 }
 
 /**
@@ -943,7 +943,6 @@ static int cik_sdma_sw_init(void *handle)
 		ring->ring_obj = NULL;
 		sprintf(ring->name, "sdma%d", i);
 		r = amdgpu_ring_init(adev, ring, 1024,
-				     SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0), 0xf,
 				     &adev->sdma.trap_irq,
 				     (i == 0) ?
 				     AMDGPU_SDMA_IRQ_TRAP0 :
@@ -1210,6 +1209,8 @@ const struct amd_ip_funcs cik_sdma_ip_funcs = {
 
 static const struct amdgpu_ring_funcs cik_sdma_ring_funcs = {
 	.type = AMDGPU_RING_TYPE_SDMA,
+	.align_mask = 0xf,
+	.nop = SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0),
 	.get_rptr = cik_sdma_ring_get_rptr,
 	.get_wptr = cik_sdma_ring_get_wptr,
 	.set_wptr = cik_sdma_ring_set_wptr,

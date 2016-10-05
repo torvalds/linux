@@ -2869,7 +2869,6 @@ static int gfx_v6_0_sw_init(void *handle)
 		ring->ring_obj = NULL;
 		sprintf(ring->name, "gfx");
 		r = amdgpu_ring_init(adev, ring, 1024,
-				     0x80000000, 0xff,
 				     &adev->gfx.eop_irq, AMDGPU_CP_IRQ_GFX_EOP);
 		if (r)
 			return r;
@@ -2892,7 +2891,6 @@ static int gfx_v6_0_sw_init(void *handle)
 		sprintf(ring->name, "comp %d.%d.%d", ring->me, ring->pipe, ring->queue);
 		irq_type = AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE0_EOP + ring->pipe;
 		r = amdgpu_ring_init(adev, ring, 1024,
-				     0x80000000, 0xff,
 				     &adev->gfx.eop_irq, irq_type);
 		if (r)
 			return r;
@@ -3227,6 +3225,8 @@ const struct amd_ip_funcs gfx_v6_0_ip_funcs = {
 
 static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_gfx = {
 	.type = AMDGPU_RING_TYPE_GFX,
+	.align_mask = 0xff,
+	.nop = 0x80000000,
 	.get_rptr = gfx_v6_0_ring_get_rptr,
 	.get_wptr = gfx_v6_0_ring_get_wptr,
 	.set_wptr = gfx_v6_0_ring_set_wptr_gfx,
@@ -3252,6 +3252,8 @@ static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_gfx = {
 
 static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_compute = {
 	.type = AMDGPU_RING_TYPE_COMPUTE,
+	.align_mask = 0xff,
+	.nop = 0x80000000,
 	.get_rptr = gfx_v6_0_ring_get_rptr,
 	.get_wptr = gfx_v6_0_ring_get_wptr,
 	.set_wptr = gfx_v6_0_ring_set_wptr_compute,
