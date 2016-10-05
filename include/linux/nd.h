@@ -107,19 +107,19 @@ struct nd_namespace_blk {
 	struct resource **res;
 };
 
-static inline struct nd_namespace_io *to_nd_namespace_io(struct device *dev)
+static inline struct nd_namespace_io *to_nd_namespace_io(const struct device *dev)
 {
 	return container_of(dev, struct nd_namespace_io, common.dev);
 }
 
-static inline struct nd_namespace_pmem *to_nd_namespace_pmem(struct device *dev)
+static inline struct nd_namespace_pmem *to_nd_namespace_pmem(const struct device *dev)
 {
 	struct nd_namespace_io *nsio = to_nd_namespace_io(dev);
 
 	return container_of(nsio, struct nd_namespace_pmem, nsio);
 }
 
-static inline struct nd_namespace_blk *to_nd_namespace_blk(struct device *dev)
+static inline struct nd_namespace_blk *to_nd_namespace_blk(const struct device *dev)
 {
 	return container_of(dev, struct nd_namespace_blk, common.dev);
 }

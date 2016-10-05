@@ -12,6 +12,7 @@
  */
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/sort.h>
 #include <linux/slab.h>
 #include <linux/pmem.h>
 #include <linux/list.h>
@@ -66,17 +67,17 @@ static struct device_type namespace_blk_device_type = {
 	.release = namespace_blk_release,
 };
 
-static bool is_namespace_pmem(struct device *dev)
+static bool is_namespace_pmem(const struct device *dev)
 {
 	return dev ? dev->type == &namespace_pmem_device_type : false;
 }
 
-static bool is_namespace_blk(struct device *dev)
+static bool is_namespace_blk(const struct device *dev)
 {
 	return dev ? dev->type == &namespace_blk_device_type : false;
 }
 
-static bool is_namespace_io(struct device *dev)
+static bool is_namespace_io(const struct device *dev)
 {
 	return dev ? dev->type == &namespace_io_device_type : false;
 }
@@ -1919,6 +1920,31 @@ struct device *create_namespace_blk(struct nd_region *nd_region,
 	return ERR_PTR(-ENXIO);
 }
 
+static int cmp_dpa(const void *a, const void *b)
+{
+	const struct device *dev_a = *(const struct device **) a;
+	const struct device *dev_b = *(const struct device **) b;
+	struct nd_namespace_blk *nsblk_a, *nsblk_b;
+	struct nd_namespace_pmem *nspm_a, *nspm_b;
+
+	if (is_namespace_io(dev_a))
+		return 0;
+
+	if (is_namespace_blk(dev_a)) {
+		nsblk_a = to_nd_namespace_blk(dev_a);
+		nsblk_b = to_nd_namespace_blk(dev_b);
+
+		return memcmp(&nsblk_a->res[0]->start, &nsblk_b->res[0]->start,
+				sizeof(resource_size_t));
+	}
+
+	nspm_a = to_nd_namespace_pmem(dev_a);
+	nspm_b = to_nd_namespace_pmem(dev_b);
+
+	return memcmp(&nspm_a->nsio.res.start, &nspm_b->nsio.res.start,
+			sizeof(resource_size_t));
+}
+
 static struct device **scan_labels(struct nd_region *nd_region)
 {
 	struct nd_mapping *nd_mapping = &nd_region->mapping[0];
@@ -2033,6 +2059,9 @@ static struct device **scan_labels(struct nd_region *nd_region)
 			list_splice_init(&list, &nd_mapping->labels);
 		}
 	}
+
+	if (count > 1)
+		sort(devs, count, sizeof(struct device *), cmp_dpa, NULL);
 
 	return devs;
 
