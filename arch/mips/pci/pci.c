@@ -95,8 +95,8 @@ static void pcibios_scanbus(struct pci_controller *hose)
 				&resources);
 	hose->bus = bus;
 
-	need_domain_info = need_domain_info || hose->index;
-	hose->need_domain_info = need_domain_info;
+	need_domain_info = need_domain_info || pci_domain_nr(bus);
+	set_pci_need_domain_info(hose, need_domain_info);
 
 	if (!bus) {
 		pci_free_resource_list(&resources);

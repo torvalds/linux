@@ -2995,6 +2995,9 @@ config HT_PCI
 config PCI_DOMAINS
 	bool
 
+config PCI_DOMAINS_GENERIC
+	bool
+
 source "drivers/pci/Kconfig"
 
 #

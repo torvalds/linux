@@ -39,10 +39,12 @@ struct pci_controller {
 	struct resource *busn_resource;
 	unsigned long busn_offset;
 
+#ifndef CONFIG_PCI_DOMAINS_GENERIC
 	unsigned int index;
 	/* For compatibility with current (as of July 2003) pciutils
 	   and XFree86. Eventually will be removed. */
 	unsigned int need_domain_info;
+#endif
 
 	/* Optional access methods for reading/writing the bus number
 	   of the PCI controller */
@@ -101,13 +103,30 @@ struct pci_dev;
  */
 #define PCI_DMA_BUS_IS_PHYS     (1)
 
-#ifdef CONFIG_PCI_DOMAINS
+#ifdef CONFIG_PCI_DOMAINS_GENERIC
+static inline int pci_proc_domain(struct pci_bus *bus)
+{
+	return pci_domain_nr(bus);
+}
+
+static inline void set_pci_need_domain_info(struct pci_controller *hose,
+					    int need_domain_info)
+{
+	/* nothing to do */
+}
+#elif defined(CONFIG_PCI_DOMAINS)
 #define pci_domain_nr(bus) ((struct pci_controller *)(bus)->sysdata)->index
 
 static inline int pci_proc_domain(struct pci_bus *bus)
 {
 	struct pci_controller *hose = bus->sysdata;
 	return hose->need_domain_info;
+}
+
+static inline void set_pci_need_domain_info(struct pci_controller *hose,
+					    int need_domain_info)
+{
+	hose->need_domain_info = need_domain_info;
 }
 #endif /* CONFIG_PCI_DOMAINS */
 
