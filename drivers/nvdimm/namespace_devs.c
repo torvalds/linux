@@ -2013,10 +2013,11 @@ static int cmp_dpa(const void *a, const void *b)
 
 static struct device **scan_labels(struct nd_region *nd_region)
 {
-	struct nd_mapping *nd_mapping = &nd_region->mapping[0];
+	int i, count = 0;
 	struct device *dev, **devs = NULL;
 	struct nd_label_ent *label_ent, *e;
-	int i, count = 0;
+	struct nd_mapping *nd_mapping = &nd_region->mapping[0];
+	resource_size_t map_end = nd_mapping->start + nd_mapping->size - 1;
 
 	/* "safe" because create_namespace_pmem() might list_move() label_ent */
 	list_for_each_entry_safe(label_ent, e, &nd_mapping->labels, list) {
@@ -2031,6 +2032,10 @@ static struct device **scan_labels(struct nd_region *nd_region)
 				== !!(flags & NSLABEL_FLAG_LOCAL))
 			/* pass, region matches label type */;
 		else
+			continue;
+
+		/* skip labels that describe extents outside of the region */
+		if (nd_label->dpa < nd_mapping->start || nd_label->dpa > map_end)
 			continue;
 
 		i = add_namespace_resource(nd_region, nd_label, devs, count);
