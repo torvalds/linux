@@ -733,6 +733,16 @@ static int ext2_get_blocks(struct inode *inode,
 	}
 
 	if (IS_DAX(inode)) {
+		int i;
+
+		/*
+		 * We must unmap blocks before zeroing so that writeback cannot
+		 * overwrite zeros with stale data from block device page cache.
+		 */
+		for (i = 0; i < count; i++) {
+			unmap_underlying_metadata(inode->i_sb->s_bdev,
+					le32_to_cpu(chain[depth-1].key) + i);
+		}
 		/*
 		 * block must be initialised before we put it in the tree
 		 * so that it's not found by another thread before it's
