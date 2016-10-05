@@ -336,7 +336,7 @@ void fpu__activate_fpstate_write(struct fpu *fpu)
 
 	if (fpu->fpstate_active) {
 		/* Invalidate any lazy state: */
-		fpu->last_cpu = -1;
+		__fpu_invalidate_fpregs_state(fpu);
 	} else {
 		fpstate_init(&fpu->state);
 		trace_x86_fpu_init_state(fpu);
@@ -379,7 +379,7 @@ void fpu__current_fpstate_write_begin(void)
 	 * ensures we will not be lazy and skip a XRSTOR in the
 	 * future.
 	 */
-	fpu->last_cpu = -1;
+	__fpu_invalidate_fpregs_state(fpu);
 }
 
 /*

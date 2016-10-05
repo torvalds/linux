@@ -1111,7 +1111,7 @@ int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 		return err;
 
 	/* the FPU context is blank, nobody can own it */
-	__cpu_disable_lazy_restore(cpu);
+	__cpu_invalidate_fpregs_state(cpu);
 
 	common_cpu_up(cpu, tidle);
 

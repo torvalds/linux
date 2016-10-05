@@ -479,18 +479,32 @@ extern int copy_fpstate_to_sigframe(void __user *buf, void __user *fp, int size)
 DECLARE_PER_CPU(struct fpu *, fpu_fpregs_owner_ctx);
 
 /*
+ * The in-register FPU state for an FPU context on a CPU is assumed to be
+ * valid if the fpu->last_cpu matches the CPU, and the fpu_fpregs_owner_ctx
+ * matches the FPU.
+ *
+ * If the FPU register state is valid, the kernel can skip restoring the
+ * FPU state from memory.
+ *
+ * Any code that clobbers the FPU registers or updates the in-memory
+ * FPU state for a task MUST let the rest of the kernel know that the
+ * FPU registers are no longer valid for this task. Calling either of
+ * these two invalidate functions is enough, use whichever is convenient.
+ *
  * Must be run with preemption disabled: this clears the fpu_fpregs_owner_ctx,
  * on this CPU.
- *
- * This will disable any lazy FPU state restore of the current FPU state,
- * but if the current thread owns the FPU, it will still be saved by.
  */
-static inline void __cpu_disable_lazy_restore(unsigned int cpu)
+static inline void __cpu_invalidate_fpregs_state(unsigned int cpu)
 {
 	per_cpu(fpu_fpregs_owner_ctx, cpu) = NULL;
 }
 
-static inline int fpu_want_lazy_restore(struct fpu *fpu, unsigned int cpu)
+static inline void __fpu_invalidate_fpregs_state(struct fpu *fpu)
+{
+	fpu->last_cpu = -1;
+}
+
+static inline int fpregs_state_valid(struct fpu *fpu, unsigned int cpu)
 {
 	return fpu == this_cpu_read_stable(fpu_fpregs_owner_ctx) && cpu == fpu->last_cpu;
 }
@@ -588,7 +602,7 @@ switch_fpu_prepare(struct fpu *old_fpu, struct fpu *new_fpu, int cpu)
 	} else {
 		old_fpu->last_cpu = -1;
 		if (fpu.preload) {
-			if (fpu_want_lazy_restore(new_fpu, cpu))
+			if (fpregs_state_valid(new_fpu, cpu))
 				fpu.preload = 0;
 			else
 				prefetch(&new_fpu->state);
