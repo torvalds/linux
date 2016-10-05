@@ -10,6 +10,7 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 	compatible = "mti,sead-3";
+	model = "MIPS SEAD-3";
 	interrupt-parent = <&gic>;
 
 	chosen {

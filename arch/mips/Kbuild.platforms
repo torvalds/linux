@@ -19,7 +19,6 @@ platforms += lasat
 platforms += loongson32
 platforms += loongson64
 platforms += mti-malta
-platforms += mti-sead3
 platforms += netlogic
 platforms += paravirt
 platforms += pic32

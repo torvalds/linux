@@ -488,3 +488,16 @@ $(generic_defconfigs):
 # Prevent generic merge_config rules attempting to merge single fragments
 #
 $(generic_config_dir)/%.config: ;
+
+#
+# Legacy defconfig compatibility - these targets used to be real defconfigs but
+# now that the boards have been converted to use the generic kernel they are
+# wrappers around the generic rules above.
+#
+.PHONY: sead3_defconfig
+sead3_defconfig:
+	$(Q)$(MAKE) 32r2el_defconfig BOARDS=sead-3
+
+.PHONY: sead3micro_defconfig
+sead3micro_defconfig:
+	$(Q)$(MAKE) micro32r2el_defconfig BOARDS=sead-3

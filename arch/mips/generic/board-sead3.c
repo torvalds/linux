@@ -4,11 +4,11 @@
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
+ * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
 
-#define pr_fmt(fmt) "sead3-dtshim: " fmt
+#define pr_fmt(fmt) "sead3: " fmt
 
 #include <linux/errno.h>
 #include <linux/libfdt.h>
@@ -16,13 +16,49 @@
 
 #include <asm/fw/fw.h>
 #include <asm/io.h>
+#include <asm/machine.h>
 
 #define SEAD_CONFIG			CKSEG1ADDR(0x1b100110)
 #define SEAD_CONFIG_GIC_PRESENT		BIT(1)
 
-static unsigned char fdt_buf[16 << 10] __initdata;
+#define MIPS_REVISION			CKSEG1ADDR(0x1fc00010)
+#define MIPS_REVISION_MACHINE		(0xf << 4)
+#define MIPS_REVISION_MACHINE_SEAD3	(0x4 << 4)
 
-static int append_memory(void *fdt)
+static __init bool sead3_detect(void)
+{
+	uint32_t rev;
+
+	rev = __raw_readl((void *)MIPS_REVISION);
+	return (rev & MIPS_REVISION_MACHINE) == MIPS_REVISION_MACHINE_SEAD3;
+}
+
+static __init int append_cmdline(void *fdt)
+{
+	int err, chosen_off;
+
+	/* find or add chosen node */
+	chosen_off = fdt_path_offset(fdt, "/chosen");
+	if (chosen_off == -FDT_ERR_NOTFOUND)
+		chosen_off = fdt_path_offset(fdt, "/chosen@0");
+	if (chosen_off == -FDT_ERR_NOTFOUND)
+		chosen_off = fdt_add_subnode(fdt, 0, "chosen");
+	if (chosen_off < 0) {
+		pr_err("Unable to find or add DT chosen node: %d\n",
+		       chosen_off);
+		return chosen_off;
+	}
+
+	err = fdt_setprop_string(fdt, chosen_off, "bootargs", fw_getcmdline());
+	if (err) {
+		pr_err("Unable to set bootargs property: %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
+
+static __init int append_memory(void *fdt)
 {
 	unsigned long phys_memsize, memsize;
 	__be32 mem_array[2];
@@ -89,7 +125,7 @@ static int append_memory(void *fdt)
 	return 0;
 }
 
-static int remove_gic(void *fdt)
+static __init int remove_gic(void *fdt)
 {
 	const unsigned int cpu_ehci_int = 2;
 	const unsigned int cpu_uart_int = 4;
@@ -163,7 +199,7 @@ static int remove_gic(void *fdt)
 		return err;
 	}
 
-	ehci_off = fdt_node_offset_by_compatible(fdt, -1, "mti,sead3-ehci");
+	ehci_off = fdt_node_offset_by_compatible(fdt, -1, "generic-ehci");
 	if (ehci_off < 0) {
 		pr_err("unable to find EHCI DT node: %d\n", ehci_off);
 		return ehci_off;
@@ -178,7 +214,7 @@ static int remove_gic(void *fdt)
 	return 0;
 }
 
-static int serial_config(void *fdt)
+static __init int serial_config(void *fdt)
 {
 	const char *yamontty, *mode_var;
 	char mode_var_name[9], path[18], parity;
@@ -257,20 +293,27 @@ static int serial_config(void *fdt)
 	return 0;
 }
 
-void __init *sead3_dt_shim(void *fdt)
+static __init const void *sead3_fixup_fdt(const void *fdt,
+					  const void *match_data)
 {
+	static unsigned char fdt_buf[16 << 10] __initdata;
 	int err;
 
 	if (fdt_check_header(fdt))
 		panic("Corrupt DT");
 
-	/* if this isn't SEAD3, leave the DT alone */
-	if (fdt_node_check_compatible(fdt, 0, "mti,sead-3"))
-		return fdt;
+	/* if this isn't SEAD3, something went wrong */
+	BUG_ON(fdt_node_check_compatible(fdt, 0, "mti,sead-3"));
+
+	fw_init_cmdline();
 
 	err = fdt_open_into(fdt, fdt_buf, sizeof(fdt_buf));
 	if (err)
 		panic("Unable to open FDT: %d", err);
+
+	err = append_cmdline(fdt_buf);
+	if (err)
+		panic("Unable to patch FDT: %d", err);
 
 	err = append_memory(fdt_buf);
 	if (err)
@@ -290,3 +333,44 @@ void __init *sead3_dt_shim(void *fdt)
 
 	return fdt_buf;
 }
+
+static __init unsigned int sead3_measure_hpt_freq(void)
+{
+	void __iomem *status_reg = (void __iomem *)0xbf000410;
+	unsigned int freq, orig, tick = 0;
+	unsigned long flags;
+
+	local_irq_save(flags);
+
+	orig = readl(status_reg) & 0x2;		      /* get original sample */
+	/* wait for transition */
+	while ((readl(status_reg) & 0x2) == orig)
+		;
+	orig = orig ^ 0x2;			      /* flip the bit */
+
+	write_c0_count(0);
+
+	/* wait 1 second (the sampling clock transitions every 10ms) */
+	while (tick < 100) {
+		/* wait for transition */
+		while ((readl(status_reg) & 0x2) == orig)
+			;
+		orig = orig ^ 0x2;			      /* flip the bit */
+		tick++;
+	}
+
+	freq = read_c0_count();
+
+	local_irq_restore(flags);
+
+	return freq;
+}
+
+extern char __dtb_sead3_begin[];
+
+MIPS_MACHINE(sead3) = {
+	.fdt = __dtb_sead3_begin,
+	.detect = sead3_detect,
+	.fixup_fdt = sead3_fixup_fdt,
+	.measure_hpt_freq = sead3_measure_hpt_freq,
+};
