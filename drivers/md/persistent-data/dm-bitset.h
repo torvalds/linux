@@ -197,6 +197,7 @@ int dm_bitset_cursor_begin(struct dm_disk_bitset *info,
 void dm_bitset_cursor_end(struct dm_bitset_cursor *c);
 
 int dm_bitset_cursor_next(struct dm_bitset_cursor *c);
+int dm_bitset_cursor_skip(struct dm_bitset_cursor *c, uint32_t count);
 bool dm_bitset_cursor_get_value(struct dm_bitset_cursor *c);
 
 /*----------------------------------------------------------------*/

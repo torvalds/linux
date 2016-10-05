@@ -1144,6 +1144,17 @@ int dm_btree_cursor_next(struct dm_btree_cursor *c)
 }
 EXPORT_SYMBOL_GPL(dm_btree_cursor_next);
 
+int dm_btree_cursor_skip(struct dm_btree_cursor *c, uint32_t count)
+{
+	int r = 0;
+
+	while (count-- && !r)
+		r = dm_btree_cursor_next(c);
+
+	return r;
+}
+EXPORT_SYMBOL_GPL(dm_btree_cursor_skip);
+
 int dm_btree_cursor_get_value(struct dm_btree_cursor *c, uint64_t *key, void *value_le)
 {
 	if (c->depth) {
