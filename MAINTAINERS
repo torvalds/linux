@@ -7028,12 +7028,6 @@ F:	drivers/lightnvm/
 F:	include/linux/lightnvm.h
 F:	include/uapi/linux/lightnvm.h
 
-LINUX FOR IBM pSERIES (RS/6000)
-M:	Paul Mackerras <paulus@au.ibm.com>
-W:	http://www.ibm.com/linux/ltc/projects/ppc
-S:	Supported
-F:	arch/powerpc/boot/rs6000.h
-
 LINUX FOR POWERPC (32-BIT AND 64-BIT)
 M:	Benjamin Herrenschmidt <benh@kernel.crashing.org>
 M:	Paul Mackerras <paulus@samba.org>
