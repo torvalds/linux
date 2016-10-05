@@ -538,12 +538,14 @@ static struct snd_soc_codec_driver max9860_codec_driver = {
 	.set_bias_level = max9860_set_bias_level,
 	.idle_bias_off = true,
 
-	.controls = max9860_controls,
-	.num_controls = ARRAY_SIZE(max9860_controls),
-	.dapm_widgets = max9860_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(max9860_dapm_widgets),
-	.dapm_routes = max9860_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(max9860_dapm_routes),
+	.component_driver = {
+		.controls		= max9860_controls,
+		.num_controls		= ARRAY_SIZE(max9860_controls),
+		.dapm_widgets		= max9860_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(max9860_dapm_widgets),
+		.dapm_routes		= max9860_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(max9860_dapm_routes),
+	},
 };
 
 #ifdef CONFIG_PM

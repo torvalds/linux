@@ -1830,7 +1830,7 @@ static void wm8903_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 			   !!value << WM8903_GP1_LVL_SHIFT);
 }
 
-static struct gpio_chip wm8903_template_chip = {
+static const struct gpio_chip wm8903_template_chip = {
 	.label			= "wm8903",
 	.owner			= THIS_MODULE,
 	.request		= wm8903_gpio_request,
@@ -1874,18 +1874,20 @@ static void wm8903_free_gpio(struct wm8903_priv *wm8903)
 }
 #endif
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8903 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8903 = {
 	.resume =	wm8903_resume,
 	.set_bias_level = wm8903_set_bias_level,
 	.seq_notifier = wm8903_seq_notifier,
 	.suspend_bias_off = true,
 
-	.controls = wm8903_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8903_snd_controls),
-	.dapm_widgets = wm8903_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8903_dapm_widgets),
-	.dapm_routes = wm8903_intercon,
-	.num_dapm_routes = ARRAY_SIZE(wm8903_intercon),
+	.component_driver = {
+		.controls		= wm8903_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8903_snd_controls),
+		.dapm_widgets		= wm8903_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8903_dapm_widgets),
+		.dapm_routes		= wm8903_intercon,
+		.num_dapm_routes	= ARRAY_SIZE(wm8903_intercon),
+	},
 };
 
 static const struct regmap_config wm8903_regmap = {

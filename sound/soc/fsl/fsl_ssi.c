@@ -182,7 +182,7 @@ static const struct regmap_config fsl_ssi_regconfig = {
 	.volatile_reg = fsl_ssi_volatile_reg,
 	.precious_reg = fsl_ssi_precious_reg,
 	.writeable_reg = fsl_ssi_writeable_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_FLAT,
 };
 
 struct fsl_ssi_soc_data {

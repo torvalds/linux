@@ -24,6 +24,15 @@
 
 #include <drm/drm_crtc.h> /* This is only to get MAX_ELD_BYTES */
 
+struct hdmi_device {
+	struct device *dev;
+	struct list_head list;
+	int cnt;
+};
+#define pos_to_hdmi_device(pos)	container_of((pos), struct hdmi_device, list)
+LIST_HEAD(hdmi_device_list);
+
+#define DAI_NAME_SIZE 16
 struct hdmi_codec_priv {
 	struct hdmi_codec_pdata hcd;
 	struct snd_soc_dai_driver *daidrv;
@@ -320,7 +329,6 @@ static const struct snd_soc_dai_ops hdmi_dai_ops = {
 			 SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S32_BE)
 
 static struct snd_soc_dai_driver hdmi_i2s_dai = {
-	.name = "i2s-hifi",
 	.id = DAI_ID_I2S,
 	.playback = {
 		.stream_name = "Playback",
@@ -334,7 +342,6 @@ static struct snd_soc_dai_driver hdmi_i2s_dai = {
 };
 
 static const struct snd_soc_dai_driver hdmi_spdif_dai = {
-	.name = "spdif-hifi",
 	.id = DAI_ID_SPDIF,
 	.playback = {
 		.stream_name = "Playback",
@@ -346,13 +353,37 @@ static const struct snd_soc_dai_driver hdmi_spdif_dai = {
 	.ops = &hdmi_dai_ops,
 };
 
+static char hdmi_dai_name[][DAI_NAME_SIZE] = {
+	"hdmi-hifi.0",
+	"hdmi-hifi.1",
+	"hdmi-hifi.2",
+	"hdmi-hifi.3",
+};
+
+static int hdmi_of_xlate_dai_name(struct snd_soc_component *component,
+				  struct of_phandle_args *args,
+				  const char **dai_name)
+{
+	int id = args->args[0];
+
+	if (id < ARRAY_SIZE(hdmi_dai_name)) {
+		*dai_name = hdmi_dai_name[id];
+		return 0;
+	}
+
+	return -EAGAIN;
+}
+
 static struct snd_soc_codec_driver hdmi_codec = {
-	.controls = hdmi_controls,
-	.num_controls = ARRAY_SIZE(hdmi_controls),
-	.dapm_widgets = hdmi_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(hdmi_widgets),
-	.dapm_routes = hdmi_routes,
-	.num_dapm_routes = ARRAY_SIZE(hdmi_routes),
+	.component_driver = {
+		.controls		= hdmi_controls,
+		.num_controls		= ARRAY_SIZE(hdmi_controls),
+		.dapm_widgets		= hdmi_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(hdmi_widgets),
+		.dapm_routes		= hdmi_routes,
+		.num_dapm_routes	= ARRAY_SIZE(hdmi_routes),
+		.of_xlate_dai_name	= hdmi_of_xlate_dai_name,
+	},
 };
 
 static int hdmi_codec_probe(struct platform_device *pdev)
@@ -360,6 +391,8 @@ static int hdmi_codec_probe(struct platform_device *pdev)
 	struct hdmi_codec_pdata *hcd = pdev->dev.platform_data;
 	struct device *dev = &pdev->dev;
 	struct hdmi_codec_priv *hcp;
+	struct hdmi_device *hd;
+	struct list_head *pos;
 	int dai_count, i = 0;
 	int ret;
 
@@ -381,6 +414,31 @@ static int hdmi_codec_probe(struct platform_device *pdev)
 	if (!hcp)
 		return -ENOMEM;
 
+	hd = NULL;
+	list_for_each(pos, &hdmi_device_list) {
+		struct hdmi_device *tmp = pos_to_hdmi_device(pos);
+
+		if (tmp->dev == dev->parent) {
+			hd = tmp;
+			break;
+		}
+	}
+
+	if (!hd) {
+		hd = devm_kzalloc(dev, sizeof(*hd), GFP_KERNEL);
+		if (!hd)
+			return -ENOMEM;
+
+		hd->dev = dev->parent;
+
+		list_add_tail(&hd->list, &hdmi_device_list);
+	}
+
+	if (hd->cnt >= ARRAY_SIZE(hdmi_dai_name)) {
+		dev_err(dev, "too many hdmi codec are deteced\n");
+		return -EINVAL;
+	}
+
 	hcp->hcd = *hcd;
 	mutex_init(&hcp->current_stream_lock);
 
@@ -393,11 +451,14 @@ static int hdmi_codec_probe(struct platform_device *pdev)
 		hcp->daidrv[i] = hdmi_i2s_dai;
 		hcp->daidrv[i].playback.channels_max =
 			hcd->max_i2s_channels;
+		hcp->daidrv[i].name = hdmi_dai_name[hd->cnt++];
 		i++;
 	}
 
-	if (hcd->spdif)
+	if (hcd->spdif) {
 		hcp->daidrv[i] = hdmi_spdif_dai;
+		hcp->daidrv[i].name = hdmi_dai_name[hd->cnt++];
+	}
 
 	ret = snd_soc_register_codec(dev, &hdmi_codec, hcp->daidrv,
 				     dai_count);

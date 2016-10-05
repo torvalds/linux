@@ -206,12 +206,14 @@ const struct regmap_config pcm179x_regmap_config = {
 EXPORT_SYMBOL_GPL(pcm179x_regmap_config);
 
 static struct snd_soc_codec_driver soc_codec_dev_pcm179x = {
-	.controls		= pcm179x_controls,
-	.num_controls		= ARRAY_SIZE(pcm179x_controls),
-	.dapm_widgets		= pcm179x_dapm_widgets,
-	.num_dapm_widgets	= ARRAY_SIZE(pcm179x_dapm_widgets),
-	.dapm_routes		= pcm179x_dapm_routes,
-	.num_dapm_routes	= ARRAY_SIZE(pcm179x_dapm_routes),
+	.component_driver = {
+		.controls		= pcm179x_controls,
+		.num_controls		= ARRAY_SIZE(pcm179x_controls),
+		.dapm_widgets		= pcm179x_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(pcm179x_dapm_widgets),
+		.dapm_routes		= pcm179x_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(pcm179x_dapm_routes),
+	},
 };
 
 int pcm179x_common_init(struct device *dev, struct regmap *regmap)
