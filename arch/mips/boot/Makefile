@@ -111,13 +111,22 @@ targets += vmlinux.bz2.itb
 targets += vmlinux.lzma.itb
 targets += vmlinux.lzo.itb
 
+ifeq ($(ADDR_BITS),32)
+	itb_addr_cells = 1
+endif
+ifeq ($(ADDR_BITS),64)
+	itb_addr_cells = 2
+endif
+
 quiet_cmd_cpp_its_S = ITS     $@
       cmd_cpp_its_S = $(CPP) $(cpp_flags) -P -C -o $@ $< \
 		        -DKERNEL_NAME="\"Linux $(KERNELRELEASE)\"" \
 			-DVMLINUX_BINARY="\"$(3)\"" \
 			-DVMLINUX_COMPRESSION="\"$(2)\"" \
 			-DVMLINUX_LOAD_ADDRESS=$(VMLINUX_LOAD_ADDRESS) \
-			-DVMLINUX_ENTRY_ADDRESS=$(VMLINUX_ENTRY_ADDRESS)
+			-DVMLINUX_ENTRY_ADDRESS=$(VMLINUX_ENTRY_ADDRESS) \
+			-DADDR_BITS=$(ADDR_BITS) \
+			-DADDR_CELLS=$(itb_addr_cells)
 
 $(obj)/vmlinux.its: $(srctree)/arch/mips/$(PLATFORM)/vmlinux.its.S FORCE
 	$(call if_changed_dep,cpp_its_S,none,vmlinux.bin)
