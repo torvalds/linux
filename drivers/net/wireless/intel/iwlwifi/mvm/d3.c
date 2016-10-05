@@ -2271,7 +2271,8 @@ static void iwl_mvm_d3_test_disconn_work_iter(void *_data, u8 *mac,
 static int iwl_mvm_d3_test_release(struct inode *inode, struct file *file)
 {
 	struct iwl_mvm *mvm = inode->i_private;
-	int remaining_time = 10;
+	bool unified_image = fw_has_capa(&mvm->fw->ucode_capa,
+					 IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
 
 	mvm->d3_test_active = false;
 
@@ -2282,17 +2283,21 @@ static int iwl_mvm_d3_test_release(struct inode *inode, struct file *file)
 	mvm->trans->system_pm_mode = IWL_PLAT_PM_MODE_DISABLED;
 
 	iwl_abort_notification_waits(&mvm->notif_wait);
-	ieee80211_restart_hw(mvm->hw);
+	if (!unified_image) {
+		int remaining_time = 10;
 
-	/* wait for restart and disconnect all interfaces */
-	while (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
-	       remaining_time > 0) {
-		remaining_time--;
-		msleep(1000);
+		ieee80211_restart_hw(mvm->hw);
+
+		/* wait for restart and disconnect all interfaces */
+		while (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
+		       remaining_time > 0) {
+			remaining_time--;
+			msleep(1000);
+		}
+
+		if (remaining_time == 0)
+			IWL_ERR(mvm, "Timed out waiting for HW restart!\n");
 	}
-
-	if (remaining_time == 0)
-		IWL_ERR(mvm, "Timed out waiting for HW restart to finish!\n");
 
 	ieee80211_iterate_active_interfaces_atomic(
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
