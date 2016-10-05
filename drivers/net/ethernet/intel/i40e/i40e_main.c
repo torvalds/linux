@@ -1208,63 +1208,6 @@ bool i40e_is_vsi_in_vlan(struct i40e_vsi *vsi)
 }
 
 /**
- * i40e_put_mac_in_vlan - Make macvlan filters from macaddrs and vlans
- * @vsi: the VSI to be searched
- * @macaddr: the mac address to be filtered
- *
- * Goes through all the macvlan filters and adds a
- * macvlan filter for each unique vlan that already exists
- *
- * Returns first filter found on success, else NULL
- **/
-struct i40e_mac_filter *i40e_put_mac_in_vlan(struct i40e_vsi *vsi,
-					     const u8 *macaddr)
-{
-	struct i40e_mac_filter *f;
-
-	list_for_each_entry(f, &vsi->mac_filter_list, list) {
-		if (vsi->info.pvid)
-			f->vlan = le16_to_cpu(vsi->info.pvid);
-		if (!i40e_find_filter(vsi, macaddr, f->vlan)) {
-			if (!i40e_add_filter(vsi, macaddr, f->vlan))
-				return NULL;
-		}
-	}
-
-	return list_first_entry_or_null(&vsi->mac_filter_list,
-					struct i40e_mac_filter, list);
-}
-
-/**
- * i40e_del_mac_all_vlan - Remove a MAC filter from all VLANS
- * @vsi: the VSI to be searched
- * @macaddr: the mac address to be removed
- *
- * Removes a given MAC address from a VSI, regardless of VLAN
- *
- * Returns 0 for success, or error
- **/
-int i40e_del_mac_all_vlan(struct i40e_vsi *vsi, const u8 *macaddr)
-{
-	struct i40e_mac_filter *f = NULL;
-	int changed = 0;
-
-	WARN(!spin_is_locked(&vsi->mac_filter_list_lock),
-	     "Missing mac_filter_list_lock\n");
-	list_for_each_entry(f, &vsi->mac_filter_list, list) {
-		if ((ether_addr_equal(macaddr, f->macaddr))) {
-			f->state = I40E_FILTER_REMOVE;
-		}
-	}
-	if (changed) {
-		vsi->flags |= I40E_VSI_FLAG_FILTER_CHANGED;
-		vsi->back->flags |= I40E_FLAG_FILTER_SYNC;
-		return 0;
-	}
-	return -ENOENT;
-}
-
-/**
  * i40e_add_filter - Add a mac/vlan filter to the VSI
  * @vsi: the VSI to be searched
  * @macaddr: the MAC address
@@ -1362,6 +1305,62 @@ void i40e_del_filter(struct i40e_vsi *vsi, const u8 *macaddr, s16 vlan)
 		vsi->flags |= I40E_VSI_FLAG_FILTER_CHANGED;
 		vsi->back->flags |= I40E_FLAG_FILTER_SYNC;
 	}
+}
+
+/**
+ * i40e_put_mac_in_vlan - Make macvlan filters from macaddrs and vlans
+ * @vsi: the VSI to be searched
+ * @macaddr: the mac address to be filtered
+ *
+ * Goes through all the macvlan filters and adds a
+ * macvlan filter for each unique vlan that already exists
+ *
+ * Returns first filter found on success, else NULL
+ **/
+struct i40e_mac_filter *i40e_put_mac_in_vlan(struct i40e_vsi *vsi,
+					     const u8 *macaddr)
+{
+	struct i40e_mac_filter *f;
+
+	list_for_each_entry(f, &vsi->mac_filter_list, list) {
+		if (vsi->info.pvid)
+			f->vlan = le16_to_cpu(vsi->info.pvid);
+		if (!i40e_find_filter(vsi, macaddr, f->vlan)) {
+			if (!i40e_add_filter(vsi, macaddr, f->vlan))
+				return NULL;
+		}
+	}
+
+	return list_first_entry_or_null(&vsi->mac_filter_list,
+					struct i40e_mac_filter, list);
+}
+
+/**
+ * i40e_del_mac_all_vlan - Remove a MAC filter from all VLANS
+ * @vsi: the VSI to be searched
+ * @macaddr: the mac address to be removed
+ *
+ * Removes a given MAC address from a VSI, regardless of VLAN
+ *
+ * Returns 0 for success, or error
+ **/
+int i40e_del_mac_all_vlan(struct i40e_vsi *vsi, const u8 *macaddr)
+{
+	struct i40e_mac_filter *f = NULL;
+	int changed = 0;
+
+	WARN(!spin_is_locked(&vsi->mac_filter_list_lock),
+	     "Missing mac_filter_list_lock\n");
+	list_for_each_entry(f, &vsi->mac_filter_list, list) {
+		if (ether_addr_equal(macaddr, f->macaddr))
+			f->state = I40E_FILTER_REMOVE;
+	}
+	if (changed) {
+		vsi->flags |= I40E_VSI_FLAG_FILTER_CHANGED;
+		vsi->back->flags |= I40E_FLAG_FILTER_SYNC;
+		return 0;
+	}
+	return -ENOENT;
 }
 
 /**
