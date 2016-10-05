@@ -186,6 +186,27 @@
 					0xc 0x88888888 0xffffffff
 				>;
 			};
+			lcd_pins: pinmux_lcd_pins {
+				pinctrl-single,bits = <
+					/*
+					 * LCD_D[2], LCD_D[3], LCD_D[4], LCD_D[5],
+					 * LCD_D[6], LCD_D[7]
+					 */
+					0x40 0x22222200 0xffffff00
+					/*
+					 * LCD_D[10], LCD_D[11], LCD_D[12], LCD_D[13],
+					 * LCD_D[14], LCD_D[15], LCD_D[0], LCD_D[1]
+					 */
+					0x44 0x22222222 0xffffffff
+					/* LCD_D[8], LCD_D[9] */
+					0x48 0x00000022 0x000000ff
+
+					/* LCD_PCLK */
+					0x48 0x02000000 0x0f000000
+					/* LCD_AC_ENB_CS, LCD_VSYNC, LCD_HSYNC */
+					0x4c 0x02000022 0x0f0000ff
+				>;
+			};
 
 		};
 		edma0: edma@0 {
@@ -398,6 +419,13 @@
 			dmas = <&edma0 1 1>,
 				<&edma0 0 1>;
 			dma-names = "tx", "rx";
+		};
+
+		display: display@213000 {
+			compatible = "ti,da850-tilcdc";
+			reg = <0x213000 0x1000>;
+			interrupts = <52>;
+			status = "disabled";
 		};
 	};
 	aemif: aemif@68000000 {
