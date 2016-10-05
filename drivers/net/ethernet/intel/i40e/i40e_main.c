@@ -1774,19 +1774,22 @@ i40e_update_filter_state(int count,
  **/
 int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 {
-	struct i40e_mac_filter *f, *add_head = NULL;
 	struct hlist_head tmp_add_list, tmp_del_list;
+	struct i40e_mac_filter *f, *add_head = NULL;
 	struct i40e_hw *hw = &vsi->back->hw;
+	unsigned int vlan_any_filters = 0;
+	unsigned int non_vlan_filters = 0;
+	unsigned int vlan_filters = 0;
 	bool promisc_changed = false;
 	char vsi_name[16] = "PF";
 	int filter_list_len = 0;
-	u32 changed_flags = 0;
 	i40e_status aq_ret = 0;
+	u32 changed_flags = 0;
 	struct hlist_node *h;
-	int retval = 0;
 	struct i40e_pf *pf;
 	int num_add = 0;
 	int num_del = 0;
+	int retval = 0;
 	int aq_err = 0;
 	u16 cmd_flags;
 	int list_size;
@@ -1825,11 +1828,75 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 				hash_del(&f->hlist);
 				hlist_add_head(&f->hlist, &tmp_del_list);
 				vsi->active_filters--;
+
+				/* Avoid counting removed filters */
+				continue;
 			}
 			if (f->state == I40E_FILTER_NEW) {
 				hash_del(&f->hlist);
 				hlist_add_head(&f->hlist, &tmp_add_list);
 			}
+
+			/* Count the number of each type of filter we have
+			 * remaining, ignoring any filters we're about to
+			 * delete.
+			 */
+			if (f->vlan > 0)
+				vlan_filters++;
+			else if (!f->vlan)
+				non_vlan_filters++;
+			else
+				vlan_any_filters++;
+		}
+
+		/* We should never have VLAN=-1 filters at the same time as we
+		 * have either VLAN=0 or VLAN>0 filters, so warn about this
+		 * case here to help catch any issues.
+		 */
+		WARN_ON(vlan_any_filters && (vlan_filters + non_vlan_filters));
+
+		/* If we only have VLAN=0 filters remaining, and don't have
+		 * any other VLAN filters, we need to convert these VLAN=0
+		 * filters into VLAN=-1 (I40E_VLAN_ANY) so that we operate
+		 * correctly in non-VLAN mode and receive all traffic tagged
+		 * or untagged.
+		 */
+		if (non_vlan_filters && !vlan_filters) {
+			hash_for_each_safe(vsi->mac_filter_hash, bkt, h, f,
+					   hlist) {
+				/* Only replace VLAN=0 filters */
+				if (f->vlan)
+					continue;
+
+				/* Allocate a replacement element */
+				add_head = kzalloc(sizeof(*add_head),
+						   GFP_KERNEL);
+				if (!add_head)
+					goto err_no_memory_locked;
+
+				/* Copy the filter, with new state and VLAN */
+				*add_head = *f;
+				add_head->state = I40E_FILTER_NEW;
+				add_head->vlan = I40E_VLAN_ANY;
+
+				/* Move the replacement to the add list */
+				INIT_HLIST_NODE(&add_head->hlist);
+				hlist_add_head(&add_head->hlist,
+					       &tmp_add_list);
+
+				/* Move the original to the delete list */
+				f->state = I40E_FILTER_REMOVE;
+				hash_del(&f->hlist);
+				hlist_add_head(&f->hlist, &tmp_del_list);
+				vsi->active_filters--;
+			}
+
+			/* Also update any filters on the tmp_add list */
+			hlist_for_each_entry(f, &tmp_add_list, hlist) {
+				if (!f->vlan)
+					f->vlan = I40E_VLAN_ANY;
+			}
+			add_head = NULL;
 		}
 		spin_unlock_bh(&vsi->mac_filter_hash_lock);
 	}
@@ -2150,6 +2217,7 @@ out:
 err_no_memory:
 	/* Restore elements on the temporary add and delete lists */
 	spin_lock_bh(&vsi->mac_filter_hash_lock);
+err_no_memory_locked:
 	i40e_undo_filter_entries(vsi, &tmp_del_list);
 	i40e_undo_filter_entries(vsi, &tmp_add_list);
 	spin_unlock_bh(&vsi->mac_filter_hash_lock);
@@ -2403,9 +2471,8 @@ int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
 int i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid)
 {
 	struct net_device *netdev = vsi->netdev;
-	struct i40e_mac_filter *f, *add_f;
+	struct i40e_mac_filter *f;
 	struct hlist_node *h;
-	int filter_count = 0;
 	int bkt;
 
 	/* Locked once because all functions invoked below iterates list */
@@ -2417,49 +2484,6 @@ int i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid)
 	hash_for_each_safe(vsi->mac_filter_hash, bkt, h, f, hlist) {
 		if (f->vlan == vid)
 			__i40e_del_filter(vsi, f);
-	}
-
-	/* go through all the filters for this VSI and if there is only
-	 * vid == 0 it means there are no other filters, so vid 0 must
-	 * be replaced with -1. This signifies that we should from now
-	 * on accept any traffic (with any tag present, or untagged)
-	 */
-	hash_for_each(vsi->mac_filter_hash, bkt, f, hlist) {
-		if (vsi->netdev) {
-			if (f->vlan &&
-			    ether_addr_equal(netdev->dev_addr, f->macaddr))
-				filter_count++;
-		}
-
-		if (f->vlan)
-			filter_count++;
-	}
-
-	if (!filter_count && vsi->netdev) {
-		i40e_del_filter(vsi, netdev->dev_addr, 0);
-		f = i40e_add_filter(vsi, netdev->dev_addr, I40E_VLAN_ANY);
-		if (!f) {
-			dev_info(&vsi->back->pdev->dev,
-				 "Could not add filter %d for %pM\n",
-				 I40E_VLAN_ANY, netdev->dev_addr);
-			spin_unlock_bh(&vsi->mac_filter_hash_lock);
-			return -ENOMEM;
-		}
-	}
-
-	if (!filter_count) {
-		hash_for_each_safe(vsi->mac_filter_hash, bkt, h, f, hlist) {
-			if (!f->vlan)
-				__i40e_del_filter(vsi, f);
-			add_f = i40e_add_filter(vsi, f->macaddr, I40E_VLAN_ANY);
-			if (!add_f) {
-				dev_info(&vsi->back->pdev->dev,
-					 "Could not add filter %d for %pM\n",
-					 I40E_VLAN_ANY, f->macaddr);
-				spin_unlock_bh(&vsi->mac_filter_hash_lock);
-				return -ENOMEM;
-			}
-		}
 	}
 
 	spin_unlock_bh(&vsi->mac_filter_hash_lock);
