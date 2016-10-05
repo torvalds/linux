@@ -614,6 +614,8 @@ static const struct amdgpu_ring_funcs vce_v2_0_ring_funcs = {
 	.get_wptr = vce_v2_0_ring_get_wptr,
 	.set_wptr = vce_v2_0_ring_set_wptr,
 	.parse_cs = amdgpu_vce_ring_parse_cs,
+	.emit_frame_size = 6, /* amdgpu_vce_ring_emit_fence  x1 no user fence */
+	.emit_ib_size = 4, /* amdgpu_vce_ring_emit_ib */
 	.emit_ib = amdgpu_vce_ring_emit_ib,
 	.emit_fence = amdgpu_vce_ring_emit_fence,
 	.test_ring = amdgpu_vce_ring_test_ring,
@@ -622,8 +624,6 @@ static const struct amdgpu_ring_funcs vce_v2_0_ring_funcs = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_vce_ring_begin_use,
 	.end_use = amdgpu_vce_ring_end_use,
-	.get_emit_ib_size = amdgpu_vce_ring_get_emit_ib_size,
-	.get_dma_frame_size = amdgpu_vce_ring_get_dma_frame_size,
 };
 
 static void vce_v2_0_set_ring_funcs(struct amdgpu_device *adev)

@@ -6363,42 +6363,6 @@ static void gfx_v8_ring_emit_cntxcntl(struct amdgpu_ring *ring, uint32_t flags)
 	amdgpu_ring_write(ring, 0);
 }
 
-static unsigned gfx_v8_0_ring_get_emit_ib_size_gfx(struct amdgpu_ring *ring)
-{
-	return
-		4; /* gfx_v8_0_ring_emit_ib_gfx */
-}
-
-static unsigned gfx_v8_0_ring_get_dma_frame_size_gfx(struct amdgpu_ring *ring)
-{
-	return
-		20 + /* gfx_v8_0_ring_emit_gds_switch */
-		7 + /* gfx_v8_0_ring_emit_hdp_flush */
-		5 + /* gfx_v8_0_ring_emit_hdp_invalidate */
-		6 + 6 + 6 +/* gfx_v8_0_ring_emit_fence_gfx x3 for user fence, vm fence */
-		7 + /* gfx_v8_0_ring_emit_pipeline_sync */
-		128 + 19 + /* gfx_v8_0_ring_emit_vm_flush */
-		2 + /* gfx_v8_ring_emit_sb */
-		3; /* gfx_v8_ring_emit_cntxcntl */
-}
-
-static unsigned gfx_v8_0_ring_get_emit_ib_size_compute(struct amdgpu_ring *ring)
-{
-	return
-		4; /* gfx_v8_0_ring_emit_ib_compute */
-}
-
-static unsigned gfx_v8_0_ring_get_dma_frame_size_compute(struct amdgpu_ring *ring)
-{
-	return
-		20 + /* gfx_v8_0_ring_emit_gds_switch */
-		7 + /* gfx_v8_0_ring_emit_hdp_flush */
-		5 + /* gfx_v8_0_ring_emit_hdp_invalidate */
-		7 + /* gfx_v8_0_ring_emit_pipeline_sync */
-		17 + /* gfx_v8_0_ring_emit_vm_flush */
-		7 + 7 + 7; /* gfx_v8_0_ring_emit_fence_compute x3 for user fence, vm fence */
-}
-
 static void gfx_v8_0_set_gfx_eop_interrupt_state(struct amdgpu_device *adev,
 						 enum amdgpu_interrupt_state state)
 {
@@ -6568,6 +6532,16 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_gfx = {
 	.get_rptr = gfx_v8_0_ring_get_rptr,
 	.get_wptr = gfx_v8_0_ring_get_wptr_gfx,
 	.set_wptr = gfx_v8_0_ring_set_wptr_gfx,
+	.emit_frame_size =
+		20 + /* gfx_v8_0_ring_emit_gds_switch */
+		7 + /* gfx_v8_0_ring_emit_hdp_flush */
+		5 + /* gfx_v8_0_ring_emit_hdp_invalidate */
+		6 + 6 + 6 +/* gfx_v8_0_ring_emit_fence_gfx x3 for user fence, vm fence */
+		7 + /* gfx_v8_0_ring_emit_pipeline_sync */
+		128 + 19 + /* gfx_v8_0_ring_emit_vm_flush */
+		2 + /* gfx_v8_ring_emit_sb */
+		3, /* gfx_v8_ring_emit_cntxcntl */
+	.emit_ib_size =	4, /* gfx_v8_0_ring_emit_ib_gfx */
 	.emit_ib = gfx_v8_0_ring_emit_ib_gfx,
 	.emit_fence = gfx_v8_0_ring_emit_fence_gfx,
 	.emit_pipeline_sync = gfx_v8_0_ring_emit_pipeline_sync,
@@ -6581,14 +6555,20 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_gfx = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.emit_switch_buffer = gfx_v8_ring_emit_sb,
 	.emit_cntxcntl = gfx_v8_ring_emit_cntxcntl,
-	.get_emit_ib_size = gfx_v8_0_ring_get_emit_ib_size_gfx,
-	.get_dma_frame_size = gfx_v8_0_ring_get_dma_frame_size_gfx,
 };
 
 static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_compute = {
 	.get_rptr = gfx_v8_0_ring_get_rptr,
 	.get_wptr = gfx_v8_0_ring_get_wptr_compute,
 	.set_wptr = gfx_v8_0_ring_set_wptr_compute,
+	.emit_frame_size =
+		20 + /* gfx_v8_0_ring_emit_gds_switch */
+		7 + /* gfx_v8_0_ring_emit_hdp_flush */
+		5 + /* gfx_v8_0_ring_emit_hdp_invalidate */
+		7 + /* gfx_v8_0_ring_emit_pipeline_sync */
+		17 + /* gfx_v8_0_ring_emit_vm_flush */
+		7 + 7 + 7, /* gfx_v8_0_ring_emit_fence_compute x3 for user fence, vm fence */
+	.emit_ib_size =	4, /* gfx_v8_0_ring_emit_ib_compute */
 	.emit_ib = gfx_v8_0_ring_emit_ib_compute,
 	.emit_fence = gfx_v8_0_ring_emit_fence_compute,
 	.emit_pipeline_sync = gfx_v8_0_ring_emit_pipeline_sync,
@@ -6600,8 +6580,6 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_compute = {
 	.test_ib = gfx_v8_0_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
-	.get_emit_ib_size = gfx_v8_0_ring_get_emit_ib_size_compute,
-	.get_dma_frame_size = gfx_v8_0_ring_get_dma_frame_size_compute,
 };
 
 static void gfx_v8_0_set_ring_funcs(struct amdgpu_device *adev)

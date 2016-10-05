@@ -824,18 +824,6 @@ void amdgpu_vce_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq,
 	amdgpu_ring_write(ring, VCE_CMD_END);
 }
 
-unsigned amdgpu_vce_ring_get_emit_ib_size(struct amdgpu_ring *ring)
-{
-	return
-		4; /* amdgpu_vce_ring_emit_ib */
-}
-
-unsigned amdgpu_vce_ring_get_dma_frame_size(struct amdgpu_ring *ring)
-{
-	return
-		6; /* amdgpu_vce_ring_emit_fence  x1 no user fence */
-}
-
 /**
  * amdgpu_vce_ring_test_ring - test if VCE ring is working
  *

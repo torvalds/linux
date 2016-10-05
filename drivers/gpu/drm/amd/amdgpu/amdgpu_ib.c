@@ -152,8 +152,8 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		return -EINVAL;
 	}
 
-	alloc_size = amdgpu_ring_get_dma_frame_size(ring) +
-		num_ibs * amdgpu_ring_get_emit_ib_size(ring);
+	alloc_size = ring->funcs->emit_frame_size + num_ibs *
+		ring->funcs->emit_ib_size;
 
 	r = amdgpu_ring_alloc(ring, alloc_size);
 	if (r) {

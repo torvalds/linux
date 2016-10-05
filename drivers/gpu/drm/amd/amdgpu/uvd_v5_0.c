@@ -577,20 +577,6 @@ static void uvd_v5_0_ring_emit_ib(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, ib->length_dw);
 }
 
-static unsigned uvd_v5_0_ring_get_emit_ib_size(struct amdgpu_ring *ring)
-{
-	return
-		6; /* uvd_v5_0_ring_emit_ib */
-}
-
-static unsigned uvd_v5_0_ring_get_dma_frame_size(struct amdgpu_ring *ring)
-{
-	return
-		2 + /* uvd_v5_0_ring_emit_hdp_flush */
-		2 + /* uvd_v5_0_ring_emit_hdp_invalidate */
-		14; /* uvd_v5_0_ring_emit_fence  x1 no user fence */
-}
-
 static bool uvd_v5_0_is_idle(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -811,6 +797,11 @@ static const struct amdgpu_ring_funcs uvd_v5_0_ring_funcs = {
 	.get_wptr = uvd_v5_0_ring_get_wptr,
 	.set_wptr = uvd_v5_0_ring_set_wptr,
 	.parse_cs = amdgpu_uvd_ring_parse_cs,
+	.emit_frame_size =
+		2 + /* uvd_v5_0_ring_emit_hdp_flush */
+		2 + /* uvd_v5_0_ring_emit_hdp_invalidate */
+		14, /* uvd_v5_0_ring_emit_fence  x1 no user fence */
+	.emit_ib_size = 6, /* uvd_v5_0_ring_emit_ib */
 	.emit_ib = uvd_v5_0_ring_emit_ib,
 	.emit_fence = uvd_v5_0_ring_emit_fence,
 	.emit_hdp_flush = uvd_v5_0_ring_emit_hdp_flush,
@@ -821,8 +812,6 @@ static const struct amdgpu_ring_funcs uvd_v5_0_ring_funcs = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_uvd_ring_begin_use,
 	.end_use = amdgpu_uvd_ring_end_use,
-	.get_emit_ib_size = uvd_v5_0_ring_get_emit_ib_size,
-	.get_dma_frame_size = uvd_v5_0_ring_get_dma_frame_size,
 };
 
 static void uvd_v5_0_set_ring_funcs(struct amdgpu_device *adev)

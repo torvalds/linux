@@ -98,6 +98,9 @@ struct amdgpu_ring_funcs {
 	void (*set_wptr)(struct amdgpu_ring *ring);
 	/* validating and patching of IBs */
 	int (*parse_cs)(struct amdgpu_cs_parser *p, uint32_t ib_idx);
+	/* constants to calculate how many DW are needed for an emit */
+	unsigned emit_frame_size;
+	unsigned emit_ib_size;
 	/* command emit functions */
 	void (*emit_ib)(struct amdgpu_ring *ring,
 			struct amdgpu_ib *ib,
@@ -127,8 +130,6 @@ struct amdgpu_ring_funcs {
 	void (*end_use)(struct amdgpu_ring *ring);
 	void (*emit_switch_buffer) (struct amdgpu_ring *ring);
 	void (*emit_cntxcntl) (struct amdgpu_ring *ring, uint32_t flags);
-	unsigned (*get_emit_ib_size) (struct amdgpu_ring *ring);
-	unsigned (*get_dma_frame_size) (struct amdgpu_ring *ring);
 };
 
 struct amdgpu_ring {

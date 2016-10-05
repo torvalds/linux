@@ -725,31 +725,6 @@ static void uvd_v6_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, 0xE);
 }
 
-static unsigned uvd_v6_0_ring_get_emit_ib_size(struct amdgpu_ring *ring)
-{
-	return
-		8; /* uvd_v6_0_ring_emit_ib */
-}
-
-static unsigned uvd_v6_0_ring_get_dma_frame_size(struct amdgpu_ring *ring)
-{
-	return
-		2 + /* uvd_v6_0_ring_emit_hdp_flush */
-		2 + /* uvd_v6_0_ring_emit_hdp_invalidate */
-		10 + /* uvd_v6_0_ring_emit_pipeline_sync */
-		14; /* uvd_v6_0_ring_emit_fence x1 no user fence */
-}
-
-static unsigned uvd_v6_0_ring_get_dma_frame_size_vm(struct amdgpu_ring *ring)
-{
-	return
-		2 + /* uvd_v6_0_ring_emit_hdp_flush */
-		2 + /* uvd_v6_0_ring_emit_hdp_invalidate */
-		10 + /* uvd_v6_0_ring_emit_pipeline_sync */
-		20 + /* uvd_v6_0_ring_emit_vm_flush */
-		14 + 14; /* uvd_v6_0_ring_emit_fence x2 vm fence */
-}
-
 static bool uvd_v6_0_is_idle(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -1052,6 +1027,12 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_phys_funcs = {
 	.get_wptr = uvd_v6_0_ring_get_wptr,
 	.set_wptr = uvd_v6_0_ring_set_wptr,
 	.parse_cs = amdgpu_uvd_ring_parse_cs,
+	.emit_frame_size =
+		2 + /* uvd_v6_0_ring_emit_hdp_flush */
+		2 + /* uvd_v6_0_ring_emit_hdp_invalidate */
+		10 + /* uvd_v6_0_ring_emit_pipeline_sync */
+		14, /* uvd_v6_0_ring_emit_fence x1 no user fence */
+	.emit_ib_size = 8, /* uvd_v6_0_ring_emit_ib */
 	.emit_ib = uvd_v6_0_ring_emit_ib,
 	.emit_fence = uvd_v6_0_ring_emit_fence,
 	.emit_hdp_flush = uvd_v6_0_ring_emit_hdp_flush,
@@ -1062,14 +1043,19 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_phys_funcs = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_uvd_ring_begin_use,
 	.end_use = amdgpu_uvd_ring_end_use,
-	.get_emit_ib_size = uvd_v6_0_ring_get_emit_ib_size,
-	.get_dma_frame_size = uvd_v6_0_ring_get_dma_frame_size,
 };
 
 static const struct amdgpu_ring_funcs uvd_v6_0_ring_vm_funcs = {
 	.get_rptr = uvd_v6_0_ring_get_rptr,
 	.get_wptr = uvd_v6_0_ring_get_wptr,
 	.set_wptr = uvd_v6_0_ring_set_wptr,
+	.emit_frame_size =
+		2 + /* uvd_v6_0_ring_emit_hdp_flush */
+		2 + /* uvd_v6_0_ring_emit_hdp_invalidate */
+		10 + /* uvd_v6_0_ring_emit_pipeline_sync */
+		20 + /* uvd_v6_0_ring_emit_vm_flush */
+		14 + 14, /* uvd_v6_0_ring_emit_fence x2 vm fence */
+	.emit_ib_size = 8, /* uvd_v6_0_ring_emit_ib */
 	.emit_ib = uvd_v6_0_ring_emit_ib,
 	.emit_fence = uvd_v6_0_ring_emit_fence,
 	.emit_vm_flush = uvd_v6_0_ring_emit_vm_flush,
@@ -1082,8 +1068,6 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_vm_funcs = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_uvd_ring_begin_use,
 	.end_use = amdgpu_uvd_ring_end_use,
-	.get_emit_ib_size = uvd_v6_0_ring_get_emit_ib_size,
-	.get_dma_frame_size = uvd_v6_0_ring_get_dma_frame_size_vm,
 };
 
 static void uvd_v6_0_set_ring_funcs(struct amdgpu_device *adev)

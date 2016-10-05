@@ -495,22 +495,6 @@ static void si_dma_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, (0 << 28) | 0x20); /* func(always) | poll interval */
 }
 
-static unsigned si_dma_ring_get_emit_ib_size(struct amdgpu_ring *ring)
-{
-	return
-		7 + 3; /* si_dma_ring_emit_ib */
-}
-
-static unsigned si_dma_ring_get_dma_frame_size(struct amdgpu_ring *ring)
-{
-	return
-		3 + /* si_dma_ring_emit_hdp_flush */
-		3 + /* si_dma_ring_emit_hdp_invalidate */
-		6 + /* si_dma_ring_emit_pipeline_sync */
-		12 + /* si_dma_ring_emit_vm_flush */
-		9 + 9 + 9; /* si_dma_ring_emit_fence x3 for user fence, vm fence */
-}
-
 static int si_dma_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -783,6 +767,13 @@ static const struct amdgpu_ring_funcs si_dma_ring_funcs = {
 	.get_rptr = si_dma_ring_get_rptr,
 	.get_wptr = si_dma_ring_get_wptr,
 	.set_wptr = si_dma_ring_set_wptr,
+	.emit_frame_size =
+		3 + /* si_dma_ring_emit_hdp_flush */
+		3 + /* si_dma_ring_emit_hdp_invalidate */
+		6 + /* si_dma_ring_emit_pipeline_sync */
+		12 + /* si_dma_ring_emit_vm_flush */
+		9 + 9 + 9, /* si_dma_ring_emit_fence x3 for user fence, vm fence */
+	.emit_ib_size = 7 + 3, /* si_dma_ring_emit_ib */
 	.emit_ib = si_dma_ring_emit_ib,
 	.emit_fence = si_dma_ring_emit_fence,
 	.emit_pipeline_sync = si_dma_ring_emit_pipeline_sync,
@@ -793,8 +784,6 @@ static const struct amdgpu_ring_funcs si_dma_ring_funcs = {
 	.test_ib = si_dma_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
 	.pad_ib = si_dma_ring_pad_ib,
-	.get_emit_ib_size = si_dma_ring_get_emit_ib_size,
-	.get_dma_frame_size = si_dma_ring_get_dma_frame_size,
 };
 
 static void si_dma_set_ring_funcs(struct amdgpu_device *adev)
