@@ -1410,11 +1410,12 @@ void i40e_process_skb_fields(struct i40e_ring *rx_ring,
 	u64 qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
 	u32 rx_status = (qword & I40E_RXD_QW1_STATUS_MASK) >>
 			I40E_RXD_QW1_STATUS_SHIFT;
-	u32 rsyn = (rx_status & I40E_RXD_QW1_STATUS_TSYNINDX_MASK) >>
+	u32 tsynvalid = rx_status & I40E_RXD_QW1_STATUS_TSYNVALID_MASK;
+	u32 tsyn = (rx_status & I40E_RXD_QW1_STATUS_TSYNINDX_MASK) >>
 		   I40E_RXD_QW1_STATUS_TSYNINDX_SHIFT;
 
-	if (unlikely(rsyn)) {
-		i40e_ptp_rx_hwtstamp(rx_ring->vsi->back, skb, rsyn);
+	if (unlikely(tsynvalid)) {
+		i40e_ptp_rx_hwtstamp(rx_ring->vsi->back, skb, tsyn);
 		rx_ring->last_rx_timestamp = jiffies;
 	}
 
