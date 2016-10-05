@@ -550,4 +550,7 @@ config STACKDEPOT
 	bool
 	select STACKTRACE
 
+config WBT
+	bool
+
 endmenu
