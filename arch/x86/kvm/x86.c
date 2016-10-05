@@ -7348,10 +7348,8 @@ void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
 
 void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
 {
-	if (!vcpu->guest_fpu_loaded) {
-		vcpu->fpu_counter = 0;
+	if (!vcpu->guest_fpu_loaded)
 		return;
-	}
 
 	vcpu->guest_fpu_loaded = 0;
 	copy_fpregs_to_fpstate(&vcpu->arch.guest_fpu);
