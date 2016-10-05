@@ -284,18 +284,46 @@ static void drm_gem_unmap_dma_buf(struct dma_buf_attachment *attach,
 }
 
 /**
+ * drm_gem_dmabuf_export - dma_buf export implementation for GEM
+ * @dma_buf: buffer to be exported
+ *
+ * This wraps dma_buf_export() for use by generic GEM drivers that are using
+ * drm_gem_dmabuf_release(). In addition to calling dma_buf_export(), we take
+ * a reference to the drm_device which is released by drm_gem_dmabuf_release().
+ *
+ * Returns the new dmabuf.
+ */
+struct dma_buf *drm_gem_dmabuf_export(struct drm_device *dev,
+				      struct dma_buf_export_info *exp_info)
+{
+	struct dma_buf *dma_buf;
+
+	dma_buf = dma_buf_export(exp_info);
+	if (!IS_ERR(dma_buf))
+		drm_dev_ref(dev);
+
+	return dma_buf;
+}
+EXPORT_SYMBOL(drm_gem_dmabuf_export);
+
+/**
  * drm_gem_dmabuf_release - dma_buf release implementation for GEM
  * @dma_buf: buffer to be released
  *
  * Generic release function for dma_bufs exported as PRIME buffers. GEM drivers
  * must use this in their dma_buf ops structure as the release callback.
+ * drm_gem_dmabuf_release() should be used in conjunction with
+ * drm_gem_dmabuf_export().
  */
 void drm_gem_dmabuf_release(struct dma_buf *dma_buf)
 {
 	struct drm_gem_object *obj = dma_buf->priv;
+	struct drm_device *dev = obj->dev;
 
 	/* drop the reference on the export fd holds */
 	drm_gem_object_unreference_unlocked(obj);
+
+	drm_dev_unref(dev);
 }
 EXPORT_SYMBOL(drm_gem_dmabuf_release);
 
@@ -412,7 +440,7 @@ struct dma_buf *drm_gem_prime_export(struct drm_device *dev,
 	if (dev->driver->gem_prime_res_obj)
 		exp_info.resv = dev->driver->gem_prime_res_obj(obj);
 
-	return dma_buf_export(&exp_info);
+	return drm_gem_dmabuf_export(dev, &exp_info);
 }
 EXPORT_SYMBOL(drm_gem_prime_export);
 
