@@ -1017,6 +1017,7 @@ pnfs_alloc_init_layoutget_args(struct inode *ino,
 	nfs4_stateid_copy(&lgp->args.stateid, stateid);
 	lgp->gfp_flags = gfp_flags;
 	lgp->cred = get_rpccred(ctx->cred);
+	lgp->callback_count = raw_seqcount_begin(&server->nfs_client->cl_callback_count);
 	return lgp;
 }
 
@@ -2101,6 +2102,7 @@ void pnfs_parse_lgopen(struct inode *ino, struct nfs4_layoutget *lgp,
 {
 	struct pnfs_layout_hdr *lo;
 	struct pnfs_layout_segment *lseg;
+	struct nfs_server *srv = NFS_SERVER(ino);
 	u32 iomode;
 
 	if (!lgp)
@@ -2116,7 +2118,7 @@ void pnfs_parse_lgopen(struct inode *ino, struct nfs4_layoutget *lgp,
 			/* FIXME - Any error not listed above permanently
 			 * halts lgopen attempts.
 			 */
-			NFS_SERVER(ino)->caps &= ~NFS_CAP_LGOPEN;
+			srv->caps &= ~NFS_CAP_LGOPEN;
 		}
 		return;
 	}
@@ -2129,6 +2131,9 @@ void pnfs_parse_lgopen(struct inode *ino, struct nfs4_layoutget *lgp,
 		lo = NFS_I(lgp->args.inode)->layout;
 	pnfs_get_layout_hdr(lo);
 
+	if (read_seqcount_retry(&srv->nfs_client->cl_callback_count,
+				lgp->callback_count))
+		goto out;
 	lseg = pnfs_layout_process(lgp);
 	atomic_dec(&lo->plh_outstanding);
 	if (IS_ERR(lseg)) {
@@ -2139,6 +2144,7 @@ void pnfs_parse_lgopen(struct inode *ino, struct nfs4_layoutget *lgp,
 		pnfs_layout_clear_fail_bit(lo, pnfs_iomode_to_fail_bit(iomode));
 		pnfs_put_lseg(lseg);
 	}
+out:
 	pnfs_clear_first_layoutget(lo);
 	pnfs_put_layout_hdr(lo);
 }

@@ -322,6 +322,8 @@ static u32 initiate_bulk_draining(struct nfs_client *clp,
 static u32 do_callback_layoutrecall(struct nfs_client *clp,
 				    struct cb_layoutrecallargs *args)
 {
+	write_seqcount_begin(&clp->cl_callback_count);
+	write_seqcount_end(&clp->cl_callback_count);
 	if (args->cbl_recall_type == RETURN_FILE)
 		return initiate_file_draining(clp, args);
 	return initiate_bulk_draining(clp, args);
