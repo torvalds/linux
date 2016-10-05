@@ -948,7 +948,7 @@ static struct rq *move_queued_task(struct rq *rq, struct rq_flags *rf,
 	lockdep_assert_held(&rq->lock);
 
 	p->on_rq = TASK_ON_RQ_MIGRATING;
-	dequeue_task(rq, p, 0);
+	dequeue_task(rq, p, DEQUEUE_NOCLOCK);
 	set_task_cpu(p, new_cpu);
 	rq_unlock(rq, rf);
 
@@ -987,6 +987,7 @@ static struct rq *__migrate_task(struct rq *rq, struct rq_flags *rf,
 	if (!cpumask_test_cpu(dest_cpu, &p->cpus_allowed))
 		return rq;
 
+	update_rq_clock(rq);
 	rq = move_queued_task(rq, rf, p, dest_cpu);
 
 	return rq;
