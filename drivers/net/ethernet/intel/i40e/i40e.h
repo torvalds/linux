@@ -458,9 +458,6 @@ struct i40e_mac_filter {
 	u8 macaddr[ETH_ALEN];
 #define I40E_VLAN_ANY -1
 	s16 vlan;
-	u8 counter;		/* number of instances of this filter */
-	bool is_vf;		/* filter belongs to a VF */
-	bool is_netdev;		/* filter belongs to a netdev */
 	enum i40e_filter_state state;
 };
 
@@ -723,10 +720,8 @@ u32 i40e_get_global_fd_count(struct i40e_pf *pf);
 bool i40e_set_ntuple(struct i40e_pf *pf, netdev_features_t features);
 void i40e_set_ethtool_ops(struct net_device *netdev);
 struct i40e_mac_filter *i40e_add_filter(struct i40e_vsi *vsi,
-					u8 *macaddr, s16 vlan,
-					bool is_vf, bool is_netdev);
-void i40e_del_filter(struct i40e_vsi *vsi, u8 *macaddr, s16 vlan,
-		     bool is_vf, bool is_netdev);
+					u8 *macaddr, s16 vlan);
+void i40e_del_filter(struct i40e_vsi *vsi, u8 *macaddr, s16 vlan);
 int i40e_sync_vsi_filters(struct i40e_vsi *vsi);
 struct i40e_vsi *i40e_vsi_setup(struct i40e_pf *pf, u8 type,
 				u16 uplink, u32 param1);
@@ -817,13 +812,11 @@ int i40e_vsi_open(struct i40e_vsi *vsi);
 void i40e_vlan_stripping_disable(struct i40e_vsi *vsi);
 int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid);
 int i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid);
-struct i40e_mac_filter *i40e_put_mac_in_vlan(struct i40e_vsi *vsi, u8 *macaddr,
-					     bool is_vf, bool is_netdev);
-int i40e_del_mac_all_vlan(struct i40e_vsi *vsi, u8 *macaddr,
-			  bool is_vf, bool is_netdev);
+struct i40e_mac_filter *i40e_put_mac_in_vlan(struct i40e_vsi *vsi,
+					     u8 *macaddr);
+int i40e_del_mac_all_vlan(struct i40e_vsi *vsi, u8 *macaddr);
 bool i40e_is_vsi_in_vlan(struct i40e_vsi *vsi);
-struct i40e_mac_filter *i40e_find_mac(struct i40e_vsi *vsi, u8 *macaddr,
-				      bool is_vf, bool is_netdev);
+struct i40e_mac_filter *i40e_find_mac(struct i40e_vsi *vsi, u8 *macaddr);
 #ifdef I40E_FCOE
 int __i40e_setup_tc(struct net_device *netdev, u32 handle, __be16 proto,
 		    struct tc_to_netdev *tc);

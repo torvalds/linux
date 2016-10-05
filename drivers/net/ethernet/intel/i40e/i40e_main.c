@@ -1145,14 +1145,11 @@ void i40e_update_stats(struct i40e_vsi *vsi)
  * @vsi: the VSI to be searched
  * @macaddr: the MAC address
  * @vlan: the vlan
- * @is_vf: make sure its a VF filter, else doesn't matter
- * @is_netdev: make sure its a netdev filter, else doesn't matter
  *
  * Returns ptr to the filter object or NULL
  **/
 static struct i40e_mac_filter *i40e_find_filter(struct i40e_vsi *vsi,
-						u8 *macaddr, s16 vlan,
-						bool is_vf, bool is_netdev)
+						u8 *macaddr, s16 vlan)
 {
 	struct i40e_mac_filter *f;
 
@@ -1161,9 +1158,7 @@ static struct i40e_mac_filter *i40e_find_filter(struct i40e_vsi *vsi,
 
 	list_for_each_entry(f, &vsi->mac_filter_list, list) {
 		if ((ether_addr_equal(macaddr, f->macaddr)) &&
-		    (vlan == f->vlan)    &&
-		    (!is_vf || f->is_vf) &&
-		    (!is_netdev || f->is_netdev))
+		    (vlan == f->vlan))
 			return f;
 	}
 	return NULL;
@@ -1173,14 +1168,11 @@ static struct i40e_mac_filter *i40e_find_filter(struct i40e_vsi *vsi,
  * i40e_find_mac - Find a mac addr in the macvlan filters list
  * @vsi: the VSI to be searched
  * @macaddr: the MAC address we are searching for
- * @is_vf: make sure its a VF filter, else doesn't matter
- * @is_netdev: make sure its a netdev filter, else doesn't matter
  *
  * Returns the first filter with the provided MAC address or NULL if
  * MAC address was not found
  **/
-struct i40e_mac_filter *i40e_find_mac(struct i40e_vsi *vsi, u8 *macaddr,
-				      bool is_vf, bool is_netdev)
+struct i40e_mac_filter *i40e_find_mac(struct i40e_vsi *vsi, u8 *macaddr)
 {
 	struct i40e_mac_filter *f;
 
@@ -1188,9 +1180,7 @@ struct i40e_mac_filter *i40e_find_mac(struct i40e_vsi *vsi, u8 *macaddr,
 		return NULL;
 
 	list_for_each_entry(f, &vsi->mac_filter_list, list) {
-		if ((ether_addr_equal(macaddr, f->macaddr)) &&
-		    (!is_vf || f->is_vf) &&
-		    (!is_netdev || f->is_netdev))
+		if ((ether_addr_equal(macaddr, f->macaddr)))
 			return f;
 	}
 	return NULL;
@@ -1221,26 +1211,21 @@ bool i40e_is_vsi_in_vlan(struct i40e_vsi *vsi)
  * i40e_put_mac_in_vlan - Make macvlan filters from macaddrs and vlans
  * @vsi: the VSI to be searched
  * @macaddr: the mac address to be filtered
- * @is_vf: true if it is a VF
- * @is_netdev: true if it is a netdev
  *
  * Goes through all the macvlan filters and adds a
  * macvlan filter for each unique vlan that already exists
  *
  * Returns first filter found on success, else NULL
  **/
-struct i40e_mac_filter *i40e_put_mac_in_vlan(struct i40e_vsi *vsi, u8 *macaddr,
-					     bool is_vf, bool is_netdev)
+struct i40e_mac_filter *i40e_put_mac_in_vlan(struct i40e_vsi *vsi, u8 *macaddr)
 {
 	struct i40e_mac_filter *f;
 
 	list_for_each_entry(f, &vsi->mac_filter_list, list) {
 		if (vsi->info.pvid)
 			f->vlan = le16_to_cpu(vsi->info.pvid);
-		if (!i40e_find_filter(vsi, macaddr, f->vlan,
-				      is_vf, is_netdev)) {
-			if (!i40e_add_filter(vsi, macaddr, f->vlan,
-					     is_vf, is_netdev))
+		if (!i40e_find_filter(vsi, macaddr, f->vlan)) {
+			if (!i40e_add_filter(vsi, macaddr, f->vlan))
 				return NULL;
 		}
 	}
@@ -1253,15 +1238,12 @@ struct i40e_mac_filter *i40e_put_mac_in_vlan(struct i40e_vsi *vsi, u8 *macaddr,
  * i40e_del_mac_all_vlan - Remove a MAC filter from all VLANS
  * @vsi: the VSI to be searched
  * @macaddr: the mac address to be removed
- * @is_vf: true if it is a VF
- * @is_netdev: true if it is a netdev
  *
  * Removes a given MAC address from a VSI, regardless of VLAN
  *
  * Returns 0 for success, or error
  **/
-int i40e_del_mac_all_vlan(struct i40e_vsi *vsi, u8 *macaddr,
-			  bool is_vf, bool is_netdev)
+int i40e_del_mac_all_vlan(struct i40e_vsi *vsi, u8 *macaddr)
 {
 	struct i40e_mac_filter *f = NULL;
 	int changed = 0;
@@ -1269,13 +1251,8 @@ int i40e_del_mac_all_vlan(struct i40e_vsi *vsi, u8 *macaddr,
 	WARN(!spin_is_locked(&vsi->mac_filter_list_lock),
 	     "Missing mac_filter_list_lock\n");
 	list_for_each_entry(f, &vsi->mac_filter_list, list) {
-		if ((ether_addr_equal(macaddr, f->macaddr)) &&
-		    (is_vf == f->is_vf) &&
-		    (is_netdev == f->is_netdev)) {
-			f->counter--;
-			changed = 1;
-			if (f->counter == 0)
-				f->state = I40E_FILTER_REMOVE;
+		if ((ether_addr_equal(macaddr, f->macaddr))) {
+			f->state = I40E_FILTER_REMOVE;
 		}
 	}
 	if (changed) {
@@ -1291,8 +1268,6 @@ int i40e_del_mac_all_vlan(struct i40e_vsi *vsi, u8 *macaddr,
  * @vsi: the VSI to be searched
  * @macaddr: the MAC address
  * @vlan: the vlan
- * @is_vf: make sure its a VF filter, else doesn't matter
- * @is_netdev: make sure its a netdev filter, else doesn't matter
  *
  * Returns ptr to the filter object or NULL when no memory available.
  *
@@ -1300,11 +1275,9 @@ int i40e_del_mac_all_vlan(struct i40e_vsi *vsi, u8 *macaddr,
  * being held.
  **/
 struct i40e_mac_filter *i40e_add_filter(struct i40e_vsi *vsi,
-					u8 *macaddr, s16 vlan,
-					bool is_vf, bool is_netdev)
+					u8 *macaddr, s16 vlan)
 {
 	struct i40e_mac_filter *f;
-	int changed = false;
 
 	if (!vsi || !macaddr)
 		return NULL;
@@ -1316,11 +1289,11 @@ struct i40e_mac_filter *i40e_add_filter(struct i40e_vsi *vsi,
 	if (is_broadcast_ether_addr(macaddr))
 		return NULL;
 
-	f = i40e_find_filter(vsi, macaddr, vlan, is_vf, is_netdev);
+	f = i40e_find_filter(vsi, macaddr, vlan);
 	if (!f) {
 		f = kzalloc(sizeof(*f), GFP_ATOMIC);
 		if (!f)
-			goto add_filter_out;
+			return NULL;
 
 		ether_addr_copy(f->macaddr, macaddr);
 		f->vlan = vlan;
@@ -1332,32 +1305,24 @@ struct i40e_mac_filter *i40e_add_filter(struct i40e_vsi *vsi,
 			f->state = I40E_FILTER_FAILED;
 		else
 			f->state = I40E_FILTER_NEW;
-		changed = true;
 		INIT_LIST_HEAD(&f->list);
 		list_add_tail(&f->list, &vsi->mac_filter_list);
-	}
 
-	/* increment counter and add a new flag if needed */
-	if (is_vf) {
-		if (!f->is_vf) {
-			f->is_vf = true;
-			f->counter++;
-		}
-	} else if (is_netdev) {
-		if (!f->is_netdev) {
-			f->is_netdev = true;
-			f->counter++;
-		}
-	} else {
-		f->counter++;
-	}
-
-	if (changed) {
 		vsi->flags |= I40E_VSI_FLAG_FILTER_CHANGED;
 		vsi->back->flags |= I40E_FLAG_FILTER_SYNC;
 	}
 
-add_filter_out:
+	/* If we're asked to add a filter that has been marked for removal, it
+	 * is safe to simply restore it to active state. __i40e_del_filter
+	 * will have simply deleted any filters which were previously marked
+	 * NEW or FAILED, so if it is currently marked REMOVE it must have
+	 * previously been ACTIVE. Since we haven't yet run the sync filters
+	 * task, just restore this filter to the ACTIVE state so that the
+	 * sync task leaves it in place
+	 */
+	if (f->state == I40E_FILTER_REMOVE)
+		f->state = I40E_FILTER_ACTIVE;
+
 	return f;
 }
 
@@ -1366,8 +1331,6 @@ add_filter_out:
  * @vsi: the VSI to be searched
  * @macaddr: the MAC address
  * @vlan: the vlan
- * @is_vf: make sure it's a VF filter, else doesn't matter
- * @is_netdev: make sure it's a netdev filter, else doesn't matter
  *
  * NOTE: This function is expected to be called with mac_filter_list_lock
  * being held.
@@ -1375,56 +1338,28 @@ add_filter_out:
  * the "safe" variants of any list iterators, e.g. list_for_each_entry_safe()
  * instead of list_for_each_entry().
  **/
-void i40e_del_filter(struct i40e_vsi *vsi,
-		     u8 *macaddr, s16 vlan,
-		     bool is_vf, bool is_netdev)
+void i40e_del_filter(struct i40e_vsi *vsi, u8 *macaddr, s16 vlan)
 {
 	struct i40e_mac_filter *f;
 
 	if (!vsi || !macaddr)
 		return;
 
-	f = i40e_find_filter(vsi, macaddr, vlan, is_vf, is_netdev);
-	if (!f || f->counter == 0)
+	f = i40e_find_filter(vsi, macaddr, vlan);
+	if (!f)
 		return;
 
-	if (is_vf) {
-		if (f->is_vf) {
-			f->is_vf = false;
-			f->counter--;
-		}
-	} else if (is_netdev) {
-		if (f->is_netdev) {
-			f->is_netdev = false;
-			f->counter--;
-		}
+	if ((f->state == I40E_FILTER_FAILED) ||
+	    (f->state == I40E_FILTER_NEW)) {
+		/* this one never got added by the FW. Just remove it,
+		 * no need to sync anything.
+		 */
+		list_del(&f->list);
+		kfree(f);
 	} else {
-		/* make sure we don't remove a filter in use by VF or netdev */
-		int min_f = 0;
-
-		min_f += (f->is_vf ? 1 : 0);
-		min_f += (f->is_netdev ? 1 : 0);
-
-		if (f->counter > min_f)
-			f->counter--;
-	}
-
-	/* counter == 0 tells sync_filters_subtask to
-	 * remove the filter from the firmware's list
-	 */
-	if (f->counter == 0) {
-		if ((f->state == I40E_FILTER_FAILED) ||
-		    (f->state == I40E_FILTER_NEW)) {
-			/* this one never got added by the FW. Just remove it,
-			 * no need to sync anything.
-			 */
-			list_del(&f->list);
-			kfree(f);
-		} else {
-			f->state = I40E_FILTER_REMOVE;
-			vsi->flags |= I40E_VSI_FLAG_FILTER_CHANGED;
-			vsi->back->flags |= I40E_FLAG_FILTER_SYNC;
-		}
+		f->state = I40E_FILTER_REMOVE;
+		vsi->flags |= I40E_VSI_FLAG_FILTER_CHANGED;
+		vsi->back->flags |= I40E_FLAG_FILTER_SYNC;
 	}
 }
 
@@ -1467,8 +1402,8 @@ static int i40e_set_mac(struct net_device *netdev, void *p)
 		netdev_info(netdev, "set new mac address %pM\n", addr->sa_data);
 
 	spin_lock_bh(&vsi->mac_filter_list_lock);
-	i40e_del_mac_all_vlan(vsi, netdev->dev_addr, false, true);
-	i40e_put_mac_in_vlan(vsi, addr->sa_data, false, true);
+	i40e_del_mac_all_vlan(vsi, netdev->dev_addr);
+	i40e_put_mac_in_vlan(vsi, addr->sa_data);
 	spin_unlock_bh(&vsi->mac_filter_list_lock);
 	ether_addr_copy(netdev->dev_addr, addr->sa_data);
 	if (vsi->type == I40E_VSI_MAIN) {
@@ -1653,32 +1588,25 @@ static void i40e_set_rx_mode(struct net_device *netdev)
 
 	/* add addr if not already in the filter list */
 	netdev_for_each_uc_addr(uca, netdev) {
-		if (!i40e_find_mac(vsi, uca->addr, false, true)) {
+		if (!i40e_find_mac(vsi, uca->addr)) {
 			if (i40e_is_vsi_in_vlan(vsi))
-				i40e_put_mac_in_vlan(vsi, uca->addr,
-						     false, true);
+				i40e_put_mac_in_vlan(vsi, uca->addr);
 			else
-				i40e_add_filter(vsi, uca->addr, I40E_VLAN_ANY,
-						false, true);
+				i40e_add_filter(vsi, uca->addr, I40E_VLAN_ANY);
 		}
 	}
 
 	netdev_for_each_mc_addr(mca, netdev) {
-		if (!i40e_find_mac(vsi, mca->addr, false, true)) {
+		if (!i40e_find_mac(vsi, mca->addr)) {
 			if (i40e_is_vsi_in_vlan(vsi))
-				i40e_put_mac_in_vlan(vsi, mca->addr,
-						     false, true);
+				i40e_put_mac_in_vlan(vsi, mca->addr);
 			else
-				i40e_add_filter(vsi, mca->addr, I40E_VLAN_ANY,
-						false, true);
+				i40e_add_filter(vsi, mca->addr, I40E_VLAN_ANY);
 		}
 	}
 
 	/* remove filter if not in netdev list */
 	list_for_each_entry_safe(f, ftmp, &vsi->mac_filter_list, list) {
-
-		if (!f->is_netdev)
-			continue;
 
 		netdev_for_each_mc_addr(mca, netdev)
 			if (ether_addr_equal(mca->addr, f->macaddr))
@@ -1693,7 +1621,7 @@ static void i40e_set_rx_mode(struct net_device *netdev)
 				goto bottom_of_search_loop;
 
 		/* f->macaddr wasn't found in uc, mc, or ha list so delete it */
-		i40e_del_filter(vsi, f->macaddr, I40E_VLAN_ANY, false, true);
+		i40e_del_filter(vsi, f->macaddr, I40E_VLAN_ANY);
 
 bottom_of_search_loop:
 		continue;
@@ -1838,13 +1766,11 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 		/* Create a list of filters to delete. */
 		list_for_each_entry_safe(f, ftmp, &vsi->mac_filter_list, list) {
 			if (f->state == I40E_FILTER_REMOVE) {
-				WARN_ON(f->counter != 0);
 				/* Move the element into temporary del_list */
 				list_move_tail(&f->list, &tmp_del_list);
 				vsi->active_filters--;
 			}
 			if (f->state == I40E_FILTER_NEW) {
-				WARN_ON(f->counter == 0);
 				/* Move the element into temporary add_list */
 				list_move_tail(&f->list, &tmp_add_list);
 			}
@@ -2323,17 +2249,12 @@ static void i40e_vlan_rx_register(struct net_device *netdev, u32 features)
 int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
 {
 	struct i40e_mac_filter *f, *ftmp, *add_f;
-	bool is_netdev, is_vf;
-
-	is_vf = (vsi->type == I40E_VSI_SRIOV);
-	is_netdev = !!(vsi->netdev);
 
 	/* Locked once because all functions invoked below iterates list*/
 	spin_lock_bh(&vsi->mac_filter_list_lock);
 
-	if (is_netdev) {
-		add_f = i40e_add_filter(vsi, vsi->netdev->dev_addr, vid,
-					is_vf, is_netdev);
+	if (vsi->netdev) {
+		add_f = i40e_add_filter(vsi, vsi->netdev->dev_addr, vid);
 		if (!add_f) {
 			dev_info(&vsi->back->pdev->dev,
 				 "Could not add vlan filter %d for %pM\n",
@@ -2344,7 +2265,7 @@ int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
 	}
 
 	list_for_each_entry_safe(f, ftmp, &vsi->mac_filter_list, list) {
-		add_f = i40e_add_filter(vsi, f->macaddr, vid, is_vf, is_netdev);
+		add_f = i40e_add_filter(vsi, f->macaddr, vid);
 		if (!add_f) {
 			dev_info(&vsi->back->pdev->dev,
 				 "Could not add vlan filter %d for %pM\n",
@@ -2360,13 +2281,11 @@ int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
 	 * (and not all tags along with untagged)
 	 */
 	if (vid > 0) {
-		if (is_netdev && i40e_find_filter(vsi, vsi->netdev->dev_addr,
-						  I40E_VLAN_ANY,
-						  is_vf, is_netdev)) {
+		if (vsi->netdev && i40e_find_filter(vsi, vsi->netdev->dev_addr,
+						    I40E_VLAN_ANY)) {
 			i40e_del_filter(vsi, vsi->netdev->dev_addr,
-					I40E_VLAN_ANY, is_vf, is_netdev);
-			add_f = i40e_add_filter(vsi, vsi->netdev->dev_addr, 0,
-						is_vf, is_netdev);
+					I40E_VLAN_ANY);
+			add_f = i40e_add_filter(vsi, vsi->netdev->dev_addr, 0);
 			if (!add_f) {
 				dev_info(&vsi->back->pdev->dev,
 					 "Could not add filter 0 for %pM\n",
@@ -2380,13 +2299,10 @@ int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
 	/* Do not assume that I40E_VLAN_ANY should be reset to VLAN 0 */
 	if (vid > 0 && !vsi->info.pvid) {
 		list_for_each_entry_safe(f, ftmp, &vsi->mac_filter_list, list) {
-			if (!i40e_find_filter(vsi, f->macaddr, I40E_VLAN_ANY,
-					      is_vf, is_netdev))
+			if (!i40e_find_filter(vsi, f->macaddr, I40E_VLAN_ANY))
 				continue;
-			i40e_del_filter(vsi, f->macaddr, I40E_VLAN_ANY,
-					is_vf, is_netdev);
-			add_f = i40e_add_filter(vsi, f->macaddr,
-						0, is_vf, is_netdev);
+			i40e_del_filter(vsi, f->macaddr, I40E_VLAN_ANY);
+			add_f = i40e_add_filter(vsi, f->macaddr, 0);
 			if (!add_f) {
 				dev_info(&vsi->back->pdev->dev,
 					 "Could not add filter 0 for %pM\n",
@@ -2417,20 +2333,16 @@ int i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid)
 {
 	struct net_device *netdev = vsi->netdev;
 	struct i40e_mac_filter *f, *ftmp, *add_f;
-	bool is_vf, is_netdev;
 	int filter_count = 0;
-
-	is_vf = (vsi->type == I40E_VSI_SRIOV);
-	is_netdev = !!(netdev);
 
 	/* Locked once because all functions invoked below iterates list */
 	spin_lock_bh(&vsi->mac_filter_list_lock);
 
-	if (is_netdev)
-		i40e_del_filter(vsi, netdev->dev_addr, vid, is_vf, is_netdev);
+	if (vsi->netdev)
+		i40e_del_filter(vsi, netdev->dev_addr, vid);
 
 	list_for_each_entry_safe(f, ftmp, &vsi->mac_filter_list, list)
-		i40e_del_filter(vsi, f->macaddr, vid, is_vf, is_netdev);
+		i40e_del_filter(vsi, f->macaddr, vid);
 
 	/* go through all the filters for this VSI and if there is only
 	 * vid == 0 it means there are no other filters, so vid 0 must
@@ -2438,7 +2350,7 @@ int i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid)
 	 * on accept any traffic (with any tag present, or untagged)
 	 */
 	list_for_each_entry(f, &vsi->mac_filter_list, list) {
-		if (is_netdev) {
+		if (vsi->netdev) {
 			if (f->vlan &&
 			    ether_addr_equal(netdev->dev_addr, f->macaddr))
 				filter_count++;
@@ -2448,10 +2360,9 @@ int i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid)
 			filter_count++;
 	}
 
-	if (!filter_count && is_netdev) {
-		i40e_del_filter(vsi, netdev->dev_addr, 0, is_vf, is_netdev);
-		f = i40e_add_filter(vsi, netdev->dev_addr, I40E_VLAN_ANY,
-				    is_vf, is_netdev);
+	if (!filter_count && vsi->netdev) {
+		i40e_del_filter(vsi, netdev->dev_addr, 0);
+		f = i40e_add_filter(vsi, netdev->dev_addr, I40E_VLAN_ANY);
 		if (!f) {
 			dev_info(&vsi->back->pdev->dev,
 				 "Could not add filter %d for %pM\n",
@@ -2463,9 +2374,8 @@ int i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid)
 
 	if (!filter_count) {
 		list_for_each_entry_safe(f, ftmp, &vsi->mac_filter_list, list) {
-			i40e_del_filter(vsi, f->macaddr, 0, is_vf, is_netdev);
-			add_f = i40e_add_filter(vsi, f->macaddr, I40E_VLAN_ANY,
-						is_vf, is_netdev);
+			i40e_del_filter(vsi, f->macaddr, 0);
+			add_f = i40e_add_filter(vsi, f->macaddr, I40E_VLAN_ANY);
 			if (!add_f) {
 				dev_info(&vsi->back->pdev->dev,
 					 "Could not add filter %d for %pM\n",
@@ -9155,7 +9065,7 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 		SET_NETDEV_DEV(netdev, &pf->pdev->dev);
 		ether_addr_copy(mac_addr, hw->mac.perm_addr);
 		spin_lock_bh(&vsi->mac_filter_list_lock);
-		i40e_add_filter(vsi, mac_addr, I40E_VLAN_ANY, false, true);
+		i40e_add_filter(vsi, mac_addr, I40E_VLAN_ANY);
 		spin_unlock_bh(&vsi->mac_filter_list_lock);
 	} else {
 		/* relate the VSI_VMDQ name to the VSI_MAIN name */
@@ -9164,7 +9074,7 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 		random_ether_addr(mac_addr);
 
 		spin_lock_bh(&vsi->mac_filter_list_lock);
-		i40e_add_filter(vsi, mac_addr, I40E_VLAN_ANY, false, false);
+		i40e_add_filter(vsi, mac_addr, I40E_VLAN_ANY);
 		spin_unlock_bh(&vsi->mac_filter_list_lock);
 	}
 
@@ -9525,8 +9435,7 @@ int i40e_vsi_release(struct i40e_vsi *vsi)
 
 	spin_lock_bh(&vsi->mac_filter_list_lock);
 	list_for_each_entry_safe(f, ftmp, &vsi->mac_filter_list, list)
-		i40e_del_filter(vsi, f->macaddr, f->vlan,
-				f->is_vf, f->is_netdev);
+		i40e_del_filter(vsi, f->macaddr, f->vlan);
 	spin_unlock_bh(&vsi->mac_filter_list_lock);
 
 	i40e_sync_vsi_filters(vsi);

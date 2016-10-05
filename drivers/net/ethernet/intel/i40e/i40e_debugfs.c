@@ -168,9 +168,9 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 			 pf->hw.mac.port_addr);
 	list_for_each_entry(f, &vsi->mac_filter_list, list) {
 		dev_info(&pf->pdev->dev,
-			 "    mac_filter_list: %pM vid=%d, is_netdev=%d is_vf=%d counter=%d, state %s\n",
-			 f->macaddr, f->vlan, f->is_netdev, f->is_vf,
-			 f->counter, i40e_filter_state_string[f->state]);
+			 "    mac_filter_hash: %pM vid=%d, state %s\n",
+			 f->macaddr, f->vlan,
+			 i40e_filter_state_string[f->state]);
 	}
 	dev_info(&pf->pdev->dev, "    active_filters %d, promisc_threshold %d, overflow promisc %s\n",
 		 vsi->active_filters, vsi->promisc_threshold,
@@ -867,86 +867,6 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 
 		dev_info(&pf->pdev->dev, "deleting relay %d\n", veb_seid);
 		i40e_veb_release(pf->veb[i]);
-
-	} else if (strncmp(cmd_buf, "add macaddr", 11) == 0) {
-		struct i40e_mac_filter *f;
-		int vlan = 0;
-		u8 ma[6];
-		int ret;
-
-		cnt = sscanf(&cmd_buf[11],
-			     "%i %hhx:%hhx:%hhx:%hhx:%hhx:%hhx %i",
-			     &vsi_seid,
-			     &ma[0], &ma[1], &ma[2], &ma[3], &ma[4], &ma[5],
-			     &vlan);
-		if (cnt == 7) {
-			vlan = 0;
-		} else if (cnt != 8) {
-			dev_info(&pf->pdev->dev,
-				 "add macaddr: bad command string, cnt=%d\n",
-				 cnt);
-			goto command_write_done;
-		}
-
-		vsi = i40e_dbg_find_vsi(pf, vsi_seid);
-		if (!vsi) {
-			dev_info(&pf->pdev->dev,
-				 "add macaddr: VSI %d not found\n", vsi_seid);
-			goto command_write_done;
-		}
-
-		spin_lock_bh(&vsi->mac_filter_list_lock);
-		f = i40e_add_filter(vsi, ma, vlan, false, false);
-		spin_unlock_bh(&vsi->mac_filter_list_lock);
-		ret = i40e_sync_vsi_filters(vsi);
-		if (f && !ret)
-			dev_info(&pf->pdev->dev,
-				 "add macaddr: %pM vlan=%d added to VSI %d\n",
-				 ma, vlan, vsi_seid);
-		else
-			dev_info(&pf->pdev->dev,
-				 "add macaddr: %pM vlan=%d to VSI %d failed, f=%p ret=%d\n",
-				 ma, vlan, vsi_seid, f, ret);
-
-	} else if (strncmp(cmd_buf, "del macaddr", 11) == 0) {
-		int vlan = 0;
-		u8 ma[6];
-		int ret;
-
-		cnt = sscanf(&cmd_buf[11],
-			     "%i %hhx:%hhx:%hhx:%hhx:%hhx:%hhx %i",
-			     &vsi_seid,
-			     &ma[0], &ma[1], &ma[2], &ma[3], &ma[4], &ma[5],
-			     &vlan);
-		if (cnt == 7) {
-			vlan = 0;
-		} else if (cnt != 8) {
-			dev_info(&pf->pdev->dev,
-				 "del macaddr: bad command string, cnt=%d\n",
-				 cnt);
-			goto command_write_done;
-		}
-
-		vsi = i40e_dbg_find_vsi(pf, vsi_seid);
-		if (!vsi) {
-			dev_info(&pf->pdev->dev,
-				 "del macaddr: VSI %d not found\n", vsi_seid);
-			goto command_write_done;
-		}
-
-		spin_lock_bh(&vsi->mac_filter_list_lock);
-		i40e_del_filter(vsi, ma, vlan, false, false);
-		spin_unlock_bh(&vsi->mac_filter_list_lock);
-		ret = i40e_sync_vsi_filters(vsi);
-		if (!ret)
-			dev_info(&pf->pdev->dev,
-				 "del macaddr: %pM vlan=%d removed from VSI %d\n",
-				 ma, vlan, vsi_seid);
-		else
-			dev_info(&pf->pdev->dev,
-				 "del macaddr: %pM vlan=%d from VSI %d failed, ret=%d\n",
-				 ma, vlan, vsi_seid, ret);
-
 	} else if (strncmp(cmd_buf, "add pvid", 8) == 0) {
 		i40e_status ret;
 		u16 vid;
@@ -1615,8 +1535,6 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		dev_info(&pf->pdev->dev, "  del vsi [vsi_seid]\n");
 		dev_info(&pf->pdev->dev, "  add relay <uplink_seid> <vsi_seid>\n");
 		dev_info(&pf->pdev->dev, "  del relay <relay_seid>\n");
-		dev_info(&pf->pdev->dev, "  add macaddr <vsi_seid> <aa:bb:cc:dd:ee:ff> [vlan]\n");
-		dev_info(&pf->pdev->dev, "  del macaddr <vsi_seid> <aa:bb:cc:dd:ee:ff> [vlan]\n");
 		dev_info(&pf->pdev->dev, "  add pvid <vsi_seid> <vid>\n");
 		dev_info(&pf->pdev->dev, "  del pvid <vsi_seid>\n");
 		dev_info(&pf->pdev->dev, "  dump switch\n");
