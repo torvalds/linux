@@ -1030,6 +1030,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&twi0_clk>;
+				atmel,fifo-size = <16>;
 				status = "disabled";
 			};
 
@@ -1231,6 +1232,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&twi1_clk>;
+				atmel,fifo-size = <16>;
 				status = "disabled";
 			};
 
