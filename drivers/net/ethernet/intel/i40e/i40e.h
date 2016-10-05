@@ -429,11 +429,13 @@ struct i40e_pf {
 	struct ptp_clock_info ptp_caps;
 	struct sk_buff *ptp_tx_skb;
 	struct hwtstamp_config tstamp_config;
-	unsigned long last_rx_ptp_check;
 	struct mutex tmreg_lock; /* Used to protect the SYSTIME registers. */
 	u64 ptp_base_adj;
 	u32 tx_hwtstamp_timeouts;
 	u32 rx_hwtstamp_cleared;
+	u32 latch_event_flags;
+	spinlock_t ptp_rx_lock; /* Used to protect Rx timestamp registers. */
+	unsigned long latch_events[4];
 	bool ptp_tx;
 	bool ptp_rx;
 	u16 rss_table_size; /* HW RSS table size */

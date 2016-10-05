@@ -1414,10 +1414,8 @@ void i40e_process_skb_fields(struct i40e_ring *rx_ring,
 	u32 tsyn = (rx_status & I40E_RXD_QW1_STATUS_TSYNINDX_MASK) >>
 		   I40E_RXD_QW1_STATUS_TSYNINDX_SHIFT;
 
-	if (unlikely(tsynvalid)) {
+	if (unlikely(tsynvalid))
 		i40e_ptp_rx_hwtstamp(rx_ring->vsi->back, skb, tsyn);
-		rx_ring->last_rx_timestamp = jiffies;
-	}
 
 	i40e_rx_hash(rx_ring, rx_desc, skb, rx_ptype);
 
