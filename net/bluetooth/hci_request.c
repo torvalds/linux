@@ -21,8 +21,6 @@
    SOFTWARE IS DISCLAIMED.
 */
 
-#include <asm/unaligned.h>
-
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/mgmt.h>
@@ -992,32 +990,28 @@ static u8 append_local_name(struct hci_dev *hdev, u8 *ptr, u8 ad_len)
 	/* complete name fits and is eq to max short name len or smaller */
 	if (complete_len <= max_len &&
 	    complete_len <= HCI_MAX_SHORT_NAME_LENGTH) {
-		ptr[0] = complete_len + 1;
-		ptr[1] = EIR_NAME_COMPLETE;
-		memcpy(ptr + 2, hdev->dev_name, complete_len);
-
-		return ad_len + complete_len + 2;
+		return eir_append_data(ptr, ad_len, EIR_NAME_COMPLETE,
+				       hdev->dev_name, complete_len);
 	}
 
 	/* short name set and fits */
 	if (short_len && short_len <= max_len) {
-		ptr[0] = short_len + 1;
-		ptr[1] = EIR_NAME_SHORT;
-		memcpy(ptr + 2, hdev->short_name, short_len);
-
-		return ad_len + short_len + 2;
+		return eir_append_data(ptr, ad_len, EIR_NAME_SHORT,
+				       hdev->short_name, short_len);
 	}
 
 	/* no short name set so shorten complete name */
 	if (!short_len) {
-		ptr[0] = max_len + 1;
-		ptr[1] = EIR_NAME_SHORT;
-		memcpy(ptr + 2, hdev->dev_name, max_len);
-
-		return ad_len + max_len + 2;
+		return eir_append_data(ptr, ad_len, EIR_NAME_SHORT,
+				       hdev->dev_name, max_len);
 	}
 
 	return ad_len;
+}
+
+static u8 append_appearance(struct hci_dev *hdev, u8 *ptr, u8 ad_len)
+{
+	return eir_append_le16(ptr, ad_len, EIR_APPEARANCE, hdev->appearance);
 }
 
 static u8 create_default_scan_rsp_data(struct hci_dev *hdev, u8 *ptr)
@@ -1025,13 +1019,10 @@ static u8 create_default_scan_rsp_data(struct hci_dev *hdev, u8 *ptr)
 	u8 scan_rsp_len = 0;
 
 	if (hdev->appearance) {
-		ptr[0] = 3;
-		ptr[1] = EIR_APPEARANCE;
-		put_unaligned_le16(hdev->appearance, ptr + 2);
-		scan_rsp_len += 4;
+		scan_rsp_len = append_appearance(hdev, ptr, scan_rsp_len);
 	}
 
-	return append_local_name(hdev, ptr + scan_rsp_len, scan_rsp_len);
+	return append_local_name(hdev, ptr, scan_rsp_len);
 }
 
 static u8 create_instance_scan_rsp_data(struct hci_dev *hdev, u8 instance,
@@ -1048,18 +1039,13 @@ static u8 create_instance_scan_rsp_data(struct hci_dev *hdev, u8 instance,
 	instance_flags = adv_instance->flags;
 
 	if ((instance_flags & MGMT_ADV_FLAG_APPEARANCE) && hdev->appearance) {
-		ptr[0] = 3;
-		ptr[1] = EIR_APPEARANCE;
-		put_unaligned_le16(hdev->appearance, ptr + 2);
-		scan_rsp_len += 4;
-		ptr += 4;
+		scan_rsp_len = append_appearance(hdev, ptr, scan_rsp_len);
 	}
 
-	memcpy(ptr, adv_instance->scan_rsp_data,
+	memcpy(&ptr[scan_rsp_len], adv_instance->scan_rsp_data,
 	       adv_instance->scan_rsp_len);
 
 	scan_rsp_len += adv_instance->scan_rsp_len;
-	ptr += adv_instance->scan_rsp_len;
 
 	if (instance_flags & MGMT_ADV_FLAG_LOCAL_NAME)
 		scan_rsp_len = append_local_name(hdev, ptr, scan_rsp_len);
