@@ -86,7 +86,7 @@ struct ti_clk_mux {
 	int num_parents;
 	u16 reg;
 	u8 module;
-	const char **parents;
+	const char * const *parents;
 	u16 flags;
 };
 

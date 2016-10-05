@@ -97,10 +97,10 @@ const struct clk_ops ti_clk_mux_ops = {
 };
 
 static struct clk *_register_mux(struct device *dev, const char *name,
-				 const char **parent_names, u8 num_parents,
-				 unsigned long flags, void __iomem *reg,
-				 u8 shift, u32 mask, u8 clk_mux_flags,
-				 u32 *table)
+				 const char * const *parent_names,
+				 u8 num_parents, unsigned long flags,
+				 void __iomem *reg, u8 shift, u32 mask,
+				 u8 clk_mux_flags, u32 *table)
 {
 	struct clk_mux *mux;
 	struct clk *clk;

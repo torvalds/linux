@@ -124,7 +124,7 @@ struct clk *ti_clk_register_composite(struct ti_clk *setup)
 	struct clk_hw *mux;
 	struct clk_hw *div;
 	int num_parents = 1;
-	const char **parent_names = NULL;
+	const char * const *parent_names = NULL;
 	struct clk *clk;
 	int ret;
 
