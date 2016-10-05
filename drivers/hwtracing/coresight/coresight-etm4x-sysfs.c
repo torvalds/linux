@@ -18,6 +18,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/sysfs.h>
 #include "coresight-etm4x.h"
+#include "coresight-priv.h"
 
 static int etm4_set_mode_exclude(struct etmv4_drvdata *drvdata, bool exclude)
 {
@@ -2039,15 +2040,42 @@ static struct attribute *coresight_etmv4_attrs[] = {
 	NULL,
 };
 
-#define coresight_etm4x_simple_func(name, offset)			\
-	coresight_simple_func(struct etmv4_drvdata, name, offset)
+struct etmv4_reg {
+	void __iomem *addr;
+	u32 data;
+};
 
-coresight_etm4x_simple_func(trcoslsr, TRCOSLSR);
+static void do_smp_cross_read(void *data)
+{
+	struct etmv4_reg *reg = data;
+
+	reg->data = readl_relaxed(reg->addr);
+}
+
+static u32 etmv4_cross_read(const struct device *dev, u32 offset)
+{
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev);
+	struct etmv4_reg reg;
+
+	reg.addr = drvdata->base + offset;
+	/*
+	 * smp cross call ensures the CPU will be powered up before
+	 * accessing the ETMv4 trace core registers
+	 */
+	smp_call_function_single(drvdata->cpu, do_smp_cross_read, &reg, 1);
+	return reg.data;
+}
+
+#define coresight_etm4x_simple_func(name, offset)			\
+	coresight_simple_func(struct etmv4_drvdata, NULL, name, offset)
+
+#define coresight_etm4x_cross_read(name, offset)			\
+	coresight_simple_func(struct etmv4_drvdata, etmv4_cross_read,	\
+			      name, offset)
+
 coresight_etm4x_simple_func(trcpdcr, TRCPDCR);
 coresight_etm4x_simple_func(trcpdsr, TRCPDSR);
 coresight_etm4x_simple_func(trclsr, TRCLSR);
-coresight_etm4x_simple_func(trcconfig, TRCCONFIGR);
-coresight_etm4x_simple_func(trctraceid, TRCTRACEIDR);
 coresight_etm4x_simple_func(trcauthstatus, TRCAUTHSTATUS);
 coresight_etm4x_simple_func(trcdevid, TRCDEVID);
 coresight_etm4x_simple_func(trcdevtype, TRCDEVTYPE);
@@ -2055,6 +2083,9 @@ coresight_etm4x_simple_func(trcpidr0, TRCPIDR0);
 coresight_etm4x_simple_func(trcpidr1, TRCPIDR1);
 coresight_etm4x_simple_func(trcpidr2, TRCPIDR2);
 coresight_etm4x_simple_func(trcpidr3, TRCPIDR3);
+coresight_etm4x_cross_read(trcoslsr, TRCOSLSR);
+coresight_etm4x_cross_read(trcconfig, TRCCONFIGR);
+coresight_etm4x_cross_read(trctraceid, TRCTRACEIDR);
 
 static struct attribute *coresight_etmv4_mgmt_attrs[] = {
 	&dev_attr_trcoslsr.attr,
@@ -2073,19 +2104,19 @@ static struct attribute *coresight_etmv4_mgmt_attrs[] = {
 	NULL,
 };
 
-coresight_etm4x_simple_func(trcidr0, TRCIDR0);
-coresight_etm4x_simple_func(trcidr1, TRCIDR1);
-coresight_etm4x_simple_func(trcidr2, TRCIDR2);
-coresight_etm4x_simple_func(trcidr3, TRCIDR3);
-coresight_etm4x_simple_func(trcidr4, TRCIDR4);
-coresight_etm4x_simple_func(trcidr5, TRCIDR5);
+coresight_etm4x_cross_read(trcidr0, TRCIDR0);
+coresight_etm4x_cross_read(trcidr1, TRCIDR1);
+coresight_etm4x_cross_read(trcidr2, TRCIDR2);
+coresight_etm4x_cross_read(trcidr3, TRCIDR3);
+coresight_etm4x_cross_read(trcidr4, TRCIDR4);
+coresight_etm4x_cross_read(trcidr5, TRCIDR5);
 /* trcidr[6,7] are reserved */
-coresight_etm4x_simple_func(trcidr8, TRCIDR8);
-coresight_etm4x_simple_func(trcidr9, TRCIDR9);
-coresight_etm4x_simple_func(trcidr10, TRCIDR10);
-coresight_etm4x_simple_func(trcidr11, TRCIDR11);
-coresight_etm4x_simple_func(trcidr12, TRCIDR12);
-coresight_etm4x_simple_func(trcidr13, TRCIDR13);
+coresight_etm4x_cross_read(trcidr8, TRCIDR8);
+coresight_etm4x_cross_read(trcidr9, TRCIDR9);
+coresight_etm4x_cross_read(trcidr10, TRCIDR10);
+coresight_etm4x_cross_read(trcidr11, TRCIDR11);
+coresight_etm4x_cross_read(trcidr12, TRCIDR12);
+coresight_etm4x_cross_read(trcidr13, TRCIDR13);
 
 static struct attribute *coresight_etmv4_trcidr_attrs[] = {
 	&dev_attr_trcidr0.attr,

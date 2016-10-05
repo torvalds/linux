@@ -45,14 +45,14 @@
 #define WRITERDP(lp, x)	out_be16(lp->base + LANCE_RDP, (x))
 #define READRDP(lp)	in_be16(lp->base + LANCE_RDP)
 
-#if defined(CONFIG_HPLANCE) || defined(CONFIG_HPLANCE_MODULE)
+#if IS_ENABLED(CONFIG_HPLANCE)
 #include "hplance.h"
 
 #undef WRITERAP
 #undef WRITERDP
 #undef READRDP
 
-#if defined(CONFIG_MVME147_NET) || defined(CONFIG_MVME147_NET_MODULE)
+#if IS_ENABLED(CONFIG_MVME147_NET)
 
 /* Lossage Factor Nine, Mr Sulu. */
 #define WRITERAP(lp, x)	(lp->writerap(lp, x))
@@ -86,7 +86,7 @@ static inline __u16 READRDP(struct lance_private *lp)
 }
 
 #endif
-#endif /* CONFIG_HPLANCE || CONFIG_HPLANCE_MODULE */
+#endif /* IS_ENABLED(CONFIG_HPLANCE) */
 
 /* debugging output macros, various flavours */
 /* #define TEST_HITS */

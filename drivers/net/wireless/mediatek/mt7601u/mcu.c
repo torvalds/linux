@@ -43,8 +43,8 @@ static inline void mt7601u_dma_skb_wrap_cmd(struct sk_buff *skb,
 					    u8 seq, enum mcu_cmd cmd)
 {
 	WARN_ON(mt7601u_dma_skb_wrap(skb, CPU_TX_PORT, DMA_COMMAND,
-				     MT76_SET(MT_TXD_CMD_INFO_SEQ, seq) |
-				     MT76_SET(MT_TXD_CMD_INFO_TYPE, cmd)));
+				     FIELD_PREP(MT_TXD_CMD_INFO_SEQ, seq) |
+				     FIELD_PREP(MT_TXD_CMD_INFO_TYPE, cmd)));
 }
 
 static inline void trace_mt_mcu_msg_send_cs(struct mt7601u_dev *dev,
@@ -100,13 +100,13 @@ static int mt7601u_mcu_wait_resp(struct mt7601u_dev *dev, u8 seq)
 			dev_err(dev->dev, "Error: MCU resp urb failed:%d\n",
 				urb_status);
 
-		if (MT76_GET(MT_RXD_CMD_INFO_CMD_SEQ, rxfce) == seq &&
-		    MT76_GET(MT_RXD_CMD_INFO_EVT_TYPE, rxfce) == CMD_DONE)
+		if (FIELD_GET(MT_RXD_CMD_INFO_CMD_SEQ, rxfce) == seq &&
+		    FIELD_GET(MT_RXD_CMD_INFO_EVT_TYPE, rxfce) == CMD_DONE)
 			return 0;
 
-		dev_err(dev->dev, "Error: MCU resp evt:%hhx seq:%hhx-%hhx!\n",
-			MT76_GET(MT_RXD_CMD_INFO_EVT_TYPE, rxfce),
-			seq, MT76_GET(MT_RXD_CMD_INFO_CMD_SEQ, rxfce));
+		dev_err(dev->dev, "Error: MCU resp evt:%lx seq:%hhx-%lx!\n",
+			FIELD_GET(MT_RXD_CMD_INFO_EVT_TYPE, rxfce),
+			seq, FIELD_GET(MT_RXD_CMD_INFO_CMD_SEQ, rxfce));
 	}
 
 	dev_err(dev->dev, "Error: %s timed out\n", __func__);
@@ -291,9 +291,9 @@ static int __mt7601u_dma_fw(struct mt7601u_dev *dev,
 	u32 val;
 	int ret;
 
-	reg = cpu_to_le32(MT76_SET(MT_TXD_INFO_TYPE, DMA_PACKET) |
-			  MT76_SET(MT_TXD_INFO_D_PORT, CPU_TX_PORT) |
-			  MT76_SET(MT_TXD_INFO_LEN, len));
+	reg = cpu_to_le32(FIELD_PREP(MT_TXD_INFO_TYPE, DMA_PACKET) |
+			  FIELD_PREP(MT_TXD_INFO_D_PORT, CPU_TX_PORT) |
+			  FIELD_PREP(MT_TXD_INFO_LEN, len));
 	memcpy(buf.buf, &reg, sizeof(reg));
 	memcpy(buf.buf + sizeof(reg), data, len);
 	memset(buf.buf + sizeof(reg) + len, 0, 8);

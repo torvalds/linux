@@ -457,10 +457,8 @@ int cvm_oct_common_init(struct net_device *dev)
 
 void cvm_oct_common_uninit(struct net_device *dev)
 {
-	struct octeon_ethernet *priv = netdev_priv(dev);
-
-	if (priv->phydev)
-		phy_disconnect(priv->phydev);
+	if (dev->phydev)
+		phy_disconnect(dev->phydev);
 }
 
 int cvm_oct_common_open(struct net_device *dev,
@@ -484,10 +482,10 @@ int cvm_oct_common_open(struct net_device *dev,
 	if (octeon_is_simulation())
 		return 0;
 
-	if (priv->phydev) {
-		int r = phy_read_status(priv->phydev);
+	if (dev->phydev) {
+		int r = phy_read_status(dev->phydev);
 
-		if (r == 0 && priv->phydev->link == 0)
+		if (r == 0 && dev->phydev->link == 0)
 			netif_carrier_off(dev);
 		cvm_oct_adjust_link(dev);
 	} else {

@@ -86,6 +86,8 @@ ID	Clock		Peripheral
 7	pex3		PCIe 3
 8	pex0		PCIe 0
 9	usb3h0		USB3 Host 0
+10	usb3h1		USB3 Host 1
+15	sata0		SATA 0
 17	sdio		SDIO
 22	xor0		XOR 0
 28	xor1		XOR 1

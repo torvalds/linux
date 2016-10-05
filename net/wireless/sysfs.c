@@ -57,7 +57,7 @@ static ssize_t addresses_show(struct device *dev,
 		return sprintf(buf, "%pM\n", wiphy->perm_addr);
 
 	for (i = 0; i < wiphy->n_addresses; i++)
-		buf += sprintf(buf, "%pM\n", &wiphy->addresses[i].addr);
+		buf += sprintf(buf, "%pM\n", wiphy->addresses[i].addr);
 
 	return buf - start;
 }

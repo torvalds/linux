@@ -64,6 +64,8 @@
 #include <linux/kthread.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
+#include <rdma/ib_hdrs.h>
+#include <linux/rhashtable.h>
 #include <rdma/rdma_vt.h>
 
 #include "chip_registers.h"
@@ -171,12 +173,12 @@ struct ctxt_eager_bufs {
 	u32 threshold;           /* head update threshold */
 	struct eager_buffer {
 		void *addr;
-		dma_addr_t phys;
+		dma_addr_t dma;
 		ssize_t len;
 	} *buffers;
 	struct {
 		void *addr;
-		dma_addr_t phys;
+		dma_addr_t dma;
 	} *rcvtids;
 };
 
@@ -207,8 +209,8 @@ struct hfi1_ctxtdata {
 	/* size of each of the rcvhdrq entries */
 	u16 rcvhdrqentsize;
 	/* mmap of hdrq, must fit in 44 bits */
-	dma_addr_t rcvhdrq_phys;
-	dma_addr_t rcvhdrqtailaddr_phys;
+	dma_addr_t rcvhdrq_dma;
+	dma_addr_t rcvhdrqtailaddr_dma;
 	struct ctxt_eager_bufs egrbufs;
 	/* this receive context's assigned PIO ACK send context */
 	struct send_context *sc;
@@ -350,7 +352,7 @@ struct hfi1_packet {
 	struct hfi1_ctxtdata *rcd;
 	__le32 *rhf_addr;
 	struct rvt_qp *qp;
-	struct hfi1_other_headers *ohdr;
+	struct ib_other_headers *ohdr;
 	u64 rhf;
 	u32 maxcnt;
 	u32 rhqoff;
@@ -529,6 +531,7 @@ struct hfi1_msix_entry {
 	void *arg;
 	char name[MAX_NAME_SIZE];
 	cpumask_t mask;
+	struct irq_affinity_notify notify;
 };
 
 /* per-SL CCA information */
@@ -1060,8 +1063,6 @@ struct hfi1_devdata {
 	u8 psxmitwait_supported;
 	/* cycle length of PS* counters in HW (in picoseconds) */
 	u16 psxmitwait_check_rate;
-	/* high volume overflow errors deferred to tasklet */
-	struct tasklet_struct error_tasklet;
 
 	/* MSI-X information */
 	struct hfi1_msix_entry *msix_entries;
@@ -1164,7 +1165,7 @@ struct hfi1_devdata {
 
 	/* receive context tail dummy address */
 	__le64 *rcvhdrtail_dummy_kvaddr;
-	dma_addr_t rcvhdrtail_dummy_physaddr;
+	dma_addr_t rcvhdrtail_dummy_dma;
 
 	bool eprom_available;	/* true if EPROM is available for this device */
 	bool aspm_supported;	/* Does HW support ASPM */
@@ -1175,6 +1176,7 @@ struct hfi1_devdata {
 	atomic_t aspm_disabled_cnt;
 
 	struct hfi1_affinity *affinity;
+	struct rhashtable sdma_rht;
 	struct kobject kobj;
 };
 
@@ -1268,7 +1270,7 @@ static inline u32 driver_lstate(struct hfi1_pportdata *ppd)
 void receive_interrupt_work(struct work_struct *work);
 
 /* extract service channel from header and rhf */
-static inline int hdr2sc(struct hfi1_message_header *hdr, u64 rhf)
+static inline int hdr2sc(struct ib_header *hdr, u64 rhf)
 {
 	return ((be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf) |
 	       ((!!(rhf_dc_info(rhf))) << 4);
@@ -1603,7 +1605,7 @@ void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 static inline bool process_ecn(struct rvt_qp *qp, struct hfi1_packet *pkt,
 			       bool do_cnp)
 {
-	struct hfi1_other_headers *ohdr = pkt->ohdr;
+	struct ib_other_headers *ohdr = pkt->ohdr;
 	u32 bth1;
 
 	bth1 = be32_to_cpu(ohdr->bth[1]);

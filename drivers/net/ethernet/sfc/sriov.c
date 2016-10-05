@@ -22,7 +22,7 @@ int efx_sriov_set_vf_mac(struct net_device *net_dev, int vf_i, u8 *mac)
 }
 
 int efx_sriov_set_vf_vlan(struct net_device *net_dev, int vf_i, u16 vlan,
-			  u8 qos)
+			  u8 qos, __be16 vlan_proto)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
@@ -30,6 +30,9 @@ int efx_sriov_set_vf_vlan(struct net_device *net_dev, int vf_i, u16 vlan,
 		if ((vlan & ~VLAN_VID_MASK) ||
 		    (qos & ~(VLAN_PRIO_MASK >> VLAN_PRIO_SHIFT)))
 			return -EINVAL;
+
+		if (vlan_proto != htons(ETH_P_8021Q))
+			return -EPROTONOSUPPORT;
 
 		return efx->type->sriov_set_vf_vlan(efx, vf_i, vlan, qos);
 	} else {

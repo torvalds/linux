@@ -1286,7 +1286,7 @@ out_free_policy:
 	return ret;
 }
 
-static void cpufreq_offline(unsigned int cpu);
+static int cpufreq_offline(unsigned int cpu);
 
 /**
  * cpufreq_add_dev - the cpufreq interface for a CPU device.
@@ -1321,7 +1321,7 @@ static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 	return ret;
 }
 
-static void cpufreq_offline(unsigned int cpu)
+static int cpufreq_offline(unsigned int cpu)
 {
 	struct cpufreq_policy *policy;
 	int ret;
@@ -1331,7 +1331,7 @@ static void cpufreq_offline(unsigned int cpu)
 	policy = cpufreq_cpu_get_raw(cpu);
 	if (!policy) {
 		pr_debug("%s: No cpu_data found\n", __func__);
-		return;
+		return 0;
 	}
 
 	down_write(&policy->rwsem);
@@ -1380,6 +1380,7 @@ static void cpufreq_offline(unsigned int cpu)
 
 unlock:
 	up_write(&policy->rwsem);
+	return 0;
 }
 
 /**
@@ -2295,28 +2296,6 @@ unlock:
 }
 EXPORT_SYMBOL(cpufreq_update_policy);
 
-static int cpufreq_cpu_callback(struct notifier_block *nfb,
-					unsigned long action, void *hcpu)
-{
-	unsigned int cpu = (unsigned long)hcpu;
-
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_ONLINE:
-	case CPU_DOWN_FAILED:
-		cpufreq_online(cpu);
-		break;
-
-	case CPU_DOWN_PREPARE:
-		cpufreq_offline(cpu);
-		break;
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block __refdata cpufreq_cpu_notifier = {
-	.notifier_call = cpufreq_cpu_callback,
-};
-
 /*********************************************************************
  *               BOOST						     *
  *********************************************************************/
@@ -2418,6 +2397,7 @@ EXPORT_SYMBOL_GPL(cpufreq_boost_enabled);
 /*********************************************************************
  *               REGISTER / UNREGISTER CPUFREQ DRIVER                *
  *********************************************************************/
+static enum cpuhp_state hp_online;
 
 /**
  * cpufreq_register_driver - register a CPU Frequency driver
@@ -2480,7 +2460,14 @@ int cpufreq_register_driver(struct cpufreq_driver *driver_data)
 		goto err_if_unreg;
 	}
 
-	register_hotcpu_notifier(&cpufreq_cpu_notifier);
+	ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "cpufreq:online",
+					cpufreq_online,
+					cpufreq_offline);
+	if (ret < 0)
+		goto err_if_unreg;
+	hp_online = ret;
+	ret = 0;
+
 	pr_debug("driver %s up and running\n", driver_data->name);
 	goto out;
 
@@ -2519,7 +2506,7 @@ int cpufreq_unregister_driver(struct cpufreq_driver *driver)
 	get_online_cpus();
 	subsys_interface_unregister(&cpufreq_interface);
 	remove_boost_sysfs_file();
-	unregister_hotcpu_notifier(&cpufreq_cpu_notifier);
+	cpuhp_remove_state_nocalls(hp_online);
 
 	write_lock_irqsave(&cpufreq_driver_lock, flags);
 

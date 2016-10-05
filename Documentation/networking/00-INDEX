@@ -74,6 +74,8 @@ dns_resolver.txt
 	- The DNS resolver module allows kernel servies to make DNS queries.
 driver.txt
 	- Softnet driver issues.
+ena.txt
+	- info on Amazon's Elastic Network Adapter (ENA)
 e100.txt
 	- info on Intel's EtherExpress PRO/100 line of 10/100 boards
 e1000.txt

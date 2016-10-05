@@ -104,6 +104,15 @@
 #define UART01x_FR_CTS 		0x001
 #define UART01x_FR_TMSK		(UART01x_FR_TXFF + UART01x_FR_BUSY)
 
+/*
+ * Some bits of Flag Register on ZTE device have different position from
+ * standard ones.
+ */
+#define ZX_UART01x_FR_BUSY	0x100
+#define ZX_UART01x_FR_DSR	0x008
+#define ZX_UART01x_FR_CTS	0x002
+#define ZX_UART011_FR_RI	0x001
+
 #define UART011_CR_CTSEN	0x8000	/* CTS hardware flow control */
 #define UART011_CR_RTSEN	0x4000	/* RTS hardware flow control */
 #define UART011_CR_OUT2		0x2000	/* OUT2 */

@@ -43,6 +43,32 @@ struct hns_mac_cb;
 #define DSAF_PRIO_NR	8
 #define DSAF_REG_PER_ZONE	3
 
+#define DSAF_ROCE_CREDIT_CHN	8
+#define DSAF_ROCE_CHAN_MODE	3
+
+enum dsaf_roce_port_mode {
+	DSAF_ROCE_6PORT_MODE,
+	DSAF_ROCE_4PORT_MODE,
+	DSAF_ROCE_2PORT_MODE,
+	DSAF_ROCE_CHAN_MODE_NUM,
+};
+
+enum dsaf_roce_port_num {
+	DSAF_ROCE_PORT_0,
+	DSAF_ROCE_PORT_1,
+	DSAF_ROCE_PORT_2,
+	DSAF_ROCE_PORT_3,
+	DSAF_ROCE_PORT_4,
+	DSAF_ROCE_PORT_5,
+};
+
+enum dsaf_roce_qos_sl {
+	DSAF_ROCE_SL_0,
+	DSAF_ROCE_SL_1,
+	DSAF_ROCE_SL_2,
+	DSAF_ROCE_SL_3,
+};
+
 #define DSAF_STATS_READ(p, offset) (*((u64 *)((u8 *)(p) + (offset))))
 #define HNS_DSAF_IS_DEBUG(dev) (dev->dsaf_mode == DSAF_MODE_DISABLE_SP)
 
@@ -418,6 +444,10 @@ int hns_dsaf_get_mac_entry_by_index(
 	struct dsaf_drv_mac_multi_dest_entry *mac_entry);
 
 void hns_dsaf_fix_mac_mode(struct hns_mac_cb *mac_cb);
+
+void hns_dsaf_srst_chns(struct dsaf_device *dsaf_dev, u32 msk, bool enable);
+
+void hns_dsaf_roce_srst(struct dsaf_device *dsaf_dev, bool enable);
 
 int hns_dsaf_ae_init(struct dsaf_device *dsaf_dev);
 void hns_dsaf_ae_uninit(struct dsaf_device *dsaf_dev);

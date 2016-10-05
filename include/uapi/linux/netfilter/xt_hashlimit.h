@@ -6,6 +6,7 @@
 
 /* timings are in milliseconds. */
 #define XT_HASHLIMIT_SCALE 10000
+#define XT_HASHLIMIT_SCALE_v2 1000000llu
 /* 1/10,000 sec period => max of 10,000/sec.  Min rate is then 429490
  * seconds, or one packet every 59 hours.
  */
@@ -63,9 +64,31 @@ struct hashlimit_cfg1 {
 	__u8 srcmask, dstmask;
 };
 
+struct hashlimit_cfg2 {
+	__u64 avg;		/* Average secs between packets * scale */
+	__u64 burst;		/* Period multiplier for upper limit. */
+	__u32 mode;		/* bitmask of XT_HASHLIMIT_HASH_* */
+
+	/* user specified */
+	__u32 size;		/* how many buckets */
+	__u32 max;		/* max number of entries */
+	__u32 gc_interval;	/* gc interval */
+	__u32 expire;		/* when do entries expire? */
+
+	__u8 srcmask, dstmask;
+};
+
 struct xt_hashlimit_mtinfo1 {
 	char name[IFNAMSIZ];
 	struct hashlimit_cfg1 cfg;
+
+	/* Used internally by the kernel */
+	struct xt_hashlimit_htable *hinfo __attribute__((aligned(8)));
+};
+
+struct xt_hashlimit_mtinfo2 {
+	char name[NAME_MAX];
+	struct hashlimit_cfg2 cfg;
 
 	/* Used internally by the kernel */
 	struct xt_hashlimit_htable *hinfo __attribute__((aligned(8)));

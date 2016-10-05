@@ -767,7 +767,6 @@ static int fuse_copy_fill(struct fuse_copy_state *cs)
 		cs->len = err;
 		cs->offset = off;
 		cs->pg = page;
-		cs->offset = off;
 		iov_iter_advance(cs->iter, err);
 	}
 

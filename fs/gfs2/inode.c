@@ -187,6 +187,10 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 		}
 
 		gfs2_set_iop(inode);
+
+		inode->i_atime.tv_sec = 0;
+		inode->i_atime.tv_nsec = 0;
+
 		unlock_new_inode(inode);
 	}
 

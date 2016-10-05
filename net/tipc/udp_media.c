@@ -49,6 +49,7 @@
 #include "core.h"
 #include "bearer.h"
 #include "netlink.h"
+#include "msg.h"
 
 /* IANA assigned UDP port */
 #define UDP_PORT_DEFAULT	6118
@@ -70,6 +71,13 @@ struct udp_media_addr {
 	};
 };
 
+/* struct udp_replicast - container for UDP remote addresses */
+struct udp_replicast {
+	struct udp_media_addr addr;
+	struct rcu_head rcu;
+	struct list_head list;
+};
+
 /**
  * struct udp_bearer - ip/udp bearer data structure
  * @bearer:	associated generic tipc bearer
@@ -82,7 +90,19 @@ struct udp_bearer {
 	struct socket *ubsock;
 	u32 ifindex;
 	struct work_struct work;
+	struct udp_replicast rcast;
 };
+
+static int tipc_udp_is_mcast_addr(struct udp_media_addr *addr)
+{
+	if (ntohs(addr->proto) == ETH_P_IP)
+		return ipv4_is_multicast(addr->ipv4.s_addr);
+#if IS_ENABLED(CONFIG_IPV6)
+	else
+		return ipv6_addr_is_multicast(&addr->ipv6);
+#endif
+	return 0;
+}
 
 /* udp_media_addr_set - convert a ip/udp address to a TIPC media address */
 static void tipc_udp_media_addr_set(struct tipc_media_addr *addr,
@@ -91,15 +111,9 @@ static void tipc_udp_media_addr_set(struct tipc_media_addr *addr,
 	memset(addr, 0, sizeof(struct tipc_media_addr));
 	addr->media_id = TIPC_MEDIA_TYPE_UDP;
 	memcpy(addr->value, ua, sizeof(struct udp_media_addr));
-	if (ntohs(ua->proto) == ETH_P_IP) {
-		if (ipv4_is_multicast(ua->ipv4.s_addr))
-			addr->broadcast = 1;
-	} else if (ntohs(ua->proto) == ETH_P_IPV6) {
-		if (ipv6_addr_type(&ua->ipv6) & IPV6_ADDR_MULTICAST)
-			addr->broadcast = 1;
-	} else {
-		pr_err("Invalid UDP media address\n");
-	}
+
+	if (tipc_udp_is_mcast_addr(ua))
+		addr->broadcast = 1;
 }
 
 /* tipc_udp_addr2str - convert ip/udp address to string */
@@ -140,28 +154,13 @@ static int tipc_udp_addr2msg(char *msg, struct tipc_media_addr *a)
 }
 
 /* tipc_send_msg - enqueue a send request */
-static int tipc_udp_send_msg(struct net *net, struct sk_buff *skb,
-			     struct tipc_bearer *b,
-			     struct tipc_media_addr *dest)
+static int tipc_udp_xmit(struct net *net, struct sk_buff *skb,
+			 struct udp_bearer *ub, struct udp_media_addr *src,
+			 struct udp_media_addr *dst)
 {
 	int ttl, err = 0;
-	struct udp_bearer *ub;
-	struct udp_media_addr *dst = (struct udp_media_addr *)&dest->value;
-	struct udp_media_addr *src = (struct udp_media_addr *)&b->addr.value;
 	struct rtable *rt;
 
-	if (skb_headroom(skb) < UDP_MIN_HEADROOM) {
-		err = pskb_expand_head(skb, UDP_MIN_HEADROOM, 0, GFP_ATOMIC);
-		if (err)
-			goto tx_error;
-	}
-
-	skb_set_inner_protocol(skb, htons(ETH_P_TIPC));
-	ub = rcu_dereference_rtnl(b->media_ptr);
-	if (!ub) {
-		err = -ENODEV;
-		goto tx_error;
-	}
 	if (dst->proto == htons(ETH_P_IP)) {
 		struct flowi4 fl = {
 			.daddr = dst->ipv4.s_addr,
@@ -207,29 +206,178 @@ tx_error:
 	return err;
 }
 
+static int tipc_udp_send_msg(struct net *net, struct sk_buff *skb,
+			     struct tipc_bearer *b,
+			     struct tipc_media_addr *addr)
+{
+	struct udp_media_addr *src = (struct udp_media_addr *)&b->addr.value;
+	struct udp_media_addr *dst = (struct udp_media_addr *)&addr->value;
+	struct udp_replicast *rcast;
+	struct udp_bearer *ub;
+	int err = 0;
+
+	if (skb_headroom(skb) < UDP_MIN_HEADROOM) {
+		err = pskb_expand_head(skb, UDP_MIN_HEADROOM, 0, GFP_ATOMIC);
+		if (err)
+			goto out;
+	}
+
+	skb_set_inner_protocol(skb, htons(ETH_P_TIPC));
+	ub = rcu_dereference_rtnl(b->media_ptr);
+	if (!ub) {
+		err = -ENODEV;
+		goto out;
+	}
+
+	if (!addr->broadcast || list_empty(&ub->rcast.list))
+		return tipc_udp_xmit(net, skb, ub, src, dst);
+
+	/* Replicast, send an skb to each configured IP address */
+	list_for_each_entry_rcu(rcast, &ub->rcast.list, list) {
+		struct sk_buff *_skb;
+
+		_skb = pskb_copy(skb, GFP_ATOMIC);
+		if (!_skb) {
+			err = -ENOMEM;
+			goto out;
+		}
+
+		err = tipc_udp_xmit(net, _skb, ub, src, &rcast->addr);
+		if (err) {
+			kfree_skb(_skb);
+			goto out;
+		}
+	}
+	err = 0;
+out:
+	kfree_skb(skb);
+	return err;
+}
+
+static bool tipc_udp_is_known_peer(struct tipc_bearer *b,
+				   struct udp_media_addr *addr)
+{
+	struct udp_replicast *rcast, *tmp;
+	struct udp_bearer *ub;
+
+	ub = rcu_dereference_rtnl(b->media_ptr);
+	if (!ub) {
+		pr_err_ratelimited("UDP bearer instance not found\n");
+		return false;
+	}
+
+	list_for_each_entry_safe(rcast, tmp, &ub->rcast.list, list) {
+		if (!memcmp(&rcast->addr, addr, sizeof(struct udp_media_addr)))
+			return true;
+	}
+
+	return false;
+}
+
+static int tipc_udp_rcast_add(struct tipc_bearer *b,
+			      struct udp_media_addr *addr)
+{
+	struct udp_replicast *rcast;
+	struct udp_bearer *ub;
+
+	ub = rcu_dereference_rtnl(b->media_ptr);
+	if (!ub)
+		return -ENODEV;
+
+	rcast = kmalloc(sizeof(*rcast), GFP_ATOMIC);
+	if (!rcast)
+		return -ENOMEM;
+
+	memcpy(&rcast->addr, addr, sizeof(struct udp_media_addr));
+
+	if (ntohs(addr->proto) == ETH_P_IP)
+		pr_info("New replicast peer: %pI4\n", &rcast->addr.ipv4);
+#if IS_ENABLED(CONFIG_IPV6)
+	else if (ntohs(addr->proto) == ETH_P_IPV6)
+		pr_info("New replicast peer: %pI6\n", &rcast->addr.ipv6);
+#endif
+
+	list_add_rcu(&rcast->list, &ub->rcast.list);
+	return 0;
+}
+
+static int tipc_udp_rcast_disc(struct tipc_bearer *b, struct sk_buff *skb)
+{
+	struct udp_media_addr src = {0};
+	struct udp_media_addr *dst;
+
+	dst = (struct udp_media_addr *)&b->bcast_addr.value;
+	if (tipc_udp_is_mcast_addr(dst))
+		return 0;
+
+	src.port = udp_hdr(skb)->source;
+
+	if (ip_hdr(skb)->version == 4) {
+		struct iphdr *iphdr = ip_hdr(skb);
+
+		src.proto = htons(ETH_P_IP);
+		src.ipv4.s_addr = iphdr->saddr;
+		if (ipv4_is_multicast(iphdr->daddr))
+			return 0;
+#if IS_ENABLED(CONFIG_IPV6)
+	} else if (ip_hdr(skb)->version == 6) {
+		struct ipv6hdr *iphdr = ipv6_hdr(skb);
+
+		src.proto = htons(ETH_P_IPV6);
+		src.ipv6 = iphdr->saddr;
+		if (ipv6_addr_is_multicast(&iphdr->daddr))
+			return 0;
+#endif
+	} else {
+		return 0;
+	}
+
+	if (likely(tipc_udp_is_known_peer(b, &src)))
+		return 0;
+
+	return tipc_udp_rcast_add(b, &src);
+}
+
 /* tipc_udp_recv - read data from bearer socket */
 static int tipc_udp_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct udp_bearer *ub;
 	struct tipc_bearer *b;
+	struct tipc_msg *hdr;
+	int err;
 
 	ub = rcu_dereference_sk_user_data(sk);
 	if (!ub) {
 		pr_err_ratelimited("Failed to get UDP bearer reference");
-		kfree_skb(skb);
-		return 0;
+		goto out;
 	}
-
 	skb_pull(skb, sizeof(struct udphdr));
+	hdr = buf_msg(skb);
+
 	rcu_read_lock();
 	b = rcu_dereference_rtnl(ub->bearer);
+	if (!b)
+		goto rcu_out;
 
-	if (b) {
+	if (b && test_bit(0, &b->up)) {
 		tipc_rcv(sock_net(sk), skb, b);
 		rcu_read_unlock();
 		return 0;
 	}
+
+	if (unlikely(msg_user(hdr) == LINK_CONFIG)) {
+		err = tipc_udp_rcast_disc(b, skb);
+		if (err)
+			goto rcu_out;
+	}
+
+	tipc_rcv(sock_net(sk), skb, b);
 	rcu_read_unlock();
+	return 0;
+
+rcu_out:
+	rcu_read_unlock();
+out:
 	kfree_skb(skb);
 	return 0;
 }
@@ -241,15 +389,11 @@ static int enable_mcast(struct udp_bearer *ub, struct udp_media_addr *remote)
 	struct sock *sk = ub->ubsock->sk;
 
 	if (ntohs(remote->proto) == ETH_P_IP) {
-		if (!ipv4_is_multicast(remote->ipv4.s_addr))
-			return 0;
 		mreqn.imr_multiaddr = remote->ipv4;
 		mreqn.imr_ifindex = ub->ifindex;
 		err = ip_mc_join_group(sk, &mreqn);
 #if IS_ENABLED(CONFIG_IPV6)
 	} else {
-		if (!ipv6_addr_is_multicast(&remote->ipv6))
-			return 0;
 		err = ipv6_stub->ipv6_sock_mc_join(sk, ub->ifindex,
 						   &remote->ipv6);
 #endif
@@ -257,73 +401,232 @@ static int enable_mcast(struct udp_bearer *ub, struct udp_media_addr *remote)
 	return err;
 }
 
-/**
- * parse_options - build local/remote addresses from configuration
- * @attrs:	netlink config data
- * @ub:		UDP bearer instance
- * @local:	local bearer IP address/port
- * @remote:	peer or multicast IP/port
- */
-static int parse_options(struct nlattr *attrs[], struct udp_bearer *ub,
-			 struct udp_media_addr *local,
-			 struct udp_media_addr *remote)
+static int __tipc_nl_add_udp_addr(struct sk_buff *skb,
+				  struct udp_media_addr *addr, int nla_t)
 {
-	struct nlattr *opts[TIPC_NLA_UDP_MAX + 1];
-	struct sockaddr_storage sa_local, sa_remote;
+	if (ntohs(addr->proto) == ETH_P_IP) {
+		struct sockaddr_in ip4;
 
-	if (!attrs[TIPC_NLA_BEARER_UDP_OPTS])
-		goto err;
-	if (nla_parse_nested(opts, TIPC_NLA_UDP_MAX,
-			     attrs[TIPC_NLA_BEARER_UDP_OPTS],
-			     tipc_nl_udp_policy))
-		goto err;
-	if (opts[TIPC_NLA_UDP_LOCAL] && opts[TIPC_NLA_UDP_REMOTE]) {
-		nla_memcpy(&sa_local, opts[TIPC_NLA_UDP_LOCAL],
-			   sizeof(sa_local));
-		nla_memcpy(&sa_remote, opts[TIPC_NLA_UDP_REMOTE],
-			   sizeof(sa_remote));
+		ip4.sin_family = AF_INET;
+		ip4.sin_port = addr->port;
+		ip4.sin_addr.s_addr = addr->ipv4.s_addr;
+		if (nla_put(skb, nla_t, sizeof(ip4), &ip4))
+			return -EMSGSIZE;
+
+#if IS_ENABLED(CONFIG_IPV6)
+	} else if (ntohs(addr->proto) == ETH_P_IPV6) {
+		struct sockaddr_in6 ip6;
+
+		ip6.sin6_family = AF_INET6;
+		ip6.sin6_port  = addr->port;
+		memcpy(&ip6.sin6_addr, &addr->ipv6, sizeof(struct in6_addr));
+		if (nla_put(skb, nla_t, sizeof(ip6), &ip6))
+			return -EMSGSIZE;
+#endif
+	}
+
+	return 0;
+}
+
+int tipc_udp_nl_dump_remoteip(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	u32 bid = cb->args[0];
+	u32 skip_cnt = cb->args[1];
+	u32 portid = NETLINK_CB(cb->skb).portid;
+	struct udp_replicast *rcast, *tmp;
+	struct tipc_bearer *b;
+	struct udp_bearer *ub;
+	void *hdr;
+	int err;
+	int i;
+
+	if (!bid && !skip_cnt) {
+		struct net *net = sock_net(skb->sk);
+		struct nlattr *battrs[TIPC_NLA_BEARER_MAX + 1];
+		struct nlattr **attrs;
+		char *bname;
+
+		err = tipc_nlmsg_parse(cb->nlh, &attrs);
+		if (err)
+			return err;
+
+		if (!attrs[TIPC_NLA_BEARER])
+			return -EINVAL;
+
+		err = nla_parse_nested(battrs, TIPC_NLA_BEARER_MAX,
+				       attrs[TIPC_NLA_BEARER],
+				       tipc_nl_bearer_policy);
+		if (err)
+			return err;
+
+		if (!battrs[TIPC_NLA_BEARER_NAME])
+			return -EINVAL;
+
+		bname = nla_data(battrs[TIPC_NLA_BEARER_NAME]);
+
+		rtnl_lock();
+		b = tipc_bearer_find(net, bname);
+		if (!b) {
+			rtnl_unlock();
+			return -EINVAL;
+		}
+		bid = b->identity;
 	} else {
-err:
-		pr_err("Invalid UDP bearer configuration");
+		struct net *net = sock_net(skb->sk);
+		struct tipc_net *tn = net_generic(net, tipc_net_id);
+
+		rtnl_lock();
+		b = rtnl_dereference(tn->bearer_list[bid]);
+		if (!b) {
+			rtnl_unlock();
+			return -EINVAL;
+		}
+	}
+
+	ub = rcu_dereference_rtnl(b->media_ptr);
+	if (!ub) {
+		rtnl_unlock();
 		return -EINVAL;
 	}
-	if ((sa_local.ss_family & sa_remote.ss_family) == AF_INET) {
-		struct sockaddr_in *ip4;
 
-		ip4 = (struct sockaddr_in *)&sa_local;
-		local->proto = htons(ETH_P_IP);
-		local->port = ip4->sin_port;
-		local->ipv4.s_addr = ip4->sin_addr.s_addr;
+	i = 0;
+	list_for_each_entry_safe(rcast, tmp, &ub->rcast.list, list) {
+		if (i < skip_cnt)
+			goto count;
 
-		ip4 = (struct sockaddr_in *)&sa_remote;
-		remote->proto = htons(ETH_P_IP);
-		remote->port = ip4->sin_port;
-		remote->ipv4.s_addr = ip4->sin_addr.s_addr;
+		hdr = genlmsg_put(skb, portid, cb->nlh->nlmsg_seq,
+				  &tipc_genl_family, NLM_F_MULTI,
+				  TIPC_NL_BEARER_GET);
+		if (!hdr)
+			goto done;
+
+		err = __tipc_nl_add_udp_addr(skb, &rcast->addr,
+					     TIPC_NLA_UDP_REMOTE);
+		if (err) {
+			genlmsg_cancel(skb, hdr);
+			goto done;
+		}
+		genlmsg_end(skb, hdr);
+count:
+		i++;
+	}
+done:
+	rtnl_unlock();
+	cb->args[0] = bid;
+	cb->args[1] = i;
+
+	return skb->len;
+}
+
+int tipc_udp_nl_add_bearer_data(struct tipc_nl_msg *msg, struct tipc_bearer *b)
+{
+	struct udp_media_addr *src = (struct udp_media_addr *)&b->addr.value;
+	struct udp_media_addr *dst;
+	struct udp_bearer *ub;
+	struct nlattr *nest;
+
+	ub = rcu_dereference_rtnl(b->media_ptr);
+	if (!ub)
+		return -ENODEV;
+
+	nest = nla_nest_start(msg->skb, TIPC_NLA_BEARER_UDP_OPTS);
+	if (!nest)
+		goto msg_full;
+
+	if (__tipc_nl_add_udp_addr(msg->skb, src, TIPC_NLA_UDP_LOCAL))
+		goto msg_full;
+
+	dst = (struct udp_media_addr *)&b->bcast_addr.value;
+	if (__tipc_nl_add_udp_addr(msg->skb, dst, TIPC_NLA_UDP_REMOTE))
+		goto msg_full;
+
+	if (!list_empty(&ub->rcast.list)) {
+		if (nla_put_flag(msg->skb, TIPC_NLA_UDP_MULTI_REMOTEIP))
+			goto msg_full;
+	}
+
+	nla_nest_end(msg->skb, nest);
+	return 0;
+msg_full:
+	nla_nest_cancel(msg->skb, nest);
+	return -EMSGSIZE;
+}
+
+/**
+ * tipc_parse_udp_addr - build udp media address from netlink data
+ * @nlattr:	netlink attribute containing sockaddr storage aligned address
+ * @addr:	tipc media address to fill with address, port and protocol type
+ * @scope_id:	IPv6 scope id pointer, not NULL indicates it's required
+ */
+
+static int tipc_parse_udp_addr(struct nlattr *nla, struct udp_media_addr *addr,
+			       u32 *scope_id)
+{
+	struct sockaddr_storage sa;
+
+	nla_memcpy(&sa, nla, sizeof(sa));
+	if (sa.ss_family == AF_INET) {
+		struct sockaddr_in *ip4 = (struct sockaddr_in *)&sa;
+
+		addr->proto = htons(ETH_P_IP);
+		addr->port = ip4->sin_port;
+		addr->ipv4.s_addr = ip4->sin_addr.s_addr;
 		return 0;
 
 #if IS_ENABLED(CONFIG_IPV6)
-	} else if ((sa_local.ss_family & sa_remote.ss_family) == AF_INET6) {
-		int atype;
-		struct sockaddr_in6 *ip6;
+	} else if (sa.ss_family == AF_INET6) {
+		struct sockaddr_in6 *ip6 = (struct sockaddr_in6 *)&sa;
 
-		ip6 = (struct sockaddr_in6 *)&sa_local;
-		atype = ipv6_addr_type(&ip6->sin6_addr);
-		if (__ipv6_addr_needs_scope_id(atype) && !ip6->sin6_scope_id)
-			return -EINVAL;
+		addr->proto = htons(ETH_P_IPV6);
+		addr->port = ip6->sin6_port;
+		memcpy(&addr->ipv6, &ip6->sin6_addr, sizeof(struct in6_addr));
 
-		local->proto = htons(ETH_P_IPV6);
-		local->port = ip6->sin6_port;
-		memcpy(&local->ipv6, &ip6->sin6_addr, sizeof(struct in6_addr));
-		ub->ifindex = ip6->sin6_scope_id;
+		/* Scope ID is only interesting for local addresses */
+		if (scope_id) {
+			int atype;
 
-		ip6 = (struct sockaddr_in6 *)&sa_remote;
-		remote->proto = htons(ETH_P_IPV6);
-		remote->port = ip6->sin6_port;
-		memcpy(&remote->ipv6, &ip6->sin6_addr, sizeof(struct in6_addr));
+			atype = ipv6_addr_type(&ip6->sin6_addr);
+			if (__ipv6_addr_needs_scope_id(atype) &&
+			    !ip6->sin6_scope_id) {
+				return -EINVAL;
+			}
+
+			*scope_id = ip6->sin6_scope_id ? : 0;
+		}
+
 		return 0;
 #endif
 	}
 	return -EADDRNOTAVAIL;
+}
+
+int tipc_udp_nl_bearer_add(struct tipc_bearer *b, struct nlattr *attr)
+{
+	int err;
+	struct udp_media_addr addr = {0};
+	struct nlattr *opts[TIPC_NLA_UDP_MAX + 1];
+	struct udp_media_addr *dst;
+
+	if (nla_parse_nested(opts, TIPC_NLA_UDP_MAX, attr, tipc_nl_udp_policy))
+		return -EINVAL;
+
+	if (!opts[TIPC_NLA_UDP_REMOTE])
+		return -EINVAL;
+
+	err = tipc_parse_udp_addr(opts[TIPC_NLA_UDP_REMOTE], &addr, NULL);
+	if (err)
+		return err;
+
+	dst = (struct udp_media_addr *)&b->bcast_addr.value;
+	if (tipc_udp_is_mcast_addr(dst)) {
+		pr_err("Can't add remote ip to TIPC UDP multicast bearer\n");
+		return -EINVAL;
+	}
+
+	if (tipc_udp_is_known_peer(b, &addr))
+		return 0;
+
+	return tipc_udp_rcast_add(b, &addr);
 }
 
 /**
@@ -340,18 +643,38 @@ static int tipc_udp_enable(struct net *net, struct tipc_bearer *b,
 {
 	int err = -EINVAL;
 	struct udp_bearer *ub;
-	struct udp_media_addr *remote;
+	struct udp_media_addr remote = {0};
 	struct udp_media_addr local = {0};
 	struct udp_port_cfg udp_conf = {0};
 	struct udp_tunnel_sock_cfg tuncfg = {NULL};
+	struct nlattr *opts[TIPC_NLA_UDP_MAX + 1];
 
 	ub = kzalloc(sizeof(*ub), GFP_ATOMIC);
 	if (!ub)
 		return -ENOMEM;
 
-	remote = (struct udp_media_addr *)&b->bcast_addr.value;
-	memset(remote, 0, sizeof(struct udp_media_addr));
-	err = parse_options(attrs, ub, &local, remote);
+	INIT_LIST_HEAD(&ub->rcast.list);
+
+	if (!attrs[TIPC_NLA_BEARER_UDP_OPTS])
+		goto err;
+
+	if (nla_parse_nested(opts, TIPC_NLA_UDP_MAX,
+			     attrs[TIPC_NLA_BEARER_UDP_OPTS],
+			     tipc_nl_udp_policy))
+		goto err;
+
+	if (!opts[TIPC_NLA_UDP_LOCAL] || !opts[TIPC_NLA_UDP_REMOTE]) {
+		pr_err("Invalid UDP bearer configuration");
+		err = -EINVAL;
+		goto err;
+	}
+
+	err = tipc_parse_udp_addr(opts[TIPC_NLA_UDP_LOCAL], &local,
+				  &ub->ifindex);
+	if (err)
+		goto err;
+
+	err = tipc_parse_udp_addr(opts[TIPC_NLA_UDP_REMOTE], &remote, NULL);
 	if (err)
 		goto err;
 
@@ -396,9 +719,18 @@ static int tipc_udp_enable(struct net *net, struct tipc_bearer *b,
 	tuncfg.encap_destroy = NULL;
 	setup_udp_tunnel_sock(net, ub->ubsock, &tuncfg);
 
-	err = enable_mcast(ub, remote);
+	/**
+	 * The bcast media address port is used for all peers and the ip
+	 * is used if it's a multicast address.
+	 */
+	memcpy(&b->bcast_addr.value, &remote, sizeof(remote));
+	if (tipc_udp_is_mcast_addr(&remote))
+		err = enable_mcast(ub, &remote);
+	else
+		err = tipc_udp_rcast_add(b, &remote);
 	if (err)
 		goto err;
+
 	return 0;
 err:
 	if (ub->ubsock)
@@ -411,6 +743,12 @@ err:
 static void cleanup_bearer(struct work_struct *work)
 {
 	struct udp_bearer *ub = container_of(work, struct udp_bearer, work);
+	struct udp_replicast *rcast, *tmp;
+
+	list_for_each_entry_safe(rcast, tmp, &ub->rcast.list, list) {
+		list_del_rcu(&rcast->list);
+		kfree_rcu(rcast, rcu);
+	}
 
 	if (ub->ubsock)
 		udp_tunnel_sock_release(ub->ubsock);

@@ -76,7 +76,7 @@ static unsigned int hfi1_max_ahs = 0xFFFF;
 module_param_named(max_ahs, hfi1_max_ahs, uint, S_IRUGO);
 MODULE_PARM_DESC(max_ahs, "Maximum number of address handles to support");
 
-unsigned int hfi1_max_cqes = 0x2FFFF;
+unsigned int hfi1_max_cqes = 0x2FFFFF;
 module_param_named(max_cqes, hfi1_max_cqes, uint, S_IRUGO);
 MODULE_PARM_DESC(max_cqes,
 		 "Maximum number of completion queue entries to support");
@@ -89,7 +89,7 @@ unsigned int hfi1_max_qp_wrs = 0x3FFF;
 module_param_named(max_qp_wrs, hfi1_max_qp_wrs, uint, S_IRUGO);
 MODULE_PARM_DESC(max_qp_wrs, "Maximum number of QP WRs to support");
 
-unsigned int hfi1_max_qps = 16384;
+unsigned int hfi1_max_qps = 32768;
 module_param_named(max_qps, hfi1_max_qps, uint, S_IRUGO);
 MODULE_PARM_DESC(max_qps, "Maximum number of QPs to support");
 
@@ -335,7 +335,7 @@ const u8 hdr_len_by_opcode[256] = {
 	[IB_OPCODE_RC_RDMA_READ_RESPONSE_LAST]        = 12 + 8 + 4,
 	[IB_OPCODE_RC_RDMA_READ_RESPONSE_ONLY]        = 12 + 8 + 4,
 	[IB_OPCODE_RC_ACKNOWLEDGE]                    = 12 + 8 + 4,
-	[IB_OPCODE_RC_ATOMIC_ACKNOWLEDGE]             = 12 + 8 + 4,
+	[IB_OPCODE_RC_ATOMIC_ACKNOWLEDGE]             = 12 + 8 + 4 + 8,
 	[IB_OPCODE_RC_COMPARE_SWAP]                   = 12 + 8 + 28,
 	[IB_OPCODE_RC_FETCH_ADD]                      = 12 + 8 + 28,
 	[IB_OPCODE_RC_SEND_LAST_WITH_INVALIDATE]      = 12 + 8 + 4,
@@ -401,6 +401,28 @@ static const opcode_handler opcode_handler_tbl[256] = {
 	[IB_OPCODE_UD_SEND_ONLY_WITH_IMMEDIATE]       = &hfi1_ud_rcv,
 	/* CNP */
 	[IB_OPCODE_CNP]				      = &hfi1_cnp_rcv
+};
+
+#define OPMASK 0x1f
+
+static const u32 pio_opmask[BIT(3)] = {
+	/* RC */
+	[IB_OPCODE_RC >> 5] =
+		BIT(RC_OP(SEND_ONLY) & OPMASK) |
+		BIT(RC_OP(SEND_ONLY_WITH_IMMEDIATE) & OPMASK) |
+		BIT(RC_OP(RDMA_WRITE_ONLY) & OPMASK) |
+		BIT(RC_OP(RDMA_WRITE_ONLY_WITH_IMMEDIATE) & OPMASK) |
+		BIT(RC_OP(RDMA_READ_REQUEST) & OPMASK) |
+		BIT(RC_OP(ACKNOWLEDGE) & OPMASK) |
+		BIT(RC_OP(ATOMIC_ACKNOWLEDGE) & OPMASK) |
+		BIT(RC_OP(COMPARE_SWAP) & OPMASK) |
+		BIT(RC_OP(FETCH_ADD) & OPMASK),
+	/* UC */
+	[IB_OPCODE_UC >> 5] =
+		BIT(UC_OP(SEND_ONLY) & OPMASK) |
+		BIT(UC_OP(SEND_ONLY_WITH_IMMEDIATE) & OPMASK) |
+		BIT(UC_OP(RDMA_WRITE_ONLY) & OPMASK) |
+		BIT(UC_OP(RDMA_WRITE_ONLY_WITH_IMMEDIATE) & OPMASK),
 };
 
 /*
@@ -567,7 +589,7 @@ static inline opcode_handler qp_ok(int opcode, struct hfi1_packet *packet)
 void hfi1_ib_rcv(struct hfi1_packet *packet)
 {
 	struct hfi1_ctxtdata *rcd = packet->rcd;
-	struct hfi1_ib_header *hdr = packet->hdr;
+	struct ib_header *hdr = packet->hdr;
 	u32 tlen = packet->tlen;
 	struct hfi1_pportdata *ppd = rcd->ppd;
 	struct hfi1_ibport *ibp = &ppd->ibport_data;
@@ -719,7 +741,7 @@ static void verbs_sdma_complete(
 	if (tx->wqe) {
 		hfi1_send_complete(qp, tx->wqe, IB_WC_SUCCESS);
 	} else if (qp->ibqp.qp_type == IB_QPT_RC) {
-		struct hfi1_ib_header *hdr;
+		struct ib_header *hdr;
 
 		hdr = &tx->phdr.hdr;
 		hfi1_rc_send_complete(qp, hdr);
@@ -748,7 +770,7 @@ static int wait_kmem(struct hfi1_ibdev *dev,
 			qp->s_flags |= RVT_S_WAIT_KMEM;
 			list_add_tail(&priv->s_iowait.list, &dev->memwait);
 			trace_hfi1_qpsleep(qp, RVT_S_WAIT_KMEM);
-			atomic_inc(&qp->refcount);
+			rvt_get_qp(qp);
 		}
 		write_sequnlock(&dev->iowait_lock);
 		qp->s_flags &= ~RVT_S_BUSY;
@@ -959,7 +981,7 @@ static int pio_wait(struct rvt_qp *qp,
 			was_empty = list_empty(&sc->piowait);
 			list_add_tail(&priv->s_iowait.list, &sc->piowait);
 			trace_hfi1_qpsleep(qp, RVT_S_WAIT_PIO);
-			atomic_inc(&qp->refcount);
+			rvt_get_qp(qp);
 			/* counting: only call wantpiobuf_intr if first user */
 			if (was_empty)
 				hfi1_sc_wantpiobuf_intr(sc, 1);
@@ -1200,7 +1222,7 @@ static inline send_routine get_send_routine(struct rvt_qp *qp,
 {
 	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
 	struct hfi1_qp_priv *priv = qp->priv;
-	struct hfi1_ib_header *h = &tx->phdr.hdr;
+	struct ib_header *h = &tx->phdr.hdr;
 
 	if (unlikely(!(dd->flags & HFI1_HAS_SEND_DMA)))
 		return dd->process_pio_send;
@@ -1210,22 +1232,18 @@ static inline send_routine get_send_routine(struct rvt_qp *qp,
 	case IB_QPT_GSI:
 	case IB_QPT_UD:
 		break;
-	case IB_QPT_RC:
-		if (piothreshold &&
-		    qp->s_cur_size <= min(piothreshold, qp->pmtu) &&
-		    (BIT(get_opcode(h) & 0x1f) & rc_only_opcode) &&
-		    iowait_sdma_pending(&priv->s_iowait) == 0 &&
-		    !sdma_txreq_built(&tx->txreq))
-			return dd->process_pio_send;
-		break;
 	case IB_QPT_UC:
+	case IB_QPT_RC: {
+		u8 op = get_opcode(h);
+
 		if (piothreshold &&
 		    qp->s_cur_size <= min(piothreshold, qp->pmtu) &&
-		    (BIT(get_opcode(h) & 0x1f) & uc_only_opcode) &&
+		    (BIT(op & OPMASK) & pio_opmask[op >> 5]) &&
 		    iowait_sdma_pending(&priv->s_iowait) == 0 &&
 		    !sdma_txreq_built(&tx->txreq))
 			return dd->process_pio_send;
 		break;
+	}
 	default:
 		break;
 	}
@@ -1244,8 +1262,8 @@ int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 {
 	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
 	struct hfi1_qp_priv *priv = qp->priv;
-	struct hfi1_other_headers *ohdr;
-	struct hfi1_ib_header *hdr;
+	struct ib_other_headers *ohdr;
+	struct ib_header *hdr;
 	send_routine sr;
 	int ret;
 	u8 lnh;
@@ -1754,7 +1772,7 @@ void hfi1_cnp_rcv(struct hfi1_packet *packet)
 {
 	struct hfi1_ibport *ibp = &packet->rcd->ppd->ibport_data;
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
-	struct hfi1_ib_header *hdr = packet->hdr;
+	struct ib_header *hdr = packet->hdr;
 	struct rvt_qp *qp = packet->qp;
 	u32 lqpn, rqpn = 0;
 	u16 rlid = 0;
@@ -1781,7 +1799,7 @@ void hfi1_cnp_rcv(struct hfi1_packet *packet)
 		return;
 	}
 
-	sc5 = hdr2sc((struct hfi1_message_header *)hdr, packet->rhf);
+	sc5 = hdr2sc(hdr, packet->rhf);
 	sl = ibp->sc_to_sl[sc5];
 	lqpn = qp->ibqp.qp_num;
 

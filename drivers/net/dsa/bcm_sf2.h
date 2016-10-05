@@ -26,6 +26,7 @@
 #include <net/dsa.h>
 
 #include "bcm_sf2_regs.h"
+#include "b53/b53_priv.h"
 
 struct bcm_sf2_hw_params {
 	u16	top_rev;
@@ -49,71 +50,7 @@ struct bcm_sf2_port_status {
 	unsigned int link;
 
 	struct ethtool_eee eee;
-
-	u32 vlan_ctl_mask;
-	u16 pvid;
-
-	struct net_device *bridge_dev;
 };
-
-struct bcm_sf2_arl_entry {
-	u8 port;
-	u8 mac[ETH_ALEN];
-	u16 vid;
-	u8 is_valid:1;
-	u8 is_age:1;
-	u8 is_static:1;
-};
-
-struct bcm_sf2_vlan {
-	u16 members;
-	u16 untag;
-};
-
-static inline void bcm_sf2_mac_from_u64(u64 src, u8 *dst)
-{
-	unsigned int i;
-
-	for (i = 0; i < ETH_ALEN; i++)
-		dst[ETH_ALEN - 1 - i] = (src >> (8 * i)) & 0xff;
-}
-
-static inline u64 bcm_sf2_mac_to_u64(const u8 *src)
-{
-	unsigned int i;
-	u64 dst = 0;
-
-	for (i = 0; i < ETH_ALEN; i++)
-		dst |= (u64)src[ETH_ALEN - 1 - i] << (8 * i);
-
-	return dst;
-}
-
-static inline void bcm_sf2_arl_to_entry(struct bcm_sf2_arl_entry *ent,
-					u64 mac_vid, u32 fwd_entry)
-{
-	memset(ent, 0, sizeof(*ent));
-	ent->port = fwd_entry & PORTID_MASK;
-	ent->is_valid = !!(fwd_entry & ARL_VALID);
-	ent->is_age = !!(fwd_entry & ARL_AGE);
-	ent->is_static = !!(fwd_entry & ARL_STATIC);
-	bcm_sf2_mac_from_u64(mac_vid, ent->mac);
-	ent->vid = mac_vid >> VID_SHIFT;
-}
-
-static inline void bcm_sf2_arl_from_entry(u64 *mac_vid, u32 *fwd_entry,
-					  const struct bcm_sf2_arl_entry *ent)
-{
-	*mac_vid = bcm_sf2_mac_to_u64(ent->mac);
-	*mac_vid |= (u64)(ent->vid & VID_MASK) << VID_SHIFT;
-	*fwd_entry = ent->port & PORTID_MASK;
-	if (ent->is_valid)
-		*fwd_entry |= ARL_VALID;
-	if (ent->is_static)
-		*fwd_entry |= ARL_STATIC;
-	if (ent->is_age)
-		*fwd_entry |= ARL_AGE;
-}
 
 struct bcm_sf2_priv {
 	/* Base registers, keep those in order with BCM_SF2_REGS_NAME */
@@ -133,6 +70,9 @@ struct bcm_sf2_priv {
 	u32				irq0_mask;
 	u32				irq1_stat;
 	u32				irq1_mask;
+
+	/* Backing b53_device */
+	struct b53_device		*dev;
 
 	/* Mutex protecting access to the MIB counters */
 	struct mutex			stats_mutex;
@@ -155,16 +95,14 @@ struct bcm_sf2_priv {
 	struct device_node		*master_mii_dn;
 	struct mii_bus			*slave_mii_bus;
 	struct mii_bus			*master_mii_bus;
-
-	/* Cache of programmed VLANs */
-	struct bcm_sf2_vlan		vlans[VLAN_N_VID];
 };
 
-struct bcm_sf2_hw_stats {
-	const char	*string;
-	u16		reg;
-	u8		sizeof_stat;
-};
+static inline struct bcm_sf2_priv *bcm_sf2_to_priv(struct dsa_switch *ds)
+{
+	struct b53_device *dev = ds->priv;
+
+	return dev->priv;
+}
 
 #define SF2_IO_MACRO(name) \
 static inline u32 name##_readl(struct bcm_sf2_priv *priv, u32 off)	\

@@ -48,6 +48,7 @@
 #define GOTGCTL_ASESVLD			(1 << 18)
 #define GOTGCTL_DBNC_SHORT		(1 << 17)
 #define GOTGCTL_CONID_B			(1 << 16)
+#define GOTGCTL_DBNCE_FLTR_BYPASS	(1 << 15)
 #define GOTGCTL_DEVHNPEN		(1 << 11)
 #define GOTGCTL_HSTSETHNPEN		(1 << 10)
 #define GOTGCTL_HNPREQ			(1 << 9)

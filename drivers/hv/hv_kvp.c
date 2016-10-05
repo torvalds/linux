@@ -102,6 +102,17 @@ static void kvp_poll_wrapper(void *channel)
 	hv_kvp_onchannelcallback(channel);
 }
 
+static void kvp_register_done(void)
+{
+	/*
+	 * If we're still negotiating with the host cancel the timeout
+	 * work to not poll the channel twice.
+	 */
+	pr_debug("KVP: userspace daemon registered\n");
+	cancel_delayed_work_sync(&kvp_host_handshake_work);
+	hv_poll_channel(kvp_transaction.recv_channel, kvp_poll_wrapper);
+}
+
 static void
 kvp_register(int reg_value)
 {
@@ -116,7 +127,8 @@ kvp_register(int reg_value)
 		kvp_msg->kvp_hdr.operation = reg_value;
 		strcpy(version, HV_DRV_VERSION);
 
-		hvutil_transport_send(hvt, kvp_msg, sizeof(*kvp_msg));
+		hvutil_transport_send(hvt, kvp_msg, sizeof(*kvp_msg),
+				      kvp_register_done);
 		kfree(kvp_msg);
 	}
 }
@@ -158,16 +170,9 @@ static int kvp_handle_handshake(struct hv_kvp_msg *msg)
 	/*
 	 * We have a compatible daemon; complete the handshake.
 	 */
-	pr_debug("KVP: userspace daemon ver. %d registered\n",
-		 KVP_OP_REGISTER);
+	pr_debug("KVP: userspace daemon ver. %d connected\n",
+		 msg->kvp_hdr.operation);
 	kvp_register(dm_reg_value);
-
-	/*
-	 * If we're still negotiating with the host cancel the timeout
-	 * work to not poll the channel twice.
-	 */
-	cancel_delayed_work_sync(&kvp_host_handshake_work);
-	hv_poll_channel(kvp_transaction.recv_channel, kvp_poll_wrapper);
 
 	return 0;
 }
@@ -455,7 +460,7 @@ kvp_send_key(struct work_struct *dummy)
 	}
 
 	kvp_transaction.state = HVUTIL_USERSPACE_REQ;
-	rc = hvutil_transport_send(hvt, message, sizeof(*message));
+	rc = hvutil_transport_send(hvt, message, sizeof(*message), NULL);
 	if (rc) {
 		pr_debug("KVP: failed to communicate to the daemon: %d\n", rc);
 		if (cancel_delayed_work_sync(&kvp_timeout_work)) {

@@ -2359,24 +2359,14 @@ static bool xenvif_ctrl_work_todo(struct xenvif *vif)
 	return 0;
 }
 
-int xenvif_ctrl_kthread(void *data)
+irqreturn_t xenvif_ctrl_irq_fn(int irq, void *data)
 {
 	struct xenvif *vif = data;
 
-	for (;;) {
-		wait_event_interruptible(vif->ctrl_wq,
-					 xenvif_ctrl_work_todo(vif) ||
-					 kthread_should_stop());
-		if (kthread_should_stop())
-			break;
+	while (xenvif_ctrl_work_todo(vif))
+		xenvif_ctrl_action(vif);
 
-		while (xenvif_ctrl_work_todo(vif))
-			xenvif_ctrl_action(vif);
-
-		cond_resched();
-	}
-
-	return 0;
+	return IRQ_HANDLED;
 }
 
 static int __init netback_init(void)

@@ -783,10 +783,8 @@ int dib0700_rc_setup(struct dvb_usb_device *d, struct usb_interface *intf)
 	/* Starting in firmware 1.20, the RC info is provided on a bulk pipe */
 
 	purb = usb_alloc_urb(0, GFP_KERNEL);
-	if (purb == NULL) {
-		err("rc usb alloc urb failed");
+	if (purb == NULL)
 		return -ENOMEM;
-	}
 
 	purb->transfer_buffer = kzalloc(RC_MSG_SIZE_V1_20, GFP_KERNEL);
 	if (purb->transfer_buffer == NULL) {

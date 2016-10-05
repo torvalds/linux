@@ -161,7 +161,7 @@ static struct hfi1_i2c_bus *init_i2c_bus(struct hfi1_devdata *dd,
 	bus->algo.getsda = hfi1_getsda;
 	bus->algo.getscl = hfi1_getscl;
 	bus->algo.udelay = 5;
-	bus->algo.timeout = usecs_to_jiffies(50);
+	bus->algo.timeout = usecs_to_jiffies(100000);
 	bus->algo.data = bus;
 
 	bus->adapter.owner = THIS_MODULE;

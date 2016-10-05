@@ -55,6 +55,7 @@ config ARCH_EXYNOS
 
 config ARCH_LAYERSCAPE
 	bool "ARMv8 based Freescale Layerscape SoC family"
+	select EDAC_SUPPORT
 	help
 	  This enables support for the Freescale Layerscape SoC family.
 
@@ -93,6 +94,7 @@ config ARCH_MVEBU
 	select ARMADA_CP110_SYSCON
 	select ARMADA_37XX_CLK
 	select MVEBU_ODMI
+	select MVEBU_PIC
 	help
 	  This enables support for Marvell EBU familly, including:
 	   - Armada 3700 SoC Family

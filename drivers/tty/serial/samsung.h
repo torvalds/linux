@@ -102,7 +102,7 @@ struct s3c24xx_uart_port {
 
 	struct s3c24xx_uart_dma		*dma;
 
-#ifdef CONFIG_CPU_FREQ
+#ifdef CONFIG_ARM_S3C24XX_CPUFREQ
 	struct notifier_block		freq_transition;
 #endif
 };

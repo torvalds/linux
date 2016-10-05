@@ -105,7 +105,7 @@ static struct sk_buff *reset_per_cpu_data(struct per_cpu_dm_data *data)
 	return skb;
 }
 
-static struct genl_multicast_group dropmon_mcgrps[] = {
+static const struct genl_multicast_group dropmon_mcgrps[] = {
 	{ .name = "events", },
 };
 

@@ -684,8 +684,7 @@ hns_mac_register_phydev(struct mii_bus *mdio, struct hns_mac_cb *mac_cb,
 	if (!phy || IS_ERR(phy))
 		return -EIO;
 
-	if (mdio->irq)
-		phy->irq = mdio->irq[addr];
+	phy->irq = mdio->irq[addr];
 
 	/* All data is now stored in the phy struct;
 	 * register it
