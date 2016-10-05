@@ -14,10 +14,10 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/spinlock.h>
+#include <linux/platform_data/gpio-htc-egpio.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/mfd/htc-egpio.h>
 
 struct egpio_chip {
 	int              reg_start;

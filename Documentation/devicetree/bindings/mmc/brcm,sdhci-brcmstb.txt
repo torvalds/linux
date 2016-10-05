@@ -8,7 +8,9 @@ on Device Tree properties to enable them for SoC/Board combinations
 that support them.
 
 Required properties:
-- compatible: "brcm,bcm7425-sdhci"
+- compatible: should be one of the following
+  - "brcm,bcm7425-sdhci"
+  - "brcm,bcm7445-sdhci"
 
 Refer to clocks/clock-bindings.txt for generic clock consumer properties.
 

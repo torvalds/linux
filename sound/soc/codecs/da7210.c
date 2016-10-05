@@ -1167,13 +1167,14 @@ static int da7210_probe(struct snd_soc_codec *codec)
 static struct snd_soc_codec_driver soc_codec_dev_da7210 = {
 	.probe			= da7210_probe,
 
-	.controls		= da7210_snd_controls,
-	.num_controls		= ARRAY_SIZE(da7210_snd_controls),
-
-	.dapm_widgets		= da7210_dapm_widgets,
-	.num_dapm_widgets	= ARRAY_SIZE(da7210_dapm_widgets),
-	.dapm_routes		= da7210_audio_map,
-	.num_dapm_routes	= ARRAY_SIZE(da7210_audio_map),
+	.component_driver = {
+		.controls		= da7210_snd_controls,
+		.num_controls		= ARRAY_SIZE(da7210_snd_controls),
+		.dapm_widgets		= da7210_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(da7210_dapm_widgets),
+		.dapm_routes		= da7210_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(da7210_audio_map),
+	},
 };
 
 #if IS_ENABLED(CONFIG_I2C)
