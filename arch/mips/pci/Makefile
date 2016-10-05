@@ -3,6 +3,7 @@
 #
 
 obj-y				+= pci.o
+obj-y				+= pci-legacy.o
 
 #
 # PCI bus host bridge specific code
