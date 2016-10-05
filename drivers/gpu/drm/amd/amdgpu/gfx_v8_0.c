@@ -6249,10 +6249,6 @@ static void gfx_v8_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 {
 	int usepfp = (ring->type == AMDGPU_RING_TYPE_GFX);
 
-	/* GFX8 emits 128 dw nop to prevent DE do vm_flush before CE finish CEIB */
-	if (usepfp)
-		amdgpu_ring_insert_nop(ring, 128);
-
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
 	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(usepfp) |
 				 WRITE_DATA_DST_SEL(0)) |
@@ -6381,7 +6377,7 @@ static unsigned gfx_v8_0_ring_get_dma_frame_size_gfx(struct amdgpu_ring *ring)
 		5 + /* gfx_v8_0_ring_emit_hdp_invalidate */
 		6 + 6 + 6 +/* gfx_v8_0_ring_emit_fence_gfx x3 for user fence, vm fence */
 		7 + /* gfx_v8_0_ring_emit_pipeline_sync */
-		256 + 19 + /* gfx_v8_0_ring_emit_vm_flush */
+		128 + 19 + /* gfx_v8_0_ring_emit_vm_flush */
 		2 + /* gfx_v8_ring_emit_sb */
 		3; /* gfx_v8_ring_emit_cntxcntl */
 }
