@@ -1087,6 +1087,15 @@ iwl_mvm_netdetect_config(struct iwl_mvm *mvm,
 		ret = iwl_mvm_switch_to_d3(mvm);
 		if (ret)
 			return ret;
+	} else {
+		/* In theory, we wouldn't have to stop a running sched
+		 * scan in order to start another one (for
+		 * net-detect).  But in practice this doesn't seem to
+		 * work properly, so stop any running sched_scan now.
+		 */
+		ret = iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_SCHED, true);
+		if (ret)
+			return ret;
 	}
 
 	/* rfkill release can be either for wowlan or netdetect */
@@ -2091,6 +2100,16 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 	iwl_mvm_update_changed_regdom(mvm);
 
 	if (mvm->net_detect) {
+		/* If this is a non-unified image, we restart the FW,
+		 * so no need to stop the netdetect scan.  If that
+		 * fails, continue and try to get the wake-up reasons,
+		 * but trigger a HW restart by keeping a failure code
+		 * in ret.
+		 */
+		if (unified_image)
+			ret = iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_NETDETECT,
+						false);
+
 		iwl_mvm_query_netdetect_reasons(mvm, vif);
 		/* has unlocked the mutex, so skip that */
 		goto out;
