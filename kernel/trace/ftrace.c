@@ -3511,6 +3511,10 @@ static int ftrace_match(char *str, struct ftrace_glob *g)
 		    memcmp(str + slen - g->len, g->search, g->len) == 0)
 			matched = 1;
 		break;
+	case MATCH_GLOB:
+		if (glob_match(g->search, str))
+			matched = 1;
+		break;
 	}
 
 	return matched;

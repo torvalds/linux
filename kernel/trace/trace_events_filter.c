@@ -344,6 +344,12 @@ static int regex_match_end(char *str, struct regex *r, int len)
 	return 0;
 }
 
+static int regex_match_glob(char *str, struct regex *r, int len __maybe_unused)
+{
+	if (glob_match(r->pattern, str))
+		return 1;
+	return 0;
+}
 /**
  * filter_parse_regex - parse a basic regex
  * @buff:   the raw regex
@@ -380,14 +386,20 @@ enum regex_type filter_parse_regex(char *buff, int len, char **search, int *not)
 			if (!i) {
 				*search = buff + 1;
 				type = MATCH_END_ONLY;
-			} else {
+			} else if (i == len - 1) {
 				if (type == MATCH_END_ONLY)
 					type = MATCH_MIDDLE_ONLY;
 				else
 					type = MATCH_FRONT_ONLY;
 				buff[i] = 0;
 				break;
+			} else {	/* pattern continues, use full glob */
+				type = MATCH_GLOB;
+				break;
 			}
+		} else if (strchr("[?\\", buff[i])) {
+			type = MATCH_GLOB;
+			break;
 		}
 	}
 
@@ -419,6 +431,9 @@ static void filter_build_regex(struct filter_pred *pred)
 		break;
 	case MATCH_END_ONLY:
 		r->match = regex_match_end;
+		break;
+	case MATCH_GLOB:
+		r->match = regex_match_glob;
 		break;
 	}
 
