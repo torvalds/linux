@@ -784,8 +784,8 @@ sfw_add_test_instance(struct sfw_batch *tsb, struct srpc_server_rpc *rpc)
 		lnet_process_id_packed_t id;
 		int j;
 
-		dests = page_address(bk->bk_iovs[i / SFW_ID_PER_PAGE].kiov_page);
-		LASSERT(dests);		/* my pages are within KVM always */
+		dests = page_address(bk->bk_iovs[i / SFW_ID_PER_PAGE].bv_page);
+		LASSERT(dests);  /* my pages are within KVM always */
 		id = dests[i % SFW_ID_PER_PAGE];
 		if (msg->msg_magic != SRPC_MSG_MAGIC)
 			sfw_unpack_id(id);

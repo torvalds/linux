@@ -72,7 +72,7 @@ void cvm_oct_link_poll(struct net_device *dev);
 
 extern int always_use_pow;
 extern int pow_send_group;
-extern int pow_receive_group;
+extern int pow_receive_groups;
 extern char pow_send_list[];
 extern struct net_device *cvm_oct_device[];
 extern atomic_t cvm_oct_poll_queue_stopping;

@@ -38,7 +38,6 @@
 #define DEBUG_SUBSYSTEM S_LLITE
 
 #include "../include/obd.h"
-#include "../include/lustre_lite.h"
 
 #include "llite_internal.h"
 #include "vvp_internal.h"
@@ -628,7 +627,7 @@ static int vvp_io_setattr_time(const struct lu_env *env,
 		attr->cat_mtime = io->u.ci_setattr.sa_attr.lvb_mtime;
 		valid |= CAT_MTIME;
 	}
-	result = cl_object_attr_set(env, obj, attr, valid);
+	result = cl_object_attr_update(env, obj, attr, valid);
 	cl_object_attr_unlock(obj);
 
 	return result;
@@ -821,7 +820,7 @@ static void write_commit_callback(const struct lu_env *env, struct cl_io *io,
 	cl_page_disown(env, io, page);
 
 	/* held in ll_cl_init() */
-	lu_ref_del(&page->cp_reference, "cl_io", io);
+	lu_ref_del(&page->cp_reference, "cl_io", cl_io_top(io));
 	cl_page_put(env, page);
 }
 
@@ -959,10 +958,30 @@ static int vvp_io_write_start(const struct lu_env *env,
 
 	CDEBUG(D_VFSTRACE, "write: [%lli, %lli)\n", pos, pos + (long long)cnt);
 
-	if (!vio->vui_iter) /* from a temp io in ll_cl_init(). */
+	if (!vio->vui_iter) {
+		/* from a temp io in ll_cl_init(). */
 		result = 0;
-	else
-		result = generic_file_write_iter(vio->vui_iocb, vio->vui_iter);
+	} else {
+		/*
+		 * When using the locked AIO function (generic_file_aio_write())
+		 * testing has shown the inode mutex to be a limiting factor
+		 * with multi-threaded single shared file performance. To get
+		 * around this, we now use the lockless version. To maintain
+		 * consistency, proper locking to protect against writes,
+		 * trucates, etc. is handled in the higher layers of lustre.
+		 */
+		bool lock_node = !IS_NOSEC(inode);
+
+		if (lock_node)
+			inode_lock(inode);
+		result = __generic_file_write_iter(vio->vui_iocb,
+						   vio->vui_iter);
+		if (lock_node)
+			inode_unlock(inode);
+
+		if (result > 0 || result == -EIOCBQUEUED)
+			result = generic_write_sync(vio->vui_iocb, result);
+	}
 
 	if (result > 0) {
 		result = vvp_io_write_commit(env, io);

@@ -410,8 +410,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 	if (len2 > ARRAY_SIZE(wb)) {
 		dev_err(&spi->dev, "spi buffer size too small (%d) (%zu)\n",
 			 len2, ARRAY_SIZE(wb));
-		result = N_FAIL;
-		return result;
+		return N_FAIL;
 	}
 	/* zero spi write buffers. */
 	for (wix = len; wix < len2; wix++)
@@ -420,8 +419,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 
 	if (wilc_spi_tx_rx(wilc, wb, rb, len2)) {
 		dev_err(&spi->dev, "Failed cmd write, bus error...\n");
-		result = N_FAIL;
-		return result;
+		return N_FAIL;
 	}
 
 	/**
@@ -442,8 +440,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 		dev_err(&spi->dev,
 			"Failed cmd response, cmd (%02x), resp (%02x)\n",
 			cmd, rsp);
-		result = N_FAIL;
-		return result;
+		return N_FAIL;
 	}
 
 	/**
@@ -453,8 +450,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 	if (rsp != 0x00) {
 		dev_err(&spi->dev, "Failed cmd state response state (%02x)\n",
 			rsp);
-		result = N_FAIL;
-		return result;
+		return N_FAIL;
 	}
 
 	if ((cmd == CMD_INTERNAL_READ) || (cmd == CMD_SINGLE_READ)
@@ -481,8 +477,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 		if (retry <= 0) {
 			dev_err(&spi->dev,
 				"Error, data read response (%02x)\n", rsp);
-			result = N_RESET;
-			return result;
+			return N_RESET;
 		}
 
 		if ((cmd == CMD_INTERNAL_READ) || (cmd == CMD_SINGLE_READ)) {
@@ -497,8 +492,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 			} else {
 				dev_err(&spi->dev,
 					"buffer overrun when reading data.\n");
-				result = N_FAIL;
-				return result;
+				return N_FAIL;
 			}
 
 			if (!g_spi.crc_off) {
@@ -510,8 +504,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 					crc[1] = rb[rix++];
 				} else {
 					dev_err(&spi->dev, "buffer overrun when reading crc.\n");
-					result = N_FAIL;
-					return result;
+					return N_FAIL;
 				}
 			}
 		} else if ((cmd == CMD_DMA_READ) || (cmd == CMD_DMA_EXT_READ)) {
@@ -551,7 +544,6 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 					}
 				}
 
-
 				ix += nbytes;
 				sz -= nbytes;
 			}
@@ -586,7 +578,6 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 
 				if (result == N_FAIL)
 					break;
-
 
 				/**
 				 * Read bytes
@@ -686,7 +677,6 @@ static int spi_data_write(struct wilc *wilc, u8 *b, u32 sz)
 		ix += nbytes;
 		sz -= nbytes;
 	} while (sz);
-
 
 	return result;
 }
@@ -850,7 +840,6 @@ static int wilc_spi_init(struct wilc *wilc, bool resume)
 	static int isinit;
 
 	if (isinit) {
-
 		if (!wilc_spi_read_reg(wilc, 0x1000, &chipid)) {
 			dev_err(&spi->dev, "Fail cmd read chip id...\n");
 			return 0;
@@ -871,7 +860,7 @@ static int wilc_spi_init(struct wilc *wilc, bool resume)
 		/* Read failed. Try with CRC off. This might happen when module
 		 * is removed but chip isn't reset*/
 		g_spi.crc_off = 1;
-		dev_err(&spi->dev, "Failed internal read protocol with CRC on, retyring with CRC off...\n");
+		dev_err(&spi->dev, "Failed internal read protocol with CRC on, retrying with CRC off...\n");
 		if (!spi_internal_read(wilc, WILC_SPI_PROTOCOL_OFFSET, &reg)) {
 			/* Reaad failed with both CRC on and off, something went bad */
 			dev_err(&spi->dev,
@@ -889,7 +878,6 @@ static int wilc_spi_init(struct wilc *wilc, bool resume)
 		}
 		g_spi.crc_off = 1;
 	}
-
 
 	/**
 	 *      make sure can read back chip id correctly
@@ -931,13 +919,9 @@ static int wilc_spi_read_size(struct wilc *wilc, u32 *size)
 		*size = tmp;
 	}
 
-
-
 _fail_:
 	return ret;
 }
-
-
 
 static int wilc_spi_read_int(struct wilc *wilc, u32 *int_status)
 {
@@ -993,7 +977,6 @@ static int wilc_spi_read_int(struct wilc *wilc, u32 *int_status)
 		}
 
 		*int_status = tmp;
-
 	}
 
 _fail_:

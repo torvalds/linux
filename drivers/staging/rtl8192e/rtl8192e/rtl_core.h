@@ -375,8 +375,8 @@ struct r8192_priv {
 	struct tasklet_struct		irq_tx_tasklet;
 	struct tasklet_struct		irq_prepare_beacon_tasklet;
 
-	struct semaphore			wx_sem;
-	struct semaphore			rf_sem;
+	struct mutex				wx_mutex;
+	struct mutex				rf_mutex;
 	struct mutex				mutex;
 
 	struct rt_stats stats;
@@ -503,8 +503,8 @@ struct r8192_priv {
 	u32 Pwr_Track;
 	u8 CCKPresentAttentuation_20Mdefault;
 	u8 CCKPresentAttentuation_40Mdefault;
-	char CCKPresentAttentuation_difference;
-	char CCKPresentAttentuation;
+	s8 CCKPresentAttentuation_difference;
+	s8 CCKPresentAttentuation;
 	long undecorated_smoothed_pwdb;
 
 	u32 MCSTxPowerLevelOriginalOffset[6];
@@ -604,8 +604,8 @@ void rtl92e_update_rx_pkt_timestamp(struct net_device *dev,
 long rtl92e_translate_to_dbm(struct r8192_priv *priv, u8 signal_strength_index);
 void rtl92e_update_rx_statistics(struct r8192_priv *priv,
 				 struct rtllib_rx_stats *pprevious_stats);
-u8 rtl92e_evm_db_to_percent(char value);
-u8 rtl92e_rx_db_to_percent(char antpower);
+u8 rtl92e_evm_db_to_percent(s8 value);
+u8 rtl92e_rx_db_to_percent(s8 antpower);
 void rtl92e_copy_mpdu_stats(struct rtllib_rx_stats *psrc_stats,
 			    struct rtllib_rx_stats *ptarget_stats);
 bool rtl92e_enable_nic(struct net_device *dev);

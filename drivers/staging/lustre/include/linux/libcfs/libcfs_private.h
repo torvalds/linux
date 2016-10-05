@@ -310,13 +310,13 @@ do {							    \
 
 #define MKSTR(ptr) ((ptr)) ? (ptr) : ""
 
-static inline int cfs_size_round4(int val)
+static inline size_t cfs_size_round4(int val)
 {
 	return (val + 3) & (~0x3);
 }
 
 #ifndef HAVE_CFS_SIZE_ROUND
-static inline int cfs_size_round(int val)
+static inline size_t cfs_size_round(int val)
 {
 	return (val + 7) & (~0x7);
 }
@@ -324,17 +324,17 @@ static inline int cfs_size_round(int val)
 #define HAVE_CFS_SIZE_ROUND
 #endif
 
-static inline int cfs_size_round16(int val)
+static inline size_t cfs_size_round16(int val)
 {
 	return (val + 0xf) & (~0xf);
 }
 
-static inline int cfs_size_round32(int val)
+static inline size_t cfs_size_round32(int val)
 {
 	return (val + 0x1f) & (~0x1f);
 }
 
-static inline int cfs_size_round0(int val)
+static inline size_t cfs_size_round0(int val)
 {
 	if (!val)
 		return 0;
@@ -343,7 +343,7 @@ static inline int cfs_size_round0(int val)
 
 static inline size_t cfs_round_strlen(char *fset)
 {
-	return (size_t)cfs_size_round((int)strlen(fset) + 1);
+	return cfs_size_round((int)strlen(fset) + 1);
 }
 
 #define LOGL(var, len, ptr)				       \
@@ -358,15 +358,6 @@ do {							    \
 	if (var)						\
 		memcpy((char *)var, (const char *)ptr, len);    \
 	ptr += cfs_size_round(len);			     \
-} while (0)
-
-#define LOGL0(var, len, ptr)			      \
-do {						    \
-	if (!len)				       \
-		break;				  \
-	memcpy((char *)ptr, (const char *)var, len);    \
-	*((char *)(ptr) + len) = 0;		     \
-	ptr += cfs_size_round(len + 1);		 \
 } while (0)
 
 #endif

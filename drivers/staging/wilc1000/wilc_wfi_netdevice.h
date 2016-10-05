@@ -131,7 +131,7 @@ struct wilc_priv {
 	struct wilc_wfi_key *wilc_gtk[MAX_NUM_STA];
 	struct wilc_wfi_key *wilc_ptk[MAX_NUM_STA];
 	u8 wilc_groupkey;
-	/* semaphores */
+	/* mutexes */
 	struct mutex scan_req_lock;
 	/*  */
 	bool gbAutoRateAdjusted;

@@ -48,10 +48,10 @@ int block_debug_setup(void *addr, int len, __u64 off, __u64 id)
 	LASSERT(addr);
 
 	put_unaligned_le64(off, addr);
-	put_unaligned_le64(id, addr+LPDS);
+	put_unaligned_le64(id, addr + LPDS);
 	addr += len - LPDS - LPDS;
 	put_unaligned_le64(off, addr);
-	put_unaligned_le64(id, addr+LPDS);
+	put_unaligned_le64(id, addr + LPDS);
 
 	return 0;
 }

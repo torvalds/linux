@@ -478,7 +478,7 @@ static ssize_t ad7280_store_balance_timer(struct device *dev,
 static struct attribute *ad7280_attributes[AD7280A_MAX_CHAIN *
 					   AD7280A_CELLS_PER_DEV * 2 + 1];
 
-static struct attribute_group ad7280_attrs_group = {
+static const struct attribute_group ad7280_attrs_group = {
 	.attrs = ad7280_attributes,
 };
 

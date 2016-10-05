@@ -819,11 +819,11 @@ L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Maintained
 F:	sound/aoa/
 
-APEX EMBEDDED SYSTEMS STX104 DAC DRIVER
+APEX EMBEDDED SYSTEMS STX104 IIO DRIVER
 M:	William Breathitt Gray <vilhelm.gray@gmail.com>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
-F:	drivers/iio/dac/stx104.c
+F:	drivers/iio/adc/stx104.c
 
 APM DRIVER
 M:	Jiri Kosina <jikos@kernel.org>
@@ -1992,6 +1992,13 @@ T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/i2c/as3645a.c
 F:	include/media/i2c/as3645a.h
+
+ASAHI KASEI AK8974 DRIVER
+M:	Linus Walleij <linus.walleij@linaro.org>
+L:	linux-iio@vger.kernel.org
+W:	http://www.akm.com/
+S:	Supported
+F:	drivers/iio/magnetometer/ak8974.c
 
 ASC7621 HARDWARE MONITOR DRIVER
 M:	George Joseph <george.joseph@fairview5.com>
@@ -5318,6 +5325,77 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/aeroflex/
 
+GREYBUS SUBSYSTEM
+M:	Johan Hovold <johan@kernel.org>
+M:	Alex Elder <elder@kernel.org>
+M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+S:	Maintained
+F:	drivers/staging/greybus/
+
+GREYBUS AUDIO PROTOCOLS DRIVERS
+M:	Vaibhav Agarwal <vaibhav.sr@gmail.com>
+M:	Mark Greer <mgreer@animalcreek.com>
+S:	Maintained
+F:	drivers/staging/greybus/audio_apbridgea.c
+F:	drivers/staging/greybus/audio_apbridgea.h
+F:	drivers/staging/greybus/audio_codec.c
+F:	drivers/staging/greybus/audio_codec.h
+F:	drivers/staging/greybus/audio_gb.c
+F:	drivers/staging/greybus/audio_manager.c
+F:	drivers/staging/greybus/audio_manager.h
+F:	drivers/staging/greybus/audio_manager_module.c
+F:	drivers/staging/greybus/audio_manager_private.h
+F:	drivers/staging/greybus/audio_manager_sysfs.c
+F:	drivers/staging/greybus/audio_module.c
+F:	drivers/staging/greybus/audio_topology.c
+
+GREYBUS PROTOCOLS DRIVERS
+M:	Rui Miguel Silva <rmfrfs@gmail.com>
+S:	Maintained
+F:	drivers/staging/greybus/sdio.c
+F:	drivers/staging/greybus/light.c
+F:	drivers/staging/greybus/gpio.c
+F:	drivers/staging/greybus/power_supply.c
+F:	drivers/staging/greybus/spi.c
+F:	drivers/staging/greybus/spilib.c
+
+GREYBUS PROTOCOLS DRIVERS
+M:	Bryan O'Donoghue <pure.logic@nexus-software.ie>
+S:	Maintained
+F:	drivers/staging/greybus/loopback.c
+F:	drivers/staging/greybus/timesync.c
+F:	drivers/staging/greybus/timesync_platform.c
+
+GREYBUS PROTOCOLS DRIVERS
+M:	Viresh Kumar <vireshk@kernel.org>
+S:	Maintained
+F:	drivers/staging/greybus/authentication.c
+F:	drivers/staging/greybus/bootrom.c
+F:	drivers/staging/greybus/firmware.h
+F:	drivers/staging/greybus/fw-core.c
+F:	drivers/staging/greybus/fw-download.c
+F:	drivers/staging/greybus/fw-managament.c
+F:	drivers/staging/greybus/greybus_authentication.h
+F:	drivers/staging/greybus/greybus_firmware.h
+F:	drivers/staging/greybus/hid.c
+F:	drivers/staging/greybus/i2c.c
+F:	drivers/staging/greybus/spi.c
+F:	drivers/staging/greybus/spilib.c
+F:	drivers/staging/greybus/spilib.h
+
+GREYBUS PROTOCOLS DRIVERS
+M:	David Lin <dtwlin@gmail.com>
+S:	Maintained
+F:	drivers/staging/greybus/uart.c
+F:	drivers/staging/greybus/log.c
+
+GREYBUS PLATFORM DRIVERS
+M:	Vaibhav Hiremath <hvaibhav.linux@gmail.com>
+S:	Maintained
+F:	drivers/staging/greybus/arche-platform.c
+F:	drivers/staging/greybus/arche-apb-ctrl.c
+F:	drivers/staging/greybus/arche_platform.h
+
 GSPCA FINEPIX SUBDRIVER
 M:	Frank Zago <frank@zago.net>
 L:	linux-media@vger.kernel.org
@@ -7547,6 +7625,12 @@ M:	Peter Rosin <peda@axentia.se>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
 F:	drivers/iio/potentiometer/mcp4531.c
+
+MEASUREMENT COMPUTING CIO-DAC IIO DRIVER
+M:	William Breathitt Gray <vilhelm.gray@gmail.com>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	drivers/iio/dac/cio-dac.c
 
 MEDIA DRIVERS FOR RENESAS - FCP
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
@@ -11263,6 +11347,7 @@ F:	drivers/staging/media/lirc/
 STAGING - LUSTRE PARALLEL FILESYSTEM
 M:	Oleg Drokin <oleg.drokin@intel.com>
 M:	Andreas Dilger <andreas.dilger@intel.com>
+M:	James Simmons <jsimmons@infradead.org>
 L:	lustre-devel@lists.lustre.org (moderated for non-subscribers)
 W:	http://wiki.lustre.org/
 S:	Maintained
@@ -11288,13 +11373,6 @@ M:	Larry Finger <Larry.Finger@lwfinger.net>
 M:	Florian Schilhabel <florian.c.schilhabel@googlemail.com>.
 S:	Odd Fixes
 F:	drivers/staging/rtl8712/
-
-STAGING - REALTEK RTL8723U WIRELESS DRIVER
-M:	Larry Finger <Larry.Finger@lwfinger.net>
-M:	Jes Sorensen <Jes.Sorensen@redhat.com>
-L:	linux-wireless@vger.kernel.org
-S:	Maintained
-F:	drivers/staging/rtl8723au/
 
 STAGING - SILICON MOTION SM750 FRAME BUFFER DRIVER
 M:	Sudip Mukherjee <sudipm.mukherjee@gmail.com>

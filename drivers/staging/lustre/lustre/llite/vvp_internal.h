@@ -217,11 +217,12 @@ struct vvp_object {
 	struct list_head	vob_pending_list;
 
 	/**
-	 * Access this counter is protected by inode->i_sem. Now that
-	 * the lifetime of transient pages must be covered by inode sem,
-	 * we don't need to hold any lock..
+	 * Number of transient pages.  This is no longer protected by i_sem,
+	 * and needs to be atomic.  This is not actually used for anything,
+	 * and can probably be removed.
 	 */
-	int			vob_transient_pages;
+	atomic_t		vob_transient_pages;
+
 	/**
 	 * Number of outstanding mmaps on this file.
 	 *
@@ -247,9 +248,9 @@ struct vvp_object {
  */
 struct vvp_page {
 	struct cl_page_slice vpg_cl;
-	int		  vpg_defer_uptodate;
-	int		  vpg_ra_used;
-	int		  vpg_write_queued;
+	unsigned int	vpg_defer_uptodate:1,
+			vpg_ra_used:1,
+			vpg_write_queued:1;
 	/**
 	 * Non-empty iff this page is already counted in
 	 * vvp_object::vob_pending_list. This list is only used as a flag,

@@ -219,7 +219,7 @@ struct rsn_ie_t {
 	uint8_t id;	/* 0xdd = WPA or 0x30 = RSN */
 	uint8_t size;	/* max ? 255 ? */
 	uint8_t body[RSN_IE_BODY_MAX];
-} __attribute__ ((packed));
+} __packed;
 
 #ifdef WPS
 #define WPS_IE_BODY_MAX 255
@@ -227,7 +227,7 @@ struct wps_ie_t {
 	uint8_t id;	/* 221 'dd <len> 00 50 F2 04' */
 	uint8_t size;	/* max ? 255 ? */
 	uint8_t body[WPS_IE_BODY_MAX];
-} __attribute__ ((packed));
+} __packed;
 #endif /* WPS */
 
 struct local_ap_t {
@@ -499,7 +499,7 @@ struct ks_wlan_private {
 	uint wakeup_count;	/* for detect wakeup loop */
 };
 
-extern int ks_wlan_net_start(struct net_device *dev);
-extern int ks_wlan_net_stop(struct net_device *dev);
+int ks_wlan_net_start(struct net_device *dev);
+int ks_wlan_net_stop(struct net_device *dev);
 
 #endif /* _KS_WLAN_H */

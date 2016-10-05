@@ -21,7 +21,7 @@ unsigned char bus_speed_mode
 	POKE32(GPIO_MUX, value);
 
 	/* Enable Hardware I2C power.
-	 TODO: Check if we need to enable GPIO power?
+	 * TODO: Check if we need to enable GPIO power?
 	 */
 	enableI2C(1);
 

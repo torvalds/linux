@@ -159,8 +159,8 @@ static int osc_attr_get(const struct lu_env *env, struct cl_object *obj,
 	return 0;
 }
 
-static int osc_attr_set(const struct lu_env *env, struct cl_object *obj,
-			const struct cl_attr *attr, unsigned valid)
+static int osc_attr_update(const struct lu_env *env, struct cl_object *obj,
+			   const struct cl_attr *attr, unsigned int valid)
 {
 	struct lov_oinfo *oinfo = cl2osc(obj)->oo_oinfo;
 	struct ost_lvb *lvb = &oinfo->loi_lvb;
@@ -195,7 +195,6 @@ static int osc_object_glimpse(const struct lu_env *env,
 
 static int osc_object_ast_clear(struct ldlm_lock *lock, void *data)
 {
-	LASSERT(lock->l_granted_mode == lock->l_req_mode);
 	if (lock->l_ast_data == data)
 		lock->l_ast_data = NULL;
 	return LDLM_ITER_CONTINUE;
@@ -262,7 +261,7 @@ static const struct cl_object_operations osc_ops = {
 	.coo_lock_init = osc_lock_init,
 	.coo_io_init   = osc_io_init,
 	.coo_attr_get  = osc_attr_get,
-	.coo_attr_set  = osc_attr_set,
+	.coo_attr_update = osc_attr_update,
 	.coo_glimpse   = osc_object_glimpse,
 	.coo_prune     = osc_object_prune
 };
