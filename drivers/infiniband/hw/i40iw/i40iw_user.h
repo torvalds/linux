@@ -96,12 +96,6 @@ enum i40iw_device_capabilities_const {
 #define i40iw_physical_fragment u64
 #define i40iw_address_list u64 *
 
-#define I40IW_CREATE_STAG(index, key)       (((index) << 8) + (key))
-
-#define I40IW_STAG_KEY_FROM_STAG(stag)      ((stag) && 0x000000FF)
-
-#define I40IW_STAG_INDEX_FROM_STAG(stag)    (((stag) && 0xFFFFFF00) >> 8)
-
 #define	I40IW_MAX_MR_SIZE	0x10000000000L
 
 struct i40iw_qp_uk;
