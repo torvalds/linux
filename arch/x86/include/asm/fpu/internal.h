@@ -581,23 +581,17 @@ switch_fpu_prepare(struct fpu *old_fpu, struct fpu *new_fpu, int cpu)
 		/* But leave fpu_fpregs_owner_ctx! */
 		old_fpu->fpregs_active = 0;
 		trace_x86_fpu_regs_deactivated(old_fpu);
-
-		/* Don't change CR0.TS if we just switch! */
-		if (fpu.preload) {
-			fpregs_activate(new_fpu);
-			trace_x86_fpu_regs_activated(new_fpu);
-			prefetch(&new_fpu->state);
-		}
-	} else {
+	} else
 		old_fpu->last_cpu = -1;
-		if (fpu.preload) {
-			if (fpregs_state_valid(new_fpu, cpu))
-				fpu.preload = 0;
-			else
-				prefetch(&new_fpu->state);
-			fpregs_activate(new_fpu);
-		}
+
+	if (fpu.preload) {
+		if (fpregs_state_valid(new_fpu, cpu))
+			fpu.preload = 0;
+		else
+			prefetch(&new_fpu->state);
+		fpregs_activate(new_fpu);
 	}
+
 	return fpu;
 }
 
