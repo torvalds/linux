@@ -882,15 +882,6 @@ static inline struct c4iw_listen_ep *to_listen_ep(struct iw_cm_id *cm_id)
 	return cm_id->provider_data;
 }
 
-static inline int compute_wscale(int win)
-{
-	int wscale = 0;
-
-	while (wscale < 14 && (65535<<wscale) < win)
-		wscale++;
-	return wscale;
-}
-
 static inline int ocqp_supported(const struct cxgb4_lld_info *infop)
 {
 #if defined(__i386__) || defined(__x86_64__) || defined(CONFIG_PPC64)

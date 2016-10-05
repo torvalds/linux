@@ -316,7 +316,7 @@ static struct rtl_mod_params rtl8821ae_mod_params = {
 	.disable_watchdog = 0,
 };
 
-static struct rtl_hal_cfg rtl8821ae_hal_cfg = {
+static const struct rtl_hal_cfg rtl8821ae_hal_cfg = {
 	.bar_id = 2,
 	.write_readback = true,
 	.name = "rtl8821ae_pci",

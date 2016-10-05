@@ -1775,10 +1775,9 @@ struct qed_sb_attn_info {
 };
 
 static inline u16 qed_attn_update_idx(struct qed_hwfn *p_hwfn,
-				      struct qed_sb_attn_info   *p_sb_desc)
+				      struct qed_sb_attn_info *p_sb_desc)
 {
-	u16     rc = 0;
-	u16     index;
+	u16 rc = 0, index;
 
 	/* Make certain HW write took affect */
 	mmiowb();
@@ -1802,15 +1801,13 @@ static inline u16 qed_attn_update_idx(struct qed_hwfn *p_hwfn,
  *  @param asserted_bits newly asserted bits
  *  @return int
  */
-static int qed_int_assertion(struct qed_hwfn *p_hwfn,
-			     u16 asserted_bits)
+static int qed_int_assertion(struct qed_hwfn *p_hwfn, u16 asserted_bits)
 {
 	struct qed_sb_attn_info *sb_attn_sw = p_hwfn->p_sb_attn;
 	u32 igu_mask;
 
 	/* Mask the source of the attention in the IGU */
-	igu_mask = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
-			  IGU_REG_ATTENTION_ENABLE);
+	igu_mask = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt, IGU_REG_ATTENTION_ENABLE);
 	DP_VERBOSE(p_hwfn, NETIF_MSG_INTR, "IGU mask: 0x%08x --> 0x%08x\n",
 		   igu_mask, igu_mask & ~(asserted_bits & ATTN_BITS_MASKABLE));
 	igu_mask &= ~(asserted_bits & ATTN_BITS_MASKABLE);
@@ -2041,7 +2038,7 @@ static int qed_int_deassertion(struct qed_hwfn  *p_hwfn,
 			struct aeu_invert_reg_bit *p_bit = &p_aeu->bits[j];
 
 			if ((p_bit->flags & ATTENTION_PARITY) &&
-			    !!(parities & (1 << bit_idx)))
+			    !!(parities & BIT(bit_idx)))
 				qed_int_deassertion_parity(p_hwfn, p_bit,
 							   bit_idx);
 
@@ -2114,8 +2111,7 @@ static int qed_int_deassertion(struct qed_hwfn  *p_hwfn,
 				    ~((u32)deasserted_bits));
 
 	/* Unmask deasserted attentions in IGU */
-	aeu_mask = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
-			  IGU_REG_ATTENTION_ENABLE);
+	aeu_mask = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt, IGU_REG_ATTENTION_ENABLE);
 	aeu_mask |= (deasserted_bits & ATTN_BITS_MASKABLE);
 	qed_wr(p_hwfn, p_hwfn->p_dpc_ptt, IGU_REG_ATTENTION_ENABLE, aeu_mask);
 
@@ -2160,8 +2156,7 @@ static int qed_int_attentions(struct qed_hwfn *p_hwfn)
 			index, attn_bits, attn_acks, asserted_bits,
 			deasserted_bits, p_sb_attn_sw->known_attn);
 	} else if (asserted_bits == 0x100) {
-		DP_INFO(p_hwfn,
-			"MFW indication via attention\n");
+		DP_INFO(p_hwfn, "MFW indication via attention\n");
 	} else {
 		DP_VERBOSE(p_hwfn, NETIF_MSG_INTR,
 			   "MFW indication [deassertion]\n");
@@ -2173,18 +2168,14 @@ static int qed_int_attentions(struct qed_hwfn *p_hwfn)
 			return rc;
 	}
 
-	if (deasserted_bits) {
+	if (deasserted_bits)
 		rc = qed_int_deassertion(p_hwfn, deasserted_bits);
-		if (rc)
-			return rc;
-	}
 
 	return rc;
 }
 
 static void qed_sb_ack_attn(struct qed_hwfn *p_hwfn,
-			    void __iomem *igu_addr,
-			    u32 ack_cons)
+			    void __iomem *igu_addr, u32 ack_cons)
 {
 	struct igu_prod_cons_update igu_ack = { 0 };
 
@@ -2242,9 +2233,8 @@ void qed_int_sp_dpc(unsigned long hwfn_cookie)
 
 	/* Gather Interrupts/Attentions information */
 	if (!sb_info->sb_virt) {
-		DP_ERR(
-			p_hwfn->cdev,
-			"Interrupt Status block is NULL - cannot check for new interrupts!\n");
+		DP_ERR(p_hwfn->cdev,
+		       "Interrupt Status block is NULL - cannot check for new interrupts!\n");
 	} else {
 		u32 tmp_index = sb_info->sb_ack;
 
@@ -2255,9 +2245,8 @@ void qed_int_sp_dpc(unsigned long hwfn_cookie)
 	}
 
 	if (!sb_attn || !sb_attn->sb_attn) {
-		DP_ERR(
-			p_hwfn->cdev,
-			"Attentions Status block is NULL - cannot check for new attentions!\n");
+		DP_ERR(p_hwfn->cdev,
+		       "Attentions Status block is NULL - cannot check for new attentions!\n");
 	} else {
 		u16 tmp_index = sb_attn->index;
 
@@ -2313,8 +2302,7 @@ static void qed_int_sb_attn_free(struct qed_hwfn *p_hwfn)
 	if (p_sb->sb_attn)
 		dma_free_coherent(&p_hwfn->cdev->pdev->dev,
 				  SB_ATTN_ALIGNED_SIZE(p_hwfn),
-				  p_sb->sb_attn,
-				  p_sb->sb_phys);
+				  p_sb->sb_attn, p_sb->sb_phys);
 	kfree(p_sb);
 }
 
@@ -2337,8 +2325,7 @@ static void qed_int_sb_attn_setup(struct qed_hwfn *p_hwfn,
 
 static void qed_int_sb_attn_init(struct qed_hwfn *p_hwfn,
 				 struct qed_ptt *p_ptt,
-				 void *sb_virt_addr,
-				 dma_addr_t sb_phy_addr)
+				 void *sb_virt_addr, dma_addr_t sb_phy_addr)
 {
 	struct qed_sb_attn_info *sb_info = p_hwfn->p_sb_attn;
 	int i, j, k;
@@ -2378,15 +2365,13 @@ static int qed_int_sb_attn_alloc(struct qed_hwfn *p_hwfn,
 {
 	struct qed_dev *cdev = p_hwfn->cdev;
 	struct qed_sb_attn_info *p_sb;
-	void *p_virt;
 	dma_addr_t p_phys = 0;
+	void *p_virt;
 
 	/* SB struct */
 	p_sb = kmalloc(sizeof(*p_sb), GFP_KERNEL);
-	if (!p_sb) {
-		DP_NOTICE(cdev, "Failed to allocate `struct qed_sb_attn_info'\n");
+	if (!p_sb)
 		return -ENOMEM;
-	}
 
 	/* SB ring  */
 	p_virt = dma_alloc_coherent(&cdev->pdev->dev,
@@ -2394,7 +2379,6 @@ static int qed_int_sb_attn_alloc(struct qed_hwfn *p_hwfn,
 				    &p_phys, GFP_KERNEL);
 
 	if (!p_virt) {
-		DP_NOTICE(cdev, "Failed to allocate status block (attentions)\n");
 		kfree(p_sb);
 		return -ENOMEM;
 	}
@@ -2412,9 +2396,7 @@ static int qed_int_sb_attn_alloc(struct qed_hwfn *p_hwfn,
 
 void qed_init_cau_sb_entry(struct qed_hwfn *p_hwfn,
 			   struct cau_sb_entry *p_sb_entry,
-			   u8 pf_id,
-			   u16 vf_number,
-			   u8 vf_valid)
+			   u8 pf_id, u16 vf_number, u8 vf_valid)
 {
 	struct qed_dev *cdev = p_hwfn->cdev;
 	u32 cau_state;
@@ -2427,12 +2409,6 @@ void qed_init_cau_sb_entry(struct qed_hwfn *p_hwfn,
 	SET_FIELD(p_sb_entry->params, CAU_SB_ENTRY_VF_VALID, vf_valid);
 	SET_FIELD(p_sb_entry->params, CAU_SB_ENTRY_SB_TIMESET0, 0x7F);
 	SET_FIELD(p_sb_entry->params, CAU_SB_ENTRY_SB_TIMESET1, 0x7F);
-
-	/* setting the time resultion to a fixed value ( = 1) */
-	SET_FIELD(p_sb_entry->params, CAU_SB_ENTRY_TIMER_RES0,
-		  QED_CAU_DEF_RX_TIMER_RES);
-	SET_FIELD(p_sb_entry->params, CAU_SB_ENTRY_TIMER_RES1,
-		  QED_CAU_DEF_TX_TIMER_RES);
 
 	cau_state = CAU_HC_DISABLE_STATE;
 
@@ -2468,9 +2444,7 @@ void qed_init_cau_sb_entry(struct qed_hwfn *p_hwfn,
 void qed_int_cau_conf_sb(struct qed_hwfn *p_hwfn,
 			 struct qed_ptt *p_ptt,
 			 dma_addr_t sb_phys,
-			 u16 igu_sb_id,
-			 u16 vf_number,
-			 u8 vf_valid)
+			 u16 igu_sb_id, u16 vf_number, u8 vf_valid)
 {
 	struct cau_sb_entry sb_entry;
 
@@ -2514,8 +2488,7 @@ void qed_int_cau_conf_sb(struct qed_hwfn *p_hwfn,
 			timer_res = 2;
 		timeset = (u8)(p_hwfn->cdev->rx_coalesce_usecs >> timer_res);
 		qed_int_cau_conf_pi(p_hwfn, p_ptt, igu_sb_id, RX_PI,
-				    QED_COAL_RX_STATE_MACHINE,
-				    timeset);
+				    QED_COAL_RX_STATE_MACHINE, timeset);
 
 		if (p_hwfn->cdev->tx_coalesce_usecs <= 0x7F)
 			timer_res = 0;
@@ -2541,8 +2514,7 @@ void qed_int_cau_conf_pi(struct qed_hwfn *p_hwfn,
 			 u8 timeset)
 {
 	struct cau_pi_entry pi_entry;
-	u32 sb_offset;
-	u32 pi_offset;
+	u32 sb_offset, pi_offset;
 
 	if (IS_VF(p_hwfn->cdev))
 		return;
@@ -2569,8 +2541,7 @@ void qed_int_cau_conf_pi(struct qed_hwfn *p_hwfn,
 }
 
 void qed_int_sb_setup(struct qed_hwfn *p_hwfn,
-		      struct qed_ptt *p_ptt,
-		      struct qed_sb_info *sb_info)
+		      struct qed_ptt *p_ptt, struct qed_sb_info *sb_info)
 {
 	/* zero status block and ack counter */
 	sb_info->sb_ack = 0;
@@ -2590,8 +2561,7 @@ void qed_int_sb_setup(struct qed_hwfn *p_hwfn,
  *
  * @return u16
  */
-static u16 qed_get_igu_sb_id(struct qed_hwfn *p_hwfn,
-			     u16 sb_id)
+static u16 qed_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id)
 {
 	u16 igu_sb_id;
 
@@ -2603,8 +2573,12 @@ static u16 qed_get_igu_sb_id(struct qed_hwfn *p_hwfn,
 	else
 		igu_sb_id = qed_vf_get_igu_sb_id(p_hwfn, sb_id);
 
-	DP_VERBOSE(p_hwfn, NETIF_MSG_INTR, "SB [%s] index is 0x%04x\n",
-		   (sb_id == QED_SP_SB_ID) ? "DSB" : "non-DSB", igu_sb_id);
+	if (sb_id == QED_SP_SB_ID)
+		DP_VERBOSE(p_hwfn, NETIF_MSG_INTR,
+			   "Slowpath SB index in IGU is 0x%04x\n", igu_sb_id);
+	else
+		DP_VERBOSE(p_hwfn, NETIF_MSG_INTR,
+			   "SB [%04x] <--> IGU SB [%04x]\n", sb_id, igu_sb_id);
 
 	return igu_sb_id;
 }
@@ -2612,9 +2586,7 @@ static u16 qed_get_igu_sb_id(struct qed_hwfn *p_hwfn,
 int qed_int_sb_init(struct qed_hwfn *p_hwfn,
 		    struct qed_ptt *p_ptt,
 		    struct qed_sb_info *sb_info,
-		    void *sb_virt_addr,
-		    dma_addr_t sb_phy_addr,
-		    u16 sb_id)
+		    void *sb_virt_addr, dma_addr_t sb_phy_addr, u16 sb_id)
 {
 	sb_info->sb_virt = sb_virt_addr;
 	sb_info->sb_phys = sb_phy_addr;
@@ -2650,8 +2622,7 @@ int qed_int_sb_init(struct qed_hwfn *p_hwfn,
 }
 
 int qed_int_sb_release(struct qed_hwfn *p_hwfn,
-		       struct qed_sb_info *sb_info,
-		       u16 sb_id)
+		       struct qed_sb_info *sb_info, u16 sb_id)
 {
 	if (sb_id == QED_SP_SB_ID) {
 		DP_ERR(p_hwfn, "Do Not free sp sb using this function");
@@ -2685,8 +2656,7 @@ static void qed_int_sp_sb_free(struct qed_hwfn *p_hwfn)
 	kfree(p_sb);
 }
 
-static int qed_int_sp_sb_alloc(struct qed_hwfn *p_hwfn,
-			       struct qed_ptt *p_ptt)
+static int qed_int_sp_sb_alloc(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	struct qed_sb_sp_info *p_sb;
 	dma_addr_t p_phys = 0;
@@ -2694,17 +2664,14 @@ static int qed_int_sp_sb_alloc(struct qed_hwfn *p_hwfn,
 
 	/* SB struct */
 	p_sb = kmalloc(sizeof(*p_sb), GFP_KERNEL);
-	if (!p_sb) {
-		DP_NOTICE(p_hwfn, "Failed to allocate `struct qed_sb_info'\n");
+	if (!p_sb)
 		return -ENOMEM;
-	}
 
 	/* SB ring  */
 	p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
 				    SB_ALIGNED_SIZE(p_hwfn),
 				    &p_phys, GFP_KERNEL);
 	if (!p_virt) {
-		DP_NOTICE(p_hwfn, "Failed to allocate status block\n");
 		kfree(p_sb);
 		return -ENOMEM;
 	}
@@ -2721,9 +2688,7 @@ static int qed_int_sp_sb_alloc(struct qed_hwfn *p_hwfn,
 
 int qed_int_register_cb(struct qed_hwfn *p_hwfn,
 			qed_int_comp_cb_t comp_cb,
-			void *cookie,
-			u8 *sb_idx,
-			__le16 **p_fw_cons)
+			void *cookie, u8 *sb_idx, __le16 **p_fw_cons)
 {
 	struct qed_sb_sp_info *p_sp_sb = p_hwfn->p_sp_sb;
 	int rc = -ENOMEM;
@@ -2764,8 +2729,7 @@ u16 qed_int_get_sp_sb_id(struct qed_hwfn *p_hwfn)
 }
 
 void qed_int_igu_enable_int(struct qed_hwfn *p_hwfn,
-			    struct qed_ptt *p_ptt,
-			    enum qed_int_mode int_mode)
+			    struct qed_ptt *p_ptt, enum qed_int_mode int_mode)
 {
 	u32 igu_pf_conf = IGU_PF_CONF_FUNC_EN | IGU_PF_CONF_ATTN_BIT_EN;
 
@@ -2809,7 +2773,7 @@ int qed_int_igu_enable(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 	qed_wr(p_hwfn, p_ptt, MISC_REG_AEU_MASK_ATTN_IGU, 0xff);
 	if ((int_mode != QED_INT_MODE_INTA) || IS_LEAD_HWFN(p_hwfn)) {
 		rc = qed_slowpath_irq_req(p_hwfn);
-		if (rc != 0) {
+		if (rc) {
 			DP_NOTICE(p_hwfn, "Slowpath IRQ request failed\n");
 			return -EINVAL;
 		}
@@ -2822,8 +2786,7 @@ int qed_int_igu_enable(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 	return rc;
 }
 
-void qed_int_igu_disable_int(struct qed_hwfn *p_hwfn,
-			     struct qed_ptt *p_ptt)
+void qed_int_igu_disable_int(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	p_hwfn->b_int_enabled = 0;
 
@@ -2950,13 +2913,11 @@ void qed_int_igu_init_pure_rt(struct qed_hwfn *p_hwfn,
 					p_hwfn->hw_info.opaque_fid, b_set);
 }
 
-static u32 qed_int_igu_read_cam_block(struct qed_hwfn	*p_hwfn,
-				      struct qed_ptt	*p_ptt,
-				      u16		sb_id)
+static u32 qed_int_igu_read_cam_block(struct qed_hwfn *p_hwfn,
+				      struct qed_ptt *p_ptt, u16 sb_id)
 {
 	u32 val = qed_rd(p_hwfn, p_ptt,
-			 IGU_REG_MAPPING_MEMORY +
-			 sizeof(u32) * sb_id);
+			 IGU_REG_MAPPING_MEMORY + sizeof(u32) * sb_id);
 	struct qed_igu_block *p_block;
 
 	p_block = &p_hwfn->hw_info.p_igu_info->igu_map.igu_blocks[sb_id];
@@ -2983,8 +2944,7 @@ out:
 	return val;
 }
 
-int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn,
-			 struct qed_ptt *p_ptt)
+int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	struct qed_igu_info *p_igu_info;
 	u32 val, min_vf = 0, max_vf = 0;
@@ -2993,7 +2953,6 @@ int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn,
 	u16 prev_sb_id = 0xFF;
 
 	p_hwfn->hw_info.p_igu_info = kzalloc(sizeof(*p_igu_info), GFP_KERNEL);
-
 	if (!p_hwfn->hw_info.p_igu_info)
 		return -ENOMEM;
 
@@ -3104,22 +3063,19 @@ int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn,
  */
 void qed_int_igu_init_rt(struct qed_hwfn *p_hwfn)
 {
-	u32 igu_pf_conf = 0;
-
-	igu_pf_conf |= IGU_PF_CONF_FUNC_EN;
+	u32 igu_pf_conf = IGU_PF_CONF_FUNC_EN;
 
 	STORE_RT_REG(p_hwfn, IGU_REG_PF_CONFIGURATION_RT_OFFSET, igu_pf_conf);
 }
 
 u64 qed_int_igu_read_sisr_reg(struct qed_hwfn *p_hwfn)
 {
-	u64 intr_status = 0;
-	u32 intr_status_lo = 0;
-	u32 intr_status_hi = 0;
 	u32 lsb_igu_cmd_addr = IGU_REG_SISR_MDPC_WMASK_LSB_UPPER -
 			       IGU_CMD_INT_ACK_BASE;
 	u32 msb_igu_cmd_addr = IGU_REG_SISR_MDPC_WMASK_MSB_UPPER -
 			       IGU_CMD_INT_ACK_BASE;
+	u32 intr_status_hi = 0, intr_status_lo = 0;
+	u64 intr_status = 0;
 
 	intr_status_lo = REG_RD(p_hwfn,
 				GTT_BAR0_MAP_REG_IGU_CMD +
@@ -3153,26 +3109,20 @@ static void qed_int_sp_dpc_free(struct qed_hwfn *p_hwfn)
 	kfree(p_hwfn->sp_dpc);
 }
 
-int qed_int_alloc(struct qed_hwfn *p_hwfn,
-		  struct qed_ptt *p_ptt)
+int qed_int_alloc(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	int rc = 0;
 
 	rc = qed_int_sp_dpc_alloc(p_hwfn);
-	if (rc) {
-		DP_ERR(p_hwfn->cdev, "Failed to allocate sp dpc mem\n");
+	if (rc)
 		return rc;
-	}
+
 	rc = qed_int_sp_sb_alloc(p_hwfn, p_ptt);
-	if (rc) {
-		DP_ERR(p_hwfn->cdev, "Failed to allocate sp sb mem\n");
+	if (rc)
 		return rc;
-	}
+
 	rc = qed_int_sb_attn_alloc(p_hwfn, p_ptt);
-	if (rc) {
-		DP_ERR(p_hwfn->cdev, "Failed to allocate sb attn mem\n");
-		return rc;
-	}
+
 	return rc;
 }
 
@@ -3183,8 +3133,7 @@ void qed_int_free(struct qed_hwfn *p_hwfn)
 	qed_int_sp_dpc_free(p_hwfn);
 }
 
-void qed_int_setup(struct qed_hwfn *p_hwfn,
-		   struct qed_ptt *p_ptt)
+void qed_int_setup(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	qed_int_sb_setup(p_hwfn, p_ptt, &p_hwfn->p_sp_sb->sb_info);
 	qed_int_sb_attn_setup(p_hwfn, p_ptt);

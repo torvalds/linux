@@ -2400,12 +2400,14 @@ static int mlx4_en_set_vf_mac(struct net_device *dev, int queue, u8 *mac)
 	return mlx4_set_vf_mac(mdev->dev, en_priv->port, queue, mac_u64);
 }
 
-static int mlx4_en_set_vf_vlan(struct net_device *dev, int vf, u16 vlan, u8 qos)
+static int mlx4_en_set_vf_vlan(struct net_device *dev, int vf, u16 vlan, u8 qos,
+			       __be16 vlan_proto)
 {
 	struct mlx4_en_priv *en_priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = en_priv->mdev;
 
-	return mlx4_set_vf_vlan(mdev->dev, en_priv->port, vf, vlan, qos);
+	return mlx4_set_vf_vlan(mdev->dev, en_priv->port, vf, vlan, qos,
+				vlan_proto);
 }
 
 static int mlx4_en_set_vf_rate(struct net_device *dev, int vf, int min_tx_rate,
@@ -2643,12 +2645,16 @@ static int mlx4_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 			if (IS_ERR(prog))
 				return PTR_ERR(prog);
 		}
+		mutex_lock(&mdev->state_lock);
 		for (i = 0; i < priv->rx_ring_num; i++) {
-			/* This xchg is paired with READ_ONCE in the fastpath */
-			old_prog = xchg(&priv->rx_ring[i]->xdp_prog, prog);
+			old_prog = rcu_dereference_protected(
+					priv->rx_ring[i]->xdp_prog,
+					lockdep_is_held(&mdev->state_lock));
+			rcu_assign_pointer(priv->rx_ring[i]->xdp_prog, prog);
 			if (old_prog)
 				bpf_prog_put(old_prog);
 		}
+		mutex_unlock(&mdev->state_lock);
 		return 0;
 	}
 
@@ -2681,7 +2687,10 @@ static int mlx4_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 							priv->xdp_ring_num);
 
 	for (i = 0; i < priv->rx_ring_num; i++) {
-		old_prog = xchg(&priv->rx_ring[i]->xdp_prog, prog);
+		old_prog = rcu_dereference_protected(
+					priv->rx_ring[i]->xdp_prog,
+					lockdep_is_held(&mdev->state_lock));
+		rcu_assign_pointer(priv->rx_ring[i]->xdp_prog, prog);
 		if (old_prog)
 			bpf_prog_put(old_prog);
 	}
@@ -3217,12 +3226,25 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	}
 
 	if (mlx4_is_slave(mdev->dev)) {
+		bool vlan_offload_disabled;
 		int phv;
 
 		err = get_phv_bit(mdev->dev, port, &phv);
 		if (!err && phv) {
 			dev->hw_features |= NETIF_F_HW_VLAN_STAG_TX;
 			priv->pflags |= MLX4_EN_PRIV_FLAGS_PHV;
+		}
+		err = mlx4_get_is_vlan_offload_disabled(mdev->dev, port,
+							&vlan_offload_disabled);
+		if (!err && vlan_offload_disabled) {
+			dev->hw_features &= ~(NETIF_F_HW_VLAN_CTAG_TX |
+					      NETIF_F_HW_VLAN_CTAG_RX |
+					      NETIF_F_HW_VLAN_STAG_TX |
+					      NETIF_F_HW_VLAN_STAG_RX);
+			dev->features &= ~(NETIF_F_HW_VLAN_CTAG_TX |
+					   NETIF_F_HW_VLAN_CTAG_RX |
+					   NETIF_F_HW_VLAN_STAG_TX |
+					   NETIF_F_HW_VLAN_STAG_RX);
 		}
 	} else {
 		if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_PHV_EN &&

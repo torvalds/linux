@@ -1613,10 +1613,8 @@ static int ezusb_probe(struct usb_interface *interface,
 			}
 
 			upriv->read_urb = usb_alloc_urb(0, GFP_KERNEL);
-			if (!upriv->read_urb) {
-				err("No free urbs available");
+			if (!upriv->read_urb)
 				goto error;
-			}
 			if (le16_to_cpu(ep->wMaxPacketSize) != 64)
 				pr_warn("bulk in: wMaxPacketSize!= 64\n");
 			if (ep->bEndpointAddress != (2 | USB_DIR_IN))

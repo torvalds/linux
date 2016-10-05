@@ -1169,6 +1169,13 @@ int __must_check __vmbus_driver_register(struct hv_driver *hv_driver,
 					 const char *mod_name);
 void vmbus_driver_unregister(struct hv_driver *hv_driver);
 
+static inline const char *vmbus_dev_name(const struct hv_device *device_obj)
+{
+	const struct kobject *kobj = &device_obj->device.kobj;
+
+	return kobj->name;
+}
+
 void vmbus_hvsock_device_unregister(struct vmbus_channel *channel);
 
 int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,

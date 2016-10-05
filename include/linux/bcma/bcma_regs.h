@@ -24,6 +24,7 @@
 #define  BCMA_CLKCTLST_4328A0_HAVEALP	0x00020000 /* 4328a0 has reversed bits */
 
 /* Agent registers (common for every core) */
+#define BCMA_OOB_SEL_OUT_A30		0x0100
 #define BCMA_IOCTL			0x0408 /* IO control */
 #define  BCMA_IOCTL_CLK			0x0001
 #define  BCMA_IOCTL_FGC			0x0002

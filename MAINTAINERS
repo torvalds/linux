@@ -636,6 +636,15 @@ F:	drivers/tty/serial/altera_jtaguart.c
 F:	include/linux/altera_uart.h
 F:	include/linux/altera_jtaguart.h
 
+AMAZON ETHERNET DRIVERS
+M:	Netanel Belgazal <netanel@annapurnalabs.com>
+R:	Saeed Bishara <saeed@annapurnalabs.com>
+R:	Zorik Machulsky <zorik@annapurnalabs.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	Documentation/networking/ena.txt
+F:	drivers/net/ethernet/amazon/
+
 AMD CRYPTOGRAPHIC COPROCESSOR (CCP) DRIVER
 M:	Tom Lendacky <thomas.lendacky@amd.com>
 M:	Gary Hook <gary.hook@amd.com>
@@ -5596,10 +5605,9 @@ F:	Documentation/devicetree/bindings/scsi/hisilicon-sas.txt
 
 HOST AP DRIVER
 M:	Jouni Malinen <j@w1.fi>
-L:	hostap@shmoo.com (subscribers-only)
 L:	linux-wireless@vger.kernel.org
-W:	http://hostap.epitest.fi/
-S:	Maintained
+W:	http://w1.fi/hostap-driver.html
+S:	Obsolete
 F:	drivers/net/wireless/intersil/hostap/
 
 HP COMPAQ TC1100 TABLET WMI EXTRAS DRIVER
@@ -9731,6 +9739,12 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvalo/ath.git
 S:	Supported
 F:	drivers/net/wireless/ath/ath10k/
 
+QUALCOMM EMAC GIGABIT ETHERNET DRIVER
+M:	Timur Tabi <timur@codeaurora.org>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	drivers/net/ethernet/qualcomm/emac/
+
 QUALCOMM HEXAGON ARCHITECTURE
 M:	Richard Kuo <rkuo@codeaurora.org>
 L:	linux-hexagon@vger.kernel.org
@@ -9992,6 +10006,7 @@ F:	net/rfkill/
 
 RHASHTABLE
 M:	Thomas Graf <tgraf@suug.ch>
+M:	Herbert Xu <herbert@gondor.apana.org.au>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	lib/rhashtable.c
@@ -12332,6 +12347,7 @@ F:	drivers/net/usb/smsc75xx.*
 
 USB SMSC95XX ETHERNET DRIVER
 M:	Steve Glendinning <steve.glendinning@shawell.net>
+M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/usb/smsc95xx.*

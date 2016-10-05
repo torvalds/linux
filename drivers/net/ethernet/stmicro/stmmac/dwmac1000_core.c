@@ -145,7 +145,7 @@ static void dwmac1000_set_mchash(void __iomem *ioaddr, u32 *mcfilterbits,
 		numhashregs = 8;
 		break;
 	default:
-		pr_debug("STMMAC: err in setting mulitcast filter\n");
+		pr_debug("STMMAC: err in setting multicast filter\n");
 		return;
 		break;
 	}

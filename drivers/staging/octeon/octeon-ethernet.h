@@ -40,7 +40,6 @@ struct octeon_ethernet {
 	struct sk_buff_head tx_free_list[16];
 	/* Device statistics */
 	struct net_device_stats stats;
-	struct phy_device *phydev;
 	unsigned int last_speed;
 	unsigned int last_link;
 	/* Last negotiated link state */

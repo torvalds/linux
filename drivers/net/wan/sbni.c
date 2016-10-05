@@ -582,8 +582,8 @@ handle_channel( struct net_device  *dev )
 
 
 /*
- * Routine returns 1 if it need to acknoweledge received frame.
- * Empty frame received without errors won't be acknoweledged.
+ * Routine returns 1 if it needs to acknowledge received frame.
+ * Empty frame received without errors won't be acknowledged.
  */
 
 static int

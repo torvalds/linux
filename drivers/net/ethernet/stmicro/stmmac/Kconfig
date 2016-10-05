@@ -104,6 +104,18 @@ config DWMAC_STI
 	  device driver. This driver is used on for the STi series
 	  SOCs GMAC ethernet controller.
 
+config DWMAC_STM32
+	tristate "STM32 DWMAC support"
+	default ARCH_STM32
+	depends on OF && HAS_IOMEM
+	select MFD_SYSCON
+	---help---
+	  Support for ethernet controller on STM32 SOCs.
+
+	  This selects STM32 SoC glue layer support for the stmmac
+	  device driver. This driver is used on for the STM32 series
+	  SOCs GMAC ethernet controller.
+
 config DWMAC_SUNXI
 	tristate "Allwinner GMAC support"
 	default ARCH_SUNXI

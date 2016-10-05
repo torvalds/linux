@@ -19,21 +19,18 @@
 
 #define MPLS_HLEN 4
 
+struct mpls_shim_hdr {
+	__be32 label_stack_entry;
+};
+
 static inline bool eth_p_mpls(__be16 eth_type)
 {
 	return eth_type == htons(ETH_P_MPLS_UC) ||
 		eth_type == htons(ETH_P_MPLS_MC);
 }
 
-/*
- * For non-MPLS skbs this will correspond to the network header.
- * For MPLS skbs it will be before the network_header as the MPLS
- * label stack lies between the end of the mac header and the network
- * header. That is, for MPLS skbs the end of the mac header
- * is the top of the MPLS label stack.
- */
-static inline unsigned char *skb_mpls_header(struct sk_buff *skb)
+static inline struct mpls_shim_hdr *mpls_hdr(const struct sk_buff *skb)
 {
-	return skb_mac_header(skb) + skb->mac_len;
+	return (struct mpls_shim_hdr *)skb_network_header(skb);
 }
 #endif

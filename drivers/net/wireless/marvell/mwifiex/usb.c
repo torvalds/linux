@@ -273,6 +273,8 @@ static void mwifiex_usb_tx_complete(struct urb *urb)
 	} else {
 		mwifiex_dbg(adapter, DATA,
 			    "%s: DATA\n", __func__);
+		mwifiex_write_data_complete(adapter, context->skb, 0,
+					    urb->status ? -1 : 0);
 		for (i = 0; i < MWIFIEX_TX_DATA_PORT; i++) {
 			port = &card->port[i];
 			if (context->ep == port->tx_data_ep) {
@@ -282,8 +284,6 @@ static void mwifiex_usb_tx_complete(struct urb *urb)
 			}
 		}
 		adapter->data_sent = false;
-		mwifiex_write_data_complete(adapter, context->skb, 0,
-					    urb->status ? -1 : 0);
 	}
 
 	if (card->mc_resync_flag)
@@ -611,7 +611,7 @@ static void mwifiex_usb_disconnect(struct usb_interface *intf)
 	if (!adapter->priv_num)
 		return;
 
-	if (user_rmmod) {
+	if (user_rmmod && !adapter->mfg_mode) {
 #ifdef CONFIG_PM
 		if (adapter->is_suspended)
 			mwifiex_usb_resume(intf);
@@ -657,11 +657,8 @@ static int mwifiex_usb_tx_init(struct mwifiex_adapter *adapter)
 	card->tx_cmd.ep = card->tx_cmd_ep;
 
 	card->tx_cmd.urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!card->tx_cmd.urb) {
-		mwifiex_dbg(adapter, ERROR,
-			    "tx_cmd.urb allocation failed\n");
+	if (!card->tx_cmd.urb)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < MWIFIEX_TX_DATA_PORT; i++) {
 		port = &card->port[i];
@@ -677,11 +674,8 @@ static int mwifiex_usb_tx_init(struct mwifiex_adapter *adapter)
 			port->tx_data_list[j].ep = port->tx_data_ep;
 			port->tx_data_list[j].urb =
 					usb_alloc_urb(0, GFP_KERNEL);
-			if (!port->tx_data_list[j].urb) {
-				mwifiex_dbg(adapter, ERROR,
-					    "urb allocation failed\n");
+			if (!port->tx_data_list[j].urb)
 				return -ENOMEM;
-			}
 		}
 	}
 
@@ -697,10 +691,8 @@ static int mwifiex_usb_rx_init(struct mwifiex_adapter *adapter)
 	card->rx_cmd.ep = card->rx_cmd_ep;
 
 	card->rx_cmd.urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!card->rx_cmd.urb) {
-		mwifiex_dbg(adapter, ERROR, "rx_cmd.urb allocation failed\n");
+	if (!card->rx_cmd.urb)
 		return -ENOMEM;
-	}
 
 	card->rx_cmd.skb = dev_alloc_skb(MWIFIEX_RX_CMD_BUF_SIZE);
 	if (!card->rx_cmd.skb)
@@ -714,11 +706,8 @@ static int mwifiex_usb_rx_init(struct mwifiex_adapter *adapter)
 		card->rx_data_list[i].ep = card->rx_data_ep;
 
 		card->rx_data_list[i].urb = usb_alloc_urb(0, GFP_KERNEL);
-		if (!card->rx_data_list[i].urb) {
-			mwifiex_dbg(adapter, ERROR,
-				    "rx_data_list[] urb allocation failed\n");
+		if (!card->rx_data_list[i].urb)
 			return -1;
-		}
 		if (mwifiex_usb_submit_rx_urb(&card->rx_data_list[i],
 					      MWIFIEX_RX_DATA_BUF_SIZE))
 			return -1;
@@ -852,7 +841,7 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 	struct usb_tx_data_port *port = NULL;
 	u8 *data = (u8 *)skb->data;
 	struct urb *tx_urb;
-	int idx, ret;
+	int idx, ret = -EINPROGRESS;
 
 	if (adapter->is_suspended) {
 		mwifiex_dbg(adapter, ERROR,
@@ -876,8 +865,9 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 				if (atomic_read(&port->tx_data_urb_pending)
 				    >= MWIFIEX_TX_DATA_URB) {
 					port->block_status = true;
-					ret = -EBUSY;
-					goto done;
+					adapter->data_sent =
+						mwifiex_usb_data_sent(adapter);
+					return -EBUSY;
 				}
 				if (port->tx_data_ix >= MWIFIEX_TX_DATA_URB)
 					port->tx_data_ix = 0;
@@ -908,6 +898,14 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 	else
 		atomic_inc(&port->tx_data_urb_pending);
 
+	if (ep != card->tx_cmd_ep &&
+	    atomic_read(&port->tx_data_urb_pending) ==
+					MWIFIEX_TX_DATA_URB) {
+		port->block_status = true;
+		adapter->data_sent = mwifiex_usb_data_sent(adapter);
+		ret = -ENOSR;
+	}
+
 	if (usb_submit_urb(tx_urb, GFP_ATOMIC)) {
 		mwifiex_dbg(adapter, ERROR,
 			    "%s: usb_submit_urb failed\n", __func__);
@@ -916,28 +914,14 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 		} else {
 			atomic_dec(&port->tx_data_urb_pending);
 			port->block_status = false;
+			adapter->data_sent = false;
 			if (port->tx_data_ix)
 				port->tx_data_ix--;
 			else
 				port->tx_data_ix = MWIFIEX_TX_DATA_URB;
 		}
-
-		return -1;
-	} else {
-		if (ep != card->tx_cmd_ep &&
-		    atomic_read(&port->tx_data_urb_pending) ==
-							MWIFIEX_TX_DATA_URB) {
-			port->block_status = true;
-			ret = -ENOSR;
-			goto done;
-		}
+		ret = -1;
 	}
-
-	return -EINPROGRESS;
-
-done:
-	if (ep != card->tx_cmd_ep)
-		adapter->data_sent = mwifiex_usb_data_sent(adapter);
 
 	return ret;
 }
@@ -1036,6 +1020,10 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 			dlen = le32_to_cpu(fwdata->fw_hdr.data_len);
 			dnld_cmd = le32_to_cpu(fwdata->fw_hdr.dnld_cmd);
 			tlen += sizeof(struct fw_header);
+
+			/* Command 7 doesn't have data length field */
+			if (dnld_cmd == FW_CMD_7)
+				dlen = 0;
 
 			memcpy(fwdata->data, &firmware[tlen], dlen);
 

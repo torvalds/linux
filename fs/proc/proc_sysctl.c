@@ -430,6 +430,7 @@ static int sysctl_perm(struct ctl_table_header *head, struct ctl_table *table, i
 static struct inode *proc_sys_make_inode(struct super_block *sb,
 		struct ctl_table_header *head, struct ctl_table *table)
 {
+	struct ctl_table_root *root = head->root;
 	struct inode *inode;
 	struct proc_inode *ei;
 
@@ -457,6 +458,10 @@ static struct inode *proc_sys_make_inode(struct super_block *sb,
 		if (is_empty_dir(head))
 			make_empty_dir_inode(inode);
 	}
+
+	if (root->set_ownership)
+		root->set_ownership(head, table, &inode->i_uid, &inode->i_gid);
+
 out:
 	return inode;
 }

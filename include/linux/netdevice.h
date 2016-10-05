@@ -52,6 +52,7 @@
 #include <uapi/linux/netdevice.h>
 #include <uapi/linux/if_bonding.h>
 #include <uapi/linux/pkt_cls.h>
+#include <linux/hashtable.h>
 
 struct netpoll_info;
 struct device;
@@ -788,6 +789,7 @@ enum {
 	TC_SETUP_CLSU32,
 	TC_SETUP_CLSFLOWER,
 	TC_SETUP_MATCHALL,
+	TC_SETUP_CLSBPF,
 };
 
 struct tc_cls_u32_offload;
@@ -799,6 +801,7 @@ struct tc_to_netdev {
 		struct tc_cls_u32_offload *cls_u32;
 		struct tc_cls_flower_offload *cls_flower;
 		struct tc_cls_matchall_offload *cls_mall;
+		struct tc_cls_bpf_offload *cls_bpf;
 	};
 };
 
@@ -923,6 +926,14 @@ struct netdev_xdp {
  *	3. Update dev->stats asynchronously and atomically, and define
  *	   neither operation.
  *
+ * bool (*ndo_has_offload_stats)(int attr_id)
+ *	Return true if this device supports offload stats of this attr_id.
+ *
+ * int (*ndo_get_offload_stats)(int attr_id, const struct net_device *dev,
+ *	void *attr_data)
+ *	Get statistics for offload operations by attr_id. Write it into the
+ *	attr_data pointer.
+ *
  * int (*ndo_vlan_rx_add_vid)(struct net_device *dev, __be16 proto, u16 vid);
  *	If device supports VLAN filtering this function is called when a
  *	VLAN id is registered.
@@ -935,7 +946,8 @@ struct netdev_xdp {
  *
  *	SR-IOV management functions.
  * int (*ndo_set_vf_mac)(struct net_device *dev, int vf, u8* mac);
- * int (*ndo_set_vf_vlan)(struct net_device *dev, int vf, u16 vlan, u8 qos);
+ * int (*ndo_set_vf_vlan)(struct net_device *dev, int vf, u16 vlan,
+ *			  u8 qos, __be16 proto);
  * int (*ndo_set_vf_rate)(struct net_device *dev, int vf, int min_tx_rate,
  *			  int max_tx_rate);
  * int (*ndo_set_vf_spoofchk)(struct net_device *dev, int vf, bool setting);
@@ -1030,7 +1042,7 @@ struct netdev_xdp {
  *	Deletes the FDB entry from dev coresponding to addr.
  * int (*ndo_fdb_dump)(struct sk_buff *skb, struct netlink_callback *cb,
  *		       struct net_device *dev, struct net_device *filter_dev,
- *		       int idx)
+ *		       int *idx)
  *	Used to add FDB entries to dump requests. Implementers should add
  *	entries to skb and update idx with the number of entries.
  *
@@ -1154,6 +1166,10 @@ struct net_device_ops {
 
 	struct rtnl_link_stats64* (*ndo_get_stats64)(struct net_device *dev,
 						     struct rtnl_link_stats64 *storage);
+	bool			(*ndo_has_offload_stats)(int attr_id);
+	int			(*ndo_get_offload_stats)(int attr_id,
+							 const struct net_device *dev,
+							 void *attr_data);
 	struct net_device_stats* (*ndo_get_stats)(struct net_device *dev);
 
 	int			(*ndo_vlan_rx_add_vid)(struct net_device *dev,
@@ -1172,7 +1188,8 @@ struct net_device_ops {
 	int			(*ndo_set_vf_mac)(struct net_device *dev,
 						  int queue, u8 *mac);
 	int			(*ndo_set_vf_vlan)(struct net_device *dev,
-						   int queue, u16 vlan, u8 qos);
+						   int queue, u16 vlan,
+						   u8 qos, __be16 proto);
 	int			(*ndo_set_vf_rate)(struct net_device *dev,
 						   int vf, int min_tx_rate,
 						   int max_tx_rate);
@@ -1262,7 +1279,7 @@ struct net_device_ops {
 						struct netlink_callback *cb,
 						struct net_device *dev,
 						struct net_device *filter_dev,
-						int idx);
+						int *idx);
 
 	int			(*ndo_bridge_setlink)(struct net_device *dev,
 						      struct nlmsghdr *nlh,
@@ -1561,8 +1578,6 @@ enum netdev_priv_flags {
  *
  *	@xps_maps:	XXX: need comments on this one
  *
- *	@offload_fwd_mark:	Offload device fwding mark
- *
  *	@watchdog_timeo:	Represents the timeout that is used by
  *				the watchdog (see dev_watchdog())
  *	@watchdog_timer:	List of timers
@@ -1784,7 +1799,7 @@ struct net_device {
 #endif
 	struct netdev_queue __rcu *ingress_queue;
 #ifdef CONFIG_NETFILTER_INGRESS
-	struct list_head	nf_hooks_ingress;
+	struct nf_hook_entry __rcu *nf_hooks_ingress;
 #endif
 
 	unsigned char		broadcast[MAX_ADDR_LEN];
@@ -1800,6 +1815,9 @@ struct net_device {
 	unsigned int		num_tx_queues;
 	unsigned int		real_num_tx_queues;
 	struct Qdisc		*qdisc;
+#ifdef CONFIG_NET_SCHED
+	DECLARE_HASHTABLE	(qdisc_hash, 4);
+#endif
 	unsigned long		tx_queue_len;
 	spinlock_t		tx_global_lock;
 	int			watchdog_timeo;
@@ -1809,9 +1827,6 @@ struct net_device {
 #endif
 #ifdef CONFIG_NET_CLS_ACT
 	struct tcf_proto __rcu  *egress_cl_list;
-#endif
-#ifdef CONFIG_NET_SWITCHDEV
-	u32			offload_fwd_mark;
 #endif
 
 	/* These may be needed for future network-power-down code. */

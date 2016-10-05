@@ -875,11 +875,8 @@ int qed_dcbx_info_alloc(struct qed_hwfn *p_hwfn)
 	int rc = 0;
 
 	p_hwfn->p_dcbx_info = kzalloc(sizeof(*p_hwfn->p_dcbx_info), GFP_KERNEL);
-	if (!p_hwfn->p_dcbx_info) {
-		DP_NOTICE(p_hwfn,
-			  "Failed to allocate 'struct qed_dcbx_info'\n");
+	if (!p_hwfn->p_dcbx_info)
 		rc = -ENOMEM;
-	}
 
 	return rc;
 }
@@ -1190,10 +1187,8 @@ int qed_dcbx_get_config_params(struct qed_hwfn *p_hwfn,
 	}
 
 	dcbx_info = kzalloc(sizeof(*dcbx_info), GFP_KERNEL);
-	if (!dcbx_info) {
-		DP_ERR(p_hwfn, "Failed to allocate struct qed_dcbx_info\n");
+	if (!dcbx_info)
 		return -ENOMEM;
-	}
 
 	rc = qed_dcbx_query_params(p_hwfn, dcbx_info, QED_DCBX_OPERATIONAL_MIB);
 	if (rc) {
@@ -1227,10 +1222,8 @@ static struct qed_dcbx_get *qed_dcbnl_get_dcbx(struct qed_hwfn *hwfn,
 	struct qed_dcbx_get *dcbx_info;
 
 	dcbx_info = kzalloc(sizeof(*dcbx_info), GFP_KERNEL);
-	if (!dcbx_info) {
-		DP_ERR(hwfn->cdev, "Failed to allocate memory for dcbx_info\n");
+	if (!dcbx_info)
 		return NULL;
-	}
 
 	if (qed_dcbx_query_params(hwfn, dcbx_info, type)) {
 		kfree(dcbx_info);
@@ -1982,6 +1975,7 @@ static int qed_dcbnl_get_ieee_pfc(struct qed_dev *cdev,
 
 	if (!dcbx_info->operational.ieee) {
 		DP_INFO(hwfn, "DCBX is not enabled/operational in IEEE mode\n");
+		kfree(dcbx_info);
 		return -EINVAL;
 	}
 
@@ -2150,17 +2144,19 @@ static int qed_dcbnl_ieee_setets(struct qed_dev *cdev, struct ieee_ets *ets)
 	return rc;
 }
 
-int qed_dcbnl_ieee_peer_getets(struct qed_dev *cdev, struct ieee_ets *ets)
+static int
+qed_dcbnl_ieee_peer_getets(struct qed_dev *cdev, struct ieee_ets *ets)
 {
 	return qed_dcbnl_get_ieee_ets(cdev, ets, true);
 }
 
-int qed_dcbnl_ieee_peer_getpfc(struct qed_dev *cdev, struct ieee_pfc *pfc)
+static int
+qed_dcbnl_ieee_peer_getpfc(struct qed_dev *cdev, struct ieee_pfc *pfc)
 {
 	return qed_dcbnl_get_ieee_pfc(cdev, pfc, true);
 }
 
-int qed_dcbnl_ieee_getapp(struct qed_dev *cdev, struct dcb_app *app)
+static int qed_dcbnl_ieee_getapp(struct qed_dev *cdev, struct dcb_app *app)
 {
 	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
 	struct qed_dcbx_get *dcbx_info;
@@ -2204,7 +2200,7 @@ int qed_dcbnl_ieee_getapp(struct qed_dev *cdev, struct dcb_app *app)
 	return 0;
 }
 
-int qed_dcbnl_ieee_setapp(struct qed_dev *cdev, struct dcb_app *app)
+static int qed_dcbnl_ieee_setapp(struct qed_dev *cdev, struct dcb_app *app)
 {
 	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
 	struct qed_dcbx_get *dcbx_info;

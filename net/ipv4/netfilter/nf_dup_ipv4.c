@@ -74,21 +74,19 @@ void nf_dup_ipv4(struct net *net, struct sk_buff *skb, unsigned int hooknum,
 	nf_conntrack_get(skb->nfct);
 #endif
 	/*
-	 * If we are in PREROUTING/INPUT, the checksum must be recalculated
-	 * since the length could have changed as a result of defragmentation.
-	 *
-	 * We also decrease the TTL to mitigate potential loops between two
-	 * hosts.
+	 * If we are in PREROUTING/INPUT, decrease the TTL to mitigate potential
+	 * loops between two hosts.
 	 *
 	 * Set %IP_DF so that the original source is notified of a potentially
 	 * decreased MTU on the clone route. IPv6 does this too.
+	 *
+	 * IP header checksum will be recalculated at ip_local_out.
 	 */
 	iph = ip_hdr(skb);
 	iph->frag_off |= htons(IP_DF);
 	if (hooknum == NF_INET_PRE_ROUTING ||
 	    hooknum == NF_INET_LOCAL_IN)
 		--iph->ttl;
-	ip_send_check(iph);
 
 	if (nf_dup_ipv4_route(net, skb, gw, oif)) {
 		__this_cpu_write(nf_skb_duplicated, true);

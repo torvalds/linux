@@ -598,12 +598,13 @@ static void close_rx(struct atm_vcc *vcc)
 static int start_rx(struct atm_dev *dev)
 {
 	struct zatm_dev *zatm_dev;
-	int size,i;
+	int i;
 
-DPRINTK("start_rx\n");
+	DPRINTK("start_rx\n");
 	zatm_dev = ZATM_DEV(dev);
-	size = sizeof(struct atm_vcc *)*zatm_dev->chans;
-	zatm_dev->rx_map =  kzalloc(size,GFP_KERNEL);
+	zatm_dev->rx_map = kcalloc(zatm_dev->chans,
+				   sizeof(*zatm_dev->rx_map),
+				   GFP_KERNEL);
 	if (!zatm_dev->rx_map) return -ENOMEM;
 	/* set VPI/VCI split (use all VCIs and give what's left to VPIs) */
 	zpokel(zatm_dev,(1 << dev->ci_range.vci_bits)-1,uPD98401_VRR);
@@ -998,8 +999,9 @@ static int start_tx(struct atm_dev *dev)
 
 	DPRINTK("start_tx\n");
 	zatm_dev = ZATM_DEV(dev);
-	zatm_dev->tx_map = kmalloc(sizeof(struct atm_vcc *)*
-	    zatm_dev->chans,GFP_KERNEL);
+	zatm_dev->tx_map = kmalloc_array(zatm_dev->chans,
+					 sizeof(*zatm_dev->tx_map),
+					 GFP_KERNEL);
 	if (!zatm_dev->tx_map) return -ENOMEM;
 	zatm_dev->tx_bw = ATM_OC3_PCR;
 	zatm_dev->free_shapers = (1 << NR_SHAPERS)-1;
@@ -1398,7 +1400,7 @@ static int zatm_open(struct atm_vcc *vcc)
 	DPRINTK(DEV_LABEL "(itf %d): open %d.%d\n",vcc->dev->number,vcc->vpi,
 	    vcc->vci);
 	if (!test_bit(ATM_VF_PARTIAL,&vcc->flags)) {
-		zatm_vcc = kmalloc(sizeof(struct zatm_vcc),GFP_KERNEL);
+		zatm_vcc = kmalloc(sizeof(*zatm_vcc), GFP_KERNEL);
 		if (!zatm_vcc) {
 			clear_bit(ATM_VF_ADDR,&vcc->flags);
 			return -ENOMEM;

@@ -386,6 +386,7 @@ mwifiex_parse_mgmt_packet(struct mwifiex_private *priv, u8 *payload, u16 len,
 				    "unknown public action frame category %d\n",
 				    category);
 		}
+		break;
 	default:
 		mwifiex_dbg(priv->adapter, INFO,
 		    "unknown mgmt frame subtype %#x\n", stype);

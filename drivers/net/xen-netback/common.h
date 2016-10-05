@@ -292,8 +292,6 @@ struct xenvif {
 #endif
 
 	struct xen_netif_ctrl_back_ring ctrl;
-	struct task_struct *ctrl_task;
-	wait_queue_head_t ctrl_wq;
 	unsigned int ctrl_irq;
 
 	/* Miscellaneous private stuff. */
@@ -359,7 +357,7 @@ void xenvif_kick_thread(struct xenvif_queue *queue);
 
 int xenvif_dealloc_kthread(void *data);
 
-int xenvif_ctrl_kthread(void *data);
+irqreturn_t xenvif_ctrl_irq_fn(int irq, void *data);
 
 void xenvif_rx_queue_tail(struct xenvif_queue *queue, struct sk_buff *skb);
 

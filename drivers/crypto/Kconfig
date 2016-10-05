@@ -550,4 +550,6 @@ config CRYPTO_DEV_ROCKCHIP
 	  This driver interfaces with the hardware crypto accelerator.
 	  Supporting cbc/ecb chainmode, and aes/des/des3_ede cipher mode.
 
+source "drivers/crypto/chelsio/Kconfig"
+
 endif # CRYPTO_HW
