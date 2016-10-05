@@ -646,54 +646,51 @@ struct intel_csr {
 	uint32_t allowed_dc_mask;
 };
 
-#define DEV_INFO_FOR_EACH_FLAG(func, sep) \
-	func(is_mobile) sep \
-	func(is_i85x) sep \
-	func(is_i915g) sep \
-	func(is_i945gm) sep \
-	func(is_g33) sep \
-	func(hws_needs_physical) sep \
-	func(is_g4x) sep \
-	func(is_pineview) sep \
-	func(is_broadwater) sep \
-	func(is_crestline) sep \
-	func(is_ivybridge) sep \
-	func(is_valleyview) sep \
-	func(is_cherryview) sep \
-	func(is_haswell) sep \
-	func(is_broadwell) sep \
-	func(is_skylake) sep \
-	func(is_broxton) sep \
-	func(is_kabylake) sep \
-	func(is_preliminary) sep \
-	func(has_fbc) sep \
-	func(has_psr) sep \
-	func(has_runtime_pm) sep \
-	func(has_csr) sep \
-	func(has_resource_streamer) sep \
-	func(has_rc6) sep \
-	func(has_rc6p) sep \
-	func(has_dp_mst) sep \
-	func(has_gmbus_irq) sep \
-	func(has_hw_contexts) sep \
-	func(has_logical_ring_contexts) sep \
-	func(has_l3_dpf) sep \
-	func(has_gmch_display) sep \
-	func(has_guc) sep \
-	func(has_pipe_cxsr) sep \
-	func(has_hotplug) sep \
-	func(cursor_needs_physical) sep \
-	func(has_overlay) sep \
-	func(overlay_needs_physical) sep \
-	func(supports_tv) sep \
-	func(has_llc) sep \
-	func(has_snoop) sep \
-	func(has_ddi) sep \
-	func(has_fpga_dbg) sep \
+#define DEV_INFO_FOR_EACH_FLAG(func) \
+	func(is_mobile); \
+	func(is_i85x); \
+	func(is_i915g); \
+	func(is_i945gm); \
+	func(is_g33); \
+	func(hws_needs_physical); \
+	func(is_g4x); \
+	func(is_pineview); \
+	func(is_broadwater); \
+	func(is_crestline); \
+	func(is_ivybridge); \
+	func(is_valleyview); \
+	func(is_cherryview); \
+	func(is_haswell); \
+	func(is_broadwell); \
+	func(is_skylake); \
+	func(is_broxton); \
+	func(is_kabylake); \
+	func(is_preliminary); \
+	func(has_fbc); \
+	func(has_psr); \
+	func(has_runtime_pm); \
+	func(has_csr); \
+	func(has_resource_streamer); \
+	func(has_rc6); \
+	func(has_rc6p); \
+	func(has_dp_mst); \
+	func(has_gmbus_irq); \
+	func(has_hw_contexts); \
+	func(has_logical_ring_contexts); \
+	func(has_l3_dpf); \
+	func(has_gmch_display); \
+	func(has_guc); \
+	func(has_pipe_cxsr); \
+	func(has_hotplug); \
+	func(cursor_needs_physical); \
+	func(has_overlay); \
+	func(overlay_needs_physical); \
+	func(supports_tv); \
+	func(has_llc); \
+	func(has_snoop); \
+	func(has_ddi); \
+	func(has_fpga_dbg); \
 	func(has_pooled_eu)
-
-#define DEFINE_FLAG(name) u8 name:1
-#define SEP_SEMICOLON ;
 
 struct sseu_dev_info {
 	u8 slice_mask;
@@ -722,7 +719,9 @@ struct intel_device_info {
 	u16 gen_mask;
 	u8 ring_mask; /* Rings supported by the HW */
 	u8 num_rings;
-	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG, SEP_SEMICOLON);
+#define DEFINE_FLAG(name) u8 name:1
+	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG);
+#undef DEFINE_FLAG
 	u16 ddb_size; /* in blocks */
 	/* Register offsets for the various display pipes and transcoders */
 	int pipe_offsets[I915_MAX_TRANSCODERS];
@@ -738,9 +737,6 @@ struct intel_device_info {
 		u16 gamma_lut_size;
 	} color;
 };
-
-#undef DEFINE_FLAG
-#undef SEP_SEMICOLON
 
 struct intel_display_error_state;
 
