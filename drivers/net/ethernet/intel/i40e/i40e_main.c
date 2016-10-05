@@ -1198,19 +1198,31 @@ struct i40e_mac_filter *i40e_find_mac(struct i40e_vsi *vsi, const u8 *macaddr)
  **/
 bool i40e_is_vsi_in_vlan(struct i40e_vsi *vsi)
 {
-	struct i40e_mac_filter *f;
-	struct hlist_node *h;
-	int bkt;
+	/* If we have a PVID, always operate in VLAN mode */
+	if (vsi->info.pvid)
+		return true;
 
-	/* Only -1 for all the filters denotes not in vlan mode
-	 * so we have to go through all the list in order to make sure
+	/* We need to operate in VLAN mode whenever we have any filters with
+	 * a VLAN other than I40E_VLAN_ALL. We could check the table each
+	 * time, incurring search cost repeatedly. However, we can notice two
+	 * things:
+	 *
+	 * 1) the only place where we can gain a VLAN filter is in
+	 *    i40e_add_filter.
+	 *
+	 * 2) the only place where filters are actually removed is in
+	 *    i40e_vsi_sync_filters_subtask.
+	 *
+	 * Thus, we can simply use a boolean value, has_vlan_filters which we
+	 * will set to true when we add a VLAN filter in i40e_add_filter. Then
+	 * we have to perform the full search after deleting filters in
+	 * i40e_vsi_sync_filters_subtask, but we already have to search
+	 * filters here and can perform the check at the same time. This
+	 * results in avoiding embedding a loop for VLAN mode inside another
+	 * loop over all the filters, and should maintain correctness as noted
+	 * above.
 	 */
-	hash_for_each_safe(vsi->mac_filter_hash, bkt, h, f, hlist) {
-		if (f->vlan >= 0 || vsi->info.pvid)
-			return true;
-	}
-
-	return false;
+	return vsi->has_vlan_filter;
 }
 
 /**
@@ -1245,6 +1257,12 @@ struct i40e_mac_filter *i40e_add_filter(struct i40e_vsi *vsi,
 		f = kzalloc(sizeof(*f), GFP_ATOMIC);
 		if (!f)
 			return NULL;
+
+		/* Update the boolean indicating if we need to function in
+		 * VLAN mode.
+		 */
+		if (vlan >= 0)
+			vsi->has_vlan_filter = true;
 
 		ether_addr_copy(f->macaddr, macaddr);
 		f->vlan = vlan;
@@ -1978,6 +1996,14 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 		kfree(del_list);
 		del_list = NULL;
 	}
+
+	/* After finishing notifying firmware of the deleted filters, update
+	 * the cached value of vsi->has_vlan_filter. Note that we are safe to
+	 * use just !!vlan_filters here because if we only have VLAN=0 (that
+	 * is, non_vlan_filters) these will all be converted to VLAN=-1 in the
+	 * logic above already so this value would still be correct.
+	 */
+	vsi->has_vlan_filter = !!vlan_filters;
 
 	if (!hlist_empty(&tmp_add_list)) {
 		/* Do all the adds now. */

@@ -517,6 +517,7 @@ struct i40e_vsi {
 	spinlock_t mac_filter_hash_lock;
 	/* Fixed size hash table with 2^8 buckets for MAC filters */
 	DECLARE_HASHTABLE(mac_filter_hash, 8);
+	bool has_vlan_filter;
 
 	/* VSI stats */
 	struct rtnl_link_stats64 net_stats;
