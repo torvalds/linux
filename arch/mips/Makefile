@@ -264,6 +264,12 @@ KBUILD_CPPFLAGS += -DDATAOFFSET=$(if $(dataoffset-y),$(dataoffset-y),0)
 bootvars-y	= VMLINUX_LOAD_ADDRESS=$(load-y) \
 		  VMLINUX_ENTRY_ADDRESS=$(entry-y) \
 		  PLATFORM=$(platform-y)
+ifdef CONFIG_32BIT
+bootvars-y	+= ADDR_BITS=32
+endif
+ifdef CONFIG_64BIT
+bootvars-y	+= ADDR_BITS=64
+endif
 
 LDFLAGS			+= -m $(ld-emul)
 
@@ -431,4 +437,54 @@ define archhelp
 	echo '  dtbs_install         - Install dtbs to $(INSTALL_DTBS_PATH)'
 	echo
 	echo '  These will be default as appropriate for a configured platform.'
+	echo
+	echo '  If you are targeting a system supported by generic kernels you may'
+	echo '  configure the kernel for a given architecture target like so:'
+	echo
+	echo '  {micro32,32,64}{r1,r2,r6}{el,}_defconfig <BOARDS="list of boards">'
+	echo
+	echo '  Otherwise, the following default configurations are available:'
 endef
+
+generic_config_dir = $(srctree)/arch/$(ARCH)/configs/generic
+generic_defconfigs :=
+
+#
+# If the user generates a generic kernel configuration without specifying a
+# list of boards to include the config fragments for, default to including all
+# available board config fragments.
+#
+ifeq ($(BOARDS),)
+BOARDS = $(patsubst board-%.config,%,$(notdir $(wildcard $(generic_config_dir)/board-*.config)))
+endif
+
+#
+# Generic kernel configurations which merge generic_defconfig with the
+# appropriate config fragments from arch/mips/configs/generic/, resulting in
+# the ability to easily configure the kernel for a given architecture,
+# endianness & set of boards without duplicating the needed configuration in
+# hundreds of defconfig files.
+#
+define gen_generic_defconfigs
+$(foreach bits,$(1),$(foreach rev,$(2),$(foreach endian,$(3),
+target := $(bits)$(rev)$(filter el,$(endian))_defconfig
+generic_defconfigs += $$(target)
+$$(target): $(generic_config_dir)/$(bits)$(rev).config
+$$(target): $(generic_config_dir)/$(endian).config
+)))
+endef
+
+$(eval $(call gen_generic_defconfigs,32 64,r1 r2 r6,eb el))
+$(eval $(call gen_generic_defconfigs,micro32,r2,eb el))
+
+.PHONY: $(generic_defconfigs)
+$(generic_defconfigs):
+	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/kconfig/merge_config.sh \
+		-m -O $(objtree) $(srctree)/arch/$(ARCH)/configs/generic_defconfig $^ \
+		$(foreach board,$(BOARDS),$(generic_config_dir)/board-$(board).config)
+	$(Q)$(MAKE) olddefconfig
+
+#
+# Prevent generic merge_config rules attempting to merge single fragments
+#
+$(generic_config_dir)/%.config: ;

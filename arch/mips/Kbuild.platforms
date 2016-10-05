@@ -11,6 +11,7 @@ platforms += cavium-octeon
 platforms += cobalt
 platforms += dec
 platforms += emma
+platforms += generic
 platforms += jazz
 platforms += jz4740
 platforms += lantiq
