@@ -406,12 +406,16 @@ static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 	if (pairwise && !addr)
 		return -EINVAL;
 
+	/*
+	 * In many cases we won't actually need this, but it's better
+	 * to do it first in case the allocation fails. Don't use wext.
+	 */
 	if (!wdev->wext.keys) {
 		wdev->wext.keys = kzalloc(sizeof(*wdev->wext.keys),
 					  GFP_KERNEL);
 		if (!wdev->wext.keys)
 			return -ENOMEM;
-		for (i = 0; i < 4; i++)
+		for (i = 0; i < CFG80211_MAX_WEP_KEYS; i++)
 			wdev->wext.keys->params[i].key =
 				wdev->wext.keys->data[i];
 	}
@@ -493,7 +497,13 @@ static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 	if (err)
 		return err;
 
-	if (!addr) {
+	/*
+	 * We only need to store WEP keys, since they're the only keys that
+	 * can be be set before a connection is established and persist after
+	 * disconnecting.
+	 */
+	if (!addr && (params->cipher == WLAN_CIPHER_SUITE_WEP40 ||
+		      params->cipher == WLAN_CIPHER_SUITE_WEP104)) {
 		wdev->wext.keys->params[idx] = *params;
 		memcpy(wdev->wext.keys->data[idx],
 			params->key, params->key_len);

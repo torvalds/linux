@@ -89,13 +89,19 @@ static ssize_t aqm_read(struct file *file,
 			"R fq_flows_cnt %u\n"
 			"R fq_backlog %u\n"
 			"R fq_overlimit %u\n"
+			"R fq_overmemory %u\n"
 			"R fq_collisions %u\n"
+			"R fq_memory_usage %u\n"
+			"RW fq_memory_limit %u\n"
 			"RW fq_limit %u\n"
 			"RW fq_quantum %u\n",
 			fq->flows_cnt,
 			fq->backlog,
+			fq->overmemory,
 			fq->overlimit,
 			fq->collisions,
+			fq->memory_usage,
+			fq->memory_limit,
 			fq->limit,
 			fq->quantum);
 
@@ -127,6 +133,8 @@ static ssize_t aqm_write(struct file *file,
 		buf[len-1] = 0;
 
 	if (sscanf(buf, "fq_limit %u", &local->fq.limit) == 1)
+		return count;
+	else if (sscanf(buf, "fq_memory_limit %u", &local->fq.memory_limit) == 1)
 		return count;
 	else if (sscanf(buf, "fq_quantum %u", &local->fq.quantum) == 1)
 		return count;

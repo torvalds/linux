@@ -86,6 +86,8 @@ struct ieee80211_local;
 
 #define IEEE80211_DEAUTH_FRAME_LEN	(24 /* hdr */ + 2 /* reason */)
 
+#define IEEE80211_MAX_NAN_INSTANCE_ID 255
+
 struct ieee80211_fragment_entry {
 	struct sk_buff_head skb_list;
 	unsigned long first_frag_time;
@@ -813,12 +815,14 @@ enum txq_info_flags {
  * @def_flow: used as a fallback flow when a packet destined to @tin hashes to
  *	a fq_flow which is already owned by a different tin
  * @def_cvars: codel vars for @def_flow
+ * @frags: used to keep fragments created after dequeue
  */
 struct txq_info {
 	struct fq_tin tin;
 	struct fq_flow def_flow;
 	struct codel_vars def_cvars;
 	struct codel_stats cstats;
+	struct sk_buff_head frags;
 	unsigned long flags;
 
 	/* keep last! */
@@ -828,6 +832,20 @@ struct txq_info {
 struct ieee80211_if_mntr {
 	u32 flags;
 	u8 mu_follow_addr[ETH_ALEN] __aligned(2);
+};
+
+/**
+ * struct ieee80211_if_nan - NAN state
+ *
+ * @conf: current NAN configuration
+ * @func_ids: a bitmap of available instance_id's
+ */
+struct ieee80211_if_nan {
+	struct cfg80211_nan_conf conf;
+
+	/* protects function_inst_ids */
+	spinlock_t func_lock;
+	struct idr function_inst_ids;
 };
 
 struct ieee80211_sub_if_data {
@@ -929,6 +947,7 @@ struct ieee80211_sub_if_data {
 		struct ieee80211_if_mesh mesh;
 		struct ieee80211_if_ocb ocb;
 		struct ieee80211_if_mntr mntr;
+		struct ieee80211_if_nan nan;
 	} u;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
@@ -1479,6 +1498,13 @@ static inline struct ieee80211_local *hw_to_local(
 static inline struct txq_info *to_txq_info(struct ieee80211_txq *txq)
 {
 	return container_of(txq, struct txq_info, txq);
+}
+
+static inline bool txq_has_queue(struct ieee80211_txq *txq)
+{
+	struct txq_info *txqi = to_txq_info(txq);
+
+	return !(skb_queue_empty(&txqi->frags) && !txqi->tin.backlog_packets);
 }
 
 static inline int ieee80211_bssid_match(const u8 *raddr, const u8 *addr)

@@ -215,6 +215,21 @@ void drv_set_tsf(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 
+void drv_offset_tsf(struct ieee80211_local *local,
+		    struct ieee80211_sub_if_data *sdata,
+		    s64 offset)
+{
+	might_sleep();
+
+	if (!check_sdata_in_driver(sdata))
+		return;
+
+	trace_drv_offset_tsf(local, sdata, offset);
+	if (local->ops->offset_tsf)
+		local->ops->offset_tsf(&local->hw, &sdata->vif, offset);
+	trace_drv_return_void(local);
+}
+
 void drv_reset_tsf(struct ieee80211_local *local,
 		   struct ieee80211_sub_if_data *sdata)
 {

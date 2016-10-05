@@ -1209,7 +1209,8 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (sdata->vif.type != NL80211_IFTYPE_MONITOR &&
-	    sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE) {
+	    sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE &&
+	    sdata->vif.type != NL80211_IFTYPE_NAN) {
 		sdata->vif.bss_conf.qos = enable_qos;
 		if (bss_notify)
 			ieee80211_bss_info_change_notify(sdata,
@@ -1748,6 +1749,46 @@ static void ieee80211_reconfig_stations(struct ieee80211_sub_if_data *sdata)
 	mutex_unlock(&local->sta_mtx);
 }
 
+static int ieee80211_reconfig_nan(struct ieee80211_sub_if_data *sdata)
+{
+	struct cfg80211_nan_func *func, **funcs;
+	int res, id, i = 0;
+
+	res = drv_start_nan(sdata->local, sdata,
+			    &sdata->u.nan.conf);
+	if (WARN_ON(res))
+		return res;
+
+	funcs = kzalloc((sdata->local->hw.max_nan_de_entries + 1) *
+			sizeof(*funcs), GFP_KERNEL);
+	if (!funcs)
+		return -ENOMEM;
+
+	/* Add all the functions:
+	 * This is a little bit ugly. We need to call a potentially sleeping
+	 * callback for each NAN function, so we can't hold the spinlock.
+	 */
+	spin_lock_bh(&sdata->u.nan.func_lock);
+
+	idr_for_each_entry(&sdata->u.nan.function_inst_ids, func, id)
+		funcs[i++] = func;
+
+	spin_unlock_bh(&sdata->u.nan.func_lock);
+
+	for (i = 0; funcs[i]; i++) {
+		res = drv_add_nan_func(sdata->local, sdata, funcs[i]);
+		if (WARN_ON(res))
+			ieee80211_nan_func_terminated(&sdata->vif,
+						      funcs[i]->instance_id,
+						      NL80211_NAN_FUNC_TERM_REASON_ERROR,
+						      GFP_KERNEL);
+	}
+
+	kfree(funcs);
+
+	return 0;
+}
+
 int ieee80211_reconfig(struct ieee80211_local *local)
 {
 	struct ieee80211_hw *hw = &local->hw;
@@ -1969,6 +2010,13 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 				changed |= BSS_CHANGED_BEACON |
 					   BSS_CHANGED_BEACON_ENABLED;
 				ieee80211_bss_info_change_notify(sdata, changed);
+			}
+			break;
+		case NL80211_IFTYPE_NAN:
+			res = ieee80211_reconfig_nan(sdata);
+			if (res < 0) {
+				ieee80211_handle_reconfig_failure(local);
+				return res;
 			}
 			break;
 		case NL80211_IFTYPE_WDS:
@@ -3393,11 +3441,18 @@ void ieee80211_txq_get_depth(struct ieee80211_txq *txq,
 			     unsigned long *byte_cnt)
 {
 	struct txq_info *txqi = to_txq_info(txq);
+	u32 frag_cnt = 0, frag_bytes = 0;
+	struct sk_buff *skb;
+
+	skb_queue_walk(&txqi->frags, skb) {
+		frag_cnt++;
+		frag_bytes += skb->len;
+	}
 
 	if (frame_cnt)
-		*frame_cnt = txqi->tin.backlog_packets;
+		*frame_cnt = txqi->tin.backlog_packets + frag_cnt;
 
 	if (byte_cnt)
-		*byte_cnt = txqi->tin.backlog_bytes;
+		*byte_cnt = txqi->tin.backlog_bytes + frag_bytes;
 }
 EXPORT_SYMBOL(ieee80211_txq_get_depth);
