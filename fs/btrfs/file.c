@@ -27,7 +27,6 @@
 #include <linux/falloc.h>
 #include <linux/swap.h>
 #include <linux/writeback.h>
-#include <linux/statfs.h>
 #include <linux/compat.h>
 #include <linux/slab.h>
 #include <linux/btrfs.h>
