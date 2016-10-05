@@ -1648,7 +1648,9 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 	}
 
 	host->hw_name = "PCI";
-	host->ops = &sdhci_pci_ops;
+	host->ops = chip->fixes && chip->fixes->ops ?
+		    chip->fixes->ops :
+		    &sdhci_pci_ops;
 	host->quirks = chip->quirks;
 	host->quirks2 = chip->quirks2;
 
