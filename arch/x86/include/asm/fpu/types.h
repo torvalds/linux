@@ -322,17 +322,6 @@ struct fpu {
 	unsigned char			fpregs_active;
 
 	/*
-	 * @counter:
-	 *
-	 * This counter contains the number of consecutive context switches
-	 * during which the FPU stays used. If this is over a threshold, the
-	 * lazy FPU restore logic becomes eager, to save the trap overhead.
-	 * This is an unsigned char so that after 256 iterations the counter
-	 * wraps and the context switch behavior turns lazy again; this is to
-	 * deal with bursty apps that only use the FPU for a short time:
-	 */
-	unsigned char			counter;
-	/*
 	 * @state:
 	 *
 	 * In-memory copy of all FPU registers that we save/restore

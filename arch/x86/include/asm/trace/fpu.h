@@ -14,7 +14,6 @@ DECLARE_EVENT_CLASS(x86_fpu,
 		__field(struct fpu *, fpu)
 		__field(bool, fpregs_active)
 		__field(bool, fpstate_active)
-		__field(int, counter)
 		__field(u64, xfeatures)
 		__field(u64, xcomp_bv)
 		),
@@ -23,17 +22,15 @@ DECLARE_EVENT_CLASS(x86_fpu,
 		__entry->fpu		= fpu;
 		__entry->fpregs_active	= fpu->fpregs_active;
 		__entry->fpstate_active	= fpu->fpstate_active;
-		__entry->counter	= fpu->counter;
 		if (boot_cpu_has(X86_FEATURE_OSXSAVE)) {
 			__entry->xfeatures = fpu->state.xsave.header.xfeatures;
 			__entry->xcomp_bv  = fpu->state.xsave.header.xcomp_bv;
 		}
 	),
-	TP_printk("x86/fpu: %p fpregs_active: %d fpstate_active: %d counter: %d xfeatures: %llx xcomp_bv: %llx",
+	TP_printk("x86/fpu: %p fpregs_active: %d fpstate_active: %d xfeatures: %llx xcomp_bv: %llx",
 			__entry->fpu,
 			__entry->fpregs_active,
 			__entry->fpstate_active,
-			__entry->counter,
 			__entry->xfeatures,
 			__entry->xcomp_bv
 	)
