@@ -20,6 +20,8 @@
 #include <linux/list.h>
 #include <linux/of.h>
 
+#ifdef CONFIG_PCI_DRIVERS_LEGACY
+
 /*
  * Each pci channel is a top-level PCI bus seem by CPU.	 A machine  with
  * multiple PCI channels may have multiple PCI host controllers or a
@@ -62,6 +64,35 @@ extern void register_pci_controller(struct pci_controller *hose);
  */
 extern int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin);
 
+/* Do platform specific device initialization at pci_enable_device() time */
+extern int pcibios_plat_dev_init(struct pci_dev *dev);
+
+extern char * (*pcibios_plat_setup)(char *str);
+
+#ifdef CONFIG_OF
+/* this function parses memory ranges from a device node */
+extern void pci_load_of_ranges(struct pci_controller *hose,
+			       struct device_node *node);
+#else
+static inline void pci_load_of_ranges(struct pci_controller *hose,
+				      struct device_node *node) {}
+#endif
+
+#ifdef CONFIG_PCI_DOMAINS_GENERIC
+static inline void set_pci_need_domain_info(struct pci_controller *hose,
+					    int need_domain_info)
+{
+	/* nothing to do */
+}
+#elif defined(CONFIG_PCI_DOMAINS)
+static inline void set_pci_need_domain_info(struct pci_controller *hose,
+					    int need_domain_info)
+{
+	hose->need_domain_info = need_domain_info;
+}
+#endif /* CONFIG_PCI_DOMAINS */
+
+#endif
 
 /* Can be used to override the logic in pci_scan_bus for skipping
    already-configured bus numbers - to be used for buggy BIOSes
@@ -110,12 +141,6 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 {
 	return pci_domain_nr(bus);
 }
-
-static inline void set_pci_need_domain_info(struct pci_controller *hose,
-					    int need_domain_info)
-{
-	/* nothing to do */
-}
 #elif defined(CONFIG_PCI_DOMAINS)
 #define pci_domain_nr(bus) ((struct pci_controller *)(bus)->sysdata)->index
 
@@ -123,12 +148,6 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 {
 	struct pci_controller *hose = bus->sysdata;
 	return hose->need_domain_info;
-}
-
-static inline void set_pci_need_domain_info(struct pci_controller *hose,
-					    int need_domain_info)
-{
-	hose->need_domain_info = need_domain_info;
 }
 #endif /* CONFIG_PCI_DOMAINS */
 
@@ -142,16 +161,5 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 {
 	return channel ? 15 : 14;
 }
-
-extern char * (*pcibios_plat_setup)(char *str);
-
-#ifdef CONFIG_OF
-/* this function parses memory ranges from a device node */
-extern void pci_load_of_ranges(struct pci_controller *hose,
-			       struct device_node *node);
-#else
-static inline void pci_load_of_ranges(struct pci_controller *hose,
-				      struct device_node *node) {}
-#endif
 
 #endif /* _ASM_PCI_H */
