@@ -235,8 +235,6 @@ struct cpuidle_governor {
 	int  (*select)		(struct cpuidle_driver *drv,
 					struct cpuidle_device *dev);
 	void (*reflect)		(struct cpuidle_device *dev, int index);
-
-	struct module 		*owner;
 };
 
 #ifdef CONFIG_CPU_IDLE
