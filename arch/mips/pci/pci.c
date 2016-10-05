@@ -220,7 +220,7 @@ out:
 	       "Skipping PCI bus scan due to resource conflict\n");
 }
 
-static void __init pcibios_set_cache_line_size(void)
+static int __init pcibios_set_cache_line_size(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 	unsigned int lsize;
@@ -238,13 +238,13 @@ static void __init pcibios_set_cache_line_size(void)
 	pci_dfl_cache_line_size = lsize >> 2;
 
 	pr_debug("PCI: pci_cache_line_size set to %d bytes\n", lsize);
+	return 0;
 }
+arch_initcall(pcibios_set_cache_line_size);
 
 static int __init pcibios_init(void)
 {
 	struct pci_controller *hose;
-
-	pcibios_set_cache_line_size();
 
 	/* Scan all of the recorded PCI controllers.  */
 	list_for_each_entry(hose, &controllers, list)
