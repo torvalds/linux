@@ -158,7 +158,7 @@ dsthash_find(const struct xt_hashlimit_htable *ht,
 /* allocate dsthash_ent, initialize dst, put in htable and lock it */
 static struct dsthash_ent *
 dsthash_alloc_init(struct xt_hashlimit_htable *ht,
-		   const struct dsthash_dst *dst, bool *race)
+		   const struct dsthash_dst *dst, bool *new)
 {
 	struct dsthash_ent *ent;
 
@@ -170,7 +170,6 @@ dsthash_alloc_init(struct xt_hashlimit_htable *ht,
 	ent = dsthash_find(ht, dst);
 	if (ent != NULL) {
 		spin_unlock(&ht->lock);
-		*race = true;
 		return ent;
 	}
 
@@ -194,6 +193,7 @@ dsthash_alloc_init(struct xt_hashlimit_htable *ht,
 		spin_lock(&ent->lock);
 		hlist_add_head_rcu(&ent->node, &ht->hash[hash_dst(ht, dst)]);
 		ht->count++;
+		*new = true;
 	}
 	spin_unlock(&ht->lock);
 	return ent;
@@ -610,7 +610,7 @@ hashlimit_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	unsigned long now = jiffies;
 	struct dsthash_ent *dh;
 	struct dsthash_dst dst;
-	bool race = false;
+	bool new = false;
 	u32 cost;
 
 	if (hashlimit_init_dst(hinfo, &dst, skb, par->thoff) < 0)
@@ -619,18 +619,16 @@ hashlimit_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	rcu_read_lock_bh();
 	dh = dsthash_find(hinfo, &dst);
 	if (dh == NULL) {
-		dh = dsthash_alloc_init(hinfo, &dst, &race);
+		dh = dsthash_alloc_init(hinfo, &dst, &new);
 		if (dh == NULL) {
 			rcu_read_unlock_bh();
 			goto hotdrop;
-		} else if (race) {
-			/* Already got an entry, update expiration timeout */
-			dh->expires = now + msecs_to_jiffies(hinfo->cfg.expire);
-			rateinfo_recalc(dh, now, hinfo->cfg.mode);
-		} else {
-			dh->expires = jiffies + msecs_to_jiffies(hinfo->cfg.expire);
-			rateinfo_init(dh, hinfo);
 		}
+	}
+
+	if (unlikely(new)) {
+		dh->expires = jiffies + msecs_to_jiffies(hinfo->cfg.expire);
+		rateinfo_init(dh, hinfo);
 	} else {
 		/* update expiration timeout */
 		dh->expires = now + msecs_to_jiffies(hinfo->cfg.expire);
