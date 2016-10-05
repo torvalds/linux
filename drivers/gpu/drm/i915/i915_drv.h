@@ -647,12 +647,12 @@ struct intel_csr {
 };
 
 #define DEV_INFO_FOR_EACH_FLAG(func) \
+	/* Keep is_* in chronological order */ \
 	func(is_mobile); \
 	func(is_i85x); \
 	func(is_i915g); \
 	func(is_i945gm); \
 	func(is_g33); \
-	func(hws_needs_physical); \
 	func(is_g4x); \
 	func(is_pineview); \
 	func(is_broadwater); \
@@ -666,31 +666,33 @@ struct intel_csr {
 	func(is_broxton); \
 	func(is_kabylake); \
 	func(is_preliminary); \
-	func(has_fbc); \
-	func(has_psr); \
-	func(has_runtime_pm); \
+	/* Keep has_* in alphabetical order */ \
 	func(has_csr); \
-	func(has_resource_streamer); \
-	func(has_rc6); \
-	func(has_rc6p); \
+	func(has_ddi); \
 	func(has_dp_mst); \
+	func(has_fbc); \
+	func(has_fpga_dbg); \
 	func(has_gmbus_irq); \
-	func(has_hw_contexts); \
-	func(has_logical_ring_contexts); \
-	func(has_l3_dpf); \
 	func(has_gmch_display); \
 	func(has_guc); \
-	func(has_pipe_cxsr); \
 	func(has_hotplug); \
-	func(cursor_needs_physical); \
-	func(has_overlay); \
-	func(overlay_needs_physical); \
-	func(supports_tv); \
+	func(has_hw_contexts); \
+	func(has_l3_dpf); \
 	func(has_llc); \
+	func(has_logical_ring_contexts); \
+	func(has_overlay); \
+	func(has_pipe_cxsr); \
+	func(has_pooled_eu); \
+	func(has_psr); \
+	func(has_rc6); \
+	func(has_rc6p); \
+	func(has_resource_streamer); \
+	func(has_runtime_pm); \
 	func(has_snoop); \
-	func(has_ddi); \
-	func(has_fpga_dbg); \
-	func(has_pooled_eu)
+	func(cursor_needs_physical); \
+	func(hws_needs_physical); \
+	func(overlay_needs_physical); \
+	func(supports_tv)
 
 struct sseu_dev_info {
 	u8 slice_mask;
