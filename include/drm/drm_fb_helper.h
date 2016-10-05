@@ -218,7 +218,7 @@ struct drm_fb_helper {
 };
 
 /**
- * @DRM_FB_HELPER_DEFAULT_OPS:
+ * define DRM_FB_HELPER_DEFAULT_OPS - helper define for drm drivers
  *
  * Helper define to register default implementations of drm_fb_helper
  * functions. To be used in struct fb_ops of drm drivers.
