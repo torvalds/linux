@@ -7032,7 +7032,7 @@ LINUX FOR POWERPC (32-BIT AND 64-BIT)
 M:	Benjamin Herrenschmidt <benh@kernel.crashing.org>
 M:	Paul Mackerras <paulus@samba.org>
 M:	Michael Ellerman <mpe@ellerman.id.au>
-W:	http://www.penguinppc.org/
+W:	https://github.com/linuxppc/linux/wiki
 L:	linuxppc-dev@lists.ozlabs.org
 Q:	http://patchwork.ozlabs.org/project/linuxppc-dev/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/powerpc/linux.git
@@ -7047,6 +7047,7 @@ F:	drivers/net/ethernet/ibm/ibmvnic.*
 F:	drivers/pci/hotplug/pnv_php.c
 F:	drivers/pci/hotplug/rpa*
 F:	drivers/scsi/ibmvscsi/
+F:	tools/testing/selftests/powerpc
 N:	opal
 N:	/pmac
 N:	powermac
