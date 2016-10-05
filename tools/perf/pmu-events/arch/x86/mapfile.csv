@@ -30,3 +30,5 @@ GenuineIntel-6-4D,v13,silvermont,core
 GenuineIntel-6-4C,v13,silvermont,core
 GenuineIntel-6-2A,v15,sandybridge,core
 GenuineIntel-6-2C,v2,westmereep-dp,core
+GenuineIntel-6-2C,v2,westmereep-dp,core
+GenuineIntel-6-25,v2,westmereep-sp,core
