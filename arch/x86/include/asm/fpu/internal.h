@@ -509,8 +509,11 @@ static inline int fpregs_state_valid(struct fpu *fpu, unsigned int cpu)
 	return fpu == this_cpu_read_stable(fpu_fpregs_owner_ctx) && cpu == fpu->last_cpu;
 }
 
-
-static inline void __fpregs_deactivate(struct fpu *fpu)
+/*
+ * These generally need preemption protection to work,
+ * do try to avoid using these on their own:
+ */
+static inline void fpregs_deactivate(struct fpu *fpu)
 {
 	WARN_ON_FPU(!fpu->fpregs_active);
 
@@ -519,7 +522,7 @@ static inline void __fpregs_deactivate(struct fpu *fpu)
 	trace_x86_fpu_regs_deactivated(fpu);
 }
 
-static inline void __fpregs_activate(struct fpu *fpu)
+static inline void fpregs_activate(struct fpu *fpu)
 {
 	WARN_ON_FPU(fpu->fpregs_active);
 
@@ -541,20 +544,6 @@ static inline void __fpregs_activate(struct fpu *fpu)
 static inline int fpregs_active(void)
 {
 	return current->thread.fpu.fpregs_active;
-}
-
-/*
- * These generally need preemption protection to work,
- * do try to avoid using these on their own.
- */
-static inline void fpregs_activate(struct fpu *fpu)
-{
-	__fpregs_activate(fpu);
-}
-
-static inline void fpregs_deactivate(struct fpu *fpu)
-{
-	__fpregs_deactivate(fpu);
 }
 
 /*
@@ -595,7 +584,7 @@ switch_fpu_prepare(struct fpu *old_fpu, struct fpu *new_fpu, int cpu)
 
 		/* Don't change CR0.TS if we just switch! */
 		if (fpu.preload) {
-			__fpregs_activate(new_fpu);
+			fpregs_activate(new_fpu);
 			trace_x86_fpu_regs_activated(new_fpu);
 			prefetch(&new_fpu->state);
 		}
