@@ -942,8 +942,8 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 
 	/* UVD & VCE fw doesn't support user fences */
 	if (parser->job->uf_addr && (
-	    parser->job->ring->type == AMDGPU_RING_TYPE_UVD ||
-	    parser->job->ring->type == AMDGPU_RING_TYPE_VCE))
+	    parser->job->ring->funcs->type == AMDGPU_RING_TYPE_UVD ||
+	    parser->job->ring->funcs->type == AMDGPU_RING_TYPE_VCE))
 		return -EINVAL;
 
 	return 0;

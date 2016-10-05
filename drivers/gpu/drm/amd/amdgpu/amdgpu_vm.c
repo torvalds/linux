@@ -348,7 +348,7 @@ static bool amdgpu_vm_ring_has_compute_vm_bug(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 	const struct amdgpu_ip_block_version *ip_block;
 
-	if (ring->type != AMDGPU_RING_TYPE_COMPUTE)
+	if (ring->funcs->type != AMDGPU_RING_TYPE_COMPUTE)
 		/* only compute rings */
 		return false;
 

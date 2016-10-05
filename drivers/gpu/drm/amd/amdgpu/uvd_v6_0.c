@@ -117,7 +117,7 @@ static int uvd_v6_0_sw_init(void *handle)
 	ring = &adev->uvd.ring;
 	sprintf(ring->name, "uvd");
 	r = amdgpu_ring_init(adev, ring, 512, PACKET0(mmUVD_NO_OP, 0), 0xf,
-			     &adev->uvd.irq, 0, AMDGPU_RING_TYPE_UVD);
+			     &adev->uvd.irq, 0);
 
 	return r;
 }
@@ -1023,6 +1023,7 @@ const struct amd_ip_funcs uvd_v6_0_ip_funcs = {
 };
 
 static const struct amdgpu_ring_funcs uvd_v6_0_ring_phys_funcs = {
+	.type = AMDGPU_RING_TYPE_UVD,
 	.get_rptr = uvd_v6_0_ring_get_rptr,
 	.get_wptr = uvd_v6_0_ring_get_wptr,
 	.set_wptr = uvd_v6_0_ring_set_wptr,
@@ -1046,6 +1047,7 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_phys_funcs = {
 };
 
 static const struct amdgpu_ring_funcs uvd_v6_0_ring_vm_funcs = {
+	.type = AMDGPU_RING_TYPE_UVD,
 	.get_rptr = uvd_v6_0_ring_get_rptr,
 	.get_wptr = uvd_v6_0_ring_get_wptr,
 	.set_wptr = uvd_v6_0_ring_set_wptr,

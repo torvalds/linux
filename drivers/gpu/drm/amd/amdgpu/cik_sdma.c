@@ -946,8 +946,8 @@ static int cik_sdma_sw_init(void *handle)
 				     SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0), 0xf,
 				     &adev->sdma.trap_irq,
 				     (i == 0) ?
-				     AMDGPU_SDMA_IRQ_TRAP0 : AMDGPU_SDMA_IRQ_TRAP1,
-				     AMDGPU_RING_TYPE_SDMA);
+				     AMDGPU_SDMA_IRQ_TRAP0 :
+				     AMDGPU_SDMA_IRQ_TRAP1);
 		if (r)
 			return r;
 	}
@@ -1209,6 +1209,7 @@ const struct amd_ip_funcs cik_sdma_ip_funcs = {
 };
 
 static const struct amdgpu_ring_funcs cik_sdma_ring_funcs = {
+	.type = AMDGPU_RING_TYPE_SDMA,
 	.get_rptr = cik_sdma_ring_get_rptr,
 	.get_wptr = cik_sdma_ring_get_wptr,
 	.set_wptr = cik_sdma_ring_set_wptr,

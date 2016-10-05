@@ -92,6 +92,8 @@ unsigned amdgpu_fence_count_emitted(struct amdgpu_ring *ring);
 
 /* provided by hw blocks that expose a ring buffer for commands */
 struct amdgpu_ring_funcs {
+	enum amdgpu_ring_type	type;
+
 	/* ring read/write ptr handling */
 	u32 (*get_rptr)(struct amdgpu_ring *ring);
 	u32 (*get_wptr)(struct amdgpu_ring *ring);
@@ -161,7 +163,6 @@ struct amdgpu_ring {
 	unsigned		wptr_offs;
 	unsigned		fence_offs;
 	uint64_t		current_ctx;
-	enum amdgpu_ring_type	type;
 	char			name[16];
 	unsigned		cond_exe_offs;
 	u64			cond_exe_gpu_addr;
@@ -178,8 +179,7 @@ void amdgpu_ring_commit(struct amdgpu_ring *ring);
 void amdgpu_ring_undo(struct amdgpu_ring *ring);
 int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		     unsigned ring_size, u32 nop, u32 align_mask,
-		     struct amdgpu_irq_src *irq_src, unsigned irq_type,
-		     enum amdgpu_ring_type ring_type);
+		     struct amdgpu_irq_src *irq_src, unsigned irq_type);
 void amdgpu_ring_fini(struct amdgpu_ring *ring);
 
 #endif

@@ -2077,9 +2077,9 @@ static int gfx_v7_0_ring_test_ring(struct amdgpu_ring *ring)
 static void gfx_v7_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 {
 	u32 ref_and_mask;
-	int usepfp = ring->type == AMDGPU_RING_TYPE_COMPUTE ? 0 : 1;
+	int usepfp = ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE ? 0 : 1;
 
-	if (ring->type == AMDGPU_RING_TYPE_COMPUTE) {
+	if (ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE) {
 		switch (ring->me) {
 		case 1:
 			ref_and_mask = GPU_HDP_FLUSH_DONE__CP2_MASK << ring->pipe;
@@ -3222,7 +3222,7 @@ static int gfx_v7_0_cp_resume(struct amdgpu_device *adev)
  */
 static void gfx_v7_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
 {
-	int usepfp = (ring->type == AMDGPU_RING_TYPE_GFX);
+	int usepfp = (ring->funcs->type == AMDGPU_RING_TYPE_GFX);
 	uint32_t seq = ring->fence_drv.sync_seq;
 	uint64_t addr = ring->fence_drv.gpu_addr;
 
@@ -3262,7 +3262,7 @@ static void gfx_v7_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
 static void gfx_v7_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					unsigned vm_id, uint64_t pd_addr)
 {
-	int usepfp = (ring->type == AMDGPU_RING_TYPE_GFX);
+	int usepfp = (ring->funcs->type == AMDGPU_RING_TYPE_GFX);
 
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
 	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(usepfp) |
@@ -4612,8 +4612,7 @@ static int gfx_v7_0_sw_init(void *handle)
 		sprintf(ring->name, "gfx");
 		r = amdgpu_ring_init(adev, ring, 1024,
 				     PACKET3(PACKET3_NOP, 0x3FFF), 0xff,
-				     &adev->gfx.eop_irq, AMDGPU_CP_IRQ_GFX_EOP,
-				     AMDGPU_RING_TYPE_GFX);
+				     &adev->gfx.eop_irq, AMDGPU_CP_IRQ_GFX_EOP);
 		if (r)
 			return r;
 	}
@@ -4639,8 +4638,7 @@ static int gfx_v7_0_sw_init(void *handle)
 		/* type-2 packets are deprecated on MEC, use type-3 instead */
 		r = amdgpu_ring_init(adev, ring, 1024,
 				     PACKET3(PACKET3_NOP, 0x3FFF), 0xff,
-				     &adev->gfx.eop_irq, irq_type,
-				     AMDGPU_RING_TYPE_COMPUTE);
+				     &adev->gfx.eop_irq, irq_type);
 		if (r)
 			return r;
 	}
@@ -5109,6 +5107,7 @@ const struct amd_ip_funcs gfx_v7_0_ip_funcs = {
 };
 
 static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_gfx = {
+	.type = AMDGPU_RING_TYPE_GFX,
 	.get_rptr = gfx_v7_0_ring_get_rptr,
 	.get_wptr = gfx_v7_0_ring_get_wptr_gfx,
 	.set_wptr = gfx_v7_0_ring_set_wptr_gfx,
@@ -5136,6 +5135,7 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_gfx = {
 };
 
 static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_compute = {
+	.type = AMDGPU_RING_TYPE_COMPUTE,
 	.get_rptr = gfx_v7_0_ring_get_rptr,
 	.get_wptr = gfx_v7_0_ring_get_wptr_compute,
 	.set_wptr = gfx_v7_0_ring_set_wptr_compute,

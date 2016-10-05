@@ -164,8 +164,7 @@ void amdgpu_ring_undo(struct amdgpu_ring *ring)
  */
 int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		     unsigned max_dw, u32 nop, u32 align_mask,
-		     struct amdgpu_irq_src *irq_src, unsigned irq_type,
-		     enum amdgpu_ring_type ring_type)
+		     struct amdgpu_irq_src *irq_src, unsigned irq_type)
 {
 	int r;
 
@@ -218,7 +217,6 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 					     amdgpu_sched_hw_submission);
 	ring->align_mask = align_mask;
 	ring->nop = nop;
-	ring->type = ring_type;
 
 	/* Allocate ring buffer */
 	if (ring->ring_obj == NULL) {
