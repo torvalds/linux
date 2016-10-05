@@ -274,4 +274,15 @@ config PCIE_ARTPEC6
 	  Say Y here to enable PCIe controller support on Axis ARTPEC-6
 	  SoCs.  This PCIe controller uses the DesignWare core.
 
+config PCIE_ROCKCHIP
+	bool "Rockchip PCIe controller"
+	depends on ARCH_ROCKCHIP
+	depends on OF
+	depends on PCI_MSI_IRQ_DOMAIN
+	select MFD_SYSCON
+	help
+	  Say Y here if you want internal PCI support on Rockchip SoC.
+	  There is 1 internal PCIe port available to support GEN2 with
+	  4 slots.
+
 endmenu

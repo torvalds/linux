@@ -85,10 +85,15 @@
 #define MSGF_MISC_SR_MASTER_ERR		BIT(5)
 #define MSGF_MISC_SR_I_ADDR_ERR		BIT(6)
 #define MSGF_MISC_SR_E_ADDR_ERR		BIT(7)
-#define MSGF_MISC_SR_UR_DETECT          BIT(20)
-
-#define MSGF_MISC_SR_PCIE_CORE		GENMASK(18, 16)
-#define MSGF_MISC_SR_PCIE_CORE_ERR	GENMASK(31, 22)
+#define MSGF_MISC_SR_FATAL_AER		BIT(16)
+#define MSGF_MISC_SR_NON_FATAL_AER	BIT(17)
+#define MSGF_MISC_SR_CORR_AER		BIT(18)
+#define MSGF_MISC_SR_UR_DETECT		BIT(20)
+#define MSGF_MISC_SR_NON_FATAL_DEV	BIT(22)
+#define MSGF_MISC_SR_FATAL_DEV		BIT(23)
+#define MSGF_MISC_SR_LINK_DOWN		BIT(24)
+#define MSGF_MSIC_SR_LINK_AUTO_BWIDTH	BIT(25)
+#define MSGF_MSIC_SR_LINK_BWIDTH	BIT(26)
 
 #define MSGF_MISC_SR_MASKALL		(MSGF_MISC_SR_RXMSG_AVAIL | \
 					MSGF_MISC_SR_RXMSG_OVER | \
@@ -96,9 +101,15 @@
 					MSGF_MISC_SR_MASTER_ERR | \
 					MSGF_MISC_SR_I_ADDR_ERR | \
 					MSGF_MISC_SR_E_ADDR_ERR | \
+					MSGF_MISC_SR_FATAL_AER | \
+					MSGF_MISC_SR_NON_FATAL_AER | \
+					MSGF_MISC_SR_CORR_AER | \
 					MSGF_MISC_SR_UR_DETECT | \
-					MSGF_MISC_SR_PCIE_CORE | \
-					MSGF_MISC_SR_PCIE_CORE_ERR)
+					MSGF_MISC_SR_NON_FATAL_DEV | \
+					MSGF_MISC_SR_FATAL_DEV | \
+					MSGF_MISC_SR_LINK_DOWN | \
+					MSGF_MSIC_SR_LINK_AUTO_BWIDTH | \
+					MSGF_MSIC_SR_LINK_BWIDTH)
 
 /* Legacy interrupt status mask bits */
 #define MSGF_LEG_SR_INTA		BIT(0)
@@ -109,8 +120,8 @@
 					MSGF_LEG_SR_INTC | MSGF_LEG_SR_INTD)
 
 /* MSI interrupt status mask bits */
-#define MSGF_MSI_SR_LO_MASK		BIT(0)
-#define MSGF_MSI_SR_HI_MASK		BIT(0)
+#define MSGF_MSI_SR_LO_MASK		GENMASK(31, 0)
+#define MSGF_MSI_SR_HI_MASK		GENMASK(31, 0)
 
 #define MSII_PRESENT			BIT(0)
 #define MSII_ENABLE			BIT(0)
@@ -291,8 +302,29 @@ static irqreturn_t nwl_pcie_misc_handler(int irq, void *data)
 		dev_err(pcie->dev,
 			"In Misc Egress address translation error\n");
 
-	if (misc_stat & MSGF_MISC_SR_PCIE_CORE_ERR)
-		dev_err(pcie->dev, "PCIe Core error\n");
+	if (misc_stat & MSGF_MISC_SR_FATAL_AER)
+		dev_err(pcie->dev, "Fatal Error in AER Capability\n");
+
+	if (misc_stat & MSGF_MISC_SR_NON_FATAL_AER)
+		dev_err(pcie->dev, "Non-Fatal Error in AER Capability\n");
+
+	if (misc_stat & MSGF_MISC_SR_CORR_AER)
+		dev_err(pcie->dev, "Correctable Error in AER Capability\n");
+
+	if (misc_stat & MSGF_MISC_SR_UR_DETECT)
+		dev_err(pcie->dev, "Unsupported request Detected\n");
+
+	if (misc_stat & MSGF_MISC_SR_NON_FATAL_DEV)
+		dev_err(pcie->dev, "Non-Fatal Error Detected\n");
+
+	if (misc_stat & MSGF_MISC_SR_FATAL_DEV)
+		dev_err(pcie->dev, "Fatal Error Detected\n");
+
+	if (misc_stat & MSGF_MSIC_SR_LINK_AUTO_BWIDTH)
+		dev_info(pcie->dev, "Link Autonomous Bandwidth Management Status bit set\n");
+
+	if (misc_stat & MSGF_MSIC_SR_LINK_BWIDTH)
+		dev_info(pcie->dev, "Link Bandwidth Management Status bit set\n");
 
 	/* Clear misc interrupt status */
 	nwl_bridge_writel(pcie, misc_stat, MSGF_MISC_STATUS);

@@ -241,11 +241,6 @@ static int altera_msi_probe(struct platform_device *pdev)
 	msi->pdev = pdev;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "csr");
-	if (!res) {
-		dev_err(&pdev->dev, "no csr memory resource defined\n");
-		return -ENODEV;
-	}
-
 	msi->csr_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(msi->csr_base)) {
 		dev_err(&pdev->dev, "failed to map csr memory\n");
@@ -254,11 +249,6 @@ static int altera_msi_probe(struct platform_device *pdev)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					   "vector_slave");
-	if (!res) {
-		dev_err(&pdev->dev, "no vector_slave memory resource defined\n");
-		return -ENODEV;
-	}
-
 	msi->vector_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(msi->vector_base)) {
 		dev_err(&pdev->dev, "failed to map vector_slave memory\n");

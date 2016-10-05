@@ -927,10 +927,8 @@ static int advk_pcie_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	pcie->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(pcie->base)) {
-		dev_err(&pdev->dev, "Failed to map registers\n");
+	if (IS_ERR(pcie->base))
 		return PTR_ERR(pcie->base);
-	}
 
 	irq = platform_get_irq(pdev, 0);
 	ret = devm_request_irq(&pdev->dev, irq, advk_pcie_irq_handler,
