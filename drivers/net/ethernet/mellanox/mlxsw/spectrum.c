@@ -2285,7 +2285,7 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	/* Each packet needs to have a Tx header (metadata) on top all other
 	 * headers.
 	 */
-	dev->hard_header_len += MLXSW_TXHDR_LEN;
+	dev->needed_headroom = MLXSW_TXHDR_LEN;
 
 	err = mlxsw_sp_port_system_port_mapping_set(mlxsw_sp_port);
 	if (err) {
