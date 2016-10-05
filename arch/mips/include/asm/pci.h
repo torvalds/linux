@@ -66,8 +66,10 @@ extern int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin);
 /* Can be used to override the logic in pci_scan_bus for skipping
    already-configured bus numbers - to be used for buggy BIOSes
    or architectures with incomplete PCI setup by the loader */
-
-extern unsigned int pcibios_assign_all_busses(void);
+static inline unsigned int pcibios_assign_all_busses(void)
+{
+	return 1;
+}
 
 extern unsigned long PCIBIOS_MIN_IO;
 extern unsigned long PCIBIOS_MIN_MEM;

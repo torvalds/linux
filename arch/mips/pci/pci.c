@@ -297,11 +297,6 @@ static int pcibios_enable_resources(struct pci_dev *dev, int mask)
 	return 0;
 }
 
-unsigned int pcibios_assign_all_busses(void)
-{
-	return 1;
-}
-
 int pcibios_enable_device(struct pci_dev *dev, int mask)
 {
 	int err;
