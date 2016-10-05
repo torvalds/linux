@@ -2079,7 +2079,7 @@ static void cpuset_bind(struct cgroup_subsys_state *root_css)
  * which could have been changed by cpuset just after it inherits the
  * state from the parent and before it sits on the cgroup's task list.
  */
-void cpuset_fork(struct task_struct *task)
+void cpuset_fork(struct task_struct *task, void *priv)
 {
 	if (task_css_is_root(task, cpuset_cgrp_id))
 		return;
