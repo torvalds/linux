@@ -340,14 +340,6 @@ config MFD_HI655X_PMIC
 	help
 	  Select this option to enable Hisilicon hi655x series pmic driver.
 
-config HTC_EGPIO
-	bool "HTC EGPIO support"
-	depends on GPIOLIB && ARM
-	help
-	    This driver supports the CPLD egpio chip present on
-	    several HTC phones.  It provides basic support for input
-	    pins, output pins, and irqs.
-
 config HTC_PASIC3
 	tristate "HTC PASIC3 LED/DS1WM chip support"
 	select MFD_CORE
@@ -1223,6 +1215,20 @@ config MFD_TPS65217
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called tps65217.
+
+config MFD_TI_LP873X
+	tristate "TI LP873X Power Management IC"
+	depends on I2C
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  If you say yes here then you get support for the LP873X series of
+	  Power Management Integrated Circuits (PMIC).
+	  These include voltage regulators, thermal protection, configurable
+	  General Purpose Outputs (GPO) that are used in portable devices.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lp873x.
 
 config MFD_TPS65218
 	tristate "TI TPS65218 Power Management chips"

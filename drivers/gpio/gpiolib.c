@@ -1370,19 +1370,15 @@ struct gpio_chip *gpiochip_find(void *data,
 					     void *data))
 {
 	struct gpio_device *gdev;
-	struct gpio_chip *chip;
+	struct gpio_chip *chip = NULL;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gpio_lock, flags);
 	list_for_each_entry(gdev, &gpio_devices, list)
-		if (gdev->chip && match(gdev->chip, data))
+		if (gdev->chip && match(gdev->chip, data)) {
+			chip = gdev->chip;
 			break;
-
-	/* No match? */
-	if (&gdev->list == &gpio_devices)
-		chip = NULL;
-	else
-		chip = gdev->chip;
+		}
 
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
@@ -1667,6 +1663,20 @@ int _gpiochip_irqchip_add(struct gpio_chip *gpiochip,
 	if (gpiochip->of_node)
 		of_node = gpiochip->of_node;
 #endif
+	/*
+	 * Specifying a default trigger is a terrible idea if DT or ACPI is
+	 * used to configure the interrupts, as you may end-up with
+	 * conflicting triggers. Tell the user, and reset to NONE.
+	 */
+	if (WARN(of_node && type != IRQ_TYPE_NONE,
+		 "%s: Ignoring %d default trigger\n", of_node->full_name, type))
+		type = IRQ_TYPE_NONE;
+	if (has_acpi_companion(gpiochip->parent) && type != IRQ_TYPE_NONE) {
+		acpi_handle_warn(ACPI_HANDLE(gpiochip->parent),
+				 "Ignoring %d default trigger\n", type);
+		type = IRQ_TYPE_NONE;
+	}
+
 	gpiochip->irqchip = irqchip;
 	gpiochip->irq_handler = handler;
 	gpiochip->irq_default_type = type;
@@ -2871,94 +2881,6 @@ void gpiod_remove_lookup_table(struct gpiod_lookup_table *table)
 	list_del(&table->list);
 
 	mutex_unlock(&gpio_lookup_lock);
-}
-
-static struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
-				      unsigned int idx,
-				      enum gpio_lookup_flags *flags)
-{
-	char prop_name[32]; /* 32 is max size of property name */
-	enum of_gpio_flags of_flags;
-	struct gpio_desc *desc;
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(gpio_suffixes); i++) {
-		if (con_id)
-			snprintf(prop_name, sizeof(prop_name), "%s-%s", con_id,
-				 gpio_suffixes[i]);
-		else
-			snprintf(prop_name, sizeof(prop_name), "%s",
-				 gpio_suffixes[i]);
-
-		desc = of_get_named_gpiod_flags(dev->of_node, prop_name, idx,
-						&of_flags);
-		if (!IS_ERR(desc) || (PTR_ERR(desc) != -ENOENT))
-			break;
-	}
-
-	if (IS_ERR(desc))
-		return desc;
-
-	if (of_flags & OF_GPIO_ACTIVE_LOW)
-		*flags |= GPIO_ACTIVE_LOW;
-
-	if (of_flags & OF_GPIO_SINGLE_ENDED) {
-		if (of_flags & OF_GPIO_ACTIVE_LOW)
-			*flags |= GPIO_OPEN_DRAIN;
-		else
-			*flags |= GPIO_OPEN_SOURCE;
-	}
-
-	return desc;
-}
-
-static struct gpio_desc *acpi_find_gpio(struct device *dev,
-					const char *con_id,
-					unsigned int idx,
-					enum gpiod_flags flags,
-					enum gpio_lookup_flags *lookupflags)
-{
-	struct acpi_device *adev = ACPI_COMPANION(dev);
-	struct acpi_gpio_info info;
-	struct gpio_desc *desc;
-	char propname[32];
-	int i;
-
-	/* Try first from _DSD */
-	for (i = 0; i < ARRAY_SIZE(gpio_suffixes); i++) {
-		if (con_id && strcmp(con_id, "gpios")) {
-			snprintf(propname, sizeof(propname), "%s-%s",
-				 con_id, gpio_suffixes[i]);
-		} else {
-			snprintf(propname, sizeof(propname), "%s",
-				 gpio_suffixes[i]);
-		}
-
-		desc = acpi_get_gpiod_by_index(adev, propname, idx, &info);
-		if (!IS_ERR(desc) || (PTR_ERR(desc) == -EPROBE_DEFER))
-			break;
-	}
-
-	/* Then from plain _CRS GPIOs */
-	if (IS_ERR(desc)) {
-		if (!acpi_can_fallback_to_crs(adev, con_id))
-			return ERR_PTR(-ENOENT);
-
-		desc = acpi_get_gpiod_by_index(adev, NULL, idx, &info);
-		if (IS_ERR(desc))
-			return desc;
-
-		if ((flags == GPIOD_OUT_LOW || flags == GPIOD_OUT_HIGH) &&
-		    info.gpioint) {
-			dev_dbg(dev, "refusing GpioInt() entry when doing GPIOD_OUT_* lookup\n");
-			return ERR_PTR(-ENOENT);
-		}
-	}
-
-	if (info.polarity == GPIO_ACTIVE_LOW)
-		*lookupflags |= GPIO_ACTIVE_LOW;
-
-	return desc;
 }
 
 static struct gpiod_lookup_table *gpiod_find_lookup_table(struct device *dev)

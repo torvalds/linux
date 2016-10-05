@@ -15,8 +15,8 @@ config ARCH_ALPINE
 
 config ARCH_BCM2835
 	bool "Broadcom BCM2835 family"
-	select ARCH_REQUIRE_GPIOLIB
 	select CLKSRC_OF
+	select GPIOLIB
 	select PINCTRL
 	select PINCTRL_BCM2835
 	select ARM_AMBA
@@ -29,15 +29,15 @@ config ARCH_BCM2835
 config ARCH_BCM_IPROC
 	bool "Broadcom iProc SoC Family"
 	select COMMON_CLK_IPROC
+	select GPIOLIB
 	select PINCTRL
-	select ARCH_REQUIRE_GPIOLIB
 	help
 	  This enables support for Broadcom iProc based SoCs
 
 config ARCH_BERLIN
 	bool "Marvell Berlin SoC Family"
-	select ARCH_REQUIRE_GPIOLIB
 	select DW_APB_ICTL
+	select GPIOLIB
 	select PINCTRL
 	help
 	  This enables support for Marvell Berlin SoC Family
@@ -110,7 +110,7 @@ config ARCH_QCOM
 config ARCH_ROCKCHIP
 	bool "Rockchip Platforms"
 	select ARCH_HAS_RESET_CONTROLLER
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select PINCTRL
 	select PINCTRL_ROCKCHIP
 	select ROCKCHIP_TIMER
@@ -156,11 +156,11 @@ config ARCH_STRATIX10
 config ARCH_TEGRA
 	bool "NVIDIA Tegra SoC Family"
 	select ARCH_HAS_RESET_CONTROLLER
-	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 	select CLKSRC_OF
 	select GENERIC_CLOCKEVENTS
+	select GPIOLIB
 	select PINCTRL
 	select RESET_CONTROLLER
 	help
@@ -184,8 +184,8 @@ config ARCH_UNIPHIER
 
 config ARCH_VEXPRESS
 	bool "ARMv8 software model (Versatile Express)"
-	select ARCH_REQUIRE_GPIOLIB
 	select COMMON_CLK_VERSATILE
+	select GPIOLIB
 	select PM
 	select PM_GENERIC_DOMAINS
 	select POWER_RESET_VEXPRESS

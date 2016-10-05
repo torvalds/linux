@@ -2,7 +2,8 @@
  * MXC GPIO support. (c) 2008 Daniel Mack <daniel@caiaq.de>
  * Copyright 2008 Juergen Beisert, kernel@pengutronix.de
  *
- * Based on code from Freescale,
+ * Based on code from Freescale Semiconductor,
+ * Authors: Daniel Mack, Juergen Beisert.
  * Copyright (C) 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -33,7 +34,6 @@
 #include <linux/gpio.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/module.h>
 #include <linux/bug.h>
 
 enum mxc_gpio_hwtype {
@@ -516,9 +516,3 @@ static int __init gpio_mxc_init(void)
 	return platform_driver_register(&mxc_gpio_driver);
 }
 subsys_initcall(gpio_mxc_init);
-
-MODULE_AUTHOR("Freescale Semiconductor, "
-	      "Daniel Mack <danielncaiaq.de>, "
-	      "Juergen Beisert <kernel@pengutronix.de>");
-MODULE_DESCRIPTION("Freescale MXC GPIO");
-MODULE_LICENSE("GPL");

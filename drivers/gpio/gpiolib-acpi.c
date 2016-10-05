@@ -14,6 +14,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
+#include <linux/gpio/machine.h>
 #include <linux/export.h>
 #include <linux/acpi.h>
 #include <linux/interrupt.h>
@@ -395,7 +396,7 @@ struct acpi_gpio_lookup {
 	int n;
 };
 
-static int acpi_find_gpio(struct acpi_resource *ares, void *data)
+static int acpi_populate_gpio_lookup(struct acpi_resource *ares, void *data)
 {
 	struct acpi_gpio_lookup *lookup = data;
 
@@ -440,7 +441,8 @@ static int acpi_gpio_resource_lookup(struct acpi_gpio_lookup *lookup,
 
 	INIT_LIST_HEAD(&res_list);
 
-	ret = acpi_dev_get_resources(lookup->adev, &res_list, acpi_find_gpio,
+	ret = acpi_dev_get_resources(lookup->adev, &res_list,
+				     acpi_populate_gpio_lookup,
 				     lookup);
 	if (ret < 0)
 		return ret;
@@ -513,7 +515,7 @@ static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode,
  * Note: if the GPIO resource has multiple entries in the pin list, this
  * function only returns the first.
  */
-struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
+static struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
 					  const char *propname, int index,
 					  struct acpi_gpio_info *info)
 {
@@ -544,6 +546,55 @@ struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
 
 	ret = acpi_gpio_resource_lookup(&lookup, info);
 	return ret ? ERR_PTR(ret) : lookup.desc;
+}
+
+struct gpio_desc *acpi_find_gpio(struct device *dev,
+				 const char *con_id,
+				 unsigned int idx,
+				 enum gpiod_flags flags,
+				 enum gpio_lookup_flags *lookupflags)
+{
+	struct acpi_device *adev = ACPI_COMPANION(dev);
+	struct acpi_gpio_info info;
+	struct gpio_desc *desc;
+	char propname[32];
+	int i;
+
+	/* Try first from _DSD */
+	for (i = 0; i < ARRAY_SIZE(gpio_suffixes); i++) {
+		if (con_id && strcmp(con_id, "gpios")) {
+			snprintf(propname, sizeof(propname), "%s-%s",
+				 con_id, gpio_suffixes[i]);
+		} else {
+			snprintf(propname, sizeof(propname), "%s",
+				 gpio_suffixes[i]);
+		}
+
+		desc = acpi_get_gpiod_by_index(adev, propname, idx, &info);
+		if (!IS_ERR(desc) || (PTR_ERR(desc) == -EPROBE_DEFER))
+			break;
+	}
+
+	/* Then from plain _CRS GPIOs */
+	if (IS_ERR(desc)) {
+		if (!acpi_can_fallback_to_crs(adev, con_id))
+			return ERR_PTR(-ENOENT);
+
+		desc = acpi_get_gpiod_by_index(adev, NULL, idx, &info);
+		if (IS_ERR(desc))
+			return desc;
+
+		if ((flags == GPIOD_OUT_LOW || flags == GPIOD_OUT_HIGH) &&
+		    info.gpioint) {
+			dev_dbg(dev, "refusing GpioInt() entry when doing GPIOD_OUT_* lookup\n");
+			return ERR_PTR(-ENOENT);
+		}
+	}
+
+	if (info.polarity == GPIO_ACTIVE_LOW)
+		*lookupflags |= GPIO_ACTIVE_LOW;
+
+	return desc;
 }
 
 /**

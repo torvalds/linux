@@ -29,6 +29,7 @@
 #include <linux/power/isp1704_charger.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include <linux/platform_data/mtd-onenand-omap2.h>
+#include <linux/module.h>
 
 #include <plat/dmtimer.h>
 

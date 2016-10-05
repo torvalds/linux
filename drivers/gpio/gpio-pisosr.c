@@ -90,7 +90,7 @@ static int pisosr_gpio_get(struct gpio_chip *chip, unsigned offset)
 	return (gpio->buffer[offset / 8] >> (offset % 8)) & 0x1;
 }
 
-static struct gpio_chip template_chip = {
+static const struct gpio_chip template_chip = {
 	.label			= "pisosr-gpio",
 	.owner			= THIS_MODULE,
 	.get_direction		= pisosr_gpio_get_direction,
