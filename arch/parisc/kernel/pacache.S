@@ -41,7 +41,7 @@
 	.text
 	.align	128
 
-ENTRY(flush_tlb_all_local)
+ENTRY_CFI(flush_tlb_all_local)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -190,11 +190,11 @@ fdtdone:
 
 	.exit
 	.procend
-ENDPROC(flush_tlb_all_local)
+ENDPROC_CFI(flush_tlb_all_local)
 
 	.import cache_info,data
 
-ENTRY(flush_instruction_cache_local)
+ENTRY_CFI(flush_instruction_cache_local)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -257,11 +257,11 @@ fisync:
 	.exit
 
 	.procend
-ENDPROC(flush_instruction_cache_local)
+ENDPROC_CFI(flush_instruction_cache_local)
 
 
 	.import cache_info, data
-ENTRY(flush_data_cache_local)
+ENTRY_CFI(flush_data_cache_local)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -325,7 +325,7 @@ fdsync:
 	.exit
 
 	.procend
-ENDPROC(flush_data_cache_local)
+ENDPROC_CFI(flush_data_cache_local)
 
 	.align	16
 
@@ -356,7 +356,7 @@ ENDPROC(flush_data_cache_local)
 
 /* Clear page using kernel mapping.  */
 
-ENTRY(clear_page_asm)
+ENTRY_CFI(clear_page_asm)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -422,11 +422,11 @@ ENTRY(clear_page_asm)
 	.exit
 
 	.procend
-ENDPROC(clear_page_asm)
+ENDPROC_CFI(clear_page_asm)
 
 /* Copy page using kernel mapping.  */
 
-ENTRY(copy_page_asm)
+ENTRY_CFI(copy_page_asm)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -540,7 +540,7 @@ ENTRY(copy_page_asm)
 	.exit
 
 	.procend
-ENDPROC(copy_page_asm)
+ENDPROC_CFI(copy_page_asm)
 
 /*
  * NOTE: Code in clear_user_page has a hard coded dependency on the
@@ -592,7 +592,7 @@ ENDPROC(copy_page_asm)
 	 *
 	 */
 
-ENTRY(copy_user_page_asm)
+ENTRY_CFI(copy_user_page_asm)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -748,9 +748,9 @@ ENTRY(copy_user_page_asm)
 	.exit
 
 	.procend
-ENDPROC(copy_user_page_asm)
+ENDPROC_CFI(copy_user_page_asm)
 
-ENTRY(clear_user_page_asm)
+ENTRY_CFI(clear_user_page_asm)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -834,9 +834,9 @@ ENTRY(clear_user_page_asm)
 	.exit
 
 	.procend
-ENDPROC(clear_user_page_asm)
+ENDPROC_CFI(clear_user_page_asm)
 
-ENTRY(flush_dcache_page_asm)
+ENTRY_CFI(flush_dcache_page_asm)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -910,9 +910,9 @@ ENTRY(flush_dcache_page_asm)
 	.exit
 
 	.procend
-ENDPROC(flush_dcache_page_asm)
+ENDPROC_CFI(flush_dcache_page_asm)
 
-ENTRY(flush_icache_page_asm)
+ENTRY_CFI(flush_icache_page_asm)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -988,9 +988,9 @@ ENTRY(flush_icache_page_asm)
 	.exit
 
 	.procend
-ENDPROC(flush_icache_page_asm)
+ENDPROC_CFI(flush_icache_page_asm)
 
-ENTRY(flush_kernel_dcache_page_asm)
+ENTRY_CFI(flush_kernel_dcache_page_asm)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -1031,9 +1031,9 @@ ENTRY(flush_kernel_dcache_page_asm)
 	.exit
 
 	.procend
-ENDPROC(flush_kernel_dcache_page_asm)
+ENDPROC_CFI(flush_kernel_dcache_page_asm)
 
-ENTRY(purge_kernel_dcache_page_asm)
+ENTRY_CFI(purge_kernel_dcache_page_asm)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -1073,9 +1073,9 @@ ENTRY(purge_kernel_dcache_page_asm)
 	.exit
 
 	.procend
-ENDPROC(purge_kernel_dcache_page_asm)
+ENDPROC_CFI(purge_kernel_dcache_page_asm)
 
-ENTRY(flush_user_dcache_range_asm)
+ENTRY_CFI(flush_user_dcache_range_asm)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -1094,9 +1094,9 @@ ENTRY(flush_user_dcache_range_asm)
 	.exit
 
 	.procend
-ENDPROC(flush_user_dcache_range_asm)
+ENDPROC_CFI(flush_user_dcache_range_asm)
 
-ENTRY(flush_kernel_dcache_range_asm)
+ENTRY_CFI(flush_kernel_dcache_range_asm)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -1116,9 +1116,9 @@ ENTRY(flush_kernel_dcache_range_asm)
 	.exit
 
 	.procend
-ENDPROC(flush_kernel_dcache_range_asm)
+ENDPROC_CFI(flush_kernel_dcache_range_asm)
 
-ENTRY(flush_user_icache_range_asm)
+ENTRY_CFI(flush_user_icache_range_asm)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -1137,9 +1137,9 @@ ENTRY(flush_user_icache_range_asm)
 	.exit
 
 	.procend
-ENDPROC(flush_user_icache_range_asm)
+ENDPROC_CFI(flush_user_icache_range_asm)
 
-ENTRY(flush_kernel_icache_page)
+ENTRY_CFI(flush_kernel_icache_page)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -1180,9 +1180,9 @@ ENTRY(flush_kernel_icache_page)
 	.exit
 
 	.procend
-ENDPROC(flush_kernel_icache_page)
+ENDPROC_CFI(flush_kernel_icache_page)
 
-ENTRY(flush_kernel_icache_range_asm)
+ENTRY_CFI(flush_kernel_icache_range_asm)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -1200,13 +1200,13 @@ ENTRY(flush_kernel_icache_range_asm)
 	nop
 	.exit
 	.procend
-ENDPROC(flush_kernel_icache_range_asm)
+ENDPROC_CFI(flush_kernel_icache_range_asm)
 
 	/* align should cover use of rfi in disable_sr_hashing_asm and
 	 * srdis_done.
 	 */
 	.align	256
-ENTRY(disable_sr_hashing_asm)
+ENTRY_CFI(disable_sr_hashing_asm)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -1295,6 +1295,6 @@ srdis_done:
 	.exit
 
 	.procend
-ENDPROC(disable_sr_hashing_asm)
+ENDPROC_CFI(disable_sr_hashing_asm)
 
 	.end

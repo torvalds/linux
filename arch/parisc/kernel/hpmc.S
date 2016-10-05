@@ -83,7 +83,7 @@ END(hpmc_pim_data)
 	.text
 
 	.import intr_save, code
-ENTRY(os_hpmc)
+ENTRY_CFI(os_hpmc)
 .os_hpmc:
 
 	/*
@@ -299,7 +299,7 @@ os_hpmc_6:
 
 	b .
 	nop
-ENDPROC(os_hpmc)
+ENDPROC_CFI(os_hpmc)
 .os_hpmc_end:
 
 
