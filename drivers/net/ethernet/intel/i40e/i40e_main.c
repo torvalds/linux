@@ -1328,6 +1328,8 @@ struct i40e_mac_filter *i40e_put_mac_in_vlan(struct i40e_vsi *vsi,
 				       le16_to_cpu(vsi->info.pvid));
 
 	list_for_each_entry(f, &vsi->mac_filter_list, list) {
+		if (f->state == I40E_FILTER_REMOVE)
+			continue;
 		add = i40e_add_filter(vsi, macaddr, f->vlan);
 		if (!add)
 			return NULL;
@@ -2271,6 +2273,8 @@ int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
 	}
 
 	list_for_each_entry_safe(f, ftmp, &vsi->mac_filter_list, list) {
+		if (f->state == I40E_FILTER_REMOVE)
+			continue;
 		add_f = i40e_add_filter(vsi, f->macaddr, vid);
 		if (!add_f) {
 			dev_info(&vsi->back->pdev->dev,
@@ -2305,6 +2309,8 @@ int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
 	/* Do not assume that I40E_VLAN_ANY should be reset to VLAN 0 */
 	if (vid > 0 && !vsi->info.pvid) {
 		list_for_each_entry_safe(f, ftmp, &vsi->mac_filter_list, list) {
+			if (f->state == I40E_FILTER_REMOVE)
+				continue;
 			if (!i40e_find_filter(vsi, f->macaddr, I40E_VLAN_ANY))
 				continue;
 			i40e_del_filter(vsi, f->macaddr, I40E_VLAN_ANY);
