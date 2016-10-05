@@ -134,7 +134,7 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 	struct rtnl_link_stats64 *nstat;
 	struct i40e_mac_filter *f;
 	struct i40e_vsi *vsi;
-	int i;
+	int i, bkt;
 
 	vsi = i40e_dbg_find_vsi(pf, seid);
 	if (!vsi) {
@@ -166,7 +166,7 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 			 pf->hw.mac.addr,
 			 pf->hw.mac.san_addr,
 			 pf->hw.mac.port_addr);
-	list_for_each_entry(f, &vsi->mac_filter_list, list) {
+	hash_for_each(vsi->mac_filter_hash, bkt, f, hlist) {
 		dev_info(&pf->pdev->dev,
 			 "    mac_filter_hash: %pM vid=%d, state %s\n",
 			 f->macaddr, f->vlan,

@@ -39,6 +39,7 @@
 #include <linux/iommu.h>
 #include <linux/slab.h>
 #include <linux/list.h>
+#include <linux/hashtable.h>
 #include <linux/string.h>
 #include <linux/in.h>
 #include <linux/ip.h>
@@ -445,6 +446,20 @@ struct i40e_pf {
 	u16 phy_led_val;
 };
 
+/**
+ * i40e_mac_to_hkey - Convert a 6-byte MAC Address to a u64 hash key
+ * @macaddr: the MAC Address as the base key
+ *
+ * Simply copies the address and returns it as a u64 for hashing
+ **/
+static inline u64 i40e_addr_to_hkey(const u8 *macaddr)
+{
+	u64 key = 0;
+
+	ether_addr_copy((u8 *)&key, macaddr);
+	return key;
+}
+
 enum i40e_filter_state {
 	I40E_FILTER_INVALID = 0,	/* Invalid state */
 	I40E_FILTER_NEW,		/* New, not sent to FW yet */
@@ -454,7 +469,7 @@ enum i40e_filter_state {
 /* There is no 'removed' state; the filter struct is freed */
 };
 struct i40e_mac_filter {
-	struct list_head list;
+	struct hlist_node hlist;
 	u8 macaddr[ETH_ALEN];
 #define I40E_VLAN_ANY -1
 	s16 vlan;
@@ -498,9 +513,10 @@ struct i40e_vsi {
 #define I40E_VSI_FLAG_VEB_OWNER		BIT(1)
 	unsigned long flags;
 
-	/* Per VSI lock to protect elements/list (MAC filter) */
-	spinlock_t mac_filter_list_lock;
-	struct list_head mac_filter_list;
+	/* Per VSI lock to protect elements/hash (MAC filter) */
+	spinlock_t mac_filter_hash_lock;
+	/* Fixed size hash table with 2^8 buckets for MAC filters */
+	DECLARE_HASHTABLE(mac_filter_hash, 8);
 
 	/* VSI stats */
 	struct rtnl_link_stats64 net_stats;
