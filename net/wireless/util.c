@@ -739,7 +739,8 @@ __ieee80211_amsdu_copy(struct sk_buff *skb, unsigned int hlen,
 
 void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 			      const u8 *addr, enum nl80211_iftype iftype,
-			      const unsigned int extra_headroom)
+			      const unsigned int extra_headroom,
+			      const u8 *check_da, const u8 *check_sa)
 {
 	unsigned int hlen = ALIGN(extra_headroom, 4);
 	struct sk_buff *frame = NULL;
@@ -767,8 +768,17 @@ void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 			goto purge;
 
 		offset += sizeof(struct ethhdr);
-		/* reuse skb for the last subframe */
 		last = remaining <= subframe_len + padding;
+
+		/* FIXME: should we really accept multicast DA? */
+		if ((check_da && !is_multicast_ether_addr(eth.h_dest) &&
+		     !ether_addr_equal(check_da, eth.h_dest)) ||
+		    (check_sa && !ether_addr_equal(check_sa, eth.h_source))) {
+			offset += len + padding;
+			continue;
+		}
+
+		/* reuse skb for the last subframe */
 		if (!skb_is_nonlinear(skb) && !reuse_frag && last) {
 			skb_pull(skb, offset);
 			frame = skb;
