@@ -916,18 +916,31 @@ pnfs_layoutgets_blocked(const struct pnfs_layout_hdr *lo)
 		test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags);
 }
 
+static struct nfs_server *
+pnfs_find_server(struct inode *inode, struct nfs_open_context *ctx)
+{
+	struct nfs_server *server;
+
+	if (inode)
+		server = NFS_SERVER(inode);
+	else {
+		struct dentry *parent_dir = dget_parent(ctx->dentry);
+		server = NFS_SERVER(parent_dir->d_inode);
+		dput(parent_dir);
+	}
+	return server;
+}
+
 static struct nfs4_layoutget *
-pnfs_alloc_init_layoutget_args(struct pnfs_layout_hdr *lo,
+pnfs_alloc_init_layoutget_args(struct inode *ino,
 	   struct nfs_open_context *ctx,
 	   nfs4_stateid *stateid,
 	   const struct pnfs_layout_range *range,
 	   gfp_t gfp_flags)
 {
-	struct inode *ino = lo->plh_inode;
-	struct nfs_server *server = NFS_SERVER(ino);
+	struct nfs_server *server = pnfs_find_server(ino, ctx);
 	size_t max_pages = max_response_pages(server);
 	struct nfs4_layoutget *lgp;
-	loff_t i_size;
 
 	dprintk("--> %s\n", __func__);
 
@@ -944,16 +957,19 @@ pnfs_alloc_init_layoutget_args(struct pnfs_layout_hdr *lo,
 	lgp->res.layoutp = &lgp->args.layout;
 
 
-	i_size = i_size_read(ino);
 
 	lgp->args.minlength = PAGE_SIZE;
 	if (lgp->args.minlength > range->length)
 		lgp->args.minlength = range->length;
-	if (range->iomode == IOMODE_READ) {
-		if (range->offset >= i_size)
-			lgp->args.minlength = 0;
-		else if (i_size - range->offset < lgp->args.minlength)
-			lgp->args.minlength = i_size - range->offset;
+	if (ino) {
+		loff_t i_size = i_size_read(ino);
+
+		if (range->iomode == IOMODE_READ) {
+			if (range->offset >= i_size)
+				lgp->args.minlength = 0;
+			else if (i_size - range->offset < lgp->args.minlength)
+				lgp->args.minlength = i_size - range->offset;
+		}
 	}
 	lgp->args.maxcount = PNFS_LAYOUT_MAXSIZE;
 	pnfs_copy_range(&lgp->args.range, range);
@@ -962,7 +978,7 @@ pnfs_alloc_init_layoutget_args(struct pnfs_layout_hdr *lo,
 	lgp->args.ctx = get_nfs_open_context(ctx);
 	nfs4_stateid_copy(&lgp->args.stateid, stateid);
 	lgp->gfp_flags = gfp_flags;
-	lgp->cred = lo->plh_lc_cred;
+	lgp->cred = ctx->cred;
 	return lgp;
 }
 
@@ -1838,7 +1854,7 @@ lookup_again:
 	if (arg.length != NFS4_MAX_UINT64)
 		arg.length = PAGE_ALIGN(arg.length);
 
-	lgp = pnfs_alloc_init_layoutget_args(lo, ctx, &stateid, &arg, gfp_flags);
+	lgp = pnfs_alloc_init_layoutget_args(ino, ctx, &stateid, &arg, gfp_flags);
 	if (!lgp) {
 		trace_pnfs_update_layout(ino, pos, count, iomode, lo, NULL,
 					 PNFS_UPDATE_LAYOUT_NOMEM);
