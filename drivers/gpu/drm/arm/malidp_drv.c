@@ -22,7 +22,6 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_of.h>
@@ -286,7 +285,6 @@ static int malidp_bind(struct device *dev)
 	memcpy(hwdev, of_device_get_match_data(dev), sizeof(*hwdev));
 	malidp->dev = hwdev;
 
-	INIT_LIST_HEAD(&malidp->event_list);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	hwdev->regs = devm_ioremap_resource(dev, res);
