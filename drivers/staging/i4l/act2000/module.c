@@ -19,8 +19,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 
-static unsigned short act2000_isa_ports[] =
-{
+static unsigned short act2000_isa_ports[] = {
 	0x0200, 0x0240, 0x0280, 0x02c0, 0x0300, 0x0340, 0x0380,
 	0xcfe0, 0xcfa0, 0xcf60, 0xcf20, 0xcee0, 0xcea0, 0xce60,
 };
