@@ -414,12 +414,6 @@ remote_event_create(REMOTE_EVENT_T *event)
 	sema_init(event->event, 0);
 }
 
-static inline void
-remote_event_destroy(REMOTE_EVENT_T *event)
-{
-	(void)event;
-}
-
 static inline int
 remote_event_wait(REMOTE_EVENT_T *event)
 {
