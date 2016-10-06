@@ -325,15 +325,15 @@ static const struct irq_domain_ops ks_dw_pcie_legacy_irq_domain_ops = {
  * Since modification of dbi_cs2 involves different clock domain, read the
  * status back to ensure the transition is complete.
  */
-static void ks_dw_pcie_set_dbi_mode(void __iomem *reg_virt)
+static void ks_dw_pcie_set_dbi_mode(struct keystone_pcie *ks_pcie)
 {
 	u32 val;
 
-	writel(DBI_CS2_EN_VAL | readl(reg_virt + CMD_STATUS),
-	       reg_virt + CMD_STATUS);
+	writel(DBI_CS2_EN_VAL | readl(ks_pcie->va_app_base + CMD_STATUS),
+	       ks_pcie->va_app_base + CMD_STATUS);
 
 	do {
-		val = readl(reg_virt + CMD_STATUS);
+		val = readl(ks_pcie->va_app_base + CMD_STATUS);
 	} while (!(val & DBI_CS2_EN_VAL));
 }
 
@@ -343,15 +343,15 @@ static void ks_dw_pcie_set_dbi_mode(void __iomem *reg_virt)
  * Since modification of dbi_cs2 involves different clock domain, read the
  * status back to ensure the transition is complete.
  */
-static void ks_dw_pcie_clear_dbi_mode(void __iomem *reg_virt)
+static void ks_dw_pcie_clear_dbi_mode(struct keystone_pcie *ks_pcie)
 {
 	u32 val;
 
-	writel(~DBI_CS2_EN_VAL & readl(reg_virt + CMD_STATUS),
-		     reg_virt + CMD_STATUS);
+	writel(~DBI_CS2_EN_VAL & readl(ks_pcie->va_app_base + CMD_STATUS),
+		     ks_pcie->va_app_base + CMD_STATUS);
 
 	do {
-		val = readl(reg_virt + CMD_STATUS);
+		val = readl(ks_pcie->va_app_base + CMD_STATUS);
 	} while (val & DBI_CS2_EN_VAL);
 }
 
@@ -362,10 +362,10 @@ void ks_dw_pcie_setup_rc_app_regs(struct keystone_pcie *ks_pcie)
 	int i, tr_size;
 
 	/* Disable BARs for inbound access */
-	ks_dw_pcie_set_dbi_mode(ks_pcie->va_app_base);
+	ks_dw_pcie_set_dbi_mode(ks_pcie);
 	dw_pcie_writel_rc(pp, PCI_BASE_ADDRESS_0, 0);
 	dw_pcie_writel_rc(pp, PCI_BASE_ADDRESS_1, 0);
-	ks_dw_pcie_clear_dbi_mode(ks_pcie->va_app_base);
+	ks_dw_pcie_clear_dbi_mode(ks_pcie);
 
 	/* Set outbound translation size per window division */
 	writel(CFG_PCIM_WIN_SZ_IDX & 0x7, ks_pcie->va_app_base + OB_SIZE);
@@ -459,13 +459,13 @@ void ks_dw_pcie_v3_65_scan_bus(struct pcie_port *pp)
 	struct keystone_pcie *ks_pcie = to_keystone_pcie(pp);
 
 	/* Configure and set up BAR0 */
-	ks_dw_pcie_set_dbi_mode(ks_pcie->va_app_base);
+	ks_dw_pcie_set_dbi_mode(ks_pcie);
 
 	/* Enable BAR0 */
 	dw_pcie_writel_rc(pp, PCI_BASE_ADDRESS_0, 1);
 	dw_pcie_writel_rc(pp, PCI_BASE_ADDRESS_0, SZ_4K - 1);
 
-	ks_dw_pcie_clear_dbi_mode(ks_pcie->va_app_base);
+	ks_dw_pcie_clear_dbi_mode(ks_pcie);
 
 	 /*
 	  * For BAR0, just setting bus address for inbound writes (MSI) should
