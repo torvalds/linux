@@ -403,11 +403,14 @@ static void raid1_end_write_request(struct bio *bio)
 	struct bio *to_put = NULL;
 	int mirror = find_bio_disk(r1_bio, bio);
 	struct md_rdev *rdev = conf->mirrors[mirror].rdev;
+	bool discard_error;
+
+	discard_error = bio->bi_error && bio_op(bio) == REQ_OP_DISCARD;
 
 	/*
 	 * 'one mirror IO has finished' event handler:
 	 */
-	if (bio->bi_error) {
+	if (bio->bi_error && !discard_error) {
 		set_bit(WriteErrorSeen,	&rdev->flags);
 		if (!test_and_set_bit(WantReplacement, &rdev->flags))
 			set_bit(MD_RECOVERY_NEEDED, &
@@ -444,7 +447,7 @@ static void raid1_end_write_request(struct bio *bio)
 
 		/* Maybe we can clear some bad blocks. */
 		if (is_badblock(rdev, r1_bio->sector, r1_bio->sectors,
-				&first_bad, &bad_sectors)) {
+				&first_bad, &bad_sectors) && !discard_error) {
 			r1_bio->bios[mirror] = IO_MADE_GOOD;
 			set_bit(R1BIO_MadeGood, &r1_bio->state);
 		}
