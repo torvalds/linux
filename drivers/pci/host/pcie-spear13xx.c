@@ -191,7 +191,7 @@ static int spear13xx_add_pcie_port(struct spear13xx_pcie *spear13xx_pcie,
 				   struct platform_device *pdev)
 {
 	struct pcie_port *pp = &spear13xx_pcie->pp;
-	struct device *dev = &pdev->dev;
+	struct device *dev = pp->dev;
 	int ret;
 
 	pp->irq = platform_get_irq(pdev, 0);
@@ -221,10 +221,10 @@ static int spear13xx_add_pcie_port(struct spear13xx_pcie *spear13xx_pcie,
 
 static int spear13xx_pcie_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct spear13xx_pcie *spear13xx_pcie;
 	struct pcie_port *pp;
-	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np = dev->of_node;
 	struct resource *dbi_base;
 	int ret;
 
@@ -256,7 +256,6 @@ static int spear13xx_pcie_probe(struct platform_device *pdev)
 	}
 
 	pp = &spear13xx_pcie->pp;
-
 	pp->dev = dev;
 
 	dbi_base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
