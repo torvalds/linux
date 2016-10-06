@@ -625,9 +625,9 @@ static void rxrpc_input_ping_response(struct rxrpc_call *call,
 	rxrpc_serial_t ping_serial;
 	ktime_t ping_time;
 
-	ping_time = call->ackr_ping_time;
+	ping_time = call->ping_time;
 	smp_rmb();
-	ping_serial = call->ackr_ping;
+	ping_serial = call->ping_serial;
 
 	if (!test_bit(RXRPC_CALL_PINGING, &call->flags) ||
 	    before(orig_serial, ping_serial))

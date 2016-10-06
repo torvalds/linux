@@ -143,7 +143,7 @@ static void rxrpc_end_rx_phase(struct rxrpc_call *call, rxrpc_serial_t serial)
 	if (call->state == RXRPC_CALL_CLIENT_RECV_REPLY) {
 		rxrpc_propose_ACK(call, RXRPC_ACK_IDLE, 0, serial, true, false,
 				  rxrpc_propose_ack_terminal_ack);
-		rxrpc_send_ack_packet(call);
+		rxrpc_send_ack_packet(call, false);
 	}
 
 	write_lock_bh(&call->state_lock);
@@ -212,7 +212,7 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 					  true, false,
 					  rxrpc_propose_ack_rotate_rx);
 		if (call->ackr_reason)
-			rxrpc_send_ack_packet(call);
+			rxrpc_send_ack_packet(call, false);
 	}
 }
 

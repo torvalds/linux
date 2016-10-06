@@ -54,6 +54,14 @@ void rxrpc_set_timer(struct rxrpc_call *call, enum rxrpc_timer_trace why,
 			t = call->ack_at;
 		}
 
+		if (!ktime_after(call->ping_at, now)) {
+			call->ping_at = call->expire_at;
+			if (!test_and_set_bit(RXRPC_CALL_EV_PING, &call->events))
+				queue = true;
+		} else if (ktime_before(call->ping_at, t)) {
+			t = call->ping_at;
+		}
+
 		t_j = nsecs_to_jiffies(ktime_to_ns(ktime_sub(t, now)));
 		t_j += jiffies;
 
@@ -78,6 +86,27 @@ out:
 }
 
 /*
+ * Propose a PING ACK be sent.
+ */
+static void rxrpc_propose_ping(struct rxrpc_call *call,
+			       bool immediate, bool background)
+{
+	if (immediate) {
+		if (background &&
+		    !test_and_set_bit(RXRPC_CALL_EV_PING, &call->events))
+			rxrpc_queue_call(call);
+	} else {
+		ktime_t now = ktime_get_real();
+		ktime_t ping_at = ktime_add_ms(now, rxrpc_idle_ack_delay);
+
+		if (ktime_before(ping_at, call->ping_at)) {
+			call->ping_at = ping_at;
+			rxrpc_set_timer(call, rxrpc_timer_set_for_ping, now);
+		}
+	}
+}
+
+/*
  * propose an ACK be sent
  */
 static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
@@ -89,6 +118,14 @@ static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 	unsigned int expiry = rxrpc_soft_ack_delay;
 	ktime_t now, ack_at;
 	s8 prior = rxrpc_ack_priority[ack_reason];
+
+	/* Pings are handled specially because we don't want to accidentally
+	 * lose a ping response by subsuming it into a ping.
+	 */
+	if (ack_reason == RXRPC_ACK_PING) {
+		rxrpc_propose_ping(call, immediate, background);
+		goto trace;
+	}
 
 	/* Update DELAY, IDLE, REQUESTED and PING_RESPONSE ACK serial
 	 * numbers, but we don't alter the timeout.
@@ -125,7 +162,6 @@ static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 			expiry = rxrpc_soft_ack_delay;
 		break;
 
-	case RXRPC_ACK_PING:
 	case RXRPC_ACK_IDLE:
 		if (rxrpc_idle_ack_delay < expiry)
 			expiry = rxrpc_idle_ack_delay;
@@ -253,7 +289,7 @@ static void rxrpc_resend(struct rxrpc_call *call, ktime_t now)
 			goto out;
 		rxrpc_propose_ACK(call, RXRPC_ACK_PING, 0, 0, true, false,
 				  rxrpc_propose_ack_ping_for_lost_ack);
-		rxrpc_send_ack_packet(call);
+		rxrpc_send_ack_packet(call, true);
 		goto out;
 	}
 
@@ -345,11 +381,15 @@ recheck_state:
 	}
 
 	if (test_and_clear_bit(RXRPC_CALL_EV_ACK, &call->events)) {
-		call->ack_at = call->expire_at;
 		if (call->ackr_reason) {
-			rxrpc_send_ack_packet(call);
+			rxrpc_send_ack_packet(call, false);
 			goto recheck_state;
 		}
+	}
+
+	if (test_and_clear_bit(RXRPC_CALL_EV_PING, &call->events)) {
+		rxrpc_send_ack_packet(call, true);
+		goto recheck_state;
 	}
 
 	if (test_and_clear_bit(RXRPC_CALL_EV_RESEND, &call->events)) {

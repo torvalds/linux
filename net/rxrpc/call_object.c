@@ -205,6 +205,7 @@ static void rxrpc_start_call_timer(struct rxrpc_call *call)
 	expire_at = ktime_add_ms(now, rxrpc_max_call_lifetime);
 	call->expire_at = expire_at;
 	call->ack_at = expire_at;
+	call->ping_at = expire_at;
 	call->resend_at = expire_at;
 	call->timer.expires = jiffies + LONG_MAX / 2;
 	rxrpc_set_timer(call, rxrpc_timer_begin, now);

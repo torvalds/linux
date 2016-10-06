@@ -38,7 +38,8 @@ struct rxrpc_abort_buffer {
 static size_t rxrpc_fill_out_ack(struct rxrpc_call *call,
 				 struct rxrpc_ack_buffer *pkt,
 				 rxrpc_seq_t *_hard_ack,
-				 rxrpc_seq_t *_top)
+				 rxrpc_seq_t *_top,
+				 u8 reason)
 {
 	rxrpc_serial_t serial;
 	rxrpc_seq_t hard_ack, top, seq;
@@ -58,10 +59,10 @@ static size_t rxrpc_fill_out_ack(struct rxrpc_call *call,
 	pkt->ack.firstPacket	= htonl(hard_ack + 1);
 	pkt->ack.previousPacket	= htonl(call->ackr_prev_seq);
 	pkt->ack.serial		= htonl(serial);
-	pkt->ack.reason		= call->ackr_reason;
+	pkt->ack.reason		= reason;
 	pkt->ack.nAcks		= top - hard_ack;
 
-	if (pkt->ack.reason == RXRPC_ACK_PING)
+	if (reason == RXRPC_ACK_PING)
 		pkt->whdr.flags |= RXRPC_REQUEST_ACK;
 
 	if (after(top, hard_ack)) {
@@ -93,7 +94,7 @@ static size_t rxrpc_fill_out_ack(struct rxrpc_call *call,
 /*
  * Send an ACK call packet.
  */
-int rxrpc_send_ack_packet(struct rxrpc_call *call)
+int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping)
 {
 	struct rxrpc_connection *conn = NULL;
 	struct rxrpc_ack_buffer *pkt;
@@ -102,8 +103,8 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call)
 	rxrpc_serial_t serial;
 	rxrpc_seq_t hard_ack, top;
 	size_t len, n;
-	bool ping = false;
 	int ret;
+	u8 reason;
 
 	spin_lock_bh(&call->lock);
 	if (call->conn)
@@ -136,14 +137,18 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call)
 	pkt->whdr.serviceId	= htons(call->service_id);
 
 	spin_lock_bh(&call->lock);
-	if (!call->ackr_reason) {
-		spin_unlock_bh(&call->lock);
-		ret = 0;
-		goto out;
+	if (ping) {
+		reason = RXRPC_ACK_PING;
+	} else {
+		reason = call->ackr_reason;
+		if (!call->ackr_reason) {
+			spin_unlock_bh(&call->lock);
+			ret = 0;
+			goto out;
+		}
+		call->ackr_reason = 0;
 	}
-	ping = (call->ackr_reason == RXRPC_ACK_PING);
-	n = rxrpc_fill_out_ack(call, pkt, &hard_ack, &top);
-	call->ackr_reason = 0;
+	n = rxrpc_fill_out_ack(call, pkt, &hard_ack, &top, reason);
 
 	spin_unlock_bh(&call->lock);
 
@@ -161,7 +166,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call)
 			   pkt->ack.reason, pkt->ack.nAcks);
 
 	if (ping) {
-		call->ackr_ping = serial;
+		call->ping_serial = serial;
 		smp_wmb();
 		/* We need to stick a time in before we send the packet in case
 		 * the reply gets back before kernel_sendmsg() completes - but
@@ -170,18 +175,19 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call)
 		 * the packet transmission is more likely to happen towards the
 		 * end of the kernel_sendmsg() call.
 		 */
-		call->ackr_ping_time = ktime_get_real();
+		call->ping_time = ktime_get_real();
 		set_bit(RXRPC_CALL_PINGING, &call->flags);
 		trace_rxrpc_rtt_tx(call, rxrpc_rtt_tx_ping, serial);
 	}
 
 	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 2, len);
 	if (ping)
-		call->ackr_ping_time = ktime_get_real();
+		call->ping_time = ktime_get_real();
 
 	if (call->state < RXRPC_CALL_COMPLETE) {
 		if (ret < 0) {
-			clear_bit(RXRPC_CALL_PINGING, &call->flags);
+			if (ping)
+				clear_bit(RXRPC_CALL_PINGING, &call->flags);
 			rxrpc_propose_ACK(call, pkt->ack.reason,
 					  ntohs(pkt->ack.maxSkew),
 					  ntohl(pkt->ack.serial),

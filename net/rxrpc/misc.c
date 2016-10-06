@@ -93,7 +93,6 @@ const s8 rxrpc_ack_priority[] = {
 	[RXRPC_ACK_EXCEEDS_WINDOW]	= 6,
 	[RXRPC_ACK_NOSPACE]		= 7,
 	[RXRPC_ACK_PING_RESPONSE]	= 8,
-	[RXRPC_ACK_PING]		= 9,
 };
 
 const char rxrpc_ack_names[RXRPC_ACK__INVALID + 1][4] = {
@@ -197,6 +196,7 @@ const char rxrpc_timer_traces[rxrpc_timer__nr_trace][8] = {
 	[rxrpc_timer_expired]			= "*EXPR*",
 	[rxrpc_timer_init_for_reply]		= "IniRpl",
 	[rxrpc_timer_set_for_ack]		= "SetAck",
+	[rxrpc_timer_set_for_ping]		= "SetPng",
 	[rxrpc_timer_set_for_send]		= "SetTx ",
 	[rxrpc_timer_set_for_resend]		= "SetRTx",
 };
