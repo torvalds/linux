@@ -14,6 +14,7 @@
 #include <linux/string.h>
 #include <linux/usb.h>
 #include <linux/usb/quirks.h>
+#include <linux/of.h>
 #include "usb.h"
 
 /* Active configuration fields */
@@ -103,6 +104,17 @@ static ssize_t bConfigurationValue_store(struct device *dev,
 }
 static DEVICE_ATTR_IGNORE_LOCKDEP(bConfigurationValue, S_IRUGO | S_IWUSR,
 		bConfigurationValue_show, bConfigurationValue_store);
+
+#ifdef CONFIG_OF
+static ssize_t devspec_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
+{
+	struct device_node *of_node = dev->of_node;
+
+	return sprintf(buf, "%s\n", of_node_full_name(of_node));
+}
+static DEVICE_ATTR_RO(devspec);
+#endif
 
 /* String fields */
 #define usb_string_attr(name)						\
@@ -786,6 +798,9 @@ static struct attribute *dev_attrs[] = {
 	&dev_attr_remove.attr,
 	&dev_attr_removable.attr,
 	&dev_attr_ltm_capable.attr,
+#ifdef CONFIG_OF
+	&dev_attr_devspec.attr,
+#endif
 	NULL,
 };
 static struct attribute_group dev_attr_grp = {
