@@ -45,9 +45,9 @@ struct ls_pcie_drvdata {
 };
 
 struct ls_pcie {
+	struct pcie_port pp;		/* pp.dbi_base is DT regs */
 	void __iomem *lut;
 	struct regmap *scfg;
-	struct pcie_port pp;
 	const struct ls_pcie_drvdata *drvdata;
 	int index;
 };
