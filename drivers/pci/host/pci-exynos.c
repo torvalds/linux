@@ -29,13 +29,13 @@
 #define to_exynos_pcie(x)	container_of(x, struct exynos_pcie, pp)
 
 struct exynos_pcie {
-	void __iomem		*elbi_base;
-	void __iomem		*phy_base;
-	void __iomem		*block_base;
+	struct pcie_port	pp;
+	void __iomem		*elbi_base;	/* DT 0th resource */
+	void __iomem		*phy_base;	/* DT 1st resource */
+	void __iomem		*block_base;	/* DT 2nd resource */
 	int			reset_gpio;
 	struct clk		*clk;
 	struct clk		*bus_clk;
-	struct pcie_port	pp;
 };
 
 /* PCIe ELBI registers */
