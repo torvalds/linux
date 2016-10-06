@@ -22,8 +22,13 @@
  */
 
 #include <linux/kvm_host.h>
-#include <asm/esr.h>
 #include <asm/kvm_emulate.h>
+#include <asm/kvm_hyp.h>
+
+#ifndef CONFIG_ARM64
+#define COMPAT_PSR_T_BIT	PSR_T_BIT
+#define COMPAT_PSR_IT_MASK	PSR_IT_MASK
+#endif
 
 /*
  * stolen from arch/arm/kernel/opcodes.c
@@ -51,16 +56,6 @@ static const unsigned short cc_map[16] = {
 	0xFFFF,			/* AL always              */
 	0			/* NV                     */
 };
-
-static int kvm_vcpu_get_condition(const struct kvm_vcpu *vcpu)
-{
-	u32 esr = kvm_vcpu_get_hsr(vcpu);
-
-	if (esr & ESR_ELx_CV)
-		return (esr & ESR_ELx_COND_MASK) >> ESR_ELx_COND_SHIFT;
-
-	return -1;
-}
 
 /*
  * Check if a trapped instruction should have been executed or not.
@@ -114,15 +109,13 @@ bool kvm_condition_valid32(const struct kvm_vcpu *vcpu)
  *
  * IT[7:0] -> CPSR[26:25],CPSR[15:10]
  */
-static void kvm_adjust_itstate(struct kvm_vcpu *vcpu)
+static void __hyp_text kvm_adjust_itstate(struct kvm_vcpu *vcpu)
 {
 	unsigned long itbits, cond;
 	unsigned long cpsr = *vcpu_cpsr(vcpu);
 	bool is_arm = !(cpsr & COMPAT_PSR_T_BIT);
 
-	BUG_ON(is_arm && (cpsr & COMPAT_PSR_IT_MASK));
-
-	if (!(cpsr & COMPAT_PSR_IT_MASK))
+	if (is_arm || !(cpsr & COMPAT_PSR_IT_MASK))
 		return;
 
 	cond = (cpsr & 0xe000) >> 13;
@@ -146,7 +139,7 @@ static void kvm_adjust_itstate(struct kvm_vcpu *vcpu)
  * kvm_skip_instr - skip a trapped instruction and proceed to the next
  * @vcpu: The vcpu pointer
  */
-void kvm_skip_instr32(struct kvm_vcpu *vcpu, bool is_wide_instr)
+void __hyp_text kvm_skip_instr32(struct kvm_vcpu *vcpu, bool is_wide_instr)
 {
 	bool is_thumb;
 

@@ -38,6 +38,7 @@ extern int amd_iommu_enable(void);
 extern void amd_iommu_disable(void);
 extern int amd_iommu_reenable(int);
 extern int amd_iommu_enable_faulting(void);
+extern int amd_iommu_guest_ir;
 
 /* IOMMUv2 specific functions */
 struct iommu_domain;
