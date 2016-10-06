@@ -147,7 +147,7 @@ static void __attribute__((__flatten__)) run_guest(void)
 		assert(completed <= bufs);
 		assert(started <= bufs);
 		if (do_sleep) {
-			if (enable_call())
+			if (used_empty() && enable_call())
 				wait_for_call();
 		} else {
 			poll_used();
@@ -172,7 +172,7 @@ static void __attribute__((__flatten__)) run_host(void)
 
 	for (;;) {
 		if (do_sleep) {
-			if (enable_kick())
+			if (avail_empty() && enable_kick())
 				wait_for_kick();
 		} else {
 			poll_avail();
