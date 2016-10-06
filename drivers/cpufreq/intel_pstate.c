@@ -1232,6 +1232,7 @@ static inline int32_t get_target_pstate_use_cpu_load(struct cpudata *cpu)
 {
 	struct sample *sample = &cpu->sample;
 	int32_t busy_frac, boost;
+	int target, avg_pstate;
 
 	busy_frac = div_fp(sample->mperf, sample->tsc);
 
@@ -1242,7 +1243,26 @@ static inline int32_t get_target_pstate_use_cpu_load(struct cpudata *cpu)
 		busy_frac = boost;
 
 	sample->busy_scaled = busy_frac * 100;
-	return get_avg_pstate(cpu) - pid_calc(&cpu->pid, sample->busy_scaled);
+
+	target = limits->no_turbo || limits->turbo_disabled ?
+			cpu->pstate.max_pstate : cpu->pstate.turbo_pstate;
+	target += target >> 2;
+	target = mul_fp(target, busy_frac);
+	if (target < cpu->pstate.min_pstate)
+		target = cpu->pstate.min_pstate;
+
+	/*
+	 * If the average P-state during the previous cycle was higher than the
+	 * current target, add 50% of the difference to the target to reduce
+	 * possible performance oscillations and offset possible performance
+	 * loss related to moving the workload from one CPU to another within
+	 * a package/module.
+	 */
+	avg_pstate = get_avg_pstate(cpu);
+	if (avg_pstate > target)
+		target += (avg_pstate - target) >> 1;
+
+	return target;
 }
 
 static inline int32_t get_target_pstate_use_performance(struct cpudata *cpu)
