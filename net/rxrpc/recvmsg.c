@@ -652,7 +652,7 @@ excess_data:
 	goto out;
 call_complete:
 	*_abort = call->abort_code;
-	ret = call->error;
+	ret = -call->error;
 	if (call->completion == RXRPC_CALL_SUCCEEDED) {
 		ret = 1;
 		if (size > 0)
