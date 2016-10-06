@@ -29,34 +29,33 @@
 #include "pcie-designware.h"
 
 struct armada8k_pcie {
-	void __iomem *base;
 	struct clk *clk;
 	struct pcie_port pp;
 };
 
 #define PCIE_VENDOR_REGS_OFFSET		0x8000
 
-#define PCIE_GLOBAL_CONTROL_REG		0x0
+#define PCIE_GLOBAL_CONTROL_REG		(PCIE_VENDOR_REGS_OFFSET + 0x0)
 #define PCIE_APP_LTSSM_EN		BIT(2)
 #define PCIE_DEVICE_TYPE_SHIFT		4
 #define PCIE_DEVICE_TYPE_MASK		0xF
 #define PCIE_DEVICE_TYPE_RC		0x4 /* Root complex */
 
-#define PCIE_GLOBAL_STATUS_REG		0x8
+#define PCIE_GLOBAL_STATUS_REG		(PCIE_VENDOR_REGS_OFFSET + 0x8)
 #define PCIE_GLB_STS_RDLH_LINK_UP	BIT(1)
 #define PCIE_GLB_STS_PHY_LINK_UP	BIT(9)
 
-#define PCIE_GLOBAL_INT_CAUSE1_REG	0x1C
-#define PCIE_GLOBAL_INT_MASK1_REG	0x20
+#define PCIE_GLOBAL_INT_CAUSE1_REG	(PCIE_VENDOR_REGS_OFFSET + 0x1C)
+#define PCIE_GLOBAL_INT_MASK1_REG	(PCIE_VENDOR_REGS_OFFSET + 0x20)
 #define PCIE_INT_A_ASSERT_MASK		BIT(9)
 #define PCIE_INT_B_ASSERT_MASK		BIT(10)
 #define PCIE_INT_C_ASSERT_MASK		BIT(11)
 #define PCIE_INT_D_ASSERT_MASK		BIT(12)
 
-#define PCIE_ARCACHE_TRC_REG		0x50
-#define PCIE_AWCACHE_TRC_REG		0x54
-#define PCIE_ARUSER_REG			0x5C
-#define PCIE_AWUSER_REG			0x60
+#define PCIE_ARCACHE_TRC_REG		(PCIE_VENDOR_REGS_OFFSET + 0x50)
+#define PCIE_AWCACHE_TRC_REG		(PCIE_VENDOR_REGS_OFFSET + 0x54)
+#define PCIE_ARUSER_REG			(PCIE_VENDOR_REGS_OFFSET + 0x5C)
+#define PCIE_AWUSER_REG			(PCIE_VENDOR_REGS_OFFSET + 0x60)
 /*
  * AR/AW Cache defauls: Normal memory, Write-Back, Read / Write
  * allocate
@@ -73,7 +72,7 @@ struct armada8k_pcie {
 static int armada8k_pcie_link_up(struct pcie_port *pp)
 {
 	struct armada8k_pcie *pcie = to_armada8k_pcie(pp);
-	void __iomem *base = pcie->base;
+	void __iomem *base = pcie->pp.dbi_base;
 	u32 reg;
 	u32 mask = PCIE_GLB_STS_RDLH_LINK_UP | PCIE_GLB_STS_PHY_LINK_UP;
 
@@ -89,7 +88,7 @@ static int armada8k_pcie_link_up(struct pcie_port *pp)
 static void armada8k_pcie_establish_link(struct pcie_port *pp)
 {
 	struct armada8k_pcie *pcie = to_armada8k_pcie(pp);
-	void __iomem *base = pcie->base;
+	void __iomem *base = pcie->pp.dbi_base;
 	u32 reg;
 
 	if (!dw_pcie_link_up(pp)) {
@@ -148,7 +147,7 @@ static irqreturn_t armada8k_pcie_irq_handler(int irq, void *arg)
 {
 	struct pcie_port *pp = arg;
 	struct armada8k_pcie *pcie = to_armada8k_pcie(pp);
-	void __iomem *base = pcie->base;
+	void __iomem *base = pcie->pp.dbi_base;
 	u32 val;
 
 	/*
@@ -227,8 +226,6 @@ static int armada8k_pcie_probe(struct platform_device *pdev)
 		ret = PTR_ERR(pp->dbi_base);
 		goto fail;
 	}
-
-	pcie->base = pp->dbi_base + PCIE_VENDOR_REGS_OFFSET;
 
 	ret = armada8k_add_pcie_port(pp, pdev);
 	if (ret)
