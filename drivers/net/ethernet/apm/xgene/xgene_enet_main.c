@@ -1381,9 +1381,13 @@ static void xgene_enet_gpiod_get(struct xgene_enet_pdata *pdata)
 {
 	struct device *dev = &pdata->pdev->dev;
 
-	if (pdata->phy_mode != PHY_INTERFACE_MODE_XGMII)
+	pdata->sfp_gpio_en = false;
+	if (pdata->phy_mode != PHY_INTERFACE_MODE_XGMII ||
+	    (!device_property_present(dev, "sfp-gpios") &&
+	     !device_property_present(dev, "rxlos-gpios")))
 		return;
 
+	pdata->sfp_gpio_en = true;
 	pdata->sfp_rdy = gpiod_get(dev, "rxlos", GPIOD_IN);
 	if (IS_ERR(pdata->sfp_rdy))
 		pdata->sfp_rdy = gpiod_get(dev, "sfp", GPIOD_IN);
