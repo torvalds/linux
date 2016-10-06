@@ -114,6 +114,50 @@
  *     -----------------
  */
 
+/**
+ * struct bxt_ddi_phy_info - Hold info for a broxton DDI phy
+ */
+struct bxt_ddi_phy_info {
+	/**
+	 * @dual_channel: true if this phy has a second channel.
+	 */
+	bool dual_channel;
+
+	/**
+	 * @channel: struct containing per channel information.
+	 */
+	struct {
+		/**
+		 * @port: which port maps to this channel.
+		 */
+		enum port port;
+	} channel[2];
+};
+
+static const struct bxt_ddi_phy_info bxt_ddi_phy_info[] = {
+	[DPIO_PHY0] = {
+		.dual_channel = true,
+
+		.channel = {
+			[DPIO_CH0] = { .port = PORT_B },
+			[DPIO_CH1] = { .port = PORT_C },
+		}
+	},
+	[DPIO_PHY1] = {
+		.dual_channel = false,
+
+		.channel = {
+			[DPIO_CH0] = { .port = PORT_A },
+		}
+	},
+};
+
+static u32 bxt_phy_port_mask(const struct bxt_ddi_phy_info *phy_info)
+{
+	return (phy_info->dual_channel * BIT(phy_info->channel[DPIO_CH1].port)) |
+		BIT(phy_info->channel[DPIO_CH0].port);
+}
+
 void bxt_ddi_phy_set_signal_level(struct drm_i915_private *dev_priv,
 				  enum port port, u32 margin, u32 scale,
 				  u32 enable, u32 deemphasis)
@@ -156,6 +200,7 @@ void bxt_ddi_phy_set_signal_level(struct drm_i915_private *dev_priv,
 bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,
 			    enum dpio_phy phy)
 {
+	const struct bxt_ddi_phy_info *phy_info = &bxt_ddi_phy_info[phy];
 	enum port port;
 
 	if (!(I915_READ(BXT_P_CR_GT_DISP_PWRON) & GT_DISPLAY_POWER_ON(phy)))
@@ -183,9 +228,7 @@ bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,
 		return false;
 	}
 
-	for_each_port_masked(port,
-			     phy == DPIO_PHY0 ? BIT(PORT_B) | BIT(PORT_C) :
-						BIT(PORT_A)) {
+	for_each_port_masked(port, bxt_phy_port_mask(phy_info)) {
 		u32 tmp = I915_READ(BXT_PHY_CTL(port));
 
 		if (tmp & BXT_PHY_CMNLANE_POWERDOWN_ACK) {
@@ -220,6 +263,7 @@ static void bxt_phy_wait_grc_done(struct drm_i915_private *dev_priv,
 
 void bxt_ddi_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 {
+	const struct bxt_ddi_phy_info *phy_info = &bxt_ddi_phy_info[phy];
 	u32 val;
 
 	if (bxt_ddi_phy_is_enabled(dev_priv, phy)) {
@@ -272,10 +316,10 @@ void bxt_ddi_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 		SUS_CLK_CONFIG;
 	I915_WRITE(BXT_PORT_CL1CM_DW28(phy), val);
 
-	if (phy == DPIO_PHY0) {
-		val = I915_READ(BXT_PORT_CL2CM_DW6_BC);
+	if (phy_info->dual_channel) {
+		val = I915_READ(BXT_PORT_CL2CM_DW6(phy));
 		val |= DW6_OLDO_DYN_PWR_DOWN_EN;
-		I915_WRITE(BXT_PORT_CL2CM_DW6_BC, val);
+		I915_WRITE(BXT_PORT_CL2CM_DW6(phy), val);
 	}
 
 	val = I915_READ(BXT_PORT_CL1CM_DW30(phy));
@@ -290,7 +334,7 @@ void bxt_ddi_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 	 * FIXME: Clarify programming of the following, the register is
 	 * read-only with bit 6 fixed at 0 at least in stepping A.
 	 */
-	if (phy == DPIO_PHY1)
+	if (!phy_info->dual_channel)
 		val |= OCL2_LDOFUSE_PWR_DIS;
 	I915_WRITE(BXT_PORT_CL1CM_DW30(phy), val);
 
@@ -363,6 +407,7 @@ __phy_reg_verify_state(struct drm_i915_private *dev_priv, enum dpio_phy phy,
 bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
 			      enum dpio_phy phy)
 {
+	const struct bxt_ddi_phy_info *phy_info = &bxt_ddi_phy_info[phy];
 	uint32_t mask;
 	bool ok;
 
@@ -388,10 +433,10 @@ bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
 	ok &= _CHK(BXT_PORT_CL1CM_DW28(phy), mask, mask,
 		    "BXT_PORT_CL1CM_DW28(%d)", phy);
 
-	if (phy == DPIO_PHY0)
-		ok &= _CHK(BXT_PORT_CL2CM_DW6_BC,
+	if (phy_info->dual_channel)
+		ok &= _CHK(BXT_PORT_CL2CM_DW6(phy),
 			   DW6_OLDO_DYN_PWR_DOWN_EN, DW6_OLDO_DYN_PWR_DOWN_EN,
-			   "BXT_PORT_CL2CM_DW6_BC");
+			   "BXT_PORT_CL2CM_DW6(%d)", phy);
 
 	/*
 	 * TODO: Verify BXT_PORT_CL1CM_DW30 bit OCL2_LDOFUSE_PWR_DIS,

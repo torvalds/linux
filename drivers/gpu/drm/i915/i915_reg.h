@@ -1307,8 +1307,13 @@ enum skl_disp_power_wells {
 #define BXT_PORT_CL1CM_DW30(phy)	_BXT_PHY((phy), _PORT_CL1CM_DW30_BC, \
 							_PORT_CL1CM_DW30_A)
 
-/* Defined for PHY0 only */
-#define BXT_PORT_CL2CM_DW6_BC		_MMIO(0x6C358)
+/* The spec defines this only for BXT PHY0, but lets assume that this
+ * would exist for PHY1 too if it had a second channel.
+ */
+#define _PORT_CL2CM_DW6_A		0x162358
+#define _PORT_CL2CM_DW6_BC		0x6C358
+#define BXT_PORT_CL2CM_DW6(phy)		_BXT_PHY((phy), _PORT_CL2CM_DW6_BC, \
+							_PORT_CL2CM_DW6_A)
 #define   DW6_OLDO_DYN_PWR_DOWN_EN	(1 << 28)
 
 /* BXT PHY Ref registers */
