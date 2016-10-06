@@ -1068,7 +1068,8 @@ extern const s8 rxrpc_ack_priority[];
 /*
  * output.c
  */
-int rxrpc_send_call_packet(struct rxrpc_call *, u8);
+int rxrpc_send_ack_packet(struct rxrpc_call *);
+int rxrpc_send_abort_packet(struct rxrpc_call *);
 int rxrpc_send_data_packet(struct rxrpc_call *, struct sk_buff *, bool);
 void rxrpc_reject_packets(struct rxrpc_local *);
 

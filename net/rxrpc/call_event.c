@@ -253,7 +253,7 @@ static void rxrpc_resend(struct rxrpc_call *call, ktime_t now)
 			goto out;
 		rxrpc_propose_ACK(call, RXRPC_ACK_PING, 0, 0, true, false,
 				  rxrpc_propose_ack_ping_for_lost_ack);
-		rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ACK);
+		rxrpc_send_ack_packet(call);
 		goto out;
 	}
 
@@ -328,7 +328,7 @@ void rxrpc_process_call(struct work_struct *work)
 
 recheck_state:
 	if (test_and_clear_bit(RXRPC_CALL_EV_ABORT, &call->events)) {
-		rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ABORT);
+		rxrpc_send_abort_packet(call);
 		goto recheck_state;
 	}
 
@@ -347,7 +347,7 @@ recheck_state:
 	if (test_and_clear_bit(RXRPC_CALL_EV_ACK, &call->events)) {
 		call->ack_at = call->expire_at;
 		if (call->ackr_reason) {
-			rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ACK);
+			rxrpc_send_ack_packet(call);
 			goto recheck_state;
 		}
 	}
