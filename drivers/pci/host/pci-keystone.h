@@ -17,8 +17,8 @@
 #define MAX_LEGACY_HOST_IRQS		4
 
 struct keystone_pcie {
+	struct	pcie_port	pp;		/* pp.dbi_base is DT 0th res */
 	struct	clk		*clk;
-	struct	pcie_port	pp;
 	/* PCI Device ID */
 	u32			device_id;
 	int			num_legacy_host_irqs;
@@ -34,7 +34,7 @@ struct keystone_pcie {
 	int error_irq;
 
 	/* Application register space */
-	void __iomem		*va_app_base;
+	void __iomem		*va_app_base;	/* DT 1st resource */
 	struct resource		app;
 };
 
