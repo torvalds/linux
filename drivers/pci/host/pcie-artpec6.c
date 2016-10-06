@@ -177,23 +177,7 @@ static void artpec6_pcie_host_init(struct pcie_port *pp)
 	artpec6_pcie_enable_interrupts(pp);
 }
 
-static int artpec6_pcie_link_up(struct pcie_port *pp)
-{
-	u32 rc;
-
-	/*
-	 * Get status from Synopsys IP
-	 * link is debug bit 36, debug register 1 starts at bit 32
-	 */
-	rc = readl(pp->dbi_base + PCIE_PHY_DEBUG_R1) & (0x1 << (36 - 32));
-	if (rc)
-		return 1;
-
-	return 0;
-}
-
 static struct pcie_host_ops artpec6_pcie_host_ops = {
-	.link_up = artpec6_pcie_link_up,
 	.host_init = artpec6_pcie_host_init,
 };
 
