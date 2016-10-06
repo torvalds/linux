@@ -564,19 +564,8 @@ int hidma_ll_disable(struct hidma_lldev *lldev)
 	u32 val;
 	int ret;
 
-	val = readl(lldev->evca + HIDMA_EVCA_CTRLSTS_REG);
-	lldev->evch_state = HIDMA_CH_STATE(val);
-	val = readl(lldev->trca + HIDMA_TRCA_CTRLSTS_REG);
-	lldev->trch_state = HIDMA_CH_STATE(val);
-
-	/* already suspended by this OS */
-	if ((lldev->trch_state == HIDMA_CH_SUSPENDED) ||
-	    (lldev->evch_state == HIDMA_CH_SUSPENDED))
-		return 0;
-
-	/* already stopped by the manager */
-	if ((lldev->trch_state == HIDMA_CH_STOPPED) ||
-	    (lldev->evch_state == HIDMA_CH_STOPPED))
+	/* The channel needs to be in working state */
+	if (!hidma_ll_isenabled(lldev))
 		return 0;
 
 	val = readl(lldev->trca + HIDMA_TRCA_CTRLSTS_REG);
