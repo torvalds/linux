@@ -45,9 +45,8 @@ phys_addr_t ks_dw_pcie_get_msi_addr(struct pcie_port *pp);
 /* Keystone specific PCI controller APIs */
 void ks_dw_pcie_enable_legacy_irqs(struct keystone_pcie *ks_pcie);
 void ks_dw_pcie_handle_legacy_irq(struct keystone_pcie *ks_pcie, int offset);
-void ks_dw_pcie_enable_error_irq(void __iomem *reg_base);
-irqreturn_t ks_dw_pcie_handle_error_irq(struct device *dev,
-					void __iomem *reg_base);
+void ks_dw_pcie_enable_error_irq(struct keystone_pcie *ks_pcie);
+irqreturn_t ks_dw_pcie_handle_error_irq(struct keystone_pcie *ks_pcie);
 int  ks_dw_pcie_host_init(struct keystone_pcie *ks_pcie,
 			struct device_node *msi_intc_np);
 int ks_dw_pcie_wr_other_conf(struct pcie_port *pp, struct pci_bus *bus,

@@ -237,7 +237,7 @@ static void ks_pcie_setup_interrupts(struct keystone_pcie *ks_pcie)
 	}
 
 	if (ks_pcie->error_irq > 0)
-		ks_dw_pcie_enable_error_irq(ks_pcie->va_app_base);
+		ks_dw_pcie_enable_error_irq(ks_pcie);
 }
 
 /*
@@ -305,8 +305,7 @@ static irqreturn_t pcie_err_irq_handler(int irq, void *priv)
 {
 	struct keystone_pcie *ks_pcie = priv;
 
-	return ks_dw_pcie_handle_error_irq(ks_pcie->pp.dev,
-					   ks_pcie->va_app_base);
+	return ks_dw_pcie_handle_error_irq(ks_pcie);
 }
 
 static int __init ks_add_pcie_port(struct keystone_pcie *ks_pcie,

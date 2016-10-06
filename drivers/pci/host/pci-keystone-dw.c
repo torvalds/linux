@@ -261,25 +261,26 @@ void ks_dw_pcie_handle_legacy_irq(struct keystone_pcie *ks_pcie, int offset)
 	writel(offset, ks_pcie->va_app_base + IRQ_EOI);
 }
 
-void ks_dw_pcie_enable_error_irq(void __iomem *reg_base)
+void ks_dw_pcie_enable_error_irq(struct keystone_pcie *ks_pcie)
 {
-	writel(ERR_IRQ_ALL, reg_base + ERR_IRQ_ENABLE_SET);
+	writel(ERR_IRQ_ALL, ks_pcie->va_app_base + ERR_IRQ_ENABLE_SET);
 }
 
-irqreturn_t ks_dw_pcie_handle_error_irq(struct device *dev,
-					void __iomem *reg_base)
+irqreturn_t ks_dw_pcie_handle_error_irq(struct keystone_pcie *ks_pcie)
 {
 	u32 status;
 
-	status = readl(reg_base + ERR_IRQ_STATUS_RAW) & ERR_IRQ_ALL;
+	status = readl(ks_pcie->va_app_base + ERR_IRQ_STATUS_RAW) &
+			    ERR_IRQ_ALL;
 	if (!status)
 		return IRQ_NONE;
 
 	if (status & ERR_FATAL_IRQ)
-		dev_err(dev, "fatal error (status %#010x)\n", status);
+		dev_err(ks_pcie->pp.dev, "fatal error (status %#010x)\n",
+			status);
 
 	/* Ack the IRQ; status bits are RW1C */
-	writel(status, reg_base + ERR_IRQ_STATUS);
+	writel(status, ks_pcie->va_app_base + ERR_IRQ_STATUS);
 	return IRQ_HANDLED;
 }
 
