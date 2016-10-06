@@ -31,8 +31,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
-#define DRV_NAME "rcar-pcie"
-
 #define PCIECAR			0x000010
 #define PCIECCTLR		0x000018
 #define  CONFIG_SEND_ENABLE	(1 << 31)
@@ -1199,7 +1197,7 @@ err_pm_disable:
 
 static struct platform_driver rcar_pcie_driver = {
 	.driver = {
-		.name = DRV_NAME,
+		.name = "rcar-pcie",
 		.of_match_table = rcar_pcie_of_match,
 		.suppress_bind_attrs = true,
 	},
