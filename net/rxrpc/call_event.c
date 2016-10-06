@@ -24,14 +24,12 @@
 /*
  * Set the timer
  */
-void rxrpc_set_timer(struct rxrpc_call *call, enum rxrpc_timer_trace why,
-		     ktime_t now)
+void __rxrpc_set_timer(struct rxrpc_call *call, enum rxrpc_timer_trace why,
+		       ktime_t now)
 {
 	unsigned long t_j, now_j = jiffies;
 	ktime_t t;
 	bool queue = false;
-
-	read_lock_bh(&call->state_lock);
 
 	if (call->state < RXRPC_CALL_COMPLETE) {
 		t = call->expire_at;
@@ -84,6 +82,16 @@ void rxrpc_set_timer(struct rxrpc_call *call, enum rxrpc_timer_trace why,
 out:
 	if (queue)
 		rxrpc_queue_call(call);
+}
+
+/*
+ * Set the timer
+ */
+void rxrpc_set_timer(struct rxrpc_call *call, enum rxrpc_timer_trace why,
+		     ktime_t now)
+{
+	read_lock_bh(&call->state_lock);
+	__rxrpc_set_timer(call, why, now);
 	read_unlock_bh(&call->state_lock);
 }
 

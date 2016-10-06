@@ -130,6 +130,11 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 			break;
 		case RXRPC_CALL_SERVER_ACK_REQUEST:
 			call->state = RXRPC_CALL_SERVER_SEND_REPLY;
+			call->ack_at = call->expire_at;
+			if (call->ackr_reason == RXRPC_ACK_DELAY)
+				call->ackr_reason = 0;
+			__rxrpc_set_timer(call, rxrpc_timer_init_for_send_reply,
+					  ktime_get_real());
 			if (!last)
 				break;
 		case RXRPC_CALL_SERVER_SEND_REPLY:

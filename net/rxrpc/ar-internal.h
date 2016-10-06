@@ -733,6 +733,7 @@ extern const char rxrpc_rtt_rx_traces[rxrpc_rtt_rx__nr_trace][5];
 enum rxrpc_timer_trace {
 	rxrpc_timer_begin,
 	rxrpc_timer_init_for_reply,
+	rxrpc_timer_init_for_send_reply,
 	rxrpc_timer_expired,
 	rxrpc_timer_set_for_ack,
 	rxrpc_timer_set_for_ping,
@@ -749,6 +750,7 @@ enum rxrpc_propose_ack_trace {
 	rxrpc_propose_ack_ping_for_lost_ack,
 	rxrpc_propose_ack_ping_for_lost_reply,
 	rxrpc_propose_ack_ping_for_params,
+	rxrpc_propose_ack_processing_op,
 	rxrpc_propose_ack_respond_to_ack,
 	rxrpc_propose_ack_respond_to_ping,
 	rxrpc_propose_ack_retry_tx,
@@ -811,6 +813,7 @@ int rxrpc_reject_call(struct rxrpc_sock *);
 /*
  * call_event.c
  */
+void __rxrpc_set_timer(struct rxrpc_call *, enum rxrpc_timer_trace, ktime_t);
 void rxrpc_set_timer(struct rxrpc_call *, enum rxrpc_timer_trace, ktime_t);
 void rxrpc_propose_ACK(struct rxrpc_call *, u8, u16, u32, bool, bool,
 		       enum rxrpc_propose_ack_trace);
