@@ -2190,9 +2190,9 @@ bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
 
 static uint8_t
 bxt_ddi_phy_calc_lane_lat_optim_mask(struct intel_encoder *encoder,
-				     struct intel_crtc_state *pipe_config)
+				     uint8_t lane_count)
 {
-	switch (pipe_config->lane_count) {
+	switch (lane_count) {
 	case 1:
 		return 0;
 	case 2:
@@ -2200,7 +2200,7 @@ bxt_ddi_phy_calc_lane_lat_optim_mask(struct intel_encoder *encoder,
 	case 4:
 		return BIT(3) | BIT(2) | BIT(0);
 	default:
-		MISSING_CASE(pipe_config->lane_count);
+		MISSING_CASE(lane_count);
 
 		return 0;
 	}
@@ -2417,7 +2417,7 @@ static bool intel_ddi_compute_config(struct intel_encoder *encoder,
 	if (IS_BROXTON(dev_priv) && ret)
 		pipe_config->lane_lat_optim_mask =
 			bxt_ddi_phy_calc_lane_lat_optim_mask(encoder,
-							     pipe_config);
+							     pipe_config->lane_count);
 
 	return ret;
 
