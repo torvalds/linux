@@ -357,8 +357,7 @@ struct nfs42_layoutstat_devinfo {
 	__u64 write_count;
 	__u64 write_bytes;
 	__u32 layout_type;
-	layoutstats_encode_t layoutstats_encode;
-	void *layout_private;
+	struct nfs4_xdr_opaque_data ld_private;
 };
 
 struct nfs42_layoutstat_args {

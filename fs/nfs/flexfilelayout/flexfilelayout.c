@@ -1988,7 +1988,7 @@ static int ff_layout_encode_ioerr(struct nfs4_flexfile_layout *flo,
 }
 
 /* report nothing for now */
-static void ff_layout_encode_iostats(struct nfs4_flexfile_layout *flo,
+static void ff_layout_encode_iostats_array(struct nfs4_flexfile_layout *flo,
 				     struct xdr_stream *xdr,
 				     const struct nfs4_layoutreturn_args *args)
 {
@@ -2026,7 +2026,7 @@ ff_layout_encode_layoutreturn(struct xdr_stream *xdr,
 	BUG_ON(!start);
 
 	ff_layout_encode_ioerr(flo, xdr, args, ff_opaque->data);
-	ff_layout_encode_iostats(flo, xdr, args);
+	ff_layout_encode_iostats_array(flo, xdr, args);
 
 	*start = cpu_to_be32((xdr->p - start - 1) * 4);
 	dprintk("%s: Return\n", __func__);
@@ -2191,21 +2191,18 @@ ff_layout_encode_io_latency(struct xdr_stream *xdr,
 }
 
 static void
-ff_layout_encode_layoutstats(struct xdr_stream *xdr,
-			     struct nfs42_layoutstat_args *args,
-			     struct nfs42_layoutstat_devinfo *devinfo)
+ff_layout_encode_ff_layoutupdate(struct xdr_stream *xdr,
+			      const struct nfs42_layoutstat_devinfo *devinfo,
+			      struct nfs4_ff_layout_mirror *mirror)
 {
-	struct nfs4_ff_layout_mirror *mirror = devinfo->layout_private;
 	struct nfs4_pnfs_ds_addr *da;
 	struct nfs4_pnfs_ds *ds = mirror->mirror_ds->ds;
 	struct nfs_fh *fh = &mirror->fh_versions[0];
-	__be32 *p, *start;
+	__be32 *p;
 
 	da = list_first_entry(&ds->ds_addrs, struct nfs4_pnfs_ds_addr, da_node);
 	dprintk("%s: DS %s: encoding address %s\n",
 		__func__, ds->ds_remotestr, da->da_remotestr);
-	/* layoutupdate length */
-	start = xdr_reserve_space(xdr, 4);
 	/* netaddr4 */
 	ff_layout_encode_netaddr(xdr, da);
 	/* nfs_fh4 */
@@ -2222,9 +2219,35 @@ ff_layout_encode_layoutstats(struct xdr_stream *xdr,
 	/* bool */
 	p = xdr_reserve_space(xdr, 4);
 	*p = cpu_to_be32(false);
+}
+
+static void
+ff_layout_encode_layoutstats(struct xdr_stream *xdr, const void *args,
+			     const struct nfs4_xdr_opaque_data *opaque)
+{
+	struct nfs42_layoutstat_devinfo *devinfo = container_of(opaque,
+			struct nfs42_layoutstat_devinfo, ld_private);
+	__be32 *start;
+
+	/* layoutupdate length */
+	start = xdr_reserve_space(xdr, 4);
+	ff_layout_encode_ff_layoutupdate(xdr, devinfo, opaque->data);
 
 	*start = cpu_to_be32((xdr->p - start - 1) * 4);
 }
+
+static void
+ff_layout_free_layoutstats(struct nfs4_xdr_opaque_data *opaque)
+{
+	struct nfs4_ff_layout_mirror *mirror = opaque->data;
+
+	ff_layout_put_mirror(mirror);
+}
+
+static const struct nfs4_xdr_opaque_ops layoutstat_ops = {
+	.encode = ff_layout_encode_layoutstats,
+	.free	= ff_layout_free_layoutstats,
+};
 
 static int
 ff_layout_mirror_prepare_stats(struct pnfs_layout_hdr *lo,
@@ -2257,8 +2280,8 @@ ff_layout_mirror_prepare_stats(struct pnfs_layout_hdr *lo,
 		devinfo->write_bytes = mirror->write_stat.io_stat.bytes_completed;
 		spin_unlock(&mirror->lock);
 		devinfo->layout_type = LAYOUT_FLEX_FILES;
-		devinfo->layoutstats_encode = ff_layout_encode_layoutstats;
-		devinfo->layout_private = mirror;
+		devinfo->ld_private.ops = &layoutstat_ops;
+		devinfo->ld_private.data = mirror;
 
 		devinfo++;
 		i++;
@@ -2291,19 +2314,6 @@ ff_layout_prepare_layoutstats(struct nfs42_layoutstat_args *args)
 	return 0;
 }
 
-static void
-ff_layout_cleanup_layoutstats(struct nfs42_layoutstat_data *data)
-{
-	struct nfs4_ff_layout_mirror *mirror;
-	int i;
-
-	for (i = 0; i < data->args.num_dev; i++) {
-		mirror = data->args.devinfo[i].layout_private;
-		data->args.devinfo[i].layout_private = NULL;
-		ff_layout_put_mirror(mirror);
-	}
-}
-
 static struct pnfs_layoutdriver_type flexfilelayout_type = {
 	.id			= LAYOUT_FLEX_FILES,
 	.name			= "LAYOUT_FLEX_FILES",
@@ -2328,7 +2338,6 @@ static struct pnfs_layoutdriver_type flexfilelayout_type = {
 	.prepare_layoutreturn   = ff_layout_prepare_layoutreturn,
 	.sync			= pnfs_nfs_generic_sync,
 	.prepare_layoutstats	= ff_layout_prepare_layoutstats,
-	.cleanup_layoutstats	= ff_layout_cleanup_layoutstats,
 };
 
 static int __init nfs4flexfilelayout_init(void)
