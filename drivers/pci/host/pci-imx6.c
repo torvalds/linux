@@ -618,7 +618,6 @@ static int __init imx6_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct imx6_pcie *imx6_pcie;
 	struct pcie_port *pp;
-	struct device_node *np = dev->of_node;
 	struct resource *dbi_base;
 	struct device_node *node = dev->of_node;
 	int ret;
@@ -643,8 +642,8 @@ static int __init imx6_pcie_probe(struct platform_device *pdev)
 		return PTR_ERR(pp->dbi_base);
 
 	/* Fetch GPIOs */
-	imx6_pcie->reset_gpio = of_get_named_gpio(np, "reset-gpio", 0);
-	imx6_pcie->gpio_active_high = of_property_read_bool(np,
+	imx6_pcie->reset_gpio = of_get_named_gpio(node, "reset-gpio", 0);
+	imx6_pcie->gpio_active_high = of_property_read_bool(node,
 						"reset-gpio-active-high");
 	if (gpio_is_valid(imx6_pcie->reset_gpio)) {
 		ret = devm_gpio_request_one(dev, imx6_pcie->reset_gpio,
@@ -717,7 +716,7 @@ static int __init imx6_pcie_probe(struct platform_device *pdev)
 		imx6_pcie->tx_swing_low = 127;
 
 	/* Limit link speed */
-	ret = of_property_read_u32(pp->dev->of_node, "fsl,max-link-speed",
+	ret = of_property_read_u32(node, "fsl,max-link-speed",
 				   &imx6_pcie->link_gen);
 	if (ret)
 		imx6_pcie->link_gen = 1;
