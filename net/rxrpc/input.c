@@ -847,7 +847,8 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 
 	if (call->rxtx_annotations[call->tx_top & RXRPC_RXTX_BUFF_MASK] &
 	    RXRPC_TX_ANNO_LAST &&
-	    summary.nr_acks == call->tx_top - hard_ack)
+	    summary.nr_acks == call->tx_top - hard_ack &&
+	    rxrpc_is_client_call(call))
 		rxrpc_propose_ACK(call, RXRPC_ACK_PING, skew, sp->hdr.serial,
 				  false, true,
 				  rxrpc_propose_ack_ping_for_lost_reply);
