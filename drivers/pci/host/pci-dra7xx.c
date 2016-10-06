@@ -67,7 +67,6 @@ struct dra7xx_pcie {
 	void __iomem		*base;
 	struct phy		**phy;
 	int			phy_count;
-	struct device		*dev;
 	struct pcie_port	pp;
 };
 
@@ -390,7 +389,6 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 
 	dra7xx->base = base;
 	dra7xx->phy = phy;
-	dra7xx->dev = dev;
 	dra7xx->phy_count = phy_count;
 
 	pm_runtime_enable(dev);
