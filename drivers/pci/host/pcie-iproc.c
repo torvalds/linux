@@ -462,9 +462,6 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 	void *sysdata;
 	struct pci_bus *bus;
 
-	if (!pcie || !pcie->dev)
-		return -EINVAL;
-
 	dev = pcie->dev;
 	ret = devm_request_pci_bus_resources(dev, res);
 	if (ret)
