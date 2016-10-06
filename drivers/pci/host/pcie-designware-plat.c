@@ -25,8 +25,7 @@
 #include "pcie-designware.h"
 
 struct dw_plat_pcie {
-	void __iomem		*mem_base;
-	struct pcie_port	pp;
+	struct pcie_port	pp;	/* pp.dbi_base is DT 0th resource */
 };
 
 static irqreturn_t dw_plat_pcie_msi_irq_handler(int irq, void *arg)
@@ -100,11 +99,9 @@ static int dw_plat_pcie_probe(struct platform_device *pdev)
 	pp->dev = &pdev->dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dw_plat_pcie->mem_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(dw_plat_pcie->mem_base))
-		return PTR_ERR(dw_plat_pcie->mem_base);
-
-	pp->dbi_base = dw_plat_pcie->mem_base;
+	pp->dbi_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(pp->dbi_base))
+		return PTR_ERR(pp->dbi_base);
 
 	ret = dw_plat_add_pcie_port(pp, pdev);
 	if (ret < 0)
