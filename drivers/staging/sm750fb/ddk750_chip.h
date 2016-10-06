@@ -25,7 +25,7 @@ typedef enum _clock_type_t {
 }
 clock_type_t;
 
-typedef struct _pll_value_t {
+struct pll_value {
 	clock_type_t clockType;
 	unsigned long inputFreq; /* Input clock frequency to the PLL */
 
@@ -34,11 +34,10 @@ typedef struct _pll_value_t {
 	unsigned long N;
 	unsigned long OD;
 	unsigned long POD;
-}
-pll_value_t;
+};
 
 /* input struct to initChipParam() function */
-typedef struct _initchip_param_t {
+struct initchip_param {
 	unsigned short powerMode;    /* Use power mode 0 or 1 */
 	unsigned short chipClock;    /**
 				      * Speed of main chip clock in MHz unit
@@ -66,14 +65,13 @@ typedef struct _initchip_param_t {
 				      */
 
 	/* More initialization parameter can be added if needed */
-}
-initchip_param_t;
+};
 
 logical_chip_type_t sm750_get_chip_type(void);
-unsigned int calcPllValue(unsigned int request, pll_value_t *pll);
-unsigned int formatPllReg(pll_value_t *pPLL);
+unsigned int calcPllValue(unsigned int request, struct  pll_value *pll);
+unsigned int formatPllReg(struct pll_value *pPLL);
 void ddk750_set_mmio(void __iomem *, unsigned short, char);
 unsigned int ddk750_getVMSize(void);
-int ddk750_initHw(initchip_param_t *);
+int ddk750_initHw(struct initchip_param *);
 
 #endif

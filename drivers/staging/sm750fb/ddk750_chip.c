@@ -54,7 +54,7 @@ static unsigned int get_mxclk_freq(void)
  */
 static void setChipClock(unsigned int frequency)
 {
-	pll_value_t pll;
+	struct pll_value pll;
 	unsigned int ulActualMxClk;
 
 	/* Cheok_0509: For SM750LE, the chip clock is fixed. Nothing to set. */
@@ -206,7 +206,7 @@ unsigned int ddk750_getVMSize(void)
 	return data;
 }
 
-int ddk750_initHw(initchip_param_t *pInitParam)
+int ddk750_initHw(struct initchip_param *pInitParam)
 {
 	unsigned int reg;
 
@@ -305,7 +305,7 @@ int ddk750_initHw(initchip_param_t *pInitParam)
  * M = {1,...,255}
  * N = {2,...,15}
  */
-unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
+unsigned int calcPllValue(unsigned int request_orig, struct pll_value *pll)
 {
 	/* as sm750 register definition,
 	 * N located in 2,15 and M located in 1,255
@@ -373,7 +373,7 @@ unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 	return ret;
 }
 
-unsigned int formatPllReg(pll_value_t *pPLL)
+unsigned int formatPllReg(struct pll_value *pPLL)
 {
 #ifndef VALIDATION_CHIP
 	unsigned int POD = pPLL->POD;
