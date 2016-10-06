@@ -245,7 +245,7 @@ static int imx6q_pcie_abort_handler(unsigned long addr,
 	return 0;
 }
 
-static int imx6_pcie_assert_core_reset(struct imx6_pcie *imx6_pcie)
+static void imx6_pcie_assert_core_reset(struct imx6_pcie *imx6_pcie)
 {
 	struct pcie_port *pp = &imx6_pcie->pp;
 	u32 val, gpr1, gpr12;
@@ -299,8 +299,6 @@ static int imx6_pcie_assert_core_reset(struct imx6_pcie *imx6_pcie)
 				   IMX6Q_GPR1_PCIE_REF_CLK_EN, 0 << 16);
 		break;
 	}
-
-	return 0;
 }
 
 static int imx6_pcie_enable_ref_clk(struct imx6_pcie *imx6_pcie)
@@ -340,7 +338,7 @@ static int imx6_pcie_enable_ref_clk(struct imx6_pcie *imx6_pcie)
 	return ret;
 }
 
-static int imx6_pcie_deassert_core_reset(struct imx6_pcie *imx6_pcie)
+static void imx6_pcie_deassert_core_reset(struct imx6_pcie *imx6_pcie)
 {
 	struct pcie_port *pp = &imx6_pcie->pp;
 	struct device *dev = pp->dev;
@@ -349,7 +347,7 @@ static int imx6_pcie_deassert_core_reset(struct imx6_pcie *imx6_pcie)
 	ret = clk_prepare_enable(imx6_pcie->pcie_phy);
 	if (ret) {
 		dev_err(dev, "unable to enable pcie_phy clock\n");
-		goto err_pcie_phy;
+		return;
 	}
 
 	ret = clk_prepare_enable(imx6_pcie->pcie_bus);
@@ -397,7 +395,7 @@ static int imx6_pcie_deassert_core_reset(struct imx6_pcie *imx6_pcie)
 		break;
 	}
 
-	return 0;
+	return;
 
 err_ref_clk:
 	clk_disable_unprepare(imx6_pcie->pcie);
@@ -405,8 +403,6 @@ err_pcie:
 	clk_disable_unprepare(imx6_pcie->pcie_bus);
 err_pcie_bus:
 	clk_disable_unprepare(imx6_pcie->pcie_phy);
-err_pcie_phy:
-	return ret;
 }
 
 static void imx6_pcie_init_phy(struct imx6_pcie *imx6_pcie)
