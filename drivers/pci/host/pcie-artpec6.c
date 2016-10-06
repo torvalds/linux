@@ -27,9 +27,9 @@
 #define to_artpec6_pcie(x)	container_of(x, struct artpec6_pcie, pp)
 
 struct artpec6_pcie {
-	struct pcie_port	pp;
-	struct regmap		*regmap;
-	void __iomem		*phy_base;
+	struct pcie_port	pp;		/* pp.dbi_base is DT dbi */
+	struct regmap		*regmap;	/* DT axis,syscon-pcie */
+	void __iomem		*phy_base;	/* DT phy */
 };
 
 /* PCIe Port Logic registers (memory-mapped) */
