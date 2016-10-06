@@ -5,6 +5,16 @@
 #include <asm/stacktrace.h>
 #include <asm/unwind.h>
 
+unsigned long unwind_get_return_address(struct unwind_state *state)
+{
+	if (unwind_done(state))
+		return 0;
+
+	return ftrace_graph_ret_addr(state->task, &state->graph_idx,
+				     *state->sp, state->sp);
+}
+EXPORT_SYMBOL_GPL(unwind_get_return_address);
+
 bool unwind_next_frame(struct unwind_state *state)
 {
 	struct stack_info *info = &state->stack_info;

@@ -23,6 +23,8 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 
 bool unwind_next_frame(struct unwind_state *state);
 
+unsigned long unwind_get_return_address(struct unwind_state *state);
+
 static inline bool unwind_done(struct unwind_state *state)
 {
 	return state->stack_info.type == STACK_TYPE_UNKNOWN;
@@ -48,24 +50,12 @@ unsigned long *unwind_get_return_address_ptr(struct unwind_state *state)
 	return state->bp + 1;
 }
 
-unsigned long unwind_get_return_address(struct unwind_state *state);
-
 #else /* !CONFIG_FRAME_POINTER */
 
 static inline
 unsigned long *unwind_get_return_address_ptr(struct unwind_state *state)
 {
 	return NULL;
-}
-
-static inline
-unsigned long unwind_get_return_address(struct unwind_state *state)
-{
-	if (unwind_done(state))
-		return 0;
-
-	return ftrace_graph_ret_addr(state->task, &state->graph_idx,
-				     *state->sp, state->sp);
 }
 
 #endif /* CONFIG_FRAME_POINTER */
