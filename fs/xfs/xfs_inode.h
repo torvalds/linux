@@ -216,6 +216,7 @@ xfs_get_initial_prid(struct xfs_inode *dp)
 #define __XFS_IPINNED_BIT	8	 /* wakeup key for zero pin count */
 #define XFS_IPINNED		(1 << __XFS_IPINNED_BIT)
 #define XFS_IDONTCACHE		(1 << 9) /* don't cache the inode long term */
+#define XFS_IEOFBLOCKS		(1 << 10)/* has the preallocblocks tag set */
 
 /*
  * Per-lifetime flags need to be reset when re-using a reclaimable inode during
