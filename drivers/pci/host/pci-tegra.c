@@ -2266,7 +2266,6 @@ static int tegra_pcie_probe(struct platform_device *pdev)
 			dev_err(dev, "failed to setup debugfs: %d\n", err);
 	}
 
-	platform_set_drvdata(pdev, pcie);
 	return 0;
 
 disable_msi:
