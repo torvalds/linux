@@ -431,10 +431,6 @@ static int create_trace_uprobe(int argc, char **argv)
 		pr_info("Probe point is not specified.\n");
 		return -EINVAL;
 	}
-	if (isdigit(argv[1][0])) {
-		pr_info("probe point must be have a filename.\n");
-		return -EINVAL;
-	}
 	arg = strchr(argv[1], ':');
 	if (!arg) {
 		ret = -EINVAL;
