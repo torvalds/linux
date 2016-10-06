@@ -63,6 +63,8 @@
 #define OARR_SIZE_CFG_SHIFT          1
 #define OARR_SIZE_CFG                BIT(OARR_SIZE_CFG_SHIFT)
 
+#define PCI_EXP_CAP			0xac
+
 #define MAX_NUM_OB_WINDOWS           2
 
 #define IPROC_PCIE_REG_INVALID 0xffff
@@ -261,7 +263,7 @@ static int iproc_pcie_check_link(struct iproc_pcie *pcie, struct pci_bus *bus)
 	struct device *dev = pcie->dev;
 	u8 hdr_type;
 	u32 link_ctrl, class, val;
-	u16 pos, link_status;
+	u16 pos = PCI_EXP_CAP, link_status;
 	bool link_is_active = false;
 
 	/*
@@ -294,30 +296,27 @@ static int iproc_pcie_check_link(struct iproc_pcie *pcie, struct pci_bus *bus)
 	pci_bus_write_config_dword(bus, 0, PCI_BRIDGE_CTRL_REG_OFFSET, class);
 
 	/* check link status to see if link is active */
-	pos = pci_bus_find_capability(bus, 0, PCI_CAP_ID_EXP);
 	pci_bus_read_config_word(bus, 0, pos + PCI_EXP_LNKSTA, &link_status);
 	if (link_status & PCI_EXP_LNKSTA_NLW)
 		link_is_active = true;
 
 	if (!link_is_active) {
 		/* try GEN 1 link speed */
-#define PCI_LINK_STATUS_CTRL_2_OFFSET 0x0dc
 #define PCI_TARGET_LINK_SPEED_MASK    0xf
 #define PCI_TARGET_LINK_SPEED_GEN2    0x2
 #define PCI_TARGET_LINK_SPEED_GEN1    0x1
 		pci_bus_read_config_dword(bus, 0,
-					  PCI_LINK_STATUS_CTRL_2_OFFSET,
+					  pos + PCI_EXP_LNKCTL2,
 					  &link_ctrl);
 		if ((link_ctrl & PCI_TARGET_LINK_SPEED_MASK) ==
 		    PCI_TARGET_LINK_SPEED_GEN2) {
 			link_ctrl &= ~PCI_TARGET_LINK_SPEED_MASK;
 			link_ctrl |= PCI_TARGET_LINK_SPEED_GEN1;
 			pci_bus_write_config_dword(bus, 0,
-					   PCI_LINK_STATUS_CTRL_2_OFFSET,
+					   pos + PCI_EXP_LNKCTL2,
 					   link_ctrl);
 			msleep(100);
 
-			pos = pci_bus_find_capability(bus, 0, PCI_CAP_ID_EXP);
 			pci_bus_read_config_word(bus, 0, pos + PCI_EXP_LNKSTA,
 						 &link_status);
 			if (link_status & PCI_EXP_LNKSTA_NLW)
