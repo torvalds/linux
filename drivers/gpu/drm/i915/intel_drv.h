@@ -1351,12 +1351,6 @@ void hsw_enable_pc8(struct drm_i915_private *dev_priv);
 void hsw_disable_pc8(struct drm_i915_private *dev_priv);
 void bxt_init_cdclk(struct drm_i915_private *dev_priv);
 void bxt_uninit_cdclk(struct drm_i915_private *dev_priv);
-void bxt_ddi_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy);
-void bxt_ddi_phy_uninit(struct drm_i915_private *dev_priv, enum dpio_phy phy);
-bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,
-			    enum dpio_phy phy);
-bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
-			      enum dpio_phy phy);
 void gen9_sanitize_dc_state(struct drm_i915_private *dev_priv);
 void bxt_enable_dc9(struct drm_i915_private *dev_priv);
 void bxt_disable_dc9(struct drm_i915_private *dev_priv);

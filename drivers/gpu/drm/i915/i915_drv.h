@@ -3761,6 +3761,18 @@ u32 vlv_flisdsi_read(struct drm_i915_private *dev_priv, u32 reg);
 void vlv_flisdsi_write(struct drm_i915_private *dev_priv, u32 reg, u32 val);
 
 /* intel_dpio_phy.c */
+void bxt_ddi_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy);
+void bxt_ddi_phy_uninit(struct drm_i915_private *dev_priv, enum dpio_phy phy);
+bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,
+			    enum dpio_phy phy);
+bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
+			      enum dpio_phy phy);
+uint8_t bxt_ddi_phy_calc_lane_lat_optim_mask(struct intel_encoder *encoder,
+					     uint8_t lane_count);
+void bxt_ddi_phy_set_lane_optim_mask(struct intel_encoder *encoder,
+				     uint8_t lane_lat_optim_mask);
+uint8_t bxt_ddi_phy_get_lane_lat_optim_mask(struct intel_encoder *encoder);
+
 void chv_set_phy_signal_level(struct intel_encoder *encoder,
 			      u32 deemph_reg_value, u32 margin_reg_value,
 			      bool uniq_trans_scale);
