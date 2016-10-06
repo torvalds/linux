@@ -59,7 +59,6 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 
 	pcie->dev = dev;
 	pcie->type = (enum iproc_pcie_type)of_id->data;
-	platform_set_drvdata(pdev, pcie);
 
 	ret = of_address_to_resource(np, 0, &reg);
 	if (ret < 0) {
@@ -124,6 +123,7 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 
 	pci_free_resource_list(&res);
 
+	platform_set_drvdata(pdev, pcie);
 	return ret;
 }
 
