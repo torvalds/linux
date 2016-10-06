@@ -42,16 +42,17 @@ static int iproc_pcie_bcma_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 
 static int iproc_pcie_bcma_probe(struct bcma_device *bdev)
 {
+	struct device *dev = &bdev->dev;
 	struct iproc_pcie *pcie;
 	LIST_HEAD(res);
 	struct resource res_mem;
 	int ret;
 
-	pcie = devm_kzalloc(&bdev->dev, sizeof(*pcie), GFP_KERNEL);
+	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
 		return -ENOMEM;
 
-	pcie->dev = &bdev->dev;
+	pcie->dev = dev;
 	bcma_set_drvdata(bdev, pcie);
 
 	pcie->base = bdev->io_addr;
@@ -67,7 +68,7 @@ static int iproc_pcie_bcma_probe(struct bcma_device *bdev)
 
 	ret = iproc_pcie_setup(pcie, &res);
 	if (ret)
-		dev_err(pcie->dev, "PCIe controller setup failed\n");
+		dev_err(dev, "PCIe controller setup failed\n");
 
 	pci_free_resource_list(&res);
 
