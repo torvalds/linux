@@ -144,7 +144,7 @@ int dw_pcie_cfg_write(void __iomem *addr, int size, u32 val)
 static inline u32 dw_pcie_readl_rc(struct pcie_port *pp, u32 reg)
 {
 	if (pp->ops->readl_rc)
-		return pp->ops->readl_rc(pp, pp->dbi_base + reg);
+		return pp->ops->readl_rc(pp, reg);
 
 	return readl(pp->dbi_base + reg);
 }
@@ -152,7 +152,7 @@ static inline u32 dw_pcie_readl_rc(struct pcie_port *pp, u32 reg)
 static inline void dw_pcie_writel_rc(struct pcie_port *pp, u32 val, u32 reg)
 {
 	if (pp->ops->writel_rc)
-		pp->ops->writel_rc(pp, val, pp->dbi_base + reg);
+		pp->ops->writel_rc(pp, val, reg);
 	else
 		writel(val, pp->dbi_base + reg);
 }
