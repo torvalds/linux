@@ -478,14 +478,12 @@ static struct nfit_test *instances[NUM_NFITS];
 static void release_nfit_res(void *data)
 {
 	struct nfit_test_resource *nfit_res = data;
-	struct resource *res = nfit_res->res;
 
 	spin_lock(&nfit_test_lock);
 	list_del(&nfit_res->list);
 	spin_unlock(&nfit_test_lock);
 
 	vfree(nfit_res->buf);
-	kfree(res);
 	kfree(nfit_res);
 }
 
@@ -493,12 +491,11 @@ static void *__test_alloc(struct nfit_test *t, size_t size, dma_addr_t *dma,
 		void *buf)
 {
 	struct device *dev = &t->pdev.dev;
-	struct resource *res = kzalloc(sizeof(*res) * 2, GFP_KERNEL);
 	struct nfit_test_resource *nfit_res = kzalloc(sizeof(*nfit_res),
 			GFP_KERNEL);
 	int rc;
 
-	if (!res || !buf || !nfit_res)
+	if (!buf || !nfit_res)
 		goto err;
 	rc = devm_add_action(dev, release_nfit_res, nfit_res);
 	if (rc)
@@ -507,10 +504,11 @@ static void *__test_alloc(struct nfit_test *t, size_t size, dma_addr_t *dma,
 	memset(buf, 0, size);
 	nfit_res->dev = dev;
 	nfit_res->buf = buf;
-	nfit_res->res = res;
-	res->start = *dma;
-	res->end = *dma + size - 1;
-	res->name = "NFIT";
+	nfit_res->res.start = *dma;
+	nfit_res->res.end = *dma + size - 1;
+	nfit_res->res.name = "NFIT";
+	spin_lock_init(&nfit_res->lock);
+	INIT_LIST_HEAD(&nfit_res->requests);
 	spin_lock(&nfit_test_lock);
 	list_add(&nfit_res->list, &t->resources);
 	spin_unlock(&nfit_test_lock);
@@ -519,7 +517,6 @@ static void *__test_alloc(struct nfit_test *t, size_t size, dma_addr_t *dma,
  err:
 	if (buf)
 		vfree(buf);
-	kfree(res);
 	kfree(nfit_res);
 	return NULL;
 }
@@ -544,13 +541,13 @@ static struct nfit_test_resource *nfit_test_lookup(resource_size_t addr)
 			continue;
 		spin_lock(&nfit_test_lock);
 		list_for_each_entry(n, &t->resources, list) {
-			if (addr >= n->res->start && (addr < n->res->start
-						+ resource_size(n->res))) {
+			if (addr >= n->res.start && (addr < n->res.start
+						+ resource_size(&n->res))) {
 				nfit_res = n;
 				break;
 			} else if (addr >= (unsigned long) n->buf
 					&& (addr < (unsigned long) n->buf
-						+ resource_size(n->res))) {
+						+ resource_size(&n->res))) {
 				nfit_res = n;
 				break;
 			}
