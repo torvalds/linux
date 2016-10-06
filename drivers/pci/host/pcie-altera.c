@@ -55,7 +55,10 @@
 #define TLP_PAYLOAD_SIZE		0x01
 #define TLP_READ_TAG			0x1d
 #define TLP_WRITE_TAG			0x10
-#define TLP_CFG_DW0(fmttype)		(((fmttype) << 24) | TLP_PAYLOAD_SIZE)
+#define TLP_CFG_DW0(pcie, bus)						\
+    ((((bus == pcie->root_bus_nr) ? TLP_FMTTYPE_CFGRD0			\
+				    : TLP_FMTTYPE_CFGRD1) << 24) |	\
+     TLP_PAYLOAD_SIZE)
 #define TLP_CFG_DW1(reqid, tag, be)	(((reqid) << 16) | (tag << 8) | (be))
 #define TLP_CFG_DW2(bus, devfn, offset)	\
 				(((bus) << 24) | ((devfn) << 16) | (offset))
@@ -218,11 +221,7 @@ static int tlp_cfg_dword_read(struct altera_pcie *pcie, u8 bus, u32 devfn,
 {
 	u32 headers[TLP_HDR_SIZE];
 
-	if (bus == pcie->root_bus_nr)
-		headers[0] = TLP_CFG_DW0(TLP_FMTTYPE_CFGRD0);
-	else
-		headers[0] = TLP_CFG_DW0(TLP_FMTTYPE_CFGRD1);
-
+	headers[0] = TLP_CFG_DW0(pcie, bus);
 	headers[1] = TLP_CFG_DW1(TLP_REQ_ID(pcie->root_bus_nr, RP_DEVFN),
 					TLP_READ_TAG, byte_en);
 	headers[2] = TLP_CFG_DW2(bus, devfn, where);
@@ -238,11 +237,7 @@ static int tlp_cfg_dword_write(struct altera_pcie *pcie, u8 bus, u32 devfn,
 	u32 headers[TLP_HDR_SIZE];
 	int ret;
 
-	if (bus == pcie->root_bus_nr)
-		headers[0] = TLP_CFG_DW0(TLP_FMTTYPE_CFGWR0);
-	else
-		headers[0] = TLP_CFG_DW0(TLP_FMTTYPE_CFGWR1);
-
+	headers[0] = TLP_CFG_DW0(pcie, bus);
 	headers[1] = TLP_CFG_DW1(TLP_REQ_ID(pcie->root_bus_nr, RP_DEVFN),
 					TLP_WRITE_TAG, byte_en);
 	headers[2] = TLP_CFG_DW2(bus, devfn, where);
