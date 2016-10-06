@@ -1,1 +1,1 @@
-subdir-y := blackfin
+subdir-y :=
