@@ -435,7 +435,7 @@ static inline u32 exynos_pcie_readl_rc(struct pcie_port *pp, u32 reg)
 	return val;
 }
 
-static inline void exynos_pcie_writel_rc(struct pcie_port *pp, u32 val, u32 reg)
+static inline void exynos_pcie_writel_rc(struct pcie_port *pp, u32 reg, u32 val)
 {
 	exynos_pcie_sideband_dbi_w_mode(pp, true);
 	writel(val, pp->dbi_base + reg);
