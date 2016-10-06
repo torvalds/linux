@@ -262,7 +262,6 @@ static int artpec6_pcie_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	platform_set_drvdata(pdev, artpec6_pcie);
 	return 0;
 }
 
