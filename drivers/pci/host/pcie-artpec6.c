@@ -78,9 +78,9 @@ static void artpec6_pcie_writel(struct artpec6_pcie *artpec6_pcie, u32 offset, u
 	regmap_write(artpec6_pcie->regmap, offset, val);
 }
 
-static int artpec6_pcie_establish_link(struct pcie_port *pp)
+static int artpec6_pcie_establish_link(struct artpec6_pcie *artpec6_pcie)
 {
-	struct artpec6_pcie *artpec6_pcie = to_artpec6_pcie(pp);
+	struct pcie_port *pp = &artpec6_pcie->pp;
 	u32 val;
 	unsigned int retries;
 
@@ -165,16 +165,20 @@ static int artpec6_pcie_establish_link(struct pcie_port *pp)
 	return -ETIMEDOUT;
 }
 
-static void artpec6_pcie_enable_interrupts(struct pcie_port *pp)
+static void artpec6_pcie_enable_interrupts(struct artpec6_pcie *artpec6_pcie)
 {
+	struct pcie_port *pp = &artpec6_pcie->pp;
+
 	if (IS_ENABLED(CONFIG_PCI_MSI))
 		dw_pcie_msi_init(pp);
 }
 
 static void artpec6_pcie_host_init(struct pcie_port *pp)
 {
-	artpec6_pcie_establish_link(pp);
-	artpec6_pcie_enable_interrupts(pp);
+	struct artpec6_pcie *artpec6_pcie = to_artpec6_pcie(pp);
+
+	artpec6_pcie_establish_link(artpec6_pcie);
+	artpec6_pcie_enable_interrupts(artpec6_pcie);
 }
 
 static struct pcie_host_ops artpec6_pcie_host_ops = {
@@ -183,14 +187,16 @@ static struct pcie_host_ops artpec6_pcie_host_ops = {
 
 static irqreturn_t artpec6_pcie_msi_handler(int irq, void *arg)
 {
-	struct pcie_port *pp = arg;
+	struct artpec6_pcie *artpec6_pcie = arg;
+	struct pcie_port *pp = &artpec6_pcie->pp;
 
 	return dw_handle_msi_irq(pp);
 }
 
-static int artpec6_add_pcie_port(struct pcie_port *pp,
+static int artpec6_add_pcie_port(struct artpec6_pcie *artpec6_pcie,
 				 struct platform_device *pdev)
 {
+	struct pcie_port *pp = &artpec6_pcie->pp;
 	struct device *dev = pp->dev;
 	int ret;
 
@@ -204,7 +210,7 @@ static int artpec6_add_pcie_port(struct pcie_port *pp,
 		ret = devm_request_irq(dev, pp->msi_irq,
 				       artpec6_pcie_msi_handler,
 				       IRQF_SHARED | IRQF_NO_THREAD,
-				       "artpec6-pcie-msi", pp);
+				       "artpec6-pcie-msi", artpec6_pcie);
 		if (ret) {
 			dev_err(dev, "failed to request MSI irq\n");
 			return ret;
@@ -255,7 +261,7 @@ static int artpec6_pcie_probe(struct platform_device *pdev)
 	if (IS_ERR(artpec6_pcie->regmap))
 		return PTR_ERR(artpec6_pcie->regmap);
 
-	ret = artpec6_add_pcie_port(pp, pdev);
+	ret = artpec6_add_pcie_port(artpec6_pcie, pdev);
 	if (ret < 0)
 		return ret;
 
