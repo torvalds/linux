@@ -569,8 +569,6 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	platform_set_drvdata(pdev, pcie);
-
 	return 0;
 }
 
