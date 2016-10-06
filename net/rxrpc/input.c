@@ -939,6 +939,33 @@ static void rxrpc_input_call_packet(struct rxrpc_call *call,
 }
 
 /*
+ * Handle a new call on a channel implicitly completing the preceding call on
+ * that channel.
+ *
+ * TODO: If callNumber > call_id + 1, renegotiate security.
+ */
+static void rxrpc_input_implicit_end_call(struct rxrpc_connection *conn,
+					  struct rxrpc_call *call)
+{
+	switch (call->state) {
+	case RXRPC_CALL_SERVER_AWAIT_ACK:
+		rxrpc_call_completed(call);
+		break;
+	case RXRPC_CALL_COMPLETE:
+		break;
+	default:
+		if (rxrpc_abort_call("IMP", call, 0, RX_CALL_DEAD, ESHUTDOWN)) {
+			set_bit(RXRPC_CALL_EV_ABORT, &call->events);
+			rxrpc_queue_call(call);
+		}
+		break;
+	}
+
+	__rxrpc_disconnect_call(conn, call);
+	rxrpc_notify_socket(call);
+}
+
+/*
  * post connection-level events to the connection
  * - this includes challenges, responses, some aborts and call terminal packet
  *   retransmission.
@@ -1146,6 +1173,16 @@ void rxrpc_data_ready(struct sock *udp_sk)
 		}
 
 		call = rcu_dereference(chan->call);
+
+		if (sp->hdr.callNumber > chan->call_id) {
+			if (!(sp->hdr.flags & RXRPC_CLIENT_INITIATED)) {
+				rcu_read_unlock();
+				goto reject_packet;
+			}
+			if (call)
+				rxrpc_input_implicit_end_call(conn, call);
+			call = NULL;
+		}
 	} else {
 		skew = 0;
 		call = NULL;
