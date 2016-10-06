@@ -90,7 +90,6 @@ struct qcom_pcie {
 	struct device *dev;
 	union qcom_pcie_resources res;
 	void __iomem *parf;
-	void __iomem *dbi;
 	void __iomem *elbi;
 	struct phy *phy;
 	struct gpio_desc *reset;
@@ -426,7 +425,7 @@ err_res:
 static int qcom_pcie_link_up(struct pcie_port *pp)
 {
 	struct qcom_pcie *pcie = to_qcom_pcie(pp);
-	u16 val = readw(pcie->dbi + PCIE20_CAP + PCI_EXP_LNKSTA);
+	u16 val = readw(pcie->pp.dbi_base + PCIE20_CAP + PCI_EXP_LNKSTA);
 
 	return !!(val & PCI_EXP_LNKSTA_DLLLA);
 }
@@ -509,6 +508,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	if (!pcie)
 		return -ENOMEM;
 
+	pp = &pcie->pp;
 	pcie->ops = (struct qcom_pcie_ops *)of_device_get_match_data(dev);
 	pcie->dev = dev;
 
@@ -522,9 +522,9 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 		return PTR_ERR(pcie->parf);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
-	pcie->dbi = devm_ioremap_resource(dev, res);
-	if (IS_ERR(pcie->dbi))
-		return PTR_ERR(pcie->dbi);
+	pp->dbi_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(pp->dbi_base))
+		return PTR_ERR(pp->dbi_base);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "elbi");
 	pcie->elbi = devm_ioremap_resource(dev, res);
@@ -539,9 +539,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	pp = &pcie->pp;
 	pp->dev = dev;
-	pp->dbi_base = pcie->dbi;
 	pp->root_bus_nr = -1;
 	pp->ops = &qcom_pcie_dw_ops;
 
