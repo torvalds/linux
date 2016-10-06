@@ -223,17 +223,18 @@ static void xgene_pcie_linkup(struct xgene_pcie_port *port,
 
 static int xgene_pcie_init_port(struct xgene_pcie_port *port)
 {
+	struct device *dev = port->dev;
 	int rc;
 
-	port->clk = clk_get(port->dev, NULL);
+	port->clk = clk_get(dev, NULL);
 	if (IS_ERR(port->clk)) {
-		dev_err(port->dev, "clock not available\n");
+		dev_err(dev, "clock not available\n");
 		return -ENODEV;
 	}
 
 	rc = clk_prepare_enable(port->clk);
 	if (rc) {
-		dev_err(port->dev, "clock enable failed\n");
+		dev_err(dev, "clock enable failed\n");
 		return rc;
 	}
 
@@ -243,15 +244,16 @@ static int xgene_pcie_init_port(struct xgene_pcie_port *port)
 static int xgene_pcie_map_reg(struct xgene_pcie_port *port,
 			      struct platform_device *pdev)
 {
+	struct device *dev = port->dev;
 	struct resource *res;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "csr");
-	port->csr_base = devm_ioremap_resource(port->dev, res);
+	port->csr_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(port->csr_base))
 		return PTR_ERR(port->csr_base);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cfg");
-	port->cfg_base = devm_ioremap_resource(port->dev, res);
+	port->cfg_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(port->cfg_base))
 		return PTR_ERR(port->cfg_base);
 	port->cfg_addr = res->start;
@@ -264,6 +266,7 @@ static void xgene_pcie_setup_ob_reg(struct xgene_pcie_port *port,
 				    u64 cpu_addr, u64 pci_addr)
 {
 	void __iomem *base = port->csr_base + offset;
+	struct device *dev = port->dev;
 	resource_size_t size = resource_size(res);
 	u64 restype = resource_type(res);
 	u64 mask = 0;
@@ -280,7 +283,7 @@ static void xgene_pcie_setup_ob_reg(struct xgene_pcie_port *port,
 	if (size >= min_size)
 		mask = ~(size - 1) | flag;
 	else
-		dev_warn(port->dev, "res size 0x%llx less than minimum 0x%x\n",
+		dev_warn(dev, "res size 0x%llx less than minimum 0x%x\n",
 			 (u64)size, min_size);
 
 	writel(lower_32_bits(cpu_addr), base);
@@ -310,7 +313,7 @@ static int xgene_pcie_map_ranges(struct xgene_pcie_port *port,
 		struct resource *res = window->res;
 		u64 restype = resource_type(res);
 
-		dev_dbg(port->dev, "%pR\n", res);
+		dev_dbg(dev, "%pR\n", res);
 
 		switch (restype) {
 		case IORESOURCE_IO:
@@ -381,6 +384,7 @@ static void xgene_pcie_setup_ib_reg(struct xgene_pcie_port *port,
 {
 	void __iomem *csr_base = port->csr_base;
 	void __iomem *cfg_base = port->cfg_base;
+	struct device *dev = port->dev;
 	void *bar_addr;
 	void *pim_addr;
 	u64 cpu_addr = range->cpu_addr;
@@ -393,7 +397,7 @@ static void xgene_pcie_setup_ib_reg(struct xgene_pcie_port *port,
 
 	region = xgene_pcie_select_ib_reg(ib_reg_mask, range->size);
 	if (region < 0) {
-		dev_warn(port->dev, "invalid pcie dma-range config\n");
+		dev_warn(dev, "invalid pcie dma-range config\n");
 		return;
 	}
 
@@ -463,7 +467,7 @@ static int xgene_pcie_parse_map_dma_ranges(struct xgene_pcie_port *port)
 	for_each_of_pci_range(&parser, &range) {
 		u64 end = range.cpu_addr + range.size - 1;
 
-		dev_dbg(port->dev, "0x%08x 0x%016llx..0x%016llx -> 0x%016llx\n",
+		dev_dbg(dev, "0x%08x 0x%016llx..0x%016llx -> 0x%016llx\n",
 			range.flags, range.cpu_addr, end, range.pci_addr);
 		xgene_pcie_setup_ib_reg(port, &range, &ib_reg_mask);
 	}
@@ -483,6 +487,7 @@ static int xgene_pcie_setup(struct xgene_pcie_port *port,
 			    struct list_head *res,
 			    resource_size_t io_base)
 {
+	struct device *dev = port->dev;
 	u32 val, lanes = 0, speed = 0;
 	int ret;
 
@@ -502,27 +507,28 @@ static int xgene_pcie_setup(struct xgene_pcie_port *port,
 
 	xgene_pcie_linkup(port, &lanes, &speed);
 	if (!port->link_up)
-		dev_info(port->dev, "(rc) link down\n");
+		dev_info(dev, "(rc) link down\n");
 	else
-		dev_info(port->dev, "(rc) x%d gen-%d link up\n",
-				lanes, speed + 1);
+		dev_info(dev, "(rc) x%d gen-%d link up\n", lanes, speed + 1);
 	return 0;
 }
 
 static int xgene_pcie_probe_bridge(struct platform_device *pdev)
 {
-	struct device_node *dn = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
+	struct device_node *dn = dev->of_node;
 	struct xgene_pcie_port *port;
 	resource_size_t iobase = 0;
 	struct pci_bus *bus;
 	int ret;
 	LIST_HEAD(res);
 
-	port = devm_kzalloc(&pdev->dev, sizeof(*port), GFP_KERNEL);
+	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
 		return -ENOMEM;
-	port->node = of_node_get(pdev->dev.of_node);
-	port->dev = &pdev->dev;
+
+	port->node = of_node_get(dn);
+	port->dev = dev;
 
 	port->version = XGENE_PCIE_IP_VER_UNKN;
 	if (of_device_is_compatible(port->node, "apm,xgene-pcie"))
@@ -540,7 +546,7 @@ static int xgene_pcie_probe_bridge(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = devm_request_pci_bus_resources(&pdev->dev, &res);
+	ret = devm_request_pci_bus_resources(dev, &res);
 	if (ret)
 		goto error;
 
@@ -548,8 +554,7 @@ static int xgene_pcie_probe_bridge(struct platform_device *pdev)
 	if (ret)
 		goto error;
 
-	bus = pci_create_root_bus(&pdev->dev, 0,
-					&xgene_pcie_ops, port, &res);
+	bus = pci_create_root_bus(dev, 0, &xgene_pcie_ops, port, &res);
 	if (!bus) {
 		ret = -ENOMEM;
 		goto error;
