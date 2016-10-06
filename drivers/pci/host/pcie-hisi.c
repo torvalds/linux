@@ -22,11 +22,11 @@
 
 #include "pcie-designware.h"
 
-#define PCIE_LTSSM_LINKUP_STATE				0x11
-#define PCIE_LTSSM_STATE_MASK				0x3F
-#define PCIE_SUBCTRL_SYS_STATE4_REG			0x6818
-#define PCIE_SYS_STATE4						0x31c
-#define PCIE_HIP06_CTRL_OFF					0x1000
+#define PCIE_SUBCTRL_SYS_STATE4_REG		0x6818
+#define PCIE_HIP06_CTRL_OFF			0x1000
+#define PCIE_SYS_STATE4				(PCIE_HIP06_CTRL_OFF + 0x31c)
+#define PCIE_LTSSM_LINKUP_STATE			0x11
+#define PCIE_LTSSM_STATE_MASK			0x3F
 
 #define to_hisi_pcie(x)	container_of(x, struct hisi_pcie, pp)
 
@@ -108,7 +108,7 @@ static int hisi_pcie_link_up_hip06(struct hisi_pcie *hisi_pcie)
 	struct pcie_port *pp = &hisi_pcie->pp;
 	u32 val;
 
-	val = dw_pcie_readl_rc(pp, PCIE_HIP06_CTRL_OFF + PCIE_SYS_STATE4);
+	val = dw_pcie_readl_rc(pp, PCIE_SYS_STATE4);
 
 	return ((val & PCIE_LTSSM_STATE_MASK) == PCIE_LTSSM_LINKUP_STATE);
 }
