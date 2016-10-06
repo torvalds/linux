@@ -189,7 +189,7 @@ Display Refresh Rate Switching (DRRS)
 DPIO
 ----
 
-.. kernel-doc:: drivers/gpu/drm/i915/i915_reg.h
+.. kernel-doc:: drivers/gpu/drm/i915/intel_dpio_phy.c
    :doc: DPIO
 
 CSR firmware support for DMC
