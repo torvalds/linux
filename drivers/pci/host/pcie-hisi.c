@@ -37,9 +37,9 @@ struct pcie_soc_ops {
 };
 
 struct hisi_pcie {
+	struct pcie_port pp;		/* pp.dbi_base is DT rc_dbi */
 	struct regmap *subctrl;
 	u32 port_id;
-	struct pcie_port pp;
 	struct pcie_soc_ops *soc_ops;
 };
 
