@@ -25,8 +25,8 @@ static void register_onboard_backlight(struct fbtft_par *par);
 
 static int init_display(struct fbtft_par *par)
 {
-	if (par->pdata
-		&& par->pdata->display.backlight == FBTFT_ONBOARD_BACKLIGHT) {
+	if (par->pdata &&
+	    par->pdata->display.backlight == FBTFT_ONBOARD_BACKLIGHT) {
 		/* module uses onboard GPIO for panel power */
 		par->fbtftops.register_backlight = register_onboard_backlight;
 	}
@@ -66,7 +66,7 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 
 static int set_var(struct fbtft_par *par)
 {
-	unsigned remap;
+	unsigned int remap;
 
 	if (par->fbtftops.init_display != init_display) {
 		/* don't risk messing up register A0h */
@@ -80,10 +80,10 @@ static int set_var(struct fbtft_par *par)
 
 	switch (par->info->var.rotate) {
 	case 0:
-		write_reg(par, 0xA0, remap | 0x00 | 1<<4);
+		write_reg(par, 0xA0, remap | 0x00 | 1 << 4);
 		break;
 	case 270:
-		write_reg(par, 0xA0, remap | 0x03 | 1<<4);
+		write_reg(par, 0xA0, remap | 0x03 | 1 << 4);
 		break;
 	case 180:
 		write_reg(par, 0xA0, remap | 0x02);
@@ -189,8 +189,8 @@ static int update_onboard_backlight(struct backlight_device *bd)
 		"%s: power=%d, fb_blank=%d\n",
 		__func__, bd->props.power, bd->props.fb_blank);
 
-	on = (bd->props.power == FB_BLANK_UNBLANK)
-		&& (bd->props.fb_blank == FB_BLANK_UNBLANK);
+	on = (bd->props.power == FB_BLANK_UNBLANK) &&
+	     (bd->props.fb_blank == FB_BLANK_UNBLANK);
 	/* Onboard backlight connected to GPIO0 on SSD1351, GPIO1 unused */
 	write_reg(par, 0xB5, on ? 0x03 : 0x02);
 

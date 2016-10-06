@@ -28,7 +28,7 @@ static unsigned short act2000_isa_ports[] =
 static act2000_card *cards = (act2000_card *) NULL;
 
 /* Parameters to be set by insmod */
-static int   act_bus  =  0;
+static int   act_bus;
 static int   act_port = -1;  /* -1 = Autoprobe  */
 static int   act_irq  = -1;
 static char *act_id   = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
@@ -289,7 +289,8 @@ act2000_command(act2000_card *card, isdn_ctrl *c)
 			if (copy_from_user(tmp, arg,
 					   sizeof(tmp)))
 				return -EFAULT;
-			if ((ret = act2000_set_msn(card, tmp)))
+			ret = act2000_set_msn(card, tmp);
+			if (ret)
 				return ret;
 			if (card->flags & ACT2000_FLAGS_RUNNING)
 				return (actcapi_manufacturer_req_msn(card));

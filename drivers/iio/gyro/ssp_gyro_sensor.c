@@ -74,7 +74,7 @@ static int ssp_gyro_write_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
-static struct iio_info ssp_gyro_iio_info = {
+static const struct iio_info ssp_gyro_iio_info = {
 	.read_raw = &ssp_gyro_read_raw,
 	.write_raw = &ssp_gyro_write_raw,
 };

@@ -57,12 +57,20 @@ bool iio_event_enabled(const struct iio_event_interface *ev_int)
  *
  * Note: The caller must make sure that this function is not running
  * concurrently for the same indio_dev more than once.
+ *
+ * This function may be safely used as soon as a valid reference to iio_dev has
+ * been obtained via iio_device_alloc(), but any events that are submitted
+ * before iio_device_register() has successfully completed will be silently
+ * discarded.
  **/
 int iio_push_event(struct iio_dev *indio_dev, u64 ev_code, s64 timestamp)
 {
 	struct iio_event_interface *ev_int = indio_dev->event_interface;
 	struct iio_event_data ev;
 	int copied;
+
+	if (!ev_int)
+		return 0;
 
 	/* Does anyone care? */
 	if (iio_event_enabled(ev_int)) {

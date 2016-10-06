@@ -89,7 +89,7 @@ void arch_gnttab_unmap(void *shared, unsigned long nr_gframes)
 
 static int arch_gnttab_valloc(struct gnttab_vm_area *area, unsigned nr_frames)
 {
-	area->ptes = kmalloc(sizeof(pte_t *) * nr_frames, GFP_KERNEL);
+	area->ptes = kmalloc_array(nr_frames, sizeof(*area->ptes), GFP_KERNEL);
 	if (area->ptes == NULL)
 		return -ENOMEM;
 

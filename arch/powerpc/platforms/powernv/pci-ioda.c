@@ -2718,15 +2718,21 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 }
 
 #ifdef CONFIG_PCI_MSI
-static void pnv_ioda2_msi_eoi(struct irq_data *d)
+int64_t pnv_opal_pci_msi_eoi(struct irq_chip *chip, unsigned int hw_irq)
 {
-	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
-	struct irq_chip *chip = irq_data_get_irq_chip(d);
 	struct pnv_phb *phb = container_of(chip, struct pnv_phb,
 					   ioda.irq_chip);
-	int64_t rc;
 
-	rc = opal_pci_msi_eoi(phb->opal_id, hw_irq);
+	return opal_pci_msi_eoi(phb->opal_id, hw_irq);
+}
+
+static void pnv_ioda2_msi_eoi(struct irq_data *d)
+{
+	int64_t rc;
+	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
+	struct irq_chip *chip = irq_data_get_irq_chip(d);
+
+	rc = pnv_opal_pci_msi_eoi(chip, hw_irq);
 	WARN_ON_ONCE(rc);
 
 	icp_native_eoi(d);
@@ -2755,6 +2761,16 @@ void pnv_set_msi_irq_chip(struct pnv_phb *phb, unsigned int virq)
 	}
 	irq_set_chip(virq, &phb->ioda.irq_chip);
 }
+
+/*
+ * Returns true iff chip is something that we could call
+ * pnv_opal_pci_msi_eoi for.
+ */
+bool is_pnv_opal_msi(struct irq_chip *chip)
+{
+	return chip->irq_eoi == pnv_ioda2_msi_eoi;
+}
+EXPORT_SYMBOL_GPL(is_pnv_opal_msi);
 
 static int pnv_pci_ioda_msi_setup(struct pnv_phb *phb, struct pci_dev *dev,
 				  unsigned int hwirq, unsigned int virq,

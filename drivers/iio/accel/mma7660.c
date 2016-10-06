@@ -251,6 +251,7 @@ static const struct i2c_device_id mma7660_i2c_id[] = {
 	{"mma7660", 0},
 	{}
 };
+MODULE_DEVICE_TABLE(i2c, mma7660_i2c_id);
 
 static const struct acpi_device_id mma7660_acpi_id[] = {
 	{"MMA7660", 0},

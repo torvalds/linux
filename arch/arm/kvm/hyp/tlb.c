@@ -34,7 +34,7 @@
  * As v7 does not support flushing per IPA, just nuke the whole TLB
  * instead, ignoring the ipa value.
  */
-static void __hyp_text __tlb_flush_vmid(struct kvm *kvm)
+void __hyp_text __kvm_tlb_flush_vmid(struct kvm *kvm)
 {
 	dsb(ishst);
 
@@ -50,21 +50,14 @@ static void __hyp_text __tlb_flush_vmid(struct kvm *kvm)
 	write_sysreg(0, VTTBR);
 }
 
-__alias(__tlb_flush_vmid) void __kvm_tlb_flush_vmid(struct kvm *kvm);
-
-static void __hyp_text __tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa)
+void __hyp_text __kvm_tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa)
 {
-	__tlb_flush_vmid(kvm);
+	__kvm_tlb_flush_vmid(kvm);
 }
 
-__alias(__tlb_flush_vmid_ipa) void __kvm_tlb_flush_vmid_ipa(struct kvm *kvm,
-							    phys_addr_t ipa);
-
-static void __hyp_text __tlb_flush_vm_context(void)
+void __hyp_text __kvm_flush_vm_context(void)
 {
 	write_sysreg(0, TLBIALLNSNHIS);
 	write_sysreg(0, ICIALLUIS);
 	dsb(ish);
 }
-
-__alias(__tlb_flush_vm_context) void __kvm_flush_vm_context(void);

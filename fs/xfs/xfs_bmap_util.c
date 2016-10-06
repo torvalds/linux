@@ -182,7 +182,7 @@ xfs_bmap_rtalloc(
 					XFS_TRANS_DQ_RTBCOUNT, (long) ralen);
 
 		/* Zero the extent if we were asked to do so */
-		if (ap->userdata & XFS_ALLOC_USERDATA_ZERO) {
+		if (ap->datatype & XFS_ALLOC_USERDATA_ZERO) {
 			error = xfs_zero_extent(ap->ip, ap->blkno, ap->length);
 			if (error)
 				return error;

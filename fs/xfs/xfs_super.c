@@ -1137,7 +1137,7 @@ xfs_restore_resvblks(struct xfs_mount *mp)
  * Note: xfs_log_quiesce() stops background log work - the callers must ensure
  * it is started again when appropriate.
  */
-static void
+void
 xfs_quiesce_attr(
 	struct xfs_mount	*mp)
 {
@@ -1782,9 +1782,8 @@ xfs_init_zones(void)
 	if (!xfs_rud_zone)
 		goto out_destroy_icreate_zone;
 
-	xfs_rui_zone = kmem_zone_init((sizeof(struct xfs_rui_log_item) +
-			((XFS_RUI_MAX_FAST_EXTENTS - 1) *
-				sizeof(struct xfs_map_extent))),
+	xfs_rui_zone = kmem_zone_init(
+			xfs_rui_log_item_sizeof(XFS_RUI_MAX_FAST_EXTENTS),
 			"xfs_rui_item");
 	if (!xfs_rui_zone)
 		goto out_destroy_rud_zone;

@@ -185,4 +185,26 @@ config HP206C
 	  This driver can also be built as a module. If so, the module will
 	  be called hp206c.
 
+config ZPA2326
+	tristate "Murata ZPA2326 pressure sensor driver"
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select REGMAP
+	select ZPA2326_I2C if I2C
+	select ZPA2326_SPI if SPI_MASTER
+	help
+	  Say Y here to build support for the Murata ZPA2326 pressure and
+	  temperature sensor.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called zpa2326.
+
+config ZPA2326_I2C
+	tristate
+	select REGMAP_I2C
+
+config ZPA2326_SPI
+	tristate
+	select REGMAP_SPI
+
 endmenu

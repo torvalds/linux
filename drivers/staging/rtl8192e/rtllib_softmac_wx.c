@@ -35,7 +35,7 @@ int rtllib_wx_set_freq(struct rtllib_device *ieee, struct iw_request_info *a,
 	int ret;
 	struct iw_freq *fwrq = &wrqu->freq;
 
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 
 	if (ieee->iw_mode == IW_MODE_INFRA) {
 		ret = 0;
@@ -81,7 +81,7 @@ int rtllib_wx_set_freq(struct rtllib_device *ieee, struct iw_request_info *a,
 
 	ret = 0;
 out:
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(rtllib_wx_set_freq);
@@ -146,7 +146,7 @@ int rtllib_wx_set_wap(struct rtllib_device *ieee,
 
 	rtllib_stop_scan_syncro(ieee);
 
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 	/* use ifconfig hw ether */
 	if (ieee->iw_mode == IW_MODE_MASTER) {
 		ret = -1;
@@ -185,7 +185,7 @@ int rtllib_wx_set_wap(struct rtllib_device *ieee,
 	if (ifup)
 		rtllib_start_protocol(ieee);
 out:
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(rtllib_wx_set_wap);
@@ -287,7 +287,7 @@ int rtllib_wx_set_mode(struct rtllib_device *ieee, struct iw_request_info *a,
 	int set_mode_status = 0;
 
 	rtllib_stop_scan_syncro(ieee);
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 	switch (wrqu->mode) {
 	case IW_MODE_MONITOR:
 	case IW_MODE_ADHOC:
@@ -322,7 +322,7 @@ int rtllib_wx_set_mode(struct rtllib_device *ieee, struct iw_request_info *a,
 	}
 
 out:
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 	return set_mode_status;
 }
 EXPORT_SYMBOL(rtllib_wx_set_mode);
@@ -412,7 +412,7 @@ void rtllib_wx_sync_scan_wq(void *data)
 	rtllib_wake_all_queues(ieee);
 
 out:
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 
 }
 
@@ -421,7 +421,7 @@ int rtllib_wx_set_scan(struct rtllib_device *ieee, struct iw_request_info *a,
 {
 	int ret = 0;
 
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 
 	if (ieee->iw_mode == IW_MODE_MONITOR || !(ieee->proto_started)) {
 		ret = -1;
@@ -435,7 +435,7 @@ int rtllib_wx_set_scan(struct rtllib_device *ieee, struct iw_request_info *a,
 	}
 
 out:
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(rtllib_wx_set_scan);
@@ -450,7 +450,7 @@ int rtllib_wx_set_essid(struct rtllib_device *ieee,
 	unsigned long flags;
 
 	rtllib_stop_scan_syncro(ieee);
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 
 	proto_started = ieee->proto_started;
 
@@ -492,7 +492,7 @@ int rtllib_wx_set_essid(struct rtllib_device *ieee,
 	if (proto_started)
 		rtllib_start_protocol(ieee);
 out:
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(rtllib_wx_set_essid);
@@ -514,7 +514,7 @@ int rtllib_wx_set_rawtx(struct rtllib_device *ieee,
 	int enable = (parms[0] > 0);
 	short prev = ieee->raw_tx;
 
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 
 	if (enable)
 		ieee->raw_tx = 1;
@@ -536,7 +536,7 @@ int rtllib_wx_set_rawtx(struct rtllib_device *ieee,
 			netif_carrier_off(ieee->dev);
 	}
 
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 
 	return 0;
 }
@@ -575,7 +575,7 @@ int rtllib_wx_set_power(struct rtllib_device *ieee,
 		return -1;
 	}
 
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 
 	if (wrqu->power.disabled) {
 		RT_TRACE(COMP_DBG, "===>%s(): power disable\n", __func__);
@@ -611,7 +611,7 @@ int rtllib_wx_set_power(struct rtllib_device *ieee,
 
 	}
 exit:
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 	return ret;
 
 }
@@ -622,7 +622,7 @@ int rtllib_wx_get_power(struct rtllib_device *ieee,
 				 struct iw_request_info *info,
 				 union iwreq_data *wrqu, char *extra)
 {
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 
 	if (ieee->ps == RTLLIB_PS_DISABLED) {
 		wrqu->power.disabled = 1;
@@ -648,7 +648,7 @@ int rtllib_wx_get_power(struct rtllib_device *ieee,
 		wrqu->power.flags |= IW_POWER_UNICAST_R;
 
 exit:
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 	return 0;
 
 }
