@@ -1324,6 +1324,11 @@ struct i915_power_well {
 	unsigned long domains;
 	/* unique identifier for this power well */
 	unsigned long id;
+	/*
+	 * Arbitraty data associated with this power well. Platform and power
+	 * well specific.
+	 */
+	unsigned long data;
 	const struct i915_power_well_ops *ops;
 };
 

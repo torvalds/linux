@@ -845,13 +845,6 @@ static void skl_power_well_disable(struct drm_i915_private *dev_priv,
 	skl_set_power_well(dev_priv, power_well, false);
 }
 
-static enum dpio_phy bxt_power_well_to_phy(struct i915_power_well *power_well)
-{
-	enum skl_disp_power_wells power_well_id = power_well->id;
-
-	return power_well_id == BXT_DPIO_CMN_A ? DPIO_PHY1 : DPIO_PHY0;
-}
-
 static void bxt_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
@@ -867,7 +860,7 @@ static void bxt_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 		intel_power_well_get(dev_priv, cmn_a_well);
 	}
 
-	bxt_ddi_phy_init(dev_priv, bxt_power_well_to_phy(power_well));
+	bxt_ddi_phy_init(dev_priv, power_well->data);
 
 	if (cmn_a_well)
 		intel_power_well_put(dev_priv, cmn_a_well);
@@ -876,14 +869,13 @@ static void bxt_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 static void bxt_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 					    struct i915_power_well *power_well)
 {
-	bxt_ddi_phy_uninit(dev_priv, bxt_power_well_to_phy(power_well));
+	bxt_ddi_phy_uninit(dev_priv, power_well->data);
 }
 
 static bool bxt_dpio_cmn_power_well_enabled(struct drm_i915_private *dev_priv,
 					    struct i915_power_well *power_well)
 {
-	return bxt_ddi_phy_is_enabled(dev_priv,
-				      bxt_power_well_to_phy(power_well));
+	return bxt_ddi_phy_is_enabled(dev_priv, power_well->data);
 }
 
 static void bxt_dpio_cmn_power_well_sync_hw(struct drm_i915_private *dev_priv,
@@ -902,13 +894,11 @@ static void bxt_verify_ddi_phy_power_wells(struct drm_i915_private *dev_priv)
 
 	power_well = lookup_power_well(dev_priv, BXT_DPIO_CMN_A);
 	if (power_well->count > 0)
-		bxt_ddi_phy_verify_state(dev_priv,
-					 bxt_power_well_to_phy(power_well));
+		bxt_ddi_phy_verify_state(dev_priv, power_well->data);
 
 	power_well = lookup_power_well(dev_priv, BXT_DPIO_CMN_BC);
 	if (power_well->count > 0)
-		bxt_ddi_phy_verify_state(dev_priv,
-					 bxt_power_well_to_phy(power_well));
+		bxt_ddi_phy_verify_state(dev_priv, power_well->data);
 }
 
 static bool gen9_dc_off_power_well_enabled(struct drm_i915_private *dev_priv,
@@ -2162,12 +2152,14 @@ static struct i915_power_well bxt_power_wells[] = {
 		.domains = BXT_DPIO_CMN_A_POWER_DOMAINS,
 		.ops = &bxt_dpio_cmn_power_well_ops,
 		.id = BXT_DPIO_CMN_A,
+		.data = DPIO_PHY1,
 	},
 	{
 		.name = "dpio-common-bc",
 		.domains = BXT_DPIO_CMN_BC_POWER_DOMAINS,
 		.ops = &bxt_dpio_cmn_power_well_ops,
 		.id = BXT_DPIO_CMN_BC,
+		.data = DPIO_PHY0,
 	},
 };
 
