@@ -2268,8 +2268,6 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev)
 	}
 
 	if (need_full_reset) {
-		/* save scratch */
-		amdgpu_atombios_scratch_regs_save(adev);
 		r = amdgpu_suspend(adev);
 
 retry:
@@ -2288,8 +2286,6 @@ retry:
 			dev_info(adev->dev, "GPU reset succeeded, trying to resume\n");
 			r = amdgpu_resume(adev);
 		}
-		/* restore scratch */
-		amdgpu_atombios_scratch_regs_restore(adev);
 	}
 	if (!r) {
 		amdgpu_irq_gpu_reset_resume_helper(adev);
