@@ -678,9 +678,9 @@ static int rxrpc_release_sock(struct sock *sk)
 	sk->sk_state = RXRPC_CLOSE;
 	spin_unlock_bh(&sk->sk_receive_queue.lock);
 
-	if (rx->local && rx->local->service == rx) {
+	if (rx->local && rcu_access_pointer(rx->local->service) == rx) {
 		write_lock(&rx->local->services_lock);
-		rx->local->service = NULL;
+		rcu_assign_pointer(rx->local->service, NULL);
 		write_unlock(&rx->local->services_lock);
 	}
 
