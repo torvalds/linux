@@ -848,22 +848,7 @@ static void skl_power_well_disable(struct drm_i915_private *dev_priv,
 static void bxt_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
-	enum skl_disp_power_wells power_well_id = power_well->id;
-	struct i915_power_well *cmn_a_well = NULL;
-
-	if (power_well_id == BXT_DPIO_CMN_BC) {
-		/*
-		 * We need to copy the GRC calibration value from the eDP PHY,
-		 * so make sure it's powered up.
-		 */
-		cmn_a_well = lookup_power_well(dev_priv, BXT_DPIO_CMN_A);
-		intel_power_well_get(dev_priv, cmn_a_well);
-	}
-
 	bxt_ddi_phy_init(dev_priv, power_well->data);
-
-	if (cmn_a_well)
-		intel_power_well_put(dev_priv, cmn_a_well);
 }
 
 static void bxt_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,

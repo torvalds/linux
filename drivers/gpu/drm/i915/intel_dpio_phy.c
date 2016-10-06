@@ -124,6 +124,13 @@ struct bxt_ddi_phy_info {
 	bool dual_channel;
 
 	/**
+	 * @rcomp_phy: If -1, indicates this phy has its own rcomp resistor.
+	 * Otherwise the GRC value will be copied from the phy indicated by
+	 * this field.
+	 */
+	enum dpio_phy rcomp_phy;
+
+	/**
 	 * @channel: struct containing per channel information.
 	 */
 	struct {
@@ -137,6 +144,7 @@ struct bxt_ddi_phy_info {
 static const struct bxt_ddi_phy_info bxt_ddi_phy_info[] = {
 	[DPIO_PHY0] = {
 		.dual_channel = true,
+		.rcomp_phy = DPIO_PHY1,
 
 		.channel = {
 			[DPIO_CH0] = { .port = PORT_B },
@@ -145,6 +153,7 @@ static const struct bxt_ddi_phy_info bxt_ddi_phy_info[] = {
 	},
 	[DPIO_PHY1] = {
 		.dual_channel = false,
+		.rcomp_phy = -1,
 
 		.channel = {
 			[DPIO_CH0] = { .port = PORT_A },
@@ -214,9 +223,10 @@ bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,
 		return false;
 	}
 
-	if (phy == DPIO_PHY1 &&
-	    !(I915_READ(BXT_PORT_REF_DW3(DPIO_PHY1)) & GRC_DONE)) {
-		DRM_DEBUG_DRIVER("DDI PHY 1 powered, but GRC isn't done\n");
+	if (phy_info->rcomp_phy == -1 &&
+	    !(I915_READ(BXT_PORT_REF_DW3(phy)) & GRC_DONE)) {
+		DRM_DEBUG_DRIVER("DDI PHY %d powered, but GRC isn't done\n",
+				 phy);
 
 		return false;
 	}
@@ -261,14 +271,15 @@ static void bxt_phy_wait_grc_done(struct drm_i915_private *dev_priv,
 		DRM_ERROR("timeout waiting for PHY%d GRC\n", phy);
 }
 
-void bxt_ddi_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy)
+static void _bxt_ddi_phy_init(struct drm_i915_private *dev_priv,
+			      enum dpio_phy phy)
 {
 	const struct bxt_ddi_phy_info *phy_info = &bxt_ddi_phy_info[phy];
 	u32 val;
 
 	if (bxt_ddi_phy_is_enabled(dev_priv, phy)) {
 		/* Still read out the GRC value for state verification */
-		if (phy == DPIO_PHY0)
+		if (phy_info->rcomp_phy != -1)
 			dev_priv->bxt_phy_grc = bxt_get_grc(dev_priv, phy);
 
 		if (bxt_ddi_phy_verify_state(dev_priv, phy)) {
@@ -338,30 +349,32 @@ void bxt_ddi_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 		val |= OCL2_LDOFUSE_PWR_DIS;
 	I915_WRITE(BXT_PORT_CL1CM_DW30(phy), val);
 
-	if (phy == DPIO_PHY0) {
+	if (phy_info->rcomp_phy != -1) {
 		uint32_t grc_code;
 		/*
 		 * PHY0 isn't connected to an RCOMP resistor so copy over
 		 * the corresponding calibrated value from PHY1, and disable
 		 * the automatic calibration on PHY0.
 		 */
-		val = dev_priv->bxt_phy_grc = bxt_get_grc(dev_priv, DPIO_PHY1);
+		val = dev_priv->bxt_phy_grc = bxt_get_grc(dev_priv,
+							  phy_info->rcomp_phy);
 		grc_code = val << GRC_CODE_FAST_SHIFT |
 			   val << GRC_CODE_SLOW_SHIFT |
 			   val;
-		I915_WRITE(BXT_PORT_REF_DW6(DPIO_PHY0), grc_code);
+		I915_WRITE(BXT_PORT_REF_DW6(phy), grc_code);
 
-		val = I915_READ(BXT_PORT_REF_DW8(DPIO_PHY0));
+		val = I915_READ(BXT_PORT_REF_DW8(phy));
 		val |= GRC_DIS | GRC_RDY_OVRD;
-		I915_WRITE(BXT_PORT_REF_DW8(DPIO_PHY0), val);
+		I915_WRITE(BXT_PORT_REF_DW8(phy), val);
 	}
 
 	val = I915_READ(BXT_PHY_CTL_FAMILY(phy));
 	val |= COMMON_RESET_DIS;
 	I915_WRITE(BXT_PHY_CTL_FAMILY(phy), val);
 
-	if (phy == DPIO_PHY1)
-		bxt_phy_wait_grc_done(dev_priv, DPIO_PHY1);
+	if (phy_info->rcomp_phy == -1)
+		bxt_phy_wait_grc_done(dev_priv, phy);
+
 }
 
 void bxt_ddi_phy_uninit(struct drm_i915_private *dev_priv, enum dpio_phy phy)
@@ -375,6 +388,31 @@ void bxt_ddi_phy_uninit(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 	val = I915_READ(BXT_P_CR_GT_DISP_PWRON);
 	val &= ~GT_DISPLAY_POWER_ON(phy);
 	I915_WRITE(BXT_P_CR_GT_DISP_PWRON, val);
+}
+
+void bxt_ddi_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy)
+{
+	const struct bxt_ddi_phy_info *phy_info = &bxt_ddi_phy_info[phy];
+	enum dpio_phy rcomp_phy = phy_info->rcomp_phy;
+	bool was_enabled;
+
+	lockdep_assert_held(&dev_priv->power_domains.lock);
+
+	if (rcomp_phy != -1) {
+		was_enabled = bxt_ddi_phy_is_enabled(dev_priv, rcomp_phy);
+
+		/*
+		 * We need to copy the GRC calibration value from rcomp_phy,
+		 * so make sure it's powered up.
+		 */
+		if (!was_enabled)
+			_bxt_ddi_phy_init(dev_priv, rcomp_phy);
+	}
+
+	_bxt_ddi_phy_init(dev_priv, phy);
+
+	if (rcomp_phy != -1 && !was_enabled)
+		bxt_ddi_phy_uninit(dev_priv, phy_info->rcomp_phy);
 }
 
 static bool __printf(6, 7)
@@ -443,7 +481,7 @@ bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
 	 * at least on stepping A this bit is read-only and fixed at 0.
 	 */
 
-	if (phy == DPIO_PHY0) {
+	if (phy_info->rcomp_phy != -1) {
 		u32 grc_code = dev_priv->bxt_phy_grc;
 
 		grc_code = grc_code << GRC_CODE_FAST_SHIFT |
@@ -451,12 +489,12 @@ bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
 			   grc_code;
 		mask = GRC_CODE_FAST_MASK | GRC_CODE_SLOW_MASK |
 		       GRC_CODE_NOM_MASK;
-		ok &= _CHK(BXT_PORT_REF_DW6(DPIO_PHY0), mask, grc_code,
-			    "BXT_PORT_REF_DW6(%d)", DPIO_PHY0);
+		ok &= _CHK(BXT_PORT_REF_DW6(phy), mask, grc_code,
+			    "BXT_PORT_REF_DW6(%d)", phy);
 
 		mask = GRC_DIS | GRC_RDY_OVRD;
-		ok &= _CHK(BXT_PORT_REF_DW8(DPIO_PHY0), mask, mask,
-			    "BXT_PORT_REF_DW8(%d)", DPIO_PHY0);
+		ok &= _CHK(BXT_PORT_REF_DW8(phy), mask, mask,
+			    "BXT_PORT_REF_DW8(%d)", phy);
 	}
 
 	return ok;
