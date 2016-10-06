@@ -96,7 +96,7 @@ void set_affinity(const char *arg)
 	assert(!ret);
 }
 
-static void run_guest(void)
+static void __attribute__((__flatten__)) run_guest(void)
 {
 	int completed_before;
 	int completed = 0;
@@ -149,7 +149,7 @@ static void run_guest(void)
 	}
 }
 
-static void run_host(void)
+static void __attribute__((__flatten__)) run_host(void)
 {
 	int completed_before;
 	int completed = 0;
