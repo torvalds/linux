@@ -688,8 +688,6 @@ static int xilinx_pcie_probe(struct platform_device *pdev)
 	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
 #endif
 	pci_bus_add_devices(bus);
-	platform_set_drvdata(pdev, port);
-
 	return 0;
 
 error:
