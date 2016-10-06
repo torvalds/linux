@@ -307,11 +307,12 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	/* If our RTT cache needs working on, request an ACK.  Also request
 	 * ACKs if a DATA packet appears to have been lost.
 	 */
-	if (retrans ||
-	    call->cong_mode == RXRPC_CALL_SLOW_START ||
-	    (call->peer->rtt_usage < 3 && sp->hdr.seq & 1) ||
-	    ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000),
-			 ktime_get_real()))
+	if (!(sp->hdr.flags & RXRPC_LAST_PACKET) &&
+	    (retrans ||
+	     call->cong_mode == RXRPC_CALL_SLOW_START ||
+	     (call->peer->rtt_usage < 3 && sp->hdr.seq & 1) ||
+	     ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000),
+			  ktime_get_real())))
 		whdr.flags |= RXRPC_REQUEST_ACK;
 
 	if (IS_ENABLED(CONFIG_AF_RXRPC_INJECT_LOSS)) {
