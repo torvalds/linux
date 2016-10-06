@@ -60,6 +60,7 @@
 	((mpidr >> (MPIDR_LEVEL_BITS * level)) & MPIDR_LEVEL_MASK)
 
 #define ARM_CPU_IMP_ARM			0x41
+#define ARM_CPU_IMP_DEC			0x44
 #define ARM_CPU_IMP_INTEL		0x69
 
 /* ARM implemented processors */
@@ -75,6 +76,17 @@
 #define ARM_CPU_PART_CORTEX_A17		0x4100c0e0
 #define ARM_CPU_PART_CORTEX_A15		0x4100c0f0
 #define ARM_CPU_PART_MASK		0xff00fff0
+
+/* DEC implemented cores */
+#define ARM_CPU_PART_SA1100		0x4400a110
+
+/* Intel implemented cores */
+#define ARM_CPU_PART_SA1110		0x6900b110
+#define ARM_CPU_REV_SA1110_A0		0
+#define ARM_CPU_REV_SA1110_B0		4
+#define ARM_CPU_REV_SA1110_B1		5
+#define ARM_CPU_REV_SA1110_B2		6
+#define ARM_CPU_REV_SA1110_B4		8
 
 #define ARM_CPU_XSCALE_ARCH_MASK	0xe000
 #define ARM_CPU_XSCALE_ARCH_V1		0x2000
@@ -152,11 +164,21 @@ static inline unsigned int __attribute_const__ read_cpuid_id(void)
 	return read_cpuid(CPUID_ID);
 }
 
+static inline unsigned int __attribute_const__ read_cpuid_cachetype(void)
+{
+	return read_cpuid(CPUID_CACHETYPE);
+}
+
 #elif defined(CONFIG_CPU_V7M)
 
 static inline unsigned int __attribute_const__ read_cpuid_id(void)
 {
 	return readl(BASEADDR_V7M_SCB + V7M_SCB_CPUID);
+}
+
+static inline unsigned int __attribute_const__ read_cpuid_cachetype(void)
+{
+	return readl(BASEADDR_V7M_SCB + V7M_SCB_CTR);
 }
 
 #else /* ifdef CONFIG_CPU_CP15 / elif defined(CONFIG_CPU_V7M) */
@@ -171,6 +193,11 @@ static inline unsigned int __attribute_const__ read_cpuid_id(void)
 static inline unsigned int __attribute_const__ read_cpuid_implementor(void)
 {
 	return (read_cpuid_id() & 0xFF000000) >> 24;
+}
+
+static inline unsigned int __attribute_const__ read_cpuid_revision(void)
+{
+	return read_cpuid_id() & 0x0000000f;
 }
 
 /*
@@ -193,11 +220,6 @@ static inline unsigned int __attribute_const__ xscale_cpu_arch_version(void)
 	return read_cpuid_id() & ARM_CPU_XSCALE_ARCH_MASK;
 }
 
-static inline unsigned int __attribute_const__ read_cpuid_cachetype(void)
-{
-	return read_cpuid(CPUID_CACHETYPE);
-}
-
 static inline unsigned int __attribute_const__ read_cpuid_tcmstatus(void)
 {
 	return read_cpuid(CPUID_TCM);
@@ -207,6 +229,10 @@ static inline unsigned int __attribute_const__ read_cpuid_mpidr(void)
 {
 	return read_cpuid(CPUID_MPIDR);
 }
+
+/* StrongARM-11x0 CPUs */
+#define cpu_is_sa1100() (read_cpuid_part() == ARM_CPU_PART_SA1100)
+#define cpu_is_sa1110() (read_cpuid_part() == ARM_CPU_PART_SA1110)
 
 /*
  * Intel's XScale3 core supports some v6 features (supersections, L2)
