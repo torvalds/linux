@@ -345,6 +345,7 @@
 /* ethernet subsystem chip id register */
 #define ETHSYS_CHIPID0_3	0x0
 #define ETHSYS_CHIPID4_7	0x4
+#define MT7623_ETH		7623
 
 /* ethernet subsystem config register */
 #define ETHSYS_SYSCFG0		0x14
