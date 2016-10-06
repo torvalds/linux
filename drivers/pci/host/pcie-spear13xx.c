@@ -25,10 +25,10 @@
 #include "pcie-designware.h"
 
 struct spear13xx_pcie {
+	struct pcie_port	pp;		/* DT dbi is pp.dbi_base */
 	void __iomem		*app_base;
 	struct phy		*phy;
 	struct clk		*clk;
-	struct pcie_port	pp;
 	bool			is_gen1;
 };
 
