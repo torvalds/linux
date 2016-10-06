@@ -217,7 +217,6 @@ static int armada8k_pcie_probe(struct platform_device *pdev)
 
 	pp = &pcie->pp;
 	pp->dev = dev;
-	platform_set_drvdata(pdev, pcie);
 
 	/* Get the dw-pcie unit configuration/control registers base. */
 	base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ctrl");
