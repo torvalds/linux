@@ -38,7 +38,6 @@ struct pcie_soc_ops {
 
 struct hisi_pcie {
 	struct regmap *subctrl;
-	void __iomem *reg_base;
 	u32 port_id;
 	struct pcie_port pp;
 	struct pcie_soc_ops *soc_ops;
@@ -47,12 +46,12 @@ struct hisi_pcie {
 static inline void hisi_pcie_apb_writel(struct hisi_pcie *hisi_pcie,
 					u32 val, u32 reg)
 {
-	writel(val, hisi_pcie->reg_base + reg);
+	writel(val, hisi_pcie->pp.dbi_base + reg);
 }
 
 static inline u32 hisi_pcie_apb_readl(struct hisi_pcie *hisi_pcie, u32 reg)
 {
-	return readl(hisi_pcie->reg_base + reg);
+	return readl(hisi_pcie->pp.dbi_base + reg);
 }
 
 /* HipXX PCIe host only supports 32-bit config access */
@@ -198,13 +197,11 @@ static int hisi_pcie_probe(struct platform_device *pdev)
 	}
 
 	reg = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rc_dbi");
-	hisi_pcie->reg_base = devm_ioremap_resource(dev, reg);
-	if (IS_ERR(hisi_pcie->reg_base)) {
+	pp->dbi_base = devm_ioremap_resource(dev, reg);
+	if (IS_ERR(pp->dbi_base)) {
 		dev_err(dev, "cannot get rc_dbi base\n");
-		return PTR_ERR(hisi_pcie->reg_base);
+		return PTR_ERR(pp->dbi_base);
 	}
-
-	hisi_pcie->pp.dbi_base = hisi_pcie->reg_base;
 
 	ret = hisi_add_pcie_port(pp, pdev);
 	if (ret)
