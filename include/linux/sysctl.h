@@ -158,8 +158,7 @@ struct ctl_table_set {
 
 struct ctl_table_root {
 	struct ctl_table_set default_set;
-	struct ctl_table_set *(*lookup)(struct ctl_table_root *root,
-					   struct nsproxy *namespaces);
+	struct ctl_table_set *(*lookup)(struct ctl_table_root *root);
 	void (*set_ownership)(struct ctl_table_header *head,
 			      struct ctl_table *table,
 			      kuid_t *uid, kgid_t *gid);

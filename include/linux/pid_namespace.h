@@ -40,6 +40,7 @@ struct pid_namespace {
 	struct fs_pin *bacct;
 #endif
 	struct user_namespace *user_ns;
+	struct ucounts *ucounts;
 	struct work_struct proc_work;
 	kgid_t pid_gid;
 	int hide_pid;
