@@ -342,6 +342,10 @@
 #define GPIO_BIAS_CTRL		0xed0
 #define GPIO_DRV_SEL10		0xf00
 
+/* ethernet subsystem chip id register */
+#define ETHSYS_CHIPID0_3	0x0
+#define ETHSYS_CHIPID4_7	0x4
+
 /* ethernet subsystem config register */
 #define ETHSYS_SYSCFG0		0x14
 #define SYSCFG0_GE_MASK		0x3
@@ -534,6 +538,7 @@ struct mtk_eth {
 	unsigned long			sysclk;
 	struct regmap			*ethsys;
 	struct regmap			*pctl;
+	u32				chip_id;
 	bool				hwlro;
 	atomic_t			dma_refcnt;
 	struct mtk_tx_ring		tx_ring;
