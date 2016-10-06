@@ -832,7 +832,6 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 		dwc3_gadget_move_started_request(req);
 		req->trb = trb;
 		req->trb_dma = dwc3_trb_dma_offset(dep, trb);
-		req->first_trb_index = dep->trb_enqueue;
 		dep->queued_requests++;
 	}
 
