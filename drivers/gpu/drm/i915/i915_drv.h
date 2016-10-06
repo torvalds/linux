@@ -3761,6 +3761,9 @@ u32 vlv_flisdsi_read(struct drm_i915_private *dev_priv, u32 reg);
 void vlv_flisdsi_write(struct drm_i915_private *dev_priv, u32 reg, u32 val);
 
 /* intel_dpio_phy.c */
+void bxt_ddi_phy_set_signal_level(struct drm_i915_private *dev_priv,
+				  enum port port, u32 margin, u32 scale,
+				  u32 enable, u32 deemphasis);
 void bxt_ddi_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy);
 void bxt_ddi_phy_uninit(struct drm_i915_private *dev_priv, enum dpio_phy phy);
 bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,

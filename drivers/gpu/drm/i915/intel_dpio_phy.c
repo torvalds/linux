@@ -114,6 +114,45 @@
  *     -----------------
  */
 
+void bxt_ddi_phy_set_signal_level(struct drm_i915_private *dev_priv,
+				  enum port port, u32 margin, u32 scale,
+				  u32 enable, u32 deemphasis)
+{
+	u32 val;
+
+	/*
+	 * While we write to the group register to program all lanes at once we
+	 * can read only lane registers and we pick lanes 0/1 for that.
+	 */
+	val = I915_READ(BXT_PORT_PCS_DW10_LN01(port));
+	val &= ~(TX2_SWING_CALC_INIT | TX1_SWING_CALC_INIT);
+	I915_WRITE(BXT_PORT_PCS_DW10_GRP(port), val);
+
+	val = I915_READ(BXT_PORT_TX_DW2_LN0(port));
+	val &= ~(MARGIN_000 | UNIQ_TRANS_SCALE);
+	val |= margin << MARGIN_000_SHIFT | scale << UNIQ_TRANS_SCALE_SHIFT;
+	I915_WRITE(BXT_PORT_TX_DW2_GRP(port), val);
+
+	val = I915_READ(BXT_PORT_TX_DW3_LN0(port));
+	val &= ~SCALE_DCOMP_METHOD;
+	if (enable)
+		val |= SCALE_DCOMP_METHOD;
+
+	if ((val & UNIQUE_TRANGE_EN_METHOD) && !(val & SCALE_DCOMP_METHOD))
+		DRM_ERROR("Disabled scaling while ouniqetrangenmethod was set");
+
+	I915_WRITE(BXT_PORT_TX_DW3_GRP(port), val);
+
+	val = I915_READ(BXT_PORT_TX_DW4_LN0(port));
+	val &= ~DE_EMPHASIS;
+	val |= deemphasis << DEEMPH_SHIFT;
+	I915_WRITE(BXT_PORT_TX_DW4_GRP(port), val);
+
+	val = I915_READ(BXT_PORT_PCS_DW10_LN01(port));
+	val |= TX2_SWING_CALC_INIT | TX1_SWING_CALC_INIT;
+	I915_WRITE(BXT_PORT_PCS_DW10_GRP(port), val);
+}
+
 bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,
 			    enum dpio_phy phy)
 {

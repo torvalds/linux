@@ -1547,7 +1547,6 @@ static void bxt_ddi_vswing_sequence(struct drm_i915_private *dev_priv,
 {
 	const struct bxt_ddi_buf_trans *ddi_translations;
 	u32 n_entries, i;
-	uint32_t val;
 
 	if (type == INTEL_OUTPUT_EDP && dev_priv->vbt.edp.low_vswing) {
 		n_entries = ARRAY_SIZE(bxt_ddi_translations_edp);
@@ -1576,38 +1575,11 @@ static void bxt_ddi_vswing_sequence(struct drm_i915_private *dev_priv,
 		}
 	}
 
-	/*
-	 * While we write to the group register to program all lanes at once we
-	 * can read only lane registers and we pick lanes 0/1 for that.
-	 */
-	val = I915_READ(BXT_PORT_PCS_DW10_LN01(port));
-	val &= ~(TX2_SWING_CALC_INIT | TX1_SWING_CALC_INIT);
-	I915_WRITE(BXT_PORT_PCS_DW10_GRP(port), val);
-
-	val = I915_READ(BXT_PORT_TX_DW2_LN0(port));
-	val &= ~(MARGIN_000 | UNIQ_TRANS_SCALE);
-	val |= ddi_translations[level].margin << MARGIN_000_SHIFT |
-	       ddi_translations[level].scale << UNIQ_TRANS_SCALE_SHIFT;
-	I915_WRITE(BXT_PORT_TX_DW2_GRP(port), val);
-
-	val = I915_READ(BXT_PORT_TX_DW3_LN0(port));
-	val &= ~SCALE_DCOMP_METHOD;
-	if (ddi_translations[level].enable)
-		val |= SCALE_DCOMP_METHOD;
-
-	if ((val & UNIQUE_TRANGE_EN_METHOD) && !(val & SCALE_DCOMP_METHOD))
-		DRM_ERROR("Disabled scaling while ouniqetrangenmethod was set");
-
-	I915_WRITE(BXT_PORT_TX_DW3_GRP(port), val);
-
-	val = I915_READ(BXT_PORT_TX_DW4_LN0(port));
-	val &= ~DE_EMPHASIS;
-	val |= ddi_translations[level].deemphasis << DEEMPH_SHIFT;
-	I915_WRITE(BXT_PORT_TX_DW4_GRP(port), val);
-
-	val = I915_READ(BXT_PORT_PCS_DW10_LN01(port));
-	val |= TX2_SWING_CALC_INIT | TX1_SWING_CALC_INIT;
-	I915_WRITE(BXT_PORT_PCS_DW10_GRP(port), val);
+	bxt_ddi_phy_set_signal_level(dev_priv, port,
+				     ddi_translations[level].margin,
+				     ddi_translations[level].scale,
+				     ddi_translations[level].enable,
+				     ddi_translations[level].deemphasis);
 }
 
 static uint32_t translate_signal_level(int signal_levels)
