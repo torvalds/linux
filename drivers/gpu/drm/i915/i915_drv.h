@@ -1322,7 +1322,8 @@ struct i915_power_well {
 	/* cached hw enabled state */
 	bool hw_enabled;
 	unsigned long domains;
-	unsigned long data;
+	/* unique identifier for this power well */
+	unsigned long id;
 	const struct i915_power_well_ops *ops;
 };
 
