@@ -86,10 +86,10 @@ struct qcom_pcie_ops {
 };
 
 struct qcom_pcie {
-	struct pcie_port pp;
+	struct pcie_port pp;			/* pp.dbi_base is DT dbi */
+	void __iomem *parf;			/* DT parf */
+	void __iomem *elbi;			/* DT elbi */
 	union qcom_pcie_resources res;
-	void __iomem *parf;
-	void __iomem *elbi;
 	struct phy *phy;
 	struct gpio_desc *reset;
 	struct qcom_pcie_ops *ops;
