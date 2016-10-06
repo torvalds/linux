@@ -29,8 +29,8 @@
 #include "pcie-designware.h"
 
 struct armada8k_pcie {
+	struct pcie_port pp;		/* pp.dbi_base is DT ctrl */
 	struct clk *clk;
-	struct pcie_port pp;
 };
 
 #define PCIE_VENDOR_REGS_OFFSET		0x8000
