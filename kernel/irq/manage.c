@@ -721,6 +721,7 @@ int irq_set_parent(int irq, int parent_irq)
 	irq_put_desc_unlock(desc, flags);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(irq_set_parent);
 #endif
 
 /*
