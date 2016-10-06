@@ -35,8 +35,11 @@ void rxrpc_set_timer(struct rxrpc_call *call, enum rxrpc_timer_trace why,
 
 	if (call->state < RXRPC_CALL_COMPLETE) {
 		t = call->expire_at;
-		if (!ktime_after(t, now))
+		if (!ktime_after(t, now)) {
+			trace_rxrpc_timer(call, why, now, now_j);
+			queue = true;
 			goto out;
+		}
 
 		if (!ktime_after(call->resend_at, now)) {
 			call->resend_at = call->expire_at;
@@ -76,12 +79,11 @@ void rxrpc_set_timer(struct rxrpc_call *call, enum rxrpc_timer_trace why,
 			mod_timer(&call->timer, t_j);
 			trace_rxrpc_timer(call, why, now, now_j);
 		}
-
-		if (queue)
-			rxrpc_queue_call(call);
 	}
 
 out:
+	if (queue)
+		rxrpc_queue_call(call);
 	read_unlock_bh(&call->state_lock);
 }
 
