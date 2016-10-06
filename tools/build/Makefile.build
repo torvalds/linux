@@ -61,6 +61,9 @@ quiet_cmd_cc_o_c = CC       $@
 quiet_cmd_host_cc_o_c = HOSTCC   $@
       cmd_host_cc_o_c = $(HOSTCC) $(host_c_flags) -c -o $@ $<
 
+quiet_cmd_cxx_o_c = CXX      $@
+      cmd_cxx_o_c = $(CXX) $(cxx_flags) -c -o $@ $<
+
 quiet_cmd_cpp_i_c = CPP      $@
       cmd_cpp_i_c = $(CC) $(c_flags) -E -o $@ $<
 
@@ -87,6 +90,10 @@ endif
 $(OUTPUT)%.o: %.c FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,$(host)cc_o_c)
+
+$(OUTPUT)%.o: %.cpp FORCE
+	$(call rule_mkdir)
+	$(call if_changed_dep,cxx_o_c)
 
 $(OUTPUT)%.o: %.S FORCE
 	$(call rule_mkdir)
