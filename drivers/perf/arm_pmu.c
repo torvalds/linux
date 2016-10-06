@@ -688,7 +688,7 @@ static int cpu_pmu_request_irq(struct arm_pmu *cpu_pmu, irq_handler_t handler)
 	return 0;
 }
 
-static DEFINE_MUTEX(arm_pmu_mutex);
+static DEFINE_SPINLOCK(arm_pmu_lock);
 static LIST_HEAD(arm_pmu_list);
 
 /*
@@ -701,7 +701,7 @@ static int arm_perf_starting_cpu(unsigned int cpu)
 {
 	struct arm_pmu *pmu;
 
-	mutex_lock(&arm_pmu_mutex);
+	spin_lock(&arm_pmu_lock);
 	list_for_each_entry(pmu, &arm_pmu_list, entry) {
 
 		if (!cpumask_test_cpu(cpu, &pmu->supported_cpus))
@@ -709,7 +709,7 @@ static int arm_perf_starting_cpu(unsigned int cpu)
 		if (pmu->reset)
 			pmu->reset(pmu);
 	}
-	mutex_unlock(&arm_pmu_mutex);
+	spin_unlock(&arm_pmu_lock);
 	return 0;
 }
 
@@ -821,9 +821,9 @@ static int cpu_pmu_init(struct arm_pmu *cpu_pmu)
 	if (!cpu_hw_events)
 		return -ENOMEM;
 
-	mutex_lock(&arm_pmu_mutex);
+	spin_lock(&arm_pmu_lock);
 	list_add_tail(&cpu_pmu->entry, &arm_pmu_list);
-	mutex_unlock(&arm_pmu_mutex);
+	spin_unlock(&arm_pmu_lock);
 
 	err = cpu_pm_pmu_register(cpu_pmu);
 	if (err)
@@ -859,9 +859,9 @@ static int cpu_pmu_init(struct arm_pmu *cpu_pmu)
 	return 0;
 
 out_unregister:
-	mutex_lock(&arm_pmu_mutex);
+	spin_lock(&arm_pmu_lock);
 	list_del(&cpu_pmu->entry);
-	mutex_unlock(&arm_pmu_mutex);
+	spin_unlock(&arm_pmu_lock);
 	free_percpu(cpu_hw_events);
 	return err;
 }
@@ -869,9 +869,9 @@ out_unregister:
 static void cpu_pmu_destroy(struct arm_pmu *cpu_pmu)
 {
 	cpu_pm_pmu_unregister(cpu_pmu);
-	mutex_lock(&arm_pmu_mutex);
+	spin_lock(&arm_pmu_lock);
 	list_del(&cpu_pmu->entry);
-	mutex_unlock(&arm_pmu_mutex);
+	spin_unlock(&arm_pmu_lock);
 	free_percpu(cpu_pmu->hw_events);
 }
 
@@ -925,6 +925,7 @@ static int of_pmu_irq_cfg(struct arm_pmu *pmu)
 			if (i > 0 && spi != using_spi) {
 				pr_err("PPI/SPI IRQ type mismatch for %s!\n",
 					dn->name);
+				of_node_put(dn);
 				kfree(irqs);
 				return -EINVAL;
 			}
@@ -967,11 +968,12 @@ static int of_pmu_irq_cfg(struct arm_pmu *pmu)
 
 	/* If we didn't manage to parse anything, try the interrupt affinity */
 	if (cpumask_weight(&pmu->supported_cpus) == 0) {
-		if (!using_spi) {
-			/* If using PPIs, check the affinity of the partition */
-			int ret, irq;
+		int irq = platform_get_irq(pdev, 0);
 
-			irq = platform_get_irq(pdev, 0);
+		if (irq >= 0 && irq_is_percpu(irq)) {
+			/* If using PPIs, check the affinity of the partition */
+			int ret;
+
 			ret = irq_get_percpu_devid_partition(irq, &pmu->supported_cpus);
 			if (ret) {
 				kfree(irqs);

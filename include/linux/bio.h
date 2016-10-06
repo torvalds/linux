@@ -71,7 +71,8 @@ static inline bool bio_has_data(struct bio *bio)
 {
 	if (bio &&
 	    bio->bi_iter.bi_size &&
-	    bio_op(bio) != REQ_OP_DISCARD)
+	    bio_op(bio) != REQ_OP_DISCARD &&
+	    bio_op(bio) != REQ_OP_SECURE_ERASE)
 		return true;
 
 	return false;
@@ -79,7 +80,9 @@ static inline bool bio_has_data(struct bio *bio)
 
 static inline bool bio_no_advance_iter(struct bio *bio)
 {
-	return bio_op(bio) == REQ_OP_DISCARD || bio_op(bio) == REQ_OP_WRITE_SAME;
+	return bio_op(bio) == REQ_OP_DISCARD ||
+	       bio_op(bio) == REQ_OP_SECURE_ERASE ||
+	       bio_op(bio) == REQ_OP_WRITE_SAME;
 }
 
 static inline bool bio_is_rw(struct bio *bio)
@@ -197,6 +200,9 @@ static inline unsigned bio_segments(struct bio *bio)
 	 */
 
 	if (bio_op(bio) == REQ_OP_DISCARD)
+		return 1;
+
+	if (bio_op(bio) == REQ_OP_SECURE_ERASE)
 		return 1;
 
 	if (bio_op(bio) == REQ_OP_WRITE_SAME)

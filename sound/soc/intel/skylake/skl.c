@@ -672,8 +672,10 @@ static int skl_probe(struct pci_dev *pci,
 
 	skl->nhlt = skl_nhlt_init(bus->dev);
 
-	if (skl->nhlt == NULL)
+	if (skl->nhlt == NULL) {
+		err = -ENODEV;
 		goto out_free;
+	}
 
 	skl_nhlt_update_topology_bin(skl);
 

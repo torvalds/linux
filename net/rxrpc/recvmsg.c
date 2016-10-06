@@ -203,6 +203,9 @@ int rxrpc_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 		}
 
 		/* we transferred the whole data packet */
+		if (!(flags & MSG_PEEK))
+			rxrpc_kernel_data_consumed(call, skb);
+
 		if (sp->hdr.flags & RXRPC_LAST_PACKET) {
 			_debug("last");
 			if (rxrpc_conn_is_client(call->conn)) {
@@ -358,28 +361,6 @@ wait_error:
 	return copied;
 
 }
-
-/**
- * rxrpc_kernel_data_delivered - Record delivery of data message
- * @skb: Message holding data
- *
- * Record the delivery of a data message.  This permits RxRPC to keep its
- * tracking correct.  The socket buffer will be deleted.
- */
-void rxrpc_kernel_data_delivered(struct sk_buff *skb)
-{
-	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-	struct rxrpc_call *call = sp->call;
-
-	ASSERTCMP(sp->hdr.seq, >=, call->rx_data_recv);
-	ASSERTCMP(sp->hdr.seq, <=, call->rx_data_recv + 1);
-	call->rx_data_recv = sp->hdr.seq;
-
-	ASSERTCMP(sp->hdr.seq, >, call->rx_data_eaten);
-	rxrpc_free_skb(skb);
-}
-
-EXPORT_SYMBOL(rxrpc_kernel_data_delivered);
 
 /**
  * rxrpc_kernel_is_data_last - Determine if data message is last one

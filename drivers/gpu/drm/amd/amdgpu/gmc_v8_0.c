@@ -103,6 +103,11 @@ static const u32 stoney_mgcg_cgcg_init[] =
 	mmMC_MEM_POWER_LS, 0xffffffff, 0x00000104
 };
 
+static const u32 golden_settings_stoney_common[] =
+{
+	mmMC_HUB_RDREQ_UVD, MC_HUB_RDREQ_UVD__PRESCALE_MASK, 0x00000004,
+	mmMC_RD_GRP_OTH, MC_RD_GRP_OTH__UVD_MASK, 0x00600000
+};
 
 static void gmc_v8_0_init_golden_registers(struct amdgpu_device *adev)
 {
@@ -142,6 +147,9 @@ static void gmc_v8_0_init_golden_registers(struct amdgpu_device *adev)
 		amdgpu_program_register_sequence(adev,
 						 stoney_mgcg_cgcg_init,
 						 (const u32)ARRAY_SIZE(stoney_mgcg_cgcg_init));
+		amdgpu_program_register_sequence(adev,
+						 golden_settings_stoney_common,
+						 (const u32)ARRAY_SIZE(golden_settings_stoney_common));
 		break;
 	default:
 		break;

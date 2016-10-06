@@ -199,6 +199,7 @@ void i40e_notify_client_of_l2_param_changes(struct i40e_vsi *vsi)
 void i40e_notify_client_of_netdev_open(struct i40e_vsi *vsi)
 {
 	struct i40e_client_instance *cdev;
+	int ret = 0;
 
 	if (!vsi)
 		return;
@@ -211,7 +212,14 @@ void i40e_notify_client_of_netdev_open(struct i40e_vsi *vsi)
 					"Cannot locate client instance open routine\n");
 				continue;
 			}
-			cdev->client->ops->open(&cdev->lan_info, cdev->client);
+			if (!(test_bit(__I40E_CLIENT_INSTANCE_OPENED,
+				       &cdev->state))) {
+				ret = cdev->client->ops->open(&cdev->lan_info,
+							      cdev->client);
+				if (!ret)
+					set_bit(__I40E_CLIENT_INSTANCE_OPENED,
+						&cdev->state);
+			}
 		}
 	}
 	mutex_unlock(&i40e_client_instance_mutex);
@@ -407,12 +415,14 @@ struct i40e_vsi *i40e_vsi_lookup(struct i40e_pf *pf,
  * i40e_client_add_instance - add a client instance struct to the instance list
  * @pf: pointer to the board struct
  * @client: pointer to a client struct in the client list.
+ * @existing: if there was already an existing instance
  *
- * Returns cdev ptr on success, NULL on failure
+ * Returns cdev ptr on success or if already exists, NULL on failure
  **/
 static
 struct i40e_client_instance *i40e_client_add_instance(struct i40e_pf *pf,
-						      struct i40e_client *client)
+						     struct i40e_client *client,
+						     bool *existing)
 {
 	struct i40e_client_instance *cdev;
 	struct netdev_hw_addr *mac = NULL;
@@ -421,7 +431,7 @@ struct i40e_client_instance *i40e_client_add_instance(struct i40e_pf *pf,
 	mutex_lock(&i40e_client_instance_mutex);
 	list_for_each_entry(cdev, &i40e_client_instances, list) {
 		if ((cdev->lan_info.pf == pf) && (cdev->client == client)) {
-			cdev = NULL;
+			*existing = true;
 			goto out;
 		}
 	}
@@ -505,6 +515,7 @@ void i40e_client_subtask(struct i40e_pf *pf)
 {
 	struct i40e_client_instance *cdev;
 	struct i40e_client *client;
+	bool existing = false;
 	int ret = 0;
 
 	if (!(pf->flags & I40E_FLAG_SERVICE_CLIENT_REQUESTED))
@@ -528,18 +539,25 @@ void i40e_client_subtask(struct i40e_pf *pf)
 			/* check if L2 VSI is up, if not we are not ready */
 			if (test_bit(__I40E_DOWN, &pf->vsi[pf->lan_vsi]->state))
 				continue;
+		} else {
+			dev_warn(&pf->pdev->dev, "This client %s is being instanciated at probe\n",
+				 client->name);
 		}
 
 		/* Add the client instance to the instance list */
-		cdev = i40e_client_add_instance(pf, client);
+		cdev = i40e_client_add_instance(pf, client, &existing);
 		if (!cdev)
 			continue;
 
-		/* Also up the ref_cnt of no. of instances of this client */
-		atomic_inc(&client->ref_cnt);
-		dev_info(&pf->pdev->dev, "Added instance of Client %s to PF%d bus=0x%02x func=0x%02x\n",
-			 client->name, pf->hw.pf_id,
-			 pf->hw.bus.device, pf->hw.bus.func);
+		if (!existing) {
+			/* Also up the ref_cnt for no. of instances of this
+			 * client.
+			 */
+			atomic_inc(&client->ref_cnt);
+			dev_info(&pf->pdev->dev, "Added instance of Client %s to PF%d bus=0x%02x func=0x%02x\n",
+				 client->name, pf->hw.pf_id,
+				 pf->hw.bus.device, pf->hw.bus.func);
+		}
 
 		/* Send an Open request to the client */
 		atomic_inc(&cdev->ref_cnt);
@@ -588,7 +606,8 @@ int i40e_lan_add_device(struct i40e_pf *pf)
 		 pf->hw.pf_id, pf->hw.bus.device, pf->hw.bus.func);
 
 	/* Since in some cases register may have happened before a device gets
-	 * added, we can schedule a subtask to go initiate the clients.
+	 * added, we can schedule a subtask to go initiate the clients if
+	 * they can be launched at probe time.
 	 */
 	pf->flags |= I40E_FLAG_SERVICE_CLIENT_REQUESTED;
 	i40e_service_event_schedule(pf);

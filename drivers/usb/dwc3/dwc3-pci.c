@@ -37,6 +37,7 @@
 #define PCI_DEVICE_ID_INTEL_BXT			0x0aaa
 #define PCI_DEVICE_ID_INTEL_BXT_M		0x1aaa
 #define PCI_DEVICE_ID_INTEL_APL			0x5aaa
+#define PCI_DEVICE_ID_INTEL_KBP			0xa2b0
 
 static const struct acpi_gpio_params reset_gpios = { 0, 0, false };
 static const struct acpi_gpio_params cs_gpios = { 1, 0, false };
@@ -227,6 +228,7 @@ static const struct pci_device_id dwc3_pci_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BXT), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BXT_M), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_APL), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_KBP), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_NL_USB), },
 	{  }	/* Terminating Entry */
 };
@@ -241,6 +243,15 @@ static int dwc3_pci_runtime_suspend(struct device *dev)
 	return -EBUSY;
 }
 
+static int dwc3_pci_runtime_resume(struct device *dev)
+{
+	struct platform_device *dwc3 = dev_get_drvdata(dev);
+
+	return pm_runtime_get(&dwc3->dev);
+}
+#endif /* CONFIG_PM */
+
+#ifdef CONFIG_PM_SLEEP
 static int dwc3_pci_pm_dummy(struct device *dev)
 {
 	/*
@@ -253,11 +264,11 @@ static int dwc3_pci_pm_dummy(struct device *dev)
 	 */
 	return 0;
 }
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static struct dev_pm_ops dwc3_pci_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(dwc3_pci_pm_dummy, dwc3_pci_pm_dummy)
-	SET_RUNTIME_PM_OPS(dwc3_pci_runtime_suspend, dwc3_pci_pm_dummy,
+	SET_RUNTIME_PM_OPS(dwc3_pci_runtime_suspend, dwc3_pci_runtime_resume,
 		NULL)
 };
 

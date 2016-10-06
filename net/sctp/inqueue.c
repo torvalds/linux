@@ -170,19 +170,6 @@ next_chunk:
 
 		chunk = list_entry(entry, struct sctp_chunk, list);
 
-		/* Linearize if it's not GSO */
-		if ((skb_shinfo(chunk->skb)->gso_type & SKB_GSO_SCTP) != SKB_GSO_SCTP &&
-		    skb_is_nonlinear(chunk->skb)) {
-			if (skb_linearize(chunk->skb)) {
-				__SCTP_INC_STATS(dev_net(chunk->skb->dev), SCTP_MIB_IN_PKT_DISCARDS);
-				sctp_chunk_free(chunk);
-				goto next_chunk;
-			}
-
-			/* Update sctp_hdr as it probably changed */
-			chunk->sctp_hdr = sctp_hdr(chunk->skb);
-		}
-
 		if ((skb_shinfo(chunk->skb)->gso_type & SKB_GSO_SCTP) == SKB_GSO_SCTP) {
 			/* GSO-marked skbs but without frags, handle
 			 * them normally

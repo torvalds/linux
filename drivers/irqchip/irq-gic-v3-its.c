@@ -1545,7 +1545,12 @@ static int its_force_quiescent(void __iomem *base)
 	u32 val;
 
 	val = readl_relaxed(base + GITS_CTLR);
-	if (val & GITS_CTLR_QUIESCENT)
+	/*
+	 * GIC architecture specification requires the ITS to be both
+	 * disabled and quiescent for writes to GITS_BASER<n> or
+	 * GITS_CBASER to not have UNPREDICTABLE results.
+	 */
+	if ((val & GITS_CTLR_QUIESCENT) && !(val & GITS_CTLR_ENABLE))
 		return 0;
 
 	/* Disable the generation of all interrupts to this ITS */

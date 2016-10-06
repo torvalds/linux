@@ -44,18 +44,6 @@
 				PSSCR_PSLL_MASK | PSSCR_TR_MASK | \
 				PSSCR_MTL_MASK
 
-/* Idle state entry routines */
-
-#define	IDLE_STATE_ENTER_SEQ(IDLE_INST)				\
-	/* Magic NAP/SLEEP/WINKLE mode enter sequence */	\
-	std	r0,0(r1);					\
-	ptesync;						\
-	ld	r0,0(r1);					\
-1:	cmp	cr0,r0,r0;					\
-	bne	1b;						\
-	IDLE_INST;						\
-	b	.
-
 	.text
 
 /*
@@ -363,8 +351,8 @@ _GLOBAL(power9_idle_stop)
  * cr3 - set to gt if waking up with partial/complete hypervisor state loss
  */
 _GLOBAL(pnv_restore_hyp_resource)
-	ld	r2,PACATOC(r13);
 BEGIN_FTR_SECTION
+	ld	r2,PACATOC(r13);
 	/*
 	 * POWER ISA 3. Use PSSCR to determine if we
 	 * are waking up from deep idle state
@@ -395,6 +383,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	 */
 	clrldi	r5,r13,63
 	clrrdi	r13,r13,1
+
+	/* Now that we are sure r13 is corrected, load TOC */
+	ld	r2,PACATOC(r13);
 	cmpwi	cr4,r5,1
 	mtspr	SPRN_HSPRG0,r13
 
@@ -420,7 +411,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
  *
  * r13 - PACA
  * cr3 - gt if waking up with partial/complete hypervisor state loss
- * cr4 - eq if waking up from complete hypervisor state loss.
+ * cr4 - gt or eq if waking up from complete hypervisor state loss.
  */
 _GLOBAL(pnv_wakeup_tb_loss)
 	ld	r1,PACAR1(r13)
@@ -462,7 +453,7 @@ lwarx_loop2:
 	 * At this stage
 	 * cr2 - eq if first thread to wakeup in core
 	 * cr3-  gt if waking up with partial/complete hypervisor state loss
-	 * cr4 - eq if waking up from complete hypervisor state loss.
+	 * cr4 - gt or eq if waking up from complete hypervisor state loss.
 	 */
 
 	ori	r15,r15,PNV_CORE_IDLE_LOCK_BIT
@@ -490,7 +481,7 @@ first_thread_in_subcore:
 	 * If waking up from sleep, subcore state is not lost. Hence
 	 * skip subcore state restore
 	 */
-	bne	cr4,subcore_state_restored
+	blt	cr4,subcore_state_restored
 
 	/* Restore per-subcore state */
 	ld      r4,_SDR1(r1)
@@ -535,7 +526,7 @@ timebase_resync:
 	 * If waking up from sleep, per core state is not lost, skip to
 	 * clear_lock.
 	 */
-	bne	cr4,clear_lock
+	blt	cr4,clear_lock
 
 	/*
 	 * First thread in the core to wake up and its waking up with
@@ -566,7 +557,7 @@ common_exit:
 	 * If waking up from sleep, hypervisor state is not lost. Hence
 	 * skip hypervisor state restore.
 	 */
-	bne	cr4,hypervisor_state_restored
+	blt	cr4,hypervisor_state_restored
 
 	/* Waking up from winkle */
 

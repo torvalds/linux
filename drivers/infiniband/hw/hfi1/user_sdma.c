@@ -114,6 +114,8 @@ MODULE_PARM_DESC(sdma_comp_size, "Size of User SDMA completion ring. Default: 12
 #define KDETH_HCRC_LOWER_SHIFT    24
 #define KDETH_HCRC_LOWER_MASK     0xff
 
+#define AHG_KDETH_INTR_SHIFT 12
+
 #define PBC2LRH(x) ((((x) & 0xfff) << 2) - 4)
 #define LRH2PBC(x) ((((x) >> 2) + 1) & 0xfff)
 
@@ -1480,7 +1482,8 @@ static int set_txreq_header_ahg(struct user_sdma_request *req,
 		/* Clear KDETH.SH on last packet */
 		if (unlikely(tx->flags & TXREQ_FLAGS_REQ_LAST_PKT)) {
 			val |= cpu_to_le16(KDETH_GET(hdr->kdeth.ver_tid_offset,
-								INTR) >> 16);
+						     INTR) <<
+					   AHG_KDETH_INTR_SHIFT);
 			val &= cpu_to_le16(~(1U << 13));
 			AHG_HEADER_SET(req->ahg, diff, 7, 16, 14, val);
 		} else {

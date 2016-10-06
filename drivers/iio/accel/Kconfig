@@ -20,6 +20,8 @@ config BMA180
 config BMA220
     tristate "Bosch BMA220 3-Axis Accelerometer Driver"
 	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
     help
       Say yes here to add support for the Bosch BMA220 triaxial
       acceleration sensor.
@@ -234,7 +236,8 @@ config STK8312
 config STK8BA50
 	tristate "Sensortek STK8BA50 3-Axis Accelerometer Driver"
 	depends on I2C
-	depends on IIO_TRIGGER
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Say yes here to get support for the Sensortek STK8BA50 3-axis
 	  accelerometer.

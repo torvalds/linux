@@ -84,8 +84,11 @@ iomap_apply(struct inode *inode, loff_t pos, loff_t length, unsigned flags,
 	 * Now the data has been copied, commit the range we've copied.  This
 	 * should not fail unless the filesystem has had a fatal error.
 	 */
-	ret = ops->iomap_end(inode, pos, length, written > 0 ? written : 0,
-			flags, &iomap);
+	if (ops->iomap_end) {
+		ret = ops->iomap_end(inode, pos, length,
+				     written > 0 ? written : 0,
+				     flags, &iomap);
+	}
 
 	return written ? written : ret;
 }
@@ -194,12 +197,9 @@ again:
 		if (mapping_writably_mapped(inode->i_mapping))
 			flush_dcache_page(page);
 
-		pagefault_disable();
 		copied = iov_iter_copy_from_user_atomic(page, i, offset, bytes);
-		pagefault_enable();
 
 		flush_dcache_page(page);
-		mark_page_accessed(page);
 
 		status = iomap_write_end(inode, pos, bytes, copied, page);
 		if (unlikely(status < 0))
@@ -428,9 +428,12 @@ static int iomap_to_fiemap(struct fiemap_extent_info *fi,
 		break;
 	}
 
+	if (iomap->flags & IOMAP_F_MERGED)
+		flags |= FIEMAP_EXTENT_MERGED;
+
 	return fiemap_fill_next_extent(fi, iomap->offset,
 			iomap->blkno != IOMAP_NULL_BLOCK ? iomap->blkno << 9: 0,
-			iomap->length, flags | FIEMAP_EXTENT_MERGED);
+			iomap->length, flags);
 
 }
 
@@ -470,13 +473,18 @@ int iomap_fiemap(struct inode *inode, struct fiemap_extent_info *fi,
 	if (ret)
 		return ret;
 
-	ret = filemap_write_and_wait(inode->i_mapping);
-	if (ret)
-		return ret;
+	if (fi->fi_flags & FIEMAP_FLAG_SYNC) {
+		ret = filemap_write_and_wait(inode->i_mapping);
+		if (ret)
+			return ret;
+	}
 
 	while (len > 0) {
 		ret = iomap_apply(inode, start, len, 0, ops, &ctx,
 				iomap_fiemap_actor);
+		/* inode with no (attribute) mapping will give ENOENT */
+		if (ret == -ENOENT)
+			break;
 		if (ret < 0)
 			return ret;
 		if (ret == 0)

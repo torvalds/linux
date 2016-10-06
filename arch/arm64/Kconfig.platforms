@@ -8,7 +8,7 @@ config ARCH_SUNXI
 
 config ARCH_ALPINE
 	bool "Annapurna Labs Alpine platform"
-	select ALPINE_MSI
+	select ALPINE_MSI if PCI
 	help
 	  This enables support for the Annapurna Labs Alpine
 	  Soc family.
@@ -66,7 +66,7 @@ config ARCH_LG1K
 config ARCH_HISI
 	bool "Hisilicon SoC Family"
 	select ARM_TIMER_SP804
-	select HISILICON_IRQ_MBIGEN
+	select HISILICON_IRQ_MBIGEN if PCI
 	help
 	  This enables support for Hisilicon ARMv8 SoC family
 

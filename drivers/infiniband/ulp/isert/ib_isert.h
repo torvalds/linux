@@ -158,6 +158,8 @@ struct isert_conn {
 	struct work_struct	release_work;
 	bool                    logout_posted;
 	bool                    snd_w_inv;
+	wait_queue_head_t	rem_wait;
+	bool			dev_removed;
 };
 
 #define ISERT_MAX_CQ 64

@@ -47,7 +47,6 @@
 #include <linux/topology.h>
 #include <linux/cpumask.h>
 #include <linux/module.h>
-#include <linux/cpumask.h>
 
 #include "hfi.h"
 #include "affinity.h"
@@ -682,7 +681,7 @@ int hfi1_set_sdma_affinity(struct hfi1_devdata *dd, const char *buf,
 			   size_t count)
 {
 	struct hfi1_affinity_node *entry;
-	struct cpumask mask;
+	cpumask_var_t mask;
 	int ret, i;
 
 	spin_lock(&node_affinity.lock);
@@ -692,19 +691,24 @@ int hfi1_set_sdma_affinity(struct hfi1_devdata *dd, const char *buf,
 	if (!entry)
 		return -EINVAL;
 
-	ret = cpulist_parse(buf, &mask);
-	if (ret)
-		return ret;
+	ret = zalloc_cpumask_var(&mask, GFP_KERNEL);
+	if (!ret)
+		return -ENOMEM;
 
-	if (!cpumask_subset(&mask, cpu_online_mask) || cpumask_empty(&mask)) {
+	ret = cpulist_parse(buf, mask);
+	if (ret)
+		goto out;
+
+	if (!cpumask_subset(mask, cpu_online_mask) || cpumask_empty(mask)) {
 		dd_dev_warn(dd, "Invalid CPU mask\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	mutex_lock(&sdma_affinity_mutex);
 	/* reset the SDMA interrupt affinity details */
 	init_cpu_mask_set(&entry->def_intr);
-	cpumask_copy(&entry->def_intr.mask, &mask);
+	cpumask_copy(&entry->def_intr.mask, mask);
 	/*
 	 * Reassign the affinity for each SDMA interrupt.
 	 */
@@ -720,8 +724,9 @@ int hfi1_set_sdma_affinity(struct hfi1_devdata *dd, const char *buf,
 		if (ret)
 			break;
 	}
-
 	mutex_unlock(&sdma_affinity_mutex);
+out:
+	free_cpumask_var(mask);
 	return ret ? ret : strnlen(buf, PAGE_SIZE);
 }
 

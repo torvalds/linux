@@ -541,7 +541,6 @@ add_delayed_ref_head(struct btrfs_fs_info *fs_info,
 	struct btrfs_delayed_ref_head *existing;
 	struct btrfs_delayed_ref_head *head_ref = NULL;
 	struct btrfs_delayed_ref_root *delayed_refs;
-	struct btrfs_qgroup_extent_record *qexisting;
 	int count_mod = 1;
 	int must_insert_reserved = 0;
 
@@ -606,10 +605,8 @@ add_delayed_ref_head(struct btrfs_fs_info *fs_info,
 		qrecord->num_bytes = num_bytes;
 		qrecord->old_roots = NULL;
 
-		qexisting = btrfs_qgroup_insert_dirty_extent(fs_info,
-							     delayed_refs,
-							     qrecord);
-		if (qexisting)
+		if(btrfs_qgroup_insert_dirty_extent_nolock(fs_info,
+					delayed_refs, qrecord))
 			kfree(qrecord);
 	}
 
@@ -860,33 +857,6 @@ int btrfs_add_delayed_data_ref(struct btrfs_fs_info *fs_info,
 	spin_unlock(&delayed_refs->lock);
 
 	return 0;
-}
-
-int btrfs_add_delayed_qgroup_reserve(struct btrfs_fs_info *fs_info,
-				     struct btrfs_trans_handle *trans,
-				     u64 ref_root, u64 bytenr, u64 num_bytes)
-{
-	struct btrfs_delayed_ref_root *delayed_refs;
-	struct btrfs_delayed_ref_head *ref_head;
-	int ret = 0;
-
-	if (!fs_info->quota_enabled || !is_fstree(ref_root))
-		return 0;
-
-	delayed_refs = &trans->transaction->delayed_refs;
-
-	spin_lock(&delayed_refs->lock);
-	ref_head = find_ref_head(&delayed_refs->href_root, bytenr, 0);
-	if (!ref_head) {
-		ret = -ENOENT;
-		goto out;
-	}
-	WARN_ON(ref_head->qgroup_reserved || ref_head->qgroup_ref_root);
-	ref_head->qgroup_ref_root = ref_root;
-	ref_head->qgroup_reserved = num_bytes;
-out:
-	spin_unlock(&delayed_refs->lock);
-	return ret;
 }
 
 int btrfs_add_delayed_extent_op(struct btrfs_fs_info *fs_info,

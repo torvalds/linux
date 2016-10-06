@@ -405,7 +405,7 @@ void amd_sched_job_recovery(struct amd_gpu_scheduler *sched)
 	spin_lock(&sched->job_list_lock);
 	s_job = list_first_entry_or_null(&sched->ring_mirror_list,
 					 struct amd_sched_job, node);
-	if (s_job)
+	if (s_job && sched->timeout != MAX_SCHEDULE_TIMEOUT)
 		schedule_delayed_work(&s_job->work_tdr, sched->timeout);
 
 	list_for_each_entry_safe(s_job, tmp, &sched->ring_mirror_list, node) {

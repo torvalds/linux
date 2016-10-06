@@ -117,17 +117,17 @@ static void vgic_irq_release(struct kref *ref)
 
 void vgic_put_irq(struct kvm *kvm, struct vgic_irq *irq)
 {
-	struct vgic_dist *dist;
+	struct vgic_dist *dist = &kvm->arch.vgic;
 
 	if (irq->intid < VGIC_MIN_LPI)
 		return;
 
-	if (!kref_put(&irq->refcount, vgic_irq_release))
-		return;
-
-	dist = &kvm->arch.vgic;
-
 	spin_lock(&dist->lpi_list_lock);
+	if (!kref_put(&irq->refcount, vgic_irq_release)) {
+		spin_unlock(&dist->lpi_list_lock);
+		return;
+	};
+
 	list_del(&irq->lpi_list);
 	dist->lpi_list_count--;
 	spin_unlock(&dist->lpi_list_lock);

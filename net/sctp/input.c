@@ -119,7 +119,13 @@ int sctp_rcv(struct sk_buff *skb)
 		       skb_transport_offset(skb))
 		goto discard_it;
 
-	if (!pskb_may_pull(skb, sizeof(struct sctphdr)))
+	/* If the packet is fragmented and we need to do crc checking,
+	 * it's better to just linearize it otherwise crc computing
+	 * takes longer.
+	 */
+	if ((!(skb_shinfo(skb)->gso_type & SKB_GSO_SCTP) &&
+	     skb_linearize(skb)) ||
+	    !pskb_may_pull(skb, sizeof(struct sctphdr)))
 		goto discard_it;
 
 	/* Pull up the IP header. */
@@ -1175,9 +1181,6 @@ static struct sctp_association *__sctp_rcv_lookup_harder(struct net *net,
 	 * those cannot be on GSO-style anyway.
 	 */
 	if ((skb_shinfo(skb)->gso_type & SKB_GSO_SCTP) == SKB_GSO_SCTP)
-		return NULL;
-
-	if (skb_linearize(skb))
 		return NULL;
 
 	ch = (sctp_chunkhdr_t *) skb->data;

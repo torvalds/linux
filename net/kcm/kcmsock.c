@@ -13,6 +13,7 @@
 #include <linux/socket.h>
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
+#include <linux/syscalls.h>
 #include <net/kcm.h>
 #include <net/netns/generic.h>
 #include <net/sock.h>
@@ -2029,7 +2030,7 @@ static int kcm_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			if (copy_to_user((void __user *)arg, &info,
 					 sizeof(info))) {
 				err = -EFAULT;
-				sock_release(newsock);
+				sys_close(info.fd);
 			}
 		}
 

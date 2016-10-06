@@ -589,6 +589,7 @@ static void __merge_refs(struct list_head *head, int mode)
 
 			list_del(&ref2->list);
 			kmem_cache_free(btrfs_prelim_ref_cache, ref2);
+			cond_resched();
 		}
 
 	}

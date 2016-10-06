@@ -391,22 +391,16 @@ static int init_vq(struct virtio_blk *vblk)
 		num_vqs = 1;
 
 	vblk->vqs = kmalloc(sizeof(*vblk->vqs) * num_vqs, GFP_KERNEL);
-	if (!vblk->vqs) {
+	if (!vblk->vqs)
+		return -ENOMEM;
+
+	names = kmalloc(sizeof(*names) * num_vqs, GFP_KERNEL);
+	callbacks = kmalloc(sizeof(*callbacks) * num_vqs, GFP_KERNEL);
+	vqs = kmalloc(sizeof(*vqs) * num_vqs, GFP_KERNEL);
+	if (!names || !callbacks || !vqs) {
 		err = -ENOMEM;
 		goto out;
 	}
-
-	names = kmalloc(sizeof(*names) * num_vqs, GFP_KERNEL);
-	if (!names)
-		goto err_names;
-
-	callbacks = kmalloc(sizeof(*callbacks) * num_vqs, GFP_KERNEL);
-	if (!callbacks)
-		goto err_callbacks;
-
-	vqs = kmalloc(sizeof(*vqs) * num_vqs, GFP_KERNEL);
-	if (!vqs)
-		goto err_vqs;
 
 	for (i = 0; i < num_vqs; i++) {
 		callbacks[i] = virtblk_done;
@@ -417,7 +411,7 @@ static int init_vq(struct virtio_blk *vblk)
 	/* Discover virtqueues and write information to configuration.  */
 	err = vdev->config->find_vqs(vdev, num_vqs, vqs, callbacks, names);
 	if (err)
-		goto err_find_vqs;
+		goto out;
 
 	for (i = 0; i < num_vqs; i++) {
 		spin_lock_init(&vblk->vqs[i].lock);
@@ -425,16 +419,12 @@ static int init_vq(struct virtio_blk *vblk)
 	}
 	vblk->num_vqs = num_vqs;
 
- err_find_vqs:
+out:
 	kfree(vqs);
- err_vqs:
 	kfree(callbacks);
- err_callbacks:
 	kfree(names);
- err_names:
 	if (err)
 		kfree(vblk->vqs);
- out:
 	return err;
 }
 

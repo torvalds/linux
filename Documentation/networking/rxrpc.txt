@@ -790,13 +790,12 @@ The kernel interface functions are as follows:
      Data messages can have their contents extracted with the usual bunch of
      socket buffer manipulation functions.  A data message can be determined to
      be the last one in a sequence with rxrpc_kernel_is_data_last().  When a
-     data message has been used up, rxrpc_kernel_data_delivered() should be
-     called on it..
+     data message has been used up, rxrpc_kernel_data_consumed() should be
+     called on it.
 
-     Non-data messages should be handled to rxrpc_kernel_free_skb() to dispose
-     of.  It is possible to get extra refs on all types of message for later
-     freeing, but this may pin the state of a call until the message is finally
-     freed.
+     Messages should be handled to rxrpc_kernel_free_skb() to dispose of.  It
+     is possible to get extra refs on all types of message for later freeing,
+     but this may pin the state of a call until the message is finally freed.
 
  (*) Accept an incoming call.
 
@@ -821,12 +820,14 @@ The kernel interface functions are as follows:
      Other errors may be returned if the call had been aborted (-ECONNABORTED)
      or had timed out (-ETIME).
 
- (*) Record the delivery of a data message and free it.
+ (*) Record the delivery of a data message.
 
-	void rxrpc_kernel_data_delivered(struct sk_buff *skb);
+	void rxrpc_kernel_data_consumed(struct rxrpc_call *call,
+					struct sk_buff *skb);
 
-     This is used to record a data message as having been delivered and to
-     update the ACK state for the call.  The socket buffer will be freed.
+     This is used to record a data message as having been consumed and to
+     update the ACK state for the call.  The message must still be passed to
+     rxrpc_kernel_free_skb() for disposal by the caller.
 
  (*) Free a message.
 

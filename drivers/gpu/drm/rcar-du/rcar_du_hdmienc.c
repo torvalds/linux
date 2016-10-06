@@ -125,6 +125,7 @@ int rcar_du_hdmienc_init(struct rcar_du_device *rcdu,
 
 	/* Link drm_bridge to encoder */
 	bridge->encoder = encoder;
+	encoder->bridge = bridge;
 
 	ret = drm_bridge_attach(rcdu->ddev, bridge);
 	if (ret) {

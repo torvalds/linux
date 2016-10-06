@@ -583,7 +583,7 @@ enum ovs_userspace_attr {
 #define OVS_USERSPACE_ATTR_MAX (__OVS_USERSPACE_ATTR_MAX - 1)
 
 struct ovs_action_trunc {
-	uint32_t max_len; /* Max packet size in bytes. */
+	__u32 max_len; /* Max packet size in bytes. */
 };
 
 /**
@@ -632,8 +632,8 @@ enum ovs_hash_alg {
  * @hash_basis: basis used for computing hash.
  */
 struct ovs_action_hash {
-	uint32_t  hash_alg;     /* One of ovs_hash_alg. */
-	uint32_t  hash_basis;
+	__u32  hash_alg;     /* One of ovs_hash_alg. */
+	__u32  hash_basis;
 };
 
 /**

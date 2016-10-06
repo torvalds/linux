@@ -597,7 +597,7 @@ static bool need_reset_readdir(struct ceph_file_info *fi, loff_t new_pos)
 	if (is_hash_order(new_pos)) {
 		/* no need to reset last_name for a forward seek when
 		 * dentries are sotred in hash order */
-	} else if (fi->frag |= fpos_frag(new_pos)) {
+	} else if (fi->frag != fpos_frag(new_pos)) {
 		return true;
 	}
 	rinfo = fi->last_readdir ? &fi->last_readdir->r_reply_info : NULL;

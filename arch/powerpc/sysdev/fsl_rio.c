@@ -23,7 +23,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/types.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>

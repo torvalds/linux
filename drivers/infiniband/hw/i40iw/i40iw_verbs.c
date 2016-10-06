@@ -794,7 +794,6 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 	return &iwqp->ibqp;
 error:
 	i40iw_free_qp_resources(iwdev, iwqp, qp_num);
-	kfree(mem);
 	return ERR_PTR(err_code);
 }
 
@@ -1926,8 +1925,7 @@ static int i40iw_dereg_mr(struct ib_mr *ib_mr)
 		}
 		if (iwpbl->pbl_allocated)
 			i40iw_free_pble(iwdev->pble_rsrc, palloc);
-		kfree(iwpbl->iwmr);
-		iwpbl->iwmr = NULL;
+		kfree(iwmr);
 		return 0;
 	}
 

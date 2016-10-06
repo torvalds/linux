@@ -720,8 +720,6 @@ static int img_spfi_remove(struct platform_device *pdev)
 		clk_disable_unprepare(spfi->sys_clk);
 	}
 
-	spi_master_put(master);
-
 	return 0;
 }
 

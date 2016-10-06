@@ -41,7 +41,6 @@
  *          Chris Telfer <chris.telfer@netronome.com>
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -1440,10 +1439,6 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 		skb_put(skb, data_len - meta_len);
 
 		nfp_net_set_hash(nn->netdev, skb, rxd);
-
-		/* Pad small frames to minimum */
-		if (skb_put_padto(skb, 60))
-			break;
 
 		/* Stats update */
 		u64_stats_update_begin(&r_vec->rx_sync);

@@ -673,8 +673,11 @@ enum i40iw_status_code i40iw_free_virt_mem(struct i40iw_hw *hw,
 {
 	if (!mem)
 		return I40IW_ERR_PARAM;
+	/*
+	 * mem->va points to the parent of mem, so both mem and mem->va
+	 * can not be touched once mem->va is freed
+	 */
 	kfree(mem->va);
-	mem->va = NULL;
 	return 0;
 }
 

@@ -321,6 +321,7 @@ struct rpcrdma_buffer {
 	char			*rb_pool;
 
 	spinlock_t		rb_lock;	/* protect buf lists */
+	int			rb_send_count, rb_recv_count;
 	struct list_head	rb_send_bufs;
 	struct list_head	rb_recv_bufs;
 	u32			rb_max_requests;

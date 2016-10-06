@@ -371,14 +371,16 @@ static int perf_session__check_output_opt(struct perf_session *session)
 
 	if (!no_callchain) {
 		bool use_callchain = false;
+		bool not_pipe = false;
 
 		evlist__for_each_entry(session->evlist, evsel) {
+			not_pipe = true;
 			if (evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN) {
 				use_callchain = true;
 				break;
 			}
 		}
-		if (!use_callchain)
+		if (not_pipe && !use_callchain)
 			symbol_conf.use_callchain = false;
 	}
 
@@ -1690,8 +1692,13 @@ static int list_available_scripts(const struct option *opt __maybe_unused,
 	snprintf(scripts_path, MAXPATHLEN, "%s/scripts", get_argv_exec_path());
 
 	scripts_dir = opendir(scripts_path);
-	if (!scripts_dir)
-		return -1;
+	if (!scripts_dir) {
+		fprintf(stdout,
+			"open(%s) failed.\n"
+			"Check \"PERF_EXEC_PATH\" env to set scripts dir.\n",
+			scripts_path);
+		exit(-1);
+	}
 
 	for_each_lang(scripts_path, scripts_dir, lang_dirent) {
 		snprintf(lang_path, MAXPATHLEN, "%s/%s/bin", scripts_path,
@@ -2116,7 +2123,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		     "Valid types: hw,sw,trace,raw. "
 		     "Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,"
 		     "addr,symoff,period,iregs,brstack,brstacksym,flags,"
-		     "callindent", parse_output_fields),
+		     "bpf-output,callindent", parse_output_fields),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
 		    "system-wide collection from all CPUs"),
 	OPT_STRING('S', "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",

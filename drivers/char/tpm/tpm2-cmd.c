@@ -957,7 +957,7 @@ int tpm2_auto_startup(struct tpm_chip *chip)
 		goto out;
 
 	rc = tpm2_do_selftest(chip);
-	if (rc != TPM2_RC_INITIALIZE) {
+	if (rc != 0 && rc != TPM2_RC_INITIALIZE) {
 		dev_err(&chip->dev, "TPM self test failed\n");
 		goto out;
 	}
@@ -974,7 +974,6 @@ int tpm2_auto_startup(struct tpm_chip *chip)
 		}
 	}
 
-	return rc;
 out:
 	if (rc > 0)
 		rc = -ENODEV;

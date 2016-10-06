@@ -73,12 +73,8 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 	int i, vcpu_lock_idx = -1, ret;
 	struct kvm_vcpu *vcpu;
 
-	mutex_lock(&kvm->lock);
-
-	if (irqchip_in_kernel(kvm)) {
-		ret = -EEXIST;
-		goto out;
-	}
+	if (irqchip_in_kernel(kvm))
+		return -EEXIST;
 
 	/*
 	 * This function is also called by the KVM_CREATE_IRQCHIP handler,
@@ -87,10 +83,8 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 	 * the proper checks already.
 	 */
 	if (type == KVM_DEV_TYPE_ARM_VGIC_V2 &&
-		!kvm_vgic_global_state.can_emulate_gicv2) {
-		ret = -ENODEV;
-		goto out;
-	}
+		!kvm_vgic_global_state.can_emulate_gicv2)
+		return -ENODEV;
 
 	/*
 	 * Any time a vcpu is run, vcpu_load is called which tries to grab the
@@ -138,9 +132,6 @@ out_unlock:
 		vcpu = kvm_get_vcpu(kvm, vcpu_lock_idx);
 		mutex_unlock(&vcpu->mutex);
 	}
-
-out:
-	mutex_unlock(&kvm->lock);
 	return ret;
 }
 

@@ -1318,6 +1318,8 @@ void ipoib_cm_destroy_tx(struct ipoib_cm_tx *tx)
 	}
 }
 
+#define QPN_AND_OPTIONS_OFFSET	4
+
 static void ipoib_cm_tx_start(struct work_struct *work)
 {
 	struct ipoib_dev_priv *priv = container_of(work, struct ipoib_dev_priv,
@@ -1326,6 +1328,7 @@ static void ipoib_cm_tx_start(struct work_struct *work)
 	struct ipoib_neigh *neigh;
 	struct ipoib_cm_tx *p;
 	unsigned long flags;
+	struct ipoib_path *path;
 	int ret;
 
 	struct ib_sa_path_rec pathrec;
@@ -1338,7 +1341,19 @@ static void ipoib_cm_tx_start(struct work_struct *work)
 		p = list_entry(priv->cm.start_list.next, typeof(*p), list);
 		list_del_init(&p->list);
 		neigh = p->neigh;
+
 		qpn = IPOIB_QPN(neigh->daddr);
+		/*
+		 * As long as the search is with these 2 locks,
+		 * path existence indicates its validity.
+		 */
+		path = __path_find(dev, neigh->daddr + QPN_AND_OPTIONS_OFFSET);
+		if (!path) {
+			pr_info("%s ignore not valid path %pI6\n",
+				__func__,
+				neigh->daddr + QPN_AND_OPTIONS_OFFSET);
+			goto free_neigh;
+		}
 		memcpy(&pathrec, &p->path->pathrec, sizeof pathrec);
 
 		spin_unlock_irqrestore(&priv->lock, flags);
@@ -1350,6 +1365,7 @@ static void ipoib_cm_tx_start(struct work_struct *work)
 		spin_lock_irqsave(&priv->lock, flags);
 
 		if (ret) {
+free_neigh:
 			neigh = p->neigh;
 			if (neigh) {
 				neigh->cm = NULL;

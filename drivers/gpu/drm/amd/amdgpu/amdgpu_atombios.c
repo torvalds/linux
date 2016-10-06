@@ -321,6 +321,19 @@ bool amdgpu_atombios_get_connector_info_from_object_table(struct amdgpu_device *
 			    (le16_to_cpu(path->usConnObjectId) &
 			     OBJECT_TYPE_MASK) >> OBJECT_TYPE_SHIFT;
 
+			/* Skip TV/CV support */
+			if ((le16_to_cpu(path->usDeviceTag) ==
+			     ATOM_DEVICE_TV1_SUPPORT) ||
+			    (le16_to_cpu(path->usDeviceTag) ==
+			     ATOM_DEVICE_CV_SUPPORT))
+				continue;
+
+			if (con_obj_id >= ARRAY_SIZE(object_connector_convert)) {
+				DRM_ERROR("invalid con_obj_id %d for device tag 0x%04x\n",
+					  con_obj_id, le16_to_cpu(path->usDeviceTag));
+				continue;
+			}
+
 			connector_type =
 				object_connector_convert[con_obj_id];
 			connector_object_id = con_obj_id;

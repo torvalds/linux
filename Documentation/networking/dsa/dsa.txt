@@ -587,26 +587,6 @@ of DSA, would be the its port-based VLAN, used by the associated bridge device.
 TODO
 ====
 
-The platform device problem
----------------------------
-DSA is currently implemented as a platform device driver which is far from ideal
-as was discussed in this thread:
-
-http://permalink.gmane.org/gmane.linux.network/329848
-
-This basically prevents the device driver model to be properly used and applied,
-and support non-MDIO, non-MMIO Ethernet connected switches.
-
-Another problem with the platform device driver approach is that it prevents the
-use of a modular switch drivers build due to a circular dependency, illustrated
-here:
-
-http://comments.gmane.org/gmane.linux.network/345803
-
-Attempts of reworking this has been done here:
-
-https://lwn.net/Articles/643149/
-
 Making SWITCHDEV and DSA converge towards an unified codebase
 -------------------------------------------------------------
 

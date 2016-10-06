@@ -834,10 +834,6 @@ static void __free_device(struct work_struct *work)
 	struct btrfs_device *device;
 
 	device = container_of(work, struct btrfs_device, rcu_work);
-
-	if (device->bdev)
-		blkdev_put(device->bdev, device->mode);
-
 	rcu_string_free(device->name);
 	kfree(device);
 }
@@ -850,6 +846,17 @@ static void free_device(struct rcu_head *head)
 
 	INIT_WORK(&device->rcu_work, __free_device);
 	schedule_work(&device->rcu_work);
+}
+
+static void btrfs_close_bdev(struct btrfs_device *device)
+{
+	if (device->bdev && device->writeable) {
+		sync_blockdev(device->bdev);
+		invalidate_bdev(device->bdev);
+	}
+
+	if (device->bdev)
+		blkdev_put(device->bdev, device->mode);
 }
 
 static void btrfs_close_one_device(struct btrfs_device *device)
@@ -870,10 +877,7 @@ static void btrfs_close_one_device(struct btrfs_device *device)
 	if (device->missing)
 		fs_devices->missing_devices--;
 
-	if (device->bdev && device->writeable) {
-		sync_blockdev(device->bdev);
-		invalidate_bdev(device->bdev);
-	}
+	btrfs_close_bdev(device);
 
 	new_device = btrfs_alloc_device(NULL, &device->devid,
 					device->uuid);
@@ -1932,6 +1936,8 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path, u64 devid)
 		btrfs_sysfs_rm_device_link(root->fs_info->fs_devices, device);
 	}
 
+	btrfs_close_bdev(device);
+
 	call_rcu(&device->rcu, free_device);
 
 	num_devices = btrfs_super_num_devices(root->fs_info->super_copy) - 1;
@@ -2025,6 +2031,9 @@ void btrfs_rm_dev_replace_free_srcdev(struct btrfs_fs_info *fs_info,
 		/* zero out the old super if it is writable */
 		btrfs_scratch_superblocks(srcdev->bdev, srcdev->name->str);
 	}
+
+	btrfs_close_bdev(srcdev);
+
 	call_rcu(&srcdev->rcu, free_device);
 
 	/*
@@ -2080,6 +2089,8 @@ void btrfs_destroy_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 	 * the device_list_mutex lock.
 	 */
 	btrfs_scratch_superblocks(tgtdev->bdev, tgtdev->name->str);
+
+	btrfs_close_bdev(tgtdev);
 	call_rcu(&tgtdev->rcu, free_device);
 }
 

@@ -507,17 +507,17 @@ static int __perf_evsel__hw_cache_name(u64 config, char *bf, size_t size)
 	u8 op, result, type = (config >>  0) & 0xff;
 	const char *err = "unknown-ext-hardware-cache-type";
 
-	if (type > PERF_COUNT_HW_CACHE_MAX)
+	if (type >= PERF_COUNT_HW_CACHE_MAX)
 		goto out_err;
 
 	op = (config >>  8) & 0xff;
 	err = "unknown-ext-hardware-cache-op";
-	if (op > PERF_COUNT_HW_CACHE_OP_MAX)
+	if (op >= PERF_COUNT_HW_CACHE_OP_MAX)
 		goto out_err;
 
 	result = (config >> 16) & 0xff;
 	err = "unknown-ext-hardware-cache-result";
-	if (result > PERF_COUNT_HW_CACHE_RESULT_MAX)
+	if (result >= PERF_COUNT_HW_CACHE_RESULT_MAX)
 		goto out_err;
 
 	err = "invalid-cache";

@@ -41,7 +41,6 @@
 #include <linux/root_dev.h>
 #include <linux/of.h>
 #include <linux/of_pci.h>
-#include <linux/kexec.h>
 
 #include <asm/mmu.h>
 #include <asm/processor.h>
@@ -66,6 +65,7 @@
 #include <asm/eeh.h>
 #include <asm/reg.h>
 #include <asm/plpar_wrappers.h>
+#include <asm/kexec.h>
 
 #include "pseries.h"
 

@@ -1686,24 +1686,6 @@ config LATENCYTOP
 	  Enable this option if you want to use the LatencyTOP tool
 	  to find out which userspace is blocking on what kernel operations.
 
-config ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
-	bool
-
-config DEBUG_STRICT_USER_COPY_CHECKS
-	bool "Strict user copy size checks"
-	depends on ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
-	depends on DEBUG_KERNEL && !TRACE_BRANCH_PROFILING
-	help
-	  Enabling this option turns a certain set of sanity checks for user
-	  copy operations into compile time failures.
-
-	  The copy_from_user() etc checks are there to help test if there
-	  are sufficient security checks on the length argument of
-	  the copy operation, by having gcc prove that the argument is
-	  within bounds.
-
-	  If unsure, say N.
-
 source kernel/trace/Kconfig
 
 menu "Runtime Testing"

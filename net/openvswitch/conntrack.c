@@ -433,7 +433,6 @@ ovs_ct_find_existing(struct net *net, const struct nf_conntrack_zone *zone,
 	struct nf_conntrack_l4proto *l4proto;
 	struct nf_conntrack_tuple tuple;
 	struct nf_conntrack_tuple_hash *h;
-	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct;
 	unsigned int dataoff;
 	u8 protonum;
@@ -458,13 +457,8 @@ ovs_ct_find_existing(struct net *net, const struct nf_conntrack_zone *zone,
 
 	ct = nf_ct_tuplehash_to_ctrack(h);
 
-	ctinfo = ovs_ct_get_info(h);
-	if (ctinfo == IP_CT_NEW) {
-		/* This should not happen. */
-		WARN_ONCE(1, "ovs_ct_find_existing: new packet for %p\n", ct);
-	}
 	skb->nfct = &ct->ct_general;
-	skb->nfctinfo = ctinfo;
+	skb->nfctinfo = ovs_ct_get_info(h);
 	return ct;
 }
 

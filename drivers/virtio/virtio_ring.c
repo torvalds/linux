@@ -167,7 +167,7 @@ static bool vring_use_dma_api(struct virtio_device *vdev)
  * making all of the arch DMA ops work on the vring device itself
  * is a mess.  For now, we use the parent device for DMA ops.
  */
-struct device *vring_dma_dev(const struct vring_virtqueue *vq)
+static struct device *vring_dma_dev(const struct vring_virtqueue *vq)
 {
 	return vq->vq.vdev->dev.parent;
 }
@@ -327,6 +327,8 @@ static inline int virtqueue_add(struct virtqueue *_vq,
 		 * host should service the ring ASAP. */
 		if (out_sgs)
 			vq->notify(&vq->vq);
+		if (indirect)
+			kfree(desc);
 		END_USE(vq);
 		return -ENOSPC;
 	}
@@ -426,6 +428,7 @@ unmap_release:
 	if (indirect)
 		kfree(desc);
 
+	END_USE(vq);
 	return -EIO;
 }
 

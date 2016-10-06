@@ -573,10 +573,6 @@ struct qib_qp_iter *qib_qp_iter_init(struct qib_ibdev *dev)
 		return NULL;
 
 	iter->dev = dev;
-	if (qib_qp_iter_next(iter)) {
-		kfree(iter);
-		return NULL;
-	}
 
 	return iter;
 }
