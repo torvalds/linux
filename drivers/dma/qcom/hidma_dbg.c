@@ -164,7 +164,6 @@ static const struct file_operations hidma_dma_fops = {
 void hidma_debug_uninit(struct hidma_dev *dmadev)
 {
 	debugfs_remove_recursive(dmadev->debugfs);
-	debugfs_remove_recursive(dmadev->stats);
 }
 
 int hidma_debug_init(struct hidma_dev *dmadev)
