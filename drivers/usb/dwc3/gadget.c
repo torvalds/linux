@@ -875,7 +875,8 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 	}
 
 	/* always enable Continue on Short Packet */
-	trb->ctrl |= DWC3_TRB_CTRL_CSP;
+	if (usb_endpoint_dir_out(dep->endpoint.desc))
+		trb->ctrl |= DWC3_TRB_CTRL_CSP;
 
 	if ((!req->request.no_interrupt && !chain) ||
 			(dwc3_calc_trbs_left(dep) == 0))
