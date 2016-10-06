@@ -194,21 +194,22 @@ static irqreturn_t artpec6_pcie_msi_handler(int irq, void *arg)
 static int artpec6_add_pcie_port(struct pcie_port *pp,
 				 struct platform_device *pdev)
 {
+	struct device *dev = pp->dev;
 	int ret;
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		pp->msi_irq = platform_get_irq_byname(pdev, "msi");
 		if (pp->msi_irq <= 0) {
-			dev_err(&pdev->dev, "failed to get MSI irq\n");
+			dev_err(dev, "failed to get MSI irq\n");
 			return -ENODEV;
 		}
 
-		ret = devm_request_irq(&pdev->dev, pp->msi_irq,
+		ret = devm_request_irq(dev, pp->msi_irq,
 				       artpec6_pcie_msi_handler,
 				       IRQF_SHARED | IRQF_NO_THREAD,
 				       "artpec6-pcie-msi", pp);
 		if (ret) {
-			dev_err(&pdev->dev, "failed to request MSI irq\n");
+			dev_err(dev, "failed to request MSI irq\n");
 			return ret;
 		}
 	}
@@ -218,7 +219,7 @@ static int artpec6_add_pcie_port(struct pcie_port *pp,
 
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to initialize host\n");
+		dev_err(dev, "failed to initialize host\n");
 		return ret;
 	}
 
@@ -227,32 +228,32 @@ static int artpec6_add_pcie_port(struct pcie_port *pp,
 
 static int artpec6_pcie_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct artpec6_pcie *artpec6_pcie;
 	struct pcie_port *pp;
 	struct resource *dbi_base;
 	struct resource *phy_base;
 	int ret;
 
-	artpec6_pcie = devm_kzalloc(&pdev->dev, sizeof(*artpec6_pcie),
-				    GFP_KERNEL);
+	artpec6_pcie = devm_kzalloc(dev, sizeof(*artpec6_pcie), GFP_KERNEL);
 	if (!artpec6_pcie)
 		return -ENOMEM;
 
 	pp = &artpec6_pcie->pp;
-	pp->dev = &pdev->dev;
+	pp->dev = dev;
 
 	dbi_base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
-	pp->dbi_base = devm_ioremap_resource(&pdev->dev, dbi_base);
+	pp->dbi_base = devm_ioremap_resource(dev, dbi_base);
 	if (IS_ERR(pp->dbi_base))
 		return PTR_ERR(pp->dbi_base);
 
 	phy_base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy");
-	artpec6_pcie->phy_base = devm_ioremap_resource(&pdev->dev, phy_base);
+	artpec6_pcie->phy_base = devm_ioremap_resource(dev, phy_base);
 	if (IS_ERR(artpec6_pcie->phy_base))
 		return PTR_ERR(artpec6_pcie->phy_base);
 
 	artpec6_pcie->regmap =
-		syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+		syscon_regmap_lookup_by_phandle(dev->of_node,
 						"axis,syscon-pcie");
 	if (IS_ERR(artpec6_pcie->regmap))
 		return PTR_ERR(artpec6_pcie->regmap);
