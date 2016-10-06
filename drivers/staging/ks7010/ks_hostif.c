@@ -187,13 +187,7 @@ int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info_t *ap_info)
 		memcpy(wrqu.ap_addr.sa_data,
 		       &(priv->current_ap.bssid[0]), ETH_ALEN);
 		DPRINTK(3,
-			"IWEVENT: connect bssid=%02x:%02x:%02x:%02x:%02x:%02x\n",
-			(unsigned char)wrqu.ap_addr.sa_data[0],
-			(unsigned char)wrqu.ap_addr.sa_data[1],
-			(unsigned char)wrqu.ap_addr.sa_data[2],
-			(unsigned char)wrqu.ap_addr.sa_data[3],
-			(unsigned char)wrqu.ap_addr.sa_data[4],
-			(unsigned char)wrqu.ap_addr.sa_data[5]);
+			"IWEVENT: connect bssid=%pM\n", wrqu.ap_addr.sa_data);
 		wireless_send_event(netdev, SIOCGIWAP, &wrqu, NULL);
 	}
 	DPRINTK(4, "\n    Link AP\n");
@@ -420,16 +414,11 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 					/*  needed parameters: count, keyid, key type, TSC */
 					sprintf(buf,
 						"MLME-MICHAELMICFAILURE.indication(keyid=%d %scast addr="
-						"%02x:%02x:%02x:%02x:%02x:%02x)",
+						"%pM)",
 						auth_type - 1,
 						eth_hdr->
 						h_dest[0] & 0x01 ? "broad" :
-						"uni", eth_hdr->h_source[0],
-						eth_hdr->h_source[1],
-						eth_hdr->h_source[2],
-						eth_hdr->h_source[3],
-						eth_hdr->h_source[4],
-						eth_hdr->h_source[5]);
+						"uni", eth_hdr->h_source);
 					memset(&wrqu, 0, sizeof(wrqu));
 					wrqu.data.length = strlen(buf);
 					DPRINTK(4,
@@ -560,10 +549,7 @@ void hostif_mib_get_confirm(struct ks_wlan_private *priv)
 		dev->dev_addr[5] = priv->eth_addr[5];
 		dev->dev_addr[6] = 0x00;
 		dev->dev_addr[7] = 0x00;
-		printk(KERN_INFO
-		       "ks_wlan: MAC ADDRESS = %02x:%02x:%02x:%02x:%02x:%02x\n",
-		       priv->eth_addr[0], priv->eth_addr[1], priv->eth_addr[2],
-		       priv->eth_addr[3], priv->eth_addr[4], priv->eth_addr[5]);
+		printk(KERN_INFO "ks_wlan: MAC ADDRESS = %pM\n", priv->eth_addr);
 		break;
 	case DOT11_PRODUCT_VERSION:
 		/* firmware version */
@@ -1184,9 +1170,7 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
 	eth = (struct ethhdr *)packet->data;
 	if (memcmp(&priv->eth_addr[0], eth->h_source, ETH_ALEN)) {
 		DPRINTK(1, "invalid mac address !!\n");
-		DPRINTK(1, "ethernet->h_source=%02X:%02X:%02X:%02X:%02X:%02X\n",
-			eth->h_source[0], eth->h_source[1], eth->h_source[2],
-			eth->h_source[3], eth->h_source[4], eth->h_source[5]);
+		DPRINTK(1, "ethernet->h_source=%pM\n", eth->h_source);
 		dev_kfree_skb(packet);
 		kfree(pp);
 		return -3;
@@ -2217,10 +2201,7 @@ void hostif_sme_mode_setup(struct ks_wlan_private *priv)
 		} else {
 			hostif_infrastructure_set2_request(priv);
 			DPRINTK(2,
-				"Infra bssid = %02x:%02x:%02x:%02x:%02x:%02x\n",
-				priv->reg.bssid[0], priv->reg.bssid[1],
-				priv->reg.bssid[2], priv->reg.bssid[3],
-				priv->reg.bssid[4], priv->reg.bssid[5]);
+				"Infra bssid = %pM\n", priv->reg.bssid);
 		}
 		break;
 	case MODE_ADHOC:
@@ -2230,10 +2211,7 @@ void hostif_sme_mode_setup(struct ks_wlan_private *priv)
 		} else {
 			hostif_adhoc_set2_request(priv);
 			DPRINTK(2,
-				"Adhoc bssid = %02x:%02x:%02x:%02x:%02x:%02x\n",
-				priv->reg.bssid[0], priv->reg.bssid[1],
-				priv->reg.bssid[2], priv->reg.bssid[3],
-				priv->reg.bssid[4], priv->reg.bssid[5]);
+				"Adhoc bssid = %pM\n", priv->reg.bssid);
 		}
 		break;
 	default:

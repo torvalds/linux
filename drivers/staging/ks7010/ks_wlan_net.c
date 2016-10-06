@@ -399,9 +399,7 @@ static int ks_wlan_set_wap(struct net_device *dev, struct iw_request_info *info,
 		return -EOPNOTSUPP;
 	}
 
-	DPRINTK(2, "bssid = %02x:%02x:%02x:%02x:%02x:%02x\n",
-		priv->reg.bssid[0], priv->reg.bssid[1], priv->reg.bssid[2],
-		priv->reg.bssid[3], priv->reg.bssid[4], priv->reg.bssid[5]);
+	DPRINTK(2, "bssid = %pM\n", priv->reg.bssid);
 
 	/* Write it to the card */
 	if (priv->need_commit) {
@@ -3321,10 +3319,7 @@ int ks_wlan_set_mac_address(struct net_device *dev, void *addr)
 
 	priv->mac_address_valid = 0;
 	hostif_sme_enqueue(priv, SME_MACADDRESS_SET_REQUEST);
-	netdev_info(dev,
-	       "ks_wlan: MAC ADDRESS = %02x:%02x:%02x:%02x:%02x:%02x\n",
-	       priv->eth_addr[0], priv->eth_addr[1], priv->eth_addr[2],
-	       priv->eth_addr[3], priv->eth_addr[4], priv->eth_addr[5]);
+	netdev_info(dev, "ks_wlan:  MAC ADDRESS = %pM\n", priv->eth_addr);
 	return 0;
 }
 
