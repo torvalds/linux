@@ -40,7 +40,6 @@ static struct kmem_cache *f2fs_inode_cachep;
 static struct kset *f2fs_kset;
 
 #ifdef CONFIG_F2FS_FAULT_INJECTION
-struct f2fs_fault_info f2fs_fault;
 
 char *fault_name[FAULT_MAX] = {
 	[FAULT_KMALLOC]		= "kmalloc",
@@ -50,16 +49,21 @@ char *fault_name[FAULT_MAX] = {
 	[FAULT_BLOCK]		= "no more block",
 	[FAULT_DIR_DEPTH]	= "too big dir depth",
 	[FAULT_EVICT_INODE]	= "evict_inode fail",
+	[FAULT_IO]		= "IO error",
+	[FAULT_CHECKPOINT]	= "checkpoint error",
 };
 
-static void f2fs_build_fault_attr(unsigned int rate)
+static void f2fs_build_fault_attr(struct f2fs_sb_info *sbi,
+						unsigned int rate)
 {
+	struct f2fs_fault_info *ffi = &sbi->fault_info;
+
 	if (rate) {
-		atomic_set(&f2fs_fault.inject_ops, 0);
-		f2fs_fault.inject_rate = rate;
-		f2fs_fault.inject_type = (1 << FAULT_MAX) - 1;
+		atomic_set(&ffi->inject_ops, 0);
+		ffi->inject_rate = rate;
+		ffi->inject_type = (1 << FAULT_MAX) - 1;
 	} else {
-		memset(&f2fs_fault, 0, sizeof(struct f2fs_fault_info));
+		memset(ffi, 0, sizeof(struct f2fs_fault_info));
 	}
 }
 #endif
@@ -87,6 +91,7 @@ enum {
 	Opt_inline_xattr,
 	Opt_inline_data,
 	Opt_inline_dentry,
+	Opt_noinline_dentry,
 	Opt_flush_merge,
 	Opt_noflush_merge,
 	Opt_nobarrier,
@@ -118,6 +123,7 @@ static match_table_t f2fs_tokens = {
 	{Opt_inline_xattr, "inline_xattr"},
 	{Opt_inline_data, "inline_data"},
 	{Opt_inline_dentry, "inline_dentry"},
+	{Opt_noinline_dentry, "noinline_dentry"},
 	{Opt_flush_merge, "flush_merge"},
 	{Opt_noflush_merge, "noflush_merge"},
 	{Opt_nobarrier, "nobarrier"},
@@ -167,7 +173,7 @@ static unsigned char *__struct_ptr(struct f2fs_sb_info *sbi, int struct_type)
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 	else if (struct_type == FAULT_INFO_RATE ||
 					struct_type == FAULT_INFO_TYPE)
-		return (unsigned char *)&f2fs_fault;
+		return (unsigned char *)&sbi->fault_info;
 #endif
 	return NULL;
 }
@@ -312,6 +318,10 @@ static struct attribute *f2fs_attrs[] = {
 	ATTR_LIST(dirty_nats_ratio),
 	ATTR_LIST(cp_interval),
 	ATTR_LIST(idle_interval),
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+	ATTR_LIST(inject_rate),
+	ATTR_LIST(inject_type),
+#endif
 	ATTR_LIST(lifetime_write_kbytes),
 	NULL,
 };
@@ -326,22 +336,6 @@ static struct kobj_type f2fs_ktype = {
 	.sysfs_ops	= &f2fs_attr_ops,
 	.release	= f2fs_sb_release,
 };
-
-#ifdef CONFIG_F2FS_FAULT_INJECTION
-/* sysfs for f2fs fault injection */
-static struct kobject f2fs_fault_inject;
-
-static struct attribute *f2fs_fault_attrs[] = {
-	ATTR_LIST(inject_rate),
-	ATTR_LIST(inject_type),
-	NULL
-};
-
-static struct kobj_type f2fs_fault_ktype = {
-	.default_attrs	= f2fs_fault_attrs,
-	.sysfs_ops	= &f2fs_attr_ops,
-};
-#endif
 
 void f2fs_msg(struct super_block *sb, const char *level, const char *fmt, ...)
 {
@@ -369,10 +363,6 @@ static int parse_options(struct super_block *sb, char *options)
 	substring_t args[MAX_OPT_ARGS];
 	char *p, *name;
 	int arg = 0;
-
-#ifdef CONFIG_F2FS_FAULT_INJECTION
-	f2fs_build_fault_attr(0);
-#endif
 
 	if (!options)
 		return 0;
@@ -488,6 +478,9 @@ static int parse_options(struct super_block *sb, char *options)
 		case Opt_inline_dentry:
 			set_opt(sbi, INLINE_DENTRY);
 			break;
+		case Opt_noinline_dentry:
+			clear_opt(sbi, INLINE_DENTRY);
+			break;
 		case Opt_flush_merge:
 			set_opt(sbi, FLUSH_MERGE);
 			break;
@@ -533,7 +526,7 @@ static int parse_options(struct super_block *sb, char *options)
 			if (args->from && match_int(args, &arg))
 				return -EINVAL;
 #ifdef CONFIG_F2FS_FAULT_INJECTION
-			f2fs_build_fault_attr(arg);
+			f2fs_build_fault_attr(sbi, arg);
 #else
 			f2fs_msg(sb, KERN_INFO,
 				"FAULT_INJECTION was not selected");
@@ -730,7 +723,7 @@ static void f2fs_put_super(struct super_block *sb)
 	 * clean checkpoint again.
 	 */
 	if (is_sbi_flag_set(sbi, SBI_IS_DIRTY) ||
-			!is_set_ckpt_flags(F2FS_CKPT(sbi), CP_UMOUNT_FLAG)) {
+			!is_set_ckpt_flags(sbi, CP_UMOUNT_FLAG)) {
 		struct cp_control cpc = {
 			.reason = CP_UMOUNT,
 		};
@@ -878,6 +871,8 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",noinline_data");
 	if (test_opt(sbi, INLINE_DENTRY))
 		seq_puts(seq, ",inline_dentry");
+	else
+		seq_puts(seq, ",noinline_dentry");
 	if (!f2fs_readonly(sbi->sb) && test_opt(sbi, FLUSH_MERGE))
 		seq_puts(seq, ",flush_merge");
 	if (test_opt(sbi, NOBARRIER))
@@ -946,7 +941,7 @@ static int segment_bits_seq_show(struct seq_file *seq, void *offset)
 		seq_printf(seq, "%d|%-3u|", se->type,
 					get_valid_blocks(sbi, i, 1));
 		for (j = 0; j < SIT_VBLOCK_MAP_SIZE; j++)
-			seq_printf(seq, "%x ", se->cur_valid_map[j]);
+			seq_printf(seq, " %.2x", se->cur_valid_map[j]);
 		seq_putc(seq, '\n');
 	}
 	return 0;
@@ -975,6 +970,7 @@ static void default_options(struct f2fs_sb_info *sbi)
 
 	set_opt(sbi, BG_GC);
 	set_opt(sbi, INLINE_DATA);
+	set_opt(sbi, INLINE_DENTRY);
 	set_opt(sbi, EXTENT_CACHE);
 	sbi->sb->s_flags |= MS_LAZYTIME;
 	set_opt(sbi, FLUSH_MERGE);
@@ -991,6 +987,10 @@ static void default_options(struct f2fs_sb_info *sbi)
 #ifdef CONFIG_F2FS_FS_POSIX_ACL
 	set_opt(sbi, POSIX_ACL);
 #endif
+
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+	f2fs_build_fault_attr(sbi, 0);
+#endif
 }
 
 static int f2fs_remount(struct super_block *sb, int *flags, char *data)
@@ -1001,6 +1001,9 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	bool need_restart_gc = false;
 	bool need_stop_gc = false;
 	bool no_extent_cache = !test_opt(sbi, EXTENT_CACHE);
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+	struct f2fs_fault_info ffi = sbi->fault_info;
+#endif
 
 	/*
 	 * Save the old mount options in case we
@@ -1096,6 +1099,9 @@ restore_gc:
 restore_opts:
 	sbi->mount_opt = org_mount_opt;
 	sbi->active_logs = active_logs;
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+	sbi->fault_info = ffi;
+#endif
 	return err;
 }
 
@@ -1469,6 +1475,7 @@ static void init_sb_info(struct f2fs_sb_info *sbi)
 	mutex_init(&sbi->umount_mutex);
 	mutex_init(&sbi->wio_mutex[NODE]);
 	mutex_init(&sbi->wio_mutex[DATA]);
+	spin_lock_init(&sbi->cp_lock);
 
 #ifdef CONFIG_F2FS_FS_ENCRYPTION
 	memcpy(sbi->key_prefix, F2FS_KEY_DESC_PREFIX,
@@ -1810,13 +1817,16 @@ try_onemore:
 		 * previous checkpoint was not done by clean system shutdown.
 		 */
 		if (bdev_read_only(sb->s_bdev) &&
-				!is_set_ckpt_flags(sbi->ckpt, CP_UMOUNT_FLAG)) {
+				!is_set_ckpt_flags(sbi, CP_UMOUNT_FLAG)) {
 			err = -EROFS;
 			goto free_kobj;
 		}
 
 		if (need_fsck)
 			set_sbi_flag(sbi, SBI_NEED_FSCK);
+
+		if (!retry)
+			goto skip_recovery;
 
 		err = recover_fsync_data(sbi, false);
 		if (err < 0) {
@@ -1835,7 +1845,7 @@ try_onemore:
 			goto free_kobj;
 		}
 	}
-
+skip_recovery:
 	/* recover_fsync_data() cleared this already */
 	clear_sbi_flag(sbi, SBI_POR_DOING);
 
@@ -1879,7 +1889,9 @@ free_root_inode:
 	dput(sb->s_root);
 	sb->s_root = NULL;
 free_node_inode:
+	truncate_inode_pages_final(NODE_MAPPING(sbi));
 	mutex_lock(&sbi->umount_mutex);
+	release_ino_entry(sbi, true);
 	f2fs_leave_shrinker(sbi);
 	iput(sbi->node_inode);
 	mutex_unlock(&sbi->umount_mutex);
@@ -1978,16 +1990,6 @@ static int __init init_f2fs_fs(void)
 		err = -ENOMEM;
 		goto free_extent_cache;
 	}
-#ifdef CONFIG_F2FS_FAULT_INJECTION
-	f2fs_fault_inject.kset = f2fs_kset;
-	f2fs_build_fault_attr(0);
-	err = kobject_init_and_add(&f2fs_fault_inject, &f2fs_fault_ktype,
-				NULL, "fault_injection");
-	if (err) {
-		f2fs_fault_inject.kset = NULL;
-		goto free_kset;
-	}
-#endif
 	err = register_shrinker(&f2fs_shrinker_info);
 	if (err)
 		goto free_kset;
@@ -2006,10 +2008,6 @@ free_filesystem:
 free_shrinker:
 	unregister_shrinker(&f2fs_shrinker_info);
 free_kset:
-#ifdef CONFIG_F2FS_FAULT_INJECTION
-	if (f2fs_fault_inject.kset)
-		kobject_put(&f2fs_fault_inject);
-#endif
 	kset_unregister(f2fs_kset);
 free_extent_cache:
 	destroy_extent_cache();
@@ -2031,9 +2029,6 @@ static void __exit exit_f2fs_fs(void)
 	f2fs_destroy_root_stats();
 	unregister_filesystem(&f2fs_fs_type);
 	unregister_shrinker(&f2fs_shrinker_info);
-#ifdef CONFIG_F2FS_FAULT_INJECTION
-	kobject_put(&f2fs_fault_inject);
-#endif
 	kset_unregister(f2fs_kset);
 	destroy_extent_cache();
 	destroy_checkpoint_caches();
