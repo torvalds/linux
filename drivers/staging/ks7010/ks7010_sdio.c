@@ -76,10 +76,9 @@ static int ks7010_sdio_write(struct ks_wlan_private *priv, unsigned int address,
 	card = priv->ks_wlan_hw.sdio_card;
 
 	if (length == 1)	/* CMD52 */
-		sdio_writeb(card->func, *buffer, (unsigned int)address, &rc);
+		sdio_writeb(card->func, *buffer, address, &rc);
 	else	/* CMD53 */
-		rc = sdio_memcpy_toio(card->func, (unsigned int)address, buffer,
-				      length);
+		rc = sdio_memcpy_toio(card->func, address, buffer, length);
 
 	if (rc != 0)
 		DPRINTK(1, "sdio error=%d size=%d\n", rc, length);
