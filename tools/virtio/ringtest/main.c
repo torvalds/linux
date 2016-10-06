@@ -96,6 +96,12 @@ void set_affinity(const char *arg)
 	assert(!ret);
 }
 
+void poll_used(void)
+{
+	while (used_empty())
+		busy_wait();
+}
+
 static void __attribute__((__flatten__)) run_guest(void)
 {
 	int completed_before;
@@ -147,6 +153,12 @@ static void __attribute__((__flatten__)) run_guest(void)
 			poll_used();
 		}
 	}
+}
+
+void poll_avail(void)
+{
+	while (avail_empty())
+		busy_wait();
 }
 
 static void __attribute__((__flatten__)) run_host(void)
