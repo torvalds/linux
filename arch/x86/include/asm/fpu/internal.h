@@ -17,6 +17,8 @@
 #include <asm/user.h>
 #include <asm/fpu/api.h>
 #include <asm/fpu/xstate.h>
+#include <asm/cpufeature.h>
+#include <asm/trace/fpu.h>
 
 /*
  * High level FPU state handling functions:
@@ -24,6 +26,8 @@
 extern void fpu__activate_curr(struct fpu *fpu);
 extern void fpu__activate_fpstate_read(struct fpu *fpu);
 extern void fpu__activate_fpstate_write(struct fpu *fpu);
+extern void fpu__current_fpstate_write_begin(void);
+extern void fpu__current_fpstate_write_end(void);
 extern void fpu__save(struct fpu *fpu);
 extern void fpu__restore(struct fpu *fpu);
 extern int  fpu__restore_sig(void __user *buf, int ia32_frame);
@@ -58,22 +62,22 @@ extern u64 fpu__get_supported_xfeatures_mask(void);
  */
 static __always_inline __pure bool use_eager_fpu(void)
 {
-	return static_cpu_has_safe(X86_FEATURE_EAGER_FPU);
+	return static_cpu_has(X86_FEATURE_EAGER_FPU);
 }
 
 static __always_inline __pure bool use_xsaveopt(void)
 {
-	return static_cpu_has_safe(X86_FEATURE_XSAVEOPT);
+	return static_cpu_has(X86_FEATURE_XSAVEOPT);
 }
 
 static __always_inline __pure bool use_xsave(void)
 {
-	return static_cpu_has_safe(X86_FEATURE_XSAVE);
+	return static_cpu_has(X86_FEATURE_XSAVE);
 }
 
 static __always_inline __pure bool use_fxsr(void)
 {
-	return static_cpu_has_safe(X86_FEATURE_FXSR);
+	return static_cpu_has(X86_FEATURE_FXSR);
 }
 
 /*
@@ -133,9 +137,9 @@ static inline int copy_fregs_to_user(struct fregs_state __user *fx)
 
 static inline int copy_fxregs_to_user(struct fxregs_state __user *fx)
 {
-	if (config_enabled(CONFIG_X86_32))
+	if (IS_ENABLED(CONFIG_X86_32))
 		return user_insn(fxsave %[fx], [fx] "=m" (*fx), "m" (*fx));
-	else if (config_enabled(CONFIG_AS_FXSAVEQ))
+	else if (IS_ENABLED(CONFIG_AS_FXSAVEQ))
 		return user_insn(fxsaveq %[fx], [fx] "=m" (*fx), "m" (*fx));
 
 	/* See comment in copy_fxregs_to_kernel() below. */
@@ -146,10 +150,10 @@ static inline void copy_kernel_to_fxregs(struct fxregs_state *fx)
 {
 	int err;
 
-	if (config_enabled(CONFIG_X86_32)) {
+	if (IS_ENABLED(CONFIG_X86_32)) {
 		err = check_insn(fxrstor %[fx], "=m" (*fx), [fx] "m" (*fx));
 	} else {
-		if (config_enabled(CONFIG_AS_FXSAVEQ)) {
+		if (IS_ENABLED(CONFIG_AS_FXSAVEQ)) {
 			err = check_insn(fxrstorq %[fx], "=m" (*fx), [fx] "m" (*fx));
 		} else {
 			/* See comment in copy_fxregs_to_kernel() below. */
@@ -162,9 +166,9 @@ static inline void copy_kernel_to_fxregs(struct fxregs_state *fx)
 
 static inline int copy_user_to_fxregs(struct fxregs_state __user *fx)
 {
-	if (config_enabled(CONFIG_X86_32))
+	if (IS_ENABLED(CONFIG_X86_32))
 		return user_insn(fxrstor %[fx], "=m" (*fx), [fx] "m" (*fx));
-	else if (config_enabled(CONFIG_AS_FXSAVEQ))
+	else if (IS_ENABLED(CONFIG_AS_FXSAVEQ))
 		return user_insn(fxrstorq %[fx], "=m" (*fx), [fx] "m" (*fx));
 
 	/* See comment in copy_fxregs_to_kernel() below. */
@@ -186,9 +190,9 @@ static inline int copy_user_to_fregs(struct fregs_state __user *fx)
 
 static inline void copy_fxregs_to_kernel(struct fpu *fpu)
 {
-	if (config_enabled(CONFIG_X86_32))
+	if (IS_ENABLED(CONFIG_X86_32))
 		asm volatile( "fxsave %[fx]" : [fx] "=m" (fpu->state.fxsave));
-	else if (config_enabled(CONFIG_AS_FXSAVEQ))
+	else if (IS_ENABLED(CONFIG_AS_FXSAVEQ))
 		asm volatile("fxsaveq %[fx]" : [fx] "=m" (fpu->state.fxsave));
 	else {
 		/* Using "rex64; fxsave %0" is broken because, if the memory
@@ -300,7 +304,7 @@ static inline void copy_xregs_to_kernel_booting(struct xregs_state *xstate)
 
 	WARN_ON(system_state != SYSTEM_BOOTING);
 
-	if (static_cpu_has_safe(X86_FEATURE_XSAVES))
+	if (static_cpu_has(X86_FEATURE_XSAVES))
 		XSTATE_OP(XSAVES, xstate, lmask, hmask, err);
 	else
 		XSTATE_OP(XSAVE, xstate, lmask, hmask, err);
@@ -322,7 +326,7 @@ static inline void copy_kernel_to_xregs_booting(struct xregs_state *xstate)
 
 	WARN_ON(system_state != SYSTEM_BOOTING);
 
-	if (static_cpu_has_safe(X86_FEATURE_XSAVES))
+	if (static_cpu_has(X86_FEATURE_XSAVES))
 		XSTATE_OP(XRSTORS, xstate, lmask, hmask, err);
 	else
 		XSTATE_OP(XRSTOR, xstate, lmask, hmask, err);
@@ -460,7 +464,7 @@ static inline void copy_kernel_to_fpregs(union fpregs_state *fpstate)
 	 * pending. Clear the x87 state here by setting it to fixed values.
 	 * "m" is a random variable that should be in L1.
 	 */
-	if (unlikely(static_cpu_has_bug_safe(X86_BUG_FXSAVE_LEAK))) {
+	if (unlikely(static_cpu_has_bug(X86_BUG_FXSAVE_LEAK))) {
 		asm volatile(
 			"fnclex\n\t"
 			"emms\n\t"
@@ -521,6 +525,7 @@ static inline void __fpregs_deactivate(struct fpu *fpu)
 
 	fpu->fpregs_active = 0;
 	this_cpu_write(fpu_fpregs_owner_ctx, NULL);
+	trace_x86_fpu_regs_deactivated(fpu);
 }
 
 /* Must be paired with a 'clts' (fpregs_activate_hw()) before! */
@@ -530,6 +535,7 @@ static inline void __fpregs_activate(struct fpu *fpu)
 
 	fpu->fpregs_active = 1;
 	this_cpu_write(fpu_fpregs_owner_ctx, fpu);
+	trace_x86_fpu_regs_activated(fpu);
 }
 
 /*
@@ -589,7 +595,8 @@ switch_fpu_prepare(struct fpu *old_fpu, struct fpu *new_fpu, int cpu)
 	 * If the task has used the math, pre-load the FPU on xsave processors
 	 * or if the past 5 consecutive context-switches used math.
 	 */
-	fpu.preload = new_fpu->fpstate_active &&
+	fpu.preload = static_cpu_has(X86_FEATURE_FPU) &&
+		      new_fpu->fpstate_active &&
 		      (use_eager_fpu() || new_fpu->counter > 5);
 
 	if (old_fpu->fpregs_active) {
@@ -600,11 +607,13 @@ switch_fpu_prepare(struct fpu *old_fpu, struct fpu *new_fpu, int cpu)
 
 		/* But leave fpu_fpregs_owner_ctx! */
 		old_fpu->fpregs_active = 0;
+		trace_x86_fpu_regs_deactivated(old_fpu);
 
 		/* Don't change CR0.TS if we just switch! */
 		if (fpu.preload) {
 			new_fpu->counter++;
 			__fpregs_activate(new_fpu);
+			trace_x86_fpu_regs_activated(new_fpu);
 			prefetch(&new_fpu->state);
 		} else {
 			__fpregs_deactivate_hw();

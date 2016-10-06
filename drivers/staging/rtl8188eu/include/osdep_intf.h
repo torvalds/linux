@@ -11,11 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
  ******************************************************************************/
 
 #ifndef __OSDEP_INTF_H_
@@ -39,7 +34,6 @@ int rtw_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 int rtw_init_netdev_name(struct net_device *pnetdev, const char *ifname);
 struct net_device *rtw_init_netdev(struct adapter *padapter);
 u16 rtw_recv_select_queue(struct sk_buff *skb);
-void rtw_proc_remove_one(struct net_device *dev);
 
 int pm_netdev_open(struct net_device *pnetdev, u8 bnormal);
 void rtw_ips_dev_unload(struct adapter *padapter);

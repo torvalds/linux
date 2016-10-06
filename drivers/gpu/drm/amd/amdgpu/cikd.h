@@ -46,9 +46,6 @@
 #define BONAIRE_GB_ADDR_CONFIG_GOLDEN        0x12010001
 #define HAWAII_GB_ADDR_CONFIG_GOLDEN         0x12011003
 
-#define CIK_RB_BITMAP_WIDTH_PER_SH     2
-#define HAWAII_RB_BITMAP_WIDTH_PER_SH  4
-
 #define AMDGPU_NUM_OF_VMIDS	8
 
 #define		PIPEID(x)					((x) << 0)
@@ -193,8 +190,8 @@
 #       define MACRO_TILE_ASPECT(x)				((x) << 4)
 #       define NUM_BANKS(x)					((x) << 6)
 
-#define		MSG_ENTER_RLC_SAFE_MODE      			1
-#define		MSG_EXIT_RLC_SAFE_MODE      			0
+#define		MSG_ENTER_RLC_SAFE_MODE			1
+#define		MSG_EXIT_RLC_SAFE_MODE			0
 
 /*
  * PM4

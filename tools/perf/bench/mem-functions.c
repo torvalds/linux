@@ -6,6 +6,7 @@
  * Written by Hitoshi Mitake <mitake@dcl.info.waseda.ac.jp>
  */
 
+#include "debug.h"
 #include "../perf.h"
 #include "../util/util.h"
 #include <subcmd/parse-options.h>
@@ -20,6 +21,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <errno.h>
+#include <linux/time64.h>
 
 #define K 1024
 
@@ -63,14 +65,16 @@ static struct perf_event_attr cycle_attr = {
 	.config		= PERF_COUNT_HW_CPU_CYCLES
 };
 
-static void init_cycles(void)
+static int init_cycles(void)
 {
 	cycles_fd = sys_perf_event_open(&cycle_attr, getpid(), -1, -1, perf_event_open_cloexec_flag());
 
-	if (cycles_fd < 0 && errno == ENOSYS)
-		die("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
-	else
-		BUG_ON(cycles_fd < 0);
+	if (cycles_fd < 0 && errno == ENOSYS) {
+		pr_debug("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
+		return -1;
+	}
+
+	return cycles_fd;
 }
 
 static u64 get_cycles(void)
@@ -86,7 +90,7 @@ static u64 get_cycles(void)
 
 static double timeval2double(struct timeval *ts)
 {
-	return (double)ts->tv_sec + (double)ts->tv_usec / (double)1000000;
+	return (double)ts->tv_sec + (double)ts->tv_usec / (double)USEC_PER_SEC;
 }
 
 #define print_bps(x) do {						\
@@ -155,8 +159,13 @@ static int bench_mem_common(int argc, const char **argv, struct bench_mem_info *
 
 	argc = parse_options(argc, argv, options, info->usage, 0);
 
-	if (use_cycles)
-		init_cycles();
+	if (use_cycles) {
+		i = init_cycles();
+		if (i < 0) {
+			fprintf(stderr, "Failed to open cycles counter\n");
+			return i;
+		}
+	}
 
 	size = (size_t)perf_atoll((char *)size_str);
 	size_total = (double)size * nr_loops;

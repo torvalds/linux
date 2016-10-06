@@ -479,40 +479,32 @@ static int dln2_gpio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dln2);
 
-	ret = gpiochip_add_data(&dln2->gpio, dln2);
+	ret = devm_gpiochip_add_data(dev, &dln2->gpio, dln2);
 	if (ret < 0) {
 		dev_err(dev, "failed to add gpio chip: %d\n", ret);
-		goto out;
+		return ret;
 	}
 
 	ret = gpiochip_irqchip_add(&dln2->gpio, &dln2_gpio_irqchip, 0,
 				   handle_simple_irq, IRQ_TYPE_NONE);
 	if (ret < 0) {
 		dev_err(dev, "failed to add irq chip: %d\n", ret);
-		goto out_gpiochip_remove;
+		return ret;
 	}
 
 	ret = dln2_register_event_cb(pdev, DLN2_GPIO_CONDITION_MET_EV,
 				     dln2_gpio_event);
 	if (ret) {
 		dev_err(dev, "failed to register event cb: %d\n", ret);
-		goto out_gpiochip_remove;
+		return ret;
 	}
 
 	return 0;
-
-out_gpiochip_remove:
-	gpiochip_remove(&dln2->gpio);
-out:
-	return ret;
 }
 
 static int dln2_gpio_remove(struct platform_device *pdev)
 {
-	struct dln2_gpio *dln2 = platform_get_drvdata(pdev);
-
 	dln2_unregister_event_cb(pdev, DLN2_GPIO_CONDITION_MET_EV);
-	gpiochip_remove(&dln2->gpio);
 
 	return 0;
 }

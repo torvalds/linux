@@ -19,24 +19,11 @@
 
 #include "rcar_du_drv.h"
 #include "rcar_du_encoder.h"
-#include "rcar_du_hdmicon.h"
 #include "rcar_du_hdmienc.h"
 #include "rcar_du_kms.h"
 #include "rcar_du_lvdscon.h"
 #include "rcar_du_lvdsenc.h"
 #include "rcar_du_vgacon.h"
-
-/* -----------------------------------------------------------------------------
- * Common connector functions
- */
-
-struct drm_encoder *
-rcar_du_connector_best_encoder(struct drm_connector *connector)
-{
-	struct rcar_du_connector *rcon = to_rcar_connector(connector);
-
-	return rcar_encoder_to_drm_encoder(rcon->encoder);
-}
 
 /* -----------------------------------------------------------------------------
  * Encoder
@@ -89,12 +76,8 @@ static int rcar_du_encoder_atomic_check(struct drm_encoder *encoder,
 	/* The flat panel mode is fixed, just copy it to the adjusted mode. */
 	drm_mode_copy(adjusted_mode, panel_mode);
 
-	/* The internal LVDS encoder has a clock frequency operating range of
-	 * 30MHz to 150MHz. Clamp the clock accordingly.
-	 */
 	if (renc->lvds)
-		adjusted_mode->clock = clamp(adjusted_mode->clock,
-					     30000, 150000);
+		rcar_du_lvdsenc_atomic_check(renc->lvds, adjusted_mode);
 
 	return 0;
 }
@@ -190,7 +173,7 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 		break;
 
 	case DRM_MODE_ENCODER_TMDS:
-		ret = rcar_du_hdmi_connector_init(rcdu, renc);
+		/* connector managed by the bridge driver */
 		break;
 
 	default:

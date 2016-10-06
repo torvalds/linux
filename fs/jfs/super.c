@@ -84,7 +84,7 @@ static void jfs_handle_error(struct super_block *sb)
 		panic("JFS (device %s): panic forced after error\n",
 			sb->s_id);
 	else if (sbi->flag & JFS_ERR_REMOUNT_RO) {
-		jfs_err("ERROR: (device %s): remounting filesystem as read-only\n",
+		jfs_err("ERROR: (device %s): remounting filesystem as read-only",
 			sb->s_id);
 		sb->s_flags |= MS_RDONLY;
 	}
@@ -596,7 +596,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	 * Page cache is indexed by long.
 	 * I would use MAX_LFS_FILESIZE, but it's only half as big
 	 */
-	sb->s_maxbytes = min(((u64) PAGE_CACHE_SIZE << 32) - 1,
+	sb->s_maxbytes = min(((u64) PAGE_SIZE << 32) - 1,
 			     (u64)sb->s_maxbytes);
 #endif
 	sb->s_time_gran = 1;
@@ -641,7 +641,7 @@ static int jfs_freeze(struct super_block *sb)
 		}
 		rc = updateSuper(sb, FM_CLEAN);
 		if (rc) {
-			jfs_err("jfs_freeze: updateSuper failed\n");
+			jfs_err("jfs_freeze: updateSuper failed");
 			/*
 			 * Don't fail here. Everything succeeded except
 			 * marking the superblock clean, so there's really

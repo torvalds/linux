@@ -32,20 +32,20 @@ static char *name;
 module_param(name, charp, 0);
 MODULE_PARM_DESC(name, "Devicename (required). name=list => list all supported devices.");
 
-static unsigned rotate;
+static unsigned int rotate;
 module_param(rotate, uint, 0);
 MODULE_PARM_DESC(rotate,
 "Angle to rotate display counter clockwise: 0, 90, 180, 270");
 
-static unsigned busnum;
+static unsigned int busnum;
 module_param(busnum, uint, 0);
 MODULE_PARM_DESC(busnum, "SPI bus number (default=0)");
 
-static unsigned cs;
+static unsigned int cs;
 module_param(cs, uint, 0);
 MODULE_PARM_DESC(cs, "SPI chip select (default=0)");
 
-static unsigned speed;
+static unsigned int speed;
 module_param(speed, uint, 0);
 MODULE_PARM_DESC(speed, "SPI speed (override device default)");
 
@@ -58,7 +58,7 @@ module_param(gpios, charp, 0);
 MODULE_PARM_DESC(gpios,
 "List of gpios. Comma separated with the form: reset:23,dc:24 (when overriding the default, all gpios must be specified)");
 
-static unsigned fps;
+static unsigned int fps;
 module_param(fps, uint, 0);
 MODULE_PARM_DESC(fps, "Frames per second (override driver default)");
 
@@ -76,7 +76,7 @@ module_param(bgr, int, 0);
 MODULE_PARM_DESC(bgr,
 "BGR bit (supported by some drivers).");
 
-static unsigned startbyte;
+static unsigned int startbyte;
 module_param(startbyte, uint, 0);
 MODULE_PARM_DESC(startbyte, "Sets the Start byte used by some SPI displays.");
 
@@ -84,15 +84,15 @@ static bool custom;
 module_param(custom, bool, 0);
 MODULE_PARM_DESC(custom, "Add a custom display device. Use speed= argument to make it a SPI device, else platform_device");
 
-static unsigned width;
+static unsigned int width;
 module_param(width, uint, 0);
 MODULE_PARM_DESC(width, "Display width, used with the custom argument");
 
-static unsigned height;
+static unsigned int height;
 module_param(height, uint, 0);
 MODULE_PARM_DESC(height, "Display height, used with the custom argument");
 
-static unsigned buswidth = 8;
+static unsigned int buswidth = 8;
 module_param(buswidth, uint, 0);
 MODULE_PARM_DESC(buswidth, "Display bus width, used with the custom argument");
 
@@ -106,7 +106,7 @@ module_param(debug, ulong, 0);
 MODULE_PARM_DESC(debug,
 "level: 0-7 (the remaining 29 bits is for advanced usage)");
 
-static unsigned verbose = 3;
+static unsigned int verbose = 3;
 module_param(verbose, uint, 0);
 MODULE_PARM_DESC(verbose,
 "0 silent, >0 show gpios, >1 show devices, >2 show devices before (default=3)");
@@ -212,38 +212,63 @@ static int hy28b_init_sequence[] = {
 	"0F 00 1 7 4 0 0 0 6 7"
 
 static int pitft_init_sequence[] = {
-	-1, 0x01, -2, 5, -1, 0x28, -1, 0xEF,
-	0x03, 0x80, 0x02, -1, 0xCF, 0x00, 0xC1, 0x30,
+	-1, MIPI_DCS_SOFT_RESET,
+	-2, 5,
+	-1, MIPI_DCS_SET_DISPLAY_OFF,
+	-1, 0xEF, 0x03, 0x80, 0x02,
+	-1, 0xCF, 0x00, 0xC1, 0x30,
 	-1, 0xED, 0x64, 0x03, 0x12, 0x81,
 	-1, 0xE8, 0x85, 0x00, 0x78,
 	-1, 0xCB, 0x39, 0x2C, 0x00, 0x34, 0x02,
-	-1, 0xF7, 0x20, -1, 0xEA, 0x00, 0x00,
-	-1, 0xC0, 0x23, -1, 0xC1, 0x10, -1, 0xC5,
-	0x3e, 0x28, -1, 0xC7, 0x86, -1, 0x3A, 0x55,
-	-1, 0xB1, 0x00, 0x18, -1, 0xB6, 0x08, 0x82,
-	0x27, -1, 0xF2, 0x00, -1, 0x26, 0x01,
-	-1, 0xE0, 0x0F, 0x31, 0x2B, 0x0C, 0x0E, 0x08,
-	0x4E, 0xF1, 0x37, 0x07, 0x10, 0x03,
-	0x0E, 0x09, 0x00, -1, 0xE1, 0x00, 0x0E, 0x14,
-	0x03, 0x11, 0x07, 0x31, 0xC1, 0x48,
-	0x08, 0x0F, 0x0C, 0x31, 0x36, 0x0F, -1,
-	0x11, -2, 100, -1, 0x29, -2, 20, -3 };
+	-1, 0xF7, 0x20,
+	-1, 0xEA, 0x00, 0x00,
+	-1, 0xC0, 0x23,
+	-1, 0xC1, 0x10,
+	-1, 0xC5, 0x3E, 0x28,
+	-1, 0xC7, 0x86,
+	-1, MIPI_DCS_SET_PIXEL_FORMAT, 0x55,
+	-1, 0xB1, 0x00, 0x18,
+	-1, 0xB6, 0x08, 0x82, 0x27,
+	-1, 0xF2, 0x00,
+	-1, MIPI_DCS_SET_GAMMA_CURVE, 0x01,
+	-1, 0xE0, 0x0F, 0x31, 0x2B, 0x0C, 0x0E, 0x08, 0x4E,
+		0xF1, 0x37, 0x07, 0x10, 0x03, 0x0E, 0x09, 0x00,
+	-1, 0xE1, 0x00, 0x0E, 0x14, 0x03, 0x11, 0x07, 0x31,
+		0xC1, 0x48, 0x08, 0x0F, 0x0C, 0x31, 0x36, 0x0F,
+	-1, MIPI_DCS_EXIT_SLEEP_MODE,
+	-2, 100,
+	-1, MIPI_DCS_SET_DISPLAY_ON,
+	-2, 20,
+	-3
+};
 
 static int waveshare32b_init_sequence[] = {
 	-1, 0xCB, 0x39, 0x2C, 0x00, 0x34, 0x02,
 	-1, 0xCF, 0x00, 0xC1, 0x30,
-	-1, 0xE8, 0x85, 0x00, 0x78, -1, 0xEA, 0x00,
-	0x00, -1, 0xED, 0x64, 0x03, 0x12, 0x81,
-	-1, 0xF7, 0x20, -1, 0xC0, 0x23, -1, 0xC1,
-	0x10, -1, 0xC5, 0x3e, 0x28, -1, 0xC7, 0x86,
-	-1, 0x36, 0x28, -1, 0x3A, 0x55, -1, 0xB1, 0x00,
-	0x18, -1, 0xB6, 0x08, 0x82, 0x27,
-	-1, 0xF2, 0x00, -1, 0x26, 0x01,
+	-1, 0xE8, 0x85, 0x00, 0x78,
+	-1, 0xEA, 0x00, 0x00,
+	-1, 0xED, 0x64, 0x03, 0x12, 0x81,
+	-1, 0xF7, 0x20,
+	-1, 0xC0, 0x23,
+	-1, 0xC1, 0x10,
+	-1, 0xC5, 0x3E, 0x28,
+	-1, 0xC7, 0x86,
+	-1, MIPI_DCS_SET_ADDRESS_MODE, 0x28,
+	-1, MIPI_DCS_SET_PIXEL_FORMAT, 0x55,
+	-1, 0xB1, 0x00, 0x18,
+	-1, 0xB6, 0x08, 0x82, 0x27,
+	-1, 0xF2, 0x00,
+	-1, MIPI_DCS_SET_GAMMA_CURVE, 0x01,
 	-1, 0xE0, 0x0F, 0x31, 0x2B, 0x0C, 0x0E, 0x08, 0x4E,
-	0xF1, 0x37, 0x07, 0x10, 0x03, 0x0E, 0x09, 0x00,
+		0xF1, 0x37, 0x07, 0x10, 0x03, 0x0E, 0x09, 0x00,
 	-1, 0xE1, 0x00, 0x0E, 0x14, 0x03, 0x11, 0x07, 0x31,
-	0xC1, 0x48, 0x08, 0x0F, 0x0C, 0x31, 0x36, 0x0F,
-	-1, 0x11, -2, 120, -1, 0x29, -1, 0x2c, -3 };
+		0xC1, 0x48, 0x08, 0x0F, 0x0C, 0x31, 0x36, 0x0F,
+	-1, MIPI_DCS_EXIT_SLEEP_MODE,
+	-2, 120,
+	-1, MIPI_DCS_SET_DISPLAY_ON,
+	-1, MIPI_DCS_WRITE_MEMORY_START,
+	-3
+};
 
 /* Supported displays in alphabetical order */
 static struct fbtft_device_display displays[] = {
@@ -1190,7 +1215,8 @@ static struct fbtft_device_display displays[] = {
 		}
 	}, {
 		/* This should be the last item.
-		   Used with the custom argument */
+		 * Used with the custom argument
+		 */
 		.name = "",
 		.spi = &(struct spi_board_info) {
 			.modalias = "",
@@ -1229,7 +1255,7 @@ static int write_gpio16_wr_slow(struct fbtft_par *par, void *buf, size_t len)
 		"%s(len=%d): ", __func__, len);
 
 	while (len) {
-		data = *(u16 *) buf;
+		data = *(u16 *)buf;
 
 		/* Start writing by pulling down /WR */
 		gpio_set_value(par->gpio.wr, 0);
@@ -1258,7 +1284,7 @@ static int write_gpio16_wr_slow(struct fbtft_par *par, void *buf, size_t len)
 		gpio_set_value(par->gpio.wr, 1);
 
 #ifndef DO_NOT_OPTIMIZE_FBTFT_WRITE_GPIO
-		prev_data = *(u16 *) buf;
+		prev_data = *(u16 *)buf;
 #endif
 		buf += 2;
 		len -= 2;
@@ -1281,13 +1307,14 @@ static struct fbtft_gpio fbtft_device_param_gpios[MAX_GPIOS + 1] = { };
 static void fbtft_device_pdev_release(struct device *dev)
 {
 /* Needed to silence this message:
-Device 'xxx' does not have a release() function, it is broken and must be fixed
-*/
+ * Device 'xxx' does not have a release() function,
+ * it is broken and must be fixed
+ */
 }
 
 static int spi_device_found(struct device *dev, void *data)
 {
-	struct spi_device *spi = container_of(dev, struct spi_device, dev);
+	struct spi_device *spi = to_spi_device(dev);
 
 	dev_info(dev, "%s %s %dkHz %d bits mode=0x%02X\n", spi->modalias,
 		 dev_name(dev), spi->max_speed_hz / 1000, spi->bits_per_word,
@@ -1305,7 +1332,7 @@ static void pr_spi_devices(void)
 static int p_device_found(struct device *dev, void *data)
 {
 	struct platform_device
-	*pdev = container_of(dev, struct platform_device, dev);
+	*pdev = to_platform_device(dev);
 
 	if (strstr(pdev->name, "fb"))
 		dev_info(dev, "%s id=%d pdata? %s\n", pdev->name, pdev->id,
@@ -1321,7 +1348,7 @@ static void pr_p_devices(void)
 }
 
 #ifdef MODULE
-static void fbtft_device_spi_delete(struct spi_master *master, unsigned cs)
+static void fbtft_device_spi_delete(struct spi_master *master, unsigned int cs)
 {
 	struct device *dev;
 	char str[32];
@@ -1374,7 +1401,7 @@ static int __init fbtft_device_init(void)
 	long val;
 	int ret = 0;
 
-	if (name == NULL) {
+	if (!name) {
 #ifdef MODULE
 		pr_err("missing module parameter: 'name'\n");
 		return -EINVAL;
@@ -1391,14 +1418,14 @@ static int __init fbtft_device_init(void)
 
 	/* parse module parameter: gpios */
 	while ((p_gpio = strsep(&gpios, ","))) {
-		if (strchr(p_gpio, ':') == NULL) {
+		if (!strchr(p_gpio, ':')) {
 			pr_err("error: missing ':' in gpios parameter: %s\n",
 			       p_gpio);
 			return -EINVAL;
 		}
 		p_num = p_gpio;
 		p_name = strsep(&p_num, ":");
-		if (p_name == NULL || p_num == NULL) {
+		if (!p_name || !p_num) {
 			pr_err("something bad happened parsing gpios parameter: %s\n",
 			       p_gpio);
 			return -EINVAL;
@@ -1411,7 +1438,7 @@ static int __init fbtft_device_init(void)
 		}
 		strncpy(fbtft_device_param_gpios[i].name, p_name,
 			FBTFT_GPIO_NAME_SIZE - 1);
-		fbtft_device_param_gpios[i++].gpio = (int) val;
+		fbtft_device_param_gpios[i++].gpio = (int)val;
 		if (i == MAX_GPIOS) {
 			pr_err("gpios parameter: exceeded max array size: %d\n",
 			       MAX_GPIOS);

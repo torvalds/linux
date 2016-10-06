@@ -1,5 +1,6 @@
 
 generic-y += bitsperlong.h
+generic-y += clkdev.h
 generic-y += cputime.h
 generic-y += current.h
 generic-y += delay.h
@@ -25,6 +26,7 @@ generic-y += percpu.h
 generic-y += poll.h
 generic-y += preempt.h
 generic-y += resource.h
+generic-y += rwsem.h
 generic-y += sembuf.h
 generic-y += serial.h
 generic-y += shmbuf.h

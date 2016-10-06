@@ -2,7 +2,7 @@
 #include <linux/linkage.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/percpu.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
@@ -37,6 +37,7 @@
 #include <asm/mtrr.h>
 #include <linux/numa.h>
 #include <asm/asm.h>
+#include <asm/bugs.h>
 #include <asm/cpu.h>
 #include <asm/mce.h>
 #include <asm/msr.h>
@@ -162,6 +163,22 @@ static int __init x86_mpx_setup(char *s)
 }
 __setup("nompx", x86_mpx_setup);
 
+static int __init x86_noinvpcid_setup(char *s)
+{
+	/* noinvpcid doesn't accept parameters */
+	if (s)
+		return -EINVAL;
+
+	/* do not emit a message if the feature is not present */
+	if (!boot_cpu_has(X86_FEATURE_INVPCID))
+		return 0;
+
+	setup_clear_cpu_cap(X86_FEATURE_INVPCID);
+	pr_info("noinvpcid: INVPCID feature disabled\n");
+	return 0;
+}
+early_param("noinvpcid", x86_noinvpcid_setup);
+
 #ifdef CONFIG_X86_32
 static int cachesize_override = -1;
 static int disable_x86_serial_nr = 1;
@@ -228,7 +245,7 @@ static void squash_the_stupid_serial_number(struct cpuinfo_x86 *c)
 	lo |= 0x200000;
 	wrmsr(MSR_IA32_BBL_CR_CTL, lo, hi);
 
-	printk(KERN_NOTICE "CPU serial number disabled.\n");
+	pr_notice("CPU serial number disabled.\n");
 	clear_cpu_cap(c, X86_FEATURE_PN);
 
 	/* Disabling the serial number may affect the cpuid level */
@@ -254,6 +271,8 @@ static inline void squash_the_stupid_serial_number(struct cpuinfo_x86 *c)
 static __init int setup_disable_smep(char *arg)
 {
 	setup_clear_cpu_cap(X86_FEATURE_SMEP);
+	/* Check for things that depend on SMEP being enabled: */
+	check_mpx_erratum(&boot_cpu_data);
 	return 1;
 }
 __setup("nosmep", setup_disable_smep);
@@ -286,6 +305,52 @@ static __always_inline void setup_smap(struct cpuinfo_x86 *c)
 #endif
 	}
 }
+
+/*
+ * Protection Keys are not available in 32-bit mode.
+ */
+static bool pku_disabled;
+
+static __always_inline void setup_pku(struct cpuinfo_x86 *c)
+{
+	/* check the boot processor, plus compile options for PKU: */
+	if (!cpu_feature_enabled(X86_FEATURE_PKU))
+		return;
+	/* checks the actual processor's cpuid bits: */
+	if (!cpu_has(c, X86_FEATURE_PKU))
+		return;
+	if (pku_disabled)
+		return;
+
+	cr4_set_bits(X86_CR4_PKE);
+	/*
+	 * Seting X86_CR4_PKE will cause the X86_FEATURE_OSPKE
+	 * cpuid bit to be set.  We need to ensure that we
+	 * update that bit in this CPU's "cpu_info".
+	 */
+	get_cpu_cap(c);
+}
+
+#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
+static __init int setup_disable_pku(char *arg)
+{
+	/*
+	 * Do not clear the X86_FEATURE_PKU bit.  All of the
+	 * runtime checks are against OSPKE so clearing the
+	 * bit does nothing.
+	 *
+	 * This way, we will see "pku" in cpuinfo, but not
+	 * "ospke", which is exactly what we want.  It shows
+	 * that the CPU has PKU, but the OS has not enabled it.
+	 * This happens to be exactly how a system would look
+	 * if we disabled the config option.
+	 */
+	pr_info("x86: 'nopku' specified, disabling Memory Protection Keys\n");
+	pku_disabled = true;
+	return 1;
+}
+__setup("nopku", setup_disable_pku);
+#endif /* CONFIG_X86_64 */
 
 /*
  * Some CPU features depend on higher CPUID levels, which may not always
@@ -329,9 +394,8 @@ static void filter_cpuid_features(struct cpuinfo_x86 *c, bool warn)
 		if (!warn)
 			continue;
 
-		printk(KERN_WARNING
-		       "CPU: CPU feature " X86_CAP_FMT " disabled, no CPUID level 0x%x\n",
-				x86_cap_flag(df->feature), df->level);
+		pr_warn("CPU: CPU feature " X86_CAP_FMT " disabled, no CPUID level 0x%x\n",
+			x86_cap_flag(df->feature), df->level);
 	}
 }
 
@@ -373,7 +437,7 @@ void load_percpu_segment(int cpu)
 #ifdef CONFIG_X86_32
 	loadsegment(fs, __KERNEL_PERCPU);
 #else
-	loadsegment(gs, 0);
+	__loadsegment_simple(gs, 0);
 	wrmsrl(MSR_GS_BASE, (unsigned long)per_cpu(irq_stack_union.gs_base, cpu));
 #endif
 	load_stack_canary_segment();
@@ -510,7 +574,7 @@ void detect_ht(struct cpuinfo_x86 *c)
 	smp_num_siblings = (ebx & 0xff0000) >> 16;
 
 	if (smp_num_siblings == 1) {
-		printk_once(KERN_INFO "CPU0: Hyper-Threading is disabled\n");
+		pr_info_once("CPU0: Hyper-Threading is disabled\n");
 		goto out;
 	}
 
@@ -531,10 +595,10 @@ void detect_ht(struct cpuinfo_x86 *c)
 
 out:
 	if (!printed && (c->x86_max_cores * smp_num_siblings) > 1) {
-		printk(KERN_INFO  "CPU: Physical Processor ID: %d\n",
-		       c->phys_proc_id);
-		printk(KERN_INFO  "CPU: Processor Core ID: %d\n",
-		       c->cpu_core_id);
+		pr_info("CPU: Physical Processor ID: %d\n",
+			c->phys_proc_id);
+		pr_info("CPU: Processor Core ID: %d\n",
+			c->cpu_core_id);
 		printed = 1;
 	}
 #endif
@@ -559,9 +623,8 @@ static void get_cpu_vendor(struct cpuinfo_x86 *c)
 		}
 	}
 
-	printk_once(KERN_ERR
-			"CPU: vendor_id '%s' unknown, using generic init.\n" \
-			"CPU: Your system may be unstable.\n", v);
+	pr_err_once("CPU: vendor_id '%s' unknown, using generic init.\n" \
+		    "CPU: Your system may be unstable.\n", v);
 
 	c->x86_vendor = X86_VENDOR_UNKNOWN;
 	this_cpu = &default_cpu;
@@ -611,6 +674,7 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
 		c->x86_capability[CPUID_7_0_EBX] = ebx;
 
 		c->x86_capability[CPUID_6_EAX] = cpuid_eax(0x00000006);
+		c->x86_capability[CPUID_7_ECX] = ecx;
 	}
 
 	/* Extended state features: level 0x0000000d */
@@ -635,7 +699,9 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
 			cpuid_count(0x0000000F, 1, &eax, &ebx, &ecx, &edx);
 			c->x86_capability[CPUID_F_1_EDX] = edx;
 
-			if (cpu_has(c, X86_FEATURE_CQM_OCCUP_LLC)) {
+			if ((cpu_has(c, X86_FEATURE_CQM_OCCUP_LLC)) ||
+			      ((cpu_has(c, X86_FEATURE_CQM_MBM_TOTAL)) ||
+			       (cpu_has(c, X86_FEATURE_CQM_MBM_LOCAL)))) {
 				c->x86_cache_max_rmid = ecx;
 				c->x86_cache_occ_scale = ebx;
 			}
@@ -658,6 +724,13 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
 		}
 	}
 
+	if (c->extended_cpuid_level >= 0x80000007) {
+		cpuid(0x80000007, &eax, &ebx, &ecx, &edx);
+
+		c->x86_capability[CPUID_8000_0007_EBX] = ebx;
+		c->x86_power = edx;
+	}
+
 	if (c->extended_cpuid_level >= 0x80000008) {
 		cpuid(0x80000008, &eax, &ebx, &ecx, &edx);
 
@@ -669,9 +742,6 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
 	else if (cpu_has(c, X86_FEATURE_PAE) || cpu_has(c, X86_FEATURE_PSE36))
 		c->x86_phys_bits = 36;
 #endif
-
-	if (c->extended_cpuid_level >= 0x80000007)
-		c->x86_power = cpuid_edx(0x80000007);
 
 	if (c->extended_cpuid_level >= 0x8000000a)
 		c->x86_capability[CPUID_8000_000A_EDX] = cpuid_edx(0x8000000a);
@@ -734,21 +804,20 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 		identify_cpu_without_cpuid(c);
 
 	/* cyrix could have cpuid enabled via c_identify()*/
-	if (!have_cpuid_p())
-		return;
+	if (have_cpuid_p()) {
+		cpu_detect(c);
+		get_cpu_vendor(c);
+		get_cpu_cap(c);
 
-	cpu_detect(c);
-	get_cpu_vendor(c);
-	get_cpu_cap(c);
+		if (this_cpu->c_early_init)
+			this_cpu->c_early_init(c);
 
-	if (this_cpu->c_early_init)
-		this_cpu->c_early_init(c);
+		c->cpu_index = 0;
+		filter_cpuid_features(c, false);
 
-	c->cpu_index = 0;
-	filter_cpuid_features(c, false);
-
-	if (this_cpu->c_bsp_init)
-		this_cpu->c_bsp_init(c);
+		if (this_cpu->c_bsp_init)
+			this_cpu->c_bsp_init(c);
+	}
 
 	setup_force_cpu_cap(X86_FEATURE_ALWAYS);
 	fpu__init_system(c);
@@ -760,7 +829,7 @@ void __init early_cpu_init(void)
 	int count = 0;
 
 #ifdef CONFIG_PROCESSOR_SELECT
-	printk(KERN_INFO "KERNEL supported cpus:\n");
+	pr_info("KERNEL supported cpus:\n");
 #endif
 
 	for (cdev = __x86_cpu_dev_start; cdev < __x86_cpu_dev_end; cdev++) {
@@ -778,7 +847,7 @@ void __init early_cpu_init(void)
 			for (j = 0; j < 2; j++) {
 				if (!cpudev->c_ident[j])
 					continue;
-				printk(KERN_INFO "  %s %s\n", cpudev->c_vendor,
+				pr_info("  %s %s\n", cpudev->c_vendor,
 					cpudev->c_ident[j]);
 			}
 		}
@@ -802,6 +871,35 @@ static void detect_nopl(struct cpuinfo_x86 *c)
 	clear_cpu_cap(c, X86_FEATURE_NOPL);
 #else
 	set_cpu_cap(c, X86_FEATURE_NOPL);
+#endif
+}
+
+static void detect_null_seg_behavior(struct cpuinfo_x86 *c)
+{
+#ifdef CONFIG_X86_64
+	/*
+	 * Empirically, writing zero to a segment selector on AMD does
+	 * not clear the base, whereas writing zero to a segment
+	 * selector on Intel does clear the base.  Intel's behavior
+	 * allows slightly faster context switches in the common case
+	 * where GS is unused by the prev and next threads.
+	 *
+	 * Since neither vendor documents this anywhere that I can see,
+	 * detect it directly instead of hardcoding the choice by
+	 * vendor.
+	 *
+	 * I've designated AMD's behavior as the "bug" because it's
+	 * counterintuitive and less friendly.
+	 */
+
+	unsigned long old_base, tmp;
+	rdmsrl(MSR_FS_BASE, old_base);
+	wrmsrl(MSR_FS_BASE, 1);
+	loadsegment(fs, 0);
+	rdmsrl(MSR_FS_BASE, tmp);
+	if (tmp != 0)
+		set_cpu_bug(c, X86_BUG_NULL_SEG);
+	wrmsrl(MSR_FS_BASE, old_base);
 #endif
 }
 
@@ -837,6 +935,33 @@ static void generic_identify(struct cpuinfo_x86 *c)
 	get_model_name(c); /* Default name */
 
 	detect_nopl(c);
+
+	detect_null_seg_behavior(c);
+
+	/*
+	 * ESPFIX is a strange bug.  All real CPUs have it.  Paravirt
+	 * systems that run Linux at CPL > 0 may or may not have the
+	 * issue, but, even if they have the issue, there's absolutely
+	 * nothing we can do about it because we can't use the real IRET
+	 * instruction.
+	 *
+	 * NB: For the time being, only 32-bit kernels support
+	 * X86_BUG_ESPFIX as such.  64-bit kernels directly choose
+	 * whether to apply espfix using paravirt hooks.  If any
+	 * non-paravirt system ever shows up that does *not* have the
+	 * ESPFIX issue, we can change this.
+	 */
+#ifdef CONFIG_X86_32
+# ifdef CONFIG_PARAVIRT
+	do {
+		extern void native_iret(void);
+		if (pv_cpu_ops.iret == native_iret)
+			set_cpu_bug(c, X86_BUG_ESPFIX);
+	} while (0);
+# else
+	set_cpu_bug(c, X86_BUG_ESPFIX);
+# endif
+#endif
 }
 
 static void x86_init_cache_qos(struct cpuinfo_x86 *c)
@@ -886,7 +1011,7 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 	if (this_cpu->c_identify)
 		this_cpu->c_identify(c);
 
-	/* Clear/Set all flags overriden by options, after probe */
+	/* Clear/Set all flags overridden by options, after probe */
 	for (i = 0; i < NCAPINTS; i++) {
 		c->x86_capability[i] &= ~cpu_caps_cleared[i];
 		c->x86_capability[i] |= cpu_caps_set[i];
@@ -943,9 +1068,10 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 	init_hypervisor(c);
 	x86_init_rdrand(c);
 	x86_init_cache_qos(c);
+	setup_pku(c);
 
 	/*
-	 * Clear/Set all flags overriden by options, need do it
+	 * Clear/Set all flags overridden by options, need do it
 	 * before following smp all cpus cap AND.
 	 */
 	for (i = 0; i < NCAPINTS; i++) {
@@ -977,6 +1103,8 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 #ifdef CONFIG_NUMA
 	numa_add_cpu(smp_processor_id());
 #endif
+	/* The boot/hotplug time assigment got cleared, restore it */
+	c->logical_proc_id = topology_phys_to_logical_pkg(c->phys_proc_id);
 }
 
 /*
@@ -989,11 +1117,11 @@ void enable_sep_cpu(void)
 	struct tss_struct *tss;
 	int cpu;
 
+	if (!boot_cpu_has(X86_FEATURE_SEP))
+		return;
+
 	cpu = get_cpu();
 	tss = &per_cpu(cpu_tss, cpu);
-
-	if (!boot_cpu_has(X86_FEATURE_SEP))
-		goto out;
 
 	/*
 	 * We cache MSR_IA32_SYSENTER_CS's value in the TSS's ss1 field --
@@ -1009,7 +1137,6 @@ void enable_sep_cpu(void)
 
 	wrmsr(MSR_IA32_SYSENTER_EIP, (unsigned long)entry_SYSENTER_32, 0);
 
-out:
 	put_cpu();
 }
 #endif
@@ -1061,7 +1188,7 @@ static void __print_cpu_msr(void)
 		for (index = index_min; index < index_max; index++) {
 			if (rdmsrl_safe(index, &val))
 				continue;
-			printk(KERN_INFO " MSR%08x: %016llx\n", index, val);
+			pr_info(" MSR%08x: %016llx\n", index, val);
 		}
 	}
 }
@@ -1100,19 +1227,19 @@ void print_cpu_info(struct cpuinfo_x86 *c)
 	}
 
 	if (vendor && !strstr(c->x86_model_id, vendor))
-		printk(KERN_CONT "%s ", vendor);
+		pr_cont("%s ", vendor);
 
 	if (c->x86_model_id[0])
-		printk(KERN_CONT "%s", c->x86_model_id);
+		pr_cont("%s", c->x86_model_id);
 	else
-		printk(KERN_CONT "%d86", c->x86);
+		pr_cont("%d86", c->x86);
 
-	printk(KERN_CONT " (family: 0x%x, model: 0x%x", c->x86, c->x86_model);
+	pr_cont(" (family: 0x%x, model: 0x%x", c->x86, c->x86_model);
 
 	if (c->x86_mask || c->cpuid_level >= 0)
-		printk(KERN_CONT ", stepping: 0x%x)\n", c->x86_mask);
+		pr_cont(", stepping: 0x%x)\n", c->x86_mask);
 	else
-		printk(KERN_CONT ")\n");
+		pr_cont(")\n");
 
 	print_cpu_msr(c);
 }
@@ -1137,9 +1264,14 @@ static __init int setup_disablecpuid(char *arg)
 __setup("clearcpuid=", setup_disablecpuid);
 
 #ifdef CONFIG_X86_64
-struct desc_ptr idt_descr = { NR_VECTORS * 16 - 1, (unsigned long) idt_table };
-struct desc_ptr debug_idt_descr = { NR_VECTORS * 16 - 1,
-				    (unsigned long) debug_idt_table };
+struct desc_ptr idt_descr __ro_after_init = {
+	.size = NR_VECTORS * 16 - 1,
+	.address = (unsigned long) idt_table,
+};
+const struct desc_ptr debug_idt_descr = {
+	.size = NR_VECTORS * 16 - 1,
+	.address = (unsigned long) debug_idt_table,
+};
 
 DEFINE_PER_CPU_FIRST(union irq_stack_union,
 		     irq_stack_union) __aligned(PAGE_SIZE) __visible;
@@ -1153,7 +1285,7 @@ DEFINE_PER_CPU(struct task_struct *, current_task) ____cacheline_aligned =
 EXPORT_PER_CPU_SYMBOL(current_task);
 
 DEFINE_PER_CPU(char *, irq_stack_ptr) =
-	init_per_cpu_var(irq_stack_union.irq_stack) + IRQ_STACK_SIZE - 64;
+	init_per_cpu_var(irq_stack_union.irq_stack) + IRQ_STACK_SIZE;
 
 DEFINE_PER_CPU(unsigned int, irq_count) __visible = -1;
 
@@ -1177,11 +1309,6 @@ static DEFINE_PER_CPU_PAGE_ALIGNED(char, exception_stacks
 /* May not be marked __init: used by software suspend */
 void syscall_init(void)
 {
-	/*
-	 * LSTAR and STAR live in a bit strange symbiosis.
-	 * They both write to the same internal register. STAR allows to
-	 * set CS/DS but only a 32bit target. LSTAR sets the 64bit rip.
-	 */
 	wrmsr(MSR_STAR, 0, (__USER32_CS << 16) | __KERNEL_CS);
 	wrmsrl(MSR_LSTAR, (unsigned long)entry_SYSCALL_64);
 
@@ -1324,7 +1451,7 @@ void cpu_init(void)
 	struct task_struct *me;
 	struct tss_struct *t;
 	unsigned long v;
-	int cpu = stack_smp_processor_id();
+	int cpu = raw_smp_processor_id();
 	int i;
 
 	wait_for_master_cpu(cpu);
@@ -1438,10 +1565,10 @@ void cpu_init(void)
 
 	show_ucode_info_early();
 
-	printk(KERN_INFO "Initializing CPU#%d\n", cpu);
+	pr_info("Initializing CPU#%d\n", cpu);
 
 	if (cpu_feature_enabled(X86_FEATURE_VME) ||
-	    cpu_has_tsc ||
+	    boot_cpu_has(X86_FEATURE_TSC) ||
 	    boot_cpu_has(X86_FEATURE_DE))
 		cr4_clear_bits(X86_CR4_VME|X86_CR4_PVI|X86_CR4_TSD|X86_CR4_DE);
 
@@ -1474,20 +1601,6 @@ void cpu_init(void)
 	fpu__init_cpu();
 }
 #endif
-
-#ifdef CONFIG_X86_DEBUG_STATIC_CPU_HAS
-void warn_pre_alternatives(void)
-{
-	WARN(1, "You're using static_cpu_has before alternatives have run!\n");
-}
-EXPORT_SYMBOL_GPL(warn_pre_alternatives);
-#endif
-
-inline bool __static_cpu_has_safe(u16 bit)
-{
-	return boot_cpu_has(bit);
-}
-EXPORT_SYMBOL_GPL(__static_cpu_has_safe);
 
 static void bsp_resume(void)
 {

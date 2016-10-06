@@ -422,19 +422,6 @@ static struct ptp_clock_info ptp_gianfar_caps = {
 	.enable		= ptp_gianfar_enable,
 };
 
-/* OF device tree */
-
-static int get_of_u32(struct device_node *node, char *str, u32 *val)
-{
-	int plen;
-	const u32 *prop = of_get_property(node, str, &plen);
-
-	if (!prop || plen != sizeof(*prop))
-		return -1;
-	*val = *prop;
-	return 0;
-}
-
 static int gianfar_ptp_probe(struct platform_device *dev)
 {
 	struct device_node *node = dev->dev.of_node;
@@ -452,15 +439,21 @@ static int gianfar_ptp_probe(struct platform_device *dev)
 
 	etsects->caps = ptp_gianfar_caps;
 
-	if (get_of_u32(node, "fsl,cksel", &etsects->cksel))
+	if (of_property_read_u32(node, "fsl,cksel", &etsects->cksel))
 		etsects->cksel = DEFAULT_CKSEL;
 
-	if (get_of_u32(node, "fsl,tclk-period", &etsects->tclk_period) ||
-	    get_of_u32(node, "fsl,tmr-prsc", &etsects->tmr_prsc) ||
-	    get_of_u32(node, "fsl,tmr-add", &etsects->tmr_add) ||
-	    get_of_u32(node, "fsl,tmr-fiper1", &etsects->tmr_fiper1) ||
-	    get_of_u32(node, "fsl,tmr-fiper2", &etsects->tmr_fiper2) ||
-	    get_of_u32(node, "fsl,max-adj", &etsects->caps.max_adj)) {
+	if (of_property_read_u32(node,
+				 "fsl,tclk-period", &etsects->tclk_period) ||
+	    of_property_read_u32(node,
+				 "fsl,tmr-prsc", &etsects->tmr_prsc) ||
+	    of_property_read_u32(node,
+				 "fsl,tmr-add", &etsects->tmr_add) ||
+	    of_property_read_u32(node,
+				 "fsl,tmr-fiper1", &etsects->tmr_fiper1) ||
+	    of_property_read_u32(node,
+				 "fsl,tmr-fiper2", &etsects->tmr_fiper2) ||
+	    of_property_read_u32(node,
+				 "fsl,max-adj", &etsects->caps.max_adj)) {
 		pr_err("device tree node missing required elements\n");
 		goto no_node;
 	}

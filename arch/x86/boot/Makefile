@@ -9,7 +9,15 @@
 # Changed by many, many contributors over the years.
 #
 
-KASAN_SANITIZE := n
+KASAN_SANITIZE			:= n
+OBJECT_FILES_NON_STANDARD	:= y
+
+# Kernel does not boot with kcov instrumentation here.
+# One of the problems observed was insertion of __sanitizer_cov_trace_pc()
+# callback into middle of per-cpu data enabling code. Thus the callback observed
+# inconsistent state and crashed. We are interested mostly in syscall coverage,
+# so boot code is not interesting anyway.
+KCOV_INSTRUMENT		:= n
 
 # If you want to preset the SVGA mode, uncomment the next line and
 # set SVGA_MODE to whatever number you want.
@@ -78,16 +86,7 @@ $(obj)/vmlinux.bin: $(obj)/compressed/vmlinux FORCE
 
 SETUP_OBJS = $(addprefix $(obj)/,$(setup-y))
 
-sed-voffset := -e 's/^\([0-9a-fA-F]*\) [ABCDGRSTVW] \(_text\|_end\)$$/\#define VO_\2 0x\1/p'
-
-quiet_cmd_voffset = VOFFSET $@
-      cmd_voffset = $(NM) $< | sed -n $(sed-voffset) > $@
-
-targets += voffset.h
-$(obj)/voffset.h: vmlinux FORCE
-	$(call if_changed,voffset)
-
-sed-zoffset := -e 's/^\([0-9a-fA-F]*\) [ABCDGRSTVW] \(startup_32\|startup_64\|efi32_stub_entry\|efi64_stub_entry\|efi_pe_entry\|input_data\|_end\|z_.*\)$$/\#define ZO_\2 0x\1/p'
+sed-zoffset := -e 's/^\([0-9a-fA-F]*\) [ABCDGRSTVW] \(startup_32\|startup_64\|efi32_stub_entry\|efi64_stub_entry\|efi_pe_entry\|input_data\|_end\|_ehead\|_text\|z_.*\)$$/\#define ZO_\2 0x\1/p'
 
 quiet_cmd_zoffset = ZOFFSET $@
       cmd_zoffset = $(NM) $< | sed -n $(sed-zoffset) > $@
@@ -97,8 +96,8 @@ $(obj)/zoffset.h: $(obj)/compressed/vmlinux FORCE
 	$(call if_changed,zoffset)
 
 
-AFLAGS_header.o += -I$(obj)
-$(obj)/header.o: $(obj)/voffset.h $(obj)/zoffset.h
+AFLAGS_header.o += -I$(objtree)/$(obj)
+$(obj)/header.o: $(obj)/zoffset.h
 
 LDFLAGS_setup.elf	:= -T
 $(obj)/setup.elf: $(src)/setup.ld $(SETUP_OBJS) FORCE
@@ -163,6 +162,9 @@ isoimage: $(obj)/bzImage
 	for i in lib lib64 share end ; do \
 		if [ -f /usr/$$i/syslinux/isolinux.bin ] ; then \
 			cp /usr/$$i/syslinux/isolinux.bin $(obj)/isoimage ; \
+			if [ -f /usr/$$i/syslinux/ldlinux.c32 ]; then \
+				cp /usr/$$i/syslinux/ldlinux.c32 $(obj)/isoimage ; \
+			fi ; \
 			break ; \
 		fi ; \
 		if [ $$i = end ] ; then exit 1 ; fi ; \

@@ -44,6 +44,8 @@
 
 #include <linux/timecounter.h>
 
+#define DEFAULT_UAR_PAGE_SHIFT  12
+
 #define MAX_MSIX_P_PORT		17
 #define MAX_MSIX		64
 #define MIN_MSIX_P_PORT		5
@@ -217,6 +219,9 @@ enum {
 	MLX4_DEV_CAP_FLAG2_UPDATE_QP_SRC_CHECK_LB = 1ULL << 31,
 	MLX4_DEV_CAP_FLAG2_LB_SRC_CHK           = 1ULL << 32,
 	MLX4_DEV_CAP_FLAG2_ROCE_V1_V2		= 1ULL <<  33,
+	MLX4_DEV_CAP_FLAG2_DMFS_UC_MC_SNIFFER   = 1ULL <<  34,
+	MLX4_DEV_CAP_FLAG2_DIAG_PER_PORT	= 1ULL <<  35,
+	MLX4_DEV_CAP_FLAG2_SVLAN_BY_QP          = 1ULL <<  36,
 };
 
 enum {
@@ -463,6 +468,7 @@ enum {
 enum {
 	MLX4_INTERFACE_STATE_UP		= 1 << 0,
 	MLX4_INTERFACE_STATE_DELETION	= 1 << 1,
+	MLX4_INTERFACE_STATE_SHUTDOWN	= 1 << 2,
 };
 
 #define MSTR_SM_CHANGE_MASK (MLX4_EQ_PORT_INFO_MSTR_SM_SL_CHANGE_MASK | \
@@ -532,6 +538,7 @@ struct mlx4_caps {
 	int			max_rq_desc_sz;
 	int			max_qp_init_rdma;
 	int			max_qp_dest_rdma;
+	int			max_tc_eth;
 	u32			*qp0_qkey;
 	u32			*qp0_proxy;
 	u32			*qp1_proxy;
@@ -825,6 +832,11 @@ struct mlx4_vf_dev {
 	u8			n_ports;
 };
 
+enum mlx4_pci_status {
+	MLX4_PCI_STATUS_DISABLED,
+	MLX4_PCI_STATUS_ENABLED,
+};
+
 struct mlx4_dev_persistent {
 	struct pci_dev	       *pdev;
 	struct mlx4_dev	       *dev;
@@ -838,6 +850,8 @@ struct mlx4_dev_persistent {
 	u8		state;
 	struct mutex	interface_state_mutex; /* protect SW state */
 	u8	interface_state;
+	struct mutex		pci_status_mutex; /* sync pci state */
+	enum mlx4_pci_status	pci_status;
 };
 
 struct mlx4_dev {
@@ -856,6 +870,7 @@ struct mlx4_dev {
 	u64			regid_promisc_array[MLX4_MAX_PORTS + 1];
 	u64			regid_allmulti_array[MLX4_MAX_PORTS + 1];
 	struct mlx4_vf_dev     *dev_vfs;
+	u8  uar_page_shift;
 };
 
 struct mlx4_clock_params {
@@ -1047,7 +1062,7 @@ int mlx4_buf_alloc(struct mlx4_dev *dev, int size, int max_direct,
 void mlx4_buf_free(struct mlx4_dev *dev, int size, struct mlx4_buf *buf);
 static inline void *mlx4_buf_offset(struct mlx4_buf *buf, int offset)
 {
-	if (BITS_PER_LONG == 64 || buf->nbufs == 1)
+	if (buf->nbufs == 1)
 		return buf->direct.buf + offset;
 	else
 		return buf->page_list[offset >> PAGE_SHIFT].buf +
@@ -1087,7 +1102,7 @@ int mlx4_db_alloc(struct mlx4_dev *dev, struct mlx4_db *db, int order,
 void mlx4_db_free(struct mlx4_dev *dev, struct mlx4_db *db);
 
 int mlx4_alloc_hwq_res(struct mlx4_dev *dev, struct mlx4_hwq_resources *wqres,
-		       int size, int max_direct);
+		       int size);
 void mlx4_free_hwq_res(struct mlx4_dev *mdev, struct mlx4_hwq_resources *wqres,
 		       int size);
 
@@ -1157,6 +1172,8 @@ enum mlx4_net_trans_promisc_mode {
 	MLX4_FS_REGULAR = 1,
 	MLX4_FS_ALL_DEFAULT,
 	MLX4_FS_MC_DEFAULT,
+	MLX4_FS_MIRROR_RX_PORT,
+	MLX4_FS_MIRROR_SX_PORT,
 	MLX4_FS_UC_SNIFFER,
 	MLX4_FS_MC_SNIFFER,
 	MLX4_FS_MODE_NUM, /* should be last */
@@ -1327,6 +1344,9 @@ enum {
 	VXLAN_STEER_BY_INNER_VLAN	= 1 << 4,
 };
 
+enum {
+	MLX4_OP_MOD_QUERY_TRANSPORT_CI_ERRORS = 0x2,
+};
 
 int mlx4_flow_steer_promisc_add(struct mlx4_dev *dev, u8 port, u32 qpn,
 				enum mlx4_net_trans_promisc_mode mode);
@@ -1352,6 +1372,8 @@ int mlx4_SET_PORT_fcs_check(struct mlx4_dev *dev, u8 port,
 int mlx4_SET_PORT_VXLAN(struct mlx4_dev *dev, u8 port, u8 steering, int enable);
 int set_phv_bit(struct mlx4_dev *dev, u8 port, int new_val);
 int get_phv_bit(struct mlx4_dev *dev, u8 port, int *phv);
+int mlx4_get_is_vlan_offload_disabled(struct mlx4_dev *dev, u8 port,
+				      bool *vlan_offload_disabled);
 int mlx4_find_cached_mac(struct mlx4_dev *dev, u8 port, u64 mac, int *idx);
 int mlx4_find_cached_vlan(struct mlx4_dev *dev, u8 port, u16 vid, int *idx);
 int mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan, int *index);
@@ -1367,6 +1389,9 @@ void mlx4_fmr_unmap(struct mlx4_dev *dev, struct mlx4_fmr *fmr,
 int mlx4_fmr_free(struct mlx4_dev *dev, struct mlx4_fmr *fmr);
 int mlx4_SYNC_TPT(struct mlx4_dev *dev);
 int mlx4_test_interrupts(struct mlx4_dev *dev);
+int mlx4_query_diag_counters(struct mlx4_dev *dev, u8 op_modifier,
+			     const u32 offset[], u32 value[],
+			     size_t array_len, u8 port);
 u32 mlx4_get_eqs_per_port(struct mlx4_dev *dev, u8 port);
 bool mlx4_is_eq_vector_valid(struct mlx4_dev *dev, u8 port, int vector);
 struct cpu_rmap *mlx4_get_cpu_rmap(struct mlx4_dev *dev, int port);
@@ -1481,6 +1506,7 @@ int mlx4_mr_rereg_mem_write(struct mlx4_dev *dev, struct mlx4_mr *mr,
 
 int mlx4_get_module_info(struct mlx4_dev *dev, u8 port,
 			 u16 offset, u16 size, u8 *data);
+int mlx4_max_tc(struct mlx4_dev *dev);
 
 /* Returns true if running in low memory profile (kdump kernel) */
 static inline bool mlx4_low_memory_profile(void)
@@ -1528,4 +1554,14 @@ int mlx4_ACCESS_PTYS_REG(struct mlx4_dev *dev,
 int mlx4_get_internal_clock_params(struct mlx4_dev *dev,
 				   struct mlx4_clock_params *params);
 
+static inline int mlx4_to_hw_uar_index(struct mlx4_dev *dev, int index)
+{
+	return (index << (PAGE_SHIFT - dev->uar_page_shift));
+}
+
+static inline int mlx4_get_num_reserved_uar(struct mlx4_dev *dev)
+{
+	/* The first 128 UARs are used for EQ doorbells */
+	return (128 >> (PAGE_SHIFT - dev->uar_page_shift));
+}
 #endif /* MLX4_DEVICE_H */

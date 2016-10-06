@@ -246,7 +246,7 @@ static struct mtd_info *probe_cs(struct map_info *map_cs)
 /*
  * Probe each chip select individually for flash chips. If there are chips on
  * both cse0 and cse1, the mtd_info structs will be concatenated to one struct
- * so that MTD partitions can cross chip boundries.
+ * so that MTD partitions can cross chip boundaries.
  *
  * The only known restriction to how you can mount your chips is that each
  * chip select must hold similar flash chips. But you need external hardware
@@ -320,7 +320,7 @@ static int __init init_axis_flash(void)
 	 * but its size must be configured as 0 so as not to conflict
 	 * with our usage.
 	 */
-#if !defined(CONFIG_MTD_MTDRAM) || (CONFIG_MTDRAM_TOTAL_SIZE != 0) || (CONFIG_MTDRAM_ABS_POS != 0)
+#if !defined(CONFIG_MTD_MTDRAM) || (CONFIG_MTDRAM_TOTAL_SIZE != 0)
 	if (!romfs_in_flash && !nand_boot) {
 		printk(KERN_EMERG "axisflashmap: Cannot create an MTD RAM "
 		       "device; configure CONFIG_MTD_MTDRAM with size = 0!\n");

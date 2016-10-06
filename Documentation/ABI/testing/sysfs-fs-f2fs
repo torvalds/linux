@@ -98,3 +98,17 @@ Date:		October 2015
 Contact:	"Chao Yu" <chao2.yu@samsung.com>
 Description:
 		 Controls the count of nid pages to be readaheaded.
+
+What:		/sys/fs/f2fs/<disk>/dirty_nats_ratio
+Date:		January 2016
+Contact:	"Chao Yu" <chao2.yu@samsung.com>
+Description:
+		 Controls dirty nat entries ratio threshold, if current
+		 ratio exceeds configured threshold, checkpoint will
+		 be triggered for flushing dirty nat entries.
+
+What:		/sys/fs/f2fs/<disk>/lifetime_write_kbytes
+Date:		January 2016
+Contact:	"Shuoran Liu" <liushuoran@huawei.com>
+Description:
+		 Shows total written kbytes issued to disk.

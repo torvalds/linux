@@ -177,6 +177,12 @@ static int omap_plane_atomic_check(struct drm_plane *plane,
 	if (state->crtc_y + state->crtc_h > crtc_state->adjusted_mode.vdisplay)
 		return -EINVAL;
 
+	if (state->fb) {
+		if (state->rotation != BIT(DRM_ROTATE_0) &&
+		    !omap_framebuffer_supports_rotation(state->fb))
+			return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -239,7 +245,7 @@ omap_plane_atomic_duplicate_state(struct drm_plane *plane)
 static void omap_plane_atomic_destroy_state(struct drm_plane *plane,
 					    struct drm_plane_state *state)
 {
-	__drm_atomic_helper_plane_destroy_state(plane, state);
+	__drm_atomic_helper_plane_destroy_state(state);
 	kfree(to_omap_plane_state(state));
 }
 

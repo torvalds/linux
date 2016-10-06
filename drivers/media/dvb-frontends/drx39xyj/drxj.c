@@ -1240,12 +1240,15 @@ static u32 frac_times1e6(u32 N, u32 D)
 *        and rounded. For calc used formula: 16*10^(prescaleGain[dB]/20).
 *
 */
+#if 0
+/* Currently, unused as we lack support for analog TV */
 static const u16 nicam_presc_table_val[43] = {
 	1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4,
 	5, 5, 6, 6, 7, 8, 9, 10, 11, 13, 14, 16,
 	18, 20, 23, 25, 28, 32, 36, 40, 45,
 	51, 57, 64, 71, 80, 90, 101, 113, 127
 };
+#endif
 
 /*============================================================================*/
 /*==                        END HELPER FUNCTIONS                            ==*/
@@ -4131,7 +4134,7 @@ int drxj_dap_scu_atomic_read_write_block(struct i2c_device_addr *dev_addr, u32 a
 {
 	struct drxjscu_cmd scu_cmd;
 	int rc;
-	u16 set_param_parameters[15];
+	u16 set_param_parameters[18];
 	u16 cmd_result[15];
 
 	/* Parameter check */
@@ -9597,12 +9600,13 @@ ctrl_get_qam_sig_quality(struct drx_demod_instance *demod)
 
 	   Precision errors still possible.
 	 */
-	e = post_bit_err_rs * 742686;
-	m = fec_oc_period * 100;
-	if (fec_oc_period == 0)
+	if (!fec_oc_period) {
 		qam_post_rs_ber = 0xFFFFFFFF;
-	else
+	} else {
+		e = post_bit_err_rs * 742686;
+		m = fec_oc_period * 100;
 		qam_post_rs_ber = e / m;
+	}
 
 	/* fill signal quality data structure */
 	p->pre_bit_count.stat[0].scale = FE_SCALE_COUNTER;

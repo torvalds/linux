@@ -51,8 +51,6 @@ EXPORT_SYMBOL(_parisc_requires_coherency);
 
 DEFINE_PER_CPU(struct cpuinfo_parisc, cpu_data);
 
-extern int update_cr16_clocksource(void);	/* from time.c */
-
 /*
 **  	PARISC CPU driver - claim "device" and initialize CPU data structures.
 **
@@ -228,12 +226,6 @@ static int processor_probe(struct parisc_device *dev)
 	}
 #endif
 
-	/* If we've registered more than one cpu,
-	 * we'll use the jiffies clocksource since cr16
-	 * is not synchronized between CPUs.
-	 */
-	update_cr16_clocksource();
-
 	return 0;
 }
 
@@ -324,8 +316,9 @@ int init_per_cpu(int cpunum)
 		per_cpu(cpu_data, cpunum).fp_rev = coproc_cfg.revision;
 		per_cpu(cpu_data, cpunum).fp_model = coproc_cfg.model;
 
-		printk(KERN_INFO  "FP[%d] enabled: Rev %ld Model %ld\n",
-			cpunum, coproc_cfg.revision, coproc_cfg.model);
+		if (cpunum == 0)
+			printk(KERN_INFO  "FP[%d] enabled: Rev %ld Model %ld\n",
+				cpunum, coproc_cfg.revision, coproc_cfg.model);
 
 		/*
 		** store status register to stack (hopefully aligned)

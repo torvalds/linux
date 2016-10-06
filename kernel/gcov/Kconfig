@@ -37,6 +37,7 @@ config ARCH_HAS_GCOV_PROFILE_ALL
 
 config GCOV_PROFILE_ALL
 	bool "Profile entire Kernel"
+	depends on !COMPILE_TEST
 	depends on GCOV_KERNEL
 	depends on ARCH_HAS_GCOV_PROFILE_ALL
 	default n

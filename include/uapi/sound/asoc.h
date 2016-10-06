@@ -83,7 +83,7 @@
 #define SND_SOC_TPLG_NUM_TEXTS		16
 
 /* ABI version */
-#define SND_SOC_TPLG_ABI_VERSION	0x4
+#define SND_SOC_TPLG_ABI_VERSION	0x5
 
 /* Max size of TLV data */
 #define SND_SOC_TPLG_TLV_SIZE		32
@@ -105,7 +105,8 @@
 #define SND_SOC_TPLG_TYPE_CODEC_LINK	9
 #define SND_SOC_TPLG_TYPE_BACKEND_LINK	10
 #define SND_SOC_TPLG_TYPE_PDATA		11
-#define SND_SOC_TPLG_TYPE_MAX	SND_SOC_TPLG_TYPE_PDATA
+#define SND_SOC_TPLG_TYPE_BE_DAI	12
+#define SND_SOC_TPLG_TYPE_MAX		SND_SOC_TPLG_TYPE_BE_DAI
 
 /* vendor block IDs - please add new vendor types to end */
 #define SND_SOC_TPLG_TYPE_VENDOR_FW	1000
@@ -115,6 +116,19 @@
 
 #define SND_SOC_TPLG_STREAM_PLAYBACK	0
 #define SND_SOC_TPLG_STREAM_CAPTURE	1
+
+/* vendor tuple types */
+#define SND_SOC_TPLG_TUPLE_TYPE_UUID	0
+#define SND_SOC_TPLG_TUPLE_TYPE_STRING	1
+#define SND_SOC_TPLG_TUPLE_TYPE_BOOL	2
+#define SND_SOC_TPLG_TUPLE_TYPE_BYTE	3
+#define SND_SOC_TPLG_TUPLE_TYPE_WORD	4
+#define SND_SOC_TPLG_TUPLE_TYPE_SHORT	5
+
+/* BE DAI flags */
+#define SND_SOC_TPLG_DAI_FLGBIT_SYMMETRIC_RATES         (1 << 0)
+#define SND_SOC_TPLG_DAI_FLGBIT_SYMMETRIC_CHANNELS      (1 << 1)
+#define SND_SOC_TPLG_DAI_FLGBIT_SYMMETRIC_SAMPLEBITS    (1 << 2)
 
 /*
  * Block Header.
@@ -132,6 +146,35 @@ struct snd_soc_tplg_hdr {
 	__le32 count;		/* number of elements in block */
 } __attribute__((packed));
 
+/* vendor tuple for uuid */
+struct snd_soc_tplg_vendor_uuid_elem {
+	__le32 token;
+	char uuid[16];
+} __attribute__((packed));
+
+/* vendor tuple for a bool/byte/short/word value */
+struct snd_soc_tplg_vendor_value_elem {
+	__le32 token;
+	__le32 value;
+} __attribute__((packed));
+
+/* vendor tuple for string */
+struct snd_soc_tplg_vendor_string_elem {
+	__le32 token;
+	char string[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
+} __attribute__((packed));
+
+struct snd_soc_tplg_vendor_array {
+	__le32 size;	/* size in bytes of the array, including all elements */
+	__le32 type;	/* SND_SOC_TPLG_TUPLE_TYPE_ */
+	__le32 num_elems;	/* number of elements in array */
+	union {
+		struct snd_soc_tplg_vendor_uuid_elem uuid[0];
+		struct snd_soc_tplg_vendor_value_elem value[0];
+		struct snd_soc_tplg_vendor_string_elem string[0];
+	};
+} __attribute__((packed));
+
 /*
  * Private data.
  * All topology objects may have private data that can be used by the driver or
@@ -139,7 +182,10 @@ struct snd_soc_tplg_hdr {
  */
 struct snd_soc_tplg_private {
 	__le32 size;	/* in bytes of private data */
-	char data[0];
+	union {
+		char data[0];
+		struct snd_soc_tplg_vendor_array array[0];
+	};
 } __attribute__((packed));
 
 /*
@@ -211,6 +257,7 @@ struct snd_soc_tplg_stream_caps {
 	__le32 period_size_max;	/* max period size bytes */
 	__le32 buffer_size_min;	/* min buffer size bytes */
 	__le32 buffer_size_max;	/* max buffer size bytes */
+	__le32 sig_bits;        /* number of bits of content */
 } __attribute__((packed));
 
 /*
@@ -245,6 +292,8 @@ struct snd_soc_tplg_manifest {
 	__le32 graph_elems;	/* number of graph elements */
 	__le32 pcm_elems;	/* number of PCM elements */
 	__le32 dai_link_elems;	/* number of DAI link elements */
+	__le32 be_dai_elems;	/* number of BE DAI elements */
+	__le32 reserved[20];	/* reserved for new ABI element types */
 	struct snd_soc_tplg_private priv;
 } __attribute__((packed));
 
@@ -383,7 +432,7 @@ struct snd_soc_tplg_pcm {
 	__le32 size;		/* in bytes of this structure */
 	char pcm_name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	char dai_name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
-	__le32 pcm_id;		/* unique ID - used to match */
+	__le32 pcm_id;		/* unique ID - used to match with DAI link */
 	__le32 dai_id;		/* unique ID - used to match */
 	__le32 playback;	/* supports playback mode */
 	__le32 capture;		/* supports capture mode */
@@ -409,5 +458,27 @@ struct snd_soc_tplg_link_config {
 	__le32 id;              /* unique ID - used to match */
 	struct snd_soc_tplg_stream stream[SND_SOC_TPLG_STREAM_CONFIG_MAX]; /* supported configs playback and captrure */
 	__le32 num_streams;     /* number of streams */
+} __attribute__((packed));
+
+/*
+ * Describes SW/FW specific features of BE DAI.
+ *
+ * File block representation for BE DAI :-
+ * +-----------------------------------+-----+
+ * | struct snd_soc_tplg_hdr           |  1  |
+ * +-----------------------------------+-----+
+ * | struct snd_soc_tplg_be_dai        |  N  |
+ * +-----------------------------------+-----+
+ */
+struct snd_soc_tplg_be_dai {
+	__le32 size;            /* in bytes of this structure */
+	char dai_name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN]; /* name - used to match */
+	__le32 dai_id;          /* unique ID - used to match */
+	__le32 playback;        /* supports playback mode */
+	__le32 capture;         /* supports capture mode */
+	struct snd_soc_tplg_stream_caps caps[2]; /* playback and capture for DAI */
+	__le32 flag_mask;       /* bitmask of flags to configure */
+	__le32 flags;           /* SND_SOC_TPLG_DAI_FLGBIT_* */
+	struct snd_soc_tplg_private priv;
 } __attribute__((packed));
 #endif

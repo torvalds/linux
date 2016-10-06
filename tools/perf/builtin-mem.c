@@ -6,6 +6,8 @@
 #include "util/tool.h"
 #include "util/session.h"
 #include "util/data.h"
+#include "util/mem-events.h"
+#include "util/debug.h"
 
 #define MEM_OPERATION_LOAD	0x1
 #define MEM_OPERATION_STORE	0x2
@@ -21,13 +23,62 @@ struct perf_mem {
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 };
 
+static int parse_record_events(const struct option *opt,
+			       const char *str, int unset __maybe_unused)
+{
+	struct perf_mem *mem = *(struct perf_mem **)opt->value;
+	int j;
+
+	if (strcmp(str, "list")) {
+		if (!perf_mem_events__parse(str)) {
+			mem->operation = 0;
+			return 0;
+		}
+		exit(-1);
+	}
+
+	for (j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
+		struct perf_mem_event *e = &perf_mem_events[j];
+
+		fprintf(stderr, "%-13s%-*s%s\n",
+			e->tag,
+			verbose ? 25 : 0,
+			verbose ? perf_mem_events__name(j) : "",
+			e->supported ? ": available" : "");
+	}
+	exit(0);
+}
+
+static const char * const __usage[] = {
+	"perf mem record [<options>] [<command>]",
+	"perf mem record [<options>] -- <command> [<options>]",
+	NULL
+};
+
+static const char * const *record_mem_usage = __usage;
+
 static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 {
 	int rec_argc, i = 0, j;
 	const char **rec_argv;
 	int ret;
+	bool all_user = false, all_kernel = false;
+	struct option options[] = {
+	OPT_CALLBACK('e', "event", &mem, "event",
+		     "event selector. use 'perf mem record -e list' to list available events",
+		     parse_record_events),
+	OPT_UINTEGER(0, "ldlat", &perf_mem_events__loads_ldlat, "mem-loads latency"),
+	OPT_INCR('v', "verbose", &verbose,
+		 "be more verbose (show counter open errors, etc)"),
+	OPT_BOOLEAN('U', "--all-user", &all_user, "collect only user level data"),
+	OPT_BOOLEAN('K', "--all-kernel", &all_kernel, "collect only kernel level data"),
+	OPT_END()
+	};
 
-	rec_argc = argc + 7; /* max number of arguments */
+	argc = parse_options(argc, argv, options, record_mem_usage,
+			     PARSE_OPT_STOP_AT_NON_OPTION);
+
+	rec_argc = argc + 9; /* max number of arguments */
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
 	if (!rec_argv)
 		return -1;
@@ -35,22 +86,48 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 	rec_argv[i++] = "record";
 
 	if (mem->operation & MEM_OPERATION_LOAD)
+		perf_mem_events[PERF_MEM_EVENTS__LOAD].record = true;
+
+	if (mem->operation & MEM_OPERATION_STORE)
+		perf_mem_events[PERF_MEM_EVENTS__STORE].record = true;
+
+	if (perf_mem_events[PERF_MEM_EVENTS__LOAD].record)
 		rec_argv[i++] = "-W";
 
 	rec_argv[i++] = "-d";
 
-	if (mem->operation & MEM_OPERATION_LOAD) {
-		rec_argv[i++] = "-e";
-		rec_argv[i++] = "cpu/mem-loads/pp";
-	}
+	for (j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
+		if (!perf_mem_events[j].record)
+			continue;
 
-	if (mem->operation & MEM_OPERATION_STORE) {
-		rec_argv[i++] = "-e";
-		rec_argv[i++] = "cpu/mem-stores/pp";
-	}
+		if (!perf_mem_events[j].supported) {
+			pr_err("failed: event '%s' not supported\n",
+			       perf_mem_events__name(j));
+			return -1;
+		}
 
-	for (j = 1; j < argc; j++, i++)
+		rec_argv[i++] = "-e";
+		rec_argv[i++] = perf_mem_events__name(j);
+	};
+
+	if (all_user)
+		rec_argv[i++] = "--all-user";
+
+	if (all_kernel)
+		rec_argv[i++] = "--all-kernel";
+
+	for (j = 0; j < argc; j++, i++)
 		rec_argv[i] = argv[j];
+
+	if (verbose > 0) {
+		pr_debug("calling: record ");
+
+		while (rec_argv[j]) {
+			pr_debug("%s ", rec_argv[j]);
+			j++;
+		}
+		pr_debug("\n");
+	}
 
 	ret = cmd_record(i, rec_argv, NULL);
 	free(rec_argv);
@@ -67,7 +144,7 @@ dump_raw_samples(struct perf_tool *tool,
 	struct addr_location al;
 	const char *fmt;
 
-	if (perf_event__preprocess_sample(event, machine, &al, sample) < 0) {
+	if (machine__resolve(machine, &al, sample) < 0) {
 		fprintf(stderr, "problem processing %d event, skipping it.\n",
 				event->header.type);
 		return -1;
@@ -298,6 +375,10 @@ int cmd_mem(int argc, const char **argv, const char *prefix __maybe_unused)
 		NULL
 	};
 
+	if (perf_mem_events__init()) {
+		pr_err("failed: memory events not supported\n");
+		return -1;
+	}
 
 	argc = parse_options_subcommand(argc, argv, mem_options, mem_subcommands,
 					mem_usage, PARSE_OPT_STOP_AT_NON_OPTION);

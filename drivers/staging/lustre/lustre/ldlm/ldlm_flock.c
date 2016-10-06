@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -92,7 +88,7 @@ ldlm_flocks_overlap(struct ldlm_lock *lock, struct ldlm_lock *new)
 }
 
 static inline void
-ldlm_flock_destroy(struct ldlm_lock *lock, ldlm_mode_t mode, __u64 flags)
+ldlm_flock_destroy(struct ldlm_lock *lock, enum ldlm_mode mode, __u64 flags)
 {
 	LDLM_DEBUG(lock, "ldlm_flock_destroy(mode: %d, flags: 0x%llx)",
 		   mode, flags);
@@ -101,13 +97,13 @@ ldlm_flock_destroy(struct ldlm_lock *lock, ldlm_mode_t mode, __u64 flags)
 	LASSERT(hlist_unhashed(&lock->l_exp_flock_hash));
 
 	list_del_init(&lock->l_res_link);
-	if (flags == LDLM_FL_WAIT_NOREPROC &&
-	    !(lock->l_flags & LDLM_FL_FAILED)) {
+	if (flags == LDLM_FL_WAIT_NOREPROC) {
 		/* client side - set a flag to prevent sending a CANCEL */
 		lock->l_flags |= LDLM_FL_LOCAL_ONLY | LDLM_FL_CBPENDING;
 
 		/* when reaching here, it is under lock_res_and_lock(). Thus,
-		   need call the nolock version of ldlm_lock_decref_internal*/
+		 * need call the nolock version of ldlm_lock_decref_internal
+		 */
 		ldlm_lock_decref_internal_nolock(lock, mode);
 	}
 
@@ -133,7 +129,7 @@ ldlm_flock_destroy(struct ldlm_lock *lock, ldlm_mode_t mode, __u64 flags)
  *     would be collected and ASTs sent.
  */
 static int ldlm_process_flock_lock(struct ldlm_lock *req, __u64 *flags,
-				   int first_enq, ldlm_error_t *err,
+				   int first_enq, enum ldlm_error *err,
 				   struct list_head *work_list)
 {
 	struct ldlm_resource *res = req->l_resource;
@@ -143,7 +139,7 @@ static int ldlm_process_flock_lock(struct ldlm_lock *req, __u64 *flags,
 	struct ldlm_lock *lock = NULL;
 	struct ldlm_lock *new = req;
 	struct ldlm_lock *new2 = NULL;
-	ldlm_mode_t mode = req->l_req_mode;
+	enum ldlm_mode mode = req->l_req_mode;
 	int added = (mode == LCK_NL);
 	int overlaps = 0;
 	int splitted = 0;
@@ -159,16 +155,18 @@ static int ldlm_process_flock_lock(struct ldlm_lock *req, __u64 *flags,
 	*err = ELDLM_OK;
 
 	/* No blocking ASTs are sent to the clients for
-	 * Posix file & record locks */
+	 * Posix file & record locks
+	 */
 	req->l_blocking_ast = NULL;
 
 reprocess:
 	if ((*flags == LDLM_FL_WAIT_NOREPROC) || (mode == LCK_NL)) {
 		/* This loop determines where this processes locks start
-		 * in the resource lr_granted list. */
+		 * in the resource lr_granted list.
+		 */
 		list_for_each(tmp, &res->lr_granted) {
 			lock = list_entry(tmp, struct ldlm_lock,
-					      l_res_link);
+					  l_res_link);
 			if (ldlm_same_flock_owner(lock, req)) {
 				ownlocks = tmp;
 				break;
@@ -180,10 +178,11 @@ reprocess:
 		lockmode_verify(mode);
 
 		/* This loop determines if there are existing locks
-		 * that conflict with the new lock request. */
+		 * that conflict with the new lock request.
+		 */
 		list_for_each(tmp, &res->lr_granted) {
 			lock = list_entry(tmp, struct ldlm_lock,
-					      l_res_link);
+					  l_res_link);
 
 			if (ldlm_same_flock_owner(lock, req)) {
 				if (!ownlocks)
@@ -238,8 +237,8 @@ reprocess:
 	}
 
 	/* Scan the locks owned by this process that overlap this request.
-	 * We may have to merge or split existing locks. */
-
+	 * We may have to merge or split existing locks.
+	 */
 	if (!ownlocks)
 		ownlocks = &res->lr_granted;
 
@@ -253,16 +252,16 @@ reprocess:
 			/* If the modes are the same then we need to process
 			 * locks that overlap OR adjoin the new lock. The extra
 			 * logic condition is necessary to deal with arithmetic
-			 * overflow and underflow. */
+			 * overflow and underflow.
+			 */
 			if ((new->l_policy_data.l_flock.start >
-			     (lock->l_policy_data.l_flock.end + 1))
-			    && (lock->l_policy_data.l_flock.end !=
-				OBD_OBJECT_EOF))
+			     (lock->l_policy_data.l_flock.end + 1)) &&
+			    (lock->l_policy_data.l_flock.end != OBD_OBJECT_EOF))
 				continue;
 
 			if ((new->l_policy_data.l_flock.end <
-			     (lock->l_policy_data.l_flock.start - 1))
-			    && (lock->l_policy_data.l_flock.start != 0))
+			     (lock->l_policy_data.l_flock.start - 1)) &&
+			    (lock->l_policy_data.l_flock.start != 0))
 				break;
 
 			if (new->l_policy_data.l_flock.start <
@@ -327,21 +326,23 @@ reprocess:
 		 * with the request but this would complicate the reply
 		 * processing since updates to req get reflected in the
 		 * reply. The client side replays the lock request so
-		 * it must see the original lock data in the reply. */
+		 * it must see the original lock data in the reply.
+		 */
 
 		/* XXX - if ldlm_lock_new() can sleep we should
 		 * release the lr_lock, allocate the new lock,
-		 * and restart processing this lock. */
+		 * and restart processing this lock.
+		 */
 		if (!new2) {
 			unlock_res_and_lock(req);
 			new2 = ldlm_lock_create(ns, &res->lr_name, LDLM_FLOCK,
 						lock->l_granted_mode, &null_cbs,
 						NULL, 0, LVB_T_NONE);
 			lock_res_and_lock(req);
-			if (!new2) {
+			if (IS_ERR(new2)) {
 				ldlm_flock_destroy(req, lock->l_granted_mode,
 						   *flags);
-				*err = -ENOLCK;
+				*err = PTR_ERR(new2);
 				return LDLM_ITER_STOP;
 			}
 			goto reprocess;
@@ -361,7 +362,7 @@ reprocess:
 		lock->l_policy_data.l_flock.start =
 			new->l_policy_data.l_flock.end + 1;
 		new2->l_conn_export = lock->l_conn_export;
-		if (lock->l_export != NULL) {
+		if (lock->l_export) {
 			new2->l_export = class_export_lock_get(lock->l_export,
 							       new2);
 			if (new2->l_export->exp_lock_hash &&
@@ -381,7 +382,7 @@ reprocess:
 	}
 
 	/* if new2 is created but never used, destroy it*/
-	if (splitted == 0 && new2 != NULL)
+	if (splitted == 0 && new2)
 		ldlm_lock_destroy_nolock(new2);
 
 	/* At this point we're granting the lock request. */
@@ -396,7 +397,8 @@ reprocess:
 	if (*flags != LDLM_FL_WAIT_NOREPROC) {
 		/* The only one possible case for client-side calls flock
 		 * policy function is ldlm_flock_completion_ast inside which
-		 * carries LDLM_FL_WAIT_NOREPROC flag. */
+		 * carries LDLM_FL_WAIT_NOREPROC flag.
+		 */
 		CERROR("Illegal parameter for client-side-only module.\n");
 		LBUG();
 	}
@@ -404,7 +406,8 @@ reprocess:
 	/* In case we're reprocessing the requested lock we can't destroy
 	 * it until after calling ldlm_add_ast_work_item() above so that laawi()
 	 * can bump the reference count on \a req. Otherwise \a req
-	 * could be freed before the completion AST can be sent.  */
+	 * could be freed before the completion AST can be sent.
+	 */
 	if (added)
 		ldlm_flock_destroy(req, mode, *flags);
 
@@ -427,7 +430,7 @@ ldlm_flock_interrupted_wait(void *data)
 	lock_res_and_lock(lock);
 
 	/* client side - set flag to prevent lock from being put on LRU list */
-	lock->l_flags |= LDLM_FL_CBPENDING;
+	ldlm_set_cbpending(lock);
 	unlock_res_and_lock(lock);
 }
 
@@ -449,33 +452,26 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 	struct obd_import	      *imp = NULL;
 	struct ldlm_flock_wait_data     fwd;
 	struct l_wait_info	      lwi;
-	ldlm_error_t		    err;
+	enum ldlm_error		    err;
 	int			     rc = 0;
 
+	OBD_FAIL_TIMEOUT(OBD_FAIL_LDLM_CP_CB_WAIT2, 4);
+	if (OBD_FAIL_PRECHECK(OBD_FAIL_LDLM_CP_CB_WAIT3)) {
+		lock_res_and_lock(lock);
+		lock->l_flags |= LDLM_FL_FAIL_LOC;
+		unlock_res_and_lock(lock);
+		OBD_FAIL_TIMEOUT(OBD_FAIL_LDLM_CP_CB_WAIT3, 4);
+	}
 	CDEBUG(D_DLMTRACE, "flags: 0x%llx data: %p getlk: %p\n",
 	       flags, data, getlk);
 
-	/* Import invalidation. We need to actually release the lock
-	 * references being held, so that it can go away. No point in
-	 * holding the lock even if app still believes it has it, since
-	 * server already dropped it anyway. Only for granted locks too. */
-	if ((lock->l_flags & (LDLM_FL_FAILED|LDLM_FL_LOCAL_ONLY)) ==
-	    (LDLM_FL_FAILED|LDLM_FL_LOCAL_ONLY)) {
-		if (lock->l_req_mode == lock->l_granted_mode &&
-		    lock->l_granted_mode != LCK_NL &&
-		    data == NULL)
-			ldlm_lock_decref_internal(lock, lock->l_req_mode);
-
-		/* Need to wake up the waiter if we were evicted */
-		wake_up(&lock->l_waitq);
-		return 0;
-	}
-
 	LASSERT(flags != LDLM_FL_WAIT_NOREPROC);
 
-	if (!(flags & (LDLM_FL_BLOCK_WAIT | LDLM_FL_BLOCK_GRANTED |
-		       LDLM_FL_BLOCK_CONV))) {
-		if (data == NULL)
+	if (flags & LDLM_FL_FAILED)
+		goto granted;
+
+	if (!(flags & LDLM_FL_BLOCKED_MASK)) {
+		if (!data)
 			/* mds granted the lock in the reply */
 			goto granted;
 		/* CP AST RPC: lock get granted, wake it up */
@@ -488,10 +484,10 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 	obd = class_exp2obd(lock->l_conn_export);
 
 	/* if this is a local lock, there is no import */
-	if (obd != NULL)
+	if (obd)
 		imp = obd->u.cli.cl_import;
 
-	if (imp != NULL) {
+	if (imp) {
 		spin_lock(&imp->imp_lock);
 		fwd.fwd_generation = imp->imp_generation;
 		spin_unlock(&imp->imp_lock);
@@ -511,36 +507,84 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 granted:
 	OBD_FAIL_TIMEOUT(OBD_FAIL_LDLM_CP_CB_WAIT, 10);
 
-	if (lock->l_flags & LDLM_FL_DESTROYED) {
-		LDLM_DEBUG(lock, "client-side enqueue waking up: destroyed");
-		return 0;
+	if (OBD_FAIL_PRECHECK(OBD_FAIL_LDLM_CP_CB_WAIT4)) {
+		lock_res_and_lock(lock);
+		/* DEADLOCK is always set with CBPENDING */
+		lock->l_flags |= LDLM_FL_FLOCK_DEADLOCK | LDLM_FL_CBPENDING;
+		unlock_res_and_lock(lock);
+		OBD_FAIL_TIMEOUT(OBD_FAIL_LDLM_CP_CB_WAIT4, 4);
+	}
+	if (OBD_FAIL_PRECHECK(OBD_FAIL_LDLM_CP_CB_WAIT5)) {
+		lock_res_and_lock(lock);
+		/* DEADLOCK is always set with CBPENDING */
+		lock->l_flags |= LDLM_FL_FAIL_LOC |
+				 LDLM_FL_FLOCK_DEADLOCK | LDLM_FL_CBPENDING;
+		unlock_res_and_lock(lock);
+		OBD_FAIL_TIMEOUT(OBD_FAIL_LDLM_CP_CB_WAIT5, 4);
 	}
 
-	if (lock->l_flags & LDLM_FL_FAILED) {
-		LDLM_DEBUG(lock, "client-side enqueue waking up: failed");
+	lock_res_and_lock(lock);
+
+	/*
+	 * Protect against race where lock could have been just destroyed
+	 * due to overlap in ldlm_process_flock_lock().
+	 */
+	if (ldlm_is_destroyed(lock)) {
+		unlock_res_and_lock(lock);
+		LDLM_DEBUG(lock, "client-side enqueue waking up: destroyed");
+		/*
+		 * An error is still to be returned, to propagate it up to
+		 * ldlm_cli_enqueue_fini() caller.
+		 */
 		return -EIO;
 	}
 
-	if (rc) {
-		LDLM_DEBUG(lock, "client-side enqueue waking up: failed (%d)",
-			   rc);
-		return rc;
+	/* ldlm_lock_enqueue() has already placed lock on the granted list. */
+	ldlm_resource_unlink_lock(lock);
+
+	/*
+	 * Import invalidation. We need to actually release the lock
+	 * references being held, so that it can go away. No point in
+	 * holding the lock even if app still believes it has it, since
+	 * server already dropped it anyway. Only for granted locks too.
+	 */
+	/* Do the same for DEADLOCK'ed locks. */
+	if (ldlm_is_failed(lock) || ldlm_is_flock_deadlock(lock)) {
+		int mode;
+
+		if (flags & LDLM_FL_TEST_LOCK)
+			LASSERT(ldlm_is_test_lock(lock));
+
+		if (ldlm_is_test_lock(lock) || ldlm_is_flock_deadlock(lock))
+			mode = getlk->fl_type;
+		else
+			mode = lock->l_granted_mode;
+
+		if (ldlm_is_flock_deadlock(lock)) {
+			LDLM_DEBUG(lock, "client-side enqueue deadlock received");
+			rc = -EDEADLK;
+		}
+		ldlm_flock_destroy(lock, mode, LDLM_FL_WAIT_NOREPROC);
+		unlock_res_and_lock(lock);
+
+		/* Need to wake up the waiter if we were evicted */
+		wake_up(&lock->l_waitq);
+
+		/*
+		 * An error is still to be returned, to propagate it up to
+		 * ldlm_cli_enqueue_fini() caller.
+		 */
+		return rc ? : -EIO;
 	}
 
 	LDLM_DEBUG(lock, "client-side enqueue granted");
 
-	lock_res_and_lock(lock);
-
-	/* ldlm_lock_enqueue() has already placed lock on the granted list. */
-	list_del_init(&lock->l_res_link);
-
-	if (lock->l_flags & LDLM_FL_FLOCK_DEADLOCK) {
-		LDLM_DEBUG(lock, "client-side enqueue deadlock received");
-		rc = -EDEADLK;
-	} else if (flags & LDLM_FL_TEST_LOCK) {
+	if (flags & LDLM_FL_TEST_LOCK) {
 		/* fcntl(F_GETLK) request */
 		/* The old mode was saved in getlk->fl_type so that if the mode
-		 * in the lock changes we can decref the appropriate refcount.*/
+		 * in the lock changes we can decref the appropriate refcount.
+		 */
+		LASSERT(ldlm_is_test_lock(lock));
 		ldlm_flock_destroy(lock, getlk->fl_type, LDLM_FL_WAIT_NOREPROC);
 		switch (lock->l_granted_mode) {
 		case LCK_PR:
@@ -559,7 +603,8 @@ granted:
 		__u64 noreproc = LDLM_FL_WAIT_NOREPROC;
 
 		/* We need to reprocess the lock to do merges or splits
-		 * with existing locks owned by this process. */
+		 * with existing locks owned by this process.
+		 */
 		ldlm_process_flock_lock(lock, &noreproc, 1, &err, NULL);
 	}
 	unlock_res_and_lock(lock);
@@ -576,7 +621,8 @@ void ldlm_flock_policy_wire18_to_local(const ldlm_wire_policy_data_t *wpolicy,
 	lpolicy->l_flock.pid = wpolicy->l_flock.lfw_pid;
 	/* Compat code, old clients had no idea about owner field and
 	 * relied solely on pid for ownership. Introduced in LU-104, 2.1,
-	 * April 2011 */
+	 * April 2011
+	 */
 	lpolicy->l_flock.owner = wpolicy->l_flock.lfw_pid;
 }
 

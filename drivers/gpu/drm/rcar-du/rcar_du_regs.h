@@ -1,7 +1,7 @@
 /*
  * rcar_du_regs.h  --  R-Car Display Unit Registers Definitions
  *
- * Copyright (C) 2013 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -16,6 +16,7 @@
 #define DU0_REG_OFFSET		0x00000
 #define DU1_REG_OFFSET		0x30000
 #define DU2_REG_OFFSET		0x40000
+#define DU3_REG_OFFSET		0x70000
 
 /* -----------------------------------------------------------------------------
  * Display Control Registers
@@ -186,7 +187,7 @@
 
 #define DEFR6			0x000e8
 #define DEFR6_CODE		(0x7778 << 16)
-#define DEFR6_ODPM22_D2SMR	(0 << 10)
+#define DEFR6_ODPM22_DSMR	(0 << 10)
 #define DEFR6_ODPM22_DISP	(2 << 10)
 #define DEFR6_ODPM22_CDE	(3 << 10)
 #define DEFR6_ODPM22_MASK	(3 << 10)
@@ -194,9 +195,10 @@
 #define DEFR6_ODPM12_DISP	(2 << 8)
 #define DEFR6_ODPM12_CDE	(3 << 8)
 #define DEFR6_ODPM12_MASK	(3 << 8)
-#define DEFR6_TCNE2		(1 << 6)
+#define DEFR6_TCNE1		(1 << 6)
+#define DEFR6_TCNE0		(1 << 4)
 #define DEFR6_MLOS1		(1 << 2)
-#define DEFR6_DEFAULT		(DEFR6_CODE | DEFR6_TCNE2)
+#define DEFR6_DEFAULT		(DEFR6_CODE | DEFR6_TCNE1)
 
 /* -----------------------------------------------------------------------------
  * R8A7790-only Control Registers
@@ -259,6 +261,21 @@
 #define DIDSR_LCDS_MASK(n)	(3 << (8 + (n) * 2))
 #define DIDSR_PDCS_CLK(n, clk)	(clk << ((n) * 2))
 #define DIDSR_PDCS_MASK(n)	(3 << ((n) * 2))
+
+#define DEFR10			0x20038
+#define DEFR10_CODE		(0x7795 << 16)
+#define DEFR10_VSPF1_RGB	(0 << 14)
+#define DEFR10_VSPF1_YC		(1 << 14)
+#define DEFR10_DOCF1_RGB	(0 << 12)
+#define DEFR10_DOCF1_YC		(1 << 12)
+#define DEFR10_YCDF0_YCBCR444	(0 << 11)
+#define DEFR10_YCDF0_YCBCR422	(1 << 11)
+#define DEFR10_VSPF0_RGB	(0 << 10)
+#define DEFR10_VSPF0_YC		(1 << 10)
+#define DEFR10_DOCF0_RGB	(0 << 8)
+#define DEFR10_DOCF0_YC		(1 << 8)
+#define DEFR10_TSEL_H3_TCON1	(0 << 1) /* DEFR102 register only (DU2/DU3) */
+#define DEFR10_DEFE10		(1 << 0)
 
 /* -----------------------------------------------------------------------------
  * Display Timing Generation Registers
@@ -389,6 +406,7 @@
 
 #define PnDDCR4			0x00190
 #define PnDDCR4_CODE		(0x7766 << 16)
+#define PnDDCR4_VSPS		(1 << 13)
 #define PnDDCR4_SDFS_RGB	(0 << 4)
 #define PnDDCR4_SDFS_YC		(5 << 4)
 #define PnDDCR4_SDFS_MASK	(7 << 4)

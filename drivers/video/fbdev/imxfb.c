@@ -473,11 +473,12 @@ static int imxfb_set_par(struct fb_info *info)
 	return 0;
 }
 
-static void imxfb_enable_controller(struct imxfb_info *fbi)
+static int imxfb_enable_controller(struct imxfb_info *fbi)
 {
+	int ret;
 
 	if (fbi->enabled)
-		return;
+		return 0;
 
 	pr_debug("Enabling LCD controller\n");
 
@@ -496,10 +497,29 @@ static void imxfb_enable_controller(struct imxfb_info *fbi)
 	 */
 	writel(RMCR_LCDC_EN_MX1, fbi->regs + LCDC_RMCR);
 
-	clk_prepare_enable(fbi->clk_ipg);
-	clk_prepare_enable(fbi->clk_ahb);
-	clk_prepare_enable(fbi->clk_per);
+	ret = clk_prepare_enable(fbi->clk_ipg);
+	if (ret)
+		goto err_enable_ipg;
+
+	ret = clk_prepare_enable(fbi->clk_ahb);
+	if (ret)
+		goto err_enable_ahb;
+
+	ret = clk_prepare_enable(fbi->clk_per);
+	if (ret)
+		goto err_enable_per;
+
 	fbi->enabled = true;
+	return 0;
+
+err_enable_per:
+	clk_disable_unprepare(fbi->clk_ahb);
+err_enable_ahb:
+	clk_disable_unprepare(fbi->clk_ipg);
+err_enable_ipg:
+	writel(0, fbi->regs + LCDC_RMCR);
+
+	return ret;
 }
 
 static void imxfb_disable_controller(struct imxfb_info *fbi)
@@ -510,8 +530,8 @@ static void imxfb_disable_controller(struct imxfb_info *fbi)
 	pr_debug("Disabling LCD controller\n");
 
 	clk_disable_unprepare(fbi->clk_per);
-	clk_disable_unprepare(fbi->clk_ipg);
 	clk_disable_unprepare(fbi->clk_ahb);
+	clk_disable_unprepare(fbi->clk_ipg);
 	fbi->enabled = false;
 
 	writel(0, fbi->regs + LCDC_RMCR);
@@ -532,8 +552,7 @@ static int imxfb_blank(int blank, struct fb_info *info)
 		break;
 
 	case FB_BLANK_UNBLANK:
-		imxfb_enable_controller(fbi);
-		break;
+		return imxfb_enable_controller(fbi);
 	}
 	return 0;
 }
@@ -758,10 +777,11 @@ static int imxfb_lcd_get_power(struct lcd_device *lcddev)
 {
 	struct imxfb_info *fbi = dev_get_drvdata(&lcddev->dev);
 
-	if (!IS_ERR(fbi->lcd_pwr))
-		return regulator_is_enabled(fbi->lcd_pwr);
+	if (!IS_ERR(fbi->lcd_pwr) &&
+	    !regulator_is_enabled(fbi->lcd_pwr))
+		return FB_BLANK_POWERDOWN;
 
-	return 1;
+	return FB_BLANK_UNBLANK;
 }
 
 static int imxfb_lcd_set_power(struct lcd_device *lcddev, int power)
@@ -769,7 +789,7 @@ static int imxfb_lcd_set_power(struct lcd_device *lcddev, int power)
 	struct imxfb_info *fbi = dev_get_drvdata(&lcddev->dev);
 
 	if (!IS_ERR(fbi->lcd_pwr)) {
-		if (power)
+		if (power == FB_BLANK_UNBLANK)
 			return regulator_enable(fbi->lcd_pwr);
 		else
 			return regulator_disable(fbi->lcd_pwr);
@@ -902,6 +922,21 @@ static int imxfb_probe(struct platform_device *pdev)
 		goto failed_getclock;
 	}
 
+	/*
+	 * The LCDC controller does not have an enable bit. The
+	 * controller starts directly when the clocks are enabled.
+	 * If the clocks are enabled when the controller is not yet
+	 * programmed with proper register values (enabled at the
+	 * bootloader, for example) then it just goes into some undefined
+	 * state.
+	 * To avoid this issue, let's enable and disable LCDC IPG clock
+	 * so that we force some kind of 'reset' to the LCDC block.
+	 */
+	ret = clk_prepare_enable(fbi->clk_ipg);
+	if (ret)
+		goto failed_getclock;
+	clk_disable_unprepare(fbi->clk_ipg);
+
 	fbi->clk_ahb = devm_clk_get(&pdev->dev, "ahb");
 	if (IS_ERR(fbi->clk_ahb)) {
 		ret = PTR_ERR(fbi->clk_ahb);
@@ -922,8 +957,8 @@ static int imxfb_probe(struct platform_device *pdev)
 	}
 
 	fbi->map_size = PAGE_ALIGN(info->fix.smem_len);
-	info->screen_base = dma_alloc_writecombine(&pdev->dev, fbi->map_size,
-						   &fbi->map_dma, GFP_KERNEL);
+	info->screen_base = dma_alloc_wc(&pdev->dev, fbi->map_size,
+					 &fbi->map_dma, GFP_KERNEL);
 
 	if (!info->screen_base) {
 		dev_err(&pdev->dev, "Failed to allocate video RAM: %d\n", ret);
@@ -990,8 +1025,8 @@ failed_cmap:
 	if (pdata && pdata->exit)
 		pdata->exit(fbi->pdev);
 failed_platform_init:
-	dma_free_writecombine(&pdev->dev, fbi->map_size, info->screen_base,
-			      fbi->map_dma);
+	dma_free_wc(&pdev->dev, fbi->map_size, info->screen_base,
+		    fbi->map_dma);
 failed_map:
 	iounmap(fbi->regs);
 failed_ioremap:
@@ -1026,8 +1061,8 @@ static int imxfb_remove(struct platform_device *pdev)
 	kfree(info->pseudo_palette);
 	framebuffer_release(info);
 
-	dma_free_writecombine(&pdev->dev, fbi->map_size, info->screen_base,
-			      fbi->map_dma);
+	dma_free_wc(&pdev->dev, fbi->map_size, info->screen_base,
+		    fbi->map_dma);
 
 	iounmap(fbi->regs);
 	release_mem_region(res->start, resource_size(res));

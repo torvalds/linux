@@ -176,45 +176,13 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NEC, PCI_DEVICE_ID_NEC_USB,
  */
 static int __init gef_sbc310_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (of_flat_dt_is_compatible(root, "gef,sbc310"))
+	if (of_machine_is_compatible("gef,sbc310"))
 		return 1;
 
 	return 0;
 }
 
-static long __init mpc86xx_time_init(void)
-{
-	unsigned int temp;
-
-	/* Set the time base to zero */
-	mtspr(SPRN_TBWL, 0);
-	mtspr(SPRN_TBWU, 0);
-
-	temp = mfspr(SPRN_HID0);
-	temp |= HID0_TBEN;
-	mtspr(SPRN_HID0, temp);
-	asm volatile("isync");
-
-	return 0;
-}
-
-static const struct of_device_id of_bus_ids[] __initconst = {
-	{ .compatible = "simple-bus", },
-	{ .compatible = "gianfar", },
-	{ .compatible = "fsl,mpc8641-pcie", },
-	{},
-};
-
-static int __init declare_of_platform_devices(void)
-{
-	printk(KERN_DEBUG "Probe platform devices\n");
-	of_platform_bus_probe(NULL, of_bus_ids, NULL);
-
-	return 0;
-}
-machine_arch_initcall(gef_sbc310, declare_of_platform_devices);
+machine_arch_initcall(gef_sbc310, mpc86xx_common_publish_devices);
 
 define_machine(gef_sbc310) {
 	.name			= "GE SBC310",

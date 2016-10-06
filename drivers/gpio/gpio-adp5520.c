@@ -153,7 +153,7 @@ static int adp5520_gpio_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	ret = gpiochip_add_data(&dev->gpio_chip, dev);
+	ret = devm_gpiochip_add_data(&pdev->dev, &dev->gpio_chip, dev);
 	if (ret)
 		goto err;
 
@@ -164,22 +164,11 @@ err:
 	return ret;
 }
 
-static int adp5520_gpio_remove(struct platform_device *pdev)
-{
-	struct adp5520_gpio *dev;
-
-	dev = platform_get_drvdata(pdev);
-	gpiochip_remove(&dev->gpio_chip);
-
-	return 0;
-}
-
 static struct platform_driver adp5520_gpio_driver = {
 	.driver	= {
 		.name	= "adp5520-gpio",
 	},
 	.probe		= adp5520_gpio_probe,
-	.remove		= adp5520_gpio_remove,
 };
 
 module_platform_driver(adp5520_gpio_driver);

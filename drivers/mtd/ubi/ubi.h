@@ -49,15 +49,19 @@
 /* UBI name used for character devices, sysfs, etc */
 #define UBI_NAME_STR "ubi"
 
+struct ubi_device;
+
 /* Normal UBI messages */
-#define ubi_msg(ubi, fmt, ...) pr_notice(UBI_NAME_STR "%d: " fmt "\n", \
-					 ubi->ubi_num, ##__VA_ARGS__)
+__printf(2, 3)
+void ubi_msg(const struct ubi_device *ubi, const char *fmt, ...);
+
 /* UBI warning messages */
-#define ubi_warn(ubi, fmt, ...) pr_warn(UBI_NAME_STR "%d warning: %s: " fmt "\n", \
-					ubi->ubi_num, __func__, ##__VA_ARGS__)
+__printf(2, 3)
+void ubi_warn(const struct ubi_device *ubi, const char *fmt, ...);
+
 /* UBI error messages */
-#define ubi_err(ubi, fmt, ...) pr_err(UBI_NAME_STR "%d error: %s: " fmt "\n", \
-				      ubi->ubi_num, __func__, ##__VA_ARGS__)
+__printf(2, 3)
+void ubi_err(const struct ubi_device *ubi, const char *fmt, ...);
 
 /* Background thread name pattern */
 #define UBI_BGT_NAME_PATTERN "ubi_bgt%dd"
@@ -462,6 +466,7 @@ struct ubi_debug_info {
  * @fm_eba_sem: allows ubi_update_fastmap() to block EBA table changes
  * @fm_work: fastmap work queue
  * @fm_work_scheduled: non-zero if fastmap work was scheduled
+ * @fast_attach: non-zero if UBI was attached by fastmap
  *
  * @used: RB-tree of used physical eraseblocks
  * @erroneous: RB-tree of erroneous used physical eraseblocks
@@ -570,6 +575,7 @@ struct ubi_device {
 	size_t fm_size;
 	struct work_struct fm_work;
 	int fm_work_scheduled;
+	int fast_attach;
 
 	/* Wear-leveling sub-system's stuff */
 	struct rb_root used;
@@ -697,6 +703,8 @@ struct ubi_ainf_volume {
  * @erase: list of physical eraseblocks which have to be erased
  * @alien: list of physical eraseblocks which should not be used by UBI (e.g.,
  *         those belonging to "preserve"-compatible internal volumes)
+ * @fastmap: list of physical eraseblocks which relate to fastmap (e.g.,
+ *           eraseblocks of the current and not yet erased old fastmap blocks)
  * @corr_peb_count: count of PEBs in the @corr list
  * @empty_peb_count: count of PEBs which are presumably empty (contain only
  *                   0xFF bytes)
@@ -707,6 +715,8 @@ struct ubi_ainf_volume {
  * @vols_found: number of volumes found
  * @highest_vol_id: highest volume ID
  * @is_empty: flag indicating whether the MTD device is empty or not
+ * @force_full_scan: flag indicating whether we need to do a full scan and drop
+		     all existing Fastmap data structures
  * @min_ec: lowest erase counter value
  * @max_ec: highest erase counter value
  * @max_sqnum: highest sequence number value
@@ -725,6 +735,7 @@ struct ubi_attach_info {
 	struct list_head free;
 	struct list_head erase;
 	struct list_head alien;
+	struct list_head fastmap;
 	int corr_peb_count;
 	int empty_peb_count;
 	int alien_peb_count;
@@ -733,6 +744,7 @@ struct ubi_attach_info {
 	int vols_found;
 	int highest_vol_id;
 	int is_empty;
+	int force_full_scan;
 	int min_ec;
 	int max_ec;
 	unsigned long long max_sqnum;
@@ -905,7 +917,7 @@ int ubi_compare_lebs(struct ubi_device *ubi, const struct ubi_ainf_peb *aeb,
 size_t ubi_calc_fm_size(struct ubi_device *ubi);
 int ubi_update_fastmap(struct ubi_device *ubi);
 int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
-		     int fm_anchor);
+		     struct ubi_attach_info *scan_ai);
 #else
 static inline int ubi_update_fastmap(struct ubi_device *ubi) { return 0; }
 #endif
@@ -1097,6 +1109,44 @@ static inline int idx2vol_id(const struct ubi_device *ubi, int idx)
 		return idx - ubi->vtbl_slots + UBI_INTERNAL_VOL_START;
 	else
 		return idx;
+}
+
+/**
+ * ubi_is_fm_vol - check whether a volume ID is a Fastmap volume.
+ * @vol_id: volume ID
+ */
+static inline bool ubi_is_fm_vol(int vol_id)
+{
+	switch (vol_id) {
+		case UBI_FM_SB_VOLUME_ID:
+		case UBI_FM_DATA_VOLUME_ID:
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * ubi_find_fm_block - check whether a PEB is part of the current Fastmap.
+ * @ubi: UBI device description object
+ * @pnum: physical eraseblock to look for
+ *
+ * This function returns a wear leveling object if @pnum relates to the current
+ * fastmap, @NULL otherwise.
+ */
+static inline struct ubi_wl_entry *ubi_find_fm_block(const struct ubi_device *ubi,
+						     int pnum)
+{
+	int i;
+
+	if (ubi->fm) {
+		for (i = 0; i < ubi->fm->used_blocks; i++) {
+			if (ubi->fm->e[i]->pnum == pnum)
+				return ubi->fm->e[i];
+		}
+	}
+
+	return NULL;
 }
 
 #endif /* !__UBI_UBI_H__ */

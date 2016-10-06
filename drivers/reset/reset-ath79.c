@@ -70,7 +70,7 @@ static int ath79_reset_status(struct reset_controller_dev *rcdev,
 	return !!(val & BIT(id));
 }
 
-static struct reset_control_ops ath79_reset_ops = {
+static const struct reset_control_ops ath79_reset_ops = {
 	.assert = ath79_reset_assert,
 	.deassert = ath79_reset_deassert,
 	.status = ath79_reset_status,
@@ -112,7 +112,7 @@ static int ath79_reset_probe(struct platform_device *pdev)
 	ath79_reset->rcdev.of_reset_n_cells = 1;
 	ath79_reset->rcdev.nr_resets = 32;
 
-	err = reset_controller_register(&ath79_reset->rcdev);
+	err = devm_reset_controller_register(&pdev->dev, &ath79_reset->rcdev);
 	if (err)
 		return err;
 
@@ -131,7 +131,6 @@ static int ath79_reset_remove(struct platform_device *pdev)
 	struct ath79_reset *ath79_reset = platform_get_drvdata(pdev);
 
 	unregister_restart_handler(&ath79_reset->restart_nb);
-	reset_controller_unregister(&ath79_reset->rcdev);
 
 	return 0;
 }

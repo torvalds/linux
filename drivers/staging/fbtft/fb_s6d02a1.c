@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <video/mipi_display.h>
 
 #include "fbtft.h"
 
@@ -50,7 +51,7 @@ static int default_init_sequence[] = {
 
 	-1, 0xf3, 0x00, 0x00,
 
-	-1, 0x11,
+	-1, MIPI_DCS_EXIT_SLEEP_MODE,
 	-2, 50,
 
 	-1, 0xf3, 0x00, 0x01,
@@ -79,18 +80,18 @@ static int default_init_sequence[] = {
 
 	/* initializing sequence */
 
-	-1, 0x36, 0x08,
+	-1, MIPI_DCS_SET_ADDRESS_MODE, 0x08,
 
-	-1, 0x35, 0x00,
+	-1, MIPI_DCS_SET_TEAR_ON, 0x00,
 
-	-1, 0x3a, 0x05,
+	-1, MIPI_DCS_SET_PIXEL_FORMAT, 0x05,
 
-	/* gamma setting sequence */
-	-1, 0x26, 0x01,	/* preset gamma curves, possible values 0x01, 0x02, 0x04, 0x08 */
+	/* gamma setting - possible values 0x01, 0x02, 0x04, 0x08 */
+	-1, MIPI_DCS_SET_GAMMA_CURVE, 0x01,
 
 	-2, 150,
-	-1, 0x29,
-	-1, 0x2c,
+	-1, MIPI_DCS_SET_DISPLAY_ON,
+	-1, MIPI_DCS_WRITE_MEMORY_START,
 	/* end marker */
 	-3
 
@@ -98,14 +99,13 @@ static int default_init_sequence[] = {
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	/* Column address */
-	write_reg(par, 0x2A, xs >> 8, xs & 0xFF, xe >> 8, xe & 0xFF);
+	write_reg(par, MIPI_DCS_SET_COLUMN_ADDRESS,
+		  xs >> 8, xs & 0xFF, xe >> 8, xe & 0xFF);
 
-	/* Row address */
-	write_reg(par, 0x2B, ys >> 8, ys & 0xFF, ye >> 8, ye & 0xFF);
+	write_reg(par, MIPI_DCS_SET_PAGE_ADDRESS,
+		  ys >> 8, ys & 0xFF, ye >> 8, ye & 0xFF);
 
-	/* Memory write */
-	write_reg(par, 0x2C);
+	write_reg(par, MIPI_DCS_WRITE_MEMORY_START);
 }
 
 #define MY BIT(7)
@@ -113,24 +113,30 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 #define MV BIT(5)
 static int set_var(struct fbtft_par *par)
 {
-	/* MADCTL - Memory data access control
-	     RGB/BGR:
-		1. Mode selection pin SRGB
-			RGB H/W pin for color filter setting: 0=RGB, 1=BGR
-		2. MADCTL RGB bit
-			RGB-BGR ORDER color filter panel: 0=RGB, 1=BGR */
+	/*
+	 * Memory data access control (0x36h)
+	 * RGB/BGR:
+	 *	1. Mode selection pin SRGB
+	 *		RGB H/W pin for color filter setting: 0=RGB, 1=BGR
+	 *	2. MADCTL RGB bit
+	 *		RGB-BGR ORDER color filter panel: 0=RGB, 1=BGR
+	 */
 	switch (par->info->var.rotate) {
 	case 0:
-		write_reg(par, 0x36, MX | MY | (par->bgr << 3));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  MX | MY | (par->bgr << 3));
 		break;
 	case 270:
-		write_reg(par, 0x36, MY | MV | (par->bgr << 3));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  MY | MV | (par->bgr << 3));
 		break;
 	case 180:
-		write_reg(par, 0x36, par->bgr << 3);
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  par->bgr << 3);
 		break;
 	case 90:
-		write_reg(par, 0x36, MX | MV | (par->bgr << 3));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  MX | MV | (par->bgr << 3));
 		break;
 	}
 

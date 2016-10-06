@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -36,6 +32,7 @@
  * Implementation of cl_object for OSC layer.
  *
  *   Author: Nikita Danilov <nikita.danilov@sun.com>
+ *   Author: Jinshan Xiong <jinshan.xiong@intel.com>
  */
 
 #define DEBUG_SUBSYSTEM S_OSC
@@ -94,6 +91,9 @@ static int osc_object_init(const struct lu_env *env, struct lu_object *obj,
 	atomic_set(&osc->oo_nr_reads, 0);
 	atomic_set(&osc->oo_nr_writes, 0);
 	spin_lock_init(&osc->oo_lock);
+	spin_lock_init(&osc->oo_tree_lock);
+	spin_lock_init(&osc->oo_ol_spin);
+	INIT_LIST_HEAD(&osc->oo_ol_list);
 
 	cl_object_page_init(lu2cl(obj), sizeof(struct osc_page));
 
@@ -113,13 +113,14 @@ static void osc_object_free(const struct lu_env *env, struct lu_object *obj)
 	LASSERT(list_empty(&osc->oo_write_item));
 	LASSERT(list_empty(&osc->oo_read_item));
 
-	LASSERT(osc->oo_root.rb_node == NULL);
+	LASSERT(!osc->oo_root.rb_node);
 	LASSERT(list_empty(&osc->oo_hp_exts));
 	LASSERT(list_empty(&osc->oo_urgent_exts));
 	LASSERT(list_empty(&osc->oo_rpc_exts));
 	LASSERT(list_empty(&osc->oo_reading_exts));
 	LASSERT(atomic_read(&osc->oo_nr_reads) == 0);
 	LASSERT(atomic_read(&osc->oo_nr_writes) == 0);
+	LASSERT(list_empty(&osc->oo_ol_list));
 
 	lu_object_fini(obj);
 	kmem_cache_free(osc_object_kmem, osc);
@@ -158,8 +159,8 @@ static int osc_attr_get(const struct lu_env *env, struct cl_object *obj,
 	return 0;
 }
 
-static int osc_attr_set(const struct lu_env *env, struct cl_object *obj,
-			const struct cl_attr *attr, unsigned valid)
+static int osc_attr_update(const struct lu_env *env, struct cl_object *obj,
+			   const struct cl_attr *attr, unsigned int valid)
 {
 	struct lov_oinfo *oinfo = cl2osc(obj)->oo_oinfo;
 	struct ost_lvb *lvb = &oinfo->loi_lvb;
@@ -189,6 +190,31 @@ static int osc_object_glimpse(const struct lu_env *env,
 
 	lvb->lvb_size = oinfo->loi_kms;
 	lvb->lvb_blocks = oinfo->loi_lvb.lvb_blocks;
+	return 0;
+}
+
+static int osc_object_ast_clear(struct ldlm_lock *lock, void *data)
+{
+	if (lock->l_ast_data == data)
+		lock->l_ast_data = NULL;
+	return LDLM_ITER_CONTINUE;
+}
+
+static int osc_object_prune(const struct lu_env *env, struct cl_object *obj)
+{
+	struct osc_object       *osc = cl2osc(obj);
+	struct ldlm_res_id      *resname = &osc_env_info(env)->oti_resname;
+
+	LASSERTF(osc->oo_npages == 0,
+		 DFID "still have %lu pages, obj: %p, osc: %p\n",
+		 PFID(lu_object_fid(&obj->co_lu)), osc->oo_npages, obj, osc);
+
+	/* DLM locks don't hold a reference of osc_object so we have to
+	 * clear it before the object is being destroyed.
+	 */
+	ostid_build_res_name(&osc->oo_oinfo->loi_oi, resname);
+	ldlm_resource_iterate(osc_export(osc)->exp_obd->obd_namespace, resname,
+			      osc_object_ast_clear, osc);
 	return 0;
 }
 
@@ -235,13 +261,13 @@ static const struct cl_object_operations osc_ops = {
 	.coo_lock_init = osc_lock_init,
 	.coo_io_init   = osc_io_init,
 	.coo_attr_get  = osc_attr_get,
-	.coo_attr_set  = osc_attr_set,
-	.coo_glimpse   = osc_object_glimpse
+	.coo_attr_update = osc_attr_update,
+	.coo_glimpse   = osc_object_glimpse,
+	.coo_prune     = osc_object_prune
 };
 
 static const struct lu_object_operations osc_lu_obj_ops = {
 	.loo_object_init      = osc_object_init,
-	.loo_object_delete    = NULL,
 	.loo_object_release   = NULL,
 	.loo_object_free      = osc_object_free,
 	.loo_object_print     = osc_object_print,
@@ -255,14 +281,15 @@ struct lu_object *osc_object_alloc(const struct lu_env *env,
 	struct osc_object *osc;
 	struct lu_object *obj;
 
-	osc = kmem_cache_alloc(osc_object_kmem, GFP_NOFS | __GFP_ZERO);
-	if (osc != NULL) {
+	osc = kmem_cache_zalloc(osc_object_kmem, GFP_NOFS);
+	if (osc) {
 		obj = osc2lu(osc);
 		lu_object_init(obj, NULL, dev);
 		osc->oo_cl.co_ops = &osc_ops;
 		obj->lo_ops = &osc_lu_obj_ops;
-	} else
+	} else {
 		obj = NULL;
+	}
 	return obj;
 }
 

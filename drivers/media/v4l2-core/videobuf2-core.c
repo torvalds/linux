@@ -25,6 +25,7 @@
 #include <linux/kthread.h>
 
 #include <media/videobuf2-core.h>
+#include <media/v4l2-mc.h>
 
 #include <trace/events/vb2.h>
 
@@ -205,8 +206,9 @@ static int __vb2_buf_mem_alloc(struct vb2_buffer *vb)
 	for (plane = 0; plane < vb->num_planes; ++plane) {
 		unsigned long size = PAGE_ALIGN(vb->planes[plane].length);
 
-		mem_priv = call_ptr_memop(vb, alloc, q->alloc_ctx[plane],
-				      size, dma_dir, q->gfp_flags);
+		mem_priv = call_ptr_memop(vb, alloc,
+				q->alloc_devs[plane] ? : q->dev,
+				q->dma_attrs, size, dma_dir, q->gfp_flags);
 		if (IS_ERR_OR_NULL(mem_priv))
 			goto free;
 
@@ -736,7 +738,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 	 */
 	num_buffers = min_t(unsigned int, *count, VB2_MAX_FRAME);
 	num_buffers = max_t(unsigned int, num_buffers, q->min_buffers_needed);
-	memset(q->alloc_ctx, 0, sizeof(q->alloc_ctx));
+	memset(q->alloc_devs, 0, sizeof(q->alloc_devs));
 	q->memory = memory;
 
 	/*
@@ -744,7 +746,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 	 * Driver also sets the size and allocator context for each plane.
 	 */
 	ret = call_qop(q, queue_setup, q, &num_buffers, &num_planes,
-		       plane_sizes, q->alloc_ctx);
+		       plane_sizes, q->alloc_devs);
 	if (ret)
 		return ret;
 
@@ -777,7 +779,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 		num_planes = 0;
 
 		ret = call_qop(q, queue_setup, q, &num_buffers,
-			       &num_planes, plane_sizes, q->alloc_ctx);
+			       &num_planes, plane_sizes, q->alloc_devs);
 
 		if (!ret && allocated_buffers < num_buffers)
 			ret = -ENOMEM;
@@ -843,7 +845,7 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
 	}
 
 	if (!q->num_buffers) {
-		memset(q->alloc_ctx, 0, sizeof(q->alloc_ctx));
+		memset(q->alloc_devs, 0, sizeof(q->alloc_devs));
 		q->memory = memory;
 		q->waiting_for_buffers = !q->is_output;
 	}
@@ -860,7 +862,7 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
 	 * buffer and their sizes are acceptable
 	 */
 	ret = call_qop(q, queue_setup, q, &num_buffers,
-		       &num_planes, plane_sizes, q->alloc_ctx);
+		       &num_planes, plane_sizes, q->alloc_devs);
 	if (ret)
 		return ret;
 
@@ -883,7 +885,7 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
 		 * queue driver has set up
 		 */
 		ret = call_qop(q, queue_setup, q, &num_buffers,
-			       &num_planes, plane_sizes, q->alloc_ctx);
+			       &num_planes, plane_sizes, q->alloc_devs);
 
 		if (!ret && allocated_buffers < num_buffers)
 			ret = -ENOMEM;
@@ -1063,8 +1065,11 @@ EXPORT_SYMBOL_GPL(vb2_discard_done);
  */
 static int __qbuf_mmap(struct vb2_buffer *vb, const void *pb)
 {
-	int ret = call_bufop(vb->vb2_queue, fill_vb2_buffer,
-			vb, pb, vb->planes);
+	int ret = 0;
+
+	if (pb)
+		ret = call_bufop(vb->vb2_queue, fill_vb2_buffer,
+				 vb, pb, vb->planes);
 	return ret ? ret : call_vb_qop(vb, buf_prepare, vb);
 }
 
@@ -1077,14 +1082,16 @@ static int __qbuf_userptr(struct vb2_buffer *vb, const void *pb)
 	struct vb2_queue *q = vb->vb2_queue;
 	void *mem_priv;
 	unsigned int plane;
-	int ret;
+	int ret = 0;
 	enum dma_data_direction dma_dir =
 		q->is_output ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
 	bool reacquired = vb->planes[0].mem_priv == NULL;
 
 	memset(planes, 0, sizeof(planes[0]) * vb->num_planes);
 	/* Copy relevant information provided by the userspace */
-	ret = call_bufop(vb->vb2_queue, fill_vb2_buffer, vb, pb, planes);
+	if (pb)
+		ret = call_bufop(vb->vb2_queue, fill_vb2_buffer,
+				 vb, pb, planes);
 	if (ret)
 		return ret;
 
@@ -1125,9 +1132,10 @@ static int __qbuf_userptr(struct vb2_buffer *vb, const void *pb)
 		vb->planes[plane].data_offset = 0;
 
 		/* Acquire each plane's memory */
-		mem_priv = call_ptr_memop(vb, get_userptr, q->alloc_ctx[plane],
-				      planes[plane].m.userptr,
-				      planes[plane].length, dma_dir);
+		mem_priv = call_ptr_memop(vb, get_userptr,
+				q->alloc_devs[plane] ? : q->dev,
+				planes[plane].m.userptr,
+				planes[plane].length, dma_dir);
 		if (IS_ERR_OR_NULL(mem_priv)) {
 			dprintk(1, "failed acquiring userspace "
 						"memory for plane %d\n", plane);
@@ -1192,14 +1200,16 @@ static int __qbuf_dmabuf(struct vb2_buffer *vb, const void *pb)
 	struct vb2_queue *q = vb->vb2_queue;
 	void *mem_priv;
 	unsigned int plane;
-	int ret;
+	int ret = 0;
 	enum dma_data_direction dma_dir =
 		q->is_output ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
 	bool reacquired = vb->planes[0].mem_priv == NULL;
 
 	memset(planes, 0, sizeof(planes[0]) * vb->num_planes);
 	/* Copy relevant information provided by the userspace */
-	ret = call_bufop(vb->vb2_queue, fill_vb2_buffer, vb, pb, planes);
+	if (pb)
+		ret = call_bufop(vb->vb2_queue, fill_vb2_buffer,
+				 vb, pb, planes);
 	if (ret)
 		return ret;
 
@@ -1220,6 +1230,7 @@ static int __qbuf_dmabuf(struct vb2_buffer *vb, const void *pb)
 		if (planes[plane].length < vb->planes[plane].min_length) {
 			dprintk(1, "invalid dmabuf length for plane %d\n",
 				plane);
+			dma_buf_put(dbuf);
 			ret = -EINVAL;
 			goto err;
 		}
@@ -1247,8 +1258,8 @@ static int __qbuf_dmabuf(struct vb2_buffer *vb, const void *pb)
 
 		/* Acquire each plane's memory */
 		mem_priv = call_ptr_memop(vb, attach_dmabuf,
-			q->alloc_ctx[plane], dbuf, planes[plane].length,
-			dma_dir);
+				q->alloc_devs[plane] ? : q->dev,
+				dbuf, planes[plane].length, dma_dir);
 		if (IS_ERR(mem_priv)) {
 			dprintk(1, "failed to attach dmabuf\n");
 			ret = PTR_ERR(mem_priv);
@@ -1520,7 +1531,8 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb)
 	q->waiting_for_buffers = false;
 	vb->state = VB2_BUF_STATE_QUEUED;
 
-	call_void_bufop(q, copy_timestamp, vb, pb);
+	if (pb)
+		call_void_bufop(q, copy_timestamp, vb, pb);
 
 	trace_vb2_qbuf(q, vb);
 
@@ -1532,7 +1544,8 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb)
 		__enqueue_in_driver(vb);
 
 	/* Fill buffer information for the userspace */
-	call_void_bufop(q, fill_user_buffer, vb, pb);
+	if (pb)
+		call_void_bufop(q, fill_user_buffer, vb, pb);
 
 	/*
 	 * If streamon has been called, and we haven't yet called
@@ -1634,10 +1647,10 @@ static int __vb2_wait_for_done_vb(struct vb2_queue *q, int nonblocking)
  * Will sleep if required for nonblocking == false.
  */
 static int __vb2_get_done_vb(struct vb2_queue *q, struct vb2_buffer **vb,
-				int nonblocking)
+			     void *pb, int nonblocking)
 {
 	unsigned long flags;
-	int ret;
+	int ret = 0;
 
 	/*
 	 * Wait for at least one buffer to become available on the done_list.
@@ -1653,12 +1666,14 @@ static int __vb2_get_done_vb(struct vb2_queue *q, struct vb2_buffer **vb,
 	spin_lock_irqsave(&q->done_lock, flags);
 	*vb = list_first_entry(&q->done_list, struct vb2_buffer, done_entry);
 	/*
-	 * Only remove the buffer from done_list if v4l2_buffer can handle all
-	 * the planes.
-	 * Verifying planes is NOT necessary since it already has been checked
-	 * before the buffer is queued/prepared. So it can never fail.
+	 * Only remove the buffer from done_list if all planes can be
+	 * handled. Some cases such as V4L2 file I/O and DVB have pb
+	 * == NULL; skip the check then as there's nothing to verify.
 	 */
-	list_del(&(*vb)->done_entry);
+	if (pb)
+		ret = call_bufop(q, verify_planes_array, *vb, pb);
+	if (!ret)
+		list_del(&(*vb)->done_entry);
 	spin_unlock_irqrestore(&q->done_lock, flags);
 
 	return ret;
@@ -1731,12 +1746,13 @@ static void __vb2_dqbuf(struct vb2_buffer *vb)
  * The return values from this function are intended to be directly returned
  * from vidioc_dqbuf handler in driver.
  */
-int vb2_core_dqbuf(struct vb2_queue *q, void *pb, bool nonblocking)
+int vb2_core_dqbuf(struct vb2_queue *q, unsigned int *pindex, void *pb,
+		   bool nonblocking)
 {
 	struct vb2_buffer *vb = NULL;
 	int ret;
 
-	ret = __vb2_get_done_vb(q, &vb, nonblocking);
+	ret = __vb2_get_done_vb(q, &vb, pb, nonblocking);
 	if (ret < 0)
 		return ret;
 
@@ -1754,8 +1770,12 @@ int vb2_core_dqbuf(struct vb2_queue *q, void *pb, bool nonblocking)
 
 	call_void_vb_qop(vb, buf_finish, vb);
 
+	if (pindex)
+		*pindex = vb->index;
+
 	/* Fill buffer information for the userspace */
-	call_void_bufop(q, fill_user_buffer, vb, pb);
+	if (pb)
+		call_void_bufop(q, fill_user_buffer, vb, pb);
 
 	/* Remove from videobuf queue */
 	list_del(&vb->queued_entry);
@@ -1827,8 +1847,8 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 	 * Make sure to call buf_finish for any queued buffers. Normally
 	 * that's done in dqbuf, but that's not going to happen when we
 	 * cancel the whole queue. Note: this code belongs here, not in
-	 * __vb2_dqbuf() since in vb2_internal_dqbuf() there is a critical
-	 * call to __fill_v4l2_buffer() after buf_finish(). That order can't
+	 * __vb2_dqbuf() since in vb2_core_dqbuf() there is a critical
+	 * call to __fill_user_buffer() after buf_finish(). That order can't
 	 * be changed, so we can't move the buf_finish() to __vb2_dqbuf().
 	 */
 	for (i = 0; i < q->num_buffers; ++i) {
@@ -1872,6 +1892,9 @@ int vb2_core_streamon(struct vb2_queue *q, unsigned int type)
 	 * are available.
 	 */
 	if (q->queued_count >= q->min_buffers_needed) {
+		ret = v4l_vb2q_enable_media_source(q);
+		if (ret)
+			return ret;
 		ret = vb2_start_streaming(q);
 		if (ret) {
 			__vb2_queue_cancel(q);
@@ -2279,6 +2302,16 @@ unsigned int vb2_core_poll(struct vb2_queue *q, struct file *file,
 		return POLLERR;
 
 	/*
+	 * If this quirk is set and QBUF hasn't been called yet then
+	 * return POLLERR as well. This only affects capture queues, output
+	 * queues will always initialize waiting_for_buffers to false.
+	 * This quirk is set by V4L2 for backwards compatibility reasons.
+	 */
+	if (q->quirk_poll_must_check_waiting_for_buffers &&
+	    q->waiting_for_buffers && (req_events & (POLLIN | POLLRDNORM)))
+		return POLLERR;
+
+	/*
 	 * For output streams you can call write() as long as there are fewer
 	 * buffers queued than there are buffers available.
 	 */
@@ -2357,7 +2390,6 @@ struct vb2_fileio_data {
 	unsigned int count;
 	unsigned int type;
 	unsigned int memory;
-	struct vb2_buffer *b;
 	struct vb2_fileio_buf bufs[VB2_MAX_FRAME];
 	unsigned int cur_index;
 	unsigned int initial_index;
@@ -2410,12 +2442,6 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
 	if (fileio == NULL)
 		return -ENOMEM;
 
-	fileio->b = kzalloc(q->buf_struct_size, GFP_KERNEL);
-	if (fileio->b == NULL) {
-		kfree(fileio);
-		return -ENOMEM;
-	}
-
 	fileio->read_once = q->fileio_read_once;
 	fileio->write_immediately = q->fileio_write_immediately;
 
@@ -2460,13 +2486,7 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
 		 * Queue all buffers.
 		 */
 		for (i = 0; i < q->num_buffers; i++) {
-			struct vb2_buffer *b = fileio->b;
-
-			memset(b, 0, q->buf_struct_size);
-			b->type = q->type;
-			b->memory = q->memory;
-			b->index = i;
-			ret = vb2_core_qbuf(q, i, b);
+			ret = vb2_core_qbuf(q, i, NULL);
 			if (ret)
 				goto err_reqbufs;
 			fileio->bufs[i].queued = 1;
@@ -2511,7 +2531,6 @@ static int __vb2_cleanup_fileio(struct vb2_queue *q)
 		q->fileio = NULL;
 		fileio->count = 0;
 		vb2_core_reqbufs(q, fileio->memory, &fileio->count);
-		kfree(fileio->b);
 		kfree(fileio);
 		dprintk(3, "file io emulator closed\n");
 	}
@@ -2539,7 +2558,8 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 	 * else is able to provide this information with the write() operation.
 	 */
 	bool copy_timestamp = !read && q->copy_timestamp;
-	int ret, index;
+	unsigned index;
+	int ret;
 
 	dprintk(3, "mode %s, offset %ld, count %zd, %sblocking\n",
 		read ? "read" : "write", (long)*ppos, count,
@@ -2564,22 +2584,20 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 	 */
 	index = fileio->cur_index;
 	if (index >= q->num_buffers) {
-		struct vb2_buffer *b = fileio->b;
+		struct vb2_buffer *b;
 
 		/*
 		 * Call vb2_dqbuf to get buffer back.
 		 */
-		memset(b, 0, q->buf_struct_size);
-		b->type = q->type;
-		b->memory = q->memory;
-		ret = vb2_core_dqbuf(q, b, nonblock);
+		ret = vb2_core_dqbuf(q, &index, NULL, nonblock);
 		dprintk(5, "vb2_dqbuf result: %d\n", ret);
 		if (ret)
 			return ret;
 		fileio->dq_count += 1;
 
-		fileio->cur_index = index = b->index;
+		fileio->cur_index = index;
 		buf = &fileio->bufs[index];
+		b = q->bufs[index];
 
 		/*
 		 * Get number of bytes filled by the driver
@@ -2630,7 +2648,7 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 	 * Queue next buffer if required.
 	 */
 	if (buf->pos == buf->size || (!read && fileio->write_immediately)) {
-		struct vb2_buffer *b = fileio->b;
+		struct vb2_buffer *b = q->bufs[index];
 
 		/*
 		 * Check if this is the last buffer to read.
@@ -2643,15 +2661,11 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 		/*
 		 * Call vb2_qbuf and give buffer to the driver.
 		 */
-		memset(b, 0, q->buf_struct_size);
-		b->type = q->type;
-		b->memory = q->memory;
-		b->index = index;
 		b->planes[0].bytesused = buf->pos;
 
 		if (copy_timestamp)
 			b->timestamp = ktime_get_ns();
-		ret = vb2_core_qbuf(q, index, b);
+		ret = vb2_core_qbuf(q, index, NULL);
 		dprintk(5, "vb2_dbuf result: %d\n", ret);
 		if (ret)
 			return ret;
@@ -2713,10 +2727,9 @@ static int vb2_thread(void *data)
 {
 	struct vb2_queue *q = data;
 	struct vb2_threadio_data *threadio = q->threadio;
-	struct vb2_fileio_data *fileio = q->fileio;
 	bool copy_timestamp = false;
-	int prequeue = 0;
-	int index = 0;
+	unsigned prequeue = 0;
+	unsigned index = 0;
 	int ret = 0;
 
 	if (q->is_output) {
@@ -2728,37 +2741,34 @@ static int vb2_thread(void *data)
 
 	for (;;) {
 		struct vb2_buffer *vb;
-		struct vb2_buffer *b = fileio->b;
 
 		/*
 		 * Call vb2_dqbuf to get buffer back.
 		 */
-		memset(b, 0, q->buf_struct_size);
-		b->type = q->type;
-		b->memory = q->memory;
 		if (prequeue) {
-			b->index = index++;
+			vb = q->bufs[index++];
 			prequeue--;
 		} else {
 			call_void_qop(q, wait_finish, q);
 			if (!threadio->stop)
-				ret = vb2_core_dqbuf(q, b, 0);
+				ret = vb2_core_dqbuf(q, &index, NULL, 0);
 			call_void_qop(q, wait_prepare, q);
 			dprintk(5, "file io: vb2_dqbuf result: %d\n", ret);
+			if (!ret)
+				vb = q->bufs[index];
 		}
 		if (ret || threadio->stop)
 			break;
 		try_to_freeze();
 
-		vb = q->bufs[b->index];
-		if (b->state == VB2_BUF_STATE_DONE)
+		if (vb->state != VB2_BUF_STATE_ERROR)
 			if (threadio->fnc(vb, threadio->priv))
 				break;
 		call_void_qop(q, wait_finish, q);
 		if (copy_timestamp)
-			b->timestamp = ktime_get_ns();;
+			vb->timestamp = ktime_get_ns();;
 		if (!threadio->stop)
-			ret = vb2_core_qbuf(q, b->index, b);
+			ret = vb2_core_qbuf(q, vb->index, NULL);
 		call_void_qop(q, wait_prepare, q);
 		if (ret || threadio->stop)
 			break;

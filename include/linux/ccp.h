@@ -1,9 +1,10 @@
 /*
  * AMD Cryptographic Coprocessor (CCP) driver
  *
- * Copyright (C) 2013 Advanced Micro Devices, Inc.
+ * Copyright (C) 2013,2016 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
+ * Author: Gary R Hook <gary.hook@amd.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -32,6 +33,18 @@ struct ccp_cmd;
  * Returns zero if a CCP device is present, -ENODEV otherwise.
  */
 int ccp_present(void);
+
+#define	CCP_VSIZE 16
+#define	CCP_VMASK		((unsigned int)((1 << CCP_VSIZE) - 1))
+#define	CCP_VERSION(v, r)	((unsigned int)((v << CCP_VSIZE) \
+					       | (r & CCP_VMASK)))
+
+/**
+ * ccp_version - get the version of the CCP
+ *
+ * Returns a positive version number, or zero if no CCP
+ */
+unsigned int ccp_version(void);
 
 /**
  * ccp_enqueue_cmd - queue an operation for processing by the CCP
@@ -63,6 +76,11 @@ int ccp_enqueue_cmd(struct ccp_cmd *cmd);
 static inline int ccp_present(void)
 {
 	return -ENODEV;
+}
+
+static inline unsigned int ccp_version(void)
+{
+	return 0;
 }
 
 static inline int ccp_enqueue_cmd(struct ccp_cmd *cmd)
@@ -364,6 +382,35 @@ struct ccp_passthru_engine {
 	u32 final;
 };
 
+/**
+ * struct ccp_passthru_nomap_engine - CCP pass-through operation
+ *   without performing DMA mapping
+ * @bit_mod: bitwise operation to perform
+ * @byte_swap: byteswap operation to perform
+ * @mask: mask to be applied to data
+ * @mask_len: length in bytes of mask
+ * @src: data to be used for this operation
+ * @dst: data produced by this operation
+ * @src_len: length in bytes of data used for this operation
+ * @final: indicate final pass-through operation
+ *
+ * Variables required to be set when calling ccp_enqueue_cmd():
+ *   - bit_mod, byte_swap, src, dst, src_len
+ *   - mask, mask_len if bit_mod is not CCP_PASSTHRU_BITWISE_NOOP
+ */
+struct ccp_passthru_nomap_engine {
+	enum ccp_passthru_bitwise bit_mod;
+	enum ccp_passthru_byteswap byte_swap;
+
+	dma_addr_t mask;
+	u32 mask_len;		/* In bytes */
+
+	dma_addr_t src_dma, dst_dma;
+	u64 src_len;		/* In bytes */
+
+	u32 final;
+};
+
 /***** ECC engine *****/
 #define CCP_ECC_MODULUS_BYTES	48	/* 384-bits */
 #define CCP_ECC_MAX_OPERANDS	6
@@ -505,7 +552,8 @@ enum ccp_engine {
 };
 
 /* Flag values for flags member of ccp_cmd */
-#define CCP_CMD_MAY_BACKLOG	0x00000001
+#define CCP_CMD_MAY_BACKLOG		0x00000001
+#define CCP_CMD_PASSTHRU_NO_DMA_MAP	0x00000002
 
 /**
  * struct ccp_cmd - CPP operation request
@@ -545,6 +593,7 @@ struct ccp_cmd {
 		struct ccp_sha_engine sha;
 		struct ccp_rsa_engine rsa;
 		struct ccp_passthru_engine passthru;
+		struct ccp_passthru_nomap_engine passthru_nomap;
 		struct ccp_ecc_engine ecc;
 	} u;
 

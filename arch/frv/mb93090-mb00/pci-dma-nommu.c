@@ -35,7 +35,7 @@ static DEFINE_SPINLOCK(dma_alloc_lock);
 static LIST_HEAD(dma_alloc_list);
 
 static void *frv_dma_alloc(struct device *hwdev, size_t size, dma_addr_t *dma_handle,
-		gfp_t gfp, struct dma_attrs *attrs)
+		gfp_t gfp, unsigned long attrs)
 {
 	struct dma_alloc_record *new;
 	struct list_head *this = &dma_alloc_list;
@@ -86,7 +86,7 @@ static void *frv_dma_alloc(struct device *hwdev, size_t size, dma_addr_t *dma_ha
 }
 
 static void frv_dma_free(struct device *hwdev, size_t size, void *vaddr,
-		dma_addr_t dma_handle, struct dma_attrs *attrs)
+		dma_addr_t dma_handle, unsigned long attrs)
 {
 	struct dma_alloc_record *rec;
 	unsigned long flags;
@@ -107,7 +107,7 @@ static void frv_dma_free(struct device *hwdev, size_t size, void *vaddr,
 
 static int frv_dma_map_sg(struct device *dev, struct scatterlist *sglist,
 		int nents, enum dma_data_direction direction,
-		struct dma_attrs *attrs)
+		unsigned long attrs)
 {
 	int i;
 	struct scatterlist *sg;
@@ -124,7 +124,7 @@ static int frv_dma_map_sg(struct device *dev, struct scatterlist *sglist,
 
 static dma_addr_t frv_dma_map_page(struct device *dev, struct page *page,
 		unsigned long offset, size_t size,
-		enum dma_data_direction direction, struct dma_attrs *attrs)
+		enum dma_data_direction direction, unsigned long attrs)
 {
 	BUG_ON(direction == DMA_NONE);
 	flush_dcache_page(page);

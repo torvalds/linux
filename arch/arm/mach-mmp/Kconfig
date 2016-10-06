@@ -1,8 +1,8 @@
 menuconfig ARCH_MMP
 	bool "Marvell PXA168/910/MMP2"
 	depends on ARCH_MULTI_V5 || ARCH_MULTI_V7
-	select ARCH_REQUIRE_GPIOLIB
 	select GPIO_PXA
+	select GPIOLIB
 	select PINCTRL
 	select PLAT_PXA
 	help

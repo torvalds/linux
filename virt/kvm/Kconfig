@@ -16,9 +16,6 @@ config HAVE_KVM_EVENTFD
        bool
        select EVENTFD
 
-config KVM_APIC_ARCHITECTURE
-       bool
-
 config KVM_MMIO
        bool
 
@@ -39,6 +36,9 @@ config KVM_VFIO
        bool
 
 config HAVE_KVM_ARCH_TLB_FLUSH_ALL
+       bool
+
+config HAVE_KVM_INVALID_WAKEUPS
        bool
 
 config KVM_GENERIC_DIRTYLOG_READ_PROTECT

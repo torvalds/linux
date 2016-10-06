@@ -27,9 +27,25 @@ config CLKBLD_I8253
 config CLKSRC_MMIO
 	bool
 
+config BCM2835_TIMER
+	bool "BCM2835 timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	select CLKSRC_MMIO
+	help
+	  Enables the support for the BCM2835 timer driver.
+
+config BCM_KONA_TIMER
+	bool "BCM mobile timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	select CLKSRC_MMIO
+	help
+	  Enables the support for the BCM Kona mobile timer driver.
+
 config DIGICOLOR_TIMER
 	bool "Digicolor timer driver" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
+	select CLKSRC_MMIO
+	depends on HAS_IOMEM
 	help
 	  Enables the support for the digicolor timer driver.
 
@@ -55,6 +71,7 @@ config ARMADA_370_XP_TIMER
 	bool "Armada 370 and XP timer driver" if COMPILE_TEST
 	depends on ARM
 	select CLKSRC_OF
+	select CLKSRC_MMIO
 	help
 	  Enables the support for the Armada 370 and XP timer driver.
 
@@ -76,6 +93,7 @@ config ORION_TIMER
 config SUN4I_TIMER
 	bool "Sun4i timer driver" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
+	depends on HAS_IOMEM
 	select CLKSRC_MMIO
 	help
 	  Enables support for the Sun4i timer.
@@ -89,6 +107,7 @@ config SUN5I_HSTIMER
 
 config TEGRA_TIMER
 	bool "Tegra timer driver" if COMPILE_TEST
+	select CLKSRC_MMIO
 	depends on ARM
 	help
 	  Enables support for the Tegra driver.
@@ -96,6 +115,7 @@ config TEGRA_TIMER
 config VT8500_TIMER
 	bool "VT8500 timer driver" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
+	depends on HAS_IOMEM
 	help
 	  Enables support for the VT8500 driver.
 
@@ -131,8 +151,75 @@ config CLKSRC_NOMADIK_MTU_SCHED_CLOCK
 config CLKSRC_DBX500_PRCMU
 	bool "Clocksource PRCMU Timer" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
+	depends on HAS_IOMEM
 	help
 	  Use the always on PRCMU Timer as clocksource
+
+config CLPS711X_TIMER
+	bool "Cirrus logic timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	select CLKSRC_MMIO
+	help
+	  Enables support for the Cirrus Logic PS711 timer.
+
+config ATLAS7_TIMER
+	bool "Atlas7 timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	select CLKSRC_MMIO
+	help
+	  Enables support for the Atlas7 timer.
+
+config MOXART_TIMER
+	bool "Moxart timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	select CLKSRC_MMIO
+	help
+	  Enables support for the Moxart timer.
+
+config MXS_TIMER
+	bool "Mxs timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	select CLKSRC_MMIO
+	select STMP_DEVICE
+	help
+	  Enables support for the Mxs timer.
+
+config PRIMA2_TIMER
+	bool "Prima2 timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	select CLKSRC_MMIO
+	help
+	  Enables support for the Prima2 timer.
+
+config U300_TIMER
+	bool "U300 timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	depends on ARM
+	select CLKSRC_MMIO
+	help
+	  Enables support for the U300 timer.
+
+config NSPIRE_TIMER
+	bool "NSpire timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	select CLKSRC_MMIO
+	help
+	  Enables support for the Nspire timer.
+
+config KEYSTONE_TIMER
+	bool "Keystone timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	depends on ARM || ARM64
+	select CLKSRC_MMIO
+	help
+	  Enables support for the Keystone timer.
+
+config INTEGRATOR_AP_TIMER
+	bool "Integrator-ap timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	select CLKSRC_MMIO
+	help
+	  Enables support for the Integrator-ap timer.
 
 config CLKSRC_DBX500_PRCMU_SCHED_CLOCK
 	bool "Clocksource PRCMU Timer sched_clock"
@@ -153,6 +240,7 @@ config CLKSRC_EFM32
 config CLKSRC_LPC32XX
 	bool "Clocksource for LPC32XX" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS && HAS_IOMEM
+	depends on ARM
 	select CLKSRC_MMIO
 	select CLKSRC_OF
 	help
@@ -173,10 +261,26 @@ config CLKSRC_TI_32K
 	  This option enables support for Texas Instruments 32.768 Hz clocksource
 	  available on many OMAP-like platforms.
 
+config CLKSRC_NPS
+	bool "NPS400 clocksource driver" if COMPILE_TEST
+	depends on !PHYS_ADDR_T_64BIT
+	select CLKSRC_MMIO
+	select CLKSRC_OF if OF
+	help
+	  NPS400 clocksource support.
+	  Got 64 bit counter with update rate up to 1000MHz.
+	  This counter is accessed via couple of 32 bit memory mapped registers.
+
 config CLKSRC_STM32
 	bool "Clocksource for STM32 SoCs" if !ARCH_STM32
 	depends on OF && ARM && (ARCH_STM32 || COMPILE_TEST)
 	select CLKSRC_MMIO
+
+config CLKSRC_MPS2
+	bool "Clocksource for MPS2 SoCs" if COMPILE_TEST
+	depends on GENERIC_SCHED_CLOCK
+	select CLKSRC_MMIO
+	select CLKSRC_OF
 
 config ARM_ARCH_TIMER
 	bool
@@ -184,14 +288,16 @@ config ARM_ARCH_TIMER
 	select CLKSRC_ACPI if ACPI
 
 config ARM_ARCH_TIMER_EVTSTREAM
-	bool "Support for ARM architected timer event stream generation"
+	bool "Enable ARM architected timer event stream generation by default"
 	default y if ARM_ARCH_TIMER
 	depends on ARM_ARCH_TIMER
 	help
-	  This option enables support for event stream generation based on
-	  the ARM architected timer. It is used for waking up CPUs executing
-	  the wfe instruction at a frequency represented as a power-of-2
-	  divisor of the clock rate.
+	  This option enables support by default for event stream generation
+	  based on the ARM architected timer. It is used for waking up CPUs
+	  executing the wfe instruction at a frequency represented as a
+	  power-of-2 divisor of the clock rate. The behaviour can also be
+	  overridden on the command line using the
+	  clocksource.arm_arch_timer.evtstream parameter.
 	  The main use of the event stream is wfe-based timeouts of userspace
 	  locking implementations. It might also be useful for imposing timeout
 	  on wfe to safeguard against any programming errors in case an expected
@@ -199,9 +305,20 @@ config ARM_ARCH_TIMER_EVTSTREAM
 	  This must be disabled for hardware validation purposes to detect any
 	  hardware anomalies of missing events.
 
+config FSL_ERRATUM_A008585
+	bool "Workaround for Freescale/NXP Erratum A-008585"
+	default y
+	depends on ARM_ARCH_TIMER && ARM64
+	help
+	  This option enables a workaround for Freescale/NXP Erratum
+	  A-008585 ("ARM generic timer may contain an erroneous
+	  value").  The workaround will only be active if the
+	  fsl,erratum-a008585 property is found in the timer node.
+
 config ARM_GLOBAL_TIMER
-	bool
+	bool "Support for the ARM global timer" if COMPILE_TEST
 	select CLKSRC_OF if OF
+	depends on ARM
 	help
 	  This options enables support for the ARM global timer unit
 
@@ -219,7 +336,7 @@ config CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
 	 Use ARM global timer clock source as sched_clock
 
 config ARMV7M_SYSTICK
-	bool
+	bool "Support for the ARMv7M system time" if COMPILE_TEST
 	select CLKSRC_OF if OF
 	select CLKSRC_MMIO
 	help
@@ -230,9 +347,12 @@ config ATMEL_PIT
 	def_bool SOC_AT91SAM9 || SOC_SAMA5
 
 config ATMEL_ST
-	bool
+	bool "Atmel ST timer support" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
 	select CLKSRC_OF
 	select MFD_SYSCON
+	help
+	  Support for the Atmel ST timer.
 
 config CLKSRC_METAG_GENERIC
 	def_bool y if METAG
@@ -246,8 +366,9 @@ config CLKSRC_EXYNOS_MCT
 	  Support for Multi Core Timer controller on Exynos SoCs.
 
 config CLKSRC_SAMSUNG_PWM
-	bool "PWM timer drvier for Samsung S3C, S5P" if COMPILE_TEST
+	bool "PWM timer driver for Samsung S3C, S5P" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
+	depends on HAS_IOMEM
 	help
 	  This is a new clocksource driver for the PWM timer found in
 	  Samsung S3C, S5P and Exynos SoCs, replacing an earlier driver
@@ -257,14 +378,24 @@ config CLKSRC_SAMSUNG_PWM
 config FSL_FTM_TIMER
 	bool "Freescale FlexTimer Module driver" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
+	depends on HAS_IOMEM
 	select CLKSRC_MMIO
 	help
 	  Support for Freescale FlexTimer Module (FTM) timer.
 
 config VF_PIT_TIMER
 	bool
+	select CLKSRC_MMIO
 	help
 	  Support for Period Interrupt Timer on Freescale Vybrid Family SoCs.
+
+config OXNAS_RPS_TIMER
+	bool "Oxford Semiconductor OXNAS RPS Timers driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	select CLKSRC_OF
+	select CLKSRC_MMIO
+	help
+	  This enables support for the Oxford Semiconductor OXNAS RPS timers.
 
 config SYS_SUPPORTS_SH_CMT
         bool
@@ -334,8 +465,8 @@ config CLKSRC_QCOM
 	  Qualcomm SoCs.
 
 config CLKSRC_VERSATILE
-	bool "ARM Versatile (Express) reference platforms clock source"
-	depends on PLAT_VERSATILE && GENERIC_SCHED_CLOCK && !ARCH_USES_GETTIMEOFFSET
+	bool "ARM Versatile (Express) reference platforms clock source" if COMPILE_TEST
+	depends on GENERIC_SCHED_CLOCK && !ARCH_USES_GETTIMEOFFSET
 	select CLKSRC_OF
 	default y if MFD_VEXPRESS_SYSREG
 	help
@@ -360,6 +491,7 @@ config CLKSRC_TANGO_XTAL
 config CLKSRC_PXA
 	bool "Clocksource for PXA or SA-11x0 platform" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
+	depends on HAS_IOMEM
 	select CLKSRC_MMIO
 	help
 	  This enables OST0 support available on PXA and SA-11x0
@@ -394,6 +526,7 @@ config CLKSRC_ST_LPC
 	bool "Low power clocksource found in the LPC" if COMPILE_TEST
 	select CLKSRC_OF if OF
 	depends on HAS_IOMEM
+	select CLKSRC_MMIO
 	help
 	  Enable this option to use the Low Power controller timer
 	  as clocksource.

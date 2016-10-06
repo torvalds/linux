@@ -2,7 +2,7 @@
  *  Ralink MT7620A SoC PCI support
  *
  *  Copyright (C) 2007-2013 Bruce Chang (Mediatek)
- *  Copyright (C) 2013-2016 John Crispin <blogic@openwrt.org>
+ *  Copyright (C) 2013-2016 John Crispin <john@phrozen.org>
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License version 2 as published
@@ -297,12 +297,12 @@ static int mt7620_pci_probe(struct platform_device *pdev)
 		return PTR_ERR(rstpcie0);
 
 	bridge_base = devm_ioremap_resource(&pdev->dev, bridge_res);
-	if (!bridge_base)
-		return -ENOMEM;
+	if (IS_ERR(bridge_base))
+		return PTR_ERR(bridge_base);
 
 	pcie_base = devm_ioremap_resource(&pdev->dev, pcie_res);
-	if (!pcie_base)
-		return -ENOMEM;
+	if (IS_ERR(pcie_base))
+		return PTR_ERR(pcie_base);
 
 	iomem_resource.start = 0;
 	iomem_resource.end = ~0;

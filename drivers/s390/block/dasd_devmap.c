@@ -214,8 +214,8 @@ dasd_feature_list(char *str, char **endp)
 		else if (len == 8 && !strncmp(str, "failfast", 8))
 			features |= DASD_FEATURE_FAILFAST;
 		else {
-			pr_warning("%*s is not a supported device option\n",
-				   len, str);
+			pr_warn("%*s is not a supported device option\n",
+				len, str);
 			rc = -EINVAL;
 		}
 		str += len;
@@ -224,8 +224,7 @@ dasd_feature_list(char *str, char **endp)
 		str++;
 	}
 	if (*str != ')') {
-		pr_warning("A closing parenthesis ')' is missing in the "
-			   "dasd= parameter\n");
+		pr_warn("A closing parenthesis ')' is missing in the dasd= parameter\n");
 		rc = -EINVAL;
 	} else
 		str++;
@@ -348,8 +347,7 @@ dasd_parse_range( char *parsestring ) {
 		return str + 1;
 	if (*str == '\0')
 		return str;
-	pr_warning("The dasd= parameter value %s has an invalid ending\n",
-		   str);
+	pr_warn("The dasd= parameter value %s has an invalid ending\n", str);
 	return ERR_PTR(-EINVAL);
 }
 
@@ -619,6 +617,7 @@ dasd_delete_device(struct dasd_device *device)
 	/* Wait for reference counter to drop to zero. */
 	wait_event(dasd_delete_wq, atomic_read(&device->ref_count) == 0);
 
+	dasd_generic_free_discipline(device);
 	/* Disconnect dasd_device structure from ccw_device structure. */
 	cdev = device->cdev;
 	device->cdev = NULL;
@@ -982,6 +981,32 @@ out:
 }
 
 static DEVICE_ATTR(safe_offline, 0200, NULL, dasd_safe_offline_store);
+
+static ssize_t
+dasd_access_show(struct device *dev, struct device_attribute *attr,
+		 char *buf)
+{
+	struct ccw_device *cdev = to_ccwdev(dev);
+	struct dasd_device *device;
+	int count;
+
+	device = dasd_device_from_cdev(cdev);
+	if (IS_ERR(device))
+		return PTR_ERR(device);
+
+	if (device->discipline->host_access_count)
+		count = device->discipline->host_access_count(device);
+	else
+		count = -EOPNOTSUPP;
+
+	dasd_put_device(device);
+	if (count < 0)
+		return count;
+
+	return sprintf(buf, "%d\n", count);
+}
+
+static DEVICE_ATTR(host_access_count, 0444, dasd_access_show, NULL);
 
 static ssize_t
 dasd_discipline_show(struct device *dev, struct device_attribute *attr,
@@ -1473,6 +1498,7 @@ static struct attribute * dasd_attrs[] = {
 	&dev_attr_reservation_policy.attr,
 	&dev_attr_last_known_reservation_state.attr,
 	&dev_attr_safe_offline.attr,
+	&dev_attr_host_access_count.attr,
 	&dev_attr_path_masks.attr,
 	NULL,
 };

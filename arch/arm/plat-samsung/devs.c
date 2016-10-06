@@ -68,7 +68,7 @@
 #include <linux/platform_data/asoc-s3c.h>
 #include <linux/platform_data/spi-s3c64xx.h>
 
-static u64 samsung_device_dma_mask = DMA_BIT_MASK(32);
+#define samsung_device_dma_mask (*((u64[]) { DMA_BIT_MASK(32) }))
 
 /* AC97 */
 #ifdef CONFIG_CPU_S3C2440
@@ -722,15 +722,6 @@ static int __init s3c_nand_copy_set(struct s3c2410_nand_set *set)
 		size = sizeof(int) * set->nr_chips;
 		ptr = kmemdup(set->nr_map, size, GFP_KERNEL);
 		set->nr_map = ptr;
-
-		if (!ptr)
-			return -ENOMEM;
-	}
-
-	if (set->ecc_layout) {
-		ptr = kmemdup(set->ecc_layout,
-			      sizeof(struct nand_ecclayout), GFP_KERNEL);
-		set->ecc_layout = ptr;
 
 		if (!ptr)
 			return -ENOMEM;

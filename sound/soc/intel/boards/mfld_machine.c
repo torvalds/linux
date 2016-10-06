@@ -94,7 +94,7 @@ static const struct soc_enum lo_enum =
 static int headset_get_switch(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	ucontrol->value.integer.value[0] = hs_switch;
+	ucontrol->value.enumerated.item[0] = hs_switch;
 	return 0;
 }
 
@@ -104,12 +104,12 @@ static int headset_set_switch(struct snd_kcontrol *kcontrol,
 	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_dapm_context *dapm = &card->dapm;
 
-	if (ucontrol->value.integer.value[0] == hs_switch)
+	if (ucontrol->value.enumerated.item[0] == hs_switch)
 		return 0;
 
 	snd_soc_dapm_mutex_lock(dapm);
 
-	if (ucontrol->value.integer.value[0]) {
+	if (ucontrol->value.enumerated.item[0]) {
 		pr_debug("hs_set HS path\n");
 		snd_soc_dapm_enable_pin_unlocked(dapm, "Headphones");
 		snd_soc_dapm_disable_pin_unlocked(dapm, "EPOUT");
@@ -123,7 +123,7 @@ static int headset_set_switch(struct snd_kcontrol *kcontrol,
 
 	snd_soc_dapm_mutex_unlock(dapm);
 
-	hs_switch = ucontrol->value.integer.value[0];
+	hs_switch = ucontrol->value.enumerated.item[0];
 
 	return 0;
 }
@@ -148,7 +148,7 @@ static void lo_enable_out_pins(struct snd_soc_dapm_context *dapm)
 static int lo_get_switch(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	ucontrol->value.integer.value[0] = lo_dac;
+	ucontrol->value.enumerated.item[0] = lo_dac;
 	return 0;
 }
 
@@ -158,7 +158,7 @@ static int lo_set_switch(struct snd_kcontrol *kcontrol,
 	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_dapm_context *dapm = &card->dapm;
 
-	if (ucontrol->value.integer.value[0] == lo_dac)
+	if (ucontrol->value.enumerated.item[0] == lo_dac)
 		return 0;
 
 	snd_soc_dapm_mutex_lock(dapm);
@@ -168,7 +168,7 @@ static int lo_set_switch(struct snd_kcontrol *kcontrol,
 	 */
 	lo_enable_out_pins(dapm);
 
-	switch (ucontrol->value.integer.value[0]) {
+	switch (ucontrol->value.enumerated.item[0]) {
 	case 0:
 		pr_debug("set vibra path\n");
 		snd_soc_dapm_disable_pin_unlocked(dapm, "VIB1OUT");
@@ -202,7 +202,7 @@ static int lo_set_switch(struct snd_kcontrol *kcontrol,
 
 	snd_soc_dapm_mutex_unlock(dapm);
 
-	lo_dac = ucontrol->value.integer.value[0];
+	lo_dac = ucontrol->value.enumerated.item[0];
 	return 0;
 }
 

@@ -37,7 +37,8 @@ void ovs_ct_free_action(const struct nlattr *a);
 
 #define CT_SUPPORTED_MASK (OVS_CS_F_NEW | OVS_CS_F_ESTABLISHED | \
 			   OVS_CS_F_RELATED | OVS_CS_F_REPLY_DIR | \
-			   OVS_CS_F_INVALID | OVS_CS_F_TRACKED)
+			   OVS_CS_F_INVALID | OVS_CS_F_TRACKED | \
+			   OVS_CS_F_SRC_NAT | OVS_CS_F_DST_NAT)
 #else
 #include <linux/errno.h>
 

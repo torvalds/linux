@@ -245,8 +245,6 @@ struct mxr_device {
 
 	/** V4L2 device */
 	struct v4l2_device v4l2_dev;
-	/** context of allocator */
-	void *alloc_ctx;
 	/** event wait queue */
 	wait_queue_head_t event_queue;
 	/** state flags */
@@ -300,7 +298,7 @@ void mxr_release_video(struct mxr_device *mdev);
 struct mxr_layer *mxr_graph_layer_create(struct mxr_device *mdev, int idx);
 struct mxr_layer *mxr_vp_layer_create(struct mxr_device *mdev, int idx);
 struct mxr_layer *mxr_base_layer_create(struct mxr_device *mdev,
-	int idx, char *name, struct mxr_layer_ops *ops);
+	int idx, char *name, const struct mxr_layer_ops *ops);
 
 void mxr_base_layer_release(struct mxr_layer *layer);
 void mxr_layer_release(struct mxr_layer *layer);

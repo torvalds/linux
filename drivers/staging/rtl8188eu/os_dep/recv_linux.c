@@ -11,11 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
  ******************************************************************************/
 #include <osdep_service.h>
 #include <drv_types.h>
@@ -29,7 +24,6 @@
 /* alloc os related resource in struct recv_frame */
 void rtw_os_recv_resource_alloc(struct recv_frame *precvframe)
 {
-	precvframe->pkt_newalloc = NULL;
 	precvframe->pkt = NULL;
 }
 

@@ -1,5 +1,5 @@
 menuconfig ASYMMETRIC_KEY_TYPE
-	tristate "Asymmetric (public-key cryptographic) key type"
+	bool "Asymmetric (public-key cryptographic) key type"
 	depends on KEYS
 	help
 	  This option provides support for a key type that holds the data for
@@ -12,19 +12,13 @@ if ASYMMETRIC_KEY_TYPE
 config ASYMMETRIC_PUBLIC_KEY_SUBTYPE
 	tristate "Asymmetric public-key crypto algorithm subtype"
 	select MPILIB
-	select PUBLIC_KEY_ALGO_RSA
 	select CRYPTO_HASH_INFO
+	select CRYPTO_AKCIPHER
 	help
 	  This option provides support for asymmetric public key type handling.
 	  If signature generation and/or verification are to be used,
 	  appropriate hash algorithms (such as SHA-1) must be available.
 	  ENOPKG will be reported if the requisite algorithm is unavailable.
-
-config PUBLIC_KEY_ALGO_RSA
-	tristate "RSA public-key algorithm"
-	select MPILIB
-	help
-	  This option enables support for the RSA algorithm (PKCS#1, RFC3447).
 
 config X509_CERTIFICATE_PARSER
 	tristate "X.509 certificate parser"
@@ -47,8 +41,7 @@ config PKCS7_MESSAGE_PARSER
 
 config PKCS7_TEST_KEY
 	tristate "PKCS#7 testing key type"
-	depends on PKCS7_MESSAGE_PARSER
-	select SYSTEM_TRUSTED_KEYRING
+	depends on SYSTEM_DATA_VERIFICATION
 	help
 	  This option provides a type of key that can be loaded up from a
 	  PKCS#7 message - provided the message is signed by a trusted key.  If
@@ -61,6 +54,7 @@ config PKCS7_TEST_KEY
 config SIGNED_PE_FILE_VERIFICATION
 	bool "Support for PE file signature verification"
 	depends on PKCS7_MESSAGE_PARSER=y
+	depends on SYSTEM_DATA_VERIFICATION
 	select ASN1
 	select OID_REGISTRY
 	help

@@ -14,6 +14,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/vmalloc.h>
 
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
@@ -36,26 +37,14 @@ static int change_page_range(pte_t *ptep, pgtable_t token, unsigned long addr,
 	return 0;
 }
 
-static int change_memory_common(unsigned long addr, int numpages,
+/*
+ * This function assumes that the range is mapped with PAGE_SIZE pages.
+ */
+static int __change_memory_common(unsigned long start, unsigned long size,
 				pgprot_t set_mask, pgprot_t clear_mask)
 {
-	unsigned long start = addr;
-	unsigned long size = PAGE_SIZE*numpages;
-	unsigned long end = start + size;
-	int ret;
 	struct page_change_data data;
-
-	if (!PAGE_ALIGNED(addr)) {
-		start &= PAGE_MASK;
-		end = start + size;
-		WARN_ON_ONCE(1);
-	}
-
-	if (start < MODULES_VADDR || start >= MODULES_END)
-		return -EINVAL;
-
-	if (end < MODULES_VADDR || end >= MODULES_END)
-		return -EINVAL;
+	int ret;
 
 	data.set_mask = set_mask;
 	data.clear_mask = clear_mask;
@@ -63,8 +52,47 @@ static int change_memory_common(unsigned long addr, int numpages,
 	ret = apply_to_page_range(&init_mm, start, size, change_page_range,
 					&data);
 
-	flush_tlb_kernel_range(start, end);
+	flush_tlb_kernel_range(start, start + size);
 	return ret;
+}
+
+static int change_memory_common(unsigned long addr, int numpages,
+				pgprot_t set_mask, pgprot_t clear_mask)
+{
+	unsigned long start = addr;
+	unsigned long size = PAGE_SIZE*numpages;
+	unsigned long end = start + size;
+	struct vm_struct *area;
+
+	if (!PAGE_ALIGNED(addr)) {
+		start &= PAGE_MASK;
+		end = start + size;
+		WARN_ON_ONCE(1);
+	}
+
+	/*
+	 * Kernel VA mappings are always live, and splitting live section
+	 * mappings into page mappings may cause TLB conflicts. This means
+	 * we have to ensure that changing the permission bits of the range
+	 * we are operating on does not result in such splitting.
+	 *
+	 * Let's restrict ourselves to mappings created by vmalloc (or vmap).
+	 * Those are guaranteed to consist entirely of page mappings, and
+	 * splitting is never needed.
+	 *
+	 * So check whether the [addr, addr + size) interval is entirely
+	 * covered by precisely one VM area that has the VM_ALLOC flag set.
+	 */
+	area = find_vm_area((void *)addr);
+	if (!area ||
+	    end > (unsigned long)area->addr + area->size ||
+	    !(area->flags & VM_ALLOC))
+		return -EINVAL;
+
+	if (!numpages)
+		return 0;
+
+	return __change_memory_common(start, size, set_mask, clear_mask);
 }
 
 int set_memory_ro(unsigned long addr, int numpages)
@@ -96,3 +124,58 @@ int set_memory_x(unsigned long addr, int numpages)
 					__pgprot(PTE_PXN));
 }
 EXPORT_SYMBOL_GPL(set_memory_x);
+
+#ifdef CONFIG_DEBUG_PAGEALLOC
+void __kernel_map_pages(struct page *page, int numpages, int enable)
+{
+	unsigned long addr = (unsigned long) page_address(page);
+
+	if (enable)
+		__change_memory_common(addr, PAGE_SIZE * numpages,
+					__pgprot(PTE_VALID),
+					__pgprot(0));
+	else
+		__change_memory_common(addr, PAGE_SIZE * numpages,
+					__pgprot(0),
+					__pgprot(PTE_VALID));
+}
+#ifdef CONFIG_HIBERNATION
+/*
+ * When built with CONFIG_DEBUG_PAGEALLOC and CONFIG_HIBERNATION, this function
+ * is used to determine if a linear map page has been marked as not-valid by
+ * CONFIG_DEBUG_PAGEALLOC. Walk the page table and check the PTE_VALID bit.
+ * This is based on kern_addr_valid(), which almost does what we need.
+ *
+ * Because this is only called on the kernel linear map,  p?d_sect() implies
+ * p?d_present(). When debug_pagealloc is enabled, sections mappings are
+ * disabled.
+ */
+bool kernel_page_present(struct page *page)
+{
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+	unsigned long addr = (unsigned long)page_address(page);
+
+	pgd = pgd_offset_k(addr);
+	if (pgd_none(*pgd))
+		return false;
+
+	pud = pud_offset(pgd, addr);
+	if (pud_none(*pud))
+		return false;
+	if (pud_sect(*pud))
+		return true;
+
+	pmd = pmd_offset(pud, addr);
+	if (pmd_none(*pmd))
+		return false;
+	if (pmd_sect(*pmd))
+		return true;
+
+	pte = pte_offset_kernel(pmd, addr);
+	return pte_valid(*pte);
+}
+#endif /* CONFIG_HIBERNATION */
+#endif /* CONFIG_DEBUG_PAGEALLOC */

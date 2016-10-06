@@ -150,7 +150,7 @@ static loff_t vaddr_to_offset(struct vm_area_struct *vma, unsigned long vaddr)
  * Returns 0 on success, -EFAULT on failure.
  */
 static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
-				struct page *page, struct page *kpage)
+				struct page *old_page, struct page *new_page)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	spinlock_t *ptl;
@@ -161,48 +161,49 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 	const unsigned long mmun_end   = addr + PAGE_SIZE;
 	struct mem_cgroup *memcg;
 
-	err = mem_cgroup_try_charge(kpage, vma->vm_mm, GFP_KERNEL, &memcg,
+	err = mem_cgroup_try_charge(new_page, vma->vm_mm, GFP_KERNEL, &memcg,
 			false);
 	if (err)
 		return err;
 
 	/* For try_to_free_swap() and munlock_vma_page() below */
-	lock_page(page);
+	lock_page(old_page);
 
 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
 	err = -EAGAIN;
-	ptep = page_check_address(page, mm, addr, &ptl, 0);
-	if (!ptep)
+	ptep = page_check_address(old_page, mm, addr, &ptl, 0);
+	if (!ptep) {
+		mem_cgroup_cancel_charge(new_page, memcg, false);
 		goto unlock;
+	}
 
-	get_page(kpage);
-	page_add_new_anon_rmap(kpage, vma, addr, false);
-	mem_cgroup_commit_charge(kpage, memcg, false, false);
-	lru_cache_add_active_or_unevictable(kpage, vma);
+	get_page(new_page);
+	page_add_new_anon_rmap(new_page, vma, addr, false);
+	mem_cgroup_commit_charge(new_page, memcg, false, false);
+	lru_cache_add_active_or_unevictable(new_page, vma);
 
-	if (!PageAnon(page)) {
-		dec_mm_counter(mm, mm_counter_file(page));
+	if (!PageAnon(old_page)) {
+		dec_mm_counter(mm, mm_counter_file(old_page));
 		inc_mm_counter(mm, MM_ANONPAGES);
 	}
 
 	flush_cache_page(vma, addr, pte_pfn(*ptep));
 	ptep_clear_flush_notify(vma, addr, ptep);
-	set_pte_at_notify(mm, addr, ptep, mk_pte(kpage, vma->vm_page_prot));
+	set_pte_at_notify(mm, addr, ptep, mk_pte(new_page, vma->vm_page_prot));
 
-	page_remove_rmap(page, false);
-	if (!page_mapped(page))
-		try_to_free_swap(page);
+	page_remove_rmap(old_page, false);
+	if (!page_mapped(old_page))
+		try_to_free_swap(old_page);
 	pte_unmap_unlock(ptep, ptl);
 
 	if (vma->vm_flags & VM_LOCKED)
-		munlock_vma_page(page);
-	put_page(page);
+		munlock_vma_page(old_page);
+	put_page(old_page);
 
 	err = 0;
  unlock:
-	mem_cgroup_cancel_charge(kpage, memcg, false);
 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
-	unlock_page(page);
+	unlock_page(old_page);
 	return err;
 }
 
@@ -299,7 +300,7 @@ int uprobe_write_opcode(struct mm_struct *mm, unsigned long vaddr,
 
 retry:
 	/* Read the page with vaddr into memory */
-	ret = get_user_pages(NULL, mm, vaddr, 1, 0, 1, &old_page, &vma);
+	ret = get_user_pages_remote(NULL, mm, vaddr, 1, 0, 1, &old_page, &vma);
 	if (ret <= 0)
 		return ret;
 
@@ -321,7 +322,7 @@ retry:
 	copy_to_page(new_page, vaddr, &opcode, UPROBE_SWBP_INSN_SIZE);
 
 	ret = __replace_page(vma, vaddr, old_page, new_page);
-	page_cache_release(new_page);
+	put_page(new_page);
 put_old:
 	put_page(old_page);
 
@@ -539,14 +540,14 @@ static int __copy_insn(struct address_space *mapping, struct file *filp,
 	 * see uprobe_register().
 	 */
 	if (mapping->a_ops->readpage)
-		page = read_mapping_page(mapping, offset >> PAGE_CACHE_SHIFT, filp);
+		page = read_mapping_page(mapping, offset >> PAGE_SHIFT, filp);
 	else
-		page = shmem_read_mapping_page(mapping, offset >> PAGE_CACHE_SHIFT);
+		page = shmem_read_mapping_page(mapping, offset >> PAGE_SHIFT);
 	if (IS_ERR(page))
 		return PTR_ERR(page);
 
 	copy_from_page(page, offset, insn, nbytes);
-	page_cache_release(page);
+	put_page(page);
 
 	return 0;
 }
@@ -1130,7 +1131,9 @@ static int xol_add_vma(struct mm_struct *mm, struct xol_area *area)
 	struct vm_area_struct *vma;
 	int ret;
 
-	down_write(&mm->mmap_sem);
+	if (down_write_killable(&mm->mmap_sem))
+		return -EINTR;
+
 	if (mm->uprobes_state.xol_area) {
 		ret = -EALREADY;
 		goto fail;
@@ -1178,6 +1181,7 @@ static struct xol_area *__create_xol_area(unsigned long vaddr)
 		goto free_area;
 
 	area->xol_mapping.name = "[uprobes]";
+	area->xol_mapping.fault = NULL;
 	area->xol_mapping.pages = area->pages;
 	area->pages[0] = alloc_page(GFP_HIGHUSER);
 	if (!area->pages[0])
@@ -1468,7 +1472,8 @@ static void dup_xol_work(struct callback_head *work)
 	if (current->flags & PF_EXITING)
 		return;
 
-	if (!__create_xol_area(current->utask->dup_xol_addr))
+	if (!__create_xol_area(current->utask->dup_xol_addr) &&
+			!fatal_signal_pending(current))
 		uprobe_warn(current, "dup xol area");
 }
 
@@ -1693,14 +1698,19 @@ static int is_trap_at_addr(struct mm_struct *mm, unsigned long vaddr)
 	int result;
 
 	pagefault_disable();
-	result = __copy_from_user_inatomic(&opcode, (void __user*)vaddr,
-							sizeof(opcode));
+	result = __get_user(opcode, (uprobe_opcode_t __user *)vaddr);
 	pagefault_enable();
 
 	if (likely(result == 0))
 		goto out;
 
-	result = get_user_pages(NULL, mm, vaddr, 1, 0, 1, &page, NULL);
+	/*
+	 * The NULL 'tsk' here ensures that any faults that occur here
+	 * will not be accounted to the task.  'mm' *is* current->mm,
+	 * but we treat this as a 'remote' access since it is
+	 * essentially a kernel access to the memory.
+	 */
+	result = get_user_pages_remote(NULL, mm, vaddr, 1, 0, 1, &page, NULL);
 	if (result < 0)
 		return result;
 

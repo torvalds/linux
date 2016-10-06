@@ -109,14 +109,6 @@ static inline int irqchip_in_kernel(struct kvm *kvm)
 	return ret;
 }
 
-static inline int lapic_in_kernel(struct kvm_vcpu *vcpu)
-{
-	/* Same as irqchip_in_kernel(vcpu->kvm), but with less
-	 * pointer chasing and no unnecessary memory barriers.
-	 */
-	return vcpu->arch.apic != NULL;
-}
-
 void kvm_pic_reset(struct kvm_kpic_state *s);
 
 void kvm_inject_pending_timer_irqs(struct kvm_vcpu *vcpu);
@@ -127,5 +119,8 @@ void __kvm_migrate_pit_timer(struct kvm_vcpu *vcpu);
 void __kvm_migrate_timers(struct kvm_vcpu *vcpu);
 
 int apic_has_pending_timer(struct kvm_vcpu *vcpu);
+
+int kvm_setup_default_irq_routing(struct kvm *kvm);
+int kvm_setup_empty_irq_routing(struct kvm *kvm);
 
 #endif

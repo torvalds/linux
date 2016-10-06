@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 - 2015 Intel Corporation.
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -74,13 +74,33 @@ static const struct i40evf_stats i40evf_gstrings_stats[] = {
 static int i40evf_get_settings(struct net_device *netdev,
 			       struct ethtool_cmd *ecmd)
 {
-	/* In the future the VF will be able to query the PF for
-	 * some information - for now use a dummy value
-	 */
+	struct i40evf_adapter *adapter = netdev_priv(netdev);
+
 	ecmd->supported = 0;
 	ecmd->autoneg = AUTONEG_DISABLE;
 	ecmd->transceiver = XCVR_DUMMY1;
 	ecmd->port = PORT_NONE;
+	/* Set speed and duplex */
+	switch (adapter->link_speed) {
+	case I40E_LINK_SPEED_40GB:
+		ethtool_cmd_speed_set(ecmd, SPEED_40000);
+		break;
+	case I40E_LINK_SPEED_20GB:
+		ethtool_cmd_speed_set(ecmd, SPEED_20000);
+		break;
+	case I40E_LINK_SPEED_10GB:
+		ethtool_cmd_speed_set(ecmd, SPEED_10000);
+		break;
+	case I40E_LINK_SPEED_1GB:
+		ethtool_cmd_speed_set(ecmd, SPEED_1000);
+		break;
+	case I40E_LINK_SPEED_100MB:
+		ethtool_cmd_speed_set(ecmd, SPEED_100);
+		break;
+	default:
+		break;
+	}
+	ecmd->duplex = DUPLEX_FULL;
 
 	return 0;
 }
@@ -276,31 +296,174 @@ static int i40evf_set_ringparam(struct net_device *netdev,
 }
 
 /**
+ * __i40evf_get_coalesce - get per-queue coalesce settings
+ * @netdev: the netdev to check
+ * @ec: ethtool coalesce data structure
+ * @queue: which queue to pick
+ *
+ * Gets the per-queue settings for coalescence. Specifically Rx and Tx usecs
+ * are per queue. If queue is <0 then we default to queue 0 as the
+ * representative value.
+ **/
+static int __i40evf_get_coalesce(struct net_device *netdev,
+				 struct ethtool_coalesce *ec,
+				 int queue)
+{
+	struct i40evf_adapter *adapter = netdev_priv(netdev);
+	struct i40e_vsi *vsi = &adapter->vsi;
+	struct i40e_ring *rx_ring, *tx_ring;
+
+	ec->tx_max_coalesced_frames = vsi->work_limit;
+	ec->rx_max_coalesced_frames = vsi->work_limit;
+
+	/* Rx and Tx usecs per queue value. If user doesn't specify the
+	 * queue, return queue 0's value to represent.
+	 */
+	if (queue < 0)
+		queue = 0;
+	else if (queue >= adapter->num_active_queues)
+		return -EINVAL;
+
+	rx_ring = &adapter->rx_rings[queue];
+	tx_ring = &adapter->tx_rings[queue];
+
+	if (ITR_IS_DYNAMIC(rx_ring->rx_itr_setting))
+		ec->use_adaptive_rx_coalesce = 1;
+
+	if (ITR_IS_DYNAMIC(tx_ring->tx_itr_setting))
+		ec->use_adaptive_tx_coalesce = 1;
+
+	ec->rx_coalesce_usecs = rx_ring->rx_itr_setting & ~I40E_ITR_DYNAMIC;
+	ec->tx_coalesce_usecs = tx_ring->tx_itr_setting & ~I40E_ITR_DYNAMIC;
+
+	return 0;
+}
+
+/**
  * i40evf_get_coalesce - Get interrupt coalescing settings
  * @netdev: network interface device structure
  * @ec: ethtool coalesce structure
  *
  * Returns current coalescing settings. This is referred to elsewhere in the
  * driver as Interrupt Throttle Rate, as this is how the hardware describes
- * this functionality.
+ * this functionality. Note that if per-queue settings have been modified this
+ * only represents the settings of queue 0.
  **/
 static int i40evf_get_coalesce(struct net_device *netdev,
 			       struct ethtool_coalesce *ec)
 {
+	return __i40evf_get_coalesce(netdev, ec, -1);
+}
+
+/**
+ * i40evf_get_per_queue_coalesce - get coalesce values for specific queue
+ * @netdev: netdev to read
+ * @ec: coalesce settings from ethtool
+ * @queue: the queue to read
+ *
+ * Read specific queue's coalesce settings.
+ **/
+static int i40evf_get_per_queue_coalesce(struct net_device *netdev,
+					 u32 queue,
+					 struct ethtool_coalesce *ec)
+{
+	return __i40evf_get_coalesce(netdev, ec, queue);
+}
+
+/**
+ * i40evf_set_itr_per_queue - set ITR values for specific queue
+ * @vsi: the VSI to set values for
+ * @ec: coalesce settings from ethtool
+ * @queue: the queue to modify
+ *
+ * Change the ITR settings for a specific queue.
+ **/
+static void i40evf_set_itr_per_queue(struct i40evf_adapter *adapter,
+				     struct ethtool_coalesce *ec,
+				     int queue)
+{
+	struct i40e_vsi *vsi = &adapter->vsi;
+	struct i40e_hw *hw = &adapter->hw;
+	struct i40e_q_vector *q_vector;
+	u16 vector;
+
+	adapter->rx_rings[queue].rx_itr_setting = ec->rx_coalesce_usecs;
+	adapter->tx_rings[queue].tx_itr_setting = ec->tx_coalesce_usecs;
+
+	if (ec->use_adaptive_rx_coalesce)
+		adapter->rx_rings[queue].rx_itr_setting |= I40E_ITR_DYNAMIC;
+	else
+		adapter->rx_rings[queue].rx_itr_setting &= ~I40E_ITR_DYNAMIC;
+
+	if (ec->use_adaptive_tx_coalesce)
+		adapter->tx_rings[queue].tx_itr_setting |= I40E_ITR_DYNAMIC;
+	else
+		adapter->tx_rings[queue].tx_itr_setting &= ~I40E_ITR_DYNAMIC;
+
+	q_vector = adapter->rx_rings[queue].q_vector;
+	q_vector->rx.itr = ITR_TO_REG(adapter->rx_rings[queue].rx_itr_setting);
+	vector = vsi->base_vector + q_vector->v_idx;
+	wr32(hw, I40E_VFINT_ITRN1(I40E_RX_ITR, vector - 1), q_vector->rx.itr);
+
+	q_vector = adapter->tx_rings[queue].q_vector;
+	q_vector->tx.itr = ITR_TO_REG(adapter->tx_rings[queue].tx_itr_setting);
+	vector = vsi->base_vector + q_vector->v_idx;
+	wr32(hw, I40E_VFINT_ITRN1(I40E_TX_ITR, vector - 1), q_vector->tx.itr);
+
+	i40e_flush(hw);
+}
+
+/**
+ * __i40evf_set_coalesce - set coalesce settings for particular queue
+ * @netdev: the netdev to change
+ * @ec: ethtool coalesce settings
+ * @queue: the queue to change
+ *
+ * Sets the coalesce settings for a particular queue.
+ **/
+static int __i40evf_set_coalesce(struct net_device *netdev,
+				 struct ethtool_coalesce *ec,
+				 int queue)
+{
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 	struct i40e_vsi *vsi = &adapter->vsi;
+	int i;
 
-	ec->tx_max_coalesced_frames = vsi->work_limit;
-	ec->rx_max_coalesced_frames = vsi->work_limit;
+	if (ec->tx_max_coalesced_frames_irq || ec->rx_max_coalesced_frames_irq)
+		vsi->work_limit = ec->tx_max_coalesced_frames_irq;
 
-	if (ITR_IS_DYNAMIC(vsi->rx_itr_setting))
-		ec->use_adaptive_rx_coalesce = 1;
+	if (ec->rx_coalesce_usecs == 0) {
+		if (ec->use_adaptive_rx_coalesce)
+			netif_info(adapter, drv, netdev, "rx-usecs=0, need to disable adaptive-rx for a complete disable\n");
+	} else if ((ec->rx_coalesce_usecs < (I40E_MIN_ITR << 1)) ||
+		   (ec->rx_coalesce_usecs > (I40E_MAX_ITR << 1))) {
+		netif_info(adapter, drv, netdev, "Invalid value, rx-usecs range is 0-8160\n");
+		return -EINVAL;
+	}
 
-	if (ITR_IS_DYNAMIC(vsi->tx_itr_setting))
-		ec->use_adaptive_tx_coalesce = 1;
+	else
+	if (ec->tx_coalesce_usecs == 0) {
+		if (ec->use_adaptive_tx_coalesce)
+			netif_info(adapter, drv, netdev, "tx-usecs=0, need to disable adaptive-tx for a complete disable\n");
+	} else if ((ec->tx_coalesce_usecs < (I40E_MIN_ITR << 1)) ||
+		   (ec->tx_coalesce_usecs > (I40E_MAX_ITR << 1))) {
+		netif_info(adapter, drv, netdev, "Invalid value, tx-usecs range is 0-8160\n");
+		return -EINVAL;
+	}
 
-	ec->rx_coalesce_usecs = vsi->rx_itr_setting & ~I40E_ITR_DYNAMIC;
-	ec->tx_coalesce_usecs = vsi->tx_itr_setting & ~I40E_ITR_DYNAMIC;
+	/* Rx and Tx usecs has per queue value. If user doesn't specify the
+	 * queue, apply to all queues.
+	 */
+	if (queue < 0) {
+		for (i = 0; i < adapter->num_active_queues; i++)
+			i40evf_set_itr_per_queue(adapter, ec, i);
+	} else if (queue < adapter->num_active_queues) {
+		i40evf_set_itr_per_queue(adapter, ec, queue);
+	} else {
+		netif_info(adapter, drv, netdev, "Invalid queue value, queue range is 0 - %d\n",
+			   adapter->num_active_queues - 1);
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -310,113 +473,27 @@ static int i40evf_get_coalesce(struct net_device *netdev,
  * @netdev: network interface device structure
  * @ec: ethtool coalesce structure
  *
- * Change current coalescing settings.
+ * Change current coalescing settings for every queue.
  **/
 static int i40evf_set_coalesce(struct net_device *netdev,
 			       struct ethtool_coalesce *ec)
 {
-	struct i40evf_adapter *adapter = netdev_priv(netdev);
-	struct i40e_hw *hw = &adapter->hw;
-	struct i40e_vsi *vsi = &adapter->vsi;
-	struct i40e_q_vector *q_vector;
-	int i;
-
-	if (ec->tx_max_coalesced_frames_irq || ec->rx_max_coalesced_frames_irq)
-		vsi->work_limit = ec->tx_max_coalesced_frames_irq;
-
-	if ((ec->rx_coalesce_usecs >= (I40E_MIN_ITR << 1)) &&
-	    (ec->rx_coalesce_usecs <= (I40E_MAX_ITR << 1)))
-		vsi->rx_itr_setting = ec->rx_coalesce_usecs;
-
-	else
-		return -EINVAL;
-
-	if ((ec->tx_coalesce_usecs >= (I40E_MIN_ITR << 1)) &&
-	    (ec->tx_coalesce_usecs <= (I40E_MAX_ITR << 1)))
-		vsi->tx_itr_setting = ec->tx_coalesce_usecs;
-	else if (ec->use_adaptive_tx_coalesce)
-		vsi->tx_itr_setting = (I40E_ITR_DYNAMIC |
-				       ITR_REG_TO_USEC(I40E_ITR_RX_DEF));
-	else
-		return -EINVAL;
-
-	if (ec->use_adaptive_rx_coalesce)
-		vsi->rx_itr_setting |= I40E_ITR_DYNAMIC;
-	else
-		vsi->rx_itr_setting &= ~I40E_ITR_DYNAMIC;
-
-	if (ec->use_adaptive_tx_coalesce)
-		vsi->tx_itr_setting |= I40E_ITR_DYNAMIC;
-	else
-		vsi->tx_itr_setting &= ~I40E_ITR_DYNAMIC;
-
-	for (i = 0; i < adapter->num_msix_vectors - NONQ_VECS; i++) {
-		q_vector = &adapter->q_vectors[i];
-		q_vector->rx.itr = ITR_TO_REG(vsi->rx_itr_setting);
-		wr32(hw, I40E_VFINT_ITRN1(0, i), q_vector->rx.itr);
-		q_vector->tx.itr = ITR_TO_REG(vsi->tx_itr_setting);
-		wr32(hw, I40E_VFINT_ITRN1(1, i), q_vector->tx.itr);
-		i40e_flush(hw);
-	}
-
-	return 0;
+	return __i40evf_set_coalesce(netdev, ec, -1);
 }
 
 /**
- * i40e_get_rss_hash_opts - Get RSS hash Input Set for each flow type
- * @adapter: board private structure
- * @cmd: ethtool rxnfc command
+ * i40evf_set_per_queue_coalesce - set specific queue's coalesce settings
+ * @netdev: the netdev to change
+ * @ec: ethtool's coalesce settings
+ * @queue: the queue to modify
  *
- * Returns Success if the flow is supported, else Invalid Input.
- **/
-static int i40evf_get_rss_hash_opts(struct i40evf_adapter *adapter,
-				    struct ethtool_rxnfc *cmd)
+ * Modifies a specific queue's coalesce settings.
+ */
+static int i40evf_set_per_queue_coalesce(struct net_device *netdev,
+					 u32 queue,
+					 struct ethtool_coalesce *ec)
 {
-	struct i40e_hw *hw = &adapter->hw;
-	u64 hena = (u64)rd32(hw, I40E_VFQF_HENA(0)) |
-		   ((u64)rd32(hw, I40E_VFQF_HENA(1)) << 32);
-
-	/* We always hash on IP src and dest addresses */
-	cmd->data = RXH_IP_SRC | RXH_IP_DST;
-
-	switch (cmd->flow_type) {
-	case TCP_V4_FLOW:
-		if (hena & BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_TCP))
-			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-		break;
-	case UDP_V4_FLOW:
-		if (hena & BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_UDP))
-			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-		break;
-
-	case SCTP_V4_FLOW:
-	case AH_ESP_V4_FLOW:
-	case AH_V4_FLOW:
-	case ESP_V4_FLOW:
-	case IPV4_FLOW:
-		break;
-
-	case TCP_V6_FLOW:
-		if (hena & BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_TCP))
-			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-		break;
-	case UDP_V6_FLOW:
-		if (hena & BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_UDP))
-			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-		break;
-
-	case SCTP_V6_FLOW:
-	case AH_ESP_V6_FLOW:
-	case AH_V6_FLOW:
-	case ESP_V6_FLOW:
-	case IPV6_FLOW:
-		break;
-	default:
-		cmd->data = 0;
-		return -EINVAL;
-	}
-
-	return 0;
+	return __i40evf_set_coalesce(netdev, ec, queue);
 }
 
 /**
@@ -439,7 +516,8 @@ static int i40evf_get_rxnfc(struct net_device *netdev,
 		ret = 0;
 		break;
 	case ETHTOOL_GRXFH:
-		ret = i40evf_get_rss_hash_opts(adapter, cmd);
+		netdev_info(netdev,
+			    "RSS hash info is not available to vf, use pf.\n");
 		break;
 	default:
 		break;
@@ -447,148 +525,6 @@ static int i40evf_get_rxnfc(struct net_device *netdev,
 
 	return ret;
 }
-
-/**
- * i40evf_set_rss_hash_opt - Enable/Disable flow types for RSS hash
- * @adapter: board private structure
- * @cmd: ethtool rxnfc command
- *
- * Returns Success if the flow input set is supported.
- **/
-static int i40evf_set_rss_hash_opt(struct i40evf_adapter *adapter,
-				   struct ethtool_rxnfc *nfc)
-{
-	struct i40e_hw *hw = &adapter->hw;
-
-	u64 hena = (u64)rd32(hw, I40E_VFQF_HENA(0)) |
-		   ((u64)rd32(hw, I40E_VFQF_HENA(1)) << 32);
-
-	/* RSS does not support anything other than hashing
-	 * to queues on src and dst IPs and ports
-	 */
-	if (nfc->data & ~(RXH_IP_SRC | RXH_IP_DST |
-			  RXH_L4_B_0_1 | RXH_L4_B_2_3))
-		return -EINVAL;
-
-	/* We need at least the IP SRC and DEST fields for hashing */
-	if (!(nfc->data & RXH_IP_SRC) ||
-	    !(nfc->data & RXH_IP_DST))
-		return -EINVAL;
-
-	switch (nfc->flow_type) {
-	case TCP_V4_FLOW:
-		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
-		case 0:
-			hena &= ~BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_TCP);
-			break;
-		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
-			hena |= BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_TCP);
-			break;
-		default:
-			return -EINVAL;
-		}
-		break;
-	case TCP_V6_FLOW:
-		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
-		case 0:
-			hena &= ~BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_TCP);
-			break;
-		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
-			hena |= BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_TCP);
-			break;
-		default:
-			return -EINVAL;
-		}
-		break;
-	case UDP_V4_FLOW:
-		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
-		case 0:
-			hena &= ~(BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_UDP) |
-				  BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV4));
-			break;
-		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
-			hena |= (BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_UDP) |
-				 BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV4));
-			break;
-		default:
-			return -EINVAL;
-		}
-		break;
-	case UDP_V6_FLOW:
-		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
-		case 0:
-			hena &= ~(BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_UDP) |
-				  BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV6));
-			break;
-		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
-			hena |= (BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_UDP) |
-				 BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV6));
-			break;
-		default:
-			return -EINVAL;
-		}
-		break;
-	case AH_ESP_V4_FLOW:
-	case AH_V4_FLOW:
-	case ESP_V4_FLOW:
-	case SCTP_V4_FLOW:
-		if ((nfc->data & RXH_L4_B_0_1) ||
-		    (nfc->data & RXH_L4_B_2_3))
-			return -EINVAL;
-		hena |= BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_OTHER);
-		break;
-	case AH_ESP_V6_FLOW:
-	case AH_V6_FLOW:
-	case ESP_V6_FLOW:
-	case SCTP_V6_FLOW:
-		if ((nfc->data & RXH_L4_B_0_1) ||
-		    (nfc->data & RXH_L4_B_2_3))
-			return -EINVAL;
-		hena |= BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_OTHER);
-		break;
-	case IPV4_FLOW:
-		hena |= (BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_OTHER) |
-			 BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV4));
-		break;
-	case IPV6_FLOW:
-		hena |= (BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_OTHER) |
-			 BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV6));
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	wr32(hw, I40E_VFQF_HENA(0), (u32)hena);
-	wr32(hw, I40E_VFQF_HENA(1), (u32)(hena >> 32));
-	i40e_flush(hw);
-
-	return 0;
-}
-
-/**
- * i40evf_set_rxnfc - command to set RX flow classification rules
- * @netdev: network interface device structure
- * @cmd: ethtool rxnfc command
- *
- * Returns Success if the command is supported.
- **/
-static int i40evf_set_rxnfc(struct net_device *netdev,
-			    struct ethtool_rxnfc *cmd)
-{
-	struct i40evf_adapter *adapter = netdev_priv(netdev);
-	int ret = -EOPNOTSUPP;
-
-	switch (cmd->cmd) {
-	case ETHTOOL_SRXFH:
-		ret = i40evf_set_rss_hash_opt(adapter, cmd);
-		break;
-	default:
-		break;
-	}
-
-	return ret;
-}
-
 /**
  * i40evf_get_channels: get the number of channels supported by the device
  * @netdev: network interface device structure
@@ -612,6 +548,19 @@ static void i40evf_get_channels(struct net_device *netdev,
 }
 
 /**
+ * i40evf_get_rxfh_key_size - get the RSS hash key size
+ * @netdev: network interface device structure
+ *
+ * Returns the table size.
+ **/
+static u32 i40evf_get_rxfh_key_size(struct net_device *netdev)
+{
+	struct i40evf_adapter *adapter = netdev_priv(netdev);
+
+	return adapter->rss_key_size;
+}
+
+/**
  * i40evf_get_rxfh_indir_size - get the rx flow hash indirection table size
  * @netdev: network interface device structure
  *
@@ -619,7 +568,9 @@ static void i40evf_get_channels(struct net_device *netdev,
  **/
 static u32 i40evf_get_rxfh_indir_size(struct net_device *netdev)
 {
-	return (I40E_VFQF_HLUT_MAX_INDEX + 1) * 4;
+	struct i40evf_adapter *adapter = netdev_priv(netdev);
+
+	return adapter->rss_lut_size;
 }
 
 /**
@@ -634,9 +585,6 @@ static int i40evf_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 			   u8 *hfunc)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
-	struct i40e_vsi *vsi = &adapter->vsi;
-	u8 *seed = NULL, *lut;
-	int ret;
 	u16 i;
 
 	if (hfunc)
@@ -644,24 +592,13 @@ static int i40evf_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 	if (!indir)
 		return 0;
 
-	seed = key;
-
-	lut = kzalloc(I40EVF_HLUT_ARRAY_SIZE, GFP_KERNEL);
-	if (!lut)
-		return -ENOMEM;
-
-	ret = i40evf_get_rss(vsi, seed, lut, I40EVF_HLUT_ARRAY_SIZE);
-	if (ret)
-		goto out;
+	memcpy(key, adapter->rss_key, adapter->rss_key_size);
 
 	/* Each 32 bits pointed by 'indir' is stored with a lut entry */
-	for (i = 0; i < I40EVF_HLUT_ARRAY_SIZE; i++)
-		indir[i] = (u32)lut[i];
+	for (i = 0; i < adapter->rss_lut_size; i++)
+		indir[i] = (u32)adapter->rss_lut[i];
 
-out:
-	kfree(lut);
-
-	return ret;
+	return 0;
 }
 
 /**
@@ -677,8 +614,6 @@ static int i40evf_set_rxfh(struct net_device *netdev, const u32 *indir,
 			   const u8 *key, const u8 hfunc)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
-	struct i40e_vsi *vsi = &adapter->vsi;
-	u8 *seed = NULL;
 	u16 i;
 
 	/* We do not allow change in unsupported parameters */
@@ -689,28 +624,14 @@ static int i40evf_set_rxfh(struct net_device *netdev, const u32 *indir,
 		return 0;
 
 	if (key) {
-		if (!vsi->rss_hkey_user) {
-			vsi->rss_hkey_user = kzalloc(I40EVF_HKEY_ARRAY_SIZE,
-						     GFP_KERNEL);
-			if (!vsi->rss_hkey_user)
-				return -ENOMEM;
-		}
-		memcpy(vsi->rss_hkey_user, key, I40EVF_HKEY_ARRAY_SIZE);
-		seed = vsi->rss_hkey_user;
-	}
-	if (!vsi->rss_lut_user) {
-		vsi->rss_lut_user = kzalloc(I40EVF_HLUT_ARRAY_SIZE,
-					    GFP_KERNEL);
-		if (!vsi->rss_lut_user)
-			return -ENOMEM;
+		memcpy(adapter->rss_key, key, adapter->rss_key_size);
 	}
 
 	/* Each 32 bits pointed by 'indir' is stored with a lut entry */
-	for (i = 0; i < I40EVF_HLUT_ARRAY_SIZE; i++)
-		vsi->rss_lut_user[i] = (u8)(indir[i]);
+	for (i = 0; i < adapter->rss_lut_size; i++)
+		adapter->rss_lut[i] = (u8)(indir[i]);
 
-	return i40evf_config_rss(vsi, seed, vsi->rss_lut_user,
-				 I40EVF_HLUT_ARRAY_SIZE);
+	return i40evf_config_rss(adapter);
 }
 
 static const struct ethtool_ops i40evf_ethtool_ops = {
@@ -726,12 +647,14 @@ static const struct ethtool_ops i40evf_ethtool_ops = {
 	.set_msglevel		= i40evf_set_msglevel,
 	.get_coalesce		= i40evf_get_coalesce,
 	.set_coalesce		= i40evf_set_coalesce,
+	.get_per_queue_coalesce = i40evf_get_per_queue_coalesce,
+	.set_per_queue_coalesce = i40evf_set_per_queue_coalesce,
 	.get_rxnfc		= i40evf_get_rxnfc,
-	.set_rxnfc		= i40evf_set_rxnfc,
 	.get_rxfh_indir_size	= i40evf_get_rxfh_indir_size,
 	.get_rxfh		= i40evf_get_rxfh,
 	.set_rxfh		= i40evf_set_rxfh,
 	.get_channels		= i40evf_get_channels,
+	.get_rxfh_key_size	= i40evf_get_rxfh_key_size,
 };
 
 /**

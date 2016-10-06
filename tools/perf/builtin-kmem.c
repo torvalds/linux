@@ -4,7 +4,7 @@
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/util.h"
-#include "util/cache.h"
+#include "util/config.h"
 #include "util/symbol.h"
 #include "util/thread.h"
 #include "util/header.h"
@@ -330,7 +330,7 @@ static int build_alloc_func_list(void)
 	}
 
 	kernel_map = machine__kernel_map(machine);
-	if (map__load(kernel_map, NULL) < 0) {
+	if (map__load(kernel_map) < 0) {
 		pr_err("cannot load kernel map\n");
 		return -ENOENT;
 	}
@@ -375,7 +375,7 @@ static u64 find_callsite(struct perf_evsel *evsel, struct perf_sample *sample)
 	}
 
 	al.thread = machine__findnew_thread(machine, sample->pid, sample->tid);
-	sample__resolve_callchain(sample, NULL, evsel, &al, 16);
+	sample__resolve_callchain(sample, &callchain_cursor, NULL, evsel, &al, 16);
 
 	callchain_cursor_commit(&callchain_cursor);
 	while (true) {
@@ -602,40 +602,50 @@ static int gfpcmp(const void *a, const void *b)
 	return fa->flags - fb->flags;
 }
 
-/* see include/trace/events/gfpflags.h */
+/* see include/trace/events/mmflags.h */
 static const struct {
 	const char *original;
 	const char *compact;
 } gfp_compact_table[] = {
 	{ "GFP_TRANSHUGE",		"THP" },
+	{ "GFP_TRANSHUGE_LIGHT",	"THL" },
 	{ "GFP_HIGHUSER_MOVABLE",	"HUM" },
 	{ "GFP_HIGHUSER",		"HU" },
 	{ "GFP_USER",			"U" },
 	{ "GFP_TEMPORARY",		"TMP" },
+	{ "GFP_KERNEL_ACCOUNT",		"KAC" },
 	{ "GFP_KERNEL",			"K" },
 	{ "GFP_NOFS",			"NF" },
 	{ "GFP_ATOMIC",			"A" },
 	{ "GFP_NOIO",			"NI" },
-	{ "GFP_HIGH",			"H" },
-	{ "GFP_WAIT",			"W" },
-	{ "GFP_IO",			"I" },
-	{ "GFP_COLD",			"CO" },
-	{ "GFP_NOWARN",			"NWR" },
-	{ "GFP_REPEAT",			"R" },
-	{ "GFP_NOFAIL",			"NF" },
-	{ "GFP_NORETRY",		"NR" },
-	{ "GFP_COMP",			"C" },
-	{ "GFP_ZERO",			"Z" },
-	{ "GFP_NOMEMALLOC",		"NMA" },
-	{ "GFP_MEMALLOC",		"MA" },
-	{ "GFP_HARDWALL",		"HW" },
-	{ "GFP_THISNODE",		"TN" },
-	{ "GFP_RECLAIMABLE",		"RC" },
-	{ "GFP_MOVABLE",		"M" },
-	{ "GFP_NOTRACK",		"NT" },
-	{ "GFP_NO_KSWAPD",		"NK" },
-	{ "GFP_OTHER_NODE",		"ON" },
 	{ "GFP_NOWAIT",			"NW" },
+	{ "GFP_DMA",			"D" },
+	{ "__GFP_HIGHMEM",		"HM" },
+	{ "GFP_DMA32",			"D32" },
+	{ "__GFP_HIGH",			"H" },
+	{ "__GFP_ATOMIC",		"_A" },
+	{ "__GFP_IO",			"I" },
+	{ "__GFP_FS",			"F" },
+	{ "__GFP_COLD",			"CO" },
+	{ "__GFP_NOWARN",		"NWR" },
+	{ "__GFP_REPEAT",		"R" },
+	{ "__GFP_NOFAIL",		"NF" },
+	{ "__GFP_NORETRY",		"NR" },
+	{ "__GFP_COMP",			"C" },
+	{ "__GFP_ZERO",			"Z" },
+	{ "__GFP_NOMEMALLOC",		"NMA" },
+	{ "__GFP_MEMALLOC",		"MA" },
+	{ "__GFP_HARDWALL",		"HW" },
+	{ "__GFP_THISNODE",		"TN" },
+	{ "__GFP_RECLAIMABLE",		"RC" },
+	{ "__GFP_MOVABLE",		"M" },
+	{ "__GFP_ACCOUNT",		"AC" },
+	{ "__GFP_NOTRACK",		"NT" },
+	{ "__GFP_WRITE",		"WR" },
+	{ "__GFP_RECLAIM",		"R" },
+	{ "__GFP_DIRECT_RECLAIM",	"DR" },
+	{ "__GFP_KSWAPD_RECLAIM",	"KR" },
+	{ "__GFP_OTHER_NODE",		"ON" },
 };
 
 static size_t max_gfp_len;
@@ -969,7 +979,7 @@ static void __print_slab_result(struct rb_root *root,
 		if (is_caller) {
 			addr = data->call_site;
 			if (!raw_ip)
-				sym = machine__find_kernel_function(machine, addr, &map, NULL);
+				sym = machine__find_kernel_function(machine, addr, &map);
 		} else
 			addr = data->ptr;
 
@@ -1033,8 +1043,7 @@ static void __print_page_alloc_result(struct perf_session *session, int n_lines)
 		char *caller = buf;
 
 		data = rb_entry(next, struct page_stat, node);
-		sym = machine__find_kernel_function(machine, data->callsite,
-						    &map, NULL);
+		sym = machine__find_kernel_function(machine, data->callsite, &map);
 		if (sym && sym->name)
 			caller = sym->name;
 		else
@@ -1076,8 +1085,7 @@ static void __print_page_caller_result(struct perf_session *session, int n_lines
 		char *caller = buf;
 
 		data = rb_entry(next, struct page_stat, node);
-		sym = machine__find_kernel_function(machine, data->callsite,
-						    &map, NULL);
+		sym = machine__find_kernel_function(machine, data->callsite, &map);
 		if (sym && sym->name)
 			caller = sym->name;
 		else
@@ -1345,7 +1353,7 @@ static int __cmd_kmem(struct perf_session *session)
 		goto out;
 	}
 
-	evlist__for_each(session->evlist, evsel) {
+	evlist__for_each_entry(session->evlist, evsel) {
 		if (!strcmp(perf_evsel__name(evsel), "kmem:mm_page_alloc") &&
 		    perf_evsel__field(evsel, "pfn")) {
 			use_pfn = true;
@@ -1834,7 +1842,7 @@ static int __cmd_record(int argc, const char **argv)
 	return cmd_record(i, rec_argv, NULL);
 }
 
-static int kmem_config(const char *var, const char *value, void *cb)
+static int kmem_config(const char *var, const char *value, void *cb __maybe_unused)
 {
 	if (!strcmp(var, "kmem.default")) {
 		if (!strcmp(value, "slab"))
@@ -1847,7 +1855,7 @@ static int kmem_config(const char *var, const char *value, void *cb)
 		return 0;
 	}
 
-	return perf_default_config(var, value, cb);
+	return 0;
 }
 
 int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)

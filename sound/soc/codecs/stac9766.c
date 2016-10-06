@@ -85,10 +85,10 @@ static SOC_ENUM_SINGLE_DECL(stac9766_boost2_enum,
 static SOC_ENUM_SINGLE_DECL(stac9766_stereo_mic_enum,
 			    AC97_STAC_STEREO_MIC, 2, stac9766_stereo_mic);
 
-static const DECLARE_TLV_DB_LINEAR(master_tlv, -4600, 0);
-static const DECLARE_TLV_DB_LINEAR(record_tlv, 0, 2250);
-static const DECLARE_TLV_DB_LINEAR(beep_tlv, -4500, 0);
-static const DECLARE_TLV_DB_LINEAR(mix_tlv, -3450, 1200);
+static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(master_tlv, -4650, 150, 0);
+static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(record_tlv,     0, 150, 0);
+static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(beep_tlv,   -4500, 300, 0);
+static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(mix_tlv,    -3450, 150, 0);
 
 static const struct snd_kcontrol_new stac9766_snd_ac97_controls[] = {
 	SOC_DOUBLE_TLV("Speaker Volume", AC97_MASTER, 8, 0, 31, 1, master_tlv),
@@ -320,8 +320,10 @@ static int stac9766_codec_remove(struct snd_soc_codec *codec)
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_stac9766 = {
-	.controls = stac9766_snd_ac97_controls,
-	.num_controls = ARRAY_SIZE(stac9766_snd_ac97_controls),
+	.component_driver = {
+		.controls		= stac9766_snd_ac97_controls,
+		.num_controls		= ARRAY_SIZE(stac9766_snd_ac97_controls),
+	},
 	.write = stac9766_ac97_write,
 	.read = stac9766_ac97_read,
 	.set_bias_level = stac9766_set_bias_level,

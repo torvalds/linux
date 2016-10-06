@@ -26,7 +26,6 @@ extern void get_random_bytes(void *buf, int nbytes);
 extern int add_random_ready_callback(struct random_ready_callback *rdy);
 extern void del_random_ready_callback(struct random_ready_callback *rdy);
 extern void get_random_bytes_arch(void *buf, int nbytes);
-void generate_random_uuid(unsigned char uuid_out[16]);
 extern int random_int_secret_init(void);
 
 #ifndef MODULE
@@ -34,6 +33,7 @@ extern const struct file_operations random_fops, urandom_fops;
 #endif
 
 unsigned int get_random_int(void);
+unsigned long get_random_long(void);
 unsigned long randomize_range(unsigned long start, unsigned long end, unsigned long len);
 
 u32 prandom_u32(void);
@@ -95,27 +95,27 @@ static inline void prandom_seed_state(struct rnd_state *state, u64 seed)
 #ifdef CONFIG_ARCH_RANDOM
 # include <asm/archrandom.h>
 #else
-static inline int arch_get_random_long(unsigned long *v)
+static inline bool arch_get_random_long(unsigned long *v)
 {
 	return 0;
 }
-static inline int arch_get_random_int(unsigned int *v)
+static inline bool arch_get_random_int(unsigned int *v)
 {
 	return 0;
 }
-static inline int arch_has_random(void)
+static inline bool arch_has_random(void)
 {
 	return 0;
 }
-static inline int arch_get_random_seed_long(unsigned long *v)
+static inline bool arch_get_random_seed_long(unsigned long *v)
 {
 	return 0;
 }
-static inline int arch_get_random_seed_int(unsigned int *v)
+static inline bool arch_get_random_seed_int(unsigned int *v)
 {
 	return 0;
 }
-static inline int arch_has_random_seed(void)
+static inline bool arch_has_random_seed(void)
 {
 	return 0;
 }

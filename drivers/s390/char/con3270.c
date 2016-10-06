@@ -124,7 +124,12 @@ con3270_create_status(struct con3270 *cp)
 static void
 con3270_update_string(struct con3270 *cp, struct string *s, int nr)
 {
-	if (s->len >= cp->view.cols - 5)
+	if (s->len < 4) {
+		/* This indicates a bug, but printing a warning would
+		 * cause a deadlock. */
+		return;
+	}
+	if (s->string[s->len - 4] != TO_RA)
 		return;
 	raw3270_buffer_address(cp->view.dev, s->string + s->len - 3,
 			       cp->view.cols * (nr + 1));
@@ -400,7 +405,7 @@ con3270_deactivate(struct raw3270_view *view)
 	del_timer(&cp->timer);
 }
 
-static int
+static void
 con3270_irq(struct con3270 *cp, struct raw3270_request *rq, struct irb *irb)
 {
 	/* Handle ATTN. Schedule tasklet to read aid. */
@@ -418,7 +423,6 @@ con3270_irq(struct con3270 *cp, struct raw3270_request *rq, struct irb *irb)
 		cp->update_flags = CON_UPDATE_ALL;
 		con3270_set_timer(cp, 1);
 	}
-	return RAW3270_IO_DONE;
 }
 
 /* Console view to a 3270 device. */
@@ -461,11 +465,11 @@ con3270_cline_end(struct con3270 *cp)
 		cp->cline->len + 4 : cp->view.cols;
 	s = con3270_alloc_string(cp, size);
 	memcpy(s->string, cp->cline->string, cp->cline->len);
-	if (s->len < cp->view.cols - 5) {
+	if (cp->cline->len < cp->view.cols - 5) {
 		s->string[s->len - 4] = TO_RA;
 		s->string[s->len - 1] = 0;
 	} else {
-		while (--size > cp->cline->len)
+		while (--size >= cp->cline->len)
 			s->string[size] = cp->view.ascebc[' '];
 	}
 	/* Replace cline with allocated line s and reset cline. */

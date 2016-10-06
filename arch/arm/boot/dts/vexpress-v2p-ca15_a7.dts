@@ -109,7 +109,7 @@
 		compatible = "arm,hdlcd";
 		reg = <0 0x2b000000 0 0x1000>;
 		interrupts = <0 85 4>;
-		clocks = <&oscclk5>;
+		clocks = <&hdlcd_clk>;
 		clock-names = "pxlclk";
 	};
 
@@ -227,7 +227,7 @@
 		compatible = "arm,vexpress,config-bus";
 		arm,vexpress,config-bridge = <&v2m_sysreg>;
 
-		osc@0 {
+		oscclk0 {
 			/* A15 PLL 0 reference clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 0>;
@@ -236,7 +236,7 @@
 			clock-output-names = "oscclk0";
 		};
 
-		osc@1 {
+		oscclk1 {
 			/* A15 PLL 1 reference clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 1>;
@@ -245,7 +245,7 @@
 			clock-output-names = "oscclk1";
 		};
 
-		osc@2 {
+		oscclk2 {
 			/* A7 PLL 0 reference clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 2>;
@@ -254,7 +254,7 @@
 			clock-output-names = "oscclk2";
 		};
 
-		osc@3 {
+		oscclk3 {
 			/* A7 PLL 1 reference clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 3>;
@@ -263,7 +263,7 @@
 			clock-output-names = "oscclk3";
 		};
 
-		osc@4 {
+		oscclk4 {
 			/* External AXI master clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 4>;
@@ -272,7 +272,7 @@
 			clock-output-names = "oscclk4";
 		};
 
-		oscclk5: osc@5 {
+		hdlcd_clk: oscclk5 {
 			/* HDLCD PLL reference clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 5>;
@@ -281,7 +281,7 @@
 			clock-output-names = "oscclk5";
 		};
 
-		smbclk: osc@6 {
+		smbclk: oscclk6 {
 			/* Static memory controller clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 6>;
@@ -290,7 +290,7 @@
 			clock-output-names = "oscclk6";
 		};
 
-		osc@7 {
+		oscclk7 {
 			/* SYS PLL reference clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 7>;
@@ -299,7 +299,7 @@
 			clock-output-names = "oscclk7";
 		};
 
-		osc@8 {
+		oscclk8 {
 			/* DDR2 PLL reference clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 8>;
@@ -308,7 +308,7 @@
 			clock-output-names = "oscclk8";
 		};
 
-		volt@0 {
+		volt-a15 {
 			/* A15 CPU core voltage */
 			compatible = "arm,vexpress-volt";
 			arm,vexpress-sysreg,func = <2 0>;
@@ -319,7 +319,7 @@
 			label = "A15 Vcore";
 		};
 
-		volt@1 {
+		volt-a7 {
 			/* A7 CPU core voltage */
 			compatible = "arm,vexpress-volt";
 			arm,vexpress-sysreg,func = <2 1>;
@@ -330,49 +330,49 @@
 			label = "A7 Vcore";
 		};
 
-		amp@0 {
+		amp-a15 {
 			/* Total current for the two A15 cores */
 			compatible = "arm,vexpress-amp";
 			arm,vexpress-sysreg,func = <3 0>;
 			label = "A15 Icore";
 		};
 
-		amp@1 {
+		amp-a7 {
 			/* Total current for the three A7 cores */
 			compatible = "arm,vexpress-amp";
 			arm,vexpress-sysreg,func = <3 1>;
 			label = "A7 Icore";
 		};
 
-		temp@0 {
+		temp-dcc {
 			/* DCC internal temperature */
 			compatible = "arm,vexpress-temp";
 			arm,vexpress-sysreg,func = <4 0>;
 			label = "DCC";
 		};
 
-		power@0 {
+		power-a15 {
 			/* Total power for the two A15 cores */
 			compatible = "arm,vexpress-power";
 			arm,vexpress-sysreg,func = <12 0>;
 			label = "A15 Pcore";
 		};
 
-		power@1 {
+		power-a7 {
 			/* Total power for the three A7 cores */
 			compatible = "arm,vexpress-power";
 			arm,vexpress-sysreg,func = <12 1>;
 			label = "A7 Pcore";
 		};
 
-		energy@0 {
+		energy-a15 {
 			/* Total energy for the two A15 cores */
 			compatible = "arm,vexpress-energy";
 			arm,vexpress-sysreg,func = <13 0>, <13 1>;
 			label = "A15 Jcore";
 		};
 
-		energy@2 {
+		energy-a7 {
 			/* Total energy for the three A7 cores */
 			compatible = "arm,vexpress-energy";
 			arm,vexpress-sysreg,func = <13 2>, <13 3>;
@@ -387,7 +387,7 @@
 		clocks = <&oscclk6a>;
 		clock-names = "apb_pclk";
 		port {
-			etb_in_port: endpoint@0 {
+			etb_in_port: endpoint {
 				slave-mode;
 				remote-endpoint = <&replicator_out_port0>;
 			};
@@ -401,7 +401,7 @@
 		clocks = <&oscclk6a>;
 		clock-names = "apb_pclk";
 		port {
-			tpiu_in_port: endpoint@0 {
+			tpiu_in_port: endpoint {
 				slave-mode;
 				remote-endpoint = <&replicator_out_port1>;
 			};
@@ -578,7 +578,7 @@
 		};
 	};
 
-	smb {
+	smb@08000000 {
 		compatible = "simple-bus";
 
 		#address-cells = <2>;
@@ -637,5 +637,18 @@
 				<0 0 42 &gic 0 42 4>;
 
 		/include/ "vexpress-v2m-rs1.dtsi"
+	};
+
+	site2: hsb@40000000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0 0x40000000 0x3fef0000>;
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 3>;
+		interrupt-map = <0 0 &gic 0 36 4>,
+				<0 1 &gic 0 37 4>,
+				<0 2 &gic 0 38 4>,
+				<0 3 &gic 0 39 4>;
 	};
 };

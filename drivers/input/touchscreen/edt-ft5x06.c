@@ -86,6 +86,7 @@ struct edt_reg_addr {
 struct edt_ft5x06_ts_data {
 	struct i2c_client *client;
 	struct input_dev *input;
+	struct touchscreen_properties prop;
 	u16 num_x;
 	u16 num_y;
 
@@ -246,8 +247,8 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 		if (!down)
 			continue;
 
-		input_report_abs(tsdata->input, ABS_MT_POSITION_X, x);
-		input_report_abs(tsdata->input, ABS_MT_POSITION_Y, y);
+		touchscreen_report_pos(tsdata->input, &tsdata->prop, x, y,
+				       true);
 	}
 
 	input_mt_report_pointer_emulation(tsdata->input, true);
@@ -822,16 +823,22 @@ static void edt_ft5x06_ts_get_defaults(struct device *dev,
 	int error;
 
 	error = device_property_read_u32(dev, "threshold", &val);
-	if (!error)
-		reg_addr->reg_threshold = val;
+	if (!error) {
+		edt_ft5x06_register_write(tsdata, reg_addr->reg_threshold, val);
+		tsdata->threshold = val;
+	}
 
 	error = device_property_read_u32(dev, "gain", &val);
-	if (!error)
-		reg_addr->reg_gain = val;
+	if (!error) {
+		edt_ft5x06_register_write(tsdata, reg_addr->reg_gain, val);
+		tsdata->gain = val;
+	}
 
 	error = device_property_read_u32(dev, "offset", &val);
-	if (!error)
-		reg_addr->reg_offset = val;
+	if (!error) {
+		edt_ft5x06_register_write(tsdata, reg_addr->reg_offset, val);
+		tsdata->offset = val;
+	}
 }
 
 static void
@@ -966,7 +973,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	input_set_abs_params(input, ABS_MT_POSITION_Y,
 			     0, tsdata->num_y * 64 - 1, 0, 0);
 
-	touchscreen_parse_properties(input, true);
+	touchscreen_parse_properties(input, true, &tsdata->prop);
 
 	error = input_mt_init_slots(input, tsdata->max_support_points,
 				INPUT_MT_DIRECT);

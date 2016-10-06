@@ -178,6 +178,20 @@ config IBM_BSR
 	  of threads across a large system which avoids bouncing a cacheline
 	  between several cores on a system
 
+config POWERNV_OP_PANEL
+	tristate "IBM POWERNV Operator Panel Display support"
+	depends on PPC_POWERNV
+	default m
+	help
+	  If you say Y here, a special character device node, /dev/op_panel,
+	  will be created which exposes the operator panel display on IBM
+	  Power Systems machines with FSPs.
+
+	  If you don't require access to the operator panel display from user
+	  space, say N.
+
+	  If unsure, say M here to build it as a module called powernv-op-panel.
+
 source "drivers/char/ipmi/Kconfig"
 
 config DS1620
@@ -279,8 +293,7 @@ if RTC_LIB=n
 
 config RTC
 	tristate "Enhanced Real Time Clock Support (legacy PC RTC driver)"
-	depends on !PPC && !PARISC && !IA64 && !M68K && !SPARC && !FRV \
-			&& !ARM && !SUPERH && !S390 && !AVR32 && !BLACKFIN && !UML
+	depends on ALPHA || (MIPS && MACH_LOONGSON64)
 	---help---
 	  If you say Y here and create a character special file /dev/rtc with
 	  major number 10 and minor number 135 using mknod ("man mknod"), you
@@ -325,31 +338,6 @@ config JS_RTC
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called js-rtc.
-
-config GEN_RTC
-	tristate "Generic /dev/rtc emulation"
-	depends on RTC!=y && !IA64 && !ARM && !M32R && !MIPS && !SPARC && !FRV && !S390 && !SUPERH && !AVR32 && !BLACKFIN && !UML
-	---help---
-	  If you say Y here and create a character special file /dev/rtc with
-	  major number 10 and minor number 135 using mknod ("man mknod"), you
-	  will get access to the real time clock (or hardware clock) built
-	  into your computer.
-
-	  It reports status information via the file /proc/driver/rtc and its
-	  behaviour is set by various ioctls on /dev/rtc. If you enable the
-	  "extended RTC operation" below it will also provide an emulation
-	  for RTC_UIE which is required by some programs and may improve
-	  precision in some cases.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called genrtc.
-
-config GEN_RTC_X
-	bool "Extended RTC operation"
-	depends on GEN_RTC
-	help
-	  Provides an emulation for RTC_UIE which is required by some programs
-	  and may improve precision of the generic RTC support in some cases.
 
 config EFI_RTC
 	bool "EFI Real Time Clock Services"
@@ -584,7 +572,6 @@ config TELCLOCK
 
 config DEVPORT
 	bool
-	depends on !M68K
 	depends on ISA || PCI
 	default y
 

@@ -116,6 +116,8 @@ Work Element Descriptor (WED)
 User API
 ========
 
+1. AFU character devices
+
     For AFUs operating in AFU directed mode, two character device
     files will be created. /dev/cxl/afu0.0m will correspond to a
     master context and /dev/cxl/afu0.0s will correspond to a slave
@@ -361,6 +363,59 @@ read
 
         reserved fields:
             For future extensions and padding
+
+
+2. Card character device (powerVM guest only)
+
+    In a powerVM guest, an extra character device is created for the
+    card. The device is only used to write (flash) a new image on the
+    FPGA accelerator. Once the image is written and verified, the
+    device tree is updated and the card is reset to reload the updated
+    image.
+
+open
+----
+
+    Opens the device and allocates a file descriptor to be used with
+    the rest of the API. The device can only be opened once.
+
+ioctl
+-----
+
+CXL_IOCTL_DOWNLOAD_IMAGE:
+CXL_IOCTL_VALIDATE_IMAGE:
+    Starts and controls flashing a new FPGA image. Partial
+    reconfiguration is not supported (yet), so the image must contain
+    a copy of the PSL and AFU(s). Since an image can be quite large,
+    the caller may have to iterate, splitting the image in smaller
+    chunks.
+
+    Takes a pointer to a struct cxl_adapter_image:
+        struct cxl_adapter_image {
+            __u64 flags;
+            __u64 data;
+            __u64 len_data;
+            __u64 len_image;
+            __u64 reserved1;
+            __u64 reserved2;
+            __u64 reserved3;
+            __u64 reserved4;
+        };
+
+    flags:
+        These flags indicate which optional fields are present in
+        this struct. Currently all fields are mandatory.
+
+    data:
+        Pointer to a buffer with part of the image to write to the
+        card.
+
+    len_data:
+        Size of the buffer pointed to by data.
+
+    len_image:
+        Full size of the image.
+
 
 Sysfs Class
 ===========

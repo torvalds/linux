@@ -38,7 +38,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/component.h>
 
-#include <video/omapdss.h>
+#include "omapdss.h"
 #include "dss.h"
 
 struct rfbi_reg { u16 idx; };
@@ -880,7 +880,7 @@ static int rfbi_display_enable(struct omap_dss_device *dssdev)
 	struct omap_dss_device *out = &rfbi.output;
 	int r;
 
-	if (out->manager == NULL) {
+	if (!out->dispc_channel_connected) {
 		DSSERR("failed to enable display: no output/manager\n");
 		return -ENODEV;
 	}

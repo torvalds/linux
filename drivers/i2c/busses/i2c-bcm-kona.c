@@ -229,7 +229,7 @@ static irqreturn_t bcm_kona_i2c_isr(int irq, void *devid)
 		       dev->base + TXFCR_OFFSET);
 
 	writel(status & ~ISR_RESERVED_MASK, dev->base + ISR_OFFSET);
-	complete_all(&dev->done);
+	complete(&dev->done);
 
 	return IRQ_HANDLED;
 }
@@ -501,10 +501,7 @@ static int bcm_kona_i2c_do_addr(struct bcm_kona_i2c_dev *dev,
 				return -EREMOTEIO;
 		}
 	} else {
-		addr = msg->addr << 1;
-
-		if (msg->flags & I2C_M_RD)
-			addr |= 1;
+		addr = i2c_8bit_addr_from_msg(msg);
 
 		if (bcm_kona_i2c_write_byte(dev, addr, 0) < 0)
 			return -EREMOTEIO;
@@ -646,7 +643,7 @@ static int bcm_kona_i2c_xfer(struct i2c_adapter *adapter,
 			if (rc < 0) {
 				dev_err(dev->device,
 					"restart cmd failed rc = %d\n", rc);
-					goto xfer_send_stop;
+				goto xfer_send_stop;
 			}
 		}
 

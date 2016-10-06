@@ -24,11 +24,14 @@ config SND_RAWMIDI
 config SND_COMPRESS_OFFLOAD
 	tristate
 
-# To be effective this also requires INPUT - users should say:
-#    select SND_JACK if INPUT=y || INPUT=SND
-# to avoid having to force INPUT on.
 config SND_JACK
 	bool
+
+# enable input device support in jack layer
+config SND_JACK_INPUT_DEV
+	bool
+	depends on SND_JACK
+	default y if INPUT=y || INPUT=SND
 
 config SND_SEQUENCER
 	tristate "Sequencer support"
@@ -97,11 +100,11 @@ config SND_PCM_TIMER
 	bool "PCM timer interface" if EXPERT
 	default y
 	help
-	  If you disable this option, pcm timer will be inavailable, so
-	  those stubs used pcm timer (e.g. dmix, dsnoop & co) may work
+	  If you disable this option, pcm timer will be unavailable, so
+	  those stubs that use pcm timer (e.g. dmix, dsnoop & co) may work
 	  incorrectlly.
 
-	  For some embedded device, we may disable it to reduce memory
+	  For some embedded devices, we may disable it to reduce memory
 	  footprint, about 20KB on x86_64 platform.
 
 config SND_SEQUENCER_OSS
@@ -137,35 +140,6 @@ config SND_SEQ_HRTIMER_DEFAULT
 	help
 	  Say Y here to use the HR-timer backend as the default sequencer
 	  timer.
-
-config SND_RTCTIMER
-	tristate "RTC Timer support"
-	depends on RTC
-	select SND_TIMER
-	help
-	  Say Y here to enable RTC timer support for ALSA.  ALSA uses
-	  the RTC timer as a precise timing source and maps the RTC
-	  timer to ALSA's timer interface.  The ALSA sequencer code also
-	  can use this timing source.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-rtctimer.
-
-	  Note that this option is exclusive with the new RTC drivers
-	  (CONFIG_RTC_CLASS) since this requires the old API.
-
-config SND_SEQ_RTCTIMER_DEFAULT
-	bool "Use RTC as default sequencer timer"
-	depends on SND_RTCTIMER && SND_SEQUENCER
-	depends on !SND_SEQ_HRTIMER_DEFAULT
-	default y
-	help
-	  Say Y here to use the RTC timer as the default sequencer
-	  timer.  This is strongly recommended because it ensures
-	  precise MIDI timing even when the system timer runs at less
-	  than 1000 Hz.
-
-	  If in doubt, say Y.
 
 config SND_DYNAMIC_MINORS
 	bool "Dynamic device file minor numbers"

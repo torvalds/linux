@@ -20,8 +20,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 
-#define DRV_VERSION "0.1"
-
 /* ISL register offsets */
 #define ISL12022_REG_SC		0x00
 #define ISL12022_REG_MN		0x01
@@ -258,8 +256,6 @@ static int isl12022_probe(struct i2c_client *client,
 	if (!isl12022)
 		return -ENOMEM;
 
-	dev_dbg(&client->dev, "chip found, driver version " DRV_VERSION "\n");
-
 	i2c_set_clientdata(client, isl12022);
 
 	isl12022->rtc = devm_rtc_device_register(&client->dev,
@@ -299,4 +295,3 @@ module_i2c_driver(isl12022_driver);
 MODULE_AUTHOR("roman.fietze@telemotive.de");
 MODULE_DESCRIPTION("ISL 12022 RTC driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);

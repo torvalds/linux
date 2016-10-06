@@ -45,8 +45,8 @@ mt7601u_efuse_read(struct mt7601u_dev *dev, u16 addr, u8 *data,
 	val = mt76_rr(dev, MT_EFUSE_CTRL);
 	val &= ~(MT_EFUSE_CTRL_AIN |
 		 MT_EFUSE_CTRL_MODE);
-	val |= MT76_SET(MT_EFUSE_CTRL_AIN, addr & ~0xf) |
-	       MT76_SET(MT_EFUSE_CTRL_MODE, mode) |
+	val |= FIELD_PREP(MT_EFUSE_CTRL_AIN, addr & ~0xf) |
+	       FIELD_PREP(MT_EFUSE_CTRL_MODE, mode) |
 	       MT_EFUSE_CTRL_KICK;
 	mt76_wr(dev, MT_EFUSE_CTRL, val);
 
@@ -128,8 +128,8 @@ mt7601u_set_chip_cap(struct mt7601u_dev *dev, u8 *eeprom)
 	if (!field_valid(nic_conf0 >> 8))
 		return;
 
-	if (MT76_GET(MT_EE_NIC_CONF_0_RX_PATH, nic_conf0) > 1 ||
-	    MT76_GET(MT_EE_NIC_CONF_0_TX_PATH, nic_conf0) > 1)
+	if (FIELD_GET(MT_EE_NIC_CONF_0_RX_PATH, nic_conf0) > 1 ||
+	    FIELD_GET(MT_EE_NIC_CONF_0_TX_PATH, nic_conf0) > 1)
 		dev_err(dev->dev,
 			"Error: device has more than 1 RX/TX stream!\n");
 }
@@ -150,7 +150,7 @@ mt7601u_set_macaddr(struct mt7601u_dev *dev, const u8 *eeprom)
 
 	mt76_wr(dev, MT_MAC_ADDR_DW0, get_unaligned_le32(dev->macaddr));
 	mt76_wr(dev, MT_MAC_ADDR_DW1, get_unaligned_le16(dev->macaddr + 4) |
-		MT76_SET(MT_MAC_ADDR_DW1_U2ME_MASK, 0xff));
+		FIELD_PREP(MT_MAC_ADDR_DW1_U2ME_MASK, 0xff));
 
 	return 0;
 }
@@ -176,7 +176,7 @@ mt7601u_set_channel_power(struct mt7601u_dev *dev, u8 *eeprom)
 	u8 max_pwr;
 
 	val = mt7601u_rr(dev, MT_TX_ALC_CFG_0);
-	max_pwr = MT76_GET(MT_TX_ALC_CFG_0_LIMIT_0, val);
+	max_pwr = FIELD_GET(MT_TX_ALC_CFG_0_LIMIT_0, val);
 
 	if (mt7601u_has_tssi(dev, eeprom)) {
 		mt7601u_set_channel_target_power(dev, eeprom, max_pwr);

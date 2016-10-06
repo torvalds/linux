@@ -13,9 +13,6 @@ struct vdso_image {
 	void *data;
 	unsigned long size;   /* Always a multiple of PAGE_SIZE */
 
-	/* text_mapping.pages is big enough for data/size page pointers */
-	struct vm_special_mapping text_mapping;
-
 	unsigned long alt, alt_len;
 
 	long sym_vvar_start;  /* Negative offset to the vvar area */
@@ -43,6 +40,8 @@ extern const struct vdso_image vdso_image_32;
 #endif
 
 extern void __init init_vdso_image(const struct vdso_image *image);
+
+extern int map_vdso_once(const struct vdso_image *image, unsigned long addr);
 
 #endif /* __ASSEMBLER__ */
 

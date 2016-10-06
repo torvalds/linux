@@ -348,7 +348,7 @@ void acpi_db_display_table_info(char *table_arg)
 		} else {
 			/* If the pointer is null, the table has been unloaded */
 
-			ACPI_INFO((AE_INFO, "%4.4s - Table has been unloaded",
+			ACPI_INFO(("%4.4s - Table has been unloaded",
 				   table_desc->signature.ascii));
 		}
 	}
@@ -738,9 +738,9 @@ acpi_dm_test_resource_conversion(struct acpi_namespace_node *node, char *name)
 	original_aml = return_buffer.pointer;
 
 	acpi_dm_compare_aml_resources(original_aml->buffer.pointer,
-				      (acpi_rsdesc_size) original_aml->buffer.
+				      (acpi_rsdesc_size)original_aml->buffer.
 				      length, new_aml.pointer,
-				      (acpi_rsdesc_size) new_aml.length);
+				      (acpi_rsdesc_size)new_aml.length);
 
 	/* Cleanup and exit */
 

@@ -28,6 +28,7 @@
 #include <asm/udbg.h>
 #include <asm/io.h>
 #include <asm/cpm.h>
+#include <asm/fixmap.h>
 #include <soc/fsl/qe/qe.h>
 
 #include <mm/mmu_decl.h>
@@ -37,25 +38,36 @@
 #endif
 
 #ifdef CONFIG_PPC_EARLY_DEBUG_CPM
-static u32 __iomem *cpm_udbg_txdesc =
-	(u32 __iomem __force *)CONFIG_PPC_EARLY_DEBUG_CPM_ADDR;
+static u32 __iomem *cpm_udbg_txdesc;
+static u8 __iomem *cpm_udbg_txbuf;
 
 static void udbg_putc_cpm(char c)
 {
-	u8 __iomem *txbuf = (u8 __iomem __force *)in_be32(&cpm_udbg_txdesc[1]);
-
 	if (c == '\n')
 		udbg_putc_cpm('\r');
 
 	while (in_be32(&cpm_udbg_txdesc[0]) & 0x80000000)
 		;
 
-	out_8(txbuf, c);
+	out_8(cpm_udbg_txbuf, c);
 	out_be32(&cpm_udbg_txdesc[0], 0xa0000001);
 }
 
 void __init udbg_init_cpm(void)
 {
+#ifdef CONFIG_PPC_8xx
+	cpm_udbg_txdesc = (u32 __iomem __force *)
+			  (CONFIG_PPC_EARLY_DEBUG_CPM_ADDR - PHYS_IMMR_BASE +
+			   VIRT_IMMR_BASE);
+	cpm_udbg_txbuf = (u8 __iomem __force *)
+			 (in_be32(&cpm_udbg_txdesc[1]) - PHYS_IMMR_BASE +
+			  VIRT_IMMR_BASE);
+#else
+	cpm_udbg_txdesc = (u32 __iomem __force *)
+			  CONFIG_PPC_EARLY_DEBUG_CPM_ADDR;
+	cpm_udbg_txbuf = (u8 __iomem __force *)in_be32(&cpm_udbg_txdesc[1]);
+#endif
+
 	if (cpm_udbg_txdesc) {
 #ifdef CONFIG_CPM2
 		setbat(1, 0xf0000000, 0xf0000000, 1024*1024, PAGE_KERNEL_NCG);
@@ -80,15 +92,10 @@ struct cpm2_gpio32_chip {
 	u32 cpdata;
 };
 
-static inline struct cpm2_gpio32_chip *
-to_cpm2_gpio32_chip(struct of_mm_gpio_chip *mm_gc)
-{
-	return container_of(mm_gc, struct cpm2_gpio32_chip, mm_gc);
-}
-
 static void cpm2_gpio32_save_regs(struct of_mm_gpio_chip *mm_gc)
 {
-	struct cpm2_gpio32_chip *cpm2_gc = to_cpm2_gpio32_chip(mm_gc);
+	struct cpm2_gpio32_chip *cpm2_gc =
+		container_of(mm_gc, struct cpm2_gpio32_chip, mm_gc);
 	struct cpm2_ioports __iomem *iop = mm_gc->regs;
 
 	cpm2_gc->cpdata = in_be32(&iop->dat);
@@ -108,7 +115,7 @@ static int cpm2_gpio32_get(struct gpio_chip *gc, unsigned int gpio)
 static void __cpm2_gpio32_set(struct of_mm_gpio_chip *mm_gc, u32 pin_mask,
 	int value)
 {
-	struct cpm2_gpio32_chip *cpm2_gc = to_cpm2_gpio32_chip(mm_gc);
+	struct cpm2_gpio32_chip *cpm2_gc = gpiochip_get_data(&mm_gc->gc);
 	struct cpm2_ioports __iomem *iop = mm_gc->regs;
 
 	if (value)
@@ -122,7 +129,7 @@ static void __cpm2_gpio32_set(struct of_mm_gpio_chip *mm_gc, u32 pin_mask,
 static void cpm2_gpio32_set(struct gpio_chip *gc, unsigned int gpio, int value)
 {
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct cpm2_gpio32_chip *cpm2_gc = to_cpm2_gpio32_chip(mm_gc);
+	struct cpm2_gpio32_chip *cpm2_gc = gpiochip_get_data(gc);
 	unsigned long flags;
 	u32 pin_mask = 1 << (31 - gpio);
 
@@ -136,7 +143,7 @@ static void cpm2_gpio32_set(struct gpio_chip *gc, unsigned int gpio, int value)
 static int cpm2_gpio32_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 {
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct cpm2_gpio32_chip *cpm2_gc = to_cpm2_gpio32_chip(mm_gc);
+	struct cpm2_gpio32_chip *cpm2_gc = gpiochip_get_data(gc);
 	struct cpm2_ioports __iomem *iop = mm_gc->regs;
 	unsigned long flags;
 	u32 pin_mask = 1 << (31 - gpio);
@@ -154,7 +161,7 @@ static int cpm2_gpio32_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 static int cpm2_gpio32_dir_in(struct gpio_chip *gc, unsigned int gpio)
 {
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct cpm2_gpio32_chip *cpm2_gc = to_cpm2_gpio32_chip(mm_gc);
+	struct cpm2_gpio32_chip *cpm2_gc = gpiochip_get_data(gc);
 	struct cpm2_ioports __iomem *iop = mm_gc->regs;
 	unsigned long flags;
 	u32 pin_mask = 1 << (31 - gpio);
@@ -190,6 +197,6 @@ int cpm2_gpiochip_add32(struct device_node *np)
 	gc->get = cpm2_gpio32_get;
 	gc->set = cpm2_gpio32_set;
 
-	return of_mm_gpiochip_add(np, mm_gc);
+	return of_mm_gpiochip_add_data(np, mm_gc, cpm2_gc);
 }
 #endif /* CONFIG_CPM2 || CONFIG_8xx_GPIO */

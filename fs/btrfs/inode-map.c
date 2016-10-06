@@ -38,7 +38,7 @@ static int caching_kthread(void *data)
 	int slot;
 	int ret;
 
-	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+	if (!btrfs_test_opt(root->fs_info, INODE_MAP_CACHE))
 		return 0;
 
 	path = btrfs_alloc_path();
@@ -141,7 +141,7 @@ static void start_caching(struct btrfs_root *root)
 	int ret;
 	u64 objectid;
 
-	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+	if (!btrfs_test_opt(root->fs_info, INODE_MAP_CACHE))
 		return;
 
 	spin_lock(&root->ino_cache_lock);
@@ -185,7 +185,7 @@ static void start_caching(struct btrfs_root *root)
 
 int btrfs_find_free_ino(struct btrfs_root *root, u64 *objectid)
 {
-	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+	if (!btrfs_test_opt(root->fs_info, INODE_MAP_CACHE))
 		return btrfs_find_free_objectid(root, objectid);
 
 again:
@@ -211,7 +211,7 @@ void btrfs_return_ino(struct btrfs_root *root, u64 objectid)
 {
 	struct btrfs_free_space_ctl *pinned = root->free_ino_pinned;
 
-	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+	if (!btrfs_test_opt(root->fs_info, INODE_MAP_CACHE))
 		return;
 again:
 	if (root->ino_cache_state == BTRFS_CACHE_FINISHED) {
@@ -251,7 +251,7 @@ void btrfs_unpin_free_ino(struct btrfs_root *root)
 	struct rb_node *n;
 	u64 count;
 
-	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+	if (!btrfs_test_opt(root->fs_info, INODE_MAP_CACHE))
 		return;
 
 	while (1) {
@@ -283,7 +283,7 @@ void btrfs_unpin_free_ino(struct btrfs_root *root)
 }
 
 #define INIT_THRESHOLD	((SZ_32K / 2) / sizeof(struct btrfs_free_space))
-#define INODES_PER_BITMAP (PAGE_CACHE_SIZE * 8)
+#define INODES_PER_BITMAP (PAGE_SIZE * 8)
 
 /*
  * The goal is to keep the memory used by the free_ino tree won't
@@ -317,7 +317,7 @@ static void recalculate_thresholds(struct btrfs_free_space_ctl *ctl)
 	}
 
 	ctl->extents_thresh = (max_bitmaps - ctl->total_bitmaps) *
-				PAGE_CACHE_SIZE / sizeof(*info);
+				PAGE_SIZE / sizeof(*info);
 }
 
 /*
@@ -412,7 +412,7 @@ int btrfs_save_ino_cache(struct btrfs_root *root,
 	if (btrfs_root_refs(&root->root_item) == 0)
 		return 0;
 
-	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+	if (!btrfs_test_opt(root->fs_info, INODE_MAP_CACHE))
 		return 0;
 
 	path = btrfs_alloc_path();
@@ -458,7 +458,7 @@ again:
 	BTRFS_I(inode)->generation = 0;
 	ret = btrfs_update_inode(trans, root, inode);
 	if (ret) {
-		btrfs_abort_transaction(trans, root, ret);
+		btrfs_abort_transaction(trans, ret);
 		goto out_put;
 	}
 
@@ -466,7 +466,7 @@ again:
 		ret = btrfs_truncate_free_space_cache(root, trans, NULL, inode);
 		if (ret) {
 			if (ret != -ENOSPC)
-				btrfs_abort_transaction(trans, root, ret);
+				btrfs_abort_transaction(trans, ret);
 			goto out_put;
 		}
 	}
@@ -481,12 +481,12 @@ again:
 
 	spin_lock(&ctl->tree_lock);
 	prealloc = sizeof(struct btrfs_free_space) * ctl->free_extents;
-	prealloc = ALIGN(prealloc, PAGE_CACHE_SIZE);
-	prealloc += ctl->total_bitmaps * PAGE_CACHE_SIZE;
+	prealloc = ALIGN(prealloc, PAGE_SIZE);
+	prealloc += ctl->total_bitmaps * PAGE_SIZE;
 	spin_unlock(&ctl->tree_lock);
 
 	/* Just to make sure we have enough space */
-	prealloc += 8 * PAGE_CACHE_SIZE;
+	prealloc += 8 * PAGE_SIZE;
 
 	ret = btrfs_delalloc_reserve_space(inode, 0, prealloc);
 	if (ret)
@@ -495,10 +495,9 @@ again:
 	ret = btrfs_prealloc_file_range_trans(inode, trans, 0, 0, prealloc,
 					      prealloc, prealloc, &alloc_hint);
 	if (ret) {
-		btrfs_delalloc_release_space(inode, 0, prealloc);
+		btrfs_delalloc_release_metadata(inode, prealloc);
 		goto out_put;
 	}
-	btrfs_free_reserved_data_space(inode, 0, prealloc);
 
 	ret = btrfs_write_out_ino_cache(root, trans, path, inode);
 out_put:
@@ -556,6 +555,9 @@ int btrfs_find_free_objectid(struct btrfs_root *root, u64 *objectid)
 	mutex_lock(&root->objectid_mutex);
 
 	if (unlikely(root->highest_objectid >= BTRFS_LAST_FREE_OBJECTID)) {
+		btrfs_warn(root->fs_info,
+			   "the objectid of root %llu reaches its highest value",
+			   root->root_key.objectid);
 		ret = -ENOSPC;
 		goto out;
 	}

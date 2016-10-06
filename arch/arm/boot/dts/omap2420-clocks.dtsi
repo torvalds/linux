@@ -9,7 +9,7 @@
  */
 
 &prcm_clocks {
-	sys_clkout2_src_gate: sys_clkout2_src_gate {
+	sys_clkout2_src_gate: sys_clkout2_src_gate@70 {
 		#clock-cells = <0>;
 		compatible = "ti,composite-no-wait-gate-clock";
 		clocks = <&core_ck>;
@@ -17,7 +17,7 @@
 		reg = <0x0070>;
 	};
 
-	sys_clkout2_src_mux: sys_clkout2_src_mux {
+	sys_clkout2_src_mux: sys_clkout2_src_mux@70 {
 		#clock-cells = <0>;
 		compatible = "ti,composite-mux-clock";
 		clocks = <&core_ck>, <&sys_ck>, <&func_96m_ck>, <&func_54m_ck>;
@@ -31,7 +31,7 @@
 		clocks = <&sys_clkout2_src_gate>, <&sys_clkout2_src_mux>;
 	};
 
-	sys_clkout2: sys_clkout2 {
+	sys_clkout2: sys_clkout2@70 {
 		#clock-cells = <0>;
 		compatible = "ti,divider-clock";
 		clocks = <&sys_clkout2_src>;
@@ -41,7 +41,7 @@
 		ti,index-power-of-two;
 	};
 
-	dsp_gate_ick: dsp_gate_ick {
+	dsp_gate_ick: dsp_gate_ick@810 {
 		#clock-cells = <0>;
 		compatible = "ti,composite-interface-clock";
 		clocks = <&dsp_fck>;
@@ -49,7 +49,7 @@
 		reg = <0x0810>;
 	};
 
-	dsp_div_ick: dsp_div_ick {
+	dsp_div_ick: dsp_div_ick@840 {
 		#clock-cells = <0>;
 		compatible = "ti,composite-divider-clock";
 		clocks = <&dsp_fck>;
@@ -65,7 +65,7 @@
 		clocks = <&dsp_gate_ick>, <&dsp_div_ick>;
 	};
 
-	iva1_gate_ifck: iva1_gate_ifck {
+	iva1_gate_ifck: iva1_gate_ifck@800 {
 		#clock-cells = <0>;
 		compatible = "ti,composite-gate-clock";
 		clocks = <&core_ck>;
@@ -73,7 +73,7 @@
 		reg = <0x0800>;
 	};
 
-	iva1_div_ifck: iva1_div_ifck {
+	iva1_div_ifck: iva1_div_ifck@840 {
 		#clock-cells = <0>;
 		compatible = "ti,composite-divider-clock";
 		clocks = <&core_ck>;
@@ -96,7 +96,7 @@
 		clock-div = <2>;
 	};
 
-	iva1_mpu_int_ifck: iva1_mpu_int_ifck {
+	iva1_mpu_int_ifck: iva1_mpu_int_ifck@800 {
 		#clock-cells = <0>;
 		compatible = "ti,wait-gate-clock";
 		clocks = <&iva1_ifck_div>;
@@ -104,7 +104,7 @@
 		reg = <0x0800>;
 	};
 
-	wdt3_ick: wdt3_ick {
+	wdt3_ick: wdt3_ick@210 {
 		#clock-cells = <0>;
 		compatible = "ti,omap3-interface-clock";
 		clocks = <&l4_ck>;
@@ -112,7 +112,7 @@
 		reg = <0x0210>;
 	};
 
-	wdt3_fck: wdt3_fck {
+	wdt3_fck: wdt3_fck@200 {
 		#clock-cells = <0>;
 		compatible = "ti,wait-gate-clock";
 		clocks = <&func_32k_ck>;
@@ -120,7 +120,7 @@
 		reg = <0x0200>;
 	};
 
-	mmc_ick: mmc_ick {
+	mmc_ick: mmc_ick@210 {
 		#clock-cells = <0>;
 		compatible = "ti,omap3-interface-clock";
 		clocks = <&l4_ck>;
@@ -128,7 +128,7 @@
 		reg = <0x0210>;
 	};
 
-	mmc_fck: mmc_fck {
+	mmc_fck: mmc_fck@200 {
 		#clock-cells = <0>;
 		compatible = "ti,wait-gate-clock";
 		clocks = <&func_96m_ck>;
@@ -136,7 +136,7 @@
 		reg = <0x0200>;
 	};
 
-	eac_ick: eac_ick {
+	eac_ick: eac_ick@210 {
 		#clock-cells = <0>;
 		compatible = "ti,omap3-interface-clock";
 		clocks = <&l4_ck>;
@@ -144,7 +144,7 @@
 		reg = <0x0210>;
 	};
 
-	eac_fck: eac_fck {
+	eac_fck: eac_fck@200 {
 		#clock-cells = <0>;
 		compatible = "ti,wait-gate-clock";
 		clocks = <&func_96m_ck>;
@@ -152,7 +152,7 @@
 		reg = <0x0200>;
 	};
 
-	i2c1_fck: i2c1_fck {
+	i2c1_fck: i2c1_fck@200 {
 		#clock-cells = <0>;
 		compatible = "ti,wait-gate-clock";
 		clocks = <&func_12m_ck>;
@@ -160,7 +160,7 @@
 		reg = <0x0200>;
 	};
 
-	i2c2_fck: i2c2_fck {
+	i2c2_fck: i2c2_fck@200 {
 		#clock-cells = <0>;
 		compatible = "ti,wait-gate-clock";
 		clocks = <&func_12m_ck>;
@@ -168,7 +168,7 @@
 		reg = <0x0200>;
 	};
 
-	vlynq_ick: vlynq_ick {
+	vlynq_ick: vlynq_ick@210 {
 		#clock-cells = <0>;
 		compatible = "ti,omap3-interface-clock";
 		clocks = <&core_l3_ck>;
@@ -176,7 +176,7 @@
 		reg = <0x0210>;
 	};
 
-	vlynq_gate_fck: vlynq_gate_fck {
+	vlynq_gate_fck: vlynq_gate_fck@200 {
 		#clock-cells = <0>;
 		compatible = "ti,composite-gate-clock";
 		clocks = <&core_ck>;
@@ -192,7 +192,7 @@
 		clock-div = <18>;
 	};
 
-	vlynq_mux_fck: vlynq_mux_fck {
+	vlynq_mux_fck: vlynq_mux_fck@240 {
 		#clock-cells = <0>;
 		compatible = "ti,composite-mux-clock";
 		clocks = <&func_96m_ck>, <&core_ck>, <&core_d2_ck>, <&core_d3_ck>, <&core_d4_ck>, <&dummy_ck>, <&core_d6_ck>, <&dummy_ck>, <&core_d8_ck>, <&core_d9_ck>, <&dummy_ck>, <&dummy_ck>, <&core_d12_ck>, <&dummy_ck>, <&dummy_ck>, <&dummy_ck>, <&core_d16_ck>, <&dummy_ck>, <&core_d18_ck>;

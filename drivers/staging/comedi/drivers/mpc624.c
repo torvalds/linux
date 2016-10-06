@@ -103,7 +103,7 @@ static const struct comedi_lrange range_mpc624_bipolar1 = {
 /* BIP_RANGE(1.01)  this is correct, */
 	 /*  but my MPC-624 actually seems to have a range of 2.02 */
 	 BIP_RANGE(2.02)
-	 }
+	}
 };
 
 static const struct comedi_lrange range_mpc624_bipolar10 = {
@@ -112,7 +112,7 @@ static const struct comedi_lrange range_mpc624_bipolar10 = {
 /* BIP_RANGE(10.1)   this is correct, */
 	 /*  but my MPC-624 actually seems to have a range of 20.2 */
 	 BIP_RANGE(20.2)
-	 }
+	}
 };
 
 static unsigned int mpc624_ai_get_sample(struct comedi_device *dev,

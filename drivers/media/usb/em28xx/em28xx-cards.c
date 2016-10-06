@@ -32,11 +32,12 @@
 #include <media/tuner.h>
 #include <media/drv-intf/msp3400.h>
 #include <media/i2c/saa7115.h>
-#include <media/i2c/tvp5150.h>
+#include <dt-bindings/media/tvp5150.h>
 #include <media/i2c/tvaudio.h>
 #include <media/i2c-addr.h>
 #include <media/tveeprom.h>
 #include <media/v4l2-common.h>
+#include <sound/ac97_codec.h>
 
 #include "em28xx.h"
 
@@ -491,6 +492,44 @@ static struct em28xx_reg_seq terratec_t2_stick_hd[] = {
 	{-1,                             -1,   -1,     -1},
 };
 
+static struct em28xx_reg_seq plex_px_bcud[] = {
+	{EM2874_R80_GPIO_P0_CTRL,	0xff,	0xff,	0},
+	{0x0d,				0xff,	0xff,	0},
+	{EM2874_R50_IR_CONFIG,		0x01,	0xff,	0},
+	{EM28XX_R06_I2C_CLK,		0x40,	0xff,	0},
+	{EM2874_R80_GPIO_P0_CTRL,	0xfd,	0xff,	100},
+	{EM28XX_R12_VINENABLE,		0x20,	0x20,	0},
+	{0x0d,				0x42,	0xff,	1000},
+	{EM2874_R80_GPIO_P0_CTRL,	0xfc,	0xff,	10},
+	{EM2874_R80_GPIO_P0_CTRL,	0xfd,	0xff,	10},
+	{0x73,				0xfd,	0xff,	100},
+	{-1,				-1,	-1,	-1},
+};
+
+/*
+ * 2040:0265 Hauppauge WinTV-dualHD DVB
+ * reg 0x80/0x84:
+ * GPIO_0: Yellow LED tuner 1, 0=on, 1=off
+ * GPIO_1: Green LED tuner 1, 0=on, 1=off
+ * GPIO_2: Yellow LED tuner 2, 0=on, 1=off
+ * GPIO_3: Green LED tuner 2, 0=on, 1=off
+ * GPIO_5: Reset #2, 0=active
+ * GPIO_6: Reset #1, 0=active
+ */
+static struct em28xx_reg_seq hauppauge_dualhd_dvb[] = {
+	{EM2874_R80_GPIO_P0_CTRL,      0xff, 0xff,      0},
+	{0x0d,                         0xff, 0xff,    200},
+	{0x50,                         0x04, 0xff,    300},
+	{EM2874_R80_GPIO_P0_CTRL,      0xbf, 0xff,    100}, /* demod 1 reset */
+	{EM2874_R80_GPIO_P0_CTRL,      0xff, 0xff,    100},
+	{EM2874_R80_GPIO_P0_CTRL,      0xdf, 0xff,    100}, /* demod 2 reset */
+	{EM2874_R80_GPIO_P0_CTRL,      0xff, 0xff,    100},
+	{EM2874_R5F_TS_ENABLE,         0x44, 0xff,     50},
+	{EM2874_R5D_TS1_PKT_SIZE,      0x05, 0xff,     50},
+	{EM2874_R5E_TS2_PKT_SIZE,      0x05, 0xff,     50},
+	{-1,                             -1,   -1,     -1},
+};
+
 /*
  *  Button definitions
  */
@@ -560,6 +599,32 @@ static struct em28xx_led pctv_80e_leds[] = {
 	{-1, 0, 0, 0},
 };
 
+static struct em28xx_led terratec_grabby_leds[] = {
+	{
+		.role      = EM28XX_LED_ANALOG_CAPTURING,
+		.gpio_reg  = EM2820_R08_GPIO_CTRL,
+		.gpio_mask = EM_GPIO_3,
+		.inverted  = 1,
+	},
+	{-1, 0, 0, 0},
+};
+
+static struct em28xx_led hauppauge_dualhd_leds[] = {
+	{
+		.role      = EM28XX_LED_DIGITAL_CAPTURING,
+		.gpio_reg  = EM2874_R80_GPIO_P0_CTRL,
+		.gpio_mask = EM_GPIO_1,
+		.inverted  = 1,
+	},
+	{
+		.role      = EM28XX_LED_DIGITAL_CAPTURING_TS2,
+		.gpio_reg  = EM2874_R80_GPIO_P0_CTRL,
+		.gpio_mask = EM_GPIO_3,
+		.inverted  = 1,
+	},
+	{-1, 0, 0, 0},
+};
+
 /*
  *  Board definitions
  */
@@ -570,7 +635,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_type    = TUNER_ABSENT,
 		.is_webcam     = 1,
 		.input         = { {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = 0,
 			.amux     = EM28XX_AMUX_VIDEO,
 			.gpio     = silvercrest_reg_seq,
@@ -583,7 +648,7 @@ struct em28xx_board em28xx_boards[] = {
 		.decoder      = EM28XX_SAA711X,
 		.tuner_type   = TUNER_ABSENT,
 		.input        = { {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -605,7 +670,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_type    = TUNER_ABSENT,
 		.is_webcam     = 1,
 		.input         = { {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = 0,
 			.amux     = EM28XX_AMUX_VIDEO,
 		} },
@@ -616,7 +681,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tda9887_conf = TDA9887_PRESENT,
 		.decoder      = EM28XX_SAA711X,
 		.input        = { {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -635,7 +700,7 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -655,7 +720,7 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -675,7 +740,7 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -715,7 +780,7 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -735,7 +800,7 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -755,7 +820,7 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -775,7 +840,7 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = SAA7115_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -800,7 +865,7 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = SAA7115_COMPOSITE4,
 			.amux     = EM28XX_AMUX_AUX,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE5,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -819,7 +884,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_type   = TUNER_ABSENT,
 		.is_webcam    = 1,
 		.input        = { {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = 0,
 			.amux     = EM28XX_AMUX_VIDEO,
 		} },
@@ -829,7 +894,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_type   = TUNER_ABSENT,
 		.is_webcam    = 1,
 		.input        = { {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = 0,
 			.amux     = EM28XX_AMUX_VIDEO,
 			.gpio     = silvercrest_reg_seq,
@@ -848,7 +913,7 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
@@ -863,7 +928,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_type   = TUNER_ABSENT,	/* Capture only device */
 		.decoder      = EM28XX_SAA711X,
 		.input        = { {
-			.type  = EM28XX_VMUX_COMPOSITE1,
+			.type  = EM28XX_VMUX_COMPOSITE,
 			.vmux  = SAA7115_COMPOSITE0,
 			.amux  = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -879,7 +944,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_type   = TUNER_ABSENT,
 		.is_webcam    = 1,
 		.input        = { {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = 0,
 			.amux     = EM28XX_AMUX_VIDEO,
 		} },
@@ -889,7 +954,7 @@ struct em28xx_board em28xx_boards[] = {
 		.decoder      = EM28XX_SAA711X,
 		.tuner_type   = TUNER_ABSENT,	/* Capture only device */
 		.input        = { {
-			.type  = EM28XX_VMUX_COMPOSITE1,
+			.type  = EM28XX_VMUX_COMPOSITE,
 			.vmux  = SAA7115_COMPOSITE0,
 			.amux  = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -909,7 +974,7 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -930,7 +995,7 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -952,7 +1017,7 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_VIDEO,
 			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 			.gpio     = hauppauge_wintv_hvr_900_analog,
@@ -974,7 +1039,7 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -992,7 +1057,7 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -1006,7 +1071,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_type    = TUNER_ABSENT,	/* Capture only device */
 		.decoder       = EM28XX_TVP5150,
 		.input         = { {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -1029,7 +1094,7 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_LINE_IN,
 			.gpio     = pinnacle_hybrid_pro_analog,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 			.gpio     = pinnacle_hybrid_pro_analog,
@@ -1100,7 +1165,7 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_VIDEO,
 			.gpio     = terratec_cinergy_USB_XS_FR_analog,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 			.gpio     = terratec_cinergy_USB_XS_FR_analog,
@@ -1186,7 +1251,7 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_VIDEO,
 			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 			.gpio     = hauppauge_wintv_hvr_900_analog,
@@ -1213,7 +1278,7 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_VIDEO,
 			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 			.gpio     = hauppauge_wintv_hvr_900_analog,
@@ -1239,7 +1304,7 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_VIDEO,
 			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 			.gpio     = hauppauge_wintv_hvr_900_analog,
@@ -1265,7 +1330,7 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_VIDEO,
 			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 			.gpio     = hauppauge_wintv_hvr_900_analog,
@@ -1291,7 +1356,7 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_VIDEO,
 			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 			.gpio     = hauppauge_wintv_hvr_900_analog,
@@ -1317,7 +1382,7 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_VIDEO,
 			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 			.gpio     = hauppauge_wintv_hvr_900_analog,
@@ -1343,7 +1408,7 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_VIDEO,
 			.gpio     = default_analog,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 			.gpio     = default_analog,
@@ -1368,7 +1433,7 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_VIDEO,
 			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 			.gpio     = hauppauge_wintv_hvr_900_analog,
@@ -1392,7 +1457,7 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux      = SAA7115_COMPOSITE4,
 			.amux      = EM28XX_AMUX_VIDEO,
 		}, {
-			.type      = EM28XX_VMUX_COMPOSITE1,
+			.type      = EM28XX_VMUX_COMPOSITE,
 			.vmux      = SAA7115_COMPOSITE0,
 			.amux      = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -1413,7 +1478,7 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -1428,7 +1493,7 @@ struct em28xx_board em28xx_boards[] = {
 		.decoder    = EM28XX_SAA711X,
 		.tuner_type = TUNER_ABSENT, /* capture only board */
 		.input      = { {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -1443,7 +1508,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_type   = TUNER_ABSENT,	/* Capture-only board */
 		.decoder      = EM28XX_SAA711X,
 		.input        = { {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
 			.gpio     = vc211a_enable,
@@ -1465,7 +1530,7 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -1485,7 +1550,7 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -1500,7 +1565,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_type   = TUNER_ABSENT, /* capture only board */
 		.decoder      = EM28XX_SAA711X,
 		.input        = { {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -1520,7 +1585,7 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -1541,7 +1606,7 @@ struct em28xx_board em28xx_boards[] = {
 			.aout     = EM28XX_AOUT_MONO |	/* I2S */
 				    EM28XX_AOUT_MASTER,	/* Line out pin */
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -1555,6 +1620,7 @@ struct em28xx_board em28xx_boards[] = {
 		.buttons = std_snapshot_button,
 		.tda9887_conf = TDA9887_PRESENT,
 		.tuner_type   = TUNER_YMEC_TVF_5533MF,
+		.tuner_addr   = 0x60,
 		.decoder      = EM28XX_SAA711X,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -1563,7 +1629,7 @@ struct em28xx_board em28xx_boards[] = {
 			.aout     = EM28XX_AOUT_MONO |	/* I2S */
 				    EM28XX_AOUT_MASTER,	/* Line out pin */
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -1581,7 +1647,7 @@ struct em28xx_board em28xx_boards[] = {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE0,
 		} },
 	},
@@ -1610,7 +1676,7 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_VIDEO,
 			.gpio     = em2880_msi_digivox_ad_analog,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 			.gpio     = em2880_msi_digivox_ad_analog,
@@ -1633,7 +1699,7 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_VIDEO,
 			.gpio     = em2880_msi_digivox_ad_analog,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 			.gpio     = em2880_msi_digivox_ad_analog,
@@ -1654,7 +1720,7 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -1677,7 +1743,7 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_VIDEO,
 			.gpio     = default_analog,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 			.gpio     = default_analog,
@@ -1708,7 +1774,7 @@ struct em28xx_board em28xx_boards[] = {
 			.gpio = em2882_kworld_315u_analog,
 			.aout = EM28XX_AOUT_PCM_IN | EM28XX_AOUT_PCM_STEREO,
 		}, {
-			.type = EM28XX_VMUX_COMPOSITE1,
+			.type = EM28XX_VMUX_COMPOSITE,
 			.vmux = SAA7115_COMPOSITE0,
 			.amux = EM28XX_AMUX_LINE_IN,
 			.gpio = em2882_kworld_315u_analog1,
@@ -1735,7 +1801,7 @@ struct em28xx_board em28xx_boards[] = {
 			.amux = EM28XX_AMUX_VIDEO,
 			.gpio = default_analog,
 		}, {
-			.type = EM28XX_VMUX_COMPOSITE1,
+			.type = EM28XX_VMUX_COMPOSITE,
 			.vmux = TVP5150_COMPOSITE1,
 			.amux = EM28XX_AMUX_LINE_IN,
 			.gpio = default_analog,
@@ -1758,7 +1824,7 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_VIDEO,
 			.gpio     = default_analog,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 			.gpio     = default_analog,
@@ -1782,7 +1848,7 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_VIDEO,
 			.gpio     = pinnacle_hybrid_pro_analog,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 			.gpio     = pinnacle_hybrid_pro_analog,
@@ -1808,7 +1874,7 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_VIDEO,
 			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 			.gpio     = hauppauge_wintv_hvr_900_analog,
@@ -1834,7 +1900,7 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -1859,7 +1925,7 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_VIDEO,
 			.gpio     = hauppauge_wintv_hvr_900_analog,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 			.gpio     = hauppauge_wintv_hvr_900_analog,
@@ -1904,7 +1970,7 @@ struct em28xx_board em28xx_boards[] = {
 			.gpio     = kworld_330u_analog,
 			.aout     = EM28XX_AOUT_PCM_IN | EM28XX_AOUT_PCM_STEREO,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 			.gpio     = kworld_330u_analog,
@@ -1951,7 +2017,7 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_VIDEO,
 
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -1970,7 +2036,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_type   = TUNER_ABSENT,
 		.decoder      = EM28XX_SAA711X,
 		.input           = { {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -1990,7 +2056,7 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
 		}, { /* Composite has not been tested yet */
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_VIDEO,
 		}, { /* S-video has not been tested yet */
@@ -2006,7 +2072,7 @@ struct em28xx_board em28xx_boards[] = {
 		.decoder         = EM28XX_SAA711X,
 		.xclk            = EM28XX_XCLK_FREQUENCY_12MHZ,
 		.input           = { {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -2014,6 +2080,8 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = SAA7115_SVIDEO3,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
+		.buttons         = std_snapshot_button,
+		.leds            = terratec_grabby_leds,
 	},
 	[EM2860_BOARD_TERRATEC_AV350] = {
 		.name            = "Terratec AV350",
@@ -2023,7 +2091,7 @@ struct em28xx_board em28xx_boards[] = {
 		.xclk            = EM28XX_XCLK_FREQUENCY_12MHZ,
 		.mute_gpio       = terratec_av350_mute_gpio,
 		.input           = { {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AUDIO_SRC_LINE,
 			.gpio     = terratec_av350_unmute_gpio,
@@ -2041,7 +2109,7 @@ struct em28xx_board em28xx_boards[] = {
 		.decoder      = EM28XX_SAA711X,
 		.tuner_type   = TUNER_ABSENT,   /* Capture only device */
 		.input        = { {
-			.type  = EM28XX_VMUX_COMPOSITE1,
+			.type  = EM28XX_VMUX_COMPOSITE,
 			.vmux  = SAA7115_COMPOSITE0,
 			.amux  = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -2067,7 +2135,7 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_VIDEO,
 			.gpio     = evga_indtube_analog,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 			.gpio     = evga_indtube_analog,
@@ -2125,7 +2193,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_type          = TUNER_ABSENT,
 		.decoder             = EM28XX_SAA711X,
 		.input               = { {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -2238,7 +2306,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_type   = TUNER_ABSENT,
 		.is_webcam    = 1,
 		.input        = { {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.amux     = EM28XX_AMUX_VIDEO,
 			.gpio     = speedlink_vad_laplace_reg_seq,
 		} },
@@ -2272,7 +2340,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_type    = TUNER_ABSENT,	/* Capture only device */
 		.decoder       = EM28XX_TVP5150,
 		.input         = { {
-			.type     = EM28XX_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
@@ -2291,6 +2359,35 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_gpio    = terratec_t2_stick_hd,
 		.has_dvb       = 1,
 		.ir_codes      = RC_MAP_TERRATEC_SLIM_2,
+	},
+
+	/*
+	 * 3275:0085 PLEX PX-BCUD.
+	 * Empia EM28178, TOSHIBA TC90532XBG, Sharp QM1D1C0042
+	 */
+	[EM28178_BOARD_PLEX_PX_BCUD] = {
+		.name          = "PLEX PX-BCUD",
+		.xclk          = EM28XX_XCLK_FREQUENCY_4_3MHZ,
+		.def_i2c_bus   = 1,
+		.i2c_speed     = EM28XX_I2C_CLK_WAIT_ENABLE,
+		.tuner_type    = TUNER_ABSENT,
+		.tuner_gpio    = plex_px_bcud,
+		.has_dvb       = 1,
+	},
+	/*
+	 * 2040:0265 Hauppauge WinTV-dualHD (DVB version).
+	 * Empia EM28274, 2x Silicon Labs Si2168, 2x Silicon Labs Si2157
+	 */
+	[EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_DVB] = {
+		.name          = "Hauppauge WinTV-dualHD DVB",
+		.def_i2c_bus   = 1,
+		.i2c_speed     = EM28XX_I2C_CLK_WAIT_ENABLE |
+				 EM28XX_I2C_FREQ_400_KHZ,
+		.tuner_type    = TUNER_ABSENT,
+		.tuner_gpio    = hauppauge_dualhd_dvb,
+		.has_dvb       = 1,
+		.ir_codes      = RC_MAP_HAUPPAUGE,
+		.leds          = hauppauge_dualhd_leds,
 	},
 };
 EXPORT_SYMBOL_GPL(em28xx_boards);
@@ -2415,6 +2512,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950 },
 	{ USB_DEVICE(0x2040, 0x651f),
 			.driver_info = EM2883_BOARD_HAUPPAUGE_WINTV_HVR_850 },
+	{ USB_DEVICE(0x2040, 0x0265),
+			.driver_info = EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_DVB },
 	{ USB_DEVICE(0x0438, 0xb002),
 			.driver_info = EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600 },
 	{ USB_DEVICE(0x2001, 0xf112),
@@ -2481,6 +2580,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2861_BOARD_LEADTEK_VC100 },
 	{ USB_DEVICE(0xeb1a, 0x8179),
 			.driver_info = EM28178_BOARD_TERRATEC_T2_STICK_HD },
+	{ USB_DEVICE(0x3275, 0x0085),
+			.driver_info = EM28178_BOARD_PLEX_PX_BCUD },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, em28xx_id_table);
@@ -2548,6 +2649,36 @@ static inline void em28xx_set_model(struct em28xx *dev)
 
 	/* Should be initialized early, for I2C to work */
 	dev->def_i2c_bus = dev->board.def_i2c_bus;
+}
+
+/* Wait until AC97_RESET reports the expected value reliably before proceeding.
+ * We also check that two unrelated registers accesses don't return the same
+ * value to avoid premature return.
+ * This procedure helps ensuring AC97 register accesses are reliable.
+ */
+static int em28xx_wait_until_ac97_features_equals(struct em28xx *dev,
+						  int expected_feat)
+{
+	unsigned long timeout = jiffies + msecs_to_jiffies(2000);
+	int feat, powerdown;
+
+	while (time_is_after_jiffies(timeout)) {
+		feat = em28xx_read_ac97(dev, AC97_RESET);
+		if (feat < 0)
+			return feat;
+
+		powerdown = em28xx_read_ac97(dev, AC97_POWERDOWN);
+		if (powerdown < 0)
+			return powerdown;
+
+		if (feat == expected_feat && feat != powerdown)
+			return 0;
+
+		msleep(50);
+	}
+
+	em28xx_warn("AC97 registers access is not reliable !\n");
+	return -ETIMEDOUT;
 }
 
 /* Since em28xx_pre_card_setup() requires a proper dev->model,
@@ -2654,6 +2785,13 @@ static void em28xx_pre_card_setup(struct em28xx *dev)
 		msleep(70);
 		em28xx_write_reg(dev, EM2820_R08_GPIO_CTRL, 0xfd);
 		msleep(70);
+		break;
+
+	case EM2860_BOARD_TERRATEC_GRABBY:
+		/* HACK?: Ensure AC97 register reading is reliable before
+		 * proceeding. In practice, this will wait about 1.6 seconds.
+		 */
+		em28xx_wait_until_ac97_features_equals(dev, 0x6a90);
 		break;
 	}
 
@@ -2810,6 +2948,7 @@ static void em28xx_card_setup(struct em28xx *dev)
 	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_850:
 	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950:
 	case EM2884_BOARD_HAUPPAUGE_WINTV_HVR_930C:
+	case EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_DVB:
 	{
 		struct tveeprom tv;
 
@@ -3012,6 +3151,41 @@ static void flush_request_modules(struct em28xx *dev)
 	flush_work(&dev->request_module_wk);
 }
 
+static int em28xx_media_device_init(struct em28xx *dev,
+				    struct usb_device *udev)
+{
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_device *mdev;
+
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	if (!mdev)
+		return -ENOMEM;
+
+	if (udev->product)
+		media_device_usb_init(mdev, udev, udev->product);
+	else if (udev->manufacturer)
+		media_device_usb_init(mdev, udev, udev->manufacturer);
+	else
+		media_device_usb_init(mdev, udev, dev->name);
+
+	dev->media_dev = mdev;
+#endif
+	return 0;
+}
+
+static void em28xx_unregister_media_device(struct em28xx *dev)
+{
+
+#ifdef CONFIG_MEDIA_CONTROLLER
+	if (dev->media_dev) {
+		media_device_unregister(dev->media_dev);
+		media_device_cleanup(dev->media_dev);
+		kfree(dev->media_dev);
+		dev->media_dev = NULL;
+	}
+#endif
+}
+
 /*
  * em28xx_release_resources()
  * unregisters the v4l2,i2c and usb devices
@@ -3022,6 +3196,8 @@ static void em28xx_release_resources(struct em28xx *dev)
 	/*FIXME: I2C IR should be disconnected */
 
 	mutex_lock(&dev->lock);
+
+	em28xx_unregister_media_device(dev);
 
 	if (dev->def_i2c_bus)
 		em28xx_i2c_unregister(dev, 1);
@@ -3166,6 +3342,8 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 	 * if the device has a sensor (so, it is em2710) or not.
 	 */
 	snprintf(dev->name, sizeof(dev->name), "%s #%d", chip_name, dev->devno);
+
+	em28xx_media_device_init(dev, udev);
 
 	if (dev->is_audio_only) {
 		retval = em28xx_audio_setup(dev);
@@ -3467,7 +3645,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, dev);
 
-	/* allocate device struct */
+	/* allocate device struct and check if the device is a webcam */
 	mutex_init(&dev->lock);
 	retval = em28xx_init_dev(dev, udev, interface, nr);
 	if (retval) {
@@ -3481,6 +3659,15 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 			try_bulk = 0;
 	} else {
 		try_bulk = usb_xfer_mode > 0;
+	}
+
+	/* Disable V4L2 if the device doesn't have a decoder */
+	if (has_video &&
+	    dev->board.decoder == EM28XX_NODECODER && !dev->board.is_webcam) {
+		printk(DRIVER_NAME
+		       ": Currently, V4L2 is not supported on this model\n");
+		has_video = false;
+		dev->has_video = false;
 	}
 
 	/* Select USB transfer types to use */
@@ -3501,9 +3688,14 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 
 	request_modules(dev);
 
-	/* Should be the last thing to do, to avoid newer udev's to
-	   open the device before fully initializing it
+	/*
+	 * Do it at the end, to reduce dynamic configuration changes during
+	 * the device init. Yet, as request_modules() can be async, the
+	 * topology will likely change after the load of the em28xx subdrivers.
 	 */
+#ifdef CONFIG_MEDIA_CONTROLLER
+	retval = media_device_register(dev->media_dev);
+#endif
 
 	return 0;
 

@@ -201,7 +201,7 @@ static struct shash_alg sha256_avx_algs[] = { {
 static bool avx_usable(void)
 {
 	if (!cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL)) {
-		if (cpu_has_avx)
+		if (boot_cpu_has(X86_FEATURE_AVX))
 			pr_info("AVX detected but unusable.\n");
 		return false;
 	}
@@ -427,4 +427,14 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SHA256 Secure Hash Algorithm, Supplemental SSE3 accelerated");
 
 MODULE_ALIAS_CRYPTO("sha256");
+MODULE_ALIAS_CRYPTO("sha256-ssse3");
+MODULE_ALIAS_CRYPTO("sha256-avx");
+MODULE_ALIAS_CRYPTO("sha256-avx2");
 MODULE_ALIAS_CRYPTO("sha224");
+MODULE_ALIAS_CRYPTO("sha224-ssse3");
+MODULE_ALIAS_CRYPTO("sha224-avx");
+MODULE_ALIAS_CRYPTO("sha224-avx2");
+#ifdef CONFIG_AS_SHA256_NI
+MODULE_ALIAS_CRYPTO("sha256-ni");
+MODULE_ALIAS_CRYPTO("sha224-ni");
+#endif

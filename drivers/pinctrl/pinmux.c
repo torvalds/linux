@@ -256,7 +256,7 @@ int pinmux_request_gpio(struct pinctrl_dev *pctldev,
 	/* Conjure some name stating what chip and pin this is taken by */
 	owner = kasprintf(GFP_KERNEL, "%s:%d", range->name, gpio);
 	if (!owner)
-		return -EINVAL;
+		return -ENOMEM;
 
 	ret = pin_request(pctldev, pin, owner, range);
 	if (ret < 0)
@@ -334,7 +334,6 @@ int pinmux_map_to_setting(struct pinctrl_map const *map,
 	unsigned num_groups;
 	int ret;
 	const char *group;
-	int i;
 
 	if (!pmxops) {
 		dev_err(pctldev->dev, "does not support mux function\n");
@@ -363,19 +362,13 @@ int pinmux_map_to_setting(struct pinctrl_map const *map,
 		return -EINVAL;
 	}
 	if (map->data.mux.group) {
-		bool found = false;
 		group = map->data.mux.group;
-		for (i = 0; i < num_groups; i++) {
-			if (!strcmp(group, groups[i])) {
-				found = true;
-				break;
-			}
-		}
-		if (!found) {
+		ret = match_string(groups, num_groups, group);
+		if (ret < 0) {
 			dev_err(pctldev->dev,
 				"invalid group \"%s\" for function \"%s\"\n",
 				group, map->data.mux.function);
-			return -EINVAL;
+			return ret;
 		}
 	} else {
 		group = groups[0];
@@ -613,23 +606,17 @@ static int pinmux_pins_show(struct seq_file *s, void *what)
 		if (pmxops->strict) {
 			if (desc->mux_owner)
 				seq_printf(s, "pin %d (%s): device %s%s",
-					   pin,
-					   desc->name ? desc->name : "unnamed",
-					   desc->mux_owner,
+					   pin, desc->name, desc->mux_owner,
 					   is_hog ? " (HOG)" : "");
 			else if (desc->gpio_owner)
 				seq_printf(s, "pin %d (%s): GPIO %s",
-					   pin,
-					   desc->name ? desc->name : "unnamed",
-					   desc->gpio_owner);
+					   pin, desc->name, desc->gpio_owner);
 			else
 				seq_printf(s, "pin %d (%s): UNCLAIMED",
-					   pin,
-					   desc->name ? desc->name : "unnamed");
+					   pin, desc->name);
 		} else {
 			/* For non-strict controllers */
-			seq_printf(s, "pin %d (%s): %s %s%s", pin,
-				   desc->name ? desc->name : "unnamed",
+			seq_printf(s, "pin %d (%s): %s %s%s", pin, desc->name,
 				   desc->mux_owner ? desc->mux_owner
 				   : "(MUX UNCLAIMED)",
 				   desc->gpio_owner ? desc->gpio_owner

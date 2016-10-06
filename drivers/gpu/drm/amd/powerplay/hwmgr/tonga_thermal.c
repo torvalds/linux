@@ -195,8 +195,8 @@ int tonga_fan_ctrl_set_fan_speed_percent(struct pp_hwmgr *hwmgr, uint32_t speed)
 	if (0 == duty100)
 		return -EINVAL;
 
-	tmp64 = (uint64_t)speed * 100;
-	do_div(tmp64, duty100);
+	tmp64 = (uint64_t)speed * duty100;
+	do_div(tmp64, 100);
 	duty = (uint32_t)tmp64;
 
 	PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, CG_FDO_CTRL0, FDO_STATIC_DUTY, duty);
@@ -525,7 +525,7 @@ static int tf_tonga_thermal_disable_alert(struct pp_hwmgr *hwmgr, void *input, v
 	return tonga_thermal_disable_alert(hwmgr);
 }
 
-static struct phm_master_table_item tonga_thermal_start_thermal_controller_master_list[] = {
+static const struct phm_master_table_item tonga_thermal_start_thermal_controller_master_list[] = {
 	{ NULL, tf_tonga_thermal_initialize },
 	{ NULL, tf_tonga_thermal_set_temperature_range },
 	{ NULL, tf_tonga_thermal_enable_alert },
@@ -538,20 +538,20 @@ static struct phm_master_table_item tonga_thermal_start_thermal_controller_maste
 	{ NULL, NULL }
 };
 
-static struct phm_master_table_header tonga_thermal_start_thermal_controller_master = {
+static const struct phm_master_table_header tonga_thermal_start_thermal_controller_master = {
 	0,
 	PHM_MasterTableFlag_None,
 	tonga_thermal_start_thermal_controller_master_list
 };
 
-static struct phm_master_table_item tonga_thermal_set_temperature_range_master_list[] = {
+static const struct phm_master_table_item tonga_thermal_set_temperature_range_master_list[] = {
 	{ NULL, tf_tonga_thermal_disable_alert},
 	{ NULL, tf_tonga_thermal_set_temperature_range},
 	{ NULL, tf_tonga_thermal_enable_alert},
 	{ NULL, NULL }
 };
 
-struct phm_master_table_header tonga_thermal_set_temperature_range_master = {
+static const struct phm_master_table_header tonga_thermal_set_temperature_range_master = {
 	0,
 	PHM_MasterTableFlag_None,
 	tonga_thermal_set_temperature_range_master_list

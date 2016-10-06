@@ -54,7 +54,6 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 	const struct nf_conn_help *help;
 	const struct nf_conntrack_tuple *tuple;
 	const struct nf_conntrack_helper *helper;
-	long diff;
 	unsigned int state;
 
 	ct = nf_ct_get(pkt->skb, &ctinfo);
@@ -94,10 +93,7 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 		return;
 #endif
 	case NFT_CT_EXPIRATION:
-		diff = (long)jiffies - (long)ct->timeout.expires;
-		if (diff < 0)
-			diff = 0;
-		*dest = jiffies_to_msecs(diff);
+		*dest = jiffies_to_msecs(nf_ct_expires(ct));
 		return;
 	case NFT_CT_HELPER:
 		if (ct->master == NULL)
@@ -113,20 +109,14 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 #ifdef CONFIG_NF_CONNTRACK_LABELS
 	case NFT_CT_LABELS: {
 		struct nf_conn_labels *labels = nf_ct_labels_find(ct);
-		unsigned int size;
 
-		if (!labels) {
+		if (labels)
+			memcpy(dest, labels->bits, NF_CT_LABELS_MAX_SIZE);
+		else
 			memset(dest, 0, NF_CT_LABELS_MAX_SIZE);
-			return;
-		}
-
-		size = labels->words * sizeof(long);
-		memcpy(dest, labels->bits, size);
-		if (size < NF_CT_LABELS_MAX_SIZE)
-			memset(((char *) dest) + size, 0,
-			       NF_CT_LABELS_MAX_SIZE - size);
 		return;
 	}
+#endif
 	case NFT_CT_BYTES: /* fallthrough */
 	case NFT_CT_PKTS: {
 		const struct nf_conn_acct *acct = nf_conn_acct_find(ct);
@@ -138,16 +128,18 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 		memcpy(dest, &count, sizeof(count));
 		return;
 	}
-#endif
+	case NFT_CT_L3PROTOCOL:
+		*dest = nf_ct_l3num(ct);
+		return;
+	case NFT_CT_PROTOCOL:
+		*dest = nf_ct_protonum(ct);
+		return;
 	default:
 		break;
 	}
 
 	tuple = &ct->tuplehash[priv->dir].tuple;
 	switch (priv->key) {
-	case NFT_CT_L3PROTOCOL:
-		*dest = nf_ct_l3num(ct);
-		return;
 	case NFT_CT_SRC:
 		memcpy(dest, tuple->src.u3.all,
 		       nf_ct_l3num(ct) == NFPROTO_IPV4 ? 4 : 16);
@@ -155,9 +147,6 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 	case NFT_CT_DST:
 		memcpy(dest, tuple->dst.u3.all,
 		       nf_ct_l3num(ct) == NFPROTO_IPV4 ? 4 : 16);
-		return;
-	case NFT_CT_PROTOCOL:
-		*dest = nf_ct_protonum(ct);
 		return;
 	case NFT_CT_PROTO_SRC:
 		*dest = (__force __u16)tuple->src.u.all;
@@ -196,6 +185,14 @@ static void nft_ct_set_eval(const struct nft_expr *expr,
 			ct->mark = value;
 			nf_conntrack_event_cache(IPCT_MARK, ct);
 		}
+		break;
+#endif
+#ifdef CONFIG_NF_CONNTRACK_LABELS
+	case NFT_CT_LABELS:
+		nf_connlabels_replace(ct,
+				      &regs->data[priv->sreg],
+				      &regs->data[priv->sreg],
+				      NF_CT_LABELS_MAX_SIZE / sizeof(u32));
 		break;
 #endif
 	default:
@@ -286,8 +283,9 @@ static int nft_ct_get_init(const struct nft_ctx *ctx,
 
 	case NFT_CT_L3PROTOCOL:
 	case NFT_CT_PROTOCOL:
-		if (tb[NFTA_CT_DIRECTION] == NULL)
-			return -EINVAL;
+		/* For compatibility, do not report error if NFTA_CT_DIRECTION
+		 * attribute is specified.
+		 */
 		len = sizeof(u8);
 		break;
 	case NFT_CT_SRC:
@@ -347,6 +345,9 @@ static int nft_ct_get_init(const struct nft_ctx *ctx,
 	if (err < 0)
 		return err;
 
+	if (priv->key == NFT_CT_BYTES || priv->key == NFT_CT_PKTS)
+		nf_ct_set_acct(ctx->net, true);
+
 	return 0;
 }
 
@@ -355,6 +356,7 @@ static int nft_ct_set_init(const struct nft_ctx *ctx,
 			   const struct nlattr * const tb[])
 {
 	struct nft_ct *priv = nft_expr_priv(expr);
+	bool label_got = false;
 	unsigned int len;
 	int err;
 
@@ -362,7 +364,20 @@ static int nft_ct_set_init(const struct nft_ctx *ctx,
 	switch (priv->key) {
 #ifdef CONFIG_NF_CONNTRACK_MARK
 	case NFT_CT_MARK:
+		if (tb[NFTA_CT_DIRECTION])
+			return -EINVAL;
 		len = FIELD_SIZEOF(struct nf_conn, mark);
+		break;
+#endif
+#ifdef CONFIG_NF_CONNTRACK_LABELS
+	case NFT_CT_LABELS:
+		if (tb[NFTA_CT_DIRECTION])
+			return -EINVAL;
+		len = NF_CT_LABELS_MAX_SIZE;
+		err = nf_connlabels_get(ctx->net, (len * BITS_PER_BYTE) - 1);
+		if (err)
+			return err;
+		label_got = true;
 		break;
 #endif
 	default:
@@ -372,18 +387,41 @@ static int nft_ct_set_init(const struct nft_ctx *ctx,
 	priv->sreg = nft_parse_register(tb[NFTA_CT_SREG]);
 	err = nft_validate_register_load(priv->sreg, len);
 	if (err < 0)
-		return err;
+		goto err1;
 
 	err = nft_ct_l3proto_try_module_get(ctx->afi->family);
 	if (err < 0)
-		return err;
+		goto err1;
 
 	return 0;
+
+err1:
+	if (label_got)
+		nf_connlabels_put(ctx->net);
+	return err;
 }
 
-static void nft_ct_destroy(const struct nft_ctx *ctx,
-			   const struct nft_expr *expr)
+static void nft_ct_get_destroy(const struct nft_ctx *ctx,
+			       const struct nft_expr *expr)
 {
+	nft_ct_l3proto_module_put(ctx->afi->family);
+}
+
+static void nft_ct_set_destroy(const struct nft_ctx *ctx,
+			       const struct nft_expr *expr)
+{
+	struct nft_ct *priv = nft_expr_priv(expr);
+
+	switch (priv->key) {
+#ifdef CONFIG_NF_CONNTRACK_LABELS
+	case NFT_CT_LABELS:
+		nf_connlabels_put(ctx->net);
+		break;
+#endif
+	default:
+		break;
+	}
+
 	nft_ct_l3proto_module_put(ctx->afi->family);
 }
 
@@ -397,8 +435,6 @@ static int nft_ct_get_dump(struct sk_buff *skb, const struct nft_expr *expr)
 		goto nla_put_failure;
 
 	switch (priv->key) {
-	case NFT_CT_L3PROTOCOL:
-	case NFT_CT_PROTOCOL:
 	case NFT_CT_SRC:
 	case NFT_CT_DST:
 	case NFT_CT_PROTO_SRC:
@@ -442,7 +478,7 @@ static const struct nft_expr_ops nft_ct_get_ops = {
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_ct)),
 	.eval		= nft_ct_get_eval,
 	.init		= nft_ct_get_init,
-	.destroy	= nft_ct_destroy,
+	.destroy	= nft_ct_get_destroy,
 	.dump		= nft_ct_get_dump,
 };
 
@@ -451,7 +487,7 @@ static const struct nft_expr_ops nft_ct_set_ops = {
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_ct)),
 	.eval		= nft_ct_set_eval,
 	.init		= nft_ct_set_init,
-	.destroy	= nft_ct_destroy,
+	.destroy	= nft_ct_set_destroy,
 	.dump		= nft_ct_set_dump,
 };
 
@@ -484,6 +520,8 @@ static struct nft_expr_type nft_ct_type __read_mostly = {
 
 static int __init nft_ct_module_init(void)
 {
+	BUILD_BUG_ON(NF_CT_LABELS_MAX_SIZE > NFT_REG_SIZE);
+
 	return nft_register_expr(&nft_ct_type);
 }
 

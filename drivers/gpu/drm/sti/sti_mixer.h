@@ -42,7 +42,9 @@ struct sti_mixer {
 
 const char *sti_mixer_to_str(struct sti_mixer *mixer);
 
-struct sti_mixer *sti_mixer_create(struct device *dev, int id,
+struct sti_mixer *sti_mixer_create(struct device *dev,
+				   struct drm_device *drm_dev,
+				   int id,
 				   void __iomem *baseaddr);
 
 int sti_mixer_set_plane_status(struct sti_mixer *mixer,
@@ -52,6 +54,8 @@ int sti_mixer_active_video_area(struct sti_mixer *mixer,
 				struct drm_display_mode *mode);
 
 void sti_mixer_set_background_status(struct sti_mixer *mixer, bool enable);
+
+int sti_mixer_debugfs_init(struct sti_mixer *mixer, struct drm_minor *minor);
 
 /* depth in Cross-bar control = z order */
 #define GAM_MIXER_NB_DEPTH_LEVEL 6

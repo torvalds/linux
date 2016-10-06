@@ -474,16 +474,9 @@ static int s3c_camif_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_pm;
 
-	/* Initialize contiguous memory allocator */
-	camif->alloc_ctx = vb2_dma_contig_init_ctx(dev);
-	if (IS_ERR(camif->alloc_ctx)) {
-		ret = PTR_ERR(camif->alloc_ctx);
-		goto err_alloc;
-	}
-
 	ret = camif_media_dev_init(camif);
 	if (ret < 0)
-		goto err_mdev;
+		goto err_alloc;
 
 	ret = camif_register_sensor(camif);
 	if (ret < 0)
@@ -493,21 +486,17 @@ static int s3c_camif_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_sens;
 
-	mutex_lock(&camif->media_dev.graph_mutex);
-
 	ret = v4l2_device_register_subdev_nodes(&camif->v4l2_dev);
 	if (ret < 0)
-		goto err_unlock;
+		goto err_sens;
 
 	ret = camif_register_video_nodes(camif);
 	if (ret < 0)
-		goto err_unlock;
+		goto err_sens;
 
 	ret = camif_create_media_links(camif);
 	if (ret < 0)
-		goto err_unlock;
-
-	mutex_unlock(&camif->media_dev.graph_mutex);
+		goto err_sens;
 
 	ret = media_device_register(&camif->media_dev);
 	if (ret < 0)
@@ -516,15 +505,11 @@ static int s3c_camif_probe(struct platform_device *pdev)
 	pm_runtime_put(dev);
 	return 0;
 
-err_unlock:
-	mutex_unlock(&camif->media_dev.graph_mutex);
 err_sens:
 	v4l2_device_unregister(&camif->v4l2_dev);
 	media_device_unregister(&camif->media_dev);
 	media_device_cleanup(&camif->media_dev);
 	camif_unregister_media_entities(camif);
-err_mdev:
-	vb2_dma_contig_cleanup_ctx(camif->alloc_ctx);
 err_alloc:
 	pm_runtime_put(dev);
 	pm_runtime_disable(dev);

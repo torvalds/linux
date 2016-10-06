@@ -1446,6 +1446,9 @@ static void sony_nc_function_cleanup(struct platform_device *pd)
 {
 	unsigned int i, result, bitmask, handle;
 
+	if (!handles)
+		return;
+
 	/* get enabled events and disable them */
 	sony_nc_int_call(sony_nc_acpi_handle, "SN01", NULL, &bitmask);
 	sony_nc_int_call(sony_nc_acpi_handle, "SN03", &bitmask, &result);

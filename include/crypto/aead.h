@@ -31,10 +31,10 @@
  *
  * For example: authenc(hmac(sha256), cbc(aes))
  *
- * The example code provided for the asynchronous block cipher operation
- * applies here as well. Naturally all *ablkcipher* symbols must be exchanged
+ * The example code provided for the symmetric key cipher operation
+ * applies here as well. Naturally all *skcipher* symbols must be exchanged
  * the *aead* pendants discussed in the following. In addition, for the AEAD
- * operation, the aead_request_set_assoc function must be used to set the
+ * operation, the aead_request_set_ad function must be used to set the
  * pointer to the associated data memory location before performing the
  * encryption or decryption operation. In case of an encryption, the associated
  * data memory is filled during the encryption operation. For decryption, the
@@ -112,11 +112,12 @@ struct aead_request {
  *		 supplied during the decryption operation. This function is also
  *		 responsible for checking the authentication tag size for
  *		 validity.
- * @setkey: see struct ablkcipher_alg
- * @encrypt: see struct ablkcipher_alg
- * @decrypt: see struct ablkcipher_alg
- * @geniv: see struct ablkcipher_alg
- * @ivsize: see struct ablkcipher_alg
+ * @setkey: see struct skcipher_alg
+ * @encrypt: see struct skcipher_alg
+ * @decrypt: see struct skcipher_alg
+ * @geniv: see struct skcipher_alg
+ * @ivsize: see struct skcipher_alg
+ * @chunksize: see struct skcipher_alg
  * @init: Initialize the cryptographic transformation object. This function
  *	  is used to initialize the cryptographic transformation object.
  *	  This function is called only once at the instantiation time, right
@@ -145,6 +146,7 @@ struct aead_alg {
 
 	unsigned int ivsize;
 	unsigned int maxauthsize;
+	unsigned int chunksize;
 
 	struct crypto_alg base;
 };
@@ -405,8 +407,7 @@ static inline void aead_request_set_tfm(struct aead_request *req,
  * encrypt and decrypt API calls. During the allocation, the provided aead
  * handle is registered in the request data structure.
  *
- * Return: allocated request handle in case of success; IS_ERR() is true in case
- *	   of an error, PTR_ERR() returns the error code.
+ * Return: allocated request handle in case of success, or NULL if out of memory
  */
 static inline struct aead_request *aead_request_alloc(struct crypto_aead *tfm,
 						      gfp_t gfp)

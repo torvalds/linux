@@ -1,3 +1,4 @@
+#include <linux/kernel.h>
 #include <linux/sizes.h>
 
 #include "ddk750_help.h"
@@ -5,7 +6,9 @@
 #include "ddk750_chip.h"
 #include "ddk750_power.h"
 
-logical_chip_type_t getChipType(void)
+#define MHz(x) ((x) * 1000000)
+
+logical_chip_type_t sm750_get_chip_type(void)
 {
 	unsigned short physicalID;
 	char physicalRev;
@@ -32,14 +35,14 @@ static unsigned int get_mxclk_freq(void)
 	unsigned int pll_reg;
 	unsigned int M, N, OD, POD;
 
-	if (getChipType() == SM750LE)
+	if (sm750_get_chip_type() == SM750LE)
 		return MHz(130);
 
 	pll_reg = PEEK32(MXCLK_PLL_CTRL);
-	M = FIELD_GET(pll_reg, PANEL_PLL_CTRL, M);
-	N = FIELD_GET(pll_reg, PANEL_PLL_CTRL, N);
-	OD = FIELD_GET(pll_reg, PANEL_PLL_CTRL, OD);
-	POD = FIELD_GET(pll_reg, PANEL_PLL_CTRL, POD);
+	M = (pll_reg & PLL_CTRL_M_MASK) >> PLL_CTRL_M_SHIFT;
+	N = (pll_reg & PLL_CTRL_N_MASK) >> PLL_CTRL_M_SHIFT;
+	OD = (pll_reg & PLL_CTRL_OD_MASK) >> PLL_CTRL_OD_SHIFT;
+	POD = (pll_reg & PLL_CTRL_POD_MASK) >> PLL_CTRL_POD_SHIFT;
 
 	return DEFAULT_INPUT_CLOCK * M / N / (1 << OD) / (1 << POD);
 }
@@ -55,7 +58,7 @@ static void setChipClock(unsigned int frequency)
 	unsigned int ulActualMxClk;
 
 	/* Cheok_0509: For SM750LE, the chip clock is fixed. Nothing to set. */
-	if (getChipType() == SM750LE)
+	if (sm750_get_chip_type() == SM750LE)
 		return;
 
 	if (frequency) {
@@ -66,9 +69,10 @@ static void setChipClock(unsigned int frequency)
 		pll.clockType = MXCLK_PLL;
 
 		/*
-		* Call calcPllValue() to fill up the other fields for PLL structure.
-		* Sometime, the chip cannot set up the exact clock required by User.
-		* Return value from calcPllValue() gives the actual possible clock.
+		* Call calcPllValue() to fill the other fields of PLL structure.
+		* Sometime, the chip cannot set up the exact clock
+		* required by the User.
+		* Return value of calcPllValue gives the actual possible clock.
 		*/
 		ulActualMxClk = calcPllValue(frequency, &pll);
 
@@ -79,40 +83,44 @@ static void setChipClock(unsigned int frequency)
 
 static void setMemoryClock(unsigned int frequency)
 {
-	unsigned int ulReg, divisor;
+	unsigned int reg, divisor;
 
-	/* Cheok_0509: For SM750LE, the memory clock is fixed. Nothing to set. */
-	if (getChipType() == SM750LE)
+	/* Cheok_0509: For SM750LE, the memory clock is fixed.
+	 * Nothing to set.
+	 */
+	if (sm750_get_chip_type() == SM750LE)
 		return;
 
 	if (frequency) {
-		/* Set the frequency to the maximum frequency that the DDR Memory can take
-		which is 336MHz. */
+		/*
+		 * Set the frequency to the maximum frequency
+		 * that the DDR Memory can take which is 336MHz.
+		 */
 		if (frequency > MHz(336))
 			frequency = MHz(336);
 
 		/* Calculate the divisor */
-		divisor = roundedDiv(get_mxclk_freq(), frequency);
+		divisor = DIV_ROUND_CLOSEST(get_mxclk_freq(), frequency);
 
 		/* Set the corresponding divisor in the register. */
-		ulReg = PEEK32(CURRENT_GATE);
+		reg = PEEK32(CURRENT_GATE) & ~CURRENT_GATE_M2XCLK_MASK;
 		switch (divisor) {
 		default:
 		case 1:
-			ulReg = FIELD_SET(ulReg, CURRENT_GATE, M2XCLK, DIV_1);
+			reg |= CURRENT_GATE_M2XCLK_DIV_1;
 			break;
 		case 2:
-			ulReg = FIELD_SET(ulReg, CURRENT_GATE, M2XCLK, DIV_2);
+			reg |= CURRENT_GATE_M2XCLK_DIV_2;
 			break;
 		case 3:
-			ulReg = FIELD_SET(ulReg, CURRENT_GATE, M2XCLK, DIV_3);
+			reg |= CURRENT_GATE_M2XCLK_DIV_3;
 			break;
 		case 4:
-			ulReg = FIELD_SET(ulReg, CURRENT_GATE, M2XCLK, DIV_4);
+			reg |= CURRENT_GATE_M2XCLK_DIV_4;
 			break;
 		}
 
-		setCurrentGate(ulReg);
+		setCurrentGate(reg);
 	}
 }
 
@@ -126,40 +134,43 @@ static void setMemoryClock(unsigned int frequency)
  */
 static void setMasterClock(unsigned int frequency)
 {
-	unsigned int ulReg, divisor;
+	unsigned int reg, divisor;
 
-	/* Cheok_0509: For SM750LE, the memory clock is fixed. Nothing to set. */
-	if (getChipType() == SM750LE)
+	/* Cheok_0509: For SM750LE, the memory clock is fixed.
+	 * Nothing to set.
+	 */
+	if (sm750_get_chip_type() == SM750LE)
 		return;
 
 	if (frequency) {
-		/* Set the frequency to the maximum frequency that the SM750 engine can
-		run, which is about 190 MHz. */
+		/* Set the frequency to the maximum frequency
+		 * that the SM750 engine can run, which is about 190 MHz.
+		 */
 		if (frequency > MHz(190))
 			frequency = MHz(190);
 
 		/* Calculate the divisor */
-		divisor = roundedDiv(get_mxclk_freq(), frequency);
+		divisor = DIV_ROUND_CLOSEST(get_mxclk_freq(), frequency);
 
 		/* Set the corresponding divisor in the register. */
-		ulReg = PEEK32(CURRENT_GATE);
+		reg = PEEK32(CURRENT_GATE) & ~CURRENT_GATE_MCLK_MASK;
 		switch (divisor) {
 		default:
 		case 3:
-			ulReg = FIELD_SET(ulReg, CURRENT_GATE, MCLK, DIV_3);
+			reg |= CURRENT_GATE_MCLK_DIV_3;
 			break;
 		case 4:
-			ulReg = FIELD_SET(ulReg, CURRENT_GATE, MCLK, DIV_4);
+			reg |= CURRENT_GATE_MCLK_DIV_4;
 			break;
 		case 6:
-			ulReg = FIELD_SET(ulReg, CURRENT_GATE, MCLK, DIV_6);
+			reg |= CURRENT_GATE_MCLK_DIV_6;
 			break;
 		case 8:
-			ulReg = FIELD_SET(ulReg, CURRENT_GATE, MCLK, DIV_8);
+			reg |= CURRENT_GATE_MCLK_DIV_8;
 			break;
 		}
 
-		setCurrentGate(ulReg);
+		setCurrentGate(reg);
 		}
 }
 
@@ -169,16 +180,16 @@ unsigned int ddk750_getVMSize(void)
 	unsigned int data;
 
 	/* sm750le only use 64 mb memory*/
-	if (getChipType() == SM750LE)
+	if (sm750_get_chip_type() == SM750LE)
 		return SZ_64M;
 
 	/* for 750,always use power mode0*/
 	reg = PEEK32(MODE0_GATE);
-	reg = FIELD_SET(reg, MODE0_GATE, GPIO, ON);
+	reg |= MODE0_GATE_GPIO;
 	POKE32(MODE0_GATE, reg);
 
 	/* get frame buffer size from GPIO */
-	reg = FIELD_GET(PEEK32(MISC_CTRL), MISC_CTRL, LOCALMEM_SIZE);
+	reg = PEEK32(MISC_CTRL) & MISC_CTRL_LOCALMEM_SIZE_MASK;
 	switch (reg) {
 	case MISC_CTRL_LOCALMEM_SIZE_8M:
 		data = SZ_8M;  break; /* 8  Mega byte */
@@ -197,24 +208,22 @@ unsigned int ddk750_getVMSize(void)
 
 int ddk750_initHw(initchip_param_t *pInitParam)
 {
-	unsigned int ulReg;
+	unsigned int reg;
 
 	if (pInitParam->powerMode != 0)
 		pInitParam->powerMode = 0;
 	setPowerMode(pInitParam->powerMode);
 
 	/* Enable display power gate & LOCALMEM power gate*/
-	ulReg = PEEK32(CURRENT_GATE);
-	ulReg = FIELD_SET(ulReg, CURRENT_GATE, DISPLAY, ON);
-	ulReg = FIELD_SET(ulReg, CURRENT_GATE, LOCALMEM, ON);
-	setCurrentGate(ulReg);
+	reg = PEEK32(CURRENT_GATE);
+	reg |= (CURRENT_GATE_DISPLAY | CURRENT_GATE_LOCALMEM);
+	setCurrentGate(reg);
 
-	if (getChipType() != SM750LE) {
+	if (sm750_get_chip_type() != SM750LE) {
 		/*	set panel pll and graphic mode via mmio_88 */
-		ulReg = PEEK32(VGA_CONFIGURATION);
-		ulReg = FIELD_SET(ulReg, VGA_CONFIGURATION, PLL, PANEL);
-		ulReg = FIELD_SET(ulReg, VGA_CONFIGURATION, MODE, GRAPHIC);
-		POKE32(VGA_CONFIGURATION, ulReg);
+		reg = PEEK32(VGA_CONFIGURATION);
+		reg |= (VGA_CONFIGURATION_PLL | VGA_CONFIGURATION_MODE);
+		POKE32(VGA_CONFIGURATION, reg);
 	} else {
 #if defined(__i386__) || defined(__x86_64__)
 		/* set graphic mode via IO method */
@@ -233,41 +242,42 @@ int ddk750_initHw(initchip_param_t *pInitParam)
 	setMasterClock(MHz(pInitParam->masterClock));
 
 
-	/* Reset the memory controller. If the memory controller is not reset in SM750,
-	   the system might hang when sw accesses the memory.
-	   The memory should be resetted after changing the MXCLK.
+	/* Reset the memory controller.
+	 * If the memory controller is not reset in SM750,
+	 * the system might hang when sw accesses the memory.
+	 * The memory should be resetted after changing the MXCLK.
 	 */
 	if (pInitParam->resetMemory == 1) {
-		ulReg = PEEK32(MISC_CTRL);
-		ulReg = FIELD_SET(ulReg, MISC_CTRL, LOCALMEM_RESET, RESET);
-		POKE32(MISC_CTRL, ulReg);
+		reg = PEEK32(MISC_CTRL);
+		reg &= ~MISC_CTRL_LOCALMEM_RESET;
+		POKE32(MISC_CTRL, reg);
 
-		ulReg = FIELD_SET(ulReg, MISC_CTRL, LOCALMEM_RESET, NORMAL);
-		POKE32(MISC_CTRL, ulReg);
+		reg |= MISC_CTRL_LOCALMEM_RESET;
+		POKE32(MISC_CTRL, reg);
 	}
 
 	if (pInitParam->setAllEngOff == 1) {
 		enable2DEngine(0);
 
 		/* Disable Overlay, if a former application left it on */
-		ulReg = PEEK32(VIDEO_DISPLAY_CTRL);
-		ulReg = FIELD_SET(ulReg, VIDEO_DISPLAY_CTRL, PLANE, DISABLE);
-		POKE32(VIDEO_DISPLAY_CTRL, ulReg);
+		reg = PEEK32(VIDEO_DISPLAY_CTRL);
+		reg &= ~DISPLAY_CTRL_PLANE;
+		POKE32(VIDEO_DISPLAY_CTRL, reg);
 
 		/* Disable video alpha, if a former application left it on */
-		ulReg = PEEK32(VIDEO_ALPHA_DISPLAY_CTRL);
-		ulReg = FIELD_SET(ulReg, VIDEO_ALPHA_DISPLAY_CTRL, PLANE, DISABLE);
-		POKE32(VIDEO_ALPHA_DISPLAY_CTRL, ulReg);
+		reg = PEEK32(VIDEO_ALPHA_DISPLAY_CTRL);
+		reg &= ~DISPLAY_CTRL_PLANE;
+		POKE32(VIDEO_ALPHA_DISPLAY_CTRL, reg);
 
 		/* Disable alpha plane, if a former application left it on */
-		ulReg = PEEK32(ALPHA_DISPLAY_CTRL);
-		ulReg = FIELD_SET(ulReg, ALPHA_DISPLAY_CTRL, PLANE, DISABLE);
-		POKE32(ALPHA_DISPLAY_CTRL, ulReg);
+		reg = PEEK32(ALPHA_DISPLAY_CTRL);
+		reg &= ~DISPLAY_CTRL_PLANE;
+		POKE32(ALPHA_DISPLAY_CTRL, reg);
 
 		/* Disable DMA Channel, if a former application left it on */
-		ulReg = PEEK32(DMA_ABORT_INTERRUPT);
-		ulReg = FIELD_SET(ulReg, DMA_ABORT_INTERRUPT, ABORT_1, ABORT);
-		POKE32(DMA_ABORT_INTERRUPT, ulReg);
+		reg = PEEK32(DMA_ABORT_INTERRUPT);
+		reg |= DMA_ABORT_INTERRUPT_ABORT_1;
+		POKE32(DMA_ABORT_INTERRUPT, reg);
 
 		/* Disable DMA Power, if a former application left it on */
 		enableDMA(0);
@@ -279,35 +289,40 @@ int ddk750_initHw(initchip_param_t *pInitParam)
 }
 
 /*
-	monk liu @ 4/6/2011:
-		   re-write the calculatePLL function of ddk750.
-		   the original version function does not use some mathematics tricks and shortcut
-		   when it doing the calculation of the best N,M,D combination
-		   I think this version gives a little upgrade in speed
-
-	750 pll clock formular:
-	Request Clock = (Input Clock * M )/(N * X)
-
-	Input Clock = 14318181 hz
-	X = 2 power D
-	D ={0,1,2,3,4,5,6}
-	M = {1,...,255}
-	N = {2,...,15}
-*/
+ * monk liu @ 4/6/2011:
+ *	re-write the calculatePLL function of ddk750.
+ *	the original version function does not use
+ *	some mathematics tricks and shortcut
+ *	when it doing the calculation of the best N,M,D combination
+ *	I think this version gives a little upgrade in speed
+ *
+ * 750 pll clock formular:
+ * Request Clock = (Input Clock * M )/(N * X)
+ *
+ * Input Clock = 14318181 hz
+ * X = 2 power D
+ * D ={0,1,2,3,4,5,6}
+ * M = {1,...,255}
+ * N = {2,...,15}
+ */
 unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 {
-	/* as sm750 register definition, N located in 2,15 and M located in 1,255	*/
+	/* as sm750 register definition,
+	 * N located in 2,15 and M located in 1,255
+	 */
 	int N, M, X, d;
 	int mini_diff;
 	unsigned int RN, quo, rem, fl_quo;
 	unsigned int input, request;
 	unsigned int tmpClock, ret;
 	const int max_OD = 3;
-	int max_d;
+	int max_d = 6;
 
-	if (getChipType() == SM750LE) {
-		/* SM750LE don't have prgrammable PLL and M/N values to work on.
-		Just return the requested clock. */
+	if (sm750_get_chip_type() == SM750LE) {
+		/* SM750LE don't have
+		 * programmable PLL and M/N values to work on.
+		 * Just return the requested clock.
+		 */
 		return request_orig;
 	}
 
@@ -316,19 +331,23 @@ unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 	request = request_orig / 1000;
 	input = pll->inputFreq / 1000;
 
-	/* for MXCLK register , no POD provided, so need be treated differently	*/
+	/* for MXCLK register,
+	 * no POD provided, so need be treated differently
+	 */
 	if (pll->clockType == MXCLK_PLL)
 		max_d = 3;
 
 	for (N = 15; N > 1; N--) {
-		/* RN will not exceed maximum long if @request <= 285 MHZ (for 32bit cpu) */
+		/* RN will not exceed maximum long
+		 * if @request <= 285 MHZ (for 32bit cpu)
+		 */
 		RN = N * request;
 		quo = RN / input;
 		rem = RN % input;/* rem always small than 14318181 */
 		fl_quo = (rem * 10000 / input);
 
 		for (d = max_d; d >= 0; d--) {
-			X = (1 << d);
+			X = BIT(d);
 			M = quo * X;
 			M += fl_quo * X / 10000;
 			/* round step */
@@ -337,7 +356,7 @@ unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 				unsigned int diff;
 
 				tmpClock = pll->inputFreq * M / N / X;
-				diff = absDiff(tmpClock, request_orig);
+				diff = abs(tmpClock - request_orig);
 				if (diff < mini_diff) {
 					pll->M = M;
 					pll->N = N;
@@ -356,24 +375,29 @@ unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 
 unsigned int formatPllReg(pll_value_t *pPLL)
 {
-	unsigned int ulPllReg = 0;
-
-    /* Note that all PLL's have the same format. Here, we just use Panel PLL parameter
-       to work out the bit fields in the register.
-       On returning a 32 bit number, the value can be applied to any PLL in the calling function.
-    */
-	ulPllReg =
-	FIELD_SET(0, PANEL_PLL_CTRL, BYPASS, OFF)
-	| FIELD_SET(0, PANEL_PLL_CTRL, POWER,  ON)
-	| FIELD_SET(0, PANEL_PLL_CTRL, INPUT,  OSC)
 #ifndef VALIDATION_CHIP
-	| FIELD_VALUE(0, PANEL_PLL_CTRL, POD,    pPLL->POD)
+	unsigned int POD = pPLL->POD;
 #endif
-	| FIELD_VALUE(0, PANEL_PLL_CTRL, OD,     pPLL->OD)
-	| FIELD_VALUE(0, PANEL_PLL_CTRL, N,      pPLL->N)
-	| FIELD_VALUE(0, PANEL_PLL_CTRL, M,      pPLL->M);
+	unsigned int OD = pPLL->OD;
+	unsigned int M = pPLL->M;
+	unsigned int N = pPLL->N;
+	unsigned int reg = 0;
 
-	return ulPllReg;
+	/*
+	 * Note that all PLL's have the same format. Here, we just use
+	 * Panel PLL parameter to work out the bit fields in the
+	 * register. On returning a 32 bit number, the value can be
+	 * applied to any PLL in the calling function.
+	 */
+	reg = PLL_CTRL_POWER |
+#ifndef VALIDATION_CHIP
+		((POD << PLL_CTRL_POD_SHIFT) & PLL_CTRL_POD_MASK) |
+#endif
+		((OD << PLL_CTRL_OD_SHIFT) & PLL_CTRL_OD_MASK) |
+		((N << PLL_CTRL_N_SHIFT) & PLL_CTRL_N_MASK) |
+		((M << PLL_CTRL_M_SHIFT) & PLL_CTRL_M_MASK);
+
+	return reg;
 }
 
 

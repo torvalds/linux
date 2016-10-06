@@ -95,21 +95,23 @@ static struct hnae_buf_ops hnae_bops = {
 static int __ae_match(struct device *dev, const void *data)
 {
 	struct hnae_ae_dev *hdev = cls_to_ae_dev(dev);
-	const char *ae_id = data;
 
-	if (!strncmp(ae_id, hdev->name, AE_NAME_SIZE))
-		return 1;
+	if (dev_of_node(hdev->dev))
+		return (data == &hdev->dev->of_node->fwnode);
+	else if (is_acpi_node(hdev->dev->fwnode))
+		return (data == hdev->dev->fwnode);
 
+	dev_err(dev, "__ae_match cannot read cfg data from OF or acpi\n");
 	return 0;
 }
 
-static struct hnae_ae_dev *find_ae(const char *ae_id)
+static struct hnae_ae_dev *find_ae(const struct fwnode_handle *fwnode)
 {
 	struct device *dev;
 
-	WARN_ON(!ae_id);
+	WARN_ON(!fwnode);
 
-	dev = class_find_device(hnae_class, NULL, ae_id, __ae_match);
+	dev = class_find_device(hnae_class, NULL, fwnode, __ae_match);
 
 	return dev ? cls_to_ae_dev(dev) : NULL;
 }
@@ -316,7 +318,8 @@ EXPORT_SYMBOL(hnae_reinit_handle);
  * return handle ptr or ERR_PTR
  */
 struct hnae_handle *hnae_get_handle(struct device *owner_dev,
-				    const char *ae_id, u32 port_id,
+				    const struct fwnode_handle	*fwnode,
+				    u32 port_id,
 				    struct hnae_buf_ops *bops)
 {
 	struct hnae_ae_dev *dev;
@@ -324,7 +327,7 @@ struct hnae_handle *hnae_get_handle(struct device *owner_dev,
 	int i, j;
 	int ret;
 
-	dev = find_ae(ae_id);
+	dev = find_ae(fwnode);
 	if (!dev)
 		return ERR_PTR(-ENODEV);
 
@@ -397,7 +400,6 @@ int hnae_ae_register(struct hnae_ae_dev *hdev, struct module *owner)
 
 	if (!hdev->ops || !hdev->ops->get_handle ||
 	    !hdev->ops->toggle_ring_irq ||
-	    !hdev->ops->toggle_queue_status ||
 	    !hdev->ops->get_status || !hdev->ops->adjust_link)
 		return -EINVAL;
 

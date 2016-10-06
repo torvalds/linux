@@ -34,6 +34,7 @@ specific to ARM.
 		Definition: must contain one of the following:
 			    "arm,cci-400"
 			    "arm,cci-500"
+			    "arm,cci-550"
 
 	- reg
 		Usage: required
@@ -99,8 +100,9 @@ specific to ARM.
 				 "arm,cci-400-pmu,r0"
 				 "arm,cci-400-pmu,r1"
 				 "arm,cci-400-pmu"  - DEPRECATED, permitted only where OS has
-						      secure acces to CCI registers
+						      secure access to CCI registers
 				 "arm,cci-500-pmu,r0"
+				 "arm,cci-550-pmu,r0"
 		- reg:
 			Usage: required
 			Value type: Integer cells. A register entry, expressed

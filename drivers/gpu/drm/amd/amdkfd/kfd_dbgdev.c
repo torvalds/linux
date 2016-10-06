@@ -513,7 +513,7 @@ static int dbgdev_wave_control_set_registers(
 				union SQ_CMD_BITS *in_reg_sq_cmd,
 				union GRBM_GFX_INDEX_BITS *in_reg_gfx_index)
 {
-	int status;
+	int status = 0;
 	union SQ_CMD_BITS reg_sq_cmd;
 	union GRBM_GFX_INDEX_BITS reg_gfx_index;
 	struct HsaDbgWaveMsgAMDGen2 *pMsg;

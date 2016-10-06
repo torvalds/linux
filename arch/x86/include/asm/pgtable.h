@@ -99,6 +99,20 @@ static inline int pte_dirty(pte_t pte)
 	return pte_flags(pte) & _PAGE_DIRTY;
 }
 
+
+static inline u32 read_pkru(void)
+{
+	if (boot_cpu_has(X86_FEATURE_OSPKE))
+		return __read_pkru();
+	return 0;
+}
+
+static inline void write_pkru(u32 pkru)
+{
+	if (boot_cpu_has(X86_FEATURE_OSPKE))
+		__write_pkru(pkru);
+}
+
 static inline int pte_young(pte_t pte)
 {
 	return pte_flags(pte) & _PAGE_ACCESSED;
@@ -167,9 +181,10 @@ static inline int pmd_trans_huge(pmd_t pmd)
 	return (pmd_val(pmd) & (_PAGE_PSE|_PAGE_DEVMAP)) == _PAGE_PSE;
 }
 
+#define has_transparent_hugepage has_transparent_hugepage
 static inline int has_transparent_hugepage(void)
 {
-	return cpu_has_pse;
+	return boot_cpu_has(X86_FEATURE_PSE);
 }
 
 #ifdef __HAVE_ARCH_PTE_DEVMAP
@@ -465,7 +480,7 @@ pte_t *populate_extra_pte(unsigned long vaddr);
 
 static inline int pte_none(pte_t pte)
 {
-	return !pte.pte;
+	return !(pte.pte & ~(_PAGE_KNL_ERRATUM_MASK));
 }
 
 #define __HAVE_ARCH_PTE_SAME
@@ -537,7 +552,8 @@ static inline int pmd_none(pmd_t pmd)
 {
 	/* Only check low word on 32-bit platforms, since it might be
 	   out of sync with upper half. */
-	return (unsigned long)native_pmd_val(pmd) == 0;
+	unsigned long val = native_pmd_val(pmd);
+	return (val & ~_PAGE_KNL_ERRATUM_MASK) == 0;
 }
 
 static inline unsigned long pmd_page_vaddr(pmd_t pmd)
@@ -601,7 +617,7 @@ static inline unsigned long pages_to_mb(unsigned long npg)
 #if CONFIG_PGTABLE_LEVELS > 2
 static inline int pud_none(pud_t pud)
 {
-	return native_pud_val(pud) == 0;
+	return (native_pud_val(pud) & ~(_PAGE_KNL_ERRATUM_MASK)) == 0;
 }
 
 static inline int pud_present(pud_t pud)
@@ -679,6 +695,12 @@ static inline int pgd_bad(pgd_t pgd)
 
 static inline int pgd_none(pgd_t pgd)
 {
+	/*
+	 * There is no need to do a workaround for the KNL stray
+	 * A/D bit erratum here.  PGDs only point to page tables
+	 * except on 32-bit non-PAE which is not supported on
+	 * KNL.
+	 */
 	return !native_pgd_val(pgd);
 }
 #endif	/* CONFIG_PGTABLE_LEVELS > 3 */
@@ -713,6 +735,23 @@ static inline int pgd_none(pgd_t pgd)
 extern int direct_gbpages;
 void init_mem_mapping(void);
 void early_alloc_pgt_buf(void);
+
+#ifdef CONFIG_X86_64
+/* Realmode trampoline initialization. */
+extern pgd_t trampoline_pgd_entry;
+static inline void __meminit init_trampoline_default(void)
+{
+	/* Default trampoline pgd value */
+	trampoline_pgd_entry = init_level4_pgt[pgd_index(__PAGE_OFFSET)];
+}
+# ifdef CONFIG_RANDOMIZE_MEMORY
+void __meminit init_trampoline(void);
+# else
+#  define init_trampoline init_trampoline_default
+# endif
+#else
+static inline void init_trampoline(void) { }
+#endif
 
 /* local pte updates need not use xchg for locking */
 static inline pte_t native_local_ptep_get_and_clear(pte_t *ptep)
@@ -910,6 +949,36 @@ static inline pte_t pte_swp_clear_soft_dirty(pte_t pte)
 	return pte_clear_flags(pte, _PAGE_SWP_SOFT_DIRTY);
 }
 #endif
+
+#define PKRU_AD_BIT 0x1
+#define PKRU_WD_BIT 0x2
+#define PKRU_BITS_PER_PKEY 2
+
+static inline bool __pkru_allows_read(u32 pkru, u16 pkey)
+{
+	int pkru_pkey_bits = pkey * PKRU_BITS_PER_PKEY;
+	return !(pkru & (PKRU_AD_BIT << pkru_pkey_bits));
+}
+
+static inline bool __pkru_allows_write(u32 pkru, u16 pkey)
+{
+	int pkru_pkey_bits = pkey * PKRU_BITS_PER_PKEY;
+	/*
+	 * Access-disable disables writes too so we need to check
+	 * both bits here.
+	 */
+	return !(pkru & ((PKRU_AD_BIT|PKRU_WD_BIT) << pkru_pkey_bits));
+}
+
+static inline u16 pte_flags_pkey(unsigned long pte_flags)
+{
+#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
+	/* ifdef to avoid doing 59-bit shift on 32-bit values */
+	return (pte_flags & _PAGE_PKEY_MASK) >> _PAGE_BIT_PKEY_BIT0;
+#else
+	return 0;
+#endif
+}
 
 #include <asm-generic/pgtable.h>
 #endif	/* __ASSEMBLY__ */

@@ -388,7 +388,7 @@ static int clamp_thread(void *arg)
 		int sleeptime;
 		unsigned long target_jiffies;
 		unsigned int guard;
-		unsigned int compensation = 0;
+		unsigned int compensated_ratio;
 		int interval; /* jiffies to sleep for each attempt */
 		unsigned int duration_jiffies = msecs_to_jiffies(duration);
 		unsigned int window_size_now;
@@ -409,8 +409,11 @@ static int clamp_thread(void *arg)
 		 * c-states, thus we need to compensate the injected idle ratio
 		 * to achieve the actual target reported by the HW.
 		 */
-		compensation = get_compensation(target_ratio);
-		interval = duration_jiffies*100/(target_ratio+compensation);
+		compensated_ratio = target_ratio +
+			get_compensation(target_ratio);
+		if (compensated_ratio <= 0)
+			compensated_ratio = 1;
+		interval = duration_jiffies * 100 / compensated_ratio;
 
 		/* align idle time */
 		target_jiffies = roundup(jiffies, interval);
@@ -509,12 +512,6 @@ static int start_power_clamp(void)
 {
 	unsigned long cpu;
 	struct task_struct *thread;
-
-	/* check if pkg cstate counter is completely 0, abort in this case */
-	if (!has_pkg_state_counter()) {
-		pr_err("pkg cstate counter not functional, abort\n");
-		return -EINVAL;
-	}
 
 	set_target_ratio = clamp(set_target_ratio, 0U, MAX_TARGET_RATIO - 1);
 	/* prevent cpu hotplug */
@@ -653,8 +650,8 @@ static int powerclamp_set_cur_state(struct thermal_cooling_device *cdev,
 		goto exit_set;
 	} else	if (set_target_ratio > 0 && new_target_ratio == 0) {
 		pr_info("Stop forced idle injection\n");
-		set_target_ratio = 0;
 		end_power_clamp();
+		set_target_ratio = 0;
 	} else	/* adjust currently running */ {
 		set_target_ratio = new_target_ratio;
 		/* make new set_target_ratio visible to other cpus */
@@ -672,35 +669,11 @@ static struct thermal_cooling_device_ops powerclamp_cooling_ops = {
 	.set_cur_state = powerclamp_set_cur_state,
 };
 
-/* runs on Nehalem and later */
 static const struct x86_cpu_id intel_powerclamp_ids[] __initconst = {
-	{ X86_VENDOR_INTEL, 6, 0x1a},
-	{ X86_VENDOR_INTEL, 6, 0x1c},
-	{ X86_VENDOR_INTEL, 6, 0x1e},
-	{ X86_VENDOR_INTEL, 6, 0x1f},
-	{ X86_VENDOR_INTEL, 6, 0x25},
-	{ X86_VENDOR_INTEL, 6, 0x26},
-	{ X86_VENDOR_INTEL, 6, 0x2a},
-	{ X86_VENDOR_INTEL, 6, 0x2c},
-	{ X86_VENDOR_INTEL, 6, 0x2d},
-	{ X86_VENDOR_INTEL, 6, 0x2e},
-	{ X86_VENDOR_INTEL, 6, 0x2f},
-	{ X86_VENDOR_INTEL, 6, 0x37},
-	{ X86_VENDOR_INTEL, 6, 0x3a},
-	{ X86_VENDOR_INTEL, 6, 0x3c},
-	{ X86_VENDOR_INTEL, 6, 0x3d},
-	{ X86_VENDOR_INTEL, 6, 0x3e},
-	{ X86_VENDOR_INTEL, 6, 0x3f},
-	{ X86_VENDOR_INTEL, 6, 0x45},
-	{ X86_VENDOR_INTEL, 6, 0x46},
-	{ X86_VENDOR_INTEL, 6, 0x47},
-	{ X86_VENDOR_INTEL, 6, 0x4c},
-	{ X86_VENDOR_INTEL, 6, 0x4d},
-	{ X86_VENDOR_INTEL, 6, 0x4e},
-	{ X86_VENDOR_INTEL, 6, 0x4f},
-	{ X86_VENDOR_INTEL, 6, 0x56},
-	{ X86_VENDOR_INTEL, 6, 0x57},
-	{ X86_VENDOR_INTEL, 6, 0x5e},
+	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_MWAIT },
+	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_ARAT },
+	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_NONSTOP_TSC },
+	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_CONSTANT_TSC},
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_powerclamp_ids);
@@ -712,11 +685,12 @@ static int __init powerclamp_probe(void)
 				boot_cpu_data.x86, boot_cpu_data.x86_model);
 		return -ENODEV;
 	}
-	if (!boot_cpu_has(X86_FEATURE_NONSTOP_TSC) ||
-		!boot_cpu_has(X86_FEATURE_CONSTANT_TSC) ||
-		!boot_cpu_has(X86_FEATURE_MWAIT) ||
-		!boot_cpu_has(X86_FEATURE_ARAT))
+
+	/* The goal for idle time alignment is to achieve package cstate. */
+	if (!has_pkg_state_counter()) {
+		pr_info("No package C-state available");
 		return -ENODEV;
+	}
 
 	/* find the deepest mwait value */
 	find_target_mwait();

@@ -438,6 +438,7 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 
 		cf->can_id |= CAN_ERR_PROT | CAN_ERR_BUSERROR;
 
+		/* set error type */
 		switch (ecc & ECC_MASK) {
 		case ECC_BIT:
 			cf->data[2] |= CAN_ERR_PROT_BIT;
@@ -449,9 +450,12 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 			cf->data[2] |= CAN_ERR_PROT_STUFF;
 			break;
 		default:
-			cf->data[3] = ecc & ECC_SEG;
 			break;
 		}
+
+		/* set error location */
+		cf->data[3] = ecc & ECC_SEG;
+
 		/* Error occurred during transmission? */
 		if ((ecc & ECC_DIR) == 0)
 			cf->data[2] |= CAN_ERR_PROT_TX;

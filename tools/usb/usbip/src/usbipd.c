@@ -1,6 +1,9 @@
 /*
  * Copyright (C) 2011 matt mooney <mfm@muteddisk.com>
  *               2005-2007 Takahiro Hirofuchi
+ * Copyright (C) 2015-2016 Samsung Electronics
+ *               Igor Kotrasinski <i.kotrasinsk@samsung.com>
+ *               Krzysztof Opasiak <k.opasiak@samsung.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,6 +44,8 @@
 #include <poll.h>
 
 #include "usbip_host_driver.h"
+#include "usbip_host_common.h"
+#include "usbip_device_driver.h"
 #include "usbip_common.h"
 #include "usbip_network.h"
 #include "list.h"
@@ -64,6 +69,11 @@ static const char usbipd_help_string[] =
 	"	-6, --ipv6\n"
 	"		Bind to IPv6. Default is both.\n"
 	"\n"
+	"	-e, --device\n"
+	"		Run in device mode.\n"
+	"		Rather than drive an attached device, create\n"
+	"		a virtual UDC to bind gadgets to.\n"
+	"\n"
 	"	-D, --daemon\n"
 	"		Run as a daemon process.\n"
 	"\n"
@@ -82,6 +92,8 @@ static const char usbipd_help_string[] =
 	"\n"
 	"	-v, --version\n"
 	"		Show version.\n";
+
+static struct usbip_host_driver *driver;
 
 static void usbipd_help(void)
 {
@@ -107,7 +119,7 @@ static int recv_request_import(int sockfd)
 	}
 	PACK_OP_IMPORT_REQUEST(0, &req);
 
-	list_for_each(i, &host_driver->edev_list) {
+	list_for_each(i, &driver->edev_list) {
 		edev = list_entry(i, struct usbip_exported_device, node);
 		if (!strncmp(req.busid, edev->udev.busid, SYSFS_BUS_ID_SIZE)) {
 			info("found requested device: %s", req.busid);
@@ -121,7 +133,7 @@ static int recv_request_import(int sockfd)
 		usbip_net_set_nodelay(sockfd);
 
 		/* export device needs a TCP/IP socket descriptor */
-		rc = usbip_host_export_device(edev, sockfd);
+		rc = usbip_export_device(edev, sockfd);
 		if (rc < 0)
 			error = 1;
 	} else {
@@ -166,7 +178,7 @@ static int send_reply_devlist(int connfd)
 
 	reply.ndev = 0;
 	/* number of exported devices */
-	list_for_each(j, &host_driver->edev_list) {
+	list_for_each(j, &driver->edev_list) {
 		reply.ndev += 1;
 	}
 	info("exportable devices: %d", reply.ndev);
@@ -184,7 +196,7 @@ static int send_reply_devlist(int connfd)
 		return -1;
 	}
 
-	list_for_each(j, &host_driver->edev_list) {
+	list_for_each(j, &driver->edev_list) {
 		edev = list_entry(j, struct usbip_exported_device, node);
 		dump_usb_device(&edev->udev);
 		memcpy(&pdu_udev, &edev->udev, sizeof(pdu_udev));
@@ -246,7 +258,7 @@ static int recv_pdu(int connfd)
 		return -1;
 	}
 
-	ret = usbip_host_refresh_device_list();
+	ret = usbip_refresh_device_list(driver);
 	if (ret < 0) {
 		dbg("could not refresh device list: %d", ret);
 		return -1;
@@ -491,16 +503,13 @@ static int do_standalone_mode(int daemonize, int ipv4, int ipv6)
 	struct timespec timeout;
 	sigset_t sigmask;
 
-	if (usbip_host_driver_open()) {
-		err("please load " USBIP_CORE_MOD_NAME ".ko and "
-		    USBIP_HOST_DRV_NAME ".ko!");
+	if (usbip_driver_open(driver))
 		return -1;
-	}
 
 	if (daemonize) {
 		if (daemon(0, 0) < 0) {
 			err("daemonizing failed: %s", strerror(errno));
-			usbip_host_driver_close();
+			usbip_driver_close(driver);
 			return -1;
 		}
 		umask(0);
@@ -525,7 +534,7 @@ static int do_standalone_mode(int daemonize, int ipv4, int ipv6)
 
 	ai_head = do_getaddrinfo(NULL, family);
 	if (!ai_head) {
-		usbip_host_driver_close();
+		usbip_driver_close(driver);
 		return -1;
 	}
 	nsockfd = listen_all_addrinfo(ai_head, sockfdlist,
@@ -533,7 +542,7 @@ static int do_standalone_mode(int daemonize, int ipv4, int ipv6)
 	freeaddrinfo(ai_head);
 	if (nsockfd <= 0) {
 		err("failed to open a listening socket");
-		usbip_host_driver_close();
+		usbip_driver_close(driver);
 		return -1;
 	}
 
@@ -574,7 +583,7 @@ static int do_standalone_mode(int daemonize, int ipv4, int ipv6)
 
 	info("shutting down " PROGNAME);
 	free(fds);
-	usbip_host_driver_close();
+	usbip_driver_close(driver);
 
 	return 0;
 }
@@ -587,6 +596,7 @@ int main(int argc, char *argv[])
 		{ "daemon",   no_argument,       NULL, 'D' },
 		{ "daemon",   no_argument,       NULL, 'D' },
 		{ "debug",    no_argument,       NULL, 'd' },
+		{ "device",   no_argument,       NULL, 'e' },
 		{ "pid",      optional_argument, NULL, 'P' },
 		{ "tcp-port", required_argument, NULL, 't' },
 		{ "help",     no_argument,       NULL, 'h' },
@@ -613,8 +623,9 @@ int main(int argc, char *argv[])
 		err("not running as root?");
 
 	cmd = cmd_standalone_mode;
+	driver = &host_driver;
 	for (;;) {
-		opt = getopt_long(argc, argv, "46DdP::t:hv", longopts, NULL);
+		opt = getopt_long(argc, argv, "46DdeP::t:hv", longopts, NULL);
 
 		if (opt == -1)
 			break;
@@ -643,6 +654,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'v':
 			cmd = cmd_version;
+			break;
+		case 'e':
+			driver = &device_driver;
 			break;
 		case '?':
 			usbipd_help();

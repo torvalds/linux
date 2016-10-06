@@ -41,6 +41,7 @@
 #include "link.h"
 #include "node.h"
 #include "net.h"
+#include "udp_media.h"
 #include <net/genetlink.h>
 
 static const struct nla_policy tipc_nl_policy[TIPC_NLA_MAX + 1] = {
@@ -52,7 +53,83 @@ static const struct nla_policy tipc_nl_policy[TIPC_NLA_MAX + 1] = {
 	[TIPC_NLA_MEDIA]	= { .type = NLA_NESTED, },
 	[TIPC_NLA_NODE]		= { .type = NLA_NESTED, },
 	[TIPC_NLA_NET]		= { .type = NLA_NESTED, },
-	[TIPC_NLA_NAME_TABLE]	= { .type = NLA_NESTED, }
+	[TIPC_NLA_NAME_TABLE]	= { .type = NLA_NESTED, },
+	[TIPC_NLA_MON]		= { .type = NLA_NESTED, },
+};
+
+const struct nla_policy
+tipc_nl_name_table_policy[TIPC_NLA_NAME_TABLE_MAX + 1] = {
+	[TIPC_NLA_NAME_TABLE_UNSPEC]	= { .type = NLA_UNSPEC },
+	[TIPC_NLA_NAME_TABLE_PUBL]	= { .type = NLA_NESTED }
+};
+
+const struct nla_policy tipc_nl_monitor_policy[TIPC_NLA_MON_MAX + 1] = {
+	[TIPC_NLA_MON_UNSPEC]			= { .type = NLA_UNSPEC },
+	[TIPC_NLA_MON_REF]			= { .type = NLA_U32 },
+	[TIPC_NLA_MON_ACTIVATION_THRESHOLD]	= { .type = NLA_U32 },
+};
+
+const struct nla_policy tipc_nl_sock_policy[TIPC_NLA_SOCK_MAX + 1] = {
+	[TIPC_NLA_SOCK_UNSPEC]		= { .type = NLA_UNSPEC },
+	[TIPC_NLA_SOCK_ADDR]		= { .type = NLA_U32 },
+	[TIPC_NLA_SOCK_REF]		= { .type = NLA_U32 },
+	[TIPC_NLA_SOCK_CON]		= { .type = NLA_NESTED },
+	[TIPC_NLA_SOCK_HAS_PUBL]	= { .type = NLA_FLAG }
+};
+
+const struct nla_policy tipc_nl_net_policy[TIPC_NLA_NET_MAX + 1] = {
+	[TIPC_NLA_NET_UNSPEC]		= { .type = NLA_UNSPEC },
+	[TIPC_NLA_NET_ID]		= { .type = NLA_U32 }
+};
+
+const struct nla_policy tipc_nl_link_policy[TIPC_NLA_LINK_MAX + 1] = {
+	[TIPC_NLA_LINK_UNSPEC]		= { .type = NLA_UNSPEC },
+	[TIPC_NLA_LINK_NAME]		= { .type = NLA_STRING,
+					    .len = TIPC_MAX_LINK_NAME },
+	[TIPC_NLA_LINK_MTU]		= { .type = NLA_U32 },
+	[TIPC_NLA_LINK_BROADCAST]	= { .type = NLA_FLAG },
+	[TIPC_NLA_LINK_UP]		= { .type = NLA_FLAG },
+	[TIPC_NLA_LINK_ACTIVE]		= { .type = NLA_FLAG },
+	[TIPC_NLA_LINK_PROP]		= { .type = NLA_NESTED },
+	[TIPC_NLA_LINK_STATS]		= { .type = NLA_NESTED },
+	[TIPC_NLA_LINK_RX]		= { .type = NLA_U32 },
+	[TIPC_NLA_LINK_TX]		= { .type = NLA_U32 }
+};
+
+const struct nla_policy tipc_nl_node_policy[TIPC_NLA_NODE_MAX + 1] = {
+	[TIPC_NLA_NODE_UNSPEC]		= { .type = NLA_UNSPEC },
+	[TIPC_NLA_NODE_ADDR]		= { .type = NLA_U32 },
+	[TIPC_NLA_NODE_UP]		= { .type = NLA_FLAG }
+};
+
+/* Properties valid for media, bearer and link */
+const struct nla_policy tipc_nl_prop_policy[TIPC_NLA_PROP_MAX + 1] = {
+	[TIPC_NLA_PROP_UNSPEC]		= { .type = NLA_UNSPEC },
+	[TIPC_NLA_PROP_PRIO]		= { .type = NLA_U32 },
+	[TIPC_NLA_PROP_TOL]		= { .type = NLA_U32 },
+	[TIPC_NLA_PROP_WIN]		= { .type = NLA_U32 }
+};
+
+const struct nla_policy tipc_nl_bearer_policy[TIPC_NLA_BEARER_MAX + 1]	= {
+	[TIPC_NLA_BEARER_UNSPEC]	= { .type = NLA_UNSPEC },
+	[TIPC_NLA_BEARER_NAME]		= { .type = NLA_STRING,
+					    .len = TIPC_MAX_BEARER_NAME },
+	[TIPC_NLA_BEARER_PROP]		= { .type = NLA_NESTED },
+	[TIPC_NLA_BEARER_DOMAIN]	= { .type = NLA_U32 }
+};
+
+const struct nla_policy tipc_nl_media_policy[TIPC_NLA_MEDIA_MAX + 1] = {
+	[TIPC_NLA_MEDIA_UNSPEC]		= { .type = NLA_UNSPEC },
+	[TIPC_NLA_MEDIA_NAME]		= { .type = NLA_STRING },
+	[TIPC_NLA_MEDIA_PROP]		= { .type = NLA_NESTED }
+};
+
+const struct nla_policy tipc_nl_udp_policy[TIPC_NLA_UDP_MAX + 1] = {
+	[TIPC_NLA_UDP_UNSPEC]	= {.type = NLA_UNSPEC},
+	[TIPC_NLA_UDP_LOCAL]	= {.type = NLA_BINARY,
+				   .len = sizeof(struct sockaddr_storage)},
+	[TIPC_NLA_UDP_REMOTE]	= {.type = NLA_BINARY,
+				   .len = sizeof(struct sockaddr_storage)},
 };
 
 /* Users of the legacy API (tipc-config) can't handle that we add operations,
@@ -82,6 +159,11 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 		.cmd	= TIPC_NL_BEARER_GET,
 		.doit	= tipc_nl_bearer_get,
 		.dumpit	= tipc_nl_bearer_dump,
+		.policy = tipc_nl_policy,
+	},
+	{
+		.cmd	= TIPC_NL_BEARER_ADD,
+		.doit	= tipc_nl_bearer_add,
 		.policy = tipc_nl_policy,
 	},
 	{
@@ -145,7 +227,35 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 		.cmd	= TIPC_NL_NAME_TABLE_GET,
 		.dumpit	= tipc_nl_name_table_dump,
 		.policy = tipc_nl_policy,
-	}
+	},
+	{
+		.cmd	= TIPC_NL_MON_SET,
+		.doit	= tipc_nl_node_set_monitor,
+		.policy = tipc_nl_policy,
+	},
+	{
+		.cmd	= TIPC_NL_MON_GET,
+		.doit	= tipc_nl_node_get_monitor,
+		.dumpit	= tipc_nl_node_dump_monitor,
+		.policy = tipc_nl_policy,
+	},
+	{
+		.cmd	= TIPC_NL_MON_PEER_GET,
+		.dumpit	= tipc_nl_node_dump_monitor_peer,
+		.policy = tipc_nl_policy,
+	},
+	{
+		.cmd	= TIPC_NL_PEER_REMOVE,
+		.doit	= tipc_nl_peer_rm,
+		.policy = tipc_nl_policy,
+	},
+#ifdef CONFIG_TIPC_MEDIA_UDP
+	{
+		.cmd	= TIPC_NL_UDP_GET_REMOTEIP,
+		.dumpit	= tipc_udp_nl_dump_remoteip,
+		.policy = tipc_nl_policy,
+	},
+#endif
 };
 
 int tipc_nlmsg_parse(const struct nlmsghdr *nlh, struct nlattr ***attr)

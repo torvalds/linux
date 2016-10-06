@@ -113,8 +113,9 @@ const struct rpc_authops authnull_ops = {
 
 static
 struct rpc_auth null_auth = {
-	.au_cslack	= 4,
-	.au_rslack	= 2,
+	.au_cslack	= NUL_CALLSLACK,
+	.au_rslack	= NUL_REPLYSLACK,
+	.au_flags	= RPCAUTH_AUTH_NO_CRKEY_TIMEOUT,
 	.au_ops		= &authnull_ops,
 	.au_flavor	= RPC_AUTH_NULL,
 	.au_count	= ATOMIC_INIT(0),

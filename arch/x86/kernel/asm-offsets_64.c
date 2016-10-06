@@ -4,17 +4,11 @@
 
 #include <asm/ia32.h>
 
-#define __SYSCALL_64(nr, sym, compat) [nr] = 1,
-#define __SYSCALL_COMMON(nr, sym, compat) [nr] = 1,
-#ifdef CONFIG_X86_X32_ABI
-# define __SYSCALL_X32(nr, sym, compat) [nr] = 1,
-#else
-# define __SYSCALL_X32(nr, sym, compat) /* nothing */
-#endif
+#define __SYSCALL_64(nr, sym, qual) [nr] = 1,
 static char syscalls_64[] = {
 #include <asm/syscalls_64.h>
 };
-#define __SYSCALL_I386(nr, sym, compat) [nr] = 1,
+#define __SYSCALL_I386(nr, sym, qual) [nr] = 1,
 static char syscalls_ia32[] = {
 #include <asm/syscalls_32.h>
 };
@@ -61,6 +55,11 @@ int main(void)
 	OFFSET(TSS_ist, tss_struct, x86_tss.ist);
 	OFFSET(TSS_sp0, tss_struct, x86_tss.sp0);
 	BLANK();
+
+#ifdef CONFIG_CC_STACKPROTECTOR
+	DEFINE(stack_canary_offset, offsetof(union irq_stack_union, stack_canary));
+	BLANK();
+#endif
 
 	DEFINE(__NR_syscall_max, sizeof(syscalls_64) - 1);
 	DEFINE(NR_syscalls, sizeof(syscalls_64));

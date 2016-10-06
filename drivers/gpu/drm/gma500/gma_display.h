@@ -72,12 +72,9 @@ extern int gma_crtc_cursor_set(struct drm_crtc *crtc,
 			       uint32_t width, uint32_t height);
 extern int gma_crtc_cursor_move(struct drm_crtc *crtc, int x, int y);
 extern void gma_crtc_load_lut(struct drm_crtc *crtc);
-extern void gma_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
-			       u16 *blue, u32 start, u32 size);
+extern int gma_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
+			      u16 *blue, u32 size);
 extern void gma_crtc_dpms(struct drm_crtc *crtc, int mode);
-extern bool gma_crtc_mode_fixup(struct drm_crtc *crtc,
-				const struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode);
 extern void gma_crtc_prepare(struct drm_crtc *crtc);
 extern void gma_crtc_commit(struct drm_crtc *crtc);
 extern void gma_crtc_disable(struct drm_crtc *crtc);
@@ -90,9 +87,6 @@ extern void gma_crtc_restore(struct drm_crtc *crtc);
 extern void gma_encoder_prepare(struct drm_encoder *encoder);
 extern void gma_encoder_commit(struct drm_encoder *encoder);
 extern void gma_encoder_destroy(struct drm_encoder *encoder);
-extern bool gma_encoder_mode_fixup(struct drm_encoder *encoder,
-				   const struct drm_display_mode *mode,
-				   struct drm_display_mode *adjusted_mode);
 
 /* Common clock related functions */
 extern const struct gma_limit_t *gma_limit(struct drm_crtc *crtc, int refclk);

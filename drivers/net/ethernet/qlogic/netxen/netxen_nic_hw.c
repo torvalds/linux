@@ -1015,20 +1015,24 @@ static int netxen_get_flash_block(struct netxen_adapter *adapter, int base,
 {
 	int i, v, addr;
 	__le32 *ptr32;
+	int ret;
 
 	addr = base;
 	ptr32 = buf;
 	for (i = 0; i < size / sizeof(u32); i++) {
-		if (netxen_rom_fast_read(adapter, addr, &v) == -1)
-			return -1;
+		ret = netxen_rom_fast_read(adapter, addr, &v);
+		if (ret)
+			return ret;
+
 		*ptr32 = cpu_to_le32(v);
 		ptr32++;
 		addr += sizeof(u32);
 	}
 	if ((char *)buf + size > (char *)ptr32) {
 		__le32 local;
-		if (netxen_rom_fast_read(adapter, addr, &v) == -1)
-			return -1;
+		ret = netxen_rom_fast_read(adapter, addr, &v);
+		if (ret)
+			return ret;
 		local = cpu_to_le32(v);
 		memcpy(ptr32, &local, (char *)buf + size - (char *)ptr32);
 	}
@@ -1940,7 +1944,7 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter)
 				if (adapter->phy_read &&
 				    adapter->phy_read(adapter,
 						      NETXEN_NIU_GB_MII_MGMT_ADDR_AUTONEG,
-						      &autoneg) != 0)
+						      &autoneg) == 0)
 					adapter->link_autoneg = autoneg;
 			} else
 				goto link_down;

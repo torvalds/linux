@@ -38,7 +38,7 @@ snic_isr_msix_wq(int irq, void *data)
 	unsigned long wq_work_done = 0;
 
 	snic->s_stats.misc.last_isr_time = jiffies;
-	atomic64_inc(&snic->s_stats.misc.isr_cnt);
+	atomic64_inc(&snic->s_stats.misc.ack_isr_cnt);
 
 	wq_work_done = snic_wq_cmpl_handler(snic, -1);
 	svnic_intr_return_credits(&snic->intr[SNIC_MSIX_WQ],
@@ -56,7 +56,7 @@ snic_isr_msix_io_cmpl(int irq, void *data)
 	unsigned long iocmpl_work_done = 0;
 
 	snic->s_stats.misc.last_isr_time = jiffies;
-	atomic64_inc(&snic->s_stats.misc.isr_cnt);
+	atomic64_inc(&snic->s_stats.misc.cmpl_isr_cnt);
 
 	iocmpl_work_done = snic_fwcq_cmpl_handler(snic, -1);
 	svnic_intr_return_credits(&snic->intr[SNIC_MSIX_IO_CMPL],
@@ -73,7 +73,7 @@ snic_isr_msix_err_notify(int irq, void *data)
 	struct snic *snic = data;
 
 	snic->s_stats.misc.last_isr_time = jiffies;
-	atomic64_inc(&snic->s_stats.misc.isr_cnt);
+	atomic64_inc(&snic->s_stats.misc.errnotify_isr_cnt);
 
 	svnic_intr_return_all_credits(&snic->intr[SNIC_MSIX_ERR_NOTIFY]);
 	snic_log_q_error(snic);

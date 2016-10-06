@@ -15,7 +15,6 @@
 #include <drm/drmP.h>
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
-#include "exynos_drm_fbdev.h"
 
 static LIST_HEAD(exynos_drm_subdrv_list);
 
@@ -101,7 +100,7 @@ int exynos_drm_subdrv_open(struct drm_device *dev, struct drm_file *file)
 	return 0;
 
 err:
-	list_for_each_entry_reverse(subdrv, &subdrv->list, list) {
+	list_for_each_entry_continue_reverse(subdrv, &exynos_drm_subdrv_list, list) {
 		if (subdrv->close)
 			subdrv->close(dev, subdrv->dev, file);
 	}

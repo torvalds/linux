@@ -32,23 +32,13 @@
  *       r2,r3 = Hypervisor pgd pointer
  *
  * The init scenario is:
- * - We jump in HYP with four parameters: boot HYP pgd, runtime HYP pgd,
- *   runtime stack, runtime vectors
- * - Enable the MMU with the boot pgd
- * - Jump to a target into the trampoline page (remember, this is the same
- *   physical page!)
- * - Now switch to the runtime pgd (same VA, and still the same physical
- *   page!)
+ * - We jump in HYP with 3 parameters: runtime HYP pgd, runtime stack,
+ *   runtime vectors
  * - Invalidate TLBs
  * - Set stack and vectors
+ * - Setup the page tables
+ * - Enable the MMU
  * - Profit! (or eret, if you only care about the code).
- *
- * As we only have four registers available to pass parameters (and we
- * need six), we split the init in two phases:
- * - Phase 1: r0 = 0, r1 = 0, r2,r3 contain the boot PGD.
- *   Provides the basic HYP init, and enable the MMU.
- * - Phase 2: r0 = ToS, r1 = vectors, r2,r3 contain the runtime PGD.
- *   Switches to the runtime PGD, set stack and vectors.
  */
 
 	.text
@@ -68,8 +58,11 @@ __kvm_hyp_init:
 	W(b)	.
 
 __do_hyp_init:
-	cmp	r0, #0			@ We have a SP?
-	bne	phase2			@ Yes, second stage init
+	@ Set stack pointer
+	mov	sp, r0
+
+	@ Set HVBAR to point to the HYP vectors
+	mcr	p15, 4, r1, c12, c0, 0	@ HVBAR
 
 	@ Set the HTTBR to point to the hypervisor PGD pointer passed
 	mcrr	p15, 4, rr_lo_hi(r2, r3), c2
@@ -83,14 +76,6 @@ __do_hyp_init:
 	and	r1, r1, #(HTCR_MASK & ~TTBCR_T0SZ)
 	orr	r0, r0, r1
 	mcr	p15, 4, r0, c2, c0, 2	@ HTCR
-
-	mrc	p15, 4, r1, c2, c1, 2	@ VTCR
-	ldr	r2, =VTCR_MASK
-	bic	r1, r1, r2
-	bic	r0, r0, #(~VTCR_HTCR_SH)	@ clear non-reusable HTCR bits
-	orr	r1, r0, r1
-	orr	r1, r1, #(KVM_VTCR_SL0 | KVM_VTCR_T0SZ | KVM_VTCR_S)
-	mcr	p15, 4, r1, c2, c1, 2	@ VTCR
 
 	@ Use the same memory attributes for hyp. accesses as the kernel
 	@ (copy MAIRx ro HMAIRx).
@@ -122,34 +107,25 @@ __do_hyp_init:
  THUMB(	ldr	r2, =(HSCTLR_M | HSCTLR_A | HSCTLR_TE)		)
 	orr	r1, r1, r2
 	orr	r0, r0, r1
-	isb
 	mcr	p15, 4, r0, c1, c0, 0	@ HSCR
-
-	@ End of init phase-1
-	eret
-
-phase2:
-	@ Set stack pointer
-	mov	sp, r0
-
-	@ Set HVBAR to point to the HYP vectors
-	mcr	p15, 4, r1, c12, c0, 0	@ HVBAR
-
-	@ Jump to the trampoline page
-	ldr	r0, =TRAMPOLINE_VA
-	adr	r1, target
-	bfi	r0, r1, #0, #PAGE_SHIFT
-	ret	r0
-
-target:	@ We're now in the trampoline code, switch page tables
-	mcrr	p15, 4, rr_lo_hi(r2, r3), c2
 	isb
 
-	@ Invalidate the old TLBs
-	mcr	p15, 4, r0, c8, c7, 0	@ TLBIALLH
-	dsb	ish
+	eret
+
+	@ r0 : stub vectors address
+ENTRY(__kvm_hyp_reset)
+	/* We're now in idmap, disable MMU */
+	mrc	p15, 4, r1, c1, c0, 0	@ HSCTLR
+	ldr	r2, =(HSCTLR_M | HSCTLR_A | HSCTLR_C | HSCTLR_I)
+	bic	r1, r1, r2
+	mcr	p15, 4, r1, c1, c0, 0	@ HSCTLR
+
+	/* Install stub vectors */
+	mcr	p15, 4, r0, c12, c0, 0	@ HVBAR
+	isb
 
 	eret
+ENDPROC(__kvm_hyp_reset)
 
 	.ltorg
 

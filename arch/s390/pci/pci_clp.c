@@ -8,13 +8,19 @@
 #define KMSG_COMPONENT "zpci"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/compat.h>
 #include <linux/kernel.h>
+#include <linux/miscdevice.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
+#include <linux/uaccess.h>
 #include <asm/pci_debug.h>
 #include <asm/pci_clp.h>
+#include <asm/compat.h>
+#include <asm/clp.h>
+#include <uapi/asm/clp.h>
 
 static inline void zpci_err_clp(unsigned int rsp, int rc)
 {
@@ -27,21 +33,43 @@ static inline void zpci_err_clp(unsigned int rsp, int rc)
 }
 
 /*
- * Call Logical Processor
- * Retry logic is handled by the caller.
+ * Call Logical Processor with c=1, lps=0 and command 1
+ * to get the bit mask of installed logical processors
  */
-static inline u8 clp_instr(void *data)
+static inline int clp_get_ilp(unsigned long *ilp)
+{
+	unsigned long mask;
+	int cc = 3;
+
+	asm volatile (
+		"	.insn	rrf,0xb9a00000,%[mask],%[cmd],8,0\n"
+		"0:	ipm	%[cc]\n"
+		"	srl	%[cc],28\n"
+		"1:\n"
+		EX_TABLE(0b, 1b)
+		: [cc] "+d" (cc), [mask] "=d" (mask) : [cmd] "a" (1)
+		: "cc");
+	*ilp = mask;
+	return cc;
+}
+
+/*
+ * Call Logical Processor with c=0, the give constant lps and an lpcb request.
+ */
+static inline int clp_req(void *data, unsigned int lps)
 {
 	struct { u8 _[CLP_BLK_SIZE]; } *req = data;
 	u64 ignored;
-	u8 cc;
+	int cc = 3;
 
 	asm volatile (
-		"	.insn	rrf,0xb9a00000,%[ign],%[req],0x0,0x2\n"
-		"	ipm	%[cc]\n"
+		"	.insn	rrf,0xb9a00000,%[ign],%[req],0,%[lps]\n"
+		"0:	ipm	%[cc]\n"
 		"	srl	%[cc],28\n"
-		: [cc] "=d" (cc), [ign] "=d" (ignored), "+m" (*req)
-		: [req] "a" (req)
+		"1:\n"
+		EX_TABLE(0b, 1b)
+		: [cc] "+d" (cc), [ign] "=d" (ignored), "+m" (*req)
+		: [req] "a" (req), [lps] "i" (lps)
 		: "cc");
 	return cc;
 }
@@ -90,7 +118,7 @@ static int clp_query_pci_fngrp(struct zpci_dev *zdev, u8 pfgid)
 	rrb->response.hdr.len = sizeof(rrb->response);
 	rrb->request.pfgid = pfgid;
 
-	rc = clp_instr(rrb);
+	rc = clp_req(rrb, CLP_LPS_PCI);
 	if (!rc && rrb->response.hdr.rsp == CLP_RC_OK)
 		clp_store_query_pci_fngrp(zdev, &rrb->response);
 	else {
@@ -143,13 +171,12 @@ static int clp_query_pci_fn(struct zpci_dev *zdev, u32 fh)
 	rrb->response.hdr.len = sizeof(rrb->response);
 	rrb->request.fh = fh;
 
-	rc = clp_instr(rrb);
+	rc = clp_req(rrb, CLP_LPS_PCI);
 	if (!rc && rrb->response.hdr.rsp == CLP_RC_OK) {
 		rc = clp_store_query_pci_fn(zdev, &rrb->response);
 		if (rc)
 			goto out;
-		if (rrb->response.pfgid)
-			rc = clp_query_pci_fngrp(zdev, rrb->response.pfgid);
+		rc = clp_query_pci_fngrp(zdev, rrb->response.pfgid);
 	} else {
 		zpci_err("Q PCI FN:\n");
 		zpci_err_clp(rrb->response.hdr.rsp, rc);
@@ -214,7 +241,7 @@ static int clp_set_pci_fn(u32 *fh, u8 nr_dma_as, u8 command)
 		rrb->request.oc = command;
 		rrb->request.ndas = nr_dma_as;
 
-		rc = clp_instr(rrb);
+		rc = clp_req(rrb, CLP_LPS_PCI);
 		if (rrb->response.hdr.rsp == CLP_RC_SETPCIFN_BUSY) {
 			retries--;
 			if (retries < 0)
@@ -280,7 +307,7 @@ static int clp_list_pci(struct clp_req_rsp_list_pci *rrb,
 		rrb->request.resume_token = resume_token;
 
 		/* Get PCI function handle list */
-		rc = clp_instr(rrb);
+		rc = clp_req(rrb, CLP_LPS_PCI);
 		if (rc || rrb->response.hdr.rsp != CLP_RC_OK) {
 			zpci_err("List PCI FN:\n");
 			zpci_err_clp(rrb->response.hdr.rsp, rc);
@@ -391,3 +418,198 @@ int clp_rescan_pci_devices_simple(void)
 	clp_free_block(rrb);
 	return rc;
 }
+
+static int clp_base_slpc(struct clp_req *req, struct clp_req_rsp_slpc *lpcb)
+{
+	unsigned long limit = PAGE_SIZE - sizeof(lpcb->request);
+
+	if (lpcb->request.hdr.len != sizeof(lpcb->request) ||
+	    lpcb->response.hdr.len > limit)
+		return -EINVAL;
+	return clp_req(lpcb, CLP_LPS_BASE) ? -EOPNOTSUPP : 0;
+}
+
+static int clp_base_command(struct clp_req *req, struct clp_req_hdr *lpcb)
+{
+	switch (lpcb->cmd) {
+	case 0x0001: /* store logical-processor characteristics */
+		return clp_base_slpc(req, (void *) lpcb);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int clp_pci_slpc(struct clp_req *req, struct clp_req_rsp_slpc *lpcb)
+{
+	unsigned long limit = PAGE_SIZE - sizeof(lpcb->request);
+
+	if (lpcb->request.hdr.len != sizeof(lpcb->request) ||
+	    lpcb->response.hdr.len > limit)
+		return -EINVAL;
+	return clp_req(lpcb, CLP_LPS_PCI) ? -EOPNOTSUPP : 0;
+}
+
+static int clp_pci_list(struct clp_req *req, struct clp_req_rsp_list_pci *lpcb)
+{
+	unsigned long limit = PAGE_SIZE - sizeof(lpcb->request);
+
+	if (lpcb->request.hdr.len != sizeof(lpcb->request) ||
+	    lpcb->response.hdr.len > limit)
+		return -EINVAL;
+	if (lpcb->request.reserved2 != 0)
+		return -EINVAL;
+	return clp_req(lpcb, CLP_LPS_PCI) ? -EOPNOTSUPP : 0;
+}
+
+static int clp_pci_query(struct clp_req *req,
+			 struct clp_req_rsp_query_pci *lpcb)
+{
+	unsigned long limit = PAGE_SIZE - sizeof(lpcb->request);
+
+	if (lpcb->request.hdr.len != sizeof(lpcb->request) ||
+	    lpcb->response.hdr.len > limit)
+		return -EINVAL;
+	if (lpcb->request.reserved2 != 0 || lpcb->request.reserved3 != 0)
+		return -EINVAL;
+	return clp_req(lpcb, CLP_LPS_PCI) ? -EOPNOTSUPP : 0;
+}
+
+static int clp_pci_query_grp(struct clp_req *req,
+			     struct clp_req_rsp_query_pci_grp *lpcb)
+{
+	unsigned long limit = PAGE_SIZE - sizeof(lpcb->request);
+
+	if (lpcb->request.hdr.len != sizeof(lpcb->request) ||
+	    lpcb->response.hdr.len > limit)
+		return -EINVAL;
+	if (lpcb->request.reserved2 != 0 || lpcb->request.reserved3 != 0 ||
+	    lpcb->request.reserved4 != 0)
+		return -EINVAL;
+	return clp_req(lpcb, CLP_LPS_PCI) ? -EOPNOTSUPP : 0;
+}
+
+static int clp_pci_command(struct clp_req *req, struct clp_req_hdr *lpcb)
+{
+	switch (lpcb->cmd) {
+	case 0x0001: /* store logical-processor characteristics */
+		return clp_pci_slpc(req, (void *) lpcb);
+	case 0x0002: /* list PCI functions */
+		return clp_pci_list(req, (void *) lpcb);
+	case 0x0003: /* query PCI function */
+		return clp_pci_query(req, (void *) lpcb);
+	case 0x0004: /* query PCI function group */
+		return clp_pci_query_grp(req, (void *) lpcb);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int clp_normal_command(struct clp_req *req)
+{
+	struct clp_req_hdr *lpcb;
+	void __user *uptr;
+	int rc;
+
+	rc = -EINVAL;
+	if (req->lps != 0 && req->lps != 2)
+		goto out;
+
+	rc = -ENOMEM;
+	lpcb = clp_alloc_block(GFP_KERNEL);
+	if (!lpcb)
+		goto out;
+
+	rc = -EFAULT;
+	uptr = (void __force __user *)(unsigned long) req->data_p;
+	if (copy_from_user(lpcb, uptr, PAGE_SIZE) != 0)
+		goto out_free;
+
+	rc = -EINVAL;
+	if (lpcb->fmt != 0 || lpcb->reserved1 != 0 || lpcb->reserved2 != 0)
+		goto out_free;
+
+	switch (req->lps) {
+	case 0:
+		rc = clp_base_command(req, lpcb);
+		break;
+	case 2:
+		rc = clp_pci_command(req, lpcb);
+		break;
+	}
+	if (rc)
+		goto out_free;
+
+	rc = -EFAULT;
+	if (copy_to_user(uptr, lpcb, PAGE_SIZE) != 0)
+		goto out_free;
+
+	rc = 0;
+
+out_free:
+	clp_free_block(lpcb);
+out:
+	return rc;
+}
+
+static int clp_immediate_command(struct clp_req *req)
+{
+	void __user *uptr;
+	unsigned long ilp;
+	int exists;
+
+	if (req->cmd > 1 || clp_get_ilp(&ilp) != 0)
+		return -EINVAL;
+
+	uptr = (void __force __user *)(unsigned long) req->data_p;
+	if (req->cmd == 0) {
+		/* Command code 0: test for a specific processor */
+		exists = test_bit_inv(req->lps, &ilp);
+		return put_user(exists, (int __user *) uptr);
+	}
+	/* Command code 1: return bit mask of installed processors */
+	return put_user(ilp, (unsigned long __user *) uptr);
+}
+
+static long clp_misc_ioctl(struct file *filp, unsigned int cmd,
+			   unsigned long arg)
+{
+	struct clp_req req;
+	void __user *argp;
+
+	if (cmd != CLP_SYNC)
+		return -EINVAL;
+
+	argp = is_compat_task() ? compat_ptr(arg) : (void __user *) arg;
+	if (copy_from_user(&req, argp, sizeof(req)))
+		return -EFAULT;
+	if (req.r != 0)
+		return -EINVAL;
+	return req.c ? clp_immediate_command(&req) : clp_normal_command(&req);
+}
+
+static int clp_misc_release(struct inode *inode, struct file *filp)
+{
+	return 0;
+}
+
+static const struct file_operations clp_misc_fops = {
+	.owner = THIS_MODULE,
+	.open = nonseekable_open,
+	.release = clp_misc_release,
+	.unlocked_ioctl = clp_misc_ioctl,
+	.compat_ioctl = clp_misc_ioctl,
+	.llseek = no_llseek,
+};
+
+static struct miscdevice clp_misc_device = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "clp",
+	.fops = &clp_misc_fops,
+};
+
+static int __init clp_misc_init(void)
+{
+	return misc_register(&clp_misc_device);
+}
+
+device_initcall(clp_misc_init);

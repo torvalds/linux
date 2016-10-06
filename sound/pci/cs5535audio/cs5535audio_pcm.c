@@ -380,7 +380,7 @@ static int snd_cs5535audio_capture_prepare(struct snd_pcm_substream *substream)
 				 substream->runtime->rate);
 }
 
-static struct snd_pcm_ops snd_cs5535audio_playback_ops = {
+static const struct snd_pcm_ops snd_cs5535audio_playback_ops = {
 	.open =		snd_cs5535audio_playback_open,
 	.close =	snd_cs5535audio_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -391,7 +391,7 @@ static struct snd_pcm_ops snd_cs5535audio_playback_ops = {
 	.pointer =	snd_cs5535audio_pcm_pointer,
 };
 
-static struct snd_pcm_ops snd_cs5535audio_capture_ops = {
+static const struct snd_pcm_ops snd_cs5535audio_capture_ops = {
 	.open =		snd_cs5535audio_capture_open,
 	.close =	snd_cs5535audio_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,

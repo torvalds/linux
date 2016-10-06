@@ -421,6 +421,7 @@ static int ads8688_probe(struct spi_device *spi)
 
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->dev.parent = &spi->dev;
+	indio_dev->dev.of_node = spi->dev.of_node;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = st->chip_info->channels;
 	indio_dev->num_channels = st->chip_info->num_channels;
@@ -437,7 +438,7 @@ static int ads8688_probe(struct spi_device *spi)
 	return 0;
 
 error_out:
-	if (!IS_ERR_OR_NULL(st->reg))
+	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
 
 	return ret;
@@ -450,7 +451,7 @@ static int ads8688_remove(struct spi_device *spi)
 
 	iio_device_unregister(indio_dev);
 
-	if (!IS_ERR_OR_NULL(st->reg))
+	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
 
 	return 0;

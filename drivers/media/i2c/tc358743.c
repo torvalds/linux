@@ -59,8 +59,7 @@ MODULE_LICENSE("GPL");
 #define EDID_NUM_BLOCKS_MAX 8
 #define EDID_BLOCK_SIZE 128
 
-/* Max transfer size done by I2C transfer functions */
-#define MAX_XFER_SIZE  (EDID_NUM_BLOCKS_MAX * EDID_BLOCK_SIZE + 2)
+#define I2C_MAX_XFER_SIZE  (EDID_BLOCK_SIZE + 2)
 
 static const struct v4l2_dv_timings_cap tc358743_timings_cap = {
 	.type = V4L2_DV_BT_656_1120,
@@ -90,15 +89,10 @@ struct tc358743_state {
 	struct v4l2_ctrl *audio_sampling_rate_ctrl;
 	struct v4l2_ctrl *audio_present_ctrl;
 
-	/* work queues */
-	struct workqueue_struct *work_queues;
 	struct delayed_work delayed_work_enable_hotplug;
 
 	/* edid  */
 	u8 edid_blocks_written;
-
-	/* used by i2c_wr() */
-	u8 wr_data[MAX_XFER_SIZE];
 
 	struct v4l2_dv_timings timings;
 	u32 mbus_fmt_code;
@@ -149,13 +143,15 @@ static void i2c_wr(struct v4l2_subdev *sd, u16 reg, u8 *values, u32 n)
 {
 	struct tc358743_state *state = to_state(sd);
 	struct i2c_client *client = state->i2c_client;
-	u8 *data = state->wr_data;
 	int err, i;
 	struct i2c_msg msg;
+	u8 data[I2C_MAX_XFER_SIZE];
 
-	if ((2 + n) > sizeof(state->wr_data))
+	if ((2 + n) > I2C_MAX_XFER_SIZE) {
+		n = I2C_MAX_XFER_SIZE - 2;
 		v4l2_warn(sd, "i2c wr reg=%04x: len=%d is too big!\n",
 			  reg, 2 + n);
+	}
 
 	msg.addr = client->addr;
 	msg.buf = data;
@@ -427,8 +423,7 @@ static void tc358743_enable_edid(struct v4l2_subdev *sd)
 
 	/* Enable hotplug after 100 ms. DDC access to EDID is also enabled when
 	 * hotplug is enabled. See register DDC_CTL */
-	queue_delayed_work(state->work_queues,
-			   &state->delayed_work_enable_hotplug, HZ / 10);
+	schedule_delayed_work(&state->delayed_work_enable_hotplug, HZ / 10);
 
 	tc358743_enable_interrupts(sd, true);
 	tc358743_s_ctrl_detect_tx_5v(sd);
@@ -859,15 +854,16 @@ static void tc358743_format_change(struct v4l2_subdev *sd)
 	if (tc358743_get_detected_timings(sd, &timings)) {
 		enable_stream(sd, false);
 
-		v4l2_dbg(1, debug, sd, "%s: Format changed. No signal\n",
+		v4l2_dbg(1, debug, sd, "%s: No signal\n",
 				__func__);
 	} else {
 		if (!v4l2_match_dv_timings(&state->timings, &timings, 0, false))
 			enable_stream(sd, false);
 
-		v4l2_print_dv_timings(sd->name,
-				"tc358743_format_change: Format changed. New format: ",
-				&timings, false);
+		if (debug)
+			v4l2_print_dv_timings(sd->name,
+					"tc358743_format_change: New format: ",
+					&timings, false);
 	}
 
 	if (sd->devnode)
@@ -1199,21 +1195,21 @@ static int tc358743_log_status(struct v4l2_subdev *sd)
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static void tc358743_print_register_map(struct v4l2_subdev *sd)
 {
-	v4l2_info(sd, "0x0000–0x00FF: Global Control Register\n");
-	v4l2_info(sd, "0x0100–0x01FF: CSI2-TX PHY Register\n");
-	v4l2_info(sd, "0x0200–0x03FF: CSI2-TX PPI Register\n");
-	v4l2_info(sd, "0x0400–0x05FF: Reserved\n");
-	v4l2_info(sd, "0x0600–0x06FF: CEC Register\n");
-	v4l2_info(sd, "0x0700–0x84FF: Reserved\n");
-	v4l2_info(sd, "0x8500–0x85FF: HDMIRX System Control Register\n");
-	v4l2_info(sd, "0x8600–0x86FF: HDMIRX Audio Control Register\n");
-	v4l2_info(sd, "0x8700–0x87FF: HDMIRX InfoFrame packet data Register\n");
-	v4l2_info(sd, "0x8800–0x88FF: HDMIRX HDCP Port Register\n");
-	v4l2_info(sd, "0x8900–0x89FF: HDMIRX Video Output Port & 3D Register\n");
-	v4l2_info(sd, "0x8A00–0x8BFF: Reserved\n");
-	v4l2_info(sd, "0x8C00–0x8FFF: HDMIRX EDID-RAM (1024bytes)\n");
-	v4l2_info(sd, "0x9000–0x90FF: HDMIRX GBD Extraction Control\n");
-	v4l2_info(sd, "0x9100–0x92FF: HDMIRX GBD RAM read\n");
+	v4l2_info(sd, "0x0000-0x00FF: Global Control Register\n");
+	v4l2_info(sd, "0x0100-0x01FF: CSI2-TX PHY Register\n");
+	v4l2_info(sd, "0x0200-0x03FF: CSI2-TX PPI Register\n");
+	v4l2_info(sd, "0x0400-0x05FF: Reserved\n");
+	v4l2_info(sd, "0x0600-0x06FF: CEC Register\n");
+	v4l2_info(sd, "0x0700-0x84FF: Reserved\n");
+	v4l2_info(sd, "0x8500-0x85FF: HDMIRX System Control Register\n");
+	v4l2_info(sd, "0x8600-0x86FF: HDMIRX Audio Control Register\n");
+	v4l2_info(sd, "0x8700-0x87FF: HDMIRX InfoFrame packet data Register\n");
+	v4l2_info(sd, "0x8800-0x88FF: HDMIRX HDCP Port Register\n");
+	v4l2_info(sd, "0x8900-0x89FF: HDMIRX Video Output Port & 3D Register\n");
+	v4l2_info(sd, "0x8A00-0x8BFF: Reserved\n");
+	v4l2_info(sd, "0x8C00-0x8FFF: HDMIRX EDID-RAM (1024bytes)\n");
+	v4l2_info(sd, "0x9000-0x90FF: HDMIRX GBD Extraction Control\n");
+	v4l2_info(sd, "0x9100-0x92FF: HDMIRX GBD RAM read\n");
 	v4l2_info(sd, "0x9300-      : Reserved\n");
 }
 
@@ -1552,6 +1548,8 @@ static int tc358743_g_edid(struct v4l2_subdev *sd,
 {
 	struct tc358743_state *state = to_state(sd);
 
+	memset(edid->reserved, 0, sizeof(edid->reserved));
+
 	if (edid->pad != 0)
 		return -EINVAL;
 
@@ -1581,9 +1579,12 @@ static int tc358743_s_edid(struct v4l2_subdev *sd,
 {
 	struct tc358743_state *state = to_state(sd);
 	u16 edid_len = edid->blocks * EDID_BLOCK_SIZE;
+	int i;
 
 	v4l2_dbg(2, debug, sd, "%s, pad %d, start block %d, blocks %d\n",
 		 __func__, edid->pad, edid->start_block, edid->blocks);
+
+	memset(edid->reserved, 0, sizeof(edid->reserved));
 
 	if (edid->pad != 0)
 		return -EINVAL;
@@ -1606,7 +1607,8 @@ static int tc358743_s_edid(struct v4l2_subdev *sd,
 		return 0;
 	}
 
-	i2c_wr(sd, EDID_RAM, edid->edid, edid_len);
+	for (i = 0; i < edid_len; i += EDID_BLOCK_SIZE)
+		i2c_wr(sd, EDID_RAM + i, edid->edid + i, EDID_BLOCK_SIZE);
 
 	state->edid_blocks_written = edid->blocks;
 
@@ -1858,7 +1860,6 @@ static int tc358743_probe(struct i2c_client *client,
 	/* control handlers */
 	v4l2_ctrl_handler_init(&state->hdl, 3);
 
-	/* private controls */
 	state->detect_tx_5v_ctrl = v4l2_ctrl_new_std(&state->hdl, NULL,
 			V4L2_CID_DV_RX_POWER_PRESENT, 0, 1, 0, 0);
 
@@ -1877,14 +1878,6 @@ static int tc358743_probe(struct i2c_client *client,
 
 	if (tc358743_update_controls(sd)) {
 		err = -ENODEV;
-		goto err_hdl;
-	}
-
-	/* work queues */
-	state->work_queues = create_singlethread_workqueue(client->name);
-	if (!state->work_queues) {
-		v4l2_err(sd, "Could not create work queue\n");
-		err = -ENOMEM;
 		goto err_hdl;
 	}
 
@@ -1936,7 +1929,6 @@ static int tc358743_probe(struct i2c_client *client,
 
 err_work_queues:
 	cancel_delayed_work(&state->delayed_work_enable_hotplug);
-	destroy_workqueue(state->work_queues);
 	mutex_destroy(&state->confctl_mutex);
 err_hdl:
 	media_entity_cleanup(&sd->entity);
@@ -1950,7 +1942,6 @@ static int tc358743_remove(struct i2c_client *client)
 	struct tc358743_state *state = to_state(sd);
 
 	cancel_delayed_work(&state->delayed_work_enable_hotplug);
-	destroy_workqueue(state->work_queues);
 	v4l2_async_unregister_subdev(sd);
 	v4l2_device_unregister_subdev(sd);
 	mutex_destroy(&state->confctl_mutex);

@@ -111,7 +111,7 @@ int cap_capable(const struct cred *cred, struct user_namespace *targ_ns,
  * Determine whether the current process may set the system clock and timezone
  * information, returning 0 if permission granted, -ve if denied.
  */
-int cap_settime(const struct timespec *ts, const struct timezone *tz)
+int cap_settime(const struct timespec64 *ts, const struct timezone *tz)
 {
 	if (!capable(CAP_SYS_TIME))
 		return -EPERM;
@@ -313,7 +313,7 @@ int cap_inode_need_killpriv(struct dentry *dentry)
 	if (!inode->i_op->getxattr)
 	       return 0;
 
-	error = inode->i_op->getxattr(dentry, XATTR_NAME_CAPS, NULL, 0);
+	error = inode->i_op->getxattr(dentry, inode, XATTR_NAME_CAPS, NULL, 0);
 	if (error <= 0)
 		return 0;
 	return 1;
@@ -397,8 +397,8 @@ int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_cap_data 
 	if (!inode || !inode->i_op->getxattr)
 		return -ENODATA;
 
-	size = inode->i_op->getxattr((struct dentry *)dentry, XATTR_NAME_CAPS, &caps,
-				   XATTR_CAPS_SZ);
+	size = inode->i_op->getxattr((struct dentry *)dentry, inode,
+				     XATTR_NAME_CAPS, &caps, XATTR_CAPS_SZ);
 	if (size == -ENODATA || size == -EOPNOTSUPP)
 		/* no data, that's ok */
 		return -ENODATA;
@@ -453,7 +453,15 @@ static int get_file_caps(struct linux_binprm *bprm, bool *effective, bool *has_c
 	if (!file_caps_enabled)
 		return 0;
 
-	if (bprm->file->f_path.mnt->mnt_flags & MNT_NOSUID)
+	if (!mnt_may_suid(bprm->file->f_path.mnt))
+		return 0;
+
+	/*
+	 * This check is redundant with mnt_may_suid() but is kept to make
+	 * explicit that capability bits are limited to s_user_ns and its
+	 * descendants.
+	 */
+	if (!current_in_userns(bprm->file->f_path.mnt->mnt_sb->s_user_ns))
 		return 0;
 
 	rc = get_vfs_caps_from_disk(bprm->file->f_path.dentry, &vcaps);

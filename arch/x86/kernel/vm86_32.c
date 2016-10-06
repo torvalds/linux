@@ -362,7 +362,7 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 	/* make room for real-mode segments */
 	tsk->thread.sp0 += 16;
 
-	if (static_cpu_has_safe(X86_FEATURE_SEP))
+	if (static_cpu_has(X86_FEATURE_SEP))
 		tsk->thread.sysenter_cs = 0;
 
 	load_sp0(tss, &tsk->thread);
@@ -440,10 +440,7 @@ static inline unsigned long get_vflags(struct kernel_vm86_regs *regs)
 
 static inline int is_revectored(int nr, struct revectored_struct *bitmap)
 {
-	__asm__ __volatile__("btl %2,%1\n\tsbbl %0,%0"
-		:"=r" (nr)
-		:"m" (*bitmap), "r" (nr));
-	return nr;
+	return test_bit(nr, bitmap->__map);
 }
 
 #define val_byte(val, n) (((__u8 *)&val)[n])

@@ -12,7 +12,7 @@
 #ifndef _ASM_ACPI_H
 #define _ASM_ACPI_H
 
-#include <linux/mm.h>
+#include <linux/memblock.h>
 #include <linux/psci.h>
 
 #include <asm/cputype.h>
@@ -32,7 +32,11 @@
 static inline void __iomem *acpi_os_ioremap(acpi_physical_address phys,
 					    acpi_size size)
 {
-	if (!page_is_ram(phys >> PAGE_SHIFT))
+	/*
+	 * EFI's reserve_regions() call adds memory with the WB attribute
+	 * to memblock via early_init_dt_add_memory_arch().
+	 */
+	if (!memblock_is_memory(phys))
 		return ioremap(phys, size);
 
 	return ioremap_cache(phys, size);
@@ -87,13 +91,40 @@ void __init acpi_init_cpus(void);
 static inline void acpi_init_cpus(void) { }
 #endif /* CONFIG_ACPI */
 
+#ifdef CONFIG_ARM64_ACPI_PARKING_PROTOCOL
+bool acpi_parking_protocol_valid(int cpu);
+void __init
+acpi_set_mailbox_entry(int cpu, struct acpi_madt_generic_interrupt *processor);
+#else
+static inline bool acpi_parking_protocol_valid(int cpu) { return false; }
+static inline void
+acpi_set_mailbox_entry(int cpu, struct acpi_madt_generic_interrupt *processor)
+{}
+#endif
+
 static inline const char *acpi_get_enable_method(int cpu)
 {
-	return acpi_psci_present() ? "psci" : NULL;
+	if (acpi_psci_present())
+		return "psci";
+
+	if (acpi_parking_protocol_valid(cpu))
+		return "parking-protocol";
+
+	return NULL;
 }
 
 #ifdef	CONFIG_ACPI_APEI
 pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr);
 #endif
+
+#ifdef CONFIG_ACPI_NUMA
+int arm64_acpi_numa_init(void);
+int acpi_numa_get_nid(unsigned int cpu, u64 hwid);
+#else
+static inline int arm64_acpi_numa_init(void) { return -ENOSYS; }
+static inline int acpi_numa_get_nid(unsigned int cpu, u64 hwid) { return NUMA_NO_NODE; }
+#endif /* CONFIG_ACPI_NUMA */
+
+#define ACPI_TABLE_UPGRADE_MAX_PHYS MEMBLOCK_ALLOC_ACCESSIBLE
 
 #endif /*_ASM_ACPI_H*/

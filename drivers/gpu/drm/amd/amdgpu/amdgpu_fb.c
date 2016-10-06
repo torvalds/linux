@@ -333,6 +333,10 @@ int amdgpu_fbdev_init(struct amdgpu_device *adev)
 	if (!adev->mode_info.mode_config_initialized)
 		return 0;
 
+	/* don't init fbdev if there are no connectors */
+	if (list_empty(&adev->ddev->mode_config.connector_list))
+		return 0;
+
 	/* select 8 bpp console on low vram cards */
 	if (adev->mc.real_vram_size <= (32*1024*1024))
 		bpp_sel = 8;

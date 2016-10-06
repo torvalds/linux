@@ -124,7 +124,7 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 		 * will be no pte_unmap() to correspond with this
 		 * pte_alloc_map().
 		 */
-		pte = pte_alloc_map(mm, NULL, pmd, addr);
+		pte = pte_alloc_map(mm, pmd, addr);
 	} else if (sz == PMD_SIZE) {
 		if (IS_ENABLED(CONFIG_ARCH_WANT_HUGE_PMD_SHARE) &&
 		    pud_none(*pud))
@@ -311,6 +311,7 @@ static __init int setup_hugepagesz(char *opt)
 	} else if (ps == (PMD_SIZE * CONT_PMDS)) {
 		hugetlb_add_hstate((PMD_SHIFT + CONT_PMD_SHIFT) - PAGE_SHIFT);
 	} else {
+		hugetlb_bad_size();
 		pr_err("hugepagesz: Unsupported page size %lu K\n", ps >> 10);
 		return 0;
 	}

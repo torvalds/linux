@@ -522,8 +522,8 @@ struct rx_fwinfo_8723e {
 	u8 pwdb_all;
 	u8 cfosho[4];
 	u8 cfotail[4];
-	char rxevm[2];
-	char rxsnr[4];
+	s8 rxevm[2];
+	s8 rxsnr[4];
 	u8 pdsnr[2];
 	u8 csi_current[2];
 	u8 csi_target[2];
@@ -716,6 +716,6 @@ void rtl8723e_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 			      bool firstseg, bool lastseg,
 			      struct sk_buff *skb);
 u32 rtl8723e_rx_command_packet(struct ieee80211_hw *hw,
-			       struct rtl_stats status,
+			       const struct rtl_stats *status,
 			       struct sk_buff *skb);
 #endif

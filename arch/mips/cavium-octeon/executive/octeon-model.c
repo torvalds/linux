@@ -71,11 +71,11 @@ static const char *__init octeon_model_get_string_buffer(uint32_t chip_id,
 	uint32_t fuse_data = 0;
 
 	fus3.u64 = 0;
-	if (!OCTEON_IS_MODEL(OCTEON_CN6XXX))
+	if (OCTEON_IS_MODEL(OCTEON_CN3XXX) || OCTEON_IS_MODEL(OCTEON_CN5XXX))
 		fus3.u64 = cvmx_read_csr(CVMX_L2D_FUS3);
 	fus_dat2.u64 = cvmx_read_csr(CVMX_MIO_FUS_DAT2);
 	fus_dat3.u64 = cvmx_read_csr(CVMX_MIO_FUS_DAT3);
-	num_cores = cvmx_pop(cvmx_read_csr(CVMX_CIU_FUSE));
+	num_cores = cvmx_octeon_num_cores();
 
 	/* Make sure the non existent devices look disabled */
 	switch ((chip_id >> 8) & 0xff) {
@@ -121,6 +121,15 @@ static const char *__init octeon_model_get_string_buffer(uint32_t chip_id,
 	 * later.
 	 */
 	switch (num_cores) {
+	case 48:
+		core_model = "90";
+		break;
+	case 44:
+		core_model = "88";
+		break;
+	case 40:
+		core_model = "85";
+		break;
 	case 32:
 		core_model = "80";
 		break;
@@ -297,7 +306,7 @@ static const char *__init octeon_model_get_string_buffer(uint32_t chip_id,
 				if (fus_dat3.s.nozip)
 					suffix = "SCP";
 
-				if (fus_dat3.s.bar2_en)
+				if (fus_dat3.cn56xx.bar2_en)
 					suffix = "NSPB2";
 			}
 			if (fus3.cn56xx.crip_1024k)
@@ -366,6 +375,73 @@ static const char *__init octeon_model_get_string_buffer(uint32_t chip_id,
 			suffix = "SCP";
 		else if (fus_dat2.cn68xx.nocrypto)
 			suffix = "SP";
+		else
+			suffix = "AAP";
+		break;
+	case 0x94:		/* CNF71XX */
+		family = "F71";
+		if (fus_dat3.cnf71xx.nozip)
+			suffix = "SCP";
+		else
+			suffix = "AAP";
+		break;
+	case 0x95:		/* CN78XX */
+		if (num_cores == 6)	/* Other core counts match generic */
+			core_model = "35";
+		if (OCTEON_IS_MODEL(OCTEON_CN76XX))
+			family = "76";
+		else
+			family = "78";
+		if (fus_dat3.cn78xx.l2c_crip == 2)
+			family = "77";
+		if (fus_dat3.cn78xx.nozip
+		    && fus_dat3.cn78xx.nodfa_dte
+		    && fus_dat3.cn78xx.nohna_dte) {
+			if (fus_dat3.cn78xx.nozip &&
+				!fus_dat2.cn78xx.raid_en &&
+				fus_dat3.cn78xx.nohna_dte) {
+				suffix = "CP";
+			} else {
+				suffix = "SCP";
+			}
+		} else if (fus_dat2.cn78xx.raid_en == 0)
+			suffix = "HCP";
+		else
+			suffix = "AAP";
+		break;
+	case 0x96:		/* CN70XX */
+		family = "70";
+		if (cvmx_read_csr(CVMX_MIO_FUS_PDF) & (0x1ULL << 32))
+			family = "71";
+		if (fus_dat2.cn70xx.nocrypto)
+			suffix = "CP";
+		else if (fus_dat3.cn70xx.nodfa_dte)
+			suffix = "SCP";
+		else
+			suffix = "AAP";
+		break;
+	case 0x97:		/* CN73XX */
+		if (num_cores == 6)	/* Other core counts match generic */
+			core_model = "35";
+		family = "73";
+		if (fus_dat3.cn73xx.l2c_crip == 2)
+			family = "72";
+		if (fus_dat3.cn73xx.nozip
+				&& fus_dat3.cn73xx.nodfa_dte
+				&& fus_dat3.cn73xx.nohna_dte) {
+			if (!fus_dat2.cn73xx.raid_en)
+				suffix = "CP";
+			else
+				suffix = "SCP";
+		} else
+			suffix = "AAP";
+		break;
+	case 0x98:		/* CN75XX */
+		family = "F75";
+		if (fus_dat3.cn78xx.nozip
+		    && fus_dat3.cn78xx.nodfa_dte
+		    && fus_dat3.cn78xx.nohna_dte)
+			suffix = "SCP";
 		else
 			suffix = "AAP";
 		break;

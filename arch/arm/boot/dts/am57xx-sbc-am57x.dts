@@ -25,8 +25,8 @@
 &dra7_pmx_core {
 	uart3_pins_default: uart3_pins_default {
 		pinctrl-single,pins = <
-			DRA7XX_CORE_IOPAD(0x37f8, PIN_INPUT_SLEW | MUX_MODE2)	/* uart2_ctsn.uart3_rxd */
-			DRA7XX_CORE_IOPAD(0x37fc, PIN_INPUT_SLEW | MUX_MODE1)	/* uart2_rtsn.uart3_txd */
+			DRA7XX_CORE_IOPAD(0x3648, PIN_INPUT_SLEW | MUX_MODE0)	/* uart3_rxd */
+			DRA7XX_CORE_IOPAD(0x364c, PIN_INPUT_SLEW | MUX_MODE0)	/* uart3_txd */
 		>;
 	};
 
@@ -108,9 +108,9 @@
 	pinctrl-0 = <&i2c5_pins_default>;
 	clock-frequency = <400000>;
 
-	eeprom_base: atmel@50 {
+	eeprom_base: atmel@54 {
 		compatible = "atmel,24c08";
-		reg = <0x50>;
+		reg = <0x54>;
 		pagesize = <16>;
 	};
 
@@ -128,7 +128,7 @@
 	vdda_video-supply = <&ldoln_reg>;
 
 	port {
-		dpi_lcd_out: endpoint@0 {
+		dpi_lcd_out: endpoint {
 			remote-endpoint = <&lcd_in>;
 			data-lines = <24>;
 		};

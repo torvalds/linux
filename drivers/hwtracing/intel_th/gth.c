@@ -22,6 +22,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/bitmap.h>
+#include <linux/pm_runtime.h>
 
 #include "intel_th.h"
 #include "gth.h"
@@ -146,24 +147,6 @@ gth_master_set(struct gth_device *gth, unsigned int master, int port)
 	iowrite32(val, gth->base + reg);
 }
 
-/*static int gth_master_get(struct gth_device *gth, unsigned int master)
-{
-	unsigned int reg = REG_GTH_SWDEST0 + ((master >> 1) & ~3u);
-	unsigned int shift = (master & 0x7) * 4;
-	u32 val;
-
-	if (master >= 256) {
-		reg = REG_GTH_GSWTDEST;
-		shift = 0;
-	}
-
-	val = ioread32(gth->base + reg);
-	val &= (0xf << shift);
-	val >>= shift;
-
-	return val ? val & 0x7 : -1;
-	}*/
-
 static ssize_t master_attr_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
@@ -208,6 +191,11 @@ static ssize_t master_attr_store(struct device *dev,
 	if (old_port >= 0) {
 		gth->master[ma->master] = -1;
 		clear_bit(ma->master, gth->output[old_port].master);
+
+		/*
+		 * if the port is active, program this setting,
+		 * implies that runtime PM is on
+		 */
 		if (gth->output[old_port].output->active)
 			gth_master_set(gth, ma->master, -1);
 	}
@@ -222,7 +210,7 @@ static ssize_t master_attr_store(struct device *dev,
 
 		set_bit(ma->master, gth->output[port].master);
 
-		/* if the port is active, program this setting */
+		/* if the port is active, program this setting, see above */
 		if (gth->output[port].output->active)
 			gth_master_set(gth, ma->master, port);
 	}
@@ -304,6 +292,10 @@ static int intel_th_gth_reset(struct gth_device *gth)
 	if (scratchpad & SCRPD_DEBUGGER_IN_USE)
 		return -EBUSY;
 
+	/* Always save/restore STH and TU registers in S0ix entry/exit */
+	scratchpad |= SCRPD_STH_IS_ENABLED | SCRPD_TRIGGER_IS_ENABLED;
+	iowrite32(scratchpad, gth->base + REG_GTH_SCRPD0);
+
 	/* output ports */
 	for (port = 0; port < 8; port++) {
 		if (gth_output_parm_get(gth, port, TH_OUTPUT_PARM(port)) ==
@@ -340,10 +332,14 @@ static ssize_t output_attr_show(struct device *dev,
 	struct gth_device *gth = oa->gth;
 	size_t count;
 
+	pm_runtime_get_sync(dev);
+
 	spin_lock(&gth->gth_lock);
 	count = snprintf(buf, PAGE_SIZE, "%x\n",
 			 gth_output_parm_get(gth, oa->port, oa->parm));
 	spin_unlock(&gth->gth_lock);
+
+	pm_runtime_put(dev);
 
 	return count;
 }
@@ -360,9 +356,13 @@ static ssize_t output_attr_store(struct device *dev,
 	if (kstrtouint(buf, 16, &config) < 0)
 		return -EINVAL;
 
+	pm_runtime_get_sync(dev);
+
 	spin_lock(&gth->gth_lock);
 	gth_output_parm_set(gth, oa->port, oa->parm, config);
 	spin_unlock(&gth->gth_lock);
+
+	pm_runtime_put(dev);
 
 	return count;
 }
@@ -465,7 +465,7 @@ static int intel_th_output_attributes(struct gth_device *gth)
 }
 
 /**
- * intel_th_gth_disable() - enable tracing to an output device
+ * intel_th_gth_disable() - disable tracing to an output device
  * @thdev:	GTH device
  * @output:	output device's descriptor
  *
@@ -506,6 +506,10 @@ static void intel_th_gth_disable(struct intel_th_device *thdev,
 	if (!count)
 		dev_dbg(&thdev->dev, "timeout waiting for GTH[%d] PLE\n",
 			output->port);
+
+	reg = ioread32(gth->base + REG_GTH_SCRPD0);
+	reg &= ~output->scratchpad;
+	iowrite32(reg, gth->base + REG_GTH_SCRPD0);
 }
 
 /**
@@ -520,7 +524,7 @@ static void intel_th_gth_enable(struct intel_th_device *thdev,
 				struct intel_th_output *output)
 {
 	struct gth_device *gth = dev_get_drvdata(&thdev->dev);
-	u32 scr = 0xfc0000;
+	u32 scr = 0xfc0000, scrpd;
 	int master;
 
 	spin_lock(&gth->gth_lock);
@@ -534,6 +538,10 @@ static void intel_th_gth_enable(struct intel_th_device *thdev,
 
 	output->active = true;
 	spin_unlock(&gth->gth_lock);
+
+	scrpd = ioread32(gth->base + REG_GTH_SCRPD0);
+	scrpd |= output->scratchpad;
+	iowrite32(scrpd, gth->base + REG_GTH_SCRPD0);
 
 	iowrite32(scr, gth->base + REG_GTH_SCR);
 	iowrite32(0, gth->base + REG_GTH_SCR2);

@@ -6,7 +6,7 @@
  *
  * License 1: GPLv2
  *
- * Copyright (c) 2014 Advanced Micro Devices, Inc.
+ * Copyright (c) 2014-2016 Advanced Micro Devices, Inc.
  *
  * This file is free software; you may copy, redistribute and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@
  *
  * License 2: Modified BSD
  *
- * Copyright (c) 2014 Advanced Micro Devices, Inc.
+ * Copyright (c) 2014-2016 Advanced Micro Devices, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -363,7 +363,7 @@ static int xgbe_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, netdev);
 
 	spin_lock_init(&pdata->lock);
-	mutex_init(&pdata->xpcs_mutex);
+	spin_lock_init(&pdata->xpcs_lock);
 	mutex_init(&pdata->rss_mutex);
 	spin_lock_init(&pdata->tstamp_lock);
 
@@ -861,8 +861,14 @@ static int xgbe_resume(struct device *dev)
 	pdata->lpm_ctrl &= ~MDIO_CTRL1_LPOWER;
 	XMDIO_WRITE(pdata, MDIO_MMD_PCS, MDIO_CTRL1, pdata->lpm_ctrl);
 
-	if (netif_running(netdev))
+	if (netif_running(netdev)) {
 		ret = xgbe_powerup(netdev, XGMAC_DRIVER_CONTEXT);
+
+		/* Schedule a restart in case the link or phy state changed
+		 * while we were powered down.
+		 */
+		schedule_work(&pdata->restart_work);
+	}
 
 	DBGPR("<--xgbe_resume\n");
 

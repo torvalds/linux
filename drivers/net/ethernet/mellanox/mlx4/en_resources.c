@@ -58,7 +58,8 @@ void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
 	} else {
 		context->sq_size_stride = ilog2(TXBB_SIZE) - 4;
 	}
-	context->usr_page = cpu_to_be32(mdev->priv_uar.index);
+	context->usr_page = cpu_to_be32(mlx4_to_hw_uar_index(mdev->dev,
+					mdev->priv_uar.index));
 	context->local_qpn = cpu_to_be32(qpn);
 	context->pri_path.ackto = 1 & 0x07;
 	context->pri_path.sched_queue = 0x83 | (priv->port - 1) << 6;
@@ -104,37 +105,6 @@ int mlx4_en_change_mcast_lb(struct mlx4_en_priv *priv, struct mlx4_qp *qp,
 			     &qp_params);
 
 	return ret;
-}
-
-int mlx4_en_map_buffer(struct mlx4_buf *buf)
-{
-	struct page **pages;
-	int i;
-
-	if (BITS_PER_LONG == 64 || buf->nbufs == 1)
-		return 0;
-
-	pages = kmalloc(sizeof *pages * buf->nbufs, GFP_KERNEL);
-	if (!pages)
-		return -ENOMEM;
-
-	for (i = 0; i < buf->nbufs; ++i)
-		pages[i] = virt_to_page(buf->page_list[i].buf);
-
-	buf->direct.buf = vmap(pages, buf->nbufs, VM_MAP, PAGE_KERNEL);
-	kfree(pages);
-	if (!buf->direct.buf)
-		return -ENOMEM;
-
-	return 0;
-}
-
-void mlx4_en_unmap_buffer(struct mlx4_buf *buf)
-{
-	if (BITS_PER_LONG == 64 || buf->nbufs == 1)
-		return;
-
-	vunmap(buf->direct.buf);
 }
 
 void mlx4_en_sqp_event(struct mlx4_qp *qp, enum mlx4_event event)

@@ -11,6 +11,7 @@ FLIC provides support to
 - add interrupts (KVM_DEV_FLIC_ENQUEUE)
 - inspect currently pending interrupts (KVM_FLIC_GET_ALL_IRQS)
 - purge all pending floating interrupts (KVM_DEV_FLIC_CLEAR_IRQS)
+- purge one pending floating I/O interrupt (KVM_DEV_FLIC_CLEAR_IO_IRQ)
 - enable/disable for the guest transparent async page faults
 - register and modify adapter interrupt sources (KVM_DEV_FLIC_ADAPTER_*)
 
@@ -40,6 +41,11 @@ Groups:
     Simply deletes all elements from the list of currently pending floating
     interrupts.  No interrupts are injected into the guest.
 
+  KVM_DEV_FLIC_CLEAR_IO_IRQ
+    Deletes one (if any) I/O interrupt for a subchannel identified by the
+    subsystem identification word passed via the buffer specified by
+    attr->addr (address) and attr->attr (length).
+
   KVM_DEV_FLIC_APF_ENABLE
     Enables async page faults for the guest. So in case of a major page fault
     the host is allowed to handle this async and continues the guest.
@@ -68,7 +74,7 @@ struct kvm_s390_io_adapter {
 
   KVM_DEV_FLIC_ADAPTER_MODIFY
     Modifies attributes of an existing I/O adapter interrupt source. Takes
-    a kvm_s390_io_adapter_req specifiying the adapter and the operation:
+    a kvm_s390_io_adapter_req specifying the adapter and the operation:
 
 struct kvm_s390_io_adapter_req {
 	__u32 id;
@@ -88,7 +94,15 @@ struct kvm_s390_io_adapter_req {
       perform a gmap translation for the guest address provided in addr,
       pin a userspace page for the translated address and add it to the
       list of mappings
+      Note: A new mapping will be created unconditionally; therefore,
+            the calling code should avoid making duplicate mappings.
 
     KVM_S390_IO_ADAPTER_UNMAP
       release a userspace page for the translated address specified in addr
       from the list of mappings
+
+Note: The KVM_SET_DEVICE_ATTR/KVM_GET_DEVICE_ATTR device ioctls executed on
+FLIC with an unknown group or attribute gives the error code EINVAL (instead of
+ENXIO, as specified in the API documentation). It is not possible to conclude
+that a FLIC operation is unavailable based on the error code resulting from a
+usage attempt.

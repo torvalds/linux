@@ -37,29 +37,6 @@
 
 #define TTY_BUFFER_PAGE	(((PAGE_SIZE - sizeof(struct tty_buffer)) / 2) & ~0xFF)
 
-/*
- * If all tty flip buffers have been processed by flush_to_ldisc() or
- * dropped by tty_buffer_flush(), check if the linked pty has been closed.
- * If so, wake the reader/poll to process
- */
-static inline void check_other_closed(struct tty_struct *tty)
-{
-	unsigned long flags, old;
-
-	/* transition from TTY_OTHER_CLOSED => TTY_OTHER_DONE must be atomic */
-	for (flags = ACCESS_ONCE(tty->flags);
-	     test_bit(TTY_OTHER_CLOSED, &flags);
-	     ) {
-		old = flags;
-		__set_bit(TTY_OTHER_DONE, &flags);
-		flags = cmpxchg(&tty->flags, old, flags);
-		if (old == flags) {
-			wake_up_interruptible(&tty->read_wait);
-			break;
-		}
-	}
-}
-
 /**
  *	tty_buffer_lock_exclusive	-	gain exclusive access to buffer
  *	tty_buffer_unlock_exclusive	-	release exclusive access
@@ -254,8 +231,6 @@ void tty_buffer_flush(struct tty_struct *tty, struct tty_ldisc *ld)
 	if (ld && ld->ops->flush_buffer)
 		ld->ops->flush_buffer(tty);
 
-	check_other_closed(tty);
-
 	atomic_dec(&buf->priority);
 	mutex_unlock(&buf->lock);
 }
@@ -435,25 +410,42 @@ int tty_prepare_flip_string(struct tty_port *port, unsigned char **chars,
 }
 EXPORT_SYMBOL_GPL(tty_prepare_flip_string);
 
+/**
+ *	tty_ldisc_receive_buf		-	forward data to line discipline
+ *	@ld:	line discipline to process input
+ *	@p:	char buffer
+ *	@f:	TTY_* flags buffer
+ *	@count:	number of bytes to process
+ *
+ *	Callers other than flush_to_ldisc() need to exclude the kworker
+ *	from concurrent use of the line discipline, see paste_selection().
+ *
+ *	Returns the number of bytes not processed
+ */
+int tty_ldisc_receive_buf(struct tty_ldisc *ld, unsigned char *p,
+			  char *f, int count)
+{
+	if (ld->ops->receive_buf2)
+		count = ld->ops->receive_buf2(ld->tty, p, f, count);
+	else {
+		count = min_t(int, count, ld->tty->receive_room);
+		if (count && ld->ops->receive_buf)
+			ld->ops->receive_buf(ld->tty, p, f, count);
+	}
+	return count;
+}
+EXPORT_SYMBOL_GPL(tty_ldisc_receive_buf);
 
 static int
-receive_buf(struct tty_struct *tty, struct tty_buffer *head, int count)
+receive_buf(struct tty_ldisc *ld, struct tty_buffer *head, int count)
 {
-	struct tty_ldisc *disc = tty->ldisc;
 	unsigned char *p = char_buf_ptr(head, head->read);
 	char	      *f = NULL;
 
 	if (~head->flags & TTYB_NORMAL)
 		f = flag_buf_ptr(head, head->read);
 
-	if (disc->ops->receive_buf2)
-		count = disc->ops->receive_buf2(tty, p, f, count);
-	else {
-		count = min_t(int, count, tty->receive_room);
-		if (count && disc->ops->receive_buf)
-			disc->ops->receive_buf(tty, p, f, count);
-	}
-	return count;
+	return tty_ldisc_receive_buf(ld, p, f, count);
 }
 
 /**
@@ -505,16 +497,14 @@ static void flush_to_ldisc(struct work_struct *work)
 		 */
 		count = smp_load_acquire(&head->commit) - head->read;
 		if (!count) {
-			if (next == NULL) {
-				check_other_closed(tty);
+			if (next == NULL)
 				break;
-			}
 			buf->head = next;
 			tty_buffer_free(port, head);
 			continue;
 		}
 
-		count = receive_buf(tty, head, count);
+		count = receive_buf(disc, head, count);
 		if (!count)
 			break;
 		head->read += count;
@@ -596,4 +586,9 @@ bool tty_buffer_restart_work(struct tty_port *port)
 bool tty_buffer_cancel_work(struct tty_port *port)
 {
 	return cancel_work_sync(&port->buf.work);
+}
+
+void tty_buffer_flush_work(struct tty_port *port)
+{
+	flush_work(&port->buf.work);
 }

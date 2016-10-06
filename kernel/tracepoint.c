@@ -491,7 +491,7 @@ static __init int init_tracepoints(void)
 
 	ret = register_module_notifier(&tracepoint_module_nb);
 	if (ret)
-		pr_warning("Failed to register tracepoint module enter notifier\n");
+		pr_warn("Failed to register tracepoint module enter notifier\n");
 
 	return ret;
 }

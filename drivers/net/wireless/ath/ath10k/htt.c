@@ -131,12 +131,12 @@ static const enum htt_t2h_msg_type htt_10_4_t2h_msg_types[] = {
 	[HTT_10_4_T2H_MSG_TYPE_AGGR_CONF] = HTT_T2H_MSG_TYPE_AGGR_CONF,
 	[HTT_10_4_T2H_MSG_TYPE_TX_FETCH_IND] =
 				HTT_T2H_MSG_TYPE_TX_FETCH_IND,
-	[HTT_10_4_T2H_MSG_TYPE_TX_FETCH_CONF] =
-				HTT_T2H_MSG_TYPE_TX_FETCH_CONF,
+	[HTT_10_4_T2H_MSG_TYPE_TX_FETCH_CONFIRM] =
+				HTT_T2H_MSG_TYPE_TX_FETCH_CONFIRM,
 	[HTT_10_4_T2H_MSG_TYPE_STATS_NOUPLOAD] =
 				HTT_T2H_MSG_TYPE_STATS_NOUPLOAD,
-	[HTT_10_4_T2H_MSG_TYPE_TX_LOW_LATENCY_IND] =
-				HTT_T2H_MSG_TYPE_TX_LOW_LATENCY_IND,
+	[HTT_10_4_T2H_MSG_TYPE_TX_MODE_SWITCH_IND] =
+				HTT_T2H_MSG_TYPE_TX_MODE_SWITCH_IND,
 };
 
 int ath10k_htt_connect(struct ath10k_htt *htt)
@@ -149,7 +149,7 @@ int ath10k_htt_connect(struct ath10k_htt *htt)
 	memset(&conn_resp, 0, sizeof(conn_resp));
 
 	conn_req.ep_ops.ep_tx_complete = ath10k_htt_htc_tx_complete;
-	conn_req.ep_ops.ep_rx_complete = ath10k_htt_t2h_msg_handler;
+	conn_req.ep_ops.ep_rx_complete = ath10k_htt_htc_t2h_msg_handler;
 
 	/* connect to control service */
 	conn_req.service_id = ATH10K_HTC_SVC_ID_HTT_DATA_MSG;
@@ -183,7 +183,7 @@ int ath10k_htt_init(struct ath10k *ar)
 		8 + /* llc snap */
 		2; /* ip4 dscp or ip6 priority */
 
-	switch (ar->htt.op_version) {
+	switch (ar->running_fw->fw_file.htt_op_version) {
 	case ATH10K_FW_HTT_OP_VERSION_10_4:
 		ar->htt.t2h_msg_types = htt_10_4_t2h_msg_types;
 		ar->htt.t2h_msg_types_max = HTT_10_4_T2H_NUM_MSGS;
@@ -208,7 +208,7 @@ int ath10k_htt_init(struct ath10k *ar)
 	return 0;
 }
 
-#define HTT_TARGET_VERSION_TIMEOUT_HZ (3*HZ)
+#define HTT_TARGET_VERSION_TIMEOUT_HZ (3 * HZ)
 
 static int ath10k_htt_verify_version(struct ath10k_htt *htt)
 {

@@ -26,6 +26,154 @@
 #include <net/transp_v6.h>
 #include <net/ping.h>
 
+/* Compatibility glue so we can support IPv6 when it's compiled as a module */
+static int dummy_ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len,
+				 int *addr_len)
+{
+	return -EAFNOSUPPORT;
+}
+static void dummy_ip6_datagram_recv_ctl(struct sock *sk, struct msghdr *msg,
+				       struct sk_buff *skb)
+{
+}
+static int dummy_icmpv6_err_convert(u8 type, u8 code, int *err)
+{
+	return -EAFNOSUPPORT;
+}
+static void dummy_ipv6_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
+				  __be16 port, u32 info, u8 *payload) {}
+static int dummy_ipv6_chk_addr(struct net *net, const struct in6_addr *addr,
+			       const struct net_device *dev, int strict)
+{
+	return 0;
+}
+
+static int ping_v6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
+{
+	struct inet_sock *inet = inet_sk(sk);
+	struct ipv6_pinfo *np = inet6_sk(sk);
+	struct icmp6hdr user_icmph;
+	int addr_type;
+	struct in6_addr *daddr;
+	int oif = 0;
+	struct flowi6 fl6;
+	int err;
+	struct dst_entry *dst;
+	struct rt6_info *rt;
+	struct pingfakehdr pfh;
+	struct sockcm_cookie junk = {0};
+	struct ipcm6_cookie ipc6;
+
+	pr_debug("ping_v6_sendmsg(sk=%p,sk->num=%u)\n", inet, inet->inet_num);
+
+	err = ping_common_sendmsg(AF_INET6, msg, len, &user_icmph,
+				  sizeof(user_icmph));
+	if (err)
+		return err;
+
+	if (msg->msg_name) {
+		DECLARE_SOCKADDR(struct sockaddr_in6 *, u, msg->msg_name);
+		if (msg->msg_namelen < sizeof(*u))
+			return -EINVAL;
+		if (u->sin6_family != AF_INET6) {
+			return -EAFNOSUPPORT;
+		}
+		daddr = &(u->sin6_addr);
+		if (__ipv6_addr_needs_scope_id(ipv6_addr_type(daddr)))
+			oif = u->sin6_scope_id;
+	} else {
+		if (sk->sk_state != TCP_ESTABLISHED)
+			return -EDESTADDRREQ;
+		daddr = &sk->sk_v6_daddr;
+	}
+
+	if (!oif)
+		oif = sk->sk_bound_dev_if;
+
+	if (!oif)
+		oif = np->sticky_pktinfo.ipi6_ifindex;
+
+	if (!oif && ipv6_addr_is_multicast(daddr))
+		oif = np->mcast_oif;
+	else if (!oif)
+		oif = np->ucast_oif;
+
+	addr_type = ipv6_addr_type(daddr);
+	if ((__ipv6_addr_needs_scope_id(addr_type) && !oif) ||
+	    (addr_type & IPV6_ADDR_MAPPED) ||
+	    (oif && sk->sk_bound_dev_if && oif != sk->sk_bound_dev_if))
+		return -EINVAL;
+
+	/* TODO: use ip6_datagram_send_ctl to get options from cmsg */
+
+	memset(&fl6, 0, sizeof(fl6));
+
+	fl6.flowi6_proto = IPPROTO_ICMPV6;
+	fl6.saddr = np->saddr;
+	fl6.daddr = *daddr;
+	fl6.flowi6_oif = oif;
+	fl6.flowi6_mark = sk->sk_mark;
+	fl6.fl6_icmp_type = user_icmph.icmp6_type;
+	fl6.fl6_icmp_code = user_icmph.icmp6_code;
+	security_sk_classify_flow(sk, flowi6_to_flowi(&fl6));
+
+	ipc6.tclass = np->tclass;
+	fl6.flowlabel = ip6_make_flowinfo(ipc6.tclass, fl6.flowlabel);
+
+	dst = ip6_sk_dst_lookup_flow(sk, &fl6,  daddr);
+	if (IS_ERR(dst))
+		return PTR_ERR(dst);
+	rt = (struct rt6_info *) dst;
+
+	np = inet6_sk(sk);
+	if (!np) {
+		err = -EBADF;
+		goto dst_err_out;
+	}
+
+	if (!fl6.flowi6_oif && ipv6_addr_is_multicast(&fl6.daddr))
+		fl6.flowi6_oif = np->mcast_oif;
+	else if (!fl6.flowi6_oif)
+		fl6.flowi6_oif = np->ucast_oif;
+
+	pfh.icmph.type = user_icmph.icmp6_type;
+	pfh.icmph.code = user_icmph.icmp6_code;
+	pfh.icmph.checksum = 0;
+	pfh.icmph.un.echo.id = inet->inet_sport;
+	pfh.icmph.un.echo.sequence = user_icmph.icmp6_sequence;
+	pfh.msg = msg;
+	pfh.wcheck = 0;
+	pfh.family = AF_INET6;
+
+	ipc6.hlimit = ip6_sk_dst_hoplimit(np, &fl6, dst);
+	ipc6.dontfrag = np->dontfrag;
+	ipc6.opt = NULL;
+
+	lock_sock(sk);
+	err = ip6_append_data(sk, ping_getfrag, &pfh, len,
+			      0, &ipc6, &fl6, rt,
+			      MSG_DONTWAIT, &junk);
+
+	if (err) {
+		ICMP6_INC_STATS(sock_net(sk), rt->rt6i_idev,
+				ICMP6_MIB_OUTERRORS);
+		ip6_flush_pending_frames(sk);
+	} else {
+		err = icmpv6_push_pending_frames(sk, &fl6,
+						 (struct icmp6hdr *) &pfh.icmph,
+						 len);
+	}
+	release_sock(sk);
+
+dst_err_out:
+	dst_release(dst);
+
+	if (err)
+		return err;
+
+	return len;
+}
+
 struct proto pingv6_prot = {
 	.name =		"PINGv6",
 	.owner =	THIS_MODULE,
@@ -53,144 +201,6 @@ static struct inet_protosw pingv6_protosw = {
 	.ops =       &inet6_dgram_ops,
 	.flags =     INET_PROTOSW_REUSE,
 };
-
-
-/* Compatibility glue so we can support IPv6 when it's compiled as a module */
-static int dummy_ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len,
-				 int *addr_len)
-{
-	return -EAFNOSUPPORT;
-}
-static void dummy_ip6_datagram_recv_ctl(struct sock *sk, struct msghdr *msg,
-				       struct sk_buff *skb)
-{
-}
-static int dummy_icmpv6_err_convert(u8 type, u8 code, int *err)
-{
-	return -EAFNOSUPPORT;
-}
-static void dummy_ipv6_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
-				  __be16 port, u32 info, u8 *payload) {}
-static int dummy_ipv6_chk_addr(struct net *net, const struct in6_addr *addr,
-			       const struct net_device *dev, int strict)
-{
-	return 0;
-}
-
-int ping_v6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
-{
-	struct inet_sock *inet = inet_sk(sk);
-	struct ipv6_pinfo *np = inet6_sk(sk);
-	struct icmp6hdr user_icmph;
-	int addr_type;
-	struct in6_addr *daddr;
-	int iif = 0;
-	struct flowi6 fl6;
-	int err;
-	int hlimit;
-	struct dst_entry *dst;
-	struct rt6_info *rt;
-	struct pingfakehdr pfh;
-
-	pr_debug("ping_v6_sendmsg(sk=%p,sk->num=%u)\n", inet, inet->inet_num);
-
-	err = ping_common_sendmsg(AF_INET6, msg, len, &user_icmph,
-				  sizeof(user_icmph));
-	if (err)
-		return err;
-
-	if (msg->msg_name) {
-		DECLARE_SOCKADDR(struct sockaddr_in6 *, u, msg->msg_name);
-		if (msg->msg_namelen < sizeof(*u))
-			return -EINVAL;
-		if (u->sin6_family != AF_INET6) {
-			return -EAFNOSUPPORT;
-		}
-		if (sk->sk_bound_dev_if &&
-		    sk->sk_bound_dev_if != u->sin6_scope_id) {
-			return -EINVAL;
-		}
-		daddr = &(u->sin6_addr);
-		iif = u->sin6_scope_id;
-	} else {
-		if (sk->sk_state != TCP_ESTABLISHED)
-			return -EDESTADDRREQ;
-		daddr = &sk->sk_v6_daddr;
-	}
-
-	if (!iif)
-		iif = sk->sk_bound_dev_if;
-
-	addr_type = ipv6_addr_type(daddr);
-	if (__ipv6_addr_needs_scope_id(addr_type) && !iif)
-		return -EINVAL;
-	if (addr_type & IPV6_ADDR_MAPPED)
-		return -EINVAL;
-
-	/* TODO: use ip6_datagram_send_ctl to get options from cmsg */
-
-	memset(&fl6, 0, sizeof(fl6));
-
-	fl6.flowi6_proto = IPPROTO_ICMPV6;
-	fl6.saddr = np->saddr;
-	fl6.daddr = *daddr;
-	fl6.flowi6_mark = sk->sk_mark;
-	fl6.fl6_icmp_type = user_icmph.icmp6_type;
-	fl6.fl6_icmp_code = user_icmph.icmp6_code;
-	security_sk_classify_flow(sk, flowi6_to_flowi(&fl6));
-
-	if (!fl6.flowi6_oif && ipv6_addr_is_multicast(&fl6.daddr))
-		fl6.flowi6_oif = np->mcast_oif;
-	else if (!fl6.flowi6_oif)
-		fl6.flowi6_oif = np->ucast_oif;
-
-	dst = ip6_sk_dst_lookup_flow(sk, &fl6,  daddr);
-	if (IS_ERR(dst))
-		return PTR_ERR(dst);
-	rt = (struct rt6_info *) dst;
-
-	np = inet6_sk(sk);
-	if (!np)
-		return -EBADF;
-
-	if (!fl6.flowi6_oif && ipv6_addr_is_multicast(&fl6.daddr))
-		fl6.flowi6_oif = np->mcast_oif;
-	else if (!fl6.flowi6_oif)
-		fl6.flowi6_oif = np->ucast_oif;
-
-	pfh.icmph.type = user_icmph.icmp6_type;
-	pfh.icmph.code = user_icmph.icmp6_code;
-	pfh.icmph.checksum = 0;
-	pfh.icmph.un.echo.id = inet->inet_sport;
-	pfh.icmph.un.echo.sequence = user_icmph.icmp6_sequence;
-	pfh.msg = msg;
-	pfh.wcheck = 0;
-	pfh.family = AF_INET6;
-
-	hlimit = ip6_sk_dst_hoplimit(np, &fl6, dst);
-
-	lock_sock(sk);
-	err = ip6_append_data(sk, ping_getfrag, &pfh, len,
-			      0, hlimit,
-			      np->tclass, NULL, &fl6, rt,
-			      MSG_DONTWAIT, np->dontfrag);
-
-	if (err) {
-		ICMP6_INC_STATS(sock_net(sk), rt->rt6i_idev,
-				ICMP6_MIB_OUTERRORS);
-		ip6_flush_pending_frames(sk);
-	} else {
-		err = icmpv6_push_pending_frames(sk, &fl6,
-						 (struct icmp6hdr *) &pfh.icmph,
-						 len);
-	}
-	release_sock(sk);
-
-	if (err)
-		return err;
-
-	return len;
-}
 
 #ifdef CONFIG_PROC_FS
 static void *ping_v6_seq_start(struct seq_file *seq, loff_t *pos)

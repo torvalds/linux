@@ -40,7 +40,7 @@
 #include <asm/ctl_reg.h>
 #include <asm/sclp.h>
 
-pgd_t swapper_pg_dir[PTRS_PER_PGD] __attribute__((__aligned__(PAGE_SIZE)));
+pgd_t swapper_pg_dir[PTRS_PER_PGD] __section(.bss..swapper_pg_dir);
 
 unsigned long empty_zero_page, zero_page_mask;
 EXPORT_SYMBOL(empty_zero_page);
@@ -89,7 +89,8 @@ void __init paging_init(void)
 		asce_bits = _ASCE_TYPE_REGION3 | _ASCE_TABLE_LENGTH;
 		pgd_type = _REGION3_ENTRY_EMPTY;
 	}
-	S390_lowcore.kernel_asce = (__pa(init_mm.pgd) & PAGE_MASK) | asce_bits;
+	init_mm.context.asce = (__pa(init_mm.pgd) & PAGE_MASK) | asce_bits;
+	S390_lowcore.kernel_asce = init_mm.context.asce;
 	clear_table((unsigned long *) init_mm.pgd, pgd_type,
 		    sizeof(unsigned long)*2048);
 	vmem_map_init();
@@ -98,7 +99,7 @@ void __init paging_init(void)
 	__ctl_load(S390_lowcore.kernel_asce, 1, 1);
 	__ctl_load(S390_lowcore.kernel_asce, 7, 7);
 	__ctl_load(S390_lowcore.kernel_asce, 13, 13);
-	arch_local_irq_restore(4UL << (BITS_PER_LONG - 8));
+	__arch_local_irq_stosm(0x04);
 
 	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();
@@ -108,12 +109,18 @@ void __init paging_init(void)
 	free_area_init_nodes(max_zone_pfns);
 }
 
+void mark_rodata_ro(void)
+{
+	unsigned long size = __end_ro_after_init - __start_ro_after_init;
+
+	set_memory_ro((unsigned long)__start_ro_after_init, size >> PAGE_SHIFT);
+	pr_info("Write protected read-only-after-init data: %luk\n", size >> 10);
+}
+
 void __init mem_init(void)
 {
-	if (MACHINE_HAS_TLB_LC)
-		cpumask_set_cpu(0, &init_mm.context.cpu_attach_mask);
+	cpumask_set_cpu(0, &init_mm.context.cpu_attach_mask);
 	cpumask_set_cpu(0, mm_cpumask(&init_mm));
-	atomic_set(&init_mm.context.attach_count, 1);
 
 	set_max_mapnr(max_low_pfn);
         high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
@@ -126,9 +133,6 @@ void __init mem_init(void)
 	setup_zero_pages();	/* Setup zeroed pages. */
 
 	mem_init_print_info(NULL);
-	printk("Write protected kernel read-only data: %#lx - %#lx\n",
-	       (unsigned long)&_stext,
-	       PFN_ALIGN((unsigned long)&_eshared) - 1);
 }
 
 void free_initmem(void)

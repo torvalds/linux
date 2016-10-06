@@ -293,9 +293,9 @@ static int tb_plug_events_active(struct tb_switch *sw, bool active)
 	if (active) {
 		data = data & 0xFFFFFF83;
 		switch (sw->config.device_id) {
-		case 0x1513:
-		case 0x151a:
-		case 0x1549:
+		case PCI_DEVICE_ID_INTEL_LIGHT_RIDGE:
+		case PCI_DEVICE_ID_INTEL_EAGLE_RIDGE:
+		case PCI_DEVICE_ID_INTEL_PORT_RIDGE:
 			break;
 		default:
 			data |= 4;
@@ -350,7 +350,7 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, u64 route)
 		return NULL;
 
 	sw->tb = tb;
-	if (tb_cfg_read(tb->ctl, &sw->config, route, 0, 2, 0, 5))
+	if (tb_cfg_read(tb->ctl, &sw->config, route, 0, TB_CFG_SWITCH, 0, 5))
 		goto err;
 	tb_info(tb,
 		"initializing Switch at %#llx (depth: %d, up port: %d)\n",
@@ -370,7 +370,11 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, u64 route)
 		tb_sw_warn(sw, "unknown switch vendor id %#x\n",
 			   sw->config.vendor_id);
 
-	if (sw->config.device_id != 0x1547 && sw->config.device_id != 0x1549)
+	if (sw->config.device_id != PCI_DEVICE_ID_INTEL_LIGHT_RIDGE &&
+	    sw->config.device_id != PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C &&
+	    sw->config.device_id != PCI_DEVICE_ID_INTEL_PORT_RIDGE &&
+	    sw->config.device_id != PCI_DEVICE_ID_INTEL_FALCON_RIDGE_2C_BRIDGE &&
+	    sw->config.device_id != PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_BRIDGE)
 		tb_sw_warn(sw, "unsupported switch device id %#x\n",
 			   sw->config.device_id);
 
@@ -425,9 +429,9 @@ err:
 }
 
 /**
- * tb_sw_set_unpplugged() - set is_unplugged on switch and downstream switches
+ * tb_sw_set_unplugged() - set is_unplugged on switch and downstream switches
  */
-void tb_sw_set_unpplugged(struct tb_switch *sw)
+void tb_sw_set_unplugged(struct tb_switch *sw)
 {
 	int i;
 	if (sw == sw->tb->root_switch) {
@@ -441,7 +445,7 @@ void tb_sw_set_unpplugged(struct tb_switch *sw)
 	sw->is_unplugged = true;
 	for (i = 0; i <= sw->config.max_port_number; i++) {
 		if (!tb_is_upstream_port(&sw->ports[i]) && sw->ports[i].remote)
-			tb_sw_set_unpplugged(sw->ports[i].remote->sw);
+			tb_sw_set_unplugged(sw->ports[i].remote->sw);
 	}
 }
 
@@ -483,7 +487,7 @@ int tb_switch_resume(struct tb_switch *sw)
 			|| tb_switch_resume(port->remote->sw)) {
 			tb_port_warn(port,
 				     "lost during suspend, disconnecting\n");
-			tb_sw_set_unpplugged(port->remote->sw);
+			tb_sw_set_unplugged(port->remote->sw);
 		}
 	}
 	return 0;

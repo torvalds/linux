@@ -68,7 +68,8 @@ enum nvt_chip_ver {
 	NVT_W83667HG	= 0xa510,
 	NVT_6775F	= 0xb470,
 	NVT_6776F	= 0xc330,
-	NVT_6779D	= 0xc560
+	NVT_6779D	= 0xc560,
+	NVT_INVALID	= 0xffff,
 };
 
 struct nvt_chip {
@@ -103,7 +104,6 @@ struct nvt_dev {
 	unsigned long cir_addr;
 	unsigned long cir_wake_addr;
 	int cir_irq;
-	int cir_wake_irq;
 
 	enum nvt_chip_ver chip_ver;
 	/* hardware id */
@@ -111,35 +111,11 @@ struct nvt_dev {
 	u8 chip_minor;
 
 	/* hardware features */
-	bool hw_learning_capable;
 	bool hw_tx_capable;
 
-	/* rx settings */
-	bool learning_enabled;
-
-	/* track cir wake state */
-	u8 wake_state;
-	/* for study */
-	u8 study_state;
 	/* carrier period = 1 / frequency */
 	u32 carrier;
 };
-
-/* study states */
-#define ST_STUDY_NONE      0x0
-#define ST_STUDY_START     0x1
-#define ST_STUDY_CARRIER   0x2
-#define ST_STUDY_ALL_RECV  0x4
-
-/* wake states */
-#define ST_WAKE_NONE	0x0
-#define ST_WAKE_START	0x1
-#define ST_WAKE_FINISH	0x2
-
-/* receive states */
-#define ST_RX_WAIT_7F		0x1
-#define ST_RX_WAIT_HEAD		0x2
-#define ST_RX_WAIT_SILENT_END	0x4
 
 /* send states */
 #define ST_TX_NONE	0x0
@@ -157,8 +133,8 @@ struct nvt_dev {
 /* total length of CIR and CIR WAKE */
 #define CIR_IOREG_LENGTH	0x0f
 
-/* RX limit length, 8 high bits for SLCH, 8 low bits for SLCL (0x7d0 = 2000) */
-#define CIR_RX_LIMIT_COUNT	0x7d0
+/* RX limit length, 8 high bits for SLCH, 8 low bits for SLCL */
+#define CIR_RX_LIMIT_COUNT  (IR_DEFAULT_TIMEOUT / US_TO_NS(SAMPLE_PERIOD))
 
 /* CIR Regs */
 #define CIR_IRCON	0x00
@@ -292,10 +268,7 @@ struct nvt_dev {
 #define CIR_WAKE_IREN_RTR		0x40
 #define CIR_WAKE_IREN_PE		0x20
 #define CIR_WAKE_IREN_RFO		0x10
-#define CIR_WAKE_IREN_TE		0x08
-#define CIR_WAKE_IREN_TTR		0x04
-#define CIR_WAKE_IREN_TFU		0x02
-#define CIR_WAKE_IREN_GH		0x01
+#define CIR_WAKE_IREN_GH		0x08
 
 /* CIR WAKE FIFOCON settings */
 #define CIR_WAKE_FIFOCON_RXFIFOCLR	0x08
@@ -419,3 +392,6 @@ struct nvt_dev {
 /* as VISTA MCE definition, valid carrier value */
 #define MAX_CARRIER 60000
 #define MIN_CARRIER 30000
+
+/* max wakeup sequence length */
+#define WAKEUP_MAX_SIZE 65

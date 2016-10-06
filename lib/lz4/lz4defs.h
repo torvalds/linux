@@ -11,8 +11,7 @@
 /*
  * Detects 64 bits mode
  */
-#if (defined(__x86_64__) || defined(__x86_64) || defined(__amd64__) \
-	|| defined(__ppc64__) || defined(__LP64__))
+#if defined(CONFIG_64BIT)
 #define LZ4_ARCH64 1
 #else
 #define LZ4_ARCH64 0
@@ -25,9 +24,7 @@
 typedef struct _U16_S { u16 v; } U16_S;
 typedef struct _U32_S { u32 v; } U32_S;
 typedef struct _U64_S { u64 v; } U64_S;
-#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)		\
-	|| defined(CONFIG_ARM) && __LINUX_ARM_ARCH__ >= 6	\
-	&& defined(ARM_EFFICIENT_UNALIGNED_ACCESS)
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
 
 #define A16(x) (((U16_S *)(x))->v)
 #define A32(x) (((U32_S *)(x))->v)
@@ -35,6 +32,10 @@ typedef struct _U64_S { u64 v; } U64_S;
 
 #define PUT4(s, d) (A32(d) = A32(s))
 #define PUT8(s, d) (A64(d) = A64(s))
+
+#define LZ4_READ_LITTLEENDIAN_16(d, s, p)	\
+	(d = s - A16(p))
+
 #define LZ4_WRITE_LITTLEENDIAN_16(p, v)	\
 	do {	\
 		A16(p) = v; \
@@ -51,10 +52,13 @@ typedef struct _U64_S { u64 v; } U64_S;
 #define PUT8(s, d) \
 	put_unaligned(get_unaligned((const u64 *) s), (u64 *) d)
 
-#define LZ4_WRITE_LITTLEENDIAN_16(p, v)	\
-	do {	\
-		put_unaligned(v, (u16 *)(p)); \
-		p += 2; \
+#define LZ4_READ_LITTLEENDIAN_16(d, s, p)	\
+	(d = s - get_unaligned_le16(p))
+
+#define LZ4_WRITE_LITTLEENDIAN_16(p, v)			\
+	do {						\
+		put_unaligned_le16(v, (u16 *)(p));	\
+		p += 2;					\
 	} while (0)
 #endif
 
@@ -139,9 +143,6 @@ typedef struct _U64_S { u64 v; } U64_S;
 #endif
 
 #endif
-
-#define LZ4_READ_LITTLEENDIAN_16(d, s, p) \
-	(d = s - get_unaligned_le16(p))
 
 #define LZ4_WILDCOPY(s, d, e)		\
 	do {				\

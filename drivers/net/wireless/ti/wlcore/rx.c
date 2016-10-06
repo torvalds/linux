@@ -64,9 +64,9 @@ static void wl1271_rx_status(struct wl1271 *wl,
 	memset(status, 0, sizeof(struct ieee80211_rx_status));
 
 	if ((desc->flags & WL1271_RX_DESC_BAND_MASK) == WL1271_RX_DESC_BAND_BG)
-		status->band = IEEE80211_BAND_2GHZ;
+		status->band = NL80211_BAND_2GHZ;
 	else
-		status->band = IEEE80211_BAND_5GHZ;
+		status->band = NL80211_BAND_5GHZ;
 
 	status->rate_idx = wlcore_rate_to_idx(wl, desc->rate, status->band);
 
@@ -221,6 +221,13 @@ int wlcore_rx(struct wl1271 *wl, struct wl_fw_status *status)
 	u8 hlid;
 	enum wl_rx_buf_align rx_align;
 	int ret = 0;
+
+	/* update rates per link */
+	hlid = status->counters.hlid;
+
+	if (hlid < WLCORE_MAX_LINKS)
+		wl->links[hlid].fw_rate_mbps =
+				status->counters.tx_last_rate_mbps;
 
 	while (drv_rx_counter != fw_rx_counter) {
 		buf_size = 0;

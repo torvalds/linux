@@ -173,7 +173,7 @@ static int fiji_send_msg_to_smc(struct amdgpu_device *adev, PPSMC_Msg msg)
 {
 	if (!fiji_is_smc_ram_running(adev))
 	{
-		return -EINVAL;;
+		return -EINVAL;
 	}
 
 	if (wait_smu_response(adev)) {
@@ -271,6 +271,12 @@ static int fiji_smu_upload_firmware_image(struct amdgpu_device *adev)
 
 	if (!adev->pm.fw)
 		return -EINVAL;
+
+	/* Skip SMC ucode loading on SR-IOV capable boards.
+	 * vbios does this for us in asic_init in that case.
+	 */
+	if (adev->virtualization.supports_sr_iov)
+		return 0;
 
 	hdr = (const struct smc_firmware_header_v1_0 *)adev->pm.fw->data;
 	amdgpu_ucode_print_smc_hdr(&hdr->header);

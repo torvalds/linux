@@ -24,6 +24,7 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
+#include "physmap_of_versatile.h"
 
 struct of_flash_list {
 	struct mtd_info *mtd;
@@ -185,7 +186,7 @@ static int of_flash_probe(struct platform_device *dev)
 	 * consists internally of 2 non-identical NOR chips on one die.
 	 */
 	p = of_get_property(dp, "reg", &count);
-	if (count % reg_tuple_size != 0) {
+	if (!p || count % reg_tuple_size != 0) {
 		dev_err(&dev->dev, "Malformed reg property on %s\n",
 				dev->dev.of_node->full_name);
 		err = -EINVAL;
@@ -240,6 +241,11 @@ static int of_flash_probe(struct platform_device *dev)
 		info->list[i].map.size = res_size;
 		info->list[i].map.bankwidth = be32_to_cpup(width);
 		info->list[i].map.device_node = dp;
+		err = of_flash_probe_versatile(dev, dp, &info->list[i].map);
+		if (err) {
+			dev_err(&dev->dev, "Can't probe Versatile VPP\n");
+			return err;
+		}
 
 		err = -ENOMEM;
 		info->list[i].map.virt = ioremap(info->list[i].map.phys,

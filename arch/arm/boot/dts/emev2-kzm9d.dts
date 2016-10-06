@@ -18,14 +18,18 @@
 	model = "EMEV2 KZM9D Board";
 	compatible = "renesas,kzm9d", "renesas,emev2";
 
-	memory {
+	memory@40000000 {
 		device_type = "memory";
 		reg = <0x40000000 0x8000000>;
 	};
 
+	aliases {
+		serial1 = &uart1;
+	};
+
 	chosen {
-		bootargs = "console=ttyS1,115200n81 ignore_loglevel root=/dev/nfs ip=dhcp";
-		stdout-path = &uart1;
+		bootargs = "ignore_loglevel root=/dev/nfs ip=dhcp";
+		stdout-path = "serial1:115200n8";
 	};
 
 	gpio_keys {
@@ -33,28 +37,28 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		button@1 {
+		one {
 			debounce_interval = <50>;
 			wakeup-source;
 			label = "DSW2-1";
 			linux,code = <KEY_1>;
 			gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
 		};
-		button@2 {
+		two {
 			debounce_interval = <50>;
 			wakeup-source;
 			label = "DSW2-2";
 			linux,code = <KEY_2>;
 			gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
 		};
-		button@3 {
+		three {
 			debounce_interval = <50>;
 			wakeup-source;
 			label = "DSW2-3";
 			linux,code = <KEY_3>;
 			gpios = <&gpio0 16 GPIO_ACTIVE_HIGH>;
 		};
-		button@4 {
+		four {
 			debounce_interval = <50>;
 			wakeup-source;
 			label = "DSW2-4";
@@ -63,7 +67,7 @@
 		};
 	};
 
-	reg_1p8v: regulator@0 {
+	reg_1p8v: regulator-1p8v {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-1.8V";
 		regulator-min-microvolt = <1800000>;
@@ -72,7 +76,7 @@
 		regulator-boot-on;
 	};
 
-	reg_3p3v: regulator@1 {
+	reg_3p3v: regulator-3p3v {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-3.3V";
 		regulator-min-microvolt = <3300000>;
@@ -104,9 +108,9 @@
 };
 
 &pfc {
-	uart1_pins: serial@e1030000 {
-		renesas,groups = "uart1_ctrl", "uart1_data";
-		renesas,function = "uart1";
+	uart1_pins: uart1 {
+		groups = "uart1_ctrl", "uart1_data";
+		function = "uart1";
 	};
 };
 

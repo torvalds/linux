@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -88,7 +84,7 @@ do {								    \
 } while (0)
 
 #ifndef LIBCFS_VMALLOC_SIZE
-#define LIBCFS_VMALLOC_SIZE	(2 << PAGE_CACHE_SHIFT) /* 2 pages */
+#define LIBCFS_VMALLOC_SIZE	(2 << PAGE_SHIFT) /* 2 pages */
 #endif
 
 #define LIBCFS_ALLOC_PRE(size, mask)					    \
@@ -180,25 +176,6 @@ int libcfs_debug_init(unsigned long bufsize);
 int libcfs_debug_cleanup(void);
 int libcfs_debug_clear_buffer(void);
 int libcfs_debug_mark_buffer(const char *text);
-
-/*
- * allocate per-cpu-partition data, returned value is an array of pointers,
- * variable can be indexed by CPU ID.
- *	cptable != NULL: size of array is number of CPU partitions
- *	cptable == NULL: size of array is number of HW cores
- */
-void *cfs_percpt_alloc(struct cfs_cpt_table *cptab, unsigned int size);
-/*
- * destroy per-cpu-partition variable
- */
-void  cfs_percpt_free(void *vars);
-int   cfs_percpt_number(void *vars);
-void *cfs_percpt_current(void *vars);
-void *cfs_percpt_index(void *vars, int idx);
-
-#define cfs_percpt_for_each(var, i, vars)		\
-	for (i = 0; i < cfs_percpt_number(vars) &&	\
-		    ((var) = (vars)[i]) != NULL; i++)
 
 /*
  * allocate a variable array, returned value is an array of pointers.
@@ -302,62 +279,6 @@ do {							    \
 #define CFS_ALLOC_PTR(ptr)      LIBCFS_ALLOC(ptr, sizeof(*(ptr)))
 #define CFS_FREE_PTR(ptr)       LIBCFS_FREE(ptr, sizeof(*(ptr)))
 
-/*
- * percpu partition lock
- *
- * There are some use-cases like this in Lustre:
- * . each CPU partition has it's own private data which is frequently changed,
- *   and mostly by the local CPU partition.
- * . all CPU partitions share some global data, these data are rarely changed.
- *
- * LNet is typical example.
- * CPU partition lock is designed for this kind of use-cases:
- * . each CPU partition has it's own private lock
- * . change on private data just needs to take the private lock
- * . read on shared data just needs to take _any_ of private locks
- * . change on shared data needs to take _all_ private locks,
- *   which is slow and should be really rare.
- */
-
-enum {
-	CFS_PERCPT_LOCK_EX	= -1, /* negative */
-};
-
-struct cfs_percpt_lock {
-	/* cpu-partition-table for this lock */
-	struct cfs_cpt_table	*pcl_cptab;
-	/* exclusively locked */
-	unsigned int		pcl_locked;
-	/* private lock table */
-	spinlock_t		**pcl_locks;
-};
-
-/* return number of private locks */
-static inline int
-cfs_percpt_lock_num(struct cfs_percpt_lock *pcl)
-{
-	return cfs_cpt_number(pcl->pcl_cptab);
-}
-
-/*
- * create a cpu-partition lock based on CPU partition table \a cptab,
- * each private lock has extra \a psize bytes padding data
- */
-struct cfs_percpt_lock *cfs_percpt_lock_alloc(struct cfs_cpt_table *cptab);
-/* destroy a cpu-partition lock */
-void cfs_percpt_lock_free(struct cfs_percpt_lock *pcl);
-
-/* lock private lock \a index of \a pcl */
-void cfs_percpt_lock(struct cfs_percpt_lock *pcl, int index);
-/* unlock private lock \a index of \a pcl */
-void cfs_percpt_unlock(struct cfs_percpt_lock *pcl, int index);
-/* create percpt (atomic) refcount based on @cptab */
-atomic_t **cfs_percpt_atomic_alloc(struct cfs_cpt_table *cptab, int val);
-/* destroy percpt refcount */
-void cfs_percpt_atomic_free(atomic_t **refs);
-/* return sum of all percpu refs */
-int cfs_percpt_atomic_summary(atomic_t **refs);
-
 /** Compile-time assertion.
 
  * Check an invariant described by a constant expression at compile time by
@@ -387,20 +308,15 @@ int cfs_percpt_atomic_summary(atomic_t **refs);
  * Support for temporary event tracing with minimal Heisenberg effect.
  * -------------------------------------------------------------------- */
 
-struct libcfs_device_userstate {
-	int	   ldu_memhog_pages;
-	struct page   *ldu_memhog_root_page;
-};
-
 #define MKSTR(ptr) ((ptr)) ? (ptr) : ""
 
-static inline int cfs_size_round4(int val)
+static inline size_t cfs_size_round4(int val)
 {
 	return (val + 3) & (~0x3);
 }
 
 #ifndef HAVE_CFS_SIZE_ROUND
-static inline int cfs_size_round(int val)
+static inline size_t cfs_size_round(int val)
 {
 	return (val + 7) & (~0x7);
 }
@@ -408,17 +324,17 @@ static inline int cfs_size_round(int val)
 #define HAVE_CFS_SIZE_ROUND
 #endif
 
-static inline int cfs_size_round16(int val)
+static inline size_t cfs_size_round16(int val)
 {
 	return (val + 0xf) & (~0xf);
 }
 
-static inline int cfs_size_round32(int val)
+static inline size_t cfs_size_round32(int val)
 {
 	return (val + 0x1f) & (~0x1f);
 }
 
-static inline int cfs_size_round0(int val)
+static inline size_t cfs_size_round0(int val)
 {
 	if (!val)
 		return 0;
@@ -427,7 +343,7 @@ static inline int cfs_size_round0(int val)
 
 static inline size_t cfs_round_strlen(char *fset)
 {
-	return (size_t)cfs_size_round((int)strlen(fset) + 1);
+	return cfs_size_round((int)strlen(fset) + 1);
 }
 
 #define LOGL(var, len, ptr)				       \
@@ -442,15 +358,6 @@ do {							    \
 	if (var)						\
 		memcpy((char *)var, (const char *)ptr, len);    \
 	ptr += cfs_size_round(len);			     \
-} while (0)
-
-#define LOGL0(var, len, ptr)			      \
-do {						    \
-	if (!len)				       \
-		break;				  \
-	memcpy((char *)ptr, (const char *)var, len);    \
-	*((char *)(ptr) + len) = 0;		     \
-	ptr += cfs_size_round(len + 1);		 \
 } while (0)
 
 #endif

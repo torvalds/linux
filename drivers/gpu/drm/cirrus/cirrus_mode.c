@@ -91,18 +91,6 @@ static void cirrus_crtc_dpms(struct drm_crtc *crtc, int mode)
 	WREG_GFX(0xe, gr0e);
 }
 
-/*
- * The core passes the desired mode to the CRTC code to see whether any
- * CRTC-specific modifications need to be made to it. We're in a position
- * to just pass that straight through, so this does nothing
- */
-static bool cirrus_crtc_mode_fixup(struct drm_crtc *crtc,
-				   const struct drm_display_mode *mode,
-				   struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void cirrus_set_start_address(struct drm_crtc *crtc, unsigned offset)
 {
 	struct cirrus_device *cdev = crtc->dev->dev_private;
@@ -337,21 +325,20 @@ static void cirrus_crtc_commit(struct drm_crtc *crtc)
  * use this for 8-bit mode so can't perform smooth fades on deeper modes,
  * but it's a requirement that we provide the function
  */
-static void cirrus_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
-				  u16 *blue, uint32_t start, uint32_t size)
+static int cirrus_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
+				 u16 *blue, uint32_t size)
 {
 	struct cirrus_crtc *cirrus_crtc = to_cirrus_crtc(crtc);
 	int i;
 
-	if (size != CIRRUS_LUT_SIZE)
-		return;
-
-	for (i = 0; i < CIRRUS_LUT_SIZE; i++) {
+	for (i = 0; i < size; i++) {
 		cirrus_crtc->lut_r[i] = red[i];
 		cirrus_crtc->lut_g[i] = green[i];
 		cirrus_crtc->lut_b[i] = blue[i];
 	}
 	cirrus_crtc_load_lut(crtc);
+
+	return 0;
 }
 
 /* Simple cleanup function */
@@ -372,7 +359,6 @@ static const struct drm_crtc_funcs cirrus_crtc_funcs = {
 
 static const struct drm_crtc_helper_funcs cirrus_helper_funcs = {
 	.dpms = cirrus_crtc_dpms,
-	.mode_fixup = cirrus_crtc_mode_fixup,
 	.mode_set = cirrus_crtc_mode_set,
 	.mode_set_base = cirrus_crtc_mode_set_base,
 	.prepare = cirrus_crtc_prepare,
@@ -430,14 +416,6 @@ void cirrus_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 	*blue = cirrus_crtc->lut_b[regno];
 }
 
-
-static bool cirrus_encoder_mode_fixup(struct drm_encoder *encoder,
-				      const struct drm_display_mode *mode,
-				      struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void cirrus_encoder_mode_set(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
@@ -466,7 +444,6 @@ static void cirrus_encoder_destroy(struct drm_encoder *encoder)
 
 static const struct drm_encoder_helper_funcs cirrus_encoder_helper_funcs = {
 	.dpms = cirrus_encoder_dpms,
-	.mode_fixup = cirrus_encoder_mode_fixup,
 	.mode_set = cirrus_encoder_mode_set,
 	.prepare = cirrus_encoder_prepare,
 	.commit = cirrus_encoder_commit,

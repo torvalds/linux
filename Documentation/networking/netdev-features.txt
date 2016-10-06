@@ -131,13 +131,11 @@ stack. Driver should not change behaviour based on them.
 
  * LLTX driver (deprecated for hardware drivers)
 
-NETIF_F_LLTX should be set in drivers that implement their own locking in
-transmit path or don't need locking at all (e.g. software tunnels).
-In ndo_start_xmit, it is recommended to use a try_lock and return
-NETDEV_TX_LOCKED when the spin lock fails.  The locking should also properly
-protect against other callbacks (the rules you need to find out).
+NETIF_F_LLTX is meant to be used by drivers that don't need locking at all,
+e.g. software tunnels.
 
-Don't use it for new drivers.
+This is also used in a few legacy drivers that implement their
+own locking, don't use it for new (hardware) drivers.
 
  * netns-local device
 

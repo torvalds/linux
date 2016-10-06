@@ -1,7 +1,7 @@
 /*
  * B4420DS Device Tree Source
  *
- * Copyright 2012 - 2014 Freescale Semiconductor, Inc.
+ * Copyright 2012 - 2015 Freescale Semiconductor, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -38,6 +38,13 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 	interrupt-parent = <&mpic>;
+
+	aliases {
+		phy_sgmii_10 = &phy_sgmii_10;
+		phy_sgmii_11 = &phy_sgmii_11;
+		phy_sgmii_1c = &phy_sgmii_1c;
+		phy_sgmii_1d = &phy_sgmii_1d;
+	};
 
 	ifc: localbus@ffe124000 {
 		reg = <0xf 0xfe124000 0 0x2000>;
@@ -135,7 +142,7 @@
 			flash@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "sst,sst25wf040";
+				compatible = "sst,sst25wf040", "jedec,spi-nor";
 				reg = <0>;
 				spi-max-frequency = <40000000>; /* input clock */
 			};
@@ -210,6 +217,47 @@
 			phy_type = "ulpi";
 		};
 
+		fman@400000 {
+			ethernet@e0000 {
+				phy-handle = <&phy_sgmii_10>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e2000 {
+				phy-handle = <&phy_sgmii_11>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e4000 {
+				phy-handle = <&phy_sgmii_1c>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e6000 {
+				phy-handle = <&phy_sgmii_1d>;
+				phy-connection-type = "sgmii";
+			};
+
+			mdio@fc000 {
+				phy_sgmii_10: ethernet-phy@10 {
+					reg = <0x10>;
+				};
+
+				phy_sgmii_11: ethernet-phy@11 {
+					reg = <0x11>;
+				};
+
+				phy_sgmii_1c: ethernet-phy@1c {
+					reg = <0x1c>;
+					status = "disabled";
+				};
+
+				phy_sgmii_1d: ethernet-phy@1d {
+					reg = <0x1d>;
+					status = "disabled";
+				};
+			};
+		};
 	};
 
 	pci0: pcie@ffe200000 {
@@ -226,7 +274,6 @@
 				  0 0x00010000>;
 		};
 	};
-
 };
 
 /include/ "b4si-post.dtsi"

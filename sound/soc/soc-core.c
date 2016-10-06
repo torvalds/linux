@@ -930,7 +930,18 @@ static struct snd_soc_component *soc_find_component(
 	return NULL;
 }
 
-static struct snd_soc_dai *snd_soc_find_dai(
+/**
+ * snd_soc_find_dai - Find a registered DAI
+ *
+ * @dlc: name of the DAI and optional component info to match
+ *
+ * This function will search all regsitered components and their DAIs to
+ * find the DAI of the same name. The component's of_node and name
+ * should also match if being specified.
+ *
+ * Return: pointer of DAI, or NULL if not found.
+ */
+struct snd_soc_dai *snd_soc_find_dai(
 	const struct snd_soc_dai_link_component *dlc)
 {
 	struct snd_soc_component *component;
@@ -959,6 +970,7 @@ static struct snd_soc_dai *snd_soc_find_dai(
 
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(snd_soc_find_dai);
 
 static bool soc_is_dai_link_bound(struct snd_soc_card *card,
 		struct snd_soc_dai_link *dai_link)
@@ -986,15 +998,15 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 
 	dev_dbg(card->dev, "ASoC: binding %s\n", dai_link->name);
 
-	rtd = soc_new_pcm_runtime(card, dai_link);
-	if (!rtd)
-		return -ENOMEM;
-
 	if (soc_is_dai_link_bound(card, dai_link)) {
 		dev_dbg(card->dev, "ASoC: dai link %s already bound\n",
 			dai_link->name);
 		return 0;
 	}
+
+	rtd = soc_new_pcm_runtime(card, dai_link);
+	if (!rtd)
+		return -ENOMEM;
 
 	cpu_dai_component.name = dai_link->cpu_name;
 	cpu_dai_component.of_node = dai_link->cpu_of_node;
@@ -1044,7 +1056,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	if (!rtd->platform) {
 		dev_err(card->dev, "ASoC: platform %s not registered\n",
 			dai_link->platform_name);
-		return -EPROBE_DEFER;
+		goto _err_defer;
 	}
 
 	soc_add_pcm_runtime(card, rtd);
@@ -2071,13 +2083,12 @@ static int soc_cleanup_card_resources(struct snd_soc_card *card)
 	/* remove auxiliary devices */
 	soc_remove_aux_devices(card);
 
+	snd_soc_dapm_free(&card->dapm);
 	soc_cleanup_card_debugfs(card);
 
 	/* remove the card */
 	if (card->remove)
 		card->remove(card);
-
-	snd_soc_dapm_free(&card->dapm);
 
 	snd_card_free(card->snd_card);
 	return 0;
@@ -3321,19 +3332,6 @@ int snd_soc_register_codec(struct device *dev,
 	if (ret)
 		goto err_free;
 
-	if (codec_drv->controls) {
-		codec->component.controls = codec_drv->controls;
-		codec->component.num_controls = codec_drv->num_controls;
-	}
-	if (codec_drv->dapm_widgets) {
-		codec->component.dapm_widgets = codec_drv->dapm_widgets;
-		codec->component.num_dapm_widgets = codec_drv->num_dapm_widgets;
-	}
-	if (codec_drv->dapm_routes) {
-		codec->component.dapm_routes = codec_drv->dapm_routes;
-		codec->component.num_dapm_routes = codec_drv->num_dapm_routes;
-	}
-
 	if (codec_drv->probe)
 		codec->component.probe = snd_soc_codec_drv_probe;
 	if (codec_drv->remove)
@@ -3721,7 +3719,7 @@ unsigned int snd_soc_of_parse_daifmt(struct device_node *np,
 	 * SND_SOC_DAIFMT_CLOCK_MASK area
 	 */
 	snprintf(prop, sizeof(prop), "%scontinuous-clock", prefix);
-	if (of_get_property(np, prop, NULL))
+	if (of_property_read_bool(np, prop))
 		format |= SND_SOC_DAIFMT_CONT;
 	else
 		format |= SND_SOC_DAIFMT_GATED;

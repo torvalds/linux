@@ -44,7 +44,7 @@ __cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
 	return prev;
 }
 
-#else
+#elif !defined(CONFIG_ARC_PLAT_EZNPS)
 
 static inline unsigned long
 __cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
@@ -64,22 +64,47 @@ __cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
 	return prev;
 }
 
+#else /* CONFIG_ARC_PLAT_EZNPS */
+
+static inline unsigned long
+__cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
+{
+	/*
+	 * Explicit full memory barrier needed before/after
+	 */
+	smp_mb();
+
+	write_aux_reg(CTOP_AUX_GPA1, expected);
+
+	__asm__ __volatile__(
+	"	mov r2, %0\n"
+	"	mov r3, %1\n"
+	"	.word %2\n"
+	"	mov %0, r2"
+	: "+r"(new)
+	: "r"(ptr), "i"(CTOP_INST_EXC_DI_R2_R2_R3)
+	: "r2", "r3", "memory");
+
+	smp_mb();
+
+	return new;
+}
+
 #endif /* CONFIG_ARC_HAS_LLSC */
 
 #define cmpxchg(ptr, o, n) ((typeof(*(ptr)))__cmpxchg((ptr), \
 				(unsigned long)(o), (unsigned long)(n)))
 
 /*
- * Since not supported natively, ARC cmpxchg() uses atomic_ops_lock (UP/SMP)
- * just to gaurantee semantics.
- * atomic_cmpxchg() needs to use the same locks as it's other atomic siblings
- * which also happens to be atomic_ops_lock.
- *
- * Thus despite semantically being different, implementation of atomic_cmpxchg()
- * is same as cmpxchg().
+ * atomic_cmpxchg is same as cmpxchg
+ *   LLSC: only different in data-type, semantics are exactly same
+ *  !LLSC: cmpxchg() has to use an external lock atomic_ops_lock to guarantee
+ *         semantics, and this lock also happens to be used by atomic_*()
  */
 #define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
 
+
+#ifndef CONFIG_ARC_PLAT_EZNPS
 
 /*
  * xchg (reg with memory) based on "Native atomic" EX insn
@@ -143,13 +168,48 @@ static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
 
 #endif
 
+#else /* CONFIG_ARC_PLAT_EZNPS */
+
+static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
+				   int size)
+{
+	extern unsigned long __xchg_bad_pointer(void);
+
+	switch (size) {
+	case 4:
+		/*
+		 * Explicit full memory barrier needed before/after
+		 */
+		smp_mb();
+
+		__asm__ __volatile__(
+		"	mov r2, %0\n"
+		"	mov r3, %1\n"
+		"	.word %2\n"
+		"	mov %0, r2\n"
+		: "+r"(val)
+		: "r"(ptr), "i"(CTOP_INST_XEX_DI_R2_R2_R3)
+		: "r2", "r3", "memory");
+
+		smp_mb();
+
+		return val;
+	}
+	return __xchg_bad_pointer();
+}
+
+#define xchg(ptr, with) ((typeof(*(ptr)))__xchg((unsigned long)(with), (ptr), \
+						 sizeof(*(ptr))))
+
+#endif /* CONFIG_ARC_PLAT_EZNPS */
+
 /*
  * "atomic" variant of xchg()
  * REQ: It needs to follow the same serialization rules as other atomic_xxx()
  * Since xchg() doesn't always do that, it would seem that following defintion
  * is incorrect. But here's the rationale:
  *   SMP : Even xchg() takes the atomic_ops_lock, so OK.
- *   LLSC: atomic_ops_lock are not relevent at all (even if SMP, since LLSC
+ *   LLSC: atomic_ops_lock are not relevant at all (even if SMP, since LLSC
  *         is natively "SMP safe", no serialization required).
  *   UP  : other atomics disable IRQ, so no way a difft ctxt atomic_xchg()
  *         could clobber them. atomic_xchg() itself would be 1 insn, so it

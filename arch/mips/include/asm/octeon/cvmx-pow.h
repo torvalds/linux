@@ -2051,7 +2051,7 @@ static inline void cvmx_pow_tag_sw_desched(uint32_t tag,
 }
 
 /**
- * Descchedules the current work queue entry.
+ * Deschedules the current work queue entry.
  *
  * @no_sched: no schedule flag value to be set on the work queue
  *	      entry.  If this is set the entry will not be

@@ -35,8 +35,7 @@
 #include <linux/suspend.h>
 #include <linux/slab.h>
 
-#include <video/omapdss.h>
-
+#include "omapdss.h"
 #include "dss.h"
 #include "dss_features.h"
 
@@ -165,31 +164,19 @@ int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *))
 #endif /* CONFIG_OMAP2_DSS_DEBUGFS */
 
 /* PLATFORM DEVICE */
-static int omap_dss_pm_notif(struct notifier_block *b, unsigned long v, void *d)
+
+static void dss_disable_all_devices(void)
 {
-	DSSDBG("pm notif %lu\n", v);
+	struct omap_dss_device *dssdev = NULL;
 
-	switch (v) {
-	case PM_SUSPEND_PREPARE:
-	case PM_HIBERNATION_PREPARE:
-	case PM_RESTORE_PREPARE:
-		DSSDBG("suspending displays\n");
-		return dss_suspend_all_devices();
+	for_each_dss_dev(dssdev) {
+		if (!dssdev->driver)
+			continue;
 
-	case PM_POST_SUSPEND:
-	case PM_POST_HIBERNATION:
-	case PM_POST_RESTORE:
-		DSSDBG("resuming displays\n");
-		return dss_resume_all_devices();
-
-	default:
-		return 0;
+		if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
+			dssdev->driver->disable(dssdev);
 	}
 }
-
-static struct notifier_block omap_dss_pm_notif_block = {
-	.notifier_call = omap_dss_pm_notif,
-};
 
 static int __init omap_dss_probe(struct platform_device *pdev)
 {
@@ -208,10 +195,6 @@ static int __init omap_dss_probe(struct platform_device *pdev)
 		core.default_display_name = def_disp_name;
 	else if (pdata->default_display_name)
 		core.default_display_name = pdata->default_display_name;
-	else if (pdata->default_device)
-		core.default_display_name = pdata->default_device->name;
-
-	register_pm_notifier(&omap_dss_pm_notif_block);
 
 	return 0;
 
@@ -222,8 +205,6 @@ err_debugfs:
 
 static int omap_dss_remove(struct platform_device *pdev)
 {
-	unregister_pm_notifier(&omap_dss_pm_notif_block);
-
 	dss_uninitialize_debugfs();
 
 	return 0;

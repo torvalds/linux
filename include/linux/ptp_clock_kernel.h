@@ -38,6 +38,7 @@ struct ptp_clock_request {
 	};
 };
 
+struct system_device_crosststamp;
 /**
  * struct ptp_clock_info - decribes a PTP hardware clock
  *
@@ -66,6 +67,11 @@ struct ptp_clock_request {
  *
  * @gettime64:  Reads the current time from the hardware clock.
  *              parameter ts: Holds the result.
+ *
+ * @getcrosststamp:  Reads the current time from the hardware clock and
+ *                   system clock simultaneously.
+ *                   parameter cts: Contains timestamp (device,system) pair,
+ *                   where system time is realtime and monotonic.
  *
  * @settime64:  Set the current time on the hardware clock.
  *              parameter ts: Time value to set.
@@ -105,6 +111,8 @@ struct ptp_clock_info {
 	int (*adjfreq)(struct ptp_clock_info *ptp, s32 delta);
 	int (*adjtime)(struct ptp_clock_info *ptp, s64 delta);
 	int (*gettime64)(struct ptp_clock_info *ptp, struct timespec64 *ts);
+	int (*getcrosststamp)(struct ptp_clock_info *ptp,
+			      struct system_device_crosststamp *cts);
 	int (*settime64)(struct ptp_clock_info *p, const struct timespec64 *ts);
 	int (*enable)(struct ptp_clock_info *ptp,
 		      struct ptp_clock_request *request, int on);
@@ -119,6 +127,11 @@ struct ptp_clock;
  *
  * @info:   Structure describing the new clock.
  * @parent: Pointer to the parent device of the new clock.
+ *
+ * Returns a valid pointer on success or PTR_ERR on failure.  If PHC
+ * support is missing at the configuration level, this function
+ * returns NULL, and drivers are expected to gracefully handle that
+ * case separately.
  */
 
 extern struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,

@@ -357,20 +357,6 @@ static int amd_ntb_db_clear_mask(struct ntb_dev *ntb, u64 db_bits)
 	return 0;
 }
 
-static int amd_ntb_peer_db_addr(struct ntb_dev *ntb,
-				phys_addr_t *db_addr,
-				resource_size_t *db_size)
-{
-	struct amd_ntb_dev *ndev = ntb_ndev(ntb);
-
-	if (db_addr)
-		*db_addr = (phys_addr_t)(ndev->peer_mmio + AMD_DBREQ_OFFSET);
-	if (db_size)
-		*db_size = sizeof(u32);
-
-	return 0;
-}
-
 static int amd_ntb_peer_db_set(struct ntb_dev *ntb, u64 db_bits)
 {
 	struct amd_ntb_dev *ndev = ntb_ndev(ntb);
@@ -412,20 +398,6 @@ static int amd_ntb_spad_write(struct ntb_dev *ntb,
 	offset = ndev->self_spad + (idx << 2);
 	writel(val, mmio + AMD_SPAD_OFFSET + offset);
 
-	return 0;
-}
-
-static int amd_ntb_peer_spad_addr(struct ntb_dev *ntb, int idx,
-				  phys_addr_t *spad_addr)
-{
-	struct amd_ntb_dev *ndev = ntb_ndev(ntb);
-
-	if (idx < 0 || idx >= ndev->spad_count)
-		return -EINVAL;
-
-	if (spad_addr)
-		*spad_addr = (phys_addr_t)(ndev->self_mmio + AMD_SPAD_OFFSET +
-					   ndev->peer_spad + (idx << 2));
 	return 0;
 }
 
@@ -472,12 +444,10 @@ static const struct ntb_dev_ops amd_ntb_ops = {
 	.db_clear		= amd_ntb_db_clear,
 	.db_set_mask		= amd_ntb_db_set_mask,
 	.db_clear_mask		= amd_ntb_db_clear_mask,
-	.peer_db_addr		= amd_ntb_peer_db_addr,
 	.peer_db_set		= amd_ntb_peer_db_set,
 	.spad_count		= amd_ntb_spad_count,
 	.spad_read		= amd_ntb_spad_read,
 	.spad_write		= amd_ntb_spad_write,
-	.peer_spad_addr		= amd_ntb_peer_spad_addr,
 	.peer_spad_read		= amd_ntb_peer_spad_read,
 	.peer_spad_write	= amd_ntb_peer_spad_write,
 };

@@ -11,8 +11,9 @@ menuconfig ARC_PLAT_AXS10X
 	select DW_APB_ICTL
 	select GPIO_DWAPB
 	select OF_GPIO
+	select MIGHT_HAVE_PCI
 	select GENERIC_IRQ_CHIP
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	help
 	  Support for the ARC AXS10x Software Development Platforms.
 

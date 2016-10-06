@@ -16,15 +16,6 @@
 #include <linux/slab.h>
 #include <linux/bug.h>
 
-/*
- * fsnotify_d_instantiate - instantiate a dentry for inode
- */
-static inline void fsnotify_d_instantiate(struct dentry *dentry,
-					  struct inode *inode)
-{
-	__fsnotify_d_instantiate(dentry, inode);
-}
-
 /* Notify this dentry's parent about a child's events. */
 static inline int fsnotify_parent(struct path *path, struct dentry *dentry, __u32 mask)
 {
@@ -58,18 +49,6 @@ static inline int fsnotify_perm(struct file *file, int mask)
 		return ret;
 
 	return fsnotify(inode, fsnotify_mask, path, FSNOTIFY_EVENT_PATH, NULL, 0);
-}
-
-/*
- * fsnotify_d_move - dentry has been moved
- */
-static inline void fsnotify_d_move(struct dentry *dentry)
-{
-	/*
-	 * On move we need to update dentry->d_flags to indicate if the new parent
-	 * cares about events from this dentry.
-	 */
-	__fsnotify_update_dcache_flags(dentry);
 }
 
 /*

@@ -244,13 +244,13 @@ static int fat_write_end(struct file *file, struct address_space *mapping,
 	return err;
 }
 
-static ssize_t fat_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
-			     loff_t offset)
+static ssize_t fat_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
 	struct inode *inode = mapping->host;
 	size_t count = iov_iter_count(iter);
+	loff_t offset = iocb->ki_pos;
 	ssize_t ret;
 
 	if (iov_iter_rw(iter) == WRITE) {
@@ -272,7 +272,7 @@ static ssize_t fat_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 	 * FAT need to use the DIO_LOCKING for avoiding the race
 	 * condition of fat_get_block() and ->truncate().
 	 */
-	ret = blockdev_direct_IO(iocb, inode, iter, offset, fat_get_block);
+	ret = blockdev_direct_IO(iocb, inode, iter, fat_get_block);
 	if (ret < 0 && iov_iter_rw(iter) == WRITE)
 		fat_write_failed(mapping, offset + count);
 
@@ -1127,13 +1127,15 @@ static int parse_options(struct super_block *sb, char *options, int is_vfat,
 	}
 	opts->name_check = 'n';
 	opts->quiet = opts->showexec = opts->sys_immutable = opts->dotsOK =  0;
-	opts->utf8 = opts->unicode_xlate = 0;
+	opts->unicode_xlate = 0;
 	opts->numtail = 1;
 	opts->usefree = opts->nocase = 0;
 	opts->tz_set = 0;
 	opts->nfs = 0;
 	opts->errors = FAT_ERRORS_RO;
 	*debug = 0;
+
+	opts->utf8 = IS_ENABLED(CONFIG_FAT_DEFAULT_UTF8) && is_vfat;
 
 	if (!options)
 		goto out;
@@ -1587,7 +1589,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 
 	/*
 	 * GFP_KERNEL is ok here, because while we do hold the
-	 * supeblock lock, memory pressure can't call back into
+	 * superblock lock, memory pressure can't call back into
 	 * the filesystem, since we're only just about to mount
 	 * it and have no inodes etc active!
 	 */
@@ -1724,7 +1726,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 	sbi->dir_entries = bpb.fat_dir_entries;
 	if (sbi->dir_entries & (sbi->dir_per_block - 1)) {
 		if (!silent)
-			fat_msg(sb, KERN_ERR, "bogus directory-entries per block"
+			fat_msg(sb, KERN_ERR, "bogus number of directory entries"
 			       " (%u)", sbi->dir_entries);
 		goto out_invalid;
 	}

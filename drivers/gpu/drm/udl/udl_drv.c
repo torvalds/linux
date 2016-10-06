@@ -94,7 +94,6 @@ static void udl_usb_disconnect(struct usb_interface *interface)
 	struct drm_device *dev = usb_get_intfdata(interface);
 
 	drm_kms_helper_poll_disable(dev);
-	drm_connector_unplug_all(dev);
 	udl_fbdev_unplug(dev);
 	udl_drop_usb(dev);
 	drm_unplug_dev(dev);
@@ -125,17 +124,5 @@ static struct usb_driver udl_driver = {
 	.disconnect = udl_usb_disconnect,
 	.id_table = id_table,
 };
-
-static int __init udl_init(void)
-{
-	return usb_register(&udl_driver);
-}
-
-static void __exit udl_exit(void)
-{
-	usb_deregister(&udl_driver);
-}
-
-module_init(udl_init);
-module_exit(udl_exit);
+module_usb_driver(udl_driver);
 MODULE_LICENSE("GPL");

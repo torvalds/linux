@@ -243,9 +243,9 @@ static u32 start_drv_threads(struct _adapter *padapter)
 void r8712_stop_drv_threads(struct _adapter *padapter)
 {
 	/*Below is to terminate r8712_cmd_thread & event_thread...*/
-	up(&padapter->cmdpriv.cmd_queue_sema);
+	complete(&padapter->cmdpriv.cmd_queue_comp);
 	if (padapter->cmdThread)
-		_down_sema(&padapter->cmdpriv.terminate_cmdthread_sema);
+		wait_for_completion_interruptible(&padapter->cmdpriv.terminate_cmdthread_comp);
 	padapter->cmdpriv.cmd_seq = 1;
 }
 
@@ -269,7 +269,6 @@ void r8712_stop_drv_timers(struct _adapter *padapter)
 
 static u8 init_default_value(struct _adapter *padapter)
 {
-	u8 ret  = _SUCCESS;
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -302,7 +301,7 @@ static u8 init_default_value(struct _adapter *padapter)
 	r8712_init_registrypriv_dev_network(padapter);
 	r8712_update_registrypriv_dev_network(padapter);
 	/*misc.*/
-	return ret;
+	return _SUCCESS;
 }
 
 u8 r8712_init_drv_sw(struct _adapter *padapter)
@@ -390,7 +389,7 @@ static int netdev_open(struct net_device *pnetdev)
 		padapter->bup = true;
 		if (rtl871x_hal_init(padapter) != _SUCCESS)
 			goto netdev_open_error;
-		if (r8712_initmac == NULL)
+		if (!r8712_initmac)
 			/* Use the mac address stored in the Efuse */
 			memcpy(pnetdev->dev_addr,
 				padapter->eeprompriv.mac_addr, ETH_ALEN);
@@ -414,7 +413,7 @@ static int netdev_open(struct net_device *pnetdev)
 		}
 		if (start_drv_threads(padapter) != _SUCCESS)
 			goto netdev_open_error;
-		if (padapter->dvobjpriv.inirp_init == NULL)
+		if (!padapter->dvobjpriv.inirp_init)
 			goto netdev_open_error;
 		else
 			padapter->dvobjpriv.inirp_init(padapter);
@@ -426,7 +425,7 @@ static int netdev_open(struct net_device *pnetdev)
 	else
 		netif_wake_queue(pnetdev);
 
-	 if (video_mode)
+	if (video_mode)
 		enable_video_mode(padapter, cbw40_enable);
 	/* start driver mlme relation timer */
 	start_drv_timers(padapter);

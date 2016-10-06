@@ -182,6 +182,11 @@ int __weak arch_register_cpu(int cpu)
 
 void __weak arch_unregister_cpu(int cpu) {}
 
+int __weak acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
+{
+	return -ENODEV;
+}
+
 static int acpi_processor_hotadd_init(struct acpi_processor *pr)
 {
 	unsigned long long sta;
@@ -300,8 +305,11 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	 *  Extra Processor objects may be enumerated on MP systems with
 	 *  less than the max # of CPUs. They should be ignored _iff
 	 *  they are physically not present.
+	 *
+	 *  NOTE: Even if the processor has a cpuid, it may not be present
+	 *  because cpuid <-> apicid mapping is persistent now.
 	 */
-	if (invalid_logical_cpuid(pr->id)) {
+	if (invalid_logical_cpuid(pr->id) || !cpu_present(pr->id)) {
 		int ret = acpi_processor_hotadd_init(pr);
 		if (ret)
 			return ret;
@@ -331,15 +339,6 @@ static int acpi_processor_get_info(struct acpi_device *device)
 		pr->throttling.duty_width = acpi_gbl_FADT.duty_width;
 
 		pr->pblk = object.processor.pblk_address;
-
-		/*
-		 * We don't care about error returns - we just try to mark
-		 * these reserved so that nobody else is confused into thinking
-		 * that this region might be unused..
-		 *
-		 * (In particular, allocating the IO range for Cardbus)
-		 */
-		request_region(pr->throttling.address, 6, "ACPI CPU throttle");
 	}
 
 	/*
@@ -491,6 +490,58 @@ static void acpi_processor_remove(struct acpi_device *device)
 }
 #endif /* CONFIG_ACPI_HOTPLUG_CPU */
 
+#ifdef CONFIG_X86
+static bool acpi_hwp_native_thermal_lvt_set;
+static acpi_status __init acpi_hwp_native_thermal_lvt_osc(acpi_handle handle,
+							  u32 lvl,
+							  void *context,
+							  void **rv)
+{
+	u8 sb_uuid_str[] = "4077A616-290C-47BE-9EBD-D87058713953";
+	u32 capbuf[2];
+	struct acpi_osc_context osc_context = {
+		.uuid_str = sb_uuid_str,
+		.rev = 1,
+		.cap.length = 8,
+		.cap.pointer = capbuf,
+	};
+
+	if (acpi_hwp_native_thermal_lvt_set)
+		return AE_CTRL_TERMINATE;
+
+	capbuf[0] = 0x0000;
+	capbuf[1] = 0x1000; /* set bit 12 */
+
+	if (ACPI_SUCCESS(acpi_run_osc(handle, &osc_context))) {
+		if (osc_context.ret.pointer && osc_context.ret.length > 1) {
+			u32 *capbuf_ret = osc_context.ret.pointer;
+
+			if (capbuf_ret[1] & 0x1000) {
+				acpi_handle_info(handle,
+					"_OSC native thermal LVT Acked\n");
+				acpi_hwp_native_thermal_lvt_set = true;
+			}
+		}
+		kfree(osc_context.ret.pointer);
+	}
+
+	return AE_OK;
+}
+
+void __init acpi_early_processor_osc(void)
+{
+	if (boot_cpu_has(X86_FEATURE_HWP)) {
+		acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT,
+				    ACPI_UINT32_MAX,
+				    acpi_hwp_native_thermal_lvt_osc,
+				    NULL, NULL, NULL);
+		acpi_get_devices(ACPI_PROCESSOR_DEVICE_HID,
+				 acpi_hwp_native_thermal_lvt_osc,
+				 NULL, NULL);
+	}
+}
+#endif
+
 /*
  * The following ACPI IDs are known to be suitable for representing as
  * processor devices.
@@ -514,7 +565,118 @@ static struct acpi_scan_handler processor_handler = {
 	},
 };
 
+static int acpi_processor_container_attach(struct acpi_device *dev,
+					   const struct acpi_device_id *id)
+{
+	return 1;
+}
+
+static const struct acpi_device_id processor_container_ids[] = {
+	{ ACPI_PROCESSOR_CONTAINER_HID, },
+	{ }
+};
+
+static struct acpi_scan_handler processor_container_handler = {
+	.ids = processor_container_ids,
+	.attach = acpi_processor_container_attach,
+};
+
+/* The number of the unique processor IDs */
+static int nr_unique_ids __initdata;
+
+/* The number of the duplicate processor IDs */
+static int nr_duplicate_ids __initdata;
+
+/* Used to store the unique processor IDs */
+static int unique_processor_ids[] __initdata = {
+	[0 ... NR_CPUS - 1] = -1,
+};
+
+/* Used to store the duplicate processor IDs */
+static int duplicate_processor_ids[] __initdata = {
+	[0 ... NR_CPUS - 1] = -1,
+};
+
+static void __init processor_validated_ids_update(int proc_id)
+{
+	int i;
+
+	if (nr_unique_ids == NR_CPUS||nr_duplicate_ids == NR_CPUS)
+		return;
+
+	/*
+	 * Firstly, compare the proc_id with duplicate IDs, if the proc_id is
+	 * already in the IDs, do nothing.
+	 */
+	for (i = 0; i < nr_duplicate_ids; i++) {
+		if (duplicate_processor_ids[i] == proc_id)
+			return;
+	}
+
+	/*
+	 * Secondly, compare the proc_id with unique IDs, if the proc_id is in
+	 * the IDs, put it in the duplicate IDs.
+	 */
+	for (i = 0; i < nr_unique_ids; i++) {
+		if (unique_processor_ids[i] == proc_id) {
+			duplicate_processor_ids[nr_duplicate_ids] = proc_id;
+			nr_duplicate_ids++;
+			return;
+		}
+	}
+
+	/*
+	 * Lastly, the proc_id is a unique ID, put it in the unique IDs.
+	 */
+	unique_processor_ids[nr_unique_ids] = proc_id;
+	nr_unique_ids++;
+}
+
+static acpi_status __init acpi_processor_ids_walk(acpi_handle handle,
+						  u32 lvl,
+						  void *context,
+						  void **rv)
+{
+	acpi_status status;
+	union acpi_object object = { 0 };
+	struct acpi_buffer buffer = { sizeof(union acpi_object), &object };
+
+	status = acpi_evaluate_object(handle, NULL, NULL, &buffer);
+	if (ACPI_FAILURE(status))
+		acpi_handle_info(handle, "Not get the processor object\n");
+	else
+		processor_validated_ids_update(object.processor.proc_id);
+
+	return AE_OK;
+}
+
+static void __init acpi_processor_check_duplicates(void)
+{
+	/* Search all processor nodes in ACPI namespace */
+	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT,
+						ACPI_UINT32_MAX,
+						acpi_processor_ids_walk,
+						NULL, NULL, NULL);
+}
+
+bool __init acpi_processor_validate_proc_id(int proc_id)
+{
+	int i;
+
+	/*
+	 * compare the proc_id with duplicate IDs, if the proc_id is already
+	 * in the duplicate IDs, return true, otherwise, return false.
+	 */
+	for (i = 0; i < nr_duplicate_ids; i++) {
+		if (duplicate_processor_ids[i] == proc_id)
+			return true;
+	}
+	return false;
+}
+
 void __init acpi_processor_init(void)
 {
+	acpi_processor_check_duplicates();
 	acpi_scan_add_handler_with_hotplug(&processor_handler, "processor");
+	acpi_scan_add_handler(&processor_container_handler);
 }

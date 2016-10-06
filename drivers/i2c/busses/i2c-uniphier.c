@@ -328,7 +328,7 @@ static int uniphier_i2c_clk_init(struct device *dev,
 		bus_speed = UNIPHIER_I2C_DEFAULT_SPEED;
 
 	if (!bus_speed) {
-		dev_err(dev, "clock-freqyency should not be zero\n");
+		dev_err(dev, "clock-frequency should not be zero\n");
 		return -EINVAL;
 	}
 
@@ -381,7 +381,7 @@ static int uniphier_i2c_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(dev, "failed to get IRQ number");
+		dev_err(dev, "failed to get IRQ number\n");
 		return irq;
 	}
 

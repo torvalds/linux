@@ -7,13 +7,14 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/tracepoint.h>
-#include <trace/events/gfpflags.h>
+#include <trace/events/mmflags.h>
 
 #define COMPACTION_STATUS					\
-	EM( COMPACT_DEFERRED,		"deferred")		\
 	EM( COMPACT_SKIPPED,		"skipped")		\
+	EM( COMPACT_DEFERRED,		"deferred")		\
 	EM( COMPACT_CONTINUE,		"continue")		\
 	EM( COMPACT_PARTIAL,		"partial")		\
+	EM( COMPACT_PARTIAL_SKIPPED,	"partial_skipped")	\
 	EM( COMPACT_COMPLETE,		"complete")		\
 	EM( COMPACT_NO_SUITABLE_PAGE,	"no_suitable_page")	\
 	EM( COMPACT_NOT_SUITABLE_ZONE,	"not_suitable_zone")	\
@@ -225,26 +226,26 @@ TRACE_EVENT(mm_compaction_try_to_compact_pages,
 	TP_PROTO(
 		int order,
 		gfp_t gfp_mask,
-		enum migrate_mode mode),
+		int prio),
 
-	TP_ARGS(order, gfp_mask, mode),
+	TP_ARGS(order, gfp_mask, prio),
 
 	TP_STRUCT__entry(
 		__field(int, order)
 		__field(gfp_t, gfp_mask)
-		__field(enum migrate_mode, mode)
+		__field(int, prio)
 	),
 
 	TP_fast_assign(
 		__entry->order = order;
 		__entry->gfp_mask = gfp_mask;
-		__entry->mode = mode;
+		__entry->prio = prio;
 	),
 
-	TP_printk("order=%d gfp_mask=0x%x mode=%d",
+	TP_printk("order=%d gfp_mask=0x%x priority=%d",
 		__entry->order,
 		__entry->gfp_mask,
-		(int)__entry->mode)
+		__entry->prio)
 );
 
 DECLARE_EVENT_CLASS(mm_compaction_suitable_template,
@@ -349,6 +350,61 @@ DEFINE_EVENT(mm_compaction_defer_template, mm_compaction_defer_reset,
 	TP_ARGS(zone, order)
 );
 #endif
+
+TRACE_EVENT(mm_compaction_kcompactd_sleep,
+
+	TP_PROTO(int nid),
+
+	TP_ARGS(nid),
+
+	TP_STRUCT__entry(
+		__field(int, nid)
+	),
+
+	TP_fast_assign(
+		__entry->nid = nid;
+	),
+
+	TP_printk("nid=%d", __entry->nid)
+);
+
+DECLARE_EVENT_CLASS(kcompactd_wake_template,
+
+	TP_PROTO(int nid, int order, enum zone_type classzone_idx),
+
+	TP_ARGS(nid, order, classzone_idx),
+
+	TP_STRUCT__entry(
+		__field(int, nid)
+		__field(int, order)
+		__field(enum zone_type, classzone_idx)
+	),
+
+	TP_fast_assign(
+		__entry->nid = nid;
+		__entry->order = order;
+		__entry->classzone_idx = classzone_idx;
+	),
+
+	TP_printk("nid=%d order=%d classzone_idx=%-8s",
+		__entry->nid,
+		__entry->order,
+		__print_symbolic(__entry->classzone_idx, ZONE_TYPE))
+);
+
+DEFINE_EVENT(kcompactd_wake_template, mm_compaction_wakeup_kcompactd,
+
+	TP_PROTO(int nid, int order, enum zone_type classzone_idx),
+
+	TP_ARGS(nid, order, classzone_idx)
+);
+
+DEFINE_EVENT(kcompactd_wake_template, mm_compaction_kcompactd_wake,
+
+	TP_PROTO(int nid, int order, enum zone_type classzone_idx),
+
+	TP_ARGS(nid, order, classzone_idx)
+);
 
 #endif /* _TRACE_COMPACTION_H */
 

@@ -100,14 +100,10 @@ struct inet_bind_hashbucket {
 
 /*
  * Sockets can be hashed in established or listening table
- * We must use different 'nulls' end-of-chain value for listening
- * hash table, or we might find a socket that was closed and
- * reallocated/inserted into established hash table
  */
-#define LISTENING_NULLS_BASE (1U << 29)
 struct inet_listen_hashbucket {
 	spinlock_t		lock;
-	struct hlist_nulls_head	head;
+	struct hlist_head	head;
 };
 
 /* This is for listening sockets, thus all sockets which possess wildcards. */
@@ -207,12 +203,16 @@ void inet_hashinfo_init(struct inet_hashinfo *h);
 
 bool inet_ehash_insert(struct sock *sk, struct sock *osk);
 bool inet_ehash_nolisten(struct sock *sk, struct sock *osk);
-void __inet_hash(struct sock *sk, struct sock *osk);
-void inet_hash(struct sock *sk);
+int __inet_hash(struct sock *sk, struct sock *osk,
+		int (*saddr_same)(const struct sock *sk1,
+				  const struct sock *sk2,
+				  bool match_wildcard));
+int inet_hash(struct sock *sk);
 void inet_unhash(struct sock *sk);
 
 struct sock *__inet_lookup_listener(struct net *net,
 				    struct inet_hashinfo *hashinfo,
+				    struct sk_buff *skb, int doff,
 				    const __be32 saddr, const __be16 sport,
 				    const __be32 daddr,
 				    const unsigned short hnum,
@@ -220,10 +220,11 @@ struct sock *__inet_lookup_listener(struct net *net,
 
 static inline struct sock *inet_lookup_listener(struct net *net,
 		struct inet_hashinfo *hashinfo,
+		struct sk_buff *skb, int doff,
 		__be32 saddr, __be16 sport,
 		__be32 daddr, __be16 dport, int dif)
 {
-	return __inet_lookup_listener(net, hashinfo, saddr, sport,
+	return __inet_lookup_listener(net, hashinfo, skb, doff, saddr, sport,
 				      daddr, ntohs(dport), dif);
 }
 
@@ -275,11 +276,8 @@ static inline struct sock *inet_lookup_listener(struct net *net,
 	 net_eq(sock_net(__sk), (__net)))
 #endif /* 64-bit arch */
 
-/*
- * Sockets in TCP_CLOSE state are _always_ taken out of the hash, so we need
+/* Sockets in TCP_CLOSE state are _always_ taken out of the hash, so we need
  * not check it for lookups anymore, thanks Alexey. -DaveM
- *
- * Local BH must be disabled here.
  */
 struct sock *__inet_lookup_established(struct net *net,
 				       struct inet_hashinfo *hashinfo,
@@ -299,47 +297,61 @@ static inline struct sock *
 
 static inline struct sock *__inet_lookup(struct net *net,
 					 struct inet_hashinfo *hashinfo,
+					 struct sk_buff *skb, int doff,
 					 const __be32 saddr, const __be16 sport,
 					 const __be32 daddr, const __be16 dport,
-					 const int dif)
+					 const int dif,
+					 bool *refcounted)
 {
 	u16 hnum = ntohs(dport);
-	struct sock *sk = __inet_lookup_established(net, hashinfo,
-				saddr, sport, daddr, hnum, dif);
+	struct sock *sk;
 
-	return sk ? : __inet_lookup_listener(net, hashinfo, saddr, sport,
-					     daddr, hnum, dif);
+	sk = __inet_lookup_established(net, hashinfo, saddr, sport,
+				       daddr, hnum, dif);
+	*refcounted = true;
+	if (sk)
+		return sk;
+	*refcounted = false;
+	return __inet_lookup_listener(net, hashinfo, skb, doff, saddr,
+				      sport, daddr, hnum, dif);
 }
 
 static inline struct sock *inet_lookup(struct net *net,
 				       struct inet_hashinfo *hashinfo,
+				       struct sk_buff *skb, int doff,
 				       const __be32 saddr, const __be16 sport,
 				       const __be32 daddr, const __be16 dport,
 				       const int dif)
 {
 	struct sock *sk;
+	bool refcounted;
 
-	local_bh_disable();
-	sk = __inet_lookup(net, hashinfo, saddr, sport, daddr, dport, dif);
-	local_bh_enable();
+	sk = __inet_lookup(net, hashinfo, skb, doff, saddr, sport, daddr,
+			   dport, dif, &refcounted);
 
+	if (sk && !refcounted && !atomic_inc_not_zero(&sk->sk_refcnt))
+		sk = NULL;
 	return sk;
 }
 
 static inline struct sock *__inet_lookup_skb(struct inet_hashinfo *hashinfo,
 					     struct sk_buff *skb,
+					     int doff,
 					     const __be16 sport,
-					     const __be16 dport)
+					     const __be16 dport,
+					     bool *refcounted)
 {
 	struct sock *sk = skb_steal_sock(skb);
 	const struct iphdr *iph = ip_hdr(skb);
 
+	*refcounted = true;
 	if (sk)
 		return sk;
-	else
-		return __inet_lookup(dev_net(skb_dst(skb)->dev), hashinfo,
-				     iph->saddr, sport,
-				     iph->daddr, dport, inet_iif(skb));
+
+	return __inet_lookup(dev_net(skb_dst(skb)->dev), hashinfo, skb,
+			     doff, iph->saddr, sport,
+			     iph->daddr, dport, inet_iif(skb),
+			     refcounted);
 }
 
 u32 sk_ehashfn(const struct sock *sk);

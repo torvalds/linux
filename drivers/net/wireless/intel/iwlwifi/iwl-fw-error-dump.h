@@ -89,6 +89,9 @@
  * @IWL_FW_ERROR_PAGING: UMAC's image memory segments which were
  *	paged to the DRAM.
  * @IWL_FW_ERROR_DUMP_RADIO_REG: Dump the radio registers.
+ * @IWL_FW_ERROR_DUMP_EXTERNAL: used only by external code utilities, and
+ *	for that reason is not in use in any other place in the Linux Wi-Fi
+ *	stack.
  */
 enum iwl_fw_error_dump_type {
 	/* 0 is deprecated */
@@ -105,6 +108,8 @@ enum iwl_fw_error_dump_type {
 	IWL_FW_ERROR_DUMP_RB = 11,
 	IWL_FW_ERROR_DUMP_PAGING = 12,
 	IWL_FW_ERROR_DUMP_RADIO_REG = 13,
+	IWL_FW_ERROR_DUMP_INTERNAL_TXF = 14,
+	IWL_FW_ERROR_DUMP_EXTERNAL = 15, /* Do not move */
 
 	IWL_FW_ERROR_DUMP_MAX,
 };
@@ -293,6 +298,8 @@ iwl_fw_error_next_data(struct iwl_fw_error_dump_data *data)
  * @FW_DBG_TX_LATENCY: trigger log collection when the tx latency goes above a
  *	threshold.
  * @FW_DBG_TDLS: trigger log collection upon TDLS related events.
+ * @FW_DBG_TRIGGER_TX_STATUS: trigger log collection upon tx status when
+ *  the firmware sends a tx reply.
  */
 enum iwl_fw_dbg_trigger {
 	FW_DBG_TRIGGER_INVALID = 0,
@@ -309,6 +316,7 @@ enum iwl_fw_dbg_trigger {
 	FW_DBG_TRIGGER_BA,
 	FW_DBG_TRIGGER_TX_LATENCY,
 	FW_DBG_TRIGGER_TDLS,
+	FW_DBG_TRIGGER_TX_STATUS,
 
 	/* must be last */
 	FW_DBG_TRIGGER_MAX,

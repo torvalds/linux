@@ -56,10 +56,10 @@ struct pxa910_clk_unit {
 };
 
 static struct mmp_param_fixed_rate_clk fixed_rate_clks[] = {
-	{PXA910_CLK_CLK32, "clk32", NULL, CLK_IS_ROOT, 32768},
-	{PXA910_CLK_VCTCXO, "vctcxo", NULL, CLK_IS_ROOT, 26000000},
-	{PXA910_CLK_PLL1, "pll1", NULL, CLK_IS_ROOT, 624000000},
-	{PXA910_CLK_USB_PLL, "usb_pll", NULL, CLK_IS_ROOT, 480000000},
+	{PXA910_CLK_CLK32, "clk32", NULL, 0, 32768},
+	{PXA910_CLK_VCTCXO, "vctcxo", NULL, 0, 26000000},
+	{PXA910_CLK_PLL1, "pll1", NULL, 0, 624000000},
+	{PXA910_CLK_USB_PLL, "usb_pll", NULL, 0, 480000000},
 };
 
 static struct mmp_param_fixed_factor_clk fixed_factor_clks[] = {

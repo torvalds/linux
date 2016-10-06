@@ -19,25 +19,14 @@
 
 #include <linux/module.h>
 
-#ifdef CONFIG_LIVEPATCH
 static inline int klp_check_compiler_support(void)
 {
 	return 0;
-}
-
-static inline int klp_write_module_reloc(struct module *mod, unsigned long
-		type, unsigned long loc, unsigned long value)
-{
-	/* not supported yet */
-	return -ENOSYS;
 }
 
 static inline void klp_arch_set_pc(struct pt_regs *regs, unsigned long ip)
 {
 	regs->psw.addr = ip;
 }
-#else
-#error Live patching support is disabled; check CONFIG_LIVEPATCH
-#endif
 
 #endif

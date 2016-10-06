@@ -1,77 +1,78 @@
 /*
-    comedi/drivers/cb_pcimdda.c
-    Computer Boards PCIM-DDA06-16 Comedi driver
-    Author: Calin Culianu <calin@ajvar.org>
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
+ * comedi/drivers/cb_pcimdda.c
+ * Computer Boards PCIM-DDA06-16 Comedi driver
+ * Author: Calin Culianu <calin@ajvar.org>
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 /*
-Driver: cb_pcimdda
-Description: Measurement Computing PCIM-DDA06-16
-Devices: [Measurement Computing] PCIM-DDA06-16 (cb_pcimdda)
-Author: Calin Culianu <calin@ajvar.org>
-Updated: Mon, 14 Apr 2008 15:15:51 +0100
-Status: works
-
-All features of the PCIM-DDA06-16 board are supported.  This board
-has 6 16-bit AO channels, and the usual 8255 DIO setup.  (24 channels,
-configurable in banks of 8 and 4, etc.).  This board does not support commands.
-
-The board has a peculiar way of specifying AO gain/range settings -- You have
-1 jumper bank on the card, which either makes all 6 AO channels either
-5 Volt unipolar, 5V bipolar, 10 Volt unipolar or 10V bipolar.
-
-Since there is absolutely _no_ way to tell in software how this jumper is set
-(well, at least according  to the rather thin spec. from Measurement Computing
- that comes with the board), the driver assumes the jumper is at its factory
-default setting of +/-5V.
-
-Also of note is the fact that this board features another jumper, whose
-state is also completely invisible to software.  It toggles two possible AO
-output modes on the board:
-
-  - Update Mode: Writing to an AO channel instantaneously updates the actual
-    signal output by the DAC on the board (this is the factory default).
-  - Simultaneous XFER Mode: Writing to an AO channel has no effect until
-    you read from any one of the AO channels.  This is useful for loading
-    all 6 AO values, and then reading from any one of the AO channels on the
-    device to instantly update all 6 AO values in unison.  Useful for some
-    control apps, I would assume?  If your jumper is in this setting, then you
-    need to issue your comedi_data_write()s to load all the values you want,
-    then issue one comedi_data_read() on any channel on the AO subdevice
-    to initiate the simultaneous XFER.
-
-Configuration Options: not applicable, uses PCI auto config
-*/
+ * Driver: cb_pcimdda
+ * Description: Measurement Computing PCIM-DDA06-16
+ * Devices: [Measurement Computing] PCIM-DDA06-16 (cb_pcimdda)
+ * Author: Calin Culianu <calin@ajvar.org>
+ * Updated: Mon, 14 Apr 2008 15:15:51 +0100
+ * Status: works
+ *
+ * All features of the PCIM-DDA06-16 board are supported.
+ * This board has 6 16-bit AO channels, and the usual 8255 DIO setup.
+ * (24 channels, configurable in banks of 8 and 4, etc.).
+ * This board does not support commands.
+ *
+ * The board has a peculiar way of specifying AO gain/range settings -- You have
+ * 1 jumper bank on the card, which either makes all 6 AO channels either
+ * 5 Volt unipolar, 5V bipolar, 10 Volt unipolar or 10V bipolar.
+ *
+ * Since there is absolutely _no_ way to tell in software how this jumper is set
+ * (well, at least according to the rather thin spec. from Measurement Computing
+ * that comes with the board), the driver assumes the jumper is at its factory
+ * default setting of +/-5V.
+ *
+ * Also of note is the fact that this board features another jumper, whose
+ * state is also completely invisible to software.  It toggles two possible AO
+ * output modes on the board:
+ *
+ *   - Update Mode: Writing to an AO channel instantaneously updates the actual
+ *     signal output by the DAC on the board (this is the factory default).
+ *   - Simultaneous XFER Mode: Writing to an AO channel has no effect until
+ *     you read from any one of the AO channels.  This is useful for loading
+ *     all 6 AO values, and then reading from any one of the AO channels on the
+ *     device to instantly update all 6 AO values in unison.  Useful for some
+ *     control apps, I would assume? If your jumper is in this setting, then you
+ *     need to issue your comedi_data_write()s to load all the values you want,
+ *     then issue one comedi_data_read() on any channel on the AO subdevice
+ *     to initiate the simultaneous XFER.
+ *
+ * Configuration Options: not applicable, uses PCI auto config
+ */
 
 /*
-    This is a driver for the Computer Boards PCIM-DDA06-16 Analog Output
-    card.  This board has a unique register layout and as such probably
-    deserves its own driver file.
-
-    It is theoretically possible to integrate this board into the cb_pcidda
-    file, but since that isn't my code, I didn't want to significantly
-    modify that file to support this board (I thought it impolite to do so).
-
-    At any rate, if you feel ambitious, please feel free to take
-    the code out of this file and combine it with a more unified driver
-    file.
-
-    I would like to thank Timothy Curry <Timothy.Curry@rdec.redstone.army.mil>
-    for lending me a board so that I could write this driver.
-
-    -Calin Culianu <calin@ajvar.org>
+ * This is a driver for the Computer Boards PCIM-DDA06-16 Analog Output
+ * card.  This board has a unique register layout and as such probably
+ * deserves its own driver file.
+ *
+ * It is theoretically possible to integrate this board into the cb_pcidda
+ * file, but since that isn't my code, I didn't want to significantly
+ * modify that file to support this board (I thought it impolite to do so).
+ *
+ * At any rate, if you feel ambitious, please feel free to take
+ * the code out of this file and combine it with a more unified driver
+ * file.
+ *
+ * I would like to thank Timothy Curry <Timothy.Curry@rdec.redstone.army.mil>
+ * for lending me a board so that I could write this driver.
+ *
+ * -Calin Culianu <calin@ajvar.org>
  */
 
 #include <linux/module.h>

@@ -262,7 +262,6 @@ xt_osf_match_packet(const struct sk_buff *skb, struct xt_action_param *p)
 			if (f->opt[optnum].kind == (*optp)) {
 				__u32 len = f->opt[optnum].length;
 				const __u8 *optend = optp + len;
-				int loop_cont = 0;
 
 				fmatch = FMATCH_OK;
 
@@ -275,7 +274,6 @@ xt_osf_match_packet(const struct sk_buff *skb, struct xt_action_param *p)
 					mss = ntohs((__force __be16)mss);
 					break;
 				case OSFOPT_TS:
-					loop_cont = 1;
 					break;
 				}
 

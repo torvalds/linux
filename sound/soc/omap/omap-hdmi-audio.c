@@ -28,7 +28,6 @@
 #include <sound/asoundef.h>
 #include <sound/omap-pcm.h>
 #include <sound/omap-hdmi-audio.h>
-#include <video/omapdss.h>
 
 #define DRV_NAME "omap-hdmi-audio"
 
@@ -345,6 +344,7 @@ static int omap_hdmi_audio_probe(struct platform_device *pdev)
 		dai_drv = &omap4_hdmi_dai;
 		break;
 	case OMAPDSS_VER_OMAP5:
+	case OMAPDSS_VER_DRA7xx:
 		dai_drv = &omap5_hdmi_dai;
 		break;
 	default:

@@ -356,7 +356,7 @@ static int nes_netdev_stop(struct net_device *netdev)
 /**
  * nes_nic_send
  */
-static int nes_nic_send(struct sk_buff *skb, struct net_device *netdev)
+static bool nes_nic_send(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct nes_vnic *nesvnic = netdev_priv(netdev);
 	struct nes_device *nesdev = nesvnic->nesdev;
@@ -413,7 +413,7 @@ static int nes_nic_send(struct sk_buff *skb, struct net_device *netdev)
 					netdev->name, skb_shinfo(skb)->nr_frags + 2, skb_headlen(skb));
 			kfree_skb(skb);
 			nesvnic->tx_sw_dropped++;
-			return NETDEV_TX_LOCKED;
+			return false;
 		}
 		set_bit(nesnic->sq_head, nesnic->first_frag_overflow);
 		bus_address = pci_map_single(nesdev->pcidev, skb->data + NES_FIRST_FRAG_SIZE,
@@ -454,8 +454,7 @@ static int nes_nic_send(struct sk_buff *skb, struct net_device *netdev)
 	set_wqe_32bit_value(nic_sqe->wqe_words, NES_NIC_SQ_WQE_MISC_IDX, wqe_misc);
 	nesnic->sq_head++;
 	nesnic->sq_head &= nesnic->sq_size - 1;
-
-	return NETDEV_TX_OK;
+	return true;
 }
 
 
@@ -479,7 +478,6 @@ static int nes_netdev_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	u32 tso_wqe_length;
 	u32 curr_tcp_seq;
 	u32 wqe_count=1;
-	u32 send_rc;
 	struct iphdr *iph;
 	__le16 *wqe_fragment_length;
 	u32 nr_frags;
@@ -499,9 +497,6 @@ static int nes_netdev_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	 *		netdev->name, skb->len, skb_headlen(skb),
 	 *		skb_shinfo(skb)->nr_frags, skb_is_gso(skb));
 	 */
-
-	if (!netif_carrier_ok(netdev))
-		return NETDEV_TX_OK;
 
 	if (netif_queue_stopped(netdev))
 		return NETDEV_TX_BUSY;
@@ -673,13 +668,11 @@ tso_sq_no_longer_full:
 			skb_linearize(skb);
 			skb_set_transport_header(skb, hoffset);
 			skb_set_network_header(skb, nhoffset);
-			send_rc = nes_nic_send(skb, netdev);
-			if (send_rc != NETDEV_TX_OK)
+			if (!nes_nic_send(skb, netdev))
 				return NETDEV_TX_OK;
 		}
 	} else {
-		send_rc = nes_nic_send(skb, netdev);
-		if (send_rc != NETDEV_TX_OK)
+		if (!nes_nic_send(skb, netdev))
 			return NETDEV_TX_OK;
 	}
 
@@ -689,7 +682,7 @@ tso_sq_no_longer_full:
 		nes_write32(nesdev->regs+NES_WQE_ALLOC,
 				(wqe_count << 24) | (1 << 23) | nesvnic->nic.qp_id);
 
-	netdev->trans_start = jiffies;
+	netif_trans_update(netdev);
 
 	return NETDEV_TX_OK;
 }
@@ -1085,9 +1078,6 @@ static const char nes_ethtool_stringset[][ETH_GSTRING_LEN] = {
 	"Free 4Kpbls",
 	"Free 256pbls",
 	"Timer Inits",
-	"LRO aggregated",
-	"LRO flushed",
-	"LRO no_desc",
 	"PAU CreateQPs",
 	"PAU DestroyQPs",
 };
@@ -1302,9 +1292,6 @@ static void nes_netdev_get_ethtool_stats(struct net_device *netdev,
 	target_stat_values[++index] = nesadapter->free_4kpbl;
 	target_stat_values[++index] = nesadapter->free_256pbl;
 	target_stat_values[++index] = int_mod_timer_init;
-	target_stat_values[++index] = nesvnic->lro_mgr.stats.aggregated;
-	target_stat_values[++index] = nesvnic->lro_mgr.stats.flushed;
-	target_stat_values[++index] = nesvnic->lro_mgr.stats.no_desc;
 	target_stat_values[++index] = atomic_read(&pau_qps_created);
 	target_stat_values[++index] = atomic_read(&pau_qps_destroyed);
 }
@@ -1709,7 +1696,6 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 		netdev->hw_features |= NETIF_F_TSO;
 
 	netdev->features = netdev->hw_features | NETIF_F_HIGHDMA | NETIF_F_HW_VLAN_CTAG_TX;
-	netdev->hw_features |= NETIF_F_LRO;
 
 	nes_debug(NES_DBG_INIT, "nesvnic = %p, reported features = 0x%lX, QPid = %d,"
 			" nic_index = %d, logical_port = %d, mac_index = %d.\n",

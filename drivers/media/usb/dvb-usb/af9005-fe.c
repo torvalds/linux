@@ -1227,9 +1227,9 @@ static int af9005_fe_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int af9005_fe_get_frontend(struct dvb_frontend *fe)
+static int af9005_fe_get_frontend(struct dvb_frontend *fe,
+				  struct dtv_frontend_properties *fep)
 {
-	struct dtv_frontend_properties *fep = &fe->dtv_property_cache;
 	struct af9005_fe_state *state = fe->demodulator_priv;
 	int ret;
 	u8 temp;

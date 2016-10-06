@@ -406,7 +406,7 @@ static int titsc_probe(struct platform_device *pdev)
 	int err;
 
 	/* Allocate memory for device */
-	ts_dev = kzalloc(sizeof(struct titsc), GFP_KERNEL);
+	ts_dev = kzalloc(sizeof(*ts_dev), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!ts_dev || !input_dev) {
 		dev_err(&pdev->dev, "failed to allocate memory.\n");
@@ -487,8 +487,7 @@ static int titsc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int titsc_suspend(struct device *dev)
+static int __maybe_unused titsc_suspend(struct device *dev)
 {
 	struct titsc *ts_dev = dev_get_drvdata(dev);
 	struct ti_tscadc_dev *tscadc_dev;
@@ -504,7 +503,7 @@ static int titsc_suspend(struct device *dev)
 	return 0;
 }
 
-static int titsc_resume(struct device *dev)
+static int __maybe_unused titsc_resume(struct device *dev)
 {
 	struct titsc *ts_dev = dev_get_drvdata(dev);
 	struct ti_tscadc_dev *tscadc_dev;
@@ -521,14 +520,7 @@ static int titsc_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops titsc_pm_ops = {
-	.suspend = titsc_suspend,
-	.resume  = titsc_resume,
-};
-#define TITSC_PM_OPS (&titsc_pm_ops)
-#else
-#define TITSC_PM_OPS NULL
-#endif
+static SIMPLE_DEV_PM_OPS(titsc_pm_ops, titsc_suspend, titsc_resume);
 
 static const struct of_device_id ti_tsc_dt_ids[] = {
 	{ .compatible = "ti,am3359-tsc", },
@@ -541,7 +533,7 @@ static struct platform_driver ti_tsc_driver = {
 	.remove	= titsc_remove,
 	.driver	= {
 		.name   = "TI-am335x-tsc",
-		.pm	= TITSC_PM_OPS,
+		.pm	= &titsc_pm_ops,
 		.of_match_table = ti_tsc_dt_ids,
 	},
 };

@@ -3,8 +3,8 @@
  */
 
 #include <linux/string.h>
-#include <linux/random.h>
 #include <linux/time.h>
+#include <linux/uuid.h>
 #include "reiserfs.h"
 
 /* find where objectid map starts */

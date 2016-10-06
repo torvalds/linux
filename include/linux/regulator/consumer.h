@@ -140,8 +140,6 @@ struct regulator;
  *
  * @supply:   The name of the supply.  Initialised by the user before
  *            using the bulk regulator APIs.
- * @optional: The supply should be considered optional. Initialised by the user
- *            before using the bulk regulator APIs.
  * @consumer: The regulator consumer for the supply.  This will be managed
  *            by the bulk API.
  *
@@ -151,7 +149,6 @@ struct regulator;
  */
 struct regulator_bulk_data {
 	const char *supply;
-	bool optional;
 	struct regulator *consumer;
 
 	/* private: Internal use */
@@ -224,7 +221,6 @@ int regulator_bulk_force_disable(int num_consumers,
 void regulator_bulk_free(int num_consumers,
 			 struct regulator_bulk_data *consumers);
 
-int regulator_can_change_voltage(struct regulator *regulator);
 int regulator_count_voltages(struct regulator *regulator);
 int regulator_list_voltage(struct regulator *regulator, unsigned selector);
 int regulator_is_supported_voltage(struct regulator *regulator,
@@ -434,11 +430,6 @@ static inline int regulator_bulk_force_disable(int num_consumers,
 static inline void regulator_bulk_free(int num_consumers,
 				       struct regulator_bulk_data *consumers)
 {
-}
-
-static inline int regulator_can_change_voltage(struct regulator *regulator)
-{
-	return 0;
 }
 
 static inline int regulator_set_voltage(struct regulator *regulator,

@@ -1,7 +1,8 @@
 /* Exports for assembly files.
    All C exports should go in the respective C files. */
 
-#include <linux/module.h>
+#include <linux/export.h>
+#include <linux/spinlock_types.h>
 #include <linux/smp.h>
 
 #include <net/checksum.h>
@@ -37,10 +38,15 @@ EXPORT_SYMBOL(__copy_user_nocache);
 EXPORT_SYMBOL(_copy_from_user);
 EXPORT_SYMBOL(_copy_to_user);
 
+EXPORT_SYMBOL_GPL(memcpy_mcsafe_unrolled);
+
 EXPORT_SYMBOL(copy_page);
 EXPORT_SYMBOL(clear_page);
 
 EXPORT_SYMBOL(csum_partial);
+
+EXPORT_SYMBOL(__sw_hweight32);
+EXPORT_SYMBOL(__sw_hweight64);
 
 /*
  * Export string functions. We normally rely on gcc builtin for most of these,

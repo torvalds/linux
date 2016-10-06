@@ -41,8 +41,7 @@ static const struct key_entry intel_hid_keymap[] = {
 	{ KE_KEY, 4, { KEY_HOME } },
 	{ KE_KEY, 5, { KEY_END } },
 	{ KE_KEY, 6, { KEY_PAGEUP } },
-	{ KE_KEY, 4, { KEY_PAGEDOWN } },
-	{ KE_KEY, 4, { KEY_HOME } },
+	{ KE_KEY, 7, { KEY_PAGEDOWN } },
 	{ KE_KEY, 8, { KEY_RFKILL } },
 	{ KE_KEY, 9, { KEY_POWER } },
 	{ KE_KEY, 11, { KEY_SLEEP } },
@@ -92,6 +91,8 @@ static int intel_hid_pl_resume_handler(struct device *device)
 }
 
 static const struct dev_pm_ops intel_hid_pl_pm_ops = {
+	.freeze  = intel_hid_pl_suspend_handler,
+	.restore  = intel_hid_pl_resume_handler,
 	.suspend  = intel_hid_pl_suspend_handler,
 	.resume  = intel_hid_pl_resume_handler,
 };
@@ -121,8 +122,8 @@ static int intel_hid_input_setup(struct platform_device *device)
 	return 0;
 
 err_free_device:
-		input_free_device(priv->input_dev);
-		return ret;
+	input_free_device(priv->input_dev);
+	return ret;
 }
 
 static void intel_hid_input_destroy(struct platform_device *device)
@@ -181,8 +182,7 @@ static int intel_hid_probe(struct platform_device *device)
 		return -ENODEV;
 	}
 
-	priv = devm_kzalloc(&device->dev,
-			    sizeof(struct intel_hid_priv *), GFP_KERNEL);
+	priv = devm_kzalloc(&device->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 	dev_set_drvdata(&device->dev, priv);
@@ -224,7 +224,6 @@ static int intel_hid_remove(struct platform_device *device)
 	acpi_remove_notify_handler(handle, ACPI_DEVICE_NOTIFY, notify_handler);
 	intel_hid_input_destroy(device);
 	intel_hid_set_enable(&device->dev, 0);
-	acpi_remove_notify_handler(handle, ACPI_DEVICE_NOTIFY, notify_handler);
 
 	/*
 	 * Even if we failed to shut off the event stream, we can still

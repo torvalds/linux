@@ -23,8 +23,6 @@ struct unx_cred {
 };
 #define uc_uid			uc_base.cr_uid
 
-#define UNX_WRITESLACK		(21 + XDR_QUADLEN(UNX_MAXNODENAME))
-
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
@@ -54,11 +52,11 @@ unx_destroy(struct rpc_auth *auth)
 static struct rpc_cred *
 unx_lookup_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 {
-	return rpcauth_lookup_credcache(auth, acred, flags);
+	return rpcauth_lookup_credcache(auth, acred, flags, GFP_NOFS);
 }
 
 static struct rpc_cred *
-unx_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
+unx_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags, gfp_t gfp)
 {
 	struct unx_cred	*cred;
 	unsigned int groups = 0;
@@ -68,7 +66,7 @@ unx_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 			from_kuid(&init_user_ns, acred->uid),
 			from_kgid(&init_user_ns, acred->gid));
 
-	if (!(cred = kmalloc(sizeof(*cred), GFP_NOFS)))
+	if (!(cred = kmalloc(sizeof(*cred), gfp)))
 		return ERR_PTR(-ENOMEM);
 
 	rpcauth_init_cred(&cred->uc_base, acred, auth, &unix_credops);
@@ -228,8 +226,9 @@ const struct rpc_authops authunix_ops = {
 
 static
 struct rpc_auth		unix_auth = {
-	.au_cslack	= UNX_WRITESLACK,
-	.au_rslack	= 2,			/* assume AUTH_NULL verf */
+	.au_cslack	= UNX_CALLSLACK,
+	.au_rslack	= NUL_REPLYSLACK,
+	.au_flags	= RPCAUTH_AUTH_NO_CRKEY_TIMEOUT,
 	.au_ops		= &authunix_ops,
 	.au_flavor	= RPC_AUTH_UNIX,
 	.au_count	= ATOMIC_INIT(0),

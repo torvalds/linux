@@ -40,7 +40,6 @@ struct netns_ipv4 {
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	struct fib_rules_ops	*rules_ops;
 	bool			fib_has_custom_rules;
-	struct fib_table __rcu	*fib_local;
 	struct fib_table __rcu	*fib_main;
 	struct fib_table __rcu	*fib_default;
 #endif
@@ -80,9 +79,13 @@ struct netns_ipv4 {
 	int sysctl_tcp_ecn;
 	int sysctl_tcp_ecn_fallback;
 
+	int sysctl_ip_default_ttl;
 	int sysctl_ip_no_pmtu_disc;
 	int sysctl_ip_fwd_use_pmtu;
 	int sysctl_ip_nonlocal_bind;
+	/* Shall we try to damage output packets if routing dev changes? */
+	int sysctl_ip_dynaddr;
+	int sysctl_ip_early_demux;
 
 	int sysctl_fwmark_reflect;
 	int sysctl_tcp_fwmark_accept;
@@ -97,6 +100,21 @@ struct netns_ipv4 {
 	int sysctl_tcp_keepalive_time;
 	int sysctl_tcp_keepalive_probes;
 	int sysctl_tcp_keepalive_intvl;
+
+	int sysctl_tcp_syn_retries;
+	int sysctl_tcp_synack_retries;
+	int sysctl_tcp_syncookies;
+	int sysctl_tcp_reordering;
+	int sysctl_tcp_retries1;
+	int sysctl_tcp_retries2;
+	int sysctl_tcp_orphan_retries;
+	int sysctl_tcp_fin_timeout;
+	unsigned int sysctl_tcp_notsent_lowat;
+
+	int sysctl_igmp_max_memberships;
+	int sysctl_igmp_max_msf;
+	int sysctl_igmp_llm_reports;
+	int sysctl_igmp_qrv;
 
 	struct ping_group_range ping_group_range;
 
@@ -113,6 +131,9 @@ struct netns_ipv4 {
 	struct list_head	mr_tables;
 	struct fib_rules_ops	*mr_rules_ops;
 #endif
+#endif
+#ifdef CONFIG_IP_ROUTE_MULTIPATH
+	int sysctl_fib_multipath_use_neigh;
 #endif
 	atomic_t	rt_genid;
 };

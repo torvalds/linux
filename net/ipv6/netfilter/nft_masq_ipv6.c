@@ -26,7 +26,12 @@ static void nft_masq_ipv6_eval(const struct nft_expr *expr,
 
 	memset(&range, 0, sizeof(range));
 	range.flags = priv->flags;
-
+	if (priv->sreg_proto_min) {
+		range.min_proto.all =
+			*(__be16 *)&regs->data[priv->sreg_proto_min];
+		range.max_proto.all =
+			*(__be16 *)&regs->data[priv->sreg_proto_max];
+	}
 	regs->verdict.code = nf_nat_masquerade_ipv6(pkt->skb, &range, pkt->out);
 }
 

@@ -1534,6 +1534,7 @@ int ubi_wl_init(struct ubi_device *ubi, struct ubi_attach_info *ai)
 		INIT_LIST_HEAD(&ubi->pq[i]);
 	ubi->pq_head = 0;
 
+	ubi->free_count = 0;
 	list_for_each_entry_safe(aeb, tmp, &ai->erase, u.list) {
 		cond_resched();
 
@@ -1552,7 +1553,6 @@ int ubi_wl_init(struct ubi_device *ubi, struct ubi_attach_info *ai)
 		found_pebs++;
 	}
 
-	ubi->free_count = 0;
 	list_for_each_entry(aeb, &ai->free, u.list) {
 		cond_resched();
 
@@ -1598,19 +1598,44 @@ int ubi_wl_init(struct ubi_device *ubi, struct ubi_attach_info *ai)
 		}
 	}
 
+	list_for_each_entry(aeb, &ai->fastmap, u.list) {
+		cond_resched();
+
+		e = ubi_find_fm_block(ubi, aeb->pnum);
+
+		if (e) {
+			ubi_assert(!ubi->lookuptbl[e->pnum]);
+			ubi->lookuptbl[e->pnum] = e;
+		} else {
+			/*
+			 * Usually old Fastmap PEBs are scheduled for erasure
+			 * and we don't have to care about them but if we face
+			 * an power cut before scheduling them we need to
+			 * take care of them here.
+			 */
+			if (ubi->lookuptbl[aeb->pnum])
+				continue;
+
+			e = kmem_cache_alloc(ubi_wl_entry_slab, GFP_KERNEL);
+			if (!e)
+				goto out_free;
+
+			e->pnum = aeb->pnum;
+			e->ec = aeb->ec;
+			ubi_assert(!ubi->lookuptbl[e->pnum]);
+			ubi->lookuptbl[e->pnum] = e;
+			if (schedule_erase(ubi, e, aeb->vol_id, aeb->lnum, 0)) {
+				wl_entry_destroy(ubi, e);
+				goto out_free;
+			}
+		}
+
+		found_pebs++;
+	}
+
 	dbg_wl("found %i PEBs", found_pebs);
 
-	if (ubi->fm) {
-		ubi_assert(ubi->good_peb_count ==
-			   found_pebs + ubi->fm->used_blocks);
-
-		for (i = 0; i < ubi->fm->used_blocks; i++) {
-			e = ubi->fm->e[i];
-			ubi->lookuptbl[e->pnum] = e;
-		}
-	}
-	else
-		ubi_assert(ubi->good_peb_count == found_pebs);
+	ubi_assert(ubi->good_peb_count == found_pebs);
 
 	reserved_pebs = WL_RESERVED_PEBS;
 	ubi_fastmap_init(ubi, &reserved_pebs);

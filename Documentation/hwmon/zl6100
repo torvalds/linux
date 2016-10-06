@@ -60,7 +60,7 @@ Author: Guenter Roeck <linux@roeck-us.net>
 Description
 -----------
 
-This driver supports hardware montoring for Intersil / Zilker Labs ZL6100 and
+This driver supports hardware monitoring for Intersil / Zilker Labs ZL6100 and
 compatible digital DC-DC controllers.
 
 The driver is a client driver to the core PMBus driver. Please see

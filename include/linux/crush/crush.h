@@ -59,7 +59,8 @@ enum {
 	CRUSH_RULE_SET_CHOOSELEAF_TRIES = 9, /* override chooseleaf_descend_once */
 	CRUSH_RULE_SET_CHOOSE_LOCAL_TRIES = 10,
 	CRUSH_RULE_SET_CHOOSE_LOCAL_FALLBACK_TRIES = 11,
-	CRUSH_RULE_SET_CHOOSELEAF_VARY_R = 12
+	CRUSH_RULE_SET_CHOOSELEAF_VARY_R = 12,
+	CRUSH_RULE_SET_CHOOSELEAF_STABLE = 13
 };
 
 /*
@@ -204,6 +205,11 @@ struct crush_map {
 	 * that want to limit reshuffling, a value of 3 or 4 will make the
 	 * mappings line up a bit better with previous mappings. */
 	__u8 chooseleaf_vary_r;
+
+	/* if true, it makes chooseleaf firstn to return stable results (if
+	 * no local retry) so that data migrations would be optimal when some
+	 * device fails. */
+	__u8 chooseleaf_stable;
 
 #ifndef __KERNEL__
 	/*

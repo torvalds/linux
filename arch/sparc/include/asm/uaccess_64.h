@@ -210,8 +210,11 @@ unsigned long copy_from_user_fixup(void *to, const void __user *from,
 static inline unsigned long __must_check
 copy_from_user(void *to, const void __user *from, unsigned long size)
 {
-	unsigned long ret = ___copy_from_user(to, from, size);
+	unsigned long ret;
 
+	check_object_size(to, size, false);
+
+	ret = ___copy_from_user(to, from, size);
 	if (unlikely(ret))
 		ret = copy_from_user_fixup(to, from, size);
 
@@ -227,8 +230,11 @@ unsigned long copy_to_user_fixup(void __user *to, const void *from,
 static inline unsigned long __must_check
 copy_to_user(void __user *to, const void *from, unsigned long size)
 {
-	unsigned long ret = ___copy_to_user(to, from, size);
+	unsigned long ret;
 
+	check_object_size(from, size, true);
+
+	ret = ___copy_to_user(to, from, size);
 	if (unlikely(ret))
 		ret = copy_to_user_fixup(to, from, size);
 	return ret;

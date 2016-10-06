@@ -394,7 +394,7 @@ enum RPADIR_BIT {
 #define DEFAULT_FDR_INIT	0x00000707
 
 /* ARSTR */
-enum ARSTR_BIT { ARSTR_ARSTR = 0x00000001, };
+enum ARSTR_BIT { ARSTR_ARST = 0x00000001, };
 
 /* TSU_FWEN0 */
 enum TSU_FWEN0_BIT {
@@ -518,7 +518,6 @@ struct sh_eth_private {
 	/* MII transceiver section. */
 	u32 phy_id;			/* PHY ID */
 	struct mii_bus *mii_bus;	/* MDIO bus control */
-	struct phy_device *phydev;	/* PHY device control */
 	int link;
 	phy_interface_t phy_interface;
 	int msg_enable;

@@ -174,15 +174,16 @@ do {									\
 	}								\
 } while (0)
 
+
+struct rtl_priv;
+
+__printf(5, 6)
+void _rtl_dbg_trace(struct rtl_priv *rtlpriv, int comp, int level,
+		    const char *modname, const char *fmt, ...);
+
 #define RT_TRACE(rtlpriv, comp, level, fmt, ...)			\
-do {									\
-	if (unlikely(((comp) & rtlpriv->dbg.global_debugcomponents) &&	\
-		     ((level) <= rtlpriv->dbg.global_debuglevel))) {	\
-		printk(KERN_DEBUG KBUILD_MODNAME ":%s():<%lx-%x> " fmt,	\
-		       __func__, in_interrupt(), in_atomic(),		\
-		       ##__VA_ARGS__);					\
-	}								\
-} while (0)
+	_rtl_dbg_trace(rtlpriv, comp, level,				\
+		       KBUILD_MODNAME, fmt, ##__VA_ARGS__)
 
 #define RTPRINT(rtlpriv, dbgtype, dbgflag, fmt, ...)			\
 do {									\

@@ -301,7 +301,7 @@ static void divvy_up_power(u32 *req_power, u32 *max_power, int num_actors,
 	capped_extra_power = 0;
 	extra_power = 0;
 	for (i = 0; i < num_actors; i++) {
-		u64 req_range = req_power[i] * power_range;
+		u64 req_range = (u64)req_power[i] * power_range;
 
 		granted_power[i] = DIV_ROUND_CLOSEST_ULL(req_range,
 							 total_req_power);
@@ -529,7 +529,9 @@ static void allow_maximum_power(struct thermal_zone_device *tz)
 			continue;
 
 		instance->target = 0;
+		mutex_lock(&instance->cdev->lock);
 		instance->cdev->updated = false;
+		mutex_unlock(&instance->cdev->lock);
 		thermal_cdev_update(instance->cdev);
 	}
 }

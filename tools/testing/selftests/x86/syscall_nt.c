@@ -17,6 +17,9 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <string.h>
+#include <signal.h>
+#include <err.h>
 #include <sys/syscall.h>
 #include <asm/processor-flags.h>
 
@@ -25,6 +28,8 @@
 #else
 # define WIDTH "l"
 #endif
+
+static unsigned int nerrs;
 
 static unsigned long get_eflags(void)
 {
@@ -39,16 +44,52 @@ static void set_eflags(unsigned long eflags)
 		      : : "rm" (eflags) : "flags");
 }
 
-int main()
+static void sethandler(int sig, void (*handler)(int, siginfo_t *, void *),
+		       int flags)
+{
+	struct sigaction sa;
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_sigaction = handler;
+	sa.sa_flags = SA_SIGINFO | flags;
+	sigemptyset(&sa.sa_mask);
+	if (sigaction(sig, &sa, 0))
+		err(1, "sigaction");
+}
+
+static void sigtrap(int sig, siginfo_t *si, void *ctx_void)
+{
+}
+
+static void do_it(unsigned long extraflags)
+{
+	unsigned long flags;
+
+	set_eflags(get_eflags() | extraflags);
+	syscall(SYS_getpid);
+	flags = get_eflags();
+	if ((flags & extraflags) == extraflags) {
+		printf("[OK]\tThe syscall worked and flags are still set\n");
+	} else {
+		printf("[FAIL]\tThe syscall worked but flags were cleared (flags = 0x%lx but expected 0x%lx set)\n",
+		       flags, extraflags);
+		nerrs++;
+	}
+}
+
+int main(void)
 {
 	printf("[RUN]\tSet NT and issue a syscall\n");
-	set_eflags(get_eflags() | X86_EFLAGS_NT);
-	syscall(SYS_getpid);
-	if (get_eflags() & X86_EFLAGS_NT) {
-		printf("[OK]\tThe syscall worked and NT is still set\n");
-		return 0;
-	} else {
-		printf("[FAIL]\tThe syscall worked but NT was cleared\n");
-		return 1;
-	}
+	do_it(X86_EFLAGS_NT);
+
+	/*
+	 * Now try it again with TF set -- TF forces returns via IRET in all
+	 * cases except non-ptregs-using 64-bit full fast path syscalls.
+	 */
+
+	sethandler(SIGTRAP, sigtrap, 0);
+
+	printf("[RUN]\tSet NT|TF and issue a syscall\n");
+	do_it(X86_EFLAGS_NT | X86_EFLAGS_TF);
+
+	return nerrs == 0 ? 0 : 1;
 }

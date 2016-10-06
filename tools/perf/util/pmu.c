@@ -98,7 +98,7 @@ static int perf_pmu__parse_scale(struct perf_pmu_alias *alias, char *dir, char *
 	char scale[128];
 	int fd, ret = -1;
 	char path[PATH_MAX];
-	const char *lc;
+	char *lc;
 
 	snprintf(path, PATH_MAX, "%s/%s.scale", dir, name);
 
@@ -124,6 +124,17 @@ static int perf_pmu__parse_scale(struct perf_pmu_alias *alias, char *dir, char *
 	lc = setlocale(LC_NUMERIC, NULL);
 
 	/*
+	 * The lc string may be allocated in static storage,
+	 * so get a dynamic copy to make it survive setlocale
+	 * call below.
+	 */
+	lc = strdup(lc);
+	if (!lc) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	/*
 	 * force to C locale to ensure kernel
 	 * scale string is converted correctly.
 	 * kernel uses default C locale.
@@ -134,6 +145,8 @@ static int perf_pmu__parse_scale(struct perf_pmu_alias *alias, char *dir, char *
 
 	/* restore locale */
 	setlocale(LC_NUMERIC, lc);
+
+	free(lc);
 
 	ret = 0;
 error:
@@ -153,7 +166,7 @@ static int perf_pmu__parse_unit(struct perf_pmu_alias *alias, char *dir, char *n
 	if (fd == -1)
 		return -1;
 
-		sret = read(fd, alias->unit, UNIT_MAX_LEN);
+	sret = read(fd, alias->unit, UNIT_MAX_LEN);
 	if (sret < 0)
 		goto error;
 
@@ -284,13 +297,12 @@ static int pmu_aliases_parse(char *dir, struct list_head *head)
 {
 	struct dirent *evt_ent;
 	DIR *event_dir;
-	int ret = 0;
 
 	event_dir = opendir(dir);
 	if (!event_dir)
 		return -EINVAL;
 
-	while (!ret && (evt_ent = readdir(event_dir))) {
+	while ((evt_ent = readdir(event_dir))) {
 		char path[PATH_MAX];
 		char *name = evt_ent->d_name;
 		FILE *file;
@@ -306,17 +318,19 @@ static int pmu_aliases_parse(char *dir, struct list_head *head)
 
 		snprintf(path, PATH_MAX, "%s/%s", dir, name);
 
-		ret = -EINVAL;
 		file = fopen(path, "r");
-		if (!file)
-			break;
+		if (!file) {
+			pr_debug("Cannot open %s\n", path);
+			continue;
+		}
 
-		ret = perf_pmu__new_alias(head, dir, name, file);
+		if (perf_pmu__new_alias(head, dir, name, file) < 0)
+			pr_debug("Cannot set up %s\n", name);
 		fclose(file);
 	}
 
 	closedir(event_dir);
-	return ret;
+	return 0;
 }
 
 /*
@@ -354,7 +368,7 @@ static int pmu_alias_terms(struct perf_pmu_alias *alias,
 	list_for_each_entry(term, &alias->terms, list) {
 		ret = parse_events_term__clone(&cloned, term);
 		if (ret) {
-			parse_events__free_terms(&list);
+			parse_events_terms__purge(&list);
 			return ret;
 		}
 		list_add_tail(&cloned->list, &list);
@@ -431,14 +445,23 @@ static struct cpu_map *pmu_cpumask(const char *name)
 	FILE *file;
 	struct cpu_map *cpus;
 	const char *sysfs = sysfs__mountpoint();
+	const char *templates[] = {
+		 "%s/bus/event_source/devices/%s/cpumask",
+		 "%s/bus/event_source/devices/%s/cpus",
+		 NULL
+	};
+	const char **template;
 
 	if (!sysfs)
 		return NULL;
 
-	snprintf(path, PATH_MAX,
-		 "%s/bus/event_source/devices/%s/cpumask", sysfs, name);
+	for (template = templates; *template; template++) {
+		snprintf(path, PATH_MAX, *template, sysfs, name);
+		if (stat(path, &st) == 0)
+			break;
+	}
 
-	if (stat(path, &st) < 0)
+	if (!*template)
 		return NULL;
 
 	file = fopen(path, "r");
@@ -588,14 +611,13 @@ static void pmu_format_value(unsigned long *format, __u64 value, __u64 *v,
 
 static __u64 pmu_format_max_value(const unsigned long *format)
 {
-	int w;
+	__u64 w = 0;
+	int fbit;
 
-	w = bitmap_weight(format, PERF_PMU_FORMAT_BITS);
-	if (!w)
-		return 0;
-	if (w < 64)
-		return (1ULL << w) - 1;
-	return -1;
+	for_each_set_bit(fbit, format, PERF_PMU_FORMAT_BITS)
+		w |= (1ULL << fbit);
+
+	return w;
 }
 
 /*
@@ -630,20 +652,20 @@ static int pmu_resolve_param_term(struct parse_events_term *term,
 static char *pmu_formats_string(struct list_head *formats)
 {
 	struct perf_pmu_format *format;
-	char *str;
-	struct strbuf buf;
+	char *str = NULL;
+	struct strbuf buf = STRBUF_INIT;
 	unsigned i = 0;
 
 	if (!formats)
 		return NULL;
 
-	strbuf_init(&buf, 0);
 	/* sysfs exported terms */
 	list_for_each_entry(format, formats, list)
-		strbuf_addf(&buf, i++ ? ",%s" : "%s",
-			    format->name);
+		if (strbuf_addf(&buf, i++ ? ",%s" : "%s", format->name) < 0)
+			goto error;
 
 	str = strbuf_detach(&buf, NULL);
+error:
 	strbuf_release(&buf);
 
 	return str;

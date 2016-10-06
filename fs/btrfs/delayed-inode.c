@@ -34,7 +34,7 @@ int __init btrfs_delayed_inode_init(void)
 	delayed_node_cache = kmem_cache_create("btrfs_delayed_node",
 					sizeof(struct btrfs_delayed_node),
 					0,
-					SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD,
+					SLAB_MEM_SPREAD,
 					NULL);
 	if (!delayed_node_cache)
 		return -ENOMEM;
@@ -43,8 +43,7 @@ int __init btrfs_delayed_inode_init(void)
 
 void btrfs_delayed_inode_exit(void)
 {
-	if (delayed_node_cache)
-		kmem_cache_destroy(delayed_node_cache);
+	kmem_cache_destroy(delayed_node_cache);
 }
 
 static inline void btrfs_init_delayed_node(
@@ -135,7 +134,7 @@ again:
 	/* cached in the btrfs inode and can be accessed */
 	atomic_add(2, &node->refs);
 
-	ret = radix_tree_preload(GFP_NOFS & ~__GFP_HIGHMEM);
+	ret = radix_tree_preload(GFP_NOFS);
 	if (ret) {
 		kmem_cache_free(delayed_node_cache, node);
 		return ERR_PTR(ret);
@@ -554,7 +553,7 @@ static int btrfs_delayed_item_reserve_metadata(struct btrfs_trans_handle *trans,
 	dst_rsv = &root->fs_info->delayed_block_rsv;
 
 	num_bytes = btrfs_calc_trans_metadata_size(root, 1);
-	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes);
+	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes, 1);
 	if (!ret) {
 		trace_btrfs_space_reservation(root->fs_info, "delayed_item",
 					      item->key.objectid,
@@ -599,6 +598,29 @@ static int btrfs_delayed_inode_reserve_metadata(
 	num_bytes = btrfs_calc_trans_metadata_size(root, 1);
 
 	/*
+	 * If our block_rsv is the delalloc block reserve then check and see if
+	 * we have our extra reservation for updating the inode.  If not fall
+	 * through and try to reserve space quickly.
+	 *
+	 * We used to try and steal from the delalloc block rsv or the global
+	 * reserve, but we'd steal a full reservation, which isn't kind.  We are
+	 * here through delalloc which means we've likely just cowed down close
+	 * to the leaf that contains the inode, so we would steal less just
+	 * doing the fallback inode update, so if we do end up having to steal
+	 * from the global block rsv we hopefully only steal one or two blocks
+	 * worth which is less likely to hurt us.
+	 */
+	if (src_rsv && src_rsv->type == BTRFS_BLOCK_RSV_DELALLOC) {
+		spin_lock(&BTRFS_I(inode)->lock);
+		if (test_and_clear_bit(BTRFS_INODE_DELALLOC_META_RESERVED,
+				       &BTRFS_I(inode)->runtime_flags))
+			release = true;
+		else
+			src_rsv = NULL;
+		spin_unlock(&BTRFS_I(inode)->lock);
+	}
+
+	/*
 	 * btrfs_dirty_inode will update the inode under btrfs_join_transaction
 	 * which doesn't reserve space for speed.  This is a problem since we
 	 * still need to reserve space for this update, so try to reserve the
@@ -627,46 +649,10 @@ static int btrfs_delayed_inode_reserve_metadata(
 						      num_bytes, 1);
 		}
 		return ret;
-	} else if (src_rsv->type == BTRFS_BLOCK_RSV_DELALLOC) {
-		spin_lock(&BTRFS_I(inode)->lock);
-		if (test_and_clear_bit(BTRFS_INODE_DELALLOC_META_RESERVED,
-				       &BTRFS_I(inode)->runtime_flags)) {
-			spin_unlock(&BTRFS_I(inode)->lock);
-			release = true;
-			goto migrate;
-		}
-		spin_unlock(&BTRFS_I(inode)->lock);
-
-		/* Ok we didn't have space pre-reserved.  This shouldn't happen
-		 * too often but it can happen if we do delalloc to an existing
-		 * inode which gets dirtied because of the time update, and then
-		 * isn't touched again until after the transaction commits and
-		 * then we try to write out the data.  First try to be nice and
-		 * reserve something strictly for us.  If not be a pain and try
-		 * to steal from the delalloc block rsv.
-		 */
-		ret = btrfs_block_rsv_add(root, dst_rsv, num_bytes,
-					  BTRFS_RESERVE_NO_FLUSH);
-		if (!ret)
-			goto out;
-
-		ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes);
-		if (!WARN_ON(ret))
-			goto out;
-
-		/*
-		 * Ok this is a problem, let's just steal from the global rsv
-		 * since this really shouldn't happen that often.
-		 */
-		ret = btrfs_block_rsv_migrate(&root->fs_info->global_block_rsv,
-					      dst_rsv, num_bytes);
-		goto out;
 	}
 
-migrate:
-	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes);
+	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes, 1);
 
-out:
 	/*
 	 * Migrate only takes a reservation, it doesn't touch the size of the
 	 * block_rsv.  This is to simplify people who don't normally have things
@@ -1184,7 +1170,7 @@ static int __btrfs_run_delayed_items(struct btrfs_trans_handle *trans,
 		if (ret) {
 			btrfs_release_delayed_node(curr_node);
 			curr_node = NULL;
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 			break;
 		}
 
@@ -1602,15 +1588,23 @@ int btrfs_inode_delayed_dir_index_count(struct inode *inode)
 	return 0;
 }
 
-void btrfs_get_delayed_items(struct inode *inode, struct list_head *ins_list,
-			     struct list_head *del_list)
+bool btrfs_readdir_get_delayed_items(struct inode *inode,
+				     struct list_head *ins_list,
+				     struct list_head *del_list)
 {
 	struct btrfs_delayed_node *delayed_node;
 	struct btrfs_delayed_item *item;
 
 	delayed_node = btrfs_get_delayed_node(inode);
 	if (!delayed_node)
-		return;
+		return false;
+
+	/*
+	 * We can only do one readdir with delayed items at a time because of
+	 * item->readdir_list.
+	 */
+	inode_unlock_shared(inode);
+	inode_lock(inode);
 
 	mutex_lock(&delayed_node->mutex);
 	item = __btrfs_first_delayed_insertion_item(delayed_node);
@@ -1637,10 +1631,13 @@ void btrfs_get_delayed_items(struct inode *inode, struct list_head *ins_list,
 	 * requeue or dequeue this delayed node.
 	 */
 	atomic_dec(&delayed_node->refs);
+
+	return true;
 }
 
-void btrfs_put_delayed_items(struct list_head *ins_list,
-			     struct list_head *del_list)
+void btrfs_readdir_put_delayed_items(struct inode *inode,
+				     struct list_head *ins_list,
+				     struct list_head *del_list)
 {
 	struct btrfs_delayed_item *curr, *next;
 
@@ -1655,6 +1652,12 @@ void btrfs_put_delayed_items(struct list_head *ins_list,
 		if (atomic_dec_and_test(&curr->refs))
 			kfree(curr);
 	}
+
+	/*
+	 * The VFS is going to do up_read(), so we need to downgrade back to a
+	 * read lock.
+	 */
+	downgrade_write(&inode->i_rwsem);
 }
 
 int btrfs_should_delete_dir_index(struct list_head *del_list,
@@ -1689,7 +1692,7 @@ int btrfs_should_delete_dir_index(struct list_head *del_list,
  *
  */
 int btrfs_readdir_delayed_dir_index(struct dir_context *ctx,
-				    struct list_head *ins_list)
+				    struct list_head *ins_list, bool *emitted)
 {
 	struct btrfs_dir_item *di;
 	struct btrfs_delayed_item *curr, *next;
@@ -1733,6 +1736,7 @@ int btrfs_readdir_delayed_dir_index(struct dir_context *ctx,
 
 		if (over)
 			return 1;
+		*emitted = true;
 	}
 	return 0;
 }

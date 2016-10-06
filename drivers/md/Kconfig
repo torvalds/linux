@@ -249,6 +249,7 @@ config DM_DEBUG_BLOCK_STACK_TRACING
 	 block manager locking used by thin provisioning and caching.
 
 	 If unsure, say N.
+
 config DM_BIO_PRISON
        tristate
        depends on BLK_DEV_DM
@@ -303,16 +304,6 @@ config DM_CACHE
          device.  Different 'policy' plugins can be used to change the
          algorithms used to select which blocks are promoted, demoted,
          cleaned etc.  It supports writeback and writethrough modes.
-
-config DM_CACHE_MQ
-       tristate "MQ Cache Policy (EXPERIMENTAL)"
-       depends on DM_CACHE
-       default y
-       ---help---
-         A cache policy that uses a multiqueue ordered by recent hit
-         count to select which blocks should be promoted and demoted.
-         This is meant to be a general purpose policy.  It prioritises
-         reads over writes.
 
 config DM_CACHE_SMQ
        tristate "Stochastic MQ Cache Policy (EXPERIMENTAL)"

@@ -148,6 +148,37 @@ ssize_t iio_enum_write(struct iio_dev *indio_dev,
 }
 
 /**
+ * struct iio_mount_matrix - iio mounting matrix
+ * @rotation: 3 dimensional space rotation matrix defining sensor alignment with
+ *            main hardware
+ */
+struct iio_mount_matrix {
+	const char *rotation[9];
+};
+
+ssize_t iio_show_mount_matrix(struct iio_dev *indio_dev, uintptr_t priv,
+			      const struct iio_chan_spec *chan, char *buf);
+int of_iio_read_mount_matrix(const struct device *dev, const char *propname,
+			     struct iio_mount_matrix *matrix);
+
+typedef const struct iio_mount_matrix *
+	(iio_get_mount_matrix_t)(const struct iio_dev *indio_dev,
+				 const struct iio_chan_spec *chan);
+
+/**
+ * IIO_MOUNT_MATRIX() - Initialize mount matrix extended channel attribute
+ * @_shared:	Whether the attribute is shared between all channels
+ * @_get:	Pointer to an iio_get_mount_matrix_t accessor
+ */
+#define IIO_MOUNT_MATRIX(_shared, _get) \
+{ \
+	.name = "mount_matrix", \
+	.shared = (_shared), \
+	.read = iio_show_mount_matrix, \
+	.private = (uintptr_t)(_get), \
+}
+
+/**
  * struct iio_event_spec - specification for a channel event
  * @type:		    Type of the event
  * @dir:		    Direction of the event
@@ -180,18 +211,18 @@ struct iio_event_spec {
  * @address:		Driver specific identifier.
  * @scan_index:		Monotonic index to give ordering in scans when read
  *			from a buffer.
- * @scan_type:		Sign:		's' or 'u' to specify signed or unsigned
+ * @scan_type:		sign:		's' or 'u' to specify signed or unsigned
  *			realbits:	Number of valid bits of data
- *			storage_bits:	Realbits + padding
+ *			storagebits:	Realbits + padding
  *			shift:		Shift right by this before masking out
  *					realbits.
- *			endianness:	little or big endian
  *			repeat:		Number of times real/storage bits
  *					repeats. When the repeat element is
  *					more than 1, then the type element in
  *					sysfs will show a repeat value.
  *					Otherwise, the number of repetitions is
  *					omitted.
+ *			endianness:	little or big endian
  * @info_mask_separate: What information is to be exported that is specific to
  *			this channel.
  * @info_mask_shared_by_type: What information is to be exported that is shared
@@ -281,13 +312,8 @@ static inline bool iio_channel_has_info(const struct iio_chan_spec *chan,
 		},							\
 }
 
-/**
- * iio_get_time_ns() - utility function to get a time stamp for events etc
- **/
-static inline s64 iio_get_time_ns(void)
-{
-	return ktime_get_real_ns();
-}
+s64 iio_get_time_ns(const struct iio_dev *indio_dev);
+unsigned int iio_get_time_res(const struct iio_dev *indio_dev);
 
 /* Device operating modes */
 #define INDIO_DIRECT_MODE		0x01
@@ -448,7 +474,7 @@ struct iio_buffer_setup_ops {
  * @buffer:		[DRIVER] any buffer present
  * @buffer_list:	[INTERN] list of all buffers currently attached
  * @scan_bytes:		[INTERN] num bytes captured to be fed to buffer demux
- * @mlock:		[INTERN] lock used to prevent simultaneous device state
+ * @mlock:		[DRIVER] lock used to prevent simultaneous device state
  *			changes
  * @available_scan_masks: [DRIVER] optional array of allowed bitmasks
  * @masklength:		[INTERN] the length of the mask established from
@@ -457,6 +483,7 @@ struct iio_buffer_setup_ops {
  * @scan_timestamp:	[INTERN] set if any buffers have requested timestamp
  * @scan_index_timestamp:[INTERN] cache of the index to the timestamp
  * @trig:		[INTERN] current device trigger (buffer modes)
+ * @trig_readonly	[INTERN] mark the current trigger immutable
  * @pollfunc:		[DRIVER] function run on trigger being received
  * @pollfunc_event:	[DRIVER] function run on events trigger being received
  * @channels:		[DRIVER] channel specification structure table
@@ -466,6 +493,7 @@ struct iio_buffer_setup_ops {
  * @chan_attr_group:	[INTERN] group for all attrs in base directory
  * @name:		[DRIVER] name of the device.
  * @info:		[DRIVER] callbacks and constant info from driver
+ * @clock_id:		[INTERN] timestamping clock posix identifier
  * @info_exist_lock:	[INTERN] lock to prevent use during removal
  * @setup_ops:		[DRIVER] callbacks to call before and after buffer
  *			enable/disable
@@ -496,6 +524,7 @@ struct iio_dev {
 	bool				scan_timestamp;
 	unsigned			scan_index_timestamp;
 	struct iio_trigger		*trig;
+	bool				trig_readonly;
 	struct iio_poll_func		*pollfunc;
 	struct iio_poll_func		*pollfunc_event;
 
@@ -506,6 +535,7 @@ struct iio_dev {
 	struct attribute_group		chan_attr_group;
 	const char			*name;
 	const struct iio_info		*info;
+	clockid_t			clock_id;
 	struct mutex			info_exist_lock;
 	const struct iio_buffer_setup_ops	*setup_ops;
 	struct cdev			chrdev;
@@ -527,17 +557,28 @@ void iio_device_unregister(struct iio_dev *indio_dev);
 int devm_iio_device_register(struct device *dev, struct iio_dev *indio_dev);
 void devm_iio_device_unregister(struct device *dev, struct iio_dev *indio_dev);
 int iio_push_event(struct iio_dev *indio_dev, u64 ev_code, s64 timestamp);
+int iio_device_claim_direct_mode(struct iio_dev *indio_dev);
+void iio_device_release_direct_mode(struct iio_dev *indio_dev);
 
 extern struct bus_type iio_bus_type;
 
 /**
  * iio_device_put() - reference counted deallocation of struct device
- * @indio_dev: 		IIO device structure containing the device
+ * @indio_dev: IIO device structure containing the device
  **/
 static inline void iio_device_put(struct iio_dev *indio_dev)
 {
 	if (indio_dev)
 		put_device(&indio_dev->dev);
+}
+
+/**
+ * iio_device_get_clock() - Retrieve current timestamping clock for the device
+ * @indio_dev: IIO device structure containing the device
+ */
+static inline clockid_t iio_device_get_clock(const struct iio_dev *indio_dev)
+{
+	return indio_dev->clock_id;
 }
 
 /**
@@ -603,6 +644,7 @@ static inline struct iio_dev *iio_priv_to_dev(void *priv)
 }
 
 void iio_device_free(struct iio_dev *indio_dev);
+int devm_iio_device_match(struct device *dev, void *res, void *data);
 struct iio_dev *devm_iio_device_alloc(struct device *dev, int sizeof_priv);
 void devm_iio_device_free(struct device *dev, struct iio_dev *indio_dev);
 struct iio_trigger *devm_iio_trigger_alloc(struct device *dev,

@@ -19,6 +19,9 @@
 #include <linux/rtc.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/hwmon.h>
+#include <linux/hwmon-sysfs.h>
+#include <linux/clk-provider.h>
 
 /*
  * We can't determine type by probing, but if we expect pre-Linux code
@@ -89,6 +92,7 @@ enum ds_type {
 #	define DS1340_BIT_OSF		0x80
 #define DS1337_REG_STATUS	0x0f
 #	define DS1337_BIT_OSF		0x80
+#	define DS3231_BIT_EN32KHZ	0x08
 #	define DS1337_BIT_A2I		0x02
 #	define DS1337_BIT_A1I		0x01
 #define DS1339_REG_ALARM1_SECS	0x07
@@ -118,6 +122,9 @@ struct ds1307 {
 			       u8 length, u8 *values);
 	s32 (*write_block_data)(const struct i2c_client *client, u8 command,
 				u8 length, const u8 *values);
+#ifdef CONFIG_COMMON_CLK
+	struct clk_hw		clks[2];
+#endif
 };
 
 struct chip_desc {
@@ -268,9 +275,13 @@ static s32 ds1307_native_smbus_write_block_data(const struct i2c_client *client,
 {
 	u8 suboffset = 0;
 
-	if (length <= I2C_SMBUS_BLOCK_MAX)
-		return i2c_smbus_write_i2c_block_data(client,
+	if (length <= I2C_SMBUS_BLOCK_MAX) {
+		s32 retval = i2c_smbus_write_i2c_block_data(client,
 					command, length, values);
+		if (retval < 0)
+			return retval;
+		return length;
+	}
 
 	while (suboffset < length) {
 		s32 retval = i2c_smbus_write_i2c_block_data(client,
@@ -471,11 +482,6 @@ static int ds1337_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 	t->time.tm_min = bcd2bin(ds1307->regs[1] & 0x7f);
 	t->time.tm_hour = bcd2bin(ds1307->regs[2] & 0x3f);
 	t->time.tm_mday = bcd2bin(ds1307->regs[3] & 0x3f);
-	t->time.tm_mon = -1;
-	t->time.tm_year = -1;
-	t->time.tm_wday = -1;
-	t->time.tm_yday = -1;
-	t->time.tm_isdst = -1;
 
 	/* ... and status */
 	t->enabled = !!(ds1307->regs[7] & DS1337_BIT_A1IE);
@@ -531,12 +537,8 @@ static int ds1337_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	buf[5] = 0;
 	buf[6] = 0;
 
-	/* optionally enable ALARM1 */
+	/* disable alarms */
 	buf[7] = control & ~(DS1337_BIT_A1IE | DS1337_BIT_A2IE);
-	if (t->enabled) {
-		dev_dbg(dev, "alarm IRQ armed\n");
-		buf[7] |= DS1337_BIT_A1IE;	/* only ALARM1 is used */
-	}
 	buf[8] = status & ~(DS1337_BIT_A1I | DS1337_BIT_A2I);
 
 	ret = ds1307->write_block_data(client,
@@ -544,6 +546,13 @@ static int ds1337_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	if (ret < 0) {
 		dev_err(dev, "can't set alarm time\n");
 		return ret;
+	}
+
+	/* optionally enable ALARM1 */
+	if (t->enabled) {
+		dev_dbg(dev, "alarm IRQ armed\n");
+		buf[7] |= DS1337_BIT_A1IE;	/* only ALARM1 is used */
+		i2c_smbus_write_byte_data(client, DS1337_REG_CONTROL, buf[7]);
 	}
 
 	return 0;
@@ -588,6 +597,8 @@ static const struct rtc_class_ops ds13xx_rtc_ops = {
  * Alarm support for mcp794xx devices.
  */
 
+#define MCP794XX_REG_WEEKDAY		0x3
+#define MCP794XX_REG_WEEKDAY_WDAY_MASK	0x7
 #define MCP794XX_REG_CONTROL		0x07
 #	define MCP794XX_BIT_ALM0_EN	0x10
 #	define MCP794XX_BIT_ALM1_EN	0x20
@@ -842,17 +853,391 @@ out:
 	return;
 }
 
+/*----------------------------------------------------------------------*/
+
+#ifdef CONFIG_RTC_DRV_DS1307_HWMON
+
+/*
+ * Temperature sensor support for ds3231 devices.
+ */
+
+#define DS3231_REG_TEMPERATURE	0x11
+
+/*
+ * A user-initiated temperature conversion is not started by this function,
+ * so the temperature is updated once every 64 seconds.
+ */
+static int ds3231_hwmon_read_temp(struct device *dev, s32 *mC)
+{
+	struct ds1307 *ds1307 = dev_get_drvdata(dev);
+	u8 temp_buf[2];
+	s16 temp;
+	int ret;
+
+	ret = ds1307->read_block_data(ds1307->client, DS3231_REG_TEMPERATURE,
+					sizeof(temp_buf), temp_buf);
+	if (ret < 0)
+		return ret;
+	if (ret != sizeof(temp_buf))
+		return -EIO;
+
+	/*
+	 * Temperature is represented as a 10-bit code with a resolution of
+	 * 0.25 degree celsius and encoded in two's complement format.
+	 */
+	temp = (temp_buf[0] << 8) | temp_buf[1];
+	temp >>= 6;
+	*mC = temp * 250;
+
+	return 0;
+}
+
+static ssize_t ds3231_hwmon_show_temp(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	int ret;
+	s32 temp;
+
+	ret = ds3231_hwmon_read_temp(dev, &temp);
+	if (ret)
+		return ret;
+
+	return sprintf(buf, "%d\n", temp);
+}
+static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, ds3231_hwmon_show_temp,
+			NULL, 0);
+
+static struct attribute *ds3231_hwmon_attrs[] = {
+	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(ds3231_hwmon);
+
+static void ds1307_hwmon_register(struct ds1307 *ds1307)
+{
+	struct device *dev;
+
+	if (ds1307->type != ds_3231)
+		return;
+
+	dev = devm_hwmon_device_register_with_groups(&ds1307->client->dev,
+						ds1307->client->name,
+						ds1307, ds3231_hwmon_groups);
+	if (IS_ERR(dev)) {
+		dev_warn(&ds1307->client->dev,
+			"unable to register hwmon device %ld\n", PTR_ERR(dev));
+	}
+}
+
+#else
+
+static void ds1307_hwmon_register(struct ds1307 *ds1307)
+{
+}
+
+#endif /* CONFIG_RTC_DRV_DS1307_HWMON */
+
+/*----------------------------------------------------------------------*/
+
+/*
+ * Square-wave output support for DS3231
+ * Datasheet: https://datasheets.maximintegrated.com/en/ds/DS3231.pdf
+ */
+#ifdef CONFIG_COMMON_CLK
+
+enum {
+	DS3231_CLK_SQW = 0,
+	DS3231_CLK_32KHZ,
+};
+
+#define clk_sqw_to_ds1307(clk)	\
+	container_of(clk, struct ds1307, clks[DS3231_CLK_SQW])
+#define clk_32khz_to_ds1307(clk)	\
+	container_of(clk, struct ds1307, clks[DS3231_CLK_32KHZ])
+
+static int ds3231_clk_sqw_rates[] = {
+	1,
+	1024,
+	4096,
+	8192,
+};
+
+static int ds1337_write_control(struct ds1307 *ds1307, u8 mask, u8 value)
+{
+	struct i2c_client *client = ds1307->client;
+	struct mutex *lock = &ds1307->rtc->ops_lock;
+	int control;
+	int ret;
+
+	mutex_lock(lock);
+
+	control = i2c_smbus_read_byte_data(client, DS1337_REG_CONTROL);
+	if (control < 0) {
+		ret = control;
+		goto out;
+	}
+
+	control &= ~mask;
+	control |= value;
+
+	ret = i2c_smbus_write_byte_data(client, DS1337_REG_CONTROL, control);
+out:
+	mutex_unlock(lock);
+
+	return ret;
+}
+
+static unsigned long ds3231_clk_sqw_recalc_rate(struct clk_hw *hw,
+						unsigned long parent_rate)
+{
+	struct ds1307 *ds1307 = clk_sqw_to_ds1307(hw);
+	int control;
+	int rate_sel = 0;
+
+	control = i2c_smbus_read_byte_data(ds1307->client, DS1337_REG_CONTROL);
+	if (control < 0)
+		return control;
+	if (control & DS1337_BIT_RS1)
+		rate_sel += 1;
+	if (control & DS1337_BIT_RS2)
+		rate_sel += 2;
+
+	return ds3231_clk_sqw_rates[rate_sel];
+}
+
+static long ds3231_clk_sqw_round_rate(struct clk_hw *hw, unsigned long rate,
+					unsigned long *prate)
+{
+	int i;
+
+	for (i = ARRAY_SIZE(ds3231_clk_sqw_rates) - 1; i >= 0; i--) {
+		if (ds3231_clk_sqw_rates[i] <= rate)
+			return ds3231_clk_sqw_rates[i];
+	}
+
+	return 0;
+}
+
+static int ds3231_clk_sqw_set_rate(struct clk_hw *hw, unsigned long rate,
+					unsigned long parent_rate)
+{
+	struct ds1307 *ds1307 = clk_sqw_to_ds1307(hw);
+	int control = 0;
+	int rate_sel;
+
+	for (rate_sel = 0; rate_sel < ARRAY_SIZE(ds3231_clk_sqw_rates);
+			rate_sel++) {
+		if (ds3231_clk_sqw_rates[rate_sel] == rate)
+			break;
+	}
+
+	if (rate_sel == ARRAY_SIZE(ds3231_clk_sqw_rates))
+		return -EINVAL;
+
+	if (rate_sel & 1)
+		control |= DS1337_BIT_RS1;
+	if (rate_sel & 2)
+		control |= DS1337_BIT_RS2;
+
+	return ds1337_write_control(ds1307, DS1337_BIT_RS1 | DS1337_BIT_RS2,
+				control);
+}
+
+static int ds3231_clk_sqw_prepare(struct clk_hw *hw)
+{
+	struct ds1307 *ds1307 = clk_sqw_to_ds1307(hw);
+
+	return ds1337_write_control(ds1307, DS1337_BIT_INTCN, 0);
+}
+
+static void ds3231_clk_sqw_unprepare(struct clk_hw *hw)
+{
+	struct ds1307 *ds1307 = clk_sqw_to_ds1307(hw);
+
+	ds1337_write_control(ds1307, DS1337_BIT_INTCN, DS1337_BIT_INTCN);
+}
+
+static int ds3231_clk_sqw_is_prepared(struct clk_hw *hw)
+{
+	struct ds1307 *ds1307 = clk_sqw_to_ds1307(hw);
+	int control;
+
+	control = i2c_smbus_read_byte_data(ds1307->client, DS1337_REG_CONTROL);
+	if (control < 0)
+		return control;
+
+	return !(control & DS1337_BIT_INTCN);
+}
+
+static const struct clk_ops ds3231_clk_sqw_ops = {
+	.prepare = ds3231_clk_sqw_prepare,
+	.unprepare = ds3231_clk_sqw_unprepare,
+	.is_prepared = ds3231_clk_sqw_is_prepared,
+	.recalc_rate = ds3231_clk_sqw_recalc_rate,
+	.round_rate = ds3231_clk_sqw_round_rate,
+	.set_rate = ds3231_clk_sqw_set_rate,
+};
+
+static unsigned long ds3231_clk_32khz_recalc_rate(struct clk_hw *hw,
+						unsigned long parent_rate)
+{
+	return 32768;
+}
+
+static int ds3231_clk_32khz_control(struct ds1307 *ds1307, bool enable)
+{
+	struct i2c_client *client = ds1307->client;
+	struct mutex *lock = &ds1307->rtc->ops_lock;
+	int status;
+	int ret;
+
+	mutex_lock(lock);
+
+	status = i2c_smbus_read_byte_data(client, DS1337_REG_STATUS);
+	if (status < 0) {
+		ret = status;
+		goto out;
+	}
+
+	if (enable)
+		status |= DS3231_BIT_EN32KHZ;
+	else
+		status &= ~DS3231_BIT_EN32KHZ;
+
+	ret = i2c_smbus_write_byte_data(client, DS1337_REG_STATUS, status);
+out:
+	mutex_unlock(lock);
+
+	return ret;
+}
+
+static int ds3231_clk_32khz_prepare(struct clk_hw *hw)
+{
+	struct ds1307 *ds1307 = clk_32khz_to_ds1307(hw);
+
+	return ds3231_clk_32khz_control(ds1307, true);
+}
+
+static void ds3231_clk_32khz_unprepare(struct clk_hw *hw)
+{
+	struct ds1307 *ds1307 = clk_32khz_to_ds1307(hw);
+
+	ds3231_clk_32khz_control(ds1307, false);
+}
+
+static int ds3231_clk_32khz_is_prepared(struct clk_hw *hw)
+{
+	struct ds1307 *ds1307 = clk_32khz_to_ds1307(hw);
+	int status;
+
+	status = i2c_smbus_read_byte_data(ds1307->client, DS1337_REG_STATUS);
+	if (status < 0)
+		return status;
+
+	return !!(status & DS3231_BIT_EN32KHZ);
+}
+
+static const struct clk_ops ds3231_clk_32khz_ops = {
+	.prepare = ds3231_clk_32khz_prepare,
+	.unprepare = ds3231_clk_32khz_unprepare,
+	.is_prepared = ds3231_clk_32khz_is_prepared,
+	.recalc_rate = ds3231_clk_32khz_recalc_rate,
+};
+
+static struct clk_init_data ds3231_clks_init[] = {
+	[DS3231_CLK_SQW] = {
+		.name = "ds3231_clk_sqw",
+		.ops = &ds3231_clk_sqw_ops,
+	},
+	[DS3231_CLK_32KHZ] = {
+		.name = "ds3231_clk_32khz",
+		.ops = &ds3231_clk_32khz_ops,
+	},
+};
+
+static int ds3231_clks_register(struct ds1307 *ds1307)
+{
+	struct i2c_client *client = ds1307->client;
+	struct device_node *node = client->dev.of_node;
+	struct clk_onecell_data	*onecell;
+	int i;
+
+	onecell = devm_kzalloc(&client->dev, sizeof(*onecell), GFP_KERNEL);
+	if (!onecell)
+		return -ENOMEM;
+
+	onecell->clk_num = ARRAY_SIZE(ds3231_clks_init);
+	onecell->clks = devm_kcalloc(&client->dev, onecell->clk_num,
+					sizeof(onecell->clks[0]), GFP_KERNEL);
+	if (!onecell->clks)
+		return -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(ds3231_clks_init); i++) {
+		struct clk_init_data init = ds3231_clks_init[i];
+
+		/*
+		 * Interrupt signal due to alarm conditions and square-wave
+		 * output share same pin, so don't initialize both.
+		 */
+		if (i == DS3231_CLK_SQW && test_bit(HAS_ALARM, &ds1307->flags))
+			continue;
+
+		/* optional override of the clockname */
+		of_property_read_string_index(node, "clock-output-names", i,
+						&init.name);
+		ds1307->clks[i].init = &init;
+
+		onecell->clks[i] = devm_clk_register(&client->dev,
+							&ds1307->clks[i]);
+		if (IS_ERR(onecell->clks[i]))
+			return PTR_ERR(onecell->clks[i]);
+	}
+
+	if (!node)
+		return 0;
+
+	of_clk_add_provider(node, of_clk_src_onecell_get, onecell);
+
+	return 0;
+}
+
+static void ds1307_clks_register(struct ds1307 *ds1307)
+{
+	int ret;
+
+	if (ds1307->type != ds_3231)
+		return;
+
+	ret = ds3231_clks_register(ds1307);
+	if (ret) {
+		dev_warn(&ds1307->client->dev,
+			"unable to register clock device %d\n", ret);
+	}
+}
+
+#else
+
+static void ds1307_clks_register(struct ds1307 *ds1307)
+{
+}
+
+#endif /* CONFIG_COMMON_CLK */
+
 static int ds1307_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct ds1307		*ds1307;
 	int			err = -ENODEV;
-	int			tmp;
+	int			tmp, wday;
 	struct chip_desc	*chip = &chips[id->driver_data];
 	struct i2c_adapter	*adapter = to_i2c_adapter(client->dev.parent);
 	bool			want_irq = false;
+	bool			ds1307_can_wakeup_device = false;
 	unsigned char		*buf;
 	struct ds1307_platform_data *pdata = dev_get_platdata(&client->dev);
+	struct rtc_time		tm;
+	unsigned long		timestamp;
+
 	irq_handler_t	irq_handler = ds1307_irq;
 
 	static const int	bbsqi_bitpos[] = {
@@ -898,6 +1283,20 @@ static int ds1307_probe(struct i2c_client *client,
 		ds1307->write_block_data = ds1307_write_block_data;
 	}
 
+#ifdef CONFIG_OF
+/*
+ * For devices with no IRQ directly connected to the SoC, the RTC chip
+ * can be forced as a wakeup source by stating that explicitly in
+ * the device's .dts file using the "wakeup-source" boolean property.
+ * If the "wakeup-source" property is set, don't request an IRQ.
+ * This will guarantee the 'wakealarm' sysfs entry is available on the device,
+ * if supported by the RTC.
+ */
+	if (of_property_read_bool(client->dev.of_node, "wakeup-source")) {
+		ds1307_can_wakeup_device = true;
+	}
+#endif
+
 	switch (ds1307->type) {
 	case ds_1337:
 	case ds_1339:
@@ -916,11 +1315,13 @@ static int ds1307_probe(struct i2c_client *client,
 			ds1307->regs[0] &= ~DS1337_BIT_nEOSC;
 
 		/*
-		 * Using IRQ?  Disable the square wave and both alarms.
+		 * Using IRQ or defined as wakeup-source?
+		 * Disable the square wave and both alarms.
 		 * For some variants, be sure alarms can trigger when we're
 		 * running on Vbackup (BBSQI/BBSQW)
 		 */
-		if (ds1307->client->irq > 0 && chip->alarm) {
+		if (chip->alarm && (ds1307->client->irq > 0 ||
+						ds1307_can_wakeup_device)) {
 			ds1307->regs[0] |= DS1337_BIT_INTCN
 					| bbsqi_bitpos[ds1307->type];
 			ds1307->regs[0] &= ~(DS1337_BIT_A2IE | DS1337_BIT_A1IE);
@@ -1125,6 +1526,27 @@ read_rtc:
 				bin2bcd(tmp));
 	}
 
+	/*
+	 * Some IPs have weekday reset value = 0x1 which might not correct
+	 * hence compute the wday using the current date/month/year values
+	 */
+	ds1307_get_time(&client->dev, &tm);
+	wday = tm.tm_wday;
+	timestamp = rtc_tm_to_time64(&tm);
+	rtc_time64_to_tm(timestamp, &tm);
+
+	/*
+	 * Check if reset wday is different from the computed wday
+	 * If different then set the wday which we computed using
+	 * timestamp
+	 */
+	if (wday != tm.tm_wday) {
+		wday = i2c_smbus_read_byte_data(client, MCP794XX_REG_WEEKDAY);
+		wday = wday & ~MCP794XX_REG_WEEKDAY_WDAY_MASK;
+		wday = wday | (tm.tm_wday + 1);
+		i2c_smbus_write_byte_data(client, MCP794XX_REG_WEEKDAY, wday);
+	}
+
 	if (want_irq) {
 		device_set_wakeup_capable(&client->dev, true);
 		set_bit(HAS_ALARM, &ds1307->flags);
@@ -1133,6 +1555,14 @@ read_rtc:
 				rtc_ops, THIS_MODULE);
 	if (IS_ERR(ds1307->rtc)) {
 		return PTR_ERR(ds1307->rtc);
+	}
+
+	if (ds1307_can_wakeup_device && ds1307->client->irq <= 0) {
+		/* Disable request for an IRQ */
+		want_irq = false;
+		dev_info(&client->dev, "'wakeup-source' is set, request for an IRQ is disabled!\n");
+		/* We cannot support UIE mode if we do not have an IRQ line */
+		ds1307->rtc->uie_unsupported = 1;
 	}
 
 	if (want_irq) {
@@ -1181,6 +1611,9 @@ read_rtc:
 			}
 		}
 	}
+
+	ds1307_hwmon_register(ds1307);
+	ds1307_clks_register(ds1307);
 
 	return 0;
 

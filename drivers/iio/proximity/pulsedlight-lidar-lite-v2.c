@@ -87,7 +87,7 @@ static int lidar_i2c_xfer(struct lidar_data *data, u8 reg, u8 *val, int len)
 
 	ret = i2c_transfer(client->adapter, msg, 2);
 
-	return (ret == 2) ? 0 : ret;
+	return (ret == 2) ? 0 : -EIO;
 }
 
 static int lidar_smbus_xfer(struct lidar_data *data, u8 reg, u8 *val, int len)
@@ -203,22 +203,19 @@ static int lidar_read_raw(struct iio_dev *indio_dev,
 	struct lidar_data *data = iio_priv(indio_dev);
 	int ret = -EINVAL;
 
-	mutex_lock(&indio_dev->mlock);
-
-	if (iio_buffer_enabled(indio_dev) && mask == IIO_CHAN_INFO_RAW) {
-		ret = -EBUSY;
-		goto error_busy;
-	}
-
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW: {
 		u16 reg;
+
+		if (iio_device_claim_direct_mode(indio_dev))
+			return -EBUSY;
 
 		ret = lidar_get_measurement(data, &reg);
 		if (!ret) {
 			*val = reg;
 			ret = IIO_VAL_INT;
 		}
+		iio_device_release_direct_mode(indio_dev);
 		break;
 	}
 	case IIO_CHAN_INFO_SCALE:
@@ -227,9 +224,6 @@ static int lidar_read_raw(struct iio_dev *indio_dev,
 		ret = IIO_VAL_INT_PLUS_MICRO;
 		break;
 	}
-
-error_busy:
-	mutex_unlock(&indio_dev->mlock);
 
 	return ret;
 }
@@ -244,7 +238,7 @@ static irqreturn_t lidar_trigger_handler(int irq, void *private)
 	ret = lidar_get_measurement(data, data->buffer);
 	if (!ret) {
 		iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
-						   iio_get_time_ns());
+						   iio_get_time_ns(indio_dev));
 	} else if (ret != -EINVAL) {
 		dev_err(&data->client->dev, "cannot read LIDAR measurement");
 	}
@@ -278,7 +272,7 @@ static int lidar_probe(struct i2c_client *client,
 				I2C_FUNC_SMBUS_WORD_DATA | I2C_FUNC_SMBUS_BYTE))
 		data->xfer = lidar_smbus_xfer;
 	else
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	indio_dev->info = &lidar_info;
 	indio_dev->name = LIDAR_DRV_NAME;

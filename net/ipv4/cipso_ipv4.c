@@ -135,76 +135,6 @@ int cipso_v4_rbm_strictvalid = 1;
  */
 
 /**
- * cipso_v4_bitmap_walk - Walk a bitmap looking for a bit
- * @bitmap: the bitmap
- * @bitmap_len: length in bits
- * @offset: starting offset
- * @state: if non-zero, look for a set (1) bit else look for a cleared (0) bit
- *
- * Description:
- * Starting at @offset, walk the bitmap from left to right until either the
- * desired bit is found or we reach the end.  Return the bit offset, -1 if
- * not found, or -2 if error.
- */
-static int cipso_v4_bitmap_walk(const unsigned char *bitmap,
-				u32 bitmap_len,
-				u32 offset,
-				u8 state)
-{
-	u32 bit_spot;
-	u32 byte_offset;
-	unsigned char bitmask;
-	unsigned char byte;
-
-	/* gcc always rounds to zero when doing integer division */
-	byte_offset = offset / 8;
-	byte = bitmap[byte_offset];
-	bit_spot = offset;
-	bitmask = 0x80 >> (offset % 8);
-
-	while (bit_spot < bitmap_len) {
-		if ((state && (byte & bitmask) == bitmask) ||
-		    (state == 0 && (byte & bitmask) == 0))
-			return bit_spot;
-
-		bit_spot++;
-		bitmask >>= 1;
-		if (bitmask == 0) {
-			byte = bitmap[++byte_offset];
-			bitmask = 0x80;
-		}
-	}
-
-	return -1;
-}
-
-/**
- * cipso_v4_bitmap_setbit - Sets a single bit in a bitmap
- * @bitmap: the bitmap
- * @bit: the bit
- * @state: if non-zero, set the bit (1) else clear the bit (0)
- *
- * Description:
- * Set a single bit in the bitmask.  Returns zero on success, negative values
- * on error.
- */
-static void cipso_v4_bitmap_setbit(unsigned char *bitmap,
-				   u32 bit,
-				   u8 state)
-{
-	u32 byte_spot;
-	u8 bitmask;
-
-	/* gcc always rounds to zero when doing integer division */
-	byte_spot = bit / 8;
-	bitmask = 0x80 >> (bit % 8);
-	if (state)
-		bitmap[byte_spot] |= bitmask;
-	else
-		bitmap[byte_spot] &= ~bitmask;
-}
-
-/**
  * cipso_v4_cache_entry_free - Frees a cache entry
  * @entry: the entry to free
  *
@@ -840,10 +770,10 @@ static int cipso_v4_map_cat_rbm_valid(const struct cipso_v4_doi *doi_def,
 		cipso_cat_size = doi_def->map.std->cat.cipso_size;
 		cipso_array = doi_def->map.std->cat.cipso;
 		for (;;) {
-			cat = cipso_v4_bitmap_walk(bitmap,
-						   bitmap_len_bits,
-						   cat + 1,
-						   1);
+			cat = netlbl_bitmap_walk(bitmap,
+						 bitmap_len_bits,
+						 cat + 1,
+						 1);
 			if (cat < 0)
 				break;
 			if (cat >= cipso_cat_size ||
@@ -909,7 +839,7 @@ static int cipso_v4_map_cat_rbm_hton(const struct cipso_v4_doi *doi_def,
 		}
 		if (net_spot >= net_clen_bits)
 			return -ENOSPC;
-		cipso_v4_bitmap_setbit(net_cat, net_spot, 1);
+		netlbl_bitmap_setbit(net_cat, net_spot, 1);
 
 		if (net_spot > net_spot_max)
 			net_spot_max = net_spot;
@@ -951,10 +881,10 @@ static int cipso_v4_map_cat_rbm_ntoh(const struct cipso_v4_doi *doi_def,
 	}
 
 	for (;;) {
-		net_spot = cipso_v4_bitmap_walk(net_cat,
-						net_clen_bits,
-						net_spot + 1,
-						1);
+		net_spot = netlbl_bitmap_walk(net_cat,
+					      net_clen_bits,
+					      net_spot + 1,
+					      1);
 		if (net_spot < 0) {
 			if (net_spot == -2)
 				return -EFAULT;
@@ -1933,7 +1863,8 @@ int cipso_v4_sock_setattr(struct sock *sk,
 
 	sk_inet = inet_sk(sk);
 
-	old = rcu_dereference_protected(sk_inet->inet_opt, sock_owned_by_user(sk));
+	old = rcu_dereference_protected(sk_inet->inet_opt,
+					lockdep_sock_is_held(sk));
 	if (sk_inet->is_icsk) {
 		sk_conn = inet_csk(sk);
 		if (old)

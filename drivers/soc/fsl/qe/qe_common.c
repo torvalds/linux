@@ -103,6 +103,39 @@ out_muram:
 }
 
 /*
+ * cpm_muram_alloc_common - cpm_muram_alloc common code
+ * @size: number of bytes to allocate
+ * @algo: algorithm for alloc.
+ * @data: data for genalloc's algorithm.
+ *
+ * This function returns an offset into the muram area.
+ */
+static unsigned long cpm_muram_alloc_common(unsigned long size,
+		genpool_algo_t algo, void *data)
+{
+	struct muram_block *entry;
+	unsigned long start;
+
+	start = gen_pool_alloc_algo(muram_pool, size, algo, data);
+	if (!start)
+		goto out2;
+	start = start - GENPOOL_OFFSET;
+	memset_io(cpm_muram_addr(start), 0, size);
+	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
+	if (!entry)
+		goto out1;
+	entry->start = start;
+	entry->size = size;
+	list_add(&entry->head, &muram_block_list);
+
+	return start;
+out1:
+	gen_pool_free(muram_pool, start, size);
+out2:
+	return (unsigned long)-ENOMEM;
+}
+
+/*
  * cpm_muram_alloc - allocate the requested size worth of multi-user ram
  * @size: number of bytes to allocate
  * @align: requested alignment, in bytes
@@ -174,39 +207,6 @@ unsigned long cpm_muram_alloc_fixed(unsigned long offset, unsigned long size)
 	return start;
 }
 EXPORT_SYMBOL(cpm_muram_alloc_fixed);
-
-/*
- * cpm_muram_alloc_common - cpm_muram_alloc common code
- * @size: number of bytes to allocate
- * @algo: algorithm for alloc.
- * @data: data for genalloc's algorithm.
- *
- * This function returns an offset into the muram area.
- */
-unsigned long cpm_muram_alloc_common(unsigned long size, genpool_algo_t algo,
-				     void *data)
-{
-	struct muram_block *entry;
-	unsigned long start;
-
-	start = gen_pool_alloc_algo(muram_pool, size, algo, data);
-	if (!start)
-		goto out2;
-	start = start - GENPOOL_OFFSET;
-	memset_io(cpm_muram_addr(start), 0, size);
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry)
-		goto out1;
-	entry->start = start;
-	entry->size = size;
-	list_add(&entry->head, &muram_block_list);
-
-	return start;
-out1:
-	gen_pool_free(muram_pool, start, size);
-out2:
-	return (unsigned long)-ENOMEM;
-}
 
 /**
  * cpm_muram_addr - turn a muram offset into a virtual address

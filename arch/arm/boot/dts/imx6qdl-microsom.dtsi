@@ -143,7 +143,7 @@
 &uart4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_microsom_brcm_bt &pinctrl_microsom_uart4>;
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	status = "okay";
 };
 
@@ -154,6 +154,7 @@
 	bus-width = <4>;
 	mmc-pwrseq = <&usdhc1_pwrseq>;
 	keep-power-in-suspend;
+	no-1-8-v;
 	non-removable;
 	vmmc-supply = <&reg_brcm>;
 	status = "okay";

@@ -43,6 +43,8 @@ enum brcmf_bus_protocol_type {
 	BRCMF_PROTO_MSGBUF
 };
 
+struct brcmf_mp_device;
+
 struct brcmf_bus_dcmd {
 	char *name;
 	char *param;
@@ -214,10 +216,12 @@ bool brcmf_c_prec_enq(struct device *dev, struct pktq *q, struct sk_buff *pkt,
 		      int prec);
 
 /* Receive frame for delivery to OS.  Callee disposes of rxp. */
-void brcmf_rx_frame(struct device *dev, struct sk_buff *rxp);
+void brcmf_rx_frame(struct device *dev, struct sk_buff *rxp, bool handle_event);
+/* Receive async event packet from firmware. Callee disposes of rxp. */
+void brcmf_rx_event(struct device *dev, struct sk_buff *rxp);
 
 /* Indication from bus module regarding presence/insertion of dongle. */
-int brcmf_attach(struct device *dev);
+int brcmf_attach(struct device *dev, struct brcmf_mp_device *settings);
 /* Indication from bus module regarding removal/absence of dongle */
 void brcmf_detach(struct device *dev);
 /* Indication from bus module that dongle should be reset */

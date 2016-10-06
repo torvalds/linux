@@ -188,13 +188,6 @@ static const struct drm_encoder_funcs mdp5_cmd_encoder_funcs = {
 	.destroy = mdp5_cmd_encoder_destroy,
 };
 
-static bool mdp5_cmd_encoder_mode_fixup(struct drm_encoder *encoder,
-		const struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void mdp5_cmd_encoder_mode_set(struct drm_encoder *encoder,
 		struct drm_display_mode *mode,
 		struct drm_display_mode *adjusted_mode)
@@ -256,7 +249,6 @@ static void mdp5_cmd_encoder_enable(struct drm_encoder *encoder)
 }
 
 static const struct drm_encoder_helper_funcs mdp5_cmd_encoder_helper_funcs = {
-	.mode_fixup = mdp5_cmd_encoder_mode_fixup,
 	.mode_set = mdp5_cmd_encoder_mode_set,
 	.disable = mdp5_cmd_encoder_disable,
 	.enable = mdp5_cmd_encoder_enable,
@@ -280,22 +272,22 @@ int mdp5_cmd_encoder_set_split_display(struct drm_encoder *encoder,
 	 * start signal for the slave encoder
 	 */
 	if (intf_num == 1)
-		data |= MDP5_MDP_SPLIT_DPL_UPPER_INTF2_SW_TRG_MUX;
+		data |= MDP5_SPLIT_DPL_UPPER_INTF2_SW_TRG_MUX;
 	else if (intf_num == 2)
-		data |= MDP5_MDP_SPLIT_DPL_UPPER_INTF1_SW_TRG_MUX;
+		data |= MDP5_SPLIT_DPL_UPPER_INTF1_SW_TRG_MUX;
 	else
 		return -EINVAL;
 
 	/* Smart Panel, Sync mode */
-	data |= MDP5_MDP_SPLIT_DPL_UPPER_SMART_PANEL;
+	data |= MDP5_SPLIT_DPL_UPPER_SMART_PANEL;
 
 	/* Make sure clocks are on when connectors calling this function. */
 	mdp5_enable(mdp5_kms);
-	mdp5_write(mdp5_kms, REG_MDP5_MDP_SPLIT_DPL_UPPER(0), data);
+	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_UPPER, data);
 
-	mdp5_write(mdp5_kms, REG_MDP5_MDP_SPLIT_DPL_LOWER(0),
-			MDP5_MDP_SPLIT_DPL_LOWER_SMART_PANEL);
-	mdp5_write(mdp5_kms, REG_MDP5_MDP_SPLIT_DPL_EN(0), 1);
+	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_LOWER,
+		   MDP5_SPLIT_DPL_LOWER_SMART_PANEL);
+	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_EN, 1);
 	mdp5_disable(mdp5_kms);
 
 	return 0;
@@ -340,4 +332,3 @@ fail:
 
 	return ERR_PTR(ret);
 }
-

@@ -23,6 +23,8 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
+#include <linux/backing-dev.h>
+#include <linux/fscrypto.h>
 
 #include "ext4_jbd2.h"
 #include "xattr.h"
@@ -66,7 +68,6 @@ static void ext4_finish_bio(struct bio *bio)
 		struct page *page = bvec->bv_page;
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
 		struct page *data_page = NULL;
-		struct ext4_crypto_ctx *ctx = NULL;
 #endif
 		struct buffer_head *bh, *head;
 		unsigned bio_start = bvec->bv_offset;
@@ -81,8 +82,7 @@ static void ext4_finish_bio(struct bio *bio)
 		if (!page->mapping) {
 			/* The bounce data pages are unmapped. */
 			data_page = page;
-			ctx = (struct ext4_crypto_ctx *)page_private(data_page);
-			page = ctx->w.control_page;
+			fscrypt_pullback_bio_page(&page, false);
 		}
 #endif
 
@@ -112,8 +112,8 @@ static void ext4_finish_bio(struct bio *bio)
 		local_irq_restore(flags);
 		if (!under_io) {
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
-			if (ctx)
-				ext4_restore_control_page(data_page);
+			if (data_page)
+				fscrypt_restore_control_page(data_page);
 #endif
 			end_page_writeback(page);
 		}
@@ -128,25 +128,12 @@ static void ext4_release_io_end(ext4_io_end_t *io_end)
 	BUG_ON(io_end->flag & EXT4_IO_END_UNWRITTEN);
 	WARN_ON(io_end->handle);
 
-	if (atomic_dec_and_test(&EXT4_I(io_end->inode)->i_ioend_count))
-		wake_up_all(ext4_ioend_wq(io_end->inode));
-
 	for (bio = io_end->bio; bio; bio = next_bio) {
 		next_bio = bio->bi_private;
 		ext4_finish_bio(bio);
 		bio_put(bio);
 	}
 	kmem_cache_free(io_end_cachep, io_end);
-}
-
-static void ext4_clear_io_unwritten_flag(ext4_io_end_t *io_end)
-{
-	struct inode *inode = io_end->inode;
-
-	io_end->flag &= ~EXT4_IO_END_UNWRITTEN;
-	/* Wake up anyone waiting on unwritten extent conversion */
-	if (atomic_dec_and_test(&EXT4_I(inode)->i_unwritten))
-		wake_up_all(ext4_ioend_wq(inode));
 }
 
 /*
@@ -265,7 +252,6 @@ ext4_io_end_t *ext4_init_io_end(struct inode *inode, gfp_t flags)
 {
 	ext4_io_end_t *io = kmem_cache_zalloc(io_end_cachep, flags);
 	if (io) {
-		atomic_inc(&EXT4_I(inode)->i_ioend_count);
 		io->inode = inode;
 		INIT_LIST_HEAD(&io->list);
 		atomic_set(&io->count, 1);
@@ -353,11 +339,10 @@ void ext4_io_submit(struct ext4_io_submit *io)
 	struct bio *bio = io->io_bio;
 
 	if (bio) {
-		int io_op = io->io_wbc->sync_mode == WB_SYNC_ALL ?
-			    WRITE_SYNC : WRITE;
-		bio_get(io->io_bio);
-		submit_bio(io_op, io->io_bio);
-		bio_put(io->io_bio);
+		int io_op_flags = io->io_wbc->sync_mode == WB_SYNC_ALL ?
+				  WRITE_SYNC : 0;
+		bio_set_op_attrs(io->io_bio, REQ_OP_WRITE, io_op_flags);
+		submit_bio(io->io_bio);
 	}
 	io->io_bio = NULL;
 }
@@ -446,8 +431,8 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 	 * the page size, the remaining memory is zeroed when mapped, and
 	 * writes to that region are not written out to the file."
 	 */
-	if (len < PAGE_CACHE_SIZE)
-		zero_user_segment(page, len, PAGE_CACHE_SIZE);
+	if (len < PAGE_SIZE)
+		zero_user_segment(page, len, PAGE_SIZE);
 	/*
 	 * In the first loop we prepare and mark buffers to submit. We have to
 	 * mark all buffers in the page before submitting so that
@@ -484,9 +469,20 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 
 	if (ext4_encrypted_inode(inode) && S_ISREG(inode->i_mode) &&
 	    nr_to_submit) {
-		data_page = ext4_encrypt(inode, page);
+		gfp_t gfp_flags = GFP_NOFS;
+
+	retry_encrypt:
+		data_page = fscrypt_encrypt_page(inode, page, gfp_flags);
 		if (IS_ERR(data_page)) {
 			ret = PTR_ERR(data_page);
+			if (ret == -ENOMEM && wbc->sync_mode == WB_SYNC_ALL) {
+				if (io->io_bio) {
+					ext4_io_submit(io);
+					congestion_wait(BLK_RW_ASYNC, HZ/50);
+				}
+				gfp_flags |= __GFP_NOFAIL;
+				goto retry_encrypt;
+			}
 			data_page = NULL;
 			goto out;
 		}
@@ -514,7 +510,7 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 	if (ret) {
 	out:
 		if (data_page)
-			ext4_restore_control_page(data_page);
+			fscrypt_restore_control_page(data_page);
 		printk_ratelimited(KERN_ERR "%s: ret = %d\n", __func__, ret);
 		redirty_page_for_writepage(wbc, page);
 		do {

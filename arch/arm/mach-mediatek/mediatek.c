@@ -29,6 +29,7 @@ static void __init mediatek_timer_init(void)
 	void __iomem *gpt_base;
 
 	if (of_machine_is_compatible("mediatek,mt6589") ||
+	    of_machine_is_compatible("mediatek,mt7623") ||
 	    of_machine_is_compatible("mediatek,mt8135") ||
 	    of_machine_is_compatible("mediatek,mt8127")) {
 		/* turn on GPT6 which ungates arch timer clocks */
@@ -47,6 +48,7 @@ static const char * const mediatek_board_dt_compat[] = {
 	"mediatek,mt2701",
 	"mediatek,mt6589",
 	"mediatek,mt6592",
+	"mediatek,mt7623",
 	"mediatek,mt8127",
 	"mediatek,mt8135",
 	NULL,

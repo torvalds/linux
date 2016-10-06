@@ -24,7 +24,7 @@
 
 #define DEBUG 1
 
-#include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>

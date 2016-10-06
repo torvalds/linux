@@ -19,6 +19,10 @@
 
 #include "drm.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /* Please note that modifications to all structs defined here are
  * subject to backwards-compatibility constraints:
  *  1) Do not use pointers, use __u64 instead for 32 bit / 64 bit
@@ -48,6 +52,8 @@ struct drm_etnaviv_timespec {
 #define ETNAVIV_PARAM_GPU_FEATURES_2                0x05
 #define ETNAVIV_PARAM_GPU_FEATURES_3                0x06
 #define ETNAVIV_PARAM_GPU_FEATURES_4                0x07
+#define ETNAVIV_PARAM_GPU_FEATURES_5                0x08
+#define ETNAVIV_PARAM_GPU_FEATURES_6                0x09
 
 #define ETNAVIV_PARAM_GPU_STREAM_COUNT              0x10
 #define ETNAVIV_PARAM_GPU_REGISTER_MAX              0x11
@@ -59,6 +65,7 @@ struct drm_etnaviv_timespec {
 #define ETNAVIV_PARAM_GPU_BUFFER_SIZE               0x17
 #define ETNAVIV_PARAM_GPU_INSTRUCTION_COUNT         0x18
 #define ETNAVIV_PARAM_GPU_NUM_CONSTANTS             0x19
+#define ETNAVIV_PARAM_GPU_NUM_VARYINGS              0x1a
 
 #define ETNA_MAX_PIPES 4
 
@@ -218,5 +225,9 @@ struct drm_etnaviv_gem_wait {
 #define DRM_IOCTL_ETNAVIV_WAIT_FENCE   DRM_IOW(DRM_COMMAND_BASE + DRM_ETNAVIV_WAIT_FENCE, struct drm_etnaviv_wait_fence)
 #define DRM_IOCTL_ETNAVIV_GEM_USERPTR  DRM_IOWR(DRM_COMMAND_BASE + DRM_ETNAVIV_GEM_USERPTR, struct drm_etnaviv_gem_userptr)
 #define DRM_IOCTL_ETNAVIV_GEM_WAIT     DRM_IOW(DRM_COMMAND_BASE + DRM_ETNAVIV_GEM_WAIT, struct drm_etnaviv_gem_wait)
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* __ETNAVIV_DRM_H__ */

@@ -1227,7 +1227,7 @@ static int snd_ensoniq_capture_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static struct snd_pcm_ops snd_ensoniq_playback1_ops = {
+static const struct snd_pcm_ops snd_ensoniq_playback1_ops = {
 	.open =		snd_ensoniq_playback1_open,
 	.close =	snd_ensoniq_playback1_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1238,7 +1238,7 @@ static struct snd_pcm_ops snd_ensoniq_playback1_ops = {
 	.pointer =	snd_ensoniq_playback1_pointer,
 };
 
-static struct snd_pcm_ops snd_ensoniq_playback2_ops = {
+static const struct snd_pcm_ops snd_ensoniq_playback2_ops = {
 	.open =		snd_ensoniq_playback2_open,
 	.close =	snd_ensoniq_playback2_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1249,7 +1249,7 @@ static struct snd_pcm_ops snd_ensoniq_playback2_ops = {
 	.pointer =	snd_ensoniq_playback2_pointer,
 };
 
-static struct snd_pcm_ops snd_ensoniq_capture_ops = {
+static const struct snd_pcm_ops snd_ensoniq_capture_ops = {
 	.open =		snd_ensoniq_capture_open,
 	.close =	snd_ensoniq_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1548,7 +1548,7 @@ static int snd_es1373_line_get(struct snd_kcontrol *kcontrol,
 	int val = 0;
 	
 	spin_lock_irq(&ensoniq->reg_lock);
-	if ((ensoniq->ctrl & ES_1371_GPIO_OUTM) >= 4)
+	if (ensoniq->ctrl & ES_1371_GPIO_OUT(4))
 	    	val = 1;
 	ucontrol->value.integer.value[0] = val;
 	spin_unlock_irq(&ensoniq->reg_lock);

@@ -62,9 +62,8 @@ config DUMMY
 	  this device is consigned into oblivion) with a configurable IP
 	  address. It is most commonly used in order to make your currently
 	  inactive SLIP address seem like a real address for local programs.
-	  If you use SLIP or PPP, you might want to say Y here. Since this
-	  thing often comes in handy, the default is Y. It won't enlarge your
-	  kernel either. What a deal. Read about it in the Network
+	  If you use SLIP or PPP, you might want to say Y here. It won't
+	  enlarge your kernel. What a deal. Read about it in the Network
 	  Administrator's Guide, available from
 	  <http://www.tldp.org/docs.html#guide>.
 
@@ -150,6 +149,8 @@ config IPVLAN
     tristate "IP-VLAN support"
     depends on INET
     depends on IPV6
+    depends on NETFILTER
+    depends on NET_L3_MASTER_DEV
     ---help---
       This allows one to create virtual devices off of a main interface
       and packets will be delivered based on the dest L3 (IPv6/IPv4 addr)
@@ -192,6 +193,31 @@ config GENEVE
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called geneve.
+
+config GTP
+	tristate "GPRS Tunneling Protocol datapath (GTP-U)"
+	depends on INET && NET_UDP_TUNNEL
+	select NET_IP_TUNNEL
+	---help---
+	  This allows one to create gtp virtual interfaces that provide
+	  the GPRS Tunneling Protocol datapath (GTP-U). This tunneling protocol
+	  is used to prevent subscribers from accessing mobile carrier core
+	  network infrastructure. This driver requires a userspace software that
+	  implements the signaling protocol (GTP-C) to update its PDP context
+	  base, such as OpenGGSN <http://git.osmocom.org/openggsn/). This
+	  tunneling protocol is implemented according to the GSM TS 09.60 and
+	  3GPP TS 29.060 standards.
+
+	  To compile this drivers as a module, choose M here: the module
+	  wil be called gtp.
+
+config MACSEC
+	tristate "IEEE 802.1AE MAC-level encryption (MACsec)"
+	select CRYPTO
+	select CRYPTO_AES
+	select CRYPTO_GCM
+	---help---
+	   MACsec is an encryption standard for Ethernet.
 
 config NETCONSOLE
 	tristate "Network console logging support"

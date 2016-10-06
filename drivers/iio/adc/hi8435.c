@@ -400,7 +400,7 @@ static void hi8435_iio_push_event(struct iio_dev *idev, unsigned int val)
 			iio_push_event(idev,
 				       IIO_UNMOD_EVENT_CODE(IIO_VOLTAGE, i,
 						    IIO_EV_TYPE_THRESH, dir),
-				       iio_get_time_ns());
+				       iio_get_time_ns(idev));
 		}
 	}
 
@@ -455,6 +455,7 @@ static int hi8435_probe(struct spi_device *spi)
 	mutex_init(&priv->lock);
 
 	idev->dev.parent	= &spi->dev;
+	idev->dev.of_node	= spi->dev.of_node;
 	idev->name		= spi_get_device_id(spi)->name;
 	idev->modes		= INDIO_DIRECT_MODE;
 	idev->info		= &hi8435_info;

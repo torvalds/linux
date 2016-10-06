@@ -140,6 +140,7 @@ static void __init armada_xp_smp_prepare_cpus(unsigned int max_cpus)
 		panic("Cannot find 'marvell,bootrom' compatible node");
 
 	err = of_address_to_resource(node, 0, &res);
+	of_node_put(node);
 	if (err < 0)
 		panic("Cannot get 'bootrom' node address");
 

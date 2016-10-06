@@ -243,6 +243,7 @@ static void bmips_init_secondary(void)
 		break;
 	case CPU_BMIPS5000:
 		write_c0_brcm_action(ACTION_CLR_IPI(smp_processor_id(), 0));
+		current_cpu_data.core = (read_c0_brcm_config() >> 25) & 3;
 		break;
 	}
 }
@@ -362,6 +363,7 @@ static int bmips_cpu_disable(void)
 	pr_info("SMP: CPU%d is offline\n", cpu);
 
 	set_cpu_online(cpu, false);
+	calculate_cpu_foreign_map();
 	cpumask_clear_cpu(cpu, &cpu_callin_map);
 	clear_c0_status(IE_IRQ5);
 
@@ -564,4 +566,91 @@ asmlinkage void __weak plat_wired_tlb_setup(void)
 	 * Kernel stacks and other important data might only be accessible
 	 * once the wired entries are present.
 	 */
+}
+
+void __init bmips_cpu_setup(void)
+{
+	void __iomem __maybe_unused *cbr = BMIPS_GET_CBR();
+	u32 __maybe_unused cfg;
+
+	switch (current_cpu_type()) {
+	case CPU_BMIPS3300:
+		/* Set BIU to async mode */
+		set_c0_brcm_bus_pll(BIT(22));
+		__sync();
+
+		/* put the BIU back in sync mode */
+		clear_c0_brcm_bus_pll(BIT(22));
+
+		/* clear BHTD to enable branch history table */
+		clear_c0_brcm_reset(BIT(16));
+
+		/* Flush and enable RAC */
+		cfg = __raw_readl(cbr + BMIPS_RAC_CONFIG);
+		__raw_writel(cfg | 0x100, BMIPS_RAC_CONFIG);
+		__raw_readl(cbr + BMIPS_RAC_CONFIG);
+
+		cfg = __raw_readl(cbr + BMIPS_RAC_CONFIG);
+		__raw_writel(cfg | 0xf, BMIPS_RAC_CONFIG);
+		__raw_readl(cbr + BMIPS_RAC_CONFIG);
+
+		cfg = __raw_readl(cbr + BMIPS_RAC_ADDRESS_RANGE);
+		__raw_writel(cfg | 0x0fff0000, cbr + BMIPS_RAC_ADDRESS_RANGE);
+		__raw_readl(cbr + BMIPS_RAC_ADDRESS_RANGE);
+		break;
+
+	case CPU_BMIPS4380:
+		/* CBG workaround for early BMIPS4380 CPUs */
+		switch (read_c0_prid()) {
+		case 0x2a040:
+		case 0x2a042:
+		case 0x2a044:
+		case 0x2a060:
+			cfg = __raw_readl(cbr + BMIPS_L2_CONFIG);
+			__raw_writel(cfg & ~0x07000000, cbr + BMIPS_L2_CONFIG);
+			__raw_readl(cbr + BMIPS_L2_CONFIG);
+		}
+
+		/* clear BHTD to enable branch history table */
+		clear_c0_brcm_config_0(BIT(21));
+
+		/* XI/ROTR enable */
+		set_c0_brcm_config_0(BIT(23));
+		set_c0_brcm_cmt_ctrl(BIT(15));
+		break;
+
+	case CPU_BMIPS5000:
+		/* enable RDHWR, BRDHWR */
+		set_c0_brcm_config(BIT(17) | BIT(21));
+
+		/* Disable JTB */
+		__asm__ __volatile__(
+		"	.set	noreorder\n"
+		"	li	$8, 0x5a455048\n"
+		"	.word	0x4088b00f\n"	/* mtc0	t0, $22, 15 */
+		"	.word	0x4008b008\n"	/* mfc0	t0, $22, 8 */
+		"	li	$9, 0x00008000\n"
+		"	or	$8, $8, $9\n"
+		"	.word	0x4088b008\n"	/* mtc0	t0, $22, 8 */
+		"	sync\n"
+		"	li	$8, 0x0\n"
+		"	.word	0x4088b00f\n"	/* mtc0	t0, $22, 15 */
+		"	.set	reorder\n"
+		: : : "$8", "$9");
+
+		/* XI enable */
+		set_c0_brcm_config(BIT(27));
+
+		/* enable MIPS32R2 ROR instruction for XI TLB handlers */
+		__asm__ __volatile__(
+		"	li	$8, 0x5a455048\n"
+		"	.word	0x4088b00f\n"	/* mtc0 $8, $22, 15 */
+		"	nop; nop; nop\n"
+		"	.word	0x4008b008\n"	/* mfc0 $8, $22, 8 */
+		"	lui	$9, 0x0100\n"
+		"	or	$8, $9\n"
+		"	.word	0x4088b008\n"	/* mtc0 $8, $22, 8 */
+		: : : "$8", "$9");
+		break;
+	}
 }

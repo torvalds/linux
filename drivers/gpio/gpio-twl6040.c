@@ -100,19 +100,13 @@ static int gpo_twl6040_probe(struct platform_device *pdev)
 	twl6040gpo_chip.of_node = twl6040_core_dev->of_node;
 #endif
 
-	ret = gpiochip_add_data(&twl6040gpo_chip, NULL);
+	ret = devm_gpiochip_add_data(&pdev->dev, &twl6040gpo_chip, NULL);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "could not register gpiochip, %d\n", ret);
 		twl6040gpo_chip.ngpio = 0;
 	}
 
 	return ret;
-}
-
-static int gpo_twl6040_remove(struct platform_device *pdev)
-{
-	gpiochip_remove(&twl6040gpo_chip);
-	return 0;
 }
 
 /* Note:  this hardware lives inside an I2C-based multi-function device. */
@@ -123,7 +117,6 @@ static struct platform_driver gpo_twl6040_driver = {
 		.name	= "twl6040-gpo",
 	},
 	.probe		= gpo_twl6040_probe,
-	.remove		= gpo_twl6040_remove,
 };
 
 module_platform_driver(gpo_twl6040_driver);

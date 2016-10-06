@@ -125,9 +125,8 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
 
-	mode_cmd.pitches[0] = align_pitch(
-			mode_cmd.width * ((sizes->surface_bpp + 7) / 8),
-			mode_cmd.width, sizes->surface_bpp);
+	mode_cmd.pitches[0] =
+			DIV_ROUND_UP(mode_cmd.width * sizes->surface_bpp, 8);
 
 	fbdev->ywrap_enabled = priv->has_dmm && ywrap_enabled;
 	if (fbdev->ywrap_enabled) {
@@ -153,7 +152,7 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 		/* note: if fb creation failed, we can't rely on fb destroy
 		 * to unref the bo:
 		 */
-		drm_gem_object_unreference(fbdev->bo);
+		drm_gem_object_unreference_unlocked(fbdev->bo);
 		ret = PTR_ERR(fb);
 		goto fail;
 	}
@@ -279,9 +278,6 @@ struct drm_fb_helper *omap_fbdev_init(struct drm_device *dev)
 	ret = drm_fb_helper_single_add_all_connectors(helper);
 	if (ret)
 		goto fini;
-
-	/* disable all the possible outputs/crtcs before entering KMS mode */
-	drm_helper_disable_unused_functions(dev);
 
 	ret = drm_fb_helper_initial_config(helper, 32);
 	if (ret)

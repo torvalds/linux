@@ -21,7 +21,8 @@ struct nfs4_slot {
 	unsigned long		generation;
 	u32			slot_nr;
 	u32		 	seq_nr;
-	unsigned int		interrupted : 1;
+	unsigned int		interrupted : 1,
+				seq_done : 1;
 };
 
 /* Sessions */
@@ -36,6 +37,7 @@ struct nfs4_slot_table {
 	unsigned long   used_slots[SLOT_TABLE_SZ]; /* used/unused bitmap */
 	spinlock_t	slot_tbl_lock;
 	struct rpc_wait_queue	slot_tbl_waitq;	/* allocators may wait here */
+	wait_queue_head_t	slot_waitq;	/* Completion wait on slot */
 	u32		max_slots;		/* # slots in table */
 	u32		max_slotid;		/* Max allowed slotid value */
 	u32		highest_used_slotid;	/* sent to server on each SEQ.
@@ -77,6 +79,11 @@ extern int nfs4_setup_slot_table(struct nfs4_slot_table *tbl,
 		unsigned int max_reqs, const char *queue);
 extern void nfs4_shutdown_slot_table(struct nfs4_slot_table *tbl);
 extern struct nfs4_slot *nfs4_alloc_slot(struct nfs4_slot_table *tbl);
+extern struct nfs4_slot *nfs4_lookup_slot(struct nfs4_slot_table *tbl, u32 slotid);
+extern int nfs4_slot_wait_on_seqid(struct nfs4_slot_table *tbl,
+		u32 slotid, u32 seq_nr,
+		unsigned long timeout);
+extern bool nfs4_try_to_lock_slot(struct nfs4_slot_table *tbl, struct nfs4_slot *slot);
 extern void nfs4_free_slot(struct nfs4_slot_table *tbl, struct nfs4_slot *slot);
 extern void nfs4_slot_tbl_drain_complete(struct nfs4_slot_table *tbl);
 bool nfs41_wake_and_assign_slot(struct nfs4_slot_table *tbl,
@@ -86,6 +93,12 @@ void nfs41_wake_slot_table(struct nfs4_slot_table *tbl);
 static inline bool nfs4_slot_tbl_draining(struct nfs4_slot_table *tbl)
 {
 	return !!test_bit(NFS4_SLOT_TBL_DRAINING, &tbl->slot_tbl_state);
+}
+
+static inline bool nfs4_test_locked_slot(const struct nfs4_slot_table *tbl,
+		u32 slotid)
+{
+	return !!test_bit(slotid, tbl->used_slots);
 }
 
 #if defined(CONFIG_NFS_V4_1)

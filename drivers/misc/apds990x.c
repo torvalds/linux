@@ -1215,7 +1215,7 @@ static int apds990x_remove(struct i2c_client *client)
 #ifdef CONFIG_PM_SLEEP
 static int apds990x_suspend(struct device *dev)
 {
-	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *client = to_i2c_client(dev);
 	struct apds990x_chip *chip = i2c_get_clientdata(client);
 
 	apds990x_chip_off(chip);
@@ -1224,7 +1224,7 @@ static int apds990x_suspend(struct device *dev)
 
 static int apds990x_resume(struct device *dev)
 {
-	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *client = to_i2c_client(dev);
 	struct apds990x_chip *chip = i2c_get_clientdata(client);
 
 	/*
@@ -1240,7 +1240,7 @@ static int apds990x_resume(struct device *dev)
 #ifdef CONFIG_PM
 static int apds990x_runtime_suspend(struct device *dev)
 {
-	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *client = to_i2c_client(dev);
 	struct apds990x_chip *chip = i2c_get_clientdata(client);
 
 	apds990x_chip_off(chip);
@@ -1249,7 +1249,7 @@ static int apds990x_runtime_suspend(struct device *dev)
 
 static int apds990x_runtime_resume(struct device *dev)
 {
-	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *client = to_i2c_client(dev);
 	struct apds990x_chip *chip = i2c_get_clientdata(client);
 
 	apds990x_chip_on(chip);

@@ -105,6 +105,13 @@
 #define USB_REQ_LOOPBACK_DATA_READ	0x16
 #define USB_REQ_SET_INTERFACE_DS	0x17
 
+/* specific requests for USB Power Delivery */
+#define USB_REQ_GET_PARTNER_PDO		20
+#define USB_REQ_GET_BATTERY_STATUS	21
+#define USB_REQ_SET_PDO			22
+#define USB_REQ_GET_VDM			23
+#define USB_REQ_SEND_VDM		24
+
 /* The Link Power Management (LPM) ECN defines USB_REQ_TEST_AND_SET command,
  * used by hubs to put ports into a new L1 suspend state, except that it
  * forgot to define its number ...
@@ -164,6 +171,22 @@
 #define USB_DEV_STAT_U1_ENABLED		2	/* transition into U1 state */
 #define USB_DEV_STAT_U2_ENABLED		3	/* transition into U2 state */
 #define USB_DEV_STAT_LTM_ENABLED	4	/* Latency tolerance messages */
+
+/*
+ * Feature selectors from Table 9-8 USB Power Delivery spec
+ */
+#define USB_DEVICE_BATTERY_WAKE_MASK	40
+#define USB_DEVICE_OS_IS_PD_AWARE	41
+#define USB_DEVICE_POLICY_MODE		42
+#define USB_PORT_PR_SWAP		43
+#define USB_PORT_GOTO_MIN		44
+#define USB_PORT_RETURN_POWER		45
+#define USB_PORT_ACCEPT_PD_REQUEST	46
+#define USB_PORT_REJECT_PD_REQUEST	47
+#define USB_PORT_PORT_PD_RESET		48
+#define USB_PORT_C_PORT_PD_CHANGE	49
+#define USB_PORT_CABLE_PD_RESET		50
+#define USB_DEVICE_CHARGING_POLICY	54
 
 /**
  * struct usb_ctrlrequest - SETUP data for a USB device control request
@@ -234,6 +257,8 @@ struct usb_ctrlrequest {
 #define USB_DT_PIPE_USAGE		0x24
 /* From the USB 3.0 spec */
 #define	USB_DT_SS_ENDPOINT_COMP		0x30
+/* From the USB 3.1 spec */
+#define	USB_DT_SSP_ISOC_ENDPOINT_COMP	0x31
 
 /* Conventional codes for class-specific descriptors.  The convention is
  * defined in the USB "Common Class" Spec (3.11).  Individual class specs
@@ -613,6 +638,20 @@ static inline int usb_endpoint_interrupt_type(
 
 /*-------------------------------------------------------------------------*/
 
+/* USB_DT_SSP_ISOC_ENDPOINT_COMP: SuperSpeedPlus Isochronous Endpoint Companion
+ * descriptor
+ */
+struct usb_ssp_isoc_ep_comp_descriptor {
+	__u8  bLength;
+	__u8  bDescriptorType;
+	__le16 wReseved;
+	__le32 dwBytesPerInterval;
+} __attribute__ ((packed));
+
+#define USB_DT_SSP_ISOC_EP_COMP_SIZE		8
+
+/*-------------------------------------------------------------------------*/
+
 /* USB_DT_SS_ENDPOINT_COMP: SuperSpeed Endpoint Companion descriptor */
 struct usb_ss_ep_comp_descriptor {
 	__u8  bLength;
@@ -646,6 +685,8 @@ usb_ss_max_streams(const struct usb_ss_ep_comp_descriptor *comp)
 
 /* Bits 1:0 of bmAttributes if this is an isoc endpoint */
 #define USB_SS_MULT(p)			(1 + ((p) & 0x3))
+/* Bit 7 of bmAttributes if a SSP isoc endpoint companion descriptor exists */
+#define USB_SS_SSP_ISOC_COMP(p)		((p) & (1 << 7))
 
 /*-------------------------------------------------------------------------*/
 
@@ -690,6 +731,7 @@ struct usb_otg20_descriptor {
 #define USB_OTG_HNP		(1 << 1)	/* swap host/device roles */
 #define USB_OTG_ADP		(1 << 2)	/* support ADP */
 
+#define OTG_STS_SELECTOR	0xF000		/* OTG status selector */
 /*-------------------------------------------------------------------------*/
 
 /* USB_DT_DEBUG:  for special highspeed devices, replacing serial console */
@@ -880,7 +922,7 @@ struct usb_ssp_cap_descriptor {
 	__le32 bmAttributes;
 #define USB_SSP_SUBLINK_SPEED_ATTRIBS	(0x1f << 0) /* sublink speed entries */
 #define USB_SSP_SUBLINK_SPEED_IDS	(0xf << 5)  /* speed ID entries */
-	__u16  wFunctionalitySupport;
+	__le16  wFunctionalitySupport;
 #define USB_SSP_MIN_SUBLINK_SPEED_ATTRIBUTE_ID	(0xf)
 #define USB_SSP_MIN_RX_LANE_COUNT		(0xf << 8)
 #define USB_SSP_MIN_TX_LANE_COUNT		(0xf << 12)
@@ -894,6 +936,120 @@ struct usb_ssp_cap_descriptor {
 #define USB_SSP_SUBLINK_SPEED_LSM	(0xff << 16)	/* Lanespeed mantissa */
 } __attribute__((packed));
 
+/*
+ * USB Power Delivery Capability Descriptor:
+ * Defines capabilities for PD
+ */
+/* Defines the various PD Capabilities of this device */
+#define USB_PD_POWER_DELIVERY_CAPABILITY	0x06
+/* Provides information on each battery supported by the device */
+#define USB_PD_BATTERY_INFO_CAPABILITY		0x07
+/* The Consumer characteristics of a Port on the device */
+#define USB_PD_PD_CONSUMER_PORT_CAPABILITY	0x08
+/* The provider characteristics of a Port on the device */
+#define USB_PD_PD_PROVIDER_PORT_CAPABILITY	0x09
+
+struct usb_pd_cap_descriptor {
+	__u8  bLength;
+	__u8  bDescriptorType;
+	__u8  bDevCapabilityType; /* set to USB_PD_POWER_DELIVERY_CAPABILITY */
+	__u8  bReserved;
+	__le32 bmAttributes;
+#define USB_PD_CAP_BATTERY_CHARGING	(1 << 1) /* supports Battery Charging specification */
+#define USB_PD_CAP_USB_PD		(1 << 2) /* supports USB Power Delivery specification */
+#define USB_PD_CAP_PROVIDER		(1 << 3) /* can provide power */
+#define USB_PD_CAP_CONSUMER		(1 << 4) /* can consume power */
+#define USB_PD_CAP_CHARGING_POLICY	(1 << 5) /* supports CHARGING_POLICY feature */
+#define USB_PD_CAP_TYPE_C_CURRENT	(1 << 6) /* supports power capabilities defined in the USB Type-C Specification */
+
+#define USB_PD_CAP_PWR_AC		(1 << 8)
+#define USB_PD_CAP_PWR_BAT		(1 << 9)
+#define USB_PD_CAP_PWR_USE_V_BUS	(1 << 14)
+
+	__le16 bmProviderPorts; /* Bit zero refers to the UFP of the device */
+	__le16 bmConsumerPorts;
+	__le16 bcdBCVersion;
+	__le16 bcdPDVersion;
+	__le16 bcdUSBTypeCVersion;
+} __attribute__((packed));
+
+struct usb_pd_cap_battery_info_descriptor {
+	__u8 bLength;
+	__u8 bDescriptorType;
+	__u8 bDevCapabilityType;
+	/* Index of string descriptor shall contain the user friendly name for this battery */
+	__u8 iBattery;
+	/* Index of string descriptor shall contain the Serial Number String for this battery */
+	__u8 iSerial;
+	__u8 iManufacturer;
+	__u8 bBatteryId; /* uniquely identifies this battery in status Messages */
+	__u8 bReserved;
+	/*
+	 * Shall contain the Battery Charge value above which this
+	 * battery is considered to be fully charged but not necessarily
+	 * “topped off.”
+	 */
+	__le32 dwChargedThreshold; /* in mWh */
+	/*
+	 * Shall contain the minimum charge level of this battery such
+	 * that above this threshold, a device can be assured of being
+	 * able to power up successfully (see Battery Charging 1.2).
+	 */
+	__le32 dwWeakThreshold; /* in mWh */
+	__le32 dwBatteryDesignCapacity; /* in mWh */
+	__le32 dwBatteryLastFullchargeCapacity; /* in mWh */
+} __attribute__((packed));
+
+struct usb_pd_cap_consumer_port_descriptor {
+	__u8 bLength;
+	__u8 bDescriptorType;
+	__u8 bDevCapabilityType;
+	__u8 bReserved;
+	__u8 bmCapabilities;
+/* port will oerate under: */
+#define USB_PD_CAP_CONSUMER_BC		(1 << 0) /* BC */
+#define USB_PD_CAP_CONSUMER_PD		(1 << 1) /* PD */
+#define USB_PD_CAP_CONSUMER_TYPE_C	(1 << 2) /* USB Type-C Current */
+	__le16 wMinVoltage; /* in 50mV units */
+	__le16 wMaxVoltage; /* in 50mV units */
+	__u16 wReserved;
+	__le32 dwMaxOperatingPower; /* in 10 mW - operating at steady state */
+	__le32 dwMaxPeakPower; /* in 10mW units - operating at peak power */
+	__le32 dwMaxPeakPowerTime; /* in 100ms units - duration of peak */
+#define USB_PD_CAP_CONSUMER_UNKNOWN_PEAK_POWER_TIME 0xffff
+} __attribute__((packed));
+
+struct usb_pd_cap_provider_port_descriptor {
+	__u8 bLength;
+	__u8 bDescriptorType;
+	__u8 bDevCapabilityType;
+	__u8 bReserved1;
+	__u8 bmCapabilities;
+/* port will oerate under: */
+#define USB_PD_CAP_PROVIDER_BC		(1 << 0) /* BC */
+#define USB_PD_CAP_PROVIDER_PD		(1 << 1) /* PD */
+#define USB_PD_CAP_PROVIDER_TYPE_C	(1 << 2) /* USB Type-C Current */
+	__u8 bNumOfPDObjects;
+	__u8 bReserved2;
+	__le32 wPowerDataObject[];
+} __attribute__((packed));
+
+/*
+ * Precision time measurement capability descriptor: advertised by devices and
+ * hubs that support PTM
+ */
+#define	USB_PTM_CAP_TYPE	0xb
+struct usb_ptm_cap_descriptor {
+	__u8  bLength;
+	__u8  bDescriptorType;
+	__u8  bDevCapabilityType;
+} __attribute__((packed));
+
+/*
+ * The size of the descriptor for the Sublink Speed Attribute Count
+ * (SSAC) specified in bmAttributes[4:0].
+ */
+#define USB_DT_USB_SSP_CAP_SIZE(ssac)	(16 + ssac * 4)
 
 /*-------------------------------------------------------------------------*/
 
@@ -954,6 +1110,7 @@ enum usb_device_speed {
 	USB_SPEED_HIGH,				/* usb 2.0 */
 	USB_SPEED_WIRELESS,			/* wireless (usb 2.5) */
 	USB_SPEED_SUPER,			/* usb 3.0 */
+	USB_SPEED_SUPER_PLUS,			/* usb 3.1 */
 };
 
 

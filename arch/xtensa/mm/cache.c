@@ -97,11 +97,11 @@ void clear_user_highpage(struct page *page, unsigned long vaddr)
 	unsigned long paddr;
 	void *kvaddr = coherent_kvaddr(page, TLBTEMP_BASE_1, vaddr, &paddr);
 
-	pagefault_disable();
+	preempt_disable();
 	kmap_invalidate_coherent(page, vaddr);
 	set_bit(PG_arch_1, &page->flags);
 	clear_page_alias(kvaddr, paddr);
-	pagefault_enable();
+	preempt_enable();
 }
 
 void copy_user_highpage(struct page *dst, struct page *src,
@@ -113,11 +113,11 @@ void copy_user_highpage(struct page *dst, struct page *src,
 	void *src_vaddr = coherent_kvaddr(src, TLBTEMP_BASE_2, vaddr,
 					  &src_paddr);
 
-	pagefault_disable();
+	preempt_disable();
 	kmap_invalidate_coherent(dst, vaddr);
 	set_bit(PG_arch_1, &dst->flags);
 	copy_page_alias(dst_vaddr, src_vaddr, dst_paddr, src_paddr);
-	pagefault_enable();
+	preempt_enable();
 }
 
 #endif /* DCACHE_WAY_SIZE > PAGE_SIZE */

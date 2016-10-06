@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -76,8 +72,6 @@ static struct llog_handle *llog_alloc_handle(void)
  */
 static void llog_free_handle(struct llog_handle *loghandle)
 {
-	LASSERT(loghandle != NULL);
-
 	/* failed llog_init_handle */
 	if (!loghandle->lgh_hdr)
 		goto out;
@@ -86,7 +80,7 @@ static void llog_free_handle(struct llog_handle *loghandle)
 		LASSERT(list_empty(&loghandle->u.phd.phd_entry));
 	else if (loghandle->lgh_hdr->llh_flags & LLOG_F_IS_CAT)
 		LASSERT(list_empty(&loghandle->u.chd.chd_head));
-	LASSERT(sizeof(*(loghandle->lgh_hdr)) == LLOG_CHUNK_SIZE);
+	LASSERT(sizeof(*loghandle->lgh_hdr) == LLOG_CHUNK_SIZE);
 	kfree(loghandle->lgh_hdr);
 out:
 	kfree(loghandle);
@@ -115,7 +109,7 @@ static int llog_read_header(const struct lu_env *env,
 	if (rc)
 		return rc;
 
-	if (lop->lop_read_header == NULL)
+	if (!lop->lop_read_header)
 		return -EOPNOTSUPP;
 
 	rc = lop->lop_read_header(env, handle);
@@ -125,8 +119,10 @@ static int llog_read_header(const struct lu_env *env,
 		handle->lgh_last_idx = 0; /* header is record with index 0 */
 		llh->llh_count = 1;	 /* for the header record */
 		llh->llh_hdr.lrh_type = LLOG_HDR_MAGIC;
-		llh->llh_hdr.lrh_len = llh->llh_tail.lrt_len = LLOG_CHUNK_SIZE;
-		llh->llh_hdr.lrh_index = llh->llh_tail.lrt_index = 0;
+		llh->llh_hdr.lrh_len = LLOG_CHUNK_SIZE;
+		llh->llh_tail.lrt_len = LLOG_CHUNK_SIZE;
+		llh->llh_hdr.lrh_index = 0;
+		llh->llh_tail.lrt_index = 0;
 		llh->llh_timestamp = ktime_get_real_seconds();
 		if (uuid)
 			memcpy(&llh->llh_tgtuuid, uuid,
@@ -141,10 +137,11 @@ static int llog_read_header(const struct lu_env *env,
 int llog_init_handle(const struct lu_env *env, struct llog_handle *handle,
 		     int flags, struct obd_uuid *uuid)
 {
+	enum llog_flag fmt = flags & LLOG_F_EXT_MASK;
 	struct llog_log_hdr	*llh;
 	int			 rc;
 
-	LASSERT(handle->lgh_hdr == NULL);
+	LASSERT(!handle->lgh_hdr);
 
 	llh = kzalloc(sizeof(*llh), GFP_NOFS);
 	if (!llh)
@@ -198,6 +195,7 @@ int llog_init_handle(const struct lu_env *env, struct llog_handle *handle,
 		       flags, LLOG_F_IS_CAT, LLOG_F_IS_PLAIN);
 		rc = -EINVAL;
 	}
+	llh->llh_flags |= fmt;
 out:
 	if (rc) {
 		kfree(llh);
@@ -228,14 +226,18 @@ static int llog_process_thread(void *arg)
 		return 0;
 	}
 
-	if (cd != NULL) {
+	if (cd) {
 		last_called_index = cd->lpcd_first_idx;
 		index = cd->lpcd_first_idx + 1;
 	}
-	if (cd != NULL && cd->lpcd_last_idx)
+	if (cd && cd->lpcd_last_idx)
 		last_index = cd->lpcd_last_idx;
 	else
 		last_index = LLOG_BITMAP_BYTES * 8 - 1;
+
+	/* Record is not in this buffer. */
+	if (index > last_index)
+		goto out;
 
 	while (rc == 0) {
 		struct llog_rec_hdr *rec;
@@ -262,11 +264,11 @@ repeat:
 
 		/* NB: when rec->lrh_len is accessed it is already swabbed
 		 * since it is used at the "end" of the loop and the rec
-		 * swabbing is done at the beginning of the loop. */
+		 * swabbing is done at the beginning of the loop.
+		 */
 		for (rec = (struct llog_rec_hdr *)buf;
 		     (char *)rec < buf + LLOG_CHUNK_SIZE;
-		     rec = (struct llog_rec_hdr *)((char *)rec + rec->lrh_len)) {
-
+		     rec = llog_rec_hdr_next(rec)) {
 			CDEBUG(D_OTHER, "processing rec 0x%p type %#x\n",
 			       rec, rec->lrh_type);
 
@@ -328,7 +330,7 @@ repeat:
 	}
 
 out:
-	if (cd != NULL)
+	if (cd)
 		cd->lpcd_last_idx = last_called_index;
 
 	kfree(buf);
@@ -366,27 +368,28 @@ int llog_process_or_fork(const struct lu_env *env,
 	int		      rc;
 
 	lpi = kzalloc(sizeof(*lpi), GFP_NOFS);
-	if (!lpi) {
-		CERROR("cannot alloc pointer\n");
+	if (!lpi)
 		return -ENOMEM;
-	}
 	lpi->lpi_loghandle = loghandle;
 	lpi->lpi_cb	= cb;
 	lpi->lpi_cbdata    = data;
 	lpi->lpi_catdata   = catdata;
 
 	if (fork) {
+		struct task_struct *task;
+
 		/* The new thread can't use parent env,
-		 * init the new one in llog_process_thread_daemonize. */
+		 * init the new one in llog_process_thread_daemonize.
+		 */
 		lpi->lpi_env = NULL;
 		init_completion(&lpi->lpi_completion);
-		rc = PTR_ERR(kthread_run(llog_process_thread_daemonize, lpi,
-					     "llog_process_thread"));
-		if (IS_ERR_VALUE(rc)) {
+		task = kthread_run(llog_process_thread_daemonize, lpi,
+				   "llog_process_thread");
+		if (IS_ERR(task)) {
+			rc = PTR_ERR(task);
 			CERROR("%s: cannot start thread: rc = %d\n",
 			       loghandle->lgh_ctxt->loc_obd->obd_name, rc);
-			kfree(lpi);
-			return rc;
+			goto out_lpi;
 		}
 		wait_for_completion(&lpi->lpi_completion);
 	} else {
@@ -394,6 +397,7 @@ int llog_process_or_fork(const struct lu_env *env,
 		llog_process_thread(lpi);
 	}
 	rc = lpi->lpi_rc;
+out_lpi:
 	kfree(lpi);
 	return rc;
 }
@@ -416,13 +420,13 @@ int llog_open(const struct lu_env *env, struct llog_ctxt *ctxt,
 	LASSERT(ctxt);
 	LASSERT(ctxt->loc_logops);
 
-	if (ctxt->loc_logops->lop_open == NULL) {
+	if (!ctxt->loc_logops->lop_open) {
 		*lgh = NULL;
 		return -EOPNOTSUPP;
 	}
 
 	*lgh = llog_alloc_handle();
-	if (*lgh == NULL)
+	if (!*lgh)
 		return -ENOMEM;
 	(*lgh)->lgh_ctxt = ctxt;
 	(*lgh)->lgh_logops = ctxt->loc_logops;
@@ -449,7 +453,7 @@ int llog_close(const struct lu_env *env, struct llog_handle *loghandle)
 	rc = llog_handle2ops(loghandle, &lop);
 	if (rc)
 		goto out;
-	if (lop->lop_close == NULL) {
+	if (!lop->lop_close) {
 		rc = -EOPNOTSUPP;
 		goto out;
 	}

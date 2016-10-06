@@ -15,7 +15,6 @@
 
 #include <linux/types.h>
 
-struct in6_addr;
 struct inet_bind_bucket;
 struct request_sock;
 struct sk_buff;

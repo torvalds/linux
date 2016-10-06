@@ -4,10 +4,10 @@ TODO:
 - switch to use MAC80211
 - checkpatch.pl fixes - only a few remain
 
-Please send any patches to Greg Kroah-Hartman <greg@kroah.com>,
-Larry Finger <Larry.Finger@lwfinger.net> and
-Florian Schilhabel <florian.c.schilhabel@googlemail.com>.
+A replacement for this driver with MAC80211 support is available
+at https://github.com/chunkeey/rtl8192su
 
-
-
-
+Please send any patches to Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+Larry Finger <Larry.Finger@lwfinger.net>,
+Florian Schilhabel <florian.c.schilhabel@googlemail.com> and
+Linux Driver Project Developer List <driverdev-devel@linuxdriverproject.org>.

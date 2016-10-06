@@ -178,6 +178,7 @@ static int vexpress_config_populate(struct device_node *node)
 
 	parent = class_find_device(vexpress_config_class, NULL, bridge,
 			vexpress_config_node_match);
+	of_node_put(bridge);
 	if (WARN_ON(!parent))
 		return -ENODEV;
 
@@ -192,8 +193,10 @@ static int __init vexpress_config_init(void)
 	/* Need the config devices early, before the "normal" devices... */
 	for_each_compatible_node(node, NULL, "arm,vexpress,config-bus") {
 		err = vexpress_config_populate(node);
-		if (err)
+		if (err) {
+			of_node_put(node);
 			break;
+		}
 	}
 
 	return err;

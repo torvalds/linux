@@ -178,7 +178,6 @@ struct solo_enc_dev {
 	u32			sequence;
 	struct vb2_queue	vidq;
 	struct list_head	vidq_active;
-	void			*alloc_ctx;
 	int			desc_count;
 	int			desc_nelts;
 	struct solo_p2m_desc	*desc_items;
@@ -269,7 +268,6 @@ struct solo_dev {
 
 	/* Buffer handling */
 	struct vb2_queue	vidq;
-	struct vb2_alloc_ctx	*alloc_ctx;
 	u32			sequence;
 	struct task_struct      *kthread;
 	struct mutex		lock;

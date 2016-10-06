@@ -274,6 +274,10 @@ static inline void omap5_irq_save_context(void)
  */
 static void irq_save_context(void)
 {
+	/* DRA7 has no SAR to save */
+	if (soc_is_dra7xx())
+		return;
+
 	if (!sar_base)
 		sar_base = omap4_get_sar_ram_base();
 
@@ -290,6 +294,9 @@ static void irq_sar_clear(void)
 {
 	u32 val;
 	u32 offset = SAR_BACKUP_STATUS_OFFSET;
+	/* DRA7 has no SAR to save */
+	if (soc_is_dra7xx())
+		return;
 
 	if (soc_is_omap54xx())
 		offset = OMAP5_SAR_BACKUP_STATUS_OFFSET;
@@ -315,29 +322,25 @@ static void irq_save_secure_context(void)
 #endif
 
 #ifdef CONFIG_HOTPLUG_CPU
-static int irq_cpu_hotplug_notify(struct notifier_block *self,
-				  unsigned long action, void *hcpu)
+static int omap_wakeupgen_cpu_online(unsigned int cpu)
 {
-	unsigned int cpu = (unsigned int)hcpu;
-
-	switch (action) {
-	case CPU_ONLINE:
-		wakeupgen_irqmask_all(cpu, 0);
-		break;
-	case CPU_DEAD:
-		wakeupgen_irqmask_all(cpu, 1);
-		break;
-	}
-	return NOTIFY_OK;
+	wakeupgen_irqmask_all(cpu, 0);
+	return 0;
 }
 
-static struct notifier_block irq_hotplug_notifier = {
-	.notifier_call = irq_cpu_hotplug_notify,
-};
+static int omap_wakeupgen_cpu_dead(unsigned int cpu)
+{
+	wakeupgen_irqmask_all(cpu, 1);
+	return 0;
+}
 
 static void __init irq_hotplug_init(void)
 {
-	register_hotcpu_notifier(&irq_hotplug_notifier);
+	cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "arm/omap-wake:online",
+				  omap_wakeupgen_cpu_online, NULL);
+	cpuhp_setup_state_nocalls(CPUHP_ARM_OMAP_WAKE_DEAD,
+				  "arm/omap-wake:dead", NULL,
+				  omap_wakeupgen_cpu_dead);
 }
 #else
 static void __init irq_hotplug_init(void)

@@ -85,7 +85,7 @@ union acpi_parse_object;
 #define ACPI_MTX_MEMORY                 5	/* Debug memory tracking lists */
 
 #define ACPI_MAX_MUTEX                  5
-#define ACPI_NUM_MUTEX                  ACPI_MAX_MUTEX+1
+#define ACPI_NUM_MUTEX                  (ACPI_MAX_MUTEX+1)
 
 /* Lock structure for reader/writer interfaces */
 
@@ -103,11 +103,11 @@ struct acpi_rw_lock {
 #define ACPI_LOCK_HARDWARE              1
 
 #define ACPI_MAX_LOCK                   1
-#define ACPI_NUM_LOCK                   ACPI_MAX_LOCK+1
+#define ACPI_NUM_LOCK                   (ACPI_MAX_LOCK+1)
 
 /* This Thread ID means that the mutex is not in use (unlocked) */
 
-#define ACPI_MUTEX_NOT_ACQUIRED         (acpi_thread_id) 0
+#define ACPI_MUTEX_NOT_ACQUIRED         ((acpi_thread_id) 0)
 
 /* This Thread ID means an invalid thread ID */
 
@@ -278,7 +278,7 @@ struct acpi_create_field_info {
 };
 
 typedef
-acpi_status(*acpi_internal_method) (struct acpi_walk_state * walk_state);
+acpi_status (*acpi_internal_method) (struct acpi_walk_state * walk_state);
 
 /*
  * Bitmapped ACPI types. Used internally only
@@ -395,11 +395,12 @@ union acpi_predefined_info {
 
 /* Return object auto-repair info */
 
-typedef acpi_status(*acpi_object_converter) (struct acpi_namespace_node * scope,
-					     union acpi_operand_object
-					     *original_object,
-					     union acpi_operand_object
-					     **converted_object);
+typedef acpi_status (*acpi_object_converter) (struct acpi_namespace_node *
+					      scope,
+					      union acpi_operand_object *
+					      original_object,
+					      union acpi_operand_object **
+					      converted_object);
 
 struct acpi_simple_repair_info {
 	char name[ACPI_NAME_SIZE];
@@ -483,6 +484,7 @@ struct acpi_gpe_event_info {
 	u8 flags;		/* Misc info about this GPE */
 	u8 gpe_number;		/* This GPE */
 	u8 runtime_count;	/* References to a run GPE */
+	u8 disable_for_dispatch;	/* Masked during dispatching */
 };
 
 /* Information about a GPE register pair, one per each status/enable pair in an array */
@@ -493,6 +495,7 @@ struct acpi_gpe_register_info {
 	u16 base_gpe_number;	/* Base GPE number for this register */
 	u8 enable_for_wake;	/* GPEs to keep enabled when sleeping */
 	u8 enable_for_run;	/* GPEs to keep enabled when running */
+	u8 mask_for_run;	/* GPEs to keep masked when running */
 	u8 enable_mask;		/* Current mask of enabled GPEs */
 };
 
@@ -539,10 +542,10 @@ struct acpi_gpe_device_info {
 	struct acpi_namespace_node *gpe_device;
 };
 
-typedef acpi_status(*acpi_gpe_callback) (struct acpi_gpe_xrupt_info *
-					 gpe_xrupt_info,
-					 struct acpi_gpe_block_info *gpe_block,
-					 void *context);
+typedef acpi_status (*acpi_gpe_callback) (struct acpi_gpe_xrupt_info *
+					  gpe_xrupt_info,
+					  struct acpi_gpe_block_info *
+					  gpe_block, void *context);
 
 /* Information about each particular fixed event */
 
@@ -657,10 +660,11 @@ struct acpi_result_values {
 };
 
 typedef
-acpi_status(*acpi_parse_downwards) (struct acpi_walk_state * walk_state,
-				    union acpi_parse_object ** out_op);
+acpi_status (*acpi_parse_downwards) (struct acpi_walk_state * walk_state,
+				     union acpi_parse_object ** out_op);
 
-typedef acpi_status(*acpi_parse_upwards) (struct acpi_walk_state * walk_state);
+typedef
+acpi_status (*acpi_parse_upwards) (struct acpi_walk_state * walk_state);
 
 /* Global handlers for AML Notifies */
 
@@ -700,7 +704,8 @@ union acpi_generic_state {
  *
  ****************************************************************************/
 
-typedef acpi_status(*acpi_execute_op) (struct acpi_walk_state * walk_state);
+typedef
+acpi_status (*acpi_execute_op) (struct acpi_walk_state * walk_state);
 
 /* Address Range info block */
 
@@ -853,24 +858,24 @@ struct acpi_parse_state {
 
 /* Parse object flags */
 
-#define ACPI_PARSEOP_GENERIC            0x01
-#define ACPI_PARSEOP_NAMED              0x02
-#define ACPI_PARSEOP_DEFERRED           0x04
-#define ACPI_PARSEOP_BYTELIST           0x08
-#define ACPI_PARSEOP_IN_STACK           0x10
-#define ACPI_PARSEOP_TARGET             0x20
-#define ACPI_PARSEOP_IN_CACHE           0x80
+#define ACPI_PARSEOP_GENERIC                0x01
+#define ACPI_PARSEOP_NAMED_OBJECT           0x02
+#define ACPI_PARSEOP_DEFERRED               0x04
+#define ACPI_PARSEOP_BYTELIST               0x08
+#define ACPI_PARSEOP_IN_STACK               0x10
+#define ACPI_PARSEOP_TARGET                 0x20
+#define ACPI_PARSEOP_IN_CACHE               0x80
 
 /* Parse object disasm_flags */
 
-#define ACPI_PARSEOP_IGNORE             0x01
-#define ACPI_PARSEOP_PARAMLIST          0x02
-#define ACPI_PARSEOP_EMPTY_TERMLIST     0x04
-#define ACPI_PARSEOP_PREDEF_CHECKED     0x08
-#define ACPI_PARSEOP_CLOSING_PAREN      0x10
-#define ACPI_PARSEOP_COMPOUND           0x20
-#define ACPI_PARSEOP_ASSIGNMENT         0x40
-#define ACPI_PARSEOP_ELSEIF             0x80
+#define ACPI_PARSEOP_IGNORE                 0x01
+#define ACPI_PARSEOP_PARAMETER_LIST         0x02
+#define ACPI_PARSEOP_EMPTY_TERMLIST         0x04
+#define ACPI_PARSEOP_PREDEFINED_CHECKED     0x08
+#define ACPI_PARSEOP_CLOSING_PAREN          0x10
+#define ACPI_PARSEOP_COMPOUND_ASSIGNMENT    0x20
+#define ACPI_PARSEOP_ASSIGNMENT             0x40
+#define ACPI_PARSEOP_ELSEIF                 0x80
 
 /*****************************************************************************
  *
@@ -1096,6 +1101,7 @@ struct acpi_external_list {
 #define ACPI_EXT_ORIGIN_FROM_FILE           0x02	/* External came from a file */
 #define ACPI_EXT_INTERNAL_PATH_ALLOCATED    0x04	/* Deallocate internal path on completion */
 #define ACPI_EXT_EXTERNAL_EMITTED           0x08	/* External() statement has been emitted */
+#define ACPI_EXT_ORIGIN_FROM_OPCODE         0x10	/* External came from a External() opcode */
 
 struct acpi_external_file {
 	char *path;

@@ -435,7 +435,7 @@ int usb_hcd_pxa27x_probe (const struct hc_driver *driver, struct platform_device
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		pr_err("no resource of IORESOURCE_IRQ");
-		return -ENXIO;
+		return irq;
 	}
 
 	usb_clk = devm_clk_get(&pdev->dev, NULL);

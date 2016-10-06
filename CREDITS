@@ -649,6 +649,7 @@ D: Configure, Menuconfig, xconfig
 
 N: Mauro Carvalho Chehab
 E: m.chehab@samsung.org
+E: mchehab@osg.samsung.com
 E: mchehab@infradead.org
 D: Media subsystem (V4L/DVB) drivers and core
 D: EDAC drivers and EDAC 3.0 core rework
@@ -768,6 +769,7 @@ D: Z85230 driver
 D: Former security contact point (please use vendor-sec@lst.de)
 D: ex 2.2 maintainer
 D: 2.1.x modular sound
+D: Assigned major/minor numbers maintainer at lanana.org
 S: c/o Red Hat UK Ltd
 S: Alexandra House
 S: Alexandra Terrace
@@ -1942,6 +1944,11 @@ E: kraxel@bytesex.org
 E: kraxel@suse.de
 D: video4linux, bttv, vesafb, some scsi, misc fixes
 
+N: Hans J. Koch
+D: USERSPACE I/O, MAX6650
+D: Hans passed away in June 2016, and will be greatly missed.
+W: https://lwn.net/Articles/691000/
+
 N: Harald Koenig
 E: koenig@tat.physik.uni-tuebingen.de
 D: XFree86 (S3), DCF77, some kernel hacks and fixes
@@ -3054,6 +3061,7 @@ D: PLX USB338x driver
 D: PCA9634 driver
 D: Option GTM671WFS
 D: Fintek F81216A
+D: AD5761 iio driver
 D: Various kernel hacks
 S: Qtechnology A/S
 S: Valby Langgade 142
@@ -3515,6 +3523,10 @@ S: 145 Howard St.
 S: Northborough, MA 01532
 S: USA
 
+N: Doug Thompson
+E: dougthompson@xmission.com
+D: EDAC
+
 N: Tommy Thorn
 E: Tommy.Thorn@irisa.fr
 W: http://www.irisa.fr/prive/thorn/index.html
@@ -3651,6 +3663,10 @@ S: Obere Heerbergstrasse 17
 S: 97078 Wuerzburg
 S: Germany
 
+N: Jason Uhlenkott
+E: juhlenko@akamai.com
+D: I3000 EDAC driver
+
 N: Greg Ungerer
 E: gerg@snapgear.com
 D: uClinux kernel hacker
@@ -3688,7 +3704,7 @@ S: Germany
 N: Geert Uytterhoeven
 E: geert@linux-m68k.org
 W: http://users.telenet.be/geertu/
-P: 1024/862678A6 C51D 361C 0BD1 4C90 B275  C553 6EEA 11BA 8626 78A6
+P: 4096R/4804B4BC3F55EEFB 750D 82B0 A781 5431 5E25  925B 4804 B4BC 3F55 EEFB
 D: m68k/Amiga and PPC/CHRP Longtrail coordinator
 D: Frame buffer device and XF68_FBDev maintainer
 D: m68k IDE maintainer

@@ -50,30 +50,6 @@ static int mdp4_hw_init(struct msm_kms *kms)
 
 	mdp4_kms->rev = minor;
 
-	if (mdp4_kms->dsi_pll_vdda) {
-		if ((mdp4_kms->rev == 2) || (mdp4_kms->rev == 4)) {
-			ret = regulator_set_voltage(mdp4_kms->dsi_pll_vdda,
-					1200000, 1200000);
-			if (ret) {
-				dev_err(dev->dev,
-					"failed to set dsi_pll_vdda voltage: %d\n", ret);
-				goto out;
-			}
-		}
-	}
-
-	if (mdp4_kms->dsi_pll_vddio) {
-		if (mdp4_kms->rev == 2) {
-			ret = regulator_set_voltage(mdp4_kms->dsi_pll_vddio,
-					1800000, 1800000);
-			if (ret) {
-				dev_err(dev->dev,
-					"failed to set dsi_pll_vddio voltage: %d\n", ret);
-				goto out;
-			}
-		}
-	}
-
 	if (mdp4_kms->rev > 1) {
 		mdp4_write(mdp4_kms, REG_MDP4_CS_CONTROLLER0, 0x0707ffff);
 		mdp4_write(mdp4_kms, REG_MDP4_CS_CONTROLLER1, 0x03073f3f);
@@ -130,31 +106,27 @@ out:
 static void mdp4_prepare_commit(struct msm_kms *kms, struct drm_atomic_state *state)
 {
 	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
-	int i, ncrtcs = state->dev->mode_config.num_crtc;
+	int i;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
 
 	mdp4_enable(mdp4_kms);
 
 	/* see 119ecb7fd */
-	for (i = 0; i < ncrtcs; i++) {
-		struct drm_crtc *crtc = state->crtcs[i];
-		if (!crtc)
-			continue;
+	for_each_crtc_in_state(state, crtc, crtc_state, i)
 		drm_crtc_vblank_get(crtc);
-	}
 }
 
 static void mdp4_complete_commit(struct msm_kms *kms, struct drm_atomic_state *state)
 {
 	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
-	int i, ncrtcs = state->dev->mode_config.num_crtc;
+	int i;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
 
 	/* see 119ecb7fd */
-	for (i = 0; i < ncrtcs; i++) {
-		struct drm_crtc *crtc = state->crtcs[i];
-		if (!crtc)
-			continue;
+	for_each_crtc_in_state(state, crtc, crtc_state, i)
 		drm_crtc_vblank_put(crtc);
-	}
 
 	mdp4_disable(mdp4_kms);
 }
@@ -179,23 +151,28 @@ static long mdp4_round_pixclk(struct msm_kms *kms, unsigned long rate,
 	}
 }
 
-static void mdp4_preclose(struct msm_kms *kms, struct drm_file *file)
-{
-	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
-	struct msm_drm_private *priv = mdp4_kms->dev->dev_private;
-	unsigned i;
-
-	for (i = 0; i < priv->num_crtcs; i++)
-		mdp4_crtc_cancel_pending_flip(priv->crtcs[i], file);
-}
+static const char * const iommu_ports[] = {
+	"mdp_port0_cb0", "mdp_port1_cb0",
+};
 
 static void mdp4_destroy(struct msm_kms *kms)
 {
 	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
+	struct device *dev = mdp4_kms->dev->dev;
+	struct msm_mmu *mmu = mdp4_kms->mmu;
+
+	if (mmu) {
+		mmu->funcs->detach(mmu, iommu_ports, ARRAY_SIZE(iommu_ports));
+		mmu->funcs->destroy(mmu);
+	}
+
 	if (mdp4_kms->blank_cursor_iova)
 		msm_gem_put_iova(mdp4_kms->blank_cursor_bo, mdp4_kms->id);
-	if (mdp4_kms->blank_cursor_bo)
-		drm_gem_object_unreference_unlocked(mdp4_kms->blank_cursor_bo);
+	drm_gem_object_unreference_unlocked(mdp4_kms->blank_cursor_bo);
+
+	if (mdp4_kms->rpm_enabled)
+		pm_runtime_disable(dev);
+
 	kfree(mdp4_kms);
 }
 
@@ -213,7 +190,6 @@ static const struct mdp_kms_funcs kms_funcs = {
 		.wait_for_crtc_commit_done = mdp4_wait_for_crtc_commit_done,
 		.get_format      = mdp_get_format,
 		.round_pixclk    = mdp4_round_pixclk,
-		.preclose        = mdp4_preclose,
 		.destroy         = mdp4_destroy,
 	},
 	.set_irqmask         = mdp4_set_irqmask,
@@ -326,7 +302,7 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 
 		if (priv->hdmi) {
 			/* Construct bridge/connector for HDMI: */
-			ret = hdmi_modeset_init(priv->hdmi, dev, encoder);
+			ret = msm_hdmi_modeset_init(priv->hdmi, dev, encoder);
 			if (ret) {
 				dev_err(dev->dev, "failed to initialize HDMI: %d\n", ret);
 				return ret;
@@ -457,10 +433,6 @@ fail:
 	return ret;
 }
 
-static const char *iommu_ports[] = {
-		"mdp_port0_cb0", "mdp_port1_cb0",
-};
-
 struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 {
 	struct platform_device *pdev = dev->platformdev;
@@ -468,7 +440,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	struct mdp4_kms *mdp4_kms;
 	struct msm_kms *kms = NULL;
 	struct msm_mmu *mmu;
-	int ret;
+	int irq, ret;
 
 	mdp4_kms = kzalloc(sizeof(*mdp4_kms), GFP_KERNEL);
 	if (!mdp4_kms) {
@@ -489,15 +461,14 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	mdp4_kms->dsi_pll_vdda =
-			devm_regulator_get_optional(&pdev->dev, "dsi_pll_vdda");
-	if (IS_ERR(mdp4_kms->dsi_pll_vdda))
-		mdp4_kms->dsi_pll_vdda = NULL;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		ret = irq;
+		dev_err(dev->dev, "failed to get irq: %d\n", ret);
+		goto fail;
+	}
 
-	mdp4_kms->dsi_pll_vddio =
-			devm_regulator_get_optional(&pdev->dev, "dsi_pll_vddio");
-	if (IS_ERR(mdp4_kms->dsi_pll_vddio))
-		mdp4_kms->dsi_pll_vddio = NULL;
+	kms->irq = irq;
 
 	/* NOTE: driver for this regulator still missing upstream.. use
 	 * _get_exclusive() and ignore the error if it does not exist
@@ -534,7 +505,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	mdp4_kms->axi_clk = devm_clk_get(&pdev->dev, "mdp_axi_clk");
+	mdp4_kms->axi_clk = devm_clk_get(&pdev->dev, "bus_clk");
 	if (IS_ERR(mdp4_kms->axi_clk)) {
 		dev_err(dev->dev, "failed to get axi_clk\n");
 		ret = PTR_ERR(mdp4_kms->axi_clk);
@@ -543,6 +514,9 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 
 	clk_set_rate(mdp4_kms->clk, config->max_clk);
 	clk_set_rate(mdp4_kms->lut_clk, config->max_clk);
+
+	pm_runtime_enable(dev->dev);
+	mdp4_kms->rpm_enabled = true;
 
 	/* make sure things are off before attaching iommu (bootloader could
 	 * have left things on, in which case we'll start getting faults if
@@ -565,6 +539,8 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 				ARRAY_SIZE(iommu_ports));
 		if (ret)
 			goto fail;
+
+		mdp4_kms->mmu = mmu;
 	} else {
 		dev_info(dev->dev, "no iommu, fallback to phys "
 				"contig buffers for scanout\n");

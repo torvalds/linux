@@ -46,7 +46,7 @@
 			gpios = <&gpio1 29 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_BACK>;
 			debounce-interval = <1000>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		front_button {
@@ -54,7 +54,7 @@
 			gpios = <&gpio1 25 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_FRONT>;
 			debounce-interval = <1000>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
@@ -138,7 +138,7 @@
 &epwmss1 {
 	status = "okay";
 
-	ehrpwm1: ehrpwm@48302200 {
+	ehrpwm1: pwm@48302200 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&ehrpwm1_pins>;
 		status = "okay";

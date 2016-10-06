@@ -38,7 +38,7 @@ MODULE_PARM_DESC(runs, "Number of test runs per variant (default: 4)");
 
 static int max_size = 0;
 module_param(max_size, int, 0);
-MODULE_PARM_DESC(runs, "Maximum table size (default: calculated)");
+MODULE_PARM_DESC(max_size, "Maximum table size (default: calculated)");
 
 static bool shrinking = false;
 module_param(shrinking, bool, 0);
@@ -143,7 +143,7 @@ static void test_bucket_stats(struct rhashtable *ht)
 	struct rhashtable_iter hti;
 	struct rhash_head *pos;
 
-	err = rhashtable_walk_init(ht, &hti);
+	err = rhashtable_walk_init(ht, &hti, GFP_KERNEL);
 	if (err) {
 		pr_warn("Test failed: allocation error");
 		return;

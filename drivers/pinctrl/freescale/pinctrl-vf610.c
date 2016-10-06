@@ -12,7 +12,6 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -318,7 +317,6 @@ static struct platform_driver vf610_pinctrl_driver = {
 		.of_match_table = vf610_pinctrl_of_match,
 	},
 	.probe = vf610_pinctrl_probe,
-	.remove = imx_pinctrl_remove,
 };
 
 static int __init vf610_pinctrl_init(void)
@@ -326,12 +324,3 @@ static int __init vf610_pinctrl_init(void)
 	return platform_driver_register(&vf610_pinctrl_driver);
 }
 arch_initcall(vf610_pinctrl_init);
-
-static void __exit vf610_pinctrl_exit(void)
-{
-	platform_driver_unregister(&vf610_pinctrl_driver);
-}
-module_exit(vf610_pinctrl_exit);
-
-MODULE_DESCRIPTION("Freescale VF610 pinctrl driver");
-MODULE_LICENSE("GPL v2");

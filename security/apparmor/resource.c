@@ -101,9 +101,11 @@ int aa_task_setrlimit(struct aa_profile *profile, struct task_struct *task,
 	/* TODO: extend resource control to handle other (non current)
 	 * profiles.  AppArmor rules currently have the implicit assumption
 	 * that the task is setting the resource of a task confined with
-	 * the same profile.
+	 * the same profile or that the task setting the resource of another
+	 * task has CAP_SYS_RESOURCE.
 	 */
-	if (profile != task_profile ||
+	if ((profile != task_profile &&
+	     aa_capable(profile, CAP_SYS_RESOURCE, 1)) ||
 	    (profile->rlimits.mask & (1 << resource) &&
 	     new_rlim->rlim_max > profile->rlimits.limits[resource].rlim_max))
 		error = -EACCES;

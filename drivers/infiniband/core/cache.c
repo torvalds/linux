@@ -178,6 +178,7 @@ static int write_gid(struct ib_device *ib_dev, u8 port,
 {
 	int ret = 0;
 	struct net_device *old_net_dev;
+	enum ib_gid_type old_gid_type;
 
 	/* in rdma_cap_roce_gid_table, this funciton should be protected by a
 	 * sleep-able lock.
@@ -199,6 +200,7 @@ static int write_gid(struct ib_device *ib_dev, u8 port,
 	}
 
 	old_net_dev = table->data_vec[ix].attr.ndev;
+	old_gid_type = table->data_vec[ix].attr.gid_type;
 	if (old_net_dev && old_net_dev != attr->ndev)
 		dev_put(old_net_dev);
 	/* if modify_gid failed, just delete the old gid */
@@ -207,10 +209,14 @@ static int write_gid(struct ib_device *ib_dev, u8 port,
 		attr = &zattr;
 		table->data_vec[ix].context = NULL;
 	}
-	if (default_gid)
-		table->data_vec[ix].props |= GID_TABLE_ENTRY_DEFAULT;
+
 	memcpy(&table->data_vec[ix].gid, gid, sizeof(*gid));
 	memcpy(&table->data_vec[ix].attr, attr, sizeof(*attr));
+	if (default_gid) {
+		table->data_vec[ix].props |= GID_TABLE_ENTRY_DEFAULT;
+		if (action == GID_TABLE_WRITE_ACTION_DEL)
+			table->data_vec[ix].attr.gid_type = old_gid_type;
+	}
 	if (table->data_vec[ix].attr.ndev &&
 	    table->data_vec[ix].attr.ndev != old_net_dev)
 		dev_hold(table->data_vec[ix].attr.ndev);
@@ -405,7 +411,9 @@ int ib_cache_gid_del_all_netdev_gids(struct ib_device *ib_dev, u8 port,
 
 	for (ix = 0; ix < table->sz; ix++)
 		if (table->data_vec[ix].attr.ndev == ndev)
-			if (!del_gid(ib_dev, port, table, ix, false))
+			if (!del_gid(ib_dev, port, table, ix,
+				     !!(table->data_vec[ix].props &
+					GID_TABLE_ENTRY_DEFAULT)))
 				deleted = true;
 
 	write_unlock_irq(&table->rwlock);
@@ -691,7 +699,8 @@ void ib_cache_gid_set_default_gid(struct ib_device *ib_dev, u8 port,
 			      NULL);
 
 		/* Coudn't find default GID location */
-		WARN_ON(ix < 0);
+		if (WARN_ON(ix < 0))
+			goto release;
 
 		zattr_type.gid_type = gid_type;
 
@@ -1043,8 +1052,8 @@ static void ib_cache_update(struct ib_device *device,
 
 	ret = ib_query_port(device, port, tprops);
 	if (ret) {
-		printk(KERN_WARNING "ib_query_port failed (%d) for %s\n",
-		       ret, device->name);
+		pr_warn("ib_query_port failed (%d) for %s\n",
+			ret, device->name);
 		goto err;
 	}
 
@@ -1067,8 +1076,8 @@ static void ib_cache_update(struct ib_device *device,
 	for (i = 0; i < pkey_cache->table_len; ++i) {
 		ret = ib_query_pkey(device, port, i, pkey_cache->table + i);
 		if (ret) {
-			printk(KERN_WARNING "ib_query_pkey failed (%d) for %s (index %d)\n",
-			       ret, device->name, i);
+			pr_warn("ib_query_pkey failed (%d) for %s (index %d)\n",
+				ret, device->name, i);
 			goto err;
 		}
 	}
@@ -1078,8 +1087,8 @@ static void ib_cache_update(struct ib_device *device,
 			ret = ib_query_gid(device, port, i,
 					   gid_cache->table + i, NULL);
 			if (ret) {
-				printk(KERN_WARNING "ib_query_gid failed (%d) for %s (index %d)\n",
-				       ret, device->name, i);
+				pr_warn("ib_query_gid failed (%d) for %s (index %d)\n",
+					ret, device->name, i);
 				goto err;
 			}
 		}
@@ -1161,8 +1170,7 @@ int ib_cache_setup_one(struct ib_device *device)
 					  GFP_KERNEL);
 	if (!device->cache.pkey_cache ||
 	    !device->cache.lmc_cache) {
-		printk(KERN_WARNING "Couldn't allocate cache "
-		       "for %s\n", device->name);
+		pr_warn("Couldn't allocate cache for %s\n", device->name);
 		return -ENOMEM;
 	}
 

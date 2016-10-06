@@ -331,13 +331,13 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	/* Set up to return from userspace.  If provided, use a stub
 	   already in userspace.  */
 	if (ka->sa.sa_flags & SA_RESTORER) {
-		restorer = (unsigned long) ka->sa.sa_restorer | PSW_ADDR_AMODE;
+		restorer = (unsigned long) ka->sa.sa_restorer;
 	} else {
 		/* Signal frame without vector registers are short ! */
 		__u16 __user *svc = (void __user *) frame + frame_size - 2;
 		if (__put_user(S390_SYSCALL_OPCODE | __NR_sigreturn, svc))
 			return -EFAULT;
-		restorer = (unsigned long) svc | PSW_ADDR_AMODE;
+		restorer = (unsigned long) svc;
 	}
 
 	/* Set up registers for signal handler */
@@ -347,7 +347,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	regs->psw.mask = PSW_MASK_EA | PSW_MASK_BA |
 		(PSW_USER_BITS & PSW_MASK_ASC) |
 		(regs->psw.mask & ~PSW_MASK_ASC);
-	regs->psw.addr = (unsigned long) ka->sa.sa_handler | PSW_ADDR_AMODE;
+	regs->psw.addr = (unsigned long) ka->sa.sa_handler;
 
 	regs->gprs[2] = sig;
 	regs->gprs[3] = (unsigned long) &frame->sc;
@@ -394,13 +394,12 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	/* Set up to return from userspace.  If provided, use a stub
 	   already in userspace.  */
 	if (ksig->ka.sa.sa_flags & SA_RESTORER) {
-		restorer = (unsigned long)
-			ksig->ka.sa.sa_restorer | PSW_ADDR_AMODE;
+		restorer = (unsigned long) ksig->ka.sa.sa_restorer;
 	} else {
 		__u16 __user *svc = &frame->svc_insn;
 		if (__put_user(S390_SYSCALL_OPCODE | __NR_rt_sigreturn, svc))
 			return -EFAULT;
-		restorer = (unsigned long) svc | PSW_ADDR_AMODE;
+		restorer = (unsigned long) svc;
 	}
 
 	/* Create siginfo on the signal stack */
@@ -426,7 +425,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	regs->psw.mask = PSW_MASK_EA | PSW_MASK_BA |
 		(PSW_USER_BITS & PSW_MASK_ASC) |
 		(regs->psw.mask & ~PSW_MASK_ASC);
-	regs->psw.addr = (unsigned long) ksig->ka.sa.sa_handler | PSW_ADDR_AMODE;
+	regs->psw.addr = (unsigned long) ksig->ka.sa.sa_handler;
 
 	regs->gprs[2] = ksig->sig;
 	regs->gprs[3] = (unsigned long) &frame->info;

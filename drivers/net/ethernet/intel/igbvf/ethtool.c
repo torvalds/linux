@@ -154,7 +154,8 @@ static void igbvf_get_regs(struct net_device *netdev,
 
 	memset(p, 0, IGBVF_REGS_LEN * sizeof(u32));
 
-	regs->version = (1 << 24) | (adapter->pdev->revision << 16) |
+	regs->version = (1u << 24) |
+			(adapter->pdev->revision << 16) |
 			adapter->pdev->device;
 
 	regs_buff[0] = er32(CTRL);

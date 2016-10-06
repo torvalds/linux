@@ -8,6 +8,7 @@ menuconfig FSL_SOC_BOOKE
 	select FSL_PCI if PCI
 	select SERIAL_8250_EXTENDED if SERIAL_8250
 	select SERIAL_8250_SHARE_IRQ if SERIAL_8250
+	select FSL_CORENET_RCPM if PPC_E500MC
 	default y
 
 if FSL_SOC_BOOKE
@@ -224,7 +225,7 @@ config GE_IMP3A
 	select DEFAULT_UIMAGE
 	select SWIOTLB
 	select MMIO_NVRAM
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select GE_FPGA
 	help
 	  This option enables support for the GE Intelligent Platforms IMP3A
@@ -271,7 +272,7 @@ config CORENET_GENERIC
 	select PPC_E500MC
 	select PHYS_64BIT
 	select SWIOTLB
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select GPIO_MPC8XXX
 	select HAS_RAPIDIO
 	select PPC_EPAPR_HV_PIC

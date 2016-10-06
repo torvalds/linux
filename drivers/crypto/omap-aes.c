@@ -26,7 +26,6 @@
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
-#include <linux/omap-dma.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -36,6 +35,7 @@
 #include <linux/interrupt.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/aes.h>
+#include <crypto/algapi.h>
 
 #define DST_MAXBURST			4
 #define DMA_MIN				(DST_MAXBURST * sizeof(u32))
@@ -152,13 +152,10 @@ struct omap_aes_dev {
 	unsigned long		flags;
 	int			err;
 
-	spinlock_t		lock;
-	struct crypto_queue	queue;
-
 	struct tasklet_struct	done_task;
-	struct tasklet_struct	queue_task;
 
 	struct ablkcipher_request	*req;
+	struct crypto_engine		*engine;
 
 	/*
 	 * total is used by PIO mode for book keeping so introduce
@@ -178,9 +175,7 @@ struct omap_aes_dev {
 
 	struct scatter_walk		in_walk;
 	struct scatter_walk		out_walk;
-	int			dma_in;
 	struct dma_chan		*dma_lch_in;
-	int			dma_out;
 	struct dma_chan		*dma_lch_out;
 	int			in_sg_len;
 	int			out_sg_len;
@@ -353,30 +348,21 @@ static void omap_aes_dma_out_callback(void *data)
 
 static int omap_aes_dma_init(struct omap_aes_dev *dd)
 {
-	int err = -ENOMEM;
-	dma_cap_mask_t mask;
+	int err;
 
 	dd->dma_lch_out = NULL;
 	dd->dma_lch_in = NULL;
 
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
-
-	dd->dma_lch_in = dma_request_slave_channel_compat(mask,
-							  omap_dma_filter_fn,
-							  &dd->dma_in,
-							  dd->dev, "rx");
-	if (!dd->dma_lch_in) {
+	dd->dma_lch_in = dma_request_chan(dd->dev, "rx");
+	if (IS_ERR(dd->dma_lch_in)) {
 		dev_err(dd->dev, "Unable to request in DMA channel\n");
-		goto err_dma_in;
+		return PTR_ERR(dd->dma_lch_in);
 	}
 
-	dd->dma_lch_out = dma_request_slave_channel_compat(mask,
-							   omap_dma_filter_fn,
-							   &dd->dma_out,
-							   dd->dev, "tx");
-	if (!dd->dma_lch_out) {
+	dd->dma_lch_out = dma_request_chan(dd->dev, "tx");
+	if (IS_ERR(dd->dma_lch_out)) {
 		dev_err(dd->dev, "Unable to request out DMA channel\n");
+		err = PTR_ERR(dd->dma_lch_out);
 		goto err_dma_out;
 	}
 
@@ -384,14 +370,15 @@ static int omap_aes_dma_init(struct omap_aes_dev *dd)
 
 err_dma_out:
 	dma_release_channel(dd->dma_lch_in);
-err_dma_in:
-	if (err)
-		pr_err("error: %d\n", err);
+
 	return err;
 }
 
 static void omap_aes_dma_cleanup(struct omap_aes_dev *dd)
 {
+	if (dd->pio_only)
+		return;
+
 	dma_release_channel(dd->dma_lch_out);
 	dma_release_channel(dd->dma_lch_in);
 }
@@ -532,9 +519,7 @@ static void omap_aes_finish_req(struct omap_aes_dev *dd, int err)
 
 	pr_debug("err: %d\n", err);
 
-	dd->flags &= ~FLAGS_BUSY;
-
-	req->base.complete(&req->base, err);
+	crypto_finalize_request(dd->engine, req, err);
 }
 
 static int omap_aes_crypt_dma_stop(struct omap_aes_dev *dd)
@@ -543,8 +528,6 @@ static int omap_aes_crypt_dma_stop(struct omap_aes_dev *dd)
 
 	omap_aes_dma_stop(dd);
 
-	dmaengine_terminate_all(dd->dma_lch_in);
-	dmaengine_terminate_all(dd->dma_lch_out);
 
 	return 0;
 }
@@ -595,43 +578,35 @@ static int omap_aes_copy_sgs(struct omap_aes_dev *dd)
 	sg_init_table(&dd->in_sgl, 1);
 	sg_set_buf(&dd->in_sgl, buf_in, total);
 	dd->in_sg = &dd->in_sgl;
+	dd->in_sg_len = 1;
 
 	sg_init_table(&dd->out_sgl, 1);
 	sg_set_buf(&dd->out_sgl, buf_out, total);
 	dd->out_sg = &dd->out_sgl;
+	dd->out_sg_len = 1;
 
 	return 0;
 }
 
 static int omap_aes_handle_queue(struct omap_aes_dev *dd,
-			       struct ablkcipher_request *req)
+				 struct ablkcipher_request *req)
 {
-	struct crypto_async_request *async_req, *backlog;
-	struct omap_aes_ctx *ctx;
-	struct omap_aes_reqctx *rctx;
-	unsigned long flags;
-	int err, ret = 0, len;
-
-	spin_lock_irqsave(&dd->lock, flags);
 	if (req)
-		ret = ablkcipher_enqueue_request(&dd->queue, req);
-	if (dd->flags & FLAGS_BUSY) {
-		spin_unlock_irqrestore(&dd->lock, flags);
-		return ret;
-	}
-	backlog = crypto_get_backlog(&dd->queue);
-	async_req = crypto_dequeue_request(&dd->queue);
-	if (async_req)
-		dd->flags |= FLAGS_BUSY;
-	spin_unlock_irqrestore(&dd->lock, flags);
+		return crypto_transfer_request_to_engine(dd->engine, req);
 
-	if (!async_req)
-		return ret;
+	return 0;
+}
 
-	if (backlog)
-		backlog->complete(backlog, -EINPROGRESS);
+static int omap_aes_prepare_req(struct crypto_engine *engine,
+				struct ablkcipher_request *req)
+{
+	struct omap_aes_ctx *ctx = crypto_ablkcipher_ctx(
+			crypto_ablkcipher_reqtfm(req));
+	struct omap_aes_dev *dd = omap_aes_find_dev(ctx);
+	struct omap_aes_reqctx *rctx;
 
-	req = ablkcipher_request_cast(async_req);
+	if (!dd)
+		return -ENODEV;
 
 	/* assign new request to device */
 	dd->req = req;
@@ -639,6 +614,14 @@ static int omap_aes_handle_queue(struct omap_aes_dev *dd,
 	dd->total_save = req->nbytes;
 	dd->in_sg = req->src;
 	dd->out_sg = req->dst;
+
+	dd->in_sg_len = sg_nents_for_len(dd->in_sg, dd->total);
+	if (dd->in_sg_len < 0)
+		return dd->in_sg_len;
+
+	dd->out_sg_len = sg_nents_for_len(dd->out_sg, dd->total);
+	if (dd->out_sg_len < 0)
+		return dd->out_sg_len;
 
 	if (omap_aes_check_aligned(dd->in_sg, dd->total) ||
 	    omap_aes_check_aligned(dd->out_sg, dd->total)) {
@@ -649,11 +632,6 @@ static int omap_aes_handle_queue(struct omap_aes_dev *dd,
 		dd->sgs_copied = 0;
 	}
 
-	len = ALIGN(dd->total, AES_BLOCK_SIZE);
-	dd->in_sg_len = scatterwalk_bytes_sglen(dd->in_sg, len);
-	dd->out_sg_len = scatterwalk_bytes_sglen(dd->out_sg, len);
-	BUG_ON(dd->in_sg_len < 0 || dd->out_sg_len < 0);
-
 	rctx = ablkcipher_request_ctx(req);
 	ctx = crypto_ablkcipher_ctx(crypto_ablkcipher_reqtfm(req));
 	rctx->mode &= FLAGS_MODE_MASK;
@@ -662,16 +640,20 @@ static int omap_aes_handle_queue(struct omap_aes_dev *dd,
 	dd->ctx = ctx;
 	ctx->dd = dd;
 
-	err = omap_aes_write_ctrl(dd);
-	if (!err)
-		err = omap_aes_crypt_dma_start(dd);
-	if (err) {
-		/* aes_task will not finish it, so do it here */
-		omap_aes_finish_req(dd, err);
-		tasklet_schedule(&dd->queue_task);
-	}
+	return omap_aes_write_ctrl(dd);
+}
 
-	return ret; /* return ret, which is enqueue return value */
+static int omap_aes_crypt_req(struct crypto_engine *engine,
+			      struct ablkcipher_request *req)
+{
+	struct omap_aes_ctx *ctx = crypto_ablkcipher_ctx(
+			crypto_ablkcipher_reqtfm(req));
+	struct omap_aes_dev *dd = omap_aes_find_dev(ctx);
+
+	if (!dd)
+		return -ENODEV;
+
+	return omap_aes_crypt_dma_start(dd);
 }
 
 static void omap_aes_done_task(unsigned long data)
@@ -704,16 +686,8 @@ static void omap_aes_done_task(unsigned long data)
 	}
 
 	omap_aes_finish_req(dd, 0);
-	omap_aes_handle_queue(dd, NULL);
 
 	pr_debug("exit\n");
-}
-
-static void omap_aes_queue_task(unsigned long data)
-{
-	struct omap_aes_dev *dd = (struct omap_aes_dev *)data;
-
-	omap_aes_handle_queue(dd, NULL);
 }
 
 static int omap_aes_crypt(struct ablkcipher_request *req, unsigned long mode)
@@ -1097,9 +1071,6 @@ static int omap_aes_get_res_of(struct omap_aes_dev *dd,
 		goto err;
 	}
 
-	dd->dma_out = -1; /* Dummy value that's unused */
-	dd->dma_in = -1; /* Dummy value that's unused */
-
 	dd->pdata = match->data;
 
 err:
@@ -1133,24 +1104,6 @@ static int omap_aes_get_res_pdev(struct omap_aes_dev *dd,
 	}
 	memcpy(res, r, sizeof(*res));
 
-	/* Get the DMA out channel */
-	r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-	if (!r) {
-		dev_err(dev, "no DMA out resource info\n");
-		err = -ENODEV;
-		goto err;
-	}
-	dd->dma_out = r->start;
-
-	/* Get the DMA in channel */
-	r = platform_get_resource(pdev, IORESOURCE_DMA, 1);
-	if (!r) {
-		dev_err(dev, "no DMA in resource info\n");
-		err = -ENODEV;
-		goto err;
-	}
-	dd->dma_in = r->start;
-
 	/* Only OMAP2/3 can be non-DT */
 	dd->pdata = &omap_aes_pdata_omap2;
 
@@ -1174,9 +1127,6 @@ static int omap_aes_probe(struct platform_device *pdev)
 	}
 	dd->dev = dev;
 	platform_set_drvdata(pdev, dd);
-
-	spin_lock_init(&dd->lock);
-	crypto_init_queue(&dd->queue, OMAP_AES_QUEUE_LENGTH);
 
 	err = (dev->of_node) ? omap_aes_get_res_of(dd, dev, &res) :
 			       omap_aes_get_res_pdev(dd, pdev, &res);
@@ -1209,10 +1159,11 @@ static int omap_aes_probe(struct platform_device *pdev)
 		 (reg & dd->pdata->minor_mask) >> dd->pdata->minor_shift);
 
 	tasklet_init(&dd->done_task, omap_aes_done_task, (unsigned long)dd);
-	tasklet_init(&dd->queue_task, omap_aes_queue_task, (unsigned long)dd);
 
 	err = omap_aes_dma_init(dd);
-	if (err && AES_REG_IRQ_STATUS(dd) && AES_REG_IRQ_ENABLE(dd)) {
+	if (err == -EPROBE_DEFER) {
+		goto err_irq;
+	} else if (err && AES_REG_IRQ_STATUS(dd) && AES_REG_IRQ_ENABLE(dd)) {
 		dd->pio_only = 1;
 
 		irq = platform_get_irq(pdev, 0);
@@ -1236,31 +1187,45 @@ static int omap_aes_probe(struct platform_device *pdev)
 	spin_unlock(&list_lock);
 
 	for (i = 0; i < dd->pdata->algs_info_size; i++) {
-		for (j = 0; j < dd->pdata->algs_info[i].size; j++) {
-			algp = &dd->pdata->algs_info[i].algs_list[j];
+		if (!dd->pdata->algs_info[i].registered) {
+			for (j = 0; j < dd->pdata->algs_info[i].size; j++) {
+				algp = &dd->pdata->algs_info[i].algs_list[j];
 
-			pr_debug("reg alg: %s\n", algp->cra_name);
-			INIT_LIST_HEAD(&algp->cra_list);
+				pr_debug("reg alg: %s\n", algp->cra_name);
+				INIT_LIST_HEAD(&algp->cra_list);
 
-			err = crypto_register_alg(algp);
-			if (err)
-				goto err_algs;
+				err = crypto_register_alg(algp);
+				if (err)
+					goto err_algs;
 
-			dd->pdata->algs_info[i].registered++;
+				dd->pdata->algs_info[i].registered++;
+			}
 		}
 	}
 
+	/* Initialize crypto engine */
+	dd->engine = crypto_engine_alloc_init(dev, 1);
+	if (!dd->engine)
+		goto err_algs;
+
+	dd->engine->prepare_request = omap_aes_prepare_req;
+	dd->engine->crypt_one_request = omap_aes_crypt_req;
+	err = crypto_engine_start(dd->engine);
+	if (err)
+		goto err_engine;
+
 	return 0;
+err_engine:
+	crypto_engine_exit(dd->engine);
 err_algs:
 	for (i = dd->pdata->algs_info_size - 1; i >= 0; i--)
 		for (j = dd->pdata->algs_info[i].registered - 1; j >= 0; j--)
 			crypto_unregister_alg(
 					&dd->pdata->algs_info[i].algs_list[j]);
-	if (!dd->pio_only)
-		omap_aes_dma_cleanup(dd);
+
+	omap_aes_dma_cleanup(dd);
 err_irq:
 	tasklet_kill(&dd->done_task);
-	tasklet_kill(&dd->queue_task);
 	pm_runtime_disable(dev);
 err_res:
 	dd = NULL;
@@ -1286,8 +1251,8 @@ static int omap_aes_remove(struct platform_device *pdev)
 			crypto_unregister_alg(
 					&dd->pdata->algs_info[i].algs_list[j]);
 
+	crypto_engine_exit(dd->engine);
 	tasklet_kill(&dd->done_task);
-	tasklet_kill(&dd->queue_task);
 	omap_aes_dma_cleanup(dd);
 	pm_runtime_disable(dd->dev);
 	dd = NULL;

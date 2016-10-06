@@ -328,6 +328,7 @@ nvkm_dp_train(struct work_struct *w)
 		.outp = outp,
 	}, *dp = &_dp;
 	u32 datarate = 0;
+	u8  pwr;
 	int ret;
 
 	if (!outp->base.info.location && disp->func->sor.magic)
@@ -354,6 +355,15 @@ nvkm_dp_train(struct work_struct *w)
 
 	/* disable link interrupt handling during link training */
 	nvkm_notify_put(&outp->irq);
+
+	/* ensure sink is not in a low-power state */
+	if (!nvkm_rdaux(outp->aux, DPCD_SC00, &pwr, 1)) {
+		if ((pwr & DPCD_SC00_SET_POWER) != DPCD_SC00_SET_POWER_D0) {
+			pwr &= ~DPCD_SC00_SET_POWER;
+			pwr |=  DPCD_SC00_SET_POWER_D0;
+			nvkm_wraux(outp->aux, DPCD_SC00, &pwr, 1);
+		}
+	}
 
 	/* enable down-spreading and execute pre-train script from vbios */
 	dp_link_train_init(dp, outp->dpcd[3] & 0x01);

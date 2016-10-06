@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -104,7 +100,7 @@ static int plain_unpack_bsd(struct lustre_msg *msg, int swabbed)
 		return -EPROTO;
 
 	bsd = lustre_msg_buf(msg, PLAIN_PACK_BULK_OFF, PLAIN_BSD_SIZE);
-	if (bsd == NULL) {
+	if (!bsd) {
 		CERROR("bulk sec desc has short size %d\n",
 		       lustre_msg_buflen(msg, PLAIN_PACK_BULK_OFF));
 		return -EPROTO;
@@ -158,13 +154,13 @@ static void corrupt_bulk_data(struct ptlrpc_bulk_desc *desc)
 	unsigned int off, i;
 
 	for (i = 0; i < desc->bd_iov_count; i++) {
-		if (desc->bd_iov[i].kiov_len == 0)
+		if (desc->bd_iov[i].bv_len == 0)
 			continue;
 
-		ptr = kmap(desc->bd_iov[i].kiov_page);
-		off = desc->bd_iov[i].kiov_offset & ~CFS_PAGE_MASK;
+		ptr = kmap(desc->bd_iov[i].bv_page);
+		off = desc->bd_iov[i].bv_offset & ~PAGE_MASK;
 		ptr[off] ^= 0x1;
-		kunmap(desc->bd_iov[i].kiov_page);
+		kunmap(desc->bd_iov[i].bv_page);
 		return;
 	}
 }
@@ -227,7 +223,7 @@ int plain_ctx_verify(struct ptlrpc_cli_ctx *ctx, struct ptlrpc_request *req)
 	swabbed = ptlrpc_rep_need_swab(req);
 
 	phdr = lustre_msg_buf(msg, PLAIN_PACK_HDR_OFF, sizeof(*phdr));
-	if (phdr == NULL) {
+	if (!phdr) {
 		CERROR("missing plain header\n");
 		return -EPROTO;
 	}
@@ -253,9 +249,12 @@ int plain_ctx_verify(struct ptlrpc_cli_ctx *ctx, struct ptlrpc_request *req)
 		unsigned int hsize = 4;
 
 		cfs_crypto_hash_digest(CFS_HASH_ALG_CRC32,
-				lustre_msg_buf(msg, PLAIN_PACK_MSG_OFF, 0),
-				lustre_msg_buflen(msg, PLAIN_PACK_MSG_OFF),
-				NULL, 0, (unsigned char *)&cksum, &hsize);
+				       lustre_msg_buf(msg, PLAIN_PACK_MSG_OFF,
+						      0),
+				       lustre_msg_buflen(msg,
+							 PLAIN_PACK_MSG_OFF),
+				       NULL, 0, (unsigned char *)&cksum,
+				       &hsize);
 		if (cksum != msg->lm_cksum) {
 			CDEBUG(D_SEC,
 			       "early reply checksum mismatch: %08x != %08x\n",
@@ -264,7 +263,8 @@ int plain_ctx_verify(struct ptlrpc_cli_ctx *ctx, struct ptlrpc_request *req)
 		}
 	} else {
 		/* whether we sent with bulk or not, we expect the same
-		 * in reply, except for early reply */
+		 * in reply, except for early reply
+		 */
 		if (!req->rq_early &&
 		    !equi(req->rq_pack_bulk == 1,
 			  phdr->ph_flags & PLAIN_FL_BULK)) {
@@ -297,7 +297,7 @@ int plain_cli_wrap_bulk(struct ptlrpc_cli_ctx *ctx,
 	LASSERT(req->rq_reqbuf->lm_bufcount == PLAIN_PACK_SEGMENTS);
 
 	bsd = lustre_msg_buf(req->rq_reqbuf, PLAIN_PACK_BULK_OFF, 0);
-	token = (struct plain_bulk_token *) bsd->bsd_data;
+	token = (struct plain_bulk_token *)bsd->bsd_data;
 
 	bsd->bsd_version = 0;
 	bsd->bsd_flags = 0;
@@ -342,7 +342,7 @@ int plain_cli_unwrap_bulk(struct ptlrpc_cli_ctx *ctx,
 	LASSERT(req->rq_repdata->lm_bufcount == PLAIN_PACK_SEGMENTS);
 
 	bsdv = lustre_msg_buf(req->rq_repdata, PLAIN_PACK_BULK_OFF, 0);
-	tokenv = (struct plain_bulk_token *) bsdv->bsd_data;
+	tokenv = (struct plain_bulk_token *)bsdv->bsd_data;
 
 	if (req->rq_bulk_write) {
 		if (bsdv->bsd_flags & BSD_FL_ERR)
@@ -352,11 +352,11 @@ int plain_cli_unwrap_bulk(struct ptlrpc_cli_ctx *ctx,
 
 	/* fix the actual data size */
 	for (i = 0, nob = 0; i < desc->bd_iov_count; i++) {
-		if (desc->bd_iov[i].kiov_len + nob > desc->bd_nob_transferred) {
-			desc->bd_iov[i].kiov_len =
+		if (desc->bd_iov[i].bv_len + nob > desc->bd_nob_transferred) {
+			desc->bd_iov[i].bv_len =
 				desc->bd_nob_transferred - nob;
 		}
-		nob += desc->bd_iov[i].kiov_len;
+		nob += desc->bd_iov[i].bv_len;
 	}
 
 	rc = plain_verify_bulk_csum(desc, req->rq_flvr.u_bulk.hash.hash_alg,
@@ -419,7 +419,7 @@ void plain_destroy_sec(struct ptlrpc_sec *sec)
 	LASSERT(sec->ps_import);
 	LASSERT(atomic_read(&sec->ps_refcount) == 0);
 	LASSERT(atomic_read(&sec->ps_nctx) == 0);
-	LASSERT(plsec->pls_ctx == NULL);
+	LASSERT(!plsec->pls_ctx);
 
 	class_import_put(sec->ps_import);
 
@@ -468,7 +468,7 @@ struct ptlrpc_sec *plain_create_sec(struct obd_import *imp,
 	/* install ctx immediately if this is a reverse sec */
 	if (svc_ctx) {
 		ctx = plain_sec_install_ctx(plsec);
-		if (ctx == NULL) {
+		if (!ctx) {
 			plain_destroy_sec(sec);
 			return NULL;
 		}
@@ -492,7 +492,7 @@ struct ptlrpc_cli_ctx *plain_lookup_ctx(struct ptlrpc_sec *sec,
 		atomic_inc(&ctx->cc_refcount);
 	read_unlock(&plsec->pls_lock);
 
-	if (unlikely(ctx == NULL))
+	if (unlikely(!ctx))
 		ctx = plain_sec_install_ctx(plsec);
 
 	return ctx;
@@ -573,8 +573,12 @@ int plain_alloc_reqbuf(struct ptlrpc_sec *sec,
 	lustre_init_msg_v2(req->rq_reqbuf, PLAIN_PACK_SEGMENTS, buflens, NULL);
 	req->rq_reqmsg = lustre_msg_buf(req->rq_reqbuf, PLAIN_PACK_MSG_OFF, 0);
 
-	if (req->rq_pack_udesc)
-		sptlrpc_pack_user_desc(req->rq_reqbuf, PLAIN_PACK_USER_OFF);
+	if (req->rq_pack_udesc) {
+		int rc = sptlrpc_pack_user_desc(req->rq_reqbuf,
+					      PLAIN_PACK_USER_OFF);
+		if (rc < 0)
+			return rc;
+	}
 
 	return 0;
 }
@@ -665,7 +669,7 @@ int plain_enlarge_reqbuf(struct ptlrpc_sec *sec,
 		newbuf_size = size_roundup_power2(newbuf_size);
 
 		newbuf = libcfs_kvzalloc(newbuf_size, GFP_NOFS);
-		if (newbuf == NULL)
+		if (!newbuf)
 			return -ENOMEM;
 
 		/* Must lock this, so that otherwise unprotected change of
@@ -673,7 +677,8 @@ int plain_enlarge_reqbuf(struct ptlrpc_sec *sec,
 		 * imp_replay_list traversing threads. See LU-3333
 		 * This is a bandaid at best, we really need to deal with this
 		 * in request enlarging code before unpacking that's already
-		 * there */
+		 * there
+		 */
 		if (req->rq_import)
 			spin_lock(&req->rq_import->imp_lock);
 
@@ -732,7 +737,7 @@ int plain_accept(struct ptlrpc_request *req)
 	swabbed = ptlrpc_req_need_swab(req);
 
 	phdr = lustre_msg_buf(msg, PLAIN_PACK_HDR_OFF, sizeof(*phdr));
-	if (phdr == NULL) {
+	if (!phdr) {
 		CERROR("missing plain header\n");
 		return -EPROTO;
 	}
@@ -801,7 +806,7 @@ int plain_alloc_rs(struct ptlrpc_request *req, int msgsize)
 		LASSERT(rs->rs_size >= rs_size);
 	} else {
 		rs = libcfs_kvzalloc(rs_size, GFP_NOFS);
-		if (rs == NULL)
+		if (!rs)
 			return -ENOMEM;
 
 		rs->rs_size = rs_size;
@@ -809,7 +814,7 @@ int plain_alloc_rs(struct ptlrpc_request *req, int msgsize)
 
 	rs->rs_svc_ctx = req->rq_svc_ctx;
 	atomic_inc(&req->rq_svc_ctx->sc_refcount);
-	rs->rs_repbuf = (struct lustre_msg *) (rs + 1);
+	rs->rs_repbuf = (struct lustre_msg *)(rs + 1);
 	rs->rs_repbuf_len = rs_size - sizeof(*rs);
 
 	lustre_init_msg_v2(rs->rs_repbuf, PLAIN_PACK_SEGMENTS, buflens, NULL);
@@ -867,9 +872,12 @@ int plain_authorize(struct ptlrpc_request *req)
 		unsigned int hsize = 4;
 
 		cfs_crypto_hash_digest(CFS_HASH_ALG_CRC32,
-			lustre_msg_buf(msg, PLAIN_PACK_MSG_OFF, 0),
-			lustre_msg_buflen(msg, PLAIN_PACK_MSG_OFF),
-			NULL, 0, (unsigned char *)&msg->lm_cksum, &hsize);
+				       lustre_msg_buf(msg, PLAIN_PACK_MSG_OFF,
+						      0),
+				       lustre_msg_buflen(msg,
+							 PLAIN_PACK_MSG_OFF),
+				       NULL, 0, (unsigned char *)&msg->lm_cksum,
+				       &hsize);
 		req->rq_reply_off = 0;
 	}
 
@@ -889,7 +897,7 @@ int plain_svc_unwrap_bulk(struct ptlrpc_request *req,
 	LASSERT(req->rq_pack_bulk);
 
 	bsdr = lustre_msg_buf(req->rq_reqbuf, PLAIN_PACK_BULK_OFF, 0);
-	tokenr = (struct plain_bulk_token *) bsdr->bsd_data;
+	tokenr = (struct plain_bulk_token *)bsdr->bsd_data;
 	bsdv = lustre_msg_buf(rs->rs_repbuf, PLAIN_PACK_BULK_OFF, 0);
 
 	bsdv->bsd_version = 0;
@@ -924,7 +932,7 @@ int plain_svc_wrap_bulk(struct ptlrpc_request *req,
 
 	bsdr = lustre_msg_buf(req->rq_reqbuf, PLAIN_PACK_BULK_OFF, 0);
 	bsdv = lustre_msg_buf(rs->rs_repbuf, PLAIN_PACK_BULK_OFF, 0);
-	tokenv = (struct plain_bulk_token *) bsdv->bsd_data;
+	tokenv = (struct plain_bulk_token *)bsdv->bsd_data;
 
 	bsdv->bsd_version = 0;
 	bsdv->bsd_type = SPTLRPC_BULK_DEFAULT;

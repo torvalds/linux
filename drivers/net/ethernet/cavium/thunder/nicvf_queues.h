@@ -57,10 +57,7 @@
 #define CMP_QUEUE_SIZE6		6ULL /* 64K entries */
 
 /* Default queue count per QS, its lengths and threshold values */
-#define RBDR_CNT		1
-#define RCV_QUEUE_CNT		8
-#define SND_QUEUE_CNT		8
-#define CMP_QUEUE_CNT		8 /* Max of RCV and SND qcount */
+#define DEFAULT_RBDR_CNT	1
 
 #define SND_QSIZE		SND_QUEUE_SIZE2
 #define SND_QUEUE_LEN		(1ULL << (SND_QSIZE + 10))
@@ -338,8 +335,7 @@ u64  nicvf_queue_reg_read(struct nicvf *nic,
 /* Stats */
 void nicvf_update_rq_stats(struct nicvf *nic, int rq_idx);
 void nicvf_update_sq_stats(struct nicvf *nic, int sq_idx);
-int nicvf_check_cqe_rx_errs(struct nicvf *nic,
-			    struct cmp_queue *cq, struct cqe_rx_t *cqe_rx);
+int nicvf_check_cqe_rx_errs(struct nicvf *nic, struct cqe_rx_t *cqe_rx);
 int nicvf_check_cqe_tx_errs(struct nicvf *nic,
 			    struct cmp_queue *cq, struct cqe_send_t *cqe_tx);
 #endif /* NICVF_QUEUES_H */

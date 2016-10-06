@@ -30,7 +30,7 @@ static unsigned int numachip1_get_apic_id(unsigned long x)
 	unsigned long value;
 	unsigned int id = (x >> 24) & 0xff;
 
-	if (static_cpu_has_safe(X86_FEATURE_NODEID_MSR)) {
+	if (static_cpu_has(X86_FEATURE_NODEID_MSR)) {
 		rdmsrl(MSR_FAM10H_NODE_ID, value);
 		id |= (value << 2) & 0xff00;
 	}
@@ -40,10 +40,7 @@ static unsigned int numachip1_get_apic_id(unsigned long x)
 
 static unsigned long numachip1_set_apic_id(unsigned int id)
 {
-	unsigned long x;
-
-	x = ((id & 0xffU) << 24);
-	return x;
+	return (id & 0xff) << 24;
 }
 
 static unsigned int numachip2_get_apic_id(unsigned long x)
@@ -178,7 +175,7 @@ static void fixup_cpu_id(struct cpuinfo_x86 *c, int node)
 	this_cpu_write(cpu_llc_id, node);
 
 	/* Account for nodes per socket in multi-core-module processors */
-	if (static_cpu_has_safe(X86_FEATURE_NODEID_MSR)) {
+	if (static_cpu_has(X86_FEATURE_NODEID_MSR)) {
 		rdmsrl(MSR_FAM10H_NODE_ID, val);
 		nodes = ((val >> 3) & 7) + 1;
 	}
@@ -269,7 +266,6 @@ static const struct apic apic_numachip1 __refconst = {
 
 	.get_apic_id			= numachip1_get_apic_id,
 	.set_apic_id			= numachip1_set_apic_id,
-	.apic_id_mask			= 0xffU << 24,
 
 	.cpu_mask_to_apicid_and		= default_cpu_mask_to_apicid_and,
 
@@ -321,7 +317,6 @@ static const struct apic apic_numachip2 __refconst = {
 
 	.get_apic_id			= numachip2_get_apic_id,
 	.set_apic_id			= numachip2_set_apic_id,
-	.apic_id_mask			= 0xffU << 24,
 
 	.cpu_mask_to_apicid_and		= default_cpu_mask_to_apicid_and,
 

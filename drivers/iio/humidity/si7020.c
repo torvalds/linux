@@ -121,7 +121,7 @@ static int si7020_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_WRITE_BYTE |
 				     I2C_FUNC_SMBUS_READ_WORD_DATA))
-		return -ENODEV;
+		return -EOPNOTSUPP;
 
 	/* Reset device, loads default settings. */
 	ret = i2c_smbus_write_byte(client, SI7020CMD_RESET);
@@ -149,6 +149,7 @@ static int si7020_probe(struct i2c_client *client,
 
 static const struct i2c_device_id si7020_id[] = {
 	{ "si7020", 0 },
+	{ "th06", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, si7020_id);

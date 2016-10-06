@@ -1,4 +1,5 @@
-/* Driver for SanDisk SDDR-55 SmartMedia reader
+/*
+ * Driver for SanDisk SDDR-55 SmartMedia reader
  *
  * SDDR55 driver v0.1:
  *
@@ -130,7 +131,8 @@ sddr55_bulk_transport(struct us_data *us, int direction,
 	return usb_stor_bulk_transfer_buf(us, pipe, data, len, NULL);
 }
 
-/* check if card inserted, if there is, update read_only status
+/*
+ * check if card inserted, if there is, update read_only status
  * return non zero if no card
  */
 
@@ -714,15 +716,18 @@ static int sddr55_read_map(struct us_data *us) {
 	if (max_lba > 1000)
 		max_lba = 1000;
 
-	// Each block is 64 bytes of control data, so block i is located in
-	// scatterlist block i*64/128k = i*(2^6)*(2^-17) = i*(2^-11)
+	/*
+	 * Each block is 64 bytes of control data, so block i is located in
+	 * scatterlist block i*64/128k = i*(2^6)*(2^-17) = i*(2^-11)
+	 */
 
 	for (i=0; i<numblocks; i++) {
 		int zone = i / 1024;
 
 		lba = short_pack(buffer[i * 2], buffer[i * 2 + 1]);
 
-			/* Every 1024 physical blocks ("zone"), the LBA numbers
+			/*
+			 * Every 1024 physical blocks ("zone"), the LBA numbers
 			 * go back to zero, but are within a higher
 			 * block of LBA's. Also, there is a maximum of
 			 * 1000 LBA's per zone. In other words, in PBA
@@ -733,7 +738,8 @@ static int sddr55_read_map(struct us_data *us) {
 			 * are 24 spare blocks to use when blocks do go bad.
 			 */
 
-			/* SDDR55 returns 0xffff for a bad block, and 0x400 for the 
+			/*
+			 * SDDR55 returns 0xffff for a bad block, and 0x400 for the 
 			 * CIS block. (Is this true for cards 8MB or less??)
 			 * Record these in the physical to logical map
 			 */ 
@@ -824,8 +830,10 @@ static int sddr55_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 	memset (info->sense_data, 0, sizeof info->sense_data);
 
-	/* Dummy up a response for INQUIRY since SDDR55 doesn't
-	   respond to INQUIRY commands */
+	/*
+	 * Dummy up a response for INQUIRY since SDDR55 doesn't
+	 * respond to INQUIRY commands
+	 */
 
 	if (srb->cmnd[0] == INQUIRY) {
 		memcpy(ptr, inquiry_response, 8);
@@ -833,7 +841,8 @@ static int sddr55_transport(struct scsi_cmnd *srb, struct us_data *us)
 		return USB_STOR_TRANSPORT_GOOD;
 	}
 
-	/* only check card status if the map isn't allocated, ie no card seen yet
+	/*
+	 * only check card status if the map isn't allocated, ie no card seen yet
 	 * or if it's been over half a second since we last accessed it
 	 */
 	if (info->lba_to_pba == NULL || time_after(jiffies, info->last_access + HZ/2)) {
@@ -849,8 +858,10 @@ static int sddr55_transport(struct scsi_cmnd *srb, struct us_data *us)
 		}
 	}
 
-	/* if we detected a problem with the map when writing,
-	   don't allow any more access */
+	/*
+	 * if we detected a problem with the map when writing,
+	 * don't allow any more access
+	 */
 	if (info->fatal_error) {
 
 		set_sense_info (3, 0x31, 0);
@@ -868,12 +879,16 @@ static int sddr55_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 		info->capacity = capacity;
 
-		/* figure out the maximum logical block number, allowing for
-		 * the fact that only 250 out of every 256 are used */
+		/*
+		 * figure out the maximum logical block number, allowing for
+		 * the fact that only 250 out of every 256 are used
+		 */
 		info->max_log_blks = ((info->capacity >> (info->pageshift + info->blockshift)) / 256) * 250;
 
-		/* Last page in the card, adjust as we only use 250 out of
-		 * every 256 pages */
+		/*
+		 * Last page in the card, adjust as we only use 250 out of
+		 * every 256 pages
+		 */
 		capacity = (capacity / 256) * 250;
 
 		capacity /= PAGESIZE;

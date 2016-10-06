@@ -81,6 +81,10 @@ enum bpf_map_type {
 	BPF_MAP_TYPE_ARRAY,
 	BPF_MAP_TYPE_PROG_ARRAY,
 	BPF_MAP_TYPE_PERF_EVENT_ARRAY,
+	BPF_MAP_TYPE_PERCPU_HASH,
+	BPF_MAP_TYPE_PERCPU_ARRAY,
+	BPF_MAP_TYPE_STACK_TRACE,
+	BPF_MAP_TYPE_CGROUP_ARRAY,
 };
 
 enum bpf_prog_type {
@@ -89,6 +93,9 @@ enum bpf_prog_type {
 	BPF_PROG_TYPE_KPROBE,
 	BPF_PROG_TYPE_SCHED_CLS,
 	BPF_PROG_TYPE_SCHED_ACT,
+	BPF_PROG_TYPE_TRACEPOINT,
+	BPF_PROG_TYPE_XDP,
+	BPF_PROG_TYPE_PERF_EVENT,
 };
 
 #define BPF_PSEUDO_MAP_FD	1
@@ -98,12 +105,15 @@ enum bpf_prog_type {
 #define BPF_NOEXIST	1 /* create new element if it didn't exist */
 #define BPF_EXIST	2 /* update existing element */
 
+#define BPF_F_NO_PREALLOC	(1U << 0)
+
 union bpf_attr {
 	struct { /* anonymous struct used by BPF_MAP_CREATE command */
 		__u32	map_type;	/* one of enum bpf_map_type */
 		__u32	key_size;	/* size of key in bytes */
 		__u32	value_size;	/* size of value in bytes */
 		__u32	max_entries;	/* max number of entries in a map */
+		__u32	map_flags;	/* prealloc or not */
 	};
 
 	struct { /* anonymous struct used by BPF_MAP_*_ELEM commands */
@@ -270,6 +280,152 @@ enum bpf_func_id {
 	 */
 	BPF_FUNC_perf_event_output,
 	BPF_FUNC_skb_load_bytes,
+
+	/**
+	 * bpf_get_stackid(ctx, map, flags) - walk user or kernel stack and return id
+	 * @ctx: struct pt_regs*
+	 * @map: pointer to stack_trace map
+	 * @flags: bits 0-7 - numer of stack frames to skip
+	 *         bit 8 - collect user stack instead of kernel
+	 *         bit 9 - compare stacks by hash only
+	 *         bit 10 - if two different stacks hash into the same stackid
+	 *                  discard old
+	 *         other bits - reserved
+	 * Return: >= 0 stackid on success or negative error
+	 */
+	BPF_FUNC_get_stackid,
+
+	/**
+	 * bpf_csum_diff(from, from_size, to, to_size, seed) - calculate csum diff
+	 * @from: raw from buffer
+	 * @from_size: length of from buffer
+	 * @to: raw to buffer
+	 * @to_size: length of to buffer
+	 * @seed: optional seed
+	 * Return: csum result
+	 */
+	BPF_FUNC_csum_diff,
+
+	/**
+	 * bpf_skb_[gs]et_tunnel_opt(skb, opt, size)
+	 * retrieve or populate tunnel options metadata
+	 * @skb: pointer to skb
+	 * @opt: pointer to raw tunnel option data
+	 * @size: size of @opt
+	 * Return: 0 on success for set, option size for get
+	 */
+	BPF_FUNC_skb_get_tunnel_opt,
+	BPF_FUNC_skb_set_tunnel_opt,
+
+	/**
+	 * bpf_skb_change_proto(skb, proto, flags)
+	 * Change protocol of the skb. Currently supported is
+	 * v4 -> v6, v6 -> v4 transitions. The helper will also
+	 * resize the skb. eBPF program is expected to fill the
+	 * new headers via skb_store_bytes and lX_csum_replace.
+	 * @skb: pointer to skb
+	 * @proto: new skb->protocol type
+	 * @flags: reserved
+	 * Return: 0 on success or negative error
+	 */
+	BPF_FUNC_skb_change_proto,
+
+	/**
+	 * bpf_skb_change_type(skb, type)
+	 * Change packet type of skb.
+	 * @skb: pointer to skb
+	 * @type: new skb->pkt_type type
+	 * Return: 0 on success or negative error
+	 */
+	BPF_FUNC_skb_change_type,
+
+	/**
+	 * bpf_skb_under_cgroup(skb, map, index) - Check cgroup2 membership of skb
+	 * @skb: pointer to skb
+	 * @map: pointer to bpf_map in BPF_MAP_TYPE_CGROUP_ARRAY type
+	 * @index: index of the cgroup in the bpf_map
+	 * Return:
+	 *   == 0 skb failed the cgroup2 descendant test
+	 *   == 1 skb succeeded the cgroup2 descendant test
+	 *    < 0 error
+	 */
+	BPF_FUNC_skb_under_cgroup,
+
+	/**
+	 * bpf_get_hash_recalc(skb)
+	 * Retrieve and possibly recalculate skb->hash.
+	 * @skb: pointer to skb
+	 * Return: hash
+	 */
+	BPF_FUNC_get_hash_recalc,
+
+	/**
+	 * u64 bpf_get_current_task(void)
+	 * Returns current task_struct
+	 * Return: current
+	 */
+	BPF_FUNC_get_current_task,
+
+	/**
+	 * bpf_probe_write_user(void *dst, void *src, int len)
+	 * safely attempt to write to a location
+	 * @dst: destination address in userspace
+	 * @src: source address on stack
+	 * @len: number of bytes to copy
+	 * Return: 0 on success or negative error
+	 */
+	BPF_FUNC_probe_write_user,
+
+	/**
+	 * bpf_current_task_under_cgroup(map, index) - Check cgroup2 membership of current task
+	 * @map: pointer to bpf_map in BPF_MAP_TYPE_CGROUP_ARRAY type
+	 * @index: index of the cgroup in the bpf_map
+	 * Return:
+	 *   == 0 current failed the cgroup2 descendant test
+	 *   == 1 current succeeded the cgroup2 descendant test
+	 *    < 0 error
+	 */
+	BPF_FUNC_current_task_under_cgroup,
+
+	/**
+	 * bpf_skb_change_tail(skb, len, flags)
+	 * The helper will resize the skb to the given new size,
+	 * to be used f.e. with control messages.
+	 * @skb: pointer to skb
+	 * @len: new skb length
+	 * @flags: reserved
+	 * Return: 0 on success or negative error
+	 */
+	BPF_FUNC_skb_change_tail,
+
+	/**
+	 * bpf_skb_pull_data(skb, len)
+	 * The helper will pull in non-linear data in case the
+	 * skb is non-linear and not all of len are part of the
+	 * linear section. Only needed for read/write with direct
+	 * packet access.
+	 * @skb: pointer to skb
+	 * @len: len to make read/writeable
+	 * Return: 0 on success or negative error
+	 */
+	BPF_FUNC_skb_pull_data,
+
+	/**
+	 * bpf_csum_update(skb, csum)
+	 * Adds csum into skb->csum in case of CHECKSUM_COMPLETE.
+	 * @skb: pointer to skb
+	 * @csum: csum to add
+	 * Return: csum on success or negative error
+	 */
+	BPF_FUNC_csum_update,
+
+	/**
+	 * bpf_set_hash_invalid(skb)
+	 * Invalidate current skb>hash.
+	 * @skb: pointer to skb
+	 */
+	BPF_FUNC_set_hash_invalid,
+
 	__BPF_FUNC_MAX_ID,
 };
 
@@ -277,6 +433,7 @@ enum bpf_func_id {
 
 /* BPF_FUNC_skb_store_bytes flags. */
 #define BPF_F_RECOMPUTE_CSUM		(1ULL << 0)
+#define BPF_F_INVALIDATE_HASH		(1ULL << 1)
 
 /* BPF_FUNC_l3_csum_replace and BPF_FUNC_l4_csum_replace flags.
  * First 4 bits are for passing the header field size.
@@ -285,12 +442,29 @@ enum bpf_func_id {
 
 /* BPF_FUNC_l4_csum_replace flags. */
 #define BPF_F_PSEUDO_HDR		(1ULL << 4)
+#define BPF_F_MARK_MANGLED_0		(1ULL << 5)
 
 /* BPF_FUNC_clone_redirect and BPF_FUNC_redirect flags. */
 #define BPF_F_INGRESS			(1ULL << 0)
 
 /* BPF_FUNC_skb_set_tunnel_key and BPF_FUNC_skb_get_tunnel_key flags. */
 #define BPF_F_TUNINFO_IPV6		(1ULL << 0)
+
+/* BPF_FUNC_get_stackid flags. */
+#define BPF_F_SKIP_FIELD_MASK		0xffULL
+#define BPF_F_USER_STACK		(1ULL << 8)
+#define BPF_F_FAST_STACK_CMP		(1ULL << 9)
+#define BPF_F_REUSE_STACKID		(1ULL << 10)
+
+/* BPF_FUNC_skb_set_tunnel_key flags. */
+#define BPF_F_ZERO_CSUM_TX		(1ULL << 1)
+#define BPF_F_DONT_FRAGMENT		(1ULL << 2)
+
+/* BPF_FUNC_perf_event_output and BPF_FUNC_perf_event_read flags. */
+#define BPF_F_INDEX_MASK		0xffffffffULL
+#define BPF_F_CURRENT_CPU		BPF_F_INDEX_MASK
+/* BPF_FUNC_perf_event_output for sk_buff input context. */
+#define BPF_F_CTXLEN_MASK		(0xfffffULL << 32)
 
 /* user accessible mirror of in-kernel sk_buff.
  * new fields can only be added to the end of this structure
@@ -311,6 +485,8 @@ struct __sk_buff {
 	__u32 cb[5];
 	__u32 hash;
 	__u32 tc_classid;
+	__u32 data;
+	__u32 data_end;
 };
 
 struct bpf_tunnel_key {
@@ -321,6 +497,28 @@ struct bpf_tunnel_key {
 	};
 	__u8 tunnel_tos;
 	__u8 tunnel_ttl;
+	__u16 tunnel_ext;
+	__u32 tunnel_label;
+};
+
+/* User return codes for XDP prog type.
+ * A valid XDP program must return one of these defined values. All other
+ * return codes are reserved for future use. Unknown return codes will result
+ * in packet drop.
+ */
+enum xdp_action {
+	XDP_ABORTED = 0,
+	XDP_DROP,
+	XDP_PASS,
+	XDP_TX,
+};
+
+/* user accessible metadata for XDP packet hook
+ * new fields must be added to the end of this structure
+ */
+struct xdp_md {
+	__u32 data;
+	__u32 data_end;
 };
 
 #endif /* _UAPI__LINUX_BPF_H__ */

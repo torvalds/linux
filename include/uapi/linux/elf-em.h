@@ -30,7 +30,6 @@
 #define EM_X86_64	62	/* AMD x86-64 */
 #define EM_S390		22	/* IBM S/390 */
 #define EM_CRIS		76	/* Axis Communications 32-bit embedded processor */
-#define EM_V850		87	/* NEC v850 */
 #define EM_M32R		88	/* Renesas M32R */
 #define EM_MN10300	89	/* Panasonic/MEI MN10300, AM33 */
 #define EM_OPENRISC     92     /* OpenRISC 32-bit embedded processor */
@@ -41,6 +40,7 @@
 #define EM_TILEPRO	188	/* Tilera TILEPro */
 #define EM_MICROBLAZE	189	/* Xilinx MicroBlaze */
 #define EM_TILEGX	191	/* Tilera TILE-Gx */
+#define EM_BPF		247	/* Linux BPF - in-kernel virtual machine */
 #define EM_FRV		0x5441	/* Fujitsu FR-V */
 #define EM_AVR32	0x18ad	/* Atmel AVR32 */
 
@@ -50,8 +50,6 @@
  */
 #define EM_ALPHA	0x9026
 
-/* Bogus old v850 magic number, used by old tools. */
-#define EM_CYGNUS_V850	0x9080
 /* Bogus old m32r magic number, used by old tools. */
 #define EM_CYGNUS_M32R	0x9041
 /* This is the old interim value for S/390 architecture */

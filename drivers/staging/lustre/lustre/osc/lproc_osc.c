@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -121,9 +117,10 @@ static ssize_t max_rpcs_in_flight_store(struct kobject *kobj,
 		atomic_add(added, &osc_pool_req_count);
 	}
 
-	client_obd_list_lock(&cli->cl_loi_list_lock);
+	spin_lock(&cli->cl_loi_list_lock);
 	cli->cl_max_rpcs_in_flight = val;
-	client_obd_list_unlock(&cli->cl_loi_list_lock);
+	client_adjust_max_dirty(cli);
+	spin_unlock(&cli->cl_loi_list_lock);
 
 	return count;
 }
@@ -139,11 +136,11 @@ static ssize_t max_dirty_mb_show(struct kobject *kobj,
 	long val;
 	int mult;
 
-	client_obd_list_lock(&cli->cl_loi_list_lock);
-	val = cli->cl_dirty_max;
-	client_obd_list_unlock(&cli->cl_loi_list_lock);
+	spin_lock(&cli->cl_loi_list_lock);
+	val = cli->cl_dirty_max_pages;
+	spin_unlock(&cli->cl_loi_list_lock);
 
-	mult = 1 << 20;
+	mult = 1 << (20 - PAGE_SHIFT);
 	return lprocfs_read_frac_helper(buf, PAGE_SIZE, val, mult);
 }
 
@@ -162,17 +159,17 @@ static ssize_t max_dirty_mb_store(struct kobject *kobj,
 	if (rc)
 		return rc;
 
-	pages_number *= 1 << (20 - PAGE_CACHE_SHIFT); /* MB -> pages */
+	pages_number *= 1 << (20 - PAGE_SHIFT); /* MB -> pages */
 
 	if (pages_number <= 0 ||
-	    pages_number > OSC_MAX_DIRTY_MB_MAX << (20 - PAGE_CACHE_SHIFT) ||
+	    pages_number > OSC_MAX_DIRTY_MB_MAX << (20 - PAGE_SHIFT) ||
 	    pages_number > totalram_pages / 4) /* 1/4 of RAM */
 		return -ERANGE;
 
-	client_obd_list_lock(&cli->cl_loi_list_lock);
-	cli->cl_dirty_max = (u32)(pages_number << PAGE_CACHE_SHIFT);
+	spin_lock(&cli->cl_loi_list_lock);
+	cli->cl_dirty_max_pages = pages_number;
 	osc_wake_cache_waiters(cli);
-	client_obd_list_unlock(&cli->cl_loi_list_lock);
+	spin_unlock(&cli->cl_loi_list_lock);
 
 	return count;
 }
@@ -182,14 +179,14 @@ static int osc_cached_mb_seq_show(struct seq_file *m, void *v)
 {
 	struct obd_device *dev = m->private;
 	struct client_obd *cli = &dev->u.cli;
-	int shift = 20 - PAGE_CACHE_SHIFT;
+	int shift = 20 - PAGE_SHIFT;
 
 	seq_printf(m,
-		   "used_mb: %d\n"
-		   "busy_cnt: %d\n",
-		   (atomic_read(&cli->cl_lru_in_list) +
-		    atomic_read(&cli->cl_lru_busy)) >> shift,
-		   atomic_read(&cli->cl_lru_busy));
+		   "used_mb: %ld\n"
+		   "busy_cnt: %ld\n",
+		   (atomic_long_read(&cli->cl_lru_in_list) +
+		    atomic_long_read(&cli->cl_lru_busy)) >> shift,
+		   atomic_long_read(&cli->cl_lru_busy));
 
 	return 0;
 }
@@ -201,8 +198,10 @@ static ssize_t osc_cached_mb_seq_write(struct file *file,
 {
 	struct obd_device *dev = ((struct seq_file *)file->private_data)->private;
 	struct client_obd *cli = &dev->u.cli;
-	int pages_number, mult, rc;
+	long pages_number, rc;
 	char kernbuf[128];
+	int mult;
+	u64 val;
 
 	if (count >= sizeof(kernbuf))
 		return -EINVAL;
@@ -211,19 +210,31 @@ static ssize_t osc_cached_mb_seq_write(struct file *file,
 		return -EFAULT;
 	kernbuf[count] = 0;
 
-	mult = 1 << (20 - PAGE_CACHE_SHIFT);
+	mult = 1 << (20 - PAGE_SHIFT);
 	buffer += lprocfs_find_named_value(kernbuf, "used_mb:", &count) -
 		  kernbuf;
-	rc = lprocfs_write_frac_helper(buffer, count, &pages_number, mult);
+	rc = lprocfs_write_frac_u64_helper(buffer, count, &val, mult);
 	if (rc)
 		return rc;
+
+	if (val > LONG_MAX)
+		return -ERANGE;
+	pages_number = (long)val;
 
 	if (pages_number < 0)
 		return -ERANGE;
 
-	rc = atomic_read(&cli->cl_lru_in_list) - pages_number;
-	if (rc > 0)
-		(void)osc_lru_shrink(cli, rc);
+	rc = atomic_long_read(&cli->cl_lru_in_list) - pages_number;
+	if (rc > 0) {
+		struct lu_env *env;
+		int refcheck;
+
+		env = cl_env_get(&refcheck);
+		if (!IS_ERR(env)) {
+			(void)osc_lru_shrink(env, cli, rc, true);
+			cl_env_put(env, &refcheck);
+		}
+	}
 
 	return count;
 }
@@ -239,9 +250,9 @@ static ssize_t cur_dirty_bytes_show(struct kobject *kobj,
 	struct client_obd *cli = &dev->u.cli;
 	int len;
 
-	client_obd_list_lock(&cli->cl_loi_list_lock);
-	len = sprintf(buf, "%lu\n", cli->cl_dirty);
-	client_obd_list_unlock(&cli->cl_loi_list_lock);
+	spin_lock(&cli->cl_loi_list_lock);
+	len = sprintf(buf, "%lu\n", cli->cl_dirty_pages << PAGE_SHIFT);
+	spin_unlock(&cli->cl_loi_list_lock);
 
 	return len;
 }
@@ -256,9 +267,9 @@ static ssize_t cur_grant_bytes_show(struct kobject *kobj,
 	struct client_obd *cli = &dev->u.cli;
 	int len;
 
-	client_obd_list_lock(&cli->cl_loi_list_lock);
+	spin_lock(&cli->cl_loi_list_lock);
 	len = sprintf(buf, "%lu\n", cli->cl_avail_grant);
-	client_obd_list_unlock(&cli->cl_loi_list_lock);
+	spin_unlock(&cli->cl_loi_list_lock);
 
 	return len;
 }
@@ -279,12 +290,12 @@ static ssize_t cur_grant_bytes_store(struct kobject *kobj,
 		return rc;
 
 	/* this is only for shrinking grant */
-	client_obd_list_lock(&cli->cl_loi_list_lock);
+	spin_lock(&cli->cl_loi_list_lock);
 	if (val >= cli->cl_avail_grant) {
-		client_obd_list_unlock(&cli->cl_loi_list_lock);
+		spin_unlock(&cli->cl_loi_list_lock);
 		return -EINVAL;
 	}
-	client_obd_list_unlock(&cli->cl_loi_list_lock);
+	spin_unlock(&cli->cl_loi_list_lock);
 
 	if (cli->cl_import->imp_state == LUSTRE_IMP_FULL)
 		rc = osc_shrink_grant_to_target(cli, val);
@@ -303,9 +314,9 @@ static ssize_t cur_lost_grant_bytes_show(struct kobject *kobj,
 	struct client_obd *cli = &dev->u.cli;
 	int len;
 
-	client_obd_list_lock(&cli->cl_loi_list_lock);
+	spin_lock(&cli->cl_loi_list_lock);
 	len = sprintf(buf, "%lu\n", cli->cl_lost_grant);
-	client_obd_list_unlock(&cli->cl_loi_list_lock);
+	spin_unlock(&cli->cl_loi_list_lock);
 
 	return len;
 }
@@ -381,7 +392,7 @@ static int osc_checksum_type_seq_show(struct seq_file *m, void *v)
 
 	DECLARE_CKSUM_NAME;
 
-	if (obd == NULL)
+	if (!obd)
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(cksum_name); i++) {
@@ -397,8 +408,8 @@ static int osc_checksum_type_seq_show(struct seq_file *m, void *v)
 }
 
 static ssize_t osc_checksum_type_seq_write(struct file *file,
-				const char __user *buffer,
-				size_t count, loff_t *off)
+					   const char __user *buffer,
+					   size_t count, loff_t *off)
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
 	int i;
@@ -406,7 +417,7 @@ static ssize_t osc_checksum_type_seq_write(struct file *file,
 	DECLARE_CKSUM_NAME;
 	char kernbuf[10];
 
-	if (obd == NULL)
+	if (!obd)
 		return 0;
 
 	if (count > sizeof(kernbuf) - 1)
@@ -422,8 +433,8 @@ static ssize_t osc_checksum_type_seq_write(struct file *file,
 		if (((1 << i) & obd->u.cli.cl_supp_cksum_types) == 0)
 			continue;
 		if (!strcmp(kernbuf, cksum_name[i])) {
-		       obd->u.cli.cl_cksum_type = 1 << i;
-		       return count;
+			obd->u.cli.cl_cksum_type = 1 << i;
+			return count;
 		}
 	}
 	return -EINVAL;
@@ -480,9 +491,19 @@ static ssize_t contention_seconds_store(struct kobject *kobj,
 	struct obd_device *obd = container_of(kobj, struct obd_device,
 					      obd_kobj);
 	struct osc_device *od  = obd2osc_dev(obd);
+	int rc;
+	int val;
 
-	return lprocfs_write_helper(buffer, count, &od->od_contention_time) ?:
-		count;
+	rc = kstrtoint(buffer, 10, &val);
+	if (rc)
+		return rc;
+
+	if (val < 0)
+		return -EINVAL;
+
+	od->od_contention_time = val;
+
+	return count;
 }
 LUSTRE_RW_ATTR(contention_seconds);
 
@@ -505,9 +526,16 @@ static ssize_t lockless_truncate_store(struct kobject *kobj,
 	struct obd_device *obd = container_of(kobj, struct obd_device,
 					      obd_kobj);
 	struct osc_device *od  = obd2osc_dev(obd);
+	int rc;
+	unsigned int val;
 
-	return lprocfs_write_helper(buffer, count, &od->od_lockless_truncate) ?:
-		count;
+	rc = kstrtouint(buffer, 10, &val);
+	if (rc)
+		return rc;
+
+	od->od_lockless_truncate = val;
+
+	return count;
 }
 LUSTRE_RW_ATTR(lockless_truncate);
 
@@ -552,21 +580,40 @@ static ssize_t max_pages_per_rpc_store(struct kobject *kobj,
 
 	/* if the max_pages is specified in bytes, convert to pages */
 	if (val >= ONE_MB_BRW_SIZE)
-		val >>= PAGE_CACHE_SHIFT;
+		val >>= PAGE_SHIFT;
 
-	chunk_mask = ~((1 << (cli->cl_chunkbits - PAGE_CACHE_SHIFT)) - 1);
+	chunk_mask = ~((1 << (cli->cl_chunkbits - PAGE_SHIFT)) - 1);
 	/* max_pages_per_rpc must be chunk aligned */
 	val = (val + ~chunk_mask) & chunk_mask;
-	if (val == 0 || val > ocd->ocd_brw_size >> PAGE_CACHE_SHIFT) {
+	if (val == 0 || val > ocd->ocd_brw_size >> PAGE_SHIFT) {
 		return -ERANGE;
 	}
-	client_obd_list_lock(&cli->cl_loi_list_lock);
+	spin_lock(&cli->cl_loi_list_lock);
 	cli->cl_max_pages_per_rpc = val;
-	client_obd_list_unlock(&cli->cl_loi_list_lock);
+	client_adjust_max_dirty(cli);
+	spin_unlock(&cli->cl_loi_list_lock);
 
 	return count;
 }
 LUSTRE_RW_ATTR(max_pages_per_rpc);
+
+static ssize_t unstable_stats_show(struct kobject *kobj,
+				   struct attribute *attr,
+				   char *buf)
+{
+	struct obd_device *dev = container_of(kobj, struct obd_device,
+					      obd_kobj);
+	struct client_obd *cli = &dev->u.cli;
+	long pages;
+	int mb;
+
+	pages = atomic_long_read(&cli->cl_unstable_count);
+	mb = (pages * PAGE_SIZE) >> 20;
+
+	return sprintf(buf, "unstable_pages: %20ld\n"
+		       "unstable_mb:              %10d\n", pages, mb);
+}
+LUSTRE_RO_ATTR(unstable_stats);
 
 LPROC_SEQ_FOPS_RO_TYPE(osc, connect_flags);
 LPROC_SEQ_FOPS_RO_TYPE(osc, server_uuid);
@@ -606,7 +653,7 @@ static int osc_rpc_stats_seq_show(struct seq_file *seq, void *v)
 
 	ktime_get_real_ts64(&now);
 
-	client_obd_list_lock(&cli->cl_loi_list_lock);
+	spin_lock(&cli->cl_loi_list_lock);
 
 	seq_printf(seq, "snapshot_time:	 %llu.%9lu (secs.usecs)\n",
 		   (s64)now.tv_sec, (unsigned long)now.tv_nsec);
@@ -635,10 +682,10 @@ static int osc_rpc_stats_seq_show(struct seq_file *seq, void *v)
 		read_cum += r;
 		write_cum += w;
 		seq_printf(seq, "%d:\t\t%10lu %3lu %3lu   | %10lu %3lu %3lu\n",
-				 1 << i, r, pct(r, read_tot),
-				 pct(read_cum, read_tot), w,
-				 pct(w, write_tot),
-				 pct(write_cum, write_tot));
+			   1 << i, r, pct(r, read_tot),
+			   pct(read_cum, read_tot), w,
+			   pct(w, write_tot),
+			   pct(write_cum, write_tot));
 		if (read_cum == read_tot && write_cum == write_tot)
 			break;
 	}
@@ -659,10 +706,10 @@ static int osc_rpc_stats_seq_show(struct seq_file *seq, void *v)
 		read_cum += r;
 		write_cum += w;
 		seq_printf(seq, "%d:\t\t%10lu %3lu %3lu   | %10lu %3lu %3lu\n",
-				 i, r, pct(r, read_tot),
-				 pct(read_cum, read_tot), w,
-				 pct(w, write_tot),
-				 pct(write_cum, write_tot));
+			   i, r, pct(r, read_tot),
+			   pct(read_cum, read_tot), w,
+			   pct(w, write_tot),
+			   pct(write_cum, write_tot));
 		if (read_cum == read_tot && write_cum == write_tot)
 			break;
 	}
@@ -690,7 +737,7 @@ static int osc_rpc_stats_seq_show(struct seq_file *seq, void *v)
 			break;
 	}
 
-	client_obd_list_unlock(&cli->cl_loi_list_lock);
+	spin_unlock(&cli->cl_loi_list_lock);
 
 	return 0;
 }
@@ -777,6 +824,7 @@ static struct attribute *osc_attrs[] = {
 	&lustre_attr_max_pages_per_rpc.attr,
 	&lustre_attr_max_rpcs_in_flight.attr,
 	&lustre_attr_resend_count.attr,
+	&lustre_attr_unstable_stats.attr,
 	NULL,
 };
 

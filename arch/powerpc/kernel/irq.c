@@ -66,6 +66,7 @@
 #include <asm/udbg.h>
 #include <asm/smp.h>
 #include <asm/debug.h>
+#include <asm/livepatch.h>
 
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
@@ -74,6 +75,7 @@
 #endif
 #define CREATE_TRACE_POINTS
 #include <asm/trace.h>
+#include <asm/cpu_has_feature.h>
 
 DEFINE_PER_CPU_SHARED_ALIGNED(irq_cpustat_t, irq_stat);
 EXPORT_PER_CPU_SYMBOL(irq_stat);
@@ -249,7 +251,7 @@ notrace void arch_local_irq_restore(unsigned long en)
 		if (WARN_ON(mfmsr() & MSR_EE))
 			__hard_irq_disable();
 	}
-#endif /* CONFIG_TRACE_IRQFLAG */
+#endif /* CONFIG_TRACE_IRQFLAGS */
 
 	set_soft_enabled(0);
 
@@ -339,6 +341,21 @@ bool prep_irq_for_idle(void)
 
 	/* Tell the caller to enter the low power state */
 	return true;
+}
+
+/*
+ * Force a replay of the external interrupt handler on this CPU.
+ */
+void force_external_irq_replay(void)
+{
+	/*
+	 * This must only be called with interrupts soft-disabled,
+	 * the replay will happen when re-enabling.
+	 */
+	WARN_ON(!arch_irqs_disabled());
+
+	/* Indicate in the PACA that we have an interrupt to replay */
+	local_paca->irq_happened |= PACA_IRQ_EE;
 }
 
 #endif /* CONFIG_PPC64 */
@@ -607,10 +624,12 @@ void irq_ctx_init(void)
 		memset((void *)softirq_ctx[i], 0, THREAD_SIZE);
 		tp = softirq_ctx[i];
 		tp->cpu = i;
+		klp_init_thread_info(tp);
 
 		memset((void *)hardirq_ctx[i], 0, THREAD_SIZE);
 		tp = hardirq_ctx[i];
 		tp->cpu = i;
+		klp_init_thread_info(tp);
 	}
 }
 

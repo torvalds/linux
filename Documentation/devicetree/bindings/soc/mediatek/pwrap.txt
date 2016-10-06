@@ -18,6 +18,7 @@ IP Pairing
 
 Required properties in pwrap device node.
 - compatible:
+	"mediatek,mt2701-pwrap" for MT2701/7623 SoCs
 	"mediatek,mt8135-pwrap" for MT8135 SoCs
 	"mediatek,mt8173-pwrap" for MT8173 SoCs
 - interrupts: IRQ for pwrap in SOC

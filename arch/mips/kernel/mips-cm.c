@@ -24,7 +24,7 @@ static char *cm2_tr[8] = {
 	"0x04", "cpc", "0x06", "0x07"
 };
 
-/* CM3 Tag ECC transation type */
+/* CM3 Tag ECC transaction type */
 static char *cm3_tr[16] = {
 	[0x0] = "ReqNoData",
 	[0x1] = "0x1",
@@ -251,7 +251,7 @@ int mips_cm_probe(void)
 	mips_cm_probe_l2sync();
 
 	/* determine register width for this CM */
-	mips_cm_is64 = config_enabled(CONFIG_64BIT) && (mips_cm_revision() >= CM_REV_CM3);
+	mips_cm_is64 = IS_ENABLED(CONFIG_64BIT) && (mips_cm_revision() >= CM_REV_CM3);
 
 	for_each_possible_cpu(cpu)
 		spin_lock_init(&per_cpu(cm_core_lock, cpu));

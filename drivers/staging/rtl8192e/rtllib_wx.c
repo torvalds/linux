@@ -263,7 +263,7 @@ int rtllib_wx_get_scan(struct rtllib_device *ieee,
 	int err = 0;
 
 	netdev_dbg(ieee->dev, "Getting scan\n");
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 	spin_lock_irqsave(&ieee->lock, flags);
 
 	list_for_each_entry(network, &ieee->network_list, list) {
@@ -287,7 +287,7 @@ int rtllib_wx_get_scan(struct rtllib_device *ieee,
 	}
 
 	spin_unlock_irqrestore(&ieee->lock, flags);
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 	wrqu->data.length = ev -  extra;
 	wrqu->data.flags = 0;
 
@@ -623,7 +623,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 			goto done;
 		}
 		new_crypt->ops = ops;
-		if (new_crypt->ops)
+		if (new_crypt->ops && try_module_get(new_crypt->ops->owner))
 			new_crypt->priv = new_crypt->ops->init(idx);
 
 		if (new_crypt->priv == NULL) {
@@ -689,7 +689,7 @@ int rtllib_wx_set_mlme(struct rtllib_device *ieee,
 	if (ieee->state != RTLLIB_LINKED)
 		return -ENOLINK;
 
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 
 	switch (mlme->cmd) {
 	case IW_MLME_DEAUTH:
@@ -716,11 +716,11 @@ int rtllib_wx_set_mlme(struct rtllib_device *ieee,
 		ieee->current_network.ssid_len = 0;
 		break;
 	default:
-		up(&ieee->wx_sem);
+		mutex_unlock(&ieee->wx_mutex);
 		return -EOPNOTSUPP;
 	}
 
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 
 	return 0;
 }

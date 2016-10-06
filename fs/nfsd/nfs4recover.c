@@ -32,10 +32,10 @@
 *
 */
 
+#include <crypto/hash.h>
 #include <linux/file.h>
 #include <linux/slab.h>
 #include <linux/namei.h>
-#include <linux/crypto.h>
 #include <linux/sched.h>
 #include <linux/fs.h>
 #include <linux/module.h>
@@ -104,29 +104,35 @@ static int
 nfs4_make_rec_clidname(char *dname, const struct xdr_netobj *clname)
 {
 	struct xdr_netobj cksum;
-	struct hash_desc desc;
-	struct scatterlist sg;
+	struct crypto_shash *tfm;
 	int status;
 
 	dprintk("NFSD: nfs4_make_rec_clidname for %.*s\n",
 			clname->len, clname->data);
-	desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
-	desc.tfm = crypto_alloc_hash("md5", 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(desc.tfm)) {
-		status = PTR_ERR(desc.tfm);
+	tfm = crypto_alloc_shash("md5", 0, 0);
+	if (IS_ERR(tfm)) {
+		status = PTR_ERR(tfm);
 		goto out_no_tfm;
 	}
 
-	cksum.len = crypto_hash_digestsize(desc.tfm);
+	cksum.len = crypto_shash_digestsize(tfm);
 	cksum.data = kmalloc(cksum.len, GFP_KERNEL);
 	if (cksum.data == NULL) {
 		status = -ENOMEM;
  		goto out;
 	}
 
-	sg_init_one(&sg, clname->data, clname->len);
+	{
+		SHASH_DESC_ON_STACK(desc, tfm);
 
-	status = crypto_hash_digest(&desc, &sg, sg.length, cksum.data);
+		desc->tfm = tfm;
+		desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+
+		status = crypto_shash_digest(desc, clname->data, clname->len,
+					     cksum.data);
+		shash_desc_zero(desc);
+	}
+
 	if (status)
 		goto out;
 
@@ -135,7 +141,7 @@ nfs4_make_rec_clidname(char *dname, const struct xdr_netobj *clname)
 	status = 0;
 out:
 	kfree(cksum.data);
-	crypto_free_hash(desc.tfm);
+	crypto_free_shash(tfm);
 out_no_tfm:
 	return status;
 }
@@ -1260,6 +1266,7 @@ nfsd4_umh_cltrack_init(struct net *net)
 	/* XXX: The usermode helper s not working in container yet. */
 	if (net != &init_net) {
 		pr_warn("NFSD: attempt to initialize umh client tracking in a container ignored.\n");
+		kfree(grace_start);
 		return -EINVAL;
 	}
 

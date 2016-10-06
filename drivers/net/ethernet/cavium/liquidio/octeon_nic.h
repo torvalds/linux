@@ -52,6 +52,9 @@ struct octnic_ctrl_pkt {
 	/** Additional data that may be needed by some commands. */
 	u64 udd[MAX_NCTRL_UDD];
 
+	/** Input queue to use to send this command. */
+	u64 iq_no;
+
 	/** Time to wait for Octeon software to respond to this control command.
 	 *  If wait_time is 0, OSI assumes no response is expected.
 	 */
@@ -82,7 +85,7 @@ struct octnic_data_pkt {
 	u32 datasize;
 
 	/** Command to be passed to the Octeon device software. */
-	struct octeon_instr_64B cmd;
+	union octeon_instr_64B cmd;
 
 	/** Input queue to use to send this command. */
 	u32 q_no;
@@ -94,15 +97,14 @@ struct octnic_data_pkt {
  */
 union octnic_cmd_setup {
 	struct {
-		u32 ifidx:8;
-		u32 cksum_offset:7;
+		u32 iq_no:8;
 		u32 gather:1;
 		u32 timestamp:1;
-		u32 ipv4opts_ipv6exthdr:2;
 		u32 ip_csum:1;
+		u32 transport_csum:1;
 		u32 tnl_csum:1;
+		u32 rsvd:19;
 
-		u32 rsvd:11;
 		union {
 			u32 datasize;
 			u32 gatherptrs;
@@ -113,14 +115,127 @@ union octnic_cmd_setup {
 
 };
 
-struct octnic_ctrl_params {
-	u32 resp_order;
-};
-
 static inline int octnet_iq_is_full(struct octeon_device *oct, u32 q_no)
 {
 	return ((u32)atomic_read(&oct->instr_queue[q_no]->instr_pending)
 		>= (oct->instr_queue[q_no]->max_count - 2));
+}
+
+static inline void
+octnet_prepare_pci_cmd_o2(struct octeon_device *oct,
+			  union octeon_instr_64B *cmd,
+			  union octnic_cmd_setup *setup, u32 tag)
+{
+	struct octeon_instr_ih2 *ih2;
+	struct octeon_instr_irh *irh;
+	union octnic_packet_params packet_params;
+	int port;
+
+	memset(cmd, 0, sizeof(union octeon_instr_64B));
+
+	ih2 = (struct octeon_instr_ih2 *)&cmd->cmd2.ih2;
+
+	/* assume that rflag is cleared so therefore front data will only have
+	 * irh and ossp[0], ossp[1] for a total of 32 bytes
+	 */
+	ih2->fsz = LIO_PCICMD_O2;
+
+	ih2->tagtype = ORDERED_TAG;
+	ih2->grp = DEFAULT_POW_GRP;
+
+	port = (int)oct->instr_queue[setup->s.iq_no]->txpciq.s.port;
+
+	if (tag)
+		ih2->tag = tag;
+	else
+		ih2->tag = LIO_DATA(port);
+
+	ih2->raw = 1;
+	ih2->qos = (port & 3) + 4;	/* map qos based on interface */
+
+	if (!setup->s.gather) {
+		ih2->dlengsz = setup->s.u.datasize;
+	} else {
+		ih2->gather = 1;
+		ih2->dlengsz = setup->s.u.gatherptrs;
+	}
+
+	irh = (struct octeon_instr_irh *)&cmd->cmd2.irh;
+
+	irh->opcode = OPCODE_NIC;
+	irh->subcode = OPCODE_NIC_NW_DATA;
+
+	packet_params.u32 = 0;
+
+	packet_params.s.ip_csum = setup->s.ip_csum;
+	packet_params.s.transport_csum = setup->s.transport_csum;
+	packet_params.s.tnl_csum = setup->s.tnl_csum;
+	packet_params.s.tsflag = setup->s.timestamp;
+
+	irh->ossp = packet_params.u32;
+}
+
+static inline void
+octnet_prepare_pci_cmd_o3(struct octeon_device *oct,
+			  union octeon_instr_64B *cmd,
+			  union octnic_cmd_setup *setup, u32 tag)
+{
+	struct octeon_instr_irh *irh;
+	struct octeon_instr_ih3     *ih3;
+	struct octeon_instr_pki_ih3 *pki_ih3;
+	union octnic_packet_params packet_params;
+	int port;
+
+	memset(cmd, 0, sizeof(union octeon_instr_64B));
+
+	ih3 = (struct octeon_instr_ih3 *)&cmd->cmd3.ih3;
+	pki_ih3 = (struct octeon_instr_pki_ih3 *)&cmd->cmd3.pki_ih3;
+
+	/* assume that rflag is cleared so therefore front data will only have
+	 * irh and ossp[1] and ossp[2] for a total of 24 bytes
+	 */
+	ih3->pkind       = oct->instr_queue[setup->s.iq_no]->txpciq.s.pkind;
+	/*PKI IH*/
+	ih3->fsz = LIO_PCICMD_O3;
+
+	if (!setup->s.gather) {
+		ih3->dlengsz = setup->s.u.datasize;
+	} else {
+		ih3->gather = 1;
+		ih3->dlengsz = setup->s.u.gatherptrs;
+	}
+
+	pki_ih3->w       = 1;
+	pki_ih3->raw     = 1;
+	pki_ih3->utag    = 1;
+	pki_ih3->utt     = 1;
+	pki_ih3->uqpg    = oct->instr_queue[setup->s.iq_no]->txpciq.s.use_qpg;
+
+	port = (int)oct->instr_queue[setup->s.iq_no]->txpciq.s.port;
+
+	if (tag)
+		pki_ih3->tag = tag;
+	else
+		pki_ih3->tag     = LIO_DATA(port);
+
+	pki_ih3->tagtype = ORDERED_TAG;
+	pki_ih3->qpg     = oct->instr_queue[setup->s.iq_no]->txpciq.s.qpg;
+	pki_ih3->pm      = 0x7; /*0x7 - meant for Parse nothing, uninterpreted*/
+	pki_ih3->sl      = 8;   /* sl will be sizeof(pki_ih3)*/
+
+	irh = (struct octeon_instr_irh *)&cmd->cmd3.irh;
+
+	irh->opcode = OPCODE_NIC;
+	irh->subcode = OPCODE_NIC_NW_DATA;
+
+	packet_params.u32 = 0;
+
+	packet_params.s.ip_csum = setup->s.ip_csum;
+	packet_params.s.transport_csum = setup->s.transport_csum;
+	packet_params.s.tnl_csum = setup->s.tnl_csum;
+	packet_params.s.tsflag = setup->s.timestamp;
+
+	irh->ossp = packet_params.u32;
 }
 
 /** Utility function to prepare a 64B NIC instruction based on a setup command
@@ -131,59 +246,13 @@ static inline int octnet_iq_is_full(struct octeon_device *oct, u32 q_no)
  * Assumes the cmd instruction is pre-allocated, but no fields are filled in.
  */
 static inline void
-octnet_prepare_pci_cmd(struct octeon_instr_64B *cmd,
+octnet_prepare_pci_cmd(struct octeon_device *oct, union octeon_instr_64B *cmd,
 		       union octnic_cmd_setup *setup, u32 tag)
 {
-	struct octeon_instr_ih *ih;
-	struct octeon_instr_irh *irh;
-	union octnic_packet_params packet_params;
-
-	memset(cmd, 0, sizeof(struct octeon_instr_64B));
-
-	ih = (struct octeon_instr_ih *)&cmd->ih;
-
-	/* assume that rflag is cleared so therefore front data will only have
-	 * irh and ossp[1] and ossp[2] for a total of 24 bytes
-	 */
-	ih->fsz = 24;
-
-	ih->tagtype = ORDERED_TAG;
-	ih->grp = DEFAULT_POW_GRP;
-
-	if (tag)
-		ih->tag = tag;
+	if (OCTEON_CN6XXX(oct))
+		octnet_prepare_pci_cmd_o2(oct, cmd, setup, tag);
 	else
-		ih->tag = LIO_DATA(setup->s.ifidx);
-
-	ih->raw = 1;
-	ih->qos = (setup->s.ifidx & 3) + 4;	/* map qos based on interface */
-
-	if (!setup->s.gather) {
-		ih->dlengsz = setup->s.u.datasize;
-	} else {
-		ih->gather = 1;
-		ih->dlengsz = setup->s.u.gatherptrs;
-	}
-
-	irh = (struct octeon_instr_irh *)&cmd->irh;
-
-	irh->opcode = OPCODE_NIC;
-	irh->subcode = OPCODE_NIC_NW_DATA;
-
-	packet_params.u32 = 0;
-
-	if (setup->s.cksum_offset) {
-		packet_params.s.csoffset = setup->s.cksum_offset;
-		packet_params.s.ipv4opts_ipv6exthdr =
-						setup->s.ipv4opts_ipv6exthdr;
-	}
-
-	packet_params.s.ip_csum = setup->s.ip_csum;
-	packet_params.s.tnl_csum = setup->s.tnl_csum;
-	packet_params.s.ifidx = setup->s.ifidx;
-	packet_params.s.tsflag = setup->s.timestamp;
-
-	irh->ossp = packet_params.u32;
+		octnet_prepare_pci_cmd_o3(oct, cmd, setup, tag);
 }
 
 /** Allocate and a soft command with space for a response immediately following
@@ -198,8 +267,8 @@ octnet_prepare_pci_cmd(struct octeon_instr_64B *cmd,
  */
 void *
 octeon_alloc_soft_command_resp(struct octeon_device    *oct,
-			       struct octeon_instr_64B *cmd,
-			       size_t		       rdatasize);
+			       union octeon_instr_64B *cmd,
+			       u32		       rdatasize);
 
 /** Send a NIC data packet to the device
  * @param oct - octeon device pointer
@@ -209,19 +278,16 @@ octeon_alloc_soft_command_resp(struct octeon_device    *oct,
  * queue should be stopped, and IQ_SEND_OK if it sent okay.
  */
 int octnet_send_nic_data_pkt(struct octeon_device *oct,
-			     struct octnic_data_pkt *ndata, u32 xmit_more);
+			     struct octnic_data_pkt *ndata);
 
 /** Send a NIC control packet to the device
  * @param oct - octeon device pointer
  * @param nctrl - control structure with command, timout, and callback info
- * @param nparams - response control structure
- *
  * @returns IQ_FAILED if it failed to add to the input queue. IQ_STOP if it the
  * queue should be stopped, and IQ_SEND_OK if it sent okay.
  */
 int
 octnet_send_nic_ctrl_pkt(struct octeon_device *oct,
-			 struct octnic_ctrl_pkt *nctrl,
-			 struct octnic_ctrl_params nparams);
+			 struct octnic_ctrl_pkt *nctrl);
 
 #endif

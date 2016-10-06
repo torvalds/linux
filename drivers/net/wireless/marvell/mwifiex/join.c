@@ -644,6 +644,14 @@ int mwifiex_ret_802_11_associate(struct mwifiex_private *priv,
 	struct mwifiex_bssdescriptor *bss_desc;
 	bool enable_data = true;
 	u16 cap_info, status_code, aid;
+	const u8 *ie_ptr;
+	struct ieee80211_ht_operation *assoc_resp_ht_oper;
+
+	if (!priv->attempted_bss_desc) {
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "ASSOC_RESP: failed, association terminated by host\n");
+		goto done;
+	}
 
 	assoc_rsp = (struct ieee_types_assoc_rsp *) &resp->params;
 
@@ -661,9 +669,8 @@ int mwifiex_ret_802_11_associate(struct mwifiex_private *priv,
 	priv->assoc_rsp_size = min(le16_to_cpu(resp->size) - S_DS_GEN,
 				   sizeof(priv->assoc_rsp_buf));
 
-	memcpy(priv->assoc_rsp_buf, &resp->params, priv->assoc_rsp_size);
-
 	assoc_rsp->a_id = cpu_to_le16(aid);
+	memcpy(priv->assoc_rsp_buf, &resp->params, priv->assoc_rsp_size);
 
 	if (status_code) {
 		priv->adapter->dbg.num_cmd_assoc_failure++;
@@ -732,6 +739,19 @@ int mwifiex_ret_802_11_associate(struct mwifiex_private *priv,
 		priv->curr_bss_params.wmm_uapsd_enabled
 			= ((bss_desc->wmm_ie.qos_info_bitmap &
 				IEEE80211_WMM_IE_AP_QOSINFO_UAPSD) ? 1 : 0);
+
+	/* Store the bandwidth information from assoc response */
+	ie_ptr = cfg80211_find_ie(WLAN_EID_HT_OPERATION, assoc_rsp->ie_buffer,
+				  priv->assoc_rsp_size
+				  - sizeof(struct ieee_types_assoc_rsp));
+	if (ie_ptr) {
+		assoc_resp_ht_oper = (struct ieee80211_ht_operation *)(ie_ptr
+					+ sizeof(struct ieee_types_header));
+		priv->assoc_resp_ht_param = assoc_resp_ht_oper->ht_param;
+		priv->ht_param_present = true;
+	} else {
+		priv->ht_param_present = false;
+	}
 
 	mwifiex_dbg(priv->adapter, INFO,
 		    "info: ASSOC_RESP: curr_pkt_filter is %#x\n",
@@ -1255,6 +1275,12 @@ int mwifiex_ret_802_11_ad_hoc(struct mwifiex_private *priv,
 	u16 cmd = le16_to_cpu(resp->command);
 	u8 result;
 
+	if (!priv->attempted_bss_desc) {
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "ADHOC_RESP: failed, association terminated by host\n");
+		goto done;
+	}
+
 	if (cmd == HostCmd_CMD_802_11_AD_HOC_START)
 		result = start_result->result;
 	else
@@ -1266,7 +1292,7 @@ int mwifiex_ret_802_11_ad_hoc(struct mwifiex_private *priv,
 	if (result) {
 		mwifiex_dbg(priv->adapter, ERROR, "ADHOC_RESP: failed\n");
 		if (priv->media_connected)
-			mwifiex_reset_connect_state(priv, result);
+			mwifiex_reset_connect_state(priv, result, true);
 
 		memset(&priv->curr_bss_params.bss_descriptor,
 		       0x00, sizeof(struct mwifiex_bssdescriptor));

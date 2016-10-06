@@ -43,7 +43,8 @@ void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
 	cfg80211_hold_bss(bss_from_pub(bss));
 	wdev->current_bss = bss_from_pub(bss);
 
-	cfg80211_upload_connect_keys(wdev);
+	if (!(wdev->wiphy->flags & WIPHY_FLAG_HAS_STATIC_WEP))
+		cfg80211_upload_connect_keys(wdev);
 
 	nl80211_send_ibss_bssid(wiphy_to_rdev(wdev->wiphy), dev, bssid,
 				GFP_KERNEL);
@@ -104,7 +105,7 @@ static int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 		struct ieee80211_supported_band *sband =
 			rdev->wiphy.bands[params->chandef.chan->band];
 		int j;
-		u32 flag = params->chandef.chan->band == IEEE80211_BAND_5GHZ ?
+		u32 flag = params->chandef.chan->band == NL80211_BAND_5GHZ ?
 			IEEE80211_RATE_MANDATORY_A :
 			IEEE80211_RATE_MANDATORY_B;
 
@@ -113,6 +114,9 @@ static int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 				params->basic_rates |= BIT(j);
 		}
 	}
+
+	if (WARN_ON(connkeys && connkeys->def < 0))
+		return -EINVAL;
 
 	if (WARN_ON(wdev->connect_keys))
 		kzfree(wdev->connect_keys);
@@ -236,7 +240,7 @@ int cfg80211_ibss_wext_join(struct cfg80211_registered_device *rdev,
 			    struct wireless_dev *wdev)
 {
 	struct cfg80211_cached_keys *ck = NULL;
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	int i, err;
 
 	ASSERT_WDEV_LOCK(wdev);
@@ -248,7 +252,7 @@ int cfg80211_ibss_wext_join(struct cfg80211_registered_device *rdev,
 	if (!wdev->wext.ibss.chandef.chan) {
 		struct ieee80211_channel *new_chan = NULL;
 
-		for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+		for (band = 0; band < NUM_NL80211_BANDS; band++) {
 			struct ieee80211_supported_band *sband;
 			struct ieee80211_channel *chan;
 
@@ -284,18 +288,16 @@ int cfg80211_ibss_wext_join(struct cfg80211_registered_device *rdev,
 	if (!netif_running(wdev->netdev))
 		return 0;
 
-	if (wdev->wext.keys) {
+	if (wdev->wext.keys)
 		wdev->wext.keys->def = wdev->wext.default_key;
-		wdev->wext.keys->defmgmt = wdev->wext.default_mgmt_key;
-	}
 
 	wdev->wext.ibss.privacy = wdev->wext.default_key != -1;
 
-	if (wdev->wext.keys) {
+	if (wdev->wext.keys && wdev->wext.keys->def != -1) {
 		ck = kmemdup(wdev->wext.keys, sizeof(*ck), GFP_KERNEL);
 		if (!ck)
 			return -ENOMEM;
-		for (i = 0; i < 6; i++)
+		for (i = 0; i < CFG80211_MAX_WEP_KEYS; i++)
 			ck->params[i].key = ck->data[i];
 	}
 	err = __cfg80211_join_ibss(rdev, wdev->netdev,

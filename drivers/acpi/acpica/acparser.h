@@ -78,6 +78,8 @@ extern const u8 acpi_gbl_long_op_index[];
  */
 acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info);
 
+acpi_status acpi_ps_execute_table(struct acpi_evaluate_info *info);
+
 /*
  * psargs - Parse AML opcode arguments
  */
@@ -139,7 +141,7 @@ acpi_ps_complete_final_op(struct acpi_walk_state *walk_state,
  */
 const struct acpi_opcode_info *acpi_ps_get_opcode_info(u16 opcode);
 
-char *acpi_ps_get_opcode_name(u16 opcode);
+const char *acpi_ps_get_opcode_name(u16 opcode);
 
 u8 acpi_ps_get_argument_count(u32 op_type);
 

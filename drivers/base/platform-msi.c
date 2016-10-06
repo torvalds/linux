@@ -142,13 +142,12 @@ static int platform_msi_alloc_descs_with_irq(struct device *dev, int virq,
 	}
 
 	for (i = 0; i < nvec; i++) {
-		desc = alloc_msi_entry(dev);
+		desc = alloc_msi_entry(dev, 1, NULL);
 		if (!desc)
 			break;
 
 		desc->platform.msi_priv_data = data;
 		desc->platform.msi_index = base + i;
-		desc->nvec_used = 1;
 		desc->irq = virq ? virq + i : 0;
 
 		list_add_tail(&desc->list, dev_to_msi_list(dev));
@@ -284,6 +283,7 @@ out_free_priv_data:
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(platform_msi_domain_alloc_irqs);
 
 /**
  * platform_msi_domain_free_irqs - Free MSI interrupts for @dev
@@ -301,6 +301,7 @@ void platform_msi_domain_free_irqs(struct device *dev)
 	msi_domain_free_irqs(dev->msi_domain, dev);
 	platform_msi_free_descs(dev, 0, MAX_DEV_MSIS);
 }
+EXPORT_SYMBOL_GPL(platform_msi_domain_free_irqs);
 
 /**
  * platform_msi_get_host_data - Query the private data associated with

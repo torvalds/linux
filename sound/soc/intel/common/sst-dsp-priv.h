@@ -317,6 +317,7 @@ struct sst_dsp {
 	struct skl_cl_dev cl_dev;
 	u32 intr_status;
 	const struct firmware *fw;
+	struct snd_dma_buffer dmab;
 };
 
 /* Size optimised DRAM/IRAM memcpy */
@@ -381,10 +382,6 @@ struct sst_mem_block *sst_mem_block_register(struct sst_dsp *dsp, u32 offset,
 	u32 size, enum sst_mem_type type, const struct sst_block_ops *ops,
 	u32 index, void *private);
 void sst_mem_block_unregister_all(struct sst_dsp *dsp);
-
-/* Create/Free DMA resources */
-int sst_dma_new(struct sst_dsp *sst);
-void sst_dma_free(struct sst_dma *dma);
 
 u32 sst_dsp_get_offset(struct sst_dsp *dsp, u32 offset,
 	enum sst_mem_type type);

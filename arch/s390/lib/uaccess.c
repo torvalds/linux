@@ -49,7 +49,7 @@ static inline unsigned long copy_from_user_mvcos(void *x, const void __user *ptr
 		"   jnm   5b\n"
 		"   ex    %4,0(%3)\n"
 		"   j     8f\n"
-		"7:slgr  %0,%0\n"
+		"7: slgr  %0,%0\n"
 		"8:\n"
 		EX_TABLE(0b,2b) EX_TABLE(3b,4b) EX_TABLE(9b,2b) EX_TABLE(10b,4b)
 		: "+a" (size), "+a" (ptr), "+a" (x), "+a" (tmp1), "=a" (tmp2)
@@ -93,7 +93,7 @@ static inline unsigned long copy_from_user_mvcp(void *x, const void __user *ptr,
 		"   jnm   6b\n"
 		"   ex    %4,0(%3)\n"
 		"   j     9f\n"
-		"8:slgr  %0,%0\n"
+		"8: slgr  %0,%0\n"
 		"9: sacf  768\n"
 		EX_TABLE(0b,3b) EX_TABLE(2b,3b) EX_TABLE(4b,5b)
 		EX_TABLE(10b,3b) EX_TABLE(11b,3b) EX_TABLE(12b,5b)
@@ -104,6 +104,7 @@ static inline unsigned long copy_from_user_mvcp(void *x, const void __user *ptr,
 
 unsigned long __copy_from_user(void *to, const void __user *from, unsigned long n)
 {
+	check_object_size(to, n, false);
 	if (static_branch_likely(&have_mvcos))
 		return copy_from_user_mvcos(to, from, n);
 	return copy_from_user_mvcp(to, from, n);
@@ -177,6 +178,7 @@ static inline unsigned long copy_to_user_mvcs(void __user *ptr, const void *x,
 
 unsigned long __copy_to_user(void __user *to, const void *from, unsigned long n)
 {
+	check_object_size(from, n, true);
 	if (static_branch_likely(&have_mvcos))
 		return copy_to_user_mvcos(to, from, n);
 	return copy_to_user_mvcs(to, from, n);
@@ -266,7 +268,7 @@ static inline unsigned long clear_user_mvcos(void __user *to, unsigned long size
 		"3: .insn ss,0xc80000000000,0(%3,%1),0(%4),0\n"
 		"   slgr  %0,%3\n"
 		"   j	  5f\n"
-		"4:slgr  %0,%0\n"
+		"4: slgr  %0,%0\n"
 		"5:\n"
 		EX_TABLE(0b,2b) EX_TABLE(3b,5b)
 		: "+a" (size), "+a" (to), "+a" (tmp1), "=a" (tmp2)

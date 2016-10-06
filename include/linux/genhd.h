@@ -14,6 +14,7 @@
 #include <linux/rcupdate.h>
 #include <linux/slab.h>
 #include <linux/percpu-refcount.h>
+#include <linux/uuid.h>
 
 #ifdef CONFIG_BLOCK
 
@@ -93,7 +94,7 @@ struct disk_stats {
  * Enough for the string representation of any kind of UUID plus NULL.
  * EFI UUID is 36 characters. MSDOS UUID is 11 characters.
  */
-#define PARTITION_META_INFO_UUIDLTH	37
+#define PARTITION_META_INFO_UUIDLTH	(UUID_STRING_LEN + 1)
 
 struct partition_meta_info {
 	char uuid[PARTITION_META_INFO_UUIDLTH];
@@ -204,7 +205,6 @@ struct gendisk {
 	void *private_data;
 
 	int flags;
-	struct device *driverfs_dev;  // FIXME: remove
 	struct kobject *slave_dir;
 
 	struct timer_rand_state *random;
@@ -228,27 +228,9 @@ static inline struct gendisk *part_to_disk(struct hd_struct *part)
 	return NULL;
 }
 
-static inline void part_pack_uuid(const u8 *uuid_str, u8 *to)
-{
-	int i;
-	for (i = 0; i < 16; ++i) {
-		*to++ = (hex_to_bin(*uuid_str) << 4) |
-			(hex_to_bin(*(uuid_str + 1)));
-		uuid_str += 2;
-		switch (i) {
-		case 3:
-		case 5:
-		case 7:
-		case 9:
-			uuid_str++;
-			continue;
-		}
-	}
-}
-
 static inline int blk_part_pack_uuid(const u8 *uuid_str, u8 *to)
 {
-	part_pack_uuid(uuid_str, to);
+	uuid_be_to_bin(uuid_str, (uuid_be *)to);
 	return 0;
 }
 
@@ -431,7 +413,12 @@ static inline void free_part_info(struct hd_struct *part)
 extern void part_round_stats(int cpu, struct hd_struct *part);
 
 /* block/genhd.c */
-extern void add_disk(struct gendisk *disk);
+extern void device_add_disk(struct device *parent, struct gendisk *disk);
+static inline void add_disk(struct gendisk *disk)
+{
+	device_add_disk(NULL, disk);
+}
+
 extern void del_gendisk(struct gendisk *gp);
 extern struct gendisk *get_gendisk(dev_t dev, int *partno);
 extern struct block_device *bdget_disk(struct gendisk *disk, int partno);

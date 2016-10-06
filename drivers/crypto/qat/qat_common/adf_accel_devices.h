@@ -55,8 +55,8 @@
 
 #define ADF_DH895XCC_DEVICE_NAME "dh895xcc"
 #define ADF_DH895XCCVF_DEVICE_NAME "dh895xccvf"
-#define ADF_C62X_DEVICE_NAME "c62x"
-#define ADF_C62XVF_DEVICE_NAME "c62xvf"
+#define ADF_C62X_DEVICE_NAME "c6xx"
+#define ADF_C62XVF_DEVICE_NAME "c6xxvf"
 #define ADF_C3XXX_DEVICE_NAME "c3xxx"
 #define ADF_C3XXXVF_DEVICE_NAME "c3xxxvf"
 #define ADF_DH895XCC_PCI_DEVICE_ID 0x435
@@ -176,6 +176,7 @@ struct adf_hw_device_data {
 	void (*disable_iov)(struct adf_accel_dev *accel_dev);
 	void (*enable_ints)(struct adf_accel_dev *accel_dev);
 	int (*enable_vf2pf_comms)(struct adf_accel_dev *accel_dev);
+	void (*reset_device)(struct adf_accel_dev *accel_dev);
 	const char *fw_name;
 	const char *fw_mmp_name;
 	uint32_t fuses;

@@ -34,7 +34,7 @@
 /*XXX*/
 #include <core/client.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_bo.h"
 #include "nouveau_chan.h"
@@ -191,7 +191,9 @@ static int
 nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 		    u32 engine, struct nouveau_channel **pchan)
 {
-	static const u16 oclasses[] = { MAXWELL_CHANNEL_GPFIFO_A,
+	static const u16 oclasses[] = { PASCAL_CHANNEL_GPFIFO_A,
+					MAXWELL_CHANNEL_GPFIFO_A,
+					KEPLER_CHANNEL_GPFIFO_B,
 					KEPLER_CHANNEL_GPFIFO_A,
 					FERMI_CHANNEL_GPFIFO,
 					G82_CHANNEL_GPFIFO,
@@ -217,7 +219,7 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 	do {
 		if (oclass[0] >= KEPLER_CHANNEL_GPFIFO_A) {
 			args.kepler.version = 0;
-			args.kepler.engine  = engine;
+			args.kepler.engines = engine;
 			args.kepler.ilength = 0x02000;
 			args.kepler.ioffset = 0x10000 + chan->push.vma.offset;
 			args.kepler.vm = 0;

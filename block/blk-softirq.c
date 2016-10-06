@@ -78,29 +78,20 @@ static int raise_blk_irq(int cpu, struct request *rq)
 }
 #endif
 
-static int blk_cpu_notify(struct notifier_block *self, unsigned long action,
-			  void *hcpu)
+static int blk_softirq_cpu_dead(unsigned int cpu)
 {
 	/*
 	 * If a CPU goes away, splice its entries to the current CPU
 	 * and trigger a run of the softirq
 	 */
-	if (action == CPU_DEAD || action == CPU_DEAD_FROZEN) {
-		int cpu = (unsigned long) hcpu;
+	local_irq_disable();
+	list_splice_init(&per_cpu(blk_cpu_done, cpu),
+			 this_cpu_ptr(&blk_cpu_done));
+	raise_softirq_irqoff(BLOCK_SOFTIRQ);
+	local_irq_enable();
 
-		local_irq_disable();
-		list_splice_init(&per_cpu(blk_cpu_done, cpu),
-				 this_cpu_ptr(&blk_cpu_done));
-		raise_softirq_irqoff(BLOCK_SOFTIRQ);
-		local_irq_enable();
-	}
-
-	return NOTIFY_OK;
+	return 0;
 }
-
-static struct notifier_block blk_cpu_notifier = {
-	.notifier_call	= blk_cpu_notify,
-};
 
 void __blk_complete_request(struct request *req)
 {
@@ -180,7 +171,9 @@ static __init int blk_softirq_init(void)
 		INIT_LIST_HEAD(&per_cpu(blk_cpu_done, i));
 
 	open_softirq(BLOCK_SOFTIRQ, blk_done_softirq);
-	register_hotcpu_notifier(&blk_cpu_notifier);
+	cpuhp_setup_state_nocalls(CPUHP_BLOCK_SOFTIRQ_DEAD,
+				  "block/softirq:dead", NULL,
+				  blk_softirq_cpu_dead);
 	return 0;
 }
 subsys_initcall(blk_softirq_init);

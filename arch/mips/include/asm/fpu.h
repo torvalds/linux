@@ -179,6 +179,10 @@ static inline void lose_fpu_inatomic(int save, struct task_struct *tsk)
 		if (save)
 			_save_fp(tsk);
 		__disable_fpu();
+	} else {
+		/* FPU should not have been left enabled with no owner */
+		WARN(read_c0_status() & ST0_CU1,
+		     "Orphaned FPU left enabled");
 	}
 	KSTK_STATUS(tsk) &= ~ST0_CU1;
 	clear_tsk_thread_flag(tsk, TIF_USEDFPU);

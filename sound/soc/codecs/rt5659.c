@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -3565,7 +3566,9 @@ static int rt5659_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
 static int rt5659_set_bias_level(struct snd_soc_codec *codec,
 			enum snd_soc_bias_level level)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct rt5659_priv *rt5659 = snd_soc_codec_get_drvdata(codec);
+	int ret;
 
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
@@ -3582,6 +3585,17 @@ static int rt5659_set_bias_level(struct snd_soc_codec *codec,
 			RT5659_PWR_FV1 | RT5659_PWR_FV2);
 		break;
 
+	case SND_SOC_BIAS_STANDBY:
+		if (dapm->bias_level == SND_SOC_BIAS_OFF) {
+			ret = clk_prepare_enable(rt5659->mclk);
+			if (ret) {
+				dev_err(codec->dev,
+					"failed to enable MCLK: %d\n", ret);
+				return ret;
+			}
+		}
+		break;
+
 	case SND_SOC_BIAS_OFF:
 		regmap_update_bits(rt5659->regmap, RT5659_PWR_DIG_1,
 			RT5659_PWR_LDO, 0);
@@ -3591,6 +3605,7 @@ static int rt5659_set_bias_level(struct snd_soc_codec *codec,
 			RT5659_PWR_MB | RT5659_PWR_VREF2);
 		regmap_update_bits(rt5659->regmap, RT5659_DIG_MISC,
 			RT5659_DIG_GATE_CTRL, 0);
+		clk_disable_unprepare(rt5659->mclk);
 		break;
 
 	default:
@@ -3722,12 +3737,14 @@ static struct snd_soc_codec_driver soc_codec_dev_rt5659 = {
 	.resume = rt5659_resume,
 	.set_bias_level = rt5659_set_bias_level,
 	.idle_bias_off = true,
-	.controls = rt5659_snd_controls,
-	.num_controls = ARRAY_SIZE(rt5659_snd_controls),
-	.dapm_widgets = rt5659_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(rt5659_dapm_widgets),
-	.dapm_routes = rt5659_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(rt5659_dapm_routes),
+	.component_driver = {
+		.controls		= rt5659_snd_controls,
+		.num_controls		= ARRAY_SIZE(rt5659_snd_controls),
+		.dapm_widgets		= rt5659_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(rt5659_dapm_widgets),
+		.dapm_routes		= rt5659_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(rt5659_dapm_routes),
+	},
 };
 
 
@@ -3985,7 +4002,6 @@ static int rt5659_i2c_probe(struct i2c_client *i2c,
 	if (rt5659 == NULL)
 		return -ENOMEM;
 
-	rt5659->i2c = i2c;
 	i2c_set_clientdata(i2c, rt5659);
 
 	if (pdata)
@@ -4020,6 +4036,15 @@ static int rt5659_i2c_probe(struct i2c_client *i2c,
 	}
 
 	regmap_write(rt5659->regmap, RT5659_RESET, 0);
+
+	/* Check if MCLK provided */
+	rt5659->mclk = devm_clk_get(&i2c->dev, "mclk");
+	if (IS_ERR(rt5659->mclk)) {
+		if (PTR_ERR(rt5659->mclk) != -ENOENT)
+			return PTR_ERR(rt5659->mclk);
+		/* Otherwise mark the mclk pointer to NULL */
+		rt5659->mclk = NULL;
+	}
 
 	rt5659_calibrate(rt5659);
 
@@ -4157,24 +4182,20 @@ static int rt5659_i2c_probe(struct i2c_client *i2c,
 
 	INIT_DELAYED_WORK(&rt5659->jack_detect_work, rt5659_jack_detect_work);
 
-	if (rt5659->i2c->irq) {
-		ret = request_threaded_irq(rt5659->i2c->irq, NULL, rt5659_irq,
-			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING
+	if (i2c->irq) {
+		ret = devm_request_threaded_irq(&i2c->dev, i2c->irq, NULL,
+			rt5659_irq, IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING
 			| IRQF_ONESHOT, "rt5659", rt5659);
 		if (ret)
 			dev_err(&i2c->dev, "Failed to reguest IRQ: %d\n", ret);
 
+		/* Enable IRQ output for GPIO1 pin any way */
+		regmap_update_bits(rt5659->regmap, RT5659_GPIO_CTRL_1,
+				   RT5659_GP1_PIN_MASK, RT5659_GP1_PIN_IRQ);
 	}
 
-	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5659,
+	return snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5659,
 			rt5659_dai, ARRAY_SIZE(rt5659_dai));
-
-	if (ret) {
-		if (rt5659->i2c->irq)
-			free_irq(rt5659->i2c->irq, rt5659);
-	}
-
-	return 0;
 }
 
 static int rt5659_i2c_remove(struct i2c_client *i2c)
@@ -4184,31 +4205,36 @@ static int rt5659_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-void rt5659_i2c_shutdown(struct i2c_client *client)
+static void rt5659_i2c_shutdown(struct i2c_client *client)
 {
 	struct rt5659_priv *rt5659 = i2c_get_clientdata(client);
 
 	regmap_write(rt5659->regmap, RT5659_RESET, 0);
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id rt5659_of_match[] = {
 	{ .compatible = "realtek,rt5658", },
 	{ .compatible = "realtek,rt5659", },
-	{},
+	{ },
 };
+MODULE_DEVICE_TABLE(of, rt5659_of_match);
+#endif
 
+#ifdef CONFIG_ACPI
 static struct acpi_device_id rt5659_acpi_match[] = {
-		{ "10EC5658", 0},
-		{ "10EC5659", 0},
-		{ },
+	{ "10EC5658", 0, },
+	{ "10EC5659", 0, },
+	{ },
 };
 MODULE_DEVICE_TABLE(acpi, rt5659_acpi_match);
+#endif
 
 struct i2c_driver rt5659_i2c_driver = {
 	.driver = {
 		.name = "rt5659",
 		.owner = THIS_MODULE,
-		.of_match_table = rt5659_of_match,
+		.of_match_table = of_match_ptr(rt5659_of_match),
 		.acpi_match_table = ACPI_PTR(rt5659_acpi_match),
 	},
 	.probe = rt5659_i2c_probe,

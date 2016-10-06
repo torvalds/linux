@@ -12,6 +12,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/extcon.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -19,6 +20,8 @@
 #include <linux/of_address.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
+#include <linux/workqueue.h>
 
 /******* USB2.0 Host registers (original offset is +0x200) *******/
 #define USB2_INT_ENABLE		0x000
@@ -74,34 +77,33 @@
 #define USB2_ADPCTRL_IDPULLUP		BIT(5)	/* 1 = ID sampling is enabled */
 #define USB2_ADPCTRL_DRVVBUS		BIT(4)
 
-/******* HSUSB registers (original offset is +0x100) *******/
-#define HSUSB_LPSTS			0x02
-#define HSUSB_UGCTRL2			0x84
-
-/* Low Power Status register (LPSTS) */
-#define HSUSB_LPSTS_SUSPM		0x4000
-
-/* USB General control register 2 (UGCTRL2) */
-#define HSUSB_UGCTRL2_MASK		0x00000031 /* bit[31:6] should be 0 */
-#define HSUSB_UGCTRL2_USB0SEL		0x00000030
-#define HSUSB_UGCTRL2_USB0SEL_HOST	0x00000010
-#define HSUSB_UGCTRL2_USB0SEL_HS_USB	0x00000020
-#define HSUSB_UGCTRL2_USB0SEL_OTG	0x00000030
-
-struct rcar_gen3_data {
-	void __iomem *base;
-	struct clk *clk;
-};
-
 struct rcar_gen3_chan {
-	struct rcar_gen3_data usb2;
-	struct rcar_gen3_data hsusb;
+	void __iomem *base;
+	struct extcon_dev *extcon;
 	struct phy *phy;
+	struct regulator *vbus;
+	struct work_struct work;
+	bool extcon_host;
+	bool has_otg;
 };
+
+static void rcar_gen3_phy_usb2_work(struct work_struct *work)
+{
+	struct rcar_gen3_chan *ch = container_of(work, struct rcar_gen3_chan,
+						 work);
+
+	if (ch->extcon_host) {
+		extcon_set_cable_state_(ch->extcon, EXTCON_USB_HOST, true);
+		extcon_set_cable_state_(ch->extcon, EXTCON_USB, false);
+	} else {
+		extcon_set_cable_state_(ch->extcon, EXTCON_USB_HOST, false);
+		extcon_set_cable_state_(ch->extcon, EXTCON_USB, true);
+	}
+}
 
 static void rcar_gen3_set_host_mode(struct rcar_gen3_chan *ch, int host)
 {
-	void __iomem *usb2_base = ch->usb2.base;
+	void __iomem *usb2_base = ch->base;
 	u32 val = readl(usb2_base + USB2_COMMCTRL);
 
 	dev_vdbg(&ch->phy->dev, "%s: %08x, %d\n", __func__, val, host);
@@ -114,7 +116,7 @@ static void rcar_gen3_set_host_mode(struct rcar_gen3_chan *ch, int host)
 
 static void rcar_gen3_set_linectrl(struct rcar_gen3_chan *ch, int dp, int dm)
 {
-	void __iomem *usb2_base = ch->usb2.base;
+	void __iomem *usb2_base = ch->base;
 	u32 val = readl(usb2_base + USB2_LINECTRL1);
 
 	dev_vdbg(&ch->phy->dev, "%s: %08x, %d, %d\n", __func__, val, dp, dm);
@@ -128,7 +130,7 @@ static void rcar_gen3_set_linectrl(struct rcar_gen3_chan *ch, int dp, int dm)
 
 static void rcar_gen3_enable_vbus_ctrl(struct rcar_gen3_chan *ch, int vbus)
 {
-	void __iomem *usb2_base = ch->usb2.base;
+	void __iomem *usb2_base = ch->base;
 	u32 val = readl(usb2_base + USB2_ADPCTRL);
 
 	dev_vdbg(&ch->phy->dev, "%s: %08x, %d\n", __func__, val, vbus);
@@ -144,6 +146,9 @@ static void rcar_gen3_init_for_host(struct rcar_gen3_chan *ch)
 	rcar_gen3_set_linectrl(ch, 1, 1);
 	rcar_gen3_set_host_mode(ch, 1);
 	rcar_gen3_enable_vbus_ctrl(ch, 1);
+
+	ch->extcon_host = true;
+	schedule_work(&ch->work);
 }
 
 static void rcar_gen3_init_for_peri(struct rcar_gen3_chan *ch)
@@ -151,28 +156,19 @@ static void rcar_gen3_init_for_peri(struct rcar_gen3_chan *ch)
 	rcar_gen3_set_linectrl(ch, 0, 1);
 	rcar_gen3_set_host_mode(ch, 0);
 	rcar_gen3_enable_vbus_ctrl(ch, 0);
-}
 
-static bool rcar_gen3_check_vbus(struct rcar_gen3_chan *ch)
-{
-	return !!(readl(ch->usb2.base + USB2_ADPCTRL) &
-		  USB2_ADPCTRL_OTGSESSVLD);
+	ch->extcon_host = false;
+	schedule_work(&ch->work);
 }
 
 static bool rcar_gen3_check_id(struct rcar_gen3_chan *ch)
 {
-	return !!(readl(ch->usb2.base + USB2_ADPCTRL) & USB2_ADPCTRL_IDDIG);
+	return !!(readl(ch->base + USB2_ADPCTRL) & USB2_ADPCTRL_IDDIG);
 }
 
 static void rcar_gen3_device_recognition(struct rcar_gen3_chan *ch)
 {
-	bool is_host = true;
-
-	/* B-device? */
-	if (rcar_gen3_check_id(ch) && rcar_gen3_check_vbus(ch))
-		is_host = false;
-
-	if (is_host)
+	if (!rcar_gen3_check_id(ch))
 		rcar_gen3_init_for_host(ch);
 	else
 		rcar_gen3_init_for_peri(ch);
@@ -180,7 +176,7 @@ static void rcar_gen3_device_recognition(struct rcar_gen3_chan *ch)
 
 static void rcar_gen3_init_otg(struct rcar_gen3_chan *ch)
 {
-	void __iomem *usb2_base = ch->usb2.base;
+	void __iomem *usb2_base = ch->base;
 	u32 val;
 
 	val = readl(usb2_base + USB2_VBCTRL);
@@ -201,25 +197,16 @@ static void rcar_gen3_init_otg(struct rcar_gen3_chan *ch)
 static int rcar_gen3_phy_usb2_init(struct phy *p)
 {
 	struct rcar_gen3_chan *channel = phy_get_drvdata(p);
-	void __iomem *usb2_base = channel->usb2.base;
-	void __iomem *hsusb_base = channel->hsusb.base;
-	u32 val;
+	void __iomem *usb2_base = channel->base;
 
 	/* Initialize USB2 part */
 	writel(USB2_INT_ENABLE_INIT, usb2_base + USB2_INT_ENABLE);
 	writel(USB2_SPD_RSM_TIMSET_INIT, usb2_base + USB2_SPD_RSM_TIMSET);
 	writel(USB2_OC_TIMSET_INIT, usb2_base + USB2_OC_TIMSET);
 
-	/* Initialize HSUSB part */
-	if (hsusb_base) {
-		val = readl(hsusb_base + HSUSB_UGCTRL2);
-		val = (val & ~HSUSB_UGCTRL2_USB0SEL) |
-		      HSUSB_UGCTRL2_USB0SEL_OTG;
-		writel(val & HSUSB_UGCTRL2_MASK, hsusb_base + HSUSB_UGCTRL2);
-
-		/* Initialize otg part */
+	/* Initialize otg part */
+	if (channel->has_otg)
 		rcar_gen3_init_otg(channel);
-	}
 
 	return 0;
 }
@@ -228,7 +215,7 @@ static int rcar_gen3_phy_usb2_exit(struct phy *p)
 {
 	struct rcar_gen3_chan *channel = phy_get_drvdata(p);
 
-	writel(0, channel->usb2.base + USB2_INT_ENABLE);
+	writel(0, channel->base + USB2_INT_ENABLE);
 
 	return 0;
 }
@@ -236,9 +223,15 @@ static int rcar_gen3_phy_usb2_exit(struct phy *p)
 static int rcar_gen3_phy_usb2_power_on(struct phy *p)
 {
 	struct rcar_gen3_chan *channel = phy_get_drvdata(p);
-	void __iomem *usb2_base = channel->usb2.base;
-	void __iomem *hsusb_base = channel->hsusb.base;
+	void __iomem *usb2_base = channel->base;
 	u32 val;
+	int ret;
+
+	if (channel->vbus) {
+		ret = regulator_enable(channel->vbus);
+		if (ret)
+			return ret;
+	}
 
 	val = readl(usb2_base + USB2_USBCTR);
 	val |= USB2_USBCTR_PLL_RST;
@@ -246,34 +239,18 @@ static int rcar_gen3_phy_usb2_power_on(struct phy *p)
 	val &= ~USB2_USBCTR_PLL_RST;
 	writel(val, usb2_base + USB2_USBCTR);
 
-	/*
-	 * TODO: To reduce power consuming, this driver should set the SUSPM
-	 *	after the PHY detects ID pin as peripheral.
-	 */
-	if (hsusb_base) {
-		/* Power on HSUSB PHY */
-		val = readw(hsusb_base + HSUSB_LPSTS);
-		val |= HSUSB_LPSTS_SUSPM;
-		writew(val, hsusb_base + HSUSB_LPSTS);
-	}
-
 	return 0;
 }
 
 static int rcar_gen3_phy_usb2_power_off(struct phy *p)
 {
 	struct rcar_gen3_chan *channel = phy_get_drvdata(p);
-	void __iomem *hsusb_base = channel->hsusb.base;
-	u32 val;
+	int ret = 0;
 
-	if (hsusb_base) {
-		/* Power off HSUSB PHY */
-		val = readw(hsusb_base + HSUSB_LPSTS);
-		val &= ~HSUSB_LPSTS_SUSPM;
-		writew(val, hsusb_base + HSUSB_LPSTS);
-	}
+	if (channel->vbus)
+		ret = regulator_disable(channel->vbus);
 
-	return 0;
+	return ret;
 }
 
 static struct phy_ops rcar_gen3_phy_usb2_ops = {
@@ -287,7 +264,7 @@ static struct phy_ops rcar_gen3_phy_usb2_ops = {
 static irqreturn_t rcar_gen3_phy_usb2_irq(int irq, void *_ch)
 {
 	struct rcar_gen3_chan *ch = _ch;
-	void __iomem *usb2_base = ch->usb2.base;
+	void __iomem *usb2_base = ch->base;
 	u32 status = readl(usb2_base + USB2_OBINTSTA);
 	irqreturn_t ret = IRQ_NONE;
 
@@ -303,9 +280,17 @@ static irqreturn_t rcar_gen3_phy_usb2_irq(int irq, void *_ch)
 
 static const struct of_device_id rcar_gen3_phy_usb2_match_table[] = {
 	{ .compatible = "renesas,usb2-phy-r8a7795" },
+	{ .compatible = "renesas,usb2-phy-r8a7796" },
+	{ .compatible = "renesas,rcar-gen3-usb2-phy" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rcar_gen3_phy_usb2_match_table);
+
+static const unsigned int rcar_gen3_phy_cable[] = {
+	EXTCON_USB,
+	EXTCON_USB_HOST,
+	EXTCON_NONE,
+};
 
 static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 {
@@ -313,6 +298,7 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 	struct rcar_gen3_chan *channel;
 	struct phy_provider *provider;
 	struct resource *res;
+	int irq;
 
 	if (!dev->of_node) {
 		dev_err(dev, "This driver needs device tree\n");
@@ -323,29 +309,32 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 	if (!channel)
 		return -ENOMEM;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "usb2_host");
-	channel->usb2.base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(channel->usb2.base))
-		return PTR_ERR(channel->usb2.base);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	channel->base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(channel->base))
+		return PTR_ERR(channel->base);
 
-	/* "hsusb" memory resource is optional */
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hsusb");
+	/* call request_irq for OTG */
+	irq = platform_get_irq(pdev, 0);
+	if (irq >= 0) {
+		int ret;
 
-	/* To avoid error message by devm_ioremap_resource() */
-	if (res) {
-		int irq;
-
-		channel->hsusb.base = devm_ioremap_resource(dev, res);
-		if (IS_ERR(channel->hsusb.base))
-			channel->hsusb.base = NULL;
-		/* call request_irq for OTG */
-		irq = platform_get_irq(pdev, 0);
-		if (irq >= 0)
-			irq = devm_request_irq(dev, irq, rcar_gen3_phy_usb2_irq,
-					       IRQF_SHARED, dev_name(dev),
-					       channel);
+		INIT_WORK(&channel->work, rcar_gen3_phy_usb2_work);
+		irq = devm_request_irq(dev, irq, rcar_gen3_phy_usb2_irq,
+				       IRQF_SHARED, dev_name(dev), channel);
 		if (irq < 0)
 			dev_err(dev, "No irq handler (%d)\n", irq);
+		channel->has_otg = true;
+		channel->extcon = devm_extcon_dev_allocate(dev,
+							rcar_gen3_phy_cable);
+		if (IS_ERR(channel->extcon))
+			return PTR_ERR(channel->extcon);
+
+		ret = devm_extcon_dev_register(dev, channel->extcon);
+		if (ret < 0) {
+			dev_err(dev, "Failed to register extcon\n");
+			return ret;
+		}
 	}
 
 	/* devm_phy_create() will call pm_runtime_enable(dev); */
@@ -353,6 +342,13 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 	if (IS_ERR(channel->phy)) {
 		dev_err(dev, "Failed to create USB2 PHY\n");
 		return PTR_ERR(channel->phy);
+	}
+
+	channel->vbus = devm_regulator_get_optional(dev, "vbus");
+	if (IS_ERR(channel->vbus)) {
+		if (PTR_ERR(channel->vbus) == -EPROBE_DEFER)
+			return PTR_ERR(channel->vbus);
+		channel->vbus = NULL;
 	}
 
 	phy_set_drvdata(channel->phy, channel);

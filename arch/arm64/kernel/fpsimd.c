@@ -45,7 +45,7 @@
  *     been used to perform kernel mode NEON in the meantime.
  *
  * For (a), we add a 'cpu' field to struct fpsimd_state, which gets updated to
- * the id of the current CPU everytime the state is loaded onto a CPU. For (b),
+ * the id of the current CPU every time the state is loaded onto a CPU. For (b),
  * we add the per-cpu variable 'fpsimd_last_state' (below), which contains the
  * address of the userland FPSIMD state of the task that was loaded onto the CPU
  * the most recently, or NULL if kernel mode NEON has been performed after that.
@@ -299,28 +299,16 @@ static inline void fpsimd_pm_init(void) { }
 #endif /* CONFIG_CPU_PM */
 
 #ifdef CONFIG_HOTPLUG_CPU
-static int fpsimd_cpu_hotplug_notifier(struct notifier_block *nfb,
-				       unsigned long action,
-				       void *hcpu)
+static int fpsimd_cpu_dead(unsigned int cpu)
 {
-	unsigned int cpu = (long)hcpu;
-
-	switch (action) {
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-		per_cpu(fpsimd_last_state, cpu) = NULL;
-		break;
-	}
-	return NOTIFY_OK;
+	per_cpu(fpsimd_last_state, cpu) = NULL;
+	return 0;
 }
-
-static struct notifier_block fpsimd_cpu_hotplug_notifier_block = {
-	.notifier_call = fpsimd_cpu_hotplug_notifier,
-};
 
 static inline void fpsimd_hotplug_init(void)
 {
-	register_cpu_notifier(&fpsimd_cpu_hotplug_notifier_block);
+	cpuhp_setup_state_nocalls(CPUHP_ARM64_FPSIMD_DEAD, "arm64/fpsimd:dead",
+				  NULL, fpsimd_cpu_dead);
 }
 
 #else

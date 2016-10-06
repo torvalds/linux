@@ -55,6 +55,7 @@
 #define SCLK_TIMER6		90
 #define SCLK_JTAG		91
 #define SCLK_SMC		92
+#define SCLK_TSADC		93
 
 #define DCLK_LCDC0		190
 #define DCLK_LCDC1		191

@@ -40,8 +40,21 @@
 #define MCI_STATUS_AR	 (1ULL<<55)  /* Action required */
 
 /* AMD-specific bits */
-#define MCI_STATUS_DEFERRED	(1ULL<<44)  /* declare an uncorrected error */
+#define MCI_STATUS_TCC		(1ULL<<55)  /* Task context corrupt */
+#define MCI_STATUS_SYNDV	(1ULL<<53)  /* synd reg. valid */
+#define MCI_STATUS_DEFERRED	(1ULL<<44)  /* uncorrected error, deferred exception */
 #define MCI_STATUS_POISON	(1ULL<<43)  /* access poisonous data */
+
+/*
+ * McaX field if set indicates a given bank supports MCA extensions:
+ *  - Deferred error interrupt type is specifiable by bank.
+ *  - MCx_MISC0[BlkPtr] field indicates presence of extended MISC registers,
+ *    But should not be used to determine MSR numbers.
+ *  - TCC bit is present in MCx_STATUS.
+ */
+#define MCI_CONFIG_MCAX		0x1
+#define MCI_IPID_MCATYPE	0xFFFF0000
+#define MCI_IPID_HWID		0xFFF
 
 /*
  * Note that the full MCACOD field of IA32_MCi_STATUS MSR is
@@ -91,6 +104,28 @@
 #define MCE_LOG_LEN 32
 #define MCE_LOG_SIGNATURE	"MACHINECHECK"
 
+/* AMD Scalable MCA */
+#define MSR_AMD64_SMCA_MC0_CTL		0xc0002000
+#define MSR_AMD64_SMCA_MC0_STATUS	0xc0002001
+#define MSR_AMD64_SMCA_MC0_ADDR		0xc0002002
+#define MSR_AMD64_SMCA_MC0_MISC0	0xc0002003
+#define MSR_AMD64_SMCA_MC0_CONFIG	0xc0002004
+#define MSR_AMD64_SMCA_MC0_IPID		0xc0002005
+#define MSR_AMD64_SMCA_MC0_SYND		0xc0002006
+#define MSR_AMD64_SMCA_MC0_DESTAT	0xc0002008
+#define MSR_AMD64_SMCA_MC0_DEADDR	0xc0002009
+#define MSR_AMD64_SMCA_MC0_MISC1	0xc000200a
+#define MSR_AMD64_SMCA_MCx_CTL(x)	(MSR_AMD64_SMCA_MC0_CTL + 0x10*(x))
+#define MSR_AMD64_SMCA_MCx_STATUS(x)	(MSR_AMD64_SMCA_MC0_STATUS + 0x10*(x))
+#define MSR_AMD64_SMCA_MCx_ADDR(x)	(MSR_AMD64_SMCA_MC0_ADDR + 0x10*(x))
+#define MSR_AMD64_SMCA_MCx_MISC(x)	(MSR_AMD64_SMCA_MC0_MISC0 + 0x10*(x))
+#define MSR_AMD64_SMCA_MCx_CONFIG(x)	(MSR_AMD64_SMCA_MC0_CONFIG + 0x10*(x))
+#define MSR_AMD64_SMCA_MCx_IPID(x)	(MSR_AMD64_SMCA_MC0_IPID + 0x10*(x))
+#define MSR_AMD64_SMCA_MCx_SYND(x)	(MSR_AMD64_SMCA_MC0_SYND + 0x10*(x))
+#define MSR_AMD64_SMCA_MCx_DESTAT(x)	(MSR_AMD64_SMCA_MC0_DESTAT + 0x10*(x))
+#define MSR_AMD64_SMCA_MCx_DEADDR(x)	(MSR_AMD64_SMCA_MC0_DEADDR + 0x10*(x))
+#define MSR_AMD64_SMCA_MCx_MISCy(x, y)	((MSR_AMD64_SMCA_MC0_MISC1 + y) + (0x10*(x)))
+
 /*
  * This structure contains all data related to the MCE log.  Also
  * carries a signature to make it easier to find from external
@@ -113,6 +148,7 @@ struct mca_config {
 	bool ignore_ce;
 	bool disabled;
 	bool ser;
+	bool recovery;
 	bool bios_cmci_threshold;
 	u8 banks;
 	s8 bootlog;
@@ -145,9 +181,18 @@ struct mce_vendor_flags {
 
 	      __reserved_0	: 61;
 };
+
+struct mca_msr_regs {
+	u32 (*ctl)	(int bank);
+	u32 (*status)	(int bank);
+	u32 (*addr)	(int bank);
+	u32 (*misc)	(int bank);
+};
+
 extern struct mce_vendor_flags mce_flags;
 
 extern struct mca_config mca_cfg;
+extern struct mca_msr_regs msr_ops;
 extern void mce_register_decode_chain(struct notifier_block *nb);
 extern void mce_unregister_decode_chain(struct notifier_block *nb);
 
@@ -286,5 +331,53 @@ static inline void mcheck_intel_therm_init(void) { }
 struct cper_sec_mem_err;
 extern void apei_mce_report_mem_error(int corrected,
 				      struct cper_sec_mem_err *mem_err);
+
+/*
+ * Enumerate new IP types and HWID values in AMD processors which support
+ * Scalable MCA.
+ */
+#ifdef CONFIG_X86_MCE_AMD
+
+/* These may be used by multiple smca_hwid_mcatypes */
+enum smca_bank_types {
+	SMCA_LS = 0,	/* Load Store */
+	SMCA_IF,	/* Instruction Fetch */
+	SMCA_L2_CACHE,	/* L2 Cache */
+	SMCA_DE,	/* Decoder Unit */
+	SMCA_EX,	/* Execution Unit */
+	SMCA_FP,	/* Floating Point */
+	SMCA_L3_CACHE,	/* L3 Cache */
+	SMCA_CS,	/* Coherent Slave */
+	SMCA_PIE,	/* Power, Interrupts, etc. */
+	SMCA_UMC,	/* Unified Memory Controller */
+	SMCA_PB,	/* Parameter Block */
+	SMCA_PSP,	/* Platform Security Processor */
+	SMCA_SMU,	/* System Management Unit */
+	N_SMCA_BANK_TYPES
+};
+
+struct smca_bank_name {
+	const char *name;	/* Short name for sysfs */
+	const char *long_name;	/* Long name for pretty-printing */
+};
+
+extern struct smca_bank_name smca_bank_names[N_SMCA_BANK_TYPES];
+
+#define HWID_MCATYPE(hwid, mcatype) ((hwid << 16) | mcatype)
+
+struct smca_hwid_mcatype {
+	unsigned int bank_type;	/* Use with smca_bank_types for easy indexing. */
+	u32 hwid_mcatype;	/* (hwid,mcatype) tuple */
+	u32 xec_bitmap;		/* Bitmap of valid ExtErrorCodes; current max is 21. */
+};
+
+struct smca_bank_info {
+	struct smca_hwid_mcatype *type;
+	u32 type_instance;
+};
+
+extern struct smca_bank_info smca_banks[MAX_NR_BANKS];
+
+#endif
 
 #endif /* _ASM_X86_MCE_H */

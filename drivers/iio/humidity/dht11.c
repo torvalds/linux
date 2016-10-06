@@ -50,12 +50,32 @@
 #define DHT11_EDGES_PER_READ (2 * DHT11_BITS_PER_READ + \
 			      DHT11_EDGES_PREAMBLE + 1)
 
-/* Data transmission timing (nano seconds) */
+/*
+ * Data transmission timing:
+ * Data bits are encoded as pulse length (high time) on the data line.
+ * 0-bit: 22-30uS -- typically 26uS (AM2302)
+ * 1-bit: 68-75uS -- typically 70uS (AM2302)
+ * The acutal timings also depend on the properties of the cable, with
+ * longer cables typically making pulses shorter.
+ *
+ * Our decoding depends on the time resolution of the system:
+ * timeres > 34uS ... don't know what a 1-tick pulse is
+ * 34uS > timeres > 30uS ... no problem (30kHz and 32kHz clocks)
+ * 30uS > timeres > 23uS ... don't know what a 2-tick pulse is
+ * timeres < 23uS ... no problem
+ *
+ * Luckily clocks in the 33-44kHz range are quite uncommon, so we can
+ * support most systems if the threshold for decoding a pulse as 1-bit
+ * is chosen carefully. If somebody really wants to support clocks around
+ * 40kHz, where this driver is most unreliable, there are two options.
+ * a) select an implementation using busy loop polling on those systems
+ * b) use the checksum to do some probabilistic decoding
+ */
 #define DHT11_START_TRANSMISSION	18  /* ms */
-#define DHT11_SENSOR_RESPONSE	80000
-#define DHT11_START_BIT		50000
-#define DHT11_DATA_BIT_LOW	27000
-#define DHT11_DATA_BIT_HIGH	70000
+#define DHT11_MIN_TIMERES	34000  /* ns */
+#define DHT11_THRESHOLD		49000  /* ns */
+#define DHT11_AMBIG_LOW		23000  /* ns */
+#define DHT11_AMBIG_HIGH	30000  /* ns */
 
 struct dht11 {
 	struct device			*dev;
@@ -76,48 +96,68 @@ struct dht11 {
 	struct {s64 ts; int value; }	edges[DHT11_EDGES_PER_READ];
 };
 
-static unsigned char dht11_decode_byte(int *timing, int threshold)
+#ifdef CONFIG_DYNAMIC_DEBUG
+/*
+ * dht11_edges_print: show the data as actually received by the
+ *                    driver.
+ */
+static void dht11_edges_print(struct dht11 *dht11)
+{
+	int i;
+
+	dev_dbg(dht11->dev, "%d edges detected:\n", dht11->num_edges);
+	for (i = 1; i < dht11->num_edges; ++i) {
+		dev_dbg(dht11->dev, "%d: %lld ns %s\n", i,
+			dht11->edges[i].ts - dht11->edges[i - 1].ts,
+			dht11->edges[i - 1].value ? "high" : "low");
+	}
+}
+#endif /* CONFIG_DYNAMIC_DEBUG */
+
+static unsigned char dht11_decode_byte(char *bits)
 {
 	unsigned char ret = 0;
 	int i;
 
 	for (i = 0; i < 8; ++i) {
 		ret <<= 1;
-		if (timing[i] >= threshold)
+		if (bits[i])
 			++ret;
 	}
 
 	return ret;
 }
 
-static int dht11_decode(struct dht11 *dht11, int offset, int timeres)
+static int dht11_decode(struct dht11 *dht11, int offset)
 {
-	int i, t, timing[DHT11_BITS_PER_READ], threshold;
+	int i, t;
+	char bits[DHT11_BITS_PER_READ];
 	unsigned char temp_int, temp_dec, hum_int, hum_dec, checksum;
 
-	threshold = DHT11_DATA_BIT_HIGH / timeres;
-	if (DHT11_DATA_BIT_LOW / timeres + 1 >= threshold)
-		pr_err("dht11: WARNING: decoding ambiguous\n");
-
-	/* scale down with timeres and check validity */
 	for (i = 0; i < DHT11_BITS_PER_READ; ++i) {
 		t = dht11->edges[offset + 2 * i + 2].ts -
 			dht11->edges[offset + 2 * i + 1].ts;
-		if (!dht11->edges[offset + 2 * i + 1].value)
-			return -EIO;  /* lost synchronisation */
-		timing[i] = t / timeres;
+		if (!dht11->edges[offset + 2 * i + 1].value) {
+			dev_dbg(dht11->dev,
+				"lost synchronisation at edge %d\n",
+				offset + 2 * i + 1);
+			return -EIO;
+		}
+		bits[i] = t > DHT11_THRESHOLD;
 	}
 
-	hum_int = dht11_decode_byte(timing, threshold);
-	hum_dec = dht11_decode_byte(&timing[8], threshold);
-	temp_int = dht11_decode_byte(&timing[16], threshold);
-	temp_dec = dht11_decode_byte(&timing[24], threshold);
-	checksum = dht11_decode_byte(&timing[32], threshold);
+	hum_int = dht11_decode_byte(bits);
+	hum_dec = dht11_decode_byte(&bits[8]);
+	temp_int = dht11_decode_byte(&bits[16]);
+	temp_dec = dht11_decode_byte(&bits[24]);
+	checksum = dht11_decode_byte(&bits[32]);
 
-	if (((hum_int + hum_dec + temp_int + temp_dec) & 0xff) != checksum)
+	if (((hum_int + hum_dec + temp_int + temp_dec) & 0xff) != checksum) {
+		dev_dbg(dht11->dev, "invalid checksum\n");
 		return -EIO;
+	}
 
-	dht11->timestamp = ktime_get_real_ns();
+	dht11->timestamp = ktime_get_boot_ns();
 	if (hum_int < 20) {  /* DHT22 */
 		dht11->temperature = (((temp_int & 0x7f) << 8) + temp_dec) *
 					((temp_int & 0x80) ? -100 : 100);
@@ -145,7 +185,7 @@ static irqreturn_t dht11_handle_irq(int irq, void *data)
 
 	/* TODO: Consider making the handler safe for IRQ sharing */
 	if (dht11->num_edges < DHT11_EDGES_PER_READ && dht11->num_edges >= 0) {
-		dht11->edges[dht11->num_edges].ts = ktime_get_real_ns();
+		dht11->edges[dht11->num_edges].ts = ktime_get_boot_ns();
 		dht11->edges[dht11->num_edges++].value =
 						gpio_get_value(dht11->gpio);
 
@@ -161,12 +201,13 @@ static int dht11_read_raw(struct iio_dev *iio_dev,
 			int *val, int *val2, long m)
 {
 	struct dht11 *dht11 = iio_priv(iio_dev);
-	int ret, timeres;
+	int ret, timeres, offset;
 
 	mutex_lock(&dht11->lock);
-	if (dht11->timestamp + DHT11_DATA_VALID_TIME < ktime_get_real_ns()) {
+	if (dht11->timestamp + DHT11_DATA_VALID_TIME < ktime_get_boot_ns()) {
 		timeres = ktime_get_resolution_ns();
-		if (DHT11_DATA_BIT_HIGH < 2 * timeres) {
+		dev_dbg(dht11->dev, "current timeresolution: %dns\n", timeres);
+		if (timeres > DHT11_MIN_TIMERES) {
 			dev_err(dht11->dev, "timeresolution %dns too low\n",
 				timeres);
 			/* In theory a better clock could become available
@@ -176,6 +217,10 @@ static int dht11_read_raw(struct iio_dev *iio_dev,
 			ret = -EAGAIN;
 			goto err;
 		}
+		if (timeres > DHT11_AMBIG_LOW && timeres < DHT11_AMBIG_HIGH)
+			dev_warn(dht11->dev,
+				 "timeresolution: %dns - decoding ambiguous\n",
+				 timeres);
 
 		reinit_completion(&dht11->completion);
 
@@ -199,20 +244,26 @@ static int dht11_read_raw(struct iio_dev *iio_dev,
 
 		free_irq(dht11->irq, iio_dev);
 
+#ifdef CONFIG_DYNAMIC_DEBUG
+		dht11_edges_print(dht11);
+#endif
+
 		if (ret == 0 && dht11->num_edges < DHT11_EDGES_PER_READ - 1) {
-			dev_err(&iio_dev->dev,
-				"Only %d signal edges detected\n",
-					dht11->num_edges);
+			dev_err(dht11->dev, "Only %d signal edges detected\n",
+				dht11->num_edges);
 			ret = -ETIMEDOUT;
 		}
 		if (ret < 0)
 			goto err;
 
-		ret = dht11_decode(dht11,
-				   dht11->num_edges == DHT11_EDGES_PER_READ ?
-					DHT11_EDGES_PREAMBLE :
-					DHT11_EDGES_PREAMBLE - 2,
-				timeres);
+		offset = DHT11_EDGES_PREAMBLE +
+				dht11->num_edges - DHT11_EDGES_PER_READ;
+		for (; offset >= 0; --offset) {
+			ret = dht11_decode(dht11, offset);
+			if (!ret)
+				break;
+		}
+
 		if (ret)
 			goto err;
 	}
@@ -279,7 +330,7 @@ static int dht11_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	dht11->timestamp = ktime_get_real_ns() - DHT11_DATA_VALID_TIME - 1;
+	dht11->timestamp = ktime_get_boot_ns() - DHT11_DATA_VALID_TIME - 1;
 	dht11->num_edges = -1;
 
 	platform_set_drvdata(pdev, iio);

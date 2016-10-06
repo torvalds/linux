@@ -526,6 +526,7 @@ static void do_fault(struct work_struct *work)
 		flags |= FAULT_FLAG_USER;
 	if (fault->flags & PPR_FAULT_WRITE)
 		flags |= FAULT_FLAG_WRITE;
+	flags |= FAULT_FLAG_REMOTE;
 
 	down_read(&mm->mmap_sem);
 	vma = find_extend_vma(mm, address);
@@ -537,8 +538,7 @@ static void do_fault(struct work_struct *work)
 	if (access_error(vma, fault))
 		goto out;
 
-	ret = handle_mm_fault(mm, vma, address, flags);
-
+	ret = handle_mm_fault(vma, address, flags);
 out:
 	up_read(&mm->mmap_sem);
 
@@ -960,7 +960,7 @@ static int __init amd_iommu_v2_init(void)
 	spin_lock_init(&state_lock);
 
 	ret = -ENOMEM;
-	iommu_wq = create_workqueue("amd_iommu_v2");
+	iommu_wq = alloc_workqueue("amd_iommu_v2", WQ_MEM_RECLAIM, 0);
 	if (iommu_wq == NULL)
 		goto out;
 

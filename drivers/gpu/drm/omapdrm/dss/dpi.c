@@ -34,17 +34,15 @@
 #include <linux/clk.h>
 #include <linux/component.h>
 
-#include <video/omapdss.h>
-
+#include "omapdss.h"
 #include "dss.h"
 #include "dss_features.h"
-
-#define HSDIV_DISPC	0
 
 struct dpi_data {
 	struct platform_device *pdev;
 
 	struct regulator *vdds_dsi_reg;
+	enum dss_clk_source clk_src;
 	struct dss_pll *pll;
 
 	struct mutex lock;
@@ -69,7 +67,7 @@ static struct dpi_data *dpi_get_data_from_pdev(struct platform_device *pdev)
 	return dev_get_drvdata(&pdev->dev);
 }
 
-static struct dss_pll *dpi_get_pll(enum omap_channel channel)
+static enum dss_clk_source dpi_get_clk_src(enum omap_channel channel)
 {
 	/*
 	 * XXX we can't currently use DSI PLL for DPI with OMAP3, as the DSI PLL
@@ -83,64 +81,51 @@ static struct dss_pll *dpi_get_pll(enum omap_channel channel)
 	case OMAPDSS_VER_OMAP3630:
 	case OMAPDSS_VER_AM35xx:
 	case OMAPDSS_VER_AM43xx:
-		return NULL;
+		return DSS_CLK_SRC_FCK;
 
 	case OMAPDSS_VER_OMAP4430_ES1:
 	case OMAPDSS_VER_OMAP4430_ES2:
 	case OMAPDSS_VER_OMAP4:
 		switch (channel) {
 		case OMAP_DSS_CHANNEL_LCD:
-			return dss_pll_find("dsi0");
+			return DSS_CLK_SRC_PLL1_1;
 		case OMAP_DSS_CHANNEL_LCD2:
-			return dss_pll_find("dsi1");
+			return DSS_CLK_SRC_PLL2_1;
 		default:
-			return NULL;
+			return DSS_CLK_SRC_FCK;
 		}
 
 	case OMAPDSS_VER_OMAP5:
 		switch (channel) {
 		case OMAP_DSS_CHANNEL_LCD:
-			return dss_pll_find("dsi0");
+			return DSS_CLK_SRC_PLL1_1;
 		case OMAP_DSS_CHANNEL_LCD3:
-			return dss_pll_find("dsi1");
+			return DSS_CLK_SRC_PLL2_1;
+		case OMAP_DSS_CHANNEL_LCD2:
 		default:
-			return NULL;
+			return DSS_CLK_SRC_FCK;
 		}
 
 	case OMAPDSS_VER_DRA7xx:
 		switch (channel) {
 		case OMAP_DSS_CHANNEL_LCD:
+			return DSS_CLK_SRC_PLL1_1;
 		case OMAP_DSS_CHANNEL_LCD2:
-			return dss_pll_find("video0");
+			return DSS_CLK_SRC_PLL1_3;
 		case OMAP_DSS_CHANNEL_LCD3:
-			return dss_pll_find("video1");
+			return DSS_CLK_SRC_PLL2_1;
 		default:
-			return NULL;
+			return DSS_CLK_SRC_FCK;
 		}
 
 	default:
-		return NULL;
-	}
-}
-
-static enum omap_dss_clk_source dpi_get_alt_clk_src(enum omap_channel channel)
-{
-	switch (channel) {
-	case OMAP_DSS_CHANNEL_LCD:
-		return OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC;
-	case OMAP_DSS_CHANNEL_LCD2:
-		return OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC;
-	case OMAP_DSS_CHANNEL_LCD3:
-		return OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC;
-	default:
-		/* this shouldn't happen */
-		WARN_ON(1);
-		return OMAP_DSS_CLK_SRC_FCK;
+		return DSS_CLK_SRC_FCK;
 	}
 }
 
 struct dpi_clk_calc_ctx {
 	struct dss_pll *pll;
+	unsigned clkout_idx;
 
 	/* inputs */
 
@@ -148,7 +133,7 @@ struct dpi_clk_calc_ctx {
 
 	/* outputs */
 
-	struct dss_pll_clock_info dsi_cinfo;
+	struct dss_pll_clock_info pll_cinfo;
 	unsigned long fck;
 	struct dispc_clock_info dispc_cinfo;
 };
@@ -193,8 +178,8 @@ static bool dpi_calc_hsdiv_cb(int m_dispc, unsigned long dispc,
 	if (m_dispc > 1 && m_dispc % 2 != 0 && ctx->pck_min >= 100000000)
 		return false;
 
-	ctx->dsi_cinfo.mX[HSDIV_DISPC] = m_dispc;
-	ctx->dsi_cinfo.clkout[HSDIV_DISPC] = dispc;
+	ctx->pll_cinfo.mX[ctx->clkout_idx] = m_dispc;
+	ctx->pll_cinfo.clkout[ctx->clkout_idx] = dispc;
 
 	return dispc_div_calc(dispc, ctx->pck_min, ctx->pck_max,
 			dpi_calc_dispc_cb, ctx);
@@ -207,12 +192,12 @@ static bool dpi_calc_pll_cb(int n, int m, unsigned long fint,
 {
 	struct dpi_clk_calc_ctx *ctx = data;
 
-	ctx->dsi_cinfo.n = n;
-	ctx->dsi_cinfo.m = m;
-	ctx->dsi_cinfo.fint = fint;
-	ctx->dsi_cinfo.clkdco = clkdco;
+	ctx->pll_cinfo.n = n;
+	ctx->pll_cinfo.m = m;
+	ctx->pll_cinfo.fint = fint;
+	ctx->pll_cinfo.clkdco = clkdco;
 
-	return dss_pll_hsdiv_calc(ctx->pll, clkdco,
+	return dss_pll_hsdiv_calc_a(ctx->pll, clkdco,
 		ctx->pck_min, dss_feat_get_param_max(FEAT_PARAM_DSS_FCK),
 		dpi_calc_hsdiv_cb, ctx);
 }
@@ -227,25 +212,39 @@ static bool dpi_calc_dss_cb(unsigned long fck, void *data)
 			dpi_calc_dispc_cb, ctx);
 }
 
-static bool dpi_dsi_clk_calc(struct dpi_data *dpi, unsigned long pck,
+static bool dpi_pll_clk_calc(struct dpi_data *dpi, unsigned long pck,
 		struct dpi_clk_calc_ctx *ctx)
 {
 	unsigned long clkin;
-	unsigned long pll_min, pll_max;
 
 	memset(ctx, 0, sizeof(*ctx));
 	ctx->pll = dpi->pll;
-	ctx->pck_min = pck - 1000;
-	ctx->pck_max = pck + 1000;
+	ctx->clkout_idx = dss_pll_get_clkout_idx_for_src(dpi->clk_src);
 
-	pll_min = 0;
-	pll_max = 0;
+	clkin = clk_get_rate(dpi->pll->clkin);
 
-	clkin = clk_get_rate(ctx->pll->clkin);
+	if (dpi->pll->hw->type == DSS_PLL_TYPE_A) {
+		unsigned long pll_min, pll_max;
 
-	return dss_pll_calc(ctx->pll, clkin,
-			pll_min, pll_max,
-			dpi_calc_pll_cb, ctx);
+		ctx->pck_min = pck - 1000;
+		ctx->pck_max = pck + 1000;
+
+		pll_min = 0;
+		pll_max = 0;
+
+		return dss_pll_calc_a(ctx->pll, clkin,
+				pll_min, pll_max,
+				dpi_calc_pll_cb, ctx);
+	} else { /* DSS_PLL_TYPE_B */
+		dss_pll_calc_b(dpi->pll, clkin, pck, &ctx->pll_cinfo);
+
+		ctx->dispc_cinfo.lck_div = 1;
+		ctx->dispc_cinfo.pck_div = 1;
+		ctx->dispc_cinfo.lck = ctx->pll_cinfo.clkout[0];
+		ctx->dispc_cinfo.pck = ctx->dispc_cinfo.lck;
+
+		return true;
+	}
 }
 
 static bool dpi_dss_clk_calc(unsigned long pck, struct dpi_clk_calc_ctx *ctx)
@@ -279,7 +278,7 @@ static bool dpi_dss_clk_calc(unsigned long pck, struct dpi_clk_calc_ctx *ctx)
 
 
 
-static int dpi_set_dsi_clk(struct dpi_data *dpi, enum omap_channel channel,
+static int dpi_set_pll_clk(struct dpi_data *dpi, enum omap_channel channel,
 		unsigned long pck_req, unsigned long *fck, int *lck_div,
 		int *pck_div)
 {
@@ -287,20 +286,19 @@ static int dpi_set_dsi_clk(struct dpi_data *dpi, enum omap_channel channel,
 	int r;
 	bool ok;
 
-	ok = dpi_dsi_clk_calc(dpi, pck_req, &ctx);
+	ok = dpi_pll_clk_calc(dpi, pck_req, &ctx);
 	if (!ok)
 		return -EINVAL;
 
-	r = dss_pll_set_config(dpi->pll, &ctx.dsi_cinfo);
+	r = dss_pll_set_config(dpi->pll, &ctx.pll_cinfo);
 	if (r)
 		return r;
 
-	dss_select_lcd_clk_source(channel,
-			dpi_get_alt_clk_src(channel));
+	dss_select_lcd_clk_source(channel, dpi->clk_src);
 
 	dpi->mgr_config.clock_info = ctx.dispc_cinfo;
 
-	*fck = ctx.dsi_cinfo.clkout[HSDIV_DISPC];
+	*fck = ctx.pll_cinfo.clkout[ctx.clkout_idx];
 	*lck_div = ctx.dispc_cinfo.lck_div;
 	*pck_div = ctx.dispc_cinfo.pck_div;
 
@@ -334,7 +332,7 @@ static int dpi_set_dispc_clk(struct dpi_data *dpi, unsigned long pck_req,
 static int dpi_set_mode(struct dpi_data *dpi)
 {
 	struct omap_dss_device *out = &dpi->output;
-	struct omap_overlay_manager *mgr = out->manager;
+	enum omap_channel channel = out->dispc_channel;
 	struct omap_video_timings *t = &dpi->timings;
 	int lck_div = 0, pck_div = 0;
 	unsigned long fck = 0;
@@ -342,7 +340,7 @@ static int dpi_set_mode(struct dpi_data *dpi)
 	int r = 0;
 
 	if (dpi->pll)
-		r = dpi_set_dsi_clk(dpi, mgr->id, t->pixelclock, &fck,
+		r = dpi_set_pll_clk(dpi, channel, t->pixelclock, &fck,
 				&lck_div, &pck_div);
 	else
 		r = dpi_set_dispc_clk(dpi, t->pixelclock, &fck,
@@ -359,7 +357,7 @@ static int dpi_set_mode(struct dpi_data *dpi)
 		t->pixelclock = pck;
 	}
 
-	dss_mgr_set_timings(mgr, t);
+	dss_mgr_set_timings(channel, t);
 
 	return 0;
 }
@@ -367,7 +365,7 @@ static int dpi_set_mode(struct dpi_data *dpi)
 static void dpi_config_lcd_manager(struct dpi_data *dpi)
 {
 	struct omap_dss_device *out = &dpi->output;
-	struct omap_overlay_manager *mgr = out->manager;
+	enum omap_channel channel = out->dispc_channel;
 
 	dpi->mgr_config.io_pad_mode = DSS_IO_PAD_MODE_BYPASS;
 
@@ -378,13 +376,14 @@ static void dpi_config_lcd_manager(struct dpi_data *dpi)
 
 	dpi->mgr_config.lcden_sig_polarity = 0;
 
-	dss_mgr_set_lcd_config(mgr, &dpi->mgr_config);
+	dss_mgr_set_lcd_config(channel, &dpi->mgr_config);
 }
 
 static int dpi_display_enable(struct omap_dss_device *dssdev)
 {
 	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
 	struct omap_dss_device *out = &dpi->output;
+	enum omap_channel channel = out->dispc_channel;
 	int r;
 
 	mutex_lock(&dpi->lock);
@@ -395,7 +394,7 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 		goto err_no_reg;
 	}
 
-	if (out->manager == NULL) {
+	if (!out->dispc_channel_connected) {
 		DSSERR("failed to enable display: no output/manager\n");
 		r = -ENODEV;
 		goto err_no_out_mgr;
@@ -411,14 +410,14 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_get_dispc;
 
-	r = dss_dpi_select_source(out->port_num, out->manager->id);
+	r = dss_dpi_select_source(out->port_num, channel);
 	if (r)
 		goto err_src_sel;
 
 	if (dpi->pll) {
 		r = dss_pll_enable(dpi->pll);
 		if (r)
-			goto err_dsi_pll_init;
+			goto err_pll_init;
 	}
 
 	r = dpi_set_mode(dpi);
@@ -429,7 +428,7 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 
 	mdelay(2);
 
-	r = dss_mgr_enable(out->manager);
+	r = dss_mgr_enable(channel);
 	if (r)
 		goto err_mgr_enable;
 
@@ -441,7 +440,7 @@ err_mgr_enable:
 err_set_mode:
 	if (dpi->pll)
 		dss_pll_disable(dpi->pll);
-err_dsi_pll_init:
+err_pll_init:
 err_src_sel:
 	dispc_runtime_put();
 err_get_dispc:
@@ -457,14 +456,14 @@ err_no_reg:
 static void dpi_display_disable(struct omap_dss_device *dssdev)
 {
 	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
-	struct omap_overlay_manager *mgr = dpi->output.manager;
+	enum omap_channel channel = dpi->output.dispc_channel;
 
 	mutex_lock(&dpi->lock);
 
-	dss_mgr_disable(mgr);
+	dss_mgr_disable(channel);
 
 	if (dpi->pll) {
-		dss_select_lcd_clk_source(mgr->id, OMAP_DSS_CLK_SRC_FCK);
+		dss_select_lcd_clk_source(channel, DSS_CLK_SRC_FCK);
 		dss_pll_disable(dpi->pll);
 	}
 
@@ -506,25 +505,28 @@ static int dpi_check_timings(struct omap_dss_device *dssdev,
 			struct omap_video_timings *timings)
 {
 	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
-	struct omap_overlay_manager *mgr = dpi->output.manager;
+	enum omap_channel channel = dpi->output.dispc_channel;
 	int lck_div, pck_div;
 	unsigned long fck;
 	unsigned long pck;
 	struct dpi_clk_calc_ctx ctx;
 	bool ok;
 
-	if (mgr && !dispc_mgr_timings_ok(mgr->id, timings))
+	if (timings->x_res % 8 != 0)
+		return -EINVAL;
+
+	if (!dispc_mgr_timings_ok(channel, timings))
 		return -EINVAL;
 
 	if (timings->pixelclock == 0)
 		return -EINVAL;
 
 	if (dpi->pll) {
-		ok = dpi_dsi_clk_calc(dpi, timings->pixelclock, &ctx);
+		ok = dpi_pll_clk_calc(dpi, timings->pixelclock, &ctx);
 		if (!ok)
 			return -EINVAL;
 
-		fck = ctx.dsi_cinfo.clkout[HSDIV_DISPC];
+		fck = ctx.pll_cinfo.clkout[ctx.clkout_idx];
 	} else {
 		ok = dpi_dss_clk_calc(timings->pixelclock, &ctx);
 		if (!ok)
@@ -554,7 +556,7 @@ static void dpi_set_data_lines(struct omap_dss_device *dssdev, int data_lines)
 	mutex_unlock(&dpi->lock);
 }
 
-static int dpi_verify_dsi_pll(struct dss_pll *pll)
+static int dpi_verify_pll(struct dss_pll *pll)
 {
 	int r;
 
@@ -598,16 +600,14 @@ static void dpi_init_pll(struct dpi_data *dpi)
 	if (dpi->pll)
 		return;
 
-	pll = dpi_get_pll(dpi->output.dispc_channel);
+	dpi->clk_src = dpi_get_clk_src(dpi->output.dispc_channel);
+
+	pll = dss_pll_find_by_src(dpi->clk_src);
 	if (!pll)
 		return;
 
-	/* On DRA7 we need to set a mux to use the PLL */
-	if (omapdss_get_version() == OMAPDSS_VER_DRA7xx)
-		dss_ctrl_pll_set_control_mux(pll->id, dpi->output.dispc_channel);
-
-	if (dpi_verify_dsi_pll(pll)) {
-		DSSWARN("DSI PLL not operational\n");
+	if (dpi_verify_pll(pll)) {
+		DSSWARN("PLL not operational\n");
 		return;
 	}
 
@@ -660,7 +660,7 @@ static int dpi_connect(struct omap_dss_device *dssdev,
 		struct omap_dss_device *dst)
 {
 	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
-	struct omap_overlay_manager *mgr;
+	enum omap_channel channel = dpi->output.dispc_channel;
 	int r;
 
 	r = dpi_init_regulator(dpi);
@@ -669,11 +669,7 @@ static int dpi_connect(struct omap_dss_device *dssdev,
 
 	dpi_init_pll(dpi);
 
-	mgr = omap_dss_get_overlay_manager(dssdev->dispc_channel);
-	if (!mgr)
-		return -ENODEV;
-
-	r = dss_mgr_connect(mgr, dssdev);
+	r = dss_mgr_connect(channel, dssdev);
 	if (r)
 		return r;
 
@@ -681,7 +677,7 @@ static int dpi_connect(struct omap_dss_device *dssdev,
 	if (r) {
 		DSSERR("failed to connect output to new device: %s\n",
 				dst->name);
-		dss_mgr_disconnect(mgr, dssdev);
+		dss_mgr_disconnect(channel, dssdev);
 		return r;
 	}
 
@@ -691,6 +687,9 @@ static int dpi_connect(struct omap_dss_device *dssdev,
 static void dpi_disconnect(struct omap_dss_device *dssdev,
 		struct omap_dss_device *dst)
 {
+	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
+	enum omap_channel channel = dpi->output.dispc_channel;
+
 	WARN_ON(dst != dssdev->dst);
 
 	if (dst != dssdev->dst)
@@ -698,8 +697,7 @@ static void dpi_disconnect(struct omap_dss_device *dssdev,
 
 	omapdss_output_unset_device(dssdev);
 
-	if (dssdev->manager)
-		dss_mgr_disconnect(dssdev->manager, dssdev);
+	dss_mgr_disconnect(channel, dssdev);
 }
 
 static const struct omapdss_dpi_ops dpi_ops = {

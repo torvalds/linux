@@ -1141,6 +1141,14 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 		emu->emu1010.firmware_thread =
 			kthread_create(emu1010_firmware_thread, emu,
 				       "emu1010_firmware");
+		if (IS_ERR(emu->emu1010.firmware_thread)) {
+			err = PTR_ERR(emu->emu1010.firmware_thread);
+			emu->emu1010.firmware_thread = NULL;
+			dev_info(emu->card->dev,
+					"emu1010: Creating thread failed\n");
+			return err;
+		}
+
 		wake_up_process(emu->emu1010.firmware_thread);
 	}
 

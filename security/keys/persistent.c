@@ -26,7 +26,7 @@ static int key_create_persistent_register(struct user_namespace *ns)
 					current_cred(),
 					((KEY_POS_ALL & ~KEY_POS_SETATTR) |
 					 KEY_USR_VIEW | KEY_USR_READ),
-					KEY_ALLOC_NOT_IN_QUOTA, NULL);
+					KEY_ALLOC_NOT_IN_QUOTA, NULL, NULL);
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 
@@ -60,7 +60,7 @@ static key_ref_t key_create_persistent(struct user_namespace *ns, kuid_t uid,
 				   uid, INVALID_GID, current_cred(),
 				   ((KEY_POS_ALL & ~KEY_POS_SETATTR) |
 				    KEY_USR_VIEW | KEY_USR_READ),
-				   KEY_ALLOC_NOT_IN_QUOTA,
+				   KEY_ALLOC_NOT_IN_QUOTA, NULL,
 				   ns->persistent_keyring_register);
 	if (IS_ERR(persistent))
 		return ERR_CAST(persistent);
@@ -114,7 +114,7 @@ found:
 		ret = key_link(key_ref_to_ptr(dest_ref), persistent);
 		if (ret == 0) {
 			key_set_timeout(persistent, persistent_keyring_expiry);
-			ret = persistent->serial;		
+			ret = persistent->serial;
 		}
 	}
 

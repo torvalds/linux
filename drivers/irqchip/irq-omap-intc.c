@@ -23,6 +23,8 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 
+#include <linux/irqchip/irq-omap-intc.h>
+
 /* Define these here for now until we drop all board-files */
 #define OMAP24XX_IC_BASE	0x480fe000
 #define OMAP34XX_IC_BASE	0x48200000

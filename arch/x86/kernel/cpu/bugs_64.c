@@ -15,7 +15,7 @@ void __init check_bugs(void)
 {
 	identify_boot_cpu();
 #if !defined(CONFIG_SMP)
-	printk(KERN_INFO "CPU: ");
+	pr_info("CPU: ");
 	print_cpu_info(&boot_cpu_data);
 #endif
 	alternative_instructions();

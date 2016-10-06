@@ -68,12 +68,12 @@ static inline bool vcpu_mode_is_32bit(struct kvm_vcpu *vcpu)
 
 static inline unsigned long *vcpu_pc(struct kvm_vcpu *vcpu)
 {
-	return &vcpu->arch.regs.usr_regs.ARM_pc;
+	return &vcpu->arch.ctxt.gp_regs.usr_regs.ARM_pc;
 }
 
 static inline unsigned long *vcpu_cpsr(struct kvm_vcpu *vcpu)
 {
-	return &vcpu->arch.regs.usr_regs.ARM_cpsr;
+	return &vcpu->arch.ctxt.gp_regs.usr_regs.ARM_cpsr;
 }
 
 static inline void vcpu_set_thumb(struct kvm_vcpu *vcpu)
@@ -83,13 +83,13 @@ static inline void vcpu_set_thumb(struct kvm_vcpu *vcpu)
 
 static inline bool mode_has_spsr(struct kvm_vcpu *vcpu)
 {
-	unsigned long cpsr_mode = vcpu->arch.regs.usr_regs.ARM_cpsr & MODE_MASK;
+	unsigned long cpsr_mode = vcpu->arch.ctxt.gp_regs.usr_regs.ARM_cpsr & MODE_MASK;
 	return (cpsr_mode > USR_MODE && cpsr_mode < SYSTEM_MODE);
 }
 
 static inline bool vcpu_mode_priv(struct kvm_vcpu *vcpu)
 {
-	unsigned long cpsr_mode = vcpu->arch.regs.usr_regs.ARM_cpsr & MODE_MASK;
+	unsigned long cpsr_mode = vcpu->arch.ctxt.gp_regs.usr_regs.ARM_cpsr & MODE_MASK;
 	return cpsr_mode > USR_MODE;;
 }
 
@@ -106,11 +106,6 @@ static inline unsigned long kvm_vcpu_get_hfar(struct kvm_vcpu *vcpu)
 static inline phys_addr_t kvm_vcpu_get_fault_ipa(struct kvm_vcpu *vcpu)
 {
 	return ((phys_addr_t)vcpu->arch.fault.hpfar & HPFAR_MASK) << 8;
-}
-
-static inline unsigned long kvm_vcpu_get_hyp_pc(struct kvm_vcpu *vcpu)
-{
-	return vcpu->arch.fault.hyp_pc;
 }
 
 static inline bool kvm_vcpu_dabt_isvalid(struct kvm_vcpu *vcpu)
@@ -141,6 +136,11 @@ static inline bool kvm_vcpu_dabt_isextabt(struct kvm_vcpu *vcpu)
 static inline bool kvm_vcpu_dabt_iss1tw(struct kvm_vcpu *vcpu)
 {
 	return kvm_vcpu_get_hsr(vcpu) & HSR_DABT_S1PTW;
+}
+
+static inline bool kvm_vcpu_dabt_is_cm(struct kvm_vcpu *vcpu)
+{
+	return !!(kvm_vcpu_get_hsr(vcpu) & HSR_DABT_CM);
 }
 
 /* Get Access Size from a data abort */
@@ -192,7 +192,7 @@ static inline u32 kvm_vcpu_hvc_get_imm(struct kvm_vcpu *vcpu)
 
 static inline unsigned long kvm_vcpu_get_mpidr_aff(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.cp15[c0_MPIDR] & MPIDR_HWID_BITMASK;
+	return vcpu_cp15(vcpu, c0_MPIDR) & MPIDR_HWID_BITMASK;
 }
 
 static inline void kvm_vcpu_set_be(struct kvm_vcpu *vcpu)

@@ -49,7 +49,7 @@
 			cap-mmc-highspeed;
 			vmmc-supply = <&ab8500_ldo_aux3_reg>;
 
-			cd-gpios  = <&gpio7 6 0x4>; // 230
+			cd-gpios  = <&gpio7 6 GPIO_ACTIVE_HIGH>; // 230
 			cd-inverted;
 
 			status = "okay";

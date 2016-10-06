@@ -161,7 +161,7 @@ static int do_waitchks(struct host1x_job *job, struct host1x *host,
 
 		if (host1x_syncpt_is_expired(sp, wait->thresh)) {
 			dev_dbg(host->dev,
-				"drop WAIT id %d (%s) thresh 0x%x, min 0x%x\n",
+				"drop WAIT id %u (%s) thresh 0x%x, min 0x%x\n",
 				wait->syncpt_id, sp->name, wait->thresh,
 				host1x_syncpt_read_min(sp));
 
@@ -225,7 +225,7 @@ unpin:
 	return 0;
 }
 
-static unsigned int do_relocs(struct host1x_job *job, struct host1x_bo *cmdbuf)
+static int do_relocs(struct host1x_job *job, struct host1x_bo *cmdbuf)
 {
 	int i = 0;
 	u32 last_page = ~0;
@@ -464,12 +464,12 @@ static inline int copy_gathers(struct host1x_job *job, struct device *dev)
 
 	for (i = 0; i < job->num_gathers; i++) {
 		struct host1x_job_gather *g = &job->gathers[i];
+
 		size += g->words * sizeof(u32);
 	}
 
-	job->gather_copy_mapped = dma_alloc_writecombine(dev, size,
-							 &job->gather_copy,
-							 GFP_KERNEL);
+	job->gather_copy_mapped = dma_alloc_wc(dev, size, &job->gather_copy,
+					       GFP_KERNEL);
 	if (!job->gather_copy_mapped) {
 		job->gather_copy_mapped = NULL;
 		return -ENOMEM;
@@ -515,6 +515,7 @@ int host1x_job_pin(struct host1x_job *job, struct device *dev)
 	bitmap_zero(waitchk_mask, host1x_syncpt_nb_pts(host));
 	for (i = 0; i < job->num_waitchk; i++) {
 		u32 syncpt_id = job->waitchk[i].syncpt_id;
+
 		if (syncpt_id < host1x_syncpt_nb_pts(host))
 			set_bit(syncpt_id, waitchk_mask);
 	}
@@ -572,15 +573,16 @@ void host1x_job_unpin(struct host1x_job *job)
 
 	for (i = 0; i < job->num_unpins; i++) {
 		struct host1x_job_unpin_data *unpin = &job->unpins[i];
+
 		host1x_bo_unpin(unpin->bo, unpin->sgt);
 		host1x_bo_put(unpin->bo);
 	}
+
 	job->num_unpins = 0;
 
 	if (job->gather_copy_size)
-		dma_free_writecombine(job->channel->dev, job->gather_copy_size,
-				      job->gather_copy_mapped,
-				      job->gather_copy);
+		dma_free_wc(job->channel->dev, job->gather_copy_size,
+			    job->gather_copy_mapped, job->gather_copy);
 }
 EXPORT_SYMBOL(host1x_job_unpin);
 

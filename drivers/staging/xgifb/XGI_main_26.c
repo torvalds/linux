@@ -62,7 +62,6 @@ static int XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr,
 	unsigned short ModeNo = modeno;
 	unsigned short ModeIdIndex = 0, ClockIndex = 0;
 	unsigned short RefreshRateTableIndex = 0;
-	int Clock;
 
 	InitTo330Pointer(HwDeviceExtension->jChipType, XGI_Pr);
 
@@ -73,9 +72,7 @@ static int XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr,
 
 	ClockIndex = XGI330_RefIndex[RefreshRateTableIndex].Ext_CRTVCLK;
 
-	Clock = XGI_VCLKData[ClockIndex].CLOCK * 1000;
-
-	return Clock;
+	return XGI_VCLKData[ClockIndex].CLOCK * 1000;
 }
 
 static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
@@ -226,7 +223,6 @@ void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
 	XGI_Pr->Part4Port = BaseAddr + SIS_CRT2_PORT_14;
 	/* 301 palette address port registers */
 	XGI_Pr->Part5Port = BaseAddr + SIS_CRT2_PORT_14 + 2;
-
 }
 
 /* ------------------ Internal helper routines ----------------- */
@@ -315,10 +311,8 @@ static int XGIfb_validate_mode(struct xgifb_video_info *xgifb_info, int myindex)
 				if (XGIbios_mode[myindex].bpp > 8)
 					return -1;
 			}
-
 		}
 		goto check_memory;
-
 	}
 
 	/* FIXME: for now, all is valid on XG27 */
@@ -518,7 +512,6 @@ check_memory:
 	if (required_mem > xgifb_info->video_size)
 		return -1;
 	return myindex;
-
 }
 
 static void XGIfb_search_crt2type(const char *name)
@@ -655,26 +648,26 @@ static void XGIfb_pre_setmode(struct xgifb_video_info *xgifb_info)
 
 	switch (xgifb_info->display2) {
 	case XGIFB_DISP_CRT:
-		cr30 = (SIS_VB_OUTPUT_CRT2 | SIS_SIMULTANEOUS_VIEW_ENABLE);
+		cr30 = SIS_VB_OUTPUT_CRT2 | SIS_SIMULTANEOUS_VIEW_ENABLE;
 		cr31 |= SIS_DRIVER_MODE;
 		break;
 	case XGIFB_DISP_LCD:
-		cr30 = (SIS_VB_OUTPUT_LCD | SIS_SIMULTANEOUS_VIEW_ENABLE);
+		cr30 = SIS_VB_OUTPUT_LCD | SIS_SIMULTANEOUS_VIEW_ENABLE;
 		cr31 |= SIS_DRIVER_MODE;
 		break;
 	case XGIFB_DISP_TV:
 		if (xgifb_info->TV_type == TVMODE_HIVISION)
-			cr30 = (SIS_VB_OUTPUT_HIVISION
-					| SIS_SIMULTANEOUS_VIEW_ENABLE);
+			cr30 = SIS_VB_OUTPUT_HIVISION
+					| SIS_SIMULTANEOUS_VIEW_ENABLE;
 		else if (xgifb_info->TV_plug == TVPLUG_SVIDEO)
-			cr30 = (SIS_VB_OUTPUT_SVIDEO
-					| SIS_SIMULTANEOUS_VIEW_ENABLE);
+			cr30 = SIS_VB_OUTPUT_SVIDEO
+					| SIS_SIMULTANEOUS_VIEW_ENABLE;
 		else if (xgifb_info->TV_plug == TVPLUG_COMPOSITE)
-			cr30 = (SIS_VB_OUTPUT_COMPOSITE
-					| SIS_SIMULTANEOUS_VIEW_ENABLE);
+			cr30 = SIS_VB_OUTPUT_COMPOSITE
+					| SIS_SIMULTANEOUS_VIEW_ENABLE;
 		else if (xgifb_info->TV_plug == TVPLUG_SCART)
-			cr30 = (SIS_VB_OUTPUT_SCART
-					| SIS_SIMULTANEOUS_VIEW_ENABLE);
+			cr30 = SIS_VB_OUTPUT_SCART
+					| SIS_SIMULTANEOUS_VIEW_ENABLE;
 		cr31 |= SIS_DRIVER_MODE;
 
 		if (XGIfb_tvmode == 1 || xgifb_info->TV_type == TVMODE_PAL)
@@ -1134,8 +1127,9 @@ static int XGIfb_get_cmap_len(const struct fb_var_screeninfo *var)
 	return (var->bits_per_pixel == 8) ? 256 : 16;
 }
 
-static int XGIfb_setcolreg(unsigned regno, unsigned red, unsigned green,
-		unsigned blue, unsigned transp, struct fb_info *info)
+static int XGIfb_setcolreg(unsigned int regno, unsigned int red,
+			   unsigned int green, unsigned int blue,
+			   unsigned int transp, struct fb_info *info)
 {
 	struct xgifb_video_info *xgifb_info = info->par;
 
@@ -1230,7 +1224,7 @@ static int XGIfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	unsigned int vtotal = 0;
 	unsigned int drate = 0, hrate = 0;
 	int found_mode = 0;
-	int refresh_rate, search_idx;
+	int search_idx;
 
 	if ((var->vmode & FB_VMODE_MASK) == FB_VMODE_NONINTERLACED) {
 		vtotal = var->upper_margin + var->yres + var->lower_margin
@@ -1265,10 +1259,6 @@ static int XGIfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	} else {
 		xgifb_info->refresh_rate = 60;
 	}
-
-	/* Calculation wrong for 1024x600 - force it to 60Hz */
-	if ((var->xres == 1024) && (var->yres == 600))
-		refresh_rate = 60;
 
 	search_idx = 0;
 	while ((XGIbios_mode[search_idx].mode_no != 0) &&
@@ -2064,8 +2054,6 @@ static struct pci_driver xgifb_driver = {
 	.remove = xgifb_remove
 };
 
-
-
 /*****************************************************/
 /*                      MODULE                       */
 /*****************************************************/
@@ -2090,7 +2078,7 @@ static int __init xgifb_init(void)
 {
 	char *option = NULL;
 
-	if (forcecrt2type != NULL)
+	if (forcecrt2type)
 		XGIfb_search_crt2type(forcecrt2type);
 	if (fb_get_options("xgifb", &option))
 		return -ENODEV;

@@ -42,6 +42,7 @@ struct apd_private_data;
 struct apd_device_desc {
 	unsigned int flags;
 	unsigned int fixed_clk_rate;
+	struct property_entry *properties;
 	int (*setup)(struct apd_private_data *pdata);
 };
 
@@ -62,8 +63,7 @@ static int acpi_apd_setup(struct apd_private_data *pdata)
 	if (dev_desc->fixed_clk_rate) {
 		clk = clk_register_fixed_rate(&pdata->adev->dev,
 					dev_name(&pdata->adev->dev),
-					NULL, CLK_IS_ROOT,
-					dev_desc->fixed_clk_rate);
+					NULL, 0, dev_desc->fixed_clk_rate);
 		clk_register_clkdev(clk, NULL, dev_name(&pdata->adev->dev));
 		pdata->clk = clk;
 	}
@@ -72,21 +72,34 @@ static int acpi_apd_setup(struct apd_private_data *pdata)
 }
 
 #ifdef CONFIG_X86_AMD_PLATFORM_DEVICE
-static struct apd_device_desc cz_i2c_desc = {
+static const struct apd_device_desc cz_i2c_desc = {
 	.setup = acpi_apd_setup,
 	.fixed_clk_rate = 133000000,
 };
 
-static struct apd_device_desc cz_uart_desc = {
+static struct property_entry uart_properties[] = {
+	PROPERTY_ENTRY_U32("reg-io-width", 4),
+	PROPERTY_ENTRY_U32("reg-shift", 2),
+	PROPERTY_ENTRY_BOOL("snps,uart-16550-compatible"),
+	{ },
+};
+
+static const struct apd_device_desc cz_uart_desc = {
 	.setup = acpi_apd_setup,
 	.fixed_clk_rate = 48000000,
+	.properties = uart_properties,
 };
 #endif
 
 #ifdef CONFIG_ARM64
-static struct apd_device_desc xgene_i2c_desc = {
+static const struct apd_device_desc xgene_i2c_desc = {
 	.setup = acpi_apd_setup,
 	.fixed_clk_rate = 100000000,
+};
+
+static const struct apd_device_desc vulcan_spi_desc = {
+	.setup = acpi_apd_setup,
+	.fixed_clk_rate = 133000000,
 };
 #endif
 
@@ -126,6 +139,12 @@ static int acpi_apd_create_device(struct acpi_device *adev,
 			goto err_out;
 	}
 
+	if (dev_desc->properties) {
+		ret = device_add_properties(&adev->dev, dev_desc->properties);
+		if (ret)
+			goto err_out;
+	}
+
 	adev->driver_data = pdata;
 	pdev = acpi_create_platform_device(adev);
 	if (!IS_ERR_OR_NULL(pdev))
@@ -143,11 +162,14 @@ static const struct acpi_device_id acpi_apd_device_ids[] = {
 	/* Generic apd devices */
 #ifdef CONFIG_X86_AMD_PLATFORM_DEVICE
 	{ "AMD0010", APD_ADDR(cz_i2c_desc) },
+	{ "AMDI0010", APD_ADDR(cz_i2c_desc) },
 	{ "AMD0020", APD_ADDR(cz_uart_desc) },
+	{ "AMDI0020", APD_ADDR(cz_uart_desc) },
 	{ "AMD0030", },
 #endif
 #ifdef CONFIG_ARM64
 	{ "APMC0D0F", APD_ADDR(xgene_i2c_desc) },
+	{ "BRCM900D", APD_ADDR(vulcan_spi_desc) },
 #endif
 	{ }
 };

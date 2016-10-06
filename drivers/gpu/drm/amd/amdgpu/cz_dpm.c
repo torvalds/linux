@@ -425,7 +425,7 @@ static int cz_dpm_init(struct amdgpu_device *adev)
 	pi->mgcg_cgtt_local1 = 0x0;
 	pi->clock_slow_down_step = 25000;
 	pi->skip_clock_slow_down = 1;
-	pi->enable_nb_ps_policy = 0;
+	pi->enable_nb_ps_policy = false;
 	pi->caps_power_containment = true;
 	pi->caps_cac = true;
 	pi->didt_enabled = false;
@@ -445,13 +445,13 @@ static int cz_dpm_init(struct amdgpu_device *adev)
 	pi->gfx_pg_threshold = 500;
 	pi->caps_fps = true;
 	/* uvd */
-	pi->caps_uvd_pg = (adev->pg_flags & AMDGPU_PG_SUPPORT_UVD) ? true : false;
+	pi->caps_uvd_pg = (adev->pg_flags & AMD_PG_SUPPORT_UVD) ? true : false;
 	pi->caps_uvd_dpm = true;
 	/* vce */
-	pi->caps_vce_pg = (adev->pg_flags & AMDGPU_PG_SUPPORT_VCE) ? true : false;
+	pi->caps_vce_pg = (adev->pg_flags & AMD_PG_SUPPORT_VCE) ? true : false;
 	pi->caps_vce_dpm = true;
 	/* acp */
-	pi->caps_acp_pg = (adev->pg_flags & AMDGPU_PG_SUPPORT_ACP) ? true : false;
+	pi->caps_acp_pg = (adev->pg_flags & AMD_PG_SUPPORT_ACP) ? true : false;
 	pi->caps_acp_dpm = true;
 
 	pi->caps_stable_power_state = false;
@@ -1579,7 +1579,6 @@ static int cz_dpm_update_sclk_limit(struct amdgpu_device *adev)
 
 static int cz_dpm_set_deep_sleep_sclk_threshold(struct amdgpu_device *adev)
 {
-	int ret = 0;
 	struct cz_power_info *pi = cz_get_pi(adev);
 
 	if (pi->caps_sclk_ds) {
@@ -1588,20 +1587,19 @@ static int cz_dpm_set_deep_sleep_sclk_threshold(struct amdgpu_device *adev)
 				CZ_MIN_DEEP_SLEEP_SCLK);
 	}
 
-	return ret;
+	return 0;
 }
 
 /* ?? without dal support, is this still needed in setpowerstate list*/
 static int cz_dpm_set_watermark_threshold(struct amdgpu_device *adev)
 {
-	int ret = 0;
 	struct cz_power_info *pi = cz_get_pi(adev);
 
 	cz_send_msg_to_smc_with_parameter(adev,
 			PPSMC_MSG_SetWatermarkFrequency,
 			pi->sclk_dpm.soft_max_clk);
 
-	return ret;
+	return 0;
 }
 
 static int cz_dpm_enable_nbdpm(struct amdgpu_device *adev)
@@ -1636,7 +1634,6 @@ static void cz_dpm_nbdpm_lm_pstate_enable(struct amdgpu_device *adev,
 
 static int cz_dpm_update_low_memory_pstate(struct amdgpu_device *adev)
 {
-	int ret = 0;
 	struct cz_power_info *pi = cz_get_pi(adev);
 	struct cz_ps *ps = &pi->requested_ps;
 
@@ -1647,21 +1644,19 @@ static int cz_dpm_update_low_memory_pstate(struct amdgpu_device *adev)
 			cz_dpm_nbdpm_lm_pstate_enable(adev, true);
 	}
 
-	return ret;
+	return 0;
 }
 
 /* with dpm enabled */
 static int cz_dpm_set_power_state(struct amdgpu_device *adev)
 {
-	int ret = 0;
-
 	cz_dpm_update_sclk_limit(adev);
 	cz_dpm_set_deep_sleep_sclk_threshold(adev);
 	cz_dpm_set_watermark_threshold(adev);
 	cz_dpm_enable_nbdpm(adev);
 	cz_dpm_update_low_memory_pstate(adev);
 
-	return ret;
+	return 0;
 }
 
 static void cz_dpm_post_set_power_state(struct amdgpu_device *adev)
@@ -2202,8 +2197,7 @@ static void cz_dpm_powergate_vce(struct amdgpu_device *adev, bool gate)
 							    AMD_PG_STATE_GATE);
 
 				cz_enable_vce_dpm(adev, false);
-				/* TODO: to figure out why vce can't be poweroff. */
-				/* cz_send_msg_to_smc(adev, PPSMC_MSG_VCEPowerOFF); */
+				cz_send_msg_to_smc(adev, PPSMC_MSG_VCEPowerOFF);
 				pi->vce_power_gated = true;
 			} else {
 				cz_send_msg_to_smc(adev, PPSMC_MSG_VCEPowerON);
@@ -2225,14 +2219,14 @@ static void cz_dpm_powergate_vce(struct amdgpu_device *adev, bool gate)
 			}
 		}
 	} else { /*pi->caps_vce_pg*/
+		pi->vce_power_gated = gate;
 		cz_update_vce_dpm(adev);
-		cz_enable_vce_dpm(adev, true);
+		cz_enable_vce_dpm(adev, !gate);
 	}
-
-	return;
 }
 
 const struct amd_ip_funcs cz_dpm_ip_funcs = {
+	.name = "cz_dpm",
 	.early_init = cz_dpm_early_init,
 	.late_init = cz_dpm_late_init,
 	.sw_init = cz_dpm_sw_init,
@@ -2244,7 +2238,6 @@ const struct amd_ip_funcs cz_dpm_ip_funcs = {
 	.is_idle = NULL,
 	.wait_for_idle = NULL,
 	.soft_reset = NULL,
-	.print_status = NULL,
 	.set_clockgating_state = cz_dpm_set_clockgating_state,
 	.set_powergating_state = cz_dpm_set_powergating_state,
 };

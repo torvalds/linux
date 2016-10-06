@@ -352,6 +352,11 @@ static int ssm4567_set_power(struct ssm4567 *ssm4567, bool enable)
 	regcache_cache_only(ssm4567->regmap, !enable);
 
 	if (enable) {
+		ret = regmap_write(ssm4567->regmap, SSM4567_REG_SOFT_RESET,
+			0x00);
+		if (ret)
+			return ret;
+
 		ret = regmap_update_bits(ssm4567->regmap,
 			SSM4567_REG_POWER_CTRL,
 			SSM4567_POWER_SPWDN, 0x00);
@@ -416,12 +421,14 @@ static struct snd_soc_codec_driver ssm4567_codec_driver = {
 	.set_bias_level = ssm4567_set_bias_level,
 	.idle_bias_off = true,
 
-	.controls = ssm4567_snd_controls,
-	.num_controls = ARRAY_SIZE(ssm4567_snd_controls),
-	.dapm_widgets = ssm4567_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(ssm4567_dapm_widgets),
-	.dapm_routes = ssm4567_routes,
-	.num_dapm_routes = ARRAY_SIZE(ssm4567_routes),
+	.component_driver = {
+		.controls		= ssm4567_snd_controls,
+		.num_controls		= ARRAY_SIZE(ssm4567_snd_controls),
+		.dapm_widgets		= ssm4567_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(ssm4567_dapm_widgets),
+		.dapm_routes		= ssm4567_routes,
+		.num_dapm_routes	= ARRAY_SIZE(ssm4567_routes),
+	},
 };
 
 static const struct regmap_config ssm4567_regmap_config = {

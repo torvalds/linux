@@ -28,6 +28,36 @@ radiotap headers and used to control injection:
    IEEE80211_RADIOTAP_F_TX_NOACK: frame should be sent without waiting for
 				  an ACK even if it is a unicast frame
 
+ * IEEE80211_RADIOTAP_RATE
+
+   legacy rate for the transmission (only for devices without own rate control)
+
+ * IEEE80211_RADIOTAP_MCS
+
+   HT rate for the transmission (only for devices without own rate control).
+   Also some flags are parsed
+
+   IEEE80211_RADIOTAP_MCS_SGI: use short guard interval
+   IEEE80211_RADIOTAP_MCS_BW_40: send in HT40 mode
+
+ * IEEE80211_RADIOTAP_DATA_RETRIES
+
+   number of retries when either IEEE80211_RADIOTAP_RATE or
+   IEEE80211_RADIOTAP_MCS was used
+
+ * IEEE80211_RADIOTAP_VHT
+
+   VHT mcs and number of streams used in the transmission (only for devices
+   without own rate control). Also other fields are parsed
+
+   flags field
+   IEEE80211_RADIOTAP_VHT_FLAG_SGI: use short guard interval
+
+   bandwidth field
+   1: send using 40MHz channel width
+   4: send using 80MHz channel width
+   11: send using 160MHz channel width
+
 The injection code can also skip all other currently defined radiotap fields
 facilitating replay of captured radiotap headers directly.
 

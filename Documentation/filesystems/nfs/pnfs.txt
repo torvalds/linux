@@ -64,8 +64,8 @@ table which are called by the nfs-client pnfs-core to implement the
 different layout types.
 
 Files-layout-driver code is in: fs/nfs/filelayout/.. directory
-Objects-layout-deriver code is in: fs/nfs/objlayout/.. directory
-Blocks-layout-deriver code is in: fs/nfs/blocklayout/.. directory
+Objects-layout-driver code is in: fs/nfs/objlayout/.. directory
+Blocks-layout-driver code is in: fs/nfs/blocklayout/.. directory
 Flexfiles-layout-driver code is in: fs/nfs/flexfilelayout/.. directory
 
 objects-layout setup
@@ -91,7 +91,7 @@ The API to the login script is as follows:
 	Usage: $0 -u <URI> -o <OSDNAME> -s <SYSTEMID>
 	Options:
 		-u		target uri e.g. iscsi://<ip>:<port>
-				(allways exists)
+				(always exists)
 				(More protocols can be defined in the future.
 				 The client does not interpret this string it is
 				 passed unchanged as received from the Server)

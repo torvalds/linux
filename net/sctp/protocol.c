@@ -60,6 +60,8 @@
 #include <net/inet_common.h>
 #include <net/inet_ecn.h>
 
+#define MAX_SCTP_PORT_HASH_ENTRIES (64 * 1024)
+
 /* Global data structures. */
 struct sctp_globals sctp_globals __read_mostly;
 
@@ -214,6 +216,7 @@ int sctp_copy_local_addr_list(struct net *net, struct sctp_bind_addr *bp,
 			      (copy_flags & SCTP_ADDR6_ALLOWED) &&
 			      (copy_flags & SCTP_ADDR6_PEERSUPP)))) {
 				error = sctp_add_bind_addr(bp, &addr->a,
+						    sizeof(addr->a),
 						    SCTP_ADDR_SRC, GFP_ATOMIC);
 				if (error)
 					goto end_copy;
@@ -237,6 +240,7 @@ static void sctp_v4_from_skb(union sctp_addr *addr, struct sk_buff *skb,
 	port = &addr->v4.sin_port;
 	addr->v4.sin_family = AF_INET;
 
+	/* Always called on head skb, so this is safe */
 	sh = sctp_hdr(skb);
 	if (is_saddr) {
 		*port  = sh->source;
@@ -1024,7 +1028,7 @@ static const struct proto_ops inet_seqpacket_ops = {
 	.setsockopt	   = sock_common_setsockopt, /* IP_SOL IP_OPTION is a problem */
 	.getsockopt	   = sock_common_getsockopt,
 	.sendmsg	   = inet_sendmsg,
-	.recvmsg	   = sock_common_recvmsg,
+	.recvmsg	   = inet_recvmsg,
 	.mmap		   = sock_no_mmap,
 	.sendpage	   = sock_no_sendpage,
 #ifdef CONFIG_COMPAT
@@ -1355,6 +1359,8 @@ static __init int sctp_init(void)
 	unsigned long limit;
 	int max_share;
 	int order;
+	int num_entries;
+	int max_entry_order;
 
 	sock_skb_cb_check_size(sizeof(struct sctp_ulpevent));
 
@@ -1407,14 +1413,24 @@ static __init int sctp_init(void)
 
 	/* Size and allocate the association hash table.
 	 * The methodology is similar to that of the tcp hash tables.
+	 * Though not identical.  Start by getting a goal size
 	 */
 	if (totalram_pages >= (128 * 1024))
 		goal = totalram_pages >> (22 - PAGE_SHIFT);
 	else
 		goal = totalram_pages >> (24 - PAGE_SHIFT);
 
-	for (order = 0; (1UL << order) < goal; order++)
-		;
+	/* Then compute the page order for said goal */
+	order = get_order(goal);
+
+	/* Now compute the required page order for the maximum sized table we
+	 * want to create
+	 */
+	max_entry_order = get_order(MAX_SCTP_PORT_HASH_ENTRIES *
+				    sizeof(struct sctp_bind_hashbucket));
+
+	/* Limit the page order by that maximum hash table size */
+	order = min(order, max_entry_order);
 
 	/* Allocate and initialize the endpoint hash table.  */
 	sctp_ep_hashsize = 64;
@@ -1430,29 +1446,46 @@ static __init int sctp_init(void)
 		INIT_HLIST_HEAD(&sctp_ep_hashtable[i].chain);
 	}
 
-	/* Allocate and initialize the SCTP port hash table.  */
+	/* Allocate and initialize the SCTP port hash table.
+	 * Note that order is initalized to start at the max sized
+	 * table we want to support.  If we can't get that many pages
+	 * reduce the order and try again
+	 */
 	do {
-		sctp_port_hashsize = (1UL << order) * PAGE_SIZE /
-					sizeof(struct sctp_bind_hashbucket);
-		if ((sctp_port_hashsize > (64 * 1024)) && order > 0)
-			continue;
 		sctp_port_hashtable = (struct sctp_bind_hashbucket *)
 			__get_free_pages(GFP_KERNEL | __GFP_NOWARN, order);
 	} while (!sctp_port_hashtable && --order > 0);
+
 	if (!sctp_port_hashtable) {
 		pr_err("Failed bind hash alloc\n");
 		status = -ENOMEM;
 		goto err_bhash_alloc;
 	}
+
+	/* Now compute the number of entries that will fit in the
+	 * port hash space we allocated
+	 */
+	num_entries = (1UL << order) * PAGE_SIZE /
+		      sizeof(struct sctp_bind_hashbucket);
+
+	/* And finish by rounding it down to the nearest power of two
+	 * this wastes some memory of course, but its needed because
+	 * the hash function operates based on the assumption that
+	 * that the number of entries is a power of two
+	 */
+	sctp_port_hashsize = rounddown_pow_of_two(num_entries);
+
 	for (i = 0; i < sctp_port_hashsize; i++) {
 		spin_lock_init(&sctp_port_hashtable[i].lock);
 		INIT_HLIST_HEAD(&sctp_port_hashtable[i].chain);
 	}
 
-	if (sctp_transport_hashtable_init())
+	status = sctp_transport_hashtable_init();
+	if (status)
 		goto err_thash_alloc;
 
-	pr_info("Hash tables configured (bind %d)\n", sctp_port_hashsize);
+	pr_info("Hash tables configured (bind %d/%d)\n", sctp_port_hashsize,
+		num_entries);
 
 	sctp_sysctl_register();
 
@@ -1484,6 +1517,9 @@ static __init int sctp_init(void)
 	status = sctp_v6_add_protocol();
 	if (status)
 		goto err_v6_add_protocol;
+
+	if (sctp_offload_init() < 0)
+		pr_crit("%s: Cannot add SCTP protocol offload\n", __func__);
 
 out:
 	return status;

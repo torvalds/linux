@@ -1,4 +1,4 @@
-/* Copyright (C) 2013-2015 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2013-2016  B.A.T.M.A.N. contributors:
  *
  * Martin Hundebøll <martin@hundeboll.net>
  *
@@ -34,15 +34,15 @@ bool batadv_frag_skb_fwd(struct sk_buff *skb,
 			 struct batadv_orig_node *orig_node_src);
 bool batadv_frag_skb_buffer(struct sk_buff **skb,
 			    struct batadv_orig_node *orig_node);
-bool batadv_frag_send_packet(struct sk_buff *skb,
-			     struct batadv_orig_node *orig_node,
-			     struct batadv_neigh_node *neigh_node);
+int batadv_frag_send_packet(struct sk_buff *skb,
+			    struct batadv_orig_node *orig_node,
+			    struct batadv_neigh_node *neigh_node);
 
 /**
  * batadv_frag_check_entry - check if a list of fragments has timed out
  * @frags_entry: table entry to check
  *
- * Returns true if the frags entry has timed out, false otherwise.
+ * Return: true if the frags entry has timed out, false otherwise.
  */
 static inline bool
 batadv_frag_check_entry(struct batadv_frag_table_entry *frags_entry)

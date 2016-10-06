@@ -370,8 +370,8 @@ static int zforce_touch_event(struct zforce_ts *ts, u8 *payload)
 			point.coord_x = point.coord_y = 0;
 		}
 
-		point.state = payload[9 * i + 5] & 0x03;
-		point.id = (payload[9 * i + 5] & 0xfc) >> 2;
+		point.state = payload[9 * i + 5] & 0x0f;
+		point.id = (payload[9 * i + 5] & 0xf0) >> 4;
 
 		/* determine touch major, minor and orientation */
 		point.area_major = max(payload[9 * i + 6],

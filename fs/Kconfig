@@ -10,6 +10,9 @@ config DCACHE_WORD_ACCESS
 
 if BLOCK
 
+config FS_IOMAP
+	bool
+
 source "fs/ext2/Kconfig"
 source "fs/ext4/Kconfig"
 source "fs/jbd2/Kconfig"
@@ -52,6 +55,7 @@ config FS_DAX_PMD
 	depends on FS_DAX
 	depends on ZONE_DEVICE
 	depends on TRANSPARENT_HUGEPAGE
+	depends on BROKEN
 
 endif # BLOCK
 
@@ -66,9 +70,16 @@ config FS_POSIX_ACL
 config EXPORTFS
 	tristate
 
+config EXPORTFS_BLOCK_OPS
+	bool "Enable filesystem export operations for block IO"
+	help
+	  This option enables the export operations for a filesystem to support
+	  external block IO.
+
 config FILE_LOCKING
 	bool "Enable POSIX file locking API" if EXPERT
 	default y
+	select PERCPU_RWSEM
 	help
 	  This option enables standard file locking support, required
           for filesystems like NFS and for the flock() system
@@ -83,6 +94,8 @@ config MANDATORY_FILE_LOCKING
 	  mounted filesystems to support mandatory locking.
 
 	  To the best of my knowledge this is dead code that no one cares about.
+
+source "fs/crypto/Kconfig"
 
 source "fs/notify/Kconfig"
 
@@ -207,6 +220,7 @@ menuconfig MISC_FILESYSTEMS
 
 if MISC_FILESYSTEMS
 
+source "fs/orangefs/Kconfig"
 source "fs/adfs/Kconfig"
 source "fs/affs/Kconfig"
 source "fs/ecryptfs/Kconfig"

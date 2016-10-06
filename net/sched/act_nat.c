@@ -31,13 +31,17 @@
 
 #define NAT_TAB_MASK	15
 
+static int nat_net_id;
+static struct tc_action_ops act_nat_ops;
+
 static const struct nla_policy nat_policy[TCA_NAT_MAX + 1] = {
 	[TCA_NAT_PARMS]	= { .len = sizeof(struct tc_nat) },
 };
 
 static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
-			struct tc_action *a, int ovr, int bind)
+			struct tc_action **a, int ovr, int bind)
 {
+	struct tc_action_net *tn = net_generic(net, nat_net_id);
 	struct nlattr *tb[TCA_NAT_MAX + 1];
 	struct tc_nat *parm;
 	int ret = 0, err;
@@ -54,20 +58,20 @@ static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 		return -EINVAL;
 	parm = nla_data(tb[TCA_NAT_PARMS]);
 
-	if (!tcf_hash_check(parm->index, a, bind)) {
-		ret = tcf_hash_create(parm->index, est, a, sizeof(*p),
-				      bind, false);
+	if (!tcf_hash_check(tn, parm->index, a, bind)) {
+		ret = tcf_hash_create(tn, parm->index, est, a,
+				      &act_nat_ops, bind, false);
 		if (ret)
 			return ret;
 		ret = ACT_P_CREATED;
 	} else {
 		if (bind)
 			return 0;
-		tcf_hash_release(a, bind);
+		tcf_hash_release(*a, bind);
 		if (!ovr)
 			return -EEXIST;
 	}
-	p = to_tcf_nat(a);
+	p = to_tcf_nat(*a);
 
 	spin_lock_bh(&p->tcf_lock);
 	p->old_addr = parm->old_addr;
@@ -79,7 +83,7 @@ static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 	spin_unlock_bh(&p->tcf_lock);
 
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(a);
+		tcf_hash_insert(tn, *a);
 
 	return ret;
 }
@@ -87,7 +91,7 @@ static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 static int tcf_nat(struct sk_buff *skb, const struct tc_action *a,
 		   struct tcf_result *res)
 {
-	struct tcf_nat *p = a->priv;
+	struct tcf_nat *p = to_tcf_nat(a);
 	struct iphdr *iph;
 	__be32 old_addr;
 	__be32 new_addr;
@@ -100,7 +104,7 @@ static int tcf_nat(struct sk_buff *skb, const struct tc_action *a,
 
 	spin_lock(&p->tcf_lock);
 
-	p->tcf_tm.lastuse = jiffies;
+	tcf_lastuse_update(&p->tcf_tm);
 	old_addr = p->old_addr;
 	new_addr = p->new_addr;
 	mask = p->mask;
@@ -126,9 +130,7 @@ static int tcf_nat(struct sk_buff *skb, const struct tc_action *a,
 		addr = iph->daddr;
 
 	if (!((old_addr ^ addr) & mask)) {
-		if (skb_cloned(skb) &&
-		    !skb_clone_writable(skb, sizeof(*iph) + noff) &&
-		    pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
+		if (skb_try_make_writable(skb, sizeof(*iph) + noff))
 			goto drop;
 
 		new_addr &= mask;
@@ -156,9 +158,7 @@ static int tcf_nat(struct sk_buff *skb, const struct tc_action *a,
 		struct tcphdr *tcph;
 
 		if (!pskb_may_pull(skb, ihl + sizeof(*tcph) + noff) ||
-		    (skb_cloned(skb) &&
-		     !skb_clone_writable(skb, ihl + sizeof(*tcph) + noff) &&
-		     pskb_expand_head(skb, 0, 0, GFP_ATOMIC)))
+		    skb_try_make_writable(skb, ihl + sizeof(*tcph) + noff))
 			goto drop;
 
 		tcph = (void *)(skb_network_header(skb) + ihl);
@@ -171,9 +171,7 @@ static int tcf_nat(struct sk_buff *skb, const struct tc_action *a,
 		struct udphdr *udph;
 
 		if (!pskb_may_pull(skb, ihl + sizeof(*udph) + noff) ||
-		    (skb_cloned(skb) &&
-		     !skb_clone_writable(skb, ihl + sizeof(*udph) + noff) &&
-		     pskb_expand_head(skb, 0, 0, GFP_ATOMIC)))
+		    skb_try_make_writable(skb, ihl + sizeof(*udph) + noff))
 			goto drop;
 
 		udph = (void *)(skb_network_header(skb) + ihl);
@@ -213,10 +211,8 @@ static int tcf_nat(struct sk_buff *skb, const struct tc_action *a,
 		if ((old_addr ^ addr) & mask)
 			break;
 
-		if (skb_cloned(skb) &&
-		    !skb_clone_writable(skb, ihl + sizeof(*icmph) +
-					     sizeof(*iph) + noff) &&
-		    pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
+		if (skb_try_make_writable(skb, ihl + sizeof(*icmph) +
+					  sizeof(*iph) + noff))
 			goto drop;
 
 		icmph = (void *)(skb_network_header(skb) + ihl);
@@ -253,7 +249,7 @@ static int tcf_nat_dump(struct sk_buff *skb, struct tc_action *a,
 			int bind, int ref)
 {
 	unsigned char *b = skb_tail_pointer(skb);
-	struct tcf_nat *p = a->priv;
+	struct tcf_nat *p = to_tcf_nat(a);
 	struct tc_nat opt = {
 		.old_addr = p->old_addr,
 		.new_addr = p->new_addr,
@@ -269,10 +265,9 @@ static int tcf_nat_dump(struct sk_buff *skb, struct tc_action *a,
 
 	if (nla_put(skb, TCA_NAT_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
-	t.install = jiffies_to_clock_t(jiffies - p->tcf_tm.install);
-	t.lastuse = jiffies_to_clock_t(jiffies - p->tcf_tm.lastuse);
-	t.expires = jiffies_to_clock_t(p->tcf_tm.expires);
-	if (nla_put(skb, TCA_NAT_TM, sizeof(t), &t))
+
+	tcf_tm_dump(&t, &p->tcf_tm);
+	if (nla_put_64bit(skb, TCA_NAT_TM, sizeof(t), &t, TCA_NAT_PAD))
 		goto nla_put_failure;
 
 	return skb->len;
@@ -282,6 +277,22 @@ nla_put_failure:
 	return -1;
 }
 
+static int tcf_nat_walker(struct net *net, struct sk_buff *skb,
+			  struct netlink_callback *cb, int type,
+			  const struct tc_action_ops *ops)
+{
+	struct tc_action_net *tn = net_generic(net, nat_net_id);
+
+	return tcf_generic_walker(tn, skb, cb, type, ops);
+}
+
+static int tcf_nat_search(struct net *net, struct tc_action **a, u32 index)
+{
+	struct tc_action_net *tn = net_generic(net, nat_net_id);
+
+	return tcf_hash_search(tn, a, index);
+}
+
 static struct tc_action_ops act_nat_ops = {
 	.kind		=	"nat",
 	.type		=	TCA_ACT_NAT,
@@ -289,6 +300,30 @@ static struct tc_action_ops act_nat_ops = {
 	.act		=	tcf_nat,
 	.dump		=	tcf_nat_dump,
 	.init		=	tcf_nat_init,
+	.walk		=	tcf_nat_walker,
+	.lookup		=	tcf_nat_search,
+	.size		=	sizeof(struct tcf_nat),
+};
+
+static __net_init int nat_init_net(struct net *net)
+{
+	struct tc_action_net *tn = net_generic(net, nat_net_id);
+
+	return tc_action_net_init(tn, &act_nat_ops, NAT_TAB_MASK);
+}
+
+static void __net_exit nat_exit_net(struct net *net)
+{
+	struct tc_action_net *tn = net_generic(net, nat_net_id);
+
+	tc_action_net_exit(tn);
+}
+
+static struct pernet_operations nat_net_ops = {
+	.init = nat_init_net,
+	.exit = nat_exit_net,
+	.id   = &nat_net_id,
+	.size = sizeof(struct tc_action_net),
 };
 
 MODULE_DESCRIPTION("Stateless NAT actions");
@@ -296,12 +331,12 @@ MODULE_LICENSE("GPL");
 
 static int __init nat_init_module(void)
 {
-	return tcf_register_action(&act_nat_ops, NAT_TAB_MASK);
+	return tcf_register_action(&act_nat_ops, &nat_net_ops);
 }
 
 static void __exit nat_cleanup_module(void)
 {
-	tcf_unregister_action(&act_nat_ops);
+	tcf_unregister_action(&act_nat_ops, &nat_net_ops);
 }
 
 module_init(nat_init_module);

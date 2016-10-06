@@ -61,9 +61,9 @@ struct twl4030_keypad {
 	unsigned short	keymap[TWL4030_KEYMAP_SIZE];
 	u16		kp_state[TWL4030_MAX_ROWS];
 	bool		autorepeat;
-	unsigned	n_rows;
-	unsigned	n_cols;
-	unsigned	irq;
+	unsigned int	n_rows;
+	unsigned int	n_cols;
+	unsigned int	irq;
 
 	struct device *dbg_dev;
 	struct input_dev *input;
@@ -110,7 +110,7 @@ struct twl4030_keypad {
 #define KEYP_CTRL_KBD_ON		BIT(6)
 
 /* KEYP_DEB, KEYP_LONG_KEY, KEYP_TIMEOUT_x*/
-#define KEYP_PERIOD_US(t, prescale)	((t) / (31 << (prescale + 1)) - 1)
+#define KEYP_PERIOD_US(t, prescale)	((t) / (31 << ((prescale) + 1)) - 1)
 
 /* KEYP_LK_PTV_REG Fields */
 #define KEYP_LK_PTV_PTV_SHIFT		5
@@ -162,9 +162,10 @@ static int twl4030_kpwrite_u8(struct twl4030_keypad *kp, u8 data, u32 reg)
 
 static inline u16 twl4030_col_xlate(struct twl4030_keypad *kp, u8 col)
 {
-	/* If all bits in a row are active for all coloumns then
+	/*
+	 * If all bits in a row are active for all columns then
 	 * we have that row line connected to gnd. Mark this
-	 * key on as if it was on matrix position n_cols (ie
+	 * key on as if it was on matrix position n_cols (i.e.
 	 * one higher than the size of the matrix).
 	 */
 	if (col == 0xFF)
@@ -209,9 +210,9 @@ static void twl4030_kp_scan(struct twl4030_keypad *kp, bool release_all)
 	u16 new_state[TWL4030_MAX_ROWS];
 	int col, row;
 
-	if (release_all)
+	if (release_all) {
 		memset(new_state, 0, sizeof(new_state));
-	else {
+	} else {
 		/* check for any changes */
 		int ret = twl4030_read_kp_matrix_state(kp, new_state);
 
@@ -262,8 +263,10 @@ static irqreturn_t do_kp_irq(int irq, void *_kp)
 	/* Read & Clear TWL4030 pending interrupt */
 	ret = twl4030_kpread(kp, &reg, KEYP_ISR1, 1);
 
-	/* Release all keys if I2C has gone bad or
-	 * the KEYP has gone to idle state */
+	/*
+	 * Release all keys if I2C has gone bad or
+	 * the KEYP has gone to idle state.
+	 */
 	if (ret >= 0 && (reg & KEYP_IMR1_KP))
 		twl4030_kp_scan(kp, false);
 	else
@@ -283,7 +286,8 @@ static int twl4030_kp_program(struct twl4030_keypad *kp)
 	if (twl4030_kpwrite_u8(kp, reg, KEYP_CTRL) < 0)
 		return -EIO;
 
-	/* NOTE:  we could use sih_setup() here to package keypad
+	/*
+	 * NOTE: we could use sih_setup() here to package keypad
 	 * event sources as four different IRQs ... but we don't.
 	 */
 
@@ -312,7 +316,7 @@ static int twl4030_kp_program(struct twl4030_keypad *kp)
 
 	/*
 	 * Enable Clear-on-Read; disable remembering events that fire
-	 * after the IRQ but before our handler acks (reads) them,
+	 * after the IRQ but before our handler acks (reads) them.
 	 */
 	reg = TWL4030_SIH_CTRL_COR_MASK | TWL4030_SIH_CTRL_PENDDIS_MASK;
 	if (twl4030_kpwrite_u8(kp, reg, KEYP_SIH_CTRL) < 0)

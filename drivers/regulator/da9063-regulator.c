@@ -900,4 +900,4 @@ module_exit(da9063_regulator_cleanup);
 MODULE_AUTHOR("Krystian Garbaciak <krystian.garbaciak@diasemi.com>");
 MODULE_DESCRIPTION("DA9063 regulators driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("paltform:" DA9063_DRVNAME_REGULATORS);
+MODULE_ALIAS("platform:" DA9063_DRVNAME_REGULATORS);

@@ -92,6 +92,7 @@ PLL and leaf clock compatible strings for Cygnus are:
     "brcm,cygnus-lcpll0"
     "brcm,cygnus-mipipll"
     "brcm,cygnus-asiu-clk"
+    "brcm,cygnus-audiopll"
 
 The following table defines the set of PLL/clock index and ID for Cygnus.
 These clock IDs are defined in:
@@ -130,6 +131,11 @@ These clock IDs are defined in:
     ch3_unused mipipll          4       BCM_CYGNUS_MIPIPLL_CH3_UNUSED
     ch4_unused mipipll          5       BCM_CYGNUS_MIPIPLL_CH4_UNUSED
     ch5_unused mipipll          6       BCM_CYGNUS_MIPIPLL_CH5_UNUSED
+
+    audiopll   crystal          0       BCM_CYGNUS_AUDIOPLL
+    ch0_audio  audiopll         1       BCM_CYGNUS_AUDIOPLL_CH0
+    ch1_audio  audiopll         2       BCM_CYGNUS_AUDIOPLL_CH1
+    ch2_audio  audiopll         3       BCM_CYGNUS_AUDIOPLL_CH2
 
 Northstar and Northstar Plus
 ------

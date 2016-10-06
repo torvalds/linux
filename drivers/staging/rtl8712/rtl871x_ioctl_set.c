@@ -34,12 +34,6 @@
 #include "usb_osintf.h"
 #include "usb_ops.h"
 
-#define IS_MAC_ADDRESS_BROADCAST(addr) \
-( \
-	((addr[0] == 0xff) && (addr[1] == 0xff) && \
-	 (addr[2] == 0xff) && (addr[3] == 0xff) && \
-	 (addr[4] == 0xff) && (addr[5] == 0xff)) ? true : false \
-)
 
 static u8 validate_ssid(struct ndis_802_11_ssid *ssid)
 {
@@ -146,7 +140,8 @@ u8 r8712_set_802_11_bssid(struct _adapter *padapter, u8 *bssid)
 		    ETH_ALEN)) {
 			if (!check_fwstate(pmlmepriv, WIFI_STATION_STATE))
 				goto _Abort_Set_BSSID; /* driver is in
-						* WIFI_ADHOC_MASTER_STATE */
+						* WIFI_ADHOC_MASTER_STATE
+						*/
 		} else {
 			r8712_disassoc_cmd(padapter);
 			if (check_fwstate(pmlmepriv, _FW_LINKED))
@@ -209,7 +204,8 @@ void r8712_set_802_11_ssid(struct _adapter *padapter,
 					}
 				} else {
 					goto _Abort_Set_SSID; /* driver is in
-						  * WIFI_ADHOC_MASTER_STATE */
+						* WIFI_ADHOC_MASTER_STATE
+						*/
 				}
 			}
 		} else {
@@ -260,12 +256,14 @@ void r8712_set_802_11_infrastructure_mode(struct _adapter *padapter,
 		    (*pold_state == Ndis802_11IBSS)) {
 			/* will clr Linked_state before this function,
 			 * we must have checked whether issue dis-assoc_cmd or
-			 * not */
+			 * not
+			 */
 			r8712_ind_disconnect(padapter);
 		}
 		*pold_state = networktype;
 		/* clear WIFI_STATION_STATE; WIFI_AP_STATE; WIFI_ADHOC_STATE;
-		 * WIFI_ADHOC_MASTER_STATE */
+		 * WIFI_ADHOC_MASTER_STATE
+		 */
 		_clr_fwstate_(pmlmepriv, WIFI_STATION_STATE | WIFI_AP_STATE |
 			      WIFI_ADHOC_STATE | WIFI_ADHOC_MASTER_STATE);
 		switch (networktype) {

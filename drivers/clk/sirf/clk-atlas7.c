@@ -1423,7 +1423,7 @@ static int atlas7_reset_module(struct reset_controller_dev *rcdev,
 	return 0;
 }
 
-static struct reset_control_ops atlas7_rst_ops = {
+static const struct reset_control_ops atlas7_rst_ops = {
 	.reset = atlas7_reset_module,
 };
 

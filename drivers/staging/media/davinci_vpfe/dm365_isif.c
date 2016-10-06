@@ -146,9 +146,8 @@ enum v4l2_field vpfe_isif_get_fid(struct vpfe_device *vpfe_dev)
 	u32 field_status;
 
 	field_status = isif_read(isif->isif_cfg.base_addr, MODESET);
-	field_status = (field_status >> DM365_ISIF_MDFS_OFFSET) &
-			DM365_ISIF_MDFS_MASK;
-	return field_status;
+	return (field_status >> DM365_ISIF_MDFS_OFFSET) &
+		DM365_ISIF_MDFS_MASK;
 }
 
 static int
@@ -282,7 +281,8 @@ isif_config_format(struct vpfe_device *vpfe_dev, unsigned int pad)
  * @fmt: pointer to v4l2 subdev format structure
  */
 static void
-isif_try_format(struct vpfe_isif_device *isif, struct v4l2_subdev_pad_config *cfg,
+isif_try_format(struct vpfe_isif_device *isif,
+		struct v4l2_subdev_pad_config *cfg,
 		struct v4l2_subdev_format *fmt)
 {
 	unsigned int width = fmt->format.width;
@@ -593,8 +593,7 @@ isif_validate_raw_params(struct vpfe_isif_raw_config *params)
 	ret = isif_validate_dfc_params(&params->dfc);
 	if (ret)
 		return ret;
-	ret = isif_validate_bclamp_params(&params->bclamp);
-	return ret;
+	return isif_validate_bclamp_params(&params->bclamp);
 }
 
 static int isif_set_params(struct v4l2_subdev *sd, void *params)
@@ -625,21 +624,16 @@ static int isif_set_params(struct v4l2_subdev *sd, void *params)
  */
 static long isif_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
-	int ret;
-
 	switch (cmd) {
 	case VIDIOC_VPFE_ISIF_S_RAW_PARAMS:
-		ret = isif_set_params(sd, arg);
-		break;
+		return isif_set_params(sd, arg);
 
 	case VIDIOC_VPFE_ISIF_G_RAW_PARAMS:
-		ret = isif_get_params(sd, arg);
-		break;
+		return isif_get_params(sd, arg);
 
 	default:
-		ret = -ENOIOCTLCMD;
+		return -ENOIOCTLCMD;
 	}
-	return ret;
 }
 
 static void isif_config_gain_offset(struct vpfe_isif_device *isif)
@@ -1239,7 +1233,8 @@ static int isif_config_ycbcr(struct v4l2_subdev *sd, int mode)
 	 * a lot of registers that we didn't touch
 	 */
 	/* start with all bits zero */
-	ccdcfg = modeset = 0;
+	ccdcfg = 0;
+	modeset = 0;
 	pix_fmt = isif_get_pix_fmt(format->code);
 	if (pix_fmt < 0) {
 		pr_debug("Invalid pix_fmt(input mode)\n");
@@ -1398,8 +1393,9 @@ static int isif_set_stream(struct v4l2_subdev *sd, int enable)
  * @which: wanted subdev format.
  */
 static struct v4l2_mbus_framefmt *
-__isif_get_format(struct vpfe_isif_device *isif, struct v4l2_subdev_pad_config *cfg,
-		  unsigned int pad, enum v4l2_subdev_format_whence which)
+__isif_get_format(struct vpfe_isif_device *isif,
+		  struct v4l2_subdev_pad_config *cfg, unsigned int pad,
+		  enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_subdev_format fmt;
@@ -1570,7 +1566,7 @@ isif_pad_set_selection(struct v4l2_subdev *sd,
 		sel->r.height = format->height;
 	}
 	/* adjust the width to 16 pixel boundary */
-	sel->r.width = ((sel->r.width + 15) & ~0xf);
+	sel->r.width = (sel->r.width + 15) & ~0xf;
 	vpfe_isif->crop = sel->r;
 	if (sel->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		isif_set_image_window(vpfe_isif);

@@ -160,9 +160,9 @@ static int __init sunxi_sc_nmi_irq_init(struct device_node *node,
 
 	gc = irq_get_domain_generic_chip(domain, 0);
 	gc->reg_base = of_io_request_and_map(node, 0, of_node_full_name(node));
-	if (!gc->reg_base) {
+	if (IS_ERR(gc->reg_base)) {
 		pr_err("unable to map resource\n");
-		ret = -ENOMEM;
+		ret = PTR_ERR(gc->reg_base);
 		goto fail_irqd_remove;
 	}
 

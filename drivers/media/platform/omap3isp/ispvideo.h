@@ -171,7 +171,6 @@ struct isp_video {
 	bool error;
 
 	/* Video buffers queue */
-	void *alloc_ctx;
 	struct vb2_queue *queue;
 	struct mutex queue_lock;	/* protects the queue */
 	spinlock_t irqlock;		/* protects dmaqueue */
@@ -189,7 +188,6 @@ struct isp_video_fh {
 	struct vb2_queue queue;
 	struct v4l2_format format;
 	struct v4l2_fract timeperframe;
-	struct media_entity_graph graph;
 };
 
 #define to_isp_video_fh(fh)	container_of(fh, struct isp_video_fh, vfh)

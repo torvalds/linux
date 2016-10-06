@@ -25,6 +25,7 @@
 #include <linux/sysfs.h>
 #include "common.h"
 #include "rcar2.h"
+#include "rcar3.h"
 
 /*
  *		image of renesas_usbhs
@@ -477,18 +478,20 @@ static const struct of_device_id usbhs_of_match[] = {
 		.data = (void *)USBHS_TYPE_RCAR_GEN2,
 	},
 	{
-		/* Gen3 is compatible with Gen2 */
 		.compatible = "renesas,usbhs-r8a7795",
-		.data = (void *)USBHS_TYPE_RCAR_GEN2,
+		.data = (void *)USBHS_TYPE_RCAR_GEN3,
+	},
+	{
+		.compatible = "renesas,usbhs-r8a7796",
+		.data = (void *)USBHS_TYPE_RCAR_GEN3,
 	},
 	{
 		.compatible = "renesas,rcar-gen2-usbhs",
 		.data = (void *)USBHS_TYPE_RCAR_GEN2,
 	},
 	{
-		/* Gen3 is compatible with Gen2 */
 		.compatible = "renesas,rcar-gen3-usbhs",
-		.data = (void *)USBHS_TYPE_RCAR_GEN2,
+		.data = (void *)USBHS_TYPE_RCAR_GEN3,
 	},
 	{ },
 };
@@ -515,7 +518,8 @@ static struct renesas_usbhs_platform_info *usbhs_parse_dt(struct device *dev)
 	if (gpio > 0)
 		dparam->enable_gpio = gpio;
 
-	if (dparam->type == USBHS_TYPE_RCAR_GEN2)
+	if (dparam->type == USBHS_TYPE_RCAR_GEN2 ||
+	    dparam->type == USBHS_TYPE_RCAR_GEN3)
 		dparam->has_usb_dmac = 1;
 
 	return info;
@@ -573,6 +577,13 @@ static int usbhs_probe(struct platform_device *pdev)
 	switch (priv->dparam.type) {
 	case USBHS_TYPE_RCAR_GEN2:
 		priv->pfunc = usbhs_rcar2_ops;
+		if (!priv->dparam.pipe_configs) {
+			priv->dparam.pipe_configs = usbhsc_new_pipe;
+			priv->dparam.pipe_size = ARRAY_SIZE(usbhsc_new_pipe);
+		}
+		break;
+	case USBHS_TYPE_RCAR_GEN3:
+		priv->pfunc = usbhs_rcar3_ops;
 		if (!priv->dparam.pipe_configs) {
 			priv->dparam.pipe_configs = usbhsc_new_pipe;
 			priv->dparam.pipe_size = ARRAY_SIZE(usbhsc_new_pipe);
@@ -691,7 +702,7 @@ probe_end_fifo_exit:
 probe_end_pipe_exit:
 	usbhs_pipe_remove(priv);
 
-	dev_info(&pdev->dev, "probe failed\n");
+	dev_info(&pdev->dev, "probe failed (%d)\n", ret);
 
 	return ret;
 }

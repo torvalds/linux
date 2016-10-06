@@ -301,16 +301,19 @@ void skb_free_datagram(struct sock *sk, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(skb_free_datagram);
 
-void skb_free_datagram_locked(struct sock *sk, struct sk_buff *skb)
+void __skb_free_datagram_locked(struct sock *sk, struct sk_buff *skb, int len)
 {
 	bool slow;
 
 	if (likely(atomic_read(&skb->users) == 1))
 		smp_rmb();
-	else if (likely(!atomic_dec_and_test(&skb->users)))
+	else if (likely(!atomic_dec_and_test(&skb->users))) {
+		sk_peek_offset_bwd(sk, len);
 		return;
+	}
 
 	slow = lock_sock_fast(sk);
+	sk_peek_offset_bwd(sk, len);
 	skb_orphan(skb);
 	sk_mem_reclaim_partial(sk);
 	unlock_sock_fast(sk, slow);
@@ -318,7 +321,7 @@ void skb_free_datagram_locked(struct sock *sk, struct sk_buff *skb)
 	/* skb is now orphaned, can be freed outside of locked section */
 	__kfree_skb(skb);
 }
-EXPORT_SYMBOL(skb_free_datagram_locked);
+EXPORT_SYMBOL(__skb_free_datagram_locked);
 
 /**
  *	skb_kill_datagram - Free a datagram skbuff forcibly

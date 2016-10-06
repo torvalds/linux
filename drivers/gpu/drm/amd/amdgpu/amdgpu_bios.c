@@ -349,25 +349,25 @@ static inline bool amdgpu_acpi_vfct_bios(struct amdgpu_device *adev)
 bool amdgpu_get_bios(struct amdgpu_device *adev)
 {
 	bool r;
-	uint16_t tmp;
+	uint16_t tmp, bios_header_start;
 
 	r = amdgpu_atrm_get_bios(adev);
-	if (r == false)
+	if (!r)
 		r = amdgpu_acpi_vfct_bios(adev);
-	if (r == false)
+	if (!r)
 		r = igp_read_bios_from_vram(adev);
-	if (r == false)
+	if (!r)
 		r = amdgpu_read_bios(adev);
-	if (r == false) {
+	if (!r) {
 		r = amdgpu_read_bios_from_rom(adev);
 	}
-	if (r == false) {
+	if (!r) {
 		r = amdgpu_read_disabled_bios(adev);
 	}
-	if (r == false) {
+	if (!r) {
 		r = amdgpu_read_platform_bios(adev);
 	}
-	if (r == false || adev->bios == NULL) {
+	if (!r || adev->bios == NULL) {
 		DRM_ERROR("Unable to locate a BIOS ROM\n");
 		adev->bios = NULL;
 		return false;
@@ -383,11 +383,11 @@ bool amdgpu_get_bios(struct amdgpu_device *adev)
 		goto free_bios;
 	}
 
-	adev->bios_header_start = RBIOS16(0x48);
-	if (!adev->bios_header_start) {
+	bios_header_start = RBIOS16(0x48);
+	if (!bios_header_start) {
 		goto free_bios;
 	}
-	tmp = adev->bios_header_start + 4;
+	tmp = bios_header_start + 4;
 	if (!memcmp(adev->bios + tmp, "ATOM", 4) ||
 	    !memcmp(adev->bios + tmp, "MOTA", 4)) {
 		adev->is_atom_bios = true;

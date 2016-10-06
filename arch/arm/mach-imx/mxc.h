@@ -45,105 +45,7 @@
 
 #ifndef __ASSEMBLY__
 extern unsigned int __mxc_cpu_type;
-#endif
 
-#ifdef CONFIG_SOC_IMX1
-# ifdef mxc_cpu_type
-#  undef mxc_cpu_type
-#  define mxc_cpu_type __mxc_cpu_type
-# else
-#  define mxc_cpu_type MXC_CPU_MX1
-# endif
-# define cpu_is_mx1()		(mxc_cpu_type == MXC_CPU_MX1)
-#else
-# define cpu_is_mx1()		(0)
-#endif
-
-#ifdef CONFIG_SOC_IMX21
-# ifdef mxc_cpu_type
-#  undef mxc_cpu_type
-#  define mxc_cpu_type __mxc_cpu_type
-# else
-#  define mxc_cpu_type MXC_CPU_MX21
-# endif
-# define cpu_is_mx21()		(mxc_cpu_type == MXC_CPU_MX21)
-#else
-# define cpu_is_mx21()		(0)
-#endif
-
-#ifdef CONFIG_SOC_IMX25
-# ifdef mxc_cpu_type
-#  undef mxc_cpu_type
-#  define mxc_cpu_type __mxc_cpu_type
-# else
-#  define mxc_cpu_type MXC_CPU_MX25
-# endif
-# define cpu_is_mx25()		(mxc_cpu_type == MXC_CPU_MX25)
-#else
-# define cpu_is_mx25()		(0)
-#endif
-
-#ifdef CONFIG_SOC_IMX27
-# ifdef mxc_cpu_type
-#  undef mxc_cpu_type
-#  define mxc_cpu_type __mxc_cpu_type
-# else
-#  define mxc_cpu_type MXC_CPU_MX27
-# endif
-# define cpu_is_mx27()		(mxc_cpu_type == MXC_CPU_MX27)
-#else
-# define cpu_is_mx27()		(0)
-#endif
-
-#ifdef CONFIG_SOC_IMX31
-# ifdef mxc_cpu_type
-#  undef mxc_cpu_type
-#  define mxc_cpu_type __mxc_cpu_type
-# else
-#  define mxc_cpu_type MXC_CPU_MX31
-# endif
-# define cpu_is_mx31()		(mxc_cpu_type == MXC_CPU_MX31)
-#else
-# define cpu_is_mx31()		(0)
-#endif
-
-#ifdef CONFIG_SOC_IMX35
-# ifdef mxc_cpu_type
-#  undef mxc_cpu_type
-#  define mxc_cpu_type __mxc_cpu_type
-# else
-#  define mxc_cpu_type MXC_CPU_MX35
-# endif
-# define cpu_is_mx35()		(mxc_cpu_type == MXC_CPU_MX35)
-#else
-# define cpu_is_mx35()		(0)
-#endif
-
-#ifdef CONFIG_SOC_IMX51
-# ifdef mxc_cpu_type
-#  undef mxc_cpu_type
-#  define mxc_cpu_type __mxc_cpu_type
-# else
-#  define mxc_cpu_type MXC_CPU_MX51
-# endif
-# define cpu_is_mx51()		(mxc_cpu_type == MXC_CPU_MX51)
-#else
-# define cpu_is_mx51()		(0)
-#endif
-
-#ifdef CONFIG_SOC_IMX53
-# ifdef mxc_cpu_type
-#  undef mxc_cpu_type
-#  define mxc_cpu_type __mxc_cpu_type
-# else
-#  define mxc_cpu_type MXC_CPU_MX53
-# endif
-# define cpu_is_mx53()		(mxc_cpu_type == MXC_CPU_MX53)
-#else
-# define cpu_is_mx53()		(0)
-#endif
-
-#ifndef __ASSEMBLY__
 #ifdef CONFIG_SOC_IMX6SL
 static inline bool cpu_is_imx6sl(void)
 {
@@ -190,7 +92,9 @@ int tzic_enable_wake(void);
 extern struct cpu_op *(*get_cpu_op)(int *op);
 #endif
 
-#define cpu_is_mx3()	(cpu_is_mx31() || cpu_is_mx35())
-#define cpu_is_mx2()	(cpu_is_mx21() || cpu_is_mx27())
+#define imx_readl	readl_relaxed
+#define imx_readw	readw_relaxed
+#define imx_writel	writel_relaxed
+#define imx_writew	writew_relaxed
 
 #endif /*  __ASM_ARCH_MXC_H__ */

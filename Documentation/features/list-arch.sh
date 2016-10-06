@@ -5,7 +5,7 @@
 # (If no arguments are given then it will print the host architecture's status.)
 #
 
-ARCH=${1:-$(arch | sed 's/x86_64/x86/' | sed 's/i386/x86/')}
+ARCH=${1:-$(uname -m | sed 's/x86_64/x86/' | sed 's/i386/x86/')}
 
 cd $(dirname $0)
 echo "#"

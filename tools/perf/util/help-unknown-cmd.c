@@ -1,4 +1,6 @@
 #include "cache.h"
+#include "config.h"
+#include <stdio.h>
 #include <subcmd/help.h>
 #include "../builtin.h"
 #include "levenshtein.h"
@@ -6,7 +8,8 @@
 static int autocorrect;
 static struct cmdnames aliases;
 
-static int perf_unknown_cmd_config(const char *var, const char *value, void *cb)
+static int perf_unknown_cmd_config(const char *var, const char *value,
+				   void *cb __maybe_unused)
 {
 	if (!strcmp(var, "help.autocorrect"))
 		autocorrect = perf_config_int(var,value);
@@ -14,7 +17,7 @@ static int perf_unknown_cmd_config(const char *var, const char *value, void *cb)
 	if (!prefixcmp(var, "alias."))
 		add_cmdname(&aliases, var + 6, strlen(var + 6));
 
-	return perf_default_config(var, value, cb);
+	return 0;
 }
 
 static int levenshtein_compare(const void *p1, const void *p2)
@@ -26,16 +29,27 @@ static int levenshtein_compare(const void *p1, const void *p2)
 	return l1 != l2 ? l1 - l2 : strcmp(s1, s2);
 }
 
-static void add_cmd_list(struct cmdnames *cmds, struct cmdnames *old)
+static int add_cmd_list(struct cmdnames *cmds, struct cmdnames *old)
 {
-	unsigned int i;
+	unsigned int i, nr = cmds->cnt + old->cnt;
+	void *tmp;
 
-	ALLOC_GROW(cmds->names, cmds->cnt + old->cnt, cmds->alloc);
-
+	if (nr > cmds->alloc) {
+		/* Choose bigger one to alloc */
+		if (alloc_nr(cmds->alloc) < nr)
+			cmds->alloc = nr;
+		else
+			cmds->alloc = alloc_nr(cmds->alloc);
+		tmp = realloc(cmds->names, cmds->alloc * sizeof(*cmds->names));
+		if (!tmp)
+			return -1;
+		cmds->names = tmp;
+	}
 	for (i = 0; i < old->cnt; i++)
 		cmds->names[cmds->cnt++] = old->names[i];
 	zfree(&old->names);
 	old->cnt = 0;
+	return 0;
 }
 
 const char *help_unknown_cmd(const char *cmd)
@@ -51,8 +65,11 @@ const char *help_unknown_cmd(const char *cmd)
 
 	load_command_list("perf-", &main_cmds, &other_cmds);
 
-	add_cmd_list(&main_cmds, &aliases);
-	add_cmd_list(&main_cmds, &other_cmds);
+	if (add_cmd_list(&main_cmds, &aliases) < 0 ||
+	    add_cmd_list(&main_cmds, &other_cmds) < 0) {
+		fprintf(stderr, "ERROR: Failed to allocate command list for unknown command.\n");
+		goto end;
+	}
 	qsort(main_cmds.names, main_cmds.cnt,
 	      sizeof(main_cmds.names), cmdname_compare);
 	uniq(&main_cmds);
@@ -98,6 +115,6 @@ const char *help_unknown_cmd(const char *cmd)
 		for (i = 0; i < n; i++)
 			fprintf(stderr, "\t%s\n", main_cmds.names[i]->name);
 	}
-
+end:
 	exit(1);
 }

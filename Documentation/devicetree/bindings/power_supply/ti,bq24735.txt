@@ -22,6 +22,9 @@ Optional properties :
    value must be between 128mA and 8.064A with a 128mA step resolution. The
    POR value is 0x1000h. This number is in mA (e.g. 8064), see the spec for
    more information about the InputCurrent (0x3fh) register.
+ - ti,external-control : Indicates that the charger is configured externally
+   and that the host should not attempt to enable/disable charging or set the
+   charge voltage/current.
 
 Example:
 

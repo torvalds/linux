@@ -79,16 +79,17 @@
 #define WWPN_BUF_LEN	(WWPN_LEN + 1)
 
 enum undo_level {
-	RELEASE_CONTEXT = 0,
+	UNDO_NOOP = 0,
 	FREE_IRQ,
 	UNMAP_ONE,
 	UNMAP_TWO,
-	UNMAP_THREE,
-	UNDO_START
+	UNMAP_THREE
 };
 
 struct dev_dependent_vals {
 	u64 max_sectors;
+	u64 flags;
+#define CXLFLASH_NOTIFY_SHUTDOWN   0x0000000000000001ULL
 };
 
 struct asyc_intr_info {
@@ -100,9 +101,5 @@ struct asyc_intr_info {
 #define LINK_RESET	0x02
 #define SCAN_HOST	0x04
 };
-
-#ifndef CONFIG_CXL_EEH
-#define cxl_perst_reloads_same_image(_a, _b) do { } while (0)
-#endif
 
 #endif /* _CXLFLASH_MAIN_H */

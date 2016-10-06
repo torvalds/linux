@@ -123,6 +123,7 @@ struct uart_port {
 	void			(*set_termios)(struct uart_port *,
 				               struct ktermios *new,
 				               struct ktermios *old);
+	unsigned int		(*get_mctrl)(struct uart_port *);
 	void			(*set_mctrl)(struct uart_port *, unsigned int);
 	int			(*startup)(struct uart_port *port);
 	void			(*shutdown)(struct uart_port *port);
@@ -281,6 +282,8 @@ struct uart_state {
 	enum uart_pm_state	pm_state;
 	struct circ_buf		xmit;
 
+	atomic_t		refcount;
+	wait_queue_head_t	remove_wait;
 	struct uart_port	*uart_port;
 };
 
@@ -342,25 +345,43 @@ struct earlycon_device {
 
 struct earlycon_id {
 	char	name[16];
+	char	compatible[128];
 	int	(*setup)(struct earlycon_device *, const char *options);
 } __aligned(32);
 
-extern int setup_earlycon(char *buf);
-extern int of_setup_earlycon(unsigned long addr,
-			     int (*setup)(struct earlycon_device *, const char *));
+extern const struct earlycon_id __earlycon_table[];
+extern const struct earlycon_id __earlycon_table_end[];
 
-#define EARLYCON_DECLARE(_name, func)					\
-	static const struct earlycon_id __earlycon_##_name		\
-		__used __section(__earlycon_table)			\
-		 = { .name  = __stringify(_name),			\
-		     .setup = func  }
+#if defined(CONFIG_SERIAL_EARLYCON) && !defined(MODULE)
+#define EARLYCON_USED_OR_UNUSED	__used
+#else
+#define EARLYCON_USED_OR_UNUSED	__maybe_unused
+#endif
 
-#define OF_EARLYCON_DECLARE(name, compat, fn)				\
-	_OF_DECLARE(earlycon, name, compat, fn, void *)
+#define OF_EARLYCON_DECLARE(_name, compat, fn)				\
+	static const struct earlycon_id __UNIQUE_ID(__earlycon_##_name)	\
+	     EARLYCON_USED_OR_UNUSED __section(__earlycon_table)	\
+		= { .name = __stringify(_name),				\
+		    .compatible = compat,				\
+		    .setup = fn  }
+
+#define EARLYCON_DECLARE(_name, fn)	OF_EARLYCON_DECLARE(_name, "", fn)
+
+extern int of_setup_earlycon(const struct earlycon_id *match,
+			     unsigned long node,
+			     const char *options);
+
+#ifdef CONFIG_SERIAL_EARLYCON
+extern bool earlycon_init_is_deferred __initdata;
+int setup_earlycon(char *buf);
+#else
+static const bool earlycon_init_is_deferred;
+static inline int setup_earlycon(char *buf) { return 0; }
+#endif
 
 struct uart_port *uart_get_console(struct uart_port *ports, int nr,
 				   struct console *c);
-int uart_parse_earlycon(char *p, unsigned char *iotype, unsigned long *addr,
+int uart_parse_earlycon(char *p, unsigned char *iotype, resource_size_t *addr,
 			char **options);
 void uart_parse_options(char *options, int *baud, int *parity, int *bits,
 			int *flow);
@@ -398,7 +419,7 @@ int uart_resume_port(struct uart_driver *reg, struct uart_port *port);
 static inline int uart_tx_stopped(struct uart_port *port)
 {
 	struct tty_struct *tty = port->state->port.tty;
-	if (tty->stopped || port->hw_stopped)
+	if ((tty && tty->stopped) || port->hw_stopped)
 		return 1;
 	return 0;
 }

@@ -34,21 +34,18 @@ struct page;
 
 #if defined(CONFIG_3_LEVEL_PGTABLES) && !defined(CONFIG_64BIT)
 
-typedef struct { unsigned long pte_low, pte_high; } pte_t;
+typedef struct { unsigned long pte; } pte_t;
 typedef struct { unsigned long pmd; } pmd_t;
 typedef struct { unsigned long pgd; } pgd_t;
-#define pte_val(x) ((x).pte_low | ((unsigned long long) (x).pte_high << 32))
+#define pte_val(p) ((p).pte)
 
-#define pte_get_bits(pte, bits) ((pte).pte_low & (bits))
-#define pte_set_bits(pte, bits) ((pte).pte_low |= (bits))
-#define pte_clear_bits(pte, bits) ((pte).pte_low &= ~(bits))
-#define pte_copy(to, from) ({ (to).pte_high = (from).pte_high; \
-			      smp_wmb(); \
-			      (to).pte_low = (from).pte_low; })
-#define pte_is_zero(pte) (!((pte).pte_low & ~_PAGE_NEWPAGE) && !(pte).pte_high)
-#define pte_set_val(pte, phys, prot) \
-	({ (pte).pte_high = (phys) >> 32; \
-	   (pte).pte_low = (phys) | pgprot_val(prot); })
+#define pte_get_bits(p, bits) ((p).pte & (bits))
+#define pte_set_bits(p, bits) ((p).pte |= (bits))
+#define pte_clear_bits(p, bits) ((p).pte &= ~(bits))
+#define pte_copy(to, from) ({ (to).pte = (from).pte; })
+#define pte_is_zero(p) (!((p).pte & ~_PAGE_NEWPAGE))
+#define pte_set_val(p, phys, prot) \
+	({ (p).pte = (phys) | pgprot_val(prot); })
 
 #define pmd_val(x)	((x).pmd)
 #define __pmd(x) ((pmd_t) { (x) } )

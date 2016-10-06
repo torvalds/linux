@@ -301,10 +301,11 @@ static int mb86a20s_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 	*status = 0;
 
-	val = mb86a20s_readreg(state, 0x0a) & 0xf;
+	val = mb86a20s_readreg(state, 0x0a);
 	if (val < 0)
 		return val;
 
+	val &= 0xf;
 	if (val >= 2)
 		*status |= FE_HAS_SIGNAL;
 
@@ -2028,16 +2029,6 @@ static int mb86a20s_read_signal_strength_from_cache(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int mb86a20s_get_frontend_dummy(struct dvb_frontend *fe)
-{
-	/*
-	 * get_frontend is now handled together with other stats
-	 * retrival, when read_status() is called, as some statistics
-	 * will depend on the layers detection.
-	 */
-	return 0;
-};
-
 static int mb86a20s_tune(struct dvb_frontend *fe,
 			bool re_tune,
 			unsigned int mode_flags,
@@ -2136,7 +2127,6 @@ static struct dvb_frontend_ops mb86a20s_ops = {
 
 	.init = mb86a20s_initfe,
 	.set_frontend = mb86a20s_set_frontend,
-	.get_frontend = mb86a20s_get_frontend_dummy,
 	.read_status = mb86a20s_read_status_and_stats,
 	.read_signal_strength = mb86a20s_read_signal_strength_from_cache,
 	.tune = mb86a20s_tune,

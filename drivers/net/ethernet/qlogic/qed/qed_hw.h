@@ -221,6 +221,16 @@ void qed_port_unpretend(struct qed_hwfn *p_hwfn,
 			struct qed_ptt *p_ptt);
 
 /**
+ * @brief qed_vfid_to_concrete - build a concrete FID for a
+ *        given VF ID
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param vfid
+ */
+u32 qed_vfid_to_concrete(struct qed_hwfn *p_hwfn, u8 vfid);
+
+/**
  * @brief qed_dmae_idx_to_go_cmd - map the idx to dmae cmd
  * this is declared here since other files will require it.
  * @param idx
@@ -244,6 +254,10 @@ void qed_dmae_info_free(struct qed_hwfn *p_hwfn);
 
 union qed_qm_pq_params {
 	struct {
+		u8 q_idx;
+	} iscsi;
+
+	struct {
 		u8 tc;
 	}	core;
 
@@ -252,11 +266,15 @@ union qed_qm_pq_params {
 		u8	vf_id;
 		u8	tc;
 	}	eth;
+
+	struct {
+		u8 dcqcn;
+		u8 qpid;	/* roce relative */
+	} roce;
 };
 
 u16 qed_get_qm_pq(struct qed_hwfn *p_hwfn,
-		  enum protocol_type proto,
-		  union qed_qm_pq_params *params);
+		  enum protocol_type proto, union qed_qm_pq_params *params);
 
 int qed_init_fw_data(struct qed_dev *cdev,
 		     const u8 *fw_data);

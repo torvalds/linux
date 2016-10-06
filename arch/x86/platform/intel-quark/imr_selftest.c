@@ -1,5 +1,5 @@
 /**
- * imr_selftest.c
+ * imr_selftest.c -- Intel Isolated Memory Region self-test driver
  *
  * Copyright(c) 2013 Intel Corporation.
  * Copyright(c) 2015 Bryan O'Donoghue <pure.logic@nexus-software.ie>
@@ -15,7 +15,6 @@
 #include <asm/imr.h>
 #include <linux/init.h>
 #include <linux/mm.h>
-#include <linux/module.h>
 #include <linux/types.h>
 
 #define SELFTEST KBUILD_MODNAME ": "
@@ -61,30 +60,30 @@ static void __init imr_self_test(void)
 	int ret;
 
 	/* Test zero zero. */
-	ret = imr_add_range(0, 0, 0, 0, false);
+	ret = imr_add_range(0, 0, 0, 0);
 	imr_self_test_result(ret < 0, "zero sized IMR\n");
 
 	/* Test exact overlap. */
-	ret = imr_add_range(base, size, IMR_CPU, IMR_CPU, false);
+	ret = imr_add_range(base, size, IMR_CPU, IMR_CPU);
 	imr_self_test_result(ret < 0, fmt_over, __va(base), __va(base + size));
 
 	/* Test overlap with base inside of existing. */
 	base += size - IMR_ALIGN;
-	ret = imr_add_range(base, size, IMR_CPU, IMR_CPU, false);
+	ret = imr_add_range(base, size, IMR_CPU, IMR_CPU);
 	imr_self_test_result(ret < 0, fmt_over, __va(base), __va(base + size));
 
 	/* Test overlap with end inside of existing. */
 	base -= size + IMR_ALIGN * 2;
-	ret = imr_add_range(base, size, IMR_CPU, IMR_CPU, false);
+	ret = imr_add_range(base, size, IMR_CPU, IMR_CPU);
 	imr_self_test_result(ret < 0, fmt_over, __va(base), __va(base + size));
 
 	/* Test that a 1 KiB IMR @ zero with read/write all will bomb out. */
 	ret = imr_add_range(0, IMR_ALIGN, IMR_READ_ACCESS_ALL,
-			    IMR_WRITE_ACCESS_ALL, false);
+			    IMR_WRITE_ACCESS_ALL);
 	imr_self_test_result(ret < 0, "1KiB IMR @ 0x00000000 - access-all\n");
 
 	/* Test that a 1 KiB IMR @ zero with CPU only will work. */
-	ret = imr_add_range(0, IMR_ALIGN, IMR_CPU, IMR_CPU, false);
+	ret = imr_add_range(0, IMR_ALIGN, IMR_CPU, IMR_CPU);
 	imr_self_test_result(ret >= 0, "1KiB IMR @ 0x00000000 - cpu-access\n");
 	if (ret >= 0) {
 		ret = imr_remove_range(0, IMR_ALIGN);
@@ -93,8 +92,7 @@ static void __init imr_self_test(void)
 
 	/* Test 2 KiB works. */
 	size = IMR_ALIGN * 2;
-	ret = imr_add_range(0, size, IMR_READ_ACCESS_ALL,
-			    IMR_WRITE_ACCESS_ALL, false);
+	ret = imr_add_range(0, size, IMR_READ_ACCESS_ALL, IMR_WRITE_ACCESS_ALL);
 	imr_self_test_result(ret >= 0, "2KiB IMR @ 0x00000000\n");
 	if (ret >= 0) {
 		ret = imr_remove_range(0, size);
@@ -106,7 +104,6 @@ static const struct x86_cpu_id imr_ids[] __initconst = {
 	{ X86_VENDOR_INTEL, 5, 9 },	/* Intel Quark SoC X1000. */
 	{}
 };
-MODULE_DEVICE_TABLE(x86cpu, imr_ids);
 
 /**
  * imr_self_test_init - entry point for IMR driver.
@@ -125,13 +122,4 @@ static int __init imr_self_test_init(void)
  *
  * return:
  */
-static void __exit imr_self_test_exit(void)
-{
-}
-
-module_init(imr_self_test_init);
-module_exit(imr_self_test_exit);
-
-MODULE_AUTHOR("Bryan O'Donoghue <pure.logic@nexus-software.ie>");
-MODULE_DESCRIPTION("Intel Isolated Memory Region self-test driver");
-MODULE_LICENSE("Dual BSD/GPL");
+device_initcall(imr_self_test_init);

@@ -826,7 +826,7 @@ static hda_nid_t path_power_update(struct hda_codec *codec,
 				   bool allow_powerdown)
 {
 	hda_nid_t nid, changed = 0;
-	int i, state;
+	int i, state, power;
 
 	for (i = 0; i < path->depth; i++) {
 		nid = path->path[i];
@@ -838,7 +838,9 @@ static hda_nid_t path_power_update(struct hda_codec *codec,
 			state = AC_PWRST_D0;
 		else
 			state = AC_PWRST_D3;
-		if (!snd_hda_check_power_state(codec, nid, state)) {
+		power = snd_hda_codec_read(codec, nid, 0,
+					   AC_VERB_GET_POWER_STATE, 0);
+		if (power != (state | (state << 4))) {
 			snd_hda_codec_write(codec, nid, 0,
 					    AC_VERB_SET_POWER_STATE, state);
 			changed = nid;
@@ -2490,10 +2492,6 @@ static int create_loopback_mixing_ctl(struct hda_codec *codec)
 	if (!snd_hda_gen_add_kctl(spec, NULL, &loopback_mixing_enum))
 		return -ENOMEM;
 	spec->have_aamix_ctl = 1;
-	/* if no explicit aamix path is present (e.g. for Realtek codecs),
-	 * enable aamix as default -- just for compatibility
-	 */
-	spec->aamix_mode = !has_aamix_out_paths(spec);
 	return 0;
 }
 
@@ -3975,6 +3973,8 @@ static hda_nid_t set_path_power(struct hda_codec *codec, hda_nid_t nid,
 
 	for (n = 0; n < spec->paths.used; n++) {
 		path = snd_array_elem(&spec->paths, n);
+		if (!path->depth)
+			continue;
 		if (path->path[0] == nid ||
 		    path->path[path->depth - 1] == nid) {
 			bool pin_old = path->pin_enabled;
@@ -4028,9 +4028,9 @@ static void pin_power_callback(struct hda_codec *codec,
 			       struct hda_jack_callback *jack,
 			       bool on)
 {
-	if (jack && jack->tbl->nid)
+	if (jack && jack->nid)
 		sync_power_state_change(codec,
-					set_pin_power_jack(codec, jack->tbl->nid, on));
+					set_pin_power_jack(codec, jack->nid, on));
 }
 
 /* callback only doing power up -- called at first */
@@ -5432,6 +5432,7 @@ static int dyn_adc_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 	spec->cur_adc_stream_tag = stream_tag;
 	spec->cur_adc_format = format;
 	snd_hda_codec_setup_stream(codec, spec->cur_adc, stream_tag, 0, format);
+	call_pcm_capture_hook(hinfo, codec, substream, HDA_GEN_PCM_ACT_PREPARE);
 	return 0;
 }
 
@@ -5442,6 +5443,7 @@ static int dyn_adc_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 	struct hda_gen_spec *spec = codec->spec;
 	snd_hda_codec_cleanup_stream(codec, spec->cur_adc);
 	spec->cur_adc = 0;
+	call_pcm_capture_hook(hinfo, codec, substream, HDA_GEN_PCM_ACT_CLEANUP);
 	return 0;
 }
 

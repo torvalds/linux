@@ -11,6 +11,13 @@ config SAMPLE_TRACE_EVENTS
 	help
 	  This build trace event example modules.
 
+config SAMPLE_TRACE_PRINTK
+        tristate "Build trace_printk module - tests various trace_printk formats"
+	depends on EVENT_TRACING && m
+	help
+	 This builds a module that calls trace_printk() and can be used to
+	 test various trace_printk() calls from a module.
+
 config SAMPLE_KOBJECT
 	tristate "Build kobject examples -- loadable modules only"
 	depends on m
@@ -75,5 +82,21 @@ config SAMPLE_CONFIGFS
 	depends on CONFIGFS_FS && m
 	help
 	  Builds a sample configfs interface.
+
+config SAMPLE_CONNECTOR
+	tristate "Build connector sample -- loadable modules only"
+	depends on CONNECTOR && m
+	help
+	  When enabled, this builds both a sample kernel module for
+	  the connector interface and a user space tool to communicate
+	  with it.
+	  See also Documentation/connector/connector.txt
+
+config SAMPLE_SECCOMP
+	tristate "Build seccomp sample code -- loadable modules only"
+	depends on SECCOMP_FILTER && m
+	help
+	  Build samples of seccomp filters using various methods of
+	  BPF filter construction.
 
 endif # SAMPLES

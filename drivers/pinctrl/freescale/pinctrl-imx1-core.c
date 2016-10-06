@@ -19,7 +19,6 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pinctrl/machine.h>
@@ -157,7 +156,7 @@ static int imx1_read_bit(struct imx1_pinctrl *ipctl, unsigned int pin_id,
 	return !!(readl(reg) & BIT(offset));
 }
 
-static const inline struct imx1_pin_group *imx1_pinctrl_find_group_by_name(
+static inline const struct imx1_pin_group *imx1_pinctrl_find_group_by_name(
 				const struct imx1_pinctrl_soc_info *info,
 				const char *name)
 {
@@ -635,7 +634,7 @@ int imx1_pinctrl_core_probe(struct platform_device *pdev,
 	ipctl->info = info;
 	ipctl->dev = info->dev;
 	platform_set_drvdata(pdev, ipctl);
-	ipctl->pctl = pinctrl_register(pctl_desc, &pdev->dev, ipctl);
+	ipctl->pctl = devm_pinctrl_register(&pdev->dev, pctl_desc, ipctl);
 	if (IS_ERR(ipctl->pctl)) {
 		dev_err(&pdev->dev, "could not register IMX pinctrl driver\n");
 		return PTR_ERR(ipctl->pctl);
@@ -649,15 +648,6 @@ int imx1_pinctrl_core_probe(struct platform_device *pdev,
 	}
 
 	dev_info(&pdev->dev, "initialized IMX pinctrl driver\n");
-
-	return 0;
-}
-
-int imx1_pinctrl_core_remove(struct platform_device *pdev)
-{
-	struct imx1_pinctrl *ipctl = platform_get_drvdata(pdev);
-
-	pinctrl_unregister(ipctl->pctl);
 
 	return 0;
 }

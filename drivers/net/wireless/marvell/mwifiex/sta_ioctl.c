@@ -146,6 +146,7 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 	size_t beacon_ie_len;
 	struct mwifiex_bss_priv *bss_priv = (void *)bss->priv;
 	const struct cfg80211_bss_ies *ies;
+	int ret;
 
 	rcu_read_lock();
 	ies = rcu_dereference(bss->ies);
@@ -189,7 +190,48 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 	if (bss_desc->cap_info_bitmap & WLAN_CAPABILITY_SPECTRUM_MGMT)
 		bss_desc->sensed_11h = true;
 
-	return mwifiex_update_bss_desc_with_ie(priv->adapter, bss_desc);
+	ret = mwifiex_update_bss_desc_with_ie(priv->adapter, bss_desc);
+	if (ret)
+		return ret;
+
+	/* Update HT40 capability based on current channel information */
+	if (bss_desc->bcn_ht_oper && bss_desc->bcn_ht_cap) {
+		u8 ht_param = bss_desc->bcn_ht_oper->ht_param;
+		u8 radio = mwifiex_band_to_radio_type(bss_desc->bss_band);
+		struct ieee80211_supported_band *sband =
+						priv->wdev.wiphy->bands[radio];
+		int freq = ieee80211_channel_to_frequency(bss_desc->channel,
+							  radio);
+		struct ieee80211_channel *chan =
+			ieee80211_get_channel(priv->adapter->wiphy, freq);
+
+		switch (ht_param & IEEE80211_HT_PARAM_CHA_SEC_OFFSET) {
+		case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
+			if (chan->flags & IEEE80211_CHAN_NO_HT40PLUS) {
+				sband->ht_cap.cap &=
+					~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+				sband->ht_cap.cap &= ~IEEE80211_HT_CAP_SGI_40;
+			} else {
+				sband->ht_cap.cap |=
+					IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
+					IEEE80211_HT_CAP_SGI_40;
+			}
+			break;
+		case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
+			if (chan->flags & IEEE80211_CHAN_NO_HT40MINUS) {
+				sband->ht_cap.cap &=
+					~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+				sband->ht_cap.cap &= ~IEEE80211_HT_CAP_SGI_40;
+			} else {
+				sband->ht_cap.cap |=
+					IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
+					IEEE80211_HT_CAP_SGI_40;
+			}
+			break;
+		}
+	}
+
+	return 0;
 }
 
 void mwifiex_dnld_txpwr_table(struct mwifiex_private *priv)
@@ -314,6 +356,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 			mwifiex_dbg(adapter, ERROR,
 				    "Attempt to reconnect on csa closed chan(%d)\n",
 				    bss_desc->channel);
+			ret = -1;
 			goto done;
 		}
 
@@ -383,6 +426,10 @@ done:
 	if (bss_desc)
 		kfree(bss_desc->beacon_buf);
 	kfree(bss_desc);
+
+	if (ret < 0)
+		priv->attempted_bss_desc = NULL;
+
 	return ret;
 }
 
@@ -504,6 +551,21 @@ int mwifiex_enable_hs(struct mwifiex_adapter *adapter)
 		}
 	}
 
+	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA);
+
+	if (priv && priv->sched_scanning) {
+#ifdef CONFIG_PM
+		if (priv->wdev.wiphy->wowlan_config &&
+		    !priv->wdev.wiphy->wowlan_config->nd_config) {
+#endif
+			mwifiex_dbg(adapter, CMD, "aborting bgscan!\n");
+			mwifiex_stop_bg_scan(priv);
+			cfg80211_sched_scan_stopped(priv->wdev.wiphy);
+#ifdef CONFIG_PM
+		}
+#endif
+	}
+
 	if (adapter->hs_activated) {
 		mwifiex_dbg(adapter, CMD,
 			    "cmd: HS Already activated\n");
@@ -512,7 +574,7 @@ int mwifiex_enable_hs(struct mwifiex_adapter *adapter)
 
 	adapter->hs_activate_wait_q_woken = false;
 
-	memset(&hscfg, 0, sizeof(struct mwifiex_ds_hs_cfg));
+	memset(&hscfg, 0, sizeof(hscfg));
 	hscfg.is_invoke_hostcmd = true;
 
 	adapter->hs_enabling = true;
@@ -1076,7 +1138,7 @@ int mwifiex_set_encode(struct mwifiex_private *priv, struct key_params *kp,
 {
 	struct mwifiex_ds_encrypt_key encrypt_key;
 
-	memset(&encrypt_key, 0, sizeof(struct mwifiex_ds_encrypt_key));
+	memset(&encrypt_key, 0, sizeof(encrypt_key));
 	encrypt_key.key_len = key_len;
 	encrypt_key.key_index = key_index;
 
@@ -1114,11 +1176,12 @@ int mwifiex_set_encode(struct mwifiex_private *priv, struct key_params *kp,
  * with requisite parameters and calls the IOCTL handler.
  */
 int
-mwifiex_get_ver_ext(struct mwifiex_private *priv)
+mwifiex_get_ver_ext(struct mwifiex_private *priv, u32 version_str_sel)
 {
 	struct mwifiex_ver_ext ver_ext;
 
-	memset(&ver_ext, 0, sizeof(struct host_cmd_ds_version_ext));
+	memset(&ver_ext, 0, sizeof(ver_ext));
+	ver_ext.version_str_sel = version_str_sel;
 	if (mwifiex_send_cmd(priv, HostCmd_CMD_VERSION_EXT,
 			     HostCmd_ACT_GEN_GET, 0, &ver_ext, true))
 		return -1;
@@ -1188,7 +1251,7 @@ static int mwifiex_reg_mem_ioctl_reg_rw(struct mwifiex_private *priv,
 {
 	u16 cmd_no;
 
-	switch (le32_to_cpu(reg_rw->type)) {
+	switch (reg_rw->type) {
 	case MWIFIEX_REG_MAC:
 		cmd_no = HostCmd_CMD_MAC_REG_ACCESS;
 		break;
@@ -1223,9 +1286,9 @@ mwifiex_reg_write(struct mwifiex_private *priv, u32 reg_type,
 {
 	struct mwifiex_ds_reg_rw reg_rw;
 
-	reg_rw.type = cpu_to_le32(reg_type);
-	reg_rw.offset = cpu_to_le32(reg_offset);
-	reg_rw.value = cpu_to_le32(reg_value);
+	reg_rw.type = reg_type;
+	reg_rw.offset = reg_offset;
+	reg_rw.value = reg_value;
 
 	return mwifiex_reg_mem_ioctl_reg_rw(priv, &reg_rw, HostCmd_ACT_GEN_SET);
 }
@@ -1243,14 +1306,14 @@ mwifiex_reg_read(struct mwifiex_private *priv, u32 reg_type,
 	int ret;
 	struct mwifiex_ds_reg_rw reg_rw;
 
-	reg_rw.type = cpu_to_le32(reg_type);
-	reg_rw.offset = cpu_to_le32(reg_offset);
+	reg_rw.type = reg_type;
+	reg_rw.offset = reg_offset;
 	ret = mwifiex_reg_mem_ioctl_reg_rw(priv, &reg_rw, HostCmd_ACT_GEN_GET);
 
 	if (ret)
 		goto done;
 
-	*value = le32_to_cpu(reg_rw.value);
+	*value = reg_rw.value;
 
 done:
 	return ret;
@@ -1269,15 +1332,16 @@ mwifiex_eeprom_read(struct mwifiex_private *priv, u16 offset, u16 bytes,
 	int ret;
 	struct mwifiex_ds_read_eeprom rd_eeprom;
 
-	rd_eeprom.offset = cpu_to_le16((u16) offset);
-	rd_eeprom.byte_count = cpu_to_le16((u16) bytes);
+	rd_eeprom.offset =  offset;
+	rd_eeprom.byte_count = bytes;
 
 	/* Send request to firmware */
 	ret = mwifiex_send_cmd(priv, HostCmd_CMD_802_11_EEPROM_ACCESS,
 			       HostCmd_ACT_GEN_GET, 0, &rd_eeprom, true);
 
 	if (!ret)
-		memcpy(value, rd_eeprom.value, MAX_EEPROM_DATA);
+		memcpy(value, rd_eeprom.value, min((u16)MAX_EEPROM_DATA,
+		       rd_eeprom.byte_count));
 	return ret;
 }
 
@@ -1449,4 +1513,20 @@ mwifiex_set_gen_ie(struct mwifiex_private *priv, const u8 *ie, int ie_len)
 		return -EFAULT;
 
 	return 0;
+}
+
+/* This function get Host Sleep wake up reason.
+ *
+ */
+int mwifiex_get_wakeup_reason(struct mwifiex_private *priv, u16 action,
+			      int cmd_type,
+			      struct mwifiex_ds_wakeup_reason *wakeup_reason)
+{
+	int status = 0;
+
+	status = mwifiex_send_cmd(priv, HostCmd_CMD_HS_WAKEUP_REASON,
+				  HostCmd_ACT_GEN_GET, 0, wakeup_reason,
+				  cmd_type == MWIFIEX_SYNC_CMD);
+
+	return status;
 }

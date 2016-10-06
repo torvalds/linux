@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -116,10 +118,17 @@
 #define FH_MEM_CBBC_16_19_UPPER_BOUND		(FH_MEM_LOWER_BOUND + 0xC00)
 #define FH_MEM_CBBC_20_31_LOWER_BOUND		(FH_MEM_LOWER_BOUND + 0xB20)
 #define FH_MEM_CBBC_20_31_UPPER_BOUND		(FH_MEM_LOWER_BOUND + 0xB80)
+/* a000 TFD table address, 64 bit */
+#define TFH_TFDQ_CBB_TABLE			(0x1C00)
 
 /* Find TFD CB base pointer for given queue */
-static inline unsigned int FH_MEM_CBBC_QUEUE(unsigned int chnl)
+static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
+					     unsigned int chnl)
 {
+	if (trans->cfg->use_tfh) {
+		WARN_ON_ONCE(chnl >= 64);
+		return TFH_TFDQ_CBB_TABLE + 8 * chnl;
+	}
 	if (chnl < 16)
 		return FH_MEM_CBBC_0_15_LOWER_BOUND + 4 * chnl;
 	if (chnl < 20)
@@ -128,6 +137,65 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(unsigned int chnl)
 	return FH_MEM_CBBC_20_31_LOWER_BOUND + 4 * (chnl - 20);
 }
 
+/* a000 configuration registers */
+
+/*
+ * TFH Configuration register.
+ *
+ * BIT fields:
+ *
+ * Bits 3:0:
+ * Define the maximum number of pending read requests.
+ * Maximum configration value allowed is 0xC
+ * Bits 9:8:
+ * Define the maximum transfer size. (64 / 128 / 256)
+ * Bit 10:
+ * When bit is set and transfer size is set to 128B, the TFH will enable
+ * reading chunks of more than 64B only if the read address is aligned to 128B.
+ * In case of DRAM read address which is not aligned to 128B, the TFH will
+ * enable transfer size which doesn't cross 64B DRAM address boundary.
+*/
+#define TFH_TRANSFER_MODE		(0x1F40)
+#define TFH_TRANSFER_MAX_PENDING_REQ	0xc
+#define TFH_CHUNK_SIZE_128			BIT(8)
+#define TFH_CHUNK_SPLIT_MODE		BIT(10)
+/*
+ * Defines the offset address in dwords referring from the beginning of the
+ * Tx CMD which will be updated in DRAM.
+ * Note that the TFH offset address for Tx CMD update is always referring to
+ * the start of the TFD first TB.
+ * In case of a DRAM Tx CMD update the TFH will update PN and Key ID
+ */
+#define TFH_TXCMD_UPDATE_CFG		(0x1F48)
+/*
+ * Controls TX DMA operation
+ *
+ * BIT fields:
+ *
+ * Bits 31:30: Enable the SRAM DMA channel.
+ * Turning on bit 31 will kick the SRAM2DRAM DMA.
+ * Note that the sram2dram may be enabled only after configuring the DRAM and
+ * SRAM addresses registers and the byte count register.
+ * Bits 25:24: Defines the interrupt target upon dram2sram transfer done. When
+ * set to 1 - interrupt is sent to the driver
+ * Bit 0: Indicates the snoop configuration
+*/
+#define TFH_SRV_DMA_CHNL0_CTRL	(0x1F60)
+#define TFH_SRV_DMA_SNOOP	BIT(0)
+#define TFH_SRV_DMA_TO_DRIVER	BIT(24)
+#define TFH_SRV_DMA_START	BIT(31)
+
+/* Defines the DMA SRAM write start address to transfer a data block */
+#define TFH_SRV_DMA_CHNL0_SRAM_ADDR	(0x1F64)
+
+/* Defines the 64bits DRAM start address to read the DMA data block from */
+#define TFH_SRV_DMA_CHNL0_DRAM_ADDR	(0x1F68)
+
+/*
+ * Defines the number of bytes to transfer from DRAM to SRAM.
+ * Note that this register may be configured with non-dword aligned size.
+ */
+#define TFH_SRV_DMA_CHNL0_BC	(0x1F70)
 
 /**
  * Rx SRAM Control and Status Registers (RSCSR)
@@ -312,6 +380,112 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(unsigned int chnl)
 #define FH_MEM_TFDIB_REG1_ADDR_BITSHIFT	28
 #define FH_MEM_TB_MAX_LENGTH			(0x00020000)
 
+/* 9000 rx series registers */
+
+#define RFH_Q0_FRBDCB_BA_LSB 0xA08000 /* 64 bit address */
+#define RFH_Q_FRBDCB_BA_LSB(q) (RFH_Q0_FRBDCB_BA_LSB + (q) * 8)
+/* Write index table */
+#define RFH_Q0_FRBDCB_WIDX 0xA08080
+#define RFH_Q_FRBDCB_WIDX(q) (RFH_Q0_FRBDCB_WIDX + (q) * 4)
+/* Write index table - shadow registers */
+#define RFH_Q0_FRBDCB_WIDX_TRG 0x1C80
+#define RFH_Q_FRBDCB_WIDX_TRG(q) (RFH_Q0_FRBDCB_WIDX_TRG + (q) * 4)
+/* Read index table */
+#define RFH_Q0_FRBDCB_RIDX 0xA080C0
+#define RFH_Q_FRBDCB_RIDX(q) (RFH_Q0_FRBDCB_RIDX + (q) * 4)
+/* Used list table */
+#define RFH_Q0_URBDCB_BA_LSB 0xA08100 /* 64 bit address */
+#define RFH_Q_URBDCB_BA_LSB(q) (RFH_Q0_URBDCB_BA_LSB + (q) * 8)
+/* Write index table */
+#define RFH_Q0_URBDCB_WIDX 0xA08180
+#define RFH_Q_URBDCB_WIDX(q) (RFH_Q0_URBDCB_WIDX + (q) * 4)
+#define RFH_Q0_URBDCB_VAID 0xA081C0
+#define RFH_Q_URBDCB_VAID(q) (RFH_Q0_URBDCB_VAID + (q) * 4)
+/* stts */
+#define RFH_Q0_URBD_STTS_WPTR_LSB 0xA08200 /*64 bits address */
+#define RFH_Q_URBD_STTS_WPTR_LSB(q) (RFH_Q0_URBD_STTS_WPTR_LSB + (q) * 8)
+
+#define RFH_Q0_ORB_WPTR_LSB 0xA08280
+#define RFH_Q_ORB_WPTR_LSB(q) (RFH_Q0_ORB_WPTR_LSB + (q) * 8)
+#define RFH_RBDBUF_RBD0_LSB 0xA08300
+#define RFH_RBDBUF_RBD_LSB(q) (RFH_RBDBUF_RBD0_LSB + (q) * 8)
+
+/**
+ * RFH Status Register
+ *
+ * Bit fields:
+ *
+ * Bit 29: RBD_FETCH_IDLE
+ * This status flag is set by the RFH when there is no active RBD fetch from
+ * DRAM.
+ * Once the RFH RBD controller starts fetching (or when there is a pending
+ * RBD read response from DRAM), this flag is immediately turned off.
+ *
+ * Bit 30: SRAM_DMA_IDLE
+ * This status flag is set by the RFH when there is no active transaction from
+ * SRAM to DRAM.
+ * Once the SRAM to DRAM DMA is active, this flag is immediately turned off.
+ *
+ * Bit 31: RXF_DMA_IDLE
+ * This status flag is set by the RFH when there is no active transaction from
+ * RXF to DRAM.
+ * Once the RXF-to-DRAM DMA is active, this flag is immediately turned off.
+ */
+#define RFH_GEN_STATUS 0xA09808
+#define RBD_FETCH_IDLE	BIT(29)
+#define SRAM_DMA_IDLE	BIT(30)
+#define RXF_DMA_IDLE	BIT(31)
+
+/* DMA configuration */
+#define RFH_RXF_DMA_CFG 0xA09820
+/* RB size */
+#define RFH_RXF_DMA_RB_SIZE_MASK (0x000F0000) /* bits 16-19 */
+#define RFH_RXF_DMA_RB_SIZE_POS 16
+#define RFH_RXF_DMA_RB_SIZE_1K	(0x1 << RFH_RXF_DMA_RB_SIZE_POS)
+#define RFH_RXF_DMA_RB_SIZE_2K	(0x2 << RFH_RXF_DMA_RB_SIZE_POS)
+#define RFH_RXF_DMA_RB_SIZE_4K	(0x4 << RFH_RXF_DMA_RB_SIZE_POS)
+#define RFH_RXF_DMA_RB_SIZE_8K	(0x8 << RFH_RXF_DMA_RB_SIZE_POS)
+#define RFH_RXF_DMA_RB_SIZE_12K	(0x9 << RFH_RXF_DMA_RB_SIZE_POS)
+#define RFH_RXF_DMA_RB_SIZE_16K	(0xA << RFH_RXF_DMA_RB_SIZE_POS)
+#define RFH_RXF_DMA_RB_SIZE_20K	(0xB << RFH_RXF_DMA_RB_SIZE_POS)
+#define RFH_RXF_DMA_RB_SIZE_24K	(0xC << RFH_RXF_DMA_RB_SIZE_POS)
+#define RFH_RXF_DMA_RB_SIZE_28K	(0xD << RFH_RXF_DMA_RB_SIZE_POS)
+#define RFH_RXF_DMA_RB_SIZE_32K	(0xE << RFH_RXF_DMA_RB_SIZE_POS)
+/* RB Circular Buffer size:defines the table sizes in RBD units */
+#define RFH_RXF_DMA_RBDCB_SIZE_MASK (0x00F00000) /* bits 20-23 */
+#define RFH_RXF_DMA_RBDCB_SIZE_POS 20
+#define RFH_RXF_DMA_RBDCB_SIZE_8	(0x3 << RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define RFH_RXF_DMA_RBDCB_SIZE_16	(0x4 << RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define RFH_RXF_DMA_RBDCB_SIZE_32	(0x5 << RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define RFH_RXF_DMA_RBDCB_SIZE_64	(0x7 << RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define RFH_RXF_DMA_RBDCB_SIZE_128	(0x7 << RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define RFH_RXF_DMA_RBDCB_SIZE_256	(0x8 << RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define RFH_RXF_DMA_RBDCB_SIZE_512	(0x9 << RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define RFH_RXF_DMA_RBDCB_SIZE_1024	(0xA << RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define RFH_RXF_DMA_RBDCB_SIZE_2048	(0xB << RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define RFH_RXF_DMA_MIN_RB_SIZE_MASK	(0x03000000) /* bit 24-25 */
+#define RFH_RXF_DMA_MIN_RB_SIZE_POS	24
+#define RFH_RXF_DMA_MIN_RB_4_8		(3 << RFH_RXF_DMA_MIN_RB_SIZE_POS)
+#define RFH_RXF_DMA_DROP_TOO_LARGE_MASK	(0x04000000) /* bit 26 */
+#define RFH_RXF_DMA_SINGLE_FRAME_MASK	(0x20000000) /* bit 29 */
+#define RFH_DMA_EN_MASK			(0xC0000000) /* bits 30-31*/
+#define RFH_DMA_EN_ENABLE_VAL		BIT(31)
+
+#define RFH_RXF_RXQ_ACTIVE 0xA0980C
+
+#define RFH_GEN_CFG	0xA09800
+#define RFH_GEN_CFG_SERVICE_DMA_SNOOP	BIT(0)
+#define RFH_GEN_CFG_RFH_DMA_SNOOP	BIT(1)
+#define RFH_GEN_CFG_RB_CHUNK_SIZE_POS	4
+#define RFH_GEN_CFG_RB_CHUNK_SIZE_128	1
+#define RFH_GEN_CFG_RB_CHUNK_SIZE_64	0
+#define RFH_GEN_CFG_DEFAULT_RXQ_NUM_MASK 0xF00
+#define RFH_GEN_CFG_DEFAULT_RXQ_NUM_POS 8
+
+#define DEFAULT_RXQ_NUM			0
+
+/* end of 9000 rx series registers */
+
 /* TFDB  Area - TFDs buffer table */
 #define FH_MEM_TFDIB_DRAM_ADDR_LSB_MSK      (0xFFFFFFFF)
 #define FH_TFDIB_LOWER_BOUND       (FH_MEM_LOWER_BOUND + 0x900)
@@ -434,6 +608,13 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(unsigned int chnl)
  */
 #define FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN	(0x00000002)
 
+#define MQ_RX_TABLE_SIZE	512
+#define MQ_RX_TABLE_MASK	(MQ_RX_TABLE_SIZE - 1)
+#define MQ_RX_NUM_RBDS		(MQ_RX_TABLE_SIZE - 1)
+#define RX_POOL_SIZE		(MQ_RX_NUM_RBDS +	\
+				 IWL_MAX_RX_HW_QUEUES *	\
+				 (RX_CLAIM_REQ_ALLOC - RX_POST_REQ_ALLOC))
+
 #define RX_QUEUE_SIZE                         256
 #define RX_QUEUE_MASK                         255
 #define RX_QUEUE_SIZE_LOG                     8
@@ -462,6 +643,7 @@ struct iwl_rb_status {
 #define TFD_QUEUE_BC_SIZE	(TFD_QUEUE_SIZE_MAX + TFD_QUEUE_SIZE_BC_DUP)
 #define IWL_TX_DMA_MASK        DMA_BIT_MASK(36)
 #define IWL_NUM_OF_TBS		20
+#define IWL_TFH_NUM_TBS		25
 
 static inline u8 iwl_get_dma_hi_addr(dma_addr_t addr)
 {
@@ -483,25 +665,29 @@ struct iwl_tfd_tb {
 } __packed;
 
 /**
- * struct iwl_tfd
+ * struct iwl_tfh_tb transmit buffer descriptor within transmit frame descriptor
  *
- * Transmit Frame Descriptor (TFD)
+ * This structure contains dma address and length of transmission address
  *
- * @ __reserved1[3] reserved
- * @ num_tbs 0-4 number of active tbs
- *	     5   reserved
- * 	     6-7 padding (not used)
- * @ tbs[20]	transmit frame buffer descriptors
- * @ __pad 	padding
- *
+ * @tb_len length of the tx buffer
+ * @addr 64 bits dma address
+ */
+struct iwl_tfh_tb {
+	__le16 tb_len;
+	__le64 addr;
+} __packed;
+
+/**
  * Each Tx queue uses a circular buffer of 256 TFDs stored in host DRAM.
  * Both driver and device share these circular buffers, each of which must be
- * contiguous 256 TFDs x 128 bytes-per-TFD = 32 KBytes
+ * contiguous 256 TFDs.
+ * For pre a000 HW it is 256 x 128 bytes-per-TFD = 32 KBytes
+ * For a000 HW and on it is 256 x 256 bytes-per-TFD = 65 KBytes
  *
  * Driver must indicate the physical address of the base of each
  * circular buffer via the FH_MEM_CBBC_QUEUE registers.
  *
- * Each TFD contains pointer/size information for up to 20 data buffers
+ * Each TFD contains pointer/size information for up to 20 / 25 data buffers
  * in host DRAM.  These buffers collectively contain the (one) frame described
  * by the TFD.  Each buffer must be a single contiguous block of memory within
  * itself, but buffers may be scattered in host DRAM.  Each buffer has max size
@@ -510,10 +696,33 @@ struct iwl_tfd_tb {
  *
  * A maximum of 255 (not 256!) TFDs may be on a queue waiting for Tx.
  */
+
+/**
+ * struct iwl_tfd - Transmit Frame Descriptor (TFD)
+ * @ __reserved1[3] reserved
+ * @ num_tbs 0-4 number of active tbs
+ *	     5   reserved
+ *	     6-7 padding (not used)
+ * @ tbs[20]	transmit frame buffer descriptors
+ * @ __pad	padding
+ */
 struct iwl_tfd {
 	u8 __reserved1[3];
 	u8 num_tbs;
 	struct iwl_tfd_tb tbs[IWL_NUM_OF_TBS];
+	__le32 __pad;
+} __packed;
+
+/**
+ * struct iwl_tfh_tfd - Transmit Frame Descriptor (TFD)
+ * @ num_tbs 0-4 number of active tbs
+ *	     5 -15   reserved
+ * @ tbs[25]	transmit frame buffer descriptors
+ * @ __pad	padding
+ */
+struct iwl_tfh_tfd {
+	__le16 num_tbs;
+	struct iwl_tfh_tb tbs[IWL_TFH_NUM_TBS];
 	__le32 __pad;
 } __packed;
 
@@ -525,8 +734,13 @@ struct iwl_tfd {
 /**
  * struct iwlagn_schedq_bc_tbl scheduler byte count table
  *	base physical address provided by SCD_DRAM_BASE_ADDR
+ * For devices up to a000:
  * @tfd_offset  0-12 - tx command byte count
- *	       12-16 - station index
+ *		12-16 - station index
+ * For a000 and on:
+ * @tfd_offset  0-12 - tx command byte count
+ *		12-13 - number of 64 byte chunks
+ *		14-16 - reserved
  */
 struct iwlagn_scd_bc_tbl {
 	__le16 tfd_offset[TFD_QUEUE_BC_SIZE];

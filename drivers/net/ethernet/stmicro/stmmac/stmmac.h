@@ -24,7 +24,7 @@
 #define __STMMAC_H__
 
 #define STMMAC_RESOURCE_NAME   "stmmaceth"
-#define DRV_MODULE_VERSION	"March_2013"
+#define DRV_MODULE_VERSION	"Jan_2016"
 
 #include <linux/clk.h>
 #include <linux/stmmac.h>
@@ -45,6 +45,9 @@ struct stmmac_resources {
 struct stmmac_tx_info {
 	dma_addr_t buf;
 	bool map_as_page;
+	unsigned len;
+	bool last_segment;
+	bool is_jumbo;
 };
 
 struct stmmac_priv {
@@ -54,7 +57,6 @@ struct stmmac_priv {
 	struct sk_buff **tx_skbuff;
 	unsigned int cur_tx;
 	unsigned int dirty_tx;
-	unsigned int dma_tx_size;
 	u32 tx_count_frames;
 	u32 tx_coal_frames;
 	u32 tx_coal_timer;
@@ -65,14 +67,16 @@ struct stmmac_priv {
 	spinlock_t tx_lock;
 	bool tx_path_in_lpi_mode;
 	struct timer_list txtimer;
+	bool tso;
 
 	struct dma_desc *dma_rx	____cacheline_aligned_in_smp;
 	struct dma_extended_desc *dma_erx;
 	struct sk_buff **rx_skbuff;
 	unsigned int cur_rx;
 	unsigned int dirty_rx;
-	unsigned int dma_rx_size;
 	unsigned int dma_buf_sz;
+	unsigned int rx_copybreak;
+	unsigned int rx_zeroc_thresh;
 	u32 rx_riwt;
 	int hwts_rx_en;
 	dma_addr_t *rx_skbuff_dma;
@@ -113,7 +117,6 @@ struct stmmac_priv {
 	int eee_enabled;
 	int eee_active;
 	int tx_lpi_timer;
-	int pcs;
 	unsigned int mode;
 	int extend_desc;
 	struct ptp_clock *ptp_clock;
@@ -125,6 +128,10 @@ struct stmmac_priv {
 	int use_riwt;
 	int irq_wake;
 	spinlock_t ptp_lock;
+	void __iomem *mmcaddr;
+	u32 rx_tail_addr;
+	u32 tx_tail_addr;
+	u32 mss;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dbgfs_dir;
@@ -140,9 +147,9 @@ void stmmac_set_ethtool_ops(struct net_device *netdev);
 
 int stmmac_ptp_register(struct stmmac_priv *priv);
 void stmmac_ptp_unregister(struct stmmac_priv *priv);
-int stmmac_resume(struct net_device *ndev);
-int stmmac_suspend(struct net_device *ndev);
-int stmmac_dvr_remove(struct net_device *ndev);
+int stmmac_resume(struct device *dev);
+int stmmac_suspend(struct device *dev);
+int stmmac_dvr_remove(struct device *dev);
 int stmmac_dvr_probe(struct device *device,
 		     struct plat_stmmacenet_data *plat_dat,
 		     struct stmmac_resources *res);

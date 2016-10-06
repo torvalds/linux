@@ -18,7 +18,6 @@
 #include <linux/platform_device.h>
 #include <linux/usb/phy.h>
 #include <linux/slab.h>
-#include <linux/usb/xhci_pdriver.h>
 #include <linux/acpi.h>
 
 #include "xhci.h"
@@ -37,6 +36,24 @@ static const struct xhci_driver_overrides xhci_plat_overrides __initconst = {
 	.start = xhci_plat_start,
 };
 
+static void xhci_priv_plat_start(struct usb_hcd *hcd)
+{
+	struct xhci_plat_priv *priv = hcd_to_xhci_priv(hcd);
+
+	if (priv->plat_start)
+		priv->plat_start(hcd);
+}
+
+static int xhci_priv_init_quirk(struct usb_hcd *hcd)
+{
+	struct xhci_plat_priv *priv = hcd_to_xhci_priv(hcd);
+
+	if (!priv->init_quirk)
+		return 0;
+
+	return priv->init_quirk(hcd);
+}
+
 static void xhci_plat_quirks(struct device *dev, struct xhci_hcd *xhci)
 {
 	/*
@@ -52,38 +69,35 @@ static int xhci_plat_setup(struct usb_hcd *hcd)
 {
 	int ret;
 
-	if (xhci_plat_type_is(hcd, XHCI_PLAT_TYPE_RENESAS_RCAR_GEN2) ||
-	    xhci_plat_type_is(hcd, XHCI_PLAT_TYPE_RENESAS_RCAR_GEN3)) {
-		ret = xhci_rcar_init_quirk(hcd);
-		if (ret)
-			return ret;
-	}
+
+	ret = xhci_priv_init_quirk(hcd);
+	if (ret)
+		return ret;
 
 	return xhci_gen_setup(hcd, xhci_plat_quirks);
 }
 
 static int xhci_plat_start(struct usb_hcd *hcd)
 {
-	if (xhci_plat_type_is(hcd, XHCI_PLAT_TYPE_RENESAS_RCAR_GEN2) ||
-	    xhci_plat_type_is(hcd, XHCI_PLAT_TYPE_RENESAS_RCAR_GEN3))
-		xhci_rcar_start(hcd);
-
+	xhci_priv_plat_start(hcd);
 	return xhci_run(hcd);
 }
 
 #ifdef CONFIG_OF
 static const struct xhci_plat_priv xhci_plat_marvell_armada = {
-	.type = XHCI_PLAT_TYPE_MARVELL_ARMADA,
+	.init_quirk = xhci_mvebu_mbus_init_quirk,
 };
 
 static const struct xhci_plat_priv xhci_plat_renesas_rcar_gen2 = {
-	.type = XHCI_PLAT_TYPE_RENESAS_RCAR_GEN2,
 	.firmware_name = XHCI_RCAR_FIRMWARE_NAME_V1,
+	.init_quirk = xhci_rcar_init_quirk,
+	.plat_start = xhci_rcar_start,
 };
 
 static const struct xhci_plat_priv xhci_plat_renesas_rcar_gen3 = {
-	.type = XHCI_PLAT_TYPE_RENESAS_RCAR_GEN3,
 	.firmware_name = XHCI_RCAR_FIRMWARE_NAME_V2,
+	.init_quirk = xhci_rcar_init_quirk,
+	.plat_start = xhci_rcar_start,
 };
 
 static const struct of_device_id usb_xhci_of_match[] = {
@@ -110,15 +124,19 @@ static const struct of_device_id usb_xhci_of_match[] = {
 		.compatible = "renesas,xhci-r8a7795",
 		.data = &xhci_plat_renesas_rcar_gen3,
 	}, {
+		.compatible = "renesas,rcar-gen2-xhci",
+		.data = &xhci_plat_renesas_rcar_gen2,
+	}, {
+		.compatible = "renesas,rcar-gen3-xhci",
+		.data = &xhci_plat_renesas_rcar_gen3,
 	},
+	{},
 };
 MODULE_DEVICE_TABLE(of, usb_xhci_of_match);
 #endif
 
 static int xhci_plat_probe(struct platform_device *pdev)
 {
-	struct device_node	*node = pdev->dev.of_node;
-	struct usb_xhci_pdata	*pdata = dev_get_platdata(&pdev->dev);
 	const struct of_device_id *match;
 	const struct hc_driver	*driver;
 	struct xhci_hcd		*xhci;
@@ -175,22 +193,20 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		ret = clk_prepare_enable(clk);
 		if (ret)
 			goto put_hcd;
+	} else if (PTR_ERR(clk) == -EPROBE_DEFER) {
+		ret = -EPROBE_DEFER;
+		goto put_hcd;
 	}
 
 	xhci = hcd_to_xhci(hcd);
-	match = of_match_node(usb_xhci_of_match, node);
+	match = of_match_node(usb_xhci_of_match, pdev->dev.of_node);
 	if (match) {
 		const struct xhci_plat_priv *priv_match = match->data;
 		struct xhci_plat_priv *priv = hcd_to_xhci_priv(hcd);
 
 		/* Just copy data for now */
-		*priv = *priv_match;
-	}
-
-	if (xhci_plat_type_is(hcd, XHCI_PLAT_TYPE_MARVELL_ARMADA)) {
-		ret = xhci_mvebu_mbus_init_quirk(pdev);
-		if (ret)
-			goto disable_clk;
+		if (priv_match)
+			*priv = *priv_match;
 	}
 
 	device_wakeup_enable(hcd->self.controller);
@@ -204,8 +220,7 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		goto disable_clk;
 	}
 
-	if ((node && of_property_read_bool(node, "usb3-lpm-capable")) ||
-			(pdata && pdata->usb3_lpm_capable))
+	if (device_property_read_bool(&pdev->dev, "usb3-lpm-capable"))
 		xhci->quirks |= XHCI_LPM_SUPPORT;
 
 	if (HCC_MAX_PSA(xhci->hcc_params) >= 4)

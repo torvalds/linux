@@ -335,5 +335,21 @@
 #define GCC_MSMPU_BCR						98
 #define GCC_MSS_Q6_BCR						99
 #define GCC_QREFS_VBG_CAL_BCR					100
+#define GCC_PCIE_PHY_COM_BCR					101
+#define GCC_PCIE_PHY_COM_NOCSR_BCR				102
+#define GCC_USB3_PHY_BCR					103
+#define GCC_USB3PHY_PHY_BCR					104
+
+
+/* Indexes for GDSCs */
+#define AGGRE0_NOC_GDSC			0
+#define HLOS1_VOTE_AGGRE0_NOC_GDSC	1
+#define HLOS1_VOTE_LPASS_ADSP_GDSC	2
+#define HLOS1_VOTE_LPASS_CORE_GDSC	3
+#define USB30_GDSC			4
+#define PCIE0_GDSC			5
+#define PCIE1_GDSC			6
+#define PCIE2_GDSC			7
+#define UFS_GDSC			8
 
 #endif

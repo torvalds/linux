@@ -43,14 +43,6 @@ static void rtsx_calibration(struct rtsx_chip *chip)
 	rtsx_write_phy_register(chip, 0x00, 0x0288);
 }
 
-void rtsx_disable_card_int(struct rtsx_chip *chip)
-{
-	u32 reg = rtsx_readl(chip, RTSX_BIER);
-
-	reg &= ~(XD_INT_EN | SD_INT_EN | MS_INT_EN);
-	rtsx_writel(chip, RTSX_BIER, reg);
-}
-
 void rtsx_enable_card_int(struct rtsx_chip *chip)
 {
 	u32 reg = rtsx_readl(chip, RTSX_BIER);
@@ -751,7 +743,7 @@ static inline int check_sd_speed_prior(u32 sd_speed_prior)
 	int i;
 
 	for (i = 0; i < 4; i++) {
-		u8 tmp = (u8)(sd_speed_prior >> (i*8));
+		u8 tmp = (u8)(sd_speed_prior >> (i * 8));
 
 		if ((tmp < 0x01) || (tmp > 0x04)) {
 			fake_para = true;
@@ -768,7 +760,7 @@ static inline int check_sd_current_prior(u32 sd_current_prior)
 	int i;
 
 	for (i = 0; i < 4; i++) {
-		u8 tmp = (u8)(sd_current_prior >> (i*8));
+		u8 tmp = (u8)(sd_current_prior >> (i * 8));
 
 		if (tmp > 0x03) {
 			fake_para = true;
@@ -1447,12 +1439,6 @@ delink_stage:
 	rtsx_delink_stage(chip);
 }
 
-void rtsx_undo_delink(struct rtsx_chip *chip)
-{
-	chip->auto_delink_allowed = 0;
-	rtsx_write_register(chip, CHANGE_LINK_STATE, 0x0A, 0x00);
-}
-
 /**
  * rtsx_stop_cmd - stop command transfer and DMA transfer
  * @chip: Realtek's card reader chip
@@ -2000,27 +1986,6 @@ int rtsx_set_phy_reg_bit(struct rtsx_chip *chip, u8 reg, u8 bit)
 	return STATUS_SUCCESS;
 }
 
-int rtsx_check_link_ready(struct rtsx_chip *chip)
-{
-	int retval;
-	u8 val;
-
-	retval = rtsx_read_register(chip, IRQSTAT0, &val);
-	if (retval) {
-		rtsx_trace(chip);
-		return retval;
-	}
-
-	dev_dbg(rtsx_dev(chip), "IRQSTAT0: 0x%x\n", val);
-	if (val & LINK_RDY_INT) {
-		dev_dbg(rtsx_dev(chip), "Delinked!\n");
-		rtsx_write_register(chip, IRQSTAT0, LINK_RDY_INT, LINK_RDY_INT);
-		return STATUS_FAIL;
-	}
-
-	return STATUS_SUCCESS;
-}
-
 static void rtsx_handle_pm_dstate(struct rtsx_chip *chip, u8 dstate)
 {
 	u32 ultmp;
@@ -2323,7 +2288,7 @@ int rtsx_read_ppbuf(struct rtsx_chip *chip, u8 *buf, int buf_len)
 
 	ptr = buf;
 	reg_addr = PPBUF_BASE2;
-	for (i = 0; i < buf_len/256; i++) {
+	for (i = 0; i < buf_len / 256; i++) {
 		rtsx_init_cmd(chip);
 
 		for (j = 0; j < 256; j++)
@@ -2339,10 +2304,10 @@ int rtsx_read_ppbuf(struct rtsx_chip *chip, u8 *buf, int buf_len)
 		ptr += 256;
 	}
 
-	if (buf_len%256) {
+	if (buf_len % 256) {
 		rtsx_init_cmd(chip);
 
-		for (j = 0; j < buf_len%256; j++)
+		for (j = 0; j < buf_len % 256; j++)
 			rtsx_add_cmd(chip, READ_REG_CMD, reg_addr++, 0, 0);
 
 		retval = rtsx_send_cmd(chip, 0, 250);
@@ -2352,7 +2317,7 @@ int rtsx_read_ppbuf(struct rtsx_chip *chip, u8 *buf, int buf_len)
 		}
 	}
 
-	memcpy(ptr, rtsx_get_cmd_data(chip), buf_len%256);
+	memcpy(ptr, rtsx_get_cmd_data(chip), buf_len % 256);
 
 	return STATUS_SUCCESS;
 }
@@ -2371,7 +2336,7 @@ int rtsx_write_ppbuf(struct rtsx_chip *chip, u8 *buf, int buf_len)
 
 	ptr = buf;
 	reg_addr = PPBUF_BASE2;
-	for (i = 0; i < buf_len/256; i++) {
+	for (i = 0; i < buf_len / 256; i++) {
 		rtsx_init_cmd(chip);
 
 		for (j = 0; j < 256; j++) {
@@ -2387,10 +2352,10 @@ int rtsx_write_ppbuf(struct rtsx_chip *chip, u8 *buf, int buf_len)
 		}
 	}
 
-	if (buf_len%256) {
+	if (buf_len % 256) {
 		rtsx_init_cmd(chip);
 
-		for (j = 0; j < buf_len%256; j++) {
+		for (j = 0; j < buf_len % 256; j++) {
 			rtsx_add_cmd(chip, WRITE_REG_CMD, reg_addr++, 0xFF,
 				     *ptr);
 			ptr++;

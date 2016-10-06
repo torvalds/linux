@@ -33,8 +33,9 @@ static struct drm_driver driver;
 
 /* only bind to the cirrus chip in qemu */
 static const struct pci_device_id pciidlist[] = {
-	{ PCI_VENDOR_ID_CIRRUS, PCI_DEVICE_ID_CIRRUS_5446, 0x1af4, 0x1100, 0,
-	  0, 0 },
+	{ PCI_VENDOR_ID_CIRRUS, PCI_DEVICE_ID_CIRRUS_5446,
+	  PCI_SUBVENDOR_ID_REDHAT_QUMRANET, PCI_SUBDEVICE_ID_QEMU,
+	  0, 0, 0 },
 	{ PCI_VENDOR_ID_CIRRUS, PCI_DEVICE_ID_CIRRUS_5446, PCI_VENDOR_ID_XEN,
 	  0x0001, 0, 0, 0 },
 	{0,}
@@ -141,7 +142,7 @@ static struct drm_driver driver = {
 	.major = DRIVER_MAJOR,
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
-	.gem_free_object = cirrus_gem_free_object,
+	.gem_free_object_unlocked = cirrus_gem_free_object,
 	.dumb_create = cirrus_dumb_create,
 	.dumb_map_offset = cirrus_dumb_mmap_offset,
 	.dumb_destroy = drm_gem_dumb_destroy,
@@ -162,10 +163,8 @@ static struct pci_driver cirrus_pci_driver = {
 
 static int __init cirrus_init(void)
 {
-#ifdef CONFIG_VGA_CONSOLE
 	if (vgacon_text_force() && cirrus_modeset == -1)
 		return -EINVAL;
-#endif
 
 	if (cirrus_modeset == 0)
 		return -EINVAL;

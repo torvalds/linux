@@ -28,7 +28,6 @@
 #include <linux/module.h>
 
 #define DRV_NAME        "rtc-gemini"
-#define DRV_VERSION     "0.2"
 
 MODULE_AUTHOR("Hans Ulli Kroll <ulli.kroll@googlemail.com>");
 MODULE_DESCRIPTION("RTC driver for Gemini SoC");

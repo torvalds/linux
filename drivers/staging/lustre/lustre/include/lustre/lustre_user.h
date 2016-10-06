@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -46,8 +42,35 @@
  * @{
  */
 
+#ifdef __KERNEL__
+# include <linux/quota.h>
+# include <linux/string.h> /* snprintf() */
+# include <linux/version.h>
+#else /* !__KERNEL__ */
+# define NEED_QUOTA_DEFS
+# include <stdio.h> /* snprintf() */
+# include <string.h>
+# include <sys/quota.h>
+# include <sys/stat.h>
+#endif /* __KERNEL__ */
 #include "ll_fiemap.h"
-#include "../linux/lustre_user.h"
+
+/*
+ * We need to always use 64bit version because the structure
+ * is shared across entire cluster where 32bit and 64bit machines
+ * are co-existing.
+ */
+#if __BITS_PER_LONG != 64 || defined(__ARCH_WANT_STAT64)
+typedef struct stat64   lstat_t;
+#define lstat_f  lstat64
+#else
+typedef struct stat     lstat_t;
+#define lstat_f  lstat
+#endif
+
+#define HAVE_LOV_USER_MDS_DATA
+
+#define LUSTRE_EOF 0xffffffffffffffffULL
 
 /* for statfs() */
 #define LL_SUPER_MAGIC 0x0BD00BD0
@@ -85,9 +108,8 @@ struct obd_statfs {
 	__u32	   os_namelen;
 	__u64	   os_maxbytes;
 	__u32	   os_state;       /**< obd_statfs_state OS_STATE_* flag */
-	__u32	   os_fprecreated;	/* objs available now to the caller */
-					/* used in QoS code to find preferred
-					 * OSTs */
+	__u32	   os_fprecreated; /* objs available now to the caller */
+				   /* used in QoS code to find preferred OSTs */
 	__u32	   os_spare2;
 	__u32	   os_spare3;
 	__u32	   os_spare4;
@@ -122,6 +144,11 @@ struct lu_fid {
 	__u32 f_ver;
 };
 
+static inline bool fid_is_zero(const struct lu_fid *fid)
+{
+	return !fid->f_seq && !fid->f_oid;
+}
+
 struct filter_fid {
 	struct lu_fid	ff_parent;  /* ff_parent.f_ver == file stripe number */
 };
@@ -135,8 +162,9 @@ struct filter_fid_old {
 
 /* Userspace should treat lu_fid as opaque, and only use the following methods
  * to print or parse them.  Other functions (e.g. compare, swab) could be moved
- * here from lustre_idl.h if needed. */
-typedef struct lu_fid lustre_fid;
+ * here from lustre_idl.h if needed.
+ */
+struct lu_fid;
 
 /**
  * Following struct for object attributes, that will be kept inode's EA.
@@ -171,7 +199,7 @@ struct lustre_mdt_attrs {
  */
 struct ost_id {
 	union {
-		struct ostid {
+		struct {
 			__u64	oi_id;
 			__u64	oi_seq;
 		} oi;
@@ -192,41 +220,34 @@ struct ost_id {
  * *STRIPE* - set/get lov_user_md
  * *INFO    - set/get lov_user_mds_data
  */
-/* see <lustre_lib.h> for ioctl numberss 101-150 */
-#define LL_IOC_GETFLAGS		 _IOR ('f', 151, long)
-#define LL_IOC_SETFLAGS		 _IOW ('f', 152, long)
-#define LL_IOC_CLRFLAGS		 _IOW ('f', 153, long)
-/* LL_IOC_LOV_SETSTRIPE: See also OBD_IOC_LOV_SETSTRIPE */
-#define LL_IOC_LOV_SETSTRIPE	    _IOW ('f', 154, long)
-/* LL_IOC_LOV_GETSTRIPE: See also OBD_IOC_LOV_GETSTRIPE */
-#define LL_IOC_LOV_GETSTRIPE	    _IOW ('f', 155, long)
-/* LL_IOC_LOV_SETEA: See also OBD_IOC_LOV_SETEA */
-#define LL_IOC_LOV_SETEA		_IOW ('f', 156, long)
-#define LL_IOC_RECREATE_OBJ	     _IOW ('f', 157, long)
-#define LL_IOC_RECREATE_FID	     _IOW ('f', 157, struct lu_fid)
-#define LL_IOC_GROUP_LOCK	       _IOW ('f', 158, long)
-#define LL_IOC_GROUP_UNLOCK	     _IOW ('f', 159, long)
-/* LL_IOC_QUOTACHECK: See also OBD_IOC_QUOTACHECK */
-#define LL_IOC_QUOTACHECK	       _IOW ('f', 160, int)
-/* LL_IOC_POLL_QUOTACHECK: See also OBD_IOC_POLL_QUOTACHECK */
-#define LL_IOC_POLL_QUOTACHECK	  _IOR ('f', 161, struct if_quotacheck *)
-/* LL_IOC_QUOTACTL: See also OBD_IOC_QUOTACTL */
-#define LL_IOC_QUOTACTL		 _IOWR('f', 162, struct if_quotactl)
+/*	lustre_ioctl.h			101-150 */
+#define LL_IOC_GETFLAGS		 _IOR('f', 151, long)
+#define LL_IOC_SETFLAGS		 _IOW('f', 152, long)
+#define LL_IOC_CLRFLAGS		 _IOW('f', 153, long)
+#define LL_IOC_LOV_SETSTRIPE	    _IOW('f', 154, long)
+#define LL_IOC_LOV_GETSTRIPE	    _IOW('f', 155, long)
+#define LL_IOC_LOV_SETEA		_IOW('f', 156, long)
+/*	LL_IOC_RECREATE_OBJ		157 obsolete */
+/*	LL_IOC_RECREATE_FID		158 obsolete */
+#define LL_IOC_GROUP_LOCK	       _IOW('f', 158, long)
+#define LL_IOC_GROUP_UNLOCK	     _IOW('f', 159, long)
+/* #define LL_IOC_QUOTACHECK		160 OBD_IOC_QUOTACHECK */
+/* #define LL_IOC_POLL_QUOTACHECK	161 OBD_IOC_POLL_QUOTACHECK */
+/* #define LL_IOC_QUOTACTL		162 OBD_IOC_QUOTACTL */
 #define IOC_OBD_STATFS		  _IOWR('f', 164, struct obd_statfs *)
 #define IOC_LOV_GETINFO		 _IOWR('f', 165, struct lov_user_mds_data *)
-#define LL_IOC_FLUSHCTX		 _IOW ('f', 166, long)
-#define LL_IOC_RMTACL		   _IOW ('f', 167, long)
-#define LL_IOC_GETOBDCOUNT	      _IOR ('f', 168, long)
+#define LL_IOC_FLUSHCTX		 _IOW('f', 166, long)
+/* LL_IOC_RMTACL			167 obsolete */
+#define LL_IOC_GETOBDCOUNT	      _IOR('f', 168, long)
 #define LL_IOC_LLOOP_ATTACH	     _IOWR('f', 169, long)
 #define LL_IOC_LLOOP_DETACH	     _IOWR('f', 170, long)
 #define LL_IOC_LLOOP_INFO	       _IOWR('f', 171, struct lu_fid)
 #define LL_IOC_LLOOP_DETACH_BYDEV       _IOWR('f', 172, long)
-#define LL_IOC_PATH2FID		 _IOR ('f', 173, long)
+#define LL_IOC_PATH2FID		 _IOR('f', 173, long)
 #define LL_IOC_GET_CONNECT_FLAGS	_IOWR('f', 174, __u64 *)
-#define LL_IOC_GET_MDTIDX	       _IOR ('f', 175, int)
+#define LL_IOC_GET_MDTIDX	       _IOR('f', 175, int)
 
-/* see <lustre_lib.h> for ioctl numbers 177-210 */
-
+/*	lustre_ioctl.h			177-210 */
 #define LL_IOC_HSM_STATE_GET		_IOR('f', 211, struct hsm_user_state)
 #define LL_IOC_HSM_STATE_SET		_IOW('f', 212, struct hsm_state_set)
 #define LL_IOC_HSM_CT_START		_IOW('f', 213, struct lustre_kernelcomm)
@@ -246,6 +267,17 @@ struct ost_id {
 #define LL_IOC_SET_LEASE		_IOWR('f', 243, long)
 #define LL_IOC_GET_LEASE		_IO('f', 244)
 #define LL_IOC_HSM_IMPORT		_IOWR('f', 245, struct hsm_user_import)
+#define LL_IOC_LMV_SET_DEFAULT_STRIPE	_IOWR('f', 246, struct lmv_user_md)
+#define LL_IOC_MIGRATE			_IOR('f', 247, int)
+#define LL_IOC_FID2MDTIDX		_IOWR('f', 248, struct lu_fid)
+#define LL_IOC_GETPARENT		_IOWR('f', 249, struct getparent)
+
+/* Lease types for use as arg and return of LL_IOC_{GET,SET}_LEASE ioctl. */
+enum ll_lease_type {
+	LL_LEASE_RDLCK	= 0x1,
+	LL_LEASE_WRLCK	= 0x2,
+	LL_LEASE_UNLCK	= 0x4,
+};
 
 #define LL_STATFS_LMV	   1
 #define LL_STATFS_LOV	   2
@@ -257,16 +289,13 @@ struct ost_id {
 #define IOC_MDC_GETFILEINFO     _IOWR(IOC_MDC_TYPE, 22, struct lov_user_mds_data *)
 #define LL_IOC_MDC_GETINFO      _IOWR(IOC_MDC_TYPE, 23, struct lov_user_mds_data *)
 
-/* Keep these for backward compartability. */
-#define LL_IOC_OBD_STATFS       IOC_OBD_STATFS
-#define IOC_MDC_GETSTRIPE       IOC_MDC_GETFILESTRIPE
-
 #define MAX_OBD_NAME 128 /* If this changes, a NEW ioctl must be added */
 
 /* Define O_LOV_DELAY_CREATE to be a mask that is not useful for regular
  * files, but are unlikely to be used in practice and are not harmful if
  * used incorrectly.  O_NOCTTY and FASYNC are only meaningful for character
- * devices and are safe for use on new files (See LU-812, LU-4209). */
+ * devices and are safe for use on new files (See LU-812, LU-4209).
+ */
 #define O_LOV_DELAY_CREATE	(O_NOCTTY | FASYNC)
 
 #define LL_FILE_IGNORE_LOCK     0x00000001
@@ -276,20 +305,26 @@ struct ost_id {
 #define LL_FILE_LOCKLESS_IO     0x00000010 /* server-side locks with cio */
 #define LL_FILE_RMTACL	  0x00000020
 
-#define LOV_USER_MAGIC_V1 0x0BD10BD0
-#define LOV_USER_MAGIC    LOV_USER_MAGIC_V1
-#define LOV_USER_MAGIC_JOIN_V1 0x0BD20BD0
-#define LOV_USER_MAGIC_V3 0x0BD30BD0
+#define LOV_USER_MAGIC_V1	0x0BD10BD0
+#define LOV_USER_MAGIC		LOV_USER_MAGIC_V1
+#define LOV_USER_MAGIC_JOIN_V1	0x0BD20BD0
+#define LOV_USER_MAGIC_V3	0x0BD30BD0
+/* 0x0BD40BD0 is occupied by LOV_MAGIC_MIGRATE */
+#define LOV_USER_MAGIC_SPECIFIC	0x0BD50BD0	/* for specific OSTs */
 
-#define LMV_MAGIC_V1      0x0CD10CD0    /*normal stripe lmv magic */
-#define LMV_USER_MAGIC    0x0CD20CD0    /*default lmv magic*/
+#define LMV_USER_MAGIC    0x0CD30CD0    /*default lmv magic*/
 
-#define LOV_PATTERN_RAID0 0x001
-#define LOV_PATTERN_RAID1 0x002
-#define LOV_PATTERN_FIRST 0x100
+#define LOV_PATTERN_RAID0	0x001
+#define LOV_PATTERN_RAID1	0x002
+#define LOV_PATTERN_FIRST	0x100
+#define LOV_PATTERN_CMOBD	0x200
 
-#define LOV_MAXPOOLNAME 16
-#define LOV_POOLNAMEF "%.16s"
+#define LOV_PATTERN_F_MASK	0xffff0000
+#define LOV_PATTERN_F_HOLE	0x40000000 /* there is hole in LOV EA */
+#define LOV_PATTERN_F_RELEASED	0x80000000 /* HSM released file */
+
+#define LOV_MAXPOOLNAME 15
+#define LOV_POOLNAMEF "%.15s"
 
 #define LOV_MIN_STRIPE_BITS 16   /* maximum PAGE_SIZE (ia64), power of 2 */
 #define LOV_MIN_STRIPE_SIZE (1 << LOV_MIN_STRIPE_BITS)
@@ -302,7 +337,8 @@ struct ost_id {
  * The limit of 12 pages is somewhat arbitrary, but is a reasonably large
  * allocation that is sufficient for the current generation of systems.
  *
- * (max buffer size - lov+rpc header) / sizeof(struct lov_ost_data_v1) */
+ * (max buffer size - lov+rpc header) / sizeof(struct lov_ost_data_v1)
+ */
 #define LOV_MAX_STRIPE_COUNT 2000  /* ((12 * 4096 - 256) / 24) */
 #define LOV_ALL_STRIPES       0xffff /* only valid for directories */
 #define LOV_V1_INSANE_STRIPE_COUNT 65532 /* maximum stripe count bz13933 */
@@ -323,9 +359,11 @@ struct lov_user_md_v1 {	   /* LOV EA user data (host-endian) */
 	__u16 lmm_stripe_count;   /* num stripes in use for this object */
 	union {
 		__u16 lmm_stripe_offset;  /* starting stripe offset in
-					   * lmm_objects, use when writing */
+					   * lmm_objects, use when writing
+					   */
 		__u16 lmm_layout_gen;     /* layout generation number
-					   * used when reading */
+					   * used when reading
+					   */
 	};
 	struct lov_user_ost_data_v1 lmm_objects[0]; /* per-stripe data */
 } __attribute__((packed,  __may_alias__));
@@ -338,22 +376,23 @@ struct lov_user_md_v3 {	   /* LOV EA user data (host-endian) */
 	__u16 lmm_stripe_count;   /* num stripes in use for this object */
 	union {
 		__u16 lmm_stripe_offset;  /* starting stripe offset in
-					   * lmm_objects, use when writing */
+					   * lmm_objects, use when writing
+					   */
 		__u16 lmm_layout_gen;     /* layout generation number
-					   * used when reading */
+					   * used when reading
+					   */
 	};
-	char  lmm_pool_name[LOV_MAXPOOLNAME]; /* pool name */
+	char  lmm_pool_name[LOV_MAXPOOLNAME + 1];   /* pool name */
 	struct lov_user_ost_data_v1 lmm_objects[0]; /* per-stripe data */
 } __packed;
 
 static inline __u32 lov_user_md_size(__u16 stripes, __u32 lmm_magic)
 {
-	if (lmm_magic == LOV_USER_MAGIC_V3)
-		return sizeof(struct lov_user_md_v3) +
-				stripes * sizeof(struct lov_user_ost_data_v1);
-	else
+	if (lmm_magic == LOV_USER_MAGIC_V1)
 		return sizeof(struct lov_user_md_v1) +
 				stripes * sizeof(struct lov_user_ost_data_v1);
+	return sizeof(struct lov_user_md_v3) +
+	       stripes * sizeof(struct lov_user_ost_data_v1);
 }
 
 /* Compile with -D_LARGEFILE64_SOURCE or -D_GNU_SOURCE (or #define) to
@@ -372,19 +411,26 @@ struct lov_user_mds_data_v3 {
 } __packed;
 #endif
 
-/* keep this to be the same size as lov_user_ost_data_v1 */
 struct lmv_user_mds_data {
 	struct lu_fid	lum_fid;
 	__u32		lum_padding;
 	__u32		lum_mds;
 };
 
-/* lum_type */
-enum {
-	LMV_STRIPE_TYPE = 0,
-	LMV_DEFAULT_TYPE = 1,
+enum lmv_hash_type {
+	LMV_HASH_TYPE_UNKNOWN	= 0,	/* 0 is reserved for testing purpose */
+	LMV_HASH_TYPE_ALL_CHARS = 1,
+	LMV_HASH_TYPE_FNV_1A_64 = 2,
 };
 
+#define LMV_HASH_NAME_ALL_CHARS		"all_char"
+#define LMV_HASH_NAME_FNV_1A_64		"fnv_1a_64"
+
+/*
+ * Got this according to how get LOV_MAX_STRIPE_COUNT, see above,
+ * (max buffer size - lmv+rpc header) / sizeof(struct lmv_user_mds_data)
+ */
+#define LMV_MAX_STRIPE_COUNT 2000  /* ((12 * 4096 - 256) / 24) */
 #define lmv_user_md lmv_user_md_v1
 struct lmv_user_md_v1 {
 	__u32	lum_magic;	 /* must be the first field */
@@ -395,15 +441,17 @@ struct lmv_user_md_v1 {
 	__u32	lum_padding1;
 	__u32	lum_padding2;
 	__u32	lum_padding3;
-	char	lum_pool_name[LOV_MAXPOOLNAME];
+	char	lum_pool_name[LOV_MAXPOOLNAME + 1];
 	struct	lmv_user_mds_data  lum_objects[0];
-};
+} __packed;
 
 static inline int lmv_user_md_size(int stripes, int lmm_magic)
 {
 	return sizeof(struct lmv_user_md) +
 		      stripes * sizeof(struct lmv_user_mds_data);
 }
+
+void lustre_swab_lmv_user_md(struct lmv_user_md *lum);
 
 struct ll_recreate_obj {
 	__u64 lrc_id;
@@ -442,9 +490,13 @@ static inline void obd_str2uuid(struct obd_uuid *uuid, const char *tmp)
 /* For printf's only, make sure uuid is terminated */
 static inline char *obd_uuid2str(const struct obd_uuid *uuid)
 {
+	if (!uuid)
+		return NULL;
+
 	if (uuid->uuid[sizeof(*uuid) - 1] != '\0') {
 		/* Obviously not safe, but for printfs, no real harm done...
-		   we're always null-terminated, even in a race. */
+		 * we're always null-terminated, even in a race.
+		 */
 		static char temp[sizeof(*uuid)];
 
 		memcpy(temp, uuid->uuid, sizeof(*uuid) - 1);
@@ -455,8 +507,9 @@ static inline char *obd_uuid2str(const struct obd_uuid *uuid)
 }
 
 /* Extract fsname from uuid (or target name) of a target
-   e.g. (myfs-OST0007_UUID -> myfs)
-   see also deuuidify. */
+ * e.g. (myfs-OST0007_UUID -> myfs)
+ * see also deuuidify.
+ */
 static inline void obd_uuid2fsname(char *buf, char *uuid, int buflen)
 {
 	char *p;
@@ -465,11 +518,12 @@ static inline void obd_uuid2fsname(char *buf, char *uuid, int buflen)
 	buf[buflen - 1] = '\0';
 	p = strrchr(buf, '-');
 	if (p)
-	   *p = '\0';
+		*p = '\0';
 }
 
 /* printf display format
-   e.g. printf("file FID is "DFID"\n", PFID(fid)); */
+ * e.g. printf("file FID is "DFID"\n", PFID(fid));
+ */
 #define FID_NOBRACE_LEN 40
 #define FID_LEN (FID_NOBRACE_LEN + 2)
 #define DFID_NOBRACE "%#llx:0x%x:0x%x"
@@ -480,7 +534,8 @@ static inline void obd_uuid2fsname(char *buf, char *uuid, int buflen)
 	(fid)->f_ver
 
 /* scanf input parse format -- strip '[' first.
-   e.g. sscanf(fidstr, SFID, RFID(&fid)); */
+ * e.g. sscanf(fidstr, SFID, RFID(&fid));
+ */
 #define SFID "0x%llx:0x%x:0x%x"
 #define RFID(fid)     \
 	&((fid)->f_seq), \
@@ -488,6 +543,12 @@ static inline void obd_uuid2fsname(char *buf, char *uuid, int buflen)
 	&((fid)->f_ver)
 
 /********* Quotas **********/
+
+#define Q_QUOTACHECK   0x800100 /* deprecated as of 2.4 */
+#define Q_INITQUOTA    0x800101 /* deprecated as of 2.4  */
+#define Q_GETOINFO     0x800102 /* get obd quota info */
+#define Q_GETOQUOTA    0x800103 /* get obd quotas */
+#define Q_FINVALIDATE  0x800104 /* deprecated as of 2.4 */
 
 /* these must be explicitly translated into linux Q_* in ll_dir_ioctl */
 #define LUSTRE_Q_QUOTAON    0x800002     /* turn quotas on */
@@ -529,35 +590,6 @@ struct identity_downcall_data {
 	__u32			    idd_groups[0];
 };
 
-/* for non-mapped uid/gid */
-#define NOBODY_UID      99
-#define NOBODY_GID      99
-
-#define INVALID_ID      (-1)
-
-enum {
-	RMT_LSETFACL    = 1,
-	RMT_LGETFACL    = 2,
-	RMT_RSETFACL    = 3,
-	RMT_RGETFACL    = 4
-};
-
-#ifdef NEED_QUOTA_DEFS
-#ifndef QIF_BLIMITS
-#define QIF_BLIMITS     1
-#define QIF_SPACE       2
-#define QIF_ILIMITS     4
-#define QIF_INODES      8
-#define QIF_BTIME       16
-#define QIF_ITIME       32
-#define QIF_LIMITS      (QIF_BLIMITS | QIF_ILIMITS)
-#define QIF_USAGE       (QIF_SPACE | QIF_INODES)
-#define QIF_TIMES       (QIF_BTIME | QIF_ITIME)
-#define QIF_ALL	 (QIF_LIMITS | QIF_USAGE | QIF_TIMES)
-#endif
-
-#endif /* !__KERNEL__ */
-
 /* lustre volatile file support
  * file name header: .^L^S^T^R:volatile"
  */
@@ -566,9 +598,9 @@ enum {
 /* hdr + MDT index */
 #define LUSTRE_VOLATILE_IDX	LUSTRE_VOLATILE_HDR":%.4X:"
 
-typedef enum lustre_quota_version {
+enum lustre_quota_version {
 	LUSTRE_QUOTA_V2 = 1
-} lustre_quota_version_t;
+};
 
 /* XXX: same as if_dqinfo struct in kernel */
 struct obd_dqinfo {
@@ -668,18 +700,28 @@ static inline const char *changelog_type2str(int type)
 }
 
 /* per-record flags */
-#define CLF_VERSION     0x1000
-#define CLF_EXT_VERSION 0x2000
 #define CLF_FLAGSHIFT   12
 #define CLF_FLAGMASK    ((1U << CLF_FLAGSHIFT) - 1)
 #define CLF_VERMASK     (~CLF_FLAGMASK)
+enum changelog_rec_flags {
+	CLF_VERSION	= 0x1000,
+	CLF_RENAME	= 0x2000,
+	CLF_JOBID	= 0x4000,
+	CLF_SUPPORTED	= CLF_VERSION | CLF_RENAME | CLF_JOBID
+};
+
 /* Anything under the flagmask may be per-type (if desired) */
 /* Flags for unlink */
 #define CLF_UNLINK_LAST       0x0001 /* Unlink of last hardlink */
 #define CLF_UNLINK_HSM_EXISTS 0x0002 /* File has something in HSM */
 				     /* HSM cleaning needed */
 /* Flags for rename */
-#define CLF_RENAME_LAST       0x0001 /* rename unlink last hardlink of target */
+#define CLF_RENAME_LAST		0x0001	/* rename unlink last hardlink of
+					 * target
+					 */
+#define CLF_RENAME_LAST_EXISTS	0x0002	/* rename unlink last hardlink of target
+					 * has an archive in backend
+					 */
 
 /* Flags for HSM */
 /* 12b used (from high weight to low weight):
@@ -698,7 +740,8 @@ static inline const char *changelog_type2str(int type)
 #define CLF_HSM_LAST	15
 
 /* Remove bits higher than _h, then extract the value
- * between _h and _l by shifting lower weigth to bit 0. */
+ * between _h and _l by shifting lower weigth to bit 0.
+ */
 #define CLF_GET_BITS(_b, _h, _l) (((_b << (CLF_HSM_LAST - _h)) & 0xFFFF) \
 				   >> (CLF_HSM_LAST - _h + _l))
 
@@ -750,69 +793,176 @@ static inline void hsm_set_cl_error(int *flags, int error)
 	*flags |= (error << CLF_HSM_ERR_L);
 }
 
-#define CR_MAXSIZE cfs_size_round(2*NAME_MAX + 1 + \
-				  sizeof(struct changelog_ext_rec))
+enum changelog_send_flag {
+	/* Not yet implemented */
+	CHANGELOG_FLAG_FOLLOW	= BIT(0),
+	/*
+	 * Blocking IO makes sense in case of slow user parsing of the records,
+	 * but it also prevents us from cleaning up if the records are not
+	 * consumed.
+	 */
+	CHANGELOG_FLAG_BLOCK	= BIT(1),
+	/* Pack jobid into the changelog records if available. */
+	CHANGELOG_FLAG_JOBID	= BIT(2),
+};
 
+#define CR_MAXSIZE cfs_size_round(2 * NAME_MAX + 2 + \
+				  changelog_rec_offset(CLF_SUPPORTED))
+
+/* 31 usable bytes string + null terminator. */
+#define LUSTRE_JOBID_SIZE	32
+
+/*
+ * This is the minimal changelog record. It can contain extensions
+ * such as rename fields or process jobid. Its exact content is described
+ * by the cr_flags.
+ *
+ * Extensions are packed in the same order as their corresponding flags.
+ */
 struct changelog_rec {
 	__u16		 cr_namelen;
-	__u16		 cr_flags; /**< (flags&CLF_FLAGMASK)|CLF_VERSION */
+	__u16		 cr_flags; /**< \a changelog_rec_flags */
 	__u32		 cr_type;  /**< \a changelog_rec_type */
 	__u64		 cr_index; /**< changelog record number */
 	__u64		 cr_prev;  /**< last index for this target fid */
 	__u64		 cr_time;
 	union {
-		lustre_fid    cr_tfid;	/**< target fid */
+		struct lu_fid    cr_tfid;	/**< target fid */
 		__u32	 cr_markerflags; /**< CL_MARK flags */
 	};
-	lustre_fid	    cr_pfid;	/**< parent fid */
-	char		  cr_name[0];     /**< last element */
+	struct lu_fid	    cr_pfid;	/**< parent fid */
 } __packed;
 
-/* changelog_ext_rec is 2*sizeof(lu_fid) bigger than changelog_rec, to save
- * space, only rename uses changelog_ext_rec, while others use changelog_rec to
- * store records.
- */
-struct changelog_ext_rec {
-	__u16			cr_namelen;
-	__u16			cr_flags; /**< (flags & CLF_FLAGMASK) |
-						CLF_EXT_VERSION */
-	__u32			cr_type;  /**< \a changelog_rec_type */
-	__u64			cr_index; /**< changelog record number */
-	__u64			cr_prev;  /**< last index for this target fid */
-	__u64			cr_time;
-	union {
-		lustre_fid	cr_tfid;	/**< target fid */
-		__u32		cr_markerflags; /**< CL_MARK flags */
-	};
-	lustre_fid		cr_pfid;	/**< target parent fid */
-	lustre_fid		cr_sfid;	/**< source fid, or zero */
-	lustre_fid		cr_spfid;       /**< source parent fid, or zero */
-	char			cr_name[0];     /**< last element */
-} __packed;
+/* Changelog extension for RENAME. */
+struct changelog_ext_rename {
+	struct lu_fid	cr_sfid;	/**< source fid, or zero */
+	struct lu_fid	cr_spfid;	/**< source parent fid, or zero */
+};
 
-#define CHANGELOG_REC_EXTENDED(rec) \
-	(((rec)->cr_flags & CLF_VERMASK) == CLF_EXT_VERSION)
+/* Changelog extension to include JOBID. */
+struct changelog_ext_jobid {
+	char	cr_jobid[LUSTRE_JOBID_SIZE];	/**< zero-terminated string. */
+};
 
-static inline int changelog_rec_size(struct changelog_rec *rec)
+static inline size_t changelog_rec_offset(enum changelog_rec_flags crf)
 {
-	return CHANGELOG_REC_EXTENDED(rec) ? sizeof(struct changelog_ext_rec) :
-					     sizeof(*rec);
+	size_t size = sizeof(struct changelog_rec);
+
+	if (crf & CLF_RENAME)
+		size += sizeof(struct changelog_ext_rename);
+
+	if (crf & CLF_JOBID)
+		size += sizeof(struct changelog_ext_jobid);
+
+	return size;
 }
 
+static inline size_t changelog_rec_size(struct changelog_rec *rec)
+{
+	return changelog_rec_offset(rec->cr_flags);
+}
+
+static inline size_t changelog_rec_varsize(struct changelog_rec *rec)
+{
+	return changelog_rec_size(rec) - sizeof(*rec) + rec->cr_namelen;
+}
+
+static inline
+struct changelog_ext_rename *changelog_rec_rename(struct changelog_rec *rec)
+{
+	enum changelog_rec_flags crf = rec->cr_flags & CLF_VERSION;
+
+	return (struct changelog_ext_rename *)((char *)rec +
+					       changelog_rec_offset(crf));
+}
+
+/* The jobid follows the rename extension, if present */
+static inline
+struct changelog_ext_jobid *changelog_rec_jobid(struct changelog_rec *rec)
+{
+	enum changelog_rec_flags crf = rec->cr_flags &
+				       (CLF_VERSION | CLF_RENAME);
+
+	return (struct changelog_ext_jobid *)((char *)rec +
+					      changelog_rec_offset(crf));
+}
+
+/* The name follows the rename and jobid extensions, if present */
 static inline char *changelog_rec_name(struct changelog_rec *rec)
 {
-	return CHANGELOG_REC_EXTENDED(rec) ?
-		((struct changelog_ext_rec *)rec)->cr_name : rec->cr_name;
+	return (char *)rec + changelog_rec_offset(rec->cr_flags &
+						  CLF_SUPPORTED);
 }
 
-static inline int changelog_rec_snamelen(struct changelog_ext_rec *rec)
+static inline size_t changelog_rec_snamelen(struct changelog_rec *rec)
 {
-	return rec->cr_namelen - strlen(rec->cr_name) - 1;
+	return rec->cr_namelen - strlen(changelog_rec_name(rec)) - 1;
 }
 
-static inline char *changelog_rec_sname(struct changelog_ext_rec *rec)
+static inline char *changelog_rec_sname(struct changelog_rec *rec)
 {
-	return rec->cr_name + strlen(rec->cr_name) + 1;
+	char *cr_name = changelog_rec_name(rec);
+
+	return cr_name + strlen(cr_name) + 1;
+}
+
+/**
+ * Remap a record to the desired format as specified by the crf flags.
+ * The record must be big enough to contain the final remapped version.
+ * Superfluous extension fields are removed and missing ones are added
+ * and zeroed. The flags of the record are updated accordingly.
+ *
+ * The jobid and rename extensions can be added to a record, to match the
+ * format an application expects, typically. In this case, the newly added
+ * fields will be zeroed.
+ * The Jobid field can be removed, to guarantee compatibility with older
+ * clients that don't expect this field in the records they process.
+ *
+ * The following assumptions are being made:
+ *	- CLF_RENAME will not be removed
+ *	- CLF_JOBID will not be added without CLF_RENAME being added too
+ *
+ * @param[in,out]  rec		The record to remap.
+ * @param[in]	   crf_wanted	Flags describing the desired extensions.
+ */
+static inline void changelog_remap_rec(struct changelog_rec *rec,
+				       enum changelog_rec_flags crf_wanted)
+{
+	char *jid_mov, *rnm_mov;
+
+	crf_wanted &= CLF_SUPPORTED;
+
+	if ((rec->cr_flags & CLF_SUPPORTED) == crf_wanted)
+		return;
+
+	/* First move the variable-length name field */
+	memmove((char *)rec + changelog_rec_offset(crf_wanted),
+		changelog_rec_name(rec), rec->cr_namelen);
+
+	/* Locations of jobid and rename extensions in the remapped record */
+	jid_mov = (char *)rec +
+		  changelog_rec_offset(crf_wanted & ~CLF_JOBID);
+	rnm_mov = (char *)rec +
+		  changelog_rec_offset(crf_wanted & ~(CLF_JOBID | CLF_RENAME));
+
+	/* Move the extension fields to the desired positions */
+	if ((crf_wanted & CLF_JOBID) && (rec->cr_flags & CLF_JOBID))
+		memmove(jid_mov, changelog_rec_jobid(rec),
+			sizeof(struct changelog_ext_jobid));
+
+	if ((crf_wanted & CLF_RENAME) && (rec->cr_flags & CLF_RENAME))
+		memmove(rnm_mov, changelog_rec_rename(rec),
+			sizeof(struct changelog_ext_rename));
+
+	/* Clear newly added fields */
+	if ((crf_wanted & CLF_JOBID) && !(rec->cr_flags & CLF_JOBID))
+		memset(jid_mov, 0, sizeof(struct changelog_ext_jobid));
+
+	if ((crf_wanted & CLF_RENAME) && !(rec->cr_flags & CLF_RENAME))
+		memset(rnm_mov, 0, sizeof(struct changelog_ext_rename));
+
+	/* Update the record's flags accordingly */
+	rec->cr_flags = (rec->cr_flags & CLF_FLAGMASK) | crf_wanted;
 }
 
 struct ioc_changelog {
@@ -834,8 +984,8 @@ struct ioc_data_version {
 	__u64 idv_flags;     /* See LL_DV_xxx */
 };
 
-#define LL_DV_NOFLUSH 0x01   /* Do not take READ EXTENT LOCK before sampling
-				version. Dirty caches are left unchanged. */
+#define LL_DV_RD_FLUSH	BIT(0)	/* Flush dirty pages from clients */
+#define LL_DV_WR_FLUSH	BIT(1)	/* Flush all caching pages from clients */
 
 #ifndef offsetof
 # define offsetof(typ, memb)     ((unsigned long)((char *)&(((typ *)0)->memb)))
@@ -976,8 +1126,8 @@ struct hsm_request {
 };
 
 struct hsm_user_item {
-       lustre_fid	hui_fid;
-       struct hsm_extent hui_extent;
+	struct lu_fid	hui_fid;
+	struct hsm_extent hui_extent;
 } __packed;
 
 struct hsm_user_request {
@@ -991,7 +1141,7 @@ struct hsm_user_request {
 /** Return pointer to data field in a hsm user request */
 static inline void *hur_data(struct hsm_user_request *hur)
 {
-	return &(hur->hur_user_item[hur->hur_request.hr_itemcount]);
+	return &hur->hur_user_item[hur->hur_request.hr_itemcount];
 }
 
 /**
@@ -1046,8 +1196,8 @@ static inline char *hsm_copytool_action2name(enum hsm_copytool_action  a)
 struct hsm_action_item {
 	__u32      hai_len;     /* valid size of this struct */
 	__u32      hai_action;  /* hsm_copytool_action, but use known size */
-	lustre_fid hai_fid;     /* Lustre FID to operated on */
-	lustre_fid hai_dfid;    /* fid used for data access */
+	struct lu_fid hai_fid;     /* Lustre FID to operated on */
+	struct lu_fid hai_dfid;    /* fid used for data access */
 	struct hsm_extent hai_extent;  /* byte range to operate on */
 	__u64      hai_cookie;  /* action cookie from coordinator */
 	__u64      hai_gid;     /* grouplock id */
@@ -1095,11 +1245,12 @@ struct hsm_action_list {
 	__u32 padding1;
 	char  hal_fsname[0];   /* null-terminated */
 	/* struct hsm_action_item[hal_count] follows, aligned on 8-byte
-	   boundaries. See hai_zero */
+	 * boundaries. See hai_first
+	 */
 } __packed;
 
 #ifndef HAVE_CFS_SIZE_ROUND
-static inline int cfs_size_round (int val)
+static inline int cfs_size_round(int val)
 {
 	return (val + 7) & (~0x7);
 }
@@ -1108,7 +1259,7 @@ static inline int cfs_size_round (int val)
 #endif
 
 /* Return pointer to first hai in action list */
-static inline struct hsm_action_item *hai_zero(struct hsm_action_list *hal)
+static inline struct hsm_action_item *hai_first(struct hsm_action_list *hal)
 {
 	return (struct hsm_action_item *)(hal->hal_fsname +
 					  cfs_size_round(strlen(hal-> \
@@ -1130,7 +1281,7 @@ static inline int hal_size(struct hsm_action_list *hal)
 	struct hsm_action_item *hai;
 
 	sz = sizeof(*hal) + cfs_size_round(strlen(hal->hal_fsname) + 1);
-	hai = hai_zero(hal);
+	hai = hai_first(hal);
 	for (i = 0; i < hal->hal_count; i++, hai = hai_next(hai))
 		sz += cfs_size_round(hai->hai_len);
 
@@ -1157,7 +1308,7 @@ struct hsm_user_import {
 #define HP_FLAG_RETRY     0x02
 
 struct hsm_progress {
-	lustre_fid		hp_fid;
+	struct lu_fid		hp_fid;
 	__u64			hp_cookie;
 	struct hsm_extent	hp_extent;
 	__u16			hp_flags;

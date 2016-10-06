@@ -250,7 +250,7 @@ struct clk_lookup_alloc {
 	char	con_id[MAX_CON_ID];
 };
 
-static struct clk_lookup * __init_refok
+static struct clk_lookup * __ref
 vclkdev_alloc(struct clk_hw *hw, const char *con_id, const char *dev_fmt,
 	va_list ap)
 {
@@ -287,7 +287,7 @@ vclkdev_create(struct clk_hw *hw, const char *con_id, const char *dev_fmt,
 	return cl;
 }
 
-struct clk_lookup * __init_refok
+struct clk_lookup * __ref
 clkdev_alloc(struct clk *clk, const char *con_id, const char *dev_fmt, ...)
 {
 	struct clk_lookup *cl;
@@ -300,6 +300,20 @@ clkdev_alloc(struct clk *clk, const char *con_id, const char *dev_fmt, ...)
 	return cl;
 }
 EXPORT_SYMBOL(clkdev_alloc);
+
+struct clk_lookup *
+clkdev_hw_alloc(struct clk_hw *hw, const char *con_id, const char *dev_fmt, ...)
+{
+	struct clk_lookup *cl;
+	va_list ap;
+
+	va_start(ap, dev_fmt);
+	cl = vclkdev_alloc(hw, con_id, dev_fmt, ap);
+	va_end(ap);
+
+	return cl;
+}
+EXPORT_SYMBOL(clkdev_hw_alloc);
 
 /**
  * clkdev_create - allocate and add a clkdev lookup structure
@@ -323,6 +337,29 @@ struct clk_lookup *clkdev_create(struct clk *clk, const char *con_id,
 	return cl;
 }
 EXPORT_SYMBOL_GPL(clkdev_create);
+
+/**
+ * clkdev_hw_create - allocate and add a clkdev lookup structure
+ * @hw: struct clk_hw to associate with all clk_lookups
+ * @con_id: connection ID string on device
+ * @dev_fmt: format string describing device name
+ *
+ * Returns a clk_lookup structure, which can be later unregistered and
+ * freed.
+ */
+struct clk_lookup *clkdev_hw_create(struct clk_hw *hw, const char *con_id,
+	const char *dev_fmt, ...)
+{
+	struct clk_lookup *cl;
+	va_list ap;
+
+	va_start(ap, dev_fmt);
+	cl = vclkdev_create(hw, con_id, dev_fmt, ap);
+	va_end(ap);
+
+	return cl;
+}
+EXPORT_SYMBOL_GPL(clkdev_hw_create);
 
 int clk_add_alias(const char *alias, const char *alias_dev_name,
 	const char *con_id, struct device *dev)
@@ -353,11 +390,25 @@ void clkdev_drop(struct clk_lookup *cl)
 }
 EXPORT_SYMBOL(clkdev_drop);
 
+static struct clk_lookup *__clk_register_clkdev(struct clk_hw *hw,
+						const char *con_id,
+						const char *dev_id, ...)
+{
+	struct clk_lookup *cl;
+	va_list ap;
+
+	va_start(ap, dev_id);
+	cl = vclkdev_create(hw, con_id, dev_id, ap);
+	va_end(ap);
+
+	return cl;
+}
+
 /**
  * clk_register_clkdev - register one clock lookup for a struct clk
  * @clk: struct clk to associate with all clk_lookups
  * @con_id: connection ID string on device
- * @dev_id: format string describing device name
+ * @dev_id: string describing device name
  *
  * con_id or dev_id may be NULL as a wildcard, just as in the rest of
  * clkdev.
@@ -368,45 +419,50 @@ EXPORT_SYMBOL(clkdev_drop);
  * after clk_register().
  */
 int clk_register_clkdev(struct clk *clk, const char *con_id,
-	const char *dev_fmt, ...)
+	const char *dev_id)
 {
 	struct clk_lookup *cl;
-	va_list ap;
 
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
-	va_start(ap, dev_fmt);
-	cl = vclkdev_create(__clk_get_hw(clk), con_id, dev_fmt, ap);
-	va_end(ap);
+	/*
+	 * Since dev_id can be NULL, and NULL is handled specially, we must
+	 * pass it as either a NULL format string, or with "%s".
+	 */
+	if (dev_id)
+		cl = __clk_register_clkdev(__clk_get_hw(clk), con_id, "%s",
+					   dev_id);
+	else
+		cl = __clk_register_clkdev(__clk_get_hw(clk), con_id, NULL);
 
 	return cl ? 0 : -ENOMEM;
 }
 EXPORT_SYMBOL(clk_register_clkdev);
 
 /**
- * clk_register_clkdevs - register a set of clk_lookup for a struct clk
- * @clk: struct clk to associate with all clk_lookups
- * @cl: array of clk_lookup structures with con_id and dev_id pre-initialized
- * @num: number of clk_lookup structures to register
+ * clk_hw_register_clkdev - register one clock lookup for a struct clk_hw
+ * @hw: struct clk_hw to associate with all clk_lookups
+ * @con_id: connection ID string on device
+ * @dev_id: format string describing device name
  *
- * To make things easier for mass registration, we detect error clks
- * from a previous clk_register() call, and return the error code for
- * those.  This is to permit this function to be called immediately
- * after clk_register().
+ * con_id or dev_id may be NULL as a wildcard, just as in the rest of
+ * clkdev.
  */
-int clk_register_clkdevs(struct clk *clk, struct clk_lookup *cl, size_t num)
+int clk_hw_register_clkdev(struct clk_hw *hw, const char *con_id,
+	const char *dev_id)
 {
-	unsigned i;
+	struct clk_lookup *cl;
 
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	/*
+	 * Since dev_id can be NULL, and NULL is handled specially, we must
+	 * pass it as either a NULL format string, or with "%s".
+	 */
+	if (dev_id)
+		cl = __clk_register_clkdev(hw, con_id, "%s", dev_id);
+	else
+		cl = __clk_register_clkdev(hw, con_id, NULL);
 
-	for (i = 0; i < num; i++, cl++) {
-		cl->clk_hw = __clk_get_hw(clk);
-		__clkdev_add(cl);
-	}
-
-	return 0;
+	return cl ? 0 : -ENOMEM;
 }
-EXPORT_SYMBOL(clk_register_clkdevs);
+EXPORT_SYMBOL(clk_hw_register_clkdev);

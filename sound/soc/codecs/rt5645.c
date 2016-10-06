@@ -63,6 +63,7 @@ static const struct reg_sequence init_list[] = {
 	{RT5645_PR_BASE + 0x20,	0x611f},
 	{RT5645_PR_BASE + 0x21,	0x4040},
 	{RT5645_PR_BASE + 0x23,	0x0004},
+	{RT5645_ASRC_4, 0x0120},
 };
 
 static const struct reg_sequence rt5650_init_list[] = {
@@ -157,7 +158,7 @@ static const struct reg_default rt5645_reg[] = {
 	{ 0x83, 0x0000 },
 	{ 0x84, 0x0000 },
 	{ 0x85, 0x0000 },
-	{ 0x8a, 0x0000 },
+	{ 0x8a, 0x0120 },
 	{ 0x8e, 0x0004 },
 	{ 0x8f, 0x1100 },
 	{ 0x90, 0x0646 },
@@ -253,7 +254,7 @@ static const struct reg_default rt5650_reg[] = {
 	{ 0x2b, 0x5454 },
 	{ 0x2c, 0xaaa0 },
 	{ 0x2d, 0x0000 },
-	{ 0x2f, 0x1002 },
+	{ 0x2f, 0x5002 },
 	{ 0x31, 0x5000 },
 	{ 0x32, 0x0000 },
 	{ 0x33, 0x0000 },
@@ -314,7 +315,7 @@ static const struct reg_default rt5650_reg[] = {
 	{ 0x83, 0x0000 },
 	{ 0x84, 0x0000 },
 	{ 0x85, 0x0000 },
-	{ 0x8a, 0x0000 },
+	{ 0x8a, 0x0120 },
 	{ 0x8e, 0x0004 },
 	{ 0x8f, 0x1100 },
 	{ 0x90, 0x0646 },
@@ -440,6 +441,7 @@ static bool rt5645_volatile_register(struct device *dev, unsigned int reg)
 
 	switch (reg) {
 	case RT5645_RESET:
+	case RT5645_PRIV_INDEX:
 	case RT5645_PRIV_DATA:
 	case RT5645_IN1_CTRL1:
 	case RT5645_IN1_CTRL2:
@@ -740,6 +742,14 @@ static int rt5645_spk_put_volsw(struct snd_kcontrol *kcontrol,
 	return ret;
 }
 
+static const char * const rt5645_dac1_vol_ctrl_mode_text[] = {
+	"immediately", "zero crossing", "soft ramp"
+};
+
+static SOC_ENUM_SINGLE_DECL(
+	rt5645_dac1_vol_ctrl_mode, RT5645_PR_BASE,
+	RT5645_DA1_ZDET_SFT, rt5645_dac1_vol_ctrl_mode_text);
+
 static const struct snd_kcontrol_new rt5645_snd_controls[] = {
 	/* Speaker Output Volume */
 	SOC_DOUBLE("Speaker Channel Switch", RT5645_SPK_VOL,
@@ -776,7 +786,7 @@ static const struct snd_kcontrol_new rt5645_snd_controls[] = {
 
 	/* IN1/IN2 Control */
 	SOC_SINGLE_TLV("IN1 Boost", RT5645_IN1_CTRL1,
-		RT5645_BST_SFT1, 8, 0, bst_tlv),
+		RT5645_BST_SFT1, 12, 0, bst_tlv),
 	SOC_SINGLE_TLV("IN2 Boost", RT5645_IN2_CTRL,
 		RT5645_BST_SFT2, 8, 0, bst_tlv),
 
@@ -806,6 +816,9 @@ static const struct snd_kcontrol_new rt5645_snd_controls[] = {
 	SOC_SINGLE("I2S2 Func Switch", RT5645_GPIO_CTRL1, RT5645_I2S2_SEL_SFT,
 		1, 1),
 	RT5645_HWEQ("Speaker HWEQ"),
+
+	/* Digital Soft Volume Control */
+	SOC_ENUM("DAC1 Digital Volume Control Func", rt5645_dac1_vol_ctrl_mode),
 };
 
 /**
@@ -1674,7 +1687,7 @@ static void hp_amp_power(struct snd_soc_codec *codec, int on)
 				regmap_write(rt5645->regmap, RT5645_PR_BASE +
 					RT5645_MAMP_INT_REG2, 0xfc00);
 				snd_soc_write(codec, RT5645_DEPOP_M2, 0x1140);
-				msleep(70);
+				msleep(90);
 				rt5645->hp_on = true;
 			} else {
 				/* depop parameters */
@@ -3029,13 +3042,18 @@ static int rt5645_set_bias_level(struct snd_soc_codec *codec,
 			RT5645_PWR_BG | RT5645_PWR_VREF2,
 			RT5645_PWR_VREF1 | RT5645_PWR_MB |
 			RT5645_PWR_BG | RT5645_PWR_VREF2);
+		mdelay(10);
 		snd_soc_update_bits(codec, RT5645_PWR_ANLG1,
 			RT5645_PWR_FV1 | RT5645_PWR_FV2,
 			RT5645_PWR_FV1 | RT5645_PWR_FV2);
-		if (rt5645->en_button_func &&
-			snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF)
-			queue_delayed_work(system_power_efficient_wq,
-				&rt5645->jack_detect_work, msecs_to_jiffies(0));
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
+			snd_soc_write(codec, RT5645_DEPOP_M2, 0x1140);
+			msleep(40);
+			if (rt5645->en_button_func)
+				queue_delayed_work(system_power_efficient_wq,
+					&rt5645->jack_detect_work,
+					msecs_to_jiffies(0));
+		}
 		break;
 
 	case SND_SOC_BIAS_OFF:
@@ -3281,10 +3299,8 @@ static void rt5645_jack_detect_work(struct work_struct *work)
 		if (btn_type == 0)/* button release */
 			report =  rt5645->jack_type;
 		else {
-			if (rt5645->pdata.jd_invert) {
-				mod_timer(&rt5645->btn_check_timer,
-					msecs_to_jiffies(100));
-			}
+			mod_timer(&rt5645->btn_check_timer,
+				msecs_to_jiffies(100));
 		}
 
 		break;
@@ -3468,12 +3484,14 @@ static struct snd_soc_codec_driver soc_codec_dev_rt5645 = {
 	.resume = rt5645_resume,
 	.set_bias_level = rt5645_set_bias_level,
 	.idle_bias_off = true,
-	.controls = rt5645_snd_controls,
-	.num_controls = ARRAY_SIZE(rt5645_snd_controls),
-	.dapm_widgets = rt5645_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(rt5645_dapm_widgets),
-	.dapm_routes = rt5645_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(rt5645_dapm_routes),
+	.component_driver = {
+		.controls		= rt5645_snd_controls,
+		.num_controls		= ARRAY_SIZE(rt5645_snd_controls),
+		.dapm_widgets		= rt5645_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(rt5645_dapm_widgets),
+		.dapm_routes		= rt5645_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(rt5645_dapm_routes),
+	},
 };
 
 static const struct regmap_config rt5645_regmap = {
@@ -3528,6 +3546,7 @@ MODULE_DEVICE_TABLE(i2c, rt5645_i2c_id);
 static const struct acpi_device_id rt5645_acpi_match[] = {
 	{ "10EC5645", 0 },
 	{ "10EC5650", 0 },
+	{ "10EC5640", 0 },
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, rt5645_acpi_match);
@@ -3550,6 +3569,18 @@ static const struct dmi_system_id dmi_platform_intel_braswell[] = {
 		.ident = "Google Chrome",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
+		},
+	},
+	{
+		.ident = "Google Setzer",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Setzer"),
+		},
+	},
+	{
+		.ident = "Microsoft Surface 3",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Surface 3"),
 		},
 	},
 	{ }
@@ -3805,9 +3836,9 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 	if (rt5645->pdata.jd_invert) {
 		regmap_update_bits(rt5645->regmap, RT5645_IRQ_CTRL2,
 			RT5645_JD_1_1_MASK, RT5645_JD_1_1_INV);
-		setup_timer(&rt5645->btn_check_timer,
-			rt5645_btn_check_callback, (unsigned long)rt5645);
 	}
+	setup_timer(&rt5645->btn_check_timer,
+		rt5645_btn_check_callback, (unsigned long)rt5645);
 
 	INIT_DELAYED_WORK(&rt5645->jack_detect_work, rt5645_jack_detect_work);
 	INIT_DELAYED_WORK(&rt5645->rcclock_work, rt5645_rcclock_work);

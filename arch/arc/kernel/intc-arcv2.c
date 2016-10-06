@@ -14,6 +14,8 @@
 #include <linux/irqchip.h>
 #include <asm/irq.h>
 
+static int irq_prio;
+
 /*
  * Early Hardware specific Interrupt setup
  * -Called very early (start_kernel -> setup_arch -> setup_processor)
@@ -23,6 +25,14 @@
 void arc_init_IRQ(void)
 {
 	unsigned int tmp;
+
+	struct irq_build {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+		unsigned int pad:3, firq:1, prio:4, exts:8, irqs:8, ver:8;
+#else
+		unsigned int ver:8, irqs:8, exts:8, prio:4, firq:1, pad:3;
+#endif
+	} irq_bcr;
 
 	struct aux_irq_ctrl {
 #ifdef CONFIG_CPU_BIG_ENDIAN
@@ -46,28 +56,25 @@ void arc_init_IRQ(void)
 
 	WRITE_AUX(AUX_IRQ_CTRL, ictrl);
 
-	/* setup status32, don't enable intr yet as kernel doesn't want */
-	tmp = read_aux_reg(0xa);
-	tmp |= ISA_INIT_STATUS_BITS;
-	tmp &= ~STATUS_IE_MASK;
-	asm volatile("flag %0	\n"::"r"(tmp));
-
 	/*
 	 * ARCv2 core intc provides multiple interrupt priorities (upto 16).
 	 * Typical builds though have only two levels (0-high, 1-low)
 	 * Linux by default uses lower prio 1 for most irqs, reserving 0 for
 	 * NMI style interrupts in future (say perf)
-	 *
-	 * Read the intc BCR to confirm that Linux default priority is avail
-	 * in h/w
-	 *
-	 * Note:
-	 *  IRQ_BCR[27..24] contains N-1 (for N priority levels) and prio level
-	 *  is 0 based.
 	 */
-	tmp = (read_aux_reg(ARC_REG_IRQ_BCR) >> 24 ) & 0xF;
-	if (ARCV2_IRQ_DEF_PRIO > tmp)
-		panic("Linux default irq prio incorrect\n");
+
+	READ_BCR(ARC_REG_IRQ_BCR, irq_bcr);
+
+	irq_prio = irq_bcr.prio;	/* Encoded as N-1 for N levels */
+	pr_info("archs-intc\t: %d priority levels (default %d)%s\n",
+		irq_prio + 1, irq_prio,
+		irq_bcr.firq ? " FIRQ (not used)":"");
+
+	/* setup status32, don't enable intr yet as kernel doesn't want */
+	tmp = read_aux_reg(0xa);
+	tmp |= STATUS_AD_MASK | (irq_prio << 1);
+	tmp &= ~STATUS_IE_MASK;
+	asm volatile("kflag %0	\n"::"r"(tmp));
 }
 
 static void arcv2_irq_mask(struct irq_data *data)
@@ -86,7 +93,7 @@ void arcv2_irq_enable(struct irq_data *data)
 {
 	/* set default priority */
 	write_aux_reg(AUX_IRQ_SELECT, data->irq);
-	write_aux_reg(AUX_IRQ_PRIORITY, ARCV2_IRQ_DEF_PRIO);
+	write_aux_reg(AUX_IRQ_PRIORITY, irq_prio);
 
 	/*
 	 * hw auto enables (linux unmask) all by default
@@ -130,22 +137,29 @@ static const struct irq_domain_ops arcv2_irq_ops = {
 	.map = arcv2_irq_map,
 };
 
-static struct irq_domain *root_domain;
 
 static int __init
 init_onchip_IRQ(struct device_node *intc, struct device_node *parent)
 {
+	struct irq_domain *root_domain;
+
 	if (parent)
 		panic("DeviceTree incore intc not a root irq controller\n");
 
-	root_domain = irq_domain_add_legacy(intc, NR_CPU_IRQS, 0, 0,
-					    &arcv2_irq_ops, NULL);
-
+	root_domain = irq_domain_add_linear(intc, NR_CPU_IRQS, &arcv2_irq_ops, NULL);
 	if (!root_domain)
 		panic("root irq domain not avail\n");
 
-	/* with this we don't need to export root_domain */
+	/*
+	 * Needed for primary domain lookup to succeed
+	 * This is a primary irqchip, and can never have a parent
+	 */
 	irq_set_default_host(root_domain);
+
+#ifdef CONFIG_SMP
+	irq_create_mapping(root_domain, IPI_IRQ);
+#endif
+	irq_create_mapping(root_domain, SOFTIRQ_IRQ);
 
 	return 0;
 }

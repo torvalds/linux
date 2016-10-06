@@ -12,6 +12,7 @@
 #include <subdev/gpio.h>
 #include <subdev/i2c.h>
 #include <subdev/ibus.h>
+#include <subdev/iccsense.h>
 #include <subdev/instmem.h>
 #include <subdev/ltc.h>
 #include <subdev/mc.h>
@@ -21,7 +22,9 @@
 #include <subdev/pmu.h>
 #include <subdev/therm.h>
 #include <subdev/timer.h>
+#include <subdev/top.h>
 #include <subdev/volt.h>
+#include <subdev/secboot.h>
 
 #include <engine/bsp.h>
 #include <engine/ce.h>
@@ -34,9 +37,12 @@
 #include <engine/mspdec.h>
 #include <engine/msppp.h>
 #include <engine/msvld.h>
+#include <engine/nvenc.h>
+#include <engine/nvdec.h>
 #include <engine/pm.h>
 #include <engine/sec.h>
 #include <engine/sw.h>
+#include <engine/vic.h>
 #include <engine/vp.h>
 
 int  nvkm_device_ctor(const struct nvkm_device_func *,

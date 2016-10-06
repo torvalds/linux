@@ -1,0 +1,211 @@
+/*
+ * Device Tree Source for the Axis ARTPEC-6 SoC
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include "skeleton.dtsi"
+
+/ {
+	compatible = "axis,artpec6";
+	interrupt-parent = <&intc>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <0>;
+			next-level-cache = <&pl310>;
+		};
+
+		cpu1: cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <1>;
+			next-level-cache = <&pl310>;
+		};
+	};
+
+	syscon {
+		compatible = "axis,artpec6-syscon", "syscon";
+		reg = <0xf8000000 0x48>;
+	};
+
+	psci {
+		compatible = "arm,psci-0.2", "arm,psci";
+		method = "smc";
+		psci_version = <0x84000000>;
+		cpu_on = <0x84000003>;
+		system_reset = <0x84000009>;
+	};
+
+	scu@faf00000 {
+		compatible = "arm,cortex-a9-scu";
+		reg = <0xfaf00000 0x58>;
+	};
+
+	/* Main external clock driving CPU and peripherals */
+	ext_clk: ext_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <50000000>;
+	};
+
+	eth_phy_ref_clk: eth_phy_ref_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <125000000>;
+	};
+
+	clkctrl: clkctrl@0xf8000000 {
+		#clock-cells = <1>;
+		compatible = "axis,artpec6-clkctrl";
+		reg = <0xf8000000 0x48>;
+		clocks = <&ext_clk>;
+		clock-names = "sys_refclk";
+	};
+
+	gtimer@faf00200 {
+		compatible = "arm,cortex-a9-global-timer";
+		reg = <0xfaf00200 0x20>;
+		interrupts = <GIC_PPI 11 0xf01>;
+		clocks = <&clkctrl 1>;
+	};
+
+	timer@faf00600 {
+		compatible = "arm,cortex-a9-twd-timer";
+		reg = <0xfaf00600 0x20>;
+		interrupts = <GIC_PPI 13 0xf04>;
+		clocks = <&clkctrl 1>;
+		status = "disabled";
+	};
+
+	intc: interrupt-controller@faf01000 {
+		interrupt-controller;
+		compatible = "arm,cortex-a9-gic";
+		#interrupt-cells = <3>;
+		reg = < 0xfaf01000 0x1000 >, < 0xfaf00100 0x0100 >;
+	};
+
+	pl310: cache-controller@faf10000 {
+		compatible = "arm,pl310-cache";
+		cache-unified;
+		cache-level = <2>;
+		reg = <0xfaf10000 0x1000>;
+		interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
+		arm,data-latency = <1 1 1>;
+		arm,tag-latency = <1 1 1>;
+		arm,filter-ranges = <0x0 0x80000000>;
+	};
+
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&intc>;
+	};
+
+	amba@0 {
+		compatible = "simple-bus";
+		#address-cells = <0x1>;
+		#size-cells = <0x1>;
+		interrupt-parent = <&intc>;
+		ranges;
+		dma-ranges = <0x80000000 0x00000000 0x40000000>;
+		dma-coherent;
+
+		ethernet: ethernet@f8010000 {
+			clock-names = "phy_ref_clk", "apb_pclk";
+			clocks = <&eth_phy_ref_clk>,
+				<&clkctrl 4>;
+			compatible = "snps,dwc-qos-ethernet-4.10";
+			interrupt-parent = <&intc>;
+			interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0xf8010000 0x4000>;
+
+			snps,write-requests = <2>;
+			snps,read-requests = <16>;
+			snps,txpbl = <8>;
+			snps,rxpbl = <2>;
+
+			status = "disabled";
+		};
+
+		uart0: serial@f8036000 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0xf8036000 0x1000>;
+			interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clkctrl 13>,
+				<&clkctrl 12>;
+			clock-names = "uart_clk", "apb_pclk";
+			status = "disabled";
+		};
+		uart1: serial@f8037000 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0xf8037000 0x1000>;
+			interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clkctrl 13>,
+				<&clkctrl 12>;
+			clock-names = "uart_clk", "apb_pclk";
+			status = "disabled";
+		};
+		uart2: serial@f8038000 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0xf8038000 0x1000>;
+			interrupts = <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clkctrl 13>,
+				<&clkctrl 12>;
+			clock-names = "uart_clk", "apb_pclk";
+			status = "disabled";
+		};
+		uart3: serial@f8039000 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0xf8039000 0x1000>;
+			interrupts = <GIC_SPI 129 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clkctrl 13>,
+				<&clkctrl 12>;
+			clock-names = "uart_clk", "apb_pclk";
+			status = "disabled";
+		};
+	};
+};

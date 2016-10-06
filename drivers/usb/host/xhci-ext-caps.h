@@ -112,12 +112,16 @@ static inline int xhci_find_next_ext_cap(void __iomem *base, u32 start, int id)
 	offset = start;
 	if (!start || start == XHCI_HCC_PARAMS_OFFSET) {
 		val = readl(base + XHCI_HCC_PARAMS_OFFSET);
+		if (val == ~0)
+			return 0;
 		offset = XHCI_HCC_EXT_CAPS(val) << 2;
 		if (!offset)
 			return 0;
 	};
 	do {
 		val = readl(base + offset);
+		if (val == ~0)
+			return 0;
 		if (XHCI_EXT_CAPS_ID(val) == id && offset != start)
 			return offset;
 

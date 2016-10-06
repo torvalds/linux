@@ -22,9 +22,10 @@
  *   pv_kick_wake	- # of vCPU kicks used for computing pv_latency_wake
  *   pv_latency_kick	- average latency (ns) of vCPU kick operation
  *   pv_latency_wake	- average latency (ns) from vCPU kick to wakeup
+ *   pv_lock_slowpath	- # of locking operations via the slowpath
  *   pv_lock_stealing	- # of lock stealing operations
- *   pv_spurious_wakeup	- # of spurious wakeups
- *   pv_wait_again	- # of vCPU wait's that happened after a vCPU kick
+ *   pv_spurious_wakeup	- # of spurious wakeups in non-head vCPUs
+ *   pv_wait_again	- # of wait's after a queue head vCPU kick
  *   pv_wait_early	- # of early vCPU wait's
  *   pv_wait_head	- # of vCPU wait's at the queue head
  *   pv_wait_node	- # of vCPU wait's at a non-head queue node
@@ -45,6 +46,7 @@ enum qlock_stats {
 	qstat_pv_kick_wake,
 	qstat_pv_latency_kick,
 	qstat_pv_latency_wake,
+	qstat_pv_lock_slowpath,
 	qstat_pv_lock_stealing,
 	qstat_pv_spurious_wakeup,
 	qstat_pv_wait_again,
@@ -70,6 +72,7 @@ static const char * const qstat_names[qstat_num + 1] = {
 	[qstat_pv_spurious_wakeup] = "pv_spurious_wakeup",
 	[qstat_pv_latency_kick]	   = "pv_latency_kick",
 	[qstat_pv_latency_wake]    = "pv_latency_wake",
+	[qstat_pv_lock_slowpath]   = "pv_lock_slowpath",
 	[qstat_pv_lock_stealing]   = "pv_lock_stealing",
 	[qstat_pv_wait_again]      = "pv_wait_again",
 	[qstat_pv_wait_early]      = "pv_wait_early",
@@ -133,10 +136,12 @@ static ssize_t qstat_read(struct file *file, char __user *user_buf,
 	}
 
 	if (counter == qstat_pv_hash_hops) {
-		u64 frac;
+		u64 frac = 0;
 
-		frac = 100ULL * do_div(stat, kicks);
-		frac = DIV_ROUND_CLOSEST_ULL(frac, kicks);
+		if (kicks) {
+			frac = 100ULL * do_div(stat, kicks);
+			frac = DIV_ROUND_CLOSEST_ULL(frac, kicks);
+		}
 
 		/*
 		 * Return a X.XX decimal number
@@ -148,7 +153,6 @@ static ssize_t qstat_read(struct file *file, char __user *user_buf,
 		 */
 		if ((counter == qstat_pv_latency_kick) ||
 		    (counter == qstat_pv_latency_wake)) {
-			stat = 0;
 			if (kicks)
 				stat = DIV_ROUND_CLOSEST_ULL(stat, kicks);
 		}
@@ -186,8 +190,6 @@ static ssize_t qstat_write(struct file *file, const char __user *user_buf,
 
 		for (i = 0 ; i < qstat_num; i++)
 			WRITE_ONCE(ptr[i], 0);
-		for (i = 0 ; i < qstat_num; i++)
-			WRITE_ONCE(ptr[i], 0);
 	}
 	return count;
 }
@@ -209,10 +211,8 @@ static int __init init_qspinlock_stat(void)
 	struct dentry *d_qstat = debugfs_create_dir("qlockstat", NULL);
 	int i;
 
-	if (!d_qstat) {
-		pr_warn("Could not create 'qlockstat' debugfs directory\n");
-		return 0;
-	}
+	if (!d_qstat)
+		goto out;
 
 	/*
 	 * Create the debugfs files
@@ -222,12 +222,20 @@ static int __init init_qspinlock_stat(void)
 	 * performance.
 	 */
 	for (i = 0; i < qstat_num; i++)
-		debugfs_create_file(qstat_names[i], 0400, d_qstat,
-				   (void *)(long)i, &fops_qstat);
+		if (!debugfs_create_file(qstat_names[i], 0400, d_qstat,
+					 (void *)(long)i, &fops_qstat))
+			goto fail_undo;
 
-	debugfs_create_file(qstat_names[qstat_reset_cnts], 0200, d_qstat,
-			   (void *)(long)qstat_reset_cnts, &fops_qstat);
+	if (!debugfs_create_file(qstat_names[qstat_reset_cnts], 0200, d_qstat,
+				 (void *)(long)qstat_reset_cnts, &fops_qstat))
+		goto fail_undo;
+
 	return 0;
+fail_undo:
+	debugfs_remove_recursive(d_qstat);
+out:
+	pr_warn("Could not create 'qlockstat' debugfs entries\n");
+	return -ENOMEM;
 }
 fs_initcall(init_qspinlock_stat);
 
@@ -278,19 +286,6 @@ static inline void __pv_wait(u8 *ptr, u8 val)
 
 #define pv_kick(c)	__pv_kick(c)
 #define pv_wait(p, v)	__pv_wait(p, v)
-
-/*
- * PV unfair trylock count tracking function
- */
-static inline int qstat_spin_steal_lock(struct qspinlock *lock)
-{
-	int ret = pv_queued_spin_steal_lock(lock);
-
-	qstat_inc(qstat_pv_lock_stealing, ret);
-	return ret;
-}
-#undef  queued_spin_trylock
-#define queued_spin_trylock(l)	qstat_spin_steal_lock(l)
 
 #else /* CONFIG_QUEUED_LOCK_STAT */
 

@@ -735,6 +735,7 @@ static int video_register_media_controller(struct video_device *vdev, int type)
 	if (!vdev->v4l2_dev->mdev)
 		return 0;
 
+	vdev->entity.obj_type = MEDIA_ENTITY_TYPE_VIDEO_DEVICE;
 	vdev->entity.function = MEDIA_ENT_F_UNKNOWN;
 
 	switch (type) {
@@ -811,40 +812,6 @@ static int video_register_media_controller(struct video_device *vdev, int type)
 	return 0;
 }
 
-/**
- *	__video_register_device - register video4linux devices
- *	@vdev: video device structure we want to register
- *	@type: type of device to register
- *	@nr:   which device node number (0 == /dev/video0, 1 == /dev/video1, ...
- *             -1 == first free)
- *	@warn_if_nr_in_use: warn if the desired device node number
- *	       was already in use and another number was chosen instead.
- *	@owner: module that owns the video device node
- *
- *	The registration code assigns minor numbers and device node numbers
- *	based on the requested type and registers the new device node with
- *	the kernel.
- *
- *	This function assumes that struct video_device was zeroed when it
- *	was allocated and does not contain any stale date.
- *
- *	An error is returned if no free minor or device node number could be
- *	found, or if the registration of the device node failed.
- *
- *	Zero is returned on success.
- *
- *	Valid types are
- *
- *	%VFL_TYPE_GRABBER - A frame grabber
- *
- *	%VFL_TYPE_VBI - Vertical blank data (undecoded)
- *
- *	%VFL_TYPE_RADIO - A radio card
- *
- *	%VFL_TYPE_SUBDEV - A subdevice
- *
- *	%VFL_TYPE_SDR - Software Defined Radio
- */
 int __video_register_device(struct video_device *vdev, int type, int nr,
 		int warn_if_nr_in_use, struct module *owner)
 {

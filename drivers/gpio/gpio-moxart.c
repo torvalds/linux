@@ -15,7 +15,6 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
-#include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
@@ -57,13 +56,10 @@ static int moxart_gpio_probe(struct platform_device *pdev)
 	gc->label = "moxart-gpio";
 	gc->request = gpiochip_generic_request;
 	gc->free = gpiochip_generic_free;
-	gc->bgpio_data = gc->read_reg(gc->reg_set);
 	gc->base = 0;
-	gc->ngpio = 32;
-	gc->parent = dev;
 	gc->owner = THIS_MODULE;
 
-	ret = gpiochip_add_data(gc, NULL);
+	ret = devm_gpiochip_add_data(dev, gc, NULL);
 	if (ret) {
 		dev_err(dev, "%s: gpiochip_add failed\n",
 			dev->of_node->full_name);
@@ -85,8 +81,4 @@ static struct platform_driver moxart_gpio_driver = {
 	},
 	.probe	= moxart_gpio_probe,
 };
-module_platform_driver(moxart_gpio_driver);
-
-MODULE_DESCRIPTION("MOXART GPIO chip driver");
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Jonas Jensen <jonas.jensen@gmail.com>");
+builtin_platform_driver(moxart_gpio_driver);

@@ -201,7 +201,7 @@ unsigned long get_wchan(struct task_struct *task);
 #define KSTK_ESP(tsk)  (task_pt_regs(tsk)->u_regs[UREG_FP])
 
 /* Please see the commentary in asm/backoff.h for a description of
- * what these instructions are doing and how they have been choosen.
+ * what these instructions are doing and how they have been chosen.
  * To make a long story short, we are trying to yield the current cpu
  * strand during busy loops.
  */

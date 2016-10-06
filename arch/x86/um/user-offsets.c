@@ -9,14 +9,12 @@
 #include <asm/types.h>
 
 #ifdef __i386__
-#define __SYSCALL_I386(nr, sym, compat) [nr] = 1,
+#define __SYSCALL_I386(nr, sym, qual) [nr] = 1,
 static char syscalls[] = {
 #include <asm/syscalls_32.h>
 };
 #else
-#define __SYSCALL_64(nr, sym, compat) [nr] = 1,
-#define __SYSCALL_COMMON(nr, sym, compat) [nr] = 1,
-#define __SYSCALL_X32(nr, sym, compat) /* Not supported */
+#define __SYSCALL_64(nr, sym, qual) [nr] = 1,
 static char syscalls[] = {
 #include <asm/syscalls_64.h>
 };
@@ -52,7 +50,7 @@ void foo(void)
 	DEFINE(HOST_GS, GS);
 	DEFINE(HOST_ORIG_AX, ORIG_EAX);
 #else
-	DEFINE(HOST_FP_SIZE, sizeof(struct _fpstate) / sizeof(unsigned long));
+	DEFINE(HOST_FP_SIZE, sizeof(struct _xstate) / sizeof(unsigned long));
 	DEFINE_LONGS(HOST_BX, RBX);
 	DEFINE_LONGS(HOST_CX, RCX);
 	DEFINE_LONGS(HOST_DI, RDI);

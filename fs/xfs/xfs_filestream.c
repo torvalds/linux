@@ -22,6 +22,7 @@
 #include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_mount.h"
+#include "xfs_defer.h"
 #include "xfs_inode.h"
 #include "xfs_bmap.h"
 #include "xfs_bmap_util.h"
@@ -151,7 +152,7 @@ xfs_filestream_pick_ag(
 	xfs_agnumber_t		ag, max_ag = NULLAGNUMBER;
 	int			err, trylock, nscan;
 
-	ASSERT(S_ISDIR(ip->i_d.di_mode));
+	ASSERT(S_ISDIR(VFS_I(ip)->i_mode));
 
 	/* 2% of an AG's blocks must be free for it to be chosen. */
 	minfree = mp->m_sb.sb_agblocks / 50;
@@ -319,7 +320,7 @@ xfs_filestream_lookup_ag(
 	xfs_agnumber_t		startag, ag = NULLAGNUMBER;
 	struct xfs_mru_cache_elem *mru;
 
-	ASSERT(S_ISREG(ip->i_d.di_mode));
+	ASSERT(S_ISREG(VFS_I(ip)->i_mode));
 
 	pip = xfs_filestream_get_parent(ip);
 	if (!pip)
@@ -385,7 +386,7 @@ xfs_filestream_new_ag(
 	}
 
 	flags = (ap->userdata ? XFS_PICK_USERDATA : 0) |
-	        (ap->flist->xbf_low ? XFS_PICK_LOWSPACE : 0);
+	        (ap->dfops->dop_low ? XFS_PICK_LOWSPACE : 0);
 
 	err = xfs_filestream_pick_ag(pip, startag, agp, flags, minlen);
 

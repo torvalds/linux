@@ -296,9 +296,6 @@ struct fb_ops {
 	/* Draws cursor */
 	int (*fb_cursor) (struct fb_info *info, struct fb_cursor *cursor);
 
-	/* Rotates the display */
-	void (*fb_rotate)(struct fb_info *info, int angle);
-
 	/* wait for blit idle, optional */
 	int (*fb_sync)(struct fb_info *info);
 
@@ -676,6 +673,7 @@ static inline void __fb_pad_aligned_buffer(u8 *dst, u32 d_pitch,
 }
 
 /* drivers/video/fb_defio.c */
+int fb_deferred_io_mmap(struct fb_info *info, struct vm_area_struct *vma);
 extern void fb_deferred_io_init(struct fb_info *info);
 extern void fb_deferred_io_open(struct fb_info *info,
 				struct inode *inode,

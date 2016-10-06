@@ -71,6 +71,11 @@ static int tonga_dpm_sw_init(void *handle)
 
 static int tonga_dpm_sw_fini(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	release_firmware(adev->pm.fw);
+	adev->pm.fw = NULL;
+
 	return 0;
 }
 
@@ -122,25 +127,12 @@ static int tonga_dpm_hw_fini(void *handle)
 
 static int tonga_dpm_suspend(void *handle)
 {
-	return 0;
+	return tonga_dpm_hw_fini(handle);
 }
 
 static int tonga_dpm_resume(void *handle)
 {
-	int ret;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	mutex_lock(&adev->pm.mutex);
-
-	ret = tonga_smu_start(adev);
-	if (ret) {
-		DRM_ERROR("SMU start failed\n");
-		goto fail;
-	}
-
-fail:
-	mutex_unlock(&adev->pm.mutex);
-	return ret;
+	return tonga_dpm_hw_init(handle);
 }
 
 static int tonga_dpm_set_clockgating_state(void *handle,
@@ -156,6 +148,7 @@ static int tonga_dpm_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs tonga_dpm_ip_funcs = {
+	.name = "tonga_dpm",
 	.early_init = tonga_dpm_early_init,
 	.late_init = NULL,
 	.sw_init = tonga_dpm_sw_init,
@@ -167,7 +160,6 @@ const struct amd_ip_funcs tonga_dpm_ip_funcs = {
 	.is_idle = NULL,
 	.wait_for_idle = NULL,
 	.soft_reset = NULL,
-	.print_status = NULL,
 	.set_clockgating_state = tonga_dpm_set_clockgating_state,
 	.set_powergating_state = tonga_dpm_set_powergating_state,
 };

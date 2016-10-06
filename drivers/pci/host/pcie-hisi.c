@@ -12,7 +12,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/interrupt.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
@@ -235,9 +235,6 @@ static const struct of_device_id hisi_pcie_of_match[] = {
 	{},
 };
 
-
-MODULE_DEVICE_TABLE(of, hisi_pcie_of_match);
-
 static struct platform_driver hisi_pcie_driver = {
 	.probe  = hisi_pcie_probe,
 	.driver = {
@@ -245,10 +242,4 @@ static struct platform_driver hisi_pcie_driver = {
 		   .of_match_table = hisi_pcie_of_match,
 	},
 };
-
-module_platform_driver(hisi_pcie_driver);
-
-MODULE_AUTHOR("Zhou Wang <wangzhou1@hisilicon.com>");
-MODULE_AUTHOR("Dacai Zhu <zhudacai@hisilicon.com>");
-MODULE_AUTHOR("Gabriele Paoloni <gabriele.paoloni@huawei.com>");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(hisi_pcie_driver);

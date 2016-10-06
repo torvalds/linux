@@ -34,8 +34,24 @@ void *module_alloc(unsigned long size)
 {
 	void *p;
 
-	p = __vmalloc_node_range(size, MODULE_ALIGN, MODULES_VADDR, MODULES_END,
+	p = __vmalloc_node_range(size, MODULE_ALIGN, module_alloc_base,
+				module_alloc_base + MODULES_VSIZE,
 				GFP_KERNEL, PAGE_KERNEL_EXEC, 0,
+				NUMA_NO_NODE, __builtin_return_address(0));
+
+	if (!p && IS_ENABLED(CONFIG_ARM64_MODULE_PLTS) &&
+	    !IS_ENABLED(CONFIG_KASAN))
+		/*
+		 * KASAN can only deal with module allocations being served
+		 * from the reserved module region, since the remainder of
+		 * the vmalloc region is already backed by zero shadow pages,
+		 * and punching holes into it is non-trivial. Since the module
+		 * region is not randomized when KASAN is enabled, it is even
+		 * less likely that the module region gets exhausted, so we
+		 * can simply omit this fallback in that case.
+		 */
+		p = __vmalloc_node_range(size, MODULE_ALIGN, VMALLOC_START,
+				VMALLOC_END, GFP_KERNEL, PAGE_KERNEL_EXEC, 0,
 				NUMA_NO_NODE, __builtin_return_address(0));
 
 	if (p && (kasan_module_alloc(p, size) < 0)) {
@@ -361,6 +377,13 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 		case R_AARCH64_CALL26:
 			ovf = reloc_insn_imm(RELOC_OP_PREL, loc, val, 2, 26,
 					     AARCH64_INSN_IMM_26);
+
+			if (IS_ENABLED(CONFIG_ARM64_MODULE_PLTS) &&
+			    ovf == -ERANGE) {
+				val = module_emit_plt_entry(me, &rel[i], sym);
+				ovf = reloc_insn_imm(RELOC_OP_PREL, loc, val, 2,
+						     26, AARCH64_INSN_IMM_26);
+			}
 			break;
 
 		default:

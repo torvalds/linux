@@ -57,7 +57,8 @@ XGINew_GetXG20DRAMType(struct xgi_hw_device_info *HwDeviceExtension,
 		data = xgifb_reg_get(pVBInfo->P3d4, 0x48);
 		/* HOTPLUG_SUPPORT */
 		/* for current XG20 & XG21, GPIOH is floating, driver will
-		 * fix DDR temporarily */
+		 * fix DDR temporarily
+		 */
 		/* DVI read GPIOH */
 		data &= 0x01; /* 1=DDRII, 0=DDR */
 		/* ~HOTPLUG_SUPPORT */
@@ -354,7 +355,8 @@ static void XGINew_DDR2_DefaultRegister(
 	unsigned long P3d4 = Port, P3c4 = Port - 0x10;
 
 	/* keep following setting sequence, each setting in
-	 * the same reg insert idle */
+	 * the same reg insert idle
+	 */
 	xgifb_reg_set(P3d4, 0x82, 0x77);
 	xgifb_reg_set(P3d4, 0x86, 0x00);
 	xgifb_reg_get(P3d4, 0x86); /* Insert read command for delay */
@@ -550,7 +552,8 @@ static int XGINew_ReadWriteRest(unsigned short StopAddr,
 		writel(Position, fbaddr + Position);
 	}
 
-	usleep_range(500, 1500); /* Fix #1759 Memory Size error in Multi-Adapter. */
+	/* Fix #1759 Memory Size error in Multi-Adapter. */
+	usleep_range(500, 1500);
 
 	Position = 0;
 
@@ -698,11 +701,11 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 		break;
 	case XG42:
 		/*
-		 XG42 SR14 D[3] Reserve
-		 D[2] = 1, Dual Channel
-		 = 0, Single Channel
-
-		 It's Different from Other XG40 Series.
+		 * XG42 SR14 D[3] Reserve
+		 * D[2] = 1, Dual Channel
+		 * = 0, Single Channel
+		 *
+		 * It's Different from Other XG40 Series.
 		 */
 		if (XGINew_CheckFrequence(pVBInfo) == 1) { /* DDRII, DDR2x */
 			pVBInfo->ram_bus = 32; /* 32 bits */

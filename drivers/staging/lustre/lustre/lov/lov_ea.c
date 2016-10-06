@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -48,11 +44,6 @@
 
 #include "lov_internal.h"
 
-struct lovea_unpack_args {
-	struct lov_stripe_md *lsm;
-	int		   cursor;
-};
-
 static int lsm_lmm_verify_common(struct lov_mds_md *lmm, int lmm_bytes,
 				 __u16 stripe_count)
 {
@@ -75,7 +66,8 @@ static int lsm_lmm_verify_common(struct lov_mds_md *lmm, int lmm_bytes,
 	}
 
 	if (lmm->lmm_stripe_size == 0 ||
-	    (le32_to_cpu(lmm->lmm_stripe_size)&(LOV_MIN_STRIPE_SIZE-1)) != 0) {
+	    (le32_to_cpu(lmm->lmm_stripe_size) &
+	     (LOV_MIN_STRIPE_SIZE - 1)) != 0) {
 		CERROR("bad stripe size %u\n",
 		       le32_to_cpu(lmm->lmm_stripe_size));
 		lov_dump_lmm_common(D_WARNING, lmm);
@@ -100,8 +92,8 @@ struct lov_stripe_md *lsm_alloc_plain(__u16 stripe_count, int *size)
 		return NULL;
 
 	for (i = 0; i < stripe_count; i++) {
-		loi = kmem_cache_alloc(lov_oinfo_slab, GFP_NOFS | __GFP_ZERO);
-		if (loi == NULL)
+		loi = kmem_cache_zalloc(lov_oinfo_slab, GFP_NOFS);
+		if (!loi)
 			goto err;
 		lsm->lsm_oinfo[i] = loi;
 	}
@@ -141,7 +133,7 @@ static void lsm_unpackmd_common(struct lov_stripe_md *lsm,
 
 static void
 lsm_stripe_by_index_plain(struct lov_stripe_md *lsm, int *stripeno,
-			   u64 *lov_off, u64 *swidth)
+			  u64 *lov_off, u64 *swidth)
 {
 	if (swidth)
 		*swidth = (u64)lsm->lsm_stripe_size * lsm->lsm_stripe_count;
@@ -155,20 +147,15 @@ lsm_stripe_by_offset_plain(struct lov_stripe_md *lsm, int *stripeno,
 		*swidth = (u64)lsm->lsm_stripe_size * lsm->lsm_stripe_count;
 }
 
-static int lsm_destroy_plain(struct lov_stripe_md *lsm, struct obdo *oa,
-			     struct obd_export *md_exp)
-{
-	return 0;
-}
-
 /* Find minimum stripe maxbytes value.  For inactive or
- * reconnecting targets use LUSTRE_STRIPE_MAXBYTES. */
+ * reconnecting targets use LUSTRE_EXT3_STRIPE_MAXBYTES.
+ */
 static void lov_tgt_maxbytes(struct lov_tgt_desc *tgt, __u64 *stripe_maxbytes)
 {
 	struct obd_import *imp = tgt->ltd_obd->u.cli.cl_import;
 
-	if (imp == NULL || !tgt->ltd_active) {
-		*stripe_maxbytes = LUSTRE_STRIPE_MAXBYTES;
+	if (!imp || !tgt->ltd_active) {
+		*stripe_maxbytes = LUSTRE_EXT3_STRIPE_MAXBYTES;
 		return;
 	}
 
@@ -179,7 +166,7 @@ static void lov_tgt_maxbytes(struct lov_tgt_desc *tgt, __u64 *stripe_maxbytes)
 		if (*stripe_maxbytes > imp->imp_connect_data.ocd_maxbytes)
 			*stripe_maxbytes = imp->imp_connect_data.ocd_maxbytes;
 	} else {
-		*stripe_maxbytes = LUSTRE_STRIPE_MAXBYTES;
+		*stripe_maxbytes = LUSTRE_EXT3_STRIPE_MAXBYTES;
 	}
 	spin_unlock(&imp->imp_lock);
 }
@@ -253,7 +240,6 @@ static int lsm_unpackmd_v1(struct lov_obd *lov, struct lov_stripe_md *lsm,
 
 const struct lsm_operations lsm_v1_ops = {
 	.lsm_free	    = lsm_free_plain,
-	.lsm_destroy	 = lsm_destroy_plain,
 	.lsm_stripe_by_index    = lsm_stripe_by_index_plain,
 	.lsm_stripe_by_offset   = lsm_stripe_by_offset_plain,
 	.lsm_lmm_verify	 = lsm_lmm_verify_v1,
@@ -343,7 +329,6 @@ static int lsm_unpackmd_v3(struct lov_obd *lov, struct lov_stripe_md *lsm,
 
 const struct lsm_operations lsm_v3_ops = {
 	.lsm_free	    = lsm_free_plain,
-	.lsm_destroy	 = lsm_destroy_plain,
 	.lsm_stripe_by_index    = lsm_stripe_by_index_plain,
 	.lsm_stripe_by_offset   = lsm_stripe_by_offset_plain,
 	.lsm_lmm_verify	 = lsm_lmm_verify_v3,

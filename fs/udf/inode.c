@@ -214,8 +214,7 @@ static int udf_write_begin(struct file *file, struct address_space *mapping,
 	return ret;
 }
 
-static ssize_t udf_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
-			     loff_t offset)
+static ssize_t udf_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
@@ -223,9 +222,9 @@ static ssize_t udf_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 	size_t count = iov_iter_count(iter);
 	ssize_t ret;
 
-	ret = blockdev_direct_IO(iocb, inode, iter, offset, udf_get_block);
+	ret = blockdev_direct_IO(iocb, inode, iter, udf_get_block);
 	if (unlikely(ret < 0 && iov_iter_rw(iter) == WRITE))
-		udf_write_failed(mapping, offset + count);
+		udf_write_failed(mapping, iocb->ki_pos + count);
 	return ret;
 }
 
@@ -287,7 +286,7 @@ int udf_expand_file_adinicb(struct inode *inode)
 	if (!PageUptodate(page)) {
 		kaddr = kmap(page);
 		memset(kaddr + iinfo->i_lenAlloc, 0x00,
-		       PAGE_CACHE_SIZE - iinfo->i_lenAlloc);
+		       PAGE_SIZE - iinfo->i_lenAlloc);
 		memcpy(kaddr, iinfo->i_ext.i_data + iinfo->i_lenEAttr,
 			iinfo->i_lenAlloc);
 		flush_dcache_page(page);
@@ -319,7 +318,7 @@ int udf_expand_file_adinicb(struct inode *inode)
 		inode->i_data.a_ops = &udf_adinicb_aops;
 		up_write(&iinfo->i_data_sem);
 	}
-	page_cache_release(page);
+	put_page(page);
 	mark_inode_dirty(inode);
 
 	return err;
@@ -1200,7 +1199,7 @@ struct buffer_head *udf_bread(struct inode *inode, int block,
 	if (buffer_uptodate(bh))
 		return bh;
 
-	ll_rw_block(READ, 1, &bh);
+	ll_rw_block(REQ_OP_READ, 0, 1, &bh);
 
 	wait_on_buffer(bh);
 	if (buffer_uptodate(bh))

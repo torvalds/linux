@@ -75,6 +75,13 @@ config BATTERY_88PM860X
 	help
 	  Say Y here to enable battery monitor for Marvell 88PM860x chip.
 
+config BATTERY_ACT8945A
+	tristate "Active-semi ACT8945A charger driver"
+	depends on MFD_ACT8945A || COMPILE_TEST
+	help
+	  Say Y here to enable support for power supply provided by
+	  Active-semi ActivePath ACT8945A charger.
+
 config BATTERY_DS2760
 	tristate "DS2760 battery driver (HP iPAQ & others)"
 	depends on W1 && W1_SLAVE_DS2760
@@ -302,6 +309,7 @@ config BATTERY_RX51
 config CHARGER_ISP1704
 	tristate "ISP1704 USB Charger Detection"
 	depends on USB_PHY
+	depends on USB_GADGET || !USB_GADGET # if USB_GADGET=m, this can't be 'y'
 	help
 	  Say Y to enable support for USB Charger Detection with
 	  ISP1707/ISP1704 USB transceivers.
@@ -386,6 +394,7 @@ config CHARGER_QCOM_SMBB
 	tristate "Qualcomm Switch-Mode Battery Charger and Boost"
 	depends on MFD_SPMI_PMIC || COMPILE_TEST
 	depends on OF
+	depends on EXTCON
 	help
 	  Say Y to include support for the Switch-Mode Battery Charger and
 	  Boost (SMBB) hardware found in Qualcomm PM8941 PMICs.  The charger

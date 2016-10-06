@@ -15,9 +15,9 @@
 #include <linux/spi/spi.h>
 #include <linux/mutex.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 
-#include <video/omapdss.h>
-#include <video/omap-panel-data.h>
+#include "../dss/omapdss.h"
 
 static struct omap_video_timings lb035q02_timings = {
 	.x_res = 320,
@@ -49,9 +49,6 @@ struct panel_drv_data {
 	int data_lines;
 
 	struct omap_video_timings videomode;
-
-	/* used for non-DT boot, to be removed */
-	int backlight_gpio;
 
 	struct gpio_desc *enable_gpio;
 };
@@ -170,9 +167,6 @@ static int lb035q02_enable(struct omap_dss_device *dssdev)
 	if (ddata->enable_gpio)
 		gpiod_set_value_cansleep(ddata->enable_gpio, 1);
 
-	if (gpio_is_valid(ddata->backlight_gpio))
-		gpio_set_value_cansleep(ddata->backlight_gpio, 1);
-
 	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
 	return 0;
@@ -188,9 +182,6 @@ static void lb035q02_disable(struct omap_dss_device *dssdev)
 
 	if (ddata->enable_gpio)
 		gpiod_set_value_cansleep(ddata->enable_gpio, 0);
-
-	if (gpio_is_valid(ddata->backlight_gpio))
-		gpio_set_value_cansleep(ddata->backlight_gpio, 0);
 
 	in->ops.dpi->disable(in);
 
@@ -240,44 +231,6 @@ static struct omap_dss_driver lb035q02_ops = {
 	.get_resolution	= omapdss_default_get_resolution,
 };
 
-static int lb035q02_probe_pdata(struct spi_device *spi)
-{
-	const struct panel_lb035q02_platform_data *pdata;
-	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
-	struct omap_dss_device *dssdev, *in;
-	int r;
-
-	pdata = dev_get_platdata(&spi->dev);
-
-	in = omap_dss_find_output(pdata->source);
-	if (in == NULL) {
-		dev_err(&spi->dev, "failed to find video source '%s'\n",
-				pdata->source);
-		return -EPROBE_DEFER;
-	}
-
-	ddata->in = in;
-
-	ddata->data_lines = pdata->data_lines;
-
-	dssdev = &ddata->dssdev;
-	dssdev->name = pdata->name;
-
-	r = devm_gpio_request_one(&spi->dev, pdata->enable_gpio,
-					GPIOF_OUT_INIT_LOW, "panel enable");
-	if (r)
-		goto err_gpio;
-
-	ddata->enable_gpio = gpio_to_desc(pdata->enable_gpio);
-
-	ddata->backlight_gpio = pdata->backlight_gpio;
-
-	return 0;
-err_gpio:
-	omap_dss_put_device(ddata->in);
-	return r;
-}
-
 static int lb035q02_probe_of(struct spi_device *spi)
 {
 	struct device_node *node = spi->dev.of_node;
@@ -292,8 +245,6 @@ static int lb035q02_probe_of(struct spi_device *spi)
 	}
 
 	ddata->enable_gpio = gpio;
-
-	ddata->backlight_gpio = -ENOENT;
 
 	in = omapdss_of_find_source_for_first_ep(node);
 	if (IS_ERR(in)) {
@@ -320,24 +271,12 @@ static int lb035q02_panel_spi_probe(struct spi_device *spi)
 
 	ddata->spi = spi;
 
-	if (dev_get_platdata(&spi->dev)) {
-		r = lb035q02_probe_pdata(spi);
-		if (r)
-			return r;
-	} else if (spi->dev.of_node) {
-		r = lb035q02_probe_of(spi);
-		if (r)
-			return r;
-	} else {
+	if (!spi->dev.of_node)
 		return -ENODEV;
-	}
 
-	if (gpio_is_valid(ddata->backlight_gpio)) {
-		r = devm_gpio_request_one(&spi->dev, ddata->backlight_gpio,
-				GPIOF_OUT_INIT_LOW, "panel backlight");
-		if (r)
-			goto err_gpio;
-	}
+	r = lb035q02_probe_of(spi);
+	if (r)
+		return r;
 
 	ddata->videomode = lb035q02_timings;
 
@@ -358,7 +297,6 @@ static int lb035q02_panel_spi_probe(struct spi_device *spi)
 	return 0;
 
 err_reg:
-err_gpio:
 	omap_dss_put_device(ddata->in);
 	return r;
 }

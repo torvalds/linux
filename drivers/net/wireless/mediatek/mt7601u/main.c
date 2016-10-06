@@ -15,7 +15,6 @@
 #include "mt7601u.h"
 #include "mac.h"
 #include <linux/etherdevice.h>
-#include <linux/version.h>
 
 static int mt7601u_start(struct ieee80211_hw *hw)
 {
@@ -334,11 +333,13 @@ static int mt7601u_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 
 static int
 mt76_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		  enum ieee80211_ampdu_mlme_action action,
-		  struct ieee80211_sta *sta, u16 tid, u16 *ssn, u8 buf_size,
-		  bool amsdu)
+		  struct ieee80211_ampdu_params *params)
 {
 	struct mt7601u_dev *dev = hw->priv;
+	struct ieee80211_sta *sta = params->sta;
+	enum ieee80211_ampdu_mlme_action action = params->action;
+	u16 tid = params->tid;
+	u16 *ssn = &params->ssn;
 	struct mt76_sta *msta = (struct mt76_sta *) sta->drv_priv;
 
 	WARN_ON(msta->wcid.idx > GROUP_WCID(0));

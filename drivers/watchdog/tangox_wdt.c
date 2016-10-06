@@ -139,13 +139,17 @@ static int tangox_wdt_probe(struct platform_device *pdev)
 		return err;
 
 	dev->clk_rate = clk_get_rate(dev->clk);
+	if (!dev->clk_rate) {
+		err = -EINVAL;
+		goto err;
+	}
 
 	dev->wdt.parent = &pdev->dev;
 	dev->wdt.info = &tangox_wdt_info;
 	dev->wdt.ops = &tangox_wdt_ops;
 	dev->wdt.timeout = DEFAULT_TIMEOUT;
 	dev->wdt.min_timeout = 1;
-	dev->wdt.max_timeout = (U32_MAX - 1) / dev->clk_rate;
+	dev->wdt.max_hw_heartbeat_ms = (U32_MAX - 1) / dev->clk_rate;
 
 	watchdog_init_timeout(&dev->wdt, timeout, &pdev->dev);
 	watchdog_set_nowayout(&dev->wdt, nowayout);
@@ -166,15 +170,13 @@ static int tangox_wdt_probe(struct platform_device *pdev)
 	 * already running.
 	 */
 	if (readl(dev->base + WD_COUNTER)) {
-		set_bit(WDOG_ACTIVE, &dev->wdt.status);
+		set_bit(WDOG_HW_RUNNING, &dev->wdt.status);
 		tangox_wdt_start(&dev->wdt);
 	}
 
 	err = watchdog_register_device(&dev->wdt);
-	if (err) {
-		clk_disable_unprepare(dev->clk);
-		return err;
-	}
+	if (err)
+		goto err;
 
 	platform_set_drvdata(pdev, dev);
 
@@ -187,6 +189,10 @@ static int tangox_wdt_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "SMP86xx/SMP87xx watchdog registered\n");
 
 	return 0;
+
+ err:
+	clk_disable_unprepare(dev->clk);
+	return err;
 }
 
 static int tangox_wdt_remove(struct platform_device *pdev)

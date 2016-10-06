@@ -33,6 +33,7 @@
 #include <linux/slab.h>
 #include <drm/drmP.h>
 #include <drm/radeon_drm.h>
+#include <drm/drm_cache.h>
 #include "radeon.h"
 #include "radeon_trace.h"
 
@@ -213,8 +214,8 @@ int radeon_bo_create(struct radeon_device *rdev,
 	INIT_LIST_HEAD(&bo->list);
 	INIT_LIST_HEAD(&bo->va);
 	bo->initial_domain = domain & (RADEON_GEM_DOMAIN_VRAM |
-	                               RADEON_GEM_DOMAIN_GTT |
-	                               RADEON_GEM_DOMAIN_CPU);
+				       RADEON_GEM_DOMAIN_GTT |
+				       RADEON_GEM_DOMAIN_CPU);
 
 	bo->flags = flags;
 	/* PCI GART is always snooped */
@@ -245,6 +246,12 @@ int radeon_bo_create(struct radeon_device *rdev,
 		DRM_INFO_ONCE("Please enable CONFIG_MTRR and CONFIG_X86_PAT for "
 			      "better performance thanks to write-combining\n");
 	bo->flags &= ~(RADEON_GEM_GTT_WC | RADEON_GEM_GTT_UC);
+#else
+	/* For architectures that don't support WC memory,
+	 * mask out the WC flag from the BO
+	 */
+	if (!drm_arch_can_wc_memory())
+		bo->flags &= ~RADEON_GEM_GTT_WC;
 #endif
 
 	radeon_ttm_placement_from_domain(bo, domain);
@@ -792,6 +799,10 @@ int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 	if ((offset + size) <= rdev->mc.visible_vram_size)
 		return 0;
 
+	/* Can't move a pinned BO to visible VRAM */
+	if (rbo->pin_count > 0)
+		return -EINVAL;
+
 	/* hurrah the memory is not visible ! */
 	radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_VRAM);
 	lpfn =	rdev->mc.visible_vram_size >> PAGE_SHIFT;
@@ -821,13 +832,13 @@ int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type, bool no_wait)
 {
 	int r;
 
-	r = ttm_bo_reserve(&bo->tbo, true, no_wait, false, NULL);
+	r = ttm_bo_reserve(&bo->tbo, true, no_wait, NULL);
 	if (unlikely(r != 0))
 		return r;
 	if (mem_type)
 		*mem_type = bo->tbo.mem.mem_type;
 
-	r = ttm_bo_wait(&bo->tbo, true, true, no_wait);
+	r = ttm_bo_wait(&bo->tbo, true, no_wait);
 	ttm_bo_unreserve(&bo->tbo);
 	return r;
 }
@@ -841,7 +852,7 @@ int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type, bool no_wait)
  *
  */
 void radeon_bo_fence(struct radeon_bo *bo, struct radeon_fence *fence,
-                     bool shared)
+		     bool shared)
 {
 	struct reservation_object *resv = bo->tbo.resv;
 

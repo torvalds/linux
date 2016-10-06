@@ -11,11 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
  ******************************************************************************/
 #ifndef __RTW_SECURITY_H_
 #define __RTW_SECURITY_H_
@@ -167,12 +162,6 @@ struct security_priv {
 	struct rt_pmkid_list PMKIDList[NUM_PMKID_CACHE];
 	u8	PMKIDIndex;
 	u8 bWepDefaultKeyIdxSet;
-};
-
-struct sha256_state {
-	u64 length;
-	u32 state[8], curlen;
-	u8 buf[64];
 };
 
 #define GET_ENCRY_ALGO(psecuritypriv, psta, encry_algo, bmcst)		\

@@ -18,6 +18,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
@@ -385,6 +386,7 @@ struct sdma_engine {
 	const struct sdma_driver_data	*drvdata;
 	u32				spba_start_addr;
 	u32				spba_end_addr;
+	unsigned int			irq;
 };
 
 static struct sdma_driver_data sdma_imx31 = {
@@ -571,28 +573,20 @@ static void sdma_enable_channel(struct sdma_engine *sdma, int channel)
 static int sdma_run_channel0(struct sdma_engine *sdma)
 {
 	int ret;
-	unsigned long timeout = 500;
+	u32 reg;
 
 	sdma_enable_channel(sdma, 0);
 
-	while (!(ret = readl_relaxed(sdma->regs + SDMA_H_INTR) & 1)) {
-		if (timeout-- <= 0)
-			break;
-		udelay(1);
-	}
-
-	if (ret) {
-		/* Clear the interrupt status */
-		writel_relaxed(ret, sdma->regs + SDMA_H_INTR);
-	} else {
+	ret = readl_relaxed_poll_timeout_atomic(sdma->regs + SDMA_H_STATSTOP,
+						reg, !(reg & 1), 1, 500);
+	if (ret)
 		dev_err(sdma->dev, "Timeout waiting for CH0 ready\n");
-	}
 
 	/* Set bits of CONFIG register with dynamic context switching */
 	if (readl(sdma->regs + SDMA_H_CONFIG) == 0)
 		writel_relaxed(SDMA_H_CONFIG_CSM, sdma->regs + SDMA_H_CONFIG);
 
-	return ret ? 0 : -ETIMEDOUT;
+	return ret;
 }
 
 static int sdma_load_script(struct sdma_engine *sdma, void *buf, int size,
@@ -654,15 +648,11 @@ static void sdma_event_disable(struct sdma_channel *sdmac, unsigned int event)
 	writel_relaxed(val, sdma->regs + chnenbl);
 }
 
-static void sdma_handle_channel_loop(struct sdma_channel *sdmac)
-{
-	if (sdmac->desc.callback)
-		sdmac->desc.callback(sdmac->desc.callback_param);
-}
-
 static void sdma_update_channel_loop(struct sdma_channel *sdmac)
 {
 	struct sdma_buffer_descriptor *bd;
+	int error = 0;
+	enum dma_status	old_status = sdmac->status;
 
 	/*
 	 * loop mode. Iterate over descriptors, re-setup them and
@@ -674,17 +664,42 @@ static void sdma_update_channel_loop(struct sdma_channel *sdmac)
 		if (bd->mode.status & BD_DONE)
 			break;
 
-		if (bd->mode.status & BD_RROR)
+		if (bd->mode.status & BD_RROR) {
+			bd->mode.status &= ~BD_RROR;
 			sdmac->status = DMA_ERROR;
+			error = -EIO;
+		}
 
+	       /*
+		* We use bd->mode.count to calculate the residue, since contains
+		* the number of bytes present in the current buffer descriptor.
+		*/
+
+		sdmac->chn_real_count = bd->mode.count;
 		bd->mode.status |= BD_DONE;
+		bd->mode.count = sdmac->period_len;
+
+		/*
+		 * The callback is called from the interrupt context in order
+		 * to reduce latency and to avoid the risk of altering the
+		 * SDMA transaction status by the time the client tasklet is
+		 * executed.
+		 */
+
+		if (sdmac->desc.callback)
+			sdmac->desc.callback(sdmac->desc.callback_param);
+
 		sdmac->buf_tail++;
 		sdmac->buf_tail %= sdmac->num_bd;
+
+		if (error)
+			sdmac->status = old_status;
 	}
 }
 
-static void mxc_sdma_handle_channel_normal(struct sdma_channel *sdmac)
+static void mxc_sdma_handle_channel_normal(unsigned long data)
 {
+	struct sdma_channel *sdmac = (struct sdma_channel *) data;
 	struct sdma_buffer_descriptor *bd;
 	int i, error = 0;
 
@@ -711,25 +726,15 @@ static void mxc_sdma_handle_channel_normal(struct sdma_channel *sdmac)
 		sdmac->desc.callback(sdmac->desc.callback_param);
 }
 
-static void sdma_tasklet(unsigned long data)
-{
-	struct sdma_channel *sdmac = (struct sdma_channel *) data;
-
-	if (sdmac->flags & IMX_DMA_SG_LOOP)
-		sdma_handle_channel_loop(sdmac);
-	else
-		mxc_sdma_handle_channel_normal(sdmac);
-}
-
 static irqreturn_t sdma_int_handler(int irq, void *dev_id)
 {
 	struct sdma_engine *sdma = dev_id;
 	unsigned long stat;
 
 	stat = readl_relaxed(sdma->regs + SDMA_H_INTR);
-	/* not interested in channel 0 interrupts */
-	stat &= ~1;
 	writel_relaxed(stat, sdma->regs + SDMA_H_INTR);
+	/* channel 0 is special and not handled here, see run_channel0() */
+	stat &= ~1;
 
 	while (stat) {
 		int channel = fls(stat) - 1;
@@ -737,8 +742,8 @@ static irqreturn_t sdma_int_handler(int irq, void *dev_id)
 
 		if (sdmac->flags & IMX_DMA_SG_LOOP)
 			sdma_update_channel_loop(sdmac);
-
-		tasklet_schedule(&sdmac->tasklet);
+		else
+			tasklet_schedule(&sdmac->tasklet);
 
 		__clear_bit(channel, &stat);
 	}
@@ -758,7 +763,7 @@ static void sdma_get_pc(struct sdma_channel *sdmac,
 	 * These are needed once we start to support transfers between
 	 * two peripherals or memory-to-memory transfers
 	 */
-	int per_2_per = 0, emi_2_emi = 0;
+	int per_2_per = 0;
 
 	sdmac->pc_from_device = 0;
 	sdmac->pc_to_device = 0;
@@ -766,7 +771,6 @@ static void sdma_get_pc(struct sdma_channel *sdmac,
 
 	switch (peripheral_type) {
 	case IMX_DMATYPE_MEMORY:
-		emi_2_emi = sdma->script_addrs->ap_2_ap_addr;
 		break;
 	case IMX_DMATYPE_DSP:
 		emi_2_per = sdma->script_addrs->bp_2_ap_addr;
@@ -999,8 +1003,6 @@ static int sdma_config_channel(struct dma_chan *chan)
 		} else
 			__set_bit(sdmac->event_id0, sdmac->event_mask);
 
-		/* Watermark Level */
-		sdmac->watermark_level |= sdmac->watermark_level;
 		/* Address */
 		sdmac->shp_addr = sdmac->per_address;
 		sdmac->per_addr = sdmac->per_address2;
@@ -1362,7 +1364,8 @@ static enum dma_status sdma_tx_status(struct dma_chan *chan,
 	u32 residue;
 
 	if (sdmac->flags & IMX_DMA_SG_LOOP)
-		residue = (sdmac->num_bd - sdmac->buf_tail) * sdmac->period_len;
+		residue = (sdmac->num_bd - sdmac->buf_tail) *
+			   sdmac->period_len - sdmac->chn_real_count;
 	else
 		residue = sdmac->chn_count - sdmac->chn_real_count;
 
@@ -1715,6 +1718,8 @@ static int sdma_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	sdma->irq = irq;
+
 	sdma->script_addrs = kzalloc(sizeof(*sdma->script_addrs), GFP_KERNEL);
 	if (!sdma->script_addrs)
 		return -ENOMEM;
@@ -1739,7 +1744,7 @@ static int sdma_probe(struct platform_device *pdev)
 		dma_cookie_init(&sdmac->chan);
 		sdmac->channel = i;
 
-		tasklet_init(&sdmac->tasklet, sdma_tasklet,
+		tasklet_init(&sdmac->tasklet, mxc_sdma_handle_channel_normal,
 			     (unsigned long) sdmac);
 		/*
 		 * Add the channel to the DMAC list. Do not add channel 0 though
@@ -1840,6 +1845,7 @@ static int sdma_remove(struct platform_device *pdev)
 	struct sdma_engine *sdma = platform_get_drvdata(pdev);
 	int i;
 
+	devm_free_irq(&pdev->dev, sdma->irq, sdma);
 	dma_async_device_unregister(&sdma->dma_device);
 	kfree(sdma->script_addrs);
 	/* Kill the tasklet */

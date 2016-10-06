@@ -39,14 +39,36 @@ static struct mm_struct efi_mm = {
 	.mmlist			= LIST_HEAD_INIT(efi_mm.mmlist),
 };
 
+#ifdef CONFIG_ARM64_PTDUMP
+#include <asm/ptdump.h>
+
+static struct ptdump_info efi_ptdump_info = {
+	.mm		= &efi_mm,
+	.markers	= (struct addr_marker[]){
+		{ 0,		"UEFI runtime start" },
+		{ TASK_SIZE_64,	"UEFI runtime end" }
+	},
+	.base_addr	= 0,
+};
+
+static int __init ptdump_init(void)
+{
+	return ptdump_register(&efi_ptdump_info, "efi_page_tables");
+}
+device_initcall(ptdump_init);
+
+#endif
+
 static bool __init efi_virtmap_init(void)
 {
 	efi_memory_desc_t *md;
+	bool systab_found;
 
 	efi_mm.pgd = pgd_alloc(&efi_mm);
 	init_new_context(NULL, &efi_mm);
 
-	for_each_efi_memory_desc(&memmap, md) {
+	systab_found = false;
+	for_each_efi_memory_desc(md) {
 		phys_addr_t phys = md->phys_addr;
 		int ret;
 
@@ -64,7 +86,25 @@ static bool __init efi_virtmap_init(void)
 				&phys, ret);
 			return false;
 		}
+		/*
+		 * If this entry covers the address of the UEFI system table,
+		 * calculate and record its virtual address.
+		 */
+		if (efi_system_table >= phys &&
+		    efi_system_table < phys + (md->num_pages * EFI_PAGE_SIZE)) {
+			efi.systab = (void *)(unsigned long)(efi_system_table -
+							     phys + md->virt_addr);
+			systab_found = true;
+		}
 	}
+	if (!systab_found) {
+		pr_err("No virtual mapping found for the UEFI System Table\n");
+		return false;
+	}
+
+	if (efi_memattr_apply_permissions(&efi_mm, efi_set_mapping_permissions))
+		return false;
+
 	return true;
 }
 
@@ -87,36 +127,28 @@ static int __init arm_enable_runtime_services(void)
 		return 0;
 	}
 
+	if (efi_enabled(EFI_RUNTIME_SERVICES)) {
+		pr_info("EFI runtime services access via paravirt.\n");
+		return 0;
+	}
+
 	pr_info("Remapping and enabling EFI services.\n");
 
-	mapsize = memmap.map_end - memmap.map;
-	memmap.map = (__force void *)ioremap_cache(memmap.phys_map,
-						   mapsize);
-	if (!memmap.map) {
+	mapsize = efi.memmap.desc_size * efi.memmap.nr_map;
+
+	if (efi_memmap_init_late(efi.memmap.phys_map, mapsize)) {
 		pr_err("Failed to remap EFI memory map\n");
 		return -ENOMEM;
 	}
-	memmap.map_end = memmap.map + mapsize;
-	efi.memmap = &memmap;
-
-	efi.systab = (__force void *)ioremap_cache(efi_system_table,
-						   sizeof(efi_system_table_t));
-	if (!efi.systab) {
-		pr_err("Failed to remap EFI System Table\n");
-		return -ENOMEM;
-	}
-	set_bit(EFI_SYSTEM_TABLES, &efi.flags);
 
 	if (!efi_virtmap_init()) {
-		pr_err("No UEFI virtual mapping was installed -- runtime services will not be available\n");
+		pr_err("UEFI virtual mapping missing or invalid -- runtime services will not be available\n");
 		return -ENOMEM;
 	}
 
 	/* Set up runtime services function pointers */
 	efi_native_runtime_setup();
 	set_bit(EFI_RUNTIME_SERVICES, &efi.flags);
-
-	efi.runtime_version = efi.systab->hdr.revision;
 
 	return 0;
 }

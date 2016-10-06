@@ -29,7 +29,10 @@ else
   lib-y	+= io-readsw-armv4.o io-writesw-armv4.o
 endif
 
-lib-$(CONFIG_ARCH_RPC)		+= ecard.o io-acorn.o floppydma.o
+ifeq ($(CONFIG_ARCH_RPC),y)
+  lib-y				+= ecard.o io-acorn.o floppydma.o
+  AFLAGS_delay-loop.o		+= -march=armv4
+endif
 
 $(obj)/csumpartialcopy.o:	$(obj)/csumpartialcopygeneric.S
 $(obj)/csumpartialcopyuser.o:	$(obj)/csumpartialcopygeneric.S

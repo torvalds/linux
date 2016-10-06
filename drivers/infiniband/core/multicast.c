@@ -102,11 +102,10 @@ struct mcast_group {
 	struct list_head	pending_list;
 	struct list_head	active_list;
 	struct mcast_member	*last_join;
-	int			members[3];
+	int			members[NUM_JOIN_MEMBERSHIP_TYPES];
 	atomic_t		refcount;
 	enum mcast_group_state	state;
 	struct ib_sa_query	*query;
-	int			query_id;
 	u16			pkey_index;
 	u8			leave_state;
 	int			retries;
@@ -220,8 +219,9 @@ static void queue_join(struct mcast_member *member)
 }
 
 /*
- * A multicast group has three types of members: full member, non member, and
- * send only member.  We need to keep track of the number of members of each
+ * A multicast group has four types of members: full member, non member,
+ * sendonly non member and sendonly full member.
+ * We need to keep track of the number of members of each
  * type based on their join state.  Adjust the number of members the belong to
  * the specified join states.
  */
@@ -229,7 +229,7 @@ static void adjust_membership(struct mcast_group *group, u8 join_state, int inc)
 {
 	int i;
 
-	for (i = 0; i < 3; i++, join_state >>= 1)
+	for (i = 0; i < NUM_JOIN_MEMBERSHIP_TYPES; i++, join_state >>= 1)
 		if (join_state & 0x1)
 			group->members[i] += inc;
 }
@@ -245,7 +245,7 @@ static u8 get_leave_state(struct mcast_group *group)
 	u8 leave_state = 0;
 	int i;
 
-	for (i = 0; i < 3; i++)
+	for (i = 0; i < NUM_JOIN_MEMBERSHIP_TYPES; i++)
 		if (!group->members[i])
 			leave_state |= (0x1 << i);
 
@@ -339,11 +339,7 @@ static int send_join(struct mcast_group *group, struct mcast_member *member)
 				       member->multicast.comp_mask,
 				       3000, GFP_KERNEL, join_handler, group,
 				       &group->query);
-	if (ret >= 0) {
-		group->query_id = ret;
-		ret = 0;
-	}
-	return ret;
+	return (ret > 0) ? 0 : ret;
 }
 
 static int send_leave(struct mcast_group *group, u8 leave_state)
@@ -363,11 +359,7 @@ static int send_leave(struct mcast_group *group, u8 leave_state)
 				       IB_SA_MCMEMBER_REC_JOIN_STATE,
 				       3000, GFP_KERNEL, leave_handler,
 				       group, &group->query);
-	if (ret >= 0) {
-		group->query_id = ret;
-		ret = 0;
-	}
-	return ret;
+	return (ret > 0) ? 0 : ret;
 }
 
 static void join_group(struct mcast_group *group, struct mcast_member *member,

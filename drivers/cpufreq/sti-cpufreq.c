@@ -163,7 +163,7 @@ static int sti_cpufreq_set_opp_info(void)
 
 	reg_fields = sti_cpufreq_match();
 	if (!reg_fields) {
-		dev_err(dev, "This SoC doesn't support voltage scaling");
+		dev_err(dev, "This SoC doesn't support voltage scaling\n");
 		return -ENODEV;
 	}
 
@@ -258,6 +258,10 @@ static int sti_cpufreq_fetch_syscon_regsiters(void)
 static int sti_cpufreq_init(void)
 {
 	int ret;
+
+	if ((!of_machine_is_compatible("st,stih407")) &&
+		(!of_machine_is_compatible("st,stih410")))
+		return -ENODEV;
 
 	ddata.cpu = get_cpu_device(0);
 	if (!ddata.cpu) {

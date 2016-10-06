@@ -32,6 +32,27 @@ struct pp_instance;
 #define smu_lower_32_bits(n) ((uint32_t)(n))
 #define smu_upper_32_bits(n) ((uint32_t)(((n)>>16)>>16))
 
+enum AVFS_BTC_STATUS {
+	AVFS_BTC_BOOT = 0,
+	AVFS_BTC_BOOT_STARTEDSMU,
+	AVFS_LOAD_VIRUS,
+	AVFS_BTC_VIRUS_LOADED,
+	AVFS_BTC_VIRUS_FAIL,
+	AVFS_BTC_COMPLETED_PREVIOUSLY,
+	AVFS_BTC_ENABLEAVFS,
+	AVFS_BTC_STARTED,
+	AVFS_BTC_FAILED,
+	AVFS_BTC_RESTOREVFT_FAILED,
+	AVFS_BTC_SAVEVFT_FAILED,
+	AVFS_BTC_DPMTABLESETUP_FAILED,
+	AVFS_BTC_COMPLETED_UNSAVED,
+	AVFS_BTC_COMPLETED_SAVED,
+	AVFS_BTC_COMPLETED_RESTORED,
+	AVFS_BTC_DISABLED,
+	AVFS_BTC_NOTSUPPORTED,
+	AVFS_BTC_SMUMSG_ERROR
+};
+
 struct pp_smumgr_func {
 	int (*smu_init)(struct pp_smumgr *smumgr);
 	int (*smu_fini)(struct pp_smumgr *smumgr);
@@ -110,6 +131,12 @@ extern int smu_free_memory(void *device, void *handle);
 	smum_wait_on_indirect_register(smumgr,				\
 				mm##port##_INDEX, index, value, mask)
 
+#define SMUM_WAIT_INDIRECT_REGISTER(smumgr, port, reg, value, mask)    \
+	    SMUM_WAIT_INDIRECT_REGISTER_GIVEN_INDEX(smumgr, port, ix##reg, value, mask)
+
+#define SMUM_WAIT_INDIRECT_FIELD(smumgr, port, reg, field, fieldval)                          \
+	    SMUM_WAIT_INDIRECT_REGISTER(smumgr, port, reg, (fieldval) << SMUM_FIELD_SHIFT(reg, field), \
+			            SMUM_FIELD_MASK(reg, field) )
 
 #define SMUM_WAIT_REGISTER_UNEQUAL_GIVEN_INDEX(smumgr,         \
 							index, value, mask) \
@@ -136,6 +163,10 @@ extern int smu_free_memory(void *device, void *handle);
 		(((value) & ~SMUM_FIELD_MASK(reg, field)) |                    \
 		(SMUM_FIELD_MASK(reg, field) & ((field_val) <<                 \
 			SMUM_FIELD_SHIFT(reg, field))))
+
+#define SMUM_READ_INDIRECT_FIELD(device, port, reg, field) \
+	    SMUM_GET_FIELD(cgs_read_ind_register(device, port, ix##reg), \
+			   reg, field)
 
 #define SMUM_WAIT_VFPF_INDIRECT_REGISTER_GIVEN_INDEX(smumgr,		\
 				port, index, value, mask)		\
@@ -170,6 +201,13 @@ extern int smu_free_memory(void *device, void *handle);
 			SMUM_SET_FIELD(cgs_read_ind_register(device, port, ix##reg), \
 			reg, field, fieldval))
 
+
+#define SMUM_WRITE_INDIRECT_FIELD(device, port, reg, field, fieldval)    		\
+		cgs_write_ind_register(device, port, ix##reg, 				\
+			SMUM_SET_FIELD(cgs_read_ind_register(device, port, ix##reg), 	\
+				       reg, field, fieldval))
+
+
 #define SMUM_WAIT_VFPF_INDIRECT_FIELD(smumgr, port, reg, field, fieldval) \
 	SMUM_WAIT_VFPF_INDIRECT_REGISTER(smumgr, port, reg,		\
 		(fieldval) << SMUM_FIELD_SHIFT(reg, field),		\
@@ -179,4 +217,16 @@ extern int smu_free_memory(void *device, void *handle);
 	SMUM_WAIT_VFPF_INDIRECT_REGISTER_UNEQUAL(smumgr, port, reg,	\
 		(fieldval) << SMUM_FIELD_SHIFT(reg, field),		\
 		SMUM_FIELD_MASK(reg, field))
+
+#define SMUM_WAIT_INDIRECT_REGISTER_UNEQUAL_GIVEN_INDEX(smumgr, port, index, value, mask)    \
+	smum_wait_for_indirect_register_unequal(smumgr,			\
+		mm##port##_INDEX, index, value, mask)
+
+#define SMUM_WAIT_INDIRECT_REGISTER_UNEQUAL(smumgr, port, reg, value, mask)    \
+	    SMUM_WAIT_INDIRECT_REGISTER_UNEQUAL_GIVEN_INDEX(smumgr, port, ix##reg, value, mask)
+
+#define SMUM_WAIT_INDIRECT_FIELD_UNEQUAL(smumgr, port, reg, field, fieldval)                          \
+	    SMUM_WAIT_INDIRECT_REGISTER_UNEQUAL(smumgr, port, reg, (fieldval) << SMUM_FIELD_SHIFT(reg, field), \
+			            SMUM_FIELD_MASK(reg, field) )
+
 #endif

@@ -99,11 +99,14 @@ acpi_ds_auto_serialize_method(struct acpi_namespace_node *node,
 			  "Method auto-serialization parse [%4.4s] %p\n",
 			  acpi_ut_get_node_name(node), node));
 
+	acpi_ex_enter_interpreter();
+
 	/* Create/Init a root op for the method parse tree */
 
 	op = acpi_ps_alloc_op(AML_METHOD_OP, obj_desc->method.aml_start);
 	if (!op) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		status = AE_NO_MEMORY;
+		goto unlock;
 	}
 
 	acpi_ps_set_name(op, node->name.integer);
@@ -115,7 +118,8 @@ acpi_ds_auto_serialize_method(struct acpi_namespace_node *node,
 	    acpi_ds_create_walk_state(node->owner_id, NULL, NULL, NULL);
 	if (!walk_state) {
 		acpi_ps_free_op(op);
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		status = AE_NO_MEMORY;
+		goto unlock;
 	}
 
 	status = acpi_ds_init_aml_walk(walk_state, op, node,
@@ -134,6 +138,8 @@ acpi_ds_auto_serialize_method(struct acpi_namespace_node *node,
 	status = acpi_ps_parse_aml(walk_state);
 
 	acpi_ps_delete_parse_tree(op);
+unlock:
+	acpi_ex_exit_interpreter();
 	return_ACPI_STATUS(status);
 }
 
@@ -209,7 +215,7 @@ acpi_ds_detect_named_opcodes(struct acpi_walk_state *walk_state,
  ******************************************************************************/
 
 acpi_status
-acpi_ds_method_error(acpi_status status, struct acpi_walk_state * walk_state)
+acpi_ds_method_error(acpi_status status, struct acpi_walk_state *walk_state)
 {
 	u32 aml_offset;
 
@@ -428,6 +434,9 @@ acpi_ds_begin_method_execution(struct acpi_namespace_node *method_node,
 				obj_desc->method.mutex->mutex.
 				    original_sync_level =
 				    obj_desc->method.mutex->mutex.sync_level;
+
+				obj_desc->method.mutex->mutex.thread_id =
+				    acpi_os_get_thread_id();
 			}
 		}
 
@@ -754,8 +763,10 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 
 			/* Delete any direct children of (created by) this method */
 
+			(void)acpi_ex_exit_interpreter();
 			acpi_ns_delete_namespace_subtree(walk_state->
 							 method_node);
+			(void)acpi_ex_enter_interpreter();
 
 			/*
 			 * Delete any objects that were created by this method
@@ -766,9 +777,11 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 			 */
 			if (method_desc->method.
 			    info_flags & ACPI_METHOD_MODIFIED_NAMESPACE) {
+				(void)acpi_ex_exit_interpreter();
 				acpi_ns_delete_namespace_by_owner(method_desc->
 								  method.
 								  owner_id);
+				(void)acpi_ex_enter_interpreter();
 				method_desc->method.info_flags &=
 				    ~ACPI_METHOD_MODIFIED_NAMESPACE;
 			}
@@ -809,8 +822,7 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 		if (method_desc->method.
 		    info_flags & ACPI_METHOD_SERIALIZED_PENDING) {
 			if (walk_state) {
-				ACPI_INFO((AE_INFO,
-					   "Marking method %4.4s as Serialized "
+				ACPI_INFO(("Marking method %4.4s as Serialized "
 					   "because of AE_ALREADY_EXISTS error",
 					   walk_state->method_node->name.
 					   ascii));

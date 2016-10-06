@@ -97,7 +97,6 @@ struct i40e_adminq_info {
 	u32 fw_build;                   /* firmware build number */
 	u16 api_maj_ver;                /* api major version */
 	u16 api_min_ver;                /* api minor version */
-	bool nvm_release_on_done;
 
 	struct mutex asq_mutex; /* Send queue lock */
 	struct mutex arq_mutex; /* Receive queue lock */

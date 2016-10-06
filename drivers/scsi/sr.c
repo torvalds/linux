@@ -144,6 +144,9 @@ static int sr_runtime_suspend(struct device *dev)
 {
 	struct scsi_cd *cd = dev_get_drvdata(dev);
 
+	if (!cd)	/* E.g.: runtime suspend following sr_remove() */
+		return 0;
+
 	if (cd->media_present)
 		return -EBUSY;
 	else
@@ -710,7 +713,6 @@ static int sr_probe(struct device *dev)
 	get_capabilities(cd);
 	sr_vendor_init(cd);
 
-	disk->driverfs_dev = &sdev->sdev_gendev;
 	set_capacity(disk, cd->capacity);
 	disk->private_data = &cd->driver;
 	disk->queue = sdev->request_queue;
@@ -727,7 +729,7 @@ static int sr_probe(struct device *dev)
 
 	dev_set_drvdata(dev, cd);
 	disk->flags |= GENHD_FL_REMOVABLE;
-	add_disk(disk);
+	device_add_disk(&sdev->sdev_gendev, disk);
 
 	sdev_printk(KERN_DEBUG, sdev,
 		    "Attached scsi CD-ROM %s\n", cd->cdi.name);
@@ -985,6 +987,7 @@ static int sr_remove(struct device *dev)
 	scsi_autopm_get_device(cd->device);
 
 	del_gendisk(cd->disk);
+	dev_set_drvdata(dev, NULL);
 
 	mutex_lock(&sr_ref_mutex);
 	kref_put(&cd->kref, sr_kref_release);

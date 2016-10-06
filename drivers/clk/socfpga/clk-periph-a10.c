@@ -74,7 +74,7 @@ static __init void __socfpga_periph_init(struct device_node *node,
 	struct clk *clk;
 	struct socfpga_periph_clk *periph_clk;
 	const char *clk_name = node->name;
-	const char *parent_name;
+	const char *parent_name[SOCFPGA_MAX_PARENTS];
 	struct clk_init_data init;
 	int rc;
 	u32 fixed_div;
@@ -109,9 +109,8 @@ static __init void __socfpga_periph_init(struct device_node *node,
 	init.ops = ops;
 	init.flags = 0;
 
-	parent_name = of_clk_get_parent_name(node, 0);
-	init.num_parents = 1;
-	init.parent_names = &parent_name;
+	init.num_parents = of_clk_parent_fill(node, parent_name, SOCFPGA_MAX_PARENTS);
+	init.parent_names = parent_name;
 
 	periph_clk->hw.hw.init = &init;
 

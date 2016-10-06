@@ -31,6 +31,34 @@
 #include <asm/asm-offsets.h>
 #include <asm/bootparam.h>
 
+/*
+ * The 32-bit x86 assembler in binutils 2.26 will generate R_386_GOT32X
+ * relocation to get the symbol address in PIC.  When the compressed x86
+ * kernel isn't built as PIC, the linker optimizes R_386_GOT32X
+ * relocations to their fixed symbol addresses.  However, when the
+ * compressed x86 kernel is loaded at a different address, it leads
+ * to the following load failure:
+ *
+ *   Failed to allocate space for phdrs
+ *
+ * during the decompression stage.
+ *
+ * If the compressed x86 kernel is relocatable at run-time, it should be
+ * compiled with -fPIE, instead of -fPIC, if possible and should be built as
+ * Position Independent Executable (PIE) so that linker won't optimize
+ * R_386_GOT32X relocation to its fixed symbol address.  Older
+ * linkers generate R_386_32 relocations against locally defined symbols,
+ * _bss, _ebss, _got and _egot, in PIE.  It isn't wrong, just less
+ * optimal than R_386_RELATIVE.  But the x86 kernel fails to properly handle
+ * R_386_32 relocations when relocating the kernel.  To generate
+ * R_386_RELATIVE relocations, we mark _bss, _ebss, _got and _egot as
+ * hidden:
+ */
+	.hidden _bss
+	.hidden _ebss
+	.hidden _got
+	.hidden _egot
+
 	__HEAD
 ENTRY(startup_32)
 #ifdef CONFIG_EFI_STUB
@@ -54,7 +82,7 @@ ENTRY(efi_pe_entry)
 
 	/* Relocate efi_config->call() */
 	leal	efi32_config(%esi), %eax
-	add	%esi, 88(%eax)
+	add	%esi, 32(%eax)
 	pushl	%eax
 
 	call	make_boot_params
@@ -80,7 +108,7 @@ ENTRY(efi32_stub_entry)
 
 	/* Relocate efi_config->call() */
 	leal	efi32_config(%esi), %eax
-	add	%esi, 88(%eax)
+	add	%esi, 32(%eax)
 	pushl	%eax
 2:
 	call	efi_main
@@ -148,7 +176,9 @@ preferred_addr:
 1:
 
 	/* Target address to relocate to for decompression */
-	addl	$z_extract_offset, %ebx
+	movl    BP_init_size(%esi), %eax
+	subl    $_end, %eax
+	addl    %eax, %ebx
 
 	/* Set up the stack */
 	leal	boot_stack_end(%ebx), %esp
@@ -205,24 +235,28 @@ relocated:
 2:
 
 /*
- * Do the decompression, and jump to the new kernel..
+ * Do the extraction, and jump to the new kernel..
  */
-				/* push arguments for decompress_kernel: */
-	pushl	$z_run_size	/* size of kernel with .bss and .brk */
+				/* push arguments for extract_kernel: */
 	pushl	$z_output_len	/* decompressed length, end of relocs */
-	leal	z_extract_offset_negative(%ebx), %ebp
+
+	movl    BP_init_size(%esi), %eax
+	subl    $_end, %eax
+	movl    %ebx, %ebp
+	subl    %eax, %ebp
 	pushl	%ebp		/* output address */
+
 	pushl	$z_input_len	/* input_len */
 	leal	input_data(%ebx), %eax
 	pushl	%eax		/* input_data */
 	leal	boot_heap(%ebx), %eax
 	pushl	%eax		/* heap area */
 	pushl	%esi		/* real mode pointer */
-	call	decompress_kernel /* returns kernel location in %eax */
-	addl	$28, %esp
+	call	extract_kernel	/* returns kernel location in %eax */
+	addl	$24, %esp
 
 /*
- * Jump to the decompressed kernel.
+ * Jump to the extracted kernel.
  */
 	xorl	%ebx, %ebx
 	jmp	*%eax
@@ -230,7 +264,7 @@ relocated:
 #ifdef CONFIG_EFI_STUB
 	.data
 efi32_config:
-	.fill 11,8,0
+	.fill 4,8,0
 	.long efi_call_phys
 	.long 0
 	.byte 0

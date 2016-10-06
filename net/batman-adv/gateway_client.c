@@ -1,4 +1,4 @@
-/* Copyright (C) 2009-2015 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2009-2016  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -20,6 +20,7 @@
 
 #include <linux/atomic.h>
 #include <linux/byteorder/generic.h>
+#include <linux/errno.h>
 #include <linux/etherdevice.h>
 #include <linux/fs.h>
 #include <linux/if_ether.h>
@@ -28,8 +29,10 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/kernel.h>
+#include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
+#include <linux/netlink.h>
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
 #include <linux/seq_file.h>
@@ -38,12 +41,17 @@
 #include <linux/spinlock.h>
 #include <linux/stddef.h>
 #include <linux/udp.h>
+#include <net/sock.h>
+#include <uapi/linux/batman_adv.h>
 
 #include "gateway_common.h"
 #include "hard-interface.h"
+#include "log.h"
+#include "netlink.h"
 #include "originator.h"
 #include "packet.h"
 #include "routing.h"
+#include "soft-interface.h"
 #include "sysfs.h"
 #include "translation-table.h"
 
@@ -59,15 +67,31 @@
  */
 #define BATADV_DHCP_CHADDR_OFFSET	28
 
-static void batadv_gw_node_free_ref(struct batadv_gw_node *gw_node)
+/**
+ * batadv_gw_node_release - release gw_node from lists and queue for free after
+ *  rcu grace period
+ * @ref: kref pointer of the gw_node
+ */
+static void batadv_gw_node_release(struct kref *ref)
 {
-	if (atomic_dec_and_test(&gw_node->refcount)) {
-		batadv_orig_node_free_ref(gw_node->orig_node);
-		kfree_rcu(gw_node, rcu);
-	}
+	struct batadv_gw_node *gw_node;
+
+	gw_node = container_of(ref, struct batadv_gw_node, refcount);
+
+	batadv_orig_node_put(gw_node->orig_node);
+	kfree_rcu(gw_node, rcu);
 }
 
-static struct batadv_gw_node *
+/**
+ * batadv_gw_node_put - decrement the gw_node refcounter and possibly release it
+ * @gw_node: gateway node to free
+ */
+void batadv_gw_node_put(struct batadv_gw_node *gw_node)
+{
+	kref_put(&gw_node->refcount, batadv_gw_node_release);
+}
+
+struct batadv_gw_node *
 batadv_gw_get_selected_gw_node(struct batadv_priv *bat_priv)
 {
 	struct batadv_gw_node *gw_node;
@@ -77,7 +101,7 @@ batadv_gw_get_selected_gw_node(struct batadv_priv *bat_priv)
 	if (!gw_node)
 		goto out;
 
-	if (!atomic_inc_not_zero(&gw_node->refcount))
+	if (!kref_get_unless_zero(&gw_node->refcount))
 		gw_node = NULL;
 
 out:
@@ -100,14 +124,14 @@ batadv_gw_get_selected_orig(struct batadv_priv *bat_priv)
 	if (!orig_node)
 		goto unlock;
 
-	if (!atomic_inc_not_zero(&orig_node->refcount))
+	if (!kref_get_unless_zero(&orig_node->refcount))
 		orig_node = NULL;
 
 unlock:
 	rcu_read_unlock();
 out:
 	if (gw_node)
-		batadv_gw_node_free_ref(gw_node);
+		batadv_gw_node_put(gw_node);
 	return orig_node;
 }
 
@@ -118,14 +142,14 @@ static void batadv_gw_select(struct batadv_priv *bat_priv,
 
 	spin_lock_bh(&bat_priv->gw.list_lock);
 
-	if (new_gw_node && !atomic_inc_not_zero(&new_gw_node->refcount))
-		new_gw_node = NULL;
+	if (new_gw_node)
+		kref_get(&new_gw_node->refcount);
 
 	curr_gw_node = rcu_dereference_protected(bat_priv->gw.curr_gw, 1);
 	rcu_assign_pointer(bat_priv->gw.curr_gw, new_gw_node);
 
 	if (curr_gw_node)
-		batadv_gw_node_free_ref(curr_gw_node);
+		batadv_gw_node_put(curr_gw_node);
 
 	spin_unlock_bh(&bat_priv->gw.list_lock);
 }
@@ -146,86 +170,6 @@ void batadv_gw_reselect(struct batadv_priv *bat_priv)
 	atomic_set(&bat_priv->gw.reselect, 1);
 }
 
-static struct batadv_gw_node *
-batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
-{
-	struct batadv_neigh_node *router;
-	struct batadv_neigh_ifinfo *router_ifinfo;
-	struct batadv_gw_node *gw_node, *curr_gw = NULL;
-	u64 max_gw_factor = 0;
-	u64 tmp_gw_factor = 0;
-	u8 max_tq = 0;
-	u8 tq_avg;
-	struct batadv_orig_node *orig_node;
-
-	rcu_read_lock();
-	hlist_for_each_entry_rcu(gw_node, &bat_priv->gw.list, list) {
-		orig_node = gw_node->orig_node;
-		router = batadv_orig_router_get(orig_node, BATADV_IF_DEFAULT);
-		if (!router)
-			continue;
-
-		router_ifinfo = batadv_neigh_ifinfo_get(router,
-							BATADV_IF_DEFAULT);
-		if (!router_ifinfo)
-			goto next;
-
-		if (!atomic_inc_not_zero(&gw_node->refcount))
-			goto next;
-
-		tq_avg = router_ifinfo->bat_iv.tq_avg;
-
-		switch (atomic_read(&bat_priv->gw_sel_class)) {
-		case 1: /* fast connection */
-			tmp_gw_factor = tq_avg * tq_avg;
-			tmp_gw_factor *= gw_node->bandwidth_down;
-			tmp_gw_factor *= 100 * 100;
-			tmp_gw_factor >>= 18;
-
-			if ((tmp_gw_factor > max_gw_factor) ||
-			    ((tmp_gw_factor == max_gw_factor) &&
-			     (tq_avg > max_tq))) {
-				if (curr_gw)
-					batadv_gw_node_free_ref(curr_gw);
-				curr_gw = gw_node;
-				atomic_inc(&curr_gw->refcount);
-			}
-			break;
-
-		default: /* 2:  stable connection (use best statistic)
-			  * 3:  fast-switch (use best statistic but change as
-			  *     soon as a better gateway appears)
-			  * XX: late-switch (use best statistic but change as
-			  *     soon as a better gateway appears which has
-			  *     $routing_class more tq points)
-			  */
-			if (tq_avg > max_tq) {
-				if (curr_gw)
-					batadv_gw_node_free_ref(curr_gw);
-				curr_gw = gw_node;
-				atomic_inc(&curr_gw->refcount);
-			}
-			break;
-		}
-
-		if (tq_avg > max_tq)
-			max_tq = tq_avg;
-
-		if (tmp_gw_factor > max_gw_factor)
-			max_gw_factor = tmp_gw_factor;
-
-		batadv_gw_node_free_ref(gw_node);
-
-next:
-		batadv_neigh_node_free_ref(router);
-		if (router_ifinfo)
-			batadv_neigh_ifinfo_free_ref(router_ifinfo);
-	}
-	rcu_read_unlock();
-
-	return curr_gw;
-}
-
 /**
  * batadv_gw_check_client_stop - check if client mode has been switched off
  * @bat_priv: the bat priv with all the soft interface information
@@ -238,7 +182,7 @@ void batadv_gw_check_client_stop(struct batadv_priv *bat_priv)
 {
 	struct batadv_gw_node *curr_gw;
 
-	if (atomic_read(&bat_priv->gw_mode) != BATADV_GW_MODE_CLIENT)
+	if (atomic_read(&bat_priv->gw.mode) != BATADV_GW_MODE_CLIENT)
 		return;
 
 	curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
@@ -255,7 +199,7 @@ void batadv_gw_check_client_stop(struct batadv_priv *bat_priv)
 	 */
 	batadv_throw_uevent(bat_priv, BATADV_UEV_GW, BATADV_UEV_DEL, NULL);
 
-	batadv_gw_node_free_ref(curr_gw);
+	batadv_gw_node_put(curr_gw);
 }
 
 void batadv_gw_election(struct batadv_priv *bat_priv)
@@ -266,7 +210,10 @@ void batadv_gw_election(struct batadv_priv *bat_priv)
 	struct batadv_neigh_ifinfo *router_ifinfo = NULL;
 	char gw_addr[18] = { '\0' };
 
-	if (atomic_read(&bat_priv->gw_mode) != BATADV_GW_MODE_CLIENT)
+	if (atomic_read(&bat_priv->gw.mode) != BATADV_GW_MODE_CLIENT)
+		goto out;
+
+	if (!bat_priv->algo_ops->gw.get_best_gw_node)
 		goto out;
 
 	curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
@@ -274,7 +221,11 @@ void batadv_gw_election(struct batadv_priv *bat_priv)
 	if (!batadv_atomic_dec_not_zero(&bat_priv->gw.reselect) && curr_gw)
 		goto out;
 
-	next_gw = batadv_gw_get_best_gw_node(bat_priv);
+	/* if gw.reselect is set to 1 it means that a previous call to
+	 * gw.is_eligible() said that we have a new best GW, therefore it can
+	 * now be picked from the list and selected
+	 */
+	next_gw = bat_priv->algo_ops->gw.get_best_gw_node(bat_priv);
 
 	if (curr_gw == next_gw)
 		goto out;
@@ -330,82 +281,43 @@ void batadv_gw_election(struct batadv_priv *bat_priv)
 
 out:
 	if (curr_gw)
-		batadv_gw_node_free_ref(curr_gw);
+		batadv_gw_node_put(curr_gw);
 	if (next_gw)
-		batadv_gw_node_free_ref(next_gw);
+		batadv_gw_node_put(next_gw);
 	if (router)
-		batadv_neigh_node_free_ref(router);
+		batadv_neigh_node_put(router);
 	if (router_ifinfo)
-		batadv_neigh_ifinfo_free_ref(router_ifinfo);
+		batadv_neigh_ifinfo_put(router_ifinfo);
 }
 
 void batadv_gw_check_election(struct batadv_priv *bat_priv,
 			      struct batadv_orig_node *orig_node)
 {
-	struct batadv_neigh_ifinfo *router_orig_tq = NULL;
-	struct batadv_neigh_ifinfo *router_gw_tq = NULL;
 	struct batadv_orig_node *curr_gw_orig;
-	struct batadv_neigh_node *router_gw = NULL;
-	struct batadv_neigh_node *router_orig = NULL;
-	u8 gw_tq_avg, orig_tq_avg;
+
+	/* abort immediately if the routing algorithm does not support gateway
+	 * election
+	 */
+	if (!bat_priv->algo_ops->gw.is_eligible)
+		return;
 
 	curr_gw_orig = batadv_gw_get_selected_orig(bat_priv);
 	if (!curr_gw_orig)
-		goto reselect;
-
-	router_gw = batadv_orig_router_get(curr_gw_orig, BATADV_IF_DEFAULT);
-	if (!router_gw)
-		goto reselect;
-
-	router_gw_tq = batadv_neigh_ifinfo_get(router_gw,
-					       BATADV_IF_DEFAULT);
-	if (!router_gw_tq)
 		goto reselect;
 
 	/* this node already is the gateway */
 	if (curr_gw_orig == orig_node)
 		goto out;
 
-	router_orig = batadv_orig_router_get(orig_node, BATADV_IF_DEFAULT);
-	if (!router_orig)
+	if (!bat_priv->algo_ops->gw.is_eligible(bat_priv, curr_gw_orig,
+						orig_node))
 		goto out;
-
-	router_orig_tq = batadv_neigh_ifinfo_get(router_orig,
-						 BATADV_IF_DEFAULT);
-	if (!router_orig_tq)
-		goto out;
-
-	gw_tq_avg = router_gw_tq->bat_iv.tq_avg;
-	orig_tq_avg = router_orig_tq->bat_iv.tq_avg;
-
-	/* the TQ value has to be better */
-	if (orig_tq_avg < gw_tq_avg)
-		goto out;
-
-	/* if the routing class is greater than 3 the value tells us how much
-	 * greater the TQ value of the new gateway must be
-	 */
-	if ((atomic_read(&bat_priv->gw_sel_class) > 3) &&
-	    (orig_tq_avg - gw_tq_avg < atomic_read(&bat_priv->gw_sel_class)))
-		goto out;
-
-	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-		   "Restarting gateway selection: better gateway found (tq curr: %i, tq new: %i)\n",
-		   gw_tq_avg, orig_tq_avg);
 
 reselect:
 	batadv_gw_reselect(bat_priv);
 out:
 	if (curr_gw_orig)
-		batadv_orig_node_free_ref(curr_gw_orig);
-	if (router_gw)
-		batadv_neigh_node_free_ref(router_gw);
-	if (router_orig)
-		batadv_neigh_node_free_ref(router_orig);
-	if (router_gw_tq)
-		batadv_neigh_ifinfo_free_ref(router_gw_tq);
-	if (router_orig_tq)
-		batadv_neigh_ifinfo_free_ref(router_orig_tq);
+		batadv_orig_node_put(curr_gw_orig);
 }
 
 /**
@@ -423,22 +335,19 @@ static void batadv_gw_node_add(struct batadv_priv *bat_priv,
 	if (gateway->bandwidth_down == 0)
 		return;
 
-	if (!atomic_inc_not_zero(&orig_node->refcount))
-		return;
-
 	gw_node = kzalloc(sizeof(*gw_node), GFP_ATOMIC);
-	if (!gw_node) {
-		batadv_orig_node_free_ref(orig_node);
+	if (!gw_node)
 		return;
-	}
 
+	kref_init(&gw_node->refcount);
 	INIT_HLIST_NODE(&gw_node->list);
+	kref_get(&orig_node->refcount);
 	gw_node->orig_node = orig_node;
 	gw_node->bandwidth_down = ntohl(gateway->bandwidth_down);
 	gw_node->bandwidth_up = ntohl(gateway->bandwidth_up);
-	atomic_set(&gw_node->refcount, 1);
 
 	spin_lock_bh(&bat_priv->gw.list_lock);
+	kref_get(&gw_node->refcount);
 	hlist_add_head_rcu(&gw_node->list, &bat_priv->gw.list);
 	spin_unlock_bh(&bat_priv->gw.list_lock);
 
@@ -449,6 +358,9 @@ static void batadv_gw_node_add(struct batadv_priv *bat_priv,
 		   ntohl(gateway->bandwidth_down) % 10,
 		   ntohl(gateway->bandwidth_up) / 10,
 		   ntohl(gateway->bandwidth_up) % 10);
+
+	/* don't return reference to new gw_node */
+	batadv_gw_node_put(gw_node);
 }
 
 /**
@@ -456,11 +368,10 @@ static void batadv_gw_node_add(struct batadv_priv *bat_priv,
  * @bat_priv: the bat priv with all the soft interface information
  * @orig_node: originator announcing gateway capabilities
  *
- * Returns gateway node if found or NULL otherwise.
+ * Return: gateway node if found or NULL otherwise.
  */
-static struct batadv_gw_node *
-batadv_gw_node_get(struct batadv_priv *bat_priv,
-		   struct batadv_orig_node *orig_node)
+struct batadv_gw_node *batadv_gw_node_get(struct batadv_priv *bat_priv,
+					  struct batadv_orig_node *orig_node)
 {
 	struct batadv_gw_node *gw_node_tmp, *gw_node = NULL;
 
@@ -469,7 +380,7 @@ batadv_gw_node_get(struct batadv_priv *bat_priv,
 		if (gw_node_tmp->orig_node != orig_node)
 			continue;
 
-		if (!atomic_inc_not_zero(&gw_node_tmp->refcount))
+		if (!kref_get_unless_zero(&gw_node_tmp->refcount))
 			continue;
 
 		gw_node = gw_node_tmp;
@@ -527,22 +438,23 @@ void batadv_gw_node_update(struct batadv_priv *bat_priv,
 		 * gets dereferenced.
 		 */
 		spin_lock_bh(&bat_priv->gw.list_lock);
-		hlist_del_init_rcu(&gw_node->list);
+		if (!hlist_unhashed(&gw_node->list)) {
+			hlist_del_init_rcu(&gw_node->list);
+			batadv_gw_node_put(gw_node);
+		}
 		spin_unlock_bh(&bat_priv->gw.list_lock);
-
-		batadv_gw_node_free_ref(gw_node);
 
 		curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
 		if (gw_node == curr_gw)
 			batadv_gw_reselect(bat_priv);
 
 		if (curr_gw)
-			batadv_gw_node_free_ref(curr_gw);
+			batadv_gw_node_put(curr_gw);
 	}
 
 out:
 	if (gw_node)
-		batadv_gw_node_free_ref(gw_node);
+		batadv_gw_node_put(gw_node);
 }
 
 void batadv_gw_node_delete(struct batadv_priv *bat_priv,
@@ -565,87 +477,92 @@ void batadv_gw_node_free(struct batadv_priv *bat_priv)
 	hlist_for_each_entry_safe(gw_node, node_tmp,
 				  &bat_priv->gw.list, list) {
 		hlist_del_init_rcu(&gw_node->list);
-		batadv_gw_node_free_ref(gw_node);
+		batadv_gw_node_put(gw_node);
 	}
 	spin_unlock_bh(&bat_priv->gw.list_lock);
 }
 
-/* fails if orig_node has no router */
-static int batadv_write_buffer_text(struct batadv_priv *bat_priv,
-				    struct seq_file *seq,
-				    const struct batadv_gw_node *gw_node)
-{
-	struct batadv_gw_node *curr_gw;
-	struct batadv_neigh_node *router;
-	struct batadv_neigh_ifinfo *router_ifinfo = NULL;
-	int ret = -1;
-
-	router = batadv_orig_router_get(gw_node->orig_node, BATADV_IF_DEFAULT);
-	if (!router)
-		goto out;
-
-	router_ifinfo = batadv_neigh_ifinfo_get(router, BATADV_IF_DEFAULT);
-	if (!router_ifinfo)
-		goto out;
-
-	curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
-
-	seq_printf(seq, "%s %pM (%3i) %pM [%10s]: %u.%u/%u.%u MBit\n",
-		   (curr_gw == gw_node ? "=>" : "  "),
-		   gw_node->orig_node->orig,
-		   router_ifinfo->bat_iv.tq_avg, router->addr,
-		   router->if_incoming->net_dev->name,
-		   gw_node->bandwidth_down / 10,
-		   gw_node->bandwidth_down % 10,
-		   gw_node->bandwidth_up / 10,
-		   gw_node->bandwidth_up % 10);
-	ret = seq_has_overflowed(seq) ? -1 : 0;
-
-	if (curr_gw)
-		batadv_gw_node_free_ref(curr_gw);
-out:
-	if (router_ifinfo)
-		batadv_neigh_ifinfo_free_ref(router_ifinfo);
-	if (router)
-		batadv_neigh_node_free_ref(router);
-	return ret;
-}
-
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 int batadv_gw_client_seq_print_text(struct seq_file *seq, void *offset)
 {
 	struct net_device *net_dev = (struct net_device *)seq->private;
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);
 	struct batadv_hard_iface *primary_if;
-	struct batadv_gw_node *gw_node;
-	int gw_count = 0;
 
 	primary_if = batadv_seq_print_text_primary_if_get(seq);
 	if (!primary_if)
-		goto out;
+		return 0;
 
-	seq_printf(seq,
-		   "      %-12s (%s/%i) %17s [%10s]: advertised uplink bandwidth ... [B.A.T.M.A.N. adv %s, MainIF/MAC: %s/%pM (%s)]\n",
-		   "Gateway", "#", BATADV_TQ_MAX_VALUE, "Nexthop", "outgoingIF",
+	seq_printf(seq, "[B.A.T.M.A.N. adv %s, MainIF/MAC: %s/%pM (%s %s)]\n",
 		   BATADV_SOURCE_VERSION, primary_if->net_dev->name,
-		   primary_if->net_dev->dev_addr, net_dev->name);
+		   primary_if->net_dev->dev_addr, net_dev->name,
+		   bat_priv->algo_ops->name);
 
-	rcu_read_lock();
-	hlist_for_each_entry_rcu(gw_node, &bat_priv->gw.list, list) {
-		/* fails if orig_node has no router */
-		if (batadv_write_buffer_text(bat_priv, seq, gw_node) < 0)
-			continue;
+	batadv_hardif_put(primary_if);
 
-		gw_count++;
+	if (!bat_priv->algo_ops->gw.print) {
+		seq_puts(seq,
+			 "No printing function for this routing protocol\n");
+		return 0;
 	}
-	rcu_read_unlock();
 
-	if (gw_count == 0)
-		seq_puts(seq, "No gateways in range ...\n");
+	bat_priv->algo_ops->gw.print(bat_priv, seq);
+
+	return 0;
+}
+#endif
+
+/**
+ * batadv_gw_dump - Dump gateways into a message
+ * @msg: Netlink message to dump into
+ * @cb: Control block containing additional options
+ *
+ * Return: Error code, or length of message
+ */
+int batadv_gw_dump(struct sk_buff *msg, struct netlink_callback *cb)
+{
+	struct batadv_hard_iface *primary_if = NULL;
+	struct net *net = sock_net(cb->skb->sk);
+	struct net_device *soft_iface;
+	struct batadv_priv *bat_priv;
+	int ifindex;
+	int ret;
+
+	ifindex = batadv_netlink_get_ifindex(cb->nlh,
+					     BATADV_ATTR_MESH_IFINDEX);
+	if (!ifindex)
+		return -EINVAL;
+
+	soft_iface = dev_get_by_index(net, ifindex);
+	if (!soft_iface || !batadv_softif_is_valid(soft_iface)) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	bat_priv = netdev_priv(soft_iface);
+
+	primary_if = batadv_primary_if_get_selected(bat_priv);
+	if (!primary_if || primary_if->if_status != BATADV_IF_ACTIVE) {
+		ret = -ENOENT;
+		goto out;
+	}
+
+	if (!bat_priv->algo_ops->gw.dump) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
+
+	bat_priv->algo_ops->gw.dump(msg, cb, bat_priv);
+
+	ret = msg->len;
 
 out:
 	if (primary_if)
-		batadv_hardif_free_ref(primary_if);
-	return 0;
+		batadv_hardif_put(primary_if);
+	if (soft_iface)
+		dev_put(soft_iface);
+
+	return ret;
 }
 
 /**
@@ -655,13 +572,13 @@ out:
  * @chaddr: buffer where the client address will be stored. Valid
  *  only if the function returns BATADV_DHCP_TO_CLIENT
  *
- * Returns:
+ * This function may re-allocate the data buffer of the skb passed as argument.
+ *
+ * Return:
  * - BATADV_DHCP_NO if the packet is not a dhcp message or if there was an error
  *   while parsing it
  * - BATADV_DHCP_TO_SERVER if this is a message going to the DHCP server
  * - BATADV_DHCP_TO_CLIENT if this is a message going to a DHCP client
- *
- * This function may re-allocate the data buffer of the skb passed as argument.
  */
 enum batadv_dhcp_recipient
 batadv_gw_dhcp_recipient_get(struct sk_buff *skb, unsigned int *header_len,
@@ -776,11 +693,11 @@ batadv_gw_dhcp_recipient_get(struct sk_buff *skb, unsigned int *header_len,
  * server. Due to topology changes it may be the case that the GW server
  * previously selected is not the best one anymore.
  *
- * Returns true if the packet destination is unicast and it is not the best gw,
- * false otherwise.
- *
  * This call might reallocate skb data.
  * Must be invoked only when the DHCP packet is going TO a DHCP SERVER.
+ *
+ * Return: true if the packet destination is unicast and it is not the best gw,
+ * false otherwise.
  */
 bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 			    struct sk_buff *skb)
@@ -807,7 +724,7 @@ bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 	if (!gw_node)
 		goto out;
 
-	switch (atomic_read(&bat_priv->gw_mode)) {
+	switch (atomic_read(&bat_priv->gw.mode)) {
 	case BATADV_GW_MODE_SERVER:
 		/* If we are a GW then we are our best GW. We can artificially
 		 * set the tq towards ourself as the maximum value
@@ -838,7 +755,7 @@ bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 			goto out;
 
 		curr_tq_avg = curr_ifinfo->bat_iv.tq_avg;
-		batadv_neigh_ifinfo_free_ref(curr_ifinfo);
+		batadv_neigh_ifinfo_put(curr_ifinfo);
 
 		break;
 	case BATADV_GW_MODE_OFF:
@@ -856,18 +773,18 @@ bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 
 	if ((curr_tq_avg - old_ifinfo->bat_iv.tq_avg) > BATADV_GW_THRESHOLD)
 		out_of_range = true;
-	batadv_neigh_ifinfo_free_ref(old_ifinfo);
+	batadv_neigh_ifinfo_put(old_ifinfo);
 
 out:
 	if (orig_dst_node)
-		batadv_orig_node_free_ref(orig_dst_node);
+		batadv_orig_node_put(orig_dst_node);
 	if (curr_gw)
-		batadv_gw_node_free_ref(curr_gw);
+		batadv_gw_node_put(curr_gw);
 	if (gw_node)
-		batadv_gw_node_free_ref(gw_node);
+		batadv_gw_node_put(gw_node);
 	if (neigh_old)
-		batadv_neigh_node_free_ref(neigh_old);
+		batadv_neigh_node_put(neigh_old);
 	if (neigh_curr)
-		batadv_neigh_node_free_ref(neigh_curr);
+		batadv_neigh_node_put(neigh_curr);
 	return out_of_range;
 }

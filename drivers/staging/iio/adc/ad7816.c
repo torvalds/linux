@@ -253,7 +253,8 @@ static const struct attribute_group ad7816_attribute_group = {
 
 static irqreturn_t ad7816_event_handler(int irq, void *private)
 {
-	iio_push_event(private, IIO_EVENT_CODE_AD7816_OTI, iio_get_time_ns());
+	iio_push_event(private, IIO_EVENT_CODE_AD7816_OTI,
+		       iio_get_time_ns((struct iio_dev *)private));
 	return IRQ_HANDLED;
 }
 
@@ -296,14 +297,14 @@ static inline ssize_t ad7816_set_oti(struct device *dev,
 		dev_err(dev, "Invalid oti channel id %d.\n", chip->channel_id);
 		return -EINVAL;
 	} else if (chip->channel_id == 0) {
-		if (ret || value < AD7816_BOUND_VALUE_MIN ||
+		if (value < AD7816_BOUND_VALUE_MIN ||
 		    value > AD7816_BOUND_VALUE_MAX)
 			return -EINVAL;
 
 		data = (u8)(value - AD7816_BOUND_VALUE_MIN +
 			AD7816_BOUND_VALUE_BASE);
 	} else {
-		if (ret || value < AD7816_BOUND_VALUE_BASE || value > 255)
+		if (value < AD7816_BOUND_VALUE_BASE || value > 255)
 			return -EINVAL;
 
 		data = (u8)value;

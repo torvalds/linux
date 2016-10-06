@@ -47,17 +47,18 @@
 #define CRYPTO_ALG_TYPE_AEAD		0x00000003
 #define CRYPTO_ALG_TYPE_BLKCIPHER	0x00000004
 #define CRYPTO_ALG_TYPE_ABLKCIPHER	0x00000005
+#define CRYPTO_ALG_TYPE_SKCIPHER	0x00000005
 #define CRYPTO_ALG_TYPE_GIVCIPHER	0x00000006
-#define CRYPTO_ALG_TYPE_DIGEST		0x00000008
-#define CRYPTO_ALG_TYPE_HASH		0x00000008
-#define CRYPTO_ALG_TYPE_SHASH		0x00000009
-#define CRYPTO_ALG_TYPE_AHASH		0x0000000a
+#define CRYPTO_ALG_TYPE_KPP		0x00000008
 #define CRYPTO_ALG_TYPE_RNG		0x0000000c
 #define CRYPTO_ALG_TYPE_AKCIPHER	0x0000000d
-#define CRYPTO_ALG_TYPE_PCOMPRESS	0x0000000f
+#define CRYPTO_ALG_TYPE_DIGEST		0x0000000e
+#define CRYPTO_ALG_TYPE_HASH		0x0000000e
+#define CRYPTO_ALG_TYPE_SHASH		0x0000000e
+#define CRYPTO_ALG_TYPE_AHASH		0x0000000f
 
 #define CRYPTO_ALG_TYPE_HASH_MASK	0x0000000e
-#define CRYPTO_ALG_TYPE_AHASH_MASK	0x0000000c
+#define CRYPTO_ALG_TYPE_AHASH_MASK	0x0000000e
 #define CRYPTO_ALG_TYPE_BLKCIPHER_MASK	0x0000000c
 
 #define CRYPTO_ALG_LARVAL		0x00000010
@@ -137,7 +138,6 @@ struct scatterlist;
 struct crypto_ablkcipher;
 struct crypto_async_request;
 struct crypto_blkcipher;
-struct crypto_hash;
 struct crypto_tfm;
 struct crypto_type;
 struct skcipher_givcrypt_request;
@@ -185,11 +185,6 @@ struct cipher_desc {
 	unsigned int (*prfn)(const struct cipher_desc *desc, u8 *dst,
 			     const u8 *src, unsigned int nbytes);
 	void *info;
-};
-
-struct hash_desc {
-	struct crypto_hash *tfm;
-	u32 flags;
 };
 
 /**
@@ -493,8 +488,6 @@ struct ablkcipher_tfm {
 	              unsigned int keylen);
 	int (*encrypt)(struct ablkcipher_request *req);
 	int (*decrypt)(struct ablkcipher_request *req);
-	int (*givencrypt)(struct skcipher_givcrypt_request *req);
-	int (*givdecrypt)(struct skcipher_givcrypt_request *req);
 
 	struct crypto_ablkcipher *base;
 
@@ -519,18 +512,6 @@ struct cipher_tfm {
 	void (*cit_decrypt_one)(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
 };
 
-struct hash_tfm {
-	int (*init)(struct hash_desc *desc);
-	int (*update)(struct hash_desc *desc,
-		      struct scatterlist *sg, unsigned int nsg);
-	int (*final)(struct hash_desc *desc, u8 *out);
-	int (*digest)(struct hash_desc *desc, struct scatterlist *sg,
-		      unsigned int nsg, u8 *out);
-	int (*setkey)(struct crypto_hash *tfm, const u8 *key,
-		      unsigned int keylen);
-	unsigned int digestsize;
-};
-
 struct compress_tfm {
 	int (*cot_compress)(struct crypto_tfm *tfm,
 	                    const u8 *src, unsigned int slen,
@@ -543,7 +524,6 @@ struct compress_tfm {
 #define crt_ablkcipher	crt_u.ablkcipher
 #define crt_blkcipher	crt_u.blkcipher
 #define crt_cipher	crt_u.cipher
-#define crt_hash	crt_u.hash
 #define crt_compress	crt_u.compress
 
 struct crypto_tfm {
@@ -554,7 +534,6 @@ struct crypto_tfm {
 		struct ablkcipher_tfm ablkcipher;
 		struct blkcipher_tfm blkcipher;
 		struct cipher_tfm cipher;
-		struct hash_tfm hash;
 		struct compress_tfm compress;
 	} crt_u;
 
@@ -578,10 +557,6 @@ struct crypto_cipher {
 };
 
 struct crypto_comp {
-	struct crypto_tfm base;
-};
-
-struct crypto_hash {
 	struct crypto_tfm base;
 };
 
@@ -736,23 +711,6 @@ static inline u32 crypto_skcipher_mask(u32 mask)
  * which operation just finished if it invoked multiple in parallel. This
  * state information is unused by the kernel crypto API.
  */
-
-/**
- * crypto_alloc_ablkcipher() - allocate asynchronous block cipher handle
- * @alg_name: is the cra_name / name or cra_driver_name / driver name of the
- *	      ablkcipher cipher
- * @type: specifies the type of the cipher
- * @mask: specifies the mask for the cipher
- *
- * Allocate a cipher handle for an ablkcipher. The returned struct
- * crypto_ablkcipher is the cipher handle that is required for any subsequent
- * API invocation for that ablkcipher.
- *
- * Return: allocated cipher handle in case of success; IS_ERR() is true in case
- *	   of an error, PTR_ERR() returns the error code.
- */
-struct crypto_ablkcipher *crypto_alloc_ablkcipher(const char *alg_name,
-						  u32 type, u32 mask);
 
 static inline struct crypto_tfm *crypto_ablkcipher_tfm(
 	struct crypto_ablkcipher *tfm)
@@ -973,8 +931,7 @@ static inline struct ablkcipher_request *ablkcipher_request_cast(
  * encrypt and decrypt API calls. During the allocation, the provided ablkcipher
  * handle is registered in the request data structure.
  *
- * Return: allocated request handle in case of success; IS_ERR() is true in case
- *	   of an error, PTR_ERR() returns the error code.
+ * Return: allocated request handle in case of success, or NULL if out of memory
  */
 static inline struct ablkcipher_request *ablkcipher_request_alloc(
 	struct crypto_ablkcipher *tfm, gfp_t gfp)
@@ -1575,233 +1532,6 @@ static inline void crypto_cipher_decrypt_one(struct crypto_cipher *tfm,
 {
 	crypto_cipher_crt(tfm)->cit_decrypt_one(crypto_cipher_tfm(tfm),
 						dst, src);
-}
-
-/**
- * DOC: Synchronous Message Digest API
- *
- * The synchronous message digest API is used with the ciphers of type
- * CRYPTO_ALG_TYPE_HASH (listed as type "hash" in /proc/crypto)
- */
-
-static inline struct crypto_hash *__crypto_hash_cast(struct crypto_tfm *tfm)
-{
-	return (struct crypto_hash *)tfm;
-}
-
-static inline struct crypto_hash *crypto_hash_cast(struct crypto_tfm *tfm)
-{
-	BUG_ON((crypto_tfm_alg_type(tfm) ^ CRYPTO_ALG_TYPE_HASH) &
-	       CRYPTO_ALG_TYPE_HASH_MASK);
-	return __crypto_hash_cast(tfm);
-}
-
-/**
- * crypto_alloc_hash() - allocate synchronous message digest handle
- * @alg_name: is the cra_name / name or cra_driver_name / driver name of the
- *	      message digest cipher
- * @type: specifies the type of the cipher
- * @mask: specifies the mask for the cipher
- *
- * Allocate a cipher handle for a message digest. The returned struct
- * crypto_hash is the cipher handle that is required for any subsequent
- * API invocation for that message digest.
- *
- * Return: allocated cipher handle in case of success; IS_ERR() is true in case
- * of an error, PTR_ERR() returns the error code.
- */
-static inline struct crypto_hash *crypto_alloc_hash(const char *alg_name,
-						    u32 type, u32 mask)
-{
-	type &= ~CRYPTO_ALG_TYPE_MASK;
-	mask &= ~CRYPTO_ALG_TYPE_MASK;
-	type |= CRYPTO_ALG_TYPE_HASH;
-	mask |= CRYPTO_ALG_TYPE_HASH_MASK;
-
-	return __crypto_hash_cast(crypto_alloc_base(alg_name, type, mask));
-}
-
-static inline struct crypto_tfm *crypto_hash_tfm(struct crypto_hash *tfm)
-{
-	return &tfm->base;
-}
-
-/**
- * crypto_free_hash() - zeroize and free message digest handle
- * @tfm: cipher handle to be freed
- */
-static inline void crypto_free_hash(struct crypto_hash *tfm)
-{
-	crypto_free_tfm(crypto_hash_tfm(tfm));
-}
-
-/**
- * crypto_has_hash() - Search for the availability of a message digest
- * @alg_name: is the cra_name / name or cra_driver_name / driver name of the
- *	      message digest cipher
- * @type: specifies the type of the cipher
- * @mask: specifies the mask for the cipher
- *
- * Return: true when the message digest cipher is known to the kernel crypto
- *	   API; false otherwise
- */
-static inline int crypto_has_hash(const char *alg_name, u32 type, u32 mask)
-{
-	type &= ~CRYPTO_ALG_TYPE_MASK;
-	mask &= ~CRYPTO_ALG_TYPE_MASK;
-	type |= CRYPTO_ALG_TYPE_HASH;
-	mask |= CRYPTO_ALG_TYPE_HASH_MASK;
-
-	return crypto_has_alg(alg_name, type, mask);
-}
-
-static inline struct hash_tfm *crypto_hash_crt(struct crypto_hash *tfm)
-{
-	return &crypto_hash_tfm(tfm)->crt_hash;
-}
-
-/**
- * crypto_hash_blocksize() - obtain block size for message digest
- * @tfm: cipher handle
- *
- * The block size for the message digest cipher referenced with the cipher
- * handle is returned.
- *
- * Return: block size of cipher
- */
-static inline unsigned int crypto_hash_blocksize(struct crypto_hash *tfm)
-{
-	return crypto_tfm_alg_blocksize(crypto_hash_tfm(tfm));
-}
-
-static inline unsigned int crypto_hash_alignmask(struct crypto_hash *tfm)
-{
-	return crypto_tfm_alg_alignmask(crypto_hash_tfm(tfm));
-}
-
-/**
- * crypto_hash_digestsize() - obtain message digest size
- * @tfm: cipher handle
- *
- * The size for the message digest created by the message digest cipher
- * referenced with the cipher handle is returned.
- *
- * Return: message digest size
- */
-static inline unsigned int crypto_hash_digestsize(struct crypto_hash *tfm)
-{
-	return crypto_hash_crt(tfm)->digestsize;
-}
-
-static inline u32 crypto_hash_get_flags(struct crypto_hash *tfm)
-{
-	return crypto_tfm_get_flags(crypto_hash_tfm(tfm));
-}
-
-static inline void crypto_hash_set_flags(struct crypto_hash *tfm, u32 flags)
-{
-	crypto_tfm_set_flags(crypto_hash_tfm(tfm), flags);
-}
-
-static inline void crypto_hash_clear_flags(struct crypto_hash *tfm, u32 flags)
-{
-	crypto_tfm_clear_flags(crypto_hash_tfm(tfm), flags);
-}
-
-/**
- * crypto_hash_init() - (re)initialize message digest handle
- * @desc: cipher request handle that to be filled by caller --
- *	  desc.tfm is filled with the hash cipher handle;
- *	  desc.flags is filled with either CRYPTO_TFM_REQ_MAY_SLEEP or 0.
- *
- * The call (re-)initializes the message digest referenced by the hash cipher
- * request handle. Any potentially existing state created by previous
- * operations is discarded.
- *
- * Return: 0 if the message digest initialization was successful; < 0 if an
- *	   error occurred
- */
-static inline int crypto_hash_init(struct hash_desc *desc)
-{
-	return crypto_hash_crt(desc->tfm)->init(desc);
-}
-
-/**
- * crypto_hash_update() - add data to message digest for processing
- * @desc: cipher request handle
- * @sg: scatter / gather list pointing to the data to be added to the message
- *      digest
- * @nbytes: number of bytes to be processed from @sg
- *
- * Updates the message digest state of the cipher handle pointed to by the
- * hash cipher request handle with the input data pointed to by the
- * scatter/gather list.
- *
- * Return: 0 if the message digest update was successful; < 0 if an error
- *	   occurred
- */
-static inline int crypto_hash_update(struct hash_desc *desc,
-				     struct scatterlist *sg,
-				     unsigned int nbytes)
-{
-	return crypto_hash_crt(desc->tfm)->update(desc, sg, nbytes);
-}
-
-/**
- * crypto_hash_final() - calculate message digest
- * @desc: cipher request handle
- * @out: message digest output buffer -- The caller must ensure that the out
- *	 buffer has a sufficient size (e.g. by using the crypto_hash_digestsize
- *	 function).
- *
- * Finalize the message digest operation and create the message digest
- * based on all data added to the cipher handle. The message digest is placed
- * into the output buffer.
- *
- * Return: 0 if the message digest creation was successful; < 0 if an error
- *	   occurred
- */
-static inline int crypto_hash_final(struct hash_desc *desc, u8 *out)
-{
-	return crypto_hash_crt(desc->tfm)->final(desc, out);
-}
-
-/**
- * crypto_hash_digest() - calculate message digest for a buffer
- * @desc: see crypto_hash_final()
- * @sg: see crypto_hash_update()
- * @nbytes:  see crypto_hash_update()
- * @out: see crypto_hash_final()
- *
- * This function is a "short-hand" for the function calls of crypto_hash_init,
- * crypto_hash_update and crypto_hash_final. The parameters have the same
- * meaning as discussed for those separate three functions.
- *
- * Return: 0 if the message digest creation was successful; < 0 if an error
- *	   occurred
- */
-static inline int crypto_hash_digest(struct hash_desc *desc,
-				     struct scatterlist *sg,
-				     unsigned int nbytes, u8 *out)
-{
-	return crypto_hash_crt(desc->tfm)->digest(desc, sg, nbytes, out);
-}
-
-/**
- * crypto_hash_setkey() - set key for message digest
- * @hash: cipher handle
- * @key: buffer holding the key
- * @keylen: length of the key in bytes
- *
- * The caller provided key is set for the message digest cipher. The cipher
- * handle must point to a keyed hash in order for this function to succeed.
- *
- * Return: 0 if the setting of the key was successful; < 0 if an error occurred
- */
-static inline int crypto_hash_setkey(struct crypto_hash *hash,
-				     const u8 *key, unsigned int keylen)
-{
-	return crypto_hash_crt(hash)->setkey(hash, key, keylen);
 }
 
 static inline struct crypto_comp *__crypto_comp_cast(struct crypto_tfm *tfm)

@@ -26,6 +26,10 @@
 
 #include "drm.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /* Please note that modifications to all structs defined here are
  * subject to backwards-compatibility constraints.
  *
@@ -162,5 +166,9 @@ struct drm_virtgpu_get_caps {
 #define DRM_IOCTL_VIRTGPU_GET_CAPS \
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_VIRTGPU_GET_CAPS, \
 	struct drm_virtgpu_get_caps)
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif

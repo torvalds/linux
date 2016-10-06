@@ -244,7 +244,7 @@
 	codec: sgtl5000@0a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
-		clocks = <&clks 201>;
+		clocks = <&clks IMX6QDL_CLK_CKO>;
 		VDDA-supply = <&reg_1p8v>;
 		VDDIO-supply = <&reg_3p3v>;
 	};
@@ -473,7 +473,7 @@
 
 		pinctrl_pwm3: pwm3grp {
 			fsl,pins = <
-				MX6QDL_PAD_SD4_DAT1__PWM3_OUT		0x1b0b1
+				MX6QDL_PAD_SD1_DAT1__PWM3_OUT		0x1b0b1
 			>;
 		};
 

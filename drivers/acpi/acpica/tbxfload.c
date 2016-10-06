@@ -47,6 +47,7 @@
 #include "accommon.h"
 #include "acnamesp.h"
 #include "actables.h"
+#include "acevents.h"
 
 #define _COMPONENT          ACPI_TABLES
 ACPI_MODULE_NAME("tbxfload")
@@ -62,11 +63,30 @@ ACPI_MODULE_NAME("tbxfload")
  * DESCRIPTION: Load the ACPI tables from the RSDT/XSDT
  *
  ******************************************************************************/
-acpi_status __init acpi_load_tables(void)
+acpi_status ACPI_INIT_FUNCTION acpi_load_tables(void)
 {
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(acpi_load_tables);
+
+	/*
+	 * Install the default operation region handlers. These are the
+	 * handlers that are defined by the ACPI specification to be
+	 * "always accessible" -- namely, system_memory, system_IO, and
+	 * PCI_Config. This also means that no _REG methods need to be
+	 * run for these address spaces. We need to have these handlers
+	 * installed before any AML code can be executed, especially any
+	 * module-level code (11/2015).
+	 * Note that we allow OSPMs to install their own region handlers
+	 * between acpi_initialize_subsystem() and acpi_load_tables() to use
+	 * their customized default region handlers.
+	 */
+	status = acpi_ev_install_region_handlers();
+	if (ACPI_FAILURE(status)) {
+		ACPI_EXCEPTION((AE_INFO, status,
+				"During Region initialization"));
+		return_ACPI_STATUS(status);
+	}
 
 	/* Load the namespace from the tables */
 
@@ -83,6 +103,21 @@ acpi_status __init acpi_load_tables(void)
 				"While loading namespace from ACPI tables"));
 	}
 
+	if (acpi_gbl_parse_table_as_term_list
+	    || !acpi_gbl_group_module_level_code) {
+		/*
+		 * Initialize the objects that remain uninitialized. This
+		 * runs the executable AML that may be part of the
+		 * declaration of these objects:
+		 * operation_regions, buffer_fields, Buffers, and Packages.
+		 */
+		status = acpi_ns_initialize_objects();
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
+		}
+	}
+
+	acpi_gbl_namespace_initialized = TRUE;
 	return_ACPI_STATUS(status);
 }
 
@@ -154,11 +189,11 @@ acpi_status acpi_tb_load_namespace(void)
 	memcpy(&acpi_gbl_original_dsdt_header, acpi_gbl_DSDT,
 	       sizeof(struct acpi_table_header));
 
-	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
-
 	/* Load and parse tables */
 
+	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 	status = acpi_ns_load_table(acpi_gbl_dsdt_index, acpi_gbl_root_node);
+	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "[DSDT] table load failed"));
 		tables_failed++;
@@ -168,7 +203,6 @@ acpi_status acpi_tb_load_namespace(void)
 
 	/* Load any SSDT or PSDT tables. Note: Loop leaves tables locked */
 
-	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 	for (i = 0; i < acpi_gbl_root_table_list.current_table_count; ++i) {
 		table = &acpi_gbl_root_table_list.tables[i];
 
@@ -186,6 +220,7 @@ acpi_status acpi_tb_load_namespace(void)
 
 		(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 		status = acpi_ns_load_table(i, acpi_gbl_root_node);
+		(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
 					"(%4.4s:%8.8s) while loading table",
@@ -201,14 +236,10 @@ acpi_status acpi_tb_load_namespace(void)
 		} else {
 			tables_loaded++;
 		}
-
-		(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 	}
 
 	if (!tables_failed) {
-		ACPI_INFO((AE_INFO,
-			   "%u ACPI AML tables successfully acquired and loaded\n",
-			   tables_loaded));
+		ACPI_INFO(("%u ACPI AML tables successfully acquired and loaded\n", tables_loaded));
 	} else {
 		ACPI_ERROR((AE_INFO,
 			    "%u table load failures, %u successful",
@@ -240,7 +271,7 @@ unlock_and_exit:
  *
  ******************************************************************************/
 
-acpi_status __init
+acpi_status ACPI_INIT_FUNCTION
 acpi_install_table(acpi_physical_address address, u8 physical)
 {
 	acpi_status status;
@@ -292,49 +323,13 @@ acpi_status acpi_load_table(struct acpi_table_header *table)
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	/* Must acquire the interpreter lock during this operation */
-
-	status = acpi_ut_acquire_mutex(ACPI_MTX_INTERPRETER);
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
-	}
-
 	/* Install the table and load it into the namespace */
 
-	ACPI_INFO((AE_INFO, "Host-directed Dynamic ACPI Table Load:"));
-	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
-
-	status = acpi_tb_install_standard_table(ACPI_PTR_TO_PHYSADDR(table),
-						ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL,
-						TRUE, FALSE, &table_index);
-
-	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
-	if (ACPI_FAILURE(status)) {
-		goto unlock_and_exit;
-	}
-
-	/*
-	 * Note: Now table is "INSTALLED", it must be validated before
-	 * using.
-	 */
+	ACPI_INFO(("Host-directed Dynamic ACPI Table Load:"));
 	status =
-	    acpi_tb_validate_table(&acpi_gbl_root_table_list.
-				   tables[table_index]);
-	if (ACPI_FAILURE(status)) {
-		goto unlock_and_exit;
-	}
-
-	status = acpi_ns_load_table(table_index, acpi_gbl_root_node);
-
-	/* Invoke table handler if present */
-
-	if (acpi_gbl_table_handler) {
-		(void)acpi_gbl_table_handler(ACPI_TABLE_EVENT_LOAD, table,
-					     acpi_gbl_table_handler_context);
-	}
-
-unlock_and_exit:
-	(void)acpi_ut_release_mutex(ACPI_MTX_INTERPRETER);
+	    acpi_tb_install_and_load_table(table, ACPI_PTR_TO_PHYSADDR(table),
+					   ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL,
+					   FALSE, &table_index);
 	return_ACPI_STATUS(status);
 }
 
@@ -383,9 +378,9 @@ acpi_status acpi_unload_parent_table(acpi_handle object)
 		return_ACPI_STATUS(AE_TYPE);
 	}
 
-	/* Must acquire the interpreter lock during this operation */
+	/* Must acquire the table lock during this operation */
 
-	status = acpi_ut_acquire_mutex(ACPI_MTX_INTERPRETER);
+	status = acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -412,8 +407,10 @@ acpi_status acpi_unload_parent_table(acpi_handle object)
 
 		/* Ensure the table is actually loaded */
 
+		(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 		if (!acpi_tb_is_table_loaded(i)) {
 			status = AE_NOT_EXIST;
+			(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 			break;
 		}
 
@@ -439,10 +436,11 @@ acpi_status acpi_unload_parent_table(acpi_handle object)
 
 		status = acpi_tb_release_owner_id(i);
 		acpi_tb_set_table_loaded_flag(i, FALSE);
+		(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 		break;
 	}
 
-	(void)acpi_ut_release_mutex(ACPI_MTX_INTERPRETER);
+	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 	return_ACPI_STATUS(status);
 }
 

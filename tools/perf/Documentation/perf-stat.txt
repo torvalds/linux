@@ -69,6 +69,14 @@ report::
 --scale::
 	scale/normalize counter values
 
+-d::
+--detailed::
+	print more detailed statistics, can be specified up to 3 times
+
+	   -d:          detailed events, L1 and LLC data cache
+        -d -d:     more detailed events, dTLB and iTLB events
+     -d -d -d:     very detailed events, adding prefetch events
+
 -r::
 --repeat=<n>::
 	repeat command and print average + stddev (max: 100). 0 means forever.
@@ -139,6 +147,10 @@ Print count deltas every N milliseconds (minimum: 10ms)
 The overhead percentage could be high in some cases, for instance with small, sub 100ms intervals.  Use with caution.
 	example: 'perf stat -I 1000 -e cycles -a sleep 5'
 
+--metric-only::
+Only print computed metrics. Print them in a single line.
+Don't show any raw values. Not supported with --per-thread.
+
 --per-socket::
 Aggregate counts per processor socket for system-wide mode measurements.  This
 is a useful mode to detect imbalance between sockets.  To enable this mode,
@@ -192,6 +204,38 @@ Aggregate counts per physical processor for system-wide mode measurements.
 --no-aggr::
 Do not aggregate counts across all monitored CPUs.
 
+--topdown::
+Print top down level 1 metrics if supported by the CPU. This allows to
+determine bottle necks in the CPU pipeline for CPU bound workloads,
+by breaking the cycles consumed down into frontend bound, backend bound,
+bad speculation and retiring.
+
+Frontend bound means that the CPU cannot fetch and decode instructions fast
+enough. Backend bound means that computation or memory access is the bottle
+neck. Bad Speculation means that the CPU wasted cycles due to branch
+mispredictions and similar issues. Retiring means that the CPU computed without
+an apparently bottleneck. The bottleneck is only the real bottleneck
+if the workload is actually bound by the CPU and not by something else.
+
+For best results it is usually a good idea to use it with interval
+mode like -I 1000, as the bottleneck of workloads can change often.
+
+The top down metrics are collected per core instead of per
+CPU thread. Per core mode is automatically enabled
+and -a (global monitoring) is needed, requiring root rights or
+perf.perf_event_paranoid=-1.
+
+Topdown uses the full Performance Monitoring Unit, and needs
+disabling of the NMI watchdog (as root):
+echo 0 > /proc/sys/kernel/nmi_watchdog
+for best results. Otherwise the bottlenecks may be inconsistent
+on workload with changing phases.
+
+This enables --metric-only, unless overriden with --no-metric-only.
+
+To interpret the results it is usually needed to know on which
+CPUs the workload runs on. If needed the CPUs can be forced using
+taskset.
 
 EXAMPLES
 --------
@@ -210,6 +254,29 @@ $ perf stat -- make -j
        27075259  cache misses         #       3.335 M/sec
 
  Wall-clock time elapsed:   719.554352 msecs
+
+CSV FORMAT
+----------
+
+With -x, perf stat is able to output a not-quite-CSV format output
+Commas in the output are not put into "". To make it easy to parse
+it is recommended to use a different character like -x \;
+
+The fields are in this order:
+
+	- optional usec time stamp in fractions of second (with -I xxx)
+	- optional CPU, core, or socket identifier
+	- optional number of logical CPUs aggregated
+	- counter value
+	- unit of the counter value or empty
+	- event name
+	- run time of counter
+	- percentage of measurement time the counter was running
+	- optional variance if multiple values are collected with -r
+	- optional metric value
+	- optional unit of metric
+
+Additional metrics may be printed with all earlier fields being empty.
 
 SEE ALSO
 --------

@@ -438,6 +438,7 @@ mwifiex_wmm_init(struct mwifiex_adapter *adapter)
 		mwifiex_set_ba_params(priv);
 		mwifiex_reset_11n_rx_seq_num(priv);
 
+		priv->wmm.drv_pkt_delay_max = MWIFIEX_WMM_DRV_DELAY_MAX;
 		atomic_set(&priv->wmm.tx_pkts_queued, 0);
 		atomic_set(&priv->wmm.highest_queued_prio, HIGH_PRIO_TID);
 	}
@@ -475,7 +476,8 @@ mwifiex_wmm_lists_empty(struct mwifiex_adapter *adapter)
 		priv = adapter->priv[i];
 		if (!priv)
 			continue;
-		if (!priv->port_open)
+		if (!priv->port_open &&
+		    (priv->bss_mode != NL80211_IFTYPE_ADHOC))
 			continue;
 		if (adapter->if_ops.is_port_ready &&
 		    !adapter->if_ops.is_port_ready(priv))
@@ -1099,7 +1101,8 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 
 			priv_tmp = adapter->bss_prio_tbl[j].bss_prio_cur->priv;
 
-			if (!priv_tmp->port_open ||
+			if (((priv_tmp->bss_mode != NL80211_IFTYPE_ADHOC) &&
+			     !priv_tmp->port_open) ||
 			    (atomic_read(&priv_tmp->wmm.tx_pkts_queued) == 0))
 				continue;
 

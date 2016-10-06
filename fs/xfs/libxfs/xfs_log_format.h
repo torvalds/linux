@@ -110,7 +110,9 @@ static inline uint xlog_get_cycle(char *ptr)
 #define XLOG_REG_TYPE_COMMIT		18
 #define XLOG_REG_TYPE_TRANSHDR		19
 #define XLOG_REG_TYPE_ICREATE		20
-#define XLOG_REG_TYPE_MAX		20
+#define XLOG_REG_TYPE_RUI_FORMAT	21
+#define XLOG_REG_TYPE_RUD_FORMAT	22
+#define XLOG_REG_TYPE_MAX		22
 
 /*
  * Flags to log operation header
@@ -212,6 +214,11 @@ typedef struct xfs_trans_header {
 #define	XFS_TRANS_HEADER_MAGIC	0x5452414e	/* TRAN */
 
 /*
+ * The only type valid for th_type in CIL-enabled file system logs:
+ */
+#define XFS_TRANS_CHECKPOINT	40
+
+/*
  * Log item types.
  */
 #define	XFS_LI_EFI		0x1236
@@ -222,6 +229,8 @@ typedef struct xfs_trans_header {
 #define	XFS_LI_DQUOT		0x123d
 #define	XFS_LI_QUOTAOFF		0x123e
 #define	XFS_LI_ICREATE		0x123f
+#define	XFS_LI_RUI		0x1240	/* rmap update intent */
+#define	XFS_LI_RUD		0x1241
 
 #define XFS_LI_TYPE_DESC \
 	{ XFS_LI_EFI,		"XFS_LI_EFI" }, \
@@ -231,7 +240,9 @@ typedef struct xfs_trans_header {
 	{ XFS_LI_BUF,		"XFS_LI_BUF" }, \
 	{ XFS_LI_DQUOT,		"XFS_LI_DQUOT" }, \
 	{ XFS_LI_QUOTAOFF,	"XFS_LI_QUOTAOFF" }, \
-	{ XFS_LI_ICREATE,	"XFS_LI_ICREATE" }
+	{ XFS_LI_ICREATE,	"XFS_LI_ICREATE" }, \
+	{ XFS_LI_RUI,		"XFS_LI_RUI" }, \
+	{ XFS_LI_RUD,		"XFS_LI_RUD" }
 
 /*
  * Inode Log Item Format definitions.
@@ -289,6 +300,7 @@ typedef struct xfs_inode_log_format_64 {
 	__int32_t		ilf_len;	/* len of inode buffer */
 	__int32_t		ilf_boffset;	/* off of inode in buffer */
 } xfs_inode_log_format_64_t;
+
 
 /*
  * Flags for xfs_trans_log_inode flags field.
@@ -360,15 +372,15 @@ typedef struct xfs_ictimestamp {
 } xfs_ictimestamp_t;
 
 /*
- * NOTE:  This structure must be kept identical to struct xfs_dinode
- *	  except for the endianness annotations.
+ * Define the format of the inode core that is logged. This structure must be
+ * kept identical to struct xfs_dinode except for the endianness annotations.
  */
-typedef struct xfs_icdinode {
+struct xfs_log_dinode {
 	__uint16_t	di_magic;	/* inode magic # = XFS_DINODE_MAGIC */
 	__uint16_t	di_mode;	/* mode and type of file */
 	__int8_t	di_version;	/* inode version */
 	__int8_t	di_format;	/* format of di_c data */
-	__uint16_t	di_onlink;	/* old number of links to file */
+	__uint8_t	di_pad3[2];	/* unused in v2/3 inodes */
 	__uint32_t	di_uid;		/* owner's user id */
 	__uint32_t	di_gid;		/* owner's group id */
 	__uint32_t	di_nlink;	/* number of links to file */
@@ -407,13 +419,13 @@ typedef struct xfs_icdinode {
 	uuid_t		di_uuid;	/* UUID of the filesystem */
 
 	/* structure must be padded to 64 bit alignment */
-} xfs_icdinode_t;
+};
 
-static inline uint xfs_icdinode_size(int version)
+static inline uint xfs_log_dinode_size(int version)
 {
 	if (version == 3)
-		return sizeof(struct xfs_icdinode);
-	return offsetof(struct xfs_icdinode, di_next_unlinked);
+		return sizeof(struct xfs_log_dinode);
+	return offsetof(struct xfs_log_dinode, di_next_unlinked);
 }
 
 /*
@@ -495,6 +507,8 @@ enum xfs_blft {
 	XFS_BLFT_ATTR_LEAF_BUF,
 	XFS_BLFT_ATTR_RMT_BUF,
 	XFS_BLFT_SB_BUF,
+	XFS_BLFT_RTBITMAP_BUF,
+	XFS_BLFT_RTSUMMARY_BUF,
 	XFS_BLFT_MAX_BUF = (1 << XFS_BLFT_BITS),
 };
 
@@ -594,6 +608,59 @@ typedef struct xfs_efd_log_format_64 {
 	__uint64_t		efd_efi_id;	/* id of corresponding efi */
 	xfs_extent_64_t		efd_extents[1];	/* array of extents freed */
 } xfs_efd_log_format_64_t;
+
+/*
+ * RUI/RUD (reverse mapping) log format definitions
+ */
+struct xfs_map_extent {
+	__uint64_t		me_owner;
+	__uint64_t		me_startblock;
+	__uint64_t		me_startoff;
+	__uint32_t		me_len;
+	__uint32_t		me_flags;
+};
+
+/* rmap me_flags: upper bits are flags, lower byte is type code */
+#define XFS_RMAP_EXTENT_MAP		1
+#define XFS_RMAP_EXTENT_UNMAP		3
+#define XFS_RMAP_EXTENT_CONVERT		5
+#define XFS_RMAP_EXTENT_ALLOC		7
+#define XFS_RMAP_EXTENT_FREE		8
+#define XFS_RMAP_EXTENT_TYPE_MASK	0xFF
+
+#define XFS_RMAP_EXTENT_ATTR_FORK	(1U << 31)
+#define XFS_RMAP_EXTENT_BMBT_BLOCK	(1U << 30)
+#define XFS_RMAP_EXTENT_UNWRITTEN	(1U << 29)
+
+#define XFS_RMAP_EXTENT_FLAGS		(XFS_RMAP_EXTENT_TYPE_MASK | \
+					 XFS_RMAP_EXTENT_ATTR_FORK | \
+					 XFS_RMAP_EXTENT_BMBT_BLOCK | \
+					 XFS_RMAP_EXTENT_UNWRITTEN)
+
+/*
+ * This is the structure used to lay out an rui log item in the
+ * log.  The rui_extents field is a variable size array whose
+ * size is given by rui_nextents.
+ */
+struct xfs_rui_log_format {
+	__uint16_t		rui_type;	/* rui log item type */
+	__uint16_t		rui_size;	/* size of this item */
+	__uint32_t		rui_nextents;	/* # extents to free */
+	__uint64_t		rui_id;		/* rui identifier */
+	struct xfs_map_extent	rui_extents[1];	/* array of extents to rmap */
+};
+
+/*
+ * This is the structure used to lay out an rud log item in the
+ * log.  The rud_extents array is a variable size array whose
+ * size is given by rud_nextents;
+ */
+struct xfs_rud_log_format {
+	__uint16_t		rud_type;	/* rud log item type */
+	__uint16_t		rud_size;	/* size of this item */
+	__uint32_t		__pad;
+	__uint64_t		rud_rui_id;	/* id of corresponding rui */
+};
 
 /*
  * Dquot Log format definitions.

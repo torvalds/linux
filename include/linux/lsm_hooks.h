@@ -151,6 +151,16 @@
  *	@name name of the last path component used to create file
  *	@ctx pointer to place the pointer to the resulting context in.
  *	@ctxlen point to place the length of the resulting context.
+ * @dentry_create_files_as:
+ *	Compute a context for a dentry as the inode is not yet available
+ *	and set that context in passed in creds so that new files are
+ *	created using that context. Context is calculated using the
+ *	passed in creds and not the creds of the caller.
+ *	@dentry dentry to use in calculating the context.
+ *	@mode mode used to determine resource type.
+ *	@name name of the last path component used to create file
+ *	@old creds which should be used for context calculation
+ *	@new creds to modify
  *
  *
  * Security hooks for inode operations.
@@ -401,6 +411,23 @@
  *	@inode contains a pointer to the inode.
  *	@secid contains a pointer to the location where result will be saved.
  *	In case of failure, @secid will be set to zero.
+ * @inode_copy_up:
+ *	A file is about to be copied up from lower layer to upper layer of
+ *	overlay filesystem. Security module can prepare a set of new creds
+ *	and modify as need be and return new creds. Caller will switch to
+ *	new creds temporarily to create new file and release newly allocated
+ *	creds.
+ *	@src indicates the union dentry of file that is being copied up.
+ *	@new pointer to pointer to return newly allocated creds.
+ *	Returns 0 on success or a negative error code on error.
+ * @inode_copy_up_xattr:
+ *	Filter the xattrs being copied up when a unioned file is copied
+ *	up from a lower layer to the union/overlay layer.
+ *	@name indicates the name of the xattr.
+ *	Returns 0 to accept the xattr, 1 to discard the xattr, -EOPNOTSUPP if
+ *	security module does not know about attribute or a negative error code
+ *	to abort the copy up. Note that the caller is responsible for reading
+ *	and writing the xattrs as this hook is merely a filter.
  *
  * Security hooks for file operations
  *
@@ -541,25 +568,24 @@
  *	@inode points to the inode to use as a reference.
  *	The current task must be the one that nominated @inode.
  *	Return 0 if successful.
- * @kernel_fw_from_file:
- *	Load firmware from userspace (not called for built-in firmware).
- *	@file contains the file structure pointing to the file containing
- *	the firmware to load. This argument will be NULL if the firmware
- *	was loaded via the uevent-triggered blob-based interface exposed
- *	by CONFIG_FW_LOADER_USER_HELPER.
- *	@buf pointer to buffer containing firmware contents.
- *	@size length of the firmware contents.
- *	Return 0 if permission is granted.
  * @kernel_module_request:
  *	Ability to trigger the kernel to automatically upcall to userspace for
  *	userspace to load a kernel module with the given name.
  *	@kmod_name name of the module requested by the kernel
  *	Return 0 if successful.
- * @kernel_module_from_file:
- *	Load a kernel module from userspace.
- *	@file contains the file structure pointing to the file containing
- *	the kernel module to load. If the module is being loaded from a blob,
- *	this argument will be NULL.
+ * @kernel_read_file:
+ *	Read a file specified by userspace.
+ *	@file contains the file structure pointing to the file being read
+ *	by the kernel.
+ *	@id kernel read file identifier
+ *	Return 0 if permission is granted.
+ * @kernel_post_read_file:
+ *	Read a file specified by userspace.
+ *	@file contains the file structure pointing to the file being read
+ *	by the kernel.
+ *	@buf pointer to buffer containing the file contents.
+ *	@size length of the file contents.
+ *	@id kernel read file identifier
  *	Return 0 if permission is granted.
  * @task_fix_setuid:
  *	Update the module's state after setting one or more of the user
@@ -1191,7 +1217,8 @@
  *	Return 0 if permission is granted.
  * @settime:
  *	Check permission to change the system time.
- *	struct timespec and timezone are defined in include/linux/time.h
+ *	struct timespec64 is defined in include/linux/time64.h and timezone
+ *	is defined in include/linux/time.h
  *	@ts contains new time
  *	@tz contains new timezone
  *	Return 0 if permission is granted.
@@ -1328,7 +1355,7 @@ union security_list_options {
 	int (*quotactl)(int cmds, int type, int id, struct super_block *sb);
 	int (*quota_on)(struct dentry *dentry);
 	int (*syslog)(int type);
-	int (*settime)(const struct timespec *ts, const struct timezone *tz);
+	int (*settime)(const struct timespec64 *ts, const struct timezone *tz);
 	int (*vm_enough_memory)(struct mm_struct *mm, long pages);
 
 	int (*bprm_set_creds)(struct linux_binprm *bprm);
@@ -1344,10 +1371,10 @@ union security_list_options {
 	int (*sb_kern_mount)(struct super_block *sb, int flags, void *data);
 	int (*sb_show_options)(struct seq_file *m, struct super_block *sb);
 	int (*sb_statfs)(struct dentry *dentry);
-	int (*sb_mount)(const char *dev_name, struct path *path,
+	int (*sb_mount)(const char *dev_name, const struct path *path,
 			const char *type, unsigned long flags, void *data);
 	int (*sb_umount)(struct vfsmount *mnt, int flags);
-	int (*sb_pivotroot)(struct path *old_path, struct path *new_path);
+	int (*sb_pivotroot)(const struct path *old_path, const struct path *new_path);
 	int (*sb_set_mnt_opts)(struct super_block *sb,
 				struct security_mnt_opts *opts,
 				unsigned long kern_flags,
@@ -1356,28 +1383,32 @@ union security_list_options {
 					struct super_block *newsb);
 	int (*sb_parse_opts_str)(char *options, struct security_mnt_opts *opts);
 	int (*dentry_init_security)(struct dentry *dentry, int mode,
-					struct qstr *name, void **ctx,
+					const struct qstr *name, void **ctx,
 					u32 *ctxlen);
+	int (*dentry_create_files_as)(struct dentry *dentry, int mode,
+					struct qstr *name,
+					const struct cred *old,
+					struct cred *new);
 
 
 #ifdef CONFIG_SECURITY_PATH
-	int (*path_unlink)(struct path *dir, struct dentry *dentry);
-	int (*path_mkdir)(struct path *dir, struct dentry *dentry,
+	int (*path_unlink)(const struct path *dir, struct dentry *dentry);
+	int (*path_mkdir)(const struct path *dir, struct dentry *dentry,
 				umode_t mode);
-	int (*path_rmdir)(struct path *dir, struct dentry *dentry);
-	int (*path_mknod)(struct path *dir, struct dentry *dentry,
+	int (*path_rmdir)(const struct path *dir, struct dentry *dentry);
+	int (*path_mknod)(const struct path *dir, struct dentry *dentry,
 				umode_t mode, unsigned int dev);
-	int (*path_truncate)(struct path *path);
-	int (*path_symlink)(struct path *dir, struct dentry *dentry,
+	int (*path_truncate)(const struct path *path);
+	int (*path_symlink)(const struct path *dir, struct dentry *dentry,
 				const char *old_name);
-	int (*path_link)(struct dentry *old_dentry, struct path *new_dir,
+	int (*path_link)(struct dentry *old_dentry, const struct path *new_dir,
 				struct dentry *new_dentry);
-	int (*path_rename)(struct path *old_dir, struct dentry *old_dentry,
-				struct path *new_dir,
+	int (*path_rename)(const struct path *old_dir, struct dentry *old_dentry,
+				const struct path *new_dir,
 				struct dentry *new_dentry);
-	int (*path_chmod)(struct path *path, umode_t mode);
-	int (*path_chown)(struct path *path, kuid_t uid, kgid_t gid);
-	int (*path_chroot)(struct path *path);
+	int (*path_chmod)(const struct path *path, umode_t mode);
+	int (*path_chown)(const struct path *path, kuid_t uid, kgid_t gid);
+	int (*path_chroot)(const struct path *path);
 #endif
 
 	int (*inode_alloc_security)(struct inode *inode);
@@ -1425,6 +1456,8 @@ union security_list_options {
 	int (*inode_listsecurity)(struct inode *inode, char *buffer,
 					size_t buffer_size);
 	void (*inode_getsecid)(struct inode *inode, u32 *secid);
+	int (*inode_copy_up)(struct dentry *src, struct cred **new);
+	int (*inode_copy_up_xattr)(const char *name);
 
 	int (*file_permission)(struct file *file, int mask);
 	int (*file_alloc_security)(struct file *file);
@@ -1454,9 +1487,10 @@ union security_list_options {
 	void (*cred_transfer)(struct cred *new, const struct cred *old);
 	int (*kernel_act_as)(struct cred *new, u32 secid);
 	int (*kernel_create_files_as)(struct cred *new, struct inode *inode);
-	int (*kernel_fw_from_file)(struct file *file, char *buf, size_t size);
 	int (*kernel_module_request)(char *kmod_name);
-	int (*kernel_module_from_file)(struct file *file);
+	int (*kernel_read_file)(struct file *file, enum kernel_read_file_id id);
+	int (*kernel_post_read_file)(struct file *file, char *buf, loff_t size,
+				     enum kernel_read_file_id id);
 	int (*task_fix_setuid)(struct cred *new, const struct cred *old,
 				int flags);
 	int (*task_setpgid)(struct task_struct *p, pid_t pgid);
@@ -1654,6 +1688,7 @@ struct security_hook_heads {
 	struct list_head sb_clone_mnt_opts;
 	struct list_head sb_parse_opts_str;
 	struct list_head dentry_init_security;
+	struct list_head dentry_create_files_as;
 #ifdef CONFIG_SECURITY_PATH
 	struct list_head path_unlink;
 	struct list_head path_mkdir;
@@ -1694,6 +1729,8 @@ struct security_hook_heads {
 	struct list_head inode_setsecurity;
 	struct list_head inode_listsecurity;
 	struct list_head inode_getsecid;
+	struct list_head inode_copy_up;
+	struct list_head inode_copy_up_xattr;
 	struct list_head file_permission;
 	struct list_head file_alloc_security;
 	struct list_head file_free_security;
@@ -1715,9 +1752,9 @@ struct security_hook_heads {
 	struct list_head cred_transfer;
 	struct list_head kernel_act_as;
 	struct list_head kernel_create_files_as;
-	struct list_head kernel_fw_from_file;
+	struct list_head kernel_read_file;
+	struct list_head kernel_post_read_file;
 	struct list_head kernel_module_request;
-	struct list_head kernel_module_from_file;
 	struct list_head task_fix_setuid;
 	struct list_head task_setpgid;
 	struct list_head task_getpgid;
@@ -1803,7 +1840,6 @@ struct security_hook_heads {
 	struct list_head tun_dev_attach_queue;
 	struct list_head tun_dev_attach;
 	struct list_head tun_dev_open;
-	struct list_head skb_owned_by;
 #endif	/* CONFIG_SECURITY_NETWORK */
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	struct list_head xfrm_policy_alloc_security;
@@ -1891,6 +1927,11 @@ extern void __init capability_add_hooks(void);
 extern void __init yama_add_hooks(void);
 #else
 static inline void __init yama_add_hooks(void) { }
+#endif
+#ifdef CONFIG_SECURITY_LOADPIN
+void __init loadpin_add_hooks(void);
+#else
+static inline void loadpin_add_hooks(void) { };
 #endif
 
 #endif /* ! __LINUX_LSM_HOOKS_H */

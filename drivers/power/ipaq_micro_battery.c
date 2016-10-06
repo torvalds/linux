@@ -261,7 +261,7 @@ static int micro_batt_probe(struct platform_device *pdev)
 	return 0;
 
 ac_err:
-	power_supply_unregister(micro_ac_power);
+	power_supply_unregister(micro_batt_power);
 batt_err:
 	cancel_delayed_work_sync(&mb->update);
 	destroy_workqueue(mb->wq);
@@ -281,7 +281,7 @@ static int micro_batt_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int micro_batt_suspend(struct device *dev)
+static int __maybe_unused micro_batt_suspend(struct device *dev)
 {
 	struct micro_battery *mb = dev_get_drvdata(dev);
 
@@ -289,7 +289,7 @@ static int micro_batt_suspend(struct device *dev)
 	return 0;
 }
 
-static int micro_batt_resume(struct device *dev)
+static int __maybe_unused micro_batt_resume(struct device *dev)
 {
 	struct micro_battery *mb = dev_get_drvdata(dev);
 

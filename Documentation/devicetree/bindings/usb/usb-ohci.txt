@@ -14,7 +14,7 @@ Optional properties:
 - clocks : a list of phandle + clock specifier pairs
 - phys : phandle + phy specifier pair
 - phy-names : "usb"
-- resets : phandle + reset specifier pair
+- resets : a list of phandle + reset specifier pairs
 
 Example:
 

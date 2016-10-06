@@ -1,0 +1,50 @@
+Texas Instruments' Message Manager Driver
+========================================
+
+The Texas Instruments' Message Manager is a mailbox controller that has
+configurable queues selectable at SoC(System on Chip) integration. The Message
+manager is broken up into queues in different address regions that are called
+"proxies" - each instance is unidirectional and is instantiated at SoC
+integration level to indicate receive or transmit path.
+
+Message Manager Device Node:
+===========================
+Required properties:
+--------------------
+- compatible:		Shall be: "ti,k2g-message-manager"
+- reg-names 		queue_proxy_region - Map the queue proxy region.
+			queue_state_debug_region - Map the queue state debug
+			region.
+- reg:			Contains the register map per reg-names.
+- #mbox-cells		Shall be 2. Contains the queue ID and proxy ID in that
+		        order referring to the transfer path.
+- interrupt-names:	Contains interrupt names matching the rx transfer path
+			for a given SoC. Receive interrupts shall be of the
+			format: "rx_<QID>_<PID>".
+			For ti,k2g-message-manager, this shall contain:
+				"rx_005_002", "rx_057_002"
+- interrupts:		Contains the interrupt information corresponding to
+			interrupt-names property.
+
+Example(K2G):
+------------
+
+	msgmgr: msgmgr@02a00000 {
+		compatible = "ti,k2g-message-manager";
+		#mbox-cells = <2>;
+		reg-names = "queue_proxy_region", "queue_state_debug_region";
+		reg = <0x02a00000 0x400000>, <0x028c3400 0x400>;
+		interrupt-names = "rx_005", "rx_057";
+		interrupts = <GIC_SPI 324 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 327 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	pmmc: pmmc {
+		[...]
+		mbox-names = "rx", "tx";
+		# RX queue ID is 5, proxy ID is 2
+		# TX queue ID is 0, proxy ID is 0
+		mboxes= <&msgmgr 5 2>,
+			<&msgmgr 0 0>;
+		[...]
+	};

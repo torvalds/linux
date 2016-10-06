@@ -74,6 +74,7 @@ struct mlxsw_sx_port_pcpu_stats {
 };
 
 struct mlxsw_sx_port {
+	struct mlxsw_core_port core_port; /* must be first */
 	struct net_device *dev;
 	struct mlxsw_sx_port_pcpu_stats __percpu *pcpu_stats;
 	struct mlxsw_sx *mlxsw_sx;
@@ -301,7 +302,7 @@ static netdev_tx_t mlxsw_sx_port_xmit(struct sk_buff *skb,
 	u64 len;
 	int err;
 
-	if (mlxsw_core_skb_transmit_busy(mlxsw_sx, &tx_info))
+	if (mlxsw_core_skb_transmit_busy(mlxsw_sx->core, &tx_info))
 		return NETDEV_TX_BUSY;
 
 	if (unlikely(skb_headroom(skb) < MLXSW_TXHDR_LEN)) {
@@ -315,11 +316,14 @@ static netdev_tx_t mlxsw_sx_port_xmit(struct sk_buff *skb,
 		}
 	}
 	mlxsw_sx_txhdr_construct(skb, &tx_info);
-	len = skb->len;
+	/* TX header is consumed by HW on the way so we shouldn't count its
+	 * bytes as being sent.
+	 */
+	len = skb->len - MLXSW_TXHDR_LEN;
 	/* Due to a race we might fail here because of a full queue. In that
 	 * unlikely case we simply drop the packet.
 	 */
-	err = mlxsw_core_skb_transmit(mlxsw_sx, skb, &tx_info);
+	err = mlxsw_core_skb_transmit(mlxsw_sx->core, skb, &tx_info);
 
 	if (!err) {
 		pcpu_stats = this_cpu_ptr(mlxsw_sx_port->pcpu_stats);
@@ -516,7 +520,8 @@ static void mlxsw_sx_port_get_stats(struct net_device *dev,
 	int i;
 	int err;
 
-	mlxsw_reg_ppcnt_pack(ppcnt_pl, mlxsw_sx_port->local_port);
+	mlxsw_reg_ppcnt_pack(ppcnt_pl, mlxsw_sx_port->local_port,
+			     MLXSW_REG_PPCNT_IEEE_8023_CNT, 0);
 	err = mlxsw_reg_query(mlxsw_sx->core, MLXSW_REG(ppcnt), ppcnt_pl);
 	for (i = 0; i < MLXSW_SX_PORT_HW_STATS_LEN; i++)
 		data[i] = !err ? mlxsw_sx_port_hw_stats[i].getter(ppcnt_pl) : 0;
@@ -992,7 +997,7 @@ static int mlxsw_sx_port_create(struct mlxsw_sx *mlxsw_sx, u8 local_port)
 	/* Each packet needs to have a Tx header (metadata) on top all other
 	 * headers.
 	 */
-	dev->hard_header_len += MLXSW_TXHDR_LEN;
+	dev->needed_headroom = MLXSW_TXHDR_LEN;
 
 	err = mlxsw_sx_port_module_check(mlxsw_sx_port, &usable);
 	if (err) {
@@ -1064,9 +1069,19 @@ static int mlxsw_sx_port_create(struct mlxsw_sx *mlxsw_sx, u8 local_port)
 		goto err_register_netdev;
 	}
 
+	err = mlxsw_core_port_init(mlxsw_sx->core, &mlxsw_sx_port->core_port,
+				   mlxsw_sx_port->local_port, dev, false, 0);
+	if (err) {
+		dev_err(mlxsw_sx->bus_info->dev, "Port %d: Failed to init core port\n",
+			mlxsw_sx_port->local_port);
+		goto err_core_port_init;
+	}
+
 	mlxsw_sx->ports[local_port] = mlxsw_sx_port;
 	return 0;
 
+err_core_port_init:
+	unregister_netdev(dev);
 err_register_netdev:
 err_port_mac_learning_mode_set:
 err_port_stp_state_set:
@@ -1090,6 +1105,7 @@ static void mlxsw_sx_port_remove(struct mlxsw_sx *mlxsw_sx, u8 local_port)
 
 	if (!mlxsw_sx_port)
 		return;
+	mlxsw_core_port_fini(&mlxsw_sx_port->core_port);
 	unregister_netdev(mlxsw_sx_port->dev); /* This calls ndo_stop */
 	mlxsw_sx_port_swid_set(mlxsw_sx_port, MLXSW_PORT_SWID_DISABLED_PORT);
 	free_percpu(mlxsw_sx_port->pcpu_stats);
@@ -1434,10 +1450,10 @@ static int mlxsw_sx_flood_init(struct mlxsw_sx *mlxsw_sx)
 	return mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(sgcr), sgcr_pl);
 }
 
-static int mlxsw_sx_init(void *priv, struct mlxsw_core *mlxsw_core,
+static int mlxsw_sx_init(struct mlxsw_core *mlxsw_core,
 			 const struct mlxsw_bus_info *mlxsw_bus_info)
 {
-	struct mlxsw_sx *mlxsw_sx = priv;
+	struct mlxsw_sx *mlxsw_sx = mlxsw_core_driver_priv(mlxsw_core);
 	int err;
 
 	mlxsw_sx->core = mlxsw_core;
@@ -1484,9 +1500,9 @@ err_event_register:
 	return err;
 }
 
-static void mlxsw_sx_fini(void *priv)
+static void mlxsw_sx_fini(struct mlxsw_core *mlxsw_core)
 {
-	struct mlxsw_sx *mlxsw_sx = priv;
+	struct mlxsw_sx *mlxsw_sx = mlxsw_core_driver_priv(mlxsw_core);
 
 	mlxsw_sx_traps_fini(mlxsw_sx);
 	mlxsw_sx_event_unregister(mlxsw_sx, MLXSW_TRAP_ID_PUDE);
@@ -1496,10 +1512,6 @@ static void mlxsw_sx_fini(void *priv)
 static struct mlxsw_config_profile mlxsw_sx_config_profile = {
 	.used_max_vepa_channels		= 1,
 	.max_vepa_channels		= 0,
-	.used_max_lag			= 1,
-	.max_lag			= 64,
-	.used_max_port_per_lag		= 1,
-	.max_port_per_lag		= 16,
 	.used_max_mid			= 1,
 	.max_mid			= 7000,
 	.used_max_pgt			= 1,
@@ -1525,6 +1537,7 @@ static struct mlxsw_config_profile mlxsw_sx_config_profile = {
 			.type		= MLXSW_PORT_SWID_TYPE_ETH,
 		}
 	},
+	.resource_query_enable		= 0,
 };
 
 static struct mlxsw_driver mlxsw_sx_driver = {

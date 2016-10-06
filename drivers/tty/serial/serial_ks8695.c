@@ -554,7 +554,7 @@ static struct uart_port ks8695uart_ports[SERIAL_KS8695_NR] = {
 		.uartclk	= KS8695_CLOCK_RATE * 16,
 		.fifosize	= 16,
 		.ops		= &ks8695uart_pops,
-		.flags		= ASYNC_BOOT_AUTOCONF,
+		.flags		= UPF_BOOT_AUTOCONF,
 		.line		= 0,
 	}
 };

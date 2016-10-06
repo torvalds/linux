@@ -17,6 +17,7 @@
 #include <linux/ahci_platform.h>
 #include <linux/clk.h>
 #include <linux/reboot.h>
+#include <linux/dmaengine.h>
 
 #include <mach/cputype.h>
 #include <mach/common.h>
@@ -233,15 +234,53 @@ static const struct platform_device_info da850_edma1_device __initconst = {
 	.size_data	= sizeof(da850_edma1_pdata),
 };
 
+static const struct dma_slave_map da830_edma_map[] = {
+	{ "davinci-mcasp.0", "rx", EDMA_FILTER_PARAM(0, 0) },
+	{ "davinci-mcasp.0", "tx", EDMA_FILTER_PARAM(0, 1) },
+	{ "davinci-mcasp.1", "rx", EDMA_FILTER_PARAM(0, 2) },
+	{ "davinci-mcasp.1", "tx", EDMA_FILTER_PARAM(0, 3) },
+	{ "davinci-mcasp.2", "rx", EDMA_FILTER_PARAM(0, 4) },
+	{ "davinci-mcasp.2", "tx", EDMA_FILTER_PARAM(0, 5) },
+	{ "spi_davinci.0", "rx", EDMA_FILTER_PARAM(0, 14) },
+	{ "spi_davinci.0", "tx", EDMA_FILTER_PARAM(0, 15) },
+	{ "da830-mmc.0", "rx", EDMA_FILTER_PARAM(0, 16) },
+	{ "da830-mmc.0", "tx", EDMA_FILTER_PARAM(0, 17) },
+	{ "spi_davinci.1", "rx", EDMA_FILTER_PARAM(0, 18) },
+	{ "spi_davinci.1", "tx", EDMA_FILTER_PARAM(0, 19) },
+};
+
 int __init da830_register_edma(struct edma_rsv_info *rsv)
 {
 	struct platform_device *edma_pdev;
 
 	da8xx_edma0_pdata.rsv = rsv;
 
+	da8xx_edma0_pdata.slave_map = da830_edma_map;
+	da8xx_edma0_pdata.slavecnt = ARRAY_SIZE(da830_edma_map);
+
 	edma_pdev = platform_device_register_full(&da8xx_edma0_device);
 	return IS_ERR(edma_pdev) ? PTR_ERR(edma_pdev) : 0;
 }
+
+static const struct dma_slave_map da850_edma0_map[] = {
+	{ "davinci-mcasp.0", "rx", EDMA_FILTER_PARAM(0, 0) },
+	{ "davinci-mcasp.0", "tx", EDMA_FILTER_PARAM(0, 1) },
+	{ "davinci-mcbsp.0", "rx", EDMA_FILTER_PARAM(0, 2) },
+	{ "davinci-mcbsp.0", "tx", EDMA_FILTER_PARAM(0, 3) },
+	{ "davinci-mcbsp.1", "rx", EDMA_FILTER_PARAM(0, 4) },
+	{ "davinci-mcbsp.1", "tx", EDMA_FILTER_PARAM(0, 5) },
+	{ "spi_davinci.0", "rx", EDMA_FILTER_PARAM(0, 14) },
+	{ "spi_davinci.0", "tx", EDMA_FILTER_PARAM(0, 15) },
+	{ "da830-mmc.0", "rx", EDMA_FILTER_PARAM(0, 16) },
+	{ "da830-mmc.0", "tx", EDMA_FILTER_PARAM(0, 17) },
+	{ "spi_davinci.1", "rx", EDMA_FILTER_PARAM(0, 18) },
+	{ "spi_davinci.1", "tx", EDMA_FILTER_PARAM(0, 19) },
+};
+
+static const struct dma_slave_map da850_edma1_map[] = {
+	{ "da830-mmc.1", "rx", EDMA_FILTER_PARAM(1, 28) },
+	{ "da830-mmc.1", "tx", EDMA_FILTER_PARAM(1, 29) },
+};
 
 int __init da850_register_edma(struct edma_rsv_info *rsv[2])
 {
@@ -252,11 +291,18 @@ int __init da850_register_edma(struct edma_rsv_info *rsv[2])
 		da850_edma1_pdata.rsv = rsv[1];
 	}
 
+	da8xx_edma0_pdata.slave_map = da850_edma0_map;
+	da8xx_edma0_pdata.slavecnt = ARRAY_SIZE(da850_edma0_map);
+
 	edma_pdev = platform_device_register_full(&da8xx_edma0_device);
 	if (IS_ERR(edma_pdev)) {
 		pr_warn("%s: Failed to register eDMA0\n", __func__);
 		return PTR_ERR(edma_pdev);
 	}
+
+	da850_edma1_pdata.slave_map = da850_edma1_map;
+	da850_edma1_pdata.slavecnt = ARRAY_SIZE(da850_edma1_map);
+
 	edma_pdev = platform_device_register_full(&da850_edma1_device);
 	return IS_ERR(edma_pdev) ? PTR_ERR(edma_pdev) : 0;
 }
@@ -705,16 +751,6 @@ static struct resource da8xx_mmcsd0_resources[] = {
 		.end	= IRQ_DA8XX_MMCSDINT0,
 		.flags	= IORESOURCE_IRQ,
 	},
-	{		/* DMA RX */
-		.start	= DA8XX_DMA_MMCSD0_RX,
-		.end	= DA8XX_DMA_MMCSD0_RX,
-		.flags	= IORESOURCE_DMA,
-	},
-	{		/* DMA TX */
-		.start	= DA8XX_DMA_MMCSD0_TX,
-		.end	= DA8XX_DMA_MMCSD0_TX,
-		.flags	= IORESOURCE_DMA,
-	},
 };
 
 static struct platform_device da8xx_mmcsd0_device = {
@@ -741,16 +777,6 @@ static struct resource da850_mmcsd1_resources[] = {
 		.start	= IRQ_DA850_MMCSDINT0_1,
 		.end	= IRQ_DA850_MMCSDINT0_1,
 		.flags	= IORESOURCE_IRQ,
-	},
-	{		/* DMA RX */
-		.start	= DA850_DMA_MMCSD1_RX,
-		.end	= DA850_DMA_MMCSD1_RX,
-		.flags	= IORESOURCE_DMA,
-	},
-	{		/* DMA TX */
-		.start	= DA850_DMA_MMCSD1_TX,
-		.end	= DA850_DMA_MMCSD1_TX,
-		.flags	= IORESOURCE_DMA,
 	},
 };
 

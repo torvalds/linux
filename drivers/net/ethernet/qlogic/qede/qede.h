@@ -24,20 +24,20 @@
 #include <linux/qed/qed_eth_if.h>
 
 #define QEDE_MAJOR_VERSION		8
-#define QEDE_MINOR_VERSION		4
-#define QEDE_REVISION_VERSION		0
-#define QEDE_ENGINEERING_VERSION	0
+#define QEDE_MINOR_VERSION		10
+#define QEDE_REVISION_VERSION		9
+#define QEDE_ENGINEERING_VERSION	20
 #define DRV_MODULE_VERSION __stringify(QEDE_MAJOR_VERSION) "."	\
 		__stringify(QEDE_MINOR_VERSION) "."		\
 		__stringify(QEDE_REVISION_VERSION) "."		\
 		__stringify(QEDE_ENGINEERING_VERSION)
 
-#define QEDE_ETH_INTERFACE_VERSION	300
-
 #define DRV_MODULE_SYM		qede
 
 struct qede_stats {
 	u64 no_buff_discards;
+	u64 packet_too_big_discard;
+	u64 ttl0_discard;
 	u64 rx_ucast_bytes;
 	u64 rx_mcast_bytes;
 	u64 rx_bcast_bytes;
@@ -61,16 +61,16 @@ struct qede_stats {
 
 	/* port */
 	u64 rx_64_byte_packets;
-	u64 rx_127_byte_packets;
-	u64 rx_255_byte_packets;
-	u64 rx_511_byte_packets;
-	u64 rx_1023_byte_packets;
-	u64 rx_1518_byte_packets;
-	u64 rx_1522_byte_packets;
-	u64 rx_2047_byte_packets;
-	u64 rx_4095_byte_packets;
-	u64 rx_9216_byte_packets;
-	u64 rx_16383_byte_packets;
+	u64 rx_65_to_127_byte_packets;
+	u64 rx_128_to_255_byte_packets;
+	u64 rx_256_to_511_byte_packets;
+	u64 rx_512_to_1023_byte_packets;
+	u64 rx_1024_to_1518_byte_packets;
+	u64 rx_1519_to_1522_byte_packets;
+	u64 rx_1519_to_2047_byte_packets;
+	u64 rx_2048_to_4095_byte_packets;
+	u64 rx_4096_to_9216_byte_packets;
+	u64 rx_9217_to_16383_byte_packets;
 	u64 rx_crc_errors;
 	u64 rx_mac_crtl_frames;
 	u64 rx_pause_frames;
@@ -100,6 +100,19 @@ struct qede_stats {
 	u64 tx_mac_ctrl_frames;
 };
 
+struct qede_vlan {
+	struct list_head list;
+	u16 vid;
+	bool configured;
+};
+
+struct qede_rdma_dev {
+	struct qedr_dev *qedr_dev;
+	struct list_head entry;
+	struct list_head roce_event_list;
+	struct workqueue_struct *roce_wq;
+};
+
 struct qede_dev {
 	struct qed_dev			*cdev;
 	struct net_device		*ndev;
@@ -107,6 +120,10 @@ struct qede_dev {
 
 	u32				dp_module;
 	u8				dp_level;
+
+	u32 flags;
+#define QEDE_FLAG_IS_VF	BIT(0)
+#define IS_VF(edev)	(!!((edev)->flags & QEDE_FLAG_IS_VF))
 
 	const struct qed_eth_ops	*ops;
 
@@ -116,16 +133,22 @@ struct qede_dev {
 				 (edev)->dev_info.num_tc)
 
 	struct qede_fastpath		*fp_array;
-	u16				req_rss;
-	u16				num_rss;
+	u8				req_num_tx;
+	u8				fp_num_tx;
+	u8				req_num_rx;
+	u8				fp_num_rx;
+	u16				req_queues;
+	u16				num_queues;
 	u8				num_tc;
-#define QEDE_RSS_CNT(edev)		((edev)->num_rss)
-#define QEDE_TSS_CNT(edev)		((edev)->num_rss *	\
-					 (edev)->num_tc)
-#define QEDE_TSS_IDX(edev, txqidx)	((txqidx) % (edev)->num_rss)
-#define QEDE_TC_IDX(edev, txqidx)	((txqidx) / (edev)->num_rss)
+#define QEDE_QUEUE_CNT(edev)	((edev)->num_queues)
+#define QEDE_RSS_COUNT(edev)	((edev)->num_queues - (edev)->fp_num_tx)
+#define QEDE_TSS_COUNT(edev)	(((edev)->num_queues - (edev)->fp_num_rx) * \
+				 (edev)->num_tc)
+#define QEDE_TX_IDX(edev, txqidx)	((edev)->fp_num_rx + (txqidx) % \
+					 QEDE_TSS_COUNT(edev))
+#define QEDE_TC_IDX(edev, txqidx)	((txqidx) / QEDE_TSS_COUNT(edev))
 #define QEDE_TX_QUEUE(edev, txqidx)	\
-	(&(edev)->fp_array[QEDE_TSS_IDX((edev), (txqidx))].txqs[QEDE_TC_IDX( \
+	(&(edev)->fp_array[QEDE_TX_IDX((edev), (txqidx))].txqs[QEDE_TC_IDX(\
 							(edev), (txqidx))])
 
 	struct qed_int_info		int_info;
@@ -135,6 +158,8 @@ struct qede_dev {
 	struct mutex			qede_lock;
 	u32				state; /* Protected by qede_lock */
 	u16				rx_buf_size;
+	u32				rx_copybreak;
+
 	/* L2 header size + 2*VLANs (8 bytes) + LLC SNAP (8 bytes) */
 #define ETH_OVERHEAD			(ETH_HLEN + 8 + 8)
 	/* Max supported alignment is 256 (8 shift)
@@ -150,12 +175,25 @@ struct qede_dev {
 	      SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
 	struct qede_stats		stats;
+#define QEDE_RSS_INDIR_INITED	BIT(0)
+#define QEDE_RSS_KEY_INITED	BIT(1)
+#define QEDE_RSS_CAPS_INITED	BIT(2)
+	u32 rss_params_inited; /* bit-field to track initialized rss params */
 	struct qed_update_vport_rss_params	rss_params;
 	u16			q_num_rx_buffers; /* Must be a power of two */
 	u16			q_num_tx_buffers; /* Must be a power of two */
 
+	bool gro_disable;
+	struct list_head vlan_list;
+	u16 configured_vlans;
+	u16 non_configured_vlans;
+	bool accept_any_vlan;
 	struct delayed_work		sp_task;
 	unsigned long			sp_flags;
+	u16				vxlan_dst_port;
+	u16				geneve_dst_port;
+
+	struct qede_rdma_dev		rdma_info;
 };
 
 enum QEDE_STATE {
@@ -173,9 +211,27 @@ enum QEDE_STATE {
  * skb are built only after the frame was DMA-ed.
  */
 struct sw_rx_data {
-	u8 *data;
+	struct page *data;
+	dma_addr_t mapping;
+	unsigned int page_offset;
+};
 
-	DEFINE_DMA_UNMAP_ADDR(mapping);
+enum qede_agg_state {
+	QEDE_AGG_STATE_NONE  = 0,
+	QEDE_AGG_STATE_START = 1,
+	QEDE_AGG_STATE_ERROR = 2
+};
+
+struct qede_agg_info {
+	struct sw_rx_data replace_buf;
+	dma_addr_t replace_buf_mapping;
+	struct sw_rx_data start_buf;
+	dma_addr_t start_buf_mapping;
+	struct eth_fast_path_rx_tpa_start_cqe start_cqe;
+	enum qede_agg_state agg_state;
+	struct sk_buff *skb;
+	int frag_id;
+	u16 vlan_tag;
 };
 
 struct qede_rx_queue {
@@ -187,13 +243,19 @@ struct qede_rx_queue {
 	struct qed_chain	rx_comp_ring;
 	void __iomem		*hw_rxq_prod_addr;
 
+	/* GRO */
+	struct qede_agg_info	tpa_info[ETH_TPA_MAX_AGGS_NUM];
+
 	int			rx_buf_size;
+	unsigned int		rx_buf_seg_size;
 
 	u16			num_rx_buffers;
 	u16			rxq_id;
 
+	u64			rcv_pkts;
 	u64			rx_hw_errors;
 	u64			rx_alloc_errors;
+	u64			rx_ip_frags;
 };
 
 union db_prod {
@@ -219,6 +281,10 @@ struct qede_tx_queue {
 	union db_prod		tx_db;
 
 	u16			num_tx_buffers;
+	u64			xmit_pkts;
+	u64			stopped_cnt;
+
+	bool			is_legacy;
 };
 
 #define BD_UNMAP_ADDR(bd)		HILO_U64(le32_to_cpu((bd)->addr.hi), \
@@ -233,7 +299,11 @@ struct qede_tx_queue {
 
 struct qede_fastpath {
 	struct qede_dev	*edev;
-	u8			rss_id;
+#define QEDE_FASTPATH_TX	BIT(0)
+#define QEDE_FASTPATH_RX	BIT(1)
+#define QEDE_FASTPATH_COMBINED	(QEDE_FASTPATH_TX | QEDE_FASTPATH_RX)
+	u8			type;
+	u8			id;
 	struct napi_struct	napi;
 	struct qed_sb_info	*sb_info;
 	struct qede_rx_queue	*rxq;
@@ -253,13 +323,19 @@ struct qede_fastpath {
 
 #define QEDE_CSUM_ERROR			BIT(0)
 #define QEDE_CSUM_UNNECESSARY		BIT(1)
+#define QEDE_TUNN_CSUM_UNNECESSARY	BIT(2)
 
-#define QEDE_SP_RX_MODE		1
+#define QEDE_SP_RX_MODE			1
+#define QEDE_SP_VXLAN_PORT_CONFIG	2
+#define QEDE_SP_GENEVE_PORT_CONFIG	3
 
 union qede_reload_args {
 	u16 mtu;
 };
 
+#ifdef CONFIG_DCB
+void qede_set_dcbnl_ops(struct net_device *ndev);
+#endif
 void qede_config_debug(uint debug, u32 *p_dp_module, u8 *p_dp_level);
 void qede_set_ethtool_ops(struct net_device *netdev);
 void qede_reload(struct qede_dev *edev,
@@ -268,6 +344,10 @@ void qede_reload(struct qede_dev *edev,
 		 union qede_reload_args *args);
 int qede_change_mtu(struct net_device *dev, int new_mtu);
 void qede_fill_by_demand_stats(struct qede_dev *edev);
+bool qede_has_rx_work(struct qede_rx_queue *rxq);
+int qede_txq_has_work(struct qede_tx_queue *txq);
+void qede_recycle_rx_bd_ring(struct qede_rx_queue *rxq, struct qede_dev *edev,
+			     u8 count);
 
 #define RX_RING_SIZE_POW	13
 #define RX_RING_SIZE		((u16)BIT(RX_RING_SIZE_POW))
@@ -281,6 +361,8 @@ void qede_fill_by_demand_stats(struct qede_dev *edev);
 #define NUM_TX_BDS_MIN		128
 #define NUM_TX_BDS_DEF		NUM_TX_BDS_MAX
 
-#define	for_each_rss(i) for (i = 0; i < edev->num_rss; i++)
+#define QEDE_MIN_PKT_LEN	64
+#define QEDE_RX_HDR_SIZE	256
+#define	for_each_queue(i) for (i = 0; i < edev->num_queues; i++)
 
 #endif /* _QEDE_H_ */

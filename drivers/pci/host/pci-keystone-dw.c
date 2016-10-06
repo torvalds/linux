@@ -14,6 +14,7 @@
 
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
+#include <linux/irqreturn.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_pci.h>
@@ -53,15 +54,25 @@
 #define IRQ_STATUS			0x184
 #define MSI_IRQ_OFFSET			4
 
+/* Error IRQ bits */
+#define ERR_AER		BIT(5)	/* ECRC error */
+#define ERR_AXI		BIT(4)	/* AXI tag lookup fatal error */
+#define ERR_CORR	BIT(3)	/* Correctable error */
+#define ERR_NONFATAL	BIT(2)	/* Non-fatal error */
+#define ERR_FATAL	BIT(1)	/* Fatal error */
+#define ERR_SYS		BIT(0)	/* System (fatal, non-fatal, or correctable) */
+#define ERR_IRQ_ALL	(ERR_AER | ERR_AXI | ERR_CORR | \
+			 ERR_NONFATAL | ERR_FATAL | ERR_SYS)
+#define ERR_FATAL_IRQ	(ERR_FATAL | ERR_AXI)
+#define ERR_IRQ_STATUS_RAW		0x1c0
+#define ERR_IRQ_STATUS			0x1c4
+#define ERR_IRQ_ENABLE_SET		0x1c8
+#define ERR_IRQ_ENABLE_CLR		0x1cc
+
 /* Config space registers */
 #define DEBUG0				0x728
 
 #define to_keystone_pcie(x)	container_of(x, struct keystone_pcie, pp)
-
-static inline struct pcie_port *sys_to_pcie(struct pci_sys_data *sys)
-{
-	return sys->private_data;
-}
 
 static inline void update_reg_offset_bit_pos(u32 offset, u32 *reg_offset,
 					     u32 *bit_pos)
@@ -108,7 +119,7 @@ static void ks_dw_pcie_msi_irq_ack(struct irq_data *d)
 	struct pcie_port *pp;
 
 	msi = irq_data_get_msi_desc(d);
-	pp = sys_to_pcie(msi_desc_to_pci_sysdata(msi));
+	pp = (struct pcie_port *) msi_desc_to_pci_sysdata(msi);
 	ks_pcie = to_keystone_pcie(pp);
 	offset = d->irq - irq_linear_revmap(pp->irq_domain, 0);
 	update_reg_offset_bit_pos(offset, &reg_offset, &bit_pos);
@@ -146,7 +157,7 @@ static void ks_dw_pcie_msi_irq_mask(struct irq_data *d)
 	u32 offset;
 
 	msi = irq_data_get_msi_desc(d);
-	pp = sys_to_pcie(msi_desc_to_pci_sysdata(msi));
+	pp = (struct pcie_port *) msi_desc_to_pci_sysdata(msi);
 	ks_pcie = to_keystone_pcie(pp);
 	offset = d->irq - irq_linear_revmap(pp->irq_domain, 0);
 
@@ -167,7 +178,7 @@ static void ks_dw_pcie_msi_irq_unmask(struct irq_data *d)
 	u32 offset;
 
 	msi = irq_data_get_msi_desc(d);
-	pp = sys_to_pcie(msi_desc_to_pci_sysdata(msi));
+	pp = (struct pcie_port *) msi_desc_to_pci_sysdata(msi);
 	ks_pcie = to_keystone_pcie(pp);
 	offset = d->irq - irq_linear_revmap(pp->irq_domain, 0);
 
@@ -246,6 +257,28 @@ void ks_dw_pcie_handle_legacy_irq(struct keystone_pcie *ks_pcie, int offset)
 
 	/* EOI the INTx interrupt */
 	writel(offset, ks_pcie->va_app_base + IRQ_EOI);
+}
+
+void ks_dw_pcie_enable_error_irq(void __iomem *reg_base)
+{
+	writel(ERR_IRQ_ALL, reg_base + ERR_IRQ_ENABLE_SET);
+}
+
+irqreturn_t ks_dw_pcie_handle_error_irq(struct device *dev,
+					void __iomem *reg_base)
+{
+	u32 status;
+
+	status = readl(reg_base + ERR_IRQ_STATUS_RAW) & ERR_IRQ_ALL;
+	if (!status)
+		return IRQ_NONE;
+
+	if (status & ERR_FATAL_IRQ)
+		dev_err(dev, "fatal error (status %#010x)\n", status);
+
+	/* Ack the IRQ; status bits are RW1C */
+	writel(status, reg_base + ERR_IRQ_STATUS);
+	return IRQ_HANDLED;
 }
 
 static void ks_dw_pcie_ack_legacy_irq(struct irq_data *d)

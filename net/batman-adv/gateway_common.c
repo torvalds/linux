@@ -1,4 +1,4 @@
-/* Copyright (C) 2009-2015 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2009-2016  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -19,8 +19,8 @@
 #include "main.h"
 
 #include <linux/atomic.h>
-#include <linux/errno.h>
 #include <linux/byteorder/generic.h>
+#include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/math64.h>
 #include <linux/netdevice.h>
@@ -28,7 +28,9 @@
 #include <linux/string.h>
 
 #include "gateway_client.h"
+#include "log.h"
 #include "packet.h"
+#include "tvlv.h"
 
 /**
  * batadv_parse_throughput - parse supplied string buffer to extract throughput
@@ -38,10 +40,10 @@
  * @description: text shown when throughput string cannot be parsed
  * @throughput: pointer holding the returned throughput information
  *
- * Returns false on parse error and true otherwise.
+ * Return: false on parse error and true otherwise.
  */
-static bool batadv_parse_throughput(struct net_device *net_dev, char *buff,
-				    const char *description, u32 *throughput)
+bool batadv_parse_throughput(struct net_device *net_dev, char *buff,
+			     const char *description, u32 *throughput)
 {
 	enum batadv_bandwidth_units bw_unit_type = BATADV_BW_UNIT_KBIT;
 	u64 lthroughput;
@@ -144,7 +146,7 @@ void batadv_gw_tvlv_container_update(struct batadv_priv *bat_priv)
 	u32 down, up;
 	char gw_mode;
 
-	gw_mode = atomic_read(&bat_priv->gw_mode);
+	gw_mode = atomic_read(&bat_priv->gw.mode);
 
 	switch (gw_mode) {
 	case BATADV_GW_MODE_OFF:
@@ -239,10 +241,9 @@ static void batadv_gw_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
 
 	batadv_gw_node_update(bat_priv, orig, &gateway);
 
-	/* restart gateway selection if fast or late switching was enabled */
+	/* restart gateway selection */
 	if ((gateway.bandwidth_down != 0) &&
-	    (atomic_read(&bat_priv->gw_mode) == BATADV_GW_MODE_CLIENT) &&
-	    (atomic_read(&bat_priv->gw_sel_class) > 2))
+	    (atomic_read(&bat_priv->gw.mode) == BATADV_GW_MODE_CLIENT))
 		batadv_gw_check_election(bat_priv, orig);
 }
 

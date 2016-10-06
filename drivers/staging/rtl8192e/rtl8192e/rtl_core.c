@@ -38,7 +38,7 @@ static int channels = 0x3fff;
 static char *ifname = "wlan%d";
 
 
-static struct rtl819x_ops rtl819xp_ops = {
+static const struct rtl819x_ops rtl819xp_ops = {
 	.nic_type			= NIC_8192E,
 	.get_eeprom_size		= rtl92e_get_eeprom_size,
 	.init_adapter_variable		= rtl92e_init_variables,
@@ -249,7 +249,7 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 		if (StateToSet == eRfOn) {
 
 			if (bConnectBySSID && priv->blinked_ingpio) {
-				queue_delayed_work_rsl(ieee->wq,
+				schedule_delayed_work(
 					 &ieee->associate_procedure_wq, 0);
 				priv->blinked_ingpio = false;
 			}
@@ -288,7 +288,7 @@ static void _rtl92e_tx_timeout(struct net_device *dev)
 
 void rtl92e_irq_enable(struct net_device *dev)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 
 	priv->irq_enabled = 1;
 
@@ -297,7 +297,7 @@ void rtl92e_irq_enable(struct net_device *dev)
 
 void rtl92e_irq_disable(struct net_device *dev)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 
 	priv->ops->irq_disable(dev);
 
@@ -306,7 +306,7 @@ void rtl92e_irq_disable(struct net_device *dev)
 
 static void _rtl92e_set_chan(struct net_device *dev, short ch)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 
 	RT_TRACE(COMP_CH, "=====>%s()====ch:%d\n", __func__, ch);
 	if (priv->chan_forced)
@@ -437,7 +437,7 @@ static int _rtl92e_qos_handle_probe_response(struct r8192_priv *priv,
 			network->qos_data.old_param_count =
 				network->qos_data.param_count;
 	priv->rtllib->wmm_acm = network->qos_data.wmm_acm;
-			queue_work_rsl(priv->priv_wq, &priv->qos_activate);
+			schedule_work(&priv->qos_activate);
 			RT_TRACE(COMP_QOS,
 				 "QoS parameters change call qos_activate\n");
 		}
@@ -446,7 +446,7 @@ static int _rtl92e_qos_handle_probe_response(struct r8192_priv *priv,
 		       &def_qos_parameters, size);
 
 		if ((network->qos_data.active == 1) && (active_network == 1)) {
-			queue_work_rsl(priv->priv_wq, &priv->qos_activate);
+			schedule_work(&priv->qos_activate);
 			RT_TRACE(COMP_QOS,
 				 "QoS was disabled call qos_activate\n");
 		}
@@ -465,7 +465,7 @@ static int _rtl92e_handle_beacon(struct net_device *dev,
 
 	_rtl92e_qos_handle_probe_response(priv, 1, network);
 
-	queue_delayed_work_rsl(priv->priv_wq, &priv->update_beacon_wq, 0);
+	schedule_delayed_work(&priv->update_beacon_wq, 0);
 	return 0;
 
 }
@@ -512,7 +512,7 @@ static int _rtl92e_qos_assoc_resp(struct r8192_priv *priv,
 		 network->flags, priv->rtllib->current_network.qos_data.active);
 	if (set_qos_param == 1) {
 		rtl92e_dm_init_edca_turbo(priv->rtllib->dev);
-		queue_work_rsl(priv->priv_wq, &priv->qos_activate);
+		schedule_work(&priv->qos_activate);
 	}
 	return 0;
 }
@@ -993,8 +993,8 @@ static void _rtl92e_init_priv_lock(struct r8192_priv *priv)
 	spin_lock_init(&priv->irq_th_lock);
 	spin_lock_init(&priv->rf_ps_lock);
 	spin_lock_init(&priv->ps_lock);
-	sema_init(&priv->wx_sem, 1);
-	sema_init(&priv->rf_sem, 1);
+	mutex_init(&priv->wx_mutex);
+	mutex_init(&priv->rf_mutex);
 	mutex_init(&priv->mutex);
 }
 
@@ -1002,7 +1002,6 @@ static void _rtl92e_init_priv_task(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	priv->priv_wq = create_workqueue(DRV_NAME);
 	INIT_WORK_RSL(&priv->reset_wq, (void *)_rtl92e_restart, dev);
 	INIT_WORK_RSL(&priv->rtllib->ips_leave_wq, (void *)rtl92e_ips_leave_wq,
 		      dev);
@@ -1248,7 +1247,7 @@ static void _rtl92e_if_silent_reset(struct net_device *dev)
 
 RESET_START:
 
-		down(&priv->wx_sem);
+		mutex_lock(&priv->wx_mutex);
 
 		if (priv->rtllib->state == RTLLIB_LINKED)
 			rtl92e_leisure_ps_leave(dev);
@@ -1256,7 +1255,7 @@ RESET_START:
 		if (priv->up) {
 			netdev_info(dev, "%s():the driver is not up.\n",
 				    __func__);
-			up(&priv->wx_sem);
+			mutex_unlock(&priv->wx_mutex);
 			return;
 		}
 		priv->up = 0;
@@ -1278,14 +1277,14 @@ RESET_START:
 		rtllib_stop_scan_syncro(ieee);
 
 		if (ieee->state == RTLLIB_LINKED) {
-			SEM_DOWN_IEEE_WX(&ieee->wx_sem);
+			mutex_lock(&ieee->wx_mutex);
 			netdev_info(dev, "ieee->state is RTLLIB_LINKED\n");
 			rtllib_stop_send_beacons(priv->rtllib);
 			del_timer_sync(&ieee->associate_timer);
 			cancel_delayed_work(&ieee->associate_retry_wq);
 			rtllib_stop_scan(ieee);
 			netif_carrier_off(dev);
-			SEM_UP_IEEE_WX(&ieee->wx_sem);
+			mutex_unlock(&ieee->wx_mutex);
 		} else {
 			netdev_info(dev, "ieee->state is NOT LINKED\n");
 			rtllib_softmac_stop_protocol(priv->rtllib, 0, true);
@@ -1293,7 +1292,7 @@ RESET_START:
 
 		rtl92e_dm_backup_state(dev);
 
-		up(&priv->wx_sem);
+		mutex_unlock(&priv->wx_mutex);
 		RT_TRACE(COMP_RESET,
 			 "%s():<==========down process is finished\n",
 			 __func__);
@@ -1327,7 +1326,7 @@ RESET_START:
 			ieee->set_chan(ieee->dev,
 				       ieee->current_network.channel);
 
-			queue_work_rsl(ieee->wq, &ieee->associate_complete_wq);
+			schedule_work(&ieee->associate_complete_wq);
 
 		} else if (ieee->state == RTLLIB_LINKED && ieee->iw_mode ==
 			   IW_MODE_ADHOC) {
@@ -1499,7 +1498,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 
 			if (!(ieee->rtllib_ap_sec_type(ieee) &
 			     (SEC_ALG_CCMP|SEC_ALG_TKIP)))
-				queue_delayed_work_rsl(ieee->wq,
+				schedule_delayed_work(
 					&ieee->associate_procedure_wq, 0);
 
 			priv->check_roaming_cnt = 0;
@@ -1536,7 +1535,7 @@ static void _rtl92e_watchdog_timer_cb(unsigned long data)
 {
 	struct r8192_priv *priv = rtllib_priv((struct net_device *)data);
 
-	queue_delayed_work_rsl(priv->priv_wq, &priv->watch_dog_wq, 0);
+	schedule_delayed_work(&priv->watch_dog_wq, 0);
 	mod_timer(&priv->watch_dog_timer, jiffies +
 		  msecs_to_jiffies(RTLLIB_WATCH_DOG_TIME));
 }
@@ -1546,14 +1545,14 @@ static void _rtl92e_watchdog_timer_cb(unsigned long data)
 *****************************************************************************/
 void rtl92e_rx_enable(struct net_device *dev)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 
 	priv->ops->rx_enable(dev);
 }
 
 void rtl92e_tx_enable(struct net_device *dev)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 
 	priv->ops->tx_enable(dev);
 
@@ -1612,7 +1611,7 @@ static void _rtl92e_free_tx_ring(struct net_device *dev, unsigned int prio)
 static void _rtl92e_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 				   int rate)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 	int ret;
 	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb +
 				    MAX_DEV_ADDR_SIZE);
@@ -1643,7 +1642,7 @@ static void _rtl92e_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 
 static int _rtl92e_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 	int ret;
 	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb +
 				    MAX_DEV_ADDR_SIZE);
@@ -1676,7 +1675,7 @@ static int _rtl92e_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static void _rtl92e_tx_isr(struct net_device *dev, int prio)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 
 	struct rtl8192_tx_ring *ring = &priv->tx_ring[prio];
 
@@ -1793,7 +1792,7 @@ static short _rtl92e_tx(struct net_device *dev, struct sk_buff *skb)
 	__skb_queue_tail(&ring->queue, skb);
 	pdesc->OWN = 1;
 	spin_unlock_irqrestore(&priv->irq_th_lock, flags);
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 
 	rtl92e_writew(dev, TPPoll, 0x01 << tcb_desc->queue_index);
 	return 0;
@@ -1850,7 +1849,7 @@ static short _rtl92e_alloc_rx_ring(struct net_device *dev)
 static int _rtl92e_alloc_tx_ring(struct net_device *dev, unsigned int prio,
 				 unsigned int entries)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 	struct tx_desc *ring;
 	dma_addr_t dma;
 	int i;
@@ -1944,7 +1943,7 @@ void rtl92e_reset_desc_ring(struct net_device *dev)
 void rtl92e_update_rx_pkt_timestamp(struct net_device *dev,
 				    struct rtllib_rx_stats *stats)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 
 	if (stats->bIsAMPDU && !stats->bFirstMPDU)
 		stats->mac_time = priv->LastRxDescTSF;
@@ -1983,7 +1982,7 @@ void rtl92e_update_rx_statistics(struct r8192_priv *priv,
 					weighting) / 6;
 }
 
-u8 rtl92e_rx_db_to_percent(char antpower)
+u8 rtl92e_rx_db_to_percent(s8 antpower)
 {
 	if ((antpower <= -100) || (antpower >= 20))
 		return	0;
@@ -1994,9 +1993,9 @@ u8 rtl92e_rx_db_to_percent(char antpower)
 
 }	/* QueryRxPwrPercentage */
 
-u8 rtl92e_evm_db_to_percent(char value)
+u8 rtl92e_evm_db_to_percent(s8 value)
 {
-	char ret_val;
+	s8 ret_val;
 
 	ret_val = value;
 
@@ -2022,7 +2021,7 @@ void rtl92e_copy_mpdu_stats(struct rtllib_rx_stats *psrc_stats,
 
 static void _rtl92e_rx_normal(struct net_device *dev)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_hdr_1addr *rtllib_hdr = NULL;
 	bool unicast_packet = false;
 	bool bLedBlinking = true;
@@ -2128,7 +2127,7 @@ done:
 
 static void _rtl92e_tx_resume(struct net_device *dev)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
 	struct sk_buff *skb;
 	int queue_index;
@@ -2161,8 +2160,8 @@ static void _rtl92e_irq_rx_tasklet(struct r8192_priv *priv)
 *****************************************************************************/
 static void _rtl92e_cancel_deferred_work(struct r8192_priv *priv)
 {
-	cancel_delayed_work(&priv->watch_dog_wq);
-	cancel_delayed_work(&priv->update_beacon_wq);
+	cancel_delayed_work_sync(&priv->watch_dog_wq);
+	cancel_delayed_work_sync(&priv->update_beacon_wq);
 	cancel_delayed_work(&priv->rtllib->hw_sleep_wq);
 	cancel_work_sync(&priv->reset_wq);
 	cancel_work_sync(&priv->qos_activate);
@@ -2180,9 +2179,9 @@ static int _rtl92e_open(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	int ret;
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 	ret = _rtl92e_try_up(dev);
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 	return ret;
 
 }
@@ -2207,11 +2206,11 @@ static int _rtl92e_close(struct net_device *dev)
 		rtllib_stop_scan(priv->rtllib);
 	}
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 	ret = _rtl92e_down(dev, true);
 
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 
 	return ret;
 
@@ -2243,11 +2242,11 @@ static void _rtl92e_restart(void *data)
 				  reset_wq);
 	struct net_device *dev = priv->rtllib->dev;
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 	rtl92e_commit(dev);
 
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 }
 
 static void _rtl92e_set_multicast(struct net_device *dev)
@@ -2266,12 +2265,12 @@ static int _rtl92e_set_mac_adr(struct net_device *dev, void *mac)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct sockaddr *addr = mac;
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 	ether_addr_copy(dev->dev_addr, addr->sa_data);
 
 	schedule_work(&priv->reset_wq);
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 
 	return 0;
 }
@@ -2279,7 +2278,7 @@ static int _rtl92e_set_mac_adr(struct net_device *dev, void *mac)
 /* based on ipw2200 driver */
 static int _rtl92e_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 	struct iwreq *wrq = (struct iwreq *)rq;
 	int ret = -1;
 	struct rtllib_device *ieee = priv->rtllib;
@@ -2288,7 +2287,7 @@ static int _rtl92e_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	struct iw_point *p = &wrq->u.data;
 	struct ieee_param *ipw = NULL;
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 	switch (cmd) {
 	case RTL_IOCTL_WPA_SUPPLICANT:
@@ -2394,7 +2393,7 @@ static int _rtl92e_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	}
 
 out:
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 
 	return ret;
 }
@@ -2402,8 +2401,8 @@ out:
 
 static irqreturn_t _rtl92e_irq(int irq, void *netdev)
 {
-	struct net_device *dev = (struct net_device *) netdev;
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct net_device *dev = netdev;
+	struct r8192_priv *priv = rtllib_priv(dev);
 	unsigned long flags;
 	u32 inta;
 	u32 intb;
@@ -2693,7 +2692,7 @@ static void _rtl92e_pci_disconnect(struct pci_dev *pdev)
 		priv = rtllib_priv(dev);
 
 		del_timer_sync(&priv->gpio_polling_timer);
-		cancel_delayed_work(&priv->gpio_change_rf_wq);
+		cancel_delayed_work_sync(&priv->gpio_change_rf_wq);
 		priv->polling_timer_on = 0;
 		_rtl92e_down(dev, true);
 		rtl92e_dm_deinit(dev);
@@ -2701,7 +2700,6 @@ static void _rtl92e_pci_disconnect(struct pci_dev *pdev)
 			vfree(priv->pFirmware);
 			priv->pFirmware = NULL;
 		}
-		destroy_workqueue(priv->priv_wq);
 		_rtl92e_free_rx_ring(dev);
 		for (i = 0; i < MAX_TX_QUEUE_COUNT; i++)
 			_rtl92e_free_tx_ring(dev, i);
@@ -2783,7 +2781,7 @@ void rtl92e_check_rfctrl_gpio_timer(unsigned long data)
 
 	priv->polling_timer_on = 1;
 
-	queue_delayed_work_rsl(priv->priv_wq, &priv->gpio_change_rf_wq, 0);
+	schedule_delayed_work(&priv->gpio_change_rf_wq, 0);
 
 	mod_timer(&priv->gpio_polling_timer, jiffies +
 		  msecs_to_jiffies(RTLLIB_WATCH_DOG_TIME));

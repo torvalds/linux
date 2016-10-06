@@ -134,7 +134,7 @@ void smp_callin(void)
 
 	local_irq_enable();
 
-	cpu_startup_entry(CPUHP_ONLINE);
+	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 }
 
 void cpu_panic(void)
@@ -1225,6 +1225,20 @@ void __init smp_setup_processor_id(void)
 		xcall_deliver_impl = cheetah_xcall_deliver;
 	else
 		xcall_deliver_impl = hypervisor_xcall_deliver;
+}
+
+void __init smp_fill_in_cpu_possible_map(void)
+{
+	int possible_cpus = num_possible_cpus();
+	int i;
+
+	if (possible_cpus > nr_cpu_ids)
+		possible_cpus = nr_cpu_ids;
+
+	for (i = 0; i < possible_cpus; i++)
+		set_cpu_possible(i, true);
+	for (; i < NR_CPUS; i++)
+		set_cpu_possible(i, false);
 }
 
 void smp_fill_in_sib_core_maps(void)

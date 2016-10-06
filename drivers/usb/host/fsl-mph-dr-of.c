@@ -17,6 +17,7 @@
 #include <linux/of_platform.h>
 #include <linux/clk.h>
 #include <linux/module.h>
+#include <linux/dma-mapping.h>
 
 struct fsl_usb2_dev_data {
 	char *dr_mode;		/* controller mode */
@@ -96,7 +97,11 @@ static struct platform_device *fsl_usb2_device_register(
 	pdev->dev.parent = &ofdev->dev;
 
 	pdev->dev.coherent_dma_mask = ofdev->dev.coherent_dma_mask;
-	*pdev->dev.dma_mask = *ofdev->dev.dma_mask;
+
+	if (!pdev->dev.dma_mask)
+		pdev->dev.dma_mask = &ofdev->dev.coherent_dma_mask;
+	else
+		dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 
 	retval = platform_device_add_data(pdev, pdata, sizeof(*pdata));
 	if (retval)
@@ -217,23 +222,17 @@ static int fsl_usb2_mph_dr_of_probe(struct platform_device *ofdev)
 	pdata->controller_ver = usb_get_ver_info(np);
 
 	/* Activate Erratum by reading property in device tree */
-	if (of_get_property(np, "fsl,usb-erratum-a007792", NULL))
-		pdata->has_fsl_erratum_a007792 = 1;
-	else
-		pdata->has_fsl_erratum_a007792 = 0;
-	if (of_get_property(np, "fsl,usb-erratum-a005275", NULL))
-		pdata->has_fsl_erratum_a005275 = 1;
-	else
-		pdata->has_fsl_erratum_a005275 = 0;
+	pdata->has_fsl_erratum_a007792 =
+		of_property_read_bool(np, "fsl,usb-erratum-a007792");
+	pdata->has_fsl_erratum_a005275 =
+		of_property_read_bool(np, "fsl,usb-erratum-a005275");
 
 	/*
 	 * Determine whether phy_clk_valid needs to be checked
 	 * by reading property in device tree
 	 */
-	if (of_get_property(np, "phy-clk-valid", NULL))
-		pdata->check_phy_clk_valid = 1;
-	else
-		pdata->check_phy_clk_valid = 0;
+	pdata->check_phy_clk_valid =
+		of_property_read_bool(np, "phy-clk-valid");
 
 	if (pdata->have_sysif_regs) {
 		if (pdata->controller_ver == FSL_USB_VER_NONE) {

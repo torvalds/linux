@@ -165,7 +165,7 @@ ACPI_GLOBAL(u8, acpi_gbl_next_owner_id_offset);
 
 /* Initialization sequencing */
 
-ACPI_INIT_GLOBAL(u8, acpi_gbl_reg_methods_enabled, FALSE);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_namespace_initialized, FALSE);
 
 /* Misc */
 
@@ -187,6 +187,8 @@ extern const char *acpi_gbl_sleep_state_names[ACPI_S_STATE_COUNT];
 extern const char *acpi_gbl_lowest_dstate_names[ACPI_NUM_sx_w_METHODS];
 extern const char *acpi_gbl_highest_dstate_names[ACPI_NUM_sx_d_METHODS];
 extern const char *acpi_gbl_region_types[ACPI_NUM_PREDEFINED_REGIONS];
+extern const char acpi_gbl_lower_hex_digits[];
+extern const char acpi_gbl_upper_hex_digits[];
 extern const struct acpi_opcode_info acpi_gbl_aml_op_info[AML_NUM_OPCODES];
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
@@ -315,6 +317,7 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_ignore_noop_operator, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_cstyle_disassembly, TRUE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_force_aml_disassembly, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_dm_opt_verbose, TRUE);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_dm_emit_external_opcodes, FALSE);
 
 ACPI_GLOBAL(u8, acpi_gbl_dm_opt_disasm);
 ACPI_GLOBAL(u8, acpi_gbl_dm_opt_listing);
@@ -361,6 +364,15 @@ ACPI_GLOBAL(u32, acpi_gbl_num_objects);
 
 #endif				/* ACPI_DEBUGGER */
 
+#if defined (ACPI_DISASSEMBLER) || defined (ACPI_ASL_COMPILER)
+
+ACPI_GLOBAL(const char, *acpi_gbl_pld_panel_list[]);
+ACPI_GLOBAL(const char, *acpi_gbl_pld_vertical_position_list[]);
+ACPI_GLOBAL(const char, *acpi_gbl_pld_horizontal_position_list[]);
+ACPI_GLOBAL(const char, *acpi_gbl_pld_shape_list[]);
+
+#endif
+
 /*****************************************************************************
  *
  * Application globals
@@ -371,6 +383,7 @@ ACPI_GLOBAL(u32, acpi_gbl_num_objects);
 
 ACPI_INIT_GLOBAL(ACPI_FILE, acpi_gbl_debug_file, NULL);
 ACPI_INIT_GLOBAL(ACPI_FILE, acpi_gbl_output_file, NULL);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_debug_timeout, FALSE);
 
 /* Print buffer */
 

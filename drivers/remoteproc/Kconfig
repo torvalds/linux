@@ -77,4 +77,27 @@ config DA8XX_REMOTEPROC
 	  It's safe to say n here if you're not interested in multimedia
 	  offloading.
 
+config QCOM_MDT_LOADER
+	tristate
+
+config QCOM_Q6V5_PIL
+	tristate "Qualcomm Hexagon V5 Peripherial Image Loader"
+	depends on OF && ARCH_QCOM
+	depends on QCOM_SMEM
+	select MFD_SYSCON
+	select QCOM_MDT_LOADER
+	select REMOTEPROC
+	help
+	  Say y here to support the Qualcomm Peripherial Image Loader for the
+	  Hexagon V5 based remote processors.
+
+config ST_REMOTEPROC
+	tristate "ST remoteproc support"
+	depends on ARCH_STI
+	select REMOTEPROC
+	help
+	  Say y here to support ST's adjunct processors via the remote
+	  processor framework.
+	  This can be either built-in or a loadable module.
+
 endmenu

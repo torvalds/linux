@@ -1291,7 +1291,7 @@ static int set_channel(struct usbnet *usbdev, int channel)
 		return 0;
 
 	dsconfig = 1000 *
-		ieee80211_channel_to_frequency(channel, IEEE80211_BAND_2GHZ);
+		ieee80211_channel_to_frequency(channel, NL80211_BAND_2GHZ);
 
 	len = sizeof(config);
 	ret = rndis_query_oid(usbdev,
@@ -2134,6 +2134,7 @@ static void rndis_get_scan_results(struct work_struct *work)
 	struct rndis_wlan_private *priv =
 		container_of(work, struct rndis_wlan_private, scan_work.work);
 	struct usbnet *usbdev = priv->usbdev;
+	struct cfg80211_scan_info info = {};
 	int ret;
 
 	netdev_dbg(usbdev->net, "get_scan_results\n");
@@ -2143,7 +2144,8 @@ static void rndis_get_scan_results(struct work_struct *work)
 
 	ret = rndis_check_bssid_list(usbdev, NULL, NULL);
 
-	cfg80211_scan_done(priv->scan_request, ret < 0);
+	info.aborted = ret < 0;
+	cfg80211_scan_done(priv->scan_request, &info);
 
 	priv->scan_request = NULL;
 }
@@ -3476,7 +3478,7 @@ static int rndis_wlan_bind(struct usbnet *usbdev, struct usb_interface *intf)
 	priv->band.n_channels = ARRAY_SIZE(rndis_channels);
 	priv->band.bitrates = priv->rates;
 	priv->band.n_bitrates = ARRAY_SIZE(rndis_rates);
-	wiphy->bands[IEEE80211_BAND_2GHZ] = &priv->band;
+	wiphy->bands[NL80211_BAND_2GHZ] = &priv->band;
 	wiphy->signal_type = CFG80211_SIGNAL_TYPE_UNSPEC;
 
 	memcpy(priv->cipher_suites, rndis_cipher_suites,
@@ -3574,7 +3576,11 @@ static int rndis_wlan_stop(struct usbnet *usbdev)
 	flush_workqueue(priv->workqueue);
 
 	if (priv->scan_request) {
-		cfg80211_scan_done(priv->scan_request, true);
+		struct cfg80211_scan_info info = {
+			.aborted = true,
+		};
+
+		cfg80211_scan_done(priv->scan_request, &info);
 		priv->scan_request = NULL;
 	}
 

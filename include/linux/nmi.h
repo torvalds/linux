@@ -65,7 +65,6 @@ static inline bool trigger_allbutself_cpu_backtrace(void)
 #endif
 
 #ifdef CONFIG_LOCKUP_DETECTOR
-int hw_nmi_is_cpu_stuck(struct pt_regs *);
 u64 hw_nmi_get_sample_period(int watchdog_thresh);
 extern int nmi_watchdog_enabled;
 extern int soft_watchdog_enabled;

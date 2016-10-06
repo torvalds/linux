@@ -18,6 +18,67 @@
 #include "wmi-ops.h"
 #include "debug.h"
 
+static void ath10k_sta_update_extd_stats_rx_duration(struct ath10k *ar,
+						     struct ath10k_fw_stats *stats)
+{
+	struct ath10k_fw_extd_stats_peer *peer;
+	struct ieee80211_sta *sta;
+	struct ath10k_sta *arsta;
+
+	rcu_read_lock();
+	list_for_each_entry(peer, &stats->peers_extd, list) {
+		sta = ieee80211_find_sta_by_ifaddr(ar->hw, peer->peer_macaddr,
+						   NULL);
+		if (!sta)
+			continue;
+		arsta = (struct ath10k_sta *)sta->drv_priv;
+		arsta->rx_duration += (u64)peer->rx_duration;
+	}
+	rcu_read_unlock();
+}
+
+static void ath10k_sta_update_stats_rx_duration(struct ath10k *ar,
+						struct ath10k_fw_stats *stats)
+{
+	struct ath10k_fw_stats_peer *peer;
+	struct ieee80211_sta *sta;
+	struct ath10k_sta *arsta;
+
+	rcu_read_lock();
+	list_for_each_entry(peer, &stats->peers, list) {
+		sta = ieee80211_find_sta_by_ifaddr(ar->hw, peer->peer_macaddr,
+						   NULL);
+		if (!sta)
+			continue;
+		arsta = (struct ath10k_sta *)sta->drv_priv;
+		arsta->rx_duration += (u64)peer->rx_duration;
+	}
+	rcu_read_unlock();
+}
+
+void ath10k_sta_update_rx_duration(struct ath10k *ar,
+				   struct ath10k_fw_stats *stats)
+{
+	if (stats->extended)
+		ath10k_sta_update_extd_stats_rx_duration(ar, stats);
+	else
+		ath10k_sta_update_stats_rx_duration(ar, stats);
+}
+
+void ath10k_sta_statistics(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			   struct ieee80211_sta *sta,
+			   struct station_info *sinfo)
+{
+	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
+	struct ath10k *ar = arsta->arvif->ar;
+
+	if (!ath10k_peer_stats_enabled(ar))
+		return;
+
+	sinfo->rx_duration = arsta->rx_duration;
+	sinfo->filled |= 1ULL << NL80211_STA_INFO_RX_DURATION;
+}
+
 static ssize_t ath10k_dbg_sta_read_aggr_mode(struct file *file,
 					     char __user *user_buf,
 					     size_t count, loff_t *ppos)

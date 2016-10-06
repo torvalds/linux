@@ -323,13 +323,42 @@ static void clocksource_enqueue_watchdog(struct clocksource *cs)
 		/* cs is a watchdog. */
 		if (cs->flags & CLOCK_SOURCE_IS_CONTINUOUS)
 			cs->flags |= CLOCK_SOURCE_VALID_FOR_HRES;
-		/* Pick the best watchdog. */
-		if (!watchdog || cs->rating > watchdog->rating) {
-			watchdog = cs;
-			/* Reset watchdog cycles */
-			clocksource_reset_watchdog();
-		}
 	}
+	spin_unlock_irqrestore(&watchdog_lock, flags);
+}
+
+static void clocksource_select_watchdog(bool fallback)
+{
+	struct clocksource *cs, *old_wd;
+	unsigned long flags;
+
+	spin_lock_irqsave(&watchdog_lock, flags);
+	/* save current watchdog */
+	old_wd = watchdog;
+	if (fallback)
+		watchdog = NULL;
+
+	list_for_each_entry(cs, &clocksource_list, list) {
+		/* cs is a clocksource to be watched. */
+		if (cs->flags & CLOCK_SOURCE_MUST_VERIFY)
+			continue;
+
+		/* Skip current if we were requested for a fallback. */
+		if (fallback && cs == old_wd)
+			continue;
+
+		/* Pick the best watchdog. */
+		if (!watchdog || cs->rating > watchdog->rating)
+			watchdog = cs;
+	}
+	/* If we failed to find a fallback restore the old one. */
+	if (!watchdog)
+		watchdog = old_wd;
+
+	/* If we changed the watchdog we need to reset cycles. */
+	if (watchdog != old_wd)
+		clocksource_reset_watchdog();
+
 	/* Check if the watchdog timer needs to be started. */
 	clocksource_start_watchdog();
 	spin_unlock_irqrestore(&watchdog_lock, flags);
@@ -404,6 +433,7 @@ static void clocksource_enqueue_watchdog(struct clocksource *cs)
 		cs->flags |= CLOCK_SOURCE_VALID_FOR_HRES;
 }
 
+static void clocksource_select_watchdog(bool fallback) { }
 static inline void clocksource_dequeue_watchdog(struct clocksource *cs) { }
 static inline void clocksource_resume_watchdog(void) { }
 static inline int __clocksource_watchdog_kthread(void) { return 0; }
@@ -570,9 +600,18 @@ static void __clocksource_select(bool skipcur)
 		 */
 		if (!(cs->flags & CLOCK_SOURCE_VALID_FOR_HRES) && oneshot) {
 			/* Override clocksource cannot be used. */
-			pr_warn("Override clocksource %s is not HRT compatible - cannot switch while in HRT/NOHZ mode\n",
-				cs->name);
-			override_name[0] = 0;
+			if (cs->flags & CLOCK_SOURCE_UNSTABLE) {
+				pr_warn("Override clocksource %s is unstable and not HRT compatible - cannot switch while in HRT/NOHZ mode\n",
+					cs->name);
+				override_name[0] = 0;
+			} else {
+				/*
+				 * The override cannot be currently verified.
+				 * Deferring to let the watchdog check.
+				 */
+				pr_info("Override clocksource %s is not currently HRT compatible - deferring\n",
+					cs->name);
+			}
 		} else
 			/* Override clocksource can be used. */
 			best = cs;
@@ -639,10 +678,12 @@ static void clocksource_enqueue(struct clocksource *cs)
 	struct list_head *entry = &clocksource_list;
 	struct clocksource *tmp;
 
-	list_for_each_entry(tmp, &clocksource_list, list)
+	list_for_each_entry(tmp, &clocksource_list, list) {
 		/* Keep track of the place, where to insert */
-		if (tmp->rating >= cs->rating)
-			entry = &tmp->list;
+		if (tmp->rating < cs->rating)
+			break;
+		entry = &tmp->list;
+	}
 	list_add(&cs->list, entry);
 }
 
@@ -736,6 +777,7 @@ int __clocksource_register_scale(struct clocksource *cs, u32 scale, u32 freq)
 	clocksource_enqueue(cs);
 	clocksource_enqueue_watchdog(cs);
 	clocksource_select();
+	clocksource_select_watchdog(false);
 	mutex_unlock(&clocksource_mutex);
 	return 0;
 }
@@ -758,6 +800,7 @@ void clocksource_change_rating(struct clocksource *cs, int rating)
 	mutex_lock(&clocksource_mutex);
 	__clocksource_change_rating(cs, rating);
 	clocksource_select();
+	clocksource_select_watchdog(false);
 	mutex_unlock(&clocksource_mutex);
 }
 EXPORT_SYMBOL(clocksource_change_rating);
@@ -767,12 +810,12 @@ EXPORT_SYMBOL(clocksource_change_rating);
  */
 static int clocksource_unbind(struct clocksource *cs)
 {
-	/*
-	 * I really can't convince myself to support this on hardware
-	 * designed by lobotomized monkeys.
-	 */
-	if (clocksource_is_watchdog(cs))
-		return -EBUSY;
+	if (clocksource_is_watchdog(cs)) {
+		/* Select and try to install a replacement watchdog. */
+		clocksource_select_watchdog(true);
+		if (clocksource_is_watchdog(cs))
+			return -EBUSY;
+	}
 
 	if (cs == curr_clocksource) {
 		/* Select and try to install a replacement clock source */

@@ -53,6 +53,7 @@ struct sock *__inet6_lookup_established(struct net *net,
 
 struct sock *inet6_lookup_listener(struct net *net,
 				   struct inet_hashinfo *hashinfo,
+				   struct sk_buff *skb, int doff,
 				   const struct in6_addr *saddr,
 				   const __be16 sport,
 				   const struct in6_addr *daddr,
@@ -60,42 +61,50 @@ struct sock *inet6_lookup_listener(struct net *net,
 
 static inline struct sock *__inet6_lookup(struct net *net,
 					  struct inet_hashinfo *hashinfo,
+					  struct sk_buff *skb, int doff,
 					  const struct in6_addr *saddr,
 					  const __be16 sport,
 					  const struct in6_addr *daddr,
 					  const u16 hnum,
-					  const int dif)
+					  const int dif,
+					  bool *refcounted)
 {
 	struct sock *sk = __inet6_lookup_established(net, hashinfo, saddr,
 						sport, daddr, hnum, dif);
+	*refcounted = true;
 	if (sk)
 		return sk;
-
-	return inet6_lookup_listener(net, hashinfo, saddr, sport,
+	*refcounted = false;
+	return inet6_lookup_listener(net, hashinfo, skb, doff, saddr, sport,
 				     daddr, hnum, dif);
 }
 
 static inline struct sock *__inet6_lookup_skb(struct inet_hashinfo *hashinfo,
-					      struct sk_buff *skb,
+					      struct sk_buff *skb, int doff,
 					      const __be16 sport,
 					      const __be16 dport,
-					      int iif)
+					      int iif,
+					      bool *refcounted)
 {
 	struct sock *sk = skb_steal_sock(skb);
 
+	*refcounted = true;
 	if (sk)
 		return sk;
 
-	return __inet6_lookup(dev_net(skb_dst(skb)->dev), hashinfo,
-			      &ipv6_hdr(skb)->saddr, sport,
+	return __inet6_lookup(dev_net(skb_dst(skb)->dev), hashinfo, skb,
+			      doff, &ipv6_hdr(skb)->saddr, sport,
 			      &ipv6_hdr(skb)->daddr, ntohs(dport),
-			      iif);
+			      iif, refcounted);
 }
 
 struct sock *inet6_lookup(struct net *net, struct inet_hashinfo *hashinfo,
+			  struct sk_buff *skb, int doff,
 			  const struct in6_addr *saddr, const __be16 sport,
 			  const struct in6_addr *daddr, const __be16 dport,
 			  const int dif);
+
+int inet6_hash(struct sock *sk);
 #endif /* IS_ENABLED(CONFIG_IPV6) */
 
 #define INET6_MATCH(__sk, __net, __saddr, __daddr, __ports, __dif)	\

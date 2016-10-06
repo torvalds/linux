@@ -17,6 +17,7 @@
 #include <media/v4l2-subdev.h>
 
 #include "vsp1.h"
+#include "vsp1_dl.h"
 #include "vsp1_sru.h"
 
 #define SRU_MIN_SIZE				4U
@@ -26,21 +27,17 @@
  * Device Access
  */
 
-static inline u32 vsp1_sru_read(struct vsp1_sru *sru, u32 reg)
+static inline void vsp1_sru_write(struct vsp1_sru *sru, struct vsp1_dl_list *dl,
+				  u32 reg, u32 data)
 {
-	return vsp1_read(sru->entity.vsp1, reg);
-}
-
-static inline void vsp1_sru_write(struct vsp1_sru *sru, u32 reg, u32 data)
-{
-	vsp1_write(sru->entity.vsp1, reg, data);
+	vsp1_dl_list_write(dl, reg, data);
 }
 
 /* -----------------------------------------------------------------------------
  * Controls
  */
 
-#define V4L2_CID_VSP1_SRU_INTENSITY		(V4L2_CID_USER_BASE + 1)
+#define V4L2_CID_VSP1_SRU_INTENSITY		(V4L2_CID_USER_BASE | 0x1001)
 
 struct vsp1_sru_param {
 	u32 ctrl0;
@@ -82,20 +79,10 @@ static int sru_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct vsp1_sru *sru =
 		container_of(ctrl->handler, struct vsp1_sru, ctrls);
-	const struct vsp1_sru_param *param;
-	u32 value;
 
 	switch (ctrl->id) {
 	case V4L2_CID_VSP1_SRU_INTENSITY:
-		param = &vsp1_sru_params[ctrl->val - 1];
-
-		value = vsp1_sru_read(sru, VI6_SRU_CTRL0);
-		value &= ~(VI6_SRU_CTRL0_PARAM0_MASK |
-			   VI6_SRU_CTRL0_PARAM1_MASK);
-		value |= param->ctrl0;
-		vsp1_sru_write(sru, VI6_SRU_CTRL0, value);
-
-		vsp1_sru_write(sru, VI6_SRU_CTRL2, param->ctrl2);
+		sru->intensity = ctrl->val;
 		break;
 	}
 
@@ -118,51 +105,7 @@ static const struct v4l2_ctrl_config sru_intensity_control = {
 };
 
 /* -----------------------------------------------------------------------------
- * V4L2 Subdevice Core Operations
- */
-
-static int sru_s_stream(struct v4l2_subdev *subdev, int enable)
-{
-	struct vsp1_sru *sru = to_sru(subdev);
-	struct v4l2_mbus_framefmt *input;
-	struct v4l2_mbus_framefmt *output;
-	u32 ctrl0;
-	int ret;
-
-	ret = vsp1_entity_set_streaming(&sru->entity, enable);
-	if (ret < 0)
-		return ret;
-
-	if (!enable)
-		return 0;
-
-	input = &sru->entity.formats[SRU_PAD_SINK];
-	output = &sru->entity.formats[SRU_PAD_SOURCE];
-
-	if (input->code == MEDIA_BUS_FMT_ARGB8888_1X32)
-		ctrl0 = VI6_SRU_CTRL0_PARAM2 | VI6_SRU_CTRL0_PARAM3
-		      | VI6_SRU_CTRL0_PARAM4;
-	else
-		ctrl0 = VI6_SRU_CTRL0_PARAM3;
-
-	if (input->width != output->width)
-		ctrl0 |= VI6_SRU_CTRL0_MODE_UPSCALE;
-
-	/* Take the control handler lock to ensure that the CTRL0 value won't be
-	 * changed behind our back by a set control operation.
-	 */
-	mutex_lock(sru->ctrls.lock);
-	ctrl0 |= vsp1_sru_read(sru, VI6_SRU_CTRL0)
-	       & (VI6_SRU_CTRL0_PARAM0_MASK | VI6_SRU_CTRL0_PARAM1_MASK);
-	mutex_unlock(sru->ctrls.lock);
-
-	vsp1_sru_write(sru, VI6_SRU_CTRL1, VI6_SRU_CTRL1_PARAM5);
-
-	return 0;
-}
-
-/* -----------------------------------------------------------------------------
- * V4L2 Subdevice Pad Operations
+ * V4L2 Subdevice Operations
  */
 
 static int sru_enum_mbus_code(struct v4l2_subdev *subdev,
@@ -173,27 +116,9 @@ static int sru_enum_mbus_code(struct v4l2_subdev *subdev,
 		MEDIA_BUS_FMT_ARGB8888_1X32,
 		MEDIA_BUS_FMT_AYUV8_1X32,
 	};
-	struct vsp1_sru *sru = to_sru(subdev);
-	struct v4l2_mbus_framefmt *format;
 
-	if (code->pad == SRU_PAD_SINK) {
-		if (code->index >= ARRAY_SIZE(codes))
-			return -EINVAL;
-
-		code->code = codes[code->index];
-	} else {
-		/* The SRU can't perform format conversion, the sink format is
-		 * always identical to the source format.
-		 */
-		if (code->index)
-			return -EINVAL;
-
-		format = vsp1_entity_get_pad_format(&sru->entity, cfg,
-						    SRU_PAD_SINK, code->which);
-		code->code = format->code;
-	}
-
-	return 0;
+	return vsp1_subdev_enum_mbus_code(subdev, cfg, code, codes,
+					  ARRAY_SIZE(codes));
 }
 
 static int sru_enum_frame_size(struct v4l2_subdev *subdev,
@@ -201,10 +126,14 @@ static int sru_enum_frame_size(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct vsp1_sru *sru = to_sru(subdev);
+	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
 
-	format = vsp1_entity_get_pad_format(&sru->entity, cfg,
-					    SRU_PAD_SINK, fse->which);
+	config = vsp1_entity_get_pad_config(&sru->entity, cfg, fse->which);
+	if (!config)
+		return -EINVAL;
+
+	format = vsp1_entity_get_pad_format(&sru->entity, config, SRU_PAD_SINK);
 
 	if (fse->index || fse->code != format->code)
 		return -EINVAL;
@@ -230,20 +159,9 @@ static int sru_enum_frame_size(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static int sru_get_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_config *cfg,
-			  struct v4l2_subdev_format *fmt)
-{
-	struct vsp1_sru *sru = to_sru(subdev);
-
-	fmt->format = *vsp1_entity_get_pad_format(&sru->entity, cfg, fmt->pad,
-						  fmt->which);
-
-	return 0;
-}
-
-static void sru_try_format(struct vsp1_sru *sru, struct v4l2_subdev_pad_config *cfg,
-			   unsigned int pad, struct v4l2_mbus_framefmt *fmt,
-			   enum v4l2_subdev_format_whence which)
+static void sru_try_format(struct vsp1_sru *sru,
+			   struct v4l2_subdev_pad_config *config,
+			   unsigned int pad, struct v4l2_mbus_framefmt *fmt)
 {
 	struct v4l2_mbus_framefmt *format;
 	unsigned int input_area;
@@ -262,8 +180,8 @@ static void sru_try_format(struct vsp1_sru *sru, struct v4l2_subdev_pad_config *
 
 	case SRU_PAD_SOURCE:
 		/* The SRU can't perform format conversion. */
-		format = vsp1_entity_get_pad_format(&sru->entity, cfg,
-						    SRU_PAD_SINK, which);
+		format = vsp1_entity_get_pad_format(&sru->entity, config,
+						    SRU_PAD_SINK);
 		fmt->code = format->code;
 
 		/* We can upscale by 2 in both direction, but not independently.
@@ -292,48 +210,89 @@ static void sru_try_format(struct vsp1_sru *sru, struct v4l2_subdev_pad_config *
 	fmt->colorspace = V4L2_COLORSPACE_SRGB;
 }
 
-static int sru_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_config *cfg,
+static int sru_set_format(struct v4l2_subdev *subdev,
+			  struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_sru *sru = to_sru(subdev);
+	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
 
-	sru_try_format(sru, cfg, fmt->pad, &fmt->format, fmt->which);
+	config = vsp1_entity_get_pad_config(&sru->entity, cfg, fmt->which);
+	if (!config)
+		return -EINVAL;
 
-	format = vsp1_entity_get_pad_format(&sru->entity, cfg, fmt->pad,
-					    fmt->which);
+	sru_try_format(sru, config, fmt->pad, &fmt->format);
+
+	format = vsp1_entity_get_pad_format(&sru->entity, config, fmt->pad);
 	*format = fmt->format;
 
 	if (fmt->pad == SRU_PAD_SINK) {
 		/* Propagate the format to the source pad. */
-		format = vsp1_entity_get_pad_format(&sru->entity, cfg,
-						    SRU_PAD_SOURCE, fmt->which);
+		format = vsp1_entity_get_pad_format(&sru->entity, config,
+						    SRU_PAD_SOURCE);
 		*format = fmt->format;
 
-		sru_try_format(sru, cfg, SRU_PAD_SOURCE, format, fmt->which);
+		sru_try_format(sru, config, SRU_PAD_SOURCE, format);
 	}
 
 	return 0;
 }
 
-/* -----------------------------------------------------------------------------
- * V4L2 Subdevice Operations
- */
-
-static struct v4l2_subdev_video_ops sru_video_ops = {
-	.s_stream = sru_s_stream,
-};
-
-static struct v4l2_subdev_pad_ops sru_pad_ops = {
+static const struct v4l2_subdev_pad_ops sru_pad_ops = {
+	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = sru_enum_mbus_code,
 	.enum_frame_size = sru_enum_frame_size,
-	.get_fmt = sru_get_format,
+	.get_fmt = vsp1_subdev_get_pad_format,
 	.set_fmt = sru_set_format,
 };
 
-static struct v4l2_subdev_ops sru_ops = {
-	.video	= &sru_video_ops,
+static const struct v4l2_subdev_ops sru_ops = {
 	.pad    = &sru_pad_ops,
+};
+
+/* -----------------------------------------------------------------------------
+ * VSP1 Entity Operations
+ */
+
+static void sru_configure(struct vsp1_entity *entity,
+			  struct vsp1_pipeline *pipe,
+			  struct vsp1_dl_list *dl, bool full)
+{
+	const struct vsp1_sru_param *param;
+	struct vsp1_sru *sru = to_sru(&entity->subdev);
+	struct v4l2_mbus_framefmt *input;
+	struct v4l2_mbus_framefmt *output;
+	u32 ctrl0;
+
+	if (!full)
+		return;
+
+	input = vsp1_entity_get_pad_format(&sru->entity, sru->entity.config,
+					   SRU_PAD_SINK);
+	output = vsp1_entity_get_pad_format(&sru->entity, sru->entity.config,
+					    SRU_PAD_SOURCE);
+
+	if (input->code == MEDIA_BUS_FMT_ARGB8888_1X32)
+		ctrl0 = VI6_SRU_CTRL0_PARAM2 | VI6_SRU_CTRL0_PARAM3
+		      | VI6_SRU_CTRL0_PARAM4;
+	else
+		ctrl0 = VI6_SRU_CTRL0_PARAM3;
+
+	if (input->width != output->width)
+		ctrl0 |= VI6_SRU_CTRL0_MODE_UPSCALE;
+
+	param = &vsp1_sru_params[sru->intensity - 1];
+
+	ctrl0 |= param->ctrl0;
+
+	vsp1_sru_write(sru, dl, VI6_SRU_CTRL0, ctrl0);
+	vsp1_sru_write(sru, dl, VI6_SRU_CTRL1, VI6_SRU_CTRL1_PARAM5);
+	vsp1_sru_write(sru, dl, VI6_SRU_CTRL2, param->ctrl2);
+}
+
+static const struct vsp1_entity_operations sru_entity_ops = {
+	.configure = sru_configure,
 };
 
 /* -----------------------------------------------------------------------------
@@ -342,7 +301,6 @@ static struct v4l2_subdev_ops sru_ops = {
 
 struct vsp1_sru *vsp1_sru_create(struct vsp1_device *vsp1)
 {
-	struct v4l2_subdev *subdev;
 	struct vsp1_sru *sru;
 	int ret;
 
@@ -350,28 +308,19 @@ struct vsp1_sru *vsp1_sru_create(struct vsp1_device *vsp1)
 	if (sru == NULL)
 		return ERR_PTR(-ENOMEM);
 
+	sru->entity.ops = &sru_entity_ops;
 	sru->entity.type = VSP1_ENTITY_SRU;
 
-	ret = vsp1_entity_init(vsp1, &sru->entity, 2);
+	ret = vsp1_entity_init(vsp1, &sru->entity, "sru", 2, &sru_ops,
+			       MEDIA_ENT_F_PROC_VIDEO_SCALER);
 	if (ret < 0)
 		return ERR_PTR(ret);
-
-	/* Initialize the V4L2 subdev. */
-	subdev = &sru->entity.subdev;
-	v4l2_subdev_init(subdev, &sru_ops);
-
-	subdev->entity.ops = &vsp1_media_ops;
-	subdev->internal_ops = &vsp1_subdev_internal_ops;
-	snprintf(subdev->name, sizeof(subdev->name), "%s sru",
-		 dev_name(vsp1->dev));
-	v4l2_set_subdevdata(subdev, sru);
-	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-
-	vsp1_entity_init_formats(subdev, NULL);
 
 	/* Initialize the control handler. */
 	v4l2_ctrl_handler_init(&sru->ctrls, 1);
 	v4l2_ctrl_new_custom(&sru->ctrls, &sru_intensity_control, NULL);
+
+	sru->intensity = 1;
 
 	sru->entity.subdev.ctrl_handler = &sru->ctrls;
 

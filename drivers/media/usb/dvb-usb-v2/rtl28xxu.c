@@ -259,6 +259,10 @@ static int rtl28xxu_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		ret = -EOPNOTSUPP;
 	}
 
+	/* Retry failed I2C messages */
+	if (ret == -EPIPE)
+		ret = -EAGAIN;
+
 err_mutex_unlock:
 	mutex_unlock(&d->i2c_mutex);
 
@@ -618,6 +622,10 @@ static int rtl28xxu_identify_state(struct dvb_usb_device *d, const char **name)
 		goto err;
 	}
 	dev_dbg(&d->intf->dev, "chip_id=%u\n", dev->chip_id);
+
+	/* Retry failed I2C messages */
+	d->i2c_adap.retries = 3;
+	d->i2c_adap.timeout = msecs_to_jiffies(10);
 
 	return WARM;
 err:
@@ -1325,10 +1333,7 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 	case TUNER_RTL2832_R828D:
 		pdata.clk = dev->rtl2832_platform_data.clk;
 		pdata.tuner = dev->tuner;
-		pdata.i2c_client = dev->i2c_client_demod;
-		pdata.bulk_read = dev->rtl2832_platform_data.bulk_read;
-		pdata.bulk_write = dev->rtl2832_platform_data.bulk_write;
-		pdata.update_bits = dev->rtl2832_platform_data.update_bits;
+		pdata.regmap = dev->rtl2832_platform_data.regmap;
 		pdata.dvb_frontend = adap->fe[0];
 		pdata.dvb_usb_device = d;
 		pdata.v4l2_subdev = subdev;
@@ -1563,19 +1568,19 @@ static int rtl28xxu_frontend_ctrl(struct dvb_frontend *fe, int onoff)
 	if (dev->chip_id == CHIP_ID_RTL2831U)
 		return 0;
 
-	/* control internal demod ADC */
-	if (fe->id == 0 && onoff)
-		val = 0x48; /* enable ADC */
-	else
-		val = 0x00; /* disable ADC */
+	if (fe->id == 0) {
+		/* control internal demod ADC */
+		if (onoff)
+			val = 0x48; /* enable ADC */
+		else
+			val = 0x00; /* disable ADC */
 
-	ret = rtl28xxu_wr_reg_mask(d, SYS_DEMOD_CTL, val, 0x48);
-	if (ret)
-		goto err;
-
-	/* bypass slave demod TS through master demod */
-	if (fe->id == 1 && onoff) {
-		ret = pdata->enable_slave_ts(dev->i2c_client_demod);
+		ret = rtl28xxu_wr_reg_mask(d, SYS_DEMOD_CTL, val, 0x48);
+		if (ret)
+			goto err;
+	} else if (fe->id == 1) {
+		/* bypass slave demod TS through master demod */
+		ret = pdata->slave_ts_ctrl(dev->i2c_client_demod, onoff);
 		if (ret)
 			goto err;
 	}

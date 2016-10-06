@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -59,37 +59,25 @@ struct i40e_vsi {
 	unsigned long state;
 	int base_vector;
 	u16 work_limit;
-	/* high bit set means dynamic, use accessor routines to read/write.
-	 * hardware only supports 2us resolution for the ITR registers.
-	 * these values always store the USER setting, and must be converted
-	 * before programming to a register.
-	 */
-	u16 rx_itr_setting;
-	u16 tx_itr_setting;
 	u16 qs_handle;
-	u8 *rss_hkey_user; /* User configured hash keys */
-	u8 *rss_lut_user;  /* User configured lookup table entries */
 };
 
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
 #define I40EVF_RX_BUFFER_WRITE	16	/* Must be power of 2 */
-#define I40EVF_DEFAULT_TXD   512
-#define I40EVF_DEFAULT_RXD   512
-#define I40EVF_MAX_TXD       4096
-#define I40EVF_MIN_TXD       64
-#define I40EVF_MAX_RXD       4096
-#define I40EVF_MIN_RXD       64
-#define I40EVF_REQ_DESCRIPTOR_MULTIPLE  32
+#define I40EVF_DEFAULT_TXD	512
+#define I40EVF_DEFAULT_RXD	512
+#define I40EVF_MAX_TXD		4096
+#define I40EVF_MIN_TXD		64
+#define I40EVF_MAX_RXD		4096
+#define I40EVF_MIN_RXD		64
+#define I40EVF_REQ_DESCRIPTOR_MULTIPLE	32
 
 /* Supported Rx Buffer Sizes */
-#define I40EVF_RXBUFFER_64    64     /* Used for packet split */
-#define I40EVF_RXBUFFER_128   128    /* Used for packet split */
-#define I40EVF_RXBUFFER_256   256    /* Used for packet split */
-#define I40EVF_RXBUFFER_2048  2048
-#define I40EVF_MAX_RXBUFFER   16384  /* largest size for single descriptor */
-#define I40EVF_MAX_AQ_BUF_SIZE    4096
-#define I40EVF_AQ_LEN             32
-#define I40EVF_AQ_MAX_ERR         20 /* times to try before resetting AQ */
+#define I40EVF_RXBUFFER_2048	2048
+#define I40EVF_MAX_RXBUFFER	16384  /* largest size for single descriptor */
+#define I40EVF_MAX_AQ_BUF_SIZE	4096
+#define I40EVF_AQ_LEN		32
+#define I40EVF_AQ_MAX_ERR	20 /* times to try before resetting AQ */
 
 #define MAXIMUM_ETHERNET_VLAN_SIZE (VLAN_ETH_FRAME_LEN + ETH_FCS_LEN)
 
@@ -116,7 +104,7 @@ struct i40e_q_vector {
 	u8 num_ringpairs;	/* total number of ring pairs in vector */
 #define ITR_COUNTDOWN_START 100
 	u8 itr_countdown;	/* when 0 or 1 update ITR */
-	int v_idx;	  /* vector index in list */
+	int v_idx;	/* vector index in list */
 	char name[IFNAMSIZ + 9];
 	bool arm_wb_state;
 	cpumask_var_t affinity_mask;
@@ -134,11 +122,11 @@ struct i40e_q_vector {
 	((((R)->next_to_clean > (R)->next_to_use) ? 0 : (R)->count) + \
 	(R)->next_to_clean - (R)->next_to_use - 1)
 
-#define I40EVF_RX_DESC_ADV(R, i)	    \
+#define I40EVF_RX_DESC_ADV(R, i)	\
 	(&(((union i40e_adv_rx_desc *)((R).desc))[i]))
-#define I40EVF_TX_DESC_ADV(R, i)	    \
+#define I40EVF_TX_DESC_ADV(R, i)	\
 	(&(((union i40e_adv_tx_desc *)((R).desc))[i]))
-#define I40EVF_TX_CTXTDESC_ADV(R, i)	    \
+#define I40EVF_TX_CTXTDESC_ADV(R, i)	\
 	(&(((struct i40e_adv_tx_context_desc *)((R).desc))[i]))
 
 #define OTHER_VECTOR 1
@@ -173,6 +161,7 @@ enum i40evf_state_t {
 	__I40EVF_RESETTING,		/* in reset */
 	/* Below here, watchdog is running */
 	__I40EVF_DOWN,			/* ready, can be opened */
+	__I40EVF_DOWN_PENDING,		/* descending, waiting for watchdog */
 	__I40EVF_TESTING,		/* in ethtool self-test */
 	__I40EVF_RUNNING,		/* opened, working */
 };
@@ -208,23 +197,25 @@ struct i40evf_adapter {
 	struct msix_entry *msix_entries;
 
 	u32 flags;
-#define I40EVF_FLAG_RX_CSUM_ENABLED              BIT(0)
-#define I40EVF_FLAG_RX_1BUF_CAPABLE              BIT(1)
-#define I40EVF_FLAG_RX_PS_CAPABLE                BIT(2)
-#define I40EVF_FLAG_RX_PS_ENABLED                BIT(3)
-#define I40EVF_FLAG_IMIR_ENABLED                 BIT(5)
-#define I40EVF_FLAG_MQ_CAPABLE                   BIT(6)
-#define I40EVF_FLAG_NEED_LINK_UPDATE             BIT(7)
-#define I40EVF_FLAG_PF_COMMS_FAILED              BIT(8)
-#define I40EVF_FLAG_RESET_PENDING                BIT(9)
-#define I40EVF_FLAG_RESET_NEEDED                 BIT(10)
+#define I40EVF_FLAG_RX_CSUM_ENABLED		BIT(0)
+#define I40EVF_FLAG_IN_NETPOLL			BIT(4)
+#define I40EVF_FLAG_IMIR_ENABLED		BIT(5)
+#define I40EVF_FLAG_MQ_CAPABLE			BIT(6)
+#define I40EVF_FLAG_NEED_LINK_UPDATE		BIT(7)
+#define I40EVF_FLAG_PF_COMMS_FAILED		BIT(8)
+#define I40EVF_FLAG_RESET_PENDING		BIT(9)
+#define I40EVF_FLAG_RESET_NEEDED		BIT(10)
 #define I40EVF_FLAG_WB_ON_ITR_CAPABLE		BIT(11)
 #define I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE	BIT(12)
 #define I40EVF_FLAG_ADDR_SET_BY_PF		BIT(13)
+#define I40EVF_FLAG_SERVICE_CLIENT_REQUESTED	BIT(14)
+#define I40EVF_FLAG_PROMISC_ON			BIT(15)
+#define I40EVF_FLAG_ALLMULTI_ON			BIT(16)
 /* duplicates for common code */
-#define I40E_FLAG_FDIR_ATR_ENABLED		 0
-#define I40E_FLAG_DCB_ENABLED			 0
-#define I40E_FLAG_RX_CSUM_ENABLED                I40EVF_FLAG_RX_CSUM_ENABLED
+#define I40E_FLAG_FDIR_ATR_ENABLED		0
+#define I40E_FLAG_DCB_ENABLED			0
+#define I40E_FLAG_IN_NETPOLL			I40EVF_FLAG_IN_NETPOLL
+#define I40E_FLAG_RX_CSUM_ENABLED		I40EVF_FLAG_RX_CSUM_ENABLED
 #define I40E_FLAG_WB_ON_ITR_CAPABLE		I40EVF_FLAG_WB_ON_ITR_CAPABLE
 #define I40E_FLAG_OUTER_UDP_CSUM_CAPABLE	I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE
 	/* flags for admin queue service task */
@@ -238,8 +229,17 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_AQ_CONFIGURE_QUEUES		BIT(6)
 #define I40EVF_FLAG_AQ_MAP_VECTORS		BIT(7)
 #define I40EVF_FLAG_AQ_HANDLE_RESET		BIT(8)
-#define I40EVF_FLAG_AQ_CONFIGURE_RSS		BIT(9)
+#define I40EVF_FLAG_AQ_CONFIGURE_RSS		BIT(9) /* direct AQ config */
 #define I40EVF_FLAG_AQ_GET_CONFIG		BIT(10)
+/* Newer style, RSS done by the PF so we can ignore hardware vagaries. */
+#define I40EVF_FLAG_AQ_GET_HENA			BIT(11)
+#define I40EVF_FLAG_AQ_SET_HENA			BIT(12)
+#define I40EVF_FLAG_AQ_SET_RSS_KEY		BIT(13)
+#define I40EVF_FLAG_AQ_SET_RSS_LUT		BIT(14)
+#define I40EVF_FLAG_AQ_REQUEST_PROMISC		BIT(15)
+#define I40EVF_FLAG_AQ_RELEASE_PROMISC		BIT(16)
+#define I40EVF_FLAG_AQ_REQUEST_ALLMULTI		BIT(17)
+#define I40EVF_FLAG_AQ_RELEASE_ALLMULTI		BIT(18)
 
 	/* OS defined structs */
 	struct net_device *netdev;
@@ -254,11 +254,20 @@ struct i40evf_adapter {
 	struct work_struct watchdog_task;
 	bool netdev_registered;
 	bool link_up;
+	enum i40e_aq_link_speed link_speed;
 	enum i40e_virtchnl_ops current_op;
-#define CLIENT_ENABLED(_a) ((_a)->vf_res->vf_offload_flags & \
-			    I40E_VIRTCHNL_VF_OFFLOAD_IWARP)
+#define CLIENT_ENABLED(_a) ((_a)->vf_res ? \
+			    (_a)->vf_res->vf_offload_flags & \
+				I40E_VIRTCHNL_VF_OFFLOAD_IWARP : \
+			    0)
+/* RSS by the PF should be preferred over RSS via other methods. */
+#define RSS_PF(_a) ((_a)->vf_res->vf_offload_flags & \
+		    I40E_VIRTCHNL_VF_OFFLOAD_RSS_PF)
 #define RSS_AQ(_a) ((_a)->vf_res->vf_offload_flags & \
 		    I40E_VIRTCHNL_VF_OFFLOAD_RSS_AQ)
+#define RSS_REG(_a) (!((_a)->vf_res->vf_offload_flags & \
+		       (I40E_VIRTCHNL_VF_OFFLOAD_RSS_AQ | \
+			I40E_VIRTCHNL_VF_OFFLOAD_RSS_PF)))
 #define VLAN_ALLOWED(_a) ((_a)->vf_res->vf_offload_flags & \
 			  I40E_VIRTCHNL_VF_OFFLOAD_VLAN)
 	struct i40e_virtchnl_vf_resource *vf_res; /* incl. all VSIs */
@@ -270,8 +279,16 @@ struct i40evf_adapter {
 	struct i40e_eth_stats current_stats;
 	struct i40e_vsi vsi;
 	u32 aq_wait_count;
+	/* RSS stuff */
+	u64 hena;
+	u16 rss_key_size;
+	u16 rss_lut_size;
+	u8 *rss_key;
+	u8 *rss_lut;
 };
 
+
+/* Ethtool Private Flags */
 
 /* needed by i40evf_ethtool.c */
 extern char i40evf_driver_name[];
@@ -280,6 +297,7 @@ extern const char i40evf_driver_version[];
 int i40evf_up(struct i40evf_adapter *adapter);
 void i40evf_down(struct i40evf_adapter *adapter);
 int i40evf_process_config(struct i40evf_adapter *adapter);
+void i40evf_schedule_reset(struct i40evf_adapter *adapter);
 void i40evf_reset(struct i40evf_adapter *adapter);
 void i40evf_set_ethtool_ops(struct net_device *netdev);
 void i40evf_update_stats(struct i40evf_adapter *adapter);
@@ -309,11 +327,12 @@ void i40evf_del_vlans(struct i40evf_adapter *adapter);
 void i40evf_set_promiscuous(struct i40evf_adapter *adapter, int flags);
 void i40evf_request_stats(struct i40evf_adapter *adapter);
 void i40evf_request_reset(struct i40evf_adapter *adapter);
+void i40evf_get_hena(struct i40evf_adapter *adapter);
+void i40evf_set_hena(struct i40evf_adapter *adapter);
+void i40evf_set_rss_key(struct i40evf_adapter *adapter);
+void i40evf_set_rss_lut(struct i40evf_adapter *adapter);
 void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 				enum i40e_virtchnl_ops v_opcode,
 				i40e_status v_retval, u8 *msg, u16 msglen);
-int i40evf_config_rss(struct i40e_vsi *vsi, const u8 *seed, u8 *lut,
-		      u16 lut_size);
-int i40evf_get_rss(struct i40e_vsi *vsi, const u8 *seed, u8 *lut,
-		   u16 lut_size);
+int i40evf_config_rss(struct i40evf_adapter *adapter);
 #endif /* _I40EVF_H_ */

@@ -68,12 +68,6 @@ struct dw8250_data {
 	unsigned int		uart_16550_compatible:1;
 };
 
-#define BYT_PRV_CLK			0x800
-#define BYT_PRV_CLK_EN			(1 << 0)
-#define BYT_PRV_CLK_M_VAL_SHIFT		1
-#define BYT_PRV_CLK_N_VAL_SHIFT		16
-#define BYT_PRV_CLK_UPDATE		(1 << 31)
-
 static inline int dw8250_modify_msr(struct uart_port *p, int offset, int value)
 {
 	struct dw8250_data *d = p->private_data;
@@ -95,25 +89,46 @@ static void dw8250_force_idle(struct uart_port *p)
 	(void)p->serial_in(p, UART_RX);
 }
 
-static void dw8250_serial_out(struct uart_port *p, int offset, int value)
+static void dw8250_check_lcr(struct uart_port *p, int value)
 {
-	writeb(value, p->membase + (offset << p->regshift));
+	void __iomem *offset = p->membase + (UART_LCR << p->regshift);
+	int tries = 1000;
 
 	/* Make sure LCR write wasn't ignored */
-	if (offset == UART_LCR) {
-		int tries = 1000;
-		while (tries--) {
-			unsigned int lcr = p->serial_in(p, UART_LCR);
-			if ((value & ~UART_LCR_SPAR) == (lcr & ~UART_LCR_SPAR))
-				return;
-			dw8250_force_idle(p);
-			writeb(value, p->membase + (UART_LCR << p->regshift));
-		}
-		/*
-		 * FIXME: this deadlocks if port->lock is already held
-		 * dev_err(p->dev, "Couldn't set LCR to %d\n", value);
-		 */
+	while (tries--) {
+		unsigned int lcr = p->serial_in(p, UART_LCR);
+
+		if ((value & ~UART_LCR_SPAR) == (lcr & ~UART_LCR_SPAR))
+			return;
+
+		dw8250_force_idle(p);
+
+#ifdef CONFIG_64BIT
+		if (p->type == PORT_OCTEON)
+			__raw_writeq(value & 0xff, offset);
+		else
+#endif
+		if (p->iotype == UPIO_MEM32)
+			writel(value, offset);
+		else if (p->iotype == UPIO_MEM32BE)
+			iowrite32be(value, offset);
+		else
+			writeb(value, offset);
 	}
+	/*
+	 * FIXME: this deadlocks if port->lock is already held
+	 * dev_err(p->dev, "Couldn't set LCR to %d\n", value);
+	 */
+}
+
+static void dw8250_serial_out(struct uart_port *p, int offset, int value)
+{
+	struct dw8250_data *d = p->private_data;
+
+	writeb(value, p->membase + (offset << p->regshift));
+
+	if (offset == UART_LCR && !d->uart_16550_compatible)
+		dw8250_check_lcr(p, value);
 }
 
 static unsigned int dw8250_serial_in(struct uart_port *p, int offset)
@@ -135,49 +150,26 @@ static unsigned int dw8250_serial_inq(struct uart_port *p, int offset)
 
 static void dw8250_serial_outq(struct uart_port *p, int offset, int value)
 {
+	struct dw8250_data *d = p->private_data;
+
 	value &= 0xff;
 	__raw_writeq(value, p->membase + (offset << p->regshift));
 	/* Read back to ensure register write ordering. */
 	__raw_readq(p->membase + (UART_LCR << p->regshift));
 
-	/* Make sure LCR write wasn't ignored */
-	if (offset == UART_LCR) {
-		int tries = 1000;
-		while (tries--) {
-			unsigned int lcr = p->serial_in(p, UART_LCR);
-			if ((value & ~UART_LCR_SPAR) == (lcr & ~UART_LCR_SPAR))
-				return;
-			dw8250_force_idle(p);
-			__raw_writeq(value & 0xff,
-				     p->membase + (UART_LCR << p->regshift));
-		}
-		/*
-		 * FIXME: this deadlocks if port->lock is already held
-		 * dev_err(p->dev, "Couldn't set LCR to %d\n", value);
-		 */
-	}
+	if (offset == UART_LCR && !d->uart_16550_compatible)
+		dw8250_check_lcr(p, value);
 }
 #endif /* CONFIG_64BIT */
 
 static void dw8250_serial_out32(struct uart_port *p, int offset, int value)
 {
+	struct dw8250_data *d = p->private_data;
+
 	writel(value, p->membase + (offset << p->regshift));
 
-	/* Make sure LCR write wasn't ignored */
-	if (offset == UART_LCR) {
-		int tries = 1000;
-		while (tries--) {
-			unsigned int lcr = p->serial_in(p, UART_LCR);
-			if ((value & ~UART_LCR_SPAR) == (lcr & ~UART_LCR_SPAR))
-				return;
-			dw8250_force_idle(p);
-			writel(value, p->membase + (UART_LCR << p->regshift));
-		}
-		/*
-		 * FIXME: this deadlocks if port->lock is already held
-		 * dev_err(p->dev, "Couldn't set LCR to %d\n", value);
-		 */
-	}
+	if (offset == UART_LCR && !d->uart_16550_compatible)
+		dw8250_check_lcr(p, value);
 }
 
 static unsigned int dw8250_serial_in32(struct uart_port *p, int offset)
@@ -187,14 +179,33 @@ static unsigned int dw8250_serial_in32(struct uart_port *p, int offset)
 	return dw8250_modify_msr(p, offset, value);
 }
 
+static void dw8250_serial_out32be(struct uart_port *p, int offset, int value)
+{
+	struct dw8250_data *d = p->private_data;
+
+	iowrite32be(value, p->membase + (offset << p->regshift));
+
+	if (offset == UART_LCR && !d->uart_16550_compatible)
+		dw8250_check_lcr(p, value);
+}
+
+static unsigned int dw8250_serial_in32be(struct uart_port *p, int offset)
+{
+       unsigned int value = ioread32be(p->membase + (offset << p->regshift));
+
+       return dw8250_modify_msr(p, offset, value);
+}
+
+
 static int dw8250_handle_irq(struct uart_port *p)
 {
 	struct dw8250_data *d = p->private_data;
 	unsigned int iir = p->serial_in(p, UART_IIR);
 
-	if (serial8250_handle_irq(p, iir)) {
+	if (serial8250_handle_irq(p, iir))
 		return 1;
-	} else if ((iir & UART_IIR_BUSY) == UART_IIR_BUSY) {
+
+	if ((iir & UART_IIR_BUSY) == UART_IIR_BUSY) {
 		/* Clear the USR */
 		(void)p->serial_in(p, d->usr_reg);
 
@@ -281,13 +292,23 @@ static void dw8250_quirks(struct uart_port *p, struct dw8250_data *data)
 			data->skip_autocfg = true;
 		}
 #endif
+		if (of_device_is_big_endian(p->dev->of_node)) {
+			p->iotype = UPIO_MEM32BE;
+			p->serial_in = dw8250_serial_in32be;
+			p->serial_out = dw8250_serial_out32be;
+		}
 	} else if (has_acpi_companion(p->dev)) {
-		p->iotype = UPIO_MEM32;
-		p->regshift = 2;
-		p->serial_in = dw8250_serial_in32;
+		const struct acpi_device_id *id;
+
+		id = acpi_match_device(p->dev->driver->acpi_match_table,
+				       p->dev);
+		if (id && !strcmp(id->id, "APMC0D08")) {
+			p->iotype = UPIO_MEM32;
+			p->regshift = 2;
+			p->serial_in = dw8250_serial_in32;
+			data->uart_16550_compatible = true;
+		}
 		p->set_termios = dw8250_set_termios;
-		/* So far none of there implement the Busy Functionality */
-		data->uart_16550_compatible = true;
 	}
 
 	/* Platforms with iDMA */
@@ -309,14 +330,20 @@ static void dw8250_setup_port(struct uart_port *p)
 	 * If the Component Version Register returns zero, we know that
 	 * ADDITIONAL_FEATURES are not enabled. No need to go any further.
 	 */
-	reg = readl(p->membase + DW_UART_UCV);
+	if (p->iotype == UPIO_MEM32BE)
+		reg = ioread32be(p->membase + DW_UART_UCV);
+	else
+		reg = readl(p->membase + DW_UART_UCV);
 	if (!reg)
 		return;
 
 	dev_dbg(p->dev, "Designware UART version %c.%c%c\n",
 		(reg >> 24) & 0xff, (reg >> 16) & 0xff, (reg >> 8) & 0xff);
 
-	reg = readl(p->membase + DW_UART_CPR);
+	if (p->iotype == UPIO_MEM32BE)
+		reg = ioread32be(p->membase + DW_UART_CPR);
+	else
+		reg = readl(p->membase + DW_UART_CPR);
 	if (!reg)
 		return;
 
@@ -338,18 +365,19 @@ static int dw8250_probe(struct platform_device *pdev)
 	struct resource *regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	int irq = platform_get_irq(pdev, 0);
 	struct uart_port *p = &uart.port;
+	struct device *dev = &pdev->dev;
 	struct dw8250_data *data;
 	int err;
 	u32 val;
 
 	if (!regs) {
-		dev_err(&pdev->dev, "no registers defined\n");
+		dev_err(dev, "no registers defined\n");
 		return -EINVAL;
 	}
 
 	if (irq < 0) {
 		if (irq != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "cannot get irq\n");
+			dev_err(dev, "cannot get irq\n");
 		return irq;
 	}
 
@@ -360,16 +388,16 @@ static int dw8250_probe(struct platform_device *pdev)
 	p->pm		= dw8250_do_pm;
 	p->type		= PORT_8250;
 	p->flags	= UPF_SHARE_IRQ | UPF_FIXED_PORT;
-	p->dev		= &pdev->dev;
+	p->dev		= dev;
 	p->iotype	= UPIO_MEM;
 	p->serial_in	= dw8250_serial_in;
 	p->serial_out	= dw8250_serial_out;
 
-	p->membase = devm_ioremap(&pdev->dev, regs->start, resource_size(regs));
+	p->membase = devm_ioremap(dev, regs->start, resource_size(regs));
 	if (!p->membase)
 		return -ENOMEM;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -377,57 +405,57 @@ static int dw8250_probe(struct platform_device *pdev)
 	data->usr_reg = DW_UART_USR;
 	p->private_data = data;
 
-	data->uart_16550_compatible = device_property_read_bool(p->dev,
+	data->uart_16550_compatible = device_property_read_bool(dev,
 						"snps,uart-16550-compatible");
 
-	err = device_property_read_u32(p->dev, "reg-shift", &val);
+	err = device_property_read_u32(dev, "reg-shift", &val);
 	if (!err)
 		p->regshift = val;
 
-	err = device_property_read_u32(p->dev, "reg-io-width", &val);
+	err = device_property_read_u32(dev, "reg-io-width", &val);
 	if (!err && val == 4) {
 		p->iotype = UPIO_MEM32;
 		p->serial_in = dw8250_serial_in32;
 		p->serial_out = dw8250_serial_out32;
 	}
 
-	if (device_property_read_bool(p->dev, "dcd-override")) {
+	if (device_property_read_bool(dev, "dcd-override")) {
 		/* Always report DCD as active */
 		data->msr_mask_on |= UART_MSR_DCD;
 		data->msr_mask_off |= UART_MSR_DDCD;
 	}
 
-	if (device_property_read_bool(p->dev, "dsr-override")) {
+	if (device_property_read_bool(dev, "dsr-override")) {
 		/* Always report DSR as active */
 		data->msr_mask_on |= UART_MSR_DSR;
 		data->msr_mask_off |= UART_MSR_DDSR;
 	}
 
-	if (device_property_read_bool(p->dev, "cts-override")) {
+	if (device_property_read_bool(dev, "cts-override")) {
 		/* Always report CTS as active */
 		data->msr_mask_on |= UART_MSR_CTS;
 		data->msr_mask_off |= UART_MSR_DCTS;
 	}
 
-	if (device_property_read_bool(p->dev, "ri-override")) {
+	if (device_property_read_bool(dev, "ri-override")) {
 		/* Always report Ring indicator as inactive */
 		data->msr_mask_off |= UART_MSR_RI;
 		data->msr_mask_off |= UART_MSR_TERI;
 	}
 
 	/* Always ask for fixed clock rate from a property. */
-	device_property_read_u32(p->dev, "clock-frequency", &p->uartclk);
+	device_property_read_u32(dev, "clock-frequency", &p->uartclk);
 
 	/* If there is separate baudclk, get the rate from it. */
-	data->clk = devm_clk_get(&pdev->dev, "baudclk");
+	data->clk = devm_clk_get(dev, "baudclk");
 	if (IS_ERR(data->clk) && PTR_ERR(data->clk) != -EPROBE_DEFER)
-		data->clk = devm_clk_get(&pdev->dev, NULL);
+		data->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(data->clk) && PTR_ERR(data->clk) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 	if (!IS_ERR_OR_NULL(data->clk)) {
 		err = clk_prepare_enable(data->clk);
 		if (err)
-			dev_warn(&pdev->dev, "could not enable optional baudclk: %d\n",
+			dev_warn(dev, "could not enable optional baudclk: %d\n",
 				 err);
 		else
 			p->uartclk = clk_get_rate(data->clk);
@@ -435,24 +463,24 @@ static int dw8250_probe(struct platform_device *pdev)
 
 	/* If no clock rate is defined, fail. */
 	if (!p->uartclk) {
-		dev_err(&pdev->dev, "clock rate not defined\n");
+		dev_err(dev, "clock rate not defined\n");
 		return -EINVAL;
 	}
 
-	data->pclk = devm_clk_get(&pdev->dev, "apb_pclk");
-	if (IS_ERR(data->clk) && PTR_ERR(data->clk) == -EPROBE_DEFER) {
+	data->pclk = devm_clk_get(dev, "apb_pclk");
+	if (IS_ERR(data->pclk) && PTR_ERR(data->pclk) == -EPROBE_DEFER) {
 		err = -EPROBE_DEFER;
 		goto err_clk;
 	}
 	if (!IS_ERR(data->pclk)) {
 		err = clk_prepare_enable(data->pclk);
 		if (err) {
-			dev_err(&pdev->dev, "could not enable apb_pclk\n");
+			dev_err(dev, "could not enable apb_pclk\n");
 			goto err_clk;
 		}
 	}
 
-	data->rst = devm_reset_control_get_optional(&pdev->dev, NULL);
+	data->rst = devm_reset_control_get_optional(dev, NULL);
 	if (IS_ERR(data->rst) && PTR_ERR(data->rst) == -EPROBE_DEFER) {
 		err = -EPROBE_DEFER;
 		goto err_pclk;
@@ -463,10 +491,8 @@ static int dw8250_probe(struct platform_device *pdev)
 	dw8250_quirks(p, data);
 
 	/* If the Busy Functionality is not implemented, don't handle it */
-	if (data->uart_16550_compatible) {
-		p->serial_out = NULL;
+	if (data->uart_16550_compatible)
 		p->handle_irq = NULL;
-	}
 
 	if (!data->skip_autocfg)
 		dw8250_setup_port(p);
@@ -486,8 +512,8 @@ static int dw8250_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 
-	pm_runtime_set_active(&pdev->dev);
-	pm_runtime_enable(&pdev->dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
 
 	return 0;
 
@@ -598,6 +624,8 @@ static const struct acpi_device_id dw8250_acpi_match[] = {
 	{ "8086228A", 0 },
 	{ "APMC0D08", 0},
 	{ "AMD0020", 0 },
+	{ "AMDI0020", 0 },
+	{ "HISI0031", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, dw8250_acpi_match);

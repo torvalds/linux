@@ -41,6 +41,7 @@ enum auxtrace_type {
 	PERF_AUXTRACE_UNKNOWN,
 	PERF_AUXTRACE_INTEL_PT,
 	PERF_AUXTRACE_INTEL_BTS,
+	PERF_AUXTRACE_CS_ETM,
 };
 
 enum itrace_period_type {
@@ -63,11 +64,13 @@ enum itrace_period_type {
  * @calls: limit branch samples to calls (can be combined with @returns)
  * @returns: limit branch samples to returns (can be combined with @calls)
  * @callchain: add callchain to 'instructions' events
+ * @thread_stack: feed branches to the thread_stack
  * @last_branch: add branch context to 'instruction' events
  * @callchain_sz: maximum callchain size
  * @last_branch_sz: branch context size
  * @period: 'instructions' events period
  * @period_type: 'instructions' events period type
+ * @initial_skip: skip N events at the beginning.
  */
 struct itrace_synth_opts {
 	bool			set;
@@ -81,11 +84,13 @@ struct itrace_synth_opts {
 	bool			calls;
 	bool			returns;
 	bool			callchain;
+	bool			thread_stack;
 	bool			last_branch;
 	unsigned int		callchain_sz;
 	unsigned int		last_branch_sz;
 	unsigned long long	period;
 	enum itrace_period_type	period_type;
+	unsigned long		initial_skip;
 };
 
 /**
@@ -293,7 +298,8 @@ struct auxtrace_record {
 	int (*recording_options)(struct auxtrace_record *itr,
 				 struct perf_evlist *evlist,
 				 struct record_opts *opts);
-	size_t (*info_priv_size)(struct auxtrace_record *itr);
+	size_t (*info_priv_size)(struct auxtrace_record *itr,
+				 struct perf_evlist *evlist);
 	int (*info_fill)(struct auxtrace_record *itr,
 			 struct perf_session *session,
 			 struct auxtrace_info_event *auxtrace_info,
@@ -310,6 +316,48 @@ struct auxtrace_record {
 	u64 (*reference)(struct auxtrace_record *itr);
 	int (*read_finish)(struct auxtrace_record *itr, int idx);
 	unsigned int alignment;
+};
+
+/**
+ * struct addr_filter - address filter.
+ * @list: list node
+ * @range: true if it is a range filter
+ * @start: true if action is 'filter' or 'start'
+ * @action: 'filter', 'start' or 'stop' ('tracestop' is accepted but converted
+ *          to 'stop')
+ * @sym_from: symbol name for the filter address
+ * @sym_to: symbol name that determines the filter size
+ * @sym_from_idx: selects n'th from symbols with the same name (0 means global
+ *                and less than 0 means symbol must be unique)
+ * @sym_to_idx: same as @sym_from_idx but for @sym_to
+ * @addr: filter address
+ * @size: filter region size (for range filters)
+ * @filename: DSO file name or NULL for the kernel
+ * @str: allocated string that contains the other string members
+ */
+struct addr_filter {
+	struct list_head	list;
+	bool			range;
+	bool			start;
+	const char		*action;
+	const char		*sym_from;
+	const char		*sym_to;
+	int			sym_from_idx;
+	int			sym_to_idx;
+	u64			addr;
+	u64			size;
+	const char		*filename;
+	char			*str;
+};
+
+/**
+ * struct addr_filters - list of address filters.
+ * @head: list of address filters
+ * @cnt: number of address filters
+ */
+struct addr_filters {
+	struct list_head	head;
+	int			cnt;
 };
 
 #ifdef HAVE_AUXTRACE_SUPPORT
@@ -429,7 +477,8 @@ int auxtrace_parse_snapshot_options(struct auxtrace_record *itr,
 int auxtrace_record__options(struct auxtrace_record *itr,
 			     struct perf_evlist *evlist,
 			     struct record_opts *opts);
-size_t auxtrace_record__info_priv_size(struct auxtrace_record *itr);
+size_t auxtrace_record__info_priv_size(struct auxtrace_record *itr,
+				       struct perf_evlist *evlist);
 int auxtrace_record__info_fill(struct auxtrace_record *itr,
 			       struct perf_session *session,
 			       struct auxtrace_info_event *auxtrace_info,
@@ -475,6 +524,12 @@ void perf_session__auxtrace_error_inc(struct perf_session *session,
 				      union perf_event *event);
 void events_stats__auxtrace_error_warn(const struct events_stats *stats);
 
+void addr_filters__init(struct addr_filters *filts);
+void addr_filters__exit(struct addr_filters *filts);
+int addr_filters__parse_bare_filter(struct addr_filters *filts,
+				    const char *filter);
+int auxtrace_parse_filters(struct perf_evlist *evlist);
+
 static inline int auxtrace__process_event(struct perf_session *session,
 					  union perf_event *event,
 					  struct perf_sample *sample,
@@ -515,7 +570,7 @@ static inline void auxtrace__free(struct perf_session *session)
 
 static inline struct auxtrace_record *
 auxtrace_record__init(struct perf_evlist *evlist __maybe_unused,
-		      int *err __maybe_unused)
+		      int *err)
 {
 	*err = 0;
 	return NULL;
@@ -631,6 +686,12 @@ int auxtrace_index__process(int fd __maybe_unused,
 static inline
 void auxtrace_index__free(struct list_head *head __maybe_unused)
 {
+}
+
+static inline
+int auxtrace_parse_filters(struct perf_evlist *evlist __maybe_unused)
+{
+	return 0;
 }
 
 int auxtrace_mmap__mmap(struct auxtrace_mmap *mm,

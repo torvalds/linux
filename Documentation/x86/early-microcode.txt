@@ -40,3 +40,31 @@ cp ../microcode.bin kernel/x86/microcode/GenuineIntel.bin (or AuthenticAMD.bin)
 find . | cpio -o -H newc >../ucode.cpio
 cd ..
 cat ucode.cpio /boot/initrd-3.5.0.img >/boot/initrd-3.5.0.ucode.img
+
+Builtin microcode
+=================
+
+We can also load builtin microcode supplied through the regular firmware
+builtin method CONFIG_FIRMWARE_IN_KERNEL. Only 64-bit is currently
+supported.
+
+Here's an example:
+
+CONFIG_FIRMWARE_IN_KERNEL=y
+CONFIG_EXTRA_FIRMWARE="intel-ucode/06-3a-09 amd-ucode/microcode_amd_fam15h.bin"
+CONFIG_EXTRA_FIRMWARE_DIR="/lib/firmware"
+
+This basically means, you have the following tree structure locally:
+
+/lib/firmware/
+|-- amd-ucode
+...
+|   |-- microcode_amd_fam15h.bin
+...
+|-- intel-ucode
+...
+|   |-- 06-3a-09
+...
+
+so that the build system can find those files and integrate them into
+the final kernel image. The early loader finds them and applies them.

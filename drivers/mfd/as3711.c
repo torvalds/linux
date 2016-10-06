@@ -108,8 +108,8 @@ static const struct regmap_config as3711_regmap_config = {
 	.volatile_reg = as3711_volatile_reg,
 	.readable_reg = as3711_readable_reg,
 	.precious_reg = as3711_precious_reg,
-	.max_register = AS3711_MAX_REGS,
-	.num_reg_defaults_raw = AS3711_MAX_REGS,
+	.max_register = AS3711_MAX_REG,
+	.num_reg_defaults_raw = AS3711_NUM_REGS,
 	.cache_type = REGCACHE_RBTREE,
 };
 
@@ -189,20 +189,12 @@ static int as3711_i2c_probe(struct i2c_client *client,
 		as3711_subdevs[AS3711_BACKLIGHT].pdata_size = 0;
 	}
 
-	ret = mfd_add_devices(as3711->dev, -1, as3711_subdevs,
-			      ARRAY_SIZE(as3711_subdevs), NULL, 0, NULL);
+	ret = devm_mfd_add_devices(as3711->dev, -1, as3711_subdevs,
+				   ARRAY_SIZE(as3711_subdevs), NULL, 0, NULL);
 	if (ret < 0)
 		dev_err(&client->dev, "add mfd devices failed: %d\n", ret);
 
 	return ret;
-}
-
-static int as3711_i2c_remove(struct i2c_client *client)
-{
-	struct as3711 *as3711 = i2c_get_clientdata(client);
-
-	mfd_remove_devices(as3711->dev);
-	return 0;
 }
 
 static const struct i2c_device_id as3711_i2c_id[] = {
@@ -218,7 +210,6 @@ static struct i2c_driver as3711_i2c_driver = {
 		   .of_match_table = of_match_ptr(as3711_of_match),
 	},
 	.probe = as3711_i2c_probe,
-	.remove = as3711_i2c_remove,
 	.id_table = as3711_i2c_id,
 };
 

@@ -157,7 +157,7 @@ struct device_node * __init tilcdc_get_overlay(struct kfree_table *kft)
 	if (!overlay_data || kfree_table_add(kft, overlay_data))
 		return NULL;
 
-	of_fdt_unflatten_tree(overlay_data, &overlay);
+	of_fdt_unflatten_tree(overlay_data, NULL, &overlay);
 	if (!overlay) {
 		pr_warn("%s: Unfattening overlay tree failed\n", __func__);
 		return NULL;

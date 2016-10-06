@@ -1105,6 +1105,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	int i;
 	int r = -EINVAL;
 	char *origin_path, *cow_path;
+	dev_t origin_dev, cow_dev;
 	unsigned args_used, num_flush_bios = 1;
 	fmode_t origin_mode = FMODE_READ;
 
@@ -1135,10 +1136,18 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		ti->error = "Cannot get origin device";
 		goto bad_origin;
 	}
+	origin_dev = s->origin->bdev->bd_dev;
 
 	cow_path = argv[0];
 	argv++;
 	argc--;
+
+	cow_dev = dm_get_dev_t(cow_path);
+	if (cow_dev && cow_dev == origin_dev) {
+		ti->error = "COW device cannot be the same as origin device";
+		r = -EINVAL;
+		goto bad_cow;
+	}
 
 	r = dm_get_device(ti, cow_path, dm_table_get_mode(ti->table), &s->cow);
 	if (r) {
@@ -1201,7 +1210,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	ti->private = s;
 	ti->num_flush_bios = num_flush_bios;
-	ti->per_bio_data_size = sizeof(struct dm_snap_tracked_chunk);
+	ti->per_io_data_size = sizeof(struct dm_snap_tracked_chunk);
 
 	/* Add snapshot to the list of snapshots for this origin */
 	/* Exceptions aren't triggered till snapshot_resume() is called */
@@ -1671,7 +1680,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 
 	init_tracked_chunk(bio);
 
-	if (bio->bi_rw & REQ_FLUSH) {
+	if (bio->bi_opf & REQ_PREFLUSH) {
 		bio->bi_bdev = s->cow->bdev;
 		return DM_MAPIO_REMAPPED;
 	}
@@ -1687,7 +1696,8 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 	 * to copy an exception */
 	down_write(&s->lock);
 
-	if (!s->valid || (unlikely(s->snapshot_overflowed) && bio_rw(bio) == WRITE)) {
+	if (!s->valid || (unlikely(s->snapshot_overflowed) &&
+	    bio_data_dir(bio) == WRITE)) {
 		r = -EIO;
 		goto out_unlock;
 	}
@@ -1704,7 +1714,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 	 * flags so we should only get this if we are
 	 * writeable.
 	 */
-	if (bio_rw(bio) == WRITE) {
+	if (bio_data_dir(bio) == WRITE) {
 		pe = __lookup_pending_exception(s, chunk);
 		if (!pe) {
 			up_write(&s->lock);
@@ -1790,7 +1800,7 @@ static int snapshot_merge_map(struct dm_target *ti, struct bio *bio)
 
 	init_tracked_chunk(bio);
 
-	if (bio->bi_rw & REQ_FLUSH) {
+	if (bio->bi_opf & REQ_PREFLUSH) {
 		if (!dm_bio_get_target_bio_nr(bio))
 			bio->bi_bdev = s->origin->bdev;
 		else
@@ -1810,7 +1820,7 @@ static int snapshot_merge_map(struct dm_target *ti, struct bio *bio)
 	e = dm_lookup_exception(&s->complete, chunk);
 	if (e) {
 		/* Queue writes overlapping with chunks being merged */
-		if (bio_rw(bio) == WRITE &&
+		if (bio_data_dir(bio) == WRITE &&
 		    chunk >= s->first_merging_chunk &&
 		    chunk < (s->first_merging_chunk +
 			     s->num_merging_chunks)) {
@@ -1822,7 +1832,7 @@ static int snapshot_merge_map(struct dm_target *ti, struct bio *bio)
 
 		remap_exception(s, e, bio, chunk);
 
-		if (bio_rw(bio) == WRITE)
+		if (bio_data_dir(bio) == WRITE)
 			track_chunk(s, bio, chunk);
 		goto out_unlock;
 	}
@@ -1830,7 +1840,7 @@ static int snapshot_merge_map(struct dm_target *ti, struct bio *bio)
 redirect_to_origin:
 	bio->bi_bdev = s->origin->bdev;
 
-	if (bio_rw(bio) == WRITE) {
+	if (bio_data_dir(bio) == WRITE) {
 		up_write(&s->lock);
 		return do_origin(s->origin, bio);
 	}
@@ -2276,10 +2286,10 @@ static int origin_map(struct dm_target *ti, struct bio *bio)
 
 	bio->bi_bdev = o->dev->bdev;
 
-	if (unlikely(bio->bi_rw & REQ_FLUSH))
+	if (unlikely(bio->bi_opf & REQ_PREFLUSH))
 		return DM_MAPIO_REMAPPED;
 
-	if (bio_rw(bio) != WRITE)
+	if (bio_data_dir(bio) != WRITE)
 		return DM_MAPIO_REMAPPED;
 
 	available_sectors = o->split_boundary -
@@ -2290,6 +2300,13 @@ static int origin_map(struct dm_target *ti, struct bio *bio)
 
 	/* Only tell snapshots if this is a write */
 	return do_origin(o->dev, bio);
+}
+
+static long origin_direct_access(struct dm_target *ti, sector_t sector,
+		void **kaddr, pfn_t *pfn, long size)
+{
+	DMWARN("device does not support dax.");
+	return -EIO;
 }
 
 /*
@@ -2351,6 +2368,7 @@ static struct target_type origin_target = {
 	.postsuspend = origin_postsuspend,
 	.status  = origin_status,
 	.iterate_devices = origin_iterate_devices,
+	.direct_access = origin_direct_access,
 };
 
 static struct target_type snapshot_target = {

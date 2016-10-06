@@ -46,7 +46,7 @@ static void __udf_adinicb_readpage(struct page *page)
 
 	kaddr = kmap(page);
 	memcpy(kaddr, iinfo->i_ext.i_data + iinfo->i_lenEAttr, inode->i_size);
-	memset(kaddr + inode->i_size, 0, PAGE_CACHE_SIZE - inode->i_size);
+	memset(kaddr + inode->i_size, 0, PAGE_SIZE - inode->i_size);
 	flush_dcache_page(page);
 	SetPageUptodate(page);
 	kunmap(page);
@@ -87,30 +87,43 @@ static int udf_adinicb_write_begin(struct file *file,
 {
 	struct page *page;
 
-	if (WARN_ON_ONCE(pos >= PAGE_CACHE_SIZE))
+	if (WARN_ON_ONCE(pos >= PAGE_SIZE))
 		return -EIO;
 	page = grab_cache_page_write_begin(mapping, 0, flags);
 	if (!page)
 		return -ENOMEM;
 	*pagep = page;
 
-	if (!PageUptodate(page) && len != PAGE_CACHE_SIZE)
+	if (!PageUptodate(page))
 		__udf_adinicb_readpage(page);
 	return 0;
 }
 
-static ssize_t udf_adinicb_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
-				     loff_t offset)
+static ssize_t udf_adinicb_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	/* Fallback to buffered I/O. */
 	return 0;
+}
+
+static int udf_adinicb_write_end(struct file *file, struct address_space *mapping,
+				 loff_t pos, unsigned len, unsigned copied,
+				 struct page *page, void *fsdata)
+{
+	struct inode *inode = page->mapping->host;
+	loff_t last_pos = pos + copied;
+	if (last_pos > inode->i_size)
+		i_size_write(inode, last_pos);
+	set_page_dirty(page);
+	unlock_page(page);
+	put_page(page);
+	return copied;
 }
 
 const struct address_space_operations udf_adinicb_aops = {
 	.readpage	= udf_adinicb_readpage,
 	.writepage	= udf_adinicb_writepage,
 	.write_begin	= udf_adinicb_write_begin,
-	.write_end	= simple_write_end,
+	.write_end	= udf_adinicb_write_end,
 	.direct_IO	= udf_adinicb_direct_IO,
 };
 
@@ -153,9 +166,7 @@ out:
 
 	if (retval > 0) {
 		mark_inode_dirty(inode);
-		err = generic_write_sync(file, iocb->ki_pos - retval, retval);
-		if (err < 0)
-			retval = err;
+		retval = generic_write_sync(iocb, retval);
 	}
 
 	return retval;

@@ -109,6 +109,10 @@ extern int audit_classify_compat_syscall(int abi, unsigned syscall);
 /* maximized args number that audit_socketcall can process */
 #define AUDITSC_ARGS		6
 
+/* bit values for ->signal->audit_tty */
+#define AUDIT_TTY_ENABLE	BIT(0)
+#define AUDIT_TTY_LOG_PASSWD	BIT(1)
+
 struct filename;
 
 extern void audit_log_session_info(struct audit_buffer *ab);
@@ -159,8 +163,6 @@ extern void audit_log_task_info(struct audit_buffer *ab,
 extern int		    audit_update_lsm_rules(void);
 
 				/* Private API (for audit.c only) */
-extern int audit_filter_user(int type);
-extern int audit_filter_type(int type);
 extern int audit_rule_change(int type, __u32 portid, int seq,
 				void *data, size_t datasz);
 extern int audit_list_rules_send(struct sk_buff *request_skb, int seq);

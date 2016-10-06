@@ -28,11 +28,6 @@
 #define BO_LOCKED   0x4000
 #define BO_PINNED   0x2000
 
-static inline void __user *to_user_ptr(u64 address)
-{
-	return (void __user *)(uintptr_t)address;
-}
-
 static struct etnaviv_gem_submit *submit_create(struct drm_device *dev,
 		struct etnaviv_gpu *gpu, size_t nr)
 {
@@ -187,12 +182,10 @@ static void submit_unpin_objects(struct etnaviv_gem_submit *submit)
 	int i;
 
 	for (i = 0; i < submit->nr_bos; i++) {
-		struct etnaviv_gem_object *etnaviv_obj = submit->bos[i].obj;
-
 		if (submit->bos[i].flags & BO_PINNED)
-			etnaviv_gem_put_iova(submit->gpu, &etnaviv_obj->base);
+			etnaviv_gem_mapping_unreference(submit->bos[i].mapping);
 
-		submit->bos[i].iova = 0;
+		submit->bos[i].mapping = NULL;
 		submit->bos[i].flags &= ~BO_PINNED;
 	}
 }
@@ -203,22 +196,24 @@ static int submit_pin_objects(struct etnaviv_gem_submit *submit)
 
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct etnaviv_gem_object *etnaviv_obj = submit->bos[i].obj;
-		u32 iova;
+		struct etnaviv_vram_mapping *mapping;
 
-		ret = etnaviv_gem_get_iova(submit->gpu, &etnaviv_obj->base,
-					   &iova);
-		if (ret)
+		mapping = etnaviv_gem_mapping_get(&etnaviv_obj->base,
+						  submit->gpu);
+		if (IS_ERR(mapping)) {
+			ret = PTR_ERR(mapping);
 			break;
+		}
 
 		submit->bos[i].flags |= BO_PINNED;
-		submit->bos[i].iova = iova;
+		submit->bos[i].mapping = mapping;
 	}
 
 	return ret;
 }
 
 static int submit_bo(struct etnaviv_gem_submit *submit, u32 idx,
-		struct etnaviv_gem_object **obj, u32 *iova)
+	struct etnaviv_gem_submit_bo **bo)
 {
 	if (idx >= submit->nr_bos) {
 		DRM_ERROR("invalid buffer index: %u (out of %u)\n",
@@ -226,10 +221,7 @@ static int submit_bo(struct etnaviv_gem_submit *submit, u32 idx,
 		return -EINVAL;
 	}
 
-	if (obj)
-		*obj = submit->bos[idx].obj;
-	if (iova)
-		*iova = submit->bos[idx].iova;
+	*bo = &submit->bos[idx];
 
 	return 0;
 }
@@ -245,8 +237,8 @@ static int submit_reloc(struct etnaviv_gem_submit *submit, void *stream,
 
 	for (i = 0; i < nr_relocs; i++) {
 		const struct drm_etnaviv_gem_submit_reloc *r = relocs + i;
-		struct etnaviv_gem_object *bobj;
-		u32 iova, off;
+		struct etnaviv_gem_submit_bo *bo;
+		u32 off;
 
 		if (unlikely(r->flags)) {
 			DRM_ERROR("invalid reloc flags\n");
@@ -268,17 +260,16 @@ static int submit_reloc(struct etnaviv_gem_submit *submit, void *stream,
 			return -EINVAL;
 		}
 
-		ret = submit_bo(submit, r->reloc_idx, &bobj, &iova);
+		ret = submit_bo(submit, r->reloc_idx, &bo);
 		if (ret)
 			return ret;
 
-		if (r->reloc_offset >=
-		    bobj->base.size - sizeof(*ptr)) {
+		if (r->reloc_offset >= bo->obj->base.size - sizeof(*ptr)) {
 			DRM_ERROR("relocation %u outside object", i);
 			return -EINVAL;
 		}
 
-		ptr[off] = iova + r->reloc_offset;
+		ptr[off] = bo->mapping->iova + r->reloc_offset;
 
 		last_offset = off;
 	}
@@ -351,21 +342,21 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	cmdbuf->exec_state = args->exec_state;
 	cmdbuf->ctx = file->driver_priv;
 
-	ret = copy_from_user(bos, to_user_ptr(args->bos),
+	ret = copy_from_user(bos, u64_to_user_ptr(args->bos),
 			     args->nr_bos * sizeof(*bos));
 	if (ret) {
 		ret = -EFAULT;
 		goto err_submit_cmds;
 	}
 
-	ret = copy_from_user(relocs, to_user_ptr(args->relocs),
+	ret = copy_from_user(relocs, u64_to_user_ptr(args->relocs),
 			     args->nr_relocs * sizeof(*relocs));
 	if (ret) {
 		ret = -EFAULT;
 		goto err_submit_cmds;
 	}
 
-	ret = copy_from_user(stream, to_user_ptr(args->stream),
+	ret = copy_from_user(stream, u64_to_user_ptr(args->stream),
 			     args->stream_size);
 	if (ret) {
 		ret = -EFAULT;

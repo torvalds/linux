@@ -263,6 +263,7 @@ struct c4iw_dev {
 	struct idr stid_idr;
 	struct list_head db_fc_list;
 	u32 avail_ird;
+	wait_queue_head_t wait;
 };
 
 static inline struct c4iw_dev *to_c4iw_dev(struct ib_device *ibdev)
@@ -384,6 +385,7 @@ struct c4iw_mr {
 	struct ib_mr ibmr;
 	struct ib_umem *umem;
 	struct c4iw_dev *rhp;
+	struct sk_buff *dereg_skb;
 	u64 kva;
 	struct tpt_attributes attr;
 	u64 *mpl;
@@ -400,6 +402,7 @@ static inline struct c4iw_mr *to_c4iw_mr(struct ib_mr *ibmr)
 struct c4iw_mw {
 	struct ib_mw ibmw;
 	struct c4iw_dev *rhp;
+	struct sk_buff *dereg_skb;
 	u64 kva;
 	struct tpt_attributes attr;
 };
@@ -412,6 +415,7 @@ static inline struct c4iw_mw *to_c4iw_mw(struct ib_mw *ibmw)
 struct c4iw_cq {
 	struct ib_cq ibcq;
 	struct c4iw_dev *rhp;
+	struct sk_buff *destroy_skb;
 	struct t4_cq cq;
 	spinlock_t lock;
 	spinlock_t comp_handler_lock;
@@ -472,10 +476,12 @@ struct c4iw_qp {
 	struct t4_wq wq;
 	spinlock_t lock;
 	struct mutex mutex;
-	atomic_t refcnt;
+	struct kref kref;
 	wait_queue_head_t wait;
 	struct timer_list timer;
 	int sq_sig_all;
+	struct completion rq_drained;
+	struct completion sq_drained;
 };
 
 static inline struct c4iw_qp *to_c4iw_qp(struct ib_qp *ibqp)
@@ -753,7 +759,7 @@ enum c4iw_ep_flags {
 	CLOSE_SENT		= 3,
 	TIMEOUT                 = 4,
 	QP_REFERENCED           = 5,
-	RELEASE_MAPINFO		= 6,
+	STOP_MPA_TIMER		= 7,
 };
 
 enum c4iw_ep_history {
@@ -778,20 +784,43 @@ enum c4iw_ep_history {
 	EP_DISC_ABORT           = 18,
 	CONN_RPL_UPCALL         = 19,
 	ACT_RETRY_NOMEM         = 20,
-	ACT_RETRY_INUSE         = 21
+	ACT_RETRY_INUSE         = 21,
+	CLOSE_CON_RPL		= 22,
+	EP_DISC_FAIL		= 24,
+	QP_REFED		= 25,
+	QP_DEREFED		= 26,
+	CM_ID_REFED		= 27,
+	CM_ID_DEREFED		= 28,
+};
+
+enum conn_pre_alloc_buffers {
+	CN_ABORT_REQ_BUF,
+	CN_ABORT_RPL_BUF,
+	CN_CLOSE_CON_REQ_BUF,
+	CN_DESTROY_BUF,
+	CN_FLOWC_BUF,
+	CN_MAX_CON_BUF
+};
+
+#define FLOWC_LEN 80
+union cpl_wr_size {
+	struct cpl_abort_req abrt_req;
+	struct cpl_abort_rpl abrt_rpl;
+	struct fw_ri_wr ri_req;
+	struct cpl_close_con_req close_req;
+	char flowc_buf[FLOWC_LEN];
 };
 
 struct c4iw_ep_common {
 	struct iw_cm_id *cm_id;
 	struct c4iw_qp *qp;
 	struct c4iw_dev *dev;
+	struct sk_buff_head ep_skb_list;
 	enum c4iw_ep_state state;
 	struct kref kref;
 	struct mutex mutex;
 	struct sockaddr_storage local_addr;
 	struct sockaddr_storage remote_addr;
-	struct sockaddr_storage mapped_local_addr;
-	struct sockaddr_storage mapped_remote_addr;
 	struct c4iw_wr_wait wr_wait;
 	unsigned long flags;
 	unsigned long history;
@@ -843,45 +872,6 @@ struct c4iw_ep {
 	struct c4iw_ep_stats stats;
 };
 
-static inline void print_addr(struct c4iw_ep_common *epc, const char *func,
-			      const char *msg)
-{
-
-#define SINA(a) (&(((struct sockaddr_in *)(a))->sin_addr.s_addr))
-#define SINP(a) ntohs(((struct sockaddr_in *)(a))->sin_port)
-#define SIN6A(a) (&(((struct sockaddr_in6 *)(a))->sin6_addr))
-#define SIN6P(a) ntohs(((struct sockaddr_in6 *)(a))->sin6_port)
-
-	if (c4iw_debug) {
-		switch (epc->local_addr.ss_family) {
-		case AF_INET:
-			PDBG("%s %s %pI4:%u/%u <-> %pI4:%u/%u\n",
-			     func, msg, SINA(&epc->local_addr),
-			     SINP(&epc->local_addr),
-			     SINP(&epc->mapped_local_addr),
-			     SINA(&epc->remote_addr),
-			     SINP(&epc->remote_addr),
-			     SINP(&epc->mapped_remote_addr));
-			break;
-		case AF_INET6:
-			PDBG("%s %s %pI6:%u/%u <-> %pI6:%u/%u\n",
-			     func, msg, SIN6A(&epc->local_addr),
-			     SIN6P(&epc->local_addr),
-			     SIN6P(&epc->mapped_local_addr),
-			     SIN6A(&epc->remote_addr),
-			     SIN6P(&epc->remote_addr),
-			     SIN6P(&epc->mapped_remote_addr));
-			break;
-		default:
-			break;
-		}
-	}
-#undef SINA
-#undef SINP
-#undef SIN6A
-#undef SIN6P
-}
-
 static inline struct c4iw_ep *to_ep(struct iw_cm_id *cm_id)
 {
 	return cm_id->provider_data;
@@ -890,15 +880,6 @@ static inline struct c4iw_ep *to_ep(struct iw_cm_id *cm_id)
 static inline struct c4iw_listen_ep *to_listen_ep(struct iw_cm_id *cm_id)
 {
 	return cm_id->provider_data;
-}
-
-static inline int compute_wscale(int win)
-{
-	int wscale = 0;
-
-	while (wscale < 14 && (65535<<wscale) < win)
-		wscale++;
-	return wscale;
 }
 
 static inline int ocqp_supported(const struct cxgb4_lld_info *infop)
@@ -957,11 +938,11 @@ void c4iw_qp_rem_ref(struct ib_qp *qp);
 struct ib_mr *c4iw_alloc_mr(struct ib_pd *pd,
 			    enum ib_mr_type mr_type,
 			    u32 max_num_sg);
-int c4iw_map_mr_sg(struct ib_mr *ibmr,
-		   struct scatterlist *sg,
-		   int sg_nents);
+int c4iw_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
+		   unsigned int *sg_offset);
 int c4iw_dealloc_mw(struct ib_mw *mw);
-struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd, enum ib_mw_type type);
+struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
+			    struct ib_udata *udata);
 struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start,
 					   u64 length, u64 virt, int acc,
 					   struct ib_udata *udata);
@@ -1016,6 +997,8 @@ extern int c4iw_wr_log;
 extern int db_fc_threshold;
 extern int db_coalescing_threshold;
 extern int use_dsgl;
+void c4iw_drain_rq(struct ib_qp *qp);
+void c4iw_drain_sq(struct ib_qp *qp);
 
 
 #endif

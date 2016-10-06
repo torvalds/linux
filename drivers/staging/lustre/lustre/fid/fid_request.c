@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -66,9 +62,10 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 	unsigned int           debug_mask;
 	int                    rc;
 
+	LASSERT(exp && !IS_ERR(exp));
 	req = ptlrpc_request_alloc_pack(class_exp2cliimp(exp), &RQF_SEQ_QUERY,
 					LUSTRE_MDS_VERSION, SEQ_QUERY);
-	if (req == NULL)
+	if (!req)
 		return -ENOMEM;
 
 	/* Init operation code */
@@ -95,24 +92,30 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 		 * precreating objects on this OST), and it will send the
 		 * request to MDT0 here, so we can not keep resending the
 		 * request here, otherwise if MDT0 is failed(umounted),
-		 * it can not release the export of MDT0 */
-		if (seq->lcs_type == LUSTRE_SEQ_DATA)
-			req->rq_no_delay = req->rq_no_resend = 1;
+		 * it can not release the export of MDT0
+		 */
+		if (seq->lcs_type == LUSTRE_SEQ_DATA) {
+			req->rq_no_delay = 1;
+			req->rq_no_resend = 1;
+		}
 		debug_mask = D_CONSOLE;
 	} else {
-		if (seq->lcs_type == LUSTRE_SEQ_METADATA)
+		if (seq->lcs_type == LUSTRE_SEQ_METADATA) {
+			req->rq_reply_portal = MDC_REPLY_PORTAL;
 			req->rq_request_portal = SEQ_METADATA_PORTAL;
-		else
+		} else {
+			req->rq_reply_portal = OSC_REPLY_PORTAL;
 			req->rq_request_portal = SEQ_DATA_PORTAL;
+		}
 		debug_mask = D_INFO;
 	}
 
 	ptlrpc_at_set_req_timeout(req);
 
-	if (seq->lcs_type == LUSTRE_SEQ_METADATA)
+	if (opc != SEQ_ALLOC_SUPER && seq->lcs_type == LUSTRE_SEQ_METADATA)
 		mdc_get_rpc_lock(exp->exp_obd->u.cli.cl_rpc_lock, NULL);
 	rc = ptlrpc_queue_wait(req);
-	if (seq->lcs_type == LUSTRE_SEQ_METADATA)
+	if (opc != SEQ_ALLOC_SUPER && seq->lcs_type == LUSTRE_SEQ_METADATA)
 		mdc_put_rpc_lock(exp->exp_obd->u.cli.cl_rpc_lock, NULL);
 	if (rc)
 		goto out_req;
@@ -122,19 +125,19 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 
 	if (!range_is_sane(output)) {
 		CERROR("%s: Invalid range received from server: "
-		       DRANGE"\n", seq->lcs_name, PRANGE(output));
+		       DRANGE "\n", seq->lcs_name, PRANGE(output));
 		rc = -EINVAL;
 		goto out_req;
 	}
 
 	if (range_is_exhausted(output)) {
 		CERROR("%s: Range received from server is exhausted: "
-		       DRANGE"]\n", seq->lcs_name, PRANGE(output));
+		       DRANGE "]\n", seq->lcs_name, PRANGE(output));
 		rc = -EINVAL;
 		goto out_req;
 	}
 
-	CDEBUG_LIMIT(debug_mask, "%s: Allocated %s-sequence "DRANGE"]\n",
+	CDEBUG_LIMIT(debug_mask, "%s: Allocated %s-sequence " DRANGE "]\n",
 		     seq->lcs_name, opcname, PRANGE(output));
 
 out_req:
@@ -152,7 +155,8 @@ static int seq_client_alloc_meta(const struct lu_env *env,
 		/* If meta server return -EINPROGRESS or EAGAIN,
 		 * it means meta server might not be ready to
 		 * allocate super sequence from sequence controller
-		 * (MDT0)yet */
+		 * (MDT0)yet
+		 */
 		rc = seq_client_rpc(seq, &seq->lcs_space,
 				    SEQ_ALLOC_META, "meta");
 	} while (rc == -EINPROGRESS || rc == -EAGAIN);
@@ -175,7 +179,7 @@ static int seq_client_alloc_seq(const struct lu_env *env,
 			       seq->lcs_name, rc);
 			return rc;
 		}
-		CDEBUG(D_INFO, "%s: New range - "DRANGE"\n",
+		CDEBUG(D_INFO, "%s: New range - " DRANGE "\n",
 		       seq->lcs_name, PRANGE(&seq->lcs_space));
 	} else {
 		rc = 0;
@@ -226,8 +230,8 @@ int seq_client_alloc_fid(const struct lu_env *env,
 	wait_queue_t link;
 	int rc;
 
-	LASSERT(seq != NULL);
-	LASSERT(fid != NULL);
+	LASSERT(seq);
+	LASSERT(fid);
 
 	init_waitqueue_entry(&link, current);
 	mutex_lock(&seq->lcs_mutex);
@@ -292,7 +296,7 @@ void seq_client_flush(struct lu_client_seq *seq)
 {
 	wait_queue_t link;
 
-	LASSERT(seq != NULL);
+	LASSERT(seq);
 	init_waitqueue_entry(&link, current);
 	mutex_lock(&seq->lcs_mutex);
 
@@ -375,8 +379,8 @@ static int seq_client_init(struct lu_client_seq *seq,
 {
 	int rc;
 
-	LASSERT(seq != NULL);
-	LASSERT(prefix != NULL);
+	LASSERT(seq);
+	LASSERT(prefix);
 
 	seq->lcs_type = type;
 
@@ -438,7 +442,7 @@ int client_fid_fini(struct obd_device *obd)
 {
 	struct client_obd *cli = &obd->u.cli;
 
-	if (cli->cl_seq != NULL) {
+	if (cli->cl_seq) {
 		seq_client_fini(cli->cl_seq);
 		kfree(cli->cl_seq);
 		cli->cl_seq = NULL;
@@ -448,7 +452,7 @@ int client_fid_fini(struct obd_device *obd)
 }
 EXPORT_SYMBOL(client_fid_fini);
 
-static int __init fid_mod_init(void)
+static int __init fid_init(void)
 {
 	seq_debugfs_dir = ldebugfs_register(LUSTRE_SEQ_NAME,
 					    debugfs_lustre_root,
@@ -456,16 +460,16 @@ static int __init fid_mod_init(void)
 	return PTR_ERR_OR_ZERO(seq_debugfs_dir);
 }
 
-static void __exit fid_mod_exit(void)
+static void __exit fid_exit(void)
 {
 	if (!IS_ERR_OR_NULL(seq_debugfs_dir))
 		ldebugfs_remove(&seq_debugfs_dir);
 }
 
 MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
-MODULE_DESCRIPTION("Lustre FID Module");
+MODULE_DESCRIPTION("Lustre File IDentifier");
+MODULE_VERSION(LUSTRE_VERSION_STRING);
 MODULE_LICENSE("GPL");
-MODULE_VERSION("0.1.0");
 
-module_init(fid_mod_init);
-module_exit(fid_mod_exit);
+module_init(fid_init);
+module_exit(fid_exit);

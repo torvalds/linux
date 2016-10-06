@@ -481,7 +481,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 			/*
 			 * OK we are here either because we hit a NAL
 			 * instruction or because we are emulating an
-			 * old bltzal{,l} one. Lets figure out what the
+			 * old bltzal{,l} one. Let's figure out what the
 			 * case really is.
 			 */
 			if (!insn.i_format.rs) {
@@ -515,7 +515,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 			/*
 			 * OK we are here either because we hit a BAL
 			 * instruction or because we are emulating an
-			 * old bgezal{,l} one. Lets figure out what the
+			 * old bgezal{,l} one. Let's figure out what the
 			 * case really is.
 			 */
 			if (!insn.i_format.rs) {
@@ -688,21 +688,9 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 			}
 			lose_fpu(1);    /* Save FPU state for the emulator. */
 			reg = insn.i_format.rt;
-			bit = 0;
-			switch (insn.i_format.rs) {
-			case bc1eqz_op:
-				/* Test bit 0 */
-				if (get_fpr32(&current->thread.fpu.fpr[reg], 0)
-				    & 0x1)
-					bit = 1;
-				break;
-			case bc1nez_op:
-				/* Test bit 0 */
-				if (!(get_fpr32(&current->thread.fpu.fpr[reg], 0)
-				      & 0x1))
-					bit = 1;
-				break;
-			}
+			bit = get_fpr32(&current->thread.fpu.fpr[reg], 0) & 0x1;
+			if (insn.i_format.rs == bc1eqz_op)
+				bit = !bit;
 			own_fpu(1);
 			if (bit)
 				epc = epc + 4 +
@@ -802,7 +790,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		epc += 4 + (insn.i_format.simmediate << 2);
 		regs->cp0_epc = epc;
 		break;
-	case beqzcjic_op:
+	case pop66_op:
 		if (!cpu_has_mips_r6) {
 			ret = -SIGILL;
 			break;
@@ -810,7 +798,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		/* Compact branch: BEQZC || JIC */
 		regs->cp0_epc += 8;
 		break;
-	case bnezcjialc_op:
+	case pop76_op:
 		if (!cpu_has_mips_r6) {
 			ret = -SIGILL;
 			break;
@@ -821,8 +809,8 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		regs->cp0_epc += 8;
 		break;
 #endif
-	case cbcond0_op:
-	case cbcond1_op:
+	case pop10_op:
+	case pop30_op:
 		/* Only valid for MIPS R6 */
 		if (!cpu_has_mips_r6) {
 			ret = -SIGILL;

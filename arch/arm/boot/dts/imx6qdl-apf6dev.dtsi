@@ -94,7 +94,7 @@
 			label = "User button";
 			gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
 			linux,code = <BTN_MISC>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
@@ -213,7 +213,7 @@
 	codec: sgtl5000@0a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
-		clocks = <&clks 201>;
+		clocks = <&clks IMX6QDL_CLK_CKO>;
 		VDDA-supply = <&reg_3p3v>;
 		VDDIO-supply = <&reg_3p3v>;
 	};
@@ -254,7 +254,7 @@
 &uart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart3 &pinctrl_gsm>;
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	status = "okay";
 };
 

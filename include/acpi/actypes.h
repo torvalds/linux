@@ -630,7 +630,8 @@ typedef u64 acpi_integer;
 #define ACPI_NOTIFY_SHUTDOWN_REQUEST    (u8) 0x0C
 #define ACPI_NOTIFY_AFFINITY_UPDATE     (u8) 0x0D
 
-#define ACPI_NOTIFY_MAX                 0x0D
+#define ACPI_GENERIC_NOTIFY_MAX         0x0D
+#define ACPI_SPECIFIC_NOTIFY_MAX        0x84
 
 /*
  * Types associated with ACPI names and objects. The first group of
@@ -731,16 +732,17 @@ typedef u32 acpi_event_type;
  * The encoding of acpi_event_status is illustrated below.
  * Note that a set bit (1) indicates the property is TRUE
  * (e.g. if bit 0 is set then the event is enabled).
- * +-------------+-+-+-+-+-+
- * |   Bits 31:5 |4|3|2|1|0|
- * +-------------+-+-+-+-+-+
- *          |     | | | | |
- *          |     | | | | +- Enabled?
- *          |     | | | +--- Enabled for wake?
- *          |     | | +----- Status bit set?
- *          |     | +------- Enable bit set?
- *          |     +--------- Has a handler?
- *          +--------------- <Reserved>
+ * +-------------+-+-+-+-+-+-+
+ * |   Bits 31:6 |5|4|3|2|1|0|
+ * +-------------+-+-+-+-+-+-+
+ *          |     | | | | | |
+ *          |     | | | | | +- Enabled?
+ *          |     | | | | +--- Enabled for wake?
+ *          |     | | | +----- Status bit set?
+ *          |     | | +------- Enable bit set?
+ *          |     | +--------- Has a handler?
+ *          |     +----------- Masked?
+ *          +----------------- <Reserved>
  */
 typedef u32 acpi_event_status;
 
@@ -750,6 +752,7 @@ typedef u32 acpi_event_status;
 #define ACPI_EVENT_FLAG_STATUS_SET      (acpi_event_status) 0x04
 #define ACPI_EVENT_FLAG_ENABLE_SET      (acpi_event_status) 0x08
 #define ACPI_EVENT_FLAG_HAS_HANDLER     (acpi_event_status) 0x10
+#define ACPI_EVENT_FLAG_MASKED          (acpi_event_status) 0x20
 #define ACPI_EVENT_FLAG_SET             ACPI_EVENT_FLAG_STATUS_SET
 
 /* Actions for acpi_set_gpe, acpi_gpe_wakeup, acpi_hw_low_set_gpe */
@@ -760,14 +763,15 @@ typedef u32 acpi_event_status;
 
 /*
  * GPE info flags - Per GPE
- * +-------+-+-+---+
- * |  7:5  |4|3|2:0|
- * +-------+-+-+---+
- *     |    | |  |
- *     |    | |  +-- Type of dispatch:to method, handler, notify, or none
- *     |    | +----- Interrupt type: edge or level triggered
- *     |    +------- Is a Wake GPE
- *     +------------ <Reserved>
+ * +---+-+-+-+---+
+ * |7:6|5|4|3|2:0|
+ * +---+-+-+-+---+
+ *   |  | | |  |
+ *   |  | | |  +-- Type of dispatch:to method, handler, notify, or none
+ *   |  | | +----- Interrupt type: edge or level triggered
+ *   |  | +------- Is a Wake GPE
+ *   |  +--------- Is GPE masked by the software GPE masking machanism
+ *   +------------ <Reserved>
  */
 #define ACPI_GPE_DISPATCH_NONE          (u8) 0x00
 #define ACPI_GPE_DISPATCH_METHOD        (u8) 0x01
@@ -892,7 +896,7 @@ typedef u8 acpi_adr_space_type;
 
 /* Sleep function dispatch */
 
-typedef acpi_status(*acpi_sleep_function) (u8 sleep_state);
+typedef acpi_status (*acpi_sleep_function) (u8 sleep_state);
 
 struct acpi_sleep_functions {
 	acpi_sleep_function legacy_function;
@@ -994,7 +998,7 @@ struct acpi_buffer {
  * Predefined Namespace items
  */
 struct acpi_predefined_names {
-	char *name;
+	const char *name;
 	u8 type;
 	char *val;
 };
@@ -1029,12 +1033,6 @@ struct acpi_statistics {
 	u32 fixed_event_count[ACPI_NUM_FIXED_EVENTS];
 	u32 method_count;
 };
-
-/* Table Event Types */
-
-#define ACPI_TABLE_EVENT_LOAD           0x0
-#define ACPI_TABLE_EVENT_UNLOAD         0x1
-#define ACPI_NUM_TABLE_EVENTS           2
 
 /*
  * Types specific to the OS service interfaces
@@ -1071,34 +1069,39 @@ void (*acpi_notify_handler) (acpi_handle device, u32 value, void *context);
 typedef
 void (*acpi_object_handler) (acpi_handle object, void *data);
 
-typedef acpi_status(*acpi_init_handler) (acpi_handle object, u32 function);
+typedef
+acpi_status (*acpi_init_handler) (acpi_handle object, u32 function);
 
 #define ACPI_INIT_DEVICE_INI        1
 
 typedef
-acpi_status(*acpi_exception_handler) (acpi_status aml_status,
-				      acpi_name name,
-				      u16 opcode,
-				      u32 aml_offset, void *context);
+acpi_status (*acpi_exception_handler) (acpi_status aml_status,
+				       acpi_name name,
+				       u16 opcode,
+				       u32 aml_offset, void *context);
 
 /* Table Event handler (Load, load_table, etc.) and types */
 
 typedef
-acpi_status(*acpi_table_handler) (u32 event, void *table, void *context);
+acpi_status (*acpi_table_handler) (u32 event, void *table, void *context);
 
-#define ACPI_TABLE_LOAD             0x0
-#define ACPI_TABLE_UNLOAD           0x1
-#define ACPI_NUM_TABLE_EVENTS       2
+/* Table Event Types */
+
+#define ACPI_TABLE_EVENT_LOAD           0x0
+#define ACPI_TABLE_EVENT_UNLOAD         0x1
+#define ACPI_TABLE_EVENT_INSTALL        0x2
+#define ACPI_TABLE_EVENT_UNINSTALL      0x3
+#define ACPI_NUM_TABLE_EVENTS           4
 
 /* Address Spaces (For Operation Regions) */
 
 typedef
-acpi_status(*acpi_adr_space_handler) (u32 function,
-				      acpi_physical_address address,
-				      u32 bit_width,
-				      u64 *value,
-				      void *handler_context,
-				      void *region_context);
+acpi_status (*acpi_adr_space_handler) (u32 function,
+				       acpi_physical_address address,
+				       u32 bit_width,
+				       u64 *value,
+				       void *handler_context,
+				       void *region_context);
 
 #define ACPI_DEFAULT_HANDLER            NULL
 
@@ -1111,18 +1114,18 @@ struct acpi_connection_info {
 };
 
 typedef
-acpi_status(*acpi_adr_space_setup) (acpi_handle region_handle,
-				    u32 function,
-				    void *handler_context,
-				    void **region_context);
+acpi_status (*acpi_adr_space_setup) (acpi_handle region_handle,
+				     u32 function,
+				     void *handler_context,
+				     void **region_context);
 
 #define ACPI_REGION_ACTIVATE    0
 #define ACPI_REGION_DEACTIVATE  1
 
 typedef
-acpi_status(*acpi_walk_callback) (acpi_handle object,
-				  u32 nesting_level,
-				  void *context, void **return_value);
+acpi_status (*acpi_walk_callback) (acpi_handle object,
+				   u32 nesting_level,
+				   void *context, void **return_value);
 
 typedef
 u32 (*acpi_interface_handler) (acpi_string interface_name, u32 supported);
@@ -1227,7 +1230,7 @@ struct acpi_mem_space_context {
  * struct acpi_memory_list is used only if the ACPICA local cache is enabled
  */
 struct acpi_memory_list {
-	char *list_name;
+	const char *list_name;
 	void *list_head;
 	u16 object_size;
 	u16 max_depth;
@@ -1282,15 +1285,6 @@ typedef enum {
 #define ACPI_OSI_WIN_7                  0x0B
 #define ACPI_OSI_WIN_8                  0x0C
 #define ACPI_OSI_WIN_10                 0x0D
-
-/* Definitions of file IO */
-
-#define ACPI_FILE_READING               0x01
-#define ACPI_FILE_WRITING               0x02
-#define ACPI_FILE_BINARY                0x04
-
-#define ACPI_FILE_BEGIN                 0x01
-#define ACPI_FILE_END                   0x02
 
 /* Definitions of getopt */
 

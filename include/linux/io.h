@@ -135,6 +135,7 @@ enum {
 	/* See memremap() kernel-doc for usage description... */
 	MEMREMAP_WB = 1 << 0,
 	MEMREMAP_WT = 1 << 1,
+	MEMREMAP_WC = 1 << 2,
 };
 
 void *memremap(resource_size_t offset, size_t size, unsigned long flags);

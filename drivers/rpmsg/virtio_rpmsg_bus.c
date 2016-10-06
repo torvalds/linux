@@ -436,17 +436,19 @@ static struct bus_type rpmsg_bus = {
 };
 
 /**
- * register_rpmsg_driver() - register an rpmsg driver with the rpmsg bus
+ * __register_rpmsg_driver() - register an rpmsg driver with the rpmsg bus
  * @rpdrv: pointer to a struct rpmsg_driver
+ * @owner: owning module/driver
  *
  * Returns 0 on success, and an appropriate error value on failure.
  */
-int register_rpmsg_driver(struct rpmsg_driver *rpdrv)
+int __register_rpmsg_driver(struct rpmsg_driver *rpdrv, struct module *owner)
 {
 	rpdrv->drv.bus = &rpmsg_bus;
+	rpdrv->drv.owner = owner;
 	return driver_register(&rpdrv->drv);
 }
-EXPORT_SYMBOL(register_rpmsg_driver);
+EXPORT_SYMBOL(__register_rpmsg_driver);
 
 /**
  * unregister_rpmsg_driver() - unregister an rpmsg driver from the rpmsg bus

@@ -112,7 +112,7 @@ bool closure_wait(struct closure_waitlist *waitlist, struct closure *cl)
 EXPORT_SYMBOL(closure_wait);
 
 /**
- * closure_sync - sleep until a closure a closure has nothing left to wait on
+ * closure_sync - sleep until a closure has nothing left to wait on
  *
  * Sleeps until the refcount hits 1 - the thread that's running the closure owns
  * the last refcount.

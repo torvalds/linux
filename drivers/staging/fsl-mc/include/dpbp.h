@@ -85,12 +85,12 @@ int dpbp_reset(struct fsl_mc_io *mc_io,
  * struct dpbp_irq_cfg - IRQ configuration
  * @addr:	Address that must be written to signal a message-based interrupt
  * @val:	Value to write into irq_addr address
- * @user_irq_id: A user defined number associated with this IRQ
+ * @irq_num: A user defined number associated with this IRQ
  */
 struct dpbp_irq_cfg {
 	     u64		addr;
 	     u32		val;
-	     int		user_irq_id;
+	     int		irq_num;
 };
 
 int dpbp_set_irq(struct fsl_mc_io	*mc_io,
@@ -167,6 +167,53 @@ int dpbp_get_attributes(struct fsl_mc_io	*mc_io,
 			u32	cmd_flags,
 			u16		token,
 			struct dpbp_attr	*attr);
+
+/**
+ *  DPBP notifications options
+ */
+
+/**
+ * BPSCN write will attempt to allocate into a cache (coherent write)
+ */
+#define DPBP_NOTIF_OPT_COHERENT_WRITE	0x00000001
+
+/**
+ * struct dpbp_notification_cfg - Structure representing DPBP notifications
+ *	towards software
+ * @depletion_entry: below this threshold the pool is "depleted";
+ *	set it to '0' to disable it
+ * @depletion_exit: greater than or equal to this threshold the pool exit its
+ *	"depleted" state
+ * @surplus_entry: above this threshold the pool is in "surplus" state;
+ *	set it to '0' to disable it
+ * @surplus_exit: less than or equal to this threshold the pool exit its
+ *	"surplus" state
+ * @message_iova: MUST be given if either 'depletion_entry' or 'surplus_entry'
+ *	is not '0' (enable); I/O virtual address (must be in DMA-able memory),
+ *	must be 16B aligned.
+ * @message_ctx: The context that will be part of the BPSCN message and will
+ *	be written to 'message_iova'
+ * @options: Mask of available options; use 'DPBP_NOTIF_OPT_<X>' values
+ */
+struct dpbp_notification_cfg {
+	u32	depletion_entry;
+	u32	depletion_exit;
+	u32	surplus_entry;
+	u32	surplus_exit;
+	u64	message_iova;
+	u64	message_ctx;
+	u16	options;
+};
+
+int dpbp_set_notifications(struct fsl_mc_io	*mc_io,
+			   u32		cmd_flags,
+			   u16		token,
+			   struct dpbp_notification_cfg	*cfg);
+
+int dpbp_get_notifications(struct fsl_mc_io	*mc_io,
+			   u32		cmd_flags,
+			   u16		token,
+			   struct dpbp_notification_cfg	*cfg);
 
 /** @} */
 

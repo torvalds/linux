@@ -113,42 +113,6 @@ config SPINLOCK_TEST
 	help
 	  Add several files to the debugfs to test spinlock speed.
 
-if CPU_MIPSR6
-
-choice
-	prompt "Compact branch policy"
-	default MIPS_COMPACT_BRANCHES_OPTIMAL
-
-config MIPS_COMPACT_BRANCHES_NEVER
-	bool "Never (force delay slot branches)"
-	help
-	  Pass the -mcompact-branches=never flag to the compiler in order to
-	  force it to always emit branches with delay slots, and make no use
-	  of the compact branch instructions introduced by MIPSr6. This is
-	  useful if you suspect there may be an issue with compact branches in
-	  either the compiler or the CPU.
-
-config MIPS_COMPACT_BRANCHES_OPTIMAL
-	bool "Optimal (use where beneficial)"
-	help
-	  Pass the -mcompact-branches=optimal flag to the compiler in order for
-	  it to make use of compact branch instructions where it deems them
-	  beneficial, and use branches with delay slots elsewhere. This is the
-	  default compiler behaviour, and should be used unless you have a
-	  reason to choose otherwise.
-
-config MIPS_COMPACT_BRANCHES_ALWAYS
-	bool "Always (force compact branches)"
-	help
-	  Pass the -mcompact-branches=always flag to the compiler in order to
-	  force it to always emit compact branches, making no use of branch
-	  instructions with delay slots. This can result in more compact code
-	  which may be beneficial in some scenarios.
-
-endchoice
-
-endif # CPU_MIPSR6
-
 config SCACHE_DEBUGFS
 	bool "L2 cache debugfs entries"
 	depends on DEBUG_FS

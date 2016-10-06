@@ -126,18 +126,22 @@ static struct irqaction meson6_timer_irq = {
 	.dev_id		= &meson6_clockevent,
 };
 
-static void __init meson6_timer_init(struct device_node *node)
+static int __init meson6_timer_init(struct device_node *node)
 {
 	u32 val;
 	int ret, irq;
 
 	timer_base = of_io_request_and_map(node, 0, "meson6-timer");
-	if (IS_ERR(timer_base))
-		panic("Can't map registers");
+	if (IS_ERR(timer_base)) {
+		pr_err("Can't map registers");
+		return -ENXIO;
+	}
 
 	irq = irq_of_parse_and_map(node, 0);
-	if (irq <= 0)
-		panic("Can't parse IRQ");
+	if (irq <= 0) {
+		pr_err("Can't parse IRQ");
+		return -EINVAL;
+	}
 
 	/* Set 1us for timer E */
 	val = readl(timer_base + TIMER_ISA_MUX);
@@ -158,14 +162,17 @@ static void __init meson6_timer_init(struct device_node *node)
 	meson6_clkevt_time_stop(CED_ID);
 
 	ret = setup_irq(irq, &meson6_timer_irq);
-	if (ret)
+	if (ret) {
 		pr_warn("failed to setup irq %d\n", irq);
+		return ret;
+	}
 
 	meson6_clockevent.cpumask = cpu_possible_mask;
 	meson6_clockevent.irq = irq;
 
 	clockevents_config_and_register(&meson6_clockevent, USEC_PER_SEC,
 					1, 0xfffe);
+	return 0;
 }
 CLOCKSOURCE_OF_DECLARE(meson6, "amlogic,meson6-timer",
 		       meson6_timer_init);

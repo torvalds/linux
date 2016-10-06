@@ -40,6 +40,17 @@ static void fsnotify_final_destroy_group(struct fsnotify_group *group)
 }
 
 /*
+ * Stop queueing new events for this group. Once this function returns
+ * fsnotify_add_event() will not add any new events to the group's queue.
+ */
+void fsnotify_group_stop_queueing(struct fsnotify_group *group)
+{
+	mutex_lock(&group->notification_mutex);
+	group->shutdown = true;
+	mutex_unlock(&group->notification_mutex);
+}
+
+/*
  * Trying to get rid of a group. Remove all marks, flush all events and release
  * the group reference.
  * Note that another thread calling fsnotify_clear_marks_by_group() may still
@@ -47,12 +58,29 @@ static void fsnotify_final_destroy_group(struct fsnotify_group *group)
  */
 void fsnotify_destroy_group(struct fsnotify_group *group)
 {
-	/* clear all inode marks for this group */
-	fsnotify_clear_marks_by_group(group);
+	/*
+	 * Stop queueing new events. The code below is careful enough to not
+	 * require this but fanotify needs to stop queuing events even before
+	 * fsnotify_destroy_group() is called and this makes the other callers
+	 * of fsnotify_destroy_group() to see the same behavior.
+	 */
+	fsnotify_group_stop_queueing(group);
 
-	synchronize_srcu(&fsnotify_mark_srcu);
+	/* clear all inode marks for this group, attach them to destroy_list */
+	fsnotify_detach_group_marks(group);
 
-	/* clear the notification queue of all events */
+	/*
+	 * Wait for fsnotify_mark_srcu period to end and free all marks in
+	 * destroy_list
+	 */
+	fsnotify_mark_destroy_list();
+
+	/*
+	 * Since we have waited for fsnotify_mark_srcu in
+	 * fsnotify_mark_destroy_list() there can be no outstanding event
+	 * notification against this group. So clearing the notification queue
+	 * of all events is reliable now.
+	 */
 	fsnotify_flush_notify(group);
 
 	/*

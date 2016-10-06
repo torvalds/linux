@@ -41,6 +41,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/input/input.h>
 #include "rk3066a.dtsi"
 
 / {
@@ -61,17 +62,27 @@
 
 	keys: gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		button@0 {
-			gpio-key,wakeup = <1>;
+		power {
+			wakeup-source;
 			gpios = <&gpio6 2 GPIO_ACTIVE_LOW>;
 			label = "GPIO Power";
-			linux,code = <116>;
+			linux,code = <KEY_POWER>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pwr_key>;
 		};
+	};
+
+	vdd_log: vdd-log {
+		compatible = "pwm-regulator";
+		pwms = <&pwm3 0 1000>;
+		regulator-name = "vdd_log";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		regulator-always-on;
+		voltage-table = <1000000 100>,
+				<1200000 42>;
+		status = "okay";
 	};
 
 	vsys: vsys-regulator {
@@ -170,7 +181,6 @@
 };
 
 &emmc {
-	broken-cd;
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	disable-wp;
@@ -336,7 +346,6 @@
 };
 
 &mmc1 {
-	broken-cd;
 	bus-width = <4>;
 	disable-wp;
 	non-removable;
@@ -428,6 +437,10 @@
 };
 
 &pwm2 {
+	status = "okay";
+};
+
+&pwm3 {
 	status = "okay";
 };
 

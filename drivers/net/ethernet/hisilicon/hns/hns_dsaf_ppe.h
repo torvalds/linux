@@ -30,6 +30,8 @@
 #define HNS_PPEV2_RSS_KEY_SIZE 40 /* in bytes or 320 bits */
 #define HNS_PPEV2_RSS_KEY_NUM (HNS_PPEV2_RSS_KEY_SIZE / sizeof(u32))
 
+#define HNS_PPEV2_MAX_FRAME_LEN 0X980
+
 enum ppe_qid_mode {
 	PPE_QID_MODE0 = 0, /* fixed queue id mode */
 	PPE_QID_MODE1,	   /* switch:128VM non switch:6Port/4VM/4TC */
@@ -78,7 +80,6 @@ struct hns_ppe_cb {
 	struct hns_ppe_hw_stats hw_stats;
 
 	u8 index;	/* index in a ppe common device */
-	u8 port;			 /* port id in dsaf  */
 	void __iomem *io_base;
 	int virq;
 	u32 rss_indir_table[HNS_PPEV2_RSS_IND_TBL_SIZE]; /*shadow indir tab */

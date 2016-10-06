@@ -1,19 +1,6 @@
 /*
- * Fushicai USBTV007 Audio-Video Grabber Driver
- *
- * Product web site:
- * http://www.fushicai.com/products_detail/&productId=d05449ee-b690-42f9-a661-aa7353894bed.html
- *
- * Following LWN articles were very useful in construction of this driver:
- * Video4Linux2 API series: http://lwn.net/Articles/203924/
- * videobuf2 API explanation: http://lwn.net/Articles/447435/
- * Thanks go to Jonathan Corbet for providing this quality documentation.
- * He is awesome.
- *
  * Copyright (c) 2013 Lubomir Rintel
  * All rights reserved.
- * No physical hardware was harmed running Windows during the
- * reverse-engineering activity
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,6 +13,33 @@
  *
  * Alternatively, this software may be distributed under the terms of the
  * GNU General Public License ("GPL").
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+/*
+ * Fushicai USBTV007 Audio-Video Grabber Driver
+ *
+ * Product web site:
+ * http://www.fushicai.com/products_detail/&productId=d05449ee-b690-42f9-a661-aa7353894bed.html
+ *
+ * Following LWN articles were very useful in construction of this driver:
+ * Video4Linux2 API series: http://lwn.net/Articles/203924/
+ * videobuf2 API explanation: http://lwn.net/Articles/447435/
+ * Thanks go to Jonathan Corbet for providing this quality documentation.
+ * He is awesome.
+ *
+ * No physical hardware was harmed running Windows during the
+ * reverse-engineering activity
  */
 
 #include <media/v4l2-ioctl.h>
@@ -251,8 +265,23 @@ static int usbtv_setup_capture(struct usbtv *usbtv)
 /* Copy data from chunk into a frame buffer, deinterlacing the data
  * into every second line. Unfortunately, they don't align nicely into
  * 720 pixel lines, as the chunk is 240 words long, which is 480 pixels.
- * Therefore, we break down the chunk into two halves before copyting,
- * so that we can interleave a line if needed. */
+ * Therefore, we break down the chunk into two halves before copying,
+ * so that we can interleave a line if needed.
+ *
+ * Each "chunk" is 240 words; a word in this context equals 4 bytes.
+ * Image format is YUYV/YUV 4:2:2, consisting of Y Cr Y Cb, defining two
+ * pixels, the Cr and Cb shared between the two pixels, but each having
+ * separate Y values. Thus, the 240 words equal 480 pixels. It therefore,
+ * takes 1.5 chunks to make a 720 pixel-wide line for the frame.
+ * The image is interlaced, so there is a "scan" of odd lines, followed
+ * by "scan" of even numbered lines.
+ *
+ * Following code is writing the chunks in correct sequence, skipping
+ * the rows based on "odd" value.
+ * line 1: chunk[0][  0..479] chunk[0][480..959] chunk[1][  0..479]
+ * line 3: chunk[1][480..959] chunk[2][  0..479] chunk[2][480..959]
+ * ...etc.
+ */
 static void usbtv_chunk_to_vbuf(u32 *frame, __be32 *src, int chunk_no, int odd)
 {
 	int half;
@@ -312,20 +341,24 @@ static void usbtv_image_chunk(struct usbtv *usbtv, __be32 *chunk)
 	usbtv_chunk_to_vbuf(frame, &chunk[1], chunk_no, odd);
 	usbtv->chunks_done++;
 
-	/* Last chunk in a frame, signalling an end */
-	if (odd && chunk_no == usbtv->n_chunks-1) {
-		int size = vb2_plane_size(&buf->vb.vb2_buf, 0);
-		enum vb2_buffer_state state = usbtv->chunks_done ==
-						usbtv->n_chunks ?
-						VB2_BUF_STATE_DONE :
-						VB2_BUF_STATE_ERROR;
+	/* Last chunk in a field */
+	if (chunk_no == usbtv->n_chunks-1) {
+		/* Last chunk in a frame, signalling an end */
+		if (odd && !usbtv->last_odd) {
+			int size = vb2_plane_size(&buf->vb.vb2_buf, 0);
+			enum vb2_buffer_state state = usbtv->chunks_done ==
+				usbtv->n_chunks ?
+				VB2_BUF_STATE_DONE :
+				VB2_BUF_STATE_ERROR;
 
-		buf->vb.field = V4L2_FIELD_INTERLACED;
-		buf->vb.sequence = usbtv->sequence++;
-		buf->vb.vb2_buf.timestamp = ktime_get_ns();
-		vb2_set_plane_payload(&buf->vb.vb2_buf, 0, size);
-		vb2_buffer_done(&buf->vb.vb2_buf, state);
-		list_del(&buf->list);
+			buf->vb.field = V4L2_FIELD_INTERLACED;
+			buf->vb.sequence = usbtv->sequence++;
+			buf->vb.vb2_buf.timestamp = ktime_get_ns();
+			vb2_set_plane_payload(&buf->vb.vb2_buf, 0, size);
+			vb2_buffer_done(&buf->vb.vb2_buf, state);
+			list_del(&buf->list);
+		}
+		usbtv->last_odd = odd;
 	}
 
 	spin_unlock_irqrestore(&usbtv->buflock, flags);
@@ -389,6 +422,10 @@ static struct urb *usbtv_setup_iso_transfer(struct usbtv *usbtv)
 	ip->transfer_flags = URB_ISO_ASAP;
 	ip->transfer_buffer = kzalloc(size * USBTV_ISOC_PACKETS,
 						GFP_KERNEL);
+	if (!ip->transfer_buffer) {
+		usb_free_urb(ip);
+		return NULL;
+	}
 	ip->complete = usbtv_iso_cb;
 	ip->number_of_packets = USBTV_ISOC_PACKETS;
 	ip->transfer_buffer_length = size * USBTV_ISOC_PACKETS;
@@ -600,7 +637,7 @@ static struct v4l2_file_operations usbtv_fops = {
 
 static int usbtv_queue_setup(struct vb2_queue *vq,
 	unsigned int *nbuffers,
-	unsigned int *nplanes, unsigned int sizes[], void *alloc_ctxs[])
+	unsigned int *nplanes, unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct usbtv *usbtv = vb2_get_drv_priv(vq);
 	unsigned size = USBTV_CHUNK * usbtv->n_chunks * 2 * sizeof(u32);
@@ -639,6 +676,7 @@ static int usbtv_start_streaming(struct vb2_queue *vq, unsigned int count)
 	if (usbtv->udev == NULL)
 		return -ENODEV;
 
+	usbtv->last_odd = 1;
 	usbtv->sequence = 0;
 	return usbtv_start(usbtv);
 }

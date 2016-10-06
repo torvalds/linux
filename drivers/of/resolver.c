@@ -9,6 +9,8 @@
  * version 2 as published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt)	"OF: resolver: " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -36,12 +38,14 @@ static struct device_node *__of_find_node_by_full_name(struct device_node *node,
 
 	/* check */
 	if (of_node_cmp(node->full_name, full_name) == 0)
-		return node;
+		return of_node_get(node);
 
 	for_each_child_of_node(node, child) {
 		found = __of_find_node_by_full_name(child, full_name);
-		if (found != NULL)
+		if (found != NULL) {
+			of_node_put(child);
 			return found;
+		}
 	}
 
 	return NULL;
@@ -174,6 +178,7 @@ static int __of_adjust_phandle_ref(struct device_node *node,
 			if (of_prop_cmp(sprop->name, propstr) == 0)
 				break;
 		}
+		of_node_put(refnode);
 
 		if (!sprop) {
 			pr_err("%s: Could not find property '%s'\n",
@@ -310,6 +315,11 @@ int of_resolve_phandles(struct device_node *resolve)
 	phandle phandle, phandle_delta;
 	int err;
 
+	if (!resolve)
+		pr_err("%s: null node\n", __func__);
+	if (resolve && !of_node_check_flag(resolve, OF_DETACHED))
+		pr_err("%s: node %s not detached\n", __func__,
+			 resolve->full_name);
 	/* the resolve node must exist, and be detached */
 	if (!resolve || !of_node_check_flag(resolve, OF_DETACHED))
 		return -EINVAL;
@@ -366,6 +376,7 @@ int of_resolve_phandles(struct device_node *resolve)
 
 	/* we need to fixup, but no root symbols... */
 	if (!root_sym) {
+		pr_err("%s: no symbols in root of device tree.\n", __func__);
 		err = -EINVAL;
 		goto out;
 	}

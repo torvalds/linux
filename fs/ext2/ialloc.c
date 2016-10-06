@@ -465,6 +465,11 @@ struct inode *ext2_new_inode(struct inode *dir, umode_t mode,
 
 	for (i = 0; i < sbi->s_groups_count; i++) {
 		gdp = ext2_get_group_desc(sb, group, &bh2);
+		if (!gdp) {
+			if (++group == sbi->s_groups_count)
+				group = 0;
+			continue;
+		}
 		brelse(bitmap_bh);
 		bitmap_bh = read_inode_bitmap(sb, group);
 		if (!bitmap_bh) {

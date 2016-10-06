@@ -126,8 +126,7 @@
 #define DRBD_RESYNC_RATE_DEF 250
 #define DRBD_RESYNC_RATE_SCALE 'k'  /* kilobytes */
 
-  /* less than 7 would hit performance unnecessarily. */
-#define DRBD_AL_EXTENTS_MIN  7
+#define DRBD_AL_EXTENTS_MIN  67
   /* we use u16 as "slot number", (u16)~0 is "FREE".
    * If you use >= 292 kB on-disk ring buffer,
    * this is the maximum you can use: */
@@ -210,6 +209,12 @@
 #define DRBD_MD_FLUSHES_DEF	1
 #define DRBD_TCP_CORK_DEF	1
 #define DRBD_AL_UPDATES_DEF     1
+/* We used to ignore the discard_zeroes_data setting.
+ * To not change established (and expected) behaviour,
+ * by default assume that, for discard_zeroes_data=0,
+ * we can make that an effective discard_zeroes_data=1,
+ * if we only explicitly zero-out unaligned partial chunks. */
+#define DRBD_DISCARD_ZEROES_IF_ALIGNED 1
 
 #define DRBD_ALLOW_TWO_PRIMARIES_DEF	0
 #define DRBD_ALWAYS_ASBP_DEF	0
@@ -230,4 +235,10 @@
 #define DRBD_SOCKET_CHECK_TIMEO_MAX DRBD_PING_TIMEO_MAX
 #define DRBD_SOCKET_CHECK_TIMEO_DEF 0
 #define DRBD_SOCKET_CHECK_TIMEO_SCALE '1'
+
+#define DRBD_RS_DISCARD_GRANULARITY_MIN 0
+#define DRBD_RS_DISCARD_GRANULARITY_MAX (1<<20)  /* 1MiByte */
+#define DRBD_RS_DISCARD_GRANULARITY_DEF 0     /* disabled by default */
+#define DRBD_RS_DISCARD_GRANULARITY_SCALE '1' /* bytes */
+
 #endif

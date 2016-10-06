@@ -38,7 +38,7 @@
 
 BSS_STACK(4096);
 
-#define SPRN_PIR	0x11E	/* Processor Indentification Register */
+#define SPRN_PIR	0x11E	/* Processor Identification Register */
 #define USERDATA_LEN	256	/* Length of userdata passed in by PIBS */
 #define MAX_RANKS	0x4
 #define DDR3_MR0CF	0x80010011U

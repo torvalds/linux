@@ -107,26 +107,18 @@ static int svc_rdma_bc_sendto(struct svcxprt_rdma *rdma,
 	int ret;
 
 	vec = svc_rdma_get_req_map(rdma);
-	ret = svc_rdma_map_xdr(rdma, sndbuf, vec);
+	ret = svc_rdma_map_xdr(rdma, sndbuf, vec, false);
 	if (ret)
 		goto out_err;
 
-	/* Post a recv buffer to handle the reply for this request. */
-	ret = svc_rdma_post_recv(rdma, GFP_NOIO);
-	if (ret) {
-		pr_err("svcrdma: Failed to post bc receive buffer, err=%d.\n",
-		       ret);
-		pr_err("svcrdma: closing transport %p.\n", rdma);
-		set_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags);
-		ret = -ENOTCONN;
+	ret = svc_rdma_repost_recv(rdma, GFP_NOIO);
+	if (ret)
 		goto out_err;
-	}
 
 	ctxt = svc_rdma_get_context(rdma);
 	ctxt->pages[0] = virt_to_page(rqst->rq_buffer);
 	ctxt->count = 1;
 
-	ctxt->wr_op = IB_WR_SEND;
 	ctxt->direction = DMA_TO_DEVICE;
 	ctxt->sge[0].lkey = rdma->sc_pd->local_dma_lkey;
 	ctxt->sge[0].length = sndbuf->len;
@@ -140,7 +132,8 @@ static int svc_rdma_bc_sendto(struct svcxprt_rdma *rdma,
 	atomic_inc(&rdma->sc_dma_used);
 
 	memset(&send_wr, 0, sizeof(send_wr));
-	send_wr.wr_id = (unsigned long)ctxt;
+	ctxt->cqe.done = svc_rdma_wc_send;
+	send_wr.wr_cqe = &ctxt->cqe;
 	send_wr.sg_list = ctxt->sge;
 	send_wr.num_sge = 1;
 	send_wr.opcode = IB_WR_SEND;

@@ -739,11 +739,8 @@ static int _rtl_usb_receive(struct ieee80211_hw *hw)
 	for (i = 0; i < rtlusb->rx_urb_num; i++) {
 		err = -ENOMEM;
 		urb = usb_alloc_urb(0, GFP_KERNEL);
-		if (!urb) {
-			RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
-				 "Failed to alloc URB!!\n");
+		if (!urb)
 			goto err_out;
-		}
 
 		err = _rtl_prep_rx_urb(hw, rtlusb, urb, GFP_KERNEL);
 		if (err < 0) {
@@ -907,15 +904,12 @@ static void _rtl_tx_complete(struct urb *urb)
 static struct urb *_rtl_usb_tx_urb_setup(struct ieee80211_hw *hw,
 				struct sk_buff *skb, u32 ep_num)
 {
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 	struct urb *_urb;
 
 	WARN_ON(NULL == skb);
 	_urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!_urb) {
-		RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
-			 "Can't allocate URB for bulk out!\n");
 		kfree_skb(skb);
 		return NULL;
 	}
@@ -1049,7 +1043,7 @@ static void rtl_fill_h2c_cmd_work_callback(struct work_struct *work)
 	rtlpriv->cfg->ops->fill_h2c_cmd(hw, H2C_RA_MASK, 5, rtlpriv->rate_mask);
 }
 
-static struct rtl_intf_ops rtl_usb_ops = {
+static const struct rtl_intf_ops rtl_usb_ops = {
 	.adapter_start = rtl_usb_start,
 	.adapter_stop = rtl_usb_stop,
 	.adapter_tx = rtl_usb_tx,

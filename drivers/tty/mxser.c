@@ -254,6 +254,7 @@ struct mxser_port {
 	int xmit_head;
 	int xmit_tail;
 	int xmit_cnt;
+	int closing;
 
 	struct ktermios normal_termios;
 
@@ -710,8 +711,8 @@ static int mxser_change_speed(struct tty_struct *tty,
 	/* CTS flow control flag and modem status interrupts */
 	info->IER &= ~UART_IER_MSI;
 	info->MCR &= ~UART_MCR_AFE;
+	tty_port_set_cts_flow(&info->port, cflag & CRTSCTS);
 	if (cflag & CRTSCTS) {
-		info->port.flags |= ASYNC_CTS_FLOW;
 		info->IER |= UART_IER_MSI;
 		if ((info->type == PORT_16550A) || (info->board->chip_flag)) {
 			info->MCR |= UART_MCR_AFE;
@@ -743,16 +744,11 @@ static int mxser_change_speed(struct tty_struct *tty,
 				}
 			}
 		}
-	} else {
-		info->port.flags &= ~ASYNC_CTS_FLOW;
 	}
 	outb(info->MCR, info->ioaddr + UART_MCR);
-	if (cflag & CLOCAL) {
-		info->port.flags &= ~ASYNC_CHECK_CD;
-	} else {
-		info->port.flags |= ASYNC_CHECK_CD;
+	tty_port_set_check_carrier(&info->port, ~cflag & CLOCAL);
+	if (~cflag & CLOCAL)
 		info->IER |= UART_IER_MSI;
-	}
 	outb(info->IER, info->ioaddr + UART_IER);
 
 	/*
@@ -825,7 +821,7 @@ static void mxser_check_modem_status(struct tty_struct *tty,
 	port->mon_data.modem_status = status;
 	wake_up_interruptible(&port->port.delta_msr_wait);
 
-	if ((port->port.flags & ASYNC_CHECK_CD) && (status & UART_MSR_DDCD)) {
+	if (tty_port_check_carrier(&port->port) && (status & UART_MSR_DDCD)) {
 		if (status & UART_MSR_DCD)
 			wake_up_interruptible(&port->port.open_wait);
 	}
@@ -1081,16 +1077,16 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 		return;
 	if (tty_port_close_start(port, tty, filp) == 0)
 		return;
+	info->closing = 1;
 	mutex_lock(&port->mutex);
 	mxser_close_port(port);
 	mxser_flush_buffer(tty);
-	if (test_bit(ASYNCB_INITIALIZED, &port->flags)) {
-		if (C_HUPCL(tty))
-			tty_port_lower_dtr_rts(port);
-	}
+	if (tty_port_initialized(port) && C_HUPCL(tty))
+		tty_port_lower_dtr_rts(port);
 	mxser_shutdown_port(port);
-	clear_bit(ASYNCB_INITIALIZED, &port->flags);
+	tty_port_set_initialized(port, 0);
 	mutex_unlock(&port->mutex);
+	info->closing = 0;
 	/* Right now the tty_port set is done outside of the close_end helper
 	   as we don't yet have everyone using refcounts */	
 	tty_port_close_end(port, tty);
@@ -1223,7 +1219,6 @@ static int mxser_get_serial_info(struct tty_struct *tty,
 		.close_delay = info->port.close_delay,
 		.closing_wait = info->port.closing_wait,
 		.custom_divisor = info->custom_divisor,
-		.hub6 = 0
 	};
 	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
 		return -EFAULT;
@@ -1284,7 +1279,7 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 
 	process_txrx_fifo(info);
 
-	if (test_bit(ASYNCB_INITIALIZED, &port->flags)) {
+	if (tty_port_initialized(port)) {
 		if (flags != (port->flags & ASYNC_SPD_MASK)) {
 			spin_lock_irqsave(&info->slock, sl_flags);
 			mxser_change_speed(tty, NULL);
@@ -1293,7 +1288,7 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 	} else {
 		retval = mxser_activate(port, tty);
 		if (retval == 0)
-			set_bit(ASYNCB_INITIALIZED, &port->flags);
+			tty_port_set_initialized(port, 1);
 	}
 	return retval;
 }
@@ -1331,7 +1326,7 @@ static int mxser_tiocmget(struct tty_struct *tty)
 
 	if (tty->index == MXSER_PORTS)
 		return -ENOIOCTLCMD;
-	if (test_bit(TTY_IO_ERROR, &tty->flags))
+	if (tty_io_error(tty))
 		return -EIO;
 
 	control = info->MCR;
@@ -1358,7 +1353,7 @@ static int mxser_tiocmset(struct tty_struct *tty,
 
 	if (tty->index == MXSER_PORTS)
 		return -ENOIOCTLCMD;
-	if (test_bit(TTY_IO_ERROR, &tty->flags))
+	if (tty_io_error(tty))
 		return -EIO;
 
 	spin_lock_irqsave(&info->slock, flags);
@@ -1712,8 +1707,7 @@ static int mxser_ioctl(struct tty_struct *tty,
 		return 0;
 	}
 
-	if (cmd != TIOCGSERIAL && cmd != TIOCMIWAIT &&
-			test_bit(TTY_IO_ERROR, &tty->flags))
+	if (cmd != TIOCGSERIAL && cmd != TIOCMIWAIT && tty_io_error(tty))
 		return -EIO;
 
 	switch (cmd) {
@@ -1864,7 +1858,7 @@ static void mxser_stoprx(struct tty_struct *tty)
 		}
 	}
 
-	if (tty->termios.c_cflag & CRTSCTS) {
+	if (C_CRTSCTS(tty)) {
 		info->MCR &= ~UART_MCR_RTS;
 		outb(info->MCR, info->ioaddr + UART_MCR);
 	}
@@ -1901,7 +1895,7 @@ static void mxser_unthrottle(struct tty_struct *tty)
 		}
 	}
 
-	if (tty->termios.c_cflag & CRTSCTS) {
+	if (C_CRTSCTS(tty)) {
 		info->MCR |= UART_MCR_RTS;
 		outb(info->MCR, info->ioaddr + UART_MCR);
 	}
@@ -1949,15 +1943,13 @@ static void mxser_set_termios(struct tty_struct *tty, struct ktermios *old_termi
 	mxser_change_speed(tty, old_termios);
 	spin_unlock_irqrestore(&info->slock, flags);
 
-	if ((old_termios->c_cflag & CRTSCTS) &&
-			!(tty->termios.c_cflag & CRTSCTS)) {
+	if ((old_termios->c_cflag & CRTSCTS) && !C_CRTSCTS(tty)) {
 		tty->hw_stopped = 0;
 		mxser_start(tty);
 	}
 
 	/* Handle sw stopped */
-	if ((old_termios->c_iflag & IXON) &&
-			!(tty->termios.c_iflag & IXON)) {
+	if ((old_termios->c_iflag & IXON) && !I_IXON(tty)) {
 		tty->stopped = 0;
 
 		if (info->board->chip_flag) {
@@ -2255,10 +2247,8 @@ static irqreturn_t mxser_interrupt(int irq, void *dev_id)
 					break;
 				iir &= MOXA_MUST_IIR_MASK;
 				tty = tty_port_tty_get(&port->port);
-				if (!tty ||
-						(port->port.flags & ASYNC_CLOSING) ||
-						!(port->port.flags &
-							ASYNC_INITIALIZED)) {
+				if (!tty || port->closing ||
+				    !tty_port_initialized(&port->port)) {
 					status = inb(port->ioaddr + UART_LSR);
 					outb(0x27, port->ioaddr + UART_FCR);
 					inb(port->ioaddr + UART_MSR);
@@ -2337,7 +2327,7 @@ static const struct tty_operations mxser_ops = {
 	.get_icount = mxser_get_icount,
 };
 
-static struct tty_port_operations mxser_port_ops = {
+static const struct tty_port_operations mxser_port_ops = {
 	.carrier_raised = mxser_carrier_raised,
 	.dtr_rts = mxser_dtr_rts,
 	.activate = mxser_activate,
@@ -2401,7 +2391,6 @@ static int mxser_initbrd(struct mxser_board *brd,
 		if (brd->chip_flag != MOXA_OTHER_UART)
 			mxser_enable_must_enchance_mode(info->ioaddr);
 
-		info->port.flags = ASYNC_SHARE_IRQ;
 		info->type = brd->uart_type;
 
 		process_txrx_fifo(info);

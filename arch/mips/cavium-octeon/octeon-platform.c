@@ -3,31 +3,26 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2004-2011 Cavium Networks
+ * Copyright (C) 2004-2016 Cavium Networks
  * Copyright (C) 2008 Wind River Systems
  */
 
-#include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/irq.h>
-#include <linux/i2c.h>
-#include <linux/usb.h>
-#include <linux/dma-mapping.h>
-#include <linux/module.h>
-#include <linux/mutex.h>
-#include <linux/slab.h>
-#include <linux/platform_device.h>
+#include <linux/delay.h>
+#include <linux/etherdevice.h>
 #include <linux/of_platform.h>
 #include <linux/of_fdt.h>
 #include <linux/libfdt.h>
+#include <linux/usb/ehci_def.h>
 #include <linux/usb/ehci_pdriver.h>
 #include <linux/usb/ohci_pdriver.h>
 
 #include <asm/octeon/octeon.h>
-#include <asm/octeon/cvmx-rnm-defs.h>
-#include <asm/octeon/cvmx-helper.h>
 #include <asm/octeon/cvmx-helper-board.h>
 #include <asm/octeon/cvmx-uctlx-defs.h>
+
+#define CVMX_UAHCX_EHCI_USBCMD	(CVMX_ADD_IO_SEG(0x00016F0000000010ull))
+#define CVMX_UAHCX_OHCI_USBCMD	(CVMX_ADD_IO_SEG(0x00016F0000000408ull))
 
 /* Octeon Random Number Generator.  */
 static int __init octeon_rng_device_init(void)
@@ -77,12 +72,36 @@ static DEFINE_MUTEX(octeon2_usb_clocks_mutex);
 
 static int octeon2_usb_clock_start_cnt;
 
+static int __init octeon2_usb_reset(void)
+{
+	union cvmx_uctlx_clk_rst_ctl clk_rst_ctl;
+	u32 ucmd;
+
+	if (!OCTEON_IS_OCTEON2())
+		return 0;
+
+	clk_rst_ctl.u64 = cvmx_read_csr(CVMX_UCTLX_CLK_RST_CTL(0));
+	if (clk_rst_ctl.s.hrst) {
+		ucmd = cvmx_read64_uint32(CVMX_UAHCX_EHCI_USBCMD);
+		ucmd &= ~CMD_RUN;
+		cvmx_write64_uint32(CVMX_UAHCX_EHCI_USBCMD, ucmd);
+		mdelay(2);
+		ucmd |= CMD_RESET;
+		cvmx_write64_uint32(CVMX_UAHCX_EHCI_USBCMD, ucmd);
+		ucmd = cvmx_read64_uint32(CVMX_UAHCX_OHCI_USBCMD);
+		ucmd |= CMD_RUN;
+		cvmx_write64_uint32(CVMX_UAHCX_OHCI_USBCMD, ucmd);
+	}
+
+	return 0;
+}
+arch_initcall(octeon2_usb_reset);
+
 static void octeon2_usb_clocks_start(struct device *dev)
 {
 	u64 div;
 	union cvmx_uctlx_if_ena if_ena;
 	union cvmx_uctlx_clk_rst_ctl clk_rst_ctl;
-	union cvmx_uctlx_uphy_ctl_status uphy_ctl_status;
 	union cvmx_uctlx_uphy_portx_ctl_status port_ctl_status;
 	int i;
 	unsigned long io_clk_64_to_ns;
@@ -129,6 +148,17 @@ static void octeon2_usb_clocks_start(struct device *dev)
 	if_ena.u64 = 0;
 	if_ena.s.en = 1;
 	cvmx_write_csr(CVMX_UCTLX_IF_ENA(0), if_ena.u64);
+
+	for (i = 0; i <= 1; i++) {
+		port_ctl_status.u64 =
+			cvmx_read_csr(CVMX_UCTLX_UPHY_PORTX_CTL_STATUS(i, 0));
+		/* Set txvreftune to 15 to obtain compliant 'eye' diagram. */
+		port_ctl_status.s.txvreftune = 15;
+		port_ctl_status.s.txrisetune = 1;
+		port_ctl_status.s.txpreemphasistune = 1;
+		cvmx_write_csr(CVMX_UCTLX_UPHY_PORTX_CTL_STATUS(i, 0),
+			       port_ctl_status.u64);
+	}
 
 	/* Step 3: Configure the reference clock, PHY, and HCLK */
 	clk_rst_ctl.u64 = cvmx_read_csr(CVMX_UCTLX_CLK_RST_CTL(0));
@@ -217,29 +247,10 @@ static void octeon2_usb_clocks_start(struct device *dev)
 	clk_rst_ctl.s.p_por = 0;
 	cvmx_write_csr(CVMX_UCTLX_CLK_RST_CTL(0), clk_rst_ctl.u64);
 
-	/* Step 5:    Wait 1 ms for the PHY clock to start. */
-	mdelay(1);
+	/* Step 5:    Wait 3 ms for the PHY clock to start. */
+	mdelay(3);
 
-	/*
-	 * Step 6: Program the reset input from automatic test
-	 * equipment field in the UPHY CSR
-	 */
-	uphy_ctl_status.u64 = cvmx_read_csr(CVMX_UCTLX_UPHY_CTL_STATUS(0));
-	uphy_ctl_status.s.ate_reset = 1;
-	cvmx_write_csr(CVMX_UCTLX_UPHY_CTL_STATUS(0), uphy_ctl_status.u64);
-
-	/* Step 7: Wait for at least 10ns. */
-	ndelay(10);
-
-	/* Step 8: Clear the ATE_RESET field in the UPHY CSR. */
-	uphy_ctl_status.s.ate_reset = 0;
-	cvmx_write_csr(CVMX_UCTLX_UPHY_CTL_STATUS(0), uphy_ctl_status.u64);
-
-	/*
-	 * Step 9: Wait for at least 20ns for UPHY to output PHY clock
-	 * signals and OHCI_CLK48
-	 */
-	ndelay(20);
+	/* Steps 6..9 for ATE only, are skipped. */
 
 	/* Step 10: Configure the OHCI_CLK48 and OHCI_CLK12 clocks. */
 	/* 10a */
@@ -260,6 +271,20 @@ static void octeon2_usb_clocks_start(struct device *dev)
 	clk_rst_ctl.s.p_prst = 1;
 	cvmx_write_csr(CVMX_UCTLX_CLK_RST_CTL(0), clk_rst_ctl.u64);
 
+	/* Step 11b */
+	udelay(1);
+
+	/* Step 11c */
+	clk_rst_ctl.s.p_prst = 0;
+	cvmx_write_csr(CVMX_UCTLX_CLK_RST_CTL(0), clk_rst_ctl.u64);
+
+	/* Step 11d */
+	mdelay(1);
+
+	/* Step 11e */
+	clk_rst_ctl.s.p_prst = 1;
+	cvmx_write_csr(CVMX_UCTLX_CLK_RST_CTL(0), clk_rst_ctl.u64);
+
 	/* Step 12: Wait 1 uS. */
 	udelay(1);
 
@@ -268,21 +293,9 @@ static void octeon2_usb_clocks_start(struct device *dev)
 	cvmx_write_csr(CVMX_UCTLX_CLK_RST_CTL(0), clk_rst_ctl.u64);
 
 end_clock:
-	/* Now we can set some other registers.  */
-
-	for (i = 0; i <= 1; i++) {
-		port_ctl_status.u64 =
-			cvmx_read_csr(CVMX_UCTLX_UPHY_PORTX_CTL_STATUS(i, 0));
-		/* Set txvreftune to 15 to obtain compliant 'eye' diagram. */
-		port_ctl_status.s.txvreftune = 15;
-		port_ctl_status.s.txrisetune = 1;
-		port_ctl_status.s.txpreemphasistune = 1;
-		cvmx_write_csr(CVMX_UCTLX_UPHY_PORTX_CTL_STATUS(i, 0),
-			       port_ctl_status.u64);
-	}
-
 	/* Set uSOF cycle period to 60,000 bits. */
 	cvmx_write_csr(CVMX_UCTLX_EHCI_FLA(0), 0x20ull);
+
 exit:
 	mutex_unlock(&octeon2_usb_clocks_mutex);
 }
@@ -310,7 +323,11 @@ static struct usb_ehci_pdata octeon_ehci_pdata = {
 #ifdef __BIG_ENDIAN
 	.big_endian_mmio	= 1,
 #endif
-	.dma_mask_64	= 1,
+	/*
+	 * We can DMA from anywhere. But the descriptors must be in
+	 * the lower 4GB.
+	 */
+	.dma_mask_64	= 0,
 	.power_on	= octeon_ehci_power_on,
 	.power_off	= octeon_ehci_power_off,
 };
@@ -525,9 +542,16 @@ static void __init octeon_fdt_set_phy(int eth, int phy_addr)
 
 static void __init octeon_fdt_set_mac_addr(int n, u64 *pmac)
 {
+	const u8 *old_mac;
+	int old_len;
 	u8 new_mac[6];
 	u64 mac = *pmac;
 	int r;
+
+	old_mac = fdt_getprop(initial_boot_params, n, "local-mac-address",
+			      &old_len);
+	if (!old_mac || old_len != 6 || is_valid_ether_addr(old_mac))
+		return;
 
 	new_mac[0] = (mac >> 40) & 0xff;
 	new_mac[1] = (mac >> 32) & 0xff;
@@ -560,7 +584,7 @@ static void __init octeon_fdt_rm_ethernet(int node)
 	fdt_nop_node(initial_boot_params, node);
 }
 
-static void __init octeon_fdt_pip_port(int iface, int i, int p, int max, u64 *pmac)
+static void __init octeon_fdt_pip_port(int iface, int i, int p, int max)
 {
 	char name_buffer[20];
 	int eth;
@@ -583,10 +607,9 @@ static void __init octeon_fdt_pip_port(int iface, int i, int p, int max, u64 *pm
 
 	phy_addr = cvmx_helper_board_get_mii_address(ipd_port);
 	octeon_fdt_set_phy(eth, phy_addr);
-	octeon_fdt_set_mac_addr(eth, pmac);
 }
 
-static void __init octeon_fdt_pip_iface(int pip, int idx, u64 *pmac)
+static void __init octeon_fdt_pip_iface(int pip, int idx)
 {
 	char name_buffer[20];
 	int iface;
@@ -602,7 +625,73 @@ static void __init octeon_fdt_pip_iface(int pip, int idx, u64 *pmac)
 		count = cvmx_helper_ports_on_interface(idx);
 
 	for (p = 0; p < 16; p++)
-		octeon_fdt_pip_port(iface, idx, p, count - 1, pmac);
+		octeon_fdt_pip_port(iface, idx, p, count - 1);
+}
+
+void __init octeon_fill_mac_addresses(void)
+{
+	const char *alias_prop;
+	char name_buffer[20];
+	u64 mac_addr_base;
+	int aliases;
+	int pip;
+	int i;
+
+	aliases = fdt_path_offset(initial_boot_params, "/aliases");
+	if (aliases < 0)
+		return;
+
+	mac_addr_base =
+		((octeon_bootinfo->mac_addr_base[0] & 0xffull)) << 40 |
+		((octeon_bootinfo->mac_addr_base[1] & 0xffull)) << 32 |
+		((octeon_bootinfo->mac_addr_base[2] & 0xffull)) << 24 |
+		((octeon_bootinfo->mac_addr_base[3] & 0xffull)) << 16 |
+		((octeon_bootinfo->mac_addr_base[4] & 0xffull)) << 8 |
+		 (octeon_bootinfo->mac_addr_base[5] & 0xffull);
+
+	for (i = 0; i < 2; i++) {
+		int mgmt;
+
+		snprintf(name_buffer, sizeof(name_buffer), "mix%d", i);
+		alias_prop = fdt_getprop(initial_boot_params, aliases,
+					 name_buffer, NULL);
+		if (!alias_prop)
+			continue;
+		mgmt = fdt_path_offset(initial_boot_params, alias_prop);
+		if (mgmt < 0)
+			continue;
+		octeon_fdt_set_mac_addr(mgmt, &mac_addr_base);
+	}
+
+	alias_prop = fdt_getprop(initial_boot_params, aliases, "pip", NULL);
+	if (!alias_prop)
+		return;
+
+	pip = fdt_path_offset(initial_boot_params, alias_prop);
+	if (pip < 0)
+		return;
+
+	for (i = 0; i <= 4; i++) {
+		int iface;
+		int p;
+
+		snprintf(name_buffer, sizeof(name_buffer), "interface@%d", i);
+		iface = fdt_subnode_offset(initial_boot_params, pip,
+					   name_buffer);
+		if (iface < 0)
+			continue;
+		for (p = 0; p < 16; p++) {
+			int eth;
+
+			snprintf(name_buffer, sizeof(name_buffer),
+				 "ethernet@%x", p);
+			eth = fdt_subnode_offset(initial_boot_params, iface,
+						 name_buffer);
+			if (eth < 0)
+				continue;
+			octeon_fdt_set_mac_addr(eth, &mac_addr_base);
+		}
+	}
 }
 
 int __init octeon_prune_device_tree(void)
@@ -612,25 +701,19 @@ int __init octeon_prune_device_tree(void)
 	const char *alias_prop;
 	char name_buffer[20];
 	int aliases;
-	u64 mac_addr_base;
 
 	if (fdt_check_header(initial_boot_params))
 		panic("Corrupt Device Tree.");
+
+	WARN(octeon_bootinfo->board_type == CVMX_BOARD_TYPE_CUST_DSR1000N,
+	     "Built-in DTB booting is deprecated on %s. Please switch to use appended DTB.",
+	     cvmx_board_type_to_string(octeon_bootinfo->board_type));
 
 	aliases = fdt_path_offset(initial_boot_params, "/aliases");
 	if (aliases < 0) {
 		pr_err("Error: No /aliases node in device tree.");
 		return -EINVAL;
 	}
-
-
-	mac_addr_base =
-		((octeon_bootinfo->mac_addr_base[0] & 0xffull)) << 40 |
-		((octeon_bootinfo->mac_addr_base[1] & 0xffull)) << 32 |
-		((octeon_bootinfo->mac_addr_base[2] & 0xffull)) << 24 |
-		((octeon_bootinfo->mac_addr_base[3] & 0xffull)) << 16 |
-		((octeon_bootinfo->mac_addr_base[4] & 0xffull)) << 8 |
-		(octeon_bootinfo->mac_addr_base[5] & 0xffull);
 
 	if (OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX))
 		max_port = 2;
@@ -660,7 +743,6 @@ int __init octeon_prune_device_tree(void)
 			} else {
 				int phy_addr = cvmx_helper_board_get_mii_address(CVMX_HELPER_BOARD_MGMT_IPD_PORT + i);
 				octeon_fdt_set_phy(mgmt, phy_addr);
-				octeon_fdt_set_mac_addr(mgmt, &mac_addr_base);
 			}
 		}
 	}
@@ -670,7 +752,7 @@ int __init octeon_prune_device_tree(void)
 		int pip = fdt_path_offset(initial_boot_params, pip_path);
 		if (pip	 >= 0)
 			for (i = 0; i <= 4; i++)
-				octeon_fdt_pip_iface(pip, i, &mac_addr_base);
+				octeon_fdt_pip_iface(pip, i);
 	}
 
 	/* I2C */
@@ -970,13 +1052,6 @@ end_led:
 		}
 	}
 
-	if (octeon_bootinfo->board_type != CVMX_BOARD_TYPE_CUST_DSR1000N) {
-		int dsr1000n_leds = fdt_path_offset(initial_boot_params,
-						    "/dsr1000n-leds");
-		if (dsr1000n_leds >= 0)
-			fdt_nop_node(initial_boot_params, dsr1000n_leds);
-	}
-
 	return 0;
 }
 
@@ -984,7 +1059,7 @@ static int __init octeon_publish_devices(void)
 {
 	return of_platform_bus_probe(NULL, octeon_ids, NULL);
 }
-device_initcall(octeon_publish_devices);
+arch_initcall(octeon_publish_devices);
 
 MODULE_AUTHOR("David Daney <ddaney@caviumnetworks.com>");
 MODULE_LICENSE("GPL");

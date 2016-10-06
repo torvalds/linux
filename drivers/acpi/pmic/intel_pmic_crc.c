@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/acpi.h>
 #include <linux/mfd/intel_soc_pmic.h>
 #include <linux/regmap.h>
@@ -141,7 +141,8 @@ static int intel_crc_pmic_update_aux(struct regmap *regmap, int reg, int raw)
 		regmap_update_bits(regmap, reg - 1, 0x3, raw >> 8) ? -EIO : 0;
 }
 
-static int intel_crc_pmic_get_policy(struct regmap *regmap, int reg, u64 *value)
+static int intel_crc_pmic_get_policy(struct regmap *regmap,
+					int reg, int bit, u64 *value)
 {
 	int pen;
 
@@ -152,7 +153,7 @@ static int intel_crc_pmic_get_policy(struct regmap *regmap, int reg, u64 *value)
 }
 
 static int intel_crc_pmic_update_policy(struct regmap *regmap,
-					int reg, int enable)
+					int reg, int bit, int enable)
 {
 	int alert0;
 
@@ -205,7 +206,4 @@ static int __init intel_crc_pmic_opregion_driver_init(void)
 {
 	return platform_driver_register(&intel_crc_pmic_opregion_driver);
 }
-module_init(intel_crc_pmic_opregion_driver_init);
-
-MODULE_DESCRIPTION("CrystalCove ACPI operation region driver");
-MODULE_LICENSE("GPL");
+device_initcall(intel_crc_pmic_opregion_driver_init);

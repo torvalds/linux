@@ -5,7 +5,7 @@
  * This file is released under the GPL.
  */
 
-#include "dm.h"
+#include "dm-core.h"
 
 #include <linux/module.h>
 #include <linux/vmalloc.h>
@@ -1267,6 +1267,15 @@ static int populate_table(struct dm_table *table,
 	return dm_table_complete(table);
 }
 
+static bool is_valid_type(unsigned cur, unsigned new)
+{
+	if (cur == new ||
+	    (cur == DM_TYPE_BIO_BASED && new == DM_TYPE_DAX_BIO_BASED))
+		return true;
+
+	return false;
+}
+
 static int table_load(struct dm_ioctl *param, size_t param_size)
 {
 	int r;
@@ -1291,7 +1300,8 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 
 	immutable_target_type = dm_get_immutable_target_type(md);
 	if (immutable_target_type &&
-	    (immutable_target_type != dm_table_get_immutable_target_type(t))) {
+	    (immutable_target_type != dm_table_get_immutable_target_type(t)) &&
+	    !dm_table_get_wildcard_target(t)) {
 		DMWARN("can't replace immutable target type %s",
 		       immutable_target_type->name);
 		r = -EINVAL;
@@ -1303,12 +1313,12 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 		dm_set_md_type(md, dm_table_get_type(t));
 
 		/* setup md->queue to reflect md's type (may block) */
-		r = dm_setup_md_queue(md);
+		r = dm_setup_md_queue(md, t);
 		if (r) {
 			DMWARN("unable to set up device queue for new table.");
 			goto err_unlock_md_type;
 		}
-	} else if (dm_get_md_type(md) != dm_table_get_type(t)) {
+	} else if (!is_valid_type(dm_get_md_type(md), dm_table_get_type(t))) {
 		DMWARN("can't change device type after initial table load.");
 		r = -EINVAL;
 		goto err_unlock_md_type;
@@ -1669,8 +1679,7 @@ static int check_version(unsigned int cmd, struct dm_ioctl __user *user)
 	return r;
 }
 
-#define DM_PARAMS_KMALLOC	0x0001	/* Params alloced with kmalloc */
-#define DM_PARAMS_VMALLOC	0x0002	/* Params alloced with vmalloc */
+#define DM_PARAMS_MALLOC	0x0001	/* Params allocated with kvmalloc() */
 #define DM_WIPE_BUFFER		0x0010	/* Wipe input buffer before returning from ioctl */
 
 static void free_params(struct dm_ioctl *param, size_t param_size, int param_flags)
@@ -1678,10 +1687,8 @@ static void free_params(struct dm_ioctl *param, size_t param_size, int param_fla
 	if (param_flags & DM_WIPE_BUFFER)
 		memset(param, 0, param_size);
 
-	if (param_flags & DM_PARAMS_KMALLOC)
-		kfree(param);
-	if (param_flags & DM_PARAMS_VMALLOC)
-		vfree(param);
+	if (param_flags & DM_PARAMS_MALLOC)
+		kvfree(param);
 }
 
 static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl *param_kernel,
@@ -1713,19 +1720,14 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl *param_kern
 	 * Use kmalloc() rather than vmalloc() when we can.
 	 */
 	dmi = NULL;
-	if (param_kernel->data_size <= KMALLOC_MAX_SIZE) {
+	if (param_kernel->data_size <= KMALLOC_MAX_SIZE)
 		dmi = kmalloc(param_kernel->data_size, GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN);
-		if (dmi)
-			*param_flags |= DM_PARAMS_KMALLOC;
-	}
 
 	if (!dmi) {
 		unsigned noio_flag;
 		noio_flag = memalloc_noio_save();
-		dmi = __vmalloc(param_kernel->data_size, GFP_NOIO | __GFP_REPEAT | __GFP_HIGH | __GFP_HIGHMEM, PAGE_KERNEL);
+		dmi = __vmalloc(param_kernel->data_size, GFP_NOIO | __GFP_HIGH | __GFP_HIGHMEM, PAGE_KERNEL);
 		memalloc_noio_restore(noio_flag);
-		if (dmi)
-			*param_flags |= DM_PARAMS_VMALLOC;
 	}
 
 	if (!dmi) {
@@ -1733,6 +1735,8 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl *param_kern
 			return -EFAULT;
 		return -ENOMEM;
 	}
+
+	*param_flags |= DM_PARAMS_MALLOC;
 
 	if (copy_from_user(dmi, user, param_kernel->data_size))
 		goto bad;

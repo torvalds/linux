@@ -271,6 +271,12 @@ static int __init imx_gpc_init(struct device_node *node,
 	for (i = 0; i < IMR_NUM; i++)
 		writel_relaxed(~0, gpc_base + GPC_IMR1 + i * 4);
 
+	/*
+	 * Clear the OF_POPULATED flag set in of_irq_init so that
+	 * later the GPC power domain driver will not be skipped.
+	 */
+	of_node_clear_flag(node, OF_POPULATED);
+
 	return 0;
 }
 IRQCHIP_DECLARE(imx_gpc, "fsl,imx6q-gpc", imx_gpc_init);
@@ -374,8 +380,13 @@ static struct pu_domain imx6q_pu_domain = {
 		.name = "PU",
 		.power_off = imx6q_pm_pu_power_off,
 		.power_on = imx6q_pm_pu_power_on,
-		.power_off_latency_ns = 25000,
-		.power_on_latency_ns = 2000000,
+		.states = {
+			[0] = {
+				.power_off_latency_ns = 25000,
+				.power_on_latency_ns = 2000000,
+			},
+		},
+		.state_count = 1,
 	},
 };
 

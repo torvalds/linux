@@ -24,6 +24,10 @@
 #include <linux/of_fdt.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
+#include <linux/acpi.h>
+#include <linux/ucs2_string.h>
+#include <linux/memblock.h>
 
 #include <asm/early_ioremap.h>
 
@@ -43,6 +47,7 @@ struct efi __read_mostly efi = {
 	.config_table		= EFI_INVALID_TABLE_ADDR,
 	.esrt			= EFI_INVALID_TABLE_ADDR,
 	.properties_table	= EFI_INVALID_TABLE_ADDR,
+	.mem_attr_table		= EFI_INVALID_TABLE_ADDR,
 };
 EXPORT_SYMBOL(efi);
 
@@ -182,6 +187,7 @@ static int generic_ops_register(void)
 {
 	generic_ops.get_variable = efi.get_variable;
 	generic_ops.set_variable = efi.set_variable;
+	generic_ops.set_variable_nonblocking = efi.set_variable_nonblocking;
 	generic_ops.get_next_variable = efi.get_next_variable;
 	generic_ops.query_variable_store = efi_query_variable_store;
 
@@ -192,6 +198,96 @@ static void generic_ops_unregister(void)
 {
 	efivars_unregister(&generic_efivars);
 }
+
+#if IS_ENABLED(CONFIG_ACPI)
+#define EFIVAR_SSDT_NAME_MAX	16
+static char efivar_ssdt[EFIVAR_SSDT_NAME_MAX] __initdata;
+static int __init efivar_ssdt_setup(char *str)
+{
+	if (strlen(str) < sizeof(efivar_ssdt))
+		memcpy(efivar_ssdt, str, strlen(str));
+	else
+		pr_warn("efivar_ssdt: name too long: %s\n", str);
+	return 0;
+}
+__setup("efivar_ssdt=", efivar_ssdt_setup);
+
+static __init int efivar_ssdt_iter(efi_char16_t *name, efi_guid_t vendor,
+				   unsigned long name_size, void *data)
+{
+	struct efivar_entry *entry;
+	struct list_head *list = data;
+	char utf8_name[EFIVAR_SSDT_NAME_MAX];
+	int limit = min_t(unsigned long, EFIVAR_SSDT_NAME_MAX, name_size);
+
+	ucs2_as_utf8(utf8_name, name, limit - 1);
+	if (strncmp(utf8_name, efivar_ssdt, limit) != 0)
+		return 0;
+
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return 0;
+
+	memcpy(entry->var.VariableName, name, name_size);
+	memcpy(&entry->var.VendorGuid, &vendor, sizeof(efi_guid_t));
+
+	efivar_entry_add(entry, list);
+
+	return 0;
+}
+
+static __init int efivar_ssdt_load(void)
+{
+	LIST_HEAD(entries);
+	struct efivar_entry *entry, *aux;
+	unsigned long size;
+	void *data;
+	int ret;
+
+	ret = efivar_init(efivar_ssdt_iter, &entries, true, &entries);
+
+	list_for_each_entry_safe(entry, aux, &entries, list) {
+		pr_info("loading SSDT from variable %s-%pUl\n", efivar_ssdt,
+			&entry->var.VendorGuid);
+
+		list_del(&entry->list);
+
+		ret = efivar_entry_size(entry, &size);
+		if (ret) {
+			pr_err("failed to get var size\n");
+			goto free_entry;
+		}
+
+		data = kmalloc(size, GFP_KERNEL);
+		if (!data)
+			goto free_entry;
+
+		ret = efivar_entry_get(entry, NULL, &size, data);
+		if (ret) {
+			pr_err("failed to get var data\n");
+			goto free_data;
+		}
+
+		ret = acpi_load_table(data);
+		if (ret) {
+			pr_err("failed to load table: %d\n", ret);
+			goto free_data;
+		}
+
+		goto free_entry;
+
+free_data:
+		kfree(data);
+
+free_entry:
+		kfree(entry);
+	}
+
+	return ret;
+}
+#else
+static inline int efivar_ssdt_load(void) { return 0; }
+#endif
 
 /*
  * We register the efi subsystem with the firmware subsystem and the
@@ -215,6 +311,9 @@ static int __init efisubsys_init(void)
 	error = generic_ops_register();
 	if (error)
 		goto err_put;
+
+	if (efi_enabled(EFI_RUNTIME_SERVICES))
+		efivar_ssdt_load();
 
 	error = sysfs_create_group(efi_kobj, &efi_subsys_attr_group);
 	if (error) {
@@ -249,56 +348,31 @@ subsys_initcall(efisubsys_init);
 
 /*
  * Find the efi memory descriptor for a given physical address.  Given a
- * physicall address, determine if it exists within an EFI Memory Map entry,
+ * physical address, determine if it exists within an EFI Memory Map entry,
  * and if so, populate the supplied memory descriptor with the appropriate
  * data.
  */
 int __init efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 {
-	struct efi_memory_map *map = efi.memmap;
-	phys_addr_t p, e;
+	efi_memory_desc_t *md;
 
 	if (!efi_enabled(EFI_MEMMAP)) {
 		pr_err_once("EFI_MEMMAP is not enabled.\n");
 		return -EINVAL;
 	}
 
-	if (!map) {
-		pr_err_once("efi.memmap is not set.\n");
-		return -EINVAL;
-	}
 	if (!out_md) {
 		pr_err_once("out_md is null.\n");
 		return -EINVAL;
         }
-	if (WARN_ON_ONCE(!map->phys_map))
-		return -EINVAL;
-	if (WARN_ON_ONCE(map->nr_map == 0) || WARN_ON_ONCE(map->desc_size == 0))
-		return -EINVAL;
 
-	e = map->phys_map + map->nr_map * map->desc_size;
-	for (p = map->phys_map; p < e; p += map->desc_size) {
-		efi_memory_desc_t *md;
+	for_each_efi_memory_desc(md) {
 		u64 size;
 		u64 end;
-
-		/*
-		 * If a driver calls this after efi_free_boot_services,
-		 * ->map will be NULL, and the target may also not be mapped.
-		 * So just always get our own virtual map on the CPU.
-		 *
-		 */
-		md = early_memremap(p, sizeof (*md));
-		if (!md) {
-			pr_err_once("early_memremap(%pa, %zu) failed.\n",
-				    &p, sizeof (*md));
-			return -ENOMEM;
-		}
 
 		if (!(md->attribute & EFI_MEMORY_RUNTIME) &&
 		    md->type != EFI_BOOT_SERVICES_DATA &&
 		    md->type != EFI_RUNTIME_SERVICES_DATA) {
-			early_memunmap(md, sizeof (*md));
 			continue;
 		}
 
@@ -306,11 +380,8 @@ int __init efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 		end = md->phys_addr + size;
 		if (phys_addr >= md->phys_addr && phys_addr < end) {
 			memcpy(out_md, md, sizeof(*out_md));
-			early_memunmap(md, sizeof (*md));
 			return 0;
 		}
-
-		early_memunmap(md, sizeof (*md));
 	}
 	pr_err_once("requested map not found.\n");
 	return -ENOENT;
@@ -326,36 +397,33 @@ u64 __init efi_mem_desc_end(efi_memory_desc_t *md)
 	return end;
 }
 
-/*
- * We can't ioremap data in EFI boot services RAM, because we've already mapped
- * it as RAM.  So, look it up in the existing EFI memory map instead.  Only
- * callable after efi_enter_virtual_mode and before efi_free_boot_services.
+void __init __weak efi_arch_mem_reserve(phys_addr_t addr, u64 size) {}
+
+/**
+ * efi_mem_reserve - Reserve an EFI memory region
+ * @addr: Physical address to reserve
+ * @size: Size of reservation
+ *
+ * Mark a region as reserved from general kernel allocation and
+ * prevent it being released by efi_free_boot_services().
+ *
+ * This function should be called drivers once they've parsed EFI
+ * configuration tables to figure out where their data lives, e.g.
+ * efi_esrt_init().
  */
-void __iomem *efi_lookup_mapped_addr(u64 phys_addr)
+void __init efi_mem_reserve(phys_addr_t addr, u64 size)
 {
-	struct efi_memory_map *map;
-	void *p;
-	map = efi.memmap;
-	if (!map)
-		return NULL;
-	if (WARN_ON(!map->map))
-		return NULL;
-	for (p = map->map; p < map->map_end; p += map->desc_size) {
-		efi_memory_desc_t *md = p;
-		u64 size = md->num_pages << EFI_PAGE_SHIFT;
-		u64 end = md->phys_addr + size;
-		if (!(md->attribute & EFI_MEMORY_RUNTIME) &&
-		    md->type != EFI_BOOT_SERVICES_CODE &&
-		    md->type != EFI_BOOT_SERVICES_DATA)
-			continue;
-		if (!md->virt_addr)
-			continue;
-		if (phys_addr >= md->phys_addr && phys_addr < end) {
-			phys_addr += md->virt_addr - md->phys_addr;
-			return (__force void __iomem *)(unsigned long)phys_addr;
-		}
-	}
-	return NULL;
+	if (!memblock_is_region_reserved(addr, size))
+		memblock_reserve(addr, size);
+
+	/*
+	 * Some architectures (x86) reserve all boot services ranges
+	 * until efi_free_boot_services() because of buggy firmware
+	 * implementations. This means the above memblock_reserve() is
+	 * superfluous on x86 and instead what it needs to do is
+	 * ensure the @start, @size is not freed.
+	 */
+	efi_arch_mem_reserve(addr, size);
 }
 
 static __initdata efi_config_table_type_t common_tables[] = {
@@ -369,6 +437,7 @@ static __initdata efi_config_table_type_t common_tables[] = {
 	{UGA_IO_PROTOCOL_GUID, "UGA", &efi.uga},
 	{EFI_SYSTEM_RESOURCE_TABLE_GUID, "ESRT", &efi.esrt},
 	{EFI_PROPERTIES_TABLE_GUID, "PROP", &efi.properties_table},
+	{EFI_MEMORY_ATTRIBUTES_TABLE_GUID, "MEMATTR", &efi.mem_attr_table},
 	{NULL_GUID, NULL, NULL},
 };
 
@@ -382,8 +451,9 @@ static __init int match_config_table(efi_guid_t *guid,
 		for (i = 0; efi_guidcmp(table_types[i].guid, NULL_GUID); i++) {
 			if (!efi_guidcmp(*guid, table_types[i].guid)) {
 				*(table_types[i].ptr) = table;
-				pr_cont(" %s=0x%lx ",
-					table_types[i].name, table);
+				if (table_types[i].name)
+					pr_cont(" %s=0x%lx ",
+						table_types[i].name, table);
 				return 1;
 			}
 		}
@@ -500,12 +570,14 @@ device_initcall(efi_load_efivars);
 		FIELD_SIZEOF(struct efi_fdt_params, field) \
 	}
 
-static __initdata struct {
+struct params {
 	const char name[32];
 	const char propname[32];
 	int offset;
 	int size;
-} dt_params[] = {
+};
+
+static __initdata struct params fdt_params[] = {
 	UEFI_PARAM("System Table", "linux,uefi-system-table", system_table),
 	UEFI_PARAM("MemMap Address", "linux,uefi-mmap-start", mmap),
 	UEFI_PARAM("MemMap Size", "linux,uefi-mmap-size", mmap_size),
@@ -513,42 +585,92 @@ static __initdata struct {
 	UEFI_PARAM("MemMap Desc. Version", "linux,uefi-mmap-desc-ver", desc_ver)
 };
 
+static __initdata struct params xen_fdt_params[] = {
+	UEFI_PARAM("System Table", "xen,uefi-system-table", system_table),
+	UEFI_PARAM("MemMap Address", "xen,uefi-mmap-start", mmap),
+	UEFI_PARAM("MemMap Size", "xen,uefi-mmap-size", mmap_size),
+	UEFI_PARAM("MemMap Desc. Size", "xen,uefi-mmap-desc-size", desc_size),
+	UEFI_PARAM("MemMap Desc. Version", "xen,uefi-mmap-desc-ver", desc_ver)
+};
+
+#define EFI_FDT_PARAMS_SIZE	ARRAY_SIZE(fdt_params)
+
+static __initdata struct {
+	const char *uname;
+	const char *subnode;
+	struct params *params;
+} dt_params[] = {
+	{ "hypervisor", "uefi", xen_fdt_params },
+	{ "chosen", NULL, fdt_params },
+};
+
 struct param_info {
 	int found;
 	void *params;
+	const char *missing;
 };
 
-static int __init fdt_find_uefi_params(unsigned long node, const char *uname,
-				       int depth, void *data)
+static int __init __find_uefi_params(unsigned long node,
+				     struct param_info *info,
+				     struct params *params)
 {
-	struct param_info *info = data;
 	const void *prop;
 	void *dest;
 	u64 val;
 	int i, len;
 
-	if (depth != 1 || strcmp(uname, "chosen") != 0)
-		return 0;
-
-	for (i = 0; i < ARRAY_SIZE(dt_params); i++) {
-		prop = of_get_flat_dt_prop(node, dt_params[i].propname, &len);
-		if (!prop)
+	for (i = 0; i < EFI_FDT_PARAMS_SIZE; i++) {
+		prop = of_get_flat_dt_prop(node, params[i].propname, &len);
+		if (!prop) {
+			info->missing = params[i].name;
 			return 0;
-		dest = info->params + dt_params[i].offset;
+		}
+
+		dest = info->params + params[i].offset;
 		info->found++;
 
 		val = of_read_number(prop, len / sizeof(u32));
 
-		if (dt_params[i].size == sizeof(u32))
+		if (params[i].size == sizeof(u32))
 			*(u32 *)dest = val;
 		else
 			*(u64 *)dest = val;
 
 		if (efi_enabled(EFI_DBG))
-			pr_info("  %s: 0x%0*llx\n", dt_params[i].name,
-				dt_params[i].size * 2, val);
+			pr_info("  %s: 0x%0*llx\n", params[i].name,
+				params[i].size * 2, val);
 	}
+
 	return 1;
+}
+
+static int __init fdt_find_uefi_params(unsigned long node, const char *uname,
+				       int depth, void *data)
+{
+	struct param_info *info = data;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(dt_params); i++) {
+		const char *subnode = dt_params[i].subnode;
+
+		if (depth != 1 || strcmp(uname, dt_params[i].uname) != 0) {
+			info->missing = dt_params[i].params[0].name;
+			continue;
+		}
+
+		if (subnode) {
+			int err = of_get_flat_dt_subnode_by_name(node, subnode);
+
+			if (err < 0)
+				return 0;
+
+			node = err;
+		}
+
+		return __find_uefi_params(node, info, dt_params[i].params);
+	}
+
+	return 0;
 }
 
 int __init efi_get_fdt_params(struct efi_fdt_params *params)
@@ -566,7 +688,7 @@ int __init efi_get_fdt_params(struct efi_fdt_params *params)
 		pr_info("UEFI not found.\n");
 	else if (!ret)
 		pr_err("Can't find '%s' in device tree!\n",
-		       dt_params[info.found].name);
+		       info.missing);
 
 	return ret;
 }
@@ -586,7 +708,8 @@ static __initdata char memory_type_name[][20] = {
 	"ACPI Memory NVS",
 	"Memory Mapped I/O",
 	"MMIO Port Space",
-	"PAL Code"
+	"PAL Code",
+	"Persistent Memory",
 };
 
 char * __init efi_md_typeattr_format(char *buf, size_t size,
@@ -613,13 +736,16 @@ char * __init efi_md_typeattr_format(char *buf, size_t size,
 	if (attr & ~(EFI_MEMORY_UC | EFI_MEMORY_WC | EFI_MEMORY_WT |
 		     EFI_MEMORY_WB | EFI_MEMORY_UCE | EFI_MEMORY_RO |
 		     EFI_MEMORY_WP | EFI_MEMORY_RP | EFI_MEMORY_XP |
+		     EFI_MEMORY_NV |
 		     EFI_MEMORY_RUNTIME | EFI_MEMORY_MORE_RELIABLE))
 		snprintf(pos, size, "|attr=0x%016llx]",
 			 (unsigned long long)attr);
 	else
-		snprintf(pos, size, "|%3s|%2s|%2s|%2s|%2s|%2s|%3s|%2s|%2s|%2s|%2s]",
+		snprintf(pos, size,
+			 "|%3s|%2s|%2s|%2s|%2s|%2s|%2s|%3s|%2s|%2s|%2s|%2s]",
 			 attr & EFI_MEMORY_RUNTIME ? "RUN" : "",
 			 attr & EFI_MEMORY_MORE_RELIABLE ? "MR" : "",
+			 attr & EFI_MEMORY_NV      ? "NV"  : "",
 			 attr & EFI_MEMORY_XP      ? "XP"  : "",
 			 attr & EFI_MEMORY_RP      ? "RP"  : "",
 			 attr & EFI_MEMORY_WP      ? "WP"  : "",
@@ -647,20 +773,52 @@ char * __init efi_md_typeattr_format(char *buf, size_t size,
  */
 u64 __weak efi_mem_attributes(unsigned long phys_addr)
 {
-	struct efi_memory_map *map;
 	efi_memory_desc_t *md;
-	void *p;
 
 	if (!efi_enabled(EFI_MEMMAP))
 		return 0;
 
-	map = efi.memmap;
-	for (p = map->map; p < map->map_end; p += map->desc_size) {
-		md = p;
+	for_each_efi_memory_desc(md) {
 		if ((md->phys_addr <= phys_addr) &&
 		    (phys_addr < (md->phys_addr +
 		    (md->num_pages << EFI_PAGE_SHIFT))))
 			return md->attribute;
 	}
 	return 0;
+}
+
+int efi_status_to_err(efi_status_t status)
+{
+	int err;
+
+	switch (status) {
+	case EFI_SUCCESS:
+		err = 0;
+		break;
+	case EFI_INVALID_PARAMETER:
+		err = -EINVAL;
+		break;
+	case EFI_OUT_OF_RESOURCES:
+		err = -ENOSPC;
+		break;
+	case EFI_DEVICE_ERROR:
+		err = -EIO;
+		break;
+	case EFI_WRITE_PROTECTED:
+		err = -EROFS;
+		break;
+	case EFI_SECURITY_VIOLATION:
+		err = -EACCES;
+		break;
+	case EFI_NOT_FOUND:
+		err = -ENOENT;
+		break;
+	case EFI_ABORTED:
+		err = -EINTR;
+		break;
+	default:
+		err = -EINVAL;
+	}
+
+	return err;
 }

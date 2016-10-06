@@ -53,13 +53,13 @@ static LIST_HEAD(elv_list);
  * Query io scheduler to see if the current process issuing bio may be
  * merged with rq.
  */
-static int elv_iosched_allow_merge(struct request *rq, struct bio *bio)
+static int elv_iosched_allow_bio_merge(struct request *rq, struct bio *bio)
 {
 	struct request_queue *q = rq->q;
 	struct elevator_queue *e = q->elevator;
 
-	if (e->type->ops.elevator_allow_merge_fn)
-		return e->type->ops.elevator_allow_merge_fn(q, rq, bio);
+	if (e->type->ops.elevator_allow_bio_merge_fn)
+		return e->type->ops.elevator_allow_bio_merge_fn(q, rq, bio);
 
 	return 1;
 }
@@ -67,17 +67,17 @@ static int elv_iosched_allow_merge(struct request *rq, struct bio *bio)
 /*
  * can we safely merge with this request?
  */
-bool elv_rq_merge_ok(struct request *rq, struct bio *bio)
+bool elv_bio_merge_ok(struct request *rq, struct bio *bio)
 {
 	if (!blk_rq_merge_ok(rq, bio))
-		return 0;
+		return false;
 
-	if (!elv_iosched_allow_merge(rq, bio))
-		return 0;
+	if (!elv_iosched_allow_bio_merge(rq, bio))
+		return false;
 
-	return 1;
+	return true;
 }
-EXPORT_SYMBOL(elv_rq_merge_ok);
+EXPORT_SYMBOL(elv_bio_merge_ok);
 
 static struct elevator_type *elevator_find(const char *name)
 {
@@ -366,8 +366,7 @@ void elv_dispatch_sort(struct request_queue *q, struct request *rq)
 	list_for_each_prev(entry, &q->queue_head) {
 		struct request *pos = list_entry_rq(entry);
 
-		if ((rq->cmd_flags & REQ_DISCARD) !=
-		    (pos->cmd_flags & REQ_DISCARD))
+		if (req_op(rq) != req_op(pos))
 			break;
 		if (rq_data_dir(rq) != rq_data_dir(pos))
 			break;
@@ -426,7 +425,7 @@ int elv_merge(struct request_queue *q, struct request **req, struct bio *bio)
 	/*
 	 * First try one-hit cache.
 	 */
-	if (q->last_merge && elv_rq_merge_ok(q->last_merge, bio)) {
+	if (q->last_merge && elv_bio_merge_ok(q->last_merge, bio)) {
 		ret = blk_try_merge(q->last_merge, bio);
 		if (ret != ELEVATOR_NO_MERGE) {
 			*req = q->last_merge;
@@ -441,7 +440,7 @@ int elv_merge(struct request_queue *q, struct request **req, struct bio *bio)
 	 * See if our hash lookup can find a potential backmerge.
 	 */
 	__rq = elv_rqhash_find(q, bio->bi_iter.bi_sector);
-	if (__rq && elv_rq_merge_ok(__rq, bio)) {
+	if (__rq && elv_bio_merge_ok(__rq, bio)) {
 		*req = __rq;
 		return ELEVATOR_BACK_MERGE;
 	}
@@ -717,12 +716,12 @@ void elv_put_request(struct request_queue *q, struct request *rq)
 		e->type->ops.elevator_put_req_fn(rq);
 }
 
-int elv_may_queue(struct request_queue *q, int rw)
+int elv_may_queue(struct request_queue *q, int op, int op_flags)
 {
 	struct elevator_queue *e = q->elevator;
 
 	if (e->type->ops.elevator_may_queue_fn)
-		return e->type->ops.elevator_may_queue_fn(q, rw);
+		return e->type->ops.elevator_may_queue_fn(q, op, op_flags);
 
 	return ELV_MQUEUE_MAY;
 }

@@ -573,17 +573,6 @@ int bnx2x_vf_mcast(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		}
 	}
 
-	/* clear existing mcasts */
-	mcast.mcast_list_len = vf->mcast_list_len;
-	vf->mcast_list_len = mc_num;
-	rc = bnx2x_config_mcast(bp, &mcast, BNX2X_MCAST_CMD_DEL);
-	if (rc) {
-		BNX2X_ERR("Failed to remove multicasts\n");
-		kfree(mc);
-		return rc;
-	}
-
-	/* update mcast list on the ramrod params */
 	if (mc_num) {
 		INIT_LIST_HEAD(&mcast.mcast_list);
 		for (i = 0; i < mc_num; i++) {
@@ -594,11 +583,17 @@ int bnx2x_vf_mcast(struct bnx2x *bp, struct bnx2x_virtf *vf,
 
 		/* add new mcasts */
 		mcast.mcast_list_len = mc_num;
-		rc = bnx2x_config_mcast(bp, &mcast, BNX2X_MCAST_CMD_ADD);
+		rc = bnx2x_config_mcast(bp, &mcast, BNX2X_MCAST_CMD_SET);
 		if (rc)
-			BNX2X_ERR("Faled to add multicasts\n");
-		kfree(mc);
+			BNX2X_ERR("Faled to set multicasts\n");
+	} else {
+		/* clear existing mcasts */
+		rc = bnx2x_config_mcast(bp, &mcast, BNX2X_MCAST_CMD_DEL);
+		if (rc)
+			BNX2X_ERR("Failed to remove multicasts\n");
 	}
+
+	kfree(mc);
 
 	return rc;
 }
@@ -1583,7 +1578,6 @@ int bnx2x_iov_nic_init(struct bnx2x *bp)
 		 *  It needs to be initialized here so that it can be safely
 		 *  handled by a subsequent FLR flow.
 		 */
-		vf->mcast_list_len = 0;
 		bnx2x_init_mcast_obj(bp, &vf->mcast_obj, 0xFF,
 				     0xFF, 0xFF, 0xFF,
 				     bnx2x_vf_sp(bp, vf, mcast_rdata),
@@ -1672,11 +1666,12 @@ void bnx2x_vf_handle_classification_eqe(struct bnx2x *bp,
 {
 	unsigned long ramrod_flags = 0;
 	int rc = 0;
+	u32 echo = le32_to_cpu(elem->message.data.eth_event.echo);
 
 	/* Always push next commands out, don't wait here */
 	set_bit(RAMROD_CONT, &ramrod_flags);
 
-	switch (elem->message.data.eth_event.echo >> BNX2X_SWCID_SHIFT) {
+	switch (echo >> BNX2X_SWCID_SHIFT) {
 	case BNX2X_FILTER_MAC_PENDING:
 		rc = vfq->mac_obj.complete(bp, &vfq->mac_obj, elem,
 					   &ramrod_flags);
@@ -1686,8 +1681,7 @@ void bnx2x_vf_handle_classification_eqe(struct bnx2x *bp,
 					    &ramrod_flags);
 		break;
 	default:
-		BNX2X_ERR("Unsupported classification command: %d\n",
-			  elem->message.data.eth_event.echo);
+		BNX2X_ERR("Unsupported classification command: 0x%x\n", echo);
 		return;
 	}
 	if (rc < 0)
@@ -1747,16 +1741,14 @@ int bnx2x_iov_eq_sp_event(struct bnx2x *bp, union event_ring_elem *elem)
 
 	switch (opcode) {
 	case EVENT_RING_OPCODE_CFC_DEL:
-		cid = SW_CID((__force __le32)
-			     elem->message.data.cfc_del_event.cid);
+		cid = SW_CID(elem->message.data.cfc_del_event.cid);
 		DP(BNX2X_MSG_IOV, "checking cfc-del comp cid=%d\n", cid);
 		break;
 	case EVENT_RING_OPCODE_CLASSIFICATION_RULES:
 	case EVENT_RING_OPCODE_MULTICAST_RULES:
 	case EVENT_RING_OPCODE_FILTERS_RULES:
 	case EVENT_RING_OPCODE_RSS_UPDATE_RULES:
-		cid = (elem->message.data.eth_event.echo &
-		       BNX2X_SWCID_MASK);
+		cid = SW_CID(elem->message.data.eth_event.echo);
 		DP(BNX2X_MSG_IOV, "checking filtering comp cid=%d\n", cid);
 		break;
 	case EVENT_RING_OPCODE_VF_FLR:
@@ -2529,7 +2521,8 @@ void bnx2x_pf_set_vfs_vlan(struct bnx2x *bp)
 	for_each_vf(bp, vfidx) {
 		bulletin = BP_VF_BULLETIN(bp, vfidx);
 		if (bulletin->valid_bitmap & (1 << VLAN_VALID))
-			bnx2x_set_vf_vlan(bp->dev, vfidx, bulletin->vlan, 0);
+			bnx2x_set_vf_vlan(bp->dev, vfidx, bulletin->vlan, 0,
+					  htons(ETH_P_8021Q));
 	}
 }
 
@@ -2789,7 +2782,8 @@ static int bnx2x_set_vf_vlan_filter(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	return 0;
 }
 
-int bnx2x_set_vf_vlan(struct net_device *dev, int vfidx, u16 vlan, u8 qos)
+int bnx2x_set_vf_vlan(struct net_device *dev, int vfidx, u16 vlan, u8 qos,
+		      __be16 vlan_proto)
 {
 	struct pf_vf_bulletin_content *bulletin = NULL;
 	struct bnx2x *bp = netdev_priv(dev);
@@ -2803,6 +2797,9 @@ int bnx2x_set_vf_vlan(struct net_device *dev, int vfidx, u16 vlan, u8 qos)
 		BNX2X_ERR("illegal vlan value %d\n", vlan);
 		return -EINVAL;
 	}
+
+	if (vlan_proto != htons(ETH_P_8021Q))
+		return -EPROTONOSUPPORT;
 
 	DP(BNX2X_MSG_IOV, "configuring VF %d with VLAN %d qos %d\n",
 	   vfidx, vlan, 0);

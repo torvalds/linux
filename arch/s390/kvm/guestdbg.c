@@ -17,7 +17,7 @@
 /*
  * Extends the address range given by *start and *stop to include the address
  * range starting with estart and the length len. Takes care of overflowing
- * intervals and tries to minimize the overall intervall size.
+ * intervals and tries to minimize the overall interval size.
  */
 static void extend_address_range(u64 *start, u64 *stop, u64 estart, int len)
 {
@@ -72,7 +72,7 @@ static void enable_all_hw_bp(struct kvm_vcpu *vcpu)
 		return;
 
 	/*
-	 * If the guest is not interrested in branching events, we can savely
+	 * If the guest is not interested in branching events, we can safely
 	 * limit them to the PER address range.
 	 */
 	if (!(*cr9 & PER_EVENT_BRANCH))
@@ -116,7 +116,7 @@ static void enable_all_hw_wp(struct kvm_vcpu *vcpu)
 	if (*cr9 & PER_EVENT_STORE && *cr9 & PER_CONTROL_ALTERATION) {
 		*cr9 &= ~PER_CONTROL_ALTERATION;
 		*cr10 = 0;
-		*cr11 = PSW_ADDR_INSN;
+		*cr11 = -1UL;
 	} else {
 		*cr9 &= ~PER_CONTROL_ALTERATION;
 		*cr9 |= PER_EVENT_STORE;
@@ -159,7 +159,7 @@ void kvm_s390_patch_guest_per_regs(struct kvm_vcpu *vcpu)
 		vcpu->arch.sie_block->gcr[0] &= ~0x800ul;
 		vcpu->arch.sie_block->gcr[9] |= PER_EVENT_IFETCH;
 		vcpu->arch.sie_block->gcr[10] = 0;
-		vcpu->arch.sie_block->gcr[11] = PSW_ADDR_INSN;
+		vcpu->arch.sie_block->gcr[11] = -1UL;
 	}
 
 	if (guestdbg_hw_bp_enabled(vcpu)) {
@@ -439,6 +439,23 @@ exit_required:
 #define guest_per_enabled(vcpu) \
 			     (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PER)
 
+int kvm_s390_handle_per_ifetch_icpt(struct kvm_vcpu *vcpu)
+{
+	const u8 ilen = kvm_s390_get_ilen(vcpu);
+	struct kvm_s390_pgm_info pgm_info = {
+		.code = PGM_PER,
+		.per_code = PER_EVENT_IFETCH >> 24,
+		.per_address = __rewind_psw(vcpu->arch.sie_block->gpsw, ilen),
+	};
+
+	/*
+	 * The PSW points to the next instruction, therefore the intercepted
+	 * instruction generated a PER i-fetch event. PER address therefore
+	 * points at the previous PSW address (could be an EXECUTE function).
+	 */
+	return kvm_s390_inject_prog_irq(vcpu, &pgm_info);
+}
+
 static void filter_guest_per_event(struct kvm_vcpu *vcpu)
 {
 	u32 perc = vcpu->arch.sie_block->perc << 24;
@@ -465,7 +482,7 @@ static void filter_guest_per_event(struct kvm_vcpu *vcpu)
 		guest_perc &= ~PER_EVENT_IFETCH;
 
 	/* All other PER events will be given to the guest */
-	/* TODO: Check alterated address/address space */
+	/* TODO: Check altered address/address space */
 
 	vcpu->arch.sie_block->perc = guest_perc >> 24;
 

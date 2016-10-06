@@ -436,7 +436,7 @@ minstrel_get_rate(void *priv, struct ieee80211_sta *sta,
 
 
 static void
-calc_rate_durations(enum ieee80211_band band,
+calc_rate_durations(enum nl80211_band band,
 		    struct minstrel_rate *d,
 		    struct ieee80211_rate *rate,
 		    struct cfg80211_chan_def *chandef)
@@ -579,7 +579,7 @@ minstrel_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp)
 	if (!mi)
 		return NULL;
 
-	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
+	for (i = 0; i < NUM_NL80211_BANDS; i++) {
 		sband = hw->wiphy->bands[i];
 		if (sband && sband->n_bitrates > max_rates)
 			max_rates = sband->n_bitrates;
@@ -621,7 +621,7 @@ minstrel_init_cck_rates(struct minstrel_priv *mp)
 	u32 rate_flags = ieee80211_chandef_rate_flags(&mp->hw->conf.chandef);
 	int i, j;
 
-	sband = mp->hw->wiphy->bands[IEEE80211_BAND_2GHZ];
+	sband = mp->hw->wiphy->bands[NL80211_BAND_2GHZ];
 	if (!sband)
 		return;
 
@@ -711,7 +711,7 @@ static u32 minstrel_get_expected_throughput(void *priv_sta)
 	 * computing cur_tp
 	 */
 	tmp_mrs = &mi->r[idx].stats;
-	tmp_cur_tp = minstrel_get_tp_avg(&mi->r[idx], tmp_mrs->prob_ewma);
+	tmp_cur_tp = minstrel_get_tp_avg(&mi->r[idx], tmp_mrs->prob_ewma) * 10;
 	tmp_cur_tp = tmp_cur_tp * 1200 * 8 / 1024;
 
 	return tmp_cur_tp;

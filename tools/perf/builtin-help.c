@@ -4,7 +4,7 @@
  * Builtin help command
  */
 #include "perf.h"
-#include "util/cache.h"
+#include "util/config.h"
 #include "builtin.h"
 #include <subcmd/exec-cmd.h>
 #include "common-cmds.h"
@@ -61,6 +61,7 @@ static int check_emacsclient_version(void)
 	struct child_process ec_process;
 	const char *argv_ec[] = { "emacsclient", "--version", NULL };
 	int version;
+	int ret = -1;
 
 	/* emacsclient prints its version number on stderr */
 	memset(&ec_process, 0, sizeof(ec_process));
@@ -71,7 +72,10 @@ static int check_emacsclient_version(void)
 		fprintf(stderr, "Failed to start emacsclient.\n");
 		return -1;
 	}
-	strbuf_read(&buffer, ec_process.err, 20);
+	if (strbuf_read(&buffer, ec_process.err, 20) < 0) {
+		fprintf(stderr, "Failed to read emacsclient version\n");
+		goto out;
+	}
 	close(ec_process.err);
 
 	/*
@@ -82,23 +86,20 @@ static int check_emacsclient_version(void)
 
 	if (prefixcmp(buffer.buf, "emacsclient")) {
 		fprintf(stderr, "Failed to parse emacsclient version.\n");
-		strbuf_release(&buffer);
-		return -1;
+		goto out;
 	}
 
-	strbuf_remove(&buffer, 0, strlen("emacsclient"));
-	version = atoi(buffer.buf);
+	version = atoi(buffer.buf + strlen("emacsclient"));
 
 	if (version < 22) {
 		fprintf(stderr,
 			"emacsclient version '%d' too old (< 22).\n",
 			version);
-		strbuf_release(&buffer);
-		return -1;
-	}
-
+	} else
+		ret = 0;
+out:
 	strbuf_release(&buffer);
-	return 0;
+	return ret;
 }
 
 static void exec_woman_emacs(const char *path, const char *page)
@@ -107,14 +108,16 @@ static void exec_woman_emacs(const char *path, const char *page)
 
 	if (!check_emacsclient_version()) {
 		/* This works only with emacsclient version >= 22. */
-		struct strbuf man_page = STRBUF_INIT;
+		char *man_page;
 
 		if (!path)
 			path = "emacsclient";
-		strbuf_addf(&man_page, "(woman \"%s\")", page);
-		execlp(path, "emacsclient", "-e", man_page.buf, NULL);
+		if (asprintf(&man_page, "(woman \"%s\")", page) > 0) {
+			execlp(path, "emacsclient", "-e", man_page, NULL);
+			free(man_page);
+		}
 		warning("failed to exec '%s': %s", path,
-			strerror_r(errno, sbuf, sizeof(sbuf)));
+			str_error_r(errno, sbuf, sizeof(sbuf)));
 	}
 }
 
@@ -123,7 +126,7 @@ static void exec_man_konqueror(const char *path, const char *page)
 	const char *display = getenv("DISPLAY");
 
 	if (display && *display) {
-		struct strbuf man_page = STRBUF_INIT;
+		char *man_page;
 		const char *filename = "kfmclient";
 		char sbuf[STRERR_BUFSIZE];
 
@@ -142,10 +145,12 @@ static void exec_man_konqueror(const char *path, const char *page)
 				filename = file;
 		} else
 			path = "kfmclient";
-		strbuf_addf(&man_page, "man:%s(1)", page);
-		execlp(path, filename, "newTab", man_page.buf, NULL);
+		if (asprintf(&man_page, "man:%s(1)", page) > 0) {
+			execlp(path, filename, "newTab", man_page, NULL);
+			free(man_page);
+		}
 		warning("failed to exec '%s': %s", path,
-			strerror_r(errno, sbuf, sizeof(sbuf)));
+			str_error_r(errno, sbuf, sizeof(sbuf)));
 	}
 }
 
@@ -157,18 +162,20 @@ static void exec_man_man(const char *path, const char *page)
 		path = "man";
 	execlp(path, "man", page, NULL);
 	warning("failed to exec '%s': %s", path,
-		strerror_r(errno, sbuf, sizeof(sbuf)));
+		str_error_r(errno, sbuf, sizeof(sbuf)));
 }
 
 static void exec_man_cmd(const char *cmd, const char *page)
 {
-	struct strbuf shell_cmd = STRBUF_INIT;
 	char sbuf[STRERR_BUFSIZE];
+	char *shell_cmd;
 
-	strbuf_addf(&shell_cmd, "%s %s", cmd, page);
-	execl("/bin/sh", "sh", "-c", shell_cmd.buf, NULL);
+	if (asprintf(&shell_cmd, "%s %s", cmd, page) > 0) {
+		execl("/bin/sh", "sh", "-c", shell_cmd, NULL);
+		free(shell_cmd);
+	}
 	warning("failed to exec '%s': %s", cmd,
-		strerror_r(errno, sbuf, sizeof(sbuf)));
+		str_error_r(errno, sbuf, sizeof(sbuf)));
 }
 
 static void add_man_viewer(const char *name)
@@ -273,7 +280,7 @@ static int perf_help_config(const char *var, const char *value, void *cb)
 	if (!prefixcmp(var, "man."))
 		return add_man_viewer_info(var, value);
 
-	return perf_default_config(var, value, cb);
+	return 0;
 }
 
 static struct cmdnames main_cmds, other_cmds;
@@ -300,43 +307,33 @@ static int is_perf_command(const char *s)
 		is_in_cmdlist(&other_cmds, s);
 }
 
-static const char *prepend(const char *prefix, const char *cmd)
-{
-	size_t pre_len = strlen(prefix);
-	size_t cmd_len = strlen(cmd);
-	char *p = malloc(pre_len + cmd_len + 1);
-	memcpy(p, prefix, pre_len);
-	strcpy(p + pre_len, cmd);
-	return p;
-}
-
 static const char *cmd_to_page(const char *perf_cmd)
 {
+	char *s;
+
 	if (!perf_cmd)
 		return "perf";
 	else if (!prefixcmp(perf_cmd, "perf"))
 		return perf_cmd;
-	else
-		return prepend("perf-", perf_cmd);
+
+	return asprintf(&s, "perf-%s", perf_cmd) < 0 ? NULL : s;
 }
 
 static void setup_man_path(void)
 {
-	struct strbuf new_path = STRBUF_INIT;
+	char *new_path;
 	const char *old_path = getenv("MANPATH");
 
 	/* We should always put ':' after our path. If there is no
 	 * old_path, the ':' at the end will let 'man' to try
 	 * system-wide paths after ours to find the manual page. If
 	 * there is old_path, we need ':' as delimiter. */
-	strbuf_addstr(&new_path, system_path(PERF_MAN_PATH));
-	strbuf_addch(&new_path, ':');
-	if (old_path)
-		strbuf_addstr(&new_path, old_path);
-
-	setenv("MANPATH", new_path.buf, 1);
-
-	strbuf_release(&new_path);
+	if (asprintf(&new_path, "%s:%s", system_path(PERF_MAN_PATH), old_path ?: "") > 0) {
+		setenv("MANPATH", new_path, 1);
+		free(new_path);
+	} else {
+		error("Unable to setup man path");
+	}
 }
 
 static void exec_viewer(const char *name, const char *page)
@@ -381,7 +378,7 @@ static int show_info_page(const char *perf_cmd)
 	return -1;
 }
 
-static int get_html_page_path(struct strbuf *page_path, const char *page)
+static int get_html_page_path(char **page_path, const char *page)
 {
 	struct stat st;
 	const char *html_path = system_path(PERF_HTML_PATH);
@@ -393,10 +390,7 @@ static int get_html_page_path(struct strbuf *page_path, const char *page)
 		return -1;
 	}
 
-	strbuf_init(page_path, 0);
-	strbuf_addf(page_path, "%s/%s.html", html_path, page);
-
-	return 0;
+	return asprintf(page_path, "%s/%s.html", html_path, page);
 }
 
 /*
@@ -414,12 +408,12 @@ static void open_html(const char *path)
 static int show_html_page(const char *perf_cmd)
 {
 	const char *page = cmd_to_page(perf_cmd);
-	struct strbuf page_path; /* it leaks but we exec bellow */
+	char *page_path; /* it leaks but we exec bellow */
 
-	if (get_html_page_path(&page_path, page) != 0)
+	if (get_html_page_path(&page_path, page) < 0)
 		return -1;
 
-	open_html(page_path.buf);
+	open_html(page_path);
 
 	return 0;
 }

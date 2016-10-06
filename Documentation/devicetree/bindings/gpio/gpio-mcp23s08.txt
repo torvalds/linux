@@ -10,6 +10,7 @@ Required properties:
 
     - "microchip,mcp23s08" for  8 GPIO SPI version
     - "microchip,mcp23s17" for 16 GPIO SPI version
+    - "microchip,mcp23s18" for 16 GPIO SPI version
     - "microchip,mcp23008" for  8 GPIO I2C version or
     - "microchip,mcp23017" for 16 GPIO I2C version of the chip
     NOTE: Do not use the old mcp prefix any more. It is deprecated and will be
@@ -43,9 +44,6 @@ Optional properties:
   - first cell is the pin number
   - second cell is used to specify flags.
 - interrupt-controller: Marks the device node as a interrupt controller.
-NOTE: The interrupt functionality is only supported for i2c versions of the
-chips. The spi chips can also do the interrupts, but this is not supported by
-the linux driver yet.
 
 Optional device specific properties:
 - microchip,irq-mirror: Sets the mirror flag in the IOCON register. Devices

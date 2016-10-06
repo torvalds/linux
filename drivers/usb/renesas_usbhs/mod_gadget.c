@@ -158,10 +158,14 @@ static void usbhsg_queue_done(struct usbhs_priv *priv, struct usbhs_pkt *pkt)
 	struct usbhs_pipe *pipe = pkt->pipe;
 	struct usbhsg_uep *uep = usbhsg_pipe_to_uep(pipe);
 	struct usbhsg_request *ureq = usbhsg_pkt_to_ureq(pkt);
+	unsigned long flags;
 
 	ureq->req.actual = pkt->actual;
 
-	usbhsg_queue_pop(uep, ureq, 0);
+	usbhs_lock(priv, flags);
+	if (uep)
+		__usbhsg_queue_pop(uep, ureq, 0);
+	usbhs_unlock(priv, flags);
 }
 
 static void usbhsg_queue_push(struct usbhsg_uep *uep,
@@ -187,13 +191,12 @@ static void usbhsg_queue_push(struct usbhsg_uep *uep,
 /*
  *		dma map/unmap
  */
-static int usbhsg_dma_map_ctrl(struct usbhs_pkt *pkt, int map)
+static int usbhsg_dma_map_ctrl(struct device *dma_dev, struct usbhs_pkt *pkt,
+			       int map)
 {
 	struct usbhsg_request *ureq = usbhsg_pkt_to_ureq(pkt);
 	struct usb_request *req = &ureq->req;
 	struct usbhs_pipe *pipe = pkt->pipe;
-	struct usbhsg_uep *uep = usbhsg_pipe_to_uep(pipe);
-	struct usbhsg_gpriv *gpriv = usbhsg_uep_to_gpriv(uep);
 	enum dma_data_direction dir;
 	int ret = 0;
 
@@ -203,13 +206,13 @@ static int usbhsg_dma_map_ctrl(struct usbhs_pkt *pkt, int map)
 		/* it can not use scatter/gather */
 		WARN_ON(req->num_sgs);
 
-		ret = usb_gadget_map_request(&gpriv->gadget, req, dir);
+		ret = usb_gadget_map_request_by_dev(dma_dev, req, dir);
 		if (ret < 0)
 			return ret;
 
 		pkt->dma = req->dma;
 	} else {
-		usb_gadget_unmap_request(&gpriv->gadget, req, dir);
+		usb_gadget_unmap_request_by_dev(dma_dev, req, dir);
 	}
 
 	return ret;
@@ -332,7 +335,6 @@ static void __usbhsg_recip_send_status(struct usbhsg_gpriv *gpriv,
 	buf = kmalloc(sizeof(*buf), GFP_ATOMIC);
 	if (!buf) {
 		usb_ep_free_request(&dcp->ep, req);
-		dev_err(dev, "recip data allocation fail\n");
 		return;
 	}
 
@@ -561,7 +563,7 @@ static int usbhsg_pipe_disable(struct usbhsg_uep *uep)
 		if (!pkt)
 			break;
 
-		usbhsg_queue_pop(uep, usbhsg_pkt_to_ureq(pkt), -ECONNRESET);
+		usbhsg_queue_pop(uep, usbhsg_pkt_to_ureq(pkt), -ESHUTDOWN);
 	}
 
 	usbhs_pipe_disable(pipe);
@@ -582,6 +584,9 @@ static int usbhsg_ep_enable(struct usb_ep *ep,
 	struct usbhs_priv *priv = usbhsg_gpriv_to_priv(gpriv);
 	struct usbhs_pipe *pipe;
 	int ret = -EIO;
+	unsigned long flags;
+
+	usbhs_lock(priv, flags);
 
 	/*
 	 * if it already have pipe,
@@ -590,7 +595,8 @@ static int usbhsg_ep_enable(struct usb_ep *ep,
 	if (uep->pipe) {
 		usbhs_pipe_clear(uep->pipe);
 		usbhs_pipe_sequence_data0(uep->pipe);
-		return 0;
+		ret = 0;
+		goto usbhsg_ep_enable_end;
 	}
 
 	pipe = usbhs_pipe_malloc(priv,
@@ -610,13 +616,19 @@ static int usbhsg_ep_enable(struct usb_ep *ep,
 		 * use dmaengine if possible.
 		 * It will use pio handler if impossible.
 		 */
-		if (usb_endpoint_dir_in(desc))
+		if (usb_endpoint_dir_in(desc)) {
 			pipe->handler = &usbhs_fifo_dma_push_handler;
-		else
+		} else {
 			pipe->handler = &usbhs_fifo_dma_pop_handler;
+			usbhs_xxxsts_clear(priv, BRDYSTS,
+					   usbhs_pipe_number(pipe));
+		}
 
 		ret = 0;
 	}
+
+usbhsg_ep_enable_end:
+	usbhs_unlock(priv, flags);
 
 	return ret;
 }
@@ -1049,21 +1061,18 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 	int ret;
 
 	gpriv = kzalloc(sizeof(struct usbhsg_gpriv), GFP_KERNEL);
-	if (!gpriv) {
-		dev_err(dev, "Could not allocate gadget priv\n");
+	if (!gpriv)
 		return -ENOMEM;
-	}
 
 	uep = kzalloc(sizeof(struct usbhsg_uep) * pipe_size, GFP_KERNEL);
 	if (!uep) {
-		dev_err(dev, "Could not allocate ep\n");
 		ret = -ENOMEM;
 		goto usbhs_mod_gadget_probe_err_gpriv;
 	}
 
 	gpriv->transceiver = usb_get_phy(USB_PHY_TYPE_UNDEFINED);
 	dev_info(dev, "%stransceiver found\n",
-		 gpriv->transceiver ? "" : "no ");
+		 !IS_ERR(gpriv->transceiver) ? "" : "no ");
 
 	/*
 	 * CAUTION
@@ -1093,6 +1102,8 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 	gpriv->gadget.name		= "renesas_usbhs_udc";
 	gpriv->gadget.ops		= &usbhsg_gadget_ops;
 	gpriv->gadget.max_speed		= USB_SPEED_HIGH;
+	gpriv->gadget.quirk_avoids_skb_reserve = usbhs_get_dparam(priv,
+								has_usb_dmac);
 
 	INIT_LIST_HEAD(&gpriv->gadget.ep_list);
 

@@ -272,8 +272,8 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 	int ret = 0;
 
 	/* buffer to convert RGB565 -> grayscale16 -> Dithered image 1bpp */
-	signed short *convert_buf = kmalloc(par->info->var.xres *
-		par->info->var.yres * sizeof(signed short), GFP_NOIO);
+	signed short *convert_buf = kmalloc_array(par->info->var.xres *
+		par->info->var.yres, sizeof(signed short), GFP_NOIO);
 
 	if (!convert_buf)
 		return -ENOMEM;
@@ -350,8 +350,8 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 				}
 		}
 
-	 /* 1 string = 2 pages */
-	 for (y = addr_win.ys_page; y <= addr_win.ye_page; ++y) {
+	/* 1 string = 2 pages */
+	for (y = addr_win.ys_page; y <= addr_win.ye_page; ++y) {
 		/* left half of display */
 		if (addr_win.xs < par->info->var.xres / 2) {
 			construct_line_bitmap(par, buf, convert_buf,
@@ -414,7 +414,7 @@ static int write(struct fbtft_par *par, void *buf, size_t len)
 	while (len--) {
 		u8 i, data;
 
-		data = *(u8 *) buf++;
+		data = *(u8 *)buf++;
 
 		/* set data bus */
 		for (i = 0; i < 8; ++i)

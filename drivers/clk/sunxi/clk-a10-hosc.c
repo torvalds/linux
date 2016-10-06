@@ -15,9 +15,9 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/clkdev.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/slab.h>
 
 #define SUNXI_OSC24M_GATE	0
 
@@ -54,14 +54,12 @@ static void __init sun4i_osc_clk_setup(struct device_node *node)
 			NULL, 0,
 			NULL, NULL,
 			&fixed->hw, &clk_fixed_rate_ops,
-			&gate->hw, &clk_gate_ops,
-			CLK_IS_ROOT);
+			&gate->hw, &clk_gate_ops, 0);
 
 	if (IS_ERR(clk))
 		goto err_free_gate;
 
 	of_clk_add_provider(node, of_clk_src_simple_get, clk);
-	clk_register_clkdev(clk, clk_name, NULL);
 
 	return;
 

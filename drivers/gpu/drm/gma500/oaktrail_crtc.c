@@ -657,7 +657,6 @@ pipe_set_base_exit:
 
 const struct drm_crtc_helper_funcs oaktrail_helper_funcs = {
 	.dpms = oaktrail_crtc_dpms,
-	.mode_fixup = gma_crtc_mode_fixup,
 	.mode_set = oaktrail_crtc_mode_set,
 	.mode_set_base = oaktrail_pipe_set_base,
 	.prepare = gma_crtc_prepare,

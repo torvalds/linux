@@ -11,11 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
  ******************************************************************************/
 #ifndef __RTL8188E_HAL_H__
 #define __RTL8188E_HAL_H__
@@ -191,8 +186,6 @@ struct txpowerinfo24g {
 struct hal_data_8188e {
 	struct HAL_VERSION	VersionID;
 	u16	CustomerID;
-	u8 *pfirmware;
-	u32 fwsize;
 	u16	FirmwareVersion;
 	u16	FirmwareVersionRev;
 	u16	FirmwareSubVersion;
@@ -209,7 +202,6 @@ struct hal_data_8188e {
 
 	/* rf_ctrl */
 	u8	rf_chip;
-	u8	rf_type;
 	u8	NumTotalRFPath;
 
 	u8	BoardType;
@@ -358,10 +350,6 @@ struct hal_data_8188e {
 	u8	UsbRxAggPageTimeout;
 };
 
-#define GET_HAL_DATA(__pAdapter)				\
-	((struct hal_data_8188e *)((__pAdapter)->HalData))
-#define GET_RF_TYPE(priv)		(GET_HAL_DATA(priv)->rf_type)
-
 /*  rtl8188e_hal_init.c */
 void _8051Reset88E(struct adapter *padapter);
 void rtl8188e_InitializeFirmwareVars(struct adapter *padapter);
@@ -391,8 +379,6 @@ void Hal_EfuseParseBoardType88E(struct adapter *pAdapter, u8 *hwinfo,
 				bool AutoLoadFail);
 void Hal_ReadPowerSavingMode88E(struct adapter *pAdapter, u8 *hwinfo,
 				bool AutoLoadFail);
-
-void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc);
 
 /*  register */
 

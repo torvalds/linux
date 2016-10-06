@@ -44,7 +44,46 @@
 			clocks = <&dpll_mpu_ck>;
 			clock-names = "cpu";
 
+			operating-points-v2 = <&cpu0_opp_table>;
+			ti,syscon-efuse = <&scm_conf 0x610 0x3f 0>;
+			ti,syscon-rev = <&scm_conf 0x600>;
+
 			clock-latency = <300000>; /* From omap-cpufreq driver */
+		};
+	};
+
+	cpu0_opp_table: opp_table0 {
+		compatible = "operating-points-v2";
+
+		opp50@300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+			opp-microvolt = <950000 931000 969000>;
+			opp-supported-hw = <0xFF 0x01>;
+			opp-suspend;
+		};
+
+		opp100@600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <1100000 1078000 1122000>;
+			opp-supported-hw = <0xFF 0x04>;
+		};
+
+		opp120@720000000 {
+			opp-hz = /bits/ 64 <720000000>;
+			opp-microvolt = <1200000 1176000 1224000>;
+			opp-supported-hw = <0xFF 0x08>;
+		};
+
+		oppturbo@800000000 {
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <1260000 1234800 1285200>;
+			opp-supported-hw = <0xFF 0x10>;
+		};
+
+		oppnitro@1000000000 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <1325000 1298500 1351500>;
+			opp-supported-hw = <0xFF 0x20>;
 		};
 	};
 
@@ -73,7 +112,7 @@
 	global_timer: timer@48240200 {
 		compatible = "arm,cortex-a9-global-timer";
 		reg = <0x48240200 0x100>;
-		interrupts = <GIC_PPI 11 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_PPI 11 IRQ_TYPE_EDGE_RISING>;
 		interrupt-parent = <&gic>;
 		clocks = <&mpu_periphclk>;
 	};
@@ -81,7 +120,7 @@
 	local_timer: timer@48240600 {
 		compatible = "arm,cortex-a9-twd-timer";
 		reg = <0x48240600 0x100>;
-		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_PPI 13 IRQ_TYPE_EDGE_RISING>;
 		interrupt-parent = <&gic>;
 		clocks = <&mpu_periphclk>;
 	};
@@ -199,7 +238,7 @@
 			interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "edma3_ccint", "emda3_mperr",
+			interrupt-names = "edma3_ccint", "edma3_mperr",
 					  "edma3_ccerrint";
 			dma-requests = <64>;
 			#dma-cells = <2>;
@@ -207,7 +246,7 @@
 			ti,tptcs = <&edma_tptc0 7>, <&edma_tptc1 5>,
 				   <&edma_tptc2 0>;
 
-			ti,edma-memcpy-channels = <32 33>;
+			ti,edma-memcpy-channels = <58 59>;
 		};
 
 		edma_tptc0: tptc@49800000 {
@@ -290,6 +329,7 @@
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <8>;
 			mbox_wkupm3: wkup_m3 {
+				ti,mbox-send-noirq;
 				ti,mbox-tx = <0 0 0>;
 				ti,mbox-rx = <0 0 3>;
 			};
@@ -625,7 +665,6 @@
 			ale_entries = <1024>;
 			bd_ram_size = <0x2000>;
 			no_bd_ram = <0>;
-			rx_descs = <64>;
 			mac_control = <0x20>;
 			slaves = <2>;
 			active_slave = <0>;
@@ -635,7 +674,7 @@
 			syscon = <&scm_conf>;
 
 			davinci_mdio: mdio@4a101000 {
-				compatible = "ti,am4372-mdio","ti,davinci_mdio";
+				compatible = "ti,am4372-mdio","ti,cpsw-mdio","ti,davinci_mdio";
 				reg = <0x4a101000 0x100>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -671,18 +710,24 @@
 			status = "disabled";
 
 			ecap0: ecap@48300100 {
-				compatible = "ti,am4372-ecap","ti,am33xx-ecap";
+				compatible = "ti,am4372-ecap",
+					     "ti,am3352-ecap",
+					     "ti,am33xx-ecap";
 				#pwm-cells = <3>;
 				reg = <0x48300100 0x80>;
-				ti,hwmods = "ecap0";
+				clocks = <&l4ls_gclk>;
+				clock-names = "fck";
 				status = "disabled";
 			};
 
-			ehrpwm0: ehrpwm@48300200 {
-				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+			ehrpwm0: pwm@48300200 {
+				compatible = "ti,am4372-ehrpwm",
+					     "ti,am3352-ehrpwm",
+					     "ti,am33xx-ehrpwm";
 				#pwm-cells = <3>;
 				reg = <0x48300200 0x80>;
-				ti,hwmods = "ehrpwm0";
+				clocks = <&ehrpwm0_tbclk>, <&l4ls_gclk>;
+				clock-names = "tbclk", "fck";
 				status = "disabled";
 			};
 		};
@@ -697,18 +742,24 @@
 			status = "disabled";
 
 			ecap1: ecap@48302100 {
-				compatible = "ti,am4372-ecap","ti,am33xx-ecap";
+				compatible = "ti,am4372-ecap",
+					     "ti,am3352-ecap",
+					     "ti,am33xx-ecap";
 				#pwm-cells = <3>;
 				reg = <0x48302100 0x80>;
-				ti,hwmods = "ecap1";
+				clocks = <&l4ls_gclk>;
+				clock-names = "fck";
 				status = "disabled";
 			};
 
-			ehrpwm1: ehrpwm@48302200 {
-				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+			ehrpwm1: pwm@48302200 {
+				compatible = "ti,am4372-ehrpwm",
+					     "ti,am3352-ehrpwm",
+					     "ti,am33xx-ehrpwm";
 				#pwm-cells = <3>;
 				reg = <0x48302200 0x80>;
-				ti,hwmods = "ehrpwm1";
+				clocks = <&ehrpwm1_tbclk>, <&l4ls_gclk>;
+				clock-names = "tbclk", "fck";
 				status = "disabled";
 			};
 		};
@@ -723,18 +774,24 @@
 			status = "disabled";
 
 			ecap2: ecap@48304100 {
-				compatible = "ti,am4372-ecap","ti,am33xx-ecap";
+				compatible = "ti,am4372-ecap",
+					     "ti,am3352-ecap",
+					     "ti,am33xx-ecap";
 				#pwm-cells = <3>;
 				reg = <0x48304100 0x80>;
-				ti,hwmods = "ecap2";
+				clocks = <&l4ls_gclk>;
+				clock-names = "fck";
 				status = "disabled";
 			};
 
-			ehrpwm2: ehrpwm@48304200 {
-				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+			ehrpwm2: pwm@48304200 {
+				compatible = "ti,am4372-ehrpwm",
+					     "ti,am3352-ehrpwm",
+					     "ti,am33xx-ehrpwm";
 				#pwm-cells = <3>;
 				reg = <0x48304200 0x80>;
-				ti,hwmods = "ehrpwm2";
+				clocks = <&ehrpwm2_tbclk>, <&l4ls_gclk>;
+				clock-names = "tbclk", "fck";
 				status = "disabled";
 			};
 		};
@@ -748,11 +805,14 @@
 			ti,hwmods = "epwmss3";
 			status = "disabled";
 
-			ehrpwm3: ehrpwm@48306200 {
-				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+			ehrpwm3: pwm@48306200 {
+				compatible = "ti,am4372-ehrpwm",
+					     "ti,am3352-ehrpwm",
+					     "ti,am33xx-ehrpwm";
 				#pwm-cells = <3>;
 				reg = <0x48306200 0x80>;
-				ti,hwmods = "ehrpwm3";
+				clocks = <&ehrpwm3_tbclk>, <&l4ls_gclk>;
+				clock-names = "tbclk", "fck";
 				status = "disabled";
 			};
 		};
@@ -766,11 +826,14 @@
 			ti,hwmods = "epwmss4";
 			status = "disabled";
 
-			ehrpwm4: ehrpwm@48308200 {
-				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+			ehrpwm4: pwm@48308200 {
+				compatible = "ti,am4372-ehrpwm",
+					     "ti,am3352-ehrpwm",
+					     "ti,am33xx-ehrpwm";
 				#pwm-cells = <3>;
 				reg = <0x48308200 0x80>;
-				ti,hwmods = "ehrpwm4";
+				clocks = <&ehrpwm4_tbclk>, <&l4ls_gclk>;
+				clock-names = "tbclk", "fck";
 				status = "disabled";
 			};
 		};
@@ -784,11 +847,14 @@
 			ti,hwmods = "epwmss5";
 			status = "disabled";
 
-			ehrpwm5: ehrpwm@4830a200 {
-				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+			ehrpwm5: pwm@4830a200 {
+				compatible = "ti,am4372-ehrpwm",
+					     "ti,am3352-ehrpwm",
+					     "ti,am33xx-ehrpwm";
 				#pwm-cells = <3>;
 				reg = <0x4830a200 0x80>;
-				ti,hwmods = "ehrpwm5";
+				clocks = <&ehrpwm5_tbclk>, <&l4ls_gclk>;
+				clock-names = "tbclk", "fck";
 				status = "disabled";
 			};
 		};
@@ -842,6 +908,13 @@
 			dma-names = "tx", "rx";
 		};
 
+		rng: rng@48310000 {
+			compatible = "ti,omap4-rng";
+			ti,hwmods = "rng";
+			reg = <0x48310000 0x2000>;
+			interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
 		mcasp0: mcasp@48038000 {
 			compatible = "ti,am33xx-mcasp-audio";
 			ti,hwmods = "mcasp0";
@@ -883,7 +956,7 @@
 		gpmc: gpmc@50000000 {
 			compatible = "ti,am3352-gpmc";
 			ti,hwmods = "gpmc";
-			dmas = <&edma 52>;
+			dmas = <&edma 52 0>;
 			dma-names = "rxtx";
 			clocks = <&l3s_gclk>;
 			clock-names = "fck";
@@ -893,19 +966,11 @@
 			gpmc,num-waitpins = <2>;
 			#address-cells = <2>;
 			#size-cells = <1>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
 			status = "disabled";
-		};
-
-		am43xx_control_usb2phy1: control-phy@44e10620 {
-			compatible = "ti,control-phy-usb2-am437";
-			reg = <0x44e10620 0x4>;
-			reg-names = "power";
-		};
-
-		am43xx_control_usb2phy2: control-phy@0x44e10628 {
-			compatible = "ti,control-phy-usb2-am437";
-			reg = <0x44e10628 0x4>;
-			reg-names = "power";
 		};
 
 		ocp2scp0: ocp2scp@483a8000 {
@@ -918,7 +983,7 @@
 			usb2_phy1: phy@483a8000 {
 				compatible = "ti,am437x-usb2";
 				reg = <0x483a8000 0x8000>;
-				ctrl-module = <&am43xx_control_usb2phy1>;
+				syscon-phy-power = <&scm_conf 0x620>;
 				clocks = <&usb_phy0_always_on_clk32k>,
 					 <&usb_otg_ss0_refclk960m>;
 				clock-names = "wkupclk", "refclk";
@@ -937,7 +1002,7 @@
 			usb2_phy2: phy@483e8000 {
 				compatible = "ti,am437x-usb2";
 				reg = <0x483e8000 0x8000>;
-				ctrl-module = <&am43xx_control_usb2phy2>;
+				syscon-phy-power = <&scm_conf 0x628>;
 				clocks = <&usb_phy1_always_on_clk32k>,
 					 <&usb_otg_ss1_refclk960m>;
 				clock-names = "wkupclk", "refclk";

@@ -115,12 +115,12 @@ EXPORT_SYMBOL(synchronize_irq);
 #ifdef CONFIG_SMP
 cpumask_var_t irq_default_affinity;
 
-static int __irq_can_set_affinity(struct irq_desc *desc)
+static bool __irq_can_set_affinity(struct irq_desc *desc)
 {
 	if (!desc || !irqd_can_balance(&desc->irq_data) ||
 	    !desc->irq_data.chip || !desc->irq_data.chip->irq_set_affinity)
-		return 0;
-	return 1;
+		return false;
+	return true;
 }
 
 /**
@@ -134,6 +134,21 @@ int irq_can_set_affinity(unsigned int irq)
 }
 
 /**
+ * irq_can_set_affinity_usr - Check if affinity of a irq can be set from user space
+ * @irq:	Interrupt to check
+ *
+ * Like irq_can_set_affinity() above, but additionally checks for the
+ * AFFINITY_MANAGED flag.
+ */
+bool irq_can_set_affinity_usr(unsigned int irq)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+
+	return __irq_can_set_affinity(desc) &&
+		!irqd_affinity_is_managed(&desc->irq_data);
+}
+
+/**
  *	irq_set_thread_affinity - Notify irq threads to adjust affinity
  *	@desc:		irq descriptor which has affitnity changed
  *
@@ -144,13 +159,11 @@ int irq_can_set_affinity(unsigned int irq)
  */
 void irq_set_thread_affinity(struct irq_desc *desc)
 {
-	struct irqaction *action = desc->action;
+	struct irqaction *action;
 
-	while (action) {
+	for_each_action_of_desc(desc, action)
 		if (action->thread)
 			set_bit(IRQTF_AFFINITY, &action->thread_flags);
-		action = action->next;
-	}
 }
 
 #ifdef CONFIG_GENERIC_PENDING_IRQ
@@ -340,10 +353,11 @@ static int setup_affinity(struct irq_desc *desc, struct cpumask *mask)
 		return 0;
 
 	/*
-	 * Preserve an userspace affinity setup, but make sure that
-	 * one of the targets is online.
+	 * Preserve the managed affinity setting and an userspace affinity
+	 * setup, but make sure that one of the targets is online.
 	 */
-	if (irqd_has_set(&desc->irq_data, IRQD_AFFINITY_SET)) {
+	if (irqd_affinity_is_managed(&desc->irq_data) ||
+	    irqd_has_set(&desc->irq_data, IRQD_AFFINITY_SET)) {
 		if (cpumask_intersects(desc->irq_common_data.affinity,
 				       cpu_online_mask))
 			set = desc->irq_common_data.affinity;
@@ -655,8 +669,6 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned long flags)
 		return 0;
 	}
 
-	flags &= IRQ_TYPE_SENSE_MASK;
-
 	if (chip->flags & IRQCHIP_SET_TYPE_MASKED) {
 		if (!irqd_irq_masked(&desc->irq_data))
 			mask_irq(desc);
@@ -664,7 +676,8 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned long flags)
 			unmask = 1;
 	}
 
-	/* caller masked out all except trigger mode flags */
+	/* Mask all flags except trigger mode */
+	flags &= IRQ_TYPE_SENSE_MASK;
 	ret = chip->irq_set_type(&desc->irq_data, flags);
 
 	switch (ret) {
@@ -994,7 +1007,7 @@ void irq_wake_thread(unsigned int irq, void *dev_id)
 		return;
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
-	for (action = desc->action; action; action = action->next) {
+	for_each_action_of_desc(desc, action) {
 		if (action->dev_id == dev_id) {
 			if (action->thread)
 				__irq_wake_thread(desc, action);
@@ -1117,6 +1130,13 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 		return -ENODEV;
 
 	new->irq = irq;
+
+	/*
+	 * If the trigger type is not specified by the caller,
+	 * then use the default for this interrupt.
+	 */
+	if (!(new->flags & IRQF_TRIGGER_MASK))
+		new->flags |= irqd_get_trigger_type(&desc->irq_data);
 
 	/*
 	 * Check whether the interrupt nests into another interrupt
@@ -1324,8 +1344,8 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 
 		if (nmsk != omsk)
 			/* hope the handler works with current  trigger mode */
-			pr_warning("irq %d uses trigger mode %u; requested %u\n",
-				   irq, nmsk, omsk);
+			pr_warn("irq %d uses trigger mode %u; requested %u\n",
+				irq, nmsk, omsk);
 	}
 
 	*old_ptr = new;
@@ -1409,11 +1429,19 @@ int setup_irq(unsigned int irq, struct irqaction *act)
 	int retval;
 	struct irq_desc *desc = irq_to_desc(irq);
 
-	if (WARN_ON(irq_settings_is_per_cpu_devid(desc)))
+	if (!desc || WARN_ON(irq_settings_is_per_cpu_devid(desc)))
 		return -EINVAL;
+
+	retval = irq_chip_pm_get(&desc->irq_data);
+	if (retval < 0)
+		return retval;
+
 	chip_bus_lock(desc);
 	retval = __setup_irq(irq, desc, act);
 	chip_bus_sync_unlock(desc);
+
+	if (retval)
+		irq_chip_pm_put(&desc->irq_data);
 
 	return retval;
 }
@@ -1508,6 +1536,7 @@ static struct irqaction *__free_irq(unsigned int irq, void *dev_id)
 		}
 	}
 
+	irq_chip_pm_put(&desc->irq_data);
 	module_put(desc->owner);
 	kfree(action->secondary);
 	return action;
@@ -1609,6 +1638,9 @@ int request_threaded_irq(unsigned int irq, irq_handler_t handler,
 	struct irq_desc *desc;
 	int retval;
 
+	if (irq == IRQ_NOTCONNECTED)
+		return -ENOTCONN;
+
 	/*
 	 * Sanity-check: shared interrupts must pass in a real dev-ID,
 	 * otherwise we'll have trouble later trying to figure out
@@ -1647,11 +1679,18 @@ int request_threaded_irq(unsigned int irq, irq_handler_t handler,
 	action->name = devname;
 	action->dev_id = dev_id;
 
+	retval = irq_chip_pm_get(&desc->irq_data);
+	if (retval < 0) {
+		kfree(action);
+		return retval;
+	}
+
 	chip_bus_lock(desc);
 	retval = __setup_irq(irq, desc, action);
 	chip_bus_sync_unlock(desc);
 
 	if (retval) {
+		irq_chip_pm_put(&desc->irq_data);
 		kfree(action->secondary);
 		kfree(action);
 	}
@@ -1699,9 +1738,13 @@ EXPORT_SYMBOL(request_threaded_irq);
 int request_any_context_irq(unsigned int irq, irq_handler_t handler,
 			    unsigned long flags, const char *name, void *dev_id)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
+	struct irq_desc *desc;
 	int ret;
 
+	if (irq == IRQ_NOTCONNECTED)
+		return -ENOTCONN;
+
+	desc = irq_to_desc(irq);
 	if (!desc)
 		return -EINVAL;
 
@@ -1725,7 +1768,14 @@ void enable_percpu_irq(unsigned int irq, unsigned int type)
 	if (!desc)
 		return;
 
+	/*
+	 * If the trigger type is not specified by the caller, then
+	 * use the default for this interrupt.
+	 */
 	type &= IRQ_TYPE_SENSE_MASK;
+	if (type == IRQ_TYPE_NONE)
+		type = irqd_get_trigger_type(&desc->irq_data);
+
 	if (type != IRQ_TYPE_NONE) {
 		int ret;
 
@@ -1817,6 +1867,7 @@ static struct irqaction *__free_percpu_irq(unsigned int irq, void __percpu *dev_
 
 	unregister_handler_proc(irq, action);
 
+	irq_chip_pm_put(&desc->irq_data);
 	module_put(desc->owner);
 	return action;
 
@@ -1879,9 +1930,17 @@ int setup_percpu_irq(unsigned int irq, struct irqaction *act)
 
 	if (!desc || !irq_settings_is_per_cpu_devid(desc))
 		return -EINVAL;
+
+	retval = irq_chip_pm_get(&desc->irq_data);
+	if (retval < 0)
+		return retval;
+
 	chip_bus_lock(desc);
 	retval = __setup_irq(irq, desc, act);
 	chip_bus_sync_unlock(desc);
+
+	if (retval)
+		irq_chip_pm_put(&desc->irq_data);
 
 	return retval;
 }
@@ -1926,12 +1985,20 @@ int request_percpu_irq(unsigned int irq, irq_handler_t handler,
 	action->name = devname;
 	action->percpu_dev_id = dev_id;
 
+	retval = irq_chip_pm_get(&desc->irq_data);
+	if (retval < 0) {
+		kfree(action);
+		return retval;
+	}
+
 	chip_bus_lock(desc);
 	retval = __setup_irq(irq, desc, action);
 	chip_bus_sync_unlock(desc);
 
-	if (retval)
+	if (retval) {
+		irq_chip_pm_put(&desc->irq_data);
 		kfree(action);
+	}
 
 	return retval;
 }

@@ -18,12 +18,11 @@ static inline void pm_set_vt_switch(int do_switch)
 #endif
 
 #ifdef CONFIG_VT_CONSOLE_SLEEP
-extern int pm_prepare_console(void);
+extern void pm_prepare_console(void);
 extern void pm_restore_console(void);
 #else
-static inline int pm_prepare_console(void)
+static inline void pm_prepare_console(void)
 {
-	return 0;
 }
 
 static inline void pm_restore_console(void)
@@ -246,6 +245,7 @@ static inline bool idle_should_freeze(void)
 	return unlikely(suspend_freeze_state == FREEZE_STATE_ENTER);
 }
 
+extern void __init pm_states_init(void);
 extern void freeze_set_ops(const struct platform_freeze_ops *ops);
 extern void freeze_wake(void);
 
@@ -280,6 +280,7 @@ static inline bool pm_resume_via_firmware(void) { return false; }
 static inline void suspend_set_ops(const struct platform_suspend_ops *ops) {}
 static inline int pm_suspend(suspend_state_t state) { return -ENOSYS; }
 static inline bool idle_should_freeze(void) { return false; }
+static inline void __init pm_states_init(void) {}
 static inline void freeze_set_ops(const struct platform_freeze_ops *ops) {}
 static inline void freeze_wake(void) {}
 #endif /* !CONFIG_SUSPEND */

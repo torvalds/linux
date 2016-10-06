@@ -1,4 +1,3 @@
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -36,17 +35,17 @@ int hw_sm750_map(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 	pr_info("mmio phyAddr = %lx\n", sm750_dev->vidreg_start);
 
 	/* reserve the vidreg space of smi adaptor
-	 * if you do this, u need to add release region code
+	 * if you do this, you need to add release region code
 	 * in lynxfb_remove, or memory will not be mapped again
 	 * successfully
-	 * */
+	 */
 	ret = pci_request_region(pdev, 1, "sm750fb");
 	if (ret) {
 		pr_err("Can not request PCI regions.\n");
 		goto exit;
 	}
 
-	/* now map mmio and vidmem*/
+	/* now map mmio and vidmem */
 	sm750_dev->pvReg = ioremap_nocache(sm750_dev->vidreg_start,
 					   sm750_dev->vidreg_size);
 	if (!sm750_dev->pvReg) {
@@ -57,7 +56,6 @@ int hw_sm750_map(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 		pr_info("mmio virtual addr = %p\n", sm750_dev->pvReg);
 	}
 
-
 	sm750_dev->accel.dprBase = sm750_dev->pvReg + DE_BASE_ADDR_TYPE1;
 	sm750_dev->accel.dpPortBase = sm750_dev->pvReg + DE_PORT_ADDR_TYPE1;
 
@@ -65,10 +63,10 @@ int hw_sm750_map(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 
 	sm750_dev->vidmem_start = pci_resource_start(pdev, 0);
 	/* don't use pdev_resource[x].end - resource[x].start to
-	 * calculate the resource size,its only the maximum available
-	 * size but not the actual size,use
+	 * calculate the resource size, it's only the maximum available
+	 * size but not the actual size, using
 	 * @ddk750_getVMSize function can be safe.
-	 * */
+	 */
 	sm750_dev->vidmem_size = ddk750_getVMSize();
 	pr_info("video memory phyAddr = %lx, size = %u bytes\n",
 		sm750_dev->vidmem_start, sm750_dev->vidmem_size);
@@ -87,86 +85,83 @@ exit:
 	return ret;
 }
 
-
-
 int hw_sm750_inithw(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 {
 	struct init_status *parm;
 
 	parm = &sm750_dev->initParm;
 	if (parm->chip_clk == 0)
-		parm->chip_clk = (getChipType() == SM750LE) ?
+		parm->chip_clk = (sm750_get_chip_type() == SM750LE) ?
 						DEFAULT_SM750LE_CHIP_CLOCK :
 						DEFAULT_SM750_CHIP_CLOCK;
 
 	if (parm->mem_clk == 0)
 		parm->mem_clk = parm->chip_clk;
 	if (parm->master_clk == 0)
-		parm->master_clk = parm->chip_clk/3;
+		parm->master_clk = parm->chip_clk / 3;
 
 	ddk750_initHw((initchip_param_t *)&sm750_dev->initParm);
-	/* for sm718,open pci burst */
+	/* for sm718, open pci burst */
 	if (sm750_dev->devid == 0x718) {
 		POKE32(SYSTEM_CTRL,
-				FIELD_SET(PEEK32(SYSTEM_CTRL), SYSTEM_CTRL, PCI_BURST, ON));
+		       PEEK32(SYSTEM_CTRL) | SYSTEM_CTRL_PCI_BURST);
 	}
 
-	if (getChipType() != SM750LE) {
-		/* does user need CRT ?*/
+	if (sm750_get_chip_type() != SM750LE) {
+		unsigned int val;
+		/* does user need CRT? */
 		if (sm750_dev->nocrt) {
 			POKE32(MISC_CTRL,
-					FIELD_SET(PEEK32(MISC_CTRL),
-					MISC_CTRL,
-					DAC_POWER, OFF));
+			       PEEK32(MISC_CTRL) | MISC_CTRL_DAC_POWER_OFF);
 			/* shut off dpms */
-			POKE32(SYSTEM_CTRL,
-					FIELD_SET(PEEK32(SYSTEM_CTRL),
-					SYSTEM_CTRL,
-					DPMS, VNHN));
+			val = PEEK32(SYSTEM_CTRL) & ~SYSTEM_CTRL_DPMS_MASK;
+			val |= SYSTEM_CTRL_DPMS_VPHN;
+			POKE32(SYSTEM_CTRL, val);
 		} else {
 			POKE32(MISC_CTRL,
-					FIELD_SET(PEEK32(MISC_CTRL),
-					MISC_CTRL,
-					DAC_POWER, ON));
+			       PEEK32(MISC_CTRL) & ~MISC_CTRL_DAC_POWER_OFF);
 			/* turn on dpms */
-			POKE32(SYSTEM_CTRL,
-					FIELD_SET(PEEK32(SYSTEM_CTRL),
-					SYSTEM_CTRL,
-					DPMS, VPHP));
+			val = PEEK32(SYSTEM_CTRL) & ~SYSTEM_CTRL_DPMS_MASK;
+			val |= SYSTEM_CTRL_DPMS_VPHP;
+			POKE32(SYSTEM_CTRL, val);
 		}
 
+		val = PEEK32(PANEL_DISPLAY_CTRL) &
+			~(PANEL_DISPLAY_CTRL_DUAL_DISPLAY |
+			  PANEL_DISPLAY_CTRL_DOUBLE_PIXEL);
 		switch (sm750_dev->pnltype) {
-		case sm750_doubleTFT:
 		case sm750_24TFT:
+			break;
+		case sm750_doubleTFT:
+			val |= PANEL_DISPLAY_CTRL_DOUBLE_PIXEL;
+			break;
 		case sm750_dualTFT:
-		POKE32(PANEL_DISPLAY_CTRL,
-			FIELD_VALUE(PEEK32(PANEL_DISPLAY_CTRL),
-						PANEL_DISPLAY_CTRL,
-						TFT_DISP,
-						sm750_dev->pnltype));
-		break;
+			val |= PANEL_DISPLAY_CTRL_DUAL_DISPLAY;
+			break;
 		}
+		POKE32(PANEL_DISPLAY_CTRL, val);
 	} else {
-		/* for 750LE ,no DVI chip initilization makes Monitor no signal */
-		/* Set up GPIO for software I2C to program DVI chip in the
-		   Xilinx SP605 board, in order to have video signal.
+		/* for 750LE, no DVI chip initialization
+		 * makes Monitor no signal
+		 *
+		 * Set up GPIO for software I2C to program DVI chip in the
+		 * Xilinx SP605 board, in order to have video signal.
 		 */
-	sm750_sw_i2c_init(0, 1);
+		sm750_sw_i2c_init(0, 1);
 
-
-	/* Customer may NOT use CH7301 DVI chip, which has to be
-	   initialized differently.
-	*/
-	if (sm750_sw_i2c_read_reg(0xec, 0x4a) == 0x95) {
+		/* Customer may NOT use CH7301 DVI chip, which has to be
+		 * initialized differently.
+		 */
+		if (sm750_sw_i2c_read_reg(0xec, 0x4a) == 0x95) {
 		/* The following register values for CH7301 are from
-		   Chrontel app note and our experiment.
-		*/
+		 * Chrontel app note and our experiment.
+		 */
 			pr_info("yes,CH7301 DVI chip found\n");
-		sm750_sw_i2c_write_reg(0xec, 0x1d, 0x16);
-		sm750_sw_i2c_write_reg(0xec, 0x21, 0x9);
-		sm750_sw_i2c_write_reg(0xec, 0x49, 0xC0);
+			sm750_sw_i2c_write_reg(0xec, 0x1d, 0x16);
+			sm750_sw_i2c_write_reg(0xec, 0x21, 0x9);
+			sm750_sw_i2c_write_reg(0xec, 0x49, 0xC0);
 			pr_info("okay,CH7301 DVI chip setup done\n");
-	}
+		}
 	}
 
 	/* init 2d engine */
@@ -177,7 +172,8 @@ int hw_sm750_inithw(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 }
 
 int hw_sm750_output_setMode(struct lynxfb_output *output,
-									struct fb_var_screeninfo *var, struct fb_fix_screeninfo *fix)
+			    struct fb_var_screeninfo *var,
+			    struct fb_fix_screeninfo *fix)
 {
 	int ret;
 	disp_output_t dispSet;
@@ -187,8 +183,7 @@ int hw_sm750_output_setMode(struct lynxfb_output *output,
 	dispSet = 0;
 	channel = *output->channel;
 
-
-	if (getChipType() != SM750LE) {
+	if (sm750_get_chip_type() != SM750LE) {
 		if (channel == sm750_primary) {
 			pr_info("primary channel\n");
 			if (output->paths & sm750_panel)
@@ -202,11 +197,10 @@ int hw_sm750_output_setMode(struct lynxfb_output *output,
 				dispSet |= do_LCD1_SEC;
 			if (output->paths & sm750_crt)
 				dispSet |= do_CRT_SEC;
-
 		}
 		ddk750_setLogicalDispOut(dispSet);
 	} else {
-		/* just open DISPLAY_CONTROL_750LE register bit 3:0*/
+		/* just open DISPLAY_CONTROL_750LE register bit 3:0 */
 		u32 reg;
 
 		reg = PEEK32(DISPLAY_CONTROL_750LE);
@@ -218,7 +212,8 @@ int hw_sm750_output_setMode(struct lynxfb_output *output,
 	return ret;
 }
 
-int hw_sm750_crtc_checkMode(struct lynxfb_crtc *crtc, struct fb_var_screeninfo *var)
+int hw_sm750_crtc_checkMode(struct lynxfb_crtc *crtc,
+			    struct fb_var_screeninfo *var)
 {
 	struct sm750_dev *sm750_dev;
 	struct lynxfb_par *par = container_of(crtc, struct lynxfb_par, crtc);
@@ -237,19 +232,15 @@ int hw_sm750_crtc_checkMode(struct lynxfb_crtc *crtc, struct fb_var_screeninfo *
 		break;
 	default:
 		return -EINVAL;
-
 	}
 
 	return 0;
 }
 
-
-/*
-	set the controller's mode for @crtc charged with @var and @fix parameters
-*/
+/* set the controller's mode for @crtc charged with @var and @fix parameters */
 int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
-								struct fb_var_screeninfo *var,
-								struct fb_fix_screeninfo *fix)
+			  struct fb_var_screeninfo *var,
+			  struct fb_fix_screeninfo *fix)
 {
 	int ret, fmt;
 	u32 reg;
@@ -257,7 +248,6 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
 	clock_type_t clock;
 	struct sm750_dev *sm750_dev;
 	struct lynxfb_par *par;
-
 
 	ret = 0;
 	par = container_of(crtc, struct lynxfb_par, crtc);
@@ -282,17 +272,22 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
 
 	/* set timing */
 	modparm.pixel_clock = ps_to_hz(var->pixclock);
-	modparm.vertical_sync_polarity = (var->sync & FB_SYNC_HOR_HIGH_ACT) ? POS:NEG;
-	modparm.horizontal_sync_polarity = (var->sync & FB_SYNC_VERT_HIGH_ACT) ? POS:NEG;
-	modparm.clock_phase_polarity = (var->sync & FB_SYNC_COMP_HIGH_ACT) ? POS:NEG;
+	modparm.vertical_sync_polarity = (var->sync & FB_SYNC_HOR_HIGH_ACT)
+					 ? POS : NEG;
+	modparm.horizontal_sync_polarity = (var->sync & FB_SYNC_VERT_HIGH_ACT)
+					   ? POS : NEG;
+	modparm.clock_phase_polarity = (var->sync & FB_SYNC_COMP_HIGH_ACT)
+				       ? POS : NEG;
 	modparm.horizontal_display_end = var->xres;
 	modparm.horizontal_sync_width = var->hsync_len;
 	modparm.horizontal_sync_start = var->xres + var->right_margin;
-	modparm.horizontal_total = var->xres + var->left_margin + var->right_margin + var->hsync_len;
+	modparm.horizontal_total = var->xres + var->left_margin +
+				   var->right_margin + var->hsync_len;
 	modparm.vertical_display_end = var->yres;
 	modparm.vertical_sync_height = var->vsync_len;
 	modparm.vertical_sync_start = var->yres + var->lower_margin;
-	modparm.vertical_total = var->yres + var->upper_margin + var->lower_margin + var->vsync_len;
+	modparm.vertical_total = var->yres + var->upper_margin +
+				 var->lower_margin + var->vsync_len;
 
 	/* choose pll */
 	if (crtc->channel != sm750_secondary)
@@ -308,70 +303,71 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
 	}
 
 	if (crtc->channel != sm750_secondary) {
-		/* set pitch, offset ,width,start address ,etc... */
+		/* set pitch, offset, width, start address, etc... */
 		POKE32(PANEL_FB_ADDRESS,
-			FIELD_SET(0, PANEL_FB_ADDRESS, STATUS, CURRENT)|
-			FIELD_SET(0, PANEL_FB_ADDRESS, EXT, LOCAL)|
-			FIELD_VALUE(0, PANEL_FB_ADDRESS, ADDRESS, crtc->oScreen));
+		       crtc->oScreen & PANEL_FB_ADDRESS_ADDRESS_MASK);
 
 		reg = var->xres * (var->bits_per_pixel >> 3);
-		/* crtc->channel is not equal to par->index on numeric,be aware of that */
+		/* crtc->channel is not equal to par->index on numeric,
+		 * be aware of that
+		 */
 		reg = ALIGN(reg, crtc->line_pad);
+		reg = (reg << PANEL_FB_WIDTH_WIDTH_SHIFT) &
+		       PANEL_FB_WIDTH_WIDTH_MASK;
+		reg |= (fix->line_length & PANEL_FB_WIDTH_OFFSET_MASK);
+		POKE32(PANEL_FB_WIDTH, reg);
 
-		POKE32(PANEL_FB_WIDTH,
-			FIELD_VALUE(0, PANEL_FB_WIDTH, WIDTH, reg)|
-			FIELD_VALUE(0, PANEL_FB_WIDTH, OFFSET, fix->line_length));
+		reg = ((var->xres - 1) << PANEL_WINDOW_WIDTH_WIDTH_SHIFT) &
+		       PANEL_WINDOW_WIDTH_WIDTH_MASK;
+		reg |= (var->xoffset & PANEL_WINDOW_WIDTH_X_MASK);
+		POKE32(PANEL_WINDOW_WIDTH, reg);
 
-		POKE32(PANEL_WINDOW_WIDTH,
-			FIELD_VALUE(0, PANEL_WINDOW_WIDTH, WIDTH, var->xres - 1)|
-			FIELD_VALUE(0, PANEL_WINDOW_WIDTH, X, var->xoffset));
-
-		POKE32(PANEL_WINDOW_HEIGHT,
-			FIELD_VALUE(0, PANEL_WINDOW_HEIGHT, HEIGHT, var->yres_virtual - 1)|
-			FIELD_VALUE(0, PANEL_WINDOW_HEIGHT, Y, var->yoffset));
+		reg = (var->yres_virtual - 1) <<
+		      PANEL_WINDOW_HEIGHT_HEIGHT_SHIFT;
+		reg &= PANEL_WINDOW_HEIGHT_HEIGHT_MASK;
+		reg |= (var->yoffset & PANEL_WINDOW_HEIGHT_Y_MASK);
+		POKE32(PANEL_WINDOW_HEIGHT, reg);
 
 		POKE32(PANEL_PLANE_TL, 0);
 
-		POKE32(PANEL_PLANE_BR,
-			FIELD_VALUE(0, PANEL_PLANE_BR, BOTTOM, var->yres - 1)|
-			FIELD_VALUE(0, PANEL_PLANE_BR, RIGHT, var->xres - 1));
+		reg = ((var->yres - 1) << PANEL_PLANE_BR_BOTTOM_SHIFT) &
+		       PANEL_PLANE_BR_BOTTOM_MASK;
+		reg |= ((var->xres - 1) & PANEL_PLANE_BR_RIGHT_MASK);
+		POKE32(PANEL_PLANE_BR, reg);
 
 		/* set pixel format */
 		reg = PEEK32(PANEL_DISPLAY_CTRL);
-		POKE32(PANEL_DISPLAY_CTRL,
-			FIELD_VALUE(reg,
-			PANEL_DISPLAY_CTRL, FORMAT,
-			(var->bits_per_pixel >> 4)
-			));
+		POKE32(PANEL_DISPLAY_CTRL, reg | (var->bits_per_pixel >> 4));
 	} else {
 		/* not implemented now */
 		POKE32(CRT_FB_ADDRESS, crtc->oScreen);
 		reg = var->xres * (var->bits_per_pixel >> 3);
-		/* crtc->channel is not equal to par->index on numeric,be aware of that */
-		reg = ALIGN(reg, crtc->line_pad);
-
-		POKE32(CRT_FB_WIDTH,
-			FIELD_VALUE(0, CRT_FB_WIDTH, WIDTH, reg)|
-			FIELD_VALUE(0, CRT_FB_WIDTH, OFFSET, fix->line_length));
+		/* crtc->channel is not equal to par->index on numeric,
+		 * be aware of that
+		 */
+		reg = ALIGN(reg, crtc->line_pad) << CRT_FB_WIDTH_WIDTH_SHIFT;
+		reg &= CRT_FB_WIDTH_WIDTH_MASK;
+		reg |= (fix->line_length & CRT_FB_WIDTH_OFFSET_MASK);
+		POKE32(CRT_FB_WIDTH, reg);
 
 		/* SET PIXEL FORMAT */
 		reg = PEEK32(CRT_DISPLAY_CTRL);
-		reg = FIELD_VALUE(reg, CRT_DISPLAY_CTRL, FORMAT, var->bits_per_pixel >> 4);
+		reg |= ((var->bits_per_pixel >> 4) &
+			CRT_DISPLAY_CTRL_FORMAT_MASK);
 		POKE32(CRT_DISPLAY_CTRL, reg);
-
 	}
-
 
 exit:
 	return ret;
 }
 
 int hw_sm750_setColReg(struct lynxfb_crtc *crtc, ushort index,
-								ushort red, ushort green, ushort blue)
+		       ushort red, ushort green, ushort blue)
 {
 	static unsigned int add[] = {PANEL_PALETTE_RAM, CRT_PALETTE_RAM};
 
-	POKE32(add[crtc->channel] + index*4, (red<<16)|(green<<8)|blue);
+	POKE32(add[crtc->channel] + index * 4,
+	       (red << 16) | (green << 8) | blue);
 	return 0;
 }
 
@@ -382,31 +378,36 @@ int hw_sm750le_setBLANK(struct lynxfb_output *output, int blank)
 	switch (blank) {
 	case FB_BLANK_UNBLANK:
 		dpms = CRT_DISPLAY_CTRL_DPMS_0;
-		crtdb = CRT_DISPLAY_CTRL_BLANK_OFF;
+		crtdb = 0;
 		break;
 	case FB_BLANK_NORMAL:
 		dpms = CRT_DISPLAY_CTRL_DPMS_0;
-		crtdb = CRT_DISPLAY_CTRL_BLANK_ON;
+		crtdb = CRT_DISPLAY_CTRL_BLANK;
 		break;
 	case FB_BLANK_VSYNC_SUSPEND:
 		dpms = CRT_DISPLAY_CTRL_DPMS_2;
-		crtdb = CRT_DISPLAY_CTRL_BLANK_ON;
+		crtdb = CRT_DISPLAY_CTRL_BLANK;
 		break;
 	case FB_BLANK_HSYNC_SUSPEND:
 		dpms = CRT_DISPLAY_CTRL_DPMS_1;
-		crtdb = CRT_DISPLAY_CTRL_BLANK_ON;
+		crtdb = CRT_DISPLAY_CTRL_BLANK;
 		break;
 	case FB_BLANK_POWERDOWN:
 		dpms = CRT_DISPLAY_CTRL_DPMS_3;
-		crtdb = CRT_DISPLAY_CTRL_BLANK_ON;
+		crtdb = CRT_DISPLAY_CTRL_BLANK;
 		break;
 	default:
 		return -EINVAL;
 	}
 
 	if (output->paths & sm750_crt) {
-		POKE32(CRT_DISPLAY_CTRL, FIELD_VALUE(PEEK32(CRT_DISPLAY_CTRL), CRT_DISPLAY_CTRL, DPMS, dpms));
-		POKE32(CRT_DISPLAY_CTRL, FIELD_VALUE(PEEK32(CRT_DISPLAY_CTRL), CRT_DISPLAY_CTRL, BLANK, crtdb));
+		unsigned int val;
+
+		val = PEEK32(CRT_DISPLAY_CTRL) & ~CRT_DISPLAY_CTRL_DPMS_MASK;
+		POKE32(CRT_DISPLAY_CTRL, val | dpms);
+
+		val = PEEK32(CRT_DISPLAY_CTRL) & ~CRT_DISPLAY_CTRL_BLANK;
+		POKE32(CRT_DISPLAY_CTRL, val | crtdb);
 	}
 	return 0;
 }
@@ -415,50 +416,54 @@ int hw_sm750_setBLANK(struct lynxfb_output *output, int blank)
 {
 	unsigned int dpms, pps, crtdb;
 
-	dpms = pps = crtdb = 0;
+	dpms = 0;
+	pps = 0;
+	crtdb = 0;
 
 	switch (blank) {
 	case FB_BLANK_UNBLANK:
-		pr_info("flag = FB_BLANK_UNBLANK\n");
+		pr_debug("flag = FB_BLANK_UNBLANK\n");
 		dpms = SYSTEM_CTRL_DPMS_VPHP;
-		pps = PANEL_DISPLAY_CTRL_DATA_ENABLE;
-		crtdb = CRT_DISPLAY_CTRL_BLANK_OFF;
+		pps = PANEL_DISPLAY_CTRL_DATA;
 		break;
 	case FB_BLANK_NORMAL:
-		pr_info("flag = FB_BLANK_NORMAL\n");
+		pr_debug("flag = FB_BLANK_NORMAL\n");
 		dpms = SYSTEM_CTRL_DPMS_VPHP;
-		pps = PANEL_DISPLAY_CTRL_DATA_DISABLE;
-		crtdb = CRT_DISPLAY_CTRL_BLANK_ON;
+		crtdb = CRT_DISPLAY_CTRL_BLANK;
 		break;
 	case FB_BLANK_VSYNC_SUSPEND:
 		dpms = SYSTEM_CTRL_DPMS_VNHP;
-		pps = PANEL_DISPLAY_CTRL_DATA_DISABLE;
-		crtdb = CRT_DISPLAY_CTRL_BLANK_ON;
+		crtdb = CRT_DISPLAY_CTRL_BLANK;
 		break;
 	case FB_BLANK_HSYNC_SUSPEND:
 		dpms = SYSTEM_CTRL_DPMS_VPHN;
-		pps = PANEL_DISPLAY_CTRL_DATA_DISABLE;
-		crtdb = CRT_DISPLAY_CTRL_BLANK_ON;
+		crtdb = CRT_DISPLAY_CTRL_BLANK;
 		break;
 	case FB_BLANK_POWERDOWN:
 		dpms = SYSTEM_CTRL_DPMS_VNHN;
-		pps = PANEL_DISPLAY_CTRL_DATA_DISABLE;
-		crtdb = CRT_DISPLAY_CTRL_BLANK_ON;
+		crtdb = CRT_DISPLAY_CTRL_BLANK;
 		break;
 	}
 
 	if (output->paths & sm750_crt) {
+		unsigned int val = PEEK32(SYSTEM_CTRL) & ~SYSTEM_CTRL_DPMS_MASK;
 
-		POKE32(SYSTEM_CTRL, FIELD_VALUE(PEEK32(SYSTEM_CTRL), SYSTEM_CTRL, DPMS, dpms));
-		POKE32(CRT_DISPLAY_CTRL, FIELD_VALUE(PEEK32(CRT_DISPLAY_CTRL), CRT_DISPLAY_CTRL, BLANK, crtdb));
+		POKE32(SYSTEM_CTRL, val | dpms);
+
+		val = PEEK32(CRT_DISPLAY_CTRL) & ~CRT_DISPLAY_CTRL_BLANK;
+		POKE32(CRT_DISPLAY_CTRL, val | crtdb);
 	}
 
-	if (output->paths & sm750_panel)
-		POKE32(PANEL_DISPLAY_CTRL, FIELD_VALUE(PEEK32(PANEL_DISPLAY_CTRL), PANEL_DISPLAY_CTRL, DATA, pps));
+	if (output->paths & sm750_panel) {
+		unsigned int val = PEEK32(PANEL_DISPLAY_CTRL);
+
+		val &= ~PANEL_DISPLAY_CTRL_DATA;
+		val |= pps;
+		POKE32(PANEL_DISPLAY_CTRL, val);
+	}
 
 	return 0;
 }
-
 
 void hw_sm750_initAccel(struct sm750_dev *sm750_dev)
 {
@@ -466,23 +471,23 @@ void hw_sm750_initAccel(struct sm750_dev *sm750_dev)
 
 	enable2DEngine(1);
 
-	if (getChipType() == SM750LE) {
+	if (sm750_get_chip_type() == SM750LE) {
 		reg = PEEK32(DE_STATE1);
-		reg = FIELD_SET(reg, DE_STATE1, DE_ABORT, ON);
+		reg |= DE_STATE1_DE_ABORT;
 		POKE32(DE_STATE1, reg);
 
 		reg = PEEK32(DE_STATE1);
-		reg = FIELD_SET(reg, DE_STATE1, DE_ABORT, OFF);
+		reg &= ~DE_STATE1_DE_ABORT;
 		POKE32(DE_STATE1, reg);
 
 	} else {
 		/* engine reset */
 		reg = PEEK32(SYSTEM_CTRL);
-	    reg = FIELD_SET(reg, SYSTEM_CTRL, DE_ABORT, ON);
+		reg |= SYSTEM_CTRL_DE_ABORT;
 		POKE32(SYSTEM_CTRL, reg);
 
 		reg = PEEK32(SYSTEM_CTRL);
-		reg = FIELD_SET(reg, SYSTEM_CTRL, DE_ABORT, OFF);
+		reg &= ~SYSTEM_CTRL_DE_ABORT;
 		POKE32(SYSTEM_CTRL, reg);
 	}
 
@@ -493,43 +498,43 @@ void hw_sm750_initAccel(struct sm750_dev *sm750_dev)
 int hw_sm750le_deWait(void)
 {
 	int i = 0x10000000;
+	unsigned int mask = DE_STATE2_DE_STATUS_BUSY | DE_STATE2_DE_FIFO_EMPTY |
+		DE_STATE2_DE_MEM_FIFO_EMPTY;
 
 	while (i--) {
-		unsigned int dwVal = PEEK32(DE_STATE2);
+		unsigned int val = PEEK32(DE_STATE2);
 
-		if ((FIELD_GET(dwVal, DE_STATE2, DE_STATUS) == DE_STATE2_DE_STATUS_IDLE) &&
-			(FIELD_GET(dwVal, DE_STATE2, DE_FIFO)  == DE_STATE2_DE_FIFO_EMPTY) &&
-			(FIELD_GET(dwVal, DE_STATE2, DE_MEM_FIFO) == DE_STATE2_DE_MEM_FIFO_EMPTY)) {
+		if ((val & mask) ==
+		    (DE_STATE2_DE_FIFO_EMPTY | DE_STATE2_DE_MEM_FIFO_EMPTY))
 			return 0;
-		}
 	}
 	/* timeout error */
 	return -1;
 }
 
-
 int hw_sm750_deWait(void)
 {
 	int i = 0x10000000;
+	unsigned int mask = SYSTEM_CTRL_DE_STATUS_BUSY |
+		SYSTEM_CTRL_DE_FIFO_EMPTY |
+		SYSTEM_CTRL_DE_MEM_FIFO_EMPTY;
 
 	while (i--) {
-		unsigned int dwVal = PEEK32(SYSTEM_CTRL);
+		unsigned int val = PEEK32(SYSTEM_CTRL);
 
-		if ((FIELD_GET(dwVal, SYSTEM_CTRL, DE_STATUS) == SYSTEM_CTRL_DE_STATUS_IDLE) &&
-			(FIELD_GET(dwVal, SYSTEM_CTRL, DE_FIFO)  == SYSTEM_CTRL_DE_FIFO_EMPTY) &&
-			(FIELD_GET(dwVal, SYSTEM_CTRL, DE_MEM_FIFO) == SYSTEM_CTRL_DE_MEM_FIFO_EMPTY)) {
+		if ((val & mask) ==
+		    (SYSTEM_CTRL_DE_FIFO_EMPTY | SYSTEM_CTRL_DE_MEM_FIFO_EMPTY))
 			return 0;
-		}
 	}
 	/* timeout error */
 	return -1;
 }
 
 int hw_sm750_pan_display(struct lynxfb_crtc *crtc,
-	const struct fb_var_screeninfo *var,
-	const struct fb_info *info)
+			 const struct fb_var_screeninfo *var,
+			 const struct fb_info *info)
 {
-	uint32_t total;
+	u32 total;
 	/* check params */
 	if ((var->xoffset + var->xres > var->xres_virtual) ||
 	    (var->yoffset + var->yres > var->yres_virtual)) {
@@ -541,12 +546,12 @@ int hw_sm750_pan_display(struct lynxfb_crtc *crtc,
 	total += crtc->oScreen;
 	if (crtc->channel == sm750_primary) {
 		POKE32(PANEL_FB_ADDRESS,
-			FIELD_VALUE(PEEK32(PANEL_FB_ADDRESS),
-				PANEL_FB_ADDRESS, ADDRESS, total));
+		       PEEK32(PANEL_FB_ADDRESS) |
+		       (total & PANEL_FB_ADDRESS_ADDRESS_MASK));
 	} else {
 		POKE32(CRT_FB_ADDRESS,
-			FIELD_VALUE(PEEK32(CRT_FB_ADDRESS),
-				CRT_FB_ADDRESS, ADDRESS, total));
+		       PEEK32(CRT_FB_ADDRESS) |
+		       (total & CRT_FB_ADDRESS_ADDRESS_MASK));
 	}
 	return 0;
 }

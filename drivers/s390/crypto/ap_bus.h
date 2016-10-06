@@ -262,6 +262,7 @@ void ap_queue_message(struct ap_device *ap_dev, struct ap_message *ap_msg);
 void ap_cancel_message(struct ap_device *ap_dev, struct ap_message *ap_msg);
 void ap_flush_queue(struct ap_device *ap_dev);
 void ap_bus_force_rescan(void);
+void ap_device_init_reply(struct ap_device *ap_dev, struct ap_message *ap_msg);
 
 int ap_module_init(void);
 void ap_module_exit(void);

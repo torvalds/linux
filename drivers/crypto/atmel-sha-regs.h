@@ -8,6 +8,8 @@
 #define SHA_CR_START			(1 << 0)
 #define SHA_CR_FIRST			(1 << 4)
 #define SHA_CR_SWRST			(1 << 8)
+#define SHA_CR_WUIHV			(1 << 12)
+#define SHA_CR_WUIEHV			(1 << 13)
 
 #define SHA_MR				0x04
 #define SHA_MR_MODE_MASK		(0x3 << 0)
@@ -15,6 +17,8 @@
 #define SHA_MR_MODE_AUTO		0x1
 #define SHA_MR_MODE_PDC			0x2
 #define SHA_MR_PROCDLY			(1 << 4)
+#define SHA_MR_UIHV			(1 << 5)
+#define SHA_MR_UIEHV			(1 << 6)
 #define SHA_MR_ALGO_SHA1		(0 << 8)
 #define SHA_MR_ALGO_SHA256		(1 << 8)
 #define SHA_MR_ALGO_SHA384		(2 << 8)

@@ -205,7 +205,7 @@ static u16 b43_generate_tx_phy_ctl1(struct b43_wldev *dev, u8 bitrate)
 	return control;
 }
 
-static u8 b43_calc_fallback_rate(u8 bitrate)
+static u8 b43_calc_fallback_rate(u8 bitrate, int gmode)
 {
 	switch (bitrate) {
 	case B43_CCK_RATE_1MB:
@@ -216,8 +216,15 @@ static u8 b43_calc_fallback_rate(u8 bitrate)
 		return B43_CCK_RATE_2MB;
 	case B43_CCK_RATE_11MB:
 		return B43_CCK_RATE_5MB;
+	/*
+	 * Don't just fallback to CCK; it may be in 5GHz operation
+	 * and falling back to CCK won't work out very well.
+	 */
 	case B43_OFDM_RATE_6MB:
-		return B43_CCK_RATE_5MB;
+		if (gmode)
+			return B43_CCK_RATE_5MB;
+		else
+			return B43_OFDM_RATE_6MB;
 	case B43_OFDM_RATE_9MB:
 		return B43_OFDM_RATE_6MB;
 	case B43_OFDM_RATE_12MB:
@@ -438,7 +445,7 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 
 		rts_rate = rts_cts_rate ? rts_cts_rate->hw_value : B43_CCK_RATE_1MB;
 		rts_rate_ofdm = b43_is_ofdm_rate(rts_rate);
-		rts_rate_fb = b43_calc_fallback_rate(rts_rate);
+		rts_rate_fb = b43_calc_fallback_rate(rts_rate, phy->gmode);
 		rts_rate_fb_ofdm = b43_is_ofdm_rate(rts_rate_fb);
 
 		if (rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT) {
@@ -642,11 +649,7 @@ static s8 b43_rssinoise_postprocess(struct b43_wldev *dev, u8 in_rssi)
 	struct b43_phy *phy = &dev->phy;
 	s8 ret;
 
-	if (phy->type == B43_PHYTYPE_A) {
-		//TODO: Incomplete specs.
-		ret = 0;
-	} else
-		ret = b43_rssi_postprocess(dev, in_rssi, 0, 1, 1);
+	ret = b43_rssi_postprocess(dev, in_rssi, 0, 1, 1);
 
 	return ret;
 }
@@ -663,7 +666,6 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	u16 uninitialized_var(chanstat), uninitialized_var(mactime);
 	u32 uninitialized_var(macstat);
 	u16 chanid;
-	u16 phytype;
 	int padding, rate_idx;
 
 	memset(&status, 0, sizeof(status));
@@ -684,7 +686,6 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 		chanstat = le16_to_cpu(rxhdr->format_351.channel);
 		break;
 	}
-	phytype = chanstat & B43_RX_CHAN_PHYTYPE;
 
 	if (unlikely(macstat & B43_RX_MAC_FCSERR)) {
 		dev->wl->ieee_stats.dot11FCSErrorCount++;
@@ -755,7 +756,6 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 		else
 			status.signal = max(rxhdr->power0, rxhdr->power1);
 		break;
-	case B43_PHYTYPE_A:
 	case B43_PHYTYPE_B:
 	case B43_PHYTYPE_G:
 	case B43_PHYTYPE_LP:
@@ -802,16 +802,8 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 
 	chanid = (chanstat & B43_RX_CHAN_ID) >> B43_RX_CHAN_ID_SHIFT;
 	switch (chanstat & B43_RX_CHAN_PHYTYPE) {
-	case B43_PHYTYPE_A:
-		status.band = IEEE80211_BAND_5GHZ;
-		B43_WARN_ON(1);
-		/* FIXME: We don't really know which value the "chanid" contains.
-		 *        So the following assignment might be wrong. */
-		status.freq =
-			ieee80211_channel_to_frequency(chanid, status.band);
-		break;
 	case B43_PHYTYPE_G:
-		status.band = IEEE80211_BAND_2GHZ;
+		status.band = NL80211_BAND_2GHZ;
 		/* Somewhere between 478.104 and 508.1084 firmware for G-PHY
 		 * has been modified to be compatible with N-PHY and others.
 		 */
@@ -826,9 +818,9 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 		/* chanid is the SHM channel cookie. Which is the plain
 		 * channel number in b43. */
 		if (chanstat & B43_RX_CHAN_5GHZ)
-			status.band = IEEE80211_BAND_5GHZ;
+			status.band = NL80211_BAND_5GHZ;
 		else
-			status.band = IEEE80211_BAND_2GHZ;
+			status.band = NL80211_BAND_2GHZ;
 		status.freq =
 			ieee80211_channel_to_frequency(chanid, status.band);
 		break;

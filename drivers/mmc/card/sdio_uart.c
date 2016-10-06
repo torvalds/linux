@@ -493,7 +493,7 @@ static void sdio_uart_check_modem_status(struct sdio_uart_port *port)
 	if (status & UART_MSR_DCTS) {
 		port->icount.cts++;
 		tty = tty_port_tty_get(&port->port);
-		if (tty && (tty->termios.c_cflag & CRTSCTS)) {
+		if (tty && C_CRTSCTS(tty)) {
 			int cts = (status & UART_MSR_CTS);
 			if (tty->hw_stopped) {
 				if (cts) {
@@ -648,10 +648,10 @@ static int sdio_uart_activate(struct tty_port *tport, struct tty_struct *tty)
 
 	sdio_uart_change_speed(port, &tty->termios, NULL);
 
-	if (tty->termios.c_cflag & CBAUD)
+	if (C_BAUD(tty))
 		sdio_uart_set_mctrl(port, TIOCM_RTS | TIOCM_DTR);
 
-	if (tty->termios.c_cflag & CRTSCTS)
+	if (C_CRTSCTS(tty))
 		if (!(sdio_uart_get_mctrl(port) & TIOCM_CTS))
 			tty->hw_stopped = 1;
 
@@ -833,7 +833,7 @@ static void sdio_uart_throttle(struct tty_struct *tty)
 {
 	struct sdio_uart_port *port = tty->driver_data;
 
-	if (!I_IXOFF(tty) && !(tty->termios.c_cflag & CRTSCTS))
+	if (!I_IXOFF(tty) && !C_CRTSCTS(tty))
 		return;
 
 	if (sdio_uart_claim_func(port) != 0)
@@ -844,7 +844,7 @@ static void sdio_uart_throttle(struct tty_struct *tty)
 		sdio_uart_start_tx(port);
 	}
 
-	if (tty->termios.c_cflag & CRTSCTS)
+	if (C_CRTSCTS(tty))
 		sdio_uart_clear_mctrl(port, TIOCM_RTS);
 
 	sdio_uart_irq(port->func);
@@ -855,7 +855,7 @@ static void sdio_uart_unthrottle(struct tty_struct *tty)
 {
 	struct sdio_uart_port *port = tty->driver_data;
 
-	if (!I_IXOFF(tty) && !(tty->termios.c_cflag & CRTSCTS))
+	if (!I_IXOFF(tty) && !C_CRTSCTS(tty))
 		return;
 
 	if (sdio_uart_claim_func(port) != 0)
@@ -870,7 +870,7 @@ static void sdio_uart_unthrottle(struct tty_struct *tty)
 		}
 	}
 
-	if (tty->termios.c_cflag & CRTSCTS)
+	if (C_CRTSCTS(tty))
 		sdio_uart_set_mctrl(port, TIOCM_RTS);
 
 	sdio_uart_irq(port->func);
@@ -895,7 +895,7 @@ static void sdio_uart_set_termios(struct tty_struct *tty,
 	/* Handle transition away from B0 status */
 	if (!(old_termios->c_cflag & CBAUD) && (cflag & CBAUD)) {
 		unsigned int mask = TIOCM_DTR;
-		if (!(cflag & CRTSCTS) || !test_bit(TTY_THROTTLED, &tty->flags))
+		if (!(cflag & CRTSCTS) || !tty_throttled(tty))
 			mask |= TIOCM_RTS;
 		sdio_uart_set_mctrl(port, mask);
 	}

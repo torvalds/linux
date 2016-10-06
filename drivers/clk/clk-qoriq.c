@@ -766,7 +766,11 @@ static struct clk * __init create_one_cmux(struct clockgen *cg, int idx)
 	if (!hwc)
 		return NULL;
 
-	hwc->reg = cg->regs + 0x20 * idx;
+	if (cg->info.flags & CG_VER3)
+		hwc->reg = cg->regs + 0x70000 + 0x20 * idx;
+	else
+		hwc->reg = cg->regs + 0x20 * idx;
+
 	hwc->info = cg->info.cmux_groups[cg->info.cmux_to_group[idx]];
 
 	/*
@@ -869,14 +873,15 @@ static void __init core_mux_init(struct device_node *np)
 	}
 }
 
-static struct clk *sysclk_from_fixed(struct device_node *node, const char *name)
+static struct clk __init
+*sysclk_from_fixed(struct device_node *node, const char *name)
 {
 	u32 rate;
 
 	if (of_property_read_u32(node, "clock-frequency", &rate))
 		return ERR_PTR(-ENODEV);
 
-	return clk_register_fixed_rate(NULL, name, NULL, CLK_IS_ROOT, rate);
+	return clk_register_fixed_rate(NULL, name, NULL, 0, rate);
 }
 
 static struct clk *sysclk_from_parent(const char *name)

@@ -1,9 +1,29 @@
 #ifndef __PERF_ENV_H
 #define __PERF_ENV_H
 
+#include <linux/types.h>
+#include "cpumap.h"
+
 struct cpu_topology_map {
 	int	socket_id;
 	int	core_id;
+};
+
+struct cpu_cache_level {
+	u32	level;
+	u32	line_size;
+	u32	sets;
+	u32	ways;
+	char	*type;
+	char	*size;
+	char	*map;
+};
+
+struct numa_node {
+	u32		 node;
+	u64		 mem_total;
+	u64		 mem_free;
+	struct cpu_map	*map;
 };
 
 struct perf_env {
@@ -28,9 +48,11 @@ struct perf_env {
 	const char		**cmdline_argv;
 	char			*sibling_cores;
 	char			*sibling_threads;
-	char			*numa_nodes;
 	char			*pmu_mappings;
 	struct cpu_topology_map	*cpu;
+	struct cpu_cache_level	*caches;
+	int			 caches_cnt;
+	struct numa_node	*numa_nodes;
 };
 
 extern struct perf_env perf_env;
@@ -41,4 +63,5 @@ int perf_env__set_cmdline(struct perf_env *env, int argc, const char *argv[]);
 
 int perf_env__read_cpu_topology_map(struct perf_env *env);
 
+void cpu_cache_level__free(struct cpu_cache_level *cache);
 #endif /* __PERF_ENV_H */

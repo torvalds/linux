@@ -35,6 +35,7 @@
 #define DASD_ECKD_CCW_READ_MT		 0x86
 #define DASD_ECKD_CCW_WRITE_KD_MT	 0x8d
 #define DASD_ECKD_CCW_READ_KD_MT	 0x8e
+#define DASD_ECKD_CCW_READ_COUNT_MT	 0x92
 #define DASD_ECKD_CCW_RELEASE		 0x94
 #define DASD_ECKD_CCW_WRITE_FULL_TRACK	 0x95
 #define DASD_ECKD_CCW_READ_CKD_MT	 0x9e
@@ -53,6 +54,7 @@
  */
 #define PSF_ORDER_PRSSD			 0x18
 #define PSF_ORDER_CUIR_RESPONSE		 0x1A
+#define PSF_SUBORDER_QHA		 0x1C
 #define PSF_ORDER_SSC			 0x1D
 
 /*
@@ -80,6 +82,8 @@
  */
 #define ATTENTION_LENGTH_CUIR		 0x0e
 #define ATTENTION_FORMAT_CUIR		 0x01
+
+#define DASD_ECKD_PG_GROUPED		 0x10
 
 /*
  * Size that is reportet for large volumes in the old 16-bit no_cyl field
@@ -403,13 +407,41 @@ struct dasd_psf_cuir_response {
 	__u8 ssid;
 } __packed;
 
+struct dasd_ckd_path_group_entry {
+	__u8 status_flags;
+	__u8 pgid[11];
+	__u8 sysplex_name[8];
+	__u32 timestamp;
+	__u32 cylinder;
+	__u8 reserved[4];
+} __packed;
+
+struct dasd_ckd_host_information {
+	__u8 access_flags;
+	__u8 entry_size;
+	__u16 entry_count;
+	__u8 entry[16390];
+} __packed;
+
+struct dasd_psf_query_host_access {
+	__u8 access_flag;
+	__u8 version;
+	__u16 CKD_length;
+	__u16 SCSI_length;
+	__u8 unused[10];
+	__u8 host_access_information[16394];
+} __packed;
+
 /*
  * Perform Subsystem Function - Prepare for Read Subsystem Data
  */
 struct dasd_psf_prssd_data {
 	unsigned char order;
 	unsigned char flags;
-	unsigned char reserved[4];
+	unsigned char reserved1;
+	unsigned char reserved2;
+	unsigned char lss;
+	unsigned char volume;
 	unsigned char suborder;
 	unsigned char varies[5];
 } __attribute__ ((packed));
@@ -525,6 +557,7 @@ struct dasd_eckd_private {
 	int count;
 
 	u32 fcx_max_data;
+	char suc_reason;
 };
 
 
@@ -534,7 +567,7 @@ void dasd_alias_disconnect_device_from_lcu(struct dasd_device *);
 int dasd_alias_add_device(struct dasd_device *);
 int dasd_alias_remove_device(struct dasd_device *);
 struct dasd_device *dasd_alias_get_start_dev(struct dasd_device *);
-void dasd_alias_handle_summary_unit_check(struct dasd_device *, struct irb *);
+void dasd_alias_handle_summary_unit_check(struct work_struct *);
 void dasd_eckd_reset_ccw_to_base_io(struct dasd_ccw_req *);
 void dasd_alias_lcu_setup_complete(struct dasd_device *);
 void dasd_alias_wait_for_lcu_setup(struct dasd_device *);

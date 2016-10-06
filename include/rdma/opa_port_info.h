@@ -33,11 +33,6 @@
 #if !defined(OPA_PORT_INFO_H)
 #define OPA_PORT_INFO_H
 
-/* Temporary until HFI driver is updated */
-#ifndef USE_PI_LED_ENABLE
-#define USE_PI_LED_ENABLE 0
-#endif
-
 #define OPA_PORT_LINK_MODE_NOP	0		/* No change */
 #define OPA_PORT_LINK_MODE_OPA	4		/* Port mode is OPA */
 
@@ -97,7 +92,7 @@
 #define OPA_LINKDOWN_REASON_WIDTH_POLICY			41
 /* 42-48 reserved */
 #define OPA_LINKDOWN_REASON_DISCONNECTED			49
-#define OPA_LINKDOWN_REASONLOCAL_MEDIA_NOT_INSTALLED		50
+#define OPA_LINKDOWN_REASON_LOCAL_MEDIA_NOT_INSTALLED		50
 #define OPA_LINKDOWN_REASON_NOT_INSTALLED			51
 #define OPA_LINKDOWN_REASON_CHASSIS_CONFIG			52
 /* 53 reserved */
@@ -274,23 +269,12 @@ enum port_info_field_masks {
 	OPA_PI_MASK_MTU_CAP                       = 0x0F,
 };
 
-#if USE_PI_LED_ENABLE
 struct opa_port_states {
 	u8     reserved;
 	u8     ledenable_offlinereason;   /* 1 res, 1 bit, 6 bits */
 	u8     reserved2;
 	u8     portphysstate_portstate;   /* 4 bits, 4 bits */
 };
-#define PI_LED_ENABLE_SUP 1
-#else
-struct opa_port_states {
-	u8     reserved;
-	u8     offline_reason;            /* 2 res, 6 bits */
-	u8     reserved2;
-	u8     portphysstate_portstate;   /* 4 bits, 4 bits */
-};
-#define PI_LED_ENABLE_SUP 0
-#endif
 
 struct opa_port_state_info {
 	struct opa_port_states port_states;

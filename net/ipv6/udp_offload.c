@@ -36,19 +36,6 @@ static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb,
 
 	if (skb_gso_ok(skb, features | NETIF_F_GSO_ROBUST)) {
 		/* Packet is from an untrusted source, reset gso_segs. */
-		int type = skb_shinfo(skb)->gso_type;
-
-		if (unlikely(type & ~(SKB_GSO_UDP |
-				      SKB_GSO_DODGY |
-				      SKB_GSO_UDP_TUNNEL |
-				      SKB_GSO_UDP_TUNNEL_CSUM |
-				      SKB_GSO_TUNNEL_REMCSUM |
-				      SKB_GSO_GRE |
-				      SKB_GSO_GRE_CSUM |
-				      SKB_GSO_IPIP |
-				      SKB_GSO_SIT) ||
-			     !(type & (SKB_GSO_UDP))))
-			goto out;
 
 		skb_shinfo(skb)->gso_segs = DIV_ROUND_UP(skb->len, mss);
 
@@ -81,11 +68,17 @@ static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb,
 		csum = skb_checksum(skb, 0, skb->len, 0);
 		uh->check = udp_v6_check(skb->len, &ipv6h->saddr,
 					  &ipv6h->daddr, csum);
-
 		if (uh->check == 0)
 			uh->check = CSUM_MANGLED_0;
 
 		skb->ip_summed = CHECKSUM_NONE;
+
+		/* If there is no outer header we can fake a checksum offload
+		 * due to the fact that we have already done the checksum in
+		 * software prior to segmenting the frame.
+		 */
+		if (!skb->encap_hdr_csum)
+			features |= NETIF_F_HW_CSUM;
 
 		/* Check if there is enough headroom to insert fragment header. */
 		tnl_hlen = skb_tnl_header_len(skb);
@@ -147,7 +140,7 @@ static struct sk_buff **udp6_gro_receive(struct sk_buff **head,
 
 skip:
 	NAPI_GRO_CB(skb)->is_ipv6 = 1;
-	return udp_gro_receive(head, skb, uh);
+	return udp_gro_receive(head, skb, uh, udp6_lib_lookup_skb);
 
 flush:
 	NAPI_GRO_CB(skb)->flush = 1;
@@ -167,7 +160,7 @@ static int udp6_gro_complete(struct sk_buff *skb, int nhoff)
 		skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_TUNNEL;
 	}
 
-	return udp_gro_complete(skb, nhoff);
+	return udp_gro_complete(skb, nhoff, udp6_lib_lookup_skb);
 }
 
 static const struct net_offload udpv6_offload = {
@@ -178,7 +171,12 @@ static const struct net_offload udpv6_offload = {
 	},
 };
 
-int __init udp_offload_init(void)
+int udpv6_offload_init(void)
 {
 	return inet6_add_offload(&udpv6_offload, IPPROTO_UDP);
+}
+
+int udpv6_offload_exit(void)
+{
+	return inet6_del_offload(&udpv6_offload, IPPROTO_UDP);
 }

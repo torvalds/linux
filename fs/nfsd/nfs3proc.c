@@ -147,6 +147,7 @@ nfsd3_proc_read(struct svc_rqst *rqstp, struct nfsd3_readargs *argp,
 {
 	__be32	nfserr;
 	u32	max_blocksize = svc_max_payload(rqstp);
+	unsigned long cnt = min(argp->count, max_blocksize);
 
 	dprintk("nfsd: READ(3) %s %lu bytes at %Lu\n",
 				SVCFH_fmt(&argp->fh),
@@ -157,7 +158,7 @@ nfsd3_proc_read(struct svc_rqst *rqstp, struct nfsd3_readargs *argp,
 	 * 1 (status) + 22 (post_op_attr) + 1 (count) + 1 (eof)
 	 * + 1 (xdr opaque byte count) = 26
 	 */
-	resp->count = min(argp->count, max_blocksize);
+	resp->count = cnt;
 	svc_reserve_auth(rqstp, ((1 + NFS3_POST_OP_ATTR_WORDS + 3)<<2) + resp->count +4);
 
 	fh_copy(&resp->fh, &argp->fh);
@@ -167,8 +168,8 @@ nfsd3_proc_read(struct svc_rqst *rqstp, struct nfsd3_readargs *argp,
 				  &resp->count);
 	if (nfserr == 0) {
 		struct inode	*inode = d_inode(resp->fh.fh_dentry);
-
-		resp->eof = (argp->offset + resp->count) >= inode->i_size;
+		resp->eof = nfsd_eof_on_read(cnt, resp->count, argp->offset,
+							inode->i_size);
 	}
 
 	RETURN_STATUS(nfserr);
@@ -551,7 +552,7 @@ nfsd3_proc_fsinfo(struct svc_rqst * rqstp, struct nfsd_fhandle    *argp,
 	 * different read/write sizes for file systems known to have
 	 * problems with large blocks */
 	if (nfserr == 0) {
-		struct super_block *sb = d_inode(argp->fh.fh_dentry)->i_sb;
+		struct super_block *sb = argp->fh.fh_dentry->d_sb;
 
 		/* Note that we don't care for remote fs's here */
 		if (sb->s_magic == MSDOS_SUPER_MAGIC) {
@@ -587,7 +588,7 @@ nfsd3_proc_pathconf(struct svc_rqst * rqstp, struct nfsd_fhandle      *argp,
 	nfserr = fh_verify(rqstp, &argp->fh, 0, NFSD_MAY_NOP);
 
 	if (nfserr == 0) {
-		struct super_block *sb = d_inode(argp->fh.fh_dentry)->i_sb;
+		struct super_block *sb = argp->fh.fh_dentry->d_sb;
 
 		/* Note that we don't care for remote fs's here */
 		switch (sb->s_magic) {

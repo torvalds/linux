@@ -70,10 +70,22 @@ config BCMA_DRIVER_MIPS
 
 	  If unsure, say N
 
-config BCMA_SFLASH
+config BCMA_PFLASH
 	bool
 	depends on BCMA_DRIVER_MIPS
 	default y
+
+config BCMA_SFLASH
+	bool "ChipCommon-attached serial flash support"
+	depends on BCMA_HOST_SOC
+	default y
+	help
+	  Some cheap devices have serial flash connected to the ChipCommon
+	  instead of independent SPI controller. It requires using a separated
+	  driver that implements ChipCommon specific interface communication.
+
+	  Enabling this symbol will let bcma recognize serial flash and register
+	  it as platform device.
 
 config BCMA_NFLASH
 	bool

@@ -734,7 +734,7 @@ static void nci_nfcee_discover_ntf_packet(struct nci_dev *ndev,
 	 * “HCI Access”, even if the HCI Network contains multiple NFCEEs.
 	 */
 	ndev->hci_dev->nfcee_id = nfcee_ntf->nfcee_id;
-	ndev->cur_id = nfcee_ntf->nfcee_id;
+	ndev->cur_params.id = nfcee_ntf->nfcee_id;
 
 	nci_req_complete(ndev, status);
 }

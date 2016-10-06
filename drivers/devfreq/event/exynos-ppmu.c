@@ -406,8 +406,6 @@ static int of_get_devfreq_events(struct device_node *np,
 		of_property_read_string(node, "event-name", &desc[j].name);
 
 		j++;
-
-		of_node_put(node);
 	}
 	info->desc = desc;
 
@@ -482,7 +480,8 @@ static int exynos_ppmu_probe(struct platform_device *pdev)
 	if (!info->edev) {
 		dev_err(&pdev->dev,
 			"failed to allocate memory devfreq-event devices\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err;
 	}
 	edev = info->edev;
 	platform_set_drvdata(pdev, info);

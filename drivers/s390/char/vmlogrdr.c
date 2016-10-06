@@ -343,8 +343,7 @@ static int vmlogrdr_open (struct inode *inode, struct file *filp)
 	if (logptr->autorecording) {
 		ret = vmlogrdr_recording(logptr,1,logptr->autopurge);
 		if (ret)
-			pr_warning("vmlogrdr: failed to start "
-				   "recording automatically\n");
+			pr_warn("vmlogrdr: failed to start recording automatically\n");
 	}
 
 	/* create connection to the system service */
@@ -396,8 +395,7 @@ static int vmlogrdr_release (struct inode *inode, struct file *filp)
 	if (logptr->autorecording) {
 		ret = vmlogrdr_recording(logptr,0,logptr->autopurge);
 		if (ret)
-			pr_warning("vmlogrdr: failed to stop "
-				   "recording automatically\n");
+			pr_warn("vmlogrdr: failed to stop recording automatically\n");
 	}
 	logptr->dev_in_use = 0;
 

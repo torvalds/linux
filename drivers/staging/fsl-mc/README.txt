@@ -11,11 +11,11 @@ Contents summary
    -Overview of DPAA2 objects
    -DPAA2 Linux driver architecture overview
         -bus driver
-        -dprc driver
+        -DPRC driver
         -allocator
-        -dpio driver
+        -DPIO driver
         -Ethernet
-        -mac
+        -MAC
 
 DPAA2 Overview
 --------------
@@ -36,6 +36,9 @@ interfaces, an L2 switch, or accelerator instances.
 
 The MC provides memory-mapped I/O command interfaces (MC portals)
 which DPAA2 software drivers use to operate on DPAA2 objects:
+
+The diagram below shows an overview of the DPAA2 resource management
+architecture:
 
          +--------------------------------------+
          |                  OS                  |
@@ -77,13 +80,13 @@ DPIO objects.
 
 Overview of DPAA2 Objects
 -------------------------
-The section provides a brief overview of some key objects
-in the DPAA2 hardware.  A simple scenario is described illustrating
-the objects involved in creating a network interfaces.
+The section provides a brief overview of some key DPAA2 objects.
+A simple scenario is described illustrating the objects involved
+in creating a network interfaces.
 
 -DPRC (Datapath Resource Container)
 
-    A DPRC is an container object that holds all the other
+    A DPRC is a container object that holds all the other
     types of DPAA2 objects.  In the example diagram below there
     are 8 objects of 5 types (DPMCP, DPIO, DPBP, DPNI, and DPMAC)
     in the container.
@@ -101,23 +104,23 @@ the objects involved in creating a network interfaces.
     |                                                         |
     +---------------------------------------------------------+
 
-    From the point of view of an OS, a DPRC is bus-like.  Like
-    a plug-and-play bus, such as PCI, DPRC commands can be used to
-    enumerate the contents of the DPRC, discover the hardware
-    objects present (including mappable regions and interrupts).
+    From the point of view of an OS, a DPRC behaves similar to a plug and
+    play bus, like PCI.  DPRC commands can be used to enumerate the contents
+    of the DPRC, discover the hardware objects present (including mappable
+    regions and interrupts).
 
-     dprc.1 (bus)
+     DPRC.1 (bus)
        |
        +--+--------+-------+-------+-------+
           |        |       |       |       |
-        dpmcp.1  dpio.1  dpbp.1  dpni.1  dpmac.1
-        dpmcp.2  dpio.2
-        dpmcp.3
+        DPMCP.1  DPIO.1  DPBP.1  DPNI.1  DPMAC.1
+        DPMCP.2  DPIO.2
+        DPMCP.3
 
     Hardware objects can be created and destroyed dynamically, providing
     the ability to hot plug/unplug objects in and out of the DPRC.
 
-    A DPRC has a mappable mmio region (an MC portal) that can be used
+    A DPRC has a mappable MMIO region (an MC portal) that can be used
     to send MC commands.  It has an interrupt for status events (like
     hotplug).
 
@@ -137,10 +140,11 @@ the objects involved in creating a network interfaces.
     A typical Ethernet NIC is monolithic-- the NIC device contains TX/RX
     queuing mechanisms, configuration mechanisms, buffer management,
     physical ports, and interrupts.  DPAA2 uses a more granular approach
-    utilizing multiple hardware objects.  Each object has specialized
-    functions, and are used together by software to provide Ethernet network
-    interface functionality.  This approach provides efficient use of finite
-    hardware resources, flexibility, and performance advantages.
+    utilizing multiple hardware objects.  Each object provides specialized
+    functions. Groups of these objects are used by software to provide
+    Ethernet network interface functionality.  This approach provides
+    efficient use of finite hardware resources, flexibility, and
+    performance advantages.
 
     The diagram below shows the objects needed for a simple
     network interface configuration on a system with 2 CPUs.
@@ -168,46 +172,52 @@ the objects involved in creating a network interfaces.
 
     Below the objects are described.  For each object a brief description
     is provided along with a summary of the kinds of operations the object
-    supports and a summary of key resources of the object (mmio regions
-    and irqs).
+    supports and a summary of key resources of the object (MMIO regions
+    and IRQs).
 
        -DPMAC (Datapath Ethernet MAC): represents an Ethernet MAC, a
         hardware device that connects to an Ethernet PHY and allows
         physical transmission and reception of Ethernet frames.
-           -mmio regions: none
-           -irqs: dpni link change
+           -MMIO regions: none
+           -IRQs: DPNI link change
            -commands: set link up/down, link config, get stats,
-             irq config, enable, reset
+            IRQ config, enable, reset
 
        -DPNI (Datapath Network Interface): contains TX/RX queues,
-        network interface configuration, and rx buffer pool configuration
-        mechanisms.
-           -mmio regions: none
-           -irqs: link state
+        network interface configuration, and RX buffer pool configuration
+        mechanisms.  The TX/RX queues are in memory and are identified by
+        queue number.
+           -MMIO regions: none
+           -IRQs: link state
            -commands: port config, offload config, queue config,
-            parse/classify config, irq config, enable, reset
+            parse/classify config, IRQ config, enable, reset
 
        -DPIO (Datapath I/O): provides interfaces to enqueue and dequeue
-        packets and do hardware buffer pool management operations.  For
-        optimum performance there is typically DPIO per CPU.  This allows
-        each CPU to perform simultaneous enqueue/dequeue operations.
-           -mmio regions: queue operations, buffer mgmt
-           -irqs: data availability, congestion notification, buffer
+        packets and do hardware buffer pool management operations.  The DPAA2
+        architecture separates the mechanism to access queues (the DPIO object)
+        from the queues themselves.  The DPIO provides an MMIO interface to
+        enqueue/dequeue packets.  To enqueue something a descriptor is written
+        to the DPIO MMIO region, which includes the target queue number.
+        There will typically be one DPIO assigned to each CPU.  This allows all
+        CPUs to simultaneously perform enqueue/dequeued operations.  DPIOs are
+        expected to be shared by different DPAA2 drivers.
+           -MMIO regions: queue operations, buffer management
+           -IRQs: data availability, congestion notification, buffer
                   pool depletion
-           -commands: irq config, enable, reset
+           -commands: IRQ config, enable, reset
 
        -DPBP (Datapath Buffer Pool): represents a hardware buffer
         pool.
-           -mmio regions: none
-           -irqs: none
+           -MMIO regions: none
+           -IRQs: none
            -commands: enable, reset
 
        -DPMCP (Datapath MC Portal): provides an MC command portal.
         Used by drivers to send commands to the MC to manage
         objects.
-           -mmio regions: MC command portal
-           -irqs: command completion
-           -commands: irq config, enable, reset
+           -MMIO regions: MC command portal
+           -IRQs: command completion
+           -commands: IRQ config, enable, reset
 
     Object Connections
     ------------------
@@ -268,22 +278,22 @@ of each driver follows.
                                              |   Stack    |
                  +------------+              +------------+
                  | Allocator  |. . . . . . . |  Ethernet  |
-                 |(dpmcp,dpbp)|              |   (dpni)   |
+                 |(DPMCP,DPBP)|              |   (DPNI)   |
                  +-.----------+              +---+---+----+
                   .          .                   ^   |
                  .            .     <data avail, |   |<enqueue,
                 .              .     tx confirm> |   | dequeue>
     +-------------+             .                |   |
     | DPRC driver |              .           +---+---V----+     +---------+
-    |   (dprc)    |               . . . . . .| DPIO driver|     |   MAC   |
-    +----------+--+                          |  (dpio)    |     | (dpmac) |
+    |   (DPRC)    |               . . . . . .| DPIO driver|     |   MAC   |
+    +----------+--+                          |  (DPIO)    |     | (DPMAC) |
                |                             +------+-----+     +-----+---+
                |<dev add/remove>                    |                 |
                |                                    |                 |
           +----+--------------+                     |              +--+---+
-          |   mc-bus driver   |                     |              | PHY  |
+          |   MC-bus driver   |                     |              | PHY  |
           |                   |                     |              |driver|
-          | /fsl-mc@80c000000 |                     |              +--+---+
+          | /soc/fsl-mc       |                     |              +--+---+
           +-------------------+                     |                 |
                                                     |                 |
  ================================ HARDWARE =========|=================|======
@@ -298,25 +308,27 @@ of each driver follows.
 
 A brief description of each driver is provided below.
 
-    mc-bus driver
+    MC-bus driver
     -------------
-    The mc-bus driver is a platform driver and is probed from an
-    "/fsl-mc@xxxx" node in the device tree passed in by boot firmware.
-    It is responsible for bootstrapping the DPAA2 kernel infrastructure.
+    The MC-bus driver is a platform driver and is probed from a
+    node in the device tree (compatible "fsl,qoriq-mc") passed in by boot
+    firmware.  It is responsible for bootstrapping the DPAA2 kernel
+    infrastructure.
     Key functions include:
        -registering a new bus type named "fsl-mc" with the kernel,
         and implementing bus call-backs (e.g. match/uevent/dev_groups)
-       -implemeting APIs for DPAA2 driver registration and for device
+       -implementing APIs for DPAA2 driver registration and for device
         add/remove
-       -creates an MSI irq domain
-       -do a device add of the 'root' DPRC device, which is needed
-        to bootstrap things
+       -creates an MSI IRQ domain
+       -doing a 'device add' to expose the 'root' DPRC, in turn triggering
+        a bind of the root DPRC to the DPRC driver
 
     DPRC driver
     -----------
-    The dprc-driver is bound DPRC objects and does runtime management
+    The DPRC driver is bound to DPRC objects and does runtime management
     of a bus instance.  It performs the initial bus scan of the DPRC
-    and handles interrupts for container events such as hot plug.
+    and handles interrupts for container events such as hot plug by
+    re-scanning the DPRC.
 
     Allocator
     ----------
@@ -334,14 +346,20 @@ A brief description of each driver is provided below.
     DPIO driver
     -----------
     The DPIO driver is bound to DPIO objects and provides services that allow
-    other drivers such as the Ethernet driver to receive and transmit data.
+    other drivers such as the Ethernet driver to enqueue and dequeue data for
+    their respective objects.
     Key services include:
         -data availability notifications
         -hardware queuing operations (enqueue and dequeue of data)
         -hardware buffer pool management
 
+    To transmit a packet the Ethernet driver puts data on a queue and
+    invokes a DPIO API.  For receive, the Ethernet driver registers
+    a data availability notification callback.  To dequeue a packet
+    a DPIO API is used.
+
     There is typically one DPIO object per physical CPU for optimum
-    performance, allowing each CPU to simultaneously enqueue
+    performance, allowing different CPUs to simultaneously enqueue
     and dequeue data.
 
     The DPIO driver operates on behalf of all DPAA2 drivers
@@ -362,3 +380,7 @@ A brief description of each driver is provided below.
     by the appropriate PHY driver via an mdio bus.  The MAC driver
     plays a role of being a proxy between the PHY driver and the
     MC.  It does this proxy via the MC commands to a DPMAC object.
+    If the PHY driver signals a link change, the MAC driver notifies
+    the MC via a DPMAC command.  If a network interface is brought
+    up or down, the MC notifies the DPMAC driver via an interrupt and
+    the driver can take appropriate action.

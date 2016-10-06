@@ -1212,7 +1212,7 @@ static int wm9713_soc_probe(struct snd_soc_codec *codec)
 	if (IS_ERR(wm9713->ac97))
 		return PTR_ERR(wm9713->ac97);
 
-	regmap = devm_regmap_init_ac97(wm9713->ac97, &wm9713_regmap_config);
+	regmap = regmap_init_ac97(wm9713->ac97, &wm9713_regmap_config);
 	if (IS_ERR(regmap)) {
 		snd_soc_free_ac97_codec(wm9713->ac97);
 		return PTR_ERR(regmap);
@@ -1235,19 +1235,21 @@ static int wm9713_soc_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm9713 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm9713 = {
 	.probe = 	wm9713_soc_probe,
 	.remove = 	wm9713_soc_remove,
 	.suspend =	wm9713_soc_suspend,
 	.resume = 	wm9713_soc_resume,
 	.set_bias_level = wm9713_set_bias_level,
 
-	.controls = wm9713_snd_ac97_controls,
-	.num_controls = ARRAY_SIZE(wm9713_snd_ac97_controls),
-	.dapm_widgets = wm9713_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm9713_dapm_widgets),
-	.dapm_routes = wm9713_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(wm9713_audio_map),
+	.component_driver = {
+		.controls		= wm9713_snd_ac97_controls,
+		.num_controls		= ARRAY_SIZE(wm9713_snd_ac97_controls),
+		.dapm_widgets		= wm9713_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm9713_dapm_widgets),
+		.dapm_routes		= wm9713_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(wm9713_audio_map),
+	},
 };
 
 static int wm9713_probe(struct platform_device *pdev)

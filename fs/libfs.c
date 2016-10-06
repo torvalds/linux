@@ -25,7 +25,7 @@ int simple_getattr(struct vfsmount *mnt, struct dentry *dentry,
 {
 	struct inode *inode = d_inode(dentry);
 	generic_fillattr(inode, stat);
-	stat->blocks = inode->i_mapping->nrpages << (PAGE_CACHE_SHIFT - 9);
+	stat->blocks = inode->i_mapping->nrpages << (PAGE_SHIFT - 9);
 	return 0;
 }
 EXPORT_SYMBOL(simple_getattr);
@@ -33,7 +33,7 @@ EXPORT_SYMBOL(simple_getattr);
 int simple_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	buf->f_type = dentry->d_sb->s_magic;
-	buf->f_bsize = PAGE_CACHE_SIZE;
+	buf->f_bsize = PAGE_SIZE;
 	buf->f_namelen = NAME_MAX;
 	return 0;
 }
@@ -71,9 +71,7 @@ EXPORT_SYMBOL(simple_lookup);
 
 int dcache_dir_open(struct inode *inode, struct file *file)
 {
-	static struct qstr cursor_name = QSTR_INIT(".", 1);
-
-	file->private_data = d_alloc(file->f_path.dentry, &cursor_name);
+	file->private_data = d_alloc_cursor(file->f_path.dentry);
 
 	return file->private_data ? 0 : -ENOMEM;
 }
@@ -86,10 +84,64 @@ int dcache_dir_close(struct inode *inode, struct file *file)
 }
 EXPORT_SYMBOL(dcache_dir_close);
 
+/* parent is locked at least shared */
+static struct dentry *next_positive(struct dentry *parent,
+				    struct list_head *from,
+				    int count)
+{
+	unsigned *seq = &parent->d_inode->i_dir_seq, n;
+	struct dentry *res;
+	struct list_head *p;
+	bool skipped;
+	int i;
+
+retry:
+	i = count;
+	skipped = false;
+	n = smp_load_acquire(seq) & ~1;
+	res = NULL;
+	rcu_read_lock();
+	for (p = from->next; p != &parent->d_subdirs; p = p->next) {
+		struct dentry *d = list_entry(p, struct dentry, d_child);
+		if (!simple_positive(d)) {
+			skipped = true;
+		} else if (!--i) {
+			res = d;
+			break;
+		}
+	}
+	rcu_read_unlock();
+	if (skipped) {
+		smp_rmb();
+		if (unlikely(*seq != n))
+			goto retry;
+	}
+	return res;
+}
+
+static void move_cursor(struct dentry *cursor, struct list_head *after)
+{
+	struct dentry *parent = cursor->d_parent;
+	unsigned n, *seq = &parent->d_inode->i_dir_seq;
+	spin_lock(&parent->d_lock);
+	for (;;) {
+		n = *seq;
+		if (!(n & 1) && cmpxchg(seq, n, n + 1) == n)
+			break;
+		cpu_relax();
+	}
+	__list_del(cursor->d_child.prev, cursor->d_child.next);
+	if (after)
+		list_add(&cursor->d_child, after);
+	else
+		list_add_tail(&cursor->d_child, &parent->d_subdirs);
+	smp_store_release(seq, n + 2);
+	spin_unlock(&parent->d_lock);
+}
+
 loff_t dcache_dir_lseek(struct file *file, loff_t offset, int whence)
 {
 	struct dentry *dentry = file->f_path.dentry;
-	inode_lock(d_inode(dentry));
 	switch (whence) {
 		case 1:
 			offset += file->f_pos;
@@ -97,34 +149,21 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int whence)
 			if (offset >= 0)
 				break;
 		default:
-			inode_unlock(d_inode(dentry));
 			return -EINVAL;
 	}
 	if (offset != file->f_pos) {
 		file->f_pos = offset;
 		if (file->f_pos >= 2) {
-			struct list_head *p;
 			struct dentry *cursor = file->private_data;
+			struct dentry *to;
 			loff_t n = file->f_pos - 2;
 
-			spin_lock(&dentry->d_lock);
-			/* d_lock not required for cursor */
-			list_del(&cursor->d_child);
-			p = dentry->d_subdirs.next;
-			while (n && p != &dentry->d_subdirs) {
-				struct dentry *next;
-				next = list_entry(p, struct dentry, d_child);
-				spin_lock_nested(&next->d_lock, DENTRY_D_LOCK_NESTED);
-				if (simple_positive(next))
-					n--;
-				spin_unlock(&next->d_lock);
-				p = p->next;
-			}
-			list_add_tail(&cursor->d_child, p);
-			spin_unlock(&dentry->d_lock);
+			inode_lock_shared(dentry->d_inode);
+			to = next_positive(dentry, &dentry->d_subdirs, n);
+			move_cursor(cursor, to ? &to->d_child : NULL);
+			inode_unlock_shared(dentry->d_inode);
 		}
 	}
-	inode_unlock(d_inode(dentry));
 	return offset;
 }
 EXPORT_SYMBOL(dcache_dir_lseek);
@@ -145,36 +184,25 @@ int dcache_readdir(struct file *file, struct dir_context *ctx)
 {
 	struct dentry *dentry = file->f_path.dentry;
 	struct dentry *cursor = file->private_data;
-	struct list_head *p, *q = &cursor->d_child;
+	struct list_head *p = &cursor->d_child;
+	struct dentry *next;
+	bool moved = false;
 
 	if (!dir_emit_dots(file, ctx))
 		return 0;
-	spin_lock(&dentry->d_lock);
+
 	if (ctx->pos == 2)
-		list_move(q, &dentry->d_subdirs);
-
-	for (p = q->next; p != &dentry->d_subdirs; p = p->next) {
-		struct dentry *next = list_entry(p, struct dentry, d_child);
-		spin_lock_nested(&next->d_lock, DENTRY_D_LOCK_NESTED);
-		if (!simple_positive(next)) {
-			spin_unlock(&next->d_lock);
-			continue;
-		}
-
-		spin_unlock(&next->d_lock);
-		spin_unlock(&dentry->d_lock);
+		p = &dentry->d_subdirs;
+	while ((next = next_positive(dentry, p, 1)) != NULL) {
 		if (!dir_emit(ctx, next->d_name.name, next->d_name.len,
 			      d_inode(next)->i_ino, dt_type(d_inode(next))))
-			return 0;
-		spin_lock(&dentry->d_lock);
-		spin_lock_nested(&next->d_lock, DENTRY_D_LOCK_NESTED);
-		/* next is still alive */
-		list_move(q, p);
-		spin_unlock(&next->d_lock);
-		p = q;
+			break;
+		moved = true;
+		p = &next->d_child;
 		ctx->pos++;
 	}
-	spin_unlock(&dentry->d_lock);
+	if (moved)
+		move_cursor(cursor, p);
 	return 0;
 }
 EXPORT_SYMBOL(dcache_readdir);
@@ -190,7 +218,7 @@ const struct file_operations simple_dir_operations = {
 	.release	= dcache_dir_close,
 	.llseek		= dcache_dir_lseek,
 	.read		= generic_read_dir,
-	.iterate	= dcache_readdir,
+	.iterate_shared	= dcache_readdir,
 	.fsync		= noop_fsync,
 };
 EXPORT_SYMBOL(simple_dir_operations);
@@ -395,7 +423,7 @@ int simple_write_begin(struct file *file, struct address_space *mapping,
 	struct page *page;
 	pgoff_t index;
 
-	index = pos >> PAGE_CACHE_SHIFT;
+	index = pos >> PAGE_SHIFT;
 
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)
@@ -403,10 +431,10 @@ int simple_write_begin(struct file *file, struct address_space *mapping,
 
 	*pagep = page;
 
-	if (!PageUptodate(page) && (len != PAGE_CACHE_SIZE)) {
-		unsigned from = pos & (PAGE_CACHE_SIZE - 1);
+	if (!PageUptodate(page) && (len != PAGE_SIZE)) {
+		unsigned from = pos & (PAGE_SIZE - 1);
 
-		zero_user_segments(page, 0, from, from + len, PAGE_CACHE_SIZE);
+		zero_user_segments(page, 0, from, from + len, PAGE_SIZE);
 	}
 	return 0;
 }
@@ -442,7 +470,7 @@ int simple_write_end(struct file *file, struct address_space *mapping,
 
 	/* zero the stale part of the page if we did a short copy */
 	if (copied < len) {
-		unsigned from = pos & (PAGE_CACHE_SIZE - 1);
+		unsigned from = pos & (PAGE_SIZE - 1);
 
 		zero_user(page, from + copied, len - copied);
 	}
@@ -458,7 +486,7 @@ int simple_write_end(struct file *file, struct address_space *mapping,
 
 	set_page_dirty(page);
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 
 	return copied;
 }
@@ -477,8 +505,8 @@ int simple_fill_super(struct super_block *s, unsigned long magic,
 	struct dentry *dentry;
 	int i;
 
-	s->s_blocksize = PAGE_CACHE_SIZE;
-	s->s_blocksize_bits = PAGE_CACHE_SHIFT;
+	s->s_blocksize = PAGE_SIZE;
+	s->s_blocksize_bits = PAGE_SHIFT;
 	s->s_magic = magic;
 	s->s_op = &simple_super_operations;
 	s->s_time_gran = 1;
@@ -994,12 +1022,12 @@ int generic_check_addressable(unsigned blocksize_bits, u64 num_blocks)
 {
 	u64 last_fs_block = num_blocks - 1;
 	u64 last_fs_page =
-		last_fs_block >> (PAGE_CACHE_SHIFT - blocksize_bits);
+		last_fs_block >> (PAGE_SHIFT - blocksize_bits);
 
 	if (unlikely(num_blocks == 0))
 		return 0;
 
-	if ((blocksize_bits < 9) || (blocksize_bits > PAGE_CACHE_SHIFT))
+	if ((blocksize_bits < 9) || (blocksize_bits > PAGE_SHIFT))
 		return -EINVAL;
 
 	if ((last_fs_block > (sector_t)(~0ULL) >> (blocksize_bits - 9)) ||
@@ -1121,14 +1149,15 @@ static int empty_dir_setattr(struct dentry *dentry, struct iattr *attr)
 	return -EPERM;
 }
 
-static int empty_dir_setxattr(struct dentry *dentry, const char *name,
-			      const void *value, size_t size, int flags)
+static int empty_dir_setxattr(struct dentry *dentry, struct inode *inode,
+			      const char *name, const void *value,
+			      size_t size, int flags)
 {
 	return -EOPNOTSUPP;
 }
 
-static ssize_t empty_dir_getxattr(struct dentry *dentry, const char *name,
-				  void *value, size_t size)
+static ssize_t empty_dir_getxattr(struct dentry *dentry, struct inode *inode,
+				  const char *name, void *value, size_t size)
 {
 	return -EOPNOTSUPP;
 }
@@ -1169,7 +1198,7 @@ static int empty_dir_readdir(struct file *file, struct dir_context *ctx)
 static const struct file_operations empty_dir_operations = {
 	.llseek		= empty_dir_llseek,
 	.read		= generic_read_dir,
-	.iterate	= empty_dir_readdir,
+	.iterate_shared	= empty_dir_readdir,
 	.fsync		= noop_fsync,
 };
 

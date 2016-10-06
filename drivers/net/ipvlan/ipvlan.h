@@ -23,11 +23,13 @@
 #include <linux/if_vlan.h>
 #include <linux/ip.h>
 #include <linux/inetdevice.h>
+#include <linux/netfilter.h>
 #include <net/ip.h>
 #include <net/ip6_route.h>
 #include <net/rtnetlink.h>
 #include <net/route.h>
 #include <net/addrconf.h>
+#include <net/l3mdev.h>
 
 #define IPVLAN_DRV	"ipvlan"
 #define IPV_DRV_VER	"0.1"
@@ -84,19 +86,19 @@ struct ipvl_addr {
 #define ip4addr ipu.ip4
 	struct hlist_node	hlnode;  /* Hash-table linkage */
 	struct list_head	anode;   /* logical-interface linkage */
-	struct rcu_head		rcu;
 	ipvl_hdr_type		atype;
+	struct rcu_head		rcu;
 };
 
 struct ipvl_port {
 	struct net_device	*dev;
 	struct hlist_head	hlhead[IPVLAN_HASH_SIZE];
 	struct list_head	ipvlans;
-	struct rcu_head		rcu;
+	u16			mode;
 	struct work_struct	wq;
 	struct sk_buff_head	backlog;
 	int			count;
-	u16			mode;
+	struct rcu_head		rcu;
 };
 
 static inline struct ipvl_port *ipvlan_port_get_rcu(const struct net_device *d)
@@ -114,8 +116,6 @@ static inline struct ipvl_port *ipvlan_port_get_rtnl(const struct net_device *d)
 	return rtnl_dereference(d->rx_handler_data);
 }
 
-void ipvlan_adjust_mtu(struct ipvl_dev *ipvlan, struct net_device *dev);
-void ipvlan_set_port_mode(struct ipvl_port *port, u32 nval);
 void ipvlan_init_secret(void);
 unsigned int ipvlan_mac_hash(const unsigned char *addr);
 rx_handler_result_t ipvlan_handle_frame(struct sk_buff **pskb);
@@ -125,7 +125,9 @@ void ipvlan_ht_addr_add(struct ipvl_dev *ipvlan, struct ipvl_addr *addr);
 struct ipvl_addr *ipvlan_find_addr(const struct ipvl_dev *ipvlan,
 				   const void *iaddr, bool is_v6);
 bool ipvlan_addr_busy(struct ipvl_port *port, void *iaddr, bool is_v6);
-struct ipvl_addr *ipvlan_ht_addr_lookup(const struct ipvl_port *port,
-					const void *iaddr, bool is_v6);
 void ipvlan_ht_addr_del(struct ipvl_addr *addr);
+struct sk_buff *ipvlan_l3_rcv(struct net_device *dev, struct sk_buff *skb,
+			      u16 proto);
+unsigned int ipvlan_nf_input(void *priv, struct sk_buff *skb,
+			     const struct nf_hook_state *state);
 #endif /* __IPVLAN_H */

@@ -174,9 +174,7 @@ struct acpi_table_header *acpi_tb_copy_dsdt(u32 table_index)
 				      ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL,
 				      new_table);
 
-	ACPI_INFO((AE_INFO,
-		   "Forced DSDT copy: length 0x%05X copied locally, original unmapped",
-		   new_table->length));
+	ACPI_INFO(("Forced DSDT copy: length 0x%05X copied locally, original unmapped", new_table->length));
 
 	return (new_table);
 }
@@ -233,7 +231,7 @@ acpi_tb_get_root_table_entry(u8 *table_entry, u32 table_entry_size)
 					   ACPI_FORMAT_UINT64(address64)));
 		}
 #endif
-		return ((acpi_physical_address) (address64));
+		return ((acpi_physical_address)(address64));
 	}
 }
 
@@ -254,7 +252,8 @@ acpi_tb_get_root_table_entry(u8 *table_entry, u32 table_entry_size)
  *
  ******************************************************************************/
 
-acpi_status __init acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
+acpi_status ACPI_INIT_FUNCTION
+acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 {
 	struct acpi_table_rsdp *rsdp;
 	u32 table_entry_size;
@@ -289,12 +288,12 @@ acpi_status __init acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 		 * the XSDT if the revision is > 1 and the XSDT pointer is present,
 		 * as per the ACPI specification.
 		 */
-		address = (acpi_physical_address) rsdp->xsdt_physical_address;
+		address = (acpi_physical_address)rsdp->xsdt_physical_address;
 		table_entry_size = ACPI_XSDT_ENTRY_SIZE;
 	} else {
 		/* Root table is an RSDT (32-bit physical addresses) */
 
-		address = (acpi_physical_address) rsdp->rsdt_physical_address;
+		address = (acpi_physical_address)rsdp->rsdt_physical_address;
 		table_entry_size = ACPI_RSDT_ENTRY_SIZE;
 	}
 
@@ -381,31 +380,4 @@ next_table:
 
 	acpi_os_unmap_memory(table, length);
 	return_ACPI_STATUS(AE_OK);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_is_valid_signature
- *
- * PARAMETERS:  signature           - Sig string to be validated
- *
- * RETURN:      TRUE if signature is has 4 valid ACPI characters
- *
- * DESCRIPTION: Validate an ACPI table signature.
- *
- ******************************************************************************/
-
-u8 acpi_is_valid_signature(char *signature)
-{
-	u32 i;
-
-	/* Validate each character in the signature */
-
-	for (i = 0; i < ACPI_NAME_SIZE; i++) {
-		if (!acpi_ut_valid_acpi_char(signature[i], i)) {
-			return (FALSE);
-		}
-	}
-
-	return (TRUE);
 }

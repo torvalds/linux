@@ -89,7 +89,7 @@ static struct drm_driver bochs_driver = {
 	.date			= "20130925",
 	.major			= 1,
 	.minor			= 0,
-	.gem_free_object        = bochs_gem_free_object,
+	.gem_free_object_unlocked = bochs_gem_free_object,
 	.dumb_create            = bochs_dumb_create,
 	.dumb_map_offset        = bochs_dumb_mmap_offset,
 	.dumb_destroy           = drm_gem_dumb_destroy,
@@ -182,8 +182,8 @@ static const struct pci_device_id bochs_pci_tbl[] = {
 	{
 		.vendor      = 0x1234,
 		.device      = 0x1111,
-		.subvendor   = 0x1af4,
-		.subdevice   = 0x1100,
+		.subvendor   = PCI_SUBVENDOR_ID_REDHAT_QUMRANET,
+		.subdevice   = PCI_SUBDEVICE_ID_QEMU,
 		.driver_data = BOCHS_QEMU_STDVGA,
 	},
 	{

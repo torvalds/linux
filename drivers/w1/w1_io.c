@@ -352,7 +352,7 @@ int w1_reset_bus(struct w1_master *dev)
 		w1_delay(70);
 
 		result = dev->bus_master->read_bit(dev->bus_master->data) & 0x1;
-		/* minmum 70 (above) + 430 = 500 us
+		/* minimum 70 (above) + 430 = 500 us
 		 * There aren't any timing requirements between a reset and
 		 * the following transactions.  Sleeping is safe here.
 		 */

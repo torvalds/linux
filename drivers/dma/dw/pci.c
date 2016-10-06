@@ -17,8 +17,8 @@
 
 static int dw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 {
+	const struct dw_dma_platform_data *pdata = (void *)pid->driver_data;
 	struct dw_dma_chip *chip;
-	struct dw_dma_platform_data *pdata = (void *)pid->driver_data;
 	int ret;
 
 	ret = pcim_enable_device(pdev);
@@ -49,8 +49,9 @@ static int dw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 	chip->dev = &pdev->dev;
 	chip->regs = pcim_iomap_table(pdev)[0];
 	chip->irq = pdev->irq;
+	chip->pdata = pdata;
 
-	ret = dw_dma_probe(chip, pdata);
+	ret = dw_dma_probe(chip);
 	if (ret)
 		return ret;
 
@@ -108,6 +109,10 @@ static const struct pci_device_id dw_pci_id_table[] = {
 
 	/* Haswell */
 	{ PCI_VDEVICE(INTEL, 0x9c60) },
+
+	/* Broadwell */
+	{ PCI_VDEVICE(INTEL, 0x9ce0) },
+
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, dw_pci_id_table);

@@ -19,9 +19,14 @@
 #include <linux/etherdevice.h>
 #include <linux/phy.h>
 
+struct property_set {
+	struct fwnode_handle fwnode;
+	struct property_entry *properties;
+};
+
 static inline bool is_pset_node(struct fwnode_handle *fwnode)
 {
-	return fwnode && fwnode->type == FWNODE_PDATA;
+	return !IS_ERR_OR_NULL(fwnode) && fwnode->type == FWNODE_PDATA;
 }
 
 static inline struct property_set *to_pset_node(struct fwnode_handle *fwnode)
@@ -218,7 +223,8 @@ bool fwnode_property_present(struct fwnode_handle *fwnode, const char *propname)
 	bool ret;
 
 	ret = __fwnode_property_present(fwnode, propname);
-	if (ret == false && fwnode && fwnode->secondary)
+	if (ret == false && !IS_ERR_OR_NULL(fwnode) &&
+	    !IS_ERR_OR_NULL(fwnode->secondary))
 		ret = __fwnode_property_present(fwnode->secondary, propname);
 	return ret;
 }
@@ -423,7 +429,8 @@ EXPORT_SYMBOL_GPL(device_property_match_string);
 	int _ret_;									\
 	_ret_ = FWNODE_PROP_READ(_fwnode_, _propname_, _type_, _proptype_,		\
 				 _val_, _nval_);					\
-	if (_ret_ == -EINVAL && _fwnode_ && _fwnode_->secondary)			\
+	if (_ret_ == -EINVAL && !IS_ERR_OR_NULL(_fwnode_) &&				\
+	    !IS_ERR_OR_NULL(_fwnode_->secondary))					\
 		_ret_ = FWNODE_PROP_READ(_fwnode_->secondary, _propname_, _type_,	\
 				_proptype_, _val_, _nval_);				\
 	_ret_;										\
@@ -593,7 +600,8 @@ int fwnode_property_read_string_array(struct fwnode_handle *fwnode,
 	int ret;
 
 	ret = __fwnode_property_read_string_array(fwnode, propname, val, nval);
-	if (ret == -EINVAL && fwnode && fwnode->secondary)
+	if (ret == -EINVAL && !IS_ERR_OR_NULL(fwnode) &&
+	    !IS_ERR_OR_NULL(fwnode->secondary))
 		ret = __fwnode_property_read_string_array(fwnode->secondary,
 							  propname, val, nval);
 	return ret;
@@ -621,7 +629,8 @@ int fwnode_property_read_string(struct fwnode_handle *fwnode,
 	int ret;
 
 	ret = __fwnode_property_read_string(fwnode, propname, val);
-	if (ret == -EINVAL && fwnode && fwnode->secondary)
+	if (ret == -EINVAL && !IS_ERR_OR_NULL(fwnode) &&
+	    !IS_ERR_OR_NULL(fwnode->secondary))
 		ret = __fwnode_property_read_string(fwnode->secondary,
 						    propname, val);
 	return ret;
@@ -647,7 +656,7 @@ int fwnode_property_match_string(struct fwnode_handle *fwnode,
 	const char *propname, const char *string)
 {
 	const char **values;
-	int nval, ret, i;
+	int nval, ret;
 
 	nval = fwnode_property_read_string_array(fwnode, propname, NULL, 0);
 	if (nval < 0)
@@ -664,13 +673,9 @@ int fwnode_property_match_string(struct fwnode_handle *fwnode,
 	if (ret < 0)
 		goto out;
 
-	ret = -ENODATA;
-	for (i = 0; i < nval; i++) {
-		if (!strcmp(values[i], string)) {
-			ret = i;
-			break;
-		}
-	}
+	ret = match_string(values, nval, string);
+	if (ret < 0)
+		ret = -ENODATA;
 out:
 	kfree(values);
 	return ret;
@@ -801,14 +806,14 @@ static struct property_set *pset_copy_set(const struct property_set *pset)
 }
 
 /**
- * device_remove_property_set - Remove properties from a device object.
+ * device_remove_properties - Remove properties from a device object.
  * @dev: Device whose properties to remove.
  *
  * The function removes properties previously associated to the device
- * secondary firmware node with device_add_property_set(). Memory allocated
+ * secondary firmware node with device_add_properties(). Memory allocated
  * to the properties will also be released.
  */
-void device_remove_property_set(struct device *dev)
+void device_remove_properties(struct device *dev)
 {
 	struct fwnode_handle *fwnode;
 
@@ -820,30 +825,38 @@ void device_remove_property_set(struct device *dev)
 	 * the pset. If there is no real firmware node (ACPI/DT) primary
 	 * will hold the pset.
 	 */
-	if (!is_pset_node(fwnode))
-		fwnode = fwnode->secondary;
-	if (!IS_ERR(fwnode) && is_pset_node(fwnode))
+	if (is_pset_node(fwnode)) {
+		set_primary_fwnode(dev, NULL);
 		pset_free_set(to_pset_node(fwnode));
-	set_secondary_fwnode(dev, NULL);
+	} else {
+		fwnode = fwnode->secondary;
+		if (!IS_ERR(fwnode) && is_pset_node(fwnode)) {
+			set_secondary_fwnode(dev, NULL);
+			pset_free_set(to_pset_node(fwnode));
+		}
+	}
 }
-EXPORT_SYMBOL_GPL(device_remove_property_set);
+EXPORT_SYMBOL_GPL(device_remove_properties);
 
 /**
- * device_add_property_set - Add a collection of properties to a device object.
+ * device_add_properties - Add a collection of properties to a device object.
  * @dev: Device to add properties to.
- * @pset: Collection of properties to add.
+ * @properties: Collection of properties to add.
  *
- * Associate a collection of device properties represented by @pset with @dev
- * as its secondary firmware node. The function takes a copy of @pset.
+ * Associate a collection of device properties represented by @properties with
+ * @dev as its secondary firmware node. The function takes a copy of
+ * @properties.
  */
-int device_add_property_set(struct device *dev, const struct property_set *pset)
+int device_add_properties(struct device *dev, struct property_entry *properties)
 {
-	struct property_set *p;
+	struct property_set *p, pset;
 
-	if (!pset)
+	if (!properties)
 		return -EINVAL;
 
-	p = pset_copy_set(pset);
+	pset.properties = properties;
+
+	p = pset_copy_set(&pset);
 	if (IS_ERR(p))
 		return PTR_ERR(p);
 
@@ -851,7 +864,7 @@ int device_add_property_set(struct device *dev, const struct property_set *pset)
 	set_secondary_fwnode(dev, &p->fwnode);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(device_add_property_set);
+EXPORT_SYMBOL_GPL(device_add_properties);
 
 /**
  * device_get_next_child_node - Return the next child node handle for a device
@@ -873,6 +886,34 @@ struct fwnode_handle *device_get_next_child_node(struct device *dev,
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(device_get_next_child_node);
+
+/**
+ * device_get_named_child_node - Return first matching named child node handle
+ * @dev: Device to find the named child node for.
+ * @childname: String to match child node name against.
+ */
+struct fwnode_handle *device_get_named_child_node(struct device *dev,
+						  const char *childname)
+{
+	struct fwnode_handle *child;
+
+	/*
+	 * Find first matching named child node of this device.
+	 * For ACPI this will be a data only sub-node.
+	 */
+	device_for_each_child_node(dev, child) {
+		if (is_of_node(child)) {
+			if (!of_node_cmp(to_of_node(child)->name, childname))
+				return child;
+		} else if (is_acpi_data_node(child)) {
+			if (acpi_data_node_match(child, childname))
+				return child;
+		}
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(device_get_named_child_node);
 
 /**
  * fwnode_handle_put - Drop reference to a device node

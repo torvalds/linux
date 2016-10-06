@@ -45,6 +45,7 @@
 #include <linux/platform_device.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_data/s3c-hsotg.h>
+#include <linux/reset.h>
 
 #include <linux/usb/of.h>
 
@@ -126,11 +127,43 @@ static const struct dwc2_core_params params_rk3066 = {
 	.speed				= -1,
 	.enable_dynamic_fifo		= 1,
 	.en_multiple_tx_fifo		= -1,
-	.host_rx_fifo_size		= 520,	/* 520 DWORDs */
+	.host_rx_fifo_size		= 525,	/* 525 DWORDs */
 	.host_nperio_tx_fifo_size	= 128,	/* 128 DWORDs */
 	.host_perio_tx_fifo_size	= 256,	/* 256 DWORDs */
-	.max_transfer_size		= 65535,
+	.max_transfer_size		= -1,
 	.max_packet_count		= -1,
+	.host_channels			= -1,
+	.phy_type			= -1,
+	.phy_utmi_width			= -1,
+	.phy_ulpi_ddr			= -1,
+	.phy_ulpi_ext_vbus		= -1,
+	.i2c_enable			= -1,
+	.ulpi_fs_ls			= -1,
+	.host_support_fs_ls_low_power	= -1,
+	.host_ls_low_power_phy_clk	= -1,
+	.ts_dline			= -1,
+	.reload_ctl			= -1,
+	.ahbcfg				= GAHBCFG_HBSTLEN_INCR16 <<
+					  GAHBCFG_HBSTLEN_SHIFT,
+	.uframe_sched			= -1,
+	.external_id_pin_ctl		= -1,
+	.hibernation			= -1,
+};
+
+static const struct dwc2_core_params params_ltq = {
+	.otg_cap			= 2,	/* non-HNP/non-SRP */
+	.otg_ver			= -1,
+	.dma_enable			= -1,
+	.dma_desc_enable		= -1,
+	.dma_desc_fs_enable		= -1,
+	.speed				= -1,
+	.enable_dynamic_fifo		= -1,
+	.en_multiple_tx_fifo		= -1,
+	.host_rx_fifo_size		= 288,	/* 288 DWORDs */
+	.host_nperio_tx_fifo_size	= 128,	/* 128 DWORDs */
+	.host_perio_tx_fifo_size	= 96,	/* 96 DWORDs */
+	.max_transfer_size		= 65535,
+	.max_packet_count		= 511,
 	.host_channels			= -1,
 	.phy_type			= -1,
 	.phy_utmi_width			= -1,
@@ -305,6 +338,24 @@ static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 {
 	int i, ret;
 
+	hsotg->reset = devm_reset_control_get_optional(hsotg->dev, "dwc2");
+	if (IS_ERR(hsotg->reset)) {
+		ret = PTR_ERR(hsotg->reset);
+		switch (ret) {
+		case -ENOENT:
+		case -ENOTSUPP:
+			hsotg->reset = NULL;
+			break;
+		default:
+			dev_err(hsotg->dev, "error getting reset control %d\n",
+				ret);
+			return ret;
+		}
+	}
+
+	if (hsotg->reset)
+		reset_control_deassert(hsotg->reset);
+
 	/* Set default UTMI width */
 	hsotg->phyif = GUSBCFG_PHYIF16;
 
@@ -402,6 +453,9 @@ static int dwc2_driver_remove(struct platform_device *dev)
 	if (hsotg->ll_hw_enabled)
 		dwc2_lowlevel_hw_disable(hsotg);
 
+	if (hsotg->reset)
+		reset_control_assert(hsotg->reset);
+
 	return 0;
 }
 
@@ -428,6 +482,8 @@ static const struct of_device_id dwc2_of_match_table[] = {
 	{ .compatible = "brcm,bcm2835-usb", .data = &params_bcm2835 },
 	{ .compatible = "hisilicon,hi6220-usb", .data = &params_hi6220 },
 	{ .compatible = "rockchip,rk3066-usb", .data = &params_rk3066 },
+	{ .compatible = "lantiq,arx100-usb", .data = &params_ltq },
+	{ .compatible = "lantiq,xrx200-usb", .data = &params_ltq },
 	{ .compatible = "snps,dwc2", .data = NULL },
 	{ .compatible = "samsung,s3c6400-hsotg", .data = NULL},
 	{},
@@ -528,9 +584,15 @@ static int dwc2_driver_probe(struct platform_device *dev)
 
 	retval = dwc2_get_dr_mode(hsotg);
 	if (retval)
-		return retval;
+		goto error;
 
-	/* Reset the controller and detect hardware config values */
+	/*
+	 * Reset before dwc2_get_hwparams() then it could get power-on real
+	 * reset value form registers.
+	 */
+	dwc2_core_reset_and_force_dr_mode(hsotg);
+
+	/* Detect config values from hardware */
 	retval = dwc2_get_hwparams(hsotg);
 	if (retval)
 		goto error;

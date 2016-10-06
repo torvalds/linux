@@ -36,7 +36,7 @@
 
 #if defined(CONFIG_PPC_BOOK3S_64)
 
-#if defined(_CALL_ELF) && _CALL_ELF == 2
+#ifdef PPC64_ELF_ABI_v2
 #define FUNC(name) 		name
 #else
 #define FUNC(name) 		GLUE(.,name)

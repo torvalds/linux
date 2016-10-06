@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -39,7 +35,7 @@
 
 #include <linux/slab.h>
 #include "../../include/linux/libcfs/libcfs.h"
-#include "linux/lustre_compat25.h"
+#include "lustre_compat.h"
 #include "lprocfs_status.h"
 
 /* global variables */
@@ -47,7 +43,8 @@ extern unsigned int obd_debug_peer_on_timeout;
 extern unsigned int obd_dump_on_timeout;
 extern unsigned int obd_dump_on_eviction;
 /* obd_timeout should only be used for recovery, not for
-   networking / disk / timings affected by load (use Adaptive Timeouts) */
+ * networking / disk / timings affected by load (use Adaptive Timeouts)
+ */
 extern unsigned int obd_timeout;	  /* seconds */
 extern unsigned int obd_timeout_set;
 extern unsigned int at_min;
@@ -55,10 +52,9 @@ extern unsigned int at_max;
 extern unsigned int at_history;
 extern int at_early_margin;
 extern int at_extra;
-extern unsigned int obd_sync_filter;
-extern unsigned int obd_max_dirty_pages;
-extern atomic_t obd_dirty_pages;
-extern atomic_t obd_dirty_transit_pages;
+extern unsigned long obd_max_dirty_pages;
+extern atomic_long_t obd_dirty_pages;
+extern atomic_long_t obd_dirty_transit_pages;
 extern char obd_jobid_var[];
 
 /* Some hash init argument constants */
@@ -104,29 +100,32 @@ extern char obd_jobid_var[];
  * failover targets the client only pings one server at a time, and pings
  * can be lost on a loaded network. Since eviction has serious consequences,
  * and there's no urgent need to evict a client just because it's idle, we
- * should be very conservative here. */
+ * should be very conservative here.
+ */
 #define PING_EVICT_TIMEOUT (PING_INTERVAL * 6)
 #define DISK_TIMEOUT 50	  /* Beyond this we warn about disk speed */
 #define CONNECTION_SWITCH_MIN 5U /* Connection switching rate limiter */
- /* Max connect interval for nonresponsive servers; ~50s to avoid building up
-    connect requests in the LND queues, but within obd_timeout so we don't
-    miss the recovery window */
+/* Max connect interval for nonresponsive servers; ~50s to avoid building up
+ * connect requests in the LND queues, but within obd_timeout so we don't
+ * miss the recovery window
+ */
 #define CONNECTION_SWITCH_MAX min(50U, max(CONNECTION_SWITCH_MIN, obd_timeout))
 #define CONNECTION_SWITCH_INC 5  /* Connection timeout backoff */
 /* In general this should be low to have quick detection of a system
-   running on a backup server. (If it's too low, import_select_connection
-   will increase the timeout anyhow.)  */
-#define INITIAL_CONNECT_TIMEOUT max(CONNECTION_SWITCH_MIN, obd_timeout/20)
+ * running on a backup server. (If it's too low, import_select_connection
+ * will increase the timeout anyhow.)
+ */
+#define INITIAL_CONNECT_TIMEOUT max(CONNECTION_SWITCH_MIN, obd_timeout / 20)
 /* The max delay between connects is SWITCH_MAX + SWITCH_INC + INITIAL */
 #define RECONNECT_DELAY_MAX (CONNECTION_SWITCH_MAX + CONNECTION_SWITCH_INC + \
 			     INITIAL_CONNECT_TIMEOUT)
 /* The min time a target should wait for clients to reconnect in recovery */
-#define OBD_RECOVERY_TIME_MIN    (2*RECONNECT_DELAY_MAX)
+#define OBD_RECOVERY_TIME_MIN    (2 * RECONNECT_DELAY_MAX)
 #define OBD_IR_FACTOR_MIN	 1
 #define OBD_IR_FACTOR_MAX	 10
-#define OBD_IR_FACTOR_DEFAULT    (OBD_IR_FACTOR_MAX/2)
+#define OBD_IR_FACTOR_DEFAULT    (OBD_IR_FACTOR_MAX / 2)
 /* default timeout for the MGS to become IR_FULL */
-#define OBD_IR_MGS_TIMEOUT       (4*obd_timeout)
+#define OBD_IR_MGS_TIMEOUT       (4 * obd_timeout)
 #define LONG_UNLINK 300	  /* Unlink should happen before now */
 
 /**
@@ -285,6 +284,7 @@ extern char obd_jobid_var[];
 #define OBD_FAIL_OST_ENOINO	      0x229
 #define OBD_FAIL_OST_DQACQ_NET	   0x230
 #define OBD_FAIL_OST_STATFS_EINPROGRESS  0x231
+#define OBD_FAIL_OST_SET_INFO_NET		0x232
 
 #define OBD_FAIL_LDLM		    0x300
 #define OBD_FAIL_LDLM_NAMESPACE_NEW      0x301
@@ -315,6 +315,11 @@ extern char obd_jobid_var[];
 #define OBD_FAIL_LDLM_AGL_DELAY	  0x31a
 #define OBD_FAIL_LDLM_AGL_NOLOCK	 0x31b
 #define OBD_FAIL_LDLM_OST_LVB		 0x31c
+#define OBD_FAIL_LDLM_ENQUEUE_HANG	 0x31d
+#define OBD_FAIL_LDLM_CP_CB_WAIT2	 0x320
+#define OBD_FAIL_LDLM_CP_CB_WAIT3	 0x321
+#define OBD_FAIL_LDLM_CP_CB_WAIT4	 0x322
+#define OBD_FAIL_LDLM_CP_CB_WAIT5	 0x323
 
 /* LOCKLESS IO */
 #define OBD_FAIL_LDLM_SET_CONTENTION     0x385
@@ -361,6 +366,9 @@ extern char obd_jobid_var[];
 #define OBD_FAIL_PTLRPC_CLIENT_BULK_CB2  0x515
 #define OBD_FAIL_PTLRPC_DELAY_IMP_FULL   0x516
 #define OBD_FAIL_PTLRPC_CANCEL_RESEND    0x517
+#define OBD_FAIL_PTLRPC_DROP_BULK	 0x51a
+#define OBD_FAIL_PTLRPC_LONG_REQ_UNLINK	 0x51b
+#define OBD_FAIL_PTLRPC_LONG_BOTH_UNLINK 0x51c
 
 #define OBD_FAIL_OBD_PING_NET	    0x600
 #define OBD_FAIL_OBD_LOG_CANCEL_NET      0x601
@@ -394,6 +402,7 @@ extern char obd_jobid_var[];
 #define OBD_FAIL_MDC_GETATTR_ENQUEUE     0x803
 #define OBD_FAIL_MDC_RPCS_SEM		 0x804
 #define OBD_FAIL_MDC_LIGHTWEIGHT	 0x805
+#define OBD_FAIL_MDC_CLOSE		 0x806
 
 #define OBD_FAIL_MGS		     0x900
 #define OBD_FAIL_MGS_ALL_REQUEST_NET     0x901
@@ -422,6 +431,7 @@ extern char obd_jobid_var[];
 
 #define OBD_FAIL_FLD		     0x1100
 #define OBD_FAIL_FLD_QUERY_NET	   0x1101
+#define OBD_FAIL_FLD_READ_NET		0x1102
 
 #define OBD_FAIL_SEC_CTX		 0x1200
 #define OBD_FAIL_SEC_CTX_INIT_NET	0x1201
@@ -448,6 +458,7 @@ extern char obd_jobid_var[];
 #define OBD_FAIL_LOV_INIT			    0x1403
 #define OBD_FAIL_GLIMPSE_DELAY			    0x1404
 #define OBD_FAIL_LLITE_XATTR_ENOMEM		    0x1405
+#define OBD_FAIL_GETATTR_DELAY			    0x1409
 
 #define OBD_FAIL_FID_INDIR	0x1501
 #define OBD_FAIL_FID_INLMA	0x1502
@@ -467,10 +478,15 @@ extern char obd_jobid_var[];
 #define OBD_FAIL_LFSCK_CRASH		0x160a
 #define OBD_FAIL_LFSCK_NO_AUTO		0x160b
 #define OBD_FAIL_LFSCK_NO_DOUBLESCAN	0x160c
+#define OBD_FAIL_LFSCK_INVALID_PFID	0x1619
+#define OBD_FAIL_LFSCK_BAD_NAME_HASH	0x1628
 
 /* UPDATE */
 #define OBD_FAIL_UPDATE_OBJ_NET			0x1700
 #define OBD_FAIL_UPDATE_OBJ_NET_REP		0x1701
+
+/* LMV */
+#define OBD_FAIL_UNKNOWN_LMV_STRIPE		0x1901
 
 /* Assign references to moved code to reduce code changes */
 #define OBD_FAIL_PRECHECK(id)		   CFS_FAIL_PRECHECK(id)
@@ -496,7 +512,7 @@ extern char obd_jobid_var[];
 
 #ifdef POISON_BULK
 #define POISON_PAGE(page, val) do {		  \
-	memset(kmap(page), val, PAGE_CACHE_SIZE); \
+	memset(kmap(page), val, PAGE_SIZE); \
 	kunmap(page);				  \
 } while (0)
 #else
@@ -507,14 +523,14 @@ extern char obd_jobid_var[];
 do {									      \
 	struct portals_handle *__h = (handle);				      \
 									      \
-	LASSERT(handle != NULL);					      \
 	__h->h_cookie = (unsigned long)(ptr);				      \
 	__h->h_size = (size);						      \
 	call_rcu(&__h->h_rcu, class_handle_free_cb);			      \
 	POISON_PTR(ptr);						      \
 } while (0)
 
-#define KEY_IS(str) \
-	(keylen >= (sizeof(str)-1) && memcmp(key, str, (sizeof(str)-1)) == 0)
+#define KEY_IS(str)					\
+	(keylen >= (sizeof(str) - 1) &&			\
+	memcmp(key, str, (sizeof(str) - 1)) == 0)
 
 #endif

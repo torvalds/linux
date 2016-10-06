@@ -215,11 +215,9 @@ static int pio2_probe(struct vme_dev *vdev)
 	u8 reg;
 	int vec;
 
-	card = kzalloc(sizeof(*card), GFP_KERNEL);
-	if (!card) {
-		retval = -ENOMEM;
-		goto err_struct;
-	}
+	card = devm_kzalloc(&vdev->dev, sizeof(*card), GFP_KERNEL);
+	if (!card)
+		return -ENOMEM;
 
 	card->id = vdev->num;
 	card->bus = bus[card->id];
@@ -232,8 +230,7 @@ static int pio2_probe(struct vme_dev *vdev)
 	for (i = 0; i < PIO2_VARIANT_LENGTH; i++) {
 		if (!isdigit(card->variant[i])) {
 			dev_err(&card->vdev->dev, "Variant invalid\n");
-			retval = -EINVAL;
-			goto err_variant;
+			return -EINVAL;
 		}
 	}
 
@@ -244,8 +241,7 @@ static int pio2_probe(struct vme_dev *vdev)
 	if (card->irq_vector & ~PIO2_VME_VECTOR_MASK) {
 		dev_err(&card->vdev->dev,
 			"Invalid VME IRQ Vector, vector must not use lower 4 bits\n");
-		retval = -EINVAL;
-		goto err_vector;
+		return -EINVAL;
 	}
 
 	/*
@@ -284,8 +280,7 @@ static int pio2_probe(struct vme_dev *vdev)
 	if (!card->window) {
 		dev_err(&card->vdev->dev,
 			"Unable to assign VME master resource\n");
-		retval = -EIO;
-		goto err_window;
+		return -EIO;
 	}
 
 	retval = vme_master_set(card->window, 1, card->base, 0x10000, VME_A24,
@@ -430,11 +425,6 @@ err_read:
 	vme_master_set(card->window, 0, 0, 0, VME_A16, 0, VME_D16);
 err_set:
 	vme_master_free(card->window);
-err_window:
-err_vector:
-err_variant:
-	kfree(card);
-err_struct:
 	return retval;
 }
 
@@ -466,8 +456,6 @@ static int pio2_remove(struct vme_dev *vdev)
 
 	vme_master_free(card->window);
 
-	kfree(card);
-
 	return 0;
 }
 
@@ -478,23 +466,23 @@ static void __exit pio2_exit(void)
 
 /* These are required for each board */
 MODULE_PARM_DESC(bus, "Enumeration of VMEbus to which the board is connected");
-module_param_array(bus, int, &bus_num, S_IRUGO);
+module_param_array(bus, int, &bus_num, 0444);
 
 MODULE_PARM_DESC(base, "Base VME address for PIO2 Registers");
-module_param_array(base, long, &base_num, S_IRUGO);
+module_param_array(base, long, &base_num, 0444);
 
 MODULE_PARM_DESC(vector, "VME IRQ Vector (Lower 4 bits masked)");
-module_param_array(vector, int, &vector_num, S_IRUGO);
+module_param_array(vector, int, &vector_num, 0444);
 
 MODULE_PARM_DESC(level, "VME IRQ Level");
-module_param_array(level, int, &level_num, S_IRUGO);
+module_param_array(level, int, &level_num, 0444);
 
 MODULE_PARM_DESC(variant, "Last 4 characters of PIO2 board variant");
-module_param_array(variant, charp, &variant_num, S_IRUGO);
+module_param_array(variant, charp, &variant_num, 0444);
 
 /* This is for debugging */
 MODULE_PARM_DESC(loopback, "Enable loopback mode on all cards");
-module_param(loopback, bool, S_IRUGO);
+module_param(loopback, bool, 0444);
 
 MODULE_DESCRIPTION("GE PIO2 6U VME I/O Driver");
 MODULE_AUTHOR("Martyn Welch <martyn.welch@ge.com");

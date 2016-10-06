@@ -113,7 +113,7 @@ static int nuc900_check_rb(struct nuc900_nand *nand)
 {
 	unsigned int val;
 	spin_lock(&nand->lock);
-	val = __raw_readl(REG_SMISR);
+	val = __raw_readl(nand->reg + REG_SMISR);
 	val &= READYBUSY;
 	spin_unlock(&nand->lock);
 
@@ -261,6 +261,7 @@ static int nuc900_nand_probe(struct platform_device *pdev)
 	chip->chip_delay	= 50;
 	chip->options		= 0;
 	chip->ecc.mode		= NAND_ECC_SOFT;
+	chip->ecc.algo		= NAND_ECC_HAMMING;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	nuc900_nand->reg = devm_ioremap_resource(&pdev->dev, res);

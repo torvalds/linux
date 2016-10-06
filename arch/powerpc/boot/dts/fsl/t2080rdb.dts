@@ -1,7 +1,7 @@
 /*
  * T2080PCIe-RDB Board Device Tree Source
  *
- * Copyright 2014 Freescale Semiconductor Inc.
+ * Copyright 2014 - 2015 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -50,6 +50,71 @@
 		};
 		port2 {
 			ranges = <0 0 0xc 0x30000000 0 0x10000000>;
+		};
+	};
+};
+
+&soc {
+	fman@400000 {
+		ethernet@e0000 {
+			phy-handle = <&xg_aq1202_phy3>;
+			phy-connection-type = "xgmii";
+		};
+
+		ethernet@e2000 {
+			phy-handle = <&xg_aq1202_phy4>;
+			phy-connection-type = "xgmii";
+		};
+
+		ethernet@e4000 {
+			phy-handle = <&rgmii_phy1>;
+			phy-connection-type = "rgmii";
+		};
+
+		ethernet@e6000 {
+			phy-handle = <&rgmii_phy2>;
+			phy-connection-type = "rgmii";
+		};
+
+		ethernet@f0000 {
+			phy-handle = <&xg_cs4315_phy1>;
+			phy-connection-type = "xgmii";
+		};
+
+		ethernet@f2000 {
+			phy-handle = <&xg_cs4315_phy2>;
+			phy-connection-type = "xgmii";
+		};
+
+		mdio@fc000 {
+			rgmii_phy1: ethernet-phy@1 {
+				reg = <0x1>;
+			};
+			rgmii_phy2: ethernet-phy@2 {
+				reg = <0x2>;
+			};
+		};
+
+		mdio@fd000 {
+			xg_cs4315_phy1: ethernet-phy@c {
+				compatible = "ethernet-phy-ieee802.3-c45";
+				reg = <0xc>;
+			};
+
+			xg_cs4315_phy2: ethernet-phy@d {
+				compatible = "ethernet-phy-ieee802.3-c45";
+				reg = <0xd>;
+			};
+
+			xg_aq1202_phy3: ethernet-phy@0 {
+				compatible = "ethernet-phy-ieee802.3-c45";
+				reg = <0x0>;
+			};
+
+			xg_aq1202_phy4: ethernet-phy@1 {
+				compatible = "ethernet-phy-ieee802.3-c45";
+				reg = <0x1>;
+			};
 		};
 	};
 };

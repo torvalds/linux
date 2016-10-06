@@ -33,6 +33,7 @@ enum scpi_sensor_class {
 	VOLTAGE,
 	CURRENT,
 	POWER,
+	ENERGY,
 };
 
 struct scpi_sensor_info {
@@ -68,7 +69,9 @@ struct scpi_ops {
 	struct scpi_dvfs_info *(*dvfs_get_info)(u8);
 	int (*sensor_get_capability)(u16 *sensors);
 	int (*sensor_get_info)(u16 sensor_id, struct scpi_sensor_info *);
-	int (*sensor_get_value)(u16, u32 *);
+	int (*sensor_get_value)(u16, u64 *);
+	int (*device_get_power_state)(u16);
+	int (*device_set_power_state)(u16, u8);
 };
 
 #if IS_REACHABLE(CONFIG_ARM_SCPI_PROTOCOL)

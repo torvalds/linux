@@ -138,6 +138,11 @@ internal_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	return stats;
 }
 
+static void internal_set_rx_headroom(struct net_device *dev, int new_hr)
+{
+	dev->needed_headroom = new_hr < 0 ? 0 : new_hr;
+}
+
 static const struct net_device_ops internal_dev_netdev_ops = {
 	.ndo_open = internal_dev_open,
 	.ndo_stop = internal_dev_stop,
@@ -145,6 +150,7 @@ static const struct net_device_ops internal_dev_netdev_ops = {
 	.ndo_set_mac_address = eth_mac_addr,
 	.ndo_change_mtu = internal_dev_change_mtu,
 	.ndo_get_stats64 = internal_get_stats,
+	.ndo_set_rx_headroom = internal_set_rx_headroom,
 };
 
 static struct rtnl_link_ops internal_dev_link_ops __read_mostly = {
@@ -158,11 +164,11 @@ static void do_setup(struct net_device *netdev)
 	netdev->netdev_ops = &internal_dev_netdev_ops;
 
 	netdev->priv_flags &= ~IFF_TX_SKB_SHARING;
-	netdev->priv_flags |= IFF_LIVE_ADDR_CHANGE | IFF_OPENVSWITCH;
+	netdev->priv_flags |= IFF_LIVE_ADDR_CHANGE | IFF_OPENVSWITCH |
+			      IFF_PHONY_HEADROOM | IFF_NO_QUEUE;
 	netdev->destructor = internal_dev_destructor;
 	netdev->ethtool_ops = &internal_dev_ethtool_ops;
 	netdev->rtnl_link_ops = &internal_dev_link_ops;
-	netdev->tx_queue_len = 0;
 
 	netdev->features = NETIF_F_LLTX | NETIF_F_SG | NETIF_F_FRAGLIST |
 			   NETIF_F_HIGHDMA | NETIF_F_HW_CSUM |
@@ -189,7 +195,7 @@ static struct vport *internal_dev_create(const struct vport_parms *parms)
 	}
 
 	vport->dev = alloc_netdev(sizeof(struct internal_dev),
-				  parms->name, NET_NAME_UNKNOWN, do_setup);
+				  parms->name, NET_NAME_USER, do_setup);
 	if (!vport->dev) {
 		err = -ENOMEM;
 		goto error_free_vport;
@@ -199,6 +205,7 @@ static struct vport *internal_dev_create(const struct vport_parms *parms)
 		err = -ENOMEM;
 		goto error_free_netdev;
 	}
+	vport->dev->needed_headroom = vport->dp->max_headroom;
 
 	dev_net_set(vport->dev, ovs_dp_get_net(vport->dp));
 	internal_dev = internal_dev_priv(vport->dev);

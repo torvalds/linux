@@ -117,7 +117,7 @@ static int sunxi_sram_show(struct seq_file *s, void *data)
 
 			val = readl(base + sram_data->reg);
 			val >>= sram_data->offset;
-			val &= sram_data->width;
+			val &= GENMASK(sram_data->width - 1, 0);
 
 			for (func = sram_data->func; func->func; func++) {
 				seq_printf(s, "\t\t%s%c\n", func->func,
@@ -208,7 +208,8 @@ int sunxi_sram_claim(struct device *dev)
 		return -EBUSY;
 	}
 
-	mask = GENMASK(sram_data->offset + sram_data->width, sram_data->offset);
+	mask = GENMASK(sram_data->offset + sram_data->width - 1,
+		       sram_data->offset);
 	val = readl(base + sram_data->reg);
 	val &= ~mask;
 	writel(val | ((device << sram_data->offset) & mask),

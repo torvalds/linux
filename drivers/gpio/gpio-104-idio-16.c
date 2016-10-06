@@ -10,6 +10,9 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
+ *
+ * This driver supports the following ACCES devices: 104-IDIO-16,
+ * 104-IDIO-16E, 104-IDO-16, 104-IDIO-8, 104-IDIO-8E, and 104-IDO-8.
  */
 #include <linux/bitops.h>
 #include <linux/device.h>
@@ -19,18 +22,23 @@
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/irqdesc.h>
+#include <linux/isa.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/platform_device.h>
 #include <linux/spinlock.h>
 
-static unsigned idio_16_base;
-module_param(idio_16_base, uint, 0);
-MODULE_PARM_DESC(idio_16_base, "ACCES 104-IDIO-16 base address");
-static unsigned idio_16_irq;
-module_param(idio_16_irq, uint, 0);
-MODULE_PARM_DESC(idio_16_irq, "ACCES 104-IDIO-16 interrupt line number");
+#define IDIO_16_EXTENT 8
+#define MAX_NUM_IDIO_16 max_num_isa_dev(IDIO_16_EXTENT)
+
+static unsigned int base[MAX_NUM_IDIO_16];
+static unsigned int num_idio_16;
+module_param_array(base, uint, &num_idio_16, 0);
+MODULE_PARM_DESC(base, "ACCES 104-IDIO-16 base addresses");
+
+static unsigned int irq[MAX_NUM_IDIO_16];
+module_param_array(irq, uint, NULL, 0);
+MODULE_PARM_DESC(irq, "ACCES 104-IDIO-16 interrupt line numbers");
 
 /**
  * struct idio_16_gpio - GPIO device private data structure
@@ -38,7 +46,6 @@ MODULE_PARM_DESC(idio_16_irq, "ACCES 104-IDIO-16 interrupt line number");
  * @lock:	synchronization lock to prevent I/O race conditions
  * @irq_mask:	I/O bits affected by interrupts
  * @base:	base port address of the GPIO device
- * @extent:	extent of port address region of the GPIO device
  * @irq:	Interrupt line number
  * @out_state:	output bits state
  */
@@ -47,7 +54,6 @@ struct idio_16_gpio {
 	spinlock_t lock;
 	unsigned long irq_mask;
 	unsigned base;
-	unsigned extent;
 	unsigned irq;
 	unsigned out_state;
 };
@@ -187,25 +193,20 @@ static irqreturn_t idio_16_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init idio_16_probe(struct platform_device *pdev)
+static int idio_16_probe(struct device *dev, unsigned int id)
 {
-	struct device *dev = &pdev->dev;
 	struct idio_16_gpio *idio16gpio;
-	const unsigned base = idio_16_base;
-	const unsigned extent = 8;
 	const char *const name = dev_name(dev);
 	int err;
-	const unsigned irq = idio_16_irq;
 
 	idio16gpio = devm_kzalloc(dev, sizeof(*idio16gpio), GFP_KERNEL);
 	if (!idio16gpio)
 		return -ENOMEM;
 
-	if (!request_region(base, extent, name)) {
-		dev_err(dev, "Unable to lock %s port addresses (0x%X-0x%X)\n",
-			name, base, base + extent);
-		err = -EBUSY;
-		goto err_lock_io_port;
+	if (!devm_request_region(dev, base[id], IDIO_16_EXTENT, name)) {
+		dev_err(dev, "Unable to lock port addresses (0x%X-0x%X)\n",
+			base[id], base[id] + IDIO_16_EXTENT);
+		return -EBUSY;
 	}
 
 	idio16gpio->chip.label = name;
@@ -218,9 +219,8 @@ static int __init idio_16_probe(struct platform_device *pdev)
 	idio16gpio->chip.direction_output = idio_16_gpio_direction_output;
 	idio16gpio->chip.get = idio_16_gpio_get;
 	idio16gpio->chip.set = idio_16_gpio_set;
-	idio16gpio->base = base;
-	idio16gpio->extent = extent;
-	idio16gpio->irq = irq;
+	idio16gpio->base = base[id];
+	idio16gpio->irq = irq[id];
 	idio16gpio->out_state = 0xFFFF;
 
 	spin_lock_init(&idio16gpio->lock);
@@ -230,91 +230,53 @@ static int __init idio_16_probe(struct platform_device *pdev)
 	err = gpiochip_add_data(&idio16gpio->chip, idio16gpio);
 	if (err) {
 		dev_err(dev, "GPIO registering failed (%d)\n", err);
-		goto err_gpio_register;
+		return err;
 	}
 
 	/* Disable IRQ by default */
-	outb(0, base + 2);
-	outb(0, base + 1);
+	outb(0, base[id] + 2);
+	outb(0, base[id] + 1);
 
 	err = gpiochip_irqchip_add(&idio16gpio->chip, &idio_16_irqchip, 0,
 		handle_edge_irq, IRQ_TYPE_NONE);
 	if (err) {
 		dev_err(dev, "Could not add irqchip (%d)\n", err);
-		goto err_gpiochip_irqchip_add;
+		goto err_gpiochip_remove;
 	}
 
-	err = request_irq(irq, idio_16_irq_handler, 0, name, idio16gpio);
+	err = request_irq(irq[id], idio_16_irq_handler, 0, name, idio16gpio);
 	if (err) {
 		dev_err(dev, "IRQ handler registering failed (%d)\n", err);
-		goto err_request_irq;
+		goto err_gpiochip_remove;
 	}
 
 	return 0;
 
-err_request_irq:
-err_gpiochip_irqchip_add:
+err_gpiochip_remove:
 	gpiochip_remove(&idio16gpio->chip);
-err_gpio_register:
-	release_region(base, extent);
-err_lock_io_port:
 	return err;
 }
 
-static int idio_16_remove(struct platform_device *pdev)
+static int idio_16_remove(struct device *dev, unsigned int id)
 {
-	struct idio_16_gpio *const idio16gpio = platform_get_drvdata(pdev);
+	struct idio_16_gpio *const idio16gpio = dev_get_drvdata(dev);
 
 	free_irq(idio16gpio->irq, idio16gpio);
 	gpiochip_remove(&idio16gpio->chip);
-	release_region(idio16gpio->base, idio16gpio->extent);
 
 	return 0;
 }
 
-static struct platform_device *idio_16_device;
-
-static struct platform_driver idio_16_driver = {
+static struct isa_driver idio_16_driver = {
+	.probe = idio_16_probe,
 	.driver = {
 		.name = "104-idio-16"
 	},
 	.remove = idio_16_remove
 };
 
-static void __exit idio_16_exit(void)
-{
-	platform_device_unregister(idio_16_device);
-	platform_driver_unregister(&idio_16_driver);
-}
-
-static int __init idio_16_init(void)
-{
-	int err;
-
-	idio_16_device = platform_device_alloc(idio_16_driver.driver.name, -1);
-	if (!idio_16_device)
-		return -ENOMEM;
-
-	err = platform_device_add(idio_16_device);
-	if (err)
-		goto err_platform_device;
-
-	err = platform_driver_probe(&idio_16_driver, idio_16_probe);
-	if (err)
-		goto err_platform_driver;
-
-	return 0;
-
-err_platform_driver:
-	platform_device_del(idio_16_device);
-err_platform_device:
-	platform_device_put(idio_16_device);
-	return err;
-}
-
-module_init(idio_16_init);
-module_exit(idio_16_exit);
+module_isa_driver(idio_16_driver, num_idio_16);
 
 MODULE_AUTHOR("William Breathitt Gray <vilhelm.gray@gmail.com>");
 MODULE_DESCRIPTION("ACCES 104-IDIO-16 GPIO driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

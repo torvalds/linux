@@ -1235,8 +1235,8 @@ DECLARE_EVENT_CLASS(nfs4_idmap_event,
 				len = 0;
 			__entry->error = error < 0 ? error : 0;
 			__entry->id = id;
-			memcpy(__get_dynamic_array(name), name, len);
-			((char *)__get_dynamic_array(name))[len] = 0;
+			memcpy(__get_str(name), name, len);
+			__get_str(name)[len] = 0;
 		),
 
 		TP_printk(
@@ -1520,6 +1520,8 @@ DEFINE_NFS4_INODE_EVENT(nfs4_layoutreturn_on_close);
 		{ PNFS_UPDATE_LAYOUT_FOUND_CACHED, "found cached" },	\
 		{ PNFS_UPDATE_LAYOUT_RETURN, "layoutreturn" },		\
 		{ PNFS_UPDATE_LAYOUT_BLOCKED, "layouts blocked" },	\
+		{ PNFS_UPDATE_LAYOUT_INVALID_OPEN, "invalid open" },	\
+		{ PNFS_UPDATE_LAYOUT_RETRY, "retrying" },	\
 		{ PNFS_UPDATE_LAYOUT_SEND_LAYOUTGET, "sent layoutget" })
 
 TRACE_EVENT(pnfs_update_layout,
@@ -1528,9 +1530,10 @@ TRACE_EVENT(pnfs_update_layout,
 			u64 count,
 			enum pnfs_iomode iomode,
 			struct pnfs_layout_hdr *lo,
+			struct pnfs_layout_segment *lseg,
 			enum pnfs_update_layout_reason reason
 		),
-		TP_ARGS(inode, pos, count, iomode, lo, reason),
+		TP_ARGS(inode, pos, count, iomode, lo, lseg, reason),
 		TP_STRUCT__entry(
 			__field(dev_t, dev)
 			__field(u64, fileid)
@@ -1540,6 +1543,7 @@ TRACE_EVENT(pnfs_update_layout,
 			__field(enum pnfs_iomode, iomode)
 			__field(int, layoutstateid_seq)
 			__field(u32, layoutstateid_hash)
+			__field(long, lseg)
 			__field(enum pnfs_update_layout_reason, reason)
 		),
 		TP_fast_assign(
@@ -1559,11 +1563,12 @@ TRACE_EVENT(pnfs_update_layout,
 				__entry->layoutstateid_seq = 0;
 				__entry->layoutstateid_hash = 0;
 			}
+			__entry->lseg = (long)lseg;
 		),
 		TP_printk(
 			"fileid=%02x:%02x:%llu fhandle=0x%08x "
 			"iomode=%s pos=%llu count=%llu "
-			"layoutstateid=%d:0x%08x (%s)",
+			"layoutstateid=%d:0x%08x lseg=0x%lx (%s)",
 			MAJOR(__entry->dev), MINOR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle,
@@ -1571,6 +1576,7 @@ TRACE_EVENT(pnfs_update_layout,
 			(unsigned long long)__entry->pos,
 			(unsigned long long)__entry->count,
 			__entry->layoutstateid_seq, __entry->layoutstateid_hash,
+			__entry->lseg,
 			show_pnfs_update_layout_reason(__entry->reason)
 		)
 );

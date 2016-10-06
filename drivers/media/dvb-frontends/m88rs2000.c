@@ -609,7 +609,7 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 {
 	struct m88rs2000_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	enum fe_status status;
+	enum fe_status status = 0;
 	int i, ret = 0;
 	u32 tuner_freq;
 	s16 offset = 0;
@@ -708,10 +708,11 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int m88rs2000_get_frontend(struct dvb_frontend *fe)
+static int m88rs2000_get_frontend(struct dvb_frontend *fe,
+				  struct dtv_frontend_properties *c)
 {
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct m88rs2000_state *state = fe->demodulator_priv;
+
 	c->fec_inner = state->fec_inner;
 	c->frequency = state->tuner_frequency;
 	c->symbol_rate = state->symbol_rate;

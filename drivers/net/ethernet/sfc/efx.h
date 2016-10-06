@@ -32,7 +32,8 @@ netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 				struct net_device *net_dev);
 netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb);
 void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index);
-int efx_setup_tc(struct net_device *net_dev, u8 num_tc);
+int efx_setup_tc(struct net_device *net_dev, u32 handle, __be16 proto,
+		 struct tc_to_netdev *tc);
 unsigned int efx_tx_max_skb_descs(struct efx_nic *efx);
 extern unsigned int efx_piobuf_size;
 extern bool efx_separate_tx_channels;
@@ -203,6 +204,8 @@ int efx_try_recovery(struct efx_nic *efx);
 
 /* Global */
 void efx_schedule_reset(struct efx_nic *efx, enum reset_type type);
+unsigned int efx_usecs_to_ticks(struct efx_nic *efx, unsigned int usecs);
+unsigned int efx_ticks_to_usecs(struct efx_nic *efx, unsigned int ticks);
 int efx_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
 			    unsigned int rx_usecs, bool rx_adaptive,
 			    bool rx_may_override_tx);
@@ -271,6 +274,15 @@ static inline void efx_device_detach_sync(struct efx_nic *efx)
 	netif_tx_lock_bh(dev);
 	netif_device_detach(dev);
 	netif_tx_unlock_bh(dev);
+}
+
+static inline bool efx_rwsem_assert_write_locked(struct rw_semaphore *sem)
+{
+	if (WARN_ON(down_read_trylock(sem))) {
+		up_read(sem);
+		return false;
+	}
+	return true;
 }
 
 #endif /* EFX_EFX_H */

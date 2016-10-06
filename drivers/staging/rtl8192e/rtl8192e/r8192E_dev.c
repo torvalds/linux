@@ -680,7 +680,7 @@ static void _rtl92e_hwconfig(struct net_device *dev)
 
 	rtl92e_writeb(dev, BW_OPMODE, regBwOpMode);
 	{
-		u32 ratr_value = 0;
+		u32 ratr_value;
 
 		ratr_value = regRATR;
 		if (priv->rf_type == RF_1T2R)
@@ -1000,7 +1000,7 @@ void rtl92e_link_change(struct net_device *dev)
 	_rtl92e_update_msr(dev);
 
 	if (ieee->iw_mode == IW_MODE_INFRA || ieee->iw_mode == IW_MODE_ADHOC) {
-		u32 reg = 0;
+		u32 reg;
 
 		reg = rtl92e_readl(dev, RCR);
 		if (priv->rtllib->state == RTLLIB_LINKED) {
@@ -1186,7 +1186,7 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	dma_addr_t mapping = pci_map_single(priv->pdev, skb->data, skb->len,
 			 PCI_DMA_TODEVICE);
-	struct tx_fwinfo_8190pci *pTxFwInfo = NULL;
+	struct tx_fwinfo_8190pci *pTxFwInfo;
 
 	pTxFwInfo = (struct tx_fwinfo_8190pci *)skb->data;
 	memset(pTxFwInfo, 0, sizeof(struct tx_fwinfo_8190pci));
@@ -1487,8 +1487,8 @@ static void _rtl92e_query_rxphystatus(
 	struct phy_ofdm_rx_status_rxsc_sgien_exintfflag *prxsc;
 	u8 *prxpkt;
 	u8 i, max_spatial_stream, tmp_rxsnr, tmp_rxevm, rxsc_sgien_exflg;
-	char rx_pwr[4], rx_pwr_all = 0;
-	char rx_snrX, rx_evmX;
+	s8 rx_pwr[4], rx_pwr_all = 0;
+	s8 rx_snrX, rx_evmX;
 	u8 evm, pwdb_all;
 	u32 RSSI, total_rssi = 0;
 	u8 is_cck_rate = 0;
@@ -1613,7 +1613,7 @@ static void _rtl92e_query_rxphystatus(
 				     2) - 110;
 
 			tmp_rxsnr = pofdm_buf->rxsnr_X[i];
-			rx_snrX = (char)(tmp_rxsnr);
+			rx_snrX = (s8)(tmp_rxsnr);
 			rx_snrX /= 2;
 			priv->stats.rxSNRdB[i] = (long)rx_snrX;
 
@@ -1643,7 +1643,7 @@ static void _rtl92e_query_rxphystatus(
 
 		for (i = 0; i < max_spatial_stream; i++) {
 			tmp_rxevm = pofdm_buf->rxevm_X[i];
-			rx_evmX = (char)(tmp_rxevm);
+			rx_evmX = (s8)(tmp_rxevm);
 
 			rx_evmX /= 2;
 
@@ -2235,7 +2235,7 @@ void rtl92e_disable_irq(struct net_device *dev)
 
 void rtl92e_clear_irq(struct net_device *dev)
 {
-	u32 tmp = 0;
+	u32 tmp;
 
 	tmp = rtl92e_readl(dev, ISR);
 	rtl92e_writel(dev, ISR, tmp);

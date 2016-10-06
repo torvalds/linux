@@ -3,6 +3,8 @@ config NET_XGENE
 	depends on HAS_DMA
 	depends on ARCH_XGENE || COMPILE_TEST
 	select PHYLIB
+	select MDIO_XGENE
+	select GPIOLIB
 	help
 	  This is the Ethernet driver for the on-chip ethernet interface on the
 	  APM X-Gene SoC.

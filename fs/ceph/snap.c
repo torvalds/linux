@@ -296,8 +296,6 @@ static int cmpu64_rev(const void *a, const void *b)
 }
 
 
-struct ceph_snap_context *ceph_empty_snapc;
-
 /*
  * build the snap context for a given realm.
  */
@@ -522,9 +520,7 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 	ihold(inode);
 
 	atomic_set(&capsnap->nref, 1);
-	capsnap->ci = ci;
 	INIT_LIST_HEAD(&capsnap->ci_item);
-	INIT_LIST_HEAD(&capsnap->flushing_item);
 
 	capsnap->follows = old_snapc->seq;
 	capsnap->issued = __ceph_caps_issued(ci, NULL);
@@ -553,7 +549,6 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 	ci->i_wrbuffer_ref_head = 0;
 	capsnap->context = old_snapc;
 	list_add_tail(&capsnap->ci_item, &ci->i_cap_snaps);
-	old_snapc = NULL;
 
 	if (used & CEPH_CAP_FILE_WR) {
 		dout("queue_cap_snap %p cap_snap %p snapc %p"
@@ -565,6 +560,7 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 		__ceph_finish_cap_snap(ci, capsnap);
 	}
 	capsnap = NULL;
+	old_snapc = NULL;
 
 update_snapc:
 	if (ci->i_head_snapc) {
@@ -605,6 +601,8 @@ int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
 		     capsnap->dirty_pages);
 		return 0;
 	}
+
+	ci->i_ceph_flags |= CEPH_I_FLUSH_SNAPS;
 	dout("finish_cap_snap %p cap_snap %p snapc %p %llu %s s=%llu\n",
 	     inode, capsnap, capsnap->context,
 	     capsnap->context->seq, ceph_cap_string(capsnap->dirty),
@@ -801,9 +799,7 @@ static void flush_snaps(struct ceph_mds_client *mdsc)
 		inode = &ci->vfs_inode;
 		ihold(inode);
 		spin_unlock(&mdsc->snap_flush_lock);
-		spin_lock(&ci->i_ceph_lock);
-		__ceph_flush_snaps(ci, &session, 0);
-		spin_unlock(&ci->i_ceph_lock);
+		ceph_flush_snaps(ci, &session);
 		iput(inode);
 		spin_lock(&mdsc->snap_flush_lock);
 	}
@@ -986,18 +982,4 @@ out:
 	if (locked_rwsem)
 		up_write(&mdsc->snap_rwsem);
 	return;
-}
-
-int __init ceph_snap_init(void)
-{
-	ceph_empty_snapc = ceph_create_snap_context(0, GFP_NOFS);
-	if (!ceph_empty_snapc)
-		return -ENOMEM;
-	ceph_empty_snapc->seq = 1;
-	return 0;
-}
-
-void ceph_snap_exit(void)
-{
-	ceph_put_snap_context(ceph_empty_snapc);
 }

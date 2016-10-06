@@ -10,16 +10,24 @@
 	compatible = "nvidia,jetson-tk1", "nvidia,tegra124";
 
 	aliases {
-		rtc0 = "/i2c@0,7000d000/pmic@40";
-		rtc1 = "/rtc@0,7000e000";
+		rtc0 = "/i2c@7000d000/pmic@40";
+		rtc1 = "/rtc@7000e000";
+
+		/* This order keeps the mapping DB9 connector <-> ttyS0 */
 		serial0 = &uartd;
+		serial1 = &uarta;
+		serial2 = &uartb;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
 		reg = <0x0 0x80000000 0x0 0x80000000>;
 	};
 
-	pcie-controller@0,01003000 {
+	pcie-controller@01003000 {
 		status = "okay";
 
 		avddio-pex-supply = <&vdd_1v05_run>;
@@ -30,17 +38,23 @@
 		vddio-pex-ctl-supply = <&vdd_3v3_lp0>;
 		avdd-pll-erefe-supply = <&avdd_1v05_run>;
 
+		/* Mini PCIe */
 		pci@1,0 {
+			phys = <&{/padctl@7009f000/pads/pcie/lanes/pcie-4}>;
+			phy-names = "pcie-0";
 			status = "okay";
 		};
 
+		/* Gigabit Ethernet */
 		pci@2,0 {
+			phys = <&{/padctl@7009f000/pads/pcie/lanes/pcie-2}>;
+			phy-names = "pcie-0";
 			status = "okay";
 		};
 	};
 
-	host1x@0,50000000 {
-		hdmi@0,54280000 {
+	host1x@50000000 {
+		hdmi@54280000 {
 			status = "okay";
 
 			hdmi-supply = <&vdd_5v0_hdmi>;
@@ -61,7 +75,7 @@
 		vdd-supply = <&vdd_gpu>;
 	};
 
-	pinmux: pinmux@0,70000868 {
+	pinmux: pinmux@70000868 {
 		pinctrl-names = "boot";
 		pinctrl-0 = <&state_boot>;
 
@@ -1342,14 +1356,6 @@
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
-			owr {
-				nvidia,pins = "owr";
-				nvidia,function = "rsvd2";
-				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
-				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
-				nvidia,rcv-sel = <TEGRA_PIN_DISABLE>;
-			};
 			clk_32k_in {
 				nvidia,pins = "clk_32k_in";
 				nvidia,function = "clk";
@@ -1364,16 +1370,42 @@
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 			};
+			dsi_b {
+				nvidia,pins = "mipi_pad_ctrl_dsi_b";
+				nvidia,function = "dsi_b";
+			};
 		};
 	};
 
+	/*
+	 * First high speed UART, exposed on the expansion connector J3A2
+	 *   Pin 41: BR_UART1_TXD
+	 *   Pin 44: BR_UART1_RXD
+	 */
+	serial@70006000 {
+		compatible = "nvidia,tegra124-hsuart", "nvidia,tegra30-hsuart";
+		status = "okay";
+	};
+
+	/*
+	 * Second high speed UART, exposed on the expansion connector J3A2
+	 *   Pin 65: UART2_RXD
+	 *   Pin 68: UART2_TXD
+	 *   Pin 71: UART2_CTS_L
+	 *   Pin 74: UART2_RTS_L
+	 */
+	serial@70006040 {
+		compatible = "nvidia,tegra124-hsuart", "nvidia,tegra30-hsuart";
+		status = "okay";
+	};
+
 	/* DB9 serial port */
-	serial@0,70006300 {
+	serial@70006300 {
 		status = "okay";
 	};
 
 	/* Expansion GEN1_I2C_*, mini-PCIe I2C, on-board components */
-	i2c@0,7000c000 {
+	i2c@7000c000 {
 		status = "okay";
 		clock-frequency = <100000>;
 
@@ -1401,25 +1433,25 @@
 	};
 
 	/* Expansion GEN2_I2C_* */
-	i2c@0,7000c400 {
+	i2c@7000c400 {
 		status = "okay";
 		clock-frequency = <100000>;
 	};
 
 	/* Expansion CAM_I2C_* */
-	i2c@0,7000c500 {
+	i2c@7000c500 {
 		status = "okay";
 		clock-frequency = <100000>;
 	};
 
 	/* HDMI DDC */
-	hdmi_ddc: i2c@0,7000c700 {
+	hdmi_ddc: i2c@7000c700 {
 		status = "okay";
 		clock-frequency = <100000>;
 	};
 
 	/* Expansion PWR_I2C_*, on-board components */
-	i2c@0,7000d000 {
+	i2c@7000d000 {
 		status = "okay";
 		clock-frequency = <400000>;
 
@@ -1610,12 +1642,12 @@
 	};
 
 	/* Expansion TS_SPI_* */
-	spi@0,7000d400 {
+	spi@7000d400 {
 		status = "okay";
 	};
 
 	/* Internal SPI */
-	spi@0,7000da00 {
+	spi@7000da00 {
 		status = "okay";
 		spi-max-frequency = <25000000>;
 		spi-flash@0 {
@@ -1625,7 +1657,7 @@
 		};
 	};
 
-	pmc@0,7000e400 {
+	pmc@7000e400 {
 		nvidia,invert-interrupt;
 		nvidia,suspend-mode = <1>;
 		nvidia,cpu-pwr-good-time = <500>;
@@ -1644,8 +1676,11 @@
 	};
 
 	/* Serial ATA */
-	sata@0,70020000 {
+	sata@70020000 {
 		status = "okay";
+
+		phys = <&{/padctl@7009f000/pads/sata/lanes/sata-0}>;
+		phy-names = "sata-0";
 
 		hvdd-supply = <&vdd_3v3_lp0>;
 		vddio-supply = <&vdd_1v05_run>;
@@ -1655,38 +1690,117 @@
 		target-12v-supply = <&vdd_12v0_sata>;
 	};
 
-	hda@0,70030000 {
+	hda@70030000 {
 		status = "okay";
 	};
 
-	padctl@0,7009f000 {
-		pinctrl-0 = <&padctl_default>;
-		pinctrl-names = "default";
+	usb@70090000 {
+		phys = <&{/padctl@7009f000/pads/usb2/lanes/usb2-0}>, /* Micro A/B */
+		       <&{/padctl@7009f000/pads/usb2/lanes/usb2-1}>, /* Mini PCIe */
+		       <&{/padctl@7009f000/pads/usb2/lanes/usb2-2}>, /* USB3 */
+		       <&{/padctl@7009f000/pads/pcie/lanes/pcie-0}>; /* USB3 */
+		phy-names = "usb2-0", "usb2-1", "usb2-2", "usb3-0";
 
-		padctl_default: pinmux {
-			usb3 {
-				nvidia,lanes = "pcie-0", "pcie-1";
-				nvidia,function = "usb3";
-				nvidia,iddq = <0>;
+		avddio-pex-supply = <&vdd_1v05_run>;
+		dvddio-pex-supply = <&vdd_1v05_run>;
+		avdd-usb-supply = <&vdd_3v3_lp0>;
+		avdd-pll-utmip-supply = <&vddio_1v8>;
+		avdd-pll-erefe-supply = <&avdd_1v05_run>;
+		avdd-usb-ss-pll-supply = <&vdd_1v05_run>;
+		hvdd-usb-ss-supply = <&vdd_3v3_lp0>;
+		hvdd-usb-ss-pll-e-supply = <&vdd_3v3_lp0>;
+
+		status = "okay";
+	};
+
+	padctl@7009f000 {
+		status = "okay";
+
+		pads {
+			usb2 {
+				status = "okay";
+
+				lanes {
+					usb2-0 {
+						nvidia,function = "xusb";
+						status = "okay";
+					};
+
+					usb2-1 {
+						nvidia,function = "xusb";
+						status = "okay";
+					};
+
+					usb2-2 {
+						nvidia,function = "xusb";
+						status = "okay";
+					};
+				};
 			};
 
 			pcie {
-				nvidia,lanes = "pcie-2", "pcie-3",
-					       "pcie-4";
-				nvidia,function = "pcie";
-				nvidia,iddq = <0>;
+				status = "okay";
+
+				lanes {
+					pcie-0 {
+						nvidia,function = "usb3-ss";
+						status = "okay";
+					};
+
+					pcie-2 {
+						nvidia,function = "pcie";
+						status = "okay";
+					};
+
+					pcie-4 {
+						nvidia,function = "pcie";
+						status = "okay";
+					};
+				};
 			};
 
 			sata {
-				nvidia,lanes = "sata-0";
-				nvidia,function = "sata";
-				nvidia,iddq = <0>;
+				status = "okay";
+
+				lanes {
+					sata-0 {
+						nvidia,function = "sata";
+						status = "okay";
+					};
+				};
+			};
+		};
+
+		ports {
+			/* Micro A/B */
+			usb2-0 {
+				status = "okay";
+				mode = "otg";
+			};
+
+			/* Mini PCIe */
+			usb2-1 {
+				status = "okay";
+				mode = "host";
+			};
+
+			/* USB3 */
+			usb2-2 {
+				status = "okay";
+				mode = "host";
+
+				vbus-supply = <&vdd_usb3_vbus>;
+			};
+
+			usb3-0 {
+				nvidia,usb2-companion = <2>;
+				status = "okay";
 			};
 		};
 	};
 
 	/* SD card */
-	sdhci@0,700b0400 {
+	sdhci@700b0400 {
 		status = "okay";
 		cd-gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_LOW>;
 		power-gpios = <&gpio TEGRA_GPIO(R, 0) GPIO_ACTIVE_HIGH>;
@@ -1696,40 +1810,40 @@
 	};
 
 	/* eMMC */
-	sdhci@0,700b0600 {
+	sdhci@700b0600 {
 		status = "okay";
 		bus-width = <8>;
 		non-removable;
 	};
 
 	/* CPU DFLL clock */
-	clock@0,70110000 {
+	clock@70110000 {
 		status = "okay";
 		vdd-cpu-supply = <&vdd_cpu>;
 		nvidia,i2c-fs-rate = <400000>;
 	};
 
-	ahub@0,70300000 {
-		i2s@0,70301100 {
+	ahub@70300000 {
+		i2s@70301100 {
 			status = "okay";
 		};
 	};
 
 	/* mini-PCIe USB */
-	usb@0,7d004000 {
+	usb@7d004000 {
 		status = "okay";
 	};
 
-	usb-phy@0,7d004000 {
+	usb-phy@7d004000 {
 		status = "okay";
 	};
 
 	/* USB A connector */
-	usb@0,7d008000 {
+	usb@7d008000 {
 		status = "okay";
 	};
 
-	usb-phy@0,7d008000 {
+	usb-phy@7d008000 {
 		status = "okay";
 		vbus-supply = <&vdd_usb3_vbus>;
 	};
@@ -1761,7 +1875,7 @@
 			gpios = <&gpio TEGRA_GPIO(Q, 0) GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 			debounce-interval = <10>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
@@ -1931,7 +2045,7 @@
 	thermal-zones {
 		cpu {
 			trips {
-				trip@0 {
+				trip {
 					temperature = <101000>;
 					hysteresis = <0>;
 					type = "critical";
@@ -1945,7 +2059,7 @@
 
 		mem {
 			trips {
-				trip@0 {
+				trip {
 					temperature = <101000>;
 					hysteresis = <0>;
 					type = "critical";
@@ -1959,7 +2073,7 @@
 
 		gpu {
 			trips {
-				trip@0 {
+				trip {
 					temperature = <101000>;
 					hysteresis = <0>;
 					type = "critical";

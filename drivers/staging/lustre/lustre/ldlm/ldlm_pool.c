@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -107,7 +103,7 @@
 /*
  * 50 ldlm locks for 1MB of RAM.
  */
-#define LDLM_POOL_HOST_L ((NUM_CACHEPAGES >> (20 - PAGE_CACHE_SHIFT)) * 50)
+#define LDLM_POOL_HOST_L ((NUM_CACHEPAGES >> (20 - PAGE_SHIFT)) * 50)
 
 /*
  * Maximal possible grant step plan in %.
@@ -246,7 +242,6 @@ static void ldlm_cli_pool_pop_slv(struct ldlm_pool *pl)
 	 */
 	obd = container_of(pl, struct ldlm_namespace,
 			   ns_pool)->ns_obd;
-	LASSERT(obd != NULL);
 	read_lock(&obd->obd_pool_lock);
 	pl->pl_server_lock_volume = obd->obd_pool_slv;
 	atomic_set(&pl->pl_limit, obd->obd_pool_limit);
@@ -362,38 +357,40 @@ static int ldlm_pool_recalc(struct ldlm_pool *pl)
 	int count;
 
 	recalc_interval_sec = ktime_get_seconds() - pl->pl_recalc_time;
-	if (recalc_interval_sec <= 0)
-		goto recalc;
-
-	spin_lock(&pl->pl_lock);
 	if (recalc_interval_sec > 0) {
-		/*
-		 * Update pool statistics every 1s.
-		 */
-		ldlm_pool_recalc_stats(pl);
+		spin_lock(&pl->pl_lock);
+		recalc_interval_sec = ktime_get_seconds() - pl->pl_recalc_time;
 
-		/*
-		 * Zero out all rates and speed for the last period.
-		 */
-		atomic_set(&pl->pl_grant_rate, 0);
-		atomic_set(&pl->pl_cancel_rate, 0);
+		if (recalc_interval_sec > 0) {
+			/*
+			 * Update pool statistics every 1s.
+			 */
+			ldlm_pool_recalc_stats(pl);
+
+			/*
+			 * Zero out all rates and speed for the last period.
+			 */
+			atomic_set(&pl->pl_grant_rate, 0);
+			atomic_set(&pl->pl_cancel_rate, 0);
+		}
+		spin_unlock(&pl->pl_lock);
 	}
-	spin_unlock(&pl->pl_lock);
 
- recalc:
-	if (pl->pl_ops->po_recalc != NULL) {
+	if (pl->pl_ops->po_recalc) {
 		count = pl->pl_ops->po_recalc(pl);
 		lprocfs_counter_add(pl->pl_stats, LDLM_POOL_RECALC_STAT,
 				    count);
 	}
+
 	recalc_interval_sec = pl->pl_recalc_time - ktime_get_seconds() +
 			      pl->pl_recalc_period;
 	if (recalc_interval_sec <= 0) {
+		/* DEBUG: should be re-removed after LU-4536 is fixed */
+		CDEBUG(D_DLMTRACE, "%s: Negative interval(%ld), too short period(%ld)\n",
+		       pl->pl_name, (long)recalc_interval_sec,
+		       (long)pl->pl_recalc_period);
+
 		/* Prevent too frequent recalculation. */
-		CDEBUG(D_DLMTRACE,
-		       "Negative interval(%d), too short period(%lld)",
-		       recalc_interval_sec,
-		       (s64)pl->pl_recalc_period);
 		recalc_interval_sec = 1;
 	}
 
@@ -409,7 +406,7 @@ static int ldlm_pool_shrink(struct ldlm_pool *pl, int nr, gfp_t gfp_mask)
 {
 	int cancel = 0;
 
-	if (pl->pl_ops->po_shrink != NULL) {
+	if (pl->pl_ops->po_shrink) {
 		cancel = pl->pl_ops->po_shrink(pl, nr, gfp_mask);
 		if (nr > 0) {
 			lprocfs_counter_add(pl->pl_stats,
@@ -643,11 +640,11 @@ static void ldlm_pool_sysfs_fini(struct ldlm_pool *pl)
 
 static void ldlm_pool_debugfs_fini(struct ldlm_pool *pl)
 {
-	if (pl->pl_stats != NULL) {
+	if (pl->pl_stats) {
 		lprocfs_free_stats(&pl->pl_stats);
 		pl->pl_stats = NULL;
 	}
-	if (pl->pl_debugfs_entry != NULL) {
+	if (pl->pl_debugfs_entry) {
 		ldebugfs_remove(&pl->pl_debugfs_entry);
 		pl->pl_debugfs_entry = NULL;
 	}
@@ -797,7 +794,8 @@ static struct completion ldlm_pools_comp;
  */
 static unsigned long ldlm_pools_count(ldlm_side_t client, gfp_t gfp_mask)
 {
-	int total = 0, nr_ns;
+	unsigned long total = 0;
+	int nr_ns;
 	struct ldlm_namespace *ns;
 	struct ldlm_namespace *ns_old = NULL; /* loop detection */
 	void *cookie;
@@ -834,7 +832,7 @@ static unsigned long ldlm_pools_count(ldlm_side_t client, gfp_t gfp_mask)
 			continue;
 		}
 
-		if (ns_old == NULL)
+		if (!ns_old)
 			ns_old = ns;
 
 		ldlm_namespace_get(ns);
@@ -957,7 +955,7 @@ static int ldlm_pools_recalc(ldlm_side_t client)
 			continue;
 		}
 
-		if (ns_old == NULL)
+		if (!ns_old)
 			ns_old = ns;
 
 		spin_lock(&ns->ns_lock);
@@ -1000,7 +998,7 @@ static int ldlm_pools_thread_main(void *arg)
 	wake_up(&thread->t_ctl_waitq);
 
 	CDEBUG(D_DLMTRACE, "%s: pool thread starting, process %d\n",
-		"ldlm_poold", current_pid());
+	       "ldlm_poold", current_pid());
 
 	while (1) {
 		struct l_wait_info lwi;
@@ -1030,7 +1028,7 @@ static int ldlm_pools_thread_main(void *arg)
 	wake_up(&thread->t_ctl_waitq);
 
 	CDEBUG(D_DLMTRACE, "%s: pool thread exiting, process %d\n",
-		"ldlm_poold", current_pid());
+	       "ldlm_poold", current_pid());
 
 	complete_and_exit(&ldlm_pools_comp, 0);
 }
@@ -1040,7 +1038,7 @@ static int ldlm_pools_thread_start(void)
 	struct l_wait_info lwi = { 0 };
 	struct task_struct *task;
 
-	if (ldlm_pools_thread != NULL)
+	if (ldlm_pools_thread)
 		return -EALREADY;
 
 	ldlm_pools_thread = kzalloc(sizeof(*ldlm_pools_thread), GFP_NOFS);
@@ -1065,7 +1063,7 @@ static int ldlm_pools_thread_start(void)
 
 static void ldlm_pools_thread_stop(void)
 {
-	if (ldlm_pools_thread == NULL)
+	if (!ldlm_pools_thread)
 		return;
 
 	thread_set_flags(ldlm_pools_thread, SVC_STOPPING);

@@ -50,7 +50,7 @@ enum coda_product {
 struct coda_video_device;
 
 struct coda_devtype {
-	char			*firmware;
+	char			*firmware[2];
 	enum coda_product	product;
 	const struct coda_codec	*codecs;
 	unsigned int		num_codecs;
@@ -74,6 +74,7 @@ struct coda_dev {
 	struct video_device	vfd[5];
 	struct platform_device	*plat_dev;
 	const struct coda_devtype *devtype;
+	int			firmware;
 
 	void __iomem		*regs_base;
 	struct clk		*clk_per;
@@ -91,7 +92,6 @@ struct coda_dev {
 	struct mutex		coda_mutex;
 	struct workqueue_struct	*workqueue;
 	struct v4l2_m2m_dev	*m2m_dev;
-	struct vb2_alloc_ctx	*alloc_ctx;
 	struct list_head	instances;
 	unsigned long		instance_mask;
 	struct dentry		*debugfs_root;

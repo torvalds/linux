@@ -147,17 +147,30 @@ static void __init _register_dpll(struct clk_hw *hw,
 	struct dpll_data *dd = clk_hw->dpll_data;
 	struct clk *clk;
 
-	dd->clk_ref = of_clk_get(node, 0);
-	dd->clk_bypass = of_clk_get(node, 1);
-
-	if (IS_ERR(dd->clk_ref) || IS_ERR(dd->clk_bypass)) {
-		pr_debug("clk-ref or clk-bypass missing for %s, retry later\n",
+	clk = of_clk_get(node, 0);
+	if (IS_ERR(clk)) {
+		pr_debug("clk-ref missing for %s, retry later\n",
 			 node->name);
 		if (!ti_clk_retry_init(node, hw, _register_dpll))
 			return;
 
 		goto cleanup;
 	}
+
+	dd->clk_ref = __clk_get_hw(clk);
+
+	clk = of_clk_get(node, 1);
+
+	if (IS_ERR(clk)) {
+		pr_debug("clk-bypass missing for %s, retry later\n",
+			 node->name);
+		if (!ti_clk_retry_init(node, hw, _register_dpll))
+			return;
+
+		goto cleanup;
+	}
+
+	dd->clk_bypass = __clk_get_hw(clk);
 
 	/* register the clock */
 	clk = clk_register(NULL, &clk_hw->hw);
@@ -251,8 +264,8 @@ struct clk *ti_clk_register_dpll(struct ti_clk *setup)
 	dd->recal_en_bit = dpll->recal_en_bit;
 	dd->recal_st_bit = dpll->recal_st_bit;
 
-	dd->clk_ref = clk_ref;
-	dd->clk_bypass = clk_bypass;
+	dd->clk_ref = __clk_get_hw(clk_ref);
+	dd->clk_bypass = __clk_get_hw(clk_bypass);
 
 	if (dpll->flags & CLKF_CORE)
 		ops = &omap3_dpll_core_ck_ops;
@@ -361,7 +374,7 @@ static void __init of_ti_dpll_setup(struct device_node *node,
 	init->ops = ops;
 
 	init->num_parents = of_clk_get_parent_count(node);
-	if (init->num_parents < 1) {
+	if (!init->num_parents) {
 		pr_err("%s must have parent(s)\n", node->name);
 		goto cleanup;
 	}
@@ -642,6 +655,7 @@ static void __init of_ti_am3_no_gate_dpll_setup(struct device_node *node)
 		.max_multiplier = 2047,
 		.max_divider = 128,
 		.min_divider = 1,
+		.max_rate = 1000000000,
 		.modes = (1 << DPLL_LOW_POWER_BYPASS) | (1 << DPLL_LOCKED),
 	};
 
@@ -661,6 +675,7 @@ static void __init of_ti_am3_jtype_dpll_setup(struct device_node *node)
 		.max_divider = 256,
 		.min_divider = 2,
 		.flags = DPLL_J_TYPE,
+		.max_rate = 2000000000,
 		.modes = (1 << DPLL_LOW_POWER_BYPASS) | (1 << DPLL_LOCKED),
 	};
 
@@ -679,6 +694,7 @@ static void __init of_ti_am3_no_gate_jtype_dpll_setup(struct device_node *node)
 		.max_multiplier = 2047,
 		.max_divider = 128,
 		.min_divider = 1,
+		.max_rate = 2000000000,
 		.flags = DPLL_J_TYPE,
 		.modes = (1 << DPLL_LOW_POWER_BYPASS) | (1 << DPLL_LOCKED),
 	};
@@ -699,6 +715,7 @@ static void __init of_ti_am3_dpll_setup(struct device_node *node)
 		.max_multiplier = 2047,
 		.max_divider = 128,
 		.min_divider = 1,
+		.max_rate = 1000000000,
 		.modes = (1 << DPLL_LOW_POWER_BYPASS) | (1 << DPLL_LOCKED),
 	};
 
@@ -716,6 +733,7 @@ static void __init of_ti_am3_core_dpll_setup(struct device_node *node)
 		.max_multiplier = 2047,
 		.max_divider = 128,
 		.min_divider = 1,
+		.max_rate = 1000000000,
 		.modes = (1 << DPLL_LOW_POWER_BYPASS) | (1 << DPLL_LOCKED),
 	};
 

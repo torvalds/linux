@@ -33,9 +33,9 @@ void default_idle(void)
  */
 
 extern void deconfigure_bp(long pid);
-void exit_thread(void)
+void exit_thread(struct task_struct *tsk)
 {
-	deconfigure_bp(current->pid);
+	deconfigure_bp(tsk->pid);
 }
 
 /*

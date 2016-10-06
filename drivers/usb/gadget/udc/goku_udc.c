@@ -1767,8 +1767,7 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* alloc, and start init */
 	dev = kzalloc (sizeof *dev, GFP_KERNEL);
-	if (dev == NULL){
-		pr_debug("enomem %s\n", pci_name(pdev));
+	if (!dev) {
 		retval = -ENOMEM;
 		goto err;
 	}
@@ -1839,6 +1838,8 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 err:
 	if (dev)
 		goku_remove (pdev);
+	/* gadget_release is not registered yet, kfree explicitly */
+	kfree(dev);
 	return retval;
 }
 
@@ -1846,7 +1847,7 @@ err:
 /*-------------------------------------------------------------------------*/
 
 static const struct pci_device_id pci_ids[] = { {
-	.class =	((PCI_CLASS_SERIAL_USB << 8) | 0xfe),
+	.class =	PCI_CLASS_SERIAL_USB_DEVICE,
 	.class_mask =	~0,
 	.vendor =	0x102f,		/* Toshiba */
 	.device =	0x0107,		/* this UDC */

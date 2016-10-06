@@ -65,6 +65,7 @@ struct coredump_params {
 	unsigned long limit;
 	unsigned long mm_flags;
 	loff_t written;
+	loff_t pos;
 };
 
 /*
@@ -112,6 +113,8 @@ extern int suid_dumpable;
 extern int setup_arg_pages(struct linux_binprm * bprm,
 			   unsigned long stack_top,
 			   int executable_stack);
+extern int transfer_args_to_stack(struct linux_binprm *bprm,
+				  unsigned long *sp_location);
 extern int bprm_change_interp(char *interp, struct linux_binprm *bprm);
 extern int copy_strings_kernel(int argc, const char *const *argv,
 			       struct linux_binprm *bprm);

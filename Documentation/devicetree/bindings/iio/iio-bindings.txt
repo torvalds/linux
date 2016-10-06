@@ -82,7 +82,7 @@ vdd channel is connected to output 0 of the &ref device.
 
 	...
 
-	iio_hwmon {
+	iio-hwmon {
 		compatible = "iio-hwmon";
 		io-channels = <&adc 0>, <&adc 1>, <&adc 2>,
 			<&adc 3>, <&adc 4>, <&adc 5>,

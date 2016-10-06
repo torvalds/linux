@@ -26,6 +26,7 @@ static int zero = 0;
 static int one = 1;
 static int min_sndbuf = SOCK_MIN_SNDBUF;
 static int min_rcvbuf = SOCK_MIN_RCVBUF;
+static int max_skb_frags = MAX_SKB_FRAGS;
 
 static int net_msg_warn;	/* Unused, but still a sysctl */
 
@@ -293,6 +294,15 @@ static struct ctl_table net_core_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
 	},
+# ifdef CONFIG_HAVE_EBPF_JIT
+	{
+		.procname	= "bpf_jit_harden",
+		.data		= &bpf_jit_harden,
+		.maxlen		= sizeof(int),
+		.mode		= 0600,
+		.proc_handler	= proc_dointvec,
+	},
+# endif
 #endif
 	{
 		.procname	= "netdev_tstamp_prequeue",
@@ -391,6 +401,15 @@ static struct ctl_table net_core_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
+	},
+	{
+		.procname	= "max_skb_frags",
+		.data		= &sysctl_max_skb_frags,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &one,
+		.extra2		= &max_skb_frags,
 	},
 	{ }
 };

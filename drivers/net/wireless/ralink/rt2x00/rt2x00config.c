@@ -277,6 +277,11 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 	else
 		clear_bit(CONFIG_POWERSAVING, &rt2x00dev->flags);
 
+	if (conf->flags & IEEE80211_CONF_MONITOR)
+		set_bit(CONFIG_MONITORING, &rt2x00dev->flags);
+	else
+		clear_bit(CONFIG_MONITORING, &rt2x00dev->flags);
+
 	rt2x00dev->curr_band = conf->chandef.chan->band;
 	rt2x00dev->curr_freq = conf->chandef.chan->center_freq;
 	rt2x00dev->tx_power = conf->power_level;

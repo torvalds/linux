@@ -1,4 +1,5 @@
-/* Driver for Realtek RTS51xx USB card reader
+/*
+ * Driver for Realtek RTS51xx USB card reader
  *
  * Copyright(c) 2009 Realtek Semiconductor Corp. All rights reserved.
  *

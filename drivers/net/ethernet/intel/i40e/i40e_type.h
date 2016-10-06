@@ -36,7 +36,7 @@
 #include "i40e_devids.h"
 
 /* I40E_MASK is a macro used on 32 bit registers */
-#define I40E_MASK(mask, shift) (mask << shift)
+#define I40E_MASK(mask, shift) ((u32)(mask) << (shift))
 
 #define I40E_MAX_VSI_QP			16
 #define I40E_MAX_VF_VSI			3
@@ -78,7 +78,7 @@ enum i40e_debug_mask {
 	I40E_DEBUG_DCB			= 0x00000400,
 	I40E_DEBUG_DIAG			= 0x00000800,
 	I40E_DEBUG_FD			= 0x00001000,
-
+	I40E_DEBUG_IWARP		= 0x00F00000,
 	I40E_DEBUG_AQ_MESSAGE		= 0x01000000,
 	I40E_DEBUG_AQ_DESCRIPTOR	= 0x02000000,
 	I40E_DEBUG_AQ_DESC_BUFFER	= 0x04000000,
@@ -89,6 +89,22 @@ enum i40e_debug_mask {
 
 	I40E_DEBUG_ALL			= 0xFFFFFFFF
 };
+
+#define I40E_MDIO_STCODE                0
+#define I40E_MDIO_OPCODE_ADDRESS        0
+#define I40E_MDIO_OPCODE_WRITE          I40E_MASK(1, \
+						  I40E_GLGEN_MSCA_OPCODE_SHIFT)
+#define I40E_MDIO_OPCODE_READ_INC_ADDR  I40E_MASK(2, \
+						  I40E_GLGEN_MSCA_OPCODE_SHIFT)
+#define I40E_MDIO_OPCODE_READ           I40E_MASK(3, \
+						  I40E_GLGEN_MSCA_OPCODE_SHIFT)
+
+#define I40E_PHY_COM_REG_PAGE                   0x1E
+#define I40E_PHY_LED_LINK_MODE_MASK             0xF0
+#define I40E_PHY_LED_MANUAL_ON                  0x100
+#define I40E_PHY_LED_PROV_REG_1                 0xC430
+#define I40E_PHY_LED_MODE_MASK                  0xFFFF
+#define I40E_PHY_LED_MODE_ORIG                  0x80000000
 
 /* These are structs for managing the hardware information and the operations.
  * The structures of function pointers are filled out at init time when we
@@ -144,6 +160,7 @@ enum i40e_vsi_type {
 	I40E_VSI_MIRROR	= 5,
 	I40E_VSI_SRIOV	= 6,
 	I40E_VSI_FDIR	= 7,
+	I40E_VSI_IWARP	= 8,
 	I40E_VSI_TYPE_UNKNOWN
 };
 
@@ -257,6 +274,11 @@ struct i40e_hw_capabilities {
 	u32 flex10_status;
 #define I40E_FLEX10_STATUS_DCC_ERROR	0x1
 #define I40E_FLEX10_STATUS_VC_MODE	0x2
+
+	bool sec_rev_disabled;
+	bool update_disabled;
+#define I40E_NVM_MGMT_SEC_REV_DISABLED	0x1
+#define I40E_NVM_MGMT_UPDATE_DISABLED	0x2
 
 	bool mgmt_cem;
 	bool ieee_1588;
@@ -532,6 +554,8 @@ struct i40e_hw {
 	enum i40e_nvmupd_state nvmupd_state;
 	struct i40e_aq_desc nvm_wb_desc;
 	struct i40e_virt_mem nvm_buff;
+	bool nvm_release_on_done;
+	u16 nvm_wait_opcode;
 
 	/* HMC info */
 	struct i40e_hmc_info hmc; /* HMC info struct */
@@ -1098,6 +1122,10 @@ enum i40e_filter_program_desc_pcmd {
 					 I40E_TXD_FLTR_QW1_CMD_SHIFT)
 #define I40E_TXD_FLTR_QW1_ATR_MASK	BIT_ULL(I40E_TXD_FLTR_QW1_ATR_SHIFT)
 
+#define I40E_TXD_FLTR_QW1_ATR_SHIFT	(0xEULL + \
+					 I40E_TXD_FLTR_QW1_CMD_SHIFT)
+#define I40E_TXD_FLTR_QW1_ATR_MASK	BIT_ULL(I40E_TXD_FLTR_QW1_ATR_SHIFT)
+
 #define I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT 20
 #define I40E_TXD_FLTR_QW1_CNTINDEX_MASK	(0x1FFUL << \
 					 I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT)
@@ -1512,4 +1540,37 @@ struct i40e_lldp_variables {
 
 /* RSS Hash Table Size */
 #define I40E_PFQF_CTL_0_HASHLUTSIZE_512	0x00010000
+
+/* INPUT SET MASK for RSS, flow director, and flexible payload */
+#define I40E_L3_SRC_SHIFT		47
+#define I40E_L3_SRC_MASK		(0x3ULL << I40E_L3_SRC_SHIFT)
+#define I40E_L3_V6_SRC_SHIFT		43
+#define I40E_L3_V6_SRC_MASK		(0xFFULL << I40E_L3_V6_SRC_SHIFT)
+#define I40E_L3_DST_SHIFT		35
+#define I40E_L3_DST_MASK		(0x3ULL << I40E_L3_DST_SHIFT)
+#define I40E_L3_V6_DST_SHIFT		35
+#define I40E_L3_V6_DST_MASK		(0xFFULL << I40E_L3_V6_DST_SHIFT)
+#define I40E_L4_SRC_SHIFT		34
+#define I40E_L4_SRC_MASK		(0x1ULL << I40E_L4_SRC_SHIFT)
+#define I40E_L4_DST_SHIFT		33
+#define I40E_L4_DST_MASK		(0x1ULL << I40E_L4_DST_SHIFT)
+#define I40E_VERIFY_TAG_SHIFT		31
+#define I40E_VERIFY_TAG_MASK		(0x3ULL << I40E_VERIFY_TAG_SHIFT)
+
+#define I40E_FLEX_50_SHIFT		13
+#define I40E_FLEX_50_MASK		(0x1ULL << I40E_FLEX_50_SHIFT)
+#define I40E_FLEX_51_SHIFT		12
+#define I40E_FLEX_51_MASK		(0x1ULL << I40E_FLEX_51_SHIFT)
+#define I40E_FLEX_52_SHIFT		11
+#define I40E_FLEX_52_MASK		(0x1ULL << I40E_FLEX_52_SHIFT)
+#define I40E_FLEX_53_SHIFT		10
+#define I40E_FLEX_53_MASK		(0x1ULL << I40E_FLEX_53_SHIFT)
+#define I40E_FLEX_54_SHIFT		9
+#define I40E_FLEX_54_MASK		(0x1ULL << I40E_FLEX_54_SHIFT)
+#define I40E_FLEX_55_SHIFT		8
+#define I40E_FLEX_55_MASK		(0x1ULL << I40E_FLEX_55_SHIFT)
+#define I40E_FLEX_56_SHIFT		7
+#define I40E_FLEX_56_MASK		(0x1ULL << I40E_FLEX_56_SHIFT)
+#define I40E_FLEX_57_SHIFT		6
+#define I40E_FLEX_57_MASK		(0x1ULL << I40E_FLEX_57_SHIFT)
 #endif /* _I40E_TYPE_H_ */

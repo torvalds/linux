@@ -337,20 +337,6 @@ static int r820t_xtal_capacitor[][2] = {
 };
 
 /*
- * measured with a Racal 6103E GSM test set at 928 MHz with -60 dBm
- * input power, for raw results see:
- *	http://steve-m.de/projects/rtl-sdr/gain_measurement/r820t/
- */
-
-static const int r820t_lna_gain_steps[]  = {
-	0, 9, 13, 40, 38, 13, 31, 22, 26, 31, 26, 14, 19, 5, 35, 13
-};
-
-static const int r820t_mixer_gain_steps[]  = {
-	0, 5, 10, 10, 19, 9, 10, 25, 17, 10, 8, 16, 13, 6, 3, -8
-};
-
-/*
  * I2C read/write code and shadow registers logic
  */
 static void shadow_store(struct r820t_priv *priv, u8 reg, const u8 *val,
@@ -1216,6 +1202,21 @@ static int r820t_read_gain(struct r820t_priv *priv)
 
 #if 0
 /* FIXME: This routine requires more testing */
+
+/*
+ * measured with a Racal 6103E GSM test set at 928 MHz with -60 dBm
+ * input power, for raw results see:
+ *	http://steve-m.de/projects/rtl-sdr/gain_measurement/r820t/
+ */
+
+static const int r820t_lna_gain_steps[]  = {
+	0, 9, 13, 40, 38, 13, 31, 22, 26, 31, 26, 14, 19, 5, 35, 13
+};
+
+static const int r820t_mixer_gain_steps[]  = {
+	0, 5, 10, 10, 19, 9, 10, 25, 17, 10, 8, 16, 13, 6, 3, -8
+};
+
 static int r820t_set_gain_mode(struct r820t_priv *priv,
 			       bool set_manual_gain,
 			       int gain)
@@ -1295,7 +1296,7 @@ static int generic_set_freq(struct dvb_frontend *fe,
 			    v4l2_std_id std, u32 delsys)
 {
 	struct r820t_priv		*priv = fe->tuner_priv;
-	int				rc = -EINVAL;
+	int				rc;
 	u32				lo_freq;
 
 	tuner_dbg("should set frequency to %d kHz, bw %d MHz\n",

@@ -26,6 +26,7 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "machine.h"
+#include "config.h"
 
 #define pr_N(n, fmt, ...) \
 	eprintf(n, debug_data_convert, fmt, ##__VA_ARGS__)
@@ -68,6 +69,9 @@ struct ctf_writer {
 		};
 		struct bt_ctf_field_type *array[6];
 	} data;
+	struct bt_ctf_event_class	*comm_class;
+	struct bt_ctf_event_class	*exit_class;
+	struct bt_ctf_event_class	*fork_class;
 };
 
 struct convert {
@@ -76,6 +80,7 @@ struct convert {
 
 	u64			events_size;
 	u64			events_count;
+	u64			non_sample_count;
 
 	/* Ordered events configured queue size. */
 	u64			queue_size;
@@ -140,6 +145,36 @@ FUNC_VALUE_SET(s64)
 FUNC_VALUE_SET(u64)
 __FUNC_VALUE_SET(u64_hex, u64)
 
+static int string_set_value(struct bt_ctf_field *field, const char *string);
+static __maybe_unused int
+value_set_string(struct ctf_writer *cw, struct bt_ctf_event *event,
+		 const char *name, const char *string)
+{
+	struct bt_ctf_field_type *type = cw->data.string;
+	struct bt_ctf_field *field;
+	int ret = 0;
+
+	field = bt_ctf_field_create(type);
+	if (!field) {
+		pr_err("failed to create a field %s\n", name);
+		return -1;
+	}
+
+	ret = string_set_value(field, string);
+	if (ret) {
+		pr_err("failed to set value %s\n", name);
+		goto err_put_field;
+	}
+
+	ret = bt_ctf_event_set_payload(event, name, field);
+	if (ret)
+		pr_err("failed to set payload %s\n", name);
+
+err_put_field:
+	bt_ctf_field_put(field);
+	return ret;
+}
+
 static struct bt_ctf_field_type*
 get_tracepoint_field_type(struct ctf_writer *cw, struct format_field *field)
 {
@@ -202,6 +237,44 @@ static unsigned long long adjust_signedness(unsigned long long value_int, int si
 
 	/* Fill upper part of value_int with 1 to make it a negative long long. */
 	return (value_int & value_mask) | ~value_mask;
+}
+
+static int string_set_value(struct bt_ctf_field *field, const char *string)
+{
+	char *buffer = NULL;
+	size_t len = strlen(string), i, p;
+	int err;
+
+	for (i = p = 0; i < len; i++, p++) {
+		if (isprint(string[i])) {
+			if (!buffer)
+				continue;
+			buffer[p] = string[i];
+		} else {
+			char numstr[5];
+
+			snprintf(numstr, sizeof(numstr), "\\x%02x",
+				 (unsigned int)(string[i]) & 0xff);
+
+			if (!buffer) {
+				buffer = zalloc(i + (len - i) * 4 + 2);
+				if (!buffer) {
+					pr_err("failed to set unprintable string '%s'\n", string);
+					return bt_ctf_field_string_set_value(field, "UNPRINTABLE-STRING");
+				}
+				if (i > 0)
+					strncpy(buffer, string, i);
+			}
+			strncat(buffer + p, numstr, 4);
+			p += 3;
+		}
+	}
+
+	if (!buffer)
+		return bt_ctf_field_string_set_value(field, string);
+	err = bt_ctf_field_string_set_value(field, buffer);
+	free(buffer);
+	return err;
 }
 
 static int add_tracepoint_field_value(struct ctf_writer *cw,
@@ -270,8 +343,7 @@ static int add_tracepoint_field_value(struct ctf_writer *cw,
 		}
 
 		if (flags & FIELD_IS_STRING)
-			ret = bt_ctf_field_string_set_value(field,
-					data + offset + i * len);
+			ret = string_set_value(field, data + offset + i * len);
 		else {
 			unsigned long long value_int;
 
@@ -349,6 +421,84 @@ static int add_tracepoint_values(struct ctf_writer *cw,
 		ret = add_tracepoint_fields_values(cw, event_class, event,
 						   fields, sample);
 
+	return ret;
+}
+
+static int
+add_bpf_output_values(struct bt_ctf_event_class *event_class,
+		      struct bt_ctf_event *event,
+		      struct perf_sample *sample)
+{
+	struct bt_ctf_field_type *len_type, *seq_type;
+	struct bt_ctf_field *len_field, *seq_field;
+	unsigned int raw_size = sample->raw_size;
+	unsigned int nr_elements = raw_size / sizeof(u32);
+	unsigned int i;
+	int ret;
+
+	if (nr_elements * sizeof(u32) != raw_size)
+		pr_warning("Incorrect raw_size (%u) in bpf output event, skip %zu bytes\n",
+			   raw_size, nr_elements * sizeof(u32) - raw_size);
+
+	len_type = bt_ctf_event_class_get_field_by_name(event_class, "raw_len");
+	len_field = bt_ctf_field_create(len_type);
+	if (!len_field) {
+		pr_err("failed to create 'raw_len' for bpf output event\n");
+		ret = -1;
+		goto put_len_type;
+	}
+
+	ret = bt_ctf_field_unsigned_integer_set_value(len_field, nr_elements);
+	if (ret) {
+		pr_err("failed to set field value for raw_len\n");
+		goto put_len_field;
+	}
+	ret = bt_ctf_event_set_payload(event, "raw_len", len_field);
+	if (ret) {
+		pr_err("failed to set payload to raw_len\n");
+		goto put_len_field;
+	}
+
+	seq_type = bt_ctf_event_class_get_field_by_name(event_class, "raw_data");
+	seq_field = bt_ctf_field_create(seq_type);
+	if (!seq_field) {
+		pr_err("failed to create 'raw_data' for bpf output event\n");
+		ret = -1;
+		goto put_seq_type;
+	}
+
+	ret = bt_ctf_field_sequence_set_length(seq_field, len_field);
+	if (ret) {
+		pr_err("failed to set length of 'raw_data'\n");
+		goto put_seq_field;
+	}
+
+	for (i = 0; i < nr_elements; i++) {
+		struct bt_ctf_field *elem_field =
+			bt_ctf_field_sequence_get_field(seq_field, i);
+
+		ret = bt_ctf_field_unsigned_integer_set_value(elem_field,
+				((u32 *)(sample->raw_data))[i]);
+
+		bt_ctf_field_put(elem_field);
+		if (ret) {
+			pr_err("failed to set raw_data[%d]\n", i);
+			goto put_seq_field;
+		}
+	}
+
+	ret = bt_ctf_event_set_payload(event, "raw_data", seq_field);
+	if (ret)
+		pr_err("failed to set payload for raw_data\n");
+
+put_seq_field:
+	bt_ctf_field_put(seq_field);
+put_seq_type:
+	bt_ctf_field_type_put(seq_type);
+put_len_field:
+	bt_ctf_field_put(len_field);
+put_len_type:
+	bt_ctf_field_type_put(len_type);
 	return ret;
 }
 
@@ -554,7 +704,7 @@ static bool is_flush_needed(struct ctf_stream *cs)
 }
 
 static int process_sample_event(struct perf_tool *tool,
-				union perf_event *_event __maybe_unused,
+				union perf_event *_event,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
 				struct machine *machine __maybe_unused)
@@ -597,6 +747,12 @@ static int process_sample_event(struct perf_tool *tool,
 			return -1;
 	}
 
+	if (perf_evsel__is_bpf_output(evsel)) {
+		ret = add_bpf_output_values(event_class, event, sample);
+		if (ret)
+			return -1;
+	}
+
 	cs = ctf_stream(cw, get_sample_cpu(cw, sample, evsel));
 	if (cs) {
 		if (is_flush_needed(cs))
@@ -609,6 +765,72 @@ static int process_sample_event(struct perf_tool *tool,
 	bt_ctf_event_put(event);
 	return cs ? 0 : -1;
 }
+
+#define __NON_SAMPLE_SET_FIELD(_name, _type, _field) 	\
+do {							\
+	ret = value_set_##_type(cw, event, #_field, _event->_name._field);\
+	if (ret)					\
+		return -1;				\
+} while(0)
+
+#define __FUNC_PROCESS_NON_SAMPLE(_name, body) 	\
+static int process_##_name##_event(struct perf_tool *tool,	\
+				   union perf_event *_event,	\
+				   struct perf_sample *sample,	\
+				   struct machine *machine)	\
+{								\
+	struct convert *c = container_of(tool, struct convert, tool);\
+	struct ctf_writer *cw = &c->writer;			\
+	struct bt_ctf_event_class *event_class = cw->_name##_class;\
+	struct bt_ctf_event *event;				\
+	struct ctf_stream *cs;					\
+	int ret;						\
+								\
+	c->non_sample_count++;					\
+	c->events_size += _event->header.size;			\
+	event = bt_ctf_event_create(event_class);		\
+	if (!event) {						\
+		pr_err("Failed to create an CTF event\n");	\
+		return -1;					\
+	}							\
+								\
+	bt_ctf_clock_set_time(cw->clock, sample->time);		\
+	body							\
+	cs = ctf_stream(cw, 0);					\
+	if (cs) {						\
+		if (is_flush_needed(cs))			\
+			ctf_stream__flush(cs);			\
+								\
+		cs->count++;					\
+		bt_ctf_stream_append_event(cs->stream, event);	\
+	}							\
+	bt_ctf_event_put(event);				\
+								\
+	return perf_event__process_##_name(tool, _event, sample, machine);\
+}
+
+__FUNC_PROCESS_NON_SAMPLE(comm,
+	__NON_SAMPLE_SET_FIELD(comm, u32, pid);
+	__NON_SAMPLE_SET_FIELD(comm, u32, tid);
+	__NON_SAMPLE_SET_FIELD(comm, string, comm);
+)
+__FUNC_PROCESS_NON_SAMPLE(fork,
+	__NON_SAMPLE_SET_FIELD(fork, u32, pid);
+	__NON_SAMPLE_SET_FIELD(fork, u32, ppid);
+	__NON_SAMPLE_SET_FIELD(fork, u32, tid);
+	__NON_SAMPLE_SET_FIELD(fork, u32, ptid);
+	__NON_SAMPLE_SET_FIELD(fork, u64, time);
+)
+
+__FUNC_PROCESS_NON_SAMPLE(exit,
+	__NON_SAMPLE_SET_FIELD(fork, u32, pid);
+	__NON_SAMPLE_SET_FIELD(fork, u32, ppid);
+	__NON_SAMPLE_SET_FIELD(fork, u32, tid);
+	__NON_SAMPLE_SET_FIELD(fork, u32, ptid);
+	__NON_SAMPLE_SET_FIELD(fork, u64, time);
+)
+#undef __NON_SAMPLE_SET_FIELD
+#undef __FUNC_PROCESS_NON_SAMPLE
 
 /* If dup < 0, add a prefix. Else, add _dupl_X suffix. */
 static char *change_name(char *name, char *orig_name, int dup)
@@ -744,6 +966,25 @@ static int add_tracepoint_types(struct ctf_writer *cw,
 	return ret;
 }
 
+static int add_bpf_output_types(struct ctf_writer *cw,
+				struct bt_ctf_event_class *class)
+{
+	struct bt_ctf_field_type *len_type = cw->data.u32;
+	struct bt_ctf_field_type *seq_base_type = cw->data.u32_hex;
+	struct bt_ctf_field_type *seq_type;
+	int ret;
+
+	ret = bt_ctf_event_class_add_field(class, len_type, "raw_len");
+	if (ret)
+		return ret;
+
+	seq_type = bt_ctf_field_type_sequence_create(seq_base_type, "raw_len");
+	if (!seq_type)
+		return -1;
+
+	return bt_ctf_event_class_add_field(class, seq_type, "raw_data");
+}
+
 static int add_generic_types(struct ctf_writer *cw, struct perf_evsel *evsel,
 			     struct bt_ctf_event_class *event_class)
 {
@@ -755,7 +996,8 @@ static int add_generic_types(struct ctf_writer *cw, struct perf_evsel *evsel,
 	 *                              ctf event header
 	 *   PERF_SAMPLE_READ         - TODO
 	 *   PERF_SAMPLE_CALLCHAIN    - TODO
-	 *   PERF_SAMPLE_RAW          - tracepoint fields are handled separately
+	 *   PERF_SAMPLE_RAW          - tracepoint fields and BPF output
+	 *                              are handled separately
 	 *   PERF_SAMPLE_BRANCH_STACK - TODO
 	 *   PERF_SAMPLE_REGS_USER    - TODO
 	 *   PERF_SAMPLE_STACK_USER   - TODO
@@ -824,6 +1066,12 @@ static int add_event(struct ctf_writer *cw, struct perf_evsel *evsel)
 			goto err;
 	}
 
+	if (perf_evsel__is_bpf_output(evsel)) {
+		ret = add_bpf_output_types(cw, event_class);
+		if (ret)
+			goto err;
+	}
+
 	ret = bt_ctf_stream_class_add_event_class(cw->stream_class, event_class);
 	if (ret) {
 		pr("Failed to add event class into stream.\n");
@@ -850,12 +1098,103 @@ static int setup_events(struct ctf_writer *cw, struct perf_session *session)
 	struct perf_evsel *evsel;
 	int ret;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		ret = add_event(cw, evsel);
 		if (ret)
 			return ret;
 	}
 	return 0;
+}
+
+#define __NON_SAMPLE_ADD_FIELD(t, n)						\
+	do {							\
+		pr2("  field '%s'\n", #n);			\
+		if (bt_ctf_event_class_add_field(event_class, cw->data.t, #n)) {\
+			pr_err("Failed to add field '%s';\n", #n);\
+			return -1;				\
+		}						\
+	} while(0)
+
+#define __FUNC_ADD_NON_SAMPLE_EVENT_CLASS(_name, body) 		\
+static int add_##_name##_event(struct ctf_writer *cw)		\
+{								\
+	struct bt_ctf_event_class *event_class;			\
+	int ret;						\
+								\
+	pr("Adding "#_name" event\n");				\
+	event_class = bt_ctf_event_class_create("perf_" #_name);\
+	if (!event_class)					\
+		return -1;					\
+	body							\
+								\
+	ret = bt_ctf_stream_class_add_event_class(cw->stream_class, event_class);\
+	if (ret) {						\
+		pr("Failed to add event class '"#_name"' into stream.\n");\
+		return ret;					\
+	}							\
+								\
+	cw->_name##_class = event_class;			\
+	bt_ctf_event_class_put(event_class);			\
+	return 0;						\
+}
+
+__FUNC_ADD_NON_SAMPLE_EVENT_CLASS(comm,
+	__NON_SAMPLE_ADD_FIELD(u32, pid);
+	__NON_SAMPLE_ADD_FIELD(u32, tid);
+	__NON_SAMPLE_ADD_FIELD(string, comm);
+)
+
+__FUNC_ADD_NON_SAMPLE_EVENT_CLASS(fork,
+	__NON_SAMPLE_ADD_FIELD(u32, pid);
+	__NON_SAMPLE_ADD_FIELD(u32, ppid);
+	__NON_SAMPLE_ADD_FIELD(u32, tid);
+	__NON_SAMPLE_ADD_FIELD(u32, ptid);
+	__NON_SAMPLE_ADD_FIELD(u64, time);
+)
+
+__FUNC_ADD_NON_SAMPLE_EVENT_CLASS(exit,
+	__NON_SAMPLE_ADD_FIELD(u32, pid);
+	__NON_SAMPLE_ADD_FIELD(u32, ppid);
+	__NON_SAMPLE_ADD_FIELD(u32, tid);
+	__NON_SAMPLE_ADD_FIELD(u32, ptid);
+	__NON_SAMPLE_ADD_FIELD(u64, time);
+)
+
+#undef __NON_SAMPLE_ADD_FIELD
+#undef __FUNC_ADD_NON_SAMPLE_EVENT_CLASS
+
+static int setup_non_sample_events(struct ctf_writer *cw,
+				   struct perf_session *session __maybe_unused)
+{
+	int ret;
+
+	ret = add_comm_event(cw);
+	if (ret)
+		return ret;
+	ret = add_exit_event(cw);
+	if (ret)
+		return ret;
+	ret = add_fork_event(cw);
+	if (ret)
+		return ret;
+	return 0;
+}
+
+static void cleanup_events(struct perf_session *session)
+{
+	struct perf_evlist *evlist = session->evlist;
+	struct perf_evsel *evsel;
+
+	evlist__for_each_entry(evlist, evsel) {
+		struct evsel_priv *priv;
+
+		priv = evsel->priv;
+		bt_ctf_event_class_put(priv->event_class);
+		zfree(&evsel->priv);
+	}
+
+	perf_evlist__delete(evlist);
+	session->evlist = NULL;
 }
 
 static int setup_streams(struct ctf_writer *cw, struct perf_session *session)
@@ -952,6 +1291,12 @@ static struct bt_ctf_field_type *create_int_type(int size, bool sign, bool hex)
 	if (hex &&
 	    bt_ctf_field_type_integer_set_base(type, BT_CTF_INTEGER_BASE_HEXADECIMAL))
 		goto err;
+
+#if __BYTE_ORDER == __BIG_ENDIAN
+	bt_ctf_field_type_set_byte_order(type, BT_CTF_BYTE_ORDER_BIG_ENDIAN);
+#else
+	bt_ctf_field_type_set_byte_order(type, BT_CTF_BYTE_ORDER_LITTLE_ENDIAN);
+#endif
 
 	pr2("Created type: INTEGER %d-bit %ssigned %s\n",
 	    size, sign ? "un" : "", hex ? "hex" : "");
@@ -1100,16 +1445,17 @@ static int convert__config(const char *var, const char *value, void *cb)
 		return 0;
 	}
 
-	return perf_default_config(var, value, cb);
+	return 0;
 }
 
-int bt_convert__perf2ctf(const char *input, const char *path, bool force)
+int bt_convert__perf2ctf(const char *input, const char *path,
+			 struct perf_data_convert_opts *opts)
 {
 	struct perf_session *session;
 	struct perf_data_file file = {
 		.path = input,
 		.mode = PERF_DATA_MODE_READ,
-		.force = force,
+		.force = opts->force,
 	};
 	struct convert c = {
 		.tool = {
@@ -1128,6 +1474,12 @@ int bt_convert__perf2ctf(const char *input, const char *path, bool force)
 	};
 	struct ctf_writer *cw = &c.writer;
 	int err = -1;
+
+	if (opts->all) {
+		c.tool.comm = process_comm_event;
+		c.tool.exit = process_exit_event;
+		c.tool.fork = process_fork_event;
+	}
 
 	perf_config(convert__config, &c);
 
@@ -1153,6 +1505,9 @@ int bt_convert__perf2ctf(const char *input, const char *path, bool force)
 	if (setup_events(cw, session))
 		goto free_session;
 
+	if (opts->all && setup_non_sample_events(cw, session))
+		goto free_session;
+
 	if (setup_streams(cw, session))
 		goto free_session;
 
@@ -1167,10 +1522,16 @@ int bt_convert__perf2ctf(const char *input, const char *path, bool force)
 		file.path, path);
 
 	fprintf(stderr,
-		"[ perf data convert: Converted and wrote %.3f MB (%" PRIu64 " samples) ]\n",
+		"[ perf data convert: Converted and wrote %.3f MB (%" PRIu64 " samples",
 		(double) c.events_size / 1024.0 / 1024.0,
 		c.events_count);
 
+	if (!c.non_sample_count)
+		fprintf(stderr, ") ]\n");
+	else
+		fprintf(stderr, ", %" PRIu64 " non-samples) ]\n", c.non_sample_count);
+
+	cleanup_events(session);
 	perf_session__delete(session);
 	ctf_writer__cleanup(cw);
 

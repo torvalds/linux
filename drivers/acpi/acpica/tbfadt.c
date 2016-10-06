@@ -53,7 +53,7 @@ static void
 acpi_tb_init_generic_address(struct acpi_generic_address *generic_address,
 			     u8 space_id,
 			     u8 byte_width,
-			     u64 address, char *register_name, u8 flags);
+			     u64 address, const char *register_name, u8 flags);
 
 static void acpi_tb_convert_fadt(void);
 
@@ -65,7 +65,7 @@ acpi_tb_select_address(char *register_name, u32 address32, u64 address64);
 /* Table for conversion of FADT to common internal format and FADT validation */
 
 typedef struct acpi_fadt_info {
-	char *name;
+	const char *name;
 	u16 address64;
 	u16 address32;
 	u16 length;
@@ -192,7 +192,7 @@ static void
 acpi_tb_init_generic_address(struct acpi_generic_address *generic_address,
 			     u8 space_id,
 			     u8 byte_width,
-			     u64 address, char *register_name, u8 flags)
+			     u64 address, const char *register_name, u8 flags)
 {
 	u8 bit_width;
 
@@ -344,23 +344,27 @@ void acpi_tb_parse_fadt(void)
 
 	/* Obtain the DSDT and FACS tables via their addresses within the FADT */
 
-	acpi_tb_install_fixed_table((acpi_physical_address) acpi_gbl_FADT.Xdsdt,
-				    ACPI_SIG_DSDT, &acpi_gbl_dsdt_index);
+	acpi_tb_install_standard_table((acpi_physical_address)acpi_gbl_FADT.
+				       Xdsdt,
+				       ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL,
+				       FALSE, TRUE, &acpi_gbl_dsdt_index);
 
 	/* If Hardware Reduced flag is set, there is no FACS */
 
 	if (!acpi_gbl_reduced_hardware) {
 		if (acpi_gbl_FADT.facs) {
-			acpi_tb_install_fixed_table((acpi_physical_address)
-						    acpi_gbl_FADT.facs,
-						    ACPI_SIG_FACS,
-						    &acpi_gbl_facs_index);
+			acpi_tb_install_standard_table((acpi_physical_address)
+						       acpi_gbl_FADT.facs,
+						       ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL,
+						       FALSE, TRUE,
+						       &acpi_gbl_facs_index);
 		}
 		if (acpi_gbl_FADT.Xfacs) {
-			acpi_tb_install_fixed_table((acpi_physical_address)
-						    acpi_gbl_FADT.Xfacs,
-						    ACPI_SIG_FACS,
-						    &acpi_gbl_xfacs_index);
+			acpi_tb_install_standard_table((acpi_physical_address)
+						       acpi_gbl_FADT.Xfacs,
+						       ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL,
+						       FALSE, TRUE,
+						       &acpi_gbl_xfacs_index);
 		}
 	}
 }
@@ -385,14 +389,15 @@ void acpi_tb_create_local_fadt(struct acpi_table_header *table, u32 length)
 {
 	/*
 	 * Check if the FADT is larger than the largest table that we expect
-	 * (the ACPI 5.0 version). If so, truncate the table, and issue
-	 * a warning.
+	 * (typically the current ACPI specification version). If so, truncate
+	 * the table, and issue a warning.
 	 */
 	if (length > sizeof(struct acpi_table_fadt)) {
 		ACPI_BIOS_WARNING((AE_INFO,
-				   "FADT (revision %u) is longer than ACPI 5.0 version, "
+				   "FADT (revision %u) is longer than %s length, "
 				   "truncating length %u to %u",
-				   table->revision, length,
+				   table->revision, ACPI_FADT_CONFORMANCE,
+				   length,
 				   (u32)sizeof(struct acpi_table_fadt)));
 	}
 
@@ -467,7 +472,7 @@ void acpi_tb_create_local_fadt(struct acpi_table_header *table, u32 length)
 
 static void acpi_tb_convert_fadt(void)
 {
-	char *name;
+	const char *name;
 	struct acpi_generic_address *address64;
 	u32 address32;
 	u8 length;
@@ -475,17 +480,19 @@ static void acpi_tb_convert_fadt(void)
 	u32 i;
 
 	/*
-	 * For ACPI 1.0 FADTs (revision 1 or 2), ensure that reserved fields which
+	 * For ACPI 1.0 FADTs (revision 1), ensure that reserved fields which
 	 * should be zero are indeed zero. This will workaround BIOSs that
 	 * inadvertently place values in these fields.
 	 *
 	 * The ACPI 1.0 reserved fields that will be zeroed are the bytes located
 	 * at offset 45, 55, 95, and the word located at offset 109, 110.
 	 *
-	 * Note: The FADT revision value is unreliable. Only the length can be
-	 * trusted.
+	 * Note: The FADT revision value is unreliable because of BIOS errors.
+	 * The table length is instead used as the final word on the version.
+	 *
+	 * Note: FADT revision 3 is the ACPI 2.0 version of the FADT.
 	 */
-	if (acpi_gbl_FADT.header.length <= ACPI_FADT_V2_SIZE) {
+	if (acpi_gbl_FADT.header.length <= ACPI_FADT_V3_SIZE) {
 		acpi_gbl_FADT.preferred_profile = 0;
 		acpi_gbl_FADT.pstate_control = 0;
 		acpi_gbl_FADT.cst_control = 0;
@@ -551,76 +558,72 @@ static void acpi_tb_convert_fadt(void)
 		 *
 		 * Address32 zero, Address64 [don't care]   - Use Address64
 		 *
+		 * No override: if acpi_gbl_use32_bit_fadt_addresses is FALSE, and:
 		 * Address32 non-zero, Address64 zero       - Copy/use Address32
 		 * Address32 non-zero == Address64 non-zero - Use Address64
 		 * Address32 non-zero != Address64 non-zero - Warning, use Address64
 		 *
 		 * Override: if acpi_gbl_use32_bit_fadt_addresses is TRUE, and:
+		 * Address32 non-zero, Address64 zero       - Copy/use Address32
+		 * Address32 non-zero == Address64 non-zero - Copy/use Address32
 		 * Address32 non-zero != Address64 non-zero - Warning, copy/use Address32
 		 *
 		 * Note: space_id is always I/O for 32-bit legacy address fields
 		 */
 		if (address32) {
-			if (!address64->address) {
+			if (address64->address) {
+				if (address64->address != (u64)address32) {
 
-				/* 64-bit address is zero, use 32-bit address */
+					/* Address mismatch */
 
-				acpi_tb_init_generic_address(address64,
-							     ACPI_ADR_SPACE_SYSTEM_IO,
-							     *ACPI_ADD_PTR(u8,
-									   &acpi_gbl_FADT,
-									   fadt_info_table
-									   [i].
-									   length),
-							     (u64)address32,
-							     name, flags);
-			} else if (address64->address != (u64)address32) {
+					ACPI_BIOS_WARNING((AE_INFO,
+							   "32/64X address mismatch in FADT/%s: "
+							   "0x%8.8X/0x%8.8X%8.8X, using %u-bit address",
+							   name, address32,
+							   ACPI_FORMAT_UINT64
+							   (address64->address),
+							   acpi_gbl_use32_bit_fadt_addresses
+							   ? 32 : 64));
+				}
 
-				/* Address mismatch */
-
-				ACPI_BIOS_WARNING((AE_INFO,
-						   "32/64X address mismatch in FADT/%s: "
-						   "0x%8.8X/0x%8.8X%8.8X, using %u-bit address",
-						   name, address32,
-						   ACPI_FORMAT_UINT64
-						   (address64->address),
-						   acpi_gbl_use32_bit_fadt_addresses
-						   ? 32 : 64));
-
-				if (acpi_gbl_use32_bit_fadt_addresses) {
-
-					/* 32-bit address override */
-
-					acpi_tb_init_generic_address(address64,
-								     ACPI_ADR_SPACE_SYSTEM_IO,
-								     *ACPI_ADD_PTR
-								     (u8,
-								      &acpi_gbl_FADT,
-								      fadt_info_table
-								      [i].
-								      length),
-								     (u64)
-								     address32,
-								     name,
-								     flags);
+				/*
+				 * For each extended field, check for length mismatch
+				 * between the legacy length field and the corresponding
+				 * 64-bit X length field.
+				 * Note: If the legacy length field is > 0xFF bits, ignore
+				 * this check. (GPE registers can be larger than the
+				 * 64-bit GAS structure can accomodate, 0xFF bits).
+				 */
+				if ((ACPI_MUL_8(length) <= ACPI_UINT8_MAX) &&
+				    (address64->bit_width !=
+				     ACPI_MUL_8(length))) {
+					ACPI_BIOS_WARNING((AE_INFO,
+							   "32/64X length mismatch in FADT/%s: %u/%u",
+							   name,
+							   ACPI_MUL_8(length),
+							   address64->
+							   bit_width));
 				}
 			}
-		}
 
-		/*
-		 * For each extended field, check for length mismatch between the
-		 * legacy length field and the corresponding 64-bit X length field.
-		 * Note: If the legacy length field is > 0xFF bits, ignore this
-		 * check. (GPE registers can be larger than the 64-bit GAS structure
-		 * can accomodate, 0xFF bits).
-		 */
-		if (address64->address &&
-		    (ACPI_MUL_8(length) <= ACPI_UINT8_MAX) &&
-		    (address64->bit_width != ACPI_MUL_8(length))) {
-			ACPI_BIOS_WARNING((AE_INFO,
-					   "32/64X length mismatch in FADT/%s: %u/%u",
-					   name, ACPI_MUL_8(length),
-					   address64->bit_width));
+			/*
+			 * Hardware register access code always uses the 64-bit fields.
+			 * So if the 64-bit field is zero or is to be overridden,
+			 * initialize it with the 32-bit fields.
+			 * Note that when the 32-bit address favor is specified, the
+			 * 64-bit fields are always re-initialized so that
+			 * access_size/bit_width/bit_offset fields can be correctly
+			 * configured to the values to trigger a 32-bit compatible
+			 * access mode in the hardware register access code.
+			 */
+			if (!address64->address
+			    || acpi_gbl_use32_bit_fadt_addresses) {
+				acpi_tb_init_generic_address(address64,
+							     ACPI_ADR_SPACE_SYSTEM_IO,
+							     length,
+							     (u64)address32,
+							     name, flags);
+			}
 		}
 
 		if (fadt_info_table[i].flags & ACPI_FADT_REQUIRED) {
@@ -646,9 +649,12 @@ static void acpi_tb_convert_fadt(void)
 			if ((address64->address && !length) ||
 			    (!address64->address && length)) {
 				ACPI_BIOS_WARNING((AE_INFO,
-						   "Optional FADT field %s has zero address or length: "
-						   "0x%8.8X%8.8X/0x%X",
-						   name,
+						   "Optional FADT field %s has valid %s but zero %s: "
+						   "0x%8.8X%8.8X/0x%X", name,
+						   (length ? "Length" :
+						    "Address"),
+						   (length ? "Address" :
+						    "Length"),
 						   ACPI_FORMAT_UINT64
 						   (address64->address),
 						   length));

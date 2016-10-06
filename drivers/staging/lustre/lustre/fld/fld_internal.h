@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -34,6 +30,25 @@
  * Lustre is a trademark of Sun Microsystems, Inc.
  *
  * lustre/fld/fld_internal.h
+ *
+ * Subsystem Description:
+ * FLD is FID Location Database, which stores where (IE, on which MDT)
+ * FIDs are located.
+ * The database is basically a record file, each record consists of a FID
+ * sequence range, MDT/OST index, and flags. The FLD for the whole FS
+ * is only stored on the sequence controller(MDT0) right now, but each target
+ * also has its local FLD, which only stores the local sequence.
+ *
+ * The FLD subsystem usually has two tasks:
+ * 1. maintain the database, i.e. when the sequence controller allocates
+ * new sequence ranges to some nodes, it will call the FLD API to insert the
+ * location information <sequence_range, node_index> in FLDB.
+ *
+ * 2. Handle requests from other nodes, i.e. if client needs to know where
+ * the FID is located, if it can not find the information in the local cache,
+ * it will send a FLD lookup RPC to the FLD service, and the FLD service will
+ * look up the FLDB entry and return the location information to client.
+ *
  *
  * Author: Yury Umanets <umka@clusterfs.com>
  * Author: Tom WangDi <wangdi@clusterfs.com>
@@ -58,22 +73,16 @@ struct fld_stats {
 	__u64   fst_inflight;
 };
 
-typedef int (*fld_hash_func_t) (struct lu_client_fld *, __u64);
-
-typedef struct lu_fld_target *
-(*fld_scan_func_t) (struct lu_client_fld *, __u64);
-
 struct lu_fld_hash {
 	const char	      *fh_name;
-	fld_hash_func_t	  fh_hash_func;
-	fld_scan_func_t	  fh_scan_func;
+	int (*fh_hash_func)(struct lu_client_fld *, __u64);
+	struct lu_fld_target *(*fh_scan_func)(struct lu_client_fld *, __u64);
 };
 
 struct fld_cache_entry {
 	struct list_head	       fce_lru;
 	struct list_head	       fce_list;
-	/**
-	 * fld cache entries are sorted on range->lsr_start field. */
+	/** fld cache entries are sorted on range->lsr_start field. */
 	struct lu_seq_range      fce_range;
 };
 
@@ -84,40 +93,27 @@ struct fld_cache {
 	 */
 	rwlock_t		 fci_lock;
 
-	/**
-	 * Cache shrink threshold */
+	/** Cache shrink threshold */
 	int		      fci_threshold;
 
-	/**
-	 * Preferred number of cached entries */
+	/** Preferred number of cached entries */
 	int		      fci_cache_size;
 
-	/**
-	 * Current number of cached entries. Protected by \a fci_lock */
+	/** Current number of cached entries. Protected by \a fci_lock */
 	int		      fci_cache_count;
 
-	/**
-	 * LRU list fld entries. */
+	/** LRU list fld entries. */
 	struct list_head	       fci_lru;
 
-	/**
-	 * sorted fld entries. */
+	/** sorted fld entries. */
 	struct list_head	       fci_entries_head;
 
-	/**
-	 * Cache statistics. */
+	/** Cache statistics. */
 	struct fld_stats	 fci_stat;
 
-	/**
-	 * Cache name used for debug and messages. */
+	/** Cache name used for debug and messages. */
 	char		     fci_name[LUSTRE_MDT_MAXNAMELEN];
 	unsigned int		 fci_no_shrink:1;
-};
-
-enum fld_op {
-	FLD_CREATE = 0,
-	FLD_DELETE = 1,
-	FLD_LOOKUP = 2
 };
 
 enum {
@@ -139,7 +135,8 @@ enum {
 extern struct lu_fld_hash fld_hash[];
 
 int fld_client_rpc(struct obd_export *exp,
-		   struct lu_seq_range *range, __u32 fld_op);
+		   struct lu_seq_range *range, __u32 fld_op,
+		   struct ptlrpc_request **reqp);
 
 extern struct lprocfs_vars fld_client_debugfs_list[];
 
@@ -169,7 +166,7 @@ struct fld_cache_entry
 static inline const char *
 fld_target_name(struct lu_fld_target *tar)
 {
-	if (tar->ft_srv != NULL)
+	if (tar->ft_srv)
 		return tar->ft_srv->lsf_name;
 
 	return (const char *)tar->ft_exp->exp_obd->obd_name;

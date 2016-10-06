@@ -29,7 +29,7 @@ struct of_serial_info {
 };
 
 #ifdef CONFIG_ARCH_TEGRA
-void tegra_serial_handle_break(struct uart_port *p)
+static void tegra_serial_handle_break(struct uart_port *p)
 {
 	unsigned int status, tmout = 10000;
 
@@ -195,12 +195,19 @@ static int of_platform_serial_probe(struct platform_device *ofdev)
 	switch (port_type) {
 	case PORT_8250 ... PORT_MAX_8250:
 	{
+		u32 tx_threshold;
 		struct uart_8250_port port8250;
 		memset(&port8250, 0, sizeof(port8250));
 		port8250.port = port;
 
 		if (port.fifosize)
 			port8250.capabilities = UART_CAP_FIFO;
+
+		/* Check for TX FIFO threshold & set tx_loadsz */
+		if ((of_property_read_u32(ofdev->dev.of_node, "tx-threshold",
+					  &tx_threshold) == 0) &&
+		    (tx_threshold < port.fifosize))
+			port8250.tx_loadsz = port.fifosize - tx_threshold;
 
 		if (of_property_read_bool(ofdev->dev.of_node,
 					  "auto-flow-control"))
@@ -335,6 +342,7 @@ static struct platform_driver of_platform_serial_driver = {
 	.driver = {
 		.name = "of_serial",
 		.of_match_table = of_platform_serial_table,
+		.pm = &of_serial_pm_ops,
 	},
 	.probe = of_platform_serial_probe,
 	.remove = of_platform_serial_remove,

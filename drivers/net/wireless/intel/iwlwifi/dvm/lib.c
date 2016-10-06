@@ -94,7 +94,7 @@ void iwlagn_temperature(struct iwl_priv *priv)
 	iwl_tt_handler(priv);
 }
 
-int iwlagn_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band)
+int iwlagn_hwrate_to_mac80211_idx(u32 rate_n_flags, enum nl80211_band band)
 {
 	int idx = 0;
 	int band_offset = 0;
@@ -105,7 +105,7 @@ int iwlagn_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band)
 		return idx;
 	/* Legacy rate format, search for match in table */
 	} else {
-		if (band == IEEE80211_BAND_5GHZ)
+		if (band == NL80211_BAND_5GHZ)
 			band_offset = IWL_FIRST_OFDM_RATE;
 		for (idx = band_offset; idx < IWL_RATE_COUNT_LEGACY; idx++)
 			if (iwl_rates[idx].plcp == (rate_n_flags & 0xFF))
@@ -201,23 +201,6 @@ static const __le32 iwlagn_def_3w_lookup[IWLAGN_BT_DECISION_LUT_SIZE] = {
 	cpu_to_le32(0x0000aaaa),
 	cpu_to_le32(0xc0004000),
 	cpu_to_le32(0x00004000),
-	cpu_to_le32(0xf0005000),
-	cpu_to_le32(0xf0005000),
-};
-
-
-/* Loose Coex */
-static const __le32 iwlagn_loose_lookup[IWLAGN_BT_DECISION_LUT_SIZE] = {
-	cpu_to_le32(0xaaaaaaaa),
-	cpu_to_le32(0xaaaaaaaa),
-	cpu_to_le32(0xaeaaaaaa),
-	cpu_to_le32(0xaaaaaaaa),
-	cpu_to_le32(0xcc00ff28),
-	cpu_to_le32(0x0000aaaa),
-	cpu_to_le32(0xcc00aaaa),
-	cpu_to_le32(0x0000aaaa),
-	cpu_to_le32(0x00000000),
-	cpu_to_le32(0x00000000),
 	cpu_to_le32(0xf0005000),
 	cpu_to_le32(0xf0005000),
 };
@@ -878,7 +861,7 @@ u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant, u8 valid)
 	int i;
 	u8 ind = ant;
 
-	if (priv->band == IEEE80211_BAND_2GHZ &&
+	if (priv->band == NL80211_BAND_2GHZ &&
 	    priv->bt_traffic_load >= IWL_BT_COEX_TRAFFIC_LOAD_HIGH)
 		return 0;
 
@@ -943,14 +926,16 @@ static void iwlagn_wowlan_program_keys(struct ieee80211_hw *hw,
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
 		if (sta) {
+			u64 pn64;
+
 			tkip_sc = data->rsc_tsc->all_tsc_rsc.tkip.unicast_rsc;
 			tkip_tx_sc = &data->rsc_tsc->all_tsc_rsc.tkip.tsc;
 
 			rx_p1ks = data->tkip->rx_uni;
 
-			ieee80211_get_key_tx_seq(key, &seq);
-			tkip_tx_sc->iv16 = cpu_to_le16(seq.tkip.iv16);
-			tkip_tx_sc->iv32 = cpu_to_le32(seq.tkip.iv32);
+			pn64 = atomic64_read(&key->tx_pn);
+			tkip_tx_sc->iv16 = cpu_to_le16(TKIP_PN_TO_IV16(pn64));
+			tkip_tx_sc->iv32 = cpu_to_le32(TKIP_PN_TO_IV32(pn64));
 
 			ieee80211_get_tkip_p1k_iv(key, seq.tkip.iv32, p1k);
 			iwlagn_convert_p1k(p1k, data->tkip->tx.p1k);
@@ -996,19 +981,13 @@ static void iwlagn_wowlan_program_keys(struct ieee80211_hw *hw,
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 		if (sta) {
-			u8 *pn = seq.ccmp.pn;
+			u64 pn64;
 
 			aes_sc = data->rsc_tsc->all_tsc_rsc.aes.unicast_rsc;
 			aes_tx_sc = &data->rsc_tsc->all_tsc_rsc.aes.tsc;
 
-			ieee80211_get_key_tx_seq(key, &seq);
-			aes_tx_sc->pn = cpu_to_le64(
-					(u64)pn[5] |
-					((u64)pn[4] << 8) |
-					((u64)pn[3] << 16) |
-					((u64)pn[2] << 24) |
-					((u64)pn[1] << 32) |
-					((u64)pn[0] << 40));
+			pn64 = atomic64_read(&key->tx_pn);
+			aes_tx_sc->pn = cpu_to_le64(pn64);
 		} else
 			aes_sc = data->rsc_tsc->all_tsc_rsc.aes.multicast_rsc;
 

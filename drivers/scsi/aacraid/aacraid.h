@@ -29,6 +29,7 @@ enum {
 #define AAC_INT_MODE_MSI		(1<<1)
 #define AAC_INT_MODE_AIF		(1<<2)
 #define AAC_INT_MODE_SYNC		(1<<3)
+#define AAC_INT_MODE_MSIX		(1<<16)
 
 #define AAC_INT_ENABLE_TYPE1_INTX	0xfffffffb
 #define AAC_INT_ENABLE_TYPE1_MSIX	0xfffffffa
@@ -62,7 +63,7 @@ enum {
 #define	PMC_GLOBAL_INT_BIT0		0x00000001
 
 #ifndef AAC_DRIVER_BUILD
-# define AAC_DRIVER_BUILD 41010
+# define AAC_DRIVER_BUILD 41066
 # define AAC_DRIVER_BRANCH "-ms"
 #endif
 #define MAXIMUM_NUM_CONTAINERS	32
@@ -93,6 +94,13 @@ enum {
 
 #define aac_phys_to_logical(x)  ((x)+1)
 #define aac_logical_to_phys(x)  ((x)?(x)-1:0)
+
+/*
+ * These macros are for keeping track of
+ * character device state.
+ */
+#define AAC_CHARDEV_UNREGISTERED	(-1)
+#define AAC_CHARDEV_NEEDS_REINIT	(-2)
 
 /* #define AAC_DETAILED_STATUS_INFO */
 
@@ -613,6 +621,11 @@ struct aac_driver_ident
 #define AAC_QUIRK_SCSI_32	0x0020
 
 /*
+ * SRC based adapters support the AifReqEvent functions
+ */
+#define AAC_QUIRK_SRC 0x0040
+
+/*
  *	The adapter interface specs all queues to be located in the same
  *	physically contiguous block. The host structure that defines the
  *	commuication queues will assume they are each a separate physically
@@ -713,7 +726,7 @@ struct sa_registers {
 };
 
 
-#define Sa_MINIPORT_REVISION			1
+#define SA_INIT_NUM_MSIXVECTORS		1
 
 #define sa_readw(AEP, CSR)		readl(&((AEP)->regs.sa->CSR))
 #define sa_readl(AEP, CSR)		readl(&((AEP)->regs.sa->CSR))
@@ -944,6 +957,7 @@ struct fib {
 	 */
 	struct list_head	fiblink;
 	void			*data;
+	u32			vector_no;
 	struct hw_fib		*hw_fib_va;		/* Actual shared object */
 	dma_addr_t		hw_fib_pa;		/* physical address of hw_fib*/
 };
@@ -1123,6 +1137,7 @@ struct aac_dev
 	struct fib		*free_fib;
 	spinlock_t		fib_lock;
 
+	struct mutex		ioctl_mutex;
 	struct aac_queue_block *queues;
 	/*
 	 *	The user API will use an IOCTL to register itself to receive
@@ -1234,6 +1249,7 @@ struct aac_dev
 	struct msix_entry	msixentry[AAC_MAX_MSIX];
 	struct aac_msix_ctx	aac_msix[AAC_MAX_MSIX]; /* context */
 	u8			adapter_shutdown;
+	u32			handle_pci_error;
 };
 
 #define aac_adapter_interrupt(dev) \
@@ -2055,6 +2071,10 @@ extern struct aac_common aac_config;
 #define			AifEnAddJBOD		30	/* JBOD created */
 #define			AifEnDeleteJBOD		31	/* JBOD deleted */
 
+#define			AifBuManagerEvent		42 /* Bu management*/
+#define			AifBuCacheDataLoss		10
+#define			AifBuCacheDataRecover	11
+
 #define		AifCmdJobProgress	2	/* Progress report */
 #define			AifJobCtrZero	101	/* Array Zero progress */
 #define			AifJobStsSuccess 1	/* Job completes */
@@ -2113,7 +2133,9 @@ static inline unsigned int cap_to_cyls(sector_t capacity, unsigned divisor)
 int aac_acquire_irq(struct aac_dev *dev);
 void aac_free_irq(struct aac_dev *dev);
 const char *aac_driverinfo(struct Scsi_Host *);
+void aac_fib_vector_assign(struct aac_dev *dev);
 struct fib *aac_fib_alloc(struct aac_dev *dev);
+struct fib *aac_fib_alloc_tag(struct aac_dev *dev, struct scsi_cmnd *scmd);
 int aac_fib_setup(struct aac_dev *dev);
 void aac_fib_map_free(struct aac_dev *dev);
 void aac_fib_free(struct fib * context);

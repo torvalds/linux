@@ -27,15 +27,15 @@
 #define HEIGHT		64
 
 /*
-  write_reg() caveat:
-
-     This doesn't work because D/C has to be LOW for both values:
-       write_reg(par, val1, val2);
-
-     Do it like this:
-       write_reg(par, val1);
-       write_reg(par, val2);
-*/
+ * write_reg() caveat:
+ *
+ * This doesn't work because D/C has to be LOW for both values:
+ * write_reg(par, val1, val2);
+ *
+ * Do it like this:
+ * write_reg(par, val1);
+ * write_reg(par, val2);
+ */
 
 /* Init sequence taken from the Adafruit SSD1306 Arduino library */
 static int init_display(struct fbtft_par *par)
@@ -113,8 +113,9 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, 0xA4);
 
 	/* Set Normal Display
-	   0 in RAM: OFF in display panel
-	   1 in RAM: ON in display panel */
+	 * 0 in RAM: OFF in display panel
+	 * 1 in RAM: ON in display panel
+	 */
 	write_reg(par, 0xA6);
 
 	/* Set Display ON */

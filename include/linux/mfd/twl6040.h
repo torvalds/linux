@@ -134,6 +134,7 @@
 #define TWL6040_HFDACENA		(1 << 0)
 #define TWL6040_HFPGAENA		(1 << 1)
 #define TWL6040_HFDRVENA		(1 << 4)
+#define TWL6040_HFSWENA			(1 << 6)
 
 /* VIBCTLL/R (0x18/0x1A) fields */
 
@@ -225,6 +226,7 @@ struct twl6040 {
 	struct regmap_irq_chip_data *irq_data;
 	struct regulator_bulk_data supplies[2]; /* supplies for vio, v2v1 */
 	struct clk *clk32k;
+	struct clk *mclk;
 	struct mutex mutex;
 	struct mutex irq_mutex;
 	struct mfd_cell cells[TWL6040_CELLS];
@@ -236,8 +238,8 @@ struct twl6040 {
 
 	/* PLL configuration */
 	int pll;
-	unsigned int sysclk;
-	unsigned int mclk;
+	unsigned int sysclk_rate;
+	unsigned int mclk_rate;
 
 	unsigned int irq;
 	unsigned int irq_ready;

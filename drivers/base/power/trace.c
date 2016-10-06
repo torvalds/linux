@@ -11,7 +11,7 @@
 #include <linux/export.h>
 #include <linux/rtc.h>
 
-#include <asm/rtc.h>
+#include <linux/mc146818rtc.h>
 
 #include "power.h"
 
@@ -103,7 +103,7 @@ static int set_magic_time(unsigned int user, unsigned int file, unsigned int dev
 	n /= 24;
 	time.tm_min = (n % 20) * 3;
 	n /= 20;
-	set_rtc_time(&time);
+	mc146818_set_time(&time);
 	return n ? -1 : 0;
 }
 
@@ -112,7 +112,7 @@ static unsigned int read_magic_time(void)
 	struct rtc_time time;
 	unsigned int val;
 
-	get_rtc_time(&time);
+	mc146818_get_time(&time);
 	pr_info("RTC time: %2d:%02d:%02d, date: %02d/%02d/%02d\n",
 		time.tm_hour, time.tm_min, time.tm_sec,
 		time.tm_mon + 1, time.tm_mday, time.tm_year % 100);
@@ -166,14 +166,14 @@ void generate_pm_trace(const void *tracedata, unsigned int user)
 }
 EXPORT_SYMBOL(generate_pm_trace);
 
-extern char __tracedata_start, __tracedata_end;
+extern char __tracedata_start[], __tracedata_end[];
 static int show_file_hash(unsigned int value)
 {
 	int match;
 	char *tracedata;
 
 	match = 0;
-	for (tracedata = &__tracedata_start ; tracedata < &__tracedata_end ;
+	for (tracedata = __tracedata_start ; tracedata < __tracedata_end ;
 			tracedata += 2 + sizeof(unsigned long)) {
 		unsigned short lineno = *(unsigned short *)tracedata;
 		const char *file = *(const char **)(tracedata + 2);

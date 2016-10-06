@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2000-2014 LSI Corporation.
+ * Copyright 2000-2015 Avago Technologies.  All rights reserved.
  *
  *
  *          Name:  mpi2_ioc.h
  *         Title:  MPI IOC, Port, Event, FW Download, and FW Upload messages
  * Creation Date:  October 11, 2006
  *
- * mpi2_ioc.h Version:  02.00.24
+ * mpi2_ioc.h Version:  02.00.27
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *       prefix are for use only on MPI v2.5 products, and must not be used
@@ -133,6 +133,14 @@
  *			Added MPI2_FW_DOWNLOAD_ITYPE_PUBLIC_KEY.
  *			Added Encrypted Hash Extended Image.
  * 12-05-13  02.00.24  Added MPI25_HASH_IMAGE_TYPE_BIOS.
+ * 11-18-14  02.00.25  Updated copyright information.
+ * 03-16-15  02.00.26  Updated for MPI v2.6.
+ *		       Added MPI2_EVENT_ACTIVE_CABLE_EXCEPTION and
+ *		       MPI26_EVENT_DATA_ACTIVE_CABLE_EXCEPT.
+ *                     Added MPI26_FW_HEADER_PID_FAMILY_3324_SAS and
+ *                     MPI26_FW_HEADER_PID_FAMILY_3516_SAS.
+ *                     Added MPI26_CTRL_OP_SHUTDOWN.
+ * 08-25-15  02.00.27  Added IC ARCH Class based signature defines
  * --------------------------------------------------------------------------
  */
 
@@ -164,8 +172,8 @@ typedef struct _MPI2_IOC_INIT_REQUEST {
 	U16 MsgVersion;		/*0x0C */
 	U16 HeaderVersion;	/*0x0E */
 	U32 Reserved5;		/*0x10 */
-	U16 Reserved6;		/*0x14 */
-	U8 Reserved7;		/*0x16 */
+	U16 ConfigurationFlags;	/* 0x14 */
+	U8 HostPageSize;	/*0x16 */
 	U8 HostMSIxVectors;	/*0x17 */
 	U16 Reserved8;		/*0x18 */
 	U16 SystemRequestFrameSize;	/*0x1A */
@@ -289,7 +297,8 @@ typedef struct _MPI2_IOC_FACTS_REPLY {
 	U16 MaxDevHandle;	/*0x38 */
 	U16 MaxPersistentEntries;	/*0x3A */
 	U16 MinDevHandle;	/*0x3C */
-	U16 Reserved4;		/*0x3E */
+	U8 CurrentHostPageSize;	/* 0x3E */
+	U8 Reserved4;		/* 0x3F */
 } MPI2_IOC_FACTS_REPLY, *PTR_MPI2_IOC_FACTS_REPLY,
 	Mpi2IOCFactsReply_t, *pMpi2IOCFactsReply_t;
 
@@ -326,6 +335,7 @@ typedef struct _MPI2_IOC_FACTS_REPLY {
 /*ProductID field uses MPI2_FW_HEADER_PID_ */
 
 /*IOCCapabilities */
+#define MPI26_IOCFACTS_CAPABILITY_ATOMIC_REQ            (0x00080000)
 #define MPI2_IOCFACTS_CAPABILITY_RDPQ_ARRAY_CAPABLE     (0x00040000)
 #define MPI25_IOCFACTS_CAPABILITY_FAST_PATH_CAPABLE     (0x00020000)
 #define MPI2_IOCFACTS_CAPABILITY_HOST_BASED_DISCOVERY   (0x00010000)
@@ -343,8 +353,8 @@ typedef struct _MPI2_IOC_FACTS_REPLY {
 #define MPI2_IOCFACTS_CAPABILITY_TASK_SET_FULL_HANDLING (0x00000004)
 
 /*ProtocolFlags */
-#define MPI2_IOCFACTS_PROTOCOL_SCSI_TARGET              (0x0001)
 #define MPI2_IOCFACTS_PROTOCOL_SCSI_INITIATOR           (0x0002)
+#define MPI2_IOCFACTS_PROTOCOL_SCSI_TARGET              (0x0001)
 
 /****************************************************************************
 * PortFacts message
@@ -510,6 +520,7 @@ typedef struct _MPI2_EVENT_NOTIFICATION_REPLY {
 #define MPI2_EVENT_TEMP_THRESHOLD                   (0x0027)
 #define MPI2_EVENT_HOST_MESSAGE                     (0x0028)
 #define MPI2_EVENT_POWER_PERFORMANCE_CHANGE         (0x0029)
+#define MPI2_EVENT_ACTIVE_CABLE_EXCEPTION           (0x0034)
 #define MPI2_EVENT_MIN_PRODUCT_SPECIFIC             (0x006E)
 #define MPI2_EVENT_MAX_PRODUCT_SPECIFIC             (0x007F)
 
@@ -574,7 +585,7 @@ typedef struct _MPI2_EVENT_DATA_HOST_MESSAGE {
 } MPI2_EVENT_DATA_HOST_MESSAGE, *PTR_MPI2_EVENT_DATA_HOST_MESSAGE,
 	Mpi2EventDataHostMessage_t, *pMpi2EventDataHostMessage_t;
 
-/*Power Performance Change Event */
+/*Power Performance Change Event data */
 
 typedef struct _MPI2_EVENT_DATA_POWER_PERF_CHANGE {
 	U8 CurrentPowerMode;	/*0x00 */
@@ -598,6 +609,21 @@ typedef struct _MPI2_EVENT_DATA_POWER_PERF_CHANGE {
 #define MPI2_EVENT_PM_MODE_FULL_POWER        (0x04)
 #define MPI2_EVENT_PM_MODE_REDUCED_POWER     (0x05)
 #define MPI2_EVENT_PM_MODE_STANDBY           (0x06)
+
+/* Active Cable Exception Event data */
+
+typedef struct _MPI26_EVENT_DATA_ACTIVE_CABLE_EXCEPT {
+	U32         ActiveCablePowerRequirement;        /* 0x00 */
+	U8          ReasonCode;                         /* 0x04 */
+	U8          ReceptacleID;                       /* 0x05 */
+	U16         Reserved1;                          /* 0x06 */
+} MPI26_EVENT_DATA_ACTIVE_CABLE_EXCEPT,
+	*PTR_MPI26_EVENT_DATA_ACTIVE_CABLE_EXCEPT,
+	Mpi26EventDataActiveCableExcept_t,
+	*pMpi26EventDataActiveCableExcept_t;
+
+/* defines for ReasonCode field */
+#define MPI26_EVENT_ACTIVE_CABLE_INSUFFICIENT_POWER     (0x00)
 
 /*Hard Reset Received Event data */
 
@@ -1247,6 +1273,7 @@ typedef struct _MPI2_FW_UPLOAD_REQUEST {
 #define MPI2_FW_UPLOAD_ITYPE_MEGARAID           (0x09)
 #define MPI2_FW_UPLOAD_ITYPE_COMPLETE           (0x0A)
 #define MPI2_FW_UPLOAD_ITYPE_COMMON_BOOT_BLOCK  (0x0B)
+#define MPI2_FW_UPLOAD_ITYPE_CBB_BACKUP         (0x0D)
 
 /*MPI v2.0 FWUpload TransactionContext Element */
 typedef struct _MPI2_FW_UPLOAD_TCSGE {
@@ -1328,7 +1355,7 @@ typedef struct _MPI2_FW_IMAGE_HEADER {
 	U32 Reserved54;		/*0x54 */
 	U32 Reserved58;		/*0x58 */
 	U32 Reserved5C;		/*0x5C */
-	U32 Reserved60;		/*0x60 */
+	U32 BootFlags;		/*0x60 */
 	U32 FirmwareVersionNameWhat;	/*0x64 */
 	U8 FirmwareVersionName[32];	/*0x68 */
 	U32 VendorNameWhat;	/*0x88 */
@@ -1354,18 +1381,31 @@ typedef struct _MPI2_FW_IMAGE_HEADER {
 #define MPI2_FW_HEADER_SIGNATURE_OFFSET         (0x00)
 #define MPI2_FW_HEADER_SIGNATURE_MASK           (0xFF000000)
 #define MPI2_FW_HEADER_SIGNATURE                (0xEA000000)
+#define MPI26_FW_HEADER_SIGNATURE               (0xEB000000)
 
 /*Signature0 field */
 #define MPI2_FW_HEADER_SIGNATURE0_OFFSET        (0x04)
 #define MPI2_FW_HEADER_SIGNATURE0               (0x5AFAA55A)
+/* Last byte is defined by architecture */
+#define MPI26_FW_HEADER_SIGNATURE0_BASE         (0x5AEAA500)
+#define MPI26_FW_HEADER_SIGNATURE0_ARC_0        (0x5A)
+#define MPI26_FW_HEADER_SIGNATURE0_ARC_1        (0x00)
+#define MPI26_FW_HEADER_SIGNATURE0_ARC_2        (0x01)
+/* legacy (0x5AEAA55A) */
+#define MPI26_FW_HEADER_SIGNATURE0 \
+	(MPI26_FW_HEADER_SIGNATURE0_BASE+MPI26_FW_HEADER_SIGNATURE0_ARC_0)
+#define MPI26_FW_HEADER_SIGNATURE0_3516 \
+	(MPI26_FW_HEADER_SIGNATURE0_BASE+MPI26_FW_HEADER_SIGNATURE0_ARC_1)
 
 /*Signature1 field */
 #define MPI2_FW_HEADER_SIGNATURE1_OFFSET        (0x08)
 #define MPI2_FW_HEADER_SIGNATURE1               (0xA55AFAA5)
+#define MPI26_FW_HEADER_SIGNATURE1              (0xA55AEAA5)
 
 /*Signature2 field */
 #define MPI2_FW_HEADER_SIGNATURE2_OFFSET        (0x0C)
 #define MPI2_FW_HEADER_SIGNATURE2               (0x5AA55AFA)
+#define MPI26_FW_HEADER_SIGNATURE2              (0x5AA55AEA)
 
 /*defines for using the ProductID field */
 #define MPI2_FW_HEADER_PID_TYPE_MASK            (0xF000)
@@ -1381,6 +1421,8 @@ typedef struct _MPI2_FW_IMAGE_HEADER {
 #define MPI2_FW_HEADER_PID_FAMILY_2108_SAS      (0x0013)
 #define MPI2_FW_HEADER_PID_FAMILY_2208_SAS      (0x0014)
 #define MPI25_FW_HEADER_PID_FAMILY_3108_SAS     (0x0021)
+#define MPI26_FW_HEADER_PID_FAMILY_3324_SAS     (0x0028)
+#define MPI26_FW_HEADER_PID_FAMILY_3516_SAS     (0x0031)
 
 /*use MPI2_IOCFACTS_PROTOCOL_ defines for ProtocolFlags field */
 
@@ -1388,6 +1430,7 @@ typedef struct _MPI2_FW_IMAGE_HEADER {
 
 #define MPI2_FW_HEADER_IMAGESIZE_OFFSET         (0x2C)
 #define MPI2_FW_HEADER_NEXTIMAGE_OFFSET         (0x30)
+#define MPI26_FW_HEADER_BOOTFLAGS_OFFSET        (0x60)
 #define MPI2_FW_HEADER_VERNMHWAT_OFFSET         (0x64)
 
 #define MPI2_FW_HEADER_WHAT_SIGNATURE           (0x29232840)
@@ -1493,7 +1536,9 @@ typedef struct _MPI2_FLASH_LAYOUT_DATA {
 #define MPI2_FLASH_REGION_CONFIG_1              (0x07)
 #define MPI2_FLASH_REGION_CONFIG_2              (0x08)
 #define MPI2_FLASH_REGION_MEGARAID              (0x09)
-#define MPI2_FLASH_REGION_INIT                  (0x0A)
+#define MPI2_FLASH_REGION_COMMON_BOOT_BLOCK     (0x0A)
+#define MPI2_FLASH_REGION_INIT (MPI2_FLASH_REGION_COMMON_BOOT_BLOCK)
+#define MPI2_FLASH_REGION_CBB_BACKUP            (0x0D)
 
 /*ImageRevision */
 #define MPI2_FLASH_LAYOUT_IMAGE_REVISION        (0x00)
@@ -1619,7 +1664,6 @@ typedef struct _MPI25_ENCRYPTED_HASH_DATA {
 Mpi25EncryptedHashData_t, *pMpi25EncryptedHashData_t;
 
 
-
 /****************************************************************************
 * PowerManagementControl message
 ****************************************************************************/
@@ -1725,5 +1769,92 @@ typedef struct _MPI2_PWR_MGMT_CONTROL_REPLY {
 	U32 IOCLogInfo;		/*0x10 */
 } MPI2_PWR_MGMT_CONTROL_REPLY, *PTR_MPI2_PWR_MGMT_CONTROL_REPLY,
 	Mpi2PwrMgmtControlReply_t, *pMpi2PwrMgmtControlReply_t;
+
+/****************************************************************************
+*  IO Unit Control messages (MPI v2.6 and later only.)
+****************************************************************************/
+
+/* IO Unit Control Request Message */
+typedef struct _MPI26_IOUNIT_CONTROL_REQUEST {
+	U8                      Operation;          /* 0x00 */
+	U8                      Reserved1;          /* 0x01 */
+	U8                      ChainOffset;        /* 0x02 */
+	U8                      Function;           /* 0x03 */
+	U16                     DevHandle;          /* 0x04 */
+	U8                      IOCParameter;       /* 0x06 */
+	U8                      MsgFlags;           /* 0x07 */
+	U8                      VP_ID;              /* 0x08 */
+	U8                      VF_ID;              /* 0x09 */
+	U16                     Reserved3;          /* 0x0A */
+	U16                     Reserved4;          /* 0x0C */
+	U8                      PhyNum;             /* 0x0E */
+	U8                      PrimFlags;          /* 0x0F */
+	U32                     Primitive;          /* 0x10 */
+	U8                      LookupMethod;       /* 0x14 */
+	U8                      Reserved5;          /* 0x15 */
+	U16                     SlotNumber;         /* 0x16 */
+	U64                     LookupAddress;      /* 0x18 */
+	U32                     IOCParameterValue;  /* 0x20 */
+	U32                     Reserved7;          /* 0x24 */
+	U32                     Reserved8;          /* 0x28 */
+} MPI26_IOUNIT_CONTROL_REQUEST,
+	*PTR_MPI26_IOUNIT_CONTROL_REQUEST,
+	Mpi26IoUnitControlRequest_t,
+	*pMpi26IoUnitControlRequest_t;
+
+/* values for the Operation field */
+#define MPI26_CTRL_OP_CLEAR_ALL_PERSISTENT              (0x02)
+#define MPI26_CTRL_OP_SAS_PHY_LINK_RESET                (0x06)
+#define MPI26_CTRL_OP_SAS_PHY_HARD_RESET                (0x07)
+#define MPI26_CTRL_OP_PHY_CLEAR_ERROR_LOG               (0x08)
+#define MPI26_CTRL_OP_LINK_CLEAR_ERROR_LOG              (0x09)
+#define MPI26_CTRL_OP_SAS_SEND_PRIMITIVE                (0x0A)
+#define MPI26_CTRL_OP_FORCE_FULL_DISCOVERY              (0x0B)
+#define MPI26_CTRL_OP_REMOVE_DEVICE                     (0x0D)
+#define MPI26_CTRL_OP_LOOKUP_MAPPING                    (0x0E)
+#define MPI26_CTRL_OP_SET_IOC_PARAMETER                 (0x0F)
+#define MPI26_CTRL_OP_ENABLE_FP_DEVICE                  (0x10)
+#define MPI26_CTRL_OP_DISABLE_FP_DEVICE                 (0x11)
+#define MPI26_CTRL_OP_ENABLE_FP_ALL                     (0x12)
+#define MPI26_CTRL_OP_DISABLE_FP_ALL                    (0x13)
+#define MPI26_CTRL_OP_DEV_ENABLE_NCQ                    (0x14)
+#define MPI26_CTRL_OP_DEV_DISABLE_NCQ                   (0x15)
+#define MPI26_CTRL_OP_SHUTDOWN                          (0x16)
+#define MPI26_CTRL_OP_DEV_ENABLE_PERSIST_CONNECTION     (0x17)
+#define MPI26_CTRL_OP_DEV_DISABLE_PERSIST_CONNECTION    (0x18)
+#define MPI26_CTRL_OP_DEV_CLOSE_PERSIST_CONNECTION      (0x19)
+#define MPI26_CTRL_OP_PRODUCT_SPECIFIC_MIN              (0x80)
+
+/* values for the PrimFlags field */
+#define MPI26_CTRL_PRIMFLAGS_SINGLE                     (0x08)
+#define MPI26_CTRL_PRIMFLAGS_TRIPLE                     (0x02)
+#define MPI26_CTRL_PRIMFLAGS_REDUNDANT                  (0x01)
+
+/* values for the LookupMethod field */
+#define MPI26_CTRL_LOOKUP_METHOD_WWID_ADDRESS           (0x01)
+#define MPI26_CTRL_LOOKUP_METHOD_ENCLOSURE_SLOT         (0x02)
+#define MPI26_CTRL_LOOKUP_METHOD_SAS_DEVICE_NAME        (0x03)
+
+
+/* IO Unit Control Reply Message */
+typedef struct _MPI26_IOUNIT_CONTROL_REPLY {
+	U8                      Operation;          /* 0x00 */
+	U8                      Reserved1;          /* 0x01 */
+	U8                      MsgLength;          /* 0x02 */
+	U8                      Function;           /* 0x03 */
+	U16                     DevHandle;          /* 0x04 */
+	U8                      IOCParameter;       /* 0x06 */
+	U8                      MsgFlags;           /* 0x07 */
+	U8                      VP_ID;              /* 0x08 */
+	U8                      VF_ID;              /* 0x09 */
+	U16                     Reserved3;          /* 0x0A */
+	U16                     Reserved4;          /* 0x0C */
+	U16                     IOCStatus;          /* 0x0E */
+	U32                     IOCLogInfo;         /* 0x10 */
+} MPI26_IOUNIT_CONTROL_REPLY,
+	*PTR_MPI26_IOUNIT_CONTROL_REPLY,
+	Mpi26IoUnitControlReply_t,
+	*pMpi26IoUnitControlReply_t;
+
 
 #endif

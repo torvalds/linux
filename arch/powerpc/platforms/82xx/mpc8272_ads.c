@@ -201,8 +201,7 @@ machine_device_initcall(mpc8272_ads, declare_of_platform_devices);
  */
 static int __init mpc8272_ads_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-	return of_flat_dt_is_compatible(root, "fsl,mpc8272ads");
+	return of_machine_is_compatible("fsl,mpc8272ads");
 }
 
 define_machine(mpc8272_ads)

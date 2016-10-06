@@ -205,7 +205,9 @@ int mlx4_bf_alloc(struct mlx4_dev *dev, struct mlx4_bf *bf, int node)
 			goto free_uar;
 		}
 
-		uar->bf_map = io_mapping_map_wc(priv->bf_mapping, uar->index << PAGE_SHIFT);
+		uar->bf_map = io_mapping_map_wc(priv->bf_mapping,
+						uar->index << PAGE_SHIFT,
+						PAGE_SIZE);
 		if (!uar->bf_map) {
 			err = -ENOMEM;
 			goto unamp_uar;
@@ -269,9 +271,15 @@ EXPORT_SYMBOL_GPL(mlx4_bf_free);
 
 int mlx4_init_uar_table(struct mlx4_dev *dev)
 {
-	if (dev->caps.num_uars <= 128) {
-		mlx4_err(dev, "Only %d UAR pages (need more than 128)\n",
-			 dev->caps.num_uars);
+	int num_reserved_uar = mlx4_get_num_reserved_uar(dev);
+
+	mlx4_dbg(dev, "uar_page_shift = %d", dev->uar_page_shift);
+	mlx4_dbg(dev, "Effective reserved_uars=%d", dev->caps.reserved_uars);
+
+	if (dev->caps.num_uars <= num_reserved_uar) {
+		mlx4_err(
+			dev, "Only %d UAR pages (need more than %d)\n",
+			dev->caps.num_uars, num_reserved_uar);
 		mlx4_err(dev, "Increase firmware log2_uar_bar_megabytes?\n");
 		return -ENODEV;
 	}

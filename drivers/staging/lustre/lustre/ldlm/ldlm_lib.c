@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -86,7 +82,7 @@ static int import_set_conn(struct obd_import *imp, struct obd_uuid *uuid,
 			if (priority) {
 				list_del(&item->oic_item);
 				list_add(&item->oic_item,
-					     &imp->imp_conn_list);
+					 &imp->imp_conn_list);
 				item->oic_last_attempt = 0;
 			}
 			CDEBUG(D_HA, "imp %p@%s: found existing conn %s%s\n",
@@ -106,7 +102,7 @@ static int import_set_conn(struct obd_import *imp, struct obd_uuid *uuid,
 			list_add(&imp_conn->oic_item, &imp->imp_conn_list);
 		else
 			list_add_tail(&imp_conn->oic_item,
-					  &imp->imp_conn_list);
+				      &imp->imp_conn_list);
 		CDEBUG(D_HA, "imp %p@%s: add connection %s at %s\n",
 		       imp, imp->imp_obd->obd_name, uuid->uuid,
 		       (priority ? "head" : "tail"));
@@ -219,36 +215,14 @@ EXPORT_SYMBOL(client_import_find_conn);
 void client_destroy_import(struct obd_import *imp)
 {
 	/* Drop security policy instance after all RPCs have finished/aborted
-	 * to let all busy contexts be released. */
+	 * to let all busy contexts be released.
+	 */
 	class_import_get(imp);
 	class_destroy_import(imp);
 	sptlrpc_import_sec_put(imp);
 	class_import_put(imp);
 }
 EXPORT_SYMBOL(client_destroy_import);
-
-/**
- * Check whether or not the OSC is on MDT.
- * In the config log,
- * osc on MDT
- *	setup 0:{fsname}-OSTxxxx-osc[-MDTxxxx] 1:lustre-OST0000_UUID 2:NID
- * osc on client
- *	setup 0:{fsname}-OSTxxxx-osc 1:lustre-OST0000_UUID 2:NID
- *
- **/
-static int osc_on_mdt(char *obdname)
-{
-	char *ptr;
-
-	ptr = strrchr(obdname, '-');
-	if (ptr == NULL)
-		return 0;
-
-	if (strncmp(ptr + 1, "MDT", 3) == 0)
-		return 1;
-
-	return 0;
-}
 
 /* Configure an RPC client OBD device.
  *
@@ -264,11 +238,12 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	struct obd_uuid server_uuid;
 	int rq_portal, rp_portal, connect_op;
 	char *name = obddev->obd_type->typ_name;
-	ldlm_ns_type_t ns_type = LDLM_NS_TYPE_UNKNOWN;
+	enum ldlm_ns_type ns_type = LDLM_NS_TYPE_UNKNOWN;
 	int rc;
 
 	/* In a more perfect world, we would hang a ptlrpc_client off of
-	 * obd_type and just use the values from there. */
+	 * obd_type and just use the values from there.
+	 */
 	if (!strcmp(name, LUSTRE_OSC_NAME)) {
 		rq_portal = OST_REQUEST_PORTAL;
 		rp_portal = OSC_REPLY_PORTAL;
@@ -284,22 +259,6 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 		cli->cl_sp_me = LUSTRE_SP_CLI;
 		cli->cl_sp_to = LUSTRE_SP_MDT;
 		ns_type = LDLM_NS_TYPE_MDC;
-	} else if (!strcmp(name, LUSTRE_OSP_NAME)) {
-		if (strstr(lustre_cfg_buf(lcfg, 1), "OST") == NULL) {
-			/* OSP_on_MDT for other MDTs */
-			connect_op = MDS_CONNECT;
-			cli->cl_sp_to = LUSTRE_SP_MDT;
-			ns_type = LDLM_NS_TYPE_MDC;
-			rq_portal = OUT_PORTAL;
-		} else {
-			/* OSP on MDT for OST */
-			connect_op = OST_CONNECT;
-			cli->cl_sp_to = LUSTRE_SP_OST;
-			ns_type = LDLM_NS_TYPE_OSC;
-			rq_portal = OST_REQUEST_PORTAL;
-		}
-		rp_portal = OSC_REPLY_PORTAL;
-		cli->cl_sp_me = LUSTRE_SP_CLI;
 	} else if (!strcmp(name, LUSTRE_MGC_NAME)) {
 		rq_portal = MGS_REQUEST_PORTAL;
 		rp_portal = MGC_REPLY_PORTAL;
@@ -340,18 +299,20 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	       min_t(unsigned int, LUSTRE_CFG_BUFLEN(lcfg, 2),
 		     sizeof(server_uuid)));
 
-	cli->cl_dirty = 0;
+	cli->cl_dirty_pages = 0;
 	cli->cl_avail_grant = 0;
-	/* FIXME: Should limit this for the sum of all cl_dirty_max. */
-	cli->cl_dirty_max = OSC_MAX_DIRTY_DEFAULT * 1024 * 1024;
-	if (cli->cl_dirty_max >> PAGE_CACHE_SHIFT > totalram_pages / 8)
-		cli->cl_dirty_max = totalram_pages << (PAGE_CACHE_SHIFT - 3);
+	/* FIXME: Should limit this for the sum of all cl_dirty_max_pages. */
+	/*
+	 * cl_dirty_max_pages may be changed at connect time in
+	 * ptlrpc_connect_interpret().
+	 */
+	client_adjust_max_dirty(cli);
 	INIT_LIST_HEAD(&cli->cl_cache_waiters);
 	INIT_LIST_HEAD(&cli->cl_loi_ready_list);
 	INIT_LIST_HEAD(&cli->cl_loi_hp_ready_list);
 	INIT_LIST_HEAD(&cli->cl_loi_write_list);
 	INIT_LIST_HEAD(&cli->cl_loi_read_list);
-	client_obd_list_lock_init(&cli->cl_loi_list_lock);
+	spin_lock_init(&cli->cl_loi_list_lock);
 	atomic_set(&cli->cl_pending_w_pages, 0);
 	atomic_set(&cli->cl_pending_r_pages, 0);
 	cli->cl_r_in_flight = 0;
@@ -367,10 +328,11 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	/* lru for osc. */
 	INIT_LIST_HEAD(&cli->cl_lru_osc);
 	atomic_set(&cli->cl_lru_shrinkers, 0);
-	atomic_set(&cli->cl_lru_busy, 0);
-	atomic_set(&cli->cl_lru_in_list, 0);
+	atomic_long_set(&cli->cl_lru_busy, 0);
+	atomic_long_set(&cli->cl_lru_in_list, 0);
 	INIT_LIST_HEAD(&cli->cl_lru_list);
-	client_obd_list_lock_init(&cli->cl_lru_list_lock);
+	spin_lock_init(&cli->cl_lru_list_lock);
+	atomic_long_set(&cli->cl_unstable_count, 0);
 
 	init_waitqueue_head(&cli->cl_destroy_waitq);
 	atomic_set(&cli->cl_destroy_in_flight, 0);
@@ -381,29 +343,34 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	 * Set cl_chksum* to CRC32 for now to avoid returning screwed info
 	 * through procfs.
 	 */
-	cli->cl_cksum_type = cli->cl_supp_cksum_types = OBD_CKSUM_CRC32;
+	cli->cl_cksum_type = OBD_CKSUM_CRC32;
+	cli->cl_supp_cksum_types = OBD_CKSUM_CRC32;
 	atomic_set(&cli->cl_resends, OSC_DEFAULT_RESENDS);
 
 	/* This value may be reduced at connect time in
 	 * ptlrpc_connect_interpret() . We initialize it to only
 	 * 1MB until we know what the performance looks like.
-	 * In the future this should likely be increased. LU-1431 */
+	 * In the future this should likely be increased. LU-1431
+	 */
 	cli->cl_max_pages_per_rpc = min_t(int, PTLRPC_MAX_BRW_PAGES,
-					  LNET_MTU >> PAGE_CACHE_SHIFT);
+					  LNET_MTU >> PAGE_SHIFT);
+
+	/*
+	 * set cl_chunkbits default value to PAGE_CACHE_SHIFT,
+	 * it will be updated at OSC connection time.
+	 */
+	cli->cl_chunkbits = PAGE_SHIFT;
 
 	if (!strcmp(name, LUSTRE_MDC_NAME)) {
-		cli->cl_max_rpcs_in_flight = MDC_MAX_RIF_DEFAULT;
-	} else if (totalram_pages >> (20 - PAGE_CACHE_SHIFT) <= 128 /* MB */) {
+		cli->cl_max_rpcs_in_flight = OBD_MAX_RIF_DEFAULT;
+	} else if (totalram_pages >> (20 - PAGE_SHIFT) <= 128 /* MB */) {
 		cli->cl_max_rpcs_in_flight = 2;
-	} else if (totalram_pages >> (20 - PAGE_CACHE_SHIFT) <= 256 /* MB */) {
+	} else if (totalram_pages >> (20 - PAGE_SHIFT) <= 256 /* MB */) {
 		cli->cl_max_rpcs_in_flight = 3;
-	} else if (totalram_pages >> (20 - PAGE_CACHE_SHIFT) <= 512 /* MB */) {
+	} else if (totalram_pages >> (20 - PAGE_SHIFT) <= 512 /* MB */) {
 		cli->cl_max_rpcs_in_flight = 4;
 	} else {
-		if (osc_on_mdt(obddev->obd_name))
-			cli->cl_max_rpcs_in_flight = MDS_OSC_MAX_RIF_DEFAULT;
-		else
-			cli->cl_max_rpcs_in_flight = OSC_MAX_RIF_DEFAULT;
+		cli->cl_max_rpcs_in_flight = OBD_MAX_RIF_DEFAULT;
 	}
 	rc = ldlm_get_ref();
 	if (rc) {
@@ -415,7 +382,7 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 			   &obddev->obd_ldlm_client);
 
 	imp = class_new_import(obddev);
-	if (imp == NULL) {
+	if (!imp) {
 		rc = -ENOENT;
 		goto err_ldlm;
 	}
@@ -451,7 +418,7 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 						   LDLM_NAMESPACE_CLIENT,
 						   LDLM_NAMESPACE_GREEDY,
 						   ns_type);
-	if (obddev->obd_namespace == NULL) {
+	if (!obddev->obd_namespace) {
 		CERROR("Unable to create client namespace - %s\n",
 		       obddev->obd_name);
 		rc = -ENOMEM;
@@ -468,7 +435,6 @@ err_ldlm:
 	ldlm_put_ref();
 err:
 	return rc;
-
 }
 EXPORT_SYMBOL(client_obd_setup);
 
@@ -477,7 +443,8 @@ int client_obd_cleanup(struct obd_device *obddev)
 	ldlm_namespace_free_post(obddev->obd_namespace);
 	obddev->obd_namespace = NULL;
 
-	LASSERT(obddev->u.cli.cl_import == NULL);
+	obd_cleanup_client_import(obddev);
+	LASSERT(!obddev->u.cli.cl_import);
 
 	ldlm_put_ref();
 	return 0;
@@ -528,7 +495,7 @@ int client_connect_import(const struct lu_env *env,
 		LASSERT(imp->imp_state == LUSTRE_IMP_DISCON);
 		goto out_ldlm;
 	}
-	LASSERT(*exp != NULL && (*exp)->exp_connection);
+	LASSERT(*exp && (*exp)->exp_connection);
 
 	if (data) {
 		LASSERTF((ocd->ocd_connect_flags & data->ocd_connect_flags) ==
@@ -569,7 +536,7 @@ int client_disconnect_export(struct obd_export *exp)
 	imp = cli->cl_import;
 
 	down_write(&cli->cl_sem);
-	CDEBUG(D_INFO, "disconnect %s - %d\n", obd->obd_name,
+	CDEBUG(D_INFO, "disconnect %s - %zu\n", obd->obd_name,
 	       cli->cl_conn_count);
 
 	if (!cli->cl_conn_count) {
@@ -587,17 +554,19 @@ int client_disconnect_export(struct obd_export *exp)
 
 	/* Mark import deactivated now, so we don't try to reconnect if any
 	 * of the cleanup RPCs fails (e.g. LDLM cancel, etc).  We don't
-	 * fully deactivate the import, or that would drop all requests. */
+	 * fully deactivate the import, or that would drop all requests.
+	 */
 	spin_lock(&imp->imp_lock);
 	imp->imp_deactive = 1;
 	spin_unlock(&imp->imp_lock);
 
 	/* Some non-replayable imports (MDS's OSCs) are pinged, so just
 	 * delete it regardless.  (It's safe to delete an import that was
-	 * never added.) */
+	 * never added.)
+	 */
 	(void)ptlrpc_pinger_del_import(imp);
 
-	if (obd->obd_namespace != NULL) {
+	if (obd->obd_namespace) {
 		/* obd_force == local only */
 		ldlm_cli_cancel_unused(obd->obd_namespace, NULL,
 				       obd->obd_force ? LCF_LOCAL : 0, NULL);
@@ -606,7 +575,8 @@ int client_disconnect_export(struct obd_export *exp)
 	}
 
 	/* There's no need to hold sem while disconnecting an import,
-	 * and it may actually cause deadlock in GSS. */
+	 * and it may actually cause deadlock in GSS.
+	 */
 	up_write(&cli->cl_sem);
 	rc = ptlrpc_disconnect_import(imp, 0);
 	down_write(&cli->cl_sem);
@@ -615,7 +585,8 @@ int client_disconnect_export(struct obd_export *exp)
 
 out_disconnect:
 	/* Use server style - class_disconnect should be always called for
-	 * o_disconnect. */
+	 * o_disconnect.
+	 */
 	err = class_disconnect(exp);
 	if (!rc && err)
 		rc = err;
@@ -634,7 +605,8 @@ int target_pack_pool_reply(struct ptlrpc_request *req)
 	struct obd_device *obd;
 
 	/* Check that we still have all structures alive as this may
-	 * be some late RPC at shutdown time. */
+	 * be some late RPC at shutdown time.
+	 */
 	if (unlikely(!req->rq_export || !req->rq_export->exp_obd ||
 		     !exp_connect_lru_resize(req->rq_export))) {
 		lustre_msg_set_slv(req->rq_repmsg, 0);
@@ -684,14 +656,14 @@ void target_send_reply(struct ptlrpc_request *req, int rc, int fail_id)
 
 	svcpt = req->rq_rqbd->rqbd_svcpt;
 	rs = req->rq_reply_state;
-	if (rs == NULL || !rs->rs_difficult) {
+	if (!rs || !rs->rs_difficult) {
 		/* no notifiers */
 		target_send_reply_msg(req, rc, fail_id);
 		return;
 	}
 
 	/* must be an export if locks saved */
-	LASSERT(req->rq_export != NULL);
+	LASSERT(req->rq_export);
 	/* req/reply consistent */
 	LASSERT(rs->rs_svcpt == svcpt);
 
@@ -700,7 +672,7 @@ void target_send_reply(struct ptlrpc_request *req, int rc, int fail_id)
 	LASSERT(!rs->rs_scheduled_ever);
 	LASSERT(!rs->rs_handled);
 	LASSERT(!rs->rs_on_net);
-	LASSERT(rs->rs_export == NULL);
+	LASSERT(!rs->rs_export);
 	LASSERT(list_empty(&rs->rs_obd_list));
 	LASSERT(list_empty(&rs->rs_exp_list));
 
@@ -720,7 +692,7 @@ void target_send_reply(struct ptlrpc_request *req, int rc, int fail_id)
 	if (rs->rs_transno > exp->exp_last_committed) {
 		/* not committed already */
 		list_add_tail(&rs->rs_obd_list,
-				  &exp->exp_uncommitted_replies);
+			      &exp->exp_uncommitted_replies);
 	}
 	spin_unlock(&exp->exp_uncommitted_replies_lock);
 
@@ -739,7 +711,8 @@ void target_send_reply(struct ptlrpc_request *req, int rc, int fail_id)
 		 * reply ref until ptlrpc_handle_rs() is done
 		 * with the reply state (if the send was successful, there
 		 * would have been +1 ref for the net, which
-		 * reply_out_callback leaves alone) */
+		 * reply_out_callback leaves alone)
+		 */
 		rs->rs_on_net = 0;
 		ptlrpc_rs_addref(rs);
 	}
@@ -760,7 +733,7 @@ void target_send_reply(struct ptlrpc_request *req, int rc, int fail_id)
 }
 EXPORT_SYMBOL(target_send_reply);
 
-ldlm_mode_t lck_compat_array[] = {
+enum ldlm_mode lck_compat_array[] = {
 	[LCK_EX]	= LCK_COMPAT_EX,
 	[LCK_PW]	= LCK_COMPAT_PW,
 	[LCK_PR]	= LCK_COMPAT_PR,
@@ -775,12 +748,13 @@ ldlm_mode_t lck_compat_array[] = {
  * Rather arbitrary mapping from LDLM error codes to errno values. This should
  * not escape to the user level.
  */
-int ldlm_error2errno(ldlm_error_t error)
+int ldlm_error2errno(enum ldlm_error error)
 {
 	int result;
 
 	switch (error) {
 	case ELDLM_OK:
+	case ELDLM_LOCK_MATCHED:
 		result = 0;
 		break;
 	case ELDLM_LOCK_CHANGED:
@@ -803,7 +777,7 @@ int ldlm_error2errno(ldlm_error_t error)
 		break;
 	default:
 		if (((int)error) < 0)  /* cast to signed type */
-			result = error; /* as ldlm_error_t can be unsigned */
+			result = error; /* as enum ldlm_error can be unsigned */
 		else {
 			CERROR("Invalid DLM result code: %d\n", error);
 			result = -EPROTO;
@@ -823,7 +797,7 @@ void ldlm_dump_export_locks(struct obd_export *exp)
 		CERROR("dumping locks for export %p,ignore if the unmount doesn't hang\n",
 		       exp);
 		list_for_each_entry(lock, &exp->exp_locks_list,
-					l_exp_refs_link)
+				    l_exp_refs_link)
 			LDLM_ERROR(lock, "lock:");
 	}
 	spin_unlock(&exp->exp_locks_list_guard);

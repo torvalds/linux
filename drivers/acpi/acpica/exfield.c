@@ -126,7 +126,7 @@ acpi_ex_get_serial_access_length(u32 accessor_type, u32 access_length)
  ******************************************************************************/
 
 acpi_status
-acpi_ex_read_data_from_field(struct acpi_walk_state * walk_state,
+acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 			     union acpi_operand_object *obj_desc,
 			     union acpi_operand_object **ret_buffer_desc)
 {
@@ -233,7 +233,7 @@ acpi_ex_read_data_from_field(struct acpi_walk_state * walk_state,
 	 * Note: Field.length is in bits.
 	 */
 	length =
-	    (acpi_size) ACPI_ROUND_BITS_UP_TO_BYTES(obj_desc->field.bit_length);
+	    (acpi_size)ACPI_ROUND_BITS_UP_TO_BYTES(obj_desc->field.bit_length);
 
 	if (length > acpi_gbl_integer_byte_width) {
 

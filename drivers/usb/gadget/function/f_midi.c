@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/kfifo.h>
+#include <linux/spinlock.h>
 
 #include <sound/core.h>
 #include <sound/initval.h>
@@ -50,23 +51,29 @@ static const char f_midi_longname[] = "MIDI Gadget";
  */
 #define MAX_PORTS 16
 
+/* MIDI message states */
+enum {
+	STATE_INITIAL = 0,	/* pseudo state */
+	STATE_1PARAM,
+	STATE_2PARAM_1,
+	STATE_2PARAM_2,
+	STATE_SYSEX_0,
+	STATE_SYSEX_1,
+	STATE_SYSEX_2,
+	STATE_REAL_TIME,
+	STATE_FINISHED,		/* pseudo state */
+};
+
 /*
  * This is a gadget, and the IN/OUT naming is from the host's perspective.
  * USB -> OUT endpoint -> rawmidi
  * USB <- IN endpoint  <- rawmidi
  */
 struct gmidi_in_port {
-	struct f_midi *midi;
+	struct snd_rawmidi_substream *substream;
 	int active;
 	uint8_t cable;
 	uint8_t state;
-#define STATE_UNKNOWN	0
-#define STATE_1PARAM	1
-#define STATE_2PARAM_1	2
-#define STATE_2PARAM_2	3
-#define STATE_SYSEX_0	4
-#define STATE_SYSEX_1	5
-#define STATE_SYSEX_2	6
 	uint8_t data[2];
 };
 
@@ -78,9 +85,7 @@ struct f_midi {
 	struct snd_rawmidi	*rmidi;
 	u8			ms_id;
 
-	struct snd_rawmidi_substream *in_substream[MAX_PORTS];
 	struct snd_rawmidi_substream *out_substream[MAX_PORTS];
-	struct gmidi_in_port	*in_port[MAX_PORTS];
 
 	unsigned long		out_triggered;
 	struct tasklet_struct	tasklet;
@@ -91,7 +96,10 @@ struct f_midi {
 	unsigned int buflen, qlen;
 	/* This fifo is used as a buffer ring for pre-allocated IN usb_requests */
 	DECLARE_KFIFO_PTR(in_req_fifo, struct usb_request *);
+	spinlock_t transmit_lock;
 	unsigned int in_last_port;
+
+	struct gmidi_in_port	in_ports_array[/* in_ports */];
 };
 
 static inline struct f_midi *func_to_midi(struct usb_function *f)
@@ -203,7 +211,7 @@ static struct usb_gadget_strings *midi_strings[] = {
 static inline struct usb_request *midi_alloc_ep_req(struct usb_ep *ep,
 						    unsigned length)
 {
-	return alloc_ep_req(ep, length, length);
+	return alloc_ep_req(ep, length);
 }
 
 static const uint8_t f_midi_cin_length[] = {
@@ -297,6 +305,19 @@ f_midi_complete(struct usb_ep *ep, struct usb_request *req)
 	}
 }
 
+static void f_midi_drop_out_substreams(struct f_midi *midi)
+{
+	unsigned int i;
+
+	for (i = 0; i < midi->in_ports; i++) {
+		struct gmidi_in_port *port = midi->in_ports_array + i;
+		struct snd_rawmidi_substream *substream = port->substream;
+
+		if (port->active && substream)
+			snd_rawmidi_drop_output(substream);
+	}
+}
+
 static int f_midi_start_ep(struct f_midi *midi,
 			   struct usb_function *f,
 			   struct usb_ep *ep)
@@ -359,6 +380,7 @@ static int f_midi_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	for (i = 0; i < midi->qlen && err == 0; i++) {
 		struct usb_request *req =
 			midi_alloc_ep_req(midi->out_ep, midi->buflen);
+
 		if (req == NULL)
 			return -ENOMEM;
 
@@ -393,24 +415,13 @@ static void f_midi_disable(struct usb_function *f)
 	/* release IN requests */
 	while (kfifo_get(&midi->in_req_fifo, &req))
 		free_ep_req(midi->in_ep, req);
+
+	f_midi_drop_out_substreams(midi);
 }
 
 static int f_midi_snd_free(struct snd_device *device)
 {
 	return 0;
-}
-
-static void f_midi_transmit_packet(struct usb_request *req, uint8_t p0,
-					uint8_t p1, uint8_t p2, uint8_t p3)
-{
-	unsigned length = req->length;
-	u8 *buf = (u8 *)req->buf + length;
-
-	buf[0] = p0;
-	buf[1] = p1;
-	buf[2] = p2;
-	buf[3] = p3;
-	req->length = length + 4;
 }
 
 /*
@@ -419,197 +430,250 @@ static void f_midi_transmit_packet(struct usb_request *req, uint8_t p0,
 static void f_midi_transmit_byte(struct usb_request *req,
 				 struct gmidi_in_port *port, uint8_t b)
 {
-	uint8_t p0 = port->cable << 4;
+	uint8_t p[4] = { port->cable << 4, 0, 0, 0 };
+	uint8_t next_state = STATE_INITIAL;
 
-	if (b >= 0xf8) {
-		f_midi_transmit_packet(req, p0 | 0x0f, b, 0, 0);
-	} else if (b >= 0xf0) {
+	switch (b) {
+	case 0xf8 ... 0xff:
+		/* System Real-Time Messages */
+		p[0] |= 0x0f;
+		p[1] = b;
+		next_state = port->state;
+		port->state = STATE_REAL_TIME;
+		break;
+
+	case 0xf7:
+		/* End of SysEx */
+		switch (port->state) {
+		case STATE_SYSEX_0:
+			p[0] |= 0x05;
+			p[1] = 0xf7;
+			next_state = STATE_FINISHED;
+			break;
+		case STATE_SYSEX_1:
+			p[0] |= 0x06;
+			p[1] = port->data[0];
+			p[2] = 0xf7;
+			next_state = STATE_FINISHED;
+			break;
+		case STATE_SYSEX_2:
+			p[0] |= 0x07;
+			p[1] = port->data[0];
+			p[2] = port->data[1];
+			p[3] = 0xf7;
+			next_state = STATE_FINISHED;
+			break;
+		default:
+			/* Ignore byte */
+			next_state = port->state;
+			port->state = STATE_INITIAL;
+		}
+		break;
+
+	case 0xf0 ... 0xf6:
+		/* System Common Messages */
+		port->data[0] = port->data[1] = 0;
+		port->state = STATE_INITIAL;
 		switch (b) {
 		case 0xf0:
 			port->data[0] = b;
-			port->state = STATE_SYSEX_1;
+			port->data[1] = 0;
+			next_state = STATE_SYSEX_1;
 			break;
 		case 0xf1:
 		case 0xf3:
 			port->data[0] = b;
-			port->state = STATE_1PARAM;
+			next_state = STATE_1PARAM;
 			break;
 		case 0xf2:
 			port->data[0] = b;
-			port->state = STATE_2PARAM_1;
+			next_state = STATE_2PARAM_1;
 			break;
 		case 0xf4:
 		case 0xf5:
-			port->state = STATE_UNKNOWN;
+			next_state = STATE_INITIAL;
 			break;
 		case 0xf6:
-			f_midi_transmit_packet(req, p0 | 0x05, 0xf6, 0, 0);
-			port->state = STATE_UNKNOWN;
-			break;
-		case 0xf7:
-			switch (port->state) {
-			case STATE_SYSEX_0:
-				f_midi_transmit_packet(req,
-					p0 | 0x05, 0xf7, 0, 0);
-				break;
-			case STATE_SYSEX_1:
-				f_midi_transmit_packet(req,
-					p0 | 0x06, port->data[0], 0xf7, 0);
-				break;
-			case STATE_SYSEX_2:
-				f_midi_transmit_packet(req,
-					p0 | 0x07, port->data[0],
-					port->data[1], 0xf7);
-				break;
-			}
-			port->state = STATE_UNKNOWN;
+			p[0] |= 0x05;
+			p[1] = 0xf6;
+			next_state = STATE_FINISHED;
 			break;
 		}
-	} else if (b >= 0x80) {
+		break;
+
+	case 0x80 ... 0xef:
+		/*
+		 * Channel Voice Messages, Channel Mode Messages
+		 * and Control Change Messages.
+		 */
 		port->data[0] = b;
+		port->data[1] = 0;
+		port->state = STATE_INITIAL;
 		if (b >= 0xc0 && b <= 0xdf)
-			port->state = STATE_1PARAM;
+			next_state = STATE_1PARAM;
 		else
-			port->state = STATE_2PARAM_1;
-	} else { /* b < 0x80 */
+			next_state = STATE_2PARAM_1;
+		break;
+
+	case 0x00 ... 0x7f:
+		/* Message parameters */
 		switch (port->state) {
 		case STATE_1PARAM:
-			if (port->data[0] < 0xf0) {
-				p0 |= port->data[0] >> 4;
-			} else {
-				p0 |= 0x02;
-				port->state = STATE_UNKNOWN;
-			}
-			f_midi_transmit_packet(req, p0, port->data[0], b, 0);
+			if (port->data[0] < 0xf0)
+				p[0] |= port->data[0] >> 4;
+			else
+				p[0] |= 0x02;
+
+			p[1] = port->data[0];
+			p[2] = b;
+			/* This is to allow Running State Messages */
+			next_state = STATE_1PARAM;
 			break;
 		case STATE_2PARAM_1:
 			port->data[1] = b;
-			port->state = STATE_2PARAM_2;
+			next_state = STATE_2PARAM_2;
 			break;
 		case STATE_2PARAM_2:
-			if (port->data[0] < 0xf0) {
-				p0 |= port->data[0] >> 4;
-				port->state = STATE_2PARAM_1;
-			} else {
-				p0 |= 0x03;
-				port->state = STATE_UNKNOWN;
-			}
-			f_midi_transmit_packet(req,
-				p0, port->data[0], port->data[1], b);
+			if (port->data[0] < 0xf0)
+				p[0] |= port->data[0] >> 4;
+			else
+				p[0] |= 0x03;
+
+			p[1] = port->data[0];
+			p[2] = port->data[1];
+			p[3] = b;
+			/* This is to allow Running State Messages */
+			next_state = STATE_2PARAM_1;
 			break;
 		case STATE_SYSEX_0:
 			port->data[0] = b;
-			port->state = STATE_SYSEX_1;
+			next_state = STATE_SYSEX_1;
 			break;
 		case STATE_SYSEX_1:
 			port->data[1] = b;
-			port->state = STATE_SYSEX_2;
+			next_state = STATE_SYSEX_2;
 			break;
 		case STATE_SYSEX_2:
-			f_midi_transmit_packet(req,
-				p0 | 0x04, port->data[0], port->data[1], b);
-			port->state = STATE_SYSEX_0;
+			p[0] |= 0x04;
+			p[1] = port->data[0];
+			p[2] = port->data[1];
+			p[3] = b;
+			next_state = STATE_SYSEX_0;
 			break;
 		}
+		break;
 	}
+
+	/* States where we have to write into the USB request */
+	if (next_state == STATE_FINISHED ||
+	    port->state == STATE_SYSEX_2 ||
+	    port->state == STATE_1PARAM ||
+	    port->state == STATE_2PARAM_2 ||
+	    port->state == STATE_REAL_TIME) {
+
+		unsigned int length = req->length;
+		u8 *buf = (u8 *)req->buf + length;
+
+		memcpy(buf, p, sizeof(p));
+		req->length = length + sizeof(p);
+
+		if (next_state == STATE_FINISHED) {
+			next_state = STATE_INITIAL;
+			port->data[0] = port->data[1] = 0;
+		}
+	}
+
+	port->state = next_state;
 }
 
-static void f_midi_drop_out_substreams(struct f_midi *midi)
+static int f_midi_do_transmit(struct f_midi *midi, struct usb_ep *ep)
 {
-	unsigned int i;
+	struct usb_request *req = NULL;
+	unsigned int len, i;
+	bool active = false;
+	int err;
 
-	for (i = 0; i < MAX_PORTS; i++) {
-		struct gmidi_in_port *port = midi->in_port[i];
-		struct snd_rawmidi_substream *substream = midi->in_substream[i];
+	/*
+	 * We peek the request in order to reuse it if it fails to enqueue on
+	 * its endpoint
+	 */
+	len = kfifo_peek(&midi->in_req_fifo, &req);
+	if (len != 1) {
+		ERROR(midi, "%s: Couldn't get usb request\n", __func__);
+		return -1;
+	}
 
-		if (!port)
-			break;
+	/*
+	 * If buffer overrun, then we ignore this transmission.
+	 * IMPORTANT: This will cause the user-space rawmidi device to block
+	 * until a) usb requests have been completed or b) snd_rawmidi_write()
+	 * times out.
+	 */
+	if (req->length > 0)
+		return 0;
+
+	for (i = midi->in_last_port; i < midi->in_ports; ++i) {
+		struct gmidi_in_port *port = midi->in_ports_array + i;
+		struct snd_rawmidi_substream *substream = port->substream;
 
 		if (!port->active || !substream)
 			continue;
 
-		snd_rawmidi_drop_output(substream);
+		while (req->length + 3 < midi->buflen) {
+			uint8_t b;
+
+			if (snd_rawmidi_transmit(substream, &b, 1) != 1) {
+				port->active = 0;
+				break;
+			}
+			f_midi_transmit_byte(req, port, b);
+		}
+
+		active = !!port->active;
+		if (active)
+			break;
 	}
+	midi->in_last_port = active ? i : 0;
+
+	if (req->length <= 0)
+		goto done;
+
+	err = usb_ep_queue(ep, req, GFP_ATOMIC);
+	if (err < 0) {
+		ERROR(midi, "%s failed to queue req: %d\n",
+		      midi->in_ep->name, err);
+		req->length = 0; /* Re-use request next time. */
+	} else {
+		/* Upon success, put request at the back of the queue. */
+		kfifo_skip(&midi->in_req_fifo);
+		kfifo_put(&midi->in_req_fifo, req);
+	}
+
+done:
+	return active;
 }
 
 static void f_midi_transmit(struct f_midi *midi)
 {
 	struct usb_ep *ep = midi->in_ep;
-	bool active;
+	int ret;
+	unsigned long flags;
 
 	/* We only care about USB requests if IN endpoint is enabled */
 	if (!ep || !ep->enabled)
 		goto drop_out;
 
+	spin_lock_irqsave(&midi->transmit_lock, flags);
+
 	do {
-		struct usb_request *req = NULL;
-		unsigned int len, i;
-
-		active = false;
-
-		/* We peek the request in order to reuse it if it fails
-		 * to enqueue on its endpoint */
-		len = kfifo_peek(&midi->in_req_fifo, &req);
-		if (len != 1) {
-			ERROR(midi, "%s: Couldn't get usb request\n", __func__);
+		ret = f_midi_do_transmit(midi, ep);
+		if (ret < 0) {
+			spin_unlock_irqrestore(&midi->transmit_lock, flags);
 			goto drop_out;
 		}
+	} while (ret);
 
-		/* If buffer overrun, then we ignore this transmission.
-		 * IMPORTANT: This will cause the user-space rawmidi device to block until a) usb
-		 * requests have been completed or b) snd_rawmidi_write() times out. */
-		if (req->length > 0)
-			return;
-
-		for (i = midi->in_last_port; i < MAX_PORTS; i++) {
-			struct gmidi_in_port *port = midi->in_port[i];
-			struct snd_rawmidi_substream *substream = midi->in_substream[i];
-
-			if (!port) {
-				/* Reset counter when we reach the last available port */
-				midi->in_last_port = 0;
-				break;
-			}
-
-			if (!port->active || !substream)
-				continue;
-
-			while (req->length + 3 < midi->buflen) {
-				uint8_t b;
-
-				if (snd_rawmidi_transmit(substream, &b, 1) != 1) {
-					port->active = 0;
-					break;
-				}
-				f_midi_transmit_byte(req, port, b);
-			}
-
-			active = !!port->active;
-			/* Check if last port is still active, which means that
-			 * there is still data on that substream but this current
-			 * request run out of space. */
-			if (active) {
-				midi->in_last_port = i;
-				/* There is no need to re-iterate though midi ports. */
-				break;
-			}
-		}
-
-		if (req->length > 0) {
-			int err;
-
-			err = usb_ep_queue(ep, req, GFP_ATOMIC);
-			if (err < 0) {
-				ERROR(midi, "%s failed to queue req: %d\n",
-				      midi->in_ep->name, err);
-				req->length = 0; /* Re-use request next time. */
-			} else {
-				/* Upon success, put request at the back of the queue. */
-				kfifo_skip(&midi->in_req_fifo);
-				kfifo_put(&midi->in_req_fifo, req);
-			}
-		}
-	} while (active);
+	spin_unlock_irqrestore(&midi->transmit_lock, flags);
 
 	return;
 
@@ -626,13 +690,15 @@ static void f_midi_in_tasklet(unsigned long data)
 static int f_midi_in_open(struct snd_rawmidi_substream *substream)
 {
 	struct f_midi *midi = substream->rmidi->private_data;
+	struct gmidi_in_port *port;
 
-	if (!midi->in_port[substream->number])
+	if (substream->number >= midi->in_ports)
 		return -EINVAL;
 
 	VDBG(midi, "%s()\n", __func__);
-	midi->in_substream[substream->number] = substream;
-	midi->in_port[substream->number]->state = STATE_UNKNOWN;
+	port = midi->in_ports_array + substream->number;
+	port->substream = substream;
+	port->state = STATE_INITIAL;
 	return 0;
 }
 
@@ -648,11 +714,11 @@ static void f_midi_in_trigger(struct snd_rawmidi_substream *substream, int up)
 {
 	struct f_midi *midi = substream->rmidi->private_data;
 
-	if (!midi->in_port[substream->number])
+	if (substream->number >= midi->in_ports)
 		return;
 
 	VDBG(midi, "%s() %d\n", __func__, up);
-	midi->in_port[substream->number]->active = up;
+	midi->in_ports_array[substream->number].active = up;
 	if (up)
 		tasklet_hi_schedule(&midi->tasklet);
 }
@@ -1113,7 +1179,7 @@ static struct usb_function_instance *f_midi_alloc_inst(void)
 	opts->func_inst.free_func_inst = f_midi_free_inst;
 	opts->index = SNDRV_DEFAULT_IDX1;
 	opts->id = SNDRV_DEFAULT_STR1;
-	opts->buflen = 256;
+	opts->buflen = 512;
 	opts->qlen = 32;
 	opts->in_ports = 1;
 	opts->out_ports = 1;
@@ -1128,14 +1194,11 @@ static void f_midi_free(struct usb_function *f)
 {
 	struct f_midi *midi;
 	struct f_midi_opts *opts;
-	int i;
 
 	midi = func_to_midi(f);
 	opts = container_of(f->fi, struct f_midi_opts, func_inst);
 	kfree(midi->id);
 	mutex_lock(&opts->lock);
-	for (i = opts->in_ports - 1; i >= 0; --i)
-		kfree(midi->in_port[i]);
 	kfifo_free(&midi->in_req_fifo);
 	kfree(midi);
 	--opts->refcnt;
@@ -1163,7 +1226,7 @@ static void f_midi_unbind(struct usb_configuration *c, struct usb_function *f)
 
 static struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 {
-	struct f_midi *midi;
+	struct f_midi *midi = NULL;
 	struct f_midi_opts *opts;
 	int status, i;
 
@@ -1172,37 +1235,26 @@ static struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 	mutex_lock(&opts->lock);
 	/* sanity check */
 	if (opts->in_ports > MAX_PORTS || opts->out_ports > MAX_PORTS) {
-		mutex_unlock(&opts->lock);
-		return ERR_PTR(-EINVAL);
+		status = -EINVAL;
+		goto setup_fail;
 	}
 
 	/* allocate and initialize one new instance */
-	midi = kzalloc(sizeof(*midi), GFP_KERNEL);
+	midi = kzalloc(
+		sizeof(*midi) + opts->in_ports * sizeof(*midi->in_ports_array),
+		GFP_KERNEL);
 	if (!midi) {
-		mutex_unlock(&opts->lock);
-		return ERR_PTR(-ENOMEM);
+		status = -ENOMEM;
+		goto setup_fail;
 	}
 
-	for (i = 0; i < opts->in_ports; i++) {
-		struct gmidi_in_port *port = kzalloc(sizeof(*port), GFP_KERNEL);
-
-		if (!port) {
-			status = -ENOMEM;
-			mutex_unlock(&opts->lock);
-			goto setup_fail;
-		}
-
-		port->midi = midi;
-		port->active = 0;
-		port->cable = i;
-		midi->in_port[i] = port;
-	}
+	for (i = 0; i < opts->in_ports; i++)
+		midi->in_ports_array[i].cable = i;
 
 	/* set up ALSA midi devices */
 	midi->id = kstrdup(opts->id, GFP_KERNEL);
 	if (opts->id && !midi->id) {
 		status = -ENOMEM;
-		mutex_unlock(&opts->lock);
 		goto setup_fail;
 	}
 	midi->in_ports = opts->in_ports;
@@ -1215,6 +1267,8 @@ static struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 	status = kfifo_alloc(&midi->in_req_fifo, midi->qlen, GFP_KERNEL);
 	if (status)
 		goto setup_fail;
+
+	spin_lock_init(&midi->transmit_lock);
 
 	++opts->refcnt;
 	mutex_unlock(&opts->lock);
@@ -1229,8 +1283,7 @@ static struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 	return &midi->func;
 
 setup_fail:
-	for (--i; i >= 0; i--)
-		kfree(midi->in_port[i]);
+	mutex_unlock(&opts->lock);
 	kfree(midi);
 	return ERR_PTR(status);
 }

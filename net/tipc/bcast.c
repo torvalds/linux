@@ -269,18 +269,19 @@ void tipc_bcast_ack_rcv(struct net *net, struct tipc_link *l, u32 acked)
  *
  * RCU is locked, no other locks set
  */
-void tipc_bcast_sync_rcv(struct net *net, struct tipc_link *l,
-			 struct tipc_msg *hdr)
+int tipc_bcast_sync_rcv(struct net *net, struct tipc_link *l,
+			struct tipc_msg *hdr)
 {
 	struct sk_buff_head *inputq = &tipc_bc_base(net)->inputq;
 	struct sk_buff_head xmitq;
+	int rc = 0;
 
 	__skb_queue_head_init(&xmitq);
 
 	tipc_bcast_lock(net);
 	if (msg_type(hdr) == STATE_MSG) {
 		tipc_link_bc_ack_rcv(l, msg_bcast_ack(hdr), &xmitq);
-		tipc_link_bc_sync_rcv(l, hdr, &xmitq);
+		rc = tipc_link_bc_sync_rcv(l, hdr, &xmitq);
 	} else {
 		tipc_link_bc_init_rcv(l, hdr);
 	}
@@ -291,6 +292,7 @@ void tipc_bcast_sync_rcv(struct net *net, struct tipc_link *l,
 	/* Any socket wakeup messages ? */
 	if (!skb_queue_empty(inputq))
 		tipc_sk_rcv(net, inputq);
+	return rc;
 }
 
 /* tipc_bcast_add_peer - add a peer node to broadcast link and bearer
@@ -410,11 +412,6 @@ enomem:
 	kfree(bb);
 	kfree(l);
 	return -ENOMEM;
-}
-
-void tipc_bcast_reinit(struct net *net)
-{
-	tipc_link_reinit(tipc_bc_sndlink(net), tipc_own_addr(net));
 }
 
 void tipc_bcast_stop(struct net *net)

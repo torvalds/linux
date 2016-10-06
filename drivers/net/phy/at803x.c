@@ -52,6 +52,9 @@
 #define AT803X_DEBUG_REG_5			0x05
 #define AT803X_DEBUG_TX_CLK_DLY_EN		BIT(8)
 
+#define AT803X_REG_CHIP_CONFIG			0x1f
+#define AT803X_BT_BX_REG_SEL			0x8000
+
 #define ATH8030_PHY_ID 0x004dd076
 #define ATH8031_PHY_ID 0x004dd074
 #define ATH8035_PHY_ID 0x004dd072
@@ -206,6 +209,7 @@ static int at803x_suspend(struct phy_device *phydev)
 {
 	int value;
 	int wol_enabled;
+	int ccr;
 
 	mutex_lock(&phydev->lock);
 
@@ -221,6 +225,16 @@ static int at803x_suspend(struct phy_device *phydev)
 
 	phy_write(phydev, MII_BMCR, value);
 
+	if (phydev->interface != PHY_INTERFACE_MODE_SGMII)
+		goto done;
+
+	/* also power-down SGMII interface */
+	ccr = phy_read(phydev, AT803X_REG_CHIP_CONFIG);
+	phy_write(phydev, AT803X_REG_CHIP_CONFIG, ccr & ~AT803X_BT_BX_REG_SEL);
+	phy_write(phydev, MII_BMCR, phy_read(phydev, MII_BMCR) | BMCR_PDOWN);
+	phy_write(phydev, AT803X_REG_CHIP_CONFIG, ccr | AT803X_BT_BX_REG_SEL);
+
+done:
 	mutex_unlock(&phydev->lock);
 
 	return 0;
@@ -229,6 +243,7 @@ static int at803x_suspend(struct phy_device *phydev)
 static int at803x_resume(struct phy_device *phydev)
 {
 	int value;
+	int ccr;
 
 	mutex_lock(&phydev->lock);
 
@@ -236,6 +251,17 @@ static int at803x_resume(struct phy_device *phydev)
 	value &= ~(BMCR_PDOWN | BMCR_ISOLATE);
 	phy_write(phydev, MII_BMCR, value);
 
+	if (phydev->interface != PHY_INTERFACE_MODE_SGMII)
+		goto done;
+
+	/* also power-up SGMII interface */
+	ccr = phy_read(phydev, AT803X_REG_CHIP_CONFIG);
+	phy_write(phydev, AT803X_REG_CHIP_CONFIG, ccr & ~AT803X_BT_BX_REG_SEL);
+	value = phy_read(phydev, MII_BMCR) & ~(BMCR_PDOWN | BMCR_ISOLATE);
+	phy_write(phydev, MII_BMCR, value);
+	phy_write(phydev, AT803X_REG_CHIP_CONFIG, ccr | AT803X_BT_BX_REG_SEL);
+
+done:
 	mutex_unlock(&phydev->lock);
 
 	return 0;
@@ -251,12 +277,16 @@ static int at803x_probe(struct phy_device *phydev)
 	if (!priv)
 		return -ENOMEM;
 
-	gpiod_reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	if (phydev->drv->phy_id != ATH8030_PHY_ID)
+		goto does_not_require_reset_workaround;
+
+	gpiod_reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(gpiod_reset))
 		return PTR_ERR(gpiod_reset);
 
 	priv->gpiod_reset = gpiod_reset;
 
+does_not_require_reset_workaround:
 	phydev->priv = priv;
 
 	return 0;
@@ -329,27 +359,25 @@ static void at803x_link_change_notify(struct phy_device *phydev)
 	 * in the FIFO. In such cases, the FIFO enters an error mode it
 	 * cannot recover from by software.
 	 */
-	if (phydev->drv->phy_id == ATH8030_PHY_ID) {
-		if (phydev->state == PHY_NOLINK) {
-			if (priv->gpiod_reset && !priv->phy_reset) {
-				struct at803x_context context;
+	if (phydev->state == PHY_NOLINK) {
+		if (priv->gpiod_reset && !priv->phy_reset) {
+			struct at803x_context context;
 
-				at803x_context_save(phydev, &context);
+			at803x_context_save(phydev, &context);
 
-				gpiod_set_value(priv->gpiod_reset, 0);
-				msleep(1);
-				gpiod_set_value(priv->gpiod_reset, 1);
-				msleep(1);
+			gpiod_set_value(priv->gpiod_reset, 1);
+			msleep(1);
+			gpiod_set_value(priv->gpiod_reset, 0);
+			msleep(1);
 
-				at803x_context_restore(phydev, &context);
+			at803x_context_restore(phydev, &context);
 
-				phydev_dbg(phydev, "%s(): phy was reset\n",
-					   __func__);
-				priv->phy_reset = true;
-			}
-		} else {
-			priv->phy_reset = false;
+			phydev_dbg(phydev, "%s(): phy was reset\n",
+				   __func__);
+			priv->phy_reset = true;
 		}
+	} else {
+		priv->phy_reset = false;
 	}
 }
 
@@ -361,7 +389,6 @@ static struct phy_driver at803x_driver[] = {
 	.phy_id_mask		= 0xffffffef,
 	.probe			= at803x_probe,
 	.config_init		= at803x_config_init,
-	.link_change_notify	= at803x_link_change_notify,
 	.set_wol		= at803x_set_wol,
 	.get_wol		= at803x_get_wol,
 	.suspend		= at803x_suspend,
@@ -397,7 +424,6 @@ static struct phy_driver at803x_driver[] = {
 	.phy_id_mask		= 0xffffffef,
 	.probe			= at803x_probe,
 	.config_init		= at803x_config_init,
-	.link_change_notify	= at803x_link_change_notify,
 	.set_wol		= at803x_set_wol,
 	.get_wol		= at803x_get_wol,
 	.suspend		= at803x_suspend,

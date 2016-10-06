@@ -118,8 +118,6 @@ xfs_allocbt_free_block(
 	xfs_extent_busy_insert(cur->bc_tp, be32_to_cpu(agf->agf_seqno), bno, 1,
 			      XFS_EXTENT_BUSY_SKIP_DISCARD);
 	xfs_trans_agbtree_delta(cur->bc_tp, -1);
-
-	xfs_trans_binval(cur->bc_tp, bp);
 	return 0;
 }
 
@@ -211,17 +209,6 @@ xfs_allocbt_init_key_from_rec(
 
 	key->alloc.ar_startblock = rec->alloc.ar_startblock;
 	key->alloc.ar_blockcount = rec->alloc.ar_blockcount;
-}
-
-STATIC void
-xfs_allocbt_init_rec_from_key(
-	union xfs_btree_key	*key,
-	union xfs_btree_rec	*rec)
-{
-	ASSERT(key->alloc.ar_startblock != 0);
-
-	rec->alloc.ar_startblock = key->alloc.ar_startblock;
-	rec->alloc.ar_blockcount = key->alloc.ar_blockcount;
 }
 
 STATIC void
@@ -408,7 +395,6 @@ static const struct xfs_btree_ops xfs_allocbt_ops = {
 	.get_minrecs		= xfs_allocbt_get_minrecs,
 	.get_maxrecs		= xfs_allocbt_get_maxrecs,
 	.init_key_from_rec	= xfs_allocbt_init_key_from_rec,
-	.init_rec_from_key	= xfs_allocbt_init_rec_from_key,
 	.init_rec_from_cur	= xfs_allocbt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfs_allocbt_init_ptr_from_cur,
 	.key_diff		= xfs_allocbt_key_diff,

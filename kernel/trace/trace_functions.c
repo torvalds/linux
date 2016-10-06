@@ -43,7 +43,7 @@ static int allocate_ftrace_ops(struct trace_array *tr)
 
 	/* Currently only the non stack verision is supported */
 	ops->func = function_trace_call;
-	ops->flags = FTRACE_OPS_FL_RECURSION_SAFE;
+	ops->flags = FTRACE_OPS_FL_RECURSION_SAFE | FTRACE_OPS_FL_PID;
 
 	tr->ops = ops;
 	ops->private = tr;
@@ -219,6 +219,8 @@ static void tracing_stop_function_trace(struct trace_array *tr)
 	unregister_ftrace_function(tr->ops);
 }
 
+static struct tracer function_trace;
+
 static int
 func_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 {
@@ -226,6 +228,10 @@ func_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 	case TRACE_FUNC_OPT_STACK:
 		/* do nothing if already set */
 		if (!!set == !!(func_flags.val & TRACE_FUNC_OPT_STACK))
+			break;
+
+		/* We can change this flag when not running. */
+		if (tr->current_trace != &function_trace)
 			break;
 
 		unregister_ftrace_function(tr->ops);

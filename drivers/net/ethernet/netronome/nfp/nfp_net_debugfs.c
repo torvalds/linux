@@ -40,8 +40,9 @@ static struct dentry *nfp_dir;
 
 static int nfp_net_debugfs_rx_q_read(struct seq_file *file, void *data)
 {
-	struct nfp_net_rx_ring *rx_ring = file->private;
 	int fl_rd_p, fl_wr_p, rx_rd_p, rx_wr_p, rxd_cnt;
+	struct nfp_net_r_vector *r_vec = file->private;
+	struct nfp_net_rx_ring *rx_ring;
 	struct nfp_net_rx_desc *rxd;
 	struct sk_buff *skb;
 	struct nfp_net *nn;
@@ -49,9 +50,10 @@ static int nfp_net_debugfs_rx_q_read(struct seq_file *file, void *data)
 
 	rtnl_lock();
 
-	if (!rx_ring->r_vec || !rx_ring->r_vec->nfp_net)
+	if (!r_vec->nfp_net || !r_vec->rx_ring)
 		goto out;
-	nn = rx_ring->r_vec->nfp_net;
+	nn = r_vec->nfp_net;
+	rx_ring = r_vec->rx_ring;
 	if (!netif_running(nn->netdev))
 		goto out;
 
@@ -115,7 +117,8 @@ static const struct file_operations nfp_rx_q_fops = {
 
 static int nfp_net_debugfs_tx_q_read(struct seq_file *file, void *data)
 {
-	struct nfp_net_tx_ring *tx_ring = file->private;
+	struct nfp_net_r_vector *r_vec = file->private;
+	struct nfp_net_tx_ring *tx_ring;
 	struct nfp_net_tx_desc *txd;
 	int d_rd_p, d_wr_p, txd_cnt;
 	struct sk_buff *skb;
@@ -124,9 +127,10 @@ static int nfp_net_debugfs_tx_q_read(struct seq_file *file, void *data)
 
 	rtnl_lock();
 
-	if (!tx_ring->r_vec || !tx_ring->r_vec->nfp_net)
+	if (!r_vec->nfp_net || !r_vec->tx_ring)
 		goto out;
-	nn = tx_ring->r_vec->nfp_net;
+	nn = r_vec->nfp_net;
+	tx_ring = r_vec->tx_ring;
 	if (!netif_running(nn->netdev))
 		goto out;
 
@@ -183,7 +187,7 @@ static const struct file_operations nfp_tx_q_fops = {
 
 void nfp_net_debugfs_adapter_add(struct nfp_net *nn)
 {
-	static struct dentry *queues, *tx, *rx;
+	struct dentry *queues, *tx, *rx;
 	char int_name[16];
 	int i;
 
@@ -196,7 +200,7 @@ void nfp_net_debugfs_adapter_add(struct nfp_net *nn)
 
 	/* Create queue debugging sub-tree */
 	queues = debugfs_create_dir("queue", nn->debugfs_dir);
-	if (IS_ERR_OR_NULL(nn->debugfs_dir))
+	if (IS_ERR_OR_NULL(queues))
 		return;
 
 	rx = debugfs_create_dir("rx", queues);
@@ -207,13 +211,13 @@ void nfp_net_debugfs_adapter_add(struct nfp_net *nn)
 	for (i = 0; i < nn->num_rx_rings; i++) {
 		sprintf(int_name, "%d", i);
 		debugfs_create_file(int_name, S_IRUSR, rx,
-				    &nn->rx_rings[i], &nfp_rx_q_fops);
+				    &nn->r_vecs[i], &nfp_rx_q_fops);
 	}
 
 	for (i = 0; i < nn->num_tx_rings; i++) {
 		sprintf(int_name, "%d", i);
 		debugfs_create_file(int_name, S_IRUSR, tx,
-				    &nn->tx_rings[i], &nfp_tx_q_fops);
+				    &nn->r_vecs[i], &nfp_tx_q_fops);
 	}
 }
 

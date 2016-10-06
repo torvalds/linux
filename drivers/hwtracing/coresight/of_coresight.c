@@ -10,7 +10,6 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/err.h>
 #include <linux/slab.h>
@@ -86,7 +85,7 @@ static int of_coresight_alloc_memory(struct device *dev,
 		return -ENOMEM;
 
 	/* Children connected to this component via @outports */
-	 pdata->child_names = devm_kzalloc(dev, pdata->nr_outport *
+	pdata->child_names = devm_kzalloc(dev, pdata->nr_outport *
 					  sizeof(*pdata->child_names),
 					  GFP_KERNEL);
 	if (!pdata->child_names)
@@ -167,7 +166,7 @@ struct coresight_platform_data *of_get_coresight_platform_data(
 
 			rdev = of_coresight_get_endpoint_device(rparent);
 			if (!rdev)
-				continue;
+				return ERR_PTR(-EPROBE_DEFER);
 
 			pdata->child_names[i] = dev_name(rdev);
 			pdata->child_ports[i] = rendpoint.id;
@@ -185,6 +184,7 @@ struct coresight_platform_data *of_get_coresight_platform_data(
 			break;
 		}
 	}
+	of_node_put(dn);
 
 	return pdata;
 }

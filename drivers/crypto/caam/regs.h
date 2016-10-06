@@ -8,6 +8,7 @@
 #define REGS_H
 
 #include <linux/types.h>
+#include <linux/bitops.h>
 #include <linux/io.h>
 
 /*
@@ -65,46 +66,56 @@
  *
  */
 
-#ifdef CONFIG_ARM
-/* These are common macros for Power, put here for ARM */
-#define setbits32(_addr, _v) writel((readl(_addr) | (_v)), (_addr))
-#define clrbits32(_addr, _v) writel((readl(_addr) & ~(_v)), (_addr))
+extern bool caam_little_end;
 
-#define out_arch(type, endian, a, v)	__raw_write##type(cpu_to_##endian(v), a)
-#define in_arch(type, endian, a)	endian##_to_cpu(__raw_read##type(a))
+#define caam_to_cpu(len)				\
+static inline u##len caam##len ## _to_cpu(u##len val)	\
+{							\
+	if (caam_little_end)				\
+		return le##len ## _to_cpu(val);		\
+	else						\
+		return be##len ## _to_cpu(val);		\
+}
 
-#define out_le32(a, v)	out_arch(l, le32, a, v)
-#define in_le32(a)	in_arch(l, le32, a)
+#define cpu_to_caam(len)				\
+static inline u##len cpu_to_caam##len(u##len val)	\
+{							\
+	if (caam_little_end)				\
+		return cpu_to_le##len(val);		\
+	else						\
+		return cpu_to_be##len(val);		\
+}
 
-#define out_be32(a, v)	out_arch(l, be32, a, v)
-#define in_be32(a)	in_arch(l, be32, a)
+caam_to_cpu(16)
+caam_to_cpu(32)
+caam_to_cpu(64)
+cpu_to_caam(16)
+cpu_to_caam(32)
+cpu_to_caam(64)
 
-#define clrsetbits(type, addr, clear, set) \
-	out_##type((addr), (in_##type(addr) & ~(clear)) | (set))
+static inline void wr_reg32(void __iomem *reg, u32 data)
+{
+	if (caam_little_end)
+		iowrite32(data, reg);
+	else
+		iowrite32be(data, reg);
+}
 
-#define clrsetbits_be32(addr, clear, set) clrsetbits(be32, addr, clear, set)
-#define clrsetbits_le32(addr, clear, set) clrsetbits(le32, addr, clear, set)
-#endif
+static inline u32 rd_reg32(void __iomem *reg)
+{
+	if (caam_little_end)
+		return ioread32(reg);
 
-#ifdef __BIG_ENDIAN
-#define wr_reg32(reg, data) out_be32(reg, data)
-#define rd_reg32(reg) in_be32(reg)
-#define clrsetbits_32(addr, clear, set) clrsetbits_be32(addr, clear, set)
-#ifdef CONFIG_64BIT
-#define wr_reg64(reg, data) out_be64(reg, data)
-#define rd_reg64(reg) in_be64(reg)
-#endif
-#else
-#ifdef __LITTLE_ENDIAN
-#define wr_reg32(reg, data) __raw_writel(data, reg)
-#define rd_reg32(reg) __raw_readl(reg)
-#define clrsetbits_32(addr, clear, set) clrsetbits_le32(addr, clear, set)
-#ifdef CONFIG_64BIT
-#define wr_reg64(reg, data) __raw_writeq(data, reg)
-#define rd_reg64(reg) __raw_readq(reg)
-#endif
-#endif
-#endif
+	return ioread32be(reg);
+}
+
+static inline void clrsetbits_32(void __iomem *reg, u32 clear, u32 set)
+{
+	if (caam_little_end)
+		iowrite32((ioread32(reg) & ~clear) | set, reg);
+	else
+		iowrite32be((ioread32be(reg) & ~clear) | set, reg);
+}
 
 /*
  * The only users of these wr/rd_reg64 functions is the Job Ring (JR).
@@ -123,29 +134,67 @@
  *    base + 0x0000 : least-significant 32 bits
  *    base + 0x0004 : most-significant 32 bits
  */
+#ifdef CONFIG_64BIT
+static inline void wr_reg64(void __iomem *reg, u64 data)
+{
+	if (caam_little_end)
+		iowrite64(data, reg);
+	else
+		iowrite64be(data, reg);
+}
 
-#ifndef CONFIG_64BIT
-#if !defined(CONFIG_CRYPTO_DEV_FSL_CAAM_LE) || \
-	defined(CONFIG_CRYPTO_DEV_FSL_CAAM_IMX)
-#define REG64_MS32(reg) ((u32 __iomem *)(reg))
-#define REG64_LS32(reg) ((u32 __iomem *)(reg) + 1)
+static inline u64 rd_reg64(void __iomem *reg)
+{
+	if (caam_little_end)
+		return ioread64(reg);
+	else
+		return ioread64be(reg);
+}
+
+#else /* CONFIG_64BIT */
+static inline void wr_reg64(void __iomem *reg, u64 data)
+{
+#ifndef CONFIG_CRYPTO_DEV_FSL_CAAM_IMX
+	if (caam_little_end) {
+		wr_reg32((u32 __iomem *)(reg) + 1, data >> 32);
+		wr_reg32((u32 __iomem *)(reg), data);
+	} else
+#endif
+	{
+		wr_reg32((u32 __iomem *)(reg), data >> 32);
+		wr_reg32((u32 __iomem *)(reg) + 1, data);
+	}
+}
+
+static inline u64 rd_reg64(void __iomem *reg)
+{
+#ifndef CONFIG_CRYPTO_DEV_FSL_CAAM_IMX
+	if (caam_little_end)
+		return ((u64)rd_reg32((u32 __iomem *)(reg) + 1) << 32 |
+			(u64)rd_reg32((u32 __iomem *)(reg)));
+	else
+#endif
+		return ((u64)rd_reg32((u32 __iomem *)(reg)) << 32 |
+			(u64)rd_reg32((u32 __iomem *)(reg) + 1));
+}
+#endif /* CONFIG_64BIT  */
+
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+#ifdef CONFIG_SOC_IMX7D
+#define cpu_to_caam_dma(value) \
+		(((u64)cpu_to_caam32(lower_32_bits(value)) << 32) | \
+		  (u64)cpu_to_caam32(upper_32_bits(value)))
+#define caam_dma_to_cpu(value) \
+		(((u64)caam32_to_cpu(lower_32_bits(value)) << 32) | \
+		  (u64)caam32_to_cpu(upper_32_bits(value)))
 #else
-#define REG64_MS32(reg) ((u32 __iomem *)(reg) + 1)
-#define REG64_LS32(reg) ((u32 __iomem *)(reg))
-#endif
-
-static inline void wr_reg64(u64 __iomem *reg, u64 data)
-{
-	wr_reg32(REG64_MS32(reg), data >> 32);
-	wr_reg32(REG64_LS32(reg), data);
-}
-
-static inline u64 rd_reg64(u64 __iomem *reg)
-{
-	return ((u64)rd_reg32(REG64_MS32(reg)) << 32 |
-		(u64)rd_reg32(REG64_LS32(reg)));
-}
-#endif
+#define cpu_to_caam_dma(value) cpu_to_caam64(value)
+#define caam_dma_to_cpu(value) caam64_to_cpu(value)
+#endif /* CONFIG_SOC_IMX7D */
+#else
+#define cpu_to_caam_dma(value) cpu_to_caam32(value)
+#define caam_dma_to_cpu(value) caam32_to_cpu(value)
+#endif /* CONFIG_ARCH_DMA_ADDR_T_64BIT  */
 
 /*
  * jr_outentry
@@ -249,6 +298,8 @@ struct caam_perfmon {
 	u32 faultliodn;	/* FALR - Fault Address LIODN	*/
 	u32 faultdetail;	/* FADR - Fault Addr Detail	*/
 	u32 rsvd2;
+#define CSTA_PLEND		BIT(10)
+#define CSTA_ALT_PLEND		BIT(18)
 	u32 status;		/* CSTA - CAAM Status */
 	u64 rsvd3;
 
@@ -455,7 +506,8 @@ struct caam_ctrl {
 #define MCFGR_AXIPIPE_MASK	(0xf << MCFGR_AXIPIPE_SHIFT)
 
 #define MCFGR_AXIPRI		0x00000008 /* Assert AXI priority sideband */
-#define MCFGR_BURST_64		0x00000001 /* Max burst size */
+#define MCFGR_LARGE_BURST	0x00000004 /* 128/256-byte burst size */
+#define MCFGR_BURST_64		0x00000001 /* 64-byte burst size */
 
 /* JRSTART register offsets */
 #define JRSTART_JR0_START       0x00000001 /* Start Job ring 0 */

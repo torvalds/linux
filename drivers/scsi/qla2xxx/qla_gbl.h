@@ -90,6 +90,7 @@ extern int qla2xxx_mctp_dump(scsi_qla_host_t *);
 extern int
 qla2x00_alloc_outstanding_cmds(struct qla_hw_data *, struct req_que *);
 extern int qla2x00_init_rings(scsi_qla_host_t *);
+extern uint8_t qla27xx_find_valid_image(struct scsi_qla_host *);
 
 /*
  * Global Data in qla_os.c source file.
@@ -121,6 +122,7 @@ extern int ql2xmdcapmask;
 extern int ql2xmdenable;
 extern int ql2xexlogins;
 extern int ql2xexchoffld;
+extern int ql2xfwholdabts;
 
 extern int qla2x00_loop_reset(scsi_qla_host_t *);
 extern void qla2x00_abort_all_cmds(scsi_qla_host_t *, int);
@@ -342,7 +344,7 @@ qla2x00_get_link_status(scsi_qla_host_t *, uint16_t, struct link_statistics *,
 
 extern int
 qla24xx_get_isp_stats(scsi_qla_host_t *, struct link_statistics *,
-    dma_addr_t);
+    dma_addr_t, uint);
 
 extern int qla24xx_abort_command(srb_t *);
 extern int qla24xx_async_abort_command(srb_t *);
@@ -442,6 +444,9 @@ qla2x00_port_logout(scsi_qla_host_t *, struct fc_port *);
 
 extern int
 qla2x00_dump_mctp_data(scsi_qla_host_t *, dma_addr_t, uint32_t, uint32_t);
+
+extern int
+qla26xx_dport_diagnostics(scsi_qla_host_t *, void *, uint, uint);
 
 /*
  * Global Function Prototypes in qla_isr.c source file.

@@ -14,6 +14,7 @@
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
 #include <asm/pgalloc.h>
+#include <asm/gmap.h>
 #include <asm/virtio-ccw.h>
 #include "kvm-s390.h"
 #include "trace.h"
@@ -210,6 +211,11 @@ static int __diag_virtio_hypercall(struct kvm_vcpu *vcpu)
 	if (!vcpu->kvm->arch.css_support ||
 	    (vcpu->run->s.regs.gprs[1] != KVM_S390_VIRTIO_CCW_NOTIFY))
 		return -EOPNOTSUPP;
+
+	VCPU_EVENT(vcpu, 4, "diag 0x500 schid 0x%8.8x queue 0x%x cookie 0x%llx",
+			    (u32) vcpu->run->s.regs.gprs[2],
+			    (u32) vcpu->run->s.regs.gprs[3],
+			    vcpu->run->s.regs.gprs[4]);
 
 	/*
 	 * The layout is as follows:

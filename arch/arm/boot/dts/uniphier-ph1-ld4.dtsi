@@ -173,10 +173,14 @@
 
 };
 
+&refclk {
+	clock-frequency = <24576000>;
+};
+
 &serial3 {
 	interrupts = <0 29 4>;
 };
 
 &pinctrl {
-	compatible = "socionext,ph1-ld4-pinctrl", "syscon";
+	compatible = "socionext,uniphier-ld4-pinctrl";
 };

@@ -19,6 +19,15 @@ struct dm_table;
 struct mapped_device;
 struct bio_vec;
 
+/*
+ * Type of table, mapped_device's mempool and request_queue
+ */
+#define DM_TYPE_NONE			0
+#define DM_TYPE_BIO_BASED		1
+#define DM_TYPE_REQUEST_BASED		2
+#define DM_TYPE_MQ_REQUEST_BASED	3
+#define DM_TYPE_DAX_BIO_BASED		4
+
 typedef enum { STATUSTYPE_INFO, STATUSTYPE_TABLE } status_type_t;
 
 union map_info {
@@ -116,6 +125,14 @@ typedef void (*dm_io_hints_fn) (struct dm_target *ti,
  */
 typedef int (*dm_busy_fn) (struct dm_target *ti);
 
+/*
+ * Returns:
+ *  < 0 : error
+ * >= 0 : the number of bytes accessible at the address
+ */
+typedef long (*dm_direct_access_fn) (struct dm_target *ti, sector_t sector,
+				     void **kaddr, pfn_t *pfn, long size);
+
 void dm_error(const char *message);
 
 struct dm_dev {
@@ -123,6 +140,8 @@ struct dm_dev {
 	fmode_t mode;
 	char name[16];
 };
+
+dev_t dm_get_dev_t(const char *path);
 
 /*
  * Constructors should call these functions to ensure destination devices
@@ -160,6 +179,7 @@ struct target_type {
 	dm_busy_fn busy;
 	dm_iterate_devices_fn iterate_devices;
 	dm_io_hints_fn io_hints;
+	dm_direct_access_fn direct_access;
 
 	/* For internal device-mapper use. */
 	struct list_head list;
@@ -188,6 +208,13 @@ struct target_type {
  */
 #define DM_TARGET_IMMUTABLE		0x00000004
 #define dm_target_is_immutable(type)	((type)->features & DM_TARGET_IMMUTABLE)
+
+/*
+ * Indicates that a target may replace any target; even immutable targets.
+ * .map, .map_rq, .clone_and_map_rq and .release_clone_rq are all defined.
+ */
+#define DM_TARGET_WILDCARD		0x00000008
+#define dm_target_is_wildcard(type)	((type)->features & DM_TARGET_WILDCARD)
 
 /*
  * Some targets need to be sent the same WRITE bio severals times so
@@ -231,10 +258,10 @@ struct dm_target {
 	unsigned num_write_same_bios;
 
 	/*
-	 * The minimum number of extra bytes allocated in each bio for the
-	 * target to use.  dm_per_bio_data returns the data location.
+	 * The minimum number of extra bytes allocated in each io for the
+	 * target to use.
 	 */
-	unsigned per_bio_data_size;
+	unsigned per_io_data_size;
 
 	/*
 	 * If defined, this function is called to find out how many
@@ -433,6 +460,14 @@ int dm_table_add_target(struct dm_table *t, const char *type,
  * Target_ctr should call this if it needs to add any callbacks.
  */
 void dm_table_add_target_callbacks(struct dm_table *t, struct dm_target_callbacks *cb);
+
+/*
+ * Target can use this to set the table's type.
+ * Can only ever be called from a target's ctr.
+ * Useful for "hybrid" target (supports both bio-based
+ * and request-based).
+ */
+void dm_table_set_type(struct dm_table *t, unsigned type);
 
 /*
  * Finally call this to make the table ready for use.

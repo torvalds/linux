@@ -6,11 +6,9 @@
  */
 
 /dts-v1/;
-
-/*Reserved 1MB memory for MCU*/
-/memreserve/ 0x05e00000 0x00100000;
-
 #include "hi6220.dtsi"
+#include "hikey-pinctrl.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "HiKey Development Board";
@@ -27,9 +25,344 @@
 		stdout-path = "serial3:115200n8";
 	};
 
+	/*
+	 * Reserve below regions from memory node:
+	 *
+	 *  0x05e0,0000 - 0x05ef,ffff: MCU firmware runtime using
+	 *  0x06df,f000 - 0x06df,ffff: Mailbox message data
+	 *  0x0740,f000 - 0x0740,ffff: MCU firmware section
+	 *  0x3e00,0000 - 0x3fff,ffff: OP-TEE
+	 */
 	memory@0 {
 		device_type = "memory";
-		reg = <0x0 0x0 0x0 0x40000000>;
+		reg = <0x00000000 0x00000000 0x00000000 0x05e00000>,
+		      <0x00000000 0x05f00000 0x00000000 0x00eff000>,
+		      <0x00000000 0x06e00000 0x00000000 0x0060f000>,
+		      <0x00000000 0x07410000 0x00000000 0x36bf0000>;
+	};
+
+	soc {
+		spi0: spi@f7106000 {
+			status = "ok";
+		};
+
+		i2c0: i2c@f7100000 {
+			status = "ok";
+		};
+
+		i2c1: i2c@f7101000 {
+			status = "ok";
+		};
+
+		uart1: uart@f7111000 {
+			status = "ok";
+		};
+
+		uart2: uart@f7112000 {
+			status = "ok";
+		};
+
+		uart3: uart@f7113000 {
+			status = "ok";
+		};
+
+		/*
+		 * Legend: proper name = the GPIO line is used as GPIO
+		 *         NC = not connected (not routed from the SoC)
+		 *         "[PER]" = pin is muxed for peripheral (not GPIO)
+		 *         "" = no idea, schematic doesn't say, could be
+		 *              unrouted (not connected to any external pin)
+		 *         LSEC = Low Speed External Connector
+		 *         HSEC = High Speed External Connector
+		 *
+		 * Pin assignments taken from LeMaker and CircuitCo Schematics
+		 * Rev A1.
+		 *
+		 * For the lines routed to the external connectors the
+		 * lines are named after the 96Boards CE Specification 1.0,
+		 * Appendix "Expansion Connector Signal Description".
+		 *
+		 * When the 96Board naming of a line and the schematic name of
+		 * the same line are in conflict, the 96Board specification
+		 * takes precedence, which means that the external UART on the
+		 * LSEC is named UART0 while the schematic and SoC names this
+		 * UART2. This is only for the informational lines i.e. "[FOO]",
+		 * the GPIO named lines "GPIO-A" thru "GPIO-L" are the only
+		 * ones actually used for GPIO.
+		 */
+		gpio0: gpio@f8011000 {
+			gpio-line-names = "PWR_HOLD", "DSI_SEL",
+			"USB_HUB_RESET_N", "USB_SEL", "HDMI_PD", "WL_REG_ON",
+			"PWRON_DET", "5V_HUB_EN";
+		};
+
+		gpio1: gpio@f8012000 {
+			gpio-line-names = "SD_DET", "HDMI_INT", "PMU_IRQ_N",
+			"WL_HOST_WAKE", "NC", "NC", "NC", "BT_REG_ON";
+		};
+
+		gpio2: gpio@f8013000 {
+			gpio-line-names =
+				"GPIO-A", /* LSEC Pin 23: GPIO2_0 */
+				"GPIO-B", /* LSEC Pin 24: GPIO2_1 */
+				"GPIO-C", /* LSEC Pin 25: GPIO2_2 */
+				"GPIO-D", /* LSEC Pin 26: GPIO2_3 */
+				"GPIO-E", /* LSEC Pin 27: GPIO2_4 */
+				"USB_ID_DET", "USB_VBUS_DET",
+				"GPIO-H"; /* LSEC Pin 30: GPIO2_7 */
+		};
+
+		gpio3: gpio@f8014000 {
+			gpio-line-names = "GPIO3_0", "NC", "NC", "", "NC", "",
+			"WLAN_ACTIVE", "NC", "NC";
+		};
+
+		gpio4: gpio@f7020000 {
+			gpio-line-names = "USER_LED1", "USER_LED2", "USER_LED3",
+			"USER_LED4", "SD_SEL", "NC", "NC", "BT_ACTIVE";
+		};
+
+		gpio5: gpio@f7021000 {
+			gpio-line-names = "NC", "NC",
+			"[UART1_RxD]", /* LSEC Pin 11: UART3_RX */
+			"[UART1_TxD]", /* LSEC Pin 13: UART3_TX */
+			"[AUX_SSI1]", "NC",
+			"[PCM_CLK]", /* LSEC Pin 18: MODEM_PCM_XCLK */
+			"[PCM_FS]"; /* LSEC Pin 16: MODEM_PCM_XFS */
+		};
+
+		gpio6: gpio@f7022000 {
+			gpio-line-names =
+			"[SPI0_DIN]", /* Pin 10: SPI0_DI */
+			"[SPI0_DOUT]", /* Pin 14: SPI0_DO */
+			"[SPI0_CS]", /* Pin 12: SPI0_CS_N */
+			"[SPI0_SCLK]", /* Pin 8: SPI0_SCLK */
+			"NC", "NC", "NC",
+			"GPIO-G"; /* Pin 29: GPIO6_7_DSI_TE0 */
+		};
+
+		gpio7: gpio@f7023000 {
+			gpio-line-names = "NC", "NC", "NC", "NC",
+			"[PCM_DI]", /* Pin 22: MODEM_PCM_DI */
+			"[PCM_DO]", /* Pin 20: MODEM_PCM_DO */
+			"NC", "NC";
+		};
+
+		gpio8: gpio@f7024000 {
+			gpio-line-names = "NC", "[CEC_CLK_19_2MHZ]", "NC",
+			"", "", "", "", "", "";
+		};
+
+		gpio9: gpio@f7025000 {
+			gpio-line-names = "",
+			"GPIO-J", /* LSEC Pin 32: ISP_PWDN0_GPIO9_1 */
+			"GPIO-L", /* LSEC Pin 34: ISP_PWDN1_GPIO9_2 */
+			"NC", "NC", "NC", "NC", "[ISP_CCLK0]";
+		};
+
+		gpio10: gpio@f7026000 {
+			gpio-line-names = "BOOT_SEL",
+			"[ISP_CCLK1]",
+			"GPIO-I", /* LSEC Pin 31: ISP_RSTB0_GPIO10_2 */
+			"GPIO-K", /* LSEC Pin 33: ISP_RSTB1_GPIO10_3 */
+			"NC", "NC",
+			"[I2C2_SDA]", /* HSEC Pin 34: ISP0_SDA */
+			"[I2C2_SCL]"; /* HSEC Pin 32: ISP0_SCL */
+		};
+
+		gpio11: gpio@f7027000 {
+			gpio-line-names =
+			"[I2C3_SDA]", /* HSEC Pin 38: ISP1_SDA */
+			"[I2C3_SCL]", /* HSEC Pin 36: ISP1_SCL */
+			"", "NC", "NC", "NC", "", "";
+		};
+
+		gpio12: gpio@f7028000 {
+			gpio-line-names = "[BT_PCM_XFS]", "[BT_PCM_DI]",
+			"[BT_PCM_DO]",
+			"NC", "NC", "NC", "NC",
+			"GPIO-F"; /* LSEC Pin 28: BL_PWM_GPIO12_7 */
+		};
+
+		gpio13: gpio@f7029000 {
+			gpio-line-names = "[UART0_RX]", "[UART0_TX]",
+			"[BT_UART1_CTS]", "[BT_UART1_RTS]",
+			"[BT_UART1_RX]", "[BT_UART1_TX]",
+			"[UART0_CTS]", /* LSEC Pin 3: UART2_CTS_N */
+			"[UART0_RTS]"; /* LSEC Pin 9: UART2_RTS_N */
+		};
+
+		gpio14: gpio@f702a000 {
+			gpio-line-names =
+			"[UART0_RxD]", /* LSEC Pin 7: UART2_RX */
+			"[UART0_TxD]", /* LSEC Pin 5: UART2_TX */
+			"[I2C0_SCL]", /* LSEC Pin 15: I2C0_SCL */
+			"[I2C0_SDA]", /* LSEC Pin 17: I2C0_SDA */
+			"[I2C1_SCL]", /* LSEC Pin 19: I2C1_SCL */
+			"[I2C1_SDA]", /* LSEC Pin 21: I2C1_SDA */
+			"[I2C2_SCL]", "[I2C2_SDA]";
+		};
+
+		gpio15: gpio@f702b000 {
+			gpio-line-names = "", "", "", "", "", "", "NC", "";
+		};
+
+		/* GPIO blocks 16 thru 19 do not appear to be routed to pins */
+
+		dwmmc_2: dwmmc2@f723f000 {
+			ti,non-removable;
+			non-removable;
+			/* WL_EN */
+			vmmc-supply = <&wlan_en_reg>;
+
+			#address-cells = <0x1>;
+			#size-cells = <0x0>;
+			wlcore: wlcore@2 {
+				compatible = "ti,wl1835";
+				reg = <2>;	/* sdio func num */
+				/* WL_IRQ, WL_HOST_WAKE_GPIO1_3 */
+				interrupt-parent = <&gpio1>;
+				interrupts = <3 IRQ_TYPE_EDGE_RISING>;
+			};
+		};
+
+		wlan_en_reg: regulator@1 {
+			compatible = "regulator-fixed";
+			regulator-name = "wlan-en-regulator";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			/* WLAN_EN GPIO */
+			gpio = <&gpio0 5 0>;
+			/* WLAN card specific delay */
+			startup-delay-us = <70000>;
+			enable-active-high;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		user_led4 {
+			label = "user_led4";
+			gpios = <&gpio4 0 0>; /* <&gpio_user_led_1>; */
+			linux,default-trigger = "heartbeat";
+		};
+
+		user_led3 {
+			label = "user_led3";
+			gpios = <&gpio4 1 0>; /* <&gpio_user_led_2>; */
+			linux,default-trigger = "mmc0";
+		};
+
+		user_led2 {
+			label = "user_led2";
+			gpios = <&gpio4 2 0>; /* <&gpio_user_led_3>; */
+			linux,default-trigger = "mmc1";
+		};
+
+		user_led1 {
+			label = "user_led1";
+			gpios = <&gpio4 3 0>; /* <&gpio_user_led_4>; */
+			linux,default-trigger = "cpu0";
+		};
+
+		wlan_active_led {
+			label = "wifi_active";
+			gpios = <&gpio3 5 0>; /* <&gpio_wlan_active_led>; */
+			linux,default-trigger = "phy0tx";
+			default-state = "off";
+		};
+
+		bt_active_led {
+			label = "bt_active";
+			gpios = <&gpio4 7 0>; /* <&gpio_bt_active_led>; */
+			linux,default-trigger = "hci0rx";
+			default-state = "off";
+		};
+	};
+
+	pmic: pmic@f8000000 {
+		compatible = "hisilicon,hi655x-pmic";
+		reg = <0x0 0xf8000000 0x0 0x1000>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		pmic-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+
+		regulators {
+			ldo2: LDO2 {
+				regulator-name = "LDO2_2V8";
+				regulator-min-microvolt = <2500000>;
+				regulator-max-microvolt = <3200000>;
+				regulator-enable-ramp-delay = <120>;
+			};
+
+			ldo7: LDO7 {
+				regulator-name = "LDO7_SDIO";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-enable-ramp-delay = <120>;
+			};
+
+			ldo10: LDO10 {
+				regulator-name = "LDO10_2V85";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3000000>;
+				regulator-enable-ramp-delay = <360>;
+			};
+
+			ldo13: LDO13 {
+				regulator-name = "LDO13_1V8";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-enable-ramp-delay = <120>;
+			};
+
+			ldo14: LDO14 {
+				regulator-name = "LDO14_2V8";
+				regulator-min-microvolt = <2500000>;
+				regulator-max-microvolt = <3200000>;
+				regulator-enable-ramp-delay = <120>;
+			};
+
+			ldo15: LDO15 {
+				regulator-name = "LDO15_1V8";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-enable-ramp-delay = <120>;
+			};
+
+			ldo17: LDO17 {
+				regulator-name = "LDO17_2V5";
+				regulator-min-microvolt = <2500000>;
+				regulator-max-microvolt = <3200000>;
+				regulator-enable-ramp-delay = <120>;
+			};
+
+			ldo19: LDO19 {
+				regulator-name = "LDO19_3V0";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3000000>;
+				regulator-enable-ramp-delay = <360>;
+			};
+
+			ldo21: LDO21 {
+				regulator-name = "LDO21_1V8";
+				regulator-min-microvolt = <1650000>;
+				regulator-max-microvolt = <2000000>;
+				regulator-always-on;
+				regulator-enable-ramp-delay = <120>;
+			};
+
+			ldo22: LDO22 {
+				regulator-name = "LDO22_1V2";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <1200000>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-enable-ramp-delay = <120>;
+			};
+		};
 	};
 };
 

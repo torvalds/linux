@@ -42,12 +42,6 @@
 #include <asm/pgtable.h>
 #include <asm/cacheflush.h>
 
-#ifdef CONFIG_KVM_GUEST
-#include <linux/kvm_para.h>
-#else
-#define kvm_para_available() (0)
-#endif
-
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Intel 82801AA,82901AB,i810,i820,i830,i840,i845,MX440; SiS 7012; Ali 5455");
 MODULE_LICENSE("GPL");
@@ -2879,6 +2873,7 @@ static void intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 
 static struct snd_pci_quirk intel8x0_clock_list[] = {
 	SND_PCI_QUIRK(0x0e11, 0x008a, "AD1885", 41000),
+	SND_PCI_QUIRK(0x1014, 0x0581, "AD1981B", 48000),
 	SND_PCI_QUIRK(0x1028, 0x00be, "AD1885", 44100),
 	SND_PCI_QUIRK(0x1028, 0x0177, "AD1980", 48000),
 	SND_PCI_QUIRK(0x1028, 0x01ad, "AD1981B", 48000),
@@ -2971,25 +2966,17 @@ static int snd_intel8x0_inside_vm(struct pci_dev *pci)
 		goto fini;
 	}
 
-	/* detect KVM and Parallels virtual environments */
-	result = kvm_para_available();
-#ifdef X86_FEATURE_HYPERVISOR
-	result = result || boot_cpu_has(X86_FEATURE_HYPERVISOR);
-#endif
-	if (!result)
-		goto fini;
-
 	/* check for known (emulated) devices */
-	if (pci->subsystem_vendor == 0x1af4 &&
-	    pci->subsystem_device == 0x1100) {
+	result = 0;
+	if (pci->subsystem_vendor == PCI_SUBVENDOR_ID_REDHAT_QUMRANET &&
+	    pci->subsystem_device == PCI_SUBDEVICE_ID_QEMU) {
 		/* KVM emulated sound, PCI SSID: 1af4:1100 */
 		msg = "enable KVM";
+		result = 1;
 	} else if (pci->subsystem_vendor == 0x1ab8) {
 		/* Parallels VM emulated sound, PCI SSID: 1ab8:xxxx */
 		msg = "enable Parallels VM";
-	} else {
-		msg = "disable (unknown or VT-d) VM";
-		result = 0;
+		result = 1;
 	}
 
 fini:

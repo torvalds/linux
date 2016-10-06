@@ -36,7 +36,7 @@
 #include <nvif/event.h>
 #include <nvif/ioctl.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_usif.h"
 
 static void

@@ -373,13 +373,7 @@ static void gigaset_freecshw(struct cardstate *cs)
 
 static void gigaset_device_release(struct device *dev)
 {
-	struct cardstate *cs = dev_get_drvdata(dev);
-
-	if (!cs)
-		return;
-	dev_set_drvdata(dev, NULL);
-	kfree(cs->hw.ser);
-	cs->hw.ser = NULL;
+	kfree(container_of(dev, struct ser_cardstate, dev.dev));
 }
 
 /*
@@ -408,7 +402,6 @@ static int gigaset_initcshw(struct cardstate *cs)
 		cs->hw.ser = NULL;
 		return rc;
 	}
-	dev_set_drvdata(&cs->hw.ser->dev.dev, cs);
 
 	tasklet_init(&cs->write_tasklet,
 		     gigaset_modem_fill, (unsigned long) cs);

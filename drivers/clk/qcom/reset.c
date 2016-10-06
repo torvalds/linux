@@ -55,7 +55,7 @@ qcom_reset_deassert(struct reset_controller_dev *rcdev, unsigned long id)
 	return regmap_update_bits(rst->regmap, map->reg, mask, 0);
 }
 
-struct reset_control_ops qcom_reset_ops = {
+const struct reset_control_ops qcom_reset_ops = {
 	.reset = qcom_reset,
 	.assert = qcom_reset_assert,
 	.deassert = qcom_reset_deassert,

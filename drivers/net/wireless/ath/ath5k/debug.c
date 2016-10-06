@@ -909,7 +909,7 @@ static int open_file_eeprom(struct inode *inode, struct file *file)
 	struct ath5k_hw *ah = inode->i_private;
 	bool res;
 	int i, ret;
-	u32 eesize;
+	u32 eesize;	/* NB: in 16-bit words */
 	u16 val, *buf;
 
 	/* Get eeprom size */
@@ -932,7 +932,7 @@ static int open_file_eeprom(struct inode *inode, struct file *file)
 
 	/* Create buffer and read in eeprom */
 
-	buf = vmalloc(eesize);
+	buf = vmalloc(eesize * 2);
 	if (!buf) {
 		ret = -ENOMEM;
 		goto err;
@@ -952,7 +952,7 @@ static int open_file_eeprom(struct inode *inode, struct file *file)
 	}
 
 	ep->buf = buf;
-	ep->len = i;
+	ep->len = eesize * 2;
 
 	file->private_data = (void *)ep;
 
@@ -1043,14 +1043,14 @@ ath5k_debug_dump_bands(struct ath5k_hw *ah)
 
 	BUG_ON(!ah->sbands);
 
-	for (b = 0; b < IEEE80211_NUM_BANDS; b++) {
+	for (b = 0; b < NUM_NL80211_BANDS; b++) {
 		struct ieee80211_supported_band *band = &ah->sbands[b];
 		char bname[6];
 		switch (band->band) {
-		case IEEE80211_BAND_2GHZ:
+		case NL80211_BAND_2GHZ:
 			strcpy(bname, "2 GHz");
 			break;
-		case IEEE80211_BAND_5GHZ:
+		case NL80211_BAND_5GHZ:
 			strcpy(bname, "5 GHz");
 			break;
 		default:

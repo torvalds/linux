@@ -39,7 +39,8 @@ static int spi_init(struct rtsx_chip *chip)
 	int retval;
 
 	retval = rtsx_write_register(chip, SPI_CONTROL, 0xFF,
-				     CS_POLARITY_LOW | DTO_MSB_FIRST | SPI_MASTER | SPI_MODE0 | SPI_AUTO);
+				     CS_POLARITY_LOW | DTO_MSB_FIRST
+				     | SPI_MASTER | SPI_MODE0 | SPI_AUTO);
 	if (retval) {
 		rtsx_trace(chip);
 		return retval;
@@ -420,7 +421,6 @@ int spi_erase_eeprom_byte(struct rtsx_chip *chip, u16 addr)
 	return STATUS_SUCCESS;
 }
 
-
 int spi_read_eeprom(struct rtsx_chip *chip, u16 addr, u8 *val)
 {
 	int retval;
@@ -515,7 +515,6 @@ int spi_write_eeprom(struct rtsx_chip *chip, u16 addr, u8 val)
 
 	return STATUS_SUCCESS;
 }
-
 
 int spi_get_status(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
@@ -664,7 +663,7 @@ int spi_read_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	}
 
 	buf = kmalloc(SF_PAGE_LEN, GFP_KERNEL);
-	if (buf == NULL) {
+	if (!buf) {
 		rtsx_trace(chip);
 		return STATUS_ERROR;
 	}

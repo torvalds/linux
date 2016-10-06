@@ -62,7 +62,7 @@
 
 #define ST21NFCA_HCI_I2C_DRIVER_NAME "st21nfca_hci_i2c"
 
-#define ST21NFCA_GPIO_NAME_EN "clf_enable"
+#define ST21NFCA_GPIO_NAME_EN "enable"
 
 struct st21nfca_i2c_phy {
 	struct i2c_client *i2c_dev;
@@ -507,34 +507,34 @@ static struct nfc_phy_ops i2c_phy_ops = {
 static int st21nfca_hci_i2c_acpi_request_resources(struct i2c_client *client)
 {
 	struct st21nfca_i2c_phy *phy = i2c_get_clientdata(client);
-	const struct acpi_device_id *id;
 	struct gpio_desc *gpiod_ena;
-	struct device *dev;
-
-	if (!client)
-		return -EINVAL;
-
-	dev = &client->dev;
-
-	/* Match the struct device against a given list of ACPI IDs */
-	id = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (!id)
-		return -ENODEV;
+	struct device *dev = &client->dev;
+	u8 tmp;
 
 	/* Get EN GPIO from ACPI */
 	gpiod_ena = devm_gpiod_get_index(dev, ST21NFCA_GPIO_NAME_EN, 1,
 					 GPIOD_OUT_LOW);
-	if (!IS_ERR(gpiod_ena))
-		phy->gpio_ena = desc_to_gpio(gpiod_ena);
+	if (!IS_ERR(gpiod_ena)) {
+		nfc_err(dev, "Unable to get ENABLE GPIO\n");
+		return -ENODEV;
+	}
 
 	phy->gpio_ena = desc_to_gpio(gpiod_ena);
 
 	phy->irq_polarity = irq_get_trigger_type(client->irq);
 
-	phy->se_status.is_ese_present =
-				device_property_present(dev, "ese-present");
-	phy->se_status.is_uicc_present =
-				device_property_present(dev, "uicc-present");
+	phy->se_status.is_ese_present = false;
+	phy->se_status.is_uicc_present = false;
+
+	if (device_property_present(dev, "ese-present")) {
+		device_property_read_u8(dev, "ese-present", &tmp);
+		phy->se_status.is_ese_present = tmp;
+	}
+
+	if (device_property_present(dev, "uicc-present")) {
+		device_property_read_u8(dev, "uicc-present", &tmp);
+		phy->se_status.is_uicc_present = tmp;
+	}
 
 	return 0;
 }
@@ -721,7 +721,6 @@ MODULE_DEVICE_TABLE(of, of_st21nfca_i2c_match);
 
 static struct i2c_driver st21nfca_hci_i2c_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = ST21NFCA_HCI_I2C_DRIVER_NAME,
 		.of_match_table = of_match_ptr(of_st21nfca_i2c_match),
 		.acpi_match_table = ACPI_PTR(st21nfca_hci_i2c_acpi_match),

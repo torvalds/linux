@@ -6,7 +6,7 @@
  *
  * License 1: GPLv2
  *
- * Copyright (c) 2014 Advanced Micro Devices, Inc.
+ * Copyright (c) 2014-2016 Advanced Micro Devices, Inc.
  *
  * This file is free software; you may copy, redistribute and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@
  *
  * License 2: Modified BSD
  *
- * Copyright (c) 2014 Advanced Micro Devices, Inc.
+ * Copyright (c) 2014-2016 Advanced Micro Devices, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -673,6 +673,7 @@ struct xgbe_hw_if {
 	u64 (*get_tx_tstamp)(struct xgbe_prv_data *);
 
 	/* For Data Center Bridging config */
+	void (*config_tc)(struct xgbe_prv_data *);
 	void (*config_dcb_tc)(struct xgbe_prv_data *);
 	void (*config_dcb_pfc)(struct xgbe_prv_data *);
 
@@ -773,8 +774,8 @@ struct xgbe_prv_data {
 	/* Overall device lock */
 	spinlock_t lock;
 
-	/* XPCS indirect addressing mutex */
-	struct mutex xpcs_mutex;
+	/* XPCS indirect addressing lock */
+	spinlock_t xpcs_lock;
 
 	/* RSS addressing mutex */
 	struct mutex rss_mutex;
@@ -880,6 +881,7 @@ struct xgbe_prv_data {
 	struct ieee_pfc *pfc;
 	unsigned int q2tc_map[XGBE_MAX_QUEUES];
 	unsigned int prio2q_map[IEEE_8021QAZ_MAX_TCS];
+	u8 num_tcs;
 
 	/* Hardware features of the device */
 	struct xgbe_hw_features hw_feat;
@@ -925,6 +927,7 @@ struct xgbe_prv_data {
 	u32 serdes_dfe_tap_ena[XGBE_SPEEDS];
 
 	/* Auto-negotiation state machine support */
+	unsigned int an_int;
 	struct mutex an_mutex;
 	enum xgbe_an an_result;
 	enum xgbe_an an_state;
@@ -953,8 +956,9 @@ struct xgbe_prv_data {
 void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *);
 void xgbe_init_function_ptrs_phy(struct xgbe_phy_if *);
 void xgbe_init_function_ptrs_desc(struct xgbe_desc_if *);
-struct net_device_ops *xgbe_get_netdev_ops(void);
-struct ethtool_ops *xgbe_get_ethtool_ops(void);
+const struct net_device_ops *xgbe_get_netdev_ops(void);
+const struct ethtool_ops *xgbe_get_ethtool_ops(void);
+
 #ifdef CONFIG_AMD_XGBE_DCB
 const struct dcbnl_rtnl_ops *xgbe_get_dcbnl_ops(void);
 #endif

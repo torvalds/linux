@@ -120,6 +120,9 @@ static ssize_t btrfs_feature_attr_store(struct kobject *kobj,
 	if (!fs_info)
 		return -EPERM;
 
+	if (fs_info->sb->s_flags & MS_RDONLY)
+		return -EROFS;
+
 	ret = kstrtoul(skip_spaces(buf), 0, &val);
 	if (ret)
 		return ret;
@@ -202,6 +205,7 @@ BTRFS_FEAT_ATTR_INCOMPAT(extended_iref, EXTENDED_IREF);
 BTRFS_FEAT_ATTR_INCOMPAT(raid56, RAID56);
 BTRFS_FEAT_ATTR_INCOMPAT(skinny_metadata, SKINNY_METADATA);
 BTRFS_FEAT_ATTR_INCOMPAT(no_holes, NO_HOLES);
+BTRFS_FEAT_ATTR_COMPAT_RO(free_space_tree, FREE_SPACE_TREE);
 
 static struct attribute *btrfs_supported_feature_attrs[] = {
 	BTRFS_FEAT_ATTR_PTR(mixed_backref),
@@ -213,6 +217,7 @@ static struct attribute *btrfs_supported_feature_attrs[] = {
 	BTRFS_FEAT_ATTR_PTR(raid56),
 	BTRFS_FEAT_ATTR_PTR(skinny_metadata),
 	BTRFS_FEAT_ATTR_PTR(no_holes),
+	BTRFS_FEAT_ATTR_PTR(free_space_tree),
 	NULL
 };
 
@@ -321,6 +326,7 @@ SPACE_INFO_ATTR(bytes_used);
 SPACE_INFO_ATTR(bytes_pinned);
 SPACE_INFO_ATTR(bytes_reserved);
 SPACE_INFO_ATTR(bytes_may_use);
+SPACE_INFO_ATTR(bytes_readonly);
 SPACE_INFO_ATTR(disk_used);
 SPACE_INFO_ATTR(disk_total);
 BTRFS_ATTR(total_bytes_pinned, btrfs_space_info_show_total_bytes_pinned);
@@ -332,6 +338,7 @@ static struct attribute *space_info_attrs[] = {
 	BTRFS_ATTR_PTR(bytes_pinned),
 	BTRFS_ATTR_PTR(bytes_reserved),
 	BTRFS_ATTR_PTR(bytes_may_use),
+	BTRFS_ATTR_PTR(bytes_readonly),
 	BTRFS_ATTR_PTR(disk_used),
 	BTRFS_ATTR_PTR(disk_total),
 	BTRFS_ATTR_PTR(total_bytes_pinned),
@@ -362,7 +369,13 @@ static ssize_t btrfs_label_show(struct kobject *kobj,
 {
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
 	char *label = fs_info->super_copy->label;
-	return snprintf(buf, PAGE_SIZE, label[0] ? "%s\n" : "%s", label);
+	ssize_t ret;
+
+	spin_lock(&fs_info->super_lock);
+	ret = snprintf(buf, PAGE_SIZE, label[0] ? "%s\n" : "%s", label);
+	spin_unlock(&fs_info->super_lock);
+
+	return ret;
 }
 
 static ssize_t btrfs_label_store(struct kobject *kobj,
@@ -371,6 +384,9 @@ static ssize_t btrfs_label_store(struct kobject *kobj,
 {
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
 	size_t p_len;
+
+	if (!fs_info)
+		return -EPERM;
 
 	if (fs_info->sb->s_flags & MS_RDONLY)
 		return -EROFS;
@@ -778,6 +794,39 @@ int btrfs_sysfs_add_mounted(struct btrfs_fs_info *fs_info)
 failure:
 	btrfs_sysfs_remove_mounted(fs_info);
 	return error;
+}
+
+
+/*
+ * Change per-fs features in /sys/fs/btrfs/UUID/features to match current
+ * values in superblock. Call after any changes to incompat/compat_ro flags
+ */
+void btrfs_sysfs_feature_update(struct btrfs_fs_info *fs_info,
+		u64 bit, enum btrfs_feature_set set)
+{
+	struct btrfs_fs_devices *fs_devs;
+	struct kobject *fsid_kobj;
+	u64 features;
+	int ret;
+
+	if (!fs_info)
+		return;
+
+	features = get_features(fs_info, set);
+	ASSERT(bit & supported_feature_masks[set]);
+
+	fs_devs = fs_info->fs_devices;
+	fsid_kobj = &fs_devs->fsid_kobj;
+
+	if (!fsid_kobj->state_initialized)
+		return;
+
+	/*
+	 * FIXME: this is too heavy to update just one value, ideally we'd like
+	 * to use sysfs_update_group but some refactoring is needed first.
+	 */
+	sysfs_remove_group(fsid_kobj, &btrfs_feature_attr_group);
+	ret = sysfs_create_group(fsid_kobj, &btrfs_feature_attr_group);
 }
 
 static int btrfs_init_debugfs(void)

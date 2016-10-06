@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2016        Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2016        Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -300,22 +302,17 @@
 #define OSC_CLK_FORCE_CONTROL		(0x8)
 
 #define FH_UCODE_LOAD_STATUS		(0x1AF0)
-#define CSR_UCODE_LOAD_STATUS_ADDR	(0x1E70)
-enum secure_load_status_reg {
-	LMPM_CPU_UCODE_LOADING_STARTED			= 0x00000001,
-	LMPM_CPU_HDRS_LOADING_COMPLETED			= 0x00000003,
-	LMPM_CPU_UCODE_LOADING_COMPLETED		= 0x00000007,
-	LMPM_CPU_STATUS_NUM_OF_LAST_COMPLETED		= 0x000000F8,
-	LMPM_CPU_STATUS_NUM_OF_LAST_LOADED_BLOCK	= 0x0000FF00,
-};
 
-#define LMPM_SECURE_INSPECTOR_CODE_ADDR	(0x1E38)
-#define LMPM_SECURE_INSPECTOR_DATA_ADDR	(0x1E3C)
+/*
+ * Replacing FH_UCODE_LOAD_STATUS
+ * This register is writen by driver and is read by uCode during boot flow.
+ * Note this address is cleared after MAC reset.
+ */
+#define UREG_UCODE_LOAD_STATUS		(0xa05c40)
+
 #define LMPM_SECURE_UCODE_LOAD_CPU1_HDR_ADDR	(0x1E78)
 #define LMPM_SECURE_UCODE_LOAD_CPU2_HDR_ADDR	(0x1E7C)
 
-#define LMPM_SECURE_INSPECTOR_CODE_MEM_SPACE	(0x400000)
-#define LMPM_SECURE_INSPECTOR_DATA_MEM_SPACE	(0x402000)
 #define LMPM_SECURE_CPU1_HDR_MEM_SPACE		(0x420000)
 #define LMPM_SECURE_CPU2_HDR_MEM_SPACE		(0x420400)
 
@@ -344,6 +341,16 @@ enum secure_load_status_reg {
 #define TXF_LARC_NUM			(0xa0043c)
 #define TXF_READ_MODIFY_DATA		(0xa00448)
 #define TXF_READ_MODIFY_ADDR		(0xa0044c)
+
+/* UMAC Internal Tx Fifo */
+#define TXF_CPU2_FIFO_ITEM_CNT		(0xA00538)
+#define TXF_CPU2_WR_PTR		(0xA00514)
+#define TXF_CPU2_RD_PTR		(0xA00510)
+#define TXF_CPU2_FENCE_PTR		(0xA00518)
+#define TXF_CPU2_LOCK_FENCE		(0xA00524)
+#define TXF_CPU2_NUM			(0xA0053C)
+#define TXF_CPU2_READ_MODIFY_DATA	(0xA00548)
+#define TXF_CPU2_READ_MODIFY_ADDR	(0xA0054C)
 
 /* Radio registers access */
 #define RSP_RADIO_CMD			(0xa02804)
@@ -404,4 +411,7 @@ enum {
 	LMPM_PAGE_PASS_NOTIF_POS = BIT(20),
 };
 
+#define UREG_CHICK		(0xA05C00)
+#define UREG_CHICK_MSI_ENABLE	BIT(24)
+#define UREG_CHICK_MSIX_ENABLE	BIT(25)
 #endif				/* __iwl_prph_h__ */

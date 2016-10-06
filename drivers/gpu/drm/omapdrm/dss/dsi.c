@@ -42,9 +42,9 @@
 #include <linux/of_platform.h>
 #include <linux/component.h>
 
-#include <video/omapdss.h>
 #include <video/mipi_display.h>
 
+#include "omapdss.h"
 #include "dss.h"
 #include "dss_features.h"
 
@@ -214,9 +214,9 @@ struct dsi_reg { u16 module; u16 idx; };
 typedef void (*omap_dsi_isr_t) (void *arg, u32 mask);
 
 static int dsi_display_init_dispc(struct platform_device *dsidev,
-	struct omap_overlay_manager *mgr);
+	enum omap_channel channel);
 static void dsi_display_uninit_dispc(struct platform_device *dsidev,
-	struct omap_overlay_manager *mgr);
+	enum omap_channel channel);
 
 static int dsi_vc_send_null(struct omap_dss_device *dssdev, int channel);
 
@@ -1167,7 +1167,6 @@ static int dsi_regulator_init(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	struct regulator *vdds_dsi;
-	int r;
 
 	if (dsi->vdds_dsi_reg != NULL)
 		return 0;
@@ -1178,15 +1177,6 @@ static int dsi_regulator_init(struct platform_device *dsidev)
 		if (PTR_ERR(vdds_dsi) != -EPROBE_DEFER)
 			DSSERR("can't get DSI VDD regulator\n");
 		return PTR_ERR(vdds_dsi);
-	}
-
-	if (regulator_can_change_voltage(vdds_dsi)) {
-		r = regulator_set_voltage(vdds_dsi, 1800000, 1800000);
-		if (r) {
-			devm_regulator_put(vdds_dsi);
-			DSSERR("can't set the DSI regulator voltage\n");
-			return r;
-		}
 	}
 
 	dsi->vdds_dsi_reg = vdds_dsi;
@@ -1271,7 +1261,7 @@ static unsigned long dsi_fclk_rate(struct platform_device *dsidev)
 	unsigned long r;
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 
-	if (dss_get_dsi_clk_source(dsi->module_id) == OMAP_DSS_CLK_SRC_FCK) {
+	if (dss_get_dsi_clk_source(dsi->module_id) == DSS_CLK_SRC_FCK) {
 		/* DSI FCLK source is DSS_CLK_FCK */
 		r = clk_get_rate(dsi->dss_clk);
 	} else {
@@ -1484,7 +1474,7 @@ static void dsi_dump_dsidev_clocks(struct platform_device *dsidev,
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	struct dss_pll_clock_info *cinfo = &dsi->pll.cinfo;
-	enum omap_dss_clk_source dispc_clk_src, dsi_clk_src;
+	enum dss_clk_source dispc_clk_src, dsi_clk_src;
 	int dsi_module = dsi->module_id;
 	struct dss_pll *pll = &dsi->pll;
 
@@ -1504,28 +1494,27 @@ static void dsi_dump_dsidev_clocks(struct platform_device *dsidev,
 			cinfo->clkdco, cinfo->m);
 
 	seq_printf(s,	"DSI_PLL_HSDIV_DISPC (%s)\t%-16lum_dispc %u\t(%s)\n",
-			dss_feat_get_clk_source_name(dsi_module == 0 ?
-				OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC :
-				OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC),
+			dss_get_clk_source_name(dsi_module == 0 ?
+				DSS_CLK_SRC_PLL1_1 :
+				DSS_CLK_SRC_PLL2_1),
 			cinfo->clkout[HSDIV_DISPC],
 			cinfo->mX[HSDIV_DISPC],
-			dispc_clk_src == OMAP_DSS_CLK_SRC_FCK ?
+			dispc_clk_src == DSS_CLK_SRC_FCK ?
 			"off" : "on");
 
 	seq_printf(s,	"DSI_PLL_HSDIV_DSI (%s)\t%-16lum_dsi %u\t(%s)\n",
-			dss_feat_get_clk_source_name(dsi_module == 0 ?
-				OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI :
-				OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DSI),
+			dss_get_clk_source_name(dsi_module == 0 ?
+				DSS_CLK_SRC_PLL1_2 :
+				DSS_CLK_SRC_PLL2_2),
 			cinfo->clkout[HSDIV_DSI],
 			cinfo->mX[HSDIV_DSI],
-			dsi_clk_src == OMAP_DSS_CLK_SRC_FCK ?
+			dsi_clk_src == DSS_CLK_SRC_FCK ?
 			"off" : "on");
 
 	seq_printf(s,	"- DSI%d -\n", dsi_module + 1);
 
-	seq_printf(s,	"dsi fclk source = %s (%s)\n",
-			dss_get_generic_clk_source_name(dsi_clk_src),
-			dss_feat_get_clk_source_name(dsi_clk_src));
+	seq_printf(s,	"dsi fclk source = %s\n",
+			dss_get_clk_source_name(dsi_clk_src));
 
 	seq_printf(s,	"DSI_FCLK\t%lu\n", dsi_fclk_rate(dsidev));
 
@@ -3826,19 +3815,19 @@ static int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	struct omap_overlay_manager *mgr = dsi->output.manager;
+	enum omap_channel dispc_channel = dssdev->dispc_channel;
 	int bpp = dsi_get_pixel_size(dsi->pix_fmt);
 	struct omap_dss_device *out = &dsi->output;
 	u8 data_type;
 	u16 word_count;
 	int r;
 
-	if (out->manager == NULL) {
+	if (!out->dispc_channel_connected) {
 		DSSERR("failed to enable display: no output/manager\n");
 		return -ENODEV;
 	}
 
-	r = dsi_display_init_dispc(dsidev, mgr);
+	r = dsi_display_init_dispc(dsidev, dispc_channel);
 	if (r)
 		goto err_init_dispc;
 
@@ -3876,7 +3865,7 @@ static int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel)
 		dsi_if_enable(dsidev, true);
 	}
 
-	r = dss_mgr_enable(mgr);
+	r = dss_mgr_enable(dispc_channel);
 	if (r)
 		goto err_mgr_enable;
 
@@ -3888,7 +3877,7 @@ err_mgr_enable:
 		dsi_vc_enable(dsidev, channel, false);
 	}
 err_pix_fmt:
-	dsi_display_uninit_dispc(dsidev, mgr);
+	dsi_display_uninit_dispc(dsidev, dispc_channel);
 err_init_dispc:
 	return r;
 }
@@ -3897,7 +3886,7 @@ static void dsi_disable_video_output(struct omap_dss_device *dssdev, int channel
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	struct omap_overlay_manager *mgr = dsi->output.manager;
+	enum omap_channel dispc_channel = dssdev->dispc_channel;
 
 	if (dsi->mode == OMAP_DSS_DSI_VIDEO_MODE) {
 		dsi_if_enable(dsidev, false);
@@ -3910,15 +3899,15 @@ static void dsi_disable_video_output(struct omap_dss_device *dssdev, int channel
 		dsi_if_enable(dsidev, true);
 	}
 
-	dss_mgr_disable(mgr);
+	dss_mgr_disable(dispc_channel);
 
-	dsi_display_uninit_dispc(dsidev, mgr);
+	dsi_display_uninit_dispc(dsidev, dispc_channel);
 }
 
 static void dsi_update_screen_dispc(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	struct omap_overlay_manager *mgr = dsi->output.manager;
+	enum omap_channel dispc_channel = dsi->output.dispc_channel;
 	unsigned bytespp;
 	unsigned bytespl;
 	unsigned bytespf;
@@ -3980,9 +3969,9 @@ static void dsi_update_screen_dispc(struct platform_device *dsidev)
 		msecs_to_jiffies(250));
 	BUG_ON(r == 0);
 
-	dss_mgr_set_timings(mgr, &dsi->timings);
+	dss_mgr_set_timings(dispc_channel, &dsi->timings);
 
-	dss_mgr_start_update(mgr);
+	dss_mgr_start_update(dispc_channel);
 
 	if (dsi->te_enabled) {
 		/* disable LP_RX_TO, so that we can receive TE.  Time to wait
@@ -4105,17 +4094,17 @@ static int dsi_configure_dispc_clocks(struct platform_device *dsidev)
 }
 
 static int dsi_display_init_dispc(struct platform_device *dsidev,
-		struct omap_overlay_manager *mgr)
+		enum omap_channel channel)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	int r;
 
-	dss_select_lcd_clk_source(mgr->id, dsi->module_id == 0 ?
-			OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC :
-			OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC);
+	dss_select_lcd_clk_source(channel, dsi->module_id == 0 ?
+			DSS_CLK_SRC_PLL1_1 :
+			DSS_CLK_SRC_PLL2_1);
 
 	if (dsi->mode == OMAP_DSS_DSI_CMD_MODE) {
-		r = dss_mgr_register_framedone_handler(mgr,
+		r = dss_mgr_register_framedone_handler(channel,
 				dsi_framedone_irq_callback, dsidev);
 		if (r) {
 			DSSERR("can't register FRAMEDONE handler\n");
@@ -4140,7 +4129,7 @@ static int dsi_display_init_dispc(struct platform_device *dsidev,
 	dsi->timings.de_level = OMAPDSS_SIG_ACTIVE_HIGH;
 	dsi->timings.sync_pclk_edge = OMAPDSS_DRIVE_SIG_FALLING_EDGE;
 
-	dss_mgr_set_timings(mgr, &dsi->timings);
+	dss_mgr_set_timings(channel, &dsi->timings);
 
 	r = dsi_configure_dispc_clocks(dsidev);
 	if (r)
@@ -4151,28 +4140,28 @@ static int dsi_display_init_dispc(struct platform_device *dsidev,
 			dsi_get_pixel_size(dsi->pix_fmt);
 	dsi->mgr_config.lcden_sig_polarity = 0;
 
-	dss_mgr_set_lcd_config(mgr, &dsi->mgr_config);
+	dss_mgr_set_lcd_config(channel, &dsi->mgr_config);
 
 	return 0;
 err1:
 	if (dsi->mode == OMAP_DSS_DSI_CMD_MODE)
-		dss_mgr_unregister_framedone_handler(mgr,
+		dss_mgr_unregister_framedone_handler(channel,
 				dsi_framedone_irq_callback, dsidev);
 err:
-	dss_select_lcd_clk_source(mgr->id, OMAP_DSS_CLK_SRC_FCK);
+	dss_select_lcd_clk_source(channel, DSS_CLK_SRC_FCK);
 	return r;
 }
 
 static void dsi_display_uninit_dispc(struct platform_device *dsidev,
-		struct omap_overlay_manager *mgr)
+		enum omap_channel channel)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 
 	if (dsi->mode == OMAP_DSS_DSI_CMD_MODE)
-		dss_mgr_unregister_framedone_handler(mgr,
+		dss_mgr_unregister_framedone_handler(channel,
 				dsi_framedone_irq_callback, dsidev);
 
-	dss_select_lcd_clk_source(mgr->id, OMAP_DSS_CLK_SRC_FCK);
+	dss_select_lcd_clk_source(channel, DSS_CLK_SRC_FCK);
 }
 
 static int dsi_configure_dsi_clocks(struct platform_device *dsidev)
@@ -4206,8 +4195,8 @@ static int dsi_display_init_dsi(struct platform_device *dsidev)
 		goto err1;
 
 	dss_select_dsi_clk_source(dsi->module_id, dsi->module_id == 0 ?
-			OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI :
-			OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DSI);
+			DSS_CLK_SRC_PLL1_2 :
+			DSS_CLK_SRC_PLL2_2);
 
 	DSSDBG("PLL OK\n");
 
@@ -4239,7 +4228,7 @@ static int dsi_display_init_dsi(struct platform_device *dsidev)
 err3:
 	dsi_cio_uninit(dsidev);
 err2:
-	dss_select_dsi_clk_source(dsi->module_id, OMAP_DSS_CLK_SRC_FCK);
+	dss_select_dsi_clk_source(dsi->module_id, DSS_CLK_SRC_FCK);
 err1:
 	dss_pll_disable(&dsi->pll);
 err0:
@@ -4261,7 +4250,7 @@ static void dsi_display_uninit_dsi(struct platform_device *dsidev,
 	dsi_vc_enable(dsidev, 2, 0);
 	dsi_vc_enable(dsidev, 3, 0);
 
-	dss_select_dsi_clk_source(dsi->module_id, OMAP_DSS_CLK_SRC_FCK);
+	dss_select_dsi_clk_source(dsi->module_id, DSS_CLK_SRC_FCK);
 	dsi_cio_uninit(dsidev);
 	dsi_pll_uninit(dsidev, disconnect_lanes);
 }
@@ -4462,7 +4451,7 @@ static bool dsi_cm_calc_pll_cb(int n, int m, unsigned long fint,
 	ctx->dsi_cinfo.fint = fint;
 	ctx->dsi_cinfo.clkdco = clkdco;
 
-	return dss_pll_hsdiv_calc(ctx->pll, clkdco, ctx->req_pck_min,
+	return dss_pll_hsdiv_calc_a(ctx->pll, clkdco, ctx->req_pck_min,
 			dss_feat_get_param_max(FEAT_PARAM_DSS_FCK),
 			dsi_cm_calc_hsdiv_cb, ctx);
 }
@@ -4501,7 +4490,7 @@ static bool dsi_cm_calc(struct dsi_data *dsi,
 	pll_min = max(cfg->hs_clk_min * 4, txbyteclk * 4 * 4);
 	pll_max = cfg->hs_clk_max * 4;
 
-	return dss_pll_calc(ctx->pll, clkin,
+	return dss_pll_calc_a(ctx->pll, clkin,
 			pll_min, pll_max,
 			dsi_cm_calc_pll_cb, ctx);
 }
@@ -4760,7 +4749,7 @@ static bool dsi_vm_calc_pll_cb(int n, int m, unsigned long fint,
 	ctx->dsi_cinfo.fint = fint;
 	ctx->dsi_cinfo.clkdco = clkdco;
 
-	return dss_pll_hsdiv_calc(ctx->pll, clkdco, ctx->req_pck_min,
+	return dss_pll_hsdiv_calc_a(ctx->pll, clkdco, ctx->req_pck_min,
 			dss_feat_get_param_max(FEAT_PARAM_DSS_FCK),
 			dsi_vm_calc_hsdiv_cb, ctx);
 }
@@ -4802,7 +4791,7 @@ static bool dsi_vm_calc(struct dsi_data *dsi,
 		pll_max = byteclk_max * 4 * 4;
 	}
 
-	return dss_pll_calc(ctx->pll, clkin,
+	return dss_pll_calc_a(ctx->pll, clkin,
 			pll_min, pll_max,
 			dsi_vm_calc_pll_cb, ctx);
 }
@@ -4983,18 +4972,14 @@ static int dsi_connect(struct omap_dss_device *dssdev,
 		struct omap_dss_device *dst)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct omap_overlay_manager *mgr;
+	enum omap_channel dispc_channel = dssdev->dispc_channel;
 	int r;
 
 	r = dsi_regulator_init(dsidev);
 	if (r)
 		return r;
 
-	mgr = omap_dss_get_overlay_manager(dssdev->dispc_channel);
-	if (!mgr)
-		return -ENODEV;
-
-	r = dss_mgr_connect(mgr, dssdev);
+	r = dss_mgr_connect(dispc_channel, dssdev);
 	if (r)
 		return r;
 
@@ -5002,7 +4987,7 @@ static int dsi_connect(struct omap_dss_device *dssdev,
 	if (r) {
 		DSSERR("failed to connect output to new device: %s\n",
 				dssdev->name);
-		dss_mgr_disconnect(mgr, dssdev);
+		dss_mgr_disconnect(dispc_channel, dssdev);
 		return r;
 	}
 
@@ -5012,6 +4997,8 @@ static int dsi_connect(struct omap_dss_device *dssdev,
 static void dsi_disconnect(struct omap_dss_device *dssdev,
 		struct omap_dss_device *dst)
 {
+	enum omap_channel dispc_channel = dssdev->dispc_channel;
+
 	WARN_ON(dst != dssdev->dst);
 
 	if (dst != dssdev->dst)
@@ -5019,8 +5006,7 @@ static void dsi_disconnect(struct omap_dss_device *dssdev,
 
 	omapdss_output_unset_device(dssdev);
 
-	if (dssdev->manager)
-		dss_mgr_disconnect(dssdev->manager, dssdev);
+	dss_mgr_disconnect(dispc_channel, dssdev);
 }
 
 static const struct omapdss_dsi_ops dsi_ops = {
@@ -5151,6 +5137,8 @@ static const struct dss_pll_ops dsi_pll_ops = {
 };
 
 static const struct dss_pll_hw dss_omap3_dsi_pll_hw = {
+	.type = DSS_PLL_TYPE_A,
+
 	.n_max = (1 << 7) - 1,
 	.m_max = (1 << 11) - 1,
 	.mX_max = (1 << 4) - 1,
@@ -5176,6 +5164,8 @@ static const struct dss_pll_hw dss_omap3_dsi_pll_hw = {
 };
 
 static const struct dss_pll_hw dss_omap4_dsi_pll_hw = {
+	.type = DSS_PLL_TYPE_A,
+
 	.n_max = (1 << 8) - 1,
 	.m_max = (1 << 12) - 1,
 	.mX_max = (1 << 5) - 1,
@@ -5201,6 +5191,8 @@ static const struct dss_pll_hw dss_omap4_dsi_pll_hw = {
 };
 
 static const struct dss_pll_hw dss_omap5_dsi_pll_hw = {
+	.type = DSS_PLL_TYPE_A,
+
 	.n_max = (1 << 8) - 1,
 	.m_max = (1 << 12) - 1,
 	.mX_max = (1 << 5) - 1,

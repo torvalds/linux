@@ -99,12 +99,10 @@ static inline void syscall_get_arguments(struct task_struct *task,
 {
 	int ret;
 	/* O32 ABI syscall() - Either 64-bit with O32 or 32-bit */
-	if ((config_enabled(CONFIG_32BIT) ||
+	if ((IS_ENABLED(CONFIG_32BIT) ||
 	    test_tsk_thread_flag(task, TIF_32BIT_REGS)) &&
-	    (regs->regs[2] == __NR_syscall)) {
+	    (regs->regs[2] == __NR_syscall))
 		i++;
-		n++;
-	}
 
 	while (n--)
 		ret |= mips_get_syscall_arg(args++, task, regs, i++);

@@ -86,6 +86,10 @@ nowayout: Watchdog cannot be stopped once started
 davinci_wdt:
 heartbeat: Watchdog heartbeat period in seconds from 1 to 600, default 60
 -------------------------------------------------
+ebc-c384_wdt:
+timeout: Watchdog timeout in seconds. (1<=timeout<=15300, default=60)
+nowayout: Watchdog cannot be stopped once started
+-------------------------------------------------
 ep93xx_wdt:
 nowayout: Watchdog cannot be stopped once started
 timeout: Watchdog timeout in seconds. (1<=timeout<=3600, default=TBD)
@@ -200,6 +204,11 @@ mv64x60_wdt:
 nowayout: Watchdog cannot be stopped once started
 	(default=kernel config parameter)
 -------------------------------------------------
+ni903x_wdt:
+timeout: Initial watchdog timeout in seconds (0<timeout<516, default=60)
+nowayout: Watchdog cannot be stopped once started
+	(default=kernel config parameter)
+-------------------------------------------------
 nuc900_wdt:
 heartbeat: Watchdog heartbeats in seconds.
 	(default = 15)
@@ -283,6 +292,13 @@ nowayout: Watchdog cannot be stopped once started
 sbc_fitpc2_wdt:
 margin: Watchdog margin in seconds (default 60s)
 nowayout: Watchdog cannot be stopped once started
+-------------------------------------------------
+sbsa_gwdt:
+timeout: Watchdog timeout in seconds. (default 10s)
+action: Watchdog action at the first stage timeout,
+	set to 0 to ignore, 1 to panic. (default=0)
+nowayout: Watchdog cannot be stopped once started
+	(default=kernel config parameter)
 -------------------------------------------------
 sc1200wdt:
 isapnp: When set to 0 driver ISA PnP support will be disabled (default=1)
@@ -399,4 +415,8 @@ nowayout: Watchdog cannot be stopped once started
 wm8350_wdt:
 nowayout: Watchdog cannot be stopped once started
 	(default=kernel config parameter)
+-------------------------------------------------
+sun4v_wdt:
+timeout_ms: Watchdog timeout in milliseconds 1..180000, default=60000)
+nowayout: Watchdog cannot be stopped once started
 -------------------------------------------------

@@ -8,7 +8,6 @@
  * Author: Linus Walleij <triad@df.lth.se>
  */
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
@@ -328,20 +327,6 @@ out_no_resource:
 	return ret;
 }
 
-static int __exit charlcd_remove(struct platform_device *pdev)
-{
-	struct charlcd *lcd = platform_get_drvdata(pdev);
-
-	if (lcd) {
-		free_irq(lcd->irq, lcd);
-		iounmap(lcd->virtbase);
-		release_mem_region(lcd->phybase, lcd->physize);
-		kfree(lcd);
-	}
-
-	return 0;
-}
-
 static int charlcd_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -376,13 +361,8 @@ static struct platform_driver charlcd_driver = {
 	.driver = {
 		.name = DRIVERNAME,
 		.pm = &charlcd_pm_ops,
+		.suppress_bind_attrs = true,
 		.of_match_table = of_match_ptr(charlcd_match),
 	},
-	.remove = __exit_p(charlcd_remove),
 };
-
-module_platform_driver_probe(charlcd_driver, charlcd_probe);
-
-MODULE_AUTHOR("Linus Walleij <triad@df.lth.se>");
-MODULE_DESCRIPTION("ARM Character LCD Driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver_probe(charlcd_driver, charlcd_probe);

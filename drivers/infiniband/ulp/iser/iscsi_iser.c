@@ -612,6 +612,7 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 	struct Scsi_Host *shost;
 	struct iser_conn *iser_conn = NULL;
 	struct ib_conn *ib_conn;
+	u32 max_fr_sectors;
 	u16 max_cmds;
 
 	shost = iscsi_host_alloc(&iscsi_iser_sht, 0, 0);
@@ -632,7 +633,6 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 		iser_conn = ep->dd_data;
 		max_cmds = iser_conn->max_cmds;
 		shost->sg_tablesize = iser_conn->scsi_sg_tablesize;
-		shost->max_sectors = iser_conn->scsi_max_sectors;
 
 		mutex_lock(&iser_conn->state_mutex);
 		if (iser_conn->state != ISER_CONN_UP) {
@@ -657,8 +657,6 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 		 */
 		shost->sg_tablesize = min_t(unsigned short, shost->sg_tablesize,
 			ib_conn->device->ib_device->attrs.max_fast_reg_page_list_len);
-		shost->max_sectors = min_t(unsigned int,
-			1024, (shost->sg_tablesize * PAGE_SIZE) >> 9);
 
 		if (iscsi_host_add(shost,
 				   ib_conn->device->ib_device->dma_device)) {
@@ -671,6 +669,15 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 		if (iscsi_host_add(shost, NULL))
 			goto free_host;
 	}
+
+	/*
+	 * FRs or FMRs can only map up to a (device) page per entry, but if the
+	 * first entry is misaligned we'll end up using using two entries
+	 * (head and tail) for a single page worth data, so we have to drop
+	 * one segment from the calculation.
+	 */
+	max_fr_sectors = ((shost->sg_tablesize - 1) * PAGE_SIZE) >> 9;
+	shost->max_sectors = min(iser_max_sectors, max_fr_sectors);
 
 	if (cmds_max > max_cmds) {
 		iser_info("cmds_max changed from %u to %u\n",
@@ -969,7 +976,16 @@ static umode_t iser_attr_is_visible(int param_type, int param)
 
 static int iscsi_iser_slave_alloc(struct scsi_device *sdev)
 {
-	blk_queue_virt_boundary(sdev->request_queue, ~MASK_4K);
+	struct iscsi_session *session;
+	struct iser_conn *iser_conn;
+	struct ib_device *ib_dev;
+
+	session = starget_to_session(scsi_target(sdev))->dd_data;
+	iser_conn = session->leadconn->dd_data;
+	ib_dev = iser_conn->ib_conn.device->ib_device;
+
+	if (!(ib_dev->attrs.device_cap_flags & IB_DEVICE_SG_GAPS_REG))
+		blk_queue_virt_boundary(sdev->request_queue, ~MASK_4K);
 
 	return 0;
 }
@@ -980,7 +996,6 @@ static struct scsi_host_template iscsi_iser_sht = {
 	.queuecommand           = iscsi_queuecommand,
 	.change_queue_depth	= scsi_change_queue_depth,
 	.sg_tablesize           = ISCSI_ISER_DEF_SG_TABLESIZE,
-	.max_sectors            = ISER_DEF_MAX_SECTORS,
 	.cmd_per_lun            = ISER_DEF_CMD_PER_LUN,
 	.eh_abort_handler       = iscsi_eh_abort,
 	.eh_device_reset_handler= iscsi_eh_device_reset,

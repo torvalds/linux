@@ -24,9 +24,6 @@ struct wm831x_clk {
 	struct clk_hw xtal_hw;
 	struct clk_hw fll_hw;
 	struct clk_hw clkout_hw;
-	struct clk *xtal;
-	struct clk *fll;
-	struct clk *clkout;
 	bool xtal_ena;
 };
 
@@ -58,7 +55,6 @@ static const struct clk_ops wm831x_xtal_ops = {
 static struct clk_init_data wm831x_xtal_init = {
 	.name = "xtal",
 	.ops = &wm831x_xtal_ops,
-	.flags = CLK_IS_ROOT,
 };
 
 static const unsigned long wm831x_fll_auto_rates[] = {
@@ -371,19 +367,19 @@ static int wm831x_clk_probe(struct platform_device *pdev)
 	clkdata->xtal_ena = ret & WM831X_XTAL_ENA;
 
 	clkdata->xtal_hw.init = &wm831x_xtal_init;
-	clkdata->xtal = devm_clk_register(&pdev->dev, &clkdata->xtal_hw);
-	if (IS_ERR(clkdata->xtal))
-		return PTR_ERR(clkdata->xtal);
+	ret = devm_clk_hw_register(&pdev->dev, &clkdata->xtal_hw);
+	if (ret)
+		return ret;
 
 	clkdata->fll_hw.init = &wm831x_fll_init;
-	clkdata->fll = devm_clk_register(&pdev->dev, &clkdata->fll_hw);
-	if (IS_ERR(clkdata->fll))
-		return PTR_ERR(clkdata->fll);
+	ret = devm_clk_hw_register(&pdev->dev, &clkdata->fll_hw);
+	if (ret)
+		return ret;
 
 	clkdata->clkout_hw.init = &wm831x_clkout_init;
-	clkdata->clkout = devm_clk_register(&pdev->dev, &clkdata->clkout_hw);
-	if (IS_ERR(clkdata->clkout))
-		return PTR_ERR(clkdata->clkout);
+	ret = devm_clk_hw_register(&pdev->dev, &clkdata->clkout_hw);
+	if (ret)
+		return ret;
 
 	platform_set_drvdata(pdev, clkdata);
 

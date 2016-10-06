@@ -251,7 +251,7 @@ memory_block_action(unsigned long phys_index, unsigned long action, int online_t
 	return ret;
 }
 
-static int memory_block_change_state(struct memory_block *mem,
+int memory_block_change_state(struct memory_block *mem,
 		unsigned long to_state, unsigned long from_state_req)
 {
 	int ret = 0;
@@ -391,6 +391,7 @@ static ssize_t show_valid_zones(struct device *dev,
 	unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
 	struct page *first_page;
 	struct zone *zone;
+	int zone_shift = 0;
 
 	start_pfn = section_nr_to_pfn(mem->start_section_nr);
 	end_pfn = start_pfn + nr_pages;
@@ -402,21 +403,26 @@ static ssize_t show_valid_zones(struct device *dev,
 
 	zone = page_zone(first_page);
 
-	if (zone_idx(zone) == ZONE_MOVABLE - 1) {
-		/*The mem block is the last memoryblock of this zone.*/
-		if (end_pfn == zone_end_pfn(zone))
-			return sprintf(buf, "%s %s\n",
-					zone->name, (zone + 1)->name);
+	/* MMOP_ONLINE_KEEP */
+	sprintf(buf, "%s", zone->name);
+
+	/* MMOP_ONLINE_KERNEL */
+	zone_shift = zone_can_shift(start_pfn, nr_pages, ZONE_NORMAL);
+	if (zone_shift) {
+		strcat(buf, " ");
+		strcat(buf, (zone + zone_shift)->name);
 	}
 
-	if (zone_idx(zone) == ZONE_MOVABLE) {
-		/*The mem block is the first memoryblock of ZONE_MOVABLE.*/
-		if (start_pfn == zone->zone_start_pfn)
-			return sprintf(buf, "%s %s\n",
-					zone->name, (zone - 1)->name);
+	/* MMOP_ONLINE_MOVABLE */
+	zone_shift = zone_can_shift(start_pfn, nr_pages, ZONE_MOVABLE);
+	if (zone_shift) {
+		strcat(buf, " ");
+		strcat(buf, (zone + zone_shift)->name);
 	}
 
-	return sprintf(buf, "%s\n", zone->name);
+	strcat(buf, "\n");
+
+	return strlen(buf);
 }
 static DEVICE_ATTR(valid_zones, 0444, show_valid_zones, NULL);
 #endif
@@ -437,6 +443,37 @@ print_block_size(struct device *dev, struct device_attribute *attr,
 }
 
 static DEVICE_ATTR(block_size_bytes, 0444, print_block_size, NULL);
+
+/*
+ * Memory auto online policy.
+ */
+
+static ssize_t
+show_auto_online_blocks(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	if (memhp_auto_online)
+		return sprintf(buf, "online\n");
+	else
+		return sprintf(buf, "offline\n");
+}
+
+static ssize_t
+store_auto_online_blocks(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
+{
+	if (sysfs_streq(buf, "online"))
+		memhp_auto_online = true;
+	else if (sysfs_streq(buf, "offline"))
+		memhp_auto_online = false;
+	else
+		return -EINVAL;
+
+	return count;
+}
+
+static DEVICE_ATTR(auto_online_blocks, 0644, show_auto_online_blocks,
+		   store_auto_online_blocks);
 
 /*
  * Some architectures will have custom drivers to do this, and
@@ -746,6 +783,7 @@ static struct attribute *memory_root_attrs[] = {
 #endif
 
 	&dev_attr_block_size_bytes.attr,
+	&dev_attr_auto_online_blocks.attr,
 	NULL
 };
 

@@ -33,7 +33,7 @@
 		pinctrl-0 = <&pmx_button_eject>;
 		pinctrl-names = "default";
 
-		button@1 {
+		eject {
 			debounce_interval = <50>;
 			wakeup-source;
 			linux,code = <KEY_EJECTCD>;
@@ -131,6 +131,7 @@
 	chip-delay = <40>;
 	status = "okay";
 	partitions {
+		compatible = "fixed-partitions";
 		#address-cells = <1>;
 		#size-cells = <1>;
 

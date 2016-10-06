@@ -14,8 +14,8 @@
 #include <linux/fs.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>
+#include <linux/gpio.h>
 
-#include <asm/gpio.h>
 #include <asm/io.h>
 
 #include <mach/portmux.h>
@@ -435,7 +435,7 @@ void __init at32_init_pio(struct platform_device *pdev)
 	struct resource *regs;
 	struct pio_device *pio;
 
-	if (pdev->id > MAX_NR_PIO_DEVICES) {
+	if (pdev->id >= MAX_NR_PIO_DEVICES) {
 		dev_err(&pdev->dev, "only %d PIO devices supported\n",
 			MAX_NR_PIO_DEVICES);
 		return;

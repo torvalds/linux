@@ -77,12 +77,6 @@
 #define __refdata        __section(.ref.data)
 #define __refconst       __constsection(.ref.rodata)
 
-/* compatibility defines */
-#define __init_refok     __ref
-#define __initdata_refok __refdata
-#define __exit_refok     __ref
-
-
 #ifdef MODULE
 #define __exitused
 #else
@@ -141,6 +135,10 @@ void setup_arch(char **);
 void prepare_namespace(void);
 void __init load_default_modules(void);
 int __init init_rootfs(void);
+
+#ifdef CONFIG_DEBUG_RODATA
+void mark_rodata_ro(void);
+#endif
 
 extern void (*late_time_init)(void);
 

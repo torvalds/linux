@@ -18,6 +18,8 @@ Optional properties for Touchscreens:
  - touchscreen-inverted-y	: Y axis is inverted (boolean)
  - touchscreen-swapped-x-y	: X and Y axis are swapped (boolean)
 				  Swapping is done after inverting the axis
+ - touchscreen-x-mm		: horizontal length in mm of the touchscreen
+ - touchscreen-y-mm		: vertical length in mm of the touchscreen
 
 Deprecated properties for Touchscreens:
  - x-size			: deprecated name for touchscreen-size-x

@@ -2421,7 +2421,7 @@ static int ccdc_link_validate(struct v4l2_subdev *sd,
 			&((struct isp_bus_cfg *)
 			  media_entity_to_v4l2_subdev(link->source->entity)
 			  ->host_priv)->bus.parallel;
-		parallel_shift = parcfg->data_lane_shift * 2;
+		parallel_shift = parcfg->data_lane_shift;
 	} else {
 		parallel_shift = 0;
 	}

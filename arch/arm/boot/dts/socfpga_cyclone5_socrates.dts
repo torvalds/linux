@@ -36,6 +36,7 @@
 };
 
 &gmac1 {
+	phy-mode = "rgmii";
 	status = "okay";
 };
 
@@ -51,7 +52,7 @@
 	status = "okay";
 
 	rtc: rtc@68 {
-		compatible = "stm,m41t82";
+		compatible = "st,m41t82";
 		reg = <0x68>;
 	};
 };

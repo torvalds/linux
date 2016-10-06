@@ -322,6 +322,8 @@ int ib_ud_header_init(int     payload_bytes,
 		      int    immediate_present,
 		      struct ib_ud_header *header)
 {
+	size_t udp_bytes = udp_present ? IB_UDP_BYTES : 0;
+
 	grh_present = grh_present && !ip_version;
 	memset(header, 0, sizeof *header);
 
@@ -353,7 +355,8 @@ int ib_ud_header_init(int     payload_bytes,
 	if (ip_version == 6 || grh_present) {
 		header->grh.ip_version      = 6;
 		header->grh.payload_length  =
-			cpu_to_be16((IB_BTH_BYTES     +
+			cpu_to_be16((udp_bytes        +
+				     IB_BTH_BYTES     +
 				     IB_DETH_BYTES    +
 				     payload_bytes    +
 				     4                + /* ICRC     */
@@ -362,8 +365,6 @@ int ib_ud_header_init(int     payload_bytes,
 	}
 
 	if (ip_version == 4) {
-		int udp_bytes = udp_present ? IB_UDP_BYTES : 0;
-
 		header->ip4.ver = 4; /* version 4 */
 		header->ip4.hdr_len = 5; /* 5 words */
 		header->ip4.tot_len =
@@ -478,8 +479,8 @@ int ib_ud_header_unpack(void                *buf,
 	buf += IB_LRH_BYTES;
 
 	if (header->lrh.link_version != 0) {
-		printk(KERN_WARNING "Invalid LRH.link_version %d\n",
-		       header->lrh.link_version);
+		pr_warn("Invalid LRH.link_version %d\n",
+			header->lrh.link_version);
 		return -EINVAL;
 	}
 
@@ -495,20 +496,20 @@ int ib_ud_header_unpack(void                *buf,
 		buf += IB_GRH_BYTES;
 
 		if (header->grh.ip_version != 6) {
-			printk(KERN_WARNING "Invalid GRH.ip_version %d\n",
-			       header->grh.ip_version);
+			pr_warn("Invalid GRH.ip_version %d\n",
+				header->grh.ip_version);
 			return -EINVAL;
 		}
 		if (header->grh.next_header != 0x1b) {
-			printk(KERN_WARNING "Invalid GRH.next_header 0x%02x\n",
-			       header->grh.next_header);
+			pr_warn("Invalid GRH.next_header 0x%02x\n",
+				header->grh.next_header);
 			return -EINVAL;
 		}
 		break;
 
 	default:
-		printk(KERN_WARNING "Invalid LRH.link_next_header %d\n",
-		       header->lrh.link_next_header);
+		pr_warn("Invalid LRH.link_next_header %d\n",
+			header->lrh.link_next_header);
 		return -EINVAL;
 	}
 
@@ -524,14 +525,13 @@ int ib_ud_header_unpack(void                *buf,
 		header->immediate_present = 1;
 		break;
 	default:
-		printk(KERN_WARNING "Invalid BTH.opcode 0x%02x\n",
-		       header->bth.opcode);
+		pr_warn("Invalid BTH.opcode 0x%02x\n", header->bth.opcode);
 		return -EINVAL;
 	}
 
 	if (header->bth.transport_header_version != 0) {
-		printk(KERN_WARNING "Invalid BTH.transport_header_version %d\n",
-		       header->bth.transport_header_version);
+		pr_warn("Invalid BTH.transport_header_version %d\n",
+			header->bth.transport_header_version);
 		return -EINVAL;
 	}
 

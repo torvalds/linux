@@ -31,7 +31,7 @@
 static int pem_init(struct pp_eventmgr *eventmgr)
 {
 	int result = 0;
-	struct pem_event_data event_data;
+	struct pem_event_data event_data = { {0} };
 
 	/* Initialize PowerPlay feature info */
 	pem_init_feature_info(eventmgr);
@@ -52,15 +52,12 @@ static int pem_init(struct pp_eventmgr *eventmgr)
 
 static void pem_fini(struct pp_eventmgr *eventmgr)
 {
-	struct pem_event_data event_data;
+	struct pem_event_data event_data = { {0} };
 
 	pem_uninit_featureInfo(eventmgr);
 	pem_unregister_interrupts(eventmgr);
 
 	pem_handle_event(eventmgr, AMD_PP_EVENT_UNINITIALIZE, &event_data);
-
-	if (eventmgr != NULL)
-		kfree(eventmgr);
 }
 
 int eventmgr_init(struct pp_instance *handle)

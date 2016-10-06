@@ -201,6 +201,7 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	struct device_node *node = pdev->dev.of_node;
 	struct pwm_bl_data *pb;
 	int initial_blank = FB_BLANK_UNBLANK;
+	struct pwm_args pargs;
 	int ret;
 
 	if (!data) {
@@ -307,16 +308,21 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "got pwm for backlight\n");
 
 	/*
+	 * FIXME: pwm_apply_args() should be removed when switching to
+	 * the atomic PWM API.
+	 */
+	pwm_apply_args(pb->pwm);
+
+	/*
 	 * The DT case will set the pwm_period_ns field to 0 and store the
 	 * period, parsed from the DT, in the PWM device. For the non-DT case,
 	 * set the period from platform data if it has not already been set
 	 * via the PWM lookup table.
 	 */
-	pb->period = pwm_get_period(pb->pwm);
-	if (!pb->period && (data->pwm_period_ns > 0)) {
+	pwm_get_args(pb->pwm, &pargs);
+	pb->period = pargs.period;
+	if (!pb->period && (data->pwm_period_ns > 0))
 		pb->period = data->pwm_period_ns;
-		pwm_set_period(pb->pwm, data->pwm_period_ns);
-	}
 
 	pb->lth_brightness = data->lth_brightness * (pb->period / pb->scale);
 

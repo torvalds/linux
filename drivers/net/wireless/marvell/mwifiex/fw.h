@@ -78,6 +78,7 @@ enum KEY_TYPE_ID {
 	KEY_TYPE_ID_AES,
 	KEY_TYPE_ID_WAPI,
 	KEY_TYPE_ID_AES_CMAC,
+	KEY_TYPE_ID_AES_CMAC_DEF,
 };
 
 #define WPA_PN_SIZE		8
@@ -96,7 +97,7 @@ enum KEY_TYPE_ID {
 #define WAPI_KEY_LEN			(WLAN_KEY_LEN_SMS4 + PN_LEN + 2)
 
 #define MAX_POLL_TRIES			100
-#define MAX_FIRMWARE_POLL_TRIES			100
+#define MAX_FIRMWARE_POLL_TRIES			150
 
 #define FIRMWARE_READY_SDIO				0xfedc
 #define FIRMWARE_READY_PCIE				0xfedcba00
@@ -144,6 +145,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_WILDCARDSSID       (PROPRIETARY_TLV_BASE_ID + 18)
 #define TLV_TYPE_TSFTIMESTAMP       (PROPRIETARY_TLV_BASE_ID + 19)
 #define TLV_TYPE_RSSI_HIGH          (PROPRIETARY_TLV_BASE_ID + 22)
+#define TLV_TYPE_BGSCAN_START_LATER (PROPRIETARY_TLV_BASE_ID + 30)
 #define TLV_TYPE_AUTH_TYPE          (PROPRIETARY_TLV_BASE_ID + 31)
 #define TLV_TYPE_STA_MAC_ADDR       (PROPRIETARY_TLV_BASE_ID + 32)
 #define TLV_TYPE_BSSID              (PROPRIETARY_TLV_BASE_ID + 35)
@@ -175,8 +177,10 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_PWK_CIPHER         (PROPRIETARY_TLV_BASE_ID + 145)
 #define TLV_TYPE_GWK_CIPHER         (PROPRIETARY_TLV_BASE_ID + 146)
 #define TLV_TYPE_TX_PAUSE           (PROPRIETARY_TLV_BASE_ID + 148)
+#define TLV_TYPE_RXBA_SYNC          (PROPRIETARY_TLV_BASE_ID + 153)
 #define TLV_TYPE_COALESCE_RULE      (PROPRIETARY_TLV_BASE_ID + 154)
 #define TLV_TYPE_KEY_PARAM_V2       (PROPRIETARY_TLV_BASE_ID + 156)
+#define TLV_TYPE_REPEAT_COUNT       (PROPRIETARY_TLV_BASE_ID + 176)
 #define TLV_TYPE_MULTI_CHAN_INFO    (PROPRIETARY_TLV_BASE_ID + 183)
 #define TLV_TYPE_MC_GROUP_INFO      (PROPRIETARY_TLV_BASE_ID + 184)
 #define TLV_TYPE_TDLS_IDLE_TIMEOUT  (PROPRIETARY_TLV_BASE_ID + 194)
@@ -186,6 +190,8 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_BTCOEX_WL_AGGR_WINSIZE  (PROPRIETARY_TLV_BASE_ID + 202)
 #define TLV_BTCOEX_WL_SCANTIME      (PROPRIETARY_TLV_BASE_ID + 203)
 #define TLV_TYPE_BSS_MODE           (PROPRIETARY_TLV_BASE_ID + 206)
+#define TLV_TYPE_RANDOM_MAC         (PROPRIETARY_TLV_BASE_ID + 236)
+#define TLV_TYPE_CHAN_ATTR_CFG      (PROPRIETARY_TLV_BASE_ID + 237)
 
 #define MWIFIEX_TX_DATA_BUF_SIZE_2K        2048
 
@@ -206,6 +212,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 
 #define MWIFIEX_TX_DATA_BUF_SIZE_4K        4096
 #define MWIFIEX_TX_DATA_BUF_SIZE_8K        8192
+#define MWIFIEX_TX_DATA_BUF_SIZE_12K       12288
 
 #define ISSUPP_11NENABLED(FwCapInfo) (FwCapInfo & BIT(11))
 #define ISSUPP_TDLS_ENABLED(FwCapInfo) (FwCapInfo & BIT(14))
@@ -331,6 +338,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_802_11_MAC_ADDRESS                0x004D
 #define HostCmd_CMD_802_11D_DOMAIN_INFO               0x005b
 #define HostCmd_CMD_802_11_KEY_MATERIAL               0x005e
+#define HostCmd_CMD_802_11_BG_SCAN_CONFIG             0x006b
 #define HostCmd_CMD_802_11_BG_SCAN_QUERY              0x006c
 #define HostCmd_CMD_WMM_GET_STATUS                    0x0071
 #define HostCmd_CMD_802_11_SUBSCRIBE_EVENT            0x0075
@@ -369,11 +377,14 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_COALESCE_CFG                      0x010a
 #define HostCmd_CMD_MGMT_FRAME_REG                    0x010c
 #define HostCmd_CMD_REMAIN_ON_CHAN                    0x010d
+#define HostCmd_CMD_GTK_REKEY_OFFLOAD_CFG             0x010f
 #define HostCmd_CMD_11AC_CFG			      0x0112
+#define HostCmd_CMD_HS_WAKEUP_REASON                  0x0116
 #define HostCmd_CMD_TDLS_CONFIG                       0x0100
 #define HostCmd_CMD_MC_POLICY                         0x0121
 #define HostCmd_CMD_TDLS_OPER                         0x0122
 #define HostCmd_CMD_SDIO_SP_RX_AGGR_CFG               0x0223
+#define HostCmd_CMD_CHAN_REGION_CFG		      0x0242
 
 #define PROTOCOL_NO_SECURITY        0x01
 #define PROTOCOL_STATIC_WEP         0x02
@@ -404,6 +415,14 @@ enum P2P_MODES {
 	P2P_MODE_DEVICE = 1,
 	P2P_MODE_GO = 2,
 	P2P_MODE_CLIENT = 3,
+};
+
+enum mwifiex_channel_flags {
+	MWIFIEX_CHANNEL_PASSIVE = BIT(0),
+	MWIFIEX_CHANNEL_DFS = BIT(1),
+	MWIFIEX_CHANNEL_NOHT40 = BIT(2),
+	MWIFIEX_CHANNEL_NOHT80 = BIT(3),
+	MWIFIEX_CHANNEL_DISABLED = BIT(7),
 };
 
 #define HostCmd_RET_BIT                       0x8000
@@ -457,6 +476,9 @@ enum P2P_MODES {
 #define HostCmd_ACT_SET_RX              0x0001
 #define HostCmd_ACT_SET_TX              0x0002
 #define HostCmd_ACT_SET_BOTH            0x0003
+#define HostCmd_ACT_GET_RX              0x0004
+#define HostCmd_ACT_GET_TX              0x0008
+#define HostCmd_ACT_GET_BOTH            0x000c
 
 #define RF_ANTENNA_AUTO                 0xFFFF
 
@@ -496,6 +518,8 @@ enum P2P_MODES {
 #define EVENT_RSSI_HIGH                 0x0000001c
 #define EVENT_SNR_HIGH                  0x0000001d
 #define EVENT_IBSS_COALESCED            0x0000001e
+#define EVENT_IBSS_STA_CONNECT          0x00000020
+#define EVENT_IBSS_STA_DISCONNECT       0x00000021
 #define EVENT_DATA_RSSI_LOW             0x00000024
 #define EVENT_DATA_SNR_LOW              0x00000025
 #define EVENT_DATA_RSSI_HIGH            0x00000026
@@ -523,6 +547,8 @@ enum P2P_MODES {
 #define EVENT_CHANNEL_REPORT_RDY        0x00000054
 #define EVENT_TX_DATA_PAUSE             0x00000055
 #define EVENT_EXT_SCAN_REPORT           0x00000058
+#define EVENT_RXBA_SYNC                 0x00000059
+#define EVENT_BG_SCAN_STOPPED           0x00000065
 #define EVENT_REMAIN_ON_CHAN_EXPIRED    0x0000005f
 #define EVENT_MULTI_CHAN_INFO           0x0000006a
 #define EVENT_TX_STATUS_REPORT		0x00000074
@@ -539,6 +565,8 @@ enum P2P_MODES {
 
 #define MWIFIEX_MAX_PATTERN_LEN		40
 #define MWIFIEX_MAX_OFFSET_LEN		100
+#define MWIFIEX_MAX_ND_MATCH_SETS	10
+
 #define STACK_NBYTES			100
 #define TYPE_DNUM			1
 #define TYPE_BYTESEQ			2
@@ -600,6 +628,21 @@ struct mwifiex_ie_types_data {
 #define MWIFIEX_TXPD_FLAGS_TDLS_PACKET      0x10
 #define MWIFIEX_RXPD_FLAGS_TDLS_PACKET      0x01
 #define MWIFIEX_TXPD_FLAGS_REQ_TX_STATUS    0x20
+
+enum HS_WAKEUP_REASON {
+	NO_HSWAKEUP_REASON = 0,
+	BCAST_DATA_MATCHED,
+	MCAST_DATA_MATCHED,
+	UCAST_DATA_MATCHED,
+	MASKTABLE_EVENT_MATCHED,
+	NON_MASKABLE_EVENT_MATCHED,
+	NON_MASKABLE_CONDITION_MATCHED,
+	MAGIC_PATTERN_MATCHED,
+	CONTROL_FRAME_MATCHED,
+	MANAGEMENT_FRAME_MATCHED,
+	GTK_REKEY_FAILURE,
+	RESERVED
+};
 
 struct txpd {
 	u8 bss_type;
@@ -708,6 +751,16 @@ struct mwifiex_ie_types_chan_list_param_set {
 	struct mwifiex_chan_scan_param_set chan_scan_param[1];
 } __packed;
 
+struct mwifiex_ie_types_rxba_sync {
+	struct mwifiex_ie_types_header header;
+	u8 mac[ETH_ALEN];
+	u8 tid;
+	u8 reserved;
+	__le16 seq_num;
+	__le16 bitmap_len;
+	u8 bitmap[1];
+} __packed;
+
 struct chan_band_param_set {
 	u8 radio_type;
 	u8 chan_number;
@@ -733,10 +786,30 @@ struct mwifiex_ie_types_num_probes {
 	__le16 num_probes;
 } __packed;
 
+struct mwifiex_ie_types_repeat_count {
+	struct mwifiex_ie_types_header header;
+	__le16 repeat_count;
+} __packed;
+
+struct mwifiex_ie_types_min_rssi_threshold {
+	struct mwifiex_ie_types_header header;
+	__le16 rssi_threshold;
+} __packed;
+
+struct mwifiex_ie_types_bgscan_start_later {
+	struct mwifiex_ie_types_header header;
+	__le16 start_later;
+} __packed;
+
 struct mwifiex_ie_types_scan_chan_gap {
 	struct mwifiex_ie_types_header header;
 	/* time gap in TUs to be used between two consecutive channels scan */
 	__le16 chan_gap;
+} __packed;
+
+struct mwifiex_ie_types_random_mac {
+	struct mwifiex_ie_types_header header;
+	u8 mac[ETH_ALEN];
 } __packed;
 
 struct mwifiex_ietypes_chanstats {
@@ -1027,7 +1100,7 @@ struct ieee_types_assoc_rsp {
 	__le16 cap_info_bitmap;
 	__le16 status_code;
 	__le16 a_id;
-	u8 ie_buffer[1];
+	u8 ie_buffer[0];
 } __packed;
 
 struct host_cmd_ds_802_11_associate_rsp {
@@ -1423,6 +1496,37 @@ struct mwifiex_user_scan_cfg {
 	/* Variable number (fixed maximum) of channels to scan up */
 	struct mwifiex_user_scan_chan chan_list[MWIFIEX_USER_SCAN_CHAN_MAX];
 	u16 scan_chan_gap;
+	u8 random_mac[ETH_ALEN];
+} __packed;
+
+#define MWIFIEX_BG_SCAN_CHAN_MAX 38
+#define MWIFIEX_BSS_MODE_INFRA 1
+#define MWIFIEX_BGSCAN_ACT_GET     0x0000
+#define MWIFIEX_BGSCAN_ACT_SET     0x0001
+#define MWIFIEX_BGSCAN_ACT_SET_ALL 0xff01
+/** ssid match */
+#define MWIFIEX_BGSCAN_SSID_MATCH          0x0001
+/** ssid match and RSSI exceeded */
+#define MWIFIEX_BGSCAN_SSID_RSSI_MATCH     0x0004
+/**wait for all channel scan to complete to report scan result*/
+#define MWIFIEX_BGSCAN_WAIT_ALL_CHAN_DONE  0x80000000
+
+struct mwifiex_bg_scan_cfg {
+	u16 action;
+	u8 enable;
+	u8 bss_type;
+	u8 chan_per_scan;
+	u32 scan_interval;
+	u32 report_condition;
+	u8 num_probes;
+	u8 rssi_threshold;
+	u8 snr_threshold;
+	u16 repeat_count;
+	u16 start_later;
+	struct cfg80211_match_set *ssid_list;
+	u8 num_ssids;
+	struct mwifiex_user_scan_chan chan_list[MWIFIEX_BG_SCAN_CHAN_MAX];
+	u16 scan_chan_gap;
 } __packed;
 
 struct ie_body {
@@ -1468,6 +1572,20 @@ struct mwifiex_ie_types_bss_scan_info {
 	u8 channel;
 	u8 reserved;
 	__le64 tsf;
+} __packed;
+
+struct host_cmd_ds_802_11_bg_scan_config {
+	__le16 action;
+	u8 enable;
+	u8 bss_type;
+	u8 chan_per_scan;
+	u8 reserved;
+	__le16 reserved1;
+	__le32 scan_interval;
+	__le32 reserved2;
+	__le32 report_condition;
+	__le16 reserved3;
+	u8 tlv[0];
 } __packed;
 
 struct host_cmd_ds_802_11_bg_scan_query {
@@ -1561,7 +1679,7 @@ struct mwifiex_ie_types_sta_info {
 };
 
 struct host_cmd_ds_sta_list {
-	u16 sta_count;
+	__le16 sta_count;
 	u8 tlv[0];
 } __packed;
 
@@ -1580,6 +1698,12 @@ struct mwifiex_ie_types_local_pwr_constraint {
 struct mwifiex_ie_types_wmm_param_set {
 	struct mwifiex_ie_types_header header;
 	u8 wmm_ie[1];
+};
+
+struct mwifiex_ie_types_mgmt_frame {
+	struct mwifiex_ie_types_header header;
+	__le16 frame_control;
+	u8 frame_contents[0];
 };
 
 struct mwifiex_ie_types_wmm_queue_status {
@@ -1876,8 +2000,8 @@ struct mwifiex_ie_types_btcoex_scan_time {
 	struct mwifiex_ie_types_header header;
 	u8 coex_scan;
 	u8 reserved;
-	u16 min_scan_time;
-	u16 max_scan_time;
+	__le16 min_scan_time;
+	__le16 max_scan_time;
 } __packed;
 
 struct mwifiex_ie_types_btcoex_aggr_win_size {
@@ -1949,26 +2073,26 @@ struct host_cmd_ds_set_bss_mode {
 
 struct host_cmd_ds_pcie_details {
 	/* TX buffer descriptor ring address */
-	u32 txbd_addr_lo;
-	u32 txbd_addr_hi;
+	__le32 txbd_addr_lo;
+	__le32 txbd_addr_hi;
 	/* TX buffer descriptor ring count */
-	u32 txbd_count;
+	__le32 txbd_count;
 
 	/* RX buffer descriptor ring address */
-	u32 rxbd_addr_lo;
-	u32 rxbd_addr_hi;
+	__le32 rxbd_addr_lo;
+	__le32 rxbd_addr_hi;
 	/* RX buffer descriptor ring count */
-	u32 rxbd_count;
+	__le32 rxbd_count;
 
 	/* Event buffer descriptor ring address */
-	u32 evtbd_addr_lo;
-	u32 evtbd_addr_hi;
+	__le32 evtbd_addr_lo;
+	__le32 evtbd_addr_hi;
 	/* Event buffer descriptor ring count */
-	u32 evtbd_count;
+	__le32 evtbd_count;
 
 	/* Sleep cookie buffer physical address */
-	u32 sleep_cookie_addr_lo;
-	u32 sleep_cookie_addr_hi;
+	__le32 sleep_cookie_addr_lo;
+	__le32 sleep_cookie_addr_hi;
 } __packed;
 
 struct mwifiex_ie_types_rssi_threshold {
@@ -2008,8 +2132,8 @@ struct mwifiex_ie_types_mc_group_info {
 	u8 chan_buf_weight;
 	u8 band_config;
 	u8 chan_num;
-	u32 chan_time;
-	u32 reserved;
+	__le32 chan_time;
+	__le32 reserved;
 	union {
 		u8 sdio_func_num;
 		u8 usb_ep_num;
@@ -2099,6 +2223,22 @@ struct host_cmd_ds_robust_coex {
 	__le16 reserved;
 } __packed;
 
+struct host_cmd_ds_wakeup_reason {
+	__le16  wakeup_reason;
+} __packed;
+
+struct host_cmd_ds_gtk_rekey_params {
+	__le16 action;
+	u8 kck[NL80211_KCK_LEN];
+	u8 kek[NL80211_KEK_LEN];
+	__le32 replay_ctr_low;
+	__le32 replay_ctr_high;
+} __packed;
+
+struct host_cmd_ds_chan_region_cfg {
+	__le16 action;
+} __packed;
+
 struct host_cmd_ds_command {
 	__le16 command;
 	__le16 size;
@@ -2124,6 +2264,7 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_802_11_scan scan;
 		struct host_cmd_ds_802_11_scan_ext ext_scan;
 		struct host_cmd_ds_802_11_scan_rsp scan_resp;
+		struct host_cmd_ds_802_11_bg_scan_config bg_scan_config;
 		struct host_cmd_ds_802_11_bg_scan_query bg_scan_query;
 		struct host_cmd_ds_802_11_bg_scan_query_rsp bg_scan_query_resp;
 		struct host_cmd_ds_802_11_associate associate;
@@ -2170,6 +2311,9 @@ struct host_cmd_ds_command {
 		struct host_cmd_sdio_sp_rx_aggr_cfg sdio_rx_aggr_cfg;
 		struct host_cmd_ds_multi_chan_policy mc_policy;
 		struct host_cmd_ds_robust_coex coex;
+		struct host_cmd_ds_wakeup_reason hs_wakeup_reason;
+		struct host_cmd_ds_gtk_rekey_params rekey;
+		struct host_cmd_ds_chan_region_cfg reg_cfg;
 	} params;
 } __packed;
 

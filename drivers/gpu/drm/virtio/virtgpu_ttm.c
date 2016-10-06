@@ -375,6 +375,12 @@ static int virtio_gpu_bo_move(struct ttm_buffer_object *bo,
 			      bool no_wait_gpu,
 			      struct ttm_mem_reg *new_mem)
 {
+	int ret;
+
+	ret = ttm_bo_wait(bo, interruptible, no_wait_gpu);
+	if (ret)
+		return ret;
+
 	virtio_gpu_move_null(bo, new_mem);
 	return 0;
 }
@@ -426,6 +432,8 @@ static struct ttm_bo_driver virtio_gpu_bo_driver = {
 	.io_mem_free = &virtio_gpu_ttm_io_mem_free,
 	.move_notify = &virtio_gpu_bo_move_notify,
 	.swap_notify = &virtio_gpu_bo_swap_notify,
+	.lru_tail = &ttm_bo_default_lru_tail,
+	.swap_lru_tail = &ttm_bo_default_swap_lru_tail,
 };
 
 int virtio_gpu_ttm_init(struct virtio_gpu_device *vgdev)

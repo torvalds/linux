@@ -16,6 +16,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/clk/mmp.h>
 
 #include "clk.h"
 
@@ -99,23 +100,19 @@ void __init mmp2_clk_init(phys_addr_t mpmu_phys, phys_addr_t apmu_phys,
 		return;
 	}
 
-	clk = clk_register_fixed_rate(NULL, "clk32", NULL, CLK_IS_ROOT, 3200);
+	clk = clk_register_fixed_rate(NULL, "clk32", NULL, 0, 3200);
 	clk_register_clkdev(clk, "clk32", NULL);
 
-	vctcxo = clk_register_fixed_rate(NULL, "vctcxo", NULL, CLK_IS_ROOT,
-				26000000);
+	vctcxo = clk_register_fixed_rate(NULL, "vctcxo", NULL, 0, 26000000);
 	clk_register_clkdev(vctcxo, "vctcxo", NULL);
 
-	clk = clk_register_fixed_rate(NULL, "pll1", NULL, CLK_IS_ROOT,
-				800000000);
+	clk = clk_register_fixed_rate(NULL, "pll1", NULL, 0, 800000000);
 	clk_register_clkdev(clk, "pll1", NULL);
 
-	clk = clk_register_fixed_rate(NULL, "usb_pll", NULL, CLK_IS_ROOT,
-				480000000);
+	clk = clk_register_fixed_rate(NULL, "usb_pll", NULL, 0, 480000000);
 	clk_register_clkdev(clk, "usb_pll", NULL);
 
-	clk = clk_register_fixed_rate(NULL, "pll2", NULL, CLK_IS_ROOT,
-				960000000);
+	clk = clk_register_fixed_rate(NULL, "pll2", NULL, 0, 960000000);
 	clk_register_clkdev(clk, "pll2", NULL);
 
 	clk = clk_register_fixed_factor(NULL, "pll1_2", "pll1",

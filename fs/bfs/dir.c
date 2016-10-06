@@ -70,7 +70,7 @@ static int bfs_readdir(struct file *f, struct dir_context *ctx)
 
 const struct file_operations bfs_dir_operations = {
 	.read		= generic_read_dir,
-	.iterate	= bfs_readdir,
+	.iterate_shared	= bfs_readdir,
 	.fsync		= generic_file_fsync,
 	.llseek		= generic_file_llseek,
 };

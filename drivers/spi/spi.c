@@ -37,6 +37,7 @@
 #include <linux/kthread.h>
 #include <linux/ioport.h>
 #include <linux/acpi.h>
+#include <linux/highmem.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/spi.h>
@@ -144,6 +145,8 @@ SPI_STATISTICS_TRANSFER_BYTES_HISTO(14, "16384-32767");
 SPI_STATISTICS_TRANSFER_BYTES_HISTO(15, "32768-65535");
 SPI_STATISTICS_TRANSFER_BYTES_HISTO(16, "65536+");
 
+SPI_STATISTICS_SHOW(transfers_split_maxsize, "%lu");
+
 static struct attribute *spi_dev_attrs[] = {
 	&dev_attr_modalias.attr,
 	NULL,
@@ -181,6 +184,7 @@ static struct attribute *spi_device_statistics_attrs[] = {
 	&dev_attr_spi_device_transfer_bytes_histo14.attr,
 	&dev_attr_spi_device_transfer_bytes_histo15.attr,
 	&dev_attr_spi_device_transfer_bytes_histo16.attr,
+	&dev_attr_spi_device_transfers_split_maxsize.attr,
 	NULL,
 };
 
@@ -223,6 +227,7 @@ static struct attribute *spi_master_statistics_attrs[] = {
 	&dev_attr_spi_master_transfer_bytes_histo14.attr,
 	&dev_attr_spi_master_transfer_bytes_histo15.attr,
 	&dev_attr_spi_master_transfer_bytes_histo16.attr,
+	&dev_attr_spi_master_transfers_split_maxsize.attr,
 	NULL,
 };
 
@@ -618,6 +623,8 @@ void spi_unregister_device(struct spi_device *spi)
 
 	if (spi->dev.of_node)
 		of_node_clear_flag(spi->dev.of_node, OF_POPULATED);
+	if (ACPI_COMPANION(&spi->dev))
+		acpi_device_clear_enumerated(ACPI_COMPANION(&spi->dev));
 	device_unregister(&spi->dev);
 }
 EXPORT_SYMBOL_GPL(spi_unregister_device);
@@ -702,6 +709,14 @@ static int spi_map_buf(struct spi_master *master, struct device *dev,
 		       enum dma_data_direction dir)
 {
 	const bool vmalloced_buf = is_vmalloc_addr(buf);
+	unsigned int max_seg_size = dma_get_max_seg_size(dev);
+#ifdef CONFIG_HIGHMEM
+	const bool kmap_buf = ((unsigned long)buf >= PKMAP_BASE &&
+				(unsigned long)buf < (PKMAP_BASE +
+					(LAST_PKMAP * PAGE_SIZE)));
+#else
+	const bool kmap_buf = false;
+#endif
 	int desc_len;
 	int sgs;
 	struct page *vm_page;
@@ -709,12 +724,14 @@ static int spi_map_buf(struct spi_master *master, struct device *dev,
 	size_t min;
 	int i, ret;
 
-	if (vmalloced_buf) {
-		desc_len = PAGE_SIZE;
+	if (vmalloced_buf || kmap_buf) {
+		desc_len = min_t(int, max_seg_size, PAGE_SIZE);
 		sgs = DIV_ROUND_UP(len + offset_in_page(buf), desc_len);
-	} else {
-		desc_len = master->max_dma_len;
+	} else if (virt_addr_valid(buf)) {
+		desc_len = min_t(int, max_seg_size, master->max_dma_len);
 		sgs = DIV_ROUND_UP(len, desc_len);
+	} else {
+		return -EINVAL;
 	}
 
 	ret = sg_alloc_table(sgt, sgs, GFP_KERNEL);
@@ -723,10 +740,13 @@ static int spi_map_buf(struct spi_master *master, struct device *dev,
 
 	for (i = 0; i < sgs; i++) {
 
-		if (vmalloced_buf) {
+		if (vmalloced_buf || kmap_buf) {
 			min = min_t(size_t,
 				    len, desc_len - offset_in_page(buf));
-			vm_page = vmalloc_to_page(buf);
+			if (vmalloced_buf)
+				vm_page = vmalloc_to_page(buf);
+			else
+				vm_page = kmap_to_page(buf);
 			if (!vm_page) {
 				sg_free_table(sgt);
 				return -ENOMEM;
@@ -738,7 +758,6 @@ static int spi_map_buf(struct spi_master *master, struct device *dev,
 			sg_buf = buf;
 			sg_set_buf(&sgt->sgl[i], sg_buf, min);
 		}
-
 
 		buf += min;
 		len -= min;
@@ -843,6 +862,20 @@ static int __spi_unmap_msg(struct spi_master *master, struct spi_message *msg)
 	return 0;
 }
 #else /* !CONFIG_HAS_DMA */
+static inline int spi_map_buf(struct spi_master *master,
+			      struct device *dev, struct sg_table *sgt,
+			      void *buf, size_t len,
+			      enum dma_data_direction dir)
+{
+	return -EINVAL;
+}
+
+static inline void spi_unmap_buf(struct spi_master *master,
+				 struct device *dev, struct sg_table *sgt,
+				 enum dma_data_direction dir)
+{
+}
+
 static inline int __spi_map_msg(struct spi_master *master,
 				struct spi_message *msg)
 {
@@ -929,7 +962,7 @@ static int spi_map_msg(struct spi_master *master, struct spi_message *msg)
  * spi_transfer_one_message - Default implementation of transfer_one_message()
  *
  * This is a standard implementation of transfer_one_message() for
- * drivers which impelment a transfer_one() operation.  It provides
+ * drivers which implement a transfer_one() operation.  It provides
  * standard handling of delays and chip select management.
  */
 static int spi_transfer_one_message(struct spi_master *master,
@@ -938,7 +971,7 @@ static int spi_transfer_one_message(struct spi_master *master,
 	struct spi_transfer *xfer;
 	bool keep_cs = false;
 	int ret = 0;
-	unsigned long ms = 1;
+	unsigned long long ms = 1;
 	struct spi_statistics *statm = &master->statistics;
 	struct spi_statistics *stats = &msg->spi->statistics;
 
@@ -969,8 +1002,12 @@ static int spi_transfer_one_message(struct spi_master *master,
 
 			if (ret > 0) {
 				ret = 0;
-				ms = xfer->len * 8 * 1000 / xfer->speed_hz;
+				ms = 8LL * 1000LL * xfer->len;
+				do_div(ms, xfer->speed_hz);
 				ms += ms + 100; /* some tolerance */
+
+				if (ms > UINT_MAX)
+					ms = UINT_MAX;
 
 				ms = wait_for_completion_timeout(&master->xfer_completion,
 								 msecs_to_jiffies(ms));
@@ -1023,6 +1060,8 @@ out:
 
 	if (msg->status && master->handle_err)
 		master->handle_err(master, msg);
+
+	spi_res_release(master, msg);
 
 	spi_finalize_current_message(master);
 
@@ -1128,11 +1167,14 @@ static void __spi_pump_messages(struct spi_master *master, bool in_kthread)
 		master->busy = true;
 	spin_unlock_irqrestore(&master->queue_lock, flags);
 
+	mutex_lock(&master->io_mutex);
+
 	if (!was_busy && master->auto_runtime_pm) {
 		ret = pm_runtime_get_sync(master->dev.parent);
 		if (ret < 0) {
 			dev_err(&master->dev, "Failed to power device: %d\n",
 				ret);
+			mutex_unlock(&master->io_mutex);
 			return;
 		}
 	}
@@ -1148,6 +1190,7 @@ static void __spi_pump_messages(struct spi_master *master, bool in_kthread)
 
 			if (master->auto_runtime_pm)
 				pm_runtime_put(master->dev.parent);
+			mutex_unlock(&master->io_mutex);
 			return;
 		}
 	}
@@ -1161,7 +1204,7 @@ static void __spi_pump_messages(struct spi_master *master, bool in_kthread)
 				"failed to prepare message: %d\n", ret);
 			master->cur_msg->status = ret;
 			spi_finalize_current_message(master);
-			return;
+			goto out;
 		}
 		master->cur_msg_prepared = true;
 	}
@@ -1170,15 +1213,22 @@ static void __spi_pump_messages(struct spi_master *master, bool in_kthread)
 	if (ret) {
 		master->cur_msg->status = ret;
 		spi_finalize_current_message(master);
-		return;
+		goto out;
 	}
 
 	ret = master->transfer_one_message(master, master->cur_msg);
 	if (ret) {
 		dev_err(&master->dev,
 			"failed to transfer one message from queue\n");
-		return;
+		goto out;
 	}
+
+out:
+	mutex_unlock(&master->io_mutex);
+
+	/* Prod the scheduler in case transfer_one() was busy waiting */
+	if (!ret)
+		cond_resched();
 }
 
 /**
@@ -1581,13 +1631,30 @@ static void of_register_spi_devices(struct spi_master *master) { }
 static int acpi_spi_add_resource(struct acpi_resource *ares, void *data)
 {
 	struct spi_device *spi = data;
+	struct spi_master *master = spi->master;
 
 	if (ares->type == ACPI_RESOURCE_TYPE_SERIAL_BUS) {
 		struct acpi_resource_spi_serialbus *sb;
 
 		sb = &ares->data.spi_serial_bus;
 		if (sb->type == ACPI_RESOURCE_SERIAL_TYPE_SPI) {
-			spi->chip_select = sb->device_selection;
+			/*
+			 * ACPI DeviceSelection numbering is handled by the
+			 * host controller driver in Windows and can vary
+			 * from driver to driver. In Linux we always expect
+			 * 0 .. max - 1 so we need to ask the driver to
+			 * translate between the two schemes.
+			 */
+			if (master->fw_translate_cs) {
+				int cs = master->fw_translate_cs(master,
+						sb->device_selection);
+				if (cs < 0)
+					return cs;
+				spi->chip_select = cs;
+			} else {
+				spi->chip_select = sb->device_selection;
+			}
+
 			spi->max_speed_hz = sb->connection_speed;
 
 			if (sb->clock_phase == ACPI_SPI_SECOND_PHASE)
@@ -1608,18 +1675,15 @@ static int acpi_spi_add_resource(struct acpi_resource *ares, void *data)
 	return 1;
 }
 
-static acpi_status acpi_spi_add_device(acpi_handle handle, u32 level,
-				       void *data, void **return_value)
+static acpi_status acpi_register_spi_device(struct spi_master *master,
+					    struct acpi_device *adev)
 {
-	struct spi_master *master = data;
 	struct list_head resource_list;
-	struct acpi_device *adev;
 	struct spi_device *spi;
 	int ret;
 
-	if (acpi_bus_get_device(handle, &adev))
-		return AE_OK;
-	if (acpi_bus_get_status(adev) || !adev->status.present)
+	if (acpi_bus_get_status(adev) || !adev->status.present ||
+	    acpi_device_enumerated(adev))
 		return AE_OK;
 
 	spi = spi_alloc_device(master);
@@ -1645,6 +1709,8 @@ static acpi_status acpi_spi_add_device(acpi_handle handle, u32 level,
 	if (spi->irq < 0)
 		spi->irq = acpi_dev_gpio_irq_get(adev, 0);
 
+	acpi_device_set_enumerated(adev);
+
 	adev->power.flags.ignore_parent = true;
 	strlcpy(spi->modalias, acpi_device_hid(adev), sizeof(spi->modalias));
 	if (spi_add_device(spi)) {
@@ -1655,6 +1721,18 @@ static acpi_status acpi_spi_add_device(acpi_handle handle, u32 level,
 	}
 
 	return AE_OK;
+}
+
+static acpi_status acpi_spi_add_device(acpi_handle handle, u32 level,
+				       void *data, void **return_value)
+{
+	struct spi_master *master = data;
+	struct acpi_device *adev;
+
+	if (acpi_bus_get_device(handle, &adev))
+		return AE_OK;
+
+	return acpi_register_spi_device(master, adev);
 }
 
 static void acpi_register_spi_devices(struct spi_master *master)
@@ -1728,6 +1806,7 @@ struct spi_master *spi_alloc_master(struct device *dev, unsigned size)
 	master->num_chipselect = 1;
 	master->dev.class = &spi_master_class;
 	master->dev.parent = dev;
+	pm_suspend_ignore_children(&master->dev, true);
 	spi_master_set_devdata(master, &master[1]);
 
 	return master;
@@ -1834,6 +1913,7 @@ int spi_register_master(struct spi_master *master)
 	spin_lock_init(&master->queue_lock);
 	spin_lock_init(&master->bus_lock_spinlock);
 	mutex_init(&master->bus_lock_mutex);
+	mutex_init(&master->io_mutex);
 	master->bus_lock_flag = 0;
 	init_completion(&master->xfer_completion);
 	if (!master->max_dma_len)
@@ -2013,6 +2093,336 @@ struct spi_master *spi_busnum_to_master(u16 bus_num)
 }
 EXPORT_SYMBOL_GPL(spi_busnum_to_master);
 
+/*-------------------------------------------------------------------------*/
+
+/* Core methods for SPI resource management */
+
+/**
+ * spi_res_alloc - allocate a spi resource that is life-cycle managed
+ *                 during the processing of a spi_message while using
+ *                 spi_transfer_one
+ * @spi:     the spi device for which we allocate memory
+ * @release: the release code to execute for this resource
+ * @size:    size to alloc and return
+ * @gfp:     GFP allocation flags
+ *
+ * Return: the pointer to the allocated data
+ *
+ * This may get enhanced in the future to allocate from a memory pool
+ * of the @spi_device or @spi_master to avoid repeated allocations.
+ */
+void *spi_res_alloc(struct spi_device *spi,
+		    spi_res_release_t release,
+		    size_t size, gfp_t gfp)
+{
+	struct spi_res *sres;
+
+	sres = kzalloc(sizeof(*sres) + size, gfp);
+	if (!sres)
+		return NULL;
+
+	INIT_LIST_HEAD(&sres->entry);
+	sres->release = release;
+
+	return sres->data;
+}
+EXPORT_SYMBOL_GPL(spi_res_alloc);
+
+/**
+ * spi_res_free - free an spi resource
+ * @res: pointer to the custom data of a resource
+ *
+ */
+void spi_res_free(void *res)
+{
+	struct spi_res *sres = container_of(res, struct spi_res, data);
+
+	if (!res)
+		return;
+
+	WARN_ON(!list_empty(&sres->entry));
+	kfree(sres);
+}
+EXPORT_SYMBOL_GPL(spi_res_free);
+
+/**
+ * spi_res_add - add a spi_res to the spi_message
+ * @message: the spi message
+ * @res:     the spi_resource
+ */
+void spi_res_add(struct spi_message *message, void *res)
+{
+	struct spi_res *sres = container_of(res, struct spi_res, data);
+
+	WARN_ON(!list_empty(&sres->entry));
+	list_add_tail(&sres->entry, &message->resources);
+}
+EXPORT_SYMBOL_GPL(spi_res_add);
+
+/**
+ * spi_res_release - release all spi resources for this message
+ * @master:  the @spi_master
+ * @message: the @spi_message
+ */
+void spi_res_release(struct spi_master *master,
+		     struct spi_message *message)
+{
+	struct spi_res *res;
+
+	while (!list_empty(&message->resources)) {
+		res = list_last_entry(&message->resources,
+				      struct spi_res, entry);
+
+		if (res->release)
+			res->release(master, message, res->data);
+
+		list_del(&res->entry);
+
+		kfree(res);
+	}
+}
+EXPORT_SYMBOL_GPL(spi_res_release);
+
+/*-------------------------------------------------------------------------*/
+
+/* Core methods for spi_message alterations */
+
+static void __spi_replace_transfers_release(struct spi_master *master,
+					    struct spi_message *msg,
+					    void *res)
+{
+	struct spi_replaced_transfers *rxfer = res;
+	size_t i;
+
+	/* call extra callback if requested */
+	if (rxfer->release)
+		rxfer->release(master, msg, res);
+
+	/* insert replaced transfers back into the message */
+	list_splice(&rxfer->replaced_transfers, rxfer->replaced_after);
+
+	/* remove the formerly inserted entries */
+	for (i = 0; i < rxfer->inserted; i++)
+		list_del(&rxfer->inserted_transfers[i].transfer_list);
+}
+
+/**
+ * spi_replace_transfers - replace transfers with several transfers
+ *                         and register change with spi_message.resources
+ * @msg:           the spi_message we work upon
+ * @xfer_first:    the first spi_transfer we want to replace
+ * @remove:        number of transfers to remove
+ * @insert:        the number of transfers we want to insert instead
+ * @release:       extra release code necessary in some circumstances
+ * @extradatasize: extra data to allocate (with alignment guarantees
+ *                 of struct @spi_transfer)
+ * @gfp:           gfp flags
+ *
+ * Returns: pointer to @spi_replaced_transfers,
+ *          PTR_ERR(...) in case of errors.
+ */
+struct spi_replaced_transfers *spi_replace_transfers(
+	struct spi_message *msg,
+	struct spi_transfer *xfer_first,
+	size_t remove,
+	size_t insert,
+	spi_replaced_release_t release,
+	size_t extradatasize,
+	gfp_t gfp)
+{
+	struct spi_replaced_transfers *rxfer;
+	struct spi_transfer *xfer;
+	size_t i;
+
+	/* allocate the structure using spi_res */
+	rxfer = spi_res_alloc(msg->spi, __spi_replace_transfers_release,
+			      insert * sizeof(struct spi_transfer)
+			      + sizeof(struct spi_replaced_transfers)
+			      + extradatasize,
+			      gfp);
+	if (!rxfer)
+		return ERR_PTR(-ENOMEM);
+
+	/* the release code to invoke before running the generic release */
+	rxfer->release = release;
+
+	/* assign extradata */
+	if (extradatasize)
+		rxfer->extradata =
+			&rxfer->inserted_transfers[insert];
+
+	/* init the replaced_transfers list */
+	INIT_LIST_HEAD(&rxfer->replaced_transfers);
+
+	/* assign the list_entry after which we should reinsert
+	 * the @replaced_transfers - it may be spi_message.messages!
+	 */
+	rxfer->replaced_after = xfer_first->transfer_list.prev;
+
+	/* remove the requested number of transfers */
+	for (i = 0; i < remove; i++) {
+		/* if the entry after replaced_after it is msg->transfers
+		 * then we have been requested to remove more transfers
+		 * than are in the list
+		 */
+		if (rxfer->replaced_after->next == &msg->transfers) {
+			dev_err(&msg->spi->dev,
+				"requested to remove more spi_transfers than are available\n");
+			/* insert replaced transfers back into the message */
+			list_splice(&rxfer->replaced_transfers,
+				    rxfer->replaced_after);
+
+			/* free the spi_replace_transfer structure */
+			spi_res_free(rxfer);
+
+			/* and return with an error */
+			return ERR_PTR(-EINVAL);
+		}
+
+		/* remove the entry after replaced_after from list of
+		 * transfers and add it to list of replaced_transfers
+		 */
+		list_move_tail(rxfer->replaced_after->next,
+			       &rxfer->replaced_transfers);
+	}
+
+	/* create copy of the given xfer with identical settings
+	 * based on the first transfer to get removed
+	 */
+	for (i = 0; i < insert; i++) {
+		/* we need to run in reverse order */
+		xfer = &rxfer->inserted_transfers[insert - 1 - i];
+
+		/* copy all spi_transfer data */
+		memcpy(xfer, xfer_first, sizeof(*xfer));
+
+		/* add to list */
+		list_add(&xfer->transfer_list, rxfer->replaced_after);
+
+		/* clear cs_change and delay_usecs for all but the last */
+		if (i) {
+			xfer->cs_change = false;
+			xfer->delay_usecs = 0;
+		}
+	}
+
+	/* set up inserted */
+	rxfer->inserted = insert;
+
+	/* and register it with spi_res/spi_message */
+	spi_res_add(msg, rxfer);
+
+	return rxfer;
+}
+EXPORT_SYMBOL_GPL(spi_replace_transfers);
+
+static int __spi_split_transfer_maxsize(struct spi_master *master,
+					struct spi_message *msg,
+					struct spi_transfer **xferp,
+					size_t maxsize,
+					gfp_t gfp)
+{
+	struct spi_transfer *xfer = *xferp, *xfers;
+	struct spi_replaced_transfers *srt;
+	size_t offset;
+	size_t count, i;
+
+	/* warn once about this fact that we are splitting a transfer */
+	dev_warn_once(&msg->spi->dev,
+		      "spi_transfer of length %i exceed max length of %zu - needed to split transfers\n",
+		      xfer->len, maxsize);
+
+	/* calculate how many we have to replace */
+	count = DIV_ROUND_UP(xfer->len, maxsize);
+
+	/* create replacement */
+	srt = spi_replace_transfers(msg, xfer, 1, count, NULL, 0, gfp);
+	if (IS_ERR(srt))
+		return PTR_ERR(srt);
+	xfers = srt->inserted_transfers;
+
+	/* now handle each of those newly inserted spi_transfers
+	 * note that the replacements spi_transfers all are preset
+	 * to the same values as *xferp, so tx_buf, rx_buf and len
+	 * are all identical (as well as most others)
+	 * so we just have to fix up len and the pointers.
+	 *
+	 * this also includes support for the depreciated
+	 * spi_message.is_dma_mapped interface
+	 */
+
+	/* the first transfer just needs the length modified, so we
+	 * run it outside the loop
+	 */
+	xfers[0].len = min_t(size_t, maxsize, xfer[0].len);
+
+	/* all the others need rx_buf/tx_buf also set */
+	for (i = 1, offset = maxsize; i < count; offset += maxsize, i++) {
+		/* update rx_buf, tx_buf and dma */
+		if (xfers[i].rx_buf)
+			xfers[i].rx_buf += offset;
+		if (xfers[i].rx_dma)
+			xfers[i].rx_dma += offset;
+		if (xfers[i].tx_buf)
+			xfers[i].tx_buf += offset;
+		if (xfers[i].tx_dma)
+			xfers[i].tx_dma += offset;
+
+		/* update length */
+		xfers[i].len = min(maxsize, xfers[i].len - offset);
+	}
+
+	/* we set up xferp to the last entry we have inserted,
+	 * so that we skip those already split transfers
+	 */
+	*xferp = &xfers[count - 1];
+
+	/* increment statistics counters */
+	SPI_STATISTICS_INCREMENT_FIELD(&master->statistics,
+				       transfers_split_maxsize);
+	SPI_STATISTICS_INCREMENT_FIELD(&msg->spi->statistics,
+				       transfers_split_maxsize);
+
+	return 0;
+}
+
+/**
+ * spi_split_tranfers_maxsize - split spi transfers into multiple transfers
+ *                              when an individual transfer exceeds a
+ *                              certain size
+ * @master:    the @spi_master for this transfer
+ * @msg:   the @spi_message to transform
+ * @maxsize:  the maximum when to apply this
+ * @gfp: GFP allocation flags
+ *
+ * Return: status of transformation
+ */
+int spi_split_transfers_maxsize(struct spi_master *master,
+				struct spi_message *msg,
+				size_t maxsize,
+				gfp_t gfp)
+{
+	struct spi_transfer *xfer;
+	int ret;
+
+	/* iterate over the transfer_list,
+	 * but note that xfer is advanced to the last transfer inserted
+	 * to avoid checking sizes again unnecessarily (also xfer does
+	 * potentiall belong to a different list by the time the
+	 * replacement has happened
+	 */
+	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+		if (xfer->len > maxsize) {
+			ret = __spi_split_transfer_maxsize(
+				master, msg, &xfer, maxsize, gfp);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(spi_split_transfers_maxsize);
 
 /*-------------------------------------------------------------------------*/
 
@@ -2351,6 +2761,62 @@ int spi_async_locked(struct spi_device *spi, struct spi_message *message)
 EXPORT_SYMBOL_GPL(spi_async_locked);
 
 
+int spi_flash_read(struct spi_device *spi,
+		   struct spi_flash_read_message *msg)
+
+{
+	struct spi_master *master = spi->master;
+	struct device *rx_dev = NULL;
+	int ret;
+
+	if ((msg->opcode_nbits == SPI_NBITS_DUAL ||
+	     msg->addr_nbits == SPI_NBITS_DUAL) &&
+	    !(spi->mode & (SPI_TX_DUAL | SPI_TX_QUAD)))
+		return -EINVAL;
+	if ((msg->opcode_nbits == SPI_NBITS_QUAD ||
+	     msg->addr_nbits == SPI_NBITS_QUAD) &&
+	    !(spi->mode & SPI_TX_QUAD))
+		return -EINVAL;
+	if (msg->data_nbits == SPI_NBITS_DUAL &&
+	    !(spi->mode & (SPI_RX_DUAL | SPI_RX_QUAD)))
+		return -EINVAL;
+	if (msg->data_nbits == SPI_NBITS_QUAD &&
+	    !(spi->mode &  SPI_RX_QUAD))
+		return -EINVAL;
+
+	if (master->auto_runtime_pm) {
+		ret = pm_runtime_get_sync(master->dev.parent);
+		if (ret < 0) {
+			dev_err(&master->dev, "Failed to power device: %d\n",
+				ret);
+			return ret;
+		}
+	}
+
+	mutex_lock(&master->bus_lock_mutex);
+	mutex_lock(&master->io_mutex);
+	if (master->dma_rx) {
+		rx_dev = master->dma_rx->device->dev;
+		ret = spi_map_buf(master, rx_dev, &msg->rx_sg,
+				  msg->buf, msg->len,
+				  DMA_FROM_DEVICE);
+		if (!ret)
+			msg->cur_msg_mapped = true;
+	}
+	ret = master->spi_flash_read(spi, msg);
+	if (msg->cur_msg_mapped)
+		spi_unmap_buf(master, rx_dev, &msg->rx_sg,
+			      DMA_FROM_DEVICE);
+	mutex_unlock(&master->io_mutex);
+	mutex_unlock(&master->bus_lock_mutex);
+
+	if (master->auto_runtime_pm)
+		pm_runtime_put(master->dev.parent);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(spi_flash_read);
+
 /*-------------------------------------------------------------------------*/
 
 /* Utility methods for SPI master protocol drivers, layered on
@@ -2363,8 +2829,7 @@ static void spi_complete(void *arg)
 	complete(arg);
 }
 
-static int __spi_sync(struct spi_device *spi, struct spi_message *message,
-		      int bus_locked)
+static int __spi_sync(struct spi_device *spi, struct spi_message *message)
 {
 	DECLARE_COMPLETION_ONSTACK(done);
 	int status;
@@ -2382,9 +2847,6 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message,
 	SPI_STATISTICS_INCREMENT_FIELD(&master->statistics, spi_sync);
 	SPI_STATISTICS_INCREMENT_FIELD(&spi->statistics, spi_sync);
 
-	if (!bus_locked)
-		mutex_lock(&master->bus_lock_mutex);
-
 	/* If we're not using the legacy transfer method then we will
 	 * try to transfer in the calling context so special case.
 	 * This code would be less tricky if we could remove the
@@ -2401,9 +2863,6 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message,
 	} else {
 		status = spi_async_locked(spi, message);
 	}
-
-	if (!bus_locked)
-		mutex_unlock(&master->bus_lock_mutex);
 
 	if (status == 0) {
 		/* Push out the messages in the calling context if we
@@ -2447,7 +2906,13 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message,
  */
 int spi_sync(struct spi_device *spi, struct spi_message *message)
 {
-	return __spi_sync(spi, message, 0);
+	int ret;
+
+	mutex_lock(&spi->master->bus_lock_mutex);
+	ret = __spi_sync(spi, message);
+	mutex_unlock(&spi->master->bus_lock_mutex);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(spi_sync);
 
@@ -2469,7 +2934,7 @@ EXPORT_SYMBOL_GPL(spi_sync);
  */
 int spi_sync_locked(struct spi_device *spi, struct spi_message *message)
 {
-	return __spi_sync(spi, message, 1);
+	return __spi_sync(spi, message);
 }
 EXPORT_SYMBOL_GPL(spi_sync_locked);
 
@@ -2698,6 +3163,77 @@ static struct notifier_block spi_of_notifier = {
 extern struct notifier_block spi_of_notifier;
 #endif /* IS_ENABLED(CONFIG_OF_DYNAMIC) */
 
+#if IS_ENABLED(CONFIG_ACPI)
+static int spi_acpi_master_match(struct device *dev, const void *data)
+{
+	return ACPI_COMPANION(dev->parent) == data;
+}
+
+static int spi_acpi_device_match(struct device *dev, void *data)
+{
+	return ACPI_COMPANION(dev) == data;
+}
+
+static struct spi_master *acpi_spi_find_master_by_adev(struct acpi_device *adev)
+{
+	struct device *dev;
+
+	dev = class_find_device(&spi_master_class, NULL, adev,
+				spi_acpi_master_match);
+	if (!dev)
+		return NULL;
+
+	return container_of(dev, struct spi_master, dev);
+}
+
+static struct spi_device *acpi_spi_find_device_by_adev(struct acpi_device *adev)
+{
+	struct device *dev;
+
+	dev = bus_find_device(&spi_bus_type, NULL, adev, spi_acpi_device_match);
+
+	return dev ? to_spi_device(dev) : NULL;
+}
+
+static int acpi_spi_notify(struct notifier_block *nb, unsigned long value,
+			   void *arg)
+{
+	struct acpi_device *adev = arg;
+	struct spi_master *master;
+	struct spi_device *spi;
+
+	switch (value) {
+	case ACPI_RECONFIG_DEVICE_ADD:
+		master = acpi_spi_find_master_by_adev(adev->parent);
+		if (!master)
+			break;
+
+		acpi_register_spi_device(master, adev);
+		put_device(&master->dev);
+		break;
+	case ACPI_RECONFIG_DEVICE_REMOVE:
+		if (!acpi_device_enumerated(adev))
+			break;
+
+		spi = acpi_spi_find_device_by_adev(adev);
+		if (!spi)
+			break;
+
+		spi_unregister_device(spi);
+		put_device(&spi->dev);
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block spi_acpi_notifier = {
+	.notifier_call = acpi_spi_notify,
+};
+#else
+extern struct notifier_block spi_acpi_notifier;
+#endif
+
 static int __init spi_init(void)
 {
 	int	status;
@@ -2718,6 +3254,8 @@ static int __init spi_init(void)
 
 	if (IS_ENABLED(CONFIG_OF_DYNAMIC))
 		WARN_ON(of_reconfig_notifier_register(&spi_of_notifier));
+	if (IS_ENABLED(CONFIG_ACPI))
+		WARN_ON(acpi_reconfig_notifier_register(&spi_acpi_notifier));
 
 	return 0;
 

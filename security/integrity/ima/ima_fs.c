@@ -22,6 +22,7 @@
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
 #include <linux/parser.h>
+#include <linux/vmalloc.h>
 
 #include "ima.h"
 
@@ -122,7 +123,6 @@ static int ima_measurements_show(struct seq_file *m, void *v)
 	struct ima_template_entry *e;
 	char *template_name;
 	int namelen;
-	u32 pcr = CONFIG_IMA_MEASURE_PCR_IDX;
 	bool is_ima_template = false;
 	int i;
 
@@ -136,10 +136,10 @@ static int ima_measurements_show(struct seq_file *m, void *v)
 
 	/*
 	 * 1st: PCRIndex
-	 * PCR used is always the same (config option) in
-	 * little-endian format
+	 * PCR used defaults to the same (config option) in
+	 * little-endian format, unless set in policy
 	 */
-	ima_putc(m, &pcr, sizeof(pcr));
+	ima_putc(m, &e->pcr, sizeof(e->pcr));
 
 	/* 2nd: template digest */
 	ima_putc(m, e->digest, TPM_DIGEST_SIZE);
@@ -218,7 +218,7 @@ static int ima_ascii_measurements_show(struct seq_file *m, void *v)
 	    e->template_desc->name : e->template_desc->fmt;
 
 	/* 1st: PCR used (config option) */
-	seq_printf(m, "%2d ", CONFIG_IMA_MEASURE_PCR_IDX);
+	seq_printf(m, "%2d ", e->pcr);
 
 	/* 2nd: SHA1 template hash */
 	ima_print_digest(m, e->digest, TPM_DIGEST_SIZE);
@@ -258,6 +258,43 @@ static const struct file_operations ima_ascii_measurements_ops = {
 	.release = seq_release,
 };
 
+static ssize_t ima_read_policy(char *path)
+{
+	void *data;
+	char *datap;
+	loff_t size;
+	int rc, pathlen = strlen(path);
+
+	char *p;
+
+	/* remove \n */
+	datap = path;
+	strsep(&datap, "\n");
+
+	rc = kernel_read_file_from_path(path, &data, &size, 0, READING_POLICY);
+	if (rc < 0) {
+		pr_err("Unable to open file: %s (%d)", path, rc);
+		return rc;
+	}
+
+	datap = data;
+	while (size > 0 && (p = strsep(&datap, "\n"))) {
+		pr_debug("rule: %s\n", p);
+		rc = ima_parse_add_rule(p);
+		if (rc < 0)
+			break;
+		size -= rc;
+	}
+
+	vfree(data);
+	if (rc < 0)
+		return rc;
+	else if (size)
+		return -EINVAL;
+	else
+		return pathlen;
+}
+
 static ssize_t ima_write_policy(struct file *file, const char __user *buf,
 				size_t datalen, loff_t *ppos)
 {
@@ -286,9 +323,20 @@ static ssize_t ima_write_policy(struct file *file, const char __user *buf,
 	result = mutex_lock_interruptible(&ima_write_mutex);
 	if (result < 0)
 		goto out_free;
-	result = ima_parse_add_rule(data);
-	mutex_unlock(&ima_write_mutex);
 
+	if (data[0] == '/') {
+		result = ima_read_policy(data);
+	} else if (ima_appraise & IMA_APPRAISE_POLICY) {
+		pr_err("IMA: signed policy file (specified as an absolute pathname) required\n");
+		integrity_audit_msg(AUDIT_INTEGRITY_STATUS, NULL, NULL,
+				    "policy_update", "signed policy required",
+				    1, 0);
+		if (ima_appraise & IMA_APPRAISE_ENFORCE)
+			result = -EACCES;
+	} else {
+		result = ima_parse_add_rule(data);
+	}
+	mutex_unlock(&ima_write_mutex);
 out_free:
 	kfree(data);
 out:

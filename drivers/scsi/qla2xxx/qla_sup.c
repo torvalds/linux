@@ -610,8 +610,8 @@ qla2xxx_find_flt_start(scsi_qla_host_t *vha, uint32_t *start)
 
 	wptr = (uint16_t *)req->ring;
 	cnt = sizeof(struct qla_flt_location) >> 1;
-	for (chksum = 0; cnt; cnt--)
-		chksum += le16_to_cpu(*wptr++);
+	for (chksum = 0; cnt--; wptr++)
+		chksum += le16_to_cpu(*wptr);
 	if (chksum) {
 		ql_log(ql_log_fatal, vha, 0x0045,
 		    "Inconsistent FLTL detected: checksum=0x%x.\n", chksum);
@@ -702,8 +702,8 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 	}
 
 	cnt = (sizeof(struct qla_flt_header) + le16_to_cpu(flt->length)) >> 1;
-	for (chksum = 0; cnt; cnt--)
-		chksum += le16_to_cpu(*wptr++);
+	for (chksum = 0; cnt--; wptr++)
+		chksum += le16_to_cpu(*wptr);
 	if (chksum) {
 		ql_log(ql_log_fatal, vha, 0x0048,
 		    "Inconsistent FLT detected: version=0x%x length=0x%x checksum=0x%x.\n",
@@ -846,6 +846,38 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 			if (ha->port_no == 1)
 				ha->flt_region_nvram = start;
 			break;
+		case FLT_REG_IMG_PRI_27XX:
+			if (IS_QLA27XX(ha))
+				ha->flt_region_img_status_pri = start;
+			break;
+		case FLT_REG_IMG_SEC_27XX:
+			if (IS_QLA27XX(ha))
+				ha->flt_region_img_status_sec = start;
+			break;
+		case FLT_REG_FW_SEC_27XX:
+			if (IS_QLA27XX(ha))
+				ha->flt_region_fw_sec = start;
+			break;
+		case FLT_REG_BOOTLOAD_SEC_27XX:
+			if (IS_QLA27XX(ha))
+				ha->flt_region_boot_sec = start;
+			break;
+		case FLT_REG_VPD_SEC_27XX_0:
+			if (IS_QLA27XX(ha))
+				ha->flt_region_vpd_sec = start;
+			break;
+		case FLT_REG_VPD_SEC_27XX_1:
+			if (IS_QLA27XX(ha))
+				ha->flt_region_vpd_sec = start;
+			break;
+		case FLT_REG_VPD_SEC_27XX_2:
+			if (IS_QLA27XX(ha))
+				ha->flt_region_vpd_sec = start;
+			break;
+		case FLT_REG_VPD_SEC_27XX_3:
+			if (IS_QLA27XX(ha))
+				ha->flt_region_vpd_sec = start;
+			break;
 		}
 	}
 	goto done;
@@ -898,9 +930,8 @@ qla2xxx_get_fdt_info(scsi_qla_host_t *vha)
 	    fdt->sig[3] != 'D')
 		goto no_flash_data;
 
-	for (cnt = 0, chksum = 0; cnt < sizeof(struct qla_fdt_layout) >> 1;
-	    cnt++)
-		chksum += le16_to_cpu(*wptr++);
+	for (cnt = 0, chksum = 0; cnt < sizeof(*fdt) >> 1; cnt++, wptr++)
+		chksum += le16_to_cpu(*wptr);
 	if (chksum) {
 		ql_dbg(ql_dbg_init, vha, 0x004c,
 		    "Inconsistent FDT detected:"
@@ -995,7 +1026,8 @@ qla2xxx_get_idc_param(scsi_qla_host_t *vha)
 		ha->fcoe_dev_init_timeout = QLA82XX_ROM_DEV_INIT_TIMEOUT;
 		ha->fcoe_reset_timeout = QLA82XX_ROM_DRV_RESET_ACK_TIMEOUT;
 	} else {
-		ha->fcoe_dev_init_timeout = le32_to_cpu(*wptr++);
+		ha->fcoe_dev_init_timeout = le32_to_cpu(*wptr);
+		wptr++;
 		ha->fcoe_reset_timeout = le32_to_cpu(*wptr);
 	}
 	ql_dbg(ql_dbg_init, vha, 0x004e,
@@ -1072,10 +1104,9 @@ qla2xxx_flash_npiv_conf(scsi_qla_host_t *vha)
 	ha->isp_ops->read_optrom(vha, (uint8_t *)data,
 	    ha->flt_region_npiv_conf << 2, NPIV_CONFIG_SIZE);
 
-	cnt = (sizeof(struct qla_npiv_header) + le16_to_cpu(hdr.entries) *
-	    sizeof(struct qla_npiv_entry)) >> 1;
-	for (wptr = data, chksum = 0; cnt; cnt--)
-		chksum += le16_to_cpu(*wptr++);
+	cnt = (sizeof(hdr) + le16_to_cpu(hdr.entries) * sizeof(*entry)) >> 1;
+	for (wptr = data, chksum = 0; cnt--; wptr++)
+		chksum += le16_to_cpu(*wptr);
 	if (chksum) {
 		ql_dbg(ql_dbg_user, vha, 0x7092,
 		    "Inconsistent NPIV-Config "
@@ -2989,6 +3020,9 @@ qla24xx_get_flash_version(scsi_qla_host_t *vha, void *mbuf)
 	uint8_t code_type, last_image;
 	int i;
 	struct qla_hw_data *ha = vha->hw;
+	uint32_t faddr = 0;
+
+	pcihdr = pcids = 0;
 
 	if (IS_P3P_TYPE(ha))
 		return ret;
@@ -3002,9 +3036,11 @@ qla24xx_get_flash_version(scsi_qla_host_t *vha, void *mbuf)
 	memset(ha->fw_revision, 0, sizeof(ha->fw_revision));
 
 	dcode = mbuf;
-
-	/* Begin with first PCI expansion ROM header. */
 	pcihdr = ha->flt_region_boot << 2;
+	if (IS_QLA27XX(ha) &&
+	    qla27xx_find_valid_image(vha) == QLA27XX_SECONDARY_IMAGE)
+		pcihdr = ha->flt_region_boot_sec << 2;
+
 	last_image = 1;
 	do {
 		/* Verify PCI expansion ROM header. */
@@ -3077,8 +3113,12 @@ qla24xx_get_flash_version(scsi_qla_host_t *vha, void *mbuf)
 	/* Read firmware image information. */
 	memset(ha->fw_revision, 0, sizeof(ha->fw_revision));
 	dcode = mbuf;
+	faddr = ha->flt_region_fw;
+	if (IS_QLA27XX(ha) &&
+	    qla27xx_find_valid_image(vha) == QLA27XX_SECONDARY_IMAGE)
+		faddr = ha->flt_region_fw_sec;
 
-	qla24xx_read_flash_data(vha, dcode, ha->flt_region_fw + 4, 4);
+	qla24xx_read_flash_data(vha, dcode, faddr + 4, 4);
 	for (i = 0; i < 4; i++)
 		dcode[i] = be32_to_cpu(dcode[i]);
 
@@ -3182,7 +3222,7 @@ qla24xx_read_fcp_prio_cfg(scsi_qla_host_t *vha)
 		ha->fcp_prio_cfg = vmalloc(FCP_PRIO_CFG_SIZE);
 		if (!ha->fcp_prio_cfg) {
 			ql_log(ql_log_warn, vha, 0x00d5,
-			    "Unable to allocate memory for fcp priorty data (%x).\n",
+			    "Unable to allocate memory for fcp priority data (%x).\n",
 			    FCP_PRIO_CFG_SIZE);
 			return QLA_FUNCTION_FAILED;
 		}

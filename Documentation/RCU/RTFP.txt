@@ -176,13 +176,13 @@ a history of how Linux changed RCU more than RCU changed Linux
 which Mathieu Desnoyers is now maintaining [MathieuDesnoyers2009URCU]
 [MathieuDesnoyersPhD].  TINY_RCU [PaulEMcKenney2009BloatWatchRCU] made
 its appearance, as did expedited RCU [PaulEMcKenney2009expeditedRCU].
-The problem of resizeable RCU-protected hash tables may now be on a path
+The problem of resizable RCU-protected hash tables may now be on a path
 to a solution [JoshTriplett2009RPHash].  A few academic researchers are now
 using RCU to solve their parallel problems [HariKannan2009DynamicAnalysisRCU].
 
 2010 produced a simpler preemptible-RCU implementation
 based on TREE_RCU [PaulEMcKenney2010SimpleOptRCU], lockdep-RCU
-[PaulEMcKenney2010LockdepRCU], another resizeable RCU-protected hash
+[PaulEMcKenney2010LockdepRCU], another resizable RCU-protected hash
 table [HerbertXu2010RCUResizeHash] (this one consuming more memory,
 but allowing arbitrary changes in hash function, as required for DoS
 avoidance in the networking code), realization of the 2009 RCU-protected
@@ -193,7 +193,7 @@ the RCU API [PaulEMcKenney2010RCUAPI].
 [LinusTorvalds2011Linux2:6:38:rc1:NPigginVFS], an RCU-protected red-black
 tree using software transactional memory to protect concurrent updates
 (strange, but true!) [PhilHoward2011RCUTMRBTree], yet another variant of
-RCU-protected resizeable hash tables [Triplett:2011:RPHash], the 3.0 RCU
+RCU-protected resizable hash tables [Triplett:2011:RPHash], the 3.0 RCU
 trainwreck [PaulEMcKenney2011RCU3.0trainwreck], and Neil Brown's "Meet the
 Lockers" LWN article [NeilBrown2011MeetTheLockers].  Some academic
 work looked at debugging uses of RCU [Seyster:2011:RFA:2075416.2075425].

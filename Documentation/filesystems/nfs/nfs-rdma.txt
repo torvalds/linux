@@ -218,7 +218,7 @@ NFS/RDMA Setup
     /vol0   192.168.0.0/255.255.255.0(fsid=0,rw,async,insecure,no_root_squash)
 
     The IP address(es) is(are) the client's IPoIB address for an InfiniBand
-    HCA or the cleint's iWARP address(es) for an RNIC.
+    HCA or the client's iWARP address(es) for an RNIC.
 
     NOTE: The "insecure" option must be used because the NFS/RDMA client does
     not use a reserved port.

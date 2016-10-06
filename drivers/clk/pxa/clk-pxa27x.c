@@ -85,7 +85,7 @@ unsigned int pxa27x_get_clk_frequency_khz(int info)
 
 bool pxa27x_is_ppll_disabled(void)
 {
-	unsigned long ccsr = CCSR;
+	unsigned long ccsr = readl(CCSR);
 
 	return ccsr & (1 << CCCR_PPDIS_BIT);
 }
@@ -93,7 +93,7 @@ bool pxa27x_is_ppll_disabled(void)
 #define PXA27X_CKEN(dev_id, con_id, parents, mult_hp, div_hp,		\
 		    bit, is_lp, flags)					\
 	PXA_CKEN(dev_id, con_id, bit, parents, 1, 1, mult_hp, div_hp,	\
-		 is_lp,  &CKEN, CKEN_ ## bit, flags)
+		 is_lp,  CKEN, CKEN_ ## bit, flags)
 #define PXA27X_PBUS_CKEN(dev_id, con_id, bit, mult_hp, div_hp, delay)	\
 	PXA27X_CKEN(dev_id, con_id, pxa27x_pbus_parents, mult_hp,	\
 		    div_hp, bit, pxa27x_is_ppll_disabled, 0)
@@ -106,10 +106,10 @@ PARENTS(pxa27x_membus) = { "lcd_base", "lcd_base" };
 
 #define PXA27X_CKEN_1RATE(dev_id, con_id, bit, parents, delay)		\
 	PXA_CKEN_1RATE(dev_id, con_id, bit, parents,			\
-		       &CKEN, CKEN_ ## bit, 0)
+		       CKEN, CKEN_ ## bit, 0)
 #define PXA27X_CKEN_1RATE_AO(dev_id, con_id, bit, parents, delay)	\
 	PXA_CKEN_1RATE(dev_id, con_id, bit, parents,			\
-		       &CKEN, CKEN_ ## bit, CLK_IGNORE_UNUSED)
+		       CKEN, CKEN_ ## bit, CLK_IGNORE_UNUSED)
 
 static struct desc_clk_cken pxa27x_clocks[] __initdata = {
 	PXA27X_PBUS_CKEN("pxa2xx-uart.0", NULL, FFUART, 2, 42, 1),
@@ -151,7 +151,7 @@ static unsigned long clk_pxa27x_cpll_get_rate(struct clk_hw *hw,
 	unsigned long clkcfg;
 	unsigned int t, ht;
 	unsigned int l, L, n2, N;
-	unsigned long ccsr = CCSR;
+	unsigned long ccsr = readl(CCSR);
 
 	asm("mrc\tp14, 0, %0, c6, c0, 0" : "=r" (clkcfg));
 	t  = clkcfg & (1 << 0);
@@ -171,8 +171,8 @@ static unsigned long clk_pxa27x_lcd_base_get_rate(struct clk_hw *hw,
 						  unsigned long parent_rate)
 {
 	unsigned int l, osc_forced;
-	unsigned long ccsr = CCSR;
-	unsigned long cccr = CCCR;
+	unsigned long ccsr = readl(CCSR);
+	unsigned long cccr = readl(CCCR);
 
 	l  = ccsr & CCSR_L_MASK;
 	osc_forced = ccsr & (1 << CCCR_CPDIS_BIT);
@@ -193,7 +193,7 @@ static unsigned long clk_pxa27x_lcd_base_get_rate(struct clk_hw *hw,
 static u8 clk_pxa27x_lcd_base_get_parent(struct clk_hw *hw)
 {
 	unsigned int osc_forced;
-	unsigned long ccsr = CCSR;
+	unsigned long ccsr = readl(CCSR);
 
 	osc_forced = ccsr & (1 << CCCR_CPDIS_BIT);
 	if (osc_forced)
@@ -208,12 +208,12 @@ MUX_RO_RATE_RO_OPS(clk_pxa27x_lcd_base, "lcd_base");
 static void __init pxa27x_register_plls(void)
 {
 	clk_register_fixed_rate(NULL, "osc_13mhz", NULL,
-				CLK_GET_RATE_NOCACHE | CLK_IS_ROOT,
+				CLK_GET_RATE_NOCACHE,
 				13 * MHz);
 	clk_register_fixed_rate(NULL, "osc_32_768khz", NULL,
-				CLK_GET_RATE_NOCACHE | CLK_IS_ROOT,
+				CLK_GET_RATE_NOCACHE,
 				32768 * KHz);
-	clk_register_fixed_rate(NULL, "clk_dummy", NULL, CLK_IS_ROOT, 0);
+	clk_register_fixed_rate(NULL, "clk_dummy", NULL, 0, 0);
 	clk_register_fixed_factor(NULL, "ppll_312mhz", "osc_13mhz", 0, 24, 1);
 }
 
@@ -222,7 +222,7 @@ static unsigned long clk_pxa27x_core_get_rate(struct clk_hw *hw,
 {
 	unsigned long clkcfg;
 	unsigned int t, ht, b, osc_forced;
-	unsigned long ccsr = CCSR;
+	unsigned long ccsr = readl(CCSR);
 
 	osc_forced = ccsr & (1 << CCCR_CPDIS_BIT);
 	asm("mrc\tp14, 0, %0, c6, c0, 0" : "=r" (clkcfg));
@@ -242,7 +242,7 @@ static u8 clk_pxa27x_core_get_parent(struct clk_hw *hw)
 {
 	unsigned long clkcfg;
 	unsigned int t, ht, b, osc_forced;
-	unsigned long ccsr = CCSR;
+	unsigned long ccsr = readl(CCSR);
 
 	osc_forced = ccsr & (1 << CCCR_CPDIS_BIT);
 	if (osc_forced)
@@ -263,7 +263,7 @@ MUX_RO_RATE_RO_OPS(clk_pxa27x_core, "core");
 static unsigned long clk_pxa27x_run_get_rate(struct clk_hw *hw,
 					     unsigned long parent_rate)
 {
-	unsigned long ccsr = CCSR;
+	unsigned long ccsr = readl(CCSR);
 	unsigned int n2 = (ccsr & CCSR_N2_MASK) >> CCSR_N2_SHIFT;
 
 	return (parent_rate / n2) * 2;
@@ -285,7 +285,7 @@ static unsigned long clk_pxa27x_system_bus_get_rate(struct clk_hw *hw,
 {
 	unsigned long clkcfg;
 	unsigned int b, osc_forced;
-	unsigned long ccsr = CCSR;
+	unsigned long ccsr = readl(CCSR);
 
 	osc_forced = ccsr & (1 << CCCR_CPDIS_BIT);
 	asm("mrc\tp14, 0, %0, c6, c0, 0" : "=r" (clkcfg));
@@ -302,7 +302,7 @@ static unsigned long clk_pxa27x_system_bus_get_rate(struct clk_hw *hw,
 static u8 clk_pxa27x_system_bus_get_parent(struct clk_hw *hw)
 {
 	unsigned int osc_forced;
-	unsigned long ccsr = CCSR;
+	unsigned long ccsr = readl(CCSR);
 
 	osc_forced = ccsr & (1 << CCCR_CPDIS_BIT);
 	if (osc_forced)
@@ -318,8 +318,8 @@ static unsigned long clk_pxa27x_memory_get_rate(struct clk_hw *hw,
 						unsigned long parent_rate)
 {
 	unsigned int a, l, osc_forced;
-	unsigned long cccr = CCCR;
-	unsigned long ccsr = CCSR;
+	unsigned long cccr = readl(CCCR);
+	unsigned long ccsr = readl(CCSR);
 
 	osc_forced = ccsr & (1 << CCCR_CPDIS_BIT);
 	a = cccr & (1 << CCCR_A_BIT);
@@ -337,8 +337,8 @@ static unsigned long clk_pxa27x_memory_get_rate(struct clk_hw *hw,
 static u8 clk_pxa27x_memory_get_parent(struct clk_hw *hw)
 {
 	unsigned int osc_forced, a;
-	unsigned long cccr = CCCR;
-	unsigned long ccsr = CCSR;
+	unsigned long cccr = readl(CCCR);
+	unsigned long ccsr = readl(CCSR);
 
 	osc_forced = ccsr & (1 << CCCR_CPDIS_BIT);
 	a = cccr & (1 << CCCR_A_BIT);

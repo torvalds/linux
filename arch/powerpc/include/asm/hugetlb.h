@@ -8,6 +8,8 @@
 extern struct kmem_cache *hugepte_cache;
 
 #ifdef CONFIG_PPC_BOOK3S_64
+
+#include <asm/book3s/64/hugetlb-radix.h>
 /*
  * This should work for other subarchs too. But right now we use the
  * new format only for 64bit book3s
@@ -19,7 +21,7 @@ static inline pte_t *hugepd_page(hugepd_t hpd)
 	 * We have only four bits to encode, MMU page size
 	 */
 	BUILD_BUG_ON((MMU_PAGE_COUNT - 1) > 0xf);
-	return (pte_t *)(hpd.pd & ~HUGEPD_SHIFT_MASK);
+	return __va(hpd.pd & HUGEPD_ADDR_MASK);
 }
 
 static inline unsigned int hugepd_mmu_psize(hugepd_t hpd)
@@ -31,7 +33,19 @@ static inline unsigned int hugepd_shift(hugepd_t hpd)
 {
 	return mmu_psize_to_shift(hugepd_mmu_psize(hpd));
 }
+static inline void flush_hugetlb_page(struct vm_area_struct *vma,
+				      unsigned long vmaddr)
+{
+	if (radix_enabled())
+		return radix__flush_hugetlb_page(vma, vmaddr);
+}
 
+static inline void __local_flush_hugetlb_page(struct vm_area_struct *vma,
+					      unsigned long vmaddr)
+{
+	if (radix_enabled())
+		return radix__local_flush_hugetlb_page(vma, vmaddr);
+}
 #else
 
 static inline pte_t *hugepd_page(hugepd_t hpd)
@@ -133,7 +147,7 @@ static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
 {
 	pte_t pte;
 	pte = huge_ptep_get_and_clear(vma->vm_mm, addr, ptep);
-	flush_tlb_page(vma, addr);
+	flush_hugetlb_page(vma, addr);
 }
 
 static inline int huge_pte_none(pte_t pte)

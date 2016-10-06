@@ -34,6 +34,7 @@ static const unsigned int wdt_timeout[] = { 0, 2, 4, 8, 16, 32, 65, 131 };
 #define DA9063_WDT_MIN_TIMEOUT		wdt_timeout[DA9063_TWDSCALE_MIN]
 #define DA9063_WDT_MAX_TIMEOUT		wdt_timeout[DA9063_TWDSCALE_MAX]
 #define DA9063_WDG_TIMEOUT		wdt_timeout[3]
+#define DA9063_RESET_PROTECTION_MS	256
 
 struct da9063_watchdog {
 	struct da9063 *da9063;
@@ -119,7 +120,8 @@ static int da9063_wdt_set_timeout(struct watchdog_device *wdd,
 	return ret;
 }
 
-static int da9063_wdt_restart(struct watchdog_device *wdd)
+static int da9063_wdt_restart(struct watchdog_device *wdd, unsigned long action,
+			      void *data)
 {
 	struct da9063_watchdog *wdt = watchdog_get_drvdata(wdd);
 	int ret;
@@ -170,6 +172,7 @@ static int da9063_wdt_probe(struct platform_device *pdev)
 	wdt->wdtdev.ops = &da9063_watchdog_ops;
 	wdt->wdtdev.min_timeout = DA9063_WDT_MIN_TIMEOUT;
 	wdt->wdtdev.max_timeout = DA9063_WDT_MAX_TIMEOUT;
+	wdt->wdtdev.min_hw_heartbeat_ms = DA9063_RESET_PROTECTION_MS;
 	wdt->wdtdev.timeout = DA9063_WDG_TIMEOUT;
 	wdt->wdtdev.parent = &pdev->dev;
 

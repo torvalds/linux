@@ -625,7 +625,7 @@ struct hci_dev *hci_get_route(bdaddr_t *dst, bdaddr_t *src)
 	list_for_each_entry(d, &hci_dev_list, list) {
 		if (!test_bit(HCI_UP, &d->flags) ||
 		    hci_dev_test_flag(d, HCI_USER_CHANNEL) ||
-		    d->dev_type != HCI_BREDR)
+		    d->dev_type != HCI_PRIMARY)
 			continue;
 
 		/* Simple routing:
@@ -719,6 +719,13 @@ done:
 	hci_dev_unlock(hdev);
 }
 
+static bool conn_use_rpa(struct hci_conn *conn)
+{
+	struct hci_dev *hdev = conn->hdev;
+
+	return hci_dev_test_flag(hdev, HCI_PRIVACY);
+}
+
 static void hci_req_add_le_create_conn(struct hci_request *req,
 				       struct hci_conn *conn)
 {
@@ -726,13 +733,14 @@ static void hci_req_add_le_create_conn(struct hci_request *req,
 	struct hci_dev *hdev = conn->hdev;
 	u8 own_addr_type;
 
-	memset(&cp, 0, sizeof(cp));
-
 	/* Update random address, but set require_privacy to false so
 	 * that we never connect with an non-resolvable address.
 	 */
-	if (hci_update_random_address(req, false, &own_addr_type))
+	if (hci_update_random_address(req, false, conn_use_rpa(conn),
+				      &own_addr_type))
 		return;
+
+	memset(&cp, 0, sizeof(cp));
 
 	/* Set window to be the same value as the interval to enable
 	 * continuous scanning.
@@ -774,7 +782,8 @@ static void hci_req_directed_advertising(struct hci_request *req,
 	/* Set require_privacy to false so that the remote device has a
 	 * chance of identifying us.
 	 */
-	if (hci_update_random_address(req, false, &own_addr_type) < 0)
+	if (hci_update_random_address(req, false, conn_use_rpa(conn),
+				      &own_addr_type) < 0)
 		return;
 
 	memset(&cp, 0, sizeof(cp));

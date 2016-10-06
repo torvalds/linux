@@ -448,7 +448,7 @@ static int null_lnvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 	struct request *rq;
 	struct bio *bio = rqd->bio;
 
-	rq = blk_mq_alloc_request(q, bio_rw(bio), 0);
+	rq = blk_mq_alloc_request(q, bio_data_dir(bio), 0);
 	if (IS_ERR(rq))
 		return -ENOMEM;
 
@@ -478,7 +478,7 @@ static int null_lnvm_id(struct nvm_dev *dev, struct nvm_id *id)
 	id->ver_id = 0x1;
 	id->vmnt = 0;
 	id->cgrps = 1;
-	id->cap = 0x3;
+	id->cap = 0x2;
 	id->dom = 0x1;
 
 	id->ppaf.blk_offset = 0;
@@ -707,9 +707,7 @@ static int null_add_dev(void)
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, nullb->q);
 	queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, nullb->q);
 
-
 	mutex_lock(&lock);
-	list_add_tail(&nullb->list, &nullb_list);
 	nullb->index = nullb_indexes++;
 	mutex_unlock(&lock);
 
@@ -743,7 +741,12 @@ static int null_add_dev(void)
 	strncpy(disk->disk_name, nullb->disk_name, DISK_NAME_LEN);
 
 	add_disk(disk);
+
 done:
+	mutex_lock(&lock);
+	list_add_tail(&nullb->list, &nullb_list);
+	mutex_unlock(&lock);
+
 	return 0;
 
 out_cleanup_lightnvm:

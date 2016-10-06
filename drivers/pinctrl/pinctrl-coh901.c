@@ -127,7 +127,7 @@ struct u300_gpio_confdata {
 }
 
 /* Initial configuration */
-static const struct __initconst u300_gpio_confdata
+static const struct u300_gpio_confdata __initconst
 bs335_gpio_config[U300_GPIO_NUM_PORTS][U300_GPIO_PINS_PER_PORT] = {
 	/* Port 0, pins 0-7 */
 	{

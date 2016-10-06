@@ -61,6 +61,7 @@ struct xgene_edac {
 	struct regmap		*mcba_map;
 	struct regmap		*mcbb_map;
 	struct regmap		*efuse_map;
+	struct regmap		*rb_map;
 	void __iomem		*pcp_csr;
 	spinlock_t		lock;
 	struct dentry           *dfs;
@@ -1057,7 +1058,7 @@ static bool xgene_edac_l3_promote_to_uc_err(u32 l3cesr, u32 l3celr)
 		case 0x041:
 			return true;
 		}
-	} else if (L3C_ELR_ERRSYN(l3celr) == 9)
+	} else if (L3C_ELR_ERRWAY(l3celr) == 9)
 		return true;
 
 	return false;
@@ -1353,6 +1354,17 @@ static int xgene_edac_l3_remove(struct xgene_edac_dev_ctx *l3)
 #define GLBL_MDED_ERRH			0x0848
 #define GLBL_MDED_ERRHMASK		0x084c
 
+/* IO Bus Registers */
+#define RBCSR				0x0000
+#define STICKYERR_MASK			BIT(0)
+#define RBEIR				0x0008
+#define AGENT_OFFLINE_ERR_MASK		BIT(30)
+#define UNIMPL_RBPAGE_ERR_MASK		BIT(29)
+#define WORD_ALIGNED_ERR_MASK		BIT(28)
+#define PAGE_ACCESS_ERR_MASK		BIT(27)
+#define WRITE_ACCESS_MASK		BIT(26)
+#define RBERRADDR_RD(src)		((src) & 0x03FFFFFF)
+
 static const char * const soc_mem_err_v1[] = {
 	"10GbE0",
 	"10GbE1",
@@ -1469,6 +1481,51 @@ static void xgene_edac_rb_report(struct edac_device_ctl_info *edac_dev)
 	u32 err_addr_lo;
 	u32 err_addr_hi;
 	u32 reg;
+
+	/* If the register bus resource isn't available, just skip it */
+	if (!ctx->edac->rb_map)
+		goto rb_skip;
+
+	/*
+	 * Check RB access errors
+	 * 1. Out of range
+	 * 2. Un-implemented page
+	 * 3. Un-aligned access
+	 * 4. Offline slave IP
+	 */
+	if (regmap_read(ctx->edac->rb_map, RBCSR, &reg))
+		return;
+	if (reg & STICKYERR_MASK) {
+		bool write;
+		u32 address;
+
+		dev_err(edac_dev->dev, "IOB bus access error(s)\n");
+		if (regmap_read(ctx->edac->rb_map, RBEIR, &reg))
+			return;
+		write = reg & WRITE_ACCESS_MASK ? 1 : 0;
+		address = RBERRADDR_RD(reg);
+		if (reg & AGENT_OFFLINE_ERR_MASK)
+			dev_err(edac_dev->dev,
+				"IOB bus %s access to offline agent error\n",
+				write ? "write" : "read");
+		if (reg & UNIMPL_RBPAGE_ERR_MASK)
+			dev_err(edac_dev->dev,
+				"IOB bus %s access to unimplemented page error\n",
+				write ? "write" : "read");
+		if (reg & WORD_ALIGNED_ERR_MASK)
+			dev_err(edac_dev->dev,
+				"IOB bus %s word aligned access error\n",
+				write ? "write" : "read");
+		if (reg & PAGE_ACCESS_ERR_MASK)
+			dev_err(edac_dev->dev,
+				"IOB bus %s to page out of range access error\n",
+				write ? "write" : "read");
+		if (regmap_write(ctx->edac->rb_map, RBEIR, 0))
+			return;
+		if (regmap_write(ctx->edac->rb_map, RBCSR, 0))
+			return;
+	}
+rb_skip:
 
 	/* IOB Bridge agent transaction error interrupt */
 	reg = readl(ctx->dev_csr + IOBBATRANSERRINTSTS);
@@ -1850,6 +1907,17 @@ static int xgene_edac_probe(struct platform_device *pdev)
 		dev_err(edac->dev, "unable to get syscon regmap efuse\n");
 		rc = PTR_ERR(edac->efuse_map);
 		goto out_err;
+	}
+
+	/*
+	 * NOTE: The register bus resource is optional for compatibility
+	 * reason.
+	 */
+	edac->rb_map = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+						       "regmap-rb");
+	if (IS_ERR(edac->rb_map)) {
+		dev_warn(edac->dev, "missing syscon regmap rb\n");
+		edac->rb_map = NULL;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

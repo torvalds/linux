@@ -1,9 +1,7 @@
 /*
  *  Probe for F81216A LPC to 4 UART
  *
- *  Based on drivers/tty/serial/8250_pnp.c, by Russell King, et al
- *
- *  Copyright (C) 2014 Ricardo Ribalda, Qtechnology A/S
+ *  Copyright (C) 2014-2016 Ricardo Ribalda, Qtechnology A/S
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -15,6 +13,7 @@
 #include <linux/pnp.h>
 #include <linux/kernel.h>
 #include <linux/serial_core.h>
+#include <linux/irq.h>
 #include  "8250.h"
 
 #define ADDR_PORT 0
@@ -32,25 +31,27 @@
 #define IO_ADDR2 0x60
 #define LDN 0x7
 
+#define FINTEK_IRQ_MODE	0x70
+#define IRQ_SHARE	BIT(4)
+#define IRQ_MODE_MASK	(BIT(6) | BIT(5))
+#define IRQ_LEVEL_LOW	0
+#define IRQ_EDGE_HIGH	BIT(5)
+
 #define RS485  0xF0
 #define RTS_INVERT BIT(5)
 #define RS485_URA BIT(4)
 #define RXW4C_IRA BIT(3)
 #define TXW4C_IRA BIT(2)
 
-#define DRIVER_NAME "8250_fintek"
-
 struct fintek_8250 {
 	u16 base_port;
 	u8 index;
 	u8 key;
-	long line;
 };
 
 static int fintek_8250_enter_key(u16 base_port, u8 key)
 {
-
-	if (!request_muxed_region(base_port, 2, DRIVER_NAME))
+	if (!request_muxed_region(base_port, 2, "8250_fintek"))
 		return -EBUSY;
 
 	outb(key, base_port + ADDR_PORT);
@@ -138,7 +139,7 @@ static int fintek_8250_rs485_config(struct uart_port *port,
 	return 0;
 }
 
-static int fintek_8250_base_port(u16 io_address, u8 *key, u8 *index)
+static int find_base_port(struct fintek_8250 *pdata, u16 io_address)
 {
 	static const u16 addr[] = {0x4e, 0x2e};
 	static const u8 keys[] = {0x77, 0xa0, 0x87, 0x67};
@@ -168,10 +169,13 @@ static int fintek_8250_base_port(u16 io_address, u8 *key, u8 *index)
 					continue;
 
 				fintek_8250_exit_key(addr[i]);
-				*key = keys[j];
-				*index = k;
-				return addr[i];
+				pdata->key = keys[j];
+				pdata->base_port = addr[i];
+				pdata->index = k;
+
+				return 0;
 			}
+
 			fintek_8250_exit_key(addr[i]);
 		}
 	}
@@ -179,104 +183,48 @@ static int fintek_8250_base_port(u16 io_address, u8 *key, u8 *index)
 	return -ENODEV;
 }
 
-static int
-fintek_8250_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
+static int fintek_8250_set_irq_mode(struct fintek_8250 *pdata, bool level_mode)
 {
-	struct uart_8250_port uart;
+	int status;
+	u8 tmp;
+
+	status = fintek_8250_enter_key(pdata->base_port, pdata->key);
+	if (status)
+		return status;
+
+	outb(LDN, pdata->base_port + ADDR_PORT);
+	outb(pdata->index, pdata->base_port + DATA_PORT);
+
+	outb(FINTEK_IRQ_MODE, pdata->base_port + ADDR_PORT);
+	tmp = inb(pdata->base_port + DATA_PORT);
+
+	tmp &= ~IRQ_MODE_MASK;
+	tmp |= IRQ_SHARE;
+	if (!level_mode)
+		tmp |= IRQ_EDGE_HIGH;
+
+	outb(tmp, pdata->base_port + DATA_PORT);
+	fintek_8250_exit_key(pdata->base_port);
+	return 0;
+}
+
+int fintek_8250_probe(struct uart_8250_port *uart)
+{
 	struct fintek_8250 *pdata;
-	int base_port;
-	u8 key;
-	u8 index;
+	struct fintek_8250 probe_data;
+	struct irq_data *irq_data = irq_get_irq_data(uart->port.irq);
+	bool level_mode = irqd_is_level_type(irq_data);
 
-	if (!pnp_port_valid(dev, 0))
+	if (find_base_port(&probe_data, uart->port.iobase))
 		return -ENODEV;
 
-	base_port = fintek_8250_base_port(pnp_port_start(dev, 0), &key, &index);
-	if (base_port < 0)
-		return -ENODEV;
-
-	memset(&uart, 0, sizeof(uart));
-
-	pdata = devm_kzalloc(&dev->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc(uart->port.dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
-	uart.port.private_data = pdata;
 
-	if (!pnp_irq_valid(dev, 0))
-		return -ENODEV;
-	uart.port.irq = pnp_irq(dev, 0);
-	uart.port.iobase = pnp_port_start(dev, 0);
-	uart.port.iotype = UPIO_PORT;
-	uart.port.rs485_config = fintek_8250_rs485_config;
+	memcpy(pdata, &probe_data, sizeof(probe_data));
+	uart->port.rs485_config = fintek_8250_rs485_config;
+	uart->port.private_data = pdata;
 
-	uart.port.flags |= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF;
-	if (pnp_irq_flags(dev, 0) & IORESOURCE_IRQ_SHAREABLE)
-		uart.port.flags |= UPF_SHARE_IRQ;
-	uart.port.uartclk = 1843200;
-	uart.port.dev = &dev->dev;
-
-	pdata->key = key;
-	pdata->base_port = base_port;
-	pdata->index = index;
-	pdata->line = serial8250_register_8250_port(&uart);
-	if (pdata->line < 0)
-		return -ENODEV;
-
-	pnp_set_drvdata(dev, pdata);
-	return 0;
+	return fintek_8250_set_irq_mode(pdata, level_mode);
 }
-
-static void fintek_8250_remove(struct pnp_dev *dev)
-{
-	struct fintek_8250 *pdata = pnp_get_drvdata(dev);
-
-	if (pdata)
-		serial8250_unregister_port(pdata->line);
-}
-
-#ifdef CONFIG_PM
-static int fintek_8250_suspend(struct pnp_dev *dev, pm_message_t state)
-{
-	struct fintek_8250 *pdata = pnp_get_drvdata(dev);
-
-	if (!pdata)
-		return -ENODEV;
-	serial8250_suspend_port(pdata->line);
-	return 0;
-}
-
-static int fintek_8250_resume(struct pnp_dev *dev)
-{
-	struct fintek_8250 *pdata = pnp_get_drvdata(dev);
-
-	if (!pdata)
-		return -ENODEV;
-	serial8250_resume_port(pdata->line);
-	return 0;
-}
-#else
-#define fintek_8250_suspend NULL
-#define fintek_8250_resume NULL
-#endif /* CONFIG_PM */
-
-static const struct pnp_device_id fintek_dev_table[] = {
-	/* Qtechnology Panel PC / IO1000 */
-	{ "PNP0501"},
-	{}
-};
-
-MODULE_DEVICE_TABLE(pnp, fintek_dev_table);
-
-static struct pnp_driver fintek_8250_driver = {
-	.name		= DRIVER_NAME,
-	.probe		= fintek_8250_probe,
-	.remove		= fintek_8250_remove,
-	.suspend	= fintek_8250_suspend,
-	.resume		= fintek_8250_resume,
-	.id_table	= fintek_dev_table,
-};
-
-module_pnp_driver(fintek_8250_driver);
-MODULE_DESCRIPTION("Fintek F812164 module");
-MODULE_AUTHOR("Ricardo Ribalda <ricardo.ribalda@gmail.com>");
-MODULE_LICENSE("GPL");

@@ -1601,15 +1601,9 @@ vortex_up(struct net_device *dev)
 				dev->name, media_tbl[dev->if_port].name);
 	}
 
-	init_timer(&vp->timer);
-	vp->timer.expires = RUN_AT(media_tbl[dev->if_port].wait);
-	vp->timer.data = (unsigned long)dev;
-	vp->timer.function = vortex_timer;		/* timer handler */
-	add_timer(&vp->timer);
-
-	init_timer(&vp->rx_oom_timer);
-	vp->rx_oom_timer.data = (unsigned long)dev;
-	vp->rx_oom_timer.function = rx_oom_timer;
+	setup_timer(&vp->timer, vortex_timer, (unsigned long)dev);
+	mod_timer(&vp->timer, RUN_AT(media_tbl[dev->if_port].wait));
+	setup_timer(&vp->rx_oom_timer, rx_oom_timer, (unsigned long)dev);
 
 	if (vortex_debug > 1)
 		pr_debug("%s: Initial media type %s.\n",
@@ -1950,7 +1944,7 @@ static void vortex_tx_timeout(struct net_device *dev)
 	}
 	/* Issue Tx Enable */
 	iowrite16(TxEnable, ioaddr + EL3_CMD);
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 }
 
 /*
@@ -2461,7 +2455,7 @@ boomerang_interrupt(int irq, void *dev_id)
 					int i;
 					pci_unmap_single(VORTEX_PCI(vp),
 							le32_to_cpu(vp->tx_ring[entry].frag[0].addr),
-							le32_to_cpu(vp->tx_ring[entry].frag[0].length),
+							le32_to_cpu(vp->tx_ring[entry].frag[0].length)&0xFFF,
 							PCI_DMA_TODEVICE);
 
 					for (i=1; i<=skb_shinfo(skb)->nr_frags; i++)
@@ -3095,7 +3089,7 @@ static void set_rx_mode(struct net_device *dev)
 	iowrite16(new_mode, ioaddr + EL3_CMD);
 }
 
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+#if IS_ENABLED(CONFIG_VLAN_8021Q)
 /* Setup the card so that it can receive frames with an 802.1q VLAN tag.
    Note that this must be done after each RxReset due to some backwards
    compatibility logic in the Cyclone and Tornado ASICs */

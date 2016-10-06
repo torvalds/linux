@@ -8,6 +8,7 @@ include $(src)/nvkm/subdev/fuse/Kbuild
 include $(src)/nvkm/subdev/gpio/Kbuild
 include $(src)/nvkm/subdev/i2c/Kbuild
 include $(src)/nvkm/subdev/ibus/Kbuild
+include $(src)/nvkm/subdev/iccsense/Kbuild
 include $(src)/nvkm/subdev/instmem/Kbuild
 include $(src)/nvkm/subdev/ltc/Kbuild
 include $(src)/nvkm/subdev/mc/Kbuild
@@ -15,6 +16,8 @@ include $(src)/nvkm/subdev/mmu/Kbuild
 include $(src)/nvkm/subdev/mxm/Kbuild
 include $(src)/nvkm/subdev/pci/Kbuild
 include $(src)/nvkm/subdev/pmu/Kbuild
+include $(src)/nvkm/subdev/secboot/Kbuild
 include $(src)/nvkm/subdev/therm/Kbuild
 include $(src)/nvkm/subdev/timer/Kbuild
+include $(src)/nvkm/subdev/top/Kbuild
 include $(src)/nvkm/subdev/volt/Kbuild

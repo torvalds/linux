@@ -1,4 +1,5 @@
-/* Driver for USB Mass Storage compliant devices
+/*
+ * Driver for USB Mass Storage compliant devices
  * Debugging Functions Source Code File
  *
  * Current development and maintenance by:
@@ -57,7 +58,6 @@
 void usb_stor_show_command(const struct us_data *us, struct scsi_cmnd *srb)
 {
 	char *what = NULL;
-	int i;
 
 	switch (srb->cmnd[0]) {
 	case TEST_UNIT_READY: what = "TEST_UNIT_READY"; break;
@@ -153,10 +153,8 @@ void usb_stor_show_command(const struct us_data *us, struct scsi_cmnd *srb)
 	default: what = "(unknown command)"; break;
 	}
 	usb_stor_dbg(us, "Command %s (%d bytes)\n", what, srb->cmd_len);
-	usb_stor_dbg(us, "bytes: ");
-	for (i = 0; i < srb->cmd_len && i < 16; i++)
-		US_DEBUGPX(" %02x", srb->cmnd[i]);
-	US_DEBUGPX("\n");
+	usb_stor_dbg(us, "bytes: %*ph\n", min_t(int, srb->cmd_len, 16),
+		     (const unsigned char *)srb->cmnd);
 }
 
 void usb_stor_show_sense(const struct us_data *us,
@@ -174,11 +172,10 @@ void usb_stor_show_sense(const struct us_data *us,
 	if (what == NULL)
 		what = "(unknown ASC/ASCQ)";
 
-	usb_stor_dbg(us, "%s: ", keystr);
 	if (fmt)
-		US_DEBUGPX("%s (%s%x)\n", what, fmt, ascq);
+		usb_stor_dbg(us, "%s: %s (%s%x)\n", keystr, what, fmt, ascq);
 	else
-		US_DEBUGPX("%s\n", what);
+		usb_stor_dbg(us, "%s: %s\n", keystr, what);
 }
 
 void usb_stor_dbg(const struct us_data *us, const char *fmt, ...)

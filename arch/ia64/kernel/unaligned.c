@@ -1336,8 +1336,11 @@ ia64_handle_unaligned (unsigned long ifa, struct pt_regs *regs)
 			 * Don't call tty_write_message() if we're in the kernel; we might
 			 * be holding locks...
 			 */
-			if (user_mode(regs))
-				tty_write_message(current->signal->tty, buf);
+			if (user_mode(regs)) {
+				struct tty_struct *tty = get_current_tty();
+				tty_write_message(tty, buf);
+				tty_kref_put(tty);
+			}
 			buf[len-1] = '\0';	/* drop '\r' */
 			/* watch for command names containing %s */
 			printk(KERN_WARNING "%s", buf);
@@ -1375,6 +1378,7 @@ ia64_handle_unaligned (unsigned long ifa, struct pt_regs *regs)
 	 * extract the instruction from the bundle given the slot number
 	 */
 	switch (ipsr->ri) {
+	      default:
 	      case 0: u.l = (bundle[0] >>  5); break;
 	      case 1: u.l = (bundle[0] >> 46) | (bundle[1] << 18); break;
 	      case 2: u.l = (bundle[1] >> 23); break;

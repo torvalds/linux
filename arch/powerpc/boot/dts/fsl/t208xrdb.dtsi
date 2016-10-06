@@ -113,7 +113,7 @@
 			flash@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "micron,n25q512a";
+				compatible = "micron,n25q512ax3", "jedec,spi-nor";
 				reg = <0>;
 				spi-max-frequency = <10000000>; /* input clock */
 			};

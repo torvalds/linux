@@ -140,21 +140,17 @@ int fixup_exception(struct pt_regs *regs)
 {
 	const struct exception_table_entry *fix;
 
-	/* If we only stored 32bit addresses in the exception table we can drop
-	 * out if we faulted on a 64bit address. */
-	if ((sizeof(regs->iaoq[0]) > sizeof(fix->insn))
-		&& (regs->iaoq[0] >> 32))
-			return 0;
-
 	fix = search_exception_tables(regs->iaoq[0]);
 	if (fix) {
 		struct exception_data *d;
 		d = this_cpu_ptr(&exception_data);
 		d->fault_ip = regs->iaoq[0];
+		d->fault_gp = regs->gr[27];
 		d->fault_space = regs->isr;
 		d->fault_addr = regs->ior;
 
-		regs->iaoq[0] = ((fix->fixup) & ~3);
+		regs->iaoq[0] = (unsigned long)&fix->fixup + fix->fixup;
+		regs->iaoq[0] &= ~3;
 		/*
 		 * NOTE: In some cases the faulting instruction
 		 * may be in the delay slot of a branch. We
@@ -243,7 +239,7 @@ good_area:
 	 * fault.
 	 */
 
-	fault = handle_mm_fault(mm, vma, address, flags);
+	fault = handle_mm_fault(vma, address, flags);
 
 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
 		return;

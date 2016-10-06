@@ -1,5 +1,5 @@
 /*
- * platform_msic_power_btn.c: MSIC power btn platform data initilization file
+ * platform_msic_power_btn.c: MSIC power btn platform data initialization file
  *
  * (C) Copyright 2013 Intel Corporation
  * Author: Sathyanarayanan Kuppuswamy <sathyanarayanan.kuppuswamy@intel.com>

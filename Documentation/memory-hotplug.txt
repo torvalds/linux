@@ -256,10 +256,28 @@ If the memory block is offline, you'll read "offline".
 
 5.2. How to online memory
 ------------
-Even if the memory is hot-added, it is not at ready-to-use state.
-For using newly added memory, you have to "online" the memory block.
+When the memory is hot-added, the kernel decides whether or not to "online"
+it according to the policy which can be read from "auto_online_blocks" file:
 
-For onlining, you have to write "online" to the memory block's state file as:
+% cat /sys/devices/system/memory/auto_online_blocks
+
+The default depends on the CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE kernel config
+option. If it is disabled the default is "offline" which means the newly added
+memory is not in a ready-to-use state and you have to "online" the newly added
+memory blocks manually. Automatic onlining can be requested by writing "online"
+to "auto_online_blocks" file:
+
+% echo online > /sys/devices/system/memory/auto_online_blocks
+
+This sets a global policy and impacts all memory blocks that will subsequently
+be hotplugged. Currently offline blocks keep their state. It is possible, under
+certain circumstances, that some memory blocks will be added but will fail to
+online. User space tools can check their "state" files
+(/sys/devices/system/memory/memoryXXX/state) and try to online them manually.
+
+If the automatic onlining wasn't requested, failed, or some memory block was
+offlined it is possible to change the individual block's state by writing to the
+"state" file:
 
 % echo online > /sys/devices/system/memory/memoryXXX/state
 

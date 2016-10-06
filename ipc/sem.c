@@ -92,7 +92,14 @@
 /* One semaphore structure for each semaphore in the system. */
 struct sem {
 	int	semval;		/* current value */
-	int	sempid;		/* pid of last operation */
+	/*
+	 * PID of the process that last modified the semaphore. For
+	 * Linux, specifically these are:
+	 *  - semop
+	 *  - semctl, via SETVAL and SETALL.
+	 *  - at task exit when performing undo adjustments (see exit_sem).
+	 */
+	int	sempid;
 	spinlock_t	lock;	/* spinlock for fine-grained semtimedop */
 	struct list_head pending_alter; /* pending single-sop operations */
 					/* that alter the semaphore */
@@ -253,16 +260,6 @@ static void sem_rcu_free(struct rcu_head *head)
 }
 
 /*
- * spin_unlock_wait() and !spin_is_locked() are not memory barriers, they
- * are only control barriers.
- * The code must pair with spin_unlock(&sem->lock) or
- * spin_unlock(&sem_perm.lock), thus just the control barrier is insufficient.
- *
- * smp_rmb() is sufficient, as writes cannot pass the control barrier.
- */
-#define ipc_smp_acquire__after_spin_is_unlocked()	smp_rmb()
-
-/*
  * Wait until all currently ongoing simple ops have completed.
  * Caller must own sem_perm.lock.
  * New simple ops cannot start, because simple ops first check
@@ -285,7 +282,6 @@ static void sem_wait_array(struct sem_array *sma)
 		sem = sma->sem_base + i;
 		spin_unlock_wait(&sem->lock);
 	}
-	ipc_smp_acquire__after_spin_is_unlocked();
 }
 
 /*
@@ -343,7 +339,7 @@ static inline int sem_lock(struct sem_array *sma, struct sembuf *sops,
 			 *	complex_count++;
 			 *	spin_unlock(sem_perm.lock);
 			 */
-			ipc_smp_acquire__after_spin_is_unlocked();
+			smp_acquire__after_ctrl_dep();
 
 			/*
 			 * Now repeat the test of complex_count:
@@ -442,7 +438,7 @@ static inline struct sem_array *sem_obtain_object_check(struct ipc_namespace *ns
 static inline void sem_lock_and_putref(struct sem_array *sma)
 {
 	sem_lock(sma, NULL, -1);
-	ipc_rcu_putref(sma, ipc_rcu_free);
+	ipc_rcu_putref(sma, sem_rcu_free);
 }
 
 static inline void sem_rmid(struct ipc_namespace *ns, struct sem_array *s)
@@ -1385,7 +1381,7 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 			rcu_read_unlock();
 			sem_io = ipc_alloc(sizeof(ushort)*nsems);
 			if (sem_io == NULL) {
-				ipc_rcu_putref(sma, ipc_rcu_free);
+				ipc_rcu_putref(sma, sem_rcu_free);
 				return -ENOMEM;
 			}
 
@@ -1419,20 +1415,20 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 		if (nsems > SEMMSL_FAST) {
 			sem_io = ipc_alloc(sizeof(ushort)*nsems);
 			if (sem_io == NULL) {
-				ipc_rcu_putref(sma, ipc_rcu_free);
+				ipc_rcu_putref(sma, sem_rcu_free);
 				return -ENOMEM;
 			}
 		}
 
 		if (copy_from_user(sem_io, p, nsems*sizeof(ushort))) {
-			ipc_rcu_putref(sma, ipc_rcu_free);
+			ipc_rcu_putref(sma, sem_rcu_free);
 			err = -EFAULT;
 			goto out_free;
 		}
 
 		for (i = 0; i < nsems; i++) {
 			if (sem_io[i] > SEMVMX) {
-				ipc_rcu_putref(sma, ipc_rcu_free);
+				ipc_rcu_putref(sma, sem_rcu_free);
 				err = -ERANGE;
 				goto out_free;
 			}
@@ -1444,8 +1440,10 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 			goto out_unlock;
 		}
 
-		for (i = 0; i < nsems; i++)
+		for (i = 0; i < nsems; i++) {
 			sma->sem_base[i].semval = sem_io[i];
+			sma->sem_base[i].sempid = task_tgid_vnr(current);
+		}
 
 		ipc_assert_locked_object(&sma->sem_perm);
 		list_for_each_entry(un, &sma->list_id, list_id) {
@@ -1722,7 +1720,7 @@ static struct sem_undo *find_alloc_undo(struct ipc_namespace *ns, int semid)
 	/* step 2: allocate new undo structure */
 	new = kzalloc(sizeof(struct sem_undo) + sizeof(short)*nsems, GFP_KERNEL);
 	if (!new) {
-		ipc_rcu_putref(sma, ipc_rcu_free);
+		ipc_rcu_putref(sma, sem_rcu_free);
 		return ERR_PTR(-ENOMEM);
 	}
 

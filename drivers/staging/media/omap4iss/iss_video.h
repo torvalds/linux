@@ -170,7 +170,6 @@ struct iss_video {
 	spinlock_t qlock;		/* protects dmaqueue and error */
 	struct list_head dmaqueue;
 	enum iss_video_dmaqueue_flags dmaqueue_flags;
-	struct vb2_alloc_ctx *alloc_ctx;
 
 	const struct iss_video_operations *ops;
 };
@@ -183,7 +182,6 @@ struct iss_video_fh {
 	struct vb2_queue queue;
 	struct v4l2_format format;
 	struct v4l2_fract timeperframe;
-	struct media_entity_graph graph;
 };
 
 #define to_iss_video_fh(fh)	container_of(fh, struct iss_video_fh, vfh)

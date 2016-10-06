@@ -37,6 +37,7 @@
 #define IWPM_MAPINFO_HASH_MASK	(IWPM_MAPINFO_HASH_SIZE - 1)
 #define IWPM_REMINFO_HASH_SIZE	64
 #define IWPM_REMINFO_HASH_MASK	(IWPM_REMINFO_HASH_SIZE - 1)
+#define IWPM_MSG_SIZE		512
 
 static LIST_HEAD(iwpm_nlmsg_req_list);
 static DEFINE_SPINLOCK(iwpm_nlmsg_req_lock);
@@ -254,9 +255,9 @@ void iwpm_add_remote_info(struct iwpm_remote_info *rem_info)
 }
 
 int iwpm_get_remote_info(struct sockaddr_storage *mapped_loc_addr,
-				struct sockaddr_storage *mapped_rem_addr,
-				struct sockaddr_storage *remote_addr,
-				u8 nl_client)
+			 struct sockaddr_storage *mapped_rem_addr,
+			 struct sockaddr_storage *remote_addr,
+			 u8 nl_client)
 {
 	struct hlist_node *tmp_hlist_node;
 	struct hlist_head *hash_bucket_head;
@@ -322,6 +323,8 @@ struct iwpm_nlmsg_request *iwpm_get_nlmsg_request(__u32 nlmsg_seq,
 	nlmsg_request->nl_client = nl_client;
 	nlmsg_request->request_done = 0;
 	nlmsg_request->err_code = 0;
+	sema_init(&nlmsg_request->sem, 1);
+	down(&nlmsg_request->sem);
 	return nlmsg_request;
 }
 
@@ -364,11 +367,9 @@ struct iwpm_nlmsg_request *iwpm_find_nlmsg_request(__u32 echo_seq)
 int iwpm_wait_complete_req(struct iwpm_nlmsg_request *nlmsg_request)
 {
 	int ret;
-	init_waitqueue_head(&nlmsg_request->waitq);
 
-	ret = wait_event_timeout(nlmsg_request->waitq,
-			(nlmsg_request->request_done != 0), IWPM_NL_TIMEOUT);
-	if (!ret) {
+	ret = down_timeout(&nlmsg_request->sem, IWPM_NL_TIMEOUT);
+	if (ret) {
 		ret = -EINVAL;
 		pr_info("%s: Timeout %d sec for netlink request (seq = %u)\n",
 			__func__, (IWPM_NL_TIMEOUT/HZ), nlmsg_request->nlmsg_seq);
@@ -452,7 +453,7 @@ struct sk_buff *iwpm_create_nlmsg(u32 nl_op, struct nlmsghdr **nlh,
 {
 	struct sk_buff *skb = NULL;
 
-	skb = dev_alloc_skb(NLMSG_GOODSIZE);
+	skb = dev_alloc_skb(IWPM_MSG_SIZE);
 	if (!skb) {
 		pr_err("%s Unable to allocate skb\n", __func__);
 		goto create_nlmsg_exit;
@@ -634,6 +635,7 @@ static int send_nlmsg_done(struct sk_buff *skb, u8 nl_client, int iwpm_pid)
 	if (!(ibnl_put_msg(skb, &nlh, 0, 0, nl_client,
 			   RDMA_NL_IWPM_MAPINFO, NLM_F_MULTI))) {
 		pr_warn("%s Unable to put NLMSG_DONE\n", __func__);
+		dev_kfree_skb(skb);
 		return -ENOMEM;
 	}
 	nlh->nlmsg_type = NLMSG_DONE;

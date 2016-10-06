@@ -51,7 +51,6 @@
 static DEFINE_MUTEX(deferred_probe_mutex);
 static LIST_HEAD(deferred_probe_pending_list);
 static LIST_HEAD(deferred_probe_active_list);
-static struct workqueue_struct *deferred_wq;
 static atomic_t deferred_trigger_count = ATOMIC_INIT(0);
 
 /*
@@ -175,7 +174,7 @@ static void driver_deferred_probe_trigger(void)
 	 * Kick the re-probe thread.  It may already be scheduled, but it is
 	 * safe to kick it again.
 	 */
-	queue_work(deferred_wq, &deferred_probe_work);
+	schedule_work(&deferred_probe_work);
 }
 
 /**
@@ -211,14 +210,10 @@ void device_unblock_probing(void)
  */
 static int deferred_probe_initcall(void)
 {
-	deferred_wq = create_singlethread_workqueue("deferwq");
-	if (WARN_ON(!deferred_wq))
-		return -ENOMEM;
-
 	driver_deferred_probe_enable = true;
 	driver_deferred_probe_trigger();
 	/* Sort as many dependencies as possible before exiting initcalls */
-	flush_workqueue(deferred_wq);
+	flush_work(&deferred_probe_work);
 	return 0;
 }
 late_initcall(deferred_probe_initcall);
@@ -329,6 +324,7 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 {
 	int ret = -EPROBE_DEFER;
 	int local_trigger_count = atomic_read(&deferred_trigger_count);
+	bool test_remove = IS_ENABLED(CONFIG_DEBUG_TEST_DRIVER_REMOVE);
 
 	if (defer_all_probes) {
 		/*
@@ -346,6 +342,7 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 		 drv->bus->name, __func__, drv->name, dev_name(dev));
 	WARN_ON(!list_empty(&dev->devres_head));
 
+re_probe:
 	dev->driver = drv;
 
 	/* If using pinctrl, bind pins now before probing */
@@ -381,6 +378,25 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 		ret = drv->probe(dev);
 		if (ret)
 			goto probe_failed;
+	}
+
+	if (test_remove) {
+		test_remove = false;
+
+		if (dev->bus && dev->bus->remove)
+			dev->bus->remove(dev);
+		else if (drv->remove)
+			drv->remove(dev);
+
+		devres_release_all(dev);
+		driver_sysfs_remove(dev);
+		dev->driver = NULL;
+		dev_set_drvdata(dev, NULL);
+		if (dev->pm_domain && dev->pm_domain->dismiss)
+			dev->pm_domain->dismiss(dev);
+		pm_runtime_reinit(dev);
+
+		goto re_probe;
 	}
 
 	pinctrl_init_done(dev);
@@ -460,8 +476,7 @@ int driver_probe_done(void)
 void wait_for_device_probe(void)
 {
 	/* wait for the deferred probe workqueue to finish */
-	if (driver_deferred_probe_enable)
-		flush_workqueue(deferred_wq);
+	flush_work(&deferred_probe_work);
 
 	/* wait for the known devices to complete their probing */
 	wait_event(probe_waitqueue, atomic_read(&probe_count) == 0);
@@ -560,6 +575,7 @@ static int __device_attach_driver(struct device_driver *drv, void *_data)
 	struct device_attach_data *data = _data;
 	struct device *dev = data->dev;
 	bool async_allowed;
+	int ret;
 
 	/*
 	 * Check if device has already been claimed. This may
@@ -570,8 +586,17 @@ static int __device_attach_driver(struct device_driver *drv, void *_data)
 	if (dev->driver)
 		return -EBUSY;
 
-	if (!driver_match_device(drv, dev))
+	ret = driver_match_device(drv, dev);
+	if (ret == 0) {
+		/* no match */
 		return 0;
+	} else if (ret == -EPROBE_DEFER) {
+		dev_dbg(dev, "Device match requests probe deferral\n");
+		driver_deferred_probe_add(dev);
+	} else if (ret < 0) {
+		dev_dbg(dev, "Bus failed to match device: %d", ret);
+		return ret;
+	} /* ret > 0 means positive match */
 
 	async_allowed = driver_allows_async_probing(drv);
 
@@ -691,6 +716,7 @@ void device_initial_probe(struct device *dev)
 static int __driver_attach(struct device *dev, void *data)
 {
 	struct device_driver *drv = data;
+	int ret;
 
 	/*
 	 * Lock device and try to bind to it. We drop the error
@@ -702,8 +728,17 @@ static int __driver_attach(struct device *dev, void *data)
 	 * is an error.
 	 */
 
-	if (!driver_match_device(drv, dev))
+	ret = driver_match_device(drv, dev);
+	if (ret == 0) {
+		/* no match */
 		return 0;
+	} else if (ret == -EPROBE_DEFER) {
+		dev_dbg(dev, "Device match requests probe deferral\n");
+		driver_deferred_probe_add(dev);
+	} else if (ret < 0) {
+		dev_dbg(dev, "Bus failed to match device: %d", ret);
+		return ret;
+	} /* ret > 0 means positive match */
 
 	if (dev->parent)	/* Needed for USB */
 		device_lock(dev->parent);

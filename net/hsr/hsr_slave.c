@@ -22,6 +22,7 @@ static rx_handler_result_t hsr_handle_frame(struct sk_buff **pskb)
 {
 	struct sk_buff *skb = *pskb;
 	struct hsr_port *port;
+	u16 protocol;
 
 	if (!skb_mac_header_was_set(skb)) {
 		WARN_ONCE(1, "%s: skb invalid", __func__);
@@ -37,7 +38,8 @@ static rx_handler_result_t hsr_handle_frame(struct sk_buff **pskb)
 		goto finish_consume;
 	}
 
-	if (eth_hdr(skb)->h_proto != htons(ETH_P_PRP))
+	protocol = eth_hdr(skb)->h_proto;
+	if (protocol != htons(ETH_P_PRP) && protocol != htons(ETH_P_HSR))
 		goto finish_pass;
 
 	skb_push(skb, ETH_HLEN);

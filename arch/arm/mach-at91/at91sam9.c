@@ -61,9 +61,7 @@ static void __init at91sam9_common_init(void)
 	if (soc != NULL)
 		soc_dev = soc_device_to_device(soc);
 
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, soc_dev);
-
-	arm_pm_idle = at91sam9_idle;
+	of_platform_default_populate(NULL, NULL, soc_dev);
 }
 
 static void __init at91sam9_dt_device_init(void)

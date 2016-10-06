@@ -30,6 +30,20 @@
 
 #include "rio.h"
 
+/*
+ * struct rio_pwrite - RIO portwrite event
+ * @node:    Node in list of doorbell events
+ * @pwcback: Doorbell event callback
+ * @context: Handler specific context to pass on event
+ */
+struct rio_pwrite {
+	struct list_head node;
+
+	int (*pwcback)(struct rio_mport *mport, void *context,
+		       union rio_pw_msg *msg, int step);
+	void *context;
+};
+
 MODULE_DESCRIPTION("RapidIO Subsystem Core");
 MODULE_AUTHOR("Matt Porter <mporter@kernel.crashing.org>");
 MODULE_AUTHOR("Alexandre Bounine <alexandre.bounine@idt.com>");
@@ -42,6 +56,7 @@ MODULE_PARM_DESC(hdid,
 	"Destination ID assignment to local RapidIO controllers");
 
 static LIST_HEAD(rio_devices);
+static LIST_HEAD(rio_nets);
 static DEFINE_SPINLOCK(rio_global_list_lock);
 
 static LIST_HEAD(rio_mports);
@@ -68,6 +83,89 @@ u16 rio_local_get_device_id(struct rio_mport *port)
 }
 
 /**
+ * rio_query_mport - Query mport device attributes
+ * @port: mport device to query
+ * @mport_attr: mport attributes data structure
+ *
+ * Returns attributes of specified mport through the
+ * pointer to attributes data structure.
+ */
+int rio_query_mport(struct rio_mport *port,
+		    struct rio_mport_attr *mport_attr)
+{
+	if (!port->ops->query_mport)
+		return -ENODATA;
+	return port->ops->query_mport(port, mport_attr);
+}
+EXPORT_SYMBOL(rio_query_mport);
+
+/**
+ * rio_alloc_net- Allocate and initialize a new RIO network data structure
+ * @mport: Master port associated with the RIO network
+ *
+ * Allocates a RIO network structure, initializes per-network
+ * list heads, and adds the associated master port to the
+ * network list of associated master ports. Returns a
+ * RIO network pointer on success or %NULL on failure.
+ */
+struct rio_net *rio_alloc_net(struct rio_mport *mport)
+{
+	struct rio_net *net;
+
+	net = kzalloc(sizeof(struct rio_net), GFP_KERNEL);
+	if (net) {
+		INIT_LIST_HEAD(&net->node);
+		INIT_LIST_HEAD(&net->devices);
+		INIT_LIST_HEAD(&net->switches);
+		INIT_LIST_HEAD(&net->mports);
+		mport->net = net;
+	}
+	return net;
+}
+EXPORT_SYMBOL_GPL(rio_alloc_net);
+
+int rio_add_net(struct rio_net *net)
+{
+	int err;
+
+	err = device_register(&net->dev);
+	if (err)
+		return err;
+	spin_lock(&rio_global_list_lock);
+	list_add_tail(&net->node, &rio_nets);
+	spin_unlock(&rio_global_list_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rio_add_net);
+
+void rio_free_net(struct rio_net *net)
+{
+	spin_lock(&rio_global_list_lock);
+	if (!list_empty(&net->node))
+		list_del(&net->node);
+	spin_unlock(&rio_global_list_lock);
+	if (net->release)
+		net->release(net);
+	device_unregister(&net->dev);
+}
+EXPORT_SYMBOL_GPL(rio_free_net);
+
+/**
+ * rio_local_set_device_id - Set the base/extended device id for a port
+ * @port: RIO master port
+ * @did: Device ID value to be written
+ *
+ * Writes the base/extended device id from a device.
+ */
+void rio_local_set_device_id(struct rio_mport *port, u16 did)
+{
+	rio_local_write_config_32(port, RIO_DID_CSR,
+				  RIO_SET_DID(port->sys_size, did));
+}
+EXPORT_SYMBOL_GPL(rio_local_set_device_id);
+
+/**
  * rio_add_device- Adds a RIO device to the device model
  * @rdev: RIO device
  *
@@ -79,12 +177,19 @@ int rio_add_device(struct rio_dev *rdev)
 {
 	int err;
 
-	err = device_add(&rdev->dev);
+	atomic_set(&rdev->state, RIO_DEVICE_RUNNING);
+	err = device_register(&rdev->dev);
 	if (err)
 		return err;
 
 	spin_lock(&rio_global_list_lock);
 	list_add_tail(&rdev->global_list, &rio_devices);
+	if (rdev->net) {
+		list_add_tail(&rdev->net_list, &rdev->net->devices);
+		if (rdev->pef & RIO_PEF_SWITCH)
+			list_add_tail(&rdev->rswitch->node,
+				      &rdev->net->switches);
+	}
 	spin_unlock(&rio_global_list_lock);
 
 	rio_create_sysfs_dev_files(rdev);
@@ -92,6 +197,33 @@ int rio_add_device(struct rio_dev *rdev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rio_add_device);
+
+/*
+ * rio_del_device - removes a RIO device from the device model
+ * @rdev: RIO device
+ * @state: device state to set during removal process
+ *
+ * Removes the RIO device to the kernel device list and subsystem's device list.
+ * Clears sysfs entries for the removed device.
+ */
+void rio_del_device(struct rio_dev *rdev, enum rio_device_state state)
+{
+	pr_debug("RIO: %s: removing %s\n", __func__, rio_name(rdev));
+	atomic_set(&rdev->state, state);
+	spin_lock(&rio_global_list_lock);
+	list_del(&rdev->global_list);
+	if (rdev->net) {
+		list_del(&rdev->net_list);
+		if (rdev->pef & RIO_PEF_SWITCH) {
+			list_del(&rdev->rswitch->node);
+			kfree(rdev->rswitch->route_table);
+		}
+	}
+	spin_unlock(&rio_global_list_lock);
+	rio_remove_sysfs_dev_files(rdev);
+	device_unregister(&rdev->dev);
+}
+EXPORT_SYMBOL_GPL(rio_del_device);
 
 /**
  * rio_request_inb_mbox - request inbound mailbox service
@@ -117,7 +249,7 @@ int rio_request_inb_mbox(struct rio_mport *mport,
 	if (mport->ops->open_inb_mbox == NULL)
 		goto out;
 
-	res = kmalloc(sizeof(struct resource), GFP_KERNEL);
+	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
 
 	if (res) {
 		rio_init_mbox_res(res, mbox, mbox);
@@ -136,6 +268,12 @@ int rio_request_inb_mbox(struct rio_mport *mport,
 		mport->inb_msg[mbox].mcback = minb;
 
 		rc = mport->ops->open_inb_mbox(mport, dev_id, mbox, entries);
+		if (rc) {
+			mport->inb_msg[mbox].mcback = NULL;
+			mport->inb_msg[mbox].res = NULL;
+			release_resource(res);
+			kfree(res);
+		}
 	} else
 		rc = -ENOMEM;
 
@@ -153,13 +291,22 @@ int rio_request_inb_mbox(struct rio_mport *mport,
  */
 int rio_release_inb_mbox(struct rio_mport *mport, int mbox)
 {
-	if (mport->ops->close_inb_mbox) {
-		mport->ops->close_inb_mbox(mport, mbox);
+	int rc;
 
-		/* Release the mailbox resource */
-		return release_resource(mport->inb_msg[mbox].res);
-	} else
-		return -ENOSYS;
+	if (!mport->ops->close_inb_mbox || !mport->inb_msg[mbox].res)
+		return -EINVAL;
+
+	mport->ops->close_inb_mbox(mport, mbox);
+	mport->inb_msg[mbox].mcback = NULL;
+
+	rc = release_resource(mport->inb_msg[mbox].res);
+	if (rc)
+		return rc;
+
+	kfree(mport->inb_msg[mbox].res);
+	mport->inb_msg[mbox].res = NULL;
+
+	return 0;
 }
 
 /**
@@ -185,7 +332,7 @@ int rio_request_outb_mbox(struct rio_mport *mport,
 	if (mport->ops->open_outb_mbox == NULL)
 		goto out;
 
-	res = kmalloc(sizeof(struct resource), GFP_KERNEL);
+	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
 
 	if (res) {
 		rio_init_mbox_res(res, mbox, mbox);
@@ -204,6 +351,12 @@ int rio_request_outb_mbox(struct rio_mport *mport,
 		mport->outb_msg[mbox].mcback = moutb;
 
 		rc = mport->ops->open_outb_mbox(mport, dev_id, mbox, entries);
+		if (rc) {
+			mport->outb_msg[mbox].mcback = NULL;
+			mport->outb_msg[mbox].res = NULL;
+			release_resource(res);
+			kfree(res);
+		}
 	} else
 		rc = -ENOMEM;
 
@@ -221,13 +374,22 @@ int rio_request_outb_mbox(struct rio_mport *mport,
  */
 int rio_release_outb_mbox(struct rio_mport *mport, int mbox)
 {
-	if (mport->ops->close_outb_mbox) {
-		mport->ops->close_outb_mbox(mport, mbox);
+	int rc;
 
-		/* Release the mailbox resource */
-		return release_resource(mport->outb_msg[mbox].res);
-	} else
-		return -ENOSYS;
+	if (!mport->ops->close_outb_mbox || !mport->outb_msg[mbox].res)
+		return -EINVAL;
+
+	mport->ops->close_outb_mbox(mport, mbox);
+	mport->outb_msg[mbox].mcback = NULL;
+
+	rc = release_resource(mport->outb_msg[mbox].res);
+	if (rc)
+		return rc;
+
+	kfree(mport->outb_msg[mbox].res);
+	mport->outb_msg[mbox].res = NULL;
+
+	return 0;
 }
 
 /**
@@ -258,7 +420,9 @@ rio_setup_inb_dbell(struct rio_mport *mport, void *dev_id, struct resource *res,
 	dbell->dinb = dinb;
 	dbell->dev_id = dev_id;
 
+	mutex_lock(&mport->lock);
 	list_add_tail(&dbell->node, &mport->dbells);
+	mutex_unlock(&mport->lock);
 
       out:
 	return rc;
@@ -285,7 +449,7 @@ int rio_request_inb_dbell(struct rio_mport *mport,
 {
 	int rc = 0;
 
-	struct resource *res = kmalloc(sizeof(struct resource), GFP_KERNEL);
+	struct resource *res = kzalloc(sizeof(struct resource), GFP_KERNEL);
 
 	if (res) {
 		rio_init_dbell_res(res, start, end);
@@ -322,21 +486,21 @@ int rio_release_inb_dbell(struct rio_mport *mport, u16 start, u16 end)
 	int rc = 0, found = 0;
 	struct rio_dbell *dbell;
 
+	mutex_lock(&mport->lock);
 	list_for_each_entry(dbell, &mport->dbells, node) {
 		if ((dbell->res->start == start) && (dbell->res->end == end)) {
+			list_del(&dbell->node);
 			found = 1;
 			break;
 		}
 	}
+	mutex_unlock(&mport->lock);
 
 	/* If we can't find an exact match, fail */
 	if (!found) {
 		rc = -EINVAL;
 		goto out;
 	}
-
-	/* Delete from list */
-	list_del(&dbell->node);
 
 	/* Release the doorbell resource */
 	rc = release_resource(dbell->res);
@@ -360,7 +524,7 @@ int rio_release_inb_dbell(struct rio_mport *mport, u16 start, u16 end)
 struct resource *rio_request_outb_dbell(struct rio_dev *rdev, u16 start,
 					u16 end)
 {
-	struct resource *res = kmalloc(sizeof(struct resource), GFP_KERNEL);
+	struct resource *res = kzalloc(sizeof(struct resource), GFP_KERNEL);
 
 	if (res) {
 		rio_init_dbell_res(res, start, end);
@@ -394,7 +558,71 @@ int rio_release_outb_dbell(struct rio_dev *rdev, struct resource *res)
 }
 
 /**
- * rio_request_inb_pwrite - request inbound port-write message service
+ * rio_add_mport_pw_handler - add port-write message handler into the list
+ *                            of mport specific pw handlers
+ * @mport:   RIO master port to bind the portwrite callback
+ * @context: Handler specific context to pass on event
+ * @pwcback: Callback to execute when portwrite is received
+ *
+ * Returns 0 if the request has been satisfied.
+ */
+int rio_add_mport_pw_handler(struct rio_mport *mport, void *context,
+			     int (*pwcback)(struct rio_mport *mport,
+			     void *context, union rio_pw_msg *msg, int step))
+{
+	int rc = 0;
+	struct rio_pwrite *pwrite;
+
+	pwrite = kzalloc(sizeof(struct rio_pwrite), GFP_KERNEL);
+	if (!pwrite) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	pwrite->pwcback = pwcback;
+	pwrite->context = context;
+	mutex_lock(&mport->lock);
+	list_add_tail(&pwrite->node, &mport->pwrites);
+	mutex_unlock(&mport->lock);
+out:
+	return rc;
+}
+EXPORT_SYMBOL_GPL(rio_add_mport_pw_handler);
+
+/**
+ * rio_del_mport_pw_handler - remove port-write message handler from the list
+ *                            of mport specific pw handlers
+ * @mport:   RIO master port to bind the portwrite callback
+ * @context: Registered handler specific context to pass on event
+ * @pwcback: Registered callback function
+ *
+ * Returns 0 if the request has been satisfied.
+ */
+int rio_del_mport_pw_handler(struct rio_mport *mport, void *context,
+			     int (*pwcback)(struct rio_mport *mport,
+			     void *context, union rio_pw_msg *msg, int step))
+{
+	int rc = -EINVAL;
+	struct rio_pwrite *pwrite;
+
+	mutex_lock(&mport->lock);
+	list_for_each_entry(pwrite, &mport->pwrites, node) {
+		if (pwrite->pwcback == pwcback && pwrite->context == context) {
+			list_del(&pwrite->node);
+			kfree(pwrite);
+			rc = 0;
+			break;
+		}
+	}
+	mutex_unlock(&mport->lock);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(rio_del_mport_pw_handler);
+
+/**
+ * rio_request_inb_pwrite - request inbound port-write message service for
+ *                          specific RapidIO device
  * @rdev: RIO device to which register inbound port-write callback routine
  * @pwcback: Callback routine to execute when port-write is received
  *
@@ -419,6 +647,7 @@ EXPORT_SYMBOL_GPL(rio_request_inb_pwrite);
 
 /**
  * rio_release_inb_pwrite - release inbound port-write message service
+ *                          associated with specific RapidIO device
  * @rdev: RIO device which registered for inbound port-write callback
  *
  * Removes callback from the rio_dev structure. Returns 0 if the request
@@ -438,6 +667,24 @@ int rio_release_inb_pwrite(struct rio_dev *rdev)
 	return rc;
 }
 EXPORT_SYMBOL_GPL(rio_release_inb_pwrite);
+
+/**
+ * rio_pw_enable - Enables/disables port-write handling by a master port
+ * @mport: Master port associated with port-write handling
+ * @enable:  1=enable,  0=disable
+ */
+void rio_pw_enable(struct rio_mport *mport, int enable)
+{
+	if (mport->ops->pwenable) {
+		mutex_lock(&mport->lock);
+
+		if ((enable && ++mport->pwe_refcnt == 1) ||
+		    (!enable && mport->pwe_refcnt && --mport->pwe_refcnt == 0))
+			mport->ops->pwenable(mport, enable);
+		mutex_unlock(&mport->lock);
+	}
+}
+EXPORT_SYMBOL_GPL(rio_pw_enable);
 
 /**
  * rio_map_inb_region -- Map inbound memory region.
@@ -483,16 +730,67 @@ void rio_unmap_inb_region(struct rio_mport *mport, dma_addr_t lstart)
 EXPORT_SYMBOL_GPL(rio_unmap_inb_region);
 
 /**
+ * rio_map_outb_region -- Map outbound memory region.
+ * @mport: Master port.
+ * @destid: destination id window points to
+ * @rbase: RIO base address window translates to
+ * @size: Size of the memory region
+ * @rflags: Flags for mapping.
+ * @local: physical address of memory region mapped
+ *
+ * Return: 0 -- Success.
+ *
+ * This function will create the mapping from RIO space to local memory.
+ */
+int rio_map_outb_region(struct rio_mport *mport, u16 destid, u64 rbase,
+			u32 size, u32 rflags, dma_addr_t *local)
+{
+	int rc = 0;
+	unsigned long flags;
+
+	if (!mport->ops->map_outb)
+		return -ENODEV;
+
+	spin_lock_irqsave(&rio_mmap_lock, flags);
+	rc = mport->ops->map_outb(mport, destid, rbase, size,
+		rflags, local);
+	spin_unlock_irqrestore(&rio_mmap_lock, flags);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(rio_map_outb_region);
+
+/**
+ * rio_unmap_inb_region -- Unmap the inbound memory region
+ * @mport: Master port
+ * @destid: destination id mapping points to
+ * @rstart: RIO base address window translates to
+ */
+void rio_unmap_outb_region(struct rio_mport *mport, u16 destid, u64 rstart)
+{
+	unsigned long flags;
+
+	if (!mport->ops->unmap_outb)
+		return;
+
+	spin_lock_irqsave(&rio_mmap_lock, flags);
+	mport->ops->unmap_outb(mport, destid, rstart);
+	spin_unlock_irqrestore(&rio_mmap_lock, flags);
+}
+EXPORT_SYMBOL_GPL(rio_unmap_outb_region);
+
+/**
  * rio_mport_get_physefb - Helper function that returns register offset
  *                      for Physical Layer Extended Features Block.
  * @port: Master port to issue transaction
  * @local: Indicate a local master port or remote device access
  * @destid: Destination ID of the device
  * @hopcount: Number of switch hops to the device
+ * @rmap: pointer to location to store register map type info
  */
 u32
 rio_mport_get_physefb(struct rio_mport *port, int local,
-		      u16 destid, u8 hopcount)
+		      u16 destid, u8 hopcount, u32 *rmap)
 {
 	u32 ext_ftr_ptr;
 	u32 ftr_header;
@@ -510,14 +808,21 @@ rio_mport_get_physefb(struct rio_mport *port, int local,
 		ftr_header = RIO_GET_BLOCK_ID(ftr_header);
 		switch (ftr_header) {
 
-		case RIO_EFB_SER_EP_ID_V13P:
-		case RIO_EFB_SER_EP_REC_ID_V13P:
-		case RIO_EFB_SER_EP_FREE_ID_V13P:
 		case RIO_EFB_SER_EP_ID:
 		case RIO_EFB_SER_EP_REC_ID:
 		case RIO_EFB_SER_EP_FREE_ID:
-		case RIO_EFB_SER_EP_FREC_ID:
+		case RIO_EFB_SER_EP_M1_ID:
+		case RIO_EFB_SER_EP_SW_M1_ID:
+		case RIO_EFB_SER_EPF_M1_ID:
+		case RIO_EFB_SER_EPF_SW_M1_ID:
+			*rmap = 1;
+			return ext_ftr_ptr;
 
+		case RIO_EFB_SER_EP_M2_ID:
+		case RIO_EFB_SER_EP_SW_M2_ID:
+		case RIO_EFB_SER_EPF_M2_ID:
+		case RIO_EFB_SER_EPF_SW_M2_ID:
+			*rmap = 2;
 			return ext_ftr_ptr;
 
 		default:
@@ -576,16 +881,16 @@ int rio_set_port_lockout(struct rio_dev *rdev, u32 pnum, int lock)
 	u32 regval;
 
 	rio_read_config_32(rdev,
-				 rdev->phys_efptr + RIO_PORT_N_CTL_CSR(pnum),
-				 &regval);
+		RIO_DEV_PORT_N_CTL_CSR(rdev, pnum),
+		&regval);
 	if (lock)
 		regval |= RIO_PORT_N_CTL_LOCKOUT;
 	else
 		regval &= ~RIO_PORT_N_CTL_LOCKOUT;
 
 	rio_write_config_32(rdev,
-				  rdev->phys_efptr + RIO_PORT_N_CTL_CSR(pnum),
-				  regval);
+		RIO_DEV_PORT_N_CTL_CSR(rdev, pnum),
+		regval);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rio_set_port_lockout);
@@ -609,6 +914,7 @@ int rio_enable_rx_tx_port(struct rio_mport *port,
 #ifdef CONFIG_RAPIDIO_ENABLE_RX_TX_PORTS
 	u32 regval;
 	u32 ext_ftr_ptr;
+	u32 rmap;
 
 	/*
 	* enable rx input tx output port
@@ -616,34 +922,29 @@ int rio_enable_rx_tx_port(struct rio_mport *port,
 	pr_debug("rio_enable_rx_tx_port(local = %d, destid = %d, hopcount = "
 		 "%d, port_num = %d)\n", local, destid, hopcount, port_num);
 
-	ext_ftr_ptr = rio_mport_get_physefb(port, local, destid, hopcount);
+	ext_ftr_ptr = rio_mport_get_physefb(port, local, destid,
+					    hopcount, &rmap);
 
 	if (local) {
-		rio_local_read_config_32(port, ext_ftr_ptr +
-				RIO_PORT_N_CTL_CSR(0),
+		rio_local_read_config_32(port,
+				ext_ftr_ptr + RIO_PORT_N_CTL_CSR(0, rmap),
 				&regval);
 	} else {
 		if (rio_mport_read_config_32(port, destid, hopcount,
-		ext_ftr_ptr + RIO_PORT_N_CTL_CSR(port_num), &regval) < 0)
+			ext_ftr_ptr + RIO_PORT_N_CTL_CSR(port_num, rmap),
+				&regval) < 0)
 			return -EIO;
 	}
 
-	if (regval & RIO_PORT_N_CTL_P_TYP_SER) {
-		/* serial */
-		regval = regval | RIO_PORT_N_CTL_EN_RX_SER
-				| RIO_PORT_N_CTL_EN_TX_SER;
-	} else {
-		/* parallel */
-		regval = regval | RIO_PORT_N_CTL_EN_RX_PAR
-				| RIO_PORT_N_CTL_EN_TX_PAR;
-	}
+	regval = regval | RIO_PORT_N_CTL_EN_RX | RIO_PORT_N_CTL_EN_TX;
 
 	if (local) {
-		rio_local_write_config_32(port, ext_ftr_ptr +
-					  RIO_PORT_N_CTL_CSR(0), regval);
+		rio_local_write_config_32(port,
+			ext_ftr_ptr + RIO_PORT_N_CTL_CSR(0, rmap), regval);
 	} else {
 		if (rio_mport_write_config_32(port, destid, hopcount,
-		    ext_ftr_ptr + RIO_PORT_N_CTL_CSR(port_num), regval) < 0)
+			ext_ftr_ptr + RIO_PORT_N_CTL_CSR(port_num, rmap),
+				regval) < 0)
 			return -EIO;
 	}
 #endif
@@ -745,14 +1046,14 @@ rio_get_input_status(struct rio_dev *rdev, int pnum, u32 *lnkresp)
 		/* Read from link maintenance response register
 		 * to clear valid bit */
 		rio_read_config_32(rdev,
-			rdev->phys_efptr + RIO_PORT_N_MNT_RSP_CSR(pnum),
+			RIO_DEV_PORT_N_MNT_RSP_CSR(rdev, pnum),
 			&regval);
 		udelay(50);
 	}
 
 	/* Issue Input-status command */
 	rio_write_config_32(rdev,
-		rdev->phys_efptr + RIO_PORT_N_MNT_REQ_CSR(pnum),
+		RIO_DEV_PORT_N_MNT_REQ_CSR(rdev, pnum),
 		RIO_MNT_REQ_CMD_IS);
 
 	/* Exit if the response is not expected */
@@ -763,7 +1064,7 @@ rio_get_input_status(struct rio_dev *rdev, int pnum, u32 *lnkresp)
 	while (checkcount--) {
 		udelay(50);
 		rio_read_config_32(rdev,
-			rdev->phys_efptr + RIO_PORT_N_MNT_RSP_CSR(pnum),
+			RIO_DEV_PORT_N_MNT_RSP_CSR(rdev, pnum),
 			&regval);
 		if (regval & RIO_PORT_N_MNT_RSP_RVAL) {
 			*lnkresp = regval;
@@ -779,6 +1080,13 @@ rio_get_input_status(struct rio_dev *rdev, int pnum, u32 *lnkresp)
  * @rdev: Pointer to RIO device control structure
  * @pnum: Switch port number to clear errors
  * @err_status: port error status (if 0 reads register from device)
+ *
+ * TODO: Currently this routine is not compatible with recovery process
+ * specified for idt_gen3 RapidIO switch devices. It has to be reviewed
+ * to implement universal recovery process that is compatible full range
+ * off available devices.
+ * IDT gen3 switch driver now implements HW-specific error handler that
+ * issues soft port reset to the port to reset ERR_STOP bits and ackIDs.
  */
 static int rio_clr_err_stopped(struct rio_dev *rdev, u32 pnum, u32 err_status)
 {
@@ -788,10 +1096,10 @@ static int rio_clr_err_stopped(struct rio_dev *rdev, u32 pnum, u32 err_status)
 
 	if (err_status == 0)
 		rio_read_config_32(rdev,
-			rdev->phys_efptr + RIO_PORT_N_ERR_STS_CSR(pnum),
+			RIO_DEV_PORT_N_ERR_STS_CSR(rdev, pnum),
 			&err_status);
 
-	if (err_status & RIO_PORT_N_ERR_STS_PW_OUT_ES) {
+	if (err_status & RIO_PORT_N_ERR_STS_OUT_ES) {
 		pr_debug("RIO_EM: servicing Output Error-Stopped state\n");
 		/*
 		 * Send a Link-Request/Input-Status control symbol
@@ -806,7 +1114,7 @@ static int rio_clr_err_stopped(struct rio_dev *rdev, u32 pnum, u32 err_status)
 		far_ackid = (regval & RIO_PORT_N_MNT_RSP_ASTAT) >> 5;
 		far_linkstat = regval & RIO_PORT_N_MNT_RSP_LSTAT;
 		rio_read_config_32(rdev,
-			rdev->phys_efptr + RIO_PORT_N_ACK_STS_CSR(pnum),
+			RIO_DEV_PORT_N_ACK_STS_CSR(rdev, pnum),
 			&regval);
 		pr_debug("RIO_EM: SP%d_ACK_STS_CSR=0x%08x\n", pnum, regval);
 		near_ackid = (regval & RIO_PORT_N_ACK_INBOUND) >> 24;
@@ -824,91 +1132,105 @@ static int rio_clr_err_stopped(struct rio_dev *rdev, u32 pnum, u32 err_status)
 			 * far inbound.
 			 */
 			rio_write_config_32(rdev,
-				rdev->phys_efptr + RIO_PORT_N_ACK_STS_CSR(pnum),
+				RIO_DEV_PORT_N_ACK_STS_CSR(rdev, pnum),
 				(near_ackid << 24) |
 					(far_ackid << 8) | far_ackid);
 			/* Align far outstanding/outbound ackIDs with
 			 * near inbound.
 			 */
 			far_ackid++;
-			if (nextdev)
-				rio_write_config_32(nextdev,
-					nextdev->phys_efptr +
-					RIO_PORT_N_ACK_STS_CSR(RIO_GET_PORT_NUM(nextdev->swpinfo)),
-					(far_ackid << 24) |
-					(near_ackid << 8) | near_ackid);
-			else
-				pr_debug("RIO_EM: Invalid nextdev pointer (NULL)\n");
+			if (!nextdev) {
+				pr_debug("RIO_EM: nextdev pointer == NULL\n");
+				goto rd_err;
+			}
+
+			rio_write_config_32(nextdev,
+				RIO_DEV_PORT_N_ACK_STS_CSR(nextdev,
+					RIO_GET_PORT_NUM(nextdev->swpinfo)),
+				(far_ackid << 24) |
+				(near_ackid << 8) | near_ackid);
 		}
 rd_err:
-		rio_read_config_32(rdev,
-			rdev->phys_efptr + RIO_PORT_N_ERR_STS_CSR(pnum),
-			&err_status);
+		rio_read_config_32(rdev, RIO_DEV_PORT_N_ERR_STS_CSR(rdev, pnum),
+				   &err_status);
 		pr_debug("RIO_EM: SP%d_ERR_STS_CSR=0x%08x\n", pnum, err_status);
 	}
 
-	if ((err_status & RIO_PORT_N_ERR_STS_PW_INP_ES) && nextdev) {
+	if ((err_status & RIO_PORT_N_ERR_STS_INP_ES) && nextdev) {
 		pr_debug("RIO_EM: servicing Input Error-Stopped state\n");
 		rio_get_input_status(nextdev,
 				     RIO_GET_PORT_NUM(nextdev->swpinfo), NULL);
 		udelay(50);
 
-		rio_read_config_32(rdev,
-			rdev->phys_efptr + RIO_PORT_N_ERR_STS_CSR(pnum),
-			&err_status);
+		rio_read_config_32(rdev, RIO_DEV_PORT_N_ERR_STS_CSR(rdev, pnum),
+				   &err_status);
 		pr_debug("RIO_EM: SP%d_ERR_STS_CSR=0x%08x\n", pnum, err_status);
 	}
 
-	return (err_status & (RIO_PORT_N_ERR_STS_PW_OUT_ES |
-			      RIO_PORT_N_ERR_STS_PW_INP_ES)) ? 1 : 0;
+	return (err_status & (RIO_PORT_N_ERR_STS_OUT_ES |
+			      RIO_PORT_N_ERR_STS_INP_ES)) ? 1 : 0;
 }
 
 /**
- * rio_inb_pwrite_handler - process inbound port-write message
+ * rio_inb_pwrite_handler - inbound port-write message handler
+ * @mport:  mport device associated with port-write
  * @pw_msg: pointer to inbound port-write message
  *
  * Processes an inbound port-write message. Returns 0 if the request
  * has been satisfied.
  */
-int rio_inb_pwrite_handler(union rio_pw_msg *pw_msg)
+int rio_inb_pwrite_handler(struct rio_mport *mport, union rio_pw_msg *pw_msg)
 {
 	struct rio_dev *rdev;
 	u32 err_status, em_perrdet, em_ltlerrdet;
 	int rc, portnum;
-
-	rdev = rio_get_comptag((pw_msg->em.comptag & RIO_CTAG_UDEVID), NULL);
-	if (rdev == NULL) {
-		/* Device removed or enumeration error */
-		pr_debug("RIO: %s No matching device for CTag 0x%08x\n",
-			__func__, pw_msg->em.comptag);
-		return -EIO;
-	}
-
-	pr_debug("RIO: Port-Write message from %s\n", rio_name(rdev));
+	struct rio_pwrite *pwrite;
 
 #ifdef DEBUG_PW
 	{
-	u32 i;
-	for (i = 0; i < RIO_PW_MSG_SIZE/sizeof(u32);) {
+		u32 i;
+
+		pr_debug("%s: PW to mport_%d:\n", __func__, mport->id);
+		for (i = 0; i < RIO_PW_MSG_SIZE / sizeof(u32); i = i + 4) {
 			pr_debug("0x%02x: %08x %08x %08x %08x\n",
-				 i*4, pw_msg->raw[i], pw_msg->raw[i + 1],
-				 pw_msg->raw[i + 2], pw_msg->raw[i + 3]);
-			i += 4;
-	}
+				i * 4, pw_msg->raw[i], pw_msg->raw[i + 1],
+				pw_msg->raw[i + 2], pw_msg->raw[i + 3]);
+		}
 	}
 #endif
 
-	/* Call an external service function (if such is registered
-	 * for this device). This may be the service for endpoints that send
-	 * device-specific port-write messages. End-point messages expected
-	 * to be handled completely by EP specific device driver.
+	rdev = rio_get_comptag((pw_msg->em.comptag & RIO_CTAG_UDEVID), NULL);
+	if (rdev) {
+		pr_debug("RIO: Port-Write message from %s\n", rio_name(rdev));
+	} else {
+		pr_debug("RIO: %s No matching device for CTag 0x%08x\n",
+			__func__, pw_msg->em.comptag);
+	}
+
+	/* Call a device-specific handler (if it is registered for the device).
+	 * This may be the service for endpoints that send device-specific
+	 * port-write messages. End-point messages expected to be handled
+	 * completely by EP specific device driver.
 	 * For switches rc==0 signals that no standard processing required.
 	 */
-	if (rdev->pwcback != NULL) {
+	if (rdev && rdev->pwcback) {
 		rc = rdev->pwcback(rdev, pw_msg, 0);
 		if (rc == 0)
 			return 0;
 	}
+
+	mutex_lock(&mport->lock);
+	list_for_each_entry(pwrite, &mport->pwrites, node)
+		pwrite->pwcback(mport, pwrite->context, pw_msg, 0);
+	mutex_unlock(&mport->lock);
+
+	if (!rdev)
+		return 0;
+
+	/*
+	 * FIXME: The code below stays as it was before for now until we decide
+	 * how to do default PW handling in combination with per-mport callbacks
+	 */
 
 	portnum = pw_msg->em.is_port & 0xFF;
 
@@ -946,9 +1268,8 @@ int rio_inb_pwrite_handler(union rio_pw_msg *pw_msg)
 	if (rdev->rswitch->ops && rdev->rswitch->ops->em_handle)
 		rdev->rswitch->ops->em_handle(rdev, portnum);
 
-	rio_read_config_32(rdev,
-			rdev->phys_efptr + RIO_PORT_N_ERR_STS_CSR(portnum),
-			&err_status);
+	rio_read_config_32(rdev, RIO_DEV_PORT_N_ERR_STS_CSR(rdev, portnum),
+			   &err_status);
 	pr_debug("RIO_PW: SP%d_ERR_STS_CSR=0x%08x\n", portnum, err_status);
 
 	if (err_status & RIO_PORT_N_ERR_STS_PORT_OK) {
@@ -965,8 +1286,8 @@ int rio_inb_pwrite_handler(union rio_pw_msg *pw_msg)
 		 * Depending on the link partner state, two attempts
 		 * may be needed for successful recovery.
 		 */
-		if (err_status & (RIO_PORT_N_ERR_STS_PW_OUT_ES |
-				  RIO_PORT_N_ERR_STS_PW_INP_ES)) {
+		if (err_status & (RIO_PORT_N_ERR_STS_OUT_ES |
+				  RIO_PORT_N_ERR_STS_INP_ES)) {
 			if (rio_clr_err_stopped(rdev, portnum, err_status))
 				rio_clr_err_stopped(rdev, portnum, 0);
 		}
@@ -976,10 +1297,18 @@ int rio_inb_pwrite_handler(union rio_pw_msg *pw_msg)
 			rdev->rswitch->port_ok &= ~(1 << portnum);
 			rio_set_port_lockout(rdev, portnum, 1);
 
+			if (rdev->phys_rmap == 1) {
 			rio_write_config_32(rdev,
-				rdev->phys_efptr +
-					RIO_PORT_N_ACK_STS_CSR(portnum),
+				RIO_DEV_PORT_N_ACK_STS_CSR(rdev, portnum),
 				RIO_PORT_N_ACK_CLEAR);
+			} else {
+				rio_write_config_32(rdev,
+					RIO_DEV_PORT_N_OB_ACK_CSR(rdev, portnum),
+					RIO_PORT_N_OB_ACK_CLEAR);
+				rio_write_config_32(rdev,
+					RIO_DEV_PORT_N_IB_ACK_CSR(rdev, portnum),
+					0);
+			}
 
 			/* Schedule Extraction Service */
 			pr_debug("RIO_PW: Device Extraction on [%s]-P%d\n",
@@ -1008,9 +1337,8 @@ int rio_inb_pwrite_handler(union rio_pw_msg *pw_msg)
 	}
 
 	/* Clear remaining error bits and Port-Write Pending bit */
-	rio_write_config_32(rdev,
-			rdev->phys_efptr + RIO_PORT_N_ERR_STS_CSR(portnum),
-			err_status);
+	rio_write_config_32(rdev, RIO_DEV_PORT_N_ERR_STS_CSR(rdev, portnum),
+			    err_status);
 
 	return 0;
 }
@@ -1061,20 +1389,7 @@ EXPORT_SYMBOL_GPL(rio_mport_get_efb);
  * Tell if a device supports a given RapidIO capability.
  * Returns the offset of the requested extended feature
  * block within the device's RIO configuration space or
- * 0 in case the device does not support it.  Possible
- * values for @ftr:
- *
- * %RIO_EFB_PAR_EP_ID		LP/LVDS EP Devices
- *
- * %RIO_EFB_PAR_EP_REC_ID	LP/LVDS EP Recovery Devices
- *
- * %RIO_EFB_PAR_EP_FREE_ID	LP/LVDS EP Free Devices
- *
- * %RIO_EFB_SER_EP_ID		LP/Serial EP Devices
- *
- * %RIO_EFB_SER_EP_REC_ID	LP/Serial EP Recovery Devices
- *
- * %RIO_EFB_SER_EP_FREE_ID	LP/Serial EP Free Devices
+ * 0 in case the device does not support it.
  */
 u32
 rio_mport_get_feature(struct rio_mport * port, int local, u16 destid,
@@ -1567,7 +1882,9 @@ EXPORT_SYMBOL_GPL(rio_release_dma);
  * Initializes RapidIO capable DMA channel for the specified data transfer.
  * Uses DMA channel private extension to pass information related to remote
  * target RIO device.
- * Returns pointer to DMA transaction descriptor or NULL if failed.
+ *
+ * Returns: pointer to DMA transaction descriptor if successful,
+ *          error-valued pointer or NULL if failed.
  */
 struct dma_async_tx_descriptor *rio_dma_prep_xfer(struct dma_chan *dchan,
 	u16 destid, struct rio_dma_data *data,
@@ -1602,7 +1919,9 @@ EXPORT_SYMBOL_GPL(rio_dma_prep_xfer);
  * Initializes RapidIO capable DMA channel for the specified data transfer.
  * Uses DMA channel private extension to pass information related to remote
  * target RIO device.
- * Returns pointer to DMA transaction descriptor or NULL if failed.
+ *
+ * Returns: pointer to DMA transaction descriptor if successful,
+ *          error-valued pointer or NULL if failed.
  */
 struct dma_async_tx_descriptor *rio_dma_prep_slave_sg(struct rio_dev *rdev,
 	struct dma_chan *dchan, struct rio_dma_data *data,
@@ -1909,32 +2228,31 @@ static int rio_get_hdid(int index)
 	return hdid[index];
 }
 
+int rio_mport_initialize(struct rio_mport *mport)
+{
+	if (next_portid >= RIO_MAX_MPORTS) {
+		pr_err("RIO: reached specified max number of mports\n");
+		return -ENODEV;
+	}
+
+	atomic_set(&mport->state, RIO_DEVICE_INITIALIZING);
+	mport->id = next_portid++;
+	mport->host_deviceid = rio_get_hdid(mport->id);
+	mport->nscan = NULL;
+	mutex_init(&mport->lock);
+	mport->pwe_refcnt = 0;
+	INIT_LIST_HEAD(&mport->pwrites);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rio_mport_initialize);
+
 int rio_register_mport(struct rio_mport *port)
 {
 	struct rio_scan_node *scan = NULL;
 	int res = 0;
 
-	if (next_portid >= RIO_MAX_MPORTS) {
-		pr_err("RIO: reached specified max number of mports\n");
-		return 1;
-	}
-
-	port->id = next_portid++;
-	port->host_deviceid = rio_get_hdid(port->id);
-	port->nscan = NULL;
-
-	dev_set_name(&port->dev, "rapidio%d", port->id);
-	port->dev.class = &rio_mport_class;
-
-	res = device_register(&port->dev);
-	if (res)
-		dev_err(&port->dev, "RIO: mport%d registration failed ERR=%d\n",
-			port->id, res);
-	else
-		dev_dbg(&port->dev, "RIO: mport%d registered\n", port->id);
-
 	mutex_lock(&rio_mport_list_lock);
-	list_add_tail(&port->node, &rio_mports);
 
 	/*
 	 * Check if there are any registered enumeration/discovery operations
@@ -1948,12 +2266,73 @@ int rio_register_mport(struct rio_mport *port)
 				break;
 		}
 	}
+
+	list_add_tail(&port->node, &rio_mports);
 	mutex_unlock(&rio_mport_list_lock);
 
-	pr_debug("RIO: %s %s id=%d\n", __func__, port->name, port->id);
-	return 0;
+	dev_set_name(&port->dev, "rapidio%d", port->id);
+	port->dev.class = &rio_mport_class;
+	atomic_set(&port->state, RIO_DEVICE_RUNNING);
+
+	res = device_register(&port->dev);
+	if (res)
+		dev_err(&port->dev, "RIO: mport%d registration failed ERR=%d\n",
+			port->id, res);
+	else
+		dev_dbg(&port->dev, "RIO: registered mport%d\n", port->id);
+
+	return res;
 }
 EXPORT_SYMBOL_GPL(rio_register_mport);
+
+static int rio_mport_cleanup_callback(struct device *dev, void *data)
+{
+	struct rio_dev *rdev = to_rio_dev(dev);
+
+	if (dev->bus == &rio_bus_type)
+		rio_del_device(rdev, RIO_DEVICE_SHUTDOWN);
+	return 0;
+}
+
+static int rio_net_remove_children(struct rio_net *net)
+{
+	/*
+	 * Unregister all RapidIO devices residing on this net (this will
+	 * invoke notification of registered subsystem interfaces as well).
+	 */
+	device_for_each_child(&net->dev, NULL, rio_mport_cleanup_callback);
+	return 0;
+}
+
+int rio_unregister_mport(struct rio_mport *port)
+{
+	pr_debug("RIO: %s %s id=%d\n", __func__, port->name, port->id);
+
+	/* Transition mport to the SHUTDOWN state */
+	if (atomic_cmpxchg(&port->state,
+			   RIO_DEVICE_RUNNING,
+			   RIO_DEVICE_SHUTDOWN) != RIO_DEVICE_RUNNING) {
+		pr_err("RIO: %s unexpected state transition for mport %s\n",
+			__func__, port->name);
+	}
+
+	if (port->net && port->net->hport == port) {
+		rio_net_remove_children(port->net);
+		rio_free_net(port->net);
+	}
+
+	/*
+	 * Unregister all RapidIO devices attached to this mport (this will
+	 * invoke notification of registered subsystem interfaces as well).
+	 */
+	mutex_lock(&rio_mport_list_lock);
+	list_del(&port->node);
+	mutex_unlock(&rio_mport_list_lock);
+	device_unregister(&port->dev);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rio_unregister_mport);
 
 EXPORT_SYMBOL_GPL(rio_local_get_device_id);
 EXPORT_SYMBOL_GPL(rio_get_device);

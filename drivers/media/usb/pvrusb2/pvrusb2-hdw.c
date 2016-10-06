@@ -2856,11 +2856,15 @@ static void pvr2_subdev_set_control(struct pvr2_hdw *hdw, int id,
 				    const char *name, int val)
 {
 	struct v4l2_control ctrl;
+	struct v4l2_subdev *sd;
+
 	pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 %s=%d", name, val);
 	memset(&ctrl, 0, sizeof(ctrl));
 	ctrl.id = id;
 	ctrl.value = val;
-	v4l2_device_call_all(&hdw->v4l2_dev, 0, core, s_ctrl, &ctrl);
+
+	v4l2_device_for_each_subdev(sd, &hdw->v4l2_dev)
+		v4l2_s_ctrl(NULL, sd->ctrl_handler, &ctrl);
 }
 
 #define PVR2_SUBDEV_SET_CONTROL(hdw, id, lab) \
@@ -3672,11 +3676,10 @@ static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
 
 
 	hdw->cmd_debug_state = 1;
-	if (write_len) {
+	if (write_len && write_data)
 		hdw->cmd_debug_code = ((unsigned char *)write_data)[0];
-	} else {
+	else
 		hdw->cmd_debug_code = 0;
-	}
 	hdw->cmd_debug_write_len = write_len;
 	hdw->cmd_debug_read_len = read_len;
 
@@ -3688,7 +3691,7 @@ static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
 	setup_timer(&timer, pvr2_ctl_timeout, (unsigned long)hdw);
 	timer.expires = jiffies + timeout;
 
-	if (write_len) {
+	if (write_len && write_data) {
 		hdw->cmd_debug_state = 2;
 		/* Transfer write data to internal buffer */
 		for (idx = 0; idx < write_len; idx++) {
@@ -3795,7 +3798,7 @@ static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
 			goto done;
 		}
 	}
-	if (read_len) {
+	if (read_len && read_data) {
 		/* Validate results of read request */
 		if ((hdw->ctl_read_urb->status != 0) &&
 		    (hdw->ctl_read_urb->status != -ENOENT) &&
@@ -4903,6 +4906,9 @@ static void pvr2_hdw_state_log_state(struct pvr2_hdw *hdw)
 		printk(KERN_INFO "%s %.*s\n",hdw->name,ccnt,buf);
 	}
 	ccnt = pvr2_hdw_report_clients(hdw, buf, sizeof(buf));
+	if (ccnt >= sizeof(buf))
+		ccnt = sizeof(buf);
+
 	ucnt = 0;
 	while (ucnt < ccnt) {
 		lcnt = 0;

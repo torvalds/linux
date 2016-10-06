@@ -93,7 +93,7 @@ out_release_uncharge_unlock:
 	pte_unmap_unlock(dst_pte, ptl);
 	mem_cgroup_cancel_charge(page, memcg, false);
 out_release:
-	page_cache_release(page);
+	put_page(page);
 	goto out;
 }
 
@@ -230,8 +230,7 @@ retry:
 			break;
 		}
 		if (unlikely(pmd_none(dst_pmdval)) &&
-		    unlikely(__pte_alloc(dst_mm, dst_vma, dst_pmd,
-					 dst_addr))) {
+		    unlikely(__pte_alloc(dst_mm, dst_pmd, dst_addr))) {
 			err = -ENOMEM;
 			break;
 		}
@@ -288,7 +287,7 @@ out_unlock:
 	up_read(&dst_mm->mmap_sem);
 out:
 	if (page)
-		page_cache_release(page);
+		put_page(page);
 	BUG_ON(copied < 0);
 	BUG_ON(err > 0);
 	BUG_ON(!copied && !err);

@@ -8,6 +8,7 @@
 /dts-v1/;
 
 #include "dra74x.dtsi"
+#include "am57xx-commercial-grade.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 
@@ -24,7 +25,7 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0x80000000 0x80000000>;
+		reg = <0x0 0x80000000 0x0 0x80000000>;
 	};
 
 	vdd_3v3: fixedregulator-vdd_3v3 {
@@ -85,7 +86,7 @@
 		led@3 {
 			label = "beagle-x15:usr3";
 			gpios = <&gpio7 15 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "ide-disk";
+			linux,default-trigger = "disk-activity";
 			default-state = "off";
 		};
 	};
@@ -97,13 +98,6 @@
 		gpio-fan,speed-map = <0     0>,
 				     <13000 1>;
 		#cooling-cells = <2>;
-	};
-
-	extcon_usb1: extcon_usb1 {
-		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&gpio7 25 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&extcon_usb1_pins>;
 	};
 
 	hdmi0: connector {
@@ -151,7 +145,7 @@
 		};
 	};
 
-	sound0: sound@0 {
+	sound0: sound0 {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "BeagleBoard-X15";
 		simple-audio-card,widgets =
@@ -347,12 +341,6 @@
 		>;
 	};
 
-	extcon_usb1_pins: extcon_usb1_pins {
-		pinctrl-single,pins = <
-			DRA7XX_CORE_IOPAD(0x37ec, PIN_INPUT_PULLUP | MUX_MODE14) /* uart1_rtsn.gpio7_25 */
-		>;
-	};
-
 	tpd12s015_pins: pinmux_tpd12s015_pins {
 		pinctrl-single,pins = <
 			DRA7XX_CORE_IOPAD(0x37b0, PIN_OUTPUT | MUX_MODE14)		/* gpio7_10 CT_CP_HPD */
@@ -438,7 +426,7 @@
 					/* VDD_DSPEVE, VDD_IVA, VDD_GPU */
 					regulator-name = "smps45";
 					regulator-min-microvolt = < 850000>;
-					regulator-max-microvolt = <1150000>;
+					regulator-max-microvolt = <1250000>;
 					regulator-always-on;
 					regulator-boot-on;
 				};
@@ -447,7 +435,7 @@
 					/* VDD_CORE */
 					regulator-name = "smps6";
 					regulator-min-microvolt = <850000>;
-					regulator-max-microvolt = <1030000>;
+					regulator-max-microvolt = <1150000>;
 					regulator-always-on;
 					regulator-boot-on;
 				};
@@ -560,8 +548,7 @@
 		extcon_usb2: tps659038_usb {
 			compatible = "ti,palmas-usb-vid";
 			ti,enable-vbus-detection;
-			ti,enable-id-detection;
-			id-gpios = <&gpio7 24 GPIO_ACTIVE_HIGH>;
+			vbus-gpio = <&gpio4 21 GPIO_ACTIVE_HIGH>;
 		};
 
 	};
@@ -583,6 +570,9 @@
 		pinctrl-names = "default", "sleep";
 		pinctrl-0 = <&clkout2_pins_default>;
 		pinctrl-1 = <&clkout2_pins_sleep>;
+		assigned-clocks = <&clkoutmux2_clk_mux>;
+		assigned-clock-parents = <&sys_clk2_dclk_div>;
+
 		status = "okay";
 		adc-settle-ms = <40>;
 
@@ -590,6 +580,11 @@
 		IOVDD-supply = <&vdd_3v3>;
 		DRVDD-supply = <&vdd_3v3>;
 		DVDD-supply = <&aic_dvdd>;
+	};
+
+	eeprom: eeprom@50 {
+		compatible = "at,24c32";
+		reg = <0x50>;
 	};
 };
 
@@ -700,10 +695,6 @@
 	pinctrl-0 = <&usb1_pins>;
 };
 
-&omap_dwc3_1 {
-	extcon = <&extcon_usb1>;
-};
-
 &omap_dwc3_2 {
 	extcon = <&extcon_usb2>;
 };
@@ -796,6 +787,8 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&mcasp3_pins_default>;
 	pinctrl-1 = <&mcasp3_pins_sleep>;
+	assigned-clocks = <&mcasp3_ahclkx_mux>;
+	assigned-clock-parents = <&sys_clkin2>;
 	status = "okay";
 
 	op-mode = <0>;	/* MCASP_IIS_MODE */
@@ -804,6 +797,8 @@
 	serial-dir = <	/* 0: INACTIVE, 1: TX, 2: RX */
 		1 2 0 0
 	>;
+	tx-num-evt = <32>;
+	rx-num-evt = <32>;
 };
 
 &mailbox5 {

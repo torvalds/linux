@@ -20,9 +20,9 @@ int loongson3_cpu_temp(int cpu)
 	u32 reg;
 
 	reg = LOONGSON_CHIPTEMP(cpu);
-	if (loongson_sysconf.cputype == Loongson_3A)
+	if ((read_c0_prid() & PRID_REV_MASK) == PRID_REV_LOONGSON3A_R1)
 		reg = (reg >> 8) & 0xff;
-	else if (loongson_sysconf.cputype == Loongson_3B)
+	else
 		reg = ((reg >> 8) & 0xff) - 100;
 
 	return (int)reg * 1000;
@@ -80,13 +80,13 @@ static const struct attribute *hwmon_cputemp2[] = {
 static ssize_t cpu0_temp_label(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "CPU 0 Temprature\n");
+	return sprintf(buf, "CPU 0 Temperature\n");
 }
 
 static ssize_t cpu1_temp_label(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "CPU 1 Temprature\n");
+	return sprintf(buf, "CPU 1 Temperature\n");
 }
 
 static ssize_t get_cpu0_temp(struct device *dev,
@@ -169,7 +169,7 @@ static int __init loongson_hwmon_init(void)
 
 	ret = create_sysfs_cputemp_files(&cpu_hwmon_dev->kobj);
 	if (ret) {
-		pr_err("fail to create cpu temprature interface!\n");
+		pr_err("fail to create cpu temperature interface!\n");
 		goto fail_create_sysfs_cputemp_files;
 	}
 

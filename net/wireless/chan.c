@@ -372,6 +372,7 @@ int cfg80211_chandef_dfs_required(struct wiphy *wiphy,
 	case NL80211_IFTYPE_AP_VLAN:
 	case NL80211_IFTYPE_WDS:
 	case NL80211_IFTYPE_P2P_DEVICE:
+	case NL80211_IFTYPE_NAN:
 		break;
 	case NL80211_IFTYPE_UNSPECIFIED:
 	case NUM_NL80211_IFTYPES:
@@ -513,6 +514,7 @@ static bool cfg80211_chandef_dfs_available(struct wiphy *wiphy,
 		r = cfg80211_get_chans_dfs_available(wiphy,
 						     chandef->center_freq2,
 						     width);
+		break;
 	default:
 		WARN_ON(chandef->center_freq2);
 		break;
@@ -715,7 +717,7 @@ static bool cfg80211_ir_permissive_chan(struct wiphy *wiphy,
 
 	ASSERT_RTNL();
 
-	if (!config_enabled(CONFIG_CFG80211_REG_RELAX_NO_IR) ||
+	if (!IS_ENABLED(CONFIG_CFG80211_REG_RELAX_NO_IR) ||
 	    !(wiphy->regulatory_flags & REGULATORY_ENABLE_RELAX_NO_IR))
 		return false;
 
@@ -739,7 +741,7 @@ static bool cfg80211_ir_permissive_chan(struct wiphy *wiphy,
 	 * and thus fail the GO instantiation, consider only the interfaces of
 	 * the current registered device.
 	 */
-	list_for_each_entry(wdev, &rdev->wdev_list, list) {
+	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 		struct ieee80211_channel *other_chan = NULL;
 		int r1, r2;
 
@@ -768,7 +770,7 @@ static bool cfg80211_ir_permissive_chan(struct wiphy *wiphy,
 		if (chan == other_chan)
 			return true;
 
-		if (chan->band != IEEE80211_BAND_5GHZ)
+		if (chan->band != NL80211_BAND_5GHZ)
 			continue;
 
 		r1 = cfg80211_get_unii(chan->center_freq);
@@ -945,6 +947,7 @@ cfg80211_get_chan_state(struct wireless_dev *wdev,
 	case NL80211_IFTYPE_AP_VLAN:
 	case NL80211_IFTYPE_WDS:
 	case NL80211_IFTYPE_P2P_DEVICE:
+	case NL80211_IFTYPE_NAN:
 		/* these interface types don't really have a channel */
 		return;
 	case NL80211_IFTYPE_UNSPECIFIED:

@@ -1616,13 +1616,13 @@ static void gelic_wl_scan_complete_event(struct gelic_wl_info *wl)
 		target->valid = 1;
 		target->eurus_index = i;
 		kfree(target->hwinfo);
-		target->hwinfo = kzalloc(be16_to_cpu(scan_info->size),
+		target->hwinfo = kmemdup(scan_info,
+					 be16_to_cpu(scan_info->size),
 					 GFP_KERNEL);
 		if (!target->hwinfo)
 			continue;
 
 		/* copy hw scan info */
-		memcpy(target->hwinfo, scan_info, scan_info->size);
 		target->essid_len = strnlen(scan_info->essid,
 					    sizeof(scan_info->essid));
 		target->rate_len = 0;

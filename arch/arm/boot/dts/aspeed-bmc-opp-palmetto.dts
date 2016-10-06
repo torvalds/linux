@@ -1,0 +1,25 @@
+/dts-v1/;
+
+#include "aspeed-g4.dtsi"
+
+/ {
+	model = "Palmetto BMC";
+	compatible = "tyan,palmetto-bmc", "aspeed,ast2400";
+
+	aliases {
+		serial4 = &uart5;
+	};
+
+	chosen {
+		stdout-path = &uart5;
+		bootargs = "console=ttyS4,38400 earlyprintk";
+	};
+
+	memory {
+		reg = <0x40000000 0x10000000>;
+	};
+};
+
+&uart5 {
+	status = "okay";
+};

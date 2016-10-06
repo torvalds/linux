@@ -33,7 +33,7 @@ static int sysv_hash(const struct dentry *dentry, struct qstr *qstr)
 	   function. */
 	if (qstr->len > SYSV_NAMELEN) {
 		qstr->len = SYSV_NAMELEN;
-		qstr->hash = full_name_hash(qstr->name, qstr->len);
+		qstr->hash = full_name_hash(dentry, qstr->name, qstr->len);
 	}
 	return 0;
 }
@@ -264,11 +264,11 @@ static int sysv_rename(struct inode * old_dir, struct dentry * old_dentry,
 out_dir:
 	if (dir_de) {
 		kunmap(dir_page);
-		page_cache_release(dir_page);
+		put_page(dir_page);
 	}
 out_old:
 	kunmap(old_page);
-	page_cache_release(old_page);
+	put_page(old_page);
 out:
 	return err;
 }

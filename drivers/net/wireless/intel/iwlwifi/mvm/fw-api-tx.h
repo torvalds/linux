@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -88,7 +89,6 @@
  * @TX_CMD_FLG_MH_PAD: driver inserted 2 byte padding after MAC header.
  *	Should be set for 26/30 length MAC headers
  * @TX_CMD_FLG_RESP_TO_DRV: zero this if the response should go only to FW
- * @TX_CMD_FLG_CCMP_AGG: this frame uses CCMP for aggregation acceleration
  * @TX_CMD_FLG_TKIP_MIC_DONE: FW already performed TKIP MIC calculation
  * @TX_CMD_FLG_DUR: disable duration overwriting used in PS-Poll Assoc-id
  * @TX_CMD_FLG_FW_DROP: FW should mark frame to be dropped
@@ -115,7 +115,6 @@ enum iwl_tx_flags {
 	TX_CMD_FLG_KEEP_SEQ_CTL		= BIT(18),
 	TX_CMD_FLG_MH_PAD		= BIT(20),
 	TX_CMD_FLG_RESP_TO_DRV		= BIT(21),
-	TX_CMD_FLG_CCMP_AGG		= BIT(22),
 	TX_CMD_FLG_TKIP_MIC_DONE	= BIT(23),
 	TX_CMD_FLG_DUR			= BIT(25),
 	TX_CMD_FLG_FW_DROP		= BIT(26),
@@ -136,17 +135,32 @@ enum iwl_tx_pm_timeouts {
 	PM_FRAME_ASSOC		= 3,
 };
 
-/*
- * TX command security control
- */
-#define TX_CMD_SEC_WEP			0x01
-#define TX_CMD_SEC_CCM			0x02
-#define TX_CMD_SEC_TKIP			0x03
-#define TX_CMD_SEC_EXT			0x04
 #define TX_CMD_SEC_MSK			0x07
 #define TX_CMD_SEC_WEP_KEY_IDX_POS	6
 #define TX_CMD_SEC_WEP_KEY_IDX_MSK	0xc0
-#define TX_CMD_SEC_KEY128		0x08
+
+/**
+ * enum iwl_tx_cmd_sec_ctrl - bitmasks for security control in TX command
+ * @TX_CMD_SEC_WEP: WEP encryption algorithm.
+ * @TX_CMD_SEC_CCM: CCM encryption algorithm.
+ * @TX_CMD_SEC_TKIP: TKIP encryption algorithm.
+ * @TX_CMD_SEC_EXT: extended cipher algorithm.
+ * @TX_CMD_SEC_GCMP: GCMP encryption algorithm.
+ * @TX_CMD_SEC_KEY128: set for 104 bits WEP key.
+ * @TX_CMD_SEC_KEY_FROM_TABLE: for a non-WEP key, set if the key should be taken
+ *	from the table instead of from the TX command.
+ *	If the key is taken from the key table its index should be given by the
+ *	first byte of the TX command key field.
+ */
+enum iwl_tx_cmd_sec_ctrl {
+	TX_CMD_SEC_WEP			= 0x01,
+	TX_CMD_SEC_CCM			= 0x02,
+	TX_CMD_SEC_TKIP			= 0x03,
+	TX_CMD_SEC_EXT			= 0x04,
+	TX_CMD_SEC_GCMP			= 0x05,
+	TX_CMD_SEC_KEY128		= 0x08,
+	TX_CMD_SEC_KEY_FROM_TABLE	= 0x08,
+};
 
 /* TODO: how does these values are OK with only 16 bit variable??? */
 /*
@@ -193,11 +207,41 @@ enum iwl_tx_pm_timeouts {
 #define IWL_BAR_DFAULT_RETRY_LIMIT		60
 #define IWL_LOW_RETRY_LIMIT			7
 
+/**
+ * enum iwl_tx_offload_assist_flags_pos -  set %iwl_tx_cmd offload_assist values
+ * @TX_CMD_OFFLD_IP_HDR_OFFSET: offset to start of IP header (in words)
+ *	from mac header end. For normal case it is 4 words for SNAP.
+ *	note: tx_cmd, mac header and pad are not counted in the offset.
+ *	This is used to help the offload in case there is tunneling such as
+ *	IPv6 in IPv4, in such case the ip header offset should point to the
+ *	inner ip header and IPv4 checksum of the external header should be
+ *	calculated by driver.
+ * @TX_CMD_OFFLD_L4_EN: enable TCP/UDP checksum
+ * @TX_CMD_OFFLD_L3_EN: enable IP header checksum
+ * @TX_CMD_OFFLD_MH_SIZE: size of the mac header in words. Includes the IV
+ *	field. Doesn't include the pad.
+ * @TX_CMD_OFFLD_PAD: mark 2-byte pad was inserted after the mac header for
+ *	alignment
+ * @TX_CMD_OFFLD_AMSDU: mark TX command is A-MSDU
+ */
+enum iwl_tx_offload_assist_flags_pos {
+	TX_CMD_OFFLD_IP_HDR =		0,
+	TX_CMD_OFFLD_L4_EN =		6,
+	TX_CMD_OFFLD_L3_EN =		7,
+	TX_CMD_OFFLD_MH_SIZE =		8,
+	TX_CMD_OFFLD_PAD =		13,
+	TX_CMD_OFFLD_AMSDU =		14,
+};
+
+#define IWL_TX_CMD_OFFLD_MH_MASK	0x1f
+#define IWL_TX_CMD_OFFLD_IP_HDR_MASK	0x3f
+
 /* TODO: complete documentation for try_cnt and btkill_cnt */
 /**
  * struct iwl_tx_cmd - TX command struct to FW
  * ( TX_CMD = 0x1c )
  * @len: in bytes of the payload, see below for details
+ * @offload_assist: TX offload configuration
  * @tx_flags: combination of TX_CMD_FLG_*
  * @rate_n_flags: rate for *all* Tx attempts, if TX_CMD_FLG_STA_RATE_MSK is
  *	cleared. Combination of RATE_MCS_*
@@ -231,7 +275,7 @@ enum iwl_tx_pm_timeouts {
  */
 struct iwl_tx_cmd {
 	__le16 len;
-	__le16 next_frame_len;
+	__le16 offload_assist;
 	__le32 tx_flags;
 	struct {
 		u8 try_cnt;
@@ -255,7 +299,7 @@ struct iwl_tx_cmd {
 	__le16 reserved4;
 	u8 payload[0];
 	struct ieee80211_hdr hdr[0];
-} __packed; /* TX_CMD_API_S_VER_3 */
+} __packed; /* TX_CMD_API_S_VER_6 */
 
 /*
  * TX response related data
@@ -510,6 +554,9 @@ struct iwl_mvm_tx_resp {
  * @scd_ssn: the index of the last contiguously sent packet
  * @txed: number of Txed frames in this batch
  * @txed_2_done: number of Acked frames in this batch
+ * @reduced_txp: power reduced according to TPC. This is the actual value and
+ *	not a copy from the LQ command. Thus, if not the first rate was used
+ *	for Tx-ing then this value will be set to 0 by FW.
  */
 struct iwl_mvm_ba_notif {
 	__le32 sta_addr_lo32;
@@ -524,11 +571,91 @@ struct iwl_mvm_ba_notif {
 	__le16 scd_ssn;
 	u8 txed;
 	u8 txed_2_done;
-	__le16 reserved1;
+	u8 reduced_txp;
+	u8 reserved1;
 } __packed;
 
+/**
+ * struct iwl_mvm_compressed_ba_tfd - progress of a TFD queue
+ * @q_num: TFD queue number
+ * @tfd_index: Index of first un-acked frame in the  TFD queue
+ */
+struct iwl_mvm_compressed_ba_tfd {
+	u8 q_num;
+	u8 reserved;
+	__le16 tfd_index;
+} __packed; /* COMPRESSED_BA_TFD_API_S_VER_1 */
+
+/**
+ * struct iwl_mvm_compressed_ba_ratid - progress of a RA TID queue
+ * @q_num: RA TID queue number
+ * @tid: TID of the queue
+ * @ssn: BA window current SSN
+ */
+struct iwl_mvm_compressed_ba_ratid {
+	u8 q_num;
+	u8 tid;
+	__le16 ssn;
+} __packed; /* COMPRESSED_BA_RATID_API_S_VER_1 */
+
 /*
- * struct iwl_mac_beacon_cmd - beacon template command
+ * enum iwl_mvm_ba_resp_flags - TX aggregation status
+ * @IWL_MVM_BA_RESP_TX_AGG: generated due to BA
+ * @IWL_MVM_BA_RESP_TX_BAR: generated due to BA after BAR
+ * @IWL_MVM_BA_RESP_TX_AGG_FAIL: aggregation didn't receive BA
+ * @IWL_MVM_BA_RESP_TX_UNDERRUN: aggregation got underrun
+ * @IWL_MVM_BA_RESP_TX_BT_KILL: aggregation got BT-kill
+ * @IWL_MVM_BA_RESP_TX_DSP_TIMEOUT: aggregation didn't finish within the
+ *	expected time
+ */
+enum iwl_mvm_ba_resp_flags {
+	IWL_MVM_BA_RESP_TX_AGG,
+	IWL_MVM_BA_RESP_TX_BAR,
+	IWL_MVM_BA_RESP_TX_AGG_FAIL,
+	IWL_MVM_BA_RESP_TX_UNDERRUN,
+	IWL_MVM_BA_RESP_TX_BT_KILL,
+	IWL_MVM_BA_RESP_TX_DSP_TIMEOUT
+};
+
+/**
+ * struct iwl_mvm_compressed_ba_notif - notifies about reception of BA
+ * ( BA_NOTIF = 0xc5 )
+ * @flags: status flag, see the &iwl_mvm_ba_resp_flags
+ * @sta_id: Index of recipient (BA-sending) station in fw's station table
+ * @reduced_txp: power reduced according to TPC. This is the actual value and
+ *	not a copy from the LQ command. Thus, if not the first rate was used
+ *	for Tx-ing then this value will be set to 0 by FW.
+ * @initial_rate: TLC rate info, initial rate index, TLC table color
+ * @retry_cnt: retry count
+ * @query_byte_cnt: SCD query byte count
+ * @query_frame_cnt: SCD query frame count
+ * @txed: number of frames sent in the aggregation (all-TIDs)
+ * @done: number of frames that were Acked by the BA (all-TIDs)
+ * @wireless_time: Wireless-media time
+ * @tx_rate: the rate the aggregation was sent at
+ * @tfd_cnt: number of TFD-Q elements
+ * @ra_tid_cnt: number of RATID-Q elements
+ */
+struct iwl_mvm_compressed_ba_notif {
+	__le32 flags;
+	u8 sta_id;
+	u8 reduced_txp;
+	u8 initial_rate;
+	u8 retry_cnt;
+	__le32 query_byte_cnt;
+	__le16 query_frame_cnt;
+	__le16 txed;
+	__le16 done;
+	__le32 wireless_time;
+	__le32 tx_rate;
+	__le16 tfd_cnt;
+	__le16 ra_tid_cnt;
+	struct iwl_mvm_compressed_ba_tfd tfd[1];
+	struct iwl_mvm_compressed_ba_ratid ra_tid[0];
+} __packed; /* COMPRESSED_BA_RES_API_S_VER_4 */
+
+/**
+ * struct iwl_mac_beacon_cmd_v6 - beacon template command
  * @tx: the tx commands associated with the beacon frame
  * @template_id: currently equal to the mac context id of the coresponding
  *  mac.
@@ -536,13 +663,34 @@ struct iwl_mvm_ba_notif {
  * @tim_size: the length of the tim IE
  * @frame: the template of the beacon frame
  */
-struct iwl_mac_beacon_cmd {
+struct iwl_mac_beacon_cmd_v6 {
 	struct iwl_tx_cmd tx;
 	__le32 template_id;
 	__le32 tim_idx;
 	__le32 tim_size;
 	struct ieee80211_hdr frame[0];
-} __packed;
+} __packed; /* BEACON_TEMPLATE_CMD_API_S_VER_6 */
+
+/**
+ * struct iwl_mac_beacon_cmd - beacon template command with offloaded CSA
+ * @tx: the tx commands associated with the beacon frame
+ * @template_id: currently equal to the mac context id of the coresponding
+ *  mac.
+ * @tim_idx: the offset of the tim IE in the beacon
+ * @tim_size: the length of the tim IE
+ * @ecsa_offset: offset to the ECSA IE if present
+ * @csa_offset: offset to the CSA IE if present
+ * @frame: the template of the beacon frame
+ */
+struct iwl_mac_beacon_cmd {
+	struct iwl_tx_cmd tx;
+	__le32 template_id;
+	__le32 tim_idx;
+	__le32 tim_size;
+	__le32 ecsa_offset;
+	__le32 csa_offset;
+	struct ieee80211_hdr frame[0];
+} __packed; /* BEACON_TEMPLATE_CMD_API_S_VER_7 */
 
 struct iwl_beacon_notif {
 	struct iwl_mvm_tx_resp beacon_notify_hdr;
@@ -604,13 +752,21 @@ static inline u32 iwl_mvm_get_scd_ssn(struct iwl_mvm_tx_resp *tx_resp)
 			    tx_resp->frame_count) & 0xfff;
 }
 
+/* Available options for the SCD_QUEUE_CFG HCMD */
+enum iwl_scd_cfg_actions {
+	SCD_CFG_DISABLE_QUEUE		= 0x0,
+	SCD_CFG_ENABLE_QUEUE		= 0x1,
+	SCD_CFG_UPDATE_QUEUE_TID	= 0x2,
+};
+
 /**
  * struct iwl_scd_txq_cfg_cmd - New txq hw scheduler config command
  * @token:
  * @sta_id: station id
  * @tid:
  * @scd_queue: scheduler queue to confiug
- * @enable: 1 queue enable, 0 queue disable
+ * @action: 1 queue enable, 0 queue disable, 2 change txq's tid owner
+ *	Value is one of %iwl_scd_cfg_actions options
  * @aggregate: 1 aggregated queue, 0 otherwise
  * @tx_fifo: %enum iwl_mvm_tx_fifo
  * @window: BA window size
@@ -621,7 +777,7 @@ struct iwl_scd_txq_cfg_cmd {
 	u8 sta_id;
 	u8 tid;
 	u8 scd_queue;
-	u8 enable;
+	u8 action;
 	u8 aggregate;
 	u8 tx_fifo;
 	u8 window;

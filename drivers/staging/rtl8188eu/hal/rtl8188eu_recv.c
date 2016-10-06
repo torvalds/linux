@@ -11,13 +11,9 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
  ******************************************************************************/
 #define _RTL8188EU_RECV_C_
+#include <linux/kmemleak.h>
 #include <osdep_service.h>
 #include <drv_types.h>
 #include <recv_osdep.h>
@@ -28,7 +24,7 @@
 
 #include <rtl8188e_hal.h>
 
-int	rtl8188eu_init_recv_priv(struct adapter *padapter)
+int	rtw_hal_init_recv_priv(struct adapter *padapter)
 {
 	struct recv_priv	*precvpriv = &padapter->recvpriv;
 	int	i, res = _SUCCESS;
@@ -77,6 +73,7 @@ int	rtl8188eu_init_recv_priv(struct adapter *padapter)
 					MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ,
 					GFP_KERNEL);
 			if (pskb) {
+				kmemleak_not_leak(pskb);
 				pskb->dev = padapter->pnetdev;
 				tmpaddr = (size_t)pskb->data;
 				alignm = tmpaddr & (RECVBUFF_ALIGN_SZ-1);
@@ -92,7 +89,7 @@ exit:
 	return res;
 }
 
-void rtl8188eu_free_recv_priv(struct adapter *padapter)
+void rtw_hal_free_recv_priv(struct adapter *padapter)
 {
 	int	i;
 	struct recv_buf	*precvbuf;

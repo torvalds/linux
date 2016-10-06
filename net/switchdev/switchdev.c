@@ -20,7 +20,7 @@
 #include <linux/list.h>
 #include <linux/workqueue.h>
 #include <linux/if_vlan.h>
-#include <net/ip_fib.h>
+#include <linux/rtnetlink.h>
 #include <net/switchdev.h>
 
 /**
@@ -304,6 +304,8 @@ static void switchdev_port_attr_set_deferred(struct net_device *dev,
 	if (err && err != -EOPNOTSUPP)
 		netdev_err(dev, "failed (err=%d) to set attribute (id=%d)\n",
 			   err, attr->id);
+	if (attr->complete)
+		attr->complete(dev, err, attr->complete_priv);
 }
 
 static int switchdev_port_attr_set_defer(struct net_device *dev,
@@ -341,8 +343,6 @@ static size_t switchdev_obj_size(const struct switchdev_obj *obj)
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
 		return sizeof(struct switchdev_obj_port_vlan);
-	case SWITCHDEV_OBJ_ID_IPV4_FIB:
-		return sizeof(struct switchdev_obj_ipv4_fib);
 	case SWITCHDEV_OBJ_ID_PORT_FDB:
 		return sizeof(struct switchdev_obj_port_fdb);
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
@@ -433,6 +433,8 @@ static void switchdev_port_obj_add_deferred(struct net_device *dev,
 	if (err && err != -EOPNOTSUPP)
 		netdev_err(dev, "failed (err=%d) to add object (id=%d)\n",
 			   err, obj->id);
+	if (obj->complete)
+		obj->complete(dev, err, obj->complete_priv);
 }
 
 static int switchdev_port_obj_add_defer(struct net_device *dev,
@@ -501,6 +503,8 @@ static void switchdev_port_obj_del_deferred(struct net_device *dev,
 	if (err && err != -EOPNOTSUPP)
 		netdev_err(dev, "failed (err=%d) to del object (id=%d)\n",
 			   err, obj->id);
+	if (obj->complete)
+		obj->complete(dev, err, obj->complete_priv);
 }
 
 static int switchdev_port_obj_del_defer(struct net_device *dev,
@@ -567,7 +571,6 @@ int switchdev_port_obj_dump(struct net_device *dev, struct switchdev_obj *obj,
 }
 EXPORT_SYMBOL_GPL(switchdev_port_obj_dump);
 
-static DEFINE_MUTEX(switchdev_mutex);
 static RAW_NOTIFIER_HEAD(switchdev_notif_chain);
 
 /**
@@ -582,9 +585,9 @@ int register_switchdev_notifier(struct notifier_block *nb)
 {
 	int err;
 
-	mutex_lock(&switchdev_mutex);
+	rtnl_lock();
 	err = raw_notifier_chain_register(&switchdev_notif_chain, nb);
-	mutex_unlock(&switchdev_mutex);
+	rtnl_unlock();
 	return err;
 }
 EXPORT_SYMBOL_GPL(register_switchdev_notifier);
@@ -600,9 +603,9 @@ int unregister_switchdev_notifier(struct notifier_block *nb)
 {
 	int err;
 
-	mutex_lock(&switchdev_mutex);
+	rtnl_lock();
 	err = raw_notifier_chain_unregister(&switchdev_notif_chain, nb);
-	mutex_unlock(&switchdev_mutex);
+	rtnl_unlock();
 	return err;
 }
 EXPORT_SYMBOL_GPL(unregister_switchdev_notifier);
@@ -616,16 +619,17 @@ EXPORT_SYMBOL_GPL(unregister_switchdev_notifier);
  *	Call all network notifier blocks. This should be called by driver
  *	when it needs to propagate hardware event.
  *	Return values are same as for atomic_notifier_call_chain().
+ *	rtnl_lock must be held.
  */
 int call_switchdev_notifiers(unsigned long val, struct net_device *dev,
 			     struct switchdev_notifier_info *info)
 {
 	int err;
 
+	ASSERT_RTNL();
+
 	info->dev = dev;
-	mutex_lock(&switchdev_mutex);
 	err = raw_notifier_call_chain(&switchdev_notif_chain, val, info);
-	mutex_unlock(&switchdev_mutex);
 	return err;
 }
 EXPORT_SYMBOL_GPL(call_switchdev_notifiers);
@@ -1035,7 +1039,7 @@ static int switchdev_port_fdb_dump_cb(struct switchdev_obj *obj)
 	struct nlmsghdr *nlh;
 	struct ndmsg *ndm;
 
-	if (dump->idx < dump->cb->args[0])
+	if (dump->idx < dump->cb->args[2])
 		goto skip;
 
 	nlh = nlmsg_put(dump->skb, portid, seq, RTM_NEWNEIGH,
@@ -1078,11 +1082,11 @@ nla_put_failure:
  *	@filter_dev: filter device
  *	@idx:
  *
- *	Delete FDB entry from switch device.
+ *	Dump FDB entries from switch device.
  */
 int switchdev_port_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 			    struct net_device *dev,
-			    struct net_device *filter_dev, int idx)
+			    struct net_device *filter_dev, int *idx)
 {
 	struct switchdev_fdb_dump dump = {
 		.fdb.obj.orig_dev = dev,
@@ -1090,206 +1094,27 @@ int switchdev_port_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 		.dev = dev,
 		.skb = skb,
 		.cb = cb,
-		.idx = idx,
+		.idx = *idx,
 	};
+	int err;
 
-	switchdev_port_obj_dump(dev, &dump.fdb.obj, switchdev_port_fdb_dump_cb);
-	return dump.idx;
+	err = switchdev_port_obj_dump(dev, &dump.fdb.obj,
+				      switchdev_port_fdb_dump_cb);
+	*idx = dump.idx;
+	return err;
 }
 EXPORT_SYMBOL_GPL(switchdev_port_fdb_dump);
 
-static struct net_device *switchdev_get_lowest_dev(struct net_device *dev)
-{
-	const struct switchdev_ops *ops = dev->switchdev_ops;
-	struct net_device *lower_dev;
-	struct net_device *port_dev;
-	struct list_head *iter;
-
-	/* Recusively search down until we find a sw port dev.
-	 * (A sw port dev supports switchdev_port_attr_get).
-	 */
-
-	if (ops && ops->switchdev_port_attr_get)
-		return dev;
-
-	netdev_for_each_lower_dev(dev, lower_dev, iter) {
-		port_dev = switchdev_get_lowest_dev(lower_dev);
-		if (port_dev)
-			return port_dev;
-	}
-
-	return NULL;
-}
-
-static struct net_device *switchdev_get_dev_by_nhs(struct fib_info *fi)
-{
-	struct switchdev_attr attr = {
-		.id = SWITCHDEV_ATTR_ID_PORT_PARENT_ID,
-	};
-	struct switchdev_attr prev_attr;
-	struct net_device *dev = NULL;
-	int nhsel;
-
-	ASSERT_RTNL();
-
-	/* For this route, all nexthop devs must be on the same switch. */
-
-	for (nhsel = 0; nhsel < fi->fib_nhs; nhsel++) {
-		const struct fib_nh *nh = &fi->fib_nh[nhsel];
-
-		if (!nh->nh_dev)
-			return NULL;
-
-		dev = switchdev_get_lowest_dev(nh->nh_dev);
-		if (!dev)
-			return NULL;
-
-		attr.orig_dev = dev;
-		if (switchdev_port_attr_get(dev, &attr))
-			return NULL;
-
-		if (nhsel > 0 &&
-		    !netdev_phys_item_id_same(&prev_attr.u.ppid, &attr.u.ppid))
-				return NULL;
-
-		prev_attr = attr;
-	}
-
-	return dev;
-}
-
-/**
- *	switchdev_fib_ipv4_add - Add/modify switch IPv4 route entry
- *
- *	@dst: route's IPv4 destination address
- *	@dst_len: destination address length (prefix length)
- *	@fi: route FIB info structure
- *	@tos: route TOS
- *	@type: route type
- *	@nlflags: netlink flags passed in (NLM_F_*)
- *	@tb_id: route table ID
- *
- *	Add/modify switch IPv4 route entry.
- */
-int switchdev_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
-			   u8 tos, u8 type, u32 nlflags, u32 tb_id)
-{
-	struct switchdev_obj_ipv4_fib ipv4_fib = {
-		.obj.id = SWITCHDEV_OBJ_ID_IPV4_FIB,
-		.dst = dst,
-		.dst_len = dst_len,
-		.tos = tos,
-		.type = type,
-		.nlflags = nlflags,
-		.tb_id = tb_id,
-	};
-	struct net_device *dev;
-	int err = 0;
-
-	memcpy(&ipv4_fib.fi, fi, sizeof(ipv4_fib.fi));
-
-	/* Don't offload route if using custom ip rules or if
-	 * IPv4 FIB offloading has been disabled completely.
-	 */
-
-#ifdef CONFIG_IP_MULTIPLE_TABLES
-	if (fi->fib_net->ipv4.fib_has_custom_rules)
-		return 0;
-#endif
-
-	if (fi->fib_net->ipv4.fib_offload_disabled)
-		return 0;
-
-	dev = switchdev_get_dev_by_nhs(fi);
-	if (!dev)
-		return 0;
-
-	ipv4_fib.obj.orig_dev = dev;
-	err = switchdev_port_obj_add(dev, &ipv4_fib.obj);
-	if (!err)
-		fi->fib_flags |= RTNH_F_OFFLOAD;
-
-	return err == -EOPNOTSUPP ? 0 : err;
-}
-EXPORT_SYMBOL_GPL(switchdev_fib_ipv4_add);
-
-/**
- *	switchdev_fib_ipv4_del - Delete IPv4 route entry from switch
- *
- *	@dst: route's IPv4 destination address
- *	@dst_len: destination address length (prefix length)
- *	@fi: route FIB info structure
- *	@tos: route TOS
- *	@type: route type
- *	@tb_id: route table ID
- *
- *	Delete IPv4 route entry from switch device.
- */
-int switchdev_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
-			   u8 tos, u8 type, u32 tb_id)
-{
-	struct switchdev_obj_ipv4_fib ipv4_fib = {
-		.obj.id = SWITCHDEV_OBJ_ID_IPV4_FIB,
-		.dst = dst,
-		.dst_len = dst_len,
-		.tos = tos,
-		.type = type,
-		.nlflags = 0,
-		.tb_id = tb_id,
-	};
-	struct net_device *dev;
-	int err = 0;
-
-	memcpy(&ipv4_fib.fi, fi, sizeof(ipv4_fib.fi));
-
-	if (!(fi->fib_flags & RTNH_F_OFFLOAD))
-		return 0;
-
-	dev = switchdev_get_dev_by_nhs(fi);
-	if (!dev)
-		return 0;
-
-	ipv4_fib.obj.orig_dev = dev;
-	err = switchdev_port_obj_del(dev, &ipv4_fib.obj);
-	if (!err)
-		fi->fib_flags &= ~RTNH_F_OFFLOAD;
-
-	return err == -EOPNOTSUPP ? 0 : err;
-}
-EXPORT_SYMBOL_GPL(switchdev_fib_ipv4_del);
-
-/**
- *	switchdev_fib_ipv4_abort - Abort an IPv4 FIB operation
- *
- *	@fi: route FIB info structure
- */
-void switchdev_fib_ipv4_abort(struct fib_info *fi)
-{
-	/* There was a problem installing this route to the offload
-	 * device.  For now, until we come up with more refined
-	 * policy handling, abruptly end IPv4 fib offloading for
-	 * for entire net by flushing offload device(s) of all
-	 * IPv4 routes, and mark IPv4 fib offloading broken from
-	 * this point forward.
-	 */
-
-	fib_flush_external(fi->fib_net);
-	fi->fib_net->ipv4.fib_offload_disabled = true;
-}
-EXPORT_SYMBOL_GPL(switchdev_fib_ipv4_abort);
-
-static bool switchdev_port_same_parent_id(struct net_device *a,
-					  struct net_device *b)
+bool switchdev_port_same_parent_id(struct net_device *a,
+				   struct net_device *b)
 {
 	struct switchdev_attr a_attr = {
 		.orig_dev = a,
 		.id = SWITCHDEV_ATTR_ID_PORT_PARENT_ID,
-		.flags = SWITCHDEV_F_NO_RECURSE,
 	};
 	struct switchdev_attr b_attr = {
 		.orig_dev = b,
 		.id = SWITCHDEV_ATTR_ID_PORT_PARENT_ID,
-		.flags = SWITCHDEV_F_NO_RECURSE,
 	};
 
 	if (switchdev_port_attr_get(a, &a_attr) ||
@@ -1298,88 +1123,4 @@ static bool switchdev_port_same_parent_id(struct net_device *a,
 
 	return netdev_phys_item_id_same(&a_attr.u.ppid, &b_attr.u.ppid);
 }
-
-static u32 switchdev_port_fwd_mark_get(struct net_device *dev,
-				       struct net_device *group_dev)
-{
-	struct net_device *lower_dev;
-	struct list_head *iter;
-
-	netdev_for_each_lower_dev(group_dev, lower_dev, iter) {
-		if (lower_dev == dev)
-			continue;
-		if (switchdev_port_same_parent_id(dev, lower_dev))
-			return lower_dev->offload_fwd_mark;
-		return switchdev_port_fwd_mark_get(dev, lower_dev);
-	}
-
-	return dev->ifindex;
-}
-
-static void switchdev_port_fwd_mark_reset(struct net_device *group_dev,
-					  u32 old_mark, u32 *reset_mark)
-{
-	struct net_device *lower_dev;
-	struct list_head *iter;
-
-	netdev_for_each_lower_dev(group_dev, lower_dev, iter) {
-		if (lower_dev->offload_fwd_mark == old_mark) {
-			if (!*reset_mark)
-				*reset_mark = lower_dev->ifindex;
-			lower_dev->offload_fwd_mark = *reset_mark;
-		}
-		switchdev_port_fwd_mark_reset(lower_dev, old_mark, reset_mark);
-	}
-}
-
-/**
- *	switchdev_port_fwd_mark_set - Set port offload forwarding mark
- *
- *	@dev: port device
- *	@group_dev: containing device
- *	@joining: true if dev is joining group; false if leaving group
- *
- *	An ungrouped port's offload mark is just its ifindex.  A grouped
- *	port's (member of a bridge, for example) offload mark is the ifindex
- *	of one of the ports in the group with the same parent (switch) ID.
- *	Ports on the same device in the same group will have the same mark.
- *
- *	Example:
- *
- *		br0		ifindex=9
- *		  sw1p1		ifindex=2	mark=2
- *		  sw1p2		ifindex=3	mark=2
- *		  sw2p1		ifindex=4	mark=5
- *		  sw2p2		ifindex=5	mark=5
- *
- *	If sw2p2 leaves the bridge, we'll have:
- *
- *		br0		ifindex=9
- *		  sw1p1		ifindex=2	mark=2
- *		  sw1p2		ifindex=3	mark=2
- *		  sw2p1		ifindex=4	mark=4
- *		sw2p2		ifindex=5	mark=5
- */
-void switchdev_port_fwd_mark_set(struct net_device *dev,
-				 struct net_device *group_dev,
-				 bool joining)
-{
-	u32 mark = dev->ifindex;
-	u32 reset_mark = 0;
-
-	if (group_dev) {
-		ASSERT_RTNL();
-		if (joining)
-			mark = switchdev_port_fwd_mark_get(dev, group_dev);
-		else if (dev->offload_fwd_mark == mark)
-			/* Ohoh, this port was the mark reference port,
-			 * but it's leaving the group, so reset the
-			 * mark for the remaining ports in the group.
-			 */
-			switchdev_port_fwd_mark_reset(group_dev, mark,
-						      &reset_mark);
-	}
-
-	dev->offload_fwd_mark = mark;
-}
-EXPORT_SYMBOL_GPL(switchdev_port_fwd_mark_set);
+EXPORT_SYMBOL_GPL(switchdev_port_same_parent_id);

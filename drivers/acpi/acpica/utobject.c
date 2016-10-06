@@ -51,11 +51,11 @@ ACPI_MODULE_NAME("utobject")
 /* Local prototypes */
 static acpi_status
 acpi_ut_get_simple_object_size(union acpi_operand_object *obj,
-			       acpi_size * obj_length);
+			       acpi_size *obj_length);
 
 static acpi_status
 acpi_ut_get_package_object_size(union acpi_operand_object *obj,
-				acpi_size * obj_length);
+				acpi_size *obj_length);
 
 static acpi_status
 acpi_ut_get_element_length(u8 object_type,
@@ -177,7 +177,7 @@ union acpi_operand_object *acpi_ut_create_package_object(u32 count)
 	 * Create the element array. Count+1 allows the array to be null
 	 * terminated.
 	 */
-	package_elements = ACPI_ALLOCATE_ZEROED(((acpi_size) count +
+	package_elements = ACPI_ALLOCATE_ZEROED(((acpi_size)count +
 						 1) * sizeof(void *));
 	if (!package_elements) {
 		ACPI_FREE(package_desc);
@@ -454,7 +454,7 @@ void acpi_ut_delete_object_desc(union acpi_operand_object *object)
 
 static acpi_status
 acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
-			       acpi_size * obj_length)
+			       acpi_size *obj_length)
 {
 	acpi_size length;
 	acpi_size size;
@@ -495,12 +495,12 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 	switch (internal_object->common.type) {
 	case ACPI_TYPE_STRING:
 
-		length += (acpi_size) internal_object->string.length + 1;
+		length += (acpi_size)internal_object->string.length + 1;
 		break;
 
 	case ACPI_TYPE_BUFFER:
 
-		length += (acpi_size) internal_object->buffer.length;
+		length += (acpi_size)internal_object->buffer.length;
 		break;
 
 	case ACPI_TYPE_INTEGER:
@@ -640,7 +640,7 @@ acpi_ut_get_element_length(u8 object_type,
 
 static acpi_status
 acpi_ut_get_package_object_size(union acpi_operand_object *internal_object,
-				acpi_size * obj_length)
+				acpi_size *obj_length)
 {
 	acpi_status status;
 	struct acpi_pkg_info info;
@@ -665,7 +665,7 @@ acpi_ut_get_package_object_size(union acpi_operand_object *internal_object,
 	 */
 	info.length +=
 	    ACPI_ROUND_UP_TO_NATIVE_WORD(sizeof(union acpi_object)) *
-	    (acpi_size) info.num_packages;
+	    (acpi_size)info.num_packages;
 
 	/* Return the total package length */
 
@@ -689,7 +689,7 @@ acpi_ut_get_package_object_size(union acpi_operand_object *internal_object,
 
 acpi_status
 acpi_ut_get_object_size(union acpi_operand_object *internal_object,
-			acpi_size * obj_length)
+			acpi_size *obj_length)
 {
 	acpi_status status;
 

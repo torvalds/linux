@@ -232,8 +232,8 @@ static struct notifier_block s3c2412_restart_handler = {
  */
 #define XTI	1
 struct samsung_fixed_rate_clock s3c2412_common_frate_clks[] __initdata = {
-	FRATE(XTI, "xti", NULL, CLK_IS_ROOT, 0),
-	FRATE(0, "ext", NULL, CLK_IS_ROOT, 0),
+	FRATE(XTI, "xti", NULL, 0, 0),
+	FRATE(0, "ext", NULL, 0, 0),
 };
 
 static void __init s3c2412_common_clk_register_fixed_ext(
@@ -265,8 +265,6 @@ void __init s3c2412_common_clk_init(struct device_node *np, unsigned long xti_f,
 	}
 
 	ctx = samsung_clk_init(np, reg_base, NR_CLKS);
-	if (!ctx)
-		panic("%s: unable to allocate context.\n", __func__);
 
 	/* Register external clocks only in non-dt cases */
 	if (!np)

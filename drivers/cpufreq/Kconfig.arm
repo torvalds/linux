@@ -50,15 +50,6 @@ config ARM_HIGHBANK_CPUFREQ
 
 	  If in doubt, say N.
 
-config ARM_HISI_ACPU_CPUFREQ
-	tristate "Hisilicon ACPU CPUfreq driver"
-	depends on ARCH_HISI && CPUFREQ_DT
-	select PM_OPP
-	help
-	  This enables the hisilicon ACPU CPUfreq driver.
-
-	  If in doubt, say N.
-
 config ARM_IMX6Q_CPUFREQ
 	tristate "Freescale i.MX6 cpufreq support"
 	depends on ARCH_MXC
@@ -84,10 +75,10 @@ config ARM_KIRKWOOD_CPUFREQ
 	  SoCs.
 
 config ARM_MT8173_CPUFREQ
-	bool "Mediatek MT8173 CPUFreq support"
+	tristate "Mediatek MT8173 CPUFreq support"
 	depends on ARCH_MEDIATEK && REGULATOR
 	depends on ARM64 || (ARM_CPU_TOPOLOGY && COMPILE_TEST)
-	depends on !CPU_THERMAL || THERMAL=y
+	depends on !CPU_THERMAL || THERMAL
 	select PM_OPP
 	help
 	  This adds the CPUFreq driver support for Mediatek MT8173 SoC.

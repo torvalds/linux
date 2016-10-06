@@ -72,10 +72,11 @@ unsigned long tlbcam_sz(int idx)
 	return tlbcam_addrs[idx].limit - tlbcam_addrs[idx].start + 1;
 }
 
+#ifdef CONFIG_FSL_BOOKE
 /*
  * Return PA for this VA if it is mapped by a CAM, or 0
  */
-phys_addr_t v_mapped_by_tlbcam(unsigned long va)
+phys_addr_t v_block_mapped(unsigned long va)
 {
 	int b;
 	for (b = 0; b < tlbcam_index; ++b)
@@ -87,7 +88,7 @@ phys_addr_t v_mapped_by_tlbcam(unsigned long va)
 /*
  * Return VA for a given PA or 0 if not mapped
  */
-unsigned long p_mapped_by_tlbcam(phys_addr_t pa)
+unsigned long p_block_mapped(phys_addr_t pa)
 {
 	int b;
 	for (b = 0; b < tlbcam_index; ++b)
@@ -97,6 +98,7 @@ unsigned long p_mapped_by_tlbcam(phys_addr_t pa)
 			return tlbcam_addrs[b].start+(pa-tlbcam_addrs[b].phys);
 	return 0;
 }
+#endif
 
 /*
  * Set up a variable-size TLB entry (tlbcam). The parameters are not checked;
@@ -133,7 +135,7 @@ static void settlbcam(int index, unsigned long virt, phys_addr_t phys,
 		TLBCAM[index].MAS7 = (u64)phys >> 32;
 
 	/* Below is unlikely -- only for large user pages or similar */
-	if (pte_user(flags)) {
+	if (pte_user(__pte(flags))) {
 	   TLBCAM[index].MAS3 |= MAS3_UX | MAS3_UR;
 	   TLBCAM[index].MAS3 |= ((flags & _PAGE_RW) ? MAS3_UW : 0);
 	}

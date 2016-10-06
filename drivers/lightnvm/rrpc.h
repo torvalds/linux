@@ -56,7 +56,6 @@ struct rrpc_block {
 	struct nvm_block *parent;
 	struct rrpc_lun *rlun;
 	struct list_head prio;
-	struct list_head list;
 
 #define MAX_INVALID_PAGES_STORAGE 8
 	/* Bitmap for invalid page intries */
@@ -77,13 +76,7 @@ struct rrpc_lun {
 	struct rrpc_block *blocks;	/* Reference to block allocation */
 
 	struct list_head prio_list;	/* Blocks that may be GC'ed */
-	struct list_head open_list;	/* In-use open blocks. These are blocks
-					 * that can be both written to and read
-					 * from
-					 */
-	struct list_head closed_list;	/* In-use closed blocks. These are
-					 * blocks that can _only_ be read from
-					 */
+	struct list_head wblk_list;	/* Queued blocks to be written to */
 
 	struct work_struct ws_gc;
 
@@ -97,6 +90,7 @@ struct rrpc {
 	struct nvm_dev *dev;
 	struct gendisk *disk;
 
+	sector_t soffset; /* logical sector offset */
 	u64 poffset; /* physical page offset */
 	int lun_offset;
 
@@ -104,7 +98,7 @@ struct rrpc {
 	struct rrpc_lun *luns;
 
 	/* calculated values */
-	unsigned long long nr_pages;
+	unsigned long long nr_sects;
 	unsigned long total_blocks;
 
 	/* Write strategy variables. Move these into each for structure for each
@@ -156,6 +150,15 @@ struct rrpc_rev_addr {
 	u64 addr;
 };
 
+static inline struct rrpc_block *rrpc_get_rblk(struct rrpc_lun *rlun,
+								int blk_id)
+{
+	struct rrpc *rrpc = rlun->rrpc;
+	int lun_blk = blk_id % rrpc->dev->blks_per_lun;
+
+	return &rlun->blocks[lun_blk];
+}
+
 static inline sector_t rrpc_get_laddr(struct bio *bio)
 {
 	return bio->bi_iter.bi_sector / NR_PHY_IN_LOG;
@@ -174,15 +177,16 @@ static inline sector_t rrpc_get_sector(sector_t laddr)
 static inline int request_intersects(struct rrpc_inflight_rq *r,
 				sector_t laddr_start, sector_t laddr_end)
 {
-	return (laddr_end >= r->l_start && laddr_end <= r->l_end) &&
-		(laddr_start >= r->l_start && laddr_start <= r->l_end);
+	return (laddr_end >= r->l_start) && (laddr_start <= r->l_end);
 }
 
 static int __rrpc_lock_laddr(struct rrpc *rrpc, sector_t laddr,
-			     unsigned pages, struct rrpc_inflight_rq *r)
+			     unsigned int pages, struct rrpc_inflight_rq *r)
 {
 	sector_t laddr_end = laddr + pages - 1;
 	struct rrpc_inflight_rq *rtmp;
+
+	WARN_ON(irqs_disabled());
 
 	spin_lock_irq(&rrpc->inflights.lock);
 	list_for_each_entry(rtmp, &rrpc->inflights.reqs, list) {
@@ -202,10 +206,10 @@ static int __rrpc_lock_laddr(struct rrpc *rrpc, sector_t laddr,
 }
 
 static inline int rrpc_lock_laddr(struct rrpc *rrpc, sector_t laddr,
-				 unsigned pages,
+				 unsigned int pages,
 				 struct rrpc_inflight_rq *r)
 {
-	BUG_ON((laddr + pages) > rrpc->nr_pages);
+	BUG_ON((laddr + pages) > rrpc->nr_sects);
 
 	return __rrpc_lock_laddr(rrpc, laddr, pages, r);
 }
@@ -240,9 +244,9 @@ static inline void rrpc_unlock_laddr(struct rrpc *rrpc,
 static inline void rrpc_unlock_rq(struct rrpc *rrpc, struct nvm_rq *rqd)
 {
 	struct rrpc_inflight_rq *r = rrpc_get_inflight_rq(rqd);
-	uint8_t pages = rqd->nr_pages;
+	uint8_t pages = rqd->nr_ppas;
 
-	BUG_ON((r->l_start + pages) > rrpc->nr_pages);
+	BUG_ON((r->l_start + pages) > rrpc->nr_sects);
 
 	rrpc_unlock_laddr(rrpc, r);
 }

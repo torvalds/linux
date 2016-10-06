@@ -188,6 +188,8 @@ static int smiapp_read_frame_fmt(struct smiapp_sensor *sensor)
 		embedded_end = 0;
 	}
 
+	sensor->image_start = image_start;
+
 	dev_dbg(&client->dev, "embedded data from lines %d to %d\n",
 		embedded_start, embedded_end);
 	dev_dbg(&client->dev, "image data starts at line %d\n", image_start);
@@ -2280,6 +2282,15 @@ static int smiapp_get_skip_frames(struct v4l2_subdev *subdev, u32 *frames)
 	return 0;
 }
 
+static int smiapp_get_skip_top_lines(struct v4l2_subdev *subdev, u32 *lines)
+{
+	struct smiapp_sensor *sensor = to_smiapp_sensor(subdev);
+
+	*lines = sensor->image_start;
+
+	return 0;
+}
+
 /* -----------------------------------------------------------------------------
  * sysfs attributes
  */
@@ -2890,6 +2901,7 @@ static const struct v4l2_subdev_pad_ops smiapp_pad_ops = {
 
 static const struct v4l2_subdev_sensor_ops smiapp_sensor_ops = {
 	.g_skip_frames = smiapp_get_skip_frames,
+	.g_skip_top_lines = smiapp_get_skip_top_lines,
 };
 
 static const struct v4l2_subdev_ops smiapp_ops = {
@@ -3032,10 +3044,8 @@ static struct smiapp_platform_data *smiapp_get_pdata(struct device *dev)
 	pdata->op_sys_clock = devm_kcalloc(
 		dev, bus_cfg->nr_of_link_frequencies + 1 /* guardian */,
 		sizeof(*pdata->op_sys_clock), GFP_KERNEL);
-	if (!pdata->op_sys_clock) {
-		rval = -ENOMEM;
+	if (!pdata->op_sys_clock)
 		goto out_err;
-	}
 
 	for (i = 0; i < bus_cfg->nr_of_link_frequencies; i++) {
 		pdata->op_sys_clock[i] = bus_cfg->link_frequencies[i];

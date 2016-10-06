@@ -73,17 +73,6 @@ struct ion_platform_data {
 };
 
 /**
- * ion_reserve() - reserve memory for ion heaps if applicable
- * @data:	platform data specifying starting physical address and
- *		size
- *
- * Calls memblock reserve to set aside memory for heaps that are
- * located at specific memory addresses or of specific sizes not
- * managed by the kernel
- */
-void ion_reserve(struct ion_platform_data *data);
-
-/**
  * ion_client_create() -  allocate a client and returns it
  * @dev:		the global ion device
  * @name:		used for debugging
@@ -130,36 +119,6 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 void ion_free(struct ion_client *client, struct ion_handle *handle);
 
 /**
- * ion_phys - returns the physical address and len of a handle
- * @client:	the client
- * @handle:	the handle
- * @addr:	a pointer to put the address in
- * @len:	a pointer to put the length in
- *
- * This function queries the heap for a particular handle to get the
- * handle's physical address.  It't output is only correct if
- * a heap returns physically contiguous memory -- in other cases
- * this api should not be implemented -- ion_sg_table should be used
- * instead.  Returns -EINVAL if the handle is invalid.  This has
- * no implications on the reference counting of the handle --
- * the returned value may not be valid if the caller is not
- * holding a reference.
- */
-int ion_phys(struct ion_client *client, struct ion_handle *handle,
-	     ion_phys_addr_t *addr, size_t *len);
-
-/**
- * ion_map_dma - return an sg_table describing a handle
- * @client:	the client
- * @handle:	the handle
- *
- * This function returns the sg_table describing
- * a particular ion handle.
- */
-struct sg_table *ion_sg_table(struct ion_client *client,
-			      struct ion_handle *handle);
-
-/**
  * ion_map_kernel - create mapping for the given handle
  * @client:	the client
  * @handle:	handle to map
@@ -192,14 +151,26 @@ struct dma_buf *ion_share_dma_buf(struct ion_client *client,
 int ion_share_dma_buf_fd(struct ion_client *client, struct ion_handle *handle);
 
 /**
- * ion_import_dma_buf() - given an dma-buf fd from the ion exporter get handle
+ * ion_import_dma_buf() - get ion_handle from dma-buf
+ * @client:	the client
+ * @dmabuf:	the dma-buf
+ *
+ * Get the ion_buffer associated with the dma-buf and return the ion_handle.
+ * If no ion_handle exists for this buffer, return newly created ion_handle.
+ * If dma-buf from another exporter is passed, return ERR_PTR(-EINVAL)
+ */
+struct ion_handle *ion_import_dma_buf(struct ion_client *client,
+				      struct dma_buf *dmabuf);
+
+/**
+ * ion_import_dma_buf_fd() - given a dma-buf fd from the ion exporter get handle
  * @client:	the client
  * @fd:		the dma-buf fd
  *
- * Given an dma-buf fd that was allocated through ion via ion_share_dma_buf,
- * import that fd and return a handle representing it.  If a dma-buf from
+ * Given an dma-buf fd that was allocated through ion via ion_share_dma_buf_fd,
+ * import that fd and return a handle representing it. If a dma-buf from
  * another exporter is passed in this function will return ERR_PTR(-EINVAL)
  */
-struct ion_handle *ion_import_dma_buf(struct ion_client *client, int fd);
+struct ion_handle *ion_import_dma_buf_fd(struct ion_client *client, int fd);
 
 #endif /* _LINUX_ION_H */

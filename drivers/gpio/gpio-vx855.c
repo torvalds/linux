@@ -186,6 +186,28 @@ static int vx855gpio_direction_output(struct gpio_chip *gpio,
 	return 0;
 }
 
+static int vx855gpio_set_single_ended(struct gpio_chip *gpio,
+				      unsigned int nr,
+				      enum single_ended_mode mode)
+{
+	/* The GPI cannot be single-ended */
+	if (nr < NR_VX855_GPI)
+		return -EINVAL;
+
+	/* The GPO's are push-pull */
+	if (nr < NR_VX855_GPInO) {
+		if (mode != LINE_MODE_PUSH_PULL)
+			return -ENOTSUPP;
+		return 0;
+	}
+
+	/* The GPIO's are open drain */
+	if (mode != LINE_MODE_OPEN_DRAIN)
+		return -ENOTSUPP;
+
+	return 0;
+}
+
 static const char *vx855gpio_names[NR_VX855_GP] = {
 	"VX855_GPI0", "VX855_GPI1", "VX855_GPI2", "VX855_GPI3", "VX855_GPI4",
 	"VX855_GPI5", "VX855_GPI6", "VX855_GPI7", "VX855_GPI8", "VX855_GPI9",
@@ -209,6 +231,7 @@ static void vx855gpio_gpio_setup(struct vx855_gpio *vg)
 	c->direction_output = vx855gpio_direction_output;
 	c->get = vx855gpio_get;
 	c->set = vx855gpio_set;
+	c->set_single_ended = vx855gpio_set_single_ended;
 	c->dbg_show = NULL;
 	c->base = 0;
 	c->ngpio = NR_VX855_GP;
@@ -259,16 +282,7 @@ static int vx855gpio_probe(struct platform_device *pdev)
 
 	vx855gpio_gpio_setup(vg);
 
-	return gpiochip_add_data(&vg->gpio, vg);
-}
-
-static int vx855gpio_remove(struct platform_device *pdev)
-{
-	struct vx855_gpio *vg = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&vg->gpio);
-
-	return 0;
+	return devm_gpiochip_add_data(&pdev->dev, &vg->gpio, vg);
 }
 
 static struct platform_driver vx855gpio_driver = {
@@ -276,7 +290,6 @@ static struct platform_driver vx855gpio_driver = {
 		.name	= MODULE_NAME,
 	},
 	.probe		= vx855gpio_probe,
-	.remove		= vx855gpio_remove,
 };
 
 module_platform_driver(vx855gpio_driver);

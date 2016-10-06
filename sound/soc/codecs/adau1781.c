@@ -1,5 +1,5 @@
 /*
- * Driver for ADAU1781/ADAU1781 codec
+ * Driver for ADAU1381/ADAU1781 codec
  *
  * Copyright 2011-2013 Analog Devices Inc.
  * Author: Lars-Peter Clausen <lars@metafoo.de>
@@ -432,12 +432,14 @@ static const struct snd_soc_codec_driver adau1781_codec_driver = {
 	.set_bias_level = adau1781_set_bias_level,
 	.suspend_bias_off = true,
 
-	.controls = adau1781_controls,
-	.num_controls = ARRAY_SIZE(adau1781_controls),
-	.dapm_widgets = adau1781_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(adau1781_dapm_widgets),
-	.dapm_routes = adau1781_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(adau1781_dapm_routes),
+	.component_driver = {
+		.controls		= adau1781_controls,
+		.num_controls		= ARRAY_SIZE(adau1781_controls),
+		.dapm_widgets		= adau1781_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(adau1781_dapm_widgets),
+		.dapm_routes		= adau1781_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(adau1781_dapm_routes),
+	},
 };
 
 #define ADAU1781_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE | \

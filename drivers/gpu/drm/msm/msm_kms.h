@@ -55,17 +55,14 @@ struct msm_kms_funcs {
 			struct drm_encoder *slave_encoder,
 			bool is_cmd_mode);
 	/* cleanup: */
-	void (*preclose)(struct msm_kms *kms, struct drm_file *file);
 	void (*destroy)(struct msm_kms *kms);
 };
 
 struct msm_kms {
 	const struct msm_kms_funcs *funcs;
 
-	/* irq handling: */
-	bool in_irq;
-	struct list_head irq_list;    /* list of mdp4_irq */
-	uint32_t vblank_mask;         /* irq bits set for userspace vblank */
+	/* irq number to be passed on to drm_irq_install */
+	int irq;
 };
 
 static inline void msm_kms_init(struct msm_kms *kms,
@@ -76,5 +73,7 @@ static inline void msm_kms_init(struct msm_kms *kms,
 
 struct msm_kms *mdp4_kms_init(struct drm_device *dev);
 struct msm_kms *mdp5_kms_init(struct drm_device *dev);
+int msm_mdss_init(struct drm_device *dev);
+void msm_mdss_destroy(struct drm_device *dev);
 
 #endif /* __MSM_KMS_H__ */

@@ -124,8 +124,13 @@ static int l2tp_tunnel_notify(struct genl_family *family,
 	ret = l2tp_nl_tunnel_send(msg, info->snd_portid, info->snd_seq,
 				  NLM_F_ACK, tunnel, cmd);
 
-	if (ret >= 0)
-		return genlmsg_multicast_allns(family, msg, 0,	0, GFP_ATOMIC);
+	if (ret >= 0) {
+		ret = genlmsg_multicast_allns(family, msg, 0, 0, GFP_ATOMIC);
+		/* We don't care if no one is listening */
+		if (ret == -ESRCH)
+			ret = 0;
+		return ret;
+	}
 
 	nlmsg_free(msg);
 
@@ -147,8 +152,13 @@ static int l2tp_session_notify(struct genl_family *family,
 	ret = l2tp_nl_session_send(msg, info->snd_portid, info->snd_seq,
 				   NLM_F_ACK, session, cmd);
 
-	if (ret >= 0)
-		return genlmsg_multicast_allns(family, msg, 0,	0, GFP_ATOMIC);
+	if (ret >= 0) {
+		ret = genlmsg_multicast_allns(family, msg, 0, 0, GFP_ATOMIC);
+		/* We don't care if no one is listening */
+		if (ret == -ESRCH)
+			ret = 0;
+		return ret;
+	}
 
 	nlmsg_free(msg);
 
@@ -336,22 +346,30 @@ static int l2tp_nl_tunnel_send(struct sk_buff *skb, u32 portid, u32 seq, int fla
 	if (nest == NULL)
 		goto nla_put_failure;
 
-	if (nla_put_u64(skb, L2TP_ATTR_TX_PACKETS,
-		    atomic_long_read(&tunnel->stats.tx_packets)) ||
-	    nla_put_u64(skb, L2TP_ATTR_TX_BYTES,
-		    atomic_long_read(&tunnel->stats.tx_bytes)) ||
-	    nla_put_u64(skb, L2TP_ATTR_TX_ERRORS,
-		    atomic_long_read(&tunnel->stats.tx_errors)) ||
-	    nla_put_u64(skb, L2TP_ATTR_RX_PACKETS,
-		    atomic_long_read(&tunnel->stats.rx_packets)) ||
-	    nla_put_u64(skb, L2TP_ATTR_RX_BYTES,
-		    atomic_long_read(&tunnel->stats.rx_bytes)) ||
-	    nla_put_u64(skb, L2TP_ATTR_RX_SEQ_DISCARDS,
-		    atomic_long_read(&tunnel->stats.rx_seq_discards)) ||
-	    nla_put_u64(skb, L2TP_ATTR_RX_OOS_PACKETS,
-		    atomic_long_read(&tunnel->stats.rx_oos_packets)) ||
-	    nla_put_u64(skb, L2TP_ATTR_RX_ERRORS,
-		    atomic_long_read(&tunnel->stats.rx_errors)))
+	if (nla_put_u64_64bit(skb, L2TP_ATTR_TX_PACKETS,
+			      atomic_long_read(&tunnel->stats.tx_packets),
+			      L2TP_ATTR_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, L2TP_ATTR_TX_BYTES,
+			      atomic_long_read(&tunnel->stats.tx_bytes),
+			      L2TP_ATTR_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, L2TP_ATTR_TX_ERRORS,
+			      atomic_long_read(&tunnel->stats.tx_errors),
+			      L2TP_ATTR_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, L2TP_ATTR_RX_PACKETS,
+			      atomic_long_read(&tunnel->stats.rx_packets),
+			      L2TP_ATTR_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, L2TP_ATTR_RX_BYTES,
+			      atomic_long_read(&tunnel->stats.rx_bytes),
+			      L2TP_ATTR_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, L2TP_ATTR_RX_SEQ_DISCARDS,
+			      atomic_long_read(&tunnel->stats.rx_seq_discards),
+			      L2TP_ATTR_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, L2TP_ATTR_RX_OOS_PACKETS,
+			      atomic_long_read(&tunnel->stats.rx_oos_packets),
+			      L2TP_ATTR_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, L2TP_ATTR_RX_ERRORS,
+			      atomic_long_read(&tunnel->stats.rx_errors),
+			      L2TP_ATTR_STATS_PAD))
 		goto nla_put_failure;
 	nla_nest_end(skb, nest);
 
@@ -736,29 +754,38 @@ static int l2tp_nl_session_send(struct sk_buff *skb, u32 portid, u32 seq, int fl
 	     nla_put_u8(skb, L2TP_ATTR_USING_IPSEC, 1)) ||
 #endif
 	    (session->reorder_timeout &&
-	     nla_put_msecs(skb, L2TP_ATTR_RECV_TIMEOUT, session->reorder_timeout)))
+	     nla_put_msecs(skb, L2TP_ATTR_RECV_TIMEOUT,
+			   session->reorder_timeout, L2TP_ATTR_PAD)))
 		goto nla_put_failure;
 
 	nest = nla_nest_start(skb, L2TP_ATTR_STATS);
 	if (nest == NULL)
 		goto nla_put_failure;
 
-	if (nla_put_u64(skb, L2TP_ATTR_TX_PACKETS,
-		atomic_long_read(&session->stats.tx_packets)) ||
-	    nla_put_u64(skb, L2TP_ATTR_TX_BYTES,
-		atomic_long_read(&session->stats.tx_bytes)) ||
-	    nla_put_u64(skb, L2TP_ATTR_TX_ERRORS,
-		atomic_long_read(&session->stats.tx_errors)) ||
-	    nla_put_u64(skb, L2TP_ATTR_RX_PACKETS,
-		atomic_long_read(&session->stats.rx_packets)) ||
-	    nla_put_u64(skb, L2TP_ATTR_RX_BYTES,
-		atomic_long_read(&session->stats.rx_bytes)) ||
-	    nla_put_u64(skb, L2TP_ATTR_RX_SEQ_DISCARDS,
-		atomic_long_read(&session->stats.rx_seq_discards)) ||
-	    nla_put_u64(skb, L2TP_ATTR_RX_OOS_PACKETS,
-		atomic_long_read(&session->stats.rx_oos_packets)) ||
-	    nla_put_u64(skb, L2TP_ATTR_RX_ERRORS,
-		atomic_long_read(&session->stats.rx_errors)))
+	if (nla_put_u64_64bit(skb, L2TP_ATTR_TX_PACKETS,
+			      atomic_long_read(&session->stats.tx_packets),
+			      L2TP_ATTR_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, L2TP_ATTR_TX_BYTES,
+			      atomic_long_read(&session->stats.tx_bytes),
+			      L2TP_ATTR_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, L2TP_ATTR_TX_ERRORS,
+			      atomic_long_read(&session->stats.tx_errors),
+			      L2TP_ATTR_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, L2TP_ATTR_RX_PACKETS,
+			      atomic_long_read(&session->stats.rx_packets),
+			      L2TP_ATTR_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, L2TP_ATTR_RX_BYTES,
+			      atomic_long_read(&session->stats.rx_bytes),
+			      L2TP_ATTR_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, L2TP_ATTR_RX_SEQ_DISCARDS,
+			      atomic_long_read(&session->stats.rx_seq_discards),
+			      L2TP_ATTR_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, L2TP_ATTR_RX_OOS_PACKETS,
+			      atomic_long_read(&session->stats.rx_oos_packets),
+			      L2TP_ATTR_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, L2TP_ATTR_RX_ERRORS,
+			      atomic_long_read(&session->stats.rx_errors),
+			      L2TP_ATTR_STATS_PAD))
 		goto nla_put_failure;
 	nla_nest_end(skb, nest);
 
@@ -840,7 +867,7 @@ out:
 	return skb->len;
 }
 
-static struct nla_policy l2tp_nl_policy[L2TP_ATTR_MAX + 1] = {
+static const struct nla_policy l2tp_nl_policy[L2TP_ATTR_MAX + 1] = {
 	[L2TP_ATTR_NONE]		= { .type = NLA_UNSPEC, },
 	[L2TP_ATTR_PW_TYPE]		= { .type = NLA_U16, },
 	[L2TP_ATTR_ENCAP_TYPE]		= { .type = NLA_U16, },

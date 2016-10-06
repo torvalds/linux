@@ -94,6 +94,7 @@
 #define H_SG_LIST	-72
 #define H_OP_MODE	-73
 #define H_COP_HW	-74
+#define H_STATE		-75
 #define H_UNSUPPORTED_FLAG_START	-256
 #define H_UNSUPPORTED_FLAG_END		-511
 #define H_MULTI_THREADS_ACTIVE	-9005
@@ -430,17 +431,6 @@ static inline unsigned long cmo_get_page_size(void)
 {
 	return CMO_PageSize;
 }
-
-extern long pSeries_enable_reloc_on_exc(void);
-extern long pSeries_disable_reloc_on_exc(void);
-
-extern long pseries_big_endian_exceptions(void);
-
-#else
-
-#define pSeries_enable_reloc_on_exc()  do {} while (0)
-#define pSeries_disable_reloc_on_exc() do {} while (0)
-
 #endif /* CONFIG_PPC_PSERIES */
 
 #endif /* __ASSEMBLY__ */

@@ -199,7 +199,7 @@ static void armada_drm_plane_work_run(struct armada_crtc *dcrtc,
 	/* Handle any pending frame work. */
 	if (work) {
 		work->fn(dcrtc, plane, work);
-		drm_vblank_put(dcrtc->crtc.dev, dcrtc->num);
+		drm_crtc_vblank_put(&dcrtc->crtc);
 	}
 
 	wake_up(&plane->frame_wait);
@@ -210,7 +210,7 @@ int armada_drm_plane_work_queue(struct armada_crtc *dcrtc,
 {
 	int ret;
 
-	ret = drm_vblank_get(dcrtc->crtc.dev, dcrtc->num);
+	ret = drm_crtc_vblank_get(&dcrtc->crtc);
 	if (ret) {
 		DRM_ERROR("failed to acquire vblank counter\n");
 		return ret;
@@ -218,7 +218,7 @@ int armada_drm_plane_work_queue(struct armada_crtc *dcrtc,
 
 	ret = cmpxchg(&plane->work, NULL, work) ? -EBUSY : 0;
 	if (ret)
-		drm_vblank_put(dcrtc->crtc.dev, dcrtc->num);
+		drm_crtc_vblank_put(&dcrtc->crtc);
 
 	return ret;
 }
@@ -234,7 +234,7 @@ struct armada_plane_work *armada_drm_plane_work_cancel(
 	struct armada_plane_work *work = xchg(&plane->work, NULL);
 
 	if (work)
-		drm_vblank_put(dcrtc->crtc.dev, dcrtc->num);
+		drm_crtc_vblank_put(&dcrtc->crtc);
 
 	return work;
 }
@@ -260,7 +260,7 @@ static void armada_drm_crtc_complete_frame_work(struct armada_crtc *dcrtc,
 
 	if (fwork->event) {
 		spin_lock_irqsave(&dev->event_lock, flags);
-		drm_send_vblank_event(dev, dcrtc->num, fwork->event);
+		drm_crtc_send_vblank_event(&dcrtc->crtc, fwork->event);
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 
@@ -410,7 +410,7 @@ static void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
 		DRM_ERROR("graphics underflow on crtc %u\n", dcrtc->num);
 
 	if (stat & VSYNC_IRQ)
-		drm_handle_vblank(dcrtc->crtc.dev, dcrtc->num);
+		drm_crtc_handle_vblank(&dcrtc->crtc);
 
 	spin_lock(&dcrtc->irq_lock);
 	ovl_plane = dcrtc->plane;
@@ -592,9 +592,9 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 
 	if (interlaced ^ dcrtc->interlaced) {
 		if (adj->flags & DRM_MODE_FLAG_INTERLACE)
-			drm_vblank_get(dcrtc->crtc.dev, dcrtc->num);
+			drm_crtc_vblank_get(&dcrtc->crtc);
 		else
-			drm_vblank_put(dcrtc->crtc.dev, dcrtc->num);
+			drm_crtc_vblank_put(&dcrtc->crtc);
 		dcrtc->interlaced = interlaced;
 	}
 
@@ -897,7 +897,6 @@ static void cursor_update(void *data)
 static int armada_drm_crtc_cursor_set(struct drm_crtc *crtc,
 	struct drm_file *file, uint32_t handle, uint32_t w, uint32_t h)
 {
-	struct drm_device *dev = crtc->dev;
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 	struct armada_gem_object *obj = NULL;
 	int ret;
@@ -911,7 +910,7 @@ static int armada_drm_crtc_cursor_set(struct drm_crtc *crtc,
 		if (w > 64 || h > 64 || (w > 32 && h > 32))
 			return -ENOMEM;
 
-		obj = armada_gem_object_lookup(dev, file, handle);
+		obj = armada_gem_object_lookup(file, handle);
 		if (!obj)
 			return -ENOENT;
 

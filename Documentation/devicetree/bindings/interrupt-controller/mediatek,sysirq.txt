@@ -9,6 +9,7 @@ Required properties:
 	"mediatek,mt8135-sysirq"
 	"mediatek,mt8127-sysirq"
 	"mediatek,mt6795-sysirq"
+	"mediatek,mt6755-sysirq"
 	"mediatek,mt6592-sysirq"
 	"mediatek,mt6589-sysirq"
 	"mediatek,mt6582-sysirq"
@@ -16,8 +17,7 @@ Required properties:
 	"mediatek,mt6577-sysirq"
 	"mediatek,mt2701-sysirq"
 - interrupt-controller : Identifies the node as an interrupt controller
-- #interrupt-cells : Use the same format as specified by GIC in
-  Documentation/devicetree/bindings/arm/gic.txt
+- #interrupt-cells : Use the same format as specified by GIC in arm,gic.txt.
 - interrupt-parent: phandle of irq parent for sysirq. The parent must
   use the same interrupt-cells format as GIC.
 - reg: Physical base address of the intpol registers and length of memory

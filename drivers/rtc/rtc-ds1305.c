@@ -313,13 +313,6 @@ static int ds1305_get_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	alm->time.tm_sec = bcd2bin(buf[DS1305_SEC]);
 	alm->time.tm_min = bcd2bin(buf[DS1305_MIN]);
 	alm->time.tm_hour = bcd2hour(buf[DS1305_HOUR]);
-	alm->time.tm_mday = -1;
-	alm->time.tm_mon = -1;
-	alm->time.tm_year = -1;
-	/* next three fields are unused by Linux */
-	alm->time.tm_wday = -1;
-	alm->time.tm_mday = -1;
-	alm->time.tm_isdst = -1;
 
 	return 0;
 }
@@ -532,7 +525,7 @@ ds1305_nvram_read(struct file *filp, struct kobject *kobj,
 	struct spi_transfer	x[2];
 	int			status;
 
-	spi = container_of(kobj, struct spi_device, dev.kobj);
+	spi = to_spi_device(kobj_to_dev(kobj));
 
 	addr = DS1305_NVRAM + off;
 	msg_init(&m, x, &addr, count, NULL, buf);
@@ -554,7 +547,7 @@ ds1305_nvram_write(struct file *filp, struct kobject *kobj,
 	struct spi_transfer	x[2];
 	int			status;
 
-	spi = container_of(kobj, struct spi_device, dev.kobj);
+	spi = to_spi_device(kobj_to_dev(kobj));
 
 	addr = (DS1305_WRITE | DS1305_NVRAM) + off;
 	msg_init(&m, x, &addr, count, buf, NULL);

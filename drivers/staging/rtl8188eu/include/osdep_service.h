@@ -11,11 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
  ******************************************************************************/
 #ifndef __OSDEP_SERVICE_H_
 #define __OSDEP_SERVICE_H_
@@ -40,7 +35,7 @@
 #include <asm/byteorder.h>
 #include <linux/atomic.h>
 #include <linux/io.h>
-#include <linux/semaphore.h>
+#include <linux/mutex.h>
 #include <linux/sem.h>
 #include <linux/sched.h>
 #include <linux/etherdevice.h>
@@ -49,7 +44,6 @@
 #include <linux/if_arp.h>
 #include <linux/rtnetlink.h>
 #include <linux/delay.h>
-#include <linux/proc_fs.h>	/*  Necessary because we use the proc fs */
 #include <linux/interrupt.h>	/*  for struct tasklet_struct */
 #include <linux/ip.h>
 #include <linux/kthread.h>
@@ -83,16 +77,12 @@ u8 *_rtw_malloc(u32 sz);
 
 void *rtw_malloc2d(int h, int w, int size);
 
-u32  _rtw_down_sema(struct semaphore *sema);
-
 void _rtw_init_queue(struct __queue *pqueue);
 
 struct rtw_netdev_priv_indicator {
 	void *priv;
-	u32 sizeof_priv;
 };
-struct net_device *rtw_alloc_etherdev_with_old_priv(int sizeof_priv,
-						    void *old_priv);
+struct net_device *rtw_alloc_etherdev_with_old_priv(void *old_priv);
 
 #define rtw_netdev_priv(netdev)					\
 	(((struct rtw_netdev_priv_indicator *)netdev_priv(netdev))->priv)

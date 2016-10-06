@@ -564,7 +564,7 @@ nvkm_clk_ctor(const struct nvkm_clk_func *func, struct nvkm_device *device,
 	int ret, idx, arglen;
 	const char *mode;
 
-	nvkm_subdev_ctor(&nvkm_clk, device, index, 0, &clk->subdev);
+	nvkm_subdev_ctor(&nvkm_clk, device, index, &clk->subdev);
 	clk->func = func;
 	INIT_LIST_HEAD(&clk->states);
 	clk->domains = func->domains;

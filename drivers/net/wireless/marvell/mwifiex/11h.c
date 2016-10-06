@@ -123,8 +123,7 @@ void mwifiex_11h_process_join(struct mwifiex_private *priv, u8 **buffer,
 void mwifiex_dfs_cac_work_queue(struct work_struct *work)
 {
 	struct cfg80211_chan_def chandef;
-	struct delayed_work *delayed_work =
-			container_of(work, struct delayed_work, work);
+	struct delayed_work *delayed_work = to_delayed_work(work);
 	struct mwifiex_private *priv =
 			container_of(delayed_work, struct mwifiex_private,
 				     dfs_cac_work);
@@ -261,22 +260,17 @@ int mwifiex_11h_handle_radar_detected(struct mwifiex_private *priv,
 
 	rdr_event = (void *)(skb->data + sizeof(u32));
 
-	if (le32_to_cpu(rdr_event->passed)) {
-		mwifiex_dbg(priv->adapter, MSG,
-			    "radar detected; indicating kernel\n");
-		if (mwifiex_stop_radar_detection(priv, &priv->dfs_chandef))
-			mwifiex_dbg(priv->adapter, ERROR,
-				    "Failed to stop CAC in FW\n");
-		cfg80211_radar_event(priv->adapter->wiphy, &priv->dfs_chandef,
-				     GFP_KERNEL);
-		mwifiex_dbg(priv->adapter, MSG, "regdomain: %d\n",
-			    rdr_event->reg_domain);
-		mwifiex_dbg(priv->adapter, MSG, "radar detection type: %d\n",
-			    rdr_event->det_type);
-	} else {
-		mwifiex_dbg(priv->adapter, MSG,
-			    "false radar detection event!\n");
-	}
+	mwifiex_dbg(priv->adapter, MSG,
+		    "radar detected; indicating kernel\n");
+	if (mwifiex_stop_radar_detection(priv, &priv->dfs_chandef))
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "Failed to stop CAC in FW\n");
+	cfg80211_radar_event(priv->adapter->wiphy, &priv->dfs_chandef,
+			     GFP_KERNEL);
+	mwifiex_dbg(priv->adapter, MSG, "regdomain: %d\n",
+		    rdr_event->reg_domain);
+	mwifiex_dbg(priv->adapter, MSG, "radar detection type: %d\n",
+		    rdr_event->det_type);
 
 	return 0;
 }
@@ -289,8 +283,7 @@ int mwifiex_11h_handle_radar_detected(struct mwifiex_private *priv,
 void mwifiex_dfs_chan_sw_work_queue(struct work_struct *work)
 {
 	struct mwifiex_uap_bss_param *bss_cfg;
-	struct delayed_work *delayed_work =
-			container_of(work, struct delayed_work, work);
+	struct delayed_work *delayed_work = to_delayed_work(work);
 	struct mwifiex_private *priv =
 			container_of(delayed_work, struct mwifiex_private,
 				     dfs_chan_sw_work);

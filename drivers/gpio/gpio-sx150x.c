@@ -1,5 +1,9 @@
 /* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
  *
+ * Driver for Semtech SX150X I2C GPIO Expanders
+ *
+ * Author: Gregory Bean <gbean@codeaurora.org>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
  * only version 2 as published by the Free Software Foundation.
@@ -19,10 +23,8 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-#include <linux/i2c/sx150x.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -80,6 +82,57 @@ struct sx150x_device_data {
 		struct sx150x_456_pri x456;
 		struct sx150x_789_pri x789;
 	} pri;
+};
+
+/**
+ * struct sx150x_platform_data - config data for SX150x driver
+ * @gpio_base: The index number of the first GPIO assigned to this
+ *             GPIO expander.  The expander will create a block of
+ *             consecutively numbered gpios beginning at the given base,
+ *             with the size of the block depending on the model of the
+ *             expander chip.
+ * @oscio_is_gpo: If set to true, the driver will configure OSCIO as a GPO
+ *                instead of as an oscillator, increasing the size of the
+ *                GP(I)O pool created by this expander by one.  The
+ *                output-only GPO pin will be added at the end of the block.
+ * @io_pullup_ena: A bit-mask which enables or disables the pull-up resistor
+ *                 for each IO line in the expander.  Setting the bit at
+ *                 position n will enable the pull-up for the IO at
+ *                 the corresponding offset.  For chips with fewer than
+ *                 16 IO pins, high-end bits are ignored.
+ * @io_pulldn_ena: A bit-mask which enables-or disables the pull-down
+ *                 resistor for each IO line in the expander. Setting the
+ *                 bit at position n will enable the pull-down for the IO at
+ *                 the corresponding offset.  For chips with fewer than
+ *                 16 IO pins, high-end bits are ignored.
+ * @io_polarity: A bit-mask which enables polarity inversion for each IO line
+ *               in the expander.  Setting the bit at position n inverts
+ *               the polarity of that IO line, while clearing it results
+ *               in normal polarity. For chips with fewer than 16 IO pins,
+ *               high-end bits are ignored.
+ * @irq_summary: The 'summary IRQ' line to which the GPIO expander's INT line
+ *               is connected, via which it reports interrupt events
+ *               across all GPIO lines.  This must be a real,
+ *               pre-existing IRQ line.
+ *               Setting this value < 0 disables the irq_chip functionality
+ *               of the driver.
+ * @irq_base: The first 'virtual IRQ' line at which our block of GPIO-based
+ *            IRQ lines will appear.  Similarly to gpio_base, the expander
+ *            will create a block of irqs beginning at this number.
+ *            This value is ignored if irq_summary is < 0.
+ * @reset_during_probe: If set to true, the driver will trigger a full
+ *                      reset of the chip at the beginning of the probe
+ *                      in order to place it in a known state.
+ */
+struct sx150x_platform_data {
+	unsigned gpio_base;
+	bool     oscio_is_gpo;
+	u16      io_pullup_ena;
+	u16      io_pulldn_ena;
+	u16      io_polarity;
+	int      irq_summary;
+	unsigned irq_base;
+	bool     reset_during_probe;
 };
 
 struct sx150x_chip {
@@ -183,7 +236,6 @@ static const struct i2c_device_id sx150x_id[] = {
 	{"sx1502q", 3},
 	{}
 };
-MODULE_DEVICE_TABLE(i2c, sx150x_id);
 
 static const struct of_device_id sx150x_of_match[] = {
 	{ .compatible = "semtech,sx1508q" },
@@ -192,7 +244,6 @@ static const struct of_device_id sx150x_of_match[] = {
 	{ .compatible = "semtech,sx1502q" },
 	{},
 };
-MODULE_DEVICE_TABLE(of, sx150x_of_match);
 
 static s32 sx150x_i2c_write(struct i2c_client *client, u8 reg, u8 val)
 {
@@ -354,6 +405,32 @@ static void sx150x_gpio_set(struct gpio_chip *gc, unsigned offset, int val)
 	mutex_unlock(&chip->lock);
 }
 
+static int sx150x_gpio_set_single_ended(struct gpio_chip *gc,
+					unsigned offset,
+                                        enum single_ended_mode mode)
+{
+	struct sx150x_chip *chip = gpiochip_get_data(gc);
+
+	/* On the SX160X 789 we can set open drain */
+	if (chip->dev_cfg->model != SX150X_789)
+		return -ENOTSUPP;
+
+	if (mode == LINE_MODE_PUSH_PULL)
+		return sx150x_write_cfg(chip,
+					offset,
+					1,
+					chip->dev_cfg->pri.x789.reg_drain,
+					0);
+
+	if (mode == LINE_MODE_OPEN_DRAIN)
+		return sx150x_write_cfg(chip,
+					offset,
+					1,
+					chip->dev_cfg->pri.x789.reg_drain,
+					1);
+	return -ENOTSUPP;
+}
+
 static int sx150x_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
 {
 	struct sx150x_chip *chip = gpiochip_get_data(gc);
@@ -508,6 +585,7 @@ static void sx150x_init_chip(struct sx150x_chip *chip,
 	chip->gpio_chip.direction_output = sx150x_gpio_direction_output;
 	chip->gpio_chip.get              = sx150x_gpio_get;
 	chip->gpio_chip.set              = sx150x_gpio_set;
+	chip->gpio_chip.set_single_ended = sx150x_gpio_set_single_ended;
 	chip->gpio_chip.base             = pdata->gpio_base;
 	chip->gpio_chip.can_sleep        = true;
 	chip->gpio_chip.ngpio            = chip->dev_cfg->ngpios;
@@ -597,12 +675,6 @@ static int sx150x_init_hw(struct sx150x_chip *chip,
 
 	if (chip->dev_cfg->model == SX150X_789) {
 		err = sx150x_init_io(chip,
-				chip->dev_cfg->pri.x789.reg_drain,
-				pdata->io_open_drain_ena);
-		if (err < 0)
-			return err;
-
-		err = sx150x_init_io(chip,
 				chip->dev_cfg->pri.x789.reg_polarity,
 				pdata->io_polarity);
 		if (err < 0)
@@ -687,7 +759,7 @@ static int sx150x_probe(struct i2c_client *client,
 	if (rc < 0)
 		return rc;
 
-	rc = gpiochip_add_data(&chip->gpio_chip, chip);
+	rc = devm_gpiochip_add_data(&client->dev, &chip->gpio_chip, chip);
 	if (rc)
 		return rc;
 
@@ -696,23 +768,10 @@ static int sx150x_probe(struct i2c_client *client,
 					pdata->irq_summary,
 					pdata->irq_base);
 		if (rc < 0)
-			goto probe_fail_post_gpiochip_add;
+			return rc;
 	}
 
 	i2c_set_clientdata(client, chip);
-
-	return 0;
-probe_fail_post_gpiochip_add:
-	gpiochip_remove(&chip->gpio_chip);
-	return rc;
-}
-
-static int sx150x_remove(struct i2c_client *client)
-{
-	struct sx150x_chip *chip;
-
-	chip = i2c_get_clientdata(client);
-	gpiochip_remove(&chip->gpio_chip);
 
 	return 0;
 }
@@ -723,7 +782,6 @@ static struct i2c_driver sx150x_driver = {
 		.of_match_table = of_match_ptr(sx150x_of_match),
 	},
 	.probe    = sx150x_probe,
-	.remove   = sx150x_remove,
 	.id_table = sx150x_id,
 };
 
@@ -732,13 +790,3 @@ static int __init sx150x_init(void)
 	return i2c_add_driver(&sx150x_driver);
 }
 subsys_initcall(sx150x_init);
-
-static void __exit sx150x_exit(void)
-{
-	return i2c_del_driver(&sx150x_driver);
-}
-module_exit(sx150x_exit);
-
-MODULE_AUTHOR("Gregory Bean <gbean@codeaurora.org>");
-MODULE_DESCRIPTION("Driver for Semtech SX150X I2C GPIO Expanders");
-MODULE_LICENSE("GPL v2");

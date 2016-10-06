@@ -69,7 +69,7 @@ static ssize_t ht40allow_map_read(struct file *file,
 	struct wiphy *wiphy = file->private_data;
 	char *buf;
 	unsigned int offset = 0, buf_size = PAGE_SIZE, i, r;
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	struct ieee80211_supported_band *sband;
 
 	buf = kzalloc(buf_size, GFP_KERNEL);
@@ -78,7 +78,7 @@ static ssize_t ht40allow_map_read(struct file *file,
 
 	rtnl_lock();
 
-	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		sband = wiphy->bands[band];
 		if (!sband)
 			continue;

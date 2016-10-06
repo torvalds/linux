@@ -23,7 +23,11 @@
 #ifndef _UAPI__SOUND_ASOUND_H
 #define _UAPI__SOUND_ASOUND_H
 
+#if defined(__KERNEL__) || defined(__linux__)
 #include <linux/types.h>
+#else
+#include <sys/ioctl.h>
+#endif
 
 #ifndef __KERNEL__
 #include <stdlib.h>
@@ -102,9 +106,10 @@ enum {
 	SNDRV_HWDEP_IFACE_FW_OXFW,	/* Oxford OXFW970/971 based device */
 	SNDRV_HWDEP_IFACE_FW_DIGI00X,	/* Digidesign Digi 002/003 family */
 	SNDRV_HWDEP_IFACE_FW_TASCAM,	/* TASCAM FireWire series */
+	SNDRV_HWDEP_IFACE_LINE6,	/* Line6 USB processors */
 
 	/* Don't forget to change the following: */
-	SNDRV_HWDEP_IFACE_LAST = SNDRV_HWDEP_IFACE_FW_TASCAM
+	SNDRV_HWDEP_IFACE_LAST = SNDRV_HWDEP_IFACE_LINE6
 };
 
 struct snd_hwdep_info {
@@ -668,7 +673,7 @@ enum {
 
 /* global timers (device member) */
 #define SNDRV_TIMER_GLOBAL_SYSTEM	0
-#define SNDRV_TIMER_GLOBAL_RTC		1
+#define SNDRV_TIMER_GLOBAL_RTC		1	/* unused */
 #define SNDRV_TIMER_GLOBAL_HPET		2
 #define SNDRV_TIMER_GLOBAL_HRTIMER	3
 

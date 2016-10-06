@@ -911,6 +911,7 @@ static void snd_usbmidi_us122l_output(struct snd_usb_midi_out_endpoint *ep,
 	switch (snd_usb_get_speed(ep->umidi->dev)) {
 	case USB_SPEED_HIGH:
 	case USB_SPEED_SUPER:
+	case USB_SPEED_SUPER_PLUS:
 		count = 1;
 		break;
 	default:
@@ -2320,10 +2321,11 @@ EXPORT_SYMBOL(snd_usbmidi_resume);
 /*
  * Creates and registers everything needed for a MIDI streaming interface.
  */
-int snd_usbmidi_create(struct snd_card *card,
-		       struct usb_interface *iface,
-		       struct list_head *midi_list,
-		       const struct snd_usb_audio_quirk *quirk)
+int __snd_usbmidi_create(struct snd_card *card,
+			 struct usb_interface *iface,
+			 struct list_head *midi_list,
+			 const struct snd_usb_audio_quirk *quirk,
+			 unsigned int usb_id)
 {
 	struct snd_usb_midi *umidi;
 	struct snd_usb_midi_endpoint_info endpoints[MIDI_MAX_ENDPOINTS];
@@ -2341,8 +2343,10 @@ int snd_usbmidi_create(struct snd_card *card,
 	spin_lock_init(&umidi->disc_lock);
 	init_rwsem(&umidi->disc_rwsem);
 	mutex_init(&umidi->mutex);
-	umidi->usb_id = USB_ID(le16_to_cpu(umidi->dev->descriptor.idVendor),
+	if (!usb_id)
+		usb_id = USB_ID(le16_to_cpu(umidi->dev->descriptor.idVendor),
 			       le16_to_cpu(umidi->dev->descriptor.idProduct));
+	umidi->usb_id = usb_id;
 	setup_timer(&umidi->error_timer, snd_usbmidi_error_timer,
 		    (unsigned long)umidi);
 
@@ -2455,7 +2459,6 @@ int snd_usbmidi_create(struct snd_card *card,
 	else
 		err = snd_usbmidi_create_endpoints(umidi, endpoints);
 	if (err < 0) {
-		snd_usbmidi_free(umidi);
 		return err;
 	}
 
@@ -2464,4 +2467,4 @@ int snd_usbmidi_create(struct snd_card *card,
 	list_add_tail(&umidi->list, midi_list);
 	return 0;
 }
-EXPORT_SYMBOL(snd_usbmidi_create);
+EXPORT_SYMBOL(__snd_usbmidi_create);

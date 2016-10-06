@@ -12,7 +12,7 @@
 
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of_pci.h>
 #include <linux/of_platform.h>
 #include <linux/of_irq.h>
@@ -77,6 +77,16 @@ static void ls_pcie_fix_class(struct ls_pcie *pcie)
 	iowrite16(PCI_CLASS_BRIDGE_PCI, pcie->dbi + PCI_CLASS_DEVICE);
 }
 
+/* Drop MSG TLP except for Vendor MSG */
+static void ls_pcie_drop_msg_tlp(struct ls_pcie *pcie)
+{
+	u32 val;
+
+	val = ioread32(pcie->dbi + PCIE_STRFMR1);
+	val &= 0xDFFFFFFF;
+	iowrite32(val, pcie->dbi + PCIE_STRFMR1);
+}
+
 static int ls1021_pcie_link_up(struct pcie_port *pp)
 {
 	u32 state;
@@ -97,7 +107,7 @@ static int ls1021_pcie_link_up(struct pcie_port *pp)
 static void ls1021_pcie_host_init(struct pcie_port *pp)
 {
 	struct ls_pcie *pcie = to_ls_pcie(pp);
-	u32 val, index[2];
+	u32 index[2];
 
 	pcie->scfg = syscon_regmap_lookup_by_phandle(pp->dev->of_node,
 						     "fsl,pcie-scfg");
@@ -116,13 +126,7 @@ static void ls1021_pcie_host_init(struct pcie_port *pp)
 
 	dw_pcie_setup_rc(pp);
 
-	/*
-	 * LS1021A Workaround for internal TKT228622
-	 * to fix the INTx hang issue
-	 */
-	val = ioread32(pcie->dbi + PCIE_STRFMR1);
-	val &= 0xffff;
-	iowrite32(val, pcie->dbi + PCIE_STRFMR1);
+	ls_pcie_drop_msg_tlp(pcie);
 }
 
 static int ls_pcie_link_up(struct pcie_port *pp)
@@ -147,6 +151,7 @@ static void ls_pcie_host_init(struct pcie_port *pp)
 	iowrite32(1, pcie->dbi + PCIE_DBI_RO_WR_EN);
 	ls_pcie_fix_class(pcie);
 	ls_pcie_clear_multifunction(pcie);
+	ls_pcie_drop_msg_tlp(pcie);
 	iowrite32(0, pcie->dbi + PCIE_DBI_RO_WR_EN);
 }
 
@@ -203,9 +208,9 @@ static const struct of_device_id ls_pcie_of_match[] = {
 	{ .compatible = "fsl,ls1021a-pcie", .data = &ls1021_drvdata },
 	{ .compatible = "fsl,ls1043a-pcie", .data = &ls1043_drvdata },
 	{ .compatible = "fsl,ls2080a-pcie", .data = &ls2080_drvdata },
+	{ .compatible = "fsl,ls2085a-pcie", .data = &ls2080_drvdata },
 	{ },
 };
-MODULE_DEVICE_TABLE(of, ls_pcie_of_match);
 
 static int __init ls_add_pcie_port(struct pcie_port *pp,
 				   struct platform_device *pdev)
@@ -269,9 +274,4 @@ static struct platform_driver ls_pcie_driver = {
 		.of_match_table = ls_pcie_of_match,
 	},
 };
-
-module_platform_driver_probe(ls_pcie_driver, ls_pcie_probe);
-
-MODULE_AUTHOR("Minghuan Lian <Minghuan.Lian@freescale.com>");
-MODULE_DESCRIPTION("Freescale Layerscape PCIe host controller driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver_probe(ls_pcie_driver, ls_pcie_probe);

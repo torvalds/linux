@@ -13,20 +13,35 @@
 
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/io.h>
 #include <linux/nvmem-provider.h>
 #include <linux/platform_device.h>
-#include <linux/regmap.h>
 
-static struct regmap_config qfprom_regmap_config = {
-	.reg_bits = 32,
-	.val_bits = 8,
-	.reg_stride = 1,
-};
+static int qfprom_reg_read(void *context,
+			unsigned int reg, void *_val, size_t bytes)
+{
+	void __iomem *base = context;
+	u32 *val = _val;
+	int i = 0, words = bytes / 4;
 
-static struct nvmem_config econfig = {
-	.name = "qfprom",
-	.owner = THIS_MODULE,
-};
+	while (words--)
+		*val++ = readl(base + reg + (i++ * 4));
+
+	return 0;
+}
+
+static int qfprom_reg_write(void *context,
+			 unsigned int reg, void *_val, size_t bytes)
+{
+	void __iomem *base = context;
+	u32 *val = _val;
+	int i = 0, words = bytes / 4;
+
+	while (words--)
+		writel(*val++, base + reg + (i++ * 4));
+
+	return 0;
+}
 
 static int qfprom_remove(struct platform_device *pdev)
 {
@@ -35,12 +50,20 @@ static int qfprom_remove(struct platform_device *pdev)
 	return nvmem_unregister(nvmem);
 }
 
+static struct nvmem_config econfig = {
+	.name = "qfprom",
+	.owner = THIS_MODULE,
+	.stride = 4,
+	.word_size = 1,
+	.reg_read = qfprom_reg_read,
+	.reg_write = qfprom_reg_write,
+};
+
 static int qfprom_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	struct nvmem_device *nvmem;
-	struct regmap *regmap;
 	void __iomem *base;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -48,14 +71,10 @@ static int qfprom_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	qfprom_regmap_config.max_register = resource_size(res) - 1;
-
-	regmap = devm_regmap_init_mmio(dev, base, &qfprom_regmap_config);
-	if (IS_ERR(regmap)) {
-		dev_err(dev, "regmap init failed\n");
-		return PTR_ERR(regmap);
-	}
+	econfig.size = resource_size(res);
 	econfig.dev = dev;
+	econfig.priv = base;
+
 	nvmem = nvmem_register(&econfig);
 	if (IS_ERR(nvmem))
 		return PTR_ERR(nvmem);

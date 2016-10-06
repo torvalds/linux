@@ -33,7 +33,6 @@
 
 #include <linux/dma-direction.h>
 #include "channel.h"
-#include "channel_guid.h"
 
 #define ULTRA_VHBA_CHANNEL_PROTOCOL_SIGNATURE ULTRA_CHANNEL_PROTOCOL_SIGNATURE
 #define ULTRA_VNIC_CHANNEL_PROTOCOL_SIGNATURE ULTRA_CHANNEL_PROTOCOL_SIGNATURE
@@ -252,48 +251,6 @@ struct uiscmdrsp_scsi {
 
 /* SCSI device version for no disk inquiry result */
 #define SCSI_SPC2_VER 4		/* indicates SCSI SPC2 (SPC3 is 5) */
-
-/* Windows and Linux want different things for a non-existent lun. So, we'll let
- * caller pass in the peripheral qualifier and type.
- * NOTE:[4] SCSI returns (n-4); so we return length-1-4 or length-5.
- */
-
-#define SET_NO_DISK_INQUIRY_RESULT(buf, len, lun, lun0notpresent, notpresent) \
-	do {								\
-		memset(buf, 0,						\
-		       MINNUM(len,					\
-			      (unsigned int)NO_DISK_INQUIRY_RESULT_LEN)); \
-		buf[2] = (u8)SCSI_SPC2_VER;				\
-		if (lun == 0) {						\
-			buf[0] = (u8)lun0notpresent;			\
-			buf[3] = (u8)DEV_HISUPPORT;			\
-		} else							\
-			buf[0] = (u8)notpresent;			\
-		buf[4] = (u8)(						\
-			MINNUM(len,					\
-			       (unsigned int)NO_DISK_INQUIRY_RESULT_LEN) - 5);\
-		if (len >= NO_DISK_INQUIRY_RESULT_LEN) {		\
-			buf[8] = 'D';					\
-			buf[9] = 'E';					\
-			buf[10] = 'L';					\
-			buf[11] = 'L';					\
-			buf[16] = 'P';					\
-			buf[17] = 'S';					\
-			buf[18] = 'E';					\
-			buf[19] = 'U';					\
-			buf[20] = 'D';					\
-			buf[21] = 'O';					\
-			buf[22] = ' ';					\
-			buf[23] = 'D';					\
-			buf[24] = 'E';					\
-			buf[25] = 'V';					\
-			buf[26] = 'I';					\
-			buf[27] = 'C';					\
-			buf[28] = 'E';					\
-			buf[30] = ' ';					\
-			buf[31] = '.';					\
-		}							\
-	} while (0)
 
 /* Struct & Defines to support sense information. */
 
@@ -575,7 +532,7 @@ struct spar_io_channel_protocol {
  * room)
  */
 static inline  u16
-add_physinfo_entries(u32 inp_pfn, u16 inp_off, u32 inp_len, u16 index,
+add_physinfo_entries(u64 inp_pfn, u16 inp_off, u32 inp_len, u16 index,
 		     u16 max_pi_arr_entries, struct phys_info pi_arr[])
 {
 	u32 len;
@@ -589,21 +546,19 @@ add_physinfo_entries(u32 inp_pfn, u16 inp_off, u32 inp_len, u16 index,
 		pi_arr[index].pi_pfn = inp_pfn;
 		pi_arr[index].pi_off = (u16)inp_off;
 		pi_arr[index].pi_len = (u16)inp_len;
-		    return index + 1;
+		return index + 1;
 	}
 
-	    /* this entry spans multiple pages */
-	    for (len = inp_len, i = 0; len;
-		 len -= pi_arr[index + i].pi_len, i++) {
+	/* this entry spans multiple pages */
+	for (len = inp_len, i = 0; len;
+		len -= pi_arr[index + i].pi_len, i++) {
 		if (index + i >= max_pi_arr_entries)
 			return 0;
 		pi_arr[index + i].pi_pfn = inp_pfn + i;
 		if (i == 0) {
 			pi_arr[index].pi_off = inp_off;
 			pi_arr[index].pi_len = firstlen;
-		}
-
-		else {
+		} else {
 			pi_arr[index + i].pi_off = 0;
 			pi_arr[index + i].pi_len =
 			    (u16)MINNUM(len, (u32)PI_PAGE_SIZE);

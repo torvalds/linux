@@ -788,7 +788,8 @@ static void check_if_tick_bio_needed(struct cache *cache, struct bio *bio)
 
 	spin_lock_irqsave(&cache->lock, flags);
 	if (cache->need_tick_bio &&
-	    !(bio->bi_rw & (REQ_FUA | REQ_FLUSH | REQ_DISCARD))) {
+	    !(bio->bi_opf & (REQ_FUA | REQ_PREFLUSH)) &&
+	    bio_op(bio) != REQ_OP_DISCARD) {
 		pb->tick = true;
 		cache->need_tick_bio = false;
 	}
@@ -829,7 +830,7 @@ static dm_oblock_t get_bio_block(struct cache *cache, struct bio *bio)
 
 static int bio_triggers_commit(struct cache *cache, struct bio *bio)
 {
-	return bio->bi_rw & (REQ_FLUSH | REQ_FUA);
+	return bio->bi_opf & (REQ_PREFLUSH | REQ_FUA);
 }
 
 /*
@@ -851,7 +852,7 @@ static void inc_ds(struct cache *cache, struct bio *bio,
 static bool accountable_bio(struct cache *cache, struct bio *bio)
 {
 	return ((bio->bi_bdev == cache->origin_dev->bdev) &&
-		!(bio->bi_rw & REQ_DISCARD));
+		bio_op(bio) != REQ_OP_DISCARD);
 }
 
 static void accounted_begin(struct cache *cache, struct bio *bio)
@@ -984,8 +985,13 @@ static void notify_mode_switch(struct cache *cache, enum cache_metadata_mode mod
 
 static void set_cache_mode(struct cache *cache, enum cache_metadata_mode new_mode)
 {
-	bool needs_check = dm_cache_metadata_needs_check(cache->cmd);
+	bool needs_check;
 	enum cache_metadata_mode old_mode = get_cache_mode(cache);
+
+	if (dm_cache_metadata_needs_check(cache->cmd, &needs_check)) {
+		DMERR("unable to read needs_check flag, setting failure mode");
+		new_mode = CM_FAIL;
+	}
 
 	if (new_mode == CM_WRITE && needs_check) {
 		DMERR("%s: unable to switch cache to write mode until repaired.",
@@ -1062,7 +1068,8 @@ static void dec_io_migrations(struct cache *cache)
 
 static bool discard_or_flush(struct bio *bio)
 {
-	return bio->bi_rw & (REQ_FLUSH | REQ_FUA | REQ_DISCARD);
+	return bio_op(bio) == REQ_OP_DISCARD ||
+	       bio->bi_opf & (REQ_PREFLUSH | REQ_FUA);
 }
 
 static void __cell_defer(struct cache *cache, struct dm_bio_prison_cell *cell)
@@ -1607,8 +1614,8 @@ static void process_flush_bio(struct cache *cache, struct bio *bio)
 		remap_to_cache(cache, bio, 0);
 
 	/*
-	 * REQ_FLUSH is not directed at any particular block so we don't
-	 * need to inc_ds().  REQ_FUA's are split into a write + REQ_FLUSH
+	 * REQ_PREFLUSH is not directed at any particular block so we don't
+	 * need to inc_ds().  REQ_FUA's are split into a write + REQ_PREFLUSH
 	 * by dm-core.
 	 */
 	issue(cache, bio);
@@ -1973,9 +1980,9 @@ static void process_deferred_bios(struct cache *cache)
 
 		bio = bio_list_pop(&bios);
 
-		if (bio->bi_rw & REQ_FLUSH)
+		if (bio->bi_opf & REQ_PREFLUSH)
 			process_flush_bio(cache, bio);
-		else if (bio->bi_rw & REQ_DISCARD)
+		else if (bio_op(bio) == REQ_OP_DISCARD)
 			process_discard_bio(cache, &structs, bio);
 		else
 			process_bio(cache, &structs, bio);
@@ -2771,7 +2778,7 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 	ti->split_discard_bios = false;
 
 	cache->features = ca->features;
-	ti->per_bio_data_size = get_per_bio_data_size(cache);
+	ti->per_io_data_size = get_per_bio_data_size(cache);
 
 	cache->callbacks.congested_fn = cache_is_congested;
 	dm_table_add_target_callbacks(ti->table, &cache->callbacks);
@@ -3510,6 +3517,7 @@ static void cache_status(struct dm_target *ti, status_type_t type,
 	char buf[BDEVNAME_SIZE];
 	struct cache *cache = ti->private;
 	dm_cblock_t residency;
+	bool needs_check;
 
 	switch (type) {
 	case STATUSTYPE_INFO:
@@ -3583,7 +3591,9 @@ static void cache_status(struct dm_target *ti, status_type_t type,
 		else
 			DMEMIT("rw ");
 
-		if (dm_cache_metadata_needs_check(cache->cmd))
+		r = dm_cache_metadata_needs_check(cache->cmd, &needs_check);
+
+		if (r || needs_check)
 			DMEMIT("needs_check ");
 		else
 			DMEMIT("- ");
@@ -3806,7 +3816,7 @@ static void cache_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 static struct target_type cache_target = {
 	.name = "cache",
-	.version = {1, 8, 0},
+	.version = {1, 9, 0},
 	.module = THIS_MODULE,
 	.ctr = cache_ctr,
 	.dtr = cache_dtr,

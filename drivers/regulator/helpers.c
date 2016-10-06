@@ -460,8 +460,31 @@ int regulator_get_bypass_regmap(struct regulator_dev *rdev, bool *enable)
 	if (ret != 0)
 		return ret;
 
-	*enable = val & rdev->desc->bypass_mask;
+	*enable = (val & rdev->desc->bypass_mask) == rdev->desc->bypass_val_on;
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(regulator_get_bypass_regmap);
+
+/**
+ * regulator_set_active_discharge_regmap - Default set_active_discharge()
+ *					   using regmap
+ *
+ * @rdev: device to operate on.
+ * @enable: state to set, 0 to disable and 1 to enable.
+ */
+int regulator_set_active_discharge_regmap(struct regulator_dev *rdev,
+					  bool enable)
+{
+	unsigned int val;
+
+	if (enable)
+		val = rdev->desc->active_discharge_on;
+	else
+		val = rdev->desc->active_discharge_off;
+
+	return regmap_update_bits(rdev->regmap,
+				  rdev->desc->active_discharge_reg,
+				  rdev->desc->active_discharge_mask, val);
+}
+EXPORT_SYMBOL_GPL(regulator_set_active_discharge_regmap);

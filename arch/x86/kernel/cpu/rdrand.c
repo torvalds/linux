@@ -39,9 +39,9 @@ __setup("nordrand", x86_rdrand_setup);
  */
 #define SANITY_CHECK_LOOPS 8
 
+#ifdef CONFIG_ARCH_RANDOM
 void x86_init_rdrand(struct cpuinfo_x86 *c)
 {
-#ifdef CONFIG_ARCH_RANDOM
 	unsigned long tmp;
 	int i;
 
@@ -51,9 +51,9 @@ void x86_init_rdrand(struct cpuinfo_x86 *c)
 	for (i = 0; i < SANITY_CHECK_LOOPS; i++) {
 		if (!rdrand_long(&tmp)) {
 			clear_cpu_cap(c, X86_FEATURE_RDRAND);
-			printk_once(KERN_WARNING "rdrand: disabled\n");
+			pr_warn_once("rdrand: disabled\n");
 			return;
 		}
 	}
-#endif
 }
+#endif

@@ -605,8 +605,7 @@ nfsd4_create(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	fh_init(&resfh, NFS4_FHSIZE);
 
-	status = fh_verify(rqstp, &cstate->current_fh, S_IFDIR,
-			   NFSD_MAY_CREATE);
+	status = fh_verify(rqstp, &cstate->current_fh, S_IFDIR, NFSD_MAY_NOP);
 	if (status)
 		return status;
 
@@ -864,12 +863,10 @@ static __be32
 nfsd4_secinfo(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	      struct nfsd4_secinfo *secinfo)
 {
-	struct svc_fh resfh;
 	struct svc_export *exp;
 	struct dentry *dentry;
 	__be32 err;
 
-	fh_init(&resfh, NFS4_FHSIZE);
 	err = fh_verify(rqstp, &cstate->current_fh, S_IFDIR, NFSD_MAY_EXEC);
 	if (err)
 		return err;
@@ -878,6 +875,7 @@ nfsd4_secinfo(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 				    &exp, &dentry);
 	if (err)
 		return err;
+	fh_unlock(&cstate->current_fh);
 	if (d_really_is_negative(dentry)) {
 		exp_put(exp);
 		err = nfserr_noent;
@@ -1220,12 +1218,12 @@ nfsd4_verify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 static const struct nfsd4_layout_ops *
 nfsd4_layout_verify(struct svc_export *exp, unsigned int layout_type)
 {
-	if (!exp->ex_layout_type) {
+	if (!exp->ex_layout_types) {
 		dprintk("%s: export does not support pNFS\n", __func__);
 		return NULL;
 	}
 
-	if (exp->ex_layout_type != layout_type) {
+	if (!(exp->ex_layout_types & (1 << layout_type))) {
 		dprintk("%s: layout type %d not supported\n",
 			__func__, layout_type);
 		return NULL;
@@ -1269,8 +1267,10 @@ nfsd4_getdeviceinfo(struct svc_rqst *rqstp,
 		goto out;
 
 	nfserr = nfs_ok;
-	if (gdp->gd_maxcount != 0)
-		nfserr = ops->proc_getdeviceinfo(exp->ex_path.mnt->mnt_sb, gdp);
+	if (gdp->gd_maxcount != 0) {
+		nfserr = ops->proc_getdeviceinfo(exp->ex_path.mnt->mnt_sb,
+				rqstp, cstate->session->se_client, gdp);
+	}
 
 	gdp->gd_notify_types &= ops->notify_types;
 out:
@@ -2333,6 +2333,45 @@ static struct nfsd4_operation nfsd4_ops[] = {
 		.op_name = "OP_SEEK",
 	},
 };
+
+/**
+ * nfsd4_spo_must_allow - Determine if the compound op contains an
+ * operation that is allowed to be sent with machine credentials
+ *
+ * @rqstp: a pointer to the struct svc_rqst
+ *
+ * Checks to see if the compound contains a spo_must_allow op
+ * and confirms that it was sent with the proper machine creds.
+ */
+
+bool nfsd4_spo_must_allow(struct svc_rqst *rqstp)
+{
+	struct nfsd4_compoundres *resp = rqstp->rq_resp;
+	struct nfsd4_compoundargs *argp = rqstp->rq_argp;
+	struct nfsd4_op *this = &argp->ops[resp->opcnt - 1];
+	struct nfsd4_compound_state *cstate = &resp->cstate;
+	struct nfs4_op_map *allow = &cstate->clp->cl_spo_must_allow;
+	u32 opiter;
+
+	if (!cstate->minorversion)
+		return false;
+
+	if (cstate->spo_must_allowed == true)
+		return true;
+
+	opiter = resp->opcnt;
+	while (opiter < argp->opcnt) {
+		this = &argp->ops[opiter++];
+		if (test_bit(this->opnum, allow->u.longs) &&
+			cstate->clp->cl_mach_cred &&
+			nfsd4_mach_creds_match(cstate->clp, rqstp)) {
+			cstate->spo_must_allowed = true;
+			return true;
+		}
+	}
+	cstate->spo_must_allowed = false;
+	return false;
+}
 
 int nfsd4_max_reply(struct svc_rqst *rqstp, struct nfsd4_op *op)
 {

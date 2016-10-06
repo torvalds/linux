@@ -1,4 +1,4 @@
-/* Copyright (C) 2006-2015 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2006-2016  B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich, Marek Lindner
  *
@@ -20,6 +20,8 @@
 
 #include <linux/bitmap.h>
 
+#include "log.h"
+
 /* shift the packet array by n places. */
 static void batadv_bitmap_shift_left(unsigned long *seq_bits, s32 n)
 {
@@ -29,14 +31,20 @@ static void batadv_bitmap_shift_left(unsigned long *seq_bits, s32 n)
 	bitmap_shift_left(seq_bits, seq_bits, n, BATADV_TQ_LOCAL_WINDOW_SIZE);
 }
 
-/* receive and process one packet within the sequence number window.
+/**
+ * batadv_bit_get_packet - receive and process one packet within the sequence
+ *  number window
+ * @priv: the bat priv with all the soft interface information
+ * @seq_bits: pointer to the sequence number receive packet
+ * @seq_num_diff: difference between the current/received sequence number and
+ *  the last sequence number
+ * @set_mark: whether this packet should be marked in seq_bits
  *
- * returns:
- *  1 if the window was moved (either new or very old)
- *  0 if the window was not moved/shifted.
+ * Return: true if the window was moved (either new or very old),
+ *  false if the window was not moved/shifted.
  */
-int batadv_bit_get_packet(void *priv, unsigned long *seq_bits, s32 seq_num_diff,
-			  int set_mark)
+bool batadv_bit_get_packet(void *priv, unsigned long *seq_bits,
+			   s32 seq_num_diff, int set_mark)
 {
 	struct batadv_priv *bat_priv = priv;
 
@@ -46,7 +54,7 @@ int batadv_bit_get_packet(void *priv, unsigned long *seq_bits, s32 seq_num_diff,
 	if (seq_num_diff <= 0 && seq_num_diff > -BATADV_TQ_LOCAL_WINDOW_SIZE) {
 		if (set_mark)
 			batadv_set_bit(seq_bits, -seq_num_diff);
-		return 0;
+		return false;
 	}
 
 	/* sequence number is slightly newer, so we shift the window and
@@ -57,7 +65,7 @@ int batadv_bit_get_packet(void *priv, unsigned long *seq_bits, s32 seq_num_diff,
 
 		if (set_mark)
 			batadv_set_bit(seq_bits, 0);
-		return 1;
+		return true;
 	}
 
 	/* sequence number is much newer, probably missed a lot of packets */
@@ -69,7 +77,7 @@ int batadv_bit_get_packet(void *priv, unsigned long *seq_bits, s32 seq_num_diff,
 		bitmap_zero(seq_bits, BATADV_TQ_LOCAL_WINDOW_SIZE);
 		if (set_mark)
 			batadv_set_bit(seq_bits, 0);
-		return 1;
+		return true;
 	}
 
 	/* received a much older packet. The other host either restarted
@@ -88,5 +96,5 @@ int batadv_bit_get_packet(void *priv, unsigned long *seq_bits, s32 seq_num_diff,
 	if (set_mark)
 		batadv_set_bit(seq_bits, 0);
 
-	return 1;
+	return true;
 }

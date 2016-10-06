@@ -258,7 +258,7 @@ static void power_down(struct isp1301 *isp)
 	isp1301_clear_bits(isp, ISP1301_MODE_CONTROL_1, MC1_DAT_SE0);
 }
 
-static void power_up(struct isp1301 *isp)
+static void __maybe_unused power_up(struct isp1301 *isp)
 {
 	// isp1301_clear_bits(isp, ISP1301_MODE_CONTROL_2, MC2_GLOBAL_PWR_DN);
 	isp1301_clear_bits(isp, ISP1301_MODE_CONTROL_1, MC1_SUSPEND);

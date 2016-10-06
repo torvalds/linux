@@ -351,7 +351,7 @@ static __be64 *gfs2_dir_get_hash_table(struct gfs2_inode *ip)
 	if (hc)
 		return hc;
 
-	hsize = 1 << ip->i_depth;
+	hsize = BIT(ip->i_depth);
 	hsize *= sizeof(__be64);
 	if (hsize != i_size_read(&ip->i_inode)) {
 		gfs2_consist_inode(ip);
@@ -783,12 +783,15 @@ static int get_leaf_nr(struct gfs2_inode *dip, u32 index,
 		       u64 *leaf_out)
 {
 	__be64 *hash;
+	int error;
 
 	hash = gfs2_dir_get_hash_table(dip);
-	if (IS_ERR(hash))
-		return PTR_ERR(hash);
-	*leaf_out = be64_to_cpu(*(hash + index));
-	return 0;
+	error = PTR_ERR_OR_ZERO(hash);
+
+	if (!error)
+		*leaf_out = be64_to_cpu(*(hash + index));
+
+	return error;
 }
 
 static int get_first_leaf(struct gfs2_inode *dip, u32 index,
@@ -816,8 +819,8 @@ static struct gfs2_dirent *gfs2_dirent_search(struct inode *inode,
 
 	if (ip->i_diskflags & GFS2_DIF_EXHASH) {
 		struct gfs2_leaf *leaf;
-		unsigned hsize = 1 << ip->i_depth;
-		unsigned index;
+		unsigned int hsize = BIT(ip->i_depth);
+		unsigned int index;
 		u64 ln;
 		if (hsize * sizeof(u64) != i_size_read(inode)) {
 			gfs2_consist_inode(ip);
@@ -929,7 +932,7 @@ static int dir_make_exhash(struct inode *inode)
 		return -ENOSPC;
 	bn = bh->b_blocknr;
 
-	gfs2_assert(sdp, dip->i_entries < (1 << 16));
+	gfs2_assert(sdp, dip->i_entries < BIT(16));
 	leaf->lf_entries = cpu_to_be16(dip->i_entries);
 
 	/*  Copy dirents  */
@@ -1038,7 +1041,7 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
 	bn = nbh->b_blocknr;
 
 	/*  Compute the start and len of leaf pointers in the hash table.  */
-	len = 1 << (dip->i_depth - be16_to_cpu(oleaf->lf_depth));
+	len = BIT(dip->i_depth - be16_to_cpu(oleaf->lf_depth));
 	half_len = len >> 1;
 	if (!half_len) {
 		pr_warn("i_depth %u lf_depth %u index %u\n",
@@ -1160,7 +1163,7 @@ static int dir_double_exhash(struct gfs2_inode *dip)
 	int x;
 	int error = 0;
 
-	hsize = 1 << dip->i_depth;
+	hsize = BIT(dip->i_depth);
 	hsize_bytes = hsize * sizeof(__be64);
 
 	hc = gfs2_dir_get_hash_table(dip);
@@ -1510,7 +1513,7 @@ static void gfs2_dir_readahead(struct inode *inode, unsigned hsize, u32 index,
 				continue;
 			}
 			bh->b_end_io = end_buffer_read_sync;
-			submit_bh(READA | REQ_META, bh);
+			submit_bh(REQ_OP_READ, REQ_RAHEAD | REQ_META, bh);
 			continue;
 		}
 		brelse(bh);
@@ -1536,7 +1539,7 @@ static int dir_e_read(struct inode *inode, struct dir_context *ctx,
 	int error = 0;
 	unsigned depth = 0;
 
-	hsize = 1 << dip->i_depth;
+	hsize = BIT(dip->i_depth);
 	hash = gfs2_dir_offset2hash(ctx->pos);
 	index = hash >> (32 - dip->i_depth);
 
@@ -1555,7 +1558,7 @@ static int dir_e_read(struct inode *inode, struct dir_context *ctx,
 		if (error)
 			break;
 
-		len = 1 << (dip->i_depth - depth);
+		len = BIT(dip->i_depth - depth);
 		index = (index & ~(len - 1)) + len;
 	}
 
@@ -1660,7 +1663,8 @@ struct inode *gfs2_dir_search(struct inode *dir, const struct qstr *name,
 		brelse(bh);
 		if (fail_on_exist)
 			return ERR_PTR(-EEXIST);
-		inode = gfs2_inode_lookup(dir->i_sb, dtype, addr, formal_ino, 0);
+		inode = gfs2_inode_lookup(dir->i_sb, dtype, addr, formal_ino,
+					  GFS2_BLKST_FREE /* ignore */);
 		if (!IS_ERR(inode))
 			GFS2_I(inode)->i_rahead = rahead;
 		return inode;
@@ -2109,7 +2113,7 @@ int gfs2_dir_exhash_dealloc(struct gfs2_inode *dip)
 	u64 leaf_no;
 	int error = 0, last;
 
-	hsize = 1 << dip->i_depth;
+	hsize = BIT(dip->i_depth);
 
 	lp = gfs2_dir_get_hash_table(dip);
 	if (IS_ERR(lp))
@@ -2122,7 +2126,7 @@ int gfs2_dir_exhash_dealloc(struct gfs2_inode *dip)
 			if (error)
 				goto out;
 			leaf = (struct gfs2_leaf *)bh->b_data;
-			len = 1 << (dip->i_depth - be16_to_cpu(leaf->lf_depth));
+			len = BIT(dip->i_depth - be16_to_cpu(leaf->lf_depth));
 
 			next_index = (index & ~(len - 1)) + len;
 			last = ((next_index >= hsize) ? 1 : 0);

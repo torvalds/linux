@@ -35,8 +35,6 @@
 #include <linux/skbuff.h>
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
-#include <linux/ieee80211.h>
-#include <net/cfg80211.h>
 #include <net/ieee80211_radiotap.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>
@@ -44,6 +42,8 @@
 #include "host_interface.h"
 #include "wilc_wlan.h"
 #include <linux/wireless.h>
+#include <linux/completion.h>
+#include <linux/mutex.h>
 
 #define FLOW_CONTROL_LOWER_THRESHOLD	128
 #define FLOW_CONTROL_UPPER_THRESHOLD	256
@@ -121,10 +121,9 @@ struct wilc_priv {
 	spinlock_t lock;
 	struct net_device *dev;
 	struct napi_struct napi;
-	struct host_if_drv *hWILCWFIDrv;
+	struct host_if_drv *hif_drv;
 	struct host_if_pmkid_attr pmkid_list;
 	struct WILC_WFI_stats netstats;
-	u8 WILC_WFI_wep_default;
 	u8 WILC_WFI_wep_key[4][WLAN_KEY_LEN_WEP104];
 	u8 WILC_WFI_wep_key_len[4];
 	/* The real interface that the monitor is on */
@@ -132,9 +131,8 @@ struct wilc_priv {
 	struct wilc_wfi_key *wilc_gtk[MAX_NUM_STA];
 	struct wilc_wfi_key *wilc_ptk[MAX_NUM_STA];
 	u8 wilc_groupkey;
-	/* semaphores */
-	struct semaphore SemHandleUpdateStats;
-	struct semaphore hSemScanReq;
+	/* mutexes */
+	struct mutex scan_req_lock;
 	/*  */
 	bool gbAutoRateAdjusted;
 
@@ -142,24 +140,24 @@ struct wilc_priv {
 
 };
 
-typedef struct {
-	u16 frame_type;
+struct frame_reg {
+	u16 type;
 	bool reg;
-
-} struct_frame_reg;
+};
 
 struct wilc_vif {
-	u8 u8IfIdx;
+	u8 idx;
 	u8 iftype;
 	int monitor_flag;
 	int mac_opened;
-	struct_frame_reg g_struct_frame_reg[num_reg_frame];
+	struct frame_reg frame_reg[num_reg_frame];
 	struct net_device_stats netstats;
 	struct wilc *wilc;
 	u8 src_addr[ETH_ALEN];
 	u8 bssid[ETH_ALEN];
 	struct host_if_drv *hif_drv;
 	struct net_device *ndev;
+	u8 mode;
 };
 
 struct wilc {
@@ -174,17 +172,16 @@ struct wilc {
 	struct wilc_vif *vif[NUM_CONCURRENT_IFC];
 	u8 open_ifcs;
 
-	struct semaphore txq_add_to_head_cs;
+	struct mutex txq_add_to_head_cs;
 	spinlock_t txq_spinlock;
 
 	struct mutex rxq_cs;
 	struct mutex hif_cs;
 
-	struct semaphore cfg_event;
-	struct semaphore sync_event;
-	struct semaphore txq_event;
-
-	struct semaphore txq_thread_started;
+	struct completion cfg_event;
+	struct completion sync_event;
+	struct completion txq_event;
+	struct completion txq_thread_started;
 
 	struct task_struct *txq_thread;
 
@@ -215,6 +212,9 @@ struct wilc {
 	const struct firmware *firmware;
 
 	struct device *dev;
+	bool suspend_event;
+
+	struct rf_info dummy_statistics;
 };
 
 struct WILC_WFI_mon_priv {
@@ -225,17 +225,13 @@ int wilc1000_wlan_init(struct net_device *dev, struct wilc_vif *vif);
 
 void wilc_frmw_to_linux(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset);
 void wilc_mac_indicate(struct wilc *wilc, int flag);
-void wilc_rx_complete(struct wilc *wilc);
-void wilc_dbg(u8 *buff);
-
 int wilc_lock_timeout(struct wilc *wilc, void *, u32 timeout);
 void wilc_netdev_cleanup(struct wilc *wilc);
 int wilc_netdev_init(struct wilc **wilc, struct device *, int io_type, int gpio,
 		     const struct wilc_hif_func *ops);
 void wilc1000_wlan_deinit(struct net_device *dev);
 void WILC_WFI_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size);
-u16 wilc_set_machw_change_vir_if(struct net_device *dev, bool value);
 int wilc_wlan_get_firmware(struct net_device *dev);
-int wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid);
+int wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid, u8 mode);
 
 #endif

@@ -4,6 +4,11 @@
 #include <linux/sched.h> /* MMF_VM_HUGEPAGE */
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+extern struct attribute_group khugepaged_attr_group;
+
+extern int khugepaged_init(void);
+extern void khugepaged_destroy(void);
+extern int start_stop_khugepaged(void);
 extern int __khugepaged_enter(struct mm_struct *mm);
 extern void __khugepaged_exit(struct mm_struct *mm);
 extern int khugepaged_enter_vma_merge(struct vm_area_struct *vma,

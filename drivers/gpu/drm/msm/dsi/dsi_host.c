@@ -163,6 +163,10 @@ struct msm_dsi_host {
 	enum mipi_dsi_pixel_format format;
 	unsigned long mode_flags;
 
+	/* lane data parsed via DT */
+	int dlane_swap;
+	int num_data_lanes;
+
 	u32 dma_cmd_ctrl_restore;
 
 	bool registered;
@@ -319,18 +323,6 @@ static int dsi_regulator_init(struct msm_dsi_host *msm_host)
 		pr_err("%s: failed to init regulator, ret=%d\n",
 						__func__, ret);
 		return ret;
-	}
-
-	for (i = 0; i < num; i++) {
-		if (regulator_can_change_voltage(s[i].consumer)) {
-			ret = regulator_set_voltage(s[i].consumer,
-				regs[i].min_voltage, regs[i].max_voltage);
-			if (ret < 0) {
-				pr_err("regulator %d set voltage failed, %d\n",
-					i, ret);
-				return ret;
-			}
-		}
 	}
 
 	return 0;
@@ -845,19 +837,10 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 	data = DSI_CTRL_CLK_EN;
 
 	DBG("lane number=%d", msm_host->lanes);
-	if (msm_host->lanes == 2) {
-		data |= DSI_CTRL_LANE1 | DSI_CTRL_LANE2;
-		/* swap lanes for 2-lane panel for better performance */
-		dsi_write(msm_host, REG_DSI_LANE_SWAP_CTRL,
-			DSI_LANE_SWAP_CTRL_DLN_SWAP_SEL(LANE_SWAP_1230));
-	} else {
-		/* Take 4 lanes as default */
-		data |= DSI_CTRL_LANE0 | DSI_CTRL_LANE1 | DSI_CTRL_LANE2 |
-			DSI_CTRL_LANE3;
-		/* Do not swap lanes for 4-lane panel */
-		dsi_write(msm_host, REG_DSI_LANE_SWAP_CTRL,
-			DSI_LANE_SWAP_CTRL_DLN_SWAP_SEL(LANE_SWAP_0123));
-	}
+	data |= ((DSI_CTRL_LANE0 << msm_host->lanes) - DSI_CTRL_LANE0);
+
+	dsi_write(msm_host, REG_DSI_LANE_SWAP_CTRL,
+		  DSI_LANE_SWAP_CTRL_DLN_SWAP_SEL(msm_host->dlane_swap));
 
 	if (!(flags & MIPI_DSI_CLOCK_NON_CONTINUOUS))
 		dsi_write(msm_host, REG_DSI_LANE_CTRL,
@@ -1083,7 +1066,7 @@ static int dsi_cmd_dma_add(struct msm_dsi_host *msm_host,
 	}
 
 	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) {
-		data = msm_gem_vaddr(msm_host->tx_gem_obj);
+		data = msm_gem_get_vaddr(msm_host->tx_gem_obj);
 		if (IS_ERR(data)) {
 			ret = PTR_ERR(data);
 			pr_err("%s: get vaddr failed, %d\n", __func__, ret);
@@ -1110,6 +1093,9 @@ static int dsi_cmd_dma_add(struct msm_dsi_host *msm_host,
 	/* Append 0xff to the end */
 	if (packet.size < len)
 		memset(data + packet.size, 0xff, len - packet.size);
+
+	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G)
+		msm_gem_put_vaddr(msm_host->tx_gem_obj);
 
 	return len;
 }
@@ -1479,12 +1465,13 @@ static int dsi_host_attach(struct mipi_dsi_host *host,
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
 	int ret;
 
+	if (dsi->lanes > msm_host->num_data_lanes)
+		return -EINVAL;
+
 	msm_host->channel = dsi->channel;
 	msm_host->lanes = dsi->lanes;
 	msm_host->format = dsi->format;
 	msm_host->mode_flags = dsi->mode_flags;
-
-	WARN_ON(dsi->dev.of_node != msm_host->device_node);
 
 	/* Some gpios defined in panel DT need to be controlled by host */
 	ret = dsi_host_init_panel_gpios(msm_host, &dsi->dev);
@@ -1534,6 +1521,86 @@ static struct mipi_dsi_host_ops dsi_host_ops = {
 	.transfer = dsi_host_transfer,
 };
 
+/*
+ * List of supported physical to logical lane mappings.
+ * For example, the 2nd entry represents the following mapping:
+ *
+ * "3012": Logic 3->Phys 0; Logic 0->Phys 1; Logic 1->Phys 2; Logic 2->Phys 3;
+ */
+static const int supported_data_lane_swaps[][4] = {
+	{ 0, 1, 2, 3 },
+	{ 3, 0, 1, 2 },
+	{ 2, 3, 0, 1 },
+	{ 1, 2, 3, 0 },
+	{ 0, 3, 2, 1 },
+	{ 1, 0, 3, 2 },
+	{ 2, 1, 0, 3 },
+	{ 3, 2, 1, 0 },
+};
+
+static int dsi_host_parse_lane_data(struct msm_dsi_host *msm_host,
+				    struct device_node *ep)
+{
+	struct device *dev = &msm_host->pdev->dev;
+	struct property *prop;
+	u32 lane_map[4];
+	int ret, i, len, num_lanes;
+
+	prop = of_find_property(ep, "data-lanes", &len);
+	if (!prop) {
+		dev_dbg(dev, "failed to find data lane mapping\n");
+		return -EINVAL;
+	}
+
+	num_lanes = len / sizeof(u32);
+
+	if (num_lanes < 1 || num_lanes > 4) {
+		dev_err(dev, "bad number of data lanes\n");
+		return -EINVAL;
+	}
+
+	msm_host->num_data_lanes = num_lanes;
+
+	ret = of_property_read_u32_array(ep, "data-lanes", lane_map,
+					 num_lanes);
+	if (ret) {
+		dev_err(dev, "failed to read lane data\n");
+		return ret;
+	}
+
+	/*
+	 * compare DT specified physical-logical lane mappings with the ones
+	 * supported by hardware
+	 */
+	for (i = 0; i < ARRAY_SIZE(supported_data_lane_swaps); i++) {
+		const int *swap = supported_data_lane_swaps[i];
+		int j;
+
+		/*
+		 * the data-lanes array we get from DT has a logical->physical
+		 * mapping. The "data lane swap" register field represents
+		 * supported configurations in a physical->logical mapping.
+		 * Translate the DT mapping to what we understand and find a
+		 * configuration that works.
+		 */
+		for (j = 0; j < num_lanes; j++) {
+			if (lane_map[j] < 0 || lane_map[j] > 3)
+				dev_err(dev, "bad physical lane entry %u\n",
+					lane_map[j]);
+
+			if (swap[lane_map[j]] != j)
+				break;
+		}
+
+		if (j == num_lanes) {
+			msm_host->dlane_swap = i;
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
 static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 {
 	struct device *dev = &msm_host->pdev->dev;
@@ -1541,35 +1608,32 @@ static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 	struct device_node *endpoint, *device_node;
 	int ret;
 
-	ret = of_property_read_u32(np, "qcom,dsi-host-index", &msm_host->id);
-	if (ret) {
-		dev_err(dev, "%s: host index not specified, ret=%d\n",
-			__func__, ret);
-		return ret;
-	}
-
 	/*
-	 * Get the first endpoint node. In our case, dsi has one output port
-	 * to which the panel is connected. Don't return an error if a port
-	 * isn't defined. It's possible that there is nothing connected to
-	 * the dsi output.
+	 * Get the endpoint of the output port of the DSI host. In our case,
+	 * this is mapped to port number with reg = 1. Don't return an error if
+	 * the remote endpoint isn't defined. It's possible that there is
+	 * nothing connected to the dsi output.
 	 */
-	endpoint = of_graph_get_next_endpoint(np, NULL);
+	endpoint = of_graph_get_endpoint_by_regs(np, 1, -1);
 	if (!endpoint) {
 		dev_dbg(dev, "%s: no endpoint\n", __func__);
 		return 0;
+	}
+
+	ret = dsi_host_parse_lane_data(msm_host, endpoint);
+	if (ret) {
+		dev_err(dev, "%s: invalid lane configuration %d\n",
+			__func__, ret);
+		goto err;
 	}
 
 	/* Get panel node from the output port's endpoint data */
 	device_node = of_graph_get_remote_port_parent(endpoint);
 	if (!device_node) {
 		dev_err(dev, "%s: no valid device\n", __func__);
-		of_node_put(endpoint);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err;
 	}
-
-	of_node_put(endpoint);
-	of_node_put(device_node);
 
 	msm_host->device_node = device_node;
 
@@ -1579,11 +1643,35 @@ static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 		if (IS_ERR(msm_host->sfpb)) {
 			dev_err(dev, "%s: failed to get sfpb regmap\n",
 				__func__);
-			return PTR_ERR(msm_host->sfpb);
+			ret = PTR_ERR(msm_host->sfpb);
 		}
 	}
 
-	return 0;
+	of_node_put(device_node);
+
+err:
+	of_node_put(endpoint);
+
+	return ret;
+}
+
+static int dsi_host_get_id(struct msm_dsi_host *msm_host)
+{
+	struct platform_device *pdev = msm_host->pdev;
+	const struct msm_dsi_config *cfg = msm_host->cfg_hnd->cfg;
+	struct resource *res;
+	int i;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dsi_ctrl");
+	if (!res)
+		return -EINVAL;
+
+	for (i = 0; i < cfg->num_dsi; i++) {
+		if (cfg->io_start[i] == res->start)
+			return i;
+	}
+
+	return -EINVAL;
 }
 
 int msm_dsi_host_init(struct msm_dsi *msm_dsi)
@@ -1619,6 +1707,13 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 	if (!msm_host->cfg_hnd) {
 		ret = -EINVAL;
 		pr_err("%s: get config failed\n", __func__);
+		goto fail;
+	}
+
+	msm_host->id = dsi_host_get_id(msm_host);
+	if (msm_host->id < 0) {
+		ret = msm_host->id;
+		pr_err("%s: unable to identify DSI host index\n", __func__);
 		goto fail;
 	}
 
@@ -2183,9 +2278,9 @@ int msm_dsi_host_set_display_mode(struct mipi_dsi_host *host,
 	}
 
 	msm_host->mode = drm_mode_duplicate(msm_host->dev, mode);
-	if (IS_ERR(msm_host->mode)) {
+	if (!msm_host->mode) {
 		pr_err("%s: cannot duplicate mode\n", __func__);
-		return PTR_ERR(msm_host->mode);
+		return -ENOMEM;
 	}
 
 	return 0;

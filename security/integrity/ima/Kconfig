@@ -155,23 +155,33 @@ config IMA_TRUSTED_KEYRING
 
 	   This option is deprecated in favor of INTEGRITY_TRUSTED_KEYRING
 
-config IMA_MOK_KEYRING
-	bool "Create IMA machine owner keys (MOK) and blacklist keyrings"
+config IMA_KEYRINGS_PERMIT_SIGNED_BY_BUILTIN_OR_SECONDARY
+	bool "Permit keys validly signed by a built-in or secondary CA cert (EXPERIMENTAL)"
+	depends on SYSTEM_TRUSTED_KEYRING
+	depends on SECONDARY_TRUSTED_KEYRING
+	depends on INTEGRITY_ASYMMETRIC_KEYS
+	select INTEGRITY_TRUSTED_KEYRING
+	default n
+	help
+	  Keys may be added to the IMA or IMA blacklist keyrings, if the
+	  key is validly signed by a CA cert in the system built-in or
+	  secondary trusted keyrings.
+
+	  Intermediate keys between those the kernel has compiled in and the
+	  IMA keys to be added may be added to the system secondary keyring,
+	  provided they are validly signed by a key already resident in the
+	  built-in or secondary trusted keyrings.
+
+config IMA_BLACKLIST_KEYRING
+	bool "Create IMA machine owner blacklist keyrings (EXPERIMENTAL)"
 	depends on SYSTEM_TRUSTED_KEYRING
 	depends on IMA_TRUSTED_KEYRING
 	default n
 	help
-	   This option creates IMA MOK and blacklist keyrings.  IMA MOK is an
-	   intermediate keyring that sits between .system and .ima keyrings,
-	   effectively forming a simple CA hierarchy.  To successfully import a
-	   key into .ima_mok it must be signed by a key which CA is in .system
-	   keyring.  On turn any key that needs to go in .ima keyring must be
-	   signed by CA in either .system or .ima_mok keyrings. IMA MOK is empty
-	   at kernel boot.
-
-	   IMA blacklist keyring contains all revoked IMA keys.  It is consulted
-	   before any other keyring.  If the search is successful the requested
-	   operation is rejected and error is returned to the caller.
+	   This option creates an IMA blacklist keyring, which contains all
+	   revoked IMA keys.  It is consulted before any other keyring.  If
+	   the search is successful the requested operation is rejected and
+	   an error is returned to the caller.
 
 config IMA_LOAD_X509
 	bool "Load X509 certificate onto the '.ima' trusted keyring"

@@ -88,8 +88,8 @@ int iwpm_register_pid(struct iwpm_dev_data *pm_msg, u8 nl_client)
 	ret = ibnl_put_attr(skb, nlh, sizeof(u32), &msg_seq, IWPM_NLA_REG_PID_SEQ);
 	if (ret)
 		goto pid_query_error;
-	ret = ibnl_put_attr(skb, nlh, IWPM_IFNAME_SIZE,
-				pm_msg->if_name, IWPM_NLA_REG_IF_NAME);
+	ret = ibnl_put_attr(skb, nlh, IFNAMSIZ,
+			    pm_msg->if_name, IWPM_NLA_REG_IF_NAME);
 	if (ret)
 		goto pid_query_error;
 	ret = ibnl_put_attr(skb, nlh, IWPM_DEVNAME_SIZE,
@@ -394,7 +394,7 @@ register_pid_response_exit:
 	/* always for found nlmsg_request */
 	kref_put(&nlmsg_request->kref, iwpm_free_nlmsg_request);
 	barrier();
-	wake_up(&nlmsg_request->waitq);
+	up(&nlmsg_request->sem);
 	return 0;
 }
 EXPORT_SYMBOL(iwpm_register_pid_cb);
@@ -463,7 +463,7 @@ add_mapping_response_exit:
 	/* always for found request */
 	kref_put(&nlmsg_request->kref, iwpm_free_nlmsg_request);
 	barrier();
-	wake_up(&nlmsg_request->waitq);
+	up(&nlmsg_request->sem);
 	return 0;
 }
 EXPORT_SYMBOL(iwpm_add_mapping_cb);
@@ -506,7 +506,7 @@ int iwpm_add_and_query_mapping_cb(struct sk_buff *skb,
 	if (!nlmsg_request) {
 		pr_info("%s: Could not find a matching request (seq = %u)\n",
 				 __func__, msg_seq);
-			return -EINVAL;
+		return -EINVAL;
 	}
 	pm_msg = nlmsg_request->req_buffer;
 	local_sockaddr = (struct sockaddr_storage *)
@@ -555,7 +555,7 @@ query_mapping_response_exit:
 	/* always for found request */
 	kref_put(&nlmsg_request->kref, iwpm_free_nlmsg_request);
 	barrier();
-	wake_up(&nlmsg_request->waitq);
+	up(&nlmsg_request->sem);
 	return 0;
 }
 EXPORT_SYMBOL(iwpm_add_and_query_mapping_cb);
@@ -749,7 +749,7 @@ int iwpm_mapping_error_cb(struct sk_buff *skb, struct netlink_callback *cb)
 	/* always for found request */
 	kref_put(&nlmsg_request->kref, iwpm_free_nlmsg_request);
 	barrier();
-	wake_up(&nlmsg_request->waitq);
+	up(&nlmsg_request->sem);
 	return 0;
 }
 EXPORT_SYMBOL(iwpm_mapping_error_cb);

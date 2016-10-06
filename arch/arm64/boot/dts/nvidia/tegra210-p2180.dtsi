@@ -1,3 +1,5 @@
+#include <dt-bindings/mfd/max77620.h>
+
 #include "tegra210.dtsi"
 
 / {
@@ -5,8 +7,13 @@
 	compatible = "nvidia,p2180", "nvidia,tegra210";
 
 	aliases {
-		rtc1 = "/rtc@0,7000e000";
+		rtc0 = "/i2c@7000d000/pmic@3c";
+		rtc1 = "/rtc@7000e000";
 		serial0 = &uarta;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
@@ -15,16 +22,258 @@
 	};
 
 	/* debug port */
-	serial@0,70006000 {
+	serial@70006000 {
 		status = "okay";
 	};
 
-	pmc@0,7000e400 {
+	i2c@7000d000 {
+		status = "okay";
+		clock-frequency = <400000>;
+
+		pmic: pmic@3c {
+			compatible = "maxim,max77620";
+			reg = <0x3c>;
+			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+
+			#interrupt-cells = <2>;
+			interrupt-controller;
+
+			#gpio-cells = <2>;
+			gpio-controller;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&max77620_default>;
+
+			max77620_default: pinmux {
+				gpio0 {
+					pins = "gpio0";
+					function = "gpio";
+				};
+
+				gpio1 {
+					pins = "gpio1";
+					function = "fps-out";
+					drive-push-pull = <1>;
+					maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
+					maxim,active-fps-power-up-slot = <7>;
+					maxim,active-fps-power-down-slot = <0>;
+				};
+
+				gpio2_3 {
+					pins = "gpio2", "gpio3";
+					function = "fps-out";
+					drive-open-drain = <1>;
+					maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
+				};
+
+				gpio4 {
+					pins = "gpio4";
+					function = "32k-out1";
+				};
+
+				gpio5_6_7 {
+					pins = "gpio5", "gpio6", "gpio7";
+					function = "gpio";
+					drive-push-pull = <1>;
+				};
+			};
+
+			fps {
+				fps0 {
+					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
+					maxim,suspend-fps-time-period-us = <1280>;
+				};
+
+				fps1 {
+					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN1>;
+					maxim,suspend-fps-time-period-us = <1280>;
+				};
+
+				fps2 {
+					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
+				};
+			};
+
+			regulators {
+				in-ldo0-1-supply = <&vdd_pre>;
+				in-ldo7-8-supply = <&vdd_pre>;
+				in-sd3-supply = <&vdd_5v0_sys>;
+
+				vdd_soc: sd0 {
+					regulator-name = "VDD_SOC";
+					regulator-min-microvolt = <600000>;
+					regulator-max-microvolt = <1400000>;
+					regulator-always-on;
+					regulator-boot-on;
+
+					regulator-enable-ramp-delay = <146>;
+					regulator-ramp-delay = <27500>;
+
+					maxim,active-fps-source = <MAX77620_FPS_SRC_1>;
+				};
+
+				vdd_ddr: sd1 {
+					regulator-name = "VDD_DDR_1V1_PMIC";
+					regulator-always-on;
+					regulator-boot-on;
+
+					regulator-enable-ramp-delay = <130>;
+					regulator-ramp-delay = <27500>;
+
+					maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
+				};
+
+				vdd_pre: sd2 {
+					regulator-name = "VDD_PRE_REG_1V35";
+					regulator-min-microvolt = <1350000>;
+					regulator-max-microvolt = <1350000>;
+
+					regulator-enable-ramp-delay = <176>;
+					regulator-ramp-delay = <27500>;
+
+					maxim,active-fps-source = <MAX77620_FPS_SRC_1>;
+				};
+
+				vdd_1v8: sd3 {
+					regulator-name = "VDD_1V8";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
+					regulator-boot-on;
+
+					regulator-enable-ramp-delay = <242>;
+					regulator-ramp-delay = <27500>;
+
+					maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
+				};
+
+				vdd_sys_1v2: ldo0 {
+					regulator-name = "AVDD_SYS_1V2";
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+					regulator-always-on;
+					regulator-boot-on;
+
+					regulator-enable-ramp-delay = <26>;
+					regulator-ramp-delay = <100000>;
+
+					maxim,active-fps-source = <MAX77620_FPS_SRC_NONE>;
+				};
+
+				vdd_pex_1v05: ldo1 {
+					regulator-name = "VDD_PEX_1V05";
+					regulator-min-microvolt = <1050000>;
+					regulator-max-microvolt = <1050000>;
+
+					regulator-enable-ramp-delay = <22>;
+					regulator-ramp-delay = <100000>;
+
+					maxim,active-fps-source = <MAX77620_FPS_SRC_1>;
+				};
+
+				vddio_sdmmc: ldo2 {
+					regulator-name = "VDDIO_SDMMC";
+					/*
+					 * Technically this supply should have
+					 * a supported range from 1.8 - 3.3 V.
+					 * However, that would cause the SDHCI
+					 * driver to request 2.7 V upon access
+					 * and that in turn will cause traffic
+					 * to be broken. Leave it at 3.3 V for
+					 * now.
+					 */
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt = <3300000>;
+					regulator-always-on;
+					regulator-boot-on;
+
+					regulator-enable-ramp-delay = <62>;
+					regulator-ramp-delay = <100000>;
+
+					maxim,active-fps-source = <MAX77620_FPS_SRC_NONE>;
+				};
+
+				vdd_cam_hv: ldo3 {
+					regulator-name = "VDD_CAM_HV";
+					regulator-min-microvolt = <2800000>;
+					regulator-max-microvolt = <2800000>;
+
+					regulator-enable-ramp-delay = <50>;
+					regulator-ramp-delay = <100000>;
+
+					maxim,active-fps-source = <MAX77620_FPS_SRC_NONE>;
+				};
+
+				vdd_rtc: ldo4 {
+					regulator-name = "VDD_RTC";
+					regulator-min-microvolt = <850000>;
+					regulator-max-microvolt = <850000>;
+					regulator-always-on;
+					regulator-boot-on;
+
+					regulator-enable-ramp-delay = <22>;
+					regulator-ramp-delay = <100000>;
+
+					maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
+				};
+
+				vdd_ts_hv: ldo5 {
+					regulator-name = "VDD_TS_HV";
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt = <3300000>;
+
+					regulator-enable-ramp-delay = <62>;
+					regulator-ramp-delay = <100000>;
+
+					maxim,active-fps-source = <MAX77620_FPS_SRC_NONE>;
+				};
+
+				vdd_ts: ldo6 {
+					regulator-name = "VDD_TS_1V8";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+
+					regulator-enable-ramp-delay = <36>;
+					regulator-ramp-delay = <100000>;
+
+					maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
+					maxim,active-fps-power-up-slot = <7>;
+					maxim,active-fps-power-down-slot = <0>;
+				};
+
+				avdd_1v05_pll: ldo7 {
+					regulator-name = "AVDD_1V05_PLL";
+					regulator-min-microvolt = <1050000>;
+					regulator-max-microvolt = <1050000>;
+					regulator-always-on;
+					regulator-boot-on;
+
+					regulator-enable-ramp-delay = <24>;
+					regulator-ramp-delay = <100000>;
+
+					maxim,active-fps-source = <MAX77620_FPS_SRC_1>;
+				};
+
+				avdd_1v05: ldo8 {
+					regulator-name = "AVDD_SATA_HDMI_DP_1V05";
+					regulator-min-microvolt = <1050000>;
+					regulator-max-microvolt = <1050000>;
+
+					regulator-enable-ramp-delay = <22>;
+					regulator-ramp-delay = <100000>;
+
+					maxim,active-fps-source = <MAX77620_FPS_SRC_1>;
+				};
+			};
+		};
+	};
+
+	pmc@7000e400 {
 		nvidia,invert-interrupt;
 	};
 
 	/* eMMC */
-	sdhci@0,700b0600 {
+	sdhci@700b0600 {
 		status = "okay";
 		bus-width = <8>;
 		non-removable;

@@ -412,13 +412,13 @@ static void
 au1000_adjust_link(struct net_device *dev)
 {
 	struct au1000_private *aup = netdev_priv(dev);
-	struct phy_device *phydev = aup->phy_dev;
+	struct phy_device *phydev = dev->phydev;
 	unsigned long flags;
 	u32 reg;
 
 	int status_change = 0;
 
-	BUG_ON(!aup->phy_dev);
+	BUG_ON(!phydev);
 
 	spin_lock_irqsave(&aup->lock, flags);
 
@@ -509,8 +509,8 @@ static int au1000_mii_probe(struct net_device *dev)
 	 * on the current MAC's MII bus
 	 */
 	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++)
-		if (mdiobus_get_phy(aup->mii_bus, aup->phy_addr)) {
-			phydev = mdiobus_get_phy(aup->mii_bus, aup->phy_addr);
+		if (mdiobus_get_phy(aup->mii_bus, phy_addr)) {
+			phydev = mdiobus_get_phy(aup->mii_bus, phy_addr);
 			if (!aup->phy_search_highest_addr)
 				/* break out with first one found */
 				break;
@@ -579,7 +579,6 @@ static int au1000_mii_probe(struct net_device *dev)
 	aup->old_link = 0;
 	aup->old_speed = 0;
 	aup->old_duplex = -1;
-	aup->phy_dev = phydev;
 
 	phy_attached_info(phydev);
 
@@ -678,29 +677,6 @@ au1000_setup_hw_rings(struct au1000_private *aup, void __iomem *tx_base)
  * ethtool operations
  */
 
-static int au1000_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct au1000_private *aup = netdev_priv(dev);
-
-	if (aup->phy_dev)
-		return phy_ethtool_gset(aup->phy_dev, cmd);
-
-	return -EINVAL;
-}
-
-static int au1000_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct au1000_private *aup = netdev_priv(dev);
-
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
-	if (aup->phy_dev)
-		return phy_ethtool_sset(aup->phy_dev, cmd);
-
-	return -EINVAL;
-}
-
 static void
 au1000_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
@@ -725,12 +701,12 @@ static u32 au1000_get_msglevel(struct net_device *dev)
 }
 
 static const struct ethtool_ops au1000_ethtool_ops = {
-	.get_settings = au1000_get_settings,
-	.set_settings = au1000_set_settings,
 	.get_drvinfo = au1000_get_drvinfo,
 	.get_link = ethtool_op_get_link,
 	.get_msglevel = au1000_get_msglevel,
 	.set_msglevel = au1000_set_msglevel,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 
@@ -778,8 +754,8 @@ static int au1000_init(struct net_device *dev)
 #ifndef CONFIG_CPU_LITTLE_ENDIAN
 	control |= MAC_BIG_ENDIAN;
 #endif
-	if (aup->phy_dev) {
-		if (aup->phy_dev->link && (DUPLEX_FULL == aup->phy_dev->duplex))
+	if (dev->phydev) {
+		if (dev->phydev->link && (DUPLEX_FULL == dev->phydev->duplex))
 			control |= MAC_FULL_DUPLEX;
 		else
 			control |= MAC_DISABLE_RX_OWN;
@@ -891,11 +867,10 @@ static int au1000_rx(struct net_device *dev)
 
 static void au1000_update_tx_stats(struct net_device *dev, u32 status)
 {
-	struct au1000_private *aup = netdev_priv(dev);
 	struct net_device_stats *ps = &dev->stats;
 
 	if (status & TX_FRAME_ABORTED) {
-		if (!aup->phy_dev || (DUPLEX_FULL == aup->phy_dev->duplex)) {
+		if (!dev->phydev || (DUPLEX_FULL == dev->phydev->duplex)) {
 			if (status & (TX_JAB_TIMEOUT | TX_UNDERRUN)) {
 				/* any other tx errors are only valid
 				 * in half duplex mode
@@ -975,10 +950,10 @@ static int au1000_open(struct net_device *dev)
 		return retval;
 	}
 
-	if (aup->phy_dev) {
+	if (dev->phydev) {
 		/* cause the PHY state machine to schedule a link state check */
-		aup->phy_dev->state = PHY_CHANGELINK;
-		phy_start(aup->phy_dev);
+		dev->phydev->state = PHY_CHANGELINK;
+		phy_start(dev->phydev);
 	}
 
 	netif_start_queue(dev);
@@ -995,8 +970,8 @@ static int au1000_close(struct net_device *dev)
 
 	netif_dbg(aup, drv, dev, "close: dev=%p\n", dev);
 
-	if (aup->phy_dev)
-		phy_stop(aup->phy_dev);
+	if (dev->phydev)
+		phy_stop(dev->phydev);
 
 	spin_lock_irqsave(&aup->lock, flags);
 
@@ -1074,7 +1049,7 @@ static void au1000_tx_timeout(struct net_device *dev)
 	netdev_err(dev, "au1000_tx_timeout: dev=%p\n", dev);
 	au1000_reset_mac(dev);
 	au1000_init(dev);
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	netif_wake_queue(dev);
 }
 
@@ -1110,15 +1085,13 @@ static void au1000_multicast_list(struct net_device *dev)
 
 static int au1000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-	struct au1000_private *aup = netdev_priv(dev);
-
 	if (!netif_running(dev))
 		return -EINVAL;
 
-	if (!aup->phy_dev)
+	if (!dev->phydev)
 		return -EINVAL; /* PHY not controllable */
 
-	return phy_mii_ioctl(aup->phy_dev, rq, cmd);
+	return phy_mii_ioctl(dev->phydev, rq, cmd);
 }
 
 static const struct net_device_ops au1000_netdev_ops = {
@@ -1269,7 +1242,7 @@ static int au1000_probe(struct platform_device *pdev)
 		aup->phy_irq = pd->phy_irq;
 	}
 
-	if (aup->phy_busid && aup->phy_busid > 0) {
+	if (aup->phy_busid > 0) {
 		dev_err(&pdev->dev, "MAC0-associated PHY attached 2nd MACs MII bus not supported yet\n");
 		err = -ENODEV;
 		goto err_mdiobus_alloc;

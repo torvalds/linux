@@ -37,4 +37,8 @@ int nvkm_gpuobj_wrap(struct nvkm_memory *, struct nvkm_gpuobj **);
 int nvkm_gpuobj_map(struct nvkm_gpuobj *, struct nvkm_vm *, u32 access,
 		    struct nvkm_vma *);
 void nvkm_gpuobj_unmap(struct nvkm_vma *);
+void nvkm_gpuobj_memcpy_to(struct nvkm_gpuobj *dst, u32 dstoffset, void *src,
+			   u32 length);
+void nvkm_gpuobj_memcpy_from(void *dst, struct nvkm_gpuobj *src, u32 srcoffset,
+			     u32 length);
 #endif

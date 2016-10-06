@@ -29,22 +29,22 @@ static void fpu__init_cpu_generic(void)
 	unsigned long cr0;
 	unsigned long cr4_mask = 0;
 
-	if (cpu_has_fxsr)
+	if (boot_cpu_has(X86_FEATURE_FXSR))
 		cr4_mask |= X86_CR4_OSFXSR;
-	if (cpu_has_xmm)
+	if (boot_cpu_has(X86_FEATURE_XMM))
 		cr4_mask |= X86_CR4_OSXMMEXCPT;
 	if (cr4_mask)
 		cr4_set_bits(cr4_mask);
 
 	cr0 = read_cr0();
 	cr0 &= ~(X86_CR0_TS|X86_CR0_EM); /* clear TS and EM */
-	if (!cpu_has_fpu)
+	if (!boot_cpu_has(X86_FEATURE_FPU))
 		cr0 |= X86_CR0_EM;
 	write_cr0(cr0);
 
 	/* Flush out any pending x87 state: */
 #ifdef CONFIG_MATH_EMULATION
-	if (!cpu_has_fpu)
+	if (!boot_cpu_has(X86_FEATURE_FPU))
 		fpstate_init_soft(&current->thread.fpu.state.soft);
 	else
 #endif
@@ -78,16 +78,18 @@ static void fpu__init_system_early_generic(struct cpuinfo_x86 *c)
 	cr0 &= ~(X86_CR0_TS | X86_CR0_EM);
 	write_cr0(cr0);
 
-	asm volatile("fninit ; fnstsw %0 ; fnstcw %1"
-		     : "+m" (fsw), "+m" (fcw));
+	if (!test_bit(X86_FEATURE_FPU, (unsigned long *)cpu_caps_cleared)) {
+		asm volatile("fninit ; fnstsw %0 ; fnstcw %1"
+			     : "+m" (fsw), "+m" (fcw));
 
-	if (fsw == 0 && (fcw & 0x103f) == 0x003f)
-		set_cpu_cap(c, X86_FEATURE_FPU);
-	else
-		clear_cpu_cap(c, X86_FEATURE_FPU);
+		if (fsw == 0 && (fcw & 0x103f) == 0x003f)
+			set_cpu_cap(c, X86_FEATURE_FPU);
+		else
+			clear_cpu_cap(c, X86_FEATURE_FPU);
+	}
 
 #ifndef CONFIG_MATH_EMULATION
-	if (!cpu_has_fpu) {
+	if (!boot_cpu_has(X86_FEATURE_FPU)) {
 		pr_emerg("x86/fpu: Giving up, no FPU found and no math emulation present\n");
 		for (;;)
 			asm volatile("hlt");
@@ -104,7 +106,7 @@ static void __init fpu__init_system_mxcsr(void)
 {
 	unsigned int mask = 0;
 
-	if (cpu_has_fxsr) {
+	if (boot_cpu_has(X86_FEATURE_FXSR)) {
 		/* Static because GCC does not get 16-byte stack alignment right: */
 		static struct fxregs_state fxregs __initdata;
 
@@ -132,7 +134,7 @@ static void __init fpu__init_system_generic(void)
 	 * Set up the legacy init FPU context. (xstate init might overwrite this
 	 * with a more modern format, if the CPU supports it.)
 	 */
-	fpstate_init_fxstate(&init_fpstate.fxsave);
+	fpstate_init(&init_fpstate);
 
 	fpu__init_system_mxcsr();
 }
@@ -143,8 +145,8 @@ static void __init fpu__init_system_generic(void)
  * This is inherent to the XSAVE architecture which puts all state
  * components into a single, continuous memory block:
  */
-unsigned int xstate_size;
-EXPORT_SYMBOL_GPL(xstate_size);
+unsigned int fpu_kernel_xstate_size;
+EXPORT_SYMBOL_GPL(fpu_kernel_xstate_size);
 
 /* Get alignment of the TYPE. */
 #define TYPE_ALIGN(TYPE) offsetof(struct { char x; TYPE test; }, test)
@@ -176,7 +178,7 @@ static void __init fpu__init_task_struct_size(void)
 	 * Add back the dynamically-calculated register state
 	 * size.
 	 */
-	task_size += xstate_size;
+	task_size += fpu_kernel_xstate_size;
 
 	/*
 	 * We dynamically size 'struct fpu', so we require that
@@ -193,7 +195,7 @@ static void __init fpu__init_task_struct_size(void)
 }
 
 /*
- * Set up the xstate_size based on the legacy FPU context size.
+ * Set up the user and kernel xstate sizes based on the legacy FPU context size.
  *
  * We set this up first, and later it will be overwritten by
  * fpu__init_system_xstate() if the CPU knows about xstates.
@@ -206,38 +208,28 @@ static void __init fpu__init_system_xstate_size_legacy(void)
 	on_boot_cpu = 0;
 
 	/*
-	 * Note that xstate_size might be overwriten later during
+	 * Note that xstate sizes might be overwritten later during
 	 * fpu__init_system_xstate().
 	 */
 
-	if (!cpu_has_fpu) {
+	if (!boot_cpu_has(X86_FEATURE_FPU)) {
 		/*
 		 * Disable xsave as we do not support it if i387
 		 * emulation is enabled.
 		 */
 		setup_clear_cpu_cap(X86_FEATURE_XSAVE);
 		setup_clear_cpu_cap(X86_FEATURE_XSAVEOPT);
-		xstate_size = sizeof(struct swregs_state);
+		fpu_kernel_xstate_size = sizeof(struct swregs_state);
 	} else {
-		if (cpu_has_fxsr)
-			xstate_size = sizeof(struct fxregs_state);
+		if (boot_cpu_has(X86_FEATURE_FXSR))
+			fpu_kernel_xstate_size =
+				sizeof(struct fxregs_state);
 		else
-			xstate_size = sizeof(struct fregs_state);
+			fpu_kernel_xstate_size =
+				sizeof(struct fregs_state);
 	}
-	/*
-	 * Quirk: we don't yet handle the XSAVES* instructions
-	 * correctly, as we don't correctly convert between
-	 * standard and compacted format when interfacing
-	 * with user-space - so disable it for now.
-	 *
-	 * The difference is small: with recent CPUs the
-	 * compacted format is only marginally smaller than
-	 * the standard FPU state format.
-	 *
-	 * ( This is easy to backport while we are fixing
-	 *   XSAVES* support. )
-	 */
-	setup_clear_cpu_cap(X86_FEATURE_XSAVES);
+
+	fpu_user_xstate_size = fpu_kernel_xstate_size;
 }
 
 /*
@@ -260,7 +252,10 @@ static void __init fpu__init_system_xstate_size_legacy(void)
  * not only saved the restores along the way, but we also have the
  * FPU ready to be used for the original task.
  *
- * 'eager' switching is used on modern CPUs, there we switch the FPU
+ * 'lazy' is deprecated because it's almost never a performance win
+ * and it's much more complicated than 'eager'.
+ *
+ * 'eager' switching is by default on all CPUs, there we switch the FPU
  * state during every context switch, regardless of whether the task
  * has used FPU instructions in that time slice or not. This is done
  * because modern FPU context saving instructions are able to optimize
@@ -271,7 +266,7 @@ static void __init fpu__init_system_xstate_size_legacy(void)
  *   to use 'eager' restores, if we detect that a task is using the FPU
  *   frequently. See the fpu->counter logic in fpu/internal.h for that. ]
  */
-static enum { AUTO, ENABLE, DISABLE } eagerfpu = AUTO;
+static enum { ENABLE, DISABLE } eagerfpu = ENABLE;
 
 /*
  * Find supported xfeatures based on cpu features and command-line input.
@@ -300,12 +295,6 @@ u64 __init fpu__get_supported_xfeatures_mask(void)
 static void __init fpu__clear_eager_fpu_features(void)
 {
 	setup_clear_cpu_cap(X86_FEATURE_MPX);
-	setup_clear_cpu_cap(X86_FEATURE_AVX);
-	setup_clear_cpu_cap(X86_FEATURE_AVX2);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512F);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512PF);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512ER);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512CD);
 }
 
 /*
@@ -328,7 +317,6 @@ static void __init fpu__init_system_ctx_switch(void)
 	on_boot_cpu = 0;
 
 	WARN_ON_FPU(current->thread.fpu.fpstate_active);
-	current_thread_info()->status = 0;
 
 	if (boot_cpu_has(X86_FEATURE_XSAVEOPT) && eagerfpu != DISABLE)
 		eagerfpu = ENABLE;
@@ -348,15 +336,9 @@ static void __init fpu__init_system_ctx_switch(void)
  */
 static void __init fpu__init_parse_early_param(void)
 {
-	/*
-	 * No need to check "eagerfpu=auto" again, since it is the
-	 * initial default.
-	 */
 	if (cmdline_find_option_bool(boot_command_line, "eagerfpu=off")) {
 		eagerfpu = DISABLE;
 		fpu__clear_eager_fpu_features();
-	} else if (cmdline_find_option_bool(boot_command_line, "eagerfpu=on")) {
-		eagerfpu = ENABLE;
 	}
 
 	if (cmdline_find_option_bool(boot_command_line, "no387"))

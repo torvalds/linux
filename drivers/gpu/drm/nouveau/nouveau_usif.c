@@ -22,7 +22,7 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_usif.h"
 #include "nouveau_abi16.h"
 
@@ -212,7 +212,6 @@ usif_notify_get(struct drm_file *f, void *data, u32 size, void *argv, u32 argc)
 	ntfy->p->base.event = &ntfy->p->e.base;
 	ntfy->p->base.file_priv = f;
 	ntfy->p->base.pid = current->pid;
-	ntfy->p->base.destroy =(void(*)(struct drm_pending_event *))kfree;
 	ntfy->p->e.base.type = DRM_NOUVEAU_EVENT_NVIF;
 	ntfy->p->e.base.length = sizeof(ntfy->p->e.base) + ntfy->reply;
 

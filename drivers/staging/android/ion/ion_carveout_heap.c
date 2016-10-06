@@ -25,15 +25,17 @@
 #include "ion.h"
 #include "ion_priv.h"
 
+#define ION_CARVEOUT_ALLOCATE_FAIL	-1
+
 struct ion_carveout_heap {
 	struct ion_heap heap;
 	struct gen_pool *pool;
 	ion_phys_addr_t base;
 };
 
-ion_phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
-				      unsigned long size,
-				      unsigned long align)
+static ion_phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
+					     unsigned long size,
+					     unsigned long align)
 {
 	struct ion_carveout_heap *carveout_heap =
 		container_of(heap, struct ion_carveout_heap, heap);
@@ -45,8 +47,8 @@ ion_phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
 	return offset;
 }
 
-void ion_carveout_free(struct ion_heap *heap, ion_phys_addr_t addr,
-		       unsigned long size)
+static void ion_carveout_free(struct ion_heap *heap, ion_phys_addr_t addr,
+			      unsigned long size)
 {
 	struct ion_carveout_heap *carveout_heap =
 		container_of(heap, struct ion_carveout_heap, heap);
@@ -54,19 +56,6 @@ void ion_carveout_free(struct ion_heap *heap, ion_phys_addr_t addr,
 	if (addr == ION_CARVEOUT_ALLOCATE_FAIL)
 		return;
 	gen_pool_free(carveout_heap->pool, addr, size);
-}
-
-static int ion_carveout_heap_phys(struct ion_heap *heap,
-				  struct ion_buffer *buffer,
-				  ion_phys_addr_t *addr, size_t *len)
-{
-	struct sg_table *table = buffer->priv_virt;
-	struct page *page = sg_page(table->sgl);
-	ion_phys_addr_t paddr = PFN_PHYS(page_to_pfn(page));
-
-	*addr = paddr;
-	*len = buffer->size;
-	return 0;
 }
 
 static int ion_carveout_heap_allocate(struct ion_heap *heap,
@@ -81,7 +70,7 @@ static int ion_carveout_heap_allocate(struct ion_heap *heap,
 	if (align > PAGE_SIZE)
 		return -EINVAL;
 
-	table = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
+	table = kmalloc(sizeof(*table), GFP_KERNEL);
 	if (!table)
 		return -ENOMEM;
 	ret = sg_alloc_table(table, 1, GFP_KERNEL);
@@ -95,7 +84,7 @@ static int ion_carveout_heap_allocate(struct ion_heap *heap,
 	}
 
 	sg_set_page(table->sgl, pfn_to_page(PFN_DOWN(paddr)), size, 0);
-	buffer->priv_virt = table;
+	buffer->sg_table = table;
 
 	return 0;
 
@@ -109,7 +98,7 @@ err_free:
 static void ion_carveout_heap_free(struct ion_buffer *buffer)
 {
 	struct ion_heap *heap = buffer->heap;
-	struct sg_table *table = buffer->priv_virt;
+	struct sg_table *table = buffer->sg_table;
 	struct page *page = sg_page(table->sgl);
 	ion_phys_addr_t paddr = PFN_PHYS(page_to_pfn(page));
 
@@ -117,30 +106,16 @@ static void ion_carveout_heap_free(struct ion_buffer *buffer)
 
 	if (ion_buffer_cached(buffer))
 		dma_sync_sg_for_device(NULL, table->sgl, table->nents,
-							DMA_BIDIRECTIONAL);
+				       DMA_BIDIRECTIONAL);
 
 	ion_carveout_free(heap, paddr, buffer->size);
 	sg_free_table(table);
 	kfree(table);
 }
 
-static struct sg_table *ion_carveout_heap_map_dma(struct ion_heap *heap,
-						  struct ion_buffer *buffer)
-{
-	return buffer->priv_virt;
-}
-
-static void ion_carveout_heap_unmap_dma(struct ion_heap *heap,
-					struct ion_buffer *buffer)
-{
-}
-
 static struct ion_heap_ops carveout_heap_ops = {
 	.allocate = ion_carveout_heap_allocate,
 	.free = ion_carveout_heap_free,
-	.phys = ion_carveout_heap_phys,
-	.map_dma = ion_carveout_heap_map_dma,
-	.unmap_dma = ion_carveout_heap_unmap_dma,
 	.map_user = ion_heap_map_user,
 	.map_kernel = ion_heap_map_kernel,
 	.unmap_kernel = ion_heap_unmap_kernel,
@@ -163,11 +138,11 @@ struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data)
 	if (ret)
 		return ERR_PTR(ret);
 
-	carveout_heap = kzalloc(sizeof(struct ion_carveout_heap), GFP_KERNEL);
+	carveout_heap = kzalloc(sizeof(*carveout_heap), GFP_KERNEL);
 	if (!carveout_heap)
 		return ERR_PTR(-ENOMEM);
 
-	carveout_heap->pool = gen_pool_create(12, -1);
+	carveout_heap->pool = gen_pool_create(PAGE_SHIFT, -1);
 	if (!carveout_heap->pool) {
 		kfree(carveout_heap);
 		return ERR_PTR(-ENOMEM);

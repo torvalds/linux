@@ -36,6 +36,7 @@ struct plat_serial8250_port {
 	void		(*set_termios)(struct uart_port *,
 			               struct ktermios *new,
 			               struct ktermios *old);
+	unsigned int	(*get_mctrl)(struct uart_port *);
 	int		(*handle_irq)(struct uart_port *);
 	void		(*pm)(struct uart_port *, unsigned int state,
 			      unsigned old);
@@ -74,6 +75,12 @@ struct uart_8250_port;
 struct uart_8250_ops {
 	int		(*setup_irq)(struct uart_8250_port *);
 	void		(*release_irq)(struct uart_8250_port *);
+};
+
+struct uart_8250_em485 {
+	struct timer_list	start_tx_timer; /* "rs485 start tx" timer */
+	struct timer_list	stop_tx_timer;  /* "rs485 stop tx" timer */
+	struct timer_list	*active_timer;  /* pointer to active timer */
 };
 
 /*
@@ -122,6 +129,8 @@ struct uart_8250_port {
 	/* 8250 specific callbacks */
 	int			(*dl_read)(struct uart_8250_port *);
 	void			(*dl_write)(struct uart_8250_port *, int);
+
+	struct uart_8250_em485 *em485;
 };
 
 static inline struct uart_8250_port *up_to_u8250p(struct uart_port *up)
@@ -140,6 +149,7 @@ extern int early_serial8250_setup(struct earlycon_device *device,
 					 const char *options);
 extern void serial8250_do_set_termios(struct uart_port *port,
 		struct ktermios *termios, struct ktermios *old);
+extern unsigned int serial8250_do_get_mctrl(struct uart_port *port);
 extern int serial8250_do_startup(struct uart_port *port);
 extern void serial8250_do_shutdown(struct uart_port *port);
 extern void serial8250_do_pm(struct uart_port *port, unsigned int state,

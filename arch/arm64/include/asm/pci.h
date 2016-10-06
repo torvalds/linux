@@ -7,8 +7,6 @@
 #include <linux/dma-mapping.h>
 
 #include <asm/io.h>
-#include <asm-generic/pci-bridge.h>
-#include <asm-generic/pci-dma-compat.h>
 
 #define PCIBIOS_MIN_IO		0x1000
 #define PCIBIOS_MIN_MEM		0

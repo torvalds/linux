@@ -107,9 +107,10 @@ ssize_t iio_buffer_read_first_n_outer(struct file *filp, char __user *buf,
 {
 	struct iio_dev *indio_dev = filp->private_data;
 	struct iio_buffer *rb = indio_dev->buffer;
+	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 	size_t datum_size;
 	size_t to_wait;
-	int ret;
+	int ret = 0;
 
 	if (!indio_dev->info)
 		return -ENODEV;
@@ -131,19 +132,29 @@ ssize_t iio_buffer_read_first_n_outer(struct file *filp, char __user *buf,
 	else
 		to_wait = min_t(size_t, n / datum_size, rb->watermark);
 
+	add_wait_queue(&rb->pollq, &wait);
 	do {
-		ret = wait_event_interruptible(rb->pollq,
-		      iio_buffer_ready(indio_dev, rb, to_wait, n / datum_size));
-		if (ret)
-			return ret;
+		if (!indio_dev->info) {
+			ret = -ENODEV;
+			break;
+		}
 
-		if (!indio_dev->info)
-			return -ENODEV;
+		if (!iio_buffer_ready(indio_dev, rb, to_wait, n / datum_size)) {
+			if (signal_pending(current)) {
+				ret = -ERESTARTSYS;
+				break;
+			}
+
+			wait_woken(&wait, TASK_INTERRUPTIBLE,
+				   MAX_SCHEDULE_TIMEOUT);
+			continue;
+		}
 
 		ret = rb->access->read_first_n(rb, n, buf);
 		if (ret == 0 && (filp->f_flags & O_NONBLOCK))
 			ret = -EAGAIN;
-	 } while (ret == 0);
+	} while (ret == 0);
+	remove_wait_queue(&rb->pollq, &wait);
 
 	return ret;
 }
@@ -512,33 +523,41 @@ static ssize_t iio_buffer_show_enable(struct device *dev,
 	return sprintf(buf, "%d\n", iio_buffer_is_active(indio_dev->buffer));
 }
 
+static unsigned int iio_storage_bytes_for_si(struct iio_dev *indio_dev,
+					     unsigned int scan_index)
+{
+	const struct iio_chan_spec *ch;
+	unsigned int bytes;
+
+	ch = iio_find_channel_from_si(indio_dev, scan_index);
+	bytes = ch->scan_type.storagebits / 8;
+	if (ch->scan_type.repeat > 1)
+		bytes *= ch->scan_type.repeat;
+	return bytes;
+}
+
+static unsigned int iio_storage_bytes_for_timestamp(struct iio_dev *indio_dev)
+{
+	return iio_storage_bytes_for_si(indio_dev,
+					indio_dev->scan_index_timestamp);
+}
+
 static int iio_compute_scan_bytes(struct iio_dev *indio_dev,
 				const unsigned long *mask, bool timestamp)
 {
-	const struct iio_chan_spec *ch;
 	unsigned bytes = 0;
 	int length, i;
 
 	/* How much space will the demuxed element take? */
 	for_each_set_bit(i, mask,
 			 indio_dev->masklength) {
-		ch = iio_find_channel_from_si(indio_dev, i);
-		if (ch->scan_type.repeat > 1)
-			length = ch->scan_type.storagebits / 8 *
-				ch->scan_type.repeat;
-		else
-			length = ch->scan_type.storagebits / 8;
+		length = iio_storage_bytes_for_si(indio_dev, i);
 		bytes = ALIGN(bytes, length);
 		bytes += length;
 	}
+
 	if (timestamp) {
-		ch = iio_find_channel_from_si(indio_dev,
-					      indio_dev->scan_index_timestamp);
-		if (ch->scan_type.repeat > 1)
-			length = ch->scan_type.storagebits / 8 *
-				ch->scan_type.repeat;
-		else
-			length = ch->scan_type.storagebits / 8;
+		length = iio_storage_bytes_for_timestamp(indio_dev);
 		bytes = ALIGN(bytes, length);
 		bytes += length;
 	}
@@ -645,6 +664,7 @@ static int iio_verify_update(struct iio_dev *indio_dev,
 	unsigned int modes;
 
 	memset(config, 0, sizeof(*config));
+	config->watermark = ~0;
 
 	/*
 	 * If there is just one buffer and we are removing it there is nothing
@@ -1288,7 +1308,6 @@ static int iio_buffer_add_demux(struct iio_buffer *buffer,
 static int iio_buffer_update_demux(struct iio_dev *indio_dev,
 				   struct iio_buffer *buffer)
 {
-	const struct iio_chan_spec *ch;
 	int ret, in_ind = -1, out_ind, length;
 	unsigned in_loc = 0, out_loc = 0;
 	struct iio_demux_table *p = NULL;
@@ -1315,21 +1334,11 @@ static int iio_buffer_update_demux(struct iio_dev *indio_dev,
 			in_ind = find_next_bit(indio_dev->active_scan_mask,
 					       indio_dev->masklength,
 					       in_ind + 1);
-			ch = iio_find_channel_from_si(indio_dev, in_ind);
-			if (ch->scan_type.repeat > 1)
-				length = ch->scan_type.storagebits / 8 *
-					ch->scan_type.repeat;
-			else
-				length = ch->scan_type.storagebits / 8;
+			length = iio_storage_bytes_for_si(indio_dev, in_ind);
 			/* Make sure we are aligned */
 			in_loc = roundup(in_loc, length) + length;
 		}
-		ch = iio_find_channel_from_si(indio_dev, in_ind);
-		if (ch->scan_type.repeat > 1)
-			length = ch->scan_type.storagebits / 8 *
-				ch->scan_type.repeat;
-		else
-			length = ch->scan_type.storagebits / 8;
+		length = iio_storage_bytes_for_si(indio_dev, in_ind);
 		out_loc = roundup(out_loc, length);
 		in_loc = roundup(in_loc, length);
 		ret = iio_buffer_add_demux(buffer, &p, in_loc, out_loc, length);
@@ -1340,13 +1349,7 @@ static int iio_buffer_update_demux(struct iio_dev *indio_dev,
 	}
 	/* Relies on scan_timestamp being last */
 	if (buffer->scan_timestamp) {
-		ch = iio_find_channel_from_si(indio_dev,
-			indio_dev->scan_index_timestamp);
-		if (ch->scan_type.repeat > 1)
-			length = ch->scan_type.storagebits / 8 *
-				ch->scan_type.repeat;
-		else
-			length = ch->scan_type.storagebits / 8;
+		length = iio_storage_bytes_for_timestamp(indio_dev);
 		out_loc = roundup(out_loc, length);
 		in_loc = roundup(in_loc, length);
 		ret = iio_buffer_add_demux(buffer, &p, in_loc, out_loc, length);

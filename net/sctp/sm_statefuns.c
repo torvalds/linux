@@ -3454,7 +3454,7 @@ sctp_disposition_t sctp_sf_ootb(struct net *net,
 		}
 
 		/* Report violation if chunk len overflows */
-		ch_end = ((__u8 *)ch) + WORD_ROUND(ntohs(ch->length));
+		ch_end = ((__u8 *)ch) + SCTP_PAD4(ntohs(ch->length));
 		if (ch_end > skb_tail_pointer(skb))
 			return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
@@ -4185,7 +4185,7 @@ sctp_disposition_t sctp_sf_unk_chunk(struct net *net,
 		hdr = unk_chunk->chunk_hdr;
 		err_chunk = sctp_make_op_error(asoc, unk_chunk,
 					       SCTP_ERROR_UNKNOWN_CHUNK, hdr,
-					       WORD_ROUND(ntohs(hdr->length)),
+					       SCTP_PAD4(ntohs(hdr->length)),
 					       0);
 		if (err_chunk) {
 			sctp_add_cmd_sf(commands, SCTP_CMD_REPLY,
@@ -4203,7 +4203,7 @@ sctp_disposition_t sctp_sf_unk_chunk(struct net *net,
 		hdr = unk_chunk->chunk_hdr;
 		err_chunk = sctp_make_op_error(asoc, unk_chunk,
 					       SCTP_ERROR_UNKNOWN_CHUNK, hdr,
-					       WORD_ROUND(ntohs(hdr->length)),
+					       SCTP_PAD4(ntohs(hdr->length)),
 					       0);
 		if (err_chunk) {
 			sctp_add_cmd_sf(commands, SCTP_CMD_REPLY,
@@ -6118,14 +6118,11 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	 * chunk later.
 	 */
 
-	if (!chunk->ecn_ce_done) {
-		struct sctp_af *af;
+	if (asoc->peer.ecn_capable && !chunk->ecn_ce_done) {
+		struct sctp_af *af = SCTP_INPUT_CB(chunk->skb)->af;
 		chunk->ecn_ce_done = 1;
 
-		af = sctp_get_af_specific(
-			ipver2af(ip_hdr(chunk->skb)->version));
-
-		if (af && af->is_ce(chunk->skb) && asoc->peer.ecn_capable) {
+		if (af->is_ce(sctp_gso_headskb(chunk->skb))) {
 			/* Do real work as sideffect. */
 			sctp_add_cmd_sf(commands, SCTP_CMD_ECN_CE,
 					SCTP_U32(tsn));

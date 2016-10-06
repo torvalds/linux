@@ -308,7 +308,7 @@ module_param(radio_nr, int, 0);
 MODULE_PARM_DESC(radio_nr,
 		 "Minor number for radio device (-1 ==> auto assign)");
 
-static struct region_info region_configs[] = {
+static const struct region_info region_configs[] = {
 	/* USA */
 	{
 		.channel_spacing	= 20,
@@ -483,10 +483,8 @@ static int bcm2048_set_rds_no_lock(struct bcm2048_device *bdev, u8 rds_on)
 		memset(&bdev->rds_info, 0, sizeof(bdev->rds_info));
 	}
 
-	err = bcm2048_send_command(bdev, BCM2048_I2C_FM_RDS_SYSTEM,
-				   bdev->cache_fm_rds_system);
-
-	return err;
+	return bcm2048_send_command(bdev, BCM2048_I2C_FM_RDS_SYSTEM,
+				    bdev->cache_fm_rds_system);
 }
 
 static int bcm2048_get_rds_no_lock(struct bcm2048_device *bdev)
@@ -1828,18 +1826,13 @@ static int bcm2048_deinit(struct bcm2048_device *bdev)
 
 	err = bcm2048_set_audio_route(bdev, 0);
 	if (err < 0)
-		goto exit;
+		return err;
 
 	err = bcm2048_set_dac_output(bdev, 0);
 	if (err < 0)
-		goto exit;
+		return err;
 
-	err = bcm2048_set_power_state(bdev, BCM2048_POWER_OFF);
-	if (err < 0)
-		goto exit;
-
-exit:
-	return err;
+	return bcm2048_set_power_state(bdev, BCM2048_POWER_OFF);
 }
 
 /*
@@ -1998,9 +1991,7 @@ static ssize_t bcm2048_##prop##_read(struct device *dev,		\
 									\
 	value = bcm2048_get_##prop(bdev);				\
 									\
-	value = sprintf(buf, mask "\n", value);				\
-									\
-	return value;							\
+	return sprintf(buf, mask "\n", value);				\
 }
 
 #define DEFINE_SYSFS_PROPERTY(prop, signal, size, mask, check)		\

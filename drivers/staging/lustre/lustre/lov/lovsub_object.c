@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -63,14 +59,14 @@ int lovsub_object_init(const struct lu_env *env, struct lu_object *obj,
 
 	under = &dev->acid_next->cd_lu_dev;
 	below = under->ld_ops->ldo_object_alloc(env, obj->lo_header, under);
-	if (below != NULL) {
+	if (below) {
 		lu_object_add(obj, below);
 		cl_object_page_init(lu2cl(obj), sizeof(struct lovsub_page));
 		result = 0;
-	} else
+	} else {
 		result = -ENOMEM;
+	}
 	return result;
-
 }
 
 static void lovsub_object_free(const struct lu_env *env, struct lu_object *obj)
@@ -102,8 +98,8 @@ static int lovsub_object_print(const struct lu_env *env, void *cookie,
 	return (*p)(env, cookie, "[%d]", los->lso_index);
 }
 
-static int lovsub_attr_set(const struct lu_env *env, struct cl_object *obj,
-			   const struct cl_attr *attr, unsigned valid)
+static int lovsub_attr_update(const struct lu_env *env, struct cl_object *obj,
+			      const struct cl_attr *attr, unsigned int valid)
 {
 	struct lov_object *lov = cl2lovsub(obj)->lso_super;
 
@@ -123,7 +119,7 @@ static int lovsub_object_glimpse(const struct lu_env *env,
 static const struct cl_object_operations lovsub_ops = {
 	.coo_page_init = lovsub_page_init,
 	.coo_lock_init = lovsub_lock_init,
-	.coo_attr_set  = lovsub_attr_set,
+	.coo_attr_update = lovsub_attr_update,
 	.coo_glimpse   = lovsub_object_glimpse
 };
 
@@ -143,8 +139,8 @@ struct lu_object *lovsub_object_alloc(const struct lu_env *env,
 	struct lovsub_object *los;
 	struct lu_object     *obj;
 
-	los = kmem_cache_alloc(lovsub_object_kmem, GFP_NOFS | __GFP_ZERO);
-	if (los != NULL) {
+	los = kmem_cache_zalloc(lovsub_object_kmem, GFP_NOFS);
+	if (los) {
 		struct cl_object_header *hdr;
 
 		obj = lovsub2lu(los);
@@ -154,8 +150,9 @@ struct lu_object *lovsub_object_alloc(const struct lu_env *env,
 		lu_object_add_top(&hdr->coh_lu, obj);
 		los->lso_cl.co_ops = &lovsub_ops;
 		obj->lo_ops = &lovsub_lu_obj_ops;
-	} else
+	} else {
 		obj = NULL;
+	}
 	return obj;
 }
 

@@ -60,7 +60,7 @@ config VIRTIO_INPUT
 
  config VIRTIO_MMIO
 	tristate "Platform bus driver for memory mapped virtio devices"
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM && HAS_DMA
  	select VIRTIO
  	---help---
  	 This drivers provides support for memory mapped virtio

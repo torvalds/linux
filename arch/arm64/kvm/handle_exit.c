@@ -106,7 +106,7 @@ static int kvm_handle_guest_debug(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	run->exit_reason = KVM_EXIT_DEBUG;
 	run->debug.arch.hsr = hsr;
 
-	switch (hsr >> ESR_ELx_EC_SHIFT) {
+	switch (ESR_ELx_EC(hsr)) {
 	case ESR_ELx_EC_WATCHPT_LOW:
 		run->debug.arch.far = vcpu->arch.fault.far_el2;
 		/* fall through */
@@ -149,7 +149,7 @@ static exit_handle_fn arm_exit_handlers[] = {
 static exit_handle_fn kvm_get_exit_handler(struct kvm_vcpu *vcpu)
 {
 	u32 hsr = kvm_vcpu_get_hsr(vcpu);
-	u8 hsr_ec = hsr >> ESR_ELx_EC_SHIFT;
+	u8 hsr_ec = ESR_ELx_EC(hsr);
 
 	if (hsr_ec >= ARRAY_SIZE(arm_exit_handlers) ||
 	    !arm_exit_handlers[hsr_ec]) {
@@ -186,6 +186,13 @@ int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		exit_handler = kvm_get_exit_handler(vcpu);
 
 		return exit_handler(vcpu, run);
+	case ARM_EXCEPTION_HYP_GONE:
+		/*
+		 * EL2 has been reset to the hyp-stub. This happens when a guest
+		 * is pre-empted by kvm_reboot()'s shutdown call.
+		 */
+		run->exit_reason = KVM_EXIT_FAIL_ENTRY;
+		return 0;
 	default:
 		kvm_pr_unimpl("Unsupported exception type: %d",
 			      exception_index);

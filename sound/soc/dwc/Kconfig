@@ -7,4 +7,13 @@ config SND_DESIGNWARE_I2S
 	 Synopsys desigwnware I2S device. The device supports upto
 	 maximum of 8 channels each for play and record.
 
+config SND_DESIGNWARE_PCM
+	tristate "PCM PIO extension for I2S driver"
+	depends on SND_DESIGNWARE_I2S
+	help
+	 Say Y, M or N if you want to add a custom ALSA extension that registers
+	 a PCM and uses PIO to transfer data.
+
+	 This functionality is specially suited for I2S devices that don't have
+	 DMA support.
 

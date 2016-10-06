@@ -41,8 +41,8 @@ static inline int __down_read_trylock(struct rw_semaphore *sem)
 {
 	long tmp;
 
-	while ((tmp = sem->count) >= 0) {
-		if (tmp == cmpxchg_acquire(&sem->count, tmp,
+	while ((tmp = atomic_long_read(&sem->count)) >= 0) {
+		if (tmp == atomic_long_cmpxchg_acquire(&sem->count, tmp,
 				   tmp + RWSEM_ACTIVE_READ_BIAS)) {
 			return 1;
 		}
@@ -53,7 +53,7 @@ static inline int __down_read_trylock(struct rw_semaphore *sem)
 /*
  * lock for writing
  */
-static inline void __down_write_nested(struct rw_semaphore *sem, int subclass)
+static inline void __down_write(struct rw_semaphore *sem)
 {
 	long tmp;
 
@@ -63,16 +63,23 @@ static inline void __down_write_nested(struct rw_semaphore *sem, int subclass)
 		rwsem_down_write_failed(sem);
 }
 
-static inline void __down_write(struct rw_semaphore *sem)
+static inline int __down_write_killable(struct rw_semaphore *sem)
 {
-	__down_write_nested(sem, 0);
+	long tmp;
+
+	tmp = atomic_long_add_return_acquire(RWSEM_ACTIVE_WRITE_BIAS,
+				     (atomic_long_t *)&sem->count);
+	if (unlikely(tmp != RWSEM_ACTIVE_WRITE_BIAS))
+		if (IS_ERR(rwsem_down_write_failed_killable(sem)))
+			return -EINTR;
+	return 0;
 }
 
 static inline int __down_write_trylock(struct rw_semaphore *sem)
 {
 	long tmp;
 
-	tmp = cmpxchg_acquire(&sem->count, RWSEM_UNLOCKED_VALUE,
+	tmp = atomic_long_cmpxchg_acquire(&sem->count, RWSEM_UNLOCKED_VALUE,
 		      RWSEM_ACTIVE_WRITE_BIAS);
 	return tmp == RWSEM_UNLOCKED_VALUE;
 }
@@ -100,14 +107,6 @@ static inline void __up_write(struct rw_semaphore *sem)
 }
 
 /*
- * implement atomic add functionality
- */
-static inline void rwsem_atomic_add(long delta, struct rw_semaphore *sem)
-{
-	atomic_long_add(delta, (atomic_long_t *)&sem->count);
-}
-
-/*
  * downgrade write lock to read lock
  */
 static inline void __downgrade_write(struct rw_semaphore *sem)
@@ -125,14 +124,6 @@ static inline void __downgrade_write(struct rw_semaphore *sem)
 				     (atomic_long_t *)&sem->count);
 	if (tmp < 0)
 		rwsem_downgrade_wake(sem);
-}
-
-/*
- * implement exchange and add functionality
- */
-static inline long rwsem_atomic_update(long delta, struct rw_semaphore *sem)
-{
-	return atomic_long_add_return(delta, (atomic_long_t *)&sem->count);
 }
 
 #endif	/* __KERNEL__ */

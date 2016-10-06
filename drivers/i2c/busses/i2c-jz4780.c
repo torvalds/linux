@@ -771,11 +771,16 @@ static int jz4780_i2c_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(pdev->dev.of_node, "clock-frequency",
 				   &clk_freq);
 	if (ret) {
-		dev_err(&pdev->dev, "clock-frequency not specified in DT");
+		dev_err(&pdev->dev, "clock-frequency not specified in DT\n");
 		goto err;
 	}
 
 	i2c->speed = clk_freq / 1000;
+	if (i2c->speed == 0) {
+		ret = -EINVAL;
+		dev_err(&pdev->dev, "clock-frequency minimum is 1000\n");
+		goto err;
+	}
 	jz4780_i2c_set_speed(i2c);
 
 	dev_info(&pdev->dev, "Bus frequency is %d KHz\n", i2c->speed);
@@ -785,10 +790,6 @@ static int jz4780_i2c_probe(struct platform_device *pdev)
 	jz4780_i2c_writew(i2c, JZ4780_I2C_CTRL, tmp);
 
 	jz4780_i2c_writew(i2c, JZ4780_I2C_INTM, 0x0);
-
-	i2c->cmd = 0;
-	memset(i2c->cmd_buf, 0, BUFSIZE);
-	memset(i2c->data_buf, 0, BUFSIZE);
 
 	i2c->irq = platform_get_irq(pdev, 0);
 	ret = devm_request_irq(&pdev->dev, i2c->irq, jz4780_i2c_irq, 0,

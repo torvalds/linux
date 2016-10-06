@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2015 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -594,6 +594,7 @@ static uint8_t
 lpfc_check_clean_addr_bit(struct lpfc_vport *vport,
 		struct serv_parm *sp)
 {
+	struct lpfc_hba *phba = vport->phba;
 	uint8_t fabric_param_changed = 0;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
@@ -615,7 +616,7 @@ lpfc_check_clean_addr_bit(struct lpfc_vport *vport,
 	 * - lpfc_delay_discovery module parameter is set.
 	 */
 	if (fabric_param_changed && !sp->cmn.clean_address_bit &&
-	    (vport->fc_prevDID || lpfc_delay_discovery)) {
+	    (vport->fc_prevDID || phba->cfg_delay_discovery)) {
 		spin_lock_irq(shost->host_lock);
 		vport->fc_flag |= FC_DISC_DELAYED;
 		spin_unlock_irq(shost->host_lock);
@@ -690,16 +691,17 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	fabric_param_changed = lpfc_check_clean_addr_bit(vport, sp);
 	if (fabric_param_changed) {
 		/* Reset FDMI attribute masks based on config parameter */
-		if (phba->cfg_fdmi_on == LPFC_FDMI_NO_SUPPORT) {
-			vport->fdmi_hba_mask = 0;
-			vport->fdmi_port_mask = 0;
-		} else {
+		if (phba->cfg_enable_SmartSAN ||
+		    (phba->cfg_fdmi_on == LPFC_FDMI_SUPPORT)) {
 			/* Setup appropriate attribute masks */
 			vport->fdmi_hba_mask = LPFC_FDMI2_HBA_ATTR;
-			if (phba->cfg_fdmi_on == LPFC_FDMI_SMART_SAN)
+			if (phba->cfg_enable_SmartSAN)
 				vport->fdmi_port_mask = LPFC_FDMI2_SMART_ATTR;
 			else
 				vport->fdmi_port_mask = LPFC_FDMI2_PORT_ATTR;
+		} else {
+			vport->fdmi_hba_mask = 0;
+			vport->fdmi_port_mask = 0;
 		}
 
 	}
@@ -1069,7 +1071,10 @@ stop_rr_fcf_flogi:
 					lpfc_sli4_unreg_all_rpis(vport);
 				}
 			}
-			lpfc_issue_reg_vfi(vport);
+
+			/* Do not register VFI if the driver aborted FLOGI */
+			if (!lpfc_error_lost_link(irsp))
+				lpfc_issue_reg_vfi(vport);
 			lpfc_nlp_put(ndlp);
 			goto out;
 		}
@@ -3295,6 +3300,12 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 						     FC_VPORT_FABRIC_REJ_WWN);
 			}
 			break;
+		case LSRJT_VENDOR_UNIQUE:
+			if ((stat.un.b.vendorUnique == 0x45) &&
+			    (cmd == ELS_CMD_FLOGI)) {
+				goto out_retry;
+			}
+			break;
 		}
 		break;
 
@@ -3340,6 +3351,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	if ((vport->load_flag & FC_UNLOADING) != 0)
 		retry = 0;
 
+out_retry:
 	if (retry) {
 		if ((cmd == ELS_CMD_PLOGI) || (cmd == ELS_CMD_FDISC)) {
 			/* Stop retrying PLOGI and FDISC if in FCF discovery */
@@ -4605,7 +4617,7 @@ lpfc_els_disc_plogi(struct lpfc_vport *vport)
 	return sentplogi;
 }
 
-void
+uint32_t
 lpfc_rdp_res_link_service(struct fc_rdp_link_service_desc *desc,
 		uint32_t word0)
 {
@@ -4613,9 +4625,11 @@ lpfc_rdp_res_link_service(struct fc_rdp_link_service_desc *desc,
 	desc->tag = cpu_to_be32(RDP_LINK_SERVICE_DESC_TAG);
 	desc->payload.els_req = word0;
 	desc->length = cpu_to_be32(sizeof(desc->payload));
+
+	return sizeof(struct fc_rdp_link_service_desc);
 }
 
-void
+uint32_t
 lpfc_rdp_res_sfp_desc(struct fc_rdp_sfp_desc *desc,
 		uint8_t *page_a0, uint8_t *page_a2)
 {
@@ -4676,9 +4690,11 @@ lpfc_rdp_res_sfp_desc(struct fc_rdp_sfp_desc *desc,
 
 	desc->sfp_info.flags = cpu_to_be16(flag);
 	desc->length = cpu_to_be32(sizeof(desc->sfp_info));
+
+	return sizeof(struct fc_rdp_sfp_desc);
 }
 
-void
+uint32_t
 lpfc_rdp_res_link_error(struct fc_rdp_link_error_status_desc *desc,
 		READ_LNK_VAR *stat)
 {
@@ -4703,9 +4719,195 @@ lpfc_rdp_res_link_error(struct fc_rdp_link_error_status_desc *desc,
 	desc->info.link_status.invalid_crc_cnt = cpu_to_be32(stat->crcCnt);
 
 	desc->length = cpu_to_be32(sizeof(desc->info));
+
+	return sizeof(struct fc_rdp_link_error_status_desc);
 }
 
-int
+uint32_t
+lpfc_rdp_res_bbc_desc(struct fc_rdp_bbc_desc *desc, READ_LNK_VAR *stat,
+		      struct lpfc_vport *vport)
+{
+	uint32_t bbCredit;
+
+	desc->tag = cpu_to_be32(RDP_BBC_DESC_TAG);
+
+	bbCredit = vport->fc_sparam.cmn.bbCreditLsb |
+			(vport->fc_sparam.cmn.bbCreditMsb << 8);
+	desc->bbc_info.port_bbc = cpu_to_be32(bbCredit);
+	if (vport->phba->fc_topology != LPFC_TOPOLOGY_LOOP) {
+		bbCredit = vport->phba->fc_fabparam.cmn.bbCreditLsb |
+			(vport->phba->fc_fabparam.cmn.bbCreditMsb << 8);
+		desc->bbc_info.attached_port_bbc = cpu_to_be32(bbCredit);
+	} else {
+		desc->bbc_info.attached_port_bbc = 0;
+	}
+
+	desc->bbc_info.rtt = 0;
+	desc->length = cpu_to_be32(sizeof(desc->bbc_info));
+
+	return sizeof(struct fc_rdp_bbc_desc);
+}
+
+uint32_t
+lpfc_rdp_res_oed_temp_desc(struct lpfc_hba *phba,
+			   struct fc_rdp_oed_sfp_desc *desc, uint8_t *page_a2)
+{
+	uint32_t flags = 0;
+
+	desc->tag = cpu_to_be32(RDP_OED_DESC_TAG);
+
+	desc->oed_info.hi_alarm = page_a2[SSF_TEMP_HIGH_ALARM];
+	desc->oed_info.lo_alarm = page_a2[SSF_TEMP_LOW_ALARM];
+	desc->oed_info.hi_warning = page_a2[SSF_TEMP_HIGH_WARNING];
+	desc->oed_info.lo_warning = page_a2[SSF_TEMP_LOW_WARNING];
+
+	if (phba->sfp_alarm & LPFC_TRANSGRESSION_HIGH_TEMPERATURE)
+		flags |= RDP_OET_HIGH_ALARM;
+	if (phba->sfp_alarm & LPFC_TRANSGRESSION_LOW_TEMPERATURE)
+		flags |= RDP_OET_LOW_ALARM;
+	if (phba->sfp_warning & LPFC_TRANSGRESSION_HIGH_TEMPERATURE)
+		flags |= RDP_OET_HIGH_WARNING;
+	if (phba->sfp_warning & LPFC_TRANSGRESSION_LOW_TEMPERATURE)
+		flags |= RDP_OET_LOW_WARNING;
+
+	flags |= ((0xf & RDP_OED_TEMPERATURE) << RDP_OED_TYPE_SHIFT);
+	desc->oed_info.function_flags = cpu_to_be32(flags);
+	desc->length = cpu_to_be32(sizeof(desc->oed_info));
+	return sizeof(struct fc_rdp_oed_sfp_desc);
+}
+
+uint32_t
+lpfc_rdp_res_oed_voltage_desc(struct lpfc_hba *phba,
+			      struct fc_rdp_oed_sfp_desc *desc,
+			      uint8_t *page_a2)
+{
+	uint32_t flags = 0;
+
+	desc->tag = cpu_to_be32(RDP_OED_DESC_TAG);
+
+	desc->oed_info.hi_alarm = page_a2[SSF_VOLTAGE_HIGH_ALARM];
+	desc->oed_info.lo_alarm = page_a2[SSF_VOLTAGE_LOW_ALARM];
+	desc->oed_info.hi_warning = page_a2[SSF_VOLTAGE_HIGH_WARNING];
+	desc->oed_info.lo_warning = page_a2[SSF_VOLTAGE_LOW_WARNING];
+
+	if (phba->sfp_alarm & LPFC_TRANSGRESSION_HIGH_VOLTAGE)
+		flags |= RDP_OET_HIGH_ALARM;
+	if (phba->sfp_alarm & LPFC_TRANSGRESSION_LOW_VOLTAGE)
+		flags |= RDP_OET_LOW_ALARM;
+	if (phba->sfp_warning & LPFC_TRANSGRESSION_HIGH_VOLTAGE)
+		flags |= RDP_OET_HIGH_WARNING;
+	if (phba->sfp_warning & LPFC_TRANSGRESSION_LOW_VOLTAGE)
+		flags |= RDP_OET_LOW_WARNING;
+
+	flags |= ((0xf & RDP_OED_VOLTAGE) << RDP_OED_TYPE_SHIFT);
+	desc->oed_info.function_flags = cpu_to_be32(flags);
+	desc->length = cpu_to_be32(sizeof(desc->oed_info));
+	return sizeof(struct fc_rdp_oed_sfp_desc);
+}
+
+uint32_t
+lpfc_rdp_res_oed_txbias_desc(struct lpfc_hba *phba,
+			     struct fc_rdp_oed_sfp_desc *desc,
+			     uint8_t *page_a2)
+{
+	uint32_t flags = 0;
+
+	desc->tag = cpu_to_be32(RDP_OED_DESC_TAG);
+
+	desc->oed_info.hi_alarm = page_a2[SSF_BIAS_HIGH_ALARM];
+	desc->oed_info.lo_alarm = page_a2[SSF_BIAS_LOW_ALARM];
+	desc->oed_info.hi_warning = page_a2[SSF_BIAS_HIGH_WARNING];
+	desc->oed_info.lo_warning = page_a2[SSF_BIAS_LOW_WARNING];
+
+	if (phba->sfp_alarm & LPFC_TRANSGRESSION_HIGH_TXBIAS)
+		flags |= RDP_OET_HIGH_ALARM;
+	if (phba->sfp_alarm & LPFC_TRANSGRESSION_LOW_TXBIAS)
+		flags |= RDP_OET_LOW_ALARM;
+	if (phba->sfp_warning & LPFC_TRANSGRESSION_HIGH_TXBIAS)
+		flags |= RDP_OET_HIGH_WARNING;
+	if (phba->sfp_warning & LPFC_TRANSGRESSION_LOW_TXBIAS)
+		flags |= RDP_OET_LOW_WARNING;
+
+	flags |= ((0xf & RDP_OED_TXBIAS) << RDP_OED_TYPE_SHIFT);
+	desc->oed_info.function_flags = cpu_to_be32(flags);
+	desc->length = cpu_to_be32(sizeof(desc->oed_info));
+	return sizeof(struct fc_rdp_oed_sfp_desc);
+}
+
+uint32_t
+lpfc_rdp_res_oed_txpower_desc(struct lpfc_hba *phba,
+			      struct fc_rdp_oed_sfp_desc *desc,
+			      uint8_t *page_a2)
+{
+	uint32_t flags = 0;
+
+	desc->tag = cpu_to_be32(RDP_OED_DESC_TAG);
+
+	desc->oed_info.hi_alarm = page_a2[SSF_TXPOWER_HIGH_ALARM];
+	desc->oed_info.lo_alarm = page_a2[SSF_TXPOWER_LOW_ALARM];
+	desc->oed_info.hi_warning = page_a2[SSF_TXPOWER_HIGH_WARNING];
+	desc->oed_info.lo_warning = page_a2[SSF_TXPOWER_LOW_WARNING];
+
+	if (phba->sfp_alarm & LPFC_TRANSGRESSION_HIGH_TXPOWER)
+		flags |= RDP_OET_HIGH_ALARM;
+	if (phba->sfp_alarm & LPFC_TRANSGRESSION_LOW_TXPOWER)
+		flags |= RDP_OET_LOW_ALARM;
+	if (phba->sfp_warning & LPFC_TRANSGRESSION_HIGH_TXPOWER)
+		flags |= RDP_OET_HIGH_WARNING;
+	if (phba->sfp_warning & LPFC_TRANSGRESSION_LOW_TXPOWER)
+		flags |= RDP_OET_LOW_WARNING;
+
+	flags |= ((0xf & RDP_OED_TXPOWER) << RDP_OED_TYPE_SHIFT);
+	desc->oed_info.function_flags = cpu_to_be32(flags);
+	desc->length = cpu_to_be32(sizeof(desc->oed_info));
+	return sizeof(struct fc_rdp_oed_sfp_desc);
+}
+
+
+uint32_t
+lpfc_rdp_res_oed_rxpower_desc(struct lpfc_hba *phba,
+			      struct fc_rdp_oed_sfp_desc *desc,
+			      uint8_t *page_a2)
+{
+	uint32_t flags = 0;
+
+	desc->tag = cpu_to_be32(RDP_OED_DESC_TAG);
+
+	desc->oed_info.hi_alarm = page_a2[SSF_RXPOWER_HIGH_ALARM];
+	desc->oed_info.lo_alarm = page_a2[SSF_RXPOWER_LOW_ALARM];
+	desc->oed_info.hi_warning = page_a2[SSF_RXPOWER_HIGH_WARNING];
+	desc->oed_info.lo_warning = page_a2[SSF_RXPOWER_LOW_WARNING];
+
+	if (phba->sfp_alarm & LPFC_TRANSGRESSION_HIGH_RXPOWER)
+		flags |= RDP_OET_HIGH_ALARM;
+	if (phba->sfp_alarm & LPFC_TRANSGRESSION_LOW_RXPOWER)
+		flags |= RDP_OET_LOW_ALARM;
+	if (phba->sfp_warning & LPFC_TRANSGRESSION_HIGH_RXPOWER)
+		flags |= RDP_OET_HIGH_WARNING;
+	if (phba->sfp_warning & LPFC_TRANSGRESSION_LOW_RXPOWER)
+		flags |= RDP_OET_LOW_WARNING;
+
+	flags |= ((0xf & RDP_OED_RXPOWER) << RDP_OED_TYPE_SHIFT);
+	desc->oed_info.function_flags = cpu_to_be32(flags);
+	desc->length = cpu_to_be32(sizeof(desc->oed_info));
+	return sizeof(struct fc_rdp_oed_sfp_desc);
+}
+
+uint32_t
+lpfc_rdp_res_opd_desc(struct fc_rdp_opd_sfp_desc *desc,
+		      uint8_t *page_a0, struct lpfc_vport *vport)
+{
+	desc->tag = cpu_to_be32(RDP_OPD_DESC_TAG);
+	memcpy(desc->opd_info.vendor_name, &page_a0[SSF_VENDOR_NAME], 16);
+	memcpy(desc->opd_info.model_number, &page_a0[SSF_VENDOR_PN], 16);
+	memcpy(desc->opd_info.serial_number, &page_a0[SSF_VENDOR_SN], 16);
+	memcpy(desc->opd_info.revision, &page_a0[SSF_VENDOR_REV], 2);
+	memcpy(desc->opd_info.date, &page_a0[SSF_DATE_CODE], 8);
+	desc->length = cpu_to_be32(sizeof(desc->opd_info));
+	return sizeof(struct fc_rdp_opd_sfp_desc);
+}
+
+uint32_t
 lpfc_rdp_res_fec_desc(struct fc_fec_rdp_desc *desc, READ_LNK_VAR *stat)
 {
 	if (bf_get(lpfc_read_link_stat_gec2, stat) == 0)
@@ -4722,7 +4924,7 @@ lpfc_rdp_res_fec_desc(struct fc_fec_rdp_desc *desc, READ_LNK_VAR *stat)
 	return sizeof(struct fc_fec_rdp_desc);
 }
 
-void
+uint32_t
 lpfc_rdp_res_speed(struct fc_rdp_port_speed_desc *desc, struct lpfc_hba *phba)
 {
 	uint16_t rdp_cap = 0;
@@ -4776,12 +4978,15 @@ lpfc_rdp_res_speed(struct fc_rdp_port_speed_desc *desc, struct lpfc_hba *phba)
 
 	if (rdp_cap == 0)
 		rdp_cap = RDP_CAP_UNKNOWN;
+	if (phba->cfg_link_speed != LPFC_USER_LINK_SPEED_AUTO)
+		rdp_cap |= RDP_CAP_USER_CONFIGURED;
 
 	desc->info.port_speed.capabilities = cpu_to_be16(rdp_cap);
 	desc->length = cpu_to_be32(sizeof(desc->info));
+	return sizeof(struct fc_rdp_port_speed_desc);
 }
 
-void
+uint32_t
 lpfc_rdp_res_diag_port_names(struct fc_rdp_port_name_desc *desc,
 		struct lpfc_hba *phba)
 {
@@ -4795,9 +5000,10 @@ lpfc_rdp_res_diag_port_names(struct fc_rdp_port_name_desc *desc,
 			sizeof(desc->port_names.wwpn));
 
 	desc->length = cpu_to_be32(sizeof(desc->port_names));
+	return sizeof(struct fc_rdp_port_name_desc);
 }
 
-void
+uint32_t
 lpfc_rdp_res_attach_port_names(struct fc_rdp_port_name_desc *desc,
 		struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 {
@@ -4818,6 +5024,7 @@ lpfc_rdp_res_attach_port_names(struct fc_rdp_port_name_desc *desc,
 	}
 
 	desc->length = cpu_to_be32(sizeof(desc->port_names));
+	return sizeof(struct fc_rdp_port_name_desc);
 }
 
 void
@@ -4832,8 +5039,9 @@ lpfc_els_rdp_cmpl(struct lpfc_hba *phba, struct lpfc_rdp_context *rdp_context,
 	uint8_t *pcmd;
 	struct ls_rjt *stat;
 	struct fc_rdp_res_frame *rdp_res;
-	uint32_t cmdsize;
-	int rc, fec_size;
+	uint32_t cmdsize, len;
+	uint16_t *flag_ptr;
+	int rc;
 
 	if (status != SUCCESS)
 		goto error;
@@ -4864,26 +5072,61 @@ lpfc_els_rdp_cmpl(struct lpfc_hba *phba, struct lpfc_rdp_context *rdp_context,
 	memset(pcmd, 0, sizeof(struct fc_rdp_res_frame));
 	*((uint32_t *) (pcmd)) = ELS_CMD_ACC;
 
-	/* For RDP payload */
-	lpfc_rdp_res_link_service(&rdp_res->link_service_desc, ELS_CMD_RDP);
+	/* Update Alarm and Warning */
+	flag_ptr = (uint16_t *)(rdp_context->page_a2 + SSF_ALARM_FLAGS);
+	phba->sfp_alarm |= *flag_ptr;
+	flag_ptr = (uint16_t *)(rdp_context->page_a2 + SSF_WARNING_FLAGS);
+	phba->sfp_warning |= *flag_ptr;
 
-	lpfc_rdp_res_sfp_desc(&rdp_res->sfp_desc,
+	/* For RDP payload */
+	len = 8;
+	len += lpfc_rdp_res_link_service((struct fc_rdp_link_service_desc *)
+					 (len + pcmd), ELS_CMD_RDP);
+
+	len += lpfc_rdp_res_sfp_desc((struct fc_rdp_sfp_desc *)(len + pcmd),
 			rdp_context->page_a0, rdp_context->page_a2);
-	lpfc_rdp_res_speed(&rdp_res->portspeed_desc, phba);
-	lpfc_rdp_res_link_error(&rdp_res->link_error_desc,
+	len += lpfc_rdp_res_speed((struct fc_rdp_port_speed_desc *)(len + pcmd),
+				  phba);
+	len += lpfc_rdp_res_link_error((struct fc_rdp_link_error_status_desc *)
+				       (len + pcmd), &rdp_context->link_stat);
+	len += lpfc_rdp_res_diag_port_names((struct fc_rdp_port_name_desc *)
+					     (len + pcmd), phba);
+	len += lpfc_rdp_res_attach_port_names((struct fc_rdp_port_name_desc *)
+					(len + pcmd), vport, ndlp);
+	len += lpfc_rdp_res_fec_desc((struct fc_fec_rdp_desc *)(len + pcmd),
 			&rdp_context->link_stat);
-	lpfc_rdp_res_diag_port_names(&rdp_res->diag_port_names_desc, phba);
-	lpfc_rdp_res_attach_port_names(&rdp_res->attached_port_names_desc,
-			vport, ndlp);
-	fec_size = lpfc_rdp_res_fec_desc(&rdp_res->fec_desc,
-			&rdp_context->link_stat);
-	rdp_res->length = cpu_to_be32(fec_size + RDP_DESC_PAYLOAD_SIZE);
+	/* Check if nport is logged, BZ190632 */
+	if (!(ndlp->nlp_flag & NLP_RPI_REGISTERED))
+		goto lpfc_skip_descriptor;
+
+	len += lpfc_rdp_res_bbc_desc((struct fc_rdp_bbc_desc *)(len + pcmd),
+				     &rdp_context->link_stat, vport);
+	len += lpfc_rdp_res_oed_temp_desc(phba,
+				(struct fc_rdp_oed_sfp_desc *)(len + pcmd),
+				rdp_context->page_a2);
+	len += lpfc_rdp_res_oed_voltage_desc(phba,
+				(struct fc_rdp_oed_sfp_desc *)(len + pcmd),
+				rdp_context->page_a2);
+	len += lpfc_rdp_res_oed_txbias_desc(phba,
+				(struct fc_rdp_oed_sfp_desc *)(len + pcmd),
+				rdp_context->page_a2);
+	len += lpfc_rdp_res_oed_txpower_desc(phba,
+				(struct fc_rdp_oed_sfp_desc *)(len + pcmd),
+				rdp_context->page_a2);
+	len += lpfc_rdp_res_oed_rxpower_desc(phba,
+				(struct fc_rdp_oed_sfp_desc *)(len + pcmd),
+				rdp_context->page_a2);
+	len += lpfc_rdp_res_opd_desc((struct fc_rdp_opd_sfp_desc *)(len + pcmd),
+				     rdp_context->page_a0, vport);
+
+lpfc_skip_descriptor:
+	rdp_res->length = cpu_to_be32(len - 8);
 	elsiocb->iocb_cmpl = lpfc_cmpl_els_rsp;
 
 	/* Now that we know the true size of the payload, update the BPL */
 	bpl = (struct ulp_bde64 *)
 		(((struct lpfc_dmabuf *)(elsiocb->context3))->virt);
-	bpl->tus.f.bdeSize = (fec_size + RDP_DESC_PAYLOAD_SIZE + 8);
+	bpl->tus.f.bdeSize = len;
 	bpl->tus.f.bdeFlags = 0;
 	bpl->tus.w = le32_to_cpu(bpl->tus.w);
 
@@ -5008,6 +5251,12 @@ lpfc_els_rcv_rdp(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 			 be32_to_cpu(rdp_req->nport_id_desc.nport_id),
 			 be32_to_cpu(rdp_req->nport_id_desc.length));
 
+	if (!(ndlp->nlp_flag & NLP_RPI_REGISTERED) &&
+	    !phba->cfg_enable_SmartSAN) {
+		rjt_err = LSRJT_UNABLE_TPC;
+		rjt_expl = LSEXP_PORT_LOGIN_REQ;
+		goto error;
+	}
 	if (sizeof(struct fc_rdp_nport_desc) !=
 			be32_to_cpu(rdp_req->rdp_des_length))
 		goto rjt_logerr;
@@ -7849,8 +8098,9 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 		return;
 	}
 
-	if ((phba->cfg_fdmi_on > LPFC_FDMI_NO_SUPPORT) &&
-	    (vport->load_flag & FC_ALLOW_FDMI))
+	if ((phba->cfg_enable_SmartSAN ||
+	     (phba->cfg_fdmi_on == LPFC_FDMI_SUPPORT)) &&
+	     (vport->load_flag & FC_ALLOW_FDMI))
 		lpfc_start_fdmi(vport);
 }
 

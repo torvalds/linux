@@ -1426,7 +1426,7 @@ static void sis900_set_mode(struct sis900_private *sp, int speed, int duplex)
 		rx_flags |= RxATX;
 	}
 
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+#if IS_ENABLED(CONFIG_VLAN_8021Q)
 	/* Can accept Jumbo packet */
 	rx_flags |= RxAJAB;
 #endif
@@ -1575,7 +1575,7 @@ static void sis900_tx_timeout(struct net_device *net_dev)
 
 	spin_unlock_irqrestore(&sis_priv->lock, flags);
 
-	net_dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(net_dev); /* prevent tx timeout */
 
 	/* load Transmit Descriptor Register */
 	sw32(txdp, sis_priv->tx_ring_dma);
@@ -1750,7 +1750,7 @@ static int sis900_rx(struct net_device *net_dev)
 		data_size = rx_status & DSIZE;
 		rx_size = data_size - CRC_SIZE;
 
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+#if IS_ENABLED(CONFIG_VLAN_8021Q)
 		/* ``TOOLONG'' flag means jumbo packet received. */
 		if ((rx_status & TOOLONG) && data_size <= MAX_FRAME_SIZE)
 			rx_status &= (~ ((unsigned int)TOOLONG));

@@ -14,7 +14,6 @@
  */
 
 #include <linux/err.h>
-#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -25,8 +24,6 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/regulator/of_regulator.h>
-#include <linux/proc_fs.h>
-#include <linux/uaccess.h>
 #include "pv88090-regulator.h"
 
 #define PV88090_MAX_REGULATORS	5
@@ -283,8 +280,8 @@ static irqreturn_t pv88090_irq_handler(int irq, void *data)
 			}
 		}
 
-		err = regmap_update_bits(chip->regmap, PV88090_REG_EVENT_A,
-			PV88090_E_VDD_FLT, PV88090_E_VDD_FLT);
+		err = regmap_write(chip->regmap, PV88090_REG_EVENT_A,
+			PV88090_E_VDD_FLT);
 		if (err < 0)
 			goto error_i2c;
 
@@ -300,8 +297,8 @@ static irqreturn_t pv88090_irq_handler(int irq, void *data)
 			}
 		}
 
-		err = regmap_update_bits(chip->regmap, PV88090_REG_EVENT_A,
-			PV88090_E_OVER_TEMP, PV88090_E_OVER_TEMP);
+		err = regmap_write(chip->regmap, PV88090_REG_EVENT_A,
+			PV88090_E_OVER_TEMP);
 		if (err < 0)
 			goto error_i2c;
 

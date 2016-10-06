@@ -271,3 +271,82 @@ Description:	Parameters for the CPU cache attributes
 			- WriteBack: data is written only to the cache line and
 				     the modified cache line is written to main
 				     memory only when it is replaced
+
+What:		/sys/devices/system/cpu/cpuX/cpufreq/throttle_stats
+		/sys/devices/system/cpu/cpuX/cpufreq/throttle_stats/turbo_stat
+		/sys/devices/system/cpu/cpuX/cpufreq/throttle_stats/sub_turbo_stat
+		/sys/devices/system/cpu/cpuX/cpufreq/throttle_stats/unthrottle
+		/sys/devices/system/cpu/cpuX/cpufreq/throttle_stats/powercap
+		/sys/devices/system/cpu/cpuX/cpufreq/throttle_stats/overtemp
+		/sys/devices/system/cpu/cpuX/cpufreq/throttle_stats/supply_fault
+		/sys/devices/system/cpu/cpuX/cpufreq/throttle_stats/overcurrent
+		/sys/devices/system/cpu/cpuX/cpufreq/throttle_stats/occ_reset
+Date:		March 2016
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+		Linux for PowerPC mailing list <linuxppc-dev@ozlabs.org>
+Description:	POWERNV CPUFreq driver's frequency throttle stats directory and
+		attributes
+
+		'cpuX/cpufreq/throttle_stats' directory contains the CPU frequency
+		throttle stat attributes for the chip. The throttle stats of a cpu
+		is common across all the cpus belonging to a chip. Below are the
+		throttle attributes exported in the 'throttle_stats' directory:
+
+		- turbo_stat : This file gives the total number of times the max
+		frequency is throttled to lower frequency in turbo (at and above
+		nominal frequency) range of frequencies.
+
+		- sub_turbo_stat : This file gives the total number of times the
+		max frequency is throttled to lower frequency in sub-turbo(below
+		nominal frequency) range of frequencies.
+
+		- unthrottle : This file gives the total number of times the max
+		frequency is unthrottled after being throttled.
+
+		- powercap : This file gives the total number of times the max
+		frequency is throttled due to 'Power Capping'.
+
+		- overtemp : This file gives the total number of times the max
+		frequency is throttled due to 'CPU Over Temperature'.
+
+		- supply_fault : This file gives the total number of times the
+		max frequency is throttled due to 'Power Supply Failure'.
+
+		- overcurrent : This file gives the total number of times the
+		max frequency is throttled due to 'Overcurrent'.
+
+		- occ_reset : This file gives the total number of times the max
+		frequency is throttled due to 'OCC Reset'.
+
+		The sysfs attributes representing different throttle reasons like
+		powercap, overtemp, supply_fault, overcurrent and occ_reset map to
+		the reasons provided by OCC firmware for throttling the frequency.
+
+What:		/sys/devices/system/cpu/cpufreq/policyX/throttle_stats
+		/sys/devices/system/cpu/cpufreq/policyX/throttle_stats/turbo_stat
+		/sys/devices/system/cpu/cpufreq/policyX/throttle_stats/sub_turbo_stat
+		/sys/devices/system/cpu/cpufreq/policyX/throttle_stats/unthrottle
+		/sys/devices/system/cpu/cpufreq/policyX/throttle_stats/powercap
+		/sys/devices/system/cpu/cpufreq/policyX/throttle_stats/overtemp
+		/sys/devices/system/cpu/cpufreq/policyX/throttle_stats/supply_fault
+		/sys/devices/system/cpu/cpufreq/policyX/throttle_stats/overcurrent
+		/sys/devices/system/cpu/cpufreq/policyX/throttle_stats/occ_reset
+Date:		March 2016
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+		Linux for PowerPC mailing list <linuxppc-dev@ozlabs.org>
+Description:	POWERNV CPUFreq driver's frequency throttle stats directory and
+		attributes
+
+		'policyX/throttle_stats' directory and all the attributes are same as
+		the /sys/devices/system/cpu/cpuX/cpufreq/throttle_stats directory and
+		attributes which give the frequency throttle information of the chip.
+
+What:		/sys/devices/system/cpu/cpuX/regs/
+		/sys/devices/system/cpu/cpuX/regs/identification/
+		/sys/devices/system/cpu/cpuX/regs/identification/midr_el1
+		/sys/devices/system/cpu/cpuX/regs/identification/revidr_el1
+Date:		June 2016
+Contact:	Linux ARM Kernel Mailing list <linux-arm-kernel@lists.infradead.org>
+Description:	AArch64 CPU registers
+		'identification' directory exposes the CPU ID registers for
+		 identifying model and revision of the CPU.

@@ -1794,7 +1794,7 @@ void orinoco_reset(struct work_struct *work)
 			printk(KERN_ERR "%s: orinoco_reset: Error %d reenabling card\n",
 			       dev->name, err);
 		} else
-			dev->trans_start = jiffies;
+			netif_trans_update(dev);
 	}
 
 	orinoco_unlock_irq(priv);

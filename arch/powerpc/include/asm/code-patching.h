@@ -49,8 +49,7 @@ void __patch_exception(int exc, unsigned long addr);
 
 static inline unsigned long ppc_function_entry(void *func)
 {
-#if defined(CONFIG_PPC64)
-#if defined(_CALL_ELF) && _CALL_ELF == 2
+#ifdef PPC64_ELF_ABI_v2
 	u32 *insn = func;
 
 	/*
@@ -75,14 +74,13 @@ static inline unsigned long ppc_function_entry(void *func)
 		return (unsigned long)(insn + 2);
 	else
 		return (unsigned long)func;
-#else
+#elif defined(PPC64_ELF_ABI_v1)
 	/*
 	 * On PPC64 ABIv1 the function pointer actually points to the
 	 * function's descriptor. The first entry in the descriptor is the
 	 * address of the function text.
 	 */
 	return ((func_descr_t *)func)->entry;
-#endif
 #else
 	return (unsigned long)func;
 #endif
@@ -90,7 +88,7 @@ static inline unsigned long ppc_function_entry(void *func)
 
 static inline unsigned long ppc_global_function_entry(void *func)
 {
-#if defined(CONFIG_PPC64) && defined(_CALL_ELF) && _CALL_ELF == 2
+#ifdef PPC64_ELF_ABI_v2
 	/* PPC64 ABIv2 the global entry point is at the address */
 	return (unsigned long)func;
 #else
@@ -98,5 +96,26 @@ static inline unsigned long ppc_global_function_entry(void *func)
 	return ppc_function_entry(func);
 #endif
 }
+
+#ifdef CONFIG_PPC64
+/*
+ * Some instruction encodings commonly used in dynamic ftracing
+ * and function live patching.
+ */
+
+/* This must match the definition of STK_GOT in <asm/ppc_asm.h> */
+#ifdef PPC64_ELF_ABI_v2
+#define R2_STACK_OFFSET         24
+#else
+#define R2_STACK_OFFSET         40
+#endif
+
+#define PPC_INST_LD_TOC		(PPC_INST_LD  | ___PPC_RT(__REG_R2) | \
+				 ___PPC_RA(__REG_R1) | R2_STACK_OFFSET)
+
+/* usually preceded by a mflr r0 */
+#define PPC_INST_STD_LR		(PPC_INST_STD | ___PPC_RS(__REG_R0) | \
+				 ___PPC_RA(__REG_R1) | PPC_LR_STKOFF)
+#endif /* CONFIG_PPC64 */
 
 #endif /* _ASM_POWERPC_CODE_PATCHING_H */

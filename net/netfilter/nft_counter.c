@@ -76,8 +76,10 @@ static int nft_counter_dump(struct sk_buff *skb, const struct nft_expr *expr)
 
 	nft_counter_fetch(priv->counter, &total);
 
-	if (nla_put_be64(skb, NFTA_COUNTER_BYTES, cpu_to_be64(total.bytes)) ||
-	    nla_put_be64(skb, NFTA_COUNTER_PACKETS, cpu_to_be64(total.packets)))
+	if (nla_put_be64(skb, NFTA_COUNTER_BYTES, cpu_to_be64(total.bytes),
+			 NFTA_COUNTER_PAD) ||
+	    nla_put_be64(skb, NFTA_COUNTER_PACKETS, cpu_to_be64(total.packets),
+			 NFTA_COUNTER_PAD))
 		goto nla_put_failure;
 	return 0;
 
@@ -100,7 +102,7 @@ static int nft_counter_init(const struct nft_ctx *ctx,
 
 	cpu_stats = netdev_alloc_pcpu_stats(struct nft_counter_percpu);
 	if (cpu_stats == NULL)
-		return ENOMEM;
+		return -ENOMEM;
 
 	preempt_disable();
 	this_cpu = this_cpu_ptr(cpu_stats);
@@ -138,7 +140,7 @@ static int nft_counter_clone(struct nft_expr *dst, const struct nft_expr *src)
 	cpu_stats = __netdev_alloc_pcpu_stats(struct nft_counter_percpu,
 					      GFP_ATOMIC);
 	if (cpu_stats == NULL)
-		return ENOMEM;
+		return -ENOMEM;
 
 	preempt_disable();
 	this_cpu = this_cpu_ptr(cpu_stats);

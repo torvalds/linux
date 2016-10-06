@@ -308,17 +308,17 @@ static int magician_set_spk(struct snd_kcontrol *kcontrol,
 static int magician_get_input(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	ucontrol->value.integer.value[0] = magician_in_sel;
+	ucontrol->value.enumerated.item[0] = magician_in_sel;
 	return 0;
 }
 
 static int magician_set_input(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	if (magician_in_sel == ucontrol->value.integer.value[0])
+	if (magician_in_sel == ucontrol->value.enumerated.item[0])
 		return 0;
 
-	magician_in_sel = ucontrol->value.integer.value[0];
+	magician_in_sel = ucontrol->value.enumerated.item[0];
 
 	switch (magician_in_sel) {
 	case MAGICIAN_MIC:

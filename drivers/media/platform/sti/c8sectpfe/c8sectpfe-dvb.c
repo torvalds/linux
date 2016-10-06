@@ -118,7 +118,7 @@ int c8sectpfe_frontend_attach(struct dvb_frontend **fe,
 		struct channel_info *tsin, int chan_num)
 {
 	struct tda18212_config *tda18212;
-	struct stv6110x_devctl *fe2;
+	const struct stv6110x_devctl *fe2;
 	struct i2c_client *client;
 	struct i2c_board_info tda18212_info = {
 		.type = "tda18212",

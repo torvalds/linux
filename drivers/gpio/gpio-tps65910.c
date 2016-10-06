@@ -4,7 +4,7 @@
  * Copyright 2010 Texas Instruments Inc.
  *
  * Author: Graeme Gregory <gg@slimlogic.co.uk>
- * Author: Jorge Eduardo Candelaria jedu@slimlogic.co.uk>
+ * Author: Jorge Eduardo Candelaria <jedu@slimlogic.co.uk>
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under  the terms of the GNU General  Public License as published by the
@@ -14,7 +14,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
@@ -170,7 +170,8 @@ static int tps65910_gpio_probe(struct platform_device *pdev)
 	}
 
 skip_init:
-	ret = gpiochip_add_data(&tps65910_gpio->gpio_chip, tps65910_gpio);
+	ret = devm_gpiochip_add_data(&pdev->dev, &tps65910_gpio->gpio_chip,
+				     tps65910_gpio);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
 		return ret;
@@ -181,19 +182,9 @@ skip_init:
 	return ret;
 }
 
-static int tps65910_gpio_remove(struct platform_device *pdev)
-{
-	struct tps65910_gpio *tps65910_gpio = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&tps65910_gpio->gpio_chip);
-	return 0;
-}
-
 static struct platform_driver tps65910_gpio_driver = {
 	.driver.name    = "tps65910-gpio",
-	.driver.owner   = THIS_MODULE,
 	.probe		= tps65910_gpio_probe,
-	.remove		= tps65910_gpio_remove,
 };
 
 static int __init tps65910_gpio_init(void)
@@ -201,15 +192,3 @@ static int __init tps65910_gpio_init(void)
 	return platform_driver_register(&tps65910_gpio_driver);
 }
 subsys_initcall(tps65910_gpio_init);
-
-static void __exit tps65910_gpio_exit(void)
-{
-	platform_driver_unregister(&tps65910_gpio_driver);
-}
-module_exit(tps65910_gpio_exit);
-
-MODULE_AUTHOR("Graeme Gregory <gg@slimlogic.co.uk>");
-MODULE_AUTHOR("Jorge Eduardo Candelaria jedu@slimlogic.co.uk>");
-MODULE_DESCRIPTION("GPIO interface for TPS65910/TPS6511 PMICs");
-MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:tps65910-gpio");

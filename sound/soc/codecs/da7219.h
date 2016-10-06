@@ -194,11 +194,11 @@
 /* DA7219_PLL_CTRL = 0x20 */
 #define DA7219_PLL_INDIV_SHIFT		2
 #define DA7219_PLL_INDIV_MASK		(0x7 << 2)
-#define DA7219_PLL_INDIV_2_5_MHZ	(0x0 << 2)
-#define DA7219_PLL_INDIV_5_10_MHZ	(0x1 << 2)
-#define DA7219_PLL_INDIV_10_20_MHZ	(0x2 << 2)
-#define DA7219_PLL_INDIV_20_40_MHZ	(0x3 << 2)
-#define DA7219_PLL_INDIV_40_54_MHZ	(0x4 << 2)
+#define DA7219_PLL_INDIV_2_TO_4_5_MHZ	(0x0 << 2)
+#define DA7219_PLL_INDIV_4_5_TO_9_MHZ	(0x1 << 2)
+#define DA7219_PLL_INDIV_9_TO_18_MHZ	(0x2 << 2)
+#define DA7219_PLL_INDIV_18_TO_36_MHZ	(0x3 << 2)
+#define DA7219_PLL_INDIV_36_TO_54_MHZ	(0x4 << 2)
 #define DA7219_PLL_MCLK_SQR_EN_SHIFT	5
 #define DA7219_PLL_MCLK_SQR_EN_MASK	(0x1 << 5)
 #define DA7219_PLL_MODE_SHIFT		6
@@ -224,6 +224,7 @@
 #define DA7219_PLL_SRM_STATE_MASK	(0xF << 0)
 #define DA7219_PLL_SRM_STATUS_SHIFT	4
 #define DA7219_PLL_SRM_STATUS_MASK	(0xF << 4)
+#define DA7219_PLL_SRM_STS_MCLK		(0x1 << 4)
 #define DA7219_PLL_SRM_STS_SRM_LOCK	(0x1 << 7)
 
 /* DA7219_DIG_ROUTING_DAI = 0x2A */
@@ -576,6 +577,8 @@
 /* DA7219_GAIN_RAMP_CTRL = 0x92 */
 #define DA7219_GAIN_RAMP_RATE_SHIFT	0
 #define DA7219_GAIN_RAMP_RATE_MASK	(0x3 << 0)
+#define DA7219_GAIN_RAMP_RATE_X8	(0x0 << 0)
+#define DA7219_GAIN_RAMP_RATE_NOMINAL	(0x1 << 0)
 #define DA7219_GAIN_RAMP_RATE_MAX	4
 
 /* DA7219_PC_COUNT = 0x94 */
@@ -761,14 +764,18 @@
 #define DA7219_PLL_FREQ_OUT_98304	98304000
 
 /* PLL Frequency Dividers */
-#define DA7219_PLL_INDIV_2_5_MHZ_VAL	1
-#define DA7219_PLL_INDIV_5_10_MHZ_VAL	2
-#define DA7219_PLL_INDIV_10_20_MHZ_VAL	4
-#define DA7219_PLL_INDIV_20_40_MHZ_VAL	8
-#define DA7219_PLL_INDIV_40_54_MHZ_VAL	16
+#define DA7219_PLL_INDIV_2_TO_4_5_MHZ_VAL	1
+#define DA7219_PLL_INDIV_4_5_TO_9_MHZ_VAL	2
+#define DA7219_PLL_INDIV_9_TO_18_MHZ_VAL	4
+#define DA7219_PLL_INDIV_18_TO_36_MHZ_VAL	8
+#define DA7219_PLL_INDIV_36_TO_54_MHZ_VAL	16
 
 /* SRM */
 #define DA7219_SRM_CHECK_RETRIES	8
+
+/* System Controller */
+#define DA7219_SYS_STAT_CHECK_RETRIES	6
+#define DA7219_SYS_STAT_CHECK_DELAY	50
 
 enum da7219_clk_src {
 	DA7219_CLKSRC_MCLK = 0,
@@ -796,6 +803,7 @@ struct da7219_priv {
 	struct da7219_aad_priv *aad;
 	struct da7219_pdata *pdata;
 
+	bool wakeup_source;
 	struct regulator_bulk_data supplies[DA7219_NUM_SUPPLIES];
 	struct regmap *regmap;
 	struct mutex lock;

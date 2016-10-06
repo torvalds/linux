@@ -1,7 +1,7 @@
 /* Frontend part of the Linux driver for the WideView/ Yakumo/ Hama/
  * Typhoon/ Yuan DVB-T USB2.0 receiver.
  *
- * Copyright (C) 2005 Patrick Boettcher <patrick.boettcher@desy.de>
+ * Copyright (C) 2005 Patrick Boettcher <patrick.boettcher@posteo.de>
  *
  *	This program is free software; you can redistribute it and/or modify it
  *	under the terms of the GNU General Public License as published by the Free
@@ -140,10 +140,11 @@ static int dtt200u_fe_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int dtt200u_fe_get_frontend(struct dvb_frontend* fe)
+static int dtt200u_fe_get_frontend(struct dvb_frontend* fe,
+				   struct dtv_frontend_properties *fep)
 {
-	struct dtv_frontend_properties *fep = &fe->dtv_property_cache;
 	struct dtt200u_fe_state *state = fe->demodulator_priv;
+
 	memcpy(fep, &state->fep, sizeof(struct dtv_frontend_properties));
 	return 0;
 }

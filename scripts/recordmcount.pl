@@ -134,6 +134,7 @@ my %text_sections = (
      ".sched.text" => 1,
      ".spinlock.text" => 1,
      ".irqentry.text" => 1,
+     ".softirqentry.text" => 1,
      ".kprobes.text" => 1,
      ".text.unlikely" => 1,
 );

@@ -124,12 +124,13 @@ int uvd_v1_0_resume(struct radeon_device *rdev)
 	WREG32(UVD_VCPU_CACHE_SIZE0, size);
 
 	addr += size;
-	size = RADEON_UVD_STACK_SIZE >> 3;
+	size = RADEON_UVD_HEAP_SIZE >> 3;
 	WREG32(UVD_VCPU_CACHE_OFFSET1, addr);
 	WREG32(UVD_VCPU_CACHE_SIZE1, size);
 
 	addr += size;
-	size = RADEON_UVD_HEAP_SIZE >> 3;
+	size = (RADEON_UVD_STACK_SIZE +
+	       (RADEON_UVD_SESSION_SIZE * rdev->uvd.max_handles)) >> 3;
 	WREG32(UVD_VCPU_CACHE_OFFSET2, addr);
 	WREG32(UVD_VCPU_CACHE_SIZE2, size);
 
@@ -522,11 +523,17 @@ int uvd_v1_0_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		goto error;
 	}
 
-	r = radeon_fence_wait(fence, false);
-	if (r) {
+	r = radeon_fence_wait_timeout(fence, false, usecs_to_jiffies(
+		RADEON_USEC_IB_TEST_TIMEOUT));
+	if (r < 0) {
 		DRM_ERROR("radeon: fence wait failed (%d).\n", r);
 		goto error;
+	} else if (r == 0) {
+		DRM_ERROR("radeon: fence wait timed out.\n");
+		r = -ETIMEDOUT;
+		goto error;
 	}
+	r = 0;
 	DRM_INFO("ib test on ring %d succeeded\n",  ring->idx);
 error:
 	radeon_fence_unref(&fence);

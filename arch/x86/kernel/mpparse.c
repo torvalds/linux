@@ -16,7 +16,6 @@
 #include <linux/mc146818rtc.h>
 #include <linux/bitops.h>
 #include <linux/acpi.h>
-#include <linux/module.h>
 #include <linux/smp.h>
 #include <linux/pci.h>
 
@@ -408,7 +407,7 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 	processor.cpuflag = CPU_ENABLED;
 	processor.cpufeature = (boot_cpu_data.x86 << 8) |
 	    (boot_cpu_data.x86_model << 4) | boot_cpu_data.x86_mask;
-	processor.featureflag = boot_cpu_data.x86_capability[0];
+	processor.featureflag = boot_cpu_data.x86_capability[CPUID_1_EDX];
 	processor.reserved[0] = 0;
 	processor.reserved[1] = 0;
 	for (i = 0; i < 2; i++) {
@@ -499,6 +498,9 @@ static int __init check_physptr(struct mpf_intel *mpf, unsigned int early)
 void __init default_get_smp_config(unsigned int early)
 {
 	struct mpf_intel *mpf = mpf_found;
+
+	if (!smp_found_config)
+		return;
 
 	if (!mpf)
 		return;

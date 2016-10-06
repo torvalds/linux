@@ -1,6 +1,9 @@
 #
 # PCI configuration
 #
+
+source "drivers/pci/pcie/Kconfig"
+
 config PCI_BUS_ADDR_T_64BIT
 	def_bool y if (ARCH_DMA_ADDR_T_64BIT || 64BIT)
 	depends on PCI
@@ -22,7 +25,7 @@ config PCI_MSI
 	   If you don't know what to do here, say Y.
 
 config PCI_MSI_IRQ_DOMAIN
-	bool
+	def_bool ARM || ARM64 || X86
 	depends on PCI_MSI
 	select GENERIC_MSI_IRQ_DOMAIN
 
@@ -80,6 +83,9 @@ config HT_IRQ
 config PCI_ATS
 	bool
 
+config PCI_ECAM
+	bool
+
 config PCI_IOV
 	bool "PCI IOV support"
 	depends on PCI
@@ -118,4 +124,12 @@ config PCI_LABEL
 	def_bool y if (DMI || ACPI)
 	select NLS
 
+config PCI_HYPERV
+        tristate "Hyper-V PCI Frontend"
+        depends on PCI && X86 && HYPERV && PCI_MSI && PCI_MSI_IRQ_DOMAIN && X86_64
+        help
+          The PCI device frontend driver allows the kernel to import arbitrary
+          PCI devices from a PCI backend to support PCI driver domains.
+
+source "drivers/pci/hotplug/Kconfig"
 source "drivers/pci/host/Kconfig"

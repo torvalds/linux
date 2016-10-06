@@ -867,7 +867,7 @@ static int netdev_open(struct net_device *dev)
 
 	/* Initialize other registers. */
 	__set_mac_addr(dev);
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+#if IS_ENABLED(CONFIG_VLAN_8021Q)
 	iowrite16(dev->mtu + 18, ioaddr + MaxFrameSize);
 #else
 	iowrite16(dev->mtu + 14, ioaddr + MaxFrameSize);
@@ -1011,7 +1011,7 @@ static void tx_timeout(struct net_device *dev)
 
 	dev->if_port = 0;
 
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	dev->stats.tx_errors++;
 	if (np->cur_tx - np->dirty_tx < TX_QUEUE_LEN - 4) {
 		netif_wake_queue(dev);

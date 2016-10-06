@@ -525,7 +525,7 @@ static int setup_cipher_iv_desc(struct cryptocop_tfrm_ctx *tc, struct cryptocop_
 	return 0;
 }
 
-/* Map the ouput length of the transform to operation output starting on the inject index. */
+/* Map the output length of the transform to operation output starting on the inject index. */
 static int create_input_descriptors(struct cryptocop_operation *operation, struct cryptocop_tfrm_ctx *tc, struct cryptocop_dma_desc **id, int alloc_flag)
 {
 	int                        err = 0;
@@ -2719,9 +2719,7 @@ static int cryptocop_ioctl_process(struct inode *inode, struct file *filp, unsig
 	/* Acquire the mm page semaphore. */
 	down_read(&current->mm->mmap_sem);
 
-	err = get_user_pages(current,
-			     current->mm,
-			     (unsigned long int)(oper.indata + prev_ix),
+	err = get_user_pages((unsigned long int)(oper.indata + prev_ix),
 			     noinpages,
 			     0,  /* read access only for in data */
 			     0, /* no force */
@@ -2736,9 +2734,7 @@ static int cryptocop_ioctl_process(struct inode *inode, struct file *filp, unsig
 	}
 	noinpages = err;
 	if (oper.do_cipher){
-		err = get_user_pages(current,
-				     current->mm,
-				     (unsigned long int)oper.cipher_outdata,
+		err = get_user_pages((unsigned long int)oper.cipher_outdata,
 				     nooutpages,
 				     1, /* write access for out data */
 				     0, /* no force */

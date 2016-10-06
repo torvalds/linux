@@ -421,7 +421,6 @@ struct protection_domain {
 	bool updated;		/* complete domain flush required */
 	unsigned dev_cnt;	/* devices assigned to this domain */
 	unsigned dev_iommu[MAX_IOMMUS]; /* per-IOMMU reference count */
-	void *priv;             /* private data */
 };
 
 /*
@@ -525,6 +524,21 @@ struct amd_iommu {
 	struct irq_domain *ir_domain;
 	struct irq_domain *msi_domain;
 #endif
+
+	volatile u64 __aligned(8) cmd_sem;
+};
+
+#define ACPIHID_UID_LEN 256
+#define ACPIHID_HID_LEN 9
+
+struct acpihid_map_entry {
+	struct list_head list;
+	u8 uid[ACPIHID_UID_LEN];
+	u8 hid[ACPIHID_HID_LEN];
+	u16 devid;
+	u16 root_devid;
+	bool cmd_line;
+	struct iommu_group *group;
 };
 
 struct devid_map {
@@ -537,6 +551,7 @@ struct devid_map {
 /* Map HPET and IOAPIC ids to the devid used by the IOMMU */
 extern struct list_head ioapic_map;
 extern struct list_head hpet_map;
+extern struct list_head acpihid_map;
 
 /*
  * List with all IOMMUs in the system. This list is not locked because it is
@@ -667,31 +682,5 @@ static inline int get_hpet_devid(int id)
 
 	return -EINVAL;
 }
-
-#ifdef CONFIG_AMD_IOMMU_STATS
-
-struct __iommu_counter {
-	char *name;
-	struct dentry *dent;
-	u64 value;
-};
-
-#define DECLARE_STATS_COUNTER(nm) \
-	static struct __iommu_counter nm = {	\
-		.name = #nm,			\
-	}
-
-#define INC_STATS_COUNTER(name)		name.value += 1
-#define ADD_STATS_COUNTER(name, x)	name.value += (x)
-#define SUB_STATS_COUNTER(name, x)	name.value -= (x)
-
-#else /* CONFIG_AMD_IOMMU_STATS */
-
-#define DECLARE_STATS_COUNTER(name)
-#define INC_STATS_COUNTER(name)
-#define ADD_STATS_COUNTER(name, x)
-#define SUB_STATS_COUNTER(name, x)
-
-#endif /* CONFIG_AMD_IOMMU_STATS */
 
 #endif /* _ASM_X86_AMD_IOMMU_TYPES_H */

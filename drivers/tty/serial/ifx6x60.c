@@ -395,8 +395,10 @@ static int ifx_spi_decode_spi_header(unsigned char *buffer, int *length,
 
 	if (h1 == 0 && h2 == 0) {
 		*received_cts = 0;
+		*more = 0;
 		return IFX_SPI_HEADER_0;
 	} else if (h1 == 0xffff && h2 == 0xffff) {
+		*more = 0;
 		/* spi_slave_cts remains as it was */
 		return IFX_SPI_HEADER_F;
 	}
@@ -649,7 +651,7 @@ static void ifx_spi_complete(void *ctx)
 	struct ifx_spi_device *ifx_dev = ctx;
 	int length;
 	int actual_length;
-	unsigned char more;
+	unsigned char more = 0;
 	unsigned char cts;
 	int local_write_pending = 0;
 	int queue_length;
@@ -688,6 +690,7 @@ static void ifx_spi_complete(void *ctx)
 			ifx_dev->rx_buffer + IFX_SPI_HEADER_OVERHEAD,
 			(size_t)actual_length);
 	} else {
+		more = 0;
 		dev_dbg(&ifx_dev->spi_dev->dev, "SPI transfer error %d",
 		       ifx_dev->spi_msg.status);
 	}

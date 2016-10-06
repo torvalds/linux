@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "efi: " fmt
+
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -8,6 +10,7 @@
 #include <linux/memblock.h>
 #include <linux/bootmem.h>
 #include <linux/acpi.h>
+#include <linux/dmi.h>
 #include <asm/efi.h>
 #include <asm/uv/uv.h>
 
@@ -54,19 +57,50 @@ void efi_delete_dummy_variable(void)
 }
 
 /*
+ * In the nonblocking case we do not attempt to perform garbage
+ * collection if we do not have enough free space. Rather, we do the
+ * bare minimum check and give up immediately if the available space
+ * is below EFI_MIN_RESERVE.
+ *
+ * This function is intended to be small and simple because it is
+ * invoked from crash handler paths.
+ */
+static efi_status_t
+query_variable_store_nonblocking(u32 attributes, unsigned long size)
+{
+	efi_status_t status;
+	u64 storage_size, remaining_size, max_size;
+
+	status = efi.query_variable_info_nonblocking(attributes, &storage_size,
+						     &remaining_size,
+						     &max_size);
+	if (status != EFI_SUCCESS)
+		return status;
+
+	if (remaining_size - size < EFI_MIN_RESERVE)
+		return EFI_OUT_OF_RESOURCES;
+
+	return EFI_SUCCESS;
+}
+
+/*
  * Some firmware implementations refuse to boot if there's insufficient space
  * in the variable store. Ensure that we never use more than a safe limit.
  *
  * Return EFI_SUCCESS if it is safe to write 'size' bytes to the variable
  * store.
  */
-efi_status_t efi_query_variable_store(u32 attributes, unsigned long size)
+efi_status_t efi_query_variable_store(u32 attributes, unsigned long size,
+				      bool nonblocking)
 {
 	efi_status_t status;
 	u64 storage_size, remaining_size, max_size;
 
 	if (!(attributes & EFI_VARIABLE_NON_VOLATILE))
 		return 0;
+
+	if (nonblocking)
+		return query_variable_store_nonblocking(attributes, size);
 
 	status = efi.query_variable_info(attributes, &storage_size,
 					 &remaining_size, &max_size);
@@ -130,66 +164,231 @@ efi_status_t efi_query_variable_store(u32 attributes, unsigned long size)
 EXPORT_SYMBOL_GPL(efi_query_variable_store);
 
 /*
- * The UEFI specification makes it clear that the operating system is free to do
- * whatever it wants with boot services code after ExitBootServices() has been
- * called. Ignoring this recommendation a significant bunch of EFI implementations 
- * continue calling into boot services code (SetVirtualAddressMap). In order to 
- * work around such buggy implementations we reserve boot services region during 
- * EFI init and make sure it stays executable. Then, after SetVirtualAddressMap(), it
-* is discarded.
-*/
+ * The UEFI specification makes it clear that the operating system is
+ * free to do whatever it wants with boot services code after
+ * ExitBootServices() has been called. Ignoring this recommendation a
+ * significant bunch of EFI implementations continue calling into boot
+ * services code (SetVirtualAddressMap). In order to work around such
+ * buggy implementations we reserve boot services region during EFI
+ * init and make sure it stays executable. Then, after
+ * SetVirtualAddressMap(), it is discarded.
+ *
+ * However, some boot services regions contain data that is required
+ * by drivers, so we need to track which memory ranges can never be
+ * freed. This is done by tagging those regions with the
+ * EFI_MEMORY_RUNTIME attribute.
+ *
+ * Any driver that wants to mark a region as reserved must use
+ * efi_mem_reserve() which will insert a new EFI memory descriptor
+ * into efi.memmap (splitting existing regions if necessary) and tag
+ * it with EFI_MEMORY_RUNTIME.
+ */
+void __init efi_arch_mem_reserve(phys_addr_t addr, u64 size)
+{
+	phys_addr_t new_phys, new_size;
+	struct efi_mem_range mr;
+	efi_memory_desc_t md;
+	int num_entries;
+	void *new;
+
+	if (efi_mem_desc_lookup(addr, &md)) {
+		pr_err("Failed to lookup EFI memory descriptor for %pa\n", &addr);
+		return;
+	}
+
+	if (addr + size > md.phys_addr + (md.num_pages << EFI_PAGE_SHIFT)) {
+		pr_err("Region spans EFI memory descriptors, %pa\n", &addr);
+		return;
+	}
+
+	size += addr % EFI_PAGE_SIZE;
+	size = round_up(size, EFI_PAGE_SIZE);
+	addr = round_down(addr, EFI_PAGE_SIZE);
+
+	mr.range.start = addr;
+	mr.range.end = addr + size - 1;
+	mr.attribute = md.attribute | EFI_MEMORY_RUNTIME;
+
+	num_entries = efi_memmap_split_count(&md, &mr.range);
+	num_entries += efi.memmap.nr_map;
+
+	new_size = efi.memmap.desc_size * num_entries;
+
+	new_phys = memblock_alloc(new_size, 0);
+	if (!new_phys) {
+		pr_err("Could not allocate boot services memmap\n");
+		return;
+	}
+
+	new = early_memremap(new_phys, new_size);
+	if (!new) {
+		pr_err("Failed to map new boot services memmap\n");
+		return;
+	}
+
+	efi_memmap_insert(&efi.memmap, new, &mr);
+	early_memunmap(new, new_size);
+
+	efi_memmap_install(new_phys, num_entries);
+}
+
+/*
+ * Helper function for efi_reserve_boot_services() to figure out if we
+ * can free regions in efi_free_boot_services().
+ *
+ * Use this function to ensure we do not free regions owned by somebody
+ * else. We must only reserve (and then free) regions:
+ *
+ * - Not within any part of the kernel
+ * - Not the BIOS reserved area (E820_RESERVED, E820_NVS, etc)
+ */
+static bool can_free_region(u64 start, u64 size)
+{
+	if (start + size > __pa_symbol(_text) && start <= __pa_symbol(_end))
+		return false;
+
+	if (!e820_all_mapped(start, start+size, E820_RAM))
+		return false;
+
+	return true;
+}
+
 void __init efi_reserve_boot_services(void)
 {
-	void *p;
+	efi_memory_desc_t *md;
 
-	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
-		efi_memory_desc_t *md = p;
+	for_each_efi_memory_desc(md) {
 		u64 start = md->phys_addr;
 		u64 size = md->num_pages << EFI_PAGE_SHIFT;
+		bool already_reserved;
 
 		if (md->type != EFI_BOOT_SERVICES_CODE &&
 		    md->type != EFI_BOOT_SERVICES_DATA)
 			continue;
-		/* Only reserve where possible:
-		 * - Not within any already allocated areas
-		 * - Not over any memory area (really needed, if above?)
-		 * - Not within any part of the kernel
-		 * - Not the bios reserved area
-		*/
-		if ((start + size > __pa_symbol(_text)
-				&& start <= __pa_symbol(_end)) ||
-			!e820_all_mapped(start, start+size, E820_RAM) ||
-			memblock_is_region_reserved(start, size)) {
-			/* Could not reserve, skip it */
-			md->num_pages = 0;
-			memblock_dbg("Could not reserve boot range [0x%010llx-0x%010llx]\n",
-				     start, start+size-1);
-		} else
+
+		already_reserved = memblock_is_region_reserved(start, size);
+
+		/*
+		 * Because the following memblock_reserve() is paired
+		 * with free_bootmem_late() for this region in
+		 * efi_free_boot_services(), we must be extremely
+		 * careful not to reserve, and subsequently free,
+		 * critical regions of memory (like the kernel image) or
+		 * those regions that somebody else has already
+		 * reserved.
+		 *
+		 * A good example of a critical region that must not be
+		 * freed is page zero (first 4Kb of memory), which may
+		 * contain boot services code/data but is marked
+		 * E820_RESERVED by trim_bios_range().
+		 */
+		if (!already_reserved) {
 			memblock_reserve(start, size);
+
+			/*
+			 * If we are the first to reserve the region, no
+			 * one else cares about it. We own it and can
+			 * free it later.
+			 */
+			if (can_free_region(start, size))
+				continue;
+		}
+
+		/*
+		 * We don't own the region. We must not free it.
+		 *
+		 * Setting this bit for a boot services region really
+		 * doesn't make sense as far as the firmware is
+		 * concerned, but it does provide us with a way to tag
+		 * those regions that must not be paired with
+		 * free_bootmem_late().
+		 */
+		md->attribute |= EFI_MEMORY_RUNTIME;
 	}
 }
 
 void __init efi_free_boot_services(void)
 {
-	void *p;
+	phys_addr_t new_phys, new_size;
+	efi_memory_desc_t *md;
+	int num_entries = 0;
+	void *new, *new_md;
 
-	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
-		efi_memory_desc_t *md = p;
+	for_each_efi_memory_desc(md) {
 		unsigned long long start = md->phys_addr;
 		unsigned long long size = md->num_pages << EFI_PAGE_SHIFT;
+		size_t rm_size;
 
 		if (md->type != EFI_BOOT_SERVICES_CODE &&
-		    md->type != EFI_BOOT_SERVICES_DATA)
+		    md->type != EFI_BOOT_SERVICES_DATA) {
+			num_entries++;
 			continue;
+		}
 
-		/* Could not reserve boot area */
-		if (!size)
+		/* Do not free, someone else owns it: */
+		if (md->attribute & EFI_MEMORY_RUNTIME) {
+			num_entries++;
 			continue;
+		}
+
+		/*
+		 * Nasty quirk: if all sub-1MB memory is used for boot
+		 * services, we can get here without having allocated the
+		 * real mode trampoline.  It's too late to hand boot services
+		 * memory back to the memblock allocator, so instead
+		 * try to manually allocate the trampoline if needed.
+		 *
+		 * I've seen this on a Dell XPS 13 9350 with firmware
+		 * 1.4.4 with SGX enabled booting Linux via Fedora 24's
+		 * grub2-efi on a hard disk.  (And no, I don't know why
+		 * this happened, but Linux should still try to boot rather
+		 * panicing early.)
+		 */
+		rm_size = real_mode_size_needed();
+		if (rm_size && (start + rm_size) < (1<<20) && size >= rm_size) {
+			set_real_mode_mem(start, rm_size);
+			start += rm_size;
+			size -= rm_size;
+		}
 
 		free_bootmem_late(start, size);
 	}
 
-	efi_unmap_memmap();
+	new_size = efi.memmap.desc_size * num_entries;
+	new_phys = memblock_alloc(new_size, 0);
+	if (!new_phys) {
+		pr_err("Failed to allocate new EFI memmap\n");
+		return;
+	}
+
+	new = memremap(new_phys, new_size, MEMREMAP_WB);
+	if (!new) {
+		pr_err("Failed to map new EFI memmap\n");
+		return;
+	}
+
+	/*
+	 * Build a new EFI memmap that excludes any boot services
+	 * regions that are not tagged EFI_MEMORY_RUNTIME, since those
+	 * regions have now been freed.
+	 */
+	new_md = new;
+	for_each_efi_memory_desc(md) {
+		if (!(md->attribute & EFI_MEMORY_RUNTIME) &&
+		    (md->type == EFI_BOOT_SERVICES_CODE ||
+		     md->type == EFI_BOOT_SERVICES_DATA))
+			continue;
+
+		memcpy(new_md, md, efi.memmap.desc_size);
+		new_md += efi.memmap.desc_size;
+	}
+
+	memunmap(new);
+
+	if (efi_memmap_install(new_phys, num_entries)) {
+		pr_err("Could not install new EFI memmap\n");
+		return;
+	}
 }
 
 /*
@@ -248,6 +447,16 @@ out:
 	return ret;
 }
 
+static const struct dmi_system_id sgi_uv1_dmi[] = {
+	{ NULL, "SGI UV1",
+		{	DMI_MATCH(DMI_PRODUCT_NAME,	"Stoutland Platform"),
+			DMI_MATCH(DMI_PRODUCT_VERSION,	"1.0"),
+			DMI_MATCH(DMI_BIOS_VENDOR,	"SGI.COM"),
+		}
+	},
+	{ } /* NULL entry stops DMI scanning */
+};
+
 void __init efi_apply_memmap_quirks(void)
 {
 	/*
@@ -256,14 +465,12 @@ void __init efi_apply_memmap_quirks(void)
 	 * services.
 	 */
 	if (!efi_runtime_supported()) {
-		pr_info("efi: Setup done, disabling due to 32/64-bit mismatch\n");
-		efi_unmap_memmap();
+		pr_info("Setup done, disabling due to 32/64-bit mismatch\n");
+		efi_memmap_unmap();
 	}
 
-	/*
-	 * UV doesn't support the new EFI pagetable mapping yet.
-	 */
-	if (is_uv_system())
+	/* UV2+ BIOS has a fix for this issue.  UV1 still needs the quirk. */
+	if (dmi_check_system(sgi_uv1_dmi))
 		set_bit(EFI_OLD_MEMMAP, &efi.flags);
 }
 
@@ -286,5 +493,5 @@ bool efi_reboot_required(void)
 
 bool efi_poweroff_required(void)
 {
-	return !!acpi_gbl_reduced_hardware;
+	return acpi_gbl_reduced_hardware || acpi_no_s5;
 }

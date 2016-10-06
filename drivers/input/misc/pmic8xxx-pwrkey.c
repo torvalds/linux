@@ -353,7 +353,8 @@ static int pmic8xxx_pwrkey_probe(struct platform_device *pdev)
 	if (of_property_read_u32(pdev->dev.of_node, "debounce", &kpd_delay))
 		kpd_delay = 15625;
 
-	if (kpd_delay > 62500 || kpd_delay == 0) {
+	/* Valid range of pwr key trigger delay is 1/64 sec to 2 seconds. */
+	if (kpd_delay > USEC_PER_SEC * 2 || kpd_delay < USEC_PER_SEC / 64) {
 		dev_err(&pdev->dev, "invalid power key trigger delay\n");
 		return -EINVAL;
 	}
@@ -385,8 +386,8 @@ static int pmic8xxx_pwrkey_probe(struct platform_device *pdev)
 	pwr->name = "pmic8xxx_pwrkey";
 	pwr->phys = "pmic8xxx_pwrkey/input0";
 
-	delay = (kpd_delay << 10) / USEC_PER_SEC;
-	delay = 1 + ilog2(delay);
+	delay = (kpd_delay << 6) / USEC_PER_SEC;
+	delay = ilog2(delay);
 
 	err = regmap_read(regmap, PON_CNTL_1, &pon_cntl);
 	if (err < 0) {

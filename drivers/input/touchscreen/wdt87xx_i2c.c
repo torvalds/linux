@@ -848,7 +848,7 @@ static int wdt87xx_do_update_firmware(struct i2c_client *client,
 	error = wdt87xx_get_sysparam(client, &wdt->param);
 	if (error)
 		dev_err(&client->dev,
-			"failed to refresh system paramaters: %d\n", error);
+			"failed to refresh system parameters: %d\n", error);
 out:
 	enable_irq(client->irq);
 	mutex_unlock(&wdt->fw_mutex);

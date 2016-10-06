@@ -54,7 +54,7 @@ ACPI_MODULE_NAME("osunixmap")
 #ifndef O_BINARY
 #define O_BINARY 0
 #endif
-#if defined(_dragon_fly) || defined(_free_BSD)
+#if defined(_dragon_fly) || defined(_free_BSD) || defined(_QNX)
 #define MMAP_FLAGS          MAP_SHARED
 #else
 #define MMAP_FLAGS          MAP_PRIVATE

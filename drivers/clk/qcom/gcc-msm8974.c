@@ -1965,7 +1965,6 @@ static struct clk_branch gcc_mss_q6_bimc_axi_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_mss_q6_bimc_axi_clk",
-			.flags = CLK_IS_ROOT,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2680,7 +2679,6 @@ static const struct regmap_config gcc_msm8974_regmap_config = {
 	.val_bits	= 32,
 	.max_register	= 0x1fc0,
 	.fast_io	= true,
-	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 };
 
 static const struct qcom_cc_desc gcc_msm8974_desc = {

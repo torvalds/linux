@@ -277,7 +277,10 @@ static inline void raw_write_seqcount_barrier(seqcount_t *s)
 
 static inline int raw_read_seqcount_latch(seqcount_t *s)
 {
-	return lockless_dereference(s->sequence);
+	int seq = READ_ONCE(s->sequence);
+	/* Pairs with the first smp_wmb() in raw_write_seqcount_latch() */
+	smp_read_barrier_depends();
+	return seq;
 }
 
 /**
@@ -331,7 +334,7 @@ static inline int raw_read_seqcount_latch(seqcount_t *s)
  *	unsigned seq, idx;
  *
  *	do {
- *		seq = lockless_dereference(latch->seq);
+ *		seq = raw_read_seqcount_latch(&latch->seq);
  *
  *		idx = seq & 0x01;
  *		entry = data_query(latch->data[idx], ...);

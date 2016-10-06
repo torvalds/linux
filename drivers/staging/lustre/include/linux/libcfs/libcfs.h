@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -42,6 +38,8 @@
 
 #include "curproc.h"
 
+#define LIBCFS_VERSION "0.7.0"
+
 #define LOWEST_BIT_SET(x)       ((x) & ~((x) - 1))
 
 /*
@@ -51,8 +49,6 @@
 #define LERRCHKSUM(hexnum) (((hexnum) & 0xf) ^ ((hexnum) >> 4 & 0xf) ^ \
 			   ((hexnum) >> 8 & 0xf))
 
-#define LUSTRE_SRV_LNET_PID      LUSTRE_LNET_PID
-
 #include <linux/list.h>
 
 /* need both kernel and user-land acceptor */
@@ -60,42 +56,12 @@
 #define LNET_ACCEPTOR_MAX_RESERVED_PORT    1023
 
 /*
- * libcfs pseudo device operations
- *
- * It's just draft now.
- */
-
-struct cfs_psdev_file {
-	unsigned long   off;
-	void	    *private_data;
-	unsigned long   reserved1;
-	unsigned long   reserved2;
-};
-
-struct cfs_psdev_ops {
-	int (*p_open)(unsigned long, void *);
-	int (*p_close)(unsigned long, void *);
-	int (*p_read)(struct cfs_psdev_file *, char *, unsigned long);
-	int (*p_write)(struct cfs_psdev_file *, char *, unsigned long);
-	int (*p_ioctl)(struct cfs_psdev_file *, unsigned long, void *);
-};
-
-/*
- * Drop into debugger, if possible. Implementation is provided by platform.
- */
-
-void cfs_enter_debugger(void);
-
-/*
  * Defined by platform
  */
-int unshare_fs_struct(void);
-sigset_t cfs_get_blocked_sigs(void);
 sigset_t cfs_block_allsigs(void);
 sigset_t cfs_block_sigs(unsigned long sigs);
 sigset_t cfs_block_sigsinv(unsigned long sigs);
 void cfs_restore_sigs(sigset_t);
-int cfs_signal_pending(void);
 void cfs_clear_sigpending(void);
 
 /*
@@ -115,11 +81,28 @@ void cfs_get_random_bytes(void *buf, int size);
 #include "libcfs_prim.h"
 #include "libcfs_time.h"
 #include "libcfs_string.h"
-#include "libcfs_kernelcomm.h"
 #include "libcfs_workitem.h"
 #include "libcfs_hash.h"
 #include "libcfs_fail.h"
-#include "libcfs_crypto.h"
+
+struct libcfs_ioctl_handler {
+	struct list_head item;
+	int (*handle_ioctl)(unsigned int cmd, struct libcfs_ioctl_hdr *hdr);
+};
+
+#define DECLARE_IOCTL_HANDLER(ident, func)			\
+	struct libcfs_ioctl_handler ident = {			\
+		.item		= LIST_HEAD_INIT(ident.item),	\
+		.handle_ioctl	= func				\
+	}
+
+int libcfs_register_ioctl(struct libcfs_ioctl_handler *hand);
+int libcfs_deregister_ioctl(struct libcfs_ioctl_handler *hand);
+
+int libcfs_ioctl_getdata(struct libcfs_ioctl_hdr **hdr_pp,
+			 const struct libcfs_ioctl_hdr __user *uparam);
+int libcfs_ioctl_data_adjust(struct libcfs_ioctl_data *data);
+int libcfs_ioctl(unsigned long cmd, void __user *arg);
 
 /* container_of depends on "likely" which is defined in libcfs_private.h */
 static inline void *__container_of(void *ptr, unsigned long shift)
@@ -145,8 +128,6 @@ extern struct miscdevice libcfs_dev;
 extern char lnet_upcall[1024];
 extern char lnet_debug_log_upcall[1024];
 
-extern struct cfs_psdev_ops libcfs_psdev_ops;
-
 extern struct cfs_wi_sched *cfs_sched_rehash;
 
 struct lnet_debugfs_symlink_def {
@@ -156,5 +137,9 @@ struct lnet_debugfs_symlink_def {
 
 void lustre_insert_debugfs(struct ctl_table *table,
 			   const struct lnet_debugfs_symlink_def *symlinks);
+int lprocfs_call_handler(void *data, int write, loff_t *ppos,
+			 void __user *buffer, size_t *lenp,
+			 int (*handler)(void *data, int write, loff_t pos,
+					void __user *buffer, int len));
 
 #endif /* _LIBCFS_H */

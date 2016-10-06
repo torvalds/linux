@@ -9,39 +9,26 @@
 
 #include "blk.h"
 
-static bool iovec_gap_to_prv(struct request_queue *q,
-			     struct iovec *prv, struct iovec *cur)
+/*
+ * Append a bio to a passthrough request.  Only works can be merged into
+ * the request based on the driver constraints.
+ */
+int blk_rq_append_bio(struct request *rq, struct bio *bio)
 {
-	unsigned long prev_end;
+	if (!rq->bio) {
+		blk_rq_bio_prep(rq->q, rq, bio);
+	} else {
+		if (!ll_back_merge_fn(rq->q, rq, bio))
+			return -EINVAL;
 
-	if (!queue_virt_boundary(q))
-		return false;
-
-	if (prv->iov_base == NULL && prv->iov_len == 0)
-		/* prv is not set - don't check */
-		return false;
-
-	prev_end = (unsigned long)(prv->iov_base + prv->iov_len);
-
-	return (((unsigned long)cur->iov_base & queue_virt_boundary(q)) ||
-		prev_end & queue_virt_boundary(q));
-}
-
-int blk_rq_append_bio(struct request_queue *q, struct request *rq,
-		      struct bio *bio)
-{
-	if (!rq->bio)
-		blk_rq_bio_prep(q, rq, bio);
-	else if (!ll_back_merge_fn(q, rq, bio))
-		return -EINVAL;
-	else {
 		rq->biotail->bi_next = bio;
 		rq->biotail = bio;
-
 		rq->__data_len += bio->bi_iter.bi_size;
 	}
+
 	return 0;
 }
+EXPORT_SYMBOL(blk_rq_append_bio);
 
 static int __blk_rq_unmap_user(struct bio *bio)
 {
@@ -55,6 +42,49 @@ static int __blk_rq_unmap_user(struct bio *bio)
 	}
 
 	return ret;
+}
+
+static int __blk_rq_map_user_iov(struct request *rq,
+		struct rq_map_data *map_data, struct iov_iter *iter,
+		gfp_t gfp_mask, bool copy)
+{
+	struct request_queue *q = rq->q;
+	struct bio *bio, *orig_bio;
+	int ret;
+
+	if (copy)
+		bio = bio_copy_user_iov(q, map_data, iter, gfp_mask);
+	else
+		bio = bio_map_user_iov(q, iter, gfp_mask);
+
+	if (IS_ERR(bio))
+		return PTR_ERR(bio);
+
+	if (map_data && map_data->null_mapped)
+		bio_set_flag(bio, BIO_NULL_MAPPED);
+
+	iov_iter_advance(iter, bio->bi_iter.bi_size);
+	if (map_data)
+		map_data->offset += bio->bi_iter.bi_size;
+
+	orig_bio = bio;
+	blk_queue_bounce(q, &bio);
+
+	/*
+	 * We link the bounce buffer in and could have to traverse it
+	 * later so we have to get a ref to prevent it from being freed
+	 */
+	bio_get(bio);
+
+	ret = blk_rq_append_bio(rq, bio);
+	if (ret) {
+		bio_endio(bio);
+		__blk_rq_unmap_user(orig_bio);
+		bio_put(bio);
+		return ret;
+	}
+
+	return 0;
 }
 
 /**
@@ -82,61 +112,36 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 			struct rq_map_data *map_data,
 			const struct iov_iter *iter, gfp_t gfp_mask)
 {
-	struct bio *bio;
-	int unaligned = 0;
+	bool copy = false;
+	unsigned long align = q->dma_pad_mask | queue_dma_alignment(q);
+	struct bio *bio = NULL;
 	struct iov_iter i;
-	struct iovec iov, prv = {.iov_base = NULL, .iov_len = 0};
+	int ret;
 
-	if (!iter || !iter->count)
-		return -EINVAL;
+	if (map_data)
+		copy = true;
+	else if (iov_iter_alignment(iter) & align)
+		copy = true;
+	else if (queue_virt_boundary(q))
+		copy = queue_virt_boundary(q) & iov_iter_gap_alignment(iter);
 
-	iov_for_each(iov, i, *iter) {
-		unsigned long uaddr = (unsigned long) iov.iov_base;
-
-		if (!iov.iov_len)
-			return -EINVAL;
-
-		/*
-		 * Keep going so we check length of all segments
-		 */
-		if ((uaddr & queue_dma_alignment(q)) ||
-		    iovec_gap_to_prv(q, &prv, &iov))
-			unaligned = 1;
-
-		prv.iov_base = iov.iov_base;
-		prv.iov_len = iov.iov_len;
-	}
-
-	if (unaligned || (q->dma_pad_mask & iter->count) || map_data)
-		bio = bio_copy_user_iov(q, map_data, iter, gfp_mask);
-	else
-		bio = bio_map_user_iov(q, iter, gfp_mask);
-
-	if (IS_ERR(bio))
-		return PTR_ERR(bio);
-
-	if (map_data && map_data->null_mapped)
-		bio_set_flag(bio, BIO_NULL_MAPPED);
-
-	if (bio->bi_iter.bi_size != iter->count) {
-		/*
-		 * Grab an extra reference to this bio, as bio_unmap_user()
-		 * expects to be able to drop it twice as it happens on the
-		 * normal IO completion path
-		 */
-		bio_get(bio);
-		bio_endio(bio);
-		__blk_rq_unmap_user(bio);
-		return -EINVAL;
-	}
+	i = *iter;
+	do {
+		ret =__blk_rq_map_user_iov(rq, map_data, &i, gfp_mask, copy);
+		if (ret)
+			goto unmap_rq;
+		if (!bio)
+			bio = rq->bio;
+	} while (iov_iter_count(&i));
 
 	if (!bio_flagged(bio, BIO_USER_MAPPED))
 		rq->cmd_flags |= REQ_COPY_USER;
-
-	blk_queue_bounce(q, &bio);
-	bio_get(bio);
-	blk_rq_bio_prep(q, rq, bio);
 	return 0;
+
+unmap_rq:
+	__blk_rq_unmap_user(bio);
+	rq->bio = NULL;
+	return -EINVAL;
 }
 EXPORT_SYMBOL(blk_rq_map_user_iov);
 
@@ -224,12 +229,12 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 		return PTR_ERR(bio);
 
 	if (!reading)
-		bio->bi_rw |= REQ_WRITE;
+		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 
 	if (do_copy)
 		rq->cmd_flags |= REQ_COPY_USER;
 
-	ret = blk_rq_append_bio(q, rq, bio);
+	ret = blk_rq_append_bio(rq, bio);
 	if (unlikely(ret)) {
 		/* request is too big */
 		bio_put(bio);

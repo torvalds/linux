@@ -410,7 +410,7 @@ static void r300_gpu_init(struct radeon_device *rdev)
 		 rdev->num_gb_pipes, rdev->num_z_pipes);
 }
 
-int r300_asic_reset(struct radeon_device *rdev)
+int r300_asic_reset(struct radeon_device *rdev, bool hard)
 {
 	struct r100_mc_save save;
 	u32 status, tmp;

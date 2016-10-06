@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2015 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -346,7 +346,7 @@ struct csp {
 	uint8_t fcphHigh;	/* FC Word 0, byte 0 */
 	uint8_t fcphLow;
 	uint8_t bbCreditMsb;
-	uint8_t bbCreditlsb;	/* FC Word 0, byte 3 */
+	uint8_t bbCreditLsb;	/* FC Word 0, byte 3 */
 
 /*
  * Word 1 Bit 31 in common service parameter is overloaded.
@@ -1134,9 +1134,10 @@ struct fc_rdp_link_error_status_desc {
 #define RDP_PS_16GB            0x0400
 #define RDP_PS_32GB            0x0200
 
-#define RDP_CAP_UNKNOWN        0x0001
-#define RDP_PS_UNKNOWN         0x0002
-#define RDP_PS_NOT_ESTABLISHED 0x0001
+#define RDP_CAP_USER_CONFIGURED 0x0002
+#define RDP_CAP_UNKNOWN         0x0001
+#define RDP_PS_UNKNOWN          0x0002
+#define RDP_PS_NOT_ESTABLISHED  0x0001
 
 struct fc_rdp_port_speed {
 	uint16_t   capabilities;
@@ -1192,6 +1193,64 @@ struct fc_rdp_sfp_desc {
 	struct fc_rdp_sfp_info sfp_info;
 };
 
+/* Buffer Credit Descriptor */
+struct fc_rdp_bbc_info {
+	uint32_t              port_bbc; /* FC_Port buffer-to-buffer credit */
+	uint32_t              attached_port_bbc;
+	uint32_t              rtt;      /* Round trip time */
+};
+#define RDP_BBC_DESC_TAG  0x00010006
+struct fc_rdp_bbc_desc {
+	uint32_t              tag;
+	uint32_t              length;
+	struct fc_rdp_bbc_info  bbc_info;
+};
+
+/* Optical Element Type Transgression Flags */
+#define RDP_OET_LOW_WARNING  0x1
+#define RDP_OET_HIGH_WARNING 0x2
+#define RDP_OET_LOW_ALARM    0x4
+#define RDP_OET_HIGH_ALARM   0x8
+
+#define RDP_OED_TEMPERATURE  0x1
+#define RDP_OED_VOLTAGE      0x2
+#define RDP_OED_TXBIAS       0x3
+#define RDP_OED_TXPOWER      0x4
+#define RDP_OED_RXPOWER      0x5
+
+#define RDP_OED_TYPE_SHIFT   28
+/* Optical Element Data descriptor */
+struct fc_rdp_oed_info {
+	uint16_t            hi_alarm;
+	uint16_t            lo_alarm;
+	uint16_t            hi_warning;
+	uint16_t            lo_warning;
+	uint32_t            function_flags;
+};
+#define RDP_OED_DESC_TAG  0x00010007
+struct fc_rdp_oed_sfp_desc {
+	uint32_t             tag;
+	uint32_t             length;
+	struct fc_rdp_oed_info oed_info;
+};
+
+/* Optical Product Data descriptor */
+struct fc_rdp_opd_sfp_info {
+	uint8_t            vendor_name[16];
+	uint8_t            model_number[16];
+	uint8_t            serial_number[16];
+	uint8_t            revision[2];
+	uint8_t            reserved[2];
+	uint8_t            date[8];
+};
+
+#define RDP_OPD_DESC_TAG  0x00010008
+struct fc_rdp_opd_sfp_desc {
+	uint32_t             tag;
+	uint32_t             length;
+	struct fc_rdp_opd_sfp_info opd_info;
+};
+
 struct fc_rdp_req_frame {
 	uint32_t         rdp_command;           /* ELS command opcode (0x18)*/
 	uint32_t         rdp_des_length;        /* RDP Payload Word 1 */
@@ -1208,15 +1267,15 @@ struct fc_rdp_res_frame {
 	struct fc_rdp_link_error_status_desc link_error_desc; /* Word 13-21 */
 	struct fc_rdp_port_name_desc diag_port_names_desc;    /* Word 22-27 */
 	struct fc_rdp_port_name_desc attached_port_names_desc;/* Word 28-33 */
-	struct fc_fec_rdp_desc fec_desc;	      /* FC Word 34 - 37 */
+	struct fc_fec_rdp_desc fec_desc;                      /* FC word 34-37*/
+	struct fc_rdp_bbc_desc bbc_desc;                      /* FC Word 38-42*/
+	struct fc_rdp_oed_sfp_desc oed_temp_desc;             /* FC Word 43-47*/
+	struct fc_rdp_oed_sfp_desc oed_voltage_desc;          /* FC word 48-52*/
+	struct fc_rdp_oed_sfp_desc oed_txbias_desc;           /* FC word 53-57*/
+	struct fc_rdp_oed_sfp_desc oed_txpower_desc;          /* FC word 58-62*/
+	struct fc_rdp_oed_sfp_desc oed_rxpower_desc;          /* FC word 63-67*/
+	struct fc_rdp_opd_sfp_desc opd_desc;                  /* FC word 68-84*/
 };
-
-
-#define RDP_DESC_PAYLOAD_SIZE (sizeof(struct fc_rdp_link_service_desc) \
-				+ sizeof(struct fc_rdp_sfp_desc) \
-				+ sizeof(struct fc_rdp_port_speed_desc) \
-				+ sizeof(struct fc_rdp_link_error_status_desc) \
-				+ (sizeof(struct fc_rdp_port_name_desc) * 2))
 
 
 /******** FDMI ********/

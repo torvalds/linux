@@ -6,7 +6,7 @@ This is the driver for the Altera Triple-Speed Ethernet (TSE) controllers
 using the SGDMA and MSGDMA soft DMA IP components. The driver uses the
 platform bus to obtain component resources. The designs used to test this
 driver were built for a Cyclone(R) V SOC FPGA board, a Cyclone(R) V FPGA board,
-and tested with ARM and NIOS processor hosts seperately. The anticipated use
+and tested with ARM and NIOS processor hosts separately. The anticipated use
 cases are simple communications between an embedded system and an external peer
 for status and simple configuration of the embedded system.
 
@@ -65,14 +65,14 @@ Driver parameters can be also passed in command line by using:
 4.1) Transmit process
 When the driver's transmit routine is called by the kernel, it sets up a
 transmit descriptor by calling the underlying DMA transmit routine (SGDMA or
-MSGDMA), and initites a transmit operation. Once the transmit is complete, an
+MSGDMA), and initiates a transmit operation. Once the transmit is complete, an
 interrupt is driven by the transmit DMA logic. The driver handles the transmit
 completion in the context of the interrupt handling chain by recycling
 resource required to send and track the requested transmit operation.
 
 4.2) Receive process
 The driver will post receive buffers to the receive DMA logic during driver
-intialization. Receive buffers may or may not be queued depending upon the
+initialization. Receive buffers may or may not be queued depending upon the
 underlying DMA logic (MSGDMA is able queue receive buffers, SGDMA is not able
 to queue receive buffers to the SGDMA receive logic). When a packet is
 received, the DMA logic generates an interrupt. The driver handles a receive

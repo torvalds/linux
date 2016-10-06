@@ -91,6 +91,7 @@ static const struct usb_device_id pwc_device_table [] = {
 	{ USB_DEVICE(0x0471, 0x0312) },
 	{ USB_DEVICE(0x0471, 0x0313) }, /* the 'new' 720K */
 	{ USB_DEVICE(0x0471, 0x0329) }, /* Philips SPC 900NC PC Camera */
+	{ USB_DEVICE(0x0471, 0x032C) }, /* Philips SPC 880NC PC Camera */
 	{ USB_DEVICE(0x069A, 0x0001) }, /* Askey */
 	{ USB_DEVICE(0x046D, 0x08B0) }, /* Logitech QuickCam Pro 3000 */
 	{ USB_DEVICE(0x046D, 0x08B1) }, /* Logitech QuickCam Notebook Pro */
@@ -409,7 +410,6 @@ retry:
 	for (i = 0; i < MAX_ISO_BUFS; i++) {
 		urb = usb_alloc_urb(ISO_FRAMES_PER_DESC, GFP_KERNEL);
 		if (urb == NULL) {
-			PWC_ERROR("Failed to allocate urb %d\n", i);
 			pwc_isoc_cleanup(pdev);
 			return -ENOMEM;
 		}
@@ -572,7 +572,7 @@ static void pwc_video_release(struct v4l2_device *v)
 
 static int queue_setup(struct vb2_queue *vq,
 				unsigned int *nbuffers, unsigned int *nplanes,
-				unsigned int sizes[], void *alloc_ctxs[])
+				unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct pwc_device *pdev = vb2_get_drv_priv(vq);
 	int size;
@@ -808,6 +808,11 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 		case 0x0329:
 			PWC_INFO("Philips SPC 900NC USB webcam detected.\n");
 			name = "Philips SPC 900NC webcam";
+			type_id = 740;
+			break;
+		case 0x032C:
+			PWC_INFO("Philips SPC 880NC USB webcam detected.\n");
+			name = "Philips SPC 880NC webcam";
 			type_id = 740;
 			break;
 		default:
@@ -1112,8 +1117,10 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 
 	return 0;
 
+#ifdef CONFIG_USB_PWC_INPUT_EVDEV
 err_video_unreg:
 	video_unregister_device(&pdev->vdev);
+#endif
 err_unregister_v4l2_dev:
 	v4l2_device_unregister(&pdev->v4l2_dev);
 err_free_controls:

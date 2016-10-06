@@ -12,6 +12,8 @@ Required properties:
 Optional properties:
 - #dma-channels: Number of DMA channels supported by the controller (defaults
   to 32 when not specified)
+- #dma-requests: Number of DMA requestor lines supported by the controller
+  (defaults to 32 when not specified)
 
 "marvell,pdma-1.0"
 Used platforms: pxa25x, pxa27x, pxa3xx, pxa93x, pxa168, pxa910, pxa688.

@@ -877,20 +877,8 @@ exit_state_wait_secure_write_answer:
 static int pn544_hci_i2c_acpi_request_resources(struct i2c_client *client)
 {
 	struct pn544_i2c_phy *phy = i2c_get_clientdata(client);
-	const struct acpi_device_id *id;
 	struct gpio_desc *gpiod_en, *gpiod_fw;
-	struct device *dev;
-
-	if (!client)
-		return -EINVAL;
-
-	dev = &client->dev;
-
-	/* Match the struct device against a given list of ACPI IDs */
-	id = acpi_match_device(dev->driver->acpi_match_table, dev);
-
-	if (!id)
-		return -ENODEV;
+	struct device *dev = &client->dev;
 
 	/* Get EN GPIO from ACPI */
 	gpiod_en = devm_gpiod_get_index(dev, PN544_GPIO_NAME_EN, 1,
@@ -1118,7 +1106,6 @@ MODULE_DEVICE_TABLE(of, of_pn544_i2c_match);
 static struct i2c_driver pn544_hci_i2c_driver = {
 	.driver = {
 		   .name = PN544_HCI_I2C_DRIVER_NAME,
-		   .owner  = THIS_MODULE,
 		   .of_match_table = of_match_ptr(of_pn544_i2c_match),
 		   .acpi_match_table = ACPI_PTR(pn544_hci_i2c_acpi_match),
 		  },

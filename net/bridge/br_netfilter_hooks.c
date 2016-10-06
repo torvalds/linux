@@ -30,6 +30,7 @@
 #include <linux/netfilter_ipv6.h>
 #include <linux/netfilter_arp.h>
 #include <linux/in_route.h>
+#include <linux/rculist.h>
 #include <linux/inetdevice.h>
 
 #include <net/ip.h>
@@ -37,12 +38,19 @@
 #include <net/addrconf.h>
 #include <net/route.h>
 #include <net/netfilter/br_netfilter.h>
+#include <net/netns/generic.h>
 
 #include <asm/uaccess.h>
 #include "br_private.h"
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
 #endif
+
+static int brnf_net_id __read_mostly;
+
+struct brnf_net {
+	bool enabled;
+};
 
 #ifdef CONFIG_SYSCTL
 static struct ctl_table_header *brnf_sysctl_header;
@@ -210,13 +218,13 @@ static int br_validate_ipv4(struct net *net, struct sk_buff *skb)
 
 	len = ntohs(iph->tot_len);
 	if (skb->len < len) {
-		IP_INC_STATS_BH(net, IPSTATS_MIB_INTRUNCATEDPKTS);
+		__IP_INC_STATS(net, IPSTATS_MIB_INTRUNCATEDPKTS);
 		goto drop;
 	} else if (len < (iph->ihl*4))
 		goto inhdr_error;
 
 	if (pskb_trim_rcsum(skb, len)) {
-		IP_INC_STATS_BH(net, IPSTATS_MIB_INDISCARDS);
+		__IP_INC_STATS(net, IPSTATS_MIB_INDISCARDS);
 		goto drop;
 	}
 
@@ -229,7 +237,7 @@ static int br_validate_ipv4(struct net *net, struct sk_buff *skb)
 	return 0;
 
 inhdr_error:
-	IP_INC_STATS_BH(net, IPSTATS_MIB_INHDRERRORS);
+	__IP_INC_STATS(net, IPSTATS_MIB_INHDRERRORS);
 drop:
 	return -1;
 }
@@ -388,11 +396,10 @@ bridged_dnat:
 				skb->dev = nf_bridge->physindev;
 				nf_bridge_update_protocol(skb);
 				nf_bridge_push_encap_header(skb);
-				NF_HOOK_THRESH(NFPROTO_BRIDGE,
-					       NF_BR_PRE_ROUTING,
-					       net, sk, skb, skb->dev, NULL,
-					       br_nf_pre_routing_finish_bridge,
-					       1);
+				br_nf_hook_thresh(NF_BR_PRE_ROUTING,
+						  net, sk, skb, skb->dev,
+						  NULL,
+						  br_nf_pre_routing_finish);
 				return 0;
 			}
 			ether_addr_copy(eth_hdr(skb)->h_dest, dev->dev_addr);
@@ -410,10 +417,8 @@ bridged_dnat:
 	skb->dev = nf_bridge->physindev;
 	nf_bridge_update_protocol(skb);
 	nf_bridge_push_encap_header(skb);
-	NF_HOOK_THRESH(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING, net, sk, skb,
-		       skb->dev, NULL,
-		       br_handle_frame_finish, 1);
-
+	br_nf_hook_thresh(NF_BR_PRE_ROUTING, net, sk, skb, skb->dev, NULL,
+			  br_handle_frame_finish);
 	return 0;
 }
 
@@ -693,7 +698,7 @@ static int
 br_nf_ip_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 		  int (*output)(struct net *, struct sock *, struct sk_buff *))
 {
-	unsigned int mtu = ip_skb_dst_mtu(skb);
+	unsigned int mtu = ip_skb_dst_mtu(sk, skb);
 	struct iphdr *iph = ip_hdr(skb);
 
 	if (unlikely(((iph->frag_off & htons(IP_DF)) && !skb->ignore_df) ||
@@ -938,6 +943,90 @@ static struct nf_hook_ops br_nf_ops[] __read_mostly = {
 	},
 };
 
+static int brnf_device_event(struct notifier_block *unused, unsigned long event,
+			     void *ptr)
+{
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct brnf_net *brnet;
+	struct net *net;
+	int ret;
+
+	if (event != NETDEV_REGISTER || !(dev->priv_flags & IFF_EBRIDGE))
+		return NOTIFY_DONE;
+
+	ASSERT_RTNL();
+
+	net = dev_net(dev);
+	brnet = net_generic(net, brnf_net_id);
+	if (brnet->enabled)
+		return NOTIFY_OK;
+
+	ret = nf_register_net_hooks(net, br_nf_ops, ARRAY_SIZE(br_nf_ops));
+	if (ret)
+		return NOTIFY_BAD;
+
+	brnet->enabled = true;
+	return NOTIFY_OK;
+}
+
+static void __net_exit brnf_exit_net(struct net *net)
+{
+	struct brnf_net *brnet = net_generic(net, brnf_net_id);
+
+	if (!brnet->enabled)
+		return;
+
+	nf_unregister_net_hooks(net, br_nf_ops, ARRAY_SIZE(br_nf_ops));
+	brnet->enabled = false;
+}
+
+static struct pernet_operations brnf_net_ops __read_mostly = {
+	.exit = brnf_exit_net,
+	.id   = &brnf_net_id,
+	.size = sizeof(struct brnf_net),
+};
+
+static struct notifier_block brnf_notifier __read_mostly = {
+	.notifier_call = brnf_device_event,
+};
+
+/* recursively invokes nf_hook_slow (again), skipping already-called
+ * hooks (< NF_BR_PRI_BRNF).
+ *
+ * Called with rcu read lock held.
+ */
+int br_nf_hook_thresh(unsigned int hook, struct net *net,
+		      struct sock *sk, struct sk_buff *skb,
+		      struct net_device *indev,
+		      struct net_device *outdev,
+		      int (*okfn)(struct net *, struct sock *,
+				  struct sk_buff *))
+{
+	struct nf_hook_entry *elem;
+	struct nf_hook_state state;
+	int ret;
+
+	elem = rcu_dereference(net->nf.hooks[NFPROTO_BRIDGE][hook]);
+
+	while (elem && (elem->ops.priority <= NF_BR_PRI_BRNF))
+		elem = rcu_dereference(elem->next);
+
+	if (!elem)
+		return okfn(net, sk, skb);
+
+	/* We may already have this, but read-locks nest anyway */
+	rcu_read_lock();
+	nf_hook_state_init(&state, elem, hook, NF_BR_PRI_BRNF + 1,
+			   NFPROTO_BRIDGE, indev, outdev, sk, net, okfn);
+
+	ret = nf_hook_slow(skb, &state);
+	rcu_read_unlock();
+	if (ret == 1)
+		ret = okfn(net, sk, skb);
+
+	return ret;
+}
+
 #ifdef CONFIG_SYSCTL
 static
 int brnf_sysctl_call_tables(struct ctl_table *ctl, int write,
@@ -1003,16 +1092,23 @@ static int __init br_netfilter_init(void)
 {
 	int ret;
 
-	ret = nf_register_hooks(br_nf_ops, ARRAY_SIZE(br_nf_ops));
+	ret = register_pernet_subsys(&brnf_net_ops);
 	if (ret < 0)
 		return ret;
+
+	ret = register_netdevice_notifier(&brnf_notifier);
+	if (ret < 0) {
+		unregister_pernet_subsys(&brnf_net_ops);
+		return ret;
+	}
 
 #ifdef CONFIG_SYSCTL
 	brnf_sysctl_header = register_net_sysctl(&init_net, "net/bridge", brnf_table);
 	if (brnf_sysctl_header == NULL) {
 		printk(KERN_WARNING
 		       "br_netfilter: can't register to sysctl.\n");
-		nf_unregister_hooks(br_nf_ops, ARRAY_SIZE(br_nf_ops));
+		unregister_netdevice_notifier(&brnf_notifier);
+		unregister_pernet_subsys(&brnf_net_ops);
 		return -ENOMEM;
 	}
 #endif
@@ -1024,7 +1120,8 @@ static int __init br_netfilter_init(void)
 static void __exit br_netfilter_fini(void)
 {
 	RCU_INIT_POINTER(nf_br_ops, NULL);
-	nf_unregister_hooks(br_nf_ops, ARRAY_SIZE(br_nf_ops));
+	unregister_netdevice_notifier(&brnf_notifier);
+	unregister_pernet_subsys(&brnf_net_ops);
 #ifdef CONFIG_SYSCTL
 	unregister_net_sysctl_table(brnf_sysctl_header);
 #endif

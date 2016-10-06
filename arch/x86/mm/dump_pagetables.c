@@ -14,7 +14,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/mm.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/seq_file.h>
 
 #include <asm/pgtable.h>
@@ -72,9 +72,9 @@ static struct addr_marker address_markers[] = {
 	{ 0, "User Space" },
 #ifdef CONFIG_X86_64
 	{ 0x8000000000000000UL, "Kernel Space" },
-	{ PAGE_OFFSET,		"Low Kernel Mapping" },
-	{ VMALLOC_START,        "vmalloc() Area" },
-	{ VMEMMAP_START,        "Vmemmap" },
+	{ 0/* PAGE_OFFSET */,   "Low Kernel Mapping" },
+	{ 0/* VMALLOC_START */, "vmalloc() Area" },
+	{ 0/* VMEMMAP_START */, "Vmemmap" },
 # ifdef CONFIG_X86_ESPFIX64
 	{ ESPFIX_BASE_ADDR,	"ESPfix Area", 16 },
 # endif
@@ -358,20 +358,19 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
 #define pgd_none(a)  pud_none(__pud(pgd_val(a)))
 #endif
 
-#ifdef CONFIG_X86_64
 static inline bool is_hypervisor_range(int idx)
 {
+#ifdef CONFIG_X86_64
 	/*
 	 * ffff800000000000 - ffff87ffffffffff is reserved for
 	 * the hypervisor.
 	 */
-	return paravirt_enabled() &&
-		(idx >= pgd_index(__PAGE_OFFSET) - 16) &&
-		(idx < pgd_index(__PAGE_OFFSET));
-}
+	return	(idx >= pgd_index(__PAGE_OFFSET) - 16) &&
+		(idx <  pgd_index(__PAGE_OFFSET));
 #else
-static inline bool is_hypervisor_range(int idx) { return false; }
+	return false;
 #endif
+}
 
 static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
 				       bool checkwx)
@@ -435,8 +434,16 @@ void ptdump_walk_pgd_level_checkwx(void)
 
 static int __init pt_dump_init(void)
 {
+	/*
+	 * Various markers are not compile-time constants, so assign them
+	 * here.
+	 */
+#ifdef CONFIG_X86_64
+	address_markers[LOW_KERNEL_NR].start_address = PAGE_OFFSET;
+	address_markers[VMALLOC_START_NR].start_address = VMALLOC_START;
+	address_markers[VMEMMAP_START_NR].start_address = VMEMMAP_START;
+#endif
 #ifdef CONFIG_X86_32
-	/* Not a compile-time constant on x86-32 */
 	address_markers[VMALLOC_START_NR].start_address = VMALLOC_START;
 	address_markers[VMALLOC_END_NR].start_address = VMALLOC_END;
 # ifdef CONFIG_HIGHMEM
@@ -447,8 +454,4 @@ static int __init pt_dump_init(void)
 
 	return 0;
 }
-
 __initcall(pt_dump_init);
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Arjan van de Ven <arjan@linux.intel.com>");
-MODULE_DESCRIPTION("Kernel debugging helper that dumps pagetables");

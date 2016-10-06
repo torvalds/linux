@@ -16,6 +16,7 @@
 #include <linux/node.h>
 #include <linux/compiler.h>
 #include <linux/cpumask.h>
+#include <linux/cpuhotplug.h>
 
 struct device;
 struct device_node;
@@ -26,6 +27,9 @@ struct cpu {
 	int hotpluggable;	/* creates sysfs control file if hotpluggable */
 	struct device dev;
 };
+
+extern void boot_cpu_init(void);
+extern void boot_cpu_state_init(void);
 
 extern int register_cpu(struct cpu *cpu, int num);
 extern struct device *get_cpu_device(unsigned cpu);
@@ -51,55 +55,15 @@ extern ssize_t arch_cpu_release(const char *, size_t);
 #endif
 struct notifier_block;
 
-/*
- * CPU notifier priorities.
- */
-enum {
-	/*
-	 * SCHED_ACTIVE marks a cpu which is coming up active during
-	 * CPU_ONLINE and CPU_DOWN_FAILED and must be the first
-	 * notifier.  CPUSET_ACTIVE adjusts cpuset according to
-	 * cpu_active mask right after SCHED_ACTIVE.  During
-	 * CPU_DOWN_PREPARE, SCHED_INACTIVE and CPUSET_INACTIVE are
-	 * ordered in the similar way.
-	 *
-	 * This ordering guarantees consistent cpu_active mask and
-	 * migration behavior to all cpu notifiers.
-	 */
-	CPU_PRI_SCHED_ACTIVE	= INT_MAX,
-	CPU_PRI_CPUSET_ACTIVE	= INT_MAX - 1,
-	CPU_PRI_SCHED_INACTIVE	= INT_MIN + 1,
-	CPU_PRI_CPUSET_INACTIVE	= INT_MIN,
-
-	/* migration should happen before other stuff but after perf */
-	CPU_PRI_PERF		= 20,
-	CPU_PRI_MIGRATION	= 10,
-	CPU_PRI_SMPBOOT		= 9,
-	/* bring up workqueues before normal notifiers and down after */
-	CPU_PRI_WORKQUEUE_UP	= 5,
-	CPU_PRI_WORKQUEUE_DOWN	= -5,
-};
-
 #define CPU_ONLINE		0x0002 /* CPU (unsigned)v is up */
 #define CPU_UP_PREPARE		0x0003 /* CPU (unsigned)v coming up */
 #define CPU_UP_CANCELED		0x0004 /* CPU (unsigned)v NOT coming up */
 #define CPU_DOWN_PREPARE	0x0005 /* CPU (unsigned)v going down */
 #define CPU_DOWN_FAILED		0x0006 /* CPU (unsigned)v NOT going down */
 #define CPU_DEAD		0x0007 /* CPU (unsigned)v dead */
-#define CPU_DYING		0x0008 /* CPU (unsigned)v not running any task,
-					* not handling interrupts, soon dead.
-					* Called on the dying cpu, interrupts
-					* are already disabled. Must not
-					* sleep, must not fail */
 #define CPU_POST_DEAD		0x0009 /* CPU (unsigned)v dead, cpu_hotplug
 					* lock is dropped */
-#define CPU_STARTING		0x000A /* CPU (unsigned)v soon running.
-					* Called on the new cpu, just before
-					* enabling interrupts. Must not sleep,
-					* must not fail */
-#define CPU_DYING_IDLE		0x000B /* CPU (unsigned)v dying, reached
-					* idle loop. */
-#define CPU_BROKEN		0x000C /* CPU (unsigned)v did not die properly,
+#define CPU_BROKEN		0x000B /* CPU (unsigned)v did not die properly,
 					* perhaps due to preemption. */
 
 /* Used for CPU hotplug events occurring while tasks are frozen due to a suspend
@@ -113,11 +77,9 @@ enum {
 #define CPU_DOWN_PREPARE_FROZEN	(CPU_DOWN_PREPARE | CPU_TASKS_FROZEN)
 #define CPU_DOWN_FAILED_FROZEN	(CPU_DOWN_FAILED | CPU_TASKS_FROZEN)
 #define CPU_DEAD_FROZEN		(CPU_DEAD | CPU_TASKS_FROZEN)
-#define CPU_DYING_FROZEN	(CPU_DYING | CPU_TASKS_FROZEN)
-#define CPU_STARTING_FROZEN	(CPU_STARTING | CPU_TASKS_FROZEN)
-
 
 #ifdef CONFIG_SMP
+extern bool cpuhp_tasks_frozen;
 /* Need to know about CPUs going up/down? */
 #if defined(CONFIG_HOTPLUG_CPU) || !defined(MODULE)
 #define cpu_notifier(fn, pri) {					\
@@ -167,7 +129,6 @@ static inline void __unregister_cpu_notifier(struct notifier_block *nb)
 }
 #endif
 
-void smpboot_thread_init(void);
 int cpu_up(unsigned int cpu);
 void notify_cpu_starting(unsigned int cpu);
 extern void cpu_maps_update_begin(void);
@@ -177,6 +138,7 @@ extern void cpu_maps_update_done(void);
 #define cpu_notifier_register_done	cpu_maps_update_done
 
 #else	/* CONFIG_SMP */
+#define cpuhp_tasks_frozen	0
 
 #define cpu_notifier(fn, pri)	do { (void)(fn); } while (0)
 #define __cpu_notifier(fn, pri)	do { (void)(fn); } while (0)
@@ -212,10 +174,6 @@ static inline void cpu_notifier_register_begin(void)
 }
 
 static inline void cpu_notifier_register_done(void)
-{
-}
-
-static inline void smpboot_thread_init(void)
 {
 }
 
@@ -258,17 +216,16 @@ static inline void cpu_hotplug_done(void) {}
 #endif		/* CONFIG_HOTPLUG_CPU */
 
 #ifdef CONFIG_PM_SLEEP_SMP
-extern int disable_nonboot_cpus(void);
+extern int freeze_secondary_cpus(int primary);
+static inline int disable_nonboot_cpus(void)
+{
+	return freeze_secondary_cpus(0);
+}
 extern void enable_nonboot_cpus(void);
 #else /* !CONFIG_PM_SLEEP_SMP */
 static inline int disable_nonboot_cpus(void) { return 0; }
 static inline void enable_nonboot_cpus(void) {}
 #endif /* !CONFIG_PM_SLEEP_SMP */
-
-enum cpuhp_state {
-	CPUHP_OFFLINE,
-	CPUHP_ONLINE,
-};
 
 void cpu_startup_entry(enum cpuhp_state state);
 
@@ -280,14 +237,15 @@ void arch_cpu_idle_enter(void);
 void arch_cpu_idle_exit(void);
 void arch_cpu_idle_dead(void);
 
-DECLARE_PER_CPU(bool, cpu_dead_idle);
-
 int cpu_report_state(int cpu);
 int cpu_check_up_prepare(int cpu);
 void cpu_set_state_online(int cpu);
 #ifdef CONFIG_HOTPLUG_CPU
 bool cpu_wait_death(unsigned int cpu, int seconds);
 bool cpu_report_death(void);
+void cpuhp_report_idle_dead(void);
+#else
+static inline void cpuhp_report_idle_dead(void) { }
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
 
 #endif /* _LINUX_CPU_H_ */

@@ -59,6 +59,11 @@ enum fixed_addresses {
  */
 static __always_inline unsigned long fix_to_virt(const unsigned int idx)
 {
+	/* Check if this memory layout is broken because fixmap overlaps page
+	 * table.
+	 */
+	BUILD_BUG_ON(FIXADDR_START <
+		     XCHAL_PAGE_TABLE_VADDR + XCHAL_PAGE_TABLE_SIZE);
 	BUILD_BUG_ON(idx >= __end_of_fixed_addresses);
 	return __fix_to_virt(idx);
 }

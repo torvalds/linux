@@ -1,0 +1,29 @@
+* Microchip PIC32 SDHCI Controller
+
+This file documents differences between the core properties in mmc.txt
+and the properties used by the sdhci-pic32 driver.
+
+Required properties:
+- compatible: Should be "microchip,pic32mzda-sdhci"
+- interrupts: Should contain interrupt
+- clock-names: Should be "base_clk", "sys_clk".
+               See: Documentation/devicetree/bindings/resource-names.txt
+- clocks: Phandle to the clock.
+          See: Documentation/devicetree/bindings/clock/clock-bindings.txt
+- pinctrl-names: A pinctrl state names "default" must be defined.
+- pinctrl-0: Phandle referencing pin configuration of the SDHCI controller.
+             See: Documentation/devicetree/bindings/pinctrl/pinctrl-binding.txt
+
+Example:
+
+	sdhci@1f8ec000 {
+		compatible = "microchip,pic32mzda-sdhci";
+		reg = <0x1f8ec000 0x100>;
+		interrupts = <191 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rootclk REF4CLK>, <&rootclk PB5CLK>;
+		clock-names = "base_clk", "sys_clk";
+		bus-width = <4>;
+		cap-sd-highspeed;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_sdhc1>;
+	};

@@ -237,7 +237,7 @@ static inline long __vmintop_clear(long i)
 
 /*
  * The initial program gets to find a system environment descriptor
- * on its stack when it begins exection. The first word is a version
+ * on its stack when it begins execution. The first word is a version
  * code to indicate what is there.  Zero means nothing more.
  */
 

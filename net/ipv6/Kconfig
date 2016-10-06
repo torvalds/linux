@@ -69,6 +69,7 @@ config INET6_ESP
 	select CRYPTO_CBC
 	select CRYPTO_SHA1
 	select CRYPTO_DES
+	select CRYPTO_ECHAINIV
 	---help---
 	  Support for IPsec ESP.
 
@@ -206,6 +207,7 @@ config IPV6_NDISC_NODETYPE
 config IPV6_TUNNEL
 	tristate "IPv6: IP-in-IPv6 tunnel (RFC2473)"
 	select INET6_TUNNEL
+	select DST_CACHE
 	---help---
 	  Support for IPv6-in-IPv6 and IPv4-in-IPv6 tunnels described in
 	  RFC 2473.
@@ -216,6 +218,7 @@ config IPV6_GRE
 	tristate "IPv6: GRE tunnel"
 	select IPV6_TUNNEL
 	select NET_IP_TUNNEL
+	depends on NET_IPGRE_DEMUX
 	---help---
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the
@@ -228,6 +231,15 @@ config IPV6_GRE
 	  through the tunnel.
 
 	  Saying M here will produce a module called ip6_gre. If unsure, say N.
+
+config IPV6_FOU
+	tristate
+	default NET_FOU && IPV6
+
+config IPV6_FOU_TUNNEL
+	tristate
+	default NET_FOU_IP_TUNNELS && IPV6_FOU
+	select IPV6_TUNNEL
 
 config IPV6_MULTIPLE_TABLES
 	bool "IPv6: Multiple Routing Tables"

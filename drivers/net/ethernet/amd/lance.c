@@ -547,8 +547,8 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 	/* Make certain the data structures used by the LANCE are aligned and DMAble. */
 
 	lp = kzalloc(sizeof(*lp), GFP_DMA | GFP_KERNEL);
-	if(lp==NULL)
-		return -ENODEV;
+	if (!lp)
+		return -ENOMEM;
 	if (lance_debug > 6) printk(" (#0x%05lx)", (unsigned long)lp);
 	dev->ml_priv = lp;
 	lp->name = chipname;
@@ -943,7 +943,7 @@ static void lance_tx_timeout (struct net_device *dev)
 #endif
 	lance_restart (dev, 0x0043, 1);
 
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	netif_wake_queue (dev);
 }
 

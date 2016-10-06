@@ -64,6 +64,14 @@ static DEFINE_MUTEX(cdev_mutex);
 static LIST_HEAD(cdev_rcu_list);
 static DEFINE_SPINLOCK(cdev_rcu_lock);
 
+static inline void cxgbi_decode_sw_tag(u32 sw_tag, int *idx, int *age)
+{
+	if (age)
+		*age = sw_tag & 0x7FFF;
+	if (idx)
+		*idx = (sw_tag >> 16) & 0x7FFF;
+}
+
 int cxgbi_device_portmap_create(struct cxgbi_device *cdev, unsigned int base,
 				unsigned int max_conn)
 {
@@ -113,12 +121,7 @@ static inline void cxgbi_device_destroy(struct cxgbi_device *cdev)
 		"cdev 0x%p, p# %u.\n", cdev, cdev->nports);
 	cxgbi_hbas_remove(cdev);
 	cxgbi_device_portmap_cleanup(cdev);
-	if (cdev->dev_ddp_cleanup)
-		cdev->dev_ddp_cleanup(cdev);
-	else
-		cxgbi_ddp_cleanup(cdev);
-	if (cdev->ddp)
-		cxgbi_ddp_cleanup(cdev);
+	cxgbi_ppm_release(cdev->cdev2ppm(cdev));
 	if (cdev->pmap.max_connect)
 		cxgbi_free_big_mem(cdev->pmap.port_csk);
 	kfree(cdev);
@@ -688,6 +691,7 @@ static struct rt6_info *find_route_ipv6(const struct in6_addr *saddr,
 {
 	struct flowi6 fl;
 
+	memset(&fl, 0, sizeof(fl));
 	if (saddr)
 		memcpy(&fl.saddr, saddr, sizeof(struct in6_addr));
 	if (daddr)
@@ -1181,503 +1185,73 @@ out_err:
 	goto done;
 }
 
-/*
- * Direct Data Placement -
- * Directly place the iSCSI Data-In or Data-Out PDU's payload into pre-posted
- * final destination host-memory buffers based on the Initiator Task Tag (ITT)
- * in Data-In or Target Task Tag (TTT) in Data-Out PDUs.
- * The host memory address is programmed into h/w in the format of pagepod
- * entries.
- * The location of the pagepod entry is encoded into ddp tag which is used as
- * the base for ITT/TTT.
- */
-
-static unsigned char ddp_page_order[DDP_PGIDX_MAX] = {0, 1, 2, 4};
-static unsigned char ddp_page_shift[DDP_PGIDX_MAX] = {12, 13, 14, 16};
-static unsigned char page_idx = DDP_PGIDX_MAX;
-
-static unsigned char sw_tag_idx_bits;
-static unsigned char sw_tag_age_bits;
-
-/*
- * Direct-Data Placement page size adjustment
- */
-static int ddp_adjust_page_table(void)
+static inline void
+scmd_get_params(struct scsi_cmnd *sc, struct scatterlist **sgl,
+		unsigned int *sgcnt, unsigned int *dlen,
+		unsigned int prot)
 {
-	int i;
-	unsigned int base_order, order;
+	struct scsi_data_buffer *sdb = prot ? scsi_prot(sc) : scsi_out(sc);
 
-	if (PAGE_SIZE < (1UL << ddp_page_shift[0])) {
-		pr_info("PAGE_SIZE 0x%lx too small, min 0x%lx\n",
-			PAGE_SIZE, 1UL << ddp_page_shift[0]);
-		return -EINVAL;
-	}
-
-	base_order = get_order(1UL << ddp_page_shift[0]);
-	order = get_order(1UL << PAGE_SHIFT);
-
-	for (i = 0; i < DDP_PGIDX_MAX; i++) {
-		/* first is the kernel page size, then just doubling */
-		ddp_page_order[i] = order - base_order + i;
-		ddp_page_shift[i] = PAGE_SHIFT + i;
-	}
-	return 0;
+	*sgl = sdb->table.sgl;
+	*sgcnt = sdb->table.nents;
+	*dlen = sdb->length;
+	/* Caution: for protection sdb, sdb->length is invalid */
 }
 
-static int ddp_find_page_index(unsigned long pgsz)
+void cxgbi_ddp_set_one_ppod(struct cxgbi_pagepod *ppod,
+			    struct cxgbi_task_tag_info *ttinfo,
+			    struct scatterlist **sg_pp, unsigned int *sg_off)
 {
+	struct scatterlist *sg = sg_pp ? *sg_pp : NULL;
+	unsigned int offset = sg_off ? *sg_off : 0;
+	dma_addr_t addr = 0UL;
+	unsigned int len = 0;
 	int i;
 
-	for (i = 0; i < DDP_PGIDX_MAX; i++) {
-		if (pgsz == (1UL << ddp_page_shift[i]))
-			return i;
+	memcpy(ppod, &ttinfo->hdr, sizeof(struct cxgbi_pagepod_hdr));
+
+	if (sg) {
+		addr = sg_dma_address(sg);
+		len = sg_dma_len(sg);
 	}
-	pr_info("ddp page size %lu not supported.\n", pgsz);
-	return DDP_PGIDX_MAX;
-}
 
-static void ddp_setup_host_page_size(void)
-{
-	if (page_idx == DDP_PGIDX_MAX) {
-		page_idx = ddp_find_page_index(PAGE_SIZE);
-
-		if (page_idx == DDP_PGIDX_MAX) {
-			pr_info("system PAGE %lu, update hw.\n", PAGE_SIZE);
-			if (ddp_adjust_page_table() < 0) {
-				pr_info("PAGE %lu, disable ddp.\n", PAGE_SIZE);
-				return;
+	for (i = 0; i < PPOD_PAGES_MAX; i++) {
+		if (sg) {
+			ppod->addr[i] = cpu_to_be64(addr + offset);
+			offset += PAGE_SIZE;
+			if (offset == (len + sg->offset)) {
+				offset = 0;
+				sg = sg_next(sg);
+				if (sg) {
+					addr = sg_dma_address(sg);
+					len = sg_dma_len(sg);
+				}
 			}
-			page_idx = ddp_find_page_index(PAGE_SIZE);
-		}
-		pr_info("system PAGE %lu, ddp idx %u.\n", PAGE_SIZE, page_idx);
-	}
-}
-
-void cxgbi_ddp_page_size_factor(int *pgsz_factor)
-{
-	int i;
-
-	for (i = 0; i < DDP_PGIDX_MAX; i++)
-		pgsz_factor[i] = ddp_page_order[i];
-}
-EXPORT_SYMBOL_GPL(cxgbi_ddp_page_size_factor);
-
-/*
- * DDP setup & teardown
- */
-
-void cxgbi_ddp_ppod_set(struct cxgbi_pagepod *ppod,
-			struct cxgbi_pagepod_hdr *hdr,
-			struct cxgbi_gather_list *gl, unsigned int gidx)
-{
-	int i;
-
-	memcpy(ppod, hdr, sizeof(*hdr));
-	for (i = 0; i < (PPOD_PAGES_MAX + 1); i++, gidx++) {
-		ppod->addr[i] = gidx < gl->nelem ?
-				cpu_to_be64(gl->phys_addr[gidx]) : 0ULL;
-	}
-}
-EXPORT_SYMBOL_GPL(cxgbi_ddp_ppod_set);
-
-void cxgbi_ddp_ppod_clear(struct cxgbi_pagepod *ppod)
-{
-	memset(ppod, 0, sizeof(*ppod));
-}
-EXPORT_SYMBOL_GPL(cxgbi_ddp_ppod_clear);
-
-static inline int ddp_find_unused_entries(struct cxgbi_ddp_info *ddp,
-					unsigned int start, unsigned int max,
-					unsigned int count,
-					struct cxgbi_gather_list *gl)
-{
-	unsigned int i, j, k;
-
-	/*  not enough entries */
-	if ((max - start) < count) {
-		log_debug(1 << CXGBI_DBG_DDP,
-			"NOT enough entries %u+%u < %u.\n", start, count, max);
-		return -EBUSY;
-	}
-
-	max -= count;
-	spin_lock(&ddp->map_lock);
-	for (i = start; i < max;) {
-		for (j = 0, k = i; j < count; j++, k++) {
-			if (ddp->gl_map[k])
-				break;
-		}
-		if (j == count) {
-			for (j = 0, k = i; j < count; j++, k++)
-				ddp->gl_map[k] = gl;
-			spin_unlock(&ddp->map_lock);
-			return i;
-		}
-		i += j + 1;
-	}
-	spin_unlock(&ddp->map_lock);
-	log_debug(1 << CXGBI_DBG_DDP,
-		"NO suitable entries %u available.\n", count);
-	return -EBUSY;
-}
-
-static inline void ddp_unmark_entries(struct cxgbi_ddp_info *ddp,
-						int start, int count)
-{
-	spin_lock(&ddp->map_lock);
-	memset(&ddp->gl_map[start], 0,
-		count * sizeof(struct cxgbi_gather_list *));
-	spin_unlock(&ddp->map_lock);
-}
-
-static inline void ddp_gl_unmap(struct pci_dev *pdev,
-					struct cxgbi_gather_list *gl)
-{
-	int i;
-
-	for (i = 0; i < gl->nelem; i++)
-		dma_unmap_page(&pdev->dev, gl->phys_addr[i], PAGE_SIZE,
-				PCI_DMA_FROMDEVICE);
-}
-
-static inline int ddp_gl_map(struct pci_dev *pdev,
-				    struct cxgbi_gather_list *gl)
-{
-	int i;
-
-	for (i = 0; i < gl->nelem; i++) {
-		gl->phys_addr[i] = dma_map_page(&pdev->dev, gl->pages[i], 0,
-						PAGE_SIZE,
-						PCI_DMA_FROMDEVICE);
-		if (unlikely(dma_mapping_error(&pdev->dev, gl->phys_addr[i]))) {
-			log_debug(1 << CXGBI_DBG_DDP,
-				"page %d 0x%p, 0x%p dma mapping err.\n",
-				i, gl->pages[i], pdev);
-			goto unmap;
+		} else {
+			ppod->addr[i] = 0ULL;
 		}
 	}
-	return i;
-unmap:
-	if (i) {
-		unsigned int nelem = gl->nelem;
 
-		gl->nelem = i;
-		ddp_gl_unmap(pdev, gl);
-		gl->nelem = nelem;
-	}
-	return -EINVAL;
-}
-
-static void ddp_release_gl(struct cxgbi_gather_list *gl,
-				  struct pci_dev *pdev)
-{
-	ddp_gl_unmap(pdev, gl);
-	kfree(gl);
-}
-
-static struct cxgbi_gather_list *ddp_make_gl(unsigned int xferlen,
-						    struct scatterlist *sgl,
-						    unsigned int sgcnt,
-						    struct pci_dev *pdev,
-						    gfp_t gfp)
-{
-	struct cxgbi_gather_list *gl;
-	struct scatterlist *sg = sgl;
-	struct page *sgpage = sg_page(sg);
-	unsigned int sglen = sg->length;
-	unsigned int sgoffset = sg->offset;
-	unsigned int npages = (xferlen + sgoffset + PAGE_SIZE - 1) >>
-				PAGE_SHIFT;
-	int i = 1, j = 0;
-
-	if (xferlen < DDP_THRESHOLD) {
-		log_debug(1 << CXGBI_DBG_DDP,
-			"xfer %u < threshold %u, no ddp.\n",
-			xferlen, DDP_THRESHOLD);
-		return NULL;
+	/*
+	 * the fifth address needs to be repeated in the next ppod, so do
+	 * not move sg
+	 */
+	if (sg_pp) {
+		*sg_pp = sg;
+		*sg_off = offset;
 	}
 
-	gl = kzalloc(sizeof(struct cxgbi_gather_list) +
-		     npages * (sizeof(dma_addr_t) +
-		     sizeof(struct page *)), gfp);
-	if (!gl) {
-		log_debug(1 << CXGBI_DBG_DDP,
-			"xfer %u, %u pages, OOM.\n", xferlen, npages);
-		return NULL;
-	}
-
-	 log_debug(1 << CXGBI_DBG_DDP,
-		"xfer %u, sgl %u, gl max %u.\n", xferlen, sgcnt, npages);
-
-	gl->pages = (struct page **)&gl->phys_addr[npages];
-	gl->nelem = npages;
-	gl->length = xferlen;
-	gl->offset = sgoffset;
-	gl->pages[0] = sgpage;
-
-	for (i = 1, sg = sg_next(sgl), j = 0; i < sgcnt;
-		i++, sg = sg_next(sg)) {
-		struct page *page = sg_page(sg);
-
-		if (sgpage == page && sg->offset == sgoffset + sglen)
-			sglen += sg->length;
-		else {
-			/*  make sure the sgl is fit for ddp:
-			 *  each has the same page size, and
-			 *  all of the middle pages are used completely
-			 */
-			if ((j && sgoffset) || ((i != sgcnt - 1) &&
-			    ((sglen + sgoffset) & ~PAGE_MASK))) {
-				log_debug(1 << CXGBI_DBG_DDP,
-					"page %d/%u, %u + %u.\n",
-					i, sgcnt, sgoffset, sglen);
-				goto error_out;
-			}
-
-			j++;
-			if (j == gl->nelem || sg->offset) {
-				log_debug(1 << CXGBI_DBG_DDP,
-					"page %d/%u, offset %u.\n",
-					j, gl->nelem, sg->offset);
-				goto error_out;
-			}
-			gl->pages[j] = page;
-			sglen = sg->length;
-			sgoffset = sg->offset;
-			sgpage = page;
+	if (offset == len) {
+		offset = 0;
+		sg = sg_next(sg);
+		if (sg) {
+			addr = sg_dma_address(sg);
+			len = sg_dma_len(sg);
 		}
 	}
-	gl->nelem = ++j;
-
-	if (ddp_gl_map(pdev, gl) < 0)
-		goto error_out;
-
-	return gl;
-
-error_out:
-	kfree(gl);
-	return NULL;
+	ppod->addr[i] = sg ? cpu_to_be64(addr + offset) : 0ULL;
 }
-
-static void ddp_tag_release(struct cxgbi_hba *chba, u32 tag)
-{
-	struct cxgbi_device *cdev = chba->cdev;
-	struct cxgbi_ddp_info *ddp = cdev->ddp;
-	u32 idx;
-
-	idx = (tag >> PPOD_IDX_SHIFT) & ddp->idx_mask;
-	if (idx < ddp->nppods) {
-		struct cxgbi_gather_list *gl = ddp->gl_map[idx];
-		unsigned int npods;
-
-		if (!gl || !gl->nelem) {
-			pr_warn("tag 0x%x, idx %u, gl 0x%p, %u.\n",
-				tag, idx, gl, gl ? gl->nelem : 0);
-			return;
-		}
-		npods = (gl->nelem + PPOD_PAGES_MAX - 1) >> PPOD_PAGES_SHIFT;
-		log_debug(1 << CXGBI_DBG_DDP,
-			"tag 0x%x, release idx %u, npods %u.\n",
-			tag, idx, npods);
-		cdev->csk_ddp_clear(chba, tag, idx, npods);
-		ddp_unmark_entries(ddp, idx, npods);
-		ddp_release_gl(gl, ddp->pdev);
-	} else
-		pr_warn("tag 0x%x, idx %u > max %u.\n", tag, idx, ddp->nppods);
-}
-
-static int ddp_tag_reserve(struct cxgbi_sock *csk, unsigned int tid,
-			   u32 sw_tag, u32 *tagp, struct cxgbi_gather_list *gl,
-			   gfp_t gfp)
-{
-	struct cxgbi_device *cdev = csk->cdev;
-	struct cxgbi_ddp_info *ddp = cdev->ddp;
-	struct cxgbi_tag_format *tformat = &cdev->tag_format;
-	struct cxgbi_pagepod_hdr hdr;
-	unsigned int npods;
-	int idx = -1;
-	int err = -ENOMEM;
-	u32 tag;
-
-	npods = (gl->nelem + PPOD_PAGES_MAX - 1) >> PPOD_PAGES_SHIFT;
-	if (ddp->idx_last == ddp->nppods)
-		idx = ddp_find_unused_entries(ddp, 0, ddp->nppods,
-							npods, gl);
-	else {
-		idx = ddp_find_unused_entries(ddp, ddp->idx_last + 1,
-							ddp->nppods, npods,
-							gl);
-		if (idx < 0 && ddp->idx_last >= npods) {
-			idx = ddp_find_unused_entries(ddp, 0,
-				min(ddp->idx_last + npods, ddp->nppods),
-							npods, gl);
-		}
-	}
-	if (idx < 0) {
-		log_debug(1 << CXGBI_DBG_DDP,
-			"xferlen %u, gl %u, npods %u NO DDP.\n",
-			gl->length, gl->nelem, npods);
-		return idx;
-	}
-
-	tag = cxgbi_ddp_tag_base(tformat, sw_tag);
-	tag |= idx << PPOD_IDX_SHIFT;
-
-	hdr.rsvd = 0;
-	hdr.vld_tid = htonl(PPOD_VALID_FLAG | PPOD_TID(tid));
-	hdr.pgsz_tag_clr = htonl(tag & ddp->rsvd_tag_mask);
-	hdr.max_offset = htonl(gl->length);
-	hdr.page_offset = htonl(gl->offset);
-
-	err = cdev->csk_ddp_set(csk, &hdr, idx, npods, gl);
-	if (err < 0)
-		goto unmark_entries;
-
-	ddp->idx_last = idx;
-	log_debug(1 << CXGBI_DBG_DDP,
-		"xfer %u, gl %u,%u, tid 0x%x, tag 0x%x->0x%x(%u,%u).\n",
-		gl->length, gl->nelem, gl->offset, tid, sw_tag, tag, idx,
-		npods);
-	*tagp = tag;
-	return 0;
-
-unmark_entries:
-	ddp_unmark_entries(ddp, idx, npods);
-	return err;
-}
-
-int cxgbi_ddp_reserve(struct cxgbi_sock *csk, unsigned int *tagp,
-			unsigned int sw_tag, unsigned int xferlen,
-			struct scatterlist *sgl, unsigned int sgcnt, gfp_t gfp)
-{
-	struct cxgbi_device *cdev = csk->cdev;
-	struct cxgbi_tag_format *tformat = &cdev->tag_format;
-	struct cxgbi_gather_list *gl;
-	int err;
-
-	if (page_idx >= DDP_PGIDX_MAX || !cdev->ddp ||
-	    xferlen < DDP_THRESHOLD) {
-		log_debug(1 << CXGBI_DBG_DDP,
-			"pgidx %u, xfer %u, NO ddp.\n", page_idx, xferlen);
-		return -EINVAL;
-	}
-
-	if (!cxgbi_sw_tag_usable(tformat, sw_tag)) {
-		log_debug(1 << CXGBI_DBG_DDP,
-			"sw_tag 0x%x NOT usable.\n", sw_tag);
-		return -EINVAL;
-	}
-
-	gl = ddp_make_gl(xferlen, sgl, sgcnt, cdev->pdev, gfp);
-	if (!gl)
-		return -ENOMEM;
-
-	err = ddp_tag_reserve(csk, csk->tid, sw_tag, tagp, gl, gfp);
-	if (err < 0)
-		ddp_release_gl(gl, cdev->pdev);
-
-	return err;
-}
-
-static void ddp_destroy(struct kref *kref)
-{
-	struct cxgbi_ddp_info *ddp = container_of(kref,
-						struct cxgbi_ddp_info,
-						refcnt);
-	struct cxgbi_device *cdev = ddp->cdev;
-	int i = 0;
-
-	pr_info("kref 0, destroy ddp 0x%p, cdev 0x%p.\n", ddp, cdev);
-
-	while (i < ddp->nppods) {
-		struct cxgbi_gather_list *gl = ddp->gl_map[i];
-
-		if (gl) {
-			int npods = (gl->nelem + PPOD_PAGES_MAX - 1)
-					>> PPOD_PAGES_SHIFT;
-			pr_info("cdev 0x%p, ddp %d + %d.\n", cdev, i, npods);
-			kfree(gl);
-			i += npods;
-		} else
-			i++;
-	}
-	cxgbi_free_big_mem(ddp);
-}
-
-int cxgbi_ddp_cleanup(struct cxgbi_device *cdev)
-{
-	struct cxgbi_ddp_info *ddp = cdev->ddp;
-
-	log_debug(1 << CXGBI_DBG_DDP,
-		"cdev 0x%p, release ddp 0x%p.\n", cdev, ddp);
-	cdev->ddp = NULL;
-	if (ddp)
-		return kref_put(&ddp->refcnt, ddp_destroy);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(cxgbi_ddp_cleanup);
-
-int cxgbi_ddp_init(struct cxgbi_device *cdev,
-		   unsigned int llimit, unsigned int ulimit,
-		   unsigned int max_txsz, unsigned int max_rxsz)
-{
-	struct cxgbi_ddp_info *ddp;
-	unsigned int ppmax, bits;
-
-	ppmax = (ulimit - llimit + 1) >> PPOD_SIZE_SHIFT;
-	bits = __ilog2_u32(ppmax) + 1;
-	if (bits > PPOD_IDX_MAX_SIZE)
-		bits = PPOD_IDX_MAX_SIZE;
-	ppmax = (1 << (bits - 1)) - 1;
-
-	ddp = cxgbi_alloc_big_mem(sizeof(struct cxgbi_ddp_info) +
-				ppmax * (sizeof(struct cxgbi_gather_list *) +
-					 sizeof(struct sk_buff *)),
-				GFP_KERNEL);
-	if (!ddp) {
-		pr_warn("cdev 0x%p, ddp ppmax %u OOM.\n", cdev, ppmax);
-		return -ENOMEM;
-	}
-	ddp->gl_map = (struct cxgbi_gather_list **)(ddp + 1);
-	cdev->ddp = ddp;
-
-	spin_lock_init(&ddp->map_lock);
-	kref_init(&ddp->refcnt);
-
-	ddp->cdev = cdev;
-	ddp->pdev = cdev->pdev;
-	ddp->llimit = llimit;
-	ddp->ulimit = ulimit;
-	ddp->max_txsz = min_t(unsigned int, max_txsz, ULP2_MAX_PKT_SIZE);
-	ddp->max_rxsz = min_t(unsigned int, max_rxsz, ULP2_MAX_PKT_SIZE);
-	ddp->nppods = ppmax;
-	ddp->idx_last = ppmax;
-	ddp->idx_bits = bits;
-	ddp->idx_mask = (1 << bits) - 1;
-	ddp->rsvd_tag_mask = (1 << (bits + PPOD_IDX_SHIFT)) - 1;
-
-	cdev->tag_format.sw_bits = sw_tag_idx_bits + sw_tag_age_bits;
-	cdev->tag_format.rsvd_bits = ddp->idx_bits;
-	cdev->tag_format.rsvd_shift = PPOD_IDX_SHIFT;
-	cdev->tag_format.rsvd_mask = (1 << cdev->tag_format.rsvd_bits) - 1;
-
-	pr_info("%s tag format, sw %u, rsvd %u,%u, mask 0x%x.\n",
-		cdev->ports[0]->name, cdev->tag_format.sw_bits,
-		cdev->tag_format.rsvd_bits, cdev->tag_format.rsvd_shift,
-		cdev->tag_format.rsvd_mask);
-
-	cdev->tx_max_size = min_t(unsigned int, ULP2_MAX_PDU_PAYLOAD,
-				ddp->max_txsz - ISCSI_PDU_NONPAYLOAD_LEN);
-	cdev->rx_max_size = min_t(unsigned int, ULP2_MAX_PDU_PAYLOAD,
-				ddp->max_rxsz - ISCSI_PDU_NONPAYLOAD_LEN);
-
-	log_debug(1 << CXGBI_DBG_DDP,
-		"%s max payload size: %u/%u, %u/%u.\n",
-		cdev->ports[0]->name, cdev->tx_max_size, ddp->max_txsz,
-		cdev->rx_max_size, ddp->max_rxsz);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(cxgbi_ddp_init);
+EXPORT_SYMBOL_GPL(cxgbi_ddp_set_one_ppod);
 
 /*
  * APIs interacting with open-iscsi libraries
@@ -1685,21 +1259,171 @@ EXPORT_SYMBOL_GPL(cxgbi_ddp_init);
 
 static unsigned char padding[4];
 
+void cxgbi_ddp_ppm_setup(void **ppm_pp, struct cxgbi_device *cdev,
+			 struct cxgbi_tag_format *tformat, unsigned int ppmax,
+			 unsigned int llimit, unsigned int start,
+			 unsigned int rsvd_factor)
+{
+	int err = cxgbi_ppm_init(ppm_pp, cdev->ports[0], cdev->pdev,
+				cdev->lldev, tformat, ppmax, llimit, start,
+				rsvd_factor);
+
+	if (err >= 0) {
+		struct cxgbi_ppm *ppm = (struct cxgbi_ppm *)(*ppm_pp);
+
+		if (ppm->ppmax < 1024 ||
+		    ppm->tformat.pgsz_idx_dflt >= DDP_PGIDX_MAX)
+			cdev->flags |= CXGBI_FLAG_DDP_OFF;
+		err = 0;
+	} else {
+		cdev->flags |= CXGBI_FLAG_DDP_OFF;
+	}
+}
+EXPORT_SYMBOL_GPL(cxgbi_ddp_ppm_setup);
+
+static int cxgbi_ddp_sgl_check(struct scatterlist *sgl, int nents)
+{
+	int i;
+	int last_sgidx = nents - 1;
+	struct scatterlist *sg = sgl;
+
+	for (i = 0; i < nents; i++, sg = sg_next(sg)) {
+		unsigned int len = sg->length + sg->offset;
+
+		if ((sg->offset & 0x3) || (i && sg->offset) ||
+		    ((i != last_sgidx) && len != PAGE_SIZE)) {
+			log_debug(1 << CXGBI_DBG_DDP,
+				  "sg %u/%u, %u,%u, not aligned.\n",
+				  i, nents, sg->offset, sg->length);
+			goto err_out;
+		}
+	}
+	return 0;
+err_out:
+	return -EINVAL;
+}
+
+static int cxgbi_ddp_reserve(struct cxgbi_conn *cconn,
+			     struct cxgbi_task_data *tdata, u32 sw_tag,
+			     unsigned int xferlen)
+{
+	struct cxgbi_sock *csk = cconn->cep->csk;
+	struct cxgbi_device *cdev = csk->cdev;
+	struct cxgbi_ppm *ppm = cdev->cdev2ppm(cdev);
+	struct cxgbi_task_tag_info *ttinfo = &tdata->ttinfo;
+	struct scatterlist *sgl = ttinfo->sgl;
+	unsigned int sgcnt = ttinfo->nents;
+	unsigned int sg_offset = sgl->offset;
+	int err;
+
+	if (cdev->flags & CXGBI_FLAG_DDP_OFF) {
+		log_debug(1 << CXGBI_DBG_DDP,
+			  "cdev 0x%p DDP off.\n", cdev);
+		return -EINVAL;
+	}
+
+	if (!ppm || xferlen < DDP_THRESHOLD || !sgcnt ||
+	    ppm->tformat.pgsz_idx_dflt >= DDP_PGIDX_MAX) {
+		log_debug(1 << CXGBI_DBG_DDP,
+			  "ppm 0x%p, pgidx %u, xfer %u, sgcnt %u, NO ddp.\n",
+			  ppm, ppm ? ppm->tformat.pgsz_idx_dflt : DDP_PGIDX_MAX,
+			  xferlen, ttinfo->nents);
+		return -EINVAL;
+	}
+
+	/* make sure the buffer is suitable for ddp */
+	if (cxgbi_ddp_sgl_check(sgl, sgcnt) < 0)
+		return -EINVAL;
+
+	ttinfo->nr_pages = (xferlen + sgl->offset + (1 << PAGE_SHIFT) - 1) >>
+			    PAGE_SHIFT;
+
+	/*
+	 * the ddp tag will be used for the itt in the outgoing pdu,
+	 * the itt genrated by libiscsi is saved in the ppm and can be
+	 * retrieved via the ddp tag
+	 */
+	err = cxgbi_ppm_ppods_reserve(ppm, ttinfo->nr_pages, 0, &ttinfo->idx,
+				      &ttinfo->tag, (unsigned long)sw_tag);
+	if (err < 0) {
+		cconn->ddp_full++;
+		return err;
+	}
+	ttinfo->npods = err;
+
+	 /* setup dma from scsi command sgl */
+	sgl->offset = 0;
+	err = dma_map_sg(&ppm->pdev->dev, sgl, sgcnt, DMA_FROM_DEVICE);
+	sgl->offset = sg_offset;
+	if (err == 0) {
+		pr_info("%s: 0x%x, xfer %u, sgl %u dma mapping err.\n",
+			__func__, sw_tag, xferlen, sgcnt);
+		goto rel_ppods;
+	}
+	if (err != ttinfo->nr_pages) {
+		log_debug(1 << CXGBI_DBG_DDP,
+			  "%s: sw tag 0x%x, xfer %u, sgl %u, dma count %d.\n",
+			  __func__, sw_tag, xferlen, sgcnt, err);
+	}
+
+	ttinfo->flags |= CXGBI_PPOD_INFO_FLAG_MAPPED;
+	ttinfo->cid = csk->port_id;
+
+	cxgbi_ppm_make_ppod_hdr(ppm, ttinfo->tag, csk->tid, sgl->offset,
+				xferlen, &ttinfo->hdr);
+
+	if (cdev->flags & CXGBI_FLAG_USE_PPOD_OFLDQ) {
+		/* write ppod from xmit_pdu (of iscsi_scsi_command pdu) */
+		ttinfo->flags |= CXGBI_PPOD_INFO_FLAG_VALID;
+	} else {
+		/* write ppod from control queue now */
+		err = cdev->csk_ddp_set_map(ppm, csk, ttinfo);
+		if (err < 0)
+			goto rel_ppods;
+	}
+
+	return 0;
+
+rel_ppods:
+	cxgbi_ppm_ppod_release(ppm, ttinfo->idx);
+
+	if (ttinfo->flags & CXGBI_PPOD_INFO_FLAG_MAPPED) {
+		ttinfo->flags &= ~CXGBI_PPOD_INFO_FLAG_MAPPED;
+		dma_unmap_sg(&ppm->pdev->dev, sgl, sgcnt, DMA_FROM_DEVICE);
+	}
+	return -EINVAL;
+}
+
 static void task_release_itt(struct iscsi_task *task, itt_t hdr_itt)
 {
 	struct scsi_cmnd *sc = task->sc;
 	struct iscsi_tcp_conn *tcp_conn = task->conn->dd_data;
 	struct cxgbi_conn *cconn = tcp_conn->dd_data;
-	struct cxgbi_hba *chba = cconn->chba;
-	struct cxgbi_tag_format *tformat = &chba->cdev->tag_format;
+	struct cxgbi_device *cdev = cconn->chba->cdev;
+	struct cxgbi_ppm *ppm = cdev->cdev2ppm(cdev);
 	u32 tag = ntohl((__force u32)hdr_itt);
 
 	log_debug(1 << CXGBI_DBG_DDP,
-		   "cdev 0x%p, release tag 0x%x.\n", chba->cdev, tag);
+		  "cdev 0x%p, task 0x%p, release tag 0x%x.\n",
+		  cdev, task, tag);
 	if (sc &&
 	    (scsi_bidi_cmnd(sc) || sc->sc_data_direction == DMA_FROM_DEVICE) &&
-	    cxgbi_is_ddp_tag(tformat, tag))
-		ddp_tag_release(chba, tag);
+	    cxgbi_ppm_is_ddp_tag(ppm, tag)) {
+		struct cxgbi_task_data *tdata = iscsi_task_cxgbi_data(task);
+		struct cxgbi_task_tag_info *ttinfo = &tdata->ttinfo;
+
+		if (!(cdev->flags & CXGBI_FLAG_USE_PPOD_OFLDQ))
+			cdev->csk_ddp_clear_map(cdev, ppm, ttinfo);
+		cxgbi_ppm_ppod_release(ppm, ttinfo->idx);
+		dma_unmap_sg(&ppm->pdev->dev, ttinfo->sgl, ttinfo->nents,
+			     DMA_FROM_DEVICE);
+	}
+}
+
+static inline u32 cxgbi_build_sw_tag(u32 idx, u32 age)
+{
+	/* assume idx and age both are < 0x7FFF (32767) */
+	return (idx << 16) | age;
 }
 
 static int task_reserve_itt(struct iscsi_task *task, itt_t *hdr_itt)
@@ -1709,34 +1433,41 @@ static int task_reserve_itt(struct iscsi_task *task, itt_t *hdr_itt)
 	struct iscsi_session *sess = conn->session;
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	struct cxgbi_conn *cconn = tcp_conn->dd_data;
-	struct cxgbi_hba *chba = cconn->chba;
-	struct cxgbi_tag_format *tformat = &chba->cdev->tag_format;
-	u32 sw_tag = (sess->age << cconn->task_idx_bits) | task->itt;
+	struct cxgbi_device *cdev = cconn->chba->cdev;
+	struct cxgbi_ppm *ppm = cdev->cdev2ppm(cdev);
+	u32 sw_tag = cxgbi_build_sw_tag(task->itt, sess->age);
 	u32 tag = 0;
 	int err = -EINVAL;
 
 	if (sc &&
-	    (scsi_bidi_cmnd(sc) || sc->sc_data_direction == DMA_FROM_DEVICE)) {
-		err = cxgbi_ddp_reserve(cconn->cep->csk, &tag, sw_tag,
-					scsi_in(sc)->length,
-					scsi_in(sc)->table.sgl,
-					scsi_in(sc)->table.nents,
-					GFP_ATOMIC);
-		if (err < 0)
-			log_debug(1 << CXGBI_DBG_DDP,
-				"csk 0x%p, R task 0x%p, %u,%u, no ddp.\n",
-				cconn->cep->csk, task, scsi_in(sc)->length,
-				scsi_in(sc)->table.nents);
+	    (scsi_bidi_cmnd(sc) || sc->sc_data_direction == DMA_FROM_DEVICE)
+	) {
+		struct cxgbi_task_data *tdata = iscsi_task_cxgbi_data(task);
+		struct cxgbi_task_tag_info *ttinfo = &tdata->ttinfo;
+
+		scmd_get_params(sc, &ttinfo->sgl, &ttinfo->nents,
+				&tdata->dlen, 0);
+		err = cxgbi_ddp_reserve(cconn, tdata, sw_tag, tdata->dlen);
+		if (!err)
+			tag = ttinfo->tag;
+		else
+			 log_debug(1 << CXGBI_DBG_DDP,
+				   "csk 0x%p, R task 0x%p, %u,%u, no ddp.\n",
+				   cconn->cep->csk, task, tdata->dlen,
+				   ttinfo->nents);
 	}
 
-	if (err < 0)
-		tag = cxgbi_set_non_ddp_tag(tformat, sw_tag);
+	if (err < 0) {
+		err = cxgbi_ppm_make_non_ddp_tag(ppm, sw_tag, &tag);
+		if (err < 0)
+			return err;
+	}
 	/*  the itt need to sent in big-endian order */
 	*hdr_itt = (__force itt_t)htonl(tag);
 
 	log_debug(1 << CXGBI_DBG_DDP,
-		"cdev 0x%p, task 0x%p, 0x%x(0x%x,0x%x)->0x%x/0x%x.\n",
-		chba->cdev, task, sw_tag, task->itt, sess->age, tag, *hdr_itt);
+		  "cdev 0x%p, task 0x%p, 0x%x(0x%x,0x%x)->0x%x/0x%x.\n",
+		  cdev, task, sw_tag, task->itt, sess->age, tag, *hdr_itt);
 	return 0;
 }
 
@@ -1745,19 +1476,24 @@ void cxgbi_parse_pdu_itt(struct iscsi_conn *conn, itt_t itt, int *idx, int *age)
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	struct cxgbi_conn *cconn = tcp_conn->dd_data;
 	struct cxgbi_device *cdev = cconn->chba->cdev;
-	u32 tag = ntohl((__force u32) itt);
+	struct cxgbi_ppm *ppm = cdev->cdev2ppm(cdev);
+	u32 tag = ntohl((__force u32)itt);
 	u32 sw_bits;
 
-	sw_bits = cxgbi_tag_nonrsvd_bits(&cdev->tag_format, tag);
-	if (idx)
-		*idx = sw_bits & ((1 << cconn->task_idx_bits) - 1);
-	if (age)
-		*age = (sw_bits >> cconn->task_idx_bits) & ISCSI_AGE_MASK;
+	if (ppm) {
+		if (cxgbi_ppm_is_ddp_tag(ppm, tag))
+			sw_bits = cxgbi_ppm_get_tag_caller_data(ppm, tag);
+		else
+			sw_bits = cxgbi_ppm_decode_non_ddp_tag(ppm, tag);
+	} else {
+		sw_bits = tag;
+	}
 
+	cxgbi_decode_sw_tag(sw_bits, idx, age);
 	log_debug(1 << CXGBI_DBG_DDP,
-		"cdev 0x%p, tag 0x%x/0x%x, -> 0x%x(0x%x,0x%x).\n",
-		cdev, tag, itt, sw_bits, idx ? *idx : 0xFFFFF,
-		age ? *age : 0xFF);
+		  "cdev 0x%p, tag 0x%x/0x%x, -> 0x%x(0x%x,0x%x).\n",
+		  cdev, tag, itt, sw_bits, idx ? *idx : 0xFFFFF,
+		  age ? *age : 0xFF);
 }
 EXPORT_SYMBOL_GPL(cxgbi_parse_pdu_itt);
 
@@ -2259,7 +1995,9 @@ int cxgbi_conn_xmit_pdu(struct iscsi_task *task)
 	struct iscsi_tcp_conn *tcp_conn = task->conn->dd_data;
 	struct cxgbi_conn *cconn = tcp_conn->dd_data;
 	struct cxgbi_task_data *tdata = iscsi_task_cxgbi_data(task);
+	struct cxgbi_task_tag_info *ttinfo = &tdata->ttinfo;
 	struct sk_buff *skb = tdata->skb;
+	struct cxgbi_sock *csk = NULL;
 	unsigned int datalen;
 	int err;
 
@@ -2269,8 +2007,28 @@ int cxgbi_conn_xmit_pdu(struct iscsi_task *task)
 		return 0;
 	}
 
+	if (cconn && cconn->cep)
+		csk = cconn->cep->csk;
+	if (!csk) {
+		log_debug(1 << CXGBI_DBG_ISCSI | 1 << CXGBI_DBG_PDU_TX,
+			  "task 0x%p, csk gone.\n", task);
+		return -EPIPE;
+	}
+
 	datalen = skb->data_len;
 	tdata->skb = NULL;
+
+	/* write ppod first if using ofldq to write ppod */
+	if (ttinfo->flags & CXGBI_PPOD_INFO_FLAG_VALID) {
+		struct cxgbi_ppm *ppm = csk->cdev->cdev2ppm(csk->cdev);
+
+		ttinfo->flags &= ~CXGBI_PPOD_INFO_FLAG_VALID;
+		if (csk->cdev->csk_ddp_set_map(ppm, csk, ttinfo) < 0)
+			pr_err("task 0x%p, ppod writing using ofldq failed.\n",
+			       task);
+			/* continue. Let fl get the data */
+	}
+
 	err = cxgbi_sock_send_pdus(cconn->cep->csk, skb);
 	if (err > 0) {
 		int pdulen = err;
@@ -2312,12 +2070,14 @@ EXPORT_SYMBOL_GPL(cxgbi_conn_xmit_pdu);
 
 void cxgbi_cleanup_task(struct iscsi_task *task)
 {
+	struct iscsi_tcp_task *tcp_task = task->dd_data;
 	struct cxgbi_task_data *tdata = iscsi_task_cxgbi_data(task);
 
 	log_debug(1 << CXGBI_DBG_ISCSI,
 		"task 0x%p, skb 0x%p, itt 0x%x.\n",
 		task, tdata->skb, task->hdr_itt);
 
+	tcp_task->dd_data = NULL;
 	/*  never reached the xmit task callout */
 	if (tdata->skb)
 		__kfree_skb(tdata->skb);
@@ -2527,6 +2287,7 @@ int cxgbi_bind_conn(struct iscsi_cls_session *cls_session,
 	struct iscsi_conn *conn = cls_conn->dd_data;
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	struct cxgbi_conn *cconn = tcp_conn->dd_data;
+	struct cxgbi_ppm *ppm;
 	struct iscsi_endpoint *ep;
 	struct cxgbi_endpoint *cep;
 	struct cxgbi_sock *csk;
@@ -2539,7 +2300,10 @@ int cxgbi_bind_conn(struct iscsi_cls_session *cls_session,
 	/*  setup ddp pagesize */
 	cep = ep->dd_data;
 	csk = cep->csk;
-	err = csk->cdev->csk_ddp_setup_pgidx(csk, csk->tid, page_idx, 0);
+
+	ppm = csk->cdev->cdev2ppm(csk->cdev);
+	err = csk->cdev->csk_ddp_setup_pgidx(csk, csk->tid,
+					     ppm->tformat.pgsz_idx_dflt, 0);
 	if (err < 0)
 		return err;
 
@@ -2914,16 +2678,7 @@ EXPORT_SYMBOL_GPL(cxgbi_attr_is_visible);
 
 static int __init libcxgbi_init_module(void)
 {
-	sw_tag_idx_bits = (__ilog2_u32(ISCSI_ITT_MASK)) + 1;
-	sw_tag_age_bits = (__ilog2_u32(ISCSI_AGE_MASK)) + 1;
-
 	pr_info("%s", version);
-
-	pr_info("tag itt 0x%x, %u bits, age 0x%x, %u bits.\n",
-		ISCSI_ITT_MASK, sw_tag_idx_bits,
-		ISCSI_AGE_MASK, sw_tag_age_bits);
-
-	ddp_setup_host_page_size();
 	return 0;
 }
 

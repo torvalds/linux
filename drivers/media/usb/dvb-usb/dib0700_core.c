@@ -517,7 +517,7 @@ int dib0700_download_firmware(struct usb_device *udev, const struct firmware *fw
 	if (nb_packet_buffer_size < 1)
 		nb_packet_buffer_size = 1;
 
-	/* get the fimware version */
+	/* get the firmware version */
 	usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				  REQUEST_GET_VERSION,
 				  USB_TYPE_VENDOR | USB_DIR_IN, 0, 0,
@@ -783,10 +783,8 @@ int dib0700_rc_setup(struct dvb_usb_device *d, struct usb_interface *intf)
 	/* Starting in firmware 1.20, the RC info is provided on a bulk pipe */
 
 	purb = usb_alloc_urb(0, GFP_KERNEL);
-	if (purb == NULL) {
-		err("rc usb alloc urb failed");
+	if (purb == NULL)
 		return -ENOMEM;
-	}
 
 	purb->transfer_buffer = kzalloc(RC_MSG_SIZE_V1_20, GFP_KERNEL);
 	if (purb->transfer_buffer == NULL) {
@@ -881,7 +879,7 @@ static struct usb_driver dib0700_driver = {
 module_usb_driver(dib0700_driver);
 
 MODULE_FIRMWARE("dvb-usb-dib0700-1.20.fw");
-MODULE_AUTHOR("Patrick Boettcher <pboettcher@dibcom.fr>");
+MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@posteo.de>");
 MODULE_DESCRIPTION("Driver for devices based on DiBcom DiB0700 - USB bridge");
 MODULE_VERSION("1.0");
 MODULE_LICENSE("GPL");

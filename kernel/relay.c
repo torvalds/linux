@@ -214,7 +214,7 @@ static void relay_destroy_buf(struct rchan_buf *buf)
 			__free_page(buf->page_array[i]);
 		relay_free_page_array(buf->page_array);
 	}
-	chan->buf[buf->cpu] = NULL;
+	*per_cpu_ptr(chan->buf, buf->cpu) = NULL;
 	kfree(buf->padding);
 	kfree(buf);
 	kref_put(&chan->kref, relay_destroy_channel);
@@ -382,20 +382,21 @@ static void __relay_reset(struct rchan_buf *buf, unsigned int init)
  */
 void relay_reset(struct rchan *chan)
 {
+	struct rchan_buf *buf;
 	unsigned int i;
 
 	if (!chan)
 		return;
 
-	if (chan->is_global && chan->buf[0]) {
-		__relay_reset(chan->buf[0], 0);
+	if (chan->is_global && (buf = *per_cpu_ptr(chan->buf, 0))) {
+		__relay_reset(buf, 0);
 		return;
 	}
 
 	mutex_lock(&relay_channels_mutex);
 	for_each_possible_cpu(i)
-		if (chan->buf[i])
-			__relay_reset(chan->buf[i], 0);
+		if ((buf = *per_cpu_ptr(chan->buf, i)))
+			__relay_reset(buf, 0);
 	mutex_unlock(&relay_channels_mutex);
 }
 EXPORT_SYMBOL_GPL(relay_reset);
@@ -440,7 +441,7 @@ static struct rchan_buf *relay_open_buf(struct rchan *chan, unsigned int cpu)
 	struct dentry *dentry;
 
  	if (chan->is_global)
-		return chan->buf[0];
+		return *per_cpu_ptr(chan->buf, 0);
 
 	buf = relay_create_buf(chan);
 	if (!buf)
@@ -451,13 +452,20 @@ static struct rchan_buf *relay_open_buf(struct rchan *chan, unsigned int cpu)
 		if (!dentry)
 			goto free_buf;
 		relay_set_buf_dentry(buf, dentry);
+	} else {
+		/* Only retrieve global info, nothing more, nothing less */
+		dentry = chan->cb->create_buf_file(NULL, NULL,
+						   S_IRUSR, buf,
+						   &chan->is_global);
+		if (WARN_ON(dentry))
+			goto free_buf;
 	}
 
  	buf->cpu = cpu;
  	__relay_reset(buf, 1);
 
  	if(chan->is_global) {
- 		chan->buf[0] = buf;
+		*per_cpu_ptr(chan->buf, 0) = buf;
  		buf->cpu = 0;
   	}
 
@@ -505,46 +513,25 @@ static void setup_callbacks(struct rchan *chan,
 	chan->cb = cb;
 }
 
-/**
- * 	relay_hotcpu_callback - CPU hotplug callback
- * 	@nb: notifier block
- * 	@action: hotplug action to take
- * 	@hcpu: CPU number
- *
- * 	Returns the success/failure of the operation. (%NOTIFY_OK, %NOTIFY_BAD)
- */
-static int relay_hotcpu_callback(struct notifier_block *nb,
-				unsigned long action,
-				void *hcpu)
+int relay_prepare_cpu(unsigned int cpu)
 {
-	unsigned int hotcpu = (unsigned long)hcpu;
 	struct rchan *chan;
+	struct rchan_buf *buf;
 
-	switch(action) {
-	case CPU_UP_PREPARE:
-	case CPU_UP_PREPARE_FROZEN:
-		mutex_lock(&relay_channels_mutex);
-		list_for_each_entry(chan, &relay_channels, list) {
-			if (chan->buf[hotcpu])
-				continue;
-			chan->buf[hotcpu] = relay_open_buf(chan, hotcpu);
-			if(!chan->buf[hotcpu]) {
-				printk(KERN_ERR
-					"relay_hotcpu_callback: cpu %d buffer "
-					"creation failed\n", hotcpu);
-				mutex_unlock(&relay_channels_mutex);
-				return notifier_from_errno(-ENOMEM);
-			}
+	mutex_lock(&relay_channels_mutex);
+	list_for_each_entry(chan, &relay_channels, list) {
+		if ((buf = *per_cpu_ptr(chan->buf, cpu)))
+			continue;
+		buf = relay_open_buf(chan, cpu);
+		if (!buf) {
+			pr_err("relay: cpu %d buffer creation failed\n", cpu);
+			mutex_unlock(&relay_channels_mutex);
+			return -ENOMEM;
 		}
-		mutex_unlock(&relay_channels_mutex);
-		break;
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-		/* No need to flush the cpu : will be flushed upon
-		 * final relay_flush() call. */
-		break;
+		*per_cpu_ptr(chan->buf, cpu) = buf;
 	}
-	return NOTIFY_OK;
+	mutex_unlock(&relay_channels_mutex);
+	return 0;
 }
 
 /**
@@ -562,6 +549,10 @@ static int relay_hotcpu_callback(struct notifier_block *nb,
  *	attributes specified.  The created channel buffer files
  *	will be named base_filename0...base_filenameN-1.  File
  *	permissions will be %S_IRUSR.
+ *
+ *	If opening a buffer (@parent = NULL) that you later wish to register
+ *	in a filesystem, call relay_late_setup_files() once the @parent dentry
+ *	is available.
  */
 struct rchan *relay_open(const char *base_filename,
 			 struct dentry *parent,
@@ -572,6 +563,7 @@ struct rchan *relay_open(const char *base_filename,
 {
 	unsigned int i;
 	struct rchan *chan;
+	struct rchan_buf *buf;
 
 	if (!(subbuf_size && n_subbufs))
 		return NULL;
@@ -582,6 +574,7 @@ struct rchan *relay_open(const char *base_filename,
 	if (!chan)
 		return NULL;
 
+	chan->buf = alloc_percpu(struct rchan_buf *);
 	chan->version = RELAYFS_CHANNEL_VERSION;
 	chan->n_subbufs = n_subbufs;
 	chan->subbuf_size = subbuf_size;
@@ -597,9 +590,10 @@ struct rchan *relay_open(const char *base_filename,
 
 	mutex_lock(&relay_channels_mutex);
 	for_each_online_cpu(i) {
-		chan->buf[i] = relay_open_buf(chan, i);
-		if (!chan->buf[i])
+		buf = relay_open_buf(chan, i);
+		if (!buf)
 			goto free_bufs;
+		*per_cpu_ptr(chan->buf, i) = buf;
 	}
 	list_add(&chan->list, &relay_channels);
 	mutex_unlock(&relay_channels_mutex);
@@ -608,12 +602,13 @@ struct rchan *relay_open(const char *base_filename,
 
 free_bufs:
 	for_each_possible_cpu(i) {
-		if (chan->buf[i])
-			relay_close_buf(chan->buf[i]);
+		if ((buf = *per_cpu_ptr(chan->buf, i)))
+			relay_close_buf(buf);
 	}
 
 	kref_put(&chan->kref, relay_destroy_channel);
 	mutex_unlock(&relay_channels_mutex);
+	kfree(chan);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(relay_open);
@@ -639,8 +634,12 @@ static void __relay_set_buf_dentry(void *info)
  *
  *	Returns 0 if successful, non-zero otherwise.
  *
- *	Use to setup files for a previously buffer-only channel.
- *	Useful to do early tracing in kernel, before VFS is up, for example.
+ *	Use to setup files for a previously buffer-only channel created
+ *	by relay_open() with a NULL parent dentry.
+ *
+ *	For example, this is useful for perfomring early tracing in kernel,
+ *	before VFS is up and then exposing the early results once the dentry
+ *	is available.
  */
 int relay_late_setup_files(struct rchan *chan,
 			   const char *base_filename,
@@ -650,6 +649,7 @@ int relay_late_setup_files(struct rchan *chan,
 	unsigned int i, curr_cpu;
 	unsigned long flags;
 	struct dentry *dentry;
+	struct rchan_buf *buf;
 	struct rchan_percpu_buf_dispatcher disp;
 
 	if (!chan || !base_filename)
@@ -665,6 +665,21 @@ int relay_late_setup_files(struct rchan *chan,
 	}
 	chan->has_base_filename = 1;
 	chan->parent = parent;
+
+	if (chan->is_global) {
+		err = -EINVAL;
+		buf = *per_cpu_ptr(chan->buf, 0);
+		if (!WARN_ON_ONCE(!buf)) {
+			dentry = relay_create_buf_file(chan, buf, 0);
+			if (dentry && !WARN_ON_ONCE(!chan->is_global)) {
+				relay_set_buf_dentry(buf, dentry);
+				err = 0;
+			}
+		}
+		mutex_unlock(&relay_channels_mutex);
+		return err;
+	}
+
 	curr_cpu = get_cpu();
 	/*
 	 * The CPU hotplug notifier ran before us and created buffers with
@@ -672,13 +687,14 @@ int relay_late_setup_files(struct rchan *chan,
 	 * on all currently online CPUs.
 	 */
 	for_each_online_cpu(i) {
-		if (unlikely(!chan->buf[i])) {
+		buf = *per_cpu_ptr(chan->buf, i);
+		if (unlikely(!buf)) {
 			WARN_ONCE(1, KERN_ERR "CPU has no buffer!\n");
 			err = -EINVAL;
 			break;
 		}
 
-		dentry = relay_create_buf_file(chan, chan->buf[i], i);
+		dentry = relay_create_buf_file(chan, buf, i);
 		if (unlikely(!dentry)) {
 			err = -EINVAL;
 			break;
@@ -686,10 +702,10 @@ int relay_late_setup_files(struct rchan *chan,
 
 		if (curr_cpu == i) {
 			local_irq_save(flags);
-			relay_set_buf_dentry(chan->buf[i], dentry);
+			relay_set_buf_dentry(buf, dentry);
 			local_irq_restore(flags);
 		} else {
-			disp.buf = chan->buf[i];
+			disp.buf = buf;
 			disp.dentry = dentry;
 			smp_mb();
 			/* relay_channels_mutex must be held, so wait. */
@@ -705,6 +721,7 @@ int relay_late_setup_files(struct rchan *chan,
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(relay_late_setup_files);
 
 /**
  *	relay_switch_subbuf - switch to a new sub-buffer
@@ -791,11 +808,10 @@ void relay_subbufs_consumed(struct rchan *chan,
 	if (!chan)
 		return;
 
-	if (cpu >= NR_CPUS || !chan->buf[cpu] ||
-					subbufs_consumed > chan->n_subbufs)
+	buf = *per_cpu_ptr(chan->buf, cpu);
+	if (cpu >= NR_CPUS || !buf || subbufs_consumed > chan->n_subbufs)
 		return;
 
-	buf = chan->buf[cpu];
 	if (subbufs_consumed > buf->subbufs_produced - buf->subbufs_consumed)
 		buf->subbufs_consumed = buf->subbufs_produced;
 	else
@@ -811,18 +827,19 @@ EXPORT_SYMBOL_GPL(relay_subbufs_consumed);
  */
 void relay_close(struct rchan *chan)
 {
+	struct rchan_buf *buf;
 	unsigned int i;
 
 	if (!chan)
 		return;
 
 	mutex_lock(&relay_channels_mutex);
-	if (chan->is_global && chan->buf[0])
-		relay_close_buf(chan->buf[0]);
+	if (chan->is_global && (buf = *per_cpu_ptr(chan->buf, 0)))
+		relay_close_buf(buf);
 	else
 		for_each_possible_cpu(i)
-			if (chan->buf[i])
-				relay_close_buf(chan->buf[i]);
+			if ((buf = *per_cpu_ptr(chan->buf, i)))
+				relay_close_buf(buf);
 
 	if (chan->last_toobig)
 		printk(KERN_WARNING "relay: one or more items not logged "
@@ -843,20 +860,21 @@ EXPORT_SYMBOL_GPL(relay_close);
  */
 void relay_flush(struct rchan *chan)
 {
+	struct rchan_buf *buf;
 	unsigned int i;
 
 	if (!chan)
 		return;
 
-	if (chan->is_global && chan->buf[0]) {
-		relay_switch_subbuf(chan->buf[0], 0);
+	if (chan->is_global && (buf = *per_cpu_ptr(chan->buf, 0))) {
+		relay_switch_subbuf(buf, 0);
 		return;
 	}
 
 	mutex_lock(&relay_channels_mutex);
 	for_each_possible_cpu(i)
-		if (chan->buf[i])
-			relay_switch_subbuf(chan->buf[i], 0);
+		if ((buf = *per_cpu_ptr(chan->buf, i)))
+			relay_switch_subbuf(buf, 0);
 	mutex_unlock(&relay_channels_mutex);
 }
 EXPORT_SYMBOL_GPL(relay_flush);
@@ -1346,12 +1364,3 @@ const struct file_operations relay_file_operations = {
 	.splice_read	= relay_file_splice_read,
 };
 EXPORT_SYMBOL_GPL(relay_file_operations);
-
-static __init int relay_init(void)
-{
-
-	hotcpu_notifier(relay_hotcpu_callback, 0);
-	return 0;
-}
-
-early_initcall(relay_init);

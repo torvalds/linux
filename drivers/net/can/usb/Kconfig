@@ -16,7 +16,8 @@ config CAN_ESD_USB2
 config CAN_GS_USB
 	tristate "Geschwister Schneider UG interfaces"
 	---help---
-	  This driver supports the Geschwister Schneider USB/CAN devices.
+	  This driver supports the Geschwister Schneider and bytewerk.org
+	  candleLight USB CAN interfaces USB/CAN devices
 	  If unsure choose N,
 	  choose Y for built in support,
 	  M to compile as module (module will be named: gs_usb).
@@ -46,6 +47,8 @@ config CAN_KVASER_USB
 	    - Kvaser USBcan R
 	    - Kvaser Leaf Light v2
 	    - Kvaser Mini PCI Express HS
+	    - Kvaser Mini PCI Express 2xHS
+	    - Kvaser USBcan Light 2xHS
 	    - Kvaser USBcan II HS/HS
 	    - Kvaser USBcan II HS/LS
 	    - Kvaser USBcan Rugged ("USBcan Rev B")

@@ -283,15 +283,15 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 			ntfs_unmap_page(page);
 		}
 		page = ntfs_map_page(mapping, last_read_pos >>
-				PAGE_CACHE_SHIFT);
+				PAGE_SHIFT);
 		if (IS_ERR(page)) {
 			err = PTR_ERR(page);
 			ntfs_error(vol->sb, "Failed to map page.");
 			goto out;
 		}
-		buf_size = last_read_pos & ~PAGE_CACHE_MASK;
+		buf_size = last_read_pos & ~PAGE_MASK;
 		buf = page_address(page) + buf_size;
-		buf_size = PAGE_CACHE_SIZE - buf_size;
+		buf_size = PAGE_SIZE - buf_size;
 		if (unlikely(last_read_pos + buf_size > i_size))
 			buf_size = i_size - last_read_pos;
 		buf_size <<= 3;

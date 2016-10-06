@@ -285,7 +285,7 @@ static int mwifiex_tdls_add_vht_oper(struct mwifiex_private *priv,
 	else
 		usr_vht_cap_info = adapter->usr_dot_11ac_dev_cap_bg;
 
-	/* find the minmum bandwith between AP/TDLS peers */
+	/* find the minimum bandwidth between AP/TDLS peers */
 	vht_cap = &sta_ptr->tdls_cap.vhtcap;
 	supp_chwd_set = GET_VHTCAP_CHWDSET(usr_vht_cap_info);
 	peer_supp_chwd_set =
@@ -679,6 +679,13 @@ int mwifiex_send_tdls_data_frame(struct mwifiex_private *priv, const u8 *peer,
 
 	__net_timestamp(skb);
 	mwifiex_queue_tx_pkt(priv, skb);
+
+	/* Delay 10ms to make sure tdls setup confirm/teardown frame
+	 * is received by peer
+	*/
+	if (action_code == WLAN_TDLS_SETUP_CONFIRM ||
+	    action_code == WLAN_TDLS_TEARDOWN)
+		msleep_interruptible(10);
 
 	return 0;
 }

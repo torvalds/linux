@@ -131,8 +131,8 @@ acpi_ex_check_object_type(acpi_object_type type_needed,
 
 acpi_status
 acpi_ex_resolve_operands(u16 opcode,
-			 union acpi_operand_object ** stack_ptr,
-			 struct acpi_walk_state * walk_state)
+			 union acpi_operand_object **stack_ptr,
+			 struct acpi_walk_state *walk_state)
 {
 	union acpi_operand_object *obj_desc;
 	acpi_status status = AE_OK;
@@ -410,12 +410,13 @@ acpi_ex_resolve_operands(u16 opcode,
 		case ARGI_INTEGER:
 
 			/*
-			 * Need an operand of type ACPI_TYPE_INTEGER,
-			 * But we can implicitly convert from a STRING or BUFFER
-			 * aka - "Implicit Source Operand Conversion"
+			 * Need an operand of type ACPI_TYPE_INTEGER, but we can
+			 * implicitly convert from a STRING or BUFFER.
+			 *
+			 * Known as "Implicit Source Operand Conversion"
 			 */
-			status =
-			    acpi_ex_convert_to_integer(obj_desc, stack_ptr, 16);
+			status = acpi_ex_convert_to_integer(obj_desc, stack_ptr,
+							    ACPI_STRTOUL_BASE16);
 			if (ACPI_FAILURE(status)) {
 				if (status == AE_TYPE) {
 					ACPI_ERROR((AE_INFO,

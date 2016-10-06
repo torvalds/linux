@@ -124,7 +124,7 @@
 #define VNDMR_EXRGB		(1 << 8)
 #define VNDMR_BPSM		(1 << 4)
 #define VNDMR_DTMD_YCSEP	(1 << 1)
-#define VNDMR_DTMD_ARGB1555	(1 << 0)
+#define VNDMR_DTMD_ARGB		(1 << 0)
 
 /* Video n Data Mode Register 2 bits */
 #define VNDMR2_VPS		(1 << 30)
@@ -143,6 +143,7 @@
 #define RCAR_VIN_BT656			(1 << 3)
 
 enum chip_id {
+	RCAR_GEN3,
 	RCAR_GEN2,
 	RCAR_H1,
 	RCAR_M1,
@@ -483,7 +484,6 @@ struct rcar_vin_priv {
 	struct list_head		capture;
 #define MAX_BUFFER_NUM			3
 	struct vb2_v4l2_buffer		*queue_buf[MAX_BUFFER_NUM];
-	struct vb2_alloc_ctx		*alloc_ctx;
 	enum v4l2_field			field;
 	unsigned int			pdata_flags;
 	unsigned int			vb_count;
@@ -533,13 +533,11 @@ struct rcar_vin_cam {
 static int rcar_vin_videobuf_setup(struct vb2_queue *vq,
 				   unsigned int *count,
 				   unsigned int *num_planes,
-				   unsigned int sizes[], void *alloc_ctxs[])
+				   unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct rcar_vin_priv *priv = ici->priv;
-
-	alloc_ctxs[0] = priv->alloc_ctx;
 
 	if (!vq->num_buffers)
 		priv->sequence = 0;
@@ -642,21 +640,26 @@ static int rcar_vin_setup(struct rcar_vin_priv *priv)
 		output_is_yuv = true;
 		break;
 	case V4L2_PIX_FMT_RGB555X:
-		dmr = VNDMR_DTMD_ARGB1555;
+		dmr = VNDMR_DTMD_ARGB;
 		break;
 	case V4L2_PIX_FMT_RGB565:
 		dmr = 0;
 		break;
 	case V4L2_PIX_FMT_RGB32:
-		if (priv->chip == RCAR_GEN2 || priv->chip == RCAR_H1 ||
-		    priv->chip == RCAR_E1) {
-			dmr = VNDMR_EXRGB;
-			break;
-		}
+		if (priv->chip != RCAR_GEN2 && priv->chip != RCAR_H1 &&
+		    priv->chip != RCAR_E1)
+			goto e_format;
+
+		dmr = VNDMR_EXRGB;
+		break;
+	case V4L2_PIX_FMT_ARGB32:
+		if (priv->chip != RCAR_GEN3)
+			goto e_format;
+
+		dmr = VNDMR_EXRGB | VNDMR_DTMD_ARGB;
+		break;
 	default:
-		dev_warn(icd->parent, "Invalid fourcc format (0x%x)\n",
-			 icd->current_fmt->host_fmt->fourcc);
-		return -EINVAL;
+		goto e_format;
 	}
 
 	/* Always update on field change */
@@ -678,6 +681,11 @@ static int rcar_vin_setup(struct rcar_vin_priv *priv)
 	iowrite32(vnmc | VNMC_ME, priv->base + VNMC_REG);
 
 	return 0;
+
+e_format:
+	dev_warn(icd->parent, "Invalid fourcc format (0x%x)\n",
+		 icd->current_fmt->host_fmt->fourcc);
+	return -EINVAL;
 }
 
 static void rcar_vin_capture(struct rcar_vin_priv *priv)
@@ -1303,6 +1311,14 @@ static const struct soc_mbus_pixelfmt rcar_vin_formats[] = {
 		.order			= SOC_MBUS_ORDER_LE,
 		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
+	{
+		.fourcc			= V4L2_PIX_FMT_ARGB32,
+		.name			= "ARGB8888",
+		.bits_per_sample	= 32,
+		.packing		= SOC_MBUS_PACKING_NONE,
+		.order			= SOC_MBUS_ORDER_LE,
+		.layout			= SOC_MBUS_LAYOUT_PACKED,
+	},
 };
 
 static int rcar_vin_get_formats(struct soc_camera_device *icd, unsigned int idx,
@@ -1610,6 +1626,7 @@ static int rcar_vin_set_fmt(struct soc_camera_device *icd,
 	case V4L2_PIX_FMT_RGB32:
 		can_scale = priv->chip != RCAR_E1;
 		break;
+	case V4L2_PIX_FMT_ARGB32:
 	case V4L2_PIX_FMT_UYVY:
 	case V4L2_PIX_FMT_YUYV:
 	case V4L2_PIX_FMT_RGB565:
@@ -1796,6 +1813,7 @@ static int rcar_vin_init_videobuf2(struct vb2_queue *vq,
 	vq->buf_struct_size = sizeof(struct rcar_vin_buffer);
 	vq->timestamp_flags  = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	vq->lock = &ici->host_lock;
+	vq->dev = ici->v4l2_dev.dev;
 
 	return vb2_queue_init(vq);
 }
@@ -1818,12 +1836,15 @@ static struct soc_camera_host_ops rcar_vin_host_ops = {
 
 #ifdef CONFIG_OF
 static const struct of_device_id rcar_vin_of_table[] = {
+	{ .compatible = "renesas,vin-r8a7795", .data = (void *)RCAR_GEN3 },
 	{ .compatible = "renesas,vin-r8a7794", .data = (void *)RCAR_GEN2 },
 	{ .compatible = "renesas,vin-r8a7793", .data = (void *)RCAR_GEN2 },
 	{ .compatible = "renesas,vin-r8a7791", .data = (void *)RCAR_GEN2 },
 	{ .compatible = "renesas,vin-r8a7790", .data = (void *)RCAR_GEN2 },
 	{ .compatible = "renesas,vin-r8a7779", .data = (void *)RCAR_H1 },
 	{ .compatible = "renesas,vin-r8a7778", .data = (void *)RCAR_M1 },
+	{ .compatible = "renesas,rcar-gen3-vin", .data = (void *)RCAR_GEN3 },
+	{ .compatible = "renesas,rcar-gen2-vin", .data = (void *)RCAR_GEN2 },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, rcar_vin_of_table);
@@ -1889,10 +1910,6 @@ static int rcar_vin_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	priv->alloc_ctx = vb2_dma_contig_init_ctx(&pdev->dev);
-	if (IS_ERR(priv->alloc_ctx))
-		return PTR_ERR(priv->alloc_ctx);
-
 	priv->ici.priv = priv;
 	priv->ici.v4l2_dev.dev = &pdev->dev;
 	priv->ici.drv_name = dev_name(&pdev->dev);
@@ -1923,7 +1940,6 @@ static int rcar_vin_probe(struct platform_device *pdev)
 
 cleanup:
 	pm_runtime_disable(&pdev->dev);
-	vb2_dma_contig_cleanup_ctx(priv->alloc_ctx);
 
 	return ret;
 }
@@ -1931,12 +1947,9 @@ cleanup:
 static int rcar_vin_remove(struct platform_device *pdev)
 {
 	struct soc_camera_host *soc_host = to_soc_camera_host(&pdev->dev);
-	struct rcar_vin_priv *priv = container_of(soc_host,
-						  struct rcar_vin_priv, ici);
 
 	soc_camera_host_unregister(soc_host);
 	pm_runtime_disable(&pdev->dev);
-	vb2_dma_contig_cleanup_ctx(priv->alloc_ctx);
 
 	return 0;
 }

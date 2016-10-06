@@ -1,0 +1,16 @@
+United Radiant Technology UMSH-8596MD-xT 7.0" WVGA TFT LCD panel
+
+Supported are LVDS versions (-11T, -19T) and parallel ones
+(-T, -1T, -7T, -20T).
+
+Required properties:
+- compatible: should be one of:
+  "urt,umsh-8596md-t",
+  "urt,umsh-8596md-1t",
+  "urt,umsh-8596md-7t",
+  "urt,umsh-8596md-11t",
+  "urt,umsh-8596md-19t",
+  "urt,umsh-8596md-20t".
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.

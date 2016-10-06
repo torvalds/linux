@@ -22,12 +22,13 @@
 extern u32 rio_mport_get_feature(struct rio_mport *mport, int local, u16 destid,
 				 u8 hopcount, int ftr);
 extern u32 rio_mport_get_physefb(struct rio_mport *port, int local,
-				 u16 destid, u8 hopcount);
+				 u16 destid, u8 hopcount, u32 *rmap);
 extern u32 rio_mport_get_efb(struct rio_mport *port, int local, u16 destid,
 			     u8 hopcount, u32 from);
 extern int rio_mport_chk_dev_access(struct rio_mport *mport, u16 destid,
 				    u8 hopcount);
 extern int rio_create_sysfs_dev_files(struct rio_dev *rdev);
+extern void rio_remove_sysfs_dev_files(struct rio_dev *rdev);
 extern int rio_lock_device(struct rio_mport *port, u16 destid,
 			u8 hopcount, int wait_ms);
 extern int rio_unlock_device(struct rio_mport *port, u16 destid, u8 hopcount);
@@ -38,7 +39,11 @@ extern int rio_route_get_entry(struct rio_dev *rdev, u16 table,
 extern int rio_route_clr_table(struct rio_dev *rdev, u16 table, int lock);
 extern int rio_set_port_lockout(struct rio_dev *rdev, u32 pnum, int lock);
 extern struct rio_dev *rio_get_comptag(u32 comp_tag, struct rio_dev *from);
+extern struct rio_net *rio_alloc_net(struct rio_mport *mport);
+extern int rio_add_net(struct rio_net *net);
+extern void rio_free_net(struct rio_net *net);
 extern int rio_add_device(struct rio_dev *rdev);
+extern void rio_del_device(struct rio_dev *rdev, enum rio_device_state state);
 extern int rio_enable_rx_tx_port(struct rio_mport *port, int local, u16 destid,
 				 u8 hopcount, u8 port_num);
 extern int rio_register_scan(int mport_id, struct rio_scan *scan_ops);

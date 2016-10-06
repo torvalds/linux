@@ -26,11 +26,7 @@ Example:
 		ti,pmic-shutdown-controller;
 
 		regulators {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
 			dcdc1_reg: dcdc1 {
-				reg = <0>;
 				regulator-min-microvolt = <900000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-boot-on;
@@ -38,7 +34,6 @@ Example:
 			};
 
 			dcdc2_reg: dcdc2 {
-				reg = <1>;
 				regulator-min-microvolt = <900000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-boot-on;
@@ -46,7 +41,6 @@ Example:
 			};
 
 			dcdc3_reg: dcc3 {
-				reg = <2>;
 				regulator-min-microvolt = <900000>;
 				regulator-max-microvolt = <1500000>;
 				regulator-boot-on;
@@ -54,7 +48,6 @@ Example:
 			};
 
 			ldo1_reg: ldo1 {
-				reg = <3>;
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-boot-on;
@@ -62,7 +55,6 @@ Example:
 			};
 
 			ldo2_reg: ldo2 {
-				reg = <4>;
 				regulator-min-microvolt = <900000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-boot-on;
@@ -70,7 +62,6 @@ Example:
 			};
 
 			ldo3_reg: ldo3 {
-				reg = <5>;
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-boot-on;
@@ -78,7 +69,6 @@ Example:
 			};
 
 			ldo4_reg: ldo4 {
-				reg = <6>;
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-boot-on;

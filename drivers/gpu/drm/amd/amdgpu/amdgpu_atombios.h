@@ -144,6 +144,8 @@ bool amdgpu_atombios_get_connector_info_from_object_table(struct amdgpu_device *
 
 int amdgpu_atombios_get_clock_info(struct amdgpu_device *adev);
 
+int amdgpu_atombios_get_gfx_info(struct amdgpu_device *adev);
+
 bool amdgpu_atombios_get_asic_ss_info(struct amdgpu_device *adev,
 				      struct amdgpu_atom_ss *ss,
 				      int id, u32 clock);
@@ -195,6 +197,8 @@ int amdgpu_atombios_get_voltage_table(struct amdgpu_device *adev,
 int amdgpu_atombios_init_mc_reg_table(struct amdgpu_device *adev,
 				      u8 module_index,
 				      struct atom_mc_reg_table *reg_table);
+
+bool amdgpu_atombios_has_gpu_virtualization_table(struct amdgpu_device *adev);
 
 void amdgpu_atombios_scratch_regs_lock(struct amdgpu_device *adev, bool lock);
 void amdgpu_atombios_scratch_regs_init(struct amdgpu_device *adev);

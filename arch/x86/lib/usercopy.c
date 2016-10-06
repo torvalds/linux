@@ -5,7 +5,7 @@
  */
 
 #include <linux/highmem.h>
-#include <linux/module.h>
+#include <linux/export.h>
 
 #include <asm/word-at-a-time.h>
 #include <linux/sched.h>

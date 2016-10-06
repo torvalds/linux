@@ -141,9 +141,11 @@ void rtl8723e_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 
 			break;
 		}
+	case HAL_DEF_WOWLAN:
+		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-			 "switch case not process\n");
+			 "switch case %#x not processed\n", variable);
 		break;
 	}
 }
@@ -366,7 +368,8 @@ void rtl8723e_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 					break;
 				default:
 					RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-						 "switch case not process\n");
+						 "switch case %#x not processed\n",
+						 e_aci);
 					break;
 				}
 			}
@@ -546,7 +549,7 @@ void rtl8723e_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		}
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-			 "switch case not process\n");
+			 "switch case %#x not processed\n", variable);
 		break;
 	}
 }
@@ -1630,62 +1633,22 @@ static void _rtl8723e_read_adapter_info(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	u16 i, usvalue;
-	u8 hwinfo[HWSET_MAX_SIZE];
-	u16 eeprom_id;
+	int params[] = {RTL8190_EEPROM_ID, EEPROM_VID, EEPROM_DID,
+			EEPROM_SVID, EEPROM_SMID, EEPROM_MAC_ADDR,
+			EEPROM_CHANNELPLAN, EEPROM_VERSION, EEPROM_CUSTOMER_ID,
+			COUNTRY_CODE_WORLD_WIDE_13};
+	u8 *hwinfo;
 
 	if (b_pseudo_test) {
 		/* need add */
 		return;
 	}
-	if (rtlefuse->epromtype == EEPROM_BOOT_EFUSE) {
-		rtl_efuse_shadow_map_update(hw);
-
-		memcpy(hwinfo, &rtlefuse->efuse_map[EFUSE_INIT_MAP][0],
-		       HWSET_MAX_SIZE);
-	} else if (rtlefuse->epromtype == EEPROM_93C46) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "RTL819X Not boot from eeprom, check it !!");
-	}
-
-	RT_PRINT_DATA(rtlpriv, COMP_INIT, DBG_DMESG, "MAP\n",
-		      hwinfo, HWSET_MAX_SIZE);
-
-	eeprom_id = *((u16 *)&hwinfo[0]);
-	if (eeprom_id != RTL8190_EEPROM_ID) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
-			 "EEPROM ID(%#x) is invalid!!\n", eeprom_id);
-		rtlefuse->autoload_failflag = true;
-	} else {
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "Autoload OK\n");
-		rtlefuse->autoload_failflag = false;
-	}
-
-	if (rtlefuse->autoload_failflag)
+	hwinfo = kzalloc(HWSET_MAX_SIZE, GFP_KERNEL);
+	if (!hwinfo)
 		return;
 
-	rtlefuse->eeprom_vid = *(u16 *)&hwinfo[EEPROM_VID];
-	rtlefuse->eeprom_did = *(u16 *)&hwinfo[EEPROM_DID];
-	rtlefuse->eeprom_svid = *(u16 *)&hwinfo[EEPROM_SVID];
-	rtlefuse->eeprom_smid = *(u16 *)&hwinfo[EEPROM_SMID];
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-		 "EEPROMId = 0x%4x\n", eeprom_id);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-		 "EEPROM VID = 0x%4x\n", rtlefuse->eeprom_vid);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-		 "EEPROM DID = 0x%4x\n", rtlefuse->eeprom_did);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-		 "EEPROM SVID = 0x%4x\n", rtlefuse->eeprom_svid);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-		 "EEPROM SMID = 0x%4x\n", rtlefuse->eeprom_smid);
-
-	for (i = 0; i < 6; i += 2) {
-		usvalue = *(u16 *)&hwinfo[EEPROM_MAC_ADDR + i];
-		*((u16 *)(&rtlefuse->dev_addr[i])) = usvalue;
-	}
-
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-		 "dev_addr: %pM\n", rtlefuse->dev_addr);
+	if (rtl_get_hwinfo(hw, rtlpriv, HWSET_MAX_SIZE, hwinfo, params))
+		goto exit;
 
 	_rtl8723e_read_txpower_info_from_hwpg(hw, rtlefuse->autoload_failflag,
 					      hwinfo);
@@ -1693,144 +1656,138 @@ static void _rtl8723e_read_adapter_info(struct ieee80211_hw *hw,
 	rtl8723e_read_bt_coexist_info_from_hwpg(hw,
 			rtlefuse->autoload_failflag, hwinfo);
 
-	rtlefuse->eeprom_channelplan = hwinfo[EEPROM_CHANNELPLAN];
-	rtlefuse->eeprom_version = *(u16 *)&hwinfo[EEPROM_VERSION];
-	rtlefuse->txpwr_fromeprom = true;
-	rtlefuse->eeprom_oemid = hwinfo[EEPROM_CUSTOMER_ID];
+	if (rtlhal->oem_id != RT_CID_DEFAULT)
+		goto exit;
 
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-		 "EEPROM Customer ID: 0x%2x\n", rtlefuse->eeprom_oemid);
-
-	/* set channel paln to world wide 13 */
-	rtlefuse->channel_plan = COUNTRY_CODE_WORLD_WIDE_13;
-
-	if (rtlhal->oem_id == RT_CID_DEFAULT) {
-		switch (rtlefuse->eeprom_oemid) {
-		case EEPROM_CID_DEFAULT:
-			if (rtlefuse->eeprom_did == 0x8176) {
-				if (CHK_SVID_SMID(0x10EC, 0x6151) ||
-				    CHK_SVID_SMID(0x10EC, 0x6152) ||
-				    CHK_SVID_SMID(0x10EC, 0x6154) ||
-				    CHK_SVID_SMID(0x10EC, 0x6155) ||
-				    CHK_SVID_SMID(0x10EC, 0x6177) ||
-				    CHK_SVID_SMID(0x10EC, 0x6178) ||
-				    CHK_SVID_SMID(0x10EC, 0x6179) ||
-				    CHK_SVID_SMID(0x10EC, 0x6180) ||
-				    CHK_SVID_SMID(0x10EC, 0x7151) ||
-				    CHK_SVID_SMID(0x10EC, 0x7152) ||
-				    CHK_SVID_SMID(0x10EC, 0x7154) ||
-				    CHK_SVID_SMID(0x10EC, 0x7155) ||
-				    CHK_SVID_SMID(0x10EC, 0x7177) ||
-				    CHK_SVID_SMID(0x10EC, 0x7178) ||
-				    CHK_SVID_SMID(0x10EC, 0x7179) ||
-				    CHK_SVID_SMID(0x10EC, 0x7180) ||
-				    CHK_SVID_SMID(0x10EC, 0x8151) ||
-				    CHK_SVID_SMID(0x10EC, 0x8152) ||
-				    CHK_SVID_SMID(0x10EC, 0x8154) ||
-				    CHK_SVID_SMID(0x10EC, 0x8155) ||
-				    CHK_SVID_SMID(0x10EC, 0x8181) ||
-				    CHK_SVID_SMID(0x10EC, 0x8182) ||
-				    CHK_SVID_SMID(0x10EC, 0x8184) ||
-				    CHK_SVID_SMID(0x10EC, 0x8185) ||
-				    CHK_SVID_SMID(0x10EC, 0x9151) ||
-				    CHK_SVID_SMID(0x10EC, 0x9152) ||
-				    CHK_SVID_SMID(0x10EC, 0x9154) ||
-				    CHK_SVID_SMID(0x10EC, 0x9155) ||
-				    CHK_SVID_SMID(0x10EC, 0x9181) ||
-				    CHK_SVID_SMID(0x10EC, 0x9182) ||
-				    CHK_SVID_SMID(0x10EC, 0x9184) ||
-				    CHK_SVID_SMID(0x10EC, 0x9185))
+	switch (rtlefuse->eeprom_oemid) {
+	case EEPROM_CID_DEFAULT:
+		switch (rtlefuse->eeprom_did) {
+		case 0x8176:
+			switch (rtlefuse->eeprom_svid) {
+			case 0x10EC:
+				switch (rtlefuse->eeprom_smid) {
+				case 0x6151 ... 0x6152:
+				case 0x6154 ... 0x6155:
+				case 0x6177 ... 0x6180:
+				case 0x7151 ... 0x7152:
+				case 0x7154 ... 0x7155:
+				case 0x7177 ... 0x7180:
+				case 0x8151 ... 0x8152:
+				case 0x8154 ... 0x8155:
+				case 0x8181 ... 0x8182:
+				case 0x8184 ... 0x8185:
+				case 0x9151 ... 0x9152:
+				case 0x9154 ... 0x9155:
+				case 0x9181 ... 0x9182:
+				case 0x9184 ... 0x9185:
 					rtlhal->oem_id = RT_CID_TOSHIBA;
-				else if (rtlefuse->eeprom_svid == 0x1025)
-					rtlhal->oem_id = RT_CID_819X_ACER;
-				else if (CHK_SVID_SMID(0x10EC, 0x6191) ||
-					 CHK_SVID_SMID(0x10EC, 0x6192) ||
-					 CHK_SVID_SMID(0x10EC, 0x6193) ||
-					 CHK_SVID_SMID(0x10EC, 0x7191) ||
-					 CHK_SVID_SMID(0x10EC, 0x7192) ||
-					 CHK_SVID_SMID(0x10EC, 0x7193) ||
-					 CHK_SVID_SMID(0x10EC, 0x8191) ||
-					 CHK_SVID_SMID(0x10EC, 0x8192) ||
-					 CHK_SVID_SMID(0x10EC, 0x8193) ||
-					 CHK_SVID_SMID(0x10EC, 0x9191) ||
-					 CHK_SVID_SMID(0x10EC, 0x9192) ||
-					 CHK_SVID_SMID(0x10EC, 0x9193))
+					break;
+				case 0x6191 ... 0x6193:
+				case 0x7191 ... 0x7193:
+				case 0x8191 ... 0x8193:
+				case 0x9191 ... 0x9193:
 					rtlhal->oem_id = RT_CID_819X_SAMSUNG;
-				else if (CHK_SVID_SMID(0x10EC, 0x8195) ||
-					 CHK_SVID_SMID(0x10EC, 0x9195) ||
-					 CHK_SVID_SMID(0x10EC, 0x7194) ||
-					 CHK_SVID_SMID(0x10EC, 0x8200) ||
-					 CHK_SVID_SMID(0x10EC, 0x8201) ||
-					 CHK_SVID_SMID(0x10EC, 0x8202) ||
-					 CHK_SVID_SMID(0x10EC, 0x9200))
-					rtlhal->oem_id = RT_CID_819X_LENOVO;
-				else if (CHK_SVID_SMID(0x10EC, 0x8197) ||
-					 CHK_SVID_SMID(0x10EC, 0x9196))
+					break;
+				case 0x8197:
+				case 0x9196:
 					rtlhal->oem_id = RT_CID_819X_CLEVO;
-				else if (CHK_SVID_SMID(0x1028, 0x8194) ||
-					 CHK_SVID_SMID(0x1028, 0x8198) ||
-					 CHK_SVID_SMID(0x1028, 0x9197) ||
-					 CHK_SVID_SMID(0x1028, 0x9198))
+					break;
+				case 0x8203:
+					rtlhal->oem_id = RT_CID_819X_PRONETS;
+					break;
+				case 0x8195:
+				case 0x9195:
+				case 0x7194:
+				case 0x8200 ... 0x8202:
+				case 0x9200:
+					rtlhal->oem_id = RT_CID_819X_LENOVO;
+					break;
+				}
+			case 0x1025:
+				rtlhal->oem_id = RT_CID_819X_ACER;
+				break;
+			case 0x1028:
+				switch (rtlefuse->eeprom_smid) {
+				case 0x8194:
+				case 0x8198:
+				case 0x9197 ... 0x9198:
 					rtlhal->oem_id = RT_CID_819X_DELL;
-				else if (CHK_SVID_SMID(0x103C, 0x1629))
+					break;
+				}
+				break;
+			case 0x103C:
+				switch (rtlefuse->eeprom_smid) {
+				case 0x1629:
 					rtlhal->oem_id = RT_CID_819X_HP;
-				else if (CHK_SVID_SMID(0x1A32, 0x2315))
+				}
+				break;
+			case 0x1A32:
+				switch (rtlefuse->eeprom_smid) {
+				case 0x2315:
 					rtlhal->oem_id = RT_CID_819X_QMI;
-				else if (CHK_SVID_SMID(0x10EC, 0x8203))
-					rtlhal->oem_id = RT_CID_819X_PRONETS;
-				else if (CHK_SVID_SMID(0x1043, 0x84B5))
+					break;
+				}
+				break;
+			case 0x1043:
+				switch (rtlefuse->eeprom_smid) {
+				case 0x84B5:
 					rtlhal->oem_id =
-						 RT_CID_819X_EDIMAX_ASUS;
-				else
-					rtlhal->oem_id = RT_CID_DEFAULT;
-			} else if (rtlefuse->eeprom_did == 0x8178) {
-				if (CHK_SVID_SMID(0x10EC, 0x6181) ||
-				    CHK_SVID_SMID(0x10EC, 0x6182) ||
-				    CHK_SVID_SMID(0x10EC, 0x6184) ||
-				    CHK_SVID_SMID(0x10EC, 0x6185) ||
-				    CHK_SVID_SMID(0x10EC, 0x7181) ||
-				    CHK_SVID_SMID(0x10EC, 0x7182) ||
-				    CHK_SVID_SMID(0x10EC, 0x7184) ||
-				    CHK_SVID_SMID(0x10EC, 0x7185) ||
-				    CHK_SVID_SMID(0x10EC, 0x8181) ||
-				    CHK_SVID_SMID(0x10EC, 0x8182) ||
-				    CHK_SVID_SMID(0x10EC, 0x8184) ||
-				    CHK_SVID_SMID(0x10EC, 0x8185) ||
-				    CHK_SVID_SMID(0x10EC, 0x9181) ||
-				    CHK_SVID_SMID(0x10EC, 0x9182) ||
-				    CHK_SVID_SMID(0x10EC, 0x9184) ||
-				    CHK_SVID_SMID(0x10EC, 0x9185))
-					rtlhal->oem_id = RT_CID_TOSHIBA;
-				else if (rtlefuse->eeprom_svid == 0x1025)
-					rtlhal->oem_id = RT_CID_819X_ACER;
-				else if (CHK_SVID_SMID(0x10EC, 0x8186))
-					rtlhal->oem_id = RT_CID_819X_PRONETS;
-				else if (CHK_SVID_SMID(0x1043, 0x8486))
-					rtlhal->oem_id =
-						     RT_CID_819X_EDIMAX_ASUS;
-				else
-					rtlhal->oem_id = RT_CID_DEFAULT;
-			} else {
-				rtlhal->oem_id = RT_CID_DEFAULT;
+						RT_CID_819X_EDIMAX_ASUS;
+				}
+				break;
 			}
 			break;
-		case EEPROM_CID_TOSHIBA:
-			rtlhal->oem_id = RT_CID_TOSHIBA;
-			break;
-		case EEPROM_CID_CCX:
-			rtlhal->oem_id = RT_CID_CCX;
-			break;
-		case EEPROM_CID_QMI:
-			rtlhal->oem_id = RT_CID_819X_QMI;
-			break;
-		case EEPROM_CID_WHQL:
+		case 0x8178:
+			switch (rtlefuse->eeprom_svid) {
+			case 0x10ec:
+				switch (rtlefuse->eeprom_smid) {
+				case 0x6181 ... 0x6182:
+				case 0x6184 ... 0x6185:
+				case 0x7181 ... 0x7182:
+				case 0x7184 ... 0x7185:
+				case 0x8181 ... 0x8182:
+				case 0x8184 ... 0x8185:
+				case 0x9181 ... 0x9182:
+				case 0x9184 ... 0x9185:
+					rtlhal->oem_id = RT_CID_TOSHIBA;
+					break;
+				case 0x8186:
+					rtlhal->oem_id =
+						RT_CID_819X_PRONETS;
+					break;
+				}
 				break;
-		default:
-			rtlhal->oem_id = RT_CID_DEFAULT;
+			case 0x1025:
+				rtlhal->oem_id = RT_CID_819X_ACER;
+				break;
+			case 0x1043:
+				switch (rtlefuse->eeprom_smid) {
+				case 0x8486:
+					rtlhal->oem_id =
+					     RT_CID_819X_EDIMAX_ASUS;
+				}
+				break;
+			}
 			break;
-
 		}
+		break;
+	case EEPROM_CID_TOSHIBA:
+		rtlhal->oem_id = RT_CID_TOSHIBA;
+		break;
+	case EEPROM_CID_CCX:
+		rtlhal->oem_id = RT_CID_CCX;
+		break;
+	case EEPROM_CID_QMI:
+		rtlhal->oem_id = RT_CID_819X_QMI;
+		break;
+	case EEPROM_CID_WHQL:
+		break;
+	default:
+		rtlhal->oem_id = RT_CID_DEFAULT;
+		break;
 	}
+exit:
+	kfree(hwinfo);
 }
 
 static void _rtl8723e_hal_customized_behavior(struct ieee80211_hw *hw)
@@ -2271,7 +2228,7 @@ void rtl8723e_set_key(struct ieee80211_hw *hw, u32 key_index,
 			break;
 		default:
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-				 "switch case not process\n");
+				 "switch case %#x not processed\n", enc_algo);
 			enc_algo = CAM_TKIP;
 			break;
 		}

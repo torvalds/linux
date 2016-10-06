@@ -59,7 +59,7 @@
 
 &keypad {
 	linux,input-no-autorepeat;
-	linux,input-wakeup;
+	wakeup-source;
 	samsung,keypad-num-rows = <8>;
 	samsung,keypad-num-columns = <8>;
 	pinctrl-names = "default";
@@ -197,7 +197,7 @@
 	display-timings {
 		native-mode = <&timing0>;
 
-		timing0: timing@0 {
+		timing0: timing {
 			/* 800x480@60Hz */
 			clock-frequency = <24373920>;
 			hactive = <800>;

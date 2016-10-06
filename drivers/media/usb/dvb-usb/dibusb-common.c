@@ -1,6 +1,6 @@
 /* Common methods for dibusb-based-receivers.
  *
- * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@desy.de)
+ * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@posteo.de)
  *
  *	This program is free software; you can redistribute it and/or modify it
  *	under the terms of the GNU General Public License as published by the Free
@@ -184,6 +184,8 @@ int dibusb_read_eeprom_byte(struct dvb_usb_device *d, u8 offs, u8 *val)
 }
 EXPORT_SYMBOL(dibusb_read_eeprom_byte);
 
+#if IS_ENABLED(CONFIG_DVB_DIB3000MC)
+
 /* 3000MC/P stuff */
 // Config Adjacent channels  Perf -cal22
 static struct dibx000_agc_config dib3000p_mt2060_agc_config = {
@@ -241,8 +243,6 @@ static struct dibx000_agc_config dib3000p_panasonic_agc_config = {
 	.agc2_slope1 = 0x95,
 	.agc2_slope2 = 0x1e,
 };
-
-#if IS_ENABLED(CONFIG_DVB_DIB3000MC)
 
 static struct dib3000mc_config mod3000p_dib3000p_config = {
 	&dib3000p_panasonic_agc_config,

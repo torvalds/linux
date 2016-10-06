@@ -43,6 +43,7 @@ Table of Contents
   3.7   /proc/<pid>/task/<tid>/children - Information about task children
   3.8   /proc/<pid>/fdinfo/<fd> - Information about opened file
   3.9   /proc/<pid>/map_files - Information about memory mapped files
+  3.10  /proc/<pid>/timerslack_ns - Task timerslack value
 
   4	Configuring procfs
   4.1	Mount options
@@ -144,7 +145,7 @@ Table 1-1: Process specific entries in /proc
 		symbol the task is blocked in - or "0" if not blocked.
  pagemap	Page table
  stack		Report full stack trace, enable via CONFIG_STACKTRACE
- smaps		a extension based on maps, showing the memory consumption of
+ smaps		an extension based on maps, showing the memory consumption of
 		each mapping and flags associated with it
  numa_maps	an extension based on maps, showing the memory locality and
 		binding policy as well as mem usage (in pages) of each mapping.
@@ -224,6 +225,7 @@ Table 1-2: Contents of the status files (as of 4.1)
  TracerPid                   PID of process tracing this process (0 if not)
  Uid                         Real, effective, saved set, and  file system UIDs
  Gid                         Real, effective, saved set, and  file system GIDs
+ Umask                       file mode creation mask
  FDSize                      number of file descriptor slots currently allocated
  Groups                      supplementary group list
  NStgid                      descendant namespace thread group ID hierarchy
@@ -240,8 +242,8 @@ Table 1-2: Contents of the status files (as of 4.1)
  RssFile                     size of resident file mappings
  RssShmem                    size of resident shmem memory (includes SysV shm,
                              mapping of tmpfs and shared anonymous mappings)
- VmData                      size of data, stack, and text segments
- VmStk                       size of data, stack, and text segments
+ VmData                      size of private data segments
+ VmStk                       size of stack segments
  VmExe                       size of text segment
  VmLib                       size of shared library code
  VmPTE                       size of page table entries
@@ -356,7 +358,7 @@ address           perms offset  dev   inode      pathname
 a7cb1000-a7cb2000 ---p 00000000 00:00 0
 a7cb2000-a7eb2000 rw-p 00000000 00:00 0
 a7eb2000-a7eb3000 ---p 00000000 00:00 0
-a7eb3000-a7ed5000 rw-p 00000000 00:00 0          [stack:1001]
+a7eb3000-a7ed5000 rw-p 00000000 00:00 0
 a7ed5000-a8008000 r-xp 00000000 03:00 4222       /lib/libc.so.6
 a8008000-a800a000 r--p 00133000 03:00 4222       /lib/libc.so.6
 a800a000-a800b000 rw-p 00135000 03:00 4222       /lib/libc.so.6
@@ -388,7 +390,6 @@ is not associated with a file:
 
  [heap]                   = the heap of the program
  [stack]                  = the stack of the main process
- [stack:1001]             = the stack of the thread with tid 1001
  [vdso]                   = the "virtual dynamic shared object",
                             the kernel system call handler
 
@@ -396,10 +397,8 @@ is not associated with a file:
 
 The /proc/PID/task/TID/maps is a view of the virtual memory from the viewpoint
 of the individual tasks of a process. In this file you will see a mapping marked
-as [stack] if that task sees it as a stack. This is a key difference from the
-content of /proc/PID/maps, where you will see all mappings that are being used
-as stack by all of those tasks. Hence, for the example above, the task-level
-map, i.e. /proc/PID/task/TID/maps for thread 1001 will look like this:
+as [stack] if that task sees it as a stack. Hence, for the example above, the
+task-level map, i.e. /proc/PID/task/TID/maps for thread 1001 will look like this:
 
 08048000-08049000 r-xp 00000000 03:00 8312       /opt/test
 08049000-0804a000 rw-p 00001000 03:00 8312       /opt/test
@@ -437,6 +436,7 @@ Private_Dirty:         0 kB
 Referenced:          892 kB
 Anonymous:             0 kB
 AnonHugePages:         0 kB
+ShmemPmdMapped:        0 kB
 Shared_Hugetlb:        0 kB
 Private_Hugetlb:       0 kB
 Swap:                  0 kB
@@ -465,6 +465,8 @@ accessed.
 a mapping associated with a file may contain anonymous pages: when MAP_PRIVATE
 and a page is modified, the file page is replaced by a private anonymous copy.
 "AnonHugePages" shows the ammount of memory backed by transparent hugepage.
+"ShmemPmdMapped" shows the ammount of shared (shmem/tmpfs) memory backed by
+huge pages.
 "Shared_Hugetlb" and "Private_Hugetlb" show the ammounts of memory backed by
 hugetlbfs page which is *not* counted in "RSS" or "PSS" field for historical
 reasons. And these are not included in {Shared,Private}_{Clean,Dirty} field.
@@ -726,7 +728,7 @@ IRQ, you can set it by doing:
   > echo 1 > /proc/irq/10/smp_affinity
 
 This means that only the first CPU will handle the IRQ, but you can also echo
-5 which means that only the first and fourth CPU can handle the IRQ.
+5 which means that only the first and third CPU can handle the IRQ.
 
 The contents of each smp_affinity file is the same by default:
 
@@ -869,6 +871,9 @@ VmallocTotal:   112216 kB
 VmallocUsed:       428 kB
 VmallocChunk:   111088 kB
 AnonHugePages:   49152 kB
+ShmemHugePages:      0 kB
+ShmemPmdMapped:      0 kB
+
 
     MemTotal: Total usable ram (i.e. physical ram minus a few reserved
               bits and the kernel binary code)
@@ -913,6 +918,9 @@ MemAvailable: An estimate of how much memory is available for starting new
 AnonHugePages: Non-file backed huge pages mapped into userspace page tables
       Mapped: files which have been mmaped, such as libraries
        Shmem: Total memory used by shared memory (shmem) and tmpfs
+ShmemHugePages: Memory used by shared memory (shmem) and tmpfs allocated
+              with huge pages
+ShmemPmdMapped: Shared memory mapped into userspace with huge pages
         Slab: in-kernel data structures cache
 SReclaimable: Part of Slab, that might be reclaimed, such as caches
   SUnreclaim: Part of Slab, that cannot be reclaimed on memory pressure
@@ -1864,6 +1872,23 @@ files in a fast way instead of parsing /proc/<pid>/maps or
 time one can open(2) mappings from the listings of two processes and
 comparing their inode numbers to figure out which anonymous memory areas
 are actually shared.
+
+3.10	/proc/<pid>/timerslack_ns - Task timerslack value
+---------------------------------------------------------
+This file provides the value of the task's timerslack value in nanoseconds.
+This value specifies a amount of time that normal timers may be deferred
+in order to coalesce timers and avoid unnecessary wakeups.
+
+This allows a task's interactivity vs power consumption trade off to be
+adjusted.
+
+Writing 0 to the file will set the tasks timerslack to the default value.
+
+Valid values are from 0 - ULLONG_MAX
+
+An application setting the value must have PTRACE_MODE_ATTACH_FSCREDS level
+permissions on the task specified to change its timerslack_ns value.
+
 
 ------------------------------------------------------------------------------
 Configuring procfs

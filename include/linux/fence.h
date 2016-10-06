@@ -75,7 +75,8 @@ struct fence {
 	struct rcu_head rcu;
 	struct list_head cb_list;
 	spinlock_t *lock;
-	unsigned context, seqno;
+	u64 context;
+	unsigned seqno;
 	unsigned long flags;
 	ktime_t timestamp;
 	int status;
@@ -176,7 +177,7 @@ struct fence_ops {
 };
 
 void fence_init(struct fence *fence, const struct fence_ops *ops,
-		spinlock_t *lock, unsigned context, unsigned seqno);
+		spinlock_t *lock, u64 context, unsigned seqno);
 
 void fence_release(struct kref *kref);
 void fence_free(struct fence *fence);
@@ -292,7 +293,7 @@ static inline bool fence_is_later(struct fence *f1, struct fence *f2)
 	if (WARN_ON(f1->context != f2->context))
 		return false;
 
-	return f1->seqno - f2->seqno < INT_MAX;
+	return (int)(f1->seqno - f2->seqno) > 0;
 }
 
 /**
@@ -350,27 +351,27 @@ static inline signed long fence_wait(struct fence *fence, bool intr)
 	return ret < 0 ? ret : 0;
 }
 
-unsigned fence_context_alloc(unsigned num);
+u64 fence_context_alloc(unsigned num);
 
 #define FENCE_TRACE(f, fmt, args...) \
 	do {								\
 		struct fence *__ff = (f);				\
-		if (config_enabled(CONFIG_FENCE_TRACE))			\
-			pr_info("f %u#%u: " fmt,			\
+		if (IS_ENABLED(CONFIG_FENCE_TRACE))			\
+			pr_info("f %llu#%u: " fmt,			\
 				__ff->context, __ff->seqno, ##args);	\
 	} while (0)
 
 #define FENCE_WARN(f, fmt, args...) \
 	do {								\
 		struct fence *__ff = (f);				\
-		pr_warn("f %u#%u: " fmt, __ff->context, __ff->seqno,	\
+		pr_warn("f %llu#%u: " fmt, __ff->context, __ff->seqno,	\
 			 ##args);					\
 	} while (0)
 
 #define FENCE_ERR(f, fmt, args...) \
 	do {								\
 		struct fence *__ff = (f);				\
-		pr_err("f %u#%u: " fmt, __ff->context, __ff->seqno,	\
+		pr_err("f %llu#%u: " fmt, __ff->context, __ff->seqno,	\
 			##args);					\
 	} while (0)
 

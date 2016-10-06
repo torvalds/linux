@@ -245,6 +245,18 @@ static void pci_parse_of_addrs(struct platform_device *op,
 	}
 }
 
+static void pci_init_dev_archdata(struct dev_archdata *sd, void *iommu,
+				  void *stc, void *host_controller,
+				  struct platform_device  *op,
+				  int numa_node)
+{
+	sd->iommu = iommu;
+	sd->stc = stc;
+	sd->host_controller = host_controller;
+	sd->op = op;
+	sd->numa_node = numa_node;
+}
+
 static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 					 struct device_node *node,
 					 struct pci_bus *bus, int devfn)
@@ -259,13 +271,10 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	if (!dev)
 		return NULL;
 
+	op = of_find_device_by_node(node);
 	sd = &dev->dev.archdata;
-	sd->iommu = pbm->iommu;
-	sd->stc = &pbm->stc;
-	sd->host_controller = pbm;
-	sd->op = op = of_find_device_by_node(node);
-	sd->numa_node = pbm->numa_node;
-
+	pci_init_dev_archdata(sd, pbm->iommu, &pbm->stc, pbm, op,
+			      pbm->numa_node);
 	sd = &op->dev.archdata;
 	sd->iommu = pbm->iommu;
 	sd->stc = &pbm->stc;
@@ -977,22 +986,45 @@ void pci_resource_to_user(const struct pci_dev *pdev, int bar,
 			  const struct resource *rp, resource_size_t *start,
 			  resource_size_t *end)
 {
-	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
-	unsigned long offset;
+	struct pci_bus_region region;
 
-	if (rp->flags & IORESOURCE_IO)
-		offset = pbm->io_space.start;
-	else
-		offset = pbm->mem_space.start;
-
-	*start = rp->start - offset;
-	*end = rp->end - offset;
+	/*
+	 * "User" addresses are shown in /sys/devices/pci.../.../resource
+	 * and /proc/bus/pci/devices and used as mmap offsets for
+	 * /proc/bus/pci/BB/DD.F files (see proc_bus_pci_mmap()).
+	 *
+	 * On sparc, these are PCI bus addresses, i.e., raw BAR values.
+	 */
+	pcibios_resource_to_bus(pdev->bus, &region, (struct resource *) rp);
+	*start = region.start;
+	*end = region.end;
 }
 
 void pcibios_set_master(struct pci_dev *dev)
 {
 	/* No special bus mastering setup handling */
 }
+
+#ifdef CONFIG_PCI_IOV
+int pcibios_add_device(struct pci_dev *dev)
+{
+	struct pci_dev *pdev;
+
+	/* Add sriov arch specific initialization here.
+	 * Copy dev_archdata from PF to VF
+	 */
+	if (dev->is_virtfn) {
+		struct dev_archdata *psd;
+
+		pdev = dev->physfn;
+		psd = &pdev->dev.archdata;
+		pci_init_dev_archdata(&dev->dev.archdata, psd->iommu,
+				      psd->stc, psd->host_controller, NULL,
+				      psd->numa_node);
+	}
+	return 0;
+}
+#endif /* CONFIG_PCI_IOV */
 
 static int __init pcibios_init(void)
 {

@@ -1228,7 +1228,7 @@ static int if_sdio_probe(struct sdio_func *func,
 	}
 
 	spin_lock_init(&card->lock);
-	card->workqueue = create_workqueue("libertas_sdio");
+	card->workqueue = alloc_workqueue("libertas_sdio", WQ_MEM_RECLAIM, 0);
 	INIT_WORK(&card->packet_worker, if_sdio_host_to_card_worker);
 	init_waitqueue_head(&card->pwron_waitq);
 
@@ -1267,7 +1267,7 @@ static int if_sdio_probe(struct sdio_func *func,
 	priv->reset_card = if_sdio_reset_card;
 	priv->power_save = if_sdio_power_save;
 	priv->power_restore = if_sdio_power_restore;
-
+	priv->is_polling = !(func->card->host->caps & MMC_CAP_SDIO_IRQ);
 	ret = if_sdio_power_on(card);
 	if (ret)
 		goto err_activate_card;
@@ -1326,7 +1326,6 @@ static void if_sdio_remove(struct sdio_func *func)
 	lbs_stop_card(card->priv);
 	lbs_remove_card(card->priv);
 
-	flush_workqueue(card->workqueue);
 	destroy_workqueue(card->workqueue);
 
 	while (card->packets) {

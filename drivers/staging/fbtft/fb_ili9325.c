@@ -32,66 +32,66 @@
 #define DEFAULT_GAMMA	"0F 00 7 2 0 0 6 5 4 1\n" \
 			"04 16 2 7 6 3 2 1 7 7"
 
-static unsigned bt = 6; /* VGL=Vci*4 , VGH=Vci*4 */
+static unsigned int bt = 6; /* VGL=Vci*4 , VGH=Vci*4 */
 module_param(bt, uint, 0);
 MODULE_PARM_DESC(bt, "Sets the factor used in the step-up circuits");
 
-static unsigned vc = 0x03; /* Vci1=Vci*0.80 */
+static unsigned int vc = 0x03; /* Vci1=Vci*0.80 */
 module_param(vc, uint, 0);
 MODULE_PARM_DESC(vc,
 "Sets the ratio factor of Vci to generate the reference voltages Vci1");
 
-static unsigned vrh = 0x0d; /* VREG1OUT=Vci*1.85 */
+static unsigned int vrh = 0x0d; /* VREG1OUT=Vci*1.85 */
 module_param(vrh, uint, 0);
 MODULE_PARM_DESC(vrh,
 "Set the amplifying rate (1.6 ~ 1.9) of Vci applied to output the VREG1OUT");
 
-static unsigned vdv = 0x12; /* VCOMH amplitude=VREG1OUT*0.98 */
+static unsigned int vdv = 0x12; /* VCOMH amplitude=VREG1OUT*0.98 */
 module_param(vdv, uint, 0);
 MODULE_PARM_DESC(vdv,
 "Select the factor of VREG1OUT to set the amplitude of Vcom");
 
-static unsigned vcm = 0x0a; /* VCOMH=VREG1OUT*0.735 */
+static unsigned int vcm = 0x0a; /* VCOMH=VREG1OUT*0.735 */
 module_param(vcm, uint, 0);
 MODULE_PARM_DESC(vcm, "Set the internal VcomH voltage");
 
 /*
-Verify that this configuration is within the Voltage limits
-
-Display module configuration: Vcc = IOVcc = Vci = 3.3V
-
- Voltages
-----------
-Vci                                =   3.3
-Vci1           =  Vci * 0.80       =   2.64
-DDVDH          =  Vci1 * 2         =   5.28
-VCL            = -Vci1             =  -2.64
-VREG1OUT       =  Vci * 1.85       =   4.88
-VCOMH          =  VREG1OUT * 0.735 =   3.59
-VCOM amplitude =  VREG1OUT * 0.98  =   4.79
-VGH            =  Vci * 4          =  13.2
-VGL            = -Vci * 4          = -13.2
-
- Limits
---------
-Power supplies
-1.65 < IOVcc < 3.30   =>  1.65 < 3.3 < 3.30
-2.40 < Vcc   < 3.30   =>  2.40 < 3.3 < 3.30
-2.50 < Vci   < 3.30   =>  2.50 < 3.3 < 3.30
-
-Source/VCOM power supply voltage
- 4.50 < DDVDH < 6.0   =>  4.50 <  5.28 <  6.0
--3.0  < VCL   < -2.0  =>  -3.0 < -2.64 < -2.0
-VCI - VCL < 6.0       =>  5.94 < 6.0
-
-Gate driver output voltage
- 10  < VGH   < 20     =>   10 <  13.2  < 20
--15  < VGL   < -5     =>  -15 < -13.2  < -5
-VGH - VGL < 32        =>   26.4 < 32
-
-VCOM driver output voltage
-VCOMH - VCOML < 6.0   =>  4.79 < 6.0
-*/
+ * Verify that this configuration is within the Voltage limits
+ *
+ * Display module configuration: Vcc = IOVcc = Vci = 3.3V
+ *
+ * Voltages
+ * ----------
+ * Vci                                =   3.3
+ * Vci1           =  Vci * 0.80       =   2.64
+ * DDVDH          =  Vci1 * 2         =   5.28
+ * VCL            = -Vci1             =  -2.64
+ * VREG1OUT       =  Vci * 1.85       =   4.88
+ * VCOMH          =  VREG1OUT * 0.735 =   3.59
+ * VCOM amplitude =  VREG1OUT * 0.98  =   4.79
+ * VGH            =  Vci * 4          =  13.2
+ * VGL            = -Vci * 4          = -13.2
+ *
+ * Limits
+ * --------
+ * Power supplies
+ * 1.65 < IOVcc < 3.30   =>  1.65 < 3.3 < 3.30
+ * 2.40 < Vcc   < 3.30   =>  2.40 < 3.3 < 3.30
+ * 2.50 < Vci   < 3.30   =>  2.50 < 3.3 < 3.30
+ *
+ * Source/VCOM power supply voltage
+ *  4.50 < DDVDH < 6.0   =>  4.50 <  5.28 <  6.0
+ * -3.0  < VCL   < -2.0  =>  -3.0 < -2.64 < -2.0
+ * VCI - VCL < 6.0       =>  5.94 < 6.0
+ *
+ * Gate driver output voltage
+ *  10  < VGH   < 20     =>   10 <  13.2  < 20
+ * -15  < VGL   < -5     =>  -15 < -13.2  < -5
+ * VGH - VGL < 32        =>   26.4 < 32
+ *
+ * VCOM driver output voltage
+ * VCOMH - VCOML < 6.0   =>  4.79 < 6.0
+ */
 
 static int init_display(struct fbtft_par *par)
 {
@@ -213,10 +213,10 @@ static int set_var(struct fbtft_par *par)
 }
 
 /*
-  Gamma string format:
-    VRP0 VRP1 RP0 RP1 KP0 KP1 KP2 KP3 KP4 KP5
-    VRN0 VRN1 RN0 RN1 KN0 KN1 KN2 KN3 KN4 KN5
-*/
+ * Gamma string format:
+ *  VRP0 VRP1 RP0 RP1 KP0 KP1 KP2 KP3 KP4 KP5
+ *  VRN0 VRN1 RN0 RN1 KN0 KN1 KN2 KN3 KN4 KN5
+ */
 #define CURVE(num, idx)  curves[num * par->gamma.num_values + idx]
 static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 {
@@ -245,6 +245,7 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 
 	return 0;
 }
+
 #undef CURVE
 
 static struct fbtft_display display = {

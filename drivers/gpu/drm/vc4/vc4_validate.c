@@ -401,8 +401,8 @@ validate_tile_binning_config(VALIDATE_ARGS)
 	tile_bo = vc4_bo_create(dev, exec->tile_alloc_offset + tile_alloc_size,
 				true);
 	exec->tile_bo = &tile_bo->base;
-	if (!exec->tile_bo)
-		return -ENOMEM;
+	if (IS_ERR(exec->tile_bo))
+		return PTR_ERR(exec->tile_bo);
 	list_add_tail(&tile_bo->unref_head, &exec->unref_list);
 
 	/* tile alloc address. */
@@ -802,7 +802,7 @@ validate_gl_shader_rec(struct drm_device *dev,
 		uint32_t src_offset = *(uint32_t *)(pkt_u + o);
 		uint32_t *texture_handles_u;
 		void *uniform_data_u;
-		uint32_t tex;
+		uint32_t tex, uni;
 
 		*(uint32_t *)(pkt_v + o) = bo[i]->paddr + src_offset;
 
@@ -838,6 +838,17 @@ validate_gl_shader_rec(struct drm_device *dev,
 				       texture_handles_u[tex])) {
 				return -EINVAL;
 			}
+		}
+
+		/* Fill in the uniform slots that need this shader's
+		 * start-of-uniforms address (used for resetting the uniform
+		 * stream in the presence of control flow).
+		 */
+		for (uni = 0;
+		     uni < validated_shader->num_uniform_addr_offsets;
+		     uni++) {
+			uint32_t o = validated_shader->uniform_addr_offsets[uni];
+			((uint32_t *)exec->uniforms_v)[o] = exec->uniforms_p;
 		}
 
 		*(uint32_t *)(pkt_v + o + 4) = exec->uniforms_p;

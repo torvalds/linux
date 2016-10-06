@@ -6,6 +6,10 @@
 #include <crypto/algapi.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <crypto/internal/hash.h>
+
+#include <crypto/md5.h>
+#include <crypto/sha.h>
 
 #define _SBF(v, f)			((v) << (f))
 
@@ -149,6 +153,28 @@
 #define RK_CRYPTO_TDES_KEY3_0		0x0130
 #define RK_CRYPTO_TDES_KEY3_1		0x0134
 
+/* HASH */
+#define RK_CRYPTO_HASH_CTRL		0x0180
+#define RK_CRYPTO_HASH_SWAP_DO		BIT(3)
+#define RK_CRYPTO_HASH_SWAP_DI		BIT(2)
+#define RK_CRYPTO_HASH_SHA1		_SBF(0x00, 0)
+#define RK_CRYPTO_HASH_MD5		_SBF(0x01, 0)
+#define RK_CRYPTO_HASH_SHA256		_SBF(0x02, 0)
+#define RK_CRYPTO_HASH_PRNG		_SBF(0x03, 0)
+
+#define RK_CRYPTO_HASH_STS		0x0184
+#define RK_CRYPTO_HASH_DONE		BIT(0)
+
+#define RK_CRYPTO_HASH_MSG_LEN		0x0188
+#define RK_CRYPTO_HASH_DOUT_0		0x018c
+#define RK_CRYPTO_HASH_DOUT_1		0x0190
+#define RK_CRYPTO_HASH_DOUT_2		0x0194
+#define RK_CRYPTO_HASH_DOUT_3		0x0198
+#define RK_CRYPTO_HASH_DOUT_4		0x019c
+#define RK_CRYPTO_HASH_DOUT_5		0x01a0
+#define RK_CRYPTO_HASH_DOUT_6		0x01a4
+#define RK_CRYPTO_HASH_DOUT_7		0x01a8
+
 #define CRYPTO_READ(dev, offset)		  \
 		readl_relaxed(((dev)->reg + (offset)))
 #define CRYPTO_WRITE(dev, offset, val)	  \
@@ -166,6 +192,7 @@ struct rk_crypto_info {
 	struct crypto_queue		queue;
 	struct tasklet_struct		crypto_tasklet;
 	struct ablkcipher_request	*ablk_req;
+	struct ahash_request		*ahash_req;
 	/* device lock */
 	spinlock_t			lock;
 
@@ -195,15 +222,36 @@ struct rk_crypto_info {
 	void (*unload_data)(struct rk_crypto_info *dev);
 };
 
+/* the private variable of hash */
+struct rk_ahash_ctx {
+	struct rk_crypto_info		*dev;
+	/* for fallback */
+	struct crypto_ahash		*fallback_tfm;
+};
+
+/* the privete variable of hash for fallback */
+struct rk_ahash_rctx {
+	struct ahash_request		fallback_req;
+};
+
 /* the private variable of cipher */
 struct rk_cipher_ctx {
 	struct rk_crypto_info		*dev;
 	unsigned int			keylen;
 };
 
+enum alg_type {
+	ALG_TYPE_HASH,
+	ALG_TYPE_CIPHER,
+};
+
 struct rk_crypto_tmp {
-	struct rk_crypto_info *dev;
-	struct crypto_alg alg;
+	struct rk_crypto_info		*dev;
+	union {
+		struct crypto_alg	crypto;
+		struct ahash_alg	hash;
+	} alg;
+	enum alg_type			type;
 };
 
 extern struct rk_crypto_tmp rk_ecb_aes_alg;
@@ -212,5 +260,9 @@ extern struct rk_crypto_tmp rk_ecb_des_alg;
 extern struct rk_crypto_tmp rk_cbc_des_alg;
 extern struct rk_crypto_tmp rk_ecb_des3_ede_alg;
 extern struct rk_crypto_tmp rk_cbc_des3_ede_alg;
+
+extern struct rk_crypto_tmp rk_ahash_sha1;
+extern struct rk_crypto_tmp rk_ahash_sha256;
+extern struct rk_crypto_tmp rk_ahash_md5;
 
 #endif

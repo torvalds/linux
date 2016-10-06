@@ -149,7 +149,7 @@ Gapless Playback
 ================
 When playing thru an album, the decoders have the ability to skip the encoder
 delay and padding and directly move from one track content to another. The end
-user can perceive this as gapless playback as we dont have silence while
+user can perceive this as gapless playback as we don't have silence while
 switching from one track to another
 
 Also, there might be low-intensity noises due to encoding. Perfect gapless is
@@ -184,7 +184,7 @@ Sequence flow for gapless would be:
 - Fill data of the first track
 - Trigger start
 - User-space finished sending all,
-- Indicaite next track data by sending set_next_track
+- Indicate next track data by sending set_next_track
 - Set metadata of the next track
 - then call partial_drain to flush most of buffer in DSP
 - Fill data of the next track

@@ -2629,7 +2629,7 @@ static void mvumi_shutdown(struct pci_dev *pdev)
 	mvumi_flush_cache(mhba);
 }
 
-static int mvumi_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused mvumi_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct mvumi_hba *mhba = NULL;
 
@@ -2648,7 +2648,7 @@ static int mvumi_suspend(struct pci_dev *pdev, pm_message_t state)
 	return 0;
 }
 
-static int mvumi_resume(struct pci_dev *pdev)
+static int __maybe_unused mvumi_resume(struct pci_dev *pdev)
 {
 	int ret;
 	struct mvumi_hba *mhba = NULL;

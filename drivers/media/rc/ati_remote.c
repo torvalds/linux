@@ -443,6 +443,21 @@ static int ati_remote_sendpacket(struct ati_remote *ati_remote, u16 cmd,
 	return retval;
 }
 
+struct accel_times {
+	const char	value;
+	unsigned int	msecs;
+};
+
+static const struct accel_times accel[] = {
+	{  1,  125 },
+	{  2,  250 },
+	{  4,  500 },
+	{  6, 1000 },
+	{  9, 1500 },
+	{ 13, 2000 },
+	{ 20,    0 },
+};
+
 /*
  * ati_remote_compute_accel
  *
@@ -454,30 +469,22 @@ static int ati_remote_sendpacket(struct ati_remote *ati_remote, u16 cmd,
  */
 static int ati_remote_compute_accel(struct ati_remote *ati_remote)
 {
-	static const char accel[] = { 1, 2, 4, 6, 9, 13, 20 };
-	unsigned long now = jiffies;
-	int acc;
+	unsigned long now = jiffies, reset_time;
+	int i;
 
-	if (time_after(now, ati_remote->old_jiffies + msecs_to_jiffies(250))) {
-		acc = 1;
+	reset_time = msecs_to_jiffies(250);
+
+	if (time_after(now, ati_remote->old_jiffies + reset_time)) {
 		ati_remote->acc_jiffies = now;
+		return 1;
 	}
-	else if (time_before(now, ati_remote->acc_jiffies + msecs_to_jiffies(125)))
-		acc = accel[0];
-	else if (time_before(now, ati_remote->acc_jiffies + msecs_to_jiffies(250)))
-		acc = accel[1];
-	else if (time_before(now, ati_remote->acc_jiffies + msecs_to_jiffies(500)))
-		acc = accel[2];
-	else if (time_before(now, ati_remote->acc_jiffies + msecs_to_jiffies(1000)))
-		acc = accel[3];
-	else if (time_before(now, ati_remote->acc_jiffies + msecs_to_jiffies(1500)))
-		acc = accel[4];
-	else if (time_before(now, ati_remote->acc_jiffies + msecs_to_jiffies(2000)))
-		acc = accel[5];
-	else
-		acc = accel[6];
+	for (i = 0; i < ARRAY_SIZE(accel) - 1; i++) {
+		unsigned long timeout = msecs_to_jiffies(accel[i].msecs);
 
-	return acc;
+		if (time_before(now, ati_remote->acc_jiffies + timeout))
+			return accel[i].value;
+	}
+	return accel[i].value;
 }
 
 /*
@@ -866,13 +873,10 @@ static int ati_remote_probe(struct usb_interface *interface,
 	strlcat(ati_remote->rc_phys, "/input0", sizeof(ati_remote->rc_phys));
 	strlcat(ati_remote->mouse_phys, "/input1", sizeof(ati_remote->mouse_phys));
 
-	if (udev->manufacturer)
-		strlcpy(ati_remote->rc_name, udev->manufacturer,
-			sizeof(ati_remote->rc_name));
-
-	if (udev->product)
-		snprintf(ati_remote->rc_name, sizeof(ati_remote->rc_name),
-			 "%s %s", ati_remote->rc_name, udev->product);
+	snprintf(ati_remote->rc_name, sizeof(ati_remote->rc_name), "%s%s%s",
+		udev->manufacturer ?: "",
+		udev->manufacturer && udev->product ? " " : "",
+		udev->product ?: "");
 
 	if (!strlen(ati_remote->rc_name))
 		snprintf(ati_remote->rc_name, sizeof(ati_remote->rc_name),

@@ -190,7 +190,6 @@ struct b43_phy_operations {
 	void (*pwork_60sec)(struct b43_wldev *dev);
 };
 
-struct b43_phy_a;
 struct b43_phy_g;
 struct b43_phy_n;
 struct b43_phy_lp;
@@ -210,8 +209,6 @@ struct b43_phy {
 #else
 	union {
 #endif
-		/* A-PHY specific information */
-		struct b43_phy_a *a;
 		/* G-PHY specific information */
 		struct b43_phy_g *g;
 		/* N-PHY specific information */

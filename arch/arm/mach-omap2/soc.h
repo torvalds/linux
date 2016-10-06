@@ -39,82 +39,10 @@
 #include <linux/of.h>
 
 /*
- * Test if multicore OMAP support is needed
+ * OMAP2+ is always defined as ARCH_MULTIPLATFORM in Kconfig
  */
 #undef MULTI_OMAP2
-#undef OMAP_NAME
-
-#ifdef CONFIG_ARCH_MULTIPLATFORM
 #define MULTI_OMAP2
-#endif
-#ifdef CONFIG_SOC_OMAP2420
-# ifdef OMAP_NAME
-#  undef  MULTI_OMAP2
-#  define MULTI_OMAP2
-# else
-#  define OMAP_NAME omap2420
-# endif
-#endif
-#ifdef CONFIG_SOC_OMAP2430
-# ifdef OMAP_NAME
-#  undef  MULTI_OMAP2
-#  define MULTI_OMAP2
-# else
-#  define OMAP_NAME omap2430
-# endif
-#endif
-#ifdef CONFIG_ARCH_OMAP3
-# ifdef OMAP_NAME
-#  undef  MULTI_OMAP2
-#  define MULTI_OMAP2
-# else
-#  define OMAP_NAME omap3
-# endif
-#endif
-#ifdef CONFIG_ARCH_OMAP4
-# ifdef OMAP_NAME
-#  undef  MULTI_OMAP2
-#  define MULTI_OMAP2
-# else
-#  define OMAP_NAME omap4
-# endif
-#endif
-
-#ifdef CONFIG_SOC_OMAP5
-# ifdef OMAP_NAME
-#  undef  MULTI_OMAP2
-#  define MULTI_OMAP2
-# else
-#  define OMAP_NAME omap5
-# endif
-#endif
-
-#ifdef CONFIG_SOC_AM33XX
-# ifdef OMAP_NAME
-#  undef  MULTI_OMAP2
-#  define MULTI_OMAP2
-# else
-#  define OMAP_NAME am33xx
-# endif
-#endif
-
-#ifdef CONFIG_SOC_AM43XX
-# ifdef OMAP_NAME
-#  undef  MULTI_OMAP2
-#  define MULTI_OMAP2
-# else
-#  define OMAP_NAME am43xx
-# endif
-#endif
-
-#ifdef CONFIG_SOC_DRA7XX
-# ifdef OMAP_NAME
-#  undef MULTI_OMAP2
-#  define MULTI_OMAP2
-# else
-#  define OMAP_NAME DRA7XX
-# endif
-#endif
 
 /*
  * Omap device type i.e. EMU/HS/TST/GP/BAD
@@ -181,6 +109,14 @@ static inline int is_ti ##class (void)		\
 	return (GET_TI_CLASS == (id)) ? 1 : 0;	\
 }
 
+#define GET_DRA_CLASS	((omap_rev() >> 24) & 0xff)
+
+#define IS_DRA_CLASS(class, id)				\
+static inline int is_dra ##class (void)			\
+{							\
+	return (GET_DRA_CLASS == (id)) ? 1 : 0;		\
+}
+
 #define GET_OMAP_SUBCLASS	((omap_rev() >> 20) & 0x0fff)
 
 #define IS_OMAP_SUBCLASS(subclass, id)			\
@@ -201,6 +137,12 @@ static inline int is_am ##subclass (void)		\
 	return (GET_OMAP_SUBCLASS == (id)) ? 1 : 0;	\
 }
 
+#define IS_DRA_SUBCLASS(subclass, id)			\
+static inline int is_dra ##subclass (void)		\
+{							\
+	return (GET_OMAP_SUBCLASS == (id)) ? 1 : 0;	\
+}
+
 IS_OMAP_CLASS(24xx, 0x24)
 IS_OMAP_CLASS(34xx, 0x34)
 IS_OMAP_CLASS(44xx, 0x44)
@@ -210,6 +152,7 @@ IS_AM_CLASS(33xx, 0x33)
 IS_AM_CLASS(43xx, 0x43)
 
 IS_TI_CLASS(81xx, 0x81)
+IS_DRA_CLASS(7xx, 0x7)
 
 IS_OMAP_SUBCLASS(242x, 0x242)
 IS_OMAP_SUBCLASS(243x, 0x243)
@@ -224,12 +167,9 @@ IS_TI_SUBCLASS(816x, 0x816)
 IS_TI_SUBCLASS(814x, 0x814)
 IS_AM_SUBCLASS(335x, 0x335)
 IS_AM_SUBCLASS(437x, 0x437)
+IS_DRA_SUBCLASS(75x, 0x75)
+IS_DRA_SUBCLASS(72x, 0x72)
 
-#define soc_is_omap24xx()		0
-#define soc_is_omap242x()		0
-#define soc_is_omap243x()		0
-#define soc_is_omap34xx()		0
-#define soc_is_omap343x()		0
 #define soc_is_ti81xx()			0
 #define soc_is_ti816x()			0
 #define soc_is_ti814x()			0
@@ -248,46 +188,27 @@ IS_AM_SUBCLASS(437x, 0x437)
 #define soc_is_dra74x()			0
 #define soc_is_dra72x()			0
 
-#if defined(MULTI_OMAP2)
-# if defined(CONFIG_ARCH_OMAP2)
-#  undef  soc_is_omap24xx
-#  define soc_is_omap24xx()		is_omap24xx()
-# endif
-# if defined (CONFIG_SOC_OMAP2420)
-#  undef  soc_is_omap242x
-#  define soc_is_omap242x()		is_omap242x()
-# endif
-# if defined (CONFIG_SOC_OMAP2430)
-#  undef  soc_is_omap243x
-#  define soc_is_omap243x()		is_omap243x()
-# endif
-# if defined(CONFIG_ARCH_OMAP3)
-#  undef  soc_is_omap34xx
-#  undef  soc_is_omap343x
-#  define soc_is_omap34xx()		is_omap34xx()
-#  define soc_is_omap343x()		is_omap343x()
-# endif
+#if defined(CONFIG_ARCH_OMAP2)
+# define soc_is_omap24xx()		is_omap24xx()
 #else
-# if defined(CONFIG_ARCH_OMAP2)
-#  undef  soc_is_omap24xx
-#  define soc_is_omap24xx()		1
-# endif
-# if defined(CONFIG_SOC_OMAP2420)
-#  undef  soc_is_omap242x
-#  define soc_is_omap242x()		1
-# endif
-# if defined(CONFIG_SOC_OMAP2430)
-#  undef  soc_is_omap243x
-#  define soc_is_omap243x()		1
-# endif
-# if defined(CONFIG_ARCH_OMAP3)
-#  undef  soc_is_omap34xx
-#  define soc_is_omap34xx()		1
-# endif
-# if defined(CONFIG_SOC_OMAP3430)
-#  undef  soc_is_omap343x
-#  define soc_is_omap343x()		1
-# endif
+# define soc_is_omap24xx()		0
+#endif
+#if defined(CONFIG_SOC_OMAP2420)
+# define soc_is_omap242x()		is_omap242x()
+#else
+# define soc_is_omap242x()		0
+#endif
+#if defined(CONFIG_SOC_OMAP2430)
+# define soc_is_omap243x()		is_omap243x()
+#else
+# define soc_is_omap243x()		0
+#endif
+#if defined(CONFIG_ARCH_OMAP3)
+# define soc_is_omap34xx()		is_omap34xx()
+# define soc_is_omap343x()		is_omap343x()
+#else
+# define soc_is_omap34xx()		0
+# define soc_is_omap343x()		0
 #endif
 
 /*
@@ -322,7 +243,6 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define soc_is_omap5430()		0
 
 /* These are needed for the common code */
-#ifdef CONFIG_ARCH_OMAP2PLUS
 #define soc_is_omap7xx()		0
 #define soc_is_omap15xx()		0
 #define soc_is_omap16xx()		0
@@ -333,7 +253,6 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define soc_is_omap1710()		0
 #define cpu_class_is_omap1()		0
 #define cpu_class_is_omap2()		1
-#endif
 
 #if defined(CONFIG_ARCH_OMAP2)
 # undef  soc_is_omap2420
@@ -397,9 +316,9 @@ IS_OMAP_TYPE(3430, 0x3430)
 #undef soc_is_dra7xx
 #undef soc_is_dra74x
 #undef soc_is_dra72x
-#define soc_is_dra7xx()	(of_machine_is_compatible("ti,dra7"))
-#define soc_is_dra74x()	(of_machine_is_compatible("ti,dra74"))
-#define soc_is_dra72x()	(of_machine_is_compatible("ti,dra72"))
+#define soc_is_dra7xx()	is_dra7xx()
+#define soc_is_dra74x()	is_dra75x()
+#define soc_is_dra72x()	is_dra72x()
 #endif
 
 /* Various silicon revisions for omap2 */
@@ -472,6 +391,7 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define DRA752_REV_ES2_0	(DRA7XX_CLASS | (0x52 << 16) | (0x20 << 8))
 #define DRA722_REV_ES1_0	(DRA7XX_CLASS | (0x22 << 16) | (0x10 << 8))
 #define DRA722_REV_ES1_0	(DRA7XX_CLASS | (0x22 << 16) | (0x10 << 8))
+#define DRA722_REV_ES2_0	(DRA7XX_CLASS | (0x22 << 16) | (0x20 << 8))
 
 void omap2xxx_check_revision(void);
 void omap3xxx_check_revision(void);

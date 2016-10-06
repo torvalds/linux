@@ -15,14 +15,14 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/device.h>
-#include <linux/interrupt.h>
-#include <linux/workqueue.h>
 #include <linux/i2c.h>
 #include <linux/i2c-smbus.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
 
 struct i2c_smbus_alert {
 	unsigned int		alert_edge_triggered:1;
@@ -33,7 +33,8 @@ struct i2c_smbus_alert {
 
 struct alert_data {
 	unsigned short		addr;
-	u8			flag:1;
+	enum i2c_alert_protocol	type;
+	unsigned int		data;
 };
 
 /* If this is the alerting device, notify its driver */
@@ -56,7 +57,7 @@ static int smbus_do_alert(struct device *dev, void *addrp)
 	if (client->dev.driver) {
 		driver = to_i2c_driver(client->dev.driver);
 		if (driver->alert)
-			driver->alert(client, data->flag);
+			driver->alert(client, data->type, data->data);
 		else
 			dev_warn(&client->dev, "no driver alert()!\n");
 	} else
@@ -96,8 +97,9 @@ static void smbus_alert(struct work_struct *work)
 		if (status < 0)
 			break;
 
-		data.flag = status & 1;
+		data.data = status & 1;
 		data.addr = status >> 1;
+		data.type = I2C_PROTOCOL_SMBUS_ALERT;
 
 		if (data.addr == prev_addr) {
 			dev_warn(&ara->dev, "Duplicate SMBALERT# from dev "
@@ -105,7 +107,7 @@ static void smbus_alert(struct work_struct *work)
 			break;
 		}
 		dev_dbg(&ara->dev, "SMBALERT# from dev 0x%02x, flag %d\n",
-			data.addr, data.flag);
+			data.addr, data.data);
 
 		/* Notify driver for the device which issued the alert */
 		device_for_each_child(&ara->adapter->dev, &data,
@@ -238,6 +240,108 @@ int i2c_handle_smbus_alert(struct i2c_client *ara)
 	return schedule_work(&alert->alert);
 }
 EXPORT_SYMBOL_GPL(i2c_handle_smbus_alert);
+
+static void smbus_host_notify_work(struct work_struct *work)
+{
+	struct alert_data alert;
+	struct i2c_adapter *adapter;
+	unsigned long flags;
+	u16 payload;
+	u8 addr;
+	struct smbus_host_notify *data;
+
+	data = container_of(work, struct smbus_host_notify, work);
+
+	spin_lock_irqsave(&data->lock, flags);
+	payload = data->payload;
+	addr = data->addr;
+	adapter = data->adapter;
+
+	/* clear the pending bit and release the spinlock */
+	data->pending = false;
+	spin_unlock_irqrestore(&data->lock, flags);
+
+	if (!adapter || !addr)
+		return;
+
+	alert.type = I2C_PROTOCOL_SMBUS_HOST_NOTIFY;
+	alert.addr = addr;
+	alert.data = payload;
+
+	device_for_each_child(&adapter->dev, &alert, smbus_do_alert);
+}
+
+/**
+ * i2c_setup_smbus_host_notify - Allocate a new smbus_host_notify for the given
+ * I2C adapter.
+ * @adapter: the adapter we want to associate a Host Notify function
+ *
+ * Returns a struct smbus_host_notify pointer on success, and NULL on failure.
+ * The resulting smbus_host_notify must not be freed afterwards, it is a
+ * managed resource already.
+ */
+struct smbus_host_notify *i2c_setup_smbus_host_notify(struct i2c_adapter *adap)
+{
+	struct smbus_host_notify *host_notify;
+
+	host_notify = devm_kzalloc(&adap->dev, sizeof(struct smbus_host_notify),
+				   GFP_KERNEL);
+	if (!host_notify)
+		return NULL;
+
+	host_notify->adapter = adap;
+
+	spin_lock_init(&host_notify->lock);
+	INIT_WORK(&host_notify->work, smbus_host_notify_work);
+
+	return host_notify;
+}
+EXPORT_SYMBOL_GPL(i2c_setup_smbus_host_notify);
+
+/**
+ * i2c_handle_smbus_host_notify - Forward a Host Notify event to the correct
+ * I2C client.
+ * @host_notify: the struct host_notify attached to the relevant adapter
+ * @addr: the I2C address of the notifying device
+ * @data: the payload of the notification
+ * Context: can't sleep
+ *
+ * Helper function to be called from an I2C bus driver's interrupt
+ * handler. It will schedule the Host Notify work, in turn calling the
+ * corresponding I2C device driver's alert function.
+ *
+ * host_notify should be a valid pointer previously returned by
+ * i2c_setup_smbus_host_notify().
+ */
+int i2c_handle_smbus_host_notify(struct smbus_host_notify *host_notify,
+				 unsigned short addr, unsigned int data)
+{
+	unsigned long flags;
+	struct i2c_adapter *adapter;
+
+	if (!host_notify || !host_notify->adapter)
+		return -EINVAL;
+
+	adapter = host_notify->adapter;
+
+	spin_lock_irqsave(&host_notify->lock, flags);
+
+	if (host_notify->pending) {
+		spin_unlock_irqrestore(&host_notify->lock, flags);
+		dev_warn(&adapter->dev, "Host Notify already scheduled.\n");
+		return -EBUSY;
+	}
+
+	host_notify->payload = data;
+	host_notify->addr = addr;
+
+	/* Mark that there is a pending notification and release the lock */
+	host_notify->pending = true;
+	spin_unlock_irqrestore(&host_notify->lock, flags);
+
+	return schedule_work(&host_notify->work);
+}
+EXPORT_SYMBOL_GPL(i2c_handle_smbus_host_notify);
 
 module_i2c_driver(smbalert_driver);
 

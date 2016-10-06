@@ -563,7 +563,7 @@ static int target_xcopy_setup_pt_cmd(
 
 	if (alloc_mem) {
 		rc = target_alloc_sgl(&cmd->t_data_sg, &cmd->t_data_nents,
-				      cmd->data_length, false);
+				      cmd->data_length, false, false);
 		if (rc < 0) {
 			ret = rc;
 			goto out;

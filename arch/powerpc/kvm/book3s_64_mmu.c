@@ -26,7 +26,7 @@
 #include <asm/tlbflush.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
-#include <asm/mmu-hash64.h>
+#include <asm/book3s/64/mmu-hash.h>
 
 /* #define DEBUG_MMU */
 
@@ -377,14 +377,11 @@ no_seg_found:
 
 static void kvmppc_mmu_book3s_64_slbmte(struct kvm_vcpu *vcpu, u64 rs, u64 rb)
 {
-	struct kvmppc_vcpu_book3s *vcpu_book3s;
 	u64 esid, esid_1t;
 	int slb_nr;
 	struct kvmppc_slb *slbe;
 
 	dprintk("KVM MMU: slbmte(0x%llx, 0x%llx)\n", rs, rb);
-
-	vcpu_book3s = to_book3s(vcpu);
 
 	esid = GET_ESID(rb);
 	esid_1t = GET_ESID_1T(rb);

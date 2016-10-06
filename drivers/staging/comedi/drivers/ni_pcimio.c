@@ -1,110 +1,106 @@
 /*
-    comedi/drivers/ni_pcimio.c
-    Hardware driver for NI PCI-MIO E series cards
+ * Comedi driver for NI PCI-MIO E series cards
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1997-8 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1997-8 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: ni_pcimio
-Description: National Instruments PCI-MIO-E series and M series (all boards)
-Author: ds, John Hallen, Frank Mori Hess, Rolf Mueller, Herbert Peremans,
-  Herman Bruyninckx, Terry Barnaby
-Status: works
-Devices: [National Instruments] PCI-MIO-16XE-50 (ni_pcimio),
-  PCI-MIO-16XE-10, PXI-6030E, PCI-MIO-16E-1, PCI-MIO-16E-4, PCI-6014, PCI-6040E,
-  PXI-6040E, PCI-6030E, PCI-6031E, PCI-6032E, PCI-6033E, PCI-6071E, PCI-6023E,
-  PCI-6024E, PCI-6025E, PXI-6025E, PCI-6034E, PCI-6035E, PCI-6052E,
-  PCI-6110, PCI-6111, PCI-6220, PCI-6221, PCI-6224, PXI-6224,
-  PCI-6225, PXI-6225, PCI-6229, PCI-6250, PCI-6251, PCIe-6251, PXIe-6251,
-  PCI-6254, PCI-6259, PCIe-6259,
-  PCI-6280, PCI-6281, PXI-6281, PCI-6284, PCI-6289,
-  PCI-6711, PXI-6711, PCI-6713, PXI-6713,
-  PXI-6071E, PCI-6070E, PXI-6070E,
-  PXI-6052E, PCI-6036E, PCI-6731, PCI-6733, PXI-6733,
-  PCI-6143, PXI-6143
-Updated: Mon, 09 Jan 2012 14:52:48 +0000
+ * Driver: ni_pcimio
+ * Description: National Instruments PCI-MIO-E series and M series (all boards)
+ * Author: ds, John Hallen, Frank Mori Hess, Rolf Mueller, Herbert Peremans,
+ *   Herman Bruyninckx, Terry Barnaby
+ * Status: works
+ * Devices: [National Instruments] PCI-MIO-16XE-50 (ni_pcimio),
+ *   PCI-MIO-16XE-10, PXI-6030E, PCI-MIO-16E-1, PCI-MIO-16E-4, PCI-6014,
+ *   PCI-6040E, PXI-6040E, PCI-6030E, PCI-6031E, PCI-6032E, PCI-6033E,
+ *   PCI-6071E, PCI-6023E, PCI-6024E, PCI-6025E, PXI-6025E, PCI-6034E,
+ *   PCI-6035E, PCI-6052E,
+ *   PCI-6110, PCI-6111, PCI-6220, PCI-6221, PCI-6224, PXI-6224,
+ *   PCI-6225, PXI-6225, PCI-6229, PCI-6250,
+ *   PCI-6251, PXI-6251, PCIe-6251, PXIe-6251,
+ *   PCI-6254, PCI-6259, PCIe-6259,
+ *   PCI-6280, PCI-6281, PXI-6281, PCI-6284, PCI-6289,
+ *   PCI-6711, PXI-6711, PCI-6713, PXI-6713,
+ *   PXI-6071E, PCI-6070E, PXI-6070E,
+ *   PXI-6052E, PCI-6036E, PCI-6731, PCI-6733, PXI-6733,
+ *   PCI-6143, PXI-6143
+ * Updated: Mon, 09 Jan 2012 14:52:48 +0000
+ *
+ * These boards are almost identical to the AT-MIO E series, except that
+ * they use the PCI bus instead of ISA (i.e., AT). See the notes for the
+ * ni_atmio.o driver for additional information about these boards.
+ *
+ * Autocalibration is supported on many of the devices, using the
+ * comedi_calibrate (or comedi_soft_calibrate for m-series) utility.
+ * M-Series boards do analog input and analog output calibration entirely
+ * in software. The software calibration corrects the analog input for
+ * offset, gain and nonlinearity. The analog outputs are corrected for
+ * offset and gain. See the comedilib documentation on
+ * comedi_get_softcal_converter() for more information.
+ *
+ * By default, the driver uses DMA to transfer analog input data to
+ * memory.  When DMA is enabled, not all triggering features are
+ * supported.
+ *
+ * Digital I/O may not work on 673x.
+ *
+ * Note that the PCI-6143 is a simultaineous sampling device with 8
+ * convertors. With this board all of the convertors perform one
+ * simultaineous sample during a scan interval. The period for a scan
+ * is used for the convert time in a Comedi cmd. The convert trigger
+ * source is normally set to TRIG_NOW by default.
+ *
+ * The RTSI trigger bus is supported on these cards on subdevice 10.
+ * See the comedilib documentation for details.
+ *
+ * Information (number of channels, bits, etc.) for some devices may be
+ * incorrect. Please check this and submit a bug if there are problems
+ * for your device.
+ *
+ * SCXI is probably broken for m-series boards.
+ *
+ * Bugs:
+ * - When DMA is enabled, COMEDI_EV_CONVERT does not work correctly.
+ */
 
-These boards are almost identical to the AT-MIO E series, except that
-they use the PCI bus instead of ISA (i.e., AT).  See the notes for
-the ni_atmio.o driver for additional information about these boards.
-
-Autocalibration is supported on many of the devices, using the
-comedi_calibrate (or comedi_soft_calibrate for m-series) utility.
-M-Series boards do analog input and analog output calibration entirely
-in software. The software calibration corrects
-the analog input for offset, gain and
-nonlinearity.  The analog outputs are corrected for offset and gain.
-See the comedilib documentation on comedi_get_softcal_converter() for
-more information.
-
-By default, the driver uses DMA to transfer analog input data to
-memory.  When DMA is enabled, not all triggering features are
-supported.
-
-Digital I/O may not work on 673x.
-
-Note that the PCI-6143 is a simultaineous sampling device with 8 convertors.
-With this board all of the convertors perform one simultaineous sample during
-a scan interval. The period for a scan is used for the convert time in a
-Comedi cmd. The convert trigger source is normally set to TRIG_NOW by default.
-
-The RTSI trigger bus is supported on these cards on
-subdevice 10. See the comedilib documentation for details.
-
-Information (number of channels, bits, etc.) for some devices may be
-incorrect.  Please check this and submit a bug if there are problems
-for your device.
-
-SCXI is probably broken for m-series boards.
-
-Bugs:
- - When DMA is enabled, COMEDI_EV_CONVERT does
-   not work correctly.
-
-*/
 /*
-	The PCI-MIO E series driver was originally written by
-	Tomasz Motylewski <...>, and ported to comedi by ds.
-
-	References:
-
-	   341079b.pdf  PCI E Series Register-Level Programmer Manual
-	   340934b.pdf  DAQ-STC reference manual
-
-	   322080b.pdf  6711/6713/6715 User Manual
-
-	   320945c.pdf  PCI E Series User Manual
-	   322138a.pdf  PCI-6052E and DAQPad-6052E User Manual
-
-	ISSUES:
-
-	need to deal with external reference for DAC, and other DAC
-	properties in board properties
-
-	deal with at-mio-16de-10 revision D to N changes, etc.
-
-	need to add other CALDAC type
-
-	need to slow down DAC loading.  I don't trust NI's claim that
-	two writes to the PCI bus slows IO enough.  I would prefer to
-	use udelay().  Timing specs: (clock)
-		AD8522		30ns
-		DAC8043		120ns
-		DAC8800		60ns
-		MB88341		?
-
-*/
+ * The PCI-MIO E series driver was originally written by
+ * Tomasz Motylewski <...>, and ported to comedi by ds.
+ *
+ * References:
+ *	341079b.pdf  PCI E Series Register-Level Programmer Manual
+ *	340934b.pdf  DAQ-STC reference manual
+ *
+ *	322080b.pdf  6711/6713/6715 User Manual
+ *
+ *	320945c.pdf  PCI E Series User Manual
+ *	322138a.pdf  PCI-6052E and DAQPad-6052E User Manual
+ *
+ * ISSUES:
+ * - need to deal with external reference for DAC, and other DAC
+ *   properties in board properties
+ * - deal with at-mio-16de-10 revision D to N changes, etc.
+ * - need to add other CALDAC type
+ * - need to slow down DAC loading. I don't trust NI's claim that
+ *   two writes to the PCI bus slows IO enough. I would prefer to
+ *   use udelay().
+ *   Timing specs: (clock)
+ *	AD8522		30ns
+ *	DAC8043		120ns
+ *	DAC8800		60ns
+ *	MB88341		?
+ */
 
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -118,13 +114,14 @@ Bugs:
 
 #define PCIDMA
 
-/* These are not all the possible ao ranges for 628x boards.
- They can do OFFSET +- REFERENCE where OFFSET can be
- 0V, 5V, APFI<0,1>, or AO<0...3> and RANGE can
- be 10V, 5V, 2V, 1V, APFI<0,1>, AO<0...3>.  That's
- 63 different possibilities.  An AO channel
- can not act as it's own OFFSET or REFERENCE.
-*/
+/*
+ * These are not all the possible ao ranges for 628x boards.
+ * They can do OFFSET +- REFERENCE where OFFSET can be
+ * 0V, 5V, APFI<0,1>, or AO<0...3> and RANGE can
+ * be 10V, 5V, 2V, 1V, APFI<0,1>, AO<0...3>.  That's
+ * 63 different possibilities.  An AO channel
+ * can not act as it's own OFFSET or REFERENCE.
+ */
 static const struct comedi_lrange range_ni_M_628x_ao = {
 	8, {
 		BIP_RANGE(10),
@@ -193,6 +190,7 @@ enum ni_pcimio_boardid {
 	BOARD_PCI6229,
 	BOARD_PCI6250,
 	BOARD_PCI6251,
+	BOARD_PXI6251,
 	BOARD_PCIE6251,
 	BOARD_PXIE6251,
 	BOARD_PCI6254,
@@ -811,6 +809,21 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_speed	= 350,
 		.caldac		= { caldac_none },
 	},
+	[BOARD_PXI6251] = {
+		.name		= "pxi-6251",
+		.n_adchan	= 16,
+		.ai_maxdata	= 0xffff,
+		.ai_fifo_depth	= 4095,
+		.gainlkup	= ai_gain_628x,
+		.ai_speed	= 800,
+		.n_aochan	= 2,
+		.ao_maxdata	= 0xffff,
+		.ao_fifo_depth	= 8191,
+		.ao_range_table	= &range_ni_M_625x_ao,
+		.reg_type	= ni_reg_625x,
+		.ao_speed	= 350,
+		.caldac		= { caldac_none },
+	},
 	[BOARD_PCIE6251] = {
 		.name		= "pcie-6251",
 		.n_adchan	= 16,
@@ -1044,24 +1057,28 @@ static int pcimio_dio_change(struct comedi_device *dev,
 static void m_series_init_eeprom_buffer(struct comedi_device *dev)
 {
 	struct ni_private *devpriv = dev->private;
+	struct mite *mite = devpriv->mite;
+	resource_size_t daq_phys_addr;
 	static const int Start_Cal_EEPROM = 0x400;
-	static const unsigned window_size = 10;
+	static const unsigned int window_size = 10;
 	static const int serial_number_eeprom_offset = 0x4;
 	static const int serial_number_eeprom_length = 0x4;
-	unsigned old_iodwbsr_bits;
-	unsigned old_iodwbsr1_bits;
-	unsigned old_iodwcr1_bits;
+	unsigned int old_iodwbsr_bits;
+	unsigned int old_iodwbsr1_bits;
+	unsigned int old_iodwcr1_bits;
 	int i;
 
-	old_iodwbsr_bits = readl(devpriv->mite->mite_io_addr + MITE_IODWBSR);
-	old_iodwbsr1_bits = readl(devpriv->mite->mite_io_addr + MITE_IODWBSR_1);
-	old_iodwcr1_bits = readl(devpriv->mite->mite_io_addr + MITE_IODWCR_1);
-	writel(0x0, devpriv->mite->mite_io_addr + MITE_IODWBSR);
-	writel(((0x80 | window_size) | devpriv->mite->daq_phys_addr),
-	       devpriv->mite->mite_io_addr + MITE_IODWBSR_1);
-	writel(0x1 | old_iodwcr1_bits,
-	       devpriv->mite->mite_io_addr + MITE_IODWCR_1);
-	writel(0xf, devpriv->mite->mite_io_addr + 0x30);
+	/* IO Window 1 needs to be temporarily mapped to read the eeprom */
+	daq_phys_addr = pci_resource_start(mite->pcidev, 1);
+
+	old_iodwbsr_bits = readl(mite->mmio + MITE_IODWBSR);
+	old_iodwbsr1_bits = readl(mite->mmio + MITE_IODWBSR_1);
+	old_iodwcr1_bits = readl(mite->mmio + MITE_IODWCR_1);
+	writel(0x0, mite->mmio + MITE_IODWBSR);
+	writel(((0x80 | window_size) | daq_phys_addr),
+	       mite->mmio + MITE_IODWBSR_1);
+	writel(0x1 | old_iodwcr1_bits, mite->mmio + MITE_IODWCR_1);
+	writel(0xf, mite->mmio + 0x30);
 
 	BUG_ON(serial_number_eeprom_length > sizeof(devpriv->serial_number));
 	for (i = 0; i < serial_number_eeprom_length; ++i) {
@@ -1073,10 +1090,10 @@ static void m_series_init_eeprom_buffer(struct comedi_device *dev)
 	for (i = 0; i < M_SERIES_EEPROM_SIZE; ++i)
 		devpriv->eeprom_buffer[i] = ni_readb(dev, Start_Cal_EEPROM + i);
 
-	writel(old_iodwbsr1_bits, devpriv->mite->mite_io_addr + MITE_IODWBSR_1);
-	writel(old_iodwbsr_bits, devpriv->mite->mite_io_addr + MITE_IODWBSR);
-	writel(old_iodwcr1_bits, devpriv->mite->mite_io_addr + MITE_IODWCR_1);
-	writel(0x0, devpriv->mite->mite_io_addr + 0x30);
+	writel(old_iodwbsr1_bits, mite->mmio + MITE_IODWBSR_1);
+	writel(old_iodwbsr_bits, mite->mmio + MITE_IODWBSR);
+	writel(old_iodwcr1_bits, mite->mmio + MITE_IODWCR_1);
+	writel(0x0, mite->mmio + 0x30);
 }
 
 static void init_6143(struct comedi_device *dev)
@@ -1151,7 +1168,7 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 		return ret;
 	devpriv = dev->private;
 
-	devpriv->mite = mite_alloc(pcidev);
+	devpriv->mite = mite_attach(dev, false);	/* use win0 */
 	if (!devpriv->mite)
 		return -ENOMEM;
 
@@ -1175,10 +1192,6 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 		devpriv->is_6711 = 1;
 	if (board->reg_type == ni_reg_6713)
 		devpriv->is_6713 = 1;
-
-	ret = mite_setup(dev, devpriv->mite);
-	if (ret < 0)
-		return ret;
 
 	devpriv->ai_mite_ring = mite_alloc_ring(devpriv->mite);
 	if (!devpriv->ai_mite_ring)
@@ -1290,6 +1303,7 @@ static const struct pci_device_id ni_pcimio_pci_table[] = {
 	{ PCI_VDEVICE(NI, 0x71bc), BOARD_PCI6221_37PIN },
 	{ PCI_VDEVICE(NI, 0x717d), BOARD_PCIE6251 },
 	{ PCI_VDEVICE(NI, 0x72e8), BOARD_PXIE6251 },
+	{ PCI_VDEVICE(NI, 0x70ad), BOARD_PXI6251 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ni_pcimio_pci_table);

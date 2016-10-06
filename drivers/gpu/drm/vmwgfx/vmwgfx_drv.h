@@ -32,6 +32,7 @@
 #include <drm/drmP.h>
 #include <drm/vmwgfx_drm.h>
 #include <drm/drm_hashtab.h>
+#include <drm/drm_auth.h>
 #include <linux/suspend.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_object.h>
@@ -40,9 +41,9 @@
 #include <drm/ttm/ttm_module.h>
 #include "vmwgfx_fence.h"
 
-#define VMWGFX_DRIVER_DATE "20150810"
+#define VMWGFX_DRIVER_DATE "20160210"
 #define VMWGFX_DRIVER_MAJOR 2
-#define VMWGFX_DRIVER_MINOR 9
+#define VMWGFX_DRIVER_MINOR 10
 #define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FILE_PAGE_OFFSET 0x00100000
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
@@ -80,7 +81,6 @@
 struct vmw_fpriv {
 	struct drm_master *locked_master;
 	struct ttm_object_file *tfile;
-	struct list_head fence_events;
 	bool gb_aware;
 };
 
@@ -387,6 +387,7 @@ struct vmw_private {
 	spinlock_t hw_lock;
 	spinlock_t cap_lock;
 	bool has_dx;
+	bool assume_16bpp;
 
 	/*
 	 * VGA registers.
@@ -408,8 +409,12 @@ struct vmw_private {
 	void *fb_info;
 	enum vmw_display_unit_type active_display_unit;
 	struct vmw_legacy_display *ldu_priv;
-	struct vmw_screen_object_display *sou_priv;
 	struct vmw_overlay *overlay_priv;
+	struct drm_property *hotplug_mode_update_property;
+	struct drm_property *implicit_placement_property;
+	unsigned num_implicit;
+	struct vmw_framebuffer *implicit_fb;
+	struct mutex global_kms_state_mutex;
 
 	/*
 	 * Context and surface management.
@@ -1232,4 +1237,10 @@ static inline void vmw_mmio_write(u32 value, u32 *addr)
 {
 	WRITE_ONCE(*addr, value);
 }
+
+/**
+ * Add vmw_msg module function
+ */
+extern int vmw_host_log(const char *log);
+
 #endif

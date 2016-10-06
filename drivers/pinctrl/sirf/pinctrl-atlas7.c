@@ -7,7 +7,7 @@
  * Licensed under GPLv2 or later.
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/bitops.h>
@@ -338,7 +338,6 @@ struct atlas7_pinctrl_data {
 #define ATLAS7_GPIO_CTL_DATAIN_MASK		BIT(7)
 
 struct atlas7_gpio_bank {
-	struct pinctrl_dev *pctldev;
 	int id;
 	int irq;
 	void __iomem *base;
@@ -5425,8 +5424,10 @@ static int atlas7_pinmux_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 	pmx->sys2pci_base = devm_ioremap_resource(&pdev->dev, &res);
-	if (IS_ERR(pmx->sys2pci_base))
+	if (IS_ERR(pmx->sys2pci_base)) {
+		of_node_put(sys2pci_np);
 		return -ENOMEM;
+	}
 
 	pmx->dev = &pdev->dev;
 
@@ -5799,7 +5800,7 @@ static void atlas7_gpio_handle_irq(struct irq_desc *desc)
 
 	status = readl(ATLAS7_GPIO_INT_STATUS(bank));
 	if (!status) {
-		pr_warn("%s: gpio [%s] status %#x no interrupt is flaged\n",
+		pr_warn("%s: gpio [%s] status %#x no interrupt is flagged\n",
 			__func__, gc->label, status);
 		handle_bad_irq(desc);
 		return;
@@ -6070,7 +6071,6 @@ static int atlas7_gpio_probe(struct platform_device *pdev)
 	}
 
 	for (idx = 0; idx < nbank; idx++) {
-		struct gpio_pin_range *pin_range;
 		struct atlas7_gpio_bank *bank;
 
 		bank = &a7gc->banks[idx];
@@ -6088,22 +6088,6 @@ static int atlas7_gpio_probe(struct platform_device *pdev)
 
 		gpiochip_set_chained_irqchip(chip, &atlas7_gpio_irq_chip,
 					bank->irq, atlas7_gpio_handle_irq);
-
-		/* Records gpio_pin_range to a7gc */
-		list_for_each_entry(pin_range, &chip->pin_ranges, node) {
-			struct pinctrl_gpio_range *range;
-
-			range = &pin_range->range;
-			if (range->id == NGPIO_OF_BANK * idx) {
-				bank->gpio_offset = range->id;
-				bank->ngpio = range->npins;
-				bank->gpio_pins = range->pins;
-				bank->pctldev = pin_range->pctldev;
-				break;
-			}
-		}
-
-		BUG_ON(!bank->pctldev);
 	}
 
 	platform_set_drvdata(pdev, a7gc);
@@ -6174,6 +6158,3 @@ static int __init atlas7_gpio_init(void)
 	return platform_driver_register(&atlas7_gpio_driver);
 }
 subsys_initcall(atlas7_gpio_init);
-
-MODULE_DESCRIPTION("SIRFSOC Atlas7 pin control driver");
-MODULE_LICENSE("GPL");

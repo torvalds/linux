@@ -15,5 +15,5 @@ TODO:
 	rcu_read_unlock();
   Perhaps delete it, perhaps assign to some local variable.
 
-Please send any patches to Greg Kroah-Hartman <gregkh@linux.com>,
+Please send any patches to Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
 and Larry Finger <Larry.Finger@lwfinger.net>.

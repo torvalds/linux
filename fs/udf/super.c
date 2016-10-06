@@ -78,6 +78,15 @@
 #define VSD_FIRST_SECTOR_OFFSET		32768
 #define VSD_MAX_SECTOR_OFFSET		0x800000
 
+/*
+ * Maximum number of Terminating Descriptor / Logical Volume Integrity
+ * Descriptor redirections. The chosen numbers are arbitrary - just that we
+ * hopefully don't limit any real use of rewritten inode on write-once media
+ * but avoid looping for too long on corrupted media.
+ */
+#define UDF_MAX_TD_NESTING 64
+#define UDF_MAX_LVID_NESTING 1000
+
 enum { UDF_MAX_LINKS = 0xffff };
 
 /* These are the "meat" - everything else is stuffing */
@@ -887,18 +896,14 @@ static int udf_find_fileset(struct super_block *sb,
 static int udf_load_pvoldesc(struct super_block *sb, sector_t block)
 {
 	struct primaryVolDesc *pvoldesc;
-	struct ustr *instr, *outstr;
+	uint8_t *outstr;
 	struct buffer_head *bh;
 	uint16_t ident;
 	int ret = -ENOMEM;
 
-	instr = kmalloc(sizeof(struct ustr), GFP_NOFS);
-	if (!instr)
-		return -ENOMEM;
-
-	outstr = kmalloc(sizeof(struct ustr), GFP_NOFS);
+	outstr = kmalloc(128, GFP_NOFS);
 	if (!outstr)
-		goto out1;
+		return -ENOMEM;
 
 	bh = udf_read_tagged(sb, block, block, &ident);
 	if (!bh) {
@@ -923,42 +928,36 @@ static int udf_load_pvoldesc(struct super_block *sb, sector_t block)
 #endif
 	}
 
-	if (!udf_build_ustr(instr, pvoldesc->volIdent, 32)) {
-		ret = udf_CS0toUTF8(outstr, instr);
-		if (ret < 0)
-			goto out_bh;
+	ret = udf_dstrCS0toUTF8(outstr, 31, pvoldesc->volIdent, 32);
+	if (ret < 0)
+		goto out_bh;
 
-		strncpy(UDF_SB(sb)->s_volume_ident, outstr->u_name,
-			outstr->u_len > 31 ? 31 : outstr->u_len);
-		udf_debug("volIdent[] = '%s'\n", UDF_SB(sb)->s_volume_ident);
-	}
+	strncpy(UDF_SB(sb)->s_volume_ident, outstr, ret);
+	udf_debug("volIdent[] = '%s'\n", UDF_SB(sb)->s_volume_ident);
 
-	if (!udf_build_ustr(instr, pvoldesc->volSetIdent, 128)) {
-		ret = udf_CS0toUTF8(outstr, instr);
-		if (ret < 0)
-			goto out_bh;
+	ret = udf_dstrCS0toUTF8(outstr, 127, pvoldesc->volSetIdent, 128);
+	if (ret < 0)
+		goto out_bh;
 
-		udf_debug("volSetIdent[] = '%s'\n", outstr->u_name);
-	}
+	outstr[ret] = 0;
+	udf_debug("volSetIdent[] = '%s'\n", outstr);
 
 	ret = 0;
 out_bh:
 	brelse(bh);
 out2:
 	kfree(outstr);
-out1:
-	kfree(instr);
 	return ret;
 }
 
 struct inode *udf_find_metadata_inode_efe(struct super_block *sb,
-					u32 meta_file_loc, u32 partition_num)
+					u32 meta_file_loc, u32 partition_ref)
 {
 	struct kernel_lb_addr addr;
 	struct inode *metadata_fe;
 
 	addr.logicalBlockNum = meta_file_loc;
-	addr.partitionReferenceNum = partition_num;
+	addr.partitionReferenceNum = partition_ref;
 
 	metadata_fe = udf_iget_special(sb, &addr);
 
@@ -975,7 +974,8 @@ struct inode *udf_find_metadata_inode_efe(struct super_block *sb,
 	return metadata_fe;
 }
 
-static int udf_load_metadata_files(struct super_block *sb, int partition)
+static int udf_load_metadata_files(struct super_block *sb, int partition,
+				   int type1_index)
 {
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	struct udf_part_map *map;
@@ -985,20 +985,21 @@ static int udf_load_metadata_files(struct super_block *sb, int partition)
 
 	map = &sbi->s_partmaps[partition];
 	mdata = &map->s_type_specific.s_metadata;
+	mdata->s_phys_partition_ref = type1_index;
 
 	/* metadata address */
 	udf_debug("Metadata file location: block = %d part = %d\n",
-		  mdata->s_meta_file_loc, map->s_partition_num);
+		  mdata->s_meta_file_loc, mdata->s_phys_partition_ref);
 
 	fe = udf_find_metadata_inode_efe(sb, mdata->s_meta_file_loc,
-					 map->s_partition_num);
+					 mdata->s_phys_partition_ref);
 	if (IS_ERR(fe)) {
 		/* mirror file entry */
 		udf_debug("Mirror metadata file location: block = %d part = %d\n",
-			  mdata->s_mirror_file_loc, map->s_partition_num);
+			  mdata->s_mirror_file_loc, mdata->s_phys_partition_ref);
 
 		fe = udf_find_metadata_inode_efe(sb, mdata->s_mirror_file_loc,
-						 map->s_partition_num);
+						 mdata->s_phys_partition_ref);
 
 		if (IS_ERR(fe)) {
 			udf_err(sb, "Both metadata and mirror metadata inode efe can not found\n");
@@ -1016,7 +1017,7 @@ static int udf_load_metadata_files(struct super_block *sb, int partition)
 	*/
 	if (mdata->s_bitmap_file_loc != 0xFFFFFFFF) {
 		addr.logicalBlockNum = mdata->s_bitmap_file_loc;
-		addr.partitionReferenceNum = map->s_partition_num;
+		addr.partitionReferenceNum = mdata->s_phys_partition_ref;
 
 		udf_debug("Bitmap file location: block = %d part = %d\n",
 			  addr.logicalBlockNum, addr.partitionReferenceNum);
@@ -1284,7 +1285,7 @@ static int udf_load_partdesc(struct super_block *sb, sector_t block)
 	p = (struct partitionDesc *)bh->b_data;
 	partitionNumber = le16_to_cpu(p->partitionNumber);
 
-	/* First scan for TYPE1, SPARABLE and METADATA partitions */
+	/* First scan for TYPE1 and SPARABLE partitions */
 	for (i = 0; i < sbi->s_partitions; i++) {
 		map = &sbi->s_partmaps[i];
 		udf_debug("Searching map: (%d == %d)\n",
@@ -1334,7 +1335,7 @@ static int udf_load_partdesc(struct super_block *sb, sector_t block)
 		goto out_bh;
 
 	if (map->s_partition_type == UDF_METADATA_MAP25) {
-		ret = udf_load_metadata_files(sb, i);
+		ret = udf_load_metadata_files(sb, i, type1_idx);
 		if (ret < 0) {
 			udf_err(sb, "error loading MetaData partition map %d\n",
 				i);
@@ -1551,42 +1552,52 @@ out_bh:
 }
 
 /*
- * udf_load_logicalvolint
- *
+ * Find the prevailing Logical Volume Integrity Descriptor.
  */
 static void udf_load_logicalvolint(struct super_block *sb, struct kernel_extent_ad loc)
 {
-	struct buffer_head *bh = NULL;
+	struct buffer_head *bh, *final_bh;
 	uint16_t ident;
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	struct logicalVolIntegrityDesc *lvid;
+	int indirections = 0;
 
-	while (loc.extLength > 0 &&
-	       (bh = udf_read_tagged(sb, loc.extLocation,
-				     loc.extLocation, &ident)) &&
-	       ident == TAG_IDENT_LVID) {
-		sbi->s_lvid_bh = bh;
-		lvid = (struct logicalVolIntegrityDesc *)bh->b_data;
+	while (++indirections <= UDF_MAX_LVID_NESTING) {
+		final_bh = NULL;
+		while (loc.extLength > 0 &&
+			(bh = udf_read_tagged(sb, loc.extLocation,
+					loc.extLocation, &ident))) {
+			if (ident != TAG_IDENT_LVID) {
+				brelse(bh);
+				break;
+			}
 
-		if (lvid->nextIntegrityExt.extLength)
-			udf_load_logicalvolint(sb,
-				leea_to_cpu(lvid->nextIntegrityExt));
+			brelse(final_bh);
+			final_bh = bh;
 
-		if (sbi->s_lvid_bh != bh)
-			brelse(bh);
-		loc.extLength -= sb->s_blocksize;
-		loc.extLocation++;
+			loc.extLength -= sb->s_blocksize;
+			loc.extLocation++;
+		}
+
+		if (!final_bh)
+			return;
+
+		brelse(sbi->s_lvid_bh);
+		sbi->s_lvid_bh = final_bh;
+
+		lvid = (struct logicalVolIntegrityDesc *)final_bh->b_data;
+		if (lvid->nextIntegrityExt.extLength == 0)
+			return;
+
+		loc = leea_to_cpu(lvid->nextIntegrityExt);
 	}
-	if (sbi->s_lvid_bh != bh)
-		brelse(bh);
+
+	udf_warn(sb, "Too many LVID indirections (max %u), ignoring.\n",
+		UDF_MAX_LVID_NESTING);
+	brelse(sbi->s_lvid_bh);
+	sbi->s_lvid_bh = NULL;
 }
 
-/*
- * Maximum number of Terminating Descriptor redirections. The chosen number is
- * arbitrary - just that we hopefully don't limit any real use of rewritten
- * inode on write-once media but avoid looping for too long on corrupted media.
- */
-#define UDF_MAX_TD_NESTING 64
 
 /*
  * Process a main/reserve volume descriptor sequence.
@@ -2358,7 +2369,7 @@ static int udf_statfs(struct dentry *dentry, struct kstatfs *buf)
 					  le32_to_cpu(lvidiu->numDirs)) : 0)
 			+ buf->f_bfree;
 	buf->f_ffree = buf->f_bfree;
-	buf->f_namelen = UDF_NAME_LEN - 2;
+	buf->f_namelen = UDF_NAME_LEN;
 	buf->f_fsid.val[0] = (u32)id;
 	buf->f_fsid.val[1] = (u32)(id >> 32);
 

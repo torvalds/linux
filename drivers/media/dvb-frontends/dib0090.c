@@ -797,6 +797,8 @@ static const u16 bb_ramp_pwm_normal[] = {
 	(0  << 9) | 400, /* BB_RAMP6 */
 };
 
+#if 0
+/* Currently unused */
 static const u16 bb_ramp_pwm_boost[] = {
 	550, /* max BB gain in 10th of dB */
 	8, /* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> BB_RAMP2 */
@@ -806,6 +808,7 @@ static const u16 bb_ramp_pwm_boost[] = {
 	(2  << 9) | 208, /* BB_RAMP5 = 29dB */
 	(0  << 9) | 440, /* BB_RAMP6 */
 };
+#endif
 
 static const u16 rf_ramp_pwm_cband[] = {
 	314, /* max RF gain in 10th of dB */
@@ -849,6 +852,8 @@ static const u16 rf_ramp_pwm_uhf[] = {
 	(0  << 10) | 580, /* GAIN_4_2, LNA 4 */
 };
 
+#if 0
+/* Currently unused */
 static const u16 rf_ramp_pwm_sband[] = {
 	253, /* max RF gain in 10th of dB */
 	38, /* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> RF_RAMP2 */
@@ -862,6 +867,7 @@ static const u16 rf_ramp_pwm_sband[] = {
 	(0  << 10) | 0, /* GAIN_4_1, LNA 4 = 0dB */
 	(0  << 10) | 0, /* GAIN_4_2, LNA 4 */
 };
+#endif
 
 struct slope {
 	s16 range;
@@ -1115,9 +1121,15 @@ void dib0090_pwm_gain_reset(struct dvb_frontend *fe)
 		dib0090_set_bbramp_pwm(state, bb_ramp);
 
 		/* activate the ramp generator using PWM control */
-		dprintk("ramp RF gain = %d BAND = %s version = %d", state->rf_ramp[0], (state->current_band == BAND_CBAND) ? "CBAND" : "NOT CBAND", state->identity.version & 0x1f);
+		if (state->rf_ramp)
+			dprintk("ramp RF gain = %d BAND = %s version = %d",
+				state->rf_ramp[0],
+				(state->current_band == BAND_CBAND) ? "CBAND" : "NOT CBAND",
+				state->identity.version & 0x1f);
 
-		if ((state->rf_ramp[0] == 0) || (state->current_band == BAND_CBAND && (state->identity.version & 0x1f) <= P1D_E_F)) {
+		if (rf_ramp && ((state->rf_ramp && state->rf_ramp[0] == 0) ||
+		    (state->current_band == BAND_CBAND &&
+		    (state->identity.version & 0x1f) <= P1D_E_F))) {
 			dprintk("DE-Engage mux for direct gain reg control");
 			en_pwm_rf_mux = 0;
 		} else
@@ -2669,7 +2681,7 @@ free_mem:
 }
 EXPORT_SYMBOL(dib0090_fw_register);
 
-MODULE_AUTHOR("Patrick Boettcher <pboettcher@dibcom.fr>");
-MODULE_AUTHOR("Olivier Grenie <olivier.grenie@dibcom.fr>");
+MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@posteo.de>");
+MODULE_AUTHOR("Olivier Grenie <olivier.grenie@parrot.com>");
 MODULE_DESCRIPTION("Driver for the DiBcom 0090 base-band RF Tuner");
 MODULE_LICENSE("GPL");

@@ -59,6 +59,7 @@
 #define MLX5_FLD_SZ_BYTES(typ, fld) (__mlx5_bit_sz(typ, fld) / 8)
 #define MLX5_ST_SZ_BYTES(typ) (sizeof(struct mlx5_ifc_##typ##_bits) / 8)
 #define MLX5_ST_SZ_DW(typ) (sizeof(struct mlx5_ifc_##typ##_bits) / 32)
+#define MLX5_ST_SZ_QW(typ) (sizeof(struct mlx5_ifc_##typ##_bits) / 64)
 #define MLX5_UN_SZ_BYTES(typ) (sizeof(union mlx5_ifc_##typ##_bits) / 8)
 #define MLX5_UN_SZ_DW(typ) (sizeof(union mlx5_ifc_##typ##_bits) / 32)
 #define MLX5_BYTE_OFF(typ, fld) (__mlx5_bit_off(typ, fld) / 8)
@@ -104,6 +105,36 @@ __mlx5_mask(typ, fld))
 	pr_debug(#fld " = 0x%llx\n", ___t); \
 	___t; \
 })
+
+/* Big endian getters */
+#define MLX5_GET64_BE(typ, p, fld) (*((__be64 *)(p) +\
+	__mlx5_64_off(typ, fld)))
+
+#define MLX5_GET_BE(type_t, typ, p, fld) ({				  \
+		type_t tmp;						  \
+		switch (sizeof(tmp)) {					  \
+		case sizeof(u8):					  \
+			tmp = (__force type_t)MLX5_GET(typ, p, fld);	  \
+			break;						  \
+		case sizeof(u16):					  \
+			tmp = (__force type_t)cpu_to_be16(MLX5_GET(typ, p, fld)); \
+			break;						  \
+		case sizeof(u32):					  \
+			tmp = (__force type_t)cpu_to_be32(MLX5_GET(typ, p, fld)); \
+			break;						  \
+		case sizeof(u64):					  \
+			tmp = (__force type_t)MLX5_GET64_BE(typ, p, fld); \
+			break;						  \
+			}						  \
+		tmp;							  \
+		})
+
+enum mlx5_inline_modes {
+	MLX5_INLINE_MODE_NONE,
+	MLX5_INLINE_MODE_L2,
+	MLX5_INLINE_MODE_IP,
+	MLX5_INLINE_MODE_TCP_UDP,
+};
 
 enum {
 	MLX5_MAX_COMMANDS		= 32,
@@ -164,19 +195,6 @@ enum {
 	MLX5_PCIE_CTRL_NO_SNOOP		= 1 << 3,
 	MLX5_PCIE_CTRL_TLP_PROCE_EN	= 1 << 6,
 	MLX5_PCIE_CTRL_TPH_MASK		= 3 << 4,
-};
-
-enum {
-	MLX5_ACCESS_MODE_PA	= 0,
-	MLX5_ACCESS_MODE_MTT	= 1,
-	MLX5_ACCESS_MODE_KLM	= 2
-};
-
-enum {
-	MLX5_MKEY_REMOTE_INVAL	= 1 << 24,
-	MLX5_MKEY_FLAG_SYNC_UMR = 1 << 29,
-	MLX5_MKEY_BSF_EN	= 1 << 30,
-	MLX5_MKEY_LEN64		= 1 << 31,
 };
 
 enum {
@@ -351,6 +369,12 @@ enum {
 };
 
 enum {
+	MLX5_BW_NO_LIMIT   = 0,
+	MLX5_100_MBPS_UNIT = 3,
+	MLX5_GBPS_UNIT	   = 4,
+};
+
+enum {
 	MLX5_MAX_PAGE_SHIFT		= 31
 };
 
@@ -363,31 +387,15 @@ enum {
 	MLX5_CAP_OFF_CMDIF_CSUM		= 46,
 };
 
-struct mlx5_inbox_hdr {
-	__be16		opcode;
-	u8		rsvd[4];
-	__be16		opmod;
-};
-
-struct mlx5_outbox_hdr {
-	u8		status;
-	u8		rsvd[3];
-	__be32		syndrome;
-};
-
-struct mlx5_cmd_query_adapter_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
-struct mlx5_cmd_query_adapter_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd0[24];
-	u8			intapin;
-	u8			rsvd1[13];
-	__be16			vsd_vendor_id;
-	u8			vsd[208];
-	u8			vsd_psid[16];
+enum {
+	/*
+	 * Max wqe size for rdma read is 512 bytes, so this
+	 * limits our max_sge_rd as the wqe needs to fit:
+	 * - ctrl segment (16 bytes)
+	 * - rdma segment (16 bytes)
+	 * - scatter elements (16 bytes each)
+	 */
+	MLX5_MAX_SGE_RD	= (512 - 16 - 16) / 16
 };
 
 enum mlx5_odp_transport_cap_bits {
@@ -407,30 +415,6 @@ struct mlx5_odp_caps {
 	char reserved2[0xe4];
 };
 
-struct mlx5_cmd_init_hca_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	u8			rsvd0[2];
-	__be16			profile;
-	u8			rsvd1[4];
-};
-
-struct mlx5_cmd_init_hca_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
-struct mlx5_cmd_teardown_hca_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	u8			rsvd0[2];
-	__be16			profile;
-	u8			rsvd1[4];
-};
-
-struct mlx5_cmd_teardown_hca_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
 struct mlx5_cmd_layout {
 	u8		type;
 	u8		rsvd0[3];
@@ -445,7 +429,6 @@ struct mlx5_cmd_layout {
 	u8		rsvd1;
 	u8		status_own;
 };
-
 
 struct health_buffer {
 	__be32		assert_var[5];
@@ -615,7 +598,9 @@ struct mlx5_err_cqe {
 };
 
 struct mlx5_cqe64 {
-	u8		rsvd0[4];
+	u8		outer_l3_tunneled;
+	u8		rsvd0;
+	__be16		wqe_id;
 	u8		lro_tcppsh_abort_dupack;
 	u8		lro_min_ttl;
 	__be16		lro_tcp_win;
@@ -628,7 +613,7 @@ struct mlx5_cqe64 {
 	__be16		slid;
 	__be32		flags_rqpn;
 	u8		hds_ip_ext;
-	u8		l4_hdr_type_etc;
+	u8		l4_l3_hdr_type;
 	__be16		vlan_info;
 	__be32		srqn; /* [31:24]: lro_num_seg, [23:0]: srqn */
 	__be32		imm_inval_pkey;
@@ -642,6 +627,40 @@ struct mlx5_cqe64 {
 	u8		op_own;
 };
 
+struct mlx5_mini_cqe8 {
+	union {
+		__be32 rx_hash_result;
+		struct {
+			__be16 checksum;
+			__be16 rsvd;
+		};
+		struct {
+			__be16 wqe_counter;
+			u8  s_wqe_opcode;
+			u8  reserved;
+		} s_wqe_info;
+	};
+	__be32 byte_cnt;
+};
+
+enum {
+	MLX5_NO_INLINE_DATA,
+	MLX5_INLINE_DATA32_SEG,
+	MLX5_INLINE_DATA64_SEG,
+	MLX5_COMPRESSED,
+};
+
+enum {
+	MLX5_CQE_FORMAT_CSUM = 0x1,
+};
+
+#define MLX5_MINI_CQE_ARRAY_SIZE 8
+
+static inline int mlx5_get_cqe_format(struct mlx5_cqe64 *cqe)
+{
+	return (cqe->op_own >> 2) & 0x3;
+}
+
 static inline int get_cqe_lro_tcppsh(struct mlx5_cqe64 *cqe)
 {
 	return (cqe->lro_tcppsh_abort_dupack >> 6) & 1;
@@ -649,12 +668,22 @@ static inline int get_cqe_lro_tcppsh(struct mlx5_cqe64 *cqe)
 
 static inline u8 get_cqe_l4_hdr_type(struct mlx5_cqe64 *cqe)
 {
-	return (cqe->l4_hdr_type_etc >> 4) & 0x7;
+	return (cqe->l4_l3_hdr_type >> 4) & 0x7;
+}
+
+static inline u8 get_cqe_l3_hdr_type(struct mlx5_cqe64 *cqe)
+{
+	return (cqe->l4_l3_hdr_type >> 2) & 0x3;
+}
+
+static inline u8 cqe_is_tunneled(struct mlx5_cqe64 *cqe)
+{
+	return cqe->outer_l3_tunneled & 0x1;
 }
 
 static inline int cqe_has_vlan(struct mlx5_cqe64 *cqe)
 {
-	return !!(cqe->l4_hdr_type_etc & 0x1);
+	return !!(cqe->l4_l3_hdr_type & 0x1);
 }
 
 static inline u64 get_cqe_ts(struct mlx5_cqe64 *cqe)
@@ -665,6 +694,42 @@ static inline u64 get_cqe_ts(struct mlx5_cqe64 *cqe)
 	lo = be32_to_cpu(cqe->timestamp_l);
 
 	return (u64)lo | ((u64)hi << 32);
+}
+
+struct mpwrq_cqe_bc {
+	__be16	filler_consumed_strides;
+	__be16	byte_cnt;
+};
+
+static inline u16 mpwrq_get_cqe_byte_cnt(struct mlx5_cqe64 *cqe)
+{
+	struct mpwrq_cqe_bc *bc = (struct mpwrq_cqe_bc *)&cqe->byte_cnt;
+
+	return be16_to_cpu(bc->byte_cnt);
+}
+
+static inline u16 mpwrq_get_cqe_bc_consumed_strides(struct mpwrq_cqe_bc *bc)
+{
+	return 0x7fff & be16_to_cpu(bc->filler_consumed_strides);
+}
+
+static inline u16 mpwrq_get_cqe_consumed_strides(struct mlx5_cqe64 *cqe)
+{
+	struct mpwrq_cqe_bc *bc = (struct mpwrq_cqe_bc *)&cqe->byte_cnt;
+
+	return mpwrq_get_cqe_bc_consumed_strides(bc);
+}
+
+static inline bool mpwrq_is_filler_cqe(struct mlx5_cqe64 *cqe)
+{
+	struct mpwrq_cqe_bc *bc = (struct mpwrq_cqe_bc *)&cqe->byte_cnt;
+
+	return 0x8000 & be16_to_cpu(bc->filler_consumed_strides);
+}
+
+static inline u16 mpwrq_get_cqe_stride_index(struct mlx5_cqe64 *cqe)
+{
+	return be16_to_cpu(cqe->wqe_counter);
 }
 
 enum {
@@ -726,245 +791,15 @@ struct mlx5_cqe128 {
 	struct mlx5_cqe64	cqe64;
 };
 
-struct mlx5_srq_ctx {
-	u8			state_log_sz;
-	u8			rsvd0[3];
-	__be32			flags_xrcd;
-	__be32			pgoff_cqn;
-	u8			rsvd1[4];
-	u8			log_pg_sz;
-	u8			rsvd2[7];
-	__be32			pd;
-	__be16			lwm;
-	__be16			wqe_cnt;
-	u8			rsvd3[8];
-	__be64			db_record;
-};
-
-struct mlx5_create_srq_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			input_srqn;
-	u8			rsvd0[4];
-	struct mlx5_srq_ctx	ctx;
-	u8			rsvd1[208];
-	__be64			pas[0];
-};
-
-struct mlx5_create_srq_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	__be32			srqn;
-	u8			rsvd[4];
-};
-
-struct mlx5_destroy_srq_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			srqn;
-	u8			rsvd[4];
-};
-
-struct mlx5_destroy_srq_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
-struct mlx5_query_srq_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			srqn;
-	u8			rsvd0[4];
-};
-
-struct mlx5_query_srq_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd0[8];
-	struct mlx5_srq_ctx	ctx;
-	u8			rsvd1[32];
-	__be64			pas[0];
-};
-
-struct mlx5_arm_srq_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			srqn;
-	__be16			rsvd;
-	__be16			lwm;
-};
-
-struct mlx5_arm_srq_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
-struct mlx5_cq_context {
-	u8			status;
-	u8			cqe_sz_flags;
-	u8			st;
-	u8			rsvd3;
-	u8			rsvd4[6];
-	__be16			page_offset;
-	__be32			log_sz_usr_page;
-	__be16			cq_period;
-	__be16			cq_max_count;
-	__be16			rsvd20;
-	__be16			c_eqn;
-	u8			log_pg_sz;
-	u8			rsvd25[7];
-	__be32			last_notified_index;
-	__be32			solicit_producer_index;
-	__be32			consumer_counter;
-	__be32			producer_counter;
-	u8			rsvd48[8];
-	__be64			db_record_addr;
-};
-
-struct mlx5_create_cq_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			input_cqn;
-	u8			rsvdx[4];
-	struct mlx5_cq_context	ctx;
-	u8			rsvd6[192];
-	__be64			pas[0];
-};
-
-struct mlx5_create_cq_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	__be32			cqn;
-	u8			rsvd0[4];
-};
-
-struct mlx5_destroy_cq_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			cqn;
-	u8			rsvd0[4];
-};
-
-struct mlx5_destroy_cq_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd0[8];
-};
-
-struct mlx5_query_cq_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			cqn;
-	u8			rsvd0[4];
-};
-
-struct mlx5_query_cq_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd0[8];
-	struct mlx5_cq_context	ctx;
-	u8			rsvd6[16];
-	__be64			pas[0];
-};
-
-struct mlx5_modify_cq_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			cqn;
-	__be32			field_select;
-	struct mlx5_cq_context	ctx;
-	u8			rsvd[192];
-	__be64			pas[0];
-};
-
-struct mlx5_modify_cq_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
-struct mlx5_enable_hca_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
-struct mlx5_enable_hca_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
-struct mlx5_disable_hca_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
-struct mlx5_disable_hca_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
-struct mlx5_eq_context {
-	u8			status;
-	u8			ec_oi;
-	u8			st;
-	u8			rsvd2[7];
-	__be16			page_pffset;
-	__be32			log_sz_usr_page;
-	u8			rsvd3[7];
-	u8			intr;
-	u8			log_page_size;
-	u8			rsvd4[15];
-	__be32			consumer_counter;
-	__be32			produser_counter;
-	u8			rsvd5[16];
-};
-
-struct mlx5_create_eq_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	u8			rsvd0[3];
-	u8			input_eqn;
-	u8			rsvd1[4];
-	struct mlx5_eq_context	ctx;
-	u8			rsvd2[8];
-	__be64			events_mask;
-	u8			rsvd3[176];
-	__be64			pas[0];
-};
-
-struct mlx5_create_eq_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd0[3];
-	u8			eq_number;
-	u8			rsvd1[4];
-};
-
-struct mlx5_destroy_eq_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	u8			rsvd0[3];
-	u8			eqn;
-	u8			rsvd1[4];
-};
-
-struct mlx5_destroy_eq_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
-struct mlx5_map_eq_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be64			mask;
-	u8			mu;
-	u8			rsvd0[2];
-	u8			eqn;
-	u8			rsvd1[24];
-};
-
-struct mlx5_map_eq_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
-struct mlx5_query_eq_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	u8			rsvd0[3];
-	u8			eqn;
-	u8			rsvd1[4];
-};
-
-struct mlx5_query_eq_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd[8];
-	struct mlx5_eq_context	ctx;
+enum {
+	MLX5_MKEY_STATUS_FREE = 1 << 6,
 };
 
 enum {
-	MLX5_MKEY_STATUS_FREE = 1 << 6,
+	MLX5_MKEY_REMOTE_INVAL	= 1 << 24,
+	MLX5_MKEY_FLAG_SYNC_UMR = 1 << 29,
+	MLX5_MKEY_BSF_EN	= 1 << 30,
+	MLX5_MKEY_LEN64		= 1 << 31,
 };
 
 struct mlx5_mkey_seg {
@@ -989,135 +824,11 @@ struct mlx5_mkey_seg {
 	u8		rsvd4[4];
 };
 
-struct mlx5_query_special_ctxs_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
-struct mlx5_query_special_ctxs_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	__be32			dump_fill_mkey;
-	__be32			reserved_lkey;
-};
-
-struct mlx5_create_mkey_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			input_mkey_index;
-	__be32			flags;
-	struct mlx5_mkey_seg	seg;
-	u8			rsvd1[16];
-	__be32			xlat_oct_act_size;
-	__be32			rsvd2;
-	u8			rsvd3[168];
-	__be64			pas[0];
-};
-
-struct mlx5_create_mkey_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	__be32			mkey;
-	u8			rsvd[4];
-};
-
-struct mlx5_destroy_mkey_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			mkey;
-	u8			rsvd[4];
-};
-
-struct mlx5_destroy_mkey_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
-struct mlx5_query_mkey_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			mkey;
-};
-
-struct mlx5_query_mkey_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	__be64			pas[0];
-};
-
-struct mlx5_modify_mkey_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			mkey;
-	__be64			pas[0];
-};
-
-struct mlx5_modify_mkey_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
-struct mlx5_dump_mkey_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-};
-
-struct mlx5_dump_mkey_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	__be32			mkey;
-};
-
-struct mlx5_mad_ifc_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be16			remote_lid;
-	u8			rsvd0;
-	u8			port;
-	u8			rsvd1[4];
-	u8			data[256];
-};
-
-struct mlx5_mad_ifc_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd[8];
-	u8			data[256];
-};
-
-struct mlx5_access_reg_mbox_in {
-	struct mlx5_inbox_hdr		hdr;
-	u8				rsvd0[2];
-	__be16				register_id;
-	__be32				arg;
-	__be32				data[0];
-};
-
-struct mlx5_access_reg_mbox_out {
-	struct mlx5_outbox_hdr		hdr;
-	u8				rsvd[8];
-	__be32				data[0];
-};
-
 #define MLX5_ATTR_EXTENDED_PORT_INFO	cpu_to_be16(0xff90)
 
 enum {
 	MLX_EXT_PORT_CAP_FLAG_EXTENDED_PORT_INFO	= 1 <<  0
 };
-
-struct mlx5_allocate_psv_in {
-	struct mlx5_inbox_hdr   hdr;
-	__be32			npsv_pd;
-	__be32			rsvd_psv0;
-};
-
-struct mlx5_allocate_psv_out {
-	struct mlx5_outbox_hdr  hdr;
-	u8			rsvd[8];
-	__be32			psv_idx[4];
-};
-
-struct mlx5_destroy_psv_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32                  psv_number;
-	u8                      rsvd[4];
-};
-
-struct mlx5_destroy_psv_out {
-	struct mlx5_outbox_hdr  hdr;
-	u8                      rsvd[8];
-};
-
-#define MLX5_CMD_OP_MAX 0x920
 
 enum {
 	VPORT_STATE_DOWN		= 0x0,
@@ -1177,6 +888,17 @@ enum {
 	MLX5_RQC_RQ_TYPE_MEMORY_RQ_RPM    = 0x1,
 };
 
+enum mlx5_wol_mode {
+	MLX5_WOL_DISABLE        = 0,
+	MLX5_WOL_SECURED_MAGIC  = 1 << 1,
+	MLX5_WOL_MAGIC          = 1 << 2,
+	MLX5_WOL_ARP            = 1 << 3,
+	MLX5_WOL_BROADCAST      = 1 << 4,
+	MLX5_WOL_MULTICAST      = 1 << 5,
+	MLX5_WOL_UNICAST        = 1 << 6,
+	MLX5_WOL_PHY_ACTIVITY   = 1 << 7,
+};
+
 /* MLX5 DEV CAPs */
 
 /* TODO: EAT.ME */
@@ -1196,6 +918,9 @@ enum mlx5_cap_type {
 	MLX5_CAP_FLOW_TABLE,
 	MLX5_CAP_ESWITCH_FLOW_TABLE,
 	MLX5_CAP_ESWITCH,
+	MLX5_CAP_RESERVED,
+	MLX5_CAP_VECTOR_CALC,
+	MLX5_CAP_QOS,
 	/* NUM OF CAP Types */
 	MLX5_CAP_NUM
 };
@@ -1233,6 +958,24 @@ enum mlx5_cap_type {
 #define MLX5_CAP_FLOWTABLE_MAX(mdev, cap) \
 	MLX5_GET(flow_table_nic_cap, mdev->hca_caps_max[MLX5_CAP_FLOW_TABLE], cap)
 
+#define MLX5_CAP_FLOWTABLE_NIC_RX(mdev, cap) \
+	MLX5_CAP_FLOWTABLE(mdev, flow_table_properties_nic_receive.cap)
+
+#define MLX5_CAP_FLOWTABLE_NIC_RX_MAX(mdev, cap) \
+	MLX5_CAP_FLOWTABLE_MAX(mdev, flow_table_properties_nic_receive.cap)
+
+#define MLX5_CAP_FLOWTABLE_SNIFFER_RX(mdev, cap) \
+	MLX5_CAP_FLOWTABLE(mdev, flow_table_properties_nic_receive_sniffer.cap)
+
+#define MLX5_CAP_FLOWTABLE_SNIFFER_RX_MAX(mdev, cap) \
+	MLX5_CAP_FLOWTABLE_MAX(mdev, flow_table_properties_nic_receive_sniffer.cap)
+
+#define MLX5_CAP_FLOWTABLE_SNIFFER_TX(mdev, cap) \
+	MLX5_CAP_FLOWTABLE(mdev, flow_table_properties_nic_transmit_sniffer.cap)
+
+#define MLX5_CAP_FLOWTABLE_SNIFFER_TX_MAX(mdev, cap) \
+	MLX5_CAP_FLOWTABLE_MAX(mdev, flow_table_properties_nic_transmit_sniffer.cap)
+
 #define MLX5_CAP_ESW_FLOWTABLE(mdev, cap) \
 	MLX5_GET(flow_table_eswitch_cap, \
 		 mdev->hca_caps_cur[MLX5_CAP_ESWITCH_FLOW_TABLE], cap)
@@ -1247,6 +990,18 @@ enum mlx5_cap_type {
 #define MLX5_CAP_ESW_FLOWTABLE_FDB_MAX(mdev, cap) \
 	MLX5_CAP_ESW_FLOWTABLE_MAX(mdev, flow_table_properties_nic_esw_fdb.cap)
 
+#define MLX5_CAP_ESW_EGRESS_ACL(mdev, cap) \
+	MLX5_CAP_ESW_FLOWTABLE(mdev, flow_table_properties_esw_acl_egress.cap)
+
+#define MLX5_CAP_ESW_EGRESS_ACL_MAX(mdev, cap) \
+	MLX5_CAP_ESW_FLOWTABLE_MAX(mdev, flow_table_properties_esw_acl_egress.cap)
+
+#define MLX5_CAP_ESW_INGRESS_ACL(mdev, cap) \
+	MLX5_CAP_ESW_FLOWTABLE(mdev, flow_table_properties_esw_acl_ingress.cap)
+
+#define MLX5_CAP_ESW_INGRESS_ACL_MAX(mdev, cap) \
+	MLX5_CAP_ESW_FLOWTABLE_MAX(mdev, flow_table_properties_esw_acl_ingress.cap)
+
 #define MLX5_CAP_ESW(mdev, cap) \
 	MLX5_GET(e_switch_cap, \
 		 mdev->hca_caps_cur[MLX5_CAP_ESWITCH], cap)
@@ -1257,6 +1012,13 @@ enum mlx5_cap_type {
 
 #define MLX5_CAP_ODP(mdev, cap)\
 	MLX5_GET(odp_cap, mdev->hca_caps_cur[MLX5_CAP_ODP], cap)
+
+#define MLX5_CAP_VECTOR_CALC(mdev, cap) \
+	MLX5_GET(vector_calc_cap, \
+		 mdev->hca_caps_cur[MLX5_CAP_VECTOR_CALC], cap)
+
+#define MLX5_CAP_QOS(mdev, cap)\
+	MLX5_GET(qos_cap, mdev->hca_caps_cur[MLX5_CAP_QOS], cap)
 
 enum {
 	MLX5_CMD_STAT_OK			= 0x0,
@@ -1284,7 +1046,9 @@ enum {
 	MLX5_RFC_3635_COUNTERS_GROUP	      = 0x3,
 	MLX5_ETHERNET_EXTENDED_COUNTERS_GROUP = 0x5,
 	MLX5_PER_PRIORITY_COUNTERS_GROUP      = 0x10,
-	MLX5_PER_TRAFFIC_CLASS_COUNTERS_GROUP = 0x11
+	MLX5_PER_TRAFFIC_CLASS_COUNTERS_GROUP = 0x11,
+	MLX5_PHYSICAL_LAYER_COUNTERS_GROUP    = 0x12,
+	MLX5_INFINIBAND_PORT_COUNTERS_GROUP   = 0x20,
 };
 
 static inline u16 mlx5_to_sw_pkey_sz(int pkey_sz)
@@ -1294,6 +1058,11 @@ static inline u16 mlx5_to_sw_pkey_sz(int pkey_sz)
 	return MLX5_MIN_PKEY_TABLE_SIZE << pkey_sz;
 }
 
-#define MLX5_BY_PASS_NUM_PRIOS 9
+#define MLX5_BY_PASS_NUM_REGULAR_PRIOS 8
+#define MLX5_BY_PASS_NUM_DONT_TRAP_PRIOS 8
+#define MLX5_BY_PASS_NUM_MULTICAST_PRIOS 1
+#define MLX5_BY_PASS_NUM_PRIOS (MLX5_BY_PASS_NUM_REGULAR_PRIOS +\
+				MLX5_BY_PASS_NUM_DONT_TRAP_PRIOS +\
+				MLX5_BY_PASS_NUM_MULTICAST_PRIOS)
 
 #endif /* MLX5_DEVICE_H */

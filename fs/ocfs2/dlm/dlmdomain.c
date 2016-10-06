@@ -132,10 +132,13 @@ static DECLARE_WAIT_QUEUE_HEAD(dlm_domain_events);
  *	- Message DLM_QUERY_NODEINFO added to allow online node removes
  * New in version 1.2:
  * 	- Message DLM_BEGIN_EXIT_DOMAIN_MSG added to mark start of exit domain
+ * New in version 1.3:
+ *	- Message DLM_DEREF_LOCKRES_DONE added to inform non-master that the
+ *	  refmap is cleared
  */
 static const struct dlm_protocol_version dlm_protocol = {
 	.pv_major = 1,
-	.pv_minor = 2,
+	.pv_minor = 3,
 };
 
 #define DLM_DOMAIN_BACKOFF_MS 200
@@ -169,12 +172,10 @@ void __dlm_unhash_lockres(struct dlm_ctxt *dlm, struct dlm_lock_resource *res)
 void __dlm_insert_lockres(struct dlm_ctxt *dlm, struct dlm_lock_resource *res)
 {
 	struct hlist_head *bucket;
-	struct qstr *q;
 
 	assert_spin_locked(&dlm->spinlock);
 
-	q = &res->lockname;
-	bucket = dlm_lockres_hash(dlm, q->hash);
+	bucket = dlm_lockres_hash(dlm, res->lockname.hash);
 
 	/* get a reference for our hashtable */
 	dlm_lockres_get(res);
@@ -1396,7 +1397,7 @@ static int dlm_send_join_cancels(struct dlm_ctxt *dlm,
 				 unsigned int map_size)
 {
 	int status, tmpstat;
-	unsigned int node;
+	int node;
 
 	if (map_size != (BITS_TO_LONGS(O2NM_MAX_NODES) *
 			 sizeof(unsigned long))) {
@@ -1853,7 +1854,13 @@ static int dlm_register_domain_handlers(struct dlm_ctxt *dlm)
 					sizeof(struct dlm_exit_domain),
 					dlm_begin_exit_domain_handler,
 					dlm, NULL, &dlm->dlm_domain_handlers);
+	if (status)
+		goto bail;
 
+	status = o2net_register_handler(DLM_DEREF_LOCKRES_DONE, dlm->key,
+					sizeof(struct dlm_deref_lockres_done),
+					dlm_deref_lockres_done_handler,
+					dlm, NULL, &dlm->dlm_domain_handlers);
 bail:
 	if (status)
 		dlm_unregister_domain_handlers(dlm);

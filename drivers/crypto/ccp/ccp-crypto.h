@@ -17,7 +17,6 @@
 #include <linux/wait.h>
 #include <linux/pci.h>
 #include <linux/ccp.h>
-#include <linux/crypto.h>
 #include <crypto/algapi.h>
 #include <crypto/aes.h>
 #include <crypto/ctr.h>
@@ -69,7 +68,7 @@ static inline struct ccp_crypto_ahash_alg *
 /***** AES related defines *****/
 struct ccp_aes_ctx {
 	/* Fallback cipher for XTS with unsupported unit sizes */
-	struct crypto_ablkcipher *tfm_ablkcipher;
+	struct crypto_skcipher *tfm_skcipher;
 
 	/* Cipher used to generate CMAC K1/K2 keys */
 	struct crypto_cipher *tfm_cipher;
@@ -129,6 +128,15 @@ struct ccp_aes_cmac_req_ctx {
 	struct ccp_cmd cmd;
 };
 
+struct ccp_aes_cmac_exp_ctx {
+	unsigned int null_msg;
+
+	u8 iv[AES_BLOCK_SIZE];
+
+	unsigned int buf_count;
+	u8 buf[AES_BLOCK_SIZE];
+};
+
 /***** SHA related defines *****/
 #define MAX_SHA_CONTEXT_SIZE	SHA256_DIGEST_SIZE
 #define MAX_SHA_BLOCK_SIZE	SHA256_BLOCK_SIZE
@@ -169,6 +177,19 @@ struct ccp_sha_req_ctx {
 
 	/* CCP driver command */
 	struct ccp_cmd cmd;
+};
+
+struct ccp_sha_exp_ctx {
+	enum ccp_sha_type type;
+
+	u64 msg_bits;
+
+	unsigned int first;
+
+	u8 ctx[MAX_SHA_CONTEXT_SIZE];
+
+	unsigned int buf_count;
+	u8 buf[MAX_SHA_BLOCK_SIZE];
 };
 
 /***** Common Context Structure *****/

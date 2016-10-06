@@ -465,9 +465,8 @@ static ssize_t adt7316_show_all_ad_channels(struct device *dev,
 		return sprintf(buf, "0 - VDD\n1 - Internal Temperature\n"
 				"2 - External Temperature or AIN1\n"
 				"3 - AIN2\n4 - AIN3\n5 - AIN4\n");
-	else
-		return sprintf(buf, "0 - VDD\n1 - Internal Temperature\n"
-				"2 - External Temperature\n");
+	return sprintf(buf, "0 - VDD\n1 - Internal Temperature\n"
+			"2 - External Temperature\n");
 }
 
 static IIO_DEVICE_ATTR(all_ad_channels, S_IRUGO,
@@ -637,7 +636,7 @@ static ssize_t adt7316_show_da_high_resolution(struct device *dev,
 	if (chip->config3 & ADT7316_DA_HIGH_RESOLUTION) {
 		if (chip->id == ID_ADT7316 || chip->id == ID_ADT7516)
 			return sprintf(buf, "1 (12 bits)\n");
-		else if (chip->id == ID_ADT7317 || chip->id == ID_ADT7517)
+		if (chip->id == ID_ADT7317 || chip->id == ID_ADT7517)
 			return sprintf(buf, "1 (10 bits)\n");
 	}
 
@@ -919,8 +918,7 @@ static ssize_t adt7316_show_all_DAC_update_modes(struct device *dev,
 				"1 - auto at MSB DAC AB and CD writing\n"
 				"2 - auto at MSB DAC ABCD writing\n"
 				"3 - manual\n");
-	else
-		return sprintf(buf, "manual\n");
+	return sprintf(buf, "manual\n");
 }
 
 static IIO_DEVICE_ATTR(all_DAC_update_modes, S_IRUGO,
@@ -1068,9 +1066,8 @@ static ssize_t adt7316_show_DAC_internal_Vref(struct device *dev,
 		return sprintf(buf, "0x%x\n",
 			(chip->dac_config & ADT7516_DAC_IN_VREF_MASK) >>
 			ADT7516_DAC_IN_VREF_OFFSET);
-	else
-		return sprintf(buf, "%d\n",
-			!!(chip->dac_config & ADT7316_DAC_IN_VREF));
+	return sprintf(buf, "%d\n",
+		       !!(chip->dac_config & ADT7316_DAC_IN_VREF));
 }
 
 static ssize_t adt7316_store_DAC_internal_Vref(struct device *dev,
@@ -1755,7 +1752,7 @@ static irqreturn_t adt7316_event_handler(int irq, void *private)
 		if ((chip->id & ID_FAMILY_MASK) != ID_ADT75XX)
 			stat1 &= 0x1F;
 
-		time = iio_get_time_ns();
+		time = iio_get_time_ns(indio_dev);
 		if (stat1 & BIT(0))
 			iio_push_event(indio_dev,
 				       IIO_UNMOD_EVENT_CODE(IIO_TEMP, 0,
@@ -1807,7 +1804,7 @@ static irqreturn_t adt7316_event_handler(int irq, void *private)
 							    0,
 							    IIO_EV_TYPE_THRESH,
 							    IIO_EV_DIR_RISING),
-				       iio_get_time_ns());
+				       iio_get_time_ns(indio_dev));
 	}
 
 	return IRQ_HANDLED;

@@ -37,9 +37,9 @@ static int __validate_dimm(struct nvdimm_drvdata *ndd)
 
 	nvdimm = to_nvdimm(ndd->dev);
 
-	if (!nvdimm->dsm_mask)
+	if (!nvdimm->cmd_mask)
 		return -ENXIO;
-	if (!test_bit(ND_CMD_GET_CONFIG_DATA, nvdimm->dsm_mask))
+	if (!test_bit(ND_CMD_GET_CONFIG_DATA, &nvdimm->cmd_mask))
 		return -ENXIO;
 
 	return 0;
@@ -75,7 +75,7 @@ int nvdimm_init_nsarea(struct nvdimm_drvdata *ndd)
 	memset(cmd, 0, sizeof(*cmd));
 	nd_desc = nvdimm_bus->nd_desc;
 	return nd_desc->ndctl(nd_desc, to_nvdimm(ndd->dev),
-			ND_CMD_GET_CONFIG_SIZE, cmd, sizeof(*cmd));
+			ND_CMD_GET_CONFIG_SIZE, cmd, sizeof(*cmd), NULL);
 }
 
 int nvdimm_init_config_data(struct nvdimm_drvdata *ndd)
@@ -120,7 +120,7 @@ int nvdimm_init_config_data(struct nvdimm_drvdata *ndd)
 		cmd->in_offset = offset;
 		rc = nd_desc->ndctl(nd_desc, to_nvdimm(ndd->dev),
 				ND_CMD_GET_CONFIG_DATA, cmd,
-				cmd->in_length + sizeof(*cmd));
+				cmd->in_length + sizeof(*cmd), NULL);
 		if (rc || cmd->status) {
 			rc = -ENXIO;
 			break;
@@ -171,7 +171,7 @@ int nvdimm_set_config_data(struct nvdimm_drvdata *ndd, size_t offset,
 		status = ((void *) cmd) + cmd_size - sizeof(u32);
 
 		rc = nd_desc->ndctl(nd_desc, to_nvdimm(ndd->dev),
-				ND_CMD_SET_CONFIG_DATA, cmd, cmd_size);
+				ND_CMD_SET_CONFIG_DATA, cmd, cmd_size, NULL);
 		if (rc || *status) {
 			rc = rc ? rc : -ENXIO;
 			break;
@@ -263,6 +263,12 @@ const char *nvdimm_name(struct nvdimm *nvdimm)
 }
 EXPORT_SYMBOL_GPL(nvdimm_name);
 
+unsigned long nvdimm_cmd_mask(struct nvdimm *nvdimm)
+{
+	return nvdimm->cmd_mask;
+}
+EXPORT_SYMBOL_GPL(nvdimm_cmd_mask);
+
 void *nvdimm_provider_data(struct nvdimm *nvdimm)
 {
 	if (nvdimm)
@@ -277,10 +283,10 @@ static ssize_t commands_show(struct device *dev,
 	struct nvdimm *nvdimm = to_nvdimm(dev);
 	int cmd, len = 0;
 
-	if (!nvdimm->dsm_mask)
+	if (!nvdimm->cmd_mask)
 		return sprintf(buf, "\n");
 
-	for_each_set_bit(cmd, nvdimm->dsm_mask, BITS_PER_LONG)
+	for_each_set_bit(cmd, &nvdimm->cmd_mask, BITS_PER_LONG)
 		len += sprintf(buf + len, "%s ", nvdimm_cmd_name(cmd));
 	len += sprintf(buf + len, "\n");
 	return len;
@@ -340,7 +346,8 @@ EXPORT_SYMBOL_GPL(nvdimm_attribute_group);
 
 struct nvdimm *nvdimm_create(struct nvdimm_bus *nvdimm_bus, void *provider_data,
 		const struct attribute_group **groups, unsigned long flags,
-		unsigned long *dsm_mask)
+		unsigned long cmd_mask, int num_flush,
+		struct resource *flush_wpq)
 {
 	struct nvdimm *nvdimm = kzalloc(sizeof(*nvdimm), GFP_KERNEL);
 	struct device *dev;
@@ -355,7 +362,9 @@ struct nvdimm *nvdimm_create(struct nvdimm_bus *nvdimm_bus, void *provider_data,
 	}
 	nvdimm->provider_data = provider_data;
 	nvdimm->flags = flags;
-	nvdimm->dsm_mask = dsm_mask;
+	nvdimm->cmd_mask = cmd_mask;
+	nvdimm->num_flush = num_flush;
+	nvdimm->flush_wpq = flush_wpq;
 	atomic_set(&nvdimm->busy, 0);
 	dev = &nvdimm->dev;
 	dev_set_name(dev, "nmem%d", nvdimm->id);
@@ -546,3 +555,8 @@ int nvdimm_bus_check_dimm_count(struct nvdimm_bus *nvdimm_bus, int dimm_count)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nvdimm_bus_check_dimm_count);
+
+void __exit nvdimm_devs_exit(void)
+{
+	ida_destroy(&dimm_ida);
+}

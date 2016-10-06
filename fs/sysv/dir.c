@@ -23,14 +23,14 @@ static int sysv_readdir(struct file *, struct dir_context *);
 const struct file_operations sysv_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.iterate	= sysv_readdir,
+	.iterate_shared	= sysv_readdir,
 	.fsync		= generic_file_fsync,
 };
 
 static inline void dir_put_page(struct page *page)
 {
 	kunmap(page);
-	page_cache_release(page);
+	put_page(page);
 }
 
 static int dir_commit_chunk(struct page *page, loff_t pos, unsigned len)
@@ -73,8 +73,8 @@ static int sysv_readdir(struct file *file, struct dir_context *ctx)
 	if (pos >= inode->i_size)
 		return 0;
 
-	offset = pos & ~PAGE_CACHE_MASK;
-	n = pos >> PAGE_CACHE_SHIFT;
+	offset = pos & ~PAGE_MASK;
+	n = pos >> PAGE_SHIFT;
 
 	for ( ; n < npages; n++, offset = 0) {
 		char *kaddr, *limit;
@@ -85,7 +85,7 @@ static int sysv_readdir(struct file *file, struct dir_context *ctx)
 			continue;
 		kaddr = (char *)page_address(page);
 		de = (struct sysv_dir_entry *)(kaddr+offset);
-		limit = kaddr + PAGE_CACHE_SIZE - SYSV_DIRSIZE;
+		limit = kaddr + PAGE_SIZE - SYSV_DIRSIZE;
 		for ( ;(char*)de <= limit; de++, ctx->pos += sizeof(*de)) {
 			char *name = de->name;
 
@@ -146,7 +146,7 @@ struct sysv_dir_entry *sysv_find_entry(struct dentry *dentry, struct page **res_
 		if (!IS_ERR(page)) {
 			kaddr = (char*)page_address(page);
 			de = (struct sysv_dir_entry *) kaddr;
-			kaddr += PAGE_CACHE_SIZE - SYSV_DIRSIZE;
+			kaddr += PAGE_SIZE - SYSV_DIRSIZE;
 			for ( ; (char *) de <= kaddr ; de++) {
 				if (!de->inode)
 					continue;
@@ -190,7 +190,7 @@ int sysv_add_link(struct dentry *dentry, struct inode *inode)
 			goto out;
 		kaddr = (char*)page_address(page);
 		de = (struct sysv_dir_entry *)kaddr;
-		kaddr += PAGE_CACHE_SIZE - SYSV_DIRSIZE;
+		kaddr += PAGE_SIZE - SYSV_DIRSIZE;
 		while ((char *)de <= kaddr) {
 			if (!de->inode)
 				goto got_it;
@@ -261,7 +261,7 @@ int sysv_make_empty(struct inode *inode, struct inode *dir)
 	kmap(page);
 
 	base = (char*)page_address(page);
-	memset(base, 0, PAGE_CACHE_SIZE);
+	memset(base, 0, PAGE_SIZE);
 
 	de = (struct sysv_dir_entry *) base;
 	de->inode = cpu_to_fs16(SYSV_SB(inode->i_sb), inode->i_ino);
@@ -273,7 +273,7 @@ int sysv_make_empty(struct inode *inode, struct inode *dir)
 	kunmap(page);
 	err = dir_commit_chunk(page, 0, 2 * SYSV_DIRSIZE);
 fail:
-	page_cache_release(page);
+	put_page(page);
 	return err;
 }
 
@@ -296,7 +296,7 @@ int sysv_empty_dir(struct inode * inode)
 
 		kaddr = (char *)page_address(page);
 		de = (struct sysv_dir_entry *)kaddr;
-		kaddr += PAGE_CACHE_SIZE-SYSV_DIRSIZE;
+		kaddr += PAGE_SIZE-SYSV_DIRSIZE;
 
 		for ( ;(char *)de <= kaddr; de++) {
 			if (!de->inode)

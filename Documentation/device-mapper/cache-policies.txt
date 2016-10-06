@@ -11,7 +11,7 @@ Every bio that is mapped by the target is referred to the policy.
 The policy can return a simple HIT or MISS or issue a migration.
 
 Currently there's no way for the policy to issue background work,
-e.g. to start writing back dirty blocks that are going to be evicte
+e.g. to start writing back dirty blocks that are going to be evicted
 soon.
 
 Because we map bios, rather than requests it's easy for the policy
@@ -28,50 +28,15 @@ Overview of supplied cache replacement policies
 multiqueue (mq)
 ---------------
 
-This policy has been deprecated in favor of the smq policy (see below).
+This policy is now an alias for smq (see below).
 
-The multiqueue policy has three sets of 16 queues: one set for entries
-waiting for the cache and another two for those in the cache (a set for
-clean entries and a set for dirty entries).
+The following tunables are accepted, but have no effect:
 
-Cache entries in the queues are aged based on logical time. Entry into
-the cache is based on variable thresholds and queue selection is based
-on hit count on entry. The policy aims to take different cache miss
-costs into account and to adjust to varying load patterns automatically.
-
-Message and constructor argument pairs are:
 	'sequential_threshold <#nr_sequential_ios>'
 	'random_threshold <#nr_random_ios>'
 	'read_promote_adjustment <value>'
 	'write_promote_adjustment <value>'
 	'discard_promote_adjustment <value>'
-
-The sequential threshold indicates the number of contiguous I/Os
-required before a stream is treated as sequential.  Once a stream is
-considered sequential it will bypass the cache.  The random threshold
-is the number of intervening non-contiguous I/Os that must be seen
-before the stream is treated as random again.
-
-The sequential and random thresholds default to 512 and 4 respectively.
-
-Large, sequential I/Os are probably better left on the origin device
-since spindles tend to have good sequential I/O bandwidth.  The
-io_tracker counts contiguous I/Os to try to spot when the I/O is in one
-of these sequential modes.  But there are use-cases for wanting to
-promote sequential blocks to the cache (e.g. fast application startup).
-If sequential threshold is set to 0 the sequential I/O detection is
-disabled and sequential I/O will no longer implicitly bypass the cache.
-Setting the random threshold to 0 does _not_ disable the random I/O
-stream detection.
-
-Internally the mq policy determines a promotion threshold.  If the hit
-count of a block not in the cache goes above this threshold it gets
-promoted to the cache.  The read, write and discard promote adjustment
-tunables allow you to tweak the promotion threshold by adding a small
-value based on the io type.  They default to 4, 8 and 1 respectively.
-If you're trying to quickly warm a new cache device you may wish to
-reduce these to encourage promotion.  Remember to switch them back to
-their defaults after the cache fills though.
 
 Stochastic multiqueue (smq)
 ---------------------------
@@ -83,7 +48,7 @@ with the multiqueue (mq) policy.
 
 The smq policy (vs mq) offers the promise of less memory utilization,
 improved performance and increased adaptability in the face of changing
-workloads.  SMQ also does not have any cumbersome tuning knobs.
+workloads.  smq also does not have any cumbersome tuning knobs.
 
 Users may switch from "mq" to "smq" simply by appropriately reloading a
 DM table that is using the cache target.  Doing so will cause all of the
@@ -92,47 +57,45 @@ degrade slightly until smq recalculates the origin device's hotspots
 that should be cached.
 
 Memory usage:
-The mq policy uses a lot of memory; 88 bytes per cache block on a 64
+The mq policy used a lot of memory; 88 bytes per cache block on a 64
 bit machine.
 
-SMQ uses 28bit indexes to implement it's data structures rather than
+smq uses 28bit indexes to implement it's data structures rather than
 pointers.  It avoids storing an explicit hit count for each block.  It
-has a 'hotspot' queue rather than a pre cache which uses a quarter of
+has a 'hotspot' queue, rather than a pre-cache, which uses a quarter of
 the entries (each hotspot block covers a larger area than a single
 cache block).
 
-All these mean smq uses ~25bytes per cache block.  Still a lot of
+All this means smq uses ~25bytes per cache block.  Still a lot of
 memory, but a substantial improvement nontheless.
 
 Level balancing:
-MQ places entries in different levels of the multiqueue structures
-based on their hit count (~ln(hit count)).  This means the bottom
-levels generally have the most entries, and the top ones have very
-few.  Having unbalanced levels like this reduces the efficacy of the
+mq placed entries in different levels of the multiqueue structures
+based on their hit count (~ln(hit count)).  This meant the bottom
+levels generally had the most entries, and the top ones had very
+few.  Having unbalanced levels like this reduced the efficacy of the
 multiqueue.
 
-SMQ does not maintain a hit count, instead it swaps hit entries with
-the least recently used entry from the level above.  The over all
+smq does not maintain a hit count, instead it swaps hit entries with
+the least recently used entry from the level above.  The overall
 ordering being a side effect of this stochastic process.  With this
 scheme we can decide how many entries occupy each multiqueue level,
 resulting in better promotion/demotion decisions.
 
 Adaptability:
-The MQ policy maintains a hit count for each cache block.  For a
+The mq policy maintained a hit count for each cache block.  For a
 different block to get promoted to the cache it's hit count has to
-exceed the lowest currently in the cache.  This means it can take a
+exceed the lowest currently in the cache.  This meant it could take a
 long time for the cache to adapt between varying IO patterns.
-Periodically degrading the hit counts could help with this, but I
-haven't found a nice general solution.
 
-SMQ doesn't maintain hit counts, so a lot of this problem just goes
+smq doesn't maintain hit counts, so a lot of this problem just goes
 away.  In addition it tracks performance of the hotspot queue, which
 is used to decide which blocks to promote.  If the hotspot queue is
 performing badly then it starts moving entries more quickly between
 levels.  This lets it adapt to new IO patterns very quickly.
 
 Performance:
-Testing SMQ shows substantially better performance than MQ.
+Testing smq shows substantially better performance than mq.
 
 cleaner
 -------

@@ -18,10 +18,17 @@
 #define STATUS_AD_MASK		(1<<STATUS_AD_BIT)
 #define STATUS_IE_MASK		(1<<STATUS_IE_BIT)
 
+/* status32 Bits as encoded/expected by CLRI/SETI */
+#define CLRI_STATUS_IE_BIT	4
+
+#define CLRI_STATUS_E_MASK	0xF
+#define CLRI_STATUS_IE_MASK	(1 << CLRI_STATUS_IE_BIT)
+
 #define AUX_USER_SP		0x00D
 #define AUX_IRQ_CTRL		0x00E
 #define AUX_IRQ_ACT		0x043	/* Active Intr across all levels */
 #define AUX_IRQ_LVL_PEND	0x200	/* Pending Intr across all levels */
+#define AUX_IRQ_HINT		0x201	/* For generating Soft Interrupts */
 #define AUX_IRQ_PRIORITY	0x206
 #define ICAUSE			0x40a
 #define AUX_IRQ_SELECT		0x40b
@@ -30,8 +37,11 @@
 /* Was Intr taken in User Mode */
 #define AUX_IRQ_ACT_BIT_U	31
 
-/* 0 is highest level, but taken by FIRQs, if present in design */
-#define ARCV2_IRQ_DEF_PRIO		0
+/*
+ * User space should be interruptable even by lowest prio interrupt
+ * Safe even if actual interrupt priorities is fewer or even one
+ */
+#define ARCV2_IRQ_DEF_PRIO	15
 
 /* seed value for status register */
 #define ISA_INIT_STATUS_BITS	(STATUS_IE_MASK | STATUS_AD_MASK | \
@@ -96,6 +106,13 @@ static inline long arch_local_save_flags(void)
 	:
 	: "memory");
 
+	/* To be compatible with irq_save()/irq_restore()
+	 * encode the irq bits as expected by CLRI/SETI
+	 * (this was needed to make CONFIG_TRACE_IRQFLAGS work)
+	 */
+	temp = (1 << 5) |
+		((!!(temp & STATUS_IE_MASK)) << CLRI_STATUS_IE_BIT) |
+		((temp >> 1) & CLRI_STATUS_E_MASK);
 	return temp;
 }
 
@@ -104,7 +121,7 @@ static inline long arch_local_save_flags(void)
  */
 static inline int arch_irqs_disabled_flags(unsigned long flags)
 {
-	return !(flags & (STATUS_IE_MASK));
+	return !(flags & CLRI_STATUS_IE_MASK);
 }
 
 static inline int arch_irqs_disabled(void)
@@ -112,13 +129,44 @@ static inline int arch_irqs_disabled(void)
 	return arch_irqs_disabled_flags(arch_local_save_flags());
 }
 
+static inline void arc_softirq_trigger(int irq)
+{
+	write_aux_reg(AUX_IRQ_HINT, irq);
+}
+
+static inline void arc_softirq_clear(int irq)
+{
+	write_aux_reg(AUX_IRQ_HINT, 0);
+}
+
 #else
 
+#ifdef CONFIG_TRACE_IRQFLAGS
+
+.macro TRACE_ASM_IRQ_DISABLE
+	bl	trace_hardirqs_off
+.endm
+
+.macro TRACE_ASM_IRQ_ENABLE
+	bl	trace_hardirqs_on
+.endm
+
+#else
+
+.macro TRACE_ASM_IRQ_DISABLE
+.endm
+
+.macro TRACE_ASM_IRQ_ENABLE
+.endm
+
+#endif
 .macro IRQ_DISABLE  scratch
 	clri
+	TRACE_ASM_IRQ_DISABLE
 .endm
 
 .macro IRQ_ENABLE  scratch
+	TRACE_ASM_IRQ_ENABLE
 	seti
 .endm
 

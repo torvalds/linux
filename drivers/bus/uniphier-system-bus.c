@@ -108,7 +108,7 @@ static int uniphier_system_bus_check_overlap(
 
 	for (i = 0; i < ARRAY_SIZE(priv->bank); i++) {
 		for (j = i + 1; j < ARRAY_SIZE(priv->bank); j++) {
-			if (priv->bank[i].end > priv->bank[j].base ||
+			if (priv->bank[i].end > priv->bank[j].base &&
 			    priv->bank[i].base < priv->bank[j].end) {
 				dev_err(priv->dev,
 					"region overlap between bank%d and bank%d\n",
@@ -257,8 +257,7 @@ static int uniphier_system_bus_probe(struct platform_device *pdev)
 	uniphier_system_bus_set_reg(priv);
 
 	/* Now, the bus is configured.  Populate platform_devices below it */
-	return of_platform_populate(dev->of_node, of_default_bus_match_table,
-				    NULL, dev);
+	return of_platform_default_populate(dev->of_node, NULL, dev);
 }
 
 static const struct of_device_id uniphier_system_bus_match[] = {

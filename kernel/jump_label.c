@@ -14,6 +14,7 @@
 #include <linux/err.h>
 #include <linux/static_key.h>
 #include <linux/jump_label_ratelimit.h>
+#include <linux/bug.h>
 
 #ifdef HAVE_JUMP_LABEL
 
@@ -56,15 +57,81 @@ jump_label_sort_entries(struct jump_entry *start, struct jump_entry *stop)
 
 static void jump_label_update(struct static_key *key);
 
+/*
+ * There are similar definitions for the !HAVE_JUMP_LABEL case in jump_label.h.
+ * The use of 'atomic_read()' requires atomic.h and its problematic for some
+ * kernel headers such as kernel.h and others. Since static_key_count() is not
+ * used in the branch statements as it is for the !HAVE_JUMP_LABEL case its ok
+ * to have it be a function here. Similarly, for 'static_key_enable()' and
+ * 'static_key_disable()', which require bug.h. This should allow jump_label.h
+ * to be included from most/all places for HAVE_JUMP_LABEL.
+ */
+int static_key_count(struct static_key *key)
+{
+	/*
+	 * -1 means the first static_key_slow_inc() is in progress.
+	 *  static_key_enabled() must return true, so return 1 here.
+	 */
+	int n = atomic_read(&key->enabled);
+
+	return n >= 0 ? n : 1;
+}
+EXPORT_SYMBOL_GPL(static_key_count);
+
+void static_key_enable(struct static_key *key)
+{
+	int count = static_key_count(key);
+
+	WARN_ON_ONCE(count < 0 || count > 1);
+
+	if (!count)
+		static_key_slow_inc(key);
+}
+EXPORT_SYMBOL_GPL(static_key_enable);
+
+void static_key_disable(struct static_key *key)
+{
+	int count = static_key_count(key);
+
+	WARN_ON_ONCE(count < 0 || count > 1);
+
+	if (count)
+		static_key_slow_dec(key);
+}
+EXPORT_SYMBOL_GPL(static_key_disable);
+
 void static_key_slow_inc(struct static_key *key)
 {
+	int v, v1;
+
 	STATIC_KEY_CHECK_USE();
-	if (atomic_inc_not_zero(&key->enabled))
-		return;
+
+	/*
+	 * Careful if we get concurrent static_key_slow_inc() calls;
+	 * later calls must wait for the first one to _finish_ the
+	 * jump_label_update() process.  At the same time, however,
+	 * the jump_label_update() call below wants to see
+	 * static_key_enabled(&key) for jumps to be updated properly.
+	 *
+	 * So give a special meaning to negative key->enabled: it sends
+	 * static_key_slow_inc() down the slow path, and it is non-zero
+	 * so it counts as "enabled" in jump_label_update().  Note that
+	 * atomic_inc_unless_negative() checks >= 0, so roll our own.
+	 */
+	for (v = atomic_read(&key->enabled); v > 0; v = v1) {
+		v1 = atomic_cmpxchg(&key->enabled, v, v + 1);
+		if (likely(v1 == v))
+			return;
+	}
 
 	jump_label_lock();
-	if (atomic_inc_return(&key->enabled) == 1)
+	if (atomic_read(&key->enabled) == 0) {
+		atomic_set(&key->enabled, -1);
 		jump_label_update(key);
+		atomic_set(&key->enabled, 1);
+	} else {
+		atomic_inc(&key->enabled);
+	}
 	jump_label_unlock();
 }
 EXPORT_SYMBOL_GPL(static_key_slow_inc);
@@ -72,6 +139,13 @@ EXPORT_SYMBOL_GPL(static_key_slow_inc);
 static void __static_key_slow_dec(struct static_key *key,
 		unsigned long rate_limit, struct delayed_work *work)
 {
+	/*
+	 * The negative count check is valid even when a negative
+	 * key->enabled is in use by static_key_slow_inc(); a
+	 * __static_key_slow_dec() before the first static_key_slow_inc()
+	 * returns is unbalanced, because all other static_key_slow_inc()
+	 * instances block while the update is in progress.
+	 */
 	if (!atomic_dec_and_mutex_lock(&key->enabled, &jump_label_mutex)) {
 		WARN(atomic_read(&key->enabled) < 0,
 		     "jump label: negative count!\n");
@@ -205,6 +279,18 @@ void __init jump_label_init(void)
 	struct static_key *key = NULL;
 	struct jump_entry *iter;
 
+	/*
+	 * Since we are initializing the static_key.enabled field with
+	 * with the 'raw' int values (to avoid pulling in atomic.h) in
+	 * jump_label.h, let's make sure that is safe. There are only two
+	 * cases to check since we initialize to 0 or 1.
+	 */
+	BUILD_BUG_ON((int)ATOMIC_INIT(0) != 0);
+	BUILD_BUG_ON((int)ATOMIC_INIT(1) != 1);
+
+	if (static_key_initialized)
+		return;
+
 	jump_label_lock();
 	jump_label_sort_entries(iter_start, iter_stop);
 
@@ -254,11 +340,14 @@ static int __jump_label_mod_text_reserved(void *start, void *end)
 {
 	struct module *mod;
 
+	preempt_disable();
 	mod = __module_text_address((unsigned long)start);
+	WARN_ON_ONCE(__module_text_address((unsigned long)end) != mod);
+	preempt_enable();
+
 	if (!mod)
 		return 0;
 
-	WARN_ON_ONCE(__module_text_address((unsigned long)end) != mod);
 
 	return __jump_label_text_reserved(mod->jump_entries,
 				mod->jump_entries + mod->num_jump_entries,
@@ -422,7 +511,7 @@ jump_label_module_notify(struct notifier_block *self, unsigned long val,
 	return notifier_from_errno(ret);
 }
 
-struct notifier_block jump_label_module_nb = {
+static struct notifier_block jump_label_module_nb = {
 	.notifier_call = jump_label_module_notify,
 	.priority = 1, /* higher than tracepoints */
 };

@@ -186,7 +186,7 @@ static ide_startstop_t ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 	BUG_ON(drive->dev_flags & IDE_DFLAG_BLOCKED);
 	BUG_ON(rq->cmd_type != REQ_TYPE_FS);
 
-	ledtrig_ide_activity();
+	ledtrig_disk_activity();
 
 	pr_debug("%s: %sing: block=%llu, sectors=%u\n",
 		 drive->name, rq_data_dir(rq) == READ ? "read" : "writ",
@@ -431,7 +431,7 @@ static int idedisk_prep_fn(struct request_queue *q, struct request *rq)
 	ide_drive_t *drive = q->queuedata;
 	struct ide_cmd *cmd;
 
-	if (!(rq->cmd_flags & REQ_FLUSH))
+	if (req_op(rq) != REQ_OP_FLUSH)
 		return BLKPREP_OK;
 
 	if (rq->special) {
@@ -522,7 +522,7 @@ static int ide_do_setfeature(ide_drive_t *drive, u8 feature, u8 nsect)
 static void update_flush(ide_drive_t *drive)
 {
 	u16 *id = drive->id;
-	unsigned flush = 0;
+	bool wc = false;
 
 	if (drive->dev_flags & IDE_DFLAG_WCACHE) {
 		unsigned long long capacity;
@@ -546,12 +546,12 @@ static void update_flush(ide_drive_t *drive)
 		       drive->name, barrier ? "" : "not ");
 
 		if (barrier) {
-			flush = REQ_FLUSH;
+			wc = true;
 			blk_queue_prep_rq(drive->queue, idedisk_prep_fn);
 		}
 	}
 
-	blk_queue_flush(drive->queue, flush);
+	blk_queue_write_cache(drive->queue, wc, false);
 }
 
 ide_devset_get_flag(wcache, IDE_DFLAG_WCACHE);

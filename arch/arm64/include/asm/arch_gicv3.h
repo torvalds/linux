@@ -28,6 +28,7 @@
 #define ICC_CTLR_EL1			sys_reg(3, 0, 12, 12, 4)
 #define ICC_SRE_EL1			sys_reg(3, 0, 12, 12, 5)
 #define ICC_GRPEN1_EL1			sys_reg(3, 0, 12, 12, 7)
+#define ICC_BPR1_EL1			sys_reg(3, 0, 12, 12, 3)
 
 #define ICC_SRE_EL2			sys_reg(3, 4, 12, 9, 5)
 
@@ -103,6 +104,7 @@ static inline u64 gic_read_iar_common(void)
 	u64 irqstat;
 
 	asm volatile("mrs_s %0, " __stringify(ICC_IAR1_EL1) : "=r" (irqstat));
+	dsb(sy);
 	return irqstat;
 }
 
@@ -162,6 +164,11 @@ static inline void gic_write_sre(u32 val)
 {
 	asm volatile("msr_s " __stringify(ICC_SRE_EL1) ", %0" : : "r" ((u64)val));
 	isb();
+}
+
+static inline void gic_write_bpr1(u32 val)
+{
+	asm volatile("msr_s " __stringify(ICC_BPR1_EL1) ", %0" : : "r" (val));
 }
 
 #define gic_read_typer(c)		readq_relaxed(c)

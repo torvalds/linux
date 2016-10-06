@@ -99,19 +99,6 @@ void fuse_request_free(struct fuse_req *req)
 	kmem_cache_free(fuse_req_cachep, req);
 }
 
-static void block_sigs(sigset_t *oldset)
-{
-	sigset_t mask;
-
-	siginitsetinv(&mask, sigmask(SIGKILL));
-	sigprocmask(SIG_BLOCK, &mask, oldset);
-}
-
-static void restore_sigs(sigset_t *oldset)
-{
-	sigprocmask(SIG_SETMASK, oldset, NULL);
-}
-
 void __fuse_get_request(struct fuse_req *req)
 {
 	atomic_inc(&req->count);
@@ -151,15 +138,9 @@ static struct fuse_req *__fuse_get_req(struct fuse_conn *fc, unsigned npages,
 	atomic_inc(&fc->num_waiting);
 
 	if (fuse_block_alloc(fc, for_background)) {
-		sigset_t oldset;
-		int intr;
-
-		block_sigs(&oldset);
-		intr = wait_event_interruptible_exclusive(fc->blocked_waitq,
-				!fuse_block_alloc(fc, for_background));
-		restore_sigs(&oldset);
 		err = -EINTR;
-		if (intr)
+		if (wait_event_killable_exclusive(fc->blocked_waitq,
+				!fuse_block_alloc(fc, for_background)))
 			goto out;
 	}
 	/* Matches smp_wmb() in fuse_set_initialized() */
@@ -446,14 +427,9 @@ static void request_wait_answer(struct fuse_conn *fc, struct fuse_req *req)
 	}
 
 	if (!test_bit(FR_FORCE, &req->flags)) {
-		sigset_t oldset;
-
 		/* Only fatal signals may interrupt this */
-		block_sigs(&oldset);
-		err = wait_event_interruptible(req->waitq,
+		err = wait_event_killable(req->waitq,
 					test_bit(FR_FINISHED, &req->flags));
-		restore_sigs(&oldset);
-
 		if (!err)
 			return;
 
@@ -791,7 +767,6 @@ static int fuse_copy_fill(struct fuse_copy_state *cs)
 		cs->len = err;
 		cs->offset = off;
 		cs->pg = page;
-		cs->offset = off;
 		iov_iter_advance(cs->iter, err);
 	}
 
@@ -897,7 +872,7 @@ static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 		return err;
 	}
 
-	page_cache_get(newpage);
+	get_page(newpage);
 
 	if (!(buf->flags & PIPE_BUF_FLAG_LRU))
 		lru_cache_add_file(newpage);
@@ -912,12 +887,12 @@ static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 
 	if (err) {
 		unlock_page(newpage);
-		page_cache_release(newpage);
+		put_page(newpage);
 		return err;
 	}
 
 	unlock_page(oldpage);
-	page_cache_release(oldpage);
+	put_page(oldpage);
 	cs->len = 0;
 
 	return 0;
@@ -951,7 +926,7 @@ static int fuse_ref_page(struct fuse_copy_state *cs, struct page *page,
 	fuse_copy_finish(cs);
 
 	buf = cs->pipebufs;
-	page_cache_get(page);
+	get_page(page);
 	buf->page = page;
 	buf->offset = offset;
 	buf->len = count;
@@ -1435,7 +1410,7 @@ out_unlock:
 
 out:
 	for (; page_nr < cs.nr_segs; page_nr++)
-		page_cache_release(bufs[page_nr].page);
+		put_page(bufs[page_nr].page);
 
 	kfree(bufs);
 	return ret;
@@ -1525,7 +1500,6 @@ static int fuse_notify_inval_entry(struct fuse_conn *fc, unsigned int size,
 		goto err;
 	fuse_copy_finish(cs);
 	buf[outarg.namelen] = 0;
-	name.hash = full_name_hash(name.name, name.len);
 
 	down_read(&fc->killsb);
 	err = -ENOENT;
@@ -1576,7 +1550,6 @@ static int fuse_notify_delete(struct fuse_conn *fc, unsigned int size,
 		goto err;
 	fuse_copy_finish(cs);
 	buf[outarg.namelen] = 0;
-	name.hash = full_name_hash(name.name, name.len);
 
 	down_read(&fc->killsb);
 	err = -ENOENT;
@@ -1632,8 +1605,8 @@ static int fuse_notify_store(struct fuse_conn *fc, unsigned int size,
 		goto out_up_killsb;
 
 	mapping = inode->i_mapping;
-	index = outarg.offset >> PAGE_CACHE_SHIFT;
-	offset = outarg.offset & ~PAGE_CACHE_MASK;
+	index = outarg.offset >> PAGE_SHIFT;
+	offset = outarg.offset & ~PAGE_MASK;
 	file_size = i_size_read(inode);
 	end = outarg.offset + outarg.size;
 	if (end > file_size) {
@@ -1652,13 +1625,13 @@ static int fuse_notify_store(struct fuse_conn *fc, unsigned int size,
 		if (!page)
 			goto out_iput;
 
-		this_num = min_t(unsigned, num, PAGE_CACHE_SIZE - offset);
+		this_num = min_t(unsigned, num, PAGE_SIZE - offset);
 		err = fuse_copy_page(cs, &page, offset, this_num, 0);
 		if (!err && offset == 0 &&
-		    (this_num == PAGE_CACHE_SIZE || file_size == end))
+		    (this_num == PAGE_SIZE || file_size == end))
 			SetPageUptodate(page);
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 
 		if (err)
 			goto out_iput;
@@ -1697,7 +1670,7 @@ static int fuse_retrieve(struct fuse_conn *fc, struct inode *inode,
 	size_t total_len = 0;
 	int num_pages;
 
-	offset = outarg->offset & ~PAGE_CACHE_MASK;
+	offset = outarg->offset & ~PAGE_MASK;
 	file_size = i_size_read(inode);
 
 	num = outarg->size;
@@ -1720,7 +1693,7 @@ static int fuse_retrieve(struct fuse_conn *fc, struct inode *inode,
 	req->page_descs[0].offset = offset;
 	req->end = fuse_retrieve_end;
 
-	index = outarg->offset >> PAGE_CACHE_SHIFT;
+	index = outarg->offset >> PAGE_SHIFT;
 
 	while (num && req->num_pages < num_pages) {
 		struct page *page;
@@ -1730,7 +1703,7 @@ static int fuse_retrieve(struct fuse_conn *fc, struct inode *inode,
 		if (!page)
 			break;
 
-		this_num = min_t(unsigned, num, PAGE_CACHE_SIZE - offset);
+		this_num = min_t(unsigned, num, PAGE_SIZE - offset);
 		req->pages[req->num_pages] = page;
 		req->page_descs[req->num_pages].length = this_num;
 		req->num_pages++;
