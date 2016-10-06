@@ -142,6 +142,7 @@ config MDIO_THUNDER
 
 config MDIO_XGENE
 	tristate "APM X-Gene SoC MDIO bus controller"
+	depends on ARCH_XGENE || COMPILE_TEST
 	help
 	  This module provides a driver for the MDIO busses found in the
 	  APM X-Gene SoC's.
@@ -319,13 +320,6 @@ config XILINX_GMII2RGMII
          This driver support xilinx GMII to RGMII IP core it provides
          the Reduced Gigabit Media Independent Interface(RGMII) between
          Ethernet physical media devices and the Gigabit Ethernet controller.
-
-config MDIO_XGENE
-	tristate "APM X-Gene SoC MDIO bus controller"
-	depends on ARCH_XGENE || COMPILE_TEST
-	help
-	  This module provides a driver for the MDIO busses found in the
-	  APM X-Gene SoC's.
 
 endif # PHYLIB
 
