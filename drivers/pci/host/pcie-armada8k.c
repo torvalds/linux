@@ -83,8 +83,9 @@ static int armada8k_pcie_link_up(struct pcie_port *pp)
 	return 0;
 }
 
-static void armada8k_pcie_establish_link(struct pcie_port *pp)
+static void armada8k_pcie_establish_link(struct armada8k_pcie *pcie)
 {
+	struct pcie_port *pp = &pcie->pp;
 	u32 reg;
 
 	if (!dw_pcie_link_up(pp)) {
@@ -135,13 +136,16 @@ static void armada8k_pcie_establish_link(struct pcie_port *pp)
 
 static void armada8k_pcie_host_init(struct pcie_port *pp)
 {
+	struct armada8k_pcie *pcie = to_armada8k_pcie(pp);
+
 	dw_pcie_setup_rc(pp);
-	armada8k_pcie_establish_link(pp);
+	armada8k_pcie_establish_link(pcie);
 }
 
 static irqreturn_t armada8k_pcie_irq_handler(int irq, void *arg)
 {
-	struct pcie_port *pp = arg;
+	struct armada8k_pcie *pcie = arg;
+	struct pcie_port *pp = &pcie->pp;
 	u32 val;
 
 	/*
@@ -160,9 +164,10 @@ static struct pcie_host_ops armada8k_pcie_host_ops = {
 	.host_init = armada8k_pcie_host_init,
 };
 
-static int armada8k_add_pcie_port(struct pcie_port *pp,
+static int armada8k_add_pcie_port(struct armada8k_pcie *pcie,
 				  struct platform_device *pdev)
 {
+	struct pcie_port *pp = &pcie->pp;
 	struct device *dev = &pdev->dev;
 	int ret;
 
@@ -176,7 +181,7 @@ static int armada8k_add_pcie_port(struct pcie_port *pp,
 	}
 
 	ret = devm_request_irq(dev, pp->irq, armada8k_pcie_irq_handler,
-			       IRQF_SHARED, "armada8k-pcie", pp);
+			       IRQF_SHARED, "armada8k-pcie", pcie);
 	if (ret) {
 		dev_err(dev, "failed to request irq %d\n", pp->irq);
 		return ret;
@@ -221,7 +226,7 @@ static int armada8k_pcie_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	ret = armada8k_add_pcie_port(pp, pdev);
+	ret = armada8k_add_pcie_port(pcie, pdev);
 	if (ret)
 		goto fail;
 
