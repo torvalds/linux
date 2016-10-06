@@ -934,7 +934,7 @@ pnfs_find_server(struct inode *inode, struct nfs_open_context *ctx)
 static struct nfs4_layoutget *
 pnfs_alloc_init_layoutget_args(struct inode *ino,
 	   struct nfs_open_context *ctx,
-	   nfs4_stateid *stateid,
+	   const nfs4_stateid *stateid,
 	   const struct pnfs_layout_range *range,
 	   gfp_t gfp_flags)
 {
@@ -978,7 +978,7 @@ pnfs_alloc_init_layoutget_args(struct inode *ino,
 	lgp->args.ctx = get_nfs_open_context(ctx);
 	nfs4_stateid_copy(&lgp->args.stateid, stateid);
 	lgp->gfp_flags = gfp_flags;
-	lgp->cred = ctx->cred;
+	lgp->cred = get_rpccred(ctx->cred);
 	return lgp;
 }
 
@@ -1941,6 +1941,83 @@ pnfs_sanity_check_layout_range(struct pnfs_layout_range *range)
 	    range->length > NFS4_MAX_UINT64 - range->offset)
 		return false;
 	return true;
+}
+
+extern const nfs4_stateid current_stateid;
+
+static void _lgopen_prepare_attached(struct nfs4_opendata *data,
+				     struct nfs_open_context *ctx)
+{
+	/* STUB */
+}
+
+static void _lgopen_prepare_floating(struct nfs4_opendata *data,
+				     struct nfs_open_context *ctx)
+{
+	struct pnfs_layout_range rng = {
+		.iomode = (data->o_arg.fmode & FMODE_WRITE) ?
+			  IOMODE_RW: IOMODE_READ,
+		.offset = 0,
+		.length = NFS4_MAX_UINT64,
+	};
+	struct nfs4_layoutget *lgp;
+
+	lgp = pnfs_alloc_init_layoutget_args(NULL, ctx, &current_stateid,
+					     &rng, GFP_KERNEL);
+	if (!lgp)
+		return;
+	data->lgp = lgp;
+	data->o_arg.lg_args = &lgp->args;
+	data->o_res.lg_res = &lgp->res;
+}
+
+void pnfs_lgopen_prepare(struct nfs4_opendata *data,
+			 struct nfs_open_context *ctx)
+{
+	struct nfs_server *server = NFS_SERVER(data->dir->d_inode);
+
+	if (!(pnfs_enabled_sb(server) &&
+	      server->pnfs_curr_ld->flags & PNFS_LAYOUTGET_ON_OPEN))
+		return;
+	/* Could check on max_ops, but currently hardcoded high enough */
+	if (data->state)
+		_lgopen_prepare_attached(data, ctx);
+	else
+		_lgopen_prepare_floating(data, ctx);
+}
+
+void pnfs_parse_lgopen(struct inode *ino, struct nfs4_layoutget *lgp,
+		       struct nfs_open_context *ctx)
+{
+	struct pnfs_layout_hdr *lo;
+	struct pnfs_layout_segment *lseg;
+	u32 iomode;
+
+	if (!lgp || lgp->res.layoutp->len == 0)
+		return;
+	if (!lgp->args.inode) {
+		/* Need to grab lo */
+		spin_lock(&ino->i_lock);
+		lo = pnfs_find_alloc_layout(ino, ctx, GFP_KERNEL);
+		atomic_inc(&lo->plh_outstanding);
+		spin_unlock(&ino->i_lock);
+		lgp->args.inode = ino;
+	} else
+		lo = NFS_I(lgp->args.inode)->layout;
+	pnfs_get_layout_hdr(lo);
+
+	lseg = pnfs_layout_process(lgp);
+	atomic_dec(&lo->plh_outstanding);
+	if (IS_ERR(lseg)) {
+		/* ignore lseg, but would like to mark not to try lgopen */
+		/* clear some lo flags - first and fail ???? */
+	} else {
+		iomode = lgp->args.range.iomode;
+		pnfs_layout_clear_fail_bit(lo, pnfs_iomode_to_fail_bit(iomode));
+		pnfs_put_lseg(lseg);
+	}
+	pnfs_clear_first_layoutget(lo);
+	pnfs_put_layout_hdr(lo);
 }
 
 struct pnfs_layout_segment *
