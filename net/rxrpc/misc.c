@@ -96,7 +96,7 @@ const s8 rxrpc_ack_priority[] = {
 	[RXRPC_ACK_PING]		= 9,
 };
 
-const char const rxrpc_ack_names[RXRPC_ACK__INVALID + 1][4] = {
+const char rxrpc_ack_names[RXRPC_ACK__INVALID + 1][4] = {
 	"---", "REQ", "DUP", "OOS", "WIN", "MEM", "PNG", "PNR", "DLY",
 	"IDL", "-?-"
 };

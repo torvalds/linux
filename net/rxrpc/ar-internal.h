@@ -777,7 +777,7 @@ extern const char rxrpc_congest_modes[NR__RXRPC_CONGEST_MODES][10];
 extern const char rxrpc_congest_changes[rxrpc_congest__nr_change][9];
 
 extern const char *const rxrpc_pkts[];
-extern const char const rxrpc_ack_names[RXRPC_ACK__INVALID + 1][4];
+extern const char rxrpc_ack_names[RXRPC_ACK__INVALID + 1][4];
 
 #include <trace/events/rxrpc.h>
 
