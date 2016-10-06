@@ -267,13 +267,9 @@ static int __init dra7xx_add_pcie_port(struct dra7xx_pcie *dra7xx,
 				       struct platform_device *pdev)
 {
 	int ret;
-	struct pcie_port *pp;
+	struct pcie_port *pp = &dra7xx->pp;
+	struct device *dev = pp->dev;
 	struct resource *res;
-	struct device *dev = &pdev->dev;
-
-	pp = &dra7xx->pp;
-	pp->dev = dev;
-	pp->ops = &dra7xx_pcie_host_ops;
 
 	pp->irq = platform_get_irq(pdev, 1);
 	if (pp->irq < 0) {
@@ -320,6 +316,7 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 	void __iomem *base;
 	struct resource *res;
 	struct dra7xx_pcie *dra7xx;
+	struct pcie_port *pp;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	char name[10];
@@ -330,6 +327,10 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 	dra7xx = devm_kzalloc(dev, sizeof(*dra7xx), GFP_KERNEL);
 	if (!dra7xx)
 		return -ENOMEM;
+
+	pp = &dra7xx->pp;
+	pp->dev = dev;
+	pp->ops = &dra7xx_pcie_host_ops;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
