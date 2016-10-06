@@ -337,7 +337,7 @@ struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 
 	/* Get the socket providing the service */
 	rx = rcu_dereference(local->service);
-	if (service_id == rx->srx.srx_service)
+	if (rx && service_id == rx->srx.srx_service)
 		goto found_service;
 
 	trace_rxrpc_abort("INV", sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
