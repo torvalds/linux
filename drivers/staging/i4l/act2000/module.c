@@ -376,6 +376,7 @@ act2000_command(act2000_card *card, isdn_ctrl *c)
 			}
 			if (card->ptype == ISDN_PTYPE_1TR6) {
 				int i;
+
 				chan->eazmask = 0;
 				for (i = 0; i < strlen(c->parm.num); i++)
 					if (isdigit(c->parm.num[i]))
@@ -573,6 +574,7 @@ act2000_alloccard(int bus, int port, int irq, char *id)
 {
 	int i;
 	act2000_card *card;
+
 	if (!(card = kzalloc(sizeof(act2000_card), GFP_KERNEL))) {
 		printk(KERN_WARNING
 		       "act2000: (%s) Could not allocate card-struct.\n", id);
@@ -794,6 +796,7 @@ static void __exit act2000_exit(void)
 {
 	act2000_card *card = cards;
 	act2000_card *last;
+
 	while (card) {
 		unregister_card(card);
 		del_timer_sync(&card->ptimer);
