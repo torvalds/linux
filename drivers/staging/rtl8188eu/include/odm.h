@@ -590,7 +590,6 @@ struct odm_rf_cal {
 	s32	RegEBC;
 
 	u8	TXPowercount;
-	bool	bTXPowerTrackingInit;
 	bool	bTXPowerTracking;
 	u8	TxPowerTrackControl; /* for mp mode, turn off txpwrtracking
 				      * as default */

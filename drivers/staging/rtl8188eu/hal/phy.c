@@ -412,7 +412,6 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 	dm_txpwr_track_setpwr(dm_odm);
 
 	dm_odm->RFCalibrateInfo.TXPowerTrackingCallbackCnt++;
-	dm_odm->RFCalibrateInfo.bTXPowerTrackingInit = true;
 
 	dm_odm->RFCalibrateInfo.RegA24 = 0x090e1317;
 
