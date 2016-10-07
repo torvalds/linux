@@ -6644,6 +6644,7 @@ static const struct amdgpu_dpm_funcs ci_dpm_funcs = {
 	.set_sclk_od = ci_dpm_set_sclk_od,
 	.get_mclk_od = ci_dpm_get_mclk_od,
 	.set_mclk_od = ci_dpm_set_mclk_od,
+	.get_vce_clock_state = amdgpu_get_vce_clock_state,
 };
 
 static void ci_dpm_set_dpm_funcs(struct amdgpu_device *adev)

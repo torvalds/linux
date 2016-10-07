@@ -513,4 +513,7 @@ u16 amdgpu_get_pcie_lane_support(struct amdgpu_device *adev,
 				 u16 default_lanes);
 u8 amdgpu_encode_pci_lane_width(u32 lanes);
 
+struct amd_vce_state*
+amdgpu_get_vce_clock_state(struct amdgpu_device *adev, unsigned idx);
+
 #endif

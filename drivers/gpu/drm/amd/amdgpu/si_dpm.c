@@ -7991,6 +7991,7 @@ static const struct amdgpu_dpm_funcs si_dpm_funcs = {
 	.get_fan_control_mode = &si_dpm_get_fan_control_mode,
 	.set_fan_speed_percent = &si_dpm_set_fan_speed_percent,
 	.get_fan_speed_percent = &si_dpm_get_fan_speed_percent,
+	.get_vce_clock_state = amdgpu_get_vce_clock_state,
 };
 
 static void si_dpm_set_dpm_funcs(struct amdgpu_device *adev)

@@ -3273,6 +3273,7 @@ static const struct amdgpu_dpm_funcs kv_dpm_funcs = {
 	.force_performance_level = &kv_dpm_force_performance_level,
 	.powergate_uvd = &kv_dpm_powergate_uvd,
 	.enable_bapm = &kv_dpm_enable_bapm,
+	.get_vce_clock_state = amdgpu_get_vce_clock_state,
 };
 
 static void kv_dpm_set_dpm_funcs(struct amdgpu_device *adev)
