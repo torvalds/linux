@@ -781,6 +781,8 @@ err_m2m_release:
 
 void gsc_unregister_m2m_device(struct gsc_dev *gsc)
 {
-	if (gsc)
+	if (gsc) {
 		v4l2_m2m_release(gsc->m2m.m2m_dev);
+		video_unregister_device(&gsc->vdev);
+	}
 }
