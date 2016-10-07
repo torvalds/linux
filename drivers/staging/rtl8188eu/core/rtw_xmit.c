@@ -1677,7 +1677,7 @@ s32 rtw_xmit(struct adapter *padapter, struct sk_buff **ppkt)
 	}
 	pxmitframe->pkt = *ppkt;
 
-	rtw_led_control(padapter, LED_CTL_TX);
+	LedControl8188eu(padapter, LED_CTL_TX);
 
 	pxmitframe->attrib.qsel = pxmitframe->attrib.priority;
 

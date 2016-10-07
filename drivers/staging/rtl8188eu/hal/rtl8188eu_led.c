@@ -70,7 +70,6 @@ void rtw_hal_sw_led_init(struct adapter *padapter)
 	struct led_priv *pledpriv = &(padapter->ledpriv);
 
 	pledpriv->bRegUseLed = true;
-	pledpriv->LedControlHandler = LedControl8188eu;
 	padapter->HalData->bLedOpenDrain = true;
 
 	InitLed871x(padapter, &(pledpriv->SwLed0));

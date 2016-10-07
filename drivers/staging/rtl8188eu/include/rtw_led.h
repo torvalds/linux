@@ -92,16 +92,8 @@ struct led_priv {
 	/* add for led control */
 	struct LED_871x			SwLed0;
 	u8	bRegUseLed;
-	void (*LedControlHandler)(struct adapter *padapter,
-				  enum LED_CTL_MODE LedAction);
 	/* add for led control */
 };
-
-#define rtw_led_control(adapt, action) \
-	do { \
-		if ((adapt)->ledpriv.LedControlHandler) \
-			(adapt)->ledpriv.LedControlHandler((adapt), (action)); \
-	} while (0)
 
 void BlinkTimerCallback(unsigned long data);
 void BlinkWorkItemCallback(struct work_struct *work);
