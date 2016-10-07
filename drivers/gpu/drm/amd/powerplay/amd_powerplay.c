@@ -821,6 +821,21 @@ static int pp_dpm_read_sensor(void *handle, int idx, int32_t *value)
 	return hwmgr->hwmgr_func->read_sensor(hwmgr, idx, value);
 }
 
+static struct amd_vce_state*
+pp_dpm_get_vce_clock_state(void *handle, unsigned idx)
+{
+	struct pp_hwmgr *hwmgr;
+
+	if (handle) {
+		hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+		if (hwmgr && idx < hwmgr->num_vce_state_tables)
+			return &hwmgr->vce_states[idx];
+	}
+
+	return NULL;
+}
+
 const struct amd_powerplay_funcs pp_dpm_funcs = {
 	.get_temperature = pp_dpm_get_temperature,
 	.load_firmware = pp_dpm_load_fw,
@@ -847,6 +862,7 @@ const struct amd_powerplay_funcs pp_dpm_funcs = {
 	.get_mclk_od = pp_dpm_get_mclk_od,
 	.set_mclk_od = pp_dpm_set_mclk_od,
 	.read_sensor = pp_dpm_read_sensor,
+	.get_vce_clock_state = pp_dpm_get_vce_clock_state,
 };
 
 static int amd_pp_instance_init(struct amd_pp_init *pp_init,
