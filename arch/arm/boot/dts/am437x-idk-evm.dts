@@ -117,6 +117,58 @@
 		compatible = "fixed-clock";
 		clock-frequency = <32768>;
 	};
+
+	leds-iio {
+		status = "disabled";
+		compatible = "gpio-leds";
+		led-out0 {
+			label = "out0";
+			gpios = <&tpic2810 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		led-out1 {
+			label = "out1";
+			gpios = <&tpic2810 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		led-out2 {
+			label = "out2";
+			gpios = <&tpic2810 2 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		led-out3 {
+			label = "out3";
+			gpios = <&tpic2810 3 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		led-out4 {
+			label = "out4";
+			gpios = <&tpic2810 4 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		led-out5 {
+			label = "out5";
+			gpios = <&tpic2810 5 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		led-out6 {
+			label = "out6";
+			gpios = <&tpic2810 6 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		led-out7 {
+			label = "out7";
+			gpios = <&tpic2810 7 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+	};
 };
 
 &am43xx_pinmux {
@@ -308,6 +360,13 @@
 	pinctrl-0 = <&i2c2_pins_default>;
 	pinctrl-1 = <&i2c2_pins_sleep>;
 	clock-frequency = <100000>;
+
+	tpic2810: tpic2810@60 {
+		compatible = "ti,tpic2810";
+		reg = <0x60>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
 };
 
 &spi1 {
