@@ -4087,14 +4087,21 @@ static int gfx_v8_0_rlc_load_microcode(struct amdgpu_device *adev)
 static int gfx_v8_0_rlc_resume(struct amdgpu_device *adev)
 {
 	int r;
+	u32 tmp;
 
 	gfx_v8_0_rlc_stop(adev);
 
 	/* disable CG */
-	WREG32(mmRLC_CGCG_CGLS_CTRL, 0);
+	tmp = RREG32(mmRLC_CGCG_CGLS_CTRL);
+	tmp &= ~(RLC_CGCG_CGLS_CTRL__CGCG_EN_MASK |
+		 RLC_CGCG_CGLS_CTRL__CGLS_EN_MASK);
+	WREG32(mmRLC_CGCG_CGLS_CTRL, tmp);
 	if (adev->asic_type == CHIP_POLARIS11 ||
-	    adev->asic_type == CHIP_POLARIS10)
-		WREG32(mmRLC_CGCG_CGLS_CTRL_3D, 0);
+	    adev->asic_type == CHIP_POLARIS10) {
+		tmp = RREG32(mmRLC_CGCG_CGLS_CTRL_3D);
+		tmp &= ~0x3;
+		WREG32(mmRLC_CGCG_CGLS_CTRL_3D, tmp);
+	}
 
 	/* disable PG */
 	WREG32(mmRLC_PG_CNTL, 0);
