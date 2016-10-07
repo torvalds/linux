@@ -7,27 +7,8 @@
 #include <string.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <syscall.h>
-#include <errno.h>
 #include <stdbool.h>
-
-#ifndef MLOCK_ONFAULT
-#define MLOCK_ONFAULT 1
-#endif
-
-#ifndef MCL_ONFAULT
-#define MCL_ONFAULT (MCL_FUTURE << 1)
-#endif
-
-static int mlock2_(void *start, size_t len, int flags)
-{
-#ifdef __NR_mlock2
-	return syscall(__NR_mlock2, start, len, flags);
-#else
-	errno = ENOSYS;
-	return -1;
-#endif
-}
+#include "mlock2.h"
 
 struct vm_boundaries {
 	unsigned long start;
