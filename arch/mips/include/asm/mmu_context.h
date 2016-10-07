@@ -99,17 +99,12 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 static inline void
 get_new_mmu_context(struct mm_struct *mm, unsigned long cpu)
 {
-	extern void kvm_local_flush_tlb_all(void);
 	unsigned long asid = asid_cache(cpu);
 
 	if (!((asid += cpu_asid_inc()) & cpu_asid_mask(&cpu_data[cpu]))) {
 		if (cpu_has_vtag_icache)
 			flush_icache_all();
-#ifdef CONFIG_KVM
-		kvm_local_flush_tlb_all();      /* start new asid cycle */
-#else
 		local_flush_tlb_all();	/* start new asid cycle */
-#endif
 		if (!asid)		/* fix version if needed */
 			asid = asid_first_version(cpu);
 	}

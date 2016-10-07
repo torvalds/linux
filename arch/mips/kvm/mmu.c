@@ -453,7 +453,7 @@ void kvm_get_new_mmu_context(struct mm_struct *mm, unsigned long cpu,
 		if (cpu_has_vtag_icache)
 			flush_icache_all();
 
-		kvm_local_flush_tlb_all();      /* start new asid cycle */
+		local_flush_tlb_all();      /* start new asid cycle */
 
 		if (!asid)      /* fix version if needed */
 			asid = asid_first_version(cpu);
