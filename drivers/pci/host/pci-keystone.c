@@ -334,8 +334,9 @@ static int __init ks_add_pcie_port(struct keystone_pcie *ks_pcie,
 	if (ks_pcie->error_irq <= 0)
 		dev_info(&pdev->dev, "no error IRQ defined\n");
 	else {
-		if (request_irq(ks_pcie->error_irq, pcie_err_irq_handler,
-				IRQF_SHARED, "pcie-error-irq", ks_pcie) < 0) {
+		ret = request_irq(ks_pcie->error_irq, pcie_err_irq_handler,
+				  IRQF_SHARED, "pcie-error-irq", ks_pcie);
+		if (ret < 0) {
 			dev_err(&pdev->dev, "failed to request error IRQ %d\n",
 				ks_pcie->error_irq);
 			return ret;
