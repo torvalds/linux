@@ -1721,7 +1721,9 @@ find_page:
 			 * wait_on_page_locked is used to avoid unnecessarily
 			 * serialisations and why it's safe.
 			 */
-			wait_on_page_locked_killable(page);
+			error = wait_on_page_locked_killable(page);
+			if (unlikely(error))
+				goto readpage_error;
 			if (PageUptodate(page))
 				goto page_ok;
 
