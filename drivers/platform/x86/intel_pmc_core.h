@@ -26,10 +26,20 @@
 
 #define SPT_PMC_BASE_ADDR_OFFSET		0x48
 #define SPT_PMC_SLP_S0_RES_COUNTER_OFFSET	0x13c
+#define SPT_PMC_PM_CFG_OFFSET			0x18
+#define SPT_PMC_PM_STS_OFFSET			0x1c
+#define SPT_PMC_MTPMC_OFFSET			0x20
+#define SPT_PMC_MFPMC_OFFSET			0x38
+#define SPT_PMC_MPHY_CORE_STS_0			0x1143
+#define SPT_PMC_MPHY_CORE_STS_1			0x1142
 #define SPT_PMC_MMIO_REG_LEN			0x1000
 #define SPT_PMC_SLP_S0_RES_COUNTER_STEP		0x64
 #define PMC_BASE_ADDR_MASK			~(SPT_PMC_MMIO_REG_LEN - 1)
+#define MTPMC_MASK				0xffff0000
 #define NUM_ENTRIES				5
+#define SPT_PMC_READ_DISABLE_BIT		0x16
+#define SPT_PMC_MSG_FULL_STS_BIT		0x18
+#define NUM_RETRIES				100
 
 /* Sunrise Point: PGD PFET Enable Ack Status Registers */
 enum ppfear_regs {
@@ -85,6 +95,24 @@ enum ppfear_regs {
 #define SPT_PMC_BIT_CSME_RTC			BIT(6)
 #define SPT_PMC_BIT_CSME_PSF			BIT(7)
 
+#define SPT_PMC_BIT_MPHY_LANE0			BIT(0)
+#define SPT_PMC_BIT_MPHY_LANE1			BIT(1)
+#define SPT_PMC_BIT_MPHY_LANE2			BIT(2)
+#define SPT_PMC_BIT_MPHY_LANE3			BIT(3)
+#define SPT_PMC_BIT_MPHY_LANE4			BIT(4)
+#define SPT_PMC_BIT_MPHY_LANE5			BIT(5)
+#define SPT_PMC_BIT_MPHY_LANE6			BIT(6)
+#define SPT_PMC_BIT_MPHY_LANE7			BIT(7)
+
+#define SPT_PMC_BIT_MPHY_LANE8			BIT(0)
+#define SPT_PMC_BIT_MPHY_LANE9			BIT(1)
+#define SPT_PMC_BIT_MPHY_LANE10			BIT(2)
+#define SPT_PMC_BIT_MPHY_LANE11			BIT(3)
+#define SPT_PMC_BIT_MPHY_LANE12			BIT(4)
+#define SPT_PMC_BIT_MPHY_LANE13			BIT(5)
+#define SPT_PMC_BIT_MPHY_LANE14			BIT(6)
+#define SPT_PMC_BIT_MPHY_LANE15			BIT(7)
+
 struct pmc_bit_map {
 	const char *name;
 	u32 bit_mask;
@@ -92,6 +120,7 @@ struct pmc_bit_map {
 
 struct pmc_reg_map {
 	const struct pmc_bit_map *pfear_sts;
+	const struct pmc_bit_map *mphy_sts;
 };
 
 /**
@@ -113,6 +142,8 @@ struct pmc_dev {
 	struct dentry *dbgfs_dir;
 #endif /* CONFIG_DEBUG_FS */
 	bool has_slp_s0_res;
+	int pmc_xram_read_bit;
+	struct mutex lock; /* generic mutex lock for PMC Core */
 };
 
 #endif /* PMC_CORE_H */
