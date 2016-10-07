@@ -12,8 +12,6 @@ struct blk_mq_ctx {
 	unsigned int		cpu;
 	unsigned int		index_hw;
 
-	unsigned int		last_tag ____cacheline_aligned_in_smp;
-
 	/* incremented at dispatch time */
 	unsigned long		rq_dispatched[2];
 	unsigned long		rq_merged;
@@ -62,15 +60,6 @@ extern void blk_mq_hctx_kobj_init(struct blk_mq_hw_ctx *hctx);
 extern void blk_mq_rq_timed_out(struct request *req, bool reserved);
 
 void blk_mq_release(struct request_queue *q);
-
-/*
- * Basic implementation of sparser bitmap, allowing the user to spread
- * the bits over more cachelines.
- */
-struct blk_align_bitmap {
-	unsigned long word;
-	unsigned long depth;
-} ____cacheline_aligned_in_smp;
 
 static inline struct blk_mq_ctx *__blk_mq_get_ctx(struct request_queue *q,
 					   unsigned int cpu)

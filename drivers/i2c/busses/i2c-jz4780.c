@@ -798,10 +798,8 @@ static int jz4780_i2c_probe(struct platform_device *pdev)
 		goto err;
 
 	ret = i2c_add_adapter(&i2c->adap);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to add bus\n");
+	if (ret < 0)
 		goto err;
-	}
 
 	return 0;
 

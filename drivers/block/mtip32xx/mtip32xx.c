@@ -3686,7 +3686,7 @@ static int mtip_block_open(struct block_device *dev, fmode_t mode)
 	return -ENODEV;
 }
 
-void mtip_block_release(struct gendisk *disk, fmode_t mode)
+static void mtip_block_release(struct gendisk *disk, fmode_t mode)
 {
 }
 

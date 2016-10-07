@@ -16,7 +16,6 @@ struct block_device;
 struct io_context;
 struct cgroup_subsys_state;
 typedef void (bio_end_io_t) (struct bio *);
-typedef void (bio_destructor_t) (struct bio *);
 
 #ifdef CONFIG_BLOCK
 /*
@@ -89,14 +88,22 @@ struct bio {
 	struct bio_vec		bi_inline_vecs[0];
 };
 
-#define BIO_OP_SHIFT	(8 * sizeof(unsigned int) - REQ_OP_BITS)
+#define BIO_OP_SHIFT	(8 * FIELD_SIZEOF(struct bio, bi_opf) - REQ_OP_BITS)
+#define bio_flags(bio)	((bio)->bi_opf & ((1 << BIO_OP_SHIFT) - 1))
 #define bio_op(bio)	((bio)->bi_opf >> BIO_OP_SHIFT)
 
-#define bio_set_op_attrs(bio, op, op_flags) do {		\
-	WARN_ON(op >= (1 << REQ_OP_BITS));			\
-	(bio)->bi_opf &= ((1 << BIO_OP_SHIFT) - 1);		\
-	(bio)->bi_opf |= ((unsigned int) (op) << BIO_OP_SHIFT);	\
-	(bio)->bi_opf |= op_flags;				\
+#define bio_set_op_attrs(bio, op, op_flags) do {			\
+	if (__builtin_constant_p(op))					\
+		BUILD_BUG_ON((op) + 0U >= (1U << REQ_OP_BITS));		\
+	else								\
+		WARN_ON_ONCE((op) + 0U >= (1U << REQ_OP_BITS));		\
+	if (__builtin_constant_p(op_flags))				\
+		BUILD_BUG_ON((op_flags) + 0U >= (1U << BIO_OP_SHIFT));	\
+	else								\
+		WARN_ON_ONCE((op_flags) + 0U >= (1U << BIO_OP_SHIFT));	\
+	(bio)->bi_opf = bio_flags(bio);					\
+	(bio)->bi_opf |= (((op) + 0U) << BIO_OP_SHIFT);			\
+	(bio)->bi_opf |= (op_flags);					\
 } while (0)
 
 #define BIO_RESET_BYTES		offsetof(struct bio, bi_max_vecs)
