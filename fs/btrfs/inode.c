@@ -1331,10 +1331,16 @@ next_slot:
 			 * either valid or do not exist.
 			 */
 			if (csum_exist_in_range(fs_info, disk_bytenr,
-						num_bytes))
+						num_bytes)) {
+				if (!nolock)
+					btrfs_end_write_no_snapshoting(root);
 				goto out_check;
-			if (!btrfs_inc_nocow_writers(fs_info, disk_bytenr))
+			}
+			if (!btrfs_inc_nocow_writers(fs_info, disk_bytenr)) {
+				if (!nolock)
+					btrfs_end_write_no_snapshoting(root);
 				goto out_check;
+			}
 			nocow = 1;
 		} else if (extent_type == BTRFS_FILE_EXTENT_INLINE) {
 			extent_end = found_key.offset +
