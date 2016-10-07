@@ -210,6 +210,11 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 		    DWC3_GCTL_PRTCAP(reg) == DWC3_GCTL_PRTCAP_OTG) {
 			hcd = dev_get_drvdata(&dwc->xhci->dev);
 
+			if (hcd->state == HC_STATE_SUSPENDED) {
+				dev_dbg(rockchip->dev, "USB suspended\n");
+				goto out;
+			}
+
 			if (hcd->state != HC_STATE_HALT) {
 				usb_remove_hcd(hcd->shared_hcd);
 				usb_remove_hcd(hcd);
