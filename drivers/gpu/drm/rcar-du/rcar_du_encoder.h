@@ -19,7 +19,6 @@
 
 struct drm_panel;
 struct rcar_du_device;
-struct rcar_du_hdmienc;
 struct rcar_du_lvdsenc;
 
 enum rcar_du_encoder_type {
@@ -34,7 +33,6 @@ struct rcar_du_encoder {
 	struct drm_encoder base;
 	enum rcar_du_output output;
 	struct rcar_du_connector *connector;
-	struct rcar_du_hdmienc *hdmi;
 	struct rcar_du_lvdsenc *lvds;
 };
 

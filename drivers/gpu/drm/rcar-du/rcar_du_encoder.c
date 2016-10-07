@@ -20,11 +20,9 @@
 
 #include "rcar_du_drv.h"
 #include "rcar_du_encoder.h"
-#include "rcar_du_hdmienc.h"
 #include "rcar_du_kms.h"
 #include "rcar_du_lvdscon.h"
 #include "rcar_du_lvdsenc.h"
-#include "rcar_du_vgacon.h"
 
 /* -----------------------------------------------------------------------------
  * Encoder
@@ -63,29 +61,35 @@ static int rcar_du_encoder_atomic_check(struct drm_encoder *encoder,
 	struct rcar_du_encoder *renc = to_rcar_encoder(encoder);
 	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
 	const struct drm_display_mode *mode = &crtc_state->mode;
-	const struct drm_display_mode *panel_mode;
 	struct drm_connector *connector = conn_state->connector;
 	struct drm_device *dev = encoder->dev;
 
-	/* DAC encoders have currently no restriction on the mode. */
-	if (encoder->encoder_type == DRM_MODE_ENCODER_DAC)
-		return 0;
+	/*
+	 * Only panel-related encoder types require validation here, everything
+	 * else is handled by the bridge drivers.
+	 */
+	if (encoder->encoder_type == DRM_MODE_ENCODER_LVDS) {
+		const struct drm_display_mode *panel_mode;
 
-	if (list_empty(&connector->modes)) {
-		dev_dbg(dev->dev, "encoder: empty modes list\n");
-		return -EINVAL;
+		if (list_empty(&connector->modes)) {
+			dev_dbg(dev->dev, "encoder: empty modes list\n");
+			return -EINVAL;
+		}
+
+		panel_mode = list_first_entry(&connector->modes,
+					      struct drm_display_mode, head);
+
+		/* We're not allowed to modify the resolution. */
+		if (mode->hdisplay != panel_mode->hdisplay ||
+		    mode->vdisplay != panel_mode->vdisplay)
+			return -EINVAL;
+
+		/*
+		 * The flat panel mode is fixed, just copy it to the adjusted
+		 * mode.
+		 */
+		drm_mode_copy(adjusted_mode, panel_mode);
 	}
-
-	panel_mode = list_first_entry(&connector->modes,
-				      struct drm_display_mode, head);
-
-	/* We're not allowed to modify the resolution. */
-	if (mode->hdisplay != panel_mode->hdisplay ||
-	    mode->vdisplay != panel_mode->vdisplay)
-		return -EINVAL;
-
-	/* The flat panel mode is fixed, just copy it to the adjusted mode. */
-	drm_mode_copy(adjusted_mode, panel_mode);
 
 	if (renc->lvds)
 		rcar_du_lvdsenc_atomic_check(renc->lvds, adjusted_mode);
@@ -159,6 +163,7 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 {
 	struct rcar_du_encoder *renc;
 	struct drm_encoder *encoder;
+	struct drm_bridge *bridge = NULL;
 	unsigned int encoder_type;
 	int ret;
 
@@ -182,6 +187,15 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 		break;
 	}
 
+	if (enc_node) {
+		/* Locate the DRM bridge from the encoder DT node. */
+		bridge = of_drm_find_bridge(enc_node);
+		if (!bridge) {
+			ret = -EPROBE_DEFER;
+			goto done;
+		}
+	}
+
 	switch (type) {
 	case RCAR_DU_ENCODER_VGA:
 		encoder_type = DRM_MODE_ENCODER_DAC;
@@ -199,35 +213,35 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 		break;
 	}
 
-	if (type == RCAR_DU_ENCODER_HDMI) {
-		ret = rcar_du_hdmienc_init(rcdu, renc, enc_node);
-		if (ret < 0)
-			goto done;
+	ret = drm_encoder_init(rcdu->ddev, encoder, &encoder_funcs,
+			       encoder_type, NULL);
+	if (ret < 0)
+		goto done;
+
+	drm_encoder_helper_add(encoder, &encoder_helper_funcs);
+
+	if (bridge) {
+		/*
+		 * Attach the bridge to the encoder. The bridge will create the
+		 * connector.
+		 */
+		ret = drm_bridge_attach(encoder, bridge, NULL);
+		if (ret) {
+			drm_encoder_cleanup(encoder);
+			return ret;
+		}
 	} else {
-		ret = drm_encoder_init(rcdu->ddev, encoder, &encoder_funcs,
-				       encoder_type, NULL);
-		if (ret < 0)
-			goto done;
+		/* There's no bridge, create the connector manually. */
+		switch (output) {
+		case RCAR_DU_OUTPUT_LVDS0:
+		case RCAR_DU_OUTPUT_LVDS1:
+			ret = rcar_du_lvds_connector_init(rcdu, renc, con_node);
+			break;
 
-		drm_encoder_helper_add(encoder, &encoder_helper_funcs);
-	}
-
-	switch (encoder_type) {
-	case DRM_MODE_ENCODER_LVDS:
-		ret = rcar_du_lvds_connector_init(rcdu, renc, con_node);
-		break;
-
-	case DRM_MODE_ENCODER_DAC:
-		ret = rcar_du_vga_connector_init(rcdu, renc);
-		break;
-
-	case DRM_MODE_ENCODER_TMDS:
-		/* connector managed by the bridge driver */
-		break;
-
-	default:
-		ret = -EINVAL;
-		break;
+		default:
+			ret = -EINVAL;
+			break;
+		}
 	}
 
 done:

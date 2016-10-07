@@ -11,12 +11,6 @@ config DRM_RCAR_DU
 	  Choose this option if you have an R-Car chipset.
 	  If M is selected the module will be called rcar-du-drm.
 
-config DRM_RCAR_HDMI
-	bool "R-Car DU HDMI Encoder Support"
-	depends on DRM_RCAR_DU
-	help
-	  Enable support for external HDMI encoders.
-
 config DRM_RCAR_LVDS
 	bool "R-Car DU LVDS Encoder Support"
 	depends on DRM_RCAR_DU
