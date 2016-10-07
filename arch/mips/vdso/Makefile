@@ -13,8 +13,6 @@ cflags-vdso := $(ccflags-vdso) \
 	-DDISABLE_BRANCH_PROFILING \
 	$(call cc-option, -fno-stack-protector)
 aflags-vdso := $(ccflags-vdso) \
-	$(filter -I%,$(KBUILD_CFLAGS)) \
-	$(filter -E%,$(KBUILD_CFLAGS)) \
 	-D__ASSEMBLY__ -Wa,-gdwarf-2
 
 #
