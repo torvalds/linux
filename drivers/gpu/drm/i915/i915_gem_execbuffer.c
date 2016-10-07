@@ -451,8 +451,8 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 				 0, ggtt->mappable_end,
 				 DRM_MM_SEARCH_DEFAULT,
 				 DRM_MM_CREATE_DEFAULT);
-			if (ret)
-				return ERR_PTR(ret);
+			if (ret) /* no inactive aperture space, use cpu reloc */
+				return NULL;
 		} else {
 			ret = i915_vma_put_fence(vma);
 			if (ret) {
