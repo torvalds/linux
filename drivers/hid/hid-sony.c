@@ -1030,6 +1030,12 @@ struct motion_output_report_02 {
 #define SIXAXIS_REPORT_0xF5_SIZE 8
 #define MOTION_REPORT_0x02_SIZE 49
 
+/* Offsets relative to USB input report (0x1). Bluetooth (0x11) requires an
+ * additional +2.
+ */
+#define DS4_INPUT_REPORT_BATTERY_OFFSET  30
+#define DS4_INPUT_REPORT_TOUCHPAD_OFFSET 33
+
 static DEFINE_SPINLOCK(sony_dev_list_lock);
 static LIST_HEAD(sony_device_list);
 static DEFINE_IDA(sony_device_id_allocator);
@@ -1226,19 +1232,17 @@ static void dualshock4_parse_report(struct sony_sc *sc, u8 *rd, int size)
 						struct hid_input, list);
 	struct input_dev *input_dev = hidinput->input;
 	unsigned long flags;
-	int n, offset;
+	int n, m, offset, num_touch_data, max_touch_data;
 	u8 cable_state, battery_capacity, battery_charging;
 
-	/*
-	 * Battery and touchpad data starts at byte 30 in the USB report and
-	 * 32 in Bluetooth report.
-	 */
-	offset = (sc->quirks & DUALSHOCK4_CONTROLLER_USB) ? 30 : 32;
+	/* When using Bluetooth the header is 2 bytes longer, so skip these. */
+	int data_offset = (sc->quirks & DUALSHOCK4_CONTROLLER_USB) ? 0 : 2;
 
 	/*
-	 * The lower 4 bits of byte 30 contain the battery level
+	 * The lower 4 bits of byte 30 (or 32 for BT) contain the battery level
 	 * and the 5th bit contains the USB cable state.
 	 */
+	offset = data_offset + DS4_INPUT_REPORT_BATTERY_OFFSET;
 	cable_state = (rd[offset] >> 4) & 0x01;
 	battery_capacity = rd[offset] & 0x0F;
 
@@ -1265,30 +1269,52 @@ static void dualshock4_parse_report(struct sony_sc *sc, u8 *rd, int size)
 	sc->battery_charging = battery_charging;
 	spin_unlock_irqrestore(&sc->lock, flags);
 
-	offset += 5;
-
 	/*
-	 * The Dualshock 4 multi-touch trackpad data starts at offset 35 on USB
-	 * and 37 on Bluetooth.
-	 * The first 7 bits of the first byte is a counter and bit 8 is a touch
-	 * indicator that is 0 when pressed and 1 when not pressed.
-	 * The next 3 bytes are two 12 bit touch coordinates, X and Y.
-	 * The data for the second touch is in the same format and immediatly
-	 * follows the data for the first.
+	 * The Dualshock 4 multi-touch trackpad data starts at offset 33 on USB
+	 * and 35 on Bluetooth.
+	 * The first byte indicates the number of touch data in the report.
+	 * Trackpad data starts 2 bytes later (e.g. 35 for USB).
 	 */
-	for (n = 0; n < 2; n++) {
-		u16 x, y;
+	offset = data_offset + DS4_INPUT_REPORT_TOUCHPAD_OFFSET;
+	max_touch_data = (sc->quirks & DUALSHOCK4_CONTROLLER_USB) ? 3 : 4;
+	if (rd[offset] > 0 && rd[offset] <= max_touch_data)
+		num_touch_data = rd[offset];
+	else
+		num_touch_data = 1;
+	offset += 1;
 
-		x = rd[offset+1] | ((rd[offset+2] & 0xF) << 8);
-		y = ((rd[offset+2] & 0xF0) >> 4) | (rd[offset+3] << 4);
+	for (m = 0; m < num_touch_data; m++) {
+		/* Skip past timestamp */
+		offset += 1;
 
-		input_mt_slot(input_dev, n);
-		input_mt_report_slot_state(input_dev, MT_TOOL_FINGER,
-					!(rd[offset] >> 7));
-		input_report_abs(input_dev, ABS_MT_POSITION_X, x);
-		input_report_abs(input_dev, ABS_MT_POSITION_Y, y);
+		/*
+		 * The first 7 bits of the first byte is a counter and bit 8 is
+		 * a touch indicator that is 0 when pressed and 1 when not
+		 * pressed.
+		 * The next 3 bytes are two 12 bit touch coordinates, X and Y.
+		 * The data for the second touch is in the same format and
+		 * immediately follows the data for the first.
+		 */
+		for (n = 0; n < 2; n++) {
+			u16 x, y;
+			bool active;
 
-		offset += 4;
+			x = rd[offset+1] | ((rd[offset+2] & 0xF) << 8);
+			y = ((rd[offset+2] & 0xF0) >> 4) | (rd[offset+3] << 4);
+
+			active = !(rd[offset] >> 7);
+			input_mt_slot(input_dev, n);
+			input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, active);
+
+			if (active) {
+				input_report_abs(input_dev, ABS_MT_POSITION_X, x);
+				input_report_abs(input_dev, ABS_MT_POSITION_Y, y);
+			}
+
+			offset += 4;
+		}
+		input_mt_sync_frame(input_dev);
+		input_sync(input_dev);
 	}
 }
 
