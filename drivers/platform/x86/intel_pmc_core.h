@@ -29,6 +29,70 @@
 #define SPT_PMC_MMIO_REG_LEN			0x1000
 #define SPT_PMC_SLP_S0_RES_COUNTER_STEP		0x64
 #define PMC_BASE_ADDR_MASK			~(SPT_PMC_MMIO_REG_LEN - 1)
+#define NUM_ENTRIES				5
+
+/* Sunrise Point: PGD PFET Enable Ack Status Registers */
+enum ppfear_regs {
+	SPT_PMC_XRAM_PPFEAR0A = 0x590,
+	SPT_PMC_XRAM_PPFEAR0B,
+	SPT_PMC_XRAM_PPFEAR0C,
+	SPT_PMC_XRAM_PPFEAR0D,
+	SPT_PMC_XRAM_PPFEAR1A,
+};
+
+#define SPT_PMC_BIT_PMC				BIT(0)
+#define SPT_PMC_BIT_OPI				BIT(1)
+#define SPT_PMC_BIT_SPI				BIT(2)
+#define SPT_PMC_BIT_XHCI			BIT(3)
+#define SPT_PMC_BIT_SPA				BIT(4)
+#define SPT_PMC_BIT_SPB				BIT(5)
+#define SPT_PMC_BIT_SPC				BIT(6)
+#define SPT_PMC_BIT_GBE				BIT(7)
+
+#define SPT_PMC_BIT_SATA			BIT(0)
+#define SPT_PMC_BIT_HDA_PGD0			BIT(1)
+#define SPT_PMC_BIT_HDA_PGD1			BIT(2)
+#define SPT_PMC_BIT_HDA_PGD2			BIT(3)
+#define SPT_PMC_BIT_HDA_PGD3			BIT(4)
+#define SPT_PMC_BIT_RSVD_0B			BIT(5)
+#define SPT_PMC_BIT_LPSS			BIT(6)
+#define SPT_PMC_BIT_LPC				BIT(7)
+
+#define SPT_PMC_BIT_SMB				BIT(0)
+#define SPT_PMC_BIT_ISH				BIT(1)
+#define SPT_PMC_BIT_P2SB			BIT(2)
+#define SPT_PMC_BIT_DFX				BIT(3)
+#define SPT_PMC_BIT_SCC				BIT(4)
+#define SPT_PMC_BIT_RSVD_0C			BIT(5)
+#define SPT_PMC_BIT_FUSE			BIT(6)
+#define SPT_PMC_BIT_CAMREA			BIT(7)
+
+#define SPT_PMC_BIT_RSVD_0D			BIT(0)
+#define SPT_PMC_BIT_USB3_OTG			BIT(1)
+#define SPT_PMC_BIT_EXI				BIT(2)
+#define SPT_PMC_BIT_CSE				BIT(3)
+#define SPT_PMC_BIT_CSME_KVM			BIT(4)
+#define SPT_PMC_BIT_CSME_PMT			BIT(5)
+#define SPT_PMC_BIT_CSME_CLINK			BIT(6)
+#define SPT_PMC_BIT_CSME_PTIO			BIT(7)
+
+#define SPT_PMC_BIT_CSME_USBR			BIT(0)
+#define SPT_PMC_BIT_CSME_SUSRAM			BIT(1)
+#define SPT_PMC_BIT_CSME_SMT			BIT(2)
+#define SPT_PMC_BIT_RSVD_1A			BIT(3)
+#define SPT_PMC_BIT_CSME_SMS2			BIT(4)
+#define SPT_PMC_BIT_CSME_SMS1			BIT(5)
+#define SPT_PMC_BIT_CSME_RTC			BIT(6)
+#define SPT_PMC_BIT_CSME_PSF			BIT(7)
+
+struct pmc_bit_map {
+	const char *name;
+	u32 bit_mask;
+};
+
+struct pmc_reg_map {
+	const struct pmc_bit_map *pfear_sts;
+};
 
 /**
  * struct pmc_dev - pmc device structure
@@ -44,7 +108,10 @@
 struct pmc_dev {
 	u32 base_addr;
 	void __iomem *regbase;
+	const struct pmc_reg_map *map;
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 	struct dentry *dbgfs_dir;
+#endif /* CONFIG_DEBUG_FS */
 	bool has_slp_s0_res;
 };
 
