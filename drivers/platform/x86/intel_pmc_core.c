@@ -149,6 +149,7 @@ static int pmc_core_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		dev_dbg(&dev->dev, "PMC Core: failed to read PCI config space.\n");
 		return err;
 	}
+	pmcdev->base_addr &= PMC_BASE_ADDR_MASK;
 	dev_dbg(&dev->dev, "PMC Core: PWRMBASE is %#x\n", pmcdev->base_addr);
 
 	pmcdev->regbase = devm_ioremap_nocache(ptr_dev,
