@@ -428,8 +428,7 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 	struct machine *machine = ptq->pt->machine;
 	struct thread *thread;
 	struct addr_location al;
-	unsigned char buf[1024];
-	size_t bufsz;
+	unsigned char buf[INTEL_PT_INSN_BUF_SZ];
 	ssize_t len;
 	int x86_64;
 	u8 cpumode;
@@ -439,8 +438,6 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 
 	if (to_ip && *ip == to_ip)
 		goto out_no_cache;
-
-	bufsz = intel_pt_insn_max_size();
 
 	if (*ip >= ptq->pt->kernel_start)
 		cpumode = PERF_RECORD_MISC_KERNEL;
@@ -493,7 +490,8 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 
 		while (1) {
 			len = dso__data_read_offset(al.map->dso, machine,
-						    offset, buf, bufsz);
+						    offset, buf,
+						    INTEL_PT_INSN_BUF_SZ);
 			if (len <= 0)
 				return -EINVAL;
 
