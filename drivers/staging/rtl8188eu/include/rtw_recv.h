@@ -180,7 +180,6 @@ struct recv_priv {
 	struct tasklet_struct recv_tasklet;
 	struct sk_buff_head free_recv_skb_queue;
 	struct sk_buff_head rx_skb_queue;
-	u8 *pallocated_recv_buf;
 	struct recv_buf *precv_buf;    /*  4 alignment */
 	struct __queue free_recv_buf_queue;
 	/* For display the phy informatiom */

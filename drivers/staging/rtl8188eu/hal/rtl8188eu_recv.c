@@ -37,18 +37,14 @@ int	rtw_hal_init_recv_priv(struct adapter *padapter)
 	/* init recv_buf */
 	_rtw_init_queue(&precvpriv->free_recv_buf_queue);
 
-	precvpriv->pallocated_recv_buf =
+	precvpriv->precv_buf =
 		kcalloc(NR_RECVBUFF, sizeof(struct recv_buf), GFP_KERNEL);
-	if (!precvpriv->pallocated_recv_buf) {
+	if (!precvpriv->precv_buf) {
 		res = _FAIL;
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
 				("alloc recv_buf fail!\n"));
 		goto exit;
 	}
-
-	precvpriv->precv_buf = (struct recv_buf *)precvpriv->pallocated_recv_buf;
-
-
 	precvbuf = precvpriv->precv_buf;
 
 	for (i = 0; i < NR_RECVBUFF; i++) {
@@ -93,7 +89,7 @@ void rtw_hal_free_recv_priv(struct adapter *padapter)
 		precvbuf++;
 	}
 
-	kfree(precvpriv->pallocated_recv_buf);
+	kfree(precvpriv->precv_buf);
 
 	if (skb_queue_len(&precvpriv->rx_skb_queue))
 		DBG_88E(KERN_WARNING "rx_skb_queue not empty\n");
