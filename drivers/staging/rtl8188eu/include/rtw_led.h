@@ -70,12 +70,9 @@ struct LED_871x {
 
 	struct timer_list BlinkTimer; /*  Timer object for led blinking. */
 
-	u8 bSWLedCtrl;
-
 	/*  ALPHA, added by chiyoko, 20090106 */
 	u8 bLedNoLinkBlinkInProgress;
 	u8 bLedLinkBlinkInProgress;
-	u8 bLedStartToLinkBlinkInProgress;
 	u8 bLedScanBlinkInProgress;
 	struct work_struct BlinkWorkItem; /* Workitem used by BlinkTimer to
 					   * manipulate H/W to blink LED. */
