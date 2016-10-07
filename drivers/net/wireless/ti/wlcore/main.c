@@ -6122,6 +6122,8 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 				WIPHY_FLAG_SUPPORTS_SCHED_SCAN |
 				WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 
+	wl->hw->wiphy->features |= NL80211_FEATURE_AP_SCAN;
+
 	/* make sure all our channels fit in the scanned_ch bitmask */
 	BUILD_BUG_ON(ARRAY_SIZE(wl1271_channels) +
 		     ARRAY_SIZE(wl1271_channels_5ghz) >
