@@ -489,6 +489,13 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(state);
 
+static ssize_t pretimeout_available_governors_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	return watchdog_pretimeout_available_governors_get(buf);
+}
+static DEVICE_ATTR_RO(pretimeout_available_governors);
+
 static ssize_t pretimeout_governor_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
@@ -524,7 +531,8 @@ static umode_t wdt_is_visible(struct kobject *kobj, struct attribute *attr,
 	else if (attr == &dev_attr_pretimeout.attr &&
 		 !(wdd->info->options & WDIOF_PRETIMEOUT))
 		mode = 0;
-	else if (attr == &dev_attr_pretimeout_governor.attr &&
+	else if ((attr == &dev_attr_pretimeout_governor.attr ||
+		  attr == &dev_attr_pretimeout_available_governors.attr) &&
 		 (!(wdd->info->options & WDIOF_PRETIMEOUT) ||
 		  !IS_ENABLED(CONFIG_WATCHDOG_PRETIMEOUT_GOV)))
 		mode = 0;
@@ -541,6 +549,7 @@ static struct attribute *wdt_attrs[] = {
 	&dev_attr_status.attr,
 	&dev_attr_nowayout.attr,
 	&dev_attr_pretimeout_governor.attr,
+	&dev_attr_pretimeout_available_governors.attr,
 	NULL,
 };
 

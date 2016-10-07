@@ -52,6 +52,21 @@ static struct governor_priv *find_governor_by_name(const char *gov_name)
 	return NULL;
 }
 
+int watchdog_pretimeout_available_governors_get(char *buf)
+{
+	struct governor_priv *priv;
+	int count = 0;
+
+	mutex_lock(&governor_lock);
+
+	list_for_each_entry(priv, &governor_list, entry)
+		count += sprintf(buf + count, "%s\n", priv->gov->name);
+
+	mutex_unlock(&governor_lock);
+
+	return count;
+}
+
 int watchdog_pretimeout_governor_get(struct watchdog_device *wdd, char *buf)
 {
 	int count = 0;
