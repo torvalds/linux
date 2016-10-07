@@ -1235,7 +1235,7 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 
 	lrc_init_hws(engine);
 
-	intel_engine_reset_irq(engine);
+	intel_engine_reset_breadcrumbs(engine);
 
 	I915_WRITE(RING_HWSTAM(engine->mmio_base), 0xffffffff);
 

@@ -564,7 +564,7 @@ static int init_ring_common(struct intel_engine_cs *engine)
 	else
 		intel_ring_setup_status_page(engine);
 
-	intel_engine_reset_irq(engine);
+	intel_engine_reset_breadcrumbs(engine);
 
 	/* Enforce ordering by reading HEAD register back */
 	I915_READ_HEAD(engine);
