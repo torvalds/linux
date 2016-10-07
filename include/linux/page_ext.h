@@ -7,6 +7,8 @@
 
 struct pglist_data;
 struct page_ext_operations {
+	size_t offset;
+	size_t size;
 	bool (*need)(void);
 	void (*init)(void);
 };
