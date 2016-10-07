@@ -49,6 +49,7 @@
 #include <linux/uaccess.h>	/* For copy_to_user/put_user/... */
 
 #include "watchdog_core.h"
+#include "watchdog_pretimeout.h"
 
 /*
  * struct watchdog_core_data - watchdog core internal data
@@ -488,6 +489,16 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(state);
 
+static ssize_t pretimeout_governor_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct watchdog_device *wdd = dev_get_drvdata(dev);
+
+	return watchdog_pretimeout_governor_get(wdd, buf);
+}
+static DEVICE_ATTR_RO(pretimeout_governor);
+
 static umode_t wdt_is_visible(struct kobject *kobj, struct attribute *attr,
 				int n)
 {
@@ -499,6 +510,10 @@ static umode_t wdt_is_visible(struct kobject *kobj, struct attribute *attr,
 		mode = 0;
 	else if (attr == &dev_attr_pretimeout.attr &&
 		 !(wdd->info->options & WDIOF_PRETIMEOUT))
+		mode = 0;
+	else if (attr == &dev_attr_pretimeout_governor.attr &&
+		 (!(wdd->info->options & WDIOF_PRETIMEOUT) ||
+		  !IS_ENABLED(CONFIG_WATCHDOG_PRETIMEOUT_GOV)))
 		mode = 0;
 
 	return mode;
@@ -512,6 +527,7 @@ static struct attribute *wdt_attrs[] = {
 	&dev_attr_bootstatus.attr,
 	&dev_attr_status.attr,
 	&dev_attr_nowayout.attr,
+	&dev_attr_pretimeout_governor.attr,
 	NULL,
 };
 
@@ -989,6 +1005,12 @@ int watchdog_dev_register(struct watchdog_device *wdd)
 		return PTR_ERR(dev);
 	}
 
+	ret = watchdog_register_pretimeout(wdd);
+	if (ret) {
+		device_destroy(&watchdog_class, devno);
+		watchdog_cdev_unregister(wdd);
+	}
+
 	return ret;
 }
 
@@ -1002,6 +1024,7 @@ int watchdog_dev_register(struct watchdog_device *wdd)
 
 void watchdog_dev_unregister(struct watchdog_device *wdd)
 {
+	watchdog_unregister_pretimeout(wdd);
 	device_destroy(&watchdog_class, wdd->wd_data->cdev.dev);
 	watchdog_cdev_unregister(wdd);
 }

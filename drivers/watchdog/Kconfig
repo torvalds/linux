@@ -1831,4 +1831,11 @@ config USBPCWATCHDOG
 
 	  Most people will say N.
 
+comment "Watchdog Pretimeout Governors"
+
+config WATCHDOG_PRETIMEOUT_GOV
+	bool "Enable watchdog pretimeout governors"
+	help
+	  The option allows to select watchdog pretimeout governors.
+
 endif # WATCHDOG

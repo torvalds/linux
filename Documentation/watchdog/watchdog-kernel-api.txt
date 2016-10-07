@@ -48,6 +48,7 @@ struct watchdog_device {
 	const struct attribute_group **groups;
 	const struct watchdog_info *info;
 	const struct watchdog_ops *ops;
+	const struct watchdog_governor *gov;
 	unsigned int bootstatus;
 	unsigned int timeout;
 	unsigned int pretimeout;
@@ -75,6 +76,7 @@ It contains following fields:
 * info: a pointer to a watchdog_info structure. This structure gives some
   additional information about the watchdog timer itself. (Like it's unique name)
 * ops: a pointer to the list of watchdog operations that the watchdog supports.
+* gov: a pointer to the assigned watchdog device pretimeout governor or NULL.
 * timeout: the watchdog timer's timeout value (in seconds).
   This is the time after which the system will reboot if user space does
   not send a heartbeat request if WDOG_ACTIVE is set.
@@ -288,3 +290,14 @@ User should follow the following guidelines for setting the priority:
 * 128: default restart handler, use if no other handler is expected to be
   available, and/or if restart is sufficient to restart the entire system
 * 255: highest priority, will preempt all other restart handlers
+
+To raise a pretimeout notification, the following function should be used:
+
+void watchdog_notify_pretimeout(struct watchdog_device *wdd)
+
+The function can be called in the interrupt context. If watchdog pretimeout
+governor framework (kbuild CONFIG_WATCHDOG_PRETIMEOUT_GOV symbol) is enabled,
+an action is taken by a preconfigured pretimeout governor preassigned to
+the watchdog device. If watchdog pretimeout governor framework is not
+enabled, watchdog_notify_pretimeout() prints a notification message to
+the kernel log buffer.
