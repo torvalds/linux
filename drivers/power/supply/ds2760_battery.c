@@ -28,8 +28,8 @@
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 
-#include "../w1/w1.h"
-#include "../w1/slaves/w1_ds2760.h"
+#include "../../w1/w1.h"
+#include "../../w1/slaves/w1_ds2760.h"
 
 struct ds2760_device_info {
 	struct device *dev;
@@ -566,7 +566,8 @@ static int ds2760_battery_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&di->monitor_work, ds2760_battery_work);
 	INIT_DELAYED_WORK(&di->set_charged_work,
 			  ds2760_battery_set_charged_work);
-	di->monitor_wqueue = create_singlethread_workqueue(dev_name(&pdev->dev));
+	di->monitor_wqueue = alloc_ordered_workqueue(dev_name(&pdev->dev),
+						     WQ_MEM_RECLAIM);
 	if (!di->monitor_wqueue) {
 		retval = -ESRCH;
 		goto workqueue_failed;

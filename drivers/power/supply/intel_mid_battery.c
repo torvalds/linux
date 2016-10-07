@@ -689,8 +689,7 @@ static int probe(int irq, struct device *dev)
 	/* initialize all required framework before enabling interrupts */
 	INIT_WORK(&pbi->handler, pmic_battery_handle_intrpt);
 	INIT_DELAYED_WORK(&pbi->monitor_battery, pmic_battery_monitor);
-	pbi->monitor_wqueue =
-			create_singlethread_workqueue(dev_name(dev));
+	pbi->monitor_wqueue = alloc_workqueue(dev_name(dev), WQ_MEM_RECLAIM, 0);
 	if (!pbi->monitor_wqueue) {
 		dev_err(dev, "%s(): wqueue init failed\n", __func__);
 		retval = -ESRCH;

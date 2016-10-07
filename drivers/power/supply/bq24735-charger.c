@@ -25,7 +25,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/power_supply.h>
 #include <linux/slab.h>
 
@@ -49,6 +49,7 @@ struct bq24735 {
 	struct i2c_client		*client;
 	struct bq24735_platform		*pdata;
 	struct mutex			lock;
+	struct gpio_desc		*status_gpio;
 	bool				charging;
 };
 
@@ -177,12 +178,8 @@ static int bq24735_config_charger(struct bq24735 *charger)
 
 static bool bq24735_charger_is_present(struct bq24735 *charger)
 {
-	struct bq24735_platform *pdata = charger->pdata;
-	int ret;
-
-	if (pdata->status_gpio_valid) {
-		ret = gpio_get_value_cansleep(pdata->status_gpio);
-		return ret ^= pdata->status_gpio_active_low == 0;
+	if (charger->status_gpio) {
+		return !gpiod_get_value_cansleep(charger->status_gpio);
 	} else {
 		int ac = 0;
 
@@ -201,8 +198,12 @@ static bool bq24735_charger_is_present(struct bq24735 *charger)
 
 static int bq24735_charger_is_charging(struct bq24735 *charger)
 {
-	int ret = bq24735_read_word(charger->client, BQ24735_CHG_OPT);
+	int ret;
 
+	if (!bq24735_charger_is_present(charger))
+		return 0;
+
+	ret  = bq24735_read_word(charger->client, BQ24735_CHG_OPT);
 	if (ret < 0)
 		return ret;
 
@@ -304,7 +305,6 @@ static struct bq24735_platform *bq24735_parse_dt_data(struct i2c_client *client)
 	struct device_node *np = client->dev.of_node;
 	u32 val;
 	int ret;
-	enum of_gpio_flags flags;
 
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
@@ -312,12 +312,6 @@ static struct bq24735_platform *bq24735_parse_dt_data(struct i2c_client *client)
 			"Memory alloc for bq24735 pdata failed\n");
 		return NULL;
 	}
-
-	pdata->status_gpio = of_get_named_gpio_flags(np, "ti,ac-detect-gpios",
-						     0, &flags);
-
-	if (flags & OF_GPIO_ACTIVE_LOW)
-		pdata->status_gpio_active_low = 1;
 
 	ret = of_property_read_u32(np, "ti,charge-current", &val);
 	if (!ret)
@@ -392,21 +386,16 @@ static int bq24735_charger_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, charger);
 
-	if (gpio_is_valid(charger->pdata->status_gpio)) {
-		ret = devm_gpio_request(&client->dev,
-					charger->pdata->status_gpio,
-					name);
-		if (ret) {
-			dev_err(&client->dev,
-				"Failed GPIO request for GPIO %d: %d\n",
-				charger->pdata->status_gpio, ret);
-		}
-
-		charger->pdata->status_gpio_valid = !ret;
+	charger->status_gpio = devm_gpiod_get_optional(&client->dev,
+						       "ti,ac-detect",
+						       GPIOD_IN);
+	if (IS_ERR(charger->status_gpio)) {
+		ret = PTR_ERR(charger->status_gpio);
+		dev_err(&client->dev, "Getting gpio failed: %d\n", ret);
+		return ret;
 	}
 
-	if (!charger->pdata->status_gpio_valid
-	    || bq24735_charger_is_present(charger)) {
+	if (!charger->status_gpio || bq24735_charger_is_present(charger)) {
 		ret = bq24735_read_word(client, BQ24735_MANUFACTURER_ID);
 		if (ret < 0) {
 			dev_err(&client->dev, "Failed to read manufacturer id : %d\n",

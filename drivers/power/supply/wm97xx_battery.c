@@ -1,6 +1,4 @@
 /*
- * linux/drivers/power/wm97xx_battery.c
- *
  * Battery measurement code for WM97xx
  *
  * based on tosa_battery.c

@@ -317,7 +317,6 @@ MODULE_DEVICE_TABLE(i2c, z2_batt_id);
 static struct i2c_driver z2_batt_driver = {
 	.driver	= {
 		.name	= "z2-battery",
-		.owner	= THIS_MODULE,
 		.pm	= Z2_BATTERY_PM_OPS
 	},
 	.probe		= z2_batt_probe,

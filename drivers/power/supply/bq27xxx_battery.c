@@ -39,6 +39,7 @@
 
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/param.h>
 #include <linux/jiffies.h>
 #include <linux/workqueue.h>
@@ -390,8 +391,35 @@ static struct {
 	BQ27XXX_PROP(BQ27421, bq27421_battery_props),
 };
 
+static DEFINE_MUTEX(bq27xxx_list_lock);
+static LIST_HEAD(bq27xxx_battery_devices);
+
+static int poll_interval_param_set(const char *val, const struct kernel_param *kp)
+{
+	struct bq27xxx_device_info *di;
+	int ret;
+
+	ret = param_set_uint(val, kp);
+	if (ret < 0)
+		return ret;
+
+	mutex_lock(&bq27xxx_list_lock);
+	list_for_each_entry(di, &bq27xxx_battery_devices, list) {
+		cancel_delayed_work_sync(&di->work);
+		schedule_delayed_work(&di->work, 0);
+	}
+	mutex_unlock(&bq27xxx_list_lock);
+
+	return ret;
+}
+
+static const struct kernel_param_ops param_ops_poll_interval = {
+	.get = param_get_uint,
+	.set = poll_interval_param_set,
+};
+
 static unsigned int poll_interval = 360;
-module_param(poll_interval, uint, 0644);
+module_param_cb(poll_interval, &param_ops_poll_interval, &poll_interval, 0644);
 MODULE_PARM_DESC(poll_interval,
 		 "battery poll interval in seconds - 0 disables polling");
 
@@ -644,8 +672,9 @@ static bool bq27xxx_battery_dead(struct bq27xxx_device_info *di, u16 flags)
 static int bq27xxx_battery_read_health(struct bq27xxx_device_info *di)
 {
 	int flags;
+	bool has_singe_flag = di->chip == BQ27000 || di->chip == BQ27010;
 
-	flags = bq27xxx_read(di, BQ27XXX_REG_FLAGS, false);
+	flags = bq27xxx_read(di, BQ27XXX_REG_FLAGS, has_singe_flag);
 	if (flags < 0) {
 		dev_err(di->dev, "error reading flag register:%d\n", flags);
 		return flags;
@@ -745,7 +774,7 @@ static int bq27xxx_battery_current(struct bq27xxx_device_info *di,
 	}
 
 	if (di->chip == BQ27000 || di->chip == BQ27010) {
-		flags = bq27xxx_read(di, BQ27XXX_REG_FLAGS, false);
+		flags = bq27xxx_read(di, BQ27XXX_REG_FLAGS, true);
 		if (flags & BQ27000_FLAG_CHGS) {
 			dev_dbg(di->dev, "negative current!\n");
 			curr = -curr;
@@ -971,6 +1000,10 @@ int bq27xxx_battery_setup(struct bq27xxx_device_info *di)
 
 	bq27xxx_battery_update(di);
 
+	mutex_lock(&bq27xxx_list_lock);
+	list_add(&di->list, &bq27xxx_battery_devices);
+	mutex_unlock(&bq27xxx_list_lock);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(bq27xxx_battery_setup);
@@ -988,6 +1021,10 @@ void bq27xxx_battery_teardown(struct bq27xxx_device_info *di)
 	cancel_delayed_work_sync(&di->work);
 
 	power_supply_unregister(di->bat);
+
+	mutex_lock(&bq27xxx_list_lock);
+	list_del(&di->list);
+	mutex_unlock(&bq27xxx_list_lock);
 
 	mutex_destroy(&di->lock);
 }
