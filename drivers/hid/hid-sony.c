@@ -1895,7 +1895,7 @@ static void dualshock4_send_output_report(struct sony_sc *sc)
 	} else {
 		memset(buf, 0, DS4_OUTPUT_REPORT_0x11_SIZE);
 		buf[0] = 0x11;
-		buf[1] = 0x80;
+		buf[1] = 0xC0; /* HID + CRC */
 		buf[3] = 0x0F;
 		offset = 6;
 	}
@@ -1922,9 +1922,16 @@ static void dualshock4_send_output_report(struct sony_sc *sc)
 
 	if (sc->quirks & DUALSHOCK4_CONTROLLER_USB)
 		hid_hw_output_report(hdev, buf, DS4_OUTPUT_REPORT_0x05_SIZE);
-	else
-		hid_hw_raw_request(hdev, 0x11, buf, DS4_OUTPUT_REPORT_0x11_SIZE,
-				HID_OUTPUT_REPORT, HID_REQ_SET_REPORT);
+	else {
+		/* CRC generation */
+		u8 bthdr = 0xA2;
+		u32 crc;
+
+		crc = crc32_le(0xFFFFFFFF, &bthdr, 1);
+		crc = ~crc32_le(crc, buf, DS4_OUTPUT_REPORT_0x11_SIZE-4);
+		put_unaligned_le32(crc, &buf[74]);
+		hid_hw_output_report(hdev, buf, DS4_OUTPUT_REPORT_0x11_SIZE);
+	}
 }
 
 static void motion_send_output_report(struct sony_sc *sc)
@@ -2378,11 +2385,6 @@ static int sony_input_configured(struct hid_device *hdev,
 		sony_init_output_report(sc, sixaxis_send_output_report);
 	} else if (sc->quirks & DUALSHOCK4_CONTROLLER) {
 		if (sc->quirks & DUALSHOCK4_CONTROLLER_BT) {
-			/*
-			 * The DualShock 4 wants output reports sent on the ctrl
-			 * endpoint when connected via Bluetooth.
-			 */
-			hdev->quirks |= HID_QUIRK_NO_OUTPUT_REPORTS_ON_INTR_EP;
 			ret = dualshock4_set_operational_bt(hdev);
 			if (ret < 0) {
 				hid_err(hdev, "failed to set the Dualshock 4 operational mode\n");
