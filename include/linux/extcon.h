@@ -99,10 +99,6 @@
 /*
  * Properties of EXTCON_TYPE_USB.
  *
- * - EXTCON_PROP_USB_ID
- * @type:	integer (intval)
- * @value:	0 (low) or 1 (high)
- * @default:	0 (low)
  * - EXTCON_PROP_USB_VBUS
  * @type:	integer (intval)
  * @value:	0 (low) or 1 (high)
@@ -112,12 +108,11 @@
  * @value:	0 (normal) or 1 (flip)
  * @default:	0 (normal)
  */
-#define EXTCON_PROP_USB_ID		0
-#define EXTCON_PROP_USB_VBUS		1
-#define EXTCON_PROP_USB_TYPEC_POLARITY	2
+#define EXTCON_PROP_USB_VBUS		0
+#define EXTCON_PROP_USB_TYPEC_POLARITY	1
 
 #define EXTCON_PROP_USB_MIN		0
-#define EXTCON_PROP_USB_MAX		2
+#define EXTCON_PROP_USB_MAX		1
 #define EXTCON_PROP_USB_CNT	(EXTCON_PROP_USB_MAX - EXTCON_PROP_USB_MIN + 1)
 
 /* Properties of EXTCON_TYPE_CHG. */
