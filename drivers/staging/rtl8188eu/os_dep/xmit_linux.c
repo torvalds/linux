@@ -80,8 +80,7 @@ int rtw_os_xmit_resource_alloc(struct adapter *padapter, struct xmit_buf *pxmitb
 	return _SUCCESS;
 }
 
-void rtw_os_xmit_resource_free(struct adapter *padapter,
-			       struct xmit_buf *pxmitbuf, u32 free_sz)
+void rtw_os_xmit_resource_free(struct xmit_buf *pxmitbuf)
 {
 	int i;
 
