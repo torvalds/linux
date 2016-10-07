@@ -139,6 +139,7 @@ static uint16_t compute_tps(struct dtv_frontend_properties *op)
 struct cinergyt2_fe_state {
 	struct dvb_frontend fe;
 	struct dvb_usb_device *d;
+	struct dvbt_get_status_msg status;
 };
 
 static int cinergyt2_fe_read_status(struct dvb_frontend *fe,
@@ -153,6 +154,8 @@ static int cinergyt2_fe_read_status(struct dvb_frontend *fe,
 			sizeof(result), 0);
 	if (ret < 0)
 		return ret;
+
+	state->status = result;
 
 	*status = 0;
 
@@ -177,34 +180,16 @@ static int cinergyt2_fe_read_status(struct dvb_frontend *fe,
 static int cinergyt2_fe_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	struct cinergyt2_fe_state *state = fe->demodulator_priv;
-	struct dvbt_get_status_msg status;
-	char cmd[] = { CINERGYT2_EP1_GET_TUNER_STATUS };
-	int ret;
 
-	ret = dvb_usb_generic_rw(state->d, cmd, sizeof(cmd), (char *)&status,
-				sizeof(status), 0);
-	if (ret < 0)
-		return ret;
-
-	*ber = le32_to_cpu(status.viterbi_error_rate);
+	*ber = le32_to_cpu(state->status.viterbi_error_rate);
 	return 0;
 }
 
 static int cinergyt2_fe_read_unc_blocks(struct dvb_frontend *fe, u32 *unc)
 {
 	struct cinergyt2_fe_state *state = fe->demodulator_priv;
-	struct dvbt_get_status_msg status;
-	u8 cmd[] = { CINERGYT2_EP1_GET_TUNER_STATUS };
-	int ret;
 
-	ret = dvb_usb_generic_rw(state->d, cmd, sizeof(cmd), (u8 *)&status,
-				sizeof(status), 0);
-	if (ret < 0) {
-		err("cinergyt2_fe_read_unc_blocks() Failed! (Error=%d)\n",
-			ret);
-		return ret;
-	}
-	*unc = le32_to_cpu(status.uncorrected_block_count);
+	*unc = le32_to_cpu(state->status.uncorrected_block_count);
 	return 0;
 }
 
@@ -212,35 +197,16 @@ static int cinergyt2_fe_read_signal_strength(struct dvb_frontend *fe,
 						u16 *strength)
 {
 	struct cinergyt2_fe_state *state = fe->demodulator_priv;
-	struct dvbt_get_status_msg status;
-	char cmd[] = { CINERGYT2_EP1_GET_TUNER_STATUS };
-	int ret;
 
-	ret = dvb_usb_generic_rw(state->d, cmd, sizeof(cmd), (char *)&status,
-				sizeof(status), 0);
-	if (ret < 0) {
-		err("cinergyt2_fe_read_signal_strength() Failed!"
-			" (Error=%d)\n", ret);
-		return ret;
-	}
-	*strength = (0xffff - le16_to_cpu(status.gain));
+	*strength = (0xffff - le16_to_cpu(state->status.gain));
 	return 0;
 }
 
 static int cinergyt2_fe_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct cinergyt2_fe_state *state = fe->demodulator_priv;
-	struct dvbt_get_status_msg status;
-	char cmd[] = { CINERGYT2_EP1_GET_TUNER_STATUS };
-	int ret;
 
-	ret = dvb_usb_generic_rw(state->d, cmd, sizeof(cmd), (char *)&status,
-				sizeof(status), 0);
-	if (ret < 0) {
-		err("cinergyt2_fe_read_snr() Failed! (Error=%d)\n", ret);
-		return ret;
-	}
-	*snr = (status.snr << 8) | status.snr;
+	*snr = (state->status.snr << 8) | state->status.snr;
 	return 0;
 }
 
