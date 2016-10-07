@@ -66,8 +66,6 @@ int _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *padapter)
 
 	precvpriv->adapter = padapter;
 
-	precvpriv->free_recvframe_cnt = NR_RECVFRAME;
-
 	precvpriv->pallocated_frame_buf = vzalloc(NR_RECVFRAME * sizeof(struct recv_frame) + RXFRAME_ALIGN_SZ);
 
 	if (!precvpriv->pallocated_frame_buf)
@@ -119,20 +117,11 @@ void _rtw_free_recv_priv(struct recv_priv *precvpriv)
 struct recv_frame *_rtw_alloc_recvframe(struct __queue *pfree_recv_queue)
 {
 	struct recv_frame *hdr;
-	struct adapter *padapter;
-	struct recv_priv *precvpriv;
 
 	hdr = list_first_entry_or_null(&pfree_recv_queue->queue,
 				       struct recv_frame, list);
-	if (hdr) {
+	if (hdr)
 		list_del_init(&hdr->list);
-		padapter = hdr->adapter;
-		if (padapter) {
-			precvpriv = &padapter->recvpriv;
-			if (pfree_recv_queue == &precvpriv->free_recv_queue)
-				precvpriv->free_recvframe_cnt--;
-		}
-	}
 
 	return hdr;
 }
@@ -153,13 +142,8 @@ struct recv_frame *rtw_alloc_recvframe(struct __queue *pfree_recv_queue)
 int rtw_free_recvframe(struct recv_frame *precvframe,
 		       struct __queue *pfree_recv_queue)
 {
-	struct adapter *padapter;
-	struct recv_priv *precvpriv;
-
 	if (!precvframe)
 		return _FAIL;
-	padapter = precvframe->adapter;
-	precvpriv = &padapter->recvpriv;
 	if (precvframe->pkt) {
 		dev_kfree_skb_any(precvframe->pkt);/* free skb by driver */
 		precvframe->pkt = NULL;
@@ -173,28 +157,15 @@ int rtw_free_recvframe(struct recv_frame *precvframe,
 
 	list_add_tail(&(precvframe->list), get_list_head(pfree_recv_queue));
 
-	if (padapter != NULL) {
-		if (pfree_recv_queue == &precvpriv->free_recv_queue)
-				precvpriv->free_recvframe_cnt++;
-	}
-
-      spin_unlock_bh(&pfree_recv_queue->lock);
+	spin_unlock_bh(&pfree_recv_queue->lock);
 
 	return _SUCCESS;
 }
 
 int _rtw_enqueue_recvframe(struct recv_frame *precvframe, struct __queue *queue)
 {
-	struct adapter *padapter = precvframe->adapter;
-	struct recv_priv *precvpriv = &padapter->recvpriv;
-
 	list_del_init(&(precvframe->list));
 	list_add_tail(&(precvframe->list), get_list_head(queue));
-
-	if (padapter != NULL) {
-		if (queue == &precvpriv->free_recv_queue)
-			precvpriv->free_recvframe_cnt++;
-	}
 
 	return _SUCCESS;
 }
