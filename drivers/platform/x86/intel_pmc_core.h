@@ -30,6 +30,7 @@
 #define SPT_PMC_PM_STS_OFFSET			0x1c
 #define SPT_PMC_MTPMC_OFFSET			0x20
 #define SPT_PMC_MFPMC_OFFSET			0x38
+#define SPT_PMC_LTR_IGNORE_OFFSET		0x30C
 #define SPT_PMC_MPHY_CORE_STS_0			0x1143
 #define SPT_PMC_MPHY_CORE_STS_1			0x1142
 #define SPT_PMC_MPHY_COM_STS_0			0x1155
@@ -41,6 +42,7 @@
 #define SPT_PMC_READ_DISABLE_BIT		0x16
 #define SPT_PMC_MSG_FULL_STS_BIT		0x18
 #define NUM_RETRIES				100
+#define NUM_IP_IGN_ALLOWED			17
 
 /* Sunrise Point: PGD PFET Enable Ack Status Registers */
 enum ppfear_regs {

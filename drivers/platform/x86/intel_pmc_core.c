@@ -19,11 +19,12 @@
  */
 
 #include <linux/debugfs.h>
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/pci.h>
-#include <linux/delay.h>
+#include <linux/uaccess.h>
 
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
@@ -373,6 +374,53 @@ static const struct file_operations pmc_core_pll_ops = {
 	.release        = single_release,
 };
 
+static ssize_t pmc_core_ltr_ignore_write(struct file *file, const char __user
+*userbuf, size_t count, loff_t *ppos)
+{
+	struct pmc_dev *pmcdev = &pmc;
+	u32 val, buf_size, fd;
+	int err = 0;
+
+	buf_size = count < 64 ? count : 64;
+	mutex_lock(&pmcdev->lock);
+
+	if (kstrtou32_from_user(userbuf, buf_size, 10, &val)) {
+		err = -EFAULT;
+		goto out_unlock;
+	}
+
+	if (val > NUM_IP_IGN_ALLOWED) {
+		err = -EINVAL;
+		goto out_unlock;
+	}
+
+	fd = pmc_core_reg_read(pmcdev, SPT_PMC_LTR_IGNORE_OFFSET);
+	fd |= (1U << val);
+	pmc_core_reg_write(pmcdev, SPT_PMC_LTR_IGNORE_OFFSET, fd);
+
+out_unlock:
+	mutex_unlock(&pmcdev->lock);
+	return err == 0 ? count : err;
+}
+
+static int pmc_core_ltr_ignore_show(struct seq_file *s, void *unused)
+{
+	return 0;
+}
+
+static int pmc_core_ltr_ignore_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, pmc_core_ltr_ignore_show, inode->i_private);
+}
+
+static const struct file_operations pmc_core_ltr_ignore_ops = {
+	.open           = pmc_core_ltr_ignore_open,
+	.read           = seq_read,
+	.write          = pmc_core_ltr_ignore_write,
+	.llseek         = seq_lseek,
+	.release        = single_release,
+};
+
 static void pmc_core_dbgfs_unregister(struct pmc_dev *pmcdev)
 {
 	debugfs_remove_recursive(pmcdev->dbgfs_dir);
@@ -407,6 +455,13 @@ static int pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 	file = debugfs_create_file("pll_status",
 				   S_IFREG | S_IRUGO, dir, pmcdev,
 				   &pmc_core_pll_ops);
+	if (!file)
+		goto err;
+
+	file = debugfs_create_file("ltr_ignore",
+				   S_IFREG | S_IRUGO, dir, pmcdev,
+				   &pmc_core_ltr_ignore_ops);
+
 	if (!file)
 		goto err;
 
