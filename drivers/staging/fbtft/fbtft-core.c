@@ -660,7 +660,7 @@ struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 	unsigned int bpp = display->bpp;
 	unsigned int fps = display->fps;
 	int vmem_size, i;
-	int *init_sequence = display->init_sequence;
+	s16 *init_sequence = display->init_sequence;
 	char *gamma = display->gamma;
 	unsigned long *gamma_curves = NULL;
 
