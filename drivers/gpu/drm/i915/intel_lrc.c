@@ -627,6 +627,10 @@ int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request
 
 	request->ring = ce->ring;
 
+	ret = intel_lr_context_pin(request->ctx, engine);
+	if (ret)
+		return ret;
+
 	if (i915.enable_guc_submission) {
 		/*
 		 * Check that the GuC has space for the request before
@@ -635,21 +639,17 @@ int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request
 		 */
 		ret = i915_guc_wq_reserve(request);
 		if (ret)
-			return ret;
+			goto err_unpin;
 	}
-
-	ret = intel_lr_context_pin(request->ctx, engine);
-	if (ret)
-		return ret;
 
 	ret = intel_ring_begin(request, 0);
 	if (ret)
-		goto err_unpin;
+		goto err_unreserve;
 
 	if (!ce->initialised) {
 		ret = engine->init_context(request);
 		if (ret)
-			goto err_unpin;
+			goto err_unreserve;
 
 		ce->initialised = true;
 	}
@@ -664,6 +664,9 @@ int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request
 	request->reserved_space -= EXECLISTS_REQUEST_SIZE;
 	return 0;
 
+err_unreserve:
+	if (i915.enable_guc_submission)
+		i915_guc_wq_unreserve(request);
 err_unpin:
 	intel_lr_context_unpin(request->ctx, engine);
 	return ret;
