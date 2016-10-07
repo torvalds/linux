@@ -285,7 +285,7 @@ static int rtw_resume_process(struct adapter *padapter)
 	pwrpriv->bkeepfwalive = false;
 
 	pr_debug("bkeepfwalive(%x)\n", pwrpriv->bkeepfwalive);
-	if (pm_netdev_open(pnetdev, true) != 0) {
+	if (netdev_open(pnetdev) != 0) {
 		mutex_unlock(&pwrpriv->mutex_lock);
 		goto exit;
 	}

@@ -144,7 +144,6 @@ static bool rtw_monitor_enable;
 module_param_named(monitor_enable, rtw_monitor_enable, bool, 0444);
 MODULE_PARM_DESC(monitor_enable, "Enable monitor inferface (default: false)");
 
-static int netdev_open(struct net_device *pnetdev);
 static int netdev_close(struct net_device *pnetdev);
 
 static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
@@ -629,7 +628,7 @@ netdev_open_error:
 	return -1;
 }
 
-static int netdev_open(struct net_device *pnetdev)
+int netdev_open(struct net_device *pnetdev)
 {
 	int ret;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(pnetdev);
@@ -641,7 +640,7 @@ static int netdev_open(struct net_device *pnetdev)
 	return ret;
 }
 
-static int  ips_netdrv_open(struct adapter *padapter)
+int  ips_netdrv_open(struct adapter *padapter)
 {
 	int status = _SUCCESS;
 
@@ -716,17 +715,6 @@ void rtw_ips_dev_unload(struct adapter *padapter)
 	/* s5. */
 	if (!padapter->bSurpriseRemoved)
 		rtw_hal_deinit(padapter);
-}
-
-int pm_netdev_open(struct net_device *pnetdev, u8 bnormal)
-{
-	int status;
-
-	if (bnormal)
-		status = netdev_open(pnetdev);
-	else
-		status =  (_SUCCESS == ips_netdrv_open((struct adapter *)rtw_netdev_priv(pnetdev))) ? (0) : (-1);
-	return status;
 }
 
 static int netdev_close(struct net_device *pnetdev)

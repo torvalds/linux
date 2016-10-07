@@ -94,7 +94,7 @@ static int rtw_hw_resume(struct adapter *padapter)
 	pwrpriv->bips_processing = true;
 	rtw_reset_drv_sw(padapter);
 
-	if (pm_netdev_open(pnetdev, false) != 0) {
+	if (ips_netdrv_open((struct adapter *)rtw_netdev_priv(pnetdev)) != _SUCCESS) {
 		mutex_unlock(&pwrpriv->mutex_lock);
 		goto error_exit;
 	}
