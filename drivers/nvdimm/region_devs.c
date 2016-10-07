@@ -313,9 +313,8 @@ resource_size_t nd_region_available_dpa(struct nd_region *nd_region)
 				blk_max_overlap = overlap;
 				goto retry;
 			}
-		} else if (is_nd_blk(&nd_region->dev)) {
-			available += nd_blk_available_dpa(nd_mapping);
-		}
+		} else if (is_nd_blk(&nd_region->dev))
+			available += nd_blk_available_dpa(nd_region);
 	}
 
 	return available;
@@ -506,6 +505,17 @@ u64 nd_region_interleave_set_cookie(struct nd_region *nd_region)
 	return 0;
 }
 
+void nd_mapping_free_labels(struct nd_mapping *nd_mapping)
+{
+	struct nd_label_ent *label_ent, *e;
+
+	WARN_ON(!mutex_is_locked(&nd_mapping->lock));
+	list_for_each_entry_safe(label_ent, e, &nd_mapping->labels, list) {
+		list_del(&label_ent->list);
+		kfree(label_ent);
+	}
+}
+
 /*
  * Upon successful probe/remove, take/release a reference on the
  * associated interleave set (if present), and plant new btt + namespace
@@ -526,8 +536,10 @@ static void nd_region_notify_driver_action(struct nvdimm_bus *nvdimm_bus,
 			struct nvdimm_drvdata *ndd = nd_mapping->ndd;
 			struct nvdimm *nvdimm = nd_mapping->nvdimm;
 
-			kfree(nd_mapping->labels);
-			nd_mapping->labels = NULL;
+			mutex_lock(&nd_mapping->lock);
+			nd_mapping_free_labels(nd_mapping);
+			mutex_unlock(&nd_mapping->lock);
+
 			put_ndd(ndd);
 			nd_mapping->ndd = NULL;
 			if (ndd)
@@ -537,11 +549,12 @@ static void nd_region_notify_driver_action(struct nvdimm_bus *nvdimm_bus,
 		if (is_nd_pmem(dev))
 			return;
 	}
-	if (dev->parent && is_nd_blk(dev->parent) && probe) {
+	if (dev->parent && (is_nd_blk(dev->parent) || is_nd_pmem(dev->parent))
+			&& probe) {
 		nd_region = to_nd_region(dev->parent);
 		nvdimm_bus_lock(dev);
 		if (nd_region->ns_seed == dev)
-			nd_region_create_blk_seed(nd_region);
+			nd_region_create_ns_seed(nd_region);
 		nvdimm_bus_unlock(dev);
 	}
 	if (is_nd_btt(dev) && probe) {
@@ -551,23 +564,30 @@ static void nd_region_notify_driver_action(struct nvdimm_bus *nvdimm_bus,
 		nvdimm_bus_lock(dev);
 		if (nd_region->btt_seed == dev)
 			nd_region_create_btt_seed(nd_region);
-		if (nd_region->ns_seed == &nd_btt->ndns->dev &&
-				is_nd_blk(dev->parent))
-			nd_region_create_blk_seed(nd_region);
+		if (nd_region->ns_seed == &nd_btt->ndns->dev)
+			nd_region_create_ns_seed(nd_region);
 		nvdimm_bus_unlock(dev);
 	}
 	if (is_nd_pfn(dev) && probe) {
+		struct nd_pfn *nd_pfn = to_nd_pfn(dev);
+
 		nd_region = to_nd_region(dev->parent);
 		nvdimm_bus_lock(dev);
 		if (nd_region->pfn_seed == dev)
 			nd_region_create_pfn_seed(nd_region);
+		if (nd_region->ns_seed == &nd_pfn->ndns->dev)
+			nd_region_create_ns_seed(nd_region);
 		nvdimm_bus_unlock(dev);
 	}
 	if (is_nd_dax(dev) && probe) {
+		struct nd_dax *nd_dax = to_nd_dax(dev);
+
 		nd_region = to_nd_region(dev->parent);
 		nvdimm_bus_lock(dev);
 		if (nd_region->dax_seed == dev)
 			nd_region_create_dax_seed(nd_region);
+		if (nd_region->ns_seed == &nd_dax->nd_pfn.ndns->dev)
+			nd_region_create_ns_seed(nd_region);
 		nvdimm_bus_unlock(dev);
 	}
 }
@@ -774,10 +794,10 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 	int ro = 0;
 
 	for (i = 0; i < ndr_desc->num_mappings; i++) {
-		struct nd_mapping *nd_mapping = &ndr_desc->nd_mapping[i];
-		struct nvdimm *nvdimm = nd_mapping->nvdimm;
+		struct nd_mapping_desc *mapping = &ndr_desc->mapping[i];
+		struct nvdimm *nvdimm = mapping->nvdimm;
 
-		if ((nd_mapping->start | nd_mapping->size) % SZ_4K) {
+		if ((mapping->start | mapping->size) % SZ_4K) {
 			dev_err(&nvdimm_bus->dev, "%s: %s mapping%d is not 4K aligned\n",
 					caller, dev_name(&nvdimm->dev), i);
 
@@ -828,11 +848,15 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 		ndl->count = 0;
 	}
 
-	memcpy(nd_region->mapping, ndr_desc->nd_mapping,
-			sizeof(struct nd_mapping) * ndr_desc->num_mappings);
 	for (i = 0; i < ndr_desc->num_mappings; i++) {
-		struct nd_mapping *nd_mapping = &ndr_desc->nd_mapping[i];
-		struct nvdimm *nvdimm = nd_mapping->nvdimm;
+		struct nd_mapping_desc *mapping = &ndr_desc->mapping[i];
+		struct nvdimm *nvdimm = mapping->nvdimm;
+
+		nd_region->mapping[i].nvdimm = nvdimm;
+		nd_region->mapping[i].start = mapping->start;
+		nd_region->mapping[i].size = mapping->size;
+		INIT_LIST_HEAD(&nd_region->mapping[i].labels);
+		mutex_init(&nd_region->mapping[i].lock);
 
 		get_device(&nvdimm->dev);
 	}

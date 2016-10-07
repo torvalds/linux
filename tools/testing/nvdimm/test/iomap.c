@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/pfn_t.h>
+#include <linux/acpi.h>
 #include <linux/io.h>
 #include <linux/mm.h>
 #include "nfit_test.h"
@@ -73,7 +74,7 @@ void __iomem *__nfit_test_ioremap(resource_size_t offset, unsigned long size,
 
 	if (nfit_res)
 		return (void __iomem *) nfit_res->buf + offset
-			- nfit_res->res->start;
+			- nfit_res->res.start;
 	return fallback_fn(offset, size);
 }
 
@@ -84,7 +85,7 @@ void __iomem *__wrap_devm_ioremap_nocache(struct device *dev,
 
 	if (nfit_res)
 		return (void __iomem *) nfit_res->buf + offset
-			- nfit_res->res->start;
+			- nfit_res->res.start;
 	return devm_ioremap_nocache(dev, offset, size);
 }
 EXPORT_SYMBOL(__wrap_devm_ioremap_nocache);
@@ -95,7 +96,7 @@ void *__wrap_devm_memremap(struct device *dev, resource_size_t offset,
 	struct nfit_test_resource *nfit_res = get_nfit_res(offset);
 
 	if (nfit_res)
-		return nfit_res->buf + offset - nfit_res->res->start;
+		return nfit_res->buf + offset - nfit_res->res.start;
 	return devm_memremap(dev, offset, size, flags);
 }
 EXPORT_SYMBOL(__wrap_devm_memremap);
@@ -107,7 +108,7 @@ void *__wrap_devm_memremap_pages(struct device *dev, struct resource *res,
 	struct nfit_test_resource *nfit_res = get_nfit_res(offset);
 
 	if (nfit_res)
-		return nfit_res->buf + offset - nfit_res->res->start;
+		return nfit_res->buf + offset - nfit_res->res.start;
 	return devm_memremap_pages(dev, res, ref, altmap);
 }
 EXPORT_SYMBOL(__wrap_devm_memremap_pages);
@@ -128,7 +129,7 @@ void *__wrap_memremap(resource_size_t offset, size_t size,
 	struct nfit_test_resource *nfit_res = get_nfit_res(offset);
 
 	if (nfit_res)
-		return nfit_res->buf + offset - nfit_res->res->start;
+		return nfit_res->buf + offset - nfit_res->res.start;
 	return memremap(offset, size, flags);
 }
 EXPORT_SYMBOL(__wrap_memremap);
@@ -174,6 +175,63 @@ void __wrap_memunmap(void *addr)
 }
 EXPORT_SYMBOL(__wrap_memunmap);
 
+static bool nfit_test_release_region(struct device *dev,
+		struct resource *parent, resource_size_t start,
+		resource_size_t n);
+
+static void nfit_devres_release(struct device *dev, void *data)
+{
+	struct resource *res = *((struct resource **) data);
+
+	WARN_ON(!nfit_test_release_region(NULL, &iomem_resource, res->start,
+			resource_size(res)));
+}
+
+static int match(struct device *dev, void *__res, void *match_data)
+{
+	struct resource *res = *((struct resource **) __res);
+	resource_size_t start = *((resource_size_t *) match_data);
+
+	return res->start == start;
+}
+
+static bool nfit_test_release_region(struct device *dev,
+		struct resource *parent, resource_size_t start,
+		resource_size_t n)
+{
+	if (parent == &iomem_resource) {
+		struct nfit_test_resource *nfit_res = get_nfit_res(start);
+
+		if (nfit_res) {
+			struct nfit_test_request *req;
+			struct resource *res = NULL;
+
+			if (dev) {
+				devres_release(dev, nfit_devres_release, match,
+						&start);
+				return true;
+			}
+
+			spin_lock(&nfit_res->lock);
+			list_for_each_entry(req, &nfit_res->requests, list)
+				if (req->res.start == start) {
+					res = &req->res;
+					list_del(&req->list);
+					break;
+				}
+			spin_unlock(&nfit_res->lock);
+
+			WARN(!res || resource_size(res) != n,
+					"%s: start: %llx n: %llx mismatch: %pr\n",
+						__func__, start, n, res);
+			if (res)
+				kfree(req);
+			return true;
+		}
+	}
+	return false;
+}
+
 static struct resource *nfit_test_request_region(struct device *dev,
 		struct resource *parent, resource_size_t start,
 		resource_size_t n, const char *name, int flags)
@@ -183,21 +241,57 @@ static struct resource *nfit_test_request_region(struct device *dev,
 	if (parent == &iomem_resource) {
 		nfit_res = get_nfit_res(start);
 		if (nfit_res) {
-			struct resource *res = nfit_res->res + 1;
+			struct nfit_test_request *req;
+			struct resource *res = NULL;
 
-			if (start + n > nfit_res->res->start
-					+ resource_size(nfit_res->res)) {
+			if (start + n > nfit_res->res.start
+					+ resource_size(&nfit_res->res)) {
 				pr_debug("%s: start: %llx n: %llx overflow: %pr\n",
 						__func__, start, n,
-						nfit_res->res);
+						&nfit_res->res);
 				return NULL;
 			}
+
+			spin_lock(&nfit_res->lock);
+			list_for_each_entry(req, &nfit_res->requests, list)
+				if (start == req->res.start) {
+					res = &req->res;
+					break;
+				}
+			spin_unlock(&nfit_res->lock);
+
+			if (res) {
+				WARN(1, "%pr already busy\n", res);
+				return NULL;
+			}
+
+			req = kzalloc(sizeof(*req), GFP_KERNEL);
+			if (!req)
+				return NULL;
+			INIT_LIST_HEAD(&req->list);
+			res = &req->res;
 
 			res->start = start;
 			res->end = start + n - 1;
 			res->name = name;
 			res->flags = resource_type(parent);
 			res->flags |= IORESOURCE_BUSY | flags;
+			spin_lock(&nfit_res->lock);
+			list_add(&req->list, &nfit_res->requests);
+			spin_unlock(&nfit_res->lock);
+
+			if (dev) {
+				struct resource **d;
+
+				d = devres_alloc(nfit_devres_release,
+						sizeof(struct resource *),
+						GFP_KERNEL);
+				if (!d)
+					return NULL;
+				*d = res;
+				devres_add(dev, d);
+			}
+
 			pr_debug("%s: %pr\n", __func__, res);
 			return res;
 		}
@@ -241,29 +335,10 @@ struct resource *__wrap___devm_request_region(struct device *dev,
 }
 EXPORT_SYMBOL(__wrap___devm_request_region);
 
-static bool nfit_test_release_region(struct resource *parent,
-		resource_size_t start, resource_size_t n)
-{
-	if (parent == &iomem_resource) {
-		struct nfit_test_resource *nfit_res = get_nfit_res(start);
-		if (nfit_res) {
-			struct resource *res = nfit_res->res + 1;
-
-			if (start != res->start || resource_size(res) != n)
-				pr_info("%s: start: %llx n: %llx mismatch: %pr\n",
-						__func__, start, n, res);
-			else
-				memset(res, 0, sizeof(*res));
-			return true;
-		}
-	}
-	return false;
-}
-
 void __wrap___release_region(struct resource *parent, resource_size_t start,
 		resource_size_t n)
 {
-	if (!nfit_test_release_region(parent, start, n))
+	if (!nfit_test_release_region(NULL, parent, start, n))
 		__release_region(parent, start, n);
 }
 EXPORT_SYMBOL(__wrap___release_region);
@@ -271,9 +346,25 @@ EXPORT_SYMBOL(__wrap___release_region);
 void __wrap___devm_release_region(struct device *dev, struct resource *parent,
 		resource_size_t start, resource_size_t n)
 {
-	if (!nfit_test_release_region(parent, start, n))
+	if (!nfit_test_release_region(dev, parent, start, n))
 		__devm_release_region(dev, parent, start, n);
 }
 EXPORT_SYMBOL(__wrap___devm_release_region);
+
+acpi_status __wrap_acpi_evaluate_object(acpi_handle handle, acpi_string path,
+		struct acpi_object_list *p, struct acpi_buffer *buf)
+{
+	struct nfit_test_resource *nfit_res = get_nfit_res((long) handle);
+	union acpi_object **obj;
+
+	if (!nfit_res || strcmp(path, "_FIT") || !buf)
+		return acpi_evaluate_object(handle, path, p, buf);
+
+	obj = nfit_res->buf;
+	buf->length = sizeof(union acpi_object);
+	buf->pointer = *obj;
+	return AE_OK;
+}
+EXPORT_SYMBOL(__wrap_acpi_evaluate_object);
 
 MODULE_LICENSE("GPL v2");
