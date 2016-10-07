@@ -3412,8 +3412,8 @@ int ks_wlan_open(struct net_device *dev)
 	if (!priv->mac_address_valid) {
 		netdev_err(dev, "ks_wlan : %s Not READY !!\n", dev->name);
 		return -EBUSY;
-	} else
-		netif_start_queue(dev);
+	}
+	netif_start_queue(dev);
 
 	return 0;
 }
