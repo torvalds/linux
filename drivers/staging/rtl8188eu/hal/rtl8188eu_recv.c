@@ -61,23 +61,15 @@ int	rtw_hal_init_recv_priv(struct adapter *padapter)
 	skb_queue_head_init(&precvpriv->rx_skb_queue);
 	{
 		int i;
-		size_t tmpaddr = 0;
-		size_t alignm = 0;
 		struct sk_buff *pskb = NULL;
 
 		skb_queue_head_init(&precvpriv->free_recv_skb_queue);
 
 		for (i = 0; i < NR_PREALLOC_RECV_SKB; i++) {
 			pskb = __netdev_alloc_skb(padapter->pnetdev,
-					MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ,
-					GFP_KERNEL);
+					MAX_RECVBUF_SZ, GFP_KERNEL);
 			if (pskb) {
 				kmemleak_not_leak(pskb);
-				pskb->dev = padapter->pnetdev;
-				tmpaddr = (size_t)pskb->data;
-				alignm = tmpaddr & (RECVBUFF_ALIGN_SZ-1);
-				skb_reserve(pskb, (RECVBUFF_ALIGN_SZ - alignm));
-
 				skb_queue_tail(&precvpriv->free_recv_skb_queue,
 						pskb);
 			}

@@ -139,8 +139,6 @@ struct rx_pkt_attrib {
 #define SN_EQUAL(a, b)	(a == b)
 #define REORDER_WAIT_TIME	(50) /*  (ms) */
 
-#define RECVBUFF_ALIGN_SZ 8
-
 #define RXDESC_SIZE	24
 #define RXDESC_OFFSET RXDESC_SIZE
 

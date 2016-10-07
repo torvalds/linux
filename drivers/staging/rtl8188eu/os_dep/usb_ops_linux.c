@@ -457,8 +457,6 @@ u32 usb_read_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *rmem)
 	struct usb_device	*pusbd = pdvobj->pusbdev;
 	int err;
 	unsigned int pipe;
-	size_t tmpaddr = 0;
-	size_t alignment = 0;
 	u32 ret = _SUCCESS;
 
 
@@ -483,16 +481,12 @@ u32 usb_read_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *rmem)
 
 	/* re-assign for linux based on skb */
 	if ((!precvbuf->reuse) || (precvbuf->pskb == NULL)) {
-		precvbuf->pskb = netdev_alloc_skb(adapter->pnetdev, MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
+		precvbuf->pskb = netdev_alloc_skb(adapter->pnetdev, MAX_RECVBUF_SZ);
 		if (precvbuf->pskb == NULL) {
 			RT_TRACE(_module_hci_ops_os_c_, _drv_err_, ("init_recvbuf(): alloc_skb fail!\n"));
 			DBG_88E("#### usb_read_port() alloc_skb fail!#####\n");
 			return _FAIL;
 		}
-
-		tmpaddr = (size_t)precvbuf->pskb->data;
-		alignment = tmpaddr & (RECVBUFF_ALIGN_SZ-1);
-		skb_reserve(precvbuf->pskb, (RECVBUFF_ALIGN_SZ - alignment));
 	} else { /* reuse skb */
 		precvbuf->reuse = false;
 	}
