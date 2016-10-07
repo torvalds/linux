@@ -559,14 +559,7 @@ static void oom_reap_task(struct task_struct *tsk)
 	debug_show_all_locks();
 
 done:
-	/*
-	 * Clear TIF_MEMDIE because the task shouldn't be sitting on a
-	 * reasonably reclaimable memory anymore or it is not a good candidate
-	 * for the oom victim right now because it cannot release its memory
-	 * itself nor by the oom reaper.
-	 */
 	tsk->oom_reaper_list = NULL;
-	exit_oom_victim(tsk);
 
 	/*
 	 * Hide this mm from OOM killer because it has been either reaped or
@@ -580,8 +573,6 @@ done:
 
 static int oom_reaper(void *unused)
 {
-	set_freezable();
-
 	while (true) {
 		struct task_struct *tsk = NULL;
 
@@ -681,10 +672,20 @@ void exit_oom_victim(struct task_struct *tsk)
 }
 
 /**
+ * oom_killer_enable - enable OOM killer
+ */
+void oom_killer_enable(void)
+{
+	oom_killer_disabled = false;
+}
+
+/**
  * oom_killer_disable - disable OOM killer
+ * @timeout: maximum timeout to wait for oom victims in jiffies
  *
  * Forces all page allocations to fail rather than trigger OOM killer.
- * Will block and wait until all OOM victims are killed.
+ * Will block and wait until all OOM victims are killed or the given
+ * timeout expires.
  *
  * The function cannot be called when there are runnable user tasks because
  * the userspace would see unexpected allocation failures as a result. Any
@@ -693,8 +694,10 @@ void exit_oom_victim(struct task_struct *tsk)
  * Returns true if successful and false if the OOM killer cannot be
  * disabled.
  */
-bool oom_killer_disable(void)
+bool oom_killer_disable(signed long timeout)
 {
+	signed long ret;
+
 	/*
 	 * Make sure to not race with an ongoing OOM killer. Check that the
 	 * current is not killed (possibly due to sharing the victim's memory).
@@ -704,17 +707,14 @@ bool oom_killer_disable(void)
 	oom_killer_disabled = true;
 	mutex_unlock(&oom_lock);
 
-	wait_event(oom_victims_wait, !atomic_read(&oom_victims));
+	ret = wait_event_interruptible_timeout(oom_victims_wait,
+			!atomic_read(&oom_victims), timeout);
+	if (ret <= 0) {
+		oom_killer_enable();
+		return false;
+	}
 
 	return true;
-}
-
-/**
- * oom_killer_enable - enable OOM killer
- */
-void oom_killer_enable(void)
-{
-	oom_killer_disabled = false;
 }
 
 static inline bool __task_will_free_mem(struct task_struct *task)
