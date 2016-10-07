@@ -149,17 +149,8 @@ static u16 xenvif_select_queue(struct net_device *dev, struct sk_buff *skb,
 	struct xenvif *vif = netdev_priv(dev);
 	unsigned int size = vif->hash.size;
 
-	if (vif->hash.alg == XEN_NETIF_CTRL_HASH_ALGORITHM_NONE) {
-		u16 index = fallback(dev, skb) % dev->real_num_tx_queues;
-
-		/* Make sure there is no hash information in the socket
-		 * buffer otherwise it would be incorrectly forwarded
-		 * to the frontend.
-		 */
-		skb_clear_hash(skb);
-
-		return index;
-	}
+	if (vif->hash.alg == XEN_NETIF_CTRL_HASH_ALGORITHM_NONE)
+		return fallback(dev, skb) % dev->real_num_tx_queues;
 
 	xenvif_set_skb_hash(vif, skb);
 
@@ -207,6 +198,13 @@ static int xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	cb = XENVIF_RX_CB(skb);
 	cb->expires = jiffies + vif->drain_timeout;
+
+	/* If there is no hash algorithm configured then make sure there
+	 * is no hash information in the socket buffer otherwise it
+	 * would be incorrectly forwarded to the frontend.
+	 */
+	if (vif->hash.alg == XEN_NETIF_CTRL_HASH_ALGORITHM_NONE)
+		skb_clear_hash(skb);
 
 	xenvif_rx_queue_tail(queue, skb);
 	xenvif_kick_thread(queue);
