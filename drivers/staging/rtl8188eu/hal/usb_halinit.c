@@ -601,11 +601,6 @@ static void _BBTurnOnBlock(struct adapter *Adapter)
 	phy_set_bb_reg(Adapter, rFPGA0_RFMOD, bOFDMEn, 0x1);
 }
 
-enum {
-	Antenna_Lfet = 1,
-	Antenna_Right = 2,
-};
-
 static void _InitAntenna_Selection(struct adapter *Adapter)
 {
 	struct hal_data_8188e *haldata = Adapter->HalData;
