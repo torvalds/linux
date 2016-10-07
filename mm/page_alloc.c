@@ -5005,15 +5005,6 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 
 #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
 		/*
-		 * If not mirrored_kernelcore and ZONE_MOVABLE exists, range
-		 * from zone_movable_pfn[nid] to end of each node should be
-		 * ZONE_MOVABLE not ZONE_NORMAL. skip it.
-		 */
-		if (!mirrored_kernelcore && zone_movable_pfn[nid])
-			if (zone == ZONE_NORMAL && pfn >= zone_movable_pfn[nid])
-				continue;
-
-		/*
 		 * Check given memblock attribute by firmware which can affect
 		 * kernel memory layout.  If zone==ZONE_MOVABLE but memory is
 		 * mirrored, it's an overlapped memmap init. skip it.
@@ -5456,6 +5447,12 @@ static void __meminit adjust_zone_range_for_zone_movable(int nid,
 			*zone_end_pfn = min(node_end_pfn,
 				arch_zone_highest_possible_pfn[movable_zone]);
 
+		/* Adjust for ZONE_MOVABLE starting within this range */
+		} else if (!mirrored_kernelcore &&
+			*zone_start_pfn < zone_movable_pfn[nid] &&
+			*zone_end_pfn > zone_movable_pfn[nid]) {
+			*zone_end_pfn = zone_movable_pfn[nid];
+
 		/* Check if this whole range is within ZONE_MOVABLE */
 		} else if (*zone_start_pfn >= zone_movable_pfn[nid])
 			*zone_start_pfn = *zone_end_pfn;
@@ -5559,28 +5556,23 @@ static unsigned long __meminit zone_absent_pages_in_node(int nid,
 	 * Treat pages to be ZONE_MOVABLE in ZONE_NORMAL as absent pages
 	 * and vice versa.
 	 */
-	if (zone_movable_pfn[nid]) {
-		if (mirrored_kernelcore) {
-			unsigned long start_pfn, end_pfn;
-			struct memblock_region *r;
+	if (mirrored_kernelcore && zone_movable_pfn[nid]) {
+		unsigned long start_pfn, end_pfn;
+		struct memblock_region *r;
 
-			for_each_memblock(memory, r) {
-				start_pfn = clamp(memblock_region_memory_base_pfn(r),
-						  zone_start_pfn, zone_end_pfn);
-				end_pfn = clamp(memblock_region_memory_end_pfn(r),
-						zone_start_pfn, zone_end_pfn);
+		for_each_memblock(memory, r) {
+			start_pfn = clamp(memblock_region_memory_base_pfn(r),
+					  zone_start_pfn, zone_end_pfn);
+			end_pfn = clamp(memblock_region_memory_end_pfn(r),
+					zone_start_pfn, zone_end_pfn);
 
-				if (zone_type == ZONE_MOVABLE &&
-				    memblock_is_mirror(r))
-					nr_absent += end_pfn - start_pfn;
+			if (zone_type == ZONE_MOVABLE &&
+			    memblock_is_mirror(r))
+				nr_absent += end_pfn - start_pfn;
 
-				if (zone_type == ZONE_NORMAL &&
-				    !memblock_is_mirror(r))
-					nr_absent += end_pfn - start_pfn;
-			}
-		} else {
-			if (zone_type == ZONE_NORMAL)
-				nr_absent += node_end_pfn - zone_movable_pfn[nid];
+			if (zone_type == ZONE_NORMAL &&
+			    !memblock_is_mirror(r))
+				nr_absent += end_pfn - start_pfn;
 		}
 	}
 
