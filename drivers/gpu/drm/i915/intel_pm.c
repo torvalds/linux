@@ -4270,46 +4270,22 @@ static void ilk_optimize_watermarks(struct intel_crtc_state *cstate)
 static void skl_pipe_wm_active_state(uint32_t val,
 				     struct skl_pipe_wm *active,
 				     bool is_transwm,
-				     bool is_cursor,
 				     int i,
 				     int level)
 {
+	struct skl_plane_wm *plane_wm = &active->planes[i];
 	bool is_enabled = (val & PLANE_WM_EN) != 0;
 
 	if (!is_transwm) {
-		if (!is_cursor) {
-			active->planes[i].wm[level].plane_en = is_enabled;
-			active->planes[i].wm[level].plane_res_b =
-				val & PLANE_WM_BLOCKS_MASK;
-			active->planes[i].wm[level].plane_res_l =
-				(val >> PLANE_WM_LINES_SHIFT) &
-				PLANE_WM_LINES_MASK;
-		} else {
-			active->planes[PLANE_CURSOR].wm[level].plane_en =
-				is_enabled;
-			active->planes[PLANE_CURSOR].wm[level].plane_res_b =
-				val & PLANE_WM_BLOCKS_MASK;
-			active->planes[PLANE_CURSOR].wm[level].plane_res_l =
-				(val >> PLANE_WM_LINES_SHIFT) &
-				PLANE_WM_LINES_MASK;
-		}
+		plane_wm->wm[level].plane_en = is_enabled;
+		plane_wm->wm[level].plane_res_b = val & PLANE_WM_BLOCKS_MASK;
+		plane_wm->wm[level].plane_res_l =
+			(val >> PLANE_WM_LINES_SHIFT) & PLANE_WM_LINES_MASK;
 	} else {
-		if (!is_cursor) {
-			active->planes[i].trans_wm.plane_en = is_enabled;
-			active->planes[i].trans_wm.plane_res_b =
-				val & PLANE_WM_BLOCKS_MASK;
-			active->planes[i].trans_wm.plane_res_l =
-				(val >> PLANE_WM_LINES_SHIFT) &
-				PLANE_WM_LINES_MASK;
-		} else {
-			active->planes[PLANE_CURSOR].trans_wm.plane_en =
-				is_enabled;
-			active->planes[PLANE_CURSOR].trans_wm.plane_res_b =
-				val & PLANE_WM_BLOCKS_MASK;
-			active->planes[PLANE_CURSOR].trans_wm.plane_res_l =
-				(val >> PLANE_WM_LINES_SHIFT) &
-				PLANE_WM_LINES_MASK;
-		}
+		plane_wm->trans_wm.plane_en = is_enabled;
+		plane_wm->trans_wm.plane_res_b = val & PLANE_WM_BLOCKS_MASK;
+		plane_wm->trans_wm.plane_res_l =
+			(val >> PLANE_WM_LINES_SHIFT) & PLANE_WM_LINES_MASK;
 	}
 }
 
@@ -4348,20 +4324,20 @@ static void skl_pipe_wm_get_hw_state(struct drm_crtc *crtc)
 	for (level = 0; level <= max_level; level++) {
 		for (i = 0; i < intel_num_planes(intel_crtc); i++) {
 			temp = hw->plane[pipe][i][level];
-			skl_pipe_wm_active_state(temp, active, false,
-						false, i, level);
+			skl_pipe_wm_active_state(temp, active, false, i, level);
 		}
 		temp = hw->plane[pipe][PLANE_CURSOR][level];
-		skl_pipe_wm_active_state(temp, active, false, true, i, level);
+		skl_pipe_wm_active_state(temp, active, false, PLANE_CURSOR,
+					 level);
 	}
 
 	for (i = 0; i < intel_num_planes(intel_crtc); i++) {
 		temp = hw->plane_trans[pipe][i];
-		skl_pipe_wm_active_state(temp, active, true, false, i, 0);
+		skl_pipe_wm_active_state(temp, active, true, i, 0);
 	}
 
 	temp = hw->plane_trans[pipe][PLANE_CURSOR];
-	skl_pipe_wm_active_state(temp, active, true, true, i, 0);
+	skl_pipe_wm_active_state(temp, active, true, PLANE_CURSOR, 0);
 
 	intel_crtc->wm.active.skl = *active;
 }
