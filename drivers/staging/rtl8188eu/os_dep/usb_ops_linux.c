@@ -172,22 +172,21 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 				RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
 					("recvbuf2recvframe: rtw_recv_entry(precvframe) != _SUCCESS\n"));
 			}
-		} else {
-			/* enqueue recvframe to txrtp queue */
-			if (pattrib->pkt_rpt_type == TX_REPORT1) {
-				/* CCX-TXRPT ack for xmit mgmt frames. */
-				handle_txrpt_ccx_88e(adapt, precvframe->rx_data);
-			} else if (pattrib->pkt_rpt_type == TX_REPORT2) {
-				ODM_RA_TxRPT2Handle_8188E(
-							&haldata->odmpriv,
-							precvframe->rx_data,
-							pattrib->pkt_len,
-							pattrib->MacIDValidEntry[0],
-							pattrib->MacIDValidEntry[1]
-							);
-			} else if (pattrib->pkt_rpt_type == HIS_REPORT) {
-				interrupt_handler_8188eu(adapt, pattrib->pkt_len, precvframe->rx_data);
-			}
+		} else if (pattrib->pkt_rpt_type == TX_REPORT1) {
+			/* CCX-TXRPT ack for xmit mgmt frames. */
+			handle_txrpt_ccx_88e(adapt, precvframe->rx_data);
+			rtw_free_recvframe(precvframe, pfree_recv_queue);
+		} else if (pattrib->pkt_rpt_type == TX_REPORT2) {
+			ODM_RA_TxRPT2Handle_8188E(
+						&haldata->odmpriv,
+						precvframe->rx_data,
+						pattrib->pkt_len,
+						pattrib->MacIDValidEntry[0],
+						pattrib->MacIDValidEntry[1]
+						);
+			rtw_free_recvframe(precvframe, pfree_recv_queue);
+		} else if (pattrib->pkt_rpt_type == HIS_REPORT) {
+			interrupt_handler_8188eu(adapt, pattrib->pkt_len, precvframe->rx_data);
 			rtw_free_recvframe(precvframe, pfree_recv_queue);
 		}
 		pkt_cnt--;
