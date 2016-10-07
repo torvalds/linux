@@ -405,14 +405,14 @@ static u8 dualshock4_usb_rdesc[] = {
 	0x19, 0x40,         /*      Usage Minimum (40h),            */
 	0x29, 0x42,         /*      Usage Maximum (42h),            */
 	0x16, 0x00, 0x80,   /*      Logical Minimum (-32768),       */
-	0x26, 0x00, 0x7F,   /*      Logical Maximum (32767),        */
+	0x26, 0xFF, 0x7F,   /*      Logical Maximum (32767),        */
 	0x75, 0x10,         /*      Report Size (16),               */
 	0x95, 0x03,         /*      Report Count (3),               */
 	0x81, 0x02,         /*      Input (Variable),               */
 	0x19, 0x43,         /*      Usage Minimum (43h),            */
 	0x29, 0x45,         /*      Usage Maximum (45h),            */
-	0x16, 0x00, 0xE0,   /*      Logical Minimum (-8192),        */
-	0x26, 0xFF, 0x1F,   /*      Logical Maximum (8191),         */
+	0x16, 0x00, 0x80,   /*      Logical Minimum (-32768),       */
+	0x26, 0xFF, 0x7F,   /*      Logical Maximum (32767),        */
 	0x95, 0x03,         /*      Report Count (3),               */
 	0x81, 0x02,         /*      Input (Variable),               */
 	0x06, 0x00, 0xFF,   /*      Usage Page (FF00h),             */
@@ -714,14 +714,14 @@ static u8 dualshock4_bt_rdesc[] = {
 	0x19, 0x40,         /*      Usage Minimum (40h),            */
 	0x29, 0x42,         /*      Usage Maximum (42h),            */
 	0x16, 0x00, 0x80,   /*      Logical Minimum (-32768),       */
-	0x26, 0x00, 0x7F,   /*      Logical Maximum (32767),        */
+	0x26, 0xFF, 0x7F,   /*      Logical Maximum (32767),        */
 	0x75, 0x10,         /*      Report Size (16),               */
 	0x95, 0x03,         /*      Report Count (3),               */
 	0x81, 0x02,         /*      Input (Variable),               */
 	0x19, 0x43,         /*      Usage Minimum (43h),            */
 	0x29, 0x45,         /*      Usage Maximum (45h),            */
-	0x16, 0x00, 0xE0,   /*      Logical Minimum (-8192),        */
-	0x26, 0xFF, 0x1F,   /*      Logical Maximum (8191),         */
+	0x16, 0x00, 0x80,   /*      Logical Minimum (-32768),       */
+	0x26, 0xFF, 0x7F,   /*      Logical Maximum (32767),        */
 	0x95, 0x03,         /*      Report Count (3),               */
 	0x81, 0x02,         /*      Input (Variable),               */
 	0x06, 0x00, 0xFF,   /*      Usage Page (FF00h),             */
