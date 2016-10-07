@@ -7155,6 +7155,13 @@ F:	Documentation/scsi/megaraid.txt
 F:	drivers/scsi/megaraid.*
 F:	drivers/scsi/megaraid/
 
+MELFAS MIP4 TOUCHSCREEN DRIVER
+M:	Sangwon Jee <jeesw@melfas.com>
+W:	http://www.melfas.com
+S:	Supported
+F:	drivers/input/touchscreen/melfas_mip4.c
+F:	Documentation/devicetree/bindings/input/touchscreen/melfas_mip4.txt
+
 MELLANOX ETHERNET DRIVER (mlx4_en)
 M: 	Eugenia Emantayev <eugenia@mellanox.com>
 L:	netdev@vger.kernel.org
