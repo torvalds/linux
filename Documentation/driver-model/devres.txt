@@ -346,6 +346,10 @@ PINCTRL
   devm_pinctrl_register()
   devm_pinctrl_unregister()
 
+POWER
+  devm_reboot_mode_register()
+  devm_reboot_mode_unregister()
+
 PWM
   devm_pwm_get()
   devm_pwm_put()

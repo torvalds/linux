@@ -1095,7 +1095,7 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 
 	/* Create a work queue for the btemp */
 	di->btemp_wq =
-		create_singlethread_workqueue("ab8500_btemp_wq");
+		alloc_workqueue("ab8500_btemp_wq", WQ_MEM_RECLAIM, 0);
 	if (di->btemp_wq == NULL) {
 		dev_err(di->dev, "failed to create work queue\n");
 		return -ENOMEM;

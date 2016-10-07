@@ -1068,6 +1068,12 @@ static int bq24257_probe(struct i2c_client *client,
 		return ret;
 	}
 
+	ret = bq24257_power_supply_init(bq);
+	if (ret < 0) {
+		dev_err(dev, "Failed to register power supply\n");
+		return ret;
+	}
+
 	ret = devm_request_threaded_irq(dev, client->irq, NULL,
 					bq24257_irq_handler_thread,
 					IRQF_TRIGGER_FALLING |
@@ -1075,12 +1081,6 @@ static int bq24257_probe(struct i2c_client *client,
 					bq2425x_chip_name[bq->chip], bq);
 	if (ret) {
 		dev_err(dev, "Failed to request IRQ #%d\n", client->irq);
-		return ret;
-	}
-
-	ret = bq24257_power_supply_init(bq);
-	if (ret < 0) {
-		dev_err(dev, "Failed to register power supply\n");
 		return ret;
 	}
 

@@ -245,13 +245,8 @@ static LIST_HEAD(ab8500_fg_list);
  */
 struct ab8500_fg *ab8500_fg_get(void)
 {
-	struct ab8500_fg *fg;
-
-	if (list_empty(&ab8500_fg_list))
-		return NULL;
-
-	fg = list_first_entry(&ab8500_fg_list, struct ab8500_fg, node);
-	return fg;
+	return list_first_entry_or_null(&ab8500_fg_list, struct ab8500_fg,
+					node);
 }
 
 /* Main battery properties */
@@ -3096,7 +3091,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	ab8500_fg_discharge_state_to(di, AB8500_FG_DISCHARGE_INIT);
 
 	/* Create a work queue for running the FG algorithm */
-	di->fg_wq = create_singlethread_workqueue("ab8500_fg_wq");
+	di->fg_wq = alloc_ordered_workqueue("ab8500_fg_wq", WQ_MEM_RECLAIM);
 	if (di->fg_wq == NULL) {
 		dev_err(di->dev, "failed to create work queue\n");
 		return -ENOMEM;
