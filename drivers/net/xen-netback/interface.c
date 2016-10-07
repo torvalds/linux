@@ -319,9 +319,9 @@ static netdev_features_t xenvif_fix_features(struct net_device *dev,
 
 	if (!vif->can_sg)
 		features &= ~NETIF_F_SG;
-	if (~(vif->gso_mask | vif->gso_prefix_mask) & GSO_BIT(TCPV4))
+	if (~(vif->gso_mask) & GSO_BIT(TCPV4))
 		features &= ~NETIF_F_TSO;
-	if (~(vif->gso_mask | vif->gso_prefix_mask) & GSO_BIT(TCPV6))
+	if (~(vif->gso_mask) & GSO_BIT(TCPV6))
 		features &= ~NETIF_F_TSO6;
 	if (!vif->ip_csum)
 		features &= ~NETIF_F_IP_CSUM;
@@ -467,7 +467,7 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	dev->netdev_ops	= &xenvif_netdev_ops;
 	dev->hw_features = NETIF_F_SG |
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-		NETIF_F_TSO | NETIF_F_TSO6;
+		NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_FRAGLIST;
 	dev->features = dev->hw_features | NETIF_F_RXCSUM;
 	dev->ethtool_ops = &xenvif_ethtool_ops;
 
