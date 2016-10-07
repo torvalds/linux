@@ -66,6 +66,7 @@ struct intel_pt_state {
 	uint32_t flags;
 	enum intel_pt_insn_op insn_op;
 	int insn_len;
+	char insn[INTEL_PT_INSN_BUF_SZ];
 };
 
 struct intel_pt_insn;

@@ -27,7 +27,7 @@
 
 #include "intel-pt-insn-decoder.h"
 
-#if INTEL_PT_INSN_BUF_SZ < MAX_INSN_SIZE
+#if INTEL_PT_INSN_BUF_SZ < MAX_INSN_SIZE || INTEL_PT_INSN_BUF_SZ > MAX_INSN
 #error Instruction buffer size too small
 #endif
 

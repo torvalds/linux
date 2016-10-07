@@ -295,6 +295,7 @@ static int intel_bts_synth_branch_sample(struct intel_bts_queue *btsq,
 	sample.cpu = btsq->cpu;
 	sample.flags = btsq->sample_flags;
 	sample.insn_len = btsq->intel_pt_insn.length;
+	memcpy(sample.insn, btsq->intel_pt_insn.buf, INTEL_PT_INSN_BUF_SZ);
 
 	if (bts->synth_opts.inject) {
 		event.sample.header.size = bts->branches_event_size;
