@@ -1006,7 +1006,6 @@ u32 rtw_hal_inirp_init(struct adapter *Adapter)
 		}
 
 		precvbuf++;
-		precvpriv->free_recv_buf_queue_cnt--;
 	}
 
 exit:

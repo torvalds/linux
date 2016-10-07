@@ -186,7 +186,6 @@ struct recv_priv {
 	u8 *pallocated_recv_buf;
 	u8 *precv_buf;    /*  4 alignment */
 	struct __queue free_recv_buf_queue;
-	u32	free_recv_buf_queue_cnt;
 	/* For display the phy informatiom */
 	u8 is_signal_dbg;	/*  for debug */
 	u8 signal_strength_dbg;	/*  for debug */

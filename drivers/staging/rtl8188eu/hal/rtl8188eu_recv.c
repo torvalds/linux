@@ -58,7 +58,6 @@ int	rtw_hal_init_recv_priv(struct adapter *padapter)
 		precvbuf->adapter = padapter;
 		precvbuf++;
 	}
-	precvpriv->free_recv_buf_queue_cnt = NR_RECVBUFF;
 	skb_queue_head_init(&precvpriv->rx_skb_queue);
 	{
 		int i;
