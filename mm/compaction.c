@@ -1391,11 +1391,10 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
 		return COMPACT_SUCCESS;
 
 	/*
-	 * Watermarks for order-0 must be met for compaction. Note the 2UL.
-	 * This is because during migration, copies of pages need to be
-	 * allocated and for a short time, the footprint is higher
+	 * Watermarks for order-0 must be met for compaction to be able to
+	 * isolate free pages for migration targets.
 	 */
-	watermark = low_wmark_pages(zone) + (2UL << order);
+	watermark = low_wmark_pages(zone) + compact_gap(order);
 	if (!__zone_watermark_ok(zone, 0, watermark, classzone_idx,
 				 alloc_flags, wmark_target))
 		return COMPACT_SKIPPED;
