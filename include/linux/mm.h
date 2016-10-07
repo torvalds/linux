@@ -1924,6 +1924,9 @@ extern void show_mem(unsigned int flags);
 extern long si_mem_available(void);
 extern void si_meminfo(struct sysinfo * val);
 extern void si_meminfo_node(struct sysinfo *val, int nid);
+#ifdef __HAVE_ARCH_RESERVED_KERNEL_PAGES
+extern unsigned long arch_reserved_kernel_pages(void);
+#endif
 
 extern __printf(3, 4)
 void warn_alloc_failed(gfp_t gfp_mask, unsigned int order,
