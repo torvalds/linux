@@ -794,14 +794,13 @@ static int tc90522_probe(struct i2c_client *client,
 	i2c_set_adapdata(adap, state);
 	ret = i2c_add_adapter(adap);
 	if (ret < 0)
-		goto err;
+		goto free_state;
 	cfg->tuner_i2c = state->cfg.tuner_i2c = adap;
 
 	i2c_set_clientdata(client, &state->cfg);
 	dev_info(&client->dev, "Toshiba TC90522 attached.\n");
 	return 0;
-
-err:
+free_state:
 	kfree(state);
 	return ret;
 }
