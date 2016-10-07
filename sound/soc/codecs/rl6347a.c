@@ -51,7 +51,7 @@ int rl6347a_hw_write(void *context, unsigned int reg, unsigned int value)
 	if (ret == 4)
 		return 0;
 	else
-		pr_err("ret=%d\n", ret);
+		dev_err(&client->dev, "I2C error %d\n", ret);
 	if (ret < 0)
 		return ret;
 	else
