@@ -36,6 +36,8 @@
 #include <linux/list.h>
 #include <linux/idr.h>
 #include <linux/input/mt.h>
+#include <linux/crc32.h>
+#include <asm/unaligned.h>
 
 #include "hid-ids.h"
 
@@ -1021,6 +1023,7 @@ struct motion_output_report_02 {
 
 #define DS4_FEATURE_REPORT_0x02_SIZE 37
 #define DS4_FEATURE_REPORT_0x81_SIZE 7
+#define DS4_INPUT_REPORT_0x11_SIZE 78
 #define DS4_OUTPUT_REPORT_0x05_SIZE 32
 #define DS4_OUTPUT_REPORT_0x11_SIZE 78
 #define SIXAXIS_REPORT_0xF2_SIZE 17
@@ -1324,6 +1327,21 @@ static int sony_raw_event(struct hid_device *hdev, struct hid_report *report,
 	} else if (((sc->quirks & DUALSHOCK4_CONTROLLER_USB) && rd[0] == 0x01 &&
 			size == 64) || ((sc->quirks & DUALSHOCK4_CONTROLLER_BT)
 			&& rd[0] == 0x11 && size == 78)) {
+		if (sc->quirks & DUALSHOCK4_CONTROLLER_BT) {
+			/* CRC check */
+			u8 bthdr = 0xA1;
+			u32 crc;
+			u32 report_crc;
+
+			crc = crc32_le(0xFFFFFFFF, &bthdr, 1);
+			crc = ~crc32_le(crc, rd, DS4_INPUT_REPORT_0x11_SIZE-4);
+			report_crc = get_unaligned_le32(&rd[DS4_INPUT_REPORT_0x11_SIZE-4]);
+			if (crc != report_crc) {
+				hid_dbg(sc->hdev, "DualShock 4 input report's CRC check failed, received crc 0x%0x != 0x%0x\n",
+					report_crc, crc);
+				return -EILSEQ;
+			}
+		}
 		dualshock4_parse_report(sc, rd, size);
 	}
 
