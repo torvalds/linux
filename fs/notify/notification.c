@@ -74,8 +74,17 @@ void fsnotify_destroy_event(struct fsnotify_group *group,
 	/* Overflow events are per-group and we don't want to free them */
 	if (!event || event->mask == FS_Q_OVERFLOW)
 		return;
-	/* If the event is still queued, we have a problem... */
-	WARN_ON(!list_empty(&event->list));
+	/*
+	 * If the event is still queued, we have a problem... Do an unreliable
+	 * lockless check first to avoid locking in the common case. The
+	 * locking may be necessary for permission events which got removed
+	 * from the list by a different CPU than the one freeing the event.
+	 */
+	if (!list_empty(&event->list)) {
+		spin_lock(&group->notification_lock);
+		WARN_ON(!list_empty(&event->list));
+		spin_unlock(&group->notification_lock);
+	}
 	group->ops->free_event(event);
 }
 
