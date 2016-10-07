@@ -337,7 +337,7 @@ struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 
 	/* Get the socket providing the service */
 	rx = rcu_dereference(local->service);
-	if (service_id == rx->srx.srx_service)
+	if (rx && service_id == rx->srx.srx_service)
 		goto found_service;
 
 	trace_rxrpc_abort("INV", sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
@@ -565,7 +565,7 @@ out_discard:
 	write_unlock_bh(&call->state_lock);
 	write_unlock(&rx->call_lock);
 	if (abort) {
-		rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ABORT);
+		rxrpc_send_abort_packet(call);
 		rxrpc_release_call(rx, call);
 		rxrpc_put_call(call, rxrpc_call_put);
 	}

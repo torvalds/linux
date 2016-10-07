@@ -381,7 +381,7 @@ static int rxkad_verify_packet_1(struct rxrpc_call *call, struct sk_buff *skb,
 	return 0;
 
 protocol_error:
-	rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ABORT);
+	rxrpc_send_abort_packet(call);
 	_leave(" = -EPROTO");
 	return -EPROTO;
 
@@ -471,7 +471,7 @@ static int rxkad_verify_packet_2(struct rxrpc_call *call, struct sk_buff *skb,
 	return 0;
 
 protocol_error:
-	rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ABORT);
+	rxrpc_send_abort_packet(call);
 	_leave(" = -EPROTO");
 	return -EPROTO;
 
@@ -523,7 +523,7 @@ static int rxkad_verify_packet(struct rxrpc_call *call, struct sk_buff *skb,
 
 	if (cksum != expected_cksum) {
 		rxrpc_abort_call("VCK", call, seq, RXKADSEALEDINCON, EPROTO);
-		rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ABORT);
+		rxrpc_send_abort_packet(call);
 		_leave(" = -EPROTO [csum failed]");
 		return -EPROTO;
 	}

@@ -143,7 +143,7 @@ static void rxrpc_end_rx_phase(struct rxrpc_call *call, rxrpc_serial_t serial)
 	if (call->state == RXRPC_CALL_CLIENT_RECV_REPLY) {
 		rxrpc_propose_ACK(call, RXRPC_ACK_IDLE, 0, serial, true, false,
 				  rxrpc_propose_ack_terminal_ack);
-		rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ACK);
+		rxrpc_send_ack_packet(call, false);
 	}
 
 	write_lock_bh(&call->state_lock);
@@ -151,17 +151,21 @@ static void rxrpc_end_rx_phase(struct rxrpc_call *call, rxrpc_serial_t serial)
 	switch (call->state) {
 	case RXRPC_CALL_CLIENT_RECV_REPLY:
 		__rxrpc_call_completed(call);
+		write_unlock_bh(&call->state_lock);
 		break;
 
 	case RXRPC_CALL_SERVER_RECV_REQUEST:
 		call->tx_phase = true;
 		call->state = RXRPC_CALL_SERVER_ACK_REQUEST;
+		call->ack_at = call->expire_at;
+		write_unlock_bh(&call->state_lock);
+		rxrpc_propose_ACK(call, RXRPC_ACK_DELAY, 0, serial, false, true,
+				  rxrpc_propose_ack_processing_op);
 		break;
 	default:
+		write_unlock_bh(&call->state_lock);
 		break;
 	}
-
-	write_unlock_bh(&call->state_lock);
 }
 
 /*
@@ -212,7 +216,7 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 					  true, false,
 					  rxrpc_propose_ack_rotate_rx);
 		if (call->ackr_reason)
-			rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ACK);
+			rxrpc_send_ack_packet(call, false);
 	}
 }
 
@@ -652,7 +656,7 @@ excess_data:
 	goto out;
 call_complete:
 	*_abort = call->abort_code;
-	ret = call->error;
+	ret = -call->error;
 	if (call->completion == RXRPC_CALL_SUCCEEDED) {
 		ret = 1;
 		if (size > 0)
