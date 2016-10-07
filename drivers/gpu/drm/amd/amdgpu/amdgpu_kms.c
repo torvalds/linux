@@ -524,6 +524,24 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		return copy_to_user(out, &dev_info,
 				    min((size_t)size, sizeof(dev_info))) ? -EFAULT : 0;
 	}
+	case AMDGPU_INFO_VCE_CLOCK_TABLE: {
+		unsigned i;
+		struct drm_amdgpu_info_vce_clock_table vce_clk_table = {};
+		struct amd_vce_state *vce_state;
+
+		for (i = 0; i < AMDGPU_VCE_CLOCK_TABLE_ENTRIES; i++) {
+			vce_state = amdgpu_dpm_get_vce_clock_state(adev, i);
+			if (vce_state) {
+				vce_clk_table.entries[i].sclk = vce_state->sclk;
+				vce_clk_table.entries[i].mclk = vce_state->mclk;
+				vce_clk_table.entries[i].eclk = vce_state->evclk;
+				vce_clk_table.num_valid_entries++;
+			}
+		}
+
+		return copy_to_user(out, &vce_clk_table,
+				    min((size_t)size, sizeof(vce_clk_table))) ? -EFAULT : 0;
+	}
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->query);
 		return -EINVAL;
