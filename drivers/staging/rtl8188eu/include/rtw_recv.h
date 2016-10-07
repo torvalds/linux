@@ -174,7 +174,6 @@ struct recv_priv {
 	u64	rx_drop;
 	u64	last_rx_bytes;
 
-	uint	ff_hwaddr;
 	u8	rx_pending_cnt;
 
 	struct tasklet_struct irq_prepare_beacon_tasklet;
