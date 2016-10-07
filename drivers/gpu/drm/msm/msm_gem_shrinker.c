@@ -20,13 +20,21 @@
 
 static bool msm_gem_shrinker_lock(struct drm_device *dev, bool *unlock)
 {
-	if (!mutex_trylock(&dev->struct_mutex))
+	switch (mutex_trylock_recursive(&dev->struct_mutex)) {
+	case MUTEX_TRYLOCK_FAILED:
 		return false;
 
-	*unlock = true;
-	return true;
-}
+	case MUTEX_TRYLOCK_SUCCESS:
+		*unlock = true;
+		return true;
 
+	case MUTEX_TRYLOCK_RECURSIVE:
+		*unlock = false;
+		return true;
+	}
+
+	BUG();
+}
 
 static unsigned long
 msm_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)

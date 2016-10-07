@@ -189,4 +189,35 @@ extern void mutex_unlock(struct mutex *lock);
 
 extern int atomic_dec_and_mutex_lock(atomic_t *cnt, struct mutex *lock);
 
+/*
+ * These values are chosen such that FAIL and SUCCESS match the
+ * values of the regular mutex_trylock().
+ */
+enum mutex_trylock_recursive_enum {
+	MUTEX_TRYLOCK_FAILED    = 0,
+	MUTEX_TRYLOCK_SUCCESS   = 1,
+	MUTEX_TRYLOCK_RECURSIVE,
+};
+
+/**
+ * mutex_trylock_recursive - trylock variant that allows recursive locking
+ * @lock: mutex to be locked
+ *
+ * This function should not be used, _ever_. It is purely for hysterical GEM
+ * raisins, and once those are gone this will be removed.
+ *
+ * Returns:
+ *  MUTEX_TRYLOCK_FAILED    - trylock failed,
+ *  MUTEX_TRYLOCK_SUCCESS   - lock acquired,
+ *  MUTEX_TRYLOCK_RECURSIVE - we already owned the lock.
+ */
+static inline __deprecated __must_check enum mutex_trylock_recursive_enum
+mutex_trylock_recursive(struct mutex *lock)
+{
+	if (unlikely(__mutex_owner(lock) == current))
+		return MUTEX_TRYLOCK_RECURSIVE;
+
+	return mutex_trylock(lock);
+}
+
 #endif /* __LINUX_MUTEX_H */
