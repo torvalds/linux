@@ -1492,23 +1492,29 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
 
 	/*
 	 * Setup to move all movable pages to the end of the zone. Used cached
-	 * information on where the scanners should start but check that it
-	 * is initialised by ensuring the values are within zone boundaries.
+	 * information on where the scanners should start (unless we explicitly
+	 * want to compact the whole zone), but check that it is initialised
+	 * by ensuring the values are within zone boundaries.
 	 */
-	cc->migrate_pfn = zone->compact_cached_migrate_pfn[sync];
-	cc->free_pfn = zone->compact_cached_free_pfn;
-	if (cc->free_pfn < start_pfn || cc->free_pfn >= end_pfn) {
-		cc->free_pfn = pageblock_start_pfn(end_pfn - 1);
-		zone->compact_cached_free_pfn = cc->free_pfn;
-	}
-	if (cc->migrate_pfn < start_pfn || cc->migrate_pfn >= end_pfn) {
+	if (cc->whole_zone) {
 		cc->migrate_pfn = start_pfn;
-		zone->compact_cached_migrate_pfn[0] = cc->migrate_pfn;
-		zone->compact_cached_migrate_pfn[1] = cc->migrate_pfn;
-	}
+		cc->free_pfn = pageblock_start_pfn(end_pfn - 1);
+	} else {
+		cc->migrate_pfn = zone->compact_cached_migrate_pfn[sync];
+		cc->free_pfn = zone->compact_cached_free_pfn;
+		if (cc->free_pfn < start_pfn || cc->free_pfn >= end_pfn) {
+			cc->free_pfn = pageblock_start_pfn(end_pfn - 1);
+			zone->compact_cached_free_pfn = cc->free_pfn;
+		}
+		if (cc->migrate_pfn < start_pfn || cc->migrate_pfn >= end_pfn) {
+			cc->migrate_pfn = start_pfn;
+			zone->compact_cached_migrate_pfn[0] = cc->migrate_pfn;
+			zone->compact_cached_migrate_pfn[1] = cc->migrate_pfn;
+		}
 
-	if (cc->migrate_pfn == start_pfn)
-		cc->whole_zone = true;
+		if (cc->migrate_pfn == start_pfn)
+			cc->whole_zone = true;
+	}
 
 	cc->last_migrated_pfn = 0;
 
@@ -1747,14 +1753,6 @@ static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
 		INIT_LIST_HEAD(&cc->freepages);
 		INIT_LIST_HEAD(&cc->migratepages);
 
-		/*
-		 * When called via /proc/sys/vm/compact_memory
-		 * this makes sure we compact the whole zone regardless of
-		 * cached scanner positions.
-		 */
-		if (is_via_compact_memory(cc->order))
-			__reset_isolation_suitable(zone);
-
 		if (is_via_compact_memory(cc->order) ||
 				!compaction_deferred(zone, cc->order))
 			compact_zone(zone, cc);
@@ -1790,6 +1788,7 @@ static void compact_node(int nid)
 		.order = -1,
 		.mode = MIGRATE_SYNC,
 		.ignore_skip_hint = true,
+		.whole_zone = true,
 	};
 
 	__compact_pgdat(NODE_DATA(nid), &cc);
