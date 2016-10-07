@@ -29,9 +29,11 @@ do {									\
 	}								\
 } while (0)
 
+extern void tlbmiss_handler_setup_pgd(unsigned long);
+
+/* Note: This is also implemented with uasm in arch/mips/kvm/entry.c */
 #define TLBMISS_HANDLER_SETUP_PGD(pgd)					\
 do {									\
-	extern void tlbmiss_handler_setup_pgd(unsigned long);		\
 	tlbmiss_handler_setup_pgd((unsigned long)(pgd));		\
 	htw_set_pwbase((unsigned long)pgd);				\
 } while (0)

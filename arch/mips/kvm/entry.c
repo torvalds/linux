@@ -13,6 +13,7 @@
 
 #include <linux/kvm_host.h>
 #include <linux/log2.h>
+#include <asm/mmu_context.h>
 #include <asm/msa.h>
 #include <asm/setup.h>
 #include <asm/uasm.h>
@@ -316,7 +317,20 @@ static void *kvm_mips_build_enter_guest(void *addr)
 #else
 	uasm_i_andi(&p, K0, K0, MIPS_ENTRYHI_ASID);
 #endif
-	uasm_i_mtc0(&p, K0, C0_ENTRYHI);
+
+	/*
+	 * Set up KVM T&E GVA pgd.
+	 * This does roughly the same as TLBMISS_HANDLER_SETUP_PGD():
+	 * - call tlbmiss_handler_setup_pgd(mm->pgd)
+	 * - but skips write into CP0_PWBase for now
+	 */
+	UASM_i_LW(&p, A0, (int)offsetof(struct mm_struct, pgd) -
+			  (int)offsetof(struct mm_struct, context.asid), T1);
+
+	UASM_i_LA(&p, T9, (unsigned long)tlbmiss_handler_setup_pgd);
+	uasm_i_jalr(&p, RA, T9);
+	 uasm_i_mtc0(&p, K0, C0_ENTRYHI);
+
 	uasm_i_ehb(&p);
 
 	/* Disable RDHWR access */
