@@ -328,6 +328,7 @@ submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 
 	switch (state) {
 	case FENCE_COMPLETE:
+		request->engine->last_submitted_seqno = request->fence.seqno;
 		request->engine->submit_request(request);
 		break;
 
@@ -641,8 +642,8 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 					     &request->submitq);
 
 	request->emitted_jiffies = jiffies;
-	request->previous_seqno = engine->last_submitted_seqno;
-	engine->last_submitted_seqno = request->fence.seqno;
+	request->previous_seqno = engine->last_pending_seqno;
+	engine->last_pending_seqno = request->fence.seqno;
 	i915_gem_active_set(&engine->last_request, request);
 	list_add_tail(&request->link, &engine->request_list);
 	list_add_tail(&request->ring_link, &ring->request_list);
