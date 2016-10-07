@@ -328,6 +328,7 @@ struct intel_engine_cs {
 	 * inspecting request list.
 	 */
 	u32 last_submitted_seqno;
+	u32 last_pending_seqno;
 
 	/* An RCU guarded pointer to the last request. No reference is
 	 * held to the request, users must carefully acquire a reference to
