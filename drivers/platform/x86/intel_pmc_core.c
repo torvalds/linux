@@ -33,6 +33,14 @@
 
 static struct pmc_dev pmc;
 
+static const struct pmc_bit_map spt_pll_map[] = {
+	{"MIPI PLL",			SPT_PMC_BIT_MPHY_CMN_LANE0},
+	{"GEN2 USB2PCIE2 PLL",		SPT_PMC_BIT_MPHY_CMN_LANE1},
+	{"DMIPCIE3 PLL",		SPT_PMC_BIT_MPHY_CMN_LANE2},
+	{"SATA PLL",			SPT_PMC_BIT_MPHY_CMN_LANE3},
+	{},
+};
+
 static const struct pmc_bit_map spt_mphy_map[] = {
 	{"MPHY CORE LANE 0",           SPT_PMC_BIT_MPHY_LANE0},
 	{"MPHY CORE LANE 1",           SPT_PMC_BIT_MPHY_LANE1},
@@ -100,6 +108,7 @@ static const struct pmc_bit_map spt_pfear_map[] = {
 static const struct pmc_reg_map spt_reg_map = {
 	.pfear_sts = spt_pfear_map,
 	.mphy_sts = spt_mphy_map,
+	.pll_sts = spt_pll_map,
 };
 
 static const struct pci_device_id pmc_pci_ids[] = {
@@ -317,6 +326,53 @@ static const struct file_operations pmc_core_mphy_pg_ops = {
 	.release        = single_release,
 };
 
+static int pmc_core_pll_show(struct seq_file *s, void *unused)
+{
+	struct pmc_dev *pmcdev = s->private;
+	const struct pmc_bit_map *map = pmcdev->map->pll_sts;
+	u32 mphy_common_reg, val;
+	int index, err = 0;
+
+	if (pmcdev->pmc_xram_read_bit) {
+		seq_puts(s, "Access denied: please disable PMC_READ_DISABLE setting in BIOS.");
+		return 0;
+	}
+
+	mphy_common_reg  = (SPT_PMC_MPHY_COM_STS_0 << 16);
+	mutex_lock(&pmcdev->lock);
+
+	if (pmc_core_send_msg(&mphy_common_reg) != 0) {
+		err = -EBUSY;
+		goto out_unlock;
+	}
+
+	/* Observed PMC HW response latency for MTPMC-MFPMC is ~10 ms */
+	msleep(10);
+	val = pmc_core_reg_read(pmcdev, SPT_PMC_MFPMC_OFFSET);
+
+	for (index = 0; map[index].name ; index++) {
+		seq_printf(s, "%-32s\tState: %s\n",
+			   map[index].name,
+			   map[index].bit_mask & val ? "Active" : "Idle");
+	}
+
+out_unlock:
+	mutex_unlock(&pmcdev->lock);
+	return err;
+}
+
+static int pmc_core_pll_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, pmc_core_pll_show, inode->i_private);
+}
+
+static const struct file_operations pmc_core_pll_ops = {
+	.open           = pmc_core_pll_open,
+	.read           = seq_read,
+	.llseek         = seq_lseek,
+	.release        = single_release,
+};
+
 static void pmc_core_dbgfs_unregister(struct pmc_dev *pmcdev)
 {
 	debugfs_remove_recursive(pmcdev->dbgfs_dir);
@@ -348,8 +404,13 @@ static int pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 	if (!file)
 		goto err;
 
-	return 0;
+	file = debugfs_create_file("pll_status",
+				   S_IFREG | S_IRUGO, dir, pmcdev,
+				   &pmc_core_pll_ops);
+	if (!file)
+		goto err;
 
+	return 0;
 err:
 	pmc_core_dbgfs_unregister(pmcdev);
 	return -ENODEV;

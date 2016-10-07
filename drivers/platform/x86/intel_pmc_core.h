@@ -32,6 +32,7 @@
 #define SPT_PMC_MFPMC_OFFSET			0x38
 #define SPT_PMC_MPHY_CORE_STS_0			0x1143
 #define SPT_PMC_MPHY_CORE_STS_1			0x1142
+#define SPT_PMC_MPHY_COM_STS_0			0x1155
 #define SPT_PMC_MMIO_REG_LEN			0x1000
 #define SPT_PMC_SLP_S0_RES_COUNTER_STEP		0x64
 #define PMC_BASE_ADDR_MASK			~(SPT_PMC_MMIO_REG_LEN - 1)
@@ -113,6 +114,11 @@ enum ppfear_regs {
 #define SPT_PMC_BIT_MPHY_LANE14			BIT(6)
 #define SPT_PMC_BIT_MPHY_LANE15			BIT(7)
 
+#define SPT_PMC_BIT_MPHY_CMN_LANE0		BIT(0)
+#define SPT_PMC_BIT_MPHY_CMN_LANE1		BIT(1)
+#define SPT_PMC_BIT_MPHY_CMN_LANE2		BIT(2)
+#define SPT_PMC_BIT_MPHY_CMN_LANE3		BIT(3)
+
 struct pmc_bit_map {
 	const char *name;
 	u32 bit_mask;
@@ -121,6 +127,7 @@ struct pmc_bit_map {
 struct pmc_reg_map {
 	const struct pmc_bit_map *pfear_sts;
 	const struct pmc_bit_map *mphy_sts;
+	const struct pmc_bit_map *pll_sts;
 };
 
 /**
