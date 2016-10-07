@@ -21,12 +21,6 @@
 #include <osdep_intf.h>
 #include <usb_ops_linux.h>
 
-/* alloc os related resource in struct recv_frame */
-void rtw_os_recv_resource_alloc(struct recv_frame *precvframe)
-{
-	precvframe->pkt = NULL;
-}
-
 /* alloc os related resource in struct recv_buf */
 int rtw_os_recvbuf_resource_alloc(struct adapter *padapter,
 				  struct recv_buf *precvbuf)
