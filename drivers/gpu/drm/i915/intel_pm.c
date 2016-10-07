@@ -3754,14 +3754,18 @@ skl_compute_wm_level(const struct drm_i915_private *dev_priv,
 static uint32_t
 skl_compute_linetime_wm(struct intel_crtc_state *cstate)
 {
+	uint32_t pixel_rate;
+
 	if (!cstate->base.active)
 		return 0;
 
-	if (WARN_ON(ilk_pipe_pixel_rate(cstate) == 0))
+	pixel_rate = ilk_pipe_pixel_rate(cstate);
+
+	if (WARN_ON(pixel_rate == 0))
 		return 0;
 
 	return DIV_ROUND_UP(8 * cstate->base.adjusted_mode.crtc_htotal * 1000,
-			    ilk_pipe_pixel_rate(cstate));
+			    pixel_rate);
 }
 
 static void skl_compute_transition_wm(struct intel_crtc_state *cstate,
