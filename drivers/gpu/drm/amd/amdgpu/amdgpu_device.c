@@ -1408,9 +1408,6 @@ static int amdgpu_late_init(struct amdgpu_device *adev)
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_block_status[i].valid)
 			continue;
-		if (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_UVD ||
-			adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_VCE)
-			continue;
 		if (adev->ip_blocks[i].funcs->late_init) {
 			r = adev->ip_blocks[i].funcs->late_init((void *)adev);
 			if (r) {
@@ -1419,12 +1416,17 @@ static int amdgpu_late_init(struct amdgpu_device *adev)
 			}
 			adev->ip_block_status[i].late_initialized = true;
 		}
-		/* enable clockgating to save power */
-		r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
-								    AMD_CG_STATE_GATE);
-		if (r) {
-			DRM_ERROR("set_clockgating_state(gate) of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
-			return r;
+		/* skip CG for VCE/UVD, it's handled specially */
+		if (adev->ip_blocks[i].type != AMD_IP_BLOCK_TYPE_UVD &&
+		    adev->ip_blocks[i].type != AMD_IP_BLOCK_TYPE_VCE) {
+			/* enable clockgating to save power */
+			r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
+									    AMD_CG_STATE_GATE);
+			if (r) {
+				DRM_ERROR("set_clockgating_state(gate) of IP block <%s> failed %d\n",
+					  adev->ip_blocks[i].funcs->name, r);
+				return r;
+			}
 		}
 	}
 
