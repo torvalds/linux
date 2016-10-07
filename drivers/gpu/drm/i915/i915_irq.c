@@ -2718,18 +2718,26 @@ void i915_handle_error(struct drm_i915_private *dev_priv,
 /* Called from drm generic code, passed 'crtc' which
  * we use as a pipe index
  */
-static int i915_enable_vblank(struct drm_device *dev, unsigned int pipe)
+static int i8xx_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-	if (INTEL_INFO(dev)->gen >= 4)
-		i915_enable_pipestat(dev_priv, pipe,
-				     PIPE_START_VBLANK_INTERRUPT_STATUS);
-	else
-		i915_enable_pipestat(dev_priv, pipe,
-				     PIPE_VBLANK_INTERRUPT_STATUS);
+	i915_enable_pipestat(dev_priv, pipe, PIPE_VBLANK_INTERRUPT_STATUS);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+
+	return 0;
+}
+
+static int i965_enable_vblank(struct drm_device *dev, unsigned int pipe)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	i915_enable_pipestat(dev_priv, pipe,
+			     PIPE_START_VBLANK_INTERRUPT_STATUS);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
 	return 0;
@@ -2739,24 +2747,11 @@ static int ironlake_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	unsigned long irqflags;
-	uint32_t bit = (INTEL_INFO(dev)->gen >= 7) ? DE_PIPE_VBLANK_IVB(pipe) :
-						     DE_PIPE_VBLANK(pipe);
+	uint32_t bit = INTEL_GEN(dev) >= 7 ?
+		DE_PIPE_VBLANK_IVB(pipe) : DE_PIPE_VBLANK(pipe);
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	ilk_enable_display_irq(dev_priv, bit);
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
-
-	return 0;
-}
-
-static int valleyview_enable_vblank(struct drm_device *dev, unsigned int pipe)
-{
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	unsigned long irqflags;
-
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-	i915_enable_pipestat(dev_priv, pipe,
-			     PIPE_START_VBLANK_INTERRUPT_STATUS);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
 	return 0;
@@ -2777,14 +2772,23 @@ static int gen8_enable_vblank(struct drm_device *dev, unsigned int pipe)
 /* Called from drm generic code, passed 'crtc' which
  * we use as a pipe index
  */
-static void i915_disable_vblank(struct drm_device *dev, unsigned int pipe)
+static void i8xx_disable_vblank(struct drm_device *dev, unsigned int pipe)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	i915_disable_pipestat(dev_priv, pipe, PIPE_VBLANK_INTERRUPT_STATUS);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+}
+
+static void i965_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	i915_disable_pipestat(dev_priv, pipe,
-			      PIPE_VBLANK_INTERRUPT_STATUS |
 			      PIPE_START_VBLANK_INTERRUPT_STATUS);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
@@ -2793,22 +2797,11 @@ static void ironlake_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	unsigned long irqflags;
-	uint32_t bit = (INTEL_INFO(dev)->gen >= 7) ? DE_PIPE_VBLANK_IVB(pipe) :
-						     DE_PIPE_VBLANK(pipe);
+	uint32_t bit = INTEL_GEN(dev) >= 7 ?
+		DE_PIPE_VBLANK_IVB(pipe) : DE_PIPE_VBLANK(pipe);
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	ilk_disable_display_irq(dev_priv, bit);
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
-}
-
-static void valleyview_disable_vblank(struct drm_device *dev, unsigned int pipe)
-{
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	unsigned long irqflags;
-
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-	i915_disable_pipestat(dev_priv, pipe,
-			      PIPE_START_VBLANK_INTERRUPT_STATUS);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
@@ -4579,16 +4572,16 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		dev->driver->irq_preinstall = cherryview_irq_preinstall;
 		dev->driver->irq_postinstall = cherryview_irq_postinstall;
 		dev->driver->irq_uninstall = cherryview_irq_uninstall;
-		dev->driver->enable_vblank = valleyview_enable_vblank;
-		dev->driver->disable_vblank = valleyview_disable_vblank;
+		dev->driver->enable_vblank = i965_enable_vblank;
+		dev->driver->disable_vblank = i965_disable_vblank;
 		dev_priv->display.hpd_irq_setup = i915_hpd_irq_setup;
 	} else if (IS_VALLEYVIEW(dev_priv)) {
 		dev->driver->irq_handler = valleyview_irq_handler;
 		dev->driver->irq_preinstall = valleyview_irq_preinstall;
 		dev->driver->irq_postinstall = valleyview_irq_postinstall;
 		dev->driver->irq_uninstall = valleyview_irq_uninstall;
-		dev->driver->enable_vblank = valleyview_enable_vblank;
-		dev->driver->disable_vblank = valleyview_disable_vblank;
+		dev->driver->enable_vblank = i965_enable_vblank;
+		dev->driver->disable_vblank = i965_disable_vblank;
 		dev_priv->display.hpd_irq_setup = i915_hpd_irq_setup;
 	} else if (INTEL_INFO(dev_priv)->gen >= 8) {
 		dev->driver->irq_handler = gen8_irq_handler;
@@ -4617,21 +4610,25 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 			dev->driver->irq_postinstall = i8xx_irq_postinstall;
 			dev->driver->irq_handler = i8xx_irq_handler;
 			dev->driver->irq_uninstall = i8xx_irq_uninstall;
+			dev->driver->enable_vblank = i8xx_enable_vblank;
+			dev->driver->disable_vblank = i8xx_disable_vblank;
 		} else if (IS_GEN3(dev_priv)) {
 			dev->driver->irq_preinstall = i915_irq_preinstall;
 			dev->driver->irq_postinstall = i915_irq_postinstall;
 			dev->driver->irq_uninstall = i915_irq_uninstall;
 			dev->driver->irq_handler = i915_irq_handler;
+			dev->driver->enable_vblank = i8xx_enable_vblank;
+			dev->driver->disable_vblank = i8xx_disable_vblank;
 		} else {
 			dev->driver->irq_preinstall = i965_irq_preinstall;
 			dev->driver->irq_postinstall = i965_irq_postinstall;
 			dev->driver->irq_uninstall = i965_irq_uninstall;
 			dev->driver->irq_handler = i965_irq_handler;
+			dev->driver->enable_vblank = i965_enable_vblank;
+			dev->driver->disable_vblank = i965_disable_vblank;
 		}
 		if (I915_HAS_HOTPLUG(dev_priv))
 			dev_priv->display.hpd_irq_setup = i915_hpd_irq_setup;
-		dev->driver->enable_vblank = i915_enable_vblank;
-		dev->driver->disable_vblank = i915_disable_vblank;
 	}
 }
 
