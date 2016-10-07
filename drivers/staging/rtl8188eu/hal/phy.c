@@ -210,13 +210,6 @@ static void phy_set_bw_mode_callback(struct adapter *adapt)
 	u8 reg_bw_opmode;
 	u8 reg_prsr_rsc;
 
-	if (hal_data->rf_chip == RF_PSEUDO_11N)
-		return;
-
-	/*  There is no 40MHz mode in RF_8225. */
-	if (hal_data->rf_chip == RF_8225)
-		return;
-
 	if (adapt->bDriverStopped)
 		return;
 
@@ -265,8 +258,7 @@ static void phy_set_bw_mode_callback(struct adapter *adapt)
 	}
 
 	/* Set RF related register */
-	if (hal_data->rf_chip == RF_6052)
-		rtl88eu_phy_rf6052_set_bandwidth(adapt, hal_data->CurrentChannelBW);
+	rtl88eu_phy_rf6052_set_bandwidth(adapt, hal_data->CurrentChannelBW);
 }
 
 void rtw_hal_set_bwmode(struct adapter *adapt, enum ht_channel_width bandwidth,
@@ -306,9 +298,6 @@ void rtw_hal_set_chan(struct adapter *adapt, u8 channel)
 {
 	struct hal_data_8188e *hal_data = adapt->HalData;
 	u8 tmpchannel = hal_data->CurrentChannel;
-
-	if (hal_data->rf_chip == RF_PSEUDO_11N)
-		return;
 
 	if (channel == 0)
 		channel = 1;

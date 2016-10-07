@@ -201,7 +201,6 @@ struct hal_data_8188e {
 	u16	BasicRateSet;
 
 	/* rf_ctrl */
-	u8	rf_chip;
 	u8	NumTotalRFPath;
 
 	u8	BoardType;

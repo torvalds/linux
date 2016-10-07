@@ -1096,18 +1096,12 @@ static void _ReadPROMContent(
 	readAdapterInfo_8188EU(Adapter);
 }
 
-static void _ReadRFType(struct adapter *Adapter)
-{
-	Adapter->HalData->rf_chip = RF_6052;
-}
-
 void rtw_hal_read_chip_info(struct adapter *Adapter)
 {
 	unsigned long start = jiffies;
 
 	MSG_88E("====> %s\n", __func__);
 
-	_ReadRFType(Adapter);/* rf_chip -> _InitRFType() */
 	_ReadPROMContent(Adapter);
 
 	MSG_88E("<==== %s in %d ms\n", __func__,
