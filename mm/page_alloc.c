@@ -4574,7 +4574,7 @@ static void build_zonelists_in_node_order(pg_data_t *pgdat, int node)
 	int j;
 	struct zonelist *zonelist;
 
-	zonelist = &pgdat->node_zonelists[0];
+	zonelist = &pgdat->node_zonelists[ZONELIST_FALLBACK];
 	for (j = 0; zonelist->_zonerefs[j].zone != NULL; j++)
 		;
 	j = build_zonelists_node(NODE_DATA(node), zonelist, j);
@@ -4590,7 +4590,7 @@ static void build_thisnode_zonelists(pg_data_t *pgdat)
 	int j;
 	struct zonelist *zonelist;
 
-	zonelist = &pgdat->node_zonelists[1];
+	zonelist = &pgdat->node_zonelists[ZONELIST_NOFALLBACK];
 	j = build_zonelists_node(pgdat, zonelist, 0);
 	zonelist->_zonerefs[j].zone = NULL;
 	zonelist->_zonerefs[j].zone_idx = 0;
@@ -4611,7 +4611,7 @@ static void build_zonelists_in_zone_order(pg_data_t *pgdat, int nr_nodes)
 	struct zone *z;
 	struct zonelist *zonelist;
 
-	zonelist = &pgdat->node_zonelists[0];
+	zonelist = &pgdat->node_zonelists[ZONELIST_FALLBACK];
 	pos = 0;
 	for (zone_type = MAX_NR_ZONES - 1; zone_type >= 0; zone_type--) {
 		for (j = 0; j < nr_nodes; j++) {
@@ -4746,7 +4746,7 @@ static void build_zonelists(pg_data_t *pgdat)
 
 	local_node = pgdat->node_id;
 
-	zonelist = &pgdat->node_zonelists[0];
+	zonelist = &pgdat->node_zonelists[ZONELIST_FALLBACK];
 	j = build_zonelists_node(pgdat, zonelist, 0);
 
 	/*
