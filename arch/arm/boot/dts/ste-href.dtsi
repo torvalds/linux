@@ -111,6 +111,7 @@
 			pinctrl-1 = <&i2c3_sleep_mode>;
 		};
 
+		/* ST6G3244ME level translator for 1.8/2.9 V */
 		vmmci: regulator-gpio {
 			compatible = "regulator-gpio";
 
@@ -120,7 +121,6 @@
 			regulator-type = "voltage";
 
 			startup-delay-us = <100>;
-			enable-active-high;
 
 			states = <1800000 0x1
 				  2900000 0x0>;
