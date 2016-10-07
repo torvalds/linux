@@ -1,6 +1,10 @@
 /*
+ * Qualcomm PCIe root complex driver
+ *
  * Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
  * Copyright 2015 Linaro Limited.
+ *
+ * Author: Stanimir Varbanov <svarbanov@mm-sol.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -19,7 +23,7 @@
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/pci.h>
@@ -570,37 +574,19 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int qcom_pcie_remove(struct platform_device *pdev)
-{
-	struct qcom_pcie *pcie = platform_get_drvdata(pdev);
-
-	qcom_ep_reset_assert(pcie);
-	phy_power_off(pcie->phy);
-	phy_exit(pcie->phy);
-	pcie->ops->deinit(pcie);
-
-	return 0;
-}
-
 static const struct of_device_id qcom_pcie_match[] = {
 	{ .compatible = "qcom,pcie-ipq8064", .data = &ops_v0 },
 	{ .compatible = "qcom,pcie-apq8064", .data = &ops_v0 },
 	{ .compatible = "qcom,pcie-apq8084", .data = &ops_v1 },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, qcom_pcie_match);
 
 static struct platform_driver qcom_pcie_driver = {
 	.probe = qcom_pcie_probe,
-	.remove = qcom_pcie_remove,
 	.driver = {
 		.name = "qcom-pcie",
+		.suppress_bind_attrs = true,
 		.of_match_table = qcom_pcie_match,
 	},
 };
-
-module_platform_driver(qcom_pcie_driver);
-
-MODULE_AUTHOR("Stanimir Varbanov <svarbanov@mm-sol.com>");
-MODULE_DESCRIPTION("Qualcomm PCIe root complex driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(qcom_pcie_driver);

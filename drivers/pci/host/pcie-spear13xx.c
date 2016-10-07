@@ -15,7 +15,7 @@
 #include <linux/clk.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/pci.h>
 #include <linux/phy/phy.h>
@@ -355,7 +355,6 @@ static const struct of_device_id spear13xx_pcie_of_match[] = {
 	{ .compatible = "st,spear1340-pcie", },
 	{},
 };
-MODULE_DEVICE_TABLE(of, spear13xx_pcie_of_match);
 
 static struct platform_driver spear13xx_pcie_driver = {
 	.probe		= spear13xx_pcie_probe,
@@ -365,14 +364,8 @@ static struct platform_driver spear13xx_pcie_driver = {
 	},
 };
 
-/* SPEAr13xx PCIe driver does not allow module unload */
-
 static int __init spear13xx_pcie_init(void)
 {
 	return platform_driver_register(&spear13xx_pcie_driver);
 }
-module_init(spear13xx_pcie_init);
-
-MODULE_DESCRIPTION("ST Microelectronics SPEAr13xx PCIe host controller driver");
-MODULE_AUTHOR("Pratyush Anand <pratyush.anand@gmail.com>");
-MODULE_LICENSE("GPL v2");
+device_initcall(spear13xx_pcie_init);

@@ -1,6 +1,9 @@
 /*
  * Copyright Altera Corporation (C) 2013-2015. All rights reserved
  *
+ * Author: Ley Foon Tan <lftan@altera.com>
+ * Description: Altera PCIe host controller driver
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
  * version 2, as published by the Free Software Foundation.
@@ -17,7 +20,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/irqchip/chained_irq.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_pci.h>
@@ -43,6 +46,7 @@
 #define RP_LTSSM_MASK			0x1f
 #define LTSSM_L0			0xf
 
+#define PCIE_CAP_OFFSET			0x80
 /* TLP configuration type 0 and 1 */
 #define TLP_FMTTYPE_CFGRD0		0x04	/* Configuration Read Type 0 */
 #define TLP_FMTTYPE_CFGWR0		0x44	/* Configuration Write Type 0 */
@@ -61,7 +65,8 @@
 #define TLP_LOOP			500
 #define RP_DEVFN			0
 
-#define LINK_UP_TIMEOUT			5000
+#define LINK_UP_TIMEOUT			HZ
+#define LINK_RETRAIN_TIMEOUT		HZ
 
 #define INTX_NUM			4
 
@@ -98,38 +103,6 @@ static bool altera_pcie_link_is_up(struct altera_pcie *pcie)
 {
 	return !!((cra_readl(pcie, RP_LTSSM) & RP_LTSSM_MASK) == LTSSM_L0);
 }
-
-static void altera_pcie_retrain(struct pci_dev *dev)
-{
-	u16 linkcap, linkstat;
-	struct altera_pcie *pcie = dev->bus->sysdata;
-	int timeout =  0;
-
-	if (!altera_pcie_link_is_up(pcie))
-		return;
-
-	/*
-	 * Set the retrain bit if the PCIe rootport support > 2.5GB/s, but
-	 * current speed is 2.5 GB/s.
-	 */
-	pcie_capability_read_word(dev, PCI_EXP_LNKCAP, &linkcap);
-
-	if ((linkcap & PCI_EXP_LNKCAP_SLS) <= PCI_EXP_LNKCAP_SLS_2_5GB)
-		return;
-
-	pcie_capability_read_word(dev, PCI_EXP_LNKSTA, &linkstat);
-	if ((linkstat & PCI_EXP_LNKSTA_CLS) == PCI_EXP_LNKSTA_CLS_2_5GB) {
-		pcie_capability_set_word(dev, PCI_EXP_LNKCTL,
-					 PCI_EXP_LNKCTL_RL);
-		while (!altera_pcie_link_is_up(pcie)) {
-			timeout++;
-			if (timeout > LINK_UP_TIMEOUT)
-				break;
-			udelay(5);
-		}
-	}
-}
-DECLARE_PCI_FIXUP_EARLY(0x1172, PCI_ANY_ID, altera_pcie_retrain);
 
 /*
  * Altera PCIe port uses BAR0 of RC's configuration space as the translation
@@ -169,13 +142,6 @@ static bool altera_pcie_valid_config(struct altera_pcie *pcie,
 
 	/* access only one slot on each root port */
 	if (bus->number == pcie->root_bus_nr && dev > 0)
-		return false;
-
-	/*
-	 * Do not read more than one device on the bus directly attached
-	 * to root port, root port can only attach to one downstream port.
-	 */
-	if (bus->primary == pcie->root_bus_nr && dev > 0)
 		return false;
 
 	 return true;
@@ -301,21 +267,13 @@ static int tlp_cfg_dword_write(struct altera_pcie *pcie, u8 bus, u32 devfn,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static int altera_pcie_cfg_read(struct pci_bus *bus, unsigned int devfn,
-				int where, int size, u32 *value)
+static int _altera_pcie_cfg_read(struct altera_pcie *pcie, u8 busno,
+				 unsigned int devfn, int where, int size,
+				 u32 *value)
 {
-	struct altera_pcie *pcie = bus->sysdata;
 	int ret;
 	u32 data;
 	u8 byte_en;
-
-	if (altera_pcie_hide_rc_bar(bus, devfn, where))
-		return PCIBIOS_BAD_REGISTER_NUMBER;
-
-	if (!altera_pcie_valid_config(pcie, bus, PCI_SLOT(devfn))) {
-		*value = 0xffffffff;
-		return PCIBIOS_DEVICE_NOT_FOUND;
-	}
 
 	switch (size) {
 	case 1:
@@ -329,7 +287,7 @@ static int altera_pcie_cfg_read(struct pci_bus *bus, unsigned int devfn,
 		break;
 	}
 
-	ret = tlp_cfg_dword_read(pcie, bus->number, devfn,
+	ret = tlp_cfg_dword_read(pcie, busno, devfn,
 				 (where & ~DWORD_MASK), byte_en, &data);
 	if (ret != PCIBIOS_SUCCESSFUL)
 		return ret;
@@ -349,19 +307,13 @@ static int altera_pcie_cfg_read(struct pci_bus *bus, unsigned int devfn,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static int altera_pcie_cfg_write(struct pci_bus *bus, unsigned int devfn,
-				 int where, int size, u32 value)
+static int _altera_pcie_cfg_write(struct altera_pcie *pcie, u8 busno,
+				  unsigned int devfn, int where, int size,
+				  u32 value)
 {
-	struct altera_pcie *pcie = bus->sysdata;
 	u32 data32;
 	u32 shift = 8 * (where & 3);
 	u8 byte_en;
-
-	if (altera_pcie_hide_rc_bar(bus, devfn, where))
-		return PCIBIOS_BAD_REGISTER_NUMBER;
-
-	if (!altera_pcie_valid_config(pcie, bus, PCI_SLOT(devfn)))
-		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	switch (size) {
 	case 1:
@@ -378,14 +330,130 @@ static int altera_pcie_cfg_write(struct pci_bus *bus, unsigned int devfn,
 		break;
 	}
 
-	return tlp_cfg_dword_write(pcie, bus->number, devfn,
-		(where & ~DWORD_MASK), byte_en, data32);
+	return tlp_cfg_dword_write(pcie, busno, devfn, (where & ~DWORD_MASK),
+				   byte_en, data32);
+}
+
+static int altera_pcie_cfg_read(struct pci_bus *bus, unsigned int devfn,
+				int where, int size, u32 *value)
+{
+	struct altera_pcie *pcie = bus->sysdata;
+
+	if (altera_pcie_hide_rc_bar(bus, devfn, where))
+		return PCIBIOS_BAD_REGISTER_NUMBER;
+
+	if (!altera_pcie_valid_config(pcie, bus, PCI_SLOT(devfn))) {
+		*value = 0xffffffff;
+		return PCIBIOS_DEVICE_NOT_FOUND;
+	}
+
+	return _altera_pcie_cfg_read(pcie, bus->number, devfn, where, size,
+				     value);
+}
+
+static int altera_pcie_cfg_write(struct pci_bus *bus, unsigned int devfn,
+				 int where, int size, u32 value)
+{
+	struct altera_pcie *pcie = bus->sysdata;
+
+	if (altera_pcie_hide_rc_bar(bus, devfn, where))
+		return PCIBIOS_BAD_REGISTER_NUMBER;
+
+	if (!altera_pcie_valid_config(pcie, bus, PCI_SLOT(devfn)))
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	return _altera_pcie_cfg_write(pcie, bus->number, devfn, where, size,
+				     value);
 }
 
 static struct pci_ops altera_pcie_ops = {
 	.read = altera_pcie_cfg_read,
 	.write = altera_pcie_cfg_write,
 };
+
+static int altera_read_cap_word(struct altera_pcie *pcie, u8 busno,
+				unsigned int devfn, int offset, u16 *value)
+{
+	u32 data;
+	int ret;
+
+	ret = _altera_pcie_cfg_read(pcie, busno, devfn,
+				    PCIE_CAP_OFFSET + offset, sizeof(*value),
+				    &data);
+	*value = data;
+	return ret;
+}
+
+static int altera_write_cap_word(struct altera_pcie *pcie, u8 busno,
+				 unsigned int devfn, int offset, u16 value)
+{
+	return _altera_pcie_cfg_write(pcie, busno, devfn,
+				      PCIE_CAP_OFFSET + offset, sizeof(value),
+				      value);
+}
+
+static void altera_wait_link_retrain(struct altera_pcie *pcie)
+{
+	u16 reg16;
+	unsigned long start_jiffies;
+
+	/* Wait for link training end. */
+	start_jiffies = jiffies;
+	for (;;) {
+		altera_read_cap_word(pcie, pcie->root_bus_nr, RP_DEVFN,
+				     PCI_EXP_LNKSTA, &reg16);
+		if (!(reg16 & PCI_EXP_LNKSTA_LT))
+			break;
+
+		if (time_after(jiffies, start_jiffies + LINK_RETRAIN_TIMEOUT)) {
+			dev_err(&pcie->pdev->dev, "link retrain timeout\n");
+			break;
+		}
+		udelay(100);
+	}
+
+	/* Wait for link is up */
+	start_jiffies = jiffies;
+	for (;;) {
+		if (altera_pcie_link_is_up(pcie))
+			break;
+
+		if (time_after(jiffies, start_jiffies + LINK_UP_TIMEOUT)) {
+			dev_err(&pcie->pdev->dev, "link up timeout\n");
+			break;
+		}
+		udelay(100);
+	}
+}
+
+static void altera_pcie_retrain(struct altera_pcie *pcie)
+{
+	u16 linkcap, linkstat, linkctl;
+
+	if (!altera_pcie_link_is_up(pcie))
+		return;
+
+	/*
+	 * Set the retrain bit if the PCIe rootport support > 2.5GB/s, but
+	 * current speed is 2.5 GB/s.
+	 */
+	altera_read_cap_word(pcie, pcie->root_bus_nr, RP_DEVFN, PCI_EXP_LNKCAP,
+			     &linkcap);
+	if ((linkcap & PCI_EXP_LNKCAP_SLS) <= PCI_EXP_LNKCAP_SLS_2_5GB)
+		return;
+
+	altera_read_cap_word(pcie, pcie->root_bus_nr, RP_DEVFN, PCI_EXP_LNKSTA,
+			     &linkstat);
+	if ((linkstat & PCI_EXP_LNKSTA_CLS) == PCI_EXP_LNKSTA_CLS_2_5GB) {
+		altera_read_cap_word(pcie, pcie->root_bus_nr, RP_DEVFN,
+				     PCI_EXP_LNKCTL, &linkctl);
+		linkctl |= PCI_EXP_LNKCTL_RL;
+		altera_write_cap_word(pcie, pcie->root_bus_nr, RP_DEVFN,
+				      PCI_EXP_LNKCTL, linkctl);
+
+		altera_wait_link_retrain(pcie);
+	}
+}
 
 static int altera_pcie_intx_map(struct irq_domain *domain, unsigned int irq,
 				irq_hw_number_t hwirq)
@@ -508,6 +576,11 @@ static int altera_pcie_parse_dt(struct altera_pcie *pcie)
 	return 0;
 }
 
+static void altera_pcie_host_init(struct altera_pcie *pcie)
+{
+	altera_pcie_retrain(pcie);
+}
+
 static int altera_pcie_probe(struct platform_device *pdev)
 {
 	struct altera_pcie *pcie;
@@ -545,6 +618,7 @@ static int altera_pcie_probe(struct platform_device *pdev)
 	cra_writel(pcie, P2A_INT_STS_ALL, P2A_INT_STATUS);
 	/* enable all interrupts */
 	cra_writel(pcie, P2A_INT_ENA_ALL, P2A_INT_ENABLE);
+	altera_pcie_host_init(pcie);
 
 	bus = pci_scan_root_bus(&pdev->dev, pcie->root_bus_nr, &altera_pcie_ops,
 				pcie, &pcie->resources);
@@ -568,7 +642,6 @@ static const struct of_device_id altera_pcie_of_match[] = {
 	{ .compatible = "altr,pcie-root-port-1.0", },
 	{},
 };
-MODULE_DEVICE_TABLE(of, altera_pcie_of_match);
 
 static struct platform_driver altera_pcie_driver = {
 	.probe		= altera_pcie_probe,
@@ -583,8 +656,4 @@ static int altera_pcie_init(void)
 {
 	return platform_driver_register(&altera_pcie_driver);
 }
-module_init(altera_pcie_init);
-
-MODULE_AUTHOR("Ley Foon Tan <lftan@altera.com>");
-MODULE_DESCRIPTION("Altera PCIe host controller driver");
-MODULE_LICENSE("GPL v2");
+device_initcall(altera_pcie_init);

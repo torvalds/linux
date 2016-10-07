@@ -100,9 +100,6 @@ static int dw_plat_pcie_probe(struct platform_device *pdev)
 	pp->dev = &pdev->dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
 	dw_plat_pcie->mem_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(dw_plat_pcie->mem_base))
 		return PTR_ERR(dw_plat_pcie->mem_base);
