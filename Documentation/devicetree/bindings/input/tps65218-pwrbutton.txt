@@ -1,13 +1,24 @@
-Texas Instruments TPS65218 power button
+Texas Instruments TPS65217 and TPS65218 power button
+
+This module is part of the TPS65217/TPS65218. For more details about the whole
+TPS65217 chip see Documentation/devicetree/bindings/regulator/tps65217.txt.
 
 This driver provides a simple power button event via an Interrupt.
 
 Required properties:
-- compatible: should be "ti,tps65218-pwrbutton"
+- compatible: should be "ti,tps65217-pwrbutton" or "ti,tps65218-pwrbutton"
+
+Required properties for TPS65218:
 - interrupts: should be one of the following
    - <3 IRQ_TYPE_EDGE_BOTH>: For controllers compatible with tps65218
 
-Example:
+Examples:
+
+&tps {
+	tps65217-pwrbutton {
+		compatible = "ti,tps65217-pwrbutton";
+	};
+};
 
 &tps {
 	power-button {

@@ -500,7 +500,7 @@ static int wm97xx_ts_input_open(struct input_dev *idev)
 {
 	struct wm97xx *wm = input_get_drvdata(idev);
 
-	wm->ts_workq = create_singlethread_workqueue("kwm97xx");
+	wm->ts_workq = alloc_ordered_workqueue("kwm97xx", 0);
 	if (wm->ts_workq == NULL) {
 		dev_err(wm->dev,
 			"Failed to create workqueue\n");

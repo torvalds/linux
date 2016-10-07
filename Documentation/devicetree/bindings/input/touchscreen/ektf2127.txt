@@ -1,0 +1,27 @@
+* Elan eKTF2127 I2C touchscreen controller
+
+Required properties:
+ - compatible		  : "elan,ektf2127"
+ - reg			  : I2C slave address of the chip (0x40)
+ - interrupt-parent	  : a phandle pointing to the interrupt controller
+			    serving the interrupt for this chip
+ - interrupts		  : interrupt specification for the ektf2127 interrupt
+ - power-gpios		  : GPIO specification for the pin connected to the
+			    ektf2127's wake input. This needs to be driven high
+			    to take ektf2127 out of it's low power state
+
+For additional optional properties see: touchscreen.txt
+
+Example:
+
+i2c@00000000 {
+	ektf2127: touchscreen@15 {
+		compatible = "elan,ektf2127";
+		reg = <0x15>;
+		interrupt-parent = <&pio>;
+		interrupts = <6 11 IRQ_TYPE_EDGE_FALLING>
+		power-gpios = <&pio 1 3 GPIO_ACTIVE_HIGH>;
+		touchscreen-inverted-x;
+		touchscreen-swapped-x-y;
+	};
+};
