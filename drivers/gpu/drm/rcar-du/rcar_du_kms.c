@@ -284,16 +284,6 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 				     enum rcar_du_output output,
 				     struct of_endpoint *ep)
 {
-	static const struct {
-		const char *compatible;
-		enum rcar_du_encoder_type type;
-	} encoders[] = {
-		{ "adi,adv7123", RCAR_DU_ENCODER_VGA },
-		{ "adi,adv7511w", RCAR_DU_ENCODER_HDMI },
-		{ "thine,thc63lvdm83d", RCAR_DU_ENCODER_LVDS },
-	};
-
-	enum rcar_du_encoder_type enc_type = RCAR_DU_ENCODER_NONE;
 	struct device_node *connector = NULL;
 	struct device_node *encoder = NULL;
 	struct device_node *ep_node = NULL;
@@ -340,30 +330,7 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 
 	of_node_put(entity_ep_node);
 
-	if (encoder) {
-		/*
-		 * If an encoder has been found, get its type based on its
-		 * compatible string.
-		 */
-		unsigned int i;
-
-		for (i = 0; i < ARRAY_SIZE(encoders); ++i) {
-			if (of_device_is_compatible(encoder,
-						    encoders[i].compatible)) {
-				enc_type = encoders[i].type;
-				break;
-			}
-		}
-
-		if (i == ARRAY_SIZE(encoders)) {
-			dev_warn(rcdu->dev,
-				 "unknown encoder type for %s, skipping\n",
-				 encoder->full_name);
-			of_node_put(encoder);
-			of_node_put(connector);
-			return -EINVAL;
-		}
-	} else {
+	if (!encoder) {
 		/*
 		 * If no encoder has been found the entity must be the
 		 * connector.
@@ -371,7 +338,7 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 		connector = entity;
 	}
 
-	ret = rcar_du_encoder_init(rcdu, enc_type, output, encoder, connector);
+	ret = rcar_du_encoder_init(rcdu, output, encoder, connector);
 	if (ret && ret != -EPROBE_DEFER)
 		dev_warn(rcdu->dev,
 			 "failed to initialize encoder %s on output %u (%d), skipping\n",

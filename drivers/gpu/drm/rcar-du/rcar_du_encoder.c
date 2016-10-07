@@ -68,7 +68,7 @@ static int rcar_du_encoder_atomic_check(struct drm_encoder *encoder,
 	 * Only panel-related encoder types require validation here, everything
 	 * else is handled by the bridge drivers.
 	 */
-	if (encoder->encoder_type == DRM_MODE_ENCODER_LVDS) {
+	if (connector->connector_type == DRM_MODE_CONNECTOR_LVDS) {
 		const struct drm_display_mode *panel_mode;
 
 		if (list_empty(&connector->modes)) {
@@ -156,7 +156,6 @@ static const struct drm_encoder_funcs encoder_funcs = {
 };
 
 int rcar_du_encoder_init(struct rcar_du_device *rcdu,
-			 enum rcar_du_encoder_type type,
 			 enum rcar_du_output output,
 			 struct device_node *enc_node,
 			 struct device_node *con_node)
@@ -164,7 +163,6 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	struct rcar_du_encoder *renc;
 	struct drm_encoder *encoder;
 	struct drm_bridge *bridge = NULL;
-	unsigned int encoder_type;
 	int ret;
 
 	renc = devm_kzalloc(rcdu->dev, sizeof(*renc), GFP_KERNEL);
@@ -188,33 +186,23 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	}
 
 	if (enc_node) {
+		dev_dbg(rcdu->dev, "initializing encoder %s for output %u\n",
+			of_node_full_name(enc_node), output);
+
 		/* Locate the DRM bridge from the encoder DT node. */
 		bridge = of_drm_find_bridge(enc_node);
 		if (!bridge) {
 			ret = -EPROBE_DEFER;
 			goto done;
 		}
-	}
-
-	switch (type) {
-	case RCAR_DU_ENCODER_VGA:
-		encoder_type = DRM_MODE_ENCODER_DAC;
-		break;
-	case RCAR_DU_ENCODER_LVDS:
-		encoder_type = DRM_MODE_ENCODER_LVDS;
-		break;
-	case RCAR_DU_ENCODER_HDMI:
-		encoder_type = DRM_MODE_ENCODER_TMDS;
-		break;
-	case RCAR_DU_ENCODER_NONE:
-	default:
-		/* No external encoder, use the internal encoder type. */
-		encoder_type = rcdu->info->routes[output].encoder_type;
-		break;
+	} else {
+		dev_dbg(rcdu->dev,
+			"initializing internal encoder for output %u\n",
+			output);
 	}
 
 	ret = drm_encoder_init(rcdu->ddev, encoder, &encoder_funcs,
-			       encoder_type, NULL);
+			       DRM_MODE_ENCODER_NONE, NULL);
 	if (ret < 0)
 		goto done;
 

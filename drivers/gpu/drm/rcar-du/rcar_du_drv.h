@@ -38,7 +38,6 @@ struct rcar_du_lvdsenc;
 /*
  * struct rcar_du_output_routing - Output routing specification
  * @possible_crtcs: bitmask of possible CRTCs for the output
- * @encoder_type: DRM type of the internal encoder associated with the output
  * @port: device tree port number corresponding to this output route
  *
  * The DU has 5 possible outputs (DPAD0/1, LVDS0/1, TCON). Output routing data
@@ -47,7 +46,6 @@ struct rcar_du_lvdsenc;
  */
 struct rcar_du_output_routing {
 	unsigned int possible_crtcs;
-	unsigned int encoder_type;
 	unsigned int port;
 };
 
