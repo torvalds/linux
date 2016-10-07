@@ -1034,8 +1034,14 @@ static int spi_transfer_one_message(struct spi_master *master,
 		if (msg->status != -EINPROGRESS)
 			goto out;
 
-		if (xfer->delay_usecs)
-			udelay(xfer->delay_usecs);
+		if (xfer->delay_usecs) {
+			u16 us = xfer->delay_usecs;
+
+			if (us <= 10)
+				udelay(us);
+			else
+				usleep_range(us, us + DIV_ROUND_UP(us, 10));
+		}
 
 		if (xfer->cs_change) {
 			if (list_is_last(&xfer->transfer_list,
