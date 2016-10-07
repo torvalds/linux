@@ -656,7 +656,7 @@ tc90522_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	for (i = 0; i < num; i++)
 		if (msgs[i].flags & I2C_M_RD)
 			rd_num++;
-	new_msgs = kmalloc(sizeof(*new_msgs) * (num + rd_num), GFP_KERNEL);
+	new_msgs = kmalloc_array(num + rd_num, sizeof(*new_msgs), GFP_KERNEL);
 	if (!new_msgs)
 		return -ENOMEM;
 
