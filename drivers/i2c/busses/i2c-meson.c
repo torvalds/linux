@@ -453,7 +453,6 @@ static int meson_i2c_probe(struct platform_device *pdev)
 
 	ret = i2c_add_adapter(&i2c->adap);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "can't register adapter\n");
 		clk_unprepare(i2c->clk);
 		return ret;
 	}
@@ -473,6 +472,7 @@ static int meson_i2c_remove(struct platform_device *pdev)
 
 static const struct of_device_id meson_i2c_match[] = {
 	{ .compatible = "amlogic,meson6-i2c" },
+	{ .compatible = "amlogic,meson-gxbb-i2c" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, meson_i2c_match);
