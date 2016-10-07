@@ -462,8 +462,10 @@ extern int dvb_usb_device_init(struct usb_interface *,
 extern void dvb_usb_device_exit(struct usb_interface *);
 
 /* the generic read/write method for device control */
-extern int dvb_usb_generic_rw(struct dvb_usb_device *, u8 *, u16, u8 *, u16,int);
-extern int dvb_usb_generic_write(struct dvb_usb_device *, u8 *, u16);
+extern int __must_check
+dvb_usb_generic_rw(struct dvb_usb_device *, u8 *, u16, u8 *, u16, int);
+extern int __must_check
+dvb_usb_generic_write(struct dvb_usb_device *, u8 *, u16);
 
 /* commonly used remote control parsing */
 extern int dvb_usb_nec_rc_key_to_event(struct dvb_usb_device *, u8[], u32 *, int *);
