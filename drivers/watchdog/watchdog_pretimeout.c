@@ -60,7 +60,8 @@ int watchdog_register_governor(struct watchdog_governor *gov)
 {
 	struct watchdog_pretimeout *p;
 
-	if (!default_gov) {
+	if (!strncmp(gov->name, WATCHDOG_PRETIMEOUT_DEFAULT_GOV,
+		     WATCHDOG_GOV_NAME_MAXLEN)) {
 		spin_lock_irq(&pretimeout_lock);
 		default_gov = gov;
 
@@ -79,9 +80,6 @@ void watchdog_unregister_governor(struct watchdog_governor *gov)
 	struct watchdog_pretimeout *p;
 
 	spin_lock_irq(&pretimeout_lock);
-	if (gov == default_gov)
-		default_gov = NULL;
-
 	list_for_each_entry(p, &pretimeout_list, entry)
 		if (p->wdd->gov == gov)
 			p->wdd->gov = default_gov;

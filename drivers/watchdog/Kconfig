@@ -1856,6 +1856,14 @@ config WATCHDOG_PRETIMEOUT_DEFAULT_GOV_NOOP
 	  governor is selected by a user, write a short message to
 	  the kernel log buffer and don't do any system changes.
 
+config WATCHDOG_PRETIMEOUT_DEFAULT_GOV_PANIC
+	bool "panic"
+	select WATCHDOG_PRETIMEOUT_GOV_PANIC
+	help
+	  Use panic watchdog pretimeout governor by default, if
+	  a watchdog pretimeout event happens, consider that
+	  a watchdog feeder is dead and reboot is unavoidable.
+
 endchoice
 
 config WATCHDOG_PRETIMEOUT_GOV_NOOP
@@ -1863,6 +1871,12 @@ config WATCHDOG_PRETIMEOUT_GOV_NOOP
 	help
 	  Noop watchdog pretimeout governor, only an informational
 	  message is added to kernel log buffer.
+
+config WATCHDOG_PRETIMEOUT_GOV_PANIC
+	tristate "Panic watchdog pretimeout governor"
+	help
+	  Panic watchdog pretimeout governor, on watchdog pretimeout
+	  event put the kernel into panic.
 
 endif # WATCHDOG_PRETIMEOUT_GOV
 
