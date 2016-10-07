@@ -66,11 +66,28 @@ static int gsc_m2m_start_streaming(struct vb2_queue *q, unsigned int count)
 	return ret > 0 ? 0 : ret;
 }
 
+static void __gsc_m2m_cleanup_queue(struct gsc_ctx *ctx)
+{
+	struct vb2_v4l2_buffer *src_vb, *dst_vb;
+
+	while (v4l2_m2m_num_src_bufs_ready(ctx->m2m_ctx) > 0) {
+		src_vb = v4l2_m2m_src_buf_remove(ctx->m2m_ctx);
+		v4l2_m2m_buf_done(src_vb, VB2_BUF_STATE_ERROR);
+	}
+
+	while (v4l2_m2m_num_dst_bufs_ready(ctx->m2m_ctx) > 0) {
+		dst_vb = v4l2_m2m_dst_buf_remove(ctx->m2m_ctx);
+		v4l2_m2m_buf_done(dst_vb, VB2_BUF_STATE_ERROR);
+	}
+}
+
 static void gsc_m2m_stop_streaming(struct vb2_queue *q)
 {
 	struct gsc_ctx *ctx = q->drv_priv;
 
 	__gsc_m2m_job_abort(ctx);
+
+	__gsc_m2m_cleanup_queue(ctx);
 
 	pm_runtime_put(&ctx->gsc_dev->pdev->dev);
 }
