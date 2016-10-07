@@ -359,6 +359,7 @@ struct amd_powerplay_funcs {
 	int (*get_mclk_od)(void *handle);
 	int (*set_mclk_od)(void *handle, uint32_t value);
 	int (*read_sensor)(void *handle, int idx, int32_t *value);
+	struct amd_vce_state* (*get_vce_clock_state)(void *handle, unsigned idx);
 };
 
 struct amd_powerplay {
