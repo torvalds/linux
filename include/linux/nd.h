@@ -77,11 +77,13 @@ struct nd_namespace_io {
  * @nsio: device and system physical address range to drive
  * @alt_name: namespace name supplied in the dimm label
  * @uuid: namespace name supplied in the dimm label
+ * @id: ida allocated id
  */
 struct nd_namespace_pmem {
 	struct nd_namespace_io nsio;
 	char *alt_name;
 	u8 *uuid;
+	int id;
 };
 
 /**
