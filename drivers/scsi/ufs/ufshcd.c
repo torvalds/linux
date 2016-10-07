@@ -5389,6 +5389,10 @@ static int __ufshcd_setup_clocks(struct ufs_hba *hba, bool on,
 	if (!head || list_empty(head))
 		goto out;
 
+	ret = ufshcd_vops_setup_clocks(hba, on, PRE_CHANGE);
+	if (ret)
+		return ret;
+
 	list_for_each_entry(clki, head, list) {
 		if (!IS_ERR_OR_NULL(clki->clk)) {
 			if (skip_ref_clk && !strcmp(clki->name, "ref_clk"))
@@ -5410,7 +5414,10 @@ static int __ufshcd_setup_clocks(struct ufs_hba *hba, bool on,
 		}
 	}
 
-	ret = ufshcd_vops_setup_clocks(hba, on);
+	ret = ufshcd_vops_setup_clocks(hba, on, POST_CHANGE);
+	if (ret)
+		return ret;
+
 out:
 	if (ret) {
 		list_for_each_entry(clki, head, list) {
@@ -5499,8 +5506,6 @@ static void ufshcd_variant_hba_exit(struct ufs_hba *hba)
 {
 	if (!hba->vops)
 		return;
-
-	ufshcd_vops_setup_clocks(hba, false);
 
 	ufshcd_vops_setup_regulators(hba, false);
 
@@ -5905,10 +5910,6 @@ disable_clks:
 	if (ret)
 		goto set_link_active;
 
-	ret = ufshcd_vops_setup_clocks(hba, false);
-	if (ret)
-		goto vops_resume;
-
 	if (!ufshcd_is_link_active(hba))
 		ufshcd_setup_clocks(hba, false);
 	else
@@ -5925,8 +5926,6 @@ disable_clks:
 	ufshcd_hba_vreg_set_lpm(hba);
 	goto out;
 
-vops_resume:
-	ufshcd_vops_resume(hba, pm_op);
 set_link_active:
 	ufshcd_vreg_set_hpm(hba);
 	if (ufshcd_is_link_hibern8(hba) && !ufshcd_uic_hibern8_exit(hba))

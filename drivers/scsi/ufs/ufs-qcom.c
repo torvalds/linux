@@ -1094,10 +1094,12 @@ static void ufs_qcom_set_caps(struct ufs_hba *hba)
  * ufs_qcom_setup_clocks - enables/disable clocks
  * @hba: host controller instance
  * @on: If true, enable clocks else disable them.
+ * @status: PRE_CHANGE or POST_CHANGE notify
  *
  * Returns 0 on success, non-zero on failure.
  */
-static int ufs_qcom_setup_clocks(struct ufs_hba *hba, bool on)
+static int ufs_qcom_setup_clocks(struct ufs_hba *hba, bool on,
+				 enum ufs_notify_change_status status)
 {
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 	int err;
@@ -1111,7 +1113,7 @@ static int ufs_qcom_setup_clocks(struct ufs_hba *hba, bool on)
 	if (!host)
 		return 0;
 
-	if (on) {
+	if (on && (status == POST_CHANGE)) {
 		err = ufs_qcom_phy_enable_iface_clk(host->generic_phy);
 		if (err)
 			goto out;
@@ -1130,7 +1132,7 @@ static int ufs_qcom_setup_clocks(struct ufs_hba *hba, bool on)
 		if (vote == host->bus_vote.min_bw_vote)
 			ufs_qcom_update_bus_bw_vote(host);
 
-	} else {
+	} else if (!on && (status == PRE_CHANGE)) {
 
 		/* M-PHY RMMI interface clocks can be turned off */
 		ufs_qcom_phy_disable_iface_clk(host->generic_phy);
@@ -1254,7 +1256,7 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 	ufs_qcom_set_caps(hba);
 	ufs_qcom_advertise_quirks(hba);
 
-	ufs_qcom_setup_clocks(hba, true);
+	ufs_qcom_setup_clocks(hba, true, POST_CHANGE);
 
 	if (hba->dev->id < MAX_UFS_QCOM_HOSTS)
 		ufs_qcom_hosts[hba->dev->id] = host;

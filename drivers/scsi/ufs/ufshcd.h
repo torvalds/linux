@@ -273,7 +273,8 @@ struct ufs_hba_variant_ops {
 	u32	(*get_ufs_hci_version)(struct ufs_hba *);
 	int	(*clk_scale_notify)(struct ufs_hba *, bool,
 				    enum ufs_notify_change_status);
-	int	(*setup_clocks)(struct ufs_hba *, bool);
+	int	(*setup_clocks)(struct ufs_hba *, bool,
+				enum ufs_notify_change_status);
 	int     (*setup_regulators)(struct ufs_hba *, bool);
 	int	(*hce_enable_notify)(struct ufs_hba *,
 				     enum ufs_notify_change_status);
@@ -755,10 +756,11 @@ static inline int ufshcd_vops_clk_scale_notify(struct ufs_hba *hba,
 	return 0;
 }
 
-static inline int ufshcd_vops_setup_clocks(struct ufs_hba *hba, bool on)
+static inline int ufshcd_vops_setup_clocks(struct ufs_hba *hba, bool on,
+					enum ufs_notify_change_status status)
 {
 	if (hba->vops && hba->vops->setup_clocks)
-		return hba->vops->setup_clocks(hba, on);
+		return hba->vops->setup_clocks(hba, on, status);
 	return 0;
 }
 
