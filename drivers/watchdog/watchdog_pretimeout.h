@@ -19,6 +19,8 @@ void watchdog_unregister_governor(struct watchdog_governor *gov);
 int watchdog_register_pretimeout(struct watchdog_device *wdd);
 void watchdog_unregister_pretimeout(struct watchdog_device *wdd);
 int watchdog_pretimeout_governor_get(struct watchdog_device *wdd, char *buf);
+int watchdog_pretimeout_governor_set(struct watchdog_device *wdd,
+				     const char *buf);
 
 #if IS_ENABLED(CONFIG_WATCHDOG_PRETIMEOUT_DEFAULT_GOV_NOOP)
 #define WATCHDOG_PRETIMEOUT_DEFAULT_GOV		"noop"
@@ -38,6 +40,12 @@ static inline void watchdog_unregister_pretimeout(struct watchdog_device *wdd)
 
 static inline int watchdog_pretimeout_governor_get(struct watchdog_device *wdd,
 						   char *buf)
+{
+	return -EINVAL;
+}
+
+static inline int watchdog_pretimeout_governor_set(struct watchdog_device *wdd,
+						   const char *buf)
 {
 	return -EINVAL;
 }

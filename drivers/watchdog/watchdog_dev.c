@@ -497,7 +497,20 @@ static ssize_t pretimeout_governor_show(struct device *dev,
 
 	return watchdog_pretimeout_governor_get(wdd, buf);
 }
-static DEVICE_ATTR_RO(pretimeout_governor);
+
+static ssize_t pretimeout_governor_store(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf, size_t count)
+{
+	struct watchdog_device *wdd = dev_get_drvdata(dev);
+	int ret = watchdog_pretimeout_governor_set(wdd, buf);
+
+	if (!ret)
+		ret = count;
+
+	return ret;
+}
+static DEVICE_ATTR_RW(pretimeout_governor);
 
 static umode_t wdt_is_visible(struct kobject *kobj, struct attribute *attr,
 				int n)
