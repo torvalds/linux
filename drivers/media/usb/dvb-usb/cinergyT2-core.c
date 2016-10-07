@@ -102,7 +102,7 @@ static int cinergyt2_frontend_attach(struct dvb_usb_adapter *adap)
 	/* Copy this pointer as we are gonna need it in the release phase */
 	cinergyt2_usb_device = adap->dev;
 
-	return 0;
+	return ret;
 }
 
 static struct rc_map_table rc_map_cinergyt2_table[] = {
@@ -162,14 +162,16 @@ static int repeatable_keys[] = {
 static int cinergyt2_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	struct cinergyt2_state *st = d->priv;
-	int i;
+	int i, ret;
 
 	*state = REMOTE_NO_KEY_PRESSED;
 
 	mutex_lock(&st->data_mutex);
 	st->data[0] = CINERGYT2_EP1_GET_RC_EVENTS;
 
-	dvb_usb_generic_rw(d, st->data, 1, st->data, 5, 0);
+	ret = dvb_usb_generic_rw(d, st->data, 1, st->data, 5, 0);
+	if (ret < 0)
+		goto ret;
 
 	if (st->data[4] == 0xff) {
 		/* key repeat */
