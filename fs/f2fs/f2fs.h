@@ -709,6 +709,20 @@ struct f2fs_bio_info {
 	struct rw_semaphore io_rwsem;	/* blocking op for bio */
 };
 
+#define FDEV(i)				(sbi->devs[i])
+#define RDEV(i)				(raw_super->devs[i])
+struct f2fs_dev_info {
+	struct block_device *bdev;
+	char path[MAX_PATH_LEN];
+	unsigned int total_segments;
+	block_t start_blk;
+	block_t end_blk;
+#ifdef CONFIG_BLK_DEV_ZONED
+	unsigned int nr_blkz;			/* Total number of zones */
+	u8 *blkz_type;				/* Array of zones type */
+#endif
+};
+
 enum inode_type {
 	DIR_INODE,			/* for dirty dir inode */
 	FILE_INODE,			/* for dirty regular/symlink inode */
@@ -757,10 +771,8 @@ struct f2fs_sb_info {
 #endif
 
 #ifdef CONFIG_BLK_DEV_ZONED
-	unsigned int nr_blkz;			/* Total number of zones */
 	unsigned int blocks_per_blkz;		/* F2FS blocks per zone */
 	unsigned int log_blocks_per_blkz;	/* log2 F2FS blocks per zone */
-	u8 *blkz_type;				/* Array of zones type */
 #endif
 
 	/* for node-related operations */
@@ -876,6 +888,8 @@ struct f2fs_sb_info {
 
 	/* For shrinker support */
 	struct list_head s_list;
+	int s_ndevs;				/* number of devices */
+	struct f2fs_dev_info *devs;		/* for device list */
 	struct mutex umount_mutex;
 	unsigned int shrinker_run_no;
 
@@ -2138,6 +2152,9 @@ void f2fs_submit_merged_bio_cond(struct f2fs_sb_info *, struct inode *,
 void f2fs_flush_merged_bios(struct f2fs_sb_info *);
 int f2fs_submit_page_bio(struct f2fs_io_info *);
 void f2fs_submit_page_mbio(struct f2fs_io_info *);
+struct block_device *f2fs_target_device(struct f2fs_sb_info *,
+				block_t, struct bio *);
+int f2fs_target_device_index(struct f2fs_sb_info *, block_t);
 void set_data_blkaddr(struct dnode_of_data *);
 void f2fs_update_data_blkaddr(struct dnode_of_data *, block_t);
 int reserve_new_blocks(struct dnode_of_data *, blkcnt_t);
@@ -2425,11 +2442,15 @@ static inline int f2fs_sb_mounted_blkzoned(struct super_block *sb)
 
 #ifdef CONFIG_BLK_DEV_ZONED
 static inline int get_blkz_type(struct f2fs_sb_info *sbi,
-				block_t blkaddr)
+			struct block_device *bdev, block_t blkaddr)
 {
 	unsigned int zno = blkaddr >> sbi->log_blocks_per_blkz;
+	int i;
 
-	return sbi->blkz_type[zno];
+	for (i = 0; i < sbi->s_ndevs; i++)
+		if (FDEV(i).bdev == bdev)
+			return FDEV(i).blkz_type[zno];
+	return -EINVAL;
 }
 #endif
 

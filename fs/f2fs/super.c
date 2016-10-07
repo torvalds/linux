@@ -713,6 +713,19 @@ static void destroy_percpu_info(struct f2fs_sb_info *sbi)
 	percpu_counter_destroy(&sbi->total_valid_inode_count);
 }
 
+static void destroy_device_list(struct f2fs_sb_info *sbi)
+{
+	int i;
+
+	for (i = 0; i < sbi->s_ndevs; i++) {
+		blkdev_put(FDEV(i).bdev, FMODE_EXCL);
+#ifdef CONFIG_BLK_DEV_ZONED
+		kfree(FDEV(i).blkz_type);
+#endif
+	}
+	kfree(sbi->devs);
+}
+
 static void f2fs_put_super(struct super_block *sb)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
@@ -772,6 +785,8 @@ static void f2fs_put_super(struct super_block *sb)
 	if (sbi->s_chksum_driver)
 		crypto_free_shash(sbi->s_chksum_driver);
 	kfree(sbi->raw_super);
+
+	destroy_device_list(sbi);
 
 	destroy_percpu_info(sbi);
 	kfree(sbi);
@@ -1516,9 +1531,9 @@ static int init_percpu_info(struct f2fs_sb_info *sbi)
 }
 
 #ifdef CONFIG_BLK_DEV_ZONED
-static int init_blkz_info(struct f2fs_sb_info *sbi)
+static int init_blkz_info(struct f2fs_sb_info *sbi, int devi)
 {
-	struct block_device *bdev = sbi->sb->s_bdev;
+	struct block_device *bdev = FDEV(devi).bdev;
 	sector_t nr_sectors = bdev->bd_part->nr_sects;
 	sector_t sector = 0;
 	struct blk_zone *zones;
@@ -1529,15 +1544,21 @@ static int init_blkz_info(struct f2fs_sb_info *sbi)
 	if (!f2fs_sb_mounted_blkzoned(sbi->sb))
 		return 0;
 
+	if (sbi->blocks_per_blkz && sbi->blocks_per_blkz !=
+				SECTOR_TO_BLOCK(bdev_zone_size(bdev)))
+		return -EINVAL;
 	sbi->blocks_per_blkz = SECTOR_TO_BLOCK(bdev_zone_size(bdev));
+	if (sbi->log_blocks_per_blkz && sbi->log_blocks_per_blkz !=
+				__ilog2_u32(sbi->blocks_per_blkz))
+		return -EINVAL;
 	sbi->log_blocks_per_blkz = __ilog2_u32(sbi->blocks_per_blkz);
-	sbi->nr_blkz = SECTOR_TO_BLOCK(nr_sectors) >>
-		sbi->log_blocks_per_blkz;
+	FDEV(devi).nr_blkz = SECTOR_TO_BLOCK(nr_sectors) >>
+					sbi->log_blocks_per_blkz;
 	if (nr_sectors & (bdev_zone_size(bdev) - 1))
-		sbi->nr_blkz++;
+		FDEV(devi).nr_blkz++;
 
-	sbi->blkz_type = kmalloc(sbi->nr_blkz, GFP_KERNEL);
-	if (!sbi->blkz_type)
+	FDEV(devi).blkz_type = kmalloc(FDEV(devi).nr_blkz, GFP_KERNEL);
+	if (!FDEV(devi).blkz_type)
 		return -ENOMEM;
 
 #define F2FS_REPORT_NR_ZONES   4096
@@ -1562,7 +1583,7 @@ static int init_blkz_info(struct f2fs_sb_info *sbi)
 		}
 
 		for (i = 0; i < nr_zones; i++) {
-			sbi->blkz_type[n] = zones[i].type;
+			FDEV(devi).blkz_type[n] = zones[i].type;
 			sector += zones[i].len;
 			n++;
 		}
@@ -1666,6 +1687,77 @@ int f2fs_commit_super(struct f2fs_sb_info *sbi, bool recover)
 	return err;
 }
 
+static int f2fs_scan_devices(struct f2fs_sb_info *sbi)
+{
+	struct f2fs_super_block *raw_super = F2FS_RAW_SUPER(sbi);
+	int i;
+
+	for (i = 0; i < MAX_DEVICES; i++) {
+		if (!RDEV(i).path[0])
+			return 0;
+
+		if (i == 0) {
+			sbi->devs = kzalloc(sizeof(struct f2fs_dev_info) *
+						MAX_DEVICES, GFP_KERNEL);
+			if (!sbi->devs)
+				return -ENOMEM;
+		}
+
+		memcpy(FDEV(i).path, RDEV(i).path, MAX_PATH_LEN);
+		FDEV(i).total_segments = le32_to_cpu(RDEV(i).total_segments);
+		if (i == 0) {
+			FDEV(i).start_blk = 0;
+			FDEV(i).end_blk = FDEV(i).start_blk +
+				(FDEV(i).total_segments <<
+				sbi->log_blocks_per_seg) - 1 +
+				le32_to_cpu(raw_super->segment0_blkaddr);
+		} else {
+			FDEV(i).start_blk = FDEV(i - 1).end_blk + 1;
+			FDEV(i).end_blk = FDEV(i).start_blk +
+				(FDEV(i).total_segments <<
+				sbi->log_blocks_per_seg) - 1;
+		}
+
+		FDEV(i).bdev = blkdev_get_by_path(FDEV(i).path,
+					sbi->sb->s_mode, sbi->sb->s_type);
+		if (IS_ERR(FDEV(i).bdev))
+			return PTR_ERR(FDEV(i).bdev);
+
+		/* to release errored devices */
+		sbi->s_ndevs = i + 1;
+
+#ifdef CONFIG_BLK_DEV_ZONED
+		if (bdev_zoned_model(FDEV(i).bdev) == BLK_ZONED_HM &&
+				!f2fs_sb_mounted_blkzoned(sbi->sb)) {
+			f2fs_msg(sbi->sb, KERN_ERR,
+				"Zoned block device feature not enabled\n");
+			return -EINVAL;
+		}
+		if (bdev_zoned_model(FDEV(i).bdev) != BLK_ZONED_NONE) {
+			if (init_blkz_info(sbi, i)) {
+				f2fs_msg(sbi->sb, KERN_ERR,
+					"Failed to initialize F2FS blkzone information");
+				return -EINVAL;
+			}
+			f2fs_msg(sbi->sb, KERN_INFO,
+				"Mount Device [%2d]: %20s, %8u, %8x - %8x (zone: %s)",
+				i, FDEV(i).path,
+				FDEV(i).total_segments,
+				FDEV(i).start_blk, FDEV(i).end_blk,
+				bdev_zoned_model(FDEV(i).bdev) == BLK_ZONED_HA ?
+				"Host-aware" : "Host-managed");
+			continue;
+		}
+#endif
+		f2fs_msg(sbi->sb, KERN_INFO,
+			"Mount Device [%2d]: %20s, %8u, %8x - %8x",
+				i, FDEV(i).path,
+				FDEV(i).total_segments,
+				FDEV(i).start_blk, FDEV(i).end_blk);
+	}
+	return 0;
+}
+
 static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct f2fs_sb_info *sbi;
@@ -1724,15 +1816,7 @@ try_onemore:
 			 "Zoned block device support is not enabled\n");
 		goto free_sb_buf;
 	}
-#else
-	if (bdev_zoned_model(sb->s_bdev) == BLK_ZONED_HM &&
-	    !f2fs_sb_mounted_blkzoned(sb)) {
-		f2fs_msg(sb, KERN_ERR,
-			 "Zoned block device feature not enabled\n");
-		goto free_sb_buf;
-	}
 #endif
-
 	default_options(sbi);
 	/* parse mount options */
 	options = kstrdup((const char *)data, GFP_KERNEL);
@@ -1802,6 +1886,13 @@ try_onemore:
 		goto free_meta_inode;
 	}
 
+	/* Initialize device list */
+	err = f2fs_scan_devices(sbi);
+	if (err) {
+		f2fs_msg(sb, KERN_ERR, "Failed to find devices");
+		goto free_devices;
+	}
+
 	sbi->total_valid_node_count =
 				le32_to_cpu(sbi->ckpt->valid_node_count);
 	percpu_counter_set(&sbi->total_valid_inode_count,
@@ -1819,15 +1910,6 @@ try_onemore:
 	init_extent_cache_info(sbi);
 
 	init_ino_entry_info(sbi);
-
-#ifdef CONFIG_BLK_DEV_ZONED
-	err = init_blkz_info(sbi);
-	if (err) {
-		f2fs_msg(sb, KERN_ERR,
-			"Failed to initialize F2FS blkzone information");
-		goto free_blkz;
-	}
-#endif
 
 	/* setup f2fs internal modules */
 	err = build_segment_manager(sbi);
@@ -2007,10 +2089,8 @@ free_nm:
 	destroy_node_manager(sbi);
 free_sm:
 	destroy_segment_manager(sbi);
-#ifdef CONFIG_BLK_DEV_ZONED
-free_blkz:
-	kfree(sbi->blkz_type);
-#endif
+free_devices:
+	destroy_device_list(sbi);
 	kfree(sbi->ckpt);
 free_meta_inode:
 	make_bad_inode(sbi->meta_inode);

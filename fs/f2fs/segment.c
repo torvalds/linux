@@ -403,6 +403,33 @@ void f2fs_balance_fs_bg(struct f2fs_sb_info *sbi)
 	}
 }
 
+static int __submit_flush_wait(struct block_device *bdev)
+{
+	struct bio *bio = f2fs_bio_alloc(0);
+	int ret;
+
+	bio_set_op_attrs(bio, REQ_OP_WRITE, WRITE_FLUSH);
+	bio->bi_bdev = bdev;
+	ret = submit_bio_wait(bio);
+	bio_put(bio);
+	return ret;
+}
+
+static int submit_flush_wait(struct f2fs_sb_info *sbi)
+{
+	int ret = __submit_flush_wait(sbi->sb->s_bdev);
+	int i;
+
+	if (sbi->s_ndevs && !ret) {
+		for (i = 1; i < sbi->s_ndevs; i++) {
+			ret = __submit_flush_wait(FDEV(i).bdev);
+			if (ret)
+				break;
+		}
+	}
+	return ret;
+}
+
 static int issue_flush_thread(void *data)
 {
 	struct f2fs_sb_info *sbi = data;
@@ -413,25 +440,18 @@ repeat:
 		return 0;
 
 	if (!llist_empty(&fcc->issue_list)) {
-		struct bio *bio;
 		struct flush_cmd *cmd, *next;
 		int ret;
-
-		bio = f2fs_bio_alloc(0);
 
 		fcc->dispatch_list = llist_del_all(&fcc->issue_list);
 		fcc->dispatch_list = llist_reverse_order(fcc->dispatch_list);
 
-		bio->bi_bdev = sbi->sb->s_bdev;
-		bio_set_op_attrs(bio, REQ_OP_WRITE, WRITE_FLUSH);
-		ret = submit_bio_wait(bio);
-
+		ret = submit_flush_wait(sbi);
 		llist_for_each_entry_safe(cmd, next,
 					  fcc->dispatch_list, llnode) {
 			cmd->ret = ret;
 			complete(&cmd->wait);
 		}
-		bio_put(bio);
 		fcc->dispatch_list = NULL;
 	}
 
@@ -452,15 +472,11 @@ int f2fs_issue_flush(struct f2fs_sb_info *sbi)
 		return 0;
 
 	if (!test_opt(sbi, FLUSH_MERGE) || !atomic_read(&fcc->submit_flush)) {
-		struct bio *bio = f2fs_bio_alloc(0);
 		int ret;
 
 		atomic_inc(&fcc->submit_flush);
-		bio->bi_bdev = sbi->sb->s_bdev;
-		bio_set_op_attrs(bio, REQ_OP_WRITE, WRITE_FLUSH);
-		ret = submit_bio_wait(bio);
+		ret = submit_flush_wait(sbi);
 		atomic_dec(&fcc->submit_flush);
-		bio_put(bio);
 		return ret;
 	}
 
@@ -637,14 +653,18 @@ static void f2fs_submit_bio_wait_endio(struct bio *bio)
 
 /* this function is copied from blkdev_issue_discard from block/blk-lib.c */
 static int __f2fs_issue_discard_async(struct f2fs_sb_info *sbi,
-				block_t blkstart, block_t blklen)
+		struct block_device *bdev, block_t blkstart, block_t blklen)
 {
-	struct block_device *bdev = sbi->sb->s_bdev;
 	struct bio *bio = NULL;
 	int err;
 
 	trace_f2fs_issue_discard(sbi->sb, blkstart, blklen);
 
+	if (sbi->s_ndevs) {
+		int devi = f2fs_target_device_index(sbi, blkstart);
+
+		blkstart -= FDEV(devi).start_blk;
+	}
 	err = __blkdev_issue_discard(bdev,
 				SECTOR_FROM_BLOCK(blkstart),
 				SECTOR_FROM_BLOCK(blklen),
@@ -662,18 +682,24 @@ static int __f2fs_issue_discard_async(struct f2fs_sb_info *sbi,
 }
 
 #ifdef CONFIG_BLK_DEV_ZONED
-static int f2fs_issue_discard_zone(struct f2fs_sb_info *sbi,
-					block_t blkstart, block_t blklen)
+static int __f2fs_issue_discard_zone(struct f2fs_sb_info *sbi,
+		struct block_device *bdev, block_t blkstart, block_t blklen)
 {
-	sector_t sector = SECTOR_FROM_BLOCK(blkstart);
 	sector_t nr_sects = SECTOR_FROM_BLOCK(blklen);
-	struct block_device *bdev = sbi->sb->s_bdev;
+	sector_t sector;
+	int devi = 0;
 
-	if (nr_sects != bdev_zone_size(bdev)) {
+	if (sbi->s_ndevs) {
+		devi = f2fs_target_device_index(sbi, blkstart);
+		blkstart -= FDEV(devi).start_blk;
+	}
+	sector = SECTOR_FROM_BLOCK(blkstart);
+
+	if (sector % bdev_zone_size(bdev) || nr_sects != bdev_zone_size(bdev)) {
 		f2fs_msg(sbi->sb, KERN_INFO,
-			 "Unaligned discard attempted (sector %llu + %llu)",
-			 (unsigned long long)sector,
-			 (unsigned long long)nr_sects);
+			"(%d) %s: Unaligned discard attempted (block %x + %x)",
+			devi, sbi->s_ndevs ? FDEV(devi).path: "",
+			blkstart, blklen);
 		return -EIO;
 	}
 
@@ -682,14 +708,12 @@ static int f2fs_issue_discard_zone(struct f2fs_sb_info *sbi,
 	 * use regular discard if the drive supports it. For sequential
 	 * zones, reset the zone write pointer.
 	 */
-	switch (get_blkz_type(sbi, blkstart)) {
+	switch (get_blkz_type(sbi, bdev, blkstart)) {
 
 	case BLK_ZONE_TYPE_CONVENTIONAL:
 		if (!blk_queue_discard(bdev_get_queue(bdev)))
 			return 0;
-		return __f2fs_issue_discard_async(sbi, blkstart,
-						  blklen);
-
+		return __f2fs_issue_discard_async(sbi, bdev, blkstart, blklen);
 	case BLK_ZONE_TYPE_SEQWRITE_REQ:
 	case BLK_ZONE_TYPE_SEQWRITE_PREF:
 		trace_f2fs_issue_reset_zone(sbi->sb, blkstart);
@@ -702,14 +726,45 @@ static int f2fs_issue_discard_zone(struct f2fs_sb_info *sbi,
 }
 #endif
 
+static int __issue_discard_async(struct f2fs_sb_info *sbi,
+		struct block_device *bdev, block_t blkstart, block_t blklen)
+{
+#ifdef CONFIG_BLK_DEV_ZONED
+	if (f2fs_sb_mounted_blkzoned(sbi->sb) &&
+				bdev_zoned_model(bdev) != BLK_ZONED_NONE)
+		return __f2fs_issue_discard_zone(sbi, bdev, blkstart, blklen);
+#endif
+	return __f2fs_issue_discard_async(sbi, bdev, blkstart, blklen);
+}
+
 static int f2fs_issue_discard(struct f2fs_sb_info *sbi,
 				block_t blkstart, block_t blklen)
 {
+	sector_t start = blkstart, len = 0;
+	struct block_device *bdev;
 	struct seg_entry *se;
 	unsigned int offset;
 	block_t i;
+	int err = 0;
 
-	for (i = blkstart; i < blkstart + blklen; i++) {
+	bdev = f2fs_target_device(sbi, blkstart, NULL);
+
+	for (i = blkstart; i < blkstart + blklen; i++, len++) {
+		if (i != start) {
+			struct block_device *bdev2 =
+				f2fs_target_device(sbi, i, NULL);
+
+			if (bdev2 != bdev) {
+				err = __issue_discard_async(sbi, bdev,
+						start, len);
+				if (err)
+					return err;
+				bdev = bdev2;
+				start = i;
+				len = 0;
+			}
+		}
+
 		se = get_seg_entry(sbi, GET_SEGNO(sbi, i));
 		offset = GET_BLKOFF_FROM_SEG0(sbi, i);
 
@@ -717,11 +772,9 @@ static int f2fs_issue_discard(struct f2fs_sb_info *sbi,
 			sbi->discard_blks--;
 	}
 
-#ifdef CONFIG_BLK_DEV_ZONED
-	if (f2fs_sb_mounted_blkzoned(sbi->sb))
-		return f2fs_issue_discard_zone(sbi, blkstart, blklen);
-#endif
-	return __f2fs_issue_discard_async(sbi, blkstart, blklen);
+	if (len)
+		err = __issue_discard_async(sbi, bdev, start, len);
+	return err;
 }
 
 static void __add_discard_entry(struct f2fs_sb_info *sbi,
