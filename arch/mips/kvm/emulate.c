@@ -873,7 +873,7 @@ static void kvm_mips_invalidate_guest_tlb(struct kvm_vcpu *vcpu,
 	 * Probe the shadow host TLB for the entry being overwritten, if one
 	 * matches, invalidate it
 	 */
-	kvm_mips_host_tlb_inv(vcpu, tlb->tlb_hi);
+	kvm_mips_host_tlb_inv(vcpu, tlb->tlb_hi, user, true);
 
 	/* Invalidate the whole ASID on other CPUs */
 	cpu = smp_processor_id();
@@ -2100,13 +2100,15 @@ enum emulation_result kvm_mips_handle_tlbmod(u32 cause, u32 *opc,
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	unsigned long entryhi = (vcpu->arch.host_cp0_badvaddr & VPN2_MASK) |
 			(kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID);
+	bool kernel = KVM_GUEST_KERNEL_MODE(vcpu);
 	int index;
 
 	/* If address not in the guest TLB, then we are in trouble */
 	index = kvm_mips_guest_tlb_lookup(vcpu, entryhi);
 	if (index < 0) {
 		/* XXXKYMA Invalidate and retry */
-		kvm_mips_host_tlb_inv(vcpu, vcpu->arch.host_cp0_badvaddr);
+		kvm_mips_host_tlb_inv(vcpu, vcpu->arch.host_cp0_badvaddr,
+				      !kernel, kernel);
 		kvm_err("%s: host got TLBMOD for %#lx but entry not present in Guest TLB\n",
 		     __func__, entryhi);
 		kvm_mips_dump_guest_tlbs(vcpu);

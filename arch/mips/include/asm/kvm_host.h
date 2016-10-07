@@ -604,7 +604,8 @@ extern int kvm_mips_host_tlb_write(struct kvm_vcpu *vcpu, unsigned long entryhi,
 				   unsigned long entrylo1,
 				   int flush_dcache_mask);
 extern void kvm_mips_flush_host_tlb(int skip_kseg0);
-extern int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long entryhi);
+extern int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long entryhi,
+				 bool user, bool kernel);
 
 extern int kvm_mips_guest_tlb_lookup(struct kvm_vcpu *vcpu,
 				     unsigned long entryhi);

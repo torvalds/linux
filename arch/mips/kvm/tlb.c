@@ -263,16 +263,11 @@ int kvm_mips_host_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long vaddr)
 }
 EXPORT_SYMBOL_GPL(kvm_mips_host_tlb_lookup);
 
-int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long va)
+static int _kvm_mips_host_tlb_inv(unsigned long entryhi)
 {
 	int idx;
-	unsigned long flags, old_entryhi;
 
-	local_irq_save(flags);
-
-	old_entryhi = read_c0_entryhi();
-
-	write_c0_entryhi((va & VPN2_MASK) | kvm_mips_get_user_asid(vcpu));
+	write_c0_entryhi(entryhi);
 	mtc0_tlbw_hazard();
 
 	tlb_probe();
@@ -292,14 +287,39 @@ int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long va)
 		tlbw_use_hazard();
 	}
 
+	return idx;
+}
+
+int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long va,
+			  bool user, bool kernel)
+{
+	int idx_user, idx_kernel;
+	unsigned long flags, old_entryhi;
+
+	local_irq_save(flags);
+
+	old_entryhi = read_c0_entryhi();
+
+	if (user)
+		idx_user = _kvm_mips_host_tlb_inv((va & VPN2_MASK) |
+						  kvm_mips_get_user_asid(vcpu));
+	if (kernel)
+		idx_kernel = _kvm_mips_host_tlb_inv((va & VPN2_MASK) |
+						kvm_mips_get_kernel_asid(vcpu));
+
 	write_c0_entryhi(old_entryhi);
 	mtc0_tlbw_hazard();
 
 	local_irq_restore(flags);
 
-	if (idx >= 0)
-		kvm_debug("%s: Invalidated entryhi %#lx @ idx %d\n", __func__,
-			  (va & VPN2_MASK) | kvm_mips_get_user_asid(vcpu), idx);
+	if (user && idx_user >= 0)
+		kvm_debug("%s: Invalidated guest user entryhi %#lx @ idx %d\n",
+			  __func__, (va & VPN2_MASK) |
+				    kvm_mips_get_user_asid(vcpu), idx_user);
+	if (kernel && idx_kernel >= 0)
+		kvm_debug("%s: Invalidated guest kernel entryhi %#lx @ idx %d\n",
+			  __func__, (va & VPN2_MASK) |
+				    kvm_mips_get_kernel_asid(vcpu), idx_kernel);
 
 	return 0;
 }
