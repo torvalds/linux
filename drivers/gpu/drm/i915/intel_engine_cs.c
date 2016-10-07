@@ -210,9 +210,6 @@ void intel_engine_init_seqno(struct intel_engine_cs *engine, u32 seqno)
 void intel_engine_init_hangcheck(struct intel_engine_cs *engine)
 {
 	memset(&engine->hangcheck, 0, sizeof(engine->hangcheck));
-	clear_bit(engine->id, &engine->i915->gpu_error.missed_irq_rings);
-	if (intel_engine_has_waiter(engine))
-		i915_queue_hangcheck(engine->i915);
 }
 
 static void intel_engine_init_requests(struct intel_engine_cs *engine)
@@ -305,18 +302,6 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 		return ret;
 
 	return 0;
-}
-
-void intel_engine_reset_irq(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-
-	spin_lock_irq(&dev_priv->irq_lock);
-	if (intel_engine_has_waiter(engine))
-		engine->irq_enable(engine);
-	else
-		engine->irq_disable(engine);
-	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
 /**
