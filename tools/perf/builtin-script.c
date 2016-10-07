@@ -66,6 +66,8 @@ enum perf_output_field {
 	PERF_OUTPUT_WEIGHT	    = 1U << 18,
 	PERF_OUTPUT_BPF_OUTPUT	    = 1U << 19,
 	PERF_OUTPUT_CALLINDENT	    = 1U << 20,
+	PERF_OUTPUT_INSN	    = 1U << 21,
+	PERF_OUTPUT_INSNLEN	    = 1U << 22,
 };
 
 struct output_option {
@@ -93,6 +95,8 @@ struct output_option {
 	{.str = "weight",   .field = PERF_OUTPUT_WEIGHT},
 	{.str = "bpf-output",   .field = PERF_OUTPUT_BPF_OUTPUT},
 	{.str = "callindent", .field = PERF_OUTPUT_CALLINDENT},
+	{.str = "insn", .field = PERF_OUTPUT_INSN},
+	{.str = "insnlen", .field = PERF_OUTPUT_INSNLEN},
 };
 
 /* default set to maintain compatibility with current format */
@@ -624,6 +628,20 @@ static void print_sample_callindent(struct perf_sample *sample,
 		printf("%*s", spacing - len, "");
 }
 
+static void print_insn(struct perf_sample *sample,
+		       struct perf_event_attr *attr)
+{
+	if (PRINT_FIELD(INSNLEN))
+		printf(" ilen: %d", sample->insn_len);
+	if (PRINT_FIELD(INSN)) {
+		int i;
+
+		printf(" insn:");
+		for (i = 0; i < sample->insn_len; i++)
+			printf(" %02x", (unsigned char)sample->insn[i]);
+	}
+}
+
 static void print_sample_bts(struct perf_sample *sample,
 			     struct perf_evsel *evsel,
 			     struct thread *thread,
@@ -667,6 +685,8 @@ static void print_sample_bts(struct perf_sample *sample,
 
 	if (print_srcline_last)
 		map__fprintf_srcline(al->map, al->addr, "\n  ", stdout);
+
+	print_insn(sample, attr);
 
 	printf("\n");
 }
@@ -911,7 +931,7 @@ static void process_event(struct perf_script *script,
 
 	if (perf_evsel__is_bpf_output(evsel) && PRINT_FIELD(BPF_OUTPUT))
 		print_sample_bpf_output(sample);
-
+	print_insn(sample, attr);
 	printf("\n");
 }
 
@@ -2124,7 +2144,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		     "Valid types: hw,sw,trace,raw. "
 		     "Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,"
 		     "addr,symoff,period,iregs,brstack,brstacksym,flags,"
-		     "bpf-output,callindent", parse_output_fields),
+		     "bpf-output,callindent,insn,insnlen", parse_output_fields),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
 		    "system-wide collection from all CPUs"),
 	OPT_STRING('S', "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",
