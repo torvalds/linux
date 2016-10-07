@@ -393,9 +393,8 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 	s8 ofdm_index[2], cck_index = 0;
 	s8 ofdm_index_old[2] = {0, 0}, cck_index_old = 0;
 	u32 i = 0, j = 0;
-	bool is2t = false;
 
-	u8 ofdm_min_index = 6, rf; /* OFDM BB Swing should be less than +3.0dB */
+	u8 ofdm_min_index = 6; /* OFDM BB Swing should be less than +3.0dB */
 	s8 ofdm_index_mapping[2][index_mapping_NUM_88E] = {
 		/* 2.4G, decrease power */
 		{0, 0, 2, 3, 4, 4, 5, 6, 7, 7, 8, 9, 10, 10, 11},
@@ -420,11 +419,6 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 	thermal_val = (u8)rtw_hal_read_rfreg(adapt, RF_PATH_A,
 					   RF_T_METER_88E, 0xfc00);
 
-	if (is2t)
-		rf = 2;
-	else
-		rf = 1;
-
 	if (thermal_val) {
 		/* Query OFDM path A default setting */
 		ele_d = phy_query_bb_reg(adapt, rOFDM0_XATxIQImbalance, bMaskDWord)&bMaskOFDM_D;
@@ -433,17 +427,6 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 				ofdm_index_old[0] = (u8)i;
 				dm_odm->BbSwingIdxOfdmBase = (u8)i;
 				break;
-			}
-		}
-
-		/* Query OFDM path B default setting */
-		if (is2t) {
-			ele_d = phy_query_bb_reg(adapt, rOFDM0_XBTxIQImbalance, bMaskDWord)&bMaskOFDM_D;
-			for (i = 0; i < OFDM_TABLE_SIZE_92D; i++) {
-				if (ele_d == (OFDMSwingTable[i]&bMaskOFDM_D)) {
-					ofdm_index_old[1] = (u8)i;
-					break;
-				}
 			}
 		}
 
@@ -465,8 +448,7 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 			dm_odm->RFCalibrateInfo.ThermalValue_LCK = thermal_val;
 			dm_odm->RFCalibrateInfo.ThermalValue_IQK = thermal_val;
 
-			for (i = 0; i < rf; i++)
-				dm_odm->RFCalibrateInfo.OFDM_index[i] = ofdm_index_old[i];
+			dm_odm->RFCalibrateInfo.OFDM_index[0] = ofdm_index_old[0];
 			dm_odm->RFCalibrateInfo.CCK_index = cck_index_old;
 		}
 
@@ -525,13 +507,11 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 				offset = index_mapping_NUM_88E-1;
 
 			/* Updating ofdm_index values with new OFDM / CCK offset */
-			for (i = 0; i < rf; i++) {
-				ofdm_index[i] = dm_odm->RFCalibrateInfo.OFDM_index[i] + ofdm_index_mapping[j][offset];
-				if (ofdm_index[i] > OFDM_TABLE_SIZE_92D-1)
-					ofdm_index[i] = OFDM_TABLE_SIZE_92D-1;
-				else if (ofdm_index[i] < ofdm_min_index)
-					ofdm_index[i] = ofdm_min_index;
-			}
+			ofdm_index[0] = dm_odm->RFCalibrateInfo.OFDM_index[0] + ofdm_index_mapping[j][offset];
+			if (ofdm_index[0] > OFDM_TABLE_SIZE_92D-1)
+				ofdm_index[0] = OFDM_TABLE_SIZE_92D-1;
+			else if (ofdm_index[0] < ofdm_min_index)
+				ofdm_index[0] = ofdm_min_index;
 
 			cck_index = dm_odm->RFCalibrateInfo.CCK_index + ofdm_index_mapping[j][offset];
 			if (cck_index > CCK_TABLE_SIZE-1)
