@@ -29,7 +29,9 @@ static int digitv_ctrl_msg(struct dvb_usb_device *d,
 		u8 cmd, u8 vv, u8 *wbuf, int wlen, u8 *rbuf, int rlen)
 {
 	struct digitv_state *st = d->priv;
-	int wo = (rbuf == NULL || rlen == 0); /* write-only */
+	int ret, wo;
+
+	wo = (rbuf == NULL || rlen == 0); /* write-only */
 
 	memset(st->sndbuf, 0, 7);
 	memset(st->rcvbuf, 0, 7);
@@ -40,12 +42,12 @@ static int digitv_ctrl_msg(struct dvb_usb_device *d,
 
 	if (wo) {
 		memcpy(&st->sndbuf[3], wbuf, wlen);
-		dvb_usb_generic_write(d, st->sndbuf, 7);
+		ret = dvb_usb_generic_write(d, st->sndbuf, 7);
 	} else {
-		dvb_usb_generic_rw(d, st->sndbuf, 7, st->rcvbuf, 7, 10);
+		ret = dvb_usb_generic_rw(d, st->sndbuf, 7, st->rcvbuf, 7, 10);
 		memcpy(rbuf, &st->rcvbuf[3], rlen);
 	}
-	return 0;
+	return ret;
 }
 
 /* I2C */
