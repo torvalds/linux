@@ -384,8 +384,6 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 
 	RT_TRACE(_module_hci_ops_os_c_, _drv_err_, ("usb_read_port_complete!!!\n"));
 
-	precvpriv->rx_pending_cnt--;
-
 	if (adapt->bSurpriseRemoved || adapt->bDriverStopped || adapt->bReadPortCancel) {
 		RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
 			 ("usb_read_port_complete:bDriverStopped(%d) OR bSurpriseRemoved(%d)\n",
@@ -489,8 +487,6 @@ u32 usb_read_port(struct adapter *adapter, u32 addr, struct recv_buf *precvbuf)
 	} else { /* reuse skb */
 		precvbuf->reuse = false;
 	}
-
-	precvpriv->rx_pending_cnt++;
 
 	purb = precvbuf->purb;
 
