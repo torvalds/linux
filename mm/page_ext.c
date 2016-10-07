@@ -102,7 +102,7 @@ void __meminit pgdat_page_ext_init(struct pglist_data *pgdat)
 struct page_ext *lookup_page_ext(struct page *page)
 {
 	unsigned long pfn = page_to_pfn(page);
-	unsigned long offset;
+	unsigned long index;
 	struct page_ext *base;
 
 	base = NODE_DATA(page_to_nid(page))->node_page_ext;
@@ -119,9 +119,9 @@ struct page_ext *lookup_page_ext(struct page *page)
 	if (unlikely(!base))
 		return NULL;
 #endif
-	offset = pfn - round_down(node_start_pfn(page_to_nid(page)),
+	index = pfn - round_down(node_start_pfn(page_to_nid(page)),
 					MAX_ORDER_NR_PAGES);
-	return base + offset;
+	return base + index;
 }
 
 static int __init alloc_node_page_ext(int nid)
