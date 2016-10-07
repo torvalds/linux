@@ -2489,8 +2489,13 @@ int __isolate_free_page(struct page *page, unsigned int order)
 	mt = get_pageblock_migratetype(page);
 
 	if (!is_migrate_isolate(mt)) {
-		/* Obey watermarks as if the page was being allocated */
-		watermark = low_wmark_pages(zone) + (1 << order);
+		/*
+		 * Obey watermarks as if the page was being allocated. We can
+		 * emulate a high-order watermark check with a raised order-0
+		 * watermark, because we already know our high-order page
+		 * exists.
+		 */
+		watermark = min_wmark_pages(zone) + (1UL << order);
 		if (!zone_watermark_ok(zone, 0, watermark, 0, ALLOC_CMA))
 			return 0;
 
