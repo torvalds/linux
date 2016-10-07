@@ -165,7 +165,6 @@ struct recv_priv {
 	struct __queue recv_pending_queue;
 	struct __queue uc_swdec_pending_queue;
 	u8 *pallocated_frame_buf;
-	u8 *precv_frame_buf;
 	struct adapter	*adapter;
 	u32	bIsAnyNonBEPkts;
 	u64	rx_bytes;
