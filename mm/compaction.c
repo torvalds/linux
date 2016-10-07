@@ -1736,54 +1736,11 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
 
 
 /* Compact all zones within a node */
-static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
-{
-	int zoneid;
-	struct zone *zone;
-
-	for (zoneid = 0; zoneid < MAX_NR_ZONES; zoneid++) {
-
-		zone = &pgdat->node_zones[zoneid];
-		if (!populated_zone(zone))
-			continue;
-
-		cc->nr_freepages = 0;
-		cc->nr_migratepages = 0;
-		cc->zone = zone;
-		INIT_LIST_HEAD(&cc->freepages);
-		INIT_LIST_HEAD(&cc->migratepages);
-
-		if (is_via_compact_memory(cc->order) ||
-				!compaction_deferred(zone, cc->order))
-			compact_zone(zone, cc);
-
-		VM_BUG_ON(!list_empty(&cc->freepages));
-		VM_BUG_ON(!list_empty(&cc->migratepages));
-
-		if (is_via_compact_memory(cc->order))
-			continue;
-
-		if (zone_watermark_ok(zone, cc->order,
-				low_wmark_pages(zone), 0, 0))
-			compaction_defer_reset(zone, cc->order, false);
-	}
-}
-
-void compact_pgdat(pg_data_t *pgdat, int order)
-{
-	struct compact_control cc = {
-		.order = order,
-		.mode = MIGRATE_ASYNC,
-	};
-
-	if (!order)
-		return;
-
-	__compact_pgdat(pgdat, &cc);
-}
-
 static void compact_node(int nid)
 {
+	pg_data_t *pgdat = NODE_DATA(nid);
+	int zoneid;
+	struct zone *zone;
 	struct compact_control cc = {
 		.order = -1,
 		.mode = MIGRATE_SYNC,
@@ -1791,7 +1748,24 @@ static void compact_node(int nid)
 		.whole_zone = true,
 	};
 
-	__compact_pgdat(NODE_DATA(nid), &cc);
+
+	for (zoneid = 0; zoneid < MAX_NR_ZONES; zoneid++) {
+
+		zone = &pgdat->node_zones[zoneid];
+		if (!populated_zone(zone))
+			continue;
+
+		cc.nr_freepages = 0;
+		cc.nr_migratepages = 0;
+		cc.zone = zone;
+		INIT_LIST_HEAD(&cc.freepages);
+		INIT_LIST_HEAD(&cc.migratepages);
+
+		compact_zone(zone, &cc);
+
+		VM_BUG_ON(!list_empty(&cc.freepages));
+		VM_BUG_ON(!list_empty(&cc.migratepages));
+	}
 }
 
 /* Compact all nodes in the system */
