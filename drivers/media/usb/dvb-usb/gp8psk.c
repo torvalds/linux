@@ -60,6 +60,9 @@ int gp8psk_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value, u16 index, u8 
 	struct gp8psk_state *st = d->priv;
 	int ret = 0,try = 0;
 
+	if (blen > sizeof(st->data))
+		return -EIO;
+
 	if ((ret = mutex_lock_interruptible(&d->usb_mutex)))
 		return ret;
 
@@ -97,6 +100,9 @@ int gp8psk_usb_out_op(struct dvb_usb_device *d, u8 req, u16 value,
 
 	deb_xfer("out: req. %x, val: %x, ind: %x, buffer: ",req,value,index);
 	debug_dump(b,blen,deb_xfer);
+
+	if (blen > sizeof(st->data))
+		return -EIO;
 
 	if ((ret = mutex_lock_interruptible(&d->usb_mutex)))
 		return ret;
@@ -151,6 +157,11 @@ static int gp8psk_load_bcm4500fw(struct dvb_usb_device *d)
 			err("failed to load bcm4500 firmware.");
 			goto out_free;
 		}
+		if (buflen > 64) {
+			err("firmare chunk size bigger than 64 bytes.");
+			goto out_free;
+		}
+
 		memcpy(buf, ptr, buflen);
 		if (dvb_usb_generic_write(d, buf, buflen)) {
 			err("failed to load bcm4500 firmware.");
