@@ -491,6 +491,8 @@ struct drm_amdgpu_cs_chunk_data {
 #define AMDGPU_INFO_NUM_EVICTIONS		0x18
 /* Query memory about VRAM and GTT domains */
 #define AMDGPU_INFO_MEMORY			0x19
+/* Query vce clock table */
+#define AMDGPU_INFO_VCE_CLOCK_TABLE		0x1A
 
 #define AMDGPU_INFO_MMR_SE_INDEX_SHIFT	0
 #define AMDGPU_INFO_MMR_SE_INDEX_MASK	0xff
@@ -675,6 +677,24 @@ struct drm_amdgpu_info_hw_ip {
 	/** Bitmask of available rings. Bit 0 means ring 0, etc. */
 	__u32  available_rings;
 	__u32  _pad;
+};
+
+#define AMDGPU_VCE_CLOCK_TABLE_ENTRIES		6
+
+struct drm_amdgpu_info_vce_clock_table_entry {
+	/** System clock */
+	__u32 sclk;
+	/** Memory clock */
+	__u32 mclk;
+	/** VCE clock */
+	__u32 eclk;
+	__u32 pad;
+};
+
+struct drm_amdgpu_info_vce_clock_table {
+	struct drm_amdgpu_info_vce_clock_table_entry entries[AMDGPU_VCE_CLOCK_TABLE_ENTRIES];
+	__u32 num_valid_entries;
+	__u32 pad;
 };
 
 /*
