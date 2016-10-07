@@ -191,16 +191,16 @@ static int alps_raw_event(struct hid_device *hdev,
 			if (z != 0) {
 				input_mt_report_slot_state(hdata->input,
 					MT_TOOL_FINGER, 1);
+				input_report_abs(hdata->input,
+					ABS_MT_POSITION_X, x);
+				input_report_abs(hdata->input,
+					ABS_MT_POSITION_Y, y);
+				input_report_abs(hdata->input,
+					ABS_MT_PRESSURE, z);
 			} else {
 				input_mt_report_slot_state(hdata->input,
 					MT_TOOL_FINGER, 0);
-				break;
 			}
-
-			input_report_abs(hdata->input, ABS_MT_POSITION_X, x);
-			input_report_abs(hdata->input, ABS_MT_POSITION_Y, y);
-			input_report_abs(hdata->input, ABS_MT_PRESSURE, z);
-
 		}
 
 		input_mt_sync_frame(hdata->input);
@@ -384,7 +384,7 @@ static int alps_input_configured(struct hid_device *hdev, struct hid_input *hi)
 
 		input2 = input_allocate_device();
 		if (!input2) {
-			input_free_device(input2);
+			ret = -ENOMEM;
 			goto exit;
 		}
 
@@ -426,7 +426,8 @@ static int alps_input_configured(struct hid_device *hdev, struct hid_input *hi)
 		__set_bit(INPUT_PROP_POINTER, input2->propbit);
 		__set_bit(INPUT_PROP_POINTING_STICK, input2->propbit);
 
-		if (input_register_device(data->input2)) {
+		ret = input_register_device(data->input2);
+		if (ret) {
 			input_free_device(input2);
 			goto exit;
 		}
