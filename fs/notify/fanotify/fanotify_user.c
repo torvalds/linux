@@ -390,9 +390,11 @@ static int fanotify_release(struct inode *ignored, struct file *file)
 	mutex_lock(&group->notification_mutex);
 	while (!fsnotify_notify_queue_is_empty(group)) {
 		fsn_event = fsnotify_remove_first_event(group);
-		if (!(fsn_event->mask & FAN_ALL_PERM_EVENTS))
+		if (!(fsn_event->mask & FAN_ALL_PERM_EVENTS)) {
+			mutex_unlock(&group->notification_mutex);
 			fsnotify_destroy_event(group, fsn_event);
-		else
+			mutex_lock(&group->notification_mutex);
+		} else
 			FANOTIFY_PE(fsn_event)->response = FAN_ALLOW;
 	}
 	mutex_unlock(&group->notification_mutex);

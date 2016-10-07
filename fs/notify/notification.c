@@ -178,7 +178,9 @@ void fsnotify_flush_notify(struct fsnotify_group *group)
 	mutex_lock(&group->notification_mutex);
 	while (!fsnotify_notify_queue_is_empty(group)) {
 		event = fsnotify_remove_first_event(group);
+		mutex_unlock(&group->notification_mutex);
 		fsnotify_destroy_event(group, event);
+		mutex_lock(&group->notification_mutex);
 	}
 	mutex_unlock(&group->notification_mutex);
 }
