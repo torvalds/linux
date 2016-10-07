@@ -141,15 +141,6 @@ static void usb_dvobj_deinit(struct usb_interface *usb_intf)
 
 }
 
-static void usb_intf_start(struct adapter *padapter)
-{
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+usb_intf_start\n"));
-
-	rtw_hal_inirp_init(padapter);
-
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("-usb_intf_start\n"));
-}
-
 static void usb_intf_stop(struct adapter *padapter)
 {
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+usb_intf_stop\n"));
@@ -366,7 +357,6 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	if (!padapter->HalData)
 		DBG_88E("cant not alloc memory for HAL DATA\n");
 
-	padapter->intf_start = &usb_intf_start;
 	padapter->intf_stop = &usb_intf_stop;
 
 	/* step read_chip_version */

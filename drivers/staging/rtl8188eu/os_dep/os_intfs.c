@@ -596,8 +596,7 @@ static int _netdev_open(struct net_device *pnetdev)
 			pr_info("can't init mlme_ext_priv\n");
 			goto netdev_open_error;
 		}
-		if (padapter->intf_start)
-			padapter->intf_start(padapter);
+		rtw_hal_inirp_init(padapter);
 
 		rtw_led_control(padapter, LED_CTL_NO_LINK);
 
@@ -658,8 +657,7 @@ static int  ips_netdrv_open(struct adapter *padapter)
 		goto netdev_open_error;
 	}
 
-	if (padapter->intf_start)
-		padapter->intf_start(padapter);
+	rtw_hal_inirp_init(padapter);
 
 	rtw_set_pwr_state_check_timer(&padapter->pwrctrlpriv);
 	mod_timer(&padapter->mlmepriv.dynamic_chk_timer,
