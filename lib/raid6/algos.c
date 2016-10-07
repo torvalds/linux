@@ -49,6 +49,10 @@ const struct raid6_calls * const raid6_algos[] = {
 	&raid6_avx2x1,
 	&raid6_avx2x2,
 #endif
+#ifdef CONFIG_AS_AVX512
+	&raid6_avx512x1,
+	&raid6_avx512x2,
+#endif
 #endif
 #if defined(__x86_64__) && !defined(__arch_um__)
 	&raid6_sse2x1,
@@ -58,6 +62,11 @@ const struct raid6_calls * const raid6_algos[] = {
 	&raid6_avx2x1,
 	&raid6_avx2x2,
 	&raid6_avx2x4,
+#endif
+#ifdef CONFIG_AS_AVX512
+	&raid6_avx512x1,
+	&raid6_avx512x2,
+	&raid6_avx512x4,
 #endif
 #endif
 #ifdef CONFIG_ALTIVEC
@@ -92,6 +101,9 @@ void (*raid6_datap_recov)(int, size_t, int, void **);
 EXPORT_SYMBOL_GPL(raid6_datap_recov);
 
 const struct raid6_recov_calls *const raid6_recov_algos[] = {
+#ifdef CONFIG_AS_AVX512
+	&raid6_recov_avx512,
+#endif
 #ifdef CONFIG_AS_AVX2
 	&raid6_recov_avx2,
 #endif

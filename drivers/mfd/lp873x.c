@@ -53,8 +53,6 @@ static int lp873x_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	mutex_init(&lp873->lock);
-
 	ret = regmap_read(lp873->regmap, LP873X_REG_OTP_REV, &otpid);
 	if (ret) {
 		dev_err(lp873->dev, "Failed to read OTP ID\n");

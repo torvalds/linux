@@ -390,7 +390,8 @@ static int focaltech_read_size(struct psmouse *psmouse)
 	return 0;
 }
 
-void focaltech_set_resolution(struct psmouse *psmouse, unsigned int resolution)
+static void focaltech_set_resolution(struct psmouse *psmouse,
+				     unsigned int resolution)
 {
 	/* not supported yet */
 }

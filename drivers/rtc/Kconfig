@@ -187,6 +187,16 @@ config RTC_DRV_ABX80X
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-abx80x.
 
+config RTC_DRV_AC100
+	tristate "X-Powers AC100"
+	depends on MFD_AC100
+	help
+	  If you say yes here you get support for the real-time clock found
+	  in X-Powers AC100 family peripheral ICs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ac100.
+
 config RTC_DRV_AS3722
 	tristate "ams AS3722 RTC driver"
 	depends on MFD_AS3722
@@ -328,11 +338,11 @@ config RTC_DRV_MAX77686
 	  will be called rtc-max77686.
 
 config RTC_DRV_RK808
-	tristate "Rockchip RK808 RTC"
+	tristate "Rockchip RK808/RK818 RTC"
 	depends on MFD_RK808
 	help
 	  If you say yes here you will get support for the
-	  RTC of RK808 PMIC.
+	  RTC of RK808 and RK818 PMIC.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rk808-rtc.
