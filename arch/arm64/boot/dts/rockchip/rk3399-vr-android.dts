@@ -233,6 +233,62 @@
 		rockchip,uboot-charge-on = <0>;
 		rockchip,android-charge-on = <1>;
 	};
+
+	rk_vr_key: rockchip-vr-key {
+		compatible = "rockchip,key";
+		status = "okay";
+
+		io-channels = <&saradc 1>;
+
+		vol-down-key {
+			linux,code = <114>;
+			label = "volume down";
+			rockchip,adc_value = <170>;
+		};
+
+		vol-up-key {
+			linux,code = <115>;
+			label = "volume up";
+			rockchip,adc_value = <340>;
+		};
+
+		home-key {
+			linux,code = <102>;
+			label = "home";
+			rockchip,adc_value = <420>;
+		};
+
+		camera-key {
+			linux,code = <212>;
+			label = "camera";
+			rockchip,adc_value = <520>;
+		};
+
+		power-key {
+			gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
+			linux,code = <116>;
+			label = "power";
+			gpio-key,wakeup;
+		};
+
+		back-key {
+			linux,code = <158>;
+			label = "back";
+			rockchip,adc_value = <620>;
+		};
+
+		n-key {
+			linux,code = <102>;
+			label = "n";
+			rockchip,adc_value = <700>;
+		};
+
+		menu-key {
+			linux,code = <59>;
+			label = "menu";
+			rockchip,adc_value = <780>;
+		};
+	};
 };
 
 &cluster0_opp {
@@ -838,50 +894,6 @@
 	status = "okay";
 };
 
-&rk_key {
-	compatible = "rockchip,key";
-	status = "okay";
-	io-channels = <&saradc 1>;
-
-	vol-up-key {
-		linux,code = <115>;
-		label = "volume up";
-		rockchip,adc_value = <340>;
-	};
-
-	vol-down-key {
-		linux,code = <114>;
-		label = "volume down";
-		rockchip,adc_value = <170>;
-	};
-
-	power-key {
-		gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
-		linux,code = <116>;
-		label = "power";
-		gpio-key,wakeup;
-	};
-
-	back-key {
-		linux,code = <158>;
-		label = "back";
-		rockchip,adc_value = <620>;
-	};
-
-	n-key {
-		linux,code = <102>;
-		label = "n";
-		rockchip,adc_value = <700>;
-	};
-
-	menu-key {
-		linux,code = <59>;
-		label = "menu";
-		rockchip,adc_value = <780>;
-	};
-
-};
-
 &u2phy0 {
 	extcon = <&fusb0>;
 	status = "okay";
@@ -968,6 +980,10 @@
 &vdd_center {
 	rockchip,pwm_id= <3>;
 	rockchip,pwm_voltage = <900000>;
+};
+
+&rk_key {
+	status = "disabled";
 };
 
 &rk_screen {
