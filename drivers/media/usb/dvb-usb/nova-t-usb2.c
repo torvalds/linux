@@ -76,7 +76,7 @@ static int nova_t_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	u8 *buf, data, toggle, custom;
 	u16 raw;
-	int i;
+	int i, ret;
 	struct dibusb_device_state *st = d->priv;
 
 	buf = kmalloc(5, GFP_KERNEL);
@@ -85,7 +85,9 @@ static int nova_t_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 
 	buf[0] = DIBUSB_REQ_POLL_REMOTE;
 	buf[1] = 0x35;
-	dvb_usb_generic_rw(d, buf, 2, buf, 5, 0);
+	ret = dvb_usb_generic_rw(d, buf, 2, buf, 5, 0);
+	if (ret < 0)
+		goto ret;
 
 	*state = REMOTE_NO_KEY_PRESSED;
 	switch (buf[0]) {
@@ -124,8 +126,9 @@ static int nova_t_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 			break;
 	}
 
+ret:
 	kfree(buf);
-	return 0;
+	return ret;
 }
 
 static int nova_t_read_mac_address (struct dvb_usb_device *d, u8 mac[6])
