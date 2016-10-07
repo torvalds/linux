@@ -453,19 +453,27 @@ static void iucv_sever_path(struct sock *sk, int with_user_data)
 	}
 }
 
-/* Send FIN through an IUCV socket for HIPER transport */
+/* Send controlling flags through an IUCV socket for HIPER transport */
 static int iucv_send_ctrl(struct sock *sk, u8 flags)
 {
 	int err = 0;
 	int blen;
 	struct sk_buff *skb;
+	u8 shutdown = 0;
 
 	blen = sizeof(struct af_iucv_trans_hdr) + ETH_HLEN;
+	if (sk->sk_shutdown & SEND_SHUTDOWN) {
+		/* controlling flags should be sent anyway */
+		shutdown = sk->sk_shutdown;
+		sk->sk_shutdown &= RCV_SHUTDOWN;
+	}
 	skb = sock_alloc_send_skb(sk, blen, 1, &err);
 	if (skb) {
 		skb_reserve(skb, blen);
 		err = afiucv_hs_send(NULL, sk, skb, flags);
 	}
+	if (shutdown)
+		sk->sk_shutdown = shutdown;
 	return err;
 }
 
