@@ -706,7 +706,7 @@ static int kvm_trap_emul_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	if ((cpu_context(cpu, kern_mm) ^ asid_cache(cpu)) &
 						asid_version_mask(cpu)) {
-		kvm_get_new_mmu_context(kern_mm, cpu, vcpu);
+		get_new_mmu_context(kern_mm, cpu);
 
 		kvm_debug("[%d]: cpu_context: %#lx\n", cpu,
 			  cpu_context(cpu, current->mm));
@@ -716,7 +716,7 @@ static int kvm_trap_emul_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	if ((cpu_context(cpu, user_mm) ^ asid_cache(cpu)) &
 						asid_version_mask(cpu)) {
-		kvm_get_new_mmu_context(user_mm, cpu, vcpu);
+		get_new_mmu_context(user_mm, cpu);
 
 		kvm_debug("[%d]: cpu_context: %#lx\n", cpu,
 			  cpu_context(cpu, current->mm));
@@ -779,7 +779,7 @@ static void kvm_trap_emul_vcpu_reenter(struct kvm_run *run,
 		gasid = kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID;
 		if (gasid != vcpu->arch.last_user_gasid) {
 			kvm_mips_flush_gva_pt(user_mm->pgd, KMF_USER);
-			kvm_get_new_mmu_context(user_mm, cpu, vcpu);
+			get_new_mmu_context(user_mm, cpu);
 			for_each_possible_cpu(i)
 				if (i != cpu)
 					cpu_context(i, user_mm) = 0;

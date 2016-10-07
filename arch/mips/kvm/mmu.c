@@ -443,25 +443,6 @@ int kvm_mips_handle_commpage_tlb_fault(unsigned long badvaddr,
 	return 0;
 }
 
-void kvm_get_new_mmu_context(struct mm_struct *mm, unsigned long cpu,
-			     struct kvm_vcpu *vcpu)
-{
-	unsigned long asid = asid_cache(cpu);
-
-	asid += cpu_asid_inc();
-	if (!(asid & cpu_asid_mask(&cpu_data[cpu]))) {
-		if (cpu_has_vtag_icache)
-			flush_icache_all();
-
-		local_flush_tlb_all();      /* start new asid cycle */
-
-		if (!asid)      /* fix version if needed */
-			asid = asid_first_version(cpu);
-	}
-
-	cpu_context(cpu, mm) = asid_cache(cpu) = asid;
-}
-
 /**
  * kvm_mips_migrate_count() - Migrate timer.
  * @vcpu:	Virtual CPU.

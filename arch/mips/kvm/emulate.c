@@ -1198,8 +1198,7 @@ enum emulation_result kvm_mips_emulate_CP0(union mips_instruction inst,
 					 */
 					preempt_disable();
 					cpu = smp_processor_id();
-					kvm_get_new_mmu_context(kern_mm,
-								cpu, vcpu);
+					get_new_mmu_context(kern_mm, cpu);
 					for_each_possible_cpu(i)
 						if (i != cpu)
 							cpu_context(i, kern_mm) = 0;

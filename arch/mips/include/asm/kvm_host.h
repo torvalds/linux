@@ -638,11 +638,6 @@ void kvm_mips_flush_gva_pt(pgd_t *pgd, enum kvm_mips_flush flags);
 void kvm_mmu_free_memory_caches(struct kvm_vcpu *vcpu);
 void kvm_trap_emul_invalidate_gva(struct kvm_vcpu *vcpu, unsigned long addr,
 				  bool user);
-extern void kvm_get_new_mmu_context(struct mm_struct *mm, unsigned long cpu,
-				    struct kvm_vcpu *vcpu);
-extern void kvm_mips_alloc_new_mmu_context(struct kvm_vcpu *vcpu);
-extern void kvm_mips_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
-extern void kvm_mips_vcpu_put(struct kvm_vcpu *vcpu);
 
 /* Emulation */
 u32 kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu);
