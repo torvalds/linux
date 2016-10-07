@@ -181,7 +181,7 @@ struct recv_priv {
 	struct sk_buff_head free_recv_skb_queue;
 	struct sk_buff_head rx_skb_queue;
 	u8 *pallocated_recv_buf;
-	u8 *precv_buf;    /*  4 alignment */
+	struct recv_buf *precv_buf;    /*  4 alignment */
 	struct __queue free_recv_buf_queue;
 	/* For display the phy informatiom */
 	u8 is_signal_dbg;	/*  for debug */

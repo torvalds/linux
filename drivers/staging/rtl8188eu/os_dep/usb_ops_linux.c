@@ -521,7 +521,7 @@ void rtw_hal_inirp_deinit(struct adapter *padapter)
 	int i;
 	struct recv_buf *precvbuf;
 
-	precvbuf = (struct recv_buf *)padapter->recvpriv.precv_buf;
+	precvbuf = padapter->recvpriv.precv_buf;
 
 	DBG_88E("%s\n", __func__);
 

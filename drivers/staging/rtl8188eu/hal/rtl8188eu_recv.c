@@ -46,10 +46,10 @@ int	rtw_hal_init_recv_priv(struct adapter *padapter)
 		goto exit;
 	}
 
-	precvpriv->precv_buf = precvpriv->pallocated_recv_buf;
+	precvpriv->precv_buf = (struct recv_buf *)precvpriv->pallocated_recv_buf;
 
 
-	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
+	precvbuf = precvpriv->precv_buf;
 
 	for (i = 0; i < NR_RECVBUFF; i++) {
 		res = rtw_os_recvbuf_resource_alloc(padapter, precvbuf);
@@ -86,7 +86,7 @@ void rtw_hal_free_recv_priv(struct adapter *padapter)
 	struct recv_buf	*precvbuf;
 	struct recv_priv	*precvpriv = &padapter->recvpriv;
 
-	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
+	precvbuf = precvpriv->precv_buf;
 
 	for (i = 0; i < NR_RECVBUFF; i++) {
 		usb_free_urb(precvbuf->purb);
