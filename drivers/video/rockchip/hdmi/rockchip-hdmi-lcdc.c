@@ -710,7 +710,7 @@ static const struct hdmi_video_timing hdmi_mode[] = {
 			.name = "1440x900p@60Hz",
 			.refresh = 60,
 			.xres = 1440,
-			.yres = 768,
+			.yres = 900,
 			.pixclock = 106500000,
 			.left_margin = 232,
 			.right_margin = 80,
@@ -889,7 +889,7 @@ static const struct hdmi_video_timing hdmi_mode[] = {
 
 static int hdmi_set_info(struct rk_screen *screen, struct hdmi *hdmi)
 {
-	int i, vic;
+	int i, vic, colorimetry;
 	struct fb_videomode *mode;
 
 	if (!screen || !hdmi)
@@ -928,10 +928,27 @@ static int hdmi_set_info(struct rk_screen *screen, struct hdmi *hdmi)
 
 	/* screen type & face */
 	screen->type = SCREEN_HDMI;
-	if (hdmi->video.color_input == HDMI_COLOR_RGB_0_255)
+	colorimetry = hdmi->video.colorimetry;
+	mode = (struct fb_videomode *)&hdmi_mode[i].mode;
+	if (hdmi->video.color_input == HDMI_COLOR_RGB_0_255) {
 		screen->color_mode = COLOR_RGB;
-	else
+	} else if (mode->xres >= 3840 &&
+		   mode->yres >= 2160 &&
+		   colorimetry > HDMI_COLORIMETRY_EXTEND_ADOBE_RGB) {
+		screen->color_mode = COLOR_YCBCR_BT2020;
+		if (hdmi->video.eotf == EOTF_ST_2084)
+			screen->data_space = 1;
+	} else if (colorimetry == HDMI_COLORIMETRY_NO_DATA) {
+		if (mode->xres > 720 && mode->yres > 576)
+			screen->color_mode = COLOR_YCBCR_BT709;
+		else
+			screen->color_mode = COLOR_YCBCR;
+	} else if (colorimetry == HDMI_COLORIMETRY_SMTPE_170M) {
 		screen->color_mode = COLOR_YCBCR;
+	} else {
+		screen->color_mode = COLOR_YCBCR_BT709;
+	}
+
 	if (hdmi->vic & HDMI_VIDEO_YUV420) {
 		if (hdmi->video.color_output_depth == 10)
 			screen->face = OUT_YUV_420_10BIT;
@@ -944,8 +961,6 @@ static int hdmi_set_info(struct rk_screen *screen, struct hdmi *hdmi)
 			screen->face = hdmi_mode[i].interface;
 	}
 	screen->pixelrepeat = hdmi_mode[i].pixelrepeat - 1;
-	mode = (struct fb_videomode *)&hdmi_mode[i].mode;
-
 	screen->mode = *mode;
 	if (hdmi->video.format_3d == HDMI_3D_FRAME_PACKING) {
 		screen->mode.pixclock = 2 * mode->pixclock;

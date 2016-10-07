@@ -1522,7 +1522,8 @@ static void hdmi_dev_config_avi(struct hdmi_dev *hdmi_dev,
 
 	if (vpara->colorimetry > HDMI_COLORIMETRY_ITU709) {
 		colorimetry = AVI_COLORIMETRY_EXTENDED;
-		ext_colorimetry = vpara->colorimetry;
+		ext_colorimetry = vpara->colorimetry -
+				HDMI_COLORIMETRY_EXTEND_XVYCC_601;
 	} else if (vpara->color_output == HDMI_COLOR_RGB_16_235 ||
 		 vpara->color_output == HDMI_COLOR_RGB_0_255) {
 		colorimetry = AVI_COLORIMETRY_NO_DATA;
@@ -1594,6 +1595,85 @@ static int hdmi_dev_config_vsi(struct hdmi *hdmi,
 	hdmi_writel(hdmi_dev, FC_DATAUTO2, 0x11);
 	hdmi_msk_reg(hdmi_dev, FC_DATAUTO0, m_VSD_AUTO, v_VSD_AUTO(1));
 	return 0;
+}
+
+#define HDR_LSB(n) ((n) & 0xff)
+#define HDR_MSB(n) (((n) & 0xff) >> 8)
+
+static void hdmi_dev_config_hdr(struct hdmi_dev *hdmi_dev,
+				int eotf,
+				struct hdmi_hdr_metadata *hdr)
+{
+	/* hdr is supportted after disignid = 0x21 */
+	if (!hdmi_dev || hdmi_readl(hdmi_dev, DESIGN_ID) < 0x21)
+		return;
+
+	hdmi_writel(hdmi_dev, FC_DRM_HB, 1);/*verion = 0x1*/
+	hdmi_writel(hdmi_dev, (FC_DRM_HB + 1), 27);/*length of following data*/
+	hdmi_writel(hdmi_dev, FC_DRM_PB, eotf / 2);
+	hdmi_writel(hdmi_dev, FC_DRM_PB + 1, 0);
+
+	if (hdr) {
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 2, HDR_LSB(hdr->prim_x0));
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 3, HDR_MSB(hdr->prim_x0));
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 4, HDR_LSB(hdr->prim_y0));
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 5, HDR_MSB(hdr->prim_y0));
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 6, HDR_LSB(hdr->prim_x1));
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 7, HDR_MSB(hdr->prim_x1));
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 8, HDR_LSB(hdr->prim_y1));
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 9, HDR_MSB(hdr->prim_y1));
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 10, HDR_LSB(hdr->prim_x2));
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 11, HDR_MSB(hdr->prim_x2));
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 12, HDR_LSB(hdr->prim_y2));
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 13, HDR_MSB(hdr->prim_y2));
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 14, HDR_LSB(hdr->white_px));
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 15, HDR_MSB(hdr->white_px));
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 16, HDR_LSB(hdr->white_py));
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 17, HDR_MSB(hdr->white_py));
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 18, HDR_LSB(hdr->max_dml));
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 19, HDR_MSB(hdr->max_dml));
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 20, HDR_LSB(hdr->min_dml));
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 21, HDR_MSB(hdr->min_dml));
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 22, HDR_LSB(hdr->max_cll));
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 23, HDR_MSB(hdr->max_cll));
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 24, HDR_LSB(hdr->max_fall));
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 25, HDR_MSB(hdr->max_fall));
+	} else {
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 1, 0);
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 2, 0);
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 3, 0);
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 4, 0);
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 5, 0);
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 6, 0);
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 7, 0);
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 8, 0);
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 9, 0);
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 10, 0);
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 11, 0);
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 12, 0);
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 13, 0);
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 14, 0);
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 15, 0);
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 16, 0);
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 17, 0);
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 18, 0);
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 19, 0);
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 20, 0);
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 21, 0);
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 22, 0);
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 23, 0);
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 24, 0);
+		hdmi_writel(hdmi_dev, FC_DRM_PB + 25, 0);
+	}
+	if (eotf) {
+		hdmi_msk_reg(hdmi_dev, FC_PACK_TXE, m_DRM_TXEN, v_DRM_TXEN(1));
+		hdmi_msk_reg(hdmi_dev, FC_MASK2, m_DRM_MASK, v_DRM_MASK(0));
+		hdmi_msk_reg(hdmi_dev, FC_DRM_UP, m_DRM_PUPD, v_DRM_PUPD(1));
+	} else {
+		hdmi_msk_reg(hdmi_dev, FC_PACK_TXE, m_DRM_TXEN, v_DRM_TXEN(0));
+		hdmi_msk_reg(hdmi_dev, FC_MASK2, m_DRM_MASK, v_DRM_MASK(1));
+		hdmi_msk_reg(hdmi_dev, FC_DRM_UP, m_DRM_PUPD, v_DRM_PUPD(1));
+	}
 }
 
 static int hdmi_dev_config_spd(struct hdmi *hdmi, const char *vendor,
@@ -1706,7 +1786,8 @@ static int hdmi_dev_config_video(struct hdmi *hdmi, struct hdmi_video *vpara)
 					    vpara->vic,
 					    HDMI_VIDEO_FORMAT_NORMAL);
 		}
-		dev_info(hdmi->dev, "[%s] success output HDMI.\n", __func__);
+		hdmi_dev_config_hdr(hdmi_dev, vpara->eotf, NULL);
+		dev_info(hdmi->dev, "[%s] sucess output HDMI.\n", __func__);
 	} else {
 		dev_info(hdmi->dev, "[%s] success output DVI.\n", __func__);
 	}

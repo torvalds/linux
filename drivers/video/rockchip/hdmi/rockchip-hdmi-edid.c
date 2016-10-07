@@ -464,6 +464,12 @@ static int hdmi_edid_parse_extensions_cea(unsigned char *buf,
 				EDBG("value is %02x\n", buf[cur_offset + 2]);
 				pedid->colorimetry = buf[cur_offset + 2];
 				break;
+			case 0x06:
+				EDBG("[CEA] HDR Static Metedata data Block\n");
+				for (i = 0; i < count - 1; i++)
+					pedid->hdr.data[i] =
+						buf[cur_offset + 2 + i];
+				break;
 			case 0x0e:
 				EDBG("[CEA] YCBCR 4:2:0 Video Data Block\n");
 				for (i = 0; i < count - 1; i++) {

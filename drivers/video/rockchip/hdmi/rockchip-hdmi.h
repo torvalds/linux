@@ -274,6 +274,7 @@ struct hdmi_video {
 	unsigned int colorimetry;	/* Output Colorimetry */
 	unsigned int sink_hdmi;		/* Output signal is DVI or HDMI*/
 	unsigned int format_3d;		/* Output 3D mode*/
+	unsigned int eotf;		/* EOTF */
 };
 
 /* HDMI Audio Parameters */
@@ -282,6 +283,35 @@ struct hdmi_audio {
 	u32	channel;		/*Audio channel number*/
 	u32	rate;			/*Audio sampling rate*/
 	u32	word_length;		/*Audio data word length*/
+};
+
+enum hdmi_hdr_eotf {
+	EOTF_TRADITIONAL_GMMA_SDR = 1,
+	EOFT_TRADITIONAL_GMMA_HDR = 2,
+	EOTF_ST_2084 = 4,
+};
+
+struct hdmi_hdr_metadata {
+	u16	prim_x0;
+	u16	prim_y0;
+	u16	prim_x1;
+	u16	prim_y1;
+	u16	prim_x2;
+	u16	prim_y2;
+	u16	white_px;
+	u16	white_py;
+	u16	max_dml;
+	u16	min_dml;
+	u16	max_cll;		/*max content light level*/
+	u16	max_fall;		/*max frame-average light level*/
+};
+
+struct hdmi_hdr {
+	u8	eotf;
+	u8	metadata;	/*Staic Metadata Descriptor*/
+	u8	maxluminance;
+	u8	max_average_luminance;
+	u8	minluminance;
 };
 
 #define HDMI_MAX_EDID_BLOCK		8
@@ -355,6 +385,10 @@ struct hdmi_edid {
 
 	unsigned int status;		/*EDID read status, success or failed*/
 	char *raw[HDMI_MAX_EDID_BLOCK]; /*Raw EDID Data*/
+	union {
+		u8	data[5];
+		struct hdmi_hdr hdrinfo;
+	} hdr;
 };
 
 struct hdmi;
@@ -456,6 +490,7 @@ struct hdmi {
 	int sleep;			/* Sleep flag*/
 	int vic;			/* HDMI output video information code*/
 	int mode_3d;			/* HDMI output video 3d mode*/
+	int eotf;			/* HDMI HDR EOTF */
 	struct hdmi_audio audio;	/* HDMI output audio information.*/
 	struct hdmi_video video;	/* HDMI output video information.*/
 	int xscale;

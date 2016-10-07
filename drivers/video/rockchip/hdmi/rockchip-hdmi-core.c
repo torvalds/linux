@@ -141,8 +141,20 @@ static void hdmi_wq_set_video(struct hdmi *hdmi)
 			video->vic = hdmi->vic;
 		}
 		video->color_output_depth = 8;
+		video->eotf = 0;
 	} else {
 		video->vic = hdmi->vic & HDMI_VIC_MASK;
+		video->eotf = hdmi->eotf;
+		/* ST_2084 must be 10bit and bt2020 */
+		if (video->eotf & EOTF_ST_2084) {
+			video->color_output_depth = 10;
+			if (video->color_output > HDMI_COLOR_RGB_16_235)
+				video->colorimetry =
+					HDMI_COLORIMETRY_EXTEND_BT_2020_YCC;
+			else
+				video->colorimetry =
+					HDMI_COLORIMETRY_EXTEND_BT_2020_RGB;
+		}
 	}
 
 	if (hdmi->uboot) {
