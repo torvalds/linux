@@ -82,7 +82,7 @@
 
 &ethmac {
 	status = "okay";
-	pinctrl-0 = <&eth_pins>;
+	pinctrl-0 = <&eth_rgmii_pins>;
 	pinctrl-names = "default";
 };
 

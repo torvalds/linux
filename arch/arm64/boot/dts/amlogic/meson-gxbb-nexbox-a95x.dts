@@ -97,8 +97,9 @@
 
 &ethmac {
 	status = "okay";
-	pinctrl-0 = <&eth_pins>;
+	pinctrl-0 = <&eth_rmii_pins>;
 	pinctrl-names = "default";
+	phy-mode = "rmii";
 };
 
 &ir {

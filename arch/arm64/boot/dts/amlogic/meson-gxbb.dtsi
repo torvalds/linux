@@ -443,7 +443,7 @@
 			};
 		};
 
-		eth_pins: eth_c {
+		eth_rgmii_pins: eth-rgmii {
 			mux {
 				groups = "eth_mdio",
 				       "eth_mdc",
@@ -459,6 +459,21 @@
 				       "eth_txd1",
 				       "eth_txd2",
 				       "eth_txd3";
+				function = "eth";
+			};
+		};
+
+		eth_rmii_pins: eth-rmii {
+			mux {
+				groups = "eth_mdio",
+				       "eth_mdc",
+				       "eth_clk_rx_clk",
+				       "eth_rx_dv",
+				       "eth_rxd0",
+				       "eth_rxd1",
+				       "eth_tx_en",
+				       "eth_txd0",
+				       "eth_txd1";
 				function = "eth";
 			};
 		};
