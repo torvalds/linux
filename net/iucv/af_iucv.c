@@ -1323,8 +1323,13 @@ static void iucv_process_message(struct sock *sk, struct sk_buff *skb,
 	}
 
 	IUCV_SKB_CB(skb)->offset = 0;
-	if (sock_queue_rcv_skb(sk, skb))
-		skb_queue_head(&iucv_sk(sk)->backlog_skb_q, skb);
+	if (sk_filter(sk, skb)) {
+		atomic_inc(&sk->sk_drops);	/* skb rejected by filter */
+		kfree_skb(skb);
+		return;
+	}
+	if (__sock_queue_rcv_skb(sk, skb))	/* handle rcv queue full */
+		skb_queue_tail(&iucv_sk(sk)->backlog_skb_q, skb);
 }
 
 /* iucv_process_message_q() - Process outstanding IUCV messages
@@ -1438,13 +1443,13 @@ static int iucv_sock_recvmsg(struct socket *sock, struct msghdr *msg,
 		rskb = skb_dequeue(&iucv->backlog_skb_q);
 		while (rskb) {
 			IUCV_SKB_CB(rskb)->offset = 0;
-			if (sock_queue_rcv_skb(sk, rskb)) {
+			if (__sock_queue_rcv_skb(sk, rskb)) {
+				/* handle rcv queue full */
 				skb_queue_head(&iucv->backlog_skb_q,
 						rskb);
 				break;
-			} else {
-				rskb = skb_dequeue(&iucv->backlog_skb_q);
 			}
+			rskb = skb_dequeue(&iucv->backlog_skb_q);
 		}
 		if (skb_queue_empty(&iucv->backlog_skb_q)) {
 			if (!list_empty(&iucv->message_q.list))
@@ -2124,12 +2129,17 @@ static int afiucv_hs_callback_rx(struct sock *sk, struct sk_buff *skb)
 	skb_reset_transport_header(skb);
 	skb_reset_network_header(skb);
 	IUCV_SKB_CB(skb)->offset = 0;
+	if (sk_filter(sk, skb)) {
+		atomic_inc(&sk->sk_drops);	/* skb rejected by filter */
+		kfree_skb(skb);
+		return NET_RX_SUCCESS;
+	}
+
 	spin_lock(&iucv->message_q.lock);
 	if (skb_queue_empty(&iucv->backlog_skb_q)) {
-		if (sock_queue_rcv_skb(sk, skb)) {
+		if (__sock_queue_rcv_skb(sk, skb))
 			/* handle rcv queue full */
 			skb_queue_tail(&iucv->backlog_skb_q, skb);
-		}
 	} else
 		skb_queue_tail(&iucv_sk(sk)->backlog_skb_q, skb);
 	spin_unlock(&iucv->message_q.lock);
