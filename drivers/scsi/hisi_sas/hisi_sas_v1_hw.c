@@ -490,23 +490,15 @@ static void config_id_frame_v1_hw(struct hisi_hba *hisi_hba, int phy_no)
 	hisi_sas_phy_write32(hisi_hba, phy_no, TX_ID_DWORD0,
 			__swab32(identify_buffer[0]));
 	hisi_sas_phy_write32(hisi_hba, phy_no, TX_ID_DWORD1,
-			identify_buffer[2]);
+			__swab32(identify_buffer[1]));
 	hisi_sas_phy_write32(hisi_hba, phy_no, TX_ID_DWORD2,
-			identify_buffer[1]);
+			__swab32(identify_buffer[2]));
 	hisi_sas_phy_write32(hisi_hba, phy_no, TX_ID_DWORD3,
-			identify_buffer[4]);
+			__swab32(identify_buffer[3]));
 	hisi_sas_phy_write32(hisi_hba, phy_no, TX_ID_DWORD4,
-			identify_buffer[3]);
+			__swab32(identify_buffer[4]));
 	hisi_sas_phy_write32(hisi_hba, phy_no, TX_ID_DWORD5,
 			__swab32(identify_buffer[5]));
-}
-
-static void init_id_frame_v1_hw(struct hisi_hba *hisi_hba)
-{
-	int i;
-
-	for (i = 0; i < hisi_hba->n_phy; i++)
-		config_id_frame_v1_hw(hisi_hba, i);
 }
 
 static void setup_itct_v1_hw(struct hisi_hba *hisi_hba,
@@ -774,8 +766,6 @@ static int hw_init_v1_hw(struct hisi_hba *hisi_hba)
 	msleep(100);
 	init_reg_v1_hw(hisi_hba);
 
-	init_id_frame_v1_hw(hisi_hba);
-
 	return 0;
 }
 
@@ -875,12 +865,13 @@ static int get_wideport_bitmap_v1_hw(struct hisi_hba *hisi_hba, int port_id)
 static int get_free_slot_v1_hw(struct hisi_hba *hisi_hba, int *q, int *s)
 {
 	struct device *dev = &hisi_hba->pdev->dev;
+	struct hisi_sas_dq *dq;
 	u32 r, w;
 	int queue = hisi_hba->queue;
 
 	while (1) {
-		w = hisi_sas_read32_relaxed(hisi_hba,
-				    DLVRY_Q_0_WR_PTR + (queue * 0x14));
+		dq = &hisi_hba->dq[queue];
+		w = dq->wr_point;
 		r = hisi_sas_read32_relaxed(hisi_hba,
 				    DLVRY_Q_0_RD_PTR + (queue * 0x14));
 		if (r == (w+1) % HISI_SAS_QUEUE_SLOTS) {
@@ -903,10 +894,11 @@ static void start_delivery_v1_hw(struct hisi_hba *hisi_hba)
 {
 	int dlvry_queue = hisi_hba->slot_prep->dlvry_queue;
 	int dlvry_queue_slot = hisi_hba->slot_prep->dlvry_queue_slot;
+	struct hisi_sas_dq *dq = &hisi_hba->dq[dlvry_queue];
 
-	hisi_sas_write32(hisi_hba,
-			 DLVRY_Q_0_WR_PTR + (dlvry_queue * 0x14),
-			 ++dlvry_queue_slot % HISI_SAS_QUEUE_SLOTS);
+	dq->wr_point = ++dlvry_queue_slot % HISI_SAS_QUEUE_SLOTS;
+	hisi_sas_write32(hisi_hba, DLVRY_Q_0_WR_PTR + (dlvry_queue * 0x14),
+			 dq->wr_point);
 }
 
 static int prep_prd_sge_v1_hw(struct hisi_hba *hisi_hba,
@@ -1565,14 +1557,11 @@ static irqreturn_t cq_interrupt_v1_hw(int irq, void *p)
 	struct hisi_sas_complete_v1_hdr *complete_queue =
 			(struct hisi_sas_complete_v1_hdr *)
 			hisi_hba->complete_hdr[queue];
-	u32 irq_value, rd_point, wr_point;
+	u32 irq_value, rd_point = cq->rd_point, wr_point;
 
 	irq_value = hisi_sas_read32(hisi_hba, OQ_INT_SRC);
 
 	hisi_sas_write32(hisi_hba, OQ_INT_SRC, 1 << queue);
-
-	rd_point = hisi_sas_read32(hisi_hba,
-			COMPL_Q_0_RD_PTR + (0x14 * queue));
 	wr_point = hisi_sas_read32(hisi_hba,
 			COMPL_Q_0_WR_PTR + (0x14 * queue));
 
@@ -1600,6 +1589,7 @@ static irqreturn_t cq_interrupt_v1_hw(int irq, void *p)
 	}
 
 	/* update rd_point */
+	cq->rd_point = rd_point;
 	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue), rd_point);
 
 	return IRQ_HANDLED;
