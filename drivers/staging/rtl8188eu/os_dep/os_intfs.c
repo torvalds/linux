@@ -709,8 +709,7 @@ void rtw_ips_dev_unload(struct adapter *padapter)
 
 	rtw_hal_set_hwreg(padapter, HW_VAR_FIFO_CLEARN_UP, NULL);
 
-	if (padapter->intf_stop)
-		padapter->intf_stop(padapter);
+	usb_intf_stop(padapter);
 
 	/* s5. */
 	if (!padapter->bSurpriseRemoved)
