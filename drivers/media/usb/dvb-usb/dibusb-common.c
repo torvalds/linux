@@ -366,6 +366,7 @@ EXPORT_SYMBOL(rc_map_dibusb_table);
 int dibusb_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	u8 *buf;
+	int ret;
 
 	buf = kmalloc(5, GFP_KERNEL);
 	if (!buf)
@@ -373,7 +374,9 @@ int dibusb_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 
 	buf[0] = DIBUSB_REQ_POLL_REMOTE;
 
-	dvb_usb_generic_rw(d, buf, 1, buf, 5, 0);
+	ret = dvb_usb_generic_rw(d, buf, 1, buf, 5, 0);
+	if (ret < 0)
+		goto ret;
 
 	dvb_usb_nec_rc_key_to_event(d, buf, event, state);
 
@@ -382,6 +385,7 @@ int dibusb_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 
 	kfree(buf);
 
-	return 0;
+ret:
+	return ret;
 }
 EXPORT_SYMBOL(dibusb_rc_query);
