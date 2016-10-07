@@ -54,8 +54,7 @@ struct kmem_cache *fanotify_perm_event_cachep __read_mostly;
 static struct fsnotify_event *get_one_event(struct fsnotify_group *group,
 					    size_t count)
 {
-	BUG_ON(IS_ENABLED(CONFIG_SMP) &&
-	       !spin_is_locked(&group->notification_lock));
+	assert_spin_locked(&group->notification_lock);
 
 	pr_debug("%s: group=%p count=%zd\n", __func__, group, count);
 
