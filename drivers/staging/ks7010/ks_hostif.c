@@ -1927,12 +1927,12 @@ void hostif_sme_set_wep(struct ks_wlan_private *priv, int type)
 struct wpa_suite_t {
 	unsigned short size;
 	unsigned char suite[4][CIPHER_ID_LEN];
-} __attribute__ ((packed));
+} __packed;
 
 struct rsn_mode_t {
 	uint32_t rsn_mode;
 	uint16_t rsn_capability;
-} __attribute__ ((packed));
+} __packed;
 
 static
 void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
@@ -2406,8 +2406,8 @@ void hostif_sme_set_pmksa(struct ks_wlan_private *priv)
 		struct {
 			uint8_t bssid[ETH_ALEN];
 			uint8_t pmkid[IW_PMKID_LEN];
-		} __attribute__ ((packed)) list[PMK_LIST_MAX];
-	} __attribute__ ((packed)) pmkcache;
+		} __packed list[PMK_LIST_MAX];
+	} __packed pmkcache;
 	struct pmk_t *pmk;
 	struct list_head *ptr;
 	int i;
