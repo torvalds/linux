@@ -268,7 +268,6 @@ struct hal_data_8188e {
 	u32	AntennaTxPath;			/*  Antenna path Tx */
 	u32	AntennaRxPath;			/*  Antenna path Rx */
 	u8	BluetoothCoexist;
-	u8	ExternalPA;
 
 	u8	b1x1RecvCombine;	/*  for 1T1R receive combining */
 

@@ -61,8 +61,6 @@ void rtl88eu_phy_rf6052_set_cck_txpower(struct adapter *adapt, u8 *powerlevel)
 				      (powerlevel[idx1]<<8) |
 				      (powerlevel[idx1]<<16) |
 				      (powerlevel[idx1]<<24);
-			if (tx_agc[idx1] > 0x20 && hal_data->ExternalPA)
-				tx_agc[idx1] = 0x20;
 		}
 	} else {
 		if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_Level1) {
