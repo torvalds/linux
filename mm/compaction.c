@@ -1329,13 +1329,13 @@ static enum compact_result __compact_finished(struct zone *zone, struct compact_
 
 		/* Job done if page is free of the right migratetype */
 		if (!list_empty(&area->free_list[migratetype]))
-			return COMPACT_PARTIAL;
+			return COMPACT_SUCCESS;
 
 #ifdef CONFIG_CMA
 		/* MIGRATE_MOVABLE can fallback on MIGRATE_CMA */
 		if (migratetype == MIGRATE_MOVABLE &&
 			!list_empty(&area->free_list[MIGRATE_CMA]))
-			return COMPACT_PARTIAL;
+			return COMPACT_SUCCESS;
 #endif
 		/*
 		 * Job done if allocation would steal freepages from
@@ -1343,7 +1343,7 @@ static enum compact_result __compact_finished(struct zone *zone, struct compact_
 		 */
 		if (find_suitable_fallback(area, order, migratetype,
 						true, &can_steal) != -1)
-			return COMPACT_PARTIAL;
+			return COMPACT_SUCCESS;
 	}
 
 	return COMPACT_NO_SUITABLE_PAGE;
@@ -1367,7 +1367,7 @@ static enum compact_result compact_finished(struct zone *zone,
  * compaction_suitable: Is this suitable to run compaction on this zone now?
  * Returns
  *   COMPACT_SKIPPED  - If there are too few free pages for compaction
- *   COMPACT_PARTIAL  - If the allocation would succeed without compaction
+ *   COMPACT_SUCCESS  - If the allocation would succeed without compaction
  *   COMPACT_CONTINUE - If compaction should run now
  */
 static enum compact_result __compaction_suitable(struct zone *zone, int order,
@@ -1388,7 +1388,7 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
 	 */
 	if (zone_watermark_ok(zone, order, watermark, classzone_idx,
 								alloc_flags))
-		return COMPACT_PARTIAL;
+		return COMPACT_SUCCESS;
 
 	/*
 	 * Watermarks for order-0 must be met for compaction. Note the 2UL.
@@ -1477,7 +1477,7 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
 	ret = compaction_suitable(zone, cc->order, cc->alloc_flags,
 							cc->classzone_idx);
 	/* Compaction is likely to fail */
-	if (ret == COMPACT_PARTIAL || ret == COMPACT_SKIPPED)
+	if (ret == COMPACT_SUCCESS || ret == COMPACT_SKIPPED)
 		return ret;
 
 	/* huh, compaction_suitable is returning something unexpected */

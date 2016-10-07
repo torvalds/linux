@@ -2495,7 +2495,7 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
 			continue;
 
 		switch (compaction_suitable(zone, sc->order, 0, sc->reclaim_idx)) {
-		case COMPACT_PARTIAL:
+		case COMPACT_SUCCESS:
 		case COMPACT_CONTINUE:
 			return false;
 		default:

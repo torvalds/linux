@@ -49,10 +49,10 @@ enum compact_result {
 	COMPACT_CONTENDED,
 
 	/*
-	 * direct compaction partially compacted a zone and there might be
-	 * suitable pages
+	 * direct compaction terminated after concluding that the allocation
+	 * should now succeed
 	 */
-	COMPACT_PARTIAL,
+	COMPACT_SUCCESS,
 };
 
 struct alloc_context; /* in mm/internal.h */
@@ -88,7 +88,7 @@ static inline bool compaction_made_progress(enum compact_result result)
 	 * that the compaction successfully isolated and migrated some
 	 * pageblocks.
 	 */
-	if (result == COMPACT_PARTIAL)
+	if (result == COMPACT_SUCCESS)
 		return true;
 
 	return false;
