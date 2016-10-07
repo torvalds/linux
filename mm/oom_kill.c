@@ -803,8 +803,9 @@ static bool task_will_free_mem(struct task_struct *task)
 		return true;
 
 	/*
-	 * This is really pessimistic but we do not have any reliable way
-	 * to check that external processes share with our mm
+	 * Make sure that all tasks which share the mm with the given tasks
+	 * are dying as well to make sure that a) nobody pins its mm and
+	 * b) the task is also reapable by the oom reaper.
 	 */
 	rcu_read_lock();
 	for_each_process(p) {
