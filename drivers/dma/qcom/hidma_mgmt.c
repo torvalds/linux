@@ -375,8 +375,15 @@ static int __init hidma_mgmt_of_populate_channels(struct device_node *np)
 			ret = PTR_ERR(new_pdev);
 			goto out;
 		}
+		of_node_get(child);
+		new_pdev->dev.of_node = child;
 		of_dma_configure(&new_pdev->dev, child);
-
+		/*
+		 * It is assumed that calling of_msi_configure is safe on
+		 * platforms with or without MSI support.
+		 */
+		of_msi_configure(&new_pdev->dev, child);
+		of_node_put(child);
 		kfree(res);
 		res = NULL;
 	}
