@@ -270,8 +270,6 @@ struct hal_data_8188e {
 	u8	BluetoothCoexist;
 	u8	ExternalPA;
 
-	u8	bLedOpenDrain; /* Open-drain support for controlling the LED.*/
-
 	u8	b1x1RecvCombine;	/*  for 1T1R receive combining */
 
 	u32	AcParam_BE; /* Original parameter for BE, use for EDCA turbo. */
