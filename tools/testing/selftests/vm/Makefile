@@ -10,7 +10,7 @@ BINARIES += on-fault-limit
 BINARIES += thuge-gen
 BINARIES += transhuge-stress
 BINARIES += userfaultfd
-BINARIES += mlock-intersect-test
+BINARIES += mlock-random-test
 
 all: $(BINARIES)
 %: %.c
@@ -18,7 +18,7 @@ all: $(BINARIES)
 userfaultfd: userfaultfd.c ../../../../usr/include/linux/kernel.h
 	$(CC) $(CFLAGS) -O2 -o $@ $< -lpthread
 
-mlock-intersect-test: mlock-intersect-test.c
+mlock-random-test: mlock-random-test.c
 	$(CC) $(CFLAGS) -o $@ $< -lcap
 
 ../../../../usr/include/linux/kernel.h:
