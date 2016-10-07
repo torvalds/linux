@@ -1045,8 +1045,10 @@ static int gbaudio_tplg_create_widget(struct gbaudio_module_info *module,
 			control->texts = (const char * const *)
 				gb_generate_enum_strings(module, gbenum);
 			control->items = gbenum->items;
-		} else
+		} else {
 			csize = sizeof(struct gb_audio_control);
+		}
+
 		*w_size += csize;
 		curr = (void *)curr + csize;
 		list_add(&control->list, &module->widget_ctl_list);
@@ -1191,8 +1193,9 @@ static int gbaudio_tplg_process_kcontrols(struct gbaudio_module_info *module,
 			control->texts = (const char * const *)
 				gb_generate_enum_strings(module, gbenum);
 			control->items = gbenum->items;
-		} else
+		} else {
 			csize = sizeof(struct gb_audio_control);
+		}
 
 		list_add(&control->list, &module->ctl_list);
 		dev_dbg(module->dev, "%d:%s created of type %d\n", curr->id,
