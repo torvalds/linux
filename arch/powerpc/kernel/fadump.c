@@ -333,6 +333,11 @@ int __init fadump_reserve_mem(void)
 	return 1;
 }
 
+unsigned long __init arch_reserved_kernel_pages(void)
+{
+	return memblock_reserved_size() / PAGE_SIZE;
+}
+
 /* Look for fadump= cmdline option. */
 static int __init early_fadump_param(char *p)
 {
