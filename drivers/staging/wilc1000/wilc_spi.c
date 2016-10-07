@@ -858,7 +858,8 @@ static int wilc_spi_init(struct wilc *wilc, bool resume)
 	/* the SPI to it's initial value. */
 	if (!spi_internal_read(wilc, WILC_SPI_PROTOCOL_OFFSET, &reg)) {
 		/* Read failed. Try with CRC off. This might happen when module
-		 * is removed but chip isn't reset*/
+		 * is removed but chip isn't reset
+		 */
 		g_spi.crc_off = 1;
 		dev_err(&spi->dev, "Failed internal read protocol with CRC on, retrying with CRC off...\n");
 		if (!spi_internal_read(wilc, WILC_SPI_PROTOCOL_OFFSET, &reg)) {
