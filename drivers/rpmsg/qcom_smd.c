@@ -820,20 +820,13 @@ qcom_smd_find_channel(struct qcom_smd_edge *edge, const char *name)
 	struct qcom_smd_channel *channel;
 	struct qcom_smd_channel *ret = NULL;
 	unsigned long flags;
-	unsigned state;
 
 	spin_lock_irqsave(&edge->channels_lock, flags);
 	list_for_each_entry(channel, &edge->channels, list) {
-		if (strcmp(channel->name, name))
-			continue;
-
-		state = GET_RX_CHANNEL_INFO(channel, state);
-		if (state != SMD_CHANNEL_OPENING &&
-		    state != SMD_CHANNEL_OPENED)
-			continue;
-
-		ret = channel;
-		break;
+		if (!strcmp(channel->name, name)) {
+			ret = channel;
+			break;
+		}
 	}
 	spin_unlock_irqrestore(&edge->channels_lock, flags);
 
