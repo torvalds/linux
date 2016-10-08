@@ -44,6 +44,7 @@
 /*#define SW_LT*/
 
 #define RK3368_GRF_SOC_CON4	0x410
+#define RK3399_GRF_SOC_CON20	0x6250
 
 static struct rk32_edp *rk32_edp;
 
@@ -136,6 +137,14 @@ static int rk32_edp_init_edp(struct rk32_edp *edp)
 		else
 			val = EDP_SEL_VOP_LIT << 16;
 		writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_SOC_CON6);
+	}
+
+	if (edp->soctype == SOC_RK3399) {
+		if (screen->lcdc_id == 1)  /*select lcdc*/
+			val = EDP_SEL_VOP_LIT | (EDP_SEL_VOP_LIT << 16);
+		else
+			val = EDP_SEL_VOP_LIT << 16;
+		regmap_write(edp->grf, RK3399_GRF_SOC_CON20, val);
 	}
 
 	rk32_edp_reset(edp);
