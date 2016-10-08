@@ -205,19 +205,16 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 			goto err2;
 	}
 
-	buffer->dev = dev;
-	buffer->size = len;
-
-	table = heap->ops->map_dma(heap, buffer);
-	if (WARN_ONCE(table == NULL,
-			"heap->ops->map_dma should return ERR_PTR on error"))
-		table = ERR_PTR(-EINVAL);
-	if (IS_ERR(table)) {
+	if (buffer->sg_table == NULL) {
+		WARN_ONCE(1, "This heap needs to set the sgtable");
 		ret = -EINVAL;
 		goto err1;
 	}
 
-	buffer->sg_table = table;
+	table = buffer->sg_table;
+	buffer->dev = dev;
+	buffer->size = len;
+
 	if (ion_buffer_fault_user_mappings(buffer)) {
 		int num_pages = PAGE_ALIGN(buffer->size) / PAGE_SIZE;
 		struct scatterlist *sg;
@@ -226,7 +223,7 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 		buffer->pages = vmalloc(sizeof(struct page *) * num_pages);
 		if (!buffer->pages) {
 			ret = -ENOMEM;
-			goto err;
+			goto err1;
 		}
 
 		for_each_sg(table->sgl, sg, table->nents, i) {
@@ -260,8 +257,6 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 	mutex_unlock(&dev->buffer_lock);
 	return buffer;
 
-err:
-	heap->ops->unmap_dma(heap, buffer);
 err1:
 	heap->ops->free(buffer);
 err2:
@@ -273,7 +268,6 @@ void ion_buffer_destroy(struct ion_buffer *buffer)
 {
 	if (WARN_ON(buffer->kmap_cnt > 0))
 		buffer->heap->ops->unmap_kernel(buffer->heap, buffer);
-	buffer->heap->ops->unmap_dma(buffer->heap, buffer);
 	buffer->heap->ops->free(buffer);
 	vfree(buffer->pages);
 	kfree(buffer);
@@ -551,7 +545,8 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 }
 EXPORT_SYMBOL(ion_alloc);
 
-static void ion_free_nolock(struct ion_client *client, struct ion_handle *handle)
+static void ion_free_nolock(struct ion_client *client,
+			    struct ion_handle *handle)
 {
 	bool valid_handle;
 
@@ -575,32 +570,6 @@ void ion_free(struct ion_client *client, struct ion_handle *handle)
 	mutex_unlock(&client->lock);
 }
 EXPORT_SYMBOL(ion_free);
-
-int ion_phys(struct ion_client *client, struct ion_handle *handle,
-	     ion_phys_addr_t *addr, size_t *len)
-{
-	struct ion_buffer *buffer;
-	int ret;
-
-	mutex_lock(&client->lock);
-	if (!ion_handle_validate(client, handle)) {
-		mutex_unlock(&client->lock);
-		return -EINVAL;
-	}
-
-	buffer = handle->buffer;
-
-	if (!buffer->heap->ops->phys) {
-		pr_err("%s: ion_phys is not implemented by this heap (name=%s, type=%d).\n",
-			__func__, buffer->heap->name, buffer->heap->type);
-		mutex_unlock(&client->lock);
-		return -ENODEV;
-	}
-	mutex_unlock(&client->lock);
-	ret = buffer->heap->ops->phys(buffer->heap, buffer, addr, len);
-	return ret;
-}
-EXPORT_SYMBOL(ion_phys);
 
 static void *ion_buffer_kmap_get(struct ion_buffer *buffer)
 {
@@ -916,26 +885,6 @@ void ion_client_destroy(struct ion_client *client)
 	mutex_unlock(&debugfs_mutex);
 }
 EXPORT_SYMBOL(ion_client_destroy);
-
-struct sg_table *ion_sg_table(struct ion_client *client,
-			      struct ion_handle *handle)
-{
-	struct ion_buffer *buffer;
-	struct sg_table *table;
-
-	mutex_lock(&client->lock);
-	if (!ion_handle_validate(client, handle)) {
-		pr_err("%s: invalid handle passed to map_dma.\n",
-		       __func__);
-		mutex_unlock(&client->lock);
-		return ERR_PTR(-EINVAL);
-	}
-	buffer = handle->buffer;
-	table = buffer->sg_table;
-	mutex_unlock(&client->lock);
-	return table;
-}
-EXPORT_SYMBOL(ion_sg_table);
 
 static void ion_buffer_sync_for_device(struct ion_buffer *buffer,
 				       struct device *dev,
@@ -1358,7 +1307,8 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		struct ion_handle *handle;
 
 		mutex_lock(&client->lock);
-		handle = ion_handle_get_by_id_nolock(client, data.handle.handle);
+		handle = ion_handle_get_by_id_nolock(client,
+						     data.handle.handle);
 		if (IS_ERR(handle)) {
 			mutex_unlock(&client->lock);
 			return PTR_ERR(handle);
@@ -1588,8 +1538,7 @@ void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap)
 {
 	struct dentry *debug_file;
 
-	if (!heap->ops->allocate || !heap->ops->free || !heap->ops->map_dma ||
-	    !heap->ops->unmap_dma)
+	if (!heap->ops->allocate || !heap->ops->free)
 		pr_err("%s: can not add heap with invalid ops struct.\n",
 		       __func__);
 
@@ -1703,37 +1652,3 @@ void ion_device_destroy(struct ion_device *dev)
 }
 EXPORT_SYMBOL(ion_device_destroy);
 
-void __init ion_reserve(struct ion_platform_data *data)
-{
-	int i;
-
-	for (i = 0; i < data->nr; i++) {
-		if (data->heaps[i].size == 0)
-			continue;
-
-		if (data->heaps[i].base == 0) {
-			phys_addr_t paddr;
-
-			paddr = memblock_alloc_base(data->heaps[i].size,
-						    data->heaps[i].align,
-						    MEMBLOCK_ALLOC_ANYWHERE);
-			if (!paddr) {
-				pr_err("%s: error allocating memblock for heap %d\n",
-					__func__, i);
-				continue;
-			}
-			data->heaps[i].base = paddr;
-		} else {
-			int ret = memblock_reserve(data->heaps[i].base,
-					       data->heaps[i].size);
-			if (ret)
-				pr_err("memblock reserve of %zx@%lx failed\n",
-				       data->heaps[i].size,
-				       data->heaps[i].base);
-		}
-		pr_info("%s: %s reserved base %lx size %zu\n", __func__,
-			data->heaps[i].name,
-			data->heaps[i].base,
-			data->heaps[i].size);
-	}
-}

@@ -164,7 +164,7 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 		list_del(&page->lru);
 	}
 
-	buffer->priv_virt = table;
+	buffer->sg_table = table;
 	return 0;
 
 free_table:
@@ -197,17 +197,6 @@ static void ion_system_heap_free(struct ion_buffer *buffer)
 		free_buffer_page(sys_heap, buffer, sg_page(sg));
 	sg_free_table(table);
 	kfree(table);
-}
-
-static struct sg_table *ion_system_heap_map_dma(struct ion_heap *heap,
-						struct ion_buffer *buffer)
-{
-	return buffer->priv_virt;
-}
-
-static void ion_system_heap_unmap_dma(struct ion_heap *heap,
-				      struct ion_buffer *buffer)
-{
 }
 
 static int ion_system_heap_shrink(struct ion_heap *heap, gfp_t gfp_mask,
@@ -243,8 +232,6 @@ static int ion_system_heap_shrink(struct ion_heap *heap, gfp_t gfp_mask,
 static struct ion_heap_ops system_heap_ops = {
 	.allocate = ion_system_heap_allocate,
 	.free = ion_system_heap_free,
-	.map_dma = ion_system_heap_map_dma,
-	.unmap_dma = ion_system_heap_unmap_dma,
 	.map_kernel = ion_heap_map_kernel,
 	.unmap_kernel = ion_heap_unmap_kernel,
 	.map_user = ion_heap_map_user,
@@ -358,7 +345,7 @@ static int ion_system_contig_heap_allocate(struct ion_heap *heap,
 
 	sg_set_page(table->sgl, page, len, 0);
 
-	buffer->priv_virt = table;
+	buffer->sg_table = table;
 
 	ion_pages_sync_for_device(NULL, page, len, DMA_BIDIRECTIONAL);
 
@@ -375,7 +362,7 @@ free_pages:
 
 static void ion_system_contig_heap_free(struct ion_buffer *buffer)
 {
-	struct sg_table *table = buffer->priv_virt;
+	struct sg_table *table = buffer->sg_table;
 	struct page *page = sg_page(table->sgl);
 	unsigned long pages = PAGE_ALIGN(buffer->size) >> PAGE_SHIFT;
 	unsigned long i;
@@ -386,34 +373,9 @@ static void ion_system_contig_heap_free(struct ion_buffer *buffer)
 	kfree(table);
 }
 
-static int ion_system_contig_heap_phys(struct ion_heap *heap,
-				       struct ion_buffer *buffer,
-				       ion_phys_addr_t *addr, size_t *len)
-{
-	struct sg_table *table = buffer->priv_virt;
-	struct page *page = sg_page(table->sgl);
-	*addr = page_to_phys(page);
-	*len = buffer->size;
-	return 0;
-}
-
-static struct sg_table *ion_system_contig_heap_map_dma(struct ion_heap *heap,
-						struct ion_buffer *buffer)
-{
-	return buffer->priv_virt;
-}
-
-static void ion_system_contig_heap_unmap_dma(struct ion_heap *heap,
-					     struct ion_buffer *buffer)
-{
-}
-
 static struct ion_heap_ops kmalloc_ops = {
 	.allocate = ion_system_contig_heap_allocate,
 	.free = ion_system_contig_heap_free,
-	.phys = ion_system_contig_heap_phys,
-	.map_dma = ion_system_contig_heap_map_dma,
-	.unmap_dma = ion_system_contig_heap_unmap_dma,
 	.map_kernel = ion_heap_map_kernel,
 	.unmap_kernel = ion_heap_unmap_kernel,
 	.map_user = ion_heap_map_user,
