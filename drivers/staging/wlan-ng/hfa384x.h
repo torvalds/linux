@@ -678,7 +678,7 @@ struct hfa384x_scan_result {
 } __packed;
 
 /*--  Inquiry Frame, Diagnose: ChInfo Results & Subfields--*/
-struct hfa384x_ChInfoResultSub {
+struct hfa384x_ch_info_result_sub {
 	u16 chid;
 	u16 anl;
 	u16 pnl;
@@ -690,7 +690,7 @@ struct hfa384x_ChInfoResultSub {
 
 struct hfa384x_ChInfoResult {
 	u16 scanchannels;
-	struct hfa384x_ChInfoResultSub result[HFA384x_CHINFORESULT_MAX];
+	struct hfa384x_ch_info_result_sub result[HFA384x_CHINFORESULT_MAX];
 } __packed;
 
 /*--  Inquiry Frame, Diagnose: Host Scan Results & Subfields--*/

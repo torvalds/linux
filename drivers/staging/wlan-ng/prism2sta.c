@@ -1139,8 +1139,8 @@ static void prism2sta_inf_chinforesults(struct wlandevice *wlandev,
 	    le16_to_cpu(inf->info.chinforesult.scanchannels);
 
 	for (i = 0, n = 0; i < HFA384x_CHINFORESULT_MAX; i++) {
-		struct hfa384x_ChInfoResultSub *result;
-		struct hfa384x_ChInfoResultSub *chinforesult;
+		struct hfa384x_ch_info_result_sub *result;
+		struct hfa384x_ch_info_result_sub *chinforesult;
 		int chan;
 
 		if (!(hw->channel_info.results.scanchannels & (1 << i)))
