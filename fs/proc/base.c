@@ -2280,15 +2280,17 @@ static ssize_t timerslack_ns_write(struct file *file, const char __user *buf,
 	if (!p)
 		return -ESRCH;
 
-	if (!capable(CAP_SYS_NICE)) {
-		count = -EPERM;
-		goto out;
-	}
+	if (p != current) {
+		if (!capable(CAP_SYS_NICE)) {
+			count = -EPERM;
+			goto out;
+		}
 
-	err = security_task_setscheduler(p);
-	if (err) {
-		count = err;
-		goto out;
+		err = security_task_setscheduler(p);
+		if (err) {
+			count = err;
+			goto out;
+		}
 	}
 
 	task_lock(p);
@@ -2314,14 +2316,16 @@ static int timerslack_ns_show(struct seq_file *m, void *v)
 	if (!p)
 		return -ESRCH;
 
-	if (!capable(CAP_SYS_NICE)) {
-		err = -EPERM;
-		goto out;
-	}
+	if (p != current) {
 
-	err = security_task_getscheduler(p);
-	if (err)
-		goto out;
+		if (!capable(CAP_SYS_NICE)) {
+			err = -EPERM;
+			goto out;
+		}
+		err = security_task_getscheduler(p);
+		if (err)
+			goto out;
+	}
 
 	task_lock(p);
 	seq_printf(m, "%llu\n", p->timer_slack_ns);
