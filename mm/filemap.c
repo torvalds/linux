@@ -1687,6 +1687,10 @@ static ssize_t do_generic_file_read(struct file *filp, loff_t *ppos,
 	unsigned int prev_offset;
 	int error = 0;
 
+	if (unlikely(*ppos >= inode->i_sb->s_maxbytes))
+		return -EINVAL;
+	iov_iter_truncate(iter, inode->i_sb->s_maxbytes);
+
 	index = *ppos >> PAGE_SHIFT;
 	prev_index = ra->prev_pos >> PAGE_SHIFT;
 	prev_offset = ra->prev_pos & (PAGE_SIZE-1);
