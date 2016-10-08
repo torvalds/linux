@@ -460,7 +460,7 @@ static void _nbu2ss_ep_in_end(
 		if (length)
 			_nbu2ss_writel(&preg->EP_REGS[num].EP_WRITE, data32);
 
-		data = ((((u32)length) << 5) & EPn_DW) | EPn_DEND;
+		data = (((length) << 5) & EPn_DW) | EPn_DEND;
 		_nbu2ss_bitset(&preg->EP_REGS[num].EP_CONTROL, data);
 
 		_nbu2ss_bitset(&preg->EP_REGS[num].EP_CONTROL, EPn_AUTO);
@@ -1852,7 +1852,7 @@ static inline void _nbu2ss_ep0_int(struct nbu2ss_udc *udc)
 
 	status = _nbu2ss_readl(&udc->p_regs->EP0_STATUS);
 	intr = status & EP0_STATUS_RW_BIT;
-	_nbu2ss_writel(&udc->p_regs->EP0_STATUS, ~(u32)intr);
+	_nbu2ss_writel(&udc->p_regs->EP0_STATUS, ~intr);
 
 	status &= (SETUP_INT | EP0_IN_INT | EP0_OUT_INT
 			| STG_END_INT | EP0_OUT_NULL_INT);
@@ -2127,7 +2127,7 @@ static inline void _nbu2ss_epn_int(struct nbu2ss_udc *udc, u32 epnum)
 	status = _nbu2ss_readl(&udc->p_regs->EP_REGS[num].EP_STATUS);
 
 	/* Interrupt Clear */
-	_nbu2ss_writel(&udc->p_regs->EP_REGS[num].EP_STATUS, ~(u32)status);
+	_nbu2ss_writel(&udc->p_regs->EP_REGS[num].EP_STATUS, ~status);
 
 	req = list_first_entry_or_null(&ep->queue, struct nbu2ss_req, queue);
 	if (!req) {
