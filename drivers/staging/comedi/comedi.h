@@ -1104,18 +1104,19 @@ enum ni_gpct_other_select {
 enum ni_gpct_arm_source {
 	NI_GPCT_ARM_IMMEDIATE = 0x0,
 	/*
-	 * Start both the counter and the adjacent pared
-	 * counter simultaneously
+	 * Start both the counter and the adjacent paired counter simultaneously
 	 */
 	NI_GPCT_ARM_PAIRED_IMMEDIATE = 0x1,
 	/*
-	 * NI doesn't document bits for selecting hardware arm triggers.
-	 * If the NI_GPCT_ARM_UNKNOWN bit is set, we will pass the least
-	 * significant bits (3 bits for 660x or 5 bits for m-series)
-	 * through to the hardware.  This will at least allow someone to
-	 * figure out what the bits do later.
+	 * If the NI_GPCT_HW_ARM bit is set, we will pass the least significant
+	 * bits (3 bits for 660x or 5 bits for m-series) through to the
+	 * hardware. To select a hardware trigger, pass the appropriate select
+	 * bit, e.g.,
+	 * NI_GPCT_HW_ARM | NI_GPCT_AI_START1_GATE_SELECT or
+	 * NI_GPCT_HW_ARM | NI_GPCT_PFI_GATE_SELECT(pfi_number)
 	 */
-	NI_GPCT_ARM_UNKNOWN = 0x1000,
+	NI_GPCT_HW_ARM = 0x1000,
+	NI_GPCT_ARM_UNKNOWN = NI_GPCT_HW_ARM,	/* for backward compatibility */
 };
 
 /* digital filtering options for ni 660x for use with INSN_CONFIG_FILTER. */
