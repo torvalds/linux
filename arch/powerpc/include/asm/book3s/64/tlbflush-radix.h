@@ -41,4 +41,5 @@ extern void radix__flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmad
 extern void radix__flush_tlb_lpid_va(unsigned long lpid, unsigned long gpa,
 				     unsigned long page_size);
 extern void radix__flush_tlb_lpid(unsigned long lpid);
+extern void radix__flush_tlb_all(void);
 #endif

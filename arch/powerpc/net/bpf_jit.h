@@ -40,6 +40,8 @@
 #define PPC_BLR()		EMIT(PPC_INST_BLR)
 #define PPC_BLRL()		EMIT(PPC_INST_BLRL)
 #define PPC_MTLR(r)		EMIT(PPC_INST_MTLR | ___PPC_RT(r))
+#define PPC_BCTR()		EMIT(PPC_INST_BCTR)
+#define PPC_MTCTR(r)		EMIT(PPC_INST_MTCTR | ___PPC_RT(r))
 #define PPC_ADDI(d, a, i)	EMIT(PPC_INST_ADDI | ___PPC_RT(d) |	      \
 				     ___PPC_RA(a) | IMM_L(i))
 #define PPC_MR(d, a)		PPC_OR(d, a, a)

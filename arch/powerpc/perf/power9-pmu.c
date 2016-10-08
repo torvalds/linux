@@ -119,7 +119,7 @@ static struct attribute *power9_pmu_format_attr[] = {
 	NULL,
 };
 
-struct attribute_group power9_pmu_format_group = {
+static struct attribute_group power9_pmu_format_group = {
 	.name = "format",
 	.attrs = power9_pmu_format_attr,
 };

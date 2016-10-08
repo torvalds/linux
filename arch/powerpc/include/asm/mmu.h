@@ -204,6 +204,10 @@ extern unsigned int __start___mmu_ftr_fixup, __stop___mmu_ftr_fixup;
  * make it match the size our of bolted TLB area
  */
 extern u64 ppc64_rma_size;
+
+/* Cleanup function used by kexec */
+extern void mmu_cleanup_all(void);
+extern void radix__mmu_cleanup_all(void);
 #endif /* CONFIG_PPC64 */
 
 struct mm_struct;
