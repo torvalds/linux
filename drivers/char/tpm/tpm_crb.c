@@ -19,6 +19,7 @@
 #include <linux/highmem.h>
 #include <linux/rculist.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 #include "tpm.h"
 
 #define ACPI_SIG_TPM2 "TPM2"
@@ -148,8 +149,6 @@ static int __maybe_unused crb_cmd_ready(struct device *dev,
 
 	return 0;
 }
-
-static SIMPLE_DEV_PM_OPS(crb_pm, tpm_pm_suspend, tpm_pm_resume);
 
 static u8 crb_status(struct tpm_chip *chip)
 {
@@ -433,11 +432,21 @@ static int crb_acpi_add(struct acpi_device *device)
 	if (rc)
 		return rc;
 
-	rc = tpm_chip_register(chip);
-	if (rc)
-		crb_go_idle(dev, priv);
+	pm_runtime_get_noresume(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
 
-	return rc;
+	rc = tpm_chip_register(chip);
+	if (rc) {
+		crb_go_idle(dev, priv);
+		pm_runtime_put_noidle(dev);
+		pm_runtime_disable(dev);
+		return rc;
+	}
+
+	pm_runtime_put(dev);
+
+	return 0;
 }
 
 static int crb_acpi_remove(struct acpi_device *device)
@@ -447,8 +456,33 @@ static int crb_acpi_remove(struct acpi_device *device)
 
 	tpm_chip_unregister(chip);
 
+	pm_runtime_disable(dev);
+
 	return 0;
 }
+
+#ifdef CONFIG_PM
+static int crb_pm_runtime_suspend(struct device *dev)
+{
+	struct tpm_chip *chip = dev_get_drvdata(dev);
+	struct crb_priv *priv = dev_get_drvdata(&chip->dev);
+
+	return crb_go_idle(dev, priv);
+}
+
+static int crb_pm_runtime_resume(struct device *dev)
+{
+	struct tpm_chip *chip = dev_get_drvdata(dev);
+	struct crb_priv *priv = dev_get_drvdata(&chip->dev);
+
+	return crb_cmd_ready(dev, priv);
+}
+#endif /* CONFIG_PM */
+
+static const struct dev_pm_ops crb_pm = {
+	SET_SYSTEM_SLEEP_PM_OPS(tpm_pm_suspend, tpm_pm_resume)
+	SET_RUNTIME_PM_OPS(crb_pm_runtime_suspend, crb_pm_runtime_resume, NULL)
+};
 
 static struct acpi_device_id crb_device_ids[] = {
 	{"MSFT0101", 0},
