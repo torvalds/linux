@@ -64,6 +64,7 @@ struct rpmsg_channel_info {
  * rpmsg_device - device that belong to the rpmsg bus
  * @dev: the device struct
  * @id: device id (used to match between rpmsg drivers and devices)
+ * @driver_override: driver name to force a match
  * @src: local address
  * @dst: destination address
  * @ept: the rpmsg endpoint of this channel
@@ -72,6 +73,7 @@ struct rpmsg_channel_info {
 struct rpmsg_device {
 	struct device dev;
 	struct rpmsg_device_id id;
+	char *driver_override;
 	u32 src;
 	u32 dst;
 	struct rpmsg_endpoint *ept;
