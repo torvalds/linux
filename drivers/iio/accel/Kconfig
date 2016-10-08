@@ -73,6 +73,16 @@ config DMARD09
 	  Choosing M will build the driver as a module. If so, the module
 	  will be called dmard09.
 
+config DMARD10
+	tristate "Domintech DMARD10 3-axis Accelerometer Driver"
+	depends on I2C
+	help
+	  Say yes here to get support for the Domintech DMARD10 3-axis
+	  accelerometer.
+
+	  Choosing M will build the driver as a module. If so, the module
+	  will be called dmard10.
+
 config HID_SENSOR_ACCEL_3D
 	depends on HID_SENSOR_HUB
 	select IIO_BUFFER
