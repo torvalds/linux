@@ -1491,6 +1491,19 @@ error_ret:
  **/
 static int sca3000_hw_ring_preenable(struct iio_dev *indio_dev)
 {
+	/*
+	 * Set stuff to read to indicate no data present.
+	 * Need for cases where the interrupt had fired at the
+	 * end of a cycle, but the data was never read.
+	 */
+	indio_dev->buffer->stufftoread = 0;
+	/*
+	 * Needed to ensure the core will actually read data
+	 * from the device rather than assuming no channels
+	 * are enabled.
+	 */
+	indio_dev->buffer->bytes_per_datum = 6;
+
 	return __sca3000_hw_ring_state_set(indio_dev, 1);
 }
 
