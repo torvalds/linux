@@ -1231,12 +1231,12 @@ static int  rk32_edp_disable(void)
 	struct rk32_edp *edp = rk32_edp;
 
 	if (edp->edp_en) {
-		pm_runtime_put(edp->dev);
+		edp->edp_en = false;
 		disable_irq(edp->irq);
 		rk32_edp_reset(edp);
 		rk32_edp_analog_power_ctr(edp, 0);
 		rk32_edp_clk_disable(edp);
-		edp->edp_en = false;
+		pm_runtime_put_sync(edp->dev);
 	}
 
 	return 0;
