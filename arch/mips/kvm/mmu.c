@@ -61,22 +61,6 @@ void kvm_mmu_free_memory_caches(struct kvm_vcpu *vcpu)
 	mmu_free_memory_cache(&vcpu->arch.mmu_page_cache);
 }
 
-static u32 kvm_mips_get_kernel_asid(struct kvm_vcpu *vcpu)
-{
-	struct mm_struct *kern_mm = &vcpu->arch.guest_kernel_mm;
-	int cpu = smp_processor_id();
-
-	return cpu_asid(cpu, kern_mm);
-}
-
-static u32 kvm_mips_get_user_asid(struct kvm_vcpu *vcpu)
-{
-	struct mm_struct *user_mm = &vcpu->arch.guest_user_mm;
-	int cpu = smp_processor_id();
-
-	return cpu_asid(cpu, user_mm);
-}
-
 /**
  * kvm_mips_walk_pgd() - Walk page table with optional allocation.
  * @pgd:	Page directory pointer.
@@ -411,67 +395,58 @@ int kvm_mips_handle_kseg0_tlb_fault(unsigned long badvaddr,
 }
 
 int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
-					 struct kvm_mips_tlb *tlb)
+					 struct kvm_mips_tlb *tlb,
+					 unsigned long gva)
 {
-	unsigned long entryhi = 0, entrylo0 = 0, entrylo1 = 0;
 	struct kvm *kvm = vcpu->kvm;
-	kvm_pfn_t pfn0, pfn1;
-	gfn_t gfn0, gfn1;
-	long tlb_lo[2];
-	int ret;
-
-	tlb_lo[0] = tlb->tlb_lo[0];
-	tlb_lo[1] = tlb->tlb_lo[1];
+	kvm_pfn_t pfn;
+	gfn_t gfn;
+	long tlb_lo = 0;
+	pte_t *ptep_gva;
+	unsigned int idx;
+	bool kernel = KVM_GUEST_KERNEL_MODE(vcpu);
 
 	/*
 	 * The commpage address must not be mapped to anything else if the guest
 	 * TLB contains entries nearby, or commpage accesses will break.
 	 */
-	if (!((tlb->tlb_hi ^ KVM_GUEST_COMMPAGE_ADDR) &
-			VPN2_MASK & (PAGE_MASK << 1)))
-		tlb_lo[(KVM_GUEST_COMMPAGE_ADDR >> PAGE_SHIFT) & 1] = 0;
+	idx = TLB_LO_IDX(*tlb, gva);
+	if ((gva ^ KVM_GUEST_COMMPAGE_ADDR) & VPN2_MASK & PAGE_MASK)
+		tlb_lo = tlb->tlb_lo[idx];
 
-	gfn0 = mips3_tlbpfn_to_paddr(tlb_lo[0]) >> PAGE_SHIFT;
-	gfn1 = mips3_tlbpfn_to_paddr(tlb_lo[1]) >> PAGE_SHIFT;
-	if (gfn0 >= kvm->arch.guest_pmap_npages ||
-	    gfn1 >= kvm->arch.guest_pmap_npages) {
-		kvm_err("%s: Invalid gfn: [%#llx, %#llx], EHi: %#lx\n",
-			__func__, gfn0, gfn1, tlb->tlb_hi);
+	/* Find host PFN */
+	gfn = mips3_tlbpfn_to_paddr(tlb_lo) >> PAGE_SHIFT;
+	if (gfn >= kvm->arch.guest_pmap_npages) {
+		kvm_err("%s: Invalid gfn: %#llx, EHi: %#lx\n",
+			__func__, gfn, tlb->tlb_hi);
 		kvm_mips_dump_guest_tlbs(vcpu);
 		return -1;
 	}
-
-	if (kvm_mips_map_page(kvm, gfn0) < 0)
+	if (kvm_mips_map_page(kvm, gfn) < 0)
 		return -1;
+	pfn = kvm->arch.guest_pmap[gfn];
 
-	if (kvm_mips_map_page(kvm, gfn1) < 0)
+	/* Find GVA page table entry */
+	ptep_gva = kvm_trap_emul_pte_for_gva(vcpu, gva);
+	if (!ptep_gva) {
+		kvm_err("No ptep for gva %lx\n", gva);
 		return -1;
+	}
 
-	pfn0 = kvm->arch.guest_pmap[gfn0];
-	pfn1 = kvm->arch.guest_pmap[gfn1];
+	/* Write PFN into GVA page table, taking attributes from Guest TLB */
+	*ptep_gva = pfn_pte(pfn, (!(tlb_lo & ENTRYLO_V)) ? __pgprot(0) :
+				 (tlb_lo & ENTRYLO_D) ? PAGE_SHARED :
+				 PAGE_READONLY);
+	if (pte_present(*ptep_gva))
+		*ptep_gva = pte_mkyoung(pte_mkdirty(*ptep_gva));
 
-	/* Get attributes from the Guest TLB */
-	entrylo0 = mips3_paddr_to_tlbpfn(pfn0 << PAGE_SHIFT) |
-		((_page_cachable_default >> _CACHE_SHIFT) << ENTRYLO_C_SHIFT) |
-		(tlb_lo[0] & ENTRYLO_D) |
-		(tlb_lo[0] & ENTRYLO_V);
-	entrylo1 = mips3_paddr_to_tlbpfn(pfn1 << PAGE_SHIFT) |
-		((_page_cachable_default >> _CACHE_SHIFT) << ENTRYLO_C_SHIFT) |
-		(tlb_lo[1] & ENTRYLO_D) |
-		(tlb_lo[1] & ENTRYLO_V);
+	/* Invalidate this entry in the TLB, current guest mode ASID only */
+	kvm_mips_host_tlb_inv(vcpu, gva, !kernel, kernel);
 
 	kvm_debug("@ %#lx tlb_lo0: 0x%08lx tlb_lo1: 0x%08lx\n", vcpu->arch.pc,
 		  tlb->tlb_lo[0], tlb->tlb_lo[1]);
 
-	preempt_disable();
-	entryhi = (tlb->tlb_hi & VPN2_MASK) | (KVM_GUEST_KERNEL_MODE(vcpu) ?
-					       kvm_mips_get_kernel_asid(vcpu) :
-					       kvm_mips_get_user_asid(vcpu));
-	ret = kvm_mips_host_tlb_write(vcpu, entryhi, entrylo0, entrylo1,
-				      tlb->tlb_mask);
-	preempt_enable();
-
-	return ret;
+	return 0;
 }
 
 void kvm_get_new_mmu_context(struct mm_struct *mm, unsigned long cpu,
@@ -582,7 +557,7 @@ u32 kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu)
 				return KVM_INVALID_INST;
 			}
 			if (kvm_mips_handle_mapped_seg_tlb_fault(vcpu,
-						&vcpu->arch.guest_tlb[index])) {
+					&vcpu->arch.guest_tlb[index], va)) {
 				kvm_err("%s: handling mapped seg tlb fault failed for %p, index: %u, vcpu: %p, ASID: %#lx\n",
 					__func__, opc, index, vcpu,
 					read_c0_entryhi());

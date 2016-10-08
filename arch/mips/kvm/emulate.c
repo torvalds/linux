@@ -1770,7 +1770,8 @@ enum emulation_result kvm_mips_emulate_cache(union mips_instruction inst,
 			 * We fault an entry from the guest tlb to the
 			 * shadow host TLB
 			 */
-			if (kvm_mips_handle_mapped_seg_tlb_fault(vcpu, tlb)) {
+			if (kvm_mips_handle_mapped_seg_tlb_fault(vcpu, tlb,
+								 va)) {
 				kvm_err("%s: handling mapped seg tlb fault for %lx, index: %u, vcpu: %p, ASID: %#lx\n",
 					__func__, va, index, vcpu,
 					read_c0_entryhi());
@@ -2746,7 +2747,8 @@ enum emulation_result kvm_mips_handle_tlbmiss(u32 cause,
 			 * OK we have a Guest TLB entry, now inject it into the
 			 * shadow host TLB
 			 */
-			if (kvm_mips_handle_mapped_seg_tlb_fault(vcpu, tlb)) {
+			if (kvm_mips_handle_mapped_seg_tlb_fault(vcpu, tlb,
+								 va)) {
 				kvm_err("%s: handling mapped seg tlb fault for %lx, index: %u, vcpu: %p, ASID: %#lx\n",
 					__func__, va, index, vcpu,
 					read_c0_entryhi());
