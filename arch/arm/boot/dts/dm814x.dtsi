@@ -7,11 +7,11 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/dm814x.h>
 
-#include "skeleton.dtsi"
-
 / {
 	compatible = "ti,dm814";
 	interrupt-parent = <&intc>;
+	#address-cells = <1>;
+	#size-cells = <1>;
 
 	aliases {
 		i2c0 = &i2c1;

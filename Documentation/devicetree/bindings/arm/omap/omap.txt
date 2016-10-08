@@ -180,3 +180,9 @@ Boards:
 
 - DRA722 EVM: Software Development Board for DRA722
   compatible = "ti,dra72-evm", "ti,dra722", "ti,dra72", "ti,dra7"
+
+- DM3730 Logic PD Torpedo + Wireless: Commercial System on Module with WiFi and Bluetooth
+  compatible = "logicpd,dm3730-torpedo-devkit", "ti,omap3630", "ti,omap3"
+
+- DM3730 Logic PD SOM-LV: Commercial System on Module with WiFi and Bluetooth
+  compatible = "logicpd,dm3730-som-lv-devkit", "ti,omap3630", "ti,omap3"

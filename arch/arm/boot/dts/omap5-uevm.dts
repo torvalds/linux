@@ -13,9 +13,19 @@
 	model = "TI OMAP5 uEVM board";
 	compatible = "ti,omap5-uevm", "ti,omap5";
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
-		reg = <0x80000000 0x7F000000>; /* 2032 MB */
+		reg = <0 0x80000000 0 0x7f000000>; /* 2032 MB */
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led1 {
+			label = "omap5:blue:usr1";
+			gpios = <&gpio5 25 GPIO_ACTIVE_HIGH>; /* gpio5_153 D1 LED */
+			linux,default-trigger = "heartbeat";
+			default-state = "off";
+		};
 	};
 };
 
@@ -60,4 +70,8 @@
 	pinctrl-single,pins = <
 		OMAP5_IOPAD(0x1be, PIN_OUTPUT | MUX_MODE6)	/* mcspi1_somi.gpio5_141 */
 	>;
+};
+
+&wlcore {
+	compatible = "ti,wl1837";
 };
