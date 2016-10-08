@@ -733,7 +733,7 @@ struct hfa384x_LinkStatus {
 #define HFA384x_ASSOCSTATUS_REASSOC	((u16)2)
 #define HFA384x_ASSOCSTATUS_AUTHFAIL	((u16)5)
 
-struct hfa384x_AssocStatus {
+struct hfa384x_assoc_status {
 	u16 assocstatus;
 	u8 sta_addr[ETH_ALEN];
 	/* old_ap_addr is only valid if assocstatus == 2 */
@@ -768,7 +768,7 @@ union hfa384x_infodata {
 	struct hfa384x_ChInfoResult chinforesult;
 	struct hfa384x_HScanResult hscanresult;
 	struct hfa384x_LinkStatus linkstatus;
-	struct hfa384x_AssocStatus assocstatus;
+	struct hfa384x_assoc_status assocstatus;
 	struct hfa384x_AuthRequest authreq;
 	struct hfa384x_PSUserCount psusercnt;
 	struct hfa384x_KeyIDChanged keyidchanged;
