@@ -375,7 +375,7 @@ static int prism2sta_mlmerequest(struct wlandevice *wlandev,
 			qualmsg->link.data = le16_to_cpu(hw->qual.cq_curr_bss);
 			qualmsg->level.data =
 				le16_to_cpu(hw->qual.asl_curr_bss);
-			qualmsg->noise.data = le16_to_cpu(hw->qual.ANL_currFC);
+			qualmsg->noise.data = le16_to_cpu(hw->qual.anl_curr_fc);
 			qualmsg->txrate.data = hw->txrate;
 
 			break;
@@ -1950,7 +1950,7 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 		pr_debug("commsqual %d %d %d\n",
 			 le16_to_cpu(hw->qual.cq_curr_bss),
 			 le16_to_cpu(hw->qual.asl_curr_bss),
-			 le16_to_cpu(hw->qual.ANL_currFC));
+			 le16_to_cpu(hw->qual.anl_curr_fc));
 	}
 
 	/* Get the signal rate */
