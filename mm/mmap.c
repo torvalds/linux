@@ -667,7 +667,7 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
 			/*
 			 * vma expands, overlapping all the next, and
 			 * perhaps the one after too (mprotect case 6).
-			 * The only two other cases that gets here are
+			 * The only other cases that gets here are
 			 * case 1, case 7 and case 8.
 			 */
 			if (next == expand) {
