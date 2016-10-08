@@ -52,6 +52,16 @@ config BMC150_ACCEL_SPI
 	tristate
 	select REGMAP_SPI
 
+config DA311
+	tristate "MiraMEMS DA311 3-axis 12-bit digital accelerometer driver"
+	depends on I2C
+	help
+	  Say yes here to build support for the MiraMEMS DA311 3-axis 12-bit
+	  digital accelerometer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called da311.
+
 config DMARD06
 	tristate "Domintech DMARD06 Digital Accelerometer Driver"
 	depends on OF || COMPILE_TEST
