@@ -552,7 +552,8 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 				 * for a given destination transport address.
 				 */
 
-				if (!chunk->resent && !tp->rto_pending) {
+				if (!sctp_chunk_retransmitted(chunk) &&
+				    !tp->rto_pending) {
 					chunk->rtt_in_progress = 1;
 					tp->rto_pending = 1;
 				}
