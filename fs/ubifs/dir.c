@@ -629,7 +629,7 @@ static int ubifs_readdir(struct file *file, struct dir_context *ctx)
 			fstr.len = fstr_real_len;
 
 			err = fscrypt_fname_disk_to_usr(dir, key_hash_flash(c, &dent->key), 0, &nm.disk_name, &fstr);
-			if (err < 0)
+			if (err)
 				goto out;
 		} else {
 			fstr.len = fname_len(&nm);
@@ -1164,10 +1164,27 @@ static int ubifs_symlink(struct inode *dir, struct dentry *dentry,
 	struct ubifs_inode *dir_ui = ubifs_inode(dir);
 	struct ubifs_info *c = dir->i_sb->s_fs_info;
 	int err, len = strlen(symname);
-	int sz_change = CALC_DENT_SIZE(dentry->d_name.len);
+	int sz_change = CALC_DENT_SIZE(len);
+	struct fscrypt_str disk_link = FSTR_INIT((char *)symname, len + 1);
+	struct fscrypt_symlink_data *sd = NULL;
 	struct ubifs_budget_req req = { .new_ino = 1, .new_dent = 1,
 					.new_ino_d = ALIGN(len, 8),
 					.dirtied_ino = 1 };
+	struct fscrypt_name nm;
+
+	if (ubifs_crypt_is_encrypted(dir)) {
+		err = fscrypt_get_encryption_info(dir);
+		if (err)
+			goto out_budg;
+
+		if (!fscrypt_has_encryption_key(dir)) {
+			err = -EPERM;
+			goto out_budg;
+		}
+
+		disk_link.len = (fscrypt_fname_encrypted_size(dir, len) +
+				sizeof(struct fscrypt_symlink_data));
+	}
 
 	/*
 	 * Budget request settings: new inode, new direntry and changing parent
@@ -1177,36 +1194,77 @@ static int ubifs_symlink(struct inode *dir, struct dentry *dentry,
 	dbg_gen("dent '%pd', target '%s' in dir ino %lu", dentry,
 		symname, dir->i_ino);
 
-	if (len > UBIFS_MAX_INO_DATA)
+	if (disk_link.len > UBIFS_MAX_INO_DATA)
 		return -ENAMETOOLONG;
 
 	err = ubifs_budget_space(c, &req);
 	if (err)
 		return err;
 
+	err = fscrypt_setup_filename(dir, &dentry->d_name, 0, &nm);
+	if (err)
+		goto out_budg;
+
 	inode = ubifs_new_inode(c, dir, S_IFLNK | S_IRWXUGO);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
-		goto out_budg;
+		goto out_fname;
 	}
 
 	ui = ubifs_inode(inode);
-	ui->data = kmalloc(len + 1, GFP_NOFS);
+	ui->data = kmalloc(disk_link.len, GFP_NOFS);
 	if (!ui->data) {
 		err = -ENOMEM;
 		goto out_inode;
 	}
 
-	memcpy(ui->data, symname, len);
-	((char *)ui->data)[len] = '\0';
-	inode->i_link = ui->data;
+	if (ubifs_crypt_is_encrypted(dir)) {
+		struct qstr istr = QSTR_INIT(symname, len);
+		struct fscrypt_str ostr;
+
+		sd = kzalloc(disk_link.len, GFP_NOFS);
+		if (!sd) {
+			err = -ENOMEM;
+			goto out_inode;
+		}
+
+		err = fscrypt_get_encryption_info(inode);
+		if (err) {
+			kfree(sd);
+			goto out_inode;
+		}
+
+		if (!fscrypt_has_encryption_key(inode)) {
+			kfree(sd);
+			err = -EPERM;
+			goto out_inode;
+		}
+
+		ostr.name = sd->encrypted_path;
+		ostr.len = disk_link.len;
+
+		err = fscrypt_fname_usr_to_disk(inode, &istr, &ostr);
+		if (err) {
+			kfree(sd);
+			goto out_inode;
+		}
+
+		sd->len = cpu_to_le16(ostr.len);
+		disk_link.name = (char *)sd;
+	} else {
+		inode->i_link = ui->data;
+	}
+
+	memcpy(ui->data, disk_link.name, disk_link.len);
+	((char *)ui->data)[disk_link.len - 1] = '\0';
+
 	/*
 	 * The terminating zero byte is not written to the flash media and it
 	 * is put just to make later in-memory string processing simpler. Thus,
 	 * data length is @len, not @len + %1.
 	 */
-	ui->data_len = len;
-	inode->i_size = ubifs_inode(inode)->ui_size = len;
+	ui->data_len = disk_link.len - 1;
+	inode->i_size = ubifs_inode(inode)->ui_size = disk_link.len - 1;
 
 	err = ubifs_init_security(dir, inode, &dentry->d_name);
 	if (err)
@@ -1216,7 +1274,7 @@ static int ubifs_symlink(struct inode *dir, struct dentry *dentry,
 	dir->i_size += sz_change;
 	dir_ui->ui_size = dir->i_size;
 	dir->i_mtime = dir->i_ctime = inode->i_ctime;
-	err = ubifs_jnl_update(c, dir, &dentry->d_name, inode, 0, 0);
+	err = ubifs_jnl_update(c, dir, &nm, inode, 0, 0);
 	if (err)
 		goto out_cancel;
 	mutex_unlock(&dir_ui->ui_mutex);
@@ -1224,6 +1282,7 @@ static int ubifs_symlink(struct inode *dir, struct dentry *dentry,
 	ubifs_release_budget(c, &req);
 	insert_inode_hash(inode);
 	d_instantiate(dentry, inode);
+	fscrypt_free_filename(&nm);
 	return 0;
 
 out_cancel:
@@ -1233,6 +1292,8 @@ out_cancel:
 out_inode:
 	make_bad_inode(inode);
 	iput(inode);
+out_fname:
+	fscrypt_free_filename(&nm);
 out_budg:
 	ubifs_release_budget(c, &req);
 	return err;
