@@ -763,19 +763,31 @@ int cifs_close(struct inode *inode, struct file *file)
 void
 cifs_reopen_persistent_handles(struct cifs_tcon *tcon)
 {
-	struct cifsFileInfo *open_file = NULL;
+	struct cifsFileInfo *open_file;
 	struct list_head *tmp;
 	struct list_head *tmp1;
+	struct list_head tmp_list;
+
+	cifs_dbg(FYI, "Reopen persistent handles");
+	INIT_LIST_HEAD(&tmp_list);
 
 	/* list all files open on tree connection, reopen resilient handles  */
 	spin_lock(&tcon->open_file_lock);
-	list_for_each_safe(tmp, tmp1, &tcon->openFileList) {
+	list_for_each(tmp, &tcon->openFileList) {
 		open_file = list_entry(tmp, struct cifsFileInfo, tlist);
-		spin_unlock(&tcon->open_file_lock);
-		cifs_reopen_file(open_file, false /* do not flush */);
-		spin_lock(&tcon->open_file_lock);
+		if (!open_file->invalidHandle)
+			continue;
+		cifsFileInfo_get(open_file);
+		list_add_tail(&open_file->rlist, &tmp_list);
 	}
 	spin_unlock(&tcon->open_file_lock);
+
+	list_for_each_safe(tmp, tmp1, &tmp_list) {
+		open_file = list_entry(tmp, struct cifsFileInfo, rlist);
+		cifs_reopen_file(open_file, false /* do not flush */);
+		list_del_init(&open_file->rlist);
+		cifsFileInfo_put(open_file);
+	}
 }
 
 int cifs_closedir(struct inode *inode, struct file *file)
