@@ -1440,9 +1440,6 @@ static int sca3000_probe(struct spi_device *spi)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	sca3000_configure_ring(indio_dev);
-	ret = iio_device_register(indio_dev);
-	if (ret < 0)
-		return ret;
 
 	if (spi->irq) {
 		ret = request_threaded_irq(spi->irq,
@@ -1452,7 +1449,7 @@ static int sca3000_probe(struct spi_device *spi)
 					   "sca3000",
 					   indio_dev);
 		if (ret)
-			goto error_unregister_dev;
+			return ret;
 	}
 	indio_dev->setup_ops = &sca3000_ring_setup_ops;
 	ret = sca3000_clean_setup(st);
@@ -1463,13 +1460,12 @@ static int sca3000_probe(struct spi_device *spi)
 	if (ret)
 		goto error_free_irq;
 
-	return 0;
+	return iio_device_register(indio_dev);
 
 error_free_irq:
 	if (spi->irq)
 		free_irq(spi->irq, indio_dev);
-error_unregister_dev:
-	iio_device_unregister(indio_dev);
+
 	return ret;
 }
 
@@ -1496,11 +1492,13 @@ static int sca3000_remove(struct spi_device *spi)
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct sca3000_state *st = iio_priv(indio_dev);
 
+	iio_device_unregister(indio_dev);
+
 	/* Must ensure no interrupts can be generated after this! */
 	sca3000_stop_all_interrupts(st);
 	if (spi->irq)
 		free_irq(spi->irq, indio_dev);
-	iio_device_unregister(indio_dev);
+
 	sca3000_unconfigure_ring(indio_dev);
 
 	return 0;
