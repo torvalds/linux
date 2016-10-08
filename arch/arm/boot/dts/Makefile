@@ -639,6 +639,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3036-kylin.dtb \
 	rk3066a-bqcurie2.dtb \
 	rk3066a-marsboard.dtb \
+	rk3066a-mk808.dtb \
 	rk3066a-rayeager.dtb \
 	rk3188-px3-evb.dtb \
 	rk3188-radxarock.dtb \
