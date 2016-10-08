@@ -1045,7 +1045,7 @@ static void prism2sta_inf_scanresults(struct wlandevice *wlandev,
 	/* Get the number of results, first in bytes, then in results */
 	nbss = (inf->framelen * sizeof(u16)) -
 	    sizeof(inf->infotype) - sizeof(inf->info.scanresult.scanreason);
-	nbss /= sizeof(struct hfa384x_ScanResultSub);
+	nbss /= sizeof(struct hfa384x_scan_result_sub);
 
 	/* Print em */
 	pr_debug("rx scanresults, reason=%d, nbss=%d:\n",

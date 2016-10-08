@@ -659,7 +659,7 @@ struct hfa384x_comm_tallies_32 {
 } __packed;
 
 /*--  Inquiry Frame, Diagnose: Scan Results & Subfields--*/
-struct hfa384x_ScanResultSub {
+struct hfa384x_scan_result_sub {
 	u16 chid;
 	u16 anl;
 	u16 sl;
@@ -674,7 +674,7 @@ struct hfa384x_ScanResultSub {
 struct hfa384x_scan_result {
 	u16 rsvd;
 	u16 scanreason;
-	struct hfa384x_ScanResultSub result[HFA384x_SCANRESULT_MAX];
+	struct hfa384x_scan_result_sub result[HFA384x_SCANRESULT_MAX];
 } __packed;
 
 /*--  Inquiry Frame, Diagnose: ChInfo Results & Subfields--*/
