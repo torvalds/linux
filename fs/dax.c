@@ -1036,7 +1036,7 @@ int dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
 	if (!write && !buffer_mapped(&bh)) {
 		spinlock_t *ptl;
 		pmd_t entry;
-		struct page *zero_page = get_huge_zero_page();
+		struct page *zero_page = mm_get_huge_zero_page(vma->vm_mm);
 
 		if (unlikely(!zero_page)) {
 			dax_pmd_dbg(&bh, address, "no zero page");
