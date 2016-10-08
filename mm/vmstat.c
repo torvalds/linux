@@ -1715,6 +1715,16 @@ static void __init start_shepherd_timer(void)
 		round_jiffies_relative(sysctl_stat_interval));
 }
 
+static void __init init_cpu_node_state(void)
+{
+	int cpu;
+
+	get_online_cpus();
+	for_each_online_cpu(cpu)
+		node_set_state(cpu_to_node(cpu), N_CPU);
+	put_online_cpus();
+}
+
 static void vmstat_cpu_dead(int node)
 {
 	int cpu;
@@ -1772,6 +1782,7 @@ static int __init setup_vmstat(void)
 #ifdef CONFIG_SMP
 	cpu_notifier_register_begin();
 	__register_cpu_notifier(&vmstat_notifier);
+	init_cpu_node_state();
 
 	start_shepherd_timer();
 	cpu_notifier_register_done();
