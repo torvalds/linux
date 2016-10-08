@@ -186,51 +186,52 @@ static inline void task_state(struct seq_file *m, struct pid_namespace *ns,
 	task_unlock(p);
 	rcu_read_unlock();
 
-	seq_printf(m,
-		"State:\t%s\n"
-		"Tgid:\t%d\n"
-		"Ngid:\t%d\n"
-		"Pid:\t%d\n"
-		"PPid:\t%d\n"
-		"TracerPid:\t%d\n"
-		"Uid:\t%d\t%d\t%d\t%d\n"
-		"Gid:\t%d\t%d\t%d\t%d\n"
-		"FDSize:\t%d\nGroups:\t",
-		get_task_state(p),
-		tgid, ngid, pid_nr_ns(pid, ns), ppid, tpid,
-		from_kuid_munged(user_ns, cred->uid),
-		from_kuid_munged(user_ns, cred->euid),
-		from_kuid_munged(user_ns, cred->suid),
-		from_kuid_munged(user_ns, cred->fsuid),
-		from_kgid_munged(user_ns, cred->gid),
-		from_kgid_munged(user_ns, cred->egid),
-		from_kgid_munged(user_ns, cred->sgid),
-		from_kgid_munged(user_ns, cred->fsgid),
-		max_fds);
+	seq_printf(m, "State:\t%s", get_task_state(p));
 
+	seq_puts(m, "\nTgid:\t");
+	seq_put_decimal_ull(m, 0, tgid);
+	seq_puts(m, "\nNgid:\t");
+	seq_put_decimal_ull(m, 0, ngid);
+	seq_puts(m, "\nPid:\t");
+	seq_put_decimal_ull(m, 0, pid_nr_ns(pid, ns));
+	seq_puts(m, "\nPPid:\t");
+	seq_put_decimal_ull(m, 0, ppid);
+	seq_puts(m, "\nTracerPid:\t");
+	seq_put_decimal_ull(m, 0, tpid);
+	seq_puts(m, "\nUid:");
+	seq_put_decimal_ull(m, '\t', from_kuid_munged(user_ns, cred->uid));
+	seq_put_decimal_ull(m, '\t', from_kuid_munged(user_ns, cred->euid));
+	seq_put_decimal_ull(m, '\t', from_kuid_munged(user_ns, cred->suid));
+	seq_put_decimal_ull(m, '\t', from_kuid_munged(user_ns, cred->fsuid));
+	seq_puts(m, "\nGid:");
+	seq_put_decimal_ull(m, '\t', from_kgid_munged(user_ns, cred->gid));
+	seq_put_decimal_ull(m, '\t', from_kgid_munged(user_ns, cred->egid));
+	seq_put_decimal_ull(m, '\t', from_kgid_munged(user_ns, cred->sgid));
+	seq_put_decimal_ull(m, '\t', from_kgid_munged(user_ns, cred->fsgid));
+	seq_puts(m, "\nFDSize:\t");
+	seq_put_decimal_ull(m, 0, max_fds);
+
+	seq_puts(m, "\nGroups:\t");
 	group_info = cred->group_info;
 	for (g = 0; g < group_info->ngroups; g++)
-		seq_printf(m, "%d ",
-			   from_kgid_munged(user_ns, GROUP_AT(group_info, g)));
+		seq_put_decimal_ull(m, g ? ' ' : 0, from_kgid_munged(user_ns, GROUP_AT(group_info, g)));
 	put_cred(cred);
+	/* Trailing space shouldn't have been added in the first place. */
+	seq_putc(m, ' ');
 
 #ifdef CONFIG_PID_NS
 	seq_puts(m, "\nNStgid:");
 	for (g = ns->level; g <= pid->level; g++)
-		seq_printf(m, "\t%d",
-			task_tgid_nr_ns(p, pid->numbers[g].ns));
+		seq_put_decimal_ull(m, '\t', task_tgid_nr_ns(p, pid->numbers[g].ns));
 	seq_puts(m, "\nNSpid:");
 	for (g = ns->level; g <= pid->level; g++)
-		seq_printf(m, "\t%d",
-			task_pid_nr_ns(p, pid->numbers[g].ns));
+		seq_put_decimal_ull(m, '\t', task_pid_nr_ns(p, pid->numbers[g].ns));
 	seq_puts(m, "\nNSpgid:");
 	for (g = ns->level; g <= pid->level; g++)
-		seq_printf(m, "\t%d",
-			task_pgrp_nr_ns(p, pid->numbers[g].ns));
+		seq_put_decimal_ull(m, '\t', task_pgrp_nr_ns(p, pid->numbers[g].ns));
 	seq_puts(m, "\nNSsid:");
 	for (g = ns->level; g <= pid->level; g++)
-		seq_printf(m, "\t%d",
-			task_session_nr_ns(p, pid->numbers[g].ns));
+		seq_put_decimal_ull(m, '\t', task_session_nr_ns(p, pid->numbers[g].ns));
 #endif
 	seq_putc(m, '\n');
 }
@@ -299,11 +300,14 @@ static inline void task_sig(struct seq_file *m, struct task_struct *p)
 		unlock_task_sighand(p, &flags);
 	}
 
-	seq_printf(m, "Threads:\t%d\n", num_threads);
-	seq_printf(m, "SigQ:\t%lu/%lu\n", qsize, qlim);
+	seq_puts(m, "Threads:\t");
+	seq_put_decimal_ull(m, 0, num_threads);
+	seq_puts(m, "\nSigQ:\t");
+	seq_put_decimal_ull(m, 0, qsize);
+	seq_put_decimal_ull(m, '/', qlim);
 
 	/* render them all */
-	render_sigset_t(m, "SigPnd:\t", &pending);
+	render_sigset_t(m, "\nSigPnd:\t", &pending);
 	render_sigset_t(m, "ShdPnd:\t", &shpending);
 	render_sigset_t(m, "SigBlk:\t", &blocked);
 	render_sigset_t(m, "SigIgn:\t", &ignored);
@@ -348,17 +352,20 @@ static inline void task_cap(struct seq_file *m, struct task_struct *p)
 static inline void task_seccomp(struct seq_file *m, struct task_struct *p)
 {
 #ifdef CONFIG_SECCOMP
-	seq_printf(m, "Seccomp:\t%d\n", p->seccomp.mode);
+	seq_puts(m, "Seccomp:\t");
+	seq_put_decimal_ull(m, 0, p->seccomp.mode);
+	seq_putc(m, '\n');
 #endif
 }
 
 static inline void task_context_switch_counts(struct seq_file *m,
 						struct task_struct *p)
 {
-	seq_printf(m,	"voluntary_ctxt_switches:\t%lu\n"
-			"nonvoluntary_ctxt_switches:\t%lu\n",
-			p->nvcsw,
-			p->nivcsw);
+	seq_puts(m, "voluntary_ctxt_switches:\t");
+	seq_put_decimal_ull(m, 0, p->nvcsw);
+	seq_puts(m, "\nnonvoluntary_ctxt_switches:\t");
+	seq_put_decimal_ull(m, 0, p->nivcsw);
+	seq_putc(m, '\n');
 }
 
 static void task_cpus_allowed(struct seq_file *m, struct task_struct *task)
