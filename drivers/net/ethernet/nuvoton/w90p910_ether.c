@@ -915,7 +915,6 @@ static const struct net_device_ops w90p910_ether_netdev_ops = {
 	.ndo_set_mac_address	= w90p910_set_mac_address,
 	.ndo_do_ioctl		= w90p910_ether_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static void __init get_mac_address(struct net_device *dev)

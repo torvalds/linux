@@ -460,7 +460,6 @@ static const struct net_device_ops lance_netdev_ops = {
 	.ndo_set_mac_address	= lance_set_mac_address,
 	.ndo_tx_timeout		= lance_tx_timeout,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static unsigned long __init lance_probe1( struct net_device *dev,

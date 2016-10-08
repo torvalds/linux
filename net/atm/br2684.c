@@ -620,14 +620,12 @@ error:
 static const struct net_device_ops br2684_netdev_ops = {
 	.ndo_start_xmit 	= br2684_start_xmit,
 	.ndo_set_mac_address	= br2684_mac_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
 static const struct net_device_ops br2684_netdev_ops_routed = {
 	.ndo_start_xmit 	= br2684_start_xmit,
 	.ndo_set_mac_address	= br2684_mac_addr,
-	.ndo_change_mtu		= eth_change_mtu
 };
 
 static void br2684_setup(struct net_device *netdev)

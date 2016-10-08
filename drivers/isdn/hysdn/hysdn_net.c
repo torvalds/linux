@@ -232,7 +232,6 @@ static const struct net_device_ops hysdn_netdev_ops = {
 	.ndo_open		= net_open,
 	.ndo_stop		= net_close,
 	.ndo_start_xmit		= net_send_packet,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };

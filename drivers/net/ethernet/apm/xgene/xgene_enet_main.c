@@ -1252,7 +1252,6 @@ static const struct net_device_ops xgene_ndev_ops = {
 	.ndo_start_xmit = xgene_enet_start_xmit,
 	.ndo_tx_timeout = xgene_enet_timeout,
 	.ndo_get_stats64 = xgene_enet_get_stats64,
-	.ndo_change_mtu = eth_change_mtu,
 	.ndo_set_mac_address = xgene_enet_set_mac_address,
 };
 

@@ -4113,7 +4113,8 @@ static int rtl8152_change_mtu(struct net_device *dev, int new_mtu)
 	switch (tp->version) {
 	case RTL_VER_01:
 	case RTL_VER_02:
-		return eth_change_mtu(dev, new_mtu);
+		dev->mtu = new_mtu;
+		return 0;
 	default:
 		break;
 	}

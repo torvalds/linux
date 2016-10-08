@@ -508,7 +508,6 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_get_stats 		= el3_get_stats,
 	.ndo_set_rx_mode	= set_multicast_list,
 	.ndo_tx_timeout 	= el3_tx_timeout,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER

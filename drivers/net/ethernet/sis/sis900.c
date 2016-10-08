@@ -400,7 +400,6 @@ static const struct net_device_ops sis900_netdev_ops = {
 	.ndo_start_xmit		= sis900_start_xmit,
 	.ndo_set_config		= sis900_set_config,
 	.ndo_set_rx_mode	= set_rx_mode,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_do_ioctl		= mii_ioctl,
