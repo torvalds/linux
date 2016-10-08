@@ -1504,11 +1504,6 @@ static const struct iio_buffer_setup_ops sca3000_ring_setup_ops = {
 	.postdisable = &sca3000_hw_ring_postdisable,
 };
 
-static void sca3000_register_ring_funcs(struct iio_dev *indio_dev)
-{
-	indio_dev->setup_ops = &sca3000_ring_setup_ops;
-}
-
 /**
  * sca3000_clean_setup() get the device into a predictable state
  *
@@ -1631,7 +1626,7 @@ static int sca3000_probe(struct spi_device *spi)
 		if (ret)
 			goto error_unregister_dev;
 	}
-	sca3000_register_ring_funcs(indio_dev);
+	indio_dev->setup_ops = &sca3000_ring_setup_ops;
 	ret = sca3000_clean_setup(st);
 	if (ret)
 		goto error_free_irq;
