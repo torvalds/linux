@@ -1048,18 +1048,18 @@ struct address_space *page_file_mapping(struct page *page)
 	return page->mapping;
 }
 
+extern pgoff_t __page_file_index(struct page *page);
+
 /*
  * Return the pagecache index of the passed page.  Regular pagecache pages
- * use ->index whereas swapcache pages use ->private
+ * use ->index whereas swapcache pages use swp_offset(->private)
  */
 static inline pgoff_t page_index(struct page *page)
 {
 	if (unlikely(PageSwapCache(page)))
-		return page_private(page);
+		return __page_file_index(page);
 	return page->index;
 }
-
-extern pgoff_t __page_file_index(struct page *page);
 
 /*
  * Return the file index of the page. Regular pagecache pages use ->index
