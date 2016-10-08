@@ -3156,6 +3156,54 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 	return NULL;
 }
 
+static inline bool
+should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
+		     enum compact_result compact_result,
+		     enum compact_priority *compact_priority,
+		     int compaction_retries)
+{
+	int max_retries = MAX_COMPACT_RETRIES;
+
+	if (!order)
+		return false;
+
+	/*
+	 * compaction considers all the zone as desperately out of memory
+	 * so it doesn't really make much sense to retry except when the
+	 * failure could be caused by insufficient priority
+	 */
+	if (compaction_failed(compact_result)) {
+		if (*compact_priority > MIN_COMPACT_PRIORITY) {
+			(*compact_priority)--;
+			return true;
+		}
+		return false;
+	}
+
+	/*
+	 * make sure the compaction wasn't deferred or didn't bail out early
+	 * due to locks contention before we declare that we should give up.
+	 * But do not retry if the given zonelist is not suitable for
+	 * compaction.
+	 */
+	if (compaction_withdrawn(compact_result))
+		return compaction_zonelist_suitable(ac, order, alloc_flags);
+
+	/*
+	 * !costly requests are much more important than __GFP_REPEAT
+	 * costly ones because they are de facto nofail and invoke OOM
+	 * killer to move on while costly can fail and users are ready
+	 * to cope with that. 1/4 retries is rather arbitrary but we
+	 * would need much more detailed feedback from compaction to
+	 * make a better decision.
+	 */
+	if (order > PAGE_ALLOC_COSTLY_ORDER)
+		max_retries /= 4;
+	if (compaction_retries <= max_retries)
+		return true;
+
+	return false;
+}
 #else
 static inline struct page *
 __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
@@ -3165,8 +3213,6 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 	*compact_result = COMPACT_SKIPPED;
 	return NULL;
 }
-
-#endif /* CONFIG_COMPACTION */
 
 static inline bool
 should_compact_retry(struct alloc_context *ac, unsigned int order, int alloc_flags,
@@ -3194,6 +3240,7 @@ should_compact_retry(struct alloc_context *ac, unsigned int order, int alloc_fla
 	}
 	return false;
 }
+#endif /* CONFIG_COMPACTION */
 
 /* Perform direct synchronous page reclaim */
 static int
