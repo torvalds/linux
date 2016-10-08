@@ -934,16 +934,17 @@ static int sca3000_read_event_value(struct iio_dev *indio_dev,
 {
 	int ret, i;
 	struct sca3000_state *st = iio_priv(indio_dev);
-	int num = chan->channel2;
+
 	switch (info) {
 	case IIO_EV_INFO_VALUE:
 		mutex_lock(&st->lock);
-		ret = sca3000_read_ctrl_reg(st, sca3000_addresses[num][1]);
+		ret = sca3000_read_ctrl_reg(st,
+					    sca3000_addresses[chan->address][1]);
 		mutex_unlock(&st->lock);
 		if (ret < 0)
 			return ret;
 		*val = 0;
-		if (num == 1)
+		if (chan->channel2 == IIO_MOD_Y)
 			for_each_set_bit(i, (unsigned long *)&ret,
 					 ARRAY_SIZE(st->info->mot_det_mult_y))
 				*val += st->info->mot_det_mult_y[i];
@@ -973,12 +974,11 @@ static int sca3000_write_event_value(struct iio_dev *indio_dev,
 				     int val, int val2)
 {
 	struct sca3000_state *st = iio_priv(indio_dev);
-	int num = chan->channel2;
 	int ret;
 	int i;
 	u8 nonlinear = 0;
 
-	if (num == IIO_MOD_Y) {
+	if (chan->channel2 == IIO_MOD_Y) {
 		i = ARRAY_SIZE(st->info->mot_det_mult_y);
 		while (i > 0)
 			if (val >= st->info->mot_det_mult_y[--i]) {
@@ -995,7 +995,9 @@ static int sca3000_write_event_value(struct iio_dev *indio_dev,
 	}
 
 	mutex_lock(&st->lock);
-	ret = sca3000_write_ctrl_reg(st, sca3000_addresses[num][1], nonlinear);
+	ret = sca3000_write_ctrl_reg(st,
+				     sca3000_addresses[chan->address][1],
+				     nonlinear);
 	mutex_unlock(&st->lock);
 
 	return ret;
@@ -1161,8 +1163,6 @@ static int sca3000_read_event_config(struct iio_dev *indio_dev,
 {
 	struct sca3000_state *st = iio_priv(indio_dev);
 	int ret;
-	int num = chan->channel2;
-
 	/* read current value of mode register */
 	mutex_lock(&st->lock);
 
@@ -1190,7 +1190,7 @@ static int sca3000_read_event_config(struct iio_dev *indio_dev,
 			if (ret < 0)
 				goto error_ret;
 			/* only supporting logical or's for now */
-			ret = !!(ret & sca3000_addresses[num][2]);
+			ret = !!(ret & sca3000_addresses[chan->address][2]);
 		}
 		break;
 	default:
@@ -1306,7 +1306,8 @@ static int sca3000_write_event_config(struct iio_dev *indio_dev,
 	case IIO_MOD_X:
 	case IIO_MOD_Y:
 	case IIO_MOD_Z:
-		ret = sca3000_motion_detect_set_state(indio_dev, chan->channel2,
+		ret = sca3000_motion_detect_set_state(indio_dev,
+						      chan->address,
 						      state);
 		break;
 	default:
