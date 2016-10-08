@@ -1921,7 +1921,6 @@ void hostif_sme_set_wep(struct ks_wlan_private *priv, int type)
 		break;
 	}
 
-	return;
 }
 
 struct wpa_suite_t {
@@ -2110,7 +2109,6 @@ void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
 		break;
 
 	}
-	return;
 }
 
 static
@@ -2218,7 +2216,6 @@ void hostif_sme_mode_setup(struct ks_wlan_private *priv)
 		break;
 	}
 
-	return;
 }
 
 static
@@ -2319,7 +2316,6 @@ void hostif_sme_powermgt_set(struct ks_wlan_private *priv)
 	}
 	hostif_power_mngmt_request(priv, mode, wake_up, receiveDTIMs);
 
-	return;
 }
 
 static
@@ -2337,7 +2333,6 @@ void hostif_sme_sleep_set(struct ks_wlan_private *priv)
 		break;
 	}
 
-	return;
 }
 
 static
@@ -2395,7 +2390,6 @@ void hostif_sme_set_key(struct ks_wlan_private *priv, int type)
 				       &priv->wpa.key[2].rx_seq[0]);
 		break;
 	}
-	return;
 }
 
 static
@@ -2631,7 +2625,6 @@ void hostif_sme_task(unsigned long dev)
 				tasklet_schedule(&priv->sme_task);
 		}
 	}
-	return;
 }
 
 /* send to Station Management Entity module */
@@ -2715,5 +2708,4 @@ int hostif_init(struct ks_wlan_private *priv)
 void hostif_exit(struct ks_wlan_private *priv)
 {
 	tasklet_kill(&priv->sme_task);
-	return;
 }
