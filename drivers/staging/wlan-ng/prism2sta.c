@@ -373,7 +373,8 @@ static int prism2sta_mlmerequest(struct wlandevice *wlandev,
 			    P80211ENUM_msgitem_status_data_ok;
 
 			qualmsg->link.data = le16_to_cpu(hw->qual.cq_curr_bss);
-			qualmsg->level.data = le16_to_cpu(hw->qual.ASL_currBSS);
+			qualmsg->level.data =
+				le16_to_cpu(hw->qual.asl_curr_bss);
 			qualmsg->noise.data = le16_to_cpu(hw->qual.ANL_currFC);
 			qualmsg->txrate.data = hw->txrate;
 
@@ -1948,7 +1949,7 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 
 		pr_debug("commsqual %d %d %d\n",
 			 le16_to_cpu(hw->qual.cq_curr_bss),
-			 le16_to_cpu(hw->qual.ASL_currBSS),
+			 le16_to_cpu(hw->qual.asl_curr_bss),
 			 le16_to_cpu(hw->qual.ANL_currFC));
 	}
 
