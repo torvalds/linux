@@ -219,7 +219,7 @@ affs_notify_change(struct dentry *dentry, struct iattr *attr)
 
 	pr_debug("notify_change(%lu,0x%x)\n", inode->i_ino, attr->ia_valid);
 
-	error = inode_change_ok(inode,attr);
+	error = setattr_prepare(dentry, attr);
 	if (error)
 		goto out;
 

@@ -1192,7 +1192,7 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 		attr->ia_valid |= ATTR_MTIME | ATTR_CTIME;
 	}
 
-	/* POSIX: check before ATTR_*TIME_SET set (from inode_change_ok) */
+	/* POSIX: check before ATTR_*TIME_SET set (from setattr_prepare) */
 	if (attr->ia_valid & TIMES_SET_FLAGS) {
 		if ((!uid_eq(current_fsuid(), inode->i_uid)) &&
 		    !capable(CFS_CAP_FOWNER))

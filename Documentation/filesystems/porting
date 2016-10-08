@@ -287,8 +287,8 @@ implementing on-disk size changes.  Start with a copy of the old inode_setattr
 and vmtruncate, and the reorder the vmtruncate + foofs_vmtruncate sequence to
 be in order of zeroing blocks using block_truncate_page or similar helpers,
 size update and on finally on-disk truncation which should not fail.
-inode_change_ok now includes the size checks for ATTR_SIZE and must be called
-in the beginning of ->setattr unconditionally.
+setattr_prepare (which used to be inode_change_ok) now includes the size checks
+for ATTR_SIZE and must be called in the beginning of ->setattr unconditionally.
 
 [mandatory]
 
