@@ -515,9 +515,7 @@ struct mm_struct {
 #ifdef CONFIG_HUGETLB_PAGE
 	atomic_long_t hugetlb_usage;
 #endif
-#ifdef CONFIG_MMU
 	struct work_struct async_put_work;
-#endif
 };
 
 static inline void mm_init_cpumask(struct mm_struct *mm)
