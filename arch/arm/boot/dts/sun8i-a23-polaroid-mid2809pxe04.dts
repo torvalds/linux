@@ -90,3 +90,12 @@
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
+
+&touchscreen {
+	reg = <0x40>;
+	compatible = "silead,gsl3670";
+	firmware-name = "gsl3670-polaroid-mid2809pxe04.fw";
+	touchscreen-size-x = <1660>;
+	touchscreen-size-y = <890>;
+	status = "okay";
+};

@@ -58,6 +58,16 @@
 	status = "okay";
 };
 
+&touchscreen {
+	reg = <0x40>;
+	compatible = "silead,gsl3675";
+	firmware-name = "gsl3675-ga10h.fw";
+	touchscreen-size-x = <1630>;
+	touchscreen-size-y = <990>;
+	touchscreen-inverted-y;
+	status = "okay";
+};
+
 &lradc {
 	button@600 {
 		label = "Back";
