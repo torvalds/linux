@@ -930,7 +930,7 @@ void dgnc_wakeup_writes(struct channel_t *ch)
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
 
-struct dgnc_board *find_board_by_major(unsigned int major)
+static struct dgnc_board *find_board_by_major(unsigned int major)
 {
 	int i;
 
