@@ -479,7 +479,7 @@ static int rsc_parse(struct cache_detail *cd,
 			kgid = make_kgid(&init_user_ns, id);
 			if (!gid_valid(kgid))
 				goto out;
-			GROUP_AT(rsci.cred.cr_group_info, i) = kgid;
+			rsci.cred.cr_group_info->gid[i] = kgid;
 		}
 
 		/* mech name */
