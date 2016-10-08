@@ -130,7 +130,7 @@ static int medusa_l1_sb_statfs(struct dentry *dentry)
 	return 0;
 }
 
-static int medusa_l1_sb_mount(const char *dev_name, struct path *path, const char *type,
+static int medusa_l1_sb_mount(const char *dev_name, const struct path *path, const char *type,
 			unsigned long flags, void *data)
 {
 	return 0;
@@ -142,7 +142,7 @@ static int medusa_l1_sb_umount(struct vfsmount *mnt, int flags)
 }
 
 
-static int medusa_l1_sb_pivotroot(struct path *old_path, struct path *new_path)
+static int medusa_l1_sb_pivotroot(const struct path *old_path, const struct path *new_path)
 {
 	return 0;
 }
@@ -169,7 +169,7 @@ static int medusa_l1_sb_parse_opts_str(char *options, struct security_mnt_opts *
 }
 
 static int medusa_l1_dentry_init_security(struct dentry *dentry, int mode, 
-					struct qstr *name, void **ctx, u32 *ctxlen)
+					const struct qstr *name, void **ctx, u32 *ctxlen)
 {
 	if (dentry->d_inode != NULL) {
 		if (&inode_security(dentry->d_inode) == NULL)
@@ -346,62 +346,61 @@ static void medusa_l1_inode_getsecid(struct inode *inode, u32 *secid)
 }
 
 #ifdef CONFIG_SECURITY_PATH
-static int medusa_l1_path_mknod(struct path *dir, struct dentry *dentry, umode_t mode,
+static int medusa_l1_path_mknod(const struct path *dir, struct dentry *dentry, umode_t mode,
 				unsigned int dev)
 {
 	return 0;
 }
 
-static int medusa_l1_path_mkdir(struct path *dir, struct dentry *dentry, umode_t mode)
+static int medusa_l1_path_mkdir(const struct path *dir, struct dentry *dentry, umode_t mode)
 {
 	return 0;
 }
 
-static int medusa_l1_path_rmdir(struct path *dir, struct dentry *dentry)
+static int medusa_l1_path_rmdir(const struct path *dir, struct dentry *dentry)
 {
 	return 0;
 }
 
-static int medusa_l1_path_unlink(struct path *dir, struct dentry *dentry)
+static int medusa_l1_path_unlink(const struct path *dir, struct dentry *dentry)
 {
 	return 0;
 }
 
-static int medusa_l1_path_symlink(struct path *dir, struct dentry *dentry,
+static int medusa_l1_path_symlink(const struct path *dir, struct dentry *dentry,
 				const char *old_name)
 {
 	return 0;
 }
 
-static int medusa_l1_path_link(struct dentry *old_dentry, struct path *new_dir,
+static int medusa_l1_path_link(struct dentry *old_dentry, const struct path *new_dir,
 			 struct dentry *new_dentry)
 {
 	return 0;
 }
 
-static int medusa_l1_path_rename(struct path *old_path, struct dentry *old_dentry,
-			struct path *new_path, struct dentry *new_dentry)
+static int medusa_l1_path_rename(const struct path *old_path, struct dentry *old_dentry,
+			const struct path *new_path, struct dentry *new_dentry)
 {
 	return 0;
 }
 
-static int medusa_l1_path_truncate(struct path *path)
+static int medusa_l1_path_truncate(const struct path *path)
 {
 	return 0;
 }
 
-static int medusa_l1_path_chmod(struct path *path,
-			umode_t mode)
+static int medusa_l1_path_chmod(const struct path *path, umode_t mode)
 {
 	return 0;
 }
 
-static int medusa_l1_path_chown(struct path *path, kuid_t uid, kgid_t gid)
+static int medusa_l1_path_chown(const struct path *path, kuid_t uid, kgid_t gid)
 {
 	return 0;
 }
 
-static int medusa_l1_path_chroot(struct path *root)
+static int medusa_l1_path_chroot(const struct path *root)
 {
 	return 0;
 }
