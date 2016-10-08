@@ -52,6 +52,16 @@ config BMC150_ACCEL_SPI
 	tristate
 	select REGMAP_SPI
 
+config DA280
+	tristate "MiraMEMS DA280 3-axis 14-bit digital accelerometer driver"
+	depends on I2C
+	help
+	  Say yes here to build support for the MiraMEMS DA280 3-axis 14-bit
+	  digital accelerometer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called da280.
+
 config DA311
 	tristate "MiraMEMS DA311 3-axis 12-bit digital accelerometer driver"
 	depends on I2C
