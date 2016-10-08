@@ -275,8 +275,8 @@ static int sca3000_write_reg(struct sca3000_state *st, u8 address, u8 val)
 }
 
 static int sca3000_read_data_short(struct sca3000_state *st,
-			    u8 reg_address_high,
-			    int len)
+				   u8 reg_address_high,
+				   int len)
 {
 	struct spi_transfer xfer[2] = {
 		{
