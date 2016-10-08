@@ -104,7 +104,8 @@ static void prism2sta_reset(struct wlandevice *wlandev);
 static int prism2sta_txframe(struct wlandevice *wlandev, struct sk_buff *skb,
 			     union p80211_hdr *p80211_hdr,
 			     struct p80211_metawep *p80211_wep);
-static int prism2sta_mlmerequest(struct wlandevice *wlandev, struct p80211msg *msg);
+static int prism2sta_mlmerequest(struct wlandevice *wlandev,
+				 struct p80211msg *msg);
 static int prism2sta_getcardinfo(struct wlandevice *wlandev);
 static int prism2sta_globalsetup(struct wlandevice *wlandev);
 static int prism2sta_setmulticast(struct wlandevice *wlandev,
@@ -278,7 +279,8 @@ static int prism2sta_txframe(struct wlandevice *wlandev, struct sk_buff *skb,
  * Call context:
  *	process thread
  */
-static int prism2sta_mlmerequest(struct wlandevice *wlandev, struct p80211msg *msg)
+static int prism2sta_mlmerequest(struct wlandevice *wlandev,
+				 struct p80211msg *msg)
 {
 	struct hfa384x *hw = wlandev->priv;
 
@@ -1099,7 +1101,8 @@ static void prism2sta_inf_hostscanresults(struct wlandevice *wlandev,
 
 	kfree(hw->scanresults);
 
-	hw->scanresults = kmemdup(inf, sizeof(struct hfa384x_InfFrame), GFP_ATOMIC);
+	hw->scanresults = kmemdup(inf, sizeof(struct hfa384x_InfFrame),
+				  GFP_ATOMIC);
 
 	if (nbss == 0)
 		nbss = -1;
