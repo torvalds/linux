@@ -27,7 +27,7 @@ for arg in "$@"; do
 	elif [[ "$arg" == '--clean' || "$arg" == '-clean' ]]; then
 		sudo make clean
                 sudo rm -rf debian
-	elif [[ "$arg" == '--nogrub' || "$arg" == '-nogrub' ]]; then
+	elif [[ "$arg" == '--nogdb' || "$arg" == '-nogdb' || "$arg" == '--nogrub' || "$arg" == '-nogrub' ]]; then
 		GRUB=0
 	elif [[ "$arg" == '--noreboot' || "$arg" == '-noreboot' ]]; then
 		REBOOT=0
