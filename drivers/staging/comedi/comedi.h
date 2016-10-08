@@ -245,6 +245,22 @@ enum comedi_subdevice_type {
 /* configuration instructions */
 
 /**
+ * enum comedi_io_direction - COMEDI I/O directions
+ * @COMEDI_INPUT:	Input.
+ * @COMEDI_OUTPUT:	Output.
+ * @COMEDI_OPENDRAIN:	Open-drain (or open-collector) output.
+ *
+ * These are used by the %INSN_CONFIG_DIO_QUERY configuration instruction to
+ * report a direction.  They may also be used in other places where a direction
+ * needs to be specified.
+ */
+enum comedi_io_direction {
+	COMEDI_INPUT = 0,
+	COMEDI_OUTPUT = 1,
+	COMEDI_OPENDRAIN = 2
+};
+
+/**
  * enum configuration_ids - COMEDI configuration instruction codes
  * @INSN_CONFIG_DIO_INPUT:	Configure digital I/O as input.
  * @INSN_CONFIG_DIO_OUTPUT:	Configure digital I/O as output.
@@ -296,9 +312,9 @@ enum comedi_subdevice_type {
  * @INSN_CONFIG_PWM_GET_H_BRIDGE: Get PWM H bridge duty cycle and polarity.
  */
 enum configuration_ids {
-	INSN_CONFIG_DIO_INPUT = 0,
-	INSN_CONFIG_DIO_OUTPUT = 1,
-	INSN_CONFIG_DIO_OPENDRAIN = 2,
+	INSN_CONFIG_DIO_INPUT = COMEDI_INPUT,
+	INSN_CONFIG_DIO_OUTPUT = COMEDI_OUTPUT,
+	INSN_CONFIG_DIO_OPENDRAIN = COMEDI_OPENDRAIN,
 	INSN_CONFIG_ANALOG_TRIG = 16,
 /*	INSN_CONFIG_WAVEFORM = 17, */
 /*	INSN_CONFIG_TRIG = 18, */
@@ -394,22 +410,6 @@ enum comedi_digital_trig_op {
 	COMEDI_DIGITAL_TRIG_DISABLE = 0,
 	COMEDI_DIGITAL_TRIG_ENABLE_EDGES = 1,
 	COMEDI_DIGITAL_TRIG_ENABLE_LEVELS = 2
-};
-
-/**
- * enum comedi_io_direction - COMEDI I/O directions
- * @COMEDI_INPUT:	Input.
- * @COMEDI_OUTPUT:	Output.
- * @COMEDI_OPENDRAIN:	Open-drain (or open-collector) output.
- *
- * These are used by the %INSN_CONFIG_DIO_QUERY configuration instruction to
- * report a direction.  They may also be used in other places where a direction
- * needs to be specified.
- */
-enum comedi_io_direction {
-	COMEDI_INPUT = 0,
-	COMEDI_OUTPUT = 1,
-	COMEDI_OPENDRAIN = 2
 };
 
 /**
