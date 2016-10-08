@@ -147,7 +147,7 @@ m_next_vma(struct proc_maps_private *priv, struct vm_area_struct *vma)
 static void m_cache_vma(struct seq_file *m, struct vm_area_struct *vma)
 {
 	if (m->count < m->size)	/* vma is copied successfully */
-		m->version = m_next_vma(m->private, vma) ? vma->vm_start : -1UL;
+		m->version = m_next_vma(m->private, vma) ? vma->vm_end : -1UL;
 }
 
 static void *m_start(struct seq_file *m, loff_t *ppos)
@@ -175,8 +175,10 @@ static void *m_start(struct seq_file *m, loff_t *ppos)
 	priv->tail_vma = get_gate_vma(mm);
 
 	if (last_addr) {
-		vma = find_vma(mm, last_addr);
-		if (vma && (vma = m_next_vma(priv, vma)))
+		vma = find_vma(mm, last_addr - 1);
+		if (vma && vma->vm_start <= last_addr)
+			vma = m_next_vma(priv, vma);
+		if (vma)
 			return vma;
 	}
 
