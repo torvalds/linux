@@ -455,7 +455,7 @@ struct hfa384x_downloadbuffer {
 
 /*-- Information Record: commsquality --*/
 struct hfa384x_commsquality {
-	u16 CQ_currBSS;
+	u16 cq_curr_bss;
 	u16 ASL_currBSS;
 	u16 ANL_currFC;
 } __packed;
