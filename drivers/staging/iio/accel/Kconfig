@@ -52,7 +52,8 @@ config ADIS16240
 	  called adis16240.
 
 config SCA3000
-	depends on IIO_BUFFER
+	select IIO_BUFFER
+	select IIO_KFIFO_BUF
 	depends on SPI
 	tristate "VTI SCA3000 series accelerometers"
 	help
