@@ -402,7 +402,32 @@ static inline void vma_rb_insert(struct vm_area_struct *vma,
 	rb_insert_augmented(&vma->vm_rb, root, &vma_gap_callbacks);
 }
 
-static void vma_rb_erase(struct vm_area_struct *vma, struct rb_root *root)
+static void __vma_rb_erase(struct vm_area_struct *vma, struct rb_root *root)
+{
+	/*
+	 * Note rb_erase_augmented is a fairly large inline function,
+	 * so make sure we instantiate it only once with our desired
+	 * augmented rbtree callbacks.
+	 */
+	rb_erase_augmented(&vma->vm_rb, root, &vma_gap_callbacks);
+}
+
+static __always_inline void vma_rb_erase_ignore(struct vm_area_struct *vma,
+						struct rb_root *root,
+						struct vm_area_struct *ignore)
+{
+	/*
+	 * All rb_subtree_gap values must be consistent prior to erase,
+	 * with the possible exception of the "next" vma being erased if
+	 * next->vm_start was reduced.
+	 */
+	validate_mm_rb(root, ignore);
+
+	__vma_rb_erase(vma, root);
+}
+
+static __always_inline void vma_rb_erase(struct vm_area_struct *vma,
+					 struct rb_root *root)
 {
 	/*
 	 * All rb_subtree_gap values must be consistent prior to erase,
@@ -410,12 +435,7 @@ static void vma_rb_erase(struct vm_area_struct *vma, struct rb_root *root)
 	 */
 	validate_mm_rb(root, vma);
 
-	/*
-	 * Note rb_erase_augmented is a fairly large inline function,
-	 * so make sure we instantiate it only once with our desired
-	 * augmented rbtree callbacks.
-	 */
-	rb_erase_augmented(&vma->vm_rb, root, &vma_gap_callbacks);
+	__vma_rb_erase(vma, root);
 }
 
 /*
@@ -604,11 +624,12 @@ static void __insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
 static __always_inline void __vma_unlink_common(struct mm_struct *mm,
 						struct vm_area_struct *vma,
 						struct vm_area_struct *prev,
-						bool has_prev)
+						bool has_prev,
+						struct vm_area_struct *ignore)
 {
 	struct vm_area_struct *next;
 
-	vma_rb_erase(vma, &mm->mm_rb);
+	vma_rb_erase_ignore(vma, &mm->mm_rb, ignore);
 	next = vma->vm_next;
 	if (has_prev)
 		prev->vm_next = next;
@@ -630,13 +651,7 @@ static inline void __vma_unlink_prev(struct mm_struct *mm,
 				     struct vm_area_struct *vma,
 				     struct vm_area_struct *prev)
 {
-	__vma_unlink_common(mm, vma, prev, true);
-}
-
-static inline void __vma_unlink(struct mm_struct *mm,
-				struct vm_area_struct *vma)
-{
-	__vma_unlink_common(mm, vma, NULL, false);
+	__vma_unlink_common(mm, vma, prev, true, vma);
 }
 
 /*
@@ -815,8 +830,16 @@ again:
 		if (remove_next != 3)
 			__vma_unlink_prev(mm, next, vma);
 		else
-			/* vma is not before next if they've been swapped */
-			__vma_unlink(mm, next);
+			/*
+			 * vma is not before next if they've been
+			 * swapped.
+			 *
+			 * pre-swap() next->vm_start was reduced so
+			 * tell validate_mm_rb to ignore pre-swap()
+			 * "next" (which is stored in post-swap()
+			 * "vma").
+			 */
+			__vma_unlink_common(mm, next, NULL, false, vma);
 		if (file)
 			__remove_shared_vm_struct(next, file, mapping);
 	} else if (insert) {
