@@ -449,6 +449,27 @@ int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+int kvm_mips_handle_commpage_tlb_fault(unsigned long badvaddr,
+				       struct kvm_vcpu *vcpu)
+{
+	kvm_pfn_t pfn;
+	pte_t *ptep;
+
+	ptep = kvm_trap_emul_pte_for_gva(vcpu, badvaddr);
+	if (!ptep) {
+		kvm_err("No ptep for commpage %lx\n", badvaddr);
+		return -1;
+	}
+
+	pfn = PFN_DOWN(virt_to_phys(vcpu->arch.kseg0_commpage));
+	/* Also set valid and dirty, so refill handler doesn't have to */
+	*ptep = pte_mkyoung(pte_mkdirty(pfn_pte(pfn, PAGE_SHARED)));
+
+	/* Invalidate this entry in the TLB, guest kernel ASID only */
+	kvm_mips_host_tlb_inv(vcpu, badvaddr, false, true);
+	return 0;
+}
+
 void kvm_get_new_mmu_context(struct mm_struct *mm, unsigned long cpu,
 			     struct kvm_vcpu *vcpu)
 {

@@ -159,9 +159,6 @@ struct kvm_arch {
 	/* Guest GVA->HPA page table */
 	unsigned long *guest_pmap;
 	unsigned long guest_pmap_npages;
-
-	/* Wired host TLB used for the commpage */
-	int commpage_tlb;
 };
 
 #define N_MIPS_COPROC_REGS	32

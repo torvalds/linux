@@ -52,11 +52,6 @@ static u32 kvm_mips_get_user_asid(struct kvm_vcpu *vcpu)
 	return cpu_asid(cpu, user_mm);
 }
 
-inline u32 kvm_mips_get_commpage_asid(struct kvm_vcpu *vcpu)
-{
-	return vcpu->kvm->arch.commpage_tlb;
-}
-
 /* Structure defining an tlb entry data set. */
 
 void kvm_mips_dump_host_tlbs(void)
@@ -103,45 +98,6 @@ void kvm_mips_dump_guest_tlbs(struct kvm_vcpu *vcpu)
 	}
 }
 EXPORT_SYMBOL_GPL(kvm_mips_dump_guest_tlbs);
-
-int kvm_mips_handle_commpage_tlb_fault(unsigned long badvaddr,
-	struct kvm_vcpu *vcpu)
-{
-	kvm_pfn_t pfn;
-	unsigned long flags, old_entryhi = 0, vaddr = 0;
-	unsigned long entrylo[2] = { 0, 0 };
-	unsigned int pair_idx;
-
-	pfn = PFN_DOWN(virt_to_phys(vcpu->arch.kseg0_commpage));
-	pair_idx = (badvaddr >> PAGE_SHIFT) & 1;
-	entrylo[pair_idx] = mips3_paddr_to_tlbpfn(pfn << PAGE_SHIFT) |
-		((_page_cachable_default >> _CACHE_SHIFT) << ENTRYLO_C_SHIFT) |
-		ENTRYLO_D | ENTRYLO_V;
-
-	local_irq_save(flags);
-
-	old_entryhi = read_c0_entryhi();
-	vaddr = badvaddr & (PAGE_MASK << 1);
-	write_c0_entryhi(vaddr | kvm_mips_get_kernel_asid(vcpu));
-	write_c0_entrylo0(entrylo[0]);
-	write_c0_entrylo1(entrylo[1]);
-	write_c0_index(kvm_mips_get_commpage_asid(vcpu));
-	mtc0_tlbw_hazard();
-	tlb_write_indexed();
-	tlbw_use_hazard();
-
-	kvm_debug("@ %#lx idx: %2d [entryhi(R): %#lx] entrylo0 (R): 0x%08lx, entrylo1(R): 0x%08lx\n",
-		  vcpu->arch.pc, read_c0_index(), read_c0_entryhi(),
-		  read_c0_entrylo0(), read_c0_entrylo1());
-
-	/* Restore old ASID */
-	write_c0_entryhi(old_entryhi);
-	mtc0_tlbw_hazard();
-	local_irq_restore(flags);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(kvm_mips_handle_commpage_tlb_fault);
 
 int kvm_mips_guest_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long entryhi)
 {

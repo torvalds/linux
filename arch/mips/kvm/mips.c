@@ -92,28 +92,10 @@ void kvm_arch_check_processor_compat(void *rtn)
 	*(int *)rtn = 0;
 }
 
-static void kvm_mips_init_tlbs(struct kvm *kvm)
-{
-	unsigned long wired;
-
-	/*
-	 * Add a wired entry to the TLB, it is used to map the commpage to
-	 * the Guest kernel
-	 */
-	wired = read_c0_wired();
-	write_c0_wired(wired + 1);
-	mtc0_tlbw_hazard();
-	kvm->arch.commpage_tlb = wired;
-
-	kvm_debug("[%d] commpage TLB: %d\n", smp_processor_id(),
-		  kvm->arch.commpage_tlb);
-}
-
 static void kvm_mips_init_vm_percpu(void *arg)
 {
 	struct kvm *kvm = (struct kvm *)arg;
 
-	kvm_mips_init_tlbs(kvm);
 	kvm_mips_callbacks->vm_init(kvm);
 
 }
@@ -165,25 +147,11 @@ void kvm_mips_free_vcpus(struct kvm *kvm)
 	mutex_unlock(&kvm->lock);
 }
 
-static void kvm_mips_uninit_tlbs(void *arg)
-{
-	/* Restore wired count */
-	write_c0_wired(0);
-	mtc0_tlbw_hazard();
-	/* Clear out all the TLBs */
-	kvm_local_flush_tlb_all();
-}
-
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	kvm_mips_free_vcpus(kvm);
 
-	/* If this is the last instance, restore wired count */
-	if (atomic_dec_return(&kvm_mips_instance) == 0) {
-		kvm_debug("%s: last KVM instance, restoring TLB parameters\n",
-			  __func__);
-		on_each_cpu(kvm_mips_uninit_tlbs, NULL, 1);
-	}
+	atomic_dec(&kvm_mips_instance);
 }
 
 long kvm_arch_dev_ioctl(struct file *filp, unsigned int ioctl,
