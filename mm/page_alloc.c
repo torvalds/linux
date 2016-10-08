@@ -3402,16 +3402,26 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
 static inline bool
 should_reclaim_retry(gfp_t gfp_mask, unsigned order,
 		     struct alloc_context *ac, int alloc_flags,
-		     bool did_some_progress, int no_progress_loops)
+		     bool did_some_progress, int *no_progress_loops)
 {
 	struct zone *zone;
 	struct zoneref *z;
 
 	/*
+	 * Costly allocations might have made a progress but this doesn't mean
+	 * their order will become available due to high fragmentation so
+	 * always increment the no progress counter for them
+	 */
+	if (did_some_progress && order <= PAGE_ALLOC_COSTLY_ORDER)
+		*no_progress_loops = 0;
+	else
+		(*no_progress_loops)++;
+
+	/*
 	 * Make sure we converge to OOM if we cannot make any progress
 	 * several times in the row.
 	 */
-	if (no_progress_loops > MAX_RECLAIM_RETRIES)
+	if (*no_progress_loops > MAX_RECLAIM_RETRIES)
 		return false;
 
 	/*
@@ -3426,7 +3436,7 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
 		unsigned long reclaimable;
 
 		available = reclaimable = zone_reclaimable_pages(zone);
-		available -= DIV_ROUND_UP(no_progress_loops * available,
+		available -= DIV_ROUND_UP((*no_progress_loops) * available,
 					  MAX_RECLAIM_RETRIES);
 		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
 
@@ -3642,18 +3652,8 @@ retry:
 	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
 		goto nopage;
 
-	/*
-	 * Costly allocations might have made a progress but this doesn't mean
-	 * their order will become available due to high fragmentation so
-	 * always increment the no progress counter for them
-	 */
-	if (did_some_progress && order <= PAGE_ALLOC_COSTLY_ORDER)
-		no_progress_loops = 0;
-	else
-		no_progress_loops++;
-
 	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
-				 did_some_progress > 0, no_progress_loops))
+				 did_some_progress > 0, &no_progress_loops))
 		goto retry;
 
 	/*
