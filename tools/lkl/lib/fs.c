@@ -67,7 +67,7 @@ static char *get_node_with_prefix(const char *path, const char *prefix,
 	return result;
 }
 
-static long get_virtio_blkdev(int disk_id)
+int lkl_get_virtio_blkdev(int disk_id, uint32_t *pdevid)
 {
 	char sysfs_path[LKL_PATH_MAX];
 	int sysfs_path_len = 0;
@@ -77,6 +77,7 @@ static long get_virtio_blkdev(int disk_id)
 	int opendir_ret;
 	char *virtio_name = NULL;
 	char *disk_name = NULL;
+	uint32_t device_id;
 
 	if (disk_id < 0)
 		return -LKL_EINVAL;
@@ -136,12 +137,14 @@ static long get_virtio_blkdev(int disk_id)
 		goto out_close;
 	}
 
-	ret = new_encode_dev(major, minor);
+	device_id = new_encode_dev(major, minor);
 
 out_close:
 	lkl_sys_close(fd);
 
-	return ret;
+	*pdevid = device_id;
+
+	return 0;
 }
 
 long lkl_mount_dev(unsigned int disk_id, const char *fs_type, int flags,
@@ -155,7 +158,9 @@ long lkl_mount_dev(unsigned int disk_id, const char *fs_type, int flags,
 	if (mnt_str_len < sizeof(dev_str))
 		return -LKL_ENOMEM;
 
-	dev = get_virtio_blkdev(disk_id);
+	err = lkl_get_virtio_blkdev(disk_id, &dev);
+	if (err < 0)
+		return err;
 
 	snprintf(dev_str, sizeof(dev_str), "/dev/%08x", dev);
 	snprintf(mnt_str, mnt_str_len, "/mnt/%08x", dev);
@@ -231,7 +236,9 @@ long lkl_umount_dev(unsigned int disk_id, int flags, long timeout_ms)
 	unsigned int dev;
 	int err;
 
-	dev = get_virtio_blkdev(disk_id);
+	err = lkl_get_virtio_blkdev(disk_id, &dev);
+	if (err < 0)
+		return err;
 
 	snprintf(dev_str, sizeof(dev_str), "/dev/%08x", dev);
 	snprintf(mnt_str, sizeof(mnt_str), "/mnt/%08x", dev);

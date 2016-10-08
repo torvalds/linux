@@ -112,6 +112,17 @@ int lkl_disk_add(struct lkl_disk *disk);
 int lkl_disk_remove(struct lkl_disk disk);
 
 /**
+ * lkl_get_virtio_blkdev - get device id of a disk
+ *
+ * This function returns the device id for the given disk.
+ *
+ * @disk_id - the disk id identifying the disk
+ * @pdevid - pointer to memory where dev id will be returned
+ * @returns - 0 on success, a negative value on error
+ */
+int lkl_get_virtio_blkdev(int disk_id, uint32_t *pdevid);
+
+/**
  * lkl_mount_dev - mount a disk
  *
  * This functions creates a device file for the given disk, creates a mount
