@@ -1379,7 +1379,6 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
 					int classzone_idx,
 					unsigned long wmark_target)
 {
-	int fragindex;
 	unsigned long watermark;
 
 	if (is_via_compact_memory(order))
@@ -1415,6 +1414,18 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
 						ALLOC_CMA, wmark_target))
 		return COMPACT_SKIPPED;
 
+	return COMPACT_CONTINUE;
+}
+
+enum compact_result compaction_suitable(struct zone *zone, int order,
+					unsigned int alloc_flags,
+					int classzone_idx)
+{
+	enum compact_result ret;
+	int fragindex;
+
+	ret = __compaction_suitable(zone, order, alloc_flags, classzone_idx,
+				    zone_page_state(zone, NR_FREE_PAGES));
 	/*
 	 * fragmentation index determines if allocation failures are due to
 	 * low memory or external fragmentation
@@ -1426,21 +1437,12 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
 	 *
 	 * Only compact if a failure would be due to fragmentation.
 	 */
-	fragindex = fragmentation_index(zone, order);
-	if (fragindex >= 0 && fragindex <= sysctl_extfrag_threshold)
-		return COMPACT_NOT_SUITABLE_ZONE;
+	if (ret == COMPACT_CONTINUE) {
+		fragindex = fragmentation_index(zone, order);
+		if (fragindex >= 0 && fragindex <= sysctl_extfrag_threshold)
+			ret = COMPACT_NOT_SUITABLE_ZONE;
+	}
 
-	return COMPACT_CONTINUE;
-}
-
-enum compact_result compaction_suitable(struct zone *zone, int order,
-					unsigned int alloc_flags,
-					int classzone_idx)
-{
-	enum compact_result ret;
-
-	ret = __compaction_suitable(zone, order, alloc_flags, classzone_idx,
-				    zone_page_state(zone, NR_FREE_PAGES));
 	trace_mm_compaction_suitable(zone, order, ret);
 	if (ret == COMPACT_NOT_SUITABLE_ZONE)
 		ret = COMPACT_SKIPPED;
@@ -1473,8 +1475,7 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
 		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
 		compact_result = __compaction_suitable(zone, order, alloc_flags,
 				ac_classzone_idx(ac), available);
-		if (compact_result != COMPACT_SKIPPED &&
-				compact_result != COMPACT_NOT_SUITABLE_ZONE)
+		if (compact_result != COMPACT_SKIPPED)
 			return true;
 	}
 
