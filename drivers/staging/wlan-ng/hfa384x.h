@@ -421,7 +421,7 @@ struct hfa384x_join_request_data {
 } __packed;
 
 /*-- Configuration Record: authenticateStation (data portion only) --*/
-struct hfa384x_authenticateStation_data {
+struct hfa384x_authenticate_station_data {
 	u8 address[ETH_ALEN];
 	u16 status;
 	u16 algorithm;

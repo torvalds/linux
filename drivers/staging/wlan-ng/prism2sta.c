@@ -1550,7 +1550,7 @@ static void prism2sta_inf_authreq_defer(struct wlandevice *wlandev,
 					struct hfa384x_inf_frame *inf)
 {
 	struct hfa384x *hw = wlandev->priv;
-	struct hfa384x_authenticateStation_data rec;
+	struct hfa384x_authenticate_station_data rec;
 
 	int i, added, result, cnt;
 	u8 *addr;
