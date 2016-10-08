@@ -785,7 +785,7 @@ extern struct of_device_id __clk_of_table;
  * routines, one at of_clk_init(), and one at platform device probe
  */
 #define CLK_OF_DECLARE_DRIVER(name, compat, fn) \
-	static void name##_of_clk_init_driver(struct device_node *np)	\
+	static void __init name##_of_clk_init_driver(struct device_node *np) \
 	{								\
 		of_node_clear_flag(np, OF_POPULATED);			\
 		fn(np);							\
