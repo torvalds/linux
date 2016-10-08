@@ -303,6 +303,18 @@ config MXC6255
 	  To compile this driver as a module, choose M here: the module will be
 	  called mxc6255.
 
+config SCA3000
+	select IIO_BUFFER
+	select IIO_KFIFO_BUF
+	depends on SPI
+	tristate "VTI SCA3000 series accelerometers"
+	help
+	  Say Y here to build support for the VTI SCA3000 series of SPI
+	  accelerometers. These devices use a hardware ring buffer.
+
+	  To compile this driver as a module, say M here: the module will be
+	  called sca3000.
+
 config STK8312
 	tristate "Sensortek STK8312 3-Axis Accelerometer Driver"
 	depends on I2C
