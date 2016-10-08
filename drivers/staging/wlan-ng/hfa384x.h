@@ -634,7 +634,7 @@ struct hfa384x_CommTallies16 {
 	u16 rxmsginbadmsgfrag;
 } __packed;
 
-struct hfa384x_CommTallies32 {
+struct hfa384x_comm_tallies_32 {
 	u32 txunicastframes;
 	u32 txmulticastframes;
 	u32 txfragments;
@@ -763,7 +763,7 @@ struct hfa384x_KeyIDChanged {
 /*--  Collection of all Inf frames ---------------*/
 union hfa384x_infodata {
 	struct hfa384x_CommTallies16 commtallies16;
-	struct hfa384x_CommTallies32 commtallies32;
+	struct hfa384x_comm_tallies_32 commtallies32;
 	struct hfa384x_ScanResult scanresult;
 	struct hfa384x_ChInfoResult chinforesult;
 	struct hfa384x_HScanResult hscanresult;
@@ -1360,7 +1360,7 @@ struct hfa384x {
 	struct hfa384x_caplevel cap_act_ap_mfi;	/* ap f/w to modem interface */
 
 	u32 psusercount;	/* Power save user count. */
-	struct hfa384x_CommTallies32 tallies;	/* Communication tallies. */
+	struct hfa384x_comm_tallies_32 tallies;	/* Communication tallies. */
 	u8 comment[WLAN_COMMENT_MAX + 1];	/* User comment */
 
 	/* Channel Info request results (AP only) */

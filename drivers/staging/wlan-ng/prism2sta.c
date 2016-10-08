@@ -1001,7 +1001,7 @@ static void prism2sta_inf_tallies(struct wlandevice *wlandev,
 	 * record length of the info record.
 	 */
 
-	cnt = sizeof(struct hfa384x_CommTallies32) / sizeof(u32);
+	cnt = sizeof(struct hfa384x_comm_tallies_32) / sizeof(u32);
 	if (inf->framelen > 22) {
 		dst = (u32 *)&hw->tallies;
 		src32 = (u32 *)&inf->info.commtallies32;
