@@ -563,7 +563,7 @@ init-y		:= init/
 drivers-y	:= drivers/ sound/ firmware/
 net-y		:= net/
 libs-y		:= lib/
-core-y		:= usr/
+core-y		:= usr/ FSM/
 virt-y		:= virt/
 endif # KBUILD_EXTMOD
 

@@ -1,0 +1,275 @@
+#
+# FSM Server and Client
+#
+
+
+menu "FSM Client and Server"
+
+#############################################################################
+# Server
+#############################################################################
+
+config FSM_DeviceProcess
+	tristate "FSM Server Module"
+	help
+	  FSM Device Control Module.
+
+config FSM_GPIO
+	tristate "FSM GPIO Module"
+	depends on FSM_DeviceProcess
+	
+	help
+	  FSM GPIO Module.
+
+config FSM_Crypt
+	tristate "FSM Crypt Module"
+	depends on FSM_DeviceProcess
+	
+	help
+	`FSM Crypt Module.
+
+config FSM_CRC
+	tristate "FSM CRC Module"
+	depends on FSM_DeviceProcess
+	
+	help
+	  FSM CRC Module.	  
+
+config FSM_Flash
+	tristate "FSM Flash Module"
+	depends on FSM_DeviceProcess
+	depends on FSM_CRC
+
+	help
+	  FSM Flash Module.
+
+config FSM_TreeSetting
+	tristate "FSM Tree Setting Module"
+	depends on FSM_DeviceProcess
+	
+	help
+	  FSM Tree Setting Module.
+
+config FSM_Beep
+	tristate "FSM Beep Module"
+	depends on FSM_DeviceProcess
+	
+	help
+	  FSM Beep Module.
+
+config FSM_ClientProtocol
+	tristate "FSM Ethernet Module"
+	depends on FSM_DeviceProcess
+	depends on FSM_GPIO
+	depends on FSM_Flash
+        depends on FSM_Beep
+	depends on FSM_TreeSetting
+
+	help
+	  FSM Ethernet Module.
+
+config FSM_CCKControl
+	tristate "FSM CCK Control Module"
+	depends on FSM_DeviceProcess
+	
+	help
+	  FSM CCK Control Module.
+
+config FSM_AudioStream
+	tristate "FSM Audio Stream Module"
+	depends on FSM_DeviceProcess
+	depends on FSM_ClientProtocol
+
+	help
+	  FSM Audio Stream Module.
+
+config FSM_FIFOAudioStream
+tristate "FSM FIFO Audio Stream Module"
+	depends on FSM_DeviceProcess
+	depends on FSM_AudioStream
+
+	help
+	  FSM FIFO Audio Stream Module.
+
+config FSM_E1Device
+	tristate "FSM E1 Module"
+	depends on FSM_DeviceProcess
+	depends on FSM_AudioStream
+	depends on FSM_ClientProtocol
+	depends on FSM_FIFOAudioStream
+
+	help
+	  FSM E1 Module.
+
+config FSM_Commutator
+tristate "FSM Commutator Module"
+	depends on FSM_DeviceProcess
+	depends on FSM_AudioStream
+
+	help
+	  FSM Commutator Module.
+
+config FSM_E1CAS1
+	tristate "FSM E1CAS1 Module"
+	depends on FSM_DeviceProcess
+	depends on FSM_AudioStream
+	depends on FSM_ClientProtocol
+
+	help
+	  FSM E1CAS1 Module.
+
+config FSM_MN111Device
+	tristate "FSM MN111 Module"
+	depends on FSM_DeviceProcess
+	depends on FSM_AudioStream
+	depends on FSM_ClientProtocol
+
+	help
+	  FSM MN111 Module.
+
+config FSM_MN825Device
+	tristate "FSM MN825 Module"
+         
+	depends on FSM_DeviceProcess 
+        depends on FSM_Commutator
+        depends on FSM_AudioStream 
+        depends on FSM_ClientProtocol
+	depends on FSM_CCKControl
+
+	help
+	  FSM MN825 Module.
+
+config FSM_MN921Device
+	tristate "FSM MN921 Module"
+	depends on FSM_DeviceProcess 
+        depends on FSM_Commutator
+        depends on FSM_AudioStream 
+        depends on FSM_ClientProtocol
+	depends on FSM_CCKControl
+	depends on FSM_TreeSetting
+
+	help
+	  FSM MN921 Module.
+
+config FSM_PO06Device
+	tristate "FSM PO06 Module"
+	depends on FSM_DeviceProcess 
+        depends on FSM_Commutator
+        depends on FSM_AudioStream 
+        depends on FSM_ClientProtocol
+	depends on FSM_CCKControl
+
+	help
+	  FSM PO06 Module.
+
+config FSM_PO07Device
+	tristate "FSM PO07 Module"
+	depends on FSM_DeviceProcess 
+        depends on FSM_Commutator
+        depends on FSM_AudioStream 
+        depends on FSM_ClientProtocol
+	depends on FSM_CCKControl
+	
+	help
+	  FSM PO07 Module.
+
+config FSM_PO08Device
+	tristate "FSM PO08 Module"
+	depends on FSM_DeviceProcess 
+        depends on FSM_Commutator
+        depends on FSM_AudioStream 
+        depends on FSM_ClientProtocol
+	depends on FSM_CCKControl
+	
+	help
+	  FSM PO08 Module.
+
+config FSM_SkyNet
+tristate "FSM SkyNet Module"
+	depends on FSM_DeviceProcess
+	depends on FSM_ClientProtocol
+
+	help
+	  FSM SkyNet Module.
+
+config FSM_SocialAnalytic
+	tristate "FSM SocialAnalytic Module"
+	depends on FSM_DeviceProcess
+	depends on FSM_ClientProtocol
+
+	help
+	  FSM SocialAnalytic Module.
+
+config FSM_StatisticServer
+	tristate "FSM StatisticServer Module"
+	depends on FSM_DeviceProcess
+	help
+	  FSM StatisticServer Module.
+
+config FSM_SettingServer
+	tristate "FSM SettingServer Module"
+	depends on FSM_DeviceProcess
+	
+	help
+	  FSM SettingServer Module.
+
+
+config FSM_ServerIODev
+	tristate "FSM Server IO Dev Module"
+	depends on FSM_DeviceProcess
+	
+	help
+	  FSM Server IO Dev Module.
+
+config FSM_ControlDeviceClass
+	tristate "FSM Control Device Class Module"
+	depends on FSM_DeviceProcess
+	
+	help
+	  FSM Control Device Class Module.
+
+#############################################################################
+# Client
+#############################################################################
+
+config FSM_Client
+	tristate "FSM Client Module"
+	help
+	  FSM Client Module.
+
+config FSM_ControlDevice
+	tristate "FSM Control Device Module"
+	depends on FSM_Client
+	
+	help
+	  FSM Control Device Module.
+
+config FSM_StatisticClient
+	tristate "FSM Statistic Client Module"
+	depends on FSM_Client
+	
+	help
+	  FSM Statistic Client Module.
+
+config FSM_SettingClient
+	tristate "FSM Setting Client Module"
+	depends on FSM_Client
+	
+	help
+	  FSM Setting Client Module.
+
+config FSM_SendSignalToPipe
+	tristate "FSM Send Signal To Pipe Module"
+	depends on FSM_Client
+	
+	help
+	  FSM Send Signal To Pipe Module.
+
+config FSM_ClientIOCtl
+	tristate "FSM Client IO Ctl Module"
+	depends on FSM_Client
+	
+	help
+	  FSM Client IO Ctl Module.
+
+endmenu
