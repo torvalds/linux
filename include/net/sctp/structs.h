@@ -530,7 +530,6 @@ struct sctp_datamsg {
 	/* Did the messenge fail to send? */
 	int send_error;
 	u8 send_failed:1,
-	   can_abandon:1,   /* can chunks from this message can be abandoned. */
 	   can_delay;	    /* should this message be Nagle delayed */
 };
 

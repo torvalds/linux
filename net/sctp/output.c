@@ -866,9 +866,6 @@ static void sctp_packet_append_data(struct sctp_packet *packet,
 		rwnd = 0;
 
 	asoc->peer.rwnd = rwnd;
-	/* Has been accepted for transmission. */
-	if (!asoc->peer.prsctp_capable)
-		chunk->msg->can_abandon = 0;
 	sctp_chunk_assign_tsn(chunk);
 	sctp_chunk_assign_ssn(chunk);
 }
