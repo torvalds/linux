@@ -138,8 +138,6 @@ SECTIONS
 	/* BSS */
 	BSS_SECTION(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE)
 
-	/* bootmap is allocated in setup_bootmem() directly behind bss. */
-
 	. = ALIGN(HUGEPAGE_SIZE);
 	_end = . ;
 
