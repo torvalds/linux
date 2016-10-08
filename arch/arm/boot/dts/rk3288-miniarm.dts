@@ -167,6 +167,12 @@
 	#sound-dai-cells = <0>;
 	ddc-i2c-bus = <&i2c5>;
 	status = "okay";
+	/* Don't use vopl for HDMI */
+	ports {
+		hdmi_in: port {
+			/delete-node/ endpoint@1;
+		};
+	};
 };
 
 &i2c0 {
@@ -450,6 +456,10 @@
 
 &vopl {
 	status = "okay";
+	/* Don't use vopl for HDMI */
+	vopl_out: port {
+		/delete-node/ endpoint@0;
+	};
 };
 
 &vopl_mmu {
