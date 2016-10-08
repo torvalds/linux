@@ -411,26 +411,23 @@ error_ret:
 /**
  * sca3000_show_rev() - sysfs interface to read the chip revision number
  **/
-static ssize_t sca3000_show_rev(struct device *dev,
-				struct device_attribute *attr,
-				char *buf)
+static int sca3000_print_rev(struct iio_dev *indio_dev)
 {
-	int len = 0, ret;
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	int ret;
 	struct sca3000_state *st = iio_priv(indio_dev);
 
 	mutex_lock(&st->lock);
 	ret = sca3000_read_data_short(st, SCA3000_REG_REVID_ADDR, 1);
 	if (ret < 0)
 		goto error_ret;
-	len += sprintf(buf + len,
-		       "major=%lu, minor=%lu\n",
-		       st->rx[0] & SCA3000_REG_REVID_MAJOR_MASK,
-		       st->rx[0] & SCA3000_REG_REVID_MINOR_MASK);
+	dev_info(&indio_dev->dev,
+		 "sca3000 revision major=%lu, minor=%lu\n",
+		 st->rx[0] & SCA3000_REG_REVID_MAJOR_MASK,
+		 st->rx[0] & SCA3000_REG_REVID_MINOR_MASK);
 error_ret:
 	mutex_unlock(&st->lock);
 
-	return ret ? ret : len;
+	return ret;
 }
 
 static ssize_t
@@ -457,9 +454,6 @@ sca3000_show_available_3db_freqs(struct device *dev,
 static IIO_DEVICE_ATTR(in_accel_filter_low_pass_3db_frequency_available,
 		       S_IRUGO, sca3000_show_available_3db_freqs,
 		       NULL, 0);
-/* More standard attributes */
-
-static IIO_DEVICE_ATTR(revision, S_IRUGO, sca3000_show_rev, NULL, 0);
 
 static const struct iio_event_spec sca3000_event = {
 	.type = IIO_EV_TYPE_MAG,
@@ -921,7 +915,6 @@ static int sca3000_write_event_value(struct iio_dev *indio_dev,
 }
 
 static struct attribute *sca3000_attributes[] = {
-	&iio_dev_attr_revision.dev_attr.attr,
 	&iio_dev_attr_in_accel_filter_low_pass_3db_frequency_available.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
 	NULL,
@@ -1465,6 +1458,11 @@ static int sca3000_probe(struct spi_device *spi)
 	ret = sca3000_clean_setup(st);
 	if (ret)
 		goto error_free_irq;
+
+	ret = sca3000_print_rev(indio_dev);
+	if (ret)
+		goto error_free_irq;
+
 	return 0;
 
 error_free_irq:
