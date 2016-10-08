@@ -1435,9 +1435,14 @@ enum compact_result compaction_suitable(struct zone *zone, int order,
 	 * index towards 0 implies failure is due to lack of memory
 	 * index towards 1000 implies failure is due to fragmentation
 	 *
-	 * Only compact if a failure would be due to fragmentation.
+	 * Only compact if a failure would be due to fragmentation. Also
+	 * ignore fragindex for non-costly orders where the alternative to
+	 * a successful reclaim/compaction is OOM. Fragindex and the
+	 * vm.extfrag_threshold sysctl is meant as a heuristic to prevent
+	 * excessive compaction for costly orders, but it should not be at the
+	 * expense of system stability.
 	 */
-	if (ret == COMPACT_CONTINUE) {
+	if (ret == COMPACT_CONTINUE && (order > PAGE_ALLOC_COSTLY_ORDER)) {
 		fragindex = fragmentation_index(zone, order);
 		if (fragindex >= 0 && fragindex <= sysctl_extfrag_threshold)
 			ret = COMPACT_NOT_SUITABLE_ZONE;
