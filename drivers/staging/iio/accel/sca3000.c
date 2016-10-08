@@ -60,6 +60,7 @@
 #define SCA3000_MEAS_MODE_NORMAL		0x00
 #define SCA3000_MEAS_MODE_OP_1			0x01
 #define SCA3000_MEAS_MODE_OP_2			0x02
+#define SCA3000_MODE_MASK			0x03
 
 /*
  * In motion detection mode the accelerations are band pass filtered
@@ -593,10 +594,25 @@ static const struct iio_event_spec sca3000_event = {
 		.num_event_specs = 1,				\
 	}
 
+static const struct iio_event_spec sca3000_freefall_event_spec = {
+	.type = IIO_EV_TYPE_MAG,
+	.dir = IIO_EV_DIR_FALLING,
+	.mask_separate = BIT(IIO_EV_INFO_ENABLE) |
+		BIT(IIO_EV_INFO_PERIOD),
+};
+
 static const struct iio_chan_spec sca3000_channels[] = {
 	SCA3000_CHAN(0, IIO_MOD_X),
 	SCA3000_CHAN(1, IIO_MOD_Y),
 	SCA3000_CHAN(2, IIO_MOD_Z),
+	{
+		.type = IIO_ACCEL,
+		.modified = 1,
+		.channel2 = IIO_MOD_X_AND_Y_AND_Z,
+		.scan_index = -1, /* Fake channel */
+		.event_spec = &sca3000_freefall_event_spec,
+		.num_event_specs = 1,
+	},
 };
 
 static const struct iio_chan_spec sca3000_channels_with_temp[] = {
@@ -610,6 +626,14 @@ static const struct iio_chan_spec sca3000_channels_with_temp[] = {
 			BIT(IIO_CHAN_INFO_OFFSET),
 		/* No buffer support */
 		.scan_index = -1,
+	},
+	{
+		.type = IIO_ACCEL,
+		.modified = 1,
+		.channel2 = IIO_MOD_X_AND_Y_AND_Z,
+		.scan_index = -1, /* Fake channel */
+		.event_spec = &sca3000_freefall_event_spec,
+		.num_event_specs = 1,
 	},
 };
 
@@ -854,46 +878,54 @@ error_ret:
 static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(sca3000_read_av_freq);
 
 /**
- * sca3000_read_thresh() - query of a threshold
+ * sca3000_read_event_value() - query of a threshold or period
  **/
-static int sca3000_read_thresh(struct iio_dev *indio_dev,
-			       const struct iio_chan_spec *chan,
-			       enum iio_event_type type,
-			       enum iio_event_direction dir,
-			       enum iio_event_info info,
-			       int *val, int *val2)
+static int sca3000_read_event_value(struct iio_dev *indio_dev,
+				    const struct iio_chan_spec *chan,
+				    enum iio_event_type type,
+				    enum iio_event_direction dir,
+				    enum iio_event_info info,
+				    int *val, int *val2)
 {
 	int ret, i;
 	struct sca3000_state *st = iio_priv(indio_dev);
 	int num = chan->channel2;
+	switch (info) {
+	case IIO_EV_INFO_VALUE:
+		mutex_lock(&st->lock);
+		ret = sca3000_read_ctrl_reg(st, sca3000_addresses[num][1]);
+		mutex_unlock(&st->lock);
+		if (ret < 0)
+			return ret;
+		*val = 0;
+		if (num == 1)
+			for_each_set_bit(i, (unsigned long *)&ret,
+					 ARRAY_SIZE(st->info->mot_det_mult_y))
+				*val += st->info->mot_det_mult_y[i];
+		else
+			for_each_set_bit(i, (unsigned long *)&ret,
+					 ARRAY_SIZE(st->info->mot_det_mult_xz))
+				*val += st->info->mot_det_mult_xz[i];
 
-	mutex_lock(&st->lock);
-	ret = sca3000_read_ctrl_reg(st, sca3000_addresses[num][1]);
-	mutex_unlock(&st->lock);
-	if (ret < 0)
-		return ret;
-	*val = 0;
-	if (num == 1)
-		for_each_set_bit(i, (unsigned long *)&ret,
-				 ARRAY_SIZE(st->info->mot_det_mult_y))
-			*val += st->info->mot_det_mult_y[i];
-	else
-		for_each_set_bit(i, (unsigned long *)&ret,
-				 ARRAY_SIZE(st->info->mot_det_mult_xz))
-			*val += st->info->mot_det_mult_xz[i];
-
-	return IIO_VAL_INT;
+		return IIO_VAL_INT;
+	case IIO_EV_INFO_PERIOD:
+		*val = 0;
+		*val2 = 226000;
+		return IIO_VAL_INT_PLUS_MICRO;
+	default:
+		return -EINVAL;
+	}
 }
 
 /**
- * sca3000_write_thresh() control of threshold
+ * sca3000_write_value() control of threshold and period
  **/
-static int sca3000_write_thresh(struct iio_dev *indio_dev,
-				const struct iio_chan_spec *chan,
-				enum iio_event_type type,
-				enum iio_event_direction dir,
-				enum iio_event_info info,
-				int val, int val2)
+static int sca3000_write_event_value(struct iio_dev *indio_dev,
+				     const struct iio_chan_spec *chan,
+				     enum iio_event_type type,
+				     enum iio_event_direction dir,
+				     enum iio_event_info info,
+				     int val, int val2)
 {
 	struct sca3000_state *st = iio_priv(indio_dev);
 	int num = chan->channel2;
@@ -901,7 +933,7 @@ static int sca3000_write_thresh(struct iio_dev *indio_dev,
 	int i;
 	u8 nonlinear = 0;
 
-	if (num == 1) {
+	if (num == IIO_MOD_Y) {
 		i = ARRAY_SIZE(st->info->mot_det_mult_y);
 		while (i > 0)
 			if (val >= st->info->mot_det_mult_y[--i]) {
@@ -1088,86 +1120,115 @@ static int sca3000_read_event_config(struct iio_dev *indio_dev,
 
 	/* read current value of mode register */
 	mutex_lock(&st->lock);
+
 	ret = sca3000_read_data_short(st, SCA3000_REG_ADDR_MODE, 1);
 	if (ret)
 		goto error_ret;
 
-	if ((st->rx[0] & protect_mask) != SCA3000_MEAS_MODE_MOT_DET) {
-		ret = 0;
-	} else {
-		ret = sca3000_read_ctrl_reg(st, SCA3000_REG_CTRL_SEL_MD_CTRL);
-		if (ret < 0)
-			goto error_ret;
-		/* only supporting logical or's for now */
-		ret = !!(ret & sca3000_addresses[num][2]);
+	switch (chan->channel2) {
+	case IIO_MOD_X_AND_Y_AND_Z:
+		ret = !!(st->rx[0] & SCA3000_FREE_FALL_DETECT);
+		break;
+	case IIO_MOD_X:
+	case IIO_MOD_Y:
+	case IIO_MOD_Z:
+		/*
+		 * Motion detection mode cannot run at the same time as
+		 * acceleration data being read.
+		 */
+		if ((st->rx[0] & protect_mask) != SCA3000_MEAS_MODE_MOT_DET) {
+			ret = 0;
+		} else {
+			ret = sca3000_read_ctrl_reg(st,
+						SCA3000_REG_CTRL_SEL_MD_CTRL);
+			if (ret < 0)
+				goto error_ret;
+			/* only supporting logical or's for now */
+			ret = !!(ret & sca3000_addresses[num][2]);
+		}
+		break;
+	default:
+		ret = -EINVAL;
 	}
+
 error_ret:
 	mutex_unlock(&st->lock);
 
 	return ret;
 }
 
-/**
- * sca3000_query_free_fall_mode() is free fall mode enabled
- **/
-static ssize_t sca3000_query_free_fall_mode(struct device *dev,
-					    struct device_attribute *attr,
-					    char *buf)
+static int sca3000_freefall_set_state(struct iio_dev *indio_dev, int state)
 {
-	int ret;
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct sca3000_state *st = iio_priv(indio_dev);
-	int val;
-
-	mutex_lock(&st->lock);
-	ret = sca3000_read_data_short(st, SCA3000_REG_ADDR_MODE, 1);
-	val = st->rx[0];
-	mutex_unlock(&st->lock);
-	if (ret < 0)
-		return ret;
-	return sprintf(buf, "%d\n", !!(val & SCA3000_FREE_FALL_DETECT));
-}
-
-/**
- * sca3000_set_free_fall_mode() simple on off control for free fall int
- *
- * In these chips the free fall detector should send an interrupt if
- * the device falls more than 25cm.  This has not been tested due
- * to fragile wiring.
- **/
-static ssize_t sca3000_set_free_fall_mode(struct device *dev,
-					  struct device_attribute *attr,
-					  const char *buf,
-					  size_t len)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct sca3000_state *st = iio_priv(indio_dev);
-	u8 val;
 	int ret;
-	u8 protect_mask = SCA3000_FREE_FALL_DETECT;
-
-	mutex_lock(&st->lock);
-	ret = kstrtou8(buf, 10, &val);
-	if (ret)
-		goto error_ret;
 
 	/* read current value of mode register */
 	ret = sca3000_read_data_short(st, SCA3000_REG_ADDR_MODE, 1);
 	if (ret)
-		goto error_ret;
+		return ret;
 
 	/* if off and should be on */
-	if (val && !(st->rx[0] & protect_mask))
-		ret = sca3000_write_reg(st, SCA3000_REG_ADDR_MODE,
-					(st->rx[0] | SCA3000_FREE_FALL_DETECT));
+	if (state && !(st->rx[0] & SCA3000_FREE_FALL_DETECT))
+		return sca3000_write_reg(st, SCA3000_REG_ADDR_MODE,
+					 st->rx[0] | SCA3000_FREE_FALL_DETECT);
 	/* if on and should be off */
-	else if (!val && (st->rx[0] & protect_mask))
-		ret = sca3000_write_reg(st, SCA3000_REG_ADDR_MODE,
-					(st->rx[0] & ~protect_mask));
-error_ret:
-	mutex_unlock(&st->lock);
+	else if (!state && (st->rx[0] & SCA3000_FREE_FALL_DETECT))
+		return sca3000_write_reg(st, SCA3000_REG_ADDR_MODE,
+					 st->rx[0] & ~SCA3000_FREE_FALL_DETECT);
+	else
+		return 0;
+}
 
-	return ret ? ret : len;
+static int sca3000_motion_detect_set_state(struct iio_dev *indio_dev, int axis,
+					   int state)
+{
+	struct sca3000_state *st = iio_priv(indio_dev);
+	int ret, ctrlval;
+
+	/*
+	 * First read the motion detector config to find out if
+	 * this axis is on
+	 */
+	ret = sca3000_read_ctrl_reg(st, SCA3000_REG_CTRL_SEL_MD_CTRL);
+	if (ret < 0)
+		return ret;
+	ctrlval = ret;
+	/* if off and should be on */
+	if (state && !(ctrlval & sca3000_addresses[axis][2])) {
+		ret = sca3000_write_ctrl_reg(st,
+					     SCA3000_REG_CTRL_SEL_MD_CTRL,
+					     ctrlval |
+					     sca3000_addresses[axis][2]);
+		if (ret)
+			return ret;
+		st->mo_det_use_count++;
+	} else if (!state && (ctrlval & sca3000_addresses[axis][2])) {
+		ret = sca3000_write_ctrl_reg(st,
+					     SCA3000_REG_CTRL_SEL_MD_CTRL,
+					     ctrlval &
+					     ~(sca3000_addresses[axis][2]));
+		if (ret)
+			return ret;
+		st->mo_det_use_count--;
+	}
+
+	/* read current value of mode register */
+	ret = sca3000_read_data_short(st, SCA3000_REG_ADDR_MODE, 1);
+	if (ret)
+		return ret;
+	/* if off and should be on */
+	if ((st->mo_det_use_count) &&
+	    ((st->rx[0] & SCA3000_MODE_MASK) != SCA3000_MEAS_MODE_MOT_DET))
+		return sca3000_write_reg(st, SCA3000_REG_ADDR_MODE,
+					(st->rx[0] & ~SCA3000_MODE_MASK)
+					| SCA3000_MEAS_MODE_MOT_DET);
+	/* if on and should be off */
+	else if (!(st->mo_det_use_count) &&
+		 ((st->rx[0] & SCA3000_MODE_MASK) == SCA3000_MEAS_MODE_MOT_DET))
+		return sca3000_write_reg(st, SCA3000_REG_ADDR_MODE,
+					st->rx[0] & SCA3000_MODE_MASK);
+	else
+		return 0;
 }
 
 /**
@@ -1186,81 +1247,28 @@ static int sca3000_write_event_config(struct iio_dev *indio_dev,
 				      int state)
 {
 	struct sca3000_state *st = iio_priv(indio_dev);
-	int ret, ctrlval;
-	u8 protect_mask = 0x03;
-	int num = chan->channel2;
+	int ret;
 
 	mutex_lock(&st->lock);
-	/*
-	 * First read the motion detector config to find out if
-	 * this axis is on
-	 */
-	ret = sca3000_read_ctrl_reg(st, SCA3000_REG_CTRL_SEL_MD_CTRL);
-	if (ret < 0)
-		goto exit_point;
-	ctrlval = ret;
-	/* if off and should be on */
-	if (state && !(ctrlval & sca3000_addresses[num][2])) {
-		ret = sca3000_write_ctrl_reg(st,
-					     SCA3000_REG_CTRL_SEL_MD_CTRL,
-					     ctrlval |
-					     sca3000_addresses[num][2]);
-		if (ret)
-			goto exit_point;
-		st->mo_det_use_count++;
-	} else if (!state && (ctrlval & sca3000_addresses[num][2])) {
-		ret = sca3000_write_ctrl_reg(st,
-					     SCA3000_REG_CTRL_SEL_MD_CTRL,
-					     ctrlval &
-					     ~(sca3000_addresses[num][2]));
-		if (ret)
-			goto exit_point;
-		st->mo_det_use_count--;
-	}
+	switch (chan->channel2) {
+	case IIO_MOD_X_AND_Y_AND_Z:
+		ret = sca3000_freefall_set_state(indio_dev, state);
+		break;
 
-	/* read current value of mode register */
-	ret = sca3000_read_data_short(st, SCA3000_REG_ADDR_MODE, 1);
-	if (ret)
-		goto exit_point;
-	/* if off and should be on */
-	if ((st->mo_det_use_count) &&
-	    ((st->rx[0] & protect_mask) != SCA3000_MEAS_MODE_MOT_DET))
-		ret = sca3000_write_reg(st, SCA3000_REG_ADDR_MODE,
-					(st->rx[0] & ~protect_mask)
-					| SCA3000_MEAS_MODE_MOT_DET);
-	/* if on and should be off */
-	else if (!(st->mo_det_use_count) &&
-		 ((st->rx[0] & protect_mask) == SCA3000_MEAS_MODE_MOT_DET))
-		ret = sca3000_write_reg(st, SCA3000_REG_ADDR_MODE,
-					(st->rx[0] & ~protect_mask));
-exit_point:
+	case IIO_MOD_X:
+	case IIO_MOD_Y:
+	case IIO_MOD_Z:
+		ret = sca3000_motion_detect_set_state(indio_dev, chan->channel2,
+						      state);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
 	mutex_unlock(&st->lock);
 
 	return ret;
 }
-
-/* Free fall detector related event attribute */
-static IIO_DEVICE_ATTR_NAMED(accel_xayaz_mag_falling_en,
-			     in_accel_x & y & z_mag_falling_en,
-			     S_IRUGO | S_IWUSR,
-			     sca3000_query_free_fall_mode,
-			     sca3000_set_free_fall_mode,
-			     0);
-
-static IIO_CONST_ATTR_NAMED(accel_xayaz_mag_falling_period,
-			    in_accel_x & y & z_mag_falling_period,
-			    "0.226");
-
-static struct attribute *sca3000_event_attributes[] = {
-	&iio_dev_attr_accel_xayaz_mag_falling_en.dev_attr.attr,
-	&iio_const_attr_accel_xayaz_mag_falling_period.dev_attr.attr,
-	NULL,
-};
-
-static struct attribute_group sca3000_event_attribute_group = {
-	.attrs = sca3000_event_attributes,
-	.name = "events",
-};
 
 static int sca3000_configure_ring(struct iio_dev *indio_dev)
 {
@@ -1436,9 +1444,8 @@ static const struct iio_info sca3000_info = {
 	.attrs = &sca3000_attribute_group,
 	.read_raw = &sca3000_read_raw,
 	.write_raw = &sca3000_write_raw,
-	.event_attrs = &sca3000_event_attribute_group,
-	.read_event_value = &sca3000_read_thresh,
-	.write_event_value = &sca3000_write_thresh,
+	.read_event_value = &sca3000_read_event_value,
+	.write_event_value = &sca3000_write_event_value,
 	.read_event_config = &sca3000_read_event_config,
 	.write_event_config = &sca3000_write_event_config,
 	.driver_module = THIS_MODULE,
