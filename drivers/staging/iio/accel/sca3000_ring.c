@@ -270,8 +270,8 @@ int sca3000_configure_ring(struct iio_dev *indio_dev)
 		return -ENOMEM;
 	indio_dev->modes |= INDIO_BUFFER_HARDWARE;
 
-	indio_dev->buffer->access = &sca3000_ring_access_funcs;
 
+	buffer->access = &sca3000_ring_access_funcs;
 	iio_device_attach_buffer(indio_dev, buffer);
 
 	return 0;
