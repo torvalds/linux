@@ -10543,21 +10543,6 @@ out_inode:
 
 }
 
-/* Inspired by filemap_check_errors() */
-int btrfs_inode_check_errors(struct inode *inode)
-{
-	int ret = 0;
-
-	if (test_bit(AS_ENOSPC, &inode->i_mapping->flags) &&
-	    test_and_clear_bit(AS_ENOSPC, &inode->i_mapping->flags))
-		ret = -ENOSPC;
-	if (test_bit(AS_EIO, &inode->i_mapping->flags) &&
-	    test_and_clear_bit(AS_EIO, &inode->i_mapping->flags))
-		ret = -EIO;
-
-	return ret;
-}
-
 static const struct inode_operations btrfs_dir_inode_operations = {
 	.getattr	= btrfs_getattr,
 	.lookup		= btrfs_lookup,
