@@ -774,7 +774,7 @@ union hfa384x_infodata {
 	struct hfa384x_KeyIDChanged keyidchanged;
 } __packed;
 
-struct hfa384x_InfFrame {
+struct hfa384x_inf_frame {
 	u16 framelen;
 	u16 infotype;
 	union hfa384x_infodata info;
@@ -862,7 +862,7 @@ struct hfa384x_usb_rxfrm {
 
 struct hfa384x_usb_infofrm {
 	u16 type;
-	struct hfa384x_InfFrame info;
+	struct hfa384x_inf_frame info;
 } __packed;
 
 struct hfa384x_usb_statusresp {
@@ -1370,7 +1370,7 @@ struct hfa384x {
 		struct hfa384x_ChInfoResult results;
 	} channel_info;
 
-	struct hfa384x_InfFrame *scanresults;
+	struct hfa384x_inf_frame *scanresults;
 
 	struct prism2sta_authlist authlist;	/* Authenticated station list. */
 	unsigned int accessmode;		/* Access mode. */
