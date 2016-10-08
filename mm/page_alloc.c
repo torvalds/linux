@@ -3163,6 +3163,7 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
 		     int *compaction_retries)
 {
 	int max_retries = MAX_COMPACT_RETRIES;
+	int min_priority;
 
 	if (!order)
 		return false;
@@ -3205,7 +3206,9 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
 	 * all retries or failed at the lower priorities.
 	 */
 check_priority:
-	if (*compact_priority > MIN_COMPACT_PRIORITY) {
+	min_priority = (order > PAGE_ALLOC_COSTLY_ORDER) ?
+			MIN_COMPACT_COSTLY_PRIORITY : MIN_COMPACT_PRIORITY;
+	if (*compact_priority > min_priority) {
 		(*compact_priority)--;
 		*compaction_retries = 0;
 		return true;
