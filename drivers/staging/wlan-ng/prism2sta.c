@@ -606,8 +606,8 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 	hw->ident_nic.minor = le16_to_cpu(hw->ident_nic.minor);
 
 	netdev_info(wlandev->netdev, "ident: nic h/w: id=0x%02x %d.%d.%d\n",
-	       hw->ident_nic.id, hw->ident_nic.major,
-	       hw->ident_nic.minor, hw->ident_nic.variant);
+		    hw->ident_nic.id, hw->ident_nic.major,
+		    hw->ident_nic.minor, hw->ident_nic.variant);
 
 	/* Primary f/w identity */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_PRIIDENTITY,
@@ -625,8 +625,8 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 	hw->ident_pri_fw.minor = le16_to_cpu(hw->ident_pri_fw.minor);
 
 	netdev_info(wlandev->netdev, "ident: pri f/w: id=0x%02x %d.%d.%d\n",
-	       hw->ident_pri_fw.id, hw->ident_pri_fw.major,
-	       hw->ident_pri_fw.minor, hw->ident_pri_fw.variant);
+		    hw->ident_pri_fw.id, hw->ident_pri_fw.major,
+		    hw->ident_pri_fw.minor, hw->ident_pri_fw.variant);
 
 	/* Station (Secondary?) f/w identity */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_STAIDENTITY,
@@ -639,7 +639,7 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 
 	if (hw->ident_nic.id < 0x8000) {
 		netdev_err(wlandev->netdev,
-		       "FATAL: Card is not an Intersil Prism2/2.5/3\n");
+			   "FATAL: Card is not an Intersil Prism2/2.5/3\n");
 		result = -1;
 		goto failed;
 	}
@@ -656,14 +656,14 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 
 	if (hw->ident_sta_fw.id == 0x1f) {
 		netdev_info(wlandev->netdev,
-		       "ident: sta f/w: id=0x%02x %d.%d.%d\n",
-		       hw->ident_sta_fw.id, hw->ident_sta_fw.major,
-		       hw->ident_sta_fw.minor, hw->ident_sta_fw.variant);
+			    "ident: sta f/w: id=0x%02x %d.%d.%d\n",
+			    hw->ident_sta_fw.id, hw->ident_sta_fw.major,
+			    hw->ident_sta_fw.minor, hw->ident_sta_fw.variant);
 	} else {
 		netdev_info(wlandev->netdev,
-		       "ident:  ap f/w: id=0x%02x %d.%d.%d\n",
-		       hw->ident_sta_fw.id, hw->ident_sta_fw.major,
-		       hw->ident_sta_fw.minor, hw->ident_sta_fw.variant);
+			    "ident:  ap f/w: id=0x%02x %d.%d.%d\n",
+			    hw->ident_sta_fw.id, hw->ident_sta_fw.major,
+			    hw->ident_sta_fw.minor, hw->ident_sta_fw.variant);
 		netdev_err(wlandev->netdev, "Unsupported Tertiary AP firmware loaded!\n");
 		goto failed;
 	}
@@ -687,10 +687,10 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 	hw->cap_sup_mfi.top = le16_to_cpu(hw->cap_sup_mfi.top);
 
 	netdev_info(wlandev->netdev,
-	       "MFI:SUP:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
-	       hw->cap_sup_mfi.role, hw->cap_sup_mfi.id,
-	       hw->cap_sup_mfi.variant, hw->cap_sup_mfi.bottom,
-	       hw->cap_sup_mfi.top);
+		    "MFI:SUP:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
+		    hw->cap_sup_mfi.role, hw->cap_sup_mfi.id,
+		    hw->cap_sup_mfi.variant, hw->cap_sup_mfi.bottom,
+		    hw->cap_sup_mfi.top);
 
 	/* Compatibility range, Controller supplier */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_CFISUPRANGE,
@@ -711,10 +711,10 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 	hw->cap_sup_cfi.top = le16_to_cpu(hw->cap_sup_cfi.top);
 
 	netdev_info(wlandev->netdev,
-	       "CFI:SUP:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
-	       hw->cap_sup_cfi.role, hw->cap_sup_cfi.id,
-	       hw->cap_sup_cfi.variant, hw->cap_sup_cfi.bottom,
-	       hw->cap_sup_cfi.top);
+		    "CFI:SUP:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
+		    hw->cap_sup_cfi.role, hw->cap_sup_cfi.id,
+		    hw->cap_sup_cfi.variant, hw->cap_sup_cfi.bottom,
+		    hw->cap_sup_cfi.top);
 
 	/* Compatibility range, Primary f/w supplier */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_PRISUPRANGE,
@@ -735,10 +735,10 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 	hw->cap_sup_pri.top = le16_to_cpu(hw->cap_sup_pri.top);
 
 	netdev_info(wlandev->netdev,
-	       "PRI:SUP:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
-	       hw->cap_sup_pri.role, hw->cap_sup_pri.id,
-	       hw->cap_sup_pri.variant, hw->cap_sup_pri.bottom,
-	       hw->cap_sup_pri.top);
+		    "PRI:SUP:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
+		    hw->cap_sup_pri.role, hw->cap_sup_pri.id,
+		    hw->cap_sup_pri.variant, hw->cap_sup_pri.bottom,
+		    hw->cap_sup_pri.top);
 
 	/* Compatibility range, Station f/w supplier */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_STASUPRANGE,
@@ -791,10 +791,10 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 	hw->cap_act_pri_cfi.top = le16_to_cpu(hw->cap_act_pri_cfi.top);
 
 	netdev_info(wlandev->netdev,
-	       "PRI-CFI:ACT:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
-	       hw->cap_act_pri_cfi.role, hw->cap_act_pri_cfi.id,
-	       hw->cap_act_pri_cfi.variant, hw->cap_act_pri_cfi.bottom,
-	       hw->cap_act_pri_cfi.top);
+		    "PRI-CFI:ACT:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
+		    hw->cap_act_pri_cfi.role, hw->cap_act_pri_cfi.id,
+		    hw->cap_act_pri_cfi.variant, hw->cap_act_pri_cfi.bottom,
+		    hw->cap_act_pri_cfi.top);
 
 	/* Compatibility range, sta f/w actor, CFI supplier */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_STA_CFIACTRANGES,
@@ -815,10 +815,10 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 	hw->cap_act_sta_cfi.top = le16_to_cpu(hw->cap_act_sta_cfi.top);
 
 	netdev_info(wlandev->netdev,
-	       "STA-CFI:ACT:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
-	       hw->cap_act_sta_cfi.role, hw->cap_act_sta_cfi.id,
-	       hw->cap_act_sta_cfi.variant, hw->cap_act_sta_cfi.bottom,
-	       hw->cap_act_sta_cfi.top);
+		    "STA-CFI:ACT:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
+		    hw->cap_act_sta_cfi.role, hw->cap_act_sta_cfi.id,
+		    hw->cap_act_sta_cfi.variant, hw->cap_act_sta_cfi.bottom,
+		    hw->cap_act_sta_cfi.top);
 
 	/* Compatibility range, sta f/w actor, MFI supplier */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_STA_MFIACTRANGES,
@@ -839,10 +839,10 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 	hw->cap_act_sta_mfi.top = le16_to_cpu(hw->cap_act_sta_mfi.top);
 
 	netdev_info(wlandev->netdev,
-	       "STA-MFI:ACT:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
-	       hw->cap_act_sta_mfi.role, hw->cap_act_sta_mfi.id,
-	       hw->cap_act_sta_mfi.variant, hw->cap_act_sta_mfi.bottom,
-	       hw->cap_act_sta_mfi.top);
+		    "STA-MFI:ACT:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
+		    hw->cap_act_sta_mfi.role, hw->cap_act_sta_mfi.id,
+		    hw->cap_act_sta_mfi.variant, hw->cap_act_sta_mfi.bottom,
+		    hw->cap_act_sta_mfi.top);
 
 	/* Serial Number */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_NICSERIALNUMBER,
@@ -920,7 +920,7 @@ static int prism2sta_globalsetup(struct wlandevice *wlandev)
 }
 
 static int prism2sta_setmulticast(struct wlandevice *wlandev,
-					struct net_device *dev)
+				  struct net_device *dev)
 {
 	int result = 0;
 	struct hfa384x *hw = wlandev->priv;
@@ -1064,7 +1064,7 @@ static void prism2sta_inf_scanresults(struct wlandevice *wlandev,
 					&joinreq, HFA384x_RID_JOINREQUEST_LEN);
 	if (result) {
 		netdev_err(wlandev->netdev, "setconfig(joinreq) failed, result=%d\n",
-		       result);
+			   result);
 	}
 }
 
@@ -1294,7 +1294,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 		 */
 		if (wlandev->netdev->type == ARPHRD_ETHER)
 			netdev_info(wlandev->netdev,
-			       "linkstatus=DISCONNECTED (unhandled)\n");
+				    "linkstatus=DISCONNECTED (unhandled)\n");
 		wlandev->macmode = WLAN_MACMODE_NONE;
 
 		netif_carrier_off(wlandev->netdev);
@@ -1415,7 +1415,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 	default:
 		/* This is bad, IO port problems? */
 		netdev_warn(wlandev->netdev,
-		       "unknown linkstatus=0x%02x\n", hw->link_status);
+			    "unknown linkstatus=0x%02x\n", hw->link_status);
 		return;
 	}
 
@@ -1785,7 +1785,7 @@ void prism2sta_ev_info(struct wlandevice *wlandev, struct hfa384x_InfFrame *inf)
 		break;
 	default:
 		netdev_warn(wlandev->netdev,
-		       "Unknown info type=0x%02x\n", inf->infotype);
+			    "Unknown info type=0x%02x\n", inf->infotype);
 		break;
 	}
 }
