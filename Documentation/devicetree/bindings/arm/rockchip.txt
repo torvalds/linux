@@ -121,3 +121,7 @@ Rockchip platforms device tree bindings
 - Rockchip RK3399 evb:
     Required root node properties:
       - compatible = "rockchip,rk3399-evb", "rockchip,rk3399";
+
+- Tronsmart Orion R68 Meta
+    Required root node properties:
+      - compatible = "tronsmart,orion-r68-meta", "rockchip,rk3368";

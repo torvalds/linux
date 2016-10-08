@@ -1,8 +1,9 @@
 /*
- * Copyright (C) 2016 Marvell Technology Group Ltd.
+ * Copyright 2016 ZTE Corporation.
+ * Copyright 2016 Linaro Ltd.
  *
  * This file is dual-licensed: you can use it either under the terms
- * of the GPLv2 or the X11 license, at your option. Note that this dual
+ * of the GPL or the X11 license, at your option. Note that this dual
  * licensing only applies to this file, and not this project as a
  * whole.
  *
@@ -40,17 +41,24 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/*
- * Device Tree file for the Armada 8020 SoC, made of an AP806 Dual and
- * two CP110.
- */
-
-#include "armada-ap806-dual.dtsi"
-#include "armada-cp110-master.dtsi"
-#include "armada-cp110-slave.dtsi"
+/dts-v1/;
+#include "zx296718.dtsi"
 
 / {
-	model = "Marvell Armada 8020";
-	compatible = "marvell,armada8020", "marvell,armada-ap806-dual",
-		     "marvell,armada-ap806";
+	model = "ZTE zx296718 evaluation board";
+	compatible = "zte,zx296718-evb", "zte,zx296718";
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0x40000000 0x40000000>;
+	};
+
+};
+
+&uart0 {
+	status = "okay";
 };
