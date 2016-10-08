@@ -1037,7 +1037,7 @@ static void prism2sta_inf_scanresults(struct wlandevice *wlandev,
 {
 	struct hfa384x *hw = wlandev->priv;
 	int nbss;
-	struct hfa384x_ScanResult *sr = &(inf->info.scanresult);
+	struct hfa384x_scan_result *sr = &inf->info.scanresult;
 	int i;
 	struct hfa384x_JoinRequest_data joinreq;
 	int result;
