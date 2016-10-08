@@ -1141,8 +1141,8 @@ ll_file_io_generic(const struct lu_env *env, struct vvp_io_args *args,
 	struct cl_io	 *io;
 	ssize_t	       result;
 
-	CDEBUG(D_VFSTRACE, "file: %s, type: %d ppos: %llu, count: %zd\n",
-	       file->f_path.dentry->d_name.name, iot, *ppos, count);
+	CDEBUG(D_VFSTRACE, "file: %pD, type: %d ppos: %llu, count: %zd\n",
+	       file, iot, *ppos, count);
 
 restart:
 	io = vvp_env_thread_io(env);

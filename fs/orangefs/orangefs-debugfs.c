@@ -350,8 +350,8 @@ static ssize_t orangefs_debug_write(struct file *file,
 	struct client_debug_mask c_mask = { NULL, 0, 0 };
 
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG,
-		"orangefs_debug_write: %s\n",
-		file->f_path.dentry->d_name.name);
+		"orangefs_debug_write: %pD\n",
+		file);
 
 	/*
 	 * Thwart users who try to jamb a ridiculous number
