@@ -402,6 +402,19 @@ static inline struct rq *this_rq_lock(void)
 }
 
 /*
+ * Any time we have two runqueues locked we use that as an opportunity to
+ * synchronise niffies to the highest value as idle ticks may have artificially
+ * kept niffies low on one CPU and the truth can only be later.
+ */
+static inline void synchronise_niffies(struct rq *rq1, struct rq *rq2)
+{
+	if (rq1->niffies > rq2->niffies)
+		rq2->niffies = rq1->niffies;
+	else
+		rq1->niffies = rq2->niffies;
+}
+
+/*
  * double_rq_lock - safely lock two runqueues
  *
  * Note this does not disable interrupts like task_rq_lock,
@@ -432,6 +445,7 @@ static inline void double_rq_lock(struct rq *rq1, struct rq *rq2)
 		__acquire(rq2->lock);	/* Fake it out ;) */
 	} else
 		__double_rq_lock(rq1, rq2);
+	synchronise_niffies(rq1, rq2);
 }
 
 /*
@@ -462,6 +476,7 @@ static inline void lock_second_rq(struct rq *rq1, struct rq *rq2)
 		raw_spin_unlock(&rq1->lock);
 		__double_rq_lock(rq1, rq2);
 	}
+	synchronise_niffies(rq1, rq2);
 }
 
 static inline void lock_all_rqs(void)
@@ -489,11 +504,12 @@ static inline void unlock_all_rqs(void)
 }
 
 /* Specially nest trylock an rq */
-static inline bool trylock_rq(struct rq *rq)
+static inline bool trylock_rq(struct rq *this_rq, struct rq *rq)
 {
 	if (unlikely(!do_raw_spin_trylock(&rq->lock)))
 		return false;
 	spin_acquire(&rq->lock.dep_map, SINGLE_DEPTH_NESTING, 1, _RET_IP_);
+	synchronise_niffies(this_rq, rq);
 	return true;
 }
 
@@ -3492,7 +3508,7 @@ task_struct *earliest_deadline_task(struct rq *rq, int cpu, struct task_struct *
 
 		/* if (i) implies other_rq != rq */
 		if (i) {
-			if (unlikely(!trylock_rq(other_rq)))
+			if (unlikely(!trylock_rq(rq, other_rq)))
 				continue;
 			/* Need to reevaluate entries after locking */
 			entries = other_rq->sl->entries;
