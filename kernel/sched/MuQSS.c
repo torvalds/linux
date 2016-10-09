@@ -139,7 +139,7 @@
 
 void print_scheduler_version(void)
 {
-	printk(KERN_INFO "MuQSS CPU scheduler v0.104 by Con Kolivas.\n");
+	printk(KERN_INFO "MuQSS CPU scheduler v0.105 by Con Kolivas.\n");
 }
 
 /*
@@ -824,13 +824,6 @@ static inline int task_timeslice(struct task_struct *p)
 	return (rr_interval * task_prio_ratio(p) / 128);
 }
 
-static void resched_task(struct task_struct *p);
-
-static void resched_curr(struct rq *rq)
-{
-	resched_task(rq->curr);
-}
-
 /*
  * qnr is the "queued but not running" count which is the total number of
  * tasks on the global runqueue list waiting for cpu time but not actually
@@ -851,6 +844,7 @@ static inline int queued_notrunning(void)
 	return atomic_read(&grq.qnr);
 }
 
+#ifdef CONFIG_SMP
 #ifdef CONFIG_SMT_NICE
 static const cpumask_t *thread_cpumask(int cpu);
 
@@ -926,7 +920,6 @@ static bool smt_should_schedule(struct task_struct *p, struct rq *this_rq)
 #else /* CONFIG_SMT_NICE */
 #define smt_schedule(p, this_rq) (true)
 #endif /* CONFIG_SMT_NICE */
-#ifdef CONFIG_SMP
 
 static inline void atomic_set_cpu(int cpu, cpumask_t *cpumask)
 {
@@ -966,6 +959,27 @@ static bool suitable_idle_cpus(struct task_struct *p)
 	if (!grq.idle_cpus)
 		return false;
 	return (cpumask_intersects(&p->cpus_allowed, &grq.cpu_idle_map));
+}
+
+/*
+ * Resched current on rq. We don't know if rq is local to this CPU nor if it
+ * is locked so we do not use an intermediate variable for the task to avoid
+ * having it dereferenced.
+ */
+static void resched_curr(struct rq *rq)
+{
+	if (test_tsk_need_resched(rq->curr))
+		return;
+
+	/* We're doing this without holding the rq lock if it's not task_rq */
+	set_tsk_need_resched(rq->curr);
+
+	if (rq->cpu == smp_processor_id()) {
+		set_preempt_need_resched();
+		return;
+	}
+
+	smp_send_reschedule(rq->cpu);
 }
 
 #define CPUIDLE_DIFF_THREAD	(1)
@@ -1090,6 +1104,13 @@ static inline int locality_diff(int cpu, struct rq *rq)
 {
 	return 0;
 }
+
+static void resched_task(struct task_struct *p);
+
+static inline void resched_curr(struct rq *rq)
+{
+	resched_task(rq->curr);
+}
 #endif /* CONFIG_SMP */
 
 static inline int normal_prio(struct task_struct *p)
@@ -1197,6 +1218,10 @@ void set_task_cpu(struct task_struct *p, unsigned int cpu)
 
 	if ((queued = task_queued(p)))
 		dequeue_task(p, rq);
+	/*
+	 * If a task is running here it will have the cpu updated but will
+	 * have to be forced onto another runqueue within return_task.
+	 */
 	task_thread_info(p)->cpu = cpu;
 	if (queued)
 		enqueue_task(p, cpu_rq(cpu));
@@ -1218,21 +1243,27 @@ static inline void take_task(struct rq *rq, int cpu, struct task_struct *p)
  * Returns a descheduling task to the runqueue unless it is being
  * deactivated.
  */
-static inline bool return_task(struct task_struct *p, struct rq *rq,
+static inline void return_task(struct task_struct *p, struct rq *rq,
 			       int cpu, bool deactivate)
 {
-	bool ret = true;
-
 	if (deactivate)
 		deactivate_task(p, rq);
 	else {
 		inc_qnr();
-		if (unlikely(needs_other_cpu(p, cpu)))
-			ret = false;
-		else
+		/* This is ugly, set_task_cpu was called on the running task
+		 * that doesn't want to deactivate so it has to be enqueued
+		 * to a different CPU and we need its lock as well. Hopefully
+		 * we can safely unlock here given where we are in __schedule
+		 */
+		if (unlikely(task_cpu(p) != cpu)) {
+			struct rq *rq2 = task_rq(p);
+
+			lock_second_rq(rq, rq2);
+			enqueue_task(p, rq2);
+			rq_unlock(rq2);
+		} else
 			enqueue_task(p, rq);
 	}
-	return ret;
 }
 
 /* Enter with rq lock held. We know p is on the local cpu */
@@ -1252,11 +1283,14 @@ static inline void __set_tsk_resched(struct task_struct *p)
 void resched_task(struct task_struct *p)
 {
 	int cpu;
+#ifdef CONFIG_LOCKDEP
+	struct rq *rq = task_rq(p);
 
+	lockdep_assert_held(&rq->lock);
+#endif
 	if (test_tsk_need_resched(p))
 		return;
 
-	/* We're doing this without holding the rq lock if it's not task_rq */
 	set_tsk_need_resched(p);
 
 	cpu = task_cpu(p);
@@ -1944,6 +1978,8 @@ void wake_up_new_task(struct task_struct *p)
 	parent = p->parent;
 
 	raw_spin_lock_irqsave(&p->pi_lock, flags);
+	if (unlikely(needs_other_cpu(p, task_cpu(p))))
+ 		set_task_cpu(p, cpumask_any(tsk_cpus_allowed(p)));
 	rq = __task_rq_lock(p);
 	rq_curr = rq->curr;
 
@@ -3500,7 +3536,7 @@ static void check_smt_siblings(struct rq *this_rq)
 		if (unlikely(!rq->online))
 			continue;
 		p = rq->curr;
-		if (!smt_should_schedule(p, this_rq)) {
+		if (!smt_schedule(p, this_rq)) {
 			set_tsk_need_resched(p);
 			smp_send_reschedule(other_cpu);
 		}
@@ -3532,25 +3568,6 @@ static void wake_smt_siblings(struct rq *this_rq)
 static void check_siblings(struct rq __maybe_unused *this_rq) {}
 static void wake_siblings(struct rq __maybe_unused *this_rq) {}
 #endif
-
-/*
- * For when a running task has its affinity changed and can no longer run on
- * the current runqueue and needs to be put on another out of __schedule().
- */
-static void queue_other_rq(struct task_struct *p)
-{
-	unsigned long flags;
-	struct rq *rq;
-
-	raw_spin_lock_irqsave(&p->pi_lock, flags);
-	if (needs_other_cpu(p, task_cpu(p)))
-		set_task_cpu(p, cpumask_any(tsk_cpus_allowed(p)));
-	rq = __task_rq_lock(p);
-	if (likely(!task_queued(p)))
-		enqueue_task(p, rq);
-	__task_rq_unlock(rq);
-	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
-}
 
 /*
  * schedule() is the main scheduler function.
@@ -3593,7 +3610,7 @@ static void queue_other_rq(struct task_struct *p)
  */
 static void __sched notrace __schedule(bool preempt)
 {
-	struct task_struct *prev, *next, *idle, *queue = NULL;
+	struct task_struct *prev, *next, *idle;
 	unsigned long *switch_count;
 	bool deactivate = false;
 	struct rq *rq;
@@ -3674,8 +3691,7 @@ static void __sched notrace __schedule(bool preempt)
 		prev->deadline = rq->rq_deadline;
 		check_deadline(prev, rq);
 		prev->last_ran = rq->clock_task;
-		if (!return_task(prev, rq, cpu, deactivate))
-			queue = prev;
+		return_task(prev, rq, cpu, deactivate);
 	}
 
 	if (unlikely(!queued_notrunning())) {
@@ -3707,8 +3723,6 @@ static void __sched notrace __schedule(bool preempt)
 
 		trace_sched_switch(preempt, prev, next);
 		rq = context_switch(rq, prev, next); /* unlocks the rq */
-		if (unlikely(queue))
-			queue_other_rq(queue);
 	} else {
 		check_siblings(rq);
 		rq_unlock_irq(rq);
@@ -4162,9 +4176,7 @@ static void __setscheduler(struct task_struct *p, struct rq *rq, int policy,
 
 	if (task_running(p)) {
 		reset_rq_task(rq, p);
-		/* Resched only if we might now be preempted */
-		if (p->prio > oldprio || p->rt_priority < oldrtprio)
-			resched_task(p);
+		resched_task(p);
 	} else if (task_queued(p)) {
 		dequeue_task(p, rq);
 		enqueue_task(p, rq);
@@ -5624,10 +5636,14 @@ static int __set_cpus_allowed_ptr(struct task_struct *p,
 out:
 	if (queued && !cpumask_subset(new_mask, &old_mask))
 		try_preempt(p, rq);
+	if (running_wrong)
+		preempt_disable();
 	task_rq_unlock(rq, p, &flags);
 
-	if (running_wrong)
-		preempt_schedule_common();
+	if (running_wrong) {
+		__schedule(true);
+		preempt_enable();
+	}
 
 	return ret;
 }
