@@ -139,7 +139,7 @@
 
 void print_scheduler_version(void)
 {
-	printk(KERN_INFO "MuQSS CPU scheduler v0.105 by Con Kolivas.\n");
+	printk(KERN_INFO "MuQSS CPU scheduler v0.106 by Con Kolivas.\n");
 }
 
 /*
@@ -469,43 +469,20 @@ static inline void unlock_all_rqs(void)
 	preempt_enable();
 }
 
-/*
- * Lock this_rq and as many rqs as we can grab with trylock, returning which
- * rqs are locked in a bitmask.
- */
-static inline void lock_rqs(struct rq *this_rq, cpumask_t *mask)
+/* Specially nest trylock an rq */
+static inline bool trylock_rq(struct rq *rq)
 {
-	int cpu;
-
-	cpumask_clear(mask);
-
-	for_each_online_cpu(cpu) {
-		struct rq *rq = cpu_rq(cpu);
-
-		if (rq != this_rq) {
-			if (rq_idle(rq))
-				continue;
-			if (!do_raw_spin_trylock(&rq->lock))
-				continue;
-			spin_acquire(&rq->lock.dep_map, SINGLE_DEPTH_NESTING, 1, _RET_IP_);
-		}
-		cpumask_set_cpu(cpu, mask);
-	}
+	if (unlikely(!do_raw_spin_trylock(&rq->lock)))
+		return false;
+	spin_acquire(&rq->lock.dep_map, SINGLE_DEPTH_NESTING, 1, _RET_IP_);
+	return true;
 }
 
-/* Unlock all rqs in a CPU bitmask */
-static inline void unlock_rqs(struct rq *this_rq, cpumask_t *mask)
+/* Unlock a specially nested trylocked rq */
+static inline void unlock_rq(struct rq *rq)
 {
-	int cpu;
-
-	cpumask_clear_cpu(this_rq->cpu, mask);
-
-	for_each_cpu(cpu, mask) {
-		struct rq *rq = cpu_rq(cpu);
-
-		spin_release(&rq->lock.dep_map, 1, _RET_IP_);
-		do_raw_spin_unlock(&rq->lock);
-	}
+	spin_release(&rq->lock.dep_map, 1, _RET_IP_);
+	do_raw_spin_unlock(&rq->lock);
 }
 
 static inline void rq_lock_irq(struct rq *rq)
@@ -601,6 +578,8 @@ static inline void prepare_lock_switch(struct rq *rq, struct task_struct *next)
 	next->on_cpu = 1;
 }
 
+static void enqueue_task(struct task_struct *p, struct rq *rq);
+
 static inline void finish_lock_switch(struct rq *rq, struct task_struct *prev)
 {
 	prev->on_cpu = 0;
@@ -615,7 +594,26 @@ static inline void finish_lock_switch(struct rq *rq, struct task_struct *prev)
 	 */
 	spin_acquire(&rq->lock.dep_map, 0, 0, _THIS_IP_);
 
-	raw_spin_unlock_irq(&rq->lock);
+#ifdef CONFIG_SMP
+	/*
+	 * If prev was marked as migrating to another CPU in return_task, drop
+	 * the local runqueue lock but leave interrupts disabled and grab the
+	 * remote lock we're migrating it to before enabling them.
+	 */
+	if (unlikely(rq->migrate)) {
+		struct rq *rq2 = task_rq(prev);
+
+		rq->migrate = false;
+		raw_spin_unlock(&rq->lock);
+
+		rq_lock(rq2);
+		enqueue_task(prev, rq2);
+		rq_unlock(rq2);
+
+		local_irq_enable();
+	} else
+#endif
+		raw_spin_unlock_irq(&rq->lock);
 }
 
 static inline bool deadline_before(u64 deadline, u64 time)
@@ -783,9 +781,8 @@ static void enqueue_task(struct task_struct *p, struct rq *rq)
 	else {
 		sl_id = p->deadline;
 		if (idleprio_task(p)) {
-			/* Set it to cope with 4 left shifts with locality_diff */
 			if (p->prio == IDLE_PRIO)
-				sl_id |= 0x00FF000000000000;
+				sl_id |= 0xF000000000000000;
 			else
 				sl_id += longest_deadline_diff();
 		}
@@ -1077,11 +1074,6 @@ static inline void resched_suitable_idle(struct task_struct *p)
 	if (suitable_idle_cpus(p))
 		resched_best_idle(p);
 }
-
-static inline int locality_diff(int cpu, struct rq *rq)
-{
-	return rq->cpu_locality[cpu];
-}
 #else /* CONFIG_SMP */
 static inline void set_cpuidle_map(int cpu)
 {
@@ -1098,11 +1090,6 @@ static inline bool suitable_idle_cpus(struct task_struct *p)
 
 static inline void resched_suitable_idle(struct task_struct *p)
 {
-}
-
-static inline int locality_diff(int cpu, struct rq *rq)
-{
-	return 0;
 }
 
 static void resched_task(struct task_struct *p);
@@ -1250,18 +1237,17 @@ static inline void return_task(struct task_struct *p, struct rq *rq,
 		deactivate_task(p, rq);
 	else {
 		inc_qnr();
-		/* This is ugly, set_task_cpu was called on the running task
-		 * that doesn't want to deactivate so it has to be enqueued
-		 * to a different CPU and we need its lock as well. Hopefully
-		 * we can safely unlock here given where we are in __schedule
+#if CONFIG_SMP
+		/*
+		 * set_task_cpu was called on the running task that doesn't
+		 * want to deactivate so it has to be enqueued to a different
+		 * CPU and we need its lock. Tag it to be moved with as the
+		 * lock is dropped in finish_lock_switch.
 		 */
-		if (unlikely(task_cpu(p) != cpu)) {
-			struct rq *rq2 = task_rq(p);
-
-			lock_second_rq(rq, rq2);
-			enqueue_task(p, rq2);
-			rq_unlock(rq2);
-		} else
+		if (unlikely(task_cpu(p) != cpu))
+			rq->migrate = true;
+		else
+#endif
 			enqueue_task(p, rq);
 	}
 }
@@ -3335,100 +3321,76 @@ static inline void check_deadline(struct task_struct *p, struct rq *rq)
 #define BITOP_WORD(nr)		((nr) / BITS_PER_LONG)
 
 /*
- * Scheduler queue bitmap specific find next bit.
- */
-static inline unsigned long
-next_sched_bit(const unsigned long *addr, unsigned long offset)
-{
-	const unsigned long *p;
-	unsigned long result;
-	unsigned long size;
-	unsigned long tmp;
-
-	size = PRIO_LIMIT;
-	if (offset >= size)
-		return size;
-
-	p = addr + BITOP_WORD(offset);
-	result = offset & ~(BITS_PER_LONG-1);
-	size -= result;
-	offset %= BITS_PER_LONG;
-	if (offset) {
-		tmp = *(p++);
-		tmp &= (~0UL << offset);
-		if (size < BITS_PER_LONG)
-			goto found_first;
-		if (tmp)
-			goto found_middle;
-		size -= BITS_PER_LONG;
-		result += BITS_PER_LONG;
-	}
-	while (size & ~(BITS_PER_LONG-1)) {
-		if ((tmp = *(p++)))
-			goto found_middle;
-		result += BITS_PER_LONG;
-		size -= BITS_PER_LONG;
-	}
-	if (!size)
-		return result;
-	tmp = *p;
-
-found_first:
-	tmp &= (~0UL >> (BITS_PER_LONG - size));
-	if (tmp == 0UL)		/* Are any bits set? */
-		return result + size;	/* Nope. */
-found_middle:
-	return result + __ffs(tmp);
-}
-
-/*
  * Task selection with skiplists is a simple matter of picking off the first
- * task in the sorted list, an O(1) operation. The only time it takes longer
- * is if tasks do not have suitable affinity and then we iterate over entries
- * till we find the first that does. Worst case here is no tasks with suitable
- * affinity and taking O(k) where k is number of processors.
+ * task in the sorted list, an O(1) operation. The lookup is amortised O(1)
+ * being bound to the number of processors.
  *
- * As many runqueues as can be locked without contention are grabbed via
- * lock_rqs and only those runqueues are examined. All balancing between CPUs
+ * Runqueues are selectively locked based on their unlocked data and then
+ * unlocked if not needed. At most 3 locks will be held at any time and are
+ * released as soon as they're no longer needed. All balancing between CPUs
  * is thus done here in an extremely simple first come best fit manner.
  *
  * This iterates over runqueues in cache locality order. In interactive mode
  * it iterates over all CPUs and finds the task with the earliest deadline.
  * In non-interactive mode it will only take a task if it's from the current
- * runqueue or a runqueue with more tasks than the current one.
+ * runqueue or a runqueue with more tasks than the current one with a better
+ * deadline.
  */
 static inline struct
 task_struct *earliest_deadline_task(struct rq *rq, int cpu, struct task_struct *idle)
 {
 	struct task_struct *edt = idle;
 	u64 earliest_deadline = ~0ULL;
+	struct rq *locked = NULL;
 	int i, best_entries = 0;
-	cpumask_t locked;
-
-	lock_rqs(rq, &locked);
 
 	for (i = 0; i < num_possible_cpus(); i++) {
 		struct rq *other_rq = rq->rq_order[i];
 		int entries = other_rq->sl->entries;
 		struct task_struct *p;
 
-		if (!entries)
+		if (!sched_interactive) {
+			if (entries <= best_entries)
+				continue;
+		} else if (!entries)
 			continue;
-		if (!cpumask_test_cpu(other_rq->cpu, &locked))
-			continue;
+
+		/* if (i) implies other_rq != rq */
+		if (i) {
+			if (unlikely(!trylock_rq(other_rq)))
+				continue;
+			/* Need to reevaluate entries after locking */
+			entries = other_rq->sl->entries;
+			if (unlikely(!entries)) {
+				unlock_rq(other_rq);
+				continue;
+			}
+		}
 		p = other_rq->node.next[0]->value;
 
-		if (!smt_schedule(p, rq))
+		if (!deadline_before(p->deadline, earliest_deadline)) {
+			if (i)
+				unlock_rq(other_rq);
 			continue;
+		}
+
+		if (!smt_schedule(p, rq)) {
+			if (i)
+				unlock_rq(other_rq);
+			continue;
+		}
 
 		/* Make sure affinity is ok */
-		if (rq != other_rq && needs_other_cpu(p, cpu))
-			continue;
+		if (i) {
+			if (needs_other_cpu(p, cpu)) {
+				unlock_rq(other_rq);
+				continue;
+			}
+			if (locked)
+				unlock_rq(locked);
+			locked = other_rq;
+		}
 
-		if (!sched_interactive && entries <= best_entries)
-			continue;
-		if (!deadline_before(p->deadline, earliest_deadline))
-			continue;
 		best_entries = entries;
 		earliest_deadline = p->deadline;
 		edt = p;
@@ -3436,7 +3398,9 @@ task_struct *earliest_deadline_task(struct rq *rq, int cpu, struct task_struct *
 
 	if (likely(edt != idle))
 		take_task(rq, cpu, edt);
-	unlock_rqs(rq, &locked);
+
+	if (locked)
+		unlock_rq(locked);
 
 	return edt;
 }
@@ -5630,7 +5594,7 @@ static int __set_cpus_allowed_ptr(struct task_struct *p,
 		struct rq *dest_rq = cpu_rq(dest_cpu);
 
 		lock_second_rq(rq, dest_rq);
-		set_task_cpu(p, cpumask_any_and(cpu_valid_mask, new_mask));
+		set_task_cpu(p, dest_cpu);
 		rq_unlock(dest_rq);
 	}
 out:
@@ -7296,10 +7260,10 @@ void __init sched_init_smp(void)
 #endif
 	}
 	for_each_possible_cpu(cpu) {
-		int total_cpus = 0, locality;
+		int total_cpus = 1, locality;
 
 		rq = cpu_rq(cpu);
-		for (locality = 0; locality <= 4; locality++) {
+		for (locality = 1; locality <= 4; locality++) {
 			for_each_possible_cpu(other_cpu) {
 				if (rq->cpu_locality[other_cpu] == locality)
 					rq->rq_order[total_cpus++] = cpu_rq(other_cpu);
@@ -7413,6 +7377,7 @@ void __init sched_init(void)
 		rq->dither = false;
 		set_rq_task(rq, &init_task);
 #ifdef CONFIG_SMP
+		rq->migrate = false;
 		rq->sd = NULL;
 		rq->rd = NULL;
 		rq->online = false;

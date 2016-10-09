@@ -40,6 +40,7 @@ struct rq {
 #ifdef CONFIG_SMP
 	int cpu;		/* cpu of this runqueue */
 	bool online;
+	bool migrate;
 
 	struct root_domain *rd;
 	struct sched_domain *sd;
