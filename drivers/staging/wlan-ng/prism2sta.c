@@ -1864,24 +1864,24 @@ void prism2sta_ev_alloc(struct wlandevice *wlandev)
 }
 
 /*
-* create_wlan
-*
-* Called at module init time.  This creates the struct wlandevice structure
-* and initializes it with relevant bits.
-*
-* Arguments:
-*	none
-*
-* Returns:
-*	the created struct wlandevice structure.
-*
-* Side effects:
-*	also allocates the priv/hw structures.
-*
-* Call context:
-*	process thread
-*
-*/
+ * create_wlan
+ *
+ * Called at module init time.  This creates the struct wlandevice structure
+ * and initializes it with relevant bits.
+ *
+ * Arguments:
+ *	none
+ *
+ * Returns:
+ *	the created struct wlandevice structure.
+ *
+ * Side effects:
+ *	also allocates the priv/hw structures.
+ *
+ * Call context:
+ *	process thread
+ *
+ */
 static struct wlandevice *create_wlan(void)
 {
 	struct wlandevice *wlandev = NULL;
