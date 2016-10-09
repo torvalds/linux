@@ -348,6 +348,29 @@
 		interrupt-names = "vopl_mmu";
 	};
 
+	cif_isp0: cif_isp@ff910000 {
+		compatible = "rockchip,rk3399-cif-isp";
+		rockchip,grf = <&grf>;
+		reg = <0x0 0xff910000 0x0 0x10000>, <0x0 0xff968000 0x0 0x8000>;
+		reg-names = "register", "dsihost-register";
+		clocks =
+			<&cru SCLK_CIF_OUT>, <&cru SCLK_CIF_OUT>,
+			<&cru SCLK_DPHY_TX1RX1_CFG>, <&cru SCLK_MIPIDPHY_REF>,
+			<&cru ACLK_ISP0_NOC>, <&cru ACLK_ISP0_WRAPPER>,
+			<&cru HCLK_ISP0_NOC>, <&cru HCLK_ISP0_WRAPPER>,
+			<&cru SCLK_ISP0>, <&cru SCLK_DPHY_RX0_CFG>;
+		clock-names =
+			"clk_cif_out", "clk_cif_pll",
+			"pclk_dphytxrx", "pclk_dphy_ref",
+			"aclk_isp0_noc", "aclk_isp0_wrapper",
+			"hclk_isp0_noc", "hclk_isp0_wrapper",
+			"clk_isp0", "pclk_dphyrx";
+		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupt-names = "cif_isp10_irq";
+		power-domains = <&power RK3399_PD_ISP0>;
+		status = "disabled";
+	};
+
 	isp0: isp@ff910000 {
 		compatible = "rockchip,rk3399-isp", "rockchip,isp";
 		reg = <0x0 0xff910000 0x0 0x10000>;
@@ -562,6 +585,17 @@
 		isp_flash_trigger_as_gpio: isp_flash_trigger_as_gpio {
 			/*ISP_FLASHTRIGOU*/
 			rockchip,pins = <0 17 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	cam_pins {
+		cam0_default_pins: cam0-default-pins {
+			rockchip,pins = <4 27 RK_FUNC_GPIO &pcfg_pull_none>,
+					<2 11 RK_FUNC_3 &pcfg_pull_none>;
+		};
+		cam0_sleep_pins: cam0-sleep-pins {
+			rockchip,pins = <4 27 RK_FUNC_3 &pcfg_pull_none>,
+					<2 11 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
