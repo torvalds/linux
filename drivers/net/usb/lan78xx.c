@@ -1092,7 +1092,7 @@ static int lan78xx_update_flowcontrol(struct lan78xx_net *dev, u8 duplex,
 static int lan78xx_link_reset(struct lan78xx_net *dev)
 {
 	struct phy_device *phydev = dev->net->phydev;
-	struct ethtool_cmd ecmd = { .cmd = ETHTOOL_GSET };
+	struct ethtool_link_ksettings ecmd;
 	int ladv, radv, ret;
 	u32 buf;
 
@@ -1126,12 +1126,12 @@ static int lan78xx_link_reset(struct lan78xx_net *dev)
 	} else if (phydev->link && !dev->link_on) {
 		dev->link_on = true;
 
-		phy_ethtool_gset(phydev, &ecmd);
+		phy_ethtool_ksettings_get(phydev, &ecmd);
 
 		ret = phy_read(phydev, LAN88XX_INT_STS);
 
 		if (dev->udev->speed == USB_SPEED_SUPER) {
-			if (ethtool_cmd_speed(&ecmd) == 1000) {
+			if (ecmd.base.speed == 1000) {
 				/* disable U2 */
 				ret = lan78xx_read_reg(dev, USB_CFG1, &buf);
 				buf &= ~USB_CFG1_DEV_U2_INIT_EN_;
@@ -1159,9 +1159,10 @@ static int lan78xx_link_reset(struct lan78xx_net *dev)
 
 		netif_dbg(dev, link, dev->net,
 			  "speed: %u duplex: %d anadv: 0x%04x anlpa: 0x%04x",
-			  ethtool_cmd_speed(&ecmd), ecmd.duplex, ladv, radv);
+			  ecmd.base.speed, ecmd.base.duplex, ladv, radv);
 
-		ret = lan78xx_update_flowcontrol(dev, ecmd.duplex, ladv, radv);
+		ret = lan78xx_update_flowcontrol(dev, ecmd.base.duplex, ladv,
+						 radv);
 		phy_mac_interrupt(phydev, 1);
 
 		if (!timer_pending(&dev->stat_monitor)) {
@@ -1484,7 +1485,8 @@ static void lan78xx_set_mdix_status(struct net_device *net, __u8 mdix_ctrl)
 	dev->mdix_ctrl = mdix_ctrl;
 }
 
-static int lan78xx_get_settings(struct net_device *net, struct ethtool_cmd *cmd)
+static int lan78xx_get_link_ksettings(struct net_device *net,
+				      struct ethtool_link_ksettings *cmd)
 {
 	struct lan78xx_net *dev = netdev_priv(net);
 	struct phy_device *phydev = net->phydev;
@@ -1495,20 +1497,20 @@ static int lan78xx_get_settings(struct net_device *net, struct ethtool_cmd *cmd)
 	if (ret < 0)
 		return ret;
 
-	ret = phy_ethtool_gset(phydev, cmd);
+	ret = phy_ethtool_ksettings_get(phydev, cmd);
 
 	buf = lan78xx_get_mdix_status(net);
 
 	buf &= LAN88XX_EXT_MODE_CTRL_MDIX_MASK_;
 	if (buf == LAN88XX_EXT_MODE_CTRL_AUTO_MDIX_) {
-		cmd->eth_tp_mdix = ETH_TP_MDI_AUTO;
-		cmd->eth_tp_mdix_ctrl = ETH_TP_MDI_AUTO;
+		cmd->base.eth_tp_mdix = ETH_TP_MDI_AUTO;
+		cmd->base.eth_tp_mdix_ctrl = ETH_TP_MDI_AUTO;
 	} else if (buf == LAN88XX_EXT_MODE_CTRL_MDI_) {
-		cmd->eth_tp_mdix = ETH_TP_MDI;
-		cmd->eth_tp_mdix_ctrl = ETH_TP_MDI;
+		cmd->base.eth_tp_mdix = ETH_TP_MDI;
+		cmd->base.eth_tp_mdix_ctrl = ETH_TP_MDI;
 	} else if (buf == LAN88XX_EXT_MODE_CTRL_MDI_X_) {
-		cmd->eth_tp_mdix = ETH_TP_MDI_X;
-		cmd->eth_tp_mdix_ctrl = ETH_TP_MDI_X;
+		cmd->base.eth_tp_mdix = ETH_TP_MDI_X;
+		cmd->base.eth_tp_mdix_ctrl = ETH_TP_MDI_X;
 	}
 
 	usb_autopm_put_interface(dev->intf);
@@ -1516,7 +1518,8 @@ static int lan78xx_get_settings(struct net_device *net, struct ethtool_cmd *cmd)
 	return ret;
 }
 
-static int lan78xx_set_settings(struct net_device *net, struct ethtool_cmd *cmd)
+static int lan78xx_set_link_ksettings(struct net_device *net,
+				      const struct ethtool_link_ksettings *cmd)
 {
 	struct lan78xx_net *dev = netdev_priv(net);
 	struct phy_device *phydev = net->phydev;
@@ -1527,14 +1530,13 @@ static int lan78xx_set_settings(struct net_device *net, struct ethtool_cmd *cmd)
 	if (ret < 0)
 		return ret;
 
-	if (dev->mdix_ctrl != cmd->eth_tp_mdix_ctrl) {
-		lan78xx_set_mdix_status(net, cmd->eth_tp_mdix_ctrl);
-	}
+	if (dev->mdix_ctrl != cmd->base.eth_tp_mdix_ctrl)
+		lan78xx_set_mdix_status(net, cmd->base.eth_tp_mdix_ctrl);
 
 	/* change speed & duplex */
-	ret = phy_ethtool_sset(phydev, cmd);
+	ret = phy_ethtool_ksettings_set(phydev, cmd);
 
-	if (!cmd->autoneg) {
+	if (!cmd->base.autoneg) {
 		/* force link down */
 		temp = phy_read(phydev, MII_BMCR);
 		phy_write(phydev, MII_BMCR, temp | BMCR_LOOPBACK);
@@ -1552,9 +1554,9 @@ static void lan78xx_get_pause(struct net_device *net,
 {
 	struct lan78xx_net *dev = netdev_priv(net);
 	struct phy_device *phydev = net->phydev;
-	struct ethtool_cmd ecmd = { .cmd = ETHTOOL_GSET };
+	struct ethtool_link_ksettings ecmd;
 
-	phy_ethtool_gset(phydev, &ecmd);
+	phy_ethtool_ksettings_get(phydev, &ecmd);
 
 	pause->autoneg = dev->fc_autoneg;
 
@@ -1570,12 +1572,12 @@ static int lan78xx_set_pause(struct net_device *net,
 {
 	struct lan78xx_net *dev = netdev_priv(net);
 	struct phy_device *phydev = net->phydev;
-	struct ethtool_cmd ecmd = { .cmd = ETHTOOL_GSET };
+	struct ethtool_link_ksettings ecmd;
 	int ret;
 
-	phy_ethtool_gset(phydev, &ecmd);
+	phy_ethtool_ksettings_get(phydev, &ecmd);
 
-	if (pause->autoneg && !ecmd.autoneg) {
+	if (pause->autoneg && !ecmd.base.autoneg) {
 		ret = -EINVAL;
 		goto exit;
 	}
@@ -1587,13 +1589,21 @@ static int lan78xx_set_pause(struct net_device *net,
 	if (pause->tx_pause)
 		dev->fc_request_control |= FLOW_CTRL_TX;
 
-	if (ecmd.autoneg) {
+	if (ecmd.base.autoneg) {
 		u32 mii_adv;
+		u32 advertising;
 
-		ecmd.advertising &= ~(ADVERTISED_Pause | ADVERTISED_Asym_Pause);
+		ethtool_convert_link_mode_to_legacy_u32(
+			&advertising, ecmd.link_modes.advertising);
+
+		advertising &= ~(ADVERTISED_Pause | ADVERTISED_Asym_Pause);
 		mii_adv = (u32)mii_advertise_flowctrl(dev->fc_request_control);
-		ecmd.advertising |= mii_adv_to_ethtool_adv_t(mii_adv);
-		phy_ethtool_sset(phydev, &ecmd);
+		advertising |= mii_adv_to_ethtool_adv_t(mii_adv);
+
+		ethtool_convert_legacy_u32_to_link_mode(
+			ecmd.link_modes.advertising, advertising);
+
+		phy_ethtool_ksettings_set(phydev, &ecmd);
 	}
 
 	dev->fc_autoneg = pause->autoneg;
@@ -1609,8 +1619,6 @@ static const struct ethtool_ops lan78xx_ethtool_ops = {
 	.get_drvinfo	= lan78xx_get_drvinfo,
 	.get_msglevel	= lan78xx_get_msglevel,
 	.set_msglevel	= lan78xx_set_msglevel,
-	.get_settings	= lan78xx_get_settings,
-	.set_settings	= lan78xx_set_settings,
 	.get_eeprom_len = lan78xx_ethtool_get_eeprom_len,
 	.get_eeprom	= lan78xx_ethtool_get_eeprom,
 	.set_eeprom	= lan78xx_ethtool_set_eeprom,
@@ -1623,6 +1631,8 @@ static const struct ethtool_ops lan78xx_ethtool_ops = {
 	.set_eee	= lan78xx_set_eee,
 	.get_pauseparam	= lan78xx_get_pause,
 	.set_pauseparam	= lan78xx_set_pause,
+	.get_link_ksettings = lan78xx_get_link_ksettings,
+	.set_link_ksettings = lan78xx_set_link_ksettings,
 };
 
 static int lan78xx_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
