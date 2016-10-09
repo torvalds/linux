@@ -6,6 +6,10 @@
 #ifndef MUQSS_SCHED_H
 #define MUQSS_SCHED_H
 
+/* task_struct::on_rq states: */
+#define TASK_ON_RQ_QUEUED	1
+#define TASK_ON_RQ_MIGRATING	2
+
 /*
  * This is the main, per-CPU runqueue data structure.
  * This data should only be modified by the local cpu.
@@ -40,7 +44,6 @@ struct rq {
 #ifdef CONFIG_SMP
 	int cpu;		/* cpu of this runqueue */
 	bool online;
-	bool migrate;
 
 	struct root_domain *rd;
 	struct sched_domain *sd;
@@ -163,11 +166,6 @@ static inline void unregister_sched_domain_sysctl(void)
 #endif
 
 static inline void sched_ttwu_pending(void) { }
-
-static inline int task_on_rq_queued(struct task_struct *p)
-{
-	return p->on_rq;
-}
 
 #ifdef CONFIG_SMP
 
