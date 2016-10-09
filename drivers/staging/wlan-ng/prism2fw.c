@@ -124,7 +124,7 @@ struct imgchunk {
 
 /* Data records */
 static unsigned int ns3data;
-static struct s3datarec s3data[S3DATA_MAX];
+static struct s3datarec *s3data;
 
 /* Plug records */
 static unsigned int ns3plug;
@@ -250,7 +250,12 @@ static int prism2_fwapply(const struct ihex_binrec *rfptr,
 
 	/* Initialize the data structures */
 	ns3data = 0;
-	memset(s3data, 0, sizeof(s3data));
+	s3data = kcalloc(S3DATA_MAX, sizeof(*s3data), GFP_KERNEL);
+	if (!s3data) {
+		result = -ENOMEM;
+		goto out;
+	}
+
 	ns3plug = 0;
 	memset(s3plug, 0, sizeof(s3plug));
 	ns3crc = 0;
@@ -480,7 +485,7 @@ static void free_chunks(struct imgchunk *fchunk, unsigned int *nfchunks)
 static void free_srecs(void)
 {
 	ns3data = 0;
-	memset(s3data, 0, sizeof(s3data));
+	kfree(s3data);
 	ns3plug = 0;
 	memset(s3plug, 0, sizeof(s3plug));
 	ns3crc = 0;
