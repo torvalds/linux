@@ -572,8 +572,9 @@ struct mlx5e_vlan_table {
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	struct mlx5_flow_handle	*active_vlans_rule[VLAN_N_VID];
 	struct mlx5_flow_handle	*untagged_rule;
-	struct mlx5_flow_handle	*any_vlan_rule;
-	bool		filter_disabled;
+	struct mlx5_flow_handle	*any_cvlan_rule;
+	struct mlx5_flow_handle	*any_svlan_rule;
+	bool			filter_disabled;
 };
 
 struct mlx5e_l2_table {
