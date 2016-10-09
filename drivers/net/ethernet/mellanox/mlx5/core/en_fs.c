@@ -172,7 +172,7 @@ static int __mlx5e_add_vlan_rule(struct mlx5e_priv *priv,
 	dest.ft = priv->fs.l2.ft.t;
 
 	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
-	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.vlan_tag);
+	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.cvlan_tag);
 
 	switch (rule_type) {
 	case MLX5E_VLAN_RULE_TYPE_UNTAGGED:
@@ -180,11 +180,11 @@ static int __mlx5e_add_vlan_rule(struct mlx5e_priv *priv,
 		break;
 	case MLX5E_VLAN_RULE_TYPE_ANY_VID:
 		rule_p = &priv->fs.vlan.any_vlan_rule;
-		MLX5_SET(fte_match_param, spec->match_value, outer_headers.vlan_tag, 1);
+		MLX5_SET(fte_match_param, spec->match_value, outer_headers.cvlan_tag, 1);
 		break;
 	default: /* MLX5E_VLAN_RULE_TYPE_MATCH_VID */
 		rule_p = &priv->fs.vlan.active_vlans_rule[vid];
-		MLX5_SET(fte_match_param, spec->match_value, outer_headers.vlan_tag, 1);
+		MLX5_SET(fte_match_param, spec->match_value, outer_headers.cvlan_tag, 1);
 		MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria,
 				 outer_headers.first_vid);
 		MLX5_SET(fte_match_param, spec->match_value, outer_headers.first_vid,
@@ -991,7 +991,7 @@ static int __mlx5e_create_vlan_table_groups(struct mlx5e_flow_table *ft, u32 *in
 
 	memset(in, 0, inlen);
 	MLX5_SET_CFG(in, match_criteria_enable, MLX5_MATCH_OUTER_HEADERS);
-	MLX5_SET_TO_ONES(fte_match_param, mc, outer_headers.vlan_tag);
+	MLX5_SET_TO_ONES(fte_match_param, mc, outer_headers.cvlan_tag);
 	MLX5_SET_TO_ONES(fte_match_param, mc, outer_headers.first_vid);
 	MLX5_SET_CFG(in, start_flow_index, ix);
 	ix += MLX5E_VLAN_GROUP0_SIZE;
@@ -1003,7 +1003,7 @@ static int __mlx5e_create_vlan_table_groups(struct mlx5e_flow_table *ft, u32 *in
 
 	memset(in, 0, inlen);
 	MLX5_SET_CFG(in, match_criteria_enable, MLX5_MATCH_OUTER_HEADERS);
-	MLX5_SET_TO_ONES(fte_match_param, mc, outer_headers.vlan_tag);
+	MLX5_SET_TO_ONES(fte_match_param, mc, outer_headers.cvlan_tag);
 	MLX5_SET_CFG(in, start_flow_index, ix);
 	ix += MLX5E_VLAN_GROUP1_SIZE;
 	MLX5_SET_CFG(in, end_flow_index, ix - 1);
