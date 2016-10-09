@@ -1,54 +1,54 @@
 /* src/p80211/p80211req.c
-*
-* Request/Indication/MacMgmt interface handling functions
-*
-* Copyright (C) 1999 AbsoluteValue Systems, Inc.  All Rights Reserved.
-* --------------------------------------------------------------------
-*
-* linux-wlan
-*
-*   The contents of this file are subject to the Mozilla Public
-*   License Version 1.1 (the "License"); you may not use this file
-*   except in compliance with the License. You may obtain a copy of
-*   the License at http://www.mozilla.org/MPL/
-*
-*   Software distributed under the License is distributed on an "AS
-*   IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
-*   implied. See the License for the specific language governing
-*   rights and limitations under the License.
-*
-*   Alternatively, the contents of this file may be used under the
-*   terms of the GNU Public License version 2 (the "GPL"), in which
-*   case the provisions of the GPL are applicable instead of the
-*   above.  If you wish to allow the use of your version of this file
-*   only under the terms of the GPL and not to allow others to use
-*   your version of this file under the MPL, indicate your decision
-*   by deleting the provisions above and replace them with the notice
-*   and other provisions required by the GPL.  If you do not delete
-*   the provisions above, a recipient may use your version of this
-*   file under either the MPL or the GPL.
-*
-* --------------------------------------------------------------------
-*
-* Inquiries regarding the linux-wlan Open Source project can be
-* made directly to:
-*
-* AbsoluteValue Systems Inc.
-* info@linux-wlan.com
-* http://www.linux-wlan.com
-*
-* --------------------------------------------------------------------
-*
-* Portions of the development of this software were funded by
-* Intersil Corporation as part of PRISM(R) chipset product development.
-*
-* --------------------------------------------------------------------
-*
-* This file contains the functions, types, and macros to support the
-* MLME request interface that's implemented via the device ioctls.
-*
-* --------------------------------------------------------------------
-*/
+ *
+ * Request/Indication/MacMgmt interface handling functions
+ *
+ * Copyright (C) 1999 AbsoluteValue Systems, Inc.  All Rights Reserved.
+ * --------------------------------------------------------------------
+ *
+ * linux-wlan
+ *
+ *   The contents of this file are subject to the Mozilla Public
+ *   License Version 1.1 (the "License"); you may not use this file
+ *   except in compliance with the License. You may obtain a copy of
+ *   the License at http://www.mozilla.org/MPL/
+ *
+ *   Software distributed under the License is distributed on an "AS
+ *   IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ *   implied. See the License for the specific language governing
+ *   rights and limitations under the License.
+ *
+ *   Alternatively, the contents of this file may be used under the
+ *   terms of the GNU Public License version 2 (the "GPL"), in which
+ *   case the provisions of the GPL are applicable instead of the
+ *   above.  If you wish to allow the use of your version of this file
+ *   only under the terms of the GPL and not to allow others to use
+ *   your version of this file under the MPL, indicate your decision
+ *   by deleting the provisions above and replace them with the notice
+ *   and other provisions required by the GPL.  If you do not delete
+ *   the provisions above, a recipient may use your version of this
+ *   file under either the MPL or the GPL.
+ *
+ * --------------------------------------------------------------------
+ *
+ * Inquiries regarding the linux-wlan Open Source project can be
+ * made directly to:
+ *
+ * AbsoluteValue Systems Inc.
+ * info@linux-wlan.com
+ * http://www.linux-wlan.com
+ *
+ * --------------------------------------------------------------------
+ *
+ * Portions of the development of this software were funded by
+ * Intersil Corporation as part of PRISM(R) chipset product development.
+ *
+ * --------------------------------------------------------------------
+ *
+ * This file contains the functions, types, and macros to support the
+ * MLME request interface that's implemented via the device ioctls.
+ *
+ * --------------------------------------------------------------------
+ */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -93,21 +93,22 @@ static void p80211req_handle_action(struct wlandevice *wlandev, u32 *data,
 }
 
 /*----------------------------------------------------------------
-* p80211req_dorequest
-*
-* Handles an MLME request/confirm message.
-*
-* Arguments:
-*	wlandev		WLAN device struct
-*	msgbuf		Buffer containing a request message
-*
-* Returns:
-*	0 on success, an errno otherwise
-*
-* Call context:
-*	Potentially blocks the caller, so it's a good idea to
-*	not call this function from an interrupt context.
-----------------------------------------------------------------*/
+ * p80211req_dorequest
+ *
+ * Handles an MLME request/confirm message.
+ *
+ * Arguments:
+ *	wlandev		WLAN device struct
+ *	msgbuf		Buffer containing a request message
+ *
+ * Returns:
+ *	0 on success, an errno otherwise
+ *
+ * Call context:
+ *	Potentially blocks the caller, so it's a good idea to
+ *	not call this function from an interrupt context.
+ *----------------------------------------------------------------
+ */
 int p80211req_dorequest(struct wlandevice *wlandev, u8 *msgbuf)
 {
 	struct p80211msg *msg = (struct p80211msg *)msgbuf;
@@ -147,23 +148,24 @@ int p80211req_dorequest(struct wlandevice *wlandev, u8 *msgbuf)
 }
 
 /*----------------------------------------------------------------
-* p80211req_handlemsg
-*
-* p80211 message handler.  Primarily looks for messages that
-* belong to p80211 and then dispatches the appropriate response.
-* TODO: we don't do anything yet.  Once the linuxMIB is better
-*	defined we'll need a get/set handler.
-*
-* Arguments:
-*	wlandev		WLAN device struct
-*	msg		message structure
-*
-* Returns:
-*	nothing (any results are set in the status field of the msg)
-*
-* Call context:
-*	Process thread
-----------------------------------------------------------------*/
+ * p80211req_handlemsg
+ *
+ * p80211 message handler.  Primarily looks for messages that
+ * belong to p80211 and then dispatches the appropriate response.
+ * TODO: we don't do anything yet.  Once the linuxMIB is better
+ *	defined we'll need a get/set handler.
+ *
+ * Arguments:
+ *	wlandev		WLAN device struct
+ *	msg		message structure
+ *
+ * Returns:
+ *	nothing (any results are set in the status field of the msg)
+ *
+ * Call context:
+ *	Process thread
+ *----------------------------------------------------------------
+ */
 static void p80211req_handlemsg(struct wlandevice *wlandev, struct p80211msg *msg)
 {
 	switch (msg->msgcode) {
