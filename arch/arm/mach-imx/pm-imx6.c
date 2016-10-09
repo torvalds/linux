@@ -421,6 +421,25 @@ static const u32 imx6ul_mmdc_lpddr2_offset[] __initconst = {
 	0x800, 0x004, 0x01c,
 };
 
+static const u32 imx6sll_mmdc_io_offset[] __initconst = {
+	0x30c, 0x310, 0x314, 0x318, /* DQM0 ~ DQM3 */
+	0x5c4, 0x5cc, 0x5d4, 0x5d8, /* GPR_B0DS ~ GPR_B3DS */
+	0x300, 0x31c, 0x338, 0x5ac, /* CAS, RAS, SDCLK_0, GPR_ADDS */
+	0x33c, 0x340, 0x5b0, 0x5c0, /* SODT0, SODT1, MODE_CTL, MODE */
+	0x330, 0x334, 0x320,        /* SDCKE0, SDCKE1, RESET */
+};
+
+static const u32 imx6sll_mmdc_lpddr3_offset[] __initconst = {
+	0x01c, 0x85c, 0x800, 0x890,
+	0x8b8, 0x81c, 0x820, 0x82c,
+	0x830, 0x83c, 0x848, 0x850,
+	0x8c0, 0x8b8, 0x004, 0x008,
+	0x00c, 0x010, 0x038, 0x014,
+	0x018, 0x01c, 0x02c, 0x030,
+	0x040, 0x000, 0x020, 0x818,
+	0x800, 0x004, 0x01c,
+};
+
 static const struct imx6_pm_socdata imx6q_pm_data __initconst = {
 	.mmdc_compat = "fsl,imx6q-mmdc",
 	.src_compat = "fsl,imx6q-src",
@@ -507,6 +526,17 @@ static const struct imx6_pm_socdata imx6ul_lpddr2_pm_data __initconst = {
 	.mmdc_io_offset = imx6ul_mmdc_io_lpddr2_offset,
 	.mmdc_num = ARRAY_SIZE(imx6ul_mmdc_lpddr2_offset),
 	.mmdc_offset = imx6ul_mmdc_lpddr2_offset,
+};
+
+static const struct imx6_pm_socdata imx6sll_pm_data __initconst = {
+	.mmdc_compat = "fsl,imx6sll-mmdc",
+	.src_compat = "fsl,imx6sll-src",
+	.iomuxc_compat = "fsl,imx6sll-iomuxc",
+	.gpc_compat = "fsl,imx6sll-gpc",
+	.mmdc_io_num = ARRAY_SIZE(imx6sll_mmdc_io_offset),
+	.mmdc_io_offset = imx6sll_mmdc_io_offset,
+	.mmdc_num = ARRAY_SIZE(imx6sll_mmdc_lpddr3_offset),
+	.mmdc_offset = imx6sll_mmdc_lpddr3_offset,
 };
 
 static struct map_desc iram_tlb_io_desc __initdata = {
@@ -643,10 +673,10 @@ int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode)
 		val |= 0x2 << BP_CLPCR_LPM;
 		val &= ~BM_CLPCR_VSTBY;
 		val &= ~BM_CLPCR_SBYOS;
-		if (cpu_is_imx6sl() || cpu_is_imx6sx())
+		if (cpu_is_imx6sl() || cpu_is_imx6sx() || cpu_is_imx6sll())
 			val |= BM_CLPCR_BYPASS_PMIC_READY;
 		if (cpu_is_imx6sl() || cpu_is_imx6sx() ||
-		    cpu_is_imx6ul() || cpu_is_imx6ull())
+		    cpu_is_imx6ul() || cpu_is_imx6ull() || cpu_is_imx6sll())
 			val |= BM_CLPCR_BYP_MMDC_CH0_LPM_HS;
 		else
 			val |= BM_CLPCR_BYP_MMDC_CH1_LPM_HS;
@@ -661,10 +691,10 @@ int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode)
 		val |= 0x3 << BP_CLPCR_STBY_COUNT;
 		val |= BM_CLPCR_VSTBY;
 		val |= BM_CLPCR_SBYOS;
-		if (cpu_is_imx6sl() || cpu_is_imx6sx())
+		if (cpu_is_imx6sl() || cpu_is_imx6sx() || cpu_is_imx6sll())
 			val |= BM_CLPCR_BYPASS_PMIC_READY;
 		if (cpu_is_imx6sl() || cpu_is_imx6sx() ||
-		    cpu_is_imx6ul() || cpu_is_imx6ull())
+		    cpu_is_imx6ul() || cpu_is_imx6ull() || cpu_is_imx6sll())
 			val |= BM_CLPCR_BYP_MMDC_CH0_LPM_HS;
 		else
 			val |= BM_CLPCR_BYP_MMDC_CH1_LPM_HS;
@@ -825,7 +855,8 @@ static int imx6q_pm_enter(suspend_state_t state)
 			imx6_enable_rbc(true);
 		imx_gpc_pre_suspend(true);
 		imx_anatop_pre_suspend();
-		if (cpu_is_imx6ull() && imx_gpc_is_mf_mix_off())
+		if ((cpu_is_imx6ull() || cpu_is_imx6sll()) &&
+			imx_gpc_is_mf_mix_off())
 			imx6_console_save(console_saved_reg);
 		if (cpu_is_imx6sx() && imx_gpc_is_mf_mix_off()) {
 			ccm_ccgr4 = readl_relaxed(ccm_base + CCGR4);
@@ -865,7 +896,8 @@ static int imx6q_pm_enter(suspend_state_t state)
 					sizeof(qspi_regs_imx6sx) /
 					sizeof(struct qspi_regs));
 		}
-		if (cpu_is_imx6ull() && imx_gpc_is_mf_mix_off())
+		if ((cpu_is_imx6ull() || cpu_is_imx6sll()) &&
+			imx_gpc_is_mf_mix_off())
 			imx6_console_restore(console_saved_reg);
 		if (cpu_is_imx6q() || cpu_is_imx6dl())
 			imx_smp_prepare();
@@ -1096,6 +1128,18 @@ static int __init imx6q_suspend_init(const struct imx6_pm_socdata *socdata)
 			mmdc_offset_array[i]);
 	}
 
+	if (cpu_is_imx6sll() && pm_info->ddr_type == IMX_DDR_TYPE_LPDDR3) {
+		pm_info->mmdc_val[0][1] = 0x8000;
+		pm_info->mmdc_val[2][1] = 0xa1390003;
+		pm_info->mmdc_val[3][1] = 0x470000;
+		pm_info->mmdc_val[4][1] = 0x800;
+		pm_info->mmdc_val[13][1] = 0x800;
+		pm_info->mmdc_val[14][1] = 0x20012;
+		pm_info->mmdc_val[20][1] = 0x1748;
+		pm_info->mmdc_val[21][1] = 0x8000;
+		pm_info->mmdc_val[28][1] = 0xa1310003;
+	}
+
 	/* need to overwrite the value for some mmdc registers */
 	if ((cpu_is_imx6sx() || cpu_is_imx6ul() || cpu_is_imx6ull()) &&
 		pm_info->ddr_type != IMX_DDR_TYPE_LPDDR2) {
@@ -1185,6 +1229,17 @@ void __init imx6dl_pm_init(void)
 
 void __init imx6sl_pm_init(void)
 {
+	struct device_node *np;
+
+	if (cpu_is_imx6sll()) {
+		imx6_pm_common_init(&imx6sll_pm_data);
+		np = of_find_node_by_path(
+			"/soc/aips-bus@02000000/spba-bus@02000000/serial@02020000");
+		if (np)
+			console_base = of_iomap(np, 0);
+		return;
+	}
+
 	imx6_pm_common_init(&imx6sl_pm_data);
 }
 

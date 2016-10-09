@@ -146,7 +146,8 @@ void imx_anatop_pre_suspend(void)
 	if (cpu_is_imx6q() && imx_get_soc_revision() == IMX_CHIP_REVISION_2_0)
 		imx_anatop_disable_pu(true);
 
-	if ((imx_mmdc_get_ddr_type() == IMX_DDR_TYPE_LPDDR2) &&
+	if ((imx_mmdc_get_ddr_type() == IMX_DDR_TYPE_LPDDR2 ||
+		imx_mmdc_get_ddr_type() == IMX_DDR_TYPE_LPDDR3) &&
 		!imx_gpc_usb_wakeup_enabled())
 		imx_anatop_enable_2p5_pulldown(true);
 	else
@@ -154,7 +155,8 @@ void imx_anatop_pre_suspend(void)
 
 	imx_anatop_enable_fet_odrive(true);
 
-	if (cpu_is_imx6sl() || cpu_is_imx6sx() || cpu_is_imx6ul() || cpu_is_imx6ull())
+	if (cpu_is_imx6sl() || cpu_is_imx6sx() || cpu_is_imx6ul() ||
+		cpu_is_imx6ull() || cpu_is_imx6sll())
 		imx_anatop_disconnect_high_snvs(true);
 }
 
@@ -174,7 +176,8 @@ void imx_anatop_post_resume(void)
 	if (cpu_is_imx6q() && imx_get_soc_revision() == IMX_CHIP_REVISION_2_0)
 		imx_anatop_disable_pu(false);
 
-	if ((imx_mmdc_get_ddr_type() == IMX_DDR_TYPE_LPDDR2) &&
+	if ((imx_mmdc_get_ddr_type() == IMX_DDR_TYPE_LPDDR2 ||
+		imx_mmdc_get_ddr_type() == IMX_DDR_TYPE_LPDDR3) &&
 		!imx_gpc_usb_wakeup_enabled())
 		imx_anatop_enable_2p5_pulldown(false);
 	else
@@ -182,9 +185,9 @@ void imx_anatop_post_resume(void)
 
 	imx_anatop_enable_fet_odrive(false);
 
-	if (cpu_is_imx6sl() || cpu_is_imx6sx() || cpu_is_imx6ul() || cpu_is_imx6ull())
+	if (cpu_is_imx6sl() || cpu_is_imx6sx() || cpu_is_imx6ul() ||
+		cpu_is_imx6ull() || cpu_is_imx6sll())
 		imx_anatop_disconnect_high_snvs(false);
-
 }
 
 static void imx_anatop_usb_chrg_detect_disable(void)
