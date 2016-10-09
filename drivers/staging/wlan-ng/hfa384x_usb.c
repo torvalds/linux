@@ -153,8 +153,8 @@ enum cmd_mode {
 static void dbprint_urb(struct urb *urb);
 #endif
 
-static void
-hfa384x_int_rxmonitor(struct wlandevice *wlandev, struct hfa384x_usb_rxfrm *rxfrm);
+static void hfa384x_int_rxmonitor(struct wlandevice *wlandev,
+				  struct hfa384x_usb_rxfrm *rxfrm);
 
 static void hfa384x_usb_defer(struct work_struct *data);
 
@@ -173,7 +173,8 @@ hfa384x_usbin_txcompl(struct wlandevice *wlandev, union hfa384x_usbin *usbin);
 
 static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb);
 
-static void hfa384x_usbin_info(struct wlandevice *wlandev, union hfa384x_usbin *usbin);
+static void hfa384x_usbin_info(struct wlandevice *wlandev,
+			       union hfa384x_usbin *usbin);
 
 static void hfa384x_usbin_ctlx(struct hfa384x *hw, union hfa384x_usbin *usbin,
 			       int urb_status);
@@ -193,9 +194,11 @@ static void hfa384x_usbctlx_completion_task(unsigned long data);
 
 static void hfa384x_usbctlx_reaper_task(unsigned long data);
 
-static int hfa384x_usbctlx_submit(struct hfa384x *hw, struct hfa384x_usbctlx *ctlx);
+static int hfa384x_usbctlx_submit(struct hfa384x *hw,
+				  struct hfa384x_usbctlx *ctlx);
 
-static void unlocked_usbctlx_complete(struct hfa384x *hw, struct hfa384x_usbctlx *ctlx);
+static void unlocked_usbctlx_complete(struct hfa384x *hw,
+				      struct hfa384x_usbctlx *ctlx);
 
 struct usbctlx_completor {
 	int (*complete)(struct usbctlx_completor *);
@@ -209,7 +212,8 @@ hfa384x_usbctlx_complete_sync(struct hfa384x *hw,
 static int
 unlocked_usbctlx_cancel_async(struct hfa384x *hw, struct hfa384x_usbctlx *ctlx);
 
-static void hfa384x_cb_status(struct hfa384x *hw, const struct hfa384x_usbctlx *ctlx);
+static void hfa384x_cb_status(struct hfa384x *hw,
+			      const struct hfa384x_usbctlx *ctlx);
 
 static int
 usbctlx_get_status(const struct hfa384x_usb_statusresp *cmdresp,
@@ -664,12 +668,10 @@ static inline int usbctlx_cmd_completor_fn(struct usbctlx_completor *head)
 	return usbctlx_get_status(complete->cmdresp, complete->result);
 }
 
-static inline struct usbctlx_completor *init_cmd_completor(
-						struct usbctlx_cmd_completor
-							*completor,
-						const struct hfa384x_usb_statusresp
-							*cmdresp,
-						struct hfa384x_cmdresult *result)
+static inline struct usbctlx_completor *
+init_cmd_completor(struct usbctlx_cmd_completor *completor,
+			const struct hfa384x_usb_statusresp *cmdresp,
+			struct hfa384x_cmdresult *result)
 {
 	completor->head.complete = usbctlx_cmd_completor_fn;
 	completor->cmdresp = cmdresp;
@@ -710,13 +712,11 @@ static int usbctlx_rrid_completor_fn(struct usbctlx_completor *head)
 	return 0;
 }
 
-static inline struct usbctlx_completor *init_rrid_completor(
-						struct usbctlx_rrid_completor
-							*completor,
-						const struct hfa384x_usb_rridresp
-							*rridresp,
-						void *riddata,
-						unsigned int riddatalen)
+static inline struct usbctlx_completor *
+init_rrid_completor(struct usbctlx_rrid_completor *completor,
+			const struct hfa384x_usb_rridresp *rridresp,
+			void *riddata,
+			unsigned int riddatalen)
 {
 	completor->head.complete = usbctlx_rrid_completor_fn;
 	completor->rridresp = rridresp;
@@ -759,13 +759,11 @@ static int usbctlx_rmem_completor_fn(struct usbctlx_completor *head)
 	return 0;
 }
 
-static inline struct usbctlx_completor *init_rmem_completor(
-						struct usbctlx_rmem_completor
-							*completor,
-						struct hfa384x_usb_rmemresp
-							*rmemresp,
-						void *data,
-						unsigned int len)
+static inline struct usbctlx_completor *
+init_rmem_completor(struct usbctlx_rmem_completor *completor,
+			struct hfa384x_usb_rmemresp *rmemresp,
+			void *data,
+			unsigned int len)
 {
 	completor->head.complete = usbctlx_rmem_completor_fn;
 	completor->rmemresp = rmemresp;
@@ -795,7 +793,8 @@ static inline struct usbctlx_completor *init_rmem_completor(
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-static void hfa384x_cb_status(struct hfa384x *hw, const struct hfa384x_usbctlx *ctlx)
+static void hfa384x_cb_status(struct hfa384x *hw,
+			      const struct hfa384x_usbctlx *ctlx)
 {
 	if (ctlx->usercb) {
 		struct hfa384x_cmdresult cmdresult;
@@ -812,7 +811,8 @@ static void hfa384x_cb_status(struct hfa384x *hw, const struct hfa384x_usbctlx *
 	}
 }
 
-static inline int hfa384x_docmd_wait(struct hfa384x *hw, struct hfa384x_metacmd *cmd)
+static inline int hfa384x_docmd_wait(struct hfa384x *hw,
+				     struct hfa384x_metacmd *cmd)
 {
 	return hfa384x_docmd(hw, DOWAIT, cmd, NULL, NULL, NULL);
 }
@@ -1136,7 +1136,8 @@ int hfa384x_cmd_download(struct hfa384x *hw, u16 mode, u16 lowaddr,
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_corereset(struct hfa384x *hw, int holdtime, int settletime, int genesis)
+int hfa384x_corereset(struct hfa384x *hw, int holdtime,
+		      int settletime, int genesis)
 {
 	int result;
 
@@ -1894,7 +1895,8 @@ int hfa384x_drvr_flashdl_disable(struct hfa384x *hw)
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_drvr_flashdl_write(struct hfa384x *hw, u32 daddr, void *buf, u32 len)
+int hfa384x_drvr_flashdl_write(struct hfa384x *hw, u32 daddr,
+			       void *buf, u32 len)
 {
 	int result = 0;
 	u32 dlbufaddr;
@@ -2146,7 +2148,8 @@ int hfa384x_drvr_ramdl_enable(struct hfa384x *hw, u32 exeaddr)
 
 	/* Check that we're not already in a download state */
 	if (hw->dlstate != HFA384x_DLSTATE_DISABLED) {
-		netdev_err(hw->wlandev->netdev, "Download state not disabled.\n");
+		netdev_err(hw->wlandev->netdev,
+			   "Download state not disabled.\n");
 		return -EINVAL;
 	}
 
@@ -2847,7 +2850,8 @@ static int unlocked_usbctlx_cancel_async(struct hfa384x *hw,
 * Call context:
 *	Either, assume interrupt
 ----------------------------------------------------------------*/
-static void unlocked_usbctlx_complete(struct hfa384x *hw, struct hfa384x_usbctlx *ctlx)
+static void unlocked_usbctlx_complete(struct hfa384x *hw,
+				      struct hfa384x_usbctlx *ctlx)
 {
 	/* Timers have been stopped, and ctlx should be in
 	 * a terminal state. Retire it from the "active"
@@ -3886,7 +3890,8 @@ static void hfa384x_usb_throttlefn(unsigned long data)
 * Call context:
 *	process or interrupt
 ----------------------------------------------------------------*/
-static int hfa384x_usbctlx_submit(struct hfa384x *hw, struct hfa384x_usbctlx *ctlx)
+static int hfa384x_usbctlx_submit(struct hfa384x *hw,
+				  struct hfa384x_usbctlx *ctlx)
 {
 	unsigned long flags;
 
