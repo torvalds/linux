@@ -72,7 +72,8 @@
 #include "p80211metastruct.h"
 #include "p80211req.h"
 
-static void p80211req_handlemsg(struct wlandevice *wlandev, struct p80211msg *msg);
+static void p80211req_handlemsg(struct wlandevice *wlandev,
+				struct p80211msg *msg);
 static void p80211req_mibset_mibget(struct wlandevice *wlandev,
 				   struct p80211msg_dot11req_mibget *mib_msg,
 				   int isget);
@@ -166,7 +167,8 @@ int p80211req_dorequest(struct wlandevice *wlandev, u8 *msgbuf)
  *	Process thread
  *----------------------------------------------------------------
  */
-static void p80211req_handlemsg(struct wlandevice *wlandev, struct p80211msg *msg)
+static void p80211req_handlemsg(struct wlandevice *wlandev,
+				struct p80211msg *msg)
 {
 	switch (msg->msgcode) {
 
