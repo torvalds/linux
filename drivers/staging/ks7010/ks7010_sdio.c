@@ -254,7 +254,7 @@ int ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 
 static int enqueue_txdev(struct ks_wlan_private *priv, unsigned char *p,
 			 unsigned long size,
-			 void (*complete_handler) (void *arg1, void *arg2),
+			 void (*complete_handler)(void *arg1, void *arg2),
 			 void *arg1, void *arg2)
 {
 	struct tx_device_buffer *sp;
@@ -353,7 +353,7 @@ static void tx_device_task(void *dev)
 }
 
 int ks_wlan_hw_tx(struct ks_wlan_private *priv, void *p, unsigned long size,
-		  void (*complete_handler) (void *arg1, void *arg2),
+		  void (*complete_handler)(void *arg1, void *arg2),
 		  void *arg1, void *arg2)
 {
 	int result = 0;
@@ -413,7 +413,7 @@ static void ks_wlan_hw_rx(void *dev, uint16_t size)
 	/* receive data */
 	if (cnt_rxqbody(priv) >= (RX_DEVICE_BUFF_SIZE - 1)) {
 		/* in case of buffer overflow */
-		DPRINTK(1, "rx buffer overflow \n");
+		DPRINTK(1, "rx buffer overflow\n");
 		goto error_out;
 	}
 	rx_buffer = &priv->rx_dev.rx_dev_buff[priv->rx_dev.qtail];
