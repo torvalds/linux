@@ -217,8 +217,8 @@ int wep_decrypt(struct wlandevice *wlandev, u8 *buf, u32 len, int key_override,
 }
 
 /* encrypts in-place. */
-int wep_encrypt(struct wlandevice *wlandev, u8 *buf, u8 *dst, u32 len, int keynum,
-		u8 *iv, u8 *icv)
+int wep_encrypt(struct wlandevice *wlandev, u8 *buf,
+		u8 *dst, u32 len, int keynum, u8 *iv, u8 *icv)
 {
 	u32 i, j, k, crc, keylen;
 	u8 s[256], key[64];
