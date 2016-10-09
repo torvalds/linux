@@ -16,7 +16,11 @@
 #include <linux/slab.h>
 #include <trace/events/power.h>
 
+#ifdef CONFIG_SCHED_MUQSS
+#include "MuQSS.h"
+#else
 #include "sched.h"
+#endif
 
 struct sugov_tunables {
 	struct gov_attr_set attr_set;

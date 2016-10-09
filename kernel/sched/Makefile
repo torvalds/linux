@@ -15,13 +15,18 @@ ifneq ($(CONFIG_SCHED_OMIT_FRAME_POINTER),y)
 CFLAGS_core.o := $(PROFILING) -fno-omit-frame-pointer
 endif
 
+ifdef CONFIG_SCHED_MUQSS
+obj-y += MuQSS.o clock.o
+else
 obj-y += core.o loadavg.o clock.o cputime.o
 obj-y += idle_task.o fair.o rt.o deadline.o stop_task.o
-obj-y += wait.o swait.o completion.o idle.o
-obj-$(CONFIG_SMP) += cpupri.o cpudeadline.o
+obj-$(CONFIG_SMP) += cpudeadline.o
 obj-$(CONFIG_SCHED_AUTOGROUP) += auto_group.o
-obj-$(CONFIG_SCHEDSTATS) += stats.o
 obj-$(CONFIG_SCHED_DEBUG) += debug.o
 obj-$(CONFIG_CGROUP_CPUACCT) += cpuacct.o
+endif
+obj-y += wait.o swait.o completion.o idle.o
+obj-$(CONFIG_SMP) += cpupri.o
+obj-$(CONFIG_SCHEDSTATS) += stats.o
 obj-$(CONFIG_CPU_FREQ) += cpufreq.o
 obj-$(CONFIG_CPU_FREQ_GOV_SCHEDUTIL) += cpufreq_schedutil.o

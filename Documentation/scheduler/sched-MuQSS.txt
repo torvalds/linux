@@ -1,0 +1,7 @@
+MuQSS - The Multiple Queue Skiplist Scheduler by Con Kolivas.
+
+See sched-BFS.txt for basic design; MuQSS is a per-cpu runqueue variant with
+one 8 level skiplist per runqueue, and fine grained locking for much more
+scalability.
+
+Con Kolivas <kernel@kolivas.org> Sun, 2nd October 2016

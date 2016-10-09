@@ -914,9 +914,25 @@ config SCHED_SMT
 	depends on SMP
 	---help---
 	  SMT scheduler support improves the CPU scheduler's decision making
-	  when dealing with Intel Pentium 4 chips with HyperThreading at a
+	  when dealing with Intel P4/Core 2 chips with HyperThreading at a
 	  cost of slightly increased overhead in some places. If unsure say
 	  N here.
+
+config SMT_NICE
+	bool "SMT (Hyperthreading) aware nice priority and policy support"
+	depends on SCHED_MUQSS && SCHED_SMT
+	default y
+	---help---
+	  Enabling Hyperthreading on Intel CPUs decreases the effectiveness
+	  of the use of 'nice' levels and different scheduling policies
+	  (e.g. realtime) due to sharing of CPU power between hyperthreads.
+	  SMT nice support makes each logical CPU aware of what is running on
+	  its hyperthread siblings, maintaining appropriate distribution of
+	  CPU according to nice levels and scheduling policies at the expense
+	  of slightly increased overhead.
+
+	  If unsure say Y here.
+
 
 config SCHED_MC
 	def_bool y
@@ -2036,7 +2052,7 @@ config HOTPLUG_CPU
 config BOOTPARAM_HOTPLUG_CPU0
 	bool "Set default setting of cpu0_hotpluggable"
 	default n
-	depends on HOTPLUG_CPU
+	depends on HOTPLUG_CPU && !SCHED_MUQSS
 	---help---
 	  Set whether default state of cpu0_hotpluggable is on or off.
 
@@ -2065,7 +2081,7 @@ config BOOTPARAM_HOTPLUG_CPU0
 config DEBUG_HOTPLUG_CPU0
 	def_bool n
 	prompt "Debug CPU0 hotplug"
-	depends on HOTPLUG_CPU
+	depends on HOTPLUG_CPU && !SCHED_MUQSS
 	---help---
 	  Enabling this option offlines CPU0 (if CPU0 can be offlined) as
 	  soon as possible and boots up userspace with CPU0 offlined. User

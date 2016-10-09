@@ -4,7 +4,11 @@
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>
 
+#ifndef CONFIG_SCHED_MUQSS
 #include "sched.h"
+#else
+#include "MuQSS.h"
+#endif
 
 /*
  * bump this up when changing the output format or the meaning of an existing

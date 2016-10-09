@@ -9,7 +9,11 @@
  * published by the Free Software Foundation.
  */
 
+#ifdef CONFIG_SCHED_MUQSS
+#include "MuQSS.h"
+#else
 #include "sched.h"
+#endif
 
 DEFINE_PER_CPU(struct update_util_data *, cpufreq_update_util_data);
 

@@ -14,7 +14,11 @@
 
 #include <trace/events/power.h>
 
+#ifdef CONFIG_SCHED_MUQSS
+#include "MuQSS.h"
+#else
 #include "sched.h"
+#endif
 
 /**
  * sched_idle_set_state - Record idle state for the current CPU.
