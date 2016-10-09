@@ -227,7 +227,8 @@ void p80211netdev_rx(struct wlandevice *wlandev, struct sk_buff *skb)
  *	    CONV_TO_ETHER_FAILED if conversion failed
  *	    CONV_TO_ETHER_SKIPPED if frame is ignored
  */
-static int p80211_convert_to_ether(struct wlandevice *wlandev, struct sk_buff *skb)
+static int p80211_convert_to_ether(struct wlandevice *wlandev,
+				   struct sk_buff *skb)
 {
 	struct p80211_hdr_a3 *hdr;
 
@@ -459,7 +460,8 @@ static void p80211knetdev_set_multicast_list(struct net_device *dev)
 
 #ifdef SIOCETHTOOL
 
-static int p80211netdev_ethtool(struct wlandevice *wlandev, void __user *useraddr)
+static int p80211netdev_ethtool(struct wlandevice *wlandev,
+				void __user *useraddr)
 {
 	u32 ethcmd;
 	struct ethtool_drvinfo info;
@@ -531,7 +533,8 @@ static int p80211netdev_ethtool(struct wlandevice *wlandev, void __user *useradd
 *	Process thread (ioctl caller).  TODO: SMP support may require
 *	locks.
 ----------------------------------------------------------------*/
-static int p80211knetdev_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static int p80211knetdev_do_ioctl(struct net_device *dev,
+				  struct ifreq *ifr, int cmd)
 {
 	int result = 0;
 	struct p80211ioctl_req *req = (struct p80211ioctl_req *)ifr;
