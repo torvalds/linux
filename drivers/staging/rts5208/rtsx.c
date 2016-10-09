@@ -313,7 +313,7 @@ static int rtsx_suspend(struct pci_dev *pci, pm_message_t state)
 		return 0;
 
 	/* lock the device pointers */
-	mutex_lock(&(dev->dev_mutex));
+	mutex_lock(&dev->dev_mutex);
 
 	chip = dev->chip;
 
@@ -349,7 +349,7 @@ static int rtsx_resume(struct pci_dev *pci)
 	chip = dev->chip;
 
 	/* lock the device pointers */
-	mutex_lock(&(dev->dev_mutex));
+	mutex_lock(&dev->dev_mutex);
 
 	pci_set_power_state(pci, PCI_D0);
 	pci_restore_state(pci);
@@ -418,7 +418,7 @@ static int rtsx_control_thread(void *__dev)
 			break;
 
 		/* lock the device pointers */
-		mutex_lock(&(dev->dev_mutex));
+		mutex_lock(&dev->dev_mutex);
 
 		/* if the device has disconnected, we are free to exit */
 		if (rtsx_chk_stat(chip, RTSX_STAT_DISCONNECT)) {
@@ -536,7 +536,7 @@ static int rtsx_polling_thread(void *__dev)
 		schedule_timeout(msecs_to_jiffies(POLLING_INTERVAL));
 
 		/* lock the device pointers */
-		mutex_lock(&(dev->dev_mutex));
+		mutex_lock(&dev->dev_mutex);
 
 		/* if the device has disconnected, we are free to exit */
 		if (rtsx_chk_stat(chip, RTSX_STAT_DISCONNECT)) {
@@ -550,7 +550,7 @@ static int rtsx_polling_thread(void *__dev)
 		mspro_polling_format_status(chip);
 
 		/* lock the device pointers */
-		mutex_lock(&(dev->dev_mutex));
+		mutex_lock(&dev->dev_mutex);
 
 		rtsx_polling_func(chip);
 
@@ -886,7 +886,7 @@ static int rtsx_probe(struct pci_dev *pci,
 	}
 
 	spin_lock_init(&dev->reg_lock);
-	mutex_init(&(dev->dev_mutex));
+	mutex_init(&dev->dev_mutex);
 	init_completion(&dev->cmnd_ready);
 	init_completion(&dev->control_exit);
 	init_completion(&dev->polling_exit);
