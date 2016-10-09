@@ -186,8 +186,7 @@ typedef icn_dev *icn_devptr;
 #ifdef __KERNEL__
 
 static icn_card *cards = (icn_card *) 0;
-static u_char chan2bank[] =
-{0, 4, 8, 12};                  /* for icn_map_channel() */
+static u_char chan2bank[] = {0, 4, 8, 12};                  /* for icn_map_channel() */
 
 static icn_dev dev;
 
