@@ -17,6 +17,7 @@
 #include <linux/acpi.h>
 #include <linux/irqdomain.h>
 #include <linux/pm_runtime.h>
+#include <linux/hypervisor.h>
 #include "pci.h"
 
 #define CARDBUS_LATENCY_TIMER	176	/* secondary latency timer */
@@ -2400,12 +2401,13 @@ void __weak pcibios_fixup_bus(struct pci_bus *bus)
 unsigned int pci_scan_child_bus(struct pci_bus *bus)
 {
 	unsigned int devfn, pass, max = bus->busn_res.start;
+	unsigned int stride = jailhouse_paravirt() ? 1 : 8;
 	struct pci_dev *dev;
 
 	dev_dbg(&bus->dev, "scanning bus\n");
 
 	/* Go find them, Rover! */
-	for (devfn = 0; devfn < 0x100; devfn += 8)
+	for (devfn = 0; devfn < 0x100; devfn += stride)
 		pci_scan_slot(bus, devfn);
 
 	/* Reserve buses for SR-IOV capability. */
