@@ -1169,7 +1169,6 @@ enum ctlx_state {
 	CTLX_REQ_COMPLETE,	/* OUT URB complete */
 	CTLX_RESP_COMPLETE	/* IN URB received */
 };
-typedef enum ctlx_state CTLX_STATE;
 
 struct hfa384x_usbctlx;
 struct hfa384x;
@@ -1186,7 +1185,7 @@ struct hfa384x_usbctlx {
 	union hfa384x_usbout outbuf;	/* pkt buf for OUT */
 	union hfa384x_usbin inbuf;	/* pkt buf for IN(a copy) */
 
-	CTLX_STATE state;	/* Tracks running state */
+	enum ctlx_state state;	/* Tracks running state */
 
 	struct completion done;
 	volatile int reapable;	/* Food for the reaper task */

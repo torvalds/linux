@@ -267,7 +267,7 @@ hfa384x_dowmem(struct hfa384x *hw,
 
 static int hfa384x_isgood_pdrcode(u16 pdrcode);
 
-static inline const char *ctlxstr(CTLX_STATE s)
+static inline const char *ctlxstr(enum ctlx_state s)
 {
 	static const char * const ctlx_str[] = {
 		"Initial state",
