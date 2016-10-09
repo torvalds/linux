@@ -3182,11 +3182,11 @@ static int do_bind_con_driver(const struct consw *csw, int first, int last,
 
 	pr_info("Console: switching ");
 	if (!deflt)
-		printk("consoles %d-%d ", first+1, last+1);
+		printk(KERN_CONT "consoles %d-%d ", first+1, last+1);
 	if (j >= 0) {
 		struct vc_data *vc = vc_cons[j].d;
 
-		printk("to %s %s %dx%d\n",
+		printk(KERN_CONT "to %s %s %dx%d\n",
 		       vc->vc_can_do_color ? "colour" : "mono",
 		       desc, vc->vc_cols, vc->vc_rows);
 
@@ -3195,7 +3195,7 @@ static int do_bind_con_driver(const struct consw *csw, int first, int last,
 			update_screen(vc);
 		}
 	} else
-		printk("to %s\n", desc);
+		printk(KERN_CONT "to %s\n", desc);
 
 	retval = 0;
 err:
