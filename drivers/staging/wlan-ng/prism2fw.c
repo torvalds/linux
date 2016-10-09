@@ -1,49 +1,49 @@
 /* from src/prism2/download/prism2dl.c
-*
-* utility for downloading prism2 images moved into kernelspace
-*
-* Copyright (C) 1999 AbsoluteValue Systems, Inc.  All Rights Reserved.
-* --------------------------------------------------------------------
-*
-* linux-wlan
-*
-*   The contents of this file are subject to the Mozilla Public
-*   License Version 1.1 (the "License"); you may not use this file
-*   except in compliance with the License. You may obtain a copy of
-*   the License at http://www.mozilla.org/MPL/
-*
-*   Software distributed under the License is distributed on an "AS
-*   IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
-*   implied. See the License for the specific language governing
-*   rights and limitations under the License.
-*
-*   Alternatively, the contents of this file may be used under the
-*   terms of the GNU Public License version 2 (the "GPL"), in which
-*   case the provisions of the GPL are applicable instead of the
-*   above.  If you wish to allow the use of your version of this file
-*   only under the terms of the GPL and not to allow others to use
-*   your version of this file under the MPL, indicate your decision
-*   by deleting the provisions above and replace them with the notice
-*   and other provisions required by the GPL.  If you do not delete
-*   the provisions above, a recipient may use your version of this
-*   file under either the MPL or the GPL.
-*
-* --------------------------------------------------------------------
-*
-* Inquiries regarding the linux-wlan Open Source project can be
-* made directly to:
-*
-* AbsoluteValue Systems Inc.
-* info@linux-wlan.com
-* http://www.linux-wlan.com
-*
-* --------------------------------------------------------------------
-*
-* Portions of the development of this software were funded by
-* Intersil Corporation as part of PRISM(R) chipset product development.
-*
-* --------------------------------------------------------------------
-*/
+ *
+ * utility for downloading prism2 images moved into kernelspace
+ *
+ * Copyright (C) 1999 AbsoluteValue Systems, Inc.  All Rights Reserved.
+ * --------------------------------------------------------------------
+ *
+ * linux-wlan
+ *
+ *   The contents of this file are subject to the Mozilla Public
+ *   License Version 1.1 (the "License"); you may not use this file
+ *   except in compliance with the License. You may obtain a copy of
+ *   the License at http://www.mozilla.org/MPL/
+ *
+ *   Software distributed under the License is distributed on an "AS
+ *   IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ *   implied. See the License for the specific language governing
+ *   rights and limitations under the License.
+ *
+ *   Alternatively, the contents of this file may be used under the
+ *   terms of the GNU Public License version 2 (the "GPL"), in which
+ *   case the provisions of the GPL are applicable instead of the
+ *   above.  If you wish to allow the use of your version of this file
+ *   only under the terms of the GPL and not to allow others to use
+ *   your version of this file under the MPL, indicate your decision
+ *   by deleting the provisions above and replace them with the notice
+ *   and other provisions required by the GPL.  If you do not delete
+ *   the provisions above, a recipient may use your version of this
+ *   file under either the MPL or the GPL.
+ *
+ * --------------------------------------------------------------------
+ *
+ * Inquiries regarding the linux-wlan Open Source project can be
+ * made directly to:
+ *
+ * AbsoluteValue Systems Inc.
+ * info@linux-wlan.com
+ * http://www.linux-wlan.com
+ *
+ * --------------------------------------------------------------------
+ *
+ * Portions of the development of this software were funded by
+ * Intersil Corporation as part of PRISM(R) chipset product development.
+ *
+ * --------------------------------------------------------------------
+ */
 
 /*================================================================*/
 /* System Includes */
@@ -189,18 +189,19 @@ static int validate_identity(void);
 /* Function Definitions */
 
 /*----------------------------------------------------------------
-* prism2_fwtry
-*
-* Try and get firmware into memory
-*
-* Arguments:
-*	udev	usb device structure
-*	wlandev wlan device structure
-*
-* Returns:
-*	0	- success
-*	~0	- failure
-----------------------------------------------------------------*/
+ * prism2_fwtry
+ *
+ * Try and get firmware into memory
+ *
+ * Arguments:
+ *	udev	usb device structure
+ *	wlandev wlan device structure
+ *
+ * Returns:
+ *	0	- success
+ *	~0	- failure
+ *----------------------------------------------------------------
+ */
 static int prism2_fwtry(struct usb_device *udev, struct wlandevice *wlandev)
 {
 	const struct firmware *fw_entry = NULL;
@@ -226,18 +227,19 @@ static int prism2_fwtry(struct usb_device *udev, struct wlandevice *wlandev)
 }
 
 /*----------------------------------------------------------------
-* prism2_fwapply
-*
-* Apply the firmware loaded into memory
-*
-* Arguments:
-*	rfptr	firmware image in kernel memory
-*	wlandev device
-*
-* Returns:
-*	0	- success
-*	~0	- failure
-----------------------------------------------------------------*/
+ * prism2_fwapply
+ *
+ * Apply the firmware loaded into memory
+ *
+ * Arguments:
+ *	rfptr	firmware image in kernel memory
+ *	wlandev device
+ *
+ * Returns:
+ *	0	- success
+ *	~0	- failure
+ *----------------------------------------------------------------
+ */
 static int prism2_fwapply(const struct ihex_binrec *rfptr,
 			  struct wlandevice *wlandev)
 {
@@ -372,22 +374,23 @@ out:
 }
 
 /*----------------------------------------------------------------
-* crcimage
-*
-* Adds a CRC16 in the two bytes prior to each block identified by
-* an S3 CRC record.  Currently, we don't actually do a CRC we just
-* insert the value 0xC0DE in hfa384x order.
-*
-* Arguments:
-*	fchunk		Array of image chunks
-*	nfchunks	Number of image chunks
-*	s3crc		Array of crc records
-*	ns3crc		Number of crc records
-*
-* Returns:
-*	0	success
-*	~0	failure
-----------------------------------------------------------------*/
+ * crcimage
+ *
+ * Adds a CRC16 in the two bytes prior to each block identified by
+ * an S3 CRC record.  Currently, we don't actually do a CRC we just
+ * insert the value 0xC0DE in hfa384x order.
+ *
+ * Arguments:
+ *	fchunk		Array of image chunks
+ *	nfchunks	Number of image chunks
+ *	s3crc		Array of crc records
+ *	ns3crc		Number of crc records
+ *
+ * Returns:
+ *	0	success
+ *	~0	failure
+ *----------------------------------------------------------------
+ */
 static int crcimage(struct imgchunk *fchunk, unsigned int nfchunks,
 	     struct s3crcrec *s3crc, unsigned int ns3crc)
 {
@@ -439,16 +442,17 @@ static int crcimage(struct imgchunk *fchunk, unsigned int nfchunks,
 }
 
 /*----------------------------------------------------------------
-* free_chunks
-*
-* Clears the chunklist data structures in preparation for a new file.
-*
-* Arguments:
-*	none
-*
-* Returns:
-*	nothing
-----------------------------------------------------------------*/
+ * free_chunks
+ *
+ * Clears the chunklist data structures in preparation for a new file.
+ *
+ * Arguments:
+ *	none
+ *
+ * Returns:
+ *	nothing
+ *----------------------------------------------------------------
+ */
 static void free_chunks(struct imgchunk *fchunk, unsigned int *nfchunks)
 {
 	int i;
@@ -462,16 +466,17 @@ static void free_chunks(struct imgchunk *fchunk, unsigned int *nfchunks)
 }
 
 /*----------------------------------------------------------------
-* free_srecs
-*
-* Clears the srec data structures in preparation for a new file.
-*
-* Arguments:
-*	none
-*
-* Returns:
-*	nothing
-----------------------------------------------------------------*/
+ * free_srecs
+ *
+ * Clears the srec data structures in preparation for a new file.
+ *
+ * Arguments:
+ *	none
+ *
+ * Returns:
+ *	nothing
+ *----------------------------------------------------------------
+ */
 static void free_srecs(void)
 {
 	ns3data = 0;
@@ -486,19 +491,20 @@ static void free_srecs(void)
 }
 
 /*----------------------------------------------------------------
-* mkimage
-*
-* Scans the currently loaded set of S records for data residing
-* in contiguous memory regions.  Each contiguous region is then
-* made into a 'chunk'.  This function assumes that we're building
-* a new chunk list.  Assumes the s3data items are in sorted order.
-*
-* Arguments:	none
-*
-* Returns:
-*	0	- success
-*	~0	- failure (probably an errno)
-----------------------------------------------------------------*/
+ * mkimage
+ *
+ * Scans the currently loaded set of S records for data residing
+ * in contiguous memory regions.  Each contiguous region is then
+ * made into a 'chunk'.  This function assumes that we're building
+ * a new chunk list.  Assumes the s3data items are in sorted order.
+ *
+ * Arguments:	none
+ *
+ * Returns:
+ *	0	- success
+ *	~0	- failure (probably an errno)
+ *----------------------------------------------------------------
+ */
 static int mkimage(struct imgchunk *clist, unsigned int *ccnt)
 {
 	int result = 0;
@@ -577,19 +583,20 @@ static int mkimage(struct imgchunk *clist, unsigned int *ccnt)
 }
 
 /*----------------------------------------------------------------
-* mkpdrlist
-*
-* Reads a raw PDA and builds an array of pdrec_t structures.
-*
-* Arguments:
-*	pda	buffer containing raw PDA bytes
-*	pdrec	ptr to an array of pdrec_t's.  Will be filled on exit.
-*	nrec	ptr to a variable that will contain the count of PDRs
-*
-* Returns:
-*	0	- success
-*	~0	- failure (probably an errno)
-----------------------------------------------------------------*/
+ * mkpdrlist
+ *
+ * Reads a raw PDA and builds an array of pdrec_t structures.
+ *
+ * Arguments:
+ *	pda	buffer containing raw PDA bytes
+ *	pdrec	ptr to an array of pdrec_t's.  Will be filled on exit.
+ *	nrec	ptr to a variable that will contain the count of PDRs
+ *
+ * Returns:
+ *	0	- success
+ *	~0	- failure (probably an errno)
+ *----------------------------------------------------------------
+ */
 static int mkpdrlist(struct pda *pda)
 {
 	u16 *pda16 = (u16 *)pda->buf;
@@ -644,22 +651,23 @@ static int mkpdrlist(struct pda *pda)
 }
 
 /*----------------------------------------------------------------
-* plugimage
-*
-* Plugs the given image using the given plug records from the given
-* PDA and filename.
-*
-* Arguments:
-*	fchunk		Array of image chunks
-*	nfchunks	Number of image chunks
-*	s3plug		Array of plug records
-*	ns3plug		Number of plug records
-*	pda		Current pda data
-*
-* Returns:
-*	0	success
-*	~0	failure
-----------------------------------------------------------------*/
+ * plugimage
+ *
+ * Plugs the given image using the given plug records from the given
+ * PDA and filename.
+ *
+ * Arguments:
+ *	fchunk		Array of image chunks
+ *	nfchunks	Number of image chunks
+ *	s3plug		Array of plug records
+ *	ns3plug		Number of plug records
+ *	pda		Current pda data
+ *
+ * Returns:
+ *	0	success
+ *	~0	failure
+ *----------------------------------------------------------------
+ */
 static int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
 	      struct s3plugrec *s3plug, unsigned int ns3plug, struct pda *pda)
 {
@@ -749,23 +757,24 @@ static int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
 }
 
 /*----------------------------------------------------------------
-* read_cardpda
-*
-* Sends the command for the driver to read the pda from the card
-* named in the device variable.  Upon success, the card pda is
-* stored in the "cardpda" variables.  Note that the pda structure
-* is considered 'well formed' after this function.  That means
-* that the nrecs is valid, the rec array has been set up, and there's
-* a valid PDAEND record in the raw PDA data.
-*
-* Arguments:
-*	pda		pda structure
-*	wlandev		device
-*
-* Returns:
-*	0	- success
-*	~0	- failure (probably an errno)
-----------------------------------------------------------------*/
+ * read_cardpda
+ *
+ * Sends the command for the driver to read the pda from the card
+ * named in the device variable.  Upon success, the card pda is
+ * stored in the "cardpda" variables.  Note that the pda structure
+ * is considered 'well formed' after this function.  That means
+ * that the nrecs is valid, the rec array has been set up, and there's
+ * a valid PDAEND record in the raw PDA data.
+ *
+ * Arguments:
+ *	pda		pda structure
+ *	wlandev		device
+ *
+ * Returns:
+ *	0	- success
+ *	~0	- failure (probably an errno)
+ *----------------------------------------------------------------
+ */
 static int read_cardpda(struct pda *pda, struct wlandevice *wlandev)
 {
 	int result = 0;
@@ -802,65 +811,66 @@ static int read_cardpda(struct pda *pda, struct wlandevice *wlandev)
 }
 
 /*----------------------------------------------------------------
-* read_fwfile
-*
-* Reads the given fw file which should have been compiled from an srec
-* file. Each record in the fw file will either be a plain data record,
-* a start address record, or other records used for plugging.
-*
-* Note that data records are expected to be sorted into
-* ascending address order in the fw file.
-*
-* Note also that the start address record, originally an S7 record in
-* the srec file, is expected in the fw file to be like a data record but
-* with a certain address to make it identifiable.
-*
-* Here's the SREC format that the fw should have come from:
-* S[37]nnaaaaaaaaddd...dddcc
-*
-*       nn - number of bytes starting with the address field
-* aaaaaaaa - address in readable (or big endian) format
-* dd....dd - 0-245 data bytes (two chars per byte)
-*       cc - checksum
-*
-* The S7 record's (there should be only one) address value gets
-* converted to an S3 record with address of 0xff400000, with the
-* start address being stored as a 4 byte data word. That address is
-* the start execution address used for RAM downloads.
-*
-* The S3 records have a collection of subformats indicated by the
-* value of aaaaaaaa:
-*   0xff000000 - Plug record, data field format:
-*                xxxxxxxxaaaaaaaassssssss
-*                x - PDR code number (little endian)
-*                a - Address in load image to plug (little endian)
-*                s - Length of plug data area (little endian)
-*
-*   0xff100000 - CRC16 generation record, data field format:
-*                aaaaaaaassssssssbbbbbbbb
-*                a - Start address for CRC calculation (little endian)
-*                s - Length of data to  calculate over (little endian)
-*                b - Boolean, true=write crc, false=don't write
-*
-*   0xff200000 - Info record, data field format:
-*                ssssttttdd..dd
-*                s - Size in words (little endian)
-*                t - Info type (little endian), see #defines and
-*                    struct s3inforec for details about types.
-*                d - (s - 1) little endian words giving the contents of
-*                    the given info type.
-*
-*   0xff400000 - Start address record, data field format:
-*                aaaaaaaa
-*                a - Address in load image to plug (little endian)
-*
-* Arguments:
-*	record	firmware image (ihex record structure) in kernel memory
-*
-* Returns:
-*	0	- success
-*	~0	- failure (probably an errno)
-----------------------------------------------------------------*/
+ * read_fwfile
+ *
+ * Reads the given fw file which should have been compiled from an srec
+ * file. Each record in the fw file will either be a plain data record,
+ * a start address record, or other records used for plugging.
+ *
+ * Note that data records are expected to be sorted into
+ * ascending address order in the fw file.
+ *
+ * Note also that the start address record, originally an S7 record in
+ * the srec file, is expected in the fw file to be like a data record but
+ * with a certain address to make it identifiable.
+ *
+ * Here's the SREC format that the fw should have come from:
+ * S[37]nnaaaaaaaaddd...dddcc
+ *
+ *       nn - number of bytes starting with the address field
+ * aaaaaaaa - address in readable (or big endian) format
+ * dd....dd - 0-245 data bytes (two chars per byte)
+ *       cc - checksum
+ *
+ * The S7 record's (there should be only one) address value gets
+ * converted to an S3 record with address of 0xff400000, with the
+ * start address being stored as a 4 byte data word. That address is
+ * the start execution address used for RAM downloads.
+ *
+ * The S3 records have a collection of subformats indicated by the
+ * value of aaaaaaaa:
+ *   0xff000000 - Plug record, data field format:
+ *                xxxxxxxxaaaaaaaassssssss
+ *                x - PDR code number (little endian)
+ *                a - Address in load image to plug (little endian)
+ *                s - Length of plug data area (little endian)
+ *
+ *   0xff100000 - CRC16 generation record, data field format:
+ *                aaaaaaaassssssssbbbbbbbb
+ *                a - Start address for CRC calculation (little endian)
+ *                s - Length of data to  calculate over (little endian)
+ *                b - Boolean, true=write crc, false=don't write
+ *
+ *   0xff200000 - Info record, data field format:
+ *                ssssttttdd..dd
+ *                s - Size in words (little endian)
+ *                t - Info type (little endian), see #defines and
+ *                    struct s3inforec for details about types.
+ *                d - (s - 1) little endian words giving the contents of
+ *                    the given info type.
+ *
+ *   0xff400000 - Start address record, data field format:
+ *                aaaaaaaa
+ *                a - Address in load image to plug (little endian)
+ *
+ * Arguments:
+ *	record	firmware image (ihex record structure) in kernel memory
+ *
+ * Returns:
+ *	0	- success
+ *	~0	- failure (probably an errno)
+ *----------------------------------------------------------------
+ */
 static int read_fwfile(const struct ihex_binrec *record)
 {
 	int		i;
@@ -968,20 +978,21 @@ static int read_fwfile(const struct ihex_binrec *record)
 }
 
 /*----------------------------------------------------------------
-* writeimage
-*
-* Takes the chunks, builds p80211 messages and sends them down
-* to the driver for writing to the card.
-*
-* Arguments:
-*	wlandev		device
-*	fchunk		Array of image chunks
-*	nfchunks	Number of image chunks
-*
-* Returns:
-*	0	success
-*	~0	failure
-----------------------------------------------------------------*/
+ * writeimage
+ *
+ * Takes the chunks, builds p80211 messages and sends them down
+ * to the driver for writing to the card.
+ *
+ * Arguments:
+ *	wlandev		device
+ *	fchunk		Array of image chunks
+ *	nfchunks	Number of image chunks
+ *
+ * Returns:
+ *	0	success
+ *	~0	failure
+ *----------------------------------------------------------------
+ */
 static int writeimage(struct wlandevice *wlandev, struct imgchunk *fchunk,
 	       unsigned int nfchunks)
 {
