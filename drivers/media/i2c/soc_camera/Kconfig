@@ -85,3 +85,5 @@ config SOC_CAMERA_TW9910
 	depends on SOC_CAMERA && I2C
 	help
 	  This is a tw9910 video driver
+
+source "drivers/media/i2c/soc_camera/rockchip/Kconfig"
