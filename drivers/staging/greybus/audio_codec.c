@@ -655,8 +655,10 @@ static int gbcodec_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 			ret = gb_audio_apbridgea_shutdown_rx(data->connection,
 							     0);
 		params->state = GBAUDIO_CODEC_STOP;
-	} else
+	} else {
 		ret = -EINVAL;
+	}
+
 	if (ret)
 		dev_err_ratelimited(dai->dev,
 				    "%s:Error during %s %s stream:%d\n",
