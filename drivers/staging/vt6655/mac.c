@@ -147,7 +147,6 @@ void MACvSetShortRetryLimit(struct vnt_private *priv,
 	iowrite8(byRetryLimit, io_base + MAC_REG_SRT);
 }
 
-
 /*
  * Description:
  *      Set 802.11 Long Retry Limit

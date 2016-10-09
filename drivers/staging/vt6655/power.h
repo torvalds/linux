@@ -46,7 +46,6 @@ PSvEnablePowerSaving(
 	unsigned short wListenInterval
 );
 
-
 bool
 PSbIsNextTBTTWakeUp(
 	struct vnt_private *

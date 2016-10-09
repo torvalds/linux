@@ -133,7 +133,6 @@ PSvDisablePowerSaving(
 	priv->bPWBitOn = false;
 }
 
-
 /*
  *
  * Routine Description:

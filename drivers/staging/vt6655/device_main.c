@@ -1272,7 +1272,6 @@ static void vnt_remove_interface(struct ieee80211_hw *hw,
 	priv->op_mode = NL80211_IFTYPE_UNSPECIFIED;
 }
 
-
 static int vnt_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct vnt_private *priv = hw->priv;
