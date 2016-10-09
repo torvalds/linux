@@ -1,61 +1,61 @@
 /* src/prism2/driver/prism2mgmt.c
-*
-* Management request handler functions.
-*
-* Copyright (C) 1999 AbsoluteValue Systems, Inc.  All Rights Reserved.
-* --------------------------------------------------------------------
-*
-* linux-wlan
-*
-*   The contents of this file are subject to the Mozilla Public
-*   License Version 1.1 (the "License"); you may not use this file
-*   except in compliance with the License. You may obtain a copy of
-*   the License at http://www.mozilla.org/MPL/
-*
-*   Software distributed under the License is distributed on an "AS
-*   IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
-*   implied. See the License for the specific language governing
-*   rights and limitations under the License.
-*
-*   Alternatively, the contents of this file may be used under the
-*   terms of the GNU Public License version 2 (the "GPL"), in which
-*   case the provisions of the GPL are applicable instead of the
-*   above.  If you wish to allow the use of your version of this file
-*   only under the terms of the GPL and not to allow others to use
-*   your version of this file under the MPL, indicate your decision
-*   by deleting the provisions above and replace them with the notice
-*   and other provisions required by the GPL.  If you do not delete
-*   the provisions above, a recipient may use your version of this
-*   file under either the MPL or the GPL.
-*
-* --------------------------------------------------------------------
-*
-* Inquiries regarding the linux-wlan Open Source project can be
-* made directly to:
-*
-* AbsoluteValue Systems Inc.
-* info@linux-wlan.com
-* http://www.linux-wlan.com
-*
-* --------------------------------------------------------------------
-*
-* Portions of the development of this software were funded by
-* Intersil Corporation as part of PRISM(R) chipset product development.
-*
-* --------------------------------------------------------------------
-*
-* The functions in this file handle management requests sent from
-* user mode.
-*
-* Most of these functions have two separate blocks of code that are
-* conditional on whether this is a station or an AP.  This is used
-* to separate out the STA and AP responses to these management primitives.
-* It's a choice (good, bad, indifferent?) to have the code in the same
-* place so it's clear that the same primitive is implemented in both
-* cases but has different behavior.
-*
-* --------------------------------------------------------------------
-*/
+ *
+ * Management request handler functions.
+ *
+ * Copyright (C) 1999 AbsoluteValue Systems, Inc.  All Rights Reserved.
+ * --------------------------------------------------------------------
+ *
+ * linux-wlan
+ *
+ *   The contents of this file are subject to the Mozilla Public
+ *   License Version 1.1 (the "License"); you may not use this file
+ *   except in compliance with the License. You may obtain a copy of
+ *   the License at http://www.mozilla.org/MPL/
+ *
+ *   Software distributed under the License is distributed on an "AS
+ *   IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ *   implied. See the License for the specific language governing
+ *   rights and limitations under the License.
+ *
+ *   Alternatively, the contents of this file may be used under the
+ *   terms of the GNU Public License version 2 (the "GPL"), in which
+ *   case the provisions of the GPL are applicable instead of the
+ *   above.  If you wish to allow the use of your version of this file
+ *   only under the terms of the GPL and not to allow others to use
+ *   your version of this file under the MPL, indicate your decision
+ *   by deleting the provisions above and replace them with the notice
+ *   and other provisions required by the GPL.  If you do not delete
+ *   the provisions above, a recipient may use your version of this
+ *   file under either the MPL or the GPL.
+ *
+ * --------------------------------------------------------------------
+ *
+ * Inquiries regarding the linux-wlan Open Source project can be
+ * made directly to:
+ *
+ * AbsoluteValue Systems Inc.
+ * info@linux-wlan.com
+ * http://www.linux-wlan.com
+ *
+ * --------------------------------------------------------------------
+ *
+ * Portions of the development of this software were funded by
+ * Intersil Corporation as part of PRISM(R) chipset product development.
+ *
+ * --------------------------------------------------------------------
+ *
+ * The functions in this file handle management requests sent from
+ * user mode.
+ *
+ * Most of these functions have two separate blocks of code that are
+ * conditional on whether this is a station or an AP.  This is used
+ * to separate out the STA and AP responses to these management primitives.
+ * It's a choice (good, bad, indifferent?) to have the code in the same
+ * place so it's clear that the same primitive is implemented in both
+ * cases but has different behavior.
+ *
+ * --------------------------------------------------------------------
+ */
 
 #include <linux/if_arp.h>
 #include <linux/module.h>
@@ -90,29 +90,30 @@
 				 (((n)&~BIT(7)) == 22) ? BIT(3) : 0)
 
 /*----------------------------------------------------------------
-* prism2mgmt_scan
-*
-* Initiate a scan for BSSs.
-*
-* This function corresponds to MLME-scan.request and part of
-* MLME-scan.confirm.  As far as I can tell in the standard, there
-* are no restrictions on when a scan.request may be issued.  We have
-* to handle in whatever state the driver/MAC happen to be.
-*
-* Arguments:
-*	wlandev		wlan device structure
-*	msgp		ptr to msg buffer
-*
-* Returns:
-*	0	success and done
-*	<0	success, but we're waiting for something to finish.
-*	>0	an error occurred while handling the message.
-* Side effects:
-*
-* Call context:
-*	process thread  (usually)
-*	interrupt
-----------------------------------------------------------------*/
+ * prism2mgmt_scan
+ *
+ * Initiate a scan for BSSs.
+ *
+ * This function corresponds to MLME-scan.request and part of
+ * MLME-scan.confirm.  As far as I can tell in the standard, there
+ * are no restrictions on when a scan.request may be issued.  We have
+ * to handle in whatever state the driver/MAC happen to be.
+ *
+ * Arguments:
+ *	wlandev		wlan device structure
+ *	msgp		ptr to msg buffer
+ *
+ * Returns:
+ *	0	success and done
+ *	<0	success, but we're waiting for something to finish.
+ *	>0	an error occurred while handling the message.
+ * Side effects:
+ *
+ * Call context:
+ *	process thread  (usually)
+ *	interrupt
+ *----------------------------------------------------------------
+ */
 int prism2mgmt_scan(struct wlandevice *wlandev, void *msgp)
 {
 	int result = 0;
@@ -347,25 +348,26 @@ exit:
 }
 
 /*----------------------------------------------------------------
-* prism2mgmt_scan_results
-*
-* Retrieve the BSS description for one of the BSSs identified in
-* a scan.
-*
-* Arguments:
-*	wlandev		wlan device structure
-*	msgp		ptr to msg buffer
-*
-* Returns:
-*	0	success and done
-*	<0	success, but we're waiting for something to finish.
-*	>0	an error occurred while handling the message.
-* Side effects:
-*
-* Call context:
-*	process thread  (usually)
-*	interrupt
-----------------------------------------------------------------*/
+ * prism2mgmt_scan_results
+ *
+ * Retrieve the BSS description for one of the BSSs identified in
+ * a scan.
+ *
+ * Arguments:
+ *	wlandev		wlan device structure
+ *	msgp		ptr to msg buffer
+ *
+ * Returns:
+ *	0	success and done
+ *	<0	success, but we're waiting for something to finish.
+ *	>0	an error occurred while handling the message.
+ * Side effects:
+ *
+ * Call context:
+ *	process thread  (usually)
+ *	interrupt
+ *----------------------------------------------------------------
+ */
 int prism2mgmt_scan_results(struct wlandevice *wlandev, void *msgp)
 {
 	int result = 0;
@@ -507,24 +509,25 @@ exit:
 }
 
 /*----------------------------------------------------------------
-* prism2mgmt_start
-*
-* Start a BSS.  Any station can do this for IBSS, only AP for ESS.
-*
-* Arguments:
-*	wlandev		wlan device structure
-*	msgp		ptr to msg buffer
-*
-* Returns:
-*	0	success and done
-*	<0	success, but we're waiting for something to finish.
-*	>0	an error occurred while handling the message.
-* Side effects:
-*
-* Call context:
-*	process thread  (usually)
-*	interrupt
-----------------------------------------------------------------*/
+ * prism2mgmt_start
+ *
+ * Start a BSS.  Any station can do this for IBSS, only AP for ESS.
+ *
+ * Arguments:
+ *	wlandev		wlan device structure
+ *	msgp		ptr to msg buffer
+ *
+ * Returns:
+ *	0	success and done
+ *	<0	success, but we're waiting for something to finish.
+ *	>0	an error occurred while handling the message.
+ * Side effects:
+ *
+ * Call context:
+ *	process thread  (usually)
+ *	interrupt
+ *----------------------------------------------------------------
+ */
 int prism2mgmt_start(struct wlandevice *wlandev, void *msgp)
 {
 	int result = 0;
@@ -689,23 +692,24 @@ done:
 }
 
 /*----------------------------------------------------------------
-* prism2mgmt_readpda
-*
-* Collect the PDA data and put it in the message.
-*
-* Arguments:
-*	wlandev		wlan device structure
-*	msgp		ptr to msg buffer
-*
-* Returns:
-*	0	success and done
-*	<0	success, but we're waiting for something to finish.
-*	>0	an error occurred while handling the message.
-* Side effects:
-*
-* Call context:
-*	process thread  (usually)
-----------------------------------------------------------------*/
+ * prism2mgmt_readpda
+ *
+ * Collect the PDA data and put it in the message.
+ *
+ * Arguments:
+ *	wlandev		wlan device structure
+ *	msgp		ptr to msg buffer
+ *
+ * Returns:
+ *	0	success and done
+ *	<0	success, but we're waiting for something to finish.
+ *	>0	an error occurred while handling the message.
+ * Side effects:
+ *
+ * Call context:
+ *	process thread  (usually)
+ *----------------------------------------------------------------
+ */
 int prism2mgmt_readpda(struct wlandevice *wlandev, void *msgp)
 {
 	struct hfa384x *hw = wlandev->priv;
@@ -748,30 +752,31 @@ int prism2mgmt_readpda(struct wlandevice *wlandev, void *msgp)
 }
 
 /*----------------------------------------------------------------
-* prism2mgmt_ramdl_state
-*
-* Establishes the beginning/end of a card RAM download session.
-*
-* It is expected that the ramdl_write() function will be called
-* one or more times between the 'enable' and 'disable' calls to
-* this function.
-*
-* Note: This function should not be called when a mac comm port
-*       is active.
-*
-* Arguments:
-*	wlandev		wlan device structure
-*	msgp		ptr to msg buffer
-*
-* Returns:
-*	0	success and done
-*	<0	success, but we're waiting for something to finish.
-*	>0	an error occurred while handling the message.
-* Side effects:
-*
-* Call context:
-*	process thread  (usually)
-----------------------------------------------------------------*/
+ * prism2mgmt_ramdl_state
+ *
+ * Establishes the beginning/end of a card RAM download session.
+ *
+ * It is expected that the ramdl_write() function will be called
+ * one or more times between the 'enable' and 'disable' calls to
+ * this function.
+ *
+ * Note: This function should not be called when a mac comm port
+ *       is active.
+ *
+ * Arguments:
+ *	wlandev		wlan device structure
+ *	msgp		ptr to msg buffer
+ *
+ * Returns:
+ *	0	success and done
+ *	<0	success, but we're waiting for something to finish.
+ *	>0	an error occurred while handling the message.
+ * Side effects:
+ *
+ * Call context:
+ *	process thread  (usually)
+ *----------------------------------------------------------------
+ */
 int prism2mgmt_ramdl_state(struct wlandevice *wlandev, void *msgp)
 {
 	struct hfa384x *hw = wlandev->priv;
@@ -808,25 +813,26 @@ int prism2mgmt_ramdl_state(struct wlandevice *wlandev, void *msgp)
 }
 
 /*----------------------------------------------------------------
-* prism2mgmt_ramdl_write
-*
-* Writes a buffer to the card RAM using the download state.  This
-* is for writing code to card RAM.  To just read or write raw data
-* use the aux functions.
-*
-* Arguments:
-*	wlandev		wlan device structure
-*	msgp		ptr to msg buffer
-*
-* Returns:
-*	0	success and done
-*	<0	success, but we're waiting for something to finish.
-*	>0	an error occurred while handling the message.
-* Side effects:
-*
-* Call context:
-*	process thread  (usually)
-----------------------------------------------------------------*/
+ * prism2mgmt_ramdl_write
+ *
+ * Writes a buffer to the card RAM using the download state.  This
+ * is for writing code to card RAM.  To just read or write raw data
+ * use the aux functions.
+ *
+ * Arguments:
+ *	wlandev		wlan device structure
+ *	msgp		ptr to msg buffer
+ *
+ * Returns:
+ *	0	success and done
+ *	<0	success, but we're waiting for something to finish.
+ *	>0	an error occurred while handling the message.
+ * Side effects:
+ *
+ * Call context:
+ *	process thread  (usually)
+ *----------------------------------------------------------------
+ */
 int prism2mgmt_ramdl_write(struct wlandevice *wlandev, void *msgp)
 {
 	struct hfa384x *hw = wlandev->priv;
@@ -864,30 +870,31 @@ int prism2mgmt_ramdl_write(struct wlandevice *wlandev, void *msgp)
 }
 
 /*----------------------------------------------------------------
-* prism2mgmt_flashdl_state
-*
-* Establishes the beginning/end of a card Flash download session.
-*
-* It is expected that the flashdl_write() function will be called
-* one or more times between the 'enable' and 'disable' calls to
-* this function.
-*
-* Note: This function should not be called when a mac comm port
-*       is active.
-*
-* Arguments:
-*	wlandev		wlan device structure
-*	msgp		ptr to msg buffer
-*
-* Returns:
-*	0	success and done
-*	<0	success, but we're waiting for something to finish.
-*	>0	an error occurred while handling the message.
-* Side effects:
-*
-* Call context:
-*	process thread  (usually)
-----------------------------------------------------------------*/
+ * prism2mgmt_flashdl_state
+ *
+ * Establishes the beginning/end of a card Flash download session.
+ *
+ * It is expected that the flashdl_write() function will be called
+ * one or more times between the 'enable' and 'disable' calls to
+ * this function.
+ *
+ * Note: This function should not be called when a mac comm port
+ *       is active.
+ *
+ * Arguments:
+ *	wlandev		wlan device structure
+ *	msgp		ptr to msg buffer
+ *
+ * Returns:
+ *	0	success and done
+ *	<0	success, but we're waiting for something to finish.
+ *	>0	an error occurred while handling the message.
+ * Side effects:
+ *
+ * Call context:
+ *	process thread  (usually)
+ *----------------------------------------------------------------
+ */
 int prism2mgmt_flashdl_state(struct wlandevice *wlandev, void *msgp)
 {
 	int result = 0;
@@ -942,23 +949,24 @@ int prism2mgmt_flashdl_state(struct wlandevice *wlandev, void *msgp)
 }
 
 /*----------------------------------------------------------------
-* prism2mgmt_flashdl_write
-*
-*
-*
-* Arguments:
-*	wlandev		wlan device structure
-*	msgp		ptr to msg buffer
-*
-* Returns:
-*	0	success and done
-*	<0	success, but we're waiting for something to finish.
-*	>0	an error occurred while handling the message.
-* Side effects:
-*
-* Call context:
-*	process thread  (usually)
-----------------------------------------------------------------*/
+ * prism2mgmt_flashdl_write
+ *
+ *
+ *
+ * Arguments:
+ *	wlandev		wlan device structure
+ *	msgp		ptr to msg buffer
+ *
+ * Returns:
+ *	0	success and done
+ *	<0	success, but we're waiting for something to finish.
+ *	>0	an error occurred while handling the message.
+ * Side effects:
+ *
+ * Call context:
+ *	process thread  (usually)
+ *----------------------------------------------------------------
+ */
 int prism2mgmt_flashdl_write(struct wlandevice *wlandev, void *msgp)
 {
 	struct hfa384x *hw = wlandev->priv;
@@ -1001,24 +1009,25 @@ int prism2mgmt_flashdl_write(struct wlandevice *wlandev, void *msgp)
 }
 
 /*----------------------------------------------------------------
-* prism2mgmt_autojoin
-*
-* Associate with an ESS.
-*
-* Arguments:
-*	wlandev		wlan device structure
-*	msgp		ptr to msg buffer
-*
-* Returns:
-*	0	success and done
-*	<0	success, but we're waiting for something to finish.
-*	>0	an error occurred while handling the message.
-* Side effects:
-*
-* Call context:
-*	process thread  (usually)
-*	interrupt
-----------------------------------------------------------------*/
+ * prism2mgmt_autojoin
+ *
+ * Associate with an ESS.
+ *
+ * Arguments:
+ *	wlandev		wlan device structure
+ *	msgp		ptr to msg buffer
+ *
+ * Returns:
+ *	0	success and done
+ *	<0	success, but we're waiting for something to finish.
+ *	>0	an error occurred while handling the message.
+ * Side effects:
+ *
+ * Call context:
+ *	process thread  (usually)
+ *	interrupt
+ *----------------------------------------------------------------
+ */
 int prism2mgmt_autojoin(struct wlandevice *wlandev, void *msgp)
 {
 	struct hfa384x *hw = wlandev->priv;
@@ -1072,24 +1081,25 @@ int prism2mgmt_autojoin(struct wlandevice *wlandev, void *msgp)
 }
 
 /*----------------------------------------------------------------
-* prism2mgmt_wlansniff
-*
-* Start or stop sniffing.
-*
-* Arguments:
-*	wlandev		wlan device structure
-*	msgp		ptr to msg buffer
-*
-* Returns:
-*	0	success and done
-*	<0	success, but we're waiting for something to finish.
-*	>0	an error occurred while handling the message.
-* Side effects:
-*
-* Call context:
-*	process thread  (usually)
-*	interrupt
-----------------------------------------------------------------*/
+ * prism2mgmt_wlansniff
+ *
+ * Start or stop sniffing.
+ *
+ * Arguments:
+ *	wlandev		wlan device structure
+ *	msgp		ptr to msg buffer
+ *
+ * Returns:
+ *	0	success and done
+ *	<0	success, but we're waiting for something to finish.
+ *	>0	an error occurred while handling the message.
+ * Side effects:
+ *
+ * Call context:
+ *	process thread  (usually)
+ *	interrupt
+ *----------------------------------------------------------------
+ */
 int prism2mgmt_wlansniff(struct wlandevice *wlandev, void *msgp)
 {
 	int result = 0;
