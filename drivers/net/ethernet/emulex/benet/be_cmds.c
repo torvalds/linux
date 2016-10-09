@@ -4977,7 +4977,7 @@ int be_cmd_set_logical_link_config(struct be_adapter *adapter,
 {
 	int status;
 
-	if (BEx_chip(adapter))
+	if (BE2_chip(adapter))
 		return -EOPNOTSUPP;
 
 	status = __be_cmd_set_logical_link_config(adapter, link_state,
