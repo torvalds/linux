@@ -5122,11 +5122,6 @@ static int vop_probe(struct platform_device *pdev)
 	dev_drv->property.max_output_x = 4096;
 	dev_drv->property.max_output_y = 2160;
 
-	if ((VOP_CHIP(vop_dev) == VOP_RK3399) && (vop_dev->id == 1)) {
-		vop_dev->data->win[1].property.feature &= ~SUPPORT_HW_EXIST;
-		vop_dev->data->win[3].property.feature &= ~SUPPORT_HW_EXIST;
-	}
-
 	init_waitqueue_head(&vop_dev->wait_vop_switch_queue);
 	vop_dev->vop_switch_status = 0;
 	init_waitqueue_head(&vop_dev->wait_dmc_queue);
@@ -5137,6 +5132,12 @@ static int vop_probe(struct platform_device *pdev)
 		dev_err(dev, "register fb for lcdc%d failed!\n", vop_dev->id);
 		return ret;
 	}
+
+	if ((VOP_CHIP(vop_dev) == VOP_RK3399) && (vop_dev->id == 1)) {
+		dev_drv->win[1]->property.feature &= ~SUPPORT_HW_EXIST;
+		dev_drv->win[3]->property.feature &= ~SUPPORT_HW_EXIST;
+	}
+
 	vop_dev->screen = dev_drv->screen0;
 	dev_info(dev, "lcdc%d probe ok, iommu %s\n",
 		 vop_dev->id, dev_drv->iommu_enabled ? "enabled" : "disabled");
