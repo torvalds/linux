@@ -1640,35 +1640,33 @@ static struct cont {
 	bool flushed:1;			/* buffer sealed and committed */
 } cont;
 
-static void cont_flush(enum log_flags flags)
+static void cont_flush(void)
 {
 	if (cont.flushed)
 		return;
 	if (cont.len == 0)
 		return;
-
 	if (cont.cons) {
 		/*
 		 * If a fragment of this line was directly flushed to the
 		 * console; wait for the console to pick up the rest of the
 		 * line. LOG_NOCONS suppresses a duplicated output.
 		 */
-		log_store(cont.facility, cont.level, flags | LOG_NOCONS,
+		log_store(cont.facility, cont.level, cont.flags | LOG_NOCONS,
 			  cont.ts_nsec, NULL, 0, cont.buf, cont.len);
-		cont.flags = flags;
 		cont.flushed = true;
 	} else {
 		/*
 		 * If no fragment of this line ever reached the console,
 		 * just submit it to the store and free the buffer.
 		 */
-		log_store(cont.facility, cont.level, flags, 0,
+		log_store(cont.facility, cont.level, cont.flags, 0,
 			  NULL, 0, cont.buf, cont.len);
 		cont.len = 0;
 	}
 }
 
-static bool cont_add(int facility, int level, const char *text, size_t len)
+static bool cont_add(int facility, int level, enum log_flags flags, const char *text, size_t len)
 {
 	if (cont.len && cont.flushed)
 		return false;
@@ -1679,7 +1677,7 @@ static bool cont_add(int facility, int level, const char *text, size_t len)
 	 * the line gets too long, split it up in separate records.
 	 */
 	if (nr_ext_console_drivers || cont.len + len > sizeof(cont.buf)) {
-		cont_flush(LOG_CONT);
+		cont_flush();
 		return false;
 	}
 
@@ -1688,7 +1686,7 @@ static bool cont_add(int facility, int level, const char *text, size_t len)
 		cont.level = level;
 		cont.owner = current;
 		cont.ts_nsec = local_clock();
-		cont.flags = 0;
+		cont.flags = flags;
 		cont.cons = 0;
 		cont.flushed = false;
 	}
@@ -1696,8 +1694,15 @@ static bool cont_add(int facility, int level, const char *text, size_t len)
 	memcpy(cont.buf + cont.len, text, len);
 	cont.len += len;
 
+	// The original flags come from the first line,
+	// but later continuations can add a newline.
+	if (flags & LOG_NEWLINE) {
+		cont.flags |= LOG_NEWLINE;
+		cont_flush();
+	}
+
 	if (cont.len > (sizeof(cont.buf) * 80) / 100)
-		cont_flush(LOG_CONT);
+		cont_flush();
 
 	return true;
 }
@@ -1732,39 +1737,26 @@ static size_t cont_print_text(char *text, size_t size)
 
 static size_t log_output(int facility, int level, enum log_flags lflags, const char *dict, size_t dictlen, char *text, size_t text_len)
 {
-	if (!(lflags & LOG_NEWLINE)) {
-		/*
-		 * Flush the conflicting buffer. An earlier newline was missing,
-		 * or another task also prints continuation lines.
-		 */
-		if (cont.len && (!(lflags & LOG_CONT) || cont.owner != current))
-			cont_flush(LOG_NEWLINE);
-
-		/* buffer line if possible, otherwise store it right away */
-		if (cont_add(facility, level, text, text_len))
-			return text_len;
-
-		return log_store(facility, level, lflags | LOG_CONT, 0, dict, dictlen, text, text_len);
-	}
-
 	/*
-	 * If an earlier newline was missing and it was the same task,
-	 * either merge it with the current buffer and flush, or if
-	 * there was a race with interrupts (prefix == true) then just
-	 * flush it out and store this line separately.
-	 * If the preceding printk was from a different task and missed
-	 * a newline, flush and append the newline.
+	 * If an earlier line was buffered, and we're a continuation
+	 * write from the same process, try to add it to the buffer.
 	 */
 	if (cont.len) {
-		bool stored = false;
+		if (cont.owner == current && (lflags & LOG_CONT)) {
+			if (cont_add(facility, level, lflags, text, text_len))
+				return text_len;
+		}
+		/* Otherwise, make sure it's flushed */
+		cont_flush();
+	}
 
-		if (cont.owner == current && (lflags & LOG_CONT))
-			stored = cont_add(facility, level, text, text_len);
-		cont_flush(LOG_NEWLINE);
-		if (stored)
+	/* If it doesn't end in a newline, try to buffer the current line */
+	if (!(lflags & LOG_NEWLINE)) {
+		if (cont_add(facility, level, lflags, text, text_len))
 			return text_len;
 	}
 
+	/* Store it in the record log */
 	return log_store(facility, level, lflags, 0, dict, dictlen, text, text_len);
 }
 
