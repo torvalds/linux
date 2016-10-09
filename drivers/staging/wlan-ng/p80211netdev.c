@@ -532,7 +532,7 @@ static int p80211netdev_ethtool(struct wlandevice *wlandev,
  *		-ETIME	p80211 cmd timed out (MSD may have its own timers)
  *		-EFAULT memory fault copying msg from user buffer
  *		-ENOMEM unable to allocate kernel msg buffer
- *		-ENOSYS	bad magic, it the cmd really for us?
+ *		-EINVAL	bad magic, it the cmd really for us?
  *		-EintR	sleeping on cmd, awakened by signal, cmd cancelled.
  *
  * Call Context:
@@ -560,7 +560,7 @@ static int p80211knetdev_do_ioctl(struct net_device *dev,
 
 	/* Test the magic, assume ifr is good if it's there */
 	if (req->magic != P80211_IOCTL_MAGIC) {
-		result = -ENOSYS;
+		result = -EINVAL;
 		goto bail;
 	}
 
@@ -568,7 +568,7 @@ static int p80211knetdev_do_ioctl(struct net_device *dev,
 		result = 0;
 		goto bail;
 	} else if (cmd != P80211_IFREQ) {
-		result = -ENOSYS;
+		result = -EINVAL;
 		goto bail;
 	}
 
