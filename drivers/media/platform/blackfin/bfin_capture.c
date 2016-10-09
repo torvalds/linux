@@ -169,7 +169,7 @@ static int bcap_init_sensor_formats(struct bcap_device *bcap_dev)
 	if (!num_formats)
 		return -ENXIO;
 
-	sf = kzalloc(num_formats * sizeof(*sf), GFP_KERNEL);
+	sf = kcalloc(num_formats, sizeof(*sf), GFP_KERNEL);
 	if (!sf)
 		return -ENOMEM;
 
