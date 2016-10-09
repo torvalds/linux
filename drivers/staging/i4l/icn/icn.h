@@ -54,7 +54,7 @@ typedef struct icn_cdef {
 
 /* some useful macros for debugging */
 #ifdef ICN_DEBUG_PORT
-#define OUTB_P(v, p) {printk(KERN_DEBUG "icn: outb_p(0x%02x,0x%03x)\n", v, p); outb_p(v, p);}
+#define OUTB_P(v, p) {pr_debug("icn: outb_p(0x%02x,0x%03x)\n", v, p); outb_p(v, p);}
 #else
 #define OUTB_P outb
 #endif
