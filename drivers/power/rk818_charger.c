@@ -933,13 +933,13 @@ static void rk818_cg_host_evt_worker(struct work_struct *work)
 	struct extcon_dev *edev = cg->cable_edev;
 
 	/* Determine cable/charger type */
-	if (extcon_get_cable_state_(edev, EXTCON_USB_HOST) > 0) {
+	if (extcon_get_cable_state_(edev, EXTCON_USB_VBUS_EN) > 0) {
 		CG_INFO("receive type-c notifier event: OTG ON...\n");
 		if (cg->dc_in && cg->pdata->power_dc2otg)
 			CG_INFO("otg power from dc adapter\n");
 		else
 			rk818_cg_set_otg_state(cg, USB_OTG_POWER_ON);
-	} else if (extcon_get_cable_state_(edev, EXTCON_USB_HOST) == 0) {
+	} else if (extcon_get_cable_state_(edev, EXTCON_USB_VBUS_EN) == 0) {
 		CG_INFO("receive type-c notifier event: OTG OFF...\n");
 		rk818_cg_set_otg_state(cg, USB_OTG_POWER_OFF);
 	}
@@ -1026,7 +1026,7 @@ static long rk818_cg_init_usb(struct rk818_charger *cg)
 		/* Register host */
 		INIT_DELAYED_WORK(&cg->host_work, rk818_cg_host_evt_worker);
 		cg->cable_host_nb.notifier_call = rk818_cg_host_evt_notifier;
-		ret = extcon_register_notifier(edev, EXTCON_USB_HOST,
+		ret = extcon_register_notifier(edev, EXTCON_USB_VBUS_EN,
 					       &cg->cable_host_nb);
 		if (ret < 0) {
 			dev_err(dev, "failed to register notifier for HOST\n");
@@ -1053,7 +1053,7 @@ static long rk818_cg_init_usb(struct rk818_charger *cg)
 						   &cg->cable_cg_nb);
 			extcon_unregister_notifier(edev, EXTCON_CHG_USB_CDP,
 						   &cg->cable_cg_nb);
-			extcon_unregister_notifier(edev, EXTCON_USB_HOST,
+			extcon_unregister_notifier(edev, EXTCON_USB_VBUS_EN,
 						   &cg->cable_host_nb);
 			return ret;
 		}
@@ -1288,7 +1288,7 @@ static void rk818_charger_shutdown(struct platform_device *pdev)
 					   &cg->cable_cg_nb);
 		extcon_unregister_notifier(cg->cable_edev, EXTCON_CHG_USB_CDP,
 					   &cg->cable_cg_nb);
-		extcon_unregister_notifier(cg->cable_edev, EXTCON_USB_HOST,
+		extcon_unregister_notifier(cg->cable_edev, EXTCON_USB_VBUS_EN,
 					   &cg->cable_host_nb);
 		extcon_unregister_notifier(cg->cable_edev, EXTCON_USB,
 					   &cg->cable_discnt_nb);
