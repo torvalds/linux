@@ -322,8 +322,9 @@ static void __init _mxc_timer_init(int irq,
 		tctl_val = V2_TCTL_FRR | V2_TCTL_WAITEN | MXC_TCTL_TEN;
 		if (clk_get_rate(clk_per) == V2_TIMER_RATE_OSC_DIV8) {
 			tctl_val |= V2_TCTL_CLK_OSC_DIV8;
-			if (cpu_is_imx6dl() || cpu_is_imx6sx() || cpu_is_imx6ul() ||
-			    cpu_is_imx6ull() || cpu_is_imx7d()) {
+			if (cpu_is_imx6dl() || cpu_is_imx6sll() ||
+				cpu_is_imx6sx() || cpu_is_imx6ul() ||
+				cpu_is_imx6ull() || cpu_is_imx7d()) {
 				/* 24 / 8 = 3 MHz */
 				__raw_writel(7 << V2_TPRER_PRE24M,
 					timer_base + MXC_TPRER);
@@ -384,6 +385,7 @@ CLOCKSOURCE_OF_DECLARE(mx51_timer, "fsl,imx51-gpt", mxc_timer_init_dt);
 CLOCKSOURCE_OF_DECLARE(mx53_timer, "fsl,imx53-gpt", mxc_timer_init_dt);
 CLOCKSOURCE_OF_DECLARE(mx6q_timer, "fsl,imx6q-gpt", mxc_timer_init_dt);
 CLOCKSOURCE_OF_DECLARE(mx6sl_timer, "fsl,imx6sl-gpt", mxc_timer_init_dt);
+CLOCKSOURCE_OF_DECLARE(mx6sll_timer, "fsl,imx6sll-gpt", mxc_timer_init_dt);
 CLOCKSOURCE_OF_DECLARE(mx6sx_timer, "fsl,imx6sx-gpt", mxc_timer_init_dt);
 CLOCKSOURCE_OF_DECLARE(mx6ul_timer, "fsl,imx6ul-gpt", mxc_timer_init_dt);
 CLOCKSOURCE_OF_DECLARE(mx7d_timer, "fsl,imx7d-gpt", mxc_timer_init_dt);
