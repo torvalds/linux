@@ -76,7 +76,7 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 		container_of(work, struct dwc3_rockchip, otg_work);
 	struct dwc3		*dwc = rockchip->dwc;
 	struct extcon_dev	*edev = rockchip->edev;
-	struct usb_hcd		*hcd;
+	struct usb_hcd		*hcd = dev_get_drvdata(&dwc->xhci->dev);
 	unsigned long		flags;
 	int			ret;
 	u32			reg;
@@ -94,6 +94,21 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 		 */
 		if (WARN_ON(dwc->dr_mode == USB_DR_MODE_HOST))
 			return;
+
+		/*
+		 * Assert otg reset can put the dwc in P2 state, it's
+		 * necessary operation prior to phy power on. However,
+		 * asserting the otg reset may affect dwc chip operation.
+		 * The reset will clear all of the dwc controller registers.
+		 * So we need to reinit the dwc controller after deassert
+		 * the reset. We use pm runtime to initialize dwc controller.
+		 * Also, there are no synchronization primitives, meaning
+		 * the dwc3 core code could at least in theory access chip
+		 * registers while the reset is asserted, with unknown impact.
+		 */
+		reset_control_assert(rockchip->otg_rst);
+		usleep_range(1000, 1200);
+		reset_control_deassert(rockchip->otg_rst);
 
 		pm_runtime_get_sync(dwc->dev);
 
@@ -114,30 +129,48 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 		if (WARN_ON(dwc->dr_mode == USB_DR_MODE_PERIPHERAL))
 			return;
 
+		/*
+		 * Assert otg reset can put the dwc in P2 state, it's
+		 * necessary operation prior to phy power on. However,
+		 * asserting the otg reset may affect dwc chip operation.
+		 * The reset will clear all of the dwc controller registers.
+		 * So we need to reinit the dwc controller after deassert
+		 * the reset. We use pm runtime to initialize dwc controller.
+		 * Also, there are no synchronization primitives, meaning
+		 * the dwc3 core code could at least in theory access chip
+		 * registers while the reset is asserted, with unknown impact.
+		 */
 		reset_control_assert(rockchip->otg_rst);
+		usleep_range(1000, 1200);
+		reset_control_deassert(rockchip->otg_rst);
 
+		/*
+		 * Don't abort on errors. If powering on a phy fails,
+		 * we still need to init dwc controller and add the
+		 * HCDs to avoid a crash when unloading the driver.
+		 */
 		ret = phy_power_on(dwc->usb2_generic_phy);
-		if (ret < 0) {
-			reset_control_deassert(rockchip->otg_rst);
-			return;
-		}
+		if (ret < 0)
+			dev_err(dwc->dev, "Failed to power on usb2 phy\n");
 
 		ret = phy_power_on(dwc->usb3_generic_phy);
 		if (ret < 0) {
 			phy_power_off(dwc->usb2_generic_phy);
-			reset_control_deassert(rockchip->otg_rst);
-			return;
+			dev_err(dwc->dev, "Failed to power on usb3 phy\n");
 		}
 
-		reset_control_deassert(rockchip->otg_rst);
-
 		pm_runtime_get_sync(dwc->dev);
-
-		hcd = dev_get_drvdata(&dwc->xhci->dev);
 
 		spin_lock_irqsave(&dwc->lock, flags);
 		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_HOST);
 		spin_unlock_irqrestore(&dwc->lock, flags);
+
+		/*
+		 * The following sleep helps to ensure that inserted USB3
+		 * Ethernet devices are discovered if already inserted
+		 * when booting.
+		 */
+		usleep_range(10000, 11000);
 
 		if (hcd->state == HC_STATE_HALT) {
 			usb_add_hcd(hcd, hcd->irq, IRQF_SHARED);
@@ -163,7 +196,6 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 
 			phy_power_off(dwc->usb2_generic_phy);
 			phy_power_off(dwc->usb3_generic_phy);
-
 		}
 
 		pm_runtime_put_sync(dwc->dev);
