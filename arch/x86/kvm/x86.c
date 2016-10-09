@@ -8155,7 +8155,7 @@ void kvm_arch_flush_shadow_all(struct kvm *kvm)
 void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
 				   struct kvm_memory_slot *slot)
 {
-	kvm_mmu_invalidate_zap_all_pages(kvm);
+	kvm_page_track_flush_slot(kvm, slot);
 }
 
 static inline bool kvm_vcpu_has_events(struct kvm_vcpu *vcpu)
