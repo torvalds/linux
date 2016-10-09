@@ -629,7 +629,7 @@ void resched_task(struct task_struct *p)
 /* Entered with rq locked */
 static inline void resched_if_idle(struct rq *rq)
 {
-	if (rq_idle(rq))
+	if (rq_idle(rq) && rq->online)
 		resched_task(rq->curr);
 }
 
@@ -1122,31 +1122,31 @@ bool cpus_share_cache(int this_cpu, int that_cpu)
 	return (this_rq->cpu_locality[that_cpu] < 3);
 }
 
-static bool resched_best_idle(struct task_struct *p)
+static struct rq *resched_best_idle(struct task_struct *p, int cpu)
 {
 	cpumask_t tmpmask;
 	struct rq *rq;
 	int best_cpu;
 
 	cpumask_and(&tmpmask, &p->cpus_allowed, &grq.cpu_idle_map);
-	best_cpu = best_mask_cpu(task_cpu(p), task_rq(p), &tmpmask);
+	best_cpu = best_mask_cpu(cpu, task_rq(p), &tmpmask);
 	rq = cpu_rq(best_cpu);
 	if (!smt_schedule(p, rq))
-		return false;
+		return NULL;
 	/*
 	 * Given we do this lockless, do one last check that the rq is still
 	 * idle by the time we get here
 	 */
 	if (unlikely(!rq_idle(rq)))
-		return false;
+		return NULL;
 	resched_curr(rq);
-	return true;
+	return rq;
 }
 
 static inline void resched_suitable_idle(struct task_struct *p)
 {
 	if (suitable_idle_cpus(p))
-		resched_best_idle(p);
+		resched_best_idle(p, task_cpu(p));
 }
 #else /* CONFIG_SMP */
 static inline void set_cpuidle_map(int cpu)
@@ -1207,6 +1207,7 @@ static int effective_prio(struct task_struct *p)
  */
 static void activate_task(struct task_struct *p, struct rq *rq)
 {
+	resched_if_idle(rq);
 	update_clocks(rq);
 
 	/*
@@ -1516,7 +1517,7 @@ static void try_preempt(struct task_struct *p, struct rq *this_rq)
 	int i, this_entries = rq_load(this_rq);
 	cpumask_t tmp;
 
-	if (suitable_idle_cpus(p) && resched_best_idle(p))
+	if (suitable_idle_cpus(p) && resched_best_idle(p, task_cpu(p)))
 		return;
 
 	/* IDLEPRIO tasks never preempt anything but idle */
@@ -1704,9 +1705,20 @@ void scheduler_ipi(void)
  */
 static inline int select_best_cpu(struct task_struct *p)
 {
-	struct rq *rq = task_rq(p), *best_rq = rq;
 	unsigned int idlest = ~0U;
+	struct rq *rq, *best_rq;
 	int i;
+
+	if (suitable_idle_cpus(p)) {
+		int cpu = task_cpu(p);
+
+		if (unlikely(needs_other_cpu(p, cpu)))
+			cpu = cpumask_any(tsk_cpus_allowed(p));
+		rq = resched_best_idle(p, cpu);
+		if (likely(rq))
+			return rq->cpu;
+	}
+	best_rq = rq = task_rq(p);
 
 	for (i = 0; i < num_possible_cpus(); i++) {
 		struct rq *other_rq = rq->rq_order[i];
@@ -1721,8 +1733,6 @@ static inline int select_best_cpu(struct task_struct *p)
 			continue;
 		idlest = entries;
 		best_rq = other_rq;
-		if (!idlest)
-			break;
 	}
 	return best_rq->cpu;
 }
@@ -2130,7 +2140,7 @@ void wake_up_new_task(struct task_struct *p)
 			__set_tsk_resched(rq_curr);
 			time_slice_expired(p, rq);
 			if (suitable_idle_cpus(p))
-				resched_best_idle(p);
+				resched_best_idle(p, task_cpu(p));
 		} else {
 			p->time_slice = rq->rq_time_slice;
 			if (rq_curr == parent && !suitable_idle_cpus(p)) {
