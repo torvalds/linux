@@ -126,7 +126,6 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 			goto out;
 		}
 	}
-	dmcfreq->wait_dcf_flag = 1;
 
 	err = clk_set_rate(dmcfreq->dmc_clk, target_rate);
 	if (err) {
@@ -136,14 +135,6 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 				      dmcfreq->volt);
 		goto out;
 	}
-
-	/*
-	 * Wait until bcf irq happen, it means freq scaling finish in
-	 * arm trust firmware, use 100ms as timeout time.
-	 */
-	if (!wait_event_timeout(dmcfreq->wait_dcf_queue,
-				!dmcfreq->wait_dcf_flag, HZ / 10))
-		dev_warn(dev, "Timeout waiting for dcf interrupt\n");
 
 	/*
 	 * Check the dpll rate,
@@ -247,22 +238,6 @@ static __maybe_unused int rk3399_dmcfreq_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(rk3399_dmcfreq_pm, rk3399_dmcfreq_suspend,
 			 rk3399_dmcfreq_resume);
-
-static irqreturn_t rk3399_dmc_irq(int irq, void *dev_id)
-{
-	struct rk3399_dmcfreq *dmcfreq = dev_id;
-	struct arm_smccc_res res;
-
-	dmcfreq->wait_dcf_flag = 0;
-	wake_up(&dmcfreq->wait_dcf_queue);
-
-	/* Clear the DCF interrupt */
-	arm_smccc_smc(ROCKCHIP_SIP_DRAM_FREQ, 0, 0,
-		      ROCKCHIP_SIP_CONFIG_DRAM_CLR_IRQ,
-		      0, 0, 0, 0, &res);
-
-	return IRQ_HANDLED;
-}
 
 static struct dram_timing *of_get_ddr_timings(struct device *dev,
 					      struct device_node *np)
@@ -395,16 +370,11 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = pdev->dev.of_node;
 	struct rk3399_dmcfreq *data;
-	int ret, irq, index, size;
+	int ret, index, size;
 	uint32_t *timing;
 	struct dev_pm_opp *opp;
 	struct devfreq_dev_profile *devp = &rk3399_devfreq_dmc_profile;
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "Cannot get the dmc interrupt resource\n");
-		return -EINVAL;
-	}
 	data = devm_kzalloc(dev, sizeof(struct rk3399_dmcfreq), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
@@ -422,17 +392,6 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 		dev_err(dev, "Cannot get the clk dmc_clk\n");
 		return PTR_ERR(data->dmc_clk);
 	};
-
-	data->irq = irq;
-	ret = devm_request_irq(dev, irq, rk3399_dmc_irq, 0,
-			       dev_name(dev), data);
-	if (ret) {
-		dev_err(dev, "Failed to request dmc irq: %d\n", ret);
-		return ret;
-	}
-
-	init_waitqueue_head(&data->wait_dcf_queue);
-	data->wait_dcf_flag = 0;
 
 	data->edev = devfreq_event_get_edev_by_phandle(dev, 0);
 	if (IS_ERR(data->edev))
