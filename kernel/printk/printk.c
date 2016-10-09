@@ -1730,6 +1730,44 @@ static size_t cont_print_text(char *text, size_t size)
 	return textlen;
 }
 
+static size_t log_output(int facility, int level, enum log_flags lflags, const char *dict, size_t dictlen, char *text, size_t text_len)
+{
+	if (!(lflags & LOG_NEWLINE)) {
+		/*
+		 * Flush the conflicting buffer. An earlier newline was missing,
+		 * or another task also prints continuation lines.
+		 */
+		if (cont.len && (!(lflags & LOG_CONT) || cont.owner != current))
+			cont_flush(LOG_NEWLINE);
+
+		/* buffer line if possible, otherwise store it right away */
+		if (cont_add(facility, level, text, text_len))
+			return text_len;
+
+		return log_store(facility, level, lflags | LOG_CONT, 0, dict, dictlen, text, text_len);
+	}
+
+	/*
+	 * If an earlier newline was missing and it was the same task,
+	 * either merge it with the current buffer and flush, or if
+	 * there was a race with interrupts (prefix == true) then just
+	 * flush it out and store this line separately.
+	 * If the preceding printk was from a different task and missed
+	 * a newline, flush and append the newline.
+	 */
+	if (cont.len) {
+		bool stored = false;
+
+		if (cont.owner == current && (lflags & LOG_CONT))
+			stored = cont_add(facility, level, text, text_len);
+		cont_flush(LOG_NEWLINE);
+		if (stored)
+			return text_len;
+	}
+
+	return log_store(facility, level, lflags, 0, dict, dictlen, text, text_len);
+}
+
 asmlinkage int vprintk_emit(int facility, int level,
 			    const char *dict, size_t dictlen,
 			    const char *fmt, va_list args)
@@ -1842,45 +1880,7 @@ asmlinkage int vprintk_emit(int facility, int level,
 	if (dict)
 		lflags |= LOG_PREFIX|LOG_NEWLINE;
 
-	if (!(lflags & LOG_NEWLINE)) {
-		/*
-		 * Flush the conflicting buffer. An earlier newline was missing,
-		 * or another task also prints continuation lines.
-		 */
-		if (cont.len && (!(lflags & LOG_CONT) || cont.owner != current))
-			cont_flush(LOG_NEWLINE);
-
-		/* buffer line if possible, otherwise store it right away */
-		if (cont_add(facility, level, text, text_len))
-			printed_len += text_len;
-		else
-			printed_len += log_store(facility, level,
-						 lflags | LOG_CONT, 0,
-						 dict, dictlen, text, text_len);
-	} else {
-		bool stored = false;
-
-		/*
-		 * If an earlier newline was missing and it was the same task,
-		 * either merge it with the current buffer and flush, or if
-		 * there was a race with interrupts (prefix == true) then just
-		 * flush it out and store this line separately.
-		 * If the preceding printk was from a different task and missed
-		 * a newline, flush and append the newline.
-		 */
-		if (cont.len) {
-			if (cont.owner == current && (lflags & LOG_CONT))
-				stored = cont_add(facility, level, text,
-						  text_len);
-			cont_flush(LOG_NEWLINE);
-		}
-
-		if (stored)
-			printed_len += text_len;
-		else
-			printed_len += log_store(facility, level, lflags, 0,
-						 dict, dictlen, text, text_len);
-	}
+	printed_len += log_output(facility, level, lflags, dict, dictlen, text, text_len);
 
 	logbuf_cpu = UINT_MAX;
 	raw_spin_unlock(&logbuf_lock);
