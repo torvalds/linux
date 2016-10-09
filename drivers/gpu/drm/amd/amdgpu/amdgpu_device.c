@@ -2576,6 +2576,13 @@ static ssize_t amdgpu_debugfs_regs_read(struct file *f, char __user *buf,
 		se_bank = (*pos >> 24) & 0x3FF;
 		sh_bank = (*pos >> 34) & 0x3FF;
 		instance_bank = (*pos >> 44) & 0x3FF;
+
+		if (se_bank == 0x3FF)
+			se_bank = 0xFFFFFFFF;
+		if (sh_bank == 0x3FF)
+			sh_bank = 0xFFFFFFFF;
+		if (instance_bank == 0x3FF)
+			instance_bank = 0xFFFFFFFF;
 		use_bank = 1;
 	} else {
 		use_bank = 0;
@@ -2584,8 +2591,8 @@ static ssize_t amdgpu_debugfs_regs_read(struct file *f, char __user *buf,
 	*pos &= 0x3FFFF;
 
 	if (use_bank) {
-		if (sh_bank >= adev->gfx.config.max_sh_per_se ||
-		    se_bank >= adev->gfx.config.max_shader_engines)
+		if ((sh_bank != 0xFFFFFFFF && sh_bank >= adev->gfx.config.max_sh_per_se) ||
+		    (se_bank != 0xFFFFFFFF && se_bank >= adev->gfx.config.max_shader_engines))
 			return -EINVAL;
 		mutex_lock(&adev->grbm_idx_mutex);
 		amdgpu_gfx_select_se_sh(adev, se_bank,
