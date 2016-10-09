@@ -38,18 +38,15 @@ MODULE_PARM_DESC(bt, "Sets the factor used in the step-up circuits");
 
 static unsigned int vc = 0x03; /* Vci1=Vci*0.80 */
 module_param(vc, uint, 0);
-MODULE_PARM_DESC(vc,
-"Sets the ratio factor of Vci to generate the reference voltages Vci1");
+MODULE_PARM_DESC(vc, "Sets the ratio factor of Vci to generate the reference voltages Vci1");
 
 static unsigned int vrh = 0x0d; /* VREG1OUT=Vci*1.85 */
 module_param(vrh, uint, 0);
-MODULE_PARM_DESC(vrh,
-"Set the amplifying rate (1.6 ~ 1.9) of Vci applied to output the VREG1OUT");
+MODULE_PARM_DESC(vrh, "Set the amplifying rate (1.6 ~ 1.9) of Vci applied to output the VREG1OUT");
 
 static unsigned int vdv = 0x12; /* VCOMH amplitude=VREG1OUT*0.98 */
 module_param(vdv, uint, 0);
-MODULE_PARM_DESC(vdv,
-"Select the factor of VREG1OUT to set the amplitude of Vcom");
+MODULE_PARM_DESC(vdv, "Select the factor of VREG1OUT to set the amplitude of Vcom");
 
 static unsigned int vcm = 0x0a; /* VCOMH=VREG1OUT*0.735 */
 module_param(vcm, uint, 0);
