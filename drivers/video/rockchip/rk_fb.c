@@ -3590,6 +3590,7 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		enable, lcdc_id, screen->type, dev_drv->cur_screen->type);
 
 	mutex_lock(&dev_drv->switch_screen);
+	dev_drv->hot_plug_state = enable;
 	hdmi_switch_state = 0;
 	dev_drv->hdmi_switch = 1;
 	if (!dev_drv->uboot_logo) {

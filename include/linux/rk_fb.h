@@ -702,6 +702,7 @@ struct rk_lcdc_driver {
 	struct device *mmu_dev;
 	int iommu_enabled;
 	int dsp_mode;
+	bool hot_plug_state;
 
 	struct rk_fb_reg_area_data reg_area_data;
 	/*
