@@ -81,6 +81,9 @@ extern int rt5631_headset_mic_detect(bool headset_status);
 #if defined (CONFIG_SND_SOC_RT3261) || defined (CONFIG_SND_SOC_RT3224)
 extern int rt3261_headset_mic_detect(int jack_insert);
 #endif
+#if defined(CONFIG_SND_SOC_ES8316)
+extern int es8316_headset_detect(int jack_insert);
+#endif
 
 /* headset private data */
 struct headset_priv {
@@ -166,6 +169,11 @@ static irqreturn_t headset_interrupt(int irq, void *dev_id)
 	DBG("(headset in is %s)headset status is %s\n",
 		pdata->headset_insert_type?"high level":"low level",
 		headset_info->headset_status?"in":"out");
+
+	#if defined(CONFIG_SND_SOC_ES8316)
+	es8316_headset_detect(headset_info->headset_status);
+	#endif
+
 	if(headset_info->headset_status == HEADSET_IN)
 	{
 		if(pdata->chan != 0)
@@ -189,7 +197,7 @@ static irqreturn_t headset_interrupt(int irq, void *dev_id)
 	}
 	else if(headset_info->headset_status == HEADSET_OUT)
 	{
-		headset_info->cur_headset_status = ~(BIT_HEADSET|BIT_HEADSET_NO_MIC);
+		headset_info->cur_headset_status = HEADSET_OUT;
 		cancel_delayed_work(&headset_info->hook_work);
 		if(headset_info->isMic)
 		{
@@ -204,6 +212,7 @@ static irqreturn_t headset_interrupt(int irq, void *dev_id)
 			#ifdef CONFIG_SND_SOC_RT5631_PHONE
 			rt5631_headset_mic_detect(false);
 			#endif				
+			headset_info->isMic = 0;
 		}	
 
 		if(pdata->headset_insert_type == HEADSET_IN_HIGH)
