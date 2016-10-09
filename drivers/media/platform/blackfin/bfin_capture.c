@@ -802,10 +802,8 @@ static int bcap_probe(struct platform_device *pdev)
 	}
 
 	bcap_dev = kzalloc(sizeof(*bcap_dev), GFP_KERNEL);
-	if (!bcap_dev) {
-		v4l2_err(pdev->dev.driver, "Unable to alloc bcap_dev\n");
+	if (!bcap_dev)
 		return -ENOMEM;
-	}
 
 	bcap_dev->cfg = config;
 
