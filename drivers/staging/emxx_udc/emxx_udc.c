@@ -2938,7 +2938,7 @@ static void  nbu2ss_ep_fifo_flush(struct usb_ep *_ep)
 }
 
 /*-------------------------------------------------------------------------*/
-static struct usb_ep_ops nbu2ss_ep_ops = {
+static const struct usb_ep_ops nbu2ss_ep_ops = {
 	.enable		= nbu2ss_ep_enable,
 	.disable	= nbu2ss_ep_disable,
 
