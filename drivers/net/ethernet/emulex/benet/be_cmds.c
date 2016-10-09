@@ -3527,6 +3527,11 @@ int be_cmd_get_cntl_attributes(struct be_adapter *adapter)
 		for (i = 0; i < CNTL_SERIAL_NUM_WORDS; i++)
 			adapter->serial_num[i] = le32_to_cpu(serial_num[i]) &
 				(BIT_MASK(16) - 1);
+		/* For BEx, since GET_FUNC_CONFIG command is not
+		 * supported, we read funcnum here as a workaround.
+		 */
+		if (BEx_chip(adapter))
+			adapter->pf_num = attribs->hba_attribs.pci_funcnum;
 	}
 
 err:
