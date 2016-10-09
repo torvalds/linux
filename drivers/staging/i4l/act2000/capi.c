@@ -99,7 +99,7 @@ actcapi_chkhdr(act2000_card *card, actcapi_msghdr *hdr)
 	for (i = 0; i < num_valid_imsg; i++)
 		if ((hdr->cmd.cmd == valid_msg[i].cmd.cmd) &&
 		    (hdr->cmd.subcmd == valid_msg[i].cmd.subcmd)) {
-			return (i ? 1 : 2);
+			return i ? 1 : 2;
 		}
 	return 0;
 }
