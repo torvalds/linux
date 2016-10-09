@@ -1714,7 +1714,7 @@ static inline int select_best_cpu(struct task_struct *p)
 
 		if (!other_rq->online)
 			continue;
-		if (other_rq != rq && needs_other_cpu(p, other_rq->cpu))
+		if (needs_other_cpu(p, other_rq->cpu))
 			continue;
 		entries = rq_load(other_rq);
 		if (entries >= idlest)
@@ -5707,7 +5707,7 @@ static int __set_cpus_allowed_ptr(struct task_struct *p,
 	if (cpumask_test_cpu(task_cpu(p), new_mask))
 		goto out;
 
-	if (task_running(rq, p)) {
+	if (task_running(rq, p) || p->state == TASK_WAKING) {
 		/* Task is running on the wrong cpu now, reschedule it. */
 		if (rq == this_rq()) {
 			set_tsk_need_resched(p);
@@ -5718,9 +5718,12 @@ static int __set_cpus_allowed_ptr(struct task_struct *p,
 		int dest_cpu = cpumask_any_and(cpu_valid_mask, new_mask);
 		struct rq *dest_rq = cpu_rq(dest_cpu);
 
+		/* Switch rq locks here */
 		lock_second_rq(rq, dest_rq);
 		set_task_cpu(p, dest_cpu);
-		rq_unlock(dest_rq);
+		rq_unlock(rq);
+
+		rq = dest_rq;
 	}
 out:
 	if (queued && !cpumask_subset(new_mask, &old_mask))
