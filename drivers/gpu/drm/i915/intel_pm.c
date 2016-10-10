@@ -3041,7 +3041,7 @@ bool intel_can_enable_sagv(struct drm_atomic_state *state)
 	pipe = ffs(intel_state->active_crtcs) - 1;
 	crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 
-	if (crtc->base.state->mode.flags & DRM_MODE_FLAG_INTERLACE)
+	if (crtc->base.state->adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
 		return false;
 
 	for_each_intel_plane_on_crtc(dev, crtc, plane) {
