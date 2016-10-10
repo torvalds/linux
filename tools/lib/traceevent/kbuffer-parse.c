@@ -622,6 +622,7 @@ void *kbuffer_read_at_offset(struct kbuffer *kbuf, int offset,
 
 	/* Reset the buffer */
 	kbuffer_load_subbuffer(kbuf, kbuf->subbuffer);
+	data = kbuffer_read_event(kbuf, ts);
 
 	while (kbuf->curr < offset) {
 		data = kbuffer_next_event(kbuf, ts);
