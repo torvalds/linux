@@ -615,7 +615,7 @@ int p80211skb_rxmeta_attach(struct wlandevice *wlandev, struct sk_buff *skb)
 	}
 
 	/* Allocate the rxmeta */
-	rxmeta = kzalloc(sizeof(struct p80211_rxmeta), GFP_ATOMIC);
+	rxmeta = kzalloc(sizeof(*rxmeta), GFP_ATOMIC);
 
 	if (!rxmeta) {
 		netdev_err(wlandev->netdev,
